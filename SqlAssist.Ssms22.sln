@@ -1,0 +1,31 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.12105.275
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Core", "src\SqlAssist.Core\SqlAssist.Core.csproj", "{67C522AA-C08A-444B-974C-F812587DEBD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Ssms22", "src\SqlAssist.Ssms22\SqlAssist.Ssms22.csproj", "{68274BB6-5A79-49C9-BE49-8B9B2FA700E2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Core.Tests", "tests\SqlAssist.Core.Tests\SqlAssist.Core.Tests.csproj", "{0354E203-91FB-49F3-A687-E020902BC82A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{67C522AA-C08A-444B-974C-F812587DEBD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67C522AA-C08A-444B-974C-F812587DEBD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67C522AA-C08A-444B-974C-F812587DEBD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67C522AA-C08A-444B-974C-F812587DEBD8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68274BB6-5A79-49C9-BE49-8B9B2FA700E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68274BB6-5A79-49C9-BE49-8B9B2FA700E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68274BB6-5A79-49C9-BE49-8B9B2FA700E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68274BB6-5A79-49C9-BE49-8B9B2FA700E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0354E203-91FB-49F3-A687-E020902BC82A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0354E203-91FB-49F3-A687-E020902BC82A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0354E203-91FB-49F3-A687-E020902BC82A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0354E203-91FB-49F3-A687-E020902BC82A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+

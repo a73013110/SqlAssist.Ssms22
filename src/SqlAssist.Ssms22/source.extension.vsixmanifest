@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0"
+                 xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"
+                 xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65"
+              Version="0.4.1"
+              Language="zh-TW"
+              Publisher="SqlAssist" />
+    <DisplayName>SqlAssist for SSMS 22</DisplayName>
+    <Description xml:space="preserve">SSMS 22 的 T-SQL 即時建議、Snippet 與資料庫物件預覽工具 0.4.1。</Description>
+    <Tags>SSMS, SQL, T-SQL, snippet</Tags>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VisualStudio.Ssms" Version="[22.0,23.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" Version="[4.8,)" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor"
+                  Version="[18.0,19.0)"
+                  DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage"
+           d:Source="Project"
+           d:ProjectName="%CurrentProject%"
+           Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+    <!-- SSMS 會以 MEF 掃描此組件，並建立 SQL 編輯器的按鍵處理器。 -->
+    <Asset Type="Microsoft.VisualStudio.MefComponent"
+           d:Source="File"
+           Path="SqlAssist.Ssms22.dll" />
+  </Assets>
+</PackageManifest>
