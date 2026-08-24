@@ -363,7 +363,36 @@ internal sealed class SqlCompletionController : IDisposable
         _refreshTimer.Start();
     }
 
+    /// <summary>
+    /// 重新計算並顯示建議清單。
+    /// </summary>
+    /// <remarks>
+    /// 這個方法是從 <see cref="DispatcherTimer"/> 的 Tick、緩衝區與游標事件呼叫的，
+    /// 那些位置沒有任何人接例外：一旦丟出去，SSMS 會對每一次按鍵彈出錯誤對話框。
+    /// 因此在這裡收斂所有例外，記下完整堆疊後安靜地收起清單。
+    /// </remarks>
     private void RefreshNow()
+    {
+        try
+        {
+            RefreshCore();
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"更新建議清單失敗：{exception}");
+
+            try
+            {
+                Hide();
+            }
+            catch (Exception hideException)
+            {
+                SqlAssistDiagnostics.WriteAlways($"收起建議清單失敗：{hideException.Message}");
+            }
+        }
+    }
+
+    private void RefreshCore()
     {
         if (_disposed || !_textView.Selection.IsEmpty)
         {
@@ -380,8 +409,10 @@ internal sealed class SqlCompletionController : IDisposable
         }
 
         var caret = _textView.Caret.Position.BufferPosition;
-        var textBeforeCaret = caret.Snapshot.GetText(0, caret.Position);
-        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        // 必須用帶完整文字的多載，否則解析不出別名：
+        // SELECT u.| FROM PUBLISHER u 的 FROM 子句在游標後方。
+        var context = SqlCompletionContextAnalyzer.Analyze(caret.Snapshot.GetText(), caret.Position);
 
         if (!context.IsValid)
         {
@@ -414,7 +445,15 @@ internal sealed class SqlCompletionController : IDisposable
         }
         else
         {
-            DismissNativeCompletion(); // 自製清單顯示時，關閉 SSMS 原生 IntelliSense 清單。
+            // 只在自製清單由關閉轉為開啟時關閉 SSMS 原生清單。
+            // 每一次按鍵都呼叫 DismissAllSessions 會在 SSMS 的舊版語言服務
+            // 還在計算時把 session 抽掉，而那正是連續按 Backspace 時
+            // 每刪一個字就跳一次錯誤對話框的時機。
+            if (!_popup.IsOpen)
+            {
+                DismissNativeCompletion();
+            }
+
             _popup.Show(matches, _textView, settings.Suggestions.ShowPreview);
         }
 
@@ -434,7 +473,8 @@ internal sealed class SqlCompletionController : IDisposable
         SqlAssistSettings settings,
         out IEnumerable<SqlSuggestion> candidates)
     {
-        if (context.Target == CompletionTarget.Column)
+        // 欄位同樣來自資料庫查詢，因此與物件建議共用同一個開關。
+        if (context.Target == CompletionTarget.Column && settings.Features.ObjectPicker)
         {
             var table = context.QualifiedTable!;
             var key = ColumnCacheKey(table);

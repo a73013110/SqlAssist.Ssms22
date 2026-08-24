@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -100,8 +100,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
     private static SqlCompletionContext AnalyzeAt(SnapshotPoint triggerLocation)
     {
-        // 探測階段先求正確，之後改為只掃描游標所在敘述，不要每次都取整份文件。
-        var textBeforeCaret = triggerLocation.Snapshot.GetText(0, triggerLocation.Position);
-        return SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        // 與自製清單走同一條分析路徑，含別名解析；探測要能反映真實行為才有意義。
+        return SqlCompletionContextAnalyzer.Analyze(
+            triggerLocation.Snapshot.GetText(),
+            triggerLocation.Position);
     }
 }

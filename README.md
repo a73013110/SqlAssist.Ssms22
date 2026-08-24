@@ -1,7 +1,7 @@
 # SqlAssist for SSMS 22
 
 針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-目前版本為 **0.6.0**。
+目前版本為 **0.6.1**。
 
 ## 專案結構
 

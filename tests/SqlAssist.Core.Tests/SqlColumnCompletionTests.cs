@@ -1,4 +1,4 @@
-using SqlAssist.Core;
+﻿using SqlAssist.Core;
 using Xunit;
 
 namespace SqlAssist.Core.Tests;
@@ -115,6 +115,26 @@ public sealed class SqlColumnCompletionTests
         var context = Analyze("SELECT i.| FROM (SELECT X FROM dbo.Item i) d");
 
         Assert.Null(context.QualifiedTable);
+    }
+
+    /// <summary>
+    /// 實機回報的兩個情形：大寫資料表名稱、以及 JOIN 之後在 ON 條件裡用第二個別名。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT u.| FROM PUBLISHER u", "PUBLISHER")]
+    [InlineData("SELECT u.s| FROM PUBLISHER u", "PUBLISHER")]
+    [InlineData(
+        "SELECT u.* FROM PUBLISHER u INNER JOIN Cat_BookCopy b ON b.|",
+        "Cat_BookCopy")]
+    [InlineData(
+        "SELECT u.* FROM PUBLISHER u INNER JOIN Cat_BookCopy b ON b.Id = u.|",
+        "PUBLISHER")]
+    public void 實機情形(string sqlWithCaret, string expectedTable)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal(expectedTable, context.QualifiedTable!.ObjectName);
     }
 
     [Fact]
