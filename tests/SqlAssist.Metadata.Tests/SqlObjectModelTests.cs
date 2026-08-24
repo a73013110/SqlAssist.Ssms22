@@ -83,6 +83,55 @@ public sealed class SqlObjectModelTests
         Assert.Equal(isRegular ? name : SqlIdentifier.Quote(name), SqlIdentifier.QuoteIfNeeded(name));
     }
 
+    private static SqlDatabaseSnapshot Snapshot(params SqlObjectInfo[] objects)
+    {
+        return new SqlDatabaseSnapshot("Sales", objects, new[] { "dbo" }, System.DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public void 依名稱尋找物件時忽略大小寫()
+    {
+        var snapshot = Snapshot(new SqlObjectInfo(1, "dbo", "Lib_Reader", SqlObjectKind.Table));
+
+        Assert.Single(snapshot.Find("lib_reader"));
+    }
+
+    [Fact]
+    public void 未指定結構描述時dbo排在前面()
+    {
+        var snapshot = Snapshot(
+            new SqlObjectInfo(1, "sales", "Publisher", SqlObjectKind.Table),
+            new SqlObjectInfo(2, "dbo", "Publisher", SqlObjectKind.Table));
+
+        var matches = snapshot.Find("Publisher");
+
+        Assert.Equal(2, matches.Count);
+        Assert.Equal("dbo", matches[0].SchemaName);
+    }
+
+    [Fact]
+    public void 指定結構描述時只回傳該結構描述的物件()
+    {
+        var snapshot = Snapshot(
+            new SqlObjectInfo(1, "sales", "Publisher", SqlObjectKind.Table),
+            new SqlObjectInfo(2, "dbo", "Publisher", SqlObjectKind.Table));
+
+        var matches = snapshot.Find("Publisher", "sales");
+
+        Assert.Single(matches);
+        Assert.Equal("sales", matches[0].SchemaName);
+    }
+
+    [Fact]
+    public void 找不到時回傳空清單()
+    {
+        var snapshot = Snapshot(new SqlObjectInfo(1, "dbo", "Lib_Reader", SqlObjectKind.Table));
+
+        Assert.Empty(snapshot.Find("Missing"));
+        Assert.Empty(snapshot.Find("Lib_Reader", "other"));
+        Assert.Empty(snapshot.Find(""));
+    }
+
     [Fact]
     public void 資料表預覽列出欄位結構()
     {

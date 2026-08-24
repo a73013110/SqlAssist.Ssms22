@@ -1,10 +1,33 @@
-namespace SqlAssist.Core;
+﻿namespace SqlAssist.Core;
 
 public static class SqlLexicalContext
 {
+    /// <summary>指定位置是否位於一般程式碼中（不在字串、註解或引號識別字內）。</summary>
     public static bool IsCode(string sql, int position)
     {
-        var state = LexicalState.Code;
+        return GetState(sql, position) == SqlLexicalState.Code;
+    }
+
+    /// <summary>
+    /// 判斷指定位置的語彙狀態。
+    /// </summary>
+    /// <remarks>
+    /// 方括號與雙引號識別字要與字串、註解分開判斷：它們雖然不是「一般程式碼」，
+    /// 但裡面放的是物件名稱，滑鼠停留提示與物件解析都應該處理。
+    /// </remarks>
+    public static SqlLexicalState GetState(string sql, int position)
+    {
+        if (sql is null)
+        {
+            throw new System.ArgumentNullException(nameof(sql));
+        }
+
+        if (position < 0 || position > sql.Length)
+        {
+            throw new System.ArgumentOutOfRangeException(nameof(position));
+        }
+
+        var state = SqlLexicalState.Code;
 
         for (var index = 0; index < position; index++)
         {
@@ -13,97 +36,87 @@ public static class SqlLexicalContext
 
             switch (state)
             {
-                case LexicalState.Code:
+                case SqlLexicalState.Code:
                     if (current == '-' && next == '-')
                     {
-                        state = LexicalState.LineComment;
+                        state = SqlLexicalState.LineComment;
                         index++;
                     }
                     else if (current == '/' && next == '*')
                     {
-                        state = LexicalState.BlockComment;
+                        state = SqlLexicalState.BlockComment;
                         index++;
                     }
                     else if (current == '\'')
                     {
-                        state = LexicalState.String;
+                        state = SqlLexicalState.String;
                     }
                     else if (current == '"')
                     {
-                        state = LexicalState.QuotedIdentifier;
+                        state = SqlLexicalState.QuotedIdentifier;
                     }
                     else if (current == '[')
                     {
-                        state = LexicalState.BracketedIdentifier;
+                        state = SqlLexicalState.BracketedIdentifier;
                     }
 
                     break;
 
-                case LexicalState.LineComment:
+                case SqlLexicalState.LineComment:
                     if (current == '\r' || current == '\n')
                     {
-                        state = LexicalState.Code;
+                        state = SqlLexicalState.Code;
                     }
 
                     break;
 
-                case LexicalState.BlockComment:
+                case SqlLexicalState.BlockComment:
                     if (current == '*' && next == '/')
                     {
-                        state = LexicalState.Code;
+                        state = SqlLexicalState.Code;
                         index++;
                     }
 
                     break;
 
-                case LexicalState.String:
+                case SqlLexicalState.String:
                     if (current == '\'' && next == '\'')
                     {
                         index++; // SQL 字串內的兩個單引號代表跳脫字元。
                     }
                     else if (current == '\'')
                     {
-                        state = LexicalState.Code;
+                        state = SqlLexicalState.Code;
                     }
 
                     break;
 
-                case LexicalState.QuotedIdentifier:
+                case SqlLexicalState.QuotedIdentifier:
                     if (current == '"' && next == '"')
                     {
                         index++; // 雙引號識別字內的重複雙引號不會結束識別字。
                     }
                     else if (current == '"')
                     {
-                        state = LexicalState.Code;
+                        state = SqlLexicalState.Code;
                     }
 
                     break;
 
-                case LexicalState.BracketedIdentifier:
+                case SqlLexicalState.BracketedIdentifier:
                     if (current == ']' && next == ']')
                     {
                         index++; // 方括號識別字使用 ]] 表示右方括號。
                     }
                     else if (current == ']')
                     {
-                        state = LexicalState.Code;
+                        state = SqlLexicalState.Code;
                     }
 
                     break;
             }
         }
 
-        return state == LexicalState.Code;
-    }
-
-    private enum LexicalState
-    {
-        Code,
-        LineComment,
-        BlockComment,
-        String,
-        QuotedIdentifier,
-        BracketedIdentifier
+        return state;
     }
 }

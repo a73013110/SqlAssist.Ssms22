@@ -52,6 +52,10 @@
       <Private>false</Private>
     </Reference>
     <!-- 新版非同步 IntelliSense（AsyncCompletion）的契約位於此組件，而非 Language.Intellisense。 -->
+    <Reference Include="Microsoft.VisualStudio.Language.StandardClassification">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.StandardClassification.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Language">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.dll</HintPath>
       <Private>false</Private>

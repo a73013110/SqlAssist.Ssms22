@@ -126,6 +126,7 @@ internal sealed class SqlAssistCommands
             $"Tab 快捷展開：{FormatState(settings.Features.TabExpansion)}\r\n" +
             $"關鍵字轉大寫：{FormatState(settings.Features.KeywordUppercase)}\r\n" +
             $"資料庫物件建議：{FormatState(settings.Features.ObjectPicker)}\r\n" +
+            $"物件結構提示：{FormatState(settings.Features.ObjectHover)}\r\n" +
             $"結果格命令設定：{FormatState(settings.Features.ResultGridCommands)}（功能開發中）\r\n" +
             $"詳細診斷記錄：{FormatState(settings.DiagnosticsEnabled)}\r\n\r\n" +
             $"── 非同步 IntelliSense 探測 ──\r\n" +

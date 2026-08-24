@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading;
@@ -52,6 +52,19 @@ internal sealed class SqlMetadataService : IDisposable
 
         var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
         return BuildSuggestions(snapshot);
+    }
+
+    /// <summary>取得目前資料庫的第一層中繼資料；沒有可用連線時回傳 null。</summary>
+    public async Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
+    {
+        var catalog = ResolveCatalog();
+
+        if (catalog is null)
+        {
+            return null;
+        }
+
+        return await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>載入單一物件的欄位、參數與定義。</summary>

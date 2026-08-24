@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using SqlAssist.Core;
 
@@ -32,6 +32,11 @@ public sealed class GeneralOptionsPage : SqlAssistOptionsPage
     public bool ObjectPicker { get; set; } = true;
 
     [Category("功能")]
+    [DisplayName("物件結構提示")]
+    [Description("滑鼠停留在資料表、檢視、預存程序上時，顯示欄位型別、NULL、PK 等結構資訊。")]
+    public bool ObjectHover { get; set; } = true;
+
+    [Category("功能")]
     [DisplayName("結果格命令")]
     [Description("結果格的 Script as INSERT、Copy as IN clause。功能開發中。")]
     public bool ResultGridCommands { get; set; } = true;
@@ -54,6 +59,7 @@ public sealed class GeneralOptionsPage : SqlAssistOptionsPage
         TabExpansion = settings.Features.TabExpansion;
         KeywordSuggestions = settings.Features.KeywordUppercase;
         ObjectPicker = settings.Features.ObjectPicker;
+        ObjectHover = settings.Features.ObjectHover;
         ResultGridCommands = settings.Features.ResultGridCommands;
         DiagnosticsEnabled = settings.DiagnosticsEnabled;
         AsyncCompletionProbe = settings.AsyncCompletionProbe;
@@ -65,6 +71,7 @@ public sealed class GeneralOptionsPage : SqlAssistOptionsPage
         settings.Features.TabExpansion = TabExpansion;
         settings.Features.KeywordUppercase = KeywordSuggestions;
         settings.Features.ObjectPicker = ObjectPicker;
+        settings.Features.ObjectHover = ObjectHover;
         settings.Features.ResultGridCommands = ResultGridCommands;
         settings.DiagnosticsEnabled = DiagnosticsEnabled;
         settings.AsyncCompletionProbe = AsyncCompletionProbe;
