@@ -55,6 +55,7 @@ internal sealed class SqlAssistCommands
             () => _settings.ToggleAsyncCompletionProbe(),
             "非同步建議追蹤");
 
+        AddCommand(CommandIds.CopyObjectStructure, CopyObjectStructure);
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
@@ -101,6 +102,83 @@ internal sealed class SqlAssistCommands
         _commandService.AddCommand(new OleMenuCommand(
             handler,
             new CommandID(CommandIds.CommandSet, commandId)));
+    }
+
+    /// <summary>
+    /// 把游標所在物件的完整結構複製到剪貼簿。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留提示與建議清單的說明面板都受限於視窗高度，欄位多的資料表一定看不完，
+    /// 而且沒辦法選取複製。這個命令補上那條路：一次拿到完整內容，
+    /// 貼到哪裡看都可以。
+    /// </remarks>
+    private void CopyObjectStructure(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        _ = CopyObjectStructureAsync();
+    }
+
+    private async System.Threading.Tasks.Task CopyObjectStructureAsync()
+    {
+        try
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            var textView = ActiveSqlEditor.Current;
+
+            if (textView is null)
+            {
+                ShowMessage("請先把游標放進 SQL 查詢視窗。");
+                return;
+            }
+
+            var caret = textView.Caret.Position.BufferPosition;
+            var text = caret.Snapshot.GetText();
+            var metadataService = SqlCompletionServices.GetMetadataService(textView, _package);
+
+            var location = await SqlObjectLocator.LocateAsync(
+                metadataService,
+                text,
+                caret.Position,
+                System.Threading.CancellationToken.None);
+
+            if (location is null)
+            {
+                ShowMessage("游標處不是可辨識的資料庫物件。");
+                return;
+            }
+
+            var detail = await metadataService.GetDetailAsync(
+                location.Object,
+                System.Threading.CancellationToken.None);
+
+            if (detail is null)
+            {
+                ShowMessage($"無法取得 {location.Object.QualifiedName} 的結構。");
+                return;
+            }
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            System.Windows.Clipboard.SetText(detail.BuildPreview());
+            SqlAssistDiagnostics.WriteAlways($"已複製 {location.Object.QualifiedName} 的結構");
+            ShowMessage($"已複製 {location.Object.QualifiedName} 的結構到剪貼簿。");
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"複製物件結構失敗：{exception}");
+            ShowMessage($"複製失敗：{exception.Message}");
+        }
+    }
+
+    private void ShowMessage(string message)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        VsShellUtilities.ShowMessageBox(
+            _package,
+            message,
+            "SqlAssist",
+            OLEMSGICON.OLEMSGICON_INFO,
+            OLEMSGBUTTON.OLEMSGBUTTON_OK,
+            OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
     }
 
     private void ShowDiagnostics(object? sender, EventArgs eventArgs)

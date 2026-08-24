@@ -32,6 +32,7 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     public void TextViewCreated(IWpfTextView textView)
     {
         SqlAssistRuntimeState.MarkTextViewCreated();
+        ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
         RecordAsyncCompletionSupport(textView);
         var controller = new SqlCompletionController(textView, ServiceProvider, CompletionBroker);
         CompletionSessionRegistry.Register(textView, controller);

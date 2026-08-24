@@ -15,14 +15,23 @@ namespace SqlAssist.Ssms22.QuickInfo;
 /// </remarks>
 internal static class SqlQuickInfoContentBuilder
 {
-    /// <summary>欄位過多時只顯示前面這些，避免提示視窗長到蓋住整個編輯器。</summary>
+    /// <summary>
+    /// 欄位過多時只顯示前面這些，避免提示視窗長到超出螢幕。
+    /// </summary>
+    /// <remarks>
+    /// 提示視窗不能捲動也不能選取複製，所以再怎麼放寬都會有看不完的資料表。
+    /// 被截斷時會指向「複製游標處物件的結構」，那條路才拿得到完整內容。
+    /// </remarks>
     private const int MaximumColumns = 40;
 
     public static ContainerElement Build(SqlObjectDetail detail)
     {
+        // 標題帶上欄位總數：清單被截斷時，使用者至少知道自己看到的是幾分之幾。
         var elements = new List<object>
         {
-            BuildHeader(detail.Object)
+            detail.Columns.Count > 0
+                ? BuildHeader(detail.Object, $"（{detail.Columns.Count} 個欄位）")
+                : BuildHeader(detail.Object)
         };
 
         if (detail.Object.Kind.HasColumns())
@@ -51,12 +60,22 @@ internal static class SqlQuickInfoContentBuilder
             Line(Comment("-- 載入中…")));
     }
 
-    private static ClassifiedTextElement BuildHeader(SqlObjectInfo objectInfo)
+    private static ClassifiedTextElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)
     {
-        return new ClassifiedTextElement(
+        var runs = new List<ClassifiedTextRun>
+        {
             Keyword(objectInfo.Kind.ToDisplayName()),
             Text(" "),
-            Identifier(objectInfo.QualifiedName));
+            Identifier(objectInfo.QualifiedName)
+        };
+
+        if (!string.IsNullOrEmpty(suffix))
+        {
+            runs.Add(Text("  "));
+            runs.Add(Comment(suffix!));
+        }
+
+        return new ClassifiedTextElement(runs);
     }
 
     private static IEnumerable<object> BuildColumns(IReadOnlyList<SqlColumnInfo> columns)
@@ -73,7 +92,9 @@ internal static class SqlQuickInfoContentBuilder
         {
             if (shown == MaximumColumns)
             {
-                yield return Line(Comment($"-- 另有 {columns.Count - shown} 個欄位未顯示"));
+                yield return Line(Comment(
+                    $"-- 另有 {columns.Count - shown} 個欄位未顯示，" +
+                    "Ctrl+Alt+Shift+C 可複製完整結構"));
                 yield break;
             }
 

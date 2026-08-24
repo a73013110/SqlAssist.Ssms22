@@ -27,13 +27,21 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
     }
 
     /// <summary>
-    /// 除了 Tab 與 Enter（平台一律視為提交）之外，還有哪些字元要提交。
+    /// 除了 Tab 與 Enter（平台一律視為提交）之外，沒有任何字元會提交。
     /// </summary>
     /// <remarks>
-    /// 只放點號：輸入 <c>dbo.</c> 時應該提交 <c>dbo</c> 再列出該結構描述的物件。
-    /// 逗號、空白與括號不列入，否則打字打到一半會被硬生生提交成不想要的項目。
+    /// 曾經把點號列為提交字元，想讓 <c>dbo.</c> 自動補完結構描述名稱，
+    /// 但這會把使用者根本不想要的項目寫進編輯器：
+    /// 在 <c>SELECT | FROM PUBLISHER a</c> 輸入 <c>a</c> 再輸入 <c>.</c> 時，
+    /// 清單選中的是分數最高的 Snippet <c>af</c>，於是變成
+    /// <c>SELECT ALTER FUNCTION . FROM PUBLISHER a</c>。
+    ///
+    /// 這不是排名問題：使用者輸入 <c>a.</c> 是要引用別名 <c>a</c>，
+    /// 當下沒有任何項目該被提交，選中的若是資料表 <c>abc</c> 也一樣是錯的。
+    /// 點號本來就會讓分析器重新判斷上下文並開新的 session（別名接欄位、
+    /// 結構描述接物件），不需要靠提交來達成。
     /// </remarks>
-    public IEnumerable<char> PotentialCommitCharacters { get; } = new[] { '.' };
+    public IEnumerable<char> PotentialCommitCharacters { get; } = Array.Empty<char>();
 
     public bool ShouldCommitCompletion(
         IAsyncCompletionSession session,
@@ -41,7 +49,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         char typedChar,
         CancellationToken token)
     {
-        return typedChar == '.';
+        return false;
     }
 
     public CommitResult TryCommit(
