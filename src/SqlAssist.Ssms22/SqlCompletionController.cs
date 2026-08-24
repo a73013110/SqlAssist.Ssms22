@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
@@ -8,6 +9,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using SqlAssist.Core;
 using SqlAssist.Core.Matching;
+using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
 
@@ -16,12 +18,13 @@ internal sealed class SqlCompletionController : IDisposable
     private static readonly IReadOnlyList<SqlSuggestion> BuiltInSuggestions =
         BuiltInSuggestionCatalog.Create();
 
-    private readonly SqlMetadataProvider _metadataProvider;
+    private readonly SqlMetadataService _metadataService;
     private readonly ICompletionBroker _nativeCompletionBroker;
     private readonly SuggestionPopupControl _popup;
     private readonly DispatcherTimer _refreshTimer;
     private readonly IWpfTextView _textView;
     private IReadOnlyList<SqlSuggestion> _databaseSuggestions = Array.Empty<SqlSuggestion>();
+    private CancellationTokenSource? _previewCancellation;
     private bool _disposed;
     private bool _metadataLoadStarted;
     private bool _suppressBufferChange;
@@ -33,8 +36,9 @@ internal sealed class SqlCompletionController : IDisposable
     {
         _textView = textView;
         _nativeCompletionBroker = nativeCompletionBroker;
-        _metadataProvider = new SqlMetadataProvider(serviceProvider);
+        _metadataService = new SqlMetadataService(serviceProvider);
         _popup = new SuggestionPopupControl(textView, () => CommitSelected());
+        _popup.SelectionChanged += OnPopupSelectionChanged;
         _refreshTimer = new DispatcherTimer(
             DispatcherPriority.Background,
             textView.VisualElement.Dispatcher)
@@ -144,6 +148,11 @@ internal sealed class SqlCompletionController : IDisposable
 
         _disposed = true;
         _refreshTimer.Stop();
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        _previewCancellation = null;
+        _popup.SelectionChanged -= OnPopupSelectionChanged;
+        _metadataService.Dispose();
         _textView.TextBuffer.Changed -= OnBufferChanged;
         _textView.Caret.PositionChanged -= OnCaretPositionChanged;
         _textView.LayoutChanged -= OnLayoutChanged;
@@ -272,15 +281,72 @@ internal sealed class SqlCompletionController : IDisposable
     {
         try
         {
-            _databaseSuggestions = await _metadataProvider.GetSuggestionsAsync(default);
+            _databaseSuggestions = await _metadataService.GetSuggestionsAsync(CancellationToken.None);
+            SqlAssistDiagnostics.WriteAlways($"已載入 {_databaseSuggestions.Count} 筆資料庫物件建議", _textView);
+
             if (!_disposed)
             {
                 RefreshNow();
             }
         }
+        catch (OperationCanceledException)
+        {
+            // 編輯器關閉時取消屬於正常流程。
+        }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"建議資料載入失敗：{exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 選取項改變時補上預覽內容。
+    /// </summary>
+    /// <remarks>
+    /// 欄位與定義是中繼資料的第二、三層，只在這裡按需載入；
+    /// 若改成建立建議時就一併帶齊，開啟編輯器就得把整個資料庫的定義本文拉回來。
+    /// </remarks>
+    private void OnPopupSelectionChanged(object? sender, EventArgs eventArgs)
+    {
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        _previewCancellation = null;
+
+        if (_disposed ||
+            _popup.SelectedSuggestion is not { } selected ||
+            selected.Tag is not SqlObjectInfo objectInfo)
+        {
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        _previewCancellation = cancellation;
+        _ = LoadPreviewAsync(selected, objectInfo, cancellation.Token);
+    }
+
+    private async Task LoadPreviewAsync(
+        SqlSuggestion suggestion,
+        SqlObjectInfo objectInfo,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var detail = await _metadataService.GetDetailAsync(objectInfo, cancellationToken);
+
+            if (detail is null || cancellationToken.IsCancellationRequested || _disposed)
+            {
+                return;
+            }
+
+            _popup.TrySetPreviewBody(suggestion, detail.BuildPreview());
+        }
+        catch (OperationCanceledException)
+        {
+            // 使用者已經移動到別的項目。
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"載入物件明細失敗：{exception.Message}");
         }
     }
 

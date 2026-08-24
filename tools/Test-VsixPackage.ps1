@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)]
     [string]$VsixPath
@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $requiredEntries = @(
     'extension.vsixmanifest',
     'SqlAssist.Core.dll',
+    'SqlAssist.Metadata.dll',
     'SqlAssist.Ssms22.dll',
     'SqlAssist.Ssms22.pkgdef'
 )

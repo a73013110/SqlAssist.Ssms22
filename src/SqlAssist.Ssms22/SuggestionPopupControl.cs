@@ -115,6 +115,9 @@ internal sealed class SuggestionPopupControl
         };
     }
 
+    /// <summary>選取的項目改變時發出，讓呼叫端有機會非同步補上預覽內容。</summary>
+    public event EventHandler? SelectionChanged;
+
     public bool IsOpen => _popup.IsOpen;
 
     public SqlSuggestion? SelectedSuggestion
@@ -306,6 +309,25 @@ internal sealed class SuggestionPopupControl
         _previewTitle.Text = selected?.DisplayText ?? string.Empty;
         _previewDescription.Text = selected?.Description ?? string.Empty;
         _previewText.Text = selected?.Preview ?? string.Empty;
+        _previewText.ScrollToHome();
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 補上非同步載入完成的預覽內容。
+    /// </summary>
+    /// <remarks>
+    /// 只有在 <paramref name="suggestion"/> 仍然是目前選取項時才套用：
+    /// 使用者在載入期間往下移動選取項時，晚到的結果不可以覆蓋新的選取內容。
+    /// </remarks>
+    public void TrySetPreviewBody(SqlSuggestion suggestion, string body)
+    {
+        if (!ReferenceEquals(SelectedSuggestion, suggestion))
+        {
+            return;
+        }
+
+        _previewText.Text = body;
         _previewText.ScrollToHome();
     }
 

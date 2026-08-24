@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SqlAssist.Core\SqlAssist.Core.csproj" />
+    <ProjectReference Include="..\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" PrivateAssets="all" />
   </ItemGroup>

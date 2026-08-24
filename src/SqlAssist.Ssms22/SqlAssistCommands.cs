@@ -159,7 +159,7 @@ internal sealed class SqlAssistCommands
 
     private void RefreshSuggestions(object? sender, EventArgs eventArgs)
     {
-        SqlMetadataProvider.ClearCache();
+        SqlMetadataService.InvalidateAll();
         SuggestionRefreshBroker.RequestRefresh();
         SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理即時建議");
     }

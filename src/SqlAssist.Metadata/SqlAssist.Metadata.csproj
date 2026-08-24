@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SqlAssist.Metadata</AssemblyName>
+    <RootNamespace>SqlAssist.Metadata</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SqlAssist.Core\SqlAssist.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -9,7 +9,8 @@ public sealed class SqlSuggestion
         string preview,
         SuggestionKind kind,
         bool triggerFollowUp = false,
-        string? schemaName = null)
+        string? schemaName = null,
+        object? tag = null)
     {
         DisplayText = displayText;
         InsertionText = insertionText;
@@ -18,6 +19,7 @@ public sealed class SqlSuggestion
         Kind = kind;
         TriggerFollowUp = triggerFollowUp;
         SchemaName = schemaName;
+        Tag = tag;
     }
 
     public string DisplayText { get; }
@@ -33,4 +35,10 @@ public sealed class SqlSuggestion
     public bool TriggerFollowUp { get; }
 
     public string? SchemaName { get; }
+
+    /// <summary>
+    /// 建立這筆建議的來源資料。資料庫物件會放入中繼資料層的物件描述，
+    /// 讓呼叫端可以在使用者選取時才去載入欄位與定義，而不必在建立建議時就全部帶齊。
+    /// </summary>
+    public object? Tag { get; }
 }
