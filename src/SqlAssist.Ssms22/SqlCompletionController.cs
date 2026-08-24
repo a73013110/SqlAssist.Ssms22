@@ -75,6 +75,7 @@ internal sealed class SqlCompletionController : IDisposable
 
         var settings = SettingsService.Default.GetSnapshot();
         var insertionText = GetInsertionText(selected, context, settings);
+        ModuleExpansion? moduleExpansion = null;
         _suppressBufferChange = true;
 
         try
@@ -93,10 +94,18 @@ internal sealed class SqlCompletionController : IDisposable
             _textView.Caret.EnsureVisible();
             SqlAssistRuntimeState.MarkExpansion(insertionText.TrimEnd());
             SqlAssistDiagnostics.Write($"Suggestion 已提交：{selected.DisplayText}", _textView);
+            moduleExpansion = TryBeginModuleExpansion(selected, context, snapshot, newPosition);
         }
         finally
         {
             _suppressBufferChange = false;
+        }
+
+        if (moduleExpansion is not null)
+        {
+            Hide();
+            _ = ExpandModuleAsync(moduleExpansion.Value.ObjectInfo, moduleExpansion.Value.StatementSpan);
+            return true;
         }
 
         if (selected.TriggerFollowUp)
@@ -115,6 +124,126 @@ internal sealed class SqlCompletionController : IDisposable
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// 判斷這次提交是否應該展開成完整的 ALTER 語句。
+    /// </summary>
+    /// <remarks>
+    /// 使用者輸入 ap 展開成 ALTER PROCEDURE 之後選了某個程序，想要的是可以直接
+    /// 修改並執行的完整定義，而不是只把名稱補上去。這裡只回報「要展開」與
+    /// 「要替換哪一段」，實際的定義載入在背景進行。
+    /// </remarks>
+    private ModuleExpansion? TryBeginModuleExpansion(
+        SqlSuggestion selected,
+        SqlCompletionContext context,
+        ITextSnapshot snapshot,
+        int caretPosition)
+    {
+        if (context.Target is not (CompletionTarget.Procedure or CompletionTarget.Function) ||
+            context.TargetKeywordStart < 0 ||
+            selected.Tag is not SqlObjectInfo objectInfo ||
+            !objectInfo.Kind.IsModule())
+        {
+            return null;
+        }
+
+        // 以追蹤範圍記住整個 ALTER 語句：定義是非同步取得的，
+        // 期間使用者仍可能編輯緩衝區，用固定位置會替換到錯誤的地方。
+        var statementSpan = snapshot.CreateTrackingSpan(
+            Span.FromBounds(context.TargetKeywordStart, caretPosition),
+            SpanTrackingMode.EdgeExclusive);
+
+        return new ModuleExpansion(objectInfo, statementSpan);
+    }
+
+    private async Task ExpandModuleAsync(SqlObjectInfo objectInfo, ITrackingSpan statementSpan)
+    {
+        try
+        {
+            var detail = await _metadataService.GetDetailAsync(objectInfo, CancellationToken.None);
+
+            if (_disposed || detail?.Definition is not { } definition)
+            {
+                SqlAssistDiagnostics.WriteAlways(
+                    $"無法取得 {objectInfo.QualifiedName} 的定義，維持只插入名稱");
+                return;
+            }
+
+            if (!SqlModuleScript.TryConvertCreateToAlter(definition, out var script))
+            {
+                SqlAssistDiagnostics.WriteAlways(
+                    $"{objectInfo.QualifiedName} 的定義不是 CREATE 開頭，維持只插入名稱");
+                return;
+            }
+
+            ReplaceWithScript(statementSpan, script, objectInfo);
+        }
+        catch (OperationCanceledException)
+        {
+            // 編輯器已關閉。
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"展開 ALTER 語句失敗：{exception.Message}");
+        }
+    }
+
+    private void ReplaceWithScript(ITrackingSpan statementSpan, string script, SqlObjectInfo objectInfo)
+    {
+        var dispatcher = _textView.VisualElement.Dispatcher;
+
+        if (!dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(new Action(() => ReplaceWithScript(statementSpan, script, objectInfo)));
+            return;
+        }
+
+        if (_disposed || _textView.IsClosed)
+        {
+            return;
+        }
+
+        _suppressBufferChange = true;
+
+        try
+        {
+            var buffer = _textView.TextBuffer;
+            var target = statementSpan.GetSpan(buffer.CurrentSnapshot);
+
+            using var edit = buffer.CreateEdit();
+            edit.Replace(target, script);
+            var updated = edit.Apply();
+
+            if (edit.Canceled)
+            {
+                return;
+            }
+
+            var caretPosition = Math.Min(target.Start.Position + script.Length, updated.Length);
+            _textView.Caret.MoveTo(new SnapshotPoint(updated, caretPosition));
+            _textView.Caret.EnsureVisible();
+            SqlAssistRuntimeState.MarkExpansion($"ALTER {objectInfo.QualifiedName}");
+            SqlAssistDiagnostics.WriteAlways($"已展開 {objectInfo.QualifiedName} 的完整 ALTER 語句", _textView);
+        }
+        finally
+        {
+            _suppressBufferChange = false;
+        }
+    }
+
+    /// <summary>待展開的 ALTER 語句：要展開的物件，以及要被取代的那一段。</summary>
+    private readonly struct ModuleExpansion
+    {
+        public ModuleExpansion(SqlObjectInfo objectInfo, ITrackingSpan statementSpan)
+        {
+            ObjectInfo = objectInfo;
+            StatementSpan = statementSpan;
+        }
+
+        public SqlObjectInfo ObjectInfo { get; }
+
+        public ITrackingSpan StatementSpan { get; }
     }
 
     public bool MoveSelection(int delta)

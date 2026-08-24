@@ -36,6 +36,27 @@ public sealed class SqlCompletionContextAnalyzerTests
         Assert.Equal(CompletionTarget.Any, context.Target);
     }
 
+    [Theory]
+    [InlineData("ALTER PROCEDURE ", 0, "ALTER")]
+    [InlineData("\r\nALTER PROCEDURE usp", 2, "ALTER")]
+    [InlineData("SELECT * FROM ", 9, "FROM")]
+    [InlineData("SELECT * FROM Orders INNER JOIN pub", 27, "JOIN")]
+    public void 回報決定目標的關鍵字起點(string textBeforeCaret, int expectedStart, string expectedKeyword)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(expectedStart, context.TargetKeywordStart);
+        Assert.Equal(
+            expectedKeyword,
+            textBeforeCaret.Substring(expectedStart, expectedKeyword.Length));
+    }
+
+    [Fact]
+    public void 沒有目標關鍵字時起點為負一()
+    {
+        Assert.Equal(-1, SqlCompletionContextAnalyzer.Analyze("SELECT pub").TargetKeywordStart);
+    }
+
     [Fact]
     public void 取出目前輸入的前綴()
     {
