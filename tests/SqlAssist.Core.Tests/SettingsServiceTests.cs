@@ -39,6 +39,36 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.True(snapshot.Suggestions.ShowPreview);
         Assert.False(snapshot.Suggestions.QualifyObjectNames);
         Assert.False(snapshot.Suggestions.UseSquareBrackets);
+        Assert.Equal(CompletionEngine.Native, snapshot.Suggestions.Engine);
+        Assert.True(snapshot.Suggestions.SuppressNativeIntelliSense);
+    }
+
+    /// <summary>
+    /// 列舉必須寫成可讀的字串。少了 <c>DataContract</c> 標註會存成 0 與 1，
+    /// 使用者手動編輯 settings.json 時無從判斷是什麼。
+    /// </summary>
+    [Fact]
+    public void 清單引擎以字串保存並讀回()
+    {
+        var service = new SettingsService(_path);
+        service.Update(settings => settings.Suggestions.Engine = CompletionEngine.Custom);
+
+        Assert.Contains("\"engine\":\"custom\"", File.ReadAllText(_path));
+        Assert.Equal(CompletionEngine.Custom, new SettingsService(_path).GetSnapshot().Suggestions.Engine);
+    }
+
+    /// <summary>
+    /// 舊版設定檔沒有 engine 欄位，讀回時必須落在預設值而不是 0 對應的第一個成員以外的東西。
+    /// </summary>
+    [Fact]
+    public void 舊版設定檔沿用預設引擎()
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(_path, "{\"enabled\":true,\"suggestions\":{\"enabled\":true}}");
+
+        var snapshot = new SettingsService(_path).GetSnapshot();
+
+        Assert.Equal(CompletionEngine.Native, snapshot.Suggestions.Engine);
     }
 
     [Fact]

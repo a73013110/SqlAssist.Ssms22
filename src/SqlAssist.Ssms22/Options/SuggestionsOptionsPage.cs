@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using SqlAssist.Core;
@@ -11,6 +11,22 @@ namespace SqlAssist.Ssms22.Options;
 public sealed class SuggestionsOptionsPage : SqlAssistOptionsPage
 {
     public const string PageGuidString = "ce7eea48-9730-4580-8d87-efe4e87e9198";
+
+    [Category("清單")]
+    [DisplayName("清單引擎")]
+    [Description(
+        "Native：使用平台原生 IntelliSense，支援滑鼠點選、篩選列與正確的螢幕邊界處理。" +
+        "Custom：使用自製 WPF 清單，只能用鍵盤操作，且會與 SSMS 內建清單同時出現。" +
+        "變更後需要重新開啟查詢視窗。")]
+    public CompletionEngine Engine { get; set; } = CompletionEngine.Native;
+
+    [Category("清單")]
+    [DisplayName("關閉 SSMS 內建 IntelliSense 清單")]
+    [Description(
+        "顯示本擴充的清單時一併關閉 SSMS 內建的 T-SQL 清單，避免同時出現兩份。" +
+        "若已在「文字編輯器 → Transact-SQL → IntelliSense」直接關閉 SSMS 內建功能，" +
+        "這裡可以關掉。")]
+    public bool SuppressNativeIntelliSense { get; set; } = true;
 
     [Category("顯示")]
     [DisplayName("顯示即時建議")]
@@ -49,6 +65,8 @@ public sealed class SuggestionsOptionsPage : SqlAssistOptionsPage
 
     private protected override void LoadFrom(SqlAssistSettings settings)
     {
+        Engine = settings.Suggestions.Engine;
+        SuppressNativeIntelliSense = settings.Suggestions.SuppressNativeIntelliSense;
         Enabled = settings.Suggestions.Enabled;
         TriggerAfterCharacters = settings.Suggestions.TriggerAfterCharacters;
         DelayMilliseconds = settings.Suggestions.DelayMilliseconds;
@@ -60,6 +78,8 @@ public sealed class SuggestionsOptionsPage : SqlAssistOptionsPage
 
     private protected override void ApplyTo(SqlAssistSettings settings)
     {
+        settings.Suggestions.Engine = Engine;
+        settings.Suggestions.SuppressNativeIntelliSense = SuppressNativeIntelliSense;
         settings.Suggestions.Enabled = Enabled;
 
         // 屬性方格允許輸入任意整數，界限在這裡收斂，讓設定檔永遠是可用值。

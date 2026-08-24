@@ -92,9 +92,44 @@ public static class SuggestionMatcher
     }
 
     /// <summary>
+    /// 只做上下文過濾，不做前綴比對與排名。
+    /// </summary>
+    /// <remarks>
+    /// 原生引擎把清單交給平台快取，之後每一次按鍵只重新比對前綴，
+    /// 因此上下文過濾必須在建立清單時就做完。
+    /// </remarks>
+    public static IReadOnlyList<SqlSuggestion> Filter(
+        IEnumerable<SqlSuggestion> suggestions,
+        SqlCompletionContext context)
+    {
+        if (suggestions is null)
+        {
+            throw new ArgumentNullException(nameof(suggestions));
+        }
+
+        if (context is null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        var results = new List<SqlSuggestion>();
+
+        foreach (var suggestion in suggestions)
+        {
+            if (IsAllowedForTarget(suggestion.Kind, context.Target) &&
+                IsAllowedForSchema(suggestion, context))
+            {
+                results.Add(suggestion);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
     /// 把模糊分數與次要調整合成最終排名分數。
     /// </summary>
-    private static int ComposeScore(SqlSuggestion suggestion, FuzzyMatchResult match, string pattern)
+    public static int ComposeScore(SqlSuggestion suggestion, FuzzyMatchResult match, string pattern)
     {
         var score = (match.Score * FuzzyScoreScale) + KindBonus(suggestion.Kind);
 

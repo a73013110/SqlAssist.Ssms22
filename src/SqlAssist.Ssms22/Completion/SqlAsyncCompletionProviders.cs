@@ -1,0 +1,101 @@
+using System;
+using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Utilities;
+
+namespace SqlAssist.Ssms22.Completion;
+
+/// <summary>
+/// 每個編輯器共用一份中繼資料服務與 ALTER 展開器。
+/// </summary>
+/// <remarks>
+/// 建議來源、排名器與提交管理員是三個獨立的 MEF 匯出，但它們必須看到同一份
+/// 中繼資料快取，否則同一個編輯器會對同一個資料庫查詢三次。
+/// </remarks>
+internal static class SqlCompletionServices
+{
+    private static readonly object SyncRoot = new();
+
+    public static SqlMetadataService GetMetadataService(ITextView textView, IServiceProvider serviceProvider)
+    {
+        lock (SyncRoot)
+        {
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlMetadataService),
+                () =>
+                {
+                    var service = new SqlMetadataService(serviceProvider);
+                    textView.Closed += (_, _) => service.Dispose();
+                    return service;
+                });
+        }
+    }
+
+    public static SqlModuleExpander GetModuleExpander(ITextView textView, IServiceProvider serviceProvider)
+    {
+        lock (SyncRoot)
+        {
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlModuleExpander),
+                () => new SqlModuleExpander(textView, GetMetadataService(textView, serviceProvider)));
+        }
+    }
+}
+
+[Export(typeof(IAsyncCompletionSourceProvider))]
+[Name("SqlAssist SSMS 22 Async Completion Source")]
+[ContentType("SQL")]
+[TextViewRole(PredefinedTextViewRoles.Editable)]
+internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceProvider
+{
+    [Import]
+    internal SVsServiceProvider ServiceProvider { get; set; } = null!;
+
+    public IAsyncCompletionSource GetOrCreate(ITextView textView)
+    {
+        AsyncCompletionProbe.RecordProviderRequested();
+
+        return textView.Properties.GetOrCreateSingletonProperty(
+            typeof(SqlAsyncCompletionSource),
+            () => new SqlAsyncCompletionSource(
+                SqlCompletionServices.GetMetadataService(textView, ServiceProvider)));
+    }
+}
+
+/// <summary>
+/// 排名器。
+/// </summary>
+/// <remarks>
+/// 沒有這一個匯出，平台會用自己的比對器，詞首感知排名就會失效——
+/// 輸入 <c>libr</c> 時 <c>Lib_Reader</c> 又會排到含子字串的名稱後面。
+/// </remarks>
+[Export(typeof(IAsyncCompletionItemManagerProvider))]
+[Name("SqlAssist SSMS 22 Async Completion Item Manager")]
+[ContentType("SQL")]
+[TextViewRole(PredefinedTextViewRoles.Editable)]
+internal sealed class SqlAsyncCompletionItemManagerProvider : IAsyncCompletionItemManagerProvider
+{
+    private readonly SqlAsyncCompletionItemManager _itemManager = new();
+
+    public IAsyncCompletionItemManager GetOrCreate(ITextView textView) => _itemManager;
+}
+
+[Export(typeof(IAsyncCompletionCommitManagerProvider))]
+[Name("SqlAssist SSMS 22 Async Completion Commit Manager")]
+[ContentType("SQL")]
+[TextViewRole(PredefinedTextViewRoles.Editable)]
+internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletionCommitManagerProvider
+{
+    [Import]
+    internal SVsServiceProvider ServiceProvider { get; set; } = null!;
+
+    public IAsyncCompletionCommitManager GetOrCreate(ITextView textView)
+    {
+        return textView.Properties.GetOrCreateSingletonProperty(
+            typeof(SqlAsyncCompletionCommitManager),
+            () => new SqlAsyncCompletionCommitManager(
+                SqlCompletionServices.GetModuleExpander(textView, ServiceProvider)));
+    }
+}

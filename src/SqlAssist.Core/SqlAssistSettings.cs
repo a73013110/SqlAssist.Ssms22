@@ -1,4 +1,4 @@
-using System.Runtime.Serialization;
+﻿using System.Runtime.Serialization;
 
 namespace SqlAssist.Core;
 
@@ -18,9 +18,12 @@ public sealed class SqlAssistSettings
     public bool DiagnosticsEnabled { get; set; }
 
     /// <summary>
-    /// 讓探測用的非同步建議來源實際提供項目。預設關閉，只用來量測
-    /// 平台原生 IntelliSense 在 SSMS 的 SQL 編輯器裡是否可用。
+    /// 把非同步建議管線的每一步寫進診斷紀錄。
     /// </summary>
+    /// <remarks>
+    /// 原本用來量測平台原生 IntelliSense 是否可用，量測已完成（可用），
+    /// 現在保留為疑難排解用的追蹤開關。
+    /// </remarks>
     [DataMember(Name = "asyncCompletionProbe", Order = 5)]
     public bool AsyncCompletionProbe { get; set; }
 

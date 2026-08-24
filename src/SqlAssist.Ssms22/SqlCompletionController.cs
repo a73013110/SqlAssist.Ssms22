@@ -10,6 +10,7 @@ using Microsoft.VisualStudio.Language.Intellisense;
 using SqlAssist.Core;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Ssms22.Completion;
 using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
@@ -89,7 +90,7 @@ internal sealed class SqlCompletionController : IDisposable
         }
 
         var settings = SettingsService.Default.GetSnapshot();
-        var insertionText = GetInsertionText(selected, context, settings);
+        var insertionText = SqlInsertionText.Build(selected, context, settings);
         ModuleExpansion? moduleExpansion = null;
         _suppressBufferChange = true;
 
@@ -402,7 +403,10 @@ internal sealed class SqlCompletionController : IDisposable
 
         var settings = SettingsService.Default.GetSnapshot();
 
-        if (!settings.Enabled || !settings.Suggestions.Enabled)
+        // 原生引擎接手時，自製清單完全不參與，否則會同時出現兩份清單。
+        if (!settings.Enabled ||
+            !settings.Suggestions.Enabled ||
+            settings.Suggestions.Engine != CompletionEngine.Custom)
         {
             Hide();
             return;
@@ -449,7 +453,7 @@ internal sealed class SqlCompletionController : IDisposable
             // 每一次按鍵都呼叫 DismissAllSessions 會在 SSMS 的舊版語言服務
             // 還在計算時把 session 抽掉，而那正是連續按 Backspace 時
             // 每刪一個字就跳一次錯誤對話框的時機。
-            if (!_popup.IsOpen)
+            if (!_popup.IsOpen && settings.Suggestions.SuppressNativeIntelliSense)
             {
                 DismissNativeCompletion();
             }
@@ -642,39 +646,4 @@ internal sealed class SqlCompletionController : IDisposable
         }
     }
 
-    private static string GetInsertionText(
-        SqlSuggestion suggestion,
-        SqlCompletionContext context,
-        SqlAssistSettings settings)
-    {
-        if (suggestion.Kind == SuggestionKind.Keyword || suggestion.Kind == SuggestionKind.Snippet)
-        {
-            return suggestion.InsertionText;
-        }
-
-        // 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
-        // 名稱含空白或保留字時仍必須加括號，否則插入的 SQL 直接壞掉。
-        var objectName = Quote(suggestion.DisplayText, settings);
-
-        if (suggestion.Kind == SuggestionKind.Schema)
-        {
-            return objectName + ".";
-        }
-
-        if (context.Qualifier is not null ||
-            !settings.Suggestions.QualifyObjectNames ||
-            string.IsNullOrWhiteSpace(suggestion.SchemaName))
-        {
-            return objectName;
-        }
-
-        return Quote(suggestion.SchemaName!, settings) + "." + objectName;
-    }
-
-    private static string Quote(string name, SqlAssistSettings settings)
-    {
-        return settings.Suggestions.UseSquareBrackets
-            ? SqlIdentifier.Quote(name)
-            : SqlIdentifier.QuoteIfNeeded(name);
-    }
 }

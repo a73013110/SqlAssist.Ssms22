@@ -1,7 +1,7 @@
 # SqlAssist for SSMS 22
 
 針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-目前版本為 **0.6.1**。
+目前版本為 **0.7.0**。
 
 ## 專案結構
 
@@ -15,13 +15,13 @@ src/SqlAssist.Metadata   netstandard2.0，只依賴 System.Data
                          三層按需載入的資料庫中繼資料與快取
 
 src/SqlAssist.Ssms22     net48 VSIX
-  Completion/            非同步 IntelliSense 相容性探測
+  Completion/            平台原生非同步 IntelliSense 的來源、排名器與提交管理員
   QuickInfo/             滑鼠停留的物件結構提示
   Options/               工具→選項 的設定頁
 ```
 
 核心邏輯刻意集中在沒有 Visual Studio 相依的兩個專案，因此排名、解析與
-中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 273 項單元測試。
+中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 279 項單元測試。
 
 ## 功能
 
@@ -41,8 +41,25 @@ libr  → Lib_Reader 排第一
 Tab   → 提交選取項
 ```
 
-使用 `↑`、`↓` 選擇，`Tab` 或 `Enter` 提交，`Esc` 關閉。
-清單顏色跟隨 SSMS 目前的佈景主題。
+使用 `↑`、`↓` 選擇，`Tab` 或 `Enter` 提交，`Esc` 關閉，也可以直接用滑鼠點選。
+
+### 清單引擎
+
+預設使用**平台原生的非同步 IntelliSense**：清單的定位、螢幕邊界、捲動、滑鼠操作
+與佈景主題都由編輯器負責，與其他擴充套件共用同一個 session。
+
+排名不交給平台：平台預設的比對器沒有詞首感知，接上去 `libr` 又會排不到
+`Lib_Reader`。因此本擴充匯出自己的 `IAsyncCompletionItemManager`，
+沿用同一套模糊比對分數，並把命中區段交給平台畫粗體。
+
+`工具 → 選項 → SqlAssist → 建議清單 → 清單引擎` 可以切回自製 WPF 清單
+（`custom`）。那是後備選項，已知限制是只能用鍵盤操作，而且會與 SSMS 內建清單
+同時出現。
+
+SSMS 內建的 T-SQL IntelliSense 由它自己的命令篩選器觸發，不會因為有新版建議
+來源就讓位。預設會在顯示本擴充的清單時一併關掉它。**想徹底避免兩份清單互搶，
+建議直接在「工具 → 選項 → 文字編輯器 → Transact-SQL → IntelliSense」關閉
+SSMS 內建的 IntelliSense**，再把「關閉 SSMS 內建 IntelliSense 清單」也關掉。
 
 ### 內建 Snippet
 
@@ -114,7 +131,7 @@ IDENTITY、COMPUTED 與參數簽章。支援方括號、雙引號、結構描述
 啟用 SqlAssist / 即時建議
 Tab 快捷展開 / 關鍵字轉大寫 / Procedure／Function 選擇器 / 結果格命令
 顯示診斷狀態 / 重新整理建議 / 設定… / 編輯 settings.json
-非同步 IntelliSense 探測
+非同步建議追蹤
 ```
 
 全域開關快捷鍵：`Ctrl+Alt+Shift+S`
@@ -138,7 +155,9 @@ Tab 快捷展開 / 關鍵字轉大寫 / Procedure／Function 選擇器 / 結果�
     "showPreview": true,
     "delayMilliseconds": 70,
     "qualifyObjectNames": false,
-    "useSquareBrackets": false
+    "useSquareBrackets": false,
+    "engine": "native",
+    "suppressNativeIntelliSense": true
   },
   "diagnosticsEnabled": false,
   "asyncCompletionProbe": false
@@ -161,20 +180,12 @@ Tab 快捷展開 / 關鍵字轉大寫 / Procedure／Function 選擇器 / 結果�
 開多個查詢分頁只會查詢一次。中繼資料查詢一律另開連線，不會干擾使用者
 正在執行的查詢或明確交易。
 
-## 非同步 IntelliSense 探測
+## 為什麼改用平台原生管線
 
-自製 WPF 建議視窗長期應改用平台原生的 async completion。已確認 SSMS 22.9
-隨附完整契約（`Microsoft.VisualStudio.Language.dll`），但 SSMS 的 T-SQL
-IntelliSense 是舊版語言服務，新版 API 對 `ContentType "SQL"` 是否實際生效
-需要實機量測，因此先量測再決定架構。
+SSMS 的 T-SQL IntelliSense 是舊版語言服務，官方文件沒有說明新版 async completion
+API 對 `ContentType "SQL"` 是否生效，因此先以探測量測，再決定架構。
 
-探測用的建議來源預設**不參與**完成流程，只記錄自己有沒有被呼叫，
-SSMS 原生 IntelliSense 的行為不受影響。完整量測結果在「工具 → SqlAssist →
-顯示診斷狀態」的「非同步 IntelliSense 探測」段落；其中兩個決定性事實
-（Provider 是否被掃描到、`InitializeCompletion` 是否被呼叫）會在第一次發生時
-直接寫進 `SqlAssist.log`，不必開對話框也看得到。
-
-### 量測結果（SSMS 22.9.12105.275）
+實機量測（SSMS 22.9.12105.275）：
 
 ```text
 非同步 IntelliSense 支援狀態：SQL → False
@@ -182,14 +193,26 @@ SSMS 原生 IntelliSense 的行為不受影響。完整量測結果在「工具 
 探測：InitializeCompletion 首次被呼叫（觸發：Insertion 's'）
 ```
 
-**平台確實會把按鍵路由進非同步完成管線**，因此原生 IntelliSense 是可行的方向。
+平台確實會把按鍵路由進非同步完成管線。`IsCompletionSupported` 回報的 False 是
+時序造成的假訊號：那一次查詢發生在 TextView 建立的當下，此時本擴充的建議來源
+還沒被實例化，broker 自然找不到任何對應 `ContentType "SQL"` 的來源。
 
-`IsCompletionSupported` 的 False 是時序造成的假訊號，不是能力限制：那一次查詢
-發生在 TextView 建立的當下，此時本擴充的建議來源還沒被實例化，
-`IAsyncCompletionBroker` 自然找不到任何對應 `ContentType "SQL"` 的來源。
+自製 WPF 清單有三個無法靠修補解決的問題，全都源自「在編輯器外面自己畫一個視窗」：
+與 SSMS 內建清單同時出現、只能用鍵盤操作、以及必須反覆呼叫 `DismissAllSessions`
+去搶 session。改用原生管線後三者一併消失。
 
-若要實際觀察清單外觀與 Tab 提交行為，可開啟「工具 → 選項 → SqlAssist →
-一般 → 非同步 IntelliSense 探測」。開啟後可能與 SSMS 原生清單同時出現。
+實作分成三個 MEF 匯出：
+
+| 匯出 | 負責 |
+|---|---|
+| `IAsyncCompletionSource` | 提供項目、右側說明面板 |
+| `IAsyncCompletionItemManager` | 排名、篩選與命中標示 |
+| `IAsyncCompletionCommitManager` | 接續建議與 ALTER 展開的提交行為 |
+
+排名器不能省：平台預設的比對器沒有詞首感知，少了它 `libr` 又會排不到 `Lib_Reader`。
+
+「工具 → 選項 → SqlAssist → 一般 → 非同步建議追蹤」會把管線的每一步寫進
+`SqlAssist.log`，用於疑難排解。
 
 ## 環境需求
 
@@ -249,7 +272,7 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 
 ## 目前限制
 
-- 建議視窗仍為自製 WPF。探測已證實可改用平台原生 IntelliSense，尚未動工。
+- 建議項還沒有圖示。原生清單支援 `ImageElement`，只是尚未挑選 moniker。
 - 尚未建議未限定的欄位，例如 `SELECT |` 或 `WHERE |` 直接列出敘述內所有欄位。
 - 尚未依外部索引鍵補完 JOIN 條件。
 - 尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考的欄位。
@@ -261,7 +284,6 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 
 1. 未限定的欄位建議（`SELECT |`、`WHERE |` 列出範圍內所有欄位）。
 2. 依外部索引鍵補完 JOIN 條件。
-3. 改用平台原生 IntelliSense：取得原生的定位、螢幕邊界處理、篩選列與圖示，
-   並且不必再主動關閉 SSMS 的原生建議清單。
+3. 建議項圖示與篩選列（只看資料表、只看欄位）。
 4. 使用者可編輯的 Snippet 管理器，支援佔位符。
 5. 結果格的 `Script as INSERT`、`Copy as IN clause`。

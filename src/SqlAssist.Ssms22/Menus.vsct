@@ -78,7 +78,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleAsyncCompletionProbe" priority="0x0500" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>非同步 IntelliSense 探測</ButtonText></Strings>
+        <Strings><ButtonText>非同步建議追蹤</ButtonText></Strings>
       </Button>
     </Buttons>
   </Commands>

@@ -47,10 +47,8 @@ public sealed class GeneralOptionsPage : SqlAssistOptionsPage
     public bool DiagnosticsEnabled { get; set; }
 
     [Category("診斷")]
-    [DisplayName("非同步 IntelliSense 探測")]
-    [Description(
-        "讓探測用的平台原生建議來源實際提供項目，用來確認 SSMS 是否支援新版 IntelliSense。" +
-        "開啟後可能與 SSMS 原生 T-SQL 清單同時出現，僅供測試。")]
+    [DisplayName("非同步建議追蹤")]
+    [Description("把平台原生建議管線的每一步寫進診斷紀錄，用於疑難排解。")]
     public bool AsyncCompletionProbe { get; set; }
 
     private protected override void LoadFrom(SqlAssistSettings settings)

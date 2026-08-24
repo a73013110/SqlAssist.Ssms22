@@ -53,7 +53,7 @@ internal sealed class SqlAssistCommands
             CommandIds.ToggleAsyncCompletionProbe,
             () => _settings.GetSnapshot().AsyncCompletionProbe,
             () => _settings.ToggleAsyncCompletionProbe(),
-            "非同步 IntelliSense 探測");
+            "非同步建議追蹤");
 
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
@@ -121,6 +121,8 @@ internal sealed class SqlAssistCommands
             $"最後展開：{SqlAssistRuntimeState.LastExpansion}\r\n\r\n" +
             $"SqlAssist：{FormatState(settings.Enabled)}\r\n" +
             $"即時建議：{FormatState(settings.Suggestions.Enabled)}\r\n" +
+            $"清單引擎：{settings.Suggestions.Engine}\r\n" +
+            $"關閉 SSMS 內建清單：{FormatState(settings.Suggestions.SuppressNativeIntelliSense)}\r\n" +
             $"觸發字元數：{settings.Suggestions.TriggerAfterCharacters}\r\n" +
             $"預覽窗格：{FormatState(settings.Suggestions.ShowPreview)}\r\n" +
             $"Tab 快捷展開：{FormatState(settings.Features.TabExpansion)}\r\n" +
@@ -129,8 +131,8 @@ internal sealed class SqlAssistCommands
             $"物件結構提示：{FormatState(settings.Features.ObjectHover)}\r\n" +
             $"結果格命令設定：{FormatState(settings.Features.ResultGridCommands)}（功能開發中）\r\n" +
             $"詳細診斷記錄：{FormatState(settings.DiagnosticsEnabled)}\r\n\r\n" +
-            $"── 非同步 IntelliSense 探測 ──\r\n" +
-            $"探測模式：{FormatState(settings.AsyncCompletionProbe)}\r\n" +
+            $"── 非同步建議管線 ──\r\n" +
+            $"追蹤模式：{FormatState(settings.AsyncCompletionProbe)}\r\n" +
             AsyncCompletionProbe.BuildReport() + "\r\n" +
             $"設定檔：{_settings.SettingsPath}\r\n" +
             $"診斷檔：{SqlAssistDiagnostics.LogPath}\r\n" +
