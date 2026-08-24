@@ -22,6 +22,7 @@ namespace SqlAssist.Ssms22;
 internal sealed class SqlMetadataService : IDisposable
 {
     private readonly object _syncRoot = new();
+    private readonly HashSet<int> _warmingDetails = new();
     private readonly IServiceProvider _serviceProvider;
     private SsmsConnectionSource? _connectionSource;
     private SqlMetadataCatalog? _catalog;
@@ -210,6 +211,85 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
+    /// 目前已快取的第一層資料；沒有現成的目錄或還沒載入時回傳 null。
+    /// </summary>
+    /// <remarks>不觸發任何查詢，也不向 SSMS 詢問連線。滑鼠停留提示走這條路。</remarks>
+    public SqlDatabaseSnapshot? PeekSnapshot()
+    {
+        var snapshot = PeekCatalog()?.CachedSnapshot;
+        return snapshot is null || snapshot.IsEmpty ? null : snapshot;
+    }
+
+    /// <summary>只看第二層快取裡有沒有這個物件的明細；沒有就回傳 null，不觸發查詢。</summary>
+    public SqlObjectDetail? PeekDetail(SqlObjectInfo objectInfo)
+    {
+        if (objectInfo is null)
+        {
+            return null;
+        }
+
+        var catalog = PeekCatalog();
+
+        return catalog is not null && catalog.TryGetCachedDetail(objectInfo.ObjectId, out var detail)
+            ? detail
+            : null;
+    }
+
+    /// <summary>
+    /// 在背景把單一物件的明細載入快取。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留提示只讀快取，沒命中就顯示標題並呼叫這裡；滑鼠移到下一個識別字再回來時
+    /// 就有內容了。同一個物件同時只會有一次載入在飛，否則滑鼠在同一個字上晃動
+    /// 就會連續丟出好幾次相同的查詢。
+    /// </remarks>
+    public void WarmDetail(SqlObjectInfo objectInfo)
+    {
+        if (objectInfo is null || _disposed)
+        {
+            return;
+        }
+
+        var catalog = PeekCatalog();
+
+        if (catalog is null || catalog.TryGetCachedDetail(objectInfo.ObjectId, out _))
+        {
+            return;
+        }
+
+        lock (_syncRoot)
+        {
+            if (!_warmingDetails.Add(objectInfo.ObjectId))
+            {
+                return;
+            }
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var timer = Stopwatch.StartNew();
+
+            try
+            {
+                await catalog.GetDetailAsync(objectInfo, CancellationToken.None).ConfigureAwait(false);
+                SqlAssistDiagnostics.Write(
+                    $"已預先載入 {objectInfo.QualifiedName} 的結構（{timer.ElapsedMilliseconds} ms）");
+            }
+            catch (Exception exception)
+            {
+                SqlAssistDiagnostics.Write($"預先載入 {objectInfo.QualifiedName} 的結構失敗：{exception.Message}");
+            }
+            finally
+            {
+                lock (_syncRoot)
+                {
+                    _warmingDetails.Remove(objectInfo.ObjectId);
+                }
+            }
+        });
+    }
+
+    /// <summary>
     /// 預先載入敘述中各資料來源的欄位。
     /// </summary>
     /// <remarks>
@@ -346,6 +426,39 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         return ResolveCatalogFromEditor();
+    }
+
+    /// <summary>
+    /// 只取已經解析好的目錄，絕不向 SSMS 詢問目前連線。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留提示會在滑鼠掃過每一個識別字時觸發，而
+    /// <c>GetCurrentConnection()</c> 有 UI 執行緒相依性，SSMS 忙的時候實測要 1908 ms。
+    /// 提示晚一輪出現沒有代價，讓 UI 執行緒排隊則會直接反映成打字延遲，
+    /// 所以這條路徑寧可放棄這一次，順手在背景解析，下一次滑鼠停留就有了。
+    /// </remarks>
+    private SqlMetadataCatalog? PeekCatalog()
+    {
+        lock (_syncRoot)
+        {
+            if (_disposed)
+            {
+                return null;
+            }
+
+            if (_catalog is not null)
+            {
+                if (DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
+                {
+                    BeginCatalogRecheck();
+                }
+
+                return _catalog;
+            }
+        }
+
+        BeginCatalogRecheck();
+        return null;
     }
 
     /// <summary>在背景重新確認連線，結果留給下一次按鍵使用。</summary>

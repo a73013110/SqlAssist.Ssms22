@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core;
@@ -32,11 +34,13 @@ internal sealed class SqlObjectLocation
 /// 把文字中某個位置解析成資料庫物件。
 /// </summary>
 /// <remarks>
-/// 滑鼠停留提示與「複製物件結構」共用同一套判斷，否則兩者對同一個位置
-/// 會給出不同答案。
+/// 滑鼠停留提示與結構面板共用同一套判斷，否則兩者對同一個位置會給出不同答案。
+/// 兩者的差別只在願不願意等資料庫：面板是使用者主動要求的，等得起；
+/// 提示在滑鼠移動的路徑上，只用快取裡現成的資料。
 /// </remarks>
 internal static class SqlObjectLocator
 {
+    /// <summary>允許查詢資料庫的完整解析，供結構面板使用。</summary>
     public static async Task<SqlObjectLocation?> LocateAsync(
         SqlMetadataService metadataService,
         string text,
@@ -60,12 +64,10 @@ internal static class SqlObjectLocator
         var scope = SqlScopeAnalyzer.Analyze(text, position);
 
         // 限定詞指向敘述中的資料來源時，游標停的是欄位而不是物件。
-        if (reference.Qualifier is not null &&
-            scope.TryResolve(reference.Qualifier, out var owner) &&
-            !owner.IsDerived)
+        if (TryResolveColumnOwner(snapshot, scope, reference, out var owner))
         {
-            return await LocateColumnAsync(metadataService, snapshot, owner, reference, cancellationToken)
-                .ConfigureAwait(false);
+            var detail = await metadataService.GetDetailAsync(owner, cancellationToken).ConfigureAwait(false);
+            return BuildColumnLocation(reference, owner, detail);
         }
 
         var matches = ResolveObject(snapshot, scope, reference);
@@ -73,35 +75,87 @@ internal static class SqlObjectLocator
         return matches.Count == 0 ? null : new SqlObjectLocation(reference, matches[0]);
     }
 
-    private static async Task<SqlObjectLocation?> LocateColumnAsync(
+    /// <summary>
+    /// 只用已經在快取裡的中繼資料解析，絕不觸發查詢。
+    /// </summary>
+    /// <remarks>
+    /// 明細還沒進快取時仍回報物件本身，呼叫端可以先顯示標題，
+    /// 同時請 <see cref="SqlMetadataService.WarmDetail"/> 在背景補上。
+    /// </remarks>
+    public static SqlObjectLocation? LocateCached(
         SqlMetadataService metadataService,
-        SqlDatabaseSnapshot snapshot,
-        SqlTableReference owner,
-        SqlIdentifierReference reference,
-        CancellationToken cancellationToken)
+        string text,
+        int position)
     {
-        var matches = snapshot.Find(owner.ObjectName, owner.SchemaName);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
 
-        if (matches.Count == 0)
+        if (reference is null)
         {
             return null;
         }
 
-        var detail = await metadataService
-            .GetDetailAsync(matches[0], cancellationToken)
-            .ConfigureAwait(false);
+        var snapshot = metadataService.PeekSnapshot();
 
+        if (snapshot is null)
+        {
+            return null;
+        }
+
+        var scope = SqlScopeAnalyzer.Analyze(text, position);
+
+        if (TryResolveColumnOwner(snapshot, scope, reference, out var owner))
+        {
+            return BuildColumnLocation(reference, owner, metadataService.PeekDetail(owner));
+        }
+
+        var matches = ResolveObject(snapshot, scope, reference);
+
+        return matches.Count == 0 ? null : new SqlObjectLocation(reference, matches[0]);
+    }
+
+    /// <summary>判斷這個參考是不是「敘述中某個資料來源的欄位」，是的話取出該資料來源。</summary>
+    private static bool TryResolveColumnOwner(
+        SqlDatabaseSnapshot snapshot,
+        SqlStatementScope scope,
+        SqlIdentifierReference reference,
+        out SqlObjectInfo owner)
+    {
+        owner = null!;
+
+        if (reference.Qualifier is null ||
+            !scope.TryResolve(reference.Qualifier, out var table) ||
+            table.IsDerived)
+        {
+            return false;
+        }
+
+        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+        if (matches.Count == 0)
+        {
+            return false;
+        }
+
+        owner = matches[0];
+        return true;
+    }
+
+    private static SqlObjectLocation? BuildColumnLocation(
+        SqlIdentifierReference reference,
+        SqlObjectInfo owner,
+        SqlObjectDetail? detail)
+    {
         if (detail is null)
         {
             // 明細還沒回來時仍回報物件，呼叫端可以顯示載入中的內容。
-            return new SqlObjectLocation(reference, matches[0]);
+            return new SqlObjectLocation(reference, owner);
         }
 
         foreach (var column in detail.Columns)
         {
-            if (string.Equals(column.Name, reference.Name, System.StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(column.Name, reference.Name, StringComparison.OrdinalIgnoreCase))
             {
-                return new SqlObjectLocation(reference, matches[0], column);
+                return new SqlObjectLocation(reference, owner, column);
             }
         }
 
@@ -116,7 +170,7 @@ internal static class SqlObjectLocator
     /// 沒有限定詞的識別字可能是敘述裡的別名，這時要換成別名指向的資料表。
     /// 別名優先於同名物件：<c>FROM Orders AS Publisher</c> 之後的 <c>Publisher</c> 是 Orders。
     /// </remarks>
-    private static System.Collections.Generic.IReadOnlyList<SqlObjectInfo> ResolveObject(
+    private static IReadOnlyList<SqlObjectInfo> ResolveObject(
         SqlDatabaseSnapshot snapshot,
         SqlStatementScope scope,
         SqlIdentifierReference reference)
