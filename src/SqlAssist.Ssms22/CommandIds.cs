@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SqlAssist.Ssms22;
 
@@ -18,5 +18,5 @@ internal static class CommandIds
     public const int RefreshSuggestions = 0x0202;
     public const int ToggleAsyncCompletionProbe = 0x0203;
     public const int EditSettingsFile = 0x0204;
-    public const int CopyObjectStructure = 0x0205;
+    public const int ShowObjectStructure = 0x0206;
 }

@@ -60,9 +60,9 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
         <Strings><ButtonText>結果格命令</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidCopyObjectStructure" priority="0x0050" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0050" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>複製游標處物件的結構</ButtonText></Strings>
+        <Strings><ButtonText>開啟游標處物件的結構面板</ButtonText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
@@ -93,11 +93,6 @@
                 editor="guidVSStd97"
                 key1="S"
                 mod1="Control Alt Shift" />
-    <KeyBinding guid="guidSqlAssistCommandSet"
-                id="cmdidCopyObjectStructure"
-                editor="guidVSStd97"
-                key1="C"
-                mod1="Control Alt Shift" />
   </KeyBindings>
 
   <Symbols>
@@ -118,7 +113,7 @@
       <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
       <IDSymbol name="cmdidToggleAsyncCompletionProbe" value="0x0203" />
       <IDSymbol name="cmdidEditSettingsFile" value="0x0204" />
-      <IDSymbol name="cmdidCopyObjectStructure" value="0x0205" />
+      <IDSymbol name="cmdidShowObjectStructure" value="0x0206" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

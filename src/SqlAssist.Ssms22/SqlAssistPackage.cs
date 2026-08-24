@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.Design;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Ssms22.Options;
+using SqlAssist.Ssms22.Structure;
 
 namespace SqlAssist.Ssms22;
 
@@ -28,10 +29,15 @@ namespace SqlAssist.Ssms22;
     categoryResourceID: 0,
     pageNameResourceID: 0,
     supportsAutomation: true)]
+// 結構面板由套件建立，必須在這裡註冊，否則 ShowToolWindowAsync 找不到它。
+[ProvideToolWindow(typeof(SqlObjectStructureWindow), Style = VsDockStyle.Tabbed, Orientation = ToolWindowOrientation.Right)]
 [Guid(PackageGuidString)]
 public sealed class SqlAssistPackage : AsyncPackage
 {
     public const string PackageGuidString = "b386e18d-f34b-4db4-a40d-b9092a31d89f";
+
+    /// <summary>已載入的套件實例；結構面板需要它才能建立工具視窗。</summary>
+    internal static SqlAssistPackage? Instance { get; private set; }
 
     /// <summary>「工具 → 選項」底下的分類名稱。</summary>
     public const string OptionsCategory = "SqlAssist";
@@ -59,6 +65,7 @@ public sealed class SqlAssistPackage : AsyncPackage
                 return;
             }
 
+            Instance = this;
             SqlAssistCommands.Register(this, commandService);
             SqlAssistRuntimeState.MarkPackageLoaded();
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage {PackageVersion} 已載入，工具選單已註冊");

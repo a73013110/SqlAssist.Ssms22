@@ -55,6 +55,22 @@ public sealed class SqlMetadataCatalog
         }
     }
 
+    /// <summary>
+    /// 只清掉單一物件的第二、四層快取。
+    /// </summary>
+    /// <remarks>
+    /// 使用者在結構面板按重新整理時要的是「這一張表」，
+    /// 沒有理由連整個資料庫的物件清單一起丟掉，那會讓下一次按鍵重新等一輪查詢。
+    /// </remarks>
+    public void InvalidateObject(int objectId)
+    {
+        lock (_detailLock)
+        {
+            _details.Remove(objectId);
+            _structures.Remove(objectId);
+        }
+    }
+
     /// <summary>第一層資料是否仍在有效期內。</summary>
     public bool IsSnapshotFresh => IsFresh(CachedSnapshot);
 

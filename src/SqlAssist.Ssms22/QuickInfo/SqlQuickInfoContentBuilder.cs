@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Metadata;
@@ -12,19 +13,26 @@ namespace SqlAssist.Ssms22.QuickInfo;
 /// 使用編輯器的 <see cref="ContainerElement"/>／<see cref="ClassifiedTextElement"/> 而非自製 WPF：
 /// 分類過的文字會自動套用 SSMS 目前的佈景主題與字型設定，
 /// 定位與大小也由編輯器負責，不必自己處理螢幕邊界。
+///
+/// 提示刻意只給一眼看得完的份量。提示視窗不能捲動也不能選取，放再多也讀不完；
+/// 真的要看完整結構的人點最後一行的連結，那裡有可停駐、可選取、可複製的面板。
 /// </remarks>
 internal static class SqlQuickInfoContentBuilder
 {
-    /// <summary>
-    /// 欄位過多時只顯示前面這些，避免提示視窗長到超出螢幕。
-    /// </summary>
-    /// <remarks>
-    /// 提示視窗不能捲動也不能選取複製，所以再怎麼放寬都會有看不完的資料表。
-    /// 被截斷時會指向「複製游標處物件的結構」，那條路才拿得到完整內容。
-    /// </remarks>
-    private const int MaximumColumns = 40;
+    /// <summary>提示裡最多顯示的欄位數。</summary>
+    private const int MaximumColumns = 8;
 
-    public static ContainerElement Build(SqlObjectDetail detail)
+    /// <summary>最多顯示的參數數。</summary>
+    private const int MaximumParameters = 8;
+
+    private const string OpenStructureText = "開啟完整結構";
+
+    private const string OpenStructureTooltip = "在「SqlAssist 物件結構」面板顯示完整結構，可捲動與複製";
+
+    /// <param name="openStructure">
+    /// 「開啟完整結構」要執行的動作；建議清單的說明面板沒有可點擊的地方，傳 null 即可。
+    /// </param>
+    public static ContainerElement Build(SqlObjectDetail detail, Action? openStructure = null)
     {
         // 標題帶上欄位總數：清單被截斷時，使用者至少知道自己看到的是幾分之幾。
         var elements = new List<object>
@@ -34,12 +42,16 @@ internal static class SqlQuickInfoContentBuilder
                 : BuildHeader(detail.Object)
         };
 
+        var hidden = 0;
+
         if (detail.Object.Kind.HasColumns())
         {
+            hidden = Math.Max(0, detail.Columns.Count - MaximumColumns);
             elements.AddRange(BuildColumns(detail.Columns));
         }
         else if (detail.Parameters.Count > 0)
         {
+            hidden = Math.Max(0, detail.Parameters.Count - MaximumParameters);
             elements.AddRange(BuildParameters(detail.Parameters));
         }
 
@@ -48,16 +60,83 @@ internal static class SqlQuickInfoContentBuilder
             elements.Add(Line(Comment("-- 無法取得定義（可能已加密或權限不足）")));
         }
 
+        if (BuildFooter(openStructure, hidden) is { } footer)
+        {
+            elements.Add(footer);
+        }
+
         return new ContainerElement(ContainerElementStyle.Stacked, elements);
     }
 
-    /// <summary>物件尚未載入完成時顯示的暫時內容。</summary>
-    public static ContainerElement BuildLoading(SqlObjectInfo objectInfo)
+    /// <summary>快取裡還沒有明細時顯示的內容：標題加上開啟面板的連結。</summary>
+    public static ContainerElement BuildLoading(SqlObjectInfo objectInfo, Action? openStructure = null)
     {
-        return new ContainerElement(
-            ContainerElementStyle.Stacked,
-            BuildHeader(objectInfo),
-            Line(Comment("-- 載入中…")));
+        var elements = new List<object> { BuildHeader(objectInfo) };
+
+        if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
+        {
+            elements.Add(footer);
+        }
+        else
+        {
+            elements.Add(Line(Comment("-- 載入中…")));
+        }
+
+        return new ContainerElement(ContainerElementStyle.Stacked, elements);
+    }
+
+    /// <summary>單一欄位的提示內容，標題顯示它屬於哪個物件。</summary>
+    public static ContainerElement BuildColumn(
+        SqlObjectInfo owner,
+        SqlColumnInfo column,
+        Action? openStructure = null)
+    {
+        var elements = new List<object>
+        {
+            new ClassifiedTextElement(
+                Keyword("COLUMN"),
+                Text(" "),
+                Identifier(owner.QualifiedName)),
+            new ClassifiedTextElement(BuildColumnRuns(column, "  "))
+        };
+
+        if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
+        {
+            elements.Add(footer);
+        }
+
+        return new ContainerElement(ContainerElementStyle.Stacked, elements);
+    }
+
+    /// <summary>
+    /// 提示最後一行的連結。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ClassifiedTextRun"/> 接受 navigationAction，編輯器會把它畫成可點擊的連結——
+    /// 不必自製 WPF 就能從提示走到面板。
+    /// </remarks>
+    private static ClassifiedTextElement? BuildFooter(Action? openStructure, int hiddenCount)
+    {
+        if (openStructure is null)
+        {
+            return hiddenCount > 0 ? Line(Comment($"-- 另有 {hiddenCount} 項未顯示")) : null;
+        }
+
+        var runs = new List<ClassifiedTextRun>();
+
+        if (hiddenCount > 0)
+        {
+            runs.Add(Comment($"另有 {hiddenCount} 項未顯示　"));
+        }
+
+        runs.Add(new ClassifiedTextRun(
+            PredefinedClassificationTypeNames.Identifier,
+            OpenStructureText,
+            openStructure,
+            OpenStructureTooltip,
+            ClassifiedTextRunStyle.Underline));
+
+        return new ClassifiedTextElement(runs);
     }
 
     private static ClassifiedTextElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)
@@ -92,27 +171,12 @@ internal static class SqlQuickInfoContentBuilder
         {
             if (shown == MaximumColumns)
             {
-                yield return Line(Comment(
-                    $"-- 另有 {columns.Count - shown} 個欄位未顯示，" +
-                    "Ctrl+Alt+Shift+C 可複製完整結構"));
                 yield break;
             }
 
             shown++;
             yield return new ClassifiedTextElement(BuildColumnRuns(column, "  "));
         }
-    }
-
-    /// <summary>單一欄位的提示內容，標題顯示它屬於哪個物件。</summary>
-    public static ContainerElement BuildColumn(SqlObjectInfo owner, SqlColumnInfo column)
-    {
-        return new ContainerElement(
-            ContainerElementStyle.Stacked,
-            new ClassifiedTextElement(
-                Keyword("COLUMN"),
-                Text(" "),
-                Identifier(owner.QualifiedName)),
-            new ClassifiedTextElement(BuildColumnRuns(column, "  ")));
     }
 
     private static List<ClassifiedTextRun> BuildColumnRuns(SqlColumnInfo column, string indent)
@@ -154,8 +218,17 @@ internal static class SqlQuickInfoContentBuilder
 
     private static IEnumerable<object> BuildParameters(IReadOnlyList<SqlParameterInfo> parameters)
     {
+        var shown = 0;
+
         foreach (var parameter in parameters)
         {
+            if (shown == MaximumParameters)
+            {
+                yield break;
+            }
+
+            shown++;
+
             var runs = new List<ClassifiedTextRun>
             {
                 Text("  "),

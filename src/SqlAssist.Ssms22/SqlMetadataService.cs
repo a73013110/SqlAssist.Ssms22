@@ -381,6 +381,15 @@ internal sealed class SqlMetadataService : IDisposable
         return await catalog.GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>清掉單一物件的明細與結構快取，下一次要求會重新查詢。</summary>
+    public void InvalidateObject(SqlObjectInfo objectInfo)
+    {
+        if (objectInfo is not null)
+        {
+            PeekCatalog()?.InvalidateObject(objectInfo.ObjectId);
+        }
+    }
+
     /// <summary>
     /// 載入單一物件的完整結構，含索引與外來鍵。
     /// </summary>

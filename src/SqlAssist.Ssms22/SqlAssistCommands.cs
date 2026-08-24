@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.Design;
 using System.Reflection;
 using Microsoft.VisualStudio.Shell;
@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Options;
+using SqlAssist.Ssms22.Structure;
 
 namespace SqlAssist.Ssms22;
 
@@ -55,7 +56,7 @@ internal sealed class SqlAssistCommands
             () => _settings.ToggleAsyncCompletionProbe(),
             "非同步建議追蹤");
 
-        AddCommand(CommandIds.CopyObjectStructure, CopyObjectStructure);
+        AddCommand(CommandIds.ShowObjectStructure, ShowObjectStructure);
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
@@ -105,20 +106,19 @@ internal sealed class SqlAssistCommands
     }
 
     /// <summary>
-    /// 把游標所在物件的完整結構複製到剪貼簿。
+    /// 在結構面板顯示游標所在的物件。
     /// </summary>
     /// <remarks>
-    /// 滑鼠停留提示與建議清單的說明面板都受限於視窗高度，欄位多的資料表一定看不完，
-    /// 而且沒辦法選取複製。這個命令補上那條路：一次拿到完整內容，
-    /// 貼到哪裡看都可以。
+    /// 平常的入口是滑鼠停留提示裡的連結，但那條路要求「物件結構提示」是開著的。
+    /// 這個命令讓面板在任何設定下都還有一個入口。
     /// </remarks>
-    private void CopyObjectStructure(object? sender, EventArgs eventArgs)
+    private void ShowObjectStructure(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _ = CopyObjectStructureAsync();
+        _ = ShowObjectStructureAsync();
     }
 
-    private async System.Threading.Tasks.Task CopyObjectStructureAsync()
+    private async System.Threading.Tasks.Task ShowObjectStructureAsync()
     {
         try
         {
@@ -135,6 +135,7 @@ internal sealed class SqlAssistCommands
             var text = caret.Snapshot.GetText();
             var metadataService = SqlCompletionServices.GetMetadataService(textView, _package);
 
+            // 使用者主動要求的路徑，等得起一次查詢。
             var location = await SqlObjectLocator.LocateAsync(
                 metadataService,
                 text,
@@ -147,25 +148,12 @@ internal sealed class SqlAssistCommands
                 return;
             }
 
-            var detail = await metadataService.GetDetailAsync(
-                location.Object,
-                System.Threading.CancellationToken.None);
-
-            if (detail is null)
-            {
-                ShowMessage($"無法取得 {location.Object.QualifiedName} 的結構。");
-                return;
-            }
-
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            System.Windows.Clipboard.SetText(detail.BuildPreview());
-            SqlAssistDiagnostics.WriteAlways($"已複製 {location.Object.QualifiedName} 的結構");
-            ShowMessage($"已複製 {location.Object.QualifiedName} 的結構到剪貼簿。");
+            SqlObjectStructurePresenter.Show(textView, location.Object, _package);
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"複製物件結構失敗：{exception}");
-            ShowMessage($"複製失敗：{exception.Message}");
+            SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
+            ShowMessage($"開啟失敗：{exception.Message}");
         }
     }
 

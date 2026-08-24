@@ -25,6 +25,13 @@ internal static class VsThemeBrushes
     public static Brush DimForeground =>
         Resolve(EnvironmentColors.SystemGrayTextBrushKey, SystemColors.GrayTextBrush);
 
+    /// <summary>工具視窗的底色；與提示視窗不同，工具視窗停駐在 IDE 裡，跟的是另一組資源。</summary>
+    public static Brush WindowBackground =>
+        Resolve(EnvironmentColors.ToolWindowBackgroundBrushKey, SystemColors.ControlBrush);
+
+    public static Brush WindowForeground =>
+        Resolve(EnvironmentColors.ToolWindowTextBrushKey, SystemColors.ControlTextBrush);
+
     public static Brush Border =>
         Resolve(EnvironmentColors.ToolTipBorderBrushKey, SystemColors.ActiveBorderBrush);
 

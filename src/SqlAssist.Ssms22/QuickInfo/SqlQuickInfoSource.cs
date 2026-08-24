@@ -3,8 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
+using SqlAssist.Metadata;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Structure;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
@@ -122,12 +125,15 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             new Span(location.Reference.Start, location.Reference.Length),
             SpanTrackingMode.EdgeInclusive);
 
+        // 提示只給一眼看得完的份量，看不完的那一半交給面板。
+        var openStructure = CreateOpenStructureAction(textView, location.Object);
+
         if (location.Column is { } column)
         {
             SqlAssistDiagnostics.Write($"已顯示欄位提示：{location.Object.QualifiedName}.{column.Name}");
             return new QuickInfoItem(
                 applicableSpan,
-                SqlQuickInfoContentBuilder.BuildColumn(location.Object, column));
+                SqlQuickInfoContentBuilder.BuildColumn(location.Object, column, openStructure));
         }
 
         var detail = metadataService.PeekDetail(location.Object);
@@ -136,11 +142,19 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         {
             // 快取沒有就這一輪只顯示標題，背景補上之後下一次停留就有內容。
             metadataService.WarmDetail(location.Object);
-            return new QuickInfoItem(applicableSpan, SqlQuickInfoContentBuilder.BuildLoading(location.Object));
+            return new QuickInfoItem(
+                applicableSpan,
+                SqlQuickInfoContentBuilder.BuildLoading(location.Object, openStructure));
         }
 
         SqlAssistDiagnostics.Write($"已顯示物件提示：{location.Object.QualifiedName}");
-        return new QuickInfoItem(applicableSpan, SqlQuickInfoContentBuilder.Build(detail));
+        return new QuickInfoItem(applicableSpan, SqlQuickInfoContentBuilder.Build(detail, openStructure));
+    }
+
+    /// <summary>「開啟完整結構」連結要執行的動作；由編輯器在使用者點擊時呼叫。</summary>
+    private Action CreateOpenStructureAction(ITextView textView, SqlObjectInfo objectInfo)
+    {
+        return () => SqlObjectStructurePresenter.Show(textView, objectInfo, _serviceProvider);
     }
 
     /// <summary>解析游標處的識別字；快照沒變且位置仍落在上一次的識別字範圍內就沿用結果。</summary>
