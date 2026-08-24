@@ -1,67 +1,129 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core;
 
+/// <summary>
+/// 依游標處的上下文篩選建議項，並以 <see cref="FuzzyMatcher"/> 的詞首感知分數排名。
+/// </summary>
 public static class SuggestionMatcher
 {
+    /// <summary>
+    /// 模糊分數的放大倍率。設定成遠大於所有次要調整值的總和，
+    /// 確保次要調整只在模糊分數相同時才影響順序。
+    /// </summary>
+    private const int FuzzyScoreScale = 128;
+
+    /// <summary>完全相同（忽略大小寫）時的壓倒性加成。</summary>
+    private const int ExactMatchBonus = 100_000;
+
+    /// <summary>長度懲罰的上限，避免超長物件名稱把分數拉到失真。</summary>
+    private const int MaximumLengthPenalty = 64;
+
+    /// <summary>
+    /// 篩選並排名建議項，回傳含分數與命中區段的結果。
+    /// </summary>
+    public static IReadOnlyList<SuggestionMatch> Rank(
+        IEnumerable<SqlSuggestion> suggestions,
+        SqlCompletionContext context,
+        int maximumCount = 100)
+    {
+        if (suggestions is null)
+        {
+            throw new ArgumentNullException(nameof(suggestions));
+        }
+
+        if (context is null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        if (!context.IsValid)
+        {
+            return Array.Empty<SuggestionMatch>();
+        }
+
+        if (maximumCount <= 0)
+        {
+            return Array.Empty<SuggestionMatch>();
+        }
+
+        var pattern = FuzzyMatcher.NormalizePattern(context.Prefix);
+        var results = new List<SuggestionMatch>();
+
+        foreach (var suggestion in suggestions)
+        {
+            if (!IsAllowedForTarget(suggestion.Kind, context.Target) ||
+                !IsAllowedForSchema(suggestion, context.SchemaQualifier))
+            {
+                continue;
+            }
+
+            var match = FuzzyMatcher.MatchNormalized(pattern, suggestion.DisplayText);
+
+            if (!match.IsMatch)
+            {
+                continue;
+            }
+
+            results.Add(new SuggestionMatch(suggestion, ComposeScore(suggestion, match, pattern), match.Spans));
+        }
+
+        return results
+            .OrderByDescending(item => item.Score)
+            .ThenBy(item => item.Suggestion.DisplayText, StringComparer.OrdinalIgnoreCase)
+            .Take(maximumCount)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// <see cref="Rank"/> 的簡化版本，只回傳排序後的建議項本身。
+    /// </summary>
     public static IReadOnlyList<SqlSuggestion> Match(
         IEnumerable<SqlSuggestion> suggestions,
         SqlCompletionContext context,
         int maximumCount = 100)
     {
-        if (!context.IsValid)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        return suggestions
-            .Where(item => IsAllowedForTarget(item.Kind, context.Target))
-            .Where(item => IsAllowedForSchema(item, context.SchemaQualifier))
-            .Select(item => new ScoredSuggestion(item, Score(item, context.Prefix)))
-            .Where(item => item.Score < int.MaxValue)
-            .OrderBy(item => item.Score)
-            .ThenBy(item => item.Suggestion.DisplayText, StringComparer.OrdinalIgnoreCase)
-            .Take(maximumCount)
+        return Rank(suggestions, context, maximumCount)
             .Select(item => item.Suggestion)
             .ToArray();
     }
 
-    private static int Score(SqlSuggestion suggestion, string prefix)
+    /// <summary>
+    /// 把模糊分數與次要調整合成最終排名分數。
+    /// </summary>
+    private static int ComposeScore(SqlSuggestion suggestion, FuzzyMatchResult match, string pattern)
     {
-        if (prefix.Length == 0)
+        var score = (match.Score * FuzzyScoreScale) + KindBonus(suggestion.Kind);
+
+        if (pattern.Length > 0 &&
+            string.Equals(suggestion.DisplayText, pattern, StringComparison.OrdinalIgnoreCase))
         {
-            return 0;
+            score += ExactMatchBonus;
         }
 
-        var candidate = suggestion.DisplayText;
+        // 分數相同時偏好較短的名稱：使用者通常想要的是最精簡的那個。
+        return score - Math.Min(suggestion.DisplayText.Length, MaximumLengthPenalty);
+    }
 
-        if (string.Equals(candidate, prefix, StringComparison.OrdinalIgnoreCase))
+    /// <summary>
+    /// 只在模糊分數打平時生效的類別偏好。
+    /// </summary>
+    private static int KindBonus(SuggestionKind kind)
+    {
+        return kind switch
         {
-            return 0;
-        }
-
-        if (candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            if (prefix.Length == 1)
-            {
-                return KindPriorityForSingleCharacter(suggestion.Kind) + candidate.Length;
-            }
-
-            return KindPriority(suggestion.Kind) + candidate.Length - prefix.Length;
-        }
-
-        var substringIndex = candidate.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-
-        if (substringIndex >= 0)
-        {
-            return 100 + KindPriority(suggestion.Kind) + substringIndex;
-        }
-
-        return IsSubsequence(prefix, candidate)
-            ? 200 + KindPriority(suggestion.Kind) + candidate.Length
-            : int.MaxValue;
+            SuggestionKind.Snippet => 40,
+            SuggestionKind.Keyword => 30,
+            SuggestionKind.Table => 20,
+            SuggestionKind.View => 18,
+            SuggestionKind.Procedure => 16,
+            SuggestionKind.Function => 14,
+            SuggestionKind.Schema => 10,
+            _ => 0
+        };
     }
 
     private static bool IsAllowedForTarget(SuggestionKind kind, CompletionTarget target)
@@ -84,54 +146,5 @@ public static class SuggestionMatcher
 
         return suggestion.Kind != SuggestionKind.Schema &&
                string.Equals(suggestion.SchemaName, schemaQualifier, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static int KindPriorityForSingleCharacter(SuggestionKind kind)
-    {
-        return kind switch
-        {
-            SuggestionKind.Keyword => 0,
-            SuggestionKind.Snippet => 50,
-            _ => 100
-        };
-    }
-
-    private static int KindPriority(SuggestionKind kind)
-    {
-        return kind switch
-        {
-            SuggestionKind.Snippet => 0,
-            SuggestionKind.Keyword => 20,
-            _ => 40
-        };
-    }
-
-    private static bool IsSubsequence(string prefix, string candidate)
-    {
-        var prefixIndex = 0;
-
-        foreach (var character in candidate)
-        {
-            if (prefixIndex < prefix.Length &&
-                char.ToUpperInvariant(character) == char.ToUpperInvariant(prefix[prefixIndex]))
-            {
-                prefixIndex++;
-            }
-        }
-
-        return prefixIndex == prefix.Length;
-    }
-
-    private sealed class ScoredSuggestion
-    {
-        public ScoredSuggestion(SqlSuggestion suggestion, int score)
-        {
-            Suggestion = suggestion;
-            Score = score;
-        }
-
-        public SqlSuggestion Suggestion { get; }
-
-        public int Score { get; }
     }
 }

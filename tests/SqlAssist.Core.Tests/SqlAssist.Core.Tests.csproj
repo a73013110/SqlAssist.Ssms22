@@ -1,12 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
     <AssemblyName>SqlAssist.Core.Tests</AssemblyName>
     <RootNamespace>SqlAssist.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xunit.v3 直接執行於 Microsoft.Testing.Platform，不需要 VSTest 轉接層。 -->
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
   </ItemGroup>
 </Project>
-
