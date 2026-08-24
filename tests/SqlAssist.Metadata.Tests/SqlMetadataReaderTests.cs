@@ -22,10 +22,10 @@ public sealed class SqlMetadataReaderTests
     public void 讀取欄位()
     {
         // column_id, name, type, max_length, precision, scale,
-        // nullable, identity, computed, primary_key, default
+        // nullable, identity, computed, primary_key, default, computed_definition
         var record = new FakeDataRecord(
             1, "UserId", "int", (short)4, (byte)10, (byte)0,
-            false, true, false, true, null);
+            false, true, false, true, null, null);
 
         var column = SqlMetadataReader.ReadColumn(record);
 
@@ -44,7 +44,7 @@ public sealed class SqlMetadataReaderTests
     {
         var record = new FakeDataRecord(
             2, "UserName", "nvarchar", (short)100, (byte)0, (byte)0,
-            true, false, false, false, "('')");
+            true, false, false, false, "('')", null);
 
         var column = SqlMetadataReader.ReadColumn(record);
 
@@ -58,11 +58,72 @@ public sealed class SqlMetadataReaderTests
     {
         var record = new FakeDataRecord(
             1, "UserId", "int", (short)4, (byte)10, (byte)0,
-            false, true, false, true, null);
+            false, true, false, true, null, null);
 
         var line = SqlMetadataReader.ReadColumn(record).ToScriptLine();
 
         Assert.Equal("[UserId] int IDENTITY NOT NULL -- PK", line);
+    }
+
+    [Fact]
+    public void 讀取計算欄位的運算式()
+    {
+        var record = new FakeDataRecord(
+            3, "FullName", "nvarchar", (short)200, (byte)0, (byte)0,
+            true, false, true, false, null, "([First]+' '+[Last])");
+
+        var column = SqlMetadataReader.ReadColumn(record);
+
+        Assert.True(column.IsComputed);
+        Assert.Equal("([First]+' '+[Last])", column.ComputedDefinition);
+    }
+
+    [Fact]
+    public void 讀取索引列()
+    {
+        // index_id, name, is_primary_key, is_unique, is_unique_constraint,
+        // type_desc, filter_definition, column_name, is_descending, is_included
+        var record = new FakeDataRecord(
+            2, "IX_Lib_Reader_Name", false, true, false,
+            "NONCLUSTERED", "([IsDeleted]=(0))", "UserName", true, false);
+
+        var row = SqlMetadataReader.ReadIndexRow(record);
+
+        Assert.Equal(2, row.IndexId);
+        Assert.Equal("IX_Lib_Reader_Name", row.Name);
+        Assert.True(row.IsUnique);
+        Assert.False(row.IsPrimaryKey);
+        Assert.Equal("NONCLUSTERED", row.TypeDescription);
+        Assert.Equal("([IsDeleted]=(0))", row.FilterDefinition);
+        Assert.Equal("UserName", row.ColumnName);
+        Assert.True(row.IsDescending);
+        Assert.False(row.IsIncluded);
+    }
+
+    [Fact]
+    public void 索引的篩選條件為NULL時不擲例外()
+    {
+        var record = new FakeDataRecord(
+            1, "PK_Lib_Reader", true, true, false,
+            "CLUSTERED", null, "Id", false, false);
+
+        Assert.Null(SqlMetadataReader.ReadIndexRow(record).FilterDefinition);
+    }
+
+    [Fact]
+    public void 讀取外來鍵列()
+    {
+        var record = new FakeDataRecord(
+            "FK_Order_User", "dbo", "Lib_Reader", "UserId", "Id", "CASCADE", "NO_ACTION");
+
+        var row = SqlMetadataReader.ReadForeignKeyRow(record);
+
+        Assert.Equal("FK_Order_User", row.Name);
+        Assert.Equal("dbo", row.ReferencedSchemaName);
+        Assert.Equal("Lib_Reader", row.ReferencedObjectName);
+        Assert.Equal("UserId", row.ColumnName);
+        Assert.Equal("Id", row.ReferencedColumnName);
+        Assert.Equal("CASCADE", row.DeleteAction);
     }
 
     [Fact]

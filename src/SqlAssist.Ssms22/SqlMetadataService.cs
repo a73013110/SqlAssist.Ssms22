@@ -381,6 +381,29 @@ internal sealed class SqlMetadataService : IDisposable
         return await catalog.GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 載入單一物件的完整結構，含索引與外來鍵。
+    /// </summary>
+    /// <remarks>
+    /// 只有結構面板會走到這裡，允許等資料庫；連線還沒解析出來時也願意問一次 SSMS。
+    /// </remarks>
+    public async Task<SqlObjectStructure?> GetStructureAsync(
+        SqlObjectInfo objectInfo,
+        CancellationToken cancellationToken)
+    {
+        var catalog = ResolveCatalog();
+
+        if (catalog is null)
+        {
+            return null;
+        }
+
+        var timer = Stopwatch.StartNew();
+        var structure = await catalog.GetStructureAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+        ReportIfSlow($"物件結構 {objectInfo.QualifiedName}（第四層）", timer);
+        return structure;
+    }
+
     public void Dispose()
     {
         lock (_syncRoot)

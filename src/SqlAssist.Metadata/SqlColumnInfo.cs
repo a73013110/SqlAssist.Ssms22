@@ -14,7 +14,8 @@ public sealed class SqlColumnInfo
         bool isIdentity = false,
         bool isComputed = false,
         bool isPrimaryKey = false,
-        string? defaultDefinition = null)
+        string? defaultDefinition = null,
+        string? computedDefinition = null)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -29,6 +30,7 @@ public sealed class SqlColumnInfo
         IsComputed = isComputed;
         IsPrimaryKey = isPrimaryKey;
         DefaultDefinition = defaultDefinition;
+        ComputedDefinition = computedDefinition;
     }
 
     public int Ordinal { get; }
@@ -46,6 +48,9 @@ public sealed class SqlColumnInfo
     public bool IsPrimaryKey { get; }
 
     public string? DefaultDefinition { get; }
+
+    /// <summary>計算欄位的運算式；一般欄位為 null。</summary>
+    public string? ComputedDefinition { get; }
 
     /// <summary>組出接近 CREATE TABLE 寫法的單行描述。</summary>
     public string ToScriptLine()

@@ -1,8 +1,9 @@
 namespace SqlAssist.Metadata;
 
 /// <summary>
-/// 中繼資料查詢。刻意分成三層，讓第一次按鍵只付出最小代價：
-/// 第一層只取物件名稱，第二、三層等到使用者真的選取或停留在某個物件才查。
+/// 中繼資料查詢。刻意分層，讓第一次按鍵只付出最小代價：
+/// 第一層只取物件名稱，第二、三層等到使用者真的選取或停留在某個物件才查，
+/// 第四層的索引與外來鍵只有打開結構面板時才查。
 /// </summary>
 public static class SqlMetadataQueries
 {
@@ -57,7 +58,8 @@ SELECT
     c.is_identity,
     c.is_computed,
     CONVERT(bit, CASE WHEN pkc.column_id IS NULL THEN 0 ELSE 1 END) AS is_primary_key,
-    dc.definition AS default_definition
+    dc.definition AS default_definition,
+    cc.definition AS computed_definition
 FROM sys.columns AS c
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.indexes AS pk
@@ -68,8 +70,65 @@ LEFT JOIN sys.index_columns AS pkc
    AND pkc.column_id = c.column_id
 LEFT JOIN sys.default_constraints AS dc
     ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
+LEFT JOIN sys.computed_columns AS cc
+    ON cc.object_id = c.object_id AND cc.column_id = c.column_id
 WHERE c.object_id = @objectId
 ORDER BY c.column_id;";
+
+    /// <summary>
+    /// 第四層：單一資料表的索引。
+    /// </summary>
+    /// <remarks>
+    /// 一個索引有幾個欄位就有幾列，合併交給 <see cref="SqlIndexInfo.FromRows"/>。
+    /// <c>type = 0</c> 是堆積，沒有索引名稱也沒有意義，直接排除。
+    /// 排序把索引鍵欄位排在 INCLUDE 欄位前面：INCLUDE 欄位的 key_ordinal 是 0，
+    /// 只依 key_ordinal 排會讓它們跑到最前面。
+    /// </remarks>
+    public const string Indexes = @"
+SELECT
+    i.index_id,
+    i.name AS index_name,
+    i.is_primary_key,
+    i.is_unique,
+    i.is_unique_constraint,
+    i.type_desc,
+    i.filter_definition,
+    c.name AS column_name,
+    ic.is_descending_key,
+    ic.is_included_column
+FROM sys.indexes AS i
+INNER JOIN sys.index_columns AS ic
+    ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+INNER JOIN sys.columns AS c
+    ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+WHERE i.object_id = @objectId
+  AND i.type <> 0
+  AND i.name IS NOT NULL
+ORDER BY i.index_id, ic.is_included_column, ic.key_ordinal, ic.index_column_id;";
+
+    /// <summary>第四層：單一資料表向外參考的外來鍵；複合鍵會有多列。</summary>
+    public const string ForeignKeys = @"
+SELECT
+    fk.name AS foreign_key_name,
+    rs.name AS referenced_schema_name,
+    ro.name AS referenced_object_name,
+    pc.name AS column_name,
+    rc.name AS referenced_column_name,
+    fk.delete_referential_action_desc,
+    fk.update_referential_action_desc
+FROM sys.foreign_keys AS fk
+INNER JOIN sys.foreign_key_columns AS fkc
+    ON fkc.constraint_object_id = fk.object_id
+INNER JOIN sys.columns AS pc
+    ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+INNER JOIN sys.columns AS rc
+    ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+INNER JOIN sys.objects AS ro
+    ON ro.object_id = fk.referenced_object_id
+INNER JOIN sys.schemas AS rs
+    ON rs.schema_id = ro.schema_id
+WHERE fk.parent_object_id = @objectId
+ORDER BY fk.name, fkc.constraint_column_id;";
 
     /// <summary>第二層：單一模組的參數。</summary>
     public const string Parameters = @"

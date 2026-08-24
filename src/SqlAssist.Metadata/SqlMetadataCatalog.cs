@@ -22,6 +22,7 @@ public sealed class SqlMetadataCatalog
     private readonly SemaphoreSlim _snapshotGate = new(1, 1);
     private readonly object _detailLock = new();
     private readonly Dictionary<int, SqlObjectDetail> _details = new();
+    private readonly Dictionary<int, SqlObjectStructure> _structures = new();
     private readonly ISqlConnectionSource _connectionSource;
     private readonly TimeSpan _lifetime;
     private readonly int _commandTimeoutSeconds;
@@ -50,6 +51,7 @@ public sealed class SqlMetadataCatalog
         lock (_detailLock)
         {
             _details.Clear();
+            _structures.Clear();
         }
     }
 
@@ -167,6 +169,87 @@ public sealed class SqlMetadataCatalog
         }
 
         return detail;
+    }
+
+    /// <summary>
+    /// 取得單一物件的完整結構：第二層的欄位與參數，加上索引與外來鍵。
+    /// </summary>
+    /// <remarks>
+    /// 只有使用者主動打開結構面板時才會走到這裡，因此可以放心多查兩次；
+    /// 按鍵路徑上的 <see cref="GetDetailAsync"/> 不受影響。
+    /// </remarks>
+    public async Task<SqlObjectStructure> GetStructureAsync(
+        SqlObjectInfo objectInfo,
+        CancellationToken cancellationToken)
+    {
+        if (objectInfo is null)
+        {
+            throw new ArgumentNullException(nameof(objectInfo));
+        }
+
+        lock (_detailLock)
+        {
+            if (_structures.TryGetValue(objectInfo.ObjectId, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var detail = await GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+        var structure = objectInfo.Kind.HasColumns()
+            ? await Task.Run(() => LoadStructure(detail, cancellationToken), cancellationToken)
+                .ConfigureAwait(false)
+            : new SqlObjectStructure(detail);
+
+        lock (_detailLock)
+        {
+            if (_structures.Count >= MaximumCachedDetails)
+            {
+                _structures.Clear();
+            }
+
+            _structures[objectInfo.ObjectId] = structure;
+        }
+
+        return structure;
+    }
+
+    private SqlObjectStructure LoadStructure(SqlObjectDetail detail, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionSource.OpenConnection();
+        var indexRows = new List<SqlIndexRow>();
+        var foreignKeyRows = new List<SqlForeignKeyRow>();
+
+        using (var command = CreateCommand(connection, SqlMetadataQueries.Indexes))
+        {
+            AddObjectIdParameter(command, detail.Object.ObjectId);
+            using var reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                indexRows.Add(SqlMetadataReader.ReadIndexRow(reader));
+            }
+        }
+
+        // 檢視沒有外來鍵，少一次來回。
+        if (detail.Object.Kind == SqlObjectKind.Table)
+        {
+            using var command = CreateCommand(connection, SqlMetadataQueries.ForeignKeys);
+            AddObjectIdParameter(command, detail.Object.ObjectId);
+            using var reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                foreignKeyRows.Add(SqlMetadataReader.ReadForeignKeyRow(reader));
+            }
+        }
+
+        return new SqlObjectStructure(
+            detail,
+            SqlIndexInfo.FromRows(indexRows),
+            SqlForeignKeyInfo.FromRows(foreignKeyRows));
     }
 
     private bool IsFresh(SqlDatabaseSnapshot snapshot)
