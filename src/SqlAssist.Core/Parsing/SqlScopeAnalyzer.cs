@@ -1,0 +1,418 @@
+using System;
+using System.Collections.Generic;
+
+namespace SqlAssist.Core.Parsing;
+
+/// <summary>
+/// 從詞法串流找出游標所在的查詢範圍，以及該範圍看得到的資料來源。
+/// </summary>
+/// <remarks>
+/// 這是別名解析的基礎：<c>FROM dbo.Lib_Reader u</c> 之後輸入 <c>u.</c> 時，
+/// 要知道 <c>u</c> 指向哪一張資料表才能列出欄位。
+///
+/// 範圍以括號深度界定，因此子查詢內的游標看到的是子查詢自己的 FROM 子句，
+/// 而不是外層的——這正是巢狀查詢會建議錯欄位的原因。
+/// </remarks>
+public static class SqlScopeAnalyzer
+{
+    /// <summary>可以獨立成為一個敘述開頭的關鍵字。</summary>
+    /// <remarks>
+    /// 刻意不含 <c>SET</c> 與 <c>WITH</c>：
+    /// <c>SET</c> 會把 <c>UPDATE u SET … FROM …</c> 從中間切斷，
+    /// <c>WITH</c> 則同時是 CTE 開頭與資料表提示（<c>WITH (NOLOCK)</c>）。
+    /// 少判一個邊界只會讓範圍偏大，多判一個會讓 FROM 子句整個消失。
+    /// </remarks>
+    private static readonly HashSet<string> StatementKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE",
+            "CREATE", "ALTER", "DROP", "EXEC", "EXECUTE", "DECLARE",
+            "IF", "WHILE", "RETURN", "PRINT", "USE", "GRANT", "REVOKE", "DENY"
+        };
+
+    /// <summary>不可能是資料表名稱或別名的關鍵字。</summary>
+    private static readonly HashSet<string> ClauseKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "WHERE", "GROUP", "ORDER", "HAVING", "BY", "JOIN", "INNER", "LEFT",
+            "RIGHT", "FULL", "CROSS", "OUTER", "APPLY", "ON", "UNION", "EXCEPT",
+            "INTERSECT", "SET", "VALUES", "OPTION", "FOR", "PIVOT", "UNPIVOT",
+            "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "WHEN", "THEN",
+            "USING", "AND", "OR", "NOT", "TOP", "DISTINCT", "INTO", "EXEC",
+            "EXECUTE", "DECLARE", "IF", "WHILE", "BEGIN", "END", "ELSE",
+            "RETURN", "OUTPUT", "GO", "AS", "WITH", "TABLESAMPLE", "ASC",
+            "DESC", "PERCENT", "TIES", "FROM", "TABLE", "CASE", "ELSE", "NULL"
+        };
+
+    /// <summary>會在後面接資料來源的關鍵字。</summary>
+    private static readonly HashSet<string> SourceKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "FROM", "JOIN", "APPLY", "INTO", "UPDATE", "USING"
+        };
+
+    /// <summary>
+    /// 分析游標所在的查詢範圍。
+    /// </summary>
+    /// <remarks>
+    /// 會對整份文字做詞法分析。判斷游標是否位於字串或註解內本來就需要從頭掃描，
+    /// 因此成本與既有的語彙狀態判斷同級，不是新增的負擔。
+    /// </remarks>
+    public static SqlStatementScope Analyze(string sql, int caretPosition)
+    {
+        if (sql is null)
+        {
+            throw new ArgumentNullException(nameof(sql));
+        }
+
+        if (caretPosition < 0 || caretPosition > sql.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(caretPosition));
+        }
+
+        var tokens = SqlTokenizer.Tokenize(sql);
+
+        if (tokens.Count == 0)
+        {
+            return SqlStatementScope.Empty;
+        }
+
+        var caretIndex = FindCaretTokenIndex(tokens, caretPosition);
+        var start = FindScopeStart(tokens, caretIndex);
+
+        // 範圍起點可能落在最後一個詞法單元之後，例如剛輸入 "FROM (" 的當下。
+        if (start >= tokens.Count)
+        {
+            return new SqlStatementScope(Array.Empty<SqlTableReference>(), caretPosition, caretPosition);
+        }
+
+        var end = FindScopeEnd(tokens, start);
+        var tables = ExtractTableReferences(tokens, start, end);
+
+        return new SqlStatementScope(
+            tables,
+            tokens[start].Start,
+            end > start ? tokens[end - 1].End : tokens[start].Start);
+    }
+
+    /// <summary>最後一個起點在游標之前的詞法單元。</summary>
+    private static int FindCaretTokenIndex(IReadOnlyList<SqlToken> tokens, int caretPosition)
+    {
+        var index = -1;
+
+        for (var i = 0; i < tokens.Count; i++)
+        {
+            if (tokens[i].Start >= caretPosition)
+            {
+                break;
+            }
+
+            index = i;
+        }
+
+        return index < 0 ? 0 : index;
+    }
+
+    private static int FindScopeStart(IReadOnlyList<SqlToken> tokens, int caretIndex)
+    {
+        var depth = 0;
+
+        for (var i = caretIndex; i >= 0; i--)
+        {
+            var token = tokens[i];
+
+            if (token.IsPunctuation(")"))
+            {
+                depth++;
+                continue;
+            }
+
+            if (token.IsPunctuation("("))
+            {
+                // 深度已經是 0 卻遇到左括號，代表游標在這個括號內：
+                // 子查詢的範圍從這裡開始，外層的 FROM 子句不算數。
+                if (depth == 0)
+                {
+                    return i + 1;
+                }
+
+                depth--;
+                continue;
+            }
+
+            if (depth > 0)
+            {
+                continue;
+            }
+
+            if (token.IsPunctuation(";") || token.IsKeyword("GO"))
+            {
+                return i + 1;
+            }
+
+            if (token.Kind == SqlTokenKind.Identifier &&
+                !token.IsQuoted &&
+                StatementKeywords.Contains(token.Value))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int FindScopeEnd(IReadOnlyList<SqlToken> tokens, int start)
+    {
+        var depth = 0;
+
+        for (var i = start; i < tokens.Count; i++)
+        {
+            var token = tokens[i];
+
+            if (token.IsPunctuation("("))
+            {
+                depth++;
+                continue;
+            }
+
+            if (token.IsPunctuation(")"))
+            {
+                if (depth == 0)
+                {
+                    return i;
+                }
+
+                depth--;
+                continue;
+            }
+
+            if (depth > 0)
+            {
+                continue;
+            }
+
+            if (token.IsPunctuation(";") || token.IsKeyword("GO"))
+            {
+                return i;
+            }
+
+            if (i > start &&
+                token.Kind == SqlTokenKind.Identifier &&
+                !token.IsQuoted &&
+                StatementKeywords.Contains(token.Value))
+            {
+                return i;
+            }
+        }
+
+        return tokens.Count;
+    }
+
+    private static IReadOnlyList<SqlTableReference> ExtractTableReferences(
+        IReadOnlyList<SqlToken> tokens,
+        int start,
+        int end)
+    {
+        var references = new List<SqlTableReference>();
+        var index = start;
+
+        while (index < end)
+        {
+            var token = tokens[index];
+
+            if (token.Kind != SqlTokenKind.Identifier ||
+                token.IsQuoted ||
+                !SourceKeywords.Contains(token.Value))
+            {
+                index++;
+                continue;
+            }
+
+            // FROM 與 INTO 後面可以是逗號分隔的清單，JOIN／APPLY／USING 只接一個。
+            var allowsList = token.IsKeyword("FROM") || token.IsKeyword("INTO");
+            index++;
+
+            while (index < end)
+            {
+                if (!TryParseTableReference(tokens, index, end, out var reference, out var next))
+                {
+                    break;
+                }
+
+                references.Add(reference);
+                index = next;
+
+                if (!allowsList || index >= end || !tokens[index].IsPunctuation(","))
+                {
+                    break;
+                }
+
+                index++;
+            }
+        }
+
+        return references;
+    }
+
+    private static bool TryParseTableReference(
+        IReadOnlyList<SqlToken> tokens,
+        int index,
+        int end,
+        out SqlTableReference reference,
+        out int next)
+    {
+        reference = null!;
+        next = index;
+
+        if (index >= end)
+        {
+            return false;
+        }
+
+        var start = index;
+        var first = tokens[index];
+        string? schemaName = null;
+        var objectName = string.Empty;
+        var isDerived = false;
+
+        if (first.IsPunctuation("("))
+        {
+            // 衍生資料表或資料表值建構式：查不到中繼資料，但別名仍要記下來，
+            // 否則後面用這個別名限定欄位時會誤判成資料表名稱。
+            index = SkipParenthesised(tokens, index, end);
+            isDerived = true;
+        }
+        else if (first.Kind == SqlTokenKind.Variable)
+        {
+            objectName = first.Value;
+            isDerived = true;
+            index++;
+        }
+        else if (first.Kind == SqlTokenKind.Identifier && (first.IsQuoted || !ClauseKeywords.Contains(first.Value)))
+        {
+            var parts = new List<string>();
+
+            while (index < end &&
+                   tokens[index].Kind == SqlTokenKind.Identifier &&
+                   (tokens[index].IsQuoted || !ClauseKeywords.Contains(tokens[index].Value)))
+            {
+                parts.Add(tokens[index].Value);
+                index++;
+
+                if (index < end && tokens[index].IsPunctuation("."))
+                {
+                    index++;
+
+                    // db..object 這種寫法中間那段是空的。
+                    if (index < end && tokens[index].IsPunctuation("."))
+                    {
+                        parts.Add(string.Empty);
+                    }
+
+                    continue;
+                }
+
+                break;
+            }
+
+            if (parts.Count == 0)
+            {
+                return false;
+            }
+
+            objectName = parts[parts.Count - 1];
+            schemaName = parts.Count >= 2 ? parts[parts.Count - 2] : null;
+
+            if (string.IsNullOrEmpty(schemaName))
+            {
+                schemaName = null;
+            }
+
+            // 資料表值函式：CROSS APPLY dbo.fn_Split(x) s
+            if (index < end && tokens[index].IsPunctuation("("))
+            {
+                index = SkipParenthesised(tokens, index, end);
+            }
+        }
+        else
+        {
+            return false;
+        }
+
+        // 資料表提示夾在名稱與別名之間：FROM Orders WITH (NOLOCK) o
+        if (index + 1 < end && tokens[index].IsKeyword("WITH") && tokens[index + 1].IsPunctuation("("))
+        {
+            index = SkipParenthesised(tokens, index + 1, end);
+        }
+
+        var alias = TryReadAlias(tokens, ref index, end);
+
+        reference = new SqlTableReference(
+            schemaName,
+            objectName,
+            alias,
+            isDerived,
+            tokens[start].Start,
+            tokens[Math.Max(start, index - 1)].End);
+
+        next = index;
+        return true;
+    }
+
+    private static string? TryReadAlias(IReadOnlyList<SqlToken> tokens, ref int index, int end)
+    {
+        var cursor = index;
+
+        if (cursor < end && tokens[cursor].IsKeyword("AS"))
+        {
+            cursor++;
+        }
+
+        if (cursor >= end)
+        {
+            return null;
+        }
+
+        var candidate = tokens[cursor];
+
+        if (candidate.Kind != SqlTokenKind.Identifier)
+        {
+            return null;
+        }
+
+        if (!candidate.IsQuoted && ClauseKeywords.Contains(candidate.Value))
+        {
+            return null;
+        }
+
+        index = cursor + 1;
+        return candidate.Value;
+    }
+
+    /// <summary>從左括號跳到對應的右括號之後。</summary>
+    private static int SkipParenthesised(IReadOnlyList<SqlToken> tokens, int index, int end)
+    {
+        var depth = 0;
+
+        while (index < end)
+        {
+            if (tokens[index].IsPunctuation("("))
+            {
+                depth++;
+            }
+            else if (tokens[index].IsPunctuation(")"))
+            {
+                depth--;
+
+                if (depth == 0)
+                {
+                    return index + 1;
+                }
+            }
+
+            index++;
+        }
+
+        return end;
+    }
+}
