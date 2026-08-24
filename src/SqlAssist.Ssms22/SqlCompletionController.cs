@@ -140,7 +140,7 @@ internal sealed class SqlCompletionController : IDisposable
         ITextSnapshot snapshot,
         int caretPosition)
     {
-        if (context.Target is not (CompletionTarget.Procedure or CompletionTarget.Function) ||
+        if (context.Intent != CompletionIntent.AlterDefinition ||
             context.TargetKeywordStart < 0 ||
             selected.Tag is not SqlObjectInfo objectInfo ||
             !objectInfo.Kind.IsModule())

@@ -51,6 +51,33 @@ public sealed class SqlCompletionContextAnalyzerTests
             textBeforeCaret.Substring(expectedStart, expectedKeyword.Length));
     }
 
+    [Theory]
+    [InlineData("EXEC ")]
+    [InlineData("EXECUTE ")]
+    [InlineData("exec usp")]
+    public void EXEC之後只建議Procedure(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(CompletionTarget.Procedure, context.Target);
+    }
+
+    /// <summary>
+    /// ALTER PROCEDURE 與 EXEC 後方都只顯示預存程序，但提交行為必須不同：
+    /// 前者要放進完整定義，後者只補上名稱。
+    /// </summary>
+    [Theory]
+    [InlineData("ALTER PROCEDURE ", CompletionIntent.AlterDefinition)]
+    [InlineData("ALTER FUNCTION ", CompletionIntent.AlterDefinition)]
+    [InlineData("EXEC ", CompletionIntent.Reference)]
+    [InlineData("SELECT * FROM ", CompletionIntent.Reference)]
+    [InlineData("SELECT pub", CompletionIntent.Reference)]
+    public void 區分提交意圖(string textBeforeCaret, CompletionIntent expected)
+    {
+        Assert.Equal(expected, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Intent);
+    }
+
     [Fact]
     public void 沒有目標關鍵字時起點為負一()
     {

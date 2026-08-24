@@ -8,7 +8,8 @@ public sealed class SqlCompletionContext
         string prefix,
         CompletionTarget target,
         string? schemaQualifier = null,
-        int targetKeywordStart = -1)
+        int targetKeywordStart = -1,
+        CompletionIntent intent = CompletionIntent.Reference)
     {
         IsValid = isValid;
         TokenStart = tokenStart;
@@ -16,6 +17,7 @@ public sealed class SqlCompletionContext
         Target = target;
         SchemaQualifier = schemaQualifier;
         TargetKeywordStart = targetKeywordStart;
+        Intent = intent;
     }
 
     public bool IsValid { get; }
@@ -34,4 +36,7 @@ public sealed class SqlCompletionContext
     /// 提交時要替換整個語句（而不只是游標前的字）就靠這個位置。
     /// </summary>
     public int TargetKeywordStart { get; }
+
+    /// <summary>提交建議時應該做什麼。</summary>
+    public CompletionIntent Intent { get; }
 }

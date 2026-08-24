@@ -23,7 +23,8 @@ public static class SqlCompletionContextAnalyzer
         var schemaQualifier = ExtractSchemaQualifier(beforeToken, out var beforeQualifier);
         var target = DetermineTarget(
             schemaQualifier is null ? beforeToken : beforeQualifier,
-            out var targetKeywordStart);
+            out var targetKeywordStart,
+            out var intent);
         var isValid = prefix.Length > 0 || target != CompletionTarget.Any || schemaQualifier is not null;
         return new SqlCompletionContext(
             isValid,
@@ -31,14 +32,21 @@ public static class SqlCompletionContextAnalyzer
             prefix,
             target,
             schemaQualifier,
-            targetKeywordStart);
+            targetKeywordStart,
+            intent);
     }
 
     /// <summary>
     /// 依游標前方的關鍵字判斷應該建議哪一類物件，並回報該關鍵字的起點。
     /// </summary>
-    private static CompletionTarget DetermineTarget(string text, out int keywordStart)
+    private static CompletionTarget DetermineTarget(
+        string text,
+        out int keywordStart,
+        out CompletionIntent intent)
     {
+        // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示。
+        intent = CompletionIntent.AlterDefinition;
+
         if (EndsWithKeywords(text, "ALTER", "PROCEDURE", out keywordStart))
         {
             return CompletionTarget.Procedure;
@@ -47,6 +55,14 @@ public static class SqlCompletionContextAnalyzer
         if (EndsWithKeywords(text, "ALTER", "FUNCTION", out keywordStart))
         {
             return CompletionTarget.Function;
+        }
+
+        intent = CompletionIntent.Reference;
+
+        if (EndsWithKeyword(text, "EXEC", out keywordStart) ||
+            EndsWithKeyword(text, "EXECUTE", out keywordStart))
+        {
+            return CompletionTarget.Procedure;
         }
 
         if (EndsWithKeyword(text, "FROM", out keywordStart) ||
