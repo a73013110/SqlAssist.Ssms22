@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
@@ -24,6 +25,9 @@ internal sealed class SqlMetadataService : IDisposable
     private readonly IServiceProvider _serviceProvider;
     private SsmsConnectionSource? _connectionSource;
     private SqlMetadataCatalog? _catalog;
+
+    /// <summary>上一次從編輯器連線算出的快取鍵，用來判斷連線或資料庫有沒有換過。</summary>
+    private string? _editorCacheKey;
     private bool _disposed;
 
     public SqlMetadataService(IServiceProvider serviceProvider)
@@ -84,6 +88,7 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
+        var total = Stopwatch.StartNew();
         var catalog = ResolveCatalog();
 
         if (catalog is null)
@@ -99,7 +104,10 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
+        var cached = catalog.TryGetCachedDetail(matches[0].ObjectId, out _);
         var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+
+        ReportIfSlow($"欄位建議 {matches[0].QualifiedName}（第二層{(cached ? "命中快取" : "查詢資料庫")}）", total);
 
         if (detail is null || detail.Columns.Count == 0)
         {
@@ -107,6 +115,83 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         return BuildColumnSuggestions(matches[0], detail);
+    }
+
+    /// <summary>
+    /// 預先載入敘述中各資料來源的欄位。
+    /// </summary>
+    /// <remarks>
+    /// 使用者輸入 <c>a.</c> 的那一刻才去查欄位，等待就完全落在打字的節奏上。
+    /// 但在那之前他已經打過 <c>FROM PUBLISHER a</c>，也已經至少開過一次建議清單——
+    /// 那時就可以把敘述裡每一張資料表的欄位先撈回來，等到真的按下點號時直接命中快取。
+    ///
+    /// 失敗一律安靜略過：這只是預熱，真正需要時還會再走一次正規路徑。
+    /// </remarks>
+    public void WarmColumns(IReadOnlyList<SqlTableReference> tables)
+    {
+        if (tables is null || tables.Count == 0 || _disposed)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var catalog = ResolveCatalog();
+
+                if (catalog is null || !catalog.IsSnapshotFresh)
+                {
+                    return;
+                }
+
+                var snapshot = await catalog.GetSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
+
+                foreach (var table in tables)
+                {
+                    if (_disposed || table.IsDerived)
+                    {
+                        continue;
+                    }
+
+                    var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+                    if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
+                    {
+                        continue;
+                    }
+
+                    var timer = Stopwatch.StartNew();
+                    await catalog.GetDetailAsync(matches[0], CancellationToken.None).ConfigureAwait(false);
+                    SqlAssistDiagnostics.Write(
+                        $"已預先載入 {matches[0].QualifiedName} 的欄位（{timer.ElapsedMilliseconds} ms）");
+                }
+            }
+            catch (Exception exception)
+            {
+                SqlAssistDiagnostics.Write($"預先載入欄位失敗：{exception.Message}");
+            }
+        });
+    }
+
+    /// <summary>
+    /// 超過門檻的操作一律記錄，不必先打開詳細診斷。
+    /// </summary>
+    /// <remarks>
+    /// 建議清單的延遲只有在使用者遇到時才觀察得到，事後要求對方重現並開啟追蹤
+    /// 才拿得到數字，等於白白浪費一次。慢的操作本來就少，直接記下來成本可以忽略。
+    /// </remarks>
+    private static void ReportIfSlow(string operation, Stopwatch timer, int thresholdMilliseconds = 200)
+    {
+        timer.Stop();
+
+        if (timer.ElapsedMilliseconds >= thresholdMilliseconds)
+        {
+            SqlAssistDiagnostics.WriteAlways($"耗時 {timer.ElapsedMilliseconds} ms：{operation}");
+            return;
+        }
+
+        SqlAssistDiagnostics.Write($"耗時 {timer.ElapsedMilliseconds} ms：{operation}");
     }
 
     /// <summary>載入單一物件的欄位、參數與定義。</summary>
@@ -134,7 +219,9 @@ internal sealed class SqlMetadataService : IDisposable
             }
 
             _disposed = true;
-            _connectionSource?.Dispose();
+
+            // 連線來源的所有權在 SqlMetadataCatalogRegistry：目錄是跨查詢視窗共用的，
+            // 這裡釋放會讓其他還開著的視窗一起失效。
             _connectionSource = null;
             _catalog = null;
         }
@@ -147,11 +234,13 @@ internal sealed class SqlMetadataService : IDisposable
     private SqlMetadataCatalog? ResolveCatalog()
     {
         IDbConnection? editorConnection;
+        var timer = Stopwatch.StartNew();
 
         try
         {
             var editorService = _serviceProvider.GetService(typeof(SSqlEditorService)) as ISqlEditorService;
             editorConnection = editorService?.GetCurrentConnection();
+            ReportIfSlow("向 SSMS 取得目前連線", timer);
         }
         catch (Exception exception)
         {
@@ -175,12 +264,16 @@ internal sealed class SqlMetadataService : IDisposable
                 return null;
             }
 
-            if (_catalog is not null && string.Equals(_catalog.CacheKey, cacheKey, StringComparison.Ordinal))
+            // 拿上一次「從編輯器連線算出的鍵」來比，而不是目錄自己的鍵。
+            // 目錄的鍵是從複製出來的樣板連線算的，而複製品與原始連線的
+            // ConnectionString 未必逐字相同（例如密碼是否回傳），
+            // 一旦不同，這個快取判斷就永遠不成立，每次按鍵都要重建連線來源。
+            if (_catalog is not null && string.Equals(_editorCacheKey, cacheKey, StringComparison.Ordinal))
             {
                 return _catalog;
             }
 
-            _connectionSource?.Dispose();
+            _editorCacheKey = cacheKey;
             _connectionSource = SsmsConnectionSource.TryCreate(editorConnection);
 
             if (_connectionSource is null)

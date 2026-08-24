@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.QuickInfo;
 
@@ -93,10 +94,18 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         SnapshotSpan applicableToSpan,
         CancellationToken token)
     {
+        var total = System.Diagnostics.Stopwatch.StartNew();
+
         try
         {
             var settings = SettingsService.Default.GetSnapshot();
             var context = Analyze(triggerLocation);
+
+            // 使用者輸入 a. 的那一刻才查欄位，等待就完全落在打字的節奏上。
+            // 但這時他已經打過 FROM PUBLISHER a，敘述裡有哪些資料表是已知的，
+            // 先在背景把欄位撈回來，按下點號時就能直接命中快取。
+            WarmScopeColumns(triggerLocation, settings);
+
             var candidates = await GetCandidatesAsync(context, settings, token).ConfigureAwait(false);
 
             // 上下文過濾要在建立清單時做完：平台會快取這份清單，
@@ -113,6 +122,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 .ToImmutableArray();
 
             AsyncCompletionProbe.RecordContext(items.Length);
+
+            // 使用者感受到的就是這個數字：從平台要清單，到清單交出去為止。
+            total.Stop();
+
+            if (total.ElapsedMilliseconds >= 200)
+            {
+                SqlAssistDiagnostics.WriteAlways(
+                    $"耗時 {total.ElapsedMilliseconds} ms：建議清單（目標 {context.Target}，{items.Length} 筆）");
+            }
+
             return new CompletionContext(items);
         }
         catch (OperationCanceledException)
@@ -225,6 +244,20 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             SuggestionKind.Keyword => settings.Features.KeywordUppercase,
             _ => true
         };
+    }
+
+    private void WarmScopeColumns(SnapshotPoint triggerLocation, SqlAssistSettings settings)
+    {
+        if (!settings.Features.ObjectPicker)
+        {
+            return;
+        }
+
+        var scope = SqlScopeAnalyzer.Analyze(
+            triggerLocation.Snapshot.GetText(),
+            triggerLocation.Position);
+
+        _metadataService.WarmColumns(scope.Tables);
     }
 
     private static SqlCompletionContext Analyze(SnapshotPoint triggerLocation)

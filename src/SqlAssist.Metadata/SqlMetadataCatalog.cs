@@ -53,12 +53,31 @@ public sealed class SqlMetadataCatalog
         }
     }
 
-    /// <summary>取得第一層資料；仍在有效期內時直接回傳快取。</summary>
+    /// <summary>第一層資料是否仍在有效期內。</summary>
+    public bool IsSnapshotFresh => IsFresh(CachedSnapshot);
+
+    /// <summary>
+    /// 取得第一層資料。
+    /// </summary>
+    /// <remarks>
+    /// 已有資料但過期時<b>先回傳舊的、同時在背景更新</b>，不讓使用者為了重新整理而等待。
+    /// 物件清單過期五分鐘與剛好新增了一張資料表相比，前者的代價遠低於每五分鐘
+    /// 就有一次按鍵要等一輪資料庫查詢——而那一輪還會擋在欄位建議的前面。
+    /// 只有完全沒有資料時才真的等。
+    /// </remarks>
     public async Task<SqlDatabaseSnapshot> GetSnapshotAsync(CancellationToken cancellationToken)
     {
-        if (IsFresh(CachedSnapshot))
+        var cached = CachedSnapshot;
+
+        if (IsFresh(cached))
         {
-            return CachedSnapshot;
+            return cached;
+        }
+
+        if (!cached.IsEmpty)
+        {
+            BeginBackgroundRefresh();
+            return cached;
         }
 
         // 多個查詢視窗同時開啟時，只讓一條執行緒真的去查資料庫。
@@ -79,6 +98,40 @@ public sealed class SqlMetadataCatalog
         finally
         {
             _snapshotGate.Release();
+        }
+    }
+
+    /// <summary>在背景更新第一層資料；已經有人在更新時直接略過。</summary>
+    private void BeginBackgroundRefresh()
+    {
+        if (!_snapshotGate.Wait(0))
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                Volatile.Write(ref _snapshot, LoadSnapshot(CancellationToken.None));
+            }
+            catch
+            {
+                // 背景更新失敗就繼續用舊資料，使用者不需要知道。
+            }
+            finally
+            {
+                _snapshotGate.Release();
+            }
+        });
+    }
+
+    /// <summary>不觸發查詢，只看第二層快取裡有沒有。</summary>
+    public bool TryGetCachedDetail(int objectId, out SqlObjectDetail detail)
+    {
+        lock (_detailLock)
+        {
+            return _details.TryGetValue(objectId, out detail!);
         }
     }
 

@@ -33,6 +33,10 @@ public sealed class SqlMetadataCatalogRegistry
         {
             if (_catalogs.TryGetValue(connectionSource.CacheKey, out var existing))
             {
+                // 已經有目錄在用同一個連線，這一份不會有人用到。
+                // 由這裡負責釋放，呼叫端就不必判斷自己交出去的那份還在不在被共用——
+                // 先前呼叫端會自行釋放，結果關掉一個查詢視窗就讓其他視窗的目錄失效。
+                (connectionSource as IDisposable)?.Dispose();
                 return existing;
             }
 
