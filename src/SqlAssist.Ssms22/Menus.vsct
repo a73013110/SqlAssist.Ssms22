@@ -65,6 +65,10 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>開啟設定</ButtonText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleAsyncCompletionProbe" priority="0x0400" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Strings><ButtonText>非同步 IntelliSense 探測</ButtonText></Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -92,6 +96,7 @@
       <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
       <IDSymbol name="cmdidOpenSettings" value="0x0201" />
       <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
+      <IDSymbol name="cmdidToggleAsyncCompletionProbe" value="0x0203" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

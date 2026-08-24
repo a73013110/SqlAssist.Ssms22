@@ -71,6 +71,17 @@ public sealed class SettingsService
         }
     }
 
+    public bool ToggleAsyncCompletionProbe()
+    {
+        lock (_syncRoot)
+        {
+            ReloadIfChangedNoLock();
+            _settings.AsyncCompletionProbe = !_settings.AsyncCompletionProbe;
+            SaveNoLock();
+            return _settings.AsyncCompletionProbe;
+        }
+    }
+
     public bool ToggleSuggestions()
     {
         lock (_syncRoot)

@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.ComponentModel.Design;
 using System.Reflection;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core;
+using SqlAssist.Ssms22.Completion;
 
 namespace SqlAssist.Ssms22;
 
@@ -46,6 +47,12 @@ internal sealed class SqlAssistCommands
         AddFeatureToggle(CommandIds.ToggleKeywordUppercase, SqlAssistFeature.KeywordUppercase, "關鍵字轉大寫");
         AddFeatureToggle(CommandIds.ToggleObjectPicker, SqlAssistFeature.ObjectPicker, "Procedure／Function 選擇器");
         AddFeatureToggle(CommandIds.ToggleResultGridCommands, SqlAssistFeature.ResultGridCommands, "結果格命令");
+
+        AddToggleCommand(
+            CommandIds.ToggleAsyncCompletionProbe,
+            () => _settings.GetSnapshot().AsyncCompletionProbe,
+            () => _settings.ToggleAsyncCompletionProbe(),
+            "非同步 IntelliSense 探測");
 
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
@@ -119,6 +126,9 @@ internal sealed class SqlAssistCommands
             $"資料庫物件建議：{FormatState(settings.Features.ObjectPicker)}\r\n" +
             $"結果格命令設定：{FormatState(settings.Features.ResultGridCommands)}（功能開發中）\r\n" +
             $"詳細診斷記錄：{FormatState(settings.DiagnosticsEnabled)}\r\n\r\n" +
+            $"── 非同步 IntelliSense 探測 ──\r\n" +
+            $"探測模式：{FormatState(settings.AsyncCompletionProbe)}\r\n" +
+            AsyncCompletionProbe.BuildReport() + "\r\n" +
             $"設定檔：{_settings.SettingsPath}\r\n" +
             $"診斷檔：{SqlAssistDiagnostics.LogPath}\r\n" +
             $"設定載入錯誤：{loadError}";

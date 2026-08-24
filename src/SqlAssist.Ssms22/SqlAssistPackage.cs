@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.ComponentModel.Design;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,10 @@ namespace SqlAssist.Ssms22;
 public sealed class SqlAssistPackage : AsyncPackage
 {
     public const string PackageGuidString = "b386e18d-f34b-4db4-a40d-b9092a31d89f";
+
+    /// <summary>版本一律由組件中繼資料取得，避免與 csproj 的 Version 脫節。</summary>
+    internal static string PackageVersion =>
+        typeof(SqlAssistPackage).Assembly.GetName().Version?.ToString() ?? "未知";
     private const string NoSolutionUiContextGuid = "adfc4e64-0397-11d1-9f4e-00a0c911004f";
 
     protected override async Task InitializeAsync(
@@ -36,7 +41,7 @@ public sealed class SqlAssistPackage : AsyncPackage
 
             SqlAssistCommands.Register(this, commandService);
             SqlAssistRuntimeState.MarkPackageLoaded();
-            SqlAssistDiagnostics.WriteAlways("AsyncPackage 0.4.1 已載入，工具選單已註冊");
+            SqlAssistDiagnostics.WriteAlways($"AsyncPackage {PackageVersion} 已載入，工具選單已註冊");
         }
         catch (Exception exception)
         {
