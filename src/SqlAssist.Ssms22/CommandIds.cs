@@ -17,4 +17,5 @@ internal static class CommandIds
     public const int OpenSettings = 0x0201;
     public const int RefreshSuggestions = 0x0202;
     public const int ToggleAsyncCompletionProbe = 0x0203;
+    public const int EditSettingsFile = 0x0204;
 }

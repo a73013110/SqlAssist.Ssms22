@@ -81,6 +81,52 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void Update回傳套用後的快照並寫入檔案()
+    {
+        var service = new SettingsService(_path);
+
+        var applied = service.Update(settings =>
+        {
+            settings.Suggestions.TriggerAfterCharacters = 3;
+            settings.Suggestions.MaximumItems = 42;
+            settings.AsyncCompletionProbe = true;
+        });
+
+        Assert.Equal(3, applied.Suggestions.TriggerAfterCharacters);
+        Assert.Equal(42, applied.Suggestions.MaximumItems);
+        Assert.True(applied.AsyncCompletionProbe);
+
+        var reloaded = new SettingsService(_path).GetSnapshot();
+        Assert.Equal(3, reloaded.Suggestions.TriggerAfterCharacters);
+        Assert.Equal(42, reloaded.Suggestions.MaximumItems);
+        Assert.True(reloaded.AsyncCompletionProbe);
+    }
+
+    [Fact]
+    public void Update會先併入外部變更再套用()
+    {
+        var service = new SettingsService(_path);
+
+        // 模擬使用者在對話框開著的時候直接改了設定檔。
+        File.WriteAllText(_path, "{\"enabled\":false,\"diagnosticsEnabled\":true}");
+        File.SetLastWriteTimeUtc(_path, DateTime.UtcNow.AddSeconds(1));
+
+        var applied = service.Update(settings => settings.Suggestions.ShowPreview = false);
+
+        Assert.False(applied.Enabled);
+        Assert.True(applied.DiagnosticsEnabled);
+        Assert.False(applied.Suggestions.ShowPreview);
+    }
+
+    [Fact]
+    public void Update傳入null時擲回()
+    {
+        var service = new SettingsService(_path);
+
+        Assert.Throws<ArgumentNullException>(() => service.Update(null!));
+    }
+
+    [Fact]
     public void 外部改寫設定檔後會重新載入()
     {
         var service = new SettingsService(_path);

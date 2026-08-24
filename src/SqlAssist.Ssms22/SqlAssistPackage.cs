@@ -5,16 +5,36 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
+using SqlAssist.Ssms22.Options;
 
 namespace SqlAssist.Ssms22;
 
 [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
 [ProvideMenuResource("Menus.ctmenu", 1)]
 [ProvideAutoLoad(NoSolutionUiContextGuid, PackageAutoLoadFlags.BackgroundLoad)]
+// 設定必須出現在「工具 → 選項」，那才是使用者尋找擴充設定的地方；
+// 工具選單的即時開關只是捷徑，不能是唯一入口。
+[ProvideOptionPage(
+    typeof(GeneralOptionsPage),
+    OptionsCategory,
+    "一般",
+    categoryResourceID: 0,
+    pageNameResourceID: 0,
+    supportsAutomation: true)]
+[ProvideOptionPage(
+    typeof(SuggestionsOptionsPage),
+    OptionsCategory,
+    "建議清單",
+    categoryResourceID: 0,
+    pageNameResourceID: 0,
+    supportsAutomation: true)]
 [Guid(PackageGuidString)]
 public sealed class SqlAssistPackage : AsyncPackage
 {
     public const string PackageGuidString = "b386e18d-f34b-4db4-a40d-b9092a31d89f";
+
+    /// <summary>「工具 → 選項」底下的分類名稱。</summary>
+    public const string OptionsCategory = "SqlAssist";
 
     /// <summary>版本一律由組件中繼資料取得，避免與 csproj 的 Version 脫節。</summary>
     internal static string PackageVersion =>

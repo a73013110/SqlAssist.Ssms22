@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Options;
 
 namespace SqlAssist.Ssms22;
 
@@ -57,6 +58,7 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
+        AddCommand(CommandIds.EditSettingsFile, EditSettingsFile);
     }
 
     private void AddFeatureToggle(int commandId, SqlAssistFeature feature, string displayName)
@@ -145,8 +147,14 @@ internal sealed class SqlAssistCommands
     private void OpenSettings(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
+        _package.ShowOptionPage(typeof(GeneralOptionsPage)); // 開啟「工具 → 選項 → SqlAssist」。
+    }
+
+    private void EditSettingsFile(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
         _settings.EnsureSettingsFile();
-        VsShellUtilities.OpenDocument(_package, _settings.SettingsPath); // 直接在 SSMS 編輯 settings.json。
+        VsShellUtilities.OpenDocument(_package, _settings.SettingsPath); // 進階設定仍可直接改 JSON。
     }
 
     private void RefreshSuggestions(object? sender, EventArgs eventArgs)

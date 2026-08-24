@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Runtime.Serialization.Json;
 
@@ -38,59 +38,53 @@ public sealed class SettingsService
         }
     }
 
-    public bool ToggleEnabled()
+    /// <summary>
+    /// 以原子方式套用一組變更：先重新載入磁碟上的最新內容，套用 <paramref name="mutate"/>，
+    /// 再寫回檔案。所有寫入路徑都應該走這裡，避免各自實作讀改寫而覆蓋彼此的變更。
+    /// </summary>
+    /// <returns>套用後的設定快照。</returns>
+    public SqlAssistSettings Update(Action<SqlAssistSettings> mutate)
     {
+        if (mutate is null)
+        {
+            throw new ArgumentNullException(nameof(mutate));
+        }
+
         lock (_syncRoot)
         {
             ReloadIfChangedNoLock();
-            _settings.Enabled = !_settings.Enabled;
+            mutate(_settings);
             SaveNoLock();
-            return _settings.Enabled;
+            return _settings.Clone();
         }
+    }
+
+    public bool ToggleEnabled()
+    {
+        return Update(settings => settings.Enabled = !settings.Enabled).Enabled;
     }
 
     public bool ToggleFeature(SqlAssistFeature feature)
     {
-        lock (_syncRoot)
-        {
-            ReloadIfChangedNoLock();
-            var enabled = _settings.Features.Toggle(feature);
-            SaveNoLock();
-            return enabled;
-        }
+        return Update(settings => settings.Features.Toggle(feature)).Features.Get(feature);
     }
 
     public bool ToggleDiagnostics()
     {
-        lock (_syncRoot)
-        {
-            ReloadIfChangedNoLock();
-            _settings.DiagnosticsEnabled = !_settings.DiagnosticsEnabled;
-            SaveNoLock();
-            return _settings.DiagnosticsEnabled;
-        }
+        return Update(settings => settings.DiagnosticsEnabled = !settings.DiagnosticsEnabled)
+            .DiagnosticsEnabled;
     }
 
     public bool ToggleAsyncCompletionProbe()
     {
-        lock (_syncRoot)
-        {
-            ReloadIfChangedNoLock();
-            _settings.AsyncCompletionProbe = !_settings.AsyncCompletionProbe;
-            SaveNoLock();
-            return _settings.AsyncCompletionProbe;
-        }
+        return Update(settings => settings.AsyncCompletionProbe = !settings.AsyncCompletionProbe)
+            .AsyncCompletionProbe;
     }
 
     public bool ToggleSuggestions()
     {
-        lock (_syncRoot)
-        {
-            ReloadIfChangedNoLock();
-            _settings.Suggestions.Enabled = !_settings.Suggestions.Enabled;
-            SaveNoLock();
-            return _settings.Suggestions.Enabled;
-        }
+        return Update(settings => settings.Suggestions.Enabled = !settings.Suggestions.Enabled)
+            .Suggestions.Enabled;
     }
 
     public void EnsureSettingsFile()
