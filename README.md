@@ -1,13 +1,14 @@
 # SqlAssist for SSMS 22
 
 針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-目前版本為 **0.5.0**。
+目前版本為 **0.6.0**。
 
 ## 專案結構
 
 ```text
 src/SqlAssist.Core       netstandard2.0，無 Visual Studio 相依，可完整單元測試
   Matching/              詞首感知的模糊比對與命中區段
+  Parsing/               T-SQL 詞法器與語句範圍模型（別名解析）
   （其餘）               語彙狀態、識別字解析、上下文分析、Snippet、設定
 
 src/SqlAssist.Metadata   netstandard2.0，只依賴 System.Data
@@ -20,7 +21,7 @@ src/SqlAssist.Ssms22     net48 VSIX
 ```
 
 核心邏輯刻意集中在沒有 Visual Studio 相依的兩個專案，因此排名、解析與
-中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 205 項單元測試。
+中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 273 項單元測試。
 
 ## 功能
 
@@ -64,18 +65,39 @@ Tab   → 提交選取項
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
 | `EXEC`、`EXECUTE` | Procedure | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
+| `u.`（`u` 是敘述中的別名） | 該資料表的欄位 | 插入欄位名稱 |
 
 `ap` → `Tab` → 選取程序 → `Tab`，編輯器會直接放進該程序可執行的完整定義，
 可以立刻修改並更新。定義開頭的 `CREATE` 或 `CREATE OR ALTER` 會改寫成 `ALTER`，
 主體完全不動（主體裡的 `CREATE TABLE #tmp` 之類的語句不受影響）。
+
+### 欄位建議
+
+輸入 `別名.` 或 `資料表名稱.` 時列出該資料來源的欄位，並顯示型別、NULL 與 PK。
+
+別名解析需要看得到游標**後方**的文字：
+
+```sql
+SELECT u.| FROM dbo.Lib_Reader u
+```
+
+FROM 子句在游標之後，只看前文永遠解析不出 `u`——而編輯既有查詢正是最常
+遇到這種情形的時候。因此上下文分析改用完整文字加游標位置的多載。
+
+範圍以括號深度界定，子查詢內只看得到子查詢自己的 FROM 子句。
+衍生資料表與資料表變數查不到欄位中繼資料，此時維持原本的物件清單。
+
+緊接在 `FROM`、`JOIN`、`EXEC` 之後的限定字一律當結構描述：
+`FROM dbo.` 要列出 dbo 的物件，而 `FROM u.` 這種寫法並不存在。
 
 ### 物件結構提示
 
 滑鼠停留在資料表、檢視、預存程序或函式的名稱上，顯示欄位型別、NULL、PK、
 IDENTITY、COMPUTED 與參數簽章。支援方括號、雙引號、結構描述限定與暫存表名稱。
 
-目前限定詞先當結構描述解析，找不到時退回只用名稱比對；別名（例如 `u.`）
-要等語句範圍模型完成之後才會準確。
+停留在別名上會顯示它所指的資料表；停留在 `u.Name` 的欄位上則顯示該欄位的
+型別與屬性。限定詞確實是資料來源但查無該欄位時不顯示提示，
+不會退回去猜同名的資料庫物件。
 
 ## 設定
 
@@ -152,8 +174,19 @@ SSMS 原生 IntelliSense 的行為不受影響。完整量測結果在「工具 
 （Provider 是否被掃描到、`InitializeCompletion` 是否被呼叫）會在第一次發生時
 直接寫進 `SqlAssist.log`，不必開對話框也看得到。
 
-實機量測（SSMS 22.9.12105.275）：`IAsyncCompletionBroker` 有被匯出，但
-`IsCompletionSupported("SQL")` 回報 **False**。
+### 量測結果（SSMS 22.9.12105.275）
+
+```text
+非同步 IntelliSense 支援狀態：SQL → False
+探測：平台已索取非同步建議來源，Provider 有被掃描到
+探測：InitializeCompletion 首次被呼叫（觸發：Insertion 's'）
+```
+
+**平台確實會把按鍵路由進非同步完成管線**，因此原生 IntelliSense 是可行的方向。
+
+`IsCompletionSupported` 的 False 是時序造成的假訊號，不是能力限制：那一次查詢
+發生在 TextView 建立的當下，此時本擴充的建議來源還沒被實例化，
+`IAsyncCompletionBroker` 自然找不到任何對應 `ContentType "SQL"` 的來源。
 
 若要實際觀察清單外觀與 Tab 提交行為，可開啟「工具 → 選項 → SqlAssist →
 一般 → 非同步 IntelliSense 探測」。開啟後可能與 SSMS 原生清單同時出現。
@@ -216,16 +249,19 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 
 ## 目前限制
 
-- 建議視窗仍為自製 WPF，尚未改用平台原生 IntelliSense（待探測結果）。
-- 尚未實作別名後方的欄位建議，例如 `t.`；物件結構提示的別名解析同樣受限。
-- 尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考。
+- 建議視窗仍為自製 WPF。探測已證實可改用平台原生 IntelliSense，尚未動工。
+- 尚未建議未限定的欄位，例如 `SELECT |` 或 `WHERE |` 直接列出敘述內所有欄位。
+- 尚未依外部索引鍵補完 JOIN 條件。
+- 尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考的欄位。
 - 尚未實作結果格的 `Script as INSERT`、`Copy as IN clause`。
 - Snippet 仍為內建清單，尚未支援使用者自訂。
 - SSMS 目前不正式支援第三方擴充套件，安裝與載入方式需要以實機驗證。
 
 ## 下一階段
 
-1. 依探測結果決定是否改用平台原生 IntelliSense。
-2. 以 ScriptDom token 流建立語句範圍模型，支援別名、欄位與 JOIN 條件建議。
-3. 使用者可編輯的 Snippet 管理器，支援佔位符。
-4. 結果格的 `Script as INSERT`、`Copy as IN clause`。
+1. 未限定的欄位建議（`SELECT |`、`WHERE |` 列出範圍內所有欄位）。
+2. 依外部索引鍵補完 JOIN 條件。
+3. 改用平台原生 IntelliSense：取得原生的定位、螢幕邊界處理、篩選列與圖示，
+   並且不必再主動關閉 SSMS 的原生建議清單。
+4. 使用者可編輯的 Snippet 管理器，支援佔位符。
+5. 結果格的 `Script as INSERT`、`Copy as IN clause`。

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Metadata;
@@ -78,40 +78,57 @@ internal static class SqlQuickInfoContentBuilder
             }
 
             shown++;
-            var runs = new List<ClassifiedTextRun>
-            {
-                Text("  "),
-                Identifier(column.Name),
-                Text("  "),
-                Keyword(column.DataType)
-            };
-
-            if (!column.IsNullable)
-            {
-                runs.Add(Text("  "));
-                runs.Add(Keyword("NOT NULL"));
-            }
-
-            if (column.IsIdentity)
-            {
-                runs.Add(Text("  "));
-                runs.Add(Keyword("IDENTITY"));
-            }
-
-            if (column.IsComputed)
-            {
-                runs.Add(Text("  "));
-                runs.Add(Keyword("COMPUTED"));
-            }
-
-            if (column.IsPrimaryKey)
-            {
-                runs.Add(Text("  "));
-                runs.Add(Comment("PK"));
-            }
-
-            yield return new ClassifiedTextElement(runs);
+            yield return new ClassifiedTextElement(BuildColumnRuns(column, "  "));
         }
+    }
+
+    /// <summary>單一欄位的提示內容，標題顯示它屬於哪個物件。</summary>
+    public static ContainerElement BuildColumn(SqlObjectInfo owner, SqlColumnInfo column)
+    {
+        return new ContainerElement(
+            ContainerElementStyle.Stacked,
+            new ClassifiedTextElement(
+                Keyword("COLUMN"),
+                Text(" "),
+                Identifier(owner.QualifiedName)),
+            new ClassifiedTextElement(BuildColumnRuns(column, "  ")));
+    }
+
+    private static List<ClassifiedTextRun> BuildColumnRuns(SqlColumnInfo column, string indent)
+    {
+        var runs = new List<ClassifiedTextRun>
+        {
+            Text(indent),
+            Identifier(column.Name),
+            Text("  "),
+            Keyword(column.DataType)
+        };
+
+        if (!column.IsNullable)
+        {
+            runs.Add(Text("  "));
+            runs.Add(Keyword("NOT NULL"));
+        }
+
+        if (column.IsIdentity)
+        {
+            runs.Add(Text("  "));
+            runs.Add(Keyword("IDENTITY"));
+        }
+
+        if (column.IsComputed)
+        {
+            runs.Add(Text("  "));
+            runs.Add(Keyword("COMPUTED"));
+        }
+
+        if (column.IsPrimaryKey)
+        {
+            runs.Add(Text("  "));
+            runs.Add(Comment("PK"));
+        }
+
+        return runs;
     }
 
     private static IEnumerable<object> BuildParameters(IReadOnlyList<SqlParameterInfo> parameters)
