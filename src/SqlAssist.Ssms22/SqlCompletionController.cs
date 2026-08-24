@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using SqlAssist.Core;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Ssms22;
 
@@ -248,7 +249,7 @@ internal sealed class SqlCompletionController : IDisposable
             .Where(item => IsBuiltInFeatureEnabled(item, settings))
             .Concat(settings.Features.ObjectPicker ? _databaseSuggestions : Array.Empty<SqlSuggestion>());
         var maximumItems = Math.Max(1, Math.Min(500, settings.Suggestions.MaximumItems));
-        var matches = SuggestionMatcher.Match(candidates, context, maximumItems);
+        var matches = SuggestionMatcher.Rank(candidates, context, maximumItems);
 
         if (matches.Count == 0)
         {
