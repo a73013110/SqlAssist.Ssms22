@@ -1,4 +1,4 @@
-namespace SqlAssist.Core;
+﻿namespace SqlAssist.Core;
 
 public enum SuggestionKind
 {
@@ -8,6 +8,7 @@ public enum SuggestionKind
     Table,
     View,
     Procedure,
-    Function
+    Function,
+    Column
 }
 

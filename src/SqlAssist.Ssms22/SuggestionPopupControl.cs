@@ -342,6 +342,7 @@ internal sealed class SuggestionPopupControl
             SuggestionKind.Procedure => "P",
             SuggestionKind.Function => "F",
             SuggestionKind.Schema => "D",
+            SuggestionKind.Column => "C",
             _ => "•"
         };
     }

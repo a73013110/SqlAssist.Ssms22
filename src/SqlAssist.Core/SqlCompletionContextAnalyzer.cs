@@ -1,9 +1,17 @@
 ﻿using System;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core;
 
 public static class SqlCompletionContextAnalyzer
 {
+    /// <summary>
+    /// 分析游標前方的文字。
+    /// </summary>
+    /// <remarks>
+    /// 只看游標之前的文字，因此無法解析別名：<c>SELECT u.| FROM Lib_Reader u</c>
+    /// 的 FROM 子句在游標後方。需要欄位建議時請改用帶完整文字的多載。
+    /// </remarks>
     public static SqlCompletionContext Analyze(string textBeforeCaret)
     {
         if (textBeforeCaret is null)
@@ -20,20 +28,67 @@ public static class SqlCompletionContextAnalyzer
 
         var prefix = textBeforeCaret.Substring(tokenStart);
         var beforeToken = textBeforeCaret.Substring(0, tokenStart).TrimEnd();
-        var schemaQualifier = ExtractSchemaQualifier(beforeToken, out var beforeQualifier);
+        var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
         var target = DetermineTarget(
-            schemaQualifier is null ? beforeToken : beforeQualifier,
+            qualifier is null ? beforeToken : beforeQualifier,
             out var targetKeywordStart,
             out var intent);
-        var isValid = prefix.Length > 0 || target != CompletionTarget.Any || schemaQualifier is not null;
+        var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifier is not null;
         return new SqlCompletionContext(
             isValid,
             tokenStart,
             prefix,
             target,
-            schemaQualifier,
+            qualifier,
             targetKeywordStart,
             intent);
+    }
+
+    /// <summary>
+    /// 分析整份文字中游標所在的位置，並在限定字指向敘述內的資料來源時
+    /// 把建議目標改成欄位。
+    /// </summary>
+    /// <remarks>
+    /// 必須看得到游標後方的文字：<c>SELECT u.| FROM dbo.Lib_Reader u</c> 這種
+    /// 編輯既有查詢的情形，FROM 子句在游標之後，只看前文永遠解析不出 <c>u</c>。
+    /// </remarks>
+    public static SqlCompletionContext Analyze(string sql, int caretPosition)
+    {
+        if (sql is null)
+        {
+            throw new ArgumentNullException(nameof(sql));
+        }
+
+        if (caretPosition < 0 || caretPosition > sql.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(caretPosition));
+        }
+
+        var context = Analyze(sql.Substring(0, caretPosition));
+
+        if (context.Qualifier is null)
+        {
+            return context;
+        }
+
+        // 前方關鍵字已經指定了物件類別（FROM、JOIN、EXEC…），代表游標正在輸入
+        // 資料來源本身，此時點號前面必然是結構描述而不是別名：
+        // FROM dbo.| 要列出 dbo 的物件，FROM u.| 這種寫法並不存在。
+        if (context.Target != CompletionTarget.Any)
+        {
+            return context;
+        }
+
+        var scope = SqlScopeAnalyzer.Analyze(sql, caretPosition);
+
+        // 衍生資料表與資料表變數查不到欄位中繼資料，維持原本的結構描述解讀，
+        // 讓使用者至少還看得到物件清單。
+        if (!scope.TryResolve(context.Qualifier, out var table) || table.IsDerived)
+        {
+            return context;
+        }
+
+        return context.AsColumnsOf(table);
     }
 
     /// <summary>
@@ -110,7 +165,7 @@ public static class SqlCompletionContextAnalyzer
         return true;
     }
 
-    private static string? ExtractSchemaQualifier(string text, out string beforeQualifier)
+    private static string? ExtractQualifier(string text, out string beforeQualifier)
     {
         beforeQualifier = text;
 

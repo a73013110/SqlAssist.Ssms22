@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Matching;
@@ -56,7 +56,7 @@ public static class SuggestionMatcher
         foreach (var suggestion in suggestions)
         {
             if (!IsAllowedForTarget(suggestion.Kind, context.Target) ||
-                !IsAllowedForSchema(suggestion, context.SchemaQualifier))
+                !IsAllowedForSchema(suggestion, context))
             {
                 continue;
             }
@@ -133,18 +133,26 @@ public static class SuggestionMatcher
             CompletionTarget.DataSource => kind == SuggestionKind.Table || kind == SuggestionKind.View,
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
             CompletionTarget.Function => kind == SuggestionKind.Function,
-            _ => true
+            CompletionTarget.Column => kind == SuggestionKind.Column,
+            _ => kind != SuggestionKind.Column
         };
     }
 
-    private static bool IsAllowedForSchema(SqlSuggestion suggestion, string? schemaQualifier)
+    /// <summary>
+    /// 限定字要當成結構描述來過濾。
+    /// </summary>
+    /// <remarks>
+    /// 限定字已經解析成資料來源時（<c>u.</c>），建議清單裡放的是欄位，
+    /// 欄位沒有結構描述可比，這時不再套用結構描述過濾。
+    /// </remarks>
+    private static bool IsAllowedForSchema(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        if (string.IsNullOrEmpty(schemaQualifier))
+        if (context.Target == CompletionTarget.Column || string.IsNullOrEmpty(context.Qualifier))
         {
             return true;
         }
 
         return suggestion.Kind != SuggestionKind.Schema &&
-               string.Equals(suggestion.SchemaName, schemaQualifier, StringComparison.OrdinalIgnoreCase);
+               string.Equals(suggestion.SchemaName, context.Qualifier, StringComparison.OrdinalIgnoreCase);
     }
 }

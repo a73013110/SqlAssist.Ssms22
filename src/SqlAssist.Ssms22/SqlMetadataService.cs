@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
@@ -65,6 +66,47 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         return await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 取得敘述中某個資料來源的欄位建議。
+    /// </summary>
+    /// <remarks>
+    /// 只在使用者真的輸入 <c>別名.</c> 時才觸發，因此會落在第二層按需載入：
+    /// 一次只查一個物件的欄位，不會因為敘述裡有幾張資料表就全部撈回來。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlSuggestion>> GetColumnSuggestionsAsync(
+        SqlTableReference table,
+        CancellationToken cancellationToken)
+    {
+        if (table is null || table.IsDerived)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var catalog = ResolveCatalog();
+
+        if (catalog is null)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+        if (matches.Count == 0)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+
+        if (detail is null || detail.Columns.Count == 0)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        return BuildColumnSuggestions(matches[0], detail);
     }
 
     /// <summary>載入單一物件的欄位、參數與定義。</summary>
@@ -186,6 +228,36 @@ internal sealed class SqlMetadataService : IDisposable
                 SuggestionKind.Schema,
                 triggerFollowUp: true,
                 schemaName: schema));
+        }
+
+        return suggestions;
+    }
+
+    /// <summary>
+    /// 把欄位轉成建議項。
+    /// </summary>
+    /// <remarks>
+    /// 欄位的排序刻意保留資料表定義順序：模糊比對的分數才是主要排名依據，
+    /// 而分數相同時（例如還沒輸入任何字元）依序號排列比字母序更接近使用者的心智模型。
+    /// </remarks>
+    private static IReadOnlyList<SqlSuggestion> BuildColumnSuggestions(
+        SqlObjectInfo info,
+        SqlObjectDetail detail)
+    {
+        var suggestions = new List<SqlSuggestion>(detail.Columns.Count);
+
+        foreach (var column in detail.Columns)
+        {
+            var annotations = column.IsPrimaryKey ? " · PK" : string.Empty;
+
+            suggestions.Add(new SqlSuggestion(
+                column.Name,
+                SqlIdentifier.QuoteIfNeeded(column.Name),
+                $"{column.DataType}{(column.IsNullable ? " NULL" : " NOT NULL")}{annotations}",
+                $"{info.QualifiedName}\r\n{column.ToScriptLine()}",
+                SuggestionKind.Column,
+                schemaName: info.SchemaName,
+                tag: column));
         }
 
         return suggestions;

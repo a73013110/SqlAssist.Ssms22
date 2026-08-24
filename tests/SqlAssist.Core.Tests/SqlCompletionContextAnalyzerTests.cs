@@ -102,7 +102,7 @@ public sealed class SqlCompletionContextAnalyzerTests
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
         Assert.True(context.IsValid);
-        Assert.Equal(expected, context.SchemaQualifier);
+        Assert.Equal(expected, context.Qualifier);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
     }
 

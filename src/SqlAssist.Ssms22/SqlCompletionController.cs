@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Language.Intellisense;
 using SqlAssist.Core;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
@@ -23,7 +24,19 @@ internal sealed class SqlCompletionController : IDisposable
     private readonly SuggestionPopupControl _popup;
     private readonly DispatcherTimer _refreshTimer;
     private readonly IWpfTextView _textView;
+
+    /// <summary>
+    /// 已載入的欄位建議，鍵為結構描述限定的物件名稱。
+    /// </summary>
+    /// <remarks>
+    /// 中繼資料層本身已經快取第二層結果，這裡快取的是轉換後的建議項，
+    /// 避免每一次按鍵都重新進入非同步流程。
+    /// </remarks>
+    private readonly Dictionary<string, IReadOnlyList<SqlSuggestion>> _columnSuggestions =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private IReadOnlyList<SqlSuggestion> _databaseSuggestions = Array.Empty<SqlSuggestion>();
+    private string? _columnLoadInFlight;
     private CancellationTokenSource? _previewCancellation;
     private bool _disposed;
     private bool _metadataLoadStarted;
@@ -64,8 +77,10 @@ internal sealed class SqlCompletionController : IDisposable
         }
 
         var caret = _textView.Caret.Position.BufferPosition;
-        var textBeforeCaret = caret.Snapshot.GetText(0, caret.Position);
-        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        // 帶完整文字的多載才解析得出別名：SELECT u.| FROM dbo.Lib_Reader u
+        // 的 FROM 子句在游標後方。
+        var context = SqlCompletionContextAnalyzer.Analyze(caret.Snapshot.GetText(), caret.Position);
 
         if (!context.IsValid)
         {
@@ -329,6 +344,7 @@ internal sealed class SqlCompletionController : IDisposable
     private void OnRefreshRequested(object? sender, EventArgs eventArgs)
     {
         _databaseSuggestions = Array.Empty<SqlSuggestion>();
+        _columnSuggestions.Clear();
         _metadataLoadStarted = false;
         RefreshNow();
     }
@@ -376,16 +392,19 @@ internal sealed class SqlCompletionController : IDisposable
         var triggerCharacters = Math.Max(1, Math.Min(10, settings.Suggestions.TriggerAfterCharacters));
 
         if (context.Target == CompletionTarget.Any &&
-            context.SchemaQualifier is null &&
+            context.Qualifier is null &&
             context.Prefix.Length < triggerCharacters)
         {
             Hide();
             return;
         }
 
-        var candidates = BuiltInSuggestions
-            .Where(item => IsBuiltInFeatureEnabled(item, settings))
-            .Concat(settings.Features.ObjectPicker ? _databaseSuggestions : Array.Empty<SqlSuggestion>());
+        if (!TryGetCandidates(context, settings, out var candidates))
+        {
+            Hide();
+            return;
+        }
+
         var maximumItems = Math.Max(1, Math.Min(500, settings.Suggestions.MaximumItems));
         var matches = SuggestionMatcher.Rank(candidates, context, maximumItems);
 
@@ -403,6 +422,84 @@ internal sealed class SqlCompletionController : IDisposable
         {
             _metadataLoadStarted = true;
             _ = LoadMetadataAsync();
+        }
+    }
+
+    /// <summary>
+    /// 組出這次要參與比對的建議來源。
+    /// </summary>
+    /// <returns>欄位還在載入時回傳 false，載入完成後會再次呼叫 <see cref="RefreshNow"/>。</returns>
+    private bool TryGetCandidates(
+        SqlCompletionContext context,
+        SqlAssistSettings settings,
+        out IEnumerable<SqlSuggestion> candidates)
+    {
+        if (context.Target == CompletionTarget.Column)
+        {
+            var table = context.QualifiedTable!;
+            var key = ColumnCacheKey(table);
+
+            if (_columnSuggestions.TryGetValue(key, out var columns))
+            {
+                candidates = columns;
+                return true;
+            }
+
+            BeginColumnLoad(table, key);
+            candidates = Array.Empty<SqlSuggestion>();
+            return false;
+        }
+
+        candidates = BuiltInSuggestions
+            .Where(item => IsBuiltInFeatureEnabled(item, settings))
+            .Concat(settings.Features.ObjectPicker ? _databaseSuggestions : Array.Empty<SqlSuggestion>());
+        return true;
+    }
+
+    private static string ColumnCacheKey(SqlTableReference table)
+    {
+        return string.IsNullOrEmpty(table.SchemaName)
+            ? table.ObjectName
+            : table.SchemaName + "." + table.ObjectName;
+    }
+
+    private void BeginColumnLoad(SqlTableReference table, string key)
+    {
+        if (string.Equals(_columnLoadInFlight, key, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _columnLoadInFlight = key;
+        _ = LoadColumnsAsync(table, key);
+    }
+
+    private async Task LoadColumnsAsync(SqlTableReference table, string key)
+    {
+        try
+        {
+            var columns = await _metadataService.GetColumnSuggestionsAsync(table, CancellationToken.None);
+
+            // 空結果也要記下來，否則查不到的物件會在每一次按鍵重新查詢。
+            _columnSuggestions[key] = columns;
+            SqlAssistDiagnostics.Write($"已載入 {columns.Count} 個欄位建議：{key}", _textView);
+
+            if (!_disposed)
+            {
+                RefreshNow();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // 編輯器關閉時取消屬於正常流程。
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"欄位建議載入失敗（{key}）：{exception.Message}");
+        }
+        finally
+        {
+            _columnLoadInFlight = null;
         }
     }
 
@@ -515,30 +612,29 @@ internal sealed class SqlCompletionController : IDisposable
             return suggestion.InsertionText;
         }
 
-        var objectName = settings.Suggestions.UseSquareBrackets
-            ? QuoteIdentifier(suggestion.DisplayText)
-            : suggestion.DisplayText;
+        // 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
+        // 名稱含空白或保留字時仍必須加括號，否則插入的 SQL 直接壞掉。
+        var objectName = Quote(suggestion.DisplayText, settings);
 
         if (suggestion.Kind == SuggestionKind.Schema)
         {
             return objectName + ".";
         }
 
-        if (context.SchemaQualifier is not null ||
+        if (context.Qualifier is not null ||
             !settings.Suggestions.QualifyObjectNames ||
             string.IsNullOrWhiteSpace(suggestion.SchemaName))
         {
             return objectName;
         }
 
-        var schemaName = settings.Suggestions.UseSquareBrackets
-            ? QuoteIdentifier(suggestion.SchemaName!)
-            : suggestion.SchemaName;
-        return schemaName + "." + objectName;
+        return Quote(suggestion.SchemaName!, settings) + "." + objectName;
     }
 
-    private static string QuoteIdentifier(string name)
+    private static string Quote(string name, SqlAssistSettings settings)
     {
-        return "[" + name.Replace("]", "]]") + "]";
+        return settings.Suggestions.UseSquareBrackets
+            ? SqlIdentifier.Quote(name)
+            : SqlIdentifier.QuoteIfNeeded(name);
     }
 }
