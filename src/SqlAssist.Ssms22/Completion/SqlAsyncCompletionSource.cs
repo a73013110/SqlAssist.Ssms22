@@ -104,9 +104,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             // 使用者輸入 a. 的那一刻才查欄位，等待就完全落在打字的節奏上。
             // 但這時他已經打過 FROM PUBLISHER a，敘述裡有哪些資料表是已知的，
             // 先在背景把欄位撈回來，按下點號時就能直接命中快取。
-            WarmScopeColumns(triggerLocation, settings);
+            var scope = SqlScopeAnalyzer.Analyze(
+                triggerLocation.Snapshot.GetText(),
+                triggerLocation.Position);
 
-            var candidates = await GetCandidatesAsync(context, settings, token).ConfigureAwait(false);
+            if (settings.Features.ObjectPicker)
+            {
+                _metadataService.WarmColumns(scope.Tables);
+            }
+
+            var candidates = await GetCandidatesAsync(context, scope, settings, token).ConfigureAwait(false);
 
             // 上下文過濾要在建立清單時做完：平台會快取這份清單，
             // 之後每一次按鍵只重新比對前綴，不會再問來源一次。
@@ -191,6 +198,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
     private async Task<IReadOnlyList<SqlSuggestion>> GetCandidatesAsync(
         SqlCompletionContext context,
+        SqlStatementScope scope,
         SqlAssistSettings settings,
         CancellationToken token)
     {
@@ -211,7 +219,11 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
 
         var database = await _metadataService.GetSuggestionsAsync(token).ConfigureAwait(false);
-        return builtIn.Concat(database).ToArray();
+
+        // 敘述裡看得到的欄位放在資料庫物件前面：SELECT | FROM PUBLISHER a 這種位置，
+        // 使用者要的幾乎都是欄位，而不是整個資料庫的物件清單。
+        var scopeColumns = _metadataService.GetCachedScopeColumns(scope.Tables);
+        return builtIn.Concat(scopeColumns).Concat(database).ToArray();
     }
 
     private CompletionItem CreateItem(
@@ -244,20 +256,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             SuggestionKind.Keyword => settings.Features.KeywordUppercase,
             _ => true
         };
-    }
-
-    private void WarmScopeColumns(SnapshotPoint triggerLocation, SqlAssistSettings settings)
-    {
-        if (!settings.Features.ObjectPicker)
-        {
-            return;
-        }
-
-        var scope = SqlScopeAnalyzer.Analyze(
-            triggerLocation.Snapshot.GetText(),
-            triggerLocation.Position);
-
-        _metadataService.WarmColumns(scope.Tables);
     }
 
     private static SqlCompletionContext Analyze(SnapshotPoint triggerLocation)

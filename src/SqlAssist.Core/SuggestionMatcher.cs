@@ -151,6 +151,10 @@ public static class SuggestionMatcher
         return kind switch
         {
             SuggestionKind.Snippet => 40,
+
+            // 欄位只會在敘述真的看得到它們時才進入候選，因此排在資料表之上：
+            // 在 SELECT 或 WHERE 位置輸入前綴時，要的幾乎都是欄位。
+            SuggestionKind.Column => 35,
             SuggestionKind.Keyword => 30,
             SuggestionKind.Table => 20,
             SuggestionKind.View => 18,
@@ -169,7 +173,11 @@ public static class SuggestionMatcher
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
             CompletionTarget.Function => kind == SuggestionKind.Function,
             CompletionTarget.Column => kind == SuggestionKind.Column,
-            _ => kind != SuggestionKind.Column
+
+            // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
+            // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
+            // 候選清單是依上下文組出來的，沒有範圍就不會有欄位，這裡不必再擋。
+            _ => true
         };
     }
 

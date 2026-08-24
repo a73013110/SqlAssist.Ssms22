@@ -16,7 +16,11 @@ internal static class SqlInsertionText
         SqlCompletionContext context,
         SqlAssistSettings settings)
     {
-        if (suggestion.Kind == SuggestionKind.Keyword || suggestion.Kind == SuggestionKind.Snippet)
+        // 欄位的插入文字在建立建議時就決定好了（含必要的別名限定），
+        // 這裡不能再套用物件用的結構描述規則。
+        if (suggestion.Kind == SuggestionKind.Keyword ||
+            suggestion.Kind == SuggestionKind.Snippet ||
+            suggestion.Kind == SuggestionKind.Column)
         {
             return suggestion.InsertionText;
         }

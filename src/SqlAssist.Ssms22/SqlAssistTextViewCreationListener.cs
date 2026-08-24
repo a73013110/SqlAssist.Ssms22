@@ -36,6 +36,9 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
         RecordAsyncCompletionSupport(textView);
         var controller = new SqlCompletionController(textView, ServiceProvider, CompletionBroker);
         CompletionSessionRegistry.Register(textView, controller);
+
+        // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
+        SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
         SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 建議控制器已載入", textView);
     }
 

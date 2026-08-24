@@ -1,7 +1,7 @@
 # SqlAssist for SSMS 22
 
 針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-目前版本為 **0.7.2**。
+目前版本為 **0.8.0**。
 
 ## 專案結構
 
@@ -21,7 +21,7 @@ src/SqlAssist.Ssms22     net48 VSIX
 ```
 
 核心邏輯刻意集中在沒有 Visual Studio 相依的兩個專案，因此排名、解析與
-中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 282 項單元測試。
+中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 285 項單元測試。
 
 ## 功能
 
@@ -106,6 +106,14 @@ FROM 子句在游標之後，只看前文永遠解析不出 `u`——而編輯�
 
 緊接在 `FROM`、`JOIN`、`EXEC` 之後的限定字一律當結構描述：
 `FROM dbo.` 要列出 dbo 的物件，而 `FROM u.` 這種寫法並不存在。
+
+沒有限定字的位置（`SELECT |`、`WHERE |`、`ON |`）也會列出敘述看得到的欄位，
+而且排在資料庫物件之前——在這些位置要的幾乎都是欄位。敘述裡有兩個以上的
+資料來源時，插入的文字會自動補上別名，否則 `SELECT Name FROM A a JOIN B b`
+會因為欄位名稱模稜兩可而執行失敗。
+
+這條路徑只使用**已經在快取裡**的欄位，不會為了列清單去等一次查詢；沒命中就
+這一輪不顯示，背景預先載入補上之後下一次按鍵就有了。
 
 ### 物件結構提示
 
@@ -293,7 +301,7 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 ## 目前限制
 
 - 建議項還沒有圖示。原生清單支援 `ImageElement`，只是尚未挑選 moniker。
-- 尚未建議未限定的欄位，例如 `SELECT |` 或 `WHERE |` 直接列出敘述內所有欄位。
+- 未限定的欄位建議不分子句：`GROUP BY` 之後與 `SELECT` 之後給的是同一份清單。
 - 尚未依外部索引鍵補完 JOIN 條件。
 - 尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考的欄位。
 - 尚未實作結果格的 `Script as INSERT`、`Copy as IN clause`。
@@ -302,8 +310,8 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 
 ## 下一階段
 
-1. 未限定的欄位建議（`SELECT |`、`WHERE |` 列出範圍內所有欄位）。
-2. 依外部索引鍵補完 JOIN 條件。
+1. 依外部索引鍵補完 JOIN 條件。
+2. 依子句細分未限定的欄位建議（`GROUP BY` 之後不該出現不可分組的欄位）。
 3. 建議項圖示與篩選列（只看資料表、只看欄位）。
 4. 使用者可編輯的 Snippet 管理器，支援佔位符。
 5. 結果格的 `Script as INSERT`、`Copy as IN clause`。

@@ -28,6 +28,25 @@ internal sealed class SqlMetadataService : IDisposable
 
     /// <summary>上一次從編輯器連線算出的快取鍵，用來判斷連線或資料庫有沒有換過。</summary>
     private string? _editorCacheKey;
+
+    /// <summary>上一次真的去問 SSMS 目前連線的時間。</summary>
+    private DateTimeOffset _catalogCheckedAt;
+
+    private int _recheckInFlight;
+
+    /// <summary>
+    /// 多久重新問一次 SSMS「現在連到哪裡」。
+    /// </summary>
+    /// <remarks>
+    /// <c>ISqlEditorService.GetCurrentConnection()</c> 有 UI 執行緒相依性，從背景執行緒
+    /// 呼叫會被 marshal 回 UI 執行緒。平常只要幾毫秒，但 SSMS 內建 IntelliSense
+    /// 正在忙的時候會排隊到將近兩秒——而那正是使用者輸入 <c>a.</c> 的同一刻。
+    /// 實機紀錄：同一個呼叫平常 2 到 7 ms，塞住時 1908 ms。
+    ///
+    /// 使用者切換資料庫或重新連線並不頻繁，晚幾秒才反映完全可以接受，
+    /// 但每一次按鍵都要冒一次卡住兩秒的風險不行。
+    /// </remarks>
+    private static readonly TimeSpan CatalogRecheckInterval = TimeSpan.FromSeconds(10);
     private bool _disposed;
 
     public SqlMetadataService(IServiceProvider serviceProvider)
@@ -114,7 +133,80 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
-        return BuildColumnSuggestions(matches[0], detail);
+        return BuildColumnSuggestions(matches[0], detail, SettingsService.Default.GetSnapshot());
+    }
+
+    /// <summary>
+    /// 取得敘述中所有資料來源的欄位，供沒有限定字的位置使用。
+    /// </summary>
+    /// <remarks>
+    /// 只回傳<b>已經在快取裡</b>的欄位，絕不觸發查詢：這條路徑在每一次按鍵上。
+    /// 沒命中就這一輪不顯示欄位，<see cref="WarmColumns"/> 會在背景補上，
+    /// 下一次按鍵就有了。
+    ///
+    /// 敘述裡有兩個以上的資料來源時，插入的文字會補上別名，
+    /// 否則 <c>SELECT Name FROM A a JOIN B b</c> 這種寫法會因為欄位名稱模稜兩可而執行失敗。
+    /// </remarks>
+    public IReadOnlyList<SqlSuggestion> GetCachedScopeColumns(IReadOnlyList<SqlTableReference> tables)
+    {
+        if (tables is null || tables.Count == 0 || _disposed)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var catalog = ResolveCatalog();
+
+        if (catalog is null)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var snapshot = catalog.CachedSnapshot;
+
+        if (snapshot.IsEmpty)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var settings = SettingsService.Default.GetSnapshot();
+        var sources = 0;
+
+        foreach (var table in tables)
+        {
+            if (!table.IsDerived)
+            {
+                sources++;
+            }
+        }
+
+        var qualify = sources > 1;
+        var suggestions = new List<SqlSuggestion>();
+
+        foreach (var table in tables)
+        {
+            if (table.IsDerived)
+            {
+                continue;
+            }
+
+            var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+            if (matches.Count == 0 || !catalog.TryGetCachedDetail(matches[0].ObjectId, out var detail))
+            {
+                continue;
+            }
+
+            foreach (var column in detail.Columns)
+            {
+                suggestions.Add(BuildColumnSuggestion(
+                    matches[0],
+                    column,
+                    settings,
+                    qualify ? table.EffectiveName : null));
+            }
+        }
+
+        return suggestions;
     }
 
     /// <summary>
@@ -233,6 +325,77 @@ internal sealed class SqlMetadataService : IDisposable
     /// </summary>
     private SqlMetadataCatalog? ResolveCatalog()
     {
+        lock (_syncRoot)
+        {
+            if (_disposed)
+            {
+                return null;
+            }
+
+            // 已經知道連到哪裡就直接用，過一段時間再到背景去確認有沒有換過。
+            // 這條路徑在每一次按鍵上，絕不能等 SSMS 的 UI 執行緒。
+            if (_catalog is not null)
+            {
+                if (DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
+                {
+                    BeginCatalogRecheck();
+                }
+
+                return _catalog;
+            }
+        }
+
+        return ResolveCatalogFromEditor();
+    }
+
+    /// <summary>在背景重新確認連線，結果留給下一次按鍵使用。</summary>
+    private void BeginCatalogRecheck()
+    {
+        if (Interlocked.Exchange(ref _recheckInFlight, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                ResolveCatalogFromEditor();
+            }
+            catch (Exception exception)
+            {
+                SqlAssistDiagnostics.Write($"重新確認連線失敗：{exception.Message}");
+            }
+            finally
+            {
+                Volatile.Write(ref _recheckInFlight, 0);
+            }
+        });
+    }
+
+    /// <summary>
+    /// 主動預熱：在編輯器剛建立、SSMS 還不忙的時候先問一次連線。
+    /// </summary>
+    /// <remarks>
+    /// 沒有預熱的話，第一次按鍵仍然要付一次完整的連線解析成本。
+    /// </remarks>
+    public void BeginWarmup()
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                ResolveCatalog();
+            }
+            catch (Exception exception)
+            {
+                SqlAssistDiagnostics.Write($"預熱連線失敗：{exception.Message}");
+            }
+        });
+    }
+
+    private SqlMetadataCatalog? ResolveCatalogFromEditor()
+    {
         IDbConnection? editorConnection;
         var timer = Stopwatch.StartNew();
 
@@ -268,6 +431,8 @@ internal sealed class SqlMetadataService : IDisposable
             // 目錄的鍵是從複製出來的樣板連線算的，而複製品與原始連線的
             // ConnectionString 未必逐字相同（例如密碼是否回傳），
             // 一旦不同，這個快取判斷就永遠不成立，每次按鍵都要重建連線來源。
+            _catalogCheckedAt = DateTimeOffset.UtcNow;
+
             if (_catalog is not null && string.Equals(_editorCacheKey, cacheKey, StringComparison.Ordinal))
             {
                 return _catalog;
@@ -335,25 +500,48 @@ internal sealed class SqlMetadataService : IDisposable
     /// </remarks>
     private static IReadOnlyList<SqlSuggestion> BuildColumnSuggestions(
         SqlObjectInfo info,
-        SqlObjectDetail detail)
+        SqlObjectDetail detail,
+        SqlAssistSettings settings)
     {
         var suggestions = new List<SqlSuggestion>(detail.Columns.Count);
 
         foreach (var column in detail.Columns)
         {
-            var annotations = column.IsPrimaryKey ? " · PK" : string.Empty;
-
-            suggestions.Add(new SqlSuggestion(
-                column.Name,
-                SqlIdentifier.QuoteIfNeeded(column.Name),
-                $"{column.DataType}{(column.IsNullable ? " NULL" : " NOT NULL")}{annotations}",
-                $"{info.QualifiedName}\r\n{column.ToScriptLine()}",
-                SuggestionKind.Column,
-                schemaName: info.SchemaName,
-                tag: column));
+            suggestions.Add(BuildColumnSuggestion(info, column, settings, qualifier: null));
         }
 
         return suggestions;
+    }
+
+    /// <param name="qualifier">
+    /// 插入時要補在欄位前面的別名或資料表名稱；不需要限定時為 null。
+    /// </param>
+    private static SqlSuggestion BuildColumnSuggestion(
+        SqlObjectInfo info,
+        SqlColumnInfo column,
+        SqlAssistSettings settings,
+        string? qualifier)
+    {
+        var annotations = column.IsPrimaryKey ? " · PK" : string.Empty;
+        var source = qualifier is null ? string.Empty : $" · {qualifier}";
+        var name = Quote(column.Name, settings);
+        var insertionText = qualifier is null ? name : Quote(qualifier, settings) + "." + name;
+
+        return new SqlSuggestion(
+            column.Name,
+            insertionText,
+            $"{column.DataType}{(column.IsNullable ? " NULL" : " NOT NULL")}{annotations}{source}",
+            $"{info.QualifiedName}\r\n{column.ToScriptLine()}",
+            SuggestionKind.Column,
+            schemaName: info.SchemaName,
+            tag: column);
+    }
+
+    private static string Quote(string name, SqlAssistSettings settings)
+    {
+        return settings.Suggestions.UseSquareBrackets
+            ? SqlIdentifier.Quote(name)
+            : SqlIdentifier.QuoteIfNeeded(name);
     }
 
     private static SuggestionKind? ToSuggestionKind(SqlObjectKind kind)

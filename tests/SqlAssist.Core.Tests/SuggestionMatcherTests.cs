@@ -29,6 +29,57 @@ public sealed class SuggestionMatcherTests
             schemaName: schema);
     }
 
+    private static SqlSuggestion Column(string name)
+    {
+        return new SqlSuggestion(
+            name,
+            name,
+            "varchar(20) NOT NULL",
+            name,
+            SuggestionKind.Column);
+    }
+
+    /// <summary>
+    /// 沒有限定字的位置也要看得到欄位：SELECT | FROM PUBLISHER a 這種情形，
+    /// 使用者要的幾乎都是欄位而不是整個資料庫的物件清單。
+    /// </summary>
+    [Fact]
+    public void 沒有限定字時仍建議欄位()
+    {
+        var names = RankNames(
+            new[] { Table("PUBL_Log"), Column("PUBL_CODE") },
+            "SELECT publ");
+
+        Assert.Contains("PUBL_CODE", names);
+    }
+
+    [Fact]
+    public void 分數相同時欄位排在資料表之前()
+    {
+        var names = RankNames(
+            new[] { Table("PUBLCODE"), Column("PUBLCODE") },
+            "SELECT publcode");
+
+        Assert.Equal("PUBLCODE", names[0]);
+        Assert.Equal(SuggestionKind.Column, SuggestionMatcher
+            .Rank(new[] { Table("PUBLCODE"), Column("PUBLCODE") },
+                SqlCompletionContextAnalyzer.Analyze("SELECT publcode"))[0]
+            .Suggestion.Kind);
+    }
+
+    /// <summary>
+    /// FROM 之後只能是資料來源，欄位不該出現在那裡。
+    /// </summary>
+    [Fact]
+    public void 資料來源位置不建議欄位()
+    {
+        var names = RankNames(
+            new[] { Table("PUBLISHER"), Column("PUBL_CODE") },
+            "SELECT * FROM publ");
+
+        Assert.Equal(new[] { "PUBLISHER" }, names);
+    }
+
     private static IReadOnlyList<string> RankNames(
         IEnumerable<SqlSuggestion> suggestions,
         string textBeforeCaret)
