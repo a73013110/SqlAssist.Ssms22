@@ -80,16 +80,27 @@ internal static class AsyncCompletionProbe
 
     public static void RecordProviderRequested()
     {
-        Interlocked.Increment(ref _providerRequested);
+        if (Interlocked.Increment(ref _providerRequested) == 1)
+        {
+            SqlAssistDiagnostics.WriteAlways("探測：平台已索取非同步建議來源，Provider 有被掃描到");
+        }
     }
 
     public static void RecordInitialize(string triggerDescription)
     {
-        Interlocked.Increment(ref _initializeCalled);
+        var count = Interlocked.Increment(ref _initializeCalled);
 
         lock (SyncRoot)
         {
             _lastTrigger = $"{DateTimeOffset.Now:HH:mm:ss} {triggerDescription}";
+        }
+
+        // 這是決定架構的關鍵事實：平台是否真的把按鍵路由進非同步完成管線。
+        // 只記第一次，避免每個按鍵都寫一行。
+        if (count == 1)
+        {
+            SqlAssistDiagnostics.WriteAlways(
+                $"探測：InitializeCompletion 首次被呼叫，非同步完成管線在 SQL 編輯器有效（觸發：{triggerDescription}）");
         }
     }
 

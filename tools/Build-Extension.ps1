@@ -25,6 +25,9 @@ if (-not $visualStudioPath) {
 
 $msBuild = Join-Path $visualStudioPath 'MSBuild\Current\Bin\MSBuild.exe'
 
+# 命令表掛錯層不會編譯失敗，選單只是安靜地不出現，因此在建置前先驗證。
+& (Join-Path $PSScriptRoot 'Test-CommandTable.ps1')
+
 & $msBuild `
     (Join-Path $root 'SqlAssist.Ssms22.sln') `
     /restore `

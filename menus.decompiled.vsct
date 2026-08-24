@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
-  <Extern href="stdidcmd.h" />
-  <Extern href="vsshlids.h" />
-
-  <Commands package="guidSqlAssistPackage">
+<CommandTable language="zh-TW" xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
+  <Commands>
     <Groups>
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" priority="0x0100">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
@@ -15,100 +12,117 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
     </Groups>
-
+  </Commands>
+  <Commands package="guidSqlAssistPackage">
     <Menus>
-      <!--
-        VSCT 的階層是 Menu → Group → Menu／Button，中間不能跳層。
-        子選單的 Parent 必須是一個 Group（IDG_*），不能是 Menu（IDM_*）。
-        原本掛在 IDM_VS_MENU_TOOLS 底下不會有任何編譯或執行期錯誤，
-        pkgdef 與命令處理器也都正常註冊，但「工具 → SqlAssist」整個不會出現。
-        IDG_VS_TOOLS_OTHER2 是 Tools 選單內既有的一般用途群組。
-      -->
       <Menu guid="guidSqlAssistCommandSet" id="SqlAssistMenu" priority="0x0700" type="Menu">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_TOOLS_OTHER2" />
         <CommandFlag>AlwaysCreate</CommandFlag>
         <Strings>
           <ButtonText>SqlAssist</ButtonText>
-          <CommandName>SqlAssist</CommandName>
         </Strings>
       </Menu>
     </Menus>
-
     <Buttons>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" />
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>啟用 SqlAssist</ButtonText></Strings>
+        <Strings>
+          <ButtonText>啟用 SqlAssist</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" />
-        <Strings><ButtonText>即時建議</ButtonText></Strings>
+        <Strings>
+          <ButtonText>即時建議</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleTabExpansion" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>Tab 快捷展開</ButtonText></Strings>
+        <Strings>
+          <ButtonText>Tab 快捷展開</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleKeywordUppercase" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>關鍵字轉大寫</ButtonText></Strings>
+        <Strings>
+          <ButtonText>關鍵字轉大寫</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleObjectPicker" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>Procedure／Function 選擇器</ButtonText></Strings>
+        <Strings>
+          <ButtonText>Procedure／Function 選擇器</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleResultGridCommands" priority="0x0400" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>結果格命令</ButtonText></Strings>
+        <Strings>
+          <ButtonText>結果格命令</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>顯示診斷狀態</ButtonText></Strings>
+        <Strings>
+          <ButtonText>顯示診斷狀態</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidRefreshSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>重新整理建議</ButtonText></Strings>
+        <Strings>
+          <ButtonText>重新整理建議</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenSettings" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>設定…</ButtonText></Strings>
+        <Strings>
+          <ButtonText>設定…</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidEditSettingsFile" priority="0x0400" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>編輯 settings.json</ButtonText></Strings>
+        <Strings>
+          <ButtonText>編輯 settings.json</ButtonText>
+        </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleAsyncCompletionProbe" priority="0x0500" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>非同步 IntelliSense 探測</ButtonText></Strings>
+        <Strings>
+          <ButtonText>非同步 IntelliSense 探測</ButtonText>
+        </Strings>
       </Button>
     </Buttons>
   </Commands>
-
   <KeyBindings>
-    <KeyBinding guid="guidSqlAssistCommandSet"
-                id="cmdidToggleEnabled"
-                editor="guidVSStd97"
-                key1="S"
-                mod1="Control Alt Shift" />
+    <KeyBinding guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" editor="guidVSStd97" key1="'S'" mod1="Control Alt Shift" />
   </KeyBindings>
-
   <Symbols>
+    <GuidSymbol name="guidVSStd97" value="{5efc7975-14bc-11cf-9b2b-00aa00573819}" />
+    <GuidSymbol name="Group_Undefined" value="{83285929-227c-11d3-b870-00c04f79f802}" />
+    <GuidSymbol name="Pkg_Undefined" value="{8328592a-227c-11d3-b870-00c04f79f802}" />
     <GuidSymbol name="guidSqlAssistPackage" value="{b386e18d-f34b-4db4-a40d-b9092a31d89f}" />
     <GuidSymbol name="guidSqlAssistCommandSet" value="{4a188946-9364-4f07-af7e-97f3bd7ca7a7}">
-      <IDSymbol name="SqlAssistMenu" value="0x1000" />
-      <IDSymbol name="SqlAssistGeneralGroup" value="0x1100" />
-      <IDSymbol name="SqlAssistFeaturesGroup" value="0x1200" />
-      <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
+      <IDSymbol name="cmdidEditSettingsFile" value="0x0204" />
+      <IDSymbol name="cmdidOpenSettings" value="0x0201" />
+      <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
+      <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
+      <IDSymbol name="cmdidToggleAsyncCompletionProbe" value="0x0203" />
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
-      <IDSymbol name="cmdidToggleTabExpansion" value="0x0101" />
       <IDSymbol name="cmdidToggleKeywordUppercase" value="0x0102" />
       <IDSymbol name="cmdidToggleObjectPicker" value="0x0103" />
       <IDSymbol name="cmdidToggleResultGridCommands" value="0x0104" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
-      <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
-      <IDSymbol name="cmdidOpenSettings" value="0x0201" />
-      <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
-      <IDSymbol name="cmdidToggleAsyncCompletionProbe" value="0x0203" />
-      <IDSymbol name="cmdidEditSettingsFile" value="0x0204" />
+      <IDSymbol name="cmdidToggleTabExpansion" value="0x0101" />
+      <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
+      <IDSymbol name="SqlAssistFeaturesGroup" value="0x1200" />
+      <IDSymbol name="SqlAssistGeneralGroup" value="0x1100" />
+      <IDSymbol name="SqlAssistMenu" value="0x1000" />
+    </GuidSymbol>
+    <GuidSymbol name="guidSHLMainMenu" value="{d309f791-903f-11d0-9efc-00a0c911004f}">
+      <IDSymbol name="IDG_VS_TOOLS_OTHER2" value="0x015B" />
+    </GuidSymbol>
+    <GuidSymbol name="guidOfficeIcon" value="{d309f794-903f-11d0-9efc-00a0c911004f}">
+      <IDSymbol name="msotcidNoIcon" value="0x02EA" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

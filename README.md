@@ -147,8 +147,13 @@ IntelliSense 是舊版語言服務，新版 API 對 `ContentType "SQL"` 是否�
 需要實機量測，因此先量測再決定架構。
 
 探測用的建議來源預設**不參與**完成流程，只記錄自己有沒有被呼叫，
-SSMS 原生 IntelliSense 的行為不受影響。量測結果請看「工具 → SqlAssist →
-顯示診斷狀態」的「非同步 IntelliSense 探測」段落。
+SSMS 原生 IntelliSense 的行為不受影響。完整量測結果在「工具 → SqlAssist →
+顯示診斷狀態」的「非同步 IntelliSense 探測」段落；其中兩個決定性事實
+（Provider 是否被掃描到、`InitializeCompletion` 是否被呼叫）會在第一次發生時
+直接寫進 `SqlAssist.log`，不必開對話框也看得到。
+
+實機量測（SSMS 22.9.12105.275）：`IAsyncCompletionBroker` 有被匯出，但
+`IsCompletionSupported("SQL")` 回報 **False**。
 
 若要實際觀察清單外觀與 Tab 提交行為，可開啟「工具 → 選項 → SqlAssist →
 一般 → 非同步 IntelliSense 探測」。開啟後可能與 SSMS 原生清單同時出現。
