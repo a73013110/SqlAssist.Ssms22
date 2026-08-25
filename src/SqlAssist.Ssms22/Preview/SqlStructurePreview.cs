@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text;
@@ -67,6 +68,11 @@ internal sealed class SqlStructurePreview
 
     /// <summary>計時器到期時要做的是「自動展開」而不是「去查資料庫」。</summary>
     private bool _timerExpands;
+
+    /// <summary>正在自己換掉代理人，這一次移除通知不是平台在收視窗。</summary>
+    private bool _recreatingAgent;
+
+    private bool _activationAttached;
 
     private SqlStructurePreview(IWpfTextView view, IServiceProvider serviceProvider)
     {
@@ -465,7 +471,6 @@ internal sealed class SqlStructurePreview
                 PreferredHeight = settings.ClampHeight()
             };
 
-            control.SizeChanging += OnSizeChanging;
             control.SizeCommitted += OnSizeCommitted;
             control.CloseRequested += OnCloseRequested;
             _control = control;
@@ -484,22 +489,6 @@ internal sealed class SqlStructurePreview
         Hide();
     }
 
-    /// <summary>拖曳過程中即時重算位置，視窗才會朝著滑鼠的方向長。</summary>
-    private void OnSizeChanging(object sender, EventArgs eventArgs)
-    {
-        try
-        {
-            if (_agent is not null && _manager is not null && _anchor is not null)
-            {
-                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
-            }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.Write($"調整結構預覽位置失敗：{exception.Message}");
-        }
-    }
-
     private void OnSizeCommitted(object sender, EventArgs eventArgs)
     {
         if (_control is not { } control)
@@ -514,6 +503,13 @@ internal sealed class SqlStructurePreview
                 settings.Preview.Width = control.PreferredWidth;
                 settings.Preview.Height = control.PreferredHeight;
             });
+
+            // 放開手才收斂一次位置：拖曳期間重排等於在使用者手上把視窗抽來抽去。
+            if (_agent is not null && _manager is not null && _anchor is not null)
+            {
+                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
+                UpdateGripSide();
+            }
         }
         catch (Exception exception)
         {
@@ -542,9 +538,10 @@ internal sealed class SqlStructurePreview
                 }
 
                 // 平台會在自己認為該收起來的時候移除代理人（例如編輯器失去聚合焦點），
-                // 不通知的話這裡會一直握著一個already死掉的代理人，
+                // 不通知的話這裡會一直握著一個已經死掉的代理人，
                 // 下一次顯示就只會走「更新位置」而什麼都不做。
                 _manager.AgentChanged += OnAgentChanged;
+                AttachApplicationActivation();
             }
 
             // 視窗不能大到把整個查詢視窗蓋住；使用者設定的尺寸在這裡收斂一次。
@@ -558,23 +555,119 @@ internal sealed class SqlStructurePreview
             if (_agent is not null)
             {
                 _manager.UpdatePopupAgent(_agent, _anchor, Styles);
-                return;
             }
-
-            if (_host is not null)
+            else
             {
-                _host.Child = null;
+                if (_host is not null)
+                {
+                    _host.Child = null;
+                }
+
+                _host = new System.Windows.Controls.Decorator { Child = control };
+                _agent = _manager.CreatePopupAgent(_anchor, Styles, _host);
+                _manager.AddAgent(_agent);
             }
 
-            _host = new System.Windows.Controls.Decorator { Child = control };
-            _agent = _manager.CreatePopupAgent(_anchor, Styles, _host);
-            _manager.AddAgent(_agent);
+            // 位置要等平台排完版才問得到，因此排在版面之後。
+            _view.VisualElement.Dispatcher.BeginInvoke(
+                DispatcherPriority.Loaded,
+                new Action(UpdateGripSide));
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"顯示結構預覽失敗：{exception}");
             _agent = null;
         }
+    }
+
+    /// <summary>
+    /// 判斷視窗落在錨點的哪一側，並把縮放握把放到它實際會長大的那一角。
+    /// </summary>
+    /// <remarks>
+    /// 貼在左側時平台釘住的是視窗的右邊界，加寬會往左長；握把留在右下角的話，
+    /// 使用者往右拖曳卻看到左邊界往外跑。判斷不出來時一律當成右側，
+    /// 那是絕大多數情況，也是預設的版面。
+    /// </remarks>
+    private void UpdateGripSide()
+    {
+        if (_control is not { } control || _host is null || _view.IsClosed)
+        {
+            return;
+        }
+
+        try
+        {
+            var popupRight = _host.PointToScreen(new Point(_host.ActualWidth, 0)).X;
+            var caretX = _view.Caret.Left - _view.ViewportLeft;
+            var anchorScreenX = _view.VisualElement.PointToScreen(new Point(caretX, 0)).X;
+            control.SetGripSide(popupRight <= anchorScreenX);
+        }
+        catch (Exception exception)
+        {
+            // 版面還沒完成時 PointToScreen 會失敗，那就維持現狀。
+            SqlAssistDiagnostics.Write($"判斷結構預覽的位置失敗：{exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 切換到別的應用程式再回來時，把視窗重新掛一次。
+    /// </summary>
+    /// <remarks>
+    /// 浮動視窗是自己的一個承載視窗，SSMS 失去啟用狀態再取回時，它的輸入狀態會留在
+    /// 舊的狀態上——表現出來就是「怎麼拉都選不起來，必須先點回查詢視窗再點預覽」。
+    /// 整個換一個新的承載視窗最省事，內容控制項本來就是重複使用的，成本很低。
+    /// </remarks>
+    private void AttachApplicationActivation()
+    {
+        if (_activationAttached || System.Windows.Application.Current is not { } application)
+        {
+            return;
+        }
+
+        _activationAttached = true;
+        application.Activated += OnApplicationActivated;
+    }
+
+    private void OnApplicationActivated(object sender, EventArgs eventArgs)
+    {
+        if (_closed || _agent is null || _manager is null || _anchor is null)
+        {
+            return;
+        }
+
+        Run(() =>
+        {
+            try
+            {
+                _recreatingAgent = true;
+                _manager.RemoveAgent(_agent);
+                _agent = null;
+            }
+            finally
+            {
+                _recreatingAgent = false;
+            }
+
+            ShowAgent();
+        });
+    }
+
+    /// <summary>
+    /// 預覽裡有選取時，由它接手複製。
+    /// </summary>
+    /// <remarks>
+    /// 浮動視窗拿不到鍵盤焦點，Ctrl+C 會落在查詢視窗的命令鏈上而不是預覽裡，
+    /// 所以由編輯器那一端把這個命令轉過來。編輯器自己有選取時不搶。
+    /// </remarks>
+    public bool CopySelectionIfAny()
+    {
+        if (_agent is null || _control is not { } control || !control.HasSelection())
+        {
+            return false;
+        }
+
+        control.CopySelection();
+        return true;
     }
 
     /// <summary>
@@ -586,7 +679,7 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     private void OnAgentChanged(object sender, SpaceReservationAgentChangedEventArgs eventArgs)
     {
-        if (_agent is null || !ReferenceEquals(eventArgs.OldAgent, _agent))
+        if (_recreatingAgent || _agent is null || !ReferenceEquals(eventArgs.OldAgent, _agent))
         {
             return;
         }
@@ -640,7 +733,6 @@ internal sealed class SqlStructurePreview
 
         if (_control is { } control)
         {
-            control.SizeChanging -= OnSizeChanging;
             control.SizeCommitted -= OnSizeCommitted;
             control.CloseRequested -= OnCloseRequested;
             _control = null;
@@ -650,6 +742,12 @@ internal sealed class SqlStructurePreview
         {
             manager.AgentChanged -= OnAgentChanged;
             _manager = null;
+        }
+
+        if (_activationAttached && System.Windows.Application.Current is { } application)
+        {
+            application.Activated -= OnApplicationActivated;
+            _activationAttached = false;
         }
 
         _agent = null;

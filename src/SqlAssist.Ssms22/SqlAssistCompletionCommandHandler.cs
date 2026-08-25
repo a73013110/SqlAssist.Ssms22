@@ -31,6 +31,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
     ICommandHandler<EscapeKeyCommandArgs>,
     ICommandHandler<LeftKeyCommandArgs>,
     ICommandHandler<RightKeyCommandArgs>,
+    ICommandHandler<CopyCommandArgs>,
     ICommandHandler<TypeCharCommandArgs>
 {
     public string DisplayName => "SqlAssist 建議清單操作";
@@ -48,6 +49,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(LeftKeyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(RightKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(CopyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(TypeCharCommandArgs args) => CommandState.Unspecified;
 
@@ -125,6 +128,23 @@ internal sealed class SqlAssistCompletionCommandHandler :
         return Execute("Left", () =>
             SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
             && preview.Collapse());
+    }
+
+    /// <summary>
+    /// 預覽視窗裡有選取時，Ctrl+C 複製的是它。
+    /// </summary>
+    /// <remarks>
+    /// 浮動預覽是自己的一個承載視窗，拿不到鍵盤焦點，所以 Ctrl+C 會落在查詢視窗的
+    /// 命令鏈上——使用者明明在預覽裡拉好了選取，按下去卻什麼也沒發生。
+    /// 這裡把命令轉過去，但只在<b>編輯器自己沒有選取</b>時才接手：
+    /// 他在查詢視窗裡選了字要複製，那當然是他的優先。
+    /// </remarks>
+    public bool ExecuteCommand(CopyCommandArgs args, CommandExecutionContext executionContext)
+    {
+        return Execute("Copy", () =>
+            args.TextView.Selection.IsEmpty
+            && SqlStructurePreview.Peek(args.TextView) is { } preview
+            && preview.CopySelectionIfAny());
     }
 
     /// <summary>

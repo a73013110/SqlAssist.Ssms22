@@ -126,7 +126,18 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private readonly DataGrid _foreignKeys;
     private readonly DataGrid _parameters;
     private readonly RichTextBox _script;
+    private readonly Thumb _resize;
     private readonly Border _root;
+
+    /// <summary>握把在左下角時，往左拖曳才是變大。</summary>
+    private bool _gripOnLeft;
+
+    /// <summary>按下握把當下的游標位置與尺寸；拖曳中的每一步都以此為基準重算。</summary>
+    private Point? _dragOrigin;
+
+    private double _dragStartWidth;
+
+    private double _dragStartHeight;
 
     /// <summary>已經填過內容的分頁；換了物件就整批清掉。</summary>
     private readonly HashSet<TabItem> _populated = new();
@@ -189,6 +200,9 @@ internal sealed class SqlStructurePreviewControl : UserControl
         {
             IsReadOnly = true,
             IsReadOnlyCaretVisible = false,
+
+            // 浮動視窗拿不到鍵盤焦點，預設狀態下選取起來是看不見的。
+            IsInactiveSelectionHighlightEnabled = true,
             BorderThickness = new Thickness(0),
             Background = VsThemeBrushes.ListBackground,
             Foreground = VsThemeBrushes.ListForeground,
@@ -229,7 +243,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         header.Children.Add(buttons);
         header.Children.Add(_title);
 
-        var resize = new Thumb
+        _resize = new Thumb
         {
             Width = 16,
             Height = 16,
@@ -239,12 +253,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Template = CreateResizeGripTemplate(),
             ToolTip = "拖曳調整大小；下次開啟會沿用"
         };
-        resize.DragDelta += OnResizeDragDelta;
-        resize.DragCompleted += (_, _) => SizeCommitted?.Invoke(this, EventArgs.Empty);
+        _resize.DragStarted += OnResizeDragStarted;
+        _resize.DragDelta += OnResizeDragDelta;
+        _resize.DragCompleted += OnResizeDragCompleted;
 
         var footer = new Grid();
         footer.Children.Add(_status);
-        footer.Children.Add(resize);
+        footer.Children.Add(_resize);
 
         var layout = new Grid();
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -272,9 +287,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         // 點進來才接受焦點，那時才需要能夠拉選文字。
         Focusable = false;
     }
-
-    /// <summary>使用者拖曳握把改變大小；每一次移動都要請平台重算位置。</summary>
-    public event EventHandler? SizeChanging;
 
     /// <summary>拖曳結束，供呼叫端寫回設定。</summary>
     public event EventHandler? SizeCommitted;
@@ -651,21 +663,98 @@ internal sealed class SqlStructurePreviewControl : UserControl
         return menu;
     }
 
+    private void OnResizeDragStarted(object sender, DragStartedEventArgs eventArgs)
+    {
+        _dragOrigin = NativeCursor.TryGetPosition();
+        _dragStartWidth = _root.Width;
+        _dragStartHeight = _root.Height;
+    }
+
+    /// <summary>
+    /// 依游標相對於按下瞬間的位移重算尺寸。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不用 <see cref="DragDeltaEventArgs"/> 帶來的位移量：那是相對於握把的父代
+    /// 算出來的，而浮動視窗在調整大小的過程中會被平台重新定位，父代自己在動，
+    /// 於是視窗的移動會被誤算成滑鼠的移動而形成回授，畫面就開始亂跳。
+    /// 以絕對座標重算，尺寸是「起始尺寸 ＋ 游標位移」這個純函式，不受視窗移動影響。
+    ///
+    /// 拖曳期間也刻意不請平台重新定位：每動一下就重排一次，等於在使用者手上
+    /// 把視窗抽來抽去。放開手時才收斂一次。
+    /// </remarks>
     private void OnResizeDragDelta(object sender, DragDeltaEventArgs eventArgs)
     {
+        if (_dragOrigin is not { } origin || NativeCursor.TryGetPosition() is not { } current)
+        {
+            // 拿不到游標位置就退回平台給的位移量，至少還能調整大小。
+            Resize(eventArgs.HorizontalChange, eventArgs.VerticalChange, _root.Width, _root.Height);
+            return;
+        }
+
+        var moved = NativeCursor.ToDeviceIndependent(this, current - origin);
+        Resize(moved.X, moved.Y, _dragStartWidth, _dragStartHeight);
+    }
+
+    private void Resize(double horizontal, double vertical, double baseWidth, double baseHeight)
+    {
+        // 握把在左下角時，視窗是往左長的：往左拖才是變大。
+        var widthChange = _gripOnLeft ? -horizontal : horizontal;
+
         _root.Width = Clamp(
-            _root.Width + eventArgs.HorizontalChange,
+            baseWidth + widthChange,
             SqlAssistPreviewSettings.MinimumWidth,
             SqlAssistPreviewSettings.MaximumWidth);
 
         _root.Height = Clamp(
-            _root.Height + eventArgs.VerticalChange,
+            baseHeight + vertical,
             SqlAssistPreviewSettings.MinimumHeight,
             SqlAssistPreviewSettings.MaximumHeight);
+    }
 
-        // 不通知平台的話，視窗會維持在原本算好的位置往外長，
-        // 貼在左側時看起來就變成「左邊界被往外拉」。
-        SizeChanging?.Invoke(this, EventArgs.Empty);
+    private void OnResizeDragCompleted(object sender, DragCompletedEventArgs eventArgs)
+    {
+        _dragOrigin = null;
+        SizeCommitted?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 把握把移到視窗實際會長大的那一側。
+    /// </summary>
+    /// <remarks>
+    /// 視窗貼在錨點左側時，平台釘住的是它的右邊界，加寬會往左長。
+    /// 這時把握把留在右下角，使用者往右拖曳卻看到左邊界往外跑，
+    /// 那正是「拖拉方向跟生長方向相反」的來源。
+    /// </remarks>
+    public void SetGripSide(bool onLeft)
+    {
+        if (_gripOnLeft == onLeft)
+        {
+            return;
+        }
+
+        _gripOnLeft = onLeft;
+        _resize.HorizontalAlignment = onLeft ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        _resize.Cursor = onLeft ? Cursors.SizeNESW : Cursors.SizeNWSE;
+        _resize.RenderTransform = onLeft
+            ? new ScaleTransform(-1, 1, 8, 8)
+            : Transform.Identity;
+        _status.Margin = onLeft ? new Thickness(24, 3, 8, 4) : new Thickness(8, 3, 24, 4);
+    }
+
+    /// <summary>目前分頁有沒有選取的內容；決定 Ctrl+C 該不該由預覽接手。</summary>
+    public bool HasSelection()
+    {
+        if (_tabs.SelectedItem is not TabItem tab)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(tab, _scriptTab))
+        {
+            return !string.IsNullOrEmpty(_script.Selection?.Text);
+        }
+
+        return tab.Content is DataGrid grid && grid.SelectedCells.Count > 0;
     }
 
     /// <summary>
