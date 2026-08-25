@@ -24,22 +24,11 @@ namespace SqlAssist.Ssms22.Preview;
 /// </remarks>
 internal sealed class SqlStructurePreview
 {
-    /// <summary>
-    /// 貼在錨點右側，放不下才翻到左側。
-    /// </summary>
-    /// <remarks>
-    /// 刻意不加 <see cref="PopupStyles.PositionClosest"/>：那會讓平台每次都挑
-    /// 「當下比較近的一邊」，於是視窗一變寬就跳到另一側，拖曳握把時看起來
-    /// 像是左邊界在往外長。只留 <see cref="PopupStyles.PositionLeftOrRight"/>
-    /// 就是穩定的「優先右側、撞邊才翻」。
-    ///
-    /// 也刻意不加任何 <c>DismissOnMouseLeave</c>：預覽的生死由這個類別自己管，
-    /// 滑鼠移開就消失的視窗沒辦法讓人把裡面的文字拉選起來。
-    /// </remarks>
-    private const PopupStyles Styles = PopupStyles.PositionLeftOrRight;
-
     /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
     private const double MaximumViewportRatio = 0.8;
+
+    /// <summary>上下擺放時視窗最多佔掉編輯器的多少高度；橫幅本來就該扁一點。</summary>
+    private const double StackedHeightRatio = 0.45;
 
     private readonly IWpfTextView _view;
     private readonly IServiceProvider _serviceProvider;
@@ -84,6 +73,29 @@ internal sealed class SqlStructurePreview
 
         view.Closed += OnViewClosed;
     }
+
+    /// <summary>
+    /// 交給平台的擺放樣式。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SqlPreviewPlacement.Beside"/> 用
+    /// <see cref="PopupStyles.PositionLeftOrRight"/>：穩定的「優先右側、撞邊才翻」。
+    /// 刻意不加 <see cref="PopupStyles.PositionClosest"/>，那會讓平台每次都挑
+    /// 「當下比較近的一邊」，於是視窗一變寬就跳到另一側，拖曳握把時看起來
+    /// 像是左邊界在往外長。
+    ///
+    /// <see cref="SqlPreviewPlacement.Stacked"/> 則什麼旗標都不給，那正是平台的
+    /// 預設行為——擺在錨點所在行的下方，下面放不下才翻到上方。
+    ///
+    /// 兩者都刻意不加任何 <c>DismissOnMouseLeave</c>：預覽的生死由這個類別自己管，
+    /// 滑鼠移開就消失的視窗沒辦法讓人把裡面的文字拉選起來。
+    /// </remarks>
+    private static PopupStyles Styles => Placement == SqlPreviewPlacement.Stacked
+        ? PopupStyles.None
+        : PopupStyles.PositionLeftOrRight;
+
+    private static SqlPreviewPlacement Placement =>
+        SettingsService.Default.GetSnapshot().Preview.Placement;
 
     /// <summary>預覽目前是否展開；建議清單的方向鍵處理需要知道。</summary>
     public bool IsExpanded { get; private set; }
@@ -500,7 +512,13 @@ internal sealed class SqlStructurePreview
         {
             SettingsService.Default.Update(settings =>
             {
-                settings.Preview.Width = control.PreferredWidth;
+                // 上下擺放的寬度是編輯器決定的，不是使用者拖出來的；
+                // 寫回去等於用視窗寬度蓋掉他為側邊擺放調好的那一個值。
+                if (Placement != SqlPreviewPlacement.Stacked)
+                {
+                    settings.Preview.Width = control.PreferredWidth;
+                }
+
                 settings.Preview.Height = control.PreferredHeight;
             });
 
@@ -544,13 +562,7 @@ internal sealed class SqlStructurePreview
                 AttachApplicationActivation();
             }
 
-            // 視窗不能大到把整個查詢視窗蓋住；使用者設定的尺寸在這裡收斂一次。
-            var size = SettingsService.Default.GetSnapshot().Preview;
-            control.ApplySize(
-                size.ClampWidth(),
-                size.ClampHeight(),
-                _view.ViewportWidth * MaximumViewportRatio,
-                _view.ViewportHeight * MaximumViewportRatio);
+            ApplySize(control);
 
             if (_agent is not null)
             {
@@ -585,6 +597,33 @@ internal sealed class SqlStructurePreview
     }
 
     /// <summary>
+    /// 套用尺寸；上下擺放時寬度改由編輯器決定。
+    /// </summary>
+    /// <remarks>
+    /// 橫幅的價值就在「一次攤開一百多個欄位而不必橫向捲動」，寬度沿用側邊擺放
+    /// 那個 620 就沒有意義了。高度也跟著收窄——擺在程式碼上下的東西一旦太高，
+    /// 遮掉的行數就多到讓人失去上下文。
+    /// </remarks>
+    private void ApplySize(SqlStructurePreviewControl control)
+    {
+        var size = SettingsService.Default.GetSnapshot().Preview;
+        var availableWidth = _view.ViewportWidth * MaximumViewportRatio;
+        var availableHeight = _view.ViewportHeight * MaximumViewportRatio;
+
+        if (Placement == SqlPreviewPlacement.Stacked)
+        {
+            control.ApplySize(
+                _view.ViewportWidth,
+                Math.Min(size.ClampHeight(), _view.ViewportHeight * StackedHeightRatio),
+                _view.ViewportWidth,
+                availableHeight);
+            return;
+        }
+
+        control.ApplySize(size.ClampWidth(), size.ClampHeight(), availableWidth, availableHeight);
+    }
+
+    /// <summary>
     /// 請作業系統把承載視窗的四個角磨圓。
     /// </summary>
     /// <remarks>
@@ -609,11 +648,20 @@ internal sealed class SqlStructurePreview
     /// 貼在左側時平台釘住的是視窗的右邊界，加寬會往左長；握把留在右下角的話，
     /// 使用者往右拖曳卻看到左邊界往外跑。判斷不出來時一律當成右側，
     /// 那是絕大多數情況，也是預設的版面。
+    ///
+    /// 上下擺放不需要判斷：視窗跨滿整個編輯器寬度，左右兩邊都釘死了，
+    /// 拿右邊界跟游標比較只會得到隨機的結果。
     /// </remarks>
     private void UpdateGripSide()
     {
         if (_control is not { } control || _host is null || _view.IsClosed)
         {
+            return;
+        }
+
+        if (Placement == SqlPreviewPlacement.Stacked)
+        {
+            control.SetGripSide(onLeft: false);
             return;
         }
 

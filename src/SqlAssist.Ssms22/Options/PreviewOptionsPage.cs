@@ -28,8 +28,18 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     public int DelayMilliseconds { get; set; } = 220;
 
     [Category("視窗")]
+    [DisplayName("擺放位置")]
+    [Description(
+        "Beside：貼在建議清單的左右任一側，由平台計算落點與方向。" +
+        "Stacked：擺在游標所在行的上下方，寬度吃滿編輯器，" +
+        "欄位很多的資料表可以一次攤開而不必橫向捲動，代價是會蓋住上下幾行程式碼。")]
+    public SqlPreviewPlacement Placement { get; set; } = SqlPreviewPlacement.Beside;
+
+    [Category("視窗")]
     [DisplayName("寬度")]
-    [Description("預覽視窗的寬度，也會在拖曳右下角握把後自動更新。")]
+    [Description(
+        "預覽視窗的寬度，也會在拖曳右下角握把後自動更新。" +
+        "擺放位置為 Stacked 時寬度改由編輯器決定，這個值不生效。")]
     public int Width { get; set; } = 620;
 
     [Category("視窗")]
@@ -40,6 +50,7 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     private protected override void LoadFrom(SqlAssistSettings settings)
     {
         Mode = settings.Preview.Mode;
+        Placement = settings.Preview.Placement;
         DelayMilliseconds = settings.Preview.DelayMilliseconds;
         Width = (int)settings.Preview.ClampWidth();
         Height = (int)settings.Preview.ClampHeight();
@@ -48,6 +59,7 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     private protected override void ApplyTo(SqlAssistSettings settings)
     {
         settings.Preview.Mode = Mode;
+        settings.Preview.Placement = Placement;
 
         // 屬性方格允許輸入任意整數，界限在這裡收斂，讓設定檔永遠是可用值。
         settings.Preview.DelayMilliseconds = Clamp(DelayMilliseconds, 0, 2000);

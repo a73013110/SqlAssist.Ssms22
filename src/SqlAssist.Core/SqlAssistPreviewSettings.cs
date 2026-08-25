@@ -73,6 +73,25 @@ public sealed class SqlAssistPreviewSettings
     [DataMember(Name = "height", Order = 4)]
     public double Height { get; set; } = 420;
 
+    /// <summary>設定檔裡的擺放位置名稱；與 <see cref="ModeName"/> 同樣的理由存成字串。</summary>
+    [DataMember(Name = "placement", Order = 5)]
+    private string? PlacementName { get; set; }
+
+    /// <summary>視窗擺在哪裡。無法辨識的值一律當成預設的貼在清單旁。</summary>
+    [IgnoreDataMember]
+    public SqlPreviewPlacement Placement
+    {
+        get => string.Equals(PlacementName, "stacked", StringComparison.OrdinalIgnoreCase)
+            ? SqlPreviewPlacement.Stacked
+            : SqlPreviewPlacement.Beside;
+
+        set => PlacementName = value switch
+        {
+            SqlPreviewPlacement.Stacked => "stacked",
+            _ => "beside"
+        };
+    }
+
     /// <summary>把尺寸收斂到允許範圍內；設定檔被手動改壞時不至於畫出看不見的視窗。</summary>
     public double ClampWidth() => Clamp(Width, MinimumWidth, MaximumWidth, 620);
 
@@ -96,6 +115,7 @@ public sealed class SqlAssistPreviewSettings
         return new SqlAssistPreviewSettings
         {
             Mode = Mode,
+            Placement = Placement,
             DelayMilliseconds = DelayMilliseconds,
             Width = Width,
             Height = Height

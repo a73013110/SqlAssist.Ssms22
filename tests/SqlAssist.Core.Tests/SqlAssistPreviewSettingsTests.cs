@@ -25,6 +25,23 @@ public sealed class SqlAssistPreviewSettingsTests
     }
 
     [Fact]
+    public void 預設貼在建議清單旁()
+    {
+        Assert.Equal(SqlPreviewPlacement.Beside, new SqlAssistPreviewSettings().Placement);
+    }
+
+    [Theory]
+    [InlineData(SqlPreviewPlacement.Beside)]
+    [InlineData(SqlPreviewPlacement.Stacked)]
+    public void 擺放位置可以來回轉換(SqlPreviewPlacement placement)
+    {
+        var settings = new SqlAssistPreviewSettings { Placement = placement };
+
+        Assert.Equal(placement, settings.Placement);
+        Assert.Equal(placement, settings.Clone().Placement);
+    }
+
+    [Fact]
     public void 尺寸為零或負數時退回預設值()
     {
         // 設定檔被手動改壞時，不能畫出一個看不見的視窗。
@@ -79,6 +96,7 @@ public sealed class SqlAssistPreviewSettingsTests
         var settings = new SqlAssistPreviewSettings
         {
             Mode = SqlPreviewMode.Delay,
+            Placement = SqlPreviewPlacement.Stacked,
             DelayMilliseconds = 350,
             Width = 700,
             Height = 480
@@ -87,6 +105,7 @@ public sealed class SqlAssistPreviewSettingsTests
         var clone = settings.Clone();
 
         Assert.Equal(SqlPreviewMode.Delay, clone.Mode);
+        Assert.Equal(SqlPreviewPlacement.Stacked, clone.Placement);
         Assert.Equal(350, clone.DelayMilliseconds);
         Assert.Equal(700, clone.Width);
         Assert.Equal(480, clone.Height);
