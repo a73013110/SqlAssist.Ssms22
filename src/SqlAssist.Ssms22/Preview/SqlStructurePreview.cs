@@ -608,6 +608,10 @@ internal sealed class SqlStructurePreview
     private void ApplySize(SqlStructurePreviewControl control)
     {
         var size = SettingsService.Default.GetSnapshot().Preview;
+
+        // 字級也在這裡套用：改完設定不必重開查詢視窗，下一次展開就是新的字級。
+        control.ApplyFontSize(size.ClampFontSize());
+
         var availableWidth = _view.ViewportWidth * MaximumViewportRatio;
         var availableHeight = _view.ViewportHeight * MaximumViewportRatio;
 

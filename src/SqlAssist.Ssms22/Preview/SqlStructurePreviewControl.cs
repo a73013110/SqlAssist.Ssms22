@@ -128,8 +128,12 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private readonly DataGrid _foreignKeys;
     private readonly DataGrid _parameters;
     private readonly RichTextBox _script;
+    private readonly DataGridTemplateColumn _flags;
     private readonly Thumb _resize;
     private readonly Border _root;
+
+    /// <summary>目前套用的基準字級；相同就不重建樣式。</summary>
+    private double _fontSize;
 
     /// <summary>握把在左下角時，往左拖曳才是變大。</summary>
     private bool _gripOnLeft;
@@ -168,7 +172,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _title = new TextBlock
         {
             FontFamily = PreviewChrome.InterfaceFont,
-            FontSize = 13.5,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = VsThemeBrushes.ListForeground
         };
@@ -178,7 +181,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _summary = new TextBlock
         {
             FontFamily = PreviewChrome.InterfaceFont,
-            FontSize = 11.5,
             Margin = new Thickness(0, 1, 0, 0),
             TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = VsThemeBrushes.DimForeground
@@ -187,7 +189,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _status = new TextBlock
         {
             FontFamily = PreviewChrome.InterfaceFont,
-            FontSize = 11.5,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Margin = new Thickness(14, 0, 24, 6),
@@ -202,7 +203,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             ("預設值", nameof(ColumnRow.Default)));
 
         // NULL、PK、IDENTITY 三個文字欄收成一欄膠囊，插在型別後面。
-        _columns.Columns.Insert(3, CreateFlagsColumn());
+        _flags = CreateFlagsColumn();
+        _columns.Columns.Insert(3, _flags);
 
         _indexes = CreateGrid(
             ("索引", nameof(IndexRow.Name)),
@@ -256,7 +258,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
             FontFamily = PreviewChrome.InterfaceFont,
-            FontSize = 12.5,
             Template = PreviewChrome.CreateTabControlTemplate()
         };
         _tabs.Items.Add(_columnsTab);
@@ -326,6 +327,9 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
         TextOptions.SetTextFormattingMode(_root, TextFormattingMode.Ideal);
+
+        // 整組字級都從設定推導，這裡沒有任何寫死的數字可以跟設定不同步。
+        ApplyFontSize(SettingsService.Default.GetSnapshot().Preview.ClampFontSize());
 
         Content = _root;
 
@@ -1052,8 +1056,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Background = VsThemeBrushes.ListBackground,
             Foreground = VsThemeBrushes.ListForeground,
             FontFamily = PreviewChrome.InterfaceFont,
-            FontSize = 12.5,
-            RowHeight = PreviewChrome.RowHeight,
 
             // 交替底色只能走資料格自己的這兩個屬性。DataGridRow.Background 是
             // 「轉移屬性」，資料格會把自己的值蓋到每一列上，優先權高過任何
@@ -1062,7 +1064,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
             AlternatingRowBackground = VsThemeBrushes.RowAlternate,
             AlternationCount = 2,
             CellStyle = PreviewChrome.CreateCellStyle(),
-            ColumnHeaderStyle = PreviewChrome.CreateColumnHeaderStyle(),
             BorderThickness = new Thickness(0),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -1099,8 +1100,46 @@ internal sealed class SqlStructurePreviewControl : UserControl
         {
             Header = "旗標",
             SortMemberPath = nameof(ColumnRow.Flags),
-            CellTemplate = PreviewChrome.CreateFlagsCellTemplate(nameof(ColumnRow.FlagList)),
             Width = DataGridLength.Auto
         };
+    }
+
+    /// <summary>
+    /// 套用基準字級。
+    /// </summary>
+    /// <remarks>
+    /// 每次顯示都呼叫一次，設定改完不必重開查詢視窗就會生效。相同的值直接返回，
+    /// 因為重建樣式會讓資料格重新量一次所有欄寬——那是換選取時最不該付的成本。
+    ///
+    /// 資料格的字級靠繼承傳給儲存格，但欄位標題與徽章的字級是寫在樣式與範本裡的，
+    /// 那兩樣只能整個換掉。指令碼分頁不動，它跟的是編輯器的字型與字級。
+    /// </remarks>
+    public void ApplyFontSize(double baseSize)
+    {
+        if (Math.Abs(_fontSize - baseSize) < 0.01)
+        {
+            return;
+        }
+
+        _fontSize = baseSize;
+        var metrics = new PreviewChrome.Metrics(baseSize);
+
+        _title.FontSize = metrics.Title;
+        _summary.FontSize = metrics.Caption;
+        _status.FontSize = metrics.Caption;
+        _tabs.FontSize = metrics.Body;
+
+        var headerStyle = PreviewChrome.CreateColumnHeaderStyle(metrics);
+
+        foreach (var grid in new[] { _columns, _indexes, _foreignKeys, _parameters })
+        {
+            grid.FontSize = metrics.Body;
+            grid.RowHeight = metrics.RowHeight;
+            grid.ColumnHeaderStyle = headerStyle;
+        }
+
+        _flags.CellTemplate = PreviewChrome.CreateFlagsCellTemplate(
+            nameof(ColumnRow.FlagList),
+            metrics);
     }
 }

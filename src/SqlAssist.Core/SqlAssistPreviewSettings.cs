@@ -73,6 +73,38 @@ public sealed class SqlAssistPreviewSettings
     [DataMember(Name = "height", Order = 4)]
     public double Height { get; set; } = 420;
 
+    /// <summary>字級的合理範圍；再小讀不到，再大一列就放不下幾個字。</summary>
+    public const double MinimumFontSize = 9;
+
+    public const double MaximumFontSize = 20;
+
+    public const double DefaultFontSize = 13;
+
+    /// <summary>
+    /// 介面內容的基準字級。
+    /// </summary>
+    /// <remarks>
+    /// 只影響資料格、分頁與標題這些自己排版的部分。指令碼分頁跟的是編輯器的
+    /// 字型與字級（向分類外觀對應表借的），刻意不受這個值影響——那一份文字
+    /// 是要拿去跟查詢視窗裡的程式碼對照的，兩邊的字級不一樣反而難讀。
+    ///
+    /// 其他字級都由這個值推導：標題大一號，摘要與欄位標題小一號，徽章再小一點。
+    /// 只給一個旋鈕，使用者才不必自己維持六個數字之間的比例。
+    /// </remarks>
+    [DataMember(Name = "fontSize", Order = 6)]
+    public double FontSize { get; set; } = DefaultFontSize;
+
+    /// <summary>把字級收斂到可讀的範圍；設定檔被手動改壞時不至於畫出看不見的字。</summary>
+    public double ClampFontSize()
+    {
+        if (double.IsNaN(FontSize) || double.IsInfinity(FontSize) || FontSize <= 0)
+        {
+            return DefaultFontSize;
+        }
+
+        return Math.Min(Math.Max(FontSize, MinimumFontSize), MaximumFontSize);
+    }
+
     /// <summary>設定檔裡的擺放位置名稱；與 <see cref="ModeName"/> 同樣的理由存成字串。</summary>
     [DataMember(Name = "placement", Order = 5)]
     private string? PlacementName { get; set; }
@@ -116,6 +148,7 @@ public sealed class SqlAssistPreviewSettings
         {
             Mode = Mode,
             Placement = Placement,
+            FontSize = FontSize,
             DelayMilliseconds = DelayMilliseconds,
             Width = Width,
             Height = Height

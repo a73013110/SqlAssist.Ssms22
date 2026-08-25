@@ -41,6 +41,20 @@ public sealed class SqlAssistPreviewSettingsTests
         Assert.Equal(placement, settings.Clone().Placement);
     }
 
+    [Theory]
+    [InlineData(0, SqlAssistPreviewSettings.DefaultFontSize)]
+    [InlineData(-3, SqlAssistPreviewSettings.DefaultFontSize)]
+    [InlineData(double.NaN, SqlAssistPreviewSettings.DefaultFontSize)]
+    [InlineData(2, SqlAssistPreviewSettings.MinimumFontSize)]
+    [InlineData(13, 13)]
+    [InlineData(999, SqlAssistPreviewSettings.MaximumFontSize)]
+    public void 字級收斂到可讀的範圍(double configured, double expected)
+    {
+        var settings = new SqlAssistPreviewSettings { FontSize = configured };
+
+        Assert.Equal(expected, settings.ClampFontSize());
+    }
+
     [Fact]
     public void 尺寸為零或負數時退回預設值()
     {
@@ -97,6 +111,7 @@ public sealed class SqlAssistPreviewSettingsTests
         {
             Mode = SqlPreviewMode.Delay,
             Placement = SqlPreviewPlacement.Stacked,
+            FontSize = 15,
             DelayMilliseconds = 350,
             Width = 700,
             Height = 480
@@ -106,6 +121,7 @@ public sealed class SqlAssistPreviewSettingsTests
 
         Assert.Equal(SqlPreviewMode.Delay, clone.Mode);
         Assert.Equal(SqlPreviewPlacement.Stacked, clone.Placement);
+        Assert.Equal(15, clone.FontSize);
         Assert.Equal(350, clone.DelayMilliseconds);
         Assert.Equal(700, clone.Width);
         Assert.Equal(480, clone.Height);

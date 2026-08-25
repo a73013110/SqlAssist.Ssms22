@@ -36,6 +36,13 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     public SqlPreviewPlacement Placement { get; set; } = SqlPreviewPlacement.Beside;
 
     [Category("視窗")]
+    [DisplayName("字級")]
+    [Description(
+        "資料格、分頁與標題的基準字級，其餘字級按固定差距跟著走。" +
+        "指令碼分頁不受影響，它跟的是編輯器的字型與字級。有效範圍 9 到 20。")]
+    public double FontSize { get; set; } = SqlAssistPreviewSettings.DefaultFontSize;
+
+    [Category("視窗")]
     [DisplayName("寬度")]
     [Description(
         "預覽視窗的寬度，也會在拖曳右下角握把後自動更新。" +
@@ -51,6 +58,7 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     {
         Mode = settings.Preview.Mode;
         Placement = settings.Preview.Placement;
+        FontSize = settings.Preview.ClampFontSize();
         DelayMilliseconds = settings.Preview.DelayMilliseconds;
         Width = (int)settings.Preview.ClampWidth();
         Height = (int)settings.Preview.ClampHeight();
@@ -60,6 +68,7 @@ public sealed class PreviewOptionsPage : SqlAssistOptionsPage
     {
         settings.Preview.Mode = Mode;
         settings.Preview.Placement = Placement;
+        settings.Preview.FontSize = FontSize;
 
         // 屬性方格允許輸入任意整數，界限在這裡收斂，讓設定檔永遠是可用值。
         settings.Preview.DelayMilliseconds = Clamp(DelayMilliseconds, 0, 2000);

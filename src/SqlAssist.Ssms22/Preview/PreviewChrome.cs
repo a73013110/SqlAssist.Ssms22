@@ -42,8 +42,43 @@ internal static class PreviewChrome
     /// <summary>主索引鍵徽章要換成強調色，比對的就是這個字串。</summary>
     public const string PrimaryKeyFlag = "PK";
 
-    /// <summary>資料列的高度；預設的 20 太擠，一百多列連著看會糊成一片。</summary>
-    public const double RowHeight = 24;
+    /// <summary>
+    /// 從基準字級推導出來的一整組字級與行高。
+    /// </summary>
+    /// <remarks>
+    /// 使用者只調一個數字，其餘六個按固定的差距跟著走。讓他自己維持
+    /// 「標題比內文大一號、徽章比欄位標題再小一點」這種比例，
+    /// 是把版面設計的工作丟給使用者。
+    /// </remarks>
+    public readonly struct Metrics
+    {
+        public Metrics(double baseSize)
+        {
+            Body = baseSize;
+            Title = baseSize + 1;
+            Caption = baseSize - 1;
+            ColumnHeader = baseSize - 1.5;
+            Badge = baseSize - 2.5;
+
+            // 行高跟著字級走，否則字放大了行距沒放大，一列一列就黏在一起。
+            RowHeight = Math.Round(baseSize + 11);
+        }
+
+        /// <summary>資料格與分頁標籤。</summary>
+        public double Body { get; }
+
+        /// <summary>物件名稱。</summary>
+        public double Title { get; }
+
+        /// <summary>摘要與底部訊息。</summary>
+        public double Caption { get; }
+
+        public double ColumnHeader { get; }
+
+        public double Badge { get; }
+
+        public double RowHeight { get; }
+    }
 
     /// <summary>
     /// 出現時的淡入。
@@ -213,7 +248,7 @@ internal static class PreviewChrome
     }
 
     /// <summary>欄位標題：一條細線把它跟資料分開，字比資料更小也更淡。</summary>
-    public static Style CreateColumnHeaderStyle()
+    public static Style CreateColumnHeaderStyle(Metrics metrics)
     {
         var style = new Style(typeof(DataGridColumnHeader));
         style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
@@ -221,9 +256,9 @@ internal static class PreviewChrome
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
         style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.DimForeground));
         style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
-        style.Setters.Add(new Setter(Control.FontSizeProperty, 11.0));
+        style.Setters.Add(new Setter(Control.FontSizeProperty, metrics.ColumnHeader));
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 0, 10, 0)));
-        style.Setters.Add(new Setter(FrameworkElement.HeightProperty, 26.0));
+        style.Setters.Add(new Setter(FrameworkElement.HeightProperty, metrics.RowHeight + 2));
         style.Setters.Add(new Setter(
             Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
         return style;
@@ -264,7 +299,7 @@ internal static class PreviewChrome
     ///
     /// 只標例外：可為 NULL 是 SQL 的預設，因此不給徽章——沒有徽章就是可為 NULL。
     /// </remarks>
-    public static DataTemplate CreateFlagsCellTemplate(string path)
+    public static DataTemplate CreateFlagsCellTemplate(string path, Metrics metrics)
     {
         var chip = new FrameworkElementFactory(typeof(Border)) { Name = "chip" };
         chip.SetValue(Border.BackgroundProperty, VsThemeBrushes.BadgeBackground);
@@ -276,7 +311,7 @@ internal static class PreviewChrome
         var text = new FrameworkElementFactory(typeof(TextBlock)) { Name = "chipText" };
         text.SetBinding(TextBlock.TextProperty, new Binding());
         text.SetValue(TextBlock.FontFamilyProperty, InterfaceFont);
-        text.SetValue(TextBlock.FontSizeProperty, 10.0);
+        text.SetValue(TextBlock.FontSizeProperty, metrics.Badge);
         text.SetValue(TextBlock.ForegroundProperty, VsThemeBrushes.DimForeground);
         chip.AppendChild(text);
 
