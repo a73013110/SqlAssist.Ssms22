@@ -306,6 +306,27 @@ internal sealed class SqlStructurePreviewControl : UserControl
         set => _root.Height = value;
     }
 
+    /// <summary>
+    /// 把外框畫成與作業系統一致的圓角。
+    /// </summary>
+    /// <remarks>
+    /// 只有在 DWM 真的把承載視窗裁成圓角之後才該打開。裁切沒有生效卻先把邊框
+    /// 畫成圓的，四個角就會露出承載視窗的方形底色——比方角還糟。
+    /// </remarks>
+    public void SetRoundedCorners(bool rounded)
+    {
+        var radius = rounded ? new CornerRadius(NativeWindowStyle.CornerRadius) : default;
+
+        if (_root.CornerRadius == radius)
+        {
+            return;
+        }
+
+        // 裡面的內容仍然是方的，但畫進角落的那幾個像素正好落在 DWM 裁掉的區域，
+        // 所以不必再自己裁一次——半徑取同一個值，兩條弧線就重合。
+        _root.CornerRadius = radius;
+    }
+
     /// <summary>換一個物件：標題先出來，內容等資料到齊。</summary>
     public void SetTarget(SqlObjectInfo objectInfo)
     {
