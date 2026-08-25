@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22;
 
@@ -29,6 +30,19 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     [Import(AllowDefault = true)]
     internal IAsyncCompletionBroker? AsyncCompletionBroker { get; set; }
 
+    /// <summary>
+    /// 結構預覽需要的編輯器服務。
+    /// </summary>
+    /// <remarks>
+    /// 預覽由按鍵處理與提示連結建立，那些呼叫端拿不到 MEF 容器，
+    /// 所以在這裡登記成靜態實例。
+    ///
+    /// 允許缺席：這個元件一旦組合失敗，整個接聽器都不會執行，
+    /// 連建議清單都會跟著失效——為了一個預覽視窗付這個代價不值得。
+    /// </remarks>
+    [Import(AllowDefault = true)]
+    internal SqlPreviewServices? PreviewServices { get; set; }
+
     /// <remarks>
     /// 這個方法由編輯器建立流程直接呼叫，丟出例外會讓整個 SQL 編輯器開不起來，
     /// 因此一律收斂：擴充功能失效總比查詢視窗打不開好。
@@ -46,6 +60,13 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
             // 本擴充的清單開起來時，把 SSMS 內建的那一份收掉；兩份同時存在會讓
             // 舊版語言服務在退格時對著已經換掉的狀態算範圍。
             NativeIntelliSenseSuppressor.Attach(textView, CompletionBroker, AsyncCompletionBroker);
+
+            // 結構預覽要跟著建議清單開關，也要在清單開起來的空檔先把視窗建好。
+            if (PreviewServices is { } previewServices)
+            {
+                SqlPreviewServices.Register(previewServices);
+                SqlPreviewSessionHook.Attach(textView, AsyncCompletionBroker, ServiceProvider);
+            }
 
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();

@@ -15,7 +15,7 @@ namespace SqlAssist.Ssms22.QuickInfo;
 /// 定位與大小也由編輯器負責，不必自己處理螢幕邊界。
 ///
 /// 提示刻意只給一眼看得完的份量。提示視窗不能捲動也不能選取，放再多也讀不完；
-/// 真的要看完整結構的人點最後一行的連結，那裡有可停駐、可選取、可複製的面板。
+/// 真的要看完整結構的人點最後一行的連結，那裡有可捲動、可選取、可複製的浮動視窗。
 /// </remarks>
 internal static class SqlQuickInfoContentBuilder
 {
@@ -27,7 +27,7 @@ internal static class SqlQuickInfoContentBuilder
 
     private const string OpenStructureText = "開啟完整結構";
 
-    private const string OpenStructureTooltip = "在「SqlAssist 物件結構」面板顯示完整結構，可捲動與複製";
+    private const string OpenStructureTooltip = "開啟浮動結構視窗：可捲動、可用滑鼠選取複製，Esc 關閉";
 
     /// <param name="openStructure">
     /// 「開啟完整結構」要執行的動作；建議清單的說明面板沒有可點擊的地方，傳 null 即可。

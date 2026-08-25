@@ -4,7 +4,9 @@ using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.Commanding.Commands;
 using Microsoft.VisualStudio.Utilities;
+using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22;
 
@@ -27,6 +29,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     ICommandHandler<UpKeyCommandArgs>,
     ICommandHandler<DownKeyCommandArgs>,
     ICommandHandler<EscapeKeyCommandArgs>,
+    ICommandHandler<LeftKeyCommandArgs>,
+    ICommandHandler<RightKeyCommandArgs>,
     ICommandHandler<TypeCharCommandArgs>
 {
     public string DisplayName => "SqlAssist 建議清單操作";
@@ -40,6 +44,10 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(DownKeyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(EscapeKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(LeftKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(RightKeyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(TypeCharCommandArgs args) => CommandState.Unspecified;
 
@@ -68,10 +76,55 @@ internal sealed class SqlAssistCompletionCommandHandler :
             TryGetController(args.TextView, out var controller) && controller.MoveSelection(1));
     }
 
+    /// <summary>
+    /// Esc 收掉預覽。
+    /// </summary>
+    /// <remarks>
+    /// 只處理「不是建議清單開出來的」那種預覽——由清單開出來的，
+    /// 讓平台照常關清單就好，清單一關預覽自己會跟著收。
+    /// 這樣 Esc 永遠只需要按一次。
+    /// </remarks>
     public bool ExecuteCommand(EscapeKeyCommandArgs args, CommandExecutionContext executionContext)
     {
         return Execute("Esc", () =>
-            TryGetController(args.TextView, out var controller) && controller.Hide());
+        {
+            if (SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview &&
+                preview.Collapse())
+            {
+                return true;
+            }
+
+            return TryGetController(args.TextView, out var controller) && controller.Hide();
+        });
+    }
+
+    /// <summary>
+    /// 建議清單開著時，向右鍵展開結構預覽。
+    /// </summary>
+    /// <remarks>
+    /// 只在清單開著、設定是向右鍵模式、而且預覽還沒展開時才吞掉這次按鍵；
+    /// 其餘情況一律讓游標照常右移，不改變任何既有的編輯行為。
+    /// </remarks>
+    public bool ExecuteCommand(RightKeyCommandArgs args, CommandExecutionContext executionContext)
+    {
+        return Execute("Right", () =>
+        {
+            if (SettingsService.Default.GetSnapshot().Preview.Mode != SqlPreviewMode.RightArrow)
+            {
+                return false;
+            }
+
+            return SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
+                && preview.Expand();
+        });
+    }
+
+    /// <summary>展開狀態下，向左鍵收合；沒展開就照常左移游標。</summary>
+    public bool ExecuteCommand(LeftKeyCommandArgs args, CommandExecutionContext executionContext)
+    {
+        return Execute("Left", () =>
+            SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
+            && preview.Collapse());
     }
 
     /// <summary>

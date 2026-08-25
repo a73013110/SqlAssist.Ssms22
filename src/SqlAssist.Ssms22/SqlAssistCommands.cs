@@ -6,7 +6,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Options;
-using SqlAssist.Ssms22.Structure;
+using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22;
 
@@ -106,11 +106,12 @@ internal sealed class SqlAssistCommands
     }
 
     /// <summary>
-    /// 在結構面板顯示游標所在的物件。
+    /// 在浮動預覽視窗顯示游標所在的物件。
     /// </summary>
     /// <remarks>
-    /// 平常的入口是滑鼠停留提示裡的連結，但那條路要求「物件結構提示」是開著的。
-    /// 這個命令讓面板在任何設定下都還有一個入口。
+    /// 平常的入口是建議清單的向右鍵與滑鼠停留提示裡的連結，
+    /// 但前者要有清單、後者要求「物件結構提示」是開著的。
+    /// 這個命令讓預覽在任何設定下都還有一個入口。
     /// </remarks>
     private void ShowObjectStructure(object? sender, EventArgs eventArgs)
     {
@@ -148,7 +149,16 @@ internal sealed class SqlAssistCommands
                 return;
             }
 
-            SqlObjectStructurePresenter.Show(textView, location.Object, _package);
+            var anchor = caret.Snapshot.CreateTrackingSpan(
+                new Microsoft.VisualStudio.Text.Span(
+                    location.Reference.Start,
+                    location.Reference.Length),
+                Microsoft.VisualStudio.Text.SpanTrackingMode.EdgeInclusive);
+
+            if (SqlStructurePreview.GetOrCreate(textView, _package) is { } preview)
+            {
+                preview.ShowAt(anchor, location.Object, metadataService);
+            }
         }
         catch (Exception exception)
         {

@@ -11,7 +11,6 @@ using SqlAssist.Core;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Ssms22.Completion;
-using SqlAssist.Ssms22.Structure;
 using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
@@ -591,9 +590,6 @@ internal sealed class SqlCompletionController : IDisposable
         {
             return;
         }
-
-        // 結構面板開著的話讓它跟著看；沒開就什麼都不會發生。
-        SqlObjectStructurePresenter.FollowIfOpen(_textView, objectInfo, _serviceProvider);
 
         var cancellation = new CancellationTokenSource();
         _previewCancellation = cancellation;

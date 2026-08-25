@@ -12,7 +12,7 @@ using SqlAssist.Core;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.QuickInfo;
-using SqlAssist.Ssms22.Structure;
+using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -187,14 +187,25 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return null;
             }
 
-            if (suggestion.Tag is not SqlObjectInfo objectInfo)
+            var objectInfo = suggestion.Tag as SqlObjectInfo;
+            var mode = SettingsService.Default.GetSnapshot().Preview.Mode;
+
+            // 平台每換一次選取就問一次說明，這正是「選取換了項目」的信號。
+            // 預覽只記下是誰，沒展開就不畫也不查。
+            if (mode != SqlPreviewMode.Off &&
+                SqlStructurePreview.Peek(session.TextView) is { } preview)
+            {
+                preview.OnItemSelected(objectInfo, _metadataService);
+
+                // 預覽視窗接手之後就不要再回傳說明內容：
+                // 兩個視窗同時貼在清單旁邊只會互相搶位置。
+                return null;
+            }
+
+            if (objectInfo is null)
             {
                 return suggestion.Preview;
             }
-
-            // 說明面板的內容就是選取換了項目的信號：面板開著的話讓它一起跟著看。
-            // 這裡不會把面板叫出來，也不搶焦點。
-            SqlObjectStructurePresenter.FollowIfOpen(session.TextView, objectInfo, _serviceProvider);
 
             var detail = await _metadataService.GetDetailAsync(objectInfo, token).ConfigureAwait(false);
 

@@ -7,7 +7,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.Completion;
-using SqlAssist.Ssms22.Structure;
+using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
@@ -125,8 +125,12 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             new Span(location.Reference.Start, location.Reference.Length),
             SpanTrackingMode.EdgeInclusive);
 
-        // 提示只給一眼看得完的份量，看不完的那一半交給面板。
-        var openStructure = CreateOpenStructureAction(textView, location.Object);
+        // 提示只給一眼看得完的份量，看不完的那一半交給浮動預覽。
+        var openStructure = CreateOpenStructureAction(
+            textView,
+            metadataService,
+            applicableSpan,
+            location.Object);
 
         if (location.Column is { } column)
         {
@@ -151,10 +155,26 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         return new QuickInfoItem(applicableSpan, SqlQuickInfoContentBuilder.Build(detail, openStructure));
     }
 
-    /// <summary>「開啟完整結構」連結要執行的動作；由編輯器在使用者點擊時呼叫。</summary>
-    private Action CreateOpenStructureAction(ITextView textView, SqlObjectInfo objectInfo)
+    /// <summary>
+    /// 「開啟完整結構」連結要執行的動作；由編輯器在使用者點擊時呼叫。
+    /// </summary>
+    /// <remarks>
+    /// 開的是建議清單用的同一個浮動預覽，錨在同一個識別字上。
+    /// 兩條入口共用一份視窗與一份載入邏輯，行為與外觀不會有兩套。
+    /// </remarks>
+    private Action CreateOpenStructureAction(
+        ITextView textView,
+        SqlMetadataService metadataService,
+        ITrackingSpan anchor,
+        SqlObjectInfo objectInfo)
     {
-        return () => SqlObjectStructurePresenter.Show(textView, objectInfo, _serviceProvider);
+        return () =>
+        {
+            if (SqlStructurePreview.GetOrCreate(textView, _serviceProvider) is { } preview)
+            {
+                preview.ShowAt(anchor, objectInfo, metadataService);
+            }
+        };
     }
 
     /// <summary>解析游標處的識別字；快照沒變且位置仍落在上一次的識別字範圍內就沿用結果。</summary>
