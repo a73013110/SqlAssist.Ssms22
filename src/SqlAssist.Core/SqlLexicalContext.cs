@@ -1,9 +1,15 @@
-﻿namespace SqlAssist.Core;
+namespace SqlAssist.Core;
 
 public static class SqlLexicalContext
 {
     /// <summary>指定位置是否位於一般程式碼中（不在字串、註解或引號識別字內）。</summary>
     public static bool IsCode(string sql, int position)
+    {
+        return GetState(sql, position) == SqlLexicalState.Code;
+    }
+
+    /// <summary>不必先把整份文字複製成字串的多載。</summary>
+    public static bool IsCode(ISqlTextSource sql, int position)
     {
         return GetState(sql, position) == SqlLexicalState.Code;
     }
@@ -16,6 +22,23 @@ public static class SqlLexicalContext
     /// 但裡面放的是物件名稱，滑鼠停留提示與物件解析都應該處理。
     /// </remarks>
     public static SqlLexicalState GetState(string sql, int position)
+    {
+        if (sql is null)
+        {
+            throw new System.ArgumentNullException(nameof(sql));
+        }
+
+        return GetState(new SqlStringText(sql), position);
+    }
+
+    /// <summary>
+    /// 判斷指定位置的語彙狀態，直接讀取文字來源。
+    /// </summary>
+    /// <remarks>
+    /// 這個判斷必然要從頭掃到 <paramref name="position"/>，但沒有理由為此
+    /// 先複製一份文字；編輯器的快照可以直接餵進來。
+    /// </remarks>
+    public static SqlLexicalState GetState(ISqlTextSource sql, int position)
     {
         if (sql is null)
         {

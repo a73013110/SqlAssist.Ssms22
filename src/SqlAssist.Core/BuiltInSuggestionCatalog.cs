@@ -13,7 +13,7 @@ public static class BuiltInSuggestionCatalog
             new("af", "ALTER FUNCTION ", "ALTER FUNCTION fragment", "ALTER FUNCTION", SuggestionKind.Snippet, true)
         };
 
-        foreach (var keyword in Keywords)
+        foreach (var keyword in SqlKeywordCatalog.SuggestionKeywords)
         {
             suggestions.Add(new SqlSuggestion(
                 keyword,
@@ -25,16 +25,4 @@ public static class BuiltInSuggestionCatalog
 
         return suggestions;
     }
-
-    private static readonly string[] Keywords =
-    {
-        "ALTER", "AND", "AS", "BEGIN", "BY", "CASE", "CREATE", "CROSS",
-        "DECLARE", "DELETE", "DISTINCT", "DROP", "ELSE", "END", "EXEC",
-        "EXECUTE", "EXISTS", "FROM", "FULL", "FUNCTION", "GROUP", "HAVING",
-        "IF", "IN", "INNER", "INSERT", "INTO", "JOIN", "LEFT", "MERGE",
-        "NOT", "NULL", "ON", "OR", "ORDER", "OUTER", "PROCEDURE", "RETURN",
-        "RIGHT", "SELECT", "SET", "TABLE", "THEN", "TOP", "UNION", "UPDATE",
-        "VALUES", "VIEW", "WHEN", "WHERE", "WITH"
-    };
 }
-
