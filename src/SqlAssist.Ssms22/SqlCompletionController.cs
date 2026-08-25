@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -11,6 +11,7 @@ using SqlAssist.Core;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Structure;
 using SqlAssist.Metadata;
 
 namespace SqlAssist.Ssms22;
@@ -21,6 +22,7 @@ internal sealed class SqlCompletionController : IDisposable
         BuiltInSuggestionCatalog.Create();
 
     private readonly SqlMetadataService _metadataService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ICompletionBroker _nativeCompletionBroker;
     private readonly SuggestionPopupControl _popup;
     private readonly DispatcherTimer _refreshTimer;
@@ -49,6 +51,7 @@ internal sealed class SqlCompletionController : IDisposable
         ICompletionBroker nativeCompletionBroker)
     {
         _textView = textView;
+        _serviceProvider = serviceProvider;
         _nativeCompletionBroker = nativeCompletionBroker;
         _metadataService = new SqlMetadataService(serviceProvider);
         _popup = new SuggestionPopupControl(textView, () => CommitSelected());
@@ -589,6 +592,9 @@ internal sealed class SqlCompletionController : IDisposable
             return;
         }
 
+        // 結構面板開著的話讓它跟著看；沒開就什麼都不會發生。
+        SqlObjectStructurePresenter.FollowIfOpen(_textView, objectInfo, _serviceProvider);
+
         var cancellation = new CancellationTokenSource();
         _previewCancellation = cancellation;
         _ = LoadPreviewAsync(selected, objectInfo, cancellation.Token);
@@ -625,7 +631,6 @@ internal sealed class SqlCompletionController : IDisposable
         return item.Kind switch
         {
             SuggestionKind.Snippet => settings.Features.TabExpansion,
-            SuggestionKind.Keyword => settings.Features.KeywordUppercase,
             _ => true
         };
     }

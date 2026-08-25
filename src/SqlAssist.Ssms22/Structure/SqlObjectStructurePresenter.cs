@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text.Editor;
@@ -40,6 +41,64 @@ internal static class SqlObjectStructurePresenter
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"開啟結構面板失敗：{exception}");
+        }
+    }
+
+    /// <summary>
+    /// 面板<b>已經開著</b>時，讓它跟著換到這個物件；沒開就什麼都不做。
+    /// </summary>
+    /// <remarks>
+    /// 建議清單的選取每換一次就會呼叫一次。刻意不建立、也不喚起視窗：
+    /// 使用者只是在清單裡上下移動，突然跳出一個工具視窗是打擾。
+    /// 開著的人則是刻意把它擺在那裡對照的，那就讓它跟著看。
+    /// </remarks>
+    public static void FollowIfOpen(
+        ITextView textView,
+        SqlObjectInfo objectInfo,
+        IServiceProvider serviceProvider)
+    {
+        if (objectInfo is null || textView is null)
+        {
+            return;
+        }
+
+        _ = FollowSafeAsync(textView, objectInfo, serviceProvider);
+    }
+
+    private static async Task FollowSafeAsync(
+        ITextView textView,
+        SqlObjectInfo objectInfo,
+        IServiceProvider serviceProvider)
+    {
+        try
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            // 這裡不呼叫 GetPackageAsync：套件還沒載入就代表面板一定沒開。
+            if (SqlAssistPackage.Instance is not { } package)
+            {
+                return;
+            }
+
+            var window = await package.FindToolWindowAsync(
+                typeof(SqlObjectStructureWindow),
+                id: 0,
+                create: false,
+                cancellationToken: package.DisposalToken) as SqlObjectStructureWindow;
+
+            if (window?.Frame is not IVsWindowFrame frame || frame.IsVisible() != VSConstants.S_OK)
+            {
+                return;
+            }
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            window.Control.Follow(
+                objectInfo,
+                SqlCompletionServices.GetMetadataService(textView, serviceProvider));
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.Write($"結構面板跟隨選取失敗：{exception.Message}");
         }
     }
 

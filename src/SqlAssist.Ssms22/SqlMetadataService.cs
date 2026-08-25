@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -379,6 +379,21 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         return await catalog.GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>只看第四層快取裡有沒有這個物件的結構；沒有就回傳 null，不觸發查詢。</summary>
+    public SqlObjectStructure? PeekStructure(SqlObjectInfo objectInfo)
+    {
+        if (objectInfo is null)
+        {
+            return null;
+        }
+
+        var catalog = PeekCatalog();
+
+        return catalog is not null && catalog.TryGetCachedStructure(objectInfo.ObjectId, out var structure)
+            ? structure
+            : null;
     }
 
     /// <summary>清掉單一物件的明細與結構快取，下一次要求會重新查詢。</summary>

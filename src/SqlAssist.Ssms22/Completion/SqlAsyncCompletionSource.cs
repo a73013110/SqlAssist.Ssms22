@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -12,6 +12,7 @@ using SqlAssist.Core;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.QuickInfo;
+using SqlAssist.Ssms22.Structure;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -31,10 +32,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     private static readonly IReadOnlyList<SqlSuggestion> BuiltIn = BuiltInSuggestionCatalog.Create();
 
     private readonly SqlMetadataService _metadataService;
+    private readonly IServiceProvider _serviceProvider;
 
-    public SqlAsyncCompletionSource(SqlMetadataService metadataService)
+    public SqlAsyncCompletionSource(SqlMetadataService metadataService, IServiceProvider serviceProvider)
     {
         _metadataService = metadataService;
+        _serviceProvider = serviceProvider;
     }
 
     public CompletionStartData InitializeCompletion(
@@ -66,6 +69,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 context.Qualifier is null &&
                 context.Prefix.Length < triggerCharacters)
             {
+                return CompletionStartData.DoesNotParticipateInCompletion;
+            }
+
+            // 範圍必須自己驗一次，不能靠例外兜底：TokenStart 是從文字分析算出來的，
+            // 而觸發位置來自平台，兩者之間只要有一次不同步（例如編輯剛好插在中間），
+            // Span.FromBounds 就會丟出例外，那在按鍵路徑上等於一次錯誤對話框。
+            if (context.TokenStart < 0 || context.TokenStart > triggerLocation.Position)
+            {
+                SqlAssistDiagnostics.Write(
+                    $"略過這次建議：詞元起點 {context.TokenStart} 不在觸發位置 {triggerLocation.Position} 之前");
                 return CompletionStartData.DoesNotParticipateInCompletion;
             }
 
@@ -179,6 +192,10 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return suggestion.Preview;
             }
 
+            // 說明面板的內容就是選取換了項目的信號：面板開著的話讓它一起跟著看。
+            // 這裡不會把面板叫出來，也不搶焦點。
+            SqlObjectStructurePresenter.FollowIfOpen(session.TextView, objectInfo, _serviceProvider);
+
             var detail = await _metadataService.GetDetailAsync(objectInfo, token).ConfigureAwait(false);
 
             return detail is null
@@ -248,12 +265,18 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         return item;
     }
 
+    /// <summary>
+    /// 內建項目是否啟用。
+    /// </summary>
+    /// <remarks>
+    /// 關鍵字建議不受「關鍵字自動大寫」影響：那個開關管的是輸入分隔字元時要不要
+    /// 改寫已經打出來的字，與清單裡要不要列出 SELECT 是兩件事。
+    /// </remarks>
     private static bool IsBuiltInEnabled(SqlSuggestion item, SqlAssistSettings settings)
     {
         return item.Kind switch
         {
             SuggestionKind.Snippet => settings.Features.TabExpansion,
-            SuggestionKind.Keyword => settings.Features.KeywordUppercase,
             _ => true
         };
     }

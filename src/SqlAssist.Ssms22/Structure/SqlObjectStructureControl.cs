@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Metadata;
 
@@ -122,6 +123,9 @@ internal sealed class SqlObjectStructureControl : UserControl
     private readonly TabItem _foreignKeysTab;
     private readonly TabItem _parametersTab;
 
+    /// <summary>跟隨建議清單選取時的緩衝：選取停下來才真的去查資料庫。</summary>
+    private readonly DispatcherTimer _followTimer;
+
     private SqlObjectInfo? _objectInfo;
     private SqlMetadataService? _metadataService;
     private CancellationTokenSource? _loading;
@@ -219,20 +223,71 @@ internal sealed class SqlObjectStructureControl : UserControl
         root.Children.Add(_status);
         root.Children.Add(_tabs);
 
+        _followTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(200)
+        };
+        _followTimer.Tick += OnFollowTimerTick;
+
         Content = root;
         Background = VsThemeBrushes.WindowBackground;
         Foreground = VsThemeBrushes.WindowForeground;
         SetButtonsEnabled(false);
     }
 
-    /// <summary>換一個物件並載入它的結構。</summary>
+    /// <summary>換一個物件並立刻載入它的結構；使用者主動要求時走這條路。</summary>
     public void Show(SqlObjectInfo objectInfo, SqlMetadataService metadataService)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
+        _followTimer.Stop();
+        SetTarget(objectInfo, metadataService);
+        Reload(force: false);
+    }
+
+    /// <summary>
+    /// 跟著建議清單的選取換一個物件。
+    /// </summary>
+    /// <remarks>
+    /// 使用者用方向鍵掃過 20 個資料表時，不能就這樣送出 20 次查詢。
+    /// 因此：快取裡有就立刻畫出來（不查、不閃動），沒有的話先顯示標題與載入中，
+    /// 等選取停下來才真的去查——停在某一項上看，才是真的想看它。
+    /// </remarks>
+    public void Follow(SqlObjectInfo objectInfo, SqlMetadataService metadataService)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (_objectInfo is { } current && current.ObjectId == objectInfo.ObjectId)
+        {
+            return;
+        }
+
+        _followTimer.Stop();
+        SetTarget(objectInfo, metadataService);
+
+        if (metadataService.PeekStructure(objectInfo) is { } cached)
+        {
+            _loading?.Cancel();
+            Populate(objectInfo, cached);
+            return;
+        }
+
+        _loading?.Cancel();
+        SetButtonsEnabled(false);
+        _status.Text = "載入中…";
+        _followTimer.Start();
+    }
+
+    private void OnFollowTimerTick(object? sender, EventArgs eventArgs)
+    {
+        _followTimer.Stop();
+        Reload(force: false);
+    }
+
+    private void SetTarget(SqlObjectInfo objectInfo, SqlMetadataService metadataService)
+    {
         _objectInfo = objectInfo;
         _metadataService = metadataService;
         _title.Text = $"{objectInfo.Kind.ToDisplayName()} {objectInfo.QualifiedName}";
-        Reload(force: false);
     }
 
     private void Reload(bool force)

@@ -153,6 +153,15 @@ public sealed class SqlMetadataCatalog
         }
     }
 
+    /// <summary>不觸發查詢，只看第四層快取裡有沒有。</summary>
+    public bool TryGetCachedStructure(int objectId, out SqlObjectStructure structure)
+    {
+        lock (_detailLock)
+        {
+            return _structures.TryGetValue(objectId, out structure!);
+        }
+    }
+
     /// <summary>取得單一物件的欄位、參數與定義；結果會被快取。</summary>
     public async Task<SqlObjectDetail> GetDetailAsync(
         SqlObjectInfo objectInfo,
