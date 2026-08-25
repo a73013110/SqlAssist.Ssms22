@@ -4,7 +4,7 @@
                  xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
     <Identity Id="SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65"
-              Version="0.10.1"
+              Version="0.11.0"
               Language="zh-TW"
               Publisher="SqlAssist" />
     <DisplayName>SqlAssist for SSMS 22</DisplayName>
