@@ -132,4 +132,26 @@ public sealed class SqlKeywordCaseTests
         Assert.DoesNotContain("DESC", SqlKeywordCatalog.SuggestionKeywords);
         Assert.Contains("SELECT", SqlKeywordCatalog.SuggestionKeywords);
     }
+
+    [Theory]
+    [InlineData("SELECT")]
+    [InlineData("select")]
+    [InlineData("desc")]
+    [InlineData("int")]
+    [InlineData("NVARCHAR")]
+    [InlineData("uniqueidentifier")]
+    public void 語法著色認得關鍵字與內建型別(string word)
+    {
+        // 結構預覽的 CREATE TABLE 有一半的字是型別，漏掉就等於沒有著色。
+        Assert.True(SqlKeywordCatalog.IsKeywordOrDataType(word));
+    }
+
+    [Theory]
+    [InlineData("PUBLISHER")]
+    [InlineData("Cat_BookCopy")]
+    [InlineData("")]
+    public void 語法著色不把一般名稱當成關鍵字(string word)
+    {
+        Assert.False(SqlKeywordCatalog.IsKeywordOrDataType(word));
+    }
 }

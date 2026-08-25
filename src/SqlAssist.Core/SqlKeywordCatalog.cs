@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace SqlAssist.Core;
@@ -40,7 +40,33 @@ public static class SqlKeywordCatalog
         "TRUNCATE", "TRY", "UNIQUE", "UNPIVOT", "USE", "USING", "WHILE"
     };
 
+    /// <summary>
+    /// 內建資料型別。
+    /// </summary>
+    /// <remarks>
+    /// 只用於語法著色，不進自動大寫：<c>int</c> 與 <c>INT</c> 都合法，
+    /// 而使用者在指令碼裡怎麼寫型別是他自己的風格。
+    /// 但著色不能因此把型別畫成一般文字——結構預覽裡的 CREATE TABLE
+    /// 有一半的字是型別，全部變黑就等於沒有著色。
+    /// </remarks>
+    private static readonly HashSet<string> DataTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "BIGINT", "BINARY", "BIT", "CHAR", "DATE", "DATETIME", "DATETIME2",
+        "DATETIMEOFFSET", "DECIMAL", "FLOAT", "GEOGRAPHY", "GEOMETRY",
+        "HIERARCHYID", "IMAGE", "INT", "MONEY", "NCHAR", "NTEXT", "NUMERIC",
+        "NVARCHAR", "REAL", "ROWVERSION", "SMALLDATETIME", "SMALLINT",
+        "SMALLMONEY", "SQL_VARIANT", "SYSNAME", "TEXT", "TIME", "TIMESTAMP",
+        "TINYINT", "UNIQUEIDENTIFIER", "VARBINARY", "VARCHAR", "XML"
+    };
+
     private static readonly Dictionary<string, string> Canonical = BuildCanonical();
+
+    /// <summary>是否為認得的關鍵字或內建資料型別；語法著色用。</summary>
+    public static bool IsKeywordOrDataType(string word)
+    {
+        return !string.IsNullOrEmpty(word)
+            && (Canonical.ContainsKey(word) || DataTypes.Contains(word));
+    }
 
     /// <summary>
     /// 查出某個字的標準寫法。

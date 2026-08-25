@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -23,8 +23,26 @@ public static class SqlTokenizer
         return Tokenize(sql, 0, sql?.Length ?? 0);
     }
 
+    /// <summary>
+    /// 將整份文字切成詞法單元，並保留註解。
+    /// </summary>
+    /// <remarks>
+    /// 供語法著色使用：著色要畫出每一個字元屬於什麼，漏掉註解就會看到
+    /// 一整段被當成普通文字。語意分析仍應使用不含註解的多載。
+    /// </remarks>
+    public static IReadOnlyList<SqlToken> TokenizeWithComments(string sql)
+    {
+        return Tokenize(sql, 0, sql?.Length ?? 0, includeComments: true);
+    }
+
     /// <summary>只切出 <paramref name="start"/> 到 <paramref name="end"/> 之間的詞法單元。</summary>
     public static IReadOnlyList<SqlToken> Tokenize(string sql, int start, int end)
+    {
+        return Tokenize(sql, start, end, includeComments: false);
+    }
+
+    /// <param name="includeComments">是否把註解也當成詞法單元輸出。</param>
+    public static IReadOnlyList<SqlToken> Tokenize(string sql, int start, int end, bool includeComments)
     {
         if (sql is null)
         {
@@ -56,13 +74,27 @@ public static class SqlTokenizer
 
             if (current == '-' && index + 1 < end && sql[index + 1] == '-')
             {
-                index = SkipLineComment(sql, index, end);
+                var commentEnd = SkipLineComment(sql, index, end);
+
+                if (includeComments)
+                {
+                    tokens.Add(CreateComment(sql, index, commentEnd));
+                }
+
+                index = commentEnd;
                 continue;
             }
 
             if (current == '/' && index + 1 < end && sql[index + 1] == '*')
             {
-                index = SkipBlockComment(sql, index, end);
+                var commentEnd = SkipBlockComment(sql, index, end);
+
+                if (includeComments)
+                {
+                    tokens.Add(CreateComment(sql, index, commentEnd));
+                }
+
+                index = commentEnd;
                 continue;
             }
 
@@ -114,6 +146,12 @@ public static class SqlTokenizer
         }
 
         return tokens;
+    }
+
+    private static SqlToken CreateComment(string sql, int start, int end)
+    {
+        var text = sql.Substring(start, end - start);
+        return new SqlToken(SqlTokenKind.Comment, start, end - start, text, text, isQuoted: false);
     }
 
     private static int SkipLineComment(string sql, int index, int end)

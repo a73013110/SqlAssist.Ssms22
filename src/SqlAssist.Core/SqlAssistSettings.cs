@@ -14,6 +14,9 @@ public sealed class SqlAssistSettings
     [DataMember(Name = "suggestions", Order = 3)]
     public SqlAssistSuggestionSettings Suggestions { get; set; } = new();
 
+    [DataMember(Name = "preview", Order = 6)]
+    public SqlAssistPreviewSettings Preview { get; set; } = new();
+
     [DataMember(Name = "diagnosticsEnabled", Order = 4)]
     public bool DiagnosticsEnabled { get; set; }
 
@@ -34,6 +37,7 @@ public sealed class SqlAssistSettings
             Enabled = Enabled,
             Features = Features.Clone(),
             Suggestions = Suggestions.Clone(),
+            Preview = Preview.Clone(),
             DiagnosticsEnabled = DiagnosticsEnabled,
             AsyncCompletionProbe = AsyncCompletionProbe
         };

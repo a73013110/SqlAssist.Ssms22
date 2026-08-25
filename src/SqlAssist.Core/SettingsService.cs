@@ -149,6 +149,7 @@ public sealed class SettingsService
             var loaded = serializer.ReadObject(stream) as SqlAssistSettings ?? new SqlAssistSettings();
             loaded.Features ??= new SqlAssistFeatureSettings();
             loaded.Suggestions ??= new SqlAssistSuggestionSettings();
+            loaded.Preview ??= new SqlAssistPreviewSettings();
             _lastWriteTimeUtc = File.GetLastWriteTimeUtc(SettingsPath);
             LastLoadError = null;
             return loaded;

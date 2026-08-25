@@ -41,6 +41,44 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.False(snapshot.Suggestions.UseSquareBrackets);
         Assert.Equal(CompletionEngine.Native, snapshot.Suggestions.Engine);
         Assert.True(snapshot.Suggestions.SuppressNativeIntelliSense);
+        Assert.Equal(SqlPreviewMode.RightArrow, snapshot.Preview.Mode);
+    }
+
+    /// <summary>設定檔是舊版、沒有 preview 區段時不能讀出 null。</summary>
+    [Fact]
+    public void 舊設定檔缺少預覽區段時補上預設值()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        File.WriteAllText(_path, "{\"enabled\":true}");
+        var snapshot = new SettingsService(_path).GetSnapshot();
+
+        Assert.NotNull(snapshot.Preview);
+        Assert.Equal(SqlPreviewMode.RightArrow, snapshot.Preview.Mode);
+    }
+
+    [Fact]
+    public void 預覽模式以字串保存並讀回()
+    {
+        var service = new SettingsService(_path);
+        service.Update(settings => settings.Preview.Mode = SqlPreviewMode.Delay);
+
+        Assert.Contains("\"mode\":\"delay\"", File.ReadAllText(_path));
+        Assert.Equal(SqlPreviewMode.Delay, new SettingsService(_path).GetSnapshot().Preview.Mode);
+    }
+
+    [Fact]
+    public void 預覽尺寸會寫回設定檔()
+    {
+        var service = new SettingsService(_path);
+        service.Update(settings =>
+        {
+            settings.Preview.Width = 760;
+            settings.Preview.Height = 500;
+        });
+
+        var reloaded = new SettingsService(_path).GetSnapshot().Preview;
+        Assert.Equal(760, reloaded.Width);
+        Assert.Equal(500, reloaded.Height);
     }
 
     /// <summary>

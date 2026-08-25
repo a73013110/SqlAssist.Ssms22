@@ -1,4 +1,4 @@
-namespace SqlAssist.Core.Parsing;
+﻿namespace SqlAssist.Core.Parsing;
 
 /// <summary>T-SQL 詞法單元的種類。</summary>
 /// <remarks>
@@ -24,5 +24,14 @@ public enum SqlTokenKind
     Punctuation,
 
     /// <summary>運算子，例如 <c>= &lt;&gt; +</c>。</summary>
-    Operator
+    Operator,
+
+    /// <summary>
+    /// 單行或區塊註解。
+    /// </summary>
+    /// <remarks>
+    /// 只有指定 <c>includeComments</c> 的呼叫端才會拿到——語意分析要的是程式碼，
+    /// 註解對它們只是雜訊；語法著色則相反，少了註解整段就會被畫成一般文字。
+    /// </remarks>
+    Comment
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using SqlAssist.Core.Parsing;
 using Xunit;
@@ -187,5 +188,45 @@ public sealed class SqlTokenizerTests
 
         Assert.Equal(new[] { "dbo", ".", "Lib_Reader" }, tokens.Select(token => token.Value));
         Assert.Equal(14, tokens[0].Start);
+    }
+
+    /// <summary>語法著色需要註解；語意分析不需要，因此預設仍然略過。</summary>
+    [Fact]
+    public void 指定保留註解時單行註解會成為詞法單元()
+    {
+        var tokens = SqlTokenizer.TokenizeWithComments("SELECT 1 -- 說明" + Environment.NewLine + "FROM t");
+        var comments = tokens.Where(token => token.Kind == SqlTokenKind.Comment).ToArray();
+
+        Assert.Single(comments);
+        Assert.Equal("-- 說明", comments[0].Text);
+        Assert.Equal(9, comments[0].Start);
+    }
+
+    [Fact]
+    public void 指定保留註解時區塊註解會成為單一詞法單元()
+    {
+        var tokens = SqlTokenizer.TokenizeWithComments("SELECT /* 巢狀 /* 內層 */ 外層 */ 1");
+        var comments = tokens.Where(token => token.Kind == SqlTokenKind.Comment).ToArray();
+
+        Assert.Single(comments);
+        Assert.Equal("/* 巢狀 /* 內層 */ 外層 */", comments[0].Text);
+    }
+
+    [Fact]
+    public void 保留註解不影響其餘詞法單元()
+    {
+        var withComments = SqlTokenizer.TokenizeWithComments("SELECT /* x */ a FROM t");
+        var withoutComments = SqlTokenizer.Tokenize("SELECT /* x */ a FROM t");
+
+        Assert.Equal(
+            withoutComments.Select(token => token.Value),
+            withComments.Where(token => token.Kind != SqlTokenKind.Comment).Select(token => token.Value));
+    }
+
+    [Fact]
+    public void 預設仍然略過註解()
+    {
+        Assert.Empty(SqlTokenizer.Tokenize("-- 只有註解"));
+        Assert.Empty(SqlTokenizer.Tokenize("/* 只有註解 */"));
     }
 }
