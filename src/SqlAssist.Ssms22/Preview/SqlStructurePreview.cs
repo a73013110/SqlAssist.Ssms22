@@ -27,9 +27,6 @@ internal sealed class SqlStructurePreview
     /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
     private const double MaximumViewportRatio = 0.8;
 
-    /// <summary>上下擺放時視窗最多佔掉編輯器的多少高度；橫幅本來就該扁一點。</summary>
-    private const double StackedHeightRatio = 0.45;
-
     private readonly IWpfTextView _view;
     private readonly IServiceProvider _serviceProvider;
     private readonly DispatcherTimer _timer;
@@ -601,8 +598,12 @@ internal sealed class SqlStructurePreview
     /// </summary>
     /// <remarks>
     /// 橫幅的價值就在「一次攤開一百多個欄位而不必橫向捲動」，寬度沿用側邊擺放
-    /// 那個 620 就沒有意義了。高度也跟著收窄——擺在程式碼上下的東西一旦太高，
-    /// 遮掉的行數就多到讓人失去上下文。
+    /// 那個 620 就沒有意義了。
+    ///
+    /// 高度則跟側邊擺放走同一條規則。原本另外壓成編輯器的 45%，理由是「擺在
+    /// 程式碼上下的東西太高會遮掉太多行」——但那個上限比使用者拖出來的高度還低，
+    /// 於是每次重新顯示都把他調好的尺寸壓回去，看起來就是「拖了不算數」。
+    /// 要遮多少行是使用者自己的取捨，程式不該替他決定。
     /// </remarks>
     private void ApplySize(SqlStructurePreviewControl control)
     {
@@ -614,7 +615,7 @@ internal sealed class SqlStructurePreview
         {
             control.ApplySize(
                 _view.ViewportWidth,
-                Math.Min(size.ClampHeight(), _view.ViewportHeight * StackedHeightRatio),
+                size.ClampHeight(),
                 _view.ViewportWidth,
                 availableHeight);
             return;
@@ -643,9 +644,12 @@ internal sealed class SqlStructurePreview
 
         if (Placement == SqlPreviewPlacement.Stacked)
         {
+            control.SetWidthLocked(true);
             control.SetGripSide(onLeft: false);
             return;
         }
+
+        control.SetWidthLocked(false);
 
         try
         {
