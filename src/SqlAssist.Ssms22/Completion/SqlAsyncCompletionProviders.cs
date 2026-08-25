@@ -53,14 +53,28 @@ internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceP
     [Import]
     internal SVsServiceProvider ServiceProvider { get; set; } = null!;
 
-    public IAsyncCompletionSource GetOrCreate(ITextView textView)
+    /// <remarks>
+    /// 平台在按鍵路徑上呼叫這個方法，丟出例外會讓整條建議管線在該編輯器裡失效
+    /// 並冒出錯誤對話框；建立失敗就安靜地不參與。
+    /// </remarks>
+    public IAsyncCompletionSource? GetOrCreate(ITextView textView)
     {
-        AsyncCompletionProbe.RecordProviderRequested();
+        try
+        {
+            AsyncCompletionProbe.RecordProviderRequested();
 
-        return textView.Properties.GetOrCreateSingletonProperty(
-            typeof(SqlAsyncCompletionSource),
-            () => new SqlAsyncCompletionSource(
-                SqlCompletionServices.GetMetadataService(textView, ServiceProvider)));
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlAsyncCompletionSource),
+                () => new SqlAsyncCompletionSource(
+                    SqlCompletionServices.GetMetadataService(textView, ServiceProvider),
+                    ServiceProvider));
+        }
+        catch (Exception exception)
+        {
+            AsyncCompletionProbe.RecordError(exception);
+            SqlAssistDiagnostics.WriteAlways($"建立建議來源失敗：{exception}");
+            return null;
+        }
     }
 }
 
@@ -91,11 +105,19 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
     [Import]
     internal SVsServiceProvider ServiceProvider { get; set; } = null!;
 
-    public IAsyncCompletionCommitManager GetOrCreate(ITextView textView)
+    public IAsyncCompletionCommitManager? GetOrCreate(ITextView textView)
     {
-        return textView.Properties.GetOrCreateSingletonProperty(
-            typeof(SqlAsyncCompletionCommitManager),
-            () => new SqlAsyncCompletionCommitManager(
-                SqlCompletionServices.GetModuleExpander(textView, ServiceProvider)));
+        try
+        {
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlAsyncCompletionCommitManager),
+                () => new SqlAsyncCompletionCommitManager(
+                    SqlCompletionServices.GetModuleExpander(textView, ServiceProvider)));
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"建立提交管理員失敗：{exception}");
+            return null;
+        }
     }
 }

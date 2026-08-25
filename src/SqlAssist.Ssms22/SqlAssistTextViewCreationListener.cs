@@ -29,17 +29,32 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     [Import(AllowDefault = true)]
     internal IAsyncCompletionBroker? AsyncCompletionBroker { get; set; }
 
+    /// <remarks>
+    /// 這個方法由編輯器建立流程直接呼叫，丟出例外會讓整個 SQL 編輯器開不起來，
+    /// 因此一律收斂：擴充功能失效總比查詢視窗打不開好。
+    /// </remarks>
     public void TextViewCreated(IWpfTextView textView)
     {
-        SqlAssistRuntimeState.MarkTextViewCreated();
-        ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
-        RecordAsyncCompletionSupport(textView);
-        var controller = new SqlCompletionController(textView, ServiceProvider, CompletionBroker);
-        CompletionSessionRegistry.Register(textView, controller);
+        try
+        {
+            SqlAssistRuntimeState.MarkTextViewCreated();
+            ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
+            RecordAsyncCompletionSupport(textView);
+            var controller = new SqlCompletionController(textView, ServiceProvider, CompletionBroker);
+            CompletionSessionRegistry.Register(textView, controller);
 
-        // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
-        SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
-        SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 建議控制器已載入", textView);
+            // 本擴充的清單開起來時，把 SSMS 內建的那一份收掉；兩份同時存在會讓
+            // 舊版語言服務在退格時對著已經換掉的狀態算範圍。
+            NativeIntelliSenseSuppressor.Attach(textView, CompletionBroker, AsyncCompletionBroker);
+
+            // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
+            SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
+            SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 建議控制器已載入", textView);
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"建立 SQL 編輯器時初始化 SqlAssist 失敗：{exception}");
+        }
     }
 
     private void RecordAsyncCompletionSupport(IWpfTextView textView)
