@@ -312,9 +312,22 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _structure = null;
         _scriptText = null;
         _populated.Clear();
-        _title.Text = $"{objectInfo.Kind.ToDisplayName()}  {objectInfo.QualifiedName}";
+        SetTitle(objectInfo);
         _status.Text = "載入中…";
         ClearTabs();
+    }
+
+    /// <summary>
+    /// 標題永遠寫在填內容的同一條路上。
+    /// </summary>
+    /// <remarks>
+    /// 只在 <see cref="SetTarget"/> 裡寫標題是不夠的：那條路只有快取沒命中時才走。
+    /// 命中第四層時呼叫端會直接 <see cref="Populate(SqlObjectStructure)"/>，
+    /// 標題就會停在上一個物件上——畫面出現「標題是同義字、內容是資料表」。
+    /// </remarks>
+    private void SetTitle(SqlObjectInfo objectInfo)
+    {
+        _title.Text = $"{objectInfo.Kind.ToDisplayName()}  {objectInfo.QualifiedName}";
     }
 
     /// <summary>顯示一段訊息取代內容，例如沒有連線或這一項沒有結構。</summary>
@@ -350,6 +363,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _structure = structure;
         _scriptText = null;
         _populated.Clear();
+        SetTitle(structure.Object);
 
         // 空的分頁留在畫面上只會讓人多點一次才知道沒東西。
         _columnsTab.Visibility = Visible(structure.Columns.Count > 0);
