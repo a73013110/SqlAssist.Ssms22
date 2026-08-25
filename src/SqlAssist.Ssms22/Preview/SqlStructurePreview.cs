@@ -24,13 +24,21 @@ namespace SqlAssist.Ssms22.Preview;
 internal sealed class SqlStructurePreview
 {
     /// <summary>
-    /// 貼在錨點左側或右側，並選比較放得下的那一邊。
+    /// 貼在錨點右側，放不下才翻到左側。
     /// </summary>
     /// <remarks>
-    /// 刻意不加任何 <c>DismissOnMouseLeave</c>：預覽的生死由這個類別自己管，
+    /// 刻意不加 <see cref="PopupStyles.PositionClosest"/>：那會讓平台每次都挑
+    /// 「當下比較近的一邊」，於是視窗一變寬就跳到另一側，拖曳握把時看起來
+    /// 像是左邊界在往外長。只留 <see cref="PopupStyles.PositionLeftOrRight"/>
+    /// 就是穩定的「優先右側、撞邊才翻」。
+    ///
+    /// 也刻意不加任何 <c>DismissOnMouseLeave</c>：預覽的生死由這個類別自己管，
     /// 滑鼠移開就消失的視窗沒辦法讓人把裡面的文字拉選起來。
     /// </remarks>
-    private const PopupStyles Styles = PopupStyles.PositionLeftOrRight | PopupStyles.PositionClosest;
+    private const PopupStyles Styles = PopupStyles.PositionLeftOrRight;
+
+    /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
+    private const double MaximumViewportRatio = 0.8;
 
     private readonly IWpfTextView _view;
     private readonly IServiceProvider _serviceProvider;
@@ -105,7 +113,7 @@ internal sealed class SqlStructurePreview
     /// 趁閒置時把視窗先建好。
     /// </summary>
     /// <remarks>
-    /// 內嵌一個編輯器是這整套裡最貴的一步。放在使用者按下向右鍵的那一刻做，
+    /// 建立整棵 WPF 樹（五個分頁、資料格範本、配色）放在使用者按下向右鍵的那一刻做，
     /// 就等於在他最期待「立刻出現」的時候卡一下。改在建議清單第一次開啟之後、
     /// 以 <see cref="DispatcherPriority.ApplicationIdle"/> 排進佇列——
     /// 那是兩次按鍵之間 UI 執行緒真的沒事做的時候，使用者感覺不到。
@@ -123,7 +131,7 @@ internal sealed class SqlStructurePreview
             {
                 try
                 {
-                    EnsureControl()?.Warmup();
+                    EnsureControl();
                 }
                 catch (Exception exception)
                 {
@@ -457,6 +465,7 @@ internal sealed class SqlStructurePreview
                 PreferredHeight = settings.ClampHeight()
             };
 
+            control.SizeChanging += OnSizeChanging;
             control.SizeCommitted += OnSizeCommitted;
             control.CloseRequested += OnCloseRequested;
             _control = control;
@@ -475,6 +484,22 @@ internal sealed class SqlStructurePreview
         Hide();
     }
 
+    /// <summary>拖曳過程中即時重算位置，視窗才會朝著滑鼠的方向長。</summary>
+    private void OnSizeChanging(object sender, EventArgs eventArgs)
+    {
+        try
+        {
+            if (_agent is not null && _manager is not null && _anchor is not null)
+            {
+                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
+            }
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.Write($"調整結構預覽位置失敗：{exception.Message}");
+        }
+    }
+
     private void OnSizeCommitted(object sender, EventArgs eventArgs)
     {
         if (_control is not { } control)
@@ -489,12 +514,6 @@ internal sealed class SqlStructurePreview
                 settings.Preview.Width = control.PreferredWidth;
                 settings.Preview.Height = control.PreferredHeight;
             });
-
-            // 尺寸變了要請平台重算位置，否則視窗會超出可用空間。
-            if (_agent is not null && _manager is not null && _anchor is not null)
-            {
-                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
-            }
         }
         catch (Exception exception)
         {
@@ -512,13 +531,29 @@ internal sealed class SqlStructurePreview
 
         try
         {
-            _manager ??= _view.GetSpaceReservationManager(
-                SqlPreviewDefinitions.SpaceReservationManagerName);
-
             if (_manager is null)
             {
-                return;
+                _manager = _view.GetSpaceReservationManager(
+                    SqlPreviewDefinitions.SpaceReservationManagerName);
+
+                if (_manager is null)
+                {
+                    return;
+                }
+
+                // 平台會在自己認為該收起來的時候移除代理人（例如編輯器失去聚合焦點），
+                // 不通知的話這裡會一直握著一個already死掉的代理人，
+                // 下一次顯示就只會走「更新位置」而什麼都不做。
+                _manager.AgentChanged += OnAgentChanged;
             }
+
+            // 視窗不能大到把整個查詢視窗蓋住；使用者設定的尺寸在這裡收斂一次。
+            var size = SettingsService.Default.GetSnapshot().Preview;
+            control.ApplySize(
+                size.ClampWidth(),
+                size.ClampHeight(),
+                _view.ViewportWidth * MaximumViewportRatio,
+                _view.ViewportHeight * MaximumViewportRatio);
 
             if (_agent is not null)
             {
@@ -539,6 +574,31 @@ internal sealed class SqlStructurePreview
         {
             SqlAssistDiagnostics.WriteAlways($"顯示結構預覽失敗：{exception}");
             _agent = null;
+        }
+    }
+
+    /// <summary>
+    /// 平台換掉或移除了代理人。
+    /// </summary>
+    /// <remarks>
+    /// 只更新自己的狀態，不試著重新顯示：平台會移除通常代表它判斷此時不該顯示，
+    /// 立刻掛回去只會變成一場拉鋸。把狀態清乾淨，下一次使用者主動要求就會是全新的一輪。
+    /// </remarks>
+    private void OnAgentChanged(object sender, SpaceReservationAgentChangedEventArgs eventArgs)
+    {
+        if (_agent is null || !ReferenceEquals(eventArgs.OldAgent, _agent))
+        {
+            return;
+        }
+
+        _agent = eventArgs.NewAgent;
+
+        if (_agent is null)
+        {
+            IsExpanded = false;
+            _timer.Stop();
+            _timerExpands = false;
+            _loading?.Cancel();
         }
     }
 
@@ -580,13 +640,18 @@ internal sealed class SqlStructurePreview
 
         if (_control is { } control)
         {
+            control.SizeChanging -= OnSizeChanging;
             control.SizeCommitted -= OnSizeCommitted;
             control.CloseRequested -= OnCloseRequested;
-            control.Close();
             _control = null;
         }
 
-        _manager = null;
+        if (_manager is { } manager)
+        {
+            manager.AgentChanged -= OnAgentChanged;
+            _manager = null;
+        }
+
         _agent = null;
     }
 }

@@ -7,8 +7,6 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
-using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
 using SqlAssist.Metadata;
 
@@ -18,10 +16,15 @@ namespace SqlAssist.Ssms22.Preview;
 /// 浮動結構預覽的內容。
 /// </summary>
 /// <remarks>
-/// 指令碼分頁裡放的是一個真正的唯讀編輯器，不是 TextBox：
-/// 語法著色、滑鼠拉選、捲動與尋找都由編輯器自己處理，外觀也就與查詢視窗一致。
-/// 它不在 SSMS 的命令繞送鏈上，因此鍵盤打不進去（天然唯讀），
-/// 但 Ctrl+C 同樣送不到它——那一段由 <see cref="CopySelection"/> 補上。
+/// 所有分頁都是一般的 WPF 控制項，選取、複製與焦點都是原生行為。
+/// 這一點是刻意的：內嵌真正的編輯器雖然可以拿到免費的語法著色，
+/// 但它會把鍵盤焦點搬進另一個呈現來源，編輯器因此判定自己失去聚合焦點，
+/// 整個浮動視窗會在使用者點下去的那一刻被平台收掉。
+/// 著色改由 <see cref="SqlScriptDocument"/> 自己排，顏色仍向編輯器借。
+///
+/// 複製一律走明確的處理常式與標題列按鈕，不依賴
+/// <see cref="ApplicationCommands.Copy"/> 的繞送：浮動視窗裡的鍵盤焦點
+/// 未必落在預期的元素上，命令繞送不到就會變成「選得起來但複製不了」。
 /// </remarks>
 internal sealed class SqlStructurePreviewControl : UserControl
 {
@@ -122,20 +125,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private readonly DataGrid _indexes;
     private readonly DataGrid _foreignKeys;
     private readonly DataGrid _parameters;
-    private readonly ContentControl _scriptSlot;
+    private readonly RichTextBox _script;
     private readonly Border _root;
 
     /// <summary>已經填過內容的分頁；換了物件就整批清掉。</summary>
     private readonly HashSet<TabItem> _populated = new();
 
-    private IWpfTextViewHost? _scriptHost;
-    private IWpfTextView? _scriptView;
-    private ITextBuffer? _scriptBuffer;
-    private IReadOnlyRegion? _scriptReadOnly;
-    private TextBox? _scriptFallback;
-
     /// <summary>目前顯示的結構；分頁按需填內容時要回頭讀它。</summary>
     private SqlObjectStructure? _structure;
+
+    /// <summary>指令碼只組一次；複製與顯示都用同一份。</summary>
+    private string? _scriptText;
+
+    private SqlScriptDocument.Palette? _palette;
 
     public SqlStructurePreviewControl()
     {
@@ -144,7 +146,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(8, 5, 8, 4),
+            Margin = new Thickness(8, 0, 8, 0),
             Foreground = VsThemeBrushes.ListForeground
         };
 
@@ -152,7 +154,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         {
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(8, 3, 22, 4),
+            Margin = new Thickness(8, 3, 24, 4),
             Foreground = VsThemeBrushes.DimForeground
         };
 
@@ -183,17 +185,23 @@ internal sealed class SqlStructurePreviewControl : UserControl
             ("型別", nameof(ParameterRow.DataType)),
             ("方向", nameof(ParameterRow.Direction)));
 
-        _scriptSlot = new ContentControl
+        _script = new RichTextBox
         {
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Stretch
+            IsReadOnly = true,
+            IsReadOnlyCaretVisible = false,
+            BorderThickness = new Thickness(0),
+            Background = VsThemeBrushes.ListBackground,
+            Foreground = VsThemeBrushes.ListForeground,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            ContextMenu = CreateScriptMenu()
         };
 
         _columnsTab = new TabItem { Header = "欄位", Content = _columns };
         _indexesTab = new TabItem { Header = "索引", Content = _indexes };
         _foreignKeysTab = new TabItem { Header = "外來鍵", Content = _foreignKeys };
         _parametersTab = new TabItem { Header = "參數", Content = _parameters };
-        _scriptTab = new TabItem { Header = "指令碼", Content = _scriptSlot };
+        _scriptTab = new TabItem { Header = "指令碼", Content = _script };
 
         _tabs = new TabControl
         {
@@ -207,6 +215,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _tabs.Items.Add(_parametersTab);
         _tabs.Items.Add(_scriptTab);
         _tabs.SelectionChanged += OnTabSelectionChanged;
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        buttons.Children.Add(CreateButton("複製選取", CopySelection, "複製目前分頁選取的內容"));
+        buttons.Children.Add(CreateButton("複製全部", CopyAll, "複製完整的 CREATE 指令碼"));
+
+        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 4, 4, 4) };
+        DockPanel.SetDock(buttons, Dock.Right);
+        header.Children.Add(buttons);
+        header.Children.Add(_title);
 
         var resize = new Thumb
         {
@@ -229,10 +250,10 @@ internal sealed class SqlStructurePreviewControl : UserControl
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         layout.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        Grid.SetRow(_title, 0);
+        Grid.SetRow(header, 0);
         Grid.SetRow(_tabs, 1);
         Grid.SetRow(footer, 2);
-        layout.Children.Add(_title);
+        layout.Children.Add(header);
         layout.Children.Add(_tabs);
         layout.Children.Add(footer);
 
@@ -250,10 +271,12 @@ internal sealed class SqlStructurePreviewControl : UserControl
         // 顯示時不主動搶焦點：使用者還在打字，游標必須留在編輯器裡。
         // 點進來才接受焦點，那時才需要能夠拉選文字。
         Focusable = false;
-        CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy, OnCopyCommand, OnCanCopy));
     }
 
-    /// <summary>使用者拖曳握把改變大小之後引發，供呼叫端寫回設定。</summary>
+    /// <summary>使用者拖曳握把改變大小；每一次移動都要請平台重算位置。</summary>
+    public event EventHandler? SizeChanging;
+
+    /// <summary>拖曳結束，供呼叫端寫回設定。</summary>
     public event EventHandler? SizeCommitted;
 
     /// <summary>使用者在預覽裡按下 Esc。</summary>
@@ -275,6 +298,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     public void SetTarget(SqlObjectInfo objectInfo)
     {
         _structure = null;
+        _scriptText = null;
         _populated.Clear();
         _title.Text = $"{objectInfo.Kind.ToDisplayName()}  {objectInfo.QualifiedName}";
         _status.Text = "載入中…";
@@ -285,6 +309,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     public void ShowMessage(string title, string message)
     {
         _structure = null;
+        _scriptText = null;
         _populated.Clear();
         _title.Text = title;
         _status.Text = message;
@@ -311,6 +336,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private void Populate(SqlObjectStructure structure, bool partial)
     {
         _structure = structure;
+        _scriptText = null;
         _populated.Clear();
 
         // 空的分頁留在畫面上只會讓人多點一次才知道沒東西。
@@ -392,7 +418,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             }
             else if (ReferenceEquals(tab, _scriptTab))
             {
-                SetScript(structure.BuildScript());
+                _palette ??= SqlScriptDocument.CreatePalette();
+                _script.Document = SqlScriptDocument.Build(GetScript(), _palette);
             }
         }
         catch (Exception exception)
@@ -421,48 +448,160 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _indexes.ItemsSource = null;
         _foreignKeys.ItemsSource = null;
         _parameters.ItemsSource = null;
+        _script.Document = new System.Windows.Documents.FlowDocument();
     }
 
-    /// <summary>目前選取的文字；沒有選取時是整份指令碼。</summary>
-    private string GetCopyText()
+    private string GetScript()
     {
-        if (_scriptView is { } view && !view.Selection.IsEmpty)
-        {
-            return view.Selection.StreamSelectionSpan.GetText();
-        }
-
-        return _structure?.BuildScript() ?? string.Empty;
-    }
-
-    private void OnCanCopy(object sender, CanExecuteRoutedEventArgs eventArgs)
-    {
-        eventArgs.CanExecute = _structure is not null || _scriptView is not null;
-        eventArgs.Handled = true;
-    }
-
-    private void OnCopyCommand(object sender, ExecutedRoutedEventArgs eventArgs)
-    {
-        CopySelection();
-        eventArgs.Handled = true;
+        return _scriptText ??= _structure?.BuildScript() ?? string.Empty;
     }
 
     /// <summary>
-    /// 把選取的內容放進剪貼簿。
+    /// 複製目前分頁的選取內容。
     /// </summary>
     /// <remarks>
-    /// 內嵌的編輯器不在 SSMS 的命令繞送鏈上，Ctrl+C 不會自動送達它，
-    /// 因此由這裡接手：有選取就複製選取，沒有就複製整份指令碼。
-    /// 分頁裡的資料格有自己的複製命令，會先處理掉，不會走到這裡。
+    /// 指令碼分頁沒有選取時複製整份，資料格沒有選取時什麼都不做——
+    /// 資料格的「全部」是表格，使用者要的多半是指令碼，不該偷偷換一份東西給他。
     /// </remarks>
     public void CopySelection()
     {
-        Copy(GetCopyText(), "已複製到剪貼簿。");
+        if (_tabs.SelectedItem is not TabItem tab)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(tab, _scriptTab))
+        {
+            var selected = _script.Selection?.Text;
+            Copy(
+                string.IsNullOrEmpty(selected) ? GetScript() : selected!,
+                string.IsNullOrEmpty(selected) ? "沒有選取，已複製完整指令碼。" : "已複製選取的指令碼。");
+            return;
+        }
+
+        if (tab.Content is DataGrid grid)
+        {
+            var text = BuildGridText(grid, selectedOnly: true);
+
+            if (string.IsNullOrEmpty(text))
+            {
+                _status.Text = "請先在表格裡選取要複製的儲存格。";
+                return;
+            }
+
+            Copy(text, "已複製選取的儲存格。");
+        }
     }
 
-    /// <summary>複製整份指令碼，忽略目前的選取。</summary>
+    /// <summary>複製整份指令碼，與目前在哪個分頁無關。</summary>
     public void CopyAll()
     {
-        Copy(_structure?.BuildScript() ?? string.Empty, "已複製完整指令碼到剪貼簿。");
+        Copy(GetScript(), "已複製完整指令碼到剪貼簿。");
+    }
+
+    private void CopyGridAll()
+    {
+        if (_tabs.SelectedItem is TabItem { Content: DataGrid grid })
+        {
+            Copy(BuildGridText(grid, selectedOnly: false), "已複製整個表格。");
+        }
+    }
+
+    /// <summary>
+    /// 自己把資料格排成定位字元分隔的文字。
+    /// </summary>
+    /// <remarks>
+    /// 不用 <see cref="DataGrid"/> 內建的複製命令：那條路要求資料格持有鍵盤焦點，
+    /// 而浮動視窗裡的焦點未必在那裡，結果就是選單項目變成灰的、Ctrl+C 沒有反應。
+    /// 自己組文字則不管焦點在哪都成立。
+    /// </remarks>
+    private static string BuildGridText(DataGrid grid, bool selectedOnly)
+    {
+        var builder = new StringBuilder();
+        var rows = new List<object>();
+
+        if (selectedOnly)
+        {
+            foreach (var cell in grid.SelectedCells)
+            {
+                if (cell.Item is { } item && !rows.Contains(item))
+                {
+                    rows.Add(item);
+                }
+            }
+        }
+        else if (grid.ItemsSource is IEnumerable<object> items)
+        {
+            rows.AddRange(items);
+        }
+
+        if (rows.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var columns = new List<DataGridColumn>();
+
+        foreach (var column in grid.Columns)
+        {
+            // 只選了幾欄時就只複製那幾欄，這正是以儲存格為選取單位的用意。
+            if (!selectedOnly || IsColumnSelected(grid, column))
+            {
+                columns.Add(column);
+            }
+        }
+
+        AppendLine(builder, columns, column => column.Header?.ToString() ?? string.Empty);
+
+        foreach (var row in rows)
+        {
+            AppendLine(builder, columns, column => GetCellText(column, row));
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsColumnSelected(DataGrid grid, DataGridColumn column)
+    {
+        foreach (var cell in grid.SelectedCells)
+        {
+            if (ReferenceEquals(cell.Column, column))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void AppendLine(
+        StringBuilder builder,
+        List<DataGridColumn> columns,
+        Func<DataGridColumn, string> select)
+    {
+        for (var index = 0; index < columns.Count; index++)
+        {
+            if (index > 0)
+            {
+                builder.Append('\t');
+            }
+
+            builder.Append(select(columns[index]));
+        }
+
+        builder.AppendLine();
+    }
+
+    private static string GetCellText(DataGridColumn column, object row)
+    {
+        if (column is not DataGridTextColumn { Binding: Binding binding } ||
+            binding.Path?.Path is not { Length: > 0 } path)
+        {
+            return string.Empty;
+        }
+
+        var value = row.GetType().GetProperty(path)?.GetValue(row);
+        return value?.ToString() ?? string.Empty;
     }
 
     private void Copy(string text, string successMessage)
@@ -485,65 +624,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         }
     }
 
-    /// <summary>
-    /// 建立內嵌的唯讀編輯器。
-    /// </summary>
-    /// <remarks>
-    /// 只在第一次要顯示指令碼時建立：使用者可能整場都只看欄位分頁，
-    /// 沒有理由為此先付一次建立編輯器的成本。
-    /// </remarks>
-    private void EnsureScriptView()
-    {
-        if (_scriptHost is not null || _scriptFallback is not null)
-        {
-            return;
-        }
-
-        if (SqlPreviewServices.Current is not { } services)
-        {
-            _scriptSlot.Content = CreateFallbackScriptBox();
-            return;
-        }
-
-        try
-        {
-            _scriptBuffer = services.BufferFactory.CreateTextBuffer(
-                string.Empty,
-                services.GetPreviewContentType());
-
-            // 只要 INTERACTIVE：滑鼠拉選的處理常式綁在這個角色上。
-            // 刻意不要 EDITABLE——本擴充的建議來源與提示來源都限定該角色，
-            // 少了它，預覽視窗就不可能反過來觸發自己的 IntelliSense。
-            var roles = services.EditorFactory.CreateTextViewRoleSet(PredefinedTextViewRoles.Interactive);
-            _scriptView = services.EditorFactory.CreateTextView(_scriptBuffer, roles);
-
-            var options = _scriptView.Options;
-            options.SetOptionValue(DefaultTextViewHostOptions.LineNumberMarginId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.GlyphMarginId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.SelectionMarginId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.OutliningMarginId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.ZoomControlId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.SuggestionMarginId, false);
-            options.SetOptionValue(DefaultTextViewHostOptions.VerticalScrollBarId, true);
-            options.SetOptionValue(DefaultTextViewHostOptions.HorizontalScrollBarId, true);
-            options.SetOptionValue(DefaultTextViewOptions.DragDropEditingId, false);
-            options.SetOptionValue(DefaultTextViewOptions.WordWrapStyleId, WordWrapStyles.None);
-
-            _scriptHost = services.EditorFactory.CreateTextViewHost(_scriptView, setFocus: false);
-            _scriptHost.HostControl.ContextMenu = CreateScriptMenu();
-            _scriptSlot.Content = _scriptHost.HostControl;
-        }
-        catch (Exception exception)
-        {
-            // 內嵌編輯器建不起來時退回純文字：少了著色，但指令碼仍然看得到也複製得走。
-            SqlAssistDiagnostics.WriteAlways($"建立內嵌指令碼編輯器失敗：{exception}");
-            _scriptHost = null;
-            _scriptView = null;
-            _scriptBuffer = null;
-            _scriptSlot.Content = CreateFallbackScriptBox();
-        }
-    }
-
     private ContextMenu CreateScriptMenu()
     {
         var menu = new ContextMenu();
@@ -556,66 +636,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
         return menu;
     }
 
-    private TextBox CreateFallbackScriptBox()
+    private ContextMenu CreateGridMenu()
     {
-        _scriptFallback = new TextBox
-        {
-            IsReadOnly = true,
-            AcceptsReturn = true,
-            FontFamily = new FontFamily("Consolas"),
-            BorderThickness = new Thickness(0),
-            Background = VsThemeBrushes.ListBackground,
-            Foreground = VsThemeBrushes.ListForeground,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
-        };
-
-        return _scriptFallback;
-    }
-
-    private void SetScript(string script)
-    {
-        EnsureScriptView();
-
-        if (_scriptView is null || _scriptBuffer is null)
-        {
-            if (_scriptFallback is { } fallback)
-            {
-                fallback.Text = script;
-            }
-
-            return;
-        }
-
-        // 唯讀區段要先解除才改得動內容；改完再重新蓋上。
-        if (_scriptReadOnly is { } region)
-        {
-            using var unlock = _scriptBuffer.CreateReadOnlyRegionEdit();
-            unlock.RemoveReadOnlyRegion(region);
-            unlock.Apply();
-            _scriptReadOnly = null;
-        }
-
-        using (var edit = _scriptBuffer.CreateEdit())
-        {
-            edit.Replace(0, _scriptBuffer.CurrentSnapshot.Length, script);
-            edit.Apply();
-        }
-
-        using (var relock = _scriptBuffer.CreateReadOnlyRegionEdit())
-        {
-            _scriptReadOnly = relock.CreateReadOnlyRegion(
-                new Span(0, _scriptBuffer.CurrentSnapshot.Length));
-            relock.Apply();
-        }
-
-        var snapshot = _scriptBuffer.CurrentSnapshot;
-        _scriptView.Caret.MoveTo(new SnapshotPoint(snapshot, 0));
-        _scriptView.Selection.Clear();
-        _scriptView.DisplayTextLineContainingBufferPosition(
-            new SnapshotPoint(snapshot, 0),
-            0,
-            ViewRelativePosition.Top);
+        var menu = new ContextMenu();
+        var copy = new MenuItem { Header = "複製選取的儲存格" };
+        copy.Click += (_, _) => CopySelection();
+        var copyAll = new MenuItem { Header = "複製整個表格" };
+        copyAll.Click += (_, _) => CopyGridAll();
+        var copyScript = new MenuItem { Header = "複製完整指令碼" };
+        copyScript.Click += (_, _) => CopyAll();
+        menu.Items.Add(copy);
+        menu.Items.Add(copyAll);
+        menu.Items.Add(copyScript);
+        return menu;
     }
 
     private void OnResizeDragDelta(object sender, DragDeltaEventArgs eventArgs)
@@ -629,6 +662,28 @@ internal sealed class SqlStructurePreviewControl : UserControl
             _root.Height + eventArgs.VerticalChange,
             SqlAssistPreviewSettings.MinimumHeight,
             SqlAssistPreviewSettings.MaximumHeight);
+
+        // 不通知平台的話，視窗會維持在原本算好的位置往外長，
+        // 貼在左側時看起來就變成「左邊界被往外拉」。
+        SizeChanging?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 套用尺寸，但不超過編輯器目前看得到的範圍。
+    /// </summary>
+    /// <remarks>
+    /// 每次顯示都從設定值重新算，而不是把現有寬度再壓一次：
+    /// 後者會讓視窗在一個窄的查詢視窗裡被縮小之後，換到寬的視窗也長不回來。
+    /// </remarks>
+    public void ApplySize(double width, double height, double availableWidth, double availableHeight)
+    {
+        _root.Width = availableWidth > SqlAssistPreviewSettings.MinimumWidth
+            ? Math.Min(width, availableWidth)
+            : width;
+
+        _root.Height = availableHeight > SqlAssistPreviewSettings.MinimumHeight
+            ? Math.Min(height, availableHeight)
+            : height;
     }
 
     private static double Clamp(double value, double minimum, double maximum)
@@ -638,11 +693,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     protected override void OnPreviewKeyDown(KeyEventArgs eventArgs)
     {
-        // 焦點在預覽裡時，編輯器的命令處理常式收不到按鍵，Esc 得由這裡處理。
+        // 焦點在預覽裡時，編輯器的命令處理常式收不到按鍵，這兩個得由這裡處理。
         if (eventArgs.Key == Key.Escape)
         {
             eventArgs.Handled = true;
             CloseRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (eventArgs.Key == Key.C &&
+            (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            eventArgs.Handled = true;
+            CopySelection();
             return;
         }
 
@@ -707,12 +770,29 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     private static Visibility Visible(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
 
+    private static Button CreateButton(string text, Action click, string tooltip)
+    {
+        var button = new Button
+        {
+            Content = text,
+            Margin = new Thickness(4, 0, 0, 0),
+            Padding = new Thickness(10, 2, 10, 2),
+            ToolTip = tooltip,
+
+            // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
+            Focusable = false
+        };
+
+        button.Click += (_, _) => click();
+        return button;
+    }
+
     /// <summary>
     /// 右下角的縮放握把。
     /// </summary>
     /// <remarks>
     /// 自己畫三條斜線而不是用 <see cref="ResizeGrip"/>：後者的預設樣式假設自己在
-    /// 視窗的狀態列裡，放在浮動視窗上不一定畫得出來。三個圖形永遠是三個圖形。
+    /// 視窗的狀態列裡，放在浮動視窗上不一定畫得出來。
     /// </remarks>
     private static ControlTemplate CreateResizeGripTemplate()
     {
@@ -736,24 +816,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
     }
 
     /// <summary>
-    /// 趁閒置時把內嵌編輯器也先建好。
-    /// </summary>
-    /// <remarks>
-    /// 這是整套裡最貴的一步，留到使用者第一次點「指令碼」分頁才做，
-    /// 就等於在那一次點擊上卡一下。
-    /// </remarks>
-    public void Warmup()
-    {
-        EnsureScriptView();
-    }
-
-    /// <summary>
     /// 建立唯讀資料格。
     /// </summary>
     /// <remarks>
-    /// 以儲存格為選取單位並開啟含標題的剪貼簿複製，使用者才能只拉走要的那幾欄。
+    /// 以儲存格為選取單位，使用者才能只拉走要的那幾欄；
+    /// 複製走自己的處理常式，不依賴內建命令的繞送。
     /// </remarks>
-    private static DataGrid CreateGrid(params (string Header, string Path)[] columns)
+    private DataGrid CreateGrid(params (string Header, string Path)[] columns)
     {
         var grid = new DataGrid
         {
@@ -771,7 +840,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             RowBackground = VsThemeBrushes.ListBackground,
             BorderThickness = new Thickness(0),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            ContextMenu = CreateGridMenu()
         };
 
         foreach (var (header, path) in columns)
@@ -784,37 +854,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
             });
         }
 
-        var menu = new ContextMenu();
-        menu.Items.Add(new MenuItem { Header = "複製選取內容", Command = ApplicationCommands.Copy });
-        var copyAll = new MenuItem { Header = "全選並複製" };
-        copyAll.Click += (_, _) =>
-        {
-            grid.SelectAllCells();
-            ApplicationCommands.Copy.Execute(null, grid);
-        };
-        menu.Items.Add(copyAll);
-        grid.ContextMenu = menu;
-
         return grid;
-    }
-
-    /// <summary>關閉內嵌編輯器；編輯器關閉時必須連帶釋放，否則會留下平台的訂閱。</summary>
-    public void Close()
-    {
-        try
-        {
-            _scriptHost?.Close();
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.Write($"關閉內嵌指令碼編輯器失敗：{exception.Message}");
-        }
-        finally
-        {
-            _scriptHost = null;
-            _scriptView = null;
-            _scriptBuffer = null;
-            _scriptReadOnly = null;
-        }
     }
 }
