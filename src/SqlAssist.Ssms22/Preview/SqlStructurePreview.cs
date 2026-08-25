@@ -578,6 +578,10 @@ internal sealed class SqlStructurePreview
                 _host = new System.Windows.Controls.Decorator { Child = control };
                 _agent = _manager.CreatePopupAgent(_anchor, Styles, _host);
                 _manager.AddAgent(_agent);
+
+                // 只有真的新掛上去才淡入。更新位置也播的話，方向鍵每按一下
+                // 整個視窗就閃一次，那不是動效而是雜訊。
+                control.PlayAppear();
             }
 
             // 位置與承載視窗都要等平台排完版才問得到，因此排在版面之後。

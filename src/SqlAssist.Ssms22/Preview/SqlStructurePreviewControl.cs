@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using SqlAssist.Core;
@@ -35,9 +36,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Ordinal = column.Ordinal;
             Name = column.Name;
             DataType = column.DataType;
-            Nullable = column.IsNullable ? "NULL" : "NOT NULL";
-            PrimaryKey = column.IsPrimaryKey ? "PK" : string.Empty;
-            Identity = column.IsIdentity ? "IDENTITY" : string.Empty;
+            FlagList = PreviewChrome.BuildFlags(column);
+            Flags = string.Join(" ", FlagList);
             Computed = column.IsComputed ? column.ComputedDefinition ?? "COMPUTED" : string.Empty;
             Default = column.DefaultDefinition ?? string.Empty;
         }
@@ -48,11 +48,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         public string DataType { get; }
 
-        public string Nullable { get; }
+        /// <summary>畫成一列膠囊徽章的旗標。</summary>
+        public IReadOnlyList<string> FlagList { get; }
 
-        public string PrimaryKey { get; }
-
-        public string Identity { get; }
+        /// <summary>複製時用的純文字版本；徽章欄不是文字欄，複製要有東西可以讀。</summary>
+        public string Flags { get; }
 
         public string Computed { get; }
 
@@ -113,7 +113,9 @@ internal sealed class SqlStructurePreviewControl : UserControl
         public string Direction { get; }
     }
 
+    private readonly System.Windows.Shapes.Path _icon;
     private readonly TextBlock _title;
+    private readonly TextBlock _summary;
     private readonly TextBlock _status;
     private readonly TabControl _tabs;
     private readonly TabItem _columnsTab;
@@ -152,20 +154,34 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     public SqlStructurePreviewControl()
     {
+        _icon = PreviewChrome.CreateObjectIcon();
+
         _title = new TextBlock
         {
-            FontWeight = FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center,
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 13.5,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(8, 0, 8, 0),
             Foreground = VsThemeBrushes.ListForeground
+        };
+
+        // 摘要從底部搬到標題底下：物件的欄位數與主索引鍵是「這是什麼」的一部分，
+        // 該跟名字待在一起。底部那一條留給操作之後的回饋，平常是空的。
+        _summary = new TextBlock
+        {
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 11.5,
+            Margin = new Thickness(0, 1, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = VsThemeBrushes.DimForeground
         };
 
         _status = new TextBlock
         {
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 11.5,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(8, 3, 24, 4),
+            Margin = new Thickness(14, 0, 24, 6),
             Foreground = VsThemeBrushes.DimForeground
         };
 
@@ -173,11 +189,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
             ("#", nameof(ColumnRow.Ordinal)),
             ("欄位", nameof(ColumnRow.Name)),
             ("型別", nameof(ColumnRow.DataType)),
-            ("NULL", nameof(ColumnRow.Nullable)),
-            ("PK", nameof(ColumnRow.PrimaryKey)),
-            ("IDENTITY", nameof(ColumnRow.Identity)),
             ("計算欄位", nameof(ColumnRow.Computed)),
             ("預設值", nameof(ColumnRow.Default)));
+
+        // NULL、PK、IDENTITY 三個文字欄收成一欄膠囊，插在型別後面。
+        _columns.Columns.Insert(3, CreateFlagsColumn());
 
         _indexes = CreateGrid(
             ("索引", nameof(IndexRow.Name)),
@@ -204,6 +220,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
             // 浮動視窗拿不到鍵盤焦點，預設狀態下選取起來是看不見的。
             IsInactiveSelectionHighlightEnabled = true,
             BorderThickness = new Thickness(0),
+            Padding = new Thickness(6, 0, 0, 8),
             Background = VsThemeBrushes.ListBackground,
             Foreground = VsThemeBrushes.ListForeground,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -217,11 +234,21 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _parametersTab = new TabItem { Header = "參數", Content = _parameters };
         _scriptTab = new TabItem { Header = "指令碼", Content = _script };
 
+        var segment = PreviewChrome.CreateTabItemTemplate();
+        _columnsTab.Template = segment;
+        _indexesTab.Template = segment;
+        _foreignKeysTab.Template = segment;
+        _parametersTab.Template = segment;
+        _scriptTab.Template = segment;
+
         _tabs = new TabControl
         {
             Background = VsThemeBrushes.ListBackground,
             BorderThickness = new Thickness(0),
-            Padding = new Thickness(0)
+            Padding = new Thickness(0),
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 12.5,
+            Template = PreviewChrome.CreateTabControlTemplate()
         };
         _tabs.Items.Add(_columnsTab);
         _tabs.Items.Add(_indexesTab);
@@ -238,10 +265,17 @@ internal sealed class SqlStructurePreviewControl : UserControl
         buttons.Children.Add(CreateButton("複製選取", CopySelection, "複製目前分頁選取的內容"));
         buttons.Children.Add(CreateButton("複製全部", CopyAll, "複製完整的 CREATE 指令碼"));
 
-        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 4, 4, 4) };
+        // 名字與摘要疊成兩行：第一行回答「這是誰」，第二行回答「它有多大」。
+        var caption = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        caption.Children.Add(_title);
+        caption.Children.Add(_summary);
+
+        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(14, 12, 10, 10) };
         DockPanel.SetDock(buttons, Dock.Right);
+        DockPanel.SetDock(_icon, Dock.Left);
         header.Children.Add(buttons);
-        header.Children.Add(_title);
+        header.Children.Add(_icon);
+        header.Children.Add(caption);
 
         _resize = new Thumb
         {
@@ -280,6 +314,9 @@ internal sealed class SqlStructurePreviewControl : UserControl
             SnapsToDevicePixels = true,
             Child = layout
         };
+
+        // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
+        TextOptions.SetTextFormattingMode(_root, TextFormattingMode.Ideal);
 
         Content = _root;
 
@@ -334,7 +371,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _scriptText = null;
         _populated.Clear();
         SetTitle(objectInfo);
-        _status.Text = "載入中…";
+        _summary.Text = "載入中…";
+        _status.Text = string.Empty;
         ClearTabs();
     }
 
@@ -345,10 +383,25 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// 只在 <see cref="SetTarget"/> 裡寫標題是不夠的：那條路只有快取沒命中時才走。
     /// 命中第四層時呼叫端會直接 <see cref="Populate(SqlObjectStructure)"/>，
     /// 標題就會停在上一個物件上——畫面出現「標題是同義字、內容是資料表」。
+    ///
+    /// 物件種類改由圖示表示，結構描述壓成淡色：讀完整串
+    /// 「Table　[dbo].[PUBLISHER]」要掃過十七個字，而真正要找的只有 PUBLISHER。
     /// </remarks>
     private void SetTitle(SqlObjectInfo objectInfo)
     {
-        _title.Text = $"{objectInfo.Kind.ToDisplayName()}  {objectInfo.QualifiedName}";
+        _icon.Data = PreviewChrome.GeometryFor(objectInfo.Kind);
+        _icon.ToolTip = objectInfo.Kind.ToDisplayName();
+        _icon.Visibility = Visibility.Visible;
+
+        _title.Inlines.Clear();
+        _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.SchemaName) + ".")
+        {
+            Foreground = VsThemeBrushes.DimForeground
+        });
+        _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.Name))
+        {
+            FontWeight = FontWeights.SemiBold
+        });
     }
 
     /// <summary>顯示一段訊息取代內容，例如沒有連線或這一項沒有結構。</summary>
@@ -357,8 +410,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _structure = null;
         _scriptText = null;
         _populated.Clear();
-        _title.Text = title;
-        _status.Text = message;
+
+        // 沒有物件就沒有種類，圖示留著只會是一個不知道在指什麼的圓圈。
+        _icon.Visibility = Visibility.Collapsed;
+        _title.Inlines.Clear();
+        _title.Inlines.Add(new Run(title));
+        _summary.Text = message;
+        _status.Text = string.Empty;
         ClearTabs();
     }
 
@@ -399,7 +457,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
         }
 
         PopulateSelectedTab();
-        _status.Text = BuildSummary(structure, partial);
+        _summary.Text = BuildSummary(structure, partial);
+        _status.Text = string.Empty;
     }
 
     private TabItem? FirstVisibleTab()
@@ -639,10 +698,23 @@ internal sealed class SqlStructurePreviewControl : UserControl
         builder.AppendLine();
     }
 
+    /// <summary>
+    /// 讀出某一格要複製的文字。
+    /// </summary>
+    /// <remarks>
+    /// 徽章欄不是文字欄，沒有繫結路徑可以讀，於是退回
+    /// <see cref="DataGridColumn.SortMemberPath"/>——那裡指向旗標的純文字版本。
+    /// 少了這一段，複製欄位表就會多出一個永遠是空的欄。
+    /// </remarks>
     private static string GetCellText(DataGridColumn column, object row)
     {
-        if (column is not DataGridTextColumn { Binding: Binding binding } ||
-            binding.Path?.Path is not { Length: > 0 } path)
+        var path = column switch
+        {
+            DataGridTextColumn { Binding: Binding { Path.Path: { Length: > 0 } bound } } => bound,
+            _ => column.SortMemberPath
+        };
+
+        if (string.IsNullOrEmpty(path))
         {
             return string.Empty;
         }
@@ -773,8 +845,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _resize.RenderTransform = onLeft
             ? new ScaleTransform(-1, 1, 8, 8)
             : Transform.Identity;
-        _status.Margin = onLeft ? new Thickness(24, 3, 8, 4) : new Thickness(8, 3, 24, 4);
+        _status.Margin = onLeft ? new Thickness(24, 0, 14, 6) : new Thickness(14, 0, 24, 6);
     }
+
+    /// <summary>視窗剛掛上去時淡入一次；換選取時不重播，那會變成閃爍。</summary>
+    public void PlayAppear() => PreviewChrome.PlayAppear(_root);
 
     /// <summary>目前分頁有沒有選取的內容；決定 Ctrl+C 該不該由預覽接手。</summary>
     public bool HasSelection()
@@ -899,9 +974,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
         var button = new Button
         {
             Content = text,
-            Margin = new Thickness(4, 0, 0, 0),
-            Padding = new Thickness(10, 2, 10, 2),
+            Margin = new Thickness(2, 0, 0, 0),
+            Padding = new Thickness(10, 3, 10, 4),
             ToolTip = tooltip,
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 12,
+            Foreground = VsThemeBrushes.DimForeground,
+            Template = PreviewChrome.CreateGhostButtonTemplate(),
 
             // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
             Focusable = false
@@ -958,15 +1037,31 @@ internal sealed class SqlStructurePreviewControl : UserControl
             SelectionUnit = DataGridSelectionUnit.CellOrRowHeader,
             ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader,
             HeadersVisibility = DataGridHeadersVisibility.Column,
-            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+
+            // 格線是最吵的一種分隔方式：一百多列就是一百多條線。
+            // 層次改交給交替底色，那是不用畫線也看得出來的。
+            GridLinesVisibility = DataGridGridLinesVisibility.None,
             Background = VsThemeBrushes.ListBackground,
             Foreground = VsThemeBrushes.ListForeground,
+            FontFamily = PreviewChrome.InterfaceFont,
+            FontSize = 12.5,
+            RowHeight = PreviewChrome.RowHeight,
+
+            // 交替底色只能走資料格自己的這兩個屬性。DataGridRow.Background 是
+            // 「轉移屬性」，資料格會把自己的值蓋到每一列上，優先權高過任何
+            // 樣式與觸發程序——試著用觸發程序畫交替列，結果是每一列都沒有底色。
             RowBackground = VsThemeBrushes.ListBackground,
+            AlternatingRowBackground = VsThemeBrushes.RowAlternate,
+            AlternationCount = 2,
+            CellStyle = PreviewChrome.CreateCellStyle(),
+            ColumnHeaderStyle = PreviewChrome.CreateColumnHeaderStyle(),
             BorderThickness = new Thickness(0),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             ContextMenu = CreateGridMenu()
         };
+
+        var cellText = PreviewChrome.CreateCellTextStyle();
 
         foreach (var (header, path) in columns)
         {
@@ -974,10 +1069,30 @@ internal sealed class SqlStructurePreviewControl : UserControl
             {
                 Header = header,
                 Binding = new Binding(path),
+                ElementStyle = cellText,
                 Width = DataGridLength.Auto
             });
         }
 
         return grid;
+    }
+
+    /// <summary>
+    /// 把旗標畫成一列膠囊的欄。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SortMemberPath"/> 不是為了排序才設的——這一欄不是文字欄，
+    /// 複製時讀不到繫結路徑。複製的程式碼會退回這個路徑，因此它必須指向
+    /// 旗標的純文字版本。
+    /// </remarks>
+    private static DataGridTemplateColumn CreateFlagsColumn()
+    {
+        return new DataGridTemplateColumn
+        {
+            Header = "旗標",
+            SortMemberPath = nameof(ColumnRow.Flags),
+            CellTemplate = PreviewChrome.CreateFlagsCellTemplate(nameof(ColumnRow.FlagList)),
+            Width = DataGridLength.Auto
+        };
     }
 }
