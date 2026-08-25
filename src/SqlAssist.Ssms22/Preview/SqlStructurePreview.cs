@@ -657,10 +657,20 @@ internal sealed class SqlStructurePreview
 
         try
         {
+            var popupLeft = _host.PointToScreen(new Point(0, 0)).X;
             var popupRight = _host.PointToScreen(new Point(_host.ActualWidth, 0)).X;
             var caretX = _view.Caret.Left - _view.ViewportLeft;
             var anchorScreenX = _view.VisualElement.PointToScreen(new Point(caretX, 0)).X;
-            control.SetGripSide(popupRight <= anchorScreenX);
+            var onLeft = popupRight <= anchorScreenX;
+            control.SetGripSide(onLeft);
+
+            // 落在哪一側是平台算的，沒有公開 API 可以查詢或指定。視窗跑到左邊
+            // 蓋住物件總管時，這一行是唯一能看出「它離錨點多遠、寬度是多少」的地方。
+            SqlAssistDiagnostics.Write(
+                $"結構預覽落點：{(onLeft ? "左" : "右")}側　" +
+                $"視窗 {popupLeft:F0}–{popupRight:F0}（寬 {_host.ActualWidth:F0}）　" +
+                $"錨點 {anchorScreenX:F0}　編輯器寬 {_view.ViewportWidth:F0}",
+                _view);
         }
         catch (Exception exception)
         {
