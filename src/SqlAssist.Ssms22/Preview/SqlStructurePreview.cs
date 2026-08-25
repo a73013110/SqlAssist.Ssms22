@@ -584,14 +584,10 @@ internal sealed class SqlStructurePreview
                 control.PlayAppear();
             }
 
-            // 位置與承載視窗都要等平台排完版才問得到，因此排在版面之後。
+            // 位置要等平台排完版才問得到，因此排在版面之後。
             _view.VisualElement.Dispatcher.BeginInvoke(
                 DispatcherPriority.Loaded,
-                new Action(() =>
-                {
-                    UpdateGripSide();
-                    UpdateCorners();
-                }));
+                new Action(UpdateGripSide));
         }
         catch (Exception exception)
         {
@@ -625,24 +621,6 @@ internal sealed class SqlStructurePreview
         }
 
         control.ApplySize(size.ClampWidth(), size.ClampHeight(), availableWidth, availableHeight);
-    }
-
-    /// <summary>
-    /// 請作業系統把承載視窗的四個角磨圓。
-    /// </summary>
-    /// <remarks>
-    /// 每次顯示都重做一次，因為承載視窗不是固定的：切換應用程式回來時會整個換掉，
-    /// 換來的新視窗沒有繼承任何 DWM 屬性。裁切失敗（例如 Windows 10）就維持方角，
-    /// 邊框也跟著保持直角，不會露出承載視窗的方形底色。
-    /// </remarks>
-    private void UpdateCorners()
-    {
-        if (_control is not { } control || _host is null)
-        {
-            return;
-        }
-
-        control.SetRoundedCorners(NativeWindowStyle.TryRoundCorners(_host));
     }
 
     /// <summary>
