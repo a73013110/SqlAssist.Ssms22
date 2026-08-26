@@ -12,7 +12,8 @@ public sealed class SqlCompletionContext
         string? qualifier = null,
         int targetKeywordStart = -1,
         CompletionIntent intent = CompletionIntent.Reference,
-        SqlTableReference? qualifiedTable = null)
+        SqlTableReference? qualifiedTable = null,
+        SqlKeywordPosition keywordPosition = SqlKeywordPosition.Any)
     {
         IsValid = isValid;
         TokenStart = tokenStart;
@@ -22,6 +23,7 @@ public sealed class SqlCompletionContext
         TargetKeywordStart = targetKeywordStart;
         Intent = intent;
         QualifiedTable = qualifiedTable;
+        KeywordPosition = keywordPosition;
     }
 
     public bool IsValid { get; }
@@ -58,6 +60,17 @@ public sealed class SqlCompletionContext
     /// <summary>提交建議時應該做什麼。</summary>
     public CompletionIntent Intent { get; }
 
+    /// <summary>
+    /// 游標落在哪一個關鍵字位置。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Target"/> 是兩個不同的軸：<see cref="Target"/> 說的是
+    /// 「該列哪一類資料庫物件」，這個說的是「該列哪些關鍵字」。
+    /// <c>FROM |</c> 兩者都有話要說——物件只列資料表與檢視，關鍵字只列
+    /// 能接在 FROM 後面的那幾個。
+    /// </remarks>
+    public SqlKeywordPosition KeywordPosition { get; }
+
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
     internal SqlCompletionContext AsColumnsOf(SqlTableReference table)
     {
@@ -69,6 +82,7 @@ public sealed class SqlCompletionContext
             Qualifier,
             TargetKeywordStart,
             CompletionIntent.Reference,
-            table);
+            table,
+            KeywordPosition);
     }
 }

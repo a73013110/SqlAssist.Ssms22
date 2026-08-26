@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core;
@@ -34,6 +34,12 @@ public static class SqlCompletionContextAnalyzer
             out var targetKeywordStart,
             out var intent);
         var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifier is not null;
+
+        // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
+        // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
+        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
+            textBeforeCaret.Substring(0, tokenStart));
+
         return new SqlCompletionContext(
             isValid,
             tokenStart,
@@ -41,7 +47,9 @@ public static class SqlCompletionContextAnalyzer
             target,
             qualifier,
             targetKeywordStart,
-            intent);
+            intent,
+            qualifiedTable: null,
+            keywordPosition);
     }
 
     /// <summary>
@@ -120,6 +128,11 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Procedure;
         }
 
+        if (EndsWithKeyword(text, "USE", out keywordStart))
+        {
+            return CompletionTarget.Database;
+        }
+
         if (EndsWithKeyword(text, "FROM", out keywordStart) ||
             EndsWithKeyword(text, "JOIN", out keywordStart) ||
             EndsWithKeyword(text, "UPDATE", out keywordStart) ||
@@ -194,6 +207,16 @@ public static class SqlCompletionContextAnalyzer
         var qualifier = beforeDot.Substring(qualifierStart);
         return qualifier.Length == 0 ? null : qualifier;
     }
+
+    /// <summary>
+    /// 這個字元可不可以構成識別字的一部分。
+    /// </summary>
+    /// <remarks>
+    /// 公開出來是為了讓「要不要重開建議清單」的判斷用同一套字元分類。
+    /// 那個判斷的前提正是「使用者剛輸入的字元結束了前一個詞元」，
+    /// 兩邊各寫一份的話，分岔的症狀是某些字元之後清單該開卻不開。
+    /// </remarks>
+    public static bool IsIdentifierCharacter(char value) => IsTokenCharacter(value);
 
     private static int FindTokenStart(string text)
     {

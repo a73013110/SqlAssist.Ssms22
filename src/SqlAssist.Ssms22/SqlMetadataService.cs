@@ -615,7 +615,8 @@ internal sealed class SqlMetadataService : IDisposable
 
     private static IReadOnlyList<SqlSuggestion> BuildSuggestions(SqlDatabaseSnapshot snapshot)
     {
-        var suggestions = new List<SqlSuggestion>(snapshot.Objects.Count + snapshot.Schemas.Count);
+        var suggestions = new List<SqlSuggestion>(
+            snapshot.Objects.Count + snapshot.Schemas.Count + snapshot.Databases.Count);
 
         foreach (var info in snapshot.Objects)
         {
@@ -647,6 +648,18 @@ internal sealed class SqlMetadataService : IDisposable
                 SuggestionKind.Schema,
                 triggerFollowUp: true,
                 schemaName: schema));
+        }
+
+        foreach (var database in snapshot.Databases)
+        {
+            // 插入文字留空給 SqlInsertionText 依設定加括號：資料庫名稱與其他
+            // 物件名稱適用同一條規則，含空白或連字號時一定會加，其餘看使用者偏好。
+            suggestions.Add(new SqlSuggestion(
+                database,
+                database,
+                "Database",
+                $"USE {SqlIdentifier.QuoteIfNeeded(database)}",
+                SuggestionKind.Database));
         }
 
         return suggestions;

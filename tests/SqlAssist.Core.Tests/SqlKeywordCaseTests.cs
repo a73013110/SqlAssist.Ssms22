@@ -124,13 +124,23 @@ public sealed class SqlKeywordCaseTests
     }
 
     [Fact]
-    public void 只做大寫的關鍵字不進建議清單()
+    public void 冷門關鍵字進得了清單但只出現在文法允許的位置()
     {
-        // DESC 要能自動大寫，但沒有必要佔用清單的位置。
+        // 以前 DESC 被排除在建議清單之外，理由是「沒必要佔用清單的位置」。
+        // 位置過濾接手之後不必再靠縮短清單控制雜訊：DESC 照樣進目錄、
+        // 照樣自動大寫，只是除了 ORDER BY 的欄位之後哪裡都不會出現。
         Assert.True(SqlKeywordCatalog.TryGetCanonical("desc", out var canonical));
         Assert.Equal("DESC", canonical);
-        Assert.DoesNotContain("DESC", SqlKeywordCatalog.SuggestionKeywords);
-        Assert.Contains("SELECT", SqlKeywordCatalog.SuggestionKeywords);
+        Assert.Contains("DESC", SqlKeywordCatalog.SuggestionKeywords);
+        Assert.Equal(SqlKeywordPosition.OrderByTail, SqlKeywordCatalog.GetPositions("DESC"));
+    }
+
+    [Fact]
+    public void GO_進得了清單但不自動大寫()
+    {
+        // 兩個字母的字太容易誤傷別名：FROM Orders go 是合法的寫法。
+        Assert.Contains("GO", SqlKeywordCatalog.SuggestionKeywords);
+        Assert.False(SqlKeywordCatalog.TryGetCanonical("go", out _));
     }
 
     [Theory]

@@ -19,6 +19,9 @@ internal static class CommandIds
     public const int RefreshSuggestions = 0x0202;
     public const int ShowObjectStructure = 0x0206;
 
+    /// <summary>選單項目，同時也是設定頁上的按鈕。與 SqlAssist.registration.json 的 id 521 對應。</summary>
+    public const int ManageSnippets = 0x0209;
+
     /// <summary>設定頁上的按鈕，不出現在選單。與 SqlAssist.registration.json 的 id 519 對應。</summary>
     public const int DisableNativeIntelliSense = 0x0207;
 

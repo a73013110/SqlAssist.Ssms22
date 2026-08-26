@@ -14,10 +14,11 @@ internal static class SqlInsertionText
         SqlAssistSettings settings)
     {
         // 欄位的插入文字在建立建議時就決定好了（含必要的別名限定），
-        // 這裡不能再套用物件用的結構描述規則。
+        // 內建函式則帶著左括號，兩者都不能再套用物件用的結構描述規則。
         if (suggestion.Kind == SuggestionKind.Keyword ||
             suggestion.Kind == SuggestionKind.Snippet ||
-            suggestion.Kind == SuggestionKind.Column)
+            suggestion.Kind == SuggestionKind.Column ||
+            suggestion.Kind == SuggestionKind.BuiltInFunction)
         {
             return suggestion.InsertionText;
         }

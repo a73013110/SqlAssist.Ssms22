@@ -102,6 +102,10 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
     [Import]
     internal SVsServiceProvider ServiceProvider { get; set; } = null!;
 
+    /// <summary>提交之後要自己把清單重開一次，那要經過 broker。</summary>
+    [Import]
+    internal IAsyncCompletionBroker Broker { get; set; } = null!;
+
     public IAsyncCompletionCommitManager? GetOrCreate(ITextView textView)
     {
         try
@@ -109,7 +113,8 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
             return textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionCommitManager),
                 () => new SqlAsyncCompletionCommitManager(
-                    SqlCompletionServices.GetModuleExpander(textView, ServiceProvider)));
+                    SqlCompletionServices.GetModuleExpander(textView, ServiceProvider),
+                    Broker));
         }
         catch (Exception exception)
         {

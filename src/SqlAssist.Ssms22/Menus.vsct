@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
   <Extern href="stdidcmd.h" />
   <Extern href="vsshlids.h" />
@@ -61,6 +61,10 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>重新整理建議</ButtonText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidManageSnippets" priority="0x0300" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Strings><ButtonText>程式碼片段…</ButtonText></Strings>
+      </Button>
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenSettings" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
@@ -109,6 +113,7 @@
       <IDSymbol name="cmdidShowObjectStructure" value="0x0206" />
       <IDSymbol name="cmdidDisableNativeIntelliSense" value="0x0207" />
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
+      <IDSymbol name="cmdidManageSnippets" value="0x0209" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

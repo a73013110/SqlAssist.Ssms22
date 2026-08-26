@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Matching;
@@ -56,6 +56,7 @@ public static class SuggestionMatcher
         foreach (var suggestion in suggestions)
         {
             if (!IsAllowedForTarget(suggestion.Kind, context.Target) ||
+                !IsAllowedForPosition(suggestion, context) ||
                 !IsAllowedForSchema(suggestion, context))
             {
                 continue;
@@ -117,6 +118,7 @@ public static class SuggestionMatcher
         foreach (var suggestion in suggestions)
         {
             if (IsAllowedForTarget(suggestion.Kind, context.Target) &&
+                IsAllowedForPosition(suggestion, context) &&
                 IsAllowedForSchema(suggestion, context))
             {
                 results.Add(suggestion);
@@ -156,6 +158,13 @@ public static class SuggestionMatcher
             // 在 SELECT 或 WHERE 位置輸入前綴時，要的幾乎都是欄位。
             SuggestionKind.Column => 35,
             SuggestionKind.Keyword => 30,
+
+            // 內建函式排在關鍵字之下：分數打平時，使用者要的比較可能是
+            // 文法上非有不可的那個字。
+            SuggestionKind.BuiltInFunction => 28,
+
+            // 只有 USE 之後才會出現，那個位置沒有別的東西跟它競爭。
+            SuggestionKind.Database => 25,
             SuggestionKind.Table => 20,
             SuggestionKind.View => 18,
             SuggestionKind.Procedure => 16,
@@ -173,12 +182,34 @@ public static class SuggestionMatcher
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
             CompletionTarget.Function => kind == SuggestionKind.Function,
             CompletionTarget.Column => kind == SuggestionKind.Column,
+            CompletionTarget.Database => kind == SuggestionKind.Database,
 
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
             // 候選清單是依上下文組出來的，沒有範圍就不會有欄位，這裡不必再擋。
             _ => true
         };
+    }
+
+    /// <summary>
+    /// 關鍵字與內建函式要落在文法允許它出現的位置。
+    /// </summary>
+    /// <remarks>
+    /// 只對這兩種生效。資料庫物件與 Snippet 的位置一律是
+    /// <see cref="SqlKeywordPosition.Any"/>，交集永遠不為空，
+    /// 因此不必特別放行；但明寫出來比依賴預設值可靠。
+    ///
+    /// 內建函式一起收在這裡的理由與關鍵字相同：語句開頭、資料來源位置與
+    /// DDL 物件位置不該冒出 <c>COUNT</c>。
+    /// </remarks>
+    private static bool IsAllowedForPosition(SqlSuggestion suggestion, SqlCompletionContext context)
+    {
+        if (suggestion.Kind is not (SuggestionKind.Keyword or SuggestionKind.BuiltInFunction))
+        {
+            return true;
+        }
+
+        return (suggestion.Positions & context.KeywordPosition) != SqlKeywordPosition.None;
     }
 
     /// <summary>

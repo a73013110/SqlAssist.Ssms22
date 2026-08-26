@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using SqlAssist.Core;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -21,10 +22,14 @@ namespace SqlAssist.Ssms22.Completion;
 internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitManager
 {
     private readonly SqlModuleExpander _moduleExpander;
+    private readonly IAsyncCompletionBroker? _broker;
 
-    public SqlAsyncCompletionCommitManager(SqlModuleExpander moduleExpander)
+    public SqlAsyncCompletionCommitManager(
+        SqlModuleExpander moduleExpander,
+        IAsyncCompletionBroker? broker)
     {
         _moduleExpander = moduleExpander;
+        _broker = broker;
     }
 
     /// <summary>
@@ -79,8 +84,22 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 snapshot,
                 span.End);
 
+            // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
+            var snippet = suggestion.Tag as SqlSnippet;
+            var snippetCaret = -1;
+
+            if (snippet is not null)
+            {
+                var expanded = snippet.Expand(out var caretOffset);
+
+                if (caretOffset != expanded.Length)
+                {
+                    snippetCaret = caretOffset;
+                }
+            }
+
             // 一般項目讓平台自己插入，行為與其他語言一致。
-            if (expansionSpan is null && !suggestion.TriggerFollowUp)
+            if (expansionSpan is null && !suggestion.TriggerFollowUp && snippetCaret < 0)
             {
                 return CommitResult.Unhandled;
             }
@@ -100,16 +119,41 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             SqlAssistRuntimeState.MarkExpansion(insertionText.TrimEnd());
             SqlAssistDiagnostics.Write($"Suggestion 已提交：{suggestion.DisplayText}");
 
+            if (snippetCaret >= 0)
+            {
+                // 編輯已經套用，span.Start 在新快照裡仍然有效——取代的起點不會位移。
+                var caret = span.Start.Position + snippetCaret;
+                var current = session.TextView.TextSnapshot;
+
+                if (caret <= current.Length)
+                {
+                    session.TextView.Caret.MoveTo(new SnapshotPoint(current, caret));
+                }
+            }
+
             if (expansionSpan is not null && suggestion.Tag is Metadata.SqlObjectInfo objectInfo)
             {
                 _moduleExpander.Begin(objectInfo, expansionSpan);
                 return new CommitResult(isHandled: true, CommitBehavior.None);
             }
 
+            // 沒有勾接續的片段到這裡就結束；文字已經插好，游標也已經就位。
+            if (!suggestion.TriggerFollowUp)
+            {
+                return new CommitResult(isHandled: true, CommitBehavior.None);
+            }
+
             // 接續建議：ssf 展開成 SELECT * FROM 之後直接列出資料表與檢視。
+            //
+            // 這裡刻意不回報 CommitBehavior.Retrigger。那個旗標在 SSMS 22 上是死的
+            // ——編輯器組件裡沒有任何一處讀它，Enter 與 Tab 只測
+            // RaiseFurtherReturnKeyAndTabKeyCommandHandlers，輸入字元只測
+            // SuppressFurtherTypeCharCommandHandlers。回報一個不會有人看的旗標
+            // 只會讓下一個讀這段程式的人以為接續是平台在做的。
             SqlAssistDiagnostics.WriteAlways(
                 $"已進入接續建議：{suggestion.DisplayText}，下一步只顯示對應資料庫物件");
-            return new CommitResult(isHandled: true, CommitBehavior.Retrigger);
+            SqlCompletionReopen.AfterExpansion(session.TextView, _broker);
+            return new CommitResult(isHandled: true, CommitBehavior.None);
         }
         catch (Exception exception)
         {

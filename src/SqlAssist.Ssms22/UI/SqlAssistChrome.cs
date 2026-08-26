@@ -1,0 +1,485 @@
+using System;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using SqlAssist.Core;
+
+namespace SqlAssist.Ssms22.UI;
+
+/// <summary>
+/// 整個擴充共用的外觀。
+/// </summary>
+/// <remarks>
+/// 這裡是本擴充所有自建介面的唯一外觀來源：浮動結構預覽與程式碼片段對話框
+/// 都從這裡取字型、字級、控制項樣板與間距。分成兩份的話，改一邊忘了另一邊
+/// 的症狀是「兩個視窗長得像但又不完全一樣」——那比一開始就不統一更難看。
+///
+/// 樣板全部用 <see cref="FrameworkElementFactory"/> 在程式碼裡組出來，
+/// 整份原始碼沒有任何 XAML：為了幾個樣板引入資源字典會讓顏色的來源分裂成兩套，
+/// 字典裡只能用 <c>DynamicResource</c> 查主題鍵，那條路沒有備援，
+/// SSMS 還沒併入主題字典時會直接解析成透明。顏色一律從
+/// <see cref="VsThemeBrushes"/> 取，備援才有地方寫。
+///
+/// 版面的原則是「用留白分層，不用線條」：層次靠間距與極淡的底色，
+/// 只有需要框住一整塊內容時才畫一條細線。
+/// </remarks>
+internal static class SqlAssistChrome
+{
+    /// <summary>介面字型；沒有 Variable 字族的機器會退回 Segoe UI。</summary>
+    public static readonly FontFamily InterfaceFont = new("Segoe UI Variable Text, Segoe UI");
+
+    /// <summary>程式碼字型；等寬才對得起 SQL 的縮排。</summary>
+    public static readonly FontFamily CodeFont = new("Cascadia Mono, Consolas, Courier New");
+
+    /// <summary>與 DWM 圓角搭配的內圓角，比外框小一級才不會看起來腫。</summary>
+    public const double InnerRadius = 5;
+
+    /// <summary>
+    /// 從基準字級推導出來的一整組字級與行高。
+    /// </summary>
+    /// <remarks>
+    /// 使用者只調一個數字，其餘六個按固定的差距跟著走。讓他自己維持
+    /// 「標題比內文大一號、徽章比欄位標題再小一點」這種比例，
+    /// 是把版面設計的工作丟給使用者。
+    /// </remarks>
+    public readonly struct Metrics
+    {
+        public Metrics(double baseSize)
+        {
+            Body = baseSize;
+            Title = baseSize + 1;
+            Caption = baseSize - 1;
+            ColumnHeader = baseSize - 1.5;
+            Badge = baseSize - 2.5;
+
+            // 行高跟著字級走，否則字放大了行距沒放大，一列一列就黏在一起。
+            RowHeight = Math.Round(baseSize + 11);
+        }
+
+        /// <summary>資料格與分頁標籤。</summary>
+        public double Body { get; }
+
+        /// <summary>物件名稱。</summary>
+        public double Title { get; }
+
+        /// <summary>摘要與底部訊息。</summary>
+        public double Caption { get; }
+
+        public double ColumnHeader { get; }
+
+        public double Badge { get; }
+
+        public double RowHeight { get; }
+    }
+
+    /// <summary>
+    /// 不跟著設定走的介面所用的一組字級。
+    /// </summary>
+    /// <remarks>
+    /// 只有浮動預覽的字級是設定項——它貼在程式碼旁邊，要跟編輯器的字級一起讀。
+    /// 對話框是獨立的視窗，沒有這個問題，因此固定在同一個基準值上：
+    /// 比例一致，預設狀態下兩邊看起來就是同一套介面。
+    /// </remarks>
+    public static Metrics DefaultMetrics { get; } = new(SqlAssistLimits.DefaultPreviewFontSize);
+
+    /// <summary>一塊內容的底：底色比視窗淺一階，四周一條細線。</summary>
+    public static Border CreateSurface(UIElement? child = null)
+    {
+        return new Border
+        {
+            Background = VsThemeBrushes.ListBackground,
+            BorderBrush = VsThemeBrushes.Hairline,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(InnerRadius + 1),
+            SnapsToDevicePixels = true,
+            Child = child
+        };
+    }
+
+    /// <summary>區塊標題：靠字重而不是字級把段落分開。</summary>
+    public static TextBlock CreateLabel(string text, Metrics metrics)
+    {
+        return new TextBlock
+        {
+            Text = text,
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Caption,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = VsThemeBrushes.ListForeground,
+            Margin = new Thickness(0, 12, 0, 4)
+        };
+    }
+
+    /// <summary>欄位底下的說明；永遠比它說明的東西淡。</summary>
+    public static TextBlock CreateHint(string text, Metrics metrics)
+    {
+        return new TextBlock
+        {
+            Text = text,
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Caption,
+            Foreground = VsThemeBrushes.DimForeground,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(2, 5, 0, 0)
+        };
+    }
+
+    /// <summary>
+    /// 沒有邊框的按鈕，滑鼠移上去才長出底色。
+    /// </summary>
+    /// <remarks>
+    /// 帶邊框的方鈕每一個都是四條線，一排三個就是十二條。
+    /// 平常只留文字，需要按的時候才提示可按——與「用留白分層」是同一條原則。
+    /// </remarks>
+    public static ControlTemplate CreateGhostButtonTemplate()
+    {
+        return CreateButtonTemplate(Brushes.Transparent);
+    }
+
+    /// <summary>
+    /// 主要動作用的按鈕。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不用飽和的強調色：那塊藍上面的字仍然是主題的前景色，
+    /// 深淺兩種主題總有一種讀不清楚。這裡只是把幽靈按鈕的靜止狀態
+    /// 從透明換成極淡的底色——同一套語言裡的一階，不是另一種控制項。
+    /// </remarks>
+    public static ControlTemplate CreatePrimaryButtonTemplate()
+    {
+        return CreateButtonTemplate(VsThemeBrushes.SegmentTrack);
+    }
+
+    private static ControlTemplate CreateButtonTemplate(Brush resting)
+    {
+        var background = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
+        background.SetValue(Border.BackgroundProperty, resting);
+        background.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
+        background.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        background.AppendChild(content);
+
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = background };
+
+        AddTrigger(
+            template, UIElement.IsMouseOverProperty,
+            Border.BackgroundProperty, VsThemeBrushes.RowSelected, "bg");
+
+        AddTrigger(
+            template, ButtonBase.IsPressedProperty,
+            Border.BackgroundProperty, VsThemeBrushes.RowPressed, "bg");
+
+        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.4, "bg"));
+        template.Triggers.Add(disabled);
+
+        return template;
+    }
+
+    /// <summary>
+    /// 輸入欄位：圓角、一條細線，聚焦時線條換成強調色。
+    /// </summary>
+    /// <remarks>
+    /// 捲軸的顯示方式必須自己綁回控制項的屬性。內建樣板是靠附加屬性把值傳給
+    /// <c>PART_ContentHost</c> 的，換掉樣板之後那條路就斷了——程式碼欄位明明設了
+    /// <see cref="ScrollBarVisibility.Auto"/> 卻捲不動，就是漏掉這兩條繫結。
+    /// </remarks>
+    public static ControlTemplate CreateTextBoxTemplate()
+    {
+        var field = new FrameworkElementFactory(typeof(Border)) { Name = "field" };
+        field.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
+        field.SetValue(Border.BorderBrushProperty, VsThemeBrushes.Hairline);
+        field.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        field.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
+        field.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+        field.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+
+        var host = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
+        host.SetValue(UIElement.FocusableProperty, false);
+        host.SetValue(Control.PaddingProperty, default(Thickness));
+        host.SetBinding(
+            ScrollViewer.HorizontalScrollBarVisibilityProperty,
+            TemplatedParent(nameof(TextBoxBase.HorizontalScrollBarVisibility)));
+        host.SetBinding(
+            ScrollViewer.VerticalScrollBarVisibilityProperty,
+            TemplatedParent(nameof(TextBoxBase.VerticalScrollBarVisibility)));
+        field.AppendChild(host);
+
+        var template = new ControlTemplate(typeof(TextBox)) { VisualTree = field };
+
+        AddTrigger(
+            template, UIElement.IsMouseOverProperty,
+            Border.BorderBrushProperty, VsThemeBrushes.Border, "field");
+
+        AddTrigger(
+            template, UIElement.IsKeyboardFocusWithinProperty,
+            Border.BorderBrushProperty, VsThemeBrushes.AccentBorder, "field");
+
+        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5, "field"));
+        template.Triggers.Add(disabled);
+
+        return template;
+    }
+
+    /// <summary>套用輸入欄位的一整組設定；呼叫端只要負責內容與版面。</summary>
+    public static TextBox CreateTextBox(Metrics metrics)
+    {
+        return new TextBox
+        {
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Body,
+            Background = VsThemeBrushes.ListBackground,
+            Foreground = VsThemeBrushes.ListForeground,
+            CaretBrush = VsThemeBrushes.ListForeground,
+            SelectionBrush = VsThemeBrushes.RowSelected,
+            Padding = new Thickness(8, 5, 8, 6),
+            BorderThickness = new Thickness(1),
+            Template = CreateTextBoxTemplate()
+        };
+    }
+
+    /// <summary>
+    /// 核取方塊：自己畫一個圓角小方塊。
+    /// </summary>
+    /// <remarks>
+    /// 內建的核取方塊跟的是 Windows 佈景主題而不是 SSMS 的，
+    /// 深色主題裡會出現一個白底的方框浮在暗色面板上。
+    /// </remarks>
+    public static ControlTemplate CreateCheckBoxTemplate()
+    {
+        var layout = new FrameworkElementFactory(typeof(StackPanel));
+        layout.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        layout.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
+
+        var box = new FrameworkElementFactory(typeof(Border)) { Name = "box" };
+        box.SetValue(FrameworkElement.WidthProperty, 14.0);
+        box.SetValue(FrameworkElement.HeightProperty, 14.0);
+        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        box.SetValue(Border.BackgroundProperty, VsThemeBrushes.SegmentTrack);
+        box.SetValue(Border.BorderBrushProperty, VsThemeBrushes.Hairline);
+        box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        box.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+
+        var check = new FrameworkElementFactory(typeof(Path)) { Name = "check" };
+        check.SetValue(Path.DataProperty, Geometry.Parse("M 2,6.5 L 4.8,9.3 L 10,3.2"));
+        check.SetValue(Shape.StrokeProperty, VsThemeBrushes.ListForeground);
+        check.SetValue(Shape.StrokeThicknessProperty, 1.6);
+        check.SetValue(Shape.StrokeStartLineCapProperty, PenLineCap.Round);
+        check.SetValue(Shape.StrokeEndLineCapProperty, PenLineCap.Round);
+        check.SetValue(Shape.StrokeLineJoinProperty, PenLineJoin.Round);
+        check.SetValue(Shape.StretchProperty, Stretch.None);
+        check.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        check.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
+        check.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        box.AppendChild(check);
+
+        var label = new FrameworkElementFactory(typeof(ContentPresenter));
+        label.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+        layout.AppendChild(box);
+        layout.AppendChild(label);
+
+        var template = new ControlTemplate(typeof(CheckBox)) { VisualTree = layout };
+
+        AddTrigger(
+            template, UIElement.IsMouseOverProperty,
+            Border.BorderBrushProperty, VsThemeBrushes.Border, "box");
+
+        var isChecked = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
+        isChecked.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "check"));
+        isChecked.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.AccentBackground, "box"));
+        isChecked.Setters.Add(new Setter(Border.BorderBrushProperty, VsThemeBrushes.AccentBorder, "box"));
+        template.Triggers.Add(isChecked);
+
+        return template;
+    }
+
+    /// <summary>清單的一列：與分段控制器同一種圓角，選取靠底色而不是外框。</summary>
+    public static Style CreateListItemStyle(Metrics metrics)
+    {
+        var row = new FrameworkElementFactory(typeof(Border)) { Name = "row" };
+        row.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        row.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
+        row.SetValue(Border.PaddingProperty, new Thickness(10, 4, 10, 5));
+        row.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 1, 0, 1));
+        row.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+
+        var template = new ControlTemplate(typeof(ListBoxItem)) { VisualTree = row };
+
+        AddTrigger(
+            template, UIElement.IsMouseOverProperty,
+            Border.BackgroundProperty, VsThemeBrushes.RowHover, "row");
+
+        // 選取寫在滑鼠之後：兩個條件同時成立時，後宣告的那一個才是使用者要看的。
+        var selected = new Trigger { Property = ListBoxItem.IsSelectedProperty, Value = true };
+        selected.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.RowSelected, "row"));
+        template.Triggers.Add(selected);
+
+        var style = new Style(typeof(ListBoxItem));
+        style.Setters.Add(new Setter(Control.TemplateProperty, template));
+        style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
+        style.Setters.Add(new Setter(Control.FontSizeProperty, metrics.Body));
+        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
+        style.Setters.Add(new Setter(
+            Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+        return style;
+    }
+
+    /// <summary>
+    /// 把分頁列變成分段控制器：一條圓角底槽，選到的那一段浮起來。
+    /// </summary>
+    /// <remarks>
+    /// 內建的分頁樣式會替每一個分頁畫一個方框，五個分頁就是五組線條。
+    /// 分段控制器只有一條底槽，選取靠「浮起來的那一段」而不是外框，
+    /// 一眼看得出選中誰，畫出來的線卻少了五倍。
+    ///
+    /// 版面用 <see cref="DockPanel"/> 而不是 <see cref="Grid"/>：
+    /// <see cref="FrameworkElementFactory"/> 沒辦法宣告資料列定義，
+    /// 而「頂端一條、其餘填滿」本來就是停駐面板在做的事。
+    /// </remarks>
+    public static ControlTemplate CreateTabControlTemplate()
+    {
+        var layout = new FrameworkElementFactory(typeof(DockPanel));
+        layout.SetValue(DockPanel.LastChildFillProperty, true);
+
+        var track = new FrameworkElementFactory(typeof(Border));
+        track.SetValue(DockPanel.DockProperty, Dock.Top);
+        track.SetValue(Border.BackgroundProperty, VsThemeBrushes.SegmentTrack);
+        track.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
+        track.SetValue(Border.PaddingProperty, new Thickness(2));
+        track.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        track.SetValue(FrameworkElement.MarginProperty, new Thickness(14, 0, 14, 10));
+
+        var headers = new FrameworkElementFactory(typeof(TabPanel));
+        headers.SetValue(Panel.IsItemsHostProperty, true);
+        track.AppendChild(headers);
+
+        // ContentSource 不是相依性屬性，在這裡設不了；直接把 Content 綁到
+        // 分頁控制項選到的那一份內容，效果一樣。
+        var body = new FrameworkElementFactory(typeof(ContentPresenter));
+        body.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(TabControl.SelectedContent)));
+
+        layout.AppendChild(track);
+        layout.AppendChild(body);
+
+        return new ControlTemplate(typeof(TabControl)) { VisualTree = layout };
+    }
+
+    /// <summary>分段控制器裡的一段。</summary>
+    public static ControlTemplate CreateTabItemTemplate()
+    {
+        var segment = new FrameworkElementFactory(typeof(Border)) { Name = "segment" };
+        segment.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        segment.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
+        segment.SetValue(Border.PaddingProperty, new Thickness(12, 3, 12, 4));
+
+        var label = new FrameworkElementFactory(typeof(ContentPresenter)) { Name = "label" };
+        label.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(TabItem.Header)));
+        label.SetValue(TextElement.ForegroundProperty, VsThemeBrushes.DimForeground);
+        label.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        segment.AppendChild(label);
+
+        var template = new ControlTemplate(typeof(TabItem)) { VisualTree = segment };
+
+        // 滑鼠掃過只把字提亮，不加底色——底色是「被選中」的專屬訊號。
+        AddTrigger(
+            template, UIElement.IsMouseOverProperty,
+            TextElement.ForegroundProperty, VsThemeBrushes.ListForeground, "label");
+
+        var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
+        selected.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.ListBackground, "segment"));
+        selected.Setters.Add(new Setter(TextElement.ForegroundProperty, VsThemeBrushes.ListForeground, "label"));
+        template.Triggers.Add(selected);
+
+        return template;
+    }
+
+    /// <summary>欄位標題：一條細線把它跟資料分開，字比資料更小也更淡。</summary>
+    public static Style CreateColumnHeaderStyle(Metrics metrics)
+    {
+        var style = new Style(typeof(DataGridColumnHeader));
+        style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+        style.Setters.Add(new Setter(Control.BorderBrushProperty, VsThemeBrushes.Hairline));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
+        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.DimForeground));
+        style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
+        style.Setters.Add(new Setter(Control.FontSizeProperty, metrics.ColumnHeader));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 0, 10, 0)));
+        style.Setters.Add(new Setter(FrameworkElement.HeightProperty, metrics.RowHeight + 2));
+        style.Setters.Add(new Setter(
+            Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+        return style;
+    }
+
+    /// <summary>儲存格：只有選取才換底色，沒有焦點框也沒有格線。</summary>
+    public static Style CreateCellStyle()
+    {
+        var style = new Style(typeof(DataGridCell));
+        style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
+
+        var selected = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
+        selected.Setters.Add(new Setter(Control.BackgroundProperty, VsThemeBrushes.RowSelected));
+        selected.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
+        style.Triggers.Add(selected);
+
+        return style;
+    }
+
+    /// <summary>資料格裡的文字：垂直置中，左右留出與標題一致的內距。</summary>
+    public static Style CreateCellTextStyle()
+    {
+        var style = new Style(typeof(TextBlock));
+        style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(10, 0, 10, 0)));
+        style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+        style.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+        return style;
+    }
+
+    /// <summary>
+    /// 編輯中的儲存格。
+    /// </summary>
+    /// <remarks>
+    /// 沒有這一份，按下去編輯的那一格會換成內建樣式的輸入欄——白底黑字，
+    /// 在深色主題裡就是一格突然亮起來的白。
+    /// </remarks>
+    public static Style CreateCellEditorStyle()
+    {
+        var style = new Style(typeof(TextBox));
+        style.Setters.Add(new Setter(Control.BackgroundProperty, VsThemeBrushes.ListBackground));
+        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
+        style.Setters.Add(new Setter(TextBoxBase.CaretBrushProperty, VsThemeBrushes.ListForeground));
+        style.Setters.Add(new Setter(TextBoxBase.SelectionBrushProperty, VsThemeBrushes.RowSelected));
+        style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 0, 8, 0)));
+        style.Setters.Add(new Setter(
+            Control.VerticalContentAlignmentProperty, VerticalAlignment.Center));
+        return style;
+    }
+
+    private static Binding TemplatedParent(string path)
+    {
+        return new Binding(path) { RelativeSource = RelativeSource.TemplatedParent };
+    }
+
+    private static void AddTrigger(
+        ControlTemplate template,
+        DependencyProperty property,
+        DependencyProperty target,
+        object targetValue,
+        string targetName)
+    {
+        var trigger = new Trigger { Property = property, Value = true };
+        trigger.Setters.Add(new Setter(target, targetValue, targetName));
+        template.Triggers.Add(trigger);
+    }
+}

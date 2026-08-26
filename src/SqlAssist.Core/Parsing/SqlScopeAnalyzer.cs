@@ -10,8 +10,10 @@ namespace SqlAssist.Core.Parsing;
 /// 這是別名解析的基礎：<c>FROM dbo.Lib_Reader u</c> 之後輸入 <c>u.</c> 時，
 /// 要知道 <c>u</c> 指向哪一張資料表才能列出欄位。
 ///
-/// 範圍以括號深度界定，因此子查詢內的游標看到的是子查詢自己的 FROM 子句，
-/// 而不是外層的——這正是巢狀查詢會建議錯欄位的原因。
+/// 範圍以括號界定，但**只有開啟查詢的括號算數**：子查詢內的游標看到的是
+/// 子查詢自己的 FROM 子句，而 <c>COUNT(…)</c>、<c>ISNULL(…)</c>、
+/// <c>WHERE (…)</c>、<c>IN (…)</c> 這些只是運算式的一部分，
+/// 裡面仍然看得見外層的 FROM 子句。
 /// </remarks>
 public static class SqlScopeAnalyzer
 {
@@ -49,6 +51,20 @@ public static class SqlScopeAnalyzer
         new(StringComparer.OrdinalIgnoreCase)
         {
             "FROM", "JOIN", "APPLY", "INTO", "UPDATE", "USING"
+        };
+
+    /// <summary>
+    /// 緊接在左括號後面時，代表這個括號開啟了一個新的查詢範圍。
+    /// </summary>
+    /// <remarks>
+    /// 括號在 T-SQL 裡絕大多數時候只是運算式的一部分——函式呼叫、
+    /// 運算優先權、<c>IN</c> 清單、資料行清單。只有這三個字後面跟著的
+    /// 才是自己帶 FROM 子句的查詢。
+    /// </remarks>
+    private static readonly HashSet<string> QueryKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SELECT", "WITH", "VALUES"
         };
 
     /// <summary>
@@ -129,11 +145,19 @@ public static class SqlScopeAnalyzer
 
             if (token.IsPunctuation("("))
             {
-                // 深度已經是 0 卻遇到左括號，代表游標在這個括號內：
-                // 子查詢的範圍從這裡開始，外層的 FROM 子句不算數。
                 if (depth == 0)
                 {
-                    return i + 1;
+                    // 深度已經是 0 卻遇到左括號，代表游標在這個括號內。
+                    // 但括號不一定開啟新的查詢：把 COUNT( 也當成子查詢的話，
+                    // SELECT COUNT(a.| FROM T a 的範圍就只剩括號裡那一段，
+                    // 別名 a 永遠解析不出來——那正是彙總函式裡沒有欄位建議的原因。
+                    if (OpensQuery(tokens, i))
+                    {
+                        return i + 1;
+                    }
+
+                    // 只是運算式的括號，對範圍而言不存在，繼續往外找。
+                    continue;
                 }
 
                 depth--;
@@ -159,6 +183,28 @@ public static class SqlScopeAnalyzer
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 的左括號後面是不是一個查詢。
+    /// </summary>
+    /// <remarks>
+    /// 巢狀括號要看穿：<c>((SELECT …))</c> 的外層也是查詢的開頭。用迴圈而不是遞迴——
+    /// 一份全是左括號的文字不該讓分析器把堆疊用完。
+    /// </remarks>
+    private static bool OpensQuery(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        var next = index + 1;
+
+        while (next < tokens.Count && tokens[next].IsPunctuation("("))
+        {
+            next++;
+        }
+
+        return next < tokens.Count
+            && tokens[next].Kind == SqlTokenKind.Identifier
+            && !tokens[next].IsQuoted
+            && QueryKeywords.Contains(tokens[next].Value);
     }
 
     private static int FindScopeEnd(IReadOnlyList<SqlToken> tokens, int start)

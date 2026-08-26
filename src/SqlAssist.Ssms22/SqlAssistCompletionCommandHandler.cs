@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Commanding;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.Commanding.Commands;
 using Microsoft.VisualStudio.Utilities;
@@ -34,6 +35,10 @@ internal sealed class SqlAssistCompletionCommandHandler :
     ICommandHandler<CopyCommandArgs>,
     ICommandHandler<TypeCharCommandArgs>
 {
+    /// <summary>輸入限定字的點號之後要把建議清單重開一次，那要經過 broker。</summary>
+    [Import]
+    internal IAsyncCompletionBroker Broker { get; set; } = null!;
+
     public string DisplayName => "SqlAssist 結構預覽操作";
 
     public CommandState GetCommandState(EscapeKeyCommandArgs args) => CommandState.Unspecified;
@@ -108,11 +113,17 @@ internal sealed class SqlAssistCompletionCommandHandler :
     }
 
     /// <summary>
-    /// 輸入字元時把剛打完的關鍵字轉成大寫。
+    /// 輸入字元時把剛打完的關鍵字轉成大寫，並在詞元結束時重開建議清單。
     /// </summary>
     /// <remarks>
     /// 一律回傳 false：這個處理常式只負責改寫已經在緩衝區裡的那個字，
     /// 使用者輸入的字元仍然交給編輯器插入，其他擴充也還看得到這次按鍵。
+    ///
+    /// 這裡只用字元本身做第一層篩選——識別字的字元一定不會換掉上下文，
+    /// 平台自己的篩選是對的，連排程都不必。真正的判斷在
+    /// <see cref="SqlCompletionReopen.AfterSeparator"/> 裡，
+    /// 因為它要看的是這個字元<b>已經進入緩衝區之後</b>的文字：
+    /// 此時此刻那個字元還沒被插入。
     /// </remarks>
     public bool ExecuteCommand(TypeCharCommandArgs args, CommandExecutionContext executionContext)
     {
@@ -121,6 +132,15 @@ internal sealed class SqlAssistCompletionCommandHandler :
             SqlKeywordCasing.ApplyBeforeTypedCharacter(args.TextView, args.SubjectBuffer, args.TypedChar);
             return false;
         });
+
+        if (!SqlCompletionContextAnalyzer.IsIdentifierCharacter(args.TypedChar))
+        {
+            Execute("TypeChar", () =>
+            {
+                SqlCompletionReopen.AfterSeparator(args.TextView, Broker);
+                return false;
+            });
+        }
 
         return false;
     }

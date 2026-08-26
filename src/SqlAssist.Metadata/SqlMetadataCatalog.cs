@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -287,6 +288,7 @@ public sealed class SqlMetadataCatalog
         using var connection = _connectionSource.OpenConnection();
         var objects = new List<SqlObjectInfo>();
         var schemas = new List<string>();
+        var databases = new List<string>();
 
         using (var command = CreateCommand(connection, SqlMetadataQueries.Objects))
         using (var reader = command.ExecuteReader())
@@ -313,10 +315,30 @@ public sealed class SqlMetadataCatalog
             }
         }
 
+        // 資料庫清單查不到不該讓整份快照失敗：權限不足時 sys.databases 仍會回傳
+        // 至少一列，但自訂的伺服器角色設定確實有可能整個擋掉。少了 USE 的建議
+        // 遠比整個物件清單都拿不到輕微。
+        try
+        {
+            using var command = CreateCommand(connection, SqlMetadataQueries.Databases);
+            using var reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                databases.Add(reader.GetString(0));
+            }
+        }
+        catch (DbException)
+        {
+            databases.Clear();
+        }
+
         return new SqlDatabaseSnapshot(
             _connectionSource.DatabaseName,
             objects,
             schemas,
+            databases,
             DateTimeOffset.UtcNow);
     }
 

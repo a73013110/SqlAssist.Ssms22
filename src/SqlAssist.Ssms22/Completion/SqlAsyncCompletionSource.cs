@@ -9,10 +9,12 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.QuickInfo;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -29,7 +31,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// <summary>把建議項原始資料掛回 <see cref="CompletionItem"/> 的鍵。</summary>
     internal const string SuggestionKey = "SqlAssist.Suggestion";
 
-    private static readonly IReadOnlyList<SqlSuggestion> BuiltIn = BuiltInSuggestionCatalog.Create();
+    /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
+    private static SqlSnippetLibrary? _builtInSnippets;
+
+    private static IReadOnlyList<SqlSuggestion> _builtIn = Array.Empty<SqlSuggestion>();
+
+    private static readonly object BuiltInGate = new();
 
     private readonly SqlMetadataService _metadataService;
     private readonly IServiceProvider _serviceProvider;
@@ -226,7 +233,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 : Array.Empty<SqlSuggestion>();
         }
 
-        var builtIn = BuiltIn.Where(item => IsBuiltInEnabled(item, settings));
+        var builtIn = GetBuiltIn().Where(item => IsBuiltInEnabled(item, settings));
 
         if (!settings.IncludeDatabaseObjects)
         {
@@ -261,6 +268,32 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 提交與排名都需要拿回原始建議項；PropertyCollection 是官方提供的掛載點。
         item.Properties.AddProperty(SuggestionKey, suggestion);
         return item;
+    }
+
+    /// <summary>
+    /// 關鍵字與 Snippet 的候選清單。
+    /// </summary>
+    /// <remarks>
+    /// 關鍵字是固定的，Snippet 則會被管理介面改掉，因此整份重建，但只在
+    /// Snippet 清單真的換過之後才重建——<see cref="SqlSnippetLibrary"/> 不可變，
+    /// 存檔時整份換新，所以比對參考就足夠。
+    ///
+    /// 這個方法在背景執行緒上被呼叫，重建期間要擋住其他人拿到半成品。
+    /// </remarks>
+    private static IReadOnlyList<SqlSuggestion> GetBuiltIn()
+    {
+        var snippets = SqlSnippetStore.Current;
+
+        lock (BuiltInGate)
+        {
+            if (!ReferenceEquals(_builtInSnippets, snippets))
+            {
+                _builtIn = BuiltInSuggestionCatalog.Create(snippets);
+                _builtInSnippets = snippets;
+            }
+
+            return _builtIn;
+        }
     }
 
     /// <summary>

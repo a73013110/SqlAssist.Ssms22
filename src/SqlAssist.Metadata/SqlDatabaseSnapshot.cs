@@ -10,17 +10,20 @@ public sealed class SqlDatabaseSnapshot
         string.Empty,
         Array.Empty<SqlObjectInfo>(),
         Array.Empty<string>(),
+        Array.Empty<string>(),
         DateTimeOffset.MinValue);
 
     public SqlDatabaseSnapshot(
         string databaseName,
         IReadOnlyList<SqlObjectInfo> objects,
         IReadOnlyList<string> schemas,
+        IReadOnlyList<string> databases,
         DateTimeOffset loadedAt)
     {
         DatabaseName = databaseName ?? string.Empty;
         Objects = objects ?? Array.Empty<SqlObjectInfo>();
         Schemas = schemas ?? Array.Empty<string>();
+        Databases = databases ?? Array.Empty<string>();
         LoadedAt = loadedAt;
     }
 
@@ -29,6 +32,16 @@ public sealed class SqlDatabaseSnapshot
     public IReadOnlyList<SqlObjectInfo> Objects { get; }
 
     public IReadOnlyList<string> Schemas { get; }
+
+    /// <summary>
+    /// 這一台伺服器上的資料庫，供 <c>USE</c> 之後的建議使用。
+    /// </summary>
+    /// <remarks>
+    /// 內容是伺服器層級的，卻放在資料庫層級的快照裡：同一台伺服器的不同資料庫
+    /// 各自快取一份相同的清單。換來的是不必為了一份幾十列的名稱清單多養一層
+    /// 伺服器快取與它的失效規則。
+    /// </remarks>
+    public IReadOnlyList<string> Databases { get; }
 
     public DateTimeOffset LoadedAt { get; }
 

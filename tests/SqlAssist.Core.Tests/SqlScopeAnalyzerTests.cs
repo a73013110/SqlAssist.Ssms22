@@ -259,4 +259,79 @@ public sealed class SqlScopeAnalyzerTests
     {
         Assert.Empty(Analyze("SELECT * FROM |").Tables);
     }
+
+    /// <summary>
+    /// 運算式的括號不切開範圍。
+    /// </summary>
+    /// <remarks>
+    /// 括號在 T-SQL 裡絕大多數時候只是運算式的一部分。全部當成子查詢的話，
+    /// <c>SELECT COUNT(a.| FROM T a</c> 的範圍就只剩括號裡那一段，
+    /// 別名永遠解析不出來——彙總函式裡沒有欄位建議就是這麼來的。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT COUNT(|) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT SUM(u.Amount), MAX(|) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT ISNULL(|, 0) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT COUNT(DISTINCT |) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u WHERE (| = 1)")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u WHERE Id IN (|)")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u GROUP BY DATEPART(day, |)")]
+    public void 運算式的括號不切開範圍(string sqlWithCaret)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal("Lib_Reader", table.ObjectName);
+        Assert.Equal("u", table.Alias);
+    }
+
+    /// <summary>巢狀的函式呼叫一樣不切開。</summary>
+    [Fact]
+    public void 巢狀函式呼叫不切開範圍()
+    {
+        var scope = Analyze("SELECT ISNULL(SUM(CONVERT(int, |)), 0) FROM dbo.Lib_Reader u");
+
+        Assert.True(scope.TryResolve("u", out var table));
+        Assert.Equal("Lib_Reader", table.ObjectName);
+    }
+
+    /// <summary>
+    /// 反過來，跟著 SELECT 的括號仍然是子查詢。
+    /// </summary>
+    /// <remarks>
+    /// 這是整條規則的另一半：分不出兩者的話，修好彙總函式就會弄壞子查詢。
+    /// </remarks>
+    [Fact]
+    public void 括號後面接SELECT時仍是子查詢()
+    {
+        var table = Assert.Single(
+            Analyze("SELECT * FROM Parent p WHERE Id IN (SELECT | FROM Child c)").Tables);
+
+        Assert.Equal("Child", table.ObjectName);
+    }
+
+    /// <summary>函式的引數裡包著子查詢時，子查詢仍然自成範圍。</summary>
+    [Fact]
+    public void 函式引數裡的子查詢仍自成範圍()
+    {
+        var table = Assert.Single(
+            Analyze("SELECT ISNULL((SELECT TOP 1 | FROM Child c), 0) FROM Parent p").Tables);
+
+        Assert.Equal("Child", table.ObjectName);
+        Assert.Equal("c", table.Alias);
+    }
+
+    /// <summary>
+    /// INSERT 的資料行清單看得到目標資料表。
+    /// </summary>
+    /// <remarks>
+    /// 順帶的好處：那個括號同樣不是子查詢，因此 <c>INTO t (</c> 裡面
+    /// 列得出 <c>t</c> 的欄位——那正是使用者在那個位置要的東西。
+    /// </remarks>
+    [Fact]
+    public void INSERT的資料行清單看得到目標資料表()
+    {
+        var table = Assert.Single(Analyze("INSERT INTO dbo.Lib_Reader (|)").Tables);
+
+        Assert.Equal("Lib_Reader", table.ObjectName);
+    }
 }

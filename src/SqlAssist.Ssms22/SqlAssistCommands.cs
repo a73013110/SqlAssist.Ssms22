@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 
 namespace SqlAssist.Ssms22;
 
@@ -47,6 +48,7 @@ internal sealed class SqlAssistCommands
 
         AddCommand(CommandIds.ShowObjectStructure, ShowObjectStructure);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
+        AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
 
@@ -206,6 +208,28 @@ internal sealed class SqlAssistCommands
             OLEMSGICON.OLEMSGICON_INFO,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+    }
+
+    /// <summary>
+    /// 開啟程式碼片段管理員。
+    /// </summary>
+    /// <remarks>
+    /// 存檔之後不必手動重整建議清單：清單的候選是依 <c>SqlSnippetStore.Current</c>
+    /// 的參考重建的，存檔換掉了那份參考，下一次按鍵就會拿到新的。
+    /// </remarks>
+    private void ManageSnippets(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            new SqlSnippetManagerWindow().ShowModal();
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"開啟程式碼片段管理員失敗：{exception}");
+            ShowMessage($"開啟程式碼片段管理員失敗：{exception.Message}");
+        }
     }
 
     /// <summary>開啟 Unified Settings 並定位到 SqlAssist 分類。</summary>

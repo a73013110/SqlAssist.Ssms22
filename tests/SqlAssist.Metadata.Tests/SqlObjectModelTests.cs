@@ -85,7 +85,12 @@ public sealed class SqlObjectModelTests
 
     private static SqlDatabaseSnapshot Snapshot(params SqlObjectInfo[] objects)
     {
-        return new SqlDatabaseSnapshot("Sales", objects, new[] { "dbo" }, System.DateTimeOffset.UtcNow);
+        return new SqlDatabaseSnapshot(
+            "Sales",
+            objects,
+            new[] { "dbo" },
+            new[] { "Sales", "master" },
+            System.DateTimeOffset.UtcNow);
     }
 
     [Fact]

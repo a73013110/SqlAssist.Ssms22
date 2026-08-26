@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core;
+using SqlAssist.Core.Snippets;
 using Xunit;
 
 namespace SqlAssist.Core.Tests;
@@ -115,7 +116,7 @@ public sealed class SuggestionMatcherTests
     [Fact]
     public void 完全相同的輸入一定排第一()
     {
-        var candidates = BuiltInSuggestionCatalog.Create()
+        var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.CreateDefault())
             .Concat(new[] { Table("ssf_Archive"), Table("ssfLog") })
             .ToArray();
 
@@ -137,7 +138,7 @@ public sealed class SuggestionMatcherTests
     [Fact]
     public void FROM之後只顯示資料表與View()
     {
-        var candidates = BuiltInSuggestionCatalog.Create()
+        var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.CreateDefault())
             .Concat(new[] { Table("Publisher"), Procedure("usp_Publisher") })
             .ToArray();
 
@@ -238,7 +239,7 @@ public sealed class SuggestionMatcherTests
     [Fact]
     public void 輸入單一字母時關鍵字與Snippet排在資料表之前()
     {
-        var candidates = BuiltInSuggestionCatalog.Create()
+        var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.CreateDefault())
             .Concat(new[] { Table("Lib_Reader") })
             .ToArray();
 

@@ -12,6 +12,8 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("INSERT INTO ", CompletionTarget.DataSource)]
     [InlineData("ALTER PROCEDURE ", CompletionTarget.Procedure)]
     [InlineData("ALTER FUNCTION ", CompletionTarget.Function)]
+    [InlineData("USE ", CompletionTarget.Database)]
+    [InlineData("GO\nUSE ", CompletionTarget.Database)]
     public void 依前導關鍵字決定建議目標(string textBeforeCaret, CompletionTarget expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

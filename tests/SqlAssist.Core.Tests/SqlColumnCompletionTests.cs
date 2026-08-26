@@ -143,4 +143,48 @@ public sealed class SqlColumnCompletionTests
         Assert.False(Analyze("SELECT 'u.|' FROM dbo.Lib_Reader u").IsValid);
         Assert.False(Analyze("-- u.|\r\nSELECT * FROM dbo.Lib_Reader u").IsValid);
     }
+
+    /// <summary>
+    /// 括號裡的別名一樣解析得出來。
+    /// </summary>
+    /// <remarks>
+    /// 實機回報：<c>SELECT COUNT(a.| FROM dbo.PUBLISHER a</c> 沒有任何建議。
+    /// 原因是範圍分析器把每一個左括號都當成子查詢，括號裡看不到外層的 FROM 子句，
+    /// 別名解析不出來就退回結構描述解讀，而沒有一個物件屬於名為 <c>a</c> 的
+    /// 結構描述——清單於是完全是空的。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT COUNT(u.|) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT COUNT(u.| FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT SUM(u.Amount), MAX(u.|) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT COUNT(DISTINCT u.|) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT ISNULL(u.|, 0) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT ISNULL(SUM(CONVERT(int, u.|)), 0) FROM dbo.Lib_Reader u")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u WHERE (u.| = 1)")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u WHERE Id IN (u.|)")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader u ORDER BY DATEPART(day, u.|)")]
+    public void 括號內仍解析得出別名(string sqlWithCaret)
+    {
+        var context = Analyze(sqlWithCaret);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
+    }
+
+    /// <summary>
+    /// 子查詢仍然自成範圍。
+    /// </summary>
+    /// <remarks>
+    /// 規則的另一半：分不出「開啟查詢的括號」與「運算式的括號」的話，
+    /// 修好彙總函式就會弄壞子查詢，內層的別名會解析到外層的資料表。
+    /// </remarks>
+    [Fact]
+    public void 子查詢內的別名仍指向子查詢的資料表()
+    {
+        var context = Analyze(
+            "SELECT * FROM dbo.Lib_Reader u WHERE Id IN (SELECT c.| FROM dbo.Lib_Shelf c)");
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.Equal("Lib_Shelf", context.QualifiedTable!.ObjectName);
+    }
 }

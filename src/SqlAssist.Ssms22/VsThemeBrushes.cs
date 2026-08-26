@@ -44,8 +44,11 @@ internal static class VsThemeBrushes
     /// <summary>交替列；淡到只夠讓眼睛沿著一列橫著走，不會被讀成分組。</summary>
     public static Brush RowAlternate => Overlay(0.045);
 
-    /// <summary>選取的儲存格。</summary>
+    /// <summary>選取的儲存格；也是按鈕被滑鼠掃過時的底色。</summary>
     public static Brush RowSelected => Overlay(0.12);
+
+    /// <summary>按下去的那一刻；比滑鼠掃過再重一階，手指離開就退回去。</summary>
+    public static Brush RowPressed => Overlay(0.18);
 
     /// <summary>分段控制器的底槽。</summary>
     public static Brush SegmentTrack => Overlay(0.06);

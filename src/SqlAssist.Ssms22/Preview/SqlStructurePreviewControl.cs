@@ -11,6 +11,7 @@ using System.Windows.Media;
 using SqlAssist.Core;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -172,7 +173,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _title = new TextBlock
         {
-            FontFamily = PreviewChrome.InterfaceFont,
+            FontFamily = SqlAssistChrome.InterfaceFont,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = VsThemeBrushes.ListForeground
         };
@@ -181,7 +182,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         // 該跟名字待在一起。底部那一條留給操作之後的回饋，平常是空的。
         _summary = new TextBlock
         {
-            FontFamily = PreviewChrome.InterfaceFont,
+            FontFamily = SqlAssistChrome.InterfaceFont,
             Margin = new Thickness(0, 1, 0, 0),
             TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = VsThemeBrushes.DimForeground
@@ -189,7 +190,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _status = new TextBlock
         {
-            FontFamily = PreviewChrome.InterfaceFont,
+            FontFamily = SqlAssistChrome.InterfaceFont,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Margin = new Thickness(14, 0, 24, 6),
@@ -246,7 +247,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _parametersTab = new TabItem { Header = "參數", Content = _parameters };
         _scriptTab = new TabItem { Header = "指令碼", Content = _script };
 
-        var segment = PreviewChrome.CreateTabItemTemplate();
+        var segment = SqlAssistChrome.CreateTabItemTemplate();
         _columnsTab.Template = segment;
         _indexesTab.Template = segment;
         _foreignKeysTab.Template = segment;
@@ -258,8 +259,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Background = VsThemeBrushes.ListBackground,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
-            FontFamily = PreviewChrome.InterfaceFont,
-            Template = PreviewChrome.CreateTabControlTemplate()
+            FontFamily = SqlAssistChrome.InterfaceFont,
+            Template = SqlAssistChrome.CreateTabControlTemplate()
         };
         _tabs.Items.Add(_columnsTab);
         _tabs.Items.Add(_indexesTab);
@@ -990,10 +991,10 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Margin = new Thickness(2, 0, 0, 0),
             Padding = new Thickness(10, 3, 10, 4),
             ToolTip = tooltip,
-            FontFamily = PreviewChrome.InterfaceFont,
+            FontFamily = SqlAssistChrome.InterfaceFont,
             FontSize = 12,
             Foreground = VsThemeBrushes.DimForeground,
-            Template = PreviewChrome.CreateGhostButtonTemplate(),
+            Template = SqlAssistChrome.CreateGhostButtonTemplate(),
 
             // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
             Focusable = false
@@ -1056,7 +1057,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
             GridLinesVisibility = DataGridGridLinesVisibility.None,
             Background = VsThemeBrushes.ListBackground,
             Foreground = VsThemeBrushes.ListForeground,
-            FontFamily = PreviewChrome.InterfaceFont,
+            FontFamily = SqlAssistChrome.InterfaceFont,
 
             // 交替底色只能走資料格自己的這兩個屬性。DataGridRow.Background 是
             // 「轉移屬性」，資料格會把自己的值蓋到每一列上，優先權高過任何
@@ -1064,14 +1065,14 @@ internal sealed class SqlStructurePreviewControl : UserControl
             RowBackground = VsThemeBrushes.ListBackground,
             AlternatingRowBackground = VsThemeBrushes.RowAlternate,
             AlternationCount = 2,
-            CellStyle = PreviewChrome.CreateCellStyle(),
+            CellStyle = SqlAssistChrome.CreateCellStyle(),
             BorderThickness = new Thickness(0),
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             ContextMenu = CreateGridMenu()
         };
 
-        var cellText = PreviewChrome.CreateCellTextStyle();
+        var cellText = SqlAssistChrome.CreateCellTextStyle();
 
         foreach (var (header, path) in columns)
         {
@@ -1123,14 +1124,14 @@ internal sealed class SqlStructurePreviewControl : UserControl
         }
 
         _fontSize = baseSize;
-        var metrics = new PreviewChrome.Metrics(baseSize);
+        var metrics = new SqlAssistChrome.Metrics(baseSize);
 
         _title.FontSize = metrics.Title;
         _summary.FontSize = metrics.Caption;
         _status.FontSize = metrics.Caption;
         _tabs.FontSize = metrics.Body;
 
-        var headerStyle = PreviewChrome.CreateColumnHeaderStyle(metrics);
+        var headerStyle = SqlAssistChrome.CreateColumnHeaderStyle(metrics);
 
         foreach (var grid in new[] { _columns, _indexes, _foreignKeys, _parameters })
         {

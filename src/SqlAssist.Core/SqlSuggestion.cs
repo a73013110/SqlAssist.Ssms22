@@ -10,7 +10,8 @@ public sealed class SqlSuggestion
         SuggestionKind kind,
         bool triggerFollowUp = false,
         string? schemaName = null,
-        object? tag = null)
+        object? tag = null,
+        SqlKeywordPosition positions = SqlKeywordPosition.Any)
     {
         DisplayText = displayText;
         InsertionText = insertionText;
@@ -20,6 +21,7 @@ public sealed class SqlSuggestion
         TriggerFollowUp = triggerFollowUp;
         SchemaName = schemaName;
         Tag = tag;
+        Positions = positions;
     }
 
     public string DisplayText { get; }
@@ -41,4 +43,14 @@ public sealed class SqlSuggestion
     /// 讓呼叫端可以在使用者選取時才去載入欄位與定義，而不必在建立建議時就全部帶齊。
     /// </summary>
     public object? Tag { get; }
+
+    /// <summary>
+    /// 這筆建議可以出現的位置。
+    /// </summary>
+    /// <remarks>
+    /// 只有關鍵字會收斂到特定位置；資料庫物件與 Snippet 一律是
+    /// <see cref="SqlKeywordPosition.Any"/>，它們的過濾走
+    /// <see cref="CompletionTarget"/> 那條路。
+    /// </remarks>
+    public SqlKeywordPosition Positions { get; }
 }

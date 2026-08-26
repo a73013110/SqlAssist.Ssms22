@@ -52,8 +52,8 @@
       "type": "boolean",
       "default": true,
       "order": 30,
-      "title": "列出程式碼片段（ssf、ap、af）",
-      "description": "ssf 展開為 SELECT * FROM 並接著列出資料表；ap 與 af 展開為 ALTER PROCEDURE 與 ALTER FUNCTION 並帶入完整定義。",
+      "title": "列出程式碼片段",
+      "description": "把自訂的程式碼片段一起列進建議清單。內容以「工具 → SqlAssist → 程式碼片段…」增刪，預設有 ssf、ap、af 三個。",
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
     "sqlAssist.suggestions.includeDatabaseObjects": {
@@ -170,6 +170,13 @@
             "text": "關閉 SSMS 內建的 T-SQL IntelliSense",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
             "id": 519
+          }
+        },
+        {
+          "vsct": {
+            "text": "編輯程式碼片段…",
+            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
+            "id": 521
           }
         }
       ]

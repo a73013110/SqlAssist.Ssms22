@@ -43,6 +43,24 @@ WHERE s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
 ORDER BY s.name;";
 
     /// <summary>
+    /// 第一層：資料庫清單，供 <c>USE</c> 之後的建議使用。
+    /// </summary>
+    /// <remarks>
+    /// 只列線上（state = 0）的資料庫：離線或還原中的資料庫 <c>USE</c> 不進去，
+    /// 列出來只會讓使用者選到一個必定失敗的名稱。
+    ///
+    /// <c>HAS_DBACCESS</c> 把沒有權限的資料庫濾掉——在共用主機上
+    /// <c>sys.databases</c> 看得到的名稱遠多於使用者進得去的。
+    /// 它對離線資料庫回傳 NULL，因此比較寫成 = 1 而不是 &lt;&gt; 0。
+    /// </remarks>
+    public const string Databases = @"
+SELECT d.name
+FROM sys.databases AS d
+WHERE d.state = 0
+  AND HAS_DBACCESS(d.name) = 1
+ORDER BY d.name;";
+
+    /// <summary>
     /// 第二層：單一物件的欄位。主索引鍵資訊由 sys.indexes／sys.index_columns 帶出，
     /// 讓滑鼠停留提示能直接標示 PK。
     /// </summary>
