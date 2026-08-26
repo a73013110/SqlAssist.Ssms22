@@ -1,17 +1,17 @@
 using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
 
 [Export(typeof(IWpfTextViewCreationListener))]
-[Name("SqlAssist SSMS 22 View Diagnostics")]
+[Name("SqlAssist SSMS 22 View Setup")]
 [ContentType("SQL")]
 [TextViewRole(PredefinedTextViewRoles.Editable)]
 internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationListener
@@ -19,14 +19,13 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     [Import(typeof(SVsServiceProvider))]
     internal IServiceProvider ServiceProvider { get; set; } = null!;
 
-    [Import]
-    internal ICompletionBroker CompletionBroker { get; set; } = null!;
-
     /// <summary>
-    /// 新版非同步 IntelliSense 的 broker，只用於量測平台是否支援 SQL 內容類型。
-    /// 允許缺席：SSMS 若沒有匯出這個實作，整個 MEF part 不可以因此組合失敗，
-    /// 否則建議控制器會跟著失效。
+    /// 新版非同步 IntelliSense 的 broker，結構預覽要靠它得知清單開了沒。
     /// </summary>
+    /// <remarks>
+    /// 允許缺席：SSMS 若沒有匯出這個實作，整個 MEF part 不可以因此組合失敗，
+    /// 否則連建議清單都會跟著失效。
+    /// </remarks>
     [Import(AllowDefault = true)]
     internal IAsyncCompletionBroker? AsyncCompletionBroker { get; set; }
 
@@ -53,13 +52,11 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
         {
             SqlAssistRuntimeState.MarkTextViewCreated();
             ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
-            RecordAsyncCompletionSupport(textView);
-            var controller = new SqlCompletionController(textView, ServiceProvider, CompletionBroker);
-            CompletionSessionRegistry.Register(textView, controller);
 
-            // 本擴充的清單開起來時，把 SSMS 內建的那一份收掉；兩份同時存在會讓
-            // 舊版語言服務在退格時對著已經換掉的狀態算範圍。
-            NativeIntelliSenseSuppressor.Attach(textView, CompletionBroker, AsyncCompletionBroker);
+            // 套件可能還沒載入（自動載入與第一個查詢視窗的先後順序不保證），
+            // 所以設定與視窗狀態在這裡也接一次；兩者都是重複呼叫無害。
+            SqlAssistSettingsStore.Initialize(ServiceProvider);
+            PreviewWindowState.Initialize(ServiceProvider);
 
             // 結構預覽要跟著建議清單開關，也要在清單開起來的空檔先把視窗建好。
             if (PreviewServices is { } previewServices)
@@ -70,36 +67,11 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
 
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
-            SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 建議控制器已載入", textView);
+            SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 已載入", textView);
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"建立 SQL 編輯器時初始化 SqlAssist 失敗：{exception}");
-        }
-    }
-
-    private void RecordAsyncCompletionSupport(IWpfTextView textView)
-    {
-        if (AsyncCompletionBroker is null)
-        {
-            AsyncCompletionProbe.RecordBrokerMissing();
-            SqlAssistDiagnostics.WriteAlways("SSMS 沒有匯出 IAsyncCompletionBroker，非同步 IntelliSense 不可用");
-            return;
-        }
-
-        try
-        {
-            var contentType = textView.TextBuffer.ContentType;
-            var supported = AsyncCompletionBroker.IsCompletionSupported(contentType);
-            AsyncCompletionProbe.RecordBrokerSupport(contentType.TypeName, supported);
-            SqlAssistDiagnostics.WriteAlways(
-                $"非同步 IntelliSense 支援狀態：{contentType.TypeName} → {supported}");
-        }
-        catch (Exception exception)
-        {
-            // 量測失敗不可影響編輯器；記下原因即可。
-            AsyncCompletionProbe.RecordBrokerFailure(exception);
-            SqlAssistDiagnostics.WriteAlways($"查詢非同步 IntelliSense 支援狀態失敗：{exception.Message}");
         }
     }
 }

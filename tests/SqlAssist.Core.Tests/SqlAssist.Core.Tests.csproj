@@ -15,4 +15,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!--
+      Unified Settings 的註冊檔與 SqlAssistSettings 各自宣告了一次預設值；
+      SqlAssistRegistrationTests 比對兩者，所以測試輸出裡要有這份檔案。
+    -->
+    <None Include="..\..\src\SqlAssist.Ssms22\SqlAssist.registration.json"
+          Link="SqlAssist.registration.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

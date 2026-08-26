@@ -8,6 +8,7 @@ using SqlAssist.Core;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
@@ -84,9 +85,9 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         IAsyncQuickInfoSession session,
         CancellationToken cancellationToken)
     {
-        var settings = SettingsService.Default.GetSnapshot();
+        var settings = SqlAssistSettingsStore.Current;
 
-        if (_disposed || !settings.Enabled || !settings.Features.ObjectHover)
+        if (_disposed || !settings.Enabled || !settings.HoverEnabled)
         {
             return null;
         }

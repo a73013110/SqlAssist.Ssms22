@@ -1,7 +1,7 @@
 # SqlAssist for SSMS 22
 
 針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-目前版本為 **0.10.0**。
+目前版本為 **0.12.0**。
 
 ## 專案結構
 
@@ -18,11 +18,12 @@ src/SqlAssist.Ssms22     net48 VSIX
   Completion/            平台原生非同步 IntelliSense 的來源、排名器與提交管理員
   QuickInfo/             滑鼠停留的物件結構提示
   Preview/               浮動結構預覽視窗
-  Options/               工具→選項 的設定頁
+  Settings/              Unified Settings 的讀寫與預覽視窗狀態
+  SqlAssist.registration.json   Unified Settings 的設定註冊檔
 ```
 
 核心邏輯刻意集中在沒有 Visual Studio 相依的兩個專案，因此排名、解析與
-中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 357 項單元測試。
+中繼資料對應都可以在不啟動 SSMS 的情況下驗證。目前共 354 項單元測試。
 
 ## 功能
 
@@ -46,25 +47,27 @@ Tab   → 提交選取項
 
 ### 清單引擎
 
-預設使用**平台原生的非同步 IntelliSense**：清單的定位、螢幕邊界、捲動、滑鼠操作
+清單由**平台原生的非同步 IntelliSense** 呈現：定位、螢幕邊界、捲動、滑鼠操作
 與佈景主題都由編輯器負責，與其他擴充套件共用同一個 session。
 
 排名不交給平台：平台預設的比對器沒有詞首感知，接上去 `libr` 又會排不到
 `Lib_Reader`。因此本擴充匯出自己的 `IAsyncCompletionItemManager`，
 沿用同一套模糊比對分數，並把命中區段交給平台畫粗體。
 
-`工具 → 選項 → SqlAssist → 建議清單 → 清單引擎` 可以切回自製 WPF 清單
-（`custom`）。那是後備選項，已知限制是只能用鍵盤操作，而且會與 SSMS 內建清單
-同時出現。
+### 與 SSMS 內建 IntelliSense 並存
 
-SSMS 內建的 T-SQL IntelliSense 由它自己的命令篩選器觸發，不會因為有新版建議
-來源就讓位。預設會在本擴充的清單被觸發的那一刻把它關掉一次——不是每一次按鍵
-都關：那會在舊版語言服務還在計算時把 session 抽掉，反而會跳出
-「值未落在預期的範圍內。」。兩份清單同時活著時，退格也會踩到同一個問題。
+SSMS 內建的 T-SQL IntelliSense 是舊版語言服務，由它自己的命令篩選器觸發，
+不會因為有新版建議來源就讓位。兩份清單同時活著時，舊版語言服務會對著已經被
+換掉的狀態算範圍，於是每退一格就跳一次「值未落在預期的範圍內。」。
 
-**想徹底避免兩份清單互搶，建議直接在「工具 → 選項 → 文字編輯器 →
-Transact-SQL → IntelliSense」關閉 SSMS 內建的 IntelliSense**，
-再把「關閉 SSMS 內建 IntelliSense 清單」也關掉。
+**請關閉 SSMS 內建的 T-SQL IntelliSense。**
+設定頁在偵測到它還開著時會顯示警告，旁邊就有一鍵關閉的按鈕；
+也可以自己到設定裡搜尋 `IntelliSense` 關掉
+（moniker 是 `languages.sql.intelliSense.enableIntellisense`）。
+
+早期版本改用執行期硬關對方 session 的做法，但在 SSMS 22 兩條管線共用同一條
+命令鏈，整批關掉會連帶收掉自己剛觸發的那一個，反而讓清單完全不出現。
+那條路徑已經移除。
 
 ### 內建 Snippet
 
@@ -322,61 +325,70 @@ SSMS 詢問目前連線——那個呼叫有 UI 執行緒相依性，忙的時�
 
 ## 設定
 
-**工具 → 選項 → SqlAssist**，分為「一般」「建議清單」「結構預覽」三頁，存檔後立即生效。
-設定同時寫入下列檔案，兩邊看到的是同一份狀態：
+設定全部由 **SSMS 22 的 Unified Settings** 提供，沒有自訂設定檔。
+按 `Ctrl+,` 開啟設定視窗，或從 **工具 → SqlAssist → 設定…** 直接跳到 SqlAssist 分類。
+改完立即生效，不必重開查詢視窗；設定會跟著 SSMS 的設定漫遊同步。
+
+| 分類 | 設定 | 預設 |
+| --- | --- | --- |
+| 一般 | 啟用 SqlAssist | `true` |
+| | 輸入時把 T-SQL 關鍵字轉成大寫 | `true` |
+| 建議清單 | 輸入時自動彈出建議清單 | `true` |
+| | 輸入幾個字元後才彈出清單 | `1` |
+| | 列出程式碼片段（ssf、ap、af） | `true` |
+| | 列出資料庫物件與欄位 | `true` |
+| | 插入物件時補上結構描述名稱 | `true` |
+| | 插入物件時加上方括號 | `false` |
+| 物件結構 | 滑鼠停留時顯示物件結構 | `true` |
+| | 建議清單的結構預覽何時展開 | `delay` |
+| | 自動展開前的停留毫秒數 | `220` |
+| | 預覽視窗的位置 | `stacked` |
+| | 預覽視窗的字級 | `14` |
+| 診斷 | 寫入詳細診斷紀錄 | `false` |
+
+moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
+`sqlAssist.suggestions.triggerAfterCharacters`。
+註冊檔在 [`src/SqlAssist.Ssms22/SqlAssist.registration.json`](src/SqlAssist.Ssms22/SqlAssist.registration.json)，
+`SqlAssistRegistrationTests` 會比對它與 `SqlAssistSettings` 的預設值是否一致。
+
+「啟用 SqlAssist」是總開關，關掉之後其餘各頁的功能全部停止運作，但**設定頁上不會跟著變灰**——
+原因見下面的〈條件式只能參照同分類〉。
+
+### 條件式只能參照同分類
+
+`enableWhen` 與 `visibleWhen` 只能參照**同一個分類裡**的設定。跨分類參照不會有任何錯誤訊息：
+殼層安靜地把整個設定丟掉，該分類的設定全被丟掉之後就成了空分類，而空分類預設不顯示
+（`canBeVisibleWhenEmpty` 預設 `false`），於是整頁在設定視窗裡人間蒸發。
+
+第一次實作時就踩了這個坑：11 項設定的 `enableWhen` 都寫了
+`${config:sqlAssist.general.enabled}`，而它們不在 `general` 分類裡，結果「建議清單」與
+「物件結構」兩頁完全不見。從程式碼、schema 驗證到建置都看不出任何異狀——
+`SqlAssistRegistrationTests.條件式只參照同分類的設定` 就是為了讓它變成建置失敗。
+
+代價是總開關無法讓其他頁變灰。這是 Unified Settings 的限制，不是設計選擇；
+SSMS 自己的 `RadLangSvc.registration.json` 也只做同分類參照。
+
+### 三件刻意<b>不</b>是設定的東西
+
+- **清單引擎**：固定使用平台原生管線，舊的自製 WPF 清單已移除。
+- **清單最多顯示筆數**：模糊比對後的截斷上限固定 300。這是效能保險而不是偏好——
+  使用者感覺不到差別，因為清單本來就要捲動，再多打一個字排名也整個重算。
+- **預覽視窗的寬高**：拖曳握把記下來的是視窗狀態不是偏好，改存 VS 的
+  `WritableSettingsStore`（`SqlAssist\Preview`）。放進 Unified Settings 等於
+  每放開一次滑鼠就提交一次設定變更並廣播通知。
+
+**工具 → SqlAssist** 只留下編輯途中會想按的東西：
 
 ```text
-%LOCALAPPDATA%\SqlAssist.Ssms22\settings.json
+啟用 SqlAssist ☑            Ctrl+Alt+Shift+S
+顯示即時建議 ☑              只關清單，Hover 與關鍵字大寫照常
+─────────────
+顯示游標處物件的結構         預覽關成 off 時的唯一入口
+重新整理建議                 改完資料表結構後用
+─────────────
+設定…                        開啟 Unified Settings 並定位到 sqlAssist
+顯示診斷狀態                 回報問題時用
 ```
-
-**工具 → SqlAssist** 提供即時開關與動作：
-
-```text
-啟用 SqlAssist / 即時建議
-Tab 快捷展開 / 關鍵字轉大寫 / Procedure／Function 選擇器 / 結果格命令
-顯示游標處物件的結構 / 顯示診斷狀態 / 重新整理建議 / 設定… / 編輯 settings.json
-非同步建議追蹤
-```
-
-快捷鍵：`Ctrl+Alt+Shift+S` 全域開關
-
-設定檔範例：
-
-```json
-{
-  "enabled": true,
-  "features": {
-    "tabExpansion": true,
-    "keywordUppercase": true,
-    "objectPicker": true,
-    "objectHover": true,
-    "resultGridCommands": true
-  },
-  "suggestions": {
-    "enabled": true,
-    "triggerAfterCharacters": 1,
-    "maximumItems": 100,
-    "showPreview": true,
-    "delayMilliseconds": 70,
-    "qualifyObjectNames": false,
-    "useSquareBrackets": false,
-    "engine": "native",
-    "suppressNativeIntelliSense": true
-  },
-  "preview": {
-    "mode": "rightArrow",
-    "delayMilliseconds": 220,
-    "width": 620,
-    "height": 420,
-    "placement": "beside",
-    "fontSize": 13
-  },
-  "diagnosticsEnabled": false,
-  "asyncCompletionProbe": false
-}
-```
-
-設定採用同目錄暫存檔原子取代，避免 SSMS 中止時只寫入半份 JSON。
 
 ## 中繼資料載入策略
 
@@ -416,21 +428,16 @@ Tab 快捷展開 / 關鍵字轉大寫 / Procedure／Function 選擇器 / 結果�
 SSMS 的 T-SQL IntelliSense 是舊版語言服務，官方文件沒有說明新版 async completion
 API 對 `ContentType "SQL"` 是否生效，因此先以探測量測，再決定架構。
 
-實機量測（SSMS 22.9.12105.275）：
-
-```text
-非同步 IntelliSense 支援狀態：SQL → False
-探測：平台已索取非同步建議來源，Provider 有被掃描到
-探測：InitializeCompletion 首次被呼叫（觸發：Insertion 's'）
-```
-
-平台確實會把按鍵路由進非同步完成管線。`IsCompletionSupported` 回報的 False 是
-時序造成的假訊號：那一次查詢發生在 TextView 建立的當下，此時本擴充的建議來源
-還沒被實例化，broker 自然找不到任何對應 `ContentType "SQL"` 的來源。
+實機量測（SSMS 22.9.12105.275）確認平台確實會把按鍵路由進非同步完成管線：
+`GetOrCreate` 有被呼叫、`InitializeCompletion` 也在第一次輸入時就進來了。
+唯一看起來相反的訊號是 `IAsyncCompletionBroker.IsCompletionSupported` 對
+`ContentType "SQL"` 回報 `False`，那是時序造成的假訊號——那一次查詢發生在
+TextView 建立的當下，此時本擴充的建議來源還沒被實例化，broker 自然找不到
+任何對應的來源。量測完成後那組探測程式碼已經移除。
 
 自製 WPF 清單有三個無法靠修補解決的問題，全都源自「在編輯器外面自己畫一個視窗」：
 與 SSMS 內建清單同時出現、只能用鍵盤操作、以及必須反覆呼叫 `DismissAllSessions`
-去搶 session。改用原生管線後三者一併消失。
+去搶 session。改用原生管線後三者一併消失，自製清單那條路徑已於 0.13.0 移除。
 
 實作分成三個 MEF 匯出：
 
@@ -442,7 +449,7 @@ API 對 `ContentType "SQL"` 是否生效，因此先以探測量測，再決定�
 
 排名器不能省：平台預設的比對器沒有詞首感知，少了它 `libr` 又會排不到 `Lib_Reader`。
 
-「工具 → 選項 → SqlAssist → 一般 → 非同步建議追蹤」會把管線的每一步寫進
+「設定 → SqlAssist → 診斷 → 寫入詳細診斷紀錄」會把逐次建議與提交的細節寫進
 `SqlAssist.log`，用於疑難排解。
 
 ## 環境需求
@@ -507,9 +514,12 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 - 未限定的欄位建議不分子句：`GROUP BY` 之後與 `SELECT` 之後給的是同一份清單。
 - 尚未依外部索引鍵補完 JOIN 條件。
 - 尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考的欄位。
-- 尚未實作結果格的 `Script as INSERT`、`Copy as IN clause`。
+- 尚未實作結果格的 `Script as INSERT`、`Copy as IN clause`；功能落地前不提供對應設定。
 - Snippet 仍為內建清單，尚未支援使用者自訂。
 - SSMS 目前不正式支援第三方擴充套件，安裝與載入方式需要以實機驗證。
+- Unified Settings 的服務型別取自 `Microsoft.Internal.VisualStudio.Interop`，
+  那是內部 API。取不到服務時會安靜地回退到內建預設值，但 SSMS 改版有可能讓
+  設定變成唯讀。
 
 ## 下一階段
 

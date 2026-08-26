@@ -5,15 +5,23 @@
 
   <Commands package="guidSqlAssistPackage">
     <Groups>
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" priority="0x0100">
+      <!-- 只放「編輯到一半會想按」的東西；設定一次就不再碰的偏好只留在設定頁。 -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" priority="0x0100">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" priority="0x0200">
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" priority="0x0200">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" priority="0x0300">
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" priority="0x0300">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
+
+      <!--
+        設定頁上的按鈕命令。Unified Settings 以 (命令集, ID) 定址，命令必須存在於
+        命令表，但不該出現在任何選單裡——所以掛在一個沒有父選單的群組下，
+        再各自標上 CommandWellOnly。
+      -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" priority="0x0900" />
     </Groups>
 
     <Menus>
@@ -36,53 +44,42 @@
 
     <Buttons>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>啟用 SqlAssist</ButtonText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleSuggestions" priority="0x0200" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistGeneralGroup" />
-        <Strings><ButtonText>即時建議</ButtonText></Strings>
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
+        <Strings><ButtonText>顯示即時建議</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleTabExpansion" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>Tab 快捷展開</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleKeywordUppercase" priority="0x0200" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>關鍵字轉大寫</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleObjectPicker" priority="0x0300" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>Procedure／Function 選擇器</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleResultGridCommands" priority="0x0400" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistFeaturesGroup" />
-        <Strings><ButtonText>結果格命令</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0050" type="Button">
+
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>顯示游標處物件的結構</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>顯示診斷狀態</ButtonText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidRefreshSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>重新整理建議</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidOpenSettings" priority="0x0300" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+
+      <Button guid="guidSqlAssistCommandSet" id="cmdidOpenSettings" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <Strings><ButtonText>設定…</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidEditSettingsFile" priority="0x0400" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>編輯 settings.json</ButtonText></Strings>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <Strings><ButtonText>顯示診斷狀態</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidToggleAsyncCompletionProbe" priority="0x0500" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <Strings><ButtonText>非同步建議追蹤</ButtonText></Strings>
+
+      <Button guid="guidSqlAssistCommandSet" id="cmdidDisableNativeIntelliSense" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>關閉 SSMS 內建的 T-SQL IntelliSense</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidOpenDiagnosticsLog" priority="0x0200" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText></Strings>
       </Button>
     </Buttons>
   </Commands>
@@ -99,21 +96,19 @@
     <GuidSymbol name="guidSqlAssistPackage" value="{b386e18d-f34b-4db4-a40d-b9092a31d89f}" />
     <GuidSymbol name="guidSqlAssistCommandSet" value="{4a188946-9364-4f07-af7e-97f3bd7ca7a7}">
       <IDSymbol name="SqlAssistMenu" value="0x1000" />
-      <IDSymbol name="SqlAssistGeneralGroup" value="0x1100" />
-      <IDSymbol name="SqlAssistFeaturesGroup" value="0x1200" />
+      <IDSymbol name="SqlAssistToggleGroup" value="0x1100" />
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
+      <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
+      <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
+      <!-- 空號 0x0101–0x0104、0x0203–0x0205 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
-      <IDSymbol name="cmdidToggleTabExpansion" value="0x0101" />
-      <IDSymbol name="cmdidToggleKeywordUppercase" value="0x0102" />
-      <IDSymbol name="cmdidToggleObjectPicker" value="0x0103" />
-      <IDSymbol name="cmdidToggleResultGridCommands" value="0x0104" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
       <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
       <IDSymbol name="cmdidOpenSettings" value="0x0201" />
       <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
-      <IDSymbol name="cmdidToggleAsyncCompletionProbe" value="0x0203" />
-      <IDSymbol name="cmdidEditSettingsFile" value="0x0204" />
       <IDSymbol name="cmdidShowObjectStructure" value="0x0206" />
+      <IDSymbol name="cmdidDisableNativeIntelliSense" value="0x0207" />
+      <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

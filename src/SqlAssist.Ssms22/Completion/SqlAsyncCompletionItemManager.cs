@@ -27,6 +27,16 @@ namespace SqlAssist.Ssms22.Completion;
 internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManager, IAsyncCompletionItemManager2
 {
     /// <summary>
+    /// 篩選後最多交出幾筆。
+    /// </summary>
+    /// <remarks>
+    /// 這是效能保險，不是偏好：在有數千個物件的資料庫裡輸入一個字元，
+    /// 沒有上限就要為每一筆配置命中區段並排序。使用者感覺不到差別——
+    /// 清單本來就要捲動，而且再多打一個字，排名就整個重算了。
+    /// </remarks>
+    private const int MaximumItems = 300;
+
+    /// <summary>
     /// 初始順序原樣保留。
     /// </summary>
     /// <remarks>
@@ -83,9 +93,6 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             return Passthrough(data);
         }
 
-        var maximumItems = Math.Max(
-            1,
-            Math.Min(500, SettingsService.Default.GetSnapshot().Suggestions.MaximumItems));
         var scored = new List<ScoredItem>(items.Count);
 
         foreach (var item in items)
@@ -111,7 +118,7 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         var filtered = scored
             .OrderByDescending(entry => entry.Score)
             .ThenBy(entry => entry.Item.DisplayText, StringComparer.OrdinalIgnoreCase)
-            .Take(maximumItems)
+            .Take(MaximumItems)
             .Select(entry => new CompletionItemWithHighlight(entry.Item, ToSpans(entry.Spans)))
             .ToImmutableArray();
 

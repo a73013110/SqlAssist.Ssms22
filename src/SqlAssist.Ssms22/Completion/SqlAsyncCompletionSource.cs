@@ -13,6 +13,7 @@ using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
 using SqlAssist.Ssms22.QuickInfo;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -20,9 +21,8 @@ namespace SqlAssist.Ssms22.Completion;
 /// 平台原生非同步 IntelliSense 的建議來源。
 /// </summary>
 /// <remarks>
-/// 相對於自製 WPF 清單，改由編輯器負責定位、螢幕邊界、捲動、滑鼠操作與佈景主題。
-/// 中繼資料可以直接在 <see cref="GetCompletionContextAsync"/> 裡 await，
-/// 不必再用「先收起清單、載入完成後重新整理」的迂迴做法。
+/// 定位、螢幕邊界、捲動、滑鼠操作與佈景主題全部由編輯器負責，
+/// 中繼資料可以直接在 <see cref="GetCompletionContextAsync"/> 裡 await。
 /// </remarks>
 internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 {
@@ -47,11 +47,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     {
         try
         {
-            var settings = SettingsService.Default.GetSnapshot();
+            var settings = SqlAssistSettingsStore.Current;
 
-            if (!settings.Enabled ||
-                !settings.Suggestions.Enabled ||
-                settings.Suggestions.Engine != CompletionEngine.Native)
+            if (!settings.Enabled || !settings.SuggestionsEnabled)
             {
                 return CompletionStartData.DoesNotParticipateInCompletion;
             }
@@ -63,11 +61,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return CompletionStartData.DoesNotParticipateInCompletion;
             }
 
-            var triggerCharacters = Math.Max(1, Math.Min(10, settings.Suggestions.TriggerAfterCharacters));
-
             if (context.Target == CompletionTarget.Any &&
                 context.Qualifier is null &&
-                context.Prefix.Length < triggerCharacters)
+                context.Prefix.Length < settings.TriggerAfterCharacters)
             {
                 return CompletionStartData.DoesNotParticipateInCompletion;
             }
@@ -82,9 +78,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return CompletionStartData.DoesNotParticipateInCompletion;
             }
 
-            AsyncCompletionProbe.RecordInitialize($"{trigger.Reason} '{trigger.Character}'");
-            AsyncCompletionProbe.RecordParticipation();
-
             var applicableSpan = new SnapshotSpan(
                 triggerLocation.Snapshot,
                 Span.FromBounds(context.TokenStart, triggerLocation.Position));
@@ -94,7 +87,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         catch (Exception exception)
         {
             // 這個方法在按鍵路徑上同步執行，丟出例外會直接打斷輸入。
-            AsyncCompletionProbe.RecordError(exception);
             SqlAssistDiagnostics.WriteAlways($"建議來源初始化失敗：{exception}");
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
@@ -111,7 +103,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
         try
         {
-            var settings = SettingsService.Default.GetSnapshot();
+            var settings = SqlAssistSettingsStore.Current;
             var context = Analyze(triggerLocation);
 
             // 使用者輸入 a. 的那一刻才查欄位，等待就完全落在打字的節奏上。
@@ -121,7 +113,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 triggerLocation.Snapshot.GetText(),
                 triggerLocation.Position);
 
-            if (settings.Features.ObjectPicker)
+            if (settings.IncludeDatabaseObjects)
             {
                 _metadataService.WarmColumns(scope.Tables);
             }
@@ -141,8 +133,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 .Select(suggestion => CreateItem(suggestion, settings, context))
                 .ToImmutableArray();
 
-            AsyncCompletionProbe.RecordContext(items.Length);
-
             // 使用者感受到的就是這個數字：從平台要清單，到清單交出去為止。
             total.Stop();
 
@@ -160,7 +150,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
         catch (Exception exception)
         {
-            AsyncCompletionProbe.RecordError(exception);
             SqlAssistDiagnostics.WriteAlways($"建議清單取得失敗：{exception}");
             return CompletionContext.Empty;
         }
@@ -180,15 +169,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     {
         try
         {
-            AsyncCompletionProbe.RecordDescription();
-
             if (!item.Properties.TryGetProperty<SqlSuggestion>(SuggestionKey, out var suggestion))
             {
                 return null;
             }
 
             var objectInfo = suggestion.Tag as SqlObjectInfo;
-            var mode = SettingsService.Default.GetSnapshot().Preview.Mode;
+            var mode = SqlAssistSettingsStore.Current.PreviewMode;
 
             // 平台每換一次選取就問一次說明，這正是「選取換了項目」的信號。
             // 預覽只記下是誰，沒展開就不畫也不查。
@@ -232,7 +219,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     {
         if (context.Target == CompletionTarget.Column)
         {
-            return settings.Features.ObjectPicker
+            return settings.IncludeDatabaseObjects
                 ? await _metadataService
                     .GetColumnSuggestionsAsync(context.QualifiedTable!, token)
                     .ConfigureAwait(false)
@@ -241,7 +228,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
         var builtIn = BuiltIn.Where(item => IsBuiltInEnabled(item, settings));
 
-        if (!settings.Features.ObjectPicker)
+        if (!settings.IncludeDatabaseObjects)
         {
             return builtIn.ToArray();
         }
@@ -280,14 +267,15 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// 內建項目是否啟用。
     /// </summary>
     /// <remarks>
-    /// 關鍵字建議不受「關鍵字自動大寫」影響：那個開關管的是輸入分隔字元時要不要
+    /// 關鍵字不受「輸入時轉大寫」影響：那個開關管的是輸入分隔字元時要不要
     /// 改寫已經打出來的字，與清單裡要不要列出 SELECT 是兩件事。
+    /// 目前只有程式碼片段可以個別關掉，關鍵字一律列出。
     /// </remarks>
     private static bool IsBuiltInEnabled(SqlSuggestion item, SqlAssistSettings settings)
     {
         return item.Kind switch
         {
-            SuggestionKind.Snippet => settings.Features.TabExpansion,
+            SuggestionKind.Snippet => settings.IncludeSnippets,
             _ => true
         };
     }

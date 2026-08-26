@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using SqlAssist.Core;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -71,7 +72,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             var snapshot = buffer.CurrentSnapshot;
             var span = session.ApplicableToSpan.GetSpan(snapshot);
             var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(), span.End);
-            var settings = SettingsService.Default.GetSnapshot();
+            var settings = SqlAssistSettingsStore.Current;
             var expansionSpan = SqlModuleExpander.TryCreateStatementSpan(
                 suggestion,
                 context,

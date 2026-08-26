@@ -6,9 +6,6 @@ namespace SqlAssist.Ssms22.Completion;
 /// <summary>
 /// 決定提交一筆建議時要寫進編輯器的文字。
 /// </summary>
-/// <remarks>
-/// 兩種建議引擎共用同一份規則，否則切換引擎時插入結果會不一致。
-/// </remarks>
 internal static class SqlInsertionText
 {
     public static string Build(
@@ -35,7 +32,7 @@ internal static class SqlInsertionText
         }
 
         if (context.Qualifier is not null ||
-            !settings.Suggestions.QualifyObjectNames ||
+            !settings.QualifyObjectNames ||
             string.IsNullOrWhiteSpace(suggestion.SchemaName))
         {
             return objectName;
@@ -46,7 +43,7 @@ internal static class SqlInsertionText
 
     private static string Quote(string name, SqlAssistSettings settings)
     {
-        return settings.Suggestions.UseSquareBrackets
+        return settings.UseSquareBrackets
             ? SqlIdentifier.Quote(name)
             : SqlIdentifier.QuoteIfNeeded(name);
     }

@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -55,7 +56,11 @@ internal sealed class SqlPreviewSessionHook
                 return;
             }
 
-            if (SettingsService.Default.GetSnapshot().Preview.Mode == SqlPreviewMode.Off)
+            var settings = SqlAssistSettingsStore.Current;
+
+            // 總開關也要在這裡看一次：這個事件由 broker 發出，來源可能是別的擴充
+            // 的建議清單，不保證經過本擴充那條已經檢查過 Enabled 的路徑。
+            if (!settings.Enabled || settings.PreviewMode == SqlPreviewMode.Off)
             {
                 return;
             }

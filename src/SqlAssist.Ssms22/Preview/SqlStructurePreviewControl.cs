@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using SqlAssist.Core;
 using SqlAssist.Metadata;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -329,7 +330,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         TextOptions.SetTextFormattingMode(_root, TextFormattingMode.Ideal);
 
         // 整組字級都從設定推導，這裡沒有任何寫死的數字可以跟設定不同步。
-        ApplyFontSize(SettingsService.Default.GetSnapshot().Preview.ClampFontSize());
+        ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
 
         Content = _root;
 
@@ -803,14 +804,14 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
             _root.Width = Clamp(
                 baseWidth + widthChange,
-                SqlAssistPreviewSettings.MinimumWidth,
-                SqlAssistPreviewSettings.MaximumWidth);
+                SqlAssistLimits.MinimumPreviewWidth,
+                SqlAssistLimits.MaximumPreviewWidth);
         }
 
         _root.Height = Clamp(
             baseHeight + vertical,
-            SqlAssistPreviewSettings.MinimumHeight,
-            SqlAssistPreviewSettings.MaximumHeight);
+            SqlAssistLimits.MinimumPreviewHeight,
+            SqlAssistLimits.MaximumPreviewHeight);
     }
 
     private void OnResizeDragCompleted(object sender, DragCompletedEventArgs eventArgs)
@@ -888,11 +889,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// </remarks>
     public void ApplySize(double width, double height, double availableWidth, double availableHeight)
     {
-        _root.Width = availableWidth > SqlAssistPreviewSettings.MinimumWidth
+        _root.Width = availableWidth > SqlAssistLimits.MinimumPreviewWidth
             ? Math.Min(width, availableWidth)
             : width;
 
-        _root.Height = availableHeight > SqlAssistPreviewSettings.MinimumHeight
+        _root.Height = availableHeight > SqlAssistLimits.MinimumPreviewHeight
             ? Math.Min(height, availableHeight)
             : height;
     }

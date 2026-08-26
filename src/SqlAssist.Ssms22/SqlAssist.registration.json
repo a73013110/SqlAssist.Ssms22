@@ -1,0 +1,196 @@
+{
+  // Unified Settings 的註冊檔。結構定義見
+  //   <SSMS>\Common7\IDE\UnifiedSettings\registration.schema.json
+  //
+  // 標題與描述直接寫純文字，不走 "@key;{packageGuid}" 的資源查表：
+  // 這個擴充只出 zh-TW，多一層 satellite 資源只是成本。
+  //
+  // 每一個 moniker 都必須在 SqlAssistMonikers.cs 有對應常數，
+  // 且 "default" 必須與 SqlAssistSettings 的屬性預設值一致。
+  //
+  // enableWhen／visibleWhen 只能參照「同一個分類裡」的設定。
+  // 跨分類參照不會報錯，殼層會安靜地把整個設定丟掉——該分類的設定
+  // 全被丟掉之後就變成空分類，而空分類預設不顯示，於是整頁人間蒸發。
+  // 第一次實作 Unified Settings 時就是這樣讓「建議清單」與「物件結構」整頁消失的。
+  // SqlAssistRegistrationTests 會擋下再犯。
+  "properties": {
+
+    "sqlAssist.general.enabled": {
+      "type": "boolean",
+      "default": true,
+      "order": 10,
+      "title": "啟用 SqlAssist",
+      "description": "關閉後不顯示建議清單、不做關鍵字大寫、也不顯示物件結構。等同快捷鍵 Ctrl+Alt+Shift+S。"
+    },
+    "sqlAssist.general.uppercaseKeywordsOnType": {
+      "type": "boolean",
+      "default": true,
+      "order": 20,
+      "title": "輸入時把 T-SQL 關鍵字轉成大寫",
+      "description": "打完關鍵字並輸入空白或分隔字元時，把它改寫成大寫。與建議清單無關：關鍵字一律會列在清單裡。",
+      "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
+    },
+
+    "sqlAssist.suggestions.enabled": {
+      "type": "boolean",
+      "default": true,
+      "order": 10,
+      "title": "輸入時自動彈出建議清單",
+      "description": "關閉後仍保留滑鼠停留提示、關鍵字大寫，以及工具選單的「顯示游標處物件的結構」。總開關在「一般」頁。"
+    },
+    "sqlAssist.suggestions.triggerAfterCharacters": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 10,
+      "order": 20,
+      "title": "輸入幾個字元後才彈出清單",
+      "description": "只影響沒有限定詞的位置。輸入 a. 這種指定別名或結構描述的位置一律立刻彈出。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+    "sqlAssist.suggestions.includeSnippets": {
+      "type": "boolean",
+      "default": true,
+      "order": 30,
+      "title": "列出程式碼片段（ssf、ap、af）",
+      "description": "ssf 展開為 SELECT * FROM 並接著列出資料表；ap 與 af 展開為 ALTER PROCEDURE 與 ALTER FUNCTION 並帶入完整定義。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+    "sqlAssist.suggestions.includeDatabaseObjects": {
+      "type": "boolean",
+      "default": true,
+      "order": 40,
+      "title": "列出資料庫物件與欄位",
+      "description": "關閉後完全不查詢連線的資料庫，清單只剩 T-SQL 關鍵字與程式碼片段。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+    "sqlAssist.suggestions.qualifyObjectNames": {
+      "type": "boolean",
+      "default": true,
+      "order": 50,
+      "title": "插入物件時補上結構描述名稱",
+      "description": "例如插入 dbo.Lib_Reader 而不是 Lib_Reader。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+    "sqlAssist.suggestions.useSquareBrackets": {
+      "type": "boolean",
+      "default": false,
+      "order": 60,
+      "title": "插入物件時加上方括號",
+      "description": "例如插入 [dbo].[Lib_Reader]。關閉時仍會為含空白或保留字的名稱加上括號，否則插入的 SQL 無效。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+
+    "sqlAssist.structure.hoverEnabled": {
+      "type": "boolean",
+      "default": true,
+      "order": 10,
+      "title": "滑鼠停留時顯示物件結構",
+      "description": "停在資料表、檢視、預存程序上時顯示欄位型別、NULL、主索引鍵等資訊。總開關在「一般」頁。"
+    },
+    "sqlAssist.structure.previewMode": {
+      "type": "string",
+      "default": "delay",
+      "order": 20,
+      "enum": [ "delay", "rightArrow", "off" ],
+      "enumItemLabels": [
+        "停留一段時間後自動展開",
+        "按向右鍵才展開",
+        "不顯示浮動預覽"
+      ],
+      "title": "建議清單的結構預覽何時展開",
+      "description": "向右鍵模式下，展開後跟著選取移動，按向左鍵收合。"
+    },
+    "sqlAssist.structure.previewDelay": {
+      "type": "integer",
+      "default": 220,
+      "minimum": 0,
+      "maximum": 2000,
+      "order": 30,
+      "title": "自動展開前的停留毫秒數",
+      "description": "用方向鍵快速掃過清單時，掃過去的項目不會展開，也不會送出查詢。",
+      "enableWhen": "${config:sqlAssist.structure.previewMode} == 'delay'"
+    },
+    "sqlAssist.structure.previewPlacement": {
+      "type": "string",
+      "default": "stacked",
+      "order": 40,
+      "enum": [ "stacked", "beside" ],
+      "enumItemLabels": [
+        "游標所在行的上下方，寬度吃滿編輯器",
+        "貼在建議清單的側邊"
+      ],
+      "title": "預覽視窗的位置",
+      "description": "上下擺放時，欄位很多的資料表可以一次攤開好幾欄而不必橫向捲動，代價是會蓋住上下幾行程式碼。",
+      "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
+    },
+    "sqlAssist.structure.previewFontSize": {
+      "type": "integer",
+      "default": 14,
+      "minimum": 9,
+      "maximum": 20,
+      "order": 50,
+      "title": "預覽視窗的字級",
+      "description": "資料格、分頁與標題的基準字級，其餘字級按固定差距跟著走。指令碼分頁不受影響，它跟的是編輯器的字型與字級。",
+      "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
+    },
+
+    "sqlAssist.diagnostics.verboseLogging": {
+      "type": "boolean",
+      "default": false,
+      "order": 10,
+      "title": "寫入詳細診斷紀錄",
+      "description": "把逐次建議與提交的細節寫入 %LOCALAPPDATA%\\SqlAssist.Ssms22\\SqlAssist.log。回報問題時再開啟。"
+    }
+  },
+
+  "categories": {
+    "sqlAssist": {
+      "title": "SqlAssist",
+      "description": "T-SQL 即時建議、程式碼片段與資料庫物件結構預覽。"
+    },
+    "sqlAssist.general": {
+      "title": "一般",
+      "description": "總開關與編輯行為。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
+      "order": 10
+    },
+    "sqlAssist.suggestions": {
+      "title": "建議清單",
+      "description": "輸入時自動彈出的建議清單，以及提交時插入的文字格式。",
+      "order": 20,
+      "messages": [
+        {
+          "severity": "informational",
+          "text": "SSMS 內建的 T-SQL IntelliSense 若是開著的，兩份建議清單會同時出現並互相干擾。下面的按鈕可以關掉它；目前狀態見「工具 → SqlAssist → 顯示診斷狀態」。"
+        }
+      ],
+      "commands": [
+        {
+          "vsct": {
+            "text": "關閉 SSMS 內建的 T-SQL IntelliSense",
+            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
+            "id": 519
+          }
+        }
+      ]
+    },
+    "sqlAssist.structure": {
+      "title": "物件結構",
+      "description": "滑鼠停留提示與建議清單旁的浮動結構預覽，兩者互不影響。",
+      "order": 30
+    },
+    "sqlAssist.diagnostics": {
+      "title": "診斷",
+      "order": 40,
+      "commands": [
+        {
+          "vsct": {
+            "text": "開啟診斷紀錄檔",
+            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
+            "id": 520
+          }
+        }
+      ]
+    }
+  }
+}

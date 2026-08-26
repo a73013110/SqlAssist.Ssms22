@@ -2,6 +2,7 @@ using System;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -44,9 +45,9 @@ internal static class SqlKeywordCasing
             return;
         }
 
-        var settings = SettingsService.Default.GetSnapshot();
+        var settings = SqlAssistSettingsStore.Current;
 
-        if (!settings.Enabled || !settings.Features.KeywordUppercase)
+        if (!settings.Enabled || !settings.UppercaseKeywordsOnType)
         {
             return;
         }

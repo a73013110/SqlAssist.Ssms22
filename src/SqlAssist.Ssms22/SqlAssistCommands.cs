@@ -1,12 +1,14 @@
 using System;
 using System.ComponentModel.Design;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
-using SqlAssist.Ssms22.Options;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
 
@@ -14,7 +16,6 @@ internal sealed class SqlAssistCommands
 {
     private readonly SqlAssistPackage _package;
     private readonly OleMenuCommandService _commandService;
-    private readonly SettingsService _settings = SettingsService.Default;
 
     private SqlAssistCommands(SqlAssistPackage package, OleMenuCommandService commandService)
     {
@@ -31,65 +32,53 @@ internal sealed class SqlAssistCommands
     private void RegisterCommands()
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _settings.EnsureSettingsFile();
 
         AddToggleCommand(
             CommandIds.ToggleEnabled,
-            () => _settings.GetSnapshot().Enabled,
-            () => _settings.ToggleEnabled(),
+            SqlAssistMonikers.Enabled,
+            () => SqlAssistSettingsStore.Current.Enabled,
             "SqlAssist");
 
         AddToggleCommand(
             CommandIds.ToggleSuggestions,
-            () => _settings.GetSnapshot().Suggestions.Enabled,
-            () => _settings.ToggleSuggestions(),
+            SqlAssistMonikers.SuggestionsEnabled,
+            () => SqlAssistSettingsStore.Current.SuggestionsEnabled,
             "即時建議");
 
-        AddFeatureToggle(CommandIds.ToggleTabExpansion, SqlAssistFeature.TabExpansion, "Tab 快捷展開");
-        AddFeatureToggle(CommandIds.ToggleKeywordUppercase, SqlAssistFeature.KeywordUppercase, "關鍵字轉大寫");
-        AddFeatureToggle(CommandIds.ToggleObjectPicker, SqlAssistFeature.ObjectPicker, "Procedure／Function 選擇器");
-        AddFeatureToggle(CommandIds.ToggleResultGridCommands, SqlAssistFeature.ResultGridCommands, "結果格命令");
-
-        AddToggleCommand(
-            CommandIds.ToggleAsyncCompletionProbe,
-            () => _settings.GetSnapshot().AsyncCompletionProbe,
-            () => _settings.ToggleAsyncCompletionProbe(),
-            "非同步建議追蹤");
-
         AddCommand(CommandIds.ShowObjectStructure, ShowObjectStructure);
-        AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
-        AddCommand(CommandIds.EditSettingsFile, EditSettingsFile);
-    }
+        AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
 
-    private void AddFeatureToggle(int commandId, SqlAssistFeature feature, string displayName)
-    {
-        AddToggleCommand(
-            commandId,
-            () => _settings.GetSnapshot().Features.Get(feature),
-            () => _settings.ToggleFeature(feature),
-            displayName);
+        // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
+        AddCommand(CommandIds.DisableNativeIntelliSense, DisableNativeIntelliSense);
+        AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
     }
 
     private void AddToggleCommand(
         int commandId,
+        string moniker,
         Func<bool> getChecked,
-        Func<bool> toggle,
         string displayName)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         var menuCommand = new OleMenuCommand(
             (_, _) =>
             {
-                var enabled = toggle();
-                SqlAssistDiagnostics.WriteAlways($"{displayName} 已切換為：{enabled}");
+                var before = getChecked();
+                var after = SqlAssistSettingsStore.Toggle(moniker, before);
+
+                // 寫不進去時 Toggle 會回傳原值；紀錄要說實話，否則查問題時
+                // 會看到「已切換」卻找不到任何行為改變。
+                SqlAssistDiagnostics.WriteAlways(after == before
+                    ? $"{displayName} 切換失敗，維持：{before}"
+                    : $"{displayName} 已切換為：{after}");
             },
             new CommandID(CommandIds.CommandSet, commandId));
 
         menuCommand.BeforeQueryStatus += (_, _) =>
         {
-            menuCommand.Checked = getChecked(); // 選單勾選狀態永遠反映 settings.json。
+            menuCommand.Checked = getChecked(); // 選單勾選狀態永遠反映 Unified Settings。
             menuCommand.Enabled = true;
             menuCommand.Visible = true;
         };
@@ -110,7 +99,7 @@ internal sealed class SqlAssistCommands
     /// </summary>
     /// <remarks>
     /// 平常的入口是建議清單的向右鍵與滑鼠停留提示裡的連結，
-    /// 但前者要有清單、後者要求「物件結構提示」是開著的。
+    /// 但前者要有清單、後者要求「滑鼠停留時顯示物件結構」是開著的。
     /// 這個命令讓預覽在任何設定下都還有一個入口。
     /// </remarks>
     private void ShowObjectStructure(object? sender, EventArgs eventArgs)
@@ -119,7 +108,7 @@ internal sealed class SqlAssistCommands
         _ = ShowObjectStructureAsync();
     }
 
-    private async System.Threading.Tasks.Task ShowObjectStructureAsync()
+    private async Task ShowObjectStructureAsync()
     {
         try
         {
@@ -141,7 +130,7 @@ internal sealed class SqlAssistCommands
                 metadataService,
                 text,
                 caret.Position,
-                System.Threading.CancellationToken.None);
+                CancellationToken.None);
 
             if (location is null)
             {
@@ -182,37 +171,33 @@ internal sealed class SqlAssistCommands
     private void ShowDiagnostics(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        var settings = _settings.GetSnapshot();
+        var settings = SqlAssistSettingsStore.Current;
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "未知";
-        var loadError = string.IsNullOrWhiteSpace(_settings.LastLoadError)
-            ? "無"
-            : _settings.LastLoadError;
 
         var message =
             $"版本：{version}\r\n" +
             $"AsyncPackage：{FormatState(SqlAssistRuntimeState.PackageLoaded)}\r\n" +
             $"已建立 SQL 編輯器：{SqlAssistRuntimeState.TextViewCount}\r\n" +
-            $"收到 Tab 次數：{SqlAssistRuntimeState.TabCount}\r\n" +
-            $"最後 Tab：{SqlAssistRuntimeState.LastTabSource}\r\n" +
             $"最後展開：{SqlAssistRuntimeState.LastExpansion}\r\n\r\n" +
-            $"SqlAssist：{FormatState(settings.Enabled)}\r\n" +
-            $"即時建議：{FormatState(settings.Suggestions.Enabled)}\r\n" +
-            $"清單引擎：{settings.Suggestions.Engine}\r\n" +
-            $"關閉 SSMS 內建清單：{FormatState(settings.Suggestions.SuppressNativeIntelliSense)}\r\n" +
-            $"觸發字元數：{settings.Suggestions.TriggerAfterCharacters}\r\n" +
-            $"預覽窗格：{FormatState(settings.Suggestions.ShowPreview)}\r\n" +
-            $"Tab 快捷展開：{FormatState(settings.Features.TabExpansion)}\r\n" +
-            $"關鍵字轉大寫：{FormatState(settings.Features.KeywordUppercase)}\r\n" +
-            $"資料庫物件建議：{FormatState(settings.Features.ObjectPicker)}\r\n" +
-            $"物件結構提示：{FormatState(settings.Features.ObjectHover)}\r\n" +
-            $"結果格命令設定：{FormatState(settings.Features.ResultGridCommands)}（功能開發中）\r\n" +
-            $"詳細診斷記錄：{FormatState(settings.DiagnosticsEnabled)}\r\n\r\n" +
-            $"── 非同步建議管線 ──\r\n" +
-            $"追蹤模式：{FormatState(settings.AsyncCompletionProbe)}\r\n" +
-            AsyncCompletionProbe.BuildReport() + "\r\n" +
-            $"設定檔：{_settings.SettingsPath}\r\n" +
-            $"診斷檔：{SqlAssistDiagnostics.LogPath}\r\n" +
-            $"設定載入錯誤：{loadError}";
+            $"── 一般 ──\r\n" +
+            $"啟用 SqlAssist：{FormatState(settings.Enabled)}\r\n" +
+            $"輸入時關鍵字轉大寫：{FormatState(settings.UppercaseKeywordsOnType)}\r\n\r\n" +
+            $"── 建議清單 ──\r\n" +
+            $"自動彈出：{FormatState(settings.SuggestionsEnabled)}\r\n" +
+            $"觸發字元數：{settings.TriggerAfterCharacters}\r\n" +
+            $"程式碼片段：{FormatState(settings.IncludeSnippets)}\r\n" +
+            $"資料庫物件與欄位：{FormatState(settings.IncludeDatabaseObjects)}\r\n" +
+            $"補結構描述／方括號：{FormatState(settings.QualifyObjectNames)}／" +
+            $"{FormatState(settings.UseSquareBrackets)}\r\n" +
+            $"SSMS 內建 IntelliSense：{FormatNativeIntelliSense()}\r\n\r\n" +
+            $"── 物件結構 ──\r\n" +
+            $"滑鼠停留提示：{FormatState(settings.HoverEnabled)}\r\n" +
+            $"預覽時機：{settings.PreviewMode}（{settings.PreviewDelayMilliseconds} ms）\r\n" +
+            $"預覽位置／字級：{settings.PreviewPlacement}／{settings.PreviewFontSize}\r\n" +
+            $"預覽視窗尺寸：{PreviewWindowState.Width}×{PreviewWindowState.Height}\r\n\r\n" +
+            $"── 診斷 ──\r\n" +
+            $"詳細診斷記錄：{FormatState(settings.VerboseLogging)}\r\n" +
+            $"診斷檔：{SqlAssistDiagnostics.LogPath}";
 
         VsShellUtilities.ShowMessageBox(
             _package,
@@ -223,28 +208,95 @@ internal sealed class SqlAssistCommands
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
     }
 
+    /// <summary>開啟 Unified Settings 並定位到 SqlAssist 分類。</summary>
     private void OpenSettings(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _package.ShowOptionPage(typeof(GeneralOptionsPage)); // 開啟「工具 → 選項 → SqlAssist」。
+
+        try
+        {
+            IServiceProvider serviceProvider = _package;
+
+            if (serviceProvider.GetService(typeof(SVsUnifiedSettingsUiController))
+                is IVsUnifiedSettingsUiController2 controller)
+            {
+                controller.ShowUnifiedSettingsDialog(new[] { SqlAssistMonikers.Category });
+                return;
+            }
+
+            ShowMessage("無法開啟設定視窗，請改用「工具 → 選項」並搜尋 SqlAssist。");
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"開啟設定視窗失敗：{exception}");
+            ShowMessage($"開啟設定視窗失敗：{exception.Message}");
+        }
     }
 
-    private void EditSettingsFile(object? sender, EventArgs eventArgs)
+    /// <summary>
+    /// 設定頁上的按鈕：關掉 SSMS 自己的 T-SQL IntelliSense。
+    /// </summary>
+    /// <remarks>
+    /// 兩份建議清單同時出現時會互搶——舊版語言服務會對著已經被換掉的狀態算範圍，
+    /// 於是每退一格就跳一次錯誤。與其在執行期硬把對方的 session 收掉
+    /// （那會連帶收掉自己剛觸發的那一個），不如讓使用者按一次把它關乾淨。
+    /// </remarks>
+    private void DisableNativeIntelliSense(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _settings.EnsureSettingsFile();
-        VsShellUtilities.OpenDocument(_package, _settings.SettingsPath); // 進階設定仍可直接改 JSON。
+
+        var succeeded = SqlAssistSettingsStore.TrySetValue(
+            SqlAssistMonikers.NativeIntelliSenseEnabled,
+            false);
+
+        SqlAssistDiagnostics.WriteAlways($"關閉 SSMS 內建 IntelliSense：{FormatState(succeeded)}");
+
+        if (!succeeded)
+        {
+            ShowMessage(
+                "無法變更 SSMS 內建的 T-SQL IntelliSense 設定。" +
+                "請在設定視窗搜尋「IntelliSense」手動關閉。");
+        }
     }
 
+    private void OpenDiagnosticsLog(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            SqlAssistDiagnostics.EnsureLogFile();
+            VsShellUtilities.OpenDocument(_package, SqlAssistDiagnostics.LogPath);
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"開啟診斷紀錄檔失敗：{exception}");
+            ShowMessage($"開啟失敗：{exception.Message}");
+        }
+    }
+
+    /// <remarks>
+    /// 只清掉中繼資料快取就夠了：原生管線每次觸發都會重新問來源，
+    /// 不需要另外去戳已經開著的清單。
+    /// </remarks>
     private void RefreshSuggestions(object? sender, EventArgs eventArgs)
     {
         SqlMetadataService.InvalidateAll();
-        SuggestionRefreshBroker.RequestRefresh();
-        SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理即時建議");
+        SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
     }
 
     private static string FormatState(bool enabled)
     {
         return enabled ? "啟用" : "停用";
+    }
+
+    private static string FormatNativeIntelliSense()
+    {
+        return SqlAssistSettingsStore.TryGetNativeIntelliSenseEnabled() switch
+        {
+            true => "啟用（與 SqlAssist 的清單會互相干擾）",
+            false => "停用",
+            null => "讀不到"
+        };
     }
 }

@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core;
 using SqlAssist.Metadata;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -26,6 +27,24 @@ internal sealed class SqlStructurePreview
 {
     /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
     private const double MaximumViewportRatio = 0.8;
+
+    /// <summary>
+    /// 展開狀態下換選取時，多久之後才真的去查資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 用方向鍵連續移動時，每一格都送出一次查詢是純浪費——停下來的那一格才是
+    /// 使用者要看的。這是實作細節而不是偏好，所以不開放設定。
+    /// </remarks>
+    private const int QueryDebounceMilliseconds = 150;
+
+    /// <summary>
+    /// 自動展開的最短延遲。
+    /// </summary>
+    /// <remarks>
+    /// 設定允許 0，但 0 表示「按鍵一到就展開」，那在方向鍵連按時等於每一格
+    /// 都重畫一次版面。留一格最小緩衝，讓連按仍然掃得過去。
+    /// </remarks>
+    private const int MinimumExpandDelayMilliseconds = 50;
 
     private readonly IWpfTextView _view;
     private readonly IServiceProvider _serviceProvider;
@@ -92,7 +111,7 @@ internal sealed class SqlStructurePreview
         : PopupStyles.PositionLeftOrRight;
 
     private static SqlPreviewPlacement Placement =>
-        SettingsService.Default.GetSnapshot().Preview.Placement;
+        SqlAssistSettingsStore.Current.PreviewPlacement;
 
     /// <summary>預覽目前是否展開；建議清單的方向鍵處理需要知道。</summary>
     public bool IsExpanded { get; private set; }
@@ -224,9 +243,9 @@ internal sealed class SqlStructurePreview
                 return;
             }
 
-            var settings = SettingsService.Default.GetSnapshot().Preview;
+            var settings = SqlAssistSettingsStore.Current;
 
-            if (settings.Mode != SqlPreviewMode.Delay || objectInfo is null)
+            if (settings.PreviewMode != SqlPreviewMode.Delay || objectInfo is null)
             {
                 return;
             }
@@ -234,7 +253,8 @@ internal sealed class SqlStructurePreview
             // 延遲模式：停在同一項夠久才展開。掃過去的那幾項連查詢都不會送出。
             _timer.Stop();
             _timerExpands = true;
-            _timer.Interval = TimeSpan.FromMilliseconds(Math.Max(50, settings.ClampDelay()));
+            _timer.Interval = TimeSpan.FromMilliseconds(
+                Math.Max(MinimumExpandDelayMilliseconds, settings.PreviewDelayMilliseconds));
             _timer.Start();
         });
     }
@@ -376,15 +396,7 @@ internal sealed class SqlStructurePreview
 
         ShowAgent();
 
-        var delay = SettingsService.Default.GetSnapshot().Preview.ClampDelay();
-
-        if (delay == 0)
-        {
-            BeginLoad(objectInfo, metadataService);
-            return;
-        }
-
-        _timer.Interval = TimeSpan.FromMilliseconds(delay);
+        _timer.Interval = TimeSpan.FromMilliseconds(QueryDebounceMilliseconds);
         _timer.Start();
     }
 
@@ -473,11 +485,10 @@ internal sealed class SqlStructurePreview
 
         try
         {
-            var settings = SettingsService.Default.GetSnapshot().Preview;
             var control = new SqlStructurePreviewControl
             {
-                PreferredWidth = settings.ClampWidth(),
-                PreferredHeight = settings.ClampHeight()
+                PreferredWidth = PreviewWindowState.Width,
+                PreferredHeight = PreviewWindowState.Height
             };
 
             control.SizeCommitted += OnSizeCommitted;
@@ -507,17 +518,11 @@ internal sealed class SqlStructurePreview
 
         try
         {
-            SettingsService.Default.Update(settings =>
-            {
-                // 上下擺放的寬度是編輯器決定的，不是使用者拖出來的；
-                // 寫回去等於用視窗寬度蓋掉他為側邊擺放調好的那一個值。
-                if (Placement != SqlPreviewPlacement.Stacked)
-                {
-                    settings.Preview.Width = control.PreferredWidth;
-                }
-
-                settings.Preview.Height = control.PreferredHeight;
-            });
+            // 上下擺放的寬度是編輯器決定的，不是使用者拖出來的；
+            // 寫回去等於用視窗寬度蓋掉他為側邊擺放調好的那一個值。
+            PreviewWindowState.Save(
+                Placement == SqlPreviewPlacement.Stacked ? null : control.PreferredWidth,
+                control.PreferredHeight);
 
             // 放開手才收斂一次位置：拖曳期間重排等於在使用者手上把視窗抽來抽去。
             if (_agent is not null && _manager is not null && _anchor is not null)
@@ -607,10 +612,8 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     private void ApplySize(SqlStructurePreviewControl control)
     {
-        var size = SettingsService.Default.GetSnapshot().Preview;
-
         // 字級也在這裡套用：改完設定不必重開查詢視窗，下一次展開就是新的字級。
-        control.ApplyFontSize(size.ClampFontSize());
+        control.ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
 
         var availableWidth = _view.ViewportWidth * MaximumViewportRatio;
         var availableHeight = _view.ViewportHeight * MaximumViewportRatio;
@@ -619,13 +622,17 @@ internal sealed class SqlStructurePreview
         {
             control.ApplySize(
                 _view.ViewportWidth,
-                size.ClampHeight(),
+                PreviewWindowState.Height,
                 _view.ViewportWidth,
                 availableHeight);
             return;
         }
 
-        control.ApplySize(size.ClampWidth(), size.ClampHeight(), availableWidth, availableHeight);
+        control.ApplySize(
+            PreviewWindowState.Width,
+            PreviewWindowState.Height,
+            availableWidth,
+            availableHeight);
     }
 
     /// <summary>

@@ -7,42 +7,34 @@ using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Core;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
 
 /// <summary>
-/// 建議清單的按鍵操作，以及輸入分隔字元時的關鍵字自動大寫。
+/// 結構預覽的按鍵操作，以及輸入分隔字元時的關鍵字自動大寫。
 /// </summary>
 /// <remarks>
+/// 建議清單本身的 Tab／Enter／上下鍵完全由平台處理，這裡不介入——
+/// 只有預覽視窗是自己的承載視窗，平台不知道它存在，才需要接手按鍵。
+///
 /// 這些方法都在按鍵路徑上，由編輯器的命令系統直接呼叫。
 /// <b>任何一個丟出例外，使用者按一次鍵就會看到一次錯誤對話框</b>，
 /// 因此一律收斂例外並回報「沒有處理」，讓按鍵照預設方式往下走。
 /// </remarks>
 [Export(typeof(ICommandHandler))]
-[Name("SqlAssist SSMS 22 Completion Command Handler")]
+[Name("SqlAssist SSMS 22 Preview Command Handler")]
 [Order(Before = "default")]
 [ContentType("SQL")]
 [TextViewRole(PredefinedTextViewRoles.Editable)]
 internal sealed class SqlAssistCompletionCommandHandler :
-    ICommandHandler<TabKeyCommandArgs>,
-    ICommandHandler<ReturnKeyCommandArgs>,
-    ICommandHandler<UpKeyCommandArgs>,
-    ICommandHandler<DownKeyCommandArgs>,
     ICommandHandler<EscapeKeyCommandArgs>,
     ICommandHandler<LeftKeyCommandArgs>,
     ICommandHandler<RightKeyCommandArgs>,
     ICommandHandler<CopyCommandArgs>,
     ICommandHandler<TypeCharCommandArgs>
 {
-    public string DisplayName => "SqlAssist 建議清單操作";
-
-    public CommandState GetCommandState(TabKeyCommandArgs args) => CommandState.Unspecified;
-
-    public CommandState GetCommandState(ReturnKeyCommandArgs args) => CommandState.Unspecified;
-
-    public CommandState GetCommandState(UpKeyCommandArgs args) => CommandState.Unspecified;
-
-    public CommandState GetCommandState(DownKeyCommandArgs args) => CommandState.Unspecified;
+    public string DisplayName => "SqlAssist 結構預覽操作";
 
     public CommandState GetCommandState(EscapeKeyCommandArgs args) => CommandState.Unspecified;
 
@@ -53,31 +45,6 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(CopyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(TypeCharCommandArgs args) => CommandState.Unspecified;
-
-    public bool ExecuteCommand(TabKeyCommandArgs args, CommandExecutionContext executionContext)
-    {
-        SqlAssistRuntimeState.MarkTabReceived("Suggestion CommandHandler");
-        return Execute("Tab", () =>
-            TryGetController(args.TextView, out var controller) && controller.CommitSelected());
-    }
-
-    public bool ExecuteCommand(ReturnKeyCommandArgs args, CommandExecutionContext executionContext)
-    {
-        return Execute("Enter", () =>
-            TryGetController(args.TextView, out var controller) && controller.CommitSelected());
-    }
-
-    public bool ExecuteCommand(UpKeyCommandArgs args, CommandExecutionContext executionContext)
-    {
-        return Execute("Up", () =>
-            TryGetController(args.TextView, out var controller) && controller.MoveSelection(-1));
-    }
-
-    public bool ExecuteCommand(DownKeyCommandArgs args, CommandExecutionContext executionContext)
-    {
-        return Execute("Down", () =>
-            TryGetController(args.TextView, out var controller) && controller.MoveSelection(1));
-    }
 
     /// <summary>
     /// Esc 收掉預覽。
@@ -90,15 +57,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public bool ExecuteCommand(EscapeKeyCommandArgs args, CommandExecutionContext executionContext)
     {
         return Execute("Esc", () =>
-        {
-            if (SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview &&
-                preview.Collapse())
-            {
-                return true;
-            }
-
-            return TryGetController(args.TextView, out var controller) && controller.Hide();
-        });
+            SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview
+            && preview.Collapse());
     }
 
     /// <summary>
@@ -112,7 +72,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
     {
         return Execute("Right", () =>
         {
-            if (SettingsService.Default.GetSnapshot().Preview.Mode != SqlPreviewMode.RightArrow)
+            if (SqlAssistSettingsStore.Current.PreviewMode != SqlPreviewMode.RightArrow)
             {
                 return false;
             }
@@ -176,17 +136,5 @@ internal sealed class SqlAssistCompletionCommandHandler :
             SqlAssistDiagnostics.WriteAlways($"處理 {source} 按鍵失敗：{exception}");
             return false;
         }
-    }
-
-    private static bool TryGetController(ITextView textView, out SqlCompletionController controller)
-    {
-        if (CompletionSessionRegistry.TryGet(textView, out var found) && found is not null)
-        {
-            controller = found;
-            return true;
-        }
-
-        controller = null!;
-        return false;
     }
 }

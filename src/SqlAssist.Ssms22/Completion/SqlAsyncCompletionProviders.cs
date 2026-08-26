@@ -61,8 +61,6 @@ internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceP
     {
         try
         {
-            AsyncCompletionProbe.RecordProviderRequested();
-
             return textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionSource),
                 () => new SqlAsyncCompletionSource(
@@ -71,7 +69,6 @@ internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceP
         }
         catch (Exception exception)
         {
-            AsyncCompletionProbe.RecordError(exception);
             SqlAssistDiagnostics.WriteAlways($"建立建議來源失敗：{exception}");
             return null;
         }

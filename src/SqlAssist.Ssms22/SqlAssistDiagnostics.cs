@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
 
@@ -17,12 +17,26 @@ internal static class SqlAssistDiagnostics
 
     public static void Write(string message, ITextView? textView = null)
     {
-        if (!SettingsService.Default.GetSnapshot().DiagnosticsEnabled)
+        if (!SqlAssistSettingsStore.Current.VerboseLogging)
         {
             return;
         }
 
         WriteAlways(message, textView);
+    }
+
+    /// <summary>確保紀錄檔存在，讓「開啟診斷紀錄檔」不會開到一個不存在的路徑。</summary>
+    public static void EnsureLogFile()
+    {
+        lock (SyncRoot)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LogPath));
+
+            if (!File.Exists(LogPath))
+            {
+                File.WriteAllText(LogPath, string.Empty);
+            }
+        }
     }
 
     public static void WriteAlways(string message, ITextView? textView = null)

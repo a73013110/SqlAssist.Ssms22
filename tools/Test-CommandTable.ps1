@@ -69,8 +69,36 @@ foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
     Test-Placement -Node $button -Kind 'Button' -ExpectedParentKind 'Group' -OwnIdsOfExpectedKind $ownGroupIds
 }
 
+
+# 沒有 <Parent> 的群組是刻意的：Unified Settings 的設定頁按鈕必須存在於命令表，
+# 但不該出現在任何選單。這只有在底下每一顆按鈕都標了 CommandWellOnly 時才成立——
+# 少標一個，那顆命令就是永遠按不到，而且不會有任何錯誤訊息。
+$unparentedGroupIds = @(
+    $vsct.SelectNodes('//ct:Groups/ct:Group', $ns) |
+        Where-Object { $null -eq $_.SelectSingleNode('ct:Parent', $ns) } |
+        ForEach-Object { $_.id })
+
 foreach ($group in $vsct.SelectNodes('//ct:Groups/ct:Group', $ns)) {
+    if ($group.id -in $unparentedGroupIds) {
+        continue
+    }
+
     Test-Placement -Node $group -Kind 'Group' -ExpectedParentKind 'Menu' -OwnIdsOfExpectedKind $ownMenuIds
+}
+
+foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
+    $parent = $button.SelectSingleNode('ct:Parent', $ns)
+
+    if ($null -eq $parent -or $parent.id -notin $unparentedGroupIds) {
+        continue
+    }
+
+    $flags = @($button.SelectNodes('ct:CommandFlag', $ns) | ForEach-Object { $_.InnerText })
+
+    if ('CommandWellOnly' -notin $flags) {
+        $problems.Add(
+            "Button '$($button.id)' 掛在沒有父選單的群組 '$($parent.id)' 底下，卻沒有標記 CommandWellOnly，它永遠不會出現。")
+    }
 }
 
 # 每個宣告的 IDSymbol 都必須有對應的 Menu／Group／Button，反之亦然。

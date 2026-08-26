@@ -8,6 +8,7 @@ using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
 
@@ -134,7 +135,7 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
-        return BuildColumnSuggestions(matches[0], detail, SettingsService.Default.GetSnapshot());
+        return BuildColumnSuggestions(matches[0], detail, SqlAssistSettingsStore.Current);
     }
 
     /// <summary>
@@ -169,7 +170,7 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
-        var settings = SettingsService.Default.GetSnapshot();
+        var settings = SqlAssistSettingsStore.Current;
         var sources = 0;
 
         foreach (var table in tables)
@@ -699,7 +700,7 @@ internal sealed class SqlMetadataService : IDisposable
 
     private static string Quote(string name, SqlAssistSettings settings)
     {
-        return settings.Suggestions.UseSquareBrackets
+        return settings.UseSquareBrackets
             ? SqlIdentifier.Quote(name)
             : SqlIdentifier.QuoteIfNeeded(name);
     }

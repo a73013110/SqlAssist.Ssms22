@@ -39,5 +39,5 @@ if (Test-Path -LiteralPath $logPath) {
 }
 else {
     Write-Host "`n尚無診斷紀錄：$logPath" -ForegroundColor Yellow
-    Write-Host '安裝 0.4.1 並重新啟動 SSMS 後才會產生紀錄。'
+    Write-Host '安裝擴充並重新啟動 SSMS 後才會產生紀錄。'
 }

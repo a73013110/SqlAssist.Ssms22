@@ -89,6 +89,17 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!--
+      Unified Settings 的服務型別（SVsUnifiedSettingsManager、
+      SVsUnifiedSettingsUiController）只在這個內部 interop 組件裡；
+      介面本體 ISettingsManager／ISettingsReader 則在
+      Microsoft.VisualStudio.Utilities。取用處一律收斂例外，
+      SSMS 改版拿不到服務時擴充仍以內建預設值運作。
+    -->
+    <Reference Include="Microsoft.Internal.VisualStudio.Interop">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Interop">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Interop.dll</HintPath>
       <Private>false</Private>
@@ -119,10 +130,21 @@
     <VSCTCompile Include="Menus.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
+    <!--
+      Unified Settings 的註冊檔。pkgdef 以 $PackageFolder$ 相對路徑指向它
+      （見 SqlAssistPackage 的 ProvideSettingsManifest），所以必須跟組件
+      一起進 VSIX 的根目錄。
+    -->
+    <Content Include="SqlAssist.registration.json">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <Target Name="ValidateSsmsReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Data.dll')"
            Text="找不到 SSMS 22 編輯器組件。請以 /p:SsmsInstallDir=&quot;SSMS 安裝路徑&quot; 指定位置。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll')"
+           Text="找不到 Microsoft.Internal.VisualStudio.Interop，Unified Settings 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
   </Target>
 </Project>
