@@ -15,6 +15,17 @@ using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
+/// <summary>使用者放開縮放握把後，實際改動了哪些軸向。</summary>
+internal sealed class PreviewSizeCommittedEventArgs : EventArgs
+{
+    public PreviewSizeCommittedEventArgs(bool widthChanged)
+    {
+        WidthChanged = widthChanged;
+    }
+
+    public bool WidthChanged { get; }
+}
+
 /// <summary>
 /// 浮動結構預覽的內容。
 /// </summary>
@@ -140,14 +151,10 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// <summary>握把在左下角時，往左拖曳才是變大。</summary>
     private bool _gripOnLeft;
 
-    /// <summary>
-    /// 上下擺放時寬度由編輯器決定，拖曳握把只能改高度。
-    /// </summary>
-    /// <remarks>
-    /// 不擋住的話，使用者可以把視窗拖得比編輯器還寬，然後在下一次顯示時
-    /// 看著它彈回去——那不是「調整大小」，那是白費力氣。
-    /// </remarks>
-    private bool _widthLocked;
+    /// <summary>目前版面容許拖曳到的最大尺寸；會跟著 Viewport 與錨點重算。</summary>
+    private double _maximumResizeWidth = SqlAssistLimits.MaximumPreviewWidth;
+
+    private double _maximumResizeHeight = SqlAssistLimits.MaximumPreviewHeight;
 
     /// <summary>按下握把當下的游標位置與尺寸；拖曳中的每一步都以此為基準重算。</summary>
     private Point? _dragOrigin;
@@ -341,7 +348,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     }
 
     /// <summary>拖曳結束，供呼叫端寫回設定。</summary>
-    public event EventHandler? SizeCommitted;
+    public event EventHandler<PreviewSizeCommittedEventArgs>? SizeCommitted;
 
     /// <summary>使用者在預覽裡按下 Esc。</summary>
     public event EventHandler? CloseRequested;
@@ -798,27 +805,27 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     private void Resize(double horizontal, double vertical, double baseWidth, double baseHeight)
     {
-        if (!_widthLocked)
-        {
-            // 握把在左下角時，視窗是往左長的：往左拖才是變大。
-            var widthChange = _gripOnLeft ? -horizontal : horizontal;
+        // 握把在左下角時，視窗是往左長的：往左拖才是變大。
+        var widthChange = _gripOnLeft ? -horizontal : horizontal;
 
-            _root.Width = Clamp(
-                baseWidth + widthChange,
-                SqlAssistLimits.MinimumPreviewWidth,
-                SqlAssistLimits.MaximumPreviewWidth);
-        }
+        _root.Width = Clamp(
+            baseWidth + widthChange,
+            Math.Min(SqlAssistLimits.MinimumPreviewWidth, _maximumResizeWidth),
+            _maximumResizeWidth);
 
         _root.Height = Clamp(
             baseHeight + vertical,
-            SqlAssistLimits.MinimumPreviewHeight,
-            SqlAssistLimits.MaximumPreviewHeight);
+            Math.Min(SqlAssistLimits.MinimumPreviewHeight, _maximumResizeHeight),
+            _maximumResizeHeight);
     }
 
     private void OnResizeDragCompleted(object sender, DragCompletedEventArgs eventArgs)
     {
         _dragOrigin = null;
-        SizeCommitted?.Invoke(this, EventArgs.Empty);
+        SizeCommitted?.Invoke(
+            this,
+            new PreviewSizeCommittedEventArgs(
+                Math.Abs(_root.Width - _dragStartWidth) >= 0.5));
     }
 
     /// <summary>
@@ -838,28 +845,24 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _gripOnLeft = onLeft;
         _resize.HorizontalAlignment = onLeft ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        _resize.Cursor = _widthLocked
-            ? Cursors.SizeNS
-            : onLeft ? Cursors.SizeNESW : Cursors.SizeNWSE;
+        _resize.Cursor = onLeft ? Cursors.SizeNESW : Cursors.SizeNWSE;
         _resize.RenderTransform = onLeft
             ? new ScaleTransform(-1, 1, 8, 8)
             : Transform.Identity;
         _status.Margin = onLeft ? new Thickness(24, 0, 14, 6) : new Thickness(14, 0, 24, 6);
     }
 
-    /// <summary>寬度是不是由編輯器決定；是的話握把只改高度，游標也只提示上下。</summary>
-    public void SetWidthLocked(bool locked)
+    /// <summary>
+    /// 設定拖曳與顯示都必須遵守的可用範圍；即使範圍小於一般最小尺寸也不得溢出。
+    /// </summary>
+    public void SetResizeLimits(double availableWidth, double availableHeight)
     {
-        if (_widthLocked == locked)
-        {
-            return;
-        }
-
-        _widthLocked = locked;
-        _resize.Cursor = locked ? Cursors.SizeNS : Cursors.SizeNWSE;
-        _resize.ToolTip = locked
-            ? "拖曳調整高度；下次開啟會沿用（上下擺放時寬度由編輯器決定）"
-            : "拖曳調整大小；下次開啟會沿用";
+        _maximumResizeWidth = NormalizeMaximum(
+            availableWidth,
+            SqlAssistLimits.MaximumPreviewWidth);
+        _maximumResizeHeight = NormalizeMaximum(
+            availableHeight,
+            SqlAssistLimits.MaximumPreviewHeight);
     }
 
     /// <summary>視窗剛掛上去時淡入一次；換選取時不重播，那會變成閃爍。</summary>
@@ -890,13 +893,32 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// </remarks>
     public void ApplySize(double width, double height, double availableWidth, double availableHeight)
     {
-        _root.Width = availableWidth > SqlAssistLimits.MinimumPreviewWidth
-            ? Math.Min(width, availableWidth)
-            : width;
+        SetResizeLimits(availableWidth, availableHeight);
 
-        _root.Height = availableHeight > SqlAssistLimits.MinimumPreviewHeight
-            ? Math.Min(height, availableHeight)
-            : height;
+        _root.Width = ConstrainDimension(
+            width,
+            SqlAssistLimits.MinimumPreviewWidth,
+            _maximumResizeWidth);
+        _root.Height = ConstrainDimension(
+            height,
+            SqlAssistLimits.MinimumPreviewHeight,
+            _maximumResizeHeight);
+    }
+
+    private static double ConstrainDimension(double requested, double minimum, double maximum)
+    {
+        // 可用範圍比一般最小值還窄時，邊界安全優先，不能退回一個會溢出的尺寸。
+        return Clamp(requested, Math.Min(minimum, maximum), maximum);
+    }
+
+    private static double NormalizeMaximum(double available, double absoluteMaximum)
+    {
+        if (double.IsNaN(available) || double.IsInfinity(available) || available <= 0)
+        {
+            return absoluteMaximum;
+        }
+
+        return Math.Min(available, absoluteMaximum);
     }
 
     private static double Clamp(double value, double minimum, double maximum)

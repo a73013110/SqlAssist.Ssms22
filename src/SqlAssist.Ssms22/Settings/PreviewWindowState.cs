@@ -18,12 +18,18 @@ internal static class PreviewWindowState
 {
     private const string Collection = @"SqlAssist\Preview";
     private const string WidthProperty = "Width";
+    private const string StackedWidthProperty = "StackedWidth";
     private const string HeightProperty = "Height";
 
     private static WritableSettingsStore? _store;
     private static bool _storeResolved;
 
     public static double Width { get; private set; } = SqlAssistLimits.DefaultPreviewWidth;
+
+    /// <summary>
+    /// 使用者為上下擺放拖出的寬度；null 代表仍採用「延伸到編輯器右側」的自動寬度。
+    /// </summary>
+    public static double? StackedWidth { get; private set; }
 
     public static double Height { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
 
@@ -53,6 +59,13 @@ internal static class PreviewWindowState
 
             Width = SqlAssistLimits.ClampPreviewWidth(
                 store.GetInt32(Collection, WidthProperty, (int)SqlAssistLimits.DefaultPreviewWidth));
+
+            // 0 是「尚未手動調過」的哨兵值；舊版沒有這個欄位時也會自然進入自動模式。
+            var stackedWidth = store.GetInt32(Collection, StackedWidthProperty, 0);
+            StackedWidth = stackedWidth > 0
+                ? SqlAssistLimits.ClampPreviewWidth(stackedWidth)
+                : null;
+
             Height = SqlAssistLimits.ClampPreviewHeight(
                 store.GetInt32(Collection, HeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight));
         }
@@ -66,15 +79,20 @@ internal static class PreviewWindowState
     /// <summary>
     /// 記下使用者拖出來的尺寸。
     /// </summary>
-    /// <param name="width">
-    /// <c>null</c> 代表這次不更新寬度——上下擺放的寬度是編輯器決定的，
-    /// 不是使用者拖出來的，寫回去等於用視窗寬度蓋掉他為側邊擺放調好的那一個值。
+    /// <param name="width"><c>null</c> 代表這次不更新側邊擺放寬度。</param>
+    /// <param name="stackedWidth">
+    /// <c>null</c> 代表這次沒有水平拖曳，不把自動寬度誤記成使用者偏好。
     /// </param>
-    public static void Save(double? width, double height)
+    public static void Save(double? width, double? stackedWidth, double height)
     {
         if (width is { } newWidth)
         {
             Width = SqlAssistLimits.ClampPreviewWidth(newWidth);
+        }
+
+        if (stackedWidth is { } newStackedWidth)
+        {
+            StackedWidth = SqlAssistLimits.ClampPreviewWidth(newStackedWidth);
         }
 
         Height = SqlAssistLimits.ClampPreviewHeight(height);
@@ -88,6 +106,12 @@ internal static class PreviewWindowState
 
             store.CreateCollection(Collection);
             store.SetInt32(Collection, WidthProperty, (int)Width);
+
+            if (StackedWidth is { } savedStackedWidth)
+            {
+                store.SetInt32(Collection, StackedWidthProperty, (int)savedStackedWidth);
+            }
+
             store.SetInt32(Collection, HeightProperty, (int)Height);
         }
         catch (Exception exception)

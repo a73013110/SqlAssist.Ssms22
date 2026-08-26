@@ -14,7 +14,7 @@ public enum SqlPreviewPlacement
     Beside,
 
     /// <summary>
-    /// 擺在游標所在行的上方或下方，寬度吃滿編輯器。
+    /// 擺在建議清單的上方或下方，從清單錨點延伸到編輯器右側。
     /// </summary>
     /// <remarks>
     /// 位置不再受清單寬度影響，而且一百多個欄位的資料表可以一次攤開好幾欄

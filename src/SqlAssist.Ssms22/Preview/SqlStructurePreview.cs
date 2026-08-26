@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -27,6 +27,11 @@ internal sealed class SqlStructurePreview
 {
     /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
     private const double MaximumViewportRatio = 0.8;
+
+    /// <summary>
+    /// 留給平台 Popup 外框與 DPI 捨入的右側餘量，避免剛好貼齊螢幕時被平台往左校正。
+    /// </summary>
+    private const double StackedRightPadding = 4;
 
     /// <summary>
     /// 展開狀態下換選取時，多久之後才真的去查資料庫。
@@ -79,6 +84,12 @@ internal sealed class SqlStructurePreview
 
     private bool _activationAttached;
 
+    /// <summary>同一輪編輯器 Layout 只排一次 stacked 尺寸更新，避免重複重排。</summary>
+    private bool _stackedLayoutUpdateQueued;
+
+    /// <summary>上一次算出來的 stacked 可用寬度；沒變就不必再麻煩平台重排。</summary>
+    private double _lastStackedAvailableWidth = double.NaN;
+
     private SqlStructurePreview(IWpfTextView view, IServiceProvider serviceProvider)
     {
         _view = view;
@@ -88,6 +99,10 @@ internal sealed class SqlStructurePreview
         _timer.Tick += OnTimerTick;
 
         view.Closed += OnViewClosed;
+        view.LayoutChanged += OnViewLayoutChanged;
+        view.ViewportLeftChanged += OnViewportGeometryChanged;
+        view.ViewportWidthChanged += OnViewportGeometryChanged;
+        view.ZoomLevelChanged += OnZoomLevelChanged;
     }
 
     /// <summary>
@@ -509,7 +524,7 @@ internal sealed class SqlStructurePreview
         Hide();
     }
 
-    private void OnSizeCommitted(object sender, EventArgs eventArgs)
+    private void OnSizeCommitted(object sender, PreviewSizeCommittedEventArgs eventArgs)
     {
         if (_control is not { } control)
         {
@@ -518,13 +533,18 @@ internal sealed class SqlStructurePreview
 
         try
         {
-            // 上下擺放的寬度是編輯器決定的，不是使用者拖出來的；
-            // 寫回去等於用視窗寬度蓋掉他為側邊擺放調好的那一個值。
+            var stacked = Placement == SqlPreviewPlacement.Stacked;
+            var draggedWidth = eventArgs.WidthChanged ? control.PreferredWidth : (double?)null;
+
+            // 兩種擺放的寬度語意不同，分開保存；只拖高度時 stacked 仍維持自動寬度。
             PreviewWindowState.Save(
-                Placement == SqlPreviewPlacement.Stacked ? null : control.PreferredWidth,
+                stacked ? null : draggedWidth,
+                stacked ? draggedWidth : null,
                 control.PreferredHeight);
 
-            // 放開手才收斂一次位置：拖曳期間重排等於在使用者手上把視窗抽來抽去。
+            // 平台會因內容 SizeChanged 自行重排；放開時再明確以最新錨點完成一次更新。
+            RefreshSessionAnchor();
+
             if (_agent is not null && _manager is not null && _anchor is not null)
             {
                 _manager.UpdatePopupAgent(_agent, _anchor, Styles);
@@ -540,6 +560,8 @@ internal sealed class SqlStructurePreview
     /// <summary>把視窗掛上編輯器；已經掛著就只更新錨點。</summary>
     private void ShowAgent()
     {
+        RefreshSessionAnchor();
+
         if (_control is not { } control || _anchor is null || _view.IsClosed)
         {
             return;
@@ -599,11 +621,13 @@ internal sealed class SqlStructurePreview
     }
 
     /// <summary>
-    /// 套用尺寸；上下擺放時寬度改由編輯器決定。
+    /// 套用尺寸；上下擺放時左側跟著建議清單錨點，右側不得超出編輯器。
     /// </summary>
     /// <remarks>
-    /// 橫幅的價值就在「一次攤開一百多個欄位而不必橫向捲動」，寬度沿用側邊擺放
-    /// 那個 620 就沒有意義了。
+    /// 平台會先把上下擺放的左側放在 ApplicableToSpan 左緣，再做螢幕邊界修正。
+    /// 如果仍給整個 ViewportWidth，右側必然多出「錨點離 Viewport 左側的距離」，
+    /// 平台只好把整個 Popup 往左搬，於是左側不再和建議清單對齊。
+    /// 正確寬度是 ViewportRight 減掉錨點左側；既保留對齊，也不越過編輯器右界。
     ///
     /// 高度則跟側邊擺放走同一條規則。原本另外壓成編輯器的 45%，理由是「擺在
     /// 程式碼上下的東西太高會遮掉太多行」——但那個上限比使用者拖出來的高度還低，
@@ -615,15 +639,20 @@ internal sealed class SqlStructurePreview
         // 字級也在這裡套用：改完設定不必重開查詢視窗，下一次展開就是新的字級。
         control.ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
 
-        var availableWidth = _view.ViewportWidth * MaximumViewportRatio;
-        var availableHeight = _view.ViewportHeight * MaximumViewportRatio;
+        var availableWidth = ToDeviceUnits(_view.ViewportWidth * MaximumViewportRatio);
+        var availableHeight = ToDeviceUnits(_view.ViewportHeight * MaximumViewportRatio);
 
         if (Placement == SqlPreviewPlacement.Stacked)
         {
+            var stackedAvailableWidth = GetStackedAvailableWidth();
+            var stackedWidth = PreviewWindowState.StackedWidth ?? stackedAvailableWidth;
+
+            _lastStackedAvailableWidth = stackedAvailableWidth;
+
             control.ApplySize(
-                _view.ViewportWidth,
+                stackedWidth,
                 PreviewWindowState.Height,
-                _view.ViewportWidth,
+                stackedAvailableWidth,
                 availableHeight);
             return;
         }
@@ -635,6 +664,79 @@ internal sealed class SqlStructurePreview
             availableHeight);
     }
 
+    /// <summary>取得 ApplicableToSpan 左側到編輯器右側的可用寬度。</summary>
+    /// <remarks>
+    /// 保底到最小寬度：錨點靠近右界時算出來的空間可能只剩幾十像素，那樣的視窗
+    /// 根本沒法看。寧可讓平台照它原本的邊界規則把視窗往左推，也不要交出一個
+    /// 窄到不能用的尺寸。
+    /// </remarks>
+    private double GetStackedAvailableWidth()
+    {
+        var textSpaceWidth = TryGetAnchorLeft(out var anchorLeft)
+            ? _view.ViewportRight - anchorLeft
+            // 版面尚未產生文字行時先退回 Viewport；平台稍後 LayoutChanged 會再重算。
+            : _view.ViewportWidth;
+
+        return Math.Max(
+            SqlAssistLimits.MinimumPreviewWidth,
+            ToDeviceUnits(textSpaceWidth) - StackedRightPadding);
+    }
+
+    /// <summary>
+    /// 文字座標的長度換算成浮動視窗用的 WPF 單位。
+    /// </summary>
+    /// <remarks>
+    /// 編輯器縮放只作用在文字上：150% 時 <c>ViewportWidth</c> 只有實際寬度的三分之二，
+    /// 而浮動視窗不吃這個縮放。不乘回去的話，放大字級的人會拿到一個明顯偏窄的視窗。
+    /// </remarks>
+    private double ToDeviceUnits(double textSpaceLength) =>
+        textSpaceLength * (_view.ZoomLevel > 0 ? _view.ZoomLevel / 100.0 : 1.0);
+
+    /// <summary>
+    /// 用和平台 PopupAgent 相同的文字呈現座標取得錨點左側；不拿 Caret 代替，
+    /// 因為 ApplicableToSpan 的起點可能和 Caret 不同。
+    /// </summary>
+    private bool TryGetAnchorLeft(out double anchorLeft)
+    {
+        anchorLeft = 0;
+
+        if (_anchor is null || _view.IsClosed || _view.TextViewLines is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var span = _anchor.GetSpan(_view.TextSnapshot);
+            var line = _view.TextViewLines.GetTextViewLineContainingBufferPosition(span.Start);
+
+            if (line is null)
+            {
+                return false;
+            }
+
+            var bounds = line.GetExtendedCharacterBounds(span.Start);
+            anchorLeft = Math.Max(bounds.Left, _view.ViewportLeft);
+            return !double.IsNaN(anchorLeft) && !double.IsInfinity(anchorLeft);
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.Write($"計算結構預覽錨點失敗：{exception.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Async Completion 允許不同項目帶不同 ApplicableToSpan；不能只沿用 session 開啟時的值。
+    /// </summary>
+    private void RefreshSessionAnchor()
+    {
+        if (_session is { } session)
+        {
+            _anchor = session.ApplicableToSpan;
+        }
+    }
+
     /// <summary>
     /// 判斷視窗落在錨點的哪一側，並把縮放握把放到它實際會長大的那一角。
     /// </summary>
@@ -643,8 +745,8 @@ internal sealed class SqlStructurePreview
     /// 使用者往右拖曳卻看到左邊界往外跑。判斷不出來時一律當成右側，
     /// 那是絕大多數情況，也是預設的版面。
     ///
-    /// 上下擺放不需要判斷：視窗跨滿整個編輯器寬度，左右兩邊都釘死了，
-    /// 拿右邊界跟游標比較只會得到隨機的結果。
+    /// 上下擺放固定從錨點往右長，最大值由錨點到 ViewportRight 的空間決定，
+    /// 所以握把固定在右下角但不再鎖住寬度。
     /// </remarks>
     private void UpdateGripSide()
     {
@@ -653,30 +755,36 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        if (Placement == SqlPreviewPlacement.Stacked)
-        {
-            control.SetWidthLocked(true);
-            control.SetGripSide(onLeft: false);
-            return;
-        }
+        var stacked = Placement == SqlPreviewPlacement.Stacked;
 
-        control.SetWidthLocked(false);
+        // 上下擺放固定從錨點往右長，握把就固定在右下角，不必問平台把它放到哪一側。
+        if (stacked)
+        {
+            control.SetGripSide(onLeft: false);
+        }
 
         try
         {
             var popupLeft = _host.PointToScreen(new Point(0, 0)).X;
             var popupRight = _host.PointToScreen(new Point(_host.ActualWidth, 0)).X;
-            var caretX = _view.Caret.Left - _view.ViewportLeft;
-            var anchorScreenX = _view.VisualElement.PointToScreen(new Point(caretX, 0)).X;
+            var anchorX = TryGetAnchorLeft(out var anchorLeft)
+                ? anchorLeft - _view.ViewportLeft
+                : _view.Caret.Left - _view.ViewportLeft;
+            var anchorScreenX = _view.VisualElement
+                .PointToScreen(new Point(ToDeviceUnits(anchorX), 0)).X;
             var onLeft = popupRight <= anchorScreenX;
-            control.SetGripSide(onLeft);
 
-            // 落在哪一側是平台算的，沒有公開 API 可以查詢或指定。視窗跑到左邊
-            // 蓋住物件總管時，這一行是唯一能看出「它離錨點多遠、寬度是多少」的地方。
+            if (!stacked)
+            {
+                control.SetGripSide(onLeft);
+            }
+
+            // stacked 也記錄實際落點：可以直接看出平台是否因螢幕邊界又把它往左搬。
             SqlAssistDiagnostics.Write(
-                $"結構預覽落點：{(onLeft ? "左" : "右")}側　" +
+                $"結構預覽落點：{(stacked ? onLeft ? "上下（被推左）" : "上下" : onLeft ? "左" : "右")}　" +
                 $"視窗 {popupLeft:F0}–{popupRight:F0}（寬 {_host.ActualWidth:F0}）　" +
-                $"錨點 {anchorScreenX:F0}　編輯器寬 {_view.ViewportWidth:F0}",
+                $"錨點 {anchorScreenX:F0}　編輯器寬 {_view.ViewportWidth:F0}" +
+                (stacked ? $"　可用寬 {GetStackedAvailableWidth():F0}" : string.Empty),
                 _view);
         }
         catch (Exception exception)
@@ -684,6 +792,67 @@ internal sealed class SqlStructurePreview
             // 版面還沒完成時 PointToScreen 會失敗，那就維持現狀。
             SqlAssistDiagnostics.Write($"判斷結構預覽的位置失敗：{exception.Message}");
         }
+    }
+
+    private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
+        QueueStackedLayoutUpdate();
+
+    private void OnViewportGeometryChanged(object sender, EventArgs eventArgs) =>
+        QueueStackedLayoutUpdate();
+
+    private void OnZoomLevelChanged(object sender, ZoomLevelChangedEventArgs eventArgs) =>
+        QueueStackedLayoutUpdate();
+
+    /// <summary>
+    /// Viewport、水平捲動或字級縮放會改變錨點到右界的距離；合併成一次版面後更新。
+    /// </summary>
+    private void QueueStackedLayoutUpdate()
+    {
+        if (_closed || _stackedLayoutUpdateQueued || _agent is null ||
+            Placement != SqlPreviewPlacement.Stacked)
+        {
+            return;
+        }
+
+        _stackedLayoutUpdateQueued = true;
+        _view.VisualElement.Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(() =>
+            {
+                _stackedLayoutUpdateQueued = false;
+
+                if (_closed || _agent is null || _manager is null || _anchor is null ||
+                    _control is not { } control || Placement != SqlPreviewPlacement.Stacked)
+                {
+                    return;
+                }
+
+                try
+                {
+                    var previousAnchor = _anchor;
+                    RefreshSessionAnchor();
+
+                    // 打字時每個字元都會觸發 LayoutChanged，但錨點左緣不動、可用寬度
+                    // 也就不變；這時再叫平台重排一次，只會讓視窗在使用者眼前抖一下。
+                    if (ReferenceEquals(previousAnchor, _anchor) &&
+                        Math.Abs(GetStackedAvailableWidth() - _lastStackedAvailableWidth) < 0.5)
+                    {
+                        return;
+                    }
+
+                    ApplySize(control);
+                    _manager.UpdatePopupAgent(_agent, _anchor, Styles);
+
+                    // UpdatePopupAgent 只排平台重算；實際螢幕座標要再晚一個 Layout 才可靠。
+                    _view.VisualElement.Dispatcher.BeginInvoke(
+                        DispatcherPriority.Loaded,
+                        new Action(UpdateGripSide));
+                }
+                catch (Exception exception)
+                {
+                    SqlAssistDiagnostics.WriteAlways($"更新結構預覽版面失敗：{exception.Message}");
+                }
+            }));
     }
 
     /// <summary>
@@ -803,6 +972,10 @@ internal sealed class SqlStructurePreview
     {
         _closed = true;
         _view.Closed -= OnViewClosed;
+        _view.LayoutChanged -= OnViewLayoutChanged;
+        _view.ViewportLeftChanged -= OnViewportGeometryChanged;
+        _view.ViewportWidthChanged -= OnViewportGeometryChanged;
+        _view.ZoomLevelChanged -= OnZoomLevelChanged;
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
         _loading?.Cancel();
