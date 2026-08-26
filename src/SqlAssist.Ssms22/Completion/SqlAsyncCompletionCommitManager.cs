@@ -74,6 +74,11 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 return CommitResult.Unhandled;
             }
 
+            // 排名要記住這一筆。提交路徑上大部分項目最後會交還給平台
+            // （下面那個 Unhandled），所以必須記在早退之前，否則只有
+            // Snippet 與模組展開這兩種特例會被記住。
+            SqlSuggestionUsage.Record(suggestion);
+
             var snapshot = buffer.CurrentSnapshot;
             var span = session.ApplicableToSpan.GetSpan(snapshot);
             var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(), span.End);

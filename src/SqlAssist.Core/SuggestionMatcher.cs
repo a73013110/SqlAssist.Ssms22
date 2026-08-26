@@ -11,16 +11,31 @@ namespace SqlAssist.Core;
 public static class SuggestionMatcher
 {
     /// <summary>
-    /// 模糊分數的放大倍率。設定成遠大於所有次要調整值的總和，
-    /// 確保次要調整只在模糊分數相同時才影響順序。
+    /// 分數的四個層級。
     /// </summary>
-    private const int FuzzyScoreScale = 128;
+    /// <remarks>
+    /// 每一層的倍率都大於它底下所有層的最大總和，因此低層只在高層打平時才說得上話：
+    ///
+    ///   比對品質（8192／分） ＞ 最近用過（3072） ＞ 類別（最多 40×64＝2560） ＞ 名稱長度（最多 63）
+    ///
+    /// 這個關係必須維持。倍率一旦太靠近，低層就會翻過高層——曾經
+    /// 長度懲罰上限 64、類別加成最多 40，兩者同一量級，於是
+    /// <c>USER_ACCOUNT_HISTORY_DETAIL</c>（欄位 35−27＝8）輸給
+    /// <c>USERS</c>（資料表 20−5＝15），正好違反「欄位優先於資料表」。
+    /// </remarks>
+    private const int FuzzyScoreScale = 8192;
 
-    /// <summary>完全相同（忽略大小寫）時的壓倒性加成。</summary>
-    private const int ExactMatchBonus = 100_000;
+    /// <summary>最近提交過的加成；壓得過類別偏好，壓不過更好的比對品質。</summary>
+    private const int RecentlyUsedBonus = 3072;
+
+    /// <summary>類別偏好的倍率。</summary>
+    private const int KindBonusScale = 64;
 
     /// <summary>長度懲罰的上限，避免超長物件名稱把分數拉到失真。</summary>
-    private const int MaximumLengthPenalty = 64;
+    private const int MaximumLengthPenalty = 63;
+
+    /// <summary>完全相同（忽略大小寫）時的壓倒性加成。</summary>
+    private const int ExactMatchBonus = 10_000_000;
 
     /// <summary>
     /// 篩選並排名建議項，回傳含分數與命中區段的結果。
@@ -72,9 +87,12 @@ public static class SuggestionMatcher
             results.Add(new SuggestionMatch(suggestion, ComposeScore(suggestion, match, pattern), match.Spans));
         }
 
+        // 同分時保留候選清單原本的順序（LINQ 的排序是穩定的），不再改成字母序：
+        // 每一段的原始順序本身就有意義——欄位是資料表的定義順序，
+        // 資料庫物件與關鍵字是名稱順序。字母序會把欄位的定義順序打散，
+        // 而那才是使用者對一張表的心智模型。
         return results
             .OrderByDescending(item => item.Score)
-            .ThenBy(item => item.Suggestion.DisplayText, StringComparer.OrdinalIgnoreCase)
             .Take(maximumCount)
             .ToArray();
     }
@@ -133,7 +151,7 @@ public static class SuggestionMatcher
     /// </summary>
     public static int ComposeScore(SqlSuggestion suggestion, FuzzyMatchResult match, string pattern)
     {
-        var score = (match.Score * FuzzyScoreScale) + KindBonus(suggestion.Kind);
+        var score = (match.Score * FuzzyScoreScale) + ComposeStandingScore(suggestion);
 
         if (pattern.Length > 0 &&
             string.Equals(suggestion.DisplayText, pattern, StringComparison.OrdinalIgnoreCase))
@@ -146,7 +164,28 @@ public static class SuggestionMatcher
     }
 
     /// <summary>
-    /// 只在模糊分數打平時生效的類別偏好。
+    /// 與使用者輸入無關的那一段分數：最近用過與類別偏好。
+    /// </summary>
+    /// <remarks>
+    /// 還沒輸入任何字元時，這就是清單的順序——比對品質這一層此時對所有候選項
+    /// 都是零，剩下的正好是「在不知道他要打什麼的情況下，最可能要的東西」。
+    /// 與 <see cref="ComposeScore"/> 共用同一組層級，兩種情境的偏好才會一致。
+    /// </remarks>
+    public static int ComposeStandingScore(SqlSuggestion suggestion)
+    {
+        var score = KindBonus(suggestion.Kind) * KindBonusScale;
+
+        if (SqlSuggestionUsage.IsRecent(suggestion))
+        {
+            score += RecentlyUsedBonus;
+        }
+
+        return score;
+    }
+
+    /// <summary>
+    /// 類別偏好；由 <see cref="KindBonusScale"/> 放大成一個層級，
+    /// 只在比對品質與最近使用都打平時決定順序。
     /// </summary>
     private static int KindBonus(SuggestionKind kind)
     {

@@ -251,4 +251,104 @@ public sealed class SuggestionMatcherTests
         Assert.All(topKinds, kind =>
             Assert.True(kind == SuggestionKind.Keyword || kind == SuggestionKind.Snippet));
     }
+
+    /// <summary>
+    /// 類別偏好不該被名稱長度翻掉。
+    /// </summary>
+    /// <remarks>
+    /// 兩者的模糊分數相同（都是首字元詞首命中），差別只在類別與長度。
+    /// 曾經長度懲罰與類別加成同一量級，於是長欄位輸給短資料表，
+    /// 正好違反「欄位優先於資料表」——而欄位名普遍比資料表名長，那不是特例。
+    /// </remarks>
+    [Fact]
+    public void 長欄位仍排在短資料表之前()
+    {
+        var names = RankNames(
+            new[] { Table("USERS"), Column("USER_ACCOUNT_HISTORY_DETAIL") },
+            "SELECT us");
+
+        Assert.Equal("USER_ACCOUNT_HISTORY_DETAIL", names[0]);
+    }
+
+    [Fact]
+    public void 名稱長度只在同類別內決定順序()
+    {
+        var names = RankNames(
+            new[] { Column("USER_ACCOUNT_HISTORY_DETAIL"), Column("USERS") },
+            "SELECT us");
+
+        Assert.Equal("USERS", names[0]);
+    }
+
+    /// <summary>最近提交過的項目要排到前面。</summary>
+    [Fact]
+    public void 最近用過的排在同類別的其他項目之前()
+    {
+        SqlSuggestionUsage.Clear();
+
+        try
+        {
+            var candidates = new[] { Table("USER_A"), Table("USER_B") };
+
+            Assert.Equal("USER_A", RankNames(candidates, "SELECT * FROM user")[0]);
+
+            SqlSuggestionUsage.Record(Table("USER_B"));
+
+            Assert.Equal("USER_B", RankNames(candidates, "SELECT * FROM user")[0]);
+        }
+        finally
+        {
+            SqlSuggestionUsage.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 最近用過壓得過類別偏好，壓不過更好的比對品質。
+    /// </summary>
+    /// <remarks>
+    /// 前者：資料表排到欄位之前。後者：<c>publ</c> 之下，
+    /// 真正以它開頭的候選項仍要贏過只是包含這幾個字母的那一個。
+    /// </remarks>
+    [Fact]
+    public void 最近用過壓得過類別但壓不過比對品質()
+    {
+        SqlSuggestionUsage.Clear();
+
+        try
+        {
+            SqlSuggestionUsage.Record(Table("PUBLCODE"));
+            Assert.Equal(
+                SuggestionKind.Table,
+                SuggestionMatcher.Rank(
+                    new[] { Column("PUBLCODE"), Table("PUBLCODE") },
+                    SqlCompletionContextAnalyzer.Analyze("SELECT publcode"))[0].Suggestion.Kind);
+
+            SqlSuggestionUsage.Clear();
+            SqlSuggestionUsage.Record(Table("MyPublisherLog"));
+            Assert.Equal(
+                "PUBLISHER",
+                RankNames(new[] { Table("MyPublisherLog"), Table("PUBLISHER") }, "SELECT * FROM publ")[0]);
+        }
+        finally
+        {
+            SqlSuggestionUsage.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 同分時保留候選清單原本的順序。
+    /// </summary>
+    /// <remarks>
+    /// 欄位交進來的順序是資料表的定義順序，那才是使用者對一張表的心智模型；
+    /// 以前的字母序 tie-break 會把它打散。
+    /// </remarks>
+    [Fact]
+    public void 同分時保留原本的順序()
+    {
+        var names = RankNames(
+            new[] { Column("N_ZULU"), Column("N_LIMA"), Column("N_MIKE") },
+            "SELECT n_");
+
+        Assert.Equal(new[] { "N_ZULU", "N_LIMA", "N_MIKE" }, names);
+    }
 }

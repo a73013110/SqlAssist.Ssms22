@@ -37,18 +37,26 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
     private const int MaximumItems = 300;
 
     /// <summary>
-    /// 初始順序原樣保留。
+    /// 還沒輸入任何字元時的顯示順序。
     /// </summary>
     /// <remarks>
-    /// 這只是「還沒輸入任何字元」時的顯示順序；一旦有前綴就完全由分數決定，
-    /// 因此沒有必要在這裡再排一次。
+    /// 交進來的順序是候選清單的串接順序——關鍵字與程式碼片段、敘述範圍欄位、
+    /// 資料庫物件——照那個順序顯示，按 Ctrl+Space 會先看到一整排關鍵字，
+    /// 敘述裡的欄位要捲很久才看得到。
+    ///
+    /// 這裡依 <see cref="SuggestionMatcher.ComposeStandingScore"/> 排一次：
+    /// 最近用過的在最前面，接著才是類別偏好。排序是穩定的，因此同一類別內
+    /// 仍是原本的順序（欄位＝資料表定義順序，物件與關鍵字＝名稱順序）。
+    ///
+    /// 只在 session 開始時做一次，之後每一次按鍵拿到的都是這份排好的清單。
     /// </remarks>
     public Task<CompletionList<CompletionItem>> SortCompletionItemListAsync(
         IAsyncCompletionSession session,
         AsyncCompletionSessionInitialDataSnapshot data,
         CancellationToken token)
     {
-        return Task.FromResult(data.InitialItemList);
+        // CompletionList<T> 沒有公開建構式，重排過的清單只能由 session 生出來。
+        return Task.FromResult(session.CreateCompletionList(Sort(data.InitialItemList)));
     }
 
     public Task<ImmutableArray<CompletionItem>> SortCompletionListAsync(
@@ -56,7 +64,33 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionInitialDataSnapshot data,
         CancellationToken token)
     {
-        return Task.FromResult(data.InitialItemList.ToImmutableArray());
+        return Task.FromResult(Sort(data.InitialItemList).ToImmutableArray());
+    }
+
+    /// <summary>依與輸入無關的那一段分數穩定排序。</summary>
+    private static List<CompletionItem> Sort(CompletionList<CompletionItem> items)
+    {
+        var sorted = new List<CompletionItem>(items.Count);
+
+        foreach (var item in items)
+        {
+            sorted.Add(item);
+        }
+
+        // List.Sort 不穩定，會把同分項目的原順序打散；這裡要的正是「同分維持原序」。
+        return sorted
+            .OrderByDescending(StandingScore)
+            .ToList();
+    }
+
+    /// <summary>項目在沒有輸入前綴時的分數。</summary>
+    private static int StandingScore(CompletionItem item)
+    {
+        return item.Properties.TryGetProperty<SqlSuggestion>(
+            SqlAsyncCompletionSource.SuggestionKey,
+            out var suggestion) && suggestion is not null
+            ? SuggestionMatcher.ComposeStandingScore(suggestion)
+            : 0;
     }
 
     public Task<FilteredCompletionModel?> UpdateCompletionListAsync(
@@ -130,9 +164,10 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
                     SqlCompletionFilters.Sort(data.SelectedFilters));
         }
 
+        // 同分時保留原順序（排序是穩定的），不改成字母序：交進來的清單已經是
+        // 排好的——欄位是資料表定義順序，物件與關鍵字是名稱順序。
         var filtered = scored
             .OrderByDescending(entry => entry.Score)
-            .ThenBy(entry => entry.Item.DisplayText, StringComparer.OrdinalIgnoreCase)
             .Take(MaximumItems)
             .Select(entry => new CompletionItemWithHighlight(entry.Item, ToSpans(entry.Spans)))
             .ToImmutableArray();
