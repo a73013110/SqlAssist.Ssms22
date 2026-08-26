@@ -204,6 +204,10 @@ internal static class SqlAssistSettingsStore
                 reader,
                 SqlAssistMonikers.UppercaseKeywordsOnType,
                 defaults.UppercaseKeywordsOnType),
+            ExpandWildcardOnTab = Read(
+                reader,
+                SqlAssistMonikers.ExpandWildcardOnTab,
+                defaults.ExpandWildcardOnTab),
 
             SuggestionsEnabled = Read(
                 reader,

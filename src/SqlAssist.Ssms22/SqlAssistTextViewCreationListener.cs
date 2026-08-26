@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22.Completion;
@@ -42,6 +43,15 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     [Import(AllowDefault = true)]
     internal SqlPreviewServices? PreviewServices { get; set; }
 
+    /// <summary>
+    /// 「按 Tab 展開所有欄位」那個提示用的視窗工廠，與滑鼠停留提示同一套。
+    /// </summary>
+    /// <remarks>
+    /// 允許缺席：拿不到就只是沒有提示，展開本身照常可用。
+    /// </remarks>
+    [Import(AllowDefault = true)]
+    internal IToolTipPresenterFactory? ToolTipPresenterFactory { get; set; }
+
     /// <remarks>
     /// 這個方法由編輯器建立流程直接呼叫，丟出例外會讓整個 SQL 編輯器開不起來，
     /// 因此一律收斂：擴充功能失效總比查詢視窗打不開好。
@@ -64,6 +74,8 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
                 SqlPreviewServices.Register(previewServices);
                 SqlPreviewSessionHook.Attach(textView, AsyncCompletionBroker, ServiceProvider);
             }
+
+            SqlWildcardHint.Attach(textView, AsyncCompletionBroker, ToolTipPresenterFactory);
 
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();

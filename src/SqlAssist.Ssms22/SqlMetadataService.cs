@@ -139,6 +139,91 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
+    /// 取得單一資料來源的欄位名稱，查不到時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 展開 <c>SELECT *</c> 用的。與 <see cref="GetColumnSuggestionsAsync"/> 走同一條
+    /// 分層路徑，但只要名稱：展開後寫進編輯器的就只有名稱，型別與 PK 那些
+    /// 是給建議清單看的。
+    ///
+    /// 回傳 null 與回傳空清單刻意分開：「查不到這個物件」必須讓呼叫端整個放棄，
+    /// 展開成少了幾個欄位的 SELECT 比什麼都不做糟糕得多。
+    /// </remarks>
+    public async Task<IReadOnlyList<string>?> GetColumnNamesAsync(
+        SqlTableReference table,
+        CancellationToken cancellationToken)
+    {
+        if (table is null || table.IsDerived)
+        {
+            return null;
+        }
+
+        var catalog = ResolveCatalog();
+
+        if (catalog is null)
+        {
+            return null;
+        }
+
+        var timer = Stopwatch.StartNew();
+        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+        if (matches.Count == 0)
+        {
+            return null;
+        }
+
+        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+        ReportIfSlow($"展開欄位 {matches[0].QualifiedName}（第二層）", timer);
+        return ToColumnNames(detail);
+    }
+
+    /// <summary>只看快取裡有沒有這個資料來源的欄位名稱；沒有就回傳 null，不觸發查詢。</summary>
+    /// <remarks>
+    /// 按下 Tab 的當下先問這裡：建議清單開過一次就已經把敘述裡的資料表預熱好了，
+    /// 命中快取時展開是同一個交易裡的一次編輯，看起來就像按鍵直接改了文字。
+    /// </remarks>
+    public IReadOnlyList<string>? PeekColumnNames(SqlTableReference table)
+    {
+        if (table is null || table.IsDerived)
+        {
+            return null;
+        }
+
+        var catalog = PeekCatalog();
+        var snapshot = catalog?.CachedSnapshot;
+
+        if (catalog is null || snapshot is null || snapshot.IsEmpty)
+        {
+            return null;
+        }
+
+        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+        return matches.Count > 0 && catalog.TryGetCachedDetail(matches[0].ObjectId, out var detail)
+            ? ToColumnNames(detail)
+            : null;
+    }
+
+    private static IReadOnlyList<string>? ToColumnNames(SqlObjectDetail? detail)
+    {
+        if (detail is null || detail.Columns.Count == 0)
+        {
+            return null;
+        }
+
+        var names = new string[detail.Columns.Count];
+
+        for (var index = 0; index < names.Length; index++)
+        {
+            names[index] = detail.Columns[index].Name;
+        }
+
+        return names;
+    }
+
+    /// <summary>
     /// 取得敘述中所有資料來源的欄位，供沒有限定字的位置使用。
     /// </summary>
     /// <remarks>

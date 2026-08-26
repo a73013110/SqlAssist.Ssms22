@@ -33,6 +33,16 @@ internal static class SqlCompletionServices
         }
     }
 
+    public static SqlWildcardExpander GetWildcardExpander(ITextView textView, IServiceProvider serviceProvider)
+    {
+        lock (SyncRoot)
+        {
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlWildcardExpander),
+                () => new SqlWildcardExpander(textView, GetMetadataService(textView, serviceProvider)));
+        }
+    }
+
     public static SqlModuleExpander GetModuleExpander(ITextView textView, IServiceProvider serviceProvider)
     {
         lock (SyncRoot)

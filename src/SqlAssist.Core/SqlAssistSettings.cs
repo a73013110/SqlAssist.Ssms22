@@ -26,6 +26,16 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool UppercaseKeywordsOnType { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.general.expandWildcardOnTab
+    /// </summary>
+    /// <remarks>
+    /// 游標停在選取清單的 <c>*</c> 後方時，按 Tab 把它換成完整的欄位清單，
+    /// 同時決定那個「按 Tab 展開」的提示要不要出現——提示與行為是同一件事，
+    /// 分成兩個開關只會讓人調出「看得到提示、按了沒反應」的組合。
+    /// </remarks>
+    public bool ExpandWildcardOnTab { get; init; } = true;
+
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;
 

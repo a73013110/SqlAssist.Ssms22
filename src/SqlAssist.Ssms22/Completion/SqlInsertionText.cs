@@ -23,8 +23,6 @@ internal static class SqlInsertionText
             return suggestion.InsertionText;
         }
 
-        // 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
-        // 名稱含空白或保留字時仍必須加括號，否則插入的 SQL 直接壞掉。
         var objectName = Quote(suggestion.DisplayText, settings);
 
         if (suggestion.Kind == SuggestionKind.Schema)
@@ -42,7 +40,15 @@ internal static class SqlInsertionText
         return Quote(suggestion.SchemaName!, settings) + "." + objectName;
     }
 
-    private static string Quote(string name, SqlAssistSettings settings)
+    /// <summary>
+    /// 依設定決定要不要加方括號。
+    /// </summary>
+    /// <remarks>
+    /// 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
+    /// 名稱含空白或保留字時仍必須加括號。展開萬用字元時適用同一條規則，
+    /// 所以這個方法開放給同組件使用。
+    /// </remarks>
+    public static string Quote(string name, SqlAssistSettings settings)
     {
         return settings.UseSquareBrackets
             ? SqlIdentifier.Quote(name)
