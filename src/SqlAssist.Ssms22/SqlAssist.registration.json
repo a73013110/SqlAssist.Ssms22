@@ -64,6 +64,14 @@
       "description": "關閉後完全不查詢連線的資料庫，清單只剩 T-SQL 關鍵字與程式碼片段。",
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
+    "sqlAssist.suggestions.showCategoryFilters": {
+      "type": "boolean",
+      "default": true,
+      "order": 45,
+      "title": "在建議清單上方顯示分類篩選列",
+      "description": "按下欄位、資料表、檢視等按鈕只看該分類，也可以按 Alt 加上按鈕的存取鍵。不選任何一顆就是全部。清單裡只有一種分類時不會出現。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
     "sqlAssist.suggestions.qualifyObjectNames": {
       "type": "boolean",
       "default": true,

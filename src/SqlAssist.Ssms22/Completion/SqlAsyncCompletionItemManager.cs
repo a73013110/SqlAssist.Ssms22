@@ -76,7 +76,7 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         {
             // 這裡丟出例外會讓整個 session 掛掉；退回不篩選的完整清單。
             SqlAssistDiagnostics.WriteAlways($"建議清單篩選失敗：{exception}");
-            return Task.FromResult<FilteredCompletionModel?>(Passthrough(data));
+            return Task.FromResult<FilteredCompletionModel?>(Passthrough(data, GetSelectedFilters(data)));
         }
     }
 
@@ -86,11 +86,12 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         CancellationToken token)
     {
         var items = data.InitialSortedItemList;
+        var selected = GetSelectedFilters(data);
         var pattern = FuzzyMatcher.NormalizePattern(GetTypedText(session, data));
 
         if (pattern.Length == 0)
         {
-            return Passthrough(data);
+            return Passthrough(data, selected);
         }
 
         var scored = new List<ScoredItem>(items.Count);
@@ -98,6 +99,12 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         foreach (var item in items)
         {
             token.ThrowIfCancellationRequested();
+
+            if (!IsIncluded(item, selected))
+            {
+                continue;
+            }
+
             var match = FuzzyMatcher.MatchNormalized(pattern, item.DisplayText);
 
             if (!match.IsMatch)
@@ -108,11 +115,19 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             scored.Add(new ScoredItem(item, ComposeScore(item, match, pattern), match.Spans));
         }
 
-        // 一個都沒中時回傳 null，平台會關閉 session，
-        // 而不是留一份空清單擋在游標旁邊。
         if (scored.Count == 0)
         {
-            return null;
+            // 一個都沒中時回傳 null，平台會關閉 session，
+            // 而不是留一份空清單擋在游標旁邊。
+            //
+            // 但被分類篩選器篩空時不能關：篩選列會跟著消失，
+            // 使用者連取消剛才按下的那顆都做不到。留一份空清單等他再按一次。
+            return selected.Count == 0
+                ? null
+                : new FilteredCompletionModel(
+                    ImmutableArray<CompletionItemWithHighlight>.Empty,
+                    0,
+                    SqlCompletionFilters.Sort(data.SelectedFilters));
         }
 
         var filtered = scored
@@ -122,14 +137,83 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             .Select(entry => new CompletionItemWithHighlight(entry.Item, ToSpans(entry.Spans)))
             .ToImmutableArray();
 
-        return new FilteredCompletionModel(filtered, 0);
+        return new FilteredCompletionModel(filtered, 0, SqlCompletionFilters.Sort(data.SelectedFilters));
     }
 
-    private static FilteredCompletionModel Passthrough(AsyncCompletionSessionDataSnapshot data)
+    /// <summary>
+    /// 還沒輸入任何字元時的清單：只套用分類篩選，順序原樣保留。
+    /// </summary>
+    /// <remarks>
+    /// 不走上面的評分路徑，是因為空前綴時所有分數相同，一排序就會被
+    /// <c>ThenBy(DisplayText)</c> 重排，敘述範圍內的欄位優先這件事就沒了。
+    /// </remarks>
+    private static FilteredCompletionModel Passthrough(
+        AsyncCompletionSessionDataSnapshot data,
+        List<CompletionFilter> selected)
     {
+        var builder = ImmutableArray.CreateBuilder<CompletionItemWithHighlight>(data.InitialSortedItemList.Count);
+
+        foreach (var item in data.InitialSortedItemList)
+        {
+            if (IsIncluded(item, selected))
+            {
+                builder.Add(new CompletionItemWithHighlight(item));
+            }
+        }
+
         return new FilteredCompletionModel(
-            data.InitialSortedItemList.Select(item => new CompletionItemWithHighlight(item)).ToImmutableArray(),
-            0);
+            builder.ToImmutable(),
+            0,
+            SqlCompletionFilters.Sort(data.SelectedFilters));
+    }
+
+    /// <summary>使用者按下的分類篩選鈕。</summary>
+    /// <remarks>
+    /// 平台只負責畫這排按鈕與記住按下的狀態；過濾要自己做。
+    /// 清單由這個 item manager 產出，不讀這份狀態的話，按鈕會按得下去卻沒有作用。
+    /// </remarks>
+    private static List<CompletionFilter> GetSelectedFilters(AsyncCompletionSessionDataSnapshot data)
+    {
+        var selected = new List<CompletionFilter>(data.SelectedFilters.Length);
+
+        foreach (var state in data.SelectedFilters)
+        {
+            if (state.IsSelected)
+            {
+                selected.Add(state.Filter);
+            }
+        }
+
+        return selected;
+    }
+
+    /// <summary>
+    /// 這一項通過分類篩選了嗎。
+    /// </summary>
+    /// <remarks>
+    /// 沒按任何一顆＝全部，因此不必另外做一顆「全部」。
+    ///
+    /// 沒有分類的項目一律列出。這是防呆而不是設計：
+    /// <see cref="SqlCompletionFilters.For"/> 會把每一種建議都歸到一顆篩選鈕上
+    /// （歸不了的收在「其他」），所以掛著篩選列時走不到這條。真的走到了——
+    /// 例如日後多出一種沒對應到的項目——寧可讓它照樣出現，也不要無聲消失。
+    /// </remarks>
+    private static bool IsIncluded(CompletionItem item, List<CompletionFilter> selected)
+    {
+        if (selected.Count == 0 || item.Filters.IsDefaultOrEmpty)
+        {
+            return true;
+        }
+
+        foreach (var filter in item.Filters)
+        {
+            if (selected.Contains(filter))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>取得使用者在建議範圍內已經輸入的文字。</summary>

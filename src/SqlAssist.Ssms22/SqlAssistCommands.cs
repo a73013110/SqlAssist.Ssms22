@@ -189,6 +189,7 @@ internal sealed class SqlAssistCommands
             $"觸發字元數：{settings.TriggerAfterCharacters}\r\n" +
             $"程式碼片段：{FormatState(settings.IncludeSnippets)}\r\n" +
             $"資料庫物件與欄位：{FormatState(settings.IncludeDatabaseObjects)}\r\n" +
+            $"分類篩選列：{FormatState(settings.ShowCategoryFilters)}\r\n" +
             $"補結構描述／方括號：{FormatState(settings.QualifyObjectNames)}／" +
             $"{FormatState(settings.UseSquareBrackets)}\r\n" +
             $"SSMS 內建 IntelliSense：{FormatNativeIntelliSense()}\r\n\r\n" +

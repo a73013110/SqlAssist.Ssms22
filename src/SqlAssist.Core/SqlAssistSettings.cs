@@ -44,6 +44,15 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool IncludeDatabaseObjects { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.suggestions.showCategoryFilters
+    /// </summary>
+    /// <remarks>
+    /// 建議清單上方那排分類篩選鈕（欄位、資料表、檢視…）。
+    /// 清單裡只有一種分類時本來就不會出現，這個開關管的是「有兩種以上時要不要顯示」。
+    /// </remarks>
+    public bool ShowCategoryFilters { get; init; } = true;
+
     /// <summary>sqlAssist.suggestions.qualifyObjectNames</summary>
     public bool QualifyObjectNames { get; init; } = true;
 

@@ -136,8 +136,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return CompletionContext.Empty;
             }
 
+            // 分類是否掛得上要看整份清單，不是逐項決定的：只有一種分類時
+            // 篩選列不該出現。
+            var withFilters = settings.ShowCategoryFilters &&
+                SqlCompletionFilters.HasMultipleCategories(suggestions);
+
             var items = suggestions
-                .Select(suggestion => CreateItem(suggestion, settings, context))
+                .Select(suggestion => CreateItem(suggestion, settings, context, withFilters))
                 .ToImmutableArray();
 
             // 使用者感受到的就是這個數字：從平台要清單，到清單交出去為止。
@@ -251,13 +256,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     private CompletionItem CreateItem(
         SqlSuggestion suggestion,
         SqlAssistSettings settings,
-        SqlCompletionContext context)
+        SqlCompletionContext context,
+        bool withFilters)
     {
         var item = new CompletionItem(
             displayText: suggestion.DisplayText,
             source: this,
             icon: null!,
-            filters: ImmutableArray<CompletionFilter>.Empty,
+            filters: withFilters
+                ? SqlCompletionFilters.For(suggestion.Kind)
+                : ImmutableArray<CompletionFilter>.Empty,
             suffix: suggestion.Description,
             insertText: SqlInsertionText.Build(suggestion, context, settings),
             sortText: suggestion.DisplayText,

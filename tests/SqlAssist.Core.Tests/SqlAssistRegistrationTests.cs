@@ -30,6 +30,7 @@ public sealed class SqlAssistRegistrationTests
         ["sqlAssist.suggestions.triggerAfterCharacters"] = Defaults.TriggerAfterCharacters,
         ["sqlAssist.suggestions.includeSnippets"] = Defaults.IncludeSnippets,
         ["sqlAssist.suggestions.includeDatabaseObjects"] = Defaults.IncludeDatabaseObjects,
+        ["sqlAssist.suggestions.showCategoryFilters"] = Defaults.ShowCategoryFilters,
         ["sqlAssist.suggestions.qualifyObjectNames"] = Defaults.QualifyObjectNames,
         ["sqlAssist.suggestions.useSquareBrackets"] = Defaults.UseSquareBrackets,
         ["sqlAssist.structure.hoverEnabled"] = Defaults.HoverEnabled,

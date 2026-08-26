@@ -73,6 +73,11 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- 分類篩選鈕的圖示；KnownImageIds 只是常數與目錄 GUID，殼層本來就載入這個組件。 -->
+    <Reference Include="Microsoft.VisualStudio.ImageCatalog">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.ImageCatalog.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Utilities">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Utilities.dll</HintPath>
       <Private>false</Private>

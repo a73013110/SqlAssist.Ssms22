@@ -216,6 +216,10 @@ internal static class SqlAssistSettingsStore
                 reader,
                 SqlAssistMonikers.IncludeDatabaseObjects,
                 defaults.IncludeDatabaseObjects),
+            ShowCategoryFilters = Read(
+                reader,
+                SqlAssistMonikers.ShowCategoryFilters,
+                defaults.ShowCategoryFilters),
             QualifyObjectNames = Read(
                 reader,
                 SqlAssistMonikers.QualifyObjectNames,

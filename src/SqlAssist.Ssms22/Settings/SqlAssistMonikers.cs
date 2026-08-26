@@ -19,6 +19,7 @@ internal static class SqlAssistMonikers
     public const string TriggerAfterCharacters = "sqlAssist.suggestions.triggerAfterCharacters";
     public const string IncludeSnippets = "sqlAssist.suggestions.includeSnippets";
     public const string IncludeDatabaseObjects = "sqlAssist.suggestions.includeDatabaseObjects";
+    public const string ShowCategoryFilters = "sqlAssist.suggestions.showCategoryFilters";
     public const string QualifyObjectNames = "sqlAssist.suggestions.qualifyObjectNames";
     public const string UseSquareBrackets = "sqlAssist.suggestions.useSquareBrackets";
 
@@ -49,6 +50,7 @@ internal static class SqlAssistMonikers
         TriggerAfterCharacters,
         IncludeSnippets,
         IncludeDatabaseObjects,
+        ShowCategoryFilters,
         QualifyObjectNames,
         UseSquareBrackets,
         HoverEnabled,
