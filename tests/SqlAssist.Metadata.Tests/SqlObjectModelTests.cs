@@ -1,3 +1,4 @@
+using System.Linq;
 using Xunit;
 
 namespace SqlAssist.Metadata.Tests;
@@ -184,5 +185,25 @@ public sealed class SqlObjectModelTests
         var detail = new SqlObjectDetail(new SqlObjectInfo(4, "dbo", "Empty", SqlObjectKind.Table));
 
         Assert.Contains("尚未載入欄位", detail.BuildPreview());
+    }
+
+    /// <summary>
+    /// 物件清單要照名稱排好。
+    /// </summary>
+    /// <remarks>
+    /// 查詢沒有 ORDER BY，伺服器回傳的大致是建立順序。建議清單同分時保留
+    /// 候選項的原始順序，所以這份「原始順序」必須先是有意義的。
+    /// </remarks>
+    [Fact]
+    public void 物件清單依名稱排序()
+    {
+        var snapshot = Snapshot(
+            new SqlObjectInfo(3, "dbo", "Zulu", SqlObjectKind.Table),
+            new SqlObjectInfo(1, "sales", "Alpha", SqlObjectKind.View),
+            new SqlObjectInfo(2, "dbo", "Alpha", SqlObjectKind.Table));
+
+        Assert.Equal(
+            new[] { "dbo.Alpha", "sales.Alpha", "dbo.Zulu" },
+            snapshot.Objects.Select(info => $"{info.SchemaName}.{info.Name}").ToArray());
     }
 }

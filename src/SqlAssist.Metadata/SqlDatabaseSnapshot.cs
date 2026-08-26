@@ -21,7 +21,7 @@ public sealed class SqlDatabaseSnapshot
         DateTimeOffset loadedAt)
     {
         DatabaseName = databaseName ?? string.Empty;
-        Objects = objects ?? Array.Empty<SqlObjectInfo>();
+        Objects = SortByName(objects);
         Schemas = schemas ?? Array.Empty<string>();
         Databases = databases ?? Array.Empty<string>();
         LoadedAt = loadedAt;
@@ -29,6 +29,13 @@ public sealed class SqlDatabaseSnapshot
 
     public string DatabaseName { get; }
 
+    /// <summary>物件清單，已依名稱排序。</summary>
+    /// <remarks>
+    /// 查詢本身沒有 <c>ORDER BY</c>——伺服器回傳的大致是建立順序，
+    /// 那個順序對使用者沒有任何意義。建議清單同分時保留候選項的原始順序，
+    /// 所以「原始順序」必須自己先弄成有意義的：這裡排一次，
+    /// 之後每一次按鍵都不必再排。
+    /// </remarks>
     public IReadOnlyList<SqlObjectInfo> Objects { get; }
 
     public IReadOnlyList<string> Schemas { get; }
@@ -82,6 +89,33 @@ public sealed class SqlDatabaseSnapshot
         }
 
         return matches;
+    }
+
+    private static IReadOnlyList<SqlObjectInfo> SortByName(IReadOnlyList<SqlObjectInfo>? objects)
+    {
+        if (objects is null)
+        {
+            return Array.Empty<SqlObjectInfo>();
+        }
+
+        if (objects.Count < 2)
+        {
+            return objects;
+        }
+
+        var sorted = new List<SqlObjectInfo>(objects);
+
+        // 同名不同結構描述時再比結構描述，順序才是穩定的。
+        sorted.Sort((left, right) =>
+        {
+            var byName = string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+
+            return byName != 0
+                ? byName
+                : string.Compare(left.SchemaName, right.SchemaName, StringComparison.OrdinalIgnoreCase);
+        });
+
+        return sorted;
     }
 
     private static int Rank(SqlObjectInfo info)
