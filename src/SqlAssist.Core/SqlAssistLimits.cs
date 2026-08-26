@@ -18,6 +18,16 @@ public static class SqlAssistLimits
 
     public const int DefaultTriggerCharacters = 1;
 
+    /// <summary>
+    /// 展開萬用字元時，一行最多排到多寬就換行。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不做成設定：使用者感覺得到的只有「一行還是好幾行」，
+    /// 而那個分界點在哪裡他不會有意見。訂在 120 是因為多數查詢視窗
+    /// 一眼看得完的就是這個寬度，再寬就要橫向捲動。
+    /// </remarks>
+    public const int MaximumWildcardLineWidth = 120;
+
     public const int MinimumPreviewDelay = 0;
 
     /// <summary>超過兩秒的延遲等於不會展開，再往上調沒有意義。</summary>

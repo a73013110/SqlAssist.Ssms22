@@ -14,6 +14,7 @@ internal static class SqlAssistMonikers
 
     public const string Enabled = "sqlAssist.general.enabled";
     public const string UppercaseKeywordsOnType = "sqlAssist.general.uppercaseKeywordsOnType";
+    public const string ExpandWildcardOnTab = "sqlAssist.general.expandWildcardOnTab";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
     public const string TriggerAfterCharacters = "sqlAssist.suggestions.triggerAfterCharacters";
@@ -46,6 +47,7 @@ internal static class SqlAssistMonikers
     {
         Enabled,
         UppercaseKeywordsOnType,
+        ExpandWildcardOnTab,
         SuggestionsEnabled,
         TriggerAfterCharacters,
         IncludeSnippets,

@@ -30,6 +30,14 @@
       "description": "打完關鍵字並輸入空白或分隔字元時，把它改寫成大寫。與建議清單無關：關鍵字一律會列在清單裡。",
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
+    "sqlAssist.general.expandWildcardOnTab": {
+      "type": "boolean",
+      "default": true,
+      "order": 30,
+      "title": "按 Tab 把 SELECT * 展開成欄位清單",
+      "description": "游標停在選取清單的 * 後方時顯示提示，按 Tab 換成完整欄位。支援資料表、檢視、子查詢與 CTE；a.* 只展開該來源，敘述有兩個以上來源時自動補上別名。",
+      "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
+    },
 
     "sqlAssist.suggestions.enabled": {
       "type": "boolean",

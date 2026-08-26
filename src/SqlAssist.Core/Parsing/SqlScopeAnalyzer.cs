@@ -86,7 +86,22 @@ public static class SqlScopeAnalyzer
             throw new ArgumentOutOfRangeException(nameof(caretPosition));
         }
 
-        var tokens = SqlTokenizer.Tokenize(sql);
+        return Analyze(SqlTokenizer.Tokenize(sql), caretPosition);
+    }
+
+    /// <summary>
+    /// 以既有的詞法串流分析範圍。
+    /// </summary>
+    /// <remarks>
+    /// 呼叫端手上已經有詞法串流時走這裡，省下第二次全文掃描——
+    /// 萬用字元展開就是這種情形：它得先自己看過詞法單元才知道有沒有事要做。
+    /// </remarks>
+    public static SqlStatementScope Analyze(IReadOnlyList<SqlToken> tokens, int caretPosition)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
 
         if (tokens.Count == 0)
         {
@@ -103,7 +118,7 @@ public static class SqlScopeAnalyzer
         }
 
         var end = FindScopeEnd(tokens, start);
-        var tables = ExtractTableReferences(tokens, start, end);
+        var tables = ExtractSources(tokens, start, end);
 
         return new SqlStatementScope(
             tables,
@@ -254,19 +269,44 @@ public static class SqlScopeAnalyzer
         return tokens.Count;
     }
 
-    private static IReadOnlyList<SqlTableReference> ExtractTableReferences(
+    /// <summary>
+    /// 讀出 <paramref name="start"/> 到 <paramref name="end"/> 這段查詢的資料來源。
+    /// </summary>
+    /// <remarks>
+    /// 只認<b>深度 0</b> 的 <c>FROM</c>／<c>JOIN</c>：巢狀子查詢的 FROM 子句屬於它自己，
+    /// <c>SELECT * FROM T WHERE x IN (SELECT y FROM Z)</c> 的外層看不到 <c>Z</c>。
+    /// 資料來源本身的括號（衍生資料表、資料表值函式、資料表提示）由
+    /// <see cref="TryParseTableReference"/> 一次跳完，跳過的那一段括號是配對的，
+    /// 因此不影響深度。
+    ///
+    /// 深度<b>只算配對得起來的括號</b>。編輯中的敘述幾乎總是有一個還沒關上的括號，
+    /// 而那個括號後面往往正是使用者要的東西：<c>SELECT COUNT(a.| FROM dbo.PUBLISHER a</c>
+    /// 的左括號永遠等不到右括號，把它算進深度就會讓整個 FROM 子句消失，
+    /// 別名 <c>a</c> 也就永遠解析不出來。
+    /// </remarks>
+    public static IReadOnlyList<SqlTableReference> ExtractSources(
         IReadOnlyList<SqlToken> tokens,
         int start,
         int end)
     {
         var references = new List<SqlTableReference>();
+        var paired = FindPairedParentheses(tokens, start, end);
         var index = start;
+        var depth = 0;
 
         while (index < end)
         {
             var token = tokens[index];
 
-            if (token.Kind != SqlTokenKind.Identifier ||
+            if (paired[index - start])
+            {
+                depth += token.IsPunctuation("(") ? 1 : -1;
+                index++;
+                continue;
+            }
+
+            if (depth > 0 ||
+                token.Kind != SqlTokenKind.Identifier ||
                 token.IsQuoted ||
                 !SourceKeywords.Contains(token.Value))
             {
@@ -298,6 +338,30 @@ public static class SqlScopeAnalyzer
         }
 
         return references;
+    }
+
+    /// <summary>標出範圍內每一個「配對得起來」的括號。</summary>
+    private static bool[] FindPairedParentheses(IReadOnlyList<SqlToken> tokens, int start, int end)
+    {
+        var paired = new bool[Math.Max(0, end - start)];
+        var open = new Stack<int>();
+
+        for (var index = start; index < end; index++)
+        {
+            if (tokens[index].IsPunctuation("("))
+            {
+                open.Push(index);
+                continue;
+            }
+
+            if (tokens[index].IsPunctuation(")") && open.Count > 0)
+            {
+                paired[open.Pop() - start] = true;
+                paired[index - start] = true;
+            }
+        }
+
+        return paired;
     }
 
     private static bool TryParseTableReference(
