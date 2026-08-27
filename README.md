@@ -789,7 +789,7 @@ Set-Location 'D:\GitProject\SqlAssist.Ssms22'
 預期輸出：
 
 ```text
-src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
+src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 ```
 
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
@@ -805,6 +805,33 @@ src\SqlAssist.Ssms22\bin\Release\net48\SqlAssist.Ssms22.vsix
 
 安裝程式會開啟 SSMS 隨附的 `VSIXInstaller.exe`，請在畫面中確認安裝目標為
 **SQL Server Management Studio 22**。安裝後重新啟動 SSMS。
+
+## 開發偵錯
+
+Visual Studio 的 `SqlAssist.Ssms22` Debug Profile 會以 Managed Debugger 直接啟動 SSMS。
+第一次偵錯前先安裝 Debug VSIX：
+
+```powershell
+.\tools\Build-Extension.ps1 -Configuration Debug
+.\tools\Install-Extension.ps1 -Configuration Debug
+```
+
+同一次 F5 工作階段中的方法內容修改可使用 Hot Reload。需要重新啟動 SSMS 時，先關閉
+SSMS，再用下列命令建立並部署最新的 DLL/PDB；腳本會依 Extension ID 自動尋找安裝目錄，
+不需寫死 VSIXInstaller 產生的隨機資料夾名稱：
+
+```powershell
+.\tools\Deploy-DebugExtension.ps1
+```
+
+若已在 Visual Studio 建立過最新 Debug 輸出，可略過重複建置：
+
+```powershell
+.\tools\Deploy-DebugExtension.ps1 -SkipBuild
+```
+
+修改 VSIX Manifest、PkgDef、VSCT、MEF 註冊或版本號時，仍須重新執行 Debug VSIX 安裝，
+不能只部署 DLL。
 
 ## 解除安裝
 
