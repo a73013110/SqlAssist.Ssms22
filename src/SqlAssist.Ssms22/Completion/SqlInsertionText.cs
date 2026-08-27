@@ -45,8 +45,9 @@ internal static class SqlInsertionText
     /// </summary>
     /// <remarks>
     /// 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
-    /// 名稱含空白或保留字時仍必須加括號。展開萬用字元時適用同一條規則，
-    /// 所以這個方法開放給同組件使用。
+    /// 名稱含空白或保留字時仍必須加括號，這條由
+    /// <see cref="SqlIdentifier.QuoteIfNeeded"/> 負責。展開萬用字元、
+    /// 建立欄位建議時適用同一條規則，所以這個方法開放給同組件使用。
     /// </remarks>
     public static string Quote(string name, SqlAssistSettings settings)
     {

@@ -8,6 +8,7 @@ using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata;
+using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;
@@ -796,11 +797,13 @@ internal sealed class SqlMetadataService : IDisposable
             tag: column);
     }
 
+    /// <remarks>
+    /// 欄位的插入文字在這裡就定案，之後 <see cref="SqlInsertionText"/> 原樣送出，
+    /// 所以括號規則必須共用同一份——各寫一份的下場是其中一份漏掉保留字。
+    /// </remarks>
     private static string Quote(string name, SqlAssistSettings settings)
     {
-        return settings.UseSquareBrackets
-            ? SqlIdentifier.Quote(name)
-            : SqlIdentifier.QuoteIfNeeded(name);
+        return SqlInsertionText.Quote(name, settings);
     }
 
     private static SuggestionKind? ToSuggestionKind(SqlObjectKind kind)
