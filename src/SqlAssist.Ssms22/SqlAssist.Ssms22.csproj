@@ -15,6 +15,7 @@
     <IncludeDebugSymbolsInVSIXContainer>true</IncludeDebugSymbolsInVSIXContainer>
     <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
     <SsmsInstallDir Condition="'$(SsmsInstallDir)' == ''">C:\Program Files\Microsoft SQL Server Management Studio 22\Release</SsmsInstallDir>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -147,9 +148,7 @@
   </ItemGroup>
 
   <Target Name="ValidateSsmsReferences" BeforeTargets="ResolveReferences">
-    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Data.dll')"
-           Text="找不到 SSMS 22 編輯器組件。請以 /p:SsmsInstallDir=&quot;SSMS 安裝路徑&quot; 指定位置。" />
-    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll')"
-           Text="找不到 Microsoft.Internal.VisualStudio.Interop，Unified Settings 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Data.dll')" Text="找不到 SSMS 22 編輯器組件。請以 /p:SsmsInstallDir=&quot;SSMS 安裝路徑&quot; 指定位置。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll')" Text="找不到 Microsoft.Internal.VisualStudio.Interop，Unified Settings 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
   </Target>
 </Project>

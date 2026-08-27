@@ -8,7 +8,8 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $ssmsPath = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release'
 $installer = Join-Path $ssmsPath 'Common7\IDE\VSIXInstaller.exe'
-$vsix = Join-Path $root "src\SqlAssist.Ssms22\bin\$Configuration\net48\SqlAssist.Ssms22.vsix"
+# 與 Build-Extension.ps1 的 x64 輸出位置保持一致。
+$vsix = Join-Path $root "src\SqlAssist.Ssms22\bin\x64\$Configuration\net48\SqlAssist.Ssms22.vsix"
 
 if (Get-Process -Name 'SSMS' -ErrorAction SilentlyContinue) {
     throw '請先關閉所有 SSMS 視窗，再執行安裝。'
@@ -30,4 +31,3 @@ $process = Start-Process -FilePath $installer -ArgumentList @("`"$vsix`"") -Wait
 if ($process.ExitCode -ne 0) {
     throw "VSIXInstaller 結束代碼：$($process.ExitCode)"
 }
-

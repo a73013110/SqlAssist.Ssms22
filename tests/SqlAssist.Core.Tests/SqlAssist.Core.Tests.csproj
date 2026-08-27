@@ -8,6 +8,7 @@
     <IsTestProject>true</IsTestProject>
     <!-- xunit.v3 直接執行於 Microsoft.Testing.Platform，不需要 VSTest 轉接層。 -->
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="4.0.0" />
@@ -20,8 +21,6 @@
       Unified Settings 的註冊檔與 SqlAssistSettings 各自宣告了一次預設值；
       SqlAssistRegistrationTests 比對兩者，所以測試輸出裡要有這份檔案。
     -->
-    <None Include="..\..\src\SqlAssist.Ssms22\SqlAssist.registration.json"
-          Link="SqlAssist.registration.json"
-          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\SqlAssist.Ssms22\SqlAssist.registration.json" Link="SqlAssist.registration.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
