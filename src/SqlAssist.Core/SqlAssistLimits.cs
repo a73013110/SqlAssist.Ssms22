@@ -19,12 +19,15 @@ public static class SqlAssistLimits
     public const int DefaultTriggerCharacters = 1;
 
     /// <summary>
-    /// 展開萬用字元時，一行最多排到多寬就換行。
+    /// 展開萬用字元時，一行最多排到多寬。
     /// </summary>
     /// <remarks>
-    /// 刻意不做成設定：使用者感覺得到的只有「一行還是好幾行」，
-    /// 而那個分界點在哪裡他不會有意見。訂在 120 是因為多數查詢視窗
-    /// 一眼看得完的就是這個寬度，再寬就要橫向捲動。
+    /// 排法本身是設定（<see cref="SqlWildcardLayout"/>），這個寬度刻意不是：
+    /// 使用者感覺得到的是「一行還是好幾行」，而那個分界點落在 118 還是 124
+    /// 他不會有意見。訂在 120 是因為多數查詢視窗一眼看得完的就是這個寬度，
+    /// 再寬就要橫向捲動。
+    ///
+    /// <see cref="SqlWildcardLayout.OnePerLine"/> 下沒有作用。
     /// </remarks>
     public const int MaximumWildcardLineWidth = 120;
 

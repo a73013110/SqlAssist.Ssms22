@@ -208,6 +208,9 @@ internal static class SqlAssistSettingsStore
                 reader,
                 SqlAssistMonikers.ExpandWildcardOnTab,
                 defaults.ExpandWildcardOnTab),
+            WildcardLayout = ParseWildcardLayout(
+                Read(reader, SqlAssistMonikers.WildcardLayout, string.Empty),
+                defaults.WildcardLayout),
 
             SuggestionsEnabled = Read(
                 reader,
@@ -286,6 +289,17 @@ internal static class SqlAssistSettingsStore
             "off" => SqlPreviewMode.Off,
             "delay" => SqlPreviewMode.Delay,
             "rightArrow" => SqlPreviewMode.RightArrow,
+            _ => fallback
+        };
+    }
+
+    private static SqlWildcardLayout ParseWildcardLayout(string value, SqlWildcardLayout fallback)
+    {
+        return value switch
+        {
+            "onePerLine" => SqlWildcardLayout.OnePerLine,
+            "oneLineWhenShort" => SqlWildcardLayout.OneLineWhenShort,
+            "fillWidth" => SqlWildcardLayout.FillWidth,
             _ => fallback
         };
     }

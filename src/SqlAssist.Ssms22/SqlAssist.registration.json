@@ -38,6 +38,20 @@
       "description": "游標停在選取清單的 * 後方時顯示提示，按 Tab 換成完整欄位。支援資料表、檢視、子查詢與 CTE；a.* 只展開該來源，敘述有兩個以上來源時自動補上別名。",
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
+    "sqlAssist.general.wildcardLayout": {
+      "type": "string",
+      "default": "oneLineWhenShort",
+      "order": 40,
+      "enum": [ "oneLineWhenShort", "onePerLine", "fillWidth" ],
+      "enumItemLabels": [
+        "放得下就排成一行，放不下才每欄一行",
+        "永遠每欄一行",
+        "依行寬排滿，一行放多個欄位"
+      ],
+      "title": "展開後的欄位怎麼排",
+      "description": "每欄一行時，新增或移除欄位只會動到一行，比對版本差異最清楚。另外兩種的換行位置由欄位名稱的長度決定。",
+      "enableWhen": "${config:sqlAssist.general.enabled} == 'true' && ${config:sqlAssist.general.expandWildcardOnTab} == 'true'"
+    },
 
     "sqlAssist.suggestions.enabled": {
       "type": "boolean",
