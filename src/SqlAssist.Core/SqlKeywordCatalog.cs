@@ -50,6 +50,16 @@ public static class SqlKeywordCatalog
         "TINYINT", "UNIQUEIDENTIFIER", "VARBINARY", "VARCHAR", "XML"
     };
 
+    /// <summary>
+    /// 不能直接當識別字書寫的字。
+    /// </summary>
+    /// <remarks>
+    /// 這份也是產生的，而且跟關鍵字清單分開探測——理由見
+    /// <see cref="IsReservedIdentifier"/>。
+    /// </remarks>
+    private static readonly HashSet<string> ReservedIdentifiers =
+        new(SqlKeywordCatalogData.ReservedIdentifiers, StringComparer.OrdinalIgnoreCase);
+
     private static readonly Dictionary<string, SqlKeywordPosition> Positions = BuildPositions();
 
     private static readonly string[] AllKeywords = BuildAllKeywords();
@@ -95,6 +105,23 @@ public static class SqlKeywordCatalog
     public static bool IsKeyword(string word)
     {
         return !string.IsNullOrEmpty(word) && Positions.ContainsKey(word);
+    }
+
+    /// <summary>
+    /// 這個字當成識別字書寫時，是不是一定要加方括號。
+    /// </summary>
+    /// <remarks>
+    /// 跟 <see cref="IsKeyword"/> 不一樣，兩邊都有對方沒有的字：
+    /// <c>OUTPUT</c>、<c>ROWS</c>、<c>APPLY</c> 這 13 個非保留字是關鍵字，
+    /// 但 <c>SELECT Output FROM t</c> 完全合法，加括號只是多餘；
+    /// <c>IDENTITYCOL</c> 與 <c>ROWGUIDCOL</c> 反過來——不在關鍵字清單裡
+    /// （詞法器把它們掃成識別字），當名字寫卻是語法錯誤。
+    ///
+    /// 大小寫不敏感：資料庫裡的欄位叫 <c>Order</c> 遠比叫 <c>ORDER</c> 常見。
+    /// </remarks>
+    public static bool IsReservedIdentifier(string word)
+    {
+        return !string.IsNullOrEmpty(word) && ReservedIdentifiers.Contains(word);
     }
 
     /// <summary>

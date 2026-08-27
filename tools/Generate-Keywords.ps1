@@ -5,7 +5,7 @@
 
 .DESCRIPTION
     關鍵字清單刻意不手寫，改由 Microsoft 自己的剖析器推導，換版本重跑即可更新。
-    兩個階段都會自我驗證，不猜任何一個字：
+    三個階段都會自我驗證，不猜任何一個字：
 
     一、取字面值
         列舉 TSqlTokenType 的成員名稱，大寫後丟回 tokenizer；token 型別對得回原成員
@@ -19,6 +19,13 @@
             46029  出現未預期的檔案結尾  → 合法，只是語句還沒寫完
         單一續尾會誤判——BACKUP 之後是檔案結尾、SELECT 之後卻是語法錯誤，兩者都合法。
         因此每個位置試一組續尾取聯集：任一組能過就算合法。
+
+    三、判保留字
+        「這個字當名字寫，剖析器接不接受」跟「它能出現在哪個位置」是兩回事，
+        因此另外探測一次：把字塞進識別字的洞裡（SELECT ? FROM t、FROM ?、
+        CREATE TABLE t (? int)…），被拒的就是插入時一定要加方括號的保留字。
+        目錄裡有 13 個字是非保留字（APPLY、OUTPUT、ROWS、GO…），當欄位名寫
+        完全合法，靠這一階段才不會被多加一層括號。
 
     需要的只有 $ContextTemplates 那十行樣板，180 個關鍵字的分類全部由剖析器決定。
 
@@ -95,7 +102,7 @@ foreach ($name in [Enum]::GetNames($tokenTypeEnum)) {
     }
 }
 
-$reservedCount = ($keywords | Sort-Object -Unique).Count
+$lexerCount = ($keywords | Sort-Object -Unique).Count
 
 # 非保留字的補充清單。
 #
@@ -122,7 +129,7 @@ foreach ($supplement in $NonReservedSupplement) {
 }
 
 $keywords = $keywords | Sort-Object -Unique
-Write-Host "字面值：$($keywords.Count) 個關鍵字（保留字 $reservedCount + 非保留字補充 $($NonReservedSupplement.Count)）"
+Write-Host "字面值：$($keywords.Count) 個關鍵字（詞法器認得的 $lexerCount + 非保留字補充 $($NonReservedSupplement.Count)）"
 
 # ------------------------------------------------------------------ 二、定位置
 
@@ -243,6 +250,77 @@ if ($orphans.Count -gt 0) {
     Write-Warning "有 $($orphans.Count) 個關鍵字不屬於任何位置，將以 None 產出：$($orphans -join ', ')"
 }
 
+# ---------------------------------------------------------------- 三、判保留字
+
+# 插入識別字時要不要加方括號，問的是「這個字當名字寫，剖析器吃不吃」，
+# 跟上面的位置分類無關：OUTPUT 在文法上是關鍵字，但 SELECT Output FROM t
+# 完全合法；反過來 ORDER 當欄位名寫就是語法錯誤。所以另外探測一次。
+#
+# 洞在樣板的中間而不是結尾，因此這裡是前後綴成對。
+$IdentifierTemplates = @(
+    @{ Prefix = 'SELECT ';           Suffix = ' FROM t' }
+    @{ Prefix = 'SELECT * FROM ';    Suffix = '' }
+    @{ Prefix = 'SELECT * FROM ';    Suffix = '.t' }
+    @{ Prefix = 'SELECT t.';         Suffix = ' FROM t' }
+    @{ Prefix = 'CREATE TABLE t ('; Suffix = ' int)' }
+)
+
+# 保留字的補充清單，跟 $NonReservedSupplement 是同一個問題的另一面：
+# IDENTITYCOL 與 ROWGUIDCOL 不在 TSqlTokenType 裡（詞法器把它們掃成識別字），
+# 但剖析器不接受它們當名字，不加括號插進去就壞掉。它們不進關鍵字清單——
+# 建議清單與自動大寫不該因為這個修正而多出兩個字——只影響括號判定。
+#
+# 下面的探測會回驗這份清單：真的不需要括號就會警告，不會變成死條目。
+$IdentifierReservedSupplement = @('IDENTITYCOL', 'ROWGUIDCOL')
+
+function Test-IdentifierRejected {
+    param([string]$Name)
+
+    foreach ($template in $IdentifierTemplates) {
+        $limit = $template.Prefix.Length + $Name.Length
+        $reader = [System.IO.StringReader]::new($template.Prefix + $Name + $template.Suffix)
+        $errors = $null
+        $null = $parser.Parse($reader, [ref]$errors)
+
+        foreach ($error in $errors) {
+            # 樣板本身是完整語句，名字之前（含名字）出現任何錯誤都只可能是它造成的。
+            if ($error.Offset -le $limit) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
+$reserved = [System.Collections.Generic.List[string]]::new()
+
+foreach ($keyword in $keywords) {
+    if (Test-IdentifierRejected -Name $keyword) {
+        $reserved.Add($keyword)
+    }
+}
+
+$nonReserved = $keywords | Where-Object { $reserved -notcontains $_ }
+
+foreach ($supplement in $IdentifierReservedSupplement) {
+    if ($reserved -contains $supplement) {
+        Write-Warning "補充清單裡的 $supplement 已經在關鍵字清單裡，可以移除。"
+        continue
+    }
+
+    if (-not (Test-IdentifierRejected -Name $supplement)) {
+        # 剖析器接受它當名字，加了括號只是多餘。
+        Write-Warning "補充清單裡的 $supplement 不需要方括號，可以移除。"
+        continue
+    }
+
+    $reserved.Add($supplement)
+}
+
+$reserved = $reserved | Sort-Object -Unique
+Write-Host "保留字：$($reserved.Count) 個必須加方括號；非保留字 $(@($nonReserved).Count) 個可以直接寫：$($nonReserved -join ', ')"
+
 # ---------------------------------------------------------------------- 產出
 
 $builder = [System.Text.StringBuilder]::new()
@@ -251,9 +329,12 @@ $null = $builder.AppendLine('//')
 $null = $builder.AppendLine('// 由 tools/Generate-Keywords.ps1 產生，請勿手動編輯。')
 $null = $builder.AppendLine("// 來源：Microsoft.SqlServer.TransactSql.ScriptDom $scriptDomVersion（$($parserType.Name)）")
 $null = $builder.AppendLine('//')
-$null = $builder.AppendLine('// 保留字取自 TSqlTokenType 的成員名稱並以 tokenizer 回驗，')
+$null = $builder.AppendLine('// 關鍵字取自 TSqlTokenType 的成員名稱並以 tokenizer 回驗，')
 $null = $builder.AppendLine("// 另加腳本裡 `$NonReservedSupplement 的 $($NonReservedSupplement.Count) 個非保留字；")
 $null = $builder.AppendLine('// 位置則是把每個關鍵字塞進樣板剖析、依錯誤碼判定得到的。')
+$null = $builder.AppendLine('//')
+$null = $builder.AppendLine('// 保留字是另外探測的一份：把字塞進識別字的洞裡，剖析器拒收的才算，')
+$null = $builder.AppendLine('// 因此它與上面的關鍵字清單互有出入——兩邊都有對方沒有的字。')
 $null = $builder.AppendLine('')
 $null = $builder.AppendLine('using System.Collections.Generic;')
 $null = $builder.AppendLine('')
@@ -282,6 +363,29 @@ foreach ($keyword in $keywords) {
     }
 
     $null = $builder.AppendLine("        new(`"$keyword`", $flags),")
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>不能直接當識別字書寫、插入時一定要加方括號的字。</summary>')
+$null = $builder.AppendLine('    internal static readonly string[] ReservedIdentifiers =')
+$null = $builder.AppendLine('    {')
+
+$line = '       '
+
+foreach ($keyword in $reserved) {
+    $entry = " `"$keyword`","
+
+    if ($line.Length + $entry.Length -gt 96) {
+        $null = $builder.AppendLine($line)
+        $line = '       '
+    }
+
+    $line += $entry
+}
+
+if ($line.Trim().Length -gt 0) {
+    $null = $builder.AppendLine($line)
 }
 
 $null = $builder.AppendLine('    };')

@@ -78,10 +78,40 @@ public sealed class SqlObjectModelTests
     [InlineData("Order Detail", false)]
     [InlineData("1Table", false)]
     [InlineData("", false)]
-    public void 判斷識別字是否需要括號(string name, bool isRegular)
+    public void 判斷識別字的字元形狀(string name, bool isRegular)
     {
         Assert.Equal(isRegular, SqlIdentifier.IsRegular(name));
+
+        // 這幾個都不是保留字，所以形狀合格就等於不必加括號。
         Assert.Equal(isRegular ? name : SqlIdentifier.Quote(name), SqlIdentifier.QuoteIfNeeded(name));
+    }
+
+    [Theory]
+    [InlineData("Order")]
+    [InlineData("Key")]
+    [InlineData("User")]
+    [InlineData("Group")]
+    [InlineData("Select")]
+    [InlineData("IDENTITYCOL")]
+    public void 保留字即使形狀合格也要加括號(string name)
+    {
+        // 形狀完全正常，正是最容易漏掉的地方——少了括號，
+        // SELECT Order, Name FROM t 插進編輯器就是語法錯誤。
+        Assert.True(SqlIdentifier.IsRegular(name));
+        Assert.Equal("[" + name + "]", SqlIdentifier.QuoteIfNeeded(name));
+    }
+
+    [Theory]
+    [InlineData("Output")]
+    [InlineData("Rows")]
+    [InlineData("Partition")]
+    [InlineData("Apply")]
+    [InlineData("Next")]
+    public void 非保留字的關鍵字不加括號(string name)
+    {
+        // 這些字在文法上是關鍵字，但當名字寫完全合法。多包一層括號
+        // 等於無視使用者關掉「一律加方括號」的用意。
+        Assert.Equal(name, SqlIdentifier.QuoteIfNeeded(name));
     }
 
     private static SqlDatabaseSnapshot Snapshot(params SqlObjectInfo[] objects)
