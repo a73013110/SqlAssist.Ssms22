@@ -36,6 +36,15 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool ExpandWildcardOnTab { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.general.wildcardLayout
+    /// </summary>
+    /// <remarks>
+    /// 只在 <see cref="ExpandWildcardOnTab"/> 開著時看得到效果；註冊檔也是這樣
+    /// 用 <c>enableWhen</c> 綁住的，兩個設定因此必須留在同一個分類裡。
+    /// </remarks>
+    public SqlWildcardLayout WildcardLayout { get; init; } = SqlWildcardLayout.OneLineWhenShort;
+
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;
 

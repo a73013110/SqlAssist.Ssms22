@@ -5,9 +5,19 @@ namespace SqlAssist.Core.Tests;
 
 public sealed class SqlWildcardExpansionTextTests
 {
-    private static string Build(string[] columns, string indent, int width = 40)
+    /// <summary>放不下一行的四個欄位；用來分辨三種排法在「放不下」時的差異。</summary>
+    private static readonly string[] TooWide =
     {
-        return SqlWildcardExpansionText.Build(columns, indent, width, "\r\n");
+        "PublisherId", "PublisherName", "CreatedAt", "ModifiedAt"
+    };
+
+    private static string Build(
+        string[] columns,
+        string indent,
+        SqlWildcardLayout layout = SqlWildcardLayout.OneLineWhenShort,
+        int width = 40)
+    {
+        return SqlWildcardExpansionText.Build(columns, indent, layout, width, "\r\n");
     }
 
     [Fact]
@@ -16,33 +26,70 @@ public sealed class SqlWildcardExpansionTextTests
         Assert.Equal("Id, Name", Build(new[] { "Id", "Name" }, "SELECT "));
     }
 
+    /// <remarks>放得下的時候，排滿行寬與「放得下就一行」是同一個結果。</remarks>
     [Fact]
-    public void 放不下就換行並對齊原本的位置()
+    public void 排滿行寬時放得下也是一行()
     {
-        var text = Build(
-            new[] { "PublisherId", "PublisherName", "CreatedAt", "ModifiedAt" },
-            "       ");
+        Assert.Equal(
+            "Id, Name",
+            Build(new[] { "Id", "Name" }, "SELECT ", SqlWildcardLayout.FillWidth));
+    }
 
+    /// <remarks>唯一一個不看寬度的模式：兩個欄位也照樣拆成兩行。</remarks>
+    [Fact]
+    public void 每欄一行時放得下也照樣換行()
+    {
+        Assert.Equal(
+            "Id,\r\n       Name",
+            Build(new[] { "Id", "Name" }, "       ", SqlWildcardLayout.OnePerLine));
+    }
+
+    [Fact]
+    public void 放不下時每欄一行並對齊原本的位置()
+    {
+        Assert.Equal(
+            "PublisherId,\r\n       PublisherName,\r\n       CreatedAt,\r\n       ModifiedAt",
+            Build(TooWide, "       "));
+    }
+
+    /// <remarks>同一份欄位，只有這個模式會排出「一行多個欄位」。</remarks>
+    [Fact]
+    public void 排滿行寬時放不下才換行()
+    {
         Assert.Equal(
             "PublisherId, PublisherName,\r\n       CreatedAt, ModifiedAt",
-            text);
+            Build(TooWide, "       ", SqlWildcardLayout.FillWidth));
+    }
+
+    [Fact]
+    public void 每欄一行與放得下就一行在放不下時結果相同()
+    {
+        Assert.Equal(
+            Build(TooWide, "       ", SqlWildcardLayout.OnePerLine),
+            Build(TooWide, "       ", SqlWildcardLayout.OneLineWhenShort));
     }
 
     /// <remarks>
     /// 第一個欄位接在 SELECT 後面，把它推到下一行只會讓 SELECT 孤零零地留在上一行。
     /// </remarks>
-    [Fact]
-    public void 第一個欄位永遠留在原地()
+    [Theory]
+    [InlineData(SqlWildcardLayout.OnePerLine)]
+    [InlineData(SqlWildcardLayout.OneLineWhenShort)]
+    [InlineData(SqlWildcardLayout.FillWidth)]
+    public void 第一個欄位永遠留在原地(SqlWildcardLayout layout)
     {
-        var text = Build(new[] { "AVeryLongColumnNameIndeed", "B" }, "          ", width: 20);
+        var text = Build(new[] { "AVeryLongColumnNameIndeed", "B" }, "          ", layout, width: 20);
 
         Assert.StartsWith("AVeryLongColumnNameIndeed,", text);
     }
 
-    [Fact]
-    public void 沒有欄位時是空字串()
+    [Theory]
+    [InlineData(SqlWildcardLayout.OnePerLine)]
+    [InlineData(SqlWildcardLayout.OneLineWhenShort)]
+    [InlineData(SqlWildcardLayout.FillWidth)]
+    public void 沒有欄位時是空字串(SqlWildcardLayout layout)
     {
-        Assert.Equal(string.Empty, Build(new string[0], "SELECT "));
+        Assert.Equal(string.Empty, Build(new string[0], "SELECT ", layout));
     }
 
     /// <remarks>

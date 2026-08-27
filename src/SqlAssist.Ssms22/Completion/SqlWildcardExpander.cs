@@ -98,7 +98,7 @@ internal sealed class SqlWildcardExpander
 
         if (TryResolveCached(target, settings) is { } columns)
         {
-            Replace(span, columns);
+            Replace(span, columns, settings);
             return true;
         }
 
@@ -169,7 +169,7 @@ internal sealed class SqlWildcardExpander
 
             if (columns.Count > 0)
             {
-                Replace(span, columns);
+                Replace(span, columns, settings);
             }
         }
         catch (OperationCanceledException)
@@ -209,13 +209,17 @@ internal sealed class SqlWildcardExpander
             : "衍生資料表";
     }
 
-    private void Replace(ITrackingSpan span, IReadOnlyList<string> columns)
+    /// <param name="settings">
+    /// 按下 Tab 那一刻的設定快照，與欄位名稱用的是同一份：中途改設定不該讓
+    /// 同一次展開的名稱與排版來自兩個不同的版本。
+    /// </param>
+    private void Replace(ITrackingSpan span, IReadOnlyList<string> columns, SqlAssistSettings settings)
     {
         var dispatcher = ResolveDispatcher();
 
         if (dispatcher is not null && !dispatcher.CheckAccess())
         {
-            dispatcher.BeginInvoke(new Action(() => Replace(span, columns)));
+            dispatcher.BeginInvoke(new Action(() => Replace(span, columns, settings)));
             return;
         }
 
@@ -242,6 +246,7 @@ internal sealed class SqlWildcardExpander
                 columns,
                 SqlWildcardExpansionText.BuildIndent(
                     snapshot.GetText(line.Start.Position, target.Start.Position - line.Start.Position)),
+                settings.WildcardLayout,
                 SqlAssistLimits.MaximumWildcardLineWidth,
                 line.LineBreakLength > 0 ? line.GetLineBreakText() : Environment.NewLine);
 

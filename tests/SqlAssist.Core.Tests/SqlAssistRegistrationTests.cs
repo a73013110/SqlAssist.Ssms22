@@ -27,6 +27,7 @@ public sealed class SqlAssistRegistrationTests
         ["sqlAssist.general.enabled"] = Defaults.Enabled,
         ["sqlAssist.general.uppercaseKeywordsOnType"] = Defaults.UppercaseKeywordsOnType,
         ["sqlAssist.general.expandWildcardOnTab"] = Defaults.ExpandWildcardOnTab,
+        ["sqlAssist.general.wildcardLayout"] = "oneLineWhenShort",
         ["sqlAssist.suggestions.enabled"] = Defaults.SuggestionsEnabled,
         ["sqlAssist.suggestions.triggerAfterCharacters"] = Defaults.TriggerAfterCharacters,
         ["sqlAssist.suggestions.includeSnippets"] = Defaults.IncludeSnippets,

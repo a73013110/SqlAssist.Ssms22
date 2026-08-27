@@ -10,9 +10,9 @@ namespace SqlAssist.Core;
 /// <remarks>
 /// 欄位名稱本身（限定字、方括號）由呼叫端決定，這裡只管排版，因此完全可以單元測試。
 ///
-/// 一行放得下就放一行——那是絕大多數情形，也是使用者按下 Tab 時預期看到的結果。
-/// 放不下才換行，並對齊原本 <c>*</c> 的位置：一張一百多欄的資料表攤成一行，
-/// 等於逼使用者橫向捲動去讀自己剛剛產生的東西。
+/// 換行一律對齊原本 <c>*</c> 的位置：一張一百多欄的資料表攤成一行，
+/// 等於逼使用者橫向捲動去讀自己剛剛產生的東西。至於什麼時候換行，
+/// 由 <see cref="SqlWildcardLayout"/> 決定。
 /// </remarks>
 public static class SqlWildcardExpansionText
 {
@@ -21,11 +21,15 @@ public static class SqlWildcardExpansionText
     /// 換行後每一行的前導文字，通常是原本 <c>*</c> 之前那一段改成的空白；
     /// 它的長度同時也是第一行的起始欄位。
     /// </param>
-    /// <param name="maximumWidth">超過這個寬度就換行。</param>
+    /// <param name="layout">欄位怎麼排。</param>
+    /// <param name="maximumWidth">
+    /// 超過這個寬度就換行；<see cref="SqlWildcardLayout.OnePerLine"/> 下沒有作用。
+    /// </param>
     /// <param name="newLine">緩衝區使用的換行字元。</param>
     public static string Build(
         IReadOnlyList<string> columns,
         string indent,
+        SqlWildcardLayout layout,
         int maximumWidth,
         string newLine)
     {
@@ -42,14 +46,20 @@ public static class SqlWildcardExpansionText
         indent ??= string.Empty;
         newLine = string.IsNullOrEmpty(newLine) ? "\r\n" : newLine;
 
-        var singleLine = string.Join(", ", columns);
-
-        if (indent.Length + singleLine.Length <= maximumWidth)
+        // 每欄一行不必先湊出單行版本，其餘兩種模式都要先知道它有多長。
+        if (layout != SqlWildcardLayout.OnePerLine)
         {
-            return singleLine;
+            var singleLine = string.Join(", ", columns);
+
+            if (indent.Length + singleLine.Length <= maximumWidth)
+            {
+                return singleLine;
+            }
         }
 
-        var builder = new StringBuilder(singleLine.Length + (columns.Count * indent.Length));
+        // 走到這裡的只剩兩種排法：依行寬排滿，或是每欄一行。
+        var fillWidth = layout == SqlWildcardLayout.FillWidth;
+        var builder = new StringBuilder(EstimateLength(columns, indent, newLine));
         var width = indent.Length;
 
         for (var index = 0; index < columns.Count; index++)
@@ -61,7 +71,7 @@ public static class SqlWildcardExpansionText
             // 只會讓 SELECT 孤零零地留在上一行。
             if (index > 0)
             {
-                if (width + 1 + column.Length + separator.Length > maximumWidth)
+                if (!fillWidth || width + 1 + column.Length + separator.Length > maximumWidth)
                 {
                     builder.Append(newLine).Append(indent);
                     width = indent.Length;
@@ -78,6 +88,19 @@ public static class SqlWildcardExpansionText
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>預留容量：所有欄位名稱加上逗號，最壞情形是每一個都自己一行。</summary>
+    private static int EstimateLength(IReadOnlyList<string> columns, string indent, string newLine)
+    {
+        var length = 0;
+
+        for (var index = 0; index < columns.Count; index++)
+        {
+            length += columns[index].Length;
+        }
+
+        return length + (columns.Count * (indent.Length + newLine.Length + 1));
     }
 
     /// <summary>
