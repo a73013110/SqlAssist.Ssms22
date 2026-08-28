@@ -31,7 +31,7 @@ moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 而且都在變更訂閱清單裡。漏掉任何一步都是建置失敗，不會變成執行期的安靜回退。
 
 「啟用 SqlAssist」是總開關，關掉之後其餘各頁的功能全部停止運作，但**設定頁上不會跟著變灰**——
-原因見下面的〈條件式只能參照同分類〉。
+原因見下面的〈條件式只能參照一個同分類的設定〉。
 
 ## 新增一個設定
 
@@ -59,7 +59,7 @@ moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 新的列舉值也要加進 `SqlAssistRegistrationTests.列舉的字面值不變` 的 `InlineData`——
 那一份是刻意手寫的相容性鎖，不是重複。
 
-## 條件式只能參照同分類
+## 條件式只能參照一個同分類的設定
 
 `enableWhen` 與 `visibleWhen` 只能參照**同一個分類裡**的設定。跨分類參照不會有任何錯誤訊息：
 殼層安靜地把整個設定丟掉，該分類的設定全被丟掉之後就成了空分類，而空分類預設不顯示
@@ -73,6 +73,20 @@ moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 代價是總開關無法讓其他頁變灰。這是 Unified Settings 的限制，不是設計選擇；
 SSMS 自己的 `RadLangSvc.registration.json` 也只做同分類參照。
 
+**同分類還不夠，設定的 `enableWhen` 只能參照一個設定。**
+`sqlAssist.general.wildcardLayout` 原本寫成
+`${config:sqlAssist.general.enabled} == 'true' && ${config:sqlAssist.general.expandWildcardOnTab} == 'true'`——
+兩個參照都在 `general` 分類裡，殼層照樣安靜地把整項丟掉：設定頁上完全看不到
+「展開後的欄位怎麼排」，讀取時只拿得到 `NotPersisted`。改成單一參照就回來了，
+`SqlAssistRegistrationTests.設定的條件式只參照一個設定` 擋下再犯。
+
+這條限制只管**設定自己的** `enableWhen`；分類上 `messages`／`commands` 的條件式不受限，
+SSMS 的 `SqlStudio.registration.json` 就有複合條件的 `visibleWhen`。
+
+附帶的好處是設定頁的縮排跟著那個參照走：`wildcardLayout` 現在縮排在
+「按 Tab 把 SELECT * 展開成欄位清單」底下，而不是和它並排在「啟用 SqlAssist」下面。
+**選哪一個設定當參照，就是在選它排在誰底下。**
+
 ## 四件刻意<b>不</b>是設定的東西
 
 - **清單引擎**：固定使用平台原生管線，舊的自製 WPF 清單已移除。
@@ -83,6 +97,23 @@ SSMS 自己的 `RadLangSvc.registration.json` 也只做同分類參照。
 - **預覽視窗的寬高**：拖曳握把記下來的是視窗狀態不是偏好，改存 VS 的
   `WritableSettingsStore`（`SqlAssist\Preview`）。放進 Unified Settings 等於
   每放開一次滑鼠就提交一次設定變更並廣播通知。
+
+## 設定頁上的按鈕
+
+Unified Settings 的按鈕（`commands`）可以掛在分類上，也可以掛在**單一設定**上。
+掛在設定上的按鈕跟著那一項顯示，所以「編輯程式碼片段…」掛在
+`sqlAssist.suggestions.includeSnippets`，不是掛在整個「建議清單」分類上。
+
+「關閉 SSMS 內建的 T-SQL IntelliSense」留在分類上，因為它配的是分類的那則說明訊息。
+它改的是 `languages.sql.intelliSense.enableIntellisense`——**別人分類裡的設定**，
+所以按下去之後設定頁上沒有任何一格會跟著變。按鈕因此一定要自己回報結果：
+寫入後再讀回一次，成功就跳訊息說已關閉、已開著的查詢視窗要重開才生效；
+失敗才叫使用者去搜尋「IntelliSense」手動關。少了這一步，使用者按完看不出差別，
+只會當成按鈕沒作用。
+
+同理，那顆按鈕**不能**用 `enableOnlyWhen` 依內建 IntelliSense 的現況變灰：
+那是跨分類參照，會讓整個「建議清單」頁消失。目前狀態要看
+「工具 → SqlAssist → 顯示診斷狀態」。
 
 **工具 → SqlAssist** 只留下編輯途中會想按的東西：
 

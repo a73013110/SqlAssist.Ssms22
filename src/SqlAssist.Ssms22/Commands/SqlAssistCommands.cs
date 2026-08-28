@@ -187,7 +187,9 @@ internal sealed class SqlAssistCommands
             $"最後展開：{SqlAssistRuntimeState.LastExpansion}\r\n\r\n" +
             $"── 一般 ──\r\n" +
             $"啟用 SqlAssist：{FormatState(settings.Enabled)}\r\n" +
-            $"輸入時關鍵字轉大寫：{FormatState(settings.UppercaseKeywordsOnType)}\r\n\r\n" +
+            $"輸入時關鍵字轉大寫：{FormatState(settings.UppercaseKeywordsOnType)}\r\n" +
+            $"按 Tab 展開 SELECT *：{FormatState(settings.ExpandWildcardOnTab)}" +
+            $"（{settings.WildcardLayout}）\r\n\r\n" +
             $"── 建議清單 ──\r\n" +
             $"自動彈出：{FormatState(settings.SuggestionsEnabled)}\r\n" +
             $"觸發字元數：{settings.TriggerAfterCharacters}\r\n" +
@@ -269,23 +271,36 @@ internal sealed class SqlAssistCommands
     /// 兩份建議清單同時出現時會互搶——舊版語言服務會對著已經被換掉的狀態算範圍，
     /// 於是每退一格就跳一次錯誤。與其在執行期硬把對方的 session 收掉
     /// （那會連帶收掉自己剛觸發的那一個），不如讓使用者按一次把它關乾淨。
+    ///
+    /// 按下去之後一定要回報結果。這顆按鈕改的是別人分類裡的設定，設定頁上
+    /// 沒有任何一格會跟著變，使用者按完看不出差別，只能當成沒作用。
+    /// 回報前先讀一次寫進去的值：<see cref="SqlAssistSettingsStore.TrySetValue"/>
+    /// 回傳的是「提交有沒有被接受」，不是「那個設定現在是不是 false」。
     /// </remarks>
     private void DisableNativeIntelliSense(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
-        var succeeded = SqlAssistSettingsStore.TrySetValue(
+        var committed = SqlAssistSettingsStore.TrySetValue(
             SqlAssistMonikers.NativeIntelliSenseEnabled,
             false);
+        var readBack = SqlAssistSettingsStore.TryGetNativeIntelliSenseEnabled();
 
-        SqlAssistDiagnostics.WriteAlways($"關閉 SSMS 內建 IntelliSense：{FormatState(succeeded)}");
+        SqlAssistDiagnostics.WriteAlways(
+            $"關閉 SSMS 內建 IntelliSense：提交{(committed ? "成功" : "失敗")}，" +
+            $"讀回 {FormatNativeIntelliSense()}");
 
-        if (!succeeded)
+        if (committed && readBack == false)
         {
             ShowMessage(
-                "無法變更 SSMS 內建的 T-SQL IntelliSense 設定。" +
-                "請在設定視窗搜尋「IntelliSense」手動關閉。");
+                "已關閉 SSMS 內建的 T-SQL IntelliSense。\r\n" +
+                "已經開著的查詢視窗要關掉重開才會生效。");
+            return;
         }
+
+        ShowMessage(
+            "無法變更 SSMS 內建的 T-SQL IntelliSense 設定。" +
+            "請在設定視窗搜尋「IntelliSense」手動關閉。");
     }
 
     private void OpenDiagnosticsLog(object? sender, EventArgs eventArgs)
