@@ -16,6 +16,11 @@
   // 全被丟掉之後就變成空分類，而空分類預設不顯示，於是整頁人間蒸發。
   // 第一次實作 Unified Settings 時就是這樣讓「建議清單」與「物件結構」整頁消失的。
   // SqlAssistRegistrationTests 會擋下再犯。
+  //
+  // 設定的 enableWhen 還只能參照「一個」設定。wildcardLayout 原本寫成
+  // enabled == true && expandWildcardOnTab == true，SSMS 22 同樣安靜地把它丟掉：
+  // 設定頁上完全看不到那一項，讀取時只拿得到 NotPersisted。改成單一參照就回來了，
+  // 附帶的好處是殼層會依那個參照把它縮排在被參照的設定底下。
   "properties": {
 
     "sqlAssist.general.enabled": {
@@ -53,7 +58,7 @@
       ],
       "title": "展開後的欄位怎麼排",
       "description": "每欄一行時，新增或移除欄位只會動到一行，比對版本差異最清楚。另外兩種的換行位置由欄位名稱的長度決定。",
-      "enableWhen": "${config:sqlAssist.general.enabled} == 'true' && ${config:sqlAssist.general.expandWildcardOnTab} == 'true'"
+      "enableWhen": "${config:sqlAssist.general.expandWildcardOnTab} == 'true'"
     },
 
     "sqlAssist.suggestions.enabled": {
@@ -78,8 +83,17 @@
       "default": true,
       "order": 30,
       "title": "列出程式碼片段",
-      "description": "把自訂的程式碼片段一起列進建議清單。內容以「工具 → SqlAssist → 程式碼片段…」增刪，預設有 ssf、ap、af 三個。",
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "description": "把自訂的程式碼片段一起列進建議清單。預設有 ssf、ap、af 三個。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'",
+      "commands": [
+        {
+          "vsct": {
+            "text": "編輯程式碼片段…",
+            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
+            "id": 521
+          }
+        }
+      ]
     },
     "sqlAssist.suggestions.includeDatabaseObjects": {
       "type": "boolean",
@@ -203,13 +217,6 @@
             "text": "關閉 SSMS 內建的 T-SQL IntelliSense",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
             "id": 519
-          }
-        },
-        {
-          "vsct": {
-            "text": "編輯程式碼片段…",
-            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
-            "id": 521
           }
         }
       ]

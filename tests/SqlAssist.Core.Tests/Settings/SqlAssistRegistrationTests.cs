@@ -94,6 +94,42 @@ public sealed class SqlAssistRegistrationTests
         Assert.True(violations.Count == 0, string.Join("\n", violations));
     }
 
+    /// <summary>
+    /// 設定自己的 <c>enableWhen</c> 只能參照一個設定。
+    /// </summary>
+    /// <remarks>
+    /// 症狀與跨分類參照一模一樣：沒有錯誤訊息，設定頁上就是少了那一項，
+    /// 讀取時拿到 <c>NotPersisted</c>。<c>sqlAssist.general.wildcardLayout</c> 原本寫成
+    /// <c>enabled == 'true' &amp;&amp; expandWildcardOnTab == 'true'</c>——兩個參照都在同一個
+    /// 分類裡，仍舊被丟掉。改成單一參照才回到設定頁上。
+    ///
+    /// 只管設定的 <c>enableWhen</c>：分類上 messages／commands 的條件式不受這條限制，
+    /// SSMS 自己的 <c>SqlStudio.registration.json</c> 就有複合條件的 <c>visibleWhen</c>。
+    /// </remarks>
+    [Fact]
+    public void 設定的條件式只參照一個設定()
+    {
+        using var document = RegistrationManifest.Open();
+        var violations = new List<string>();
+
+        foreach (var property in document.RootElement.GetProperty("properties").EnumerateObject())
+        {
+            if (!property.Value.TryGetProperty("enableWhen", out var enableWhen))
+            {
+                continue;
+            }
+
+            var references = ReferencedMonikers(enableWhen.GetString()!).Distinct().ToArray();
+
+            if (references.Length > 1)
+            {
+                violations.Add($"{property.Name} 參照了 {string.Join("、", references)}");
+            }
+        }
+
+        Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
     /// <summary>條件式參照的 moniker 必須真的存在，打錯字同樣會讓整頁消失。</summary>
     [Fact]
     public void 條件式參照的設定都存在()
