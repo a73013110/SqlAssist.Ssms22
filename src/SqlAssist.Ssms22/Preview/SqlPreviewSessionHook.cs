@@ -2,7 +2,8 @@ using System;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core;
+using SqlAssist.Core.Settings;
+using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;

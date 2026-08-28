@@ -6,7 +6,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using SqlAssist.Core;
+using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Ssms22.UI;
 

@@ -8,14 +8,17 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
-using SqlAssist.Core;
-using SqlAssist.Core.Snippets;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Parsing;
-using SqlAssist.Metadata;
-using SqlAssist.Ssms22.QuickInfo;
+using SqlAssist.Core.Settings;
+using SqlAssist.Core.Snippets;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Preview;
-using SqlAssist.Ssms22.Snippets;
+using SqlAssist.Ssms22.QuickInfo;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 
 namespace SqlAssist.Ssms22.Completion;
 

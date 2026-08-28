@@ -4,6 +4,9 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
+using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Wildcards;
 
 namespace SqlAssist.Ssms22.Completion;
 

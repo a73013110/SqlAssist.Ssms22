@@ -42,7 +42,7 @@
 [CmdletBinding()]
 param(
     [string]$SsmsInstallDir = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release',
-    [string]$OutputPath = (Join-Path $PSScriptRoot '..\src\SqlAssist.Core\SqlKeywordCatalog.Generated.cs')
+    [string]$OutputPath = (Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\SqlKeywordCatalog.Generated.cs')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -338,7 +338,7 @@ $null = $builder.AppendLine('// 因此它與上面的關鍵字清單互有出入
 $null = $builder.AppendLine('')
 $null = $builder.AppendLine('using System.Collections.Generic;')
 $null = $builder.AppendLine('')
-$null = $builder.AppendLine('namespace SqlAssist.Core;')
+$null = $builder.AppendLine('namespace SqlAssist.Core.Keywords;')
 $null = $builder.AppendLine('')
 # 刻意不做成 SqlKeywordCatalog 的 partial：同一個類別的靜態欄位若分散在兩個檔案，
 # 初始化順序由編譯順序決定，SqlKeywordCatalog 的衍生字典就可能在資料還是 null 時先跑。

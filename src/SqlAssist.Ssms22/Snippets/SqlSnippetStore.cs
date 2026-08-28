@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using SqlAssist.Core.Json;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Snippets;
 

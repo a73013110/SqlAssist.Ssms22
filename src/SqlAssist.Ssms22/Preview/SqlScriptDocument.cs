@@ -5,8 +5,10 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Classification;
-using SqlAssist.Core;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 

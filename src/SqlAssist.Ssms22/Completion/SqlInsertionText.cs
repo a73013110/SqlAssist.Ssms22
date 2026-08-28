@@ -1,5 +1,6 @@
-using SqlAssist.Core;
-using SqlAssist.Metadata;
+using SqlAssist.Core.Completion;
+using SqlAssist.Core.Settings;
+using SqlAssist.Metadata.Formatting;
 
 namespace SqlAssist.Ssms22.Completion;
 

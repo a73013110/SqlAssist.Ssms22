@@ -5,8 +5,11 @@
   // 標題與描述直接寫純文字，不走 "@key;{packageGuid}" 的資源查表：
   // 這個擴充只出 zh-TW，多一層 satellite 資源只是成本。
   //
-  // 每一個 moniker 都必須在 SqlAssistMonikers.cs 有對應常數，
-  // 且 "default" 必須與 SqlAssistSettings 的屬性預設值一致。
+  // 這一份是「有哪些設定」的權威來源，測試以它為基準反推程式碼：
+  // 每一個 moniker 都必須在 SqlAssistMonikers 有對應常數、被
+  // SqlAssistSettingsReader 讀進 SqlAssistSettings 的某個屬性，
+  // 且 "default" 必須與該屬性的預設值一致。三者由
+  // SqlAssistSettingsReaderTests 檢查，漏掉任何一步都是建置失敗。
   //
   // enableWhen／visibleWhen 只能參照「同一個分類裡」的設定。
   // 跨分類參照不會報錯，殼層會安靜地把整個設定丟掉——該分類的設定

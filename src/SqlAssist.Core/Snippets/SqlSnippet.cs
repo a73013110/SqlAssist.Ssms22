@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Completion;
 
 namespace SqlAssist.Core.Snippets;
 

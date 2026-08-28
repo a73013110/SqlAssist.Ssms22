@@ -4,9 +4,12 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core;
-using SqlAssist.Metadata;
+using SqlAssist.Core.Parsing;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Settings;
 

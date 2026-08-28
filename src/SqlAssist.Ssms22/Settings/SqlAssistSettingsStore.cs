@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Utilities.UnifiedSettings;
-using SqlAssist.Core;
+using SqlAssist.Core.Settings;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Settings;
 
@@ -9,9 +10,13 @@ namespace SqlAssist.Ssms22.Settings;
 /// 從 SSMS 的 Unified Settings 讀出一份 <see cref="SqlAssistSettings"/> 快照並保持最新。
 /// </summary>
 /// <remarks>
+/// 這個類別只做平台那一半：拿服務、包成 <see cref="ISettingValueSource"/>、
+/// 訂閱變更、快取結果。moniker 與屬性之間的對應、列舉解析與數值收斂
+/// 都在 <see cref="SqlAssistSettingsReader"/>，那一半跑得起單元測試。
+///
 /// 為什麼要快取而不是每次都問 reader：建議來源的
 /// <c>InitializeCompletion</c> 與輸入字元的處理常式都在按鍵路徑上，
-/// 每按一次鍵去查十四個 moniker 是不必要的成本。改成啟動時讀一次、
+/// 每按一次鍵去查十幾個 moniker 是不必要的成本。改成啟動時讀一次、
 /// 之後由 <see cref="ISettingsReader.SubscribeToChanges"/> 推更新。
 ///
 /// 這個類別<b>永遠有值</b>：服務缺席、manifest 還沒註冊、值型別不符，
@@ -66,7 +71,7 @@ internal static class SqlAssistSettingsStore
                 }
 
                 var reader = _manager.GetReader();
-                _current = Read(reader);
+                _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
                 _reader = reader;
 
                 // 訂閱回呼可能來自任何執行緒；這裡只換掉一個 volatile 欄位，
@@ -183,7 +188,7 @@ internal static class SqlAssistSettingsStore
         {
             if (_reader is { } reader)
             {
-                _current = Read(reader);
+                _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
             }
         }
         catch (Exception exception)
@@ -193,124 +198,44 @@ internal static class SqlAssistSettingsStore
         }
     }
 
-    private static SqlAssistSettings Read(ISettingsReader reader)
-    {
-        var defaults = new SqlAssistSettings();
-
-        return new SqlAssistSettings
-        {
-            Enabled = Read(reader, SqlAssistMonikers.Enabled, defaults.Enabled),
-            UppercaseKeywordsOnType = Read(
-                reader,
-                SqlAssistMonikers.UppercaseKeywordsOnType,
-                defaults.UppercaseKeywordsOnType),
-            ExpandWildcardOnTab = Read(
-                reader,
-                SqlAssistMonikers.ExpandWildcardOnTab,
-                defaults.ExpandWildcardOnTab),
-            WildcardLayout = ParseWildcardLayout(
-                Read(reader, SqlAssistMonikers.WildcardLayout, string.Empty),
-                defaults.WildcardLayout),
-
-            SuggestionsEnabled = Read(
-                reader,
-                SqlAssistMonikers.SuggestionsEnabled,
-                defaults.SuggestionsEnabled),
-            TriggerAfterCharacters = SqlAssistLimits.ClampTriggerCharacters(
-                Read(reader, SqlAssistMonikers.TriggerAfterCharacters, defaults.TriggerAfterCharacters)),
-            IncludeSnippets = Read(reader, SqlAssistMonikers.IncludeSnippets, defaults.IncludeSnippets),
-            IncludeDatabaseObjects = Read(
-                reader,
-                SqlAssistMonikers.IncludeDatabaseObjects,
-                defaults.IncludeDatabaseObjects),
-            ShowCategoryFilters = Read(
-                reader,
-                SqlAssistMonikers.ShowCategoryFilters,
-                defaults.ShowCategoryFilters),
-            QualifyObjectNames = Read(
-                reader,
-                SqlAssistMonikers.QualifyObjectNames,
-                defaults.QualifyObjectNames),
-            UseSquareBrackets = Read(
-                reader,
-                SqlAssistMonikers.UseSquareBrackets,
-                defaults.UseSquareBrackets),
-
-            HoverEnabled = Read(reader, SqlAssistMonikers.HoverEnabled, defaults.HoverEnabled),
-            PreviewMode = ParsePreviewMode(
-                Read(reader, SqlAssistMonikers.PreviewMode, string.Empty),
-                defaults.PreviewMode),
-            PreviewDelayMilliseconds = SqlAssistLimits.ClampPreviewDelay(
-                Read(reader, SqlAssistMonikers.PreviewDelay, defaults.PreviewDelayMilliseconds)),
-            PreviewPlacement = ParsePlacement(
-                Read(reader, SqlAssistMonikers.PreviewPlacement, string.Empty),
-                defaults.PreviewPlacement),
-            PreviewFontSize = SqlAssistLimits.ClampPreviewFontSize(
-                Read(reader, SqlAssistMonikers.PreviewFontSize, (int)defaults.PreviewFontSize)),
-
-            VerboseLogging = Read(reader, SqlAssistMonikers.VerboseLogging, defaults.VerboseLogging)
-        };
-    }
-
+    /// <summary>
+    /// 把 <see cref="ISettingsReader"/> 包成 <see cref="ISettingValueSource"/>。
+    /// </summary>
     /// <remarks>
     /// 用 <see cref="SettingReadOptions.NoRequirements"/> 而不是 <c>GetValueOrThrow</c>：
     /// 這條路徑在編輯器啟動與設定變更時跑，任何一個 moniker 出問題都不該
-    /// 讓其餘十三個跟著失效。
+    /// 讓其餘十幾個跟著失效。記錄診斷訊息也留在這一層——Core 那半刻意不認識記錄器。
     /// </remarks>
-    private static T Read<T>(ISettingsReader reader, string moniker, T fallback)
-        where T : notnull
+    private sealed class UnifiedSettingsSource : ISettingValueSource
     {
-        try
-        {
-            var result = reader.GetValue<T>(moniker, SettingReadOptions.NoRequirements);
+        private readonly ISettingsReader _source;
 
-            // 成功但值是 null 的情形理論上不存在，但回傳型別沒有排除它，
-            // 一起當成「讀不到」處理比在下游到處防呆便宜。
-            if (result.Outcome == SettingRetrievalOutcome.Success && result.Value is { } value)
+        public UnifiedSettingsSource(ISettingsReader source) => _source = source;
+
+        public bool TryGetValue<T>(string moniker, out T value)
+            where T : notnull
+        {
+            try
             {
-                return value;
+                var result = _source.GetValue<T>(moniker, SettingReadOptions.NoRequirements);
+
+                // 成功但值是 null 的情形理論上不存在，但回傳型別沒有排除它，
+                // 一起當成「讀不到」處理比在下游到處防呆便宜。
+                if (result.Outcome == SettingRetrievalOutcome.Success && result.Value is { } actual)
+                {
+                    value = actual;
+                    return true;
+                }
+
+                SqlAssistDiagnostics.Write($"設定 {moniker} 回退為預設值：{result.Outcome}");
+            }
+            catch (Exception exception)
+            {
+                SqlAssistDiagnostics.WriteAlways($"讀取設定 {moniker} 失敗：{exception.Message}");
             }
 
-            SqlAssistDiagnostics.Write($"設定 {moniker} 回退為預設值：{result.Outcome}");
-            return fallback;
+            value = default!;
+            return false;
         }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"讀取設定 {moniker} 失敗：{exception.Message}");
-            return fallback;
-        }
-    }
-
-    /// <summary>無法辨識的值一律當成預設值，而不是列舉的第一個成員。</summary>
-    private static SqlPreviewMode ParsePreviewMode(string value, SqlPreviewMode fallback)
-    {
-        return value switch
-        {
-            "off" => SqlPreviewMode.Off,
-            "delay" => SqlPreviewMode.Delay,
-            "rightArrow" => SqlPreviewMode.RightArrow,
-            _ => fallback
-        };
-    }
-
-    private static SqlWildcardLayout ParseWildcardLayout(string value, SqlWildcardLayout fallback)
-    {
-        return value switch
-        {
-            "onePerLine" => SqlWildcardLayout.OnePerLine,
-            "oneLineWhenShort" => SqlWildcardLayout.OneLineWhenShort,
-            "fillWidth" => SqlWildcardLayout.FillWidth,
-            _ => fallback
-        };
-    }
-
-    private static SqlPreviewPlacement ParsePlacement(string value, SqlPreviewPlacement fallback)
-    {
-        return value switch
-        {
-            "beside" => SqlPreviewPlacement.Beside,
-            "stacked" => SqlPreviewPlacement.Stacked,
-            _ => fallback
-        };
     }
 }

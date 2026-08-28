@@ -8,8 +8,10 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using SqlAssist.Core;
-using SqlAssist.Metadata;
+using SqlAssist.Core.Settings;
+using SqlAssist.Metadata.Formatting;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 

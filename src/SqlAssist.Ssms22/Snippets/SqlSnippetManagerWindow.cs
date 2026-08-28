@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Snippets;

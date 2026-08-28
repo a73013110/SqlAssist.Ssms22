@@ -4,8 +4,10 @@ using System.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
-using SqlAssist.Core;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -136,7 +138,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 }
             }
 
-            if (expansionSpan is not null && suggestion.Tag is Metadata.SqlObjectInfo objectInfo)
+            if (expansionSpan is not null && suggestion.Tag is SqlObjectInfo objectInfo)
             {
                 _moduleExpander.Begin(objectInfo, expansionSpan);
                 return new CommitResult(isHandled: true, CommitBehavior.None);

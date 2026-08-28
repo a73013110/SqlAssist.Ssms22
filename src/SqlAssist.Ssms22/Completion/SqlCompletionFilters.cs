@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.Core.Imaging;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Adornments;
-using SqlAssist.Core;
+using SqlAssist.Core.Completion;
 
 namespace SqlAssist.Ssms22.Completion;
 

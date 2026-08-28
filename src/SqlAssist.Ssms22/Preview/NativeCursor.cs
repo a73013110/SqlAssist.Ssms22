@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Preview;
 

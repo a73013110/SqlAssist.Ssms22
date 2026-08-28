@@ -1,7 +1,8 @@
 using System;
 using Microsoft.VisualStudio.Settings;
 using Microsoft.VisualStudio.Shell.Settings;
-using SqlAssist.Core;
+using SqlAssist.Core.Settings;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Settings;
 
