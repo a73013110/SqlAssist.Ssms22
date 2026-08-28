@@ -7,8 +7,10 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core;
-using SqlAssist.Metadata;
+using SqlAssist.Core.Settings;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;

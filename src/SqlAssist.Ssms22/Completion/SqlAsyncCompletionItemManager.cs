@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
-using SqlAssist.Core;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Matching;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Completion;
 

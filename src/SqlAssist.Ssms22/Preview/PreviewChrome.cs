@@ -6,7 +6,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
-using SqlAssist.Metadata;
+using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;

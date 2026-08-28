@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
+using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22;

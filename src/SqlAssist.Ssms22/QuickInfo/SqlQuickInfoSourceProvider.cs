@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Utilities;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 

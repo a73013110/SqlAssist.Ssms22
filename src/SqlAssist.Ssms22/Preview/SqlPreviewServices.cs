@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Composition;
 using System.Threading;
 using Microsoft.VisualStudio.Text.Classification;
+using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Preview;
 

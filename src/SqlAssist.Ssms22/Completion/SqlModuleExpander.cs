@@ -5,8 +5,11 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core;
-using SqlAssist.Metadata;
+using SqlAssist.Core.Completion;
+using SqlAssist.Core.Parsing;
+using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Connections;
 
 namespace SqlAssist.Ssms22.Completion;
 

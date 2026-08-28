@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
-using SqlAssist.Metadata;
+using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
