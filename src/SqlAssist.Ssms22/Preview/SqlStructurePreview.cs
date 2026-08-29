@@ -183,12 +183,28 @@ internal sealed class SqlStructurePreview
                 () => EnsureControl())));
     }
 
-    /// <summary>記住目前的建議清單，並在它結束時把預覽收掉。</summary>
+    /// <summary>
+    /// 記住目前的建議清單，並在它結束時把預覽收掉。
+    /// </summary>
+    /// <remarks>
+    /// 換 session 時一定要先把上一個的訂閱解掉。這個方法由 broker 層級的
+    /// <c>CompletionTriggered</c> 呼叫，而那個事件也會為別人開的清單發出來——
+    /// SSMS 自己的 T-SQL IntelliSense 開著時尤其如此，收掉的先後順序就不再由
+    /// 本擴充決定。舊的沒解掉的話，它稍後結束時仍然會叫到 <see cref="EndSession"/>，
+    /// 把正在用的這一個連視窗一起收走，而且解錯對象——留下一個永遠訂閱著的
+    /// 死 session。症狀是「清單還開著，預覽自己不見了」，而且愈用愈頻繁。
+    /// </remarks>
     public void TrackSession(IAsyncCompletionSession session)
     {
         if (_closed || session is null)
         {
             return;
+        }
+
+        if (_session is { } previous && !ReferenceEquals(previous, session))
+        {
+            previous.Dismissed -= OnSessionEnded;
+            previous.ItemCommitted -= OnSessionItemCommitted;
         }
 
         _session = session;
