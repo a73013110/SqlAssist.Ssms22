@@ -56,8 +56,17 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionInitialDataSnapshot data,
         CancellationToken token)
     {
+        // 排不成就照交進來的順序給回去：少了偏好排序的清單仍然可用，
+        // 整條建議管線炸掉不是。與 UpdateCompletionListAsync 走同一族：
+        // 這兩個方法都由平台的同一個非同步工作呼叫，它靠回傳的 Task 是不是
+        // 取消狀態判斷這一輪作廢。
+        //
         // CompletionList<T> 沒有公開建構式，重排過的清單只能由 session 生出來。
-        return Task.FromResult(session.CreateCompletionList(Sort(data.InitialItemList)));
+        return Task.FromResult(
+            SqlAssistPlatformGuard.RunPropagatingCancellation(
+                "建議清單排序",
+                () => session.CreateCompletionList(Sort(data.InitialItemList)),
+                fallback: () => data.InitialItemList));
     }
 
     public Task<ImmutableArray<CompletionItem>> SortCompletionListAsync(
@@ -65,7 +74,11 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionInitialDataSnapshot data,
         CancellationToken token)
     {
-        return Task.FromResult(Sort(data.InitialItemList).ToImmutableArray());
+        return Task.FromResult(
+            SqlAssistPlatformGuard.RunPropagatingCancellation(
+                "建議清單排序",
+                () => Sort(data.InitialItemList).ToImmutableArray(),
+                fallback: () => data.InitialItemList.ToImmutableArray()));
     }
 
     /// <summary>依與輸入無關的那一段分數穩定排序。</summary>
