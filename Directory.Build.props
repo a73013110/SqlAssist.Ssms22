@@ -5,5 +5,14 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
-</Project>
 
+  <ItemGroup>
+    <!--
+      版號的唯一來源是根目錄的 version.json 加上 git height，任何專案檔、VSIX Manifest
+      與 README 都不再寫死版號。放在這裡而非個別專案，是因為 VSIX Manifest 的
+      GetBuildVersion 佔位符只有在 Ssms22 專案取得這個套件時才展開得開，而三個組件
+      的版本資訊必須一致才追得回同一個 commit。
+    -->
+    <PackageReference Include="Nerdbank.GitVersioning" Version="3.10.91" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

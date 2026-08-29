@@ -7,7 +7,20 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $extensionId = 'SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65'
 $outputPath = Join-Path $root 'src\SqlAssist.Ssms22\bin\x64\Debug\net48'
-$sourceManifestPath = Join-Path $root 'src\SqlAssist.Ssms22\source.extension.vsixmanifest'
+# 來源 Manifest 的版號是 GetBuildVersion 佔位符，只有建置產物裡才是展開後的實際版號。
+$builtManifestPath = Join-Path $outputPath 'extension.vsixmanifest'
+
+function Get-MajorMinor {
+    param([string]$Version)
+
+    $parsed = $null
+
+    if (-not [version]::TryParse($Version, [ref]$parsed)) {
+        throw "無法解析 VSIX 版號：$Version"
+    }
+
+    return "$($parsed.Major).$($parsed.Minor)"
+}
 
 if (Get-Process -Name 'SSMS' -ErrorAction SilentlyContinue) {
     throw '請先關閉所有 SSMS 視窗，再部署 Debug 組件。'
@@ -18,12 +31,12 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'Build-Extension.ps1') -Configuration Debug
 }
 
-if (-not (Test-Path -LiteralPath $sourceManifestPath)) {
-    throw "找不到來源 VSIX Manifest：$sourceManifestPath"
+if (-not (Test-Path -LiteralPath $builtManifestPath)) {
+    throw "找不到建置後的 VSIX Manifest：$builtManifestPath。請先執行 Build-Extension.ps1 -Configuration Debug。"
 }
 
-[xml]$sourceManifest = Get-Content -LiteralPath $sourceManifestPath -Raw
-$sourceVersion = [string]$sourceManifest.PackageManifest.Metadata.Identity.Version
+[xml]$builtManifest = Get-Content -LiteralPath $builtManifestPath -Raw
+$builtVersion = [string]$builtManifest.PackageManifest.Metadata.Identity.Version
 $installations = @()
 $ssmsRoots = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\SSMS" `
     -Directory `
@@ -68,8 +81,14 @@ if ($installations.Count -gt 1) {
 
 $installation = $installations[0]
 
-if ($installation.Version -ne $sourceVersion) {
-    throw "VSIX 版本不一致（已安裝 $($installation.Version)，來源 $sourceVersion）。請重新安裝 Debug VSIX。"
+# 版號的第三段是 git height，每個 commit 都會變動，嚴格比對會讓每次部署都失敗。
+# 這道檢查真正要擋的是 pkgdef、vsct 與 Manifest 註冊已經改變卻沒重裝，
+# 而那些變更一律伴隨 version.json 的 major.minor 調整，因此以 major.minor 為準。
+$installedMajorMinor = Get-MajorMinor $installation.Version
+$builtMajorMinor = Get-MajorMinor $builtVersion
+
+if ($installedMajorMinor -ne $builtMajorMinor) {
+    throw "VSIX 主版本不一致（已安裝 $($installation.Version)，建置 $builtVersion）。請重新安裝 Debug VSIX。"
 }
 
 $fileNames = @(

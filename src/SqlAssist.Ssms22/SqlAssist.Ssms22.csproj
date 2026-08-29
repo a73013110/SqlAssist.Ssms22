@@ -3,7 +3,6 @@
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>SqlAssist.Ssms22</AssemblyName>
     <RootNamespace>SqlAssist.Ssms22</RootNamespace>
-    <Version>0.13.1</Version>
     <UseWPF>true</UseWPF>
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>

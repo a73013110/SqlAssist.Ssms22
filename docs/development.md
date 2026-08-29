@@ -24,6 +24,56 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
 （.NET 10 SDK 不再支援 VSTest 轉接層）。
 
+## 版本號
+
+版號的唯一來源是根目錄的 `version.json` 加上 git 歷史，由
+[Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) 在建置時計算。
+專案檔、VSIX Manifest 與 README 都不再寫死版號。
+
+```json
+{ "version": "0.14" }
+```
+
+`version` 只寫 `major.minor`，第三段（patch）填的是 **git height**——從 HEAD 回推到
+`version.json` 的 `version` 最後一次變動之間的 commit 數。因此：
+
+| 產物 | 格式 | 範例 |
+|---|---|---|
+| VSIX Manifest／`AssemblyFileVersion` | `major.minor.height.commitId` | `0.14.7.64243` |
+| `AssemblyInformationalVersion` | `major.minor.height+commitId` | `0.14.7+faf306205d` |
+| `AssemblyVersion` | `major.minor.0.0` | `0.14.0.0` |
+
+第三段每個 commit 遞增，所以**每一次 commit 建出來的 VSIX 都能直接覆蓋安裝**，
+不必再手動把 Manifest 的版號 +1。這正是舊版 Manifest 一路累加到 `0.13.14`，
+而專案檔還停在 `0.13.1` 的原因。第四段由 commit id 推導、不遞增，只用來回推來源。
+
+### 什麼時候要改 version.json
+
+只有 **minor 或 major 要進位時**才改，patch 自己會走：
+
+```powershell
+# 開始開發 0.15 這一輪。改完 commit，height 歸零重算。
+# version.json: "version": "0.15"
+git commit -am "build: 版號進入 0.15"
+git tag v0.15.0    # 選用，只是給人看的發布記錄，不影響版號計算
+```
+
+Tag 不參與版號計算，加不加都不影響建置結果。
+
+### 三個會踩到的地方
+
+- **改了程式卻沒 commit，版號不動。** height 是從 commit 算的，工作目錄的變更不列入。
+  日常偵錯走 `Deploy-DebugExtension.ps1`（直接覆蓋檔案、不比對版號遞增），不受影響。
+- **淺層 clone 會靜靜退成 `0.0.x`。** CI 上 `actions/checkout` 必須設
+  `fetch-depth: 0`。`Test-VsixPackage.ps1` 會擋下這種版號，不會讓它包成 VSIX。
+- **只改文件不會推進版號。** `version.json` 的 `pathFilters` 排除了 `docs/`、
+  `README.md`、`CLAUDE.md` 與 `LICENSE`，因為那些內容不進 VSIX，
+  不該讓已安裝的使用者看到一個「新版本」。
+
+`Deploy-DebugExtension.ps1` 只比對已安裝與建置版號的 `major.minor`。兩者不同時
+代表 pkgdef、vsct 或 Manifest 的註冊內容已經改變，必須重跑 `Install-Extension.ps1`，
+光覆蓋 DLL 不夠。
+
 ## 安裝
 
 先關閉所有 SSMS 視窗，再執行：

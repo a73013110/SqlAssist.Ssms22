@@ -41,6 +41,20 @@ try {
 
     $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
     $namespace.AddNamespace('vsix', 'http://schemas.microsoft.com/developer/vsx-schema/2011')
+
+    # 淺層 clone 或 Nerdbank.GitVersioning 沒生效時，版號會靜靜退成 0.0.x，或留下未展開的
+    # GetBuildVersion 佔位符，包出一個永遠蓋不過既有安裝的 VSIX。擋在打包驗證最便宜。
+    $identity = $manifest.SelectSingleNode('//vsix:Identity', $namespace)
+    $identityVersion = $null
+
+    if ($null -eq $identity -or -not [version]::TryParse($identity.Version, [ref]$identityVersion)) {
+        throw "VSIX 版號未展開為實際版本：$($identity.Version)"
+    }
+
+    if ($identityVersion.Major -eq 0 -and $identityVersion.Minor -eq 0) {
+        throw "VSIX 版號為 $identityVersion，表示建置時取不到 git 歷史或 version.json。請確認是完整 clone。"
+    }
+
     $target = $manifest.SelectSingleNode(
         '//vsix:InstallationTarget[@Id="Microsoft.VisualStudio.Ssms"]',
         $namespace)
