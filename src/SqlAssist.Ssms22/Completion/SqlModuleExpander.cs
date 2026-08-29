@@ -1,8 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
@@ -10,6 +8,7 @@ using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Editor;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -119,70 +118,37 @@ internal sealed class SqlModuleExpander
 
     private void ReplaceWithScript(ITrackingSpan statementSpan, string script, SqlObjectInfo objectInfo)
     {
-        var dispatcher = ResolveDispatcher();
+        new TextViewEditCoordinator(_textView).ReplaceTracked(
+            statementSpan,
+            "ALTER 語句",
+            target => BuildReplacement(target, script, objectInfo),
+            _setSuppressBufferChange);
+    }
 
-        if (dispatcher is not null && !dispatcher.CheckAccess())
+    /// <remarks>
+    /// 查詢期間使用者可能已經把整句刪掉或改寫了。範圍的起點就是 ALTER 那個字，
+    /// 起點不再是 ALTER 就代表要換的東西已經不在原處——這時候把定義蓋上去
+    /// 等於改到別人的語句。萬用字元展開走的是同一條防線。
+    /// </remarks>
+    private static TextReplacement? BuildReplacement(
+        SnapshotSpan target,
+        string script,
+        SqlObjectInfo objectInfo)
+    {
+        if (target.IsEmpty || !StartsWithAlter(target.GetText()))
         {
-            dispatcher.BeginInvoke(new Action(() => ReplaceWithScript(statementSpan, script, objectInfo)));
-            return;
+            SqlAssistDiagnostics.WriteAlways("要展開的 ALTER 語句已經不在原處，放棄這次展開");
+            return null;
         }
 
-        if (_textView.IsClosed)
-        {
-            return;
-        }
-
-        _setSuppressBufferChange?.Invoke(true);
-
-        try
-        {
-            var buffer = _textView.TextBuffer;
-            var target = statementSpan.GetSpan(buffer.CurrentSnapshot);
-
-            // 查詢期間使用者可能已經把整句刪掉或改寫了。範圍的起點就是 ALTER 那個字，
-            // 起點不再是 ALTER 就代表要換的東西已經不在原處——這時候把定義蓋上去
-            // 等於改到別人的語句。萬用字元展開走的是同一條防線。
-            if (target.IsEmpty || !StartsWithAlter(target.GetText()))
-            {
-                SqlAssistDiagnostics.WriteAlways("要展開的 ALTER 語句已經不在原處，放棄這次展開");
-                return;
-            }
-
-            using var edit = buffer.CreateEdit();
-            edit.Replace(target, script);
-            var updated = edit.Apply();
-
-            if (edit.Canceled)
-            {
-                return;
-            }
-
-            var caretPosition = Math.Min(target.Start.Position + script.Length, updated.Length);
-            _textView.Caret.MoveTo(new SnapshotPoint(updated, caretPosition));
-            _textView.Caret.EnsureVisible();
-            SqlAssistRuntimeState.MarkExpansion($"ALTER {objectInfo.QualifiedName}");
-            SqlAssistDiagnostics.WriteAlways($"已展開 {objectInfo.QualifiedName} 的完整 ALTER 語句");
-        }
-        catch (Exception exception)
-        {
-            // 這裡是從背景工作回到 UI 執行緒後執行的，沒有其他人會接這個例外。
-            SqlAssistDiagnostics.WriteAlways($"替換 ALTER 語句失敗：{exception}");
-        }
-        finally
-        {
-            _setSuppressBufferChange?.Invoke(false);
-        }
+        return new TextReplacement(
+            script,
+            $"ALTER {objectInfo.QualifiedName}",
+            $"已展開 {objectInfo.QualifiedName} 的完整 ALTER 語句");
     }
 
     private static bool StartsWithAlter(string text)
     {
         return text.TrimStart().StartsWith("ALTER", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private Dispatcher? ResolveDispatcher()
-    {
-        return _textView is IWpfTextView wpfTextView
-            ? wpfTextView.VisualElement.Dispatcher
-            : Application.Current?.Dispatcher;
     }
 }

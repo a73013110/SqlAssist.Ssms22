@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Settings;
@@ -11,6 +9,7 @@ using SqlAssist.Core.Wildcards;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Wildcards;
@@ -218,67 +217,37 @@ internal sealed class SqlWildcardExpander
     /// </param>
     private void Replace(ITrackingSpan span, IReadOnlyList<string> columns, SqlAssistSettings settings)
     {
-        var dispatcher = ResolveDispatcher();
-
-        if (dispatcher is not null && !dispatcher.CheckAccess())
-        {
-            dispatcher.BeginInvoke(new Action(() => Replace(span, columns, settings)));
-            return;
-        }
-
-        if (_textView.IsClosed)
-        {
-            return;
-        }
-
-        try
-        {
-            var buffer = _textView.TextBuffer;
-            var snapshot = buffer.CurrentSnapshot;
-            var target = span.GetSpan(snapshot);
-
-            // 查詢期間使用者可能已經把那個星號刪掉或改寫了。
-            if (target.IsEmpty || target.GetText().IndexOf('*') < 0)
-            {
-                SqlAssistDiagnostics.Write("要展開的萬用字元已經不在原處，放棄這次展開");
-                return;
-            }
-
-            var line = snapshot.GetLineFromPosition(target.Start.Position);
-            var text = SqlWildcardExpansionText.Build(
-                columns,
-                SqlWildcardExpansionText.BuildIndent(
-                    snapshot.GetText(line.Start.Position, target.Start.Position - line.Start.Position)),
-                settings.WildcardLayout,
-                SqlAssistLimits.MaximumWildcardLineWidth,
-                line.LineBreakLength > 0 ? line.GetLineBreakText() : Environment.NewLine);
-
-            using var edit = buffer.CreateEdit();
-            edit.Replace(target, text);
-            var updated = edit.Apply();
-
-            if (edit.Canceled)
-            {
-                return;
-            }
-
-            _textView.Caret.MoveTo(
-                new SnapshotPoint(updated, Math.Min(target.Start.Position + text.Length, updated.Length)));
-            _textView.Caret.EnsureVisible();
-            SqlAssistRuntimeState.MarkExpansion($"* → {columns.Count} 個欄位");
-            SqlAssistDiagnostics.WriteAlways($"已把萬用字元展開成 {columns.Count} 個欄位", _textView);
-        }
-        catch (Exception exception)
-        {
-            // 從背景工作回到 UI 執行緒後執行時，沒有其他人會接這個例外。
-            SqlAssistDiagnostics.WriteAlways($"替換萬用字元失敗：{exception}");
-        }
+        new TextViewEditCoordinator(_textView).ReplaceTracked(
+            span,
+            "萬用字元",
+            target => BuildReplacement(target, columns, settings));
     }
 
-    private Dispatcher? ResolveDispatcher()
+    private static TextReplacement? BuildReplacement(
+        SnapshotSpan target,
+        IReadOnlyList<string> columns,
+        SqlAssistSettings settings)
     {
-        return _textView is IWpfTextView wpfTextView
-            ? wpfTextView.VisualElement.Dispatcher
-            : Application.Current?.Dispatcher;
+        // 查詢期間使用者可能已經把那個星號刪掉或改寫了。
+        if (target.IsEmpty || target.GetText().IndexOf('*') < 0)
+        {
+            SqlAssistDiagnostics.Write("要展開的萬用字元已經不在原處，放棄這次展開");
+            return null;
+        }
+
+        var snapshot = target.Snapshot;
+        var line = snapshot.GetLineFromPosition(target.Start.Position);
+        var text = SqlWildcardExpansionText.Build(
+            columns,
+            SqlWildcardExpansionText.BuildIndent(
+                snapshot.GetText(line.Start.Position, target.Start.Position - line.Start.Position)),
+            settings.WildcardLayout,
+            SqlAssistLimits.MaximumWildcardLineWidth,
+            line.LineBreakLength > 0 ? line.GetLineBreakText() : Environment.NewLine);
+
+        return new TextReplacement(
+            text,
+            $"* → {columns.Count} 個欄位",
+            $"已把萬用字元展開成 {columns.Count} 個欄位");
     }
 }
