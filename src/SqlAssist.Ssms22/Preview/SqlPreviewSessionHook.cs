@@ -49,7 +49,8 @@ internal sealed class SqlPreviewSessionHook
 
     private void OnCompletionTriggered(object sender, CompletionTriggeredEventArgs eventArgs)
     {
-        try
+        // 這是事件處理常式，丟出去就會變成使用者眼前的錯誤對話框。
+        SqlAssistPlatformGuard.Run("接上結構預覽", () =>
         {
             // 這個事件是 broker 層級的，其他編輯器的 session 也會通知到這裡。
             if (!ReferenceEquals(eventArgs.TextView, _textView))
@@ -73,12 +74,7 @@ internal sealed class SqlPreviewSessionHook
 
             preview.TrackSession(eventArgs.CompletionSession);
             preview.Warmup();
-        }
-        catch (Exception exception)
-        {
-            // 這是事件處理常式，丟出去就會變成使用者眼前的錯誤對話框。
-            SqlAssistDiagnostics.WriteAlways($"接上結構預覽失敗：{exception.Message}");
-        }
+        });
     }
 
     private void OnTextViewClosed(object sender, EventArgs eventArgs)

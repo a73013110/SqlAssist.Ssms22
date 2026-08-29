@@ -24,16 +24,10 @@ internal sealed class SqlQuickInfoSourceProvider : IAsyncQuickInfoSourceProvider
             return null;
         }
 
-        try
-        {
-            // 每個緩衝區一個來源；實際的查詢與快取由共用的中繼資料目錄負責。
-            return textBuffer.Properties.GetOrCreateSingletonProperty(
-                () => new SqlQuickInfoSource(textBuffer, ServiceProvider));
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"建立物件提示來源失敗：{exception}");
-            return null;
-        }
+        // 每個緩衝區一個來源；實際的查詢與快取由共用的中繼資料目錄負責。
+        return SqlAssistPlatformGuard.Create<IAsyncQuickInfoSource>(
+            "建立物件提示來源",
+            () => textBuffer.Properties.GetOrCreateSingletonProperty(
+                () => new SqlQuickInfoSource(textBuffer, ServiceProvider)));
     }
 }

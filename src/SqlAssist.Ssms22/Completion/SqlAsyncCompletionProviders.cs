@@ -72,19 +72,13 @@ internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceP
     /// </remarks>
     public IAsyncCompletionSource? GetOrCreate(ITextView textView)
     {
-        try
-        {
-            return textView.Properties.GetOrCreateSingletonProperty(
+        return SqlAssistPlatformGuard.Create<IAsyncCompletionSource>(
+            "建立建議來源",
+            () => textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionSource),
                 () => new SqlAsyncCompletionSource(
                     SqlCompletionServices.GetMetadataService(textView, ServiceProvider),
-                    ServiceProvider));
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"建立建議來源失敗：{exception}");
-            return null;
-        }
+                    ServiceProvider)));
     }
 }
 
@@ -121,18 +115,12 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
 
     public IAsyncCompletionCommitManager? GetOrCreate(ITextView textView)
     {
-        try
-        {
-            return textView.Properties.GetOrCreateSingletonProperty(
+        return SqlAssistPlatformGuard.Create<IAsyncCompletionCommitManager>(
+            "建立提交管理員",
+            () => textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionCommitManager),
                 () => new SqlAsyncCompletionCommitManager(
                     SqlCompletionServices.GetModuleExpander(textView, ServiceProvider),
-                    Broker));
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"建立提交管理員失敗：{exception}");
-            return null;
-        }
+                    Broker)));
     }
 }

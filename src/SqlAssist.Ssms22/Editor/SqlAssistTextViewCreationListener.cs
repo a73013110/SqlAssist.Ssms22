@@ -60,7 +60,7 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     /// </remarks>
     public void TextViewCreated(IWpfTextView textView)
     {
-        try
+        SqlAssistPlatformGuard.Run("建立 SQL 編輯器時初始化 SqlAssist", () =>
         {
             SqlAssistRuntimeState.MarkTextViewCreated();
             ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
@@ -82,10 +82,6 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
             SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 已載入", textView);
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"建立 SQL 編輯器時初始化 SqlAssist 失敗：{exception}");
-        }
+        });
     }
 }

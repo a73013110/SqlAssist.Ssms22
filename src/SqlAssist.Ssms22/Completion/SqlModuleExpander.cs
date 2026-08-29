@@ -79,41 +79,32 @@ internal sealed class SqlModuleExpander
     /// <summary>在背景取得定義並替換整個語句。</summary>
     public void Begin(SqlObjectInfo objectInfo, ITrackingSpan statementSpan)
     {
-        _ = ExpandAsync(objectInfo, statementSpan);
+        SqlAssistPlatformGuard.Begin(
+            "展開 ALTER 語句",
+            () => ExpandAsync(objectInfo, statementSpan));
     }
 
     private async Task ExpandAsync(SqlObjectInfo objectInfo, ITrackingSpan statementSpan)
     {
-        try
-        {
-            var detail = await _metadataService
-                .GetDetailAsync(objectInfo, CancellationToken.None)
-                .ConfigureAwait(false);
+        var detail = await _metadataService
+            .GetDetailAsync(objectInfo, CancellationToken.None)
+            .ConfigureAwait(false);
 
-            if (detail?.Definition is not { } definition)
-            {
-                SqlAssistDiagnostics.WriteAlways(
-                    $"無法取得 {objectInfo.QualifiedName} 的定義，維持只插入名稱");
-                return;
-            }
-
-            if (!SqlModuleScript.TryConvertCreateToAlter(definition, out var script))
-            {
-                SqlAssistDiagnostics.WriteAlways(
-                    $"{objectInfo.QualifiedName} 的定義不是 CREATE 開頭，維持只插入名稱");
-                return;
-            }
-
-            ReplaceWithScript(statementSpan, script, objectInfo);
-        }
-        catch (OperationCanceledException)
+        if (detail?.Definition is not { } definition)
         {
-            // 編輯器已關閉。
+            SqlAssistDiagnostics.WriteAlways(
+                $"無法取得 {objectInfo.QualifiedName} 的定義，維持只插入名稱");
+            return;
         }
-        catch (Exception exception)
+
+        if (!SqlModuleScript.TryConvertCreateToAlter(definition, out var script))
         {
-            SqlAssistDiagnostics.WriteAlways($"展開 ALTER 語句失敗：{exception}");
+            SqlAssistDiagnostics.WriteAlways(
+                $"{objectInfo.QualifiedName} 的定義不是 CREATE 開頭，維持只插入名稱");
+            return;
         }
+
+        ReplaceWithScript(statementSpan, script, objectInfo);
     }
 
     private void ReplaceWithScript(ITrackingSpan statementSpan, string script, SqlObjectInfo objectInfo)

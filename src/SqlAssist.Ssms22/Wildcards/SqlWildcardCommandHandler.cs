@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Commanding;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
@@ -48,21 +48,13 @@ internal sealed class SqlWildcardCommandHandler : ICommandHandler<TabKeyCommandA
 
     public bool ExecuteCommand(TabKeyCommandArgs args, CommandExecutionContext executionContext)
     {
-        try
-        {
-            if (Broker is null || Broker.GetSession(args.TextView) is not null)
-            {
-                return false;
-            }
-
-            return SqlCompletionServices
-                .GetWildcardExpander(args.TextView, ServiceProvider)
-                .TryExpand();
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"處理 Tab 按鍵失敗：{exception}");
-            return false;
-        }
+        return SqlAssistPlatformGuard.Run(
+            "處理 Tab 按鍵",
+            () => Broker is not null &&
+                Broker.GetSession(args.TextView) is null &&
+                SqlCompletionServices
+                    .GetWildcardExpander(args.TextView, ServiceProvider)
+                    .TryExpand(),
+            fallback: false);
     }
 }
