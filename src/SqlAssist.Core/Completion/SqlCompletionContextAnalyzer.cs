@@ -49,17 +49,20 @@ public static class SqlCompletionContextAnalyzer
             qualifier,
             targetKeywordStart,
             intent,
-            qualifiedTable: null,
+            columnSources: null,
             keywordPosition);
     }
 
     /// <summary>
-    /// 分析整份文字中游標所在的位置，並在限定字指向敘述內的資料來源時
-    /// 把建議目標改成欄位。
+    /// 分析整份文字中游標所在的位置，補上敘述看得到的欄位來源，
+    /// 並在限定字指向敘述內的資料來源時把建議目標改成欄位。
     /// </summary>
     /// <remarks>
     /// 必須看得到游標後方的文字：<c>SELECT u.| FROM dbo.Lib_Reader u</c> 這種
     /// 編輯既有查詢的情形，FROM 子句在游標之後，只看前文永遠解析不出 <c>u</c>。
+    ///
+    /// 一次詞法分析算完兩件事：呼叫端只要拿 <see cref="SqlCompletionContext.ScopeSources"/>，
+    /// 不必再掃一次同一份文字——這條路徑在每一次按鍵上。
     /// </remarks>
     public static SqlCompletionContext Analyze(string sql, int caretPosition)
     {
@@ -75,9 +78,20 @@ public static class SqlCompletionContextAnalyzer
 
         var context = Analyze(sql.Substring(0, caretPosition));
 
-        if (context.Qualifier is null)
+        // 游標在字串或註解裡，這一輪什麼都不建議，敘述有哪些資料來源也就無關。
+        if (!context.IsValid)
         {
             return context;
+        }
+
+        var tokens = SqlTokenizer.Tokenize(sql);
+        var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
+        var resolver = new SqlColumnSourceResolver(tokens);
+        var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
+
+        if (context.Qualifier is null)
+        {
+            return withScope;
         }
 
         // 前方關鍵字已經指定了物件類別（FROM、JOIN、EXEC…），代表游標正在輸入
@@ -85,19 +99,19 @@ public static class SqlCompletionContextAnalyzer
         // FROM dbo.| 要列出 dbo 的物件，FROM u.| 這種寫法並不存在。
         if (context.Target != CompletionTarget.Any)
         {
-            return context;
+            return withScope;
         }
 
-        var scope = SqlScopeAnalyzer.Analyze(sql, caretPosition);
-
-        // 衍生資料表與資料表變數查不到欄位中繼資料，維持原本的結構描述解讀，
-        // 讓使用者至少還看得到物件清單。
-        if (!scope.TryResolve(context.Qualifier, out var table) || table.IsDerived)
+        if (!scope.TryResolve(context.Qualifier, out var table))
         {
-            return context;
+            return withScope;
         }
 
-        return context.AsColumnsOf(table);
+        // 資料表變數的欄位既不在指令碼裡也不在中繼資料裡，只能維持原本的
+        // 結構描述解讀，讓使用者至少還看得到物件清單。
+        var columns = resolver.Resolve(table);
+
+        return columns is null ? withScope : withScope.AsColumnsOf(columns);
     }
 
     /// <summary>

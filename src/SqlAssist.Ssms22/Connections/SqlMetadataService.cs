@@ -100,31 +100,73 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 取得敘述中某個資料來源的欄位建議。
+    /// 取得限定字所指資料來源的欄位建議。
     /// </summary>
     /// <remarks>
     /// 只在使用者真的輸入 <c>別名.</c> 時才觸發，因此會落在第二層按需載入：
     /// 一次只查一個物件的欄位，不會因為敘述裡有幾張資料表就全部撈回來。
+    ///
+    /// 插入的文字一律<b>不</b>補限定字：使用者已經自己打了 <c>a.</c>，
+    /// 再補一次會變成 <c>a.a.欄位</c>。
     /// </remarks>
+    /// <param name="includeDatabaseObjects">
+    /// 關掉時不對資料庫送出任何查詢，只剩欄位名稱寫在指令碼裡的來源（子查詢、CTE）
+    /// 列得出來。
+    /// </param>
     public async Task<IReadOnlyList<SqlSuggestion>> GetColumnSuggestionsAsync(
-        SqlTableReference table,
+        IReadOnlyList<SqlColumnSource> sources,
+        bool includeDatabaseObjects,
         CancellationToken cancellationToken)
     {
-        var total = Stopwatch.StartNew();
-
-        if (await ResolveTableAsync(table, cancellationToken).ConfigureAwait(false) is not { } resolved)
+        if (sources is null || sources.Count == 0)
         {
             return Array.Empty<SqlSuggestion>();
         }
 
-        ReportIfSlow(
-            $"欄位建議 {resolved.Object.QualifiedName}" +
-            $"（第二層{(resolved.DetailWasCached ? "命中快取" : "查詢資料庫")}）",
-            total);
+        var settings = SqlAssistSettingsStore.Current;
+        var suggestions = new List<SqlSuggestion>();
 
-        return resolved.Detail is { Columns.Count: > 0 } detail
-            ? BuildColumnSuggestions(resolved.Object, detail, SqlAssistSettingsStore.Current)
-            : Array.Empty<SqlSuggestion>();
+        foreach (var source in sources)
+        {
+            if (source.Kind == SqlColumnSourceKind.Names)
+            {
+                foreach (var name in source.Names)
+                {
+                    suggestions.Add(BuildScriptColumnSuggestion(name, settings, qualifier: null));
+                }
+
+                continue;
+            }
+
+            if (!includeDatabaseObjects)
+            {
+                continue;
+            }
+
+            var total = Stopwatch.StartNew();
+
+            if (await ResolveTableAsync(source.Table!, cancellationToken).ConfigureAwait(false) is not { } resolved)
+            {
+                continue;
+            }
+
+            ReportIfSlow(
+                $"欄位建議 {resolved.Object.QualifiedName}" +
+                $"（第二層{(resolved.DetailWasCached ? "命中快取" : "查詢資料庫")}）",
+                total);
+
+            if (resolved.Detail is not { Columns.Count: > 0 } detail)
+            {
+                continue;
+            }
+
+            foreach (var column in detail.Columns)
+            {
+                suggestions.Add(BuildColumnSuggestion(resolved.Object, column, settings, qualifier: null));
+            }
+        }
+
+        return suggestions;
     }
 
     /// <summary>
@@ -278,51 +320,52 @@ internal sealed class SqlMetadataService : IDisposable
     /// 取得敘述中所有資料來源的欄位，供沒有限定字的位置使用。
     /// </summary>
     /// <remarks>
-    /// 只回傳<b>已經在快取裡</b>的欄位，絕不觸發查詢：這條路徑在每一次按鍵上。
-    /// 沒命中就這一輪不顯示欄位，<see cref="WarmColumns"/> 會在背景補上，
-    /// 下一次按鍵就有了。
+    /// 資料表與檢視的欄位只回傳<b>已經在快取裡</b>的，絕不觸發查詢：這條路徑在
+    /// 每一次按鍵上。沒命中就這一輪不顯示欄位，<see cref="WarmColumns"/> 會在背景
+    /// 補上，下一次按鍵就有了。子查詢與 CTE 的欄位名稱寫在指令碼裡，不必等任何東西。
     ///
-    /// 敘述裡有兩個以上的資料來源時，插入的文字會補上別名，
-    /// 否則 <c>SELECT Name FROM A a JOIN B b</c> 這種寫法會因為欄位名稱模稜兩可而執行失敗。
+    /// 有兩個以上相異的限定字時，插入的文字會補上別名，否則
+    /// <c>SELECT Name FROM A a JOIN B b</c> 這種寫法會因為欄位名稱模稜兩可而執行失敗。
     /// </remarks>
-    public IReadOnlyList<SqlSuggestion> GetCachedScopeColumns(IReadOnlyList<SqlTableReference> tables)
+    public IReadOnlyList<SqlSuggestion> GetCachedScopeColumns(IReadOnlyList<SqlColumnSource> sources)
     {
-        if (tables is null || tables.Count == 0 || _disposed)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var catalog = ResolveCatalog();
-
-        if (catalog is null)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var snapshot = catalog.CachedSnapshot;
-
-        if (snapshot.IsEmpty)
+        if (sources is null || sources.Count == 0 || _disposed)
         {
             return Array.Empty<SqlSuggestion>();
         }
 
         var settings = SqlAssistSettingsStore.Current;
-        var sources = 0;
-
-        foreach (var table in tables)
-        {
-            if (!table.IsDerived)
-            {
-                sources++;
-            }
-        }
-
-        var qualify = sources > 1;
+        var qualify = NeedsQualifier(sources);
         var suggestions = new List<SqlSuggestion>();
+        SqlMetadataCatalog? catalog = null;
+        SqlDatabaseSnapshot? snapshot = null;
 
-        foreach (var table in tables)
+        foreach (var source in sources)
         {
-            if (!TryPeekResolved(catalog, snapshot, table, out var objectInfo, out var detail))
+            if (source.Kind == SqlColumnSourceKind.Names)
+            {
+                foreach (var name in source.Names)
+                {
+                    suggestions.Add(BuildScriptColumnSuggestion(
+                        name,
+                        settings,
+                        qualify ? source.Qualifier : null));
+                }
+
+                continue;
+            }
+
+            // 目錄與第一層快照只在真的有資料表來源時才解析：一份全是子查詢的敘述
+            // 不必為了列欄位去碰連線。
+            catalog ??= ResolveCatalog();
+            snapshot ??= catalog?.CachedSnapshot;
+
+            if (catalog is null || snapshot is null || snapshot.IsEmpty)
+            {
+                continue;
+            }
+
+            if (!TryPeekResolved(catalog, snapshot, source.Table!, out var objectInfo, out var detail))
             {
                 continue;
             }
@@ -333,11 +376,44 @@ internal sealed class SqlMetadataService : IDisposable
                     objectInfo,
                     column,
                     settings,
-                    qualify ? table.EffectiveName : null));
+                    qualify ? source.Qualifier : null));
             }
         }
 
         return suggestions;
+    }
+
+    /// <summary>
+    /// 插入的欄位名稱要不要補限定字。
+    /// </summary>
+    /// <remarks>
+    /// 依據是<b>相異</b>的限定字數量而不是來源數量：<c>FROM (SELECT Id, * FROM T t) d</c>
+    /// 攤平出兩個來源，但它們都叫 <c>d</c>，欄位名稱不可能因此模稜兩可。
+    /// </remarks>
+    private static bool NeedsQualifier(IReadOnlyList<SqlColumnSource> sources)
+    {
+        string? first = null;
+
+        foreach (var source in sources)
+        {
+            if (source.Qualifier is null)
+            {
+                continue;
+            }
+
+            if (first is null)
+            {
+                first = source.Qualifier;
+                continue;
+            }
+
+            if (!string.Equals(first, source.Qualifier, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -428,9 +504,9 @@ internal sealed class SqlMetadataService : IDisposable
     ///
     /// 失敗一律安靜略過：這只是預熱，真正需要時還會再走一次正規路徑。
     /// </remarks>
-    public void WarmColumns(IReadOnlyList<SqlTableReference> tables)
+    public void WarmColumns(IReadOnlyList<SqlColumnSource> sources)
     {
-        if (tables is null || tables.Count == 0 || _disposed)
+        if (sources is null || sources.Count == 0 || _disposed)
         {
             return;
         }
@@ -447,13 +523,15 @@ internal sealed class SqlMetadataService : IDisposable
 
             var snapshot = await catalog.GetSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
 
-            foreach (var table in tables)
+            foreach (var source in sources)
             {
-                if (_disposed || table.IsDerived)
+                // 子查詢與 CTE 的欄位名稱已經從指令碼讀出來了，沒有什麼好預熱的。
+                if (_disposed || source.Kind != SqlColumnSourceKind.Table)
                 {
                     continue;
                 }
 
+                var table = source.Table!;
                 var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
                 if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
@@ -773,27 +851,39 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 把欄位轉成建議項。
+    /// 把只知道名稱的欄位轉成建議項。
     /// </summary>
     /// <remarks>
-    /// 欄位的排序刻意保留資料表定義順序：模糊比對的分數才是主要排名依據，
-    /// 而分數相同時（例如還沒輸入任何字元）依序號排列比字母序更接近使用者的心智模型。
+    /// 子查詢與 CTE 的輸出欄位寫在指令碼裡，型別、NULL 與 PK 都無從得知——
+    /// 那些要追到最內層的資料表，而中間任何一段運算式都會讓答案不成立。
+    /// 說明欄改寫來源本身：使用者要的是「這個名稱打不打得出來」。
+    ///
+    /// 欄位的排序刻意保留選取清單的順序，與資料表欄位保留定義順序同一個理由。
     /// </remarks>
-    private static IReadOnlyList<SqlSuggestion> BuildColumnSuggestions(
-        SqlObjectInfo info,
-        SqlObjectDetail detail,
-        SqlAssistSettings settings)
+    private static SqlSuggestion BuildScriptColumnSuggestion(
+        string name,
+        SqlAssistSettings settings,
+        string? qualifier)
     {
-        var suggestions = new List<SqlSuggestion>(detail.Columns.Count);
+        var quoted = Quote(name, settings);
+        var insertionText = qualifier is null ? quoted : Quote(qualifier, settings) + "." + quoted;
+        var source = qualifier is null ? string.Empty : $" · {qualifier}";
 
-        foreach (var column in detail.Columns)
-        {
-            suggestions.Add(BuildColumnSuggestion(info, column, settings, qualifier: null));
-        }
-
-        return suggestions;
+        return new SqlSuggestion(
+            name,
+            insertionText,
+            $"查詢結果{source}",
+            $"查詢結果\r\n{name}",
+            SuggestionKind.Column);
     }
 
+    /// <summary>
+    /// 把中繼資料裡的欄位轉成建議項。
+    /// </summary>
+    /// <remarks>
+    /// 呼叫端一律照資料表的定義順序逐欄呼叫，不重排：模糊比對的分數才是主要排名依據，
+    /// 而分數相同時（例如還沒輸入任何字元）依序號排列比字母序更接近使用者的心智模型。
+    /// </remarks>
     /// <param name="qualifier">
     /// 插入時要補在欄位前面的別名或資料表名稱；不需要限定時為 null。
     /// </param>

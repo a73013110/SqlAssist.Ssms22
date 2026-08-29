@@ -93,7 +93,10 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 
         var snapshot = buffer.CurrentSnapshot;
         var span = session.ApplicableToSpan.GetSpan(snapshot);
-        var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(), span.End);
+        // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與 ALTER 的
+        // 關鍵字起點，兩者都在游標之前。欄位的插入文字在建立建議時就定案了，
+        // 這裡不必再解析一次別名。
+        var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(0, span.End));
         var settings = SqlAssistSettingsStore.Current;
         var shouldExpand = SqlModuleExpander.ShouldExpand(suggestion, context, span.End);
 

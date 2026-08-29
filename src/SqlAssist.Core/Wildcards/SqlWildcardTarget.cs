@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Wildcards;
 
@@ -10,7 +11,7 @@ public sealed class SqlWildcardTarget
         int length,
         string? qualifierText,
         bool qualify,
-        IReadOnlyList<SqlWildcardColumnSource> sources)
+        IReadOnlyList<SqlColumnSource> sources)
     {
         Start = start;
         Length = length;
@@ -45,5 +46,5 @@ public sealed class SqlWildcardTarget
     public bool Qualify { get; }
 
     /// <summary>欄位的來源，順序就是展開後的欄位順序。</summary>
-    public IReadOnlyList<SqlWildcardColumnSource> Sources { get; }
+    public IReadOnlyList<SqlColumnSource> Sources { get; }
 }
