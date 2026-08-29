@@ -1,10 +1,12 @@
-﻿using SqlAssist.Core.Completion;
+using System.Linq;
+using SqlAssist.Core.Completion;
+using SqlAssist.Core.Parsing;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
 
 /// <summary>
-/// 限定字後方的欄位建議：<c>u.</c> 要能解析成 <c>u</c> 所指的資料表。
+/// 限定字後方的欄位建議：<c>u.</c> 要能解析成 <c>u</c> 給得出的欄位。
 /// </summary>
 public sealed class SqlColumnCompletionTests
 {
@@ -14,15 +16,38 @@ public sealed class SqlColumnCompletionTests
         return SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
     }
 
+    /// <summary>限定字解析成的那一張資料表；來源不只一個或不是資料表時就是失敗。</summary>
+    private static SqlTableReference ResolvedTable(SqlCompletionContext context)
+    {
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.NotNull(context.ColumnSources);
+
+        var source = Assert.Single(context.ColumnSources!);
+
+        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
+        return source.Table!;
+    }
+
+    /// <summary>把來源攤平成字串，資料表寫成「表 名稱」，方便一次比對整份結果。</summary>
+    private static string[] Columns(SqlCompletionContext context)
+    {
+        Assert.Equal(CompletionTarget.Column, context.Target);
+        Assert.NotNull(context.ColumnSources);
+
+        return context.ColumnSources!
+            .SelectMany(source => source.Kind == SqlColumnSourceKind.Table
+                ? new[] { $"表 {source.Table!.ObjectName}" }
+                : source.Names)
+            .ToArray();
+    }
+
     [Fact]
     public void 別名限定字解析成欄位目標()
     {
-        var context = Analyze("SELECT u.| FROM dbo.Lib_Reader u");
+        var table = ResolvedTable(Analyze("SELECT u.| FROM dbo.Lib_Reader u"));
 
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.NotNull(context.QualifiedTable);
-        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
-        Assert.Equal("dbo", context.QualifiedTable.SchemaName);
+        Assert.Equal("Lib_Reader", table.ObjectName);
+        Assert.Equal("dbo", table.SchemaName);
     }
 
     /// <summary>
@@ -42,18 +67,14 @@ public sealed class SqlColumnCompletionTests
     {
         var context = Analyze("SELECT u.Nam| FROM dbo.Lib_Reader u");
 
-        Assert.Equal(CompletionTarget.Column, context.Target);
         Assert.Equal("Nam", context.Prefix);
-        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
+        Assert.Equal("Lib_Reader", ResolvedTable(context).ObjectName);
     }
 
     [Fact]
     public void 沒有別名時用資料表名稱限定()
     {
-        var context = Analyze("SELECT Lib_Reader.| FROM dbo.Lib_Reader");
-
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
+        Assert.Equal("Lib_Reader", ResolvedTable(Analyze("SELECT Lib_Reader.| FROM dbo.Lib_Reader")).ObjectName);
     }
 
     [Fact]
@@ -61,16 +82,13 @@ public sealed class SqlColumnCompletionTests
     {
         const string sql = "SELECT o.Id, c.| FROM dbo.Orders o JOIN dbo.Publisher c ON o.PublisherId = c.Id";
 
-        Assert.Equal("Publisher", Analyze(sql)!.QualifiedTable!.ObjectName);
+        Assert.Equal("Publisher", ResolvedTable(Analyze(sql)).ObjectName);
     }
 
     [Fact]
     public void 方括號別名可解析()
     {
-        var context = Analyze("SELECT [u x].| FROM dbo.Lib_Reader AS [u x]");
-
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
+        Assert.Equal("Lib_Reader", ResolvedTable(Analyze("SELECT [u x].| FROM dbo.Lib_Reader AS [u x]")).ObjectName);
     }
 
     /// <summary>
@@ -83,19 +101,19 @@ public sealed class SqlColumnCompletionTests
 
         Assert.Equal(CompletionTarget.DataSource, context.Target);
         Assert.Equal("dbo", context.Qualifier);
-        Assert.Null(context.QualifiedTable);
+        Assert.Null(context.ColumnSources);
     }
 
-    /// <summary>衍生資料表與資料表變數查不到欄位，不能宣稱解析成功。</summary>
-    [Theory]
-    [InlineData("SELECT d.| FROM (SELECT 1 AS X) d")]
-    [InlineData("SELECT r.| FROM @rows r")]
-    public void 查不到中繼資料的來源不改成欄位目標(string sqlWithCaret)
+    /// <summary>
+    /// 資料表變數的欄位既不在指令碼裡也不在中繼資料裡，不能宣稱解析成功。
+    /// </summary>
+    [Fact]
+    public void 資料表變數不改成欄位目標()
     {
-        var context = Analyze(sqlWithCaret);
+        var context = Analyze("SELECT r.| FROM @rows r");
 
         Assert.NotEqual(CompletionTarget.Column, context.Target);
-        Assert.Null(context.QualifiedTable);
+        Assert.Null(context.ColumnSources);
     }
 
     [Fact]
@@ -104,16 +122,14 @@ public sealed class SqlColumnCompletionTests
         var context = Analyze("SELECT zzz.| FROM dbo.Lib_Reader u");
 
         Assert.Equal("zzz", context.Qualifier);
-        Assert.Null(context.QualifiedTable);
+        Assert.Null(context.ColumnSources);
     }
 
     /// <summary>子查詢內的別名不能洩漏到外層。</summary>
     [Fact]
     public void 外層看不到子查詢的別名()
     {
-        var context = Analyze("SELECT i.| FROM (SELECT X FROM dbo.Item i) d");
-
-        Assert.Null(context.QualifiedTable);
+        Assert.Null(Analyze("SELECT i.| FROM (SELECT X FROM dbo.Item i) d").ColumnSources);
     }
 
     /// <summary>
@@ -130,10 +146,7 @@ public sealed class SqlColumnCompletionTests
         "PUBLISHER")]
     public void 實機情形(string sqlWithCaret, string expectedTable)
     {
-        var context = Analyze(sqlWithCaret);
-
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.Equal(expectedTable, context.QualifiedTable!.ObjectName);
+        Assert.Equal(expectedTable, ResolvedTable(Analyze(sqlWithCaret)).ObjectName);
     }
 
     [Fact]
@@ -164,10 +177,7 @@ public sealed class SqlColumnCompletionTests
     [InlineData("SELECT * FROM dbo.Lib_Reader u ORDER BY DATEPART(day, u.|)")]
     public void 括號內仍解析得出別名(string sqlWithCaret)
     {
-        var context = Analyze(sqlWithCaret);
-
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.Equal("Lib_Reader", context.QualifiedTable!.ObjectName);
+        Assert.Equal("Lib_Reader", ResolvedTable(Analyze(sqlWithCaret)).ObjectName);
     }
 
     /// <summary>
@@ -183,7 +193,124 @@ public sealed class SqlColumnCompletionTests
         var context = Analyze(
             "SELECT * FROM dbo.Lib_Reader u WHERE Id IN (SELECT c.| FROM dbo.Lib_Shelf c)");
 
-        Assert.Equal(CompletionTarget.Column, context.Target);
-        Assert.Equal("Lib_Shelf", context.QualifiedTable!.ObjectName);
+        Assert.Equal("Lib_Shelf", ResolvedTable(context).ObjectName);
+    }
+
+    /// <summary>
+    /// 衍生資料表與 CTE 的欄位就寫在指令碼裡，讀得出來就該列出來。
+    /// </summary>
+    /// <remarks>
+    /// 實機回報：同一段 SQL 的 <c>a.*</c> 按 Tab 展得開，<c>a.</c> 卻一個建議都沒有。
+    /// 兩邊各有一份「別名指向哪些欄位」的解析，只有萬用字元那一份會往子查詢裡看。
+    /// 現在共用 <see cref="SqlColumnSourceResolver"/>，答案不可能再分岔。
+    /// </remarks>
+    [Fact]
+    public void 衍生資料表的別名列出它的選取清單()
+    {
+        var context = Analyze(
+            "SELECT a.| FROM (SELECT a.PUBL_CODE, a.SHELF_LOCATION_CODE, b.CopyNo " +
+            "FROM dbo.PUBLISHER a INNER JOIN dbo.Cat_BookCopy b ON b.PublCode = a.PUBL_CODE) a");
+
+        Assert.Equal(new[] { "PUBL_CODE", "SHELF_LOCATION_CODE", "CopyNo" }, Columns(context));
+    }
+
+    /// <summary>衍生資料表的別名在 WHERE 子句裡一樣算數。</summary>
+    [Fact]
+    public void 衍生資料表的別名在WHERE子句可用()
+    {
+        var context = Analyze("SELECT * FROM (SELECT c.Id AS Code FROM dbo.PUBLISHER c) a WHERE a.|");
+
+        Assert.Equal(new[] { "Code" }, Columns(context));
+    }
+
+    [Fact]
+    public void CTE的別名列出主體的選取清單()
+    {
+        var context = Analyze(
+            ";WITH CTE_TEST AS (SELECT a.PUBL_CODE FROM dbo.PUBLISHER a) SELECT TOP (1) a.| FROM CTE_TEST a");
+
+        Assert.Equal(new[] { "PUBL_CODE" }, Columns(context));
+    }
+
+    /// <summary>寫出來的資料行清單會覆寫主體算出來的名稱。</summary>
+    [Fact]
+    public void CTE的資料行清單優先()
+    {
+        var context = Analyze(
+            ";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Item) SELECT x.| FROM c x");
+
+        Assert.Equal(new[] { "Code", "Name" }, Columns(context));
+    }
+
+    /// <summary>
+    /// 衍生資料表裡的 <c>*</c> 要遞迴到底層的資料表，欄位才問得到中繼資料。
+    /// </summary>
+    [Fact]
+    public void 衍生資料表裡的萬用字元遞迴到底層資料表()
+    {
+        var context = Analyze("SELECT d.| FROM (SELECT Id, * FROM dbo.PUBLISHER c) d");
+
+        Assert.Equal(new[] { "Id", "表 PUBLISHER" }, Columns(context));
+    }
+
+    /// <summary>
+    /// 帶結構描述的名稱一定是資料庫裡的物件，不會是 CTE。
+    /// </summary>
+    [Fact]
+    public void 帶結構描述的名稱不查CTE名冊()
+    {
+        var context = Analyze(
+            ";WITH PUBLISHER AS (SELECT Id FROM dbo.Item) SELECT a.| FROM dbo.PUBLISHER a");
+
+        Assert.Equal("PUBLISHER", ResolvedTable(context).ObjectName);
+    }
+
+    /// <summary>
+    /// 沒有名稱的運算式在外層無從稱呼，整個來源就此放棄。
+    /// </summary>
+    /// <remarks>
+    /// 與展開 <c>SELECT *</c> 同一條規則：只列得出一半的欄位，比什麼都不列更難發現
+    /// 少了東西。退回結構描述解讀後至少還看得到物件清單。
+    /// </remarks>
+    [Fact]
+    public void 選取清單有無名運算式時不改成欄位目標()
+    {
+        Assert.Null(Analyze("SELECT d.| FROM (SELECT Qty * Price FROM dbo.Item) d").ColumnSources);
+    }
+
+    /// <summary>直接參照自己的 CTE 不能讓解析一路展開下去。</summary>
+    [Fact]
+    public void 參照自己的CTE整個放棄()
+    {
+        Assert.Null(Analyze(";WITH c AS (SELECT * FROM c) SELECT x.| FROM c x").ColumnSources);
+    }
+
+    /// <summary>
+    /// 沒有限定字的位置要列出敘述看得到的欄位，子查詢與 CTE 也算在內。
+    /// </summary>
+    [Fact]
+    public void 沒有限定字時也讀得出敘述的欄位來源()
+    {
+        var context = Analyze("SELECT cu| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a JOIN dbo.Item i ON 1 = 1");
+
+        Assert.Null(context.ColumnSources);
+        Assert.Equal(
+            new[] { "a:PUBL_CODE", "i:表 Item" },
+            context.ScopeSources
+                .SelectMany(source => source.Kind == SqlColumnSourceKind.Table
+                    ? new[] { $"{source.Qualifier}:表 {source.Table!.ObjectName}" }
+                    : source.Names.Select(name => $"{source.Qualifier}:{name}"))
+                .ToArray());
+    }
+
+    /// <summary>解析不出來的來源跳過，其他來源的欄位照樣列。</summary>
+    [Fact]
+    public void 敘述的欄位來源跳過解析不出來的那一個()
+    {
+        var context = Analyze("SELECT cu| FROM @rows r JOIN dbo.Item i ON 1 = 1");
+
+        var source = Assert.Single(context.ScopeSources);
+
+        Assert.Equal("Item", source.Table!.ObjectName);
     }
 }

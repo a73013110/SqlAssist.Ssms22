@@ -27,8 +27,8 @@ src/SqlAssist.Core           純邏輯，可完整單元測試
   Settings/                  設定模型、moniker、註冊值到強型別快照的對應
   Completion/                建議項、上下文分析、觸發條件與排名
   Keywords/                  關鍵字與內建函式目錄、大小寫改寫、位置判斷
-  Parsing/                   詞法器、語彙狀態、語句範圍模型、文字來源介面
-  Wildcards/                 SELECT * 的來源分析與展開後的欄位排版
+  Parsing/                   詞法器、語彙狀態、語句範圍模型、欄位來源解析、文字來源介面
+  Wildcards/                 SELECT * 的星號判定與展開後的欄位排版
   Matching/                  與領域無關的詞首感知模糊比對
   Snippets/                  片段模型、佔位符推導、展開與 JSON 序列化
   Json/                      最小的 JSON 讀寫器（Core 零相依，不引 System.Text.Json）
@@ -74,6 +74,7 @@ src/SqlAssist.Ssms22         net48 VSIX
 |---|---|---|
 | `Core/Parsing/SqlTrivia` | 空白與註解的略過 | 巢狀區塊註解在 tokenizer 是對的，在 ALTER 改寫卻停在內層結尾 |
 | `Core/Parsing/SqlTokenNavigator` | 括號配對與跳過 | 括號不成對時，Scope 與萬用字元對同一段文字給出不同判斷 |
+| `Core/Parsing/SqlColumnSourceResolver` | 別名指向哪些欄位 | 同一個衍生資料表，`a.*` 展得開、`a.` 卻一個建議都沒有 |
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
 | `Ssms22/Editor/SqlObjectLocator` | 位置到物件的解析 | 滑鼠提示與結構面板對同一個位置給出不同答案 |

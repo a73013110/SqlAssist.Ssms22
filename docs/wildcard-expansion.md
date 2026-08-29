@@ -36,6 +36,11 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 
 ### 欄位從哪裡來
 
+判斷「這個星號是不是萬用字元」在 `Core/Wildcards/SqlWildcardAnalyzer`，
+「這個來源給得出哪些欄位」則在 `Core/Parsing/SqlColumnSourceResolver`——
+後者與建議清單的欄位建議共用。分開的理由是它們回答的是不同的問題：
+乘號與萬用字元怎麼分只有展開需要知道，而別名指向哪些欄位是兩個功能都要問的。
+
 | 來源 | 欄位怎麼取得 |
 |---|---|
 | 資料表、檢視 | 中繼資料的第二層 |

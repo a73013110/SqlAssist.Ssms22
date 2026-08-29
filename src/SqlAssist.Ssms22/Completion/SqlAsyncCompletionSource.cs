@@ -9,7 +9,6 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
-using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
@@ -71,7 +70,10 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
 
-        var context = Analyze(triggerLocation);
+        // 只看游標前文就夠：適用範圍與要不要參與只跟詞元起點、前綴與前方關鍵字有關。
+        // 這個方法在按鍵路徑上同步執行，換成全文分析等於每按一鍵就多掃一次整份指令碼。
+        var context = SqlCompletionContextAnalyzer.Analyze(
+            triggerLocation.Snapshot.GetText(0, triggerLocation.Position));
 
         if (!context.IsValid)
         {
@@ -126,16 +128,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 使用者輸入 a. 的那一刻才查欄位，等待就完全落在打字的節奏上。
         // 但這時他已經打過 FROM PUBLISHER a，敘述裡有哪些資料表是已知的，
         // 先在背景把欄位撈回來，按下點號時就能直接命中快取。
-        var scope = SqlScopeAnalyzer.Analyze(
-            triggerLocation.Snapshot.GetText(),
-            triggerLocation.Position);
-
         if (settings.IncludeDatabaseObjects)
         {
-            _metadataService.WarmColumns(scope.Tables);
+            _metadataService.WarmColumns(context.ScopeSources);
         }
 
-        var candidates = await GetCandidatesAsync(context, scope, settings, token).ConfigureAwait(false);
+        var candidates = await GetCandidatesAsync(context, settings, token).ConfigureAwait(false);
 
         // 上下文過濾要在建立清單時做完：平台會快取這份清單，
         // 之後每一次按鍵只重新比對前綴，不會再問來源一次。
@@ -224,17 +222,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
     private async Task<IReadOnlyList<SqlSuggestion>> GetCandidatesAsync(
         SqlCompletionContext context,
-        SqlStatementScope scope,
         SqlAssistSettings settings,
         CancellationToken token)
     {
         if (context.Target == CompletionTarget.Column)
         {
-            return settings.IncludeDatabaseObjects
-                ? await _metadataService
-                    .GetColumnSuggestionsAsync(context.QualifiedTable!, token)
-                    .ConfigureAwait(false)
-                : Array.Empty<SqlSuggestion>();
+            // 關掉「列出資料庫物件與欄位」等於不對資料庫送出任何查詢，
+            // 那時只有欄位名稱寫在指令碼裡的來源（子查詢、CTE）列得出來。
+            return await _metadataService
+                .GetColumnSuggestionsAsync(context.ColumnSources!, settings.IncludeDatabaseObjects, token)
+                .ConfigureAwait(false);
         }
 
         var builtIn = GetBuiltIn().Where(item => IsBuiltInEnabled(item, settings));
@@ -248,7 +245,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
         // 敘述裡看得到的欄位放在資料庫物件前面：SELECT | FROM PUBLISHER a 這種位置，
         // 使用者要的幾乎都是欄位，而不是整個資料庫的物件清單。
-        var scopeColumns = _metadataService.GetCachedScopeColumns(scope.Tables);
+        var scopeColumns = _metadataService.GetCachedScopeColumns(context.ScopeSources);
         return builtIn.Concat(scopeColumns).Concat(database).ToArray();
     }
 

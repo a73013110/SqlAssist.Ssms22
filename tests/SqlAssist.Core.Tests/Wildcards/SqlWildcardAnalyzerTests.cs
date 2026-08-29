@@ -1,4 +1,5 @@
 using System.Linq;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Wildcards;
 using Xunit;
 
@@ -23,7 +24,7 @@ public sealed class SqlWildcardAnalyzerTests
     private static string[] Names(SqlWildcardTarget target)
     {
         return target.Sources
-            .SelectMany(source => source.Kind == SqlWildcardSourceKind.Table
+            .SelectMany(source => source.Kind == SqlColumnSourceKind.Table
                 ? new[] { $"{source.Qualifier}:表 {source.Table!.ObjectName}" }
                 : source.Names.Select(name => $"{source.Qualifier}:{name}"))
             .ToArray();
@@ -35,7 +36,7 @@ public sealed class SqlWildcardAnalyzerTests
         var target = Expand("SELECT *| FROM dbo.PUBLISHER");
         var source = Assert.Single(target.Sources);
 
-        Assert.Equal(SqlWildcardSourceKind.Table, source.Kind);
+        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
         Assert.Equal("PUBLISHER", source.Table!.ObjectName);
         Assert.Equal("dbo", source.Table.SchemaName);
         Assert.Equal("PUBLISHER", source.Qualifier);
@@ -258,7 +259,7 @@ public sealed class SqlWildcardAnalyzerTests
         var target = Expand("WITH c AS (SELECT Id FROM dbo.A) SELECT *| FROM dbo.c");
         var source = Assert.Single(target.Sources);
 
-        Assert.Equal(SqlWildcardSourceKind.Table, source.Kind);
+        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
     }
 
     /// <remarks>WITH (NOLOCK) 後面接的是左括號而不是名稱，自然不會被當成 CTE。</remarks>

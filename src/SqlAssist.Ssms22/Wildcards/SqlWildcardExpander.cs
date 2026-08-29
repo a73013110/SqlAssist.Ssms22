@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Wildcards;
 using SqlAssist.Ssms22;
@@ -116,7 +117,7 @@ internal sealed class SqlWildcardExpander
     {
         foreach (var source in target.Sources)
         {
-            if (source.Kind == SqlWildcardSourceKind.Table)
+            if (source.Kind == SqlColumnSourceKind.Table)
             {
                 return true;
             }
@@ -132,7 +133,7 @@ internal sealed class SqlWildcardExpander
 
         foreach (var source in target.Sources)
         {
-            var names = source.Kind == SqlWildcardSourceKind.Names
+            var names = source.Kind == SqlColumnSourceKind.Names
                 ? source.Names
                 : _metadataService.PeekColumnNames(source.Table!);
 
@@ -153,7 +154,7 @@ internal sealed class SqlWildcardExpander
 
         foreach (var source in target.Sources)
         {
-            var names = source.Kind == SqlWildcardSourceKind.Names
+            var names = source.Kind == SqlColumnSourceKind.Names
                 ? source.Names
                 : await _metadataService
                     .GetColumnNamesAsync(source.Table!, CancellationToken.None)
@@ -178,7 +179,7 @@ internal sealed class SqlWildcardExpander
     private static void Append(
         List<string> columns,
         IReadOnlyList<string> names,
-        SqlWildcardColumnSource source,
+        SqlColumnSource source,
         SqlWildcardTarget target,
         SqlAssistSettings settings)
     {
@@ -195,7 +196,7 @@ internal sealed class SqlWildcardExpander
         }
     }
 
-    private static string Describe(SqlWildcardColumnSource source)
+    private static string Describe(SqlColumnSource source)
     {
         return source.Table is { } table
             ? (table.SchemaName is null ? table.ObjectName : $"{table.SchemaName}.{table.ObjectName}")
