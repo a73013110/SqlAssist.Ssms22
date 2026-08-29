@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -245,34 +245,24 @@ public sealed class SqlMetadataCatalog
     private SqlObjectStructure LoadStructure(SqlObjectDetail detail, CancellationToken cancellationToken)
     {
         using var connection = _connectionSource.OpenConnection();
-        var indexRows = new List<SqlIndexRow>();
-        var foreignKeyRows = new List<SqlForeignKeyRow>();
+        var objectId = detail.Object.ObjectId;
 
-        using (var command = CreateCommand(connection, SqlMetadataQueries.Indexes))
-        {
-            AddObjectIdParameter(command, detail.Object.ObjectId);
-            using var reader = command.ExecuteReader();
-
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                indexRows.Add(SqlMetadataReader.ReadIndexRow(reader));
-            }
-        }
+        var indexRows = ReadList(
+            connection,
+            SqlMetadataQueries.Indexes,
+            SqlMetadataReader.ReadIndexRow,
+            cancellationToken,
+            objectId);
 
         // 檢視沒有外來鍵，少一次來回。
-        if (detail.Object.Kind == SqlObjectKind.Table)
-        {
-            using var command = CreateCommand(connection, SqlMetadataQueries.ForeignKeys);
-            AddObjectIdParameter(command, detail.Object.ObjectId);
-            using var reader = command.ExecuteReader();
-
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                foreignKeyRows.Add(SqlMetadataReader.ReadForeignKeyRow(reader));
-            }
-        }
+        var foreignKeyRows = detail.Object.Kind == SqlObjectKind.Table
+            ? ReadList(
+                connection,
+                SqlMetadataQueries.ForeignKeys,
+                SqlMetadataReader.ReadForeignKeyRow,
+                cancellationToken,
+                objectId)
+            : new List<SqlForeignKeyRow>();
 
         return new SqlObjectStructure(
             detail,
@@ -288,105 +278,116 @@ public sealed class SqlMetadataCatalog
     private SqlDatabaseSnapshot LoadSnapshot(CancellationToken cancellationToken)
     {
         using var connection = _connectionSource.OpenConnection();
-        var objects = new List<SqlObjectInfo>();
-        var schemas = new List<string>();
-        var databases = new List<string>();
 
-        using (var command = CreateCommand(connection, SqlMetadataQueries.Objects))
-        using (var reader = command.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var info = SqlMetadataReader.ReadObject(reader);
+        var objects = ReadList(
+                connection,
+                SqlMetadataQueries.Objects,
+                SqlMetadataReader.ReadObject,
+                cancellationToken)
+            .FindAll(info => info.Kind != SqlObjectKind.Unknown);
 
-                if (info.Kind != SqlObjectKind.Unknown)
-                {
-                    objects.Add(info);
-                }
-            }
-        }
-
-        using (var command = CreateCommand(connection, SqlMetadataQueries.Schemas))
-        using (var reader = command.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                schemas.Add(reader.GetString(0));
-            }
-        }
-
-        // 資料庫清單查不到不該讓整份快照失敗：權限不足時 sys.databases 仍會回傳
-        // 至少一列，但自訂的伺服器角色設定確實有可能整個擋掉。少了 USE 的建議
-        // 遠比整個物件清單都拿不到輕微。
-        try
-        {
-            using var command = CreateCommand(connection, SqlMetadataQueries.Databases);
-            using var reader = command.ExecuteReader();
-
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                databases.Add(reader.GetString(0));
-            }
-        }
-        catch (DbException)
-        {
-            databases.Clear();
-        }
+        var schemas = ReadList(
+            connection,
+            SqlMetadataQueries.Schemas,
+            record => record.GetString(0),
+            cancellationToken);
 
         return new SqlDatabaseSnapshot(
             _connectionSource.DatabaseName,
             objects,
             schemas,
-            databases,
+            ReadDatabases(connection, cancellationToken),
             DateTimeOffset.UtcNow);
+    }
+
+    /// <remarks>
+    /// 資料庫清單查不到不該讓整份快照失敗：權限不足時 sys.databases 仍會回傳
+    /// 至少一列，但自訂的伺服器角色設定確實有可能整個擋掉。少了 USE 的建議
+    /// 遠比整個物件清單都拿不到輕微。
+    /// </remarks>
+    private List<string> ReadDatabases(IDbConnection connection, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return ReadList(
+                connection,
+                SqlMetadataQueries.Databases,
+                record => record.GetString(0),
+                cancellationToken);
+        }
+        catch (DbException)
+        {
+            return new List<string>();
+        }
     }
 
     private SqlObjectDetail LoadDetail(SqlObjectInfo objectInfo, CancellationToken cancellationToken)
     {
         using var connection = _connectionSource.OpenConnection();
-        var columns = new List<SqlColumnInfo>();
-        var parameters = new List<SqlParameterInfo>();
-        string? definition = null;
+        var objectId = objectInfo.ObjectId;
 
-        if (objectInfo.Kind.HasColumns())
+        var columns = objectInfo.Kind.HasColumns()
+            ? ReadList(
+                connection,
+                SqlMetadataQueries.Columns,
+                SqlMetadataReader.ReadColumn,
+                cancellationToken,
+                objectId)
+            : new List<SqlColumnInfo>();
+
+        if (!objectInfo.Kind.IsModule())
         {
-            using var command = CreateCommand(connection, SqlMetadataQueries.Columns);
-            AddObjectIdParameter(command, objectInfo.ObjectId);
-            using var reader = command.ExecuteReader();
-
-            while (reader.Read())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                columns.Add(SqlMetadataReader.ReadColumn(reader));
-            }
+            return new SqlObjectDetail(objectInfo, columns, new List<SqlParameterInfo>(), definition: null);
         }
 
-        if (objectInfo.Kind.IsModule())
-        {
-            using (var command = CreateCommand(connection, SqlMetadataQueries.Parameters))
-            {
-                AddObjectIdParameter(command, objectInfo.ObjectId);
-                using var reader = command.ExecuteReader();
+        var parameters = ReadList(
+            connection,
+            SqlMetadataQueries.Parameters,
+            SqlMetadataReader.ReadParameter,
+            cancellationToken,
+            objectId);
 
-                while (reader.Read())
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    parameters.Add(SqlMetadataReader.ReadParameter(reader));
-                }
-            }
-
-            using (var command = CreateCommand(connection, SqlMetadataQueries.Definition))
-            {
-                AddObjectIdParameter(command, objectInfo.ObjectId);
-                var value = command.ExecuteScalar();
-                definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
-            }
-        }
+        using var command = CreateCommand(connection, SqlMetadataQueries.Definition);
+        AddObjectIdParameter(command, objectId);
+        var value = command.ExecuteScalar();
+        var definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
 
         return new SqlObjectDetail(objectInfo, columns, parameters, definition);
+    }
+
+    /// <summary>
+    /// 跑一次查詢，把每一列讀成 <typeparamref name="T"/>。
+    /// </summary>
+    /// <remarks>
+    /// 每個查詢各自寫一次 command、parameter、reader 迴圈與取消檢查，漏掉哪一項
+    /// 都不會編譯失敗：漏 timeout 是連線掛住、漏取消檢查是使用者換了資料庫
+    /// 還在讀舊的、漏 dispose 是連線池被吃光。收成一個地方，新增查詢只剩一行。
+    /// </remarks>
+    /// <param name="objectId">要帶 @objectId 參數時的物件識別碼；查詢不吃參數時為 null。</param>
+    private List<T> ReadList<T>(
+        IDbConnection connection,
+        string commandText,
+        Func<IDataRecord, T> read,
+        CancellationToken cancellationToken,
+        int? objectId = null)
+    {
+        var items = new List<T>();
+        using var command = CreateCommand(connection, commandText);
+
+        if (objectId is { } id)
+        {
+            AddObjectIdParameter(command, id);
+        }
+
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            items.Add(read(reader));
+        }
+
+        return items;
     }
 
     private IDbCommand CreateCommand(IDbConnection connection, string commandText)

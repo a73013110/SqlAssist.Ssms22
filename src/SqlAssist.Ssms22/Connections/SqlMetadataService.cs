@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -110,38 +110,21 @@ internal sealed class SqlMetadataService : IDisposable
         SqlTableReference table,
         CancellationToken cancellationToken)
     {
-        if (table is null || table.IsDerived)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
         var total = Stopwatch.StartNew();
-        var catalog = ResolveCatalog();
 
-        if (catalog is null)
+        if (await ResolveTableAsync(table, cancellationToken).ConfigureAwait(false) is not { } resolved)
         {
             return Array.Empty<SqlSuggestion>();
         }
 
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+        ReportIfSlow(
+            $"欄位建議 {resolved.Object.QualifiedName}" +
+            $"（第二層{(resolved.DetailWasCached ? "命中快取" : "查詢資料庫")}）",
+            total);
 
-        if (matches.Count == 0)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        var cached = catalog.TryGetCachedDetail(matches[0].ObjectId, out _);
-        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
-
-        ReportIfSlow($"欄位建議 {matches[0].QualifiedName}（第二層{(cached ? "命中快取" : "查詢資料庫")}）", total);
-
-        if (detail is null || detail.Columns.Count == 0)
-        {
-            return Array.Empty<SqlSuggestion>();
-        }
-
-        return BuildColumnSuggestions(matches[0], detail, SqlAssistSettingsStore.Current);
+        return resolved.Detail is { Columns.Count: > 0 } detail
+            ? BuildColumnSuggestions(resolved.Object, detail, SqlAssistSettingsStore.Current)
+            : Array.Empty<SqlSuggestion>();
     }
 
     /// <summary>
@@ -159,6 +142,66 @@ internal sealed class SqlMetadataService : IDisposable
         SqlTableReference table,
         CancellationToken cancellationToken)
     {
+        var timer = Stopwatch.StartNew();
+
+        if (await ResolveTableAsync(table, cancellationToken).ConfigureAwait(false) is not { } resolved)
+        {
+            return null;
+        }
+
+        ReportIfSlow($"展開欄位 {resolved.Object.QualifiedName}（第二層）", timer);
+        return ToColumnNames(resolved.Detail);
+    }
+
+    /// <summary>只看快取裡有沒有這個資料來源的欄位名稱；沒有就回傳 null，不觸發查詢。</summary>
+    /// <remarks>
+    /// 按下 Tab 的當下先問這裡：建議清單開過一次就已經把敘述裡的資料表預熱好了，
+    /// 命中快取時展開是同一個交易裡的一次編輯，看起來就像按鍵直接改了文字。
+    /// </remarks>
+    public IReadOnlyList<string>? PeekColumnNames(SqlTableReference table)
+    {
+        var catalog = PeekCatalog();
+        var snapshot = catalog?.CachedSnapshot;
+
+        if (catalog is null || snapshot is null || snapshot.IsEmpty)
+        {
+            return null;
+        }
+
+        return TryPeekResolved(catalog, snapshot, table, out _, out var detail)
+            ? ToColumnNames(detail)
+            : null;
+    }
+
+    /// <summary>解析出來的資料來源：物件本身、它的欄位明細，以及明細是不是現成的。</summary>
+    private readonly struct ResolvedTable
+    {
+        public ResolvedTable(SqlObjectInfo objectInfo, SqlObjectDetail? detail, bool detailWasCached)
+        {
+            Object = objectInfo;
+            Detail = detail;
+            DetailWasCached = detailWasCached;
+        }
+
+        public SqlObjectInfo Object { get; }
+
+        public SqlObjectDetail? Detail { get; }
+
+        /// <summary>明細在這次要求之前就已經在快取裡；只影響診斷紀錄怎麼寫。</summary>
+        public bool DetailWasCached { get; }
+    }
+
+    /// <summary>
+    /// 把敘述裡的資料來源解析成物件與欄位明細，允許查詢資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 「同名物件取哪一個、衍生資料表不查」這些規則只能有一份：欄位建議與
+    /// <c>SELECT *</c> 展開各自解析的話，同一個別名在兩個功能會指到不同的資料表。
+    /// </remarks>
+    private async Task<ResolvedTable?> ResolveTableAsync(
+        SqlTableReference table,
+        CancellationToken cancellationToken)
+    {
         if (table is null || table.IsDerived)
         {
             return null;
@@ -171,7 +214,6 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var timer = Stopwatch.StartNew();
         var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
         var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
@@ -180,36 +222,39 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
+        var cached = catalog.TryGetCachedDetail(matches[0].ObjectId, out _);
         var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
-        ReportIfSlow($"展開欄位 {matches[0].QualifiedName}（第二層）", timer);
-        return ToColumnNames(detail);
+        return new ResolvedTable(matches[0], detail, cached);
     }
 
-    /// <summary>只看快取裡有沒有這個資料來源的欄位名稱；沒有就回傳 null，不觸發查詢。</summary>
-    /// <remarks>
-    /// 按下 Tab 的當下先問這裡：建議清單開過一次就已經把敘述裡的資料表預熱好了，
-    /// 命中快取時展開是同一個交易裡的一次編輯，看起來就像按鍵直接改了文字。
-    /// </remarks>
-    public IReadOnlyList<string>? PeekColumnNames(SqlTableReference table)
+    /// <summary>
+    /// 同一套解析規則的唯讀版本，只認快取裡現成的明細。
+    /// </summary>
+    /// <remarks>快照由呼叫端傳進來：敘述裡有好幾個資料來源時，那一份要重複用。</remarks>
+    private static bool TryPeekResolved(
+        SqlMetadataCatalog catalog,
+        SqlDatabaseSnapshot snapshot,
+        SqlTableReference table,
+        out SqlObjectInfo objectInfo,
+        out SqlObjectDetail detail)
     {
+        objectInfo = null!;
+        detail = null!;
+
         if (table is null || table.IsDerived)
         {
-            return null;
-        }
-
-        var catalog = PeekCatalog();
-        var snapshot = catalog?.CachedSnapshot;
-
-        if (catalog is null || snapshot is null || snapshot.IsEmpty)
-        {
-            return null;
+            return false;
         }
 
         var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
-        return matches.Count > 0 && catalog.TryGetCachedDetail(matches[0].ObjectId, out var detail)
-            ? ToColumnNames(detail)
-            : null;
+        if (matches.Count == 0 || !catalog.TryGetCachedDetail(matches[0].ObjectId, out detail))
+        {
+            return false;
+        }
+
+        objectInfo = matches[0];
+        return true;
     }
 
     private static IReadOnlyList<string>? ToColumnNames(SqlObjectDetail? detail)
@@ -277,14 +322,7 @@ internal sealed class SqlMetadataService : IDisposable
 
         foreach (var table in tables)
         {
-            if (table.IsDerived)
-            {
-                continue;
-            }
-
-            var matches = snapshot.Find(table.ObjectName, table.SchemaName);
-
-            if (matches.Count == 0 || !catalog.TryGetCachedDetail(matches[0].ObjectId, out var detail))
+            if (!TryPeekResolved(catalog, snapshot, table, out var objectInfo, out var detail))
             {
                 continue;
             }
@@ -292,7 +330,7 @@ internal sealed class SqlMetadataService : IDisposable
             foreach (var column in detail.Columns)
             {
                 suggestions.Add(BuildColumnSuggestion(
-                    matches[0],
+                    objectInfo,
                     column,
                     settings,
                     qualify ? table.EffectiveName : null));
