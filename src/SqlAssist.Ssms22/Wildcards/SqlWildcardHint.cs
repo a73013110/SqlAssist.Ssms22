@@ -64,15 +64,10 @@ internal sealed class SqlWildcardHint
 
     private void OnCaretPositionChanged(object sender, CaretPositionChangedEventArgs eventArgs)
     {
-        try
-        {
-            Update(eventArgs.NewPosition.BufferPosition);
-        }
-        catch (Exception exception)
-        {
-            // 這是游標移動的事件處理常式，丟出去就是使用者眼前的錯誤對話框。
-            SqlAssistDiagnostics.WriteAlways($"更新萬用字元提示失敗：{exception.Message}");
-        }
+        // 這是游標移動的事件處理常式，丟出去就是使用者眼前的錯誤對話框。
+        SqlAssistPlatformGuard.Run(
+            "更新萬用字元提示",
+            () => Update(eventArgs.NewPosition.BufferPosition));
     }
 
     /// <remarks>

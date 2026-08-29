@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,7 +106,9 @@ internal sealed class SqlWildcardExpander
 
         // 一定要換到背景執行緒：解析連線那一步有 UI 執行緒相依性，實測塞住時要 1908 ms，
         // 在原地開始等於按一次 Tab 就讓編輯器停格將近兩秒。
-        _ = Task.Run(() => ExpandAsync(target, span, settings));
+        SqlAssistPlatformGuard.Begin(
+            "展開萬用字元",
+            () => Task.Run(() => ExpandAsync(target, span, settings)));
         return true;
     }
 
@@ -147,40 +149,29 @@ internal sealed class SqlWildcardExpander
 
     private async Task ExpandAsync(SqlWildcardTarget target, ITrackingSpan span, SqlAssistSettings settings)
     {
-        try
+        var columns = new List<string>();
+
+        foreach (var source in target.Sources)
         {
-            var columns = new List<string>();
+            var names = source.Kind == SqlWildcardSourceKind.Names
+                ? source.Names
+                : await _metadataService
+                    .GetColumnNamesAsync(source.Table!, CancellationToken.None)
+                    .ConfigureAwait(false);
 
-            foreach (var source in target.Sources)
+            if (names is null)
             {
-                var names = source.Kind == SqlWildcardSourceKind.Names
-                    ? source.Names
-                    : await _metadataService
-                        .GetColumnNamesAsync(source.Table!, CancellationToken.None)
-                        .ConfigureAwait(false);
-
-                if (names is null)
-                {
-                    SqlAssistDiagnostics.WriteAlways(
-                        $"取不到 {Describe(source)} 的欄位，維持原本的 *");
-                    return;
-                }
-
-                Append(columns, names, source, target, settings);
+                SqlAssistDiagnostics.WriteAlways(
+                    $"取不到 {Describe(source)} 的欄位，維持原本的 *");
+                return;
             }
 
-            if (columns.Count > 0)
-            {
-                Replace(span, columns, settings);
-            }
+            Append(columns, names, source, target, settings);
         }
-        catch (OperationCanceledException)
+
+        if (columns.Count > 0)
         {
-            // 編輯器已關閉。
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"展開萬用字元失敗：{exception}");
+            Replace(span, columns, settings);
         }
     }
 
