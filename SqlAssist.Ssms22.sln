@@ -17,6 +17,39 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Metadata.Tests", "tests\SqlAssist.Metadata.Tests\SqlAssist.Metadata.Tests.csproj", "{5BF27E2D-1A43-4794-9420-F0183ADF2042}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "方案項目", "方案項目", "{D9C861D1-BFE7-4123-97CA-9CF3A4E6D517}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Build.props = Directory.Build.props
+		global.json = global.json
+		README.md = README.md
+		version.json = version.json
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-AE01-4761-823F-555C9A09339D}"
+	ProjectSection(SolutionItems) = preProject
+		docs\architecture.md = docs\architecture.md
+		docs\completion.md = docs\completion.md
+		docs\development.md = docs\development.md
+		docs\metadata.md = docs\metadata.md
+		docs\settings.md = docs\settings.md
+		docs\snippets.md = docs\snippets.md
+		docs\structure-preview.md = docs\structure-preview.md
+		docs\wildcard-expansion.md = docs\wildcard-expansion.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393-0A06-41A8-81F5-7125FBF96322}"
+	ProjectSection(SolutionItems) = preProject
+		tools\Build-Extension.ps1 = tools\Build-Extension.ps1
+		tools\Deploy-DebugExtension.ps1 = tools\Deploy-DebugExtension.ps1
+		tools\Generate-Keywords.ps1 = tools\Generate-Keywords.ps1
+		tools\Install-Extension.ps1 = tools\Install-Extension.ps1
+		tools\Run-CoreTests.ps1 = tools\Run-CoreTests.ps1
+		tools\Show-Diagnostics.ps1 = tools\Show-Diagnostics.ps1
+		tools\Test-CommandTable.ps1 = tools\Test-CommandTable.ps1
+		tools\Test-VsixPackage.ps1 = tools\Test-VsixPackage.ps1
+		tools\Uninstall-Extension.ps1 = tools\Uninstall-Extension.ps1
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

@@ -3,8 +3,13 @@
                  xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011"
                  xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
+    <!--
+      Version 由 Nerdbank.GitVersioning 的 GetBuildVersion 目標在建置時展開；
+      這裡寫死的版號曾經得靠手動 +1 才能讓 VSIXInstaller 願意覆蓋安裝，
+      也因此與專案檔的版號長期分岔。
+    -->
     <Identity Id="SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65"
-              Version="0.13.14"
+              Version="|%CurrentProject%;GetBuildVersion|"
               Language="zh-TW"
               Publisher="SqlAssist" />
     <DisplayName>SqlAssist for SSMS 22</DisplayName>
