@@ -84,9 +84,10 @@ internal static class SqlCompletionReopen
 
         dispatcher.BeginInvoke(
             DispatcherPriority.Background,
-            new Action(() =>
-            {
-                try
+            // 這是排進派送佇列的工作，丟出去就是使用者眼前的錯誤對話框。
+            new Action(() => SqlAssistPlatformGuard.Run(
+                "重開建議清單",
+                () =>
                 {
                     if (textView.IsClosed)
                     {
@@ -101,13 +102,7 @@ internal static class SqlCompletionReopen
                     }
 
                     work(textView);
-                }
-                catch (Exception exception)
-                {
-                    // 這是排進派送佇列的工作，丟出去就是使用者眼前的錯誤對話框。
-                    SqlAssistDiagnostics.WriteAlways($"重開建議清單失敗：{exception}");
-                }
-            }));
+                })));
     }
 
     /// <summary>

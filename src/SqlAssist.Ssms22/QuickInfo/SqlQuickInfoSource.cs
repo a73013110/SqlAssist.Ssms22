@@ -64,24 +64,15 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         _serviceProvider = serviceProvider;
     }
 
-    public async Task<QuickInfoItem?> GetQuickInfoItemAsync(
+    public Task<QuickInfoItem?> GetQuickInfoItemAsync(
         IAsyncQuickInfoSession session,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            return await GetQuickInfoCoreAsync(session, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-        catch (Exception exception)
-        {
-            // 提示視窗失敗絕不可以影響編輯；記錄後安靜地什麼都不顯示。
-            SqlAssistDiagnostics.WriteAlways($"物件提示產生失敗：{exception.Message}");
-            return null;
-        }
+        // 提示視窗失敗絕不可以影響編輯；記錄後安靜地什麼都不顯示。
+        return SqlAssistPlatformGuard.RunAsync<QuickInfoItem?>(
+            "物件提示產生",
+            () => GetQuickInfoCoreAsync(session, cancellationToken),
+            fallback: null);
     }
 
     private async Task<QuickInfoItem?> GetQuickInfoCoreAsync(

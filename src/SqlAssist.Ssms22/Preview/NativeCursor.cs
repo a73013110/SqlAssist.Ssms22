@@ -36,15 +36,10 @@ internal static class NativeCursor
     /// <summary>目前的游標位置，單位是實體像素；取不到時回傳 null。</summary>
     public static Point? TryGetPosition()
     {
-        try
-        {
-            return GetCursorPos(out var point) ? new Point(point.X, point.Y) : null;
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"取得游標位置失敗：{exception.Message}");
-            return null;
-        }
+        return SqlAssistPlatformGuard.Probe<Point?>(
+            "取得游標位置",
+            () => GetCursorPos(out var point) ? new Point(point.X, point.Y) : null,
+            fallback: null);
     }
 
     /// <summary>
@@ -55,19 +50,13 @@ internal static class NativeCursor
     /// </remarks>
     public static Vector ToDeviceIndependent(Visual visual, Vector devicePixels)
     {
-        try
-        {
-            if (PresentationSource.FromVisual(visual)?.CompositionTarget is { } target)
-            {
-                var transform = target.TransformFromDevice;
-                return new Vector(devicePixels.X * transform.M11, devicePixels.Y * transform.M22);
-            }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.Write($"換算 DPI 失敗：{exception.Message}");
-        }
-
-        return devicePixels;
+        return SqlAssistPlatformGuard.Probe(
+            "換算 DPI",
+            () => PresentationSource.FromVisual(visual)?.CompositionTarget is { } target
+                ? new Vector(
+                    devicePixels.X * target.TransformFromDevice.M11,
+                    devicePixels.Y * target.TransformFromDevice.M22)
+                : devicePixels,
+            fallback: devicePixels);
     }
 }

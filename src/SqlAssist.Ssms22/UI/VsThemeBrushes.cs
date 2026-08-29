@@ -99,20 +99,11 @@ internal static class VsThemeBrushes
 
     private static Brush Resolve(object resourceKey, Brush fallback)
     {
-        try
-        {
-            // 主題字典由 VS 併入 Application.Current.Resources；SSMS 若尚未載入
-            // 或鍵值不存在，TryFindResource 會回傳 null 而不是擲例外。
-            if (Application.Current?.TryFindResource(resourceKey) is Brush brush)
-            {
-                return brush;
-            }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"解析佈景主題筆刷失敗：{exception.Message}");
-        }
-
-        return fallback;
+        // 主題字典由 VS 併入 Application.Current.Resources；SSMS 若尚未載入
+        // 或鍵值不存在，TryFindResource 會回傳 null 而不是擲例外。
+        return SqlAssistPlatformGuard.Probe(
+            "解析佈景主題筆刷",
+            () => Application.Current?.TryFindResource(resourceKey) is Brush brush ? brush : fallback,
+            fallback);
     }
 }

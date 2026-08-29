@@ -59,7 +59,8 @@ internal static class SqlAssistSettingsStore
                 return;
             }
 
-            try
+            // 設定讀不到不可以讓編輯器開不起來。
+            SqlAssistPlatformGuard.Run("初始化 Unified Settings", () =>
             {
                 _manager = serviceProvider.GetService(typeof(SVsUnifiedSettingsManager)) as ISettingsManager;
 
@@ -78,12 +79,7 @@ internal static class SqlAssistSettingsStore
                 // 讀取端拿到的永遠是完整的一份快照。
                 _subscription = reader.SubscribeToChanges(_ => Reload(), SqlAssistMonikers.All);
                 SqlAssistDiagnostics.WriteAlways("已接上 Unified Settings");
-            }
-            catch (Exception exception)
-            {
-                // 設定讀不到不可以讓編輯器開不起來。
-                SqlAssistDiagnostics.WriteAlways($"初始化 Unified Settings 失敗：{exception.Message}");
-            }
+            });
         }
     }
 
@@ -113,47 +109,48 @@ internal static class SqlAssistSettingsStore
     public static bool TrySetValue<T>(string moniker, T value)
         where T : notnull
     {
-        try
+        return SqlAssistPlatformGuard.Run(
+            $"寫入設定 {moniker}",
+            () => TrySetValueCore(moniker, value),
+            fallback: false);
+    }
+
+    private static bool TrySetValueCore<T>(string moniker, T value)
+        where T : notnull
+    {
+        if (_manager is null)
         {
-            if (_manager is null)
-            {
-                SqlAssistDiagnostics.WriteAlways($"設定 {moniker} 無法寫入：Unified Settings 尚未接上");
-                return false;
-            }
-
-            var writer = _manager.GetWriter(WriterId);
-            var change = writer.EnqueueChange(moniker, value);
-
-            if (change.Outcome is not (SettingChangeOutcome.PendingCommit
-                or SettingChangeOutcome.PendingCommitWithoutValidation
-                or SettingChangeOutcome.NoOp))
-            {
-                SqlAssistDiagnostics.WriteAlways(
-                    $"設定 {moniker} 未被接受：{change.Outcome} {change.Message}");
-                return false;
-            }
-
-            var commit = writer.RequestCommit(WriterId);
-
-            if (commit.Outcome is not (SettingCommitOutcome.Success
-                or SettingCommitOutcome.NoChangesQueued
-                or SettingCommitOutcome.PendingApproval))
-            {
-                SqlAssistDiagnostics.WriteAlways(
-                    $"設定 {moniker} 提交失敗：{commit.Outcome} {commit.Message}");
-                return false;
-            }
-
-            // 訂閱回呼通常會跟著來，但別依賴它的時機：命令處理常式在下一行
-            // 就要用勾選狀態回答選單，快取必須當場就是新的。
-            Reload();
-            return true;
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"寫入設定 {moniker} 失敗：{exception.Message}");
+            SqlAssistDiagnostics.WriteAlways($"設定 {moniker} 無法寫入：Unified Settings 尚未接上");
             return false;
         }
+
+        var writer = _manager.GetWriter(WriterId);
+        var change = writer.EnqueueChange(moniker, value);
+
+        if (change.Outcome is not (SettingChangeOutcome.PendingCommit
+            or SettingChangeOutcome.PendingCommitWithoutValidation
+            or SettingChangeOutcome.NoOp))
+        {
+            SqlAssistDiagnostics.WriteAlways(
+                $"設定 {moniker} 未被接受：{change.Outcome} {change.Message}");
+            return false;
+        }
+
+        var commit = writer.RequestCommit(WriterId);
+
+        if (commit.Outcome is not (SettingCommitOutcome.Success
+            or SettingCommitOutcome.NoChangesQueued
+            or SettingCommitOutcome.PendingApproval))
+        {
+            SqlAssistDiagnostics.WriteAlways(
+                $"設定 {moniker} 提交失敗：{commit.Outcome} {commit.Message}");
+            return false;
+        }
+
+        // 訂閱回呼通常會跟著來，但別依賴它的時機：命令處理常式在下一行
+        // 就要用勾選狀態回答選單，快取必須當場就是新的。
+        Reload();
+        return true;
     }
 
     /// <summary>
@@ -162,40 +159,35 @@ internal static class SqlAssistSettingsStore
     /// <returns>讀不到時為 <c>null</c>；那代表 SSMS 沒有註冊這個設定，不代表它是關的。</returns>
     public static bool? TryGetNativeIntelliSenseEnabled()
     {
-        try
+        if (_reader is not { } reader)
         {
-            if (_reader is null)
-            {
-                return null;
-            }
-
-            var result = _reader.GetValue<bool>(
-                SqlAssistMonikers.NativeIntelliSenseEnabled,
-                SettingReadOptions.NoRequirements);
-
-            return result.Outcome == SettingRetrievalOutcome.Success ? result.Value : null;
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"讀取 SSMS 內建 IntelliSense 狀態失敗：{exception.Message}");
             return null;
         }
+
+        return SqlAssistPlatformGuard.Run<bool?>(
+            "讀取 SSMS 內建 IntelliSense 狀態",
+            () =>
+            {
+                var result = reader.GetValue<bool>(
+                    SqlAssistMonikers.NativeIntelliSenseEnabled,
+                    SettingReadOptions.NoRequirements);
+
+                return result.Outcome == SettingRetrievalOutcome.Success ? result.Value : null;
+            },
+            fallback: null);
     }
 
     private static void Reload()
     {
-        try
+        if (_reader is not { } reader)
         {
-            if (_reader is { } reader)
-            {
-                _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
-            }
+            return;
         }
-        catch (Exception exception)
-        {
-            // 保留上一份可用的快照，總比切回預設值讓使用者的設定突然失效好。
-            SqlAssistDiagnostics.WriteAlways($"重新讀取設定失敗：{exception.Message}");
-        }
+
+        // 保留上一份可用的快照，總比切回預設值讓使用者的設定突然失效好。
+        SqlAssistPlatformGuard.Run(
+            "重新讀取設定",
+            () => _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader)));
     }
 
     /// <summary>
@@ -215,27 +207,28 @@ internal static class SqlAssistSettingsStore
         public bool TryGetValue<T>(string moniker, out T value)
             where T : notnull
         {
-            try
-            {
-                var result = _source.GetValue<T>(moniker, SettingReadOptions.NoRequirements);
-
-                // 成功但值是 null 的情形理論上不存在，但回傳型別沒有排除它，
-                // 一起當成「讀不到」處理比在下游到處防呆便宜。
-                if (result.Outcome == SettingRetrievalOutcome.Success && result.Value is { } actual)
+            // 「有沒有讀到」與「讀到什麼」得一起帶回來：bool 設定讀到 false 時，
+            // 拿值本身當哨兵會把它誤判成沒讀到。
+            var read = SqlAssistPlatformGuard.Run(
+                $"讀取設定 {moniker}",
+                () =>
                 {
-                    value = actual;
-                    return true;
-                }
+                    var result = _source.GetValue<T>(moniker, SettingReadOptions.NoRequirements);
 
-                SqlAssistDiagnostics.Write($"設定 {moniker} 回退為預設值：{result.Outcome}");
-            }
-            catch (Exception exception)
-            {
-                SqlAssistDiagnostics.WriteAlways($"讀取設定 {moniker} 失敗：{exception.Message}");
-            }
+                    // 成功但值是 null 的情形理論上不存在，但回傳型別沒有排除它，
+                    // 一起當成「讀不到」處理比在下游到處防呆便宜。
+                    if (result.Outcome == SettingRetrievalOutcome.Success && result.Value is { } actual)
+                    {
+                        return (Found: true, Value: actual);
+                    }
 
-            value = default!;
-            return false;
+                    SqlAssistDiagnostics.Write($"設定 {moniker} 回退為預設值：{result.Outcome}");
+                    return (Found: false, Value: default(T)!);
+                },
+                fallback: (Found: false, Value: default(T)!));
+
+            value = read.Value;
+            return read.Found;
         }
     }
 }

@@ -40,14 +40,9 @@ internal sealed class SqlPreviewServices
     /// <summary>編輯器目前佈景主題的文字外觀；取不到時回傳 null，由呼叫端退回預設值。</summary>
     public IClassificationFormatMap? TryGetTextFormatMap()
     {
-        try
-        {
-            return FormatMapService.GetClassificationFormatMap("text");
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"解析編輯器文字外觀失敗：{exception.Message}");
-            return null;
-        }
+        return SqlAssistPlatformGuard.Probe<IClassificationFormatMap?>(
+            "解析編輯器文字外觀",
+            () => FormatMapService.GetClassificationFormatMap("text"),
+            fallback: null);
     }
 }

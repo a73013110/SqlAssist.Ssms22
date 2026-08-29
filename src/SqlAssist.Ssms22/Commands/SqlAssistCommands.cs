@@ -157,9 +157,21 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
-            ShowMessage($"開啟失敗：{exception.Message}");
+            Report("開啟物件結構", exception);
         }
+    }
+
+    /// <summary>
+    /// 工具選單命令的失敗處理：記錄完整例外，並讓使用者看見原因。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不走 <see cref="SqlAssistPlatformGuard"/>。那一族的意思是「這一輪安靜地
+    /// 什麼都不做」，但使用者是自己按下這個選單項目的——什麼都沒發生等於故障。
+    /// </remarks>
+    private void Report(string operation, Exception exception)
+    {
+        SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+        ShowMessage($"{operation}失敗：{exception.Message}");
     }
 
     private void ShowMessage(string message)
@@ -234,8 +246,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"開啟程式碼片段管理員失敗：{exception}");
-            ShowMessage($"開啟程式碼片段管理員失敗：{exception.Message}");
+            Report("開啟程式碼片段管理員", exception);
         }
     }
 
@@ -259,8 +270,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"開啟設定視窗失敗：{exception}");
-            ShowMessage($"開啟設定視窗失敗：{exception.Message}");
+            Report("開啟設定視窗", exception);
         }
     }
 
@@ -314,8 +324,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"開啟診斷紀錄檔失敗：{exception}");
-            ShowMessage($"開啟失敗：{exception.Message}");
+            Report("開啟診斷紀錄檔", exception);
         }
     }
 

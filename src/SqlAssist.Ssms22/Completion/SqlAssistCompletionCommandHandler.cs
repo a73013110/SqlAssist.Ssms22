@@ -67,9 +67,11 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// </remarks>
     public bool ExecuteCommand(EscapeKeyCommandArgs args, CommandExecutionContext executionContext)
     {
-        return Execute("Esc", () =>
-            SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview
-            && preview.Collapse());
+        return SqlAssistPlatformGuard.Run(
+            "處理 Esc 按鍵",
+            () => SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview
+                && preview.Collapse(),
+            fallback: false);
     }
 
     /// <summary>
@@ -81,24 +83,29 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// </remarks>
     public bool ExecuteCommand(RightKeyCommandArgs args, CommandExecutionContext executionContext)
     {
-        return Execute("Right", () =>
-        {
-            if (SqlAssistSettingsStore.Current.PreviewMode != SqlPreviewMode.RightArrow)
+        return SqlAssistPlatformGuard.Run(
+            "處理 Right 按鍵",
+            () =>
             {
-                return false;
-            }
+                if (SqlAssistSettingsStore.Current.PreviewMode != SqlPreviewMode.RightArrow)
+                {
+                    return false;
+                }
 
-            return SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
-                && preview.Expand();
-        });
+                return SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
+                    && preview.Expand();
+            },
+            fallback: false);
     }
 
     /// <summary>展開狀態下，向左鍵收合；沒展開就照常左移游標。</summary>
     public bool ExecuteCommand(LeftKeyCommandArgs args, CommandExecutionContext executionContext)
     {
-        return Execute("Left", () =>
-            SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
-            && preview.Collapse());
+        return SqlAssistPlatformGuard.Run(
+            "處理 Left 按鍵",
+            () => SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
+                && preview.Collapse(),
+            fallback: false);
     }
 
     /// <summary>
@@ -112,10 +119,12 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// </remarks>
     public bool ExecuteCommand(CopyCommandArgs args, CommandExecutionContext executionContext)
     {
-        return Execute("Copy", () =>
-            args.TextView.Selection.IsEmpty
-            && SqlStructurePreview.Peek(args.TextView) is { } preview
-            && preview.CopySelectionIfAny());
+        return SqlAssistPlatformGuard.Run(
+            "處理 Copy 按鍵",
+            () => args.TextView.Selection.IsEmpty
+                && SqlStructurePreview.Peek(args.TextView) is { } preview
+                && preview.CopySelectionIfAny(),
+            fallback: false);
     }
 
     /// <summary>
@@ -133,34 +142,20 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// </remarks>
     public bool ExecuteCommand(TypeCharCommandArgs args, CommandExecutionContext executionContext)
     {
-        Execute("TypeChar", () =>
-        {
-            SqlKeywordCasing.ApplyBeforeTypedCharacter(args.TextView, args.SubjectBuffer, args.TypedChar);
-            return false;
-        });
+        SqlAssistPlatformGuard.Run(
+            "處理 TypeChar 按鍵",
+            () => SqlKeywordCasing.ApplyBeforeTypedCharacter(
+                args.TextView,
+                args.SubjectBuffer,
+                args.TypedChar));
 
         if (!SqlCompletionContextAnalyzer.IsIdentifierCharacter(args.TypedChar))
         {
-            Execute("TypeChar", () =>
-            {
-                SqlCompletionReopen.AfterSeparator(args.TextView, Broker);
-                return false;
-            });
+            SqlAssistPlatformGuard.Run(
+                "處理 TypeChar 按鍵",
+                () => SqlCompletionReopen.AfterSeparator(args.TextView, Broker));
         }
 
         return false;
-    }
-
-    private static bool Execute(string source, Func<bool> action)
-    {
-        try
-        {
-            return action();
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"處理 {source} 按鍵失敗：{exception}");
-            return false;
-        }
     }
 }

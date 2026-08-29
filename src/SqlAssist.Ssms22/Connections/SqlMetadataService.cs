@@ -395,28 +395,27 @@ internal sealed class SqlMetadataService : IDisposable
             }
         }
 
-        _ = Task.Run(async () =>
-        {
-            var timer = Stopwatch.StartNew();
+        // 呼叫端在按鍵路徑上，一定要先離開它的執行緒再開始查。
+        SqlAssistPlatformGuard.BeginProbe(
+            $"預先載入 {objectInfo.QualifiedName} 的結構",
+            () => Task.Run(async () =>
+            {
+                var timer = Stopwatch.StartNew();
 
-            try
-            {
-                await catalog.GetDetailAsync(objectInfo, CancellationToken.None).ConfigureAwait(false);
-                SqlAssistDiagnostics.Write(
-                    $"已預先載入 {objectInfo.QualifiedName} 的結構（{timer.ElapsedMilliseconds} ms）");
-            }
-            catch (Exception exception)
-            {
-                SqlAssistDiagnostics.Write($"預先載入 {objectInfo.QualifiedName} 的結構失敗：{exception.Message}");
-            }
-            finally
-            {
-                lock (_syncRoot)
+                try
                 {
-                    _warmingDetails.Remove(objectInfo.ObjectId);
+                    await catalog.GetDetailAsync(objectInfo, CancellationToken.None).ConfigureAwait(false);
+                    SqlAssistDiagnostics.Write(
+                        $"已預先載入 {objectInfo.QualifiedName} 的結構（{timer.ElapsedMilliseconds} ms）");
                 }
-            }
-        });
+                finally
+                {
+                    lock (_syncRoot)
+                    {
+                        _warmingDetails.Remove(objectInfo.ObjectId);
+                    }
+                }
+            }));
     }
 
     /// <summary>
@@ -436,44 +435,38 @@ internal sealed class SqlMetadataService : IDisposable
             return;
         }
 
-        _ = Task.Run(async () =>
+        // 呼叫端在按鍵路徑上，一定要先離開它的執行緒再開始查。
+        SqlAssistPlatformGuard.BeginProbe("預先載入欄位", () => Task.Run(async () =>
         {
-            try
-            {
-                var catalog = ResolveCatalog();
+            var catalog = ResolveCatalog();
 
-                if (catalog is null || !catalog.IsSnapshotFresh)
+            if (catalog is null || !catalog.IsSnapshotFresh)
+            {
+                return;
+            }
+
+            var snapshot = await catalog.GetSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
+
+            foreach (var table in tables)
+            {
+                if (_disposed || table.IsDerived)
                 {
-                    return;
+                    continue;
                 }
 
-                var snapshot = await catalog.GetSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
+                var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
-                foreach (var table in tables)
+                if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
                 {
-                    if (_disposed || table.IsDerived)
-                    {
-                        continue;
-                    }
-
-                    var matches = snapshot.Find(table.ObjectName, table.SchemaName);
-
-                    if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
-                    {
-                        continue;
-                    }
-
-                    var timer = Stopwatch.StartNew();
-                    await catalog.GetDetailAsync(matches[0], CancellationToken.None).ConfigureAwait(false);
-                    SqlAssistDiagnostics.Write(
-                        $"已預先載入 {matches[0].QualifiedName} 的欄位（{timer.ElapsedMilliseconds} ms）");
+                    continue;
                 }
+
+                var timer = Stopwatch.StartNew();
+                await catalog.GetDetailAsync(matches[0], CancellationToken.None).ConfigureAwait(false);
+                SqlAssistDiagnostics.Write(
+                    $"已預先載入 {matches[0].QualifiedName} 的欄位（{timer.ElapsedMilliseconds} ms）");
             }
-            catch (Exception exception)
-            {
-                SqlAssistDiagnostics.Write($"預先載入欄位失敗：{exception.Message}");
-            }
-        });
+        }));
     }
 
     /// <summary>
@@ -646,15 +639,11 @@ internal sealed class SqlMetadataService : IDisposable
             return;
         }
 
-        _ = Task.Run(() =>
+        SqlAssistPlatformGuard.BeginProbe("重新確認連線", () =>
         {
             try
             {
                 ResolveCatalogFromEditor();
-            }
-            catch (Exception exception)
-            {
-                SqlAssistDiagnostics.Write($"重新確認連線失敗：{exception.Message}");
             }
             finally
             {
@@ -671,35 +660,24 @@ internal sealed class SqlMetadataService : IDisposable
     /// </remarks>
     public void BeginWarmup()
     {
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                ResolveCatalog();
-            }
-            catch (Exception exception)
-            {
-                SqlAssistDiagnostics.Write($"預熱連線失敗：{exception.Message}");
-            }
-        });
+        SqlAssistPlatformGuard.BeginProbe("預熱連線", () => _ = ResolveCatalog());
     }
 
     private SqlMetadataCatalog? ResolveCatalogFromEditor()
     {
-        IDbConnection? editorConnection;
         var timer = Stopwatch.StartNew();
 
-        try
-        {
-            var editorService = _serviceProvider.GetService(typeof(SSqlEditorService)) as ISqlEditorService;
-            editorConnection = editorService?.GetCurrentConnection();
-            ReportIfSlow("向 SSMS 取得目前連線", timer);
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"取得 SSMS 目前連線失敗：{exception.Message}");
-            return null;
-        }
+        var editorConnection = SqlAssistPlatformGuard.Run<IDbConnection?>(
+            "取得 SSMS 目前連線",
+            () =>
+            {
+                var editorService =
+                    _serviceProvider.GetService(typeof(SSqlEditorService)) as ISqlEditorService;
+                var connection = editorService?.GetCurrentConnection();
+                ReportIfSlow("向 SSMS 取得目前連線", timer);
+                return connection;
+            },
+            fallback: null);
 
         if (editorConnection is null)
         {

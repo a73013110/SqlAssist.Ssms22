@@ -536,6 +536,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
         }
         catch (Exception exception)
         {
+            // 不走 SqlAssistPlatformGuard：使用者是自己切到這個分頁的，
+            // 一片空白而沒有任何說明會被當成資料真的是空的。
             _populated.Remove(tab);
             SqlAssistDiagnostics.WriteAlways($"填入預覽分頁失敗：{exception}");
             _status.Text = $"顯示失敗：{exception.Message}";
