@@ -6,12 +6,10 @@ namespace SqlAssist.Core.Tests.Wildcards;
 
 public sealed class SqlWildcardAnalyzerTests
 {
-    /// <summary>用 | 標出游標位置，讓測試讀起來就是使用者看到的畫面。</summary>
     private static SqlWildcardTarget? Analyze(string sqlWithCaret)
     {
-        var caret = sqlWithCaret.IndexOf('|');
-        Assert.True(caret >= 0, "測試輸入必須用 | 標出游標位置。");
-        return SqlWildcardAnalyzer.Analyze(sqlWithCaret.Remove(caret, 1), caret);
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        return SqlWildcardAnalyzer.Analyze(input.Text, input.Caret);
     }
 
     private static SqlWildcardTarget Expand(string sqlWithCaret)

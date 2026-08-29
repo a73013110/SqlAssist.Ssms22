@@ -13,18 +13,13 @@ namespace SqlAssist.Core.Tests.Completion;
 /// </remarks>
 public sealed class SqlCompletionTriggerTests
 {
-    /// <summary>
-    /// 用 | 標出游標位置，讓測試讀起來就是使用者看到的畫面。
-    /// </summary>
     /// <remarks>
     /// 判斷只吃游標前方的文字，因此標記後面那一段會被切掉——寫出來是為了
     /// 讓每一筆輸入看起來像一句完整的 SQL，而不是半截。
     /// </remarks>
     private static bool ShouldReopen(string sqlWithCaret)
     {
-        var caret = sqlWithCaret.IndexOf('|');
-        Assert.True(caret >= 0, "測試輸入必須用 | 標出游標位置。");
-        return SqlCompletionTriggers.ShouldReopen(sqlWithCaret.Substring(0, caret));
+        return SqlCompletionTriggers.ShouldReopen(SqlWithCaret.Parse(sqlWithCaret).BeforeCaret);
     }
 
     [Fact]

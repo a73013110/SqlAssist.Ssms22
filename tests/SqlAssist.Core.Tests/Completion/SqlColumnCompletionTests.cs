@@ -10,9 +10,8 @@ public sealed class SqlColumnCompletionTests
 {
     private static SqlCompletionContext Analyze(string sqlWithCaret)
     {
-        var caret = sqlWithCaret.IndexOf('|');
-        Assert.True(caret >= 0, "測試輸入必須用 | 標出游標位置。");
-        return SqlCompletionContextAnalyzer.Analyze(sqlWithCaret.Remove(caret, 1), caret);
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        return SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
     }
 
     [Fact]

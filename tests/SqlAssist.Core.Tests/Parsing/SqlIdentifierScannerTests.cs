@@ -5,14 +5,10 @@ namespace SqlAssist.Core.Tests.Parsing;
 
 public sealed class SqlIdentifierScannerTests
 {
-    /// <summary>
-    /// 以 <c>|</c> 標記游標位置，讓測試資料一眼看得出停在哪裡。
-    /// </summary>
     private static SqlIdentifierReference? FindAtMarker(string textWithMarker)
     {
-        var position = textWithMarker.IndexOf('|');
-        Assert.True(position >= 0, "測試字串必須含有代表游標位置的 | 符號。");
-        return SqlIdentifierScanner.FindAt(textWithMarker.Remove(position, 1), position);
+        var input = SqlWithCaret.Parse(textWithMarker);
+        return SqlIdentifierScanner.FindAt(input.Text, input.Caret);
     }
 
     [Theory]
