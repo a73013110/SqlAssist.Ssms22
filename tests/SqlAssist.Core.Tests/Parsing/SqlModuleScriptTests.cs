@@ -1,4 +1,4 @@
-using SqlAssist.Core.Parsing;
+﻿using SqlAssist.Core.Parsing;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Parsing;
@@ -46,6 +46,26 @@ public sealed class SqlModuleScriptTests
 
         Assert.True(SqlModuleScript.TryConvertCreateToAlter(definition, out var result));
         Assert.Equal("-- 版權宣告\r\n/* 說明 */\r\nALTER PROCEDURE dbo.usp_Test AS SELECT 1", result);
+    }
+
+    /// <summary>
+    /// T-SQL 的區塊註解可以巢狀，內層的 <c>*/</c> 不是註解的結尾。
+    /// </summary>
+    /// <remarks>
+    /// 自己找第一個 <c>*/</c> 的版本會停在內層的結尾上，接著把「還在註解裡」的
+    /// 那段文字當成第一個單字，於是判定「開頭不是 CREATE」而放棄改寫——
+    /// 使用者看到的是「這個程序展不開，別的都可以」。
+    /// </remarks>
+    [Fact]
+    public void 略過巢狀的區塊註解()
+    {
+        const string definition =
+            "/* 說明 /* 補充 */ 仍在註解裡 */\r\nCREATE PROCEDURE dbo.usp_Test AS SELECT 1";
+
+        Assert.True(SqlModuleScript.TryConvertCreateToAlter(definition, out var result));
+        Assert.Equal(
+            "/* 說明 /* 補充 */ 仍在註解裡 */\r\nALTER PROCEDURE dbo.usp_Test AS SELECT 1",
+            result);
     }
 
     /// <summary>

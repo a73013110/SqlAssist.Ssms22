@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace SqlAssist.Core.Parsing;
@@ -290,7 +290,7 @@ public static class SqlScopeAnalyzer
         int end)
     {
         var references = new List<SqlTableReference>();
-        var paired = FindPairedParentheses(tokens, start, end);
+        var paired = SqlTokenNavigator.FindPairedParentheses(tokens, start, end);
         var index = start;
         var depth = 0;
 
@@ -340,30 +340,6 @@ public static class SqlScopeAnalyzer
         return references;
     }
 
-    /// <summary>標出範圍內每一個「配對得起來」的括號。</summary>
-    private static bool[] FindPairedParentheses(IReadOnlyList<SqlToken> tokens, int start, int end)
-    {
-        var paired = new bool[Math.Max(0, end - start)];
-        var open = new Stack<int>();
-
-        for (var index = start; index < end; index++)
-        {
-            if (tokens[index].IsPunctuation("("))
-            {
-                open.Push(index);
-                continue;
-            }
-
-            if (tokens[index].IsPunctuation(")") && open.Count > 0)
-            {
-                paired[open.Pop() - start] = true;
-                paired[index - start] = true;
-            }
-        }
-
-        return paired;
-    }
-
     private static bool TryParseTableReference(
         IReadOnlyList<SqlToken> tokens,
         int index,
@@ -389,7 +365,7 @@ public static class SqlScopeAnalyzer
         {
             // 衍生資料表或資料表值建構式：查不到中繼資料，但別名仍要記下來，
             // 否則後面用這個別名限定欄位時會誤判成資料表名稱。
-            index = SkipParenthesised(tokens, index, end);
+            index = SqlTokenNavigator.SkipParenthesised(tokens, index, end);
             isDerived = true;
         }
         else if (first.Kind == SqlTokenKind.Variable)
@@ -441,7 +417,7 @@ public static class SqlScopeAnalyzer
             // 資料表值函式：CROSS APPLY dbo.fn_Split(x) s
             if (index < end && tokens[index].IsPunctuation("("))
             {
-                index = SkipParenthesised(tokens, index, end);
+                index = SqlTokenNavigator.SkipParenthesised(tokens, index, end);
             }
         }
         else
@@ -452,7 +428,7 @@ public static class SqlScopeAnalyzer
         // 資料表提示夾在名稱與別名之間：FROM Orders WITH (NOLOCK) o
         if (index + 1 < end && tokens[index].IsKeyword("WITH") && tokens[index + 1].IsPunctuation("("))
         {
-            index = SkipParenthesised(tokens, index + 1, end);
+            index = SqlTokenNavigator.SkipParenthesised(tokens, index + 1, end);
         }
 
         var alias = TryReadAlias(tokens, ref index, end);
@@ -497,32 +473,5 @@ public static class SqlScopeAnalyzer
 
         index = cursor + 1;
         return candidate.Value;
-    }
-
-    /// <summary>從左括號跳到對應的右括號之後。</summary>
-    private static int SkipParenthesised(IReadOnlyList<SqlToken> tokens, int index, int end)
-    {
-        var depth = 0;
-
-        while (index < end)
-        {
-            if (tokens[index].IsPunctuation("("))
-            {
-                depth++;
-            }
-            else if (tokens[index].IsPunctuation(")"))
-            {
-                depth--;
-
-                if (depth == 0)
-                {
-                    return index + 1;
-                }
-            }
-
-            index++;
-        }
-
-        return end;
     }
 }
