@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using SqlAssist.Core.Settings;
@@ -87,14 +87,58 @@ public sealed class SqlAssistSettingsReaderTests
     [MemberData(nameof(Monikers))]
     public void 每一個設定都會改變快照(string moniker)
     {
+        var alternate = RegistrationManifest.Settings.Single(s => s.Moniker == moniker).Alternate;
+
+        Assert.NotEmpty(Differences(ReadWith(moniker, alternate), new SqlAssistSettings()));
+    }
+
+    public static TheoryData<string> NumericMonikers()
+    {
+        var data = new TheoryData<string>();
+
+        foreach (var setting in RegistrationManifest.Settings)
+        {
+            if (setting.Bounds is not null)
+            {
+                data.Add(setting.Moniker);
+            }
+        }
+
+        return data;
+    }
+
+    /// <summary>
+    /// 讀取端的收斂範圍就是註冊檔宣告的範圍。
+    /// </summary>
+    /// <remarks>
+    /// 兩份範圍各寫一次無法避免：註冊檔那份約束設定 UI 上的輸入，
+    /// <c>SqlAssistLimits</c> 那份負責手動編輯設定檔或讀不到註冊資訊時的界外值。
+    /// 分歧的症狀很難看出來——設定頁讓使用者調到 3000 毫秒，擴充卻靜靜地
+    /// 用 2000 在跑，而且兩邊都沒有錯誤。
+    ///
+    /// 不逐項比對常數，改用行為反推：界外值讀出來的快照必須與邊界值一模一樣，
+    /// 而兩個邊界本身讀出來必須不同（收斂得比宣告更窄同樣是分歧）。
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(NumericMonikers))]
+    public void 數值設定的收斂範圍等於註冊檔宣告的範圍(string moniker)
+    {
+        var bounds = RegistrationManifest.Settings.Single(s => s.Moniker == moniker).Bounds!.Value;
+
+        Assert.Empty(Differences(ReadWith(moniker, bounds.Minimum - 1), ReadWith(moniker, bounds.Minimum)));
+        Assert.Empty(Differences(ReadWith(moniker, bounds.Maximum + 1), ReadWith(moniker, bounds.Maximum)));
+        Assert.NotEmpty(Differences(ReadWith(moniker, bounds.Minimum), ReadWith(moniker, bounds.Maximum)));
+    }
+
+    /// <summary>只把一個設定換成指定的值，其餘維持註冊檔的預設值。</summary>
+    private static SqlAssistSettings ReadWith(string moniker, object value)
+    {
         var values = new Dictionary<string, object>(RegistrationManifest.DefaultValues)
         {
-            [moniker] = RegistrationManifest.Settings.Single(s => s.Moniker == moniker).Alternate
+            [moniker] = value
         };
 
-        var actual = SqlAssistSettingsReader.Read(new FakeSettingValueSource(values));
-
-        Assert.NotEmpty(Differences(actual, new SqlAssistSettings()));
+        return SqlAssistSettingsReader.Read(new FakeSettingValueSource(values));
     }
 
     /// <summary>讀不到任何值時，整份快照就是屬性預設值。</summary>

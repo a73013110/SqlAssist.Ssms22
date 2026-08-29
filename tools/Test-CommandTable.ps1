@@ -1,8 +1,16 @@
-﻿[CmdletBinding()]
+﻿#Requires -Version 7.0
+[CmdletBinding()]
 param(
-    [string]$VsctPath
+    [string]$VsctPath,
+    [string]$CommandIdsPath,
+    [string]$RegistrationPath
 )
 
+# 同一組命令的識別碼寫在三個地方：VSCT 的 IDSymbol、C# 的 CommandIds 常數，
+# 以及 Unified Settings 註冊檔裡以十進位定址的按鈕。三者不一致不會編譯失敗，
+# 也不會有執行期例外——按鈕就是按不到，快捷鍵就是沒反應。
+# 因此除了命令表自己的結構，這裡也一併交叉驗證那三份來源。
+#
 # VSCT 的階層是 Menu → Group → Menu／Button，中間不能跳層。
 # 掛錯層不會產生編譯錯誤，也不會有執行期例外，選單就只是安靜地不出現，
 # 而 pkgdef、自動載入與命令處理器全都正常，非常難從症狀反推。
@@ -10,9 +18,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$root = Split-Path -Parent $PSScriptRoot
+
 if (-not $VsctPath) {
-    $root = Split-Path -Parent $PSScriptRoot
     $VsctPath = Join-Path $root 'src\SqlAssist.Ssms22\Menus.vsct'
+}
+
+if (-not $CommandIdsPath) {
+    $CommandIdsPath = Join-Path $root 'src\SqlAssist.Ssms22\Commands\CommandIds.cs'
+}
+
+if (-not $RegistrationPath) {
+    $RegistrationPath = Join-Path $root 'src\SqlAssist.Ssms22\SqlAssist.registration.json'
 }
 
 if (-not (Test-Path -LiteralPath $VsctPath)) {
@@ -113,8 +130,113 @@ foreach ($id in $usedIds) {
     }
 }
 
+# 命令集 GUID 與每一個命令識別碼在 VSCT、C# 常數與註冊檔之間必須一致。
+# 三份來源的形式各不相同（symbol 名稱、十六進位常數、十進位整數），
+# 沒有任何一種編譯或結構驗證看得出它們指的不是同一個命令。
+$commandSetSymbol = $vsct.SelectSingleNode(
+    '//ct:Symbols/ct:GuidSymbol[@name="guidSqlAssistCommandSet"]', $ns)
+
+if ($null -eq $commandSetSymbol) {
+    throw "命令表沒有宣告 guidSqlAssistCommandSet。"
+}
+
+$commandSetGuid = $commandSetSymbol.value.Trim('{', '}')
+$vsctCommandIds = @{}
+
+foreach ($idSymbol in $commandSetSymbol.SelectNodes('ct:IDSymbol', $ns)) {
+    # 只有 cmdid* 是命令；選單與群組的識別碼不會出現在 C# 或註冊檔裡。
+    if ($idSymbol.name.StartsWith('cmdid')) {
+        $vsctCommandIds[$idSymbol.name.Substring('cmdid'.Length)] = [Convert]::ToInt32($idSymbol.value, 16)
+    }
+}
+
+$commandIdsText = Get-Content -LiteralPath $CommandIdsPath -Raw -Encoding UTF8
+$csharpGuidMatch = [regex]::Match($commandIdsText, 'CommandSetString\s*=\s*"([^"]+)"')
+
+if (-not $csharpGuidMatch.Success) {
+    throw "在 $CommandIdsPath 找不到 CommandSetString。"
+}
+
+if ($csharpGuidMatch.Groups[1].Value -ne $commandSetGuid) {
+    $problems.Add(
+        "命令集 GUID 不一致：VSCT 是 $commandSetGuid，CommandIds.cs 是 $($csharpGuidMatch.Groups[1].Value)。")
+}
+
+$csharpCommandIds = @{}
+
+foreach ($match in [regex]::Matches($commandIdsText, 'public const int (\w+)\s*=\s*(0x[0-9A-Fa-f]+)\s*;')) {
+    $csharpCommandIds[$match.Groups[1].Value] = [Convert]::ToInt32($match.Groups[2].Value, 16)
+}
+
+foreach ($name in $csharpCommandIds.Keys) {
+    if (-not $vsctCommandIds.ContainsKey($name)) {
+        $problems.Add("CommandIds.$name 在命令表裡沒有對應的 cmdid$name。")
+        continue
+    }
+
+    if ($csharpCommandIds[$name] -ne $vsctCommandIds[$name]) {
+        $problems.Add(
+            "CommandIds.$name 是 $('0x{0:X4}' -f $csharpCommandIds[$name])，" +
+            "命令表的 cmdid$name 卻是 $('0x{0:X4}' -f $vsctCommandIds[$name])。")
+    }
+}
+
+foreach ($name in $vsctCommandIds.Keys) {
+    if (-not $csharpCommandIds.ContainsKey($name)) {
+        $problems.Add("命令表宣告了 cmdid$name，但 CommandIds.cs 沒有對應的常數。")
+    }
+}
+
+# 註冊檔帶註解（Unified Settings 的載入器接受 JSONC），因此不用 ConvertFrom-Json。
+$jsonOptions = [System.Text.Json.JsonDocumentOptions]::new()
+$jsonOptions.CommentHandling = [System.Text.Json.JsonCommentHandling]::Skip
+$registration = [System.Text.Json.JsonDocument]::Parse(
+    (Get-Content -LiteralPath $RegistrationPath -Raw -Encoding UTF8),
+    $jsonOptions)
+
+function Get-VsctReference {
+    param([System.Text.Json.JsonElement]$Element)
+
+    switch ($Element.ValueKind) {
+        'Object' {
+            foreach ($property in $Element.EnumerateObject()) {
+                if ($property.Name -eq 'vsct') {
+                    $set = $property.Value.GetProperty('set').GetString()
+                    $id = $property.Value.GetProperty('id').GetInt32()
+                    [pscustomobject]@{ Set = $set; Id = $id }
+                    continue
+                }
+
+                Get-VsctReference -Element $property.Value
+            }
+        }
+        'Array' {
+            foreach ($item in $Element.EnumerateArray()) {
+                Get-VsctReference -Element $item
+            }
+        }
+    }
+}
+
+$declaredIdValues = $vsctCommandIds.Values
+
+foreach ($reference in Get-VsctReference -Element $registration.RootElement) {
+    if ($reference.Set -ne $commandSetGuid) {
+        $problems.Add("註冊檔的按鈕指向命令集 $($reference.Set)，但本擴充的命令集是 $commandSetGuid。")
+    }
+
+    if ($reference.Id -notin $declaredIdValues) {
+        $problems.Add(
+            "註冊檔的按鈕指向命令 $($reference.Id)（$('0x{0:X4}' -f $reference.Id)），命令表裡沒有這個命令。")
+    }
+}
+
+$registration.Dispose()
+
 if ($problems.Count -gt 0) {
     throw "命令表檢查失敗：`n  " + ($problems -join "`n  ")
 }
 
-Write-Host "命令表檢查通過：$($ownMenuIds.Count) 個選單、$($ownGroupIds.Count) 個群組。"
+Write-Host (
+    "命令表檢查通過：$($ownMenuIds.Count) 個選單、$($ownGroupIds.Count) 個群組、" +
+    "$($vsctCommandIds.Count) 個命令，識別碼與 CommandIds.cs 及註冊檔一致。")
