@@ -128,6 +128,15 @@ internal sealed class SqlStructurePreviewControl : UserControl
         public string Direction { get; }
     }
 
+    /// <summary>
+    /// 標題列動作按鈕的字級。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不跟著「預覽視窗的字級」那個設定走：那個設定調的是內容的可讀性，
+    /// 標題列是視窗外框的一部分，跟著放大只會把內容擠掉。
+    /// </remarks>
+    private static readonly SqlAssistChrome.Metrics TitleBarMetrics = new(12);
+
     private readonly System.Windows.Shapes.Path _icon;
     private readonly TextBlock _title;
     private readonly TextBlock _summary;
@@ -197,14 +206,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Foreground = VsThemeBrushes.DimForeground
         };
 
-        _status = new TextBlock
-        {
-            FontFamily = SqlAssistChrome.InterfaceFont,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new Thickness(14, 0, 24, 6),
-            Foreground = VsThemeBrushes.DimForeground
-        };
+        _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+        _status.Margin = new Thickness(14, 0, 24, 6);
 
         _columns = CreateGrid(
             ("#", nameof(ColumnRow.Ordinal)),
@@ -1009,20 +1012,16 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     private static Button CreateButton(string text, Action click, string tooltip)
     {
-        var button = new Button
-        {
-            Content = text,
-            Margin = new Thickness(2, 0, 0, 0),
-            Padding = new Thickness(10, 3, 10, 4),
-            ToolTip = tooltip,
-            FontFamily = SqlAssistChrome.InterfaceFont,
-            FontSize = 12,
-            Foreground = VsThemeBrushes.DimForeground,
-            Template = SqlAssistChrome.CreateGhostButtonTemplate(),
+        var button = SqlAssistChrome.CreateButton(text, TitleBarMetrics);
+        button.Margin = new Thickness(2, 0, 0, 0);
+        button.Padding = new Thickness(10, 3, 10, 4);
+        button.ToolTip = tooltip;
 
-            // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
-            Focusable = false
-        };
+        // 標題列的動作比內容次要一階，用淡一級的前景色。
+        button.Foreground = VsThemeBrushes.DimForeground;
+
+        // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
+        button.Focusable = false;
 
         button.Click += (_, _) => click();
         return button;
@@ -1065,36 +1064,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// </remarks>
     private DataGrid CreateGrid(params (string Header, string Path)[] columns)
     {
-        var grid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            IsReadOnly = true,
-            CanUserAddRows = false,
-            CanUserDeleteRows = false,
-            SelectionMode = DataGridSelectionMode.Extended,
-            SelectionUnit = DataGridSelectionUnit.CellOrRowHeader,
-            ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
+        var grid = SqlAssistChrome.CreateDataGrid(
+            SqlAssistChrome.DefaultMetrics,
+            VsThemeBrushes.ListBackground);
 
-            // 格線是最吵的一種分隔方式：一百多列就是一百多條線。
-            // 層次改交給交替底色，那是不用畫線也看得出來的。
-            GridLinesVisibility = DataGridGridLinesVisibility.None,
-            Background = VsThemeBrushes.ListBackground,
-            Foreground = VsThemeBrushes.ListForeground,
-            FontFamily = SqlAssistChrome.InterfaceFont,
-
-            // 交替底色只能走資料格自己的這兩個屬性。DataGridRow.Background 是
-            // 「轉移屬性」，資料格會把自己的值蓋到每一列上，優先權高過任何
-            // 樣式與觸發程序——試著用觸發程序畫交替列，結果是每一列都沒有底色。
-            RowBackground = VsThemeBrushes.ListBackground,
-            AlternatingRowBackground = VsThemeBrushes.RowAlternate,
-            AlternationCount = 2,
-            CellStyle = SqlAssistChrome.CreateCellStyle(),
-            BorderThickness = new Thickness(0),
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            ContextMenu = CreateGridMenu()
-        };
+        // 外觀之外的都是這個視窗自己的行為：以儲存格為選取單位、允許橫向捲動，
+        // 以及一份自己的內容選單。
+        grid.IsReadOnly = true;
+        grid.SelectionMode = DataGridSelectionMode.Extended;
+        grid.SelectionUnit = DataGridSelectionUnit.CellOrRowHeader;
+        grid.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
+        grid.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+        grid.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        grid.ContextMenu = CreateGridMenu();
 
         var cellText = SqlAssistChrome.CreateCellTextStyle();
 

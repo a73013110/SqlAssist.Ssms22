@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -262,14 +262,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         _placeholderGrid = CreatePlaceholderGrid();
 
-        _statusText = new TextBlock
-        {
-            FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 12, 0),
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        _statusText = SqlAssistChrome.CreateStatusText(Metrics);
+        _statusText.Margin = new Thickness(0, 0, 12, 0);
 
         _editor = BuildEditor();
         Content = BuildLayout();
@@ -298,28 +292,9 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     /// </remarks>
     private DataGrid CreatePlaceholderGrid()
     {
-        var grid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            CanUserAddRows = false,
-            CanUserDeleteRows = false,
-            CanUserResizeRows = false,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
-            GridLinesVisibility = DataGridGridLinesVisibility.None,
-            Background = Brushes.Transparent,
-            Foreground = VsThemeBrushes.ListForeground,
-            RowBackground = Brushes.Transparent,
-            AlternatingRowBackground = VsThemeBrushes.RowAlternate,
-            AlternationCount = 2,
-            BorderThickness = default,
-            FontFamily = SqlAssistChrome.InterfaceFont,
-            FontSize = Metrics.Body,
-            RowHeight = Metrics.RowHeight,
-            ColumnHeaderStyle = SqlAssistChrome.CreateColumnHeaderStyle(Metrics),
-            CellStyle = SqlAssistChrome.CreateCellStyle(),
-            MinHeight = 110,
-            MaxHeight = 200
-        };
+        var grid = SqlAssistChrome.CreateDataGrid(Metrics, Brushes.Transparent);
+        grid.MinHeight = 110;
+        grid.MaxHeight = 200;
 
         var cellText = SqlAssistChrome.CreateCellTextStyle();
         var cellEditor = SqlAssistChrome.CreateCellEditorStyle();
@@ -464,20 +439,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private static Button CreateButton(string text, RoutedEventHandler handler, bool primary = false)
     {
-        var button = new Button
-        {
-            Content = text,
-            MinWidth = 78,
-            Margin = new Thickness(0, 0, 6, 0),
-            Padding = new Thickness(12, 4, 12, 5),
-            FontFamily = SqlAssistChrome.InterfaceFont,
-            FontSize = Metrics.Body,
-            Foreground = VsThemeBrushes.ListForeground,
-            Template = primary
-                ? SqlAssistChrome.CreatePrimaryButtonTemplate()
-                : SqlAssistChrome.CreateGhostButtonTemplate()
-        };
+        var button = SqlAssistChrome.CreateButton(text, Metrics, primary);
 
+        // 對話框底部那一排要對齊，最窄的按鈕也不能比「取消」窄。
+        button.MinWidth = 78;
+        button.Margin = new Thickness(0, 0, 6, 0);
         button.Click += handler;
         return button;
     }
