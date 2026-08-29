@@ -51,6 +51,9 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
   [docs/architecture.md](docs/architecture.md)。
 - **禁止**用 `Run` 記錄「會連續失敗」的平台探測（佈景筆刷、DPI、預先載入）；
   那要用 `Probe`／`BeginProbe`，否則紀錄檔會被灌滿而蓋掉真正的錯誤。
+- **禁止**讓 `DbException` 冒出 `SqlMetadataCatalog`。連不上、逾時、權限不足在
+  `TryLoad` 降級成「這一輪沒有資料」；冒出去會讓平台邊界每按一次鍵記一份完整堆疊。
+  只接 `DbException`，失敗不進快取，理由見 [docs/metadata.md](docs/metadata.md)。
 - **禁止**用 `SqlAssistPlatformGuard` 吞掉 Core 與 Metadata 的商業邏輯錯誤，
   也**禁止**用它處理「使用者按了卻沒反應」的失敗——工具選單的命令、預覽的狀態列、
   Snippet 管理員都要顯示訊息，每一句都不同。不走它的地方一律在該處註明理由。
