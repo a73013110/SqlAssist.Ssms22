@@ -46,7 +46,8 @@ internal static class PreviewWindowState
 
         _storeResolved = true;
 
-        try
+        // 讀不到就用預設尺寸；預覽視窗開得出來比記得上次的大小重要。
+        SqlAssistPlatformGuard.Run("讀取預覽視窗尺寸", () =>
         {
             var store = new ShellSettingsManager(serviceProvider)
                 .GetWritableSettingsStore(SettingsScope.UserSettings);
@@ -69,12 +70,7 @@ internal static class PreviewWindowState
 
             Height = SqlAssistLimits.ClampPreviewHeight(
                 store.GetInt32(Collection, HeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight));
-        }
-        catch (Exception exception)
-        {
-            // 讀不到就用預設尺寸；預覽視窗開得出來比記得上次的大小重要。
-            SqlAssistDiagnostics.WriteAlways($"讀取預覽視窗尺寸失敗：{exception.Message}");
-        }
+        });
     }
 
     /// <summary>
@@ -98,13 +94,14 @@ internal static class PreviewWindowState
 
         Height = SqlAssistLimits.ClampPreviewHeight(height);
 
-        try
+        if (_store is not { } store)
         {
-            if (_store is not { } store)
-            {
-                return;
-            }
+            return;
+        }
 
+        // 記不住尺寸不影響這一次的使用，下次回到預設值即可。
+        SqlAssistPlatformGuard.Run("儲存預覽視窗尺寸", () =>
+        {
             store.CreateCollection(Collection);
             store.SetInt32(Collection, WidthProperty, (int)Width);
 
@@ -114,11 +111,6 @@ internal static class PreviewWindowState
             }
 
             store.SetInt32(Collection, HeightProperty, (int)Height);
-        }
-        catch (Exception exception)
-        {
-            // 記不住尺寸不影響這一次的使用，下次回到預設值即可。
-            SqlAssistDiagnostics.WriteAlways($"儲存預覽視窗尺寸失敗：{exception.Message}");
-        }
+        });
     }
 }

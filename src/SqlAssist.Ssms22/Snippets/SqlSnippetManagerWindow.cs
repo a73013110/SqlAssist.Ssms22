@@ -622,6 +622,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         }
         catch (Exception exception)
         {
+            // 不走 SqlAssistPlatformGuard：使用者按了按鈕卻什麼都沒開，
+            // 沒有訊息的話只會被當成按鈕壞了。
             SqlAssistDiagnostics.WriteAlways($"開啟 Snippet 檔案位置失敗：{exception}");
             _statusText.Text = $"開啟檔案位置失敗：{exception.Message}";
         }

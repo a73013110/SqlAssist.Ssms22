@@ -55,6 +55,7 @@ internal static class SqlAssistDiagnostics
         catch
         {
             // 記錄功能不可影響 SSMS 編輯器；任何檔案系統錯誤都直接忽略。
+            // 不走 SqlAssistPlatformGuard：那一族失敗時要寫紀錄，而這裡正是紀錄本身。
         }
     }
 

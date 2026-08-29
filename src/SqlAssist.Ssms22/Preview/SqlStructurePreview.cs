@@ -178,17 +178,9 @@ internal sealed class SqlStructurePreview
 
         _view.VisualElement.Dispatcher.BeginInvoke(
             DispatcherPriority.ApplicationIdle,
-            new Action(() =>
-            {
-                try
-                {
-                    EnsureControl();
-                }
-                catch (Exception exception)
-                {
-                    SqlAssistDiagnostics.WriteAlways($"預先建立結構預覽失敗：{exception}");
-                }
-            }));
+            new Action(() => SqlAssistPlatformGuard.Run(
+                "預先建立結構預覽",
+                () => EnsureControl())));
     }
 
     /// <summary>記住目前的建議清單，並在它結束時把預覽收掉。</summary>
@@ -348,31 +340,25 @@ internal sealed class SqlStructurePreview
         _timerExpands = false;
         _loading?.Cancel();
 
-        if (_agent is null || _manager is null)
+        if (_agent is not { } agent || _manager is not { } manager)
         {
             return false;
         }
 
-        try
+        SqlAssistPlatformGuard.Run("收起結構預覽", () =>
         {
-            var hadFocus = _agent.HasFocus;
-            _manager.RemoveAgent(_agent);
+            var hadFocus = agent.HasFocus;
+            manager.RemoveAgent(agent);
 
             // 焦點在預覽裡時直接移除，鍵盤會落到不明的地方；還給編輯器。
             if (hadFocus && !_view.IsClosed)
             {
                 _view.VisualElement.Focus();
             }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"收起結構預覽失敗：{exception.Message}");
-        }
-        finally
-        {
-            _agent = null;
-        }
+        });
 
+        // 不論移除成功與否都要清乾淨：狀態留著的話，下一次展開會以為視窗還掛著。
+        _agent = null;
         return true;
     }
 
@@ -424,7 +410,7 @@ internal sealed class SqlStructurePreview
         if (_timerExpands)
         {
             _timerExpands = false;
-            Run(() => Expand());
+            SqlAssistPlatformGuard.Run("結構預覽操作", () => Expand());
             return;
         }
 
@@ -440,7 +426,11 @@ internal sealed class SqlStructurePreview
         _loading?.Dispose();
         var source = new CancellationTokenSource();
         _loading = source;
-        _ = LoadAsync(objectInfo, metadataService, source.Token);
+
+        // 取消一律當成正常結束：換了物件或收起了視窗，什麼都不用做。
+        SqlAssistPlatformGuard.Begin(
+            "載入結構預覽",
+            () => LoadAsync(objectInfo, metadataService, source.Token));
     }
 
     private async Task LoadAsync(
@@ -448,44 +438,33 @@ internal sealed class SqlStructurePreview
         SqlMetadataService metadataService,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var structure = await metadataService
-                .GetStructureAsync(objectInfo, cancellationToken)
-                .ConfigureAwait(false);
+        var structure = await metadataService
+            .GetStructureAsync(objectInfo, cancellationToken)
+            .ConfigureAwait(false);
 
-            await _view.VisualElement.Dispatcher.InvokeAsync(
-                () =>
+        await _view.VisualElement.Dispatcher.InvokeAsync(
+            () =>
+            {
+                // 等待期間使用者可能已經移到別的項目，那就不要蓋掉他正在看的東西。
+                if (cancellationToken.IsCancellationRequested ||
+                    _target?.ObjectId != objectInfo.ObjectId ||
+                    _control is not { } control)
                 {
-                    // 等待期間使用者可能已經移到別的項目，那就不要蓋掉他正在看的東西。
-                    if (cancellationToken.IsCancellationRequested ||
-                        _target?.ObjectId != objectInfo.ObjectId ||
-                        _control is not { } control)
-                    {
-                        return;
-                    }
+                    return;
+                }
 
-                    if (structure is null)
-                    {
-                        control.ShowMessage(
-                            objectInfo.QualifiedName,
-                            "沒有可用的連線；請先在查詢視窗連上資料庫。");
-                        return;
-                    }
+                if (structure is null)
+                {
+                    control.ShowMessage(
+                        objectInfo.QualifiedName,
+                        "沒有可用的連線；請先在查詢視窗連上資料庫。");
+                    return;
+                }
 
-                    control.Populate(structure);
-                },
-                DispatcherPriority.Normal,
-                cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            // 換了物件或收起了視窗，什麼都不用做。
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"載入結構預覽失敗：{exception}");
-        }
+                control.Populate(structure);
+            },
+            DispatcherPriority.Normal,
+            cancellationToken);
     }
 
     private SqlStructurePreviewControl? EnsureControl()
@@ -500,7 +479,7 @@ internal sealed class SqlStructurePreview
             return _control;
         }
 
-        try
+        return SqlAssistPlatformGuard.Create("建立結構預覽", () =>
         {
             var control = new SqlStructurePreviewControl
             {
@@ -512,12 +491,7 @@ internal sealed class SqlStructurePreview
             control.CloseRequested += OnCloseRequested;
             _control = control;
             return control;
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"建立結構預覽失敗：{exception}");
-            return null;
-        }
+        });
     }
 
     private void OnCloseRequested(object sender, EventArgs eventArgs)
@@ -533,7 +507,7 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        try
+        SqlAssistPlatformGuard.Run("儲存結構預覽尺寸", () =>
         {
             var stacked = Placement == SqlPreviewPlacement.Stacked;
             var draggedWidth = eventArgs.WidthChanged ? control.PreferredWidth : (double?)null;
@@ -547,16 +521,12 @@ internal sealed class SqlStructurePreview
             // 平台會因內容 SizeChanged 自行重排；放開時再明確以最新錨點完成一次更新。
             RefreshSessionAnchor();
 
-            if (_agent is not null && _manager is not null && _anchor is not null)
+            if (_agent is { } agent && _manager is { } manager && _anchor is { } anchor)
             {
-                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
+                manager.UpdatePopupAgent(agent, anchor, Styles);
                 UpdateGripSide();
             }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"儲存結構預覽尺寸失敗：{exception.Message}");
-        }
+        });
     }
 
     /// <summary>把視窗掛上編輯器；已經掛著就只更新錨點。</summary>
@@ -569,7 +539,9 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        try
+        var shown = SqlAssistPlatformGuard.Run(
+            "顯示結構預覽",
+            () =>
         {
             if (_manager is null)
             {
@@ -578,7 +550,8 @@ internal sealed class SqlStructurePreview
 
                 if (_manager is null)
                 {
-                    return;
+                    // 拿不到管理員不算失敗，只是這一輪沒有地方可以掛。
+                    return true;
                 }
 
                 // 平台會在自己認為該收起來的時候移除代理人（例如編輯器失去聚合焦點），
@@ -614,10 +587,15 @@ internal sealed class SqlStructurePreview
             _view.VisualElement.Dispatcher.BeginInvoke(
                 DispatcherPriority.Loaded,
                 new Action(UpdateGripSide));
-        }
-        catch (Exception exception)
+
+            return true;
+        },
+            fallback: false);
+
+        if (!shown)
         {
-            SqlAssistDiagnostics.WriteAlways($"顯示結構預覽失敗：{exception}");
+            // 掛到一半失敗的代理人是半成品，留著會讓下一次顯示誤判成「已經掛著」，
+            // 於是只更新位置而永遠不重建。
             _agent = null;
         }
     }
@@ -674,7 +652,7 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     private double GetStackedAvailableWidth()
     {
-        var textSpaceWidth = TryGetAnchorLeft(out var anchorLeft)
+        var textSpaceWidth = TryGetAnchorLeft() is { } anchorLeft
             ? _view.ViewportRight - anchorLeft
             // 版面尚未產生文字行時先退回 Viewport；平台稍後 LayoutChanged 會再重算。
             : _view.ViewportWidth;
@@ -698,34 +676,32 @@ internal sealed class SqlStructurePreview
     /// 用和平台 PopupAgent 相同的文字呈現座標取得錨點左側；不拿 Caret 代替，
     /// 因為 ApplicableToSpan 的起點可能和 Caret 不同。
     /// </summary>
-    private bool TryGetAnchorLeft(out double anchorLeft)
+    /// <returns>算不出來時為 <c>null</c>；呼叫端各有自己的替代來源。</returns>
+    private double? TryGetAnchorLeft()
     {
-        anchorLeft = 0;
-
-        if (_anchor is null || _view.IsClosed || _view.TextViewLines is null)
+        if (_anchor is not { } anchor || _view.IsClosed || _view.TextViewLines is null)
         {
-            return false;
+            return null;
         }
 
-        try
-        {
-            var span = _anchor.GetSpan(_view.TextSnapshot);
-            var line = _view.TextViewLines.GetTextViewLineContainingBufferPosition(span.Start);
-
-            if (line is null)
+        return SqlAssistPlatformGuard.Probe<double?>(
+            "計算結構預覽錨點",
+            () =>
             {
-                return false;
-            }
+                var span = anchor.GetSpan(_view.TextSnapshot);
+                var line = _view.TextViewLines.GetTextViewLineContainingBufferPosition(span.Start);
 
-            var bounds = line.GetExtendedCharacterBounds(span.Start);
-            anchorLeft = Math.Max(bounds.Left, _view.ViewportLeft);
-            return !double.IsNaN(anchorLeft) && !double.IsInfinity(anchorLeft);
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.Write($"計算結構預覽錨點失敗：{exception.Message}");
-            return false;
-        }
+                if (line is null)
+                {
+                    return null;
+                }
+
+                var bounds = line.GetExtendedCharacterBounds(span.Start);
+                var left = Math.Max(bounds.Left, _view.ViewportLeft);
+
+                return double.IsNaN(left) || double.IsInfinity(left) ? null : left;
+            },
+            fallback: null);
     }
 
     /// <summary>
@@ -765,11 +741,12 @@ internal sealed class SqlStructurePreview
             control.SetGripSide(onLeft: false);
         }
 
-        try
+        // 版面還沒完成時 PointToScreen 會失敗，那就維持現狀。
+        SqlAssistPlatformGuard.Probe("判斷結構預覽的位置", () =>
         {
             var popupLeft = _host.PointToScreen(new Point(0, 0)).X;
             var popupRight = _host.PointToScreen(new Point(_host.ActualWidth, 0)).X;
-            var anchorX = TryGetAnchorLeft(out var anchorLeft)
+            var anchorX = TryGetAnchorLeft() is { } anchorLeft
                 ? anchorLeft - _view.ViewportLeft
                 : _view.Caret.Left - _view.ViewportLeft;
             var anchorScreenX = _view.VisualElement
@@ -788,12 +765,7 @@ internal sealed class SqlStructurePreview
                 $"錨點 {anchorScreenX:F0}　編輯器寬 {_view.ViewportWidth:F0}" +
                 (stacked ? $"　可用寬 {GetStackedAvailableWidth():F0}" : string.Empty),
                 _view);
-        }
-        catch (Exception exception)
-        {
-            // 版面還沒完成時 PointToScreen 會失敗，那就維持現狀。
-            SqlAssistDiagnostics.Write($"判斷結構預覽的位置失敗：{exception.Message}");
-        }
+        });
     }
 
     private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
@@ -823,13 +795,14 @@ internal sealed class SqlStructurePreview
             {
                 _stackedLayoutUpdateQueued = false;
 
-                if (_closed || _agent is null || _manager is null || _anchor is null ||
-                    _control is not { } control || Placement != SqlPreviewPlacement.Stacked)
+                if (_closed || _agent is not { } agent || _manager is not { } manager ||
+                    _anchor is null || _control is not { } control ||
+                    Placement != SqlPreviewPlacement.Stacked)
                 {
                     return;
                 }
 
-                try
+                SqlAssistPlatformGuard.Run("更新結構預覽版面", () =>
                 {
                     var previousAnchor = _anchor;
                     RefreshSessionAnchor();
@@ -843,17 +816,13 @@ internal sealed class SqlStructurePreview
                     }
 
                     ApplySize(control);
-                    _manager.UpdatePopupAgent(_agent, _anchor, Styles);
+                    manager.UpdatePopupAgent(agent, _anchor, Styles);
 
                     // UpdatePopupAgent 只排平台重算；實際螢幕座標要再晚一個 Layout 才可靠。
                     _view.VisualElement.Dispatcher.BeginInvoke(
                         DispatcherPriority.Loaded,
                         new Action(UpdateGripSide));
-                }
-                catch (Exception exception)
-                {
-                    SqlAssistDiagnostics.WriteAlways($"更新結構預覽版面失敗：{exception.Message}");
-                }
+                });
             }));
     }
 
@@ -878,17 +847,17 @@ internal sealed class SqlStructurePreview
 
     private void OnApplicationActivated(object sender, EventArgs eventArgs)
     {
-        if (_closed || _agent is null || _manager is null || _anchor is null)
+        if (_closed || _agent is not { } agent || _manager is not { } manager || _anchor is null)
         {
             return;
         }
 
-        Run(() =>
+        SqlAssistPlatformGuard.Run("結構預覽操作", () =>
         {
             try
             {
                 _recreatingAgent = true;
-                _manager.RemoveAgent(_agent);
+                manager.RemoveAgent(agent);
                 _agent = null;
             }
             finally
@@ -944,30 +913,22 @@ internal sealed class SqlStructurePreview
     }
 
     /// <summary>確保工作落在 UI 執行緒上；已經在上面就直接執行，不多繞一圈。</summary>
+    /// <remarks>
+    /// 這些工作都掛在按鍵與滑鼠路徑上，例外冒出去就是一個錯誤對話框。
+    /// </remarks>
     private void Invoke(Action action)
     {
         var dispatcher = _view.VisualElement.Dispatcher;
 
         if (dispatcher.CheckAccess())
         {
-            Run(action);
+            SqlAssistPlatformGuard.Run("結構預覽操作", action);
             return;
         }
 
-        dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() => Run(action)));
-    }
-
-    private static void Run(Action action)
-    {
-        try
-        {
-            action();
-        }
-        catch (Exception exception)
-        {
-            // 這些工作都掛在按鍵與滑鼠路徑上，例外冒出去就是一個錯誤對話框。
-            SqlAssistDiagnostics.WriteAlways($"結構預覽操作失敗：{exception}");
-        }
+        dispatcher.BeginInvoke(
+            DispatcherPriority.Normal,
+            new Action(() => SqlAssistPlatformGuard.Run("結構預覽操作", action)));
     }
 
     private void OnViewClosed(object sender, EventArgs eventArgs)

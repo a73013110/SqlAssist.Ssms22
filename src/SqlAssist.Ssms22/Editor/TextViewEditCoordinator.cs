@@ -81,34 +81,33 @@ internal sealed class TextViewEditCoordinator
 
         try
         {
-            var buffer = _textView.TextBuffer;
-            var target = span.GetSpan(buffer.CurrentSnapshot);
-
-            if (buildReplacement(target) is not { } replacement)
-            {
-                return;
-            }
-
-            using var edit = buffer.CreateEdit();
-            edit.Replace(target, replacement.Text);
-            var updated = edit.Apply();
-
-            // 別人在同一個交易裡否決了這次編輯，緩衝區沒有變，游標也不該動。
-            if (edit.Canceled)
-            {
-                return;
-            }
-
-            var caret = Math.Min(target.Start.Position + replacement.Text.Length, updated.Length);
-            _textView.Caret.MoveTo(new SnapshotPoint(updated, caret));
-            _textView.Caret.EnsureVisible();
-            SqlAssistRuntimeState.MarkExpansion(replacement.ExpansionLabel);
-            SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);
-        }
-        catch (Exception exception)
-        {
             // 這裡是從背景工作回到 UI 執行緒後執行的，沒有其他人會接這個例外。
-            SqlAssistDiagnostics.WriteAlways($"替換{operationName}失敗：{exception}");
+            SqlAssistPlatformGuard.Run($"替換{operationName}", () =>
+            {
+                var buffer = _textView.TextBuffer;
+                var target = span.GetSpan(buffer.CurrentSnapshot);
+
+                if (buildReplacement(target) is not { } replacement)
+                {
+                    return;
+                }
+
+                using var edit = buffer.CreateEdit();
+                edit.Replace(target, replacement.Text);
+                var updated = edit.Apply();
+
+                // 別人在同一個交易裡否決了這次編輯，緩衝區沒有變，游標也不該動。
+                if (edit.Canceled)
+                {
+                    return;
+                }
+
+                var caret = Math.Min(target.Start.Position + replacement.Text.Length, updated.Length);
+                _textView.Caret.MoveTo(new SnapshotPoint(updated, caret));
+                _textView.Caret.EnsureVisible();
+                SqlAssistRuntimeState.MarkExpansion(replacement.ExpansionLabel);
+                SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);
+            });
         }
         finally
         {

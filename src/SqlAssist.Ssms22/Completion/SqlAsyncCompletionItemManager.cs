@@ -99,20 +99,12 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionDataSnapshot data,
         CancellationToken token)
     {
-        try
-        {
-            return Task.FromResult(Filter(session, data, token));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            // 這裡丟出例外會讓整個 session 掛掉；退回不篩選的完整清單。
-            SqlAssistDiagnostics.WriteAlways($"建議清單篩選失敗：{exception}");
-            return Task.FromResult<FilteredCompletionModel?>(Passthrough(data, GetSelectedFilters(data)));
-        }
+        // 這裡丟出例外會讓整個 session 掛掉；退回不篩選的完整清單。
+        return Task.FromResult(
+            SqlAssistPlatformGuard.RunPropagatingCancellation(
+                "建議清單篩選",
+                () => Filter(session, data, token),
+                fallback: () => Passthrough(data, GetSelectedFilters(data))));
     }
 
     private static FilteredCompletionModel? Filter(

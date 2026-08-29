@@ -82,6 +82,8 @@ internal sealed class SsmsConnectionSource : ISqlConnectionSource, IDisposable
         }
         catch
         {
+            // 不走 SqlAssistPlatformGuard：這裡不吞例外，只是把開到一半的連線收掉。
+            // 吞掉的話呼叫端會拿到 null 而不知道是連線失敗還是根本沒有連線。
             connection.Dispose();
             throw;
         }
@@ -100,19 +102,12 @@ internal sealed class SsmsConnectionSource : ISqlConnectionSource, IDisposable
 
     private static IDbConnection? Clone(IDbConnection source)
     {
-        try
-        {
-            // SqlConnection 實作 ICloneable 正是為了在複製時保留認證。
-            if (source is ICloneable cloneable && cloneable.Clone() is IDbConnection cloned)
-            {
-                return cloned;
-            }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"複製 SQL 連線失敗：{exception.Message}");
-        }
-
-        return null;
+        // SqlConnection 實作 ICloneable 正是為了在複製時保留認證。
+        return SqlAssistPlatformGuard.Probe<IDbConnection?>(
+            "複製 SQL 連線",
+            () => source is ICloneable cloneable && cloneable.Clone() is IDbConnection cloned
+                ? cloned
+                : null,
+            fallback: null);
     }
 }

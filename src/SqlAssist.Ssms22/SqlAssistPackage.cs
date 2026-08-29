@@ -58,6 +58,8 @@ public sealed class SqlAssistPackage : AsyncPackage
         catch (Exception exception)
         {
             // 即使套件載入失敗，也要留下可由診斷腳本讀取的原因。
+            // 不走 SqlAssistPlatformGuard：那一族會吞掉例外，而殼層要靠它知道
+            // 這個套件沒載入成功；記錄完仍然重擲。
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage 載入失敗：{exception}");
             throw;
         }

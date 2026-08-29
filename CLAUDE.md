@@ -45,9 +45,15 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**在背景工作裡直接改編輯器緩衝區。非同步替換一律走
   `Editor/TextViewEditCoordinator`：切 UI 執行緒、檢查編輯器已關閉、從
   `ITrackingSpan` 取最新範圍、確認原文還在原處，少一道就會覆蓋使用者的輸入。
-- **禁止**在 MEF 建立方法、編輯器事件與按鍵處理常式裡自己寫 `try`／`catch`；
-  走 `SqlAssistPlatformGuard`。反過來，Core 與 Metadata 的商業邏輯錯誤**禁止**
-  用它吞掉，工具選單的命令也不走它——那些要顯示訊息框，每一句都不同。
+- **禁止**在 Ssms22 的平台邊界自己寫 `try`／`catch`——MEF 建立方法、編輯器事件、
+  按鍵處理常式、派送佇列上的工作、沒有人接結果的背景工作，一律走
+  `SqlAssistPlatformGuard`。三族方法的分工與四種例外情形見
+  [docs/architecture.md](docs/architecture.md)。
+- **禁止**用 `Run` 記錄「會連續失敗」的平台探測（佈景筆刷、DPI、預先載入）；
+  那要用 `Probe`／`BeginProbe`，否則紀錄檔會被灌滿而蓋掉真正的錯誤。
+- **禁止**用 `SqlAssistPlatformGuard` 吞掉 Core 與 Metadata 的商業邏輯錯誤，
+  也**禁止**用它處理「使用者按了卻沒反應」的失敗——工具選單的命令、預覽的狀態列、
+  Snippet 管理員都要顯示訊息，每一句都不同。不走它的地方一律在該處註明理由。
 - **禁止**再寫一份 SQL 註解略過或括號配對。`Core/Parsing` 的 `SqlTrivia` 與
   `SqlTokenNavigator` 是唯一出處；自己寫的那一份漏掉巢狀註解已經發生過一次。
 - **禁止**在工具腳本裡寫死 SSMS 路徑或擴充的 Identity Id；

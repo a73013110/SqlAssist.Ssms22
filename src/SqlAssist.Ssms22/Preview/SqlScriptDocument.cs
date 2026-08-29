@@ -92,7 +92,7 @@ internal static class SqlScriptDocument
         var text = foreground;
         var number = foreground;
 
-        try
+        SqlAssistPlatformGuard.Probe("解析指令碼配色", () =>
         {
             if (SqlPreviewServices.Current is { } services &&
                 services.TryGetTextFormatMap() is { } formatMap)
@@ -120,11 +120,7 @@ internal static class SqlScriptDocument
                 text = Resolve(formatMap, registry, PredefinedClassificationTypeNames.String, foreground);
                 number = Resolve(formatMap, registry, PredefinedClassificationTypeNames.Number, foreground);
             }
-        }
-        catch (Exception exception)
-        {
-            SqlAssistDiagnostics.WriteAlways($"解析指令碼配色失敗：{exception.Message}");
-        }
+        });
 
         return new Palette(fontFamily, fontSize, foreground, keyword, comment, text, number);
     }
@@ -204,16 +200,11 @@ internal static class SqlScriptDocument
 
     private static IReadOnlyList<SqlToken> Tokenize(string script)
     {
-        try
-        {
-            return SqlTokenizer.TokenizeWithComments(script);
-        }
-        catch (Exception exception)
-        {
-            // 著色失敗只該讓指令碼變成黑白，不該讓分頁開不起來。
-            SqlAssistDiagnostics.WriteAlways($"指令碼著色分析失敗：{exception.Message}");
-            return Array.Empty<SqlToken>();
-        }
+        // 著色失敗只該讓指令碼變成黑白，不該讓分頁開不起來。
+        return SqlAssistPlatformGuard.Run(
+            "指令碼著色分析",
+            () => SqlTokenizer.TokenizeWithComments(script),
+            fallback: Array.Empty<SqlToken>());
     }
 
     private static Brush BrushFor(SqlToken token, Palette palette)

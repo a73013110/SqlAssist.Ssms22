@@ -109,6 +109,8 @@ internal static class SqlSnippetStore
                 SqlAssistDiagnostics.Write($"已寫入 {library.Count} 筆 Snippet：{FilePath}");
                 return true;
             }
+            // 不走 SqlAssistPlatformGuard：這裡只接檔案系統的預期失敗，其餘
+            // （序列化的程式錯誤）該讓它浮出來；而且失敗的原因要留給管理員視窗顯示。
             catch (Exception exception) when (
                 exception is IOException or UnauthorizedAccessException or NotSupportedException)
             {
