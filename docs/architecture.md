@@ -38,7 +38,7 @@ src/SqlAssist.Metadata       只依賴 System.Data
   Model/                     物件、欄位、參數、索引與外鍵的唯讀模型
   Querying/                  連線來源、目錄查詢語句與資料列對應
   Caching/                   四層按需載入的快取與連線層級的登錄
-  Formatting/                識別字括號化與型別字串格式化
+  Formatting/                識別字括號化、型別字串格式化、欄位性質的顯示語意
 
 src/SqlAssist.Ssms22         net48 VSIX
   Completion/                平台非同步 IntelliSense 的來源、排名器與提交管理員
@@ -54,6 +54,7 @@ src/SqlAssist.Ssms22         net48 VSIX
   SqlAssistPackage.cs        套件進入點
   SqlAssistRuntimeState.cs   跨功能的執行期狀態
   SqlAssistDiagnostics.cs    診斷紀錄
+  SqlAssistPlatformGuard.cs  平台邊界的例外收斂
 ```
 
 三條規則：
@@ -63,6 +64,27 @@ src/SqlAssist.Ssms22         net48 VSIX
   `SuggestionMatch` 因此放在 `Completion` 而不是 `Matching`。
 - **不用相對命名空間限定。** `Metadata.SqlObjectInfo` 這種寫法在
   `SqlAssist.Ssms22.*` 底下會解析到別的地方，一律 `using` 加簡名。
+
+## 兩個以上的功能共用的東西
+
+同一件事在兩個地方各寫一次時，痛的不是重複，是「其中一份改了另一份沒改」
+不會有任何徵兆。以下每一個都是為了讓那種分岔變成不可能：
+
+| 元件 | 共用什麼 | 分岔的症狀 |
+|---|---|---|
+| `Core/Parsing/SqlTrivia` | 空白與註解的略過 | 巢狀區塊註解在 tokenizer 是對的，在 ALTER 改寫卻停在內層結尾 |
+| `Core/Parsing/SqlTokenNavigator` | 括號配對與跳過 | 括號不成對時，Scope 與萬用字元對同一段文字給出不同判斷 |
+| `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
+| `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
+| `Ssms22/Editor/SqlObjectLocator` | 位置到物件的解析 | 滑鼠提示與結構面板對同一個位置給出不同答案 |
+| `Ssms22/SqlAssistPlatformGuard` | 平台邊界的例外收斂 | 忘記收斂的 handler 讓輸入中斷或跳出錯誤對話框 |
+| `Ssms22/UI/SqlAssistChrome` | 所有自建介面的外觀 | 兩個視窗長得像但又不完全一樣 |
+| `tools/SqlAssist.Tools.psm1` | SSMS 路徑、擴充 Id、安裝探索 | 「安裝成功但部署說找不到」 |
+
+刻意**不**共用的：`SqlColumnInfo.ToScriptLine` 與 `SqlObjectStructure` 的欄位定義
+長得很像，但一個是給人看的單行描述、另一個要能貼進查詢視窗執行，合併之後每個
+呼叫端都得傳一堆開關。工具選單的命令也不走 `SqlAssistPlatformGuard`：那些失敗要
+顯示訊息框，而每一句都不同。
 
 ## 為什麼改用平台原生管線
 
