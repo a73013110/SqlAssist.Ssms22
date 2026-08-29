@@ -85,11 +85,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             var span = session.ApplicableToSpan.GetSpan(snapshot);
             var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(), span.End);
             var settings = SqlAssistSettingsStore.Current;
-            var expansionSpan = SqlModuleExpander.TryCreateStatementSpan(
-                suggestion,
-                context,
-                snapshot,
-                span.End);
+            var shouldExpand = SqlModuleExpander.ShouldExpand(suggestion, context, span.End);
 
             // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
             var snippet = suggestion.Tag as SqlSnippet;
@@ -106,21 +102,26 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
 
             // 一般項目讓平台自己插入，行為與其他語言一致。
-            if (expansionSpan is null && !suggestion.TriggerFollowUp && snippetCaret < 0)
+            if (!shouldExpand && !suggestion.TriggerFollowUp && snippetCaret < 0)
             {
                 return CommitResult.Unhandled;
             }
 
             var insertionText = SqlInsertionText.Build(suggestion, context, settings);
+            var insertionStart = span.Start.Position;
+            ITextSnapshot applied;
 
             using (var edit = buffer.CreateEdit())
             {
                 edit.Replace(span, insertionText);
+                var result = edit.Apply();
 
-                if (edit.Apply() is null || edit.Canceled)
+                if (result is null || edit.Canceled)
                 {
                     return CommitResult.Unhandled;
                 }
+
+                applied = result;
             }
 
             SqlAssistRuntimeState.MarkExpansion(insertionText.TrimEnd());
@@ -128,8 +129,8 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 
             if (snippetCaret >= 0)
             {
-                // 編輯已經套用，span.Start 在新快照裡仍然有效——取代的起點不會位移。
-                var caret = span.Start.Position + snippetCaret;
+                // 編輯已經套用，insertionStart 在新快照裡仍然有效——取代的起點不會位移。
+                var caret = insertionStart + snippetCaret;
                 var current = session.TextView.TextSnapshot;
 
                 if (caret <= current.Length)
@@ -138,9 +139,17 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 }
             }
 
-            if (expansionSpan is not null && suggestion.Tag is SqlObjectInfo objectInfo)
+            if (shouldExpand && suggestion.Tag is SqlObjectInfo objectInfo)
             {
-                _moduleExpander.Begin(objectInfo, expansionSpan);
+                // 範圍要等名稱插好之後才建立，否則會漏掉剛插進去的名稱——理由寫在
+                // SqlModuleExpander.CreateStatementSpan。起點與終點都以這次編輯的
+                // 結果算：取代的起點不會位移，終點就是插入文字的結尾。
+                var statementSpan = SqlModuleExpander.CreateStatementSpan(
+                    applied,
+                    context.TargetKeywordStart,
+                    insertionStart + insertionText.Length);
+
+                _moduleExpander.Begin(objectInfo, statementSpan);
                 return new CommitResult(isHandled: true, CommitBehavior.None);
             }
 
