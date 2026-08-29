@@ -6,12 +6,10 @@ namespace SqlAssist.Core.Tests.Parsing;
 
 public sealed class SqlScopeAnalyzerTests
 {
-    /// <summary>用 | 標出游標位置，讓測試讀起來就是使用者看到的畫面。</summary>
     private static SqlStatementScope Analyze(string sqlWithCaret)
     {
-        var caret = sqlWithCaret.IndexOf('|');
-        Assert.True(caret >= 0, "測試輸入必須用 | 標出游標位置。");
-        return SqlScopeAnalyzer.Analyze(sqlWithCaret.Remove(caret, 1), caret);
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        return SqlScopeAnalyzer.Analyze(input.Text, input.Caret);
     }
 
     [Fact]
