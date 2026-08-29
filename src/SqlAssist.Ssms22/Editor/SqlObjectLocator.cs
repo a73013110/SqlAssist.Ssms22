@@ -56,23 +56,21 @@ internal static class SqlObjectLocator
 
         var snapshot = await metadataService.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
 
-        if (snapshot is null)
+        if (snapshot is null || ResolveCandidate(snapshot, text, position, reference) is not { } candidate)
         {
             return null;
         }
 
-        var scope = SqlScopeAnalyzer.Analyze(text, position);
-
-        // 限定詞指向敘述中的資料來源時，游標停的是欄位而不是物件。
-        if (TryResolveColumnOwner(snapshot, scope, reference, out var owner))
+        if (!candidate.NeedsColumn)
         {
-            var detail = await metadataService.GetDetailAsync(owner, cancellationToken).ConfigureAwait(false);
-            return BuildColumnLocation(reference, owner, detail);
+            return new SqlObjectLocation(reference, candidate.Object);
         }
 
-        var matches = ResolveObject(snapshot, scope, reference);
+        var detail = await metadataService
+            .GetDetailAsync(candidate.Object, cancellationToken)
+            .ConfigureAwait(false);
 
-        return matches.Count == 0 ? null : new SqlObjectLocation(reference, matches[0]);
+        return BuildColumnLocation(reference, candidate.Object, detail);
     }
 
     /// <summary>
@@ -96,21 +94,55 @@ internal static class SqlObjectLocator
 
         var snapshot = metadataService.PeekSnapshot();
 
-        if (snapshot is null)
+        if (snapshot is null || ResolveCandidate(snapshot, text, position, reference) is not { } candidate)
         {
             return null;
         }
 
+        return candidate.NeedsColumn
+            ? BuildColumnLocation(reference, candidate.Object, metadataService.PeekDetail(candidate.Object))
+            : new SqlObjectLocation(reference, candidate.Object);
+    }
+
+    /// <summary>解析出「這個位置指向哪個物件」，以及還缺不缺欄位明細。</summary>
+    private readonly struct LocationCandidate
+    {
+        public LocationCandidate(SqlObjectInfo objectInfo, bool needsColumn)
+        {
+            Object = objectInfo;
+            NeedsColumn = needsColumn;
+        }
+
+        public SqlObjectInfo Object { get; }
+
+        /// <summary>游標停的是這個物件的欄位，還要有明細才知道是哪一個。</summary>
+        public bool NeedsColumn { get; }
+    }
+
+    /// <summary>
+    /// 只看文字與第一層中繼資料就能做完的那一段解析。
+    /// </summary>
+    /// <remarks>
+    /// 兩個入口的差別只在願不願意等資料庫，判斷本身必須一模一樣——各寫一份控制流程
+    /// 的下場是滑鼠提示與結構面板對同一個位置給出不同答案，而那正是這個類別要防的事。
+    /// </remarks>
+    private static LocationCandidate? ResolveCandidate(
+        SqlDatabaseSnapshot snapshot,
+        string text,
+        int position,
+        SqlIdentifierReference reference)
+    {
         var scope = SqlScopeAnalyzer.Analyze(text, position);
 
+        // 限定詞指向敘述中的資料來源時，游標停的是欄位而不是物件。
         if (TryResolveColumnOwner(snapshot, scope, reference, out var owner))
         {
-            return BuildColumnLocation(reference, owner, metadataService.PeekDetail(owner));
+            return new LocationCandidate(owner, needsColumn: true);
         }
 
         var matches = ResolveObject(snapshot, scope, reference);
 
-        return matches.Count == 0 ? null : new SqlObjectLocation(reference, matches[0]);
+        return matches.Count == 0 ? null : new LocationCandidate(matches[0], needsColumn: false);
     }
 
     /// <summary>判斷這個參考是不是「敘述中某個資料來源的欄位」，是的話取出該資料來源。</summary>
