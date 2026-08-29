@@ -37,6 +37,22 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**把清單型資料放進 Unified Settings，它只收 bool／int／enum／string。
 - **禁止**在取不到 Unified Settings 服務時讓擴充停擺；一律回退到內建預設值。
 
+## 共用元件
+
+同一件事寫成兩份時，症狀一律是「其中一份改了另一份沒改」，而且沒有任何徵兆。
+共用元件的清單與各自的分岔症狀見 [docs/architecture.md](docs/architecture.md)。
+
+- **禁止**在背景工作裡直接改編輯器緩衝區。非同步替換一律走
+  `Editor/TextViewEditCoordinator`：切 UI 執行緒、檢查編輯器已關閉、從
+  `ITrackingSpan` 取最新範圍、確認原文還在原處，少一道就會覆蓋使用者的輸入。
+- **禁止**在 MEF 建立方法、編輯器事件與按鍵處理常式裡自己寫 `try`／`catch`；
+  走 `SqlAssistPlatformGuard`。反過來，Core 與 Metadata 的商業邏輯錯誤**禁止**
+  用它吞掉，工具選單的命令也不走它——那些要顯示訊息框，每一句都不同。
+- **禁止**再寫一份 SQL 註解略過或括號配對。`Core/Parsing` 的 `SqlTrivia` 與
+  `SqlTokenNavigator` 是唯一出處；自己寫的那一份漏掉巢狀註解已經發生過一次。
+- **禁止**在工具腳本裡寫死 SSMS 路徑或擴充的 Identity Id；
+  一律從 `tools/SqlAssist.Tools.psm1` 取，並支援 `-SsmsInstallDir` 覆寫。
+
 ## 按鍵與滑鼠路徑
 
 - **禁止**在按鍵或滑鼠移動路徑上同步查詢資料庫。沒命中快取就這一輪不顯示，
