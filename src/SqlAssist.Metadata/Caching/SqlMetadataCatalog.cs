@@ -111,14 +111,50 @@ public sealed class SqlMetadataCatalog
                 return CachedSnapshot;
             }
 
-            var loaded = await Task.Run(() => LoadSnapshot(cancellationToken), cancellationToken)
+            var loaded = await Task
+                .Run(() => TryLoad(() => LoadSnapshot(cancellationToken)), cancellationToken)
                 .ConfigureAwait(false);
+
+            if (loaded is null)
+            {
+                // 連不上就維持空快照：它永遠不算新鮮，下一次按鍵會自然再試一次。
+                return SqlDatabaseSnapshot.Empty;
+            }
+
             Volatile.Write(ref _snapshot, loaded);
             return loaded;
         }
         finally
         {
             _snapshotGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// 跑一次載入；資料庫本身說不行時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 連不上、逾時、權限不足、物件剛被砍掉——這一類失敗<b>不可以</b>冒到
+    /// Ssms22 的平台邊界。那裡的 <c>SqlAssistPlatformGuard</c> 會把每一次都記成一份
+    /// 完整堆疊，而連線斷掉時使用者每開一次建議清單就失敗一次；紀錄檔被灌滿之後，
+    /// 真正的程式錯誤就埋在裡面找不到了。降級成「這一輪沒有資料」，
+    /// 呼叫端本來就分得出空與有。
+    ///
+    /// 只接 <see cref="DbException"/>。連線字串寫錯、參數契約違反與其餘任何例外
+    /// 都是程式錯誤，該讓它一路浮到邊界去——那正是要留下完整堆疊的那一種。
+    ///
+    /// 失敗的結果一律不進快取：那會讓連線恢復之後仍然拿到空的。
+    /// </remarks>
+    private static T? TryLoad<T>(Func<T> load)
+        where T : class
+    {
+        try
+        {
+            return load();
+        }
+        catch (DbException)
+        {
+            return null;
         }
     }
 
@@ -134,11 +170,17 @@ public sealed class SqlMetadataCatalog
         {
             try
             {
-                Volatile.Write(ref _snapshot, LoadSnapshot(CancellationToken.None));
+                // 更新失敗就繼續用舊資料，使用者不需要知道。
+                if (TryLoad(() => LoadSnapshot(CancellationToken.None)) is { } loaded)
+                {
+                    Volatile.Write(ref _snapshot, loaded);
+                }
             }
             catch
             {
-                // 背景更新失敗就繼續用舊資料，使用者不需要知道。
+                // 這是沒有人會接結果的背景工作，程式錯誤在這裡冒出去只會變成
+                // 無人觀察的 Task 例外。Metadata 這一層沒有記錄器可用，
+                // 只能讓它停在這裡；真正的錯誤會在下一次前景載入時原地重現。
             }
             finally
             {
@@ -166,7 +208,8 @@ public sealed class SqlMetadataCatalog
     }
 
     /// <summary>取得單一物件的欄位、參數與定義；結果會被快取。</summary>
-    public async Task<SqlObjectDetail> GetDetailAsync(
+    /// <returns>資料庫取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。</returns>
+    public async Task<SqlObjectDetail?> GetDetailAsync(
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
@@ -183,8 +226,14 @@ public sealed class SqlMetadataCatalog
             }
         }
 
-        var detail = await Task.Run(() => LoadDetail(objectInfo, cancellationToken), cancellationToken)
+        var detail = await Task
+            .Run(() => TryLoad(() => LoadDetail(objectInfo, cancellationToken)), cancellationToken)
             .ConfigureAwait(false);
+
+        if (detail is null)
+        {
+            return null;
+        }
 
         lock (_detailLock)
         {
@@ -206,7 +255,8 @@ public sealed class SqlMetadataCatalog
     /// 只有使用者主動打開結構面板時才會走到這裡，因此可以放心多查兩次；
     /// 按鍵路徑上的 <see cref="GetDetailAsync"/> 不受影響。
     /// </remarks>
-    public async Task<SqlObjectStructure> GetStructureAsync(
+    /// <returns>資料庫取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。</returns>
+    public async Task<SqlObjectStructure?> GetStructureAsync(
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
@@ -223,11 +273,21 @@ public sealed class SqlMetadataCatalog
             }
         }
 
-        var detail = await GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+        if (await GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false) is not { } detail)
+        {
+            return null;
+        }
+
         var structure = objectInfo.Kind.HasColumns()
-            ? await Task.Run(() => LoadStructure(detail, cancellationToken), cancellationToken)
+            ? await Task
+                .Run(() => TryLoad(() => LoadStructure(detail, cancellationToken)), cancellationToken)
                 .ConfigureAwait(false)
             : new SqlObjectStructure(detail);
+
+        if (structure is null)
+        {
+            return null;
+        }
 
         lock (_detailLock)
         {
@@ -307,18 +367,11 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private List<string> ReadDatabases(IDbConnection connection, CancellationToken cancellationToken)
     {
-        try
-        {
-            return ReadList(
-                connection,
-                SqlMetadataQueries.Databases,
-                record => record.GetString(0),
-                cancellationToken);
-        }
-        catch (DbException)
-        {
-            return new List<string>();
-        }
+        return TryLoad(() => ReadList(
+            connection,
+            SqlMetadataQueries.Databases,
+            record => record.GetString(0),
+            cancellationToken)) ?? new List<string>();
     }
 
     private SqlObjectDetail LoadDetail(SqlObjectInfo objectInfo, CancellationToken cancellationToken)
