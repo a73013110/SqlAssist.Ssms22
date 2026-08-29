@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -59,11 +59,16 @@ internal static class RegistrationManifest
 /// <summary>註冊檔裡的一個設定。</summary>
 internal sealed class RegistrationSetting
 {
-    private RegistrationSetting(string moniker, object @default, object alternate)
+    private RegistrationSetting(
+        string moniker,
+        object @default,
+        object alternate,
+        RegistrationBounds? bounds = null)
     {
         Moniker = moniker;
         Default = @default;
         Alternate = alternate;
+        Bounds = bounds;
     }
 
     public string Moniker { get; }
@@ -79,6 +84,9 @@ internal sealed class RegistrationSetting
     /// 數值取邊界而不是隨意加一，這樣一定通得過讀取端的收斂。
     /// </remarks>
     public object Alternate { get; }
+
+    /// <summary>數值設定在註冊檔宣告的上下限；其他型別為 null。</summary>
+    public RegistrationBounds? Bounds { get; }
 
     public static RegistrationSetting From(string moniker, JsonElement declaration)
     {
@@ -98,7 +106,11 @@ internal sealed class RegistrationSetting
                 var value = declared.GetInt32();
                 var minimum = declaration.GetProperty("minimum").GetInt32();
                 var maximum = declaration.GetProperty("maximum").GetInt32();
-                return new RegistrationSetting(moniker, value, value == maximum ? minimum : maximum);
+                return new RegistrationSetting(
+                    moniker,
+                    value,
+                    value == maximum ? minimum : maximum,
+                    new RegistrationBounds(minimum, maximum));
             }
 
             case "string":
@@ -117,4 +129,18 @@ internal sealed class RegistrationSetting
                 throw new NotSupportedException($"{moniker} 的型別未涵蓋：{type}");
         }
     }
+}
+
+/// <summary>數值設定在註冊檔宣告的範圍。</summary>
+internal readonly struct RegistrationBounds
+{
+    public RegistrationBounds(int minimum, int maximum)
+    {
+        Minimum = minimum;
+        Maximum = maximum;
+    }
+
+    public int Minimum { get; }
+
+    public int Maximum { get; }
 }
