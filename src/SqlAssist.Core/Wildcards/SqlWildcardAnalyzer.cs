@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Parsing;
 
@@ -252,7 +252,7 @@ public static class SqlWildcardAnalyzer
 
             if (token.IsPunctuation(")"))
             {
-                var open = FindOpeningParenthesis(tokens, index);
+                var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
 
                 if (open < 1 || !tokens[open - 1].IsKeyword("TOP"))
                 {
@@ -352,7 +352,7 @@ public static class SqlWildcardAnalyzer
                 return false;
             }
 
-            var close = FindClosingParenthesis(tokens, open);
+            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, tokens.Count);
 
             return close > open
                 && TryExpandQuery(tokens, open + 1, close, ctes, qualifier, depth + 1, visiting, sources);
@@ -522,7 +522,7 @@ public static class SqlWildcardAnalyzer
 
                 if (index < end && tokens[index].IsPunctuation("("))
                 {
-                    var close = FindClosingParenthesis(tokens, index);
+                    var close = SqlTokenNavigator.FindClosingParenthesis(tokens, index, tokens.Count);
                     index = close > index ? close + 1 : end;
                     continue;
                 }
@@ -730,7 +730,7 @@ public static class SqlWildcardAnalyzer
 
                 if (cursor < tokens.Count && tokens[cursor].IsPunctuation("("))
                 {
-                    var listEnd = FindClosingParenthesis(tokens, cursor);
+                    var listEnd = SqlTokenNavigator.FindClosingParenthesis(tokens, cursor, tokens.Count);
 
                     if (listEnd < 0)
                     {
@@ -748,7 +748,7 @@ public static class SqlWildcardAnalyzer
                     break;
                 }
 
-                var bodyEnd = FindClosingParenthesis(tokens, cursor + 1);
+                var bodyEnd = SqlTokenNavigator.FindClosingParenthesis(tokens, cursor + 1, tokens.Count);
 
                 if (bodyEnd < 0)
                 {
@@ -807,48 +807,6 @@ public static class SqlWildcardAnalyzer
             if (tokens[index].Start > position)
             {
                 break;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int FindClosingParenthesis(IReadOnlyList<SqlToken> tokens, int open)
-    {
-        var depth = 0;
-
-        for (var index = open; index < tokens.Count; index++)
-        {
-            if (tokens[index].IsPunctuation("("))
-            {
-                depth++;
-                continue;
-            }
-
-            if (tokens[index].IsPunctuation(")") && --depth == 0)
-            {
-                return index;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int FindOpeningParenthesis(IReadOnlyList<SqlToken> tokens, int close)
-    {
-        var depth = 0;
-
-        for (var index = close; index >= 0; index--)
-        {
-            if (tokens[index].IsPunctuation(")"))
-            {
-                depth++;
-                continue;
-            }
-
-            if (tokens[index].IsPunctuation("(") && --depth == 0)
-            {
-                return index;
             }
         }
 

@@ -72,9 +72,9 @@ public static class SqlTokenizer
                 continue;
             }
 
-            if (current == '-' && index + 1 < end && sql[index + 1] == '-')
+            if (SqlTrivia.StartsLineComment(sql, index, end))
             {
-                var commentEnd = SkipLineComment(sql, index, end);
+                var commentEnd = SqlTrivia.SkipLineComment(sql, index, end);
 
                 if (includeComments)
                 {
@@ -85,9 +85,9 @@ public static class SqlTokenizer
                 continue;
             }
 
-            if (current == '/' && index + 1 < end && sql[index + 1] == '*')
+            if (SqlTrivia.StartsBlockComment(sql, index, end))
             {
-                var commentEnd = SkipBlockComment(sql, index, end);
+                var commentEnd = SqlTrivia.SkipBlockComment(sql, index, end);
 
                 if (includeComments)
                 {
@@ -152,51 +152,6 @@ public static class SqlTokenizer
     {
         var text = sql.Substring(start, end - start);
         return new SqlToken(SqlTokenKind.Comment, start, end - start, text, text, isQuoted: false);
-    }
-
-    private static int SkipLineComment(string sql, int index, int end)
-    {
-        index += 2;
-
-        while (index < end && sql[index] != '\r' && sql[index] != '\n')
-        {
-            index++;
-        }
-
-        return index;
-    }
-
-    /// <summary>T-SQL 的區塊註解可以巢狀，因此要計算深度而不是找第一個結尾。</summary>
-    private static int SkipBlockComment(string sql, int index, int end)
-    {
-        var depth = 0;
-
-        while (index < end)
-        {
-            if (index + 1 < end && sql[index] == '/' && sql[index + 1] == '*')
-            {
-                depth++;
-                index += 2;
-                continue;
-            }
-
-            if (index + 1 < end && sql[index] == '*' && sql[index + 1] == '/')
-            {
-                depth--;
-                index += 2;
-
-                if (depth == 0)
-                {
-                    return index;
-                }
-
-                continue;
-            }
-
-            index++;
-        }
-
-        return end;
     }
 
     /// <summary>讀出方括號或雙引號識別字，並還原重複結束字元的跳脫。</summary>

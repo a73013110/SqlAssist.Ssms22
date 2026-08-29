@@ -62,7 +62,7 @@ public static class SqlModuleScript
     {
         start = 0;
         end = 0;
-        var position = SkipTrivia(text, index);
+        var position = SqlTrivia.Skip(text, index, text.Length);
 
         if (position >= text.Length || !IsWordCharacter(text[position]))
         {
@@ -78,49 +78,6 @@ public static class SqlModuleScript
 
         end = position;
         return true;
-    }
-
-    private static int SkipTrivia(string text, int index)
-    {
-        var position = index;
-
-        while (position < text.Length)
-        {
-            if (char.IsWhiteSpace(text[position]))
-            {
-                position++;
-                continue;
-            }
-
-            if (position + 1 < text.Length && text[position] == '-' && text[position + 1] == '-')
-            {
-                position += 2;
-
-                while (position < text.Length && text[position] != '\n' && text[position] != '\r')
-                {
-                    position++;
-                }
-
-                continue;
-            }
-
-            if (position + 1 < text.Length && text[position] == '/' && text[position + 1] == '*')
-            {
-                position += 2;
-
-                while (position + 1 < text.Length && !(text[position] == '*' && text[position + 1] == '/'))
-                {
-                    position++;
-                }
-
-                position = Math.Min(position + 2, text.Length);
-                continue;
-            }
-
-            break;
-        }
-
-        return position;
     }
 
     private static bool IsWordCharacter(char value)
