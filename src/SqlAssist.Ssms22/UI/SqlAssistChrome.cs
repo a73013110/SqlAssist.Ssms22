@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -180,6 +180,77 @@ internal static class SqlAssistChrome
         template.Triggers.Add(disabled);
 
         return template;
+    }
+
+    /// <summary>
+    /// 一顆按鈕，含字型、間距與樣板。
+    /// </summary>
+    /// <remarks>
+    /// 兩個視窗各自組一遍的下場是同一種按鈕在兩邊高矮不一。
+    /// <paramref name="primary"/> 只換靜止狀態的底色，那是同一套語言裡的一階。
+    /// </remarks>
+    public static Button CreateButton(string text, Metrics metrics, bool primary = false)
+    {
+        return new Button
+        {
+            Content = text,
+            Padding = new Thickness(12, 4, 12, 5),
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Body,
+            Foreground = VsThemeBrushes.ListForeground,
+            Template = primary ? CreatePrimaryButtonTemplate() : CreateGhostButtonTemplate()
+        };
+    }
+
+    /// <summary>底部那一條回饋訊息；平常是空的，所以永遠比內容淡。</summary>
+    public static TextBlock CreateStatusText(Metrics metrics)
+    {
+        return new TextBlock
+        {
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Caption,
+            Foreground = VsThemeBrushes.DimForeground,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+    }
+
+    /// <summary>
+    /// 資料格的共同底：不畫格線、交替底色分列、欄位標題只有下緣一條細線。
+    /// </summary>
+    /// <remarks>
+    /// 交替底色只能走資料格自己的這兩個屬性。<see cref="DataGridRow.Background"/> 是
+    /// 「轉移屬性」，資料格會把自己的值蓋到每一列上，優先權高過任何樣式與觸發程序——
+    /// 試著用觸發程序畫交替列，結果是每一列都沒有底色。
+    ///
+    /// 唯讀與可編輯、選取單位、捲軸與內容選單留給呼叫端：那些是各自的行為，
+    /// 不是外觀。字級可以事後覆寫，浮動預覽的字級是設定項。
+    /// </remarks>
+    public static DataGrid CreateDataGrid(Metrics metrics, Brush background)
+    {
+        return new DataGrid
+        {
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            CanUserResizeRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+
+            // 格線是最吵的一種分隔方式：一百多列就是一百多條線。
+            // 層次改交給交替底色，那是不用畫線也看得出來的。
+            GridLinesVisibility = DataGridGridLinesVisibility.None,
+            Background = background,
+            Foreground = VsThemeBrushes.ListForeground,
+            RowBackground = background,
+            AlternatingRowBackground = VsThemeBrushes.RowAlternate,
+            AlternationCount = 2,
+            BorderThickness = default,
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Body,
+            RowHeight = metrics.RowHeight,
+            ColumnHeaderStyle = CreateColumnHeaderStyle(metrics),
+            CellStyle = CreateCellStyle()
+        };
     }
 
     /// <summary>

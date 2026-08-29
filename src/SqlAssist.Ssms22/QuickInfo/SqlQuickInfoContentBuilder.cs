@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
+using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.QuickInfo;
@@ -189,28 +190,14 @@ internal static class SqlQuickInfoContentBuilder
             Keyword(column.DataType)
         };
 
-        if (!column.IsNullable)
+        foreach (var flag in SqlColumnPresentation.Flags(column))
         {
             runs.Add(Text("  "));
-            runs.Add(Keyword("NOT NULL"));
-        }
 
-        if (column.IsIdentity)
-        {
-            runs.Add(Text("  "));
-            runs.Add(Keyword("IDENTITY"));
-        }
-
-        if (column.IsComputed)
-        {
-            runs.Add(Text("  "));
-            runs.Add(Keyword("COMPUTED"));
-        }
-
-        if (column.IsPrimaryKey)
-        {
-            runs.Add(Text("  "));
-            runs.Add(Comment("PK"));
+            // 主索引鍵不是型別的一部分，用註解色與 NOT NULL 這些限制分開。
+            runs.Add(flag == SqlColumnFlag.PrimaryKey
+                ? Comment(flag.ToDisplayName())
+                : Keyword(flag.ToDisplayName()));
         }
 
         return runs;

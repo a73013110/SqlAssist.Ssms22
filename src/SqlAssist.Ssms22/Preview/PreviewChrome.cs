@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,6 +6,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.UI;
 
@@ -22,7 +23,7 @@ namespace SqlAssist.Ssms22.Preview;
 internal static class PreviewChrome
 {
     /// <summary>主索引鍵徽章要換成強調色，比對的就是這個字串。</summary>
-    public const string PrimaryKeyFlag = "PK";
+    public static readonly string PrimaryKeyFlag = SqlColumnFlag.PrimaryKey.ToDisplayName();
 
     /// <summary>
     /// 出現時的淡入。
@@ -139,26 +140,24 @@ internal static class PreviewChrome
         return new DataTemplate { VisualTree = items };
     }
 
-    /// <summary>把一組旗標整理成徽章文字；沒有例外時回傳空清單。</summary>
+    /// <summary>
+    /// 把欄位的性質整理成徽章文字；沒有例外時回傳空清單。
+    /// </summary>
+    /// <remarks>
+    /// 計算欄位不給徽章：它在表格裡自己就是一整欄，運算式本身比徽章說得更多。
+    /// </remarks>
     public static IReadOnlyList<string> BuildFlags(SqlColumnInfo column)
     {
-        var flags = new List<string>(3);
+        var badges = new List<string>(3);
 
-        if (column.IsPrimaryKey)
+        foreach (var flag in SqlColumnPresentation.Flags(column))
         {
-            flags.Add(PrimaryKeyFlag);
+            if (flag != SqlColumnFlag.Computed)
+            {
+                badges.Add(flag.ToDisplayName());
+            }
         }
 
-        if (!column.IsNullable)
-        {
-            flags.Add("NOT NULL");
-        }
-
-        if (column.IsIdentity)
-        {
-            flags.Add("IDENTITY");
-        }
-
-        return flags;
+        return badges;
     }
 }
