@@ -1,4 +1,4 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 <#
 .SYNOPSIS
     以 ScriptDom 產生 T-SQL 關鍵字目錄（SqlKeywordCatalog.Generated.cs）。
@@ -41,12 +41,14 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$SsmsInstallDir = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release',
+    [string]$SsmsInstallDir,
     [string]$OutputPath = (Join-Path $PSScriptRoot '..\src\SqlAssist.Core\Keywords\SqlKeywordCatalog.Generated.cs')
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 
+$SsmsInstallDir = Get-SsmsInstallPath -InstallDir $SsmsInstallDir
 $scriptDomPath = Join-Path $SsmsInstallDir 'Common7\IDE\Extensions\Application\Microsoft.SqlServer.TransactSql.ScriptDom.dll'
 
 if (-not (Test-Path $scriptDomPath)) {

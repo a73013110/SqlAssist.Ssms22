@@ -24,6 +24,21 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
 （.NET 10 SDK 不再支援 VSTest 轉接層）。
 
+## 工具腳本的共用設定
+
+SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪裡」全部在
+`tools\SqlAssist.Tools.psm1`，每支腳本都從那裡取。SSMS 裝在別的位置時不必改腳本，
+傳 `-SsmsInstallDir` 就好：
+
+```powershell
+.\tools\Build-Extension.ps1 -SsmsInstallDir 'D:\SSMS 22\Release'
+```
+
+`Install-Extension.ps1`、`Uninstall-Extension.ps1`、`Deploy-DebugExtension.ps1` 與
+`Generate-Keywords.ps1` 收同一個參數。專案檔的 `SsmsInstallDir` 屬性另有一份預設值，
+因為 MSBuild 讀不到 PowerShell 模組；`Build-Extension.ps1` 一律把解析後的路徑
+以 `/p:SsmsInstallDir=` 傳進去，不靠專案檔那份。
+
 ## 版本號
 
 版號的唯一來源是根目錄的 `version.json` 加上 git 歷史，由

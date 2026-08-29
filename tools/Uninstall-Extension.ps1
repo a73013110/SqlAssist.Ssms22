@@ -1,54 +1,18 @@
+﻿#Requires -Version 7.0
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
 param(
-    [switch]$Quiet
+    [switch]$Quiet,
+    [string]$SsmsInstallDir
 )
 
 $ErrorActionPreference = 'Stop'
-$extensionId = 'SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65'
-$ssmsPath = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release'
-$installer = Join-Path $ssmsPath 'Common7\IDE\VSIXInstaller.exe'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 
-function Get-SqlAssistInstallation {
-    $ssmsRoots = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\SSMS" `
-        -Directory `
-        -Filter '22.0_*' `
-        -ErrorAction SilentlyContinue
+$extensionId = Get-SqlAssistExtensionId
 
-    foreach ($root in $ssmsRoots) {
-        $manifests = Get-ChildItem -Path (Join-Path $root.FullName 'Extensions') `
-            -Recurse `
-            -File `
-            -Filter 'extension.vsixmanifest' `
-            -ErrorAction SilentlyContinue
-
-        foreach ($manifestFile in $manifests) {
-            try {
-                [xml]$manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw
-                $identity = $manifest.PackageManifest.Metadata.Identity
-
-                if ($identity.Id -eq $extensionId) {
-                    [pscustomobject]@{
-                        Version = [string]$identity.Version
-                        Path = $manifestFile.Directory.FullName
-                    }
-                }
-            }
-            catch {
-                Write-Warning "無法讀取延伸模組資訊：$($manifestFile.FullName)"
-            }
-        }
-    }
-}
-
-if (Get-Process -Name 'SSMS' -ErrorAction SilentlyContinue) {
-    throw '請先儲存查詢並關閉所有 SSMS 視窗，再執行解除安裝。'
-}
-
-if (-not (Test-Path -LiteralPath $installer)) {
-    throw "找不到 SSMS VSIX 安裝程式：$installer"
-}
-
-$installed = @(Get-SqlAssistInstallation)
+Assert-SsmsClosed -Action '執行解除安裝'
+$installer = Get-SsmsVsixInstaller -InstallDir $SsmsInstallDir
+$installed = Get-SqlAssistInstallation -ExtensionId $extensionId
 
 if ($installed.Count -eq 0) {
     Write-Host '解除安裝略過：目前找不到 SqlAssist for SSMS 22。' -ForegroundColor Yellow
@@ -88,7 +52,7 @@ if ($process.ExitCode -ne 0) {
     throw "VSIXInstaller 解除安裝失敗，結束代碼：$($process.ExitCode)"
 }
 
-$remaining = @(Get-SqlAssistInstallation)
+$remaining = Get-SqlAssistInstallation -ExtensionId $extensionId
 
 if ($remaining.Count -gt 0) {
     Write-Warning '仍偵測到 SqlAssist；可能已取消操作，或解除安裝程序尚未完成。'

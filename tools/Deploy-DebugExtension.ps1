@@ -1,12 +1,14 @@
+﻿#Requires -Version 7.0
 [CmdletBinding()]
 param(
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [string]$SsmsInstallDir
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
-$extensionId = 'SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65'
-$outputPath = Join-Path $root 'src\SqlAssist.Ssms22\bin\x64\Debug\net48'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+
+$outputPath = Join-Path (Get-SqlAssistRoot) 'src\SqlAssist.Ssms22\bin\x64\Debug\net48'
 # 來源 Manifest 的版號是 GetBuildVersion 佔位符，只有建置產物裡才是展開後的實際版號。
 $builtManifestPath = Join-Path $outputPath 'extension.vsixmanifest'
 
@@ -22,13 +24,11 @@ function Get-MajorMinor {
     return "$($parsed.Major).$($parsed.Minor)"
 }
 
-if (Get-Process -Name 'SSMS' -ErrorAction SilentlyContinue) {
-    throw '請先關閉所有 SSMS 視窗，再部署 Debug 組件。'
-}
+Assert-SsmsClosed -Action '部署 Debug 組件'
 
 if (-not $SkipBuild) {
     # 預設先建立完整 Debug VSIX，確保 DLL、PDB 與目前原始碼一致。
-    & (Join-Path $PSScriptRoot 'Build-Extension.ps1') -Configuration Debug
+    & (Join-Path $PSScriptRoot 'Build-Extension.ps1') -Configuration Debug -SsmsInstallDir $SsmsInstallDir
 }
 
 if (-not (Test-Path -LiteralPath $builtManifestPath)) {
@@ -37,38 +37,7 @@ if (-not (Test-Path -LiteralPath $builtManifestPath)) {
 
 [xml]$builtManifest = Get-Content -LiteralPath $builtManifestPath -Raw
 $builtVersion = [string]$builtManifest.PackageManifest.Metadata.Identity.Version
-$installations = @()
-$ssmsRoots = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\SSMS" `
-    -Directory `
-    -Filter '22.0_*' `
-    -ErrorAction SilentlyContinue
-
-foreach ($ssmsRoot in $ssmsRoots) {
-    $manifests = Get-ChildItem -Path (Join-Path $ssmsRoot.FullName 'Extensions') `
-        -Recurse `
-        -File `
-        -Filter 'extension.vsixmanifest' `
-        -ErrorAction SilentlyContinue
-
-    foreach ($manifestFile in $manifests) {
-        try {
-            [xml]$installedManifest = Get-Content -LiteralPath $manifestFile.FullName -Raw
-            $identity = $installedManifest.PackageManifest.Metadata.Identity
-
-            if ($identity.Id -eq $extensionId) {
-                $installations += [pscustomobject]@{
-                    Version = [string]$identity.Version
-                    Path = $manifestFile.Directory.FullName
-                }
-            }
-        }
-        catch {
-            # 其他擴充的 Manifest 損壞不應阻擋 SqlAssist Debug 部署。
-        }
-    }
-}
-
-$installations = @($installations | Sort-Object Path -Unique)
+$installations = Get-SqlAssistInstallation
 
 if ($installations.Count -eq 0) {
     throw '找不到已安裝的 SqlAssist。請先執行 Install-Extension.ps1 -Configuration Debug。'
