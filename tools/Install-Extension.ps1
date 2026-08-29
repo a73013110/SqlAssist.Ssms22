@@ -1,23 +1,17 @@
+﻿#Requires -Version 7.0
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
-    [string]$Configuration = 'Release'
+    [string]$Configuration = 'Release',
+    [string]$SsmsInstallDir
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
-$ssmsPath = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release'
-$installer = Join-Path $ssmsPath 'Common7\IDE\VSIXInstaller.exe'
-# 與 Build-Extension.ps1 的 x64 輸出位置保持一致。
-$vsix = Join-Path $root "src\SqlAssist.Ssms22\bin\x64\$Configuration\net48\SqlAssist.Ssms22.vsix"
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 
-if (Get-Process -Name 'SSMS' -ErrorAction SilentlyContinue) {
-    throw '請先關閉所有 SSMS 視窗，再執行安裝。'
-}
-
-if (-not (Test-Path -LiteralPath $installer)) {
-    throw "找不到 SSMS VSIX 安裝程式：$installer"
-}
+Assert-SsmsClosed -Action '執行安裝'
+$installer = Get-SsmsVsixInstaller -InstallDir $SsmsInstallDir
+$vsix = Get-SqlAssistVsixPath -Configuration $Configuration
 
 if (-not (Test-Path -LiteralPath $vsix)) {
     throw "找不到 VSIX，請先執行 tools\Build-Extension.ps1：$vsix"

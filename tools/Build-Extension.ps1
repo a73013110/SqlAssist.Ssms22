@@ -1,13 +1,17 @@
+﻿#Requires -Version 7.0
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
-    [string]$Configuration = 'Release'
+    [string]$Configuration = 'Release',
+    [string]$SsmsInstallDir
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+
+$root = Get-SqlAssistRoot
+$ssmsPath = Get-SsmsInstallPath -InstallDir $SsmsInstallDir -Require
 $vsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-$ssmsPath = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release'
 
 if (-not (Test-Path -LiteralPath $vsWhere)) {
     throw '找不到 vswhere.exe。'
@@ -42,7 +46,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "建置失敗，結束代碼：$LASTEXITCODE"
 }
 
-$vsix = Join-Path $root "src\SqlAssist.Ssms22\bin\x64\$Configuration\net48\SqlAssist.Ssms22.vsix"
+$vsix = Get-SqlAssistVsixPath -Configuration $Configuration
 
 if (-not (Test-Path -LiteralPath $vsix)) {
     throw "建置完成但找不到 VSIX：$vsix"
@@ -50,4 +54,3 @@ if (-not (Test-Path -LiteralPath $vsix)) {
 
 & (Join-Path $PSScriptRoot 'Test-VsixPackage.ps1') -VsixPath $vsix
 Write-Host "VSIX：$vsix"
-
