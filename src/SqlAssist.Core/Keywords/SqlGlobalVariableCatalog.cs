@@ -18,7 +18,9 @@ namespace SqlAssist.Core.Keywords;
 /// 已經打出 <c>@@</c> 了——那個位置他要的百分之百是全域變數，此時再判一次位置，
 /// 判對沒有好處（清單本來就只剩這一類），判錯的代價是清單整個空掉。
 ///
-/// 已淘汰的 <c>@@REMSERVER</c> 刻意不收：建議一個被移除的名稱比少一個名稱糟。
+/// <c>@@REMSERVER</c> 刻意不收：它回報的遠端伺服器功能整個被拿掉了，
+/// 打出來也得不到有意義的值。標準是「還有用就收，只是在說明欄標清楚」——
+/// <see cref="SqlDataTypeCatalog"/> 收下已淘汰的 <c>TEXT</c> 就是同一個標準的另一面。
 /// </remarks>
 public static class SqlGlobalVariableCatalog
 {

@@ -1,4 +1,4 @@
-using SqlAssist.Core.Completion;
+﻿using SqlAssist.Core.Completion;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Formatting;
 
@@ -23,7 +23,8 @@ internal static class SqlInsertionText
             suggestion.Kind == SuggestionKind.Column ||
             suggestion.Kind == SuggestionKind.BuiltInFunction ||
             suggestion.Kind == SuggestionKind.GlobalVariable ||
-            suggestion.Kind == SuggestionKind.Variable)
+            suggestion.Kind == SuggestionKind.Variable ||
+            suggestion.Kind == SuggestionKind.DataType)
         {
             return suggestion.InsertionText;
         }

@@ -15,7 +15,7 @@
 | 打完某個字沒有重開清單 | [completion.md](completion.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | 提交建議後寫進去的文字不對 | [completion.md](completion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
-| 內建函式或全域變數要增刪 | [completion.md](completion.md) | `Core/Keywords/SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs` |
+| 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
 | 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
 | `別名.` 列出來的欄位不對 | [completion.md](completion.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
 | 程式碼片段的格式或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/SqlSnippetExpander.cs`、`SqlSnippetSerializer.cs` |
@@ -40,7 +40,7 @@
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
 | `Completion/` | 建議項的模型、上下文判斷、篩選與排名 | [completion.md](completion.md) |
-| `Keywords/` | 關鍵字、內建函式與全域變數目錄、位置分層、自動大寫 | [completion.md](completion.md) |
+| `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion.md](completion.md) |
 | `Matching/` | 與領域無關的字串模糊比對（**禁止**參照 `Completion/`） | [completion.md](completion.md) |
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |

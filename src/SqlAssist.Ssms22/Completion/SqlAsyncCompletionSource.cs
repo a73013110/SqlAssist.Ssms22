@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -237,6 +237,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         if (context.Target == CompletionTarget.Variable)
         {
             return context.ScriptSources;
+        }
+
+        // 型別同樣是一份封閉的內建清單。
+        if (context.Target == CompletionTarget.DataType)
+        {
+            return SqlDataTypeCatalog.All;
         }
 
         if (context.Target == CompletionTarget.Column)

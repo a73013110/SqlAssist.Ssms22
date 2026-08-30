@@ -1,4 +1,4 @@
-namespace SqlAssist.Core.Completion;
+﻿namespace SqlAssist.Core.Completion;
 
 public enum CompletionTarget
 {
@@ -40,6 +40,16 @@ public enum CompletionTarget
     /// 不會走到這裡——那裡整份上下文都不算數，見
     /// <see cref="SqlScriptVariableSuggestions.IsDeclarationSlot"/>。
     /// </remarks>
-    Variable
+    Variable,
+
+    /// <summary>
+    /// 游標停在文法上只接受資料型別的位置（<c>DECLARE @rows </c>、
+    /// <c>CAST(x AS </c>…），因此只建議內建型別。
+    /// </summary>
+    /// <remarks>
+    /// 哪些位置算數見 <see cref="SqlDataTypePosition"/>。判定成立時整份清單就只剩
+    /// 型別，關鍵字一個都不列——那些位置本來就沒有別的東西是對的。
+    /// </remarks>
+    DataType
 }
 

@@ -36,8 +36,24 @@ public static class SqlCompletionContextAnalyzer
 
         // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
         // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
-        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
-            textBeforeCaret.Substring(0, tokenStart));
+        //
+        // 詞法分析只做一次：位置與「這裡是不是型別的位置」問的是同一段文字，
+        // 各自再分析一次的話，每按一鍵就把游標前的整份指令碼掃兩遍。
+        var textBeforeToken = textBeforeCaret.Substring(0, tokenStart);
+        var tokens = SqlTokenizer.Tokenize(textBeforeToken);
+        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
+        var prefix = textBeforeCaret.Substring(tokenStart);
+
+        // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
+        // 眼中與 SELECT x AS | 的別名一模一樣，會被那一條整份收掉。
+        if (SqlDataTypePosition.IsDataTypeSlot(tokens))
+        {
+            return new SqlCompletionContext(
+                isValid: true,
+                tokenStart,
+                prefix,
+                CompletionTarget.DataType);
+        }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
         // 變數與參數的名稱。清單裡沒有一項會是對的，而彈出來的唯一效果是使用者
@@ -48,8 +64,7 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
-        var prefix = textBeforeCaret.Substring(tokenStart);
-        var beforeToken = textBeforeCaret.Substring(0, tokenStart).TrimEnd();
+        var beforeToken = textBeforeToken.TrimEnd();
         var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
         var target = DetermineTarget(
             qualifier is null ? beforeToken : beforeQualifier,
