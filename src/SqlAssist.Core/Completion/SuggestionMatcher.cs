@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Keywords;
@@ -210,6 +210,7 @@ public static class SuggestionMatcher
             // 這兩個值不會與任何別的類別比大小。列出來只是不留白。
             SuggestionKind.GlobalVariable => 25,
             SuggestionKind.Variable => 25,
+            SuggestionKind.DataType => 25,
 
             // 排在資料表之上：這個名稱是使用者在同一份指令碼裡剛取的，
             // 他會去 FROM 後面補字，正是因為還沒背起來。
@@ -238,14 +239,17 @@ public static class SuggestionMatcher
             CompletionTarget.Database => kind == SuggestionKind.Database,
             CompletionTarget.GlobalVariable => kind == SuggestionKind.GlobalVariable,
             CompletionTarget.Variable => kind == SuggestionKind.Variable,
+            CompletionTarget.DataType => kind == SuggestionKind.DataType,
 
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
             // 候選清單是依上下文組出來的，沒有範圍就不會有欄位，這裡不必再擋。
             //
-            // 小老鼠開頭的兩類是唯二被排除的：它們只在使用者打出 @ 之後出現，
+            // 小老鼠開頭的兩類與資料型別是被排除的：它們只出現在自己那一個位置，
             // 混進一般清單的話，每一次按鍵都要多比對一批一定比不中的名稱。
-            _ => kind is not (SuggestionKind.GlobalVariable or SuggestionKind.Variable)
+            _ => kind is not (SuggestionKind.GlobalVariable
+                or SuggestionKind.Variable
+                or SuggestionKind.DataType)
         };
     }
 

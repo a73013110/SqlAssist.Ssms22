@@ -154,7 +154,31 @@ public static class SqlKeywordPositionAnalyzer
             throw new ArgumentNullException(nameof(textBeforeToken));
         }
 
-        var tokens = SqlTokenizer.Tokenize(textBeforeToken);
+        return Analyze(SqlTokenizer.Tokenize(textBeforeToken), textBeforeToken);
+    }
+
+    /// <summary>
+    /// 同上，但由呼叫端交出已經分析好的詞元。
+    /// </summary>
+    /// <remarks>
+    /// 上下文分析同一段文字還要問別的問題（例如「這裡是不是型別的位置」），
+    /// 各自再分析一次的話，每按一鍵就把游標前的整份指令碼掃兩遍。
+    /// <paramref name="textBeforeToken"/> 仍然要傳：換行的位置只有原文有。
+    /// </remarks>
+    public static SqlKeywordPosition Analyze(
+        IReadOnlyList<SqlToken> tokens,
+        string textBeforeToken)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (textBeforeToken is null)
+        {
+            throw new ArgumentNullException(nameof(textBeforeToken));
+        }
+
         var position = AnalyzeAt(tokens, tokens.Count - 1, followAlias: true);
 
         // 沒有 AS 的別名也是名字。這一支放在最後而不是併進 AnalyzeAt：

@@ -1,4 +1,4 @@
-namespace SqlAssist.Core.Completion;
+﻿namespace SqlAssist.Core.Completion;
 
 public enum SuggestionKind
 {
@@ -53,6 +53,15 @@ public enum SuggestionKind
     /// 中繼資料看不到的名稱——但不能歸在一起：那一類接在 <c>FROM</c> 後面，
     /// 這一類接在 <c>@</c> 後面，兩者從來不會出現在同一個位置。
     /// </remarks>
-    Variable
+    Variable,
+
+    /// <summary>
+    /// T-SQL 內建資料型別（<c>INT</c>、<c>NVARCHAR</c>…）。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Keyword"/> 分開：型別在文法上不是關鍵字，關鍵字目錄裡
+    /// 一個都沒有；而且它們只出現在文法只接受型別的那幾個位置。
+    /// </remarks>
+    DataType
 }
 
