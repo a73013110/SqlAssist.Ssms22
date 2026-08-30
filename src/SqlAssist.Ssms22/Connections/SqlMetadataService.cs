@@ -86,6 +86,36 @@ internal sealed class SqlMetadataService : IDisposable
         return BuildSuggestions(snapshot);
     }
 
+    /// <summary>
+    /// 取得 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的系統物件建議。
+    /// </summary>
+    /// <remarks>
+    /// 呼叫端必須先確認這個位置真的要它——這一份有一兩千筆，混進一般清單的話，
+    /// 打第一個字元時真正要找的東西會被 <c>sp_</c> 開頭的名稱淹掉。
+    /// 第一次被問到才查資料庫，之後整個工作階段都用快取。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlSuggestion>> GetSystemSuggestionsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (ResolveCatalog() is not { } catalog)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var timer = Stopwatch.StartNew();
+        var objects = await catalog.GetSystemObjectsAsync(cancellationToken).ConfigureAwait(false);
+
+        if (objects.Count == 0)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var suggestions = new List<SqlSuggestion>(objects.Count);
+        AddObjects(suggestions, objects);
+        ReportIfSlow($"系統物件建議（{suggestions.Count} 筆）", timer);
+        return suggestions;
+    }
+
     /// <summary>取得目前資料庫的第一層中繼資料；沒有可用連線時回傳 null。</summary>
     public async Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
     {
@@ -864,25 +894,7 @@ internal sealed class SqlMetadataService : IDisposable
         var suggestions = new List<SqlSuggestion>(
             snapshot.Objects.Count + snapshot.Schemas.Count + snapshot.Databases.Count);
 
-        foreach (var info in snapshot.Objects)
-        {
-            var kind = ToSuggestionKind(info.Kind);
-
-            if (kind is null)
-            {
-                continue;
-            }
-
-            suggestions.Add(new SqlSuggestion(
-                info.Name,
-                info.QualifiedName,
-                $"{info.Kind.ToDisplayName()} · {info.SchemaName}",
-                // 預覽內容改為選取時才載入，這裡只放立即可得的標題。
-                $"{info.Kind.ToDisplayName()} {info.QualifiedName}",
-                kind.Value,
-                schemaName: info.SchemaName,
-                tag: info));
-        }
+        AddObjects(suggestions, snapshot.Objects);
 
         foreach (var schema in snapshot.Schemas)
         {
@@ -976,6 +988,29 @@ internal sealed class SqlMetadataService : IDisposable
     private static string Quote(string name, SqlAssistSettings settings)
     {
         return SqlInsertionText.Quote(name, settings);
+    }
+
+    private static void AddObjects(List<SqlSuggestion> suggestions, IReadOnlyList<SqlObjectInfo> objects)
+    {
+        foreach (var info in objects)
+        {
+            var kind = ToSuggestionKind(info.Kind);
+
+            if (kind is null)
+            {
+                continue;
+            }
+
+            suggestions.Add(new SqlSuggestion(
+                info.Name,
+                info.QualifiedName,
+                $"{info.Kind.ToDisplayName()} · {info.SchemaName}",
+                // 預覽內容改為選取時才載入，這裡只放立即可得的標題。
+                $"{info.Kind.ToDisplayName()} {info.QualifiedName}",
+                kind.Value,
+                schemaName: info.SchemaName,
+                tag: info));
+        }
     }
 
     private static SuggestionKind? ToSuggestionKind(SqlObjectKind kind)

@@ -101,6 +101,26 @@ public sealed class SqlCompletionContext
     public SqlExecutedModule? ExecutedModule { get; }
 
     /// <summary>
+    /// 這個位置要不要 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的系統物件。
+    /// </summary>
+    /// <remarks>
+    /// 那一份光是一個使用者資料庫底下就有一兩千筆，而且只在兩個位置有意義：
+    /// 使用者自己打出了 <c>sys.</c>／<c>INFORMATION_SCHEMA.</c>，
+    /// 或者他在 <c>EXEC </c> 之後——<c>sp_executesql</c>、<c>sp_help</c> 一律不加
+    /// 結構描述就呼叫。
+    ///
+    /// <c>ALTER PROCEDURE </c> 不算：那裡目標同樣是預存程序，但系統程序改不動，
+    /// 列出來只會讓使用者選到一個改不了的東西——與內建函式不進
+    /// <c>ALTER FUNCTION</c> 是同一條理由。
+    ///
+    /// 判斷放在這裡而不是取得清單的那一層：它只跟上下文有關，可以完整單元測試。
+    /// </remarks>
+    public bool WantsSystemObjects =>
+        (Target == CompletionTarget.Procedure && Intent == CompletionIntent.Reference) ||
+        string.Equals(Qualifier, "sys", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Qualifier, "INFORMATION_SCHEMA", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// 決定 <see cref="Target"/> 的關鍵字在原文中的起點，例如 <c>ALTER PROCEDURE</c> 的
     /// <c>ALTER</c>。<see cref="Target"/> 為 <see cref="CompletionTarget.Any"/> 時為 -1。
     /// 提交時要替換整個語句（而不只是游標前的字）就靠這個位置。
