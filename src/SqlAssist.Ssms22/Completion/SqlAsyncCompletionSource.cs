@@ -249,6 +249,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return parameters.Concat(context.ScriptSources).ToArray();
         }
 
+        // 引數與提示是純粹的封閉清單，一次資料庫都不必問。
+        switch (context.Target)
+        {
+            case CompletionTarget.DatePart:
+                return SqlArgumentCatalog.DateParts;
+            case CompletionTarget.TableHint:
+                return SqlArgumentCatalog.TableHints;
+            case CompletionTarget.QueryHint:
+                return SqlArgumentCatalog.QueryHints;
+        }
+
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
         // DECLARE @t dbo.XType 要的正是後者。
         if (context.Target == CompletionTarget.DataType)

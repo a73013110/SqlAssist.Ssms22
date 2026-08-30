@@ -334,6 +334,30 @@ SELECT * FROM dbo.Loan WHERE ReaderId = @|   → 不是那個 EXEC 的引數，�
 樣板的成員只會讓兩邊對不起來。這裡要的是「換一份清單」而不是「篩掉一些關鍵字」，
 那正是 `CompletionTarget` 的工作。
 
+## 引數與提示的封閉清單
+
+有三個位置除了固定那幾個字以外沒有別的東西是對的，它們與資料型別是同一種判斷、
+同一個代價權衡——判定成立時整份清單就換掉，所以只收看得出來的：
+
+```text
+SELECT DATEADD(|              → DAY、MONTH、YEAR…（15 個日期部分）
+SELECT * FROM dbo.Loan WITH (| → NOLOCK、UPDLOCK、INDEX(…（21 個資料表提示）
+SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 個查詢提示）
+```
+
+三種都認得出來，是因為左括號**前面**那個字就把話說完了。CTE 的 `WITH` 不會誤判——
+`;WITH c AS (` 的 `WITH` 與左括號之間隔著一個名稱。
+
+日期部分只在**第一個**引數：打過逗號之後那裡要的是數字與日期。提示則是一份清單，
+逗號之後還是提示。`INDEX` 提交時補左括號，理由與內建函式相同。
+
+日期部分只收完整名稱，不收 `yy`、`dd` 這些縮寫：縮寫背得起來的人不需要補字，
+而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
+
+`SET NOCOUNT ON` 這一類的工作階段選項**沒有**收進來。位置分不開：位置分析看到
+`SET` 一律回報同一個位置，而 `UPDATE t SET |` 要的是資料行，跟 `SET NOCOUNT` 完全
+相反。要分開得往回找 `UPDATE`／`MERGE`，那條路的成本高過它省下的幾個字。
+
 ## 關鍵字自動大寫
 
 打完 `select` 再按空白鍵就得到 `SELECT`，不必先按 Tab 提交建議。

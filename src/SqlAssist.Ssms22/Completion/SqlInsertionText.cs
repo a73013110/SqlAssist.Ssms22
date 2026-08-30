@@ -25,7 +25,10 @@ internal static class SqlInsertionText
             suggestion.Kind == SuggestionKind.GlobalVariable ||
             suggestion.Kind == SuggestionKind.Variable ||
             suggestion.Kind == SuggestionKind.DataType ||
-            suggestion.Kind == SuggestionKind.Parameter)
+            suggestion.Kind == SuggestionKind.Parameter ||
+            suggestion.Kind == SuggestionKind.DatePart ||
+            suggestion.Kind == SuggestionKind.TableHint ||
+            suggestion.Kind == SuggestionKind.QueryHint)
         {
             return suggestion.InsertionText;
         }

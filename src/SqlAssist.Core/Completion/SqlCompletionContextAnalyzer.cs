@@ -46,6 +46,13 @@ public static class SqlCompletionContextAnalyzer
         var beforeToken = textBeforeToken.TrimEnd();
         var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
 
+        // 引數與提示的封閉清單同樣排在「這裡不接受任何關鍵字」之前：
+        // 那幾個位置除了清單上的字沒有別的東西是對的。
+        if (SqlArgumentPosition.TryResolve(tokens, out var argumentTarget))
+        {
+            return new SqlCompletionContext(isValid: true, tokenStart, prefix, argumentTarget);
+        }
+
         // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
         // 眼中與 SELECT x AS | 的別名一模一樣，會被那一條整份收掉。
         //

@@ -212,6 +212,9 @@ public static class SuggestionMatcher
             SuggestionKind.DataType => 25,
             SuggestionKind.Trigger => 25,
             SuggestionKind.Sequence => 25,
+            SuggestionKind.DatePart => 25,
+            SuggestionKind.TableHint => 25,
+            SuggestionKind.QueryHint => 25,
 
             // 自訂型別排在內建型別之上：DECLARE @t | 打出前綴時，
             // 使用者要的是自己那一個，內建型別他背得起來。
@@ -255,6 +258,9 @@ public static class SuggestionMatcher
                 or SuggestionKind.UserDefinedType,
             CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
+            CompletionTarget.DatePart => kind == SuggestionKind.DatePart,
+            CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
+            CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
 
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
@@ -268,7 +274,10 @@ public static class SuggestionMatcher
                 or SuggestionKind.DataType
                 or SuggestionKind.UserDefinedType
                 or SuggestionKind.Trigger
-                or SuggestionKind.Sequence)
+                or SuggestionKind.Sequence
+                or SuggestionKind.DatePart
+                or SuggestionKind.TableHint
+                or SuggestionKind.QueryHint)
         };
     }
 
