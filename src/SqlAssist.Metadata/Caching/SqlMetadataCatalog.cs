@@ -31,6 +31,11 @@ public sealed class SqlMetadataCatalog
     private readonly int _commandTimeoutSeconds;
     private SqlDatabaseSnapshot _snapshot = SqlDatabaseSnapshot.Empty;
 
+    private readonly SemaphoreSlim _systemGate = new(1, 1);
+
+    /// <summary>系統物件；只有真的被問到才載入，見 <see cref="GetSystemObjectsAsync"/>。</summary>
+    private IReadOnlyList<SqlObjectInfo>? _systemObjects;
+
     public SqlMetadataCatalog(
         ISqlConnectionSource connectionSource,
         TimeSpan lifetime,
@@ -50,6 +55,9 @@ public sealed class SqlMetadataCatalog
     public void Invalidate()
     {
         Volatile.Write(ref _snapshot, SqlDatabaseSnapshot.Empty);
+
+        // 系統物件沒有有效期，只有這裡會把它丟掉——換連線就是換一台伺服器。
+        Volatile.Write(ref _systemObjects, null);
 
         lock (_detailLock)
         {
@@ -187,6 +195,55 @@ public sealed class SqlMetadataCatalog
                 _snapshotGate.Release();
             }
         });
+    }
+
+    /// <summary>
+    /// 取得系統物件；第一次被問到才查資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不放進第一層快照：這一份光是一個使用者資料庫底下就有一兩千列，
+    /// 而它只在使用者打出 <c>sys.</c> 或落在 <c>EXEC </c> 之後才用得到。
+    /// 併進去等於每一次開啟查詢視窗都多付兩倍代價，換來的東西九成的時間沒有人要。
+    ///
+    /// 也刻意<b>不設有效期</b>：系統物件跟著 SQL Server 的版本走，
+    /// 不會在一次工作階段中途變動。查一次就用到編輯器關掉為止。
+    ///
+    /// 查不到時回傳空清單並且<b>不</b>記進快取，與第一層同一條規則：
+    /// 連線恢復之後下一次會自然再試一次。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlObjectInfo>> GetSystemObjectsAsync(
+        CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _systemObjects) is { } cached)
+        {
+            return cached;
+        }
+
+        await _systemGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            if (Volatile.Read(ref _systemObjects) is { } raced)
+            {
+                return raced;
+            }
+
+            var loaded = await Task
+                .Run(() => TryLoad(() => LoadSystemObjects(cancellationToken)), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (loaded is null)
+            {
+                return Array.Empty<SqlObjectInfo>();
+            }
+
+            Volatile.Write(ref _systemObjects, loaded);
+            return loaded;
+        }
+        finally
+        {
+            _systemGate.Release();
+        }
     }
 
     /// <summary>不觸發查詢，只看第二層快取裡有沒有。</summary>
@@ -372,6 +429,18 @@ public sealed class SqlMetadataCatalog
             SqlMetadataQueries.Databases,
             record => record.GetString(0),
             cancellationToken)) ?? new List<string>();
+    }
+
+    private List<SqlObjectInfo> LoadSystemObjects(CancellationToken cancellationToken)
+    {
+        using var connection = _connectionSource.OpenConnection();
+
+        return ReadList(
+                connection,
+                SqlMetadataQueries.SystemObjects,
+                SqlMetadataReader.ReadObject,
+                cancellationToken)
+            .FindAll(info => info.Kind != SqlObjectKind.Unknown);
     }
 
     private SqlObjectDetail LoadDetail(SqlObjectInfo objectInfo, CancellationToken cancellationToken)

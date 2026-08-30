@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
@@ -10,6 +10,9 @@ namespace SqlAssist.Core.Completion;
 /// </summary>
 public static class BuiltInSuggestionCatalog
 {
+    /// <summary>每一個資料庫都有的兩個系統結構描述。</summary>
+    private static readonly string[] SystemSchemas = { "sys", "INFORMATION_SCHEMA" };
+
     /// <summary>
     /// 建立候選清單。
     /// </summary>
@@ -27,7 +30,22 @@ public static class BuiltInSuggestionCatalog
 
         var functions = SqlFunctionCatalog.All;
         var suggestions = new List<SqlSuggestion>(
-            SqlKeywordCatalog.All.Count + functions.Count + snippets.Count);
+            SqlKeywordCatalog.All.Count + functions.Count + snippets.Count + SystemSchemas.Length);
+
+        // 這兩個結構描述在每一個資料庫裡都存在，是產品事實而不是誰的 schema，
+        // 因此不必等中繼資料。第一層查詢刻意不收它們（那會連帶把一兩千個系統物件
+        // 拉進來），少了這兩筆的話，使用者連「打 sys 再按 Tab」這條路都沒有。
+        foreach (var schema in SystemSchemas)
+        {
+            suggestions.Add(new SqlSuggestion(
+                schema,
+                schema + ".",
+                "Schema",
+                $"Schema {schema}",
+                SuggestionKind.Schema,
+                triggerFollowUp: true,
+                schemaName: schema));
+        }
 
         foreach (var snippet in snippets.Snippets)
         {

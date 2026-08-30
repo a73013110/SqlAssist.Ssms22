@@ -54,6 +54,32 @@ FROM sys.table_types AS tt
 INNER JOIN sys.schemas AS s ON s.schema_id = tt.schema_id
 WHERE tt.is_user_defined = 1;";
 
+    /// <summary>
+    /// 系統物件：<c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的目錄檢視、動態管理檢視
+    /// 與系統預存程序。
+    /// </summary>
+    /// <remarks>
+    /// <b>與第一層分開，而且只在使用者真的打出 <c>sys.</c> 或落在 <c>EXEC </c> 之後
+    /// 才查。</b>光是一個使用者資料庫底下，這一份就有一兩千列——併進第一層等於讓每一次
+    /// 開啟查詢視窗都多付兩倍的代價，換來的東西九成的時間沒有人要。
+    ///
+    /// 只收這兩個結構描述：<c>sys.all_objects</c> 裡 <c>is_ms_shipped = 1</c> 的東西
+    /// 還包含一堆內部物件，而使用者打得出來的就是這兩個名字。
+    ///
+    /// <c>X</c> 是擴充預存程序，<c>sp_executesql</c> 就在那一類。
+    /// </remarks>
+    public const string SystemObjects = @"
+SELECT
+    o.object_id,
+    s.name AS schema_name,
+    o.name AS object_name,
+    CASE WHEN o.type = 'X' THEN 'P' ELSE o.type END AS type
+FROM sys.all_objects AS o
+INNER JOIN sys.schemas AS s ON s.schema_id = o.schema_id
+WHERE o.is_ms_shipped = 1
+  AND s.name IN ('sys', 'INFORMATION_SCHEMA')
+  AND o.type IN ('U', 'V', 'P', 'PC', 'X', 'FN', 'IF', 'TF', 'FS', 'FT');";
+
     /// <summary>第一層：結構描述清單。</summary>
     public const string Schemas = @"
 SELECT s.name
