@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using SqlAssist.Core.Matching;
 using Xunit;
 
@@ -8,12 +8,12 @@ public sealed class FuzzyMatcherTests
 {
     [Theory]
     [InlineData("libr", "Lib_Reader")]
-    [InlineData("su", "Lib_Reader")]
+    [InlineData("lr", "Lib_Reader")]
     [InlineData("libreader", "Lib_Reader")]
     [InlineData("LIBR", "lib_reader")]
     [InlineData("ssf", "ssf")]
-    [InlineData("ot", "OrderTotal")]
-    [InlineData("uspgo", "usp_GetOrder")]
+    [InlineData("ot", "LoanTotal")]
+    [InlineData("uspgl", "usp_GetLoan")]
     public void 可以命中詞首縮寫與子序列(string pattern, string candidate)
     {
         Assert.True(FuzzyMatcher.Match(pattern, candidate).IsMatch);
@@ -45,7 +45,7 @@ public sealed class FuzzyMatcherTests
     }
 
     /// <summary>
-    /// 這是使用者回報的核心情境：底線後方的 U 必須被視為詞首，
+    /// 這是使用者回報的核心情境：底線後方的 R 必須被視為詞首，
     /// 讓 libr 在 Lib_Reader 上的分數高於只是把 libr 當成子字串的候選項。
     /// </summary>
     [Fact]
@@ -64,8 +64,8 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 底線之後的字元取得詞首加成()
     {
-        var boundary = FuzzyMatcher.Match("su", "Lib_Reader");
-        var noBoundary = FuzzyMatcher.Match("su", "Libareader");
+        var boundary = FuzzyMatcher.Match("lr", "Lib_Reader");
+        var noBoundary = FuzzyMatcher.Match("lr", "Libareader");
 
         Assert.True(
             boundary.Score > noBoundary.Score,
@@ -75,8 +75,8 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void camelCase轉折取得詞首加成()
     {
-        var camel = FuzzyMatcher.Match("su", "LibReader");
-        var flat = FuzzyMatcher.Match("su", "Libreader");
+        var camel = FuzzyMatcher.Match("lr", "LibReader");
+        var flat = FuzzyMatcher.Match("lr", "Libreader");
 
         Assert.True(
             camel.Score > flat.Score,
@@ -101,19 +101,19 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 真正的連續前綴優於跨詞縮寫()
     {
-        var prefix = FuzzyMatcher.Match("su", "Subtotal");
-        var acronym = FuzzyMatcher.Match("su", "Lib_Reader");
+        var prefix = FuzzyMatcher.Match("lo", "Location");
+        var acronym = FuzzyMatcher.Match("lo", "Lib_Overdue");
 
         Assert.True(
             prefix.Score > acronym.Score,
-            $"Subtotal({prefix.Score}) 應高於 Lib_Reader({acronym.Score})");
+            $"Location({prefix.Score}) 應高於 Lib_Overdue({acronym.Score})");
     }
 
     [Fact]
     public void 從開頭命中優於從中間命中()
     {
-        var head = FuzzyMatcher.Match("user", "UserProfile");
-        var tail = FuzzyMatcher.Match("user", "ArchivedUser");
+        var head = FuzzyMatcher.Match("book", "BookSummary");
+        var tail = FuzzyMatcher.Match("book", "ArchivedBook");
 
         Assert.True(head.Score > tail.Score);
     }
@@ -121,8 +121,8 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 名稱較短時分數不會較低()
     {
-        var shorter = FuzzyMatcher.Match("order", "Order");
-        var longer = FuzzyMatcher.Match("order", "OrderDetailHistory");
+        var shorter = FuzzyMatcher.Match("loan", "Loan");
+        var longer = FuzzyMatcher.Match("loan", "LoanDetailHistory");
 
         Assert.True(shorter.Score >= longer.Score);
     }
@@ -130,7 +130,7 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 連續命中的區段會合併成單一Span()
     {
-        var result = FuzzyMatcher.Match("sys", "Lib_Reader");
+        var result = FuzzyMatcher.Match("lib", "Lib_Reader");
 
         Assert.True(result.IsMatch);
         Assert.Equal(new[] { new MatchSpan(0, 3) }, result.Spans);
@@ -148,7 +148,7 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 單字元樣式回傳單一位置的Span()
     {
-        var result = FuzzyMatcher.Match("u", "Lib_Reader");
+        var result = FuzzyMatcher.Match("r", "Lib_Reader");
 
         Assert.True(result.IsMatch);
         Assert.Equal(new[] { new MatchSpan(4, 1) }, result.Spans);
@@ -157,15 +157,15 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 命中Span的字元必定與樣式相符()
     {
-        const string candidate = "usp_GetPublisherOrder";
-        var result = FuzzyMatcher.Match("uspgco", candidate);
+        const string candidate = "usp_GetPublisherLoan";
+        var result = FuzzyMatcher.Match("uspgpl", candidate);
 
         Assert.True(result.IsMatch);
 
         var matched = string.Concat(
             result.Spans.SelectMany(span => candidate.Substring(span.Start, span.Length)));
 
-        Assert.Equal("uspgco", matched.ToLowerInvariant());
+        Assert.Equal("uspgpl", matched.ToLowerInvariant());
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class FuzzyMatcherTests
     [Fact]
     public void 沒有大小寫的文字仍可比對()
     {
-        var result = FuzzyMatcher.Match("使用者", "系統_使用者資料");
+        var result = FuzzyMatcher.Match("讀者", "圖書館_讀者資料");
 
         Assert.True(result.IsMatch);
     }

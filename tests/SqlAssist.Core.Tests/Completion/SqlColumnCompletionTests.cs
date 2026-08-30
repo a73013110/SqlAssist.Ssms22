@@ -80,7 +80,7 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void JOIN的兩個別名都能解析()
     {
-        const string sql = "SELECT o.Id, c.| FROM dbo.Orders o JOIN dbo.Publisher c ON o.PublisherId = c.Id";
+        const string sql = "SELECT o.Id, c.| FROM dbo.Loans o JOIN dbo.Publisher c ON o.PublisherId = c.Id";
 
         Assert.Equal("Publisher", ResolvedTable(Analyze(sql)).ObjectName);
     }
@@ -129,7 +129,7 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void 外層看不到子查詢的別名()
     {
-        Assert.Null(Analyze("SELECT i.| FROM (SELECT X FROM dbo.Item i) d").ColumnSources);
+        Assert.Null(Analyze("SELECT i.| FROM (SELECT X FROM dbo.Copy i) d").ColumnSources);
     }
 
     /// <summary>
@@ -237,7 +237,7 @@ public sealed class SqlColumnCompletionTests
     public void CTE的資料行清單優先()
     {
         var context = Analyze(
-            ";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Item) SELECT x.| FROM c x");
+            ";WITH c (Code, Name) AS (SELECT Id, Title FROM dbo.Copy) SELECT x.| FROM c x");
 
         Assert.Equal(new[] { "Code", "Name" }, Columns(context));
     }
@@ -260,7 +260,7 @@ public sealed class SqlColumnCompletionTests
     public void 帶結構描述的名稱不查CTE名冊()
     {
         var context = Analyze(
-            ";WITH PUBLISHER AS (SELECT Id FROM dbo.Item) SELECT a.| FROM dbo.PUBLISHER a");
+            ";WITH PUBLISHER AS (SELECT Id FROM dbo.Copy) SELECT a.| FROM dbo.PUBLISHER a");
 
         Assert.Equal("PUBLISHER", ResolvedTable(context).ObjectName);
     }
@@ -275,7 +275,7 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void 選取清單有無名運算式時不改成欄位目標()
     {
-        Assert.Null(Analyze("SELECT d.| FROM (SELECT Qty * Price FROM dbo.Item) d").ColumnSources);
+        Assert.Null(Analyze("SELECT d.| FROM (SELECT Qty * Price FROM dbo.Copy) d").ColumnSources);
     }
 
     /// <summary>直接參照自己的 CTE 不能讓解析一路展開下去。</summary>
@@ -291,11 +291,11 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void 沒有限定字時也讀得出敘述的欄位來源()
     {
-        var context = Analyze("SELECT cu| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a JOIN dbo.Item i ON 1 = 1");
+        var context = Analyze("SELECT cu| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a JOIN dbo.Copy i ON 1 = 1");
 
         Assert.Null(context.ColumnSources);
         Assert.Equal(
-            new[] { "a:PUBL_CODE", "i:表 Item" },
+            new[] { "a:PUBL_CODE", "i:表 Copy" },
             context.ScopeSources
                 .SelectMany(source => source.Kind == SqlColumnSourceKind.Table
                     ? new[] { $"{source.Qualifier}:表 {source.Table!.ObjectName}" }
@@ -307,10 +307,10 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void 敘述的欄位來源跳過解析不出來的那一個()
     {
-        var context = Analyze("SELECT cu| FROM @rows r JOIN dbo.Item i ON 1 = 1");
+        var context = Analyze("SELECT cu| FROM @rows r JOIN dbo.Copy i ON 1 = 1");
 
         var source = Assert.Single(context.ScopeSources);
 
-        Assert.Equal("Item", source.Table!.ObjectName);
+        Assert.Equal("Copy", source.Table!.ObjectName);
     }
 }

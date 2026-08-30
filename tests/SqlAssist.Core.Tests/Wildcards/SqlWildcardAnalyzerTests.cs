@@ -59,19 +59,19 @@ public sealed class SqlWildcardAnalyzerTests
     [Fact]
     public void 兩個資料來源時補上別名()
     {
-        var target = Expand("SELECT *| FROM dbo.Orders o JOIN dbo.Publisher c ON o.Id = c.Id");
+        var target = Expand("SELECT *| FROM dbo.Loans o JOIN dbo.Publisher c ON o.Id = c.Id");
 
         Assert.True(target.Qualify);
-        Assert.Equal(new[] { "o:表 Orders", "c:表 Publisher" }, Names(target));
+        Assert.Equal(new[] { "o:表 Loans", "c:表 Publisher" }, Names(target));
     }
 
     [Fact]
     public void 限定過的萬用字元只展開該來源()
     {
-        var target = Expand("SELECT o.*| FROM dbo.Orders o JOIN dbo.Publisher c ON o.Id = c.Id");
+        var target = Expand("SELECT o.*| FROM dbo.Loans o JOIN dbo.Publisher c ON o.Id = c.Id");
         var source = Assert.Single(target.Sources);
 
-        Assert.Equal("Orders", source.Table!.ObjectName);
+        Assert.Equal("Loans", source.Table!.ObjectName);
         Assert.Equal("o", target.QualifierText);
         Assert.True(target.Qualify);
         Assert.Equal("SELECT ".Length, target.Start);

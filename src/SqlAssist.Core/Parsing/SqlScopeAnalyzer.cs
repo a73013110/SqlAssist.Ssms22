@@ -389,7 +389,7 @@ public static class SqlScopeAnalyzer
             return false;
         }
 
-        // 資料表提示夾在名稱與別名之間：FROM Orders WITH (NOLOCK) o
+        // 資料表提示夾在名稱與別名之間：FROM Loans WITH (NOLOCK) o
         if (index + 1 < end && tokens[index].IsKeyword("WITH") && tokens[index + 1].IsPunctuation("("))
         {
             index = SqlTokenNavigator.SkipParenthesised(tokens, index + 1, end);

@@ -200,7 +200,7 @@ internal static class SqlObjectLocator
     /// </summary>
     /// <remarks>
     /// 沒有限定詞的識別字可能是敘述裡的別名，這時要換成別名指向的資料表。
-    /// 別名優先於同名物件：<c>FROM Orders AS Publisher</c> 之後的 <c>Publisher</c> 是 Orders。
+    /// 別名優先於同名物件：<c>FROM Loans AS Publisher</c> 之後的 <c>Publisher</c> 是 Loans。
     /// </remarks>
     private static IReadOnlyList<SqlObjectInfo> ResolveObject(
         SqlDatabaseSnapshot snapshot,

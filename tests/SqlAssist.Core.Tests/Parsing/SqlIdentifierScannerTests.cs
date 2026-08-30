@@ -12,7 +12,7 @@ public sealed class SqlIdentifierScannerTests
     }
 
     [Theory]
-    [InlineData("SELECT * FROM Sys|_User")]
+    [InlineData("SELECT * FROM Lib|_Reader")]
     [InlineData("SELECT * FROM |Lib_Reader")]
     [InlineData("SELECT * FROM Lib_Reader|")]
     public void 找出游標所在的識別字(string text)
@@ -27,18 +27,18 @@ public sealed class SqlIdentifierScannerTests
     [Fact]
     public void 回報識別字在原文中的位置()
     {
-        var reference = FindAtMarker("SELECT * FROM Sys|_User");
+        var reference = FindAtMarker("SELECT * FROM Lib|_Reader");
 
         Assert.NotNull(reference);
         Assert.Equal(14, reference!.Start);
-        Assert.Equal(8, reference.Length);
+        Assert.Equal("Lib_Reader".Length, reference.Length);
     }
 
     [Theory]
-    [InlineData("SELECT * FROM dbo.Sys|_User", "dbo", "Lib_Reader")]
-    [InlineData("SELECT * FROM [dbo].[Sys|_User]", "dbo", "Lib_Reader")]
-    [InlineData("SELECT * FROM dbo.[Sys|_User]", "dbo", "Lib_Reader")]
-    [InlineData("SELECT * FROM [dbo].Sys|_User", "dbo", "Lib_Reader")]
+    [InlineData("SELECT * FROM dbo.Lib|_Reader", "dbo", "Lib_Reader")]
+    [InlineData("SELECT * FROM [dbo].[Lib|_Reader]", "dbo", "Lib_Reader")]
+    [InlineData("SELECT * FROM dbo.[Lib|_Reader]", "dbo", "Lib_Reader")]
+    [InlineData("SELECT * FROM [dbo].Lib|_Reader", "dbo", "Lib_Reader")]
     public void 解析結構描述限定字(string text, string qualifier, string name)
     {
         var reference = FindAtMarker(text);
@@ -51,7 +51,7 @@ public sealed class SqlIdentifierScannerTests
     [Fact]
     public void 限定形式的範圍涵蓋結構描述()
     {
-        var reference = FindAtMarker("SELECT * FROM dbo.Sys|_User");
+        var reference = FindAtMarker("SELECT * FROM dbo.Lib|_Reader");
 
         Assert.NotNull(reference);
         Assert.Equal(14, reference!.Start);
@@ -71,10 +71,10 @@ public sealed class SqlIdentifierScannerTests
     [Fact]
     public void 方括號識別字內部可以解析()
     {
-        var reference = FindAtMarker("SELECT * FROM [Order De|tail]");
+        var reference = FindAtMarker("SELECT * FROM [Loan De|tail]");
 
         Assert.NotNull(reference);
-        Assert.Equal("Order Detail", reference!.Name);
+        Assert.Equal("Loan Detail", reference!.Name);
     }
 
     [Fact]
@@ -89,16 +89,16 @@ public sealed class SqlIdentifierScannerTests
     [Fact]
     public void 暫存表名稱可以解析()
     {
-        var reference = FindAtMarker("SELECT * FROM #Tem|pOrders");
+        var reference = FindAtMarker("SELECT * FROM #Tem|pLoans");
 
         Assert.NotNull(reference);
-        Assert.Equal("#TempOrders", reference!.Name);
+        Assert.Equal("#TempLoans", reference!.Name);
     }
 
     [Theory]
-    [InlineData("SELECT 'Sys|_User'")]
-    [InlineData("-- SELECT * FROM Sys|_User")]
-    [InlineData("/* Sys|_User */")]
+    [InlineData("SELECT 'Lib|_Reader'")]
+    [InlineData("-- SELECT * FROM Lib|_Reader")]
+    [InlineData("/* Lib|_Reader */")]
     public void 字串與註解內不解析(string text)
     {
         Assert.Null(FindAtMarker(text));

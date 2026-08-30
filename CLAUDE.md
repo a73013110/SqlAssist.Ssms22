@@ -21,6 +21,14 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**用相對命名空間限定（`Metadata.SqlObjectInfo`）；一律 `using` 加簡名。
 - **禁止**手動編輯 `Keywords/SqlKeywordCatalog.Generated.cs`。改
   `tools/Generate-Keywords.ps1` 後重跑，產物要進版控。
+- **禁止**把真實系統的資料表、欄位、預存程序或結構描述名稱寫進測試、註解與文件。
+  這個 repo 是公開的，識別字本身就是使用者的私有資產。測試資料一律取自同一個
+  虛構的圖書館領域：`Lib_Reader`／`Lib_Tag`（讀者與標籤，`libr`、`lr` 是它的縮寫
+  比對案例）、`PUBLISHER`／`PUBL_CODE`（全大寫底線風格）、`Cat_BookCopy`／`CopyNo`
+  （前綴加 PascalCase）、`Loan`／`LoanDetail`／`Copy`／`Branch`。需要新名字時沿用
+  這個領域，不要另起爐灶——換一套就等於再開一次「哪些字算安全」的判斷。
+  例外只有 T-SQL 本身的保留字案例（`Order`、`User`）與產品內建的片段捷徑（`ssf`），
+  那些是語言與產品事實，不是誰的 schema。
 
 ## 設定
 

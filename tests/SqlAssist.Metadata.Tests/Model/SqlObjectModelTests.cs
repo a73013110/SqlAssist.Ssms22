@@ -66,7 +66,7 @@ public sealed class SqlObjectModelTests
 
     [Theory]
     [InlineData("Lib_Reader", "[Lib_Reader]")]
-    [InlineData("Order Detail", "[Order Detail]")]
+    [InlineData("Loan Detail", "[Loan Detail]")]
     [InlineData("Weird]Name", "[Weird]]Name]")]
     public void 括住識別字並跳脫右方括號(string name, string expected)
     {
@@ -77,7 +77,7 @@ public sealed class SqlObjectModelTests
     [InlineData("Lib_Reader", true)]
     [InlineData("_temp", true)]
     [InlineData("#tmp", false)]
-    [InlineData("Order Detail", false)]
+    [InlineData("Loan Detail", false)]
     [InlineData("1Table", false)]
     [InlineData("", false)]
     public void 判斷識別字的字元形狀(string name, bool isRegular)

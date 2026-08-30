@@ -138,7 +138,7 @@ public sealed class SqlKeywordCaseTests
     [Fact]
     public void GO_進得了清單但不自動大寫()
     {
-        // 兩個字母的字太容易誤傷別名：FROM Orders go 是合法的寫法。
+        // 兩個字母的字太容易誤傷別名：FROM Loans go 是合法的寫法。
         Assert.Contains("GO", SqlKeywordCatalog.SuggestionKeywords);
         Assert.False(SqlKeywordCatalog.TryGetCanonical("go", out _));
     }
