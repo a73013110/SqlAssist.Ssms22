@@ -12,7 +12,7 @@ namespace SqlAssist.Core.Keywords;
 ///
 /// 它們只在使用者打出 <c>@@</c> 之後出現（<see cref="CompletionTarget.GlobalVariable"/>），
 /// 不混進一般清單：<c>@@</c> 開頭的名稱在 T-SQL 裡只有這一種意思，而反過來
-/// 把 31 個 <c>@@</c> 塞進每一次按鍵的候選清單，只會讓真正要找的東西更難找。
+/// 把 32 個 <c>@@</c> 塞進每一次按鍵的候選清單，只會讓真正要找的東西更難找。
 ///
 /// 位置一律是 <see cref="SqlKeywordPosition.Any"/>，與內建函式不同。理由是使用者
 /// 已經打出 <c>@@</c> 了——那個位置他要的百分之百是全域變數，此時再判一次位置，

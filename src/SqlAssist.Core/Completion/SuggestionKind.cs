@@ -41,7 +41,7 @@ public enum SuggestionKind
     /// <remarks>
     /// 與 <see cref="BuiltInFunction"/> 分開：那些名稱會混在一般清單裡參與比對，
     /// 而這一類只在使用者打出 <c>@@</c> 之後出現。混在一起的話，每一次按鍵的
-    /// 候選清單都要多背 31 個一定比不中的名稱。
+    /// 候選清單都要多背 32 個一定比不中的名稱。
     /// </remarks>
     GlobalVariable,
 
