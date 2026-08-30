@@ -137,7 +137,7 @@ public static class SqlDataTypePosition
         int index,
         HashSet<string> names)
     {
-        var open = FindOpenCall(tokens, index);
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, index - 1);
 
         return open >= 1 &&
             IsBareIdentifier(tokens[open - 1]) &&
@@ -170,7 +170,7 @@ public static class SqlDataTypePosition
             return false;
         }
 
-        var open = FindOpenCall(tokens, index);
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, index - 1);
 
         if (open < 1)
         {
@@ -194,40 +194,6 @@ public static class SqlDataTypePosition
         }
 
         return before >= 1 && IsBareIdentifier(tokens[before - 1]) && tokens[before - 1].IsKeyword("TABLE");
-    }
-
-    /// <summary>往回找還沒關上的那個左括號；沒有就回傳 -1。</summary>
-    private static int FindOpenCall(IReadOnlyList<SqlToken> tokens, int index)
-    {
-        for (var current = index - 1; current >= 0; current--)
-        {
-            var token = tokens[current];
-
-            if (token.IsPunctuation(")"))
-            {
-                var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, current);
-
-                if (open < 0)
-                {
-                    return -1;
-                }
-
-                current = open;
-                continue;
-            }
-
-            if (token.IsPunctuation(";"))
-            {
-                return -1;
-            }
-
-            if (token.IsPunctuation("("))
-            {
-                return current;
-            }
-        }
-
-        return -1;
     }
 
     private static bool IsBareIdentifier(SqlToken token)

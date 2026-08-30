@@ -57,6 +57,15 @@ public enum CompletionTarget
     Trigger,
 
     /// <summary><c>NEXT VALUE FOR</c>、<c>ALTER</c>、<c>DROP SEQUENCE</c> 之後。</summary>
-    Sequence
+    Sequence,
+
+    /// <summary><c>DATEADD(</c> 這一族的第一個引數。</summary>
+    DatePart,
+
+    /// <summary><c>WITH (</c> 的資料表提示。</summary>
+    TableHint,
+
+    /// <summary><c>OPTION (</c> 的查詢提示。</summary>
+    QueryHint
 }
 

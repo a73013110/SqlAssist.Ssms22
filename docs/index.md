@@ -82,7 +82,7 @@
 | 這件事 | 唯一出處 |
 |---|---|
 | 略過 SQL 註解與空白 | `Core/Parsing/SqlTrivia.cs` |
-| 括號配對、判斷括號後是不是查詢 | `Core/Parsing/SqlTokenNavigator.cs` |
+| 括號配對、還沒關上的左括號、判斷括號後是不是查詢 | `Core/Parsing/SqlTokenNavigator.cs` |
 | 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 識別字加括號、型別格式化 | `Metadata/Formatting/SqlIdentifier.cs`、`SqlTypeFormatter.cs` |

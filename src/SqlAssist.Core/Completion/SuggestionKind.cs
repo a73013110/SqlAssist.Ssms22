@@ -93,6 +93,15 @@ public enum SuggestionKind
     /// 與 <see cref="DataType"/> 分開：內建型別沒有結構描述，這一類有，
     /// 插入時要照物件的規則補上 <c>dbo.</c> 與方括號。
     /// </remarks>
-    UserDefinedType
+    UserDefinedType,
+
+    /// <summary><c>DATEADD</c> 這一族第一個引數的日期部分（<c>DAY</c>、<c>MONTH</c>…）。</summary>
+    DatePart,
+
+    /// <summary><c>WITH (…)</c> 的資料表提示（<c>NOLOCK</c>、<c>UPDLOCK</c>…）。</summary>
+    TableHint,
+
+    /// <summary><c>OPTION (…)</c> 的查詢提示（<c>RECOMPILE</c>、<c>MAXDOP</c>…）。</summary>
+    QueryHint
 }
 

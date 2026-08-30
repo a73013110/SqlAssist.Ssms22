@@ -102,6 +102,53 @@ public static class SqlTokenNavigator
         return -1;
     }
 
+    /// <summary>
+    /// 從 <paramref name="from"/> 起往回找出「還沒關上」的那個左括號；沒有就回傳 -1。
+    /// </summary>
+    /// <remarks>
+    /// 使用者正在打的呼叫或清單一定是還開著的那一個，因此
+    /// <c>CONVERT(</c>、<c>WITH (NOLOCK, </c>、<c>CREATE TABLE t (Id INT, </c>
+    /// 這些位置問的都是同一個問題。途中關得起來的括號整組跳過（那是引數自己的），
+    /// 分號代表前一個敘述已經結束。
+    /// </remarks>
+    public static int FindUnclosedParenthesis(IReadOnlyList<SqlToken> tokens, int from)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        for (var index = Math.Min(from, tokens.Count - 1); index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                var open = FindOpeningParenthesis(tokens, index);
+
+                if (open < 0)
+                {
+                    return -1;
+                }
+
+                index = open;
+                continue;
+            }
+
+            if (token.IsPunctuation(";"))
+            {
+                return -1;
+            }
+
+            if (token.IsPunctuation("("))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>從左括號跳到對應的右括號之後；配不起來時停在 <paramref name="end"/>。</summary>
     public static int SkipParenthesised(IReadOnlyList<SqlToken> tokens, int index, int end)
     {
