@@ -27,6 +27,19 @@ public enum CompletionTarget
     /// 這件事。也因此它與 <see cref="Database"/> 一樣可以跳過「輸入幾個字元之後
     /// 才建議」：使用者打完那兩個小老鼠時，要什麼已經說完了。
     /// </remarks>
-    GlobalVariable
+    GlobalVariable,
+
+    /// <summary>
+    /// 游標停在單一個 <c>@</c> 開頭的詞元上，因此只建議這份指令碼宣告過的變數。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="GlobalVariable"/> 一樣由正在輸入的詞元決定，差別在名稱的來源：
+    /// 那一份是系統的，這一份是使用者自己在上面幾行寫下的。
+    ///
+    /// 使用者正在<b>宣告</b>名字的位置（<c>DECLARE @</c>、<c>CREATE PROCEDURE p @</c>）
+    /// 不會走到這裡——那裡整份上下文都不算數，見
+    /// <see cref="SqlScriptVariableSuggestions.IsDeclarationSlot"/>。
+    /// </remarks>
+    Variable
 }
 

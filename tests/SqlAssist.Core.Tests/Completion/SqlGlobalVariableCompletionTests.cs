@@ -47,11 +47,12 @@ public sealed class SqlGlobalVariableCompletionTests
     }
 
     /// <summary>
-    /// 單一個小老鼠仍然不開清單。
+    /// 單一個小老鼠不是全域變數。
     /// </summary>
     /// <remarks>
-    /// 那是使用者自己取的變數或參數名稱，擴充沒有東西可以給他；
-    /// 清單彈出來的唯一效果是他順手按下 Enter，剛打的名字被換掉。
+    /// 不管那個位置是在宣告還是在引用，走的都是另一條路
+    /// （<see cref="CompletionTarget.Variable"/>，見 <c>SqlScriptVariableTests</c>）。
+    /// 兩者分開的理由就是名稱的來源不同：一份是系統的，一份是使用者自己寫的。
     /// </remarks>
     [Theory]
     [InlineData("DECLARE @")]
@@ -59,11 +60,10 @@ public sealed class SqlGlobalVariableCompletionTests
     [InlineData("SELECT @")]
     [InlineData("SELECT * FROM t WHERE a = @pa")]
     [InlineData("CREATE PROCEDURE p @loan")]
-    public void 單一個小老鼠不建議(string textBeforeCaret)
+    public void 單一個小老鼠不是全域變數(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.False(context.IsValid);
         Assert.NotEqual(CompletionTarget.GlobalVariable, context.Target);
     }
 
