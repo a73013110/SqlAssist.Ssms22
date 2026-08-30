@@ -73,7 +73,7 @@ src/SqlAssist.Ssms22         net48 VSIX
 | 元件 | 共用什麼 | 分岔的症狀 |
 |---|---|---|
 | `Core/Parsing/SqlTrivia` | 空白與註解的略過 | 巢狀區塊註解在 tokenizer 是對的，在 ALTER 改寫卻停在內層結尾 |
-| `Core/Parsing/SqlTokenNavigator` | 括號配對與跳過 | 括號不成對時，Scope 與萬用字元對同一段文字給出不同判斷 |
+| `Core/Parsing/SqlTokenNavigator` | 括號配對、跳過，以及「這個括號是不是子查詢」 | 括號不成對時，Scope 與萬用字元對同一段文字給出不同判斷；認得的開頭關鍵字分岔時，範圍分析與位置分析對同一個括號給出不同答案 |
 | `Core/Parsing/SqlColumnSourceResolver` | 別名指向哪些欄位 | 同一個衍生資料表，`a.*` 展得開、`a.` 卻一個建議都沒有 |
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |

@@ -180,6 +180,16 @@ public sealed class SqlColumnSourceResolver
         return false;
     }
 
+    /// <summary>
+    /// 指令碼裡所有 CTE 的名稱。
+    /// </summary>
+    /// <remarks>
+    /// 建議清單要在 <c>FROM</c>、<c>JOIN</c> 之後把它們列出來——那些名稱只存在於
+    /// 這份指令碼裡，中繼資料查不到。與欄位解析共用同一份名冊，
+    /// 呼叫端不必為了拿名稱再掃一次同一份文字。
+    /// </remarks>
+    public IEnumerable<string> CommonTableExpressionNames => CommonTableExpressions.Keys;
+
     private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
         _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
 

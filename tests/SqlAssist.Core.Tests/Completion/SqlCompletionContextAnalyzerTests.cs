@@ -1,4 +1,5 @@
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
@@ -132,5 +133,31 @@ public sealed class SqlCompletionContextAnalyzerTests
     public void 空白輸入不建議()
     {
         Assert.False(SqlCompletionContextAnalyzer.Analyze(string.Empty).IsValid);
+    }
+
+    /// <summary>
+    /// 衍生資料表之後只能是使用者自己取的別名，那裡不開清單。
+    /// </summary>
+    /// <remarks>
+    /// 清單裡沒有一項會是對的，而彈出來的唯一效果是使用者順手按下 Enter，
+    /// 剛打的 <c>a</c> 被換成 <c>ALTER PROCEDURE</c>——要按復原才救得回來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) ")]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) a")]
+    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) x")]
+    public void 衍生資料表的別名位置不建議(string textBeforeCaret)
+    {
+        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+    }
+
+    /// <summary>別名寫完之後就恢復正常，那裡要的是 WHERE、JOIN 這些子句關鍵字。</summary>
+    [Fact]
+    public void 別名寫完之後恢復建議()
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze("SELECT * FROM (SELECT 1 AS a) d\r\nWHE");
+
+        Assert.True(context.IsValid);
+        Assert.Equal(SqlKeywordPosition.TableSourceTail, context.KeywordPosition);
     }
 }

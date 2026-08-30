@@ -90,7 +90,10 @@ internal static class SqlCompletionFilters
         return kind switch
         {
             SuggestionKind.Column => Columns,
-            SuggestionKind.Table => Tables,
+
+            // CTE 與暫存資料表歸在「資料表」：它們在使用者眼中就是資料表，
+            // 分成兩顆按鈕只是讓他多按一次才找得到。
+            SuggestionKind.Table or SuggestionKind.ScriptDataSource => Tables,
             SuggestionKind.View => Views,
             SuggestionKind.Procedure => Procedures,
             SuggestionKind.Function or SuggestionKind.BuiltInFunction => Functions,

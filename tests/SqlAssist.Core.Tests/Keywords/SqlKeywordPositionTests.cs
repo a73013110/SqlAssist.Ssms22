@@ -75,6 +75,67 @@ public sealed class SqlKeywordPositionTests
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
     }
 
+    /// <summary>
+    /// 往回找子句關鍵字時，一整組括號要當成一個運算元跳過去。
+    /// </summary>
+    /// <remarks>
+    /// 走進括號裡撈到的是子查詢自己的子句：<c>FROM (… ON a = b) x</c> 會判成
+    /// 「JOIN 條件之後」，於是 WHERE 從清單裡消失，而那正是使用者寫完衍生資料表
+    /// 之後要打的第一個字。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (SELECT 1 AS a FROM t WHERE x = 1) d ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) d JOIN u ON d.a = u.a ",
+        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT * FROM t WHERE (a = 1) ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT * FROM t WHERE x IN (SELECT y FROM u) ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT COUNT(*) ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT * FROM t WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("SELECT * FROM (t1 JOIN t2 ON t1.x = t2.x) ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("INSERT INTO t (a, b) ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData(";WITH c AS (SELECT 1 AS a) ", SqlKeywordPosition.StatementStart)]
+    public void 括號是一個運算元不是一段路(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// 衍生資料表的右括號後面文法上只能是別名。
+    /// </summary>
+    /// <remarks>
+    /// <c>FROM (SELECT 1)</c> 少了別名就是語法錯誤，所以那裡沒有任何關鍵字是對的。
+    /// 括號是什麼由它<b>前面</b>那個字決定：同樣裝著一個 SELECT，
+    /// 接在 <c>IN</c> 後面的那個是運算式，後面不接別名。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) ")]
+    [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) ")]
+    [InlineData("SELECT * FROM t CROSS APPLY (SELECT 1 AS a) ")]
+    [InlineData("SELECT * FROM ((SELECT 1 AS a)) ")]
+    [InlineData("SELECT * FROM (VALUES (1), (2)) ")]
+    [InlineData("MERGE dbo.T AS t USING (SELECT 1 AS a) ")]
+    public void 衍生資料表之後不接受任何關鍵字(string textBeforeToken)
+    {
+        Assert.Equal(SqlKeywordPosition.None, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// 逗號代表清單再來一項，位置回到清單的起點。
+    /// </summary>
+    /// <remarks>
+    /// 判成尾端的話 <c>SELECT a, </c> 列的是 FROM、INTO、ORDER 這些接在整份選取清單
+    /// 之後的字，而 CASE、CONVERT 這些真的能寫在那裡的反而不見。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT a, ", SqlKeywordPosition.SelectList)]
+    [InlineData("SELECT * FROM t1, ", SqlKeywordPosition.DataSource)]
+    [InlineData("SELECT * FROM t WHERE a IN (1, ", SqlKeywordPosition.Predicate)]
+    [InlineData("SELECT * FROM t ORDER BY a, ", SqlKeywordPosition.Any)]
+    public void 逗號回到清單起點(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
     [Fact]
     public void 加引號的識別字不當成關鍵字()
     {
@@ -94,6 +155,18 @@ public sealed class SqlKeywordPositionTests
     [InlineData("", "RESTORE", true)]
     [InlineData("SELECT * FROM t WHERE ", "PROCEDURE", false)]
     [InlineData("CREATE ", "PROCEDURE", true)]
+
+    // JOIN 條件寫完之後同時是述詞的尾端與資料來源的尾端：AND 與 WHERE 都要在。
+    [InlineData("SELECT * FROM a JOIN b ON b.x = a.x ", "WHERE", true)]
+    [InlineData("SELECT * FROM a JOIN b ON b.x = a.x ", "AND", true)]
+    [InlineData("SELECT * FROM a JOIN b ON b.x = a.x ", "INNER", true)]
+
+    // 衍生資料表寫完、補上別名之後才輪到子句關鍵字。
+    [InlineData("SELECT * FROM (SELECT 1 AS a) d ", "WHERE", true)]
+
+    // 選取清單的下一項要的是運算式，不是接在整份清單之後的字。
+    [InlineData("SELECT a, ", "CASE", true)]
+    [InlineData("SELECT a, ", "FROM", false)]
     public void 位置過濾決定關鍵字出不出現(string textBeforeCaret, string keyword, bool expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + keyword.Substring(0, 1));

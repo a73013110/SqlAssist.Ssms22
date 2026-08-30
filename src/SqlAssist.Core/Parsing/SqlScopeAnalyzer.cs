@@ -54,20 +54,6 @@ public static class SqlScopeAnalyzer
         };
 
     /// <summary>
-    /// 緊接在左括號後面時，代表這個括號開啟了一個新的查詢範圍。
-    /// </summary>
-    /// <remarks>
-    /// 括號在 T-SQL 裡絕大多數時候只是運算式的一部分——函式呼叫、
-    /// 運算優先權、<c>IN</c> 清單、資料行清單。只有這三個字後面跟著的
-    /// 才是自己帶 FROM 子句的查詢。
-    /// </remarks>
-    private static readonly HashSet<string> QueryKeywords =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "SELECT", "WITH", "VALUES"
-        };
-
-    /// <summary>
     /// 分析游標所在的查詢範圍。
     /// </summary>
     /// <remarks>
@@ -166,7 +152,7 @@ public static class SqlScopeAnalyzer
                     // 但括號不一定開啟新的查詢：把 COUNT( 也當成子查詢的話，
                     // SELECT COUNT(a.| FROM T a 的範圍就只剩括號裡那一段，
                     // 別名 a 永遠解析不出來——那正是彙總函式裡沒有欄位建議的原因。
-                    if (OpensQuery(tokens, i))
+                    if (SqlTokenNavigator.OpensQuery(tokens, i))
                     {
                         return i + 1;
                     }
@@ -198,28 +184,6 @@ public static class SqlScopeAnalyzer
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// <paramref name="index"/> 的左括號後面是不是一個查詢。
-    /// </summary>
-    /// <remarks>
-    /// 巢狀括號要看穿：<c>((SELECT …))</c> 的外層也是查詢的開頭。用迴圈而不是遞迴——
-    /// 一份全是左括號的文字不該讓分析器把堆疊用完。
-    /// </remarks>
-    private static bool OpensQuery(IReadOnlyList<SqlToken> tokens, int index)
-    {
-        var next = index + 1;
-
-        while (next < tokens.Count && tokens[next].IsPunctuation("("))
-        {
-            next++;
-        }
-
-        return next < tokens.Count
-            && tokens[next].Kind == SqlTokenKind.Identifier
-            && !tokens[next].IsQuoted
-            && QueryKeywords.Contains(tokens[next].Value);
     }
 
     private static int FindScopeEnd(IReadOnlyList<SqlToken> tokens, int start)

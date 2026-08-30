@@ -13,6 +13,51 @@ namespace SqlAssist.Core.Parsing;
 /// </remarks>
 public static class SqlTokenNavigator
 {
+    /// <summary>
+    /// 緊接在左括號後面時，代表這個括號開啟了一個新的查詢範圍。
+    /// </summary>
+    /// <remarks>
+    /// 括號在 T-SQL 裡絕大多數時候只是運算式的一部分——函式呼叫、
+    /// 運算優先權、<c>IN</c> 清單、資料行清單。只有這三個字後面跟著的
+    /// 才是自己帶 FROM 子句的查詢。
+    /// </remarks>
+    private static readonly HashSet<string> QueryKeywords =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "SELECT", "WITH", "VALUES"
+        };
+
+    /// <summary>
+    /// <paramref name="open"/> 的左括號後面是不是一個查詢。
+    /// </summary>
+    /// <remarks>
+    /// 巢狀括號要看穿：<c>((SELECT …))</c> 的外層也是查詢的開頭。用迴圈而不是遞迴——
+    /// 一份全是左括號的文字不該讓分析器把堆疊用完。
+    ///
+    /// 與括號配對放在一起是因為兩者永遠一起用：範圍分析要它區分子查詢與
+    /// <c>COUNT(</c>，位置分析要它區分衍生資料表與函式引數。各寫一份的話，
+    /// 其中一邊多認得一個開頭關鍵字，另一邊就會對同一段文字得到不同的答案。
+    /// </remarks>
+    public static bool OpensQuery(IReadOnlyList<SqlToken> tokens, int open)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        var next = open + 1;
+
+        while (next < tokens.Count && tokens[next].IsPunctuation("("))
+        {
+            next++;
+        }
+
+        return next < tokens.Count
+            && tokens[next].Kind == SqlTokenKind.Identifier
+            && !tokens[next].IsQuoted
+            && QueryKeywords.Contains(tokens[next].Value);
+    }
+
     /// <summary>從 <paramref name="open"/> 起找出對應的右括號；配不起來時回傳 -1。</summary>
     public static int FindClosingParenthesis(IReadOnlyList<SqlToken> tokens, int open, int end)
     {

@@ -205,6 +205,10 @@ public static class SuggestionMatcher
 
             // 只有 USE 之後才會出現，那個位置沒有別的東西跟它競爭。
             SuggestionKind.Database => 25,
+
+            // 排在資料表之上：這個名稱是使用者在同一份指令碼裡剛取的，
+            // 他會去 FROM 後面補字，正是因為還沒背起來。
+            SuggestionKind.ScriptDataSource => 22,
             SuggestionKind.Table => 20,
             SuggestionKind.View => 18,
             SuggestionKind.Procedure => 16,
@@ -218,7 +222,11 @@ public static class SuggestionMatcher
     {
         return target switch
         {
-            CompletionTarget.DataSource => kind == SuggestionKind.Table || kind == SuggestionKind.View,
+            // 指令碼宣告的 CTE 與暫存資料表在這個位置與資料表完全同格：
+            // FROM 後面接得了它們，而它們不在中繼資料裡。
+            CompletionTarget.DataSource => kind is SuggestionKind.Table
+                or SuggestionKind.View
+                or SuggestionKind.ScriptDataSource,
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
             CompletionTarget.Function => kind == SuggestionKind.Function,
             CompletionTarget.Column => kind == SuggestionKind.Column,

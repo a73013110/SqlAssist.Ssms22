@@ -27,6 +27,20 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
+        // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
+        // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
+        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
+            textBeforeCaret.Substring(0, tokenStart));
+
+        // 這個位置文法上只能是使用者自己取的名字（衍生資料表的別名），
+        // 清單裡沒有一項會是對的。彈出來的唯一效果是使用者順手按下 Enter，
+        // 剛打的 a 被換成 ALTER PROCEDURE——那是要按復原才救得回來的損失，
+        // 而少一份清單只是少了兩個字母的補字。
+        if (keywordPosition == SqlKeywordPosition.None)
+        {
+            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+        }
+
         var prefix = textBeforeCaret.Substring(tokenStart);
         var beforeToken = textBeforeCaret.Substring(0, tokenStart).TrimEnd();
         var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
@@ -35,11 +49,6 @@ public static class SqlCompletionContextAnalyzer
             out var targetKeywordStart,
             out var intent);
         var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifier is not null;
-
-        // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
-        // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
-        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
-            textBeforeCaret.Substring(0, tokenStart));
 
         return new SqlCompletionContext(
             isValid,
@@ -91,7 +100,13 @@ public static class SqlCompletionContextAnalyzer
 
         if (context.Qualifier is null)
         {
-            return withScope;
+            // CTE 與暫存資料表只存在於這份指令碼裡，中繼資料查不到它們。
+            // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
+            // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
+            return context.Target == CompletionTarget.DataSource
+                ? withScope.WithScriptSources(
+                    SqlScriptDataSourceSuggestions.Create(tokens, resolver.CommonTableExpressionNames))
+                : withScope;
         }
 
         // 前方關鍵字已經指定了物件類別（FROM、JOIN、EXEC…），代表游標正在輸入
