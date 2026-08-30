@@ -24,6 +24,18 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
 （.NET 10 SDK 不再支援 VSTest 轉接層）。
 
+### push 前自動跑測試
+
+版本庫附了一個 `pre-push` hook。git 不會自動套用版控裡的 hook，clone 之後要手動
+指一次：
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+之後每次 `git push` 都會先跑 `Run-CoreTests.ps1`，失敗就擋下來。真的要略過時用
+`git push --no-verify`。
+
 ## 工具腳本的共用設定
 
 SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪裡」全部在
@@ -88,6 +100,26 @@ Tag 不參與版號計算，加不加都不影響建置結果。
 `Deploy-DebugExtension.ps1` 只比對已安裝與建置版號的 `major.minor`。兩者不同時
 代表 pkgdef、vsct 或 Manifest 的註冊內容已經改變，必須重跑 `Install-Extension.ps1`，
 光覆蓋 DLL 不夠。
+
+## 發布
+
+```powershell
+.\tools\Publish-Release.ps1
+```
+
+腳本會依序確認發布前提（在 `master`、工作樹乾淨、本機沒有領先遠端、`gh` 已登入）、
+跑測試、建 VSIX，然後以產物的 Identity 版號打 tag，在 GitHub 上建立**草稿** Release
+並附上 VSIX。
+
+**草稿是刻意的，不要改成直接發布。** VSIX 有一種只在實機才看得出來的失敗：MEF
+匯出型別的命名空間變動後，SSMS 的元件快取會安靜地讓那些部件建立失敗——沒有例外、
+沒有記錄，只有「功能整組消失」。`Test-VsixPackage.ps1` 驗得了封裝內容，驗不了這件事。
+所以最後一關必須是人：把草稿的 VSIX 裝進 SSMS 確認過，再到 GitHub 按 Publish。
+
+同一個 commit 只發布一次。tag 已存在時腳本會擋下來——有新變更就先 commit，
+版號的 height 會自己往前。
+
+這也是這個專案不架 CI 建置 VSIX 的原因：CI 複製得了建置，複製不了上面那一關。
 
 ## 安裝
 

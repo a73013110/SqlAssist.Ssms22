@@ -100,6 +100,57 @@ function Get-SqlAssistVsixPath {
 
 <#
 .SYNOPSIS
+    建置產物 VSIX 的 Identity 版號。
+
+.DESCRIPTION
+    發布時的版號一律從產物讀回來，不從 version.json 自己算：版號第三段是 git
+    height，只有建置完才確定，自己算的值會與實際包出去的那一個分歧，而 Release
+    頁面標的版本與使用者安裝到的版本對不起來時無從查起。
+
+    `Test-VsixPackage.ps1` 另有一份讀取 Manifest 的程式碼，因為它是在單次開啟
+    封存的過程中順帶驗證，不只是取值。兩邊的 XPath 若分歧，`Build-Extension.ps1`
+    裡的那一份會先擲出例外，不會安靜地讓錯的版號流到 Release。
+#>
+function Get-SqlAssistVsixVersion {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$VsixPath)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($VsixPath)
+
+    try {
+        $entry = $archive.GetEntry('extension.vsixmanifest')
+
+        if (-not $entry) {
+            throw "VSIX 缺少 extension.vsixmanifest：$VsixPath"
+        }
+
+        $reader = [System.IO.StreamReader]::new($entry.Open())
+
+        try {
+            [xml]$manifest = $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+
+    $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
+    $namespace.AddNamespace('vsix', 'http://schemas.microsoft.com/developer/vsx-schema/2011')
+    $identity = $manifest.SelectSingleNode('//vsix:Identity', $namespace)
+
+    if (-not $identity) {
+        throw "VSIX 的 Manifest 沒有 Identity：$VsixPath"
+    }
+
+    return [string]$identity.Version
+}
+
+<#
+.SYNOPSIS
     找出已安裝的 SqlAssist，回傳版號與所在資料夾。
 
 .DESCRIPTION
@@ -170,5 +221,6 @@ Export-ModuleMember -Function `
     Get-SsmsVsixInstaller, `
     Get-SqlAssistExtensionId, `
     Get-SqlAssistVsixPath, `
+    Get-SqlAssistVsixVersion, `
     Get-SqlAssistInstallation, `
     Assert-SsmsClosed
