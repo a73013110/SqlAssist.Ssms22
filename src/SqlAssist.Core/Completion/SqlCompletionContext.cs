@@ -9,6 +9,8 @@ public sealed class SqlCompletionContext
 {
     private static readonly IReadOnlyList<SqlColumnSource> NoSources = Array.Empty<SqlColumnSource>();
 
+    private static readonly IReadOnlyList<SqlSuggestion> NoScriptSources = Array.Empty<SqlSuggestion>();
+
     public SqlCompletionContext(
         bool isValid,
         int tokenStart,
@@ -19,8 +21,10 @@ public sealed class SqlCompletionContext
         CompletionIntent intent = CompletionIntent.Reference,
         IReadOnlyList<SqlColumnSource>? columnSources = null,
         SqlKeywordPosition keywordPosition = SqlKeywordPosition.Any,
-        IReadOnlyList<SqlColumnSource>? scopeSources = null)
+        IReadOnlyList<SqlColumnSource>? scopeSources = null,
+        IReadOnlyList<SqlSuggestion>? scriptSources = null)
     {
+        ScriptSources = scriptSources ?? NoScriptSources;
         IsValid = isValid;
         TokenStart = tokenStart;
         Prefix = prefix;
@@ -74,6 +78,16 @@ public sealed class SqlCompletionContext
     public IReadOnlyList<SqlColumnSource> ScopeSources { get; }
 
     /// <summary>
+    /// 這份指令碼自己宣告的資料來源：CTE 與暫存資料表。
+    /// </summary>
+    /// <remarks>
+    /// 只有游標落在資料來源位置（<c>FROM </c>、<c>JOIN </c>…）而且沒有限定字時
+    /// 才有內容。其餘位置留空是刻意的：掃描不必要的話就不掃，
+    /// 而這條路徑在每一次按鍵上。
+    /// </remarks>
+    public IReadOnlyList<SqlSuggestion> ScriptSources { get; }
+
+    /// <summary>
     /// 決定 <see cref="Target"/> 的關鍵字在原文中的起點，例如 <c>ALTER PROCEDURE</c> 的
     /// <c>ALTER</c>。<see cref="Target"/> 為 <see cref="CompletionTarget.Any"/> 時為 -1。
     /// 提交時要替換整個語句（而不只是游標前的字）就靠這個位置。
@@ -107,6 +121,24 @@ public sealed class SqlCompletionContext
             Intent,
             ColumnSources,
             KeywordPosition,
+            sources,
+            ScriptSources);
+    }
+
+    /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
+    internal SqlCompletionContext WithScriptSources(IReadOnlyList<SqlSuggestion> sources)
+    {
+        return new SqlCompletionContext(
+            IsValid,
+            TokenStart,
+            Prefix,
+            Target,
+            Qualifier,
+            TargetKeywordStart,
+            Intent,
+            ColumnSources,
+            KeywordPosition,
+            ScopeSources,
             sources);
     }
 
@@ -123,6 +155,7 @@ public sealed class SqlCompletionContext
             CompletionIntent.Reference,
             sources,
             KeywordPosition,
-            ScopeSources);
+            ScopeSources,
+            ScriptSources);
     }
 }

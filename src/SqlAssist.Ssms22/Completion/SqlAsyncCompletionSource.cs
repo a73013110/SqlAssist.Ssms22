@@ -234,7 +234,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 .ConfigureAwait(false);
         }
 
-        var builtIn = GetBuiltIn().Where(item => IsBuiltInEnabled(item, settings));
+        // 指令碼自己宣告的 CTE 與暫存資料表不必對資料庫送出任何查詢，
+        // 因此與「列出資料庫物件」的設定無關——關掉那個設定的人要的是
+        // 「不要連線」，不是「看不到我上一行才寫的名稱」。
+        var builtIn = GetBuiltIn()
+            .Where(item => IsBuiltInEnabled(item, settings))
+            .Concat(context.ScriptSources);
 
         if (!settings.IncludeDatabaseObjects)
         {
