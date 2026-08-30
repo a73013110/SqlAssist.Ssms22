@@ -61,7 +61,11 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT ", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT a ", SqlKeywordPosition.SelectListTail)]
     [InlineData("SELECT * FROM ", SqlKeywordPosition.DataSource)]
-    [InlineData("SELECT * FROM t ", SqlKeywordPosition.TableSourceTail)]
+
+    // 樣板是 SELECT * FROM t {關鍵字}，但那一行的同一個位置也是別名的位置，
+    // 而別名一定寫在同一行——換行之後才是純粹的資料來源尾端。
+    // 兩者的分野見「資料來源之後的別名位置不接受任何關鍵字」。
+    [InlineData("SELECT * FROM t\r\n", SqlKeywordPosition.TableSourceTail)]
     [InlineData("SELECT * FROM t WHERE ", SqlKeywordPosition.Predicate)]
     [InlineData("SELECT * FROM t WHERE a = 1 ", SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT * FROM t ORDER ", SqlKeywordPosition.ByAnchor)]
@@ -148,6 +152,63 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
+    /// 資料來源之後、別名還沒寫，而且沒有換行——那是別名的位置。
+    /// </summary>
+    /// <remarks>
+    /// 沒有 <c>AS</c> 的別名與打到一半的子句關鍵字在剖析器眼中一模一樣，
+    /// 唯一分得開的線索是換行：別名一定寫在資料來源的同一行，
+    /// 而子句與下一個敘述幾乎總是換行寫。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM CTE_TEST ")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER ")]
+    [InlineData("SELECT * FROM a INNER JOIN dbo.Cat_BookCopy ")]
+    [InlineData("SELECT * FROM dbo.a, dbo.b ")]
+    [InlineData("SELECT * FROM [dbo].[PUBLISHER] ")]
+    public void 資料來源之後的別名位置不接受任何關鍵字(string textBeforeToken)
+    {
+        Assert.Equal(SqlKeywordPosition.None, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// 別名寫完、或者游標已經換行，就恢復成一般的資料來源尾端。
+    /// </summary>
+    /// <remarks>
+    /// 這裡每一項都是「猜錯就打不出來」的字：換行之後要接得了 WHERE 與下一個
+    /// SELECT，別名寫完之後要接得了 INNER。少了任何一項，這個修正就從一個問題
+    /// 換成另一個問題。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM CTE_TEST a ")]
+    [InlineData("SELECT * FROM CTE_TEST AS a ")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER\r\n")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER\n")]
+    [InlineData("SELECT * FROM dbo.T WITH (NOLOCK) ")]
+    public void 別名寫完或換行之後恢復成資料來源尾端(string textBeforeToken)
+    {
+        Assert.Equal(
+            SqlKeywordPosition.TableSourceTail,
+            SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// 選取清單的別名不比照辦理。
+    /// </summary>
+    /// <remarks>
+    /// <c>SELECT PublCode FROM …</c> 是最常打的一行，而 <c>PublCode</c> 之後同樣
+    /// 只有一個名稱單位。連選取清單一起收掉的話，換來的是 <c>FROM</c> 打不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT PublCode ")]
+    [InlineData("SELECT a, b ")]
+    public void 選取清單尾端照常(string textBeforeToken)
+    {
+        Assert.Equal(
+            SqlKeywordPosition.SelectListTail,
+            SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
     /// 變數與參數的名字是使用者自己取的，而擴充完全不提供變數名稱。
     /// </summary>
     /// <remarks>
@@ -186,10 +247,11 @@ public sealed class SqlKeywordPositionTests
     public void 加引號的識別字不當成關鍵字()
     {
         // FROM [FROM] 裡的 [FROM] 是資料表名稱，游標在它後面是資料來源之後、
-        // 不是 FROM 之後。
+        // 不是 FROM 之後。當成關鍵字的話這裡會是 DataSource。
+        // 換行寫是為了避開別名的位置，那是另一條規則。
         Assert.Equal(
             SqlKeywordPosition.TableSourceTail,
-            SqlKeywordPositionAnalyzer.Analyze("SELECT * FROM [FROM] "));
+            SqlKeywordPositionAnalyzer.Analyze("SELECT * FROM [FROM]\r\n"));
     }
 
     [Theory]

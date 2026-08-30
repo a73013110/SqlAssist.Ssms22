@@ -120,6 +120,7 @@ SELECT * FROM t WHERE → EXISTS、NOT、CASE…（22 個）
 |---|---|
 | `FROM (SELECT …) ` | 衍生資料表的別名是文法強制的，少了它就是語法錯誤 |
 | `FROM t AS `、`SELECT x AS `、`JOIN (…) AS ` | `AS` 前面是一項寫完的運算式或資料來源 |
+| `FROM CTE_TEST `、`JOIN dbo.T `（同一行） | 資料來源之後、別名還沒寫，見下 |
 | `DECLARE @`、`SELECT @`、`WHERE a = @` | 變數與參數的名稱；擴充完全不提供變數名稱 |
 
 括號是什麼由它**前面**那個字決定，而不是由裡面裝什麼決定：同樣裝著一個 `SELECT`，
@@ -135,9 +136,31 @@ SELECT * FROM t WHERE → EXISTS、NOT、CASE…（22 個）
 而不是位元交集：判不出位置時回傳的 `Any` 含著那兩個旗標，用交集的話 fail-open 就
 不 open 了。
 
-**沒有** `AS` 的別名位置（`FROM dbo.PUBLISHER ` 之後直接打 `a`）不在這裡：那個位置
-使用者同樣可能在打 `WHERE`、`JOIN`、`ORDER`，文法兩種都成立。猜錯的代價是他永遠
-打不出 `WHERE`，比清單多幾項嚴重得多。
+#### 沒有 AS 的別名靠換行分辨
+
+`FROM dbo.PUBLISHER ` 之後直接打 `a` 也是別名，但這個位置文法上同時接得了 `WHERE`、
+`INNER`、`ORDER`，而**打到一半的 `WHE` 與別名在剖析器眼中一模一樣**——文法給不出
+答案，前綴也給不出（`a` 正好是 `AS`、`APPLY` 的前綴）。
+
+唯一分得開的線索是**換行**：別名一定寫在資料來源的同一行，而子句與下一個敘述幾乎
+總是換行寫。因此規則是「資料來源之後只有一個名稱單位，而且沒有換行」：
+
+```text
+FROM CTE_TEST |              → 別名的位置，不開清單
+FROM dbo.PUBLISHER |          → 同上；帶點號的名稱算一個單位
+FROM a INNER JOIN dbo.T |    → 同上
+FROM CTE_TEST a |            → 兩個單位＝別名寫完了，INNER、WHERE 照常
+FROM CTE_TEST AS a |         → 同上，AS 不算單位
+FROM dbo.PUBLISHER ⏎          → 換行了，WHERE 與下一個 SELECT 照常
+```
+
+代價是「同一行、沒有別名」時打 `WHE`、`INN` 沒有清單。這是刻意換的：**打不出補字
+的代價是多按兩下，別名被清單換掉的代價是按復原**，而且關鍵字轉大寫仍然會把 `where`
+補成 `WHERE`，沒有任何字因此變得打不出來。換行之後（也就是幾乎所有人寫子句的方式）
+一切照舊。
+
+選取清單**不**比照辦理。`SELECT PublCode ` 之後同樣只有一個名稱單位，但那一行接著
+要打的是 `FROM`——那是最常打的一個字，收掉它換來的問題比解決的大。
 
 ## 內建函式
 
