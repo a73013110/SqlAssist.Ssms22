@@ -354,6 +354,11 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 日期部分只收完整名稱，不收 `yy`、`dd` 這些縮寫：縮寫背得起來的人不需要補字，
 而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
 
+已知會誤判的是別種 `WITH (…)`：`CREATE INDEX … WITH (FILLFACTOR = 80)` 與
+`OPENJSON(…) WITH (col int '$.x')` 也會列出資料表提示。沒有為它們再加判斷，
+是因為那兩個位置本來也沒有正確答案——前者要的是索引選項，後者要的是使用者自己取的
+資料行名稱，換掉的只是一份同樣不對的關鍵字清單。
+
 `SET NOCOUNT ON` 這一類的工作階段選項**沒有**收進來。位置分不開：位置分析看到
 `SET` 一律回報同一個位置，而 `UPDATE t SET |` 要的是資料行，跟 `SET NOCOUNT` 完全
 相反。要分開得往回找 `UPDATE`／`MERGE`，那條路的成本高過它省下的幾個字。
