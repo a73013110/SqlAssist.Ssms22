@@ -22,6 +22,7 @@
 
 | 文件 | 內容 |
 |---|---|
+| [index.md](docs/index.md) | 從「我要改什麼」或手上的檔案路徑，找到該讀的文件與該進入的程式碼 |
 | [architecture.md](docs/architecture.md) | 三個專案的分層、資料夾規則、為什麼改用平台原生管線 |
 | [completion.md](docs/completion.md) | 建議清單、關鍵字目錄、內建函式、自動大寫、上下文與欄位建議 |
 | [snippets.md](docs/snippets.md) | 程式碼片段的格式、佔位符與接續行為 |
