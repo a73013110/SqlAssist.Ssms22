@@ -144,7 +144,8 @@ public static class SqlKeywordPositionAnalyzer
     /// <returns>
     /// 文法允許的位置；判不出來時是 <see cref="SqlKeywordPosition.Any"/>。
     /// <see cref="SqlKeywordPosition.None"/> 代表這裡<b>不接受任何關鍵字</b>，
-    /// 目前只有一種情形：衍生資料表的右括號後面必須是別名。
+    /// 而那一律是因為文法要求的是一個使用者自己取的名字——見
+    /// <see cref="AfterGroup"/> 與 <see cref="IntroducesAlias"/>。
     /// </returns>
     public static SqlKeywordPosition Analyze(string textBeforeToken)
     {
@@ -155,12 +156,26 @@ public static class SqlKeywordPositionAnalyzer
 
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
 
-        if (tokens.Count == 0)
+        return AnalyzeAt(tokens, tokens.Count - 1, followAlias: true);
+    }
+
+    /// <summary>
+    /// 分析 <paramref name="last"/> 這個詞元之後的位置。
+    /// </summary>
+    /// <param name="followAlias">
+    /// 允許為了判斷 <c>AS</c> 是不是別名而再往前看一格。這是唯一的一層遞迴，
+    /// 而且只有一層：<c>AS AS</c> 這種寫不出來的東西不該讓分析器把堆疊用完。
+    /// </param>
+    private static SqlKeywordPosition AnalyzeAt(
+        IReadOnlyList<SqlToken> tokens,
+        int last,
+        bool followAlias)
+    {
+        if (last < 0)
         {
             return SqlKeywordPosition.StatementStart;
         }
 
-        var last = tokens.Count - 1;
         var token = tokens[last];
 
         if (token.IsPunctuation(";"))
@@ -179,6 +194,15 @@ public static class SqlKeywordPositionAnalyzer
             return AfterGroup(tokens, last);
         }
 
+        // 使用者正在打一個變數或參數的名字。那個名字是他自己取的，
+        // 而且擴充完全不提供變數名稱——清單裡沒有一項會是對的。
+        if (token.Kind == SqlTokenKind.Variable)
+        {
+            return IsBareAtSign(token.Value)
+                ? SqlKeywordPosition.None
+                : FindClausePosition(tokens, last);
+        }
+
         if (token.Kind is SqlTokenKind.Punctuation or SqlTokenKind.Operator)
         {
             return SqlKeywordPosition.Any;
@@ -187,6 +211,13 @@ public static class SqlKeywordPositionAnalyzer
         // 加引號的識別字是名稱不是關鍵字：[FROM] 之後不是資料來源位置。
         if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted)
         {
+            if (followAlias && token.IsKeyword("AS"))
+            {
+                return IntroducesAlias(tokens, last)
+                    ? SqlKeywordPosition.None
+                    : SqlKeywordPosition.Any;
+            }
+
             if (AfterKeyword.TryGetValue(token.Value, out var position))
             {
                 return position;
@@ -200,12 +231,68 @@ public static class SqlKeywordPositionAnalyzer
 
             if (SqlKeywordCatalog.IsKeyword(token.Value))
             {
-                // 認得但沒有對應位置的關鍵字（THEN、ELSE、AS…），不猜。
+                // 認得但沒有對應位置的關鍵字（THEN、ELSE…），不猜。
                 return SqlKeywordPosition.Any;
             }
         }
 
         return FindClausePosition(tokens, last);
+    }
+
+    /// <summary>
+    /// <paramref name="asIndex"/> 的 <c>AS</c> 後面接的是別名，而不是別的東西。
+    /// </summary>
+    /// <remarks>
+    /// <c>AS</c> 在 T-SQL 裡接兩種完全不同的東西，而分辨它們的線索不在後面
+    /// （後面還沒打出來）而在前面：
+    ///
+    /// <list type="bullet">
+    /// <item>一個運算式或一個資料來源剛寫完 → 後面是<b>別名</b>：
+    /// <c>SELECT x AS </c>、<c>FROM t AS </c>、<c>FROM (SELECT …) AS </c>。</item>
+    /// <item>其餘 → 後面不是名字，清單照常：<c>CREATE PROCEDURE p AS </c> 之後
+    /// 是主體，<c>CAST(x AS </c> 之後是型別，<c>EXECUTE AS </c> 之後是 USER。</item>
+    /// </list>
+    ///
+    /// 所以問的是同一個問題：<c>AS</c> 那個位置本來是什麼位置。
+    /// 選取清單尾端與資料來源尾端代表「一項寫完了」，
+    /// <see cref="SqlKeywordPosition.None"/> 則是衍生資料表——它的別名本來就是
+    /// 文法強制的，多一個 <c>AS</c> 不改變這件事。
+    ///
+    /// 比的是<b>整個值相等</b>而不是位元交集：判不出位置時回傳的
+    /// <see cref="SqlKeywordPosition.Any"/> 含著上面那兩個旗標，用交集的話
+    /// <c>CREATE PROCEDURE p AS </c> 也會被當成別名，主體開頭的 BEGIN、SELECT
+    /// 就整組消失——這裡的 fail-open 必須真的 open。
+    /// </remarks>
+    private static bool IntroducesAlias(IReadOnlyList<SqlToken> tokens, int asIndex)
+    {
+        return AnalyzeAt(tokens, asIndex - 1, followAlias: false) switch
+        {
+            SqlKeywordPosition.None => true,
+            SqlKeywordPosition.SelectListTail => true,
+            SqlKeywordPosition.TableSourceTail => true,
+            _ => false
+        };
+    }
+
+    /// <summary>
+    /// 這個變數詞元只有小老鼠，名字還沒打。
+    /// </summary>
+    /// <remarks>
+    /// 位置分析拿到的是「不含正在輸入的那個詞元」的文字，所以 <c>@pub</c> 打到一半時
+    /// 這裡看到的是 <c>@</c>。<c>@@</c> 也算：系統函式與變數在這一層分不出來，
+    /// 而兩者擴充都不提供。
+    /// </remarks>
+    private static bool IsBareAtSign(string value)
+    {
+        foreach (var character in value)
+        {
+            if (character != '@')
+            {
+                return false;
+            }
+        }
+
+        return value.Length > 0;
     }
 
     /// <summary>

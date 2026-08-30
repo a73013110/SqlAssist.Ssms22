@@ -120,6 +120,52 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
+    /// <c>AS</c> 後面接的是不是名字，看的是它<b>前面</b>。
+    /// </summary>
+    /// <remarks>
+    /// 一個運算式或一個資料來源剛寫完，後面就是別名；其餘的 <c>AS</c> 接的是
+    /// 主體、型別或執行身分，那些位置清單照常。分不出來的話兩種都會壞：
+    /// 一邊是別名被清單換掉，另一邊是預存程序主體開頭打不出 BEGIN。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM (SELECT 1 AS a) AS ", true)]
+    [InlineData("SELECT * FROM dbo.PUBLISHER AS ", true)]
+    [InlineData("SELECT * FROM a JOIN b AS ", true)]
+    [InlineData("SELECT * FROM a CROSS APPLY dbo.fn(1) AS ", true)]
+    [InlineData("SELECT x.PUBL_CODE AS ", true)]
+    [InlineData("SELECT x.a, x.b AS ", true)]
+    [InlineData("CREATE PROCEDURE dbo.p AS ", false)]
+    [InlineData("CREATE PROCEDURE dbo.p @a int AS ", false)]
+    [InlineData("CREATE VIEW v AS ", false)]
+    [InlineData("CREATE FUNCTION f() RETURNS TABLE AS ", false)]
+    [InlineData("CREATE TRIGGER t ON dbo.T AFTER INSERT AS ", false)]
+    [InlineData("EXECUTE AS ", false)]
+    public void AS之後是別名還是別的東西(string textBeforeToken, bool isAlias)
+    {
+        var expected = isAlias ? SqlKeywordPosition.None : SqlKeywordPosition.Any;
+
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// 變數與參數的名字是使用者自己取的，而擴充完全不提供變數名稱。
+    /// </summary>
+    /// <remarks>
+    /// 位置分析拿到的是「不含正在輸入的那個詞元」的文字，所以 <c>@pub</c> 打到一半時
+    /// 這裡看到的是 <c>@</c>。名字打完之後就恢復正常。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @", SqlKeywordPosition.None)]
+    [InlineData("SELECT @", SqlKeywordPosition.None)]
+    [InlineData("SELECT @@", SqlKeywordPosition.None)]
+    [InlineData("SELECT * FROM t WHERE a = @", SqlKeywordPosition.None)]
+    [InlineData("SELECT @x ", SqlKeywordPosition.SelectListTail)]
+    public void 變數名稱的位置不接受任何關鍵字(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
     /// 逗號代表清單再來一項，位置回到清單的起點。
     /// </summary>
     /// <remarks>

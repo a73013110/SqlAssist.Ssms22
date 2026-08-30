@@ -32,10 +32,10 @@ public static class SqlCompletionContextAnalyzer
         var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
             textBeforeCaret.Substring(0, tokenStart));
 
-        // 這個位置文法上只能是使用者自己取的名字（衍生資料表的別名），
-        // 清單裡沒有一項會是對的。彈出來的唯一效果是使用者順手按下 Enter，
-        // 剛打的 a 被換成 ALTER PROCEDURE——那是要按復原才救得回來的損失，
-        // 而少一份清單只是少了兩個字母的補字。
+        // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
+        // 變數與參數的名稱。清單裡沒有一項會是對的，而彈出來的唯一效果是使用者
+        // 順手按下 Enter，剛打的 a 被換成 ALTER PROCEDURE——那是要按復原才救得回來
+        // 的損失，而少一份清單只是少了幾個字母的補字。
         if (keywordPosition == SqlKeywordPosition.None)
         {
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
