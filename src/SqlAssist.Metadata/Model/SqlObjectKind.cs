@@ -11,7 +11,12 @@ public enum SqlObjectKind
     ScalarFunction,
     InlineTableFunction,
     TableValuedFunction,
-    Synonym
+    Synonym,
+    Trigger,
+    Sequence,
+
+    /// <summary>使用者自訂資料表型別；<c>DECLARE @t dbo.XType</c> 的那個型別。</summary>
+    TableType
 }
 
 public static class SqlObjectKinds
@@ -28,6 +33,12 @@ public static class SqlObjectKinds
             "IF" => SqlObjectKind.InlineTableFunction,
             "TF" or "FT" => SqlObjectKind.TableValuedFunction,
             "SN" => SqlObjectKind.Synonym,
+            "TR" or "TA" => SqlObjectKind.Trigger,
+            "SO" => SqlObjectKind.Sequence,
+
+            // TT 不是 sys.objects 的型別代碼，是查詢把 sys.table_types
+            // UNION 進來時自己貼的標籤，與同義字的 SN 同一個做法。
+            "TT" => SqlObjectKind.TableType,
             _ => SqlObjectKind.Unknown
         };
     }
@@ -43,9 +54,13 @@ public static class SqlObjectKinds
     }
 
     /// <summary>是否具有欄位集合。</summary>
+    /// <remarks>
+    /// 資料表型別算在內：它的欄位在 <c>sys.columns</c> 裡查得到，
+    /// 查詢用的正是 <c>sys.table_types.type_table_object_id</c>。
+    /// </remarks>
     public static bool HasColumns(this SqlObjectKind kind)
     {
-        return kind is SqlObjectKind.Table or SqlObjectKind.View;
+        return kind is SqlObjectKind.Table or SqlObjectKind.View or SqlObjectKind.TableType;
     }
 
     /// <summary>是否為以 T-SQL 定義、可取得原始程式碼的模組。</summary>
@@ -55,6 +70,7 @@ public static class SqlObjectKinds
             or SqlObjectKind.ScalarFunction
             or SqlObjectKind.InlineTableFunction
             or SqlObjectKind.TableValuedFunction
+            or SqlObjectKind.Trigger
             or SqlObjectKind.View;
     }
 
@@ -79,6 +95,9 @@ public static class SqlObjectKinds
             SqlObjectKind.InlineTableFunction => "Inline table function",
             SqlObjectKind.TableValuedFunction => "Table-valued function",
             SqlObjectKind.Synonym => "Synonym",
+            SqlObjectKind.Trigger => "Trigger",
+            SqlObjectKind.Sequence => "Sequence",
+            SqlObjectKind.TableType => "Table type",
             _ => "Object"
         };
     }

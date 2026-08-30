@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
@@ -60,14 +60,29 @@ public static class SqlDataTypePosition
             throw new ArgumentNullException(nameof(tokens));
         }
 
-        var last = tokens.Count - 1;
+        return IsDataTypeSlot(tokens, tokens.Count - 1);
+    }
 
+    /// <summary>
+    /// 判斷 <paramref name="last"/> 這個詞元之後是不是型別的位置。
+    /// </summary>
+    /// <remarks>
+    /// 帶索引是為了限定字：<c>DECLARE @t dbo.|</c> 的最後兩個詞元是使用者自訂型別的
+    /// 結構描述與點號，把它們跳過去問同一個問題，答案就是原本那個位置的答案。
+    /// </remarks>
+    private static bool IsDataTypeSlot(IReadOnlyList<SqlToken> tokens, int last)
+    {
         if (last < 0)
         {
             return false;
         }
 
         var token = tokens[last];
+
+        if (token.IsPunctuation(".") && last >= 1 && IsBareIdentifier(tokens[last - 1]))
+        {
+            return IsDataTypeSlot(tokens, last - 2);
+        }
 
         // DECLARE @rows |、DECLARE @a INT, @b |、CREATE PROCEDURE p @readerId |
         // ——變數落在宣告的位置上，它後面就只能是型別。

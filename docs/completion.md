@@ -359,6 +359,9 @@ SELECT * FROM dbo.Loan WHERE ReaderId = @|   → 不是那個 EXEC 的引數，�
 | `FROM`、`JOIN`、`UPDATE`、`INTO` | Table、View | 插入名稱 |
 | `ALTER PROCEDURE` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
+| `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
+| `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
+| `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
@@ -373,6 +376,17 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 暫存資料表不分辨是哪一句建立的：井號開頭的識別字在 T-SQL 裡只有這一種意思，
 而 `CREATE TABLE`、`SELECT INTO`、`INSERT INTO` 各認一次的話，漏掉的那一種寫法
 就會安靜地少一個名稱。
+
+觸發程序、序列與使用者自訂的資料表型別**只在自己的位置出現**，不進一般清單。
+理由與全域變數同一條：`SELECT tr` 不該冒出觸發程序，而 `EXEC ` 之後選到一個觸發
+程序一定執行失敗。觸發程序算模組（`OBJECT_DEFINITION` 拿得到定義），所以
+`ALTER TRIGGER` 與 `ALTER PROCEDURE` 一樣直接展開完整定義。
+
+這三種都不在 `sys.objects` 的原白名單裡，第一層查詢因此多收 `TR`、`TA`、`SO`，
+並把 `sys.table_types` 另外 UNION 進來貼上 `TT` 標籤——與同義字的 `SN` 同一個做法。
+資料表型別取的是 `type_table_object_id` 而不是 `user_type_id`：快取以 object_id 為鍵，
+用型別自己的識別碼會與真的物件撞在一起，而那個 object_id 同時正好是它的欄位在
+`sys.columns` 裡的鍵，於是欄位與滑鼠停留提示都不必另外接。
 
 這一份不對資料庫送出任何查詢，因此與「列出資料庫物件」的設定無關；
 也只在游標真的落在資料來源位置、而且沒有限定字時才掃——`FROM dbo.` 之後不該

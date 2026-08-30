@@ -72,6 +72,27 @@ public enum SuggestionKind
     /// 但來源與插入文字都不同——這一類來自中繼資料，而且提交時連
     /// <c> = </c> 一起寫進去，因為打出參數名稱就是要做具名傳值。
     /// </remarks>
-    Parameter
+    Parameter,
+
+    /// <summary>觸發程序；只出現在 <c>ALTER</c>、<c>DROP</c>、<c>DISABLE</c>、
+    /// <c>ENABLE TRIGGER</c> 之後。</summary>
+    /// <remarks>
+    /// 與 <see cref="Procedure"/> 分開：觸發程序不能 <c>EXEC</c>，
+    /// 混在一起會讓它出現在 <c>EXEC </c> 之後——那裡選到它一定執行失敗。
+    /// </remarks>
+    Trigger,
+
+    /// <summary>序列；只出現在 <c>NEXT VALUE FOR</c> 與 <c>ALTER</c>、
+    /// <c>DROP SEQUENCE</c> 之後。</summary>
+    Sequence,
+
+    /// <summary>
+    /// 使用者自訂資料表型別（<c>DECLARE @t dbo.XType</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="DataType"/> 分開：內建型別沒有結構描述，這一類有，
+    /// 插入時要照物件的規則補上 <c>dbo.</c> 與方括號。
+    /// </remarks>
+    UserDefinedType
 }
 

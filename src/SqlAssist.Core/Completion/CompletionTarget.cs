@@ -49,7 +49,14 @@ public enum CompletionTarget
     /// <remarks>
     /// 哪些位置算數見 <see cref="SqlDataTypePosition"/>。判定成立時整份清單就只剩
     /// 型別，關鍵字一個都不列——那些位置本來就沒有別的東西是對的。
+    /// 使用者自訂的資料表型別也在這個目標裡，它們與內建型別在同一個位置。
     /// </remarks>
-    DataType
+    DataType,
+
+    /// <summary><c>ALTER</c>、<c>DROP</c>、<c>DISABLE</c>、<c>ENABLE TRIGGER</c> 之後。</summary>
+    Trigger,
+
+    /// <summary><c>NEXT VALUE FOR</c>、<c>ALTER</c>、<c>DROP SEQUENCE</c> 之後。</summary>
+    Sequence
 }
 

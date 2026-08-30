@@ -43,16 +43,22 @@ public static class SqlCompletionContextAnalyzer
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
         var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var prefix = textBeforeCaret.Substring(tokenStart);
+        var beforeToken = textBeforeToken.TrimEnd();
+        var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
 
         // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
         // 眼中與 SELECT x AS | 的別名一模一樣，會被那一條整份收掉。
+        //
+        // 限定字要帶著走：DECLARE @t dbo.| 只該列出 dbo 的自訂型別，
+        // 而內建型別沒有結構描述，會被結構描述過濾自己擋掉——dbo.INT 不是東西。
         if (SqlDataTypePosition.IsDataTypeSlot(tokens))
         {
             return new SqlCompletionContext(
                 isValid: true,
                 tokenStart,
                 prefix,
-                CompletionTarget.DataType);
+                CompletionTarget.DataType,
+                qualifier);
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
@@ -64,8 +70,6 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
-        var beforeToken = textBeforeToken.TrimEnd();
-        var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
         var target = DetermineTarget(
             qualifier is null ? beforeToken : beforeQualifier,
             out var targetKeywordStart,
@@ -229,7 +233,28 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Function;
         }
 
+        // 觸發程序與模組一樣改得動，因此 ALTER 之後同樣放進完整定義。
+        if (EndsWithKeywords(text, "ALTER", "TRIGGER", out keywordStart))
+        {
+            return CompletionTarget.Trigger;
+        }
+
         intent = CompletionIntent.Reference;
+
+        if (EndsWithKeywords(text, "DROP", "TRIGGER", out keywordStart) ||
+            EndsWithKeywords(text, "DISABLE", "TRIGGER", out keywordStart) ||
+            EndsWithKeywords(text, "ENABLE", "TRIGGER", out keywordStart))
+        {
+            return CompletionTarget.Trigger;
+        }
+
+        // NEXT VALUE FOR 的尾巴就是 VALUE FOR；再往前的 NEXT 不必看。
+        if (EndsWithKeywords(text, "VALUE", "FOR", out keywordStart) ||
+            EndsWithKeywords(text, "ALTER", "SEQUENCE", out keywordStart) ||
+            EndsWithKeywords(text, "DROP", "SEQUENCE", out keywordStart))
+        {
+            return CompletionTarget.Sequence;
+        }
 
         if (EndsWithKeyword(text, "EXEC", out keywordStart) ||
             EndsWithKeyword(text, "EXECUTE", out keywordStart))

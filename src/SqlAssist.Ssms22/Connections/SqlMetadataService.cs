@@ -990,6 +990,9 @@ internal sealed class SqlMetadataService : IDisposable
             SqlObjectKind.ScalarFunction => SuggestionKind.Function,
             SqlObjectKind.InlineTableFunction => SuggestionKind.Function,
             SqlObjectKind.TableValuedFunction => SuggestionKind.Function,
+            SqlObjectKind.Trigger => SuggestionKind.Trigger,
+            SqlObjectKind.Sequence => SuggestionKind.Sequence,
+            SqlObjectKind.TableType => SuggestionKind.UserDefinedType,
             _ => null
         };
     }
