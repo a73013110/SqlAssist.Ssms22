@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 
@@ -198,11 +198,14 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
+        // EXEC dbo.usp_Renew @| 的位置除了他自己的變數，還要列出那個程序的參數。
+        // 參數在中繼資料裡，這裡只記下他在呼叫誰。
         return new SqlCompletionContext(
             isValid: true,
             tokenStart,
             prefix,
-            CompletionTarget.Variable);
+            CompletionTarget.Variable,
+            executedModule: SqlExecutedModule.Find(tokens));
     }
 
     /// <summary>

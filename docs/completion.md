@@ -266,6 +266,31 @@ EXEC dbo.usp_Renew @|  → 同上
 走到頭都沒有關鍵字時當成引用。這裡的 fail-open 換來的是「多列幾個他自己打過的名字」，
 而反過來猜錯的代價是他打的名字被清單換掉。
 
+### EXEC 的引數清單裡連參數一起列
+
+```text
+EXEC dbo.usp_Renew @|   → @readerId（int）、@days（int）…（那個程序的參數）
+                          再接他自己宣告過的變數
+```
+
+參數與變數在這個位置都對——`EXEC p @readerId = 1` 是具名傳值，`EXEC p @myVar` 是照
+順序傳一個變數——所以兩份併在一起，參數排前面：他打出小老鼠通常是為了具名傳值，
+而那個名字是被呼叫端定的、比較不容易記得。這也是唯一一份會同時出現兩種類別的清單。
+
+提交參數時連 ` = ` 一起寫進去，理由與內建函式補左括號相同。
+
+「他在呼叫誰」由 Core 回答，參數清單由中繼資料層換：從小老鼠往回跳過已經打好的
+引數，落點**必須剛好是** `EXEC`／`EXECUTE`。這比「往回找最近的 EXEC」嚴格，而嚴格
+正是重點——中間只要夾著任何一個別的關鍵字，那就是另一個敘述：
+
+```text
+EXEC dbo.usp_Renew
+SELECT * FROM dbo.Loan WHERE ReaderId = @|   → 不是那個 EXEC 的引數，只列變數
+```
+
+三段式的 `LibraryDb.dbo.usp_Renew` 取後兩段：中繼資料只看得到目前連線的資料庫。
+`EXEC ('SELECT 1')` 與 `EXEC @procName` 讀不出名稱，直接放棄。
+
 ## 資料型別
 
 `INT`、`NVARCHAR`、`DATETIME2` 這些名稱在文法上不是關鍵字——`SqlKeywordCatalog` 的

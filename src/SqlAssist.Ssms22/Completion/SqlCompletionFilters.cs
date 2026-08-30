@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.VisualStudio.Core.Imaging;
@@ -80,9 +80,9 @@ internal static class SqlCompletionFilters
     /// <c>ALTER FUNCTION</c> 的語境過濾（見 <see cref="SuggestionKind.BuiltInFunction"/>），
     /// 那層邏輯與篩選鈕無關，而篩選列上分成兩顆對使用者沒有意義。
     ///
-    /// 結構描述、資料庫與兩種變數沒有自己的篩選鈕——後三者分別只出現在
-    /// <c>USE</c>、<c>@@</c> 與 <c>@</c> 之後，當下清單裡只有它一類，
-    /// 給它一顆按了也不會有任何變化——但仍然歸到「其他」，
+    /// 結構描述、資料庫、型別與小老鼠開頭的那幾類沒有自己的篩選鈕——它們分別只
+    /// 出現在 <c>USE</c>、型別位置、<c>@@</c> 與 <c>@</c> 之後，當下清單裡幾乎只有
+    /// 一類，給它一顆按了也不會有任何變化——但仍然歸到「其他」，
     /// 而不是留成沒有分類。每一項都有分類，按下任何一顆篩選鈕之後，
     /// 剩下的就一定是那一類，不會有「沒被篩掉但也不屬於任何一顆」的漏網項目。
     /// </remarks>

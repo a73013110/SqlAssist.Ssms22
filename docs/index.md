@@ -17,6 +17,7 @@
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
 | 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
 | 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
+| `@` 或 `@@` 之後列出來的東西不對 | [completion.md](completion.md) | `Core/Completion/SqlScriptVariableSuggestions.cs`、`SqlExecutedModule.cs`、`Core/Keywords/SqlGlobalVariableCatalog.cs` |
 | `別名.` 列出來的欄位不對 | [completion.md](completion.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
 | 程式碼片段的格式或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/SqlSnippetExpander.cs`、`SqlSnippetSerializer.cs` |
 | `SELECT *` 展不開或展錯 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardAnalyzer.cs` |
