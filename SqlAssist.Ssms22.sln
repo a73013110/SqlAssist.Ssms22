@@ -43,6 +43,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393
 		tools\Deploy-DebugExtension.ps1 = tools\Deploy-DebugExtension.ps1
 		tools\Generate-Keywords.ps1 = tools\Generate-Keywords.ps1
 		tools\Install-Extension.ps1 = tools\Install-Extension.ps1
+		tools\Publish-Release.ps1 = tools\Publish-Release.ps1
 		tools\Run-CoreTests.ps1 = tools\Run-CoreTests.ps1
 		tools\Show-Diagnostics.ps1 = tools\Show-Diagnostics.ps1
 		tools\Test-CommandTable.ps1 = tools\Test-CommandTable.ps1
