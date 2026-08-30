@@ -27,6 +27,13 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
+        // 小老鼠開頭的詞元不必看位置，也不必看前導關鍵字：它要的東西只有兩種，
+        // 而兩種都與周圍的文法無關。
+        if (tokenStart < textBeforeCaret.Length && textBeforeCaret[tokenStart] == '@')
+        {
+            return AnalyzeVariable(textBeforeCaret, tokenStart);
+        }
+
         // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
         // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
         var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(
@@ -93,6 +100,13 @@ public static class SqlCompletionContextAnalyzer
             return context;
         }
 
+        // 全域變數與敘述看得到哪些欄位無關，底下整趟詞法分析可以省下來——
+        // 而那一趟要掃過整份指令碼，就落在打字的節奏上。
+        if (context.Target == CompletionTarget.GlobalVariable)
+        {
+            return context;
+        }
+
         var tokens = SqlTokenizer.Tokenize(sql);
         var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
         var resolver = new SqlColumnSourceResolver(tokens);
@@ -127,6 +141,33 @@ public static class SqlCompletionContextAnalyzer
         var columns = resolver.Resolve(table);
 
         return columns is null ? withScope : withScope.AsColumnsOf(columns);
+    }
+
+    /// <summary>
+    /// 游標停在一個小老鼠開頭的詞元上。
+    /// </summary>
+    /// <remarks>
+    /// 兩個小老鼠開頭的是系統的全域變數：那是一份封閉的清單，使用者打出
+    /// <c>@@</c> 的當下就已經說完他要什麼了。
+    ///
+    /// 一個小老鼠開頭的是使用者自己取的變數或參數名稱，擴充沒有東西可以給他，
+    /// 而清單彈出來的唯一效果是他順手按下 Enter，剛打的 <c>@pub</c> 被換掉——
+    /// 那要按復原才救得回來。
+    /// </remarks>
+    private static SqlCompletionContext AnalyzeVariable(string textBeforeCaret, int tokenStart)
+    {
+        var prefix = textBeforeCaret.Substring(tokenStart);
+
+        if (prefix.Length < 2 || prefix[1] != '@')
+        {
+            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+        }
+
+        return new SqlCompletionContext(
+            isValid: true,
+            tokenStart,
+            prefix,
+            CompletionTarget.GlobalVariable);
     }
 
     /// <summary>
@@ -265,8 +306,13 @@ public static class SqlCompletionContextAnalyzer
         return index;
     }
 
+    /// <remarks>
+    /// 小老鼠算在內，而且必須算在內：<c>@@ROW</c> 的詞元起點要落在第一個小老鼠上，
+    /// 否則適用範圍只蓋住 <c>ROW</c>，提交 <c>@@ROWCOUNT</c> 之後編輯器裡會留下
+    /// <c>@@@@ROWCOUNT</c>。變數名稱同理。
+    /// </remarks>
     private static bool IsTokenCharacter(char value)
     {
-        return char.IsLetterOrDigit(value) || value == '_' || value == '#';
+        return char.IsLetterOrDigit(value) || value == '_' || value == '#' || value == '@';
     }
 }

@@ -16,10 +16,13 @@ internal static class SqlInsertionText
     {
         // 欄位的插入文字在建立建議時就決定好了（含必要的別名限定），
         // 內建函式則帶著左括號，兩者都不能再套用物件用的結構描述規則。
+        // 全域變數也在這裡：把 @@ROWCOUNT 當成物件名稱去加方括號，
+        // 寫進編輯器的會是 [@@ROWCOUNT]。
         if (suggestion.Kind == SuggestionKind.Keyword ||
             suggestion.Kind == SuggestionKind.Snippet ||
             suggestion.Kind == SuggestionKind.Column ||
-            suggestion.Kind == SuggestionKind.BuiltInFunction)
+            suggestion.Kind == SuggestionKind.BuiltInFunction ||
+            suggestion.Kind == SuggestionKind.GlobalVariable)
         {
             return suggestion.InsertionText;
         }

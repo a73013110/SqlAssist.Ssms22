@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
@@ -225,6 +226,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         SqlAssistSettings settings,
         CancellationToken token)
     {
+        // 全域變數是一份封閉的內建清單，這個位置不必等中繼資料——
+        // 而 GetSuggestionsAsync 在快取還沒暖的時候會真的去查一次資料庫。
+        if (context.Target == CompletionTarget.GlobalVariable)
+        {
+            return SqlGlobalVariableCatalog.All;
+        }
+
         if (context.Target == CompletionTarget.Column)
         {
             // 關掉「列出資料庫物件與欄位」等於不對資料庫送出任何查詢，
