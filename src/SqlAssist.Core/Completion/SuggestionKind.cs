@@ -62,6 +62,16 @@ public enum SuggestionKind
     /// 與 <see cref="Keyword"/> 分開：型別在文法上不是關鍵字，關鍵字目錄裡
     /// 一個都沒有；而且它們只出現在文法只接受型別的那幾個位置。
     /// </remarks>
-    DataType
+    DataType,
+
+    /// <summary>
+    /// <c>EXEC</c> 正在呼叫的那個模組的參數名稱。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Variable"/> 分開：兩者在 <c>EXEC p @|</c> 同時出現，
+    /// 但來源與插入文字都不同——這一類來自中繼資料，而且提交時連
+    /// <c> = </c> 一起寫進去，因為打出參數名稱就是要做具名傳值。
+    /// </remarks>
+    Parameter
 }
 

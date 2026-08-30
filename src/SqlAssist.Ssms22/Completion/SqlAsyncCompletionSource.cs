@@ -234,9 +234,19 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
 
         // 變數全部讀自指令碼本身，上下文分析已經把它們算好了。
+        // EXEC dbo.usp_Renew @| 還要加上那個程序的參數——兩者在這個位置都對。
         if (context.Target == CompletionTarget.Variable)
         {
-            return context.ScriptSources;
+            if (context.ExecutedModule is not { } module)
+            {
+                return context.ScriptSources;
+            }
+
+            var parameters = await _metadataService
+                .GetParameterSuggestionsAsync(module, settings.IncludeDatabaseObjects, token)
+                .ConfigureAwait(false);
+
+            return parameters.Concat(context.ScriptSources).ToArray();
         }
 
         // 型別同樣是一份封閉的內建清單。

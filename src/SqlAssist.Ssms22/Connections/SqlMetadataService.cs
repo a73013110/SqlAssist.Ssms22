@@ -195,6 +195,67 @@ internal sealed class SqlMetadataService : IDisposable
         return ToColumnNames(resolved.Detail);
     }
 
+    /// <summary>
+    /// 取得 <c>EXEC</c> 正在呼叫的那個模組的參數建議。
+    /// </summary>
+    /// <remarks>
+    /// 與欄位建議走同一條分層路徑：使用者真的打出小老鼠時才查一個物件的第二層。
+    /// 查不到、或那個名稱不是可執行的模組時回傳空清單而不是 null——這裡少列幾筆
+    /// 只是少了補字，他自己的變數仍然照列。
+    ///
+    /// 插入文字連 <c> = </c> 一起寫進去：打出參數名稱就是要做具名傳值，
+    /// 而 <c>EXEC p @readerId</c>（沒有等號）在文法上是照順序傳一個變數，
+    /// 那是另一件事，由變數那一份負責。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlSuggestion>> GetParameterSuggestionsAsync(
+        SqlExecutedModule module,
+        bool includeDatabaseObjects,
+        CancellationToken cancellationToken)
+    {
+        if (module is null || !includeDatabaseObjects || ResolveCatalog() is not { } catalog)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var timer = Stopwatch.StartNew();
+        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var matches = snapshot.Find(module.ObjectName, module.SchemaName);
+
+        if (matches.Count == 0 || !matches[0].Kind.IsExecutable())
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+
+        ReportIfSlow($"參數建議 {matches[0].QualifiedName}（第二層）", timer);
+
+        if (detail is not { Parameters.Count: > 0 })
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var suggestions = new List<SqlSuggestion>(detail.Parameters.Count);
+
+        foreach (var parameter in detail.Parameters)
+        {
+            // 純量函式的傳回值也在這一份裡，它的名稱是空字串。
+            if (parameter.Name.Length == 0)
+            {
+                continue;
+            }
+
+            suggestions.Add(new SqlSuggestion(
+                parameter.Name,
+                parameter.Name + " = ",
+                parameter.IsOutput ? parameter.DataType + " OUTPUT" : parameter.DataType,
+                $"{matches[0].QualifiedName} 的參數：{parameter.ToScriptLine()}",
+                SuggestionKind.Parameter));
+        }
+
+        return suggestions;
+    }
+
     /// <summary>只看快取裡有沒有這個資料來源的欄位名稱；沒有就回傳 null，不觸發查詢。</summary>
     /// <remarks>
     /// 按下 Tab 的當下先問這裡：建議清單開過一次就已經把敘述裡的資料表預熱好了，

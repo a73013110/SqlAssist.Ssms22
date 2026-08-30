@@ -209,8 +209,12 @@ public static class SuggestionMatcher
             // 同上：只有 @ 之後才會出現，清單裡整批都是同一類，
             // 這兩個值不會與任何別的類別比大小。列出來只是不留白。
             SuggestionKind.GlobalVariable => 25,
-            SuggestionKind.Variable => 25,
             SuggestionKind.DataType => 25,
+
+            // 參數與變數是唯一會同時出現在一份清單裡的兩類（EXEC p @|）。
+            // 參數在前：他打出小老鼠是為了具名傳值，而那個名字是被呼叫端定的。
+            SuggestionKind.Parameter => 26,
+            SuggestionKind.Variable => 25,
 
             // 排在資料表之上：這個名稱是使用者在同一份指令碼裡剛取的，
             // 他會去 FROM 後面補字，正是因為還沒背起來。
@@ -238,7 +242,8 @@ public static class SuggestionMatcher
             CompletionTarget.Column => kind == SuggestionKind.Column,
             CompletionTarget.Database => kind == SuggestionKind.Database,
             CompletionTarget.GlobalVariable => kind == SuggestionKind.GlobalVariable,
-            CompletionTarget.Variable => kind == SuggestionKind.Variable,
+            // EXEC p @| 同時接得了他自己的變數與那個程序的參數，兩者都對。
+            CompletionTarget.Variable => kind is SuggestionKind.Variable or SuggestionKind.Parameter,
             CompletionTarget.DataType => kind == SuggestionKind.DataType,
 
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
@@ -249,6 +254,7 @@ public static class SuggestionMatcher
             // 混進一般清單的話，每一次按鍵都要多比對一批一定比不中的名稱。
             _ => kind is not (SuggestionKind.GlobalVariable
                 or SuggestionKind.Variable
+                or SuggestionKind.Parameter
                 or SuggestionKind.DataType)
         };
     }

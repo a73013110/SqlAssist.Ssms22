@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -56,6 +56,16 @@ public static class SqlObjectKinds
             or SqlObjectKind.InlineTableFunction
             or SqlObjectKind.TableValuedFunction
             or SqlObjectKind.View;
+    }
+
+    /// <summary>是否為 <c>EXEC</c> 呼叫得動、因而有具名參數的模組。</summary>
+    /// <remarks>
+    /// 純量函式算在內：<c>EXEC @fee = dbo.fn_Fee 1</c> 是合法的寫法，
+    /// 而它的參數同樣有名字。
+    /// </remarks>
+    public static bool IsExecutable(this SqlObjectKind kind)
+    {
+        return kind is SqlObjectKind.Procedure or SqlObjectKind.ScalarFunction;
     }
 
     public static string ToDisplayName(this SqlObjectKind kind)

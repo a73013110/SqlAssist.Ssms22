@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
@@ -22,7 +22,8 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlColumnSource>? columnSources = null,
         SqlKeywordPosition keywordPosition = SqlKeywordPosition.Any,
         IReadOnlyList<SqlColumnSource>? scopeSources = null,
-        IReadOnlyList<SqlSuggestion>? scriptSources = null)
+        IReadOnlyList<SqlSuggestion>? scriptSources = null,
+        SqlExecutedModule? executedModule = null)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         IsValid = isValid;
@@ -35,6 +36,7 @@ public sealed class SqlCompletionContext
         ColumnSources = columnSources;
         KeywordPosition = keywordPosition;
         ScopeSources = scopeSources ?? NoSources;
+        ExecutedModule = executedModule;
     }
 
     public bool IsValid { get; }
@@ -89,6 +91,16 @@ public sealed class SqlCompletionContext
     public IReadOnlyList<SqlSuggestion> ScriptSources { get; }
 
     /// <summary>
+    /// <c>EXEC</c> 正在呼叫的模組；只有 <see cref="Target"/> 是
+    /// <see cref="CompletionTarget.Variable"/> 而且游標落在它的引數清單裡時才有值。
+    /// </summary>
+    /// <remarks>
+    /// 參數名稱只在中繼資料裡，Core 讀不到資料庫——這裡只回答「他在呼叫誰」，
+    /// 換成參數清單是 SSMS 那一層的事。
+    /// </remarks>
+    public SqlExecutedModule? ExecutedModule { get; }
+
+    /// <summary>
     /// 決定 <see cref="Target"/> 的關鍵字在原文中的起點，例如 <c>ALTER PROCEDURE</c> 的
     /// <c>ALTER</c>。<see cref="Target"/> 為 <see cref="CompletionTarget.Any"/> 時為 -1。
     /// 提交時要替換整個語句（而不只是游標前的字）就靠這個位置。
@@ -123,7 +135,8 @@ public sealed class SqlCompletionContext
             ColumnSources,
             KeywordPosition,
             sources,
-            ScriptSources);
+            ScriptSources,
+            ExecutedModule);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -140,7 +153,8 @@ public sealed class SqlCompletionContext
             ColumnSources,
             KeywordPosition,
             ScopeSources,
-            sources);
+            sources,
+            ExecutedModule);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -157,6 +171,7 @@ public sealed class SqlCompletionContext
             sources,
             KeywordPosition,
             ScopeSources,
-            ScriptSources);
+            ScriptSources,
+            ExecutedModule);
     }
 }
