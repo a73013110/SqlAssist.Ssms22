@@ -51,6 +51,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.SuggestionsEnabled,
                 defaults.SuggestionsEnabled),
+            SuppressNativeMemberList = Value(
+                source,
+                SqlAssistMonikers.SuppressNativeMemberList,
+                defaults.SuppressNativeMemberList),
             TriggerAfterCharacters = SqlAssistLimits.ClampTriggerCharacters(
                 Value(source, SqlAssistMonikers.TriggerAfterCharacters, defaults.TriggerAfterCharacters)),
             IncludeSnippets = Value(source, SqlAssistMonikers.IncludeSnippets, defaults.IncludeSnippets),

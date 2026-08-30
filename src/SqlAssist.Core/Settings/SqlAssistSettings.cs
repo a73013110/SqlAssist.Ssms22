@@ -48,6 +48,17 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.suggestions.suppressNativeMemberList
+    /// </summary>
+    /// <remarks>
+    /// 唯一一個作用在<b>擴充之外</b>的設定：它改的是 SSMS 舊版語言服務的
+    /// <c>LANGPREFERENCES2.fAutoListMembers</c>，讓那份清單不再隨打字自動彈出，
+    /// 而錯誤波浪線、大綱與參數提示照舊。因此它必須被推出去，不能只放著等人來讀——
+    /// 推的那一半在 <c>Ssms22/Settings/NativeMemberList</c>。
+    /// </remarks>
+    public bool SuppressNativeMemberList { get; init; } = true;
+
     /// <summary>sqlAssist.suggestions.triggerAfterCharacters</summary>
     public int TriggerAfterCharacters { get; init; } = SqlAssistLimits.DefaultTriggerCharacters;
 

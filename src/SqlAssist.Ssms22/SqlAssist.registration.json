@@ -68,6 +68,14 @@
       "title": "輸入時自動彈出建議清單",
       "description": "關閉後仍保留滑鼠停留提示、關鍵字大寫，以及工具選單的「顯示游標處物件的結構」。總開關在「一般」頁。"
     },
+    "sqlAssist.suggestions.suppressNativeMemberList": {
+      "type": "boolean",
+      "default": true,
+      "order": 15,
+      "title": "只使用 SqlAssist 的建議清單",
+      "description": "SSMS 內建的 T-SQL IntelliSense 打字時會彈出自己的清單，兩份同時出現會互相干擾。開啟這一項只擋掉它自動彈出的清單，它的紅色錯誤波浪線、大綱與參數提示照常運作。請不要整個關閉 SSMS 的 T-SQL IntelliSense——那會連錯誤檢查一起關掉。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
     "sqlAssist.suggestions.triggerAfterCharacters": {
       "type": "integer",
       "default": 1,
@@ -208,16 +216,7 @@
       "messages": [
         {
           "severity": "informational",
-          "text": "SSMS 內建的 T-SQL IntelliSense 若是開著的，兩份建議清單會同時出現並互相干擾。下面的按鈕可以關掉它；目前狀態見「工具 → SqlAssist → 顯示診斷狀態」。"
-        }
-      ],
-      "commands": [
-        {
-          "vsct": {
-            "text": "關閉 SSMS 內建的 T-SQL IntelliSense",
-            "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
-            "id": 519
-          }
+          "text": "SSMS 的 T-SQL IntelliSense 請保持開啟——紅色錯誤波浪線與大綱都在它底下。「只使用 SqlAssist 的建議清單」已經擋掉它會互搶的那一部分。目前狀態見「工具 → SqlAssist → 顯示診斷狀態」。"
         }
       ]
     },

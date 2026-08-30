@@ -62,8 +62,10 @@ Set-Location 'D:\GitProject\SqlAssist.Ssms22'
 安裝前請關閉所有 SSMS 視窗，安裝後重新啟動。
 完整說明見 [development.md](docs/development.md)。
 
-**請關閉 SSMS 內建的 T-SQL IntelliSense**，否則兩份建議清單會互相干擾；
-設定頁偵測到它還開著時會顯示警告，旁邊就有一鍵關閉的按鈕。
+**請維持 SSMS 內建的 T-SQL IntelliSense 為開啟**——紅色錯誤波浪線與大綱都掛在
+它底下，關掉它等於連語法檢查一起關掉。會與 SqlAssist 互搶的只有它自動彈出的
+那份清單，預設開啟的「只使用 SqlAssist 的建議清單」已經單獨擋掉了，
+理由見 [completion.md](docs/completion.md)。
 
 ## 目前限制
 
