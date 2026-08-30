@@ -43,6 +43,16 @@ public enum SuggestionKind
     /// 而這一類只在使用者打出 <c>@@</c> 之後出現。混在一起的話，每一次按鍵的
     /// 候選清單都要多背 31 個一定比不中的名稱。
     /// </remarks>
-    GlobalVariable
+    GlobalVariable,
+
+    /// <summary>
+    /// 指令碼自己宣告的變數與參數（<c>@rows</c>、<c>@readerId</c>…）。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="ScriptDataSource"/> 同一種東西——只存在於這份指令碼裡、
+    /// 中繼資料看不到的名稱——但不能歸在一起：那一類接在 <c>FROM</c> 後面，
+    /// 這一類接在 <c>@</c> 後面，兩者從來不會出現在同一個位置。
+    /// </remarks>
+    Variable
 }
 

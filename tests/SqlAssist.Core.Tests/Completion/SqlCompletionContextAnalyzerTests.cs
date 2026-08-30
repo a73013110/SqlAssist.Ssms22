@@ -151,7 +151,6 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT * FROM dbo.PUBLISHER AS c")]
     [InlineData("SELECT c.PUBL_CODE AS co")]
     [InlineData("DECLARE @pub")]
-    [InlineData("SELECT * FROM t WHERE a = @pa")]
     [InlineData(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE_TEST a")]
     [InlineData("SELECT * FROM CTE_TEST AS a INNER JOIN dbo.Cat_BookCopy b")]
     public void 取名字的位置不建議(string textBeforeCaret)

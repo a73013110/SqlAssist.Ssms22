@@ -100,11 +100,17 @@ public static class SqlCompletionContextAnalyzer
             return context;
         }
 
-        // 全域變數與敘述看得到哪些欄位無關，底下整趟詞法分析可以省下來——
-        // 而那一趟要掃過整份指令碼，就落在打字的節奏上。
+        // 全域變數與敘述看得到哪些欄位無關，底下整趟範圍解析可以省下來。
         if (context.Target == CompletionTarget.GlobalVariable)
         {
             return context;
+        }
+
+        // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
+        if (context.Target == CompletionTarget.Variable)
+        {
+            return context.WithScriptSources(
+                SqlScriptVariableSuggestions.Create(SqlTokenizer.Tokenize(sql), caretPosition));
         }
 
         var tokens = SqlTokenizer.Tokenize(sql);
@@ -150,15 +156,29 @@ public static class SqlCompletionContextAnalyzer
     /// 兩個小老鼠開頭的是系統的全域變數：那是一份封閉的清單，使用者打出
     /// <c>@@</c> 的當下就已經說完他要什麼了。
     ///
-    /// 一個小老鼠開頭的是使用者自己取的變數或參數名稱，擴充沒有東西可以給他，
-    /// 而清單彈出來的唯一效果是他順手按下 Enter，剛打的 <c>@pub</c> 被換掉——
-    /// 那要按復原才救得回來。
+    /// 一個小老鼠開頭的是變數或參數，那要分兩種：他正在<b>宣告</b>一個新名字時
+    /// 清單裡沒有一項會是對的，而彈出來的唯一效果是他順手按下 Enter，剛打的
+    /// <c>@pub</c> 被換掉——那要按復原才救得回來；他正在<b>引用</b>時要的正是
+    /// 上面幾行宣告過的名稱，與 CTE、暫存資料表完全同格。
     /// </remarks>
     private static SqlCompletionContext AnalyzeVariable(string textBeforeCaret, int tokenStart)
     {
         var prefix = textBeforeCaret.Substring(tokenStart);
 
-        if (prefix.Length < 2 || prefix[1] != '@')
+        if (prefix.Length >= 2 && prefix[1] == '@')
+        {
+            return new SqlCompletionContext(
+                isValid: true,
+                tokenStart,
+                prefix,
+                CompletionTarget.GlobalVariable);
+        }
+
+        // 只吃詞元之前那一段：正在打的名字本身當然不算數，而這一段的詞法分析
+        // 與一般位置的 SqlKeywordPositionAnalyzer 是同一個代價。
+        var tokens = SqlTokenizer.Tokenize(textBeforeCaret.Substring(0, tokenStart));
+
+        if (SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, tokens.Count))
         {
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
@@ -167,7 +187,7 @@ public static class SqlCompletionContextAnalyzer
             isValid: true,
             tokenStart,
             prefix,
-            CompletionTarget.GlobalVariable);
+            CompletionTarget.Variable);
     }
 
     /// <summary>

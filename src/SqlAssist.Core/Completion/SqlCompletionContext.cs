@@ -78,12 +78,13 @@ public sealed class SqlCompletionContext
     public IReadOnlyList<SqlColumnSource> ScopeSources { get; }
 
     /// <summary>
-    /// 這份指令碼自己宣告的資料來源：CTE 與暫存資料表。
+    /// 這份指令碼自己宣告的名稱：CTE、暫存資料表與變數。
     /// </summary>
     /// <remarks>
-    /// 只有游標落在資料來源位置（<c>FROM </c>、<c>JOIN </c>…）而且沒有限定字時
-    /// 才有內容。其餘位置留空是刻意的：掃描不必要的話就不掃，
-    /// 而這條路徑在每一次按鍵上。
+    /// 共同點是中繼資料一個都看不到，而且是使用者上面幾行才寫下的。
+    /// 哪一種放進來由位置決定：資料來源位置（<c>FROM </c>、<c>JOIN </c>…）
+    /// 而且沒有限定字時是 CTE 與暫存資料表，<c>@</c> 之後是變數。
+    /// 其餘位置留空是刻意的：掃描不必要的話就不掃。
     /// </remarks>
     public IReadOnlyList<SqlSuggestion> ScriptSources { get; }
 

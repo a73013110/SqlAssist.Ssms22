@@ -233,6 +233,12 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return SqlGlobalVariableCatalog.All;
         }
 
+        // 變數全部讀自指令碼本身，上下文分析已經把它們算好了。
+        if (context.Target == CompletionTarget.Variable)
+        {
+            return context.ScriptSources;
+        }
+
         if (context.Target == CompletionTarget.Column)
         {
             // 關掉「列出資料庫物件與欄位」等於不對資料庫送出任何查詢，

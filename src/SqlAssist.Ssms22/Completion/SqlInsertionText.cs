@@ -22,7 +22,8 @@ internal static class SqlInsertionText
             suggestion.Kind == SuggestionKind.Snippet ||
             suggestion.Kind == SuggestionKind.Column ||
             suggestion.Kind == SuggestionKind.BuiltInFunction ||
-            suggestion.Kind == SuggestionKind.GlobalVariable)
+            suggestion.Kind == SuggestionKind.GlobalVariable ||
+            suggestion.Kind == SuggestionKind.Variable)
         {
             return suggestion.InsertionText;
         }
