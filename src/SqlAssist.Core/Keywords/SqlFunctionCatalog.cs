@@ -111,7 +111,7 @@ public static class SqlFunctionCatalog
         ("SWITCHOFFSET", "SWITCHOFFSET(datetimeoffset, timeZone)"),
         ("SYSDATETIME", "SYSDATETIME()"),
         ("SYSDATETIMEOFFSET", "SYSDATETIMEOFFSET()"),
-        ("LIBRTCDATETIME", "LIBRTCDATETIME()"),
+        ("SYSUTCDATETIME", "SYSUTCDATETIME()"),
         ("TODATETIMEOFFSET", "TODATETIMEOFFSET(datetime, timeZone)"),
         ("YEAR", "YEAR(date)"),
 
