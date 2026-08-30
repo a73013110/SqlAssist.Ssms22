@@ -121,12 +121,7 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\SqlWorkbench.Interfaces.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Microsoft.SqlServer.RegSvrEnum">
-      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.RegSvrEnum.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="System.Data" />
-    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Design" />
   </ItemGroup>
 
