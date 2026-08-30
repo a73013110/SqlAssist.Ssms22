@@ -16,6 +16,15 @@ public static class SqlMetadataQueries
     /// 第一層：物件清單。只取識別欄位，不含定義本文——真實資料庫裡
     /// sys.sql_modules.definition 動輒數 MB，不能在每次開啟編輯器時全部拉回來。
     /// </summary>
+    /// <remarks>
+    /// 同義字與資料表型別不在 <c>sys.objects</c> 裡，各自 UNION 進來並貼上
+    /// <c>SN</c>、<c>TT</c> 這兩個自訂標籤——那不是 <c>sys.objects.type</c> 的代碼，
+    /// 而是為了讓三份結果共用同一個對應表。
+    ///
+    /// 資料表型別取的是 <c>type_table_object_id</c> 而不是 <c>user_type_id</c>：
+    /// 快取以 object_id 為鍵，用型別自己的識別碼會與真的物件撞在一起；
+    /// 而那個 object_id 同時正好是它的欄位在 <c>sys.columns</c> 裡的鍵。
+    /// </remarks>
     public const string Objects = @"
 SELECT
     o.object_id,
@@ -25,7 +34,7 @@ SELECT
 FROM sys.objects AS o
 INNER JOIN sys.schemas AS s ON s.schema_id = o.schema_id
 WHERE o.is_ms_shipped = 0
-  AND o.type IN ('U', 'V', 'P', 'PC', 'FN', 'IF', 'TF', 'FS', 'FT')
+  AND o.type IN ('U', 'V', 'P', 'PC', 'FN', 'IF', 'TF', 'FS', 'FT', 'TR', 'TA', 'SO')
 UNION ALL
 SELECT
     sn.object_id,
@@ -34,7 +43,16 @@ SELECT
     'SN' AS type
 FROM sys.synonyms AS sn
 INNER JOIN sys.schemas AS s ON s.schema_id = sn.schema_id
-WHERE sn.is_ms_shipped = 0;";
+WHERE sn.is_ms_shipped = 0
+UNION ALL
+SELECT
+    tt.type_table_object_id AS object_id,
+    s.name AS schema_name,
+    tt.name AS object_name,
+    'TT' AS type
+FROM sys.table_types AS tt
+INNER JOIN sys.schemas AS s ON s.schema_id = tt.schema_id
+WHERE tt.is_user_defined = 1;";
 
     /// <summary>第一層：結構描述清單。</summary>
     public const string Schemas = @"

@@ -210,6 +210,12 @@ public static class SuggestionMatcher
             // 這兩個值不會與任何別的類別比大小。列出來只是不留白。
             SuggestionKind.GlobalVariable => 25,
             SuggestionKind.DataType => 25,
+            SuggestionKind.Trigger => 25,
+            SuggestionKind.Sequence => 25,
+
+            // 自訂型別排在內建型別之上：DECLARE @t | 打出前綴時，
+            // 使用者要的是自己那一個，內建型別他背得起來。
+            SuggestionKind.UserDefinedType => 26,
 
             // 參數與變數是唯一會同時出現在一份清單裡的兩類（EXEC p @|）。
             // 參數在前：他打出小老鼠是為了具名傳值，而那個名字是被呼叫端定的。
@@ -244,7 +250,11 @@ public static class SuggestionMatcher
             CompletionTarget.GlobalVariable => kind == SuggestionKind.GlobalVariable,
             // EXEC p @| 同時接得了他自己的變數與那個程序的參數，兩者都對。
             CompletionTarget.Variable => kind is SuggestionKind.Variable or SuggestionKind.Parameter,
-            CompletionTarget.DataType => kind == SuggestionKind.DataType,
+            // 使用者自訂的資料表型別與內建型別在同一個位置。
+            CompletionTarget.DataType => kind is SuggestionKind.DataType
+                or SuggestionKind.UserDefinedType,
+            CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
+            CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
 
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
@@ -255,7 +265,10 @@ public static class SuggestionMatcher
             _ => kind is not (SuggestionKind.GlobalVariable
                 or SuggestionKind.Variable
                 or SuggestionKind.Parameter
-                or SuggestionKind.DataType)
+                or SuggestionKind.DataType
+                or SuggestionKind.UserDefinedType
+                or SuggestionKind.Trigger
+                or SuggestionKind.Sequence)
         };
     }
 

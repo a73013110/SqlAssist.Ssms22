@@ -249,10 +249,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return parameters.Concat(context.ScriptSources).ToArray();
         }
 
-        // 型別同樣是一份封閉的內建清單。
+        // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
+        // DECLARE @t dbo.XType 要的正是後者。
         if (context.Target == CompletionTarget.DataType)
         {
-            return SqlDataTypeCatalog.All;
+            if (!settings.IncludeDatabaseObjects)
+            {
+                return SqlDataTypeCatalog.All;
+            }
+
+            var types = await _metadataService.GetSuggestionsAsync(token).ConfigureAwait(false);
+            return SqlDataTypeCatalog.All.Concat(types).ToArray();
         }
 
         if (context.Target == CompletionTarget.Column)
