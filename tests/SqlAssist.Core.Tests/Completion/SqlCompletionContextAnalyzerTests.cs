@@ -136,7 +136,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     }
 
     /// <summary>
-    /// 衍生資料表之後只能是使用者自己取的別名，那裡不開清單。
+    /// 使用者正在取名字的位置不開清單。
     /// </summary>
     /// <remarks>
     /// 清單裡沒有一項會是對的，而彈出來的唯一效果是使用者順手按下 Enter，
@@ -146,9 +146,32 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT * FROM (SELECT 1 AS a) ")]
     [InlineData("SELECT * FROM (SELECT 1 AS a) a")]
     [InlineData("SELECT * FROM t JOIN (SELECT 1 AS a) x")]
-    public void 衍生資料表的別名位置不建議(string textBeforeCaret)
+    [InlineData("SELECT * FROM (SELECT 1 AS a) AS a")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER AS c")]
+    [InlineData("SELECT c.PUBL_CODE AS co")]
+    [InlineData("DECLARE @pub")]
+    [InlineData("SELECT * FROM t WHERE a = @pa")]
+    public void 取名字的位置不建議(string textBeforeCaret)
     {
         Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+    }
+
+    /// <summary>
+    /// <c>AS</c> 後面不是名字的時候，清單照常。
+    /// </summary>
+    /// <remarks>
+    /// 預存程序與檢視的主體開頭就在 <c>AS</c> 之後，那裡少了 <c>BEGIN</c>、
+    /// <c>SELECT</c> 的話，這個修正就從一個問題換成另一個問題。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE PROCEDURE dbo.p AS BEG")]
+    [InlineData("CREATE VIEW v AS SEL")]
+    public void AS之後是主體時照常建議(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(SqlKeywordPosition.Any, context.KeywordPosition);
     }
 
     /// <summary>別名寫完之後就恢復正常，那裡要的是 WHERE、JOIN 這些子句關鍵字。</summary>
