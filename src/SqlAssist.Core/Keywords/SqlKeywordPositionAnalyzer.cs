@@ -155,8 +155,93 @@ public static class SqlKeywordPositionAnalyzer
         }
 
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
+        var position = AnalyzeAt(tokens, tokens.Count - 1, followAlias: true);
 
-        return AnalyzeAt(tokens, tokens.Count - 1, followAlias: true);
+        // 沒有 AS 的別名也是名字。這一支放在最後而不是併進 AnalyzeAt：
+        // 它要看的是原文裡的換行，而詞元串流沒有那個資訊。
+        return position == SqlKeywordPosition.TableSourceTail &&
+               StaysOnSameLine(textBeforeToken) &&
+               IsTableAliasSlot(tokens, tokens.Count - 1)
+            ? SqlKeywordPosition.None
+            : position;
+    }
+
+    /// <summary>
+    /// 游標與前一個詞元之間沒有換行。
+    /// </summary>
+    /// <remarks>
+    /// 別名一定寫在資料來源的同一行，子句與下一個敘述則幾乎總是換行寫——
+    /// 這是唯一分得開「他在取別名」與「他在打 WHERE」的線索，因為兩者在文法上
+    /// 都成立，而打到一半的 <c>WHE</c> 與別名在剖析器眼中一模一樣。
+    ///
+    /// 沒有任何空白時不算：那代表兩個詞元是連著的（<c>t.|</c>），不是別名的位置。
+    /// </remarks>
+    private static bool StaysOnSameLine(string textBeforeToken)
+    {
+        var index = textBeforeToken.Length - 1;
+        var sawWhitespace = false;
+
+        while (index >= 0 && char.IsWhiteSpace(textBeforeToken[index]))
+        {
+            if (textBeforeToken[index] == '\n')
+            {
+                return false;
+            }
+
+            sawWhitespace = true;
+            index--;
+        }
+
+        return sawWhitespace;
+    }
+
+    /// <summary>
+    /// 游標停在一個資料來源的別名位置上，而且那個別名還沒寫。
+    /// </summary>
+    /// <remarks>
+    /// 判斷方式是往回數「名稱單位」：<c>FROM</c>／<c>JOIN</c>／<c>APPLY</c>／
+    /// <c>USING</c>（或 FROM 清單的逗號）與游標之間只有一個名稱，別名就還沒寫。
+    /// 兩個就是寫完了——<c>FROM CTE_TEST a </c> 之後接的是 <c>INNER</c>、
+    /// <c>WHERE</c>，清單照常。
+    ///
+    /// 帶點號的名稱算<b>一個</b>單位：<c>dbo.PUBLISHER</c> 是一個資料來源，不是兩個。
+    /// </remarks>
+    private static bool IsTableAliasSlot(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        var index = last;
+
+        if (index < 1 ||
+            tokens[index].Kind != SqlTokenKind.Identifier ||
+            (!tokens[index].IsQuoted && SqlKeywordCatalog.IsKeyword(tokens[index].Value)))
+        {
+            return false;
+        }
+
+        while (index >= 2 &&
+               tokens[index - 1].IsPunctuation(".") &&
+               tokens[index - 2].Kind == SqlTokenKind.Identifier)
+        {
+            index -= 2;
+        }
+
+        if (index < 1)
+        {
+            return false;
+        }
+
+        var previous = tokens[index - 1];
+
+        if (previous.Kind == SqlTokenKind.Identifier &&
+            !previous.IsQuoted &&
+            TableSourceKeywords.Contains(previous.Value))
+        {
+            return true;
+        }
+
+        // FROM a, b | 的逗號也開啟一個資料來源，但 SELECT a, b | 的不是。
+        return previous.IsPunctuation(",")
+            && FindAnchorPosition(tokens, index - 2, ListAnchors, SqlKeywordPosition.Any)
+                == SqlKeywordPosition.DataSource;
     }
 
     /// <summary>

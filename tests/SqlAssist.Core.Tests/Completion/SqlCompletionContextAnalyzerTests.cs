@@ -1,5 +1,6 @@
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Snippets;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
@@ -151,9 +152,35 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT c.PUBL_CODE AS co")]
     [InlineData("DECLARE @pub")]
     [InlineData("SELECT * FROM t WHERE a = @pa")]
+    [InlineData(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE_TEST a")]
+    [InlineData("SELECT * FROM CTE_TEST AS a INNER JOIN dbo.Cat_BookCopy b")]
     public void 取名字的位置不建議(string textBeforeCaret)
     {
         Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+    }
+
+    /// <summary>
+    /// 換行之後恢復建議，別名寫完之後也是。
+    /// </summary>
+    /// <remarks>
+    /// 這兩個位置分別要接得了下一個子句與下一個敘述。抑制別名清單不能把它們
+    /// 一起收掉——那是把一個問題換成另一個問題。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.PUBLISHER\r\nWHE", "WHERE")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER\r\nSEL", "SELECT")]
+    [InlineData("SELECT * FROM dbo.PUBLISHER a INN", "INNER")]
+    [InlineData("SELECT PublCode FR", "FROM")]
+    public void 別名位置之外照常建議關鍵字(string textBeforeCaret, string keyword)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
+
+        Assert.True(context.IsValid);
+        Assert.Contains(
+            SuggestionMatcher.Filter(suggestions, context),
+            suggestion => suggestion.Kind == SuggestionKind.Keyword &&
+                suggestion.DisplayText == keyword);
     }
 
     /// <summary>
