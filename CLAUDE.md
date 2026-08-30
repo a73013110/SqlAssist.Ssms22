@@ -4,7 +4,8 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 `SqlAssist.Metadata`（netstandard2.0，只依賴 `System.Data`）、`SqlAssist.Ssms22`（net48 VSIX）。
 
 細節按需查 [docs/](docs/)：`architecture`、`completion`、`snippets`、`wildcard-expansion`、
-`structure-preview`、`settings`、`metadata`、`development`。**動手前先讀對應的那一份**，
+`structure-preview`、`settings`、`metadata`、`development`。不確定該讀哪一份、或手上只有一個
+檔案路徑時，先看 [docs/index.md](docs/index.md)。**動手前先讀對應的那一份**，
 下面每一條禁令背後都有一次踩過的坑，理由寫在文件裡。
 
 ## 分層
