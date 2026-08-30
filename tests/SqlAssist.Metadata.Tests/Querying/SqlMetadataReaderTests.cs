@@ -116,11 +116,11 @@ public sealed class SqlMetadataReaderTests
     public void 讀取外來鍵列()
     {
         var record = new FakeDataRecord(
-            "FK_Order_User", "dbo", "Lib_Reader", "UserId", "Id", "CASCADE", "NO_ACTION");
+            "FK_Loan_Reader", "dbo", "Lib_Reader", "UserId", "Id", "CASCADE", "NO_ACTION");
 
         var row = SqlMetadataReader.ReadForeignKeyRow(record);
 
-        Assert.Equal("FK_Order_User", row.Name);
+        Assert.Equal("FK_Loan_Reader", row.Name);
         Assert.Equal("dbo", row.ReferencedSchemaName);
         Assert.Equal("Lib_Reader", row.ReferencedObjectName);
         Assert.Equal("UserId", row.ColumnName);

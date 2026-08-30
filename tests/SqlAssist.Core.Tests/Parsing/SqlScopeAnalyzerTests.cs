@@ -55,9 +55,9 @@ public sealed class SqlScopeAnalyzerTests
     public void 取得JOIN的所有資料表()
     {
         var scope = Analyze(
-            "SELECT | FROM dbo.Orders o INNER JOIN dbo.Publisher c ON o.PublisherId = c.Id");
+            "SELECT | FROM dbo.Loans o INNER JOIN dbo.Publisher c ON o.PublisherId = c.Id");
 
-        Assert.Equal(new[] { "Orders", "Publisher" }, scope.Tables.Select(t => t.ObjectName));
+        Assert.Equal(new[] { "Loans", "Publisher" }, scope.Tables.Select(t => t.ObjectName));
         Assert.Equal(new[] { "o", "c" }, scope.Tables.Select(t => t.Alias));
     }
 
@@ -73,9 +73,9 @@ public sealed class SqlScopeAnalyzerTests
     [Fact]
     public void 略過資料表提示後仍讀得到別名()
     {
-        var table = Assert.Single(Analyze("SELECT * FROM Orders WITH (NOLOCK) o WHERE |").Tables);
+        var table = Assert.Single(Analyze("SELECT * FROM Loans WITH (NOLOCK) o WHERE |").Tables);
 
-        Assert.Equal("Orders", table.ObjectName);
+        Assert.Equal("Loans", table.ObjectName);
         Assert.Equal("o", table.Alias);
     }
 
@@ -205,10 +205,10 @@ public sealed class SqlScopeAnalyzerTests
     [Fact]
     public void 別名優先於同名資料表()
     {
-        var scope = Analyze("SELECT | FROM Orders AS Publisher");
+        var scope = Analyze("SELECT | FROM Loans AS Publisher");
 
         Assert.True(scope.TryResolve("Publisher", out var reference));
-        Assert.Equal("Orders", reference.ObjectName);
+        Assert.Equal("Loans", reference.ObjectName);
     }
 
     [Fact]

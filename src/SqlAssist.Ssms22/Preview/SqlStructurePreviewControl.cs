@@ -391,7 +391,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// 標題就會停在上一個物件上——畫面出現「標題是同義字、內容是資料表」。
     ///
     /// 物件種類改由圖示表示，結構描述壓成淡色：讀完整串
-    /// 「Table　[dbo].[PUBLISHER]」要掃過十七個字，而真正要找的只有 PUBLISHER。
+    /// 「Table　[dbo].[PUBLISHER]」要掃過十八個字，而真正要找的只有 PUBLISHER。
     /// </remarks>
     private void SetTitle(SqlObjectInfo objectInfo)
     {

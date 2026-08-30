@@ -28,8 +28,8 @@ public sealed class SqlStatementScope
     /// 把限定字解析成資料來源。
     /// </summary>
     /// <remarks>
-    /// 別名優先於物件名稱：<c>FROM Orders AS Publishers</c> 之後的 <c>Publishers.</c>
-    /// 指的是 Orders，不是另一張同名資料表。
+    /// 別名優先於物件名稱：<c>FROM Loans AS Publishers</c> 之後的 <c>Publishers.</c>
+    /// 指的是 Loans，不是另一張同名資料表。
     /// </remarks>
     public bool TryResolve(string qualifier, out SqlTableReference reference)
     {

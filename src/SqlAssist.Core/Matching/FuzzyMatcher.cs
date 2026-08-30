@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Matching;
 /// </summary>
 /// <remarks>
 /// 相對於原始 fzf，這裡針對 SQL 識別字調整字元分類：底線、井號、小老鼠與點號
-/// 都歸類為分隔符，因此 <c>libr</c> 比對 <c>Lib_Reader</c> 時，<c>S</c> 與 <c>U</c>
+/// 都歸類為分隔符，因此 <c>libr</c> 比對 <c>Lib_Reader</c> 時，<c>L</c> 與 <c>R</c>
 /// 兩處都會取得詞首加成，分數會高於單純把 <c>libr</c> 當子字串命中的候選項。
 /// </remarks>
 public static class FuzzyMatcher

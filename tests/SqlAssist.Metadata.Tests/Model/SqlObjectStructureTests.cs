@@ -120,9 +120,9 @@ public sealed class SqlObjectStructureTests
     {
         var rows = new List<SqlForeignKeyRow>
         {
-            new("FK_Order_User", "dbo", "Lib_Reader", "UserId", "Id", "CASCADE", "NO_ACTION"),
-            new("FK_Order_Item", "dbo", "Item", "ItemId", "Id", "NO_ACTION", "NO_ACTION"),
-            new("FK_Order_Item", "dbo", "Item", "ItemKind", "Kind", "NO_ACTION", "NO_ACTION")
+            new("FK_Loan_Reader", "dbo", "Lib_Reader", "UserId", "Id", "CASCADE", "NO_ACTION"),
+            new("FK_Loan_Copy", "dbo", "Copy", "CopyId", "Id", "NO_ACTION", "NO_ACTION"),
+            new("FK_Loan_Copy", "dbo", "Copy", "CopyKind", "Kind", "NO_ACTION", "NO_ACTION")
         };
 
         var keys = SqlForeignKeyInfo.FromRows(rows);
@@ -130,23 +130,23 @@ public sealed class SqlObjectStructureTests
         Assert.Equal(2, keys.Count);
         Assert.Equal("ON DELETE CASCADE", keys[0].DescribeActions());
         Assert.Equal(2, keys[1].Columns.Count);
-        Assert.Equal("ItemId, ItemKind → [dbo].[Item].Id, Kind", keys[1].DescribeColumns());
+        Assert.Equal("CopyId, CopyKind → [dbo].[Copy].Id, Kind", keys[1].DescribeColumns());
     }
 
     [Fact]
     public void 沒有參考動作時不顯示動作()
     {
         var key = new SqlForeignKeyInfo(
-            "FK_Order_Item",
+            "FK_Loan_Copy",
             "dbo",
-            "Item",
-            new[] { new SqlForeignKeyColumn("ItemId", "Id") });
+            "Copy",
+            new[] { new SqlForeignKeyColumn("CopyId", "Id") });
 
         Assert.Equal(string.Empty, key.DescribeActions());
         Assert.Equal(
-            "ALTER TABLE [dbo].[Orders] ADD CONSTRAINT [FK_Order_Item] " +
-            "FOREIGN KEY ([ItemId]) REFERENCES [dbo].[Item] ([Id]);",
-            key.ToScript("[dbo].[Orders]"));
+            "ALTER TABLE [dbo].[Loans] ADD CONSTRAINT [FK_Loan_Copy] " +
+            "FOREIGN KEY ([CopyId]) REFERENCES [dbo].[Copy] ([Id]);",
+            key.ToScript("[dbo].[Loans]"));
     }
 
     [Fact]
@@ -170,10 +170,10 @@ public sealed class SqlObjectStructureTests
             new[]
             {
                 new SqlForeignKeyInfo(
-                    "FK_Lib_Reader_Dept",
+                    "FK_Lib_Reader_Branch",
                     "dbo",
-                    "Dept",
-                    new[] { new SqlForeignKeyColumn("DeptId", "Id") })
+                    "Branch",
+                    new[] { new SqlForeignKeyColumn("BranchId", "Id") })
             });
 
         var script = structure.BuildScript();
@@ -183,7 +183,7 @@ public sealed class SqlObjectStructureTests
         Assert.Contains("    [Name] nvarchar(50) NULL DEFAULT (''),", script);
         Assert.Contains("    CONSTRAINT [PK_Lib_Reader] PRIMARY KEY CLUSTERED ([Id] ASC)", script);
         Assert.Contains("CREATE NONCLUSTERED INDEX [IX_Name]", script);
-        Assert.Contains("ADD CONSTRAINT [FK_Lib_Reader_Dept] FOREIGN KEY ([DeptId])", script);
+        Assert.Contains("ADD CONSTRAINT [FK_Lib_Reader_Branch] FOREIGN KEY ([BranchId])", script);
 
         // 主索引鍵已經寫進 CREATE TABLE，不可以再單獨輸出一次。
         Assert.DoesNotContain("ADD CONSTRAINT [PK_Lib_Reader]", script);
@@ -216,11 +216,11 @@ public sealed class SqlObjectStructureTests
     {
         var structure = new SqlObjectStructure(
             new SqlObjectDetail(
-                new SqlObjectInfo(2, "dbo", "usp_GetUser", SqlObjectKind.Procedure),
+                new SqlObjectInfo(2, "dbo", "usp_GetBook", SqlObjectKind.Procedure),
                 parameters: new[] { new SqlParameterInfo(1, "@Id", "int", false) },
-                definition: "CREATE PROCEDURE dbo.usp_GetUser @Id int AS SELECT 1;"));
+                definition: "CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;"));
 
-        Assert.Equal("CREATE PROCEDURE dbo.usp_GetUser @Id int AS SELECT 1;", structure.BuildScript());
+        Assert.Equal("CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;", structure.BuildScript());
     }
 
     [Fact]

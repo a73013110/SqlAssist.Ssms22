@@ -9,7 +9,7 @@ public sealed class SqlCompletionContextAnalyzerTests
 {
     [Theory]
     [InlineData("SELECT * FROM ", CompletionTarget.DataSource)]
-    [InlineData("SELECT * FROM Orders INNER JOIN ", CompletionTarget.DataSource)]
+    [InlineData("SELECT * FROM Loans INNER JOIN ", CompletionTarget.DataSource)]
     [InlineData("UPDATE ", CompletionTarget.DataSource)]
     [InlineData("INSERT INTO ", CompletionTarget.DataSource)]
     [InlineData("ALTER PROCEDURE ", CompletionTarget.Procedure)]
@@ -44,7 +44,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("ALTER PROCEDURE ", 0, "ALTER")]
     [InlineData("\r\nALTER PROCEDURE usp", 2, "ALTER")]
     [InlineData("SELECT * FROM ", 9, "FROM")]
-    [InlineData("SELECT * FROM Orders INNER JOIN pub", 27, "JOIN")]
+    [InlineData("SELECT * FROM Loans INNER JOIN pub", 26, "JOIN")]
     public void 回報決定目標的關鍵字起點(string textBeforeCaret, int expectedStart, string expectedKeyword)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

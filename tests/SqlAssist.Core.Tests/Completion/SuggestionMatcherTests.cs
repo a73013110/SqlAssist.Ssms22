@@ -128,11 +128,11 @@ public sealed class SuggestionMatcherTests
     [Fact]
     public void 分數相同時較短的名稱排前面()
     {
-        var candidates = new[] { Table("OrderDetailHistory"), Table("Order") };
+        var candidates = new[] { Table("LoanDetailHistory"), Table("Loan") };
 
-        var ranked = RankNames(candidates, "SELECT * FROM order");
+        var ranked = RankNames(candidates, "SELECT * FROM loan");
 
-        Assert.Equal("Order", ranked[0]);
+        Assert.Equal("Loan", ranked[0]);
     }
 
     [Fact]
@@ -264,20 +264,20 @@ public sealed class SuggestionMatcherTests
     public void 長欄位仍排在短資料表之前()
     {
         var names = RankNames(
-            new[] { Table("USERS"), Column("USER_ACCOUNT_HISTORY_DETAIL") },
-            "SELECT us");
+            new[] { Table("BOOKS"), Column("BOOK_LOAN_HISTORY_DETAIL") },
+            "SELECT bo");
 
-        Assert.Equal("USER_ACCOUNT_HISTORY_DETAIL", names[0]);
+        Assert.Equal("BOOK_LOAN_HISTORY_DETAIL", names[0]);
     }
 
     [Fact]
     public void 名稱長度只在同類別內決定順序()
     {
         var names = RankNames(
-            new[] { Column("USER_ACCOUNT_HISTORY_DETAIL"), Column("USERS") },
-            "SELECT us");
+            new[] { Column("BOOK_LOAN_HISTORY_DETAIL"), Column("BOOKS") },
+            "SELECT bo");
 
-        Assert.Equal("USERS", names[0]);
+        Assert.Equal("BOOKS", names[0]);
     }
 
     /// <summary>最近提交過的項目要排到前面。</summary>
@@ -288,13 +288,13 @@ public sealed class SuggestionMatcherTests
 
         try
         {
-            var candidates = new[] { Table("USER_A"), Table("USER_B") };
+            var candidates = new[] { Table("BOOK_A"), Table("BOOK_B") };
 
-            Assert.Equal("USER_A", RankNames(candidates, "SELECT * FROM user")[0]);
+            Assert.Equal("BOOK_A", RankNames(candidates, "SELECT * FROM book")[0]);
 
-            SqlSuggestionUsage.Record(Table("USER_B"));
+            SqlSuggestionUsage.Record(Table("BOOK_B"));
 
-            Assert.Equal("USER_B", RankNames(candidates, "SELECT * FROM user")[0]);
+            Assert.Equal("BOOK_B", RankNames(candidates, "SELECT * FROM book")[0]);
         }
         finally
         {

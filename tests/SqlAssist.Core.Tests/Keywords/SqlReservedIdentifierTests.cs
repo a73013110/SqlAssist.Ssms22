@@ -72,7 +72,7 @@ public sealed class SqlReservedIdentifierTests
 
     [Theory]
     [InlineData("Publishers")]
-    [InlineData("OrderDetail")]
+    [InlineData("LoanDetail")]
     [InlineData("Id")]
     [InlineData("Lib_Reader")]
     [InlineData("")]

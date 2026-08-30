@@ -140,7 +140,7 @@ public sealed class SqlForeignKeyInfo
         return keys;
     }
 
-    /// <summary>欄位對應的簡短描述，例如 <c>UserId → [dbo].[Lib_Reader].Id</c>。</summary>
+    /// <summary>欄位對應的簡短描述，例如 <c>ReaderId → [dbo].[Lib_Reader].Id</c>。</summary>
     public string DescribeColumns()
     {
         var source = new StringBuilder();
