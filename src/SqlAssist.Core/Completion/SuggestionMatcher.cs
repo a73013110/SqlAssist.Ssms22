@@ -41,6 +41,12 @@ public static class SuggestionMatcher
     /// <summary>
     /// 篩選並排名建議項，回傳含分數與命中區段的結果。
     /// </summary>
+    /// <remarks>
+    /// 這裡<b>不</b>套用 <see cref="IsVisibleWithoutPrefix"/>：那是顯示層的決定，
+    /// 要看使用者有沒有按下分類篩選鈕，而排名這一層看不到那個狀態。曾經在這裡
+    /// 硬寫 <c>categorySelected: false</c> 補一份，結果是同一條規則有兩個實作，
+    /// 而且測試守到的是產品根本不走的那一個。呼叫端在把清單畫出去之前自己問。
+    /// </remarks>
     public static IReadOnlyList<SuggestionMatch> Rank(
         IEnumerable<SqlSuggestion> suggestions,
         SqlCompletionContext context,
@@ -81,11 +87,6 @@ public static class SuggestionMatcher
             var match = FuzzyMatcher.MatchNormalized(pattern, suggestion.DisplayText);
 
             if (!match.IsMatch)
-            {
-                continue;
-            }
-
-            if (pattern.Length == 0 && !IsVisibleWithoutPrefix(suggestion, categorySelected: false))
             {
                 continue;
             }
