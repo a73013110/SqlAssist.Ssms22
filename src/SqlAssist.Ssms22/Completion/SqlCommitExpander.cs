@@ -47,7 +47,7 @@ internal readonly struct SqlStatementSite
 
         return new SqlStatementSite(
             text.Substring(0, length),
-            line.LineBreakLength > 0 ? line.GetLineBreakText() : Environment.NewLine,
+            SnapshotNewLine.Resolve(target.Snapshot, target.Start.Position),
             target.GetText());
     }
 }
