@@ -89,6 +89,26 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.suggestions.useSquareBrackets</summary>
     public bool UseSquareBrackets { get; init; }
 
+    /// <summary>
+    /// sqlAssist.suggestions.expandInsertStatement
+    /// </summary>
+    /// <remarks>
+    /// 在 <c>INSERT INTO </c> 之後提交一張資料表時，把整句展開成欄位清單加
+    /// <c>VALUES</c> 預留值，而不是只補上名稱。關掉之後那個位置就跟其他位置一樣
+    /// 只插入名稱——<c>INSERT INTO t SELECT …</c> 這種寫法用得多的人會想關掉它。
+    /// </remarks>
+    public bool ExpandInsertStatement { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.suggestions.expandProcedureCall
+    /// </summary>
+    /// <remarks>
+    /// 在 <c>EXEC </c> 之後提交一個模組時，把整句展開成具名傳值的呼叫。
+    /// 與 <see cref="ExpandInsertStatement"/> 分成兩個開關而不是一個：
+    /// 兩者展開的東西不同，想關掉其中一個的理由也不同。
+    /// </remarks>
+    public bool ExpandProcedureCall { get; init; } = true;
+
     /// <summary>sqlAssist.structure.hoverEnabled：滑鼠停留提示，與浮動預覽是兩個獨立的表面。</summary>
     public bool HoverEnabled { get; init; } = true;
 

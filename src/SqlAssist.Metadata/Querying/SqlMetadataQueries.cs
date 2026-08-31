@@ -110,6 +110,15 @@ ORDER BY d.name;";
     /// 第二層：單一物件的欄位。主索引鍵資訊由 sys.indexes／sys.index_columns 帶出，
     /// 讓滑鼠停留提示能直接標示 PK。
     /// </summary>
+    /// <remarks>
+    /// <c>GENERATED ALWAYS</c>（時態資料表的期間欄位、帳本資料表的異動欄位）走
+    /// <c>COLUMNPROPERTY</c> 而不是 <c>sys.columns.generated_always_type</c>：
+    /// 那一欄要 SQL Server 2016 才有，直接 SELECT 它會讓整份欄位查詢在更舊的執行個體上
+    /// 變成語法錯誤——而 <c>TryLoad</c> 會把它降級成「這一輪沒有資料」，
+    /// 於是欄位建議、萬用字元展開與結構預覽在那些伺服器上會一起安靜地消失。
+    /// <c>COLUMNPROPERTY</c> 對認不得的屬性名稱回傳 NULL，NULL &gt; 0 不成立，
+    /// 舊版因此自然得到 0，不必為此再開一條依版本組字串的路。
+    /// </remarks>
     public const string Columns = @"
 SELECT
     c.column_id,
@@ -123,7 +132,11 @@ SELECT
     c.is_computed,
     CONVERT(bit, CASE WHEN pkc.column_id IS NULL THEN 0 ELSE 1 END) AS is_primary_key,
     dc.definition AS default_definition,
-    cc.definition AS computed_definition
+    cc.definition AS computed_definition,
+    CONVERT(bit, CASE
+        WHEN COLUMNPROPERTY(c.object_id, c.name, 'GeneratedAlwaysType') > 0 THEN 1
+        ELSE 0
+    END) AS is_generated_always
 FROM sys.columns AS c
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.indexes AS pk

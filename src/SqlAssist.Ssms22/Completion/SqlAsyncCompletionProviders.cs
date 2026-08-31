@@ -46,13 +46,13 @@ internal static class SqlCompletionServices
         }
     }
 
-    public static SqlModuleExpander GetModuleExpander(ITextView textView, IServiceProvider serviceProvider)
+    public static SqlCommitExpander GetCommitExpander(ITextView textView, IServiceProvider serviceProvider)
     {
         lock (SyncRoot)
         {
             return textView.Properties.GetOrCreateSingletonProperty(
-                typeof(SqlModuleExpander),
-                () => new SqlModuleExpander(textView, GetMetadataService(textView, serviceProvider)));
+                typeof(SqlCommitExpander),
+                () => new SqlCommitExpander(textView, GetMetadataService(textView, serviceProvider)));
         }
     }
 }
@@ -120,7 +120,7 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
             () => textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionCommitManager),
                 () => new SqlAsyncCompletionCommitManager(
-                    SqlCompletionServices.GetModuleExpander(textView, ServiceProvider),
+                    SqlCompletionServices.GetCommitExpander(textView, ServiceProvider),
                     Broker)));
     }
 }

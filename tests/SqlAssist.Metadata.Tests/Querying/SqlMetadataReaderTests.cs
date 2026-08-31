@@ -23,11 +23,11 @@ public sealed class SqlMetadataReaderTests
     [Fact]
     public void 讀取欄位()
     {
-        // column_id, name, type, max_length, precision, scale,
-        // nullable, identity, computed, primary_key, default, computed_definition
+        // column_id, name, type, max_length, precision, scale, nullable, identity,
+        // computed, primary_key, default, computed_definition, generated_always
         var record = new FakeDataRecord(
             1, "UserId", "int", (short)4, (byte)10, (byte)0,
-            false, true, false, true, null, null);
+            false, true, false, true, null, null, false);
 
         var column = SqlMetadataReader.ReadColumn(record);
 
@@ -46,7 +46,7 @@ public sealed class SqlMetadataReaderTests
     {
         var record = new FakeDataRecord(
             2, "UserName", "nvarchar", (short)100, (byte)0, (byte)0,
-            true, false, false, false, "('')", null);
+            true, false, false, false, "('')", null, false);
 
         var column = SqlMetadataReader.ReadColumn(record);
 
@@ -60,7 +60,7 @@ public sealed class SqlMetadataReaderTests
     {
         var record = new FakeDataRecord(
             1, "UserId", "int", (short)4, (byte)10, (byte)0,
-            false, true, false, true, null, null);
+            false, true, false, true, null, null, false);
 
         var line = SqlMetadataReader.ReadColumn(record).ToScriptLine();
 
@@ -72,12 +72,40 @@ public sealed class SqlMetadataReaderTests
     {
         var record = new FakeDataRecord(
             3, "FullName", "nvarchar", (short)200, (byte)0, (byte)0,
-            true, false, true, false, null, "([First]+' '+[Last])");
+            true, false, true, false, null, "([First]+' '+[Last])", false);
 
         var column = SqlMetadataReader.ReadColumn(record);
 
         Assert.True(column.IsComputed);
         Assert.Equal("([First]+' '+[Last])", column.ComputedDefinition);
+    }
+
+    /// <summary>
+    /// 插不進去的四種欄位。
+    /// </summary>
+    /// <remarks>
+    /// 展開 INSERT 骨架時漏掉任何一種，症狀不是少幾個欄位，而是整句一執行就錯——
+    /// 因此四種各測一次，而不是只測 IDENTITY 與計算欄位這兩個明顯的。
+    /// </remarks>
+    [Theory]
+    [InlineData("CopyNo", "varchar", false, false, false, true)]
+    [InlineData("CopyId", "int", true, false, false, false)]
+    [InlineData("Barcode", "nvarchar", false, true, false, false)]
+    [InlineData("RowVer", "timestamp", false, false, false, false)]
+    [InlineData("ValidFrom", "datetime2", false, false, true, false)]
+    public void 判斷欄位插不插得進去(
+        string name,
+        string typeName,
+        bool isIdentity,
+        bool isComputed,
+        bool isGeneratedAlways,
+        bool expected)
+    {
+        var record = new FakeDataRecord(
+            1, name, typeName, (short)8, (byte)10, (byte)0,
+            false, isIdentity, isComputed, false, null, null, isGeneratedAlways);
+
+        Assert.Equal(expected, SqlMetadataReader.ReadColumn(record).CanInsert);
     }
 
     [Fact]

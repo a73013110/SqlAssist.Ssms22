@@ -35,6 +35,8 @@ public static class SqlAssistMonikers
     public const string ShowCategoryFilters = "sqlAssist.suggestions.showCategoryFilters";
     public const string QualifyObjectNames = "sqlAssist.suggestions.qualifyObjectNames";
     public const string UseSquareBrackets = "sqlAssist.suggestions.useSquareBrackets";
+    public const string ExpandInsertStatement = "sqlAssist.suggestions.expandInsertStatement";
+    public const string ExpandProcedureCall = "sqlAssist.suggestions.expandProcedureCall";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";
     public const string PreviewMode = "sqlAssist.structure.previewMode";

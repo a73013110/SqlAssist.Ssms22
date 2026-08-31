@@ -9,14 +9,25 @@ namespace SqlAssist.Ssms22.Editor;
 /// <summary>要寫回編輯器的文字，以及寫進去之後要留下的紀錄。</summary>
 internal readonly struct TextReplacement
 {
-    public TextReplacement(string text, string expansionLabel, string successMessage)
+    public TextReplacement(string text, string expansionLabel, string successMessage, int caretOffset = -1)
     {
         Text = text;
         ExpansionLabel = expansionLabel;
         SuccessMessage = successMessage;
+        CaretOffset = caretOffset;
     }
 
     public string Text { get; }
+
+    /// <summary>
+    /// 替換後游標要停在 <see cref="Text"/> 的第幾個字元；負值代表停在結尾。
+    /// </summary>
+    /// <remarks>
+    /// 展開成骨架的兩種（INSERT、EXEC）要停在第一個待填的值上——那是使用者
+    /// 接下來要做的第一件事，停在結尾等於逼他自己捲回去。整句換成既有定義的
+    /// ALTER 沒有這種位置，維持停在結尾。
+    /// </remarks>
+    public int CaretOffset { get; }
 
     /// <summary>寫進 <see cref="SqlAssistRuntimeState"/> 的簡短描述，診斷狀態會顯示它。</summary>
     public string ExpansionLabel { get; }
@@ -102,7 +113,10 @@ internal sealed class TextViewEditCoordinator
                     return;
                 }
 
-                var caret = Math.Min(target.Start.Position + replacement.Text.Length, updated.Length);
+                var offset = replacement.CaretOffset < 0 || replacement.CaretOffset > replacement.Text.Length
+                    ? replacement.Text.Length
+                    : replacement.CaretOffset;
+                var caret = Math.Min(target.Start.Position + offset, updated.Length);
                 _textView.Caret.MoveTo(new SnapshotPoint(updated, caret));
                 _textView.Caret.EnsureVisible();
                 SqlAssistRuntimeState.MarkExpansion(replacement.ExpansionLabel);

@@ -78,6 +78,7 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Core/Parsing/SqlColumnSourceResolver` | 別名指向哪些欄位 | 同一個衍生資料表，`a.*` 展得開、`a.` 卻一個建議都沒有 |
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
+| `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
 | `Ssms22/Editor/SqlObjectLocator` | 位置到物件的解析 | 滑鼠提示與結構面板對同一個位置給出不同答案 |
 | `Ssms22/SqlAssistPlatformGuard` | 平台邊界的例外收斂 | 忘記收斂的 handler 讓輸入中斷或跳出錯誤對話框 |
 | `Ssms22/UI/SqlAssistChrome` | 所有自建介面的外觀 | 兩個視窗長得像但又不完全一樣 |
@@ -137,7 +138,7 @@ TextView 建立的當下，此時本擴充的建議來源還沒被實例化，br
 |---|---|
 | `IAsyncCompletionSource` | 提供項目、右側說明面板 |
 | `IAsyncCompletionItemManager` | 排名、篩選與命中標示 |
-| `IAsyncCompletionCommitManager` | 接續建議與 ALTER 展開的提交行為 |
+| `IAsyncCompletionCommitManager` | 接續建議，以及 ALTER／INSERT／EXEC 三種提交後展開整句的行為 |
 
 排名器不能省：平台預設的比對器沒有詞首感知，少了它 `libr` 又會排不到 `Lib_Reader`。
 

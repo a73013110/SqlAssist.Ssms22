@@ -413,12 +413,13 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | 游標前方 | 只顯示 | 提交行為 |
 |---|---|---|
 | `FROM`、`JOIN`、`UPDATE`、`INTO` | Table、View | 插入名稱 |
+| `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `ALTER PROCEDURE` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
 | `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
-| `EXEC`、`EXECUTE` | Procedure | 插入名稱 |
+| `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
 | `sys.`、`INFORMATION_SCHEMA.` | 目錄檢視、DMV 與系統程序 | 插入名稱 |
@@ -475,6 +476,129 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 `ap` → `Tab` → 選取程序 → `Tab`，編輯器會直接放進該程序可執行的完整定義，
 可以立刻修改並更新。定義開頭的 `CREATE` 或 `CREATE OR ALTER` 會改寫成 `ALTER`，
 主體完全不動（主體裡的 `CREATE TABLE #tmp` 之類的語句不受影響）。
+
+## 提交時展開成整句
+
+有三個位置提交的不是一個名稱，而是一整句：`ALTER PROCEDURE` 之後放進完整定義，
+`INSERT INTO` 之後放進欄位清單與 `VALUES`，`EXEC` 之後放進具名傳值的參數清單。
+
+```text
+INSERT INTO dbo.Cat_BookCopy
+(
+    CopyNo,
+    Barcode,
+    BranchId
+)
+VALUES
+(
+    '',      -- CopyNo - varchar(10)
+    DEFAULT, -- Barcode - nvarchar(100)
+    NULL     -- BranchId - int
+)
+```
+
+```text
+DECLARE @NewDueDate datetime2(7);
+EXEC dbo.usp_Loan_Renew @LoanId = 0,                     -- int
+                        @Days = 0,                       -- int，選擇性
+                        @NewDueDate = @NewDueDate OUTPUT -- datetime2(7)
+```
+
+三種只有「換成什麼」不一樣，「怎麼安全地換」是同一份：先把名稱插進去，用
+`ITrackingSpan` 記住整句的範圍，到背景取物件細節，回來確認原文還在原處才替換。
+共用的那一份在 `Ssms22/Completion/SqlCommitExpander`，各自的「換成什麼」在
+`SqlCommitExpansions`。各寫一份的下場是其中一份少了一道，而少的那一道會覆蓋
+使用者的輸入。
+
+游標停在**第一個要填的值**上，不是整段的結尾——展開之後使用者要做的第一件事就是
+填第一個值，停在結尾等於逼他自己捲回去。
+
+### 只要名稱的時候按一次復原
+
+`INSERT INTO t SELECT …` 與照順序傳值的 `EXEC p 1, 2` 都是常見寫法，那些時候展開
+反而礙事。插入名稱與展開是**兩次獨立的編輯**，所以按一次 `Ctrl+Z` 就退回只有名稱的
+狀態，不是退回打到一半的前綴。
+
+刻意不做成「Tab 展開、Enter 只插入名稱」：`SqlAssistCompletionCommandHandler` 沒有
+接管清單的 Tab 與 Enter，那兩個鍵由平台處理；自己攔一個處理常式記下按了哪個鍵也
+不可靠——本擴充與平台的處理常式都排在 `default` 之前，彼此的先後順序沒有保證。
+不想要展開的人另有兩個開關，見 [settings.md](settings.md)。
+
+### 哪些欄位插不進去
+
+四種，漏掉任何一種的症狀相同——展開出來的 `INSERT` 一執行就錯：
+
+| 排除 | 判斷依據 |
+|---|---|
+| `IDENTITY` | `sys.columns.is_identity` |
+| 計算欄位 | `sys.columns.is_computed` |
+| `rowversion`（舊名 `timestamp`） | 型別名稱；`sys.columns` 沒有這個旗標 |
+| 時態與帳本資料表的 `GENERATED ALWAYS` 欄位 | `COLUMNPROPERTY(…, 'GeneratedAlwaysType')` |
+
+最後一種刻意不讀 `sys.columns.generated_always_type`：那一欄要 SQL Server 2016 才有，
+直接 SELECT 它會讓整份欄位查詢在更舊的執行個體上變成語法錯誤，而
+`TryLoad` 會把它降級成「這一輪沒有資料」——於是欄位建議、萬用字元展開與結構預覽
+會在那些伺服器上**一起安靜地消失**。`COLUMNPROPERTY` 對認不得的屬性名稱回傳 NULL，
+舊版因此自然得到 0。
+
+一個欄位都撈不到時**整個放棄**，維持只插入名稱：同義字在 `sys.columns` 裡沒有列，
+組出 `INSERT INTO syn () VALUES ()` 比什麼都不做糟糕得多。這與 `SELECT *` 不做
+部分展開是同一條理由。
+
+### 值先填什麼
+
+三條，順序不能對調：
+
+1. 有 `DEFAULT` 條件約束 → `DEFAULT`
+2. 可為 NULL → `NULL`
+3. 其餘 → 依型別的預留值（`''`、`N''`、`0`、`0x`、`NEWID()`）
+
+`VALUES (DEFAULT)` 對「沒有預設值而且 NOT NULL」的欄位是執行期錯誤，所以第一條
+只能給真的有 DEFAULT 條件約束的欄位。
+
+日期時間型別給 `NULL` 而不是 `''`：空字串轉成日期是 1900-01-01，那是一個**執行得動的
+錯值**，而預留值要的正是「看得出來還沒填」。`NULL` 在 NOT NULL 的欄位上會失敗，
+而失敗看得見。
+
+### 參數的選擇性從定義讀，不從中繼資料讀
+
+`sys.parameters.has_default_value` 對 T-SQL 模組**永遠是 0**——那一欄只對 CLR 模組
+有效。所以「哪些參數可以省略」只能剖析 `OBJECT_DEFINITION` 的參數清單，
+在 `Core/Statements/SqlModuleParameterDefaults`。
+
+定義是第三層資料，本來不在按鍵路徑上；但提交也不在按鍵路徑上，而且
+`GetDetailAsync` 的同一次呼叫本來就會把欄位、參數與定義一起帶回來，因此不多付
+任何一次往返。讀不出來就少標幾個「選擇性」，不猜——猜錯會讓使用者刪掉一個其實
+必填的參數。
+
+`OUTPUT` 參數傳的必須是變數，光給字面值是語法錯誤，所以整段前面會補上 `DECLARE`。
+使用者已經宣告過同名變數時會撞名，但那是一個當場看得見的編譯錯誤；少了 `DECLARE`
+則是連編譯都過不了，那比什麼都不做糟糕。
+
+沒有參數的模組不展開（展開起來與只插入名稱一模一樣）。擴充預存程序在
+`sys.parameters` 裡也沒有列，同樣落在這一條。
+
+### 續行的對齊
+
+`EXEC` 的續行對齊到第一個參數所在的欄，每一列的 `@` 因此落在同一個位置；
+代價是名稱長的模組會把整段推向右邊。`INSERT` 的欄位與 `VALUES` 一律每列一個，
+而且**不跟**「展開後的欄位怎麼排」那個設定走——那個設定的三種排法都在權衡
+「一行讀不讀得完」，而這裡的兩份清單是**成對**的：第三個欄位對第三個值，
+攤成一行就對不起來，而對不起來的代價是把值填錯格。
+
+縮排取語句所在行的前導空白，整段重複到每一行，定位字元原樣保留：每一行前面放的
+都是同一串字元，在定位寬度不是 4 的機器上也對得齊。
+
+`EXEC` 與 `EXECUTE` 照使用者原本寫的帶回去。統一改寫成 `EXEC` 也合法，但那是他
+沒有要求的改動——與展開萬用字元時保留他自己寫的限定字是同一條。
+
+### `INSERT INTO` 與單獨的 `INTO` 必須分開
+
+`SELECT * INTO #tmp` 的 `INTO` 後面是一個**還不存在的新名稱**，在那裡展開骨架會蓋掉
+使用者正在取的名字。所以認的是 `INSERT INTO` 這兩個字，而不是 `INTO` 一個字。
+
+替換的範圍從 `INSERT` 開始，不是從 `INTO`——只從 `INTO` 開始換會在編輯器裡留下一個
+孤零零的 `INSERT`。
 
 ## 欄位建議
 
