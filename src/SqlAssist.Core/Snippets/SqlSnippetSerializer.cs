@@ -8,24 +8,14 @@ namespace SqlAssist.Core.Snippets;
 /// <summary>SqlAssist Snippet JSON 的寬容讀取與穩定輸出。</summary>
 public static class SqlSnippetSerializer
 {
-    /// <summary>相容舊呼叫端：把整份清單寫成 v2 的完整紀錄。</summary>
-    public static string Serialize(SqlSnippetLibrary library)
-    {
-        if (library is null)
-        {
-            throw new ArgumentNullException(nameof(library));
-        }
-
-        var records = new List<SqlSnippetOverride>(library.Count);
-
-        foreach (var snippet in library.Snippets)
-        {
-            records.Add(new SqlSnippetOverride(snippet.Id, disabled: false, snippet));
-        }
-
-        return Serialize(new SqlSnippetDocument(SqlSnippetLibrary.CurrentVersion, records));
-    }
-
+    /// <summary>
+    /// 把一份 v2 文件寫成 JSON。
+    /// </summary>
+    /// <remarks>
+    /// 刻意沒有「整份清單寫成完整紀錄」的多載：那正好是 v2 要消滅的檔案形狀
+    /// ——把 40 筆內建值物化進使用者檔之後，下一版 VSIX 再也更新不到它們。
+    /// 要寫什麼由 <see cref="SqlSnippetMerger.CreateOverrides"/> 決定。
+    /// </remarks>
     public static string Serialize(SqlSnippetDocument document)
     {
         if (document is null)

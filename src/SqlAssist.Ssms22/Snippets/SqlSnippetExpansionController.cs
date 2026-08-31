@@ -401,7 +401,15 @@ internal sealed class SqlSnippetExpansionController : IDisposable
 
 }
 
-/// <summary>原生 Expansion Engine 呼叫回 SqlAssist 的平台邊界。</summary>
+/// <summary>
+/// 原生 Expansion Engine 呼叫回 SqlAssist 的平台邊界。
+/// </summary>
+/// <remarks>
+/// 只有真的會做事的三個方法（<see cref="FormatSpan"/>、<see cref="EndExpansion"/>、
+/// 兩個插入回呼）走 <see cref="SqlAssistPlatformGuard"/>。其餘幾個的內容只是回一個
+/// 常數，包起來只是儀式——Guard 是用來擋住「會丟例外的程式碼」的，套在丟不出
+/// 例外的地方會讓真正需要它的那幾處看起來沒有特別之處。
+/// </remarks>
 internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
 {
     private readonly SqlSnippetExpansionController _controller;
@@ -411,13 +419,11 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
         _controller = controller;
     }
 
+    /// <summary>不提供自訂函式；<c>$函式()$</c> 那一套語法用不到。</summary>
     public int GetExpansionFunction(IXMLDOMNode xmlFunctionNode, string fieldName, out IVsExpansionFunction function)
     {
         function = null!;
-        return SqlAssistPlatformGuard.Run(
-            "查詢原生 Snippet 函式",
-            () => VSConstants.E_NOTIMPL,
-            VSConstants.E_FAIL);
+        return VSConstants.E_NOTIMPL;
     }
 
     /// <remarks>
@@ -450,6 +456,7 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
             VSConstants.E_FAIL);
     }
 
+    /// <summary>型別與種類一律放行：XML 是我們自己從內建定義組出來的。</summary>
     public int IsValidType(
         IVsTextLines textLines,
         TextSpan[] spans,
@@ -458,10 +465,7 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
         out int isValid)
     {
         isValid = 1;
-        return SqlAssistPlatformGuard.Run(
-            "驗證原生 Snippet 類型",
-            () => VSConstants.S_OK,
-            VSConstants.E_FAIL);
+        return VSConstants.S_OK;
     }
 
     public int IsValidKind(
@@ -471,10 +475,7 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
         out int isValid)
     {
         isValid = 1;
-        return SqlAssistPlatformGuard.Run(
-            "驗證原生 Snippet 種類",
-            () => VSConstants.S_OK,
-            VSConstants.E_FAIL);
+        return VSConstants.S_OK;
     }
 
     public int OnBeforeInsertion(IVsExpansionSession session)
@@ -501,9 +502,9 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
             VSConstants.E_FAIL);
     }
 
-    public int PositionCaretForEditing(IVsTextLines textLines, TextSpan[] spans) =>
-        SqlAssistPlatformGuard.Run("定位原生 Snippet 游標", () => VSConstants.S_OK, VSConstants.E_FAIL);
+    /// <summary>游標由引擎自己放到第一個欄位，這裡不介入。</summary>
+    public int PositionCaretForEditing(IVsTextLines textLines, TextSpan[] spans) => VSConstants.S_OK;
 
-    public int OnItemChosen(string title, string path) =>
-        SqlAssistPlatformGuard.Run("選取原生 Snippet 項目", () => VSConstants.S_OK, VSConstants.E_FAIL);
+    /// <summary>只有引擎自己的挑選介面會用到；SqlAssist 一律從建議清單提交。</summary>
+    public int OnItemChosen(string title, string path) => VSConstants.S_OK;
 }

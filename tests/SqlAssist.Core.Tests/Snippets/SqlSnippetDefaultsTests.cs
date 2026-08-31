@@ -69,6 +69,63 @@ public sealed class SqlSnippetDefaultsTests
         Assert.Equal(target, SqlCompletionContextAnalyzer.Analyze(expanded).Target);
     }
 
+    /// <remarks>
+    /// 這個 repo 是公開的，識別字本身就是使用者的私有資產（見 CLAUDE.md）。
+    /// 內建片段是最容易不小心把真實 schema 名稱帶進來的地方：寫樣板時手邊
+    /// 正好開著一份真的指令碼。這裡只認一組通用佔位名稱，要加新的就得先想過。
+    /// </remarks>
+    [Fact]
+    public void 內建片段只用通用的佔位名稱()
+    {
+        var allowed = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "dbo", "TableName", "ColumnName", "SchemaName", "DatabaseName",
+            "ProcedureName", "FunctionName", "ViewName", "IndexName",
+            "TargetTable", "SourceTable", "TargetColumn", "SourceColumn",
+            "KeyColumn", "UpdateColumn", "InsertColumn", "TempTable",
+            "IX_TableName_ColumnName",
+            "Value", "Name", "cte", "item_cursor", "t"
+        };
+
+        foreach (var snippet in SqlSnippetDefaults.Current.Snippets)
+        {
+            foreach (var placeholder in snippet.Placeholders)
+            {
+                // 空白、數字、SQL 常值與型別名稱都不是識別字，不必列進白名單。
+                if (placeholder.DefaultValue.Length == 0 ||
+                    !LooksLikeIdentifier(placeholder.DefaultValue))
+                {
+                    continue;
+                }
+
+                Assert.True(
+                    allowed.Contains(placeholder.DefaultValue),
+                    $"{snippet.Shortcut} 的 ${placeholder.Id}$ 預設值「{placeholder.DefaultValue}」" +
+                    "不在通用佔位名稱清單裡；真實系統的名稱不能進這個 repo。");
+            }
+        }
+    }
+
+    /// <summary>看起來像資料庫識別字（會被誤認成真實名稱）的預設值。</summary>
+    private static bool LooksLikeIdentifier(string value)
+    {
+        if (!char.IsLetter(value[0]) && value[0] != '_')
+        {
+            return false;
+        }
+
+        foreach (var character in value)
+        {
+            if (!char.IsLetterOrDigit(character) && character != '_')
+            {
+                return false;
+            }
+        }
+
+        // 全大寫的是 T-SQL 型別與關鍵字（INT、NULL、TABLE…），那是語言事實。
+        return value.ToUpperInvariant() != value;
+    }
+
     [Fact]
     public void CASE捷徑不與關鍵字撞名()
     {
