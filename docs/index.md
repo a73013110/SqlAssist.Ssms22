@@ -96,6 +96,7 @@
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
 | DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
+| 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |

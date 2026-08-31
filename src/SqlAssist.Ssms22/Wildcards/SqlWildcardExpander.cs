@@ -235,7 +235,7 @@ internal sealed class SqlWildcardExpander
                 snapshot.GetText(line.Start.Position, target.Start.Position - line.Start.Position)),
             settings.WildcardLayout,
             SqlAssistLimits.MaximumWildcardLineWidth,
-            line.LineBreakLength > 0 ? line.GetLineBreakText() : Environment.NewLine);
+            SnapshotNewLine.Resolve(snapshot, target.Start.Position));
 
         return new TextReplacement(
             text,

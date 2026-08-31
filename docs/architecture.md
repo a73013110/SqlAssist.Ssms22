@@ -78,6 +78,7 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Core/Parsing/SqlColumnSourceResolver` | 別名指向哪些欄位 | 同一個衍生資料表，`a.*` 展得開、`a.` 卻一個建議都沒有 |
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
+| `Ssms22/Editor/SnapshotNewLine` | 寫回去的多行文字用哪一種換行 | 同一份指令碼混進兩種換行，下一次 diff 整段變紅 |
 | `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
 | `Core/Snippets/SqlSnippetExpansion` | Snippet 的純文字、游標、欄位位置與錢字號規則 | caret fallback 與原生 XML 對同一段程式碼產生不同結果 |
 | `Ssms22/SqlLanguageService` | SQL 語言服務 GUID | 內建清單偏好與原生 Snippet 各自連到不同語言服務 |

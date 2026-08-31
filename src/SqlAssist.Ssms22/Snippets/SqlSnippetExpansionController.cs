@@ -130,7 +130,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         {
             dom = SqlNativeSnippetXmlBuilder.CreateNode(
                 request.Snippet,
-                ResolveNewLine(before, target.Start.Position));
+                SnapshotNewLine.Resolve(before, target.Start.Position));
             var result = expansion.InsertSpecificExpansion(
                 dom.Node,
                 span,
@@ -176,7 +176,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
                 }
 
                 var text = expansion.GetText(
-                    ResolveNewLine(target.Snapshot, target.Start.Position),
+                    SnapshotNewLine.Resolve(target.Snapshot, target.Start.Position),
                     out var caretOffset);
                 return new TextReplacement(
                     text,
@@ -399,29 +399,6 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         };
     }
 
-    private static string ResolveNewLine(ITextSnapshot snapshot, int position)
-    {
-        var line = snapshot.GetLineFromPosition(Math.Min(position, snapshot.Length));
-
-        for (var distance = 0; distance < 50; distance++)
-        {
-            var before = line.LineNumber - distance;
-
-            if (before >= 0 && snapshot.GetLineFromLineNumber(before).GetLineBreakText() is { Length: > 0 } previous)
-            {
-                return previous == "\n" ? "\n" : "\r\n";
-            }
-
-            var after = line.LineNumber + distance;
-
-            if (after < snapshot.LineCount && snapshot.GetLineFromLineNumber(after).GetLineBreakText() is { Length: > 0 } next)
-            {
-                return next == "\n" ? "\n" : "\r\n";
-            }
-        }
-
-        return Environment.NewLine;
-    }
 }
 
 /// <summary>原生 Expansion Engine 呼叫回 SqlAssist 的平台邊界。</summary>
