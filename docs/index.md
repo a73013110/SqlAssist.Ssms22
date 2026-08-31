@@ -45,6 +45,7 @@
 | `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion.md](completion.md) |
 | `Matching/` | 與領域無關的字串模糊比對（**禁止**參照 `Completion/`） | [completion.md](completion.md) |
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
+| `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 | [settings.md](settings.md) |
@@ -88,6 +89,9 @@
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 識別字加括號、型別格式化 | `Metadata/Formatting/SqlIdentifier.cs`、`SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
+| 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
+| DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |

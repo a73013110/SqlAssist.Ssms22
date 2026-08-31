@@ -23,7 +23,7 @@ public static class PreviewPlacementEngine
         var anchor = Normalize(request.Anchor);
         if (available.IsEmpty || anchor.IsEmpty)
         {
-            return new PreviewLayout(default, PreviewPlacementSide.Below, false, true);
+            return new PreviewLayout(default, PreviewPlacementSide.Below, false, true, true);
         }
 
         var minimumWidth = Math.Min(Positive(request.MinimumWidth), available.Width);
@@ -44,7 +44,7 @@ public static class PreviewPlacementEngine
 
             if (request.PreviousSide is PreviewPlacementSide.Below or PreviewPlacementSide.Above)
             {
-                var hysteresis = Math.Max(8, Positive(request.Gap) * 2);
+                var hysteresis = Hysteresis(request);
                 if (!TryPlaceBeside(
                         request,
                         available,
@@ -130,7 +130,7 @@ public static class PreviewPlacementEngine
         var leftEnd = request.Anchor.Left - request.Gap;
 
         if (request.PreviousSide == PreviewPlacementSide.Left &&
-            TryFindLeft(free, leftEnd, desiredWidth, desiredWidth, out var previousLeft))
+            TryFindLeft(free, leftEnd, desiredWidth, out var previousLeft))
         {
             layout = Result(
                 previousLeft.End - desiredWidth,
@@ -144,7 +144,7 @@ public static class PreviewPlacementEngine
         }
 
         if (request.PreviousSide == PreviewPlacementSide.Right &&
-            TryFindRight(free, rightStart, desiredWidth, desiredWidth, out var previousRight))
+            TryFindRight(free, rightStart, desiredWidth, out var previousRight))
         {
             layout = Result(
                 previousRight.Start,
@@ -157,13 +157,13 @@ public static class PreviewPlacementEngine
             return true;
         }
 
-        if (TryFindRight(free, rightStart, desiredWidth, desiredWidth, out var right))
+        if (TryFindRight(free, rightStart, desiredWidth, out var right))
         {
             layout = Result(right.Start, top, desiredWidth, desiredHeight, PreviewPlacementSide.Right, false, request);
             return true;
         }
 
-        if (TryFindLeft(free, leftEnd, desiredWidth, desiredWidth, out var left))
+        if (TryFindLeft(free, leftEnd, desiredWidth, out var left))
         {
             layout = Result(left.End - desiredWidth, top, desiredWidth, desiredHeight, PreviewPlacementSide.Left, false, request);
             return true;
@@ -175,7 +175,7 @@ public static class PreviewPlacementEngine
         var leftRemainder = FindLargestLeft(free, leftEnd);
         var rightWidth = Math.Min(desiredWidth, rightRemainder.Length);
         var leftWidth = Math.Min(desiredWidth, leftRemainder.Length);
-        var hysteresis = Math.Max(8, Positive(request.Gap) * 2);
+        var hysteresis = Hysteresis(request);
 
         if (rightWidth + Epsilon >= minimumWidth || leftWidth + Epsilon >= minimumWidth)
         {
@@ -231,19 +231,9 @@ public static class PreviewPlacementEngine
                 .Select(obstacle => new Segment(obstacle.Top, obstacle.Bottom)));
 
         var belowStart = request.Anchor.Bottom + request.Gap;
-        var belowFits = TryFindRight(
-            free,
-            belowStart,
-            desiredHeight,
-            desiredHeight,
-            out var below);
+        var belowFits = TryFindRight(free, belowStart, desiredHeight, out var below);
         var aboveEnd = request.Anchor.Top - request.Gap;
-        var aboveFits = TryFindLeft(
-            free,
-            aboveEnd,
-            desiredHeight,
-            desiredHeight,
-            out var above);
+        var aboveFits = TryFindLeft(free, aboveEnd, desiredHeight, out var above);
 
         if (request.PreviousSide == PreviewPlacementSide.Above && aboveFits)
         {
@@ -272,7 +262,7 @@ public static class PreviewPlacementEngine
         {
             var belowHeight = Math.Min(desiredHeight, belowRemainder.Length);
             var aboveHeight = Math.Min(desiredHeight, aboveRemainder.Length);
-            var hysteresis = Math.Max(8, Positive(request.Gap) * 2);
+            var hysteresis = Hysteresis(request);
             var chooseAbove = aboveHeight > belowHeight + hysteresis ||
                               request.PreviousSide == PreviewPlacementSide.Above &&
                               aboveHeight + hysteresis >= belowHeight;
@@ -322,15 +312,28 @@ public static class PreviewPlacementEngine
         bool usedFallback,
         PreviewLayoutRequest request)
     {
-        var constrained = (!request.StretchStackedWidth &&
-                           Math.Abs(width - request.DesiredWidth) >= Epsilon) ||
-                          Math.Abs(height - request.DesiredHeight) >= Epsilon;
+        // 自動延伸的寬度沒有「偏好值」可言，永遠不算被壓縮。
+        var widthConstrained = !request.StretchStackedWidth &&
+                               width + Epsilon < request.DesiredWidth;
+        var heightConstrained = height + Epsilon < request.DesiredHeight;
         return new PreviewLayout(
             new PreviewRectangle(left, top, width, height),
             side,
             usedFallback,
-            constrained);
+            widthConstrained,
+            heightConstrained);
     }
+
+    /// <summary>
+    /// 方向偏好只在差距明顯時才讓位。
+    /// </summary>
+    /// <remarks>
+    /// 上下與左右、正常路徑與剩餘量比較都用同一個量：分開寫的話，改了其中一個
+    /// 而另一個沒改，症狀是「某一種擺放會抖，另一種不會」，而且看不出關聯。
+    /// 下限 8 是為了 Gap 很小時仍然擋得住 DPI 捨入的一兩個像素。
+    /// </remarks>
+    private static double Hysteresis(PreviewLayoutRequest request) =>
+        Math.Max(8, Positive(request.Gap) * 2);
 
     private static IReadOnlyList<Segment> FreeSegments(
         double start,
@@ -376,19 +379,19 @@ public static class PreviewPlacementEngine
         return free;
     }
 
+    /// <summary>從 <paramref name="start"/> 起往正向找第一個放得下 <paramref name="length"/> 的空檔。</summary>
     private static bool TryFindRight(
         IReadOnlyList<Segment> free,
         double start,
-        double minimumLength,
-        double preferredLength,
+        double length,
         out Segment result)
     {
         foreach (var segment in free)
         {
             var candidateStart = Math.Max(start, segment.Start);
-            if (segment.End - candidateStart + Epsilon >= minimumLength)
+            if (segment.End - candidateStart + Epsilon >= length)
             {
-                result = new Segment(candidateStart, Math.Min(segment.End, candidateStart + preferredLength));
+                result = new Segment(candidateStart, Math.Min(segment.End, candidateStart + length));
                 return true;
             }
         }
@@ -427,20 +430,20 @@ public static class PreviewPlacementEngine
         return best;
     }
 
+    /// <summary>從 <paramref name="end"/> 起往負向找第一個放得下 <paramref name="length"/> 的空檔。</summary>
     private static bool TryFindLeft(
         IReadOnlyList<Segment> free,
         double end,
-        double minimumLength,
-        double preferredLength,
+        double length,
         out Segment result)
     {
         for (var index = free.Count - 1; index >= 0; index--)
         {
             var segment = free[index];
             var candidateEnd = Math.Min(end, segment.End);
-            if (candidateEnd - segment.Start + Epsilon >= minimumLength)
+            if (candidateEnd - segment.Start + Epsilon >= length)
             {
-                result = new Segment(Math.Max(segment.Start, candidateEnd - preferredLength), candidateEnd);
+                result = new Segment(Math.Max(segment.Start, candidateEnd - length), candidateEnd);
                 return true;
             }
         }

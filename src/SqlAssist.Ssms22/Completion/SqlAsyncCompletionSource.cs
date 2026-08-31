@@ -114,22 +114,14 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         SnapshotSpan applicableToSpan,
         CancellationToken token)
     {
-        var preview = SqlAssistSettingsStore.Current.PreviewMode == SqlPreviewMode.Off
-            ? null
-            : SqlAssistPlatformGuard.Run<SqlStructurePreview?>(
-                "取得結構預覽 session",
-                () => SqlStructurePreview.GetOrCreate(session.TextView, _serviceProvider),
-                fallback: null);
-
         return SqlAssistPlatformGuard.RunAsync(
             "建議清單取得",
-            () => GetCompletionContextCoreAsync(session, preview, triggerLocation, token),
+            () => GetCompletionContextCoreAsync(session, triggerLocation, token),
             fallback: CompletionContext.Empty);
     }
 
     private async Task<CompletionContext> GetCompletionContextCoreAsync(
         IAsyncCompletionSession session,
-        SqlStructurePreview? preview,
         SnapshotPoint triggerLocation,
         CancellationToken token)
     {
@@ -174,21 +166,42 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 $"耗時 {total.ElapsedMilliseconds} ms：建議清單（目標 {context.Target}，{items.Length} 筆）");
         }
 
-        var result = new CompletionContext(items);
-
         // 只有真的產出 SqlAssist items 才取得 ownership；空 context 可能仍由別的來源顯示。
-        // 在交回結果前切回 UI 執行緒完成訂閱，ItemsUpdated 才不會先一步漏掉第一次選取。
-        if (preview is not null &&
-            !session.IsDismissed &&
-            session.TextView is IWpfTextView textView)
+        OwnPreviewSession(session);
+        return new CompletionContext(items);
+    }
+
+    /// <summary>
+    /// 把這份清單交給結構預覽接管。
+    /// </summary>
+    /// <remarks>
+    /// 這個方法本身跑在平台的背景執行緒上，而預覽會訂閱編輯器事件、建立
+    /// <see cref="DispatcherTimer"/>，那些都必須在 UI 執行緒上完成——連
+    /// <see cref="SqlStructurePreview.GetOrCreate"/> 也是，它的建構函式就在掛事件。
+    ///
+    /// 刻意**不等**這一次派送完成：<c>GetCompletionContextAsync</c> 是平台的
+    /// 建議清單來源，等 UI 執行緒空出來才回傳，等於把「清單多久出現」綁在 UI 的
+    /// 忙碌程度上；而平台只要有任何一條路徑在 UI 執行緒上同步等 completion model
+    /// （<c>GetComputedItems</c> 就是會阻塞的），互等就是死結。
+    /// 晚一步接管沒有代價：<see cref="SqlStructurePreview.OwnSession"/> 自己會排一次
+    /// 對帳，就算漏掉第一次 <c>ItemsUpdated</c>，選取仍然會被讀回來。
+    /// </remarks>
+    private void OwnPreviewSession(IAsyncCompletionSession session)
+    {
+        if (SqlAssistSettingsStore.Current.PreviewMode == SqlPreviewMode.Off ||
+            session.IsDismissed ||
+            session.TextView is not IWpfTextView textView)
         {
-            await textView.VisualElement.Dispatcher.InvokeAsync(
-                () => preview.OwnSession(session, _metadataService),
-                DispatcherPriority.Normal,
-                token);
+            return;
         }
 
-        return result;
+        textView.VisualElement.Dispatcher.BeginInvoke(
+            DispatcherPriority.Normal,
+            new Action(() => SqlAssistPlatformGuard.Run(
+                "接管建議清單的結構預覽",
+                () => SqlStructurePreview
+                    .GetOrCreate(textView, _serviceProvider)
+                    ?.OwnSession(session, _metadataService))));
     }
 
     /// <summary>
