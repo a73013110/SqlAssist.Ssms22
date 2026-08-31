@@ -135,6 +135,22 @@
       "description": "例如插入 [dbo].[Lib_Reader]。關閉時仍會為含空白或保留字的名稱加上括號，否則插入的 SQL 無效。",
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
+    "sqlAssist.suggestions.expandInsertStatement": {
+      "type": "boolean",
+      "default": true,
+      "order": 70,
+      "title": "在 INSERT INTO 之後展開完整的欄位與 VALUES",
+      "description": "選取資料表後不只補上名稱，而是展開成每列一個欄位的清單加上對應的 VALUES 預留值。IDENTITY、計算欄位、rowversion 與時態資料表的期間欄位會排除。關閉後只插入名稱。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
+    "sqlAssist.suggestions.expandProcedureCall": {
+      "type": "boolean",
+      "default": true,
+      "order": 80,
+      "title": "在 EXEC 之後展開完整的參數清單",
+      "description": "選取預存程序後展開成具名傳值的呼叫，每個參數一列並註明型別；有預設值的參數標示為選擇性，OUTPUT 參數會一併補上 DECLARE。關閉後只插入名稱。",
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
 
     "sqlAssist.structure.hoverEnabled": {
       "type": "boolean",

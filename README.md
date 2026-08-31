@@ -16,6 +16,7 @@
 | 欄位建議 | 輸入 `別名.` 列出該資料來源的欄位、型別與 PK | [completion.md](docs/completion.md) |
 | 程式碼片段 | `ssf`、`ap`、`af` 可增刪修，帶佔位符 | [snippets.md](docs/snippets.md) |
 | 展開 `SELECT *` | Tab 換成完整欄位清單，三種排法 | [wildcard-expansion.md](docs/wildcard-expansion.md) |
+| 展開整句 | `INSERT INTO`、`EXEC`、`ALTER` 之後提交物件就補齊整句 | [completion.md](docs/completion.md) |
 | 物件結構 | 停留提示與可複製的浮動預覽 | [structure-preview.md](docs/structure-preview.md) |
 
 ## 文件
@@ -84,7 +85,8 @@ Set-Location 'D:\GitProject\SqlAssist.Ssms22'
   `ROWTERMINATOR` 這類）在文法上不是關鍵字，任何剖析器都列不出來，
   要補只能加進產生器的補充清單，或做成程式碼片段。
 - 程式碼片段與 SSMS 的 `.snippet` 不互通，也還沒有匯入轉換。
-- 佔位符只有預設值，展開後不能用 Tab 在欄位之間巡覽。
+- 佔位符只有預設值，展開後不能用 Tab 在欄位之間巡覽。`INSERT`／`EXEC` 展開出來的
+  預留值同樣是純文字，要自己移動游標去填。
 - SSMS 目前不正式支援第三方擴充套件，安裝與載入方式需要以實機驗證。
 - Unified Settings 的服務型別取自 `Microsoft.Internal.VisualStudio.Interop`，
   那是內部 API。取不到服務時會安靜地回退到內建預設值，但 SSMS 改版有可能讓

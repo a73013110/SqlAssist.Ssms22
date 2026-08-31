@@ -51,7 +51,8 @@ public static class SqlMetadataReader
             record.GetBoolean(8),
             record.GetBoolean(9),
             record.IsDBNull(10) ? null : record.GetString(10),
-            record.IsDBNull(11) ? null : record.GetString(11));
+            record.IsDBNull(11) ? null : record.GetString(11),
+            record.GetBoolean(12));
     }
 
     public static SqlIndexRow ReadIndexRow(IDataRecord record)

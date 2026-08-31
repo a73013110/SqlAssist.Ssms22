@@ -74,6 +74,14 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.UseSquareBrackets,
                 defaults.UseSquareBrackets),
+            ExpandInsertStatement = Value(
+                source,
+                SqlAssistMonikers.ExpandInsertStatement,
+                defaults.ExpandInsertStatement),
+            ExpandProcedureCall = Value(
+                source,
+                SqlAssistMonikers.ExpandProcedureCall,
+                defaults.ExpandProcedureCall),
 
             HoverEnabled = Value(source, SqlAssistMonikers.HoverEnabled, defaults.HoverEnabled),
             PreviewMode = ParsePreviewMode(

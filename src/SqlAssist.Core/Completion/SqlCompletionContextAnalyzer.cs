@@ -246,6 +246,24 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Trigger;
         }
 
+        // INSERT INTO 之後選一張資料表，要的幾乎不會是「只把名稱補上」——那句話還沒寫完。
+        // 光看 INTO 分不出來：SELECT … INTO #tmp 的 INTO 後面是一個還不存在的新名稱，
+        // 展開成 INSERT 骨架會蓋掉他正在取的名字。所以認的是 INSERT INTO 這兩個字。
+        intent = CompletionIntent.InsertStatement;
+
+        if (EndsWithKeywords(text, "INSERT", "INTO", out keywordStart))
+        {
+            return CompletionTarget.DataSource;
+        }
+
+        intent = CompletionIntent.ExecuteCall;
+
+        if (EndsWithKeyword(text, "EXEC", out keywordStart) ||
+            EndsWithKeyword(text, "EXECUTE", out keywordStart))
+        {
+            return CompletionTarget.Procedure;
+        }
+
         intent = CompletionIntent.Reference;
 
         if (EndsWithKeywords(text, "DROP", "TRIGGER", out keywordStart) ||
@@ -261,12 +279,6 @@ public static class SqlCompletionContextAnalyzer
             EndsWithKeywords(text, "DROP", "SEQUENCE", out keywordStart))
         {
             return CompletionTarget.Sequence;
-        }
-
-        if (EndsWithKeyword(text, "EXEC", out keywordStart) ||
-            EndsWithKeyword(text, "EXECUTE", out keywordStart))
-        {
-            return CompletionTarget.Procedure;
         }
 
         if (EndsWithKeyword(text, "USE", out keywordStart))

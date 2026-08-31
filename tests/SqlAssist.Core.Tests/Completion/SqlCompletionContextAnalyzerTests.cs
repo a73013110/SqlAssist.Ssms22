@@ -69,17 +69,53 @@ public sealed class SqlCompletionContextAnalyzerTests
 
     /// <summary>
     /// ALTER PROCEDURE 與 EXEC 後方都只顯示預存程序，但提交行為必須不同：
-    /// 前者要放進完整定義，後者只補上名稱。
+    /// 前者要放進完整定義，後者要組出一句具名傳值的呼叫。
     /// </summary>
+    /// <remarks>
+    /// INSERT INTO 與單獨的 INTO 也必須分開。<c>SELECT … INTO #tmp</c> 的 INTO 後面
+    /// 是一個還不存在的新名稱，在那裡展開 INSERT 骨架會蓋掉使用者正在取的名字。
+    /// </remarks>
     [Theory]
     [InlineData("ALTER PROCEDURE ", CompletionIntent.AlterDefinition)]
     [InlineData("ALTER FUNCTION ", CompletionIntent.AlterDefinition)]
-    [InlineData("EXEC ", CompletionIntent.Reference)]
+    [InlineData("ALTER TRIGGER ", CompletionIntent.AlterDefinition)]
+    [InlineData("EXEC ", CompletionIntent.ExecuteCall)]
+    [InlineData("EXECUTE ", CompletionIntent.ExecuteCall)]
+    [InlineData("exec usp", CompletionIntent.ExecuteCall)]
+    [InlineData("INSERT INTO ", CompletionIntent.InsertStatement)]
+    [InlineData("insert into lo", CompletionIntent.InsertStatement)]
+    [InlineData("SELECT * INTO ", CompletionIntent.Reference)]
     [InlineData("SELECT * FROM ", CompletionIntent.Reference)]
+    [InlineData("DROP TRIGGER ", CompletionIntent.Reference)]
     [InlineData("SELECT pub", CompletionIntent.Reference)]
     public void 區分提交意圖(string textBeforeCaret, CompletionIntent expected)
     {
         Assert.Equal(expected, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Intent);
+    }
+
+    /// <remarks>
+    /// 提交時要換掉的是整句，起點必須是 INSERT 而不是 INTO——只從 INTO 開始換
+    /// 會在編輯器裡留下一個孤零零的 INSERT。
+    /// </remarks>
+    [Fact]
+    public void INSERT_INTO的關鍵字起點落在INSERT上()
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze("  INSERT INTO ");
+
+        Assert.Equal(2, context.TargetKeywordStart);
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+    }
+
+    /// <remarks>
+    /// EXEC 之後要列出 sp_executesql、sp_help 這些系統程序，而那份清單掛在
+    /// WantsSystemObjects 上；提交行為換成 ExecuteCall 之後那個判斷仍然要成立。
+    /// </remarks>
+    [Theory]
+    [InlineData("EXEC ", true)]
+    [InlineData("ALTER PROCEDURE ", false)]
+    public void EXEC之後仍然要系統物件(string textBeforeCaret, bool expected)
+    {
+        Assert.Equal(expected, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).WantsSystemObjects);
     }
 
     [Fact]

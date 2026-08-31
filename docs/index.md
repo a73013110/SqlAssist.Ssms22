@@ -15,6 +15,8 @@
 | 打完某個字沒有重開清單 | [completion.md](completion.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SSMS 自己的清單也跟著彈出來 | [completion.md](completion.md) | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
 | 提交建議後寫進去的文字不對 | [completion.md](completion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
+| `INSERT INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion.md](completion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
+| 展開的整句蓋錯位置或沒有蓋上去 | [completion.md](completion.md) | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
 | 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
 | 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
@@ -47,6 +49,7 @@
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
 | `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
+| `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`EXEC` 呼叫、參數預設值） | [completion.md](completion.md) |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 | [settings.md](settings.md) |
 | `Json/` | 最小 JSON 讀寫（Snippet 檔與註冊檔測試用） | — |
@@ -93,6 +96,7 @@
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
 | DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
+| 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |

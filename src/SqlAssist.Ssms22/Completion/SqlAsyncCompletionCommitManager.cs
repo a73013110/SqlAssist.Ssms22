@@ -17,20 +17,21 @@ namespace SqlAssist.Ssms22.Completion;
 /// </summary>
 /// <remarks>
 /// 大部分項目交還給平台處理即可（它會插入 <see cref="CompletionItem.InsertText"/>），
-/// 只有兩種情形要自己接手：
-/// 接續建議（<c>ssf</c> 展開後要立刻列出資料表），以及
-/// <c>ALTER PROCEDURE</c> 之後要放進完整定義。
+/// 只有兩種情形要自己接手：接續建議（<c>ssf</c> 展開後要立刻列出資料表），
+/// 以及提交後要把整個語句換掉的三種展開——<c>ALTER PROCEDURE</c> 的完整定義、
+/// <c>INSERT INTO</c> 的欄位與 <c>VALUES</c>、<c>EXEC</c> 的具名參數清單。
+/// 後三種只有「換成什麼」不同，「怎麼安全地換」共用 <see cref="SqlCommitExpander"/>。
 /// </remarks>
 internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitManager
 {
-    private readonly SqlModuleExpander _moduleExpander;
+    private readonly SqlCommitExpander _commitExpander;
     private readonly IAsyncCompletionBroker? _broker;
 
     public SqlAsyncCompletionCommitManager(
-        SqlModuleExpander moduleExpander,
+        SqlCommitExpander commitExpander,
         IAsyncCompletionBroker? broker)
     {
-        _moduleExpander = moduleExpander;
+        _commitExpander = commitExpander;
         _broker = broker;
     }
 
@@ -93,12 +94,12 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 
         var snapshot = buffer.CurrentSnapshot;
         var span = session.ApplicableToSpan.GetSpan(snapshot);
-        // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與 ALTER 的
+        // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與語句的
         // 關鍵字起點，兩者都在游標之前。欄位的插入文字在建立建議時就定案了，
         // 這裡不必再解析一次別名。
         var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(0, span.End));
         var settings = SqlAssistSettingsStore.Current;
-        var shouldExpand = SqlModuleExpander.ShouldExpand(suggestion, context, span.End);
+        var expansion = SqlCommitExpander.Resolve(suggestion, context, span.End, settings);
 
         // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
         var snippet = suggestion.Tag as SqlSnippet;
@@ -115,7 +116,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         }
 
         // 一般項目讓平台自己插入，行為與其他語言一致。
-        if (!shouldExpand && !suggestion.TriggerFollowUp && snippetCaret < 0)
+        if (expansion is null && !suggestion.TriggerFollowUp && snippetCaret < 0)
         {
             return CommitResult.Unhandled;
         }
@@ -152,17 +153,19 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
         }
 
-        if (shouldExpand && suggestion.Tag is SqlObjectInfo objectInfo)
+        if (expansion is not null)
         {
             // 範圍要等名稱插好之後才建立，否則會漏掉剛插進去的名稱——理由寫在
-            // SqlModuleExpander.CreateStatementSpan。起點與終點都以這次編輯的
+            // SqlCommitExpander.CreateStatementSpan。起點與終點都以這次編輯的
             // 結果算：取代的起點不會位移，終點就是插入文字的結尾。
-            var statementSpan = SqlModuleExpander.CreateStatementSpan(
+            var statementSpan = SqlCommitExpander.CreateStatementSpan(
                 applied,
                 context.TargetKeywordStart,
                 insertionStart + insertionText.Length);
 
-            _moduleExpander.Begin(objectInfo, statementSpan);
+            // 展開是另一次獨立的編輯，因此按一次復原就退回「只插入名稱」的狀態——
+            // 想要 INSERT INTO t SELECT … 或照順序傳值的 EXEC 時走的就是那條路。
+            _commitExpander.Begin(expansion, statementSpan, insertionText);
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }
 

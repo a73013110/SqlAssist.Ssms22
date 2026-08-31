@@ -31,6 +31,18 @@
 耗時 2100 ms：建議清單（目標 Column，45 筆）
 ```
 
+## 只用得到舊版也有的欄位
+
+第二層要判斷「這個欄位插不插得進去」，其中 `GENERATED ALWAYS`（時態資料表的期間
+欄位、帳本資料表的異動欄位）走 `COLUMNPROPERTY(…, 'GeneratedAlwaysType')`，
+**不是** `sys.columns.generated_always_type`。
+
+那一欄要 SQL Server 2016 才有，直接 SELECT 它會讓整份欄位查詢在更舊的執行個體上
+變成語法錯誤——而語法錯誤是 `DbException`，會被下面那一節降級成「這一輪沒有資料」。
+症狀因此不是「少判斷一種欄位」，而是欄位建議、`SELECT *` 展開與結構預覽在那些
+伺服器上**一起安靜地消失**。`COLUMNPROPERTY` 對認不得的屬性名稱回傳 NULL，
+`NULL > 0` 不成立，舊版自然得到 0，不必為此再開一條依版本組字串的路。
+
 ## 資料庫說不行的時候
 
 連不上、逾時、權限不足、物件剛被砍掉——這一類 `DbException` **不會**冒出

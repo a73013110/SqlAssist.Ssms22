@@ -111,12 +111,14 @@ public sealed class SqlCompletionContext
     ///
     /// <c>ALTER PROCEDURE </c> 不算：那裡目標同樣是預存程序，但系統程序改不動，
     /// 列出來只會讓使用者選到一個改不了的東西——與內建函式不進
-    /// <c>ALTER FUNCTION</c> 是同一條理由。
+    /// <c>ALTER FUNCTION</c> 是同一條理由。分辨兩者的正是
+    /// <see cref="Intent"/>，所以這裡認的是 <see cref="CompletionIntent.ExecuteCall"/>
+    /// 而不是「不是 ALTER」——往後再多一種提交行為時，這一條不必跟著改。
     ///
     /// 判斷放在這裡而不是取得清單的那一層：它只跟上下文有關，可以完整單元測試。
     /// </remarks>
     public bool WantsSystemObjects =>
-        (Target == CompletionTarget.Procedure && Intent == CompletionIntent.Reference) ||
+        (Target == CompletionTarget.Procedure && Intent == CompletionIntent.ExecuteCall) ||
         string.Equals(Qualifier, "sys", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(Qualifier, "INFORMATION_SCHEMA", StringComparison.OrdinalIgnoreCase);
 
