@@ -5,5 +5,7 @@
     <RootNamespace>SqlAssist.Core</RootNamespace>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Snippets\DefaultSnippets.json" />
+  </ItemGroup>
 </Project>
-

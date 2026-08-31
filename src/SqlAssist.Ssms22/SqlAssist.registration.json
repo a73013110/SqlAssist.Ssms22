@@ -91,7 +91,7 @@
       "default": true,
       "order": 30,
       "title": "列出程式碼片段",
-      "description": "把自訂的程式碼片段一起列進建議清單。預設有 ssf、ap、af 三個。",
+      "description": "把內建與自訂的程式碼片段一起列進建議清單。內建片段共 40 筆。",
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'",
       "commands": [
         {

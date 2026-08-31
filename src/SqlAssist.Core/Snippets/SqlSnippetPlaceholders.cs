@@ -65,7 +65,9 @@ public static class SqlSnippetPlaceholders
 
             var name = code.Substring(open + 1, end - open - 1);
 
-            if (!string.Equals(name, "end", StringComparison.OrdinalIgnoreCase) && seen.Add(name))
+            if (!string.Equals(name, "end", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(name, "selected", StringComparison.OrdinalIgnoreCase) &&
+                seen.Add(name))
             {
                 names.Add(name);
             }
@@ -110,7 +112,7 @@ public static class SqlSnippetPlaceholders
         return result;
     }
 
-    private static bool IsNameStart(char value) => char.IsLetter(value) || value == '_';
+    internal static bool IsNameStart(char value) => char.IsLetter(value) || value == '_';
 
-    private static bool IsNamePart(char value) => char.IsLetterOrDigit(value) || value == '_';
+    internal static bool IsNamePart(char value) => char.IsLetterOrDigit(value) || value == '_';
 }

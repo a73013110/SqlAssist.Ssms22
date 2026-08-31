@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Adornments;
@@ -9,6 +10,7 @@ using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Wildcards;
 
 namespace SqlAssist.Ssms22.Editor;
@@ -31,6 +33,10 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     /// </remarks>
     [Import(AllowDefault = true)]
     internal IAsyncCompletionBroker? AsyncCompletionBroker { get; set; }
+
+    /// <summary>原生 Snippet Expansion 的舊版文字緩衝區橋接；缺席時退回游標模式。</summary>
+    [Import(AllowDefault = true)]
+    internal IVsEditorAdaptersFactoryService? EditorAdapters { get; set; }
 
     /// <summary>
     /// 結構預覽需要的編輯器服務。
@@ -78,6 +84,11 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
             }
 
             SqlWildcardHint.Attach(textView, AsyncCompletionBroker, ToolTipPresenterFactory);
+
+            if (EditorAdapters is { } adapters)
+            {
+                SqlSnippetExpansionController.Attach(textView, adapters);
+            }
 
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();

@@ -46,7 +46,7 @@ src/SqlAssist.Ssms22         net48 VSIX
   Wildcards/                 Tab 展開萬用字元的命令處理常式與提示
   QuickInfo/                 滑鼠停留的物件結構提示
   Preview/                   浮動結構預覽視窗
-  Snippets/                  片段檔的讀寫與管理介面
+  Snippets/                  片段檔、管理介面與 SSMS 原生 Expansion 接線
   Settings/                  Unified Settings 服務的接線與快取
   Commands/                  工具選單的命令與命令識別碼
   Editor/                    文字檢視接線、游標處物件定位、輸入時的關鍵字大寫
@@ -79,6 +79,8 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
 | `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
+| `Core/Snippets/SqlSnippetExpansion` | Snippet 的純文字、游標、欄位位置與錢字號規則 | caret fallback 與原生 XML 對同一段程式碼產生不同結果 |
+| `Ssms22/SqlLanguageService` | SQL 語言服務 GUID | 內建清單偏好與原生 Snippet 各自連到不同語言服務 |
 | `Ssms22/Editor/SqlObjectLocator` | 位置到物件的解析 | 滑鼠提示與結構面板對同一個位置給出不同答案 |
 | `Ssms22/SqlAssistPlatformGuard` | 平台邊界的例外收斂 | 忘記收斂的 handler 讓輸入中斷或跳出錯誤對話框 |
 | `Ssms22/UI/SqlAssistChrome` | 所有自建介面的外觀 | 兩個視窗長得像但又不完全一樣 |

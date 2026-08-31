@@ -73,7 +73,7 @@ public sealed class SqlSnippetTests
     [Fact]
     public void 寫出去再讀回來內容不變()
     {
-        var original = SqlSnippetLibrary.CreateDefault().Set(new SqlSnippet(
+        var original = SqlSnippetDefaults.Current.Set(new SqlSnippet(
             "ins",
             "INSERT INTO $table$\nVALUES ($end$);",
             "插入",
@@ -130,7 +130,7 @@ public sealed class SqlSnippetTests
     public void 捷徑必須是單一詞元且不能撞名(string shortcut, bool expected)
     {
         // 展開與比對都是在「一個詞元」上做的，含空白或標點的捷徑永遠打不出來。
-        var library = SqlSnippetLibrary.CreateDefault();
+        var library = SqlSnippetDefaults.Current;
 
         Assert.Equal(expected, library.ValidateShortcut(shortcut, allowedExisting: null, out _));
     }
@@ -138,7 +138,7 @@ public sealed class SqlSnippetTests
     [Fact]
     public void 編輯既有項目時不會被自己的捷徑擋下來()
     {
-        var library = SqlSnippetLibrary.CreateDefault();
+        var library = SqlSnippetDefaults.Current;
 
         Assert.True(library.ValidateShortcut("ssf", allowedExisting: "ssf", out _));
     }
@@ -146,14 +146,14 @@ public sealed class SqlSnippetTests
     [Fact]
     public void Snippet_進得了建議清單並帶著原始資料()
     {
-        var library = SqlSnippetLibrary.CreateDefault();
+        var library = SqlSnippetDefaults.Current;
         var suggestions = BuiltInSuggestionCatalog.Create(library);
 
         var ssf = suggestions.Single(item =>
             item.Kind == SuggestionKind.Snippet && item.DisplayText == "ssf");
 
-        Assert.Equal("SELECT * FROM ", ssf.InsertionText);
-        Assert.True(ssf.TriggerFollowUp);
+        Assert.Equal("SELECT *\nFROM [dbo].[TableName];", ssf.InsertionText);
+        Assert.False(ssf.TriggerFollowUp);
 
         // 提交時要靠 Tag 拿回 $end$ 的位置。
         Assert.IsType<SqlSnippet>(ssf.Tag);
@@ -174,5 +174,44 @@ public sealed class SqlSnippetTests
             """);
 
         Assert.Equal(1, library.Count);
+    }
+
+    [Fact]
+    public void 較新版本會被辨識供儲存層切成唯讀()
+    {
+        var document = SqlSnippetSerializer.DeserializeDocument("""
+            {
+              "version": 99,
+              "snippets": []
+            }
+            """);
+
+        Assert.True(document.IsNewerThanSupported);
+    }
+
+    [Fact]
+    public void JSON佔位符順序與程式碼不同時依首次出現順序自癒()
+    {
+        var library = SqlSnippetSerializer.Deserialize("""
+            {
+              "version": 2,
+              "snippets": [
+                {
+                  "id": "user.order",
+                  "shortcut": "ord",
+                  "code": "$first$ $second$",
+                  "placeholders": [
+                    { "id": "second", "default": "2" },
+                    { "id": "first", "default": "1" },
+                    { "id": "unused", "default": "x" }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        Assert.True(library.TryGet("ord", out var snippet));
+        Assert.Equal(new[] { "first", "second" }, snippet.Placeholders.Select(item => item.Id));
+        Assert.Equal(new[] { "1", "2" }, snippet.Placeholders.Select(item => item.DefaultValue));
     }
 }

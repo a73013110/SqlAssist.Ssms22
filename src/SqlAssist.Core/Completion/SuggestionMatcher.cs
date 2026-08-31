@@ -85,6 +85,11 @@ public static class SuggestionMatcher
                 continue;
             }
 
+            if (pattern.Length == 0 && !IsVisibleWithoutPrefix(suggestion, categorySelected: false))
+            {
+                continue;
+            }
+
             results.Add(new SuggestionMatch(suggestion, ComposeScore(suggestion, match, pattern), match.Spans));
         }
 
@@ -152,7 +157,7 @@ public static class SuggestionMatcher
     /// </summary>
     public static int ComposeScore(SqlSuggestion suggestion, FuzzyMatchResult match, string pattern)
     {
-        var score = (match.Score * FuzzyScoreScale) + ComposeStandingScore(suggestion);
+        var score = (match.Score * FuzzyScoreScale) + ComposeStandingScore(suggestion, pattern, match);
 
         if (pattern.Length > 0 &&
             string.Equals(suggestion.DisplayText, pattern, StringComparison.OrdinalIgnoreCase))
@@ -174,15 +179,43 @@ public static class SuggestionMatcher
     /// </remarks>
     public static int ComposeStandingScore(SqlSuggestion suggestion)
     {
-        var score = KindBonus(suggestion.Kind) * KindBonusScale;
+        return ComposeStandingScore(suggestion, string.Empty, FuzzyMatchResult.NoMatch);
+    }
 
-        if (SqlSuggestionUsage.IsRecent(suggestion))
+    /// <summary>Ctrl+Space 的空前綴首頁是否應顯示；主動選分類時不隱藏危險項目。</summary>
+    public static bool IsVisibleWithoutPrefix(SqlSuggestion suggestion, bool categorySelected)
+    {
+        return !suggestion.IsDestructive || categorySelected;
+    }
+
+    private static int ComposeStandingScore(
+        SqlSuggestion suggestion,
+        string pattern,
+        FuzzyMatchResult match)
+    {
+        var kindBonus = KindBonus(suggestion.Kind);
+
+        if (suggestion.Kind == SuggestionKind.Snippet &&
+            (pattern.Length == 0 || !IsStrongSnippetMatch(match)))
+        {
+            // 靠捷徑記憶的片段不該塞滿 Ctrl+Space 首頁；只有從捷徑開頭命中時
+            // 才保留最高類別加成，純子序列命中則讓位給真正的欄位與物件。
+            kindBonus = 5;
+        }
+
+        var score = kindBonus * KindBonusScale;
+
+        if (SqlSuggestionUsage.IsRecent(suggestion) &&
+            !(suggestion.Kind == SuggestionKind.Snippet && pattern.Length == 0))
         {
             score += RecentlyUsedBonus;
         }
 
         return score;
     }
+
+    private static bool IsStrongSnippetMatch(FuzzyMatchResult match) =>
+        match.Spans.Count > 0 && match.Spans[0].Start == 0;
 
     /// <summary>
     /// 類別偏好；由 <see cref="KindBonusScale"/> 放大成一個層級，
@@ -282,19 +315,21 @@ public static class SuggestionMatcher
     }
 
     /// <summary>
-    /// 關鍵字與內建函式要落在文法允許它出現的位置。
+    /// 關鍵字、內建函式與 Snippet 要落在文法允許它出現的位置。
     /// </summary>
     /// <remarks>
-    /// 只對這兩種生效。資料庫物件與 Snippet 的位置一律是
-    /// <see cref="SqlKeywordPosition.Any"/>，交集永遠不為空，
-    /// 因此不必特別放行；但明寫出來比依賴預設值可靠。
+    /// 資料庫物件沒有位置旗標；Snippet 在只有三筆時也是 Any，擴充到 40 筆後
+    /// 必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單中間。
     ///
     /// 內建函式一起收在這裡的理由與關鍵字相同：語句開頭、資料來源位置與
     /// DDL 物件位置不該冒出 <c>COUNT</c>。
     /// </remarks>
     private static bool IsAllowedForPosition(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        if (suggestion.Kind is not (SuggestionKind.Keyword or SuggestionKind.BuiltInFunction))
+        if (suggestion.Kind is not (
+                SuggestionKind.Keyword or
+                SuggestionKind.BuiltInFunction or
+                SuggestionKind.Snippet))
         {
             return true;
         }

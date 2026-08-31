@@ -47,6 +47,11 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Logic.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- 原生 Snippet Expansion 需要從現代 ITextBuffer 取得舊版 IVsTextLines。 -->
+    <Reference Include="Microsoft.VisualStudio.Editor">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Editor.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Language.Intellisense">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.Intellisense.dll</HintPath>
       <Private>false</Private>
@@ -118,6 +123,15 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Interop.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Microsoft.VisualStudio.TextManager.Interop.8.0">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.TextManager.Interop.8.0.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- IVsExpansion.InsertSpecificExpansion 的 in-memory XML 節點契約。 -->
+    <Reference Include="Microsoft.MSXML">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.MSXML.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.OLE.Interop">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.OLE.Interop.dll</HintPath>
       <Private>false</Private>
@@ -153,5 +167,8 @@
   <Target Name="ValidateSsmsReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Data.dll')" Text="找不到 SSMS 22 編輯器組件。請以 /p:SsmsInstallDir=&quot;SSMS 安裝路徑&quot; 指定位置。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll')" Text="找不到 Microsoft.Internal.VisualStudio.Interop，Unified Settings 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.TextManager.Interop.8.0.dll')" Text="找不到 TextManager Interop 8.0，原生 Snippet Expansion 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.MSXML.dll')" Text="找不到 Microsoft.MSXML，原生 Snippet XML 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Editor.dll')" Text="找不到 Microsoft.VisualStudio.Editor，無法取得 SSMS 文字緩衝區介面。請確認 SsmsInstallDir 指向 SSMS 22。" />
   </Target>
 </Project>

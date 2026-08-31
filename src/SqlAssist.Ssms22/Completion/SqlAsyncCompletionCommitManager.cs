@@ -9,6 +9,7 @@ using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -17,7 +18,7 @@ namespace SqlAssist.Ssms22.Completion;
 /// </summary>
 /// <remarks>
 /// 大部分項目交還給平台處理即可（它會插入 <see cref="CompletionItem.InsertText"/>），
-/// 只有兩種情形要自己接手：接續建議（<c>ssf</c> 展開後要立刻列出資料表），
+/// 只有三種情形要自己接手：原生 Tab Stop Snippet、設定了接續建議的 caret Snippet，
 /// 以及提交後要把整個語句換掉的三種展開——<c>ALTER PROCEDURE</c> 的完整定義、
 /// <c>INSERT INTO</c> 的欄位與 <c>VALUES</c>、<c>EXEC</c> 的具名參數清單。
 /// 後三種只有「換成什麼」不同，「怎麼安全地換」共用 <see cref="SqlCommitExpander"/>。
@@ -94,6 +95,53 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 
         var snapshot = buffer.CurrentSnapshot;
         var span = session.ApplicableToSpan.GetSpan(snapshot);
+        var snippet = suggestion.Tag as SqlSnippet;
+
+        if (snippet is { ExpansionMode: SqlSnippetExpansionMode.TabStops })
+        {
+            // 提交當下平台還在關閉 Completion session。此處只保留追蹤範圍，
+            // 等 Dispatcher Background 再讓原生引擎一次完成移除捷徑與插入片段。
+            var request = new SqlSnippetExpansionRequest(
+                buffer,
+                snapshot.CreateTrackingSpan(span, SpanTrackingMode.EdgeInclusive),
+                span.GetText(),
+                snippet);
+
+            // 這次提交已回報 handled，即使使用者剛好在同一瞬間關掉建議設定也必須完成；
+            // 套用一般的設定守門會把捷徑原樣留在編輯器裡。
+            SqlCompletionReopen.Schedule(session.TextView, "展開原生 Snippet", view =>
+            {
+                var controller = SqlSnippetExpansionController.Peek(view);
+                var beforeNative = request.Buffer.CurrentSnapshot;
+                var result = controller is null
+                    ? NativeSnippetInsertionResult.FailedWithoutChange
+                    : SqlAssistPlatformGuard.Run(
+                        "呼叫原生 Snippet Expansion",
+                        () => controller.TryInsert(request),
+                        NativeSnippetInsertionResult.FailedWithoutChange);
+
+                if (result == NativeSnippetInsertionResult.FailedWithoutChange &&
+                    !ReferenceEquals(beforeNative, request.Buffer.CurrentSnapshot))
+                {
+                    result = NativeSnippetInsertionResult.FailedAfterChange;
+                }
+
+                if (result == NativeSnippetInsertionResult.FailedWithoutChange)
+                {
+                    SqlSnippetExpansionController.InsertFallback(view, request);
+                }
+                else if (result == NativeSnippetInsertionResult.FailedAfterChange)
+                {
+                    // 引擎已改過緩衝區時再插 fallback 會重複內容；寧可保留它的結果並記錄。
+                    SqlAssistDiagnostics.WriteAlways(
+                        $"原生 Snippet 在回報失敗前已改動文字，已略過降級插入：{snippet.Shortcut}",
+                        view);
+                }
+            }, requireSuggestionsEnabled: false);
+
+            return new CommitResult(isHandled: true, CommitBehavior.None);
+        }
+
         // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與語句的
         // 關鍵字起點，兩者都在游標之前。欄位的插入文字在建立建議時就定案了，
         // 這裡不必再解析一次別名。
@@ -102,7 +150,6 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         var expansion = SqlCommitExpander.Resolve(suggestion, context, span.End, settings);
 
         // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
-        var snippet = suggestion.Tag as SqlSnippet;
         var snippetCaret = -1;
 
         if (snippet is not null)

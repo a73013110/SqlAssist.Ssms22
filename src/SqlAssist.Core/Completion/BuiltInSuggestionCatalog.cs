@@ -49,18 +49,20 @@ public static class BuiltInSuggestionCatalog
 
         foreach (var snippet in snippets.Snippets)
         {
-            // 插入文字先把佔位符換成預設值：沒有游標標記、也沒有接續建議的
-            // Snippet 就能完全交給平台插入，不必繞到自訂的提交路徑。
-            var insertionText = snippet.Expand(out _);
+            // 一般插入、原生 Expansion 與失敗降級都共用同一份剖析結果，
+            // 否則錢字號與游標位置很容易在三條路上各有一種解讀。
+            var expansion = snippet.Expansion;
 
             suggestions.Add(new SqlSuggestion(
                 snippet.Shortcut,
-                insertionText,
+                expansion.Text,
                 snippet.Description,
                 snippet.Title,
                 SuggestionKind.Snippet,
                 snippet.TriggerFollowUp,
-                tag: snippet));
+                tag: snippet,
+                positions: snippet.Positions,
+                isDestructive: snippet.IsDestructive));
         }
 
         foreach (var keyword in SqlKeywordCatalog.All)

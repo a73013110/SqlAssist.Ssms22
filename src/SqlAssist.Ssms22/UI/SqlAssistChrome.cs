@@ -316,6 +316,22 @@ internal static class SqlAssistChrome
         };
     }
 
+    /// <summary>下拉選單的字型、色彩與基本尺寸。</summary>
+    public static ComboBox CreateComboBox(Metrics metrics)
+    {
+        return new ComboBox
+        {
+            MinHeight = metrics.RowHeight,
+            Padding = new Thickness(8, 3, 8, 3),
+            FontFamily = InterfaceFont,
+            FontSize = metrics.Body,
+            Foreground = VsThemeBrushes.ListForeground,
+            Background = VsThemeBrushes.ListBackground,
+            BorderBrush = VsThemeBrushes.Hairline,
+            BorderThickness = new Thickness(1)
+        };
+    }
+
     /// <summary>
     /// 核取方塊：自己畫一個圓角小方塊。
     /// </summary>

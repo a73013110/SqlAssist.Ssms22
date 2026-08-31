@@ -22,10 +22,10 @@
 | 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
 | `@` 或 `@@` 之後列出來的東西不對 | [completion.md](completion.md) | `Core/Completion/SqlScriptVariableSuggestions.cs`、`SqlExecutedModule.cs`、`Core/Keywords/SqlGlobalVariableCatalog.cs` |
 | `別名.` 列出來的欄位不對 | [completion.md](completion.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
-| 程式碼片段的格式或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/SqlSnippetExpander.cs`、`SqlSnippetSerializer.cs` |
+| 程式碼片段的格式、合併或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/DefaultSnippets.json`、`SqlSnippetExpansion.cs`、`SqlSnippetMerger.cs`、`SqlSnippetSerializer.cs` |
 | `SELECT *` 展不開或展錯 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardAnalyzer.cs` |
 | 展開後的欄位排版 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardExpansionText.cs` |
-| Tab 鍵的行為 | [wildcard-expansion.md](wildcard-expansion.md) | `Ssms22/Wildcards/SqlWildcardCommandHandler.cs` |
+| Tab／Shift+Tab 的行為 | [snippets.md](snippets.md)、[wildcard-expansion.md](wildcard-expansion.md) | `Ssms22/Wildcards/SqlTabCommandHandler.cs` |
 | 滑鼠停留提示的內容 | [structure-preview.md](structure-preview.md) | `Ssms22/QuickInfo/SqlQuickInfoContentBuilder.cs` |
 | 浮動預覽的行為或擺放 | [structure-preview.md](structure-preview.md) | `Ssms22/Preview/SqlStructurePreview.cs` |
 | 任何顏色、字型、按鈕樣式 | [structure-preview.md](structure-preview.md) | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
@@ -72,7 +72,7 @@
 | `QuickInfo/` | 滑鼠停留提示 | [structure-preview.md](structure-preview.md) |
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
 | `Wildcards/` | Tab 鍵展開與可展開提示 | [wildcard-expansion.md](wildcard-expansion.md) |
-| `Snippets/` | 片段檔存取與管理員視窗 | [snippets.md](snippets.md) |
+| `Snippets/` | 片段檔、管理員視窗與原生 Expansion Session | [snippets.md](snippets.md) |
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
 | `Connections/` | 取得 SSMS 查詢視窗的連線 | [metadata.md](metadata.md) |
 | `Commands/` | 命令識別碼與工具選單命令 | [development.md](development.md) |
@@ -99,6 +99,8 @@
 | 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| Snippet 純文字、游標與欄位位置的計算 | `Core/Snippets/SqlSnippetExpansion.cs` |
+| SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |

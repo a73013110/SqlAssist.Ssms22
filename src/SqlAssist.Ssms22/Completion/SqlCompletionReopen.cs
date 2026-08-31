@@ -18,7 +18,7 @@ namespace SqlAssist.Ssms22.Completion;
 /// 而這兩個時機的上下文都已經換掉了，舊 session 手上的清單是錯的。
 ///
 /// <list type="bullet">
-/// <item>片段展開之後——<c>ssf</c> 變成 <c>SELECT * FROM </c>，接著要列資料表。</item>
+/// <item>設定了接續建議的 caret 片段展開之後，重新依插入文字收斂清單。</item>
 /// <item>輸入結束詞元的字元之後——<c>a.</c> 接著要列 <c>a</c> 的欄位，
 /// <c>FROM </c> 接著只列資料表與檢視。</item>
 /// </list>
@@ -39,10 +39,15 @@ internal static class SqlCompletionReopen
     /// <summary>片段展開之後的接續清單。</summary>
     public static void AfterExpansion(ITextView? textView, IAsyncCompletionBroker? broker)
     {
-        Schedule(textView, broker, view =>
+        if (broker is null)
+        {
+            return;
+        }
+
+        Schedule(textView, "重開建議清單", view =>
         {
             SqlAssistDiagnostics.Write("片段展開後重開建議清單");
-            Reopen(view, broker!);
+            Reopen(view, broker);
         });
     }
 
@@ -56,7 +61,12 @@ internal static class SqlCompletionReopen
     /// </remarks>
     public static void AfterSeparator(ITextView? textView, IAsyncCompletionBroker? broker)
     {
-        Schedule(textView, broker, view =>
+        if (broker is null)
+        {
+            return;
+        }
+
+        Schedule(textView, "重開建議清單", view =>
         {
             var caret = view.Caret.Position.BufferPosition;
 
@@ -68,13 +78,18 @@ internal static class SqlCompletionReopen
             }
 
             SqlAssistDiagnostics.Write("上下文已收斂，重開建議清單");
-            Reopen(view, broker!);
+            Reopen(view, broker);
         });
     }
 
-    private static void Schedule(ITextView? textView, IAsyncCompletionBroker? broker, Action<ITextView> work)
+    /// <summary>提交或輸入命令結束後，等平台先把當下的 session 狀態收乾淨再執行。</summary>
+    internal static void Schedule(
+        ITextView? textView,
+        string operation,
+        Action<ITextView> work,
+        bool requireSuggestionsEnabled = true)
     {
-        if (textView is null || broker is null || textView.IsClosed)
+        if (textView is null || textView.IsClosed)
         {
             return;
         }
@@ -86,7 +101,7 @@ internal static class SqlCompletionReopen
             DispatcherPriority.Background,
             // 這是排進派送佇列的工作，丟出去就是使用者眼前的錯誤對話框。
             new Action(() => SqlAssistPlatformGuard.Run(
-                "重開建議清單",
+                operation,
                 () =>
                 {
                     if (textView.IsClosed)
@@ -96,7 +111,7 @@ internal static class SqlCompletionReopen
 
                     var settings = SqlAssistSettingsStore.Current;
 
-                    if (!settings.Enabled || !settings.SuggestionsEnabled)
+                    if (requireSuggestionsEnabled && (!settings.Enabled || !settings.SuggestionsEnabled))
                     {
                         return;
                     }
