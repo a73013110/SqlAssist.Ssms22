@@ -36,8 +36,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private ITrackingSpan _anchor;
     private SqlPreviewPlacement _placement;
-    private double? _preferredWidth;
-    private double _preferredHeight;
+    private PreviewPreferredSize _besidePreference;
+    private PreviewPreferredSize _stackedPreference;
     private IReadOnlyList<PreviewRectangle> _obstacles = Array.Empty<PreviewRectangle>();
     private PreviewRectangle _availableBounds;
     private PreviewRectangle _bounds;
@@ -118,15 +118,35 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     public bool HeightConstrained { get; private set; }
 
+    /// <summary>
+    /// 這一輪實際採用的擺放分組；側邊放不下而退回上下時是
+    /// <see cref="SqlPreviewPlacement.Stacked"/>。
+    /// </summary>
+    /// <remarks>
+    /// 拖曳結束要把尺寸存到哪一組、雙擊要重設哪一組，看的都必須是這個而不是設定值。
+    /// 退回上下時拖出來的寬度屬於上下擺放，存回側邊那一組等於讓側邊記住一個它
+    /// 根本放不下的寬度，下一次更容易再退回來。
+    /// </remarks>
+    public SqlPreviewPlacement EffectivePlacement =>
+        _usedFallback ? SqlPreviewPlacement.Stacked : _placement;
+
     public event EventHandler? LostFocus;
 
     public event EventHandler? GotFocus;
 
+    /// <summary>
+    /// 更新錨點、擺放方向與兩種擺放各自記住的尺寸。
+    /// </summary>
+    /// <remarks>
+    /// 兩組都要：側邊放不下而退回上下時，尺寸也得換成上下那一組，而那件事要等
+    /// 定位算完才知道。只傳生效的那一組，退回來的視窗就會帶著一個側邊才有意義的
+    /// 寬度，使用者接著拖出來的尺寸又存回側邊那一組，愈退愈寬。
+    /// </remarks>
     public void Update(
         ITrackingSpan anchor,
         SqlPreviewPlacement placement,
-        double? preferredWidth,
-        double preferredHeight)
+        PreviewPreferredSize beside,
+        PreviewPreferredSize stacked)
     {
         _anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
         if (_placement != placement)
@@ -135,8 +155,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
 
         _placement = placement;
-        _preferredWidth = preferredWidth;
-        _preferredHeight = preferredHeight;
+        _besidePreference = beside;
+        _stackedPreference = stacked;
     }
 
     /// <summary>要求整個 reservation stack 以最新的建議清單與編輯器幾何重算。</summary>
@@ -182,35 +202,19 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         {
             _obstacles = GetObstacleBounds(reservedSpace);
             _availableBounds = GetAvailableBounds(anchorBounds);
-            var desiredSize = ToDeviceSize(
-                _preferredWidth ?? SqlAssistLimits.DefaultPreviewWidth,
-                _preferredHeight);
-            var minimumSize = ToDeviceSize(
-                SqlAssistLimits.MinimumPreviewWidth,
-                SqlAssistLimits.MinimumPreviewHeight);
-            var absoluteMaximumSize = ToDeviceSize(
-                SqlAssistLimits.MaximumPreviewWidth,
-                SqlAssistLimits.MaximumPreviewHeight);
-            var layout = PreviewPlacementEngine.Calculate(
-                new PreviewLayoutRequest
-                {
-                    Placement = _placement,
-                    Anchor = anchorBounds,
-                    AvailableBounds = _availableBounds,
-                    Obstacles = _obstacles,
-                    DesiredWidth = desiredSize.Width,
-                    DesiredHeight = desiredSize.Height,
-                    MinimumWidth = minimumSize.Width,
-                    MinimumHeight = minimumSize.Height,
-                    MaximumWidth = absoluteMaximumSize.Width,
+            var layout = CalculateLayout(_placement, Preference(_placement), anchorBounds);
 
-                    // 不必先跟可用高度取小；引擎本來就會把上下限收進 AvailableBounds。
-                    MaximumHeight = absoluteMaximumSize.Height,
-                    StretchStackedWidth =
-                        _placement == SqlPreviewPlacement.Stacked && !_preferredWidth.HasValue,
-                    Gap = ToDeviceSize(LayoutGap, LayoutGap).Width,
-                    PreviousSide = _hasLayout ? _side : (PreviewPlacementSide?)null
-                });
+            // 退回上下之後尺寸也要換一組，所以整個定位重來一次——這一次就是道地的
+            // 上下擺放，連「尚未手動調寬時延伸到編輯器右側」都跟著成立。純數值運算，
+            // 而且只有真的退回來時才會走第二次。
+            var fellBack = layout.UsedFallback;
+            if (fellBack)
+            {
+                layout = CalculateLayout(
+                    SqlPreviewPlacement.Stacked,
+                    _stackedPreference,
+                    anchorBounds);
+            }
 
             if (layout.Bounds.IsEmpty)
             {
@@ -220,7 +224,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _bounds = layout.Bounds;
             _side = layout.Side;
             _hasLayout = true;
-            _usedFallback = layout.UsedFallback;
+            _usedFallback = fellBack;
             WidthConstrained = layout.WidthConstrained;
             HeightConstrained = layout.HeightConstrained;
             var resizeOnTop = _side == PreviewPlacementSide.Above ||
@@ -233,6 +237,43 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         Display(_bounds);
         LogPlacement(anchorBounds);
         return CreateReservation(anchorBounds, _bounds);
+    }
+
+    private PreviewPreferredSize Preference(SqlPreviewPlacement placement) =>
+        placement == SqlPreviewPlacement.Stacked ? _stackedPreference : _besidePreference;
+
+    private PreviewLayout CalculateLayout(
+        SqlPreviewPlacement placement,
+        PreviewPreferredSize preference,
+        PreviewRectangle anchorBounds)
+    {
+        var desiredSize = ToDeviceSize(preference.WidthOrDefault, preference.Height);
+        var minimumSize = ToDeviceSize(
+            SqlAssistLimits.MinimumPreviewWidth,
+            SqlAssistLimits.MinimumPreviewHeight);
+        var absoluteMaximumSize = ToDeviceSize(
+            SqlAssistLimits.MaximumPreviewWidth,
+            SqlAssistLimits.MaximumPreviewHeight);
+        return PreviewPlacementEngine.Calculate(
+            new PreviewLayoutRequest
+            {
+                Placement = placement,
+                Anchor = anchorBounds,
+                AvailableBounds = _availableBounds,
+                Obstacles = _obstacles,
+                DesiredWidth = desiredSize.Width,
+                DesiredHeight = desiredSize.Height,
+                MinimumWidth = minimumSize.Width,
+                MinimumHeight = minimumSize.Height,
+                MaximumWidth = absoluteMaximumSize.Width,
+
+                // 不必先跟可用高度取小；引擎本來就會把上下限收進 AvailableBounds。
+                MaximumHeight = absoluteMaximumSize.Height,
+                StretchStackedWidth =
+                    placement == SqlPreviewPlacement.Stacked && !preference.Width.HasValue,
+                Gap = ToDeviceSize(LayoutGap, LayoutGap).Width,
+                PreviousSide = _hasLayout ? _side : (PreviewPlacementSide?)null
+            });
     }
 
     public void Hide()
@@ -784,14 +825,33 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         SqlAssistDiagnostics.Write(
             $"結構預覽落點：{_side}　" +
             $"視窗 {popupScreen.Left:F0},{popupScreen.Top:F0}–{popupScreen.Right:F0},{popupScreen.Bottom:F0}　" +
-            $"錨點 {anchorScreen.Left:F0},{anchorScreen.Top:F0}　" +
+            $"錨點 {anchorScreen.Left:F0},{anchorScreen.Top:F0}–{anchorScreen.Right:F0},{anchorScreen.Bottom:F0}　" +
             $"文件 {_availableBounds.Left:F0},{_availableBounds.Top:F0}–{_availableBounds.Right:F0},{_availableBounds.Bottom:F0}　" +
             $"有效 {effectiveSize.Width:F0}×{effectiveSize.Height:F0} DIP　" +
             $"DPI {dpiSize.Width:F0}×{dpiSize.Height:F0}　Zoom {_view.ZoomLevel:F0}%　" +
-            $"保留區 {_obstacles.Count}　fallback {_usedFallback}　" +
+            $"保留區 {_obstacles.Count}{DescribeObstacles()}　fallback {_usedFallback}　" +
             $"受限 寬 {WidthConstrained}／高 {HeightConstrained}",
             _view);
     }
+
+    /// <summary>
+    /// 保留區的逐一矩形。
+    /// </summary>
+    /// <remarks>
+    /// 只記數量看不出「側邊擺放退回上下」是誰造成的：建議清單本身、與它右側那塊
+    /// 沒有畫出來卻仍然被保留的說明面板，在數字上完全一樣，而定位引擎兩者都當障礙。
+    /// 錨點也要完整矩形——側邊的起點是錨點右緣，只有左上角推不出右側還剩多少。
+    /// 字串只在詳細紀錄開著時才組，呼叫端已經先擋過一次。
+    /// </remarks>
+    private string DescribeObstacles() =>
+        _obstacles.Count == 0
+            ? string.Empty
+            : " [" +
+              string.Join(
+                  "；",
+                  _obstacles.Select(obstacle =>
+                      $"{obstacle.Left:F0},{obstacle.Top:F0}–{obstacle.Right:F0},{obstacle.Bottom:F0}")) +
+              "]";
 
     private sealed class ExactPopup : Popup
     {

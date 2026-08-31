@@ -470,9 +470,30 @@ public static class PreviewPlacementEngine
     private static bool Overlaps(Segment left, Segment right) =>
         left.Start < right.End - Epsilon && right.Start < left.End - Epsilon;
 
+    /// <summary>
+    /// 把整個錨點蓋住的保留區不算障礙。
+    /// </summary>
+    /// <remarks>
+    /// 建議清單開著時，平台會連錨點所在的一整行一起保留——文件寬 487–1775 時，
+    /// 那一塊就是 487,100–1775,121，橫跨整個編輯器而只有一個行高。它表達的是
+    /// 「錨點在這裡」，不是「這裡有一個浮窗」，可是側邊擺放的上緣永遠對齊錨點上緣，
+    /// 於是每一次都與它相交，左右兩側的自由空間被整條切光，`beside` 只要清單一開
+    /// 就必定退回上下擺放——縮到最小尺寸也一樣，因為放不下的不是寬度而是整條帶。
+    ///
+    /// 只排除「完全蓋住」錨點的那一種：改用相交會把緊貼錨點下緣、DPI 捨入後重疊
+    /// 一兩個像素的建議清單也一起排掉，那才是真正必須讓開的東西。上下擺放不受影響，
+    /// 該讓開的清單本來就在錨點下方，仍然是障礙。
+    /// </remarks>
     private static IEnumerable<PreviewRectangle> ValidObstacles(PreviewLayoutRequest request) =>
         (request.Obstacles ?? Array.Empty<PreviewRectangle>())
-        .Where(obstacle => !Normalize(obstacle).IsEmpty);
+        .Where(obstacle => !Normalize(obstacle).IsEmpty)
+        .Where(obstacle => !Covers(obstacle, request.Anchor));
+
+    private static bool Covers(PreviewRectangle obstacle, PreviewRectangle anchor) =>
+        obstacle.Left <= anchor.Left + Epsilon &&
+        obstacle.Top <= anchor.Top + Epsilon &&
+        obstacle.Right + Epsilon >= anchor.Right &&
+        obstacle.Bottom + Epsilon >= anchor.Bottom;
 
     private static PreviewRectangle Normalize(PreviewRectangle rectangle)
     {
