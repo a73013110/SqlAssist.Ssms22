@@ -72,7 +72,9 @@ internal sealed class SqlPreviewSessionHook
                 return;
             }
 
-            preview.TrackSession(eventArgs.CompletionSession);
+            // Broker 也會通知 SSMS 原生或其他擴充的清單；先只記住最新候選。
+            // 真正的 ownership 等 SqlAssist item 的 callback 帶著同一個 session 回來才建立。
+            preview.ObserveSession(eventArgs.CompletionSession);
             preview.Warmup();
         });
     }

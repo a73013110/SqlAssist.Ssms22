@@ -4,10 +4,12 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Adornments;
+using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Settings;
@@ -112,13 +114,22 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         SnapshotSpan applicableToSpan,
         CancellationToken token)
     {
+        var preview = SqlAssistSettingsStore.Current.PreviewMode == SqlPreviewMode.Off
+            ? null
+            : SqlAssistPlatformGuard.Run<SqlStructurePreview?>(
+                "取得結構預覽 session",
+                () => SqlStructurePreview.GetOrCreate(session.TextView, _serviceProvider),
+                fallback: null);
+
         return SqlAssistPlatformGuard.RunAsync(
             "建議清單取得",
-            () => GetCompletionContextCoreAsync(triggerLocation, token),
+            () => GetCompletionContextCoreAsync(session, preview, triggerLocation, token),
             fallback: CompletionContext.Empty);
     }
 
     private async Task<CompletionContext> GetCompletionContextCoreAsync(
+        IAsyncCompletionSession session,
+        SqlStructurePreview? preview,
         SnapshotPoint triggerLocation,
         CancellationToken token)
     {
@@ -163,7 +174,21 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 $"耗時 {total.ElapsedMilliseconds} ms：建議清單（目標 {context.Target}，{items.Length} 筆）");
         }
 
-        return new CompletionContext(items);
+        var result = new CompletionContext(items);
+
+        // 只有真的產出 SqlAssist items 才取得 ownership；空 context 可能仍由別的來源顯示。
+        // 在交回結果前切回 UI 執行緒完成訂閱，ItemsUpdated 才不會先一步漏掉第一次選取。
+        if (preview is not null &&
+            !session.IsDismissed &&
+            session.TextView is IWpfTextView textView)
+        {
+            await textView.VisualElement.Dispatcher.InvokeAsync(
+                () => preview.OwnSession(session, _metadataService),
+                DispatcherPriority.Normal,
+                token);
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -202,7 +227,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         if (mode != SqlPreviewMode.Off &&
             SqlStructurePreview.Peek(session.TextView) is { } preview)
         {
-            preview.OnItemSelected(objectInfo, _metadataService);
+            preview.ReconcileSelection(session, _metadataService);
 
             // 預覽視窗接手之後就不要再回傳說明內容：
             // 兩個視窗同時貼在清單旁邊只會互相搶位置。

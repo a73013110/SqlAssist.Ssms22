@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Settings;
 
@@ -19,22 +21,11 @@ namespace SqlAssist.Ssms22.Preview;
 /// 編輯器上的浮動結構預覽。
 /// </summary>
 /// <remarks>
-/// 用的是編輯器自己的空間保留機制，也就是 IntelliSense 清單與提示視窗用的那一套。
-/// 這帶來三件單靠 WPF <c>Popup</c> 做不到的事：
-/// 位置由平台計算，會自動避開已經佔位的建議清單並在撞到邊界時翻到另一側；
-/// 焦點落在視窗裡時編輯器仍然算「持有焦點」，所以用滑鼠拉選文字不會把建議清單關掉；
-/// 編輯器捲動或關閉時，視窗跟著走、跟著收。
+/// 仍掛在編輯器的空間保留機制上，讓預覽焦點算進編輯器的聚合焦點；
+/// 實際位置則由自訂 Agent 明確計算，避免平台因 Windows 左右手設定把畫面翻到回報矩形的反側。
 /// </remarks>
 internal sealed class SqlStructurePreview
 {
-    /// <summary>視窗最多佔掉編輯器的多少比例，免得整個查詢視窗被蓋住。</summary>
-    private const double MaximumViewportRatio = 0.8;
-
-    /// <summary>
-    /// 留給平台 Popup 外框與 DPI 捨入的右側餘量，避免剛好貼齊螢幕時被平台往左校正。
-    /// </summary>
-    private const double StackedRightPadding = 4;
-
     /// <summary>
     /// 展開狀態下換選取時，多久之後才真的去查資料庫。
     /// </summary>
@@ -59,38 +50,38 @@ internal sealed class SqlStructurePreview
 
     private SqlStructurePreviewControl? _control;
     private ISpaceReservationManager? _manager;
-    private ISpaceReservationAgent? _agent;
-
-    /// <summary>
-    /// 交給平台的那一層容器。
-    /// </summary>
-    /// <remarks>
-    /// 內容控制項是重複使用的，但每一次顯示都會產生一個新的代理人，
-    /// 而代理人會把交給它的元素掛進自己的 <c>Popup</c>。
-    /// 同一個 WPF 元素不能同時有兩個父代，因此中間隔一層可拋棄的容器：
-    /// 換代理人時先把內容從舊容器取下，再放進新的。
-    /// </remarks>
-    private System.Windows.Controls.Decorator? _host;
+    private SqlPreviewPopupAgent? _agent;
     private ITrackingSpan? _anchor;
+    private IAsyncCompletionSession? _observedSession;
     private IAsyncCompletionSession? _session;
     private SqlObjectInfo? _target;
     private SqlMetadataService? _metadataService;
     private CancellationTokenSource? _loading;
+    private CancellationTokenSource? _selectionRefresh;
     private bool _closed;
 
     /// <summary>計時器到期時要做的是「自動展開」而不是「去查資料庫」。</summary>
     private bool _timerExpands;
 
-    /// <summary>正在自己換掉代理人，這一次移除通知不是平台在收視窗。</summary>
-    private bool _recreatingAgent;
+    private bool _layoutUpdateQueued;
 
-    private bool _activationAttached;
+    private bool _selectedItemIsSqlObject;
 
-    /// <summary>同一輪編輯器 Layout 只排一次 stacked 尺寸更新，避免重複重排。</summary>
-    private bool _stackedLayoutUpdateQueued;
+    private bool _selectionPending;
 
-    /// <summary>上一次算出來的 stacked 可用寬度；沒變就不必再麻煩平台重排。</summary>
-    private double _lastStackedAvailableWidth = double.NaN;
+    /// <summary>選取尚在背景對帳時收到向右鍵，驗證成功後替使用者完成展開。</summary>
+    private bool _expandWhenSelectionReady;
+
+    private bool _inputTrackingAttached;
+
+    /// <summary>每次換 session、選取、獨立入口或收合都遞增；過期 timer/load 不得越代更新。</summary>
+    private long _generation;
+
+    private long _timerGeneration;
+
+    private double _resizeStartWidth;
+
+    private double _resizeStartHeight;
 
     private SqlStructurePreview(IWpfTextView view, IServiceProvider serviceProvider)
     {
@@ -104,28 +95,9 @@ internal sealed class SqlStructurePreview
         view.LayoutChanged += OnViewLayoutChanged;
         view.ViewportLeftChanged += OnViewportGeometryChanged;
         view.ViewportWidthChanged += OnViewportGeometryChanged;
+        view.ViewportHeightChanged += OnViewportGeometryChanged;
         view.ZoomLevelChanged += OnZoomLevelChanged;
     }
-
-    /// <summary>
-    /// 交給平台的擺放樣式。
-    /// </summary>
-    /// <remarks>
-    /// <see cref="SqlPreviewPlacement.Beside"/> 用
-    /// <see cref="PopupStyles.PositionLeftOrRight"/>：穩定的「優先右側、撞邊才翻」。
-    /// 刻意不加 <see cref="PopupStyles.PositionClosest"/>，那會讓平台每次都挑
-    /// 「當下比較近的一邊」，於是視窗一變寬就跳到另一側，拖曳握把時看起來
-    /// 像是左邊界在往外長。
-    ///
-    /// <see cref="SqlPreviewPlacement.Stacked"/> 則什麼旗標都不給，那正是平台的
-    /// 預設行為——擺在錨點所在行的下方，下面放不下才翻到上方。
-    ///
-    /// 兩者都刻意不加任何 <c>DismissOnMouseLeave</c>：預覽的生死由這個類別自己管，
-    /// 滑鼠移開就消失的視窗沒辦法讓人把裡面的文字拉選起來。
-    /// </remarks>
-    private static PopupStyles Styles => Placement == SqlPreviewPlacement.Stacked
-        ? PopupStyles.None
-        : PopupStyles.PositionLeftOrRight;
 
     private static SqlPreviewPlacement Placement =>
         SqlAssistSettingsStore.Current.PreviewPlacement;
@@ -184,20 +156,136 @@ internal sealed class SqlStructurePreview
     }
 
     /// <summary>
-    /// 記住目前的建議清單，並在它結束時把預覽收掉。
+    /// 記住 broker 最近觸發的清單，但尚不取得 ownership。
     /// </summary>
     /// <remarks>
-    /// 換 session 時一定要先把上一個的訂閱解掉。這個方法由 broker 層級的
-    /// <c>CompletionTriggered</c> 呼叫，而那個事件也會為別人開的清單發出來——
-    /// SSMS 自己的 T-SQL IntelliSense 開著時尤其如此，收掉的先後順序就不再由
-    /// 本擴充決定。舊的沒解掉的話，它稍後結束時仍然會叫到 <see cref="EndSession"/>，
-    /// 把正在用的這一個連視窗一起收走，而且解錯對象——留下一個永遠訂閱著的
-    /// 死 session。症狀是「清單還開著，預覽自己不見了」，而且愈用愈頻繁。
+    /// CompletionTriggered 也會為其他來源發出；只記候選可讓過期的 SqlAssist
+    /// description callback 被拒絕，又不會把原生 session 誤認成自己的生命週期。
     /// </remarks>
-    public void TrackSession(IAsyncCompletionSession session)
+    public void ObserveSession(IAsyncCompletionSession session)
     {
-        if (_closed || session is null)
+        if (_closed || session is null || session.IsDismissed)
         {
+            return;
+        }
+
+        Invoke(() =>
+        {
+            if (_session is { } current && !ReferenceEquals(current, session))
+            {
+                current.Dismissed -= OnSessionEnded;
+                current.ItemCommitted -= OnSessionItemCommitted;
+                current.ItemsUpdated -= OnSessionItemsUpdated;
+                _view.TextBuffer.Changed -= OnTextBufferChanged;
+                _session = null;
+                _target = null;
+                _metadataService = null;
+                _selectedItemIsSqlObject = false;
+                _selectionPending = false;
+                _expandWhenSelectionReady = false;
+                DetachInputTracking();
+                _generation++;
+                IsExpanded = false;
+                Hide(restoreEditorFocus: false);
+            }
+
+            SetObservedSession(session);
+        });
+    }
+
+    /// <summary>建議來源參與 session 時就先確認 ownership，不等延後載入的 description。</summary>
+    public void OwnSession(IAsyncCompletionSession session, SqlMetadataService metadataService)
+    {
+        if (_closed ||
+            session is null ||
+            session.IsDismissed ||
+            !ReferenceEquals(session.TextView, _view))
+        {
+            return;
+        }
+
+        Invoke(
+            () =>
+            {
+                if (_closed || session.IsDismissed)
+                {
+                    return;
+                }
+
+                // Context 可能在資料庫查詢後才完成；舊 session 不得覆寫後來已觀察到的清單。
+                if ((_observedSession is not null && !ReferenceEquals(_observedSession, session)) ||
+                    (_session is not null && !ReferenceEquals(_session, session)))
+                {
+                    return;
+                }
+
+                SetObservedSession(session);
+                TrackSession(session);
+                if (ReferenceEquals(_session, session))
+                {
+                    _metadataService = metadataService;
+                    // Context 尚在完成中也沒關係：背景 GetComputedItems 會等待 model，UI 不阻塞。
+                    ClearSelection(session, pending: true);
+                    QueueSelectionRefresh(session);
+                }
+            });
+    }
+
+    /// <summary>
+    /// 處理向右鍵的展開意圖；選取仍在背景對帳時先吞鍵，驗證成功後再展開。
+    /// </summary>
+    public bool RequestExpand(IAsyncCompletionSession? session)
+    {
+        if (session is not { IsDismissed: false } || !ReferenceEquals(_session, session))
+        {
+            return false;
+        }
+
+        if (_selectedItemIsSqlObject)
+        {
+            return Expand();
+        }
+
+        if (!_selectionPending)
+        {
+            return false;
+        }
+
+        _expandWhenSelectionReady = true;
+        QueueSelectionRefresh(session);
+        return true;
+    }
+
+    /// <summary>清單選取即將由鍵盤或滑鼠改變時，先讓舊物件失效，避免右鍵讀到上一項。</summary>
+    public void InvalidateSelection(IAsyncCompletionSession? session)
+    {
+        if (session is null)
+        {
+            return;
+        }
+
+        Invoke(() =>
+        {
+            if (ReferenceEquals(_session, session))
+            {
+                _expandWhenSelectionReady = false;
+                ClearSelection(session, pending: true);
+                QueueSelectionRefresh(session);
+            }
+        });
+    }
+
+    /// <summary>只有 SqlAssist item 的 callback 才會走到這裡並正式接管 session。</summary>
+    private void TrackSession(IAsyncCompletionSession session)
+    {
+        if (_closed || session is null || session.IsDismissed)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(_session, session))
+        {
+            _anchor = session.ApplicableToSpan;
             return;
         }
 
@@ -205,44 +293,141 @@ internal sealed class SqlStructurePreview
         {
             previous.Dismissed -= OnSessionEnded;
             previous.ItemCommitted -= OnSessionItemCommitted;
+            previous.ItemsUpdated -= OnSessionItemsUpdated;
+            _view.TextBuffer.Changed -= OnTextBufferChanged;
+        }
+
+        _generation++;
+        StopPendingWork();
+        if (IsExpanded)
+        {
+            IsExpanded = false;
+            Hide(restoreEditorFocus: false);
+        }
+
+        if (_observedSession is { } observed)
+        {
+            observed.Dismissed -= OnObservedSessionEnded;
         }
 
         _session = session;
+        _observedSession = session;
         _anchor = session.ApplicableToSpan;
+        _target = null;
+        _metadataService = null;
+        _selectedItemIsSqlObject = false;
+        _selectionPending = false;
+        _expandWhenSelectionReady = false;
         session.Dismissed += OnSessionEnded;
         session.ItemCommitted += OnSessionItemCommitted;
+        session.ItemsUpdated += OnSessionItemsUpdated;
+        _view.TextBuffer.Changed += OnTextBufferChanged;
+        AttachInputTracking();
     }
 
-    private void OnSessionItemCommitted(object sender, EventArgs eventArgs) => EndSession();
+    private void OnSessionItemCommitted(object sender, EventArgs eventArgs) =>
+        EndSession(sender as IAsyncCompletionSession);
 
-    private void OnSessionEnded(object sender, EventArgs eventArgs) => EndSession();
+    private void OnSessionEnded(object sender, EventArgs eventArgs) =>
+        EndSession(sender as IAsyncCompletionSession);
 
-    private void EndSession()
+    private void OnSessionItemsUpdated(object sender, ComputedCompletionItemsEventArgs eventArgs)
+    {
+        if (sender is not IAsyncCompletionSession session)
+        {
+            return;
+        }
+
+        // 事件從 ThreadPool 發出，eventArgs 可能已落後於剛發生的方向鍵操作。
+        // 不直接套用它攜帶的項目，只把它當成「平台已完成一輪計算」並重新對帳 recent model。
+        Invoke(() =>
+        {
+            if (ReferenceEquals(_session, session) && !session.IsDismissed)
+            {
+                ClearSelection(session, pending: true);
+                QueueSelectionRefresh(session);
+            }
+        });
+    }
+
+    private void OnTextBufferChanged(object sender, TextContentChangedEventArgs eventArgs)
+    {
+        if (_session is not { } session)
+        {
+            return;
+        }
+
+        Invoke(() =>
+        {
+            if (ReferenceEquals(_session, session) && !session.IsDismissed)
+            {
+                // 涵蓋輸入、Backspace、貼上與復原；等平台更新篩選後再於背景讀最新選取。
+                _expandWhenSelectionReady = false;
+                ClearSelection(session, pending: true);
+                QueueSelectionRefresh(session);
+            }
+        });
+    }
+
+    private void OnObservedSessionEnded(object sender, EventArgs eventArgs)
+    {
+        if (sender is not IAsyncCompletionSession expected)
+        {
+            return;
+        }
+
+        Invoke(() =>
+        {
+            if (ReferenceEquals(_observedSession, expected) && !ReferenceEquals(_session, expected))
+            {
+                expected.Dismissed -= OnObservedSessionEnded;
+                _observedSession = null;
+            }
+        });
+    }
+
+    private void EndSession(IAsyncCompletionSession? expectedSession)
     {
         Invoke(() =>
         {
-            if (_session is { } session)
+            if (_session is not { } session ||
+                expectedSession is not null && !ReferenceEquals(session, expectedSession))
             {
-                session.Dismissed -= OnSessionEnded;
-                session.ItemCommitted -= OnSessionItemCommitted;
-                _session = null;
+                return;
             }
+
+            session.Dismissed -= OnSessionEnded;
+            session.ItemCommitted -= OnSessionItemCommitted;
+            session.ItemsUpdated -= OnSessionItemsUpdated;
+            _view.TextBuffer.Changed -= OnTextBufferChanged;
+            _session = null;
+            if (ReferenceEquals(_observedSession, session))
+            {
+                _observedSession = null;
+            }
+            _target = null;
+            _metadataService = null;
+            _selectedItemIsSqlObject = false;
+            _selectionPending = false;
+            _expandWhenSelectionReady = false;
+            DetachInputTracking();
+            _generation++;
 
             // 挑選結束就收起來——展開狀態不跨越 session，
             // 下一次開清單又是從乾淨的畫面開始。
             IsExpanded = false;
-            Hide();
+            Hide(restoreEditorFocus: false);
         });
     }
 
-    /// <summary>
-    /// 建議清單的選取換了一項。
-    /// </summary>
+    /// <summary>平台要求某項說明時，重新對帳 completion recent model 的實際選取。</summary>
     /// <remarks>
-    /// 沒有展開就只記住是誰，什麼都不畫也不查——使用者用方向鍵掃過二十項時，
-    /// 這裡會被呼叫二十次。
+    /// Description callback 可能延遲或亂序，不能直接相信它帶來的 item；只用它確認
+    /// metadata service 與 session，再由背景讀取平台最新模型。
     /// </remarks>
-    public void OnItemSelected(SqlObjectInfo? objectInfo, SqlMetadataService metadataService)
+    public void ReconcileSelection(
+        IAsyncCompletionSession session,
+        SqlMetadataService metadataService)
     {
         if (_closed)
         {
@@ -251,43 +436,94 @@ internal sealed class SqlStructurePreview
 
         Invoke(() =>
         {
+            if (session.IsDismissed || !ReferenceEquals(_session, session))
+            {
+                return;
+            }
+
+            // Description callback 可能在非同步等待後才回來；舊 session 不得接管新清單。
+            if (_observedSession is not null && !ReferenceEquals(_observedSession, session))
+            {
+                return;
+            }
+
             _metadataService = metadataService;
-            _target = objectInfo;
-
-            if (IsExpanded)
-            {
-                if (objectInfo is null)
-                {
-                    _timer.Stop();
-                    _loading?.Cancel();
-                    EnsureControl()?.ShowMessage("沒有結構可以顯示", "這一項不是資料庫物件。");
-                    return;
-                }
-
-                ShowTarget(objectInfo, metadataService);
-                return;
-            }
-
-            var settings = SqlAssistSettingsStore.Current;
-
-            if (settings.PreviewMode != SqlPreviewMode.Delay || objectInfo is null)
-            {
-                return;
-            }
-
-            // 延遲模式：停在同一項夠久才展開。掃過去的那幾項連查詢都不會送出。
-            _timer.Stop();
-            _timerExpands = true;
-            _timer.Interval = TimeSpan.FromMilliseconds(
-                Math.Max(MinimumExpandDelayMilliseconds, settings.PreviewDelayMilliseconds));
-            _timer.Start();
+            ClearSelection(session, pending: true);
+            QueueSelectionRefresh(session);
         });
+    }
+
+    /// <summary>只套用已由 generation 與 recent model 驗證過的項目；必須在 UI 執行緒。</summary>
+    private void ApplyVerifiedSelection(
+        IAsyncCompletionSession session,
+        SqlObjectInfo? objectInfo,
+        SqlMetadataService metadataService)
+    {
+        if (_closed || session.IsDismissed || !ReferenceEquals(_session, session))
+        {
+            return;
+        }
+
+        var expandWhenReady = _expandWhenSelectionReady;
+        _selectionPending = false;
+        _expandWhenSelectionReady = false;
+
+        if (ReferenceEquals(_target, objectInfo) &&
+            ReferenceEquals(_metadataService, metadataService) &&
+            (!IsExpanded || objectInfo is not null))
+        {
+            return;
+        }
+
+        _generation++;
+        StopPendingWork();
+        _metadataService = metadataService;
+        _target = objectInfo;
+        _selectedItemIsSqlObject = objectInfo is not null;
+
+        var settings = SqlAssistSettingsStore.Current;
+        if (expandWhenReady &&
+            !IsExpanded &&
+            objectInfo is not null &&
+            settings.Enabled &&
+            settings.PreviewMode == SqlPreviewMode.RightArrow)
+        {
+            Expand();
+            return;
+        }
+
+        if (IsExpanded)
+        {
+            if (objectInfo is null)
+            {
+                EnsureControl()?.ShowMessage("沒有結構可以顯示", "這一項不是資料庫物件。");
+                return;
+            }
+
+            ShowTarget(objectInfo, metadataService);
+            return;
+        }
+
+        if (!settings.Enabled ||
+            settings.PreviewMode != SqlPreviewMode.Delay ||
+            objectInfo is null)
+        {
+            return;
+        }
+
+        // 延遲模式：停在同一項夠久才展開。掃過去的那幾項連查詢都不會送出。
+        _timerExpands = true;
+        _timerGeneration = _generation;
+        _timer.Interval = TimeSpan.FromMilliseconds(
+            Math.Max(MinimumExpandDelayMilliseconds, settings.PreviewDelayMilliseconds));
+        _timer.Start();
     }
 
     /// <summary>展開預覽；已經展開時回傳 false，讓按鍵照原本的方式往下走。</summary>
     public bool Expand()
     {
-        if (_closed || IsExpanded)
+        var settings = SqlAssistSettingsStore.Current;
+        if (_closed || IsExpanded || !settings.Enabled || settings.PreviewMode == SqlPreviewMode.Off)
         {
             return false;
         }
@@ -303,9 +539,16 @@ internal sealed class SqlStructurePreview
         {
             ShowTarget(target, metadataService);
         }
+        else if (_target is { } pendingTarget)
+        {
+            EnsureControl()?.SetTarget(pendingTarget);
+            ShowAgent();
+        }
         else
         {
-            EnsureControl()?.ShowMessage("沒有結構可以顯示", "這一項不是資料庫物件。");
+            EnsureControl()?.ShowMessage(
+                "結構預覽",
+                _session is null ? "沒有結構可以顯示。" : "正在取得目前建議項目…");
             ShowAgent();
         }
 
@@ -317,11 +560,19 @@ internal sealed class SqlStructurePreview
     {
         if (!IsExpanded)
         {
+            if (_expandWhenSelectionReady)
+            {
+                // 向右鍵尚在等背景對帳時，向左鍵代表取消這次展開意圖。
+                _expandWhenSelectionReady = false;
+                return true;
+            }
+
             return false;
         }
 
+        _expandWhenSelectionReady = false;
         IsExpanded = false;
-        Hide();
+        Hide(restoreEditorFocus: false);
         return true;
     }
 
@@ -341,6 +592,9 @@ internal sealed class SqlStructurePreview
 
         Invoke(() =>
         {
+            DetachSession();
+            _generation++;
+            StopPendingWork();
             _anchor = anchor;
             _target = objectInfo;
             _metadataService = metadataService;
@@ -350,11 +604,12 @@ internal sealed class SqlStructurePreview
     }
 
     /// <summary>收掉視窗；本來就沒顯示時回傳 false。</summary>
-    public bool Hide()
+    public bool Hide() => Hide(restoreEditorFocus: false);
+
+    private bool Hide(bool restoreEditorFocus)
     {
-        _timer.Stop();
-        _timerExpands = false;
-        _loading?.Cancel();
+        _generation++;
+        StopPendingWork();
 
         if (_agent is not { } agent || _manager is not { } manager)
         {
@@ -364,18 +619,247 @@ internal sealed class SqlStructurePreview
         SqlAssistPlatformGuard.Run("收起結構預覽", () =>
         {
             var hadFocus = agent.HasFocus;
-            manager.RemoveAgent(agent);
+            var removed = manager.RemoveAgent(agent);
+            if (!removed)
+            {
+                // Manager 已先移除時仍要確定關掉 HWND，不留下孤兒 Popup。
+                agent.Dispose();
+                if (ReferenceEquals(_agent, agent))
+                {
+                    _agent = null;
+                }
+            }
 
             // 焦點在預覽裡時直接移除，鍵盤會落到不明的地方；還給編輯器。
-            if (hadFocus && !_view.IsClosed)
+            // 只有使用者從預覽主動關閉才還焦點；Alt+Tab／session 結束不能搶回 SSMS。
+            if (restoreEditorFocus && hadFocus && !_view.IsClosed && _view.VisualElement.IsVisible)
             {
                 _view.VisualElement.Focus();
             }
         });
 
-        // 不論移除成功與否都要清乾淨：狀態留著的話，下一次展開會以為視窗還掛著。
-        _agent = null;
         return true;
+    }
+
+    private void StopPendingWork()
+    {
+        _timer.Stop();
+        _timerExpands = false;
+        _loading?.Cancel();
+        _selectionRefresh?.Cancel();
+    }
+
+    private void DetachSession()
+    {
+        if (_session is not { } session)
+        {
+            SetObservedSession(null);
+            return;
+        }
+
+        session.Dismissed -= OnSessionEnded;
+        session.ItemCommitted -= OnSessionItemCommitted;
+        session.ItemsUpdated -= OnSessionItemsUpdated;
+        _view.TextBuffer.Changed -= OnTextBufferChanged;
+        _session = null;
+        _selectedItemIsSqlObject = false;
+        _selectionPending = false;
+        _expandWhenSelectionReady = false;
+        DetachInputTracking();
+        if (ReferenceEquals(_observedSession, session))
+        {
+            _observedSession = null;
+        }
+    }
+
+    private void SetObservedSession(IAsyncCompletionSession? session)
+    {
+        if (ReferenceEquals(_observedSession, session))
+        {
+            return;
+        }
+
+        if (_observedSession is { } previous && !ReferenceEquals(previous, _session))
+        {
+            previous.Dismissed -= OnObservedSessionEnded;
+        }
+
+        _observedSession = session;
+        if (session is not null && !ReferenceEquals(session, _session))
+        {
+            session.Dismissed += OnObservedSessionEnded;
+        }
+    }
+
+    private void ClearSelection(IAsyncCompletionSession session, bool pending)
+    {
+        if (!ReferenceEquals(_session, session))
+        {
+            return;
+        }
+
+        _generation++;
+        StopPendingWork();
+        _target = null;
+        _selectedItemIsSqlObject = false;
+        _selectionPending = pending;
+        if (!pending)
+        {
+            _expandWhenSelectionReady = false;
+        }
+        if (IsExpanded)
+        {
+            EnsureControl()?.ShowMessage(
+                pending ? "結構預覽" : "沒有結構可以顯示",
+                pending ? "正在取得目前建議項目…" : "目前選取的項目不是資料庫物件。");
+        }
+    }
+
+    /// <summary>
+    /// 等平台先處理完這次鍵盤／滑鼠輸入，再從背景取得最新選取。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IAsyncCompletionSession.GetComputedItems"/> 可能等待正在執行的篩選，
+    /// 絕不能放在按鍵的 UI 執行緒。背景等待同時補足 ItemsUpdated 不會為單純上下移動
+    /// 觸發的缺口，也讓「點回同一項」不會永遠停在失效狀態。
+    /// </remarks>
+    private void QueueSelectionRefresh(IAsyncCompletionSession session)
+    {
+        _selectionRefresh?.Cancel();
+        var source = new CancellationTokenSource();
+        _selectionRefresh = source;
+        var generation = _generation;
+
+        _view.VisualElement.Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(() =>
+            {
+                if (source.IsCancellationRequested ||
+                    generation != _generation ||
+                    !ReferenceEquals(_selectionRefresh, source) ||
+                    !ReferenceEquals(_session, session) ||
+                    session.IsDismissed)
+                {
+                    if (ReferenceEquals(_selectionRefresh, source))
+                    {
+                        _selectionRefresh = null;
+                    }
+
+                    source.Dispose();
+                    return;
+                }
+
+                SqlAssistPlatformGuard.Begin(
+                    "取得最新的建議選取",
+                    () => RefreshSelectionAsync(session, source, generation));
+            }));
+    }
+
+    private async Task RefreshSelectionAsync(
+        IAsyncCompletionSession session,
+        CancellationTokenSource source,
+        long generation)
+    {
+        try
+        {
+            var computed = await Task.Run(
+                    () => session.GetComputedItems(source.Token),
+                    source.Token)
+                .ConfigureAwait(false);
+
+            await _view.VisualElement.Dispatcher.InvokeAsync(
+                () =>
+                {
+                    if (source.IsCancellationRequested ||
+                        generation != _generation ||
+                        !ReferenceEquals(_selectionRefresh, source) ||
+                        !ReferenceEquals(_session, session) ||
+                        session.IsDismissed)
+                    {
+                        return;
+                    }
+
+                    // 先解除目前工作，再套用結果；Apply/Clear 取消 pending work 時不會反向取消自己。
+                    _selectionRefresh = null;
+
+                    var selected = computed.SelectedItem;
+                    if (selected is not null &&
+                        selected.Properties.TryGetProperty<SqlSuggestion>(
+                            SqlAsyncCompletionSource.SuggestionKey,
+                            out var suggestion) &&
+                        _metadataService is { } metadataService)
+                    {
+                        // 只有此處同時驗證過 source、generation 與 recent model，才可更新 target。
+                        ApplyVerifiedSelection(session, suggestion.Tag as SqlObjectInfo, metadataService);
+                    }
+                    else
+                    {
+                        ClearSelection(session, pending: false);
+                    }
+                },
+                DispatcherPriority.Normal);
+        }
+        finally
+        {
+            var dispatcher = _view.VisualElement.Dispatcher;
+            if (!dispatcher.HasShutdownStarted && !dispatcher.HasShutdownFinished)
+            {
+                await dispatcher.InvokeAsync(
+                    () =>
+                    {
+                        if (ReferenceEquals(_selectionRefresh, source))
+                        {
+                            _selectionRefresh = null;
+                        }
+                    },
+                    DispatcherPriority.Normal);
+            }
+
+            source.Dispose();
+        }
+    }
+
+    private void AttachInputTracking()
+    {
+        if (_inputTrackingAttached)
+        {
+            return;
+        }
+
+        _inputTrackingAttached = true;
+        InputManager.Current.PreProcessInput += OnPreProcessInput;
+    }
+
+    private void DetachInputTracking()
+    {
+        if (!_inputTrackingAttached)
+        {
+            return;
+        }
+
+        _inputTrackingAttached = false;
+        InputManager.Current.PreProcessInput -= OnPreProcessInput;
+    }
+
+    private void OnPreProcessInput(object sender, PreProcessInputEventArgs eventArgs)
+    {
+        if (eventArgs.StagingItem.Input is not MouseButtonEventArgs mouse ||
+            mouse.ButtonState != MouseButtonState.Pressed ||
+            !_view.IsMouseOverViewOrAdornments ||
+            _agent is { IsMouseOver: true } ||
+            _session is not { } session)
+        {
+            return;
+        }
+
+        SqlAssistPlatformGuard.Run(
+            "滑鼠切換建議項目",
+            () =>
+            {
+                _expandWhenSelectionReady = false;
+                ClearSelection(session, pending: true);
+                QueueSelectionRefresh(session);
+            });
     }
 
     /// <summary>
@@ -415,6 +899,7 @@ internal sealed class SqlStructurePreview
 
         ShowAgent();
 
+        _timerGeneration = _generation;
         _timer.Interval = TimeSpan.FromMilliseconds(QueryDebounceMilliseconds);
         _timer.Start();
     }
@@ -423,10 +908,24 @@ internal sealed class SqlStructurePreview
     {
         _timer.Stop();
 
+        if (_timerGeneration != _generation)
+        {
+            _timerExpands = false;
+            return;
+        }
+
         if (_timerExpands)
         {
             _timerExpands = false;
-            SqlAssistPlatformGuard.Run("結構預覽操作", () => Expand());
+            var settings = SqlAssistSettingsStore.Current;
+            if (settings.Enabled &&
+                settings.PreviewMode == SqlPreviewMode.Delay &&
+                _session is { IsDismissed: false } &&
+                _target is not null)
+            {
+                SqlAssistPlatformGuard.Run("結構預覽操作", () => Expand());
+            }
+
             return;
         }
 
@@ -442,18 +941,21 @@ internal sealed class SqlStructurePreview
         _loading?.Dispose();
         var source = new CancellationTokenSource();
         _loading = source;
+        var generation = _generation;
 
         // 取消一律當成正常結束：換了物件或收起了視窗，什麼都不用做。
         SqlAssistPlatformGuard.Begin(
             "載入結構預覽",
-            () => LoadAsync(objectInfo, metadataService, source.Token));
+            () => LoadAsync(objectInfo, metadataService, source, generation));
     }
 
     private async Task LoadAsync(
         SqlObjectInfo objectInfo,
         SqlMetadataService metadataService,
-        CancellationToken cancellationToken)
+        CancellationTokenSource source,
+        long generation)
     {
+        var cancellationToken = source.Token;
         var structure = await metadataService
             .GetStructureAsync(objectInfo, cancellationToken)
             .ConfigureAwait(false);
@@ -463,7 +965,10 @@ internal sealed class SqlStructurePreview
             {
                 // 等待期間使用者可能已經移到別的項目，那就不要蓋掉他正在看的東西。
                 if (cancellationToken.IsCancellationRequested ||
-                    _target?.ObjectId != objectInfo.ObjectId ||
+                    generation != _generation ||
+                    !ReferenceEquals(_loading, source) ||
+                    !ReferenceEquals(_target, objectInfo) ||
+                    !ReferenceEquals(_metadataService, metadataService) ||
                     _control is not { } control)
                 {
                     return;
@@ -497,13 +1002,11 @@ internal sealed class SqlStructurePreview
 
         return SqlAssistPlatformGuard.Create("建立結構預覽", () =>
         {
-            var control = new SqlStructurePreviewControl
-            {
-                PreferredWidth = PreviewWindowState.Width,
-                PreferredHeight = PreviewWindowState.Height
-            };
-
-            control.SizeCommitted += OnSizeCommitted;
+            var control = new SqlStructurePreviewControl();
+            control.ResizeStarted += OnResizeStarted;
+            control.ResizeDelta += OnResizeDelta;
+            control.ResizeCompleted += OnResizeCompleted;
+            control.SizeResetRequested += OnSizeResetRequested;
             control.CloseRequested += OnCloseRequested;
             _control = control;
             return control;
@@ -512,377 +1015,199 @@ internal sealed class SqlStructurePreview
 
     private void OnCloseRequested(object sender, EventArgs eventArgs)
     {
-        IsExpanded = false;
-        Hide();
+        SqlAssistPlatformGuard.Run("關閉結構預覽", () =>
+        {
+            _expandWhenSelectionReady = false;
+            IsExpanded = false;
+            Hide(restoreEditorFocus: true);
+        });
     }
 
-    private void OnSizeCommitted(object sender, PreviewSizeCommittedEventArgs eventArgs)
+    private void OnResizeStarted(object sender, PreviewResizeDragEventArgs eventArgs)
     {
-        if (_control is not { } control)
+        SqlAssistPlatformGuard.Run("開始調整結構預覽", () =>
+        {
+            if (_agent is { } agent)
+            {
+                _resizeStartWidth = agent.CurrentWidth;
+                _resizeStartHeight = agent.CurrentHeight;
+                agent.BeginResize(eventArgs.Corner);
+            }
+        });
+    }
+
+    private void OnResizeDelta(object sender, PreviewResizeDragEventArgs eventArgs)
+    {
+        SqlAssistPlatformGuard.Run(
+            "調整結構預覽",
+            () => _agent?.Resize(eventArgs.HorizontalChange, eventArgs.VerticalChange));
+    }
+
+    private void OnResizeCompleted(object sender, PreviewResizeDragEventArgs eventArgs)
+    {
+        if (_agent is not { } agent)
         {
             return;
         }
 
         SqlAssistPlatformGuard.Run("儲存結構預覽尺寸", () =>
         {
-            var stacked = Placement == SqlPreviewPlacement.Stacked;
-            var draggedWidth = eventArgs.WidthChanged ? control.PreferredWidth : (double?)null;
-
-            // 兩種擺放的寬度語意不同，分開保存；只拖高度時 stacked 仍維持自動寬度。
-            PreviewWindowState.Save(
-                stacked ? null : draggedWidth,
-                stacked ? draggedWidth : null,
-                control.PreferredHeight);
-
-            // 平台會因內容 SizeChanged 自行重排；放開時再明確以最新錨點完成一次更新。
-            RefreshSessionAnchor();
-
-            if (_agent is { } agent && _manager is { } manager && _anchor is { } anchor)
+            agent.CompleteResize(eventArgs.Canceled);
+            if (eventArgs.Canceled)
             {
-                manager.UpdatePopupAgent(agent, anchor, Styles);
-                UpdateGripSide();
+                return;
+            }
+
+            var widthChanged = Math.Abs(agent.CurrentWidth - _resizeStartWidth) >= 0.5;
+            var heightChanged = Math.Abs(agent.CurrentHeight - _resizeStartHeight) >= 0.5;
+            if (!widthChanged && !heightChanged)
+            {
+                return;
+            }
+
+            PreviewWindowState.Save(
+                Placement,
+                widthChanged ? agent.CurrentWidth : (double?)null,
+                heightChanged ? agent.CurrentHeight : (double?)null);
+            UpdateAgentPreferences(agent);
+        });
+    }
+
+    private void OnSizeResetRequested(object sender, EventArgs eventArgs)
+    {
+        SqlAssistPlatformGuard.Run("重設結構預覽尺寸", () =>
+        {
+            PreviewWindowState.Reset(Placement);
+            if (_agent is { } agent)
+            {
+                UpdateAgentPreferences(agent);
+                agent.RequestReposition();
             }
         });
     }
 
-    /// <summary>把視窗掛上編輯器；已經掛著就只更新錨點。</summary>
+    /// <summary>把自訂 Agent 掛上 reservation stack；已掛著時只更新狀態並重排。</summary>
     private void ShowAgent()
     {
-        RefreshSessionAnchor();
+        if (_session is { IsDismissed: false } session)
+        {
+            _anchor = session.ApplicableToSpan;
+        }
 
-        if (_control is not { } control || _anchor is null || _view.IsClosed)
+        if (_control is not { } control || _anchor is not { } anchor || _view.IsClosed)
         {
             return;
         }
 
-        var shown = SqlAssistPlatformGuard.Run(
-            "顯示結構預覽",
-            () =>
+        SqlAssistPlatformGuard.Run("顯示結構預覽", () =>
         {
+            control.ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
+
             if (_manager is null)
             {
                 _manager = _view.GetSpaceReservationManager(
                     SqlPreviewDefinitions.SpaceReservationManagerName);
-
                 if (_manager is null)
-                {
-                    // 拿不到管理員不算失敗，只是這一輪沒有地方可以掛。
-                    return true;
-                }
-
-                // 平台會在自己認為該收起來的時候移除代理人（例如編輯器失去聚合焦點），
-                // 不通知的話這裡會一直握著一個已經死掉的代理人，
-                // 下一次顯示就只會走「更新位置」而什麼都不做。
-                _manager.AgentChanged += OnAgentChanged;
-                AttachApplicationActivation();
-            }
-
-            ApplySize(control);
-
-            if (_agent is not null)
-            {
-                _manager.UpdatePopupAgent(_agent, _anchor, Styles);
-            }
-            else
-            {
-                if (_host is not null)
-                {
-                    _host.Child = null;
-                }
-
-                _host = new System.Windows.Controls.Decorator { Child = control };
-                _agent = _manager.CreatePopupAgent(_anchor, Styles, _host);
-                _manager.AddAgent(_agent);
-
-                // 只有真的新掛上去才淡入。更新位置也播的話，方向鍵每按一下
-                // 整個視窗就閃一次，那不是動效而是雜訊。
-                control.PlayAppear();
-            }
-
-            // 位置要等平台排完版才問得到，因此排在版面之後。
-            _view.VisualElement.Dispatcher.BeginInvoke(
-                DispatcherPriority.Loaded,
-                new Action(UpdateGripSide));
-
-            return true;
-        },
-            fallback: false);
-
-        if (!shown)
-        {
-            // 掛到一半失敗的代理人是半成品，留著會讓下一次顯示誤判成「已經掛著」，
-            // 於是只更新位置而永遠不重建。
-            _agent = null;
-        }
-    }
-
-    /// <summary>
-    /// 套用尺寸；上下擺放時左側跟著建議清單錨點，右側不得超出編輯器。
-    /// </summary>
-    /// <remarks>
-    /// 平台會先把上下擺放的左側放在 ApplicableToSpan 左緣，再做螢幕邊界修正。
-    /// 如果仍給整個 ViewportWidth，右側必然多出「錨點離 Viewport 左側的距離」，
-    /// 平台只好把整個 Popup 往左搬，於是左側不再和建議清單對齊。
-    /// 正確寬度是 ViewportRight 減掉錨點左側；既保留對齊，也不越過編輯器右界。
-    ///
-    /// 高度則跟側邊擺放走同一條規則。原本另外壓成編輯器的 45%，理由是「擺在
-    /// 程式碼上下的東西太高會遮掉太多行」——但那個上限比使用者拖出來的高度還低，
-    /// 於是每次重新顯示都把他調好的尺寸壓回去，看起來就是「拖了不算數」。
-    /// 要遮多少行是使用者自己的取捨，程式不該替他決定。
-    /// </remarks>
-    private void ApplySize(SqlStructurePreviewControl control)
-    {
-        // 字級也在這裡套用：改完設定不必重開查詢視窗，下一次展開就是新的字級。
-        control.ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
-
-        var availableWidth = ToDeviceUnits(_view.ViewportWidth * MaximumViewportRatio);
-        var availableHeight = ToDeviceUnits(_view.ViewportHeight * MaximumViewportRatio);
-
-        if (Placement == SqlPreviewPlacement.Stacked)
-        {
-            var stackedAvailableWidth = GetStackedAvailableWidth();
-            var stackedWidth = PreviewWindowState.StackedWidth ?? stackedAvailableWidth;
-
-            _lastStackedAvailableWidth = stackedAvailableWidth;
-
-            control.ApplySize(
-                stackedWidth,
-                PreviewWindowState.Height,
-                stackedAvailableWidth,
-                availableHeight);
-            return;
-        }
-
-        control.ApplySize(
-            PreviewWindowState.Width,
-            PreviewWindowState.Height,
-            availableWidth,
-            availableHeight);
-    }
-
-    /// <summary>取得 ApplicableToSpan 左側到編輯器右側的可用寬度。</summary>
-    /// <remarks>
-    /// 保底到最小寬度：錨點靠近右界時算出來的空間可能只剩幾十像素，那樣的視窗
-    /// 根本沒法看。寧可讓平台照它原本的邊界規則把視窗往左推，也不要交出一個
-    /// 窄到不能用的尺寸。
-    /// </remarks>
-    private double GetStackedAvailableWidth()
-    {
-        var textSpaceWidth = TryGetAnchorLeft() is { } anchorLeft
-            ? _view.ViewportRight - anchorLeft
-            // 版面尚未產生文字行時先退回 Viewport；平台稍後 LayoutChanged 會再重算。
-            : _view.ViewportWidth;
-
-        return Math.Max(
-            SqlAssistLimits.MinimumPreviewWidth,
-            ToDeviceUnits(textSpaceWidth) - StackedRightPadding);
-    }
-
-    /// <summary>
-    /// 文字座標的長度換算成浮動視窗用的 WPF 單位。
-    /// </summary>
-    /// <remarks>
-    /// 編輯器縮放只作用在文字上：150% 時 <c>ViewportWidth</c> 只有實際寬度的三分之二，
-    /// 而浮動視窗不吃這個縮放。不乘回去的話，放大字級的人會拿到一個明顯偏窄的視窗。
-    /// </remarks>
-    private double ToDeviceUnits(double textSpaceLength) =>
-        textSpaceLength * (_view.ZoomLevel > 0 ? _view.ZoomLevel / 100.0 : 1.0);
-
-    /// <summary>
-    /// 用和平台 PopupAgent 相同的文字呈現座標取得錨點左側；不拿 Caret 代替，
-    /// 因為 ApplicableToSpan 的起點可能和 Caret 不同。
-    /// </summary>
-    /// <returns>算不出來時為 <c>null</c>；呼叫端各有自己的替代來源。</returns>
-    private double? TryGetAnchorLeft()
-    {
-        if (_anchor is not { } anchor || _view.IsClosed || _view.TextViewLines is null)
-        {
-            return null;
-        }
-
-        return SqlAssistPlatformGuard.Probe<double?>(
-            "計算結構預覽錨點",
-            () =>
-            {
-                var span = anchor.GetSpan(_view.TextSnapshot);
-                var line = _view.TextViewLines.GetTextViewLineContainingBufferPosition(span.Start);
-
-                if (line is null)
-                {
-                    return null;
-                }
-
-                var bounds = line.GetExtendedCharacterBounds(span.Start);
-                var left = Math.Max(bounds.Left, _view.ViewportLeft);
-
-                return double.IsNaN(left) || double.IsInfinity(left) ? null : left;
-            },
-            fallback: null);
-    }
-
-    /// <summary>
-    /// Async Completion 允許不同項目帶不同 ApplicableToSpan；不能只沿用 session 開啟時的值。
-    /// </summary>
-    private void RefreshSessionAnchor()
-    {
-        if (_session is { } session)
-        {
-            _anchor = session.ApplicableToSpan;
-        }
-    }
-
-    /// <summary>
-    /// 判斷視窗落在錨點的哪一側，並把縮放握把放到它實際會長大的那一角。
-    /// </summary>
-    /// <remarks>
-    /// 貼在左側時平台釘住的是視窗的右邊界，加寬會往左長；握把留在右下角的話，
-    /// 使用者往右拖曳卻看到左邊界往外跑。判斷不出來時一律當成右側，
-    /// 那是絕大多數情況，也是預設的版面。
-    ///
-    /// 上下擺放固定從錨點往右長，最大值由錨點到 ViewportRight 的空間決定，
-    /// 所以握把固定在右下角但不再鎖住寬度。
-    /// </remarks>
-    private void UpdateGripSide()
-    {
-        if (_control is not { } control || _host is null || _view.IsClosed)
-        {
-            return;
-        }
-
-        var stacked = Placement == SqlPreviewPlacement.Stacked;
-
-        // 上下擺放固定從錨點往右長，握把就固定在右下角，不必問平台把它放到哪一側。
-        if (stacked)
-        {
-            control.SetGripSide(onLeft: false);
-        }
-
-        // 版面還沒完成時 PointToScreen 會失敗，那就維持現狀。
-        SqlAssistPlatformGuard.Probe("判斷結構預覽的位置", () =>
-        {
-            var popupLeft = _host.PointToScreen(new Point(0, 0)).X;
-            var popupRight = _host.PointToScreen(new Point(_host.ActualWidth, 0)).X;
-            var anchorX = TryGetAnchorLeft() is { } anchorLeft
-                ? anchorLeft - _view.ViewportLeft
-                : _view.Caret.Left - _view.ViewportLeft;
-            var anchorScreenX = _view.VisualElement
-                .PointToScreen(new Point(ToDeviceUnits(anchorX), 0)).X;
-            var onLeft = popupRight <= anchorScreenX;
-
-            if (!stacked)
-            {
-                control.SetGripSide(onLeft);
-            }
-
-            // stacked 也記錄實際落點：可以直接看出平台是否因螢幕邊界又把它往左搬。
-            SqlAssistDiagnostics.Write(
-                $"結構預覽落點：{(stacked ? onLeft ? "上下（被推左）" : "上下" : onLeft ? "左" : "右")}　" +
-                $"視窗 {popupLeft:F0}–{popupRight:F0}（寬 {_host.ActualWidth:F0}）　" +
-                $"錨點 {anchorScreenX:F0}　編輯器寬 {_view.ViewportWidth:F0}" +
-                (stacked ? $"　可用寬 {GetStackedAvailableWidth():F0}" : string.Empty),
-                _view);
-        });
-    }
-
-    private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
-        QueueStackedLayoutUpdate();
-
-    private void OnViewportGeometryChanged(object sender, EventArgs eventArgs) =>
-        QueueStackedLayoutUpdate();
-
-    private void OnZoomLevelChanged(object sender, ZoomLevelChangedEventArgs eventArgs) =>
-        QueueStackedLayoutUpdate();
-
-    /// <summary>
-    /// Viewport、水平捲動或字級縮放會改變錨點到右界的距離；合併成一次版面後更新。
-    /// </summary>
-    private void QueueStackedLayoutUpdate()
-    {
-        if (_closed || _stackedLayoutUpdateQueued || _agent is null ||
-            Placement != SqlPreviewPlacement.Stacked)
-        {
-            return;
-        }
-
-        _stackedLayoutUpdateQueued = true;
-        _view.VisualElement.Dispatcher.BeginInvoke(
-            DispatcherPriority.Loaded,
-            new Action(() =>
-            {
-                _stackedLayoutUpdateQueued = false;
-
-                if (_closed || _agent is not { } agent || _manager is not { } manager ||
-                    _anchor is null || _control is not { } control ||
-                    Placement != SqlPreviewPlacement.Stacked)
                 {
                     return;
                 }
 
-                SqlAssistPlatformGuard.Run("更新結構預覽版面", () =>
-                {
-                    var previousAnchor = _anchor;
-                    RefreshSessionAnchor();
+                _manager.AgentChanged += OnAgentChanged;
+            }
 
-                    // 打字時每個字元都會觸發 LayoutChanged，但錨點左緣不動、可用寬度
-                    // 也就不變；這時再叫平台重排一次，只會讓視窗在使用者眼前抖一下。
-                    if (ReferenceEquals(previousAnchor, _anchor) &&
-                        Math.Abs(GetStackedAvailableWidth() - _lastStackedAvailableWidth) < 0.5)
+            if (_agent is { } existing)
+            {
+                UpdateAgentPreferences(existing);
+                existing.RequestReposition();
+                return;
+            }
+
+            var created = new SqlPreviewPopupAgent(_view, _manager, anchor, control);
+            UpdateAgentPreferences(created);
+            _agent = created;
+            var added = SqlAssistPlatformGuard.Run(
+                "掛上結構預覽",
+                () =>
+                {
+                    _manager.AddAgent(created);
+                    return true;
+                },
+                fallback: false);
+            if (!added)
+            {
+                if (ReferenceEquals(_agent, created))
+                {
+                    _agent = null;
+                }
+
+                if (_manager.Agents.Contains(created))
+                {
+                    _manager.RemoveAgent(created);
+                }
+
+                created.Dispose();
+                return;
+            }
+
+            control.PlayAppear();
+        });
+    }
+
+    private void UpdateAgentPreferences(SqlPreviewPopupAgent agent)
+    {
+        if (_anchor is not { } anchor)
+        {
+            return;
+        }
+
+        if (Placement == SqlPreviewPlacement.Stacked)
+        {
+            agent.Update(anchor, Placement, PreviewWindowState.StackedWidth, PreviewWindowState.StackedHeight);
+        }
+        else
+        {
+            agent.Update(anchor, Placement, PreviewWindowState.BesideWidth, PreviewWindowState.BesideHeight);
+        }
+    }
+
+    private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
+        QueueLayoutUpdate();
+
+    private void OnViewportGeometryChanged(object sender, EventArgs eventArgs) =>
+        QueueLayoutUpdate();
+
+    private void OnZoomLevelChanged(object sender, ZoomLevelChangedEventArgs eventArgs) =>
+        QueueLayoutUpdate();
+
+    /// <summary>合併同一輪的 Layout／Viewport／Zoom 通知，兩種擺放都重算完整快照。</summary>
+    private void QueueLayoutUpdate()
+    {
+        if (_closed || _layoutUpdateQueued || _agent is null)
+        {
+            return;
+        }
+
+        _layoutUpdateQueued = true;
+        _view.VisualElement.Dispatcher.BeginInvoke(
+            DispatcherPriority.Loaded,
+            new Action(() => SqlAssistPlatformGuard.Run(
+                "更新結構預覽版面",
+                () =>
+                {
+                    _layoutUpdateQueued = false;
+                    if (_closed || _agent is not { } agent)
                     {
                         return;
                     }
 
-                    ApplySize(control);
-                    manager.UpdatePopupAgent(agent, _anchor, Styles);
+                    if (_session is { IsDismissed: false } session)
+                    {
+                        _anchor = session.ApplicableToSpan;
+                    }
 
-                    // UpdatePopupAgent 只排平台重算；實際螢幕座標要再晚一個 Layout 才可靠。
-                    _view.VisualElement.Dispatcher.BeginInvoke(
-                        DispatcherPriority.Loaded,
-                        new Action(UpdateGripSide));
-                });
-            }));
-    }
-
-    /// <summary>
-    /// 切換到別的應用程式再回來時，把視窗重新掛一次。
-    /// </summary>
-    /// <remarks>
-    /// 浮動視窗是自己的一個承載視窗，SSMS 失去啟用狀態再取回時，它的輸入狀態會留在
-    /// 舊的狀態上——表現出來就是「怎麼拉都選不起來，必須先點回查詢視窗再點預覽」。
-    /// 整個換一個新的承載視窗最省事，內容控制項本來就是重複使用的，成本很低。
-    /// </remarks>
-    private void AttachApplicationActivation()
-    {
-        if (_activationAttached || System.Windows.Application.Current is not { } application)
-        {
-            return;
-        }
-
-        _activationAttached = true;
-        application.Activated += OnApplicationActivated;
-    }
-
-    private void OnApplicationActivated(object sender, EventArgs eventArgs)
-    {
-        if (_closed || _agent is not { } agent || _manager is not { } manager || _anchor is null)
-        {
-            return;
-        }
-
-        SqlAssistPlatformGuard.Run("結構預覽操作", () =>
-        {
-            try
-            {
-                _recreatingAgent = true;
-                manager.RemoveAgent(agent);
-                _agent = null;
-            }
-            finally
-            {
-                _recreatingAgent = false;
-            }
-
-            ShowAgent();
-        });
+                    UpdateAgentPreferences(agent);
+                    agent.RequestReposition();
+                })));
     }
 
     /// <summary>
@@ -894,7 +1219,10 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     public bool CopySelectionIfAny()
     {
-        if (_agent is null || _control is not { } control || !control.HasSelection())
+        if (_agent is not { } agent ||
+            (!agent.HasFocus && !agent.IsMouseOver) ||
+            _control is not { } control ||
+            !control.HasSelection())
         {
             return false;
         }
@@ -912,19 +1240,20 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     private void OnAgentChanged(object sender, SpaceReservationAgentChangedEventArgs eventArgs)
     {
-        if (_recreatingAgent || _agent is null || !ReferenceEquals(eventArgs.OldAgent, _agent))
+        if (_agent is not { } current || !ReferenceEquals(eventArgs.OldAgent, current))
         {
             return;
         }
 
-        _agent = eventArgs.NewAgent;
+        _agent = eventArgs.NewAgent as SqlPreviewPopupAgent;
+        current.Dispose();
 
         if (_agent is null)
         {
+            _expandWhenSelectionReady = false;
             IsExpanded = false;
-            _timer.Stop();
-            _timerExpands = false;
-            _loading?.Cancel();
+            _generation++;
+            StopPendingWork();
         }
     }
 
@@ -954,15 +1283,34 @@ internal sealed class SqlStructurePreview
         _view.LayoutChanged -= OnViewLayoutChanged;
         _view.ViewportLeftChanged -= OnViewportGeometryChanged;
         _view.ViewportWidthChanged -= OnViewportGeometryChanged;
+        _view.ViewportHeightChanged -= OnViewportGeometryChanged;
         _view.ZoomLevelChanged -= OnZoomLevelChanged;
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
         _loading?.Cancel();
-        EndSession();
+        _loading?.Dispose();
+        _loading = null;
+        _selectionRefresh?.Cancel();
+        _selectionRefresh = null;
+        DetachSession();
+
+        if (_agent is { } agent)
+        {
+            if (_manager is { } agentManager)
+            {
+                agentManager.RemoveAgent(agent);
+            }
+
+            agent.Dispose();
+            _agent = null;
+        }
 
         if (_control is { } control)
         {
-            control.SizeCommitted -= OnSizeCommitted;
+            control.ResizeStarted -= OnResizeStarted;
+            control.ResizeDelta -= OnResizeDelta;
+            control.ResizeCompleted -= OnResizeCompleted;
+            control.SizeResetRequested -= OnSizeResetRequested;
             control.CloseRequested -= OnCloseRequested;
             _control = null;
         }
@@ -973,12 +1321,5 @@ internal sealed class SqlStructurePreview
             _manager = null;
         }
 
-        if (_activationAttached && System.Windows.Application.Current is { } application)
-        {
-            application.Activated -= OnApplicationActivated;
-            _activationAttached = false;
-        }
-
-        _agent = null;
     }
 }

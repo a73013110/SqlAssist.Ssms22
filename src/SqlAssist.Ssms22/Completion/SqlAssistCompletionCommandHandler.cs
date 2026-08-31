@@ -38,6 +38,10 @@ internal sealed class SqlAssistCompletionCommandHandler :
     ICommandHandler<EscapeKeyCommandArgs>,
     ICommandHandler<LeftKeyCommandArgs>,
     ICommandHandler<RightKeyCommandArgs>,
+    ICommandHandler<UpKeyCommandArgs>,
+    ICommandHandler<DownKeyCommandArgs>,
+    ICommandHandler<PageUpKeyCommandArgs>,
+    ICommandHandler<PageDownKeyCommandArgs>,
     ICommandHandler<CopyCommandArgs>,
     ICommandHandler<TypeCharCommandArgs>
 {
@@ -52,6 +56,14 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(LeftKeyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(RightKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(UpKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(DownKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(PageUpKeyCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(PageDownKeyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(CopyCommandArgs args) => CommandState.Unspecified;
 
@@ -92,8 +104,13 @@ internal sealed class SqlAssistCompletionCommandHandler :
                     return false;
                 }
 
-                return SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
-                    && preview.Expand();
+                if (SqlStructurePreview.Peek(args.TextView) is not { } preview)
+                {
+                    return false;
+                }
+
+                var session = Broker.GetSession(args.TextView);
+                return preview.RequestExpand(session);
             },
             fallback: false);
     }
@@ -107,6 +124,25 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 && preview.Collapse(),
             fallback: false);
     }
+
+    /// <summary>
+    /// 清單方向鍵仍交給平台處理；在平台改選取前，先讓舊預覽目標失效。
+    /// </summary>
+    /// <remarks>
+    /// Completion 的說明 callback 是非同步的。如果不先失效，使用者快速按「下、右」時，
+    /// 向右鍵可能會展開上一項。這裡永遠回傳 false，不攔截平台原本的清單導覽。
+    /// </remarks>
+    public bool ExecuteCommand(UpKeyCommandArgs args, CommandExecutionContext executionContext) =>
+        InvalidateCompletionSelection(args.TextView);
+
+    public bool ExecuteCommand(DownKeyCommandArgs args, CommandExecutionContext executionContext) =>
+        InvalidateCompletionSelection(args.TextView);
+
+    public bool ExecuteCommand(PageUpKeyCommandArgs args, CommandExecutionContext executionContext) =>
+        InvalidateCompletionSelection(args.TextView);
+
+    public bool ExecuteCommand(PageDownKeyCommandArgs args, CommandExecutionContext executionContext) =>
+        InvalidateCompletionSelection(args.TextView);
 
     /// <summary>
     /// 預覽視窗裡有選取時，Ctrl+C 複製的是它。
@@ -155,6 +191,20 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 "處理 TypeChar 按鍵",
                 () => SqlCompletionReopen.AfterSeparator(args.TextView, Broker));
         }
+
+        return false;
+    }
+
+    /// <summary>只撤銷預覽目標，不吞掉按鍵；平台仍完整執行原本命令。</summary>
+    private bool InvalidateCompletionSelection(ITextView textView)
+    {
+        SqlAssistPlatformGuard.Run(
+            "使舊的結構預覽選取失效",
+            () =>
+            {
+                var session = Broker.GetSession(textView);
+                SqlStructurePreview.Peek(textView)?.InvalidateSelection(session);
+            });
 
         return false;
     }

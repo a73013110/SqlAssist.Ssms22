@@ -96,7 +96,8 @@ SSMS 的 `SqlStudio.registration.json` 就有複合條件的 `visibleWhen`。
   使用者感覺不到差別，因為清單本來就要捲動，再多打一個字排名也整個重算。
 - **預覽視窗的寬高**：拖曳握把記下來的是視窗狀態不是偏好，改存 VS 的
   `WritableSettingsStore`（`SqlAssist\Preview`）。放進 Unified Settings 等於
-  每放開一次滑鼠就提交一次設定變更並廣播通知。
+  每放開一次滑鼠就提交一次設定變更並廣播通知。上下與側邊各自記寬高；上下的
+  寬度另有「自動延伸」狀態，雙擊任一握把可恢復目前擺放方式的預設尺寸。
 
 ## 設定頁上的按鈕
 
