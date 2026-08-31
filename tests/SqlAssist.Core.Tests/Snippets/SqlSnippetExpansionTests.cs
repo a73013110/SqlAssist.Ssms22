@@ -29,8 +29,10 @@ public sealed class SqlSnippetExpansionTests
 
         Assert.Equal("CopyNo + CopyNo", expansion.Text);
         Assert.Equal(expansion.Text.Length, expansion.CaretOffset);
+
+        // 同名欄位只宣告一次；同步由原生引擎的標記做，不是我們算位置。
         var field = Assert.Single(expansion.Fields);
-        Assert.Equal(new[] { 0, 9 }, field.Occurrences.Select(item => item.Start).ToArray());
+        Assert.Equal("name", field.Id);
         Assert.Equal("$name$ + $name$$end$", expansion.NativeCode);
     }
 

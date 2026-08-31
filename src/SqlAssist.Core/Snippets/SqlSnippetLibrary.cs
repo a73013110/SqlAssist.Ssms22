@@ -5,11 +5,16 @@ using System.Linq;
 namespace SqlAssist.Core.Snippets;
 
 /// <summary>
-/// 一整份 Snippet 清單。
+/// 一整份「這一輪生效」的 Snippet 清單。
 /// </summary>
 /// <remarks>
-/// 不可變：管理介面的每一次新增、修改、刪除都產生新的一份，
-/// 讀取端不必擔心正在列舉時被改掉。
+/// 不可變而且<b>唯讀</b>：異動一律走
+/// <see cref="SqlSnippetMerger"/>（內建值＋使用者紀錄合併出新的一份）。
+/// 這裡刻意不提供 Set／Remove，因為以捷徑為鍵的異動在有了穩定 ID 之後語意是壞的
+/// ——換掉一筆同捷徑但不同 ID 的片段，會安靜地把對方的 ID 也一起換掉。
+///
+/// 讀取端（建議清單、展開器）拿到的永遠是一致的一份，而且是穩定的參考：
+/// <c>SqlAsyncCompletionSource</c> 靠比對參考決定要不要重建整批候選項。
 /// </remarks>
 public sealed class SqlSnippetLibrary
 {
@@ -67,58 +72,6 @@ public sealed class SqlSnippetLibrary
         }
 
         return _byId.TryGetValue(id, out snippet!);
-    }
-
-    /// <summary>新增或以捷徑為鍵取代一筆，回傳新的清單。</summary>
-    public SqlSnippetLibrary Set(SqlSnippet snippet)
-    {
-        if (snippet is null)
-        {
-            throw new ArgumentNullException(nameof(snippet));
-        }
-
-        var replaced = false;
-        var snippets = new List<SqlSnippet>(Snippets.Count + 1);
-
-        foreach (var existing in Snippets)
-        {
-            if (string.Equals(existing.Shortcut, snippet.Shortcut, StringComparison.OrdinalIgnoreCase))
-            {
-                snippets.Add(snippet);
-                replaced = true;
-            }
-            else
-            {
-                snippets.Add(existing);
-            }
-        }
-
-        if (!replaced)
-        {
-            snippets.Add(snippet);
-        }
-
-        return new SqlSnippetLibrary(snippets);
-    }
-
-    /// <summary>依捷徑改名並取代一筆；<paramref name="originalShortcut"/> 不存在時等同新增。</summary>
-    public SqlSnippetLibrary Replace(string originalShortcut, SqlSnippet snippet)
-    {
-        if (string.Equals(originalShortcut, snippet?.Shortcut, StringComparison.OrdinalIgnoreCase))
-        {
-            return Set(snippet!);
-        }
-
-        return Remove(originalShortcut).Set(snippet!);
-    }
-
-    public SqlSnippetLibrary Remove(string shortcut)
-    {
-        var snippets = Snippets
-            .Where(item => !string.Equals(item.Shortcut, shortcut, StringComparison.OrdinalIgnoreCase))
-            .ToArray();
-
-        return snippets.Length == Snippets.Count ? this : new SqlSnippetLibrary(snippets);
     }
 
     /// <summary>

@@ -85,7 +85,7 @@ public sealed class SqlSnippetTests
             SqlSnippetLibrary.CurrentVersion,
             new[] { new SqlSnippetOverride(custom.Id, disabled: false, custom) });
 
-        var round = SqlSnippetSerializer.Deserialize(SqlSnippetSerializer.Serialize(original));
+        var round = ReadLibrary(SqlSnippetSerializer.Serialize(original));
 
         Assert.True(round.TryGet("ins", out var snippet));
         Assert.Equal("user.ins", snippet.Id);
@@ -99,7 +99,7 @@ public sealed class SqlSnippetTests
     public void 讀取時略過沒有捷徑或沒有程式碼的項目()
     {
         // 檔案是使用者可以手改的，壞掉一筆不該讓其他 Snippet 一起消失。
-        var library = SqlSnippetSerializer.Deserialize("""
+        var library = ReadLibrary("""
             {
               "version": 1,
               "snippets": [
@@ -119,7 +119,7 @@ public sealed class SqlSnippetTests
     public void 內容不是_JSON_時丟出可定位的例外()
     {
         var exception = Assert.Throws<JsonParseException>(
-            () => SqlSnippetSerializer.Deserialize("{ \"snippets\": [ }"));
+            () => ReadLibrary("{ \"snippets\": [ }"));
 
         Assert.True(exception.Position > 0);
     }
@@ -167,7 +167,7 @@ public sealed class SqlSnippetTests
     public void 註解與尾隨逗號讀得進來()
     {
         // 使用者會直接用記事本改這個檔，這兩項寬容很划算。
-        var library = SqlSnippetSerializer.Deserialize("""
+        var library = ReadLibrary("""
             {
               // 我的片段
               "version": 1,
@@ -196,7 +196,7 @@ public sealed class SqlSnippetTests
     [Fact]
     public void JSON佔位符順序與程式碼不同時依首次出現順序自癒()
     {
-        var library = SqlSnippetSerializer.Deserialize("""
+        var library = ReadLibrary("""
             {
               "version": 2,
               "snippets": [
@@ -217,5 +217,21 @@ public sealed class SqlSnippetTests
         Assert.True(library.TryGet("ord", out var snippet));
         Assert.Equal(new[] { "first", "second" }, snippet.Placeholders.Select(item => item.Id));
         Assert.Equal(new[] { "1", "2" }, snippet.Placeholders.Select(item => item.DefaultValue));
+    }
+
+    /// <summary>把檔案內容讀成「其中有效的那些片段」。</summary>
+    /// <remarks>
+    /// 產品只需要 <see cref="SqlSnippetSerializer.DeserializeDocument"/>——合併與停用
+    /// 由 <see cref="SqlSnippetMerger"/> 處理。這個轉換只有測試要，所以放在測試裡，
+    /// 不在產品端留一個沒有呼叫端的公開方法。
+    /// </remarks>
+    private static SqlSnippetLibrary ReadLibrary(string text)
+    {
+        var document = SqlSnippetSerializer.DeserializeDocument(text);
+
+        return new SqlSnippetLibrary(document.Snippets
+            .Where(record => !record.Disabled && record.Snippet is not null)
+            .Select(record => record.Snippet!)
+            .ToArray());
     }
 }

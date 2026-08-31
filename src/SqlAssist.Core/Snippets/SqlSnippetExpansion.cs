@@ -11,7 +11,7 @@ public sealed class SqlSnippetExpansion
         string text,
         string nativeCode,
         int caretOffset,
-        IReadOnlyList<SqlSnippetExpansionField> fields)
+        IReadOnlyList<SqlSnippetPlaceholder> fields)
     {
         Text = text;
         NativeCode = nativeCode;
@@ -30,8 +30,14 @@ public sealed class SqlSnippetExpansion
 
     public int CaretOffset { get; }
 
-    /// <summary>依程式碼首次出現順序排列的欄位。</summary>
-    public IReadOnlyList<SqlSnippetExpansionField> Fields { get; }
+    /// <summary>
+    /// 依程式碼<b>首次出現順序</b>排列的欄位，重複的只留第一次。
+    /// </summary>
+    /// <remarks>
+    /// 這就是原生引擎的 Tab 導航順序。刻意不記每一次出現的位置：同名欄位的同步是
+    /// 引擎自己用標記做的，留一份位置只會變成沒有人讀、卻看起來像同步機制的資料。
+    /// </remarks>
+    public IReadOnlyList<SqlSnippetPlaceholder> Fields { get; }
 
     public string GetText(string newLine, out int caretOffset)
     {
@@ -55,8 +61,8 @@ public sealed class SqlSnippetExpansion
             placeholders[placeholder.Id] = placeholder;
         }
 
-        var fieldBuilders = new Dictionary<string, FieldBuilder>(StringComparer.OrdinalIgnoreCase);
-        var orderedFields = new List<FieldBuilder>(snippet.Placeholders.Count);
+        var declared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fields = new List<SqlSnippetPlaceholder>(snippet.Placeholders.Count);
         var text = new StringBuilder(snippet.Code.Length);
         var native = new StringBuilder(snippet.Code.Length);
         var caretOffset = -1;
@@ -104,18 +110,15 @@ public sealed class SqlSnippetExpansion
                 continue;
             }
 
-            var start = text.Length;
             text.Append(placeholder.DefaultValue);
             native.Append('$').Append(placeholder.Id).Append('$');
 
-            if (!fieldBuilders.TryGetValue(placeholder.Id, out var builder))
+            // 同名欄位只宣告一次，順序是它第一次出現的位置。
+            if (declared.Add(placeholder.Id))
             {
-                builder = new FieldBuilder(placeholder);
-                fieldBuilders.Add(placeholder.Id, builder);
-                orderedFields.Add(builder);
+                fields.Add(placeholder);
             }
 
-            builder.Occurrences.Add(new SqlSnippetFieldOccurrence(start, placeholder.DefaultValue.Length));
             index = end;
         }
 
@@ -123,13 +126,6 @@ public sealed class SqlSnippetExpansion
         {
             caretOffset = text.Length;
             native.Append(SqlSnippet.CaretMarker);
-        }
-
-        var fields = new SqlSnippetExpansionField[orderedFields.Count];
-
-        for (var fieldIndex = 0; fieldIndex < orderedFields.Count; fieldIndex++)
-        {
-            fields[fieldIndex] = orderedFields[fieldIndex].Build();
         }
 
         return new SqlSnippetExpansion(text.ToString(), native.ToString(), caretOffset, fields);
@@ -196,58 +192,4 @@ public sealed class SqlSnippetExpansion
             AppendLiteral(value[index], text, native);
         }
     }
-
-    private sealed class FieldBuilder
-    {
-        public FieldBuilder(SqlSnippetPlaceholder placeholder)
-        {
-            Placeholder = placeholder;
-        }
-
-        public SqlSnippetPlaceholder Placeholder { get; }
-
-        public List<SqlSnippetFieldOccurrence> Occurrences { get; } = new();
-
-        public SqlSnippetExpansionField Build() => new(
-            Placeholder.Id,
-            Placeholder.DefaultValue,
-            Placeholder.ToolTip,
-            Occurrences.ToArray());
-    }
-}
-
-public sealed class SqlSnippetExpansionField
-{
-    public SqlSnippetExpansionField(
-        string id,
-        string defaultValue,
-        string toolTip,
-        IReadOnlyList<SqlSnippetFieldOccurrence> occurrences)
-    {
-        Id = id;
-        DefaultValue = defaultValue;
-        ToolTip = toolTip;
-        Occurrences = occurrences;
-    }
-
-    public string Id { get; }
-
-    public string DefaultValue { get; }
-
-    public string ToolTip { get; }
-
-    public IReadOnlyList<SqlSnippetFieldOccurrence> Occurrences { get; }
-}
-
-public readonly struct SqlSnippetFieldOccurrence
-{
-    public SqlSnippetFieldOccurrence(int start, int length)
-    {
-        Start = start;
-        Length = length;
-    }
-
-    public int Start { get; }
-
-    public int Length { get; }
 }
