@@ -319,7 +319,7 @@ public static class SuggestionMatcher
     /// 關鍵字、內建函式與 Snippet 要落在文法允許它出現的位置。
     /// </summary>
     /// <remarks>
-    /// 資料庫物件沒有位置旗標；Snippet 在只有三筆時也是 Any，擴充到 40 筆後
+    /// 資料庫物件沒有位置旗標；Snippet 在只有三筆時也是 Any，擴充到 43 筆後
     /// 必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單中間。
     ///
     /// 內建函式一起收在這裡的理由與關鍵字相同：語句開頭、資料來源位置與

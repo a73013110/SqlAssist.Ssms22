@@ -12,7 +12,7 @@ public static class SqlSnippetDefaults
 
     private static readonly Lazy<SqlSnippetLibrary> CurrentValue = new(LoadCurrent);
 
-    /// <summary>隨組件發布、可由新版 VSIX 更新的 40 筆內建定義。</summary>
+    /// <summary>隨組件發布、可由新版 VSIX 更新的 43 筆內建定義。</summary>
     public static SqlSnippetLibrary Current => CurrentValue.Value;
 
     /// <summary>
@@ -55,7 +55,7 @@ public static class SqlSnippetDefaults
     /// 內容壞掉），正確性由 <c>SqlSnippetDefaultsTests</c> 守；而執行期這個屬性掛在
     /// 建議清單的路徑上，丟出去就是使用者每按一次鍵看到一次錯誤對話框，而且
     /// <see cref="Lazy{T}"/> 會把例外<b>永久快取</b>起來反覆重丟。
-    /// 沒有內建片段只是少了 40 筆建議，其餘功能照常。
+    /// 沒有內建片段只是少了 43 筆建議，其餘功能照常。
     /// </remarks>
     private static SqlSnippetLibrary LoadCurrent()
     {

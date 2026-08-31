@@ -16,7 +16,7 @@
 取得詞首加成。因此輸入 `libr` 時 `Lib_Reader` 就會排在第一，不必打到 `lib_re`。
 命中的字元會在清單中以粗體標示。
 
-40 筆 Snippet 不再以固定最高類別加成塞滿清單：沒有前綴時排在欄位、關鍵字與常用物件
+43 筆 Snippet 不再以固定最高類別加成塞滿清單：沒有前綴時排在欄位、關鍵字與常用物件
 之後，危險片段直接隱藏；輸入從捷徑開頭命中時才恢復最高加成，純子序列命中則維持低分。
 每筆另帶 `SqlKeywordPosition`，語句級 DDL 不會混進 SELECT 欄位位置。這三層規則都在
 Core，避免原生清單與測試用排名走出不同結果。
@@ -418,6 +418,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | 游標前方 | 只顯示 | 提交行為 |
 |---|---|---|
 | `FROM`、`JOIN`、`UPDATE`、`INTO` | Table、View | 插入名稱 |
+| `CROSS APPLY`、`OUTER APPLY` | Function | 插入名稱 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `ALTER PROCEDURE` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
@@ -439,6 +440,13 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 暫存資料表不分辨是哪一句建立的：井號開頭的識別字在 T-SQL 裡只有這一種意思，
 而 `CREATE TABLE`、`SELECT INTO`、`INSERT INTO` 各認一次的話，漏掉的那一種寫法
 就會安靜地少一個名稱。
+
+`APPLY` 之後列的是**函式**而不是資料表——那個位置文法上要的是資料表值函式或
+衍生資料表，`CROSS APPLY dbo.Loan` 剖析得過卻沒有意義。認的是 `APPLY` 一個字，
+前面的 `CROSS` 與 `OUTER` 不改變後面要什麼，多比一次只是多一條會漏的路。
+代價是純量函式會一起列出來：中繼資料把純量、內嵌資料表值與多語句資料表值函式
+對應到同一個 `SuggestionKind`，要分開得新增一種類別。多幾個選不中的名稱是多按
+幾下，而把整個位置讓掉的話 `APPLY` 之後就完全沒有補字。
 
 ### 系統物件只在兩個位置拉進來
 

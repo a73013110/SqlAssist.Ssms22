@@ -1,26 +1,65 @@
 # 程式碼片段
 
-內建 40 筆 SQL Server 2016 SP1 以上可用的片段；由
+內建 43 筆 SQL Server 2016 SP1 以上可用的片段；由
 `工具 → SqlAssist → 程式碼片段…` 增刪修，也可以從設定頁進入。
 
 | 分類 | 捷徑 |
 |---|---|
 | SELECT | `ssf`、`st100`、`st1`、`ssc`、`sd` |
-| DML | `ii`、`iis`、`ui`、`df`、`mg` |
+| DML | `ii`、`ui`、`df`、`mg` |
 | DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`citvf`、`cix`、`at`、`dt`、`ap`、`af` |
-| 流程控制／交易 | `beg`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
-| 查詢子句／其他 | `ij`、`lj`、`ob`、`gb`、`cte`、`sno`、`ptt`、`tt` |
+| 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
+| 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`sno`、`ptt` |
 
-`cf` 是純量函式、`citvf` 是內嵌資料表值函式。CASE 使用 `cs`，不占用 T-SQL
-關鍵字 `CASE`。`ui`、`df` 與 `mg` 預設含 `1 = 0`，仍必須在執行前檢查條件；
-這些危險片段在沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
+`cf` 是純量函式、`citvf` 是內嵌資料表值函式。CASE 使用 `cs`、BEGIN…END 使用
+`be`，都不占用同名的 T-SQL 關鍵字。`ui`、`df`、`mg` 與 `dt` 標成危險片段：
+沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
 
-`ssf`、`ap`、`af` **刻意不是 Tab Stop**，而是 `caret` 加接續建議。它們要填的是
-資料表、預存程序與函式的**真實名稱**，那份清單來自連線的中繼資料；換成
-`[dbo].[TableName]` 這種靜態欄位等於把這個擴充最核心的東西換掉。`ap` 更是整條
-鏈的起點——選到程序之後由 `SqlCommitExpander` 放進可執行的完整定義
-（見 [completion.md](completion.md)）。要 CREATE 的骨架請用 `cp`、`cf`、`citvf`，
-那三筆才是 Tab Stop。
+## 半句話加接續建議
+
+17 筆片段**刻意不是 Tab Stop**，而是 `caret` 加接續建議：插入單獨一行的半句話，
+游標停在尾巴，接著由建議清單接手。
+
+| 片段 | 插入 | 接著列出 |
+|---|---|---|
+| `ssf`、`st100`、`st1`、`ssc`、`sd` | `SELECT * FROM `、`SELECT TOP (100) * FROM `… | 資料表與檢視 |
+| `ii` | `INSERT INTO ` | 資料表與檢視；提交時展開欄位清單與 `VALUES` |
+| `ui`、`df` | `UPDATE `、`DELETE FROM ` | 資料表與檢視 |
+| `ij`、`lj`、`rj`、`fj`、`cj` | `INNER JOIN `… | 資料表與檢視 |
+| `ca`、`oa` | `CROSS APPLY `、`OUTER APPLY ` | 函式 |
+| `ap`、`af` | `ALTER PROCEDURE `、`ALTER FUNCTION ` | 程序、函式；`ap` 提交時放進完整定義 |
+
+它們要填的是資料表、程序與函式的**真實名稱**，那份清單來自連線的中繼資料；
+換成 `[dbo].[TableName]` 這種靜態欄位等於把這個擴充最核心的東西換掉。`ii` 與
+`ap` 更是整條鏈的起點——選到資料表或程序之後由 `SqlCommitExpander` 放進可執行的
+整句（見 [completion.md](completion.md)）。要 CREATE 的骨架請用 `cp`、`cf`、
+`citvf`，那三筆才是 Tab Stop。
+
+**接得下去的條件是「展開出來的那一行結尾剛好是一個會列出東西的關鍵字」**，
+因為接續清單的內容由 `SqlCompletionContextAnalyzer` 從游標前一個詞元推出來。
+尾巴多一個分號、括號或換行都會讓下一步變成一般清單，而症狀只是「清單沒有跳
+出來」，沒有任何錯誤。守門的是
+`SqlSnippetDefaultsTests.接續片段展開後落在會列出該類物件的位置`，它連
+`CompletionIntent` 一起比——`ii` 落在 `DataSource` 還不夠，要 `InsertStatement`
+才會展開成欄位清單，退化成 `Reference` 的話只是把資料表名稱補上去。
+
+單行也是刻意的。`ij`、`lj` 曾經連 `AS t` 與 `ON 1 = 1` 一起插進去，代價是每次
+都要回頭刪掉猜錯的別名與條件。改成單行之後別名與 `ON` 要自己打——`ON` 有關鍵字
+自動大寫接著，而別名那一格本來就不開清單（見 [completion.md](completion.md) 的
+「沒有 AS 的別名靠換行分辨」）。
+
+`sd` 展開的是 `SELECT DISTINCT * FROM `。`DISTINCT *` 通常不是最終要的，但選完
+資料表之後把游標移到 `*` 按 Tab 就展開成完整欄位清單再挑，比 `[$column$]` 一次
+只填得了一個欄位好用。
+
+`ca`、`oa` 之後的清單會連純量函式一起列——中繼資料把三種函式對應到同一個
+`SuggestionKind`，要分開得新增一種類別。多幾個選不中的名稱是多按幾下，而把整個
+`CompletionTarget.Function` 讓掉的話那個位置就完全沒有補字。
+
+Tab Stop 樣板一律**不寫方括號**。要不要加括號由「插入物件時加上方括號」
+（`sqlAssist.suggestions.useSquareBrackets`，預設關閉）決定，樣板自己寫死
+`[dbo].[TableName]` 的話，同一份指令碼裡就會出現兩種風格，而那個差別使用者從來
+沒有要求過。含空白或保留字的名稱仍然要自己補上括號。
 
 ## 佔位符與 Tab 導航
 
@@ -67,7 +106,7 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 
 內建定義只有一份：
 `src/SqlAssist.Core/Snippets/DefaultSnippets.json`，以 Embedded Resource 隨 VSIX 發布。
-不要把 40 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
+不要把 43 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
 
 使用者檔位於 `%APPDATA%\SqlAssist\snippets.json`，v2 只存：
 
@@ -84,17 +123,19 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
   "version": 2,
   "snippets": [
     {
-      "id": "builtin.st100",
-      "category": "select",
-      "shortcut": "st100",
-      "title": "SELECT TOP (100)",
-      "description": "查詢資料表前 100 筆",
+      "id": "builtin.ctb",
+      "category": "ddl",
+      "shortcut": "ctb",
+      "title": "CREATE TABLE",
+      "description": "建立資料表",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT TOP (100) *\nFROM [$schema$].[$table$]$end$;",
+      "code": "CREATE TABLE $schema$.$table$\n(\n    $column$ $dataType$ NOT NULL\n)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
+        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
+        { "id": "dataType", "default": "INT", "tooltip": "資料型別" }
       ]
     },
     { "id": "builtin.dt", "disabled": true }
