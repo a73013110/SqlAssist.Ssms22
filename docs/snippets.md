@@ -84,14 +84,14 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
   "version": 2,
   "snippets": [
     {
-      "id": "builtin.ssf",
+      "id": "builtin.st100",
       "category": "select",
-      "shortcut": "ssf",
-      "title": "SELECT * FROM",
-      "description": "查詢資料表的所有欄位",
+      "shortcut": "st100",
+      "title": "SELECT TOP (100)",
+      "description": "查詢資料表前 100 筆",
       "expansionMode": "tabStops",
       "positions": ["StatementStart"],
-      "code": "SELECT *\nFROM [$schema$].[$table$]$end$;",
+      "code": "SELECT TOP (100) *\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }

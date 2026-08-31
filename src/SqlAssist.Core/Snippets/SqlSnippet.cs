@@ -38,7 +38,10 @@ public sealed class SqlSnippetPlaceholder
 public sealed class SqlSnippet
 {
     /// <summary>游標定位標記；展開後游標停在這裡，標記本身不會留在文字裡。</summary>
-    public const string CaretMarker = "$end$";
+    /// <remarks>
+    /// 由 <see cref="SqlSnippetPlaceholders.EndId"/> 組出來，兩邊不會分岔。
+    /// </remarks>
+    public const string CaretMarker = "$" + SqlSnippetPlaceholders.EndId + "$";
     private readonly Lazy<SqlSnippetExpansion> _expansion;
 
     public SqlSnippet(
