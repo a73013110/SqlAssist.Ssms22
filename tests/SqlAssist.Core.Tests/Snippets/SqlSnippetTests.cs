@@ -152,8 +152,8 @@ public sealed class SqlSnippetTests
         var ssf = suggestions.Single(item =>
             item.Kind == SuggestionKind.Snippet && item.DisplayText == "ssf");
 
-        Assert.Equal("SELECT *\nFROM [dbo].[TableName];", ssf.InsertionText);
-        Assert.False(ssf.TriggerFollowUp);
+        Assert.Equal("SELECT * FROM ", ssf.InsertionText);
+        Assert.True(ssf.TriggerFollowUp);
 
         // 提交時要靠 Tag 拿回 $end$ 的位置。
         Assert.IsType<SqlSnippet>(ssf.Tag);

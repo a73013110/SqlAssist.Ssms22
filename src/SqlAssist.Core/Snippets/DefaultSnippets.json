@@ -6,14 +6,11 @@
       "category": "select",
       "shortcut": "ssf",
       "title": "SELECT * FROM",
-      "description": "查詢資料表的所有欄位",
-      "expansionMode": "tabStops",
+      "description": "查詢資料表的所有欄位；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart"],
-      "code": "SELECT *\nFROM [$schema$].[$table$]$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
-      ]
+      "code": "SELECT * FROM $end$"
     },
     {
       "id": "builtin.st100",
@@ -311,33 +308,22 @@
       "category": "ddl",
       "shortcut": "ap",
       "title": "ALTER PROCEDURE",
-      "description": "修改預存程序",
-      "expansionMode": "tabStops",
+      "description": "修改預存程序；接著列出程序並放進完整定義",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart"],
-      "code": "ALTER PROCEDURE [$schema$].[$procedure$]\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "procedure", "default": "ProcedureName", "tooltip": "預存程序名稱" },
-        { "id": "body", "default": "SELECT 1;", "tooltip": "程序內容" }
-      ]
+      "code": "ALTER PROCEDURE $end$"
     },
     {
       "id": "builtin.af",
       "category": "ddl",
       "shortcut": "af",
       "title": "ALTER FUNCTION",
-      "description": "修改純量函式",
-      "expansionMode": "tabStops",
+      "description": "修改函式；接著列出函式",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart"],
-      "code": "ALTER FUNCTION [$schema$].[$function$]\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "function", "default": "FunctionName", "tooltip": "函式名稱" },
-        { "id": "parameter", "default": "Value", "tooltip": "參數名稱" },
-        { "id": "parameterType", "default": "INT", "tooltip": "參數型別" },
-        { "id": "returnType", "default": "INT", "tooltip": "回傳型別" },
-        { "id": "expression", "default": "@Value", "tooltip": "回傳運算式" }
-      ]
+      "code": "ALTER FUNCTION $end$"
     },
 
     {

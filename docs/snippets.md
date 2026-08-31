@@ -15,6 +15,13 @@
 關鍵字 `CASE`。`ui`、`df` 與 `mg` 預設含 `1 = 0`，仍必須在執行前檢查條件；
 這些危險片段在沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
 
+`ssf`、`ap`、`af` **刻意不是 Tab Stop**，而是 `caret` 加接續建議。它們要填的是
+資料表、預存程序與函式的**真實名稱**，那份清單來自連線的中繼資料；換成
+`[dbo].[TableName]` 這種靜態欄位等於把這個擴充最核心的東西換掉。`ap` 更是整條
+鏈的起點——選到程序之後由 `SqlCommitExpander` 放進可執行的完整定義
+（見 [completion.md](completion.md)）。要 CREATE 的骨架請用 `cp`、`cf`、`citvf`，
+那三筆才是 Tab Stop。
+
 ## 佔位符與 Tab 導航
 
 - `$名稱$` 是欄位。集合與 Tab 順序一律由程式碼中的**首次出現順序**推導；
@@ -30,7 +37,10 @@
 | 值 | 行為 |
 |---|---|
 | `tabStops` | 使用 SSMS 原生 Expansion Engine；Tab 下一欄、Shift+Tab 上一欄、最後一次 Tab 到 `$end$` |
-| `caret` | 一次插入完整文字，只把游標移到 `$end$` |
+| `caret` | 一次插入完整文字，只把游標移到 `$end$`；可搭配接續建議 |
+
+`triggerFollowUp` 只對 `caret` 有效，`tabStops` 會強制關掉：原生 session 開著時
+再開建議清單，placeholder 的預設值會被當成篩選前綴。
 
 按鍵優先順序只有一份，寫在 `Ssms22/Wildcards/SqlTabCommandHandler`：
 
