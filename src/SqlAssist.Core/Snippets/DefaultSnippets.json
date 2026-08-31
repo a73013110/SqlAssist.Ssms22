@@ -9,7 +9,7 @@
       "description": "查詢資料表的所有欄位；接著列出資料表與檢視",
       "triggerFollowUp": true,
       "expansionMode": "caret",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT * FROM $end$"
     },
     {
@@ -19,7 +19,7 @@
       "title": "SELECT TOP 100",
       "description": "查詢前 100 筆資料",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT TOP (100) *\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -33,7 +33,7 @@
       "title": "SELECT TOP 1",
       "description": "查詢第一筆資料",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT TOP (1) *\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -47,7 +47,7 @@
       "title": "SELECT COUNT",
       "description": "計算資料筆數",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT COUNT(*)\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -61,7 +61,7 @@
       "title": "SELECT DISTINCT",
       "description": "查詢不重複的資料",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT DISTINCT [$column$]\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
@@ -77,7 +77,7 @@
       "title": "INSERT INTO",
       "description": "插入一筆資料",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "INSERT INTO [$schema$].[$table$] ([$column$])\nVALUES ($value$)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -93,7 +93,7 @@
       "title": "INSERT SELECT",
       "description": "從查詢結果插入資料",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "INSERT INTO [$targetSchema$].[$targetTable$] ([$targetColumn$])\nSELECT [$sourceColumn$]\nFROM [$sourceSchema$].[$sourceTable$]$end$;",
       "placeholders": [
         { "id": "targetSchema", "default": "dbo", "tooltip": "目標結構描述" },
@@ -112,7 +112,7 @@
       "description": "以預設不成立的條件更新資料",
       "isDestructive": true,
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "UPDATE [$schema$].[$table$]\nSET [$column$] = $value$\nWHERE 1 = 0\n  AND $condition$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -130,7 +130,7 @@
       "description": "以預設不成立的條件刪除資料",
       "isDestructive": true,
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "DELETE FROM [$schema$].[$table$]\nWHERE 1 = 0\n  AND $condition$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -146,7 +146,7 @@
       "description": "MERGE 樣板；執行前務必檢查並行與條件",
       "isDestructive": true,
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "MERGE INTO [$targetSchema$].[$targetTable$] AS target\nUSING [$sourceSchema$].[$sourceTable$] AS source\n    ON target.[$keyColumn$] = source.[$keyColumn$]\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.[$updateColumn$] = source.[$updateColumn$]\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ([$insertColumn$])\n    VALUES (source.[$insertColumn$])$end$;",
       "placeholders": [
         { "id": "targetSchema", "default": "dbo", "tooltip": "目標結構描述" },
@@ -166,7 +166,7 @@
       "title": "CREATE DATABASE",
       "description": "建立資料庫",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE DATABASE [$database$]$end$;",
       "placeholders": [
         { "id": "database", "default": "DatabaseName", "tooltip": "資料庫名稱" }
@@ -179,7 +179,7 @@
       "title": "CREATE TABLE",
       "description": "建立資料表",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE TABLE [$schema$].[$table$]\n(\n    [$column$] $dataType$ NOT NULL\n)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -195,7 +195,7 @@
       "title": "CREATE VIEW",
       "description": "建立檢視",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE VIEW [$schema$].[$view$]\nAS\nSELECT [$column$]\nFROM [$sourceSchema$].[$sourceTable$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "檢視的結構描述" },
@@ -212,7 +212,7 @@
       "title": "CREATE PROCEDURE",
       "description": "建立預存程序",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE PROCEDURE [$schema$].[$procedure$]\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -227,7 +227,7 @@
       "title": "CREATE FUNCTION（純量）",
       "description": "建立純量函式",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE FUNCTION [$schema$].[$function$]\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -245,7 +245,7 @@
       "title": "CREATE FUNCTION（內嵌資料表值）",
       "description": "建立內嵌資料表值函式",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE FUNCTION [$schema$].[$function$]\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT [$column$]\n    FROM [$sourceSchema$].[$sourceTable$]\n)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -264,7 +264,7 @@
       "title": "CREATE INDEX",
       "description": "建立非叢集索引",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "CREATE NONCLUSTERED INDEX [$index$]\nON [$schema$].[$table$] ([$column$])$end$;",
       "placeholders": [
         { "id": "index", "default": "IX_TableName_ColumnName", "tooltip": "索引名稱" },
@@ -280,7 +280,7 @@
       "title": "ALTER TABLE",
       "description": "修改資料表",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "ALTER TABLE [$schema$].[$table$]\n$action$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -296,7 +296,7 @@
       "description": "資料表存在時刪除",
       "isDestructive": true,
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "DROP TABLE IF EXISTS [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -311,7 +311,7 @@
       "description": "修改預存程序；接著列出程序並放進完整定義",
       "triggerFollowUp": true,
       "expansionMode": "caret",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "ALTER PROCEDURE $end$"
     },
     {
@@ -322,7 +322,7 @@
       "description": "修改函式；接著列出函式",
       "triggerFollowUp": true,
       "expansionMode": "caret",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "ALTER FUNCTION $end$"
     },
 
@@ -542,7 +542,7 @@
       "title": "Common Table Expression",
       "description": "建立 CTE 並查詢",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": ";WITH [$cte$] AS\n(\n    SELECT [$column$]\n    FROM [$schema$].[$table$]\n)\nSELECT *\nFROM [$cte$]$end$;",
       "placeholders": [
         { "id": "cte", "default": "cte", "tooltip": "CTE 名稱；相同名稱會同步" },
@@ -581,7 +581,7 @@
       "title": "查詢暫存資料表",
       "description": "查詢暫存資料表前 10 筆",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT TOP (10) *\nFROM #$table$$end$;",
       "placeholders": [
         { "id": "table", "default": "TempTable", "tooltip": "暫存資料表名稱（不含 #）" }

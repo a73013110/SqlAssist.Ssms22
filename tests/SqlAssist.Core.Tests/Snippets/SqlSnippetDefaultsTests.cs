@@ -154,12 +154,47 @@ public sealed class SqlSnippetDefaultsTests
     [Fact]
     public void DDL片段不會混進SELECT欄位位置()
     {
-        var filtered = SuggestionMatcher.Filter(
-            BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current),
-            SqlCompletionContextAnalyzer.Analyze("SELECT "));
+        var filtered = Available("SELECT ");
 
-        Assert.DoesNotContain(filtered, item => item.DisplayText == "ctb");
-        Assert.Contains(filtered, item => item.DisplayText == "cs");
+        Assert.DoesNotContain("ctb", filtered);
+        Assert.Contains("cs", filtered);
+    }
+
+    /// <remarks>
+    /// <c>positions</c> 給得太緊的症狀是全靜默的：使用者只覺得「這個片段有時候
+    /// 有、有時候沒有」。每一筆都要有一個「一定找得到」的位置守著。
+    /// </remarks>
+    [Theory]
+    // 語句級：語句開頭與 BEGIN…END 區塊裡都要在。曾經只給 StatementStart，
+    // 於是 BEGIN 之後（分析器只回報 BlockStart）整批語句片段全部消失。
+    [InlineData("SELECT 1;\n", "ssf,st100,st1,ssc,sd,ii,iis,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,beg,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt,tt")]
+    [InlineData("BEGIN\n    ", "ssf,st100,st1,ssc,sd,ii,iis,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,beg,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt,tt")]
+    // 運算式級：CASE 在選取清單、逗號之後與述詞裡都要在。
+    [InlineData("SELECT ", "cs")]
+    [InlineData("SELECT a, ", "cs")]
+    [InlineData("SELECT * FROM Loan WHERE ", "cs")]
+    [InlineData("SELECT * FROM Loan a INNER JOIN Copy b ON ", "cs")]
+    // 資料來源之後：JOIN 與排序、分組子句。
+    [InlineData("SELECT * FROM Loan AS a ", "ij,lj,ob,gb")]
+    public void 內建片段在它自然的位置找得到(string prefix, string shortcuts)
+    {
+        var available = Available(prefix);
+
+        foreach (var shortcut in shortcuts.Split(','))
+        {
+            Assert.Contains(shortcut, available);
+        }
+    }
+
+    private static IReadOnlyCollection<string> Available(string prefix)
+    {
+        return SuggestionMatcher
+            .Filter(
+                BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current),
+                SqlCompletionContextAnalyzer.Analyze(prefix))
+            .Where(item => item.Kind == SuggestionKind.Snippet)
+            .Select(item => item.DisplayText)
+            .ToArray();
     }
 
     private static int Count(string text, string value)

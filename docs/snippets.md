@@ -104,6 +104,12 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 
 `category` 是固定集合：`select`、`dml`、`ddl`、`controlFlow`、`clause`、`other`；
 不認得的值落到 `other`。`positions` 重用 `SqlKeywordPosition`，缺席為 `Any`。
+
+**`positions` 給得太緊的症狀是全靜默的**：使用者只覺得「這個片段有時候有、
+有時候沒有」。語句級片段一律要同時給 `StatementStart` 與 `BlockStart`——分析器在
+`BEGIN` 之後只回報 `BlockStart`，只給前者的話整批片段在 `BEGIN…END` 區塊裡會消失。
+守門的是 `SqlSnippetDefaultsTests.內建片段在它自然的位置找得到`；新增片段時
+要在那份表格加一行。
 `minimumSqlServerVersion` 不存在：產品下限已固定，為它查詢每條連線的版本只會把資料庫 I/O
 帶進按鍵路徑。
 
