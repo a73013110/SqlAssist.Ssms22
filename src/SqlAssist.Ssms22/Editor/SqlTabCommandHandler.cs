@@ -9,8 +9,9 @@ using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Snippets;
+using SqlAssist.Ssms22.Wildcards;
 
-namespace SqlAssist.Ssms22.Wildcards;
+namespace SqlAssist.Ssms22.Editor;
 
 /// <summary>
 /// Tab／Shift+Tab／Enter 的單一優先順序入口。

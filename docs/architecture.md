@@ -43,13 +43,13 @@ src/SqlAssist.Metadata       只依賴 System.Data
 
 src/SqlAssist.Ssms22         net48 VSIX
   Completion/                平台非同步 IntelliSense 的來源、排名器與提交管理員
-  Wildcards/                 Tab 展開萬用字元的命令處理常式與提示
+  Wildcards/                 展開萬用字元的實作與可展開提示
   QuickInfo/                 滑鼠停留的物件結構提示
   Preview/                   浮動結構預覽視窗
   Snippets/                  片段檔、管理介面與 SSMS 原生 Expansion 接線
   Settings/                  Unified Settings 服務的接線與快取
   Commands/                  工具選單的命令與命令識別碼
-  Editor/                    文字檢視接線、游標處物件定位、輸入時的關鍵字大寫
+  Editor/                    文字檢視接線、Tab 與 Enter 的優先順序、游標處物件定位、關鍵字大寫
   Connections/               SSMS 連線的取得，以及依連線提供中繼資料
   UI/                        所有自建介面的唯一外觀來源
   SqlAssistPackage.cs        套件進入點
@@ -79,6 +79,8 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
 | `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
 | `Ssms22/Editor/SnapshotNewLine` | 寫回去的多行文字用哪一種換行 | 同一份指令碼混進兩種換行，下一次 diff 整段變紅 |
+| `Ssms22/Editor/TextViewDispatch` | 排到「這一輪命令結束之後」再做 | 在原地做的看到上一個狀態：重開的清單、算出來的範圍都是錯的 |
+| `Ssms22/Editor/SqlTabCommandHandler` | Tab／Shift+Tab／Enter 的優先順序 | 兩個 `Before=default` 的 Tab handler 互相競速，按 Tab 提交清單卻展開了萬用字元 |
 | `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
 | `Core/Snippets/SqlSnippetExpansion` | Snippet 的純文字、游標、欄位位置與錢字號規則 | caret fallback 與原生 XML 對同一段程式碼產生不同結果 |
 | `Ssms22/SqlLanguageService` | SQL 語言服務 GUID | 內建清單偏好與原生 Snippet 各自連到不同語言服務 |

@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
-using System.Windows.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -30,9 +30,10 @@ namespace SqlAssist.Ssms22.Completion;
 /// <see cref="CommitBehavior.SuppressFurtherTypeCharCommandHandlers"/>，
 /// 那個旗標在這個版本上是死的。
 ///
-/// 一律排到 Background 優先權再做，不在原地直接呼叫：兩個時機的文字都還沒定案。
+/// 一律排到這一輪命令之後再做，不在原地直接呼叫：兩個時機的文字都還沒定案。
 /// 提交當下平台正要把 session 收掉，而輸入字元當下那個字元還沒進緩衝區——
-/// 在原地開出來的清單，看到的是上一個狀態。
+/// 在原地開出來的清單，看到的是上一個狀態。排程本身見
+/// <see cref="Editor.TextViewDispatch"/>，那裡還有第三個消費者。
 /// </remarks>
 internal static class SqlCompletionReopen
 {
@@ -44,7 +45,7 @@ internal static class SqlCompletionReopen
             return;
         }
 
-        Schedule(textView, "重開建議清單", view =>
+        Schedule(textView, view =>
         {
             SqlAssistDiagnostics.Write("片段展開後重開建議清單");
             Reopen(view, broker);
@@ -66,7 +67,7 @@ internal static class SqlCompletionReopen
             return;
         }
 
-        Schedule(textView, "重開建議清單", view =>
+        Schedule(textView, view =>
         {
             var caret = view.Caret.Position.BufferPosition;
 
@@ -82,42 +83,23 @@ internal static class SqlCompletionReopen
         });
     }
 
-    /// <summary>提交或輸入命令結束後，等平台先把當下的 session 狀態收乾淨再執行。</summary>
-    internal static void Schedule(
-        ITextView? textView,
-        string operation,
-        Action<ITextView> work,
-        bool requireSuggestionsEnabled = true)
+    /// <summary>
+    /// 排到這一輪命令之後，而且只有在建議功能還開著時才做。
+    /// </summary>
+    /// <remarks>
+    /// 設定要在<b>執行時</b>問而不是排程時：使用者可能在這中間把建議關掉。
+    /// </remarks>
+    private static void Schedule(ITextView? textView, Action<ITextView> work)
     {
-        if (textView is null || textView.IsClosed)
+        TextViewDispatch.AfterCurrentCommand(textView, "重開建議清單", view =>
         {
-            return;
-        }
+            var settings = SqlAssistSettingsStore.Current;
 
-        var dispatcher = (textView as IWpfTextView)?.VisualElement.Dispatcher
-            ?? Dispatcher.CurrentDispatcher;
-
-        dispatcher.BeginInvoke(
-            DispatcherPriority.Background,
-            // 這是排進派送佇列的工作，丟出去就是使用者眼前的錯誤對話框。
-            new Action(() => SqlAssistPlatformGuard.Run(
-                operation,
-                () =>
-                {
-                    if (textView.IsClosed)
-                    {
-                        return;
-                    }
-
-                    var settings = SqlAssistSettingsStore.Current;
-
-                    if (requireSuggestionsEnabled && (!settings.Enabled || !settings.SuggestionsEnabled))
-                    {
-                        return;
-                    }
-
-                    work(textView);
-                })));
+            if (settings.Enabled && settings.SuggestionsEnabled)
+            {
+                work(view);
+            }
+        });
     }
 
     /// <summary>

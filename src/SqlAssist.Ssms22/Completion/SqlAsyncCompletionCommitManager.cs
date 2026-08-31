@@ -109,8 +109,8 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 snippet);
 
             // 這次提交已回報 handled，即使使用者剛好在同一瞬間關掉建議設定也必須完成；
-            // 套用一般的設定守門會把捷徑原樣留在編輯器裡。
-            SqlCompletionReopen.Schedule(session.TextView, "展開原生 Snippet", view =>
+            // 走 SqlCompletionReopen 的設定守門會把捷徑原樣留在編輯器裡。
+            TextViewDispatch.AfterCurrentCommand(session.TextView, "展開原生 Snippet", view =>
             {
                 var controller = SqlSnippetExpansionController.Peek(view);
                 var beforeNative = request.Buffer.CurrentSnapshot;
@@ -138,7 +138,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                         $"原生 Snippet 在回報失敗前已改動文字，已略過降級插入：{snippet.Shortcut}",
                         view);
                 }
-            }, requireSuggestionsEnabled: false);
+            });
 
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }

@@ -42,7 +42,7 @@
 `triggerFollowUp` 只對 `caret` 有效，`tabStops` 會強制關掉：原生 session 開著時
 再開建議清單，placeholder 的預設值會被當成篩選前綴。
 
-按鍵優先順序只有一份，寫在 `Ssms22/Wildcards/SqlTabCommandHandler`：
+按鍵優先順序只有一份，寫在 `Ssms22/Editor/SqlTabCommandHandler`：
 
 1. Completion 清單開著時，Tab／Enter 先提交清單。
 2. Snippet session 開著時，Tab／Shift+Tab 導航欄位。
@@ -90,7 +90,7 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
       "title": "SELECT TOP (100)",
       "description": "查詢資料表前 100 筆",
       "expansionMode": "tabStops",
-      "positions": ["StatementStart"],
+      "positions": ["StatementStart", "BlockStart"],
       "code": "SELECT TOP (100) *\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -110,6 +110,7 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 `BEGIN` 之後只回報 `BlockStart`，只給前者的話整批片段在 `BEGIN…END` 區塊裡會消失。
 守門的是 `SqlSnippetDefaultsTests.內建片段在它自然的位置找得到`；新增片段時
 要在那份表格加一行。
+
 `minimumSqlServerVersion` 不存在：產品下限已固定，為它查詢每條連線的版本只會把資料庫 I/O
 帶進按鍵路徑。
 
