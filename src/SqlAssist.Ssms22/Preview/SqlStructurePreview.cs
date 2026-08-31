@@ -1122,13 +1122,17 @@ internal sealed class SqlStructurePreview
             var widthChanged = widthDelta >= 0.5 && !_resizeStartWidthConstrained;
             var heightChanged = heightDelta >= 0.5 && !_resizeStartHeightConstrained;
 
+            // 存到哪一組看實際落點，不看設定值：側邊放不下而退回上下時，
+            // 使用者拖出來的是上下擺放的尺寸。
+            var effectivePlacement = agent.EffectivePlacement;
+
             // 上下擺放尚未手動調寬時，寬度是「自動延伸到編輯器右側」這個狀態，不是一個
             // 數值。角落握把一定同時動到兩軸，只想拉高的人也會順手帶進幾個像素的水平
             // 位移，於是自動寬度被換成一個固定值，而且再也回不去。門檻用握把自己的邊長：
             // 位移不到一個握把就當作沒有要拖那一軸。其餘情況維持 0.5，避免拖完之後
             // 尺寸又跳回上一個偏好值。
             if (widthChanged &&
-                Placement == SqlPreviewPlacement.Stacked &&
+                effectivePlacement == SqlPreviewPlacement.Stacked &&
                 PreviewWindowState.StackedWidth is null &&
                 widthDelta < SqlStructurePreviewControl.GripSize)
             {
@@ -1141,7 +1145,7 @@ internal sealed class SqlStructurePreview
             }
 
             PreviewWindowState.Save(
-                Placement,
+                effectivePlacement,
                 widthChanged ? agent.CurrentWidth : (double?)null,
                 heightChanged ? agent.CurrentHeight : (double?)null);
             UpdateAgentPreferences(agent);
@@ -1152,7 +1156,8 @@ internal sealed class SqlStructurePreview
     {
         SqlAssistPlatformGuard.Run("重設結構預覽尺寸", () =>
         {
-            PreviewWindowState.Reset(Placement);
+            // 重設的也是眼前這個視窗那一組；退回上下時雙擊握把，要回到的是上下的預設值。
+            PreviewWindowState.Reset(_agent?.EffectivePlacement ?? Placement);
             if (_agent is { } agent)
             {
                 UpdateAgentPreferences(agent);
@@ -1235,14 +1240,13 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        if (Placement == SqlPreviewPlacement.Stacked)
-        {
-            agent.Update(anchor, Placement, PreviewWindowState.StackedWidth, PreviewWindowState.StackedHeight);
-        }
-        else
-        {
-            agent.Update(anchor, Placement, PreviewWindowState.BesideWidth, PreviewWindowState.BesideHeight);
-        }
+        // 兩組都給。側邊放不下而退回上下時，尺寸要跟著換成上下那一組，
+        // 而那件事要等定位算完才知道，所以決定權在 Agent 那一端。
+        agent.Update(
+            anchor,
+            Placement,
+            PreviewWindowState.Preferred(SqlPreviewPlacement.Beside),
+            PreviewWindowState.Preferred(SqlPreviewPlacement.Stacked));
     }
 
     private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>

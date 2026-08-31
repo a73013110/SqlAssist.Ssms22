@@ -41,6 +41,12 @@ internal static class PreviewWindowState
 
     public static double StackedHeight { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
 
+    /// <summary>某一種擺放方向記住的尺寸。</summary>
+    public static PreviewPreferredSize Preferred(SqlPreviewPlacement placement) =>
+        placement == SqlPreviewPlacement.Stacked
+            ? new PreviewPreferredSize(StackedWidth, StackedHeight)
+            : new PreviewPreferredSize(BesideWidth, BesideHeight);
+
     /// <summary>
     /// 從存放區載入上次的尺寸。必須在 UI 執行緒上呼叫。
     /// </summary>

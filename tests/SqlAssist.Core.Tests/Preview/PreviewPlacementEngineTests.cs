@@ -398,6 +398,50 @@ public sealed class PreviewPlacementEngineTests
         Assert.Equal(document.Right, result.Bounds.Right);
     }
 
+    [Fact]
+    public void 蓋住整個錨點的保留區不得把側邊擺放逼回上下()
+    {
+        // 平台在建議清單開著時連錨點所在的一整行都保留（下面第一塊，橫跨整個文件寬），
+        // 而側邊擺放的上緣一定對齊錨點上緣，於是左右自由空間被整條切光——症狀是
+        // 設定成側邊卻永遠出現在清單下方，縮到最小尺寸也一樣。數值取自實測記錄。
+        var result = PreviewPlacementEngine.Calculate(Beside(
+            available: new PreviewRectangle(487, 100, 1288, 833),
+            anchor: new PreviewRectangle(601, 100, 24, 18),
+            desiredWidth: 1113,
+            desiredHeight: 833,
+            obstacles: new[]
+            {
+                new PreviewRectangle(487, 100, 1288, 21),
+                new PreviewRectangle(601, 100, 24, 18),
+                new PreviewRectangle(601, 121, 329, 255)
+            }));
+
+        Assert.Equal(PreviewPlacementSide.Right, result.Side);
+        Assert.False(result.UsedFallback);
+        Assert.Equal(934, result.Bounds.Left);
+        Assert.Equal(100, result.Bounds.Top);
+    }
+
+    [Fact]
+    public void 蓋住整個錨點的保留區不得改變上下擺放的落點()
+    {
+        // 排除那一塊之後，真正該讓開的建議清單仍在錨點下方，上下擺放的結果必須一模一樣。
+        var result = PreviewPlacementEngine.Calculate(Stacked(
+            available: new PreviewRectangle(487, 100, 1288, 833),
+            anchor: new PreviewRectangle(601, 100, 24, 18),
+            desiredWidth: 1288,
+            desiredHeight: 553,
+            obstacles: new[]
+            {
+                new PreviewRectangle(487, 100, 1288, 21),
+                new PreviewRectangle(601, 100, 24, 18),
+                new PreviewRectangle(601, 121, 329, 255)
+            }));
+
+        Assert.Equal(PreviewPlacementSide.Below, result.Side);
+        Assert.Equal(380, result.Bounds.Top);
+    }
+
     private static PreviewLayoutRequest Stacked(
         PreviewRectangle? available = null,
         PreviewRectangle? anchor = null,
