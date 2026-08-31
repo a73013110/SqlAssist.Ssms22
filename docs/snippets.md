@@ -57,6 +57,12 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 `IVsExpansion.InsertSpecificExpansion`。原生 API 不可用且緩衝區尚未改動時，自動退回
 `caret` 模式；若引擎在回報失敗前已經改動文字，禁止再插一次 fallback，以免內容重複。
 
+引擎**不會**自己縮排：`Code` 是逐字插進去的，第 2 行之後一律從第 0 欄開始。
+`IVsExpansionClient.FormatSpan` 是唯一的補救點，回報 `S_OK` 卻什麼都不做等於告訴
+引擎「已經排好了」。SqlAssist 在那裡把插入點所在行的前導空白補到後續每一行
+（空白行不補），而且只在插入那一次做——欄位導覽時引擎可能再叫一次，
+補第二遍就會多推一層縮排。
+
 ## 內建值與使用者 override
 
 內建定義只有一份：

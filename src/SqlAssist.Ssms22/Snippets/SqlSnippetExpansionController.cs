@@ -50,6 +50,21 @@ internal sealed class SqlSnippetExpansionController : IDisposable
     private readonly IVsEditorAdaptersFactoryService _adapters;
     private readonly SqlSnippetExpansionClient _client;
     private IVsExpansionSession? _session;
+
+    /// <summary>目前 session 所在的緩衝區；<c>FormatSpan</c> 的行號要對到它。</summary>
+    /// <remarks>
+    /// 必須在 <c>InsertSpecificExpansion</c> 之前就設好——那個回呼是在插入的
+    /// 呼叫堆疊裡發生的，等呼叫返回才設就永遠來不及。
+    /// </remarks>
+    private ITextBuffer? _buffer;
+
+    /// <summary>只有插入那一次要補縮排。</summary>
+    /// <remarks>
+    /// 引擎在欄位導覽時也可能再叫一次 <c>FormatSpan</c>，而這裡補的是「插入」而不是
+    /// 「設定」縮排，每叫一次就多推一層。用一次性的旗標把它夾死，比事後判斷
+    /// 「這一行是不是已經縮排過」可靠。
+    /// </remarks>
+    private bool _formatPending;
     private bool _disposed;
 
     private SqlSnippetExpansionController(
@@ -105,6 +120,8 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         }
 
         EndCurrent(leaveCaret: true);
+        _buffer = request.Buffer;
+        _formatPending = true;
         var span = ToTextSpan(target);
         SqlNativeSnippetDom? dom = null;
         IVsExpansionSession? session = null;
@@ -241,7 +258,72 @@ internal sealed class SqlSnippetExpansionController : IDisposable
     /// 這個回呼會發生在 <c>EndCurrentExpansion</c>／<c>GoToNextExpansionField</c>
     /// 還沒返回的 COM 呼叫堆疊裡，所以這裡不能做任何會影響那個呼叫的事。
     /// </remarks>
-    public void OnEndExpansion() => _session = null;
+    public void OnEndExpansion()
+    {
+        _session = null;
+        _buffer = null;
+        _formatPending = false;
+    }
+
+    /// <summary>
+    /// 把插入點所在行的縮排補到片段的後續每一行。
+    /// </summary>
+    /// <remarks>
+    /// 引擎<b>不會</b>自己縮排：它把 <c>Code</c> 逐字插進去，第 2 行之後一律從第 0 欄
+    /// 開始。<c>FormatSpan</c> 是唯一的補救點，而回報 S_OK 卻什麼都不做等於告訴引擎
+    /// 「已經排好了」——<c>trn</c>、<c>cur</c>、<c>ctb</c> 這些多行片段插在縮排位置時
+    /// 就會整段貼齊左邊。
+    ///
+    /// 只補「插入點那一行的前導空白」而不做真正的 T-SQL 格式化：片段自己的相對縮排
+    /// 已經寫在 <c>Code</c> 裡，這裡要加的只是整段的基準。空白也直接複製那一行的，
+    /// 使用者用 Tab 還是空格自然會一致。
+    /// </remarks>
+    public void FormatSpan(TextSpan span)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (!_formatPending || _buffer is not { } buffer || _textView.IsClosed)
+        {
+            return;
+        }
+
+        _formatPending = false;
+        var snapshot = buffer.CurrentSnapshot;
+
+        if (span.iStartLine < 0 ||
+            span.iEndLine <= span.iStartLine ||
+            span.iEndLine >= snapshot.LineCount)
+        {
+            return;
+        }
+
+        var indent = LeadingWhitespace(
+            snapshot.GetLineFromLineNumber(span.iStartLine).GetText(),
+            span.iStartIndex);
+
+        if (indent.Length == 0)
+        {
+            return;
+        }
+
+        // 一次編輯涵蓋所有行：分次套用會讓引擎的欄位標記各追蹤一輪，
+        // 也會在復原堆疊上留下好幾格。
+        using var edit = buffer.CreateEdit();
+
+        for (var number = span.iStartLine + 1; number <= span.iEndLine; number++)
+        {
+            var line = snapshot.GetLineFromLineNumber(number);
+
+            // 空白行不補：那只會變成一行看不見的尾隨空白，
+            // 而且下一次存檔又會被編輯器刪掉，diff 多出無意義的變動。
+            if (line.Length > 0)
+            {
+                edit.Insert(line.Start.Position, indent);
+            }
+        }
+
+        edit.Apply();
+    }
 
     public void Dispose()
     {
@@ -272,11 +354,30 @@ internal sealed class SqlSnippetExpansionController : IDisposable
     {
         var session = _session;
         _session = null;
+        _buffer = null;
+        _formatPending = false;
 
         if (session is not null)
         {
             _ = session.EndCurrentExpansion(leaveCaret ? 1 : 0);
         }
+    }
+
+    /// <summary>取一行的前導空白，最多取到片段的起始欄。</summary>
+    /// <remarks>
+    /// 夾在起始欄是為了「片段起點落在前導空白之內」這種情形：
+    /// 整行縮排 8 格但游標停在第 4 欄時，補 8 格會把後續行推得比第一行還深。
+    /// </remarks>
+    private static string LeadingWhitespace(string line, int startIndex)
+    {
+        var length = 0;
+
+        while (length < line.Length && length < startIndex && char.IsWhiteSpace(line[length]))
+        {
+            length++;
+        }
+
+        return length == 0 ? string.Empty : line.Substring(0, length);
     }
 
     private void OnTextViewClosed(object sender, EventArgs eventArgs)
@@ -342,8 +443,23 @@ internal sealed class SqlSnippetExpansionClient : IVsExpansionClient
             VSConstants.E_FAIL);
     }
 
-    public int FormatSpan(IVsTextLines textLines, TextSpan[] spans) =>
-        SqlAssistPlatformGuard.Run("格式化原生 Snippet", () => VSConstants.S_OK, VSConstants.E_FAIL);
+    /// <remarks>
+    /// 只看第一個範圍：引擎在插入時交的就是整個片段的範圍。
+    ///
+    /// 失敗一律回 S_OK：縮排沒補上只是不好看，回報失敗會讓引擎把整個插入視為失敗，
+    /// 而那時文字已經在緩衝區裡了。
+    /// </remarks>
+    public int FormatSpan(IVsTextLines textLines, TextSpan[] spans)
+    {
+        if (spans is { Length: > 0 })
+        {
+            SqlAssistPlatformGuard.Run(
+                "格式化原生 Snippet",
+                () => _controller.FormatSpan(spans[0]));
+        }
+
+        return VSConstants.S_OK;
+    }
 
     public int EndExpansion()
     {
