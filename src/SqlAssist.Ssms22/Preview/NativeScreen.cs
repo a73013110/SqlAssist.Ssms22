@@ -6,7 +6,7 @@ using System.Windows.Media;
 
 namespace SqlAssist.Ssms22.Preview;
 
-/// <summary>預覽定位需要的螢幕工作區與 Popup 視窗層級操作。</summary>
+/// <summary>預覽定位需要的螢幕工作區、DPI 轉換與 Popup 視窗層級操作。</summary>
 internal static class NativeScreen
 {
     private const uint MonitorDefaultToNearest = 2;
@@ -73,6 +73,31 @@ internal static class NativeScreen
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetWindowRect(IntPtr window, out NativeRect rectangle);
+
+    /// <summary>
+    /// DIP 換算成實體像素的矩陣。
+    /// </summary>
+    /// <remarks>
+    /// 定位運算與原生游標都以實體像素為單位，只有 WPF 的尺寸是 DIP，因此整條路徑上
+    /// 只有兩個邊界需要換算。兩邊各自寫一份 <see cref="PresentationSource.FromVisual"/>
+    /// 的結果是「其中一份改了另一份沒改」，症狀會是高 DPI 下拖曳與定位對不上。
+    /// </remarks>
+    public static Matrix GetTransformToDevice(Visual visual) =>
+        SqlAssistPlatformGuard.Probe(
+            "換算 DPI",
+            () => PresentationSource.FromVisual(visual)?.CompositionTarget is { } target
+                ? target.TransformToDevice
+                : Matrix.Identity,
+            fallback: Matrix.Identity);
+
+    /// <summary>實體像素換算回 DIP 的矩陣。</summary>
+    public static Matrix GetTransformFromDevice(Visual visual) =>
+        SqlAssistPlatformGuard.Probe(
+            "換算 DPI",
+            () => PresentationSource.FromVisual(visual)?.CompositionTarget is { } target
+                ? target.TransformFromDevice
+                : Matrix.Identity,
+            fallback: Matrix.Identity);
 
     /// <summary>取得指定螢幕點所在顯示器的工作區；單位仍是實體像素。</summary>
     public static Rect? TryGetWorkArea(Point screenPoint)

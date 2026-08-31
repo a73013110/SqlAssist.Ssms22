@@ -344,6 +344,60 @@ public sealed class PreviewPlacementEngineTests
         Assert.Equal(original.Side, moved.Side);
     }
 
+    [Fact]
+    public void 兩軸都放得下時不回報任何一軸被壓縮()
+    {
+        var result = PreviewPlacementEngine.Calculate(Stacked());
+
+        Assert.False(result.WidthConstrained);
+        Assert.False(result.HeightConstrained);
+    }
+
+    [Fact]
+    public void 只有高度不足時不得把寬度也標成被壓縮()
+    {
+        // 一個旗標涵蓋兩軸的話，呼叫端會連使用者真的拖出來的寬度一起丟掉。
+        var document = new PreviewRectangle(0, 0, 1200, 400);
+        var result = PreviewPlacementEngine.Calculate(Stacked(
+            available: document,
+            anchor: new PreviewRectangle(100, 40, 40, 20),
+            obstacles: Array.Empty<PreviewRectangle>()));
+
+        Assert.True(result.HeightConstrained);
+        Assert.False(result.WidthConstrained);
+        Assert.Equal(620, result.Bounds.Width);
+    }
+
+    [Fact]
+    public void 只有寬度不足時不得把高度也標成被壓縮()
+    {
+        var document = new PreviewRectangle(0, 0, 500, 900);
+        var result = PreviewPlacementEngine.Calculate(Stacked(
+            available: document,
+            anchor: new PreviewRectangle(100, 40, 40, 20),
+            obstacles: Array.Empty<PreviewRectangle>()));
+
+        Assert.True(result.WidthConstrained);
+        Assert.False(result.HeightConstrained);
+        Assert.Equal(420, result.Bounds.Height);
+    }
+
+    [Fact]
+    public void 自動延伸的寬度沒有偏好值可言因此永遠不算被壓縮()
+    {
+        // 自動寬度是「延伸到編輯器右側」這個狀態；跟 DesiredWidth 不相等是常態，
+        // 標成被壓縮會讓呼叫端永遠不肯保存使用者拖出來的上下寬度。
+        var document = new PreviewRectangle(0, 0, 700, 900);
+        var result = PreviewPlacementEngine.Calculate(Stacked(
+            available: document,
+            anchor: new PreviewRectangle(400, 40, 40, 20),
+            stretch: true,
+            obstacles: Array.Empty<PreviewRectangle>()));
+
+        Assert.False(result.WidthConstrained);
+        Assert.Equal(document.Right, result.Bounds.Right);
+    }
+
     private static PreviewLayoutRequest Stacked(
         PreviewRectangle? available = null,
         PreviewRectangle? anchor = null,

@@ -17,9 +17,10 @@ internal sealed class SqlPreviewDefinitions
     /// 預覽視窗所屬的空間保留管理員名稱。
     /// </summary>
     /// <remarks>
-    /// 排在內建的 <c>completion</c> 之後，編輯器就會先讓建議清單佔位，
-    /// 再要求我們的視窗在剩下的空間裡定位——「貼在清單右側、
-    /// 撞到螢幕邊界才翻到左側」因此不必自己算，是平台算好的。
+    /// 排在內建的 <c>completion</c> 之後，編輯器就會先讓建議清單佔位，再把它保留的
+    /// 幾何交給我們——那份幾何是避障的輸入，不是位置本身。落點由
+    /// <c>SqlAssist.Core.Preview.PreviewPlacementEngine</c> 算，因為內建的 PopupAgent
+    /// 會依 Windows 的左右手功能表設定把畫面翻到它回報矩形的反側。
     /// </remarks>
     public const string SpaceReservationManagerName = "SqlAssistStructurePreview";
 

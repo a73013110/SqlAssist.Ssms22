@@ -61,12 +61,14 @@ public readonly struct PreviewLayout
         PreviewRectangle bounds,
         PreviewPlacementSide side,
         bool usedFallback,
-        bool sizeConstrained)
+        bool widthConstrained,
+        bool heightConstrained)
     {
         Bounds = bounds;
         Side = side;
         UsedFallback = usedFallback;
-        SizeConstrained = sizeConstrained;
+        WidthConstrained = widthConstrained;
+        HeightConstrained = heightConstrained;
     }
 
     public PreviewRectangle Bounds { get; }
@@ -76,5 +78,15 @@ public readonly struct PreviewLayout
     /// <summary>選了側邊擺放，但兩側都不可用而改放上下。</summary>
     public bool UsedFallback { get; }
 
-    public bool SizeConstrained { get; }
+    /// <summary>
+    /// 這一軸放不下偏好尺寸而被壓縮。
+    /// </summary>
+    /// <remarks>
+    /// 分兩軸而不是一個旗標：呼叫端要用它決定「拖曳結束後這一軸可不可以寫回偏好尺寸」，
+    /// 而角落握把一定同時動到兩軸。合成一個旗標的話，只要有一軸被壓縮就會連另一軸
+    /// 使用者真的拖出來的尺寸一起丟掉。
+    /// </remarks>
+    public bool WidthConstrained { get; }
+
+    public bool HeightConstrained { get; }
 }

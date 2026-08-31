@@ -74,6 +74,9 @@ internal sealed class SqlStructurePreview
 
     private bool _inputTrackingAttached;
 
+    /// <summary>已經排了一次預先建立；建議清單每開一次都會呼叫 <see cref="Warmup"/>。</summary>
+    private bool _warmupQueued;
+
     /// <summary>每次換 session、選取、獨立入口或收合都遞增；過期 timer/load 不得越代更新。</summary>
     private long _generation;
 
@@ -82,6 +85,11 @@ internal sealed class SqlStructurePreview
     private double _resizeStartWidth;
 
     private double _resizeStartHeight;
+
+    /// <summary>拖曳開始時這一軸就已經是版面壓縮的結果；壓縮值不得寫回偏好尺寸。</summary>
+    private bool _resizeStartWidthConstrained;
+
+    private bool _resizeStartHeightConstrained;
 
     private SqlStructurePreview(IWpfTextView view, IServiceProvider serviceProvider)
     {
@@ -143,16 +151,23 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     public void Warmup()
     {
-        if (_closed || _control is not null)
+        // 清單每開一次就呼叫一次，但要建的東西只有一份；沒有這個旗標就會在佇列裡
+        // 疊起一整排最後全部落空的閒置工作。
+        if (_closed || _control is not null || _warmupQueued)
         {
             return;
         }
 
+        _warmupQueued = true;
         _view.VisualElement.Dispatcher.BeginInvoke(
             DispatcherPriority.ApplicationIdle,
             new Action(() => SqlAssistPlatformGuard.Run(
                 "預先建立結構預覽",
-                () => EnsureControl())));
+                () =>
+                {
+                    _warmupQueued = false;
+                    EnsureControl();
+                })));
     }
 
     /// <summary>
@@ -225,8 +240,7 @@ internal sealed class SqlStructurePreview
                 {
                     _metadataService = metadataService;
                     // Context 尚在完成中也沒關係：背景 GetComputedItems 會等待 model，UI 不阻塞。
-                    ClearSelection(session, pending: true);
-                    QueueSelectionRefresh(session);
+                    BeginReconcile(session, cancelExpandIntent: false);
                 }
             });
     }
@@ -264,15 +278,7 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        Invoke(() =>
-        {
-            if (ReferenceEquals(_session, session))
-            {
-                _expandWhenSelectionReady = false;
-                ClearSelection(session, pending: true);
-                QueueSelectionRefresh(session);
-            }
-        });
+        Invoke(() => BeginReconcile(session, cancelExpandIntent: true));
     }
 
     /// <summary>只有 SqlAssist item 的 callback 才會走到這裡並正式接管 session。</summary>
@@ -340,14 +346,7 @@ internal sealed class SqlStructurePreview
 
         // 事件從 ThreadPool 發出，eventArgs 可能已落後於剛發生的方向鍵操作。
         // 不直接套用它攜帶的項目，只把它當成「平台已完成一輪計算」並重新對帳 recent model。
-        Invoke(() =>
-        {
-            if (ReferenceEquals(_session, session) && !session.IsDismissed)
-            {
-                ClearSelection(session, pending: true);
-                QueueSelectionRefresh(session);
-            }
-        });
+        Invoke(() => BeginReconcile(session, cancelExpandIntent: false));
     }
 
     private void OnTextBufferChanged(object sender, TextContentChangedEventArgs eventArgs)
@@ -357,16 +356,8 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        Invoke(() =>
-        {
-            if (ReferenceEquals(_session, session) && !session.IsDismissed)
-            {
-                // 涵蓋輸入、Backspace、貼上與復原；等平台更新篩選後再於背景讀最新選取。
-                _expandWhenSelectionReady = false;
-                ClearSelection(session, pending: true);
-                QueueSelectionRefresh(session);
-            }
-        });
+        // 涵蓋輸入、Backspace、貼上與復原；等平台更新篩選後再於背景讀最新選取。
+        Invoke(() => BeginReconcile(session, cancelExpandIntent: true));
     }
 
     private void OnObservedSessionEnded(object sender, EventArgs eventArgs)
@@ -448,8 +439,7 @@ internal sealed class SqlStructurePreview
             }
 
             _metadataService = metadataService;
-            ClearSelection(session, pending: true);
-            QueueSelectionRefresh(session);
+            BeginReconcile(session, cancelExpandIntent: false);
         });
     }
 
@@ -465,23 +455,26 @@ internal sealed class SqlStructurePreview
         }
 
         var expandWhenReady = _expandWhenSelectionReady;
+        var settings = SqlAssistSettingsStore.Current;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
-
-        if (ReferenceEquals(_target, objectInfo) &&
-            ReferenceEquals(_metadataService, metadataService) &&
-            (!IsExpanded || objectInfo is not null))
-        {
-            return;
-        }
-
-        _generation++;
-        StopPendingWork();
-        _metadataService = metadataService;
-        _target = objectInfo;
         _selectedItemIsSqlObject = objectInfo is not null;
 
-        var settings = SqlAssistSettingsStore.Current;
+        // 平台一次換選取會通知好幾輪，多數輪次解析出來的是同一個物件。
+        // 展開狀態下解析出 null 是例外：那時畫面上可能還停在「正在取得目前建議項目…」，
+        // 得讓它走下去換成正式訊息。
+        var sameContent = IsSameObject(_target, objectInfo) &&
+                          ReferenceEquals(_metadataService, metadataService) &&
+                          (!IsExpanded || objectInfo is not null);
+
+        if (!sameContent)
+        {
+            _generation++;
+            StopPendingWork();
+            _metadataService = metadataService;
+            _target = objectInfo;
+        }
+
         if (expandWhenReady &&
             !IsExpanded &&
             objectInfo is not null &&
@@ -494,6 +487,13 @@ internal sealed class SqlStructurePreview
 
         if (IsExpanded)
         {
+            if (sameContent)
+            {
+                // 畫面已經是這個物件了。重畫等於使用者眼前閃一下；換代還會取消掉剛送出
+                // 的查詢，然後再等一次節流重送。
+                return;
+            }
+
             if (objectInfo is null)
             {
                 EnsureControl()?.ShowMessage("沒有結構可以顯示", "這一項不是資料庫物件。");
@@ -512,12 +512,28 @@ internal sealed class SqlStructurePreview
         }
 
         // 延遲模式：停在同一項夠久才展開。掃過去的那幾項連查詢都不會送出。
+        // 同一項的重複通知也走到這裡，倒數因此重新起算——代價是多等一次對帳的幾毫秒，
+        // 換到的是「按了方向鍵就一定重新計時」這個使用者真正在感覺的規則。
         _timerExpands = true;
         _timerGeneration = _generation;
         _timer.Interval = TimeSpan.FromMilliseconds(
             Math.Max(MinimumExpandDelayMilliseconds, settings.PreviewDelayMilliseconds));
         _timer.Start();
     }
+
+    /// <summary>
+    /// 兩次對帳指的是不是同一個資料庫物件。
+    /// </summary>
+    /// <remarks>
+    /// 用 <see cref="SqlObjectInfo.ObjectId"/> 而不是參考相等：中繼資料快取、
+    /// 詳細資料與結構查詢從頭到尾都以 ObjectId 當識別，這裡跟著同一套才不會出現
+    /// 「快取認為是同一個、預覽認為換人了」。參考相等目前剛好成立，但那只是因為
+    /// 兩次都讀到同一個 CompletionItem，換一條入口（停留提示、工具選單）就不成立。
+    /// </remarks>
+    private static bool IsSameObject(SqlObjectInfo? left, SqlObjectInfo? right) =>
+        left is null
+            ? right is null
+            : right is not null && left.ObjectId == right.ObjectId;
 
     /// <summary>展開預覽；已經展開時回傳 false，讓按鍵照原本的方式往下走。</summary>
     public bool Expand()
@@ -691,7 +707,48 @@ internal sealed class SqlStructurePreview
         }
     }
 
-    private void ClearSelection(IAsyncCompletionSession session, bool pending)
+    /// <summary>
+    /// 選取可能換人了：讓「右鍵立刻展開」失效，並到背景去問平台真正選到誰。
+    /// </summary>
+    /// <remarks>
+    /// 刻意不動 <see cref="_target"/>、節流計時器與載入工作，也不碰畫面。平台換一次選取
+    /// 會從方向鍵命令、說明 callback 與 <c>ItemsUpdated</c> 分別通知一次；只要其中一條
+    /// 先把畫面清成「正在取得目前建議項目…」，另外兩條就會讓同一個物件再重畫一次——
+    /// 使用者看到的是每按一次方向鍵閃一下，而且剛送出的查詢會被取消再送一次。
+    /// 該不該換內容留給 <see cref="ApplyVerifiedSelection"/>，只有它知道新舊是不是同一個。
+    ///
+    /// 舊物件留在畫面上不會被誤用：這裡把 <see cref="_selectedItemIsSqlObject"/> 壓成
+    /// false，向右鍵因此走「等對帳完成再展開」那條路，不會拿上一項展開。
+    /// </remarks>
+    private void BeginReconcile(IAsyncCompletionSession session, bool cancelExpandIntent)
+    {
+        if (!ReferenceEquals(_session, session) || session.IsDismissed)
+        {
+            return;
+        }
+
+        if (cancelExpandIntent)
+        {
+            _expandWhenSelectionReady = false;
+        }
+
+        _selectedItemIsSqlObject = false;
+        _selectionPending = true;
+
+        // 「停夠久才自動展開」的倒數前提是使用者停在同一項上，換了就重新起算——
+        // 不取消的話，倒數會在對帳完成前到期，於是展開的是上一項。
+        // 節流計時器與進行中的查詢不在此列：它們跟的是畫面上的物件，而畫面沒變。
+        if (_timerExpands)
+        {
+            _timer.Stop();
+            _timerExpands = false;
+        }
+
+        QueueSelectionRefresh(session);
+    }
+
+    /// <summary>對帳結果確定不是資料庫物件；這時才真的丟掉目標並換掉畫面。</summary>
+    private void ClearSelection(IAsyncCompletionSession session)
     {
         if (!ReferenceEquals(_session, session))
         {
@@ -702,16 +759,13 @@ internal sealed class SqlStructurePreview
         StopPendingWork();
         _target = null;
         _selectedItemIsSqlObject = false;
-        _selectionPending = pending;
-        if (!pending)
-        {
-            _expandWhenSelectionReady = false;
-        }
+        _selectionPending = false;
+        _expandWhenSelectionReady = false;
         if (IsExpanded)
         {
             EnsureControl()?.ShowMessage(
-                pending ? "結構預覽" : "沒有結構可以顯示",
-                pending ? "正在取得目前建議項目…" : "目前選取的項目不是資料庫物件。");
+                "沒有結構可以顯示",
+                "目前選取的項目不是資料庫物件。");
         }
     }
 
@@ -794,7 +848,7 @@ internal sealed class SqlStructurePreview
                     }
                     else
                     {
-                        ClearSelection(session, pending: false);
+                        ClearSelection(session);
                     }
                 },
                 DispatcherPriority.Normal);
@@ -854,12 +908,7 @@ internal sealed class SqlStructurePreview
 
         SqlAssistPlatformGuard.Run(
             "滑鼠切換建議項目",
-            () =>
-            {
-                _expandWhenSelectionReady = false;
-                ClearSelection(session, pending: true);
-                QueueSelectionRefresh(session);
-            });
+            () => BeginReconcile(session, cancelExpandIntent: true));
     }
 
     /// <summary>
@@ -967,7 +1016,7 @@ internal sealed class SqlStructurePreview
                 if (cancellationToken.IsCancellationRequested ||
                     generation != _generation ||
                     !ReferenceEquals(_loading, source) ||
-                    !ReferenceEquals(_target, objectInfo) ||
+                    !IsSameObject(_target, objectInfo) ||
                     !ReferenceEquals(_metadataService, metadataService) ||
                     _control is not { } control)
                 {
@@ -1031,6 +1080,11 @@ internal sealed class SqlStructurePreview
             {
                 _resizeStartWidth = agent.CurrentWidth;
                 _resizeStartHeight = agent.CurrentHeight;
+
+                // 要的是「版面計算的結果」，所以在 BeginResize 之前取；拖曳一開始
+                // 這兩個旗標就會被使用者的意圖蓋掉。
+                _resizeStartWidthConstrained = agent.WidthConstrained;
+                _resizeStartHeightConstrained = agent.HeightConstrained;
                 agent.BeginResize(eventArgs.Corner);
             }
         });
@@ -1058,8 +1112,29 @@ internal sealed class SqlStructurePreview
                 return;
             }
 
-            var widthChanged = Math.Abs(agent.CurrentWidth - _resizeStartWidth) >= 0.5;
-            var heightChanged = Math.Abs(agent.CurrentHeight - _resizeStartHeight) >= 0.5;
+            var widthDelta = Math.Abs(agent.CurrentWidth - _resizeStartWidth);
+            var heightDelta = Math.Abs(agent.CurrentHeight - _resizeStartHeight);
+
+            // 版面壓縮出來的尺寸不是偏好。使用者拖不出比限制更大的值，所以在被壓縮的
+            // 軸上拖出來的任何數字都摻了「這裡只放得下這麼多」——寫回去等於每遇到一次
+            // 空間不足，記住的尺寸就被永久縮小一次。代價是在被壓縮的軸上刻意縮小不會
+            // 被記住，因為分不出「他想要 350」與「這裡只放得下 400」。
+            var widthChanged = widthDelta >= 0.5 && !_resizeStartWidthConstrained;
+            var heightChanged = heightDelta >= 0.5 && !_resizeStartHeightConstrained;
+
+            // 上下擺放尚未手動調寬時，寬度是「自動延伸到編輯器右側」這個狀態，不是一個
+            // 數值。角落握把一定同時動到兩軸，只想拉高的人也會順手帶進幾個像素的水平
+            // 位移，於是自動寬度被換成一個固定值，而且再也回不去。門檻用握把自己的邊長：
+            // 位移不到一個握把就當作沒有要拖那一軸。其餘情況維持 0.5，避免拖完之後
+            // 尺寸又跳回上一個偏好值。
+            if (widthChanged &&
+                Placement == SqlPreviewPlacement.Stacked &&
+                PreviewWindowState.StackedWidth is null &&
+                widthDelta < SqlStructurePreviewControl.GripSize)
+            {
+                widthChanged = false;
+            }
+
             if (!widthChanged && !heightChanged)
             {
                 return;

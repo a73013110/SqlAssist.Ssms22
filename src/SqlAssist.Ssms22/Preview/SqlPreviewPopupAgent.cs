@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Formatting;
 using SqlAssist.Core.Preview;
 using SqlAssist.Core.Settings;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -49,12 +50,26 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private bool _hasLayout;
     private bool _isResizing;
     private bool _resizeUpdateQueued;
-    private bool _sizeConstrained;
     private bool _usedFallback;
     private bool _disposed;
     private double _pendingHorizontalChange;
     private double _pendingVerticalChange;
     private Window? _hostWindow;
+
+    /// <summary>一輪定位只查一次的 DPI 轉換；<see cref="RefreshDeviceTransforms"/> 說明為什麼要快取。</summary>
+    private Matrix _toDevice = Matrix.Identity;
+
+    private Matrix _fromDevice = Matrix.Identity;
+
+    /// <summary>算出 <see cref="_documentColumnBottom"/> 時的編輯器矩形；沒變就沿用答案。</summary>
+    private PreviewRectangle _documentColumnEditor;
+
+    private double _documentColumnBottom;
+
+    private bool _hasDocumentColumn;
+
+    /// <summary>已經回報過內容掛在別的承載視窗上；這件事會每一次重排都成立一次。</summary>
+    private bool _reportedDetachedContent;
 
     public SqlPreviewPopupAgent(
         IWpfTextView view,
@@ -91,6 +106,17 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     public double CurrentWidth => ToLogicalSize(_bounds.Width, _bounds.Height).Width;
 
     public double CurrentHeight => ToLogicalSize(_bounds.Width, _bounds.Height).Height;
+
+    /// <summary>
+    /// 目前這一軸的尺寸是版面壓縮出來的，不是使用者的偏好。
+    /// </summary>
+    /// <remarks>
+    /// 拖曳結束要寫回偏好尺寸時必須先問這個：壓縮值寫回去等於使用者換一次視窗大小，
+    /// 記住的尺寸就被永久縮小一次，而且他從來沒有拖過那一軸。
+    /// </remarks>
+    public bool WidthConstrained { get; private set; }
+
+    public bool HeightConstrained { get; private set; }
 
     public event EventHandler? LostFocus;
 
@@ -150,6 +176,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return null;
         }
 
+        RefreshDeviceTransforms();
+
         if (!_isResizing)
         {
             _obstacles = GetObstacleBounds(reservedSpace);
@@ -163,7 +191,6 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             var absoluteMaximumSize = ToDeviceSize(
                 SqlAssistLimits.MaximumPreviewWidth,
                 SqlAssistLimits.MaximumPreviewHeight);
-            var maximumHeight = Math.Min(absoluteMaximumSize.Height, _availableBounds.Height);
             var layout = PreviewPlacementEngine.Calculate(
                 new PreviewLayoutRequest
                 {
@@ -176,7 +203,9 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
                     MinimumWidth = minimumSize.Width,
                     MinimumHeight = minimumSize.Height,
                     MaximumWidth = absoluteMaximumSize.Width,
-                    MaximumHeight = maximumHeight,
+
+                    // 不必先跟可用高度取小；引擎本來就會把上下限收進 AvailableBounds。
+                    MaximumHeight = absoluteMaximumSize.Height,
                     StretchStackedWidth =
                         _placement == SqlPreviewPlacement.Stacked && !_preferredWidth.HasValue,
                     Gap = ToDeviceSize(LayoutGap, LayoutGap).Width,
@@ -192,13 +221,13 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _side = layout.Side;
             _hasLayout = true;
             _usedFallback = layout.UsedFallback;
-            _sizeConstrained = layout.SizeConstrained;
+            WidthConstrained = layout.WidthConstrained;
+            HeightConstrained = layout.HeightConstrained;
             var resizeOnTop = _side == PreviewPlacementSide.Above ||
                               (_side is PreviewPlacementSide.Left or PreviewPlacementSide.Right &&
                                _bounds.Top - _availableBounds.Top >
                                _availableBounds.Bottom - _bounds.Bottom);
             _control.SetResizeEdge(resizeOnTop);
-            _resizeBounds = GetResizeBounds(_bounds, _availableBounds, _obstacles);
         }
 
         Display(_bounds);
@@ -225,6 +254,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return;
         }
 
+        // 拖曳期間不再重新定位，因此 DPI 也在這裡凍結一次，與控制項那一端同步。
+        RefreshDeviceTransforms();
         _resizeCorner = corner;
         _resizeStartBounds = _bounds;
         _resizeBounds = GetResizeBounds(_bounds, _availableBounds, _obstacles);
@@ -265,24 +296,26 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private void ApplyPendingResize()
     {
+        var minimumSize = ToDeviceSize(
+            SqlAssistLimits.MinimumPreviewWidth,
+            SqlAssistLimits.MinimumPreviewHeight);
+        var maximumSize = ToDeviceSize(
+            SqlAssistLimits.MaximumPreviewWidth,
+            SqlAssistLimits.MaximumPreviewHeight);
         _bounds = PreviewResizeEngine.Resize(
             _resizeStartBounds,
             _resizeCorner,
             _pendingHorizontalChange,
             _pendingVerticalChange,
             _resizeBounds,
-            ToDeviceSize(
-                SqlAssistLimits.MinimumPreviewWidth,
-                SqlAssistLimits.MinimumPreviewHeight).Width,
-            ToDeviceSize(
-                SqlAssistLimits.MinimumPreviewWidth,
-                SqlAssistLimits.MinimumPreviewHeight).Height,
-            ToDeviceSize(
-                SqlAssistLimits.MaximumPreviewWidth,
-                SqlAssistLimits.MaximumPreviewHeight).Width,
-            ToDeviceSize(
-                SqlAssistLimits.MaximumPreviewWidth,
-                SqlAssistLimits.MaximumPreviewHeight).Height);
+            minimumSize.Width,
+            minimumSize.Height,
+            maximumSize.Width,
+            maximumSize.Height);
+
+        // 使用者拖出來的尺寸就是他的偏好，不再是版面壓縮的結果。
+        WidthConstrained = false;
+        HeightConstrained = false;
         Display(_bounds);
 
         // 自訂 agent 在拖曳中維持同一個 Rect；重排只更新其他 agent 看見的保留區。
@@ -338,11 +371,30 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _container.Content = _control;
         }
 
-        if (!_popup.IsOpen && ReferenceEquals(_container.Content, _control))
+        if (ReferenceEquals(_container.Content, _control))
         {
-            AttachEvents();
-            _popup.IsOpen = true;
+            if (!_popup.IsOpen)
+            {
+                AttachEvents();
+                _popup.IsOpen = true;
+            }
+
+            return;
         }
+
+        // 控制項還掛在上一個 Agent 的容器上。這條路徑不丟例外也不顯示任何東西，
+        // 症狀是「按了向右鍵沒反應」；沒有這一行的話紀錄檔會是一片空白。
+        // 只記一次：這個狀態會在接下來每一次重排都再成立一次，記成流水帳等於
+        // 把真正的錯誤沖掉。
+        if (_reportedDetachedContent)
+        {
+            return;
+        }
+
+        _reportedDetachedContent = true;
+        SqlAssistDiagnostics.WriteAlways(
+            "結構預覽無法顯示：內容仍掛在另一個承載視窗上。",
+            _view);
     }
 
     private PreviewRectangle? TryGetAnchorBounds()
@@ -433,8 +485,45 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         var right = Math.Max(viewTopLeft.X, viewBottomRight.X);
         var bottom = Math.Max(viewTopLeft.Y, viewBottomRight.Y);
         var devicePadding = ToDeviceSize(BoundsPadding, BoundsPadding);
+        var editor = new PreviewRectangle(left, top, right - left, bottom - top);
+        bottom = ResolveDocumentColumnBottom(visual, editor);
+
+        if (NativeScreen.TryGetWorkArea(new Point(anchor.Left, anchor.Top)) is { } workArea)
+        {
+            left = Math.Max(left, workArea.Left + devicePadding.Width);
+            top = Math.Max(top, workArea.Top + devicePadding.Height);
+            right = Math.Min(right, workArea.Right - devicePadding.Width);
+            bottom = Math.Min(bottom, workArea.Bottom - devicePadding.Height);
+        }
+
+        return new PreviewRectangle(
+            left,
+            top,
+            Math.Max(1, right - left),
+            Math.Max(1, bottom - top));
+    }
+
+    /// <summary>
+    /// 查詢文件欄的底界，也就是「預覽可以蓋到哪裡」——含同一份文件的結果窗格。
+    /// </summary>
+    /// <remarks>
+    /// 這件事要爬一次 WPF 祖先樹，跨不過 HWND 邊界時還要再走一段 Win32 迴圈，
+    /// 而答案只有在編輯器本身換大小或重新分割時才會變。定位則是每一次捲動、
+    /// 每一個按鍵都要跑一輪，所以用編輯器矩形當鍵快取：矩形沒變就沿用上一次的答案。
+    /// </remarks>
+    private double ResolveDocumentColumnBottom(FrameworkElement visual, PreviewRectangle editor)
+    {
+        if (_hasDocumentColumn && _documentColumnEditor == editor)
+        {
+            return _documentColumnBottom;
+        }
+
+        var left = editor.Left;
+        var top = editor.Top;
+        var right = editor.Right;
+        var editorBottom = editor.Bottom;
+        var bottom = editorBottom;
         var ancestorTolerance = ToDeviceSize(48, 48);
-        var editorBottom = bottom;
         var expandedByWpfParent = false;
         var minimumUsefulExpansion = Math.Max(8, ancestorTolerance.Height / 2);
 
@@ -485,19 +574,10 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             bottom = Math.Max(bottom, nativeBottom);
         }
 
-        if (NativeScreen.TryGetWorkArea(new Point(anchor.Left, anchor.Top)) is { } workArea)
-        {
-            left = Math.Max(left, workArea.Left + devicePadding.Width);
-            top = Math.Max(top, workArea.Top + devicePadding.Height);
-            right = Math.Min(right, workArea.Right - devicePadding.Width);
-            bottom = Math.Min(bottom, workArea.Bottom - devicePadding.Height);
-        }
-
-        return new PreviewRectangle(
-            left,
-            top,
-            Math.Max(1, right - left),
-            Math.Max(1, bottom - top));
+        _documentColumnEditor = editor;
+        _documentColumnBottom = bottom;
+        _hasDocumentColumn = true;
+        return bottom;
     }
 
     private IReadOnlyList<PreviewRectangle> GetObstacleBounds(Geometry geometry)
@@ -588,18 +668,26 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private static Rect ToRect(PreviewRectangle rectangle) =>
         new(rectangle.Left, rectangle.Top, rectangle.Width, rectangle.Height);
 
-    private Size ToDeviceSize(double width, double height)
+    /// <summary>
+    /// 取一次 DIP 與實體像素的轉換矩陣，供這一輪定位重複使用。
+    /// </summary>
+    /// <remarks>
+    /// 一次定位會換算七、八回，每回都重查 <see cref="PresentationSource.FromVisual"/>
+    /// 等於在每一次捲動與每一個按鍵上重走同一段視覺樹。DPI 只有在視窗換螢幕或系統
+    /// 縮放改變時才會變，而那兩件事都會先觸發一次版面重算，也就一定會先走到這裡。
+    /// </remarks>
+    private void RefreshDeviceTransforms()
     {
-        var matrix = PresentationSource.FromVisual(_view.VisualElement)?.CompositionTarget?.TransformToDevice
-                     ?? Matrix.Identity;
-        var vector = matrix.Transform(new Vector(width, height));
-        return new Size(Math.Abs(vector.X), Math.Abs(vector.Y));
+        _toDevice = NativeScreen.GetTransformToDevice(_view.VisualElement);
+        _fromDevice = NativeScreen.GetTransformFromDevice(_view.VisualElement);
     }
 
-    private Size ToLogicalSize(double width, double height)
+    private Size ToDeviceSize(double width, double height) => Transform(_toDevice, width, height);
+
+    private Size ToLogicalSize(double width, double height) => Transform(_fromDevice, width, height);
+
+    private static Size Transform(Matrix matrix, double width, double height)
     {
-        var matrix = PresentationSource.FromVisual(_view.VisualElement)?.CompositionTarget?.TransformFromDevice
-                     ?? Matrix.Identity;
         var vector = matrix.Transform(new Vector(width, height));
         return new Size(Math.Abs(vector.X), Math.Abs(vector.Y));
     }
@@ -682,7 +770,9 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private void LogPlacement(PreviewRectangle anchor)
     {
-        if (_isResizing)
+        // 這條在每一次捲動與每一個按鍵上都會走到。SqlAssistDiagnostics.Write 自己也會
+        // 檢查一次，但那時字串與兩次 DPI 換算都已經做完了，等於白付一輪成本。
+        if (_isResizing || !SqlAssistSettingsStore.Current.VerboseLogging)
         {
             return;
         }
@@ -698,7 +788,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             $"文件 {_availableBounds.Left:F0},{_availableBounds.Top:F0}–{_availableBounds.Right:F0},{_availableBounds.Bottom:F0}　" +
             $"有效 {effectiveSize.Width:F0}×{effectiveSize.Height:F0} DIP　" +
             $"DPI {dpiSize.Width:F0}×{dpiSize.Height:F0}　Zoom {_view.ZoomLevel:F0}%　" +
-            $"保留區 {_obstacles.Count}　fallback {_usedFallback}　受限 {_sizeConstrained}",
+            $"保留區 {_obstacles.Count}　fallback {_usedFallback}　" +
+            $"受限 寬 {WidthConstrained}／高 {HeightConstrained}",
             _view);
     }
 

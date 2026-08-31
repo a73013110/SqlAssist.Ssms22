@@ -59,6 +59,15 @@ internal sealed class PreviewResizeDragEventArgs : EventArgs
 /// </remarks>
 internal sealed class SqlStructurePreviewControl : UserControl
 {
+    /// <summary>
+    /// 角落握把的邊長。
+    /// </summary>
+    /// <remarks>
+    /// 不只是外觀尺寸：呼叫端拿它當「這一軸算不算被拖過」的門檻，所以寫死在兩邊
+    /// 會出現「握把改大了、門檻沒跟著改」這種看不出關聯的失準。
+    /// </remarks>
+    public const double GripSize = 16;
+
     private sealed class ColumnRow
     {
         public ColumnRow(SqlColumnInfo column)
@@ -857,7 +866,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
             ? corner
             : PreviewResizeCorner.BottomRight;
         _dragOrigin = NativeCursor.TryGetPosition();
-        _dragTransformToDevice = NativeCursor.GetTransformToDevice(this);
+        _dragTransformToDevice = NativeScreen.GetTransformToDevice(this);
         _fallbackHorizontalChange = 0;
         _fallbackVerticalChange = 0;
         _lastHorizontalChange = 0;
@@ -1045,8 +1054,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
     {
         var thumb = new Thumb
         {
-            Width = 16,
-            Height = 16,
+            Width = GripSize,
+            Height = GripSize,
             Tag = corner,
             Focusable = false,
             VerticalAlignment = VerticalAlignment.Bottom,

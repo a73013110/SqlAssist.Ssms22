@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Media;
 using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Preview;
@@ -40,16 +39,5 @@ internal static class NativeCursor
             "取得游標位置",
             () => GetCursorPos(out var point) ? new Point(point.X, point.Y) : null,
             fallback: null);
-    }
-
-    /// <summary>取得拖曳開始時固定使用的 DIP 到實體像素矩陣。</summary>
-    public static Matrix GetTransformToDevice(Visual visual)
-    {
-        return SqlAssistPlatformGuard.Probe(
-            "換算 DPI",
-            () => PresentationSource.FromVisual(visual)?.CompositionTarget is { } target
-                ? target.TransformToDevice
-                : Matrix.Identity,
-            fallback: Matrix.Identity);
     }
 }
