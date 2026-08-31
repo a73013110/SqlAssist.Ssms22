@@ -12,7 +12,7 @@ public sealed class SqlSnippetMigrationTests
         var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(Ssf, Ap, Af), SqlSnippetDefaults.Current);
 
         Assert.Empty(migrated.Snippets);
-        Assert.Equal(40, SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, migrated).Library.Count);
+        Assert.Equal(43, SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, migrated).Library.Count);
     }
 
     [Fact]

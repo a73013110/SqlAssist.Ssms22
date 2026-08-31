@@ -14,7 +14,7 @@
 | 建議清單 | 由平台原生非同步 IntelliSense 呈現，排名自己做 | [completion.md](docs/completion.md) |
 | 關鍵字大寫 | 打完 `select` 按空白就變 `SELECT` | [completion.md](docs/completion.md) |
 | 欄位建議 | 輸入 `別名.` 列出該資料來源的欄位、型別與 PK | [completion.md](docs/completion.md) |
-| 程式碼片段 | 40 筆內建與自訂片段，支援 Tab／Shift+Tab 欄位導航 | [snippets.md](docs/snippets.md) |
+| 程式碼片段 | 43 筆內建與自訂片段，支援 Tab／Shift+Tab 欄位導航 | [snippets.md](docs/snippets.md) |
 | 展開 `SELECT *` | Tab 換成完整欄位清單，三種排法 | [wildcard-expansion.md](docs/wildcard-expansion.md) |
 | 展開整句 | `INSERT INTO`、`EXEC`、`ALTER` 之後提交物件就補齊整句 | [completion.md](docs/completion.md) |
 | 物件結構 | 停留提示與可複製的浮動預覽 | [structure-preview.md](docs/structure-preview.md) |

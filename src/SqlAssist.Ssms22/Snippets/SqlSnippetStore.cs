@@ -12,7 +12,7 @@ namespace SqlAssist.Ssms22.Snippets;
 /// <summary>Snippet override 檔的讀寫與行程內快取。</summary>
 /// <remarks>
 /// 內建值在 Core 的內嵌 JSON；使用者檔只存差異。檔案不存在是正常狀態，
-/// 第一次啟動不能把 40 筆預設值物化，否則下一版 VSIX 再也更新不到它們。
+/// 第一次啟動不能把 43 筆預設值物化，否則下一版 VSIX 再也更新不到它們。
 /// </remarks>
 internal static class SqlSnippetStore
 {

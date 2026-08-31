@@ -885,7 +885,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         var confirmed = MessageBox.Show(
             this,
-            "要還原全部 40 筆內建片段並移除自訂片段嗎？按「儲存」之後才會寫回檔案。",
+            "要還原全部 43 筆內建片段並移除自訂片段嗎？按「儲存」之後才會寫回檔案。",
             "SqlAssist",
             MessageBoxButton.OKCancel,
             MessageBoxImage.Warning);

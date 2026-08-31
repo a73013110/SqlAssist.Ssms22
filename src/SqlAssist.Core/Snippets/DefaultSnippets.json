@@ -17,57 +17,44 @@
       "category": "select",
       "shortcut": "st100",
       "title": "SELECT TOP 100",
-      "description": "查詢前 100 筆資料",
-      "expansionMode": "tabStops",
+      "description": "查詢前 100 筆資料；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT TOP (100) *\nFROM [$schema$].[$table$]$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
-      ]
+      "code": "SELECT TOP (100) * FROM $end$"
     },
     {
       "id": "builtin.st1",
       "category": "select",
       "shortcut": "st1",
       "title": "SELECT TOP 1",
-      "description": "查詢第一筆資料",
-      "expansionMode": "tabStops",
+      "description": "查詢第一筆資料；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT TOP (1) *\nFROM [$schema$].[$table$]$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
-      ]
+      "code": "SELECT TOP (1) * FROM $end$"
     },
     {
       "id": "builtin.ssc",
       "category": "select",
       "shortcut": "ssc",
       "title": "SELECT COUNT",
-      "description": "計算資料筆數",
-      "expansionMode": "tabStops",
+      "description": "計算資料筆數；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT COUNT(*)\nFROM [$schema$].[$table$]$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
-      ]
+      "code": "SELECT COUNT(*) FROM $end$"
     },
     {
       "id": "builtin.sd",
       "category": "select",
       "shortcut": "sd",
       "title": "SELECT DISTINCT",
-      "description": "查詢不重複的資料",
-      "expansionMode": "tabStops",
+      "description": "查詢不重複的資料；選好資料表後可在 * 按 Tab 展開欄位再挑",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT DISTINCT [$column$]\nFROM [$schema$].[$table$]$end$;",
-      "placeholders": [
-        { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
-      ]
+      "code": "SELECT DISTINCT * FROM $end$"
     },
 
     {
@@ -75,68 +62,35 @@
       "category": "dml",
       "shortcut": "ii",
       "title": "INSERT INTO",
-      "description": "插入一筆資料",
-      "expansionMode": "tabStops",
+      "description": "插入資料；選好資料表後展開欄位清單與 VALUES",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "INSERT INTO [$schema$].[$table$] ([$column$])\nVALUES ($value$)$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
-        { "id": "value", "default": "NULL", "tooltip": "欄位值" }
-      ]
-    },
-    {
-      "id": "builtin.iis",
-      "category": "dml",
-      "shortcut": "iis",
-      "title": "INSERT SELECT",
-      "description": "從查詢結果插入資料",
-      "expansionMode": "tabStops",
-      "positions": ["StatementStart", "BlockStart"],
-      "code": "INSERT INTO [$targetSchema$].[$targetTable$] ([$targetColumn$])\nSELECT [$sourceColumn$]\nFROM [$sourceSchema$].[$sourceTable$]$end$;",
-      "placeholders": [
-        { "id": "targetSchema", "default": "dbo", "tooltip": "目標結構描述" },
-        { "id": "targetTable", "default": "TargetTable", "tooltip": "目標資料表" },
-        { "id": "targetColumn", "default": "ColumnName", "tooltip": "目標欄位" },
-        { "id": "sourceColumn", "default": "ColumnName", "tooltip": "來源欄位" },
-        { "id": "sourceSchema", "default": "dbo", "tooltip": "來源結構描述" },
-        { "id": "sourceTable", "default": "SourceTable", "tooltip": "來源資料表" }
-      ]
+      "code": "INSERT INTO $end$"
     },
     {
       "id": "builtin.ui",
       "category": "dml",
       "shortcut": "ui",
-      "title": "UPDATE（安全條件）",
-      "description": "以預設不成立的條件更新資料",
+      "title": "UPDATE",
+      "description": "更新資料；接著列出資料表與檢視，SET 與 WHERE 自行填寫",
       "isDestructive": true,
-      "expansionMode": "tabStops",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "UPDATE [$schema$].[$table$]\nSET [$column$] = $value$\nWHERE 1 = 0\n  AND $condition$$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "column", "default": "ColumnName", "tooltip": "要更新的欄位" },
-        { "id": "value", "default": "NULL", "tooltip": "新值" },
-        { "id": "condition", "default": "1 = 1", "tooltip": "更新條件；確認後移除 1 = 0" }
-      ]
+      "code": "UPDATE $end$"
     },
     {
       "id": "builtin.df",
       "category": "dml",
       "shortcut": "df",
-      "title": "DELETE FROM（安全條件）",
-      "description": "以預設不成立的條件刪除資料",
+      "title": "DELETE FROM",
+      "description": "刪除資料；接著列出資料表與檢視，WHERE 自行填寫",
       "isDestructive": true,
-      "expansionMode": "tabStops",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DELETE FROM [$schema$].[$table$]\nWHERE 1 = 0\n  AND $condition$$end$;",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "condition", "default": "1 = 1", "tooltip": "刪除條件；確認後移除 1 = 0" }
-      ]
+      "code": "DELETE FROM $end$"
     },
     {
       "id": "builtin.mg",
@@ -147,7 +101,7 @@
       "isDestructive": true,
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "MERGE INTO [$targetSchema$].[$targetTable$] AS target\nUSING [$sourceSchema$].[$sourceTable$] AS source\n    ON target.[$keyColumn$] = source.[$keyColumn$]\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.[$updateColumn$] = source.[$updateColumn$]\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ([$insertColumn$])\n    VALUES (source.[$insertColumn$])$end$;",
+      "code": "MERGE INTO $targetSchema$.$targetTable$ AS target\nUSING $sourceSchema$.$sourceTable$ AS source\n    ON target.$keyColumn$ = source.$keyColumn$\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.$updateColumn$ = source.$updateColumn$\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ($insertColumn$)\n    VALUES (source.$insertColumn$)$end$;",
       "placeholders": [
         { "id": "targetSchema", "default": "dbo", "tooltip": "目標結構描述" },
         { "id": "targetTable", "default": "TargetTable", "tooltip": "目標資料表" },
@@ -167,7 +121,7 @@
       "description": "建立資料庫",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE DATABASE [$database$]$end$;",
+      "code": "CREATE DATABASE $database$$end$;",
       "placeholders": [
         { "id": "database", "default": "DatabaseName", "tooltip": "資料庫名稱" }
       ]
@@ -180,7 +134,7 @@
       "description": "建立資料表",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE TABLE [$schema$].[$table$]\n(\n    [$column$] $dataType$ NOT NULL\n)$end$;",
+      "code": "CREATE TABLE $schema$.$table$\n(\n    $column$ $dataType$ NOT NULL\n)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
@@ -196,7 +150,7 @@
       "description": "建立檢視",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE VIEW [$schema$].[$view$]\nAS\nSELECT [$column$]\nFROM [$sourceSchema$].[$sourceTable$]$end$;",
+      "code": "CREATE VIEW $schema$.$view$\nAS\nSELECT $column$\nFROM $sourceSchema$.$sourceTable$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "檢視的結構描述" },
         { "id": "view", "default": "ViewName", "tooltip": "檢視名稱" },
@@ -213,7 +167,7 @@
       "description": "建立預存程序",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE PROCEDURE [$schema$].[$procedure$]\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
+      "code": "CREATE PROCEDURE $schema$.$procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "procedure", "default": "ProcedureName", "tooltip": "預存程序名稱" },
@@ -228,7 +182,7 @@
       "description": "建立純量函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION [$schema$].[$function$]\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
+      "code": "CREATE FUNCTION $schema$.$function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "function", "default": "FunctionName", "tooltip": "函式名稱" },
@@ -246,7 +200,7 @@
       "description": "建立內嵌資料表值函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION [$schema$].[$function$]\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT [$column$]\n    FROM [$sourceSchema$].[$sourceTable$]\n)$end$;",
+      "code": "CREATE FUNCTION $schema$.$function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT $column$\n    FROM $sourceSchema$.$sourceTable$\n)$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "function", "default": "FunctionName", "tooltip": "函式名稱" },
@@ -265,7 +219,7 @@
       "description": "建立非叢集索引",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE NONCLUSTERED INDEX [$index$]\nON [$schema$].[$table$] ([$column$])$end$;",
+      "code": "CREATE NONCLUSTERED INDEX $index$\nON $schema$.$table$ ($column$)$end$;",
       "placeholders": [
         { "id": "index", "default": "IX_TableName_ColumnName", "tooltip": "索引名稱" },
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
@@ -281,11 +235,11 @@
       "description": "修改資料表",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "ALTER TABLE [$schema$].[$table$]\n$action$$end$;",
+      "code": "ALTER TABLE $schema$.$table$\n$action$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "action", "default": "ADD [ColumnName] INT NULL", "tooltip": "ALTER TABLE 動作" }
+        { "id": "action", "default": "ADD ColumnName INT NULL", "tooltip": "ALTER TABLE 動作" }
       ]
     },
     {
@@ -297,7 +251,7 @@
       "isDestructive": true,
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DROP TABLE IF EXISTS [$schema$].[$table$]$end$;",
+      "code": "DROP TABLE IF EXISTS $schema$.$table$$end$;",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
@@ -329,7 +283,7 @@
     {
       "id": "builtin.beg",
       "category": "controlFlow",
-      "shortcut": "beg",
+      "shortcut": "be",
       "title": "BEGIN END",
       "description": "BEGIN／END 區塊",
       "expansionMode": "tabStops",
@@ -377,7 +331,7 @@
       "description": "資料存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM [$schema$].[$table$]\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM $schema$.$table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
@@ -393,7 +347,7 @@
       "description": "資料不存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM [$schema$].[$table$]\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM $schema$.$table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
       "placeholders": [
         { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
         { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
@@ -452,7 +406,7 @@
       "description": "完整的本機快速順向 CURSOR 樣板",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT [$column$]\nFROM [$schema$].[$table$];\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $body$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
+      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT $column$\nFROM $schema$.$table$;\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $body$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
       "placeholders": [
         { "id": "cursor", "default": "item_cursor", "tooltip": "游標名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "讀取欄位" },
@@ -481,32 +435,77 @@
       "category": "clause",
       "shortcut": "ij",
       "title": "INNER JOIN",
-      "description": "加入 INNER JOIN 子句",
-      "expansionMode": "tabStops",
+      "description": "加入 INNER JOIN；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["TableSourceTail"],
-      "code": "INNER JOIN [$schema$].[$table$] AS $alias$\n    ON $condition$$end$",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "alias", "default": "t", "tooltip": "資料表別名" },
-        { "id": "condition", "default": "1 = 1", "tooltip": "聯結條件" }
-      ]
+      "code": "INNER JOIN $end$"
     },
     {
       "id": "builtin.lj",
       "category": "clause",
       "shortcut": "lj",
       "title": "LEFT JOIN",
-      "description": "加入 LEFT JOIN 子句",
-      "expansionMode": "tabStops",
+      "description": "加入 LEFT JOIN；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["TableSourceTail"],
-      "code": "LEFT JOIN [$schema$].[$table$] AS $alias$\n    ON $condition$$end$",
-      "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
-        { "id": "alias", "default": "t", "tooltip": "資料表別名" },
-        { "id": "condition", "default": "1 = 1", "tooltip": "聯結條件" }
-      ]
+      "code": "LEFT JOIN $end$"
+    },
+    {
+      "id": "builtin.rj",
+      "category": "clause",
+      "shortcut": "rj",
+      "title": "RIGHT JOIN",
+      "description": "加入 RIGHT JOIN；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["TableSourceTail"],
+      "code": "RIGHT JOIN $end$"
+    },
+    {
+      "id": "builtin.fj",
+      "category": "clause",
+      "shortcut": "fj",
+      "title": "FULL JOIN",
+      "description": "加入 FULL JOIN；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["TableSourceTail"],
+      "code": "FULL JOIN $end$"
+    },
+    {
+      "id": "builtin.cj",
+      "category": "clause",
+      "shortcut": "cj",
+      "title": "CROSS JOIN",
+      "description": "加入 CROSS JOIN；接著列出資料表與檢視",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["TableSourceTail"],
+      "code": "CROSS JOIN $end$"
+    },
+    {
+      "id": "builtin.ca",
+      "category": "clause",
+      "shortcut": "ca",
+      "title": "CROSS APPLY",
+      "description": "加入 CROSS APPLY；接著列出函式",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["TableSourceTail"],
+      "code": "CROSS APPLY $end$"
+    },
+    {
+      "id": "builtin.oa",
+      "category": "clause",
+      "shortcut": "oa",
+      "title": "OUTER APPLY",
+      "description": "加入 OUTER APPLY；接著列出函式",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["TableSourceTail"],
+      "code": "OUTER APPLY $end$"
     },
     {
       "id": "builtin.ob",
@@ -516,7 +515,7 @@
       "description": "加入排序子句",
       "expansionMode": "tabStops",
       "positions": ["TableSourceTail", "ExpressionTail"],
-      "code": "ORDER BY [$column$] $direction$$end$",
+      "code": "ORDER BY $column$ $direction$$end$",
       "placeholders": [
         { "id": "column", "default": "ColumnName", "tooltip": "排序欄位" },
         { "id": "direction", "default": "ASC", "tooltip": "ASC 或 DESC" }
@@ -530,7 +529,7 @@
       "description": "加入分組子句",
       "expansionMode": "tabStops",
       "positions": ["TableSourceTail", "ExpressionTail"],
-      "code": "GROUP BY [$column$]$end$",
+      "code": "GROUP BY $column$$end$",
       "placeholders": [
         { "id": "column", "default": "ColumnName", "tooltip": "分組欄位" }
       ]
@@ -543,7 +542,7 @@
       "description": "建立 CTE 並查詢",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": ";WITH [$cte$] AS\n(\n    SELECT [$column$]\n    FROM [$schema$].[$table$]\n)\nSELECT *\nFROM [$cte$]$end$;",
+      "code": ";WITH $cte$ AS\n(\n    SELECT $column$\n    FROM $schema$.$table$\n)\nSELECT *\nFROM $cte$$end$;",
       "placeholders": [
         { "id": "cte", "default": "cte", "tooltip": "CTE 名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
@@ -572,19 +571,6 @@
       "code": "PRINT CONVERT(VARCHAR(23), GETDATE(), 121) + ' ' + $message$$end$;",
       "placeholders": [
         { "id": "message", "default": "'Message'", "tooltip": "要輸出的訊息或運算式" }
-      ]
-    },
-    {
-      "id": "builtin.tt",
-      "category": "clause",
-      "shortcut": "tt",
-      "title": "查詢暫存資料表",
-      "description": "查詢暫存資料表前 10 筆",
-      "expansionMode": "tabStops",
-      "positions": ["StatementStart", "BlockStart"],
-      "code": "SELECT TOP (10) *\nFROM #$table$$end$;",
-      "placeholders": [
-        { "id": "table", "default": "TempTable", "tooltip": "暫存資料表名稱（不含 #）" }
       ]
     }
   ]

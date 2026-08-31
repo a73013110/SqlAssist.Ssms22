@@ -13,7 +13,7 @@ public static class SqlSnippetSerializer
     /// </summary>
     /// <remarks>
     /// 刻意沒有「整份清單寫成完整紀錄」的多載：那正好是 v2 要消滅的檔案形狀
-    /// ——把 40 筆內建值物化進使用者檔之後，下一版 VSIX 再也更新不到它們。
+    /// ——把 43 筆內建值物化進使用者檔之後，下一版 VSIX 再也更新不到它們。
     /// 要寫什麼由 <see cref="SqlSnippetMerger.CreateOverrides"/> 決定。
     /// </remarks>
     public static string Serialize(SqlSnippetDocument document)

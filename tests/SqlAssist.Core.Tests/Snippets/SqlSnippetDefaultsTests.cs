@@ -11,11 +11,11 @@ namespace SqlAssist.Core.Tests.Snippets;
 public sealed class SqlSnippetDefaultsTests
 {
     [Fact]
-    public void 內建JSON有四十筆且識別碼與捷徑唯一()
+    public void 內建JSON有四十三筆且識別碼與捷徑唯一()
     {
         var defaults = SqlSnippetDefaults.Current;
 
-        Assert.Equal(40, defaults.Count);
+        Assert.Equal(43, defaults.Count);
         Assert.Equal(
             defaults.Count,
             defaults.Snippets.Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
@@ -49,15 +49,40 @@ public sealed class SqlSnippetDefaultsTests
     }
 
     /// <remarks>
-    /// 這三筆的價值來自連線中繼資料，不是靜態骨架：<c>ap</c> 之後選到程序才會由
-    /// <c>SqlCommitExpander</c> 放進完整定義。改成 Tab Stop 會把這條鏈整個切斷，
-    /// 而症狀只是「清單沒有跳出來」，沒有任何錯誤。
+    /// 這一族片段的價值來自連線中繼資料，不是靜態骨架：展開出來的那一行只是
+    /// 半句話，游標落點必須剛好是「會列出對應物件」的位置，下一次 Tab 才接得
+    /// 下去。改成 Tab Stop、或在尾巴多一個字元（分號、括號、換行）都會把這條
+    /// 鏈整個切斷，而症狀只是「清單沒有跳出來」，沒有任何錯誤。
+    ///
+    /// <see cref="CompletionIntent"/> 一起守：<c>ii</c> 落在
+    /// <see cref="CompletionTarget.DataSource"/> 還不夠，要
+    /// <see cref="CompletionIntent.InsertStatement"/> 才會由
+    /// <c>SqlCommitExpander</c> 展開成欄位清單與 <c>VALUES</c>；退化成
+    /// <see cref="CompletionIntent.Reference"/> 的話只是把資料表名稱補上去，
+    /// 而那與使用者自己打完全一樣。
     /// </remarks>
     [Theory]
-    [InlineData("ssf", CompletionTarget.DataSource)]
-    [InlineData("ap", CompletionTarget.Procedure)]
-    [InlineData("af", CompletionTarget.Function)]
-    public void 接續片段展開後落在會列出該類物件的位置(string shortcut, CompletionTarget target)
+    [InlineData("ssf", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("st100", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("st1", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("ssc", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("sd", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("ii", CompletionTarget.DataSource, CompletionIntent.InsertStatement)]
+    [InlineData("ui", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("df", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("ij", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("lj", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("rj", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("fj", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("cj", CompletionTarget.DataSource, CompletionIntent.Reference)]
+    [InlineData("ca", CompletionTarget.Function, CompletionIntent.Reference)]
+    [InlineData("oa", CompletionTarget.Function, CompletionIntent.Reference)]
+    [InlineData("ap", CompletionTarget.Procedure, CompletionIntent.AlterDefinition)]
+    [InlineData("af", CompletionTarget.Function, CompletionIntent.AlterDefinition)]
+    public void 接續片段展開後落在會列出該類物件的位置(
+        string shortcut,
+        CompletionTarget target,
+        CompletionIntent intent)
     {
         Assert.True(SqlSnippetDefaults.Current.TryGet(shortcut, out var snippet));
         Assert.Equal(SqlSnippetExpansionMode.Caret, snippet.ExpansionMode);
@@ -66,7 +91,33 @@ public sealed class SqlSnippetDefaultsTests
         var expanded = snippet.Expand(out var caret);
 
         Assert.Equal(expanded.Length, caret);
-        Assert.Equal(target, SqlCompletionContextAnalyzer.Analyze(expanded).Target);
+
+        var context = SqlCompletionContextAnalyzer.Analyze(expanded);
+
+        Assert.Equal(target, context.Target);
+        Assert.Equal(intent, context.Intent);
+    }
+
+    /// <remarks>
+    /// 反過來守：<c>triggerFollowUp</c> 少勾一個，那一筆就退化成「插入半句話之後
+    /// 什麼都不做」——使用者看到的是一行寫到一半的 SQL 與一個不動的游標。
+    /// 上面那份表格漏掉新片段時這裡會失敗。
+    /// </remarks>
+    [Fact]
+    public void 每一筆接續片段都在上面的表格裡()
+    {
+        var covered = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "ssf", "st100", "st1", "ssc", "sd", "ii", "ui", "df",
+            "ij", "lj", "rj", "fj", "cj", "ca", "oa", "ap", "af"
+        };
+
+        var actual = SqlSnippetDefaults.Current.Snippets
+            .Where(item => item.TriggerFollowUp)
+            .Select(item => item.Shortcut)
+            .ToArray();
+
+        Assert.Equal(covered.OrderBy(item => item, StringComparer.Ordinal), actual.OrderBy(item => item, StringComparer.Ordinal));
     }
 
     /// <remarks>
@@ -224,15 +275,15 @@ public sealed class SqlSnippetDefaultsTests
     [Theory]
     // 語句級：語句開頭與 BEGIN…END 區塊裡都要在。曾經只給 StatementStart，
     // 於是 BEGIN 之後（分析器只回報 BlockStart）整批語句片段全部消失。
-    [InlineData("SELECT 1;\n", "ssf,st100,st1,ssc,sd,ii,iis,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,beg,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt,tt")]
-    [InlineData("BEGIN\n    ", "ssf,st100,st1,ssc,sd,ii,iis,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,beg,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt,tt")]
+    [InlineData("SELECT 1;\n", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
+    [InlineData("BEGIN\n    ", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
     // 運算式級：CASE 在選取清單、逗號之後與述詞裡都要在。
     [InlineData("SELECT ", "cs")]
     [InlineData("SELECT a, ", "cs")]
     [InlineData("SELECT * FROM Loan WHERE ", "cs")]
     [InlineData("SELECT * FROM Loan a INNER JOIN Copy b ON ", "cs")]
-    // 資料來源之後：JOIN 與排序、分組子句。
-    [InlineData("SELECT * FROM Loan AS a ", "ij,lj,ob,gb")]
+    // 資料來源之後：JOIN／APPLY 全家與排序、分組子句。
+    [InlineData("SELECT * FROM Loan AS a ", "ij,lj,rj,fj,cj,ca,oa,ob,gb")]
     public void 內建片段在它自然的位置找得到(string prefix, string shortcuts)
     {
         var available = Available(prefix);
