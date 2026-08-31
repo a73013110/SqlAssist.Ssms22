@@ -180,6 +180,15 @@ internal static class SqlNativeSnippetXmlBuilder
     }
 }
 
+/// <summary>
+/// 一次提交用的 MSXML 文件。
+/// </summary>
+/// <remarks>
+/// 這裡<b>可以</b>釋放 COM 參考，與 <see cref="SqlSnippetExpansionController"/> 刻意不釋放
+/// <c>IVsExpansionSession</c> 是兩回事：這份 DOM 是我們自己 <c>CreateInstance</c> 出來的，
+/// 除了引擎在 <c>InsertSpecificExpansion</c> 期間讀過之外沒有別人持有，而那個呼叫返回時
+/// 引擎已經把需要的東西複製走了。每按一次 Tab 就留一份 DOM 等 GC 沒有道理。
+/// </remarks>
 internal sealed class SqlNativeSnippetDom : IDisposable
 {
     private object? _document;
