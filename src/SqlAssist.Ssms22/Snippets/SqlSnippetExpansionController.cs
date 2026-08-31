@@ -1,6 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
-using System.Windows.Threading;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Shell;
@@ -134,7 +132,9 @@ internal sealed class SqlSnippetExpansionController : IDisposable
                     : NativeSnippetInsertionResult.FailedWithoutChange;
             }
 
-            SetSession(session);
+            // 引擎已經在 OnBeforeInsertion／OnAfterInsertion 回呼裡給過同一個 session，
+            // 這裡只是補上「引擎沒有回呼就成功返回」的情形。
+            _session = session;
             SqlAssistRuntimeState.MarkExpansion(request.Snippet.Title);
             SqlAssistDiagnostics.Write($"已啟動原生 Snippet：{request.Snippet.Shortcut}");
             return NativeSnippetInsertionResult.Succeeded;
@@ -232,28 +232,16 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         return true;
     }
 
-    public void OnBeforeInsertion(IVsExpansionSession session) => SetSession(session);
+    public void OnBeforeInsertion(IVsExpansionSession session) => _session = session;
 
-    public void OnAfterInsertion(IVsExpansionSession session) => SetSession(session);
+    public void OnAfterInsertion(IVsExpansionSession session) => _session = session;
 
-    public void OnEndExpansion()
-    {
-        var session = _session;
-        _session = null;
-
-        if (session is null)
-        {
-            return;
-        }
-
-        // 這個回呼可能發生在 GoToNextExpansionField 的 COM 呼叫堆疊裡；
-        // 原地 Release 會讓尚未返回的平台呼叫拿到已分離的 RCW，延後到回呼結束後再釋放。
-        _textView.VisualElement.Dispatcher.BeginInvoke(
-            DispatcherPriority.Background,
-            new Action(() => SqlAssistPlatformGuard.Run(
-                "釋放原生 Snippet session",
-                () => ReleaseComObject(session))));
-    }
+    /// <summary>引擎自己結束 session 時的回呼；放掉參考就好。</summary>
+    /// <remarks>
+    /// 這個回呼會發生在 <c>EndCurrentExpansion</c>／<c>GoToNextExpansionField</c>
+    /// 還沒返回的 COM 呼叫堆疊裡，所以這裡不能做任何會影響那個呼叫的事。
+    /// </remarks>
+    public void OnEndExpansion() => _session = null;
 
     public void Dispose()
     {
@@ -267,30 +255,28 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         EndCurrent(leaveCaret: true);
     }
 
-    private void SetSession(IVsExpansionSession session)
-    {
-        if (ReferenceEquals(_session, session))
-        {
-            return;
-        }
-
-        var previous = _session;
-        _session = session;
-        ReleaseComObject(previous);
-    }
-
+    /// <summary>
+    /// 結束目前的 session。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意不呼叫 <c>Marshal.ReleaseComObject</c>。</b>
+    /// <see cref="IVsExpansionSession"/> 的 RCW 是殼層自己也持有的那一個
+    /// （CLR 的 RCW 快取讓同一個 COM 物件只對應一個 RCW），手動遞減計數之後，
+    /// 殼層下一次用到它就會拿到 <c>InvalidComObjectException</c>——而且發生的時機
+    /// 取決於誰先用到，看起來像隨機的當掉。
+    ///
+    /// 先把欄位設 null 再呼叫 <c>EndCurrentExpansion</c>：那個呼叫會同步回呼
+    /// <see cref="OnEndExpansion"/>，先清掉才不會在回呼裡看到一個正在結束的 session。
+    /// </remarks>
     private void EndCurrent(bool leaveCaret)
     {
         var session = _session;
         _session = null;
 
-        if (session is null)
+        if (session is not null)
         {
-            return;
+            _ = session.EndCurrentExpansion(leaveCaret ? 1 : 0);
         }
-
-        _ = session.EndCurrentExpansion(leaveCaret ? 1 : 0);
-        ReleaseComObject(session);
     }
 
     private void OnTextViewClosed(object sender, EventArgs eventArgs)
@@ -334,14 +320,6 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         }
 
         return Environment.NewLine;
-    }
-
-    private static void ReleaseComObject(object? value)
-    {
-        if (value is not null && Marshal.IsComObject(value))
-        {
-            _ = Marshal.ReleaseComObject(value);
-        }
     }
 }
 
