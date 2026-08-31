@@ -42,21 +42,14 @@ internal static class NativeCursor
             fallback: null);
     }
 
-    /// <summary>
-    /// 實體像素換算成 WPF 的裝置獨立單位。
-    /// </summary>
-    /// <remarks>
-    /// 高 DPI 下兩者不是一比一；直接拿像素當寬度會讓視窗長得比滑鼠快。
-    /// </remarks>
-    public static Vector ToDeviceIndependent(Visual visual, Vector devicePixels)
+    /// <summary>取得拖曳開始時固定使用的 DIP 到實體像素矩陣。</summary>
+    public static Matrix GetTransformToDevice(Visual visual)
     {
         return SqlAssistPlatformGuard.Probe(
             "換算 DPI",
             () => PresentationSource.FromVisual(visual)?.CompositionTarget is { } target
-                ? new Vector(
-                    devicePixels.X * target.TransformFromDevice.M11,
-                    devicePixels.Y * target.TransformFromDevice.M22)
-                : devicePixels,
-            fallback: devicePixels);
+                ? target.TransformToDevice
+                : Matrix.Identity,
+            fallback: Matrix.Identity);
     }
 }

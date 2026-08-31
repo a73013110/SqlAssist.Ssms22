@@ -215,7 +215,8 @@ internal sealed class SqlAssistCommands
             $"滑鼠停留提示：{FormatState(settings.HoverEnabled)}\r\n" +
             $"預覽時機：{settings.PreviewMode}（{settings.PreviewDelayMilliseconds} ms）\r\n" +
             $"預覽位置／字級：{settings.PreviewPlacement}／{settings.PreviewFontSize}\r\n" +
-            $"預覽視窗尺寸：{PreviewWindowState.Width}×{PreviewWindowState.Height}\r\n\r\n" +
+            $"預覽視窗尺寸：上下 {PreviewWindowState.StackedWidth?.ToString("F0") ?? "自動"}×{PreviewWindowState.StackedHeight:F0}；" +
+            $"側邊 {PreviewWindowState.BesideWidth:F0}×{PreviewWindowState.BesideHeight:F0}\r\n\r\n" +
             $"── 診斷 ──\r\n" +
             $"詳細診斷記錄：{FormatState(settings.VerboseLogging)}\r\n" +
             $"診斷檔：{SqlAssistDiagnostics.LogPath}";

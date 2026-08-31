@@ -29,6 +29,7 @@ src/SqlAssist.Core           純邏輯，可完整單元測試
   Keywords/                  關鍵字與內建函式目錄、大小寫改寫、位置判斷
   Parsing/                   詞法器、語彙狀態、語句範圍模型、欄位來源解析、文字來源介面
   Wildcards/                 SELECT * 的星號判定與展開後的欄位排版
+  Preview/                   預覽的矩形定位、避障與雙側縮放純邏輯
   Matching/                  與領域無關的詞首感知模糊比對
   Snippets/                  片段模型、佔位符推導、展開與 JSON 序列化
   Json/                      最小的 JSON 讀寫器（Core 零相依，不引 System.Text.Json）

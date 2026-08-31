@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using SqlAssist.Core.Settings;
+using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -17,15 +18,29 @@ using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
-/// <summary>使用者放開縮放握把後，實際改動了哪些軸向。</summary>
-internal sealed class PreviewSizeCommittedEventArgs : EventArgs
+/// <summary>預覽握把的一次拖曳事件。</summary>
+internal sealed class PreviewResizeDragEventArgs : EventArgs
 {
-    public PreviewSizeCommittedEventArgs(bool widthChanged)
+    public PreviewResizeDragEventArgs(
+        PreviewResizeCorner corner,
+        double horizontalChange,
+        double verticalChange,
+        bool canceled = false)
     {
-        WidthChanged = widthChanged;
+        Corner = corner;
+        HorizontalChange = horizontalChange;
+        VerticalChange = verticalChange;
+        Canceled = canceled;
     }
 
-    public bool WidthChanged { get; }
+    public PreviewResizeCorner Corner { get; }
+
+    /// <summary>相對按下瞬間的總位移，不是上一幀到這一幀的增量。</summary>
+    public double HorizontalChange { get; }
+
+    public double VerticalChange { get; }
+
+    public bool Canceled { get; }
 }
 
 /// <summary>
@@ -153,29 +168,34 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private readonly DataGrid _parameters;
     private readonly RichTextBox _script;
     private readonly DataGridTemplateColumn _flags;
-    private readonly Thumb _resize;
+    private readonly Thumb _resizeLeft;
+    private readonly Thumb _resizeRight;
     private readonly Border _root;
 
     /// <summary>目前套用的基準字級；相同就不重建樣式。</summary>
     private double _fontSize;
 
-    /// <summary>握把在左下角時，往左拖曳才是變大。</summary>
-    private bool _gripOnLeft;
-
-    /// <summary>目前版面容許拖曳到的最大尺寸；會跟著 Viewport 與錨點重算。</summary>
-    private double _maximumResizeWidth = SqlAssistLimits.MaximumPreviewWidth;
-
-    private double _maximumResizeHeight = SqlAssistLimits.MaximumPreviewHeight;
-
     /// <summary>按下握把當下的游標位置與尺寸；拖曳中的每一步都以此為基準重算。</summary>
     private Point? _dragOrigin;
 
-    private double _dragStartWidth;
+    private Matrix _dragTransformToDevice = Matrix.Identity;
 
-    private double _dragStartHeight;
+    private double _fallbackHorizontalChange;
+
+    private double _fallbackVerticalChange;
+
+    private double _lastHorizontalChange;
+
+    private double _lastVerticalChange;
+
+    private PreviewResizeCorner _activeResizeCorner;
+
+    private int _openContextMenuCount;
 
     /// <summary>已經填過內容的分頁；換了物件就整批清掉。</summary>
     private readonly HashSet<TabItem> _populated = new();
+
+    private readonly List<ContextMenu> _contextMenus = new();
 
     /// <summary>目前顯示的結構；分頁按需填內容時要回頭讀它。</summary>
     private SqlObjectStructure? _structure;
@@ -207,7 +227,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         };
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
-        _status.Margin = new Thickness(14, 0, 24, 6);
+        _status.Margin = new Thickness(24, 0, 24, 6);
 
         _columns = CreateGrid(
             ("#", nameof(ColumnRow.Ordinal)),
@@ -301,23 +321,17 @@ internal sealed class SqlStructurePreviewControl : UserControl
         header.Children.Add(_icon);
         header.Children.Add(caption);
 
-        _resize = new Thumb
-        {
-            Width = 16,
-            Height = 16,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Cursor = Cursors.SizeNWSE,
-            Template = CreateResizeGripTemplate(),
-            ToolTip = "拖曳調整大小；下次開啟會沿用"
-        };
-        _resize.DragStarted += OnResizeDragStarted;
-        _resize.DragDelta += OnResizeDragDelta;
-        _resize.DragCompleted += OnResizeDragCompleted;
+        _resizeLeft = CreateResizeThumb(PreviewResizeCorner.BottomLeft);
+        _resizeLeft.HorizontalAlignment = HorizontalAlignment.Left;
+        _resizeLeft.Cursor = Cursors.SizeNESW;
+        _resizeLeft.RenderTransform = new ScaleTransform(-1, 1, 8, 8);
+
+        _resizeRight = CreateResizeThumb(PreviewResizeCorner.BottomRight);
+        _resizeRight.HorizontalAlignment = HorizontalAlignment.Right;
+        _resizeRight.Cursor = Cursors.SizeNWSE;
 
         var footer = new Grid();
         footer.Children.Add(_status);
-        footer.Children.Add(_resize);
 
         var layout = new Grid();
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -330,13 +344,19 @@ internal sealed class SqlStructurePreviewControl : UserControl
         layout.Children.Add(_tabs);
         layout.Children.Add(footer);
 
+        // 握把放在整個內容的 overlay，落在上方時才能移到上緣而不受 footer 限制。
+        var overlay = new Grid();
+        overlay.Children.Add(layout);
+        overlay.Children.Add(_resizeLeft);
+        overlay.Children.Add(_resizeRight);
+
         _root = new Border
         {
             Background = VsThemeBrushes.ListBackground,
             BorderBrush = VsThemeBrushes.Border,
             BorderThickness = new Thickness(1),
             SnapsToDevicePixels = true,
-            Child = layout
+            Child = overlay
         };
 
         // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
@@ -352,22 +372,58 @@ internal sealed class SqlStructurePreviewControl : UserControl
         Focusable = false;
     }
 
-    /// <summary>拖曳結束，供呼叫端寫回設定。</summary>
-    public event EventHandler<PreviewSizeCommittedEventArgs>? SizeCommitted;
+    public event EventHandler<PreviewResizeDragEventArgs>? ResizeStarted;
+
+    public event EventHandler<PreviewResizeDragEventArgs>? ResizeDelta;
+
+    public event EventHandler<PreviewResizeDragEventArgs>? ResizeCompleted;
+
+    public event EventHandler? SizeResetRequested;
+
+    /// <summary>右鍵選單是另一個 Popup，Agent 要把它一起算進聚合焦點。</summary>
+    public event EventHandler? InteractionFocusGained;
+
+    public event EventHandler? InteractionFocusLost;
 
     /// <summary>使用者在預覽裡按下 Esc。</summary>
     public event EventHandler? CloseRequested;
 
-    public double PreferredWidth
+    public bool HasOpenContextMenu => _openContextMenuCount > 0;
+
+    /// <summary>只套用這一輪真正顯示的尺寸；不代表使用者的持久偏好。</summary>
+    public void SetEffectiveSize(double width, double height)
     {
-        get => _root.Width;
-        set => _root.Width = value;
+        _root.Width = width;
+        _root.Height = height;
     }
 
-    public double PreferredHeight
+    /// <summary>上方落點改用上緣握把，固定 Bottom 往上增高；其餘情況使用下緣。</summary>
+    public void SetResizeEdge(bool onTop)
     {
-        get => _root.Height;
-        set => _root.Height = value;
+        _resizeLeft.Tag = onTop ? PreviewResizeCorner.TopLeft : PreviewResizeCorner.BottomLeft;
+        _resizeRight.Tag = onTop ? PreviewResizeCorner.TopRight : PreviewResizeCorner.BottomRight;
+        _resizeLeft.VerticalAlignment = onTop ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        _resizeRight.VerticalAlignment = onTop ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        _resizeLeft.Cursor = onTop ? Cursors.SizeNWSE : Cursors.SizeNESW;
+        _resizeRight.Cursor = onTop ? Cursors.SizeNESW : Cursors.SizeNWSE;
+        _resizeLeft.RenderTransform = new ScaleTransform(-1, onTop ? -1 : 1, 8, 8);
+        _resizeRight.RenderTransform = onTop
+            ? new ScaleTransform(1, -1, 8, 8)
+            : Transform.Identity;
+        _status.Margin = onTop ? new Thickness(14, 0, 14, 6) : new Thickness(24, 0, 24, 6);
+
+        AutomationProperties.SetName(_resizeLeft, onTop ? "左上角調整大小" : "左下角調整大小");
+        AutomationProperties.SetName(_resizeRight, onTop ? "右上角調整大小" : "右下角調整大小");
+    }
+
+    public void CloseTransientPopups()
+    {
+        foreach (var menu in _contextMenus)
+        {
+            menu.IsOpen = false;
+        }
+
+        _openContextMenuCount = 0;
     }
 
     /// <summary>換一個物件：標題先出來，內容等資料到齊。</summary>
@@ -760,6 +816,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         copyAll.Click += (_, _) => CopyAll();
         menu.Items.Add(copy);
         menu.Items.Add(copyAll);
+        TrackContextMenu(menu);
         return menu;
     }
 
@@ -775,14 +832,39 @@ internal sealed class SqlStructurePreviewControl : UserControl
         menu.Items.Add(copy);
         menu.Items.Add(copyAll);
         menu.Items.Add(copyScript);
+        TrackContextMenu(menu);
         return menu;
+    }
+
+    private void TrackContextMenu(ContextMenu menu)
+    {
+        _contextMenus.Add(menu);
+        menu.Opened += (_, _) =>
+        {
+            _openContextMenuCount++;
+            InteractionFocusGained?.Invoke(this, EventArgs.Empty);
+        };
+        menu.Closed += (_, _) =>
+        {
+            _openContextMenuCount = Math.Max(0, _openContextMenuCount - 1);
+            InteractionFocusLost?.Invoke(this, EventArgs.Empty);
+        };
     }
 
     private void OnResizeDragStarted(object sender, DragStartedEventArgs eventArgs)
     {
+        _activeResizeCorner = sender is Thumb { Tag: PreviewResizeCorner corner }
+            ? corner
+            : PreviewResizeCorner.BottomRight;
         _dragOrigin = NativeCursor.TryGetPosition();
-        _dragStartWidth = _root.Width;
-        _dragStartHeight = _root.Height;
+        _dragTransformToDevice = NativeCursor.GetTransformToDevice(this);
+        _fallbackHorizontalChange = 0;
+        _fallbackVerticalChange = 0;
+        _lastHorizontalChange = 0;
+        _lastVerticalChange = 0;
+        ResizeStarted?.Invoke(
+            this,
+            new PreviewResizeDragEventArgs(_activeResizeCorner, 0, 0));
     }
 
     /// <summary>
@@ -794,82 +876,54 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// 於是視窗的移動會被誤算成滑鼠的移動而形成回授，畫面就開始亂跳。
     /// 以絕對座標重算，尺寸是「起始尺寸 ＋ 游標位移」這個純函式，不受視窗移動影響。
     ///
-    /// 拖曳期間也刻意不請平台重新定位：每動一下就重排一次，等於在使用者手上
-    /// 把視窗抽來抽去。放開手時才收斂一次。
+    /// DPI 轉換矩陣在按下時一併凍結；拖過不同縮放比例的螢幕時，不會讓已走過的
+    /// 整段距離突然換一個倍率。
     /// </remarks>
     private void OnResizeDragDelta(object sender, DragDeltaEventArgs eventArgs)
     {
         if (_dragOrigin is not { } origin || NativeCursor.TryGetPosition() is not { } current)
         {
-            // 拿不到游標位置就退回平台給的位移量，至少還能調整大小。
-            Resize(eventArgs.HorizontalChange, eventArgs.VerticalChange, _root.Width, _root.Height);
-            return;
+            // 平台給的是逐幀增量；先累積成相對起點的總量，才能維持路徑無關。
+            _fallbackHorizontalChange += eventArgs.HorizontalChange;
+            _fallbackVerticalChange += eventArgs.VerticalChange;
+            var deviceChange = _dragTransformToDevice.Transform(
+                new Vector(_fallbackHorizontalChange, _fallbackVerticalChange));
+            _lastHorizontalChange = deviceChange.X;
+            _lastVerticalChange = deviceChange.Y;
+        }
+        else
+        {
+            // 原生游標本來就是實體像素；外層定位引擎也使用同一座標系。
+            var moved = current - origin;
+            _lastHorizontalChange = moved.X;
+            _lastVerticalChange = moved.Y;
         }
 
-        var moved = NativeCursor.ToDeviceIndependent(this, current - origin);
-        Resize(moved.X, moved.Y, _dragStartWidth, _dragStartHeight);
-    }
-
-    private void Resize(double horizontal, double vertical, double baseWidth, double baseHeight)
-    {
-        // 握把在左下角時，視窗是往左長的：往左拖才是變大。
-        var widthChange = _gripOnLeft ? -horizontal : horizontal;
-
-        _root.Width = Clamp(
-            baseWidth + widthChange,
-            Math.Min(SqlAssistLimits.MinimumPreviewWidth, _maximumResizeWidth),
-            _maximumResizeWidth);
-
-        _root.Height = Clamp(
-            baseHeight + vertical,
-            Math.Min(SqlAssistLimits.MinimumPreviewHeight, _maximumResizeHeight),
-            _maximumResizeHeight);
+        ResizeDelta?.Invoke(
+            this,
+            new PreviewResizeDragEventArgs(
+                _activeResizeCorner,
+                _lastHorizontalChange,
+                _lastVerticalChange));
     }
 
     private void OnResizeDragCompleted(object sender, DragCompletedEventArgs eventArgs)
     {
         _dragOrigin = null;
-        SizeCommitted?.Invoke(
+        ResizeCompleted?.Invoke(
             this,
-            new PreviewSizeCommittedEventArgs(
-                Math.Abs(_root.Width - _dragStartWidth) >= 0.5));
+            new PreviewResizeDragEventArgs(
+                _activeResizeCorner,
+                _lastHorizontalChange,
+                _lastVerticalChange,
+                eventArgs.Canceled));
     }
 
-    /// <summary>
-    /// 把握把移到視窗實際會長大的那一側。
-    /// </summary>
-    /// <remarks>
-    /// 視窗貼在錨點左側時，平台釘住的是它的右邊界，加寬會往左長。
-    /// 這時把握把留在右下角，使用者往右拖曳卻看到左邊界往外跑，
-    /// 那正是「拖拉方向跟生長方向相反」的來源。
-    /// </remarks>
-    public void SetGripSide(bool onLeft)
+    private void OnResizeDoubleClick(object sender, MouseButtonEventArgs eventArgs)
     {
-        if (_gripOnLeft == onLeft)
-        {
-            return;
-        }
-
-        _gripOnLeft = onLeft;
-        _resize.HorizontalAlignment = onLeft ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        _resize.Cursor = onLeft ? Cursors.SizeNESW : Cursors.SizeNWSE;
-        _resize.RenderTransform = onLeft
-            ? new ScaleTransform(-1, 1, 8, 8)
-            : Transform.Identity;
-        _status.Margin = onLeft ? new Thickness(24, 0, 14, 6) : new Thickness(14, 0, 24, 6);
-    }
-
-    /// <summary>
-    /// 設定拖曳與顯示都必須遵守的可用範圍；即使範圍小於一般最小尺寸也不得溢出。
-    /// </summary>
-    public void SetResizeLimits(double availableWidth, double availableHeight)
-    {
-        _maximumResizeWidth = NormalizeMaximum(
-            availableWidth,
-            SqlAssistLimits.MaximumPreviewWidth);
-        _maximumResizeHeight = NormalizeMaximum(
-            availableHeight,
-            SqlAssistLimits.MaximumPreviewHeight);
+        eventArgs.Handled = true;
+        _status.Text = "已重設目前擺放方式的預覽尺寸。";
+        SizeResetRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>視窗剛掛上去時淡入一次；換選取時不重播，那會變成閃爍。</summary>
@@ -889,48 +943,6 @@ internal sealed class SqlStructurePreviewControl : UserControl
         }
 
         return tab.Content is DataGrid grid && grid.SelectedCells.Count > 0;
-    }
-
-    /// <summary>
-    /// 套用尺寸，但不超過編輯器目前看得到的範圍。
-    /// </summary>
-    /// <remarks>
-    /// 每次顯示都從設定值重新算，而不是把現有寬度再壓一次：
-    /// 後者會讓視窗在一個窄的查詢視窗裡被縮小之後，換到寬的視窗也長不回來。
-    /// </remarks>
-    public void ApplySize(double width, double height, double availableWidth, double availableHeight)
-    {
-        SetResizeLimits(availableWidth, availableHeight);
-
-        _root.Width = ConstrainDimension(
-            width,
-            SqlAssistLimits.MinimumPreviewWidth,
-            _maximumResizeWidth);
-        _root.Height = ConstrainDimension(
-            height,
-            SqlAssistLimits.MinimumPreviewHeight,
-            _maximumResizeHeight);
-    }
-
-    private static double ConstrainDimension(double requested, double minimum, double maximum)
-    {
-        // 可用範圍比一般最小值還窄時，邊界安全優先，不能退回一個會溢出的尺寸。
-        return Clamp(requested, Math.Min(minimum, maximum), maximum);
-    }
-
-    private static double NormalizeMaximum(double available, double absoluteMaximum)
-    {
-        if (double.IsNaN(available) || double.IsInfinity(available) || available <= 0)
-        {
-            return absoluteMaximum;
-        }
-
-        return Math.Min(available, absoluteMaximum);
-    }
-
-    private static double Clamp(double value, double minimum, double maximum)
-    {
-        return Math.Min(Math.Max(value, minimum), maximum);
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs eventArgs)
@@ -1029,8 +1041,30 @@ internal sealed class SqlStructurePreviewControl : UserControl
         return button;
     }
 
+    private Thumb CreateResizeThumb(PreviewResizeCorner corner)
+    {
+        var thumb = new Thumb
+        {
+            Width = 16,
+            Height = 16,
+            Tag = corner,
+            Focusable = false,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Template = CreateResizeGripTemplate(),
+            ToolTip = "拖曳這一側調整寬高；雙擊重設目前擺放方式的尺寸"
+        };
+        AutomationProperties.SetName(
+            thumb,
+            corner == PreviewResizeCorner.BottomLeft ? "左下角調整大小" : "右下角調整大小");
+        thumb.DragStarted += OnResizeDragStarted;
+        thumb.DragDelta += OnResizeDragDelta;
+        thumb.DragCompleted += OnResizeDragCompleted;
+        thumb.MouseDoubleClick += OnResizeDoubleClick;
+        return thumb;
+    }
+
     /// <summary>
-    /// 右下角的縮放握把。
+    /// 左右兩側、上下落點共用的縮放握把。
     /// </summary>
     /// <remarks>
     /// 自己畫三條斜線而不是用 <see cref="ResizeGrip"/>：後者的預設樣式假設自己在

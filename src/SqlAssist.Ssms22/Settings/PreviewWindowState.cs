@@ -21,18 +21,25 @@ internal static class PreviewWindowState
     private const string WidthProperty = "Width";
     private const string StackedWidthProperty = "StackedWidth";
     private const string HeightProperty = "Height";
+    private const string BesideWidthProperty = "BesideWidth";
+    private const string BesideHeightProperty = "BesideHeight";
+    private const string StackedHeightProperty = "StackedHeight";
+    private const string SchemaVersionProperty = "SchemaVersion";
+    private const int CurrentSchemaVersion = 2;
 
     private static WritableSettingsStore? _store;
     private static bool _storeResolved;
 
-    public static double Width { get; private set; } = SqlAssistLimits.DefaultPreviewWidth;
+    public static double BesideWidth { get; private set; } = SqlAssistLimits.DefaultPreviewWidth;
+
+    public static double BesideHeight { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
 
     /// <summary>
     /// 使用者為上下擺放拖出的寬度；null 代表仍採用「延伸到編輯器右側」的自動寬度。
     /// </summary>
     public static double? StackedWidth { get; private set; }
 
-    public static double Height { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
+    public static double StackedHeight { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
 
     /// <summary>
     /// 從存放區載入上次的尺寸。必須在 UI 執行緒上呼叫。
@@ -44,56 +51,103 @@ internal static class PreviewWindowState
             return;
         }
 
+        // 讀不到就用預設尺寸；預覽視窗開得出來比記得上次的大小重要。
+        var store = SqlAssistPlatformGuard.Probe<WritableSettingsStore?>(
+            "取得預覽視窗尺寸存放區",
+            () => new ShellSettingsManager(serviceProvider)
+                .GetWritableSettingsStore(SettingsScope.UserSettings),
+            fallback: null);
+        if (store is null)
+        {
+            // 套件初始化早期服務可能尚未就緒；不要把一次暫時失敗變成整個工作階段不再重試。
+            return;
+        }
+
+        _store = store;
         _storeResolved = true;
 
-        // 讀不到就用預設尺寸；預覽視窗開得出來比記得上次的大小重要。
-        SqlAssistPlatformGuard.Run("讀取預覽視窗尺寸", () =>
+        var collectionExists = SqlAssistPlatformGuard.Probe(
+            "確認預覽視窗尺寸存放區",
+            () => store.CollectionExists(Collection),
+            fallback: false);
+        if (!collectionExists)
         {
-            var store = new ShellSettingsManager(serviceProvider)
-                .GetWritableSettingsStore(SettingsScope.UserSettings);
+            return;
+        }
 
-            _store = store;
+        // 每一欄分開探測；單一損壞值只回退自己，不能讓其餘三個合法尺寸一起失效。
+        var legacyWidth = ReadInt32(store, WidthProperty, (int)SqlAssistLimits.DefaultPreviewWidth);
+        var legacyHeight = ReadInt32(store, HeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight);
+        BesideWidth = SqlAssistLimits.ClampPreviewWidth(
+            ReadInt32(store, BesideWidthProperty, legacyWidth));
+        BesideHeight = SqlAssistLimits.ClampPreviewHeight(
+            ReadInt32(store, BesideHeightProperty, legacyHeight));
+        StackedHeight = SqlAssistLimits.ClampPreviewHeight(
+            ReadInt32(store, StackedHeightProperty, legacyHeight));
 
-            if (!store.CollectionExists(Collection))
-            {
-                return;
-            }
-
-            Width = SqlAssistLimits.ClampPreviewWidth(
-                store.GetInt32(Collection, WidthProperty, (int)SqlAssistLimits.DefaultPreviewWidth));
-
-            // 0 是「尚未手動調過」的哨兵值；舊版沒有這個欄位時也會自然進入自動模式。
-            var stackedWidth = store.GetInt32(Collection, StackedWidthProperty, 0);
-            StackedWidth = stackedWidth > 0
-                ? SqlAssistLimits.ClampPreviewWidth(stackedWidth)
-                : null;
-
-            Height = SqlAssistLimits.ClampPreviewHeight(
-                store.GetInt32(Collection, HeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight));
-        });
+        // 0 是「尚未手動調過」的哨兵值；舊版沒有這個欄位時也會自然進入自動模式。
+        var stackedWidth = ReadInt32(store, StackedWidthProperty, 0);
+        StackedWidth = stackedWidth > 0
+            ? SqlAssistLimits.ClampPreviewWidth(stackedWidth)
+            : null;
     }
 
     /// <summary>
     /// 記下使用者拖出來的尺寸。
     /// </summary>
-    /// <param name="width"><c>null</c> 代表這次不更新側邊擺放寬度。</param>
-    /// <param name="stackedWidth">
-    /// <c>null</c> 代表這次沒有水平拖曳，不把自動寬度誤記成使用者偏好。
-    /// </param>
-    public static void Save(double? width, double? stackedWidth, double height)
+    /// <remarks>只傳入實際改動的軸；空間不足造成的有效尺寸不得污染偏好。</remarks>
+    public static void Save(
+        SqlPreviewPlacement placement,
+        double? width,
+        double? height)
     {
-        if (width is { } newWidth)
+        if (placement == SqlPreviewPlacement.Stacked)
         {
-            Width = SqlAssistLimits.ClampPreviewWidth(newWidth);
+            if (width is { } newStackedWidth)
+            {
+                StackedWidth = SqlAssistLimits.ClampPreviewWidth(newStackedWidth);
+            }
+
+            if (height is { } newStackedHeight)
+            {
+                StackedHeight = SqlAssistLimits.ClampPreviewHeight(newStackedHeight);
+            }
+        }
+        else
+        {
+            if (width is { } newBesideWidth)
+            {
+                BesideWidth = SqlAssistLimits.ClampPreviewWidth(newBesideWidth);
+            }
+
+            if (height is { } newBesideHeight)
+            {
+                BesideHeight = SqlAssistLimits.ClampPreviewHeight(newBesideHeight);
+            }
         }
 
-        if (stackedWidth is { } newStackedWidth)
+        Persist();
+    }
+
+    /// <summary>恢復這一種擺放的預設尺寸；stacked 同時回到自動寬度。</summary>
+    public static void Reset(SqlPreviewPlacement placement)
+    {
+        if (placement == SqlPreviewPlacement.Stacked)
         {
-            StackedWidth = SqlAssistLimits.ClampPreviewWidth(newStackedWidth);
+            StackedWidth = null;
+            StackedHeight = SqlAssistLimits.DefaultPreviewHeight;
+        }
+        else
+        {
+            BesideWidth = SqlAssistLimits.DefaultPreviewWidth;
+            BesideHeight = SqlAssistLimits.DefaultPreviewHeight;
         }
 
-        Height = SqlAssistLimits.ClampPreviewHeight(height);
+        Persist();
+    }
 
+    private static void Persist()
+    {
         if (_store is not { } store)
         {
             return;
@@ -103,14 +157,21 @@ internal static class PreviewWindowState
         SqlAssistPlatformGuard.Run("儲存預覽視窗尺寸", () =>
         {
             store.CreateCollection(Collection);
-            store.SetInt32(Collection, WidthProperty, (int)Width);
+            store.SetInt32(Collection, SchemaVersionProperty, CurrentSchemaVersion);
+            store.SetInt32(Collection, BesideWidthProperty, (int)BesideWidth);
+            store.SetInt32(Collection, BesideHeightProperty, (int)BesideHeight);
+            store.SetInt32(Collection, StackedWidthProperty, (int)(StackedWidth ?? 0));
+            store.SetInt32(Collection, StackedHeightProperty, (int)StackedHeight);
 
-            if (StackedWidth is { } savedStackedWidth)
-            {
-                store.SetInt32(Collection, StackedWidthProperty, (int)savedStackedWidth);
-            }
-
-            store.SetInt32(Collection, HeightProperty, (int)Height);
+            // 保留舊欄位，使用者降回舊版時至少仍能沿用主要尺寸。
+            store.SetInt32(Collection, WidthProperty, (int)BesideWidth);
+            store.SetInt32(Collection, HeightProperty, (int)StackedHeight);
         });
     }
+
+    private static int ReadInt32(WritableSettingsStore store, string property, int fallback) =>
+        SqlAssistPlatformGuard.Probe(
+            $"讀取預覽視窗尺寸 {property}",
+            () => store.GetInt32(Collection, property, fallback),
+            fallback);
 }
