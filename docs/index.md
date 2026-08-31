@@ -25,7 +25,7 @@
 | 程式碼片段的格式、合併或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/DefaultSnippets.json`、`SqlSnippetExpansion.cs`、`SqlSnippetMerger.cs`、`SqlSnippetSerializer.cs` |
 | `SELECT *` 展不開或展錯 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardAnalyzer.cs` |
 | 展開後的欄位排版 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardExpansionText.cs` |
-| Tab／Shift+Tab 的行為 | [snippets.md](snippets.md)、[wildcard-expansion.md](wildcard-expansion.md) | `Ssms22/Wildcards/SqlTabCommandHandler.cs` |
+| Tab／Shift+Tab 的行為 | [snippets.md](snippets.md)、[wildcard-expansion.md](wildcard-expansion.md) | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 滑鼠停留提示的內容 | [structure-preview.md](structure-preview.md) | `Ssms22/QuickInfo/SqlQuickInfoContentBuilder.cs` |
 | 浮動預覽的行為或擺放 | [structure-preview.md](structure-preview.md) | `Ssms22/Preview/SqlStructurePreview.cs` |
 | 任何顏色、字型、按鈕樣式 | [structure-preview.md](structure-preview.md) | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
@@ -68,10 +68,10 @@
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
 | `Completion/` | 平台原生非同步 IntelliSense 的來源、排序、提交與重開 | [completion.md](completion.md) |
-| `Editor/` | 編輯器接線、非同步寫回、物件定位、大寫改寫 | [architecture.md](architecture.md) |
+| `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫 | [architecture.md](architecture.md) |
 | `QuickInfo/` | 滑鼠停留提示 | [structure-preview.md](structure-preview.md) |
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
-| `Wildcards/` | Tab 鍵展開與可展開提示 | [wildcard-expansion.md](wildcard-expansion.md) |
+| `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Snippets/` | 片段檔、管理員視窗與原生 Expansion Session | [snippets.md](snippets.md) |
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
 | `Connections/` | 取得 SSMS 查詢視窗的連線 | [metadata.md](metadata.md) |
@@ -97,6 +97,8 @@
 | DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
 | 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
+| 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
+| Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
