@@ -86,6 +86,15 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Shell.15.0.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!--
+      殼層的設定存放區（SettingsScope.Configuration）。只用來讀
+      Languages\Language Services\SQL 的識別碼——那是 pkgdef 合併出來的機碼，
+      SSMS 22 放在私有登錄裡，一般的 Registry API 讀不到。
+    -->
+    <Reference Include="Microsoft.VisualStudio.Settings.15.0">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Settings.15.0.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Shell.Framework">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Shell.Framework.dll</HintPath>
       <Private>false</Private>

@@ -57,7 +57,6 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
-        AddCommand(CommandIds.DisableNativeIntelliSense, DisableNativeIntelliSense);
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
     }
 
@@ -210,6 +209,8 @@ internal sealed class SqlAssistCommands
             $"分類篩選列：{FormatState(settings.ShowCategoryFilters)}\r\n" +
             $"補結構描述／方括號：{FormatState(settings.QualifyObjectNames)}／" +
             $"{FormatState(settings.UseSquareBrackets)}\r\n" +
+            $"只使用 SqlAssist 的清單：{FormatState(settings.SuppressNativeMemberList)}" +
+            $"（實際 {FormatNativeMemberList()}）\r\n" +
             $"SSMS 內建 IntelliSense：{FormatNativeIntelliSense()}\r\n\r\n" +
             $"── 物件結構 ──\r\n" +
             $"滑鼠停留提示：{FormatState(settings.HoverEnabled)}\r\n" +
@@ -275,45 +276,6 @@ internal sealed class SqlAssistCommands
         }
     }
 
-    /// <summary>
-    /// 設定頁上的按鈕：關掉 SSMS 自己的 T-SQL IntelliSense。
-    /// </summary>
-    /// <remarks>
-    /// 兩份建議清單同時出現時會互搶——舊版語言服務會對著已經被換掉的狀態算範圍，
-    /// 於是每退一格就跳一次錯誤。與其在執行期硬把對方的 session 收掉
-    /// （那會連帶收掉自己剛觸發的那一個），不如讓使用者按一次把它關乾淨。
-    ///
-    /// 按下去之後一定要回報結果。這顆按鈕改的是別人分類裡的設定，設定頁上
-    /// 沒有任何一格會跟著變，使用者按完看不出差別，只能當成沒作用。
-    /// 回報前先讀一次寫進去的值：<see cref="SqlAssistSettingsStore.TrySetValue"/>
-    /// 回傳的是「提交有沒有被接受」，不是「那個設定現在是不是 false」。
-    /// </remarks>
-    private void DisableNativeIntelliSense(object? sender, EventArgs eventArgs)
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-
-        var committed = SqlAssistSettingsStore.TrySetValue(
-            SqlAssistMonikers.NativeIntelliSenseEnabled,
-            false);
-        var readBack = SqlAssistSettingsStore.TryGetNativeIntelliSenseEnabled();
-
-        SqlAssistDiagnostics.WriteAlways(
-            $"關閉 SSMS 內建 IntelliSense：提交{(committed ? "成功" : "失敗")}，" +
-            $"讀回 {FormatNativeIntelliSense()}");
-
-        if (committed && readBack == false)
-        {
-            ShowMessage(
-                "已關閉 SSMS 內建的 T-SQL IntelliSense。\r\n" +
-                "已經開著的查詢視窗要關掉重開才會生效。");
-            return;
-        }
-
-        ShowMessage(
-            "無法變更 SSMS 內建的 T-SQL IntelliSense 設定。" +
-            "請在設定視窗搜尋「IntelliSense」手動關閉。");
-    }
-
     private void OpenDiagnosticsLog(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
@@ -344,12 +306,31 @@ internal sealed class SqlAssistCommands
         return enabled ? "啟用" : "停用";
     }
 
+    /// <remarks>
+    /// 建議的狀態是「啟用」：紅色錯誤波浪線與大綱都掛在它底下，關掉它等於
+    /// 連錯誤檢查一起關掉，而互搶的那一半已經由
+    /// <see cref="NativeMemberList"/> 單獨擋掉了。
+    /// </remarks>
     private static string FormatNativeIntelliSense()
     {
         return SqlAssistSettingsStore.TryGetNativeIntelliSenseEnabled() switch
         {
-            true => "啟用（與 SqlAssist 的清單會互相干擾）",
-            false => "停用",
+            true => "啟用（錯誤波浪線與大綱可用）",
+            false => "停用（沒有錯誤波浪線，建議開回來）",
+            null => "讀不到"
+        };
+    }
+
+    /// <summary>設定要的樣子與 SSMS 語言偏好實際的樣子分開顯示。</summary>
+    /// <remarks>
+    /// 兩者不一致就是「寫進去了但沒生效」，那是這個功能唯一會安靜失敗的方式。
+    /// </remarks>
+    private static string FormatNativeMemberList()
+    {
+        return NativeMemberList.TryGetSuppressed() switch
+        {
+            true => "內建清單已擋下",
+            false => "內建清單仍會彈出",
             null => "讀不到"
         };
     }

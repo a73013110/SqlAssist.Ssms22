@@ -75,11 +75,6 @@
         <Strings><ButtonText>顯示診斷狀態</ButtonText></Strings>
       </Button>
 
-      <Button guid="guidSqlAssistCommandSet" id="cmdidDisableNativeIntelliSense" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
-        <CommandFlag>CommandWellOnly</CommandFlag>
-        <Strings><ButtonText>關閉 SSMS 內建的 T-SQL IntelliSense</ButtonText></Strings>
-      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenDiagnosticsLog" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
@@ -104,14 +99,13 @@
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
       <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
-      <!-- 空號 0x0101–0x0104、0x0203–0x0205 是已移除的命令，不回收。 -->
+      <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
       <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
       <IDSymbol name="cmdidOpenSettings" value="0x0201" />
       <IDSymbol name="cmdidRefreshSuggestions" value="0x0202" />
       <IDSymbol name="cmdidShowObjectStructure" value="0x0206" />
-      <IDSymbol name="cmdidDisableNativeIntelliSense" value="0x0207" />
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
     </GuidSymbol>

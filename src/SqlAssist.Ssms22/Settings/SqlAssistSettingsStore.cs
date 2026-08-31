@@ -47,45 +47,67 @@ internal static class SqlAssistSettingsStore
     /// </remarks>
     public static void Initialize(IServiceProvider serviceProvider)
     {
-        if (_reader is not null || serviceProvider is null)
+        if (serviceProvider is null)
         {
             return;
         }
 
-        lock (SyncRoot)
+        // 語言偏好的入口與 Unified Settings 是兩件事，先接上：即使
+        // Unified Settings 缺席、整份設定回退成預設值，那份預設值仍然是
+        // 「只使用 SqlAssist 的建議清單」，還是得推出去。
+        NativeMemberList.Initialize(serviceProvider);
+
+        if (_reader is null)
         {
-            if (_reader is not null)
+            lock (SyncRoot)
             {
-                return;
-            }
-
-            // 設定讀不到不可以讓編輯器開不起來。
-            SqlAssistPlatformGuard.Run("初始化 Unified Settings", () =>
-            {
-                _manager = serviceProvider.GetService(typeof(SVsUnifiedSettingsManager)) as ISettingsManager;
-
-                if (_manager is null)
+                if (_reader is null)
                 {
-                    SqlAssistDiagnostics.WriteAlways(
-                        "取不到 SVsUnifiedSettingsManager，SqlAssist 改用內建預設值執行");
-                    return;
+                    // 設定讀不到不可以讓編輯器開不起來。
+                    SqlAssistPlatformGuard.Run("初始化 Unified Settings", () =>
+                    {
+                        _manager = serviceProvider.GetService(typeof(SVsUnifiedSettingsManager))
+                            as ISettingsManager;
+
+                        if (_manager is null)
+                        {
+                            SqlAssistDiagnostics.WriteAlways(
+                                "取不到 SVsUnifiedSettingsManager，SqlAssist 改用內建預設值執行");
+                            return;
+                        }
+
+                        var reader = _manager.GetReader();
+                        _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
+                        _reader = reader;
+
+                        // 訂閱回呼可能來自任何執行緒；這裡只換掉一個 volatile 欄位，
+                        // 讀取端拿到的永遠是完整的一份快照。
+                        _subscription = reader.SubscribeToChanges(_ => Reload(), SqlAssistMonikers.All);
+                        SqlAssistDiagnostics.WriteAlways("已接上 Unified Settings");
+                    });
                 }
-
-                var reader = _manager.GetReader();
-                _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
-                _reader = reader;
-
-                // 訂閱回呼可能來自任何執行緒；這裡只換掉一個 volatile 欄位，
-                // 讀取端拿到的永遠是完整的一份快照。
-                _subscription = reader.SubscribeToChanges(_ => Reload(), SqlAssistMonikers.All);
-                SqlAssistDiagnostics.WriteAlways("已接上 Unified Settings");
-            });
+            }
         }
+
+        // 每一次都重套，不是只有第一次：這個方法在套件載入與每一個 SQL 編輯器
+        // 建立時都會走到，而那正是「有人在外面把它改回去了」最可能被發現的時機。
+        // 狀態相同時 ApplyFromSettings 不會寫入。
+        NativeMemberList.ApplyFromSettings();
     }
 
-    /// <summary>套件卸載時解除訂閱；訂閱物件活到這裡為止。</summary>
+    /// <summary>
+    /// 套件卸載時解除訂閱；訂閱物件活到這裡為止。
+    /// </summary>
+    /// <remarks>
+    /// 順便把 SSMS 的語言偏好還原。那是唯一一個寫在擴充之外的狀態，
+    /// 而 SSMS 22 的設定 UI 沒有暴露它——不還原的話，解除安裝之後
+    /// 內建清單就永遠不會再彈出來，而且使用者找不到地方改回去。
+    /// 下一次啟動會在套件載入時重新套用，所以還原不會讓設定失效。
+    /// </remarks>
     public static void Shutdown()
     {
+        NativeMemberList.Restore();
+
         lock (SyncRoot)
         {
             _subscription?.Dispose();
@@ -188,6 +210,10 @@ internal static class SqlAssistSettingsStore
         SqlAssistPlatformGuard.Run(
             "重新讀取設定",
             () => _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader)));
+
+        // 其餘設定放著等人來讀就好，只有這一個要推到擴充外面去。
+        // 少了這一行，勾掉「只使用 SqlAssist 的建議清單」要重開 SSMS 才會生效。
+        NativeMemberList.ApplyFromSettings();
     }
 
     /// <summary>

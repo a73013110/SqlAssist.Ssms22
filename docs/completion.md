@@ -35,14 +35,41 @@ Tab   → 提交選取項
 
 ## 與 SSMS 內建 IntelliSense 並存
 
-SSMS 內建的 T-SQL IntelliSense 是舊版語言服務，由它自己的命令篩選器觸發，
-不會因為有新版建議來源就讓位。兩份清單同時活著時，舊版語言服務會對著已經被
-換掉的狀態算範圍，於是每退一格就跳一次「值未落在預期的範圍內。」。
+SSMS 內建的 T-SQL IntelliSense 是舊版語言服務（MPF 的
+`Microsoft.VisualStudio.Package.LanguageService`），由它自己的命令篩選器觸發，
+不會因為有新版建議來源就讓位。兩份清單同時活著時，舊版會對著已經被換掉的狀態
+算範圍，於是每退一格就跳一次「值未落在預期的範圍內。」或「並未將物件參考設定為
+物件的執行個體。」。
 
-**請關閉 SSMS 內建的 T-SQL IntelliSense。**
-設定頁在偵測到它還開著時會顯示警告，旁邊就有一鍵關閉的按鈕；
-也可以自己到設定裡搜尋 `IntelliSense` 關掉
-（moniker 是 `languages.sql.intelliSense.enableIntellisense`）。
+**不要整個關掉它。** 它的總開關 `languages.sql.intelliSense.enableIntellisense`
+底下用 `enableWhen` 掛著 `underlineErrors`（紅色錯誤波浪線）與 `autoOutlining`
+——關掉總開關等於連錯誤檢查一起關掉，而錯誤檢查是這個擴充完全沒有提供的東西。
+換到的是清單不打架，付出的是整份語法檢查，划不來。
+
+要擋的只有「打字時自動彈出的那份清單」，而那是另一個旗標。預設開啟的
+**「只使用 SqlAssist 的建議清單」**（`sqlAssist.suggestions.suppressNativeMemberList`）
+把舊版語言服務的 `LANGPREFERENCES2.fAutoListMembers` 設成 0，其餘一切照舊。
+實作與逐條理由見 `Ssms22/Settings/NativeMemberList`。
+
+分得開是因為決定「要不要把清單畫出來」的那一行讀的就是它。
+`Source.HandleCompletionResponse` 只在下列條件成立時才呼叫 `completionSet.Init`：
+
+```text
+AutoListMembers || reason == CompleteWord || reason == DisplayMemberList
+```
+
+因此關掉之後：打字不再彈出，`Ctrl+Space` 與 `Ctrl+J` 仍然叫得出舊版清單
+（這一段是刻意留著的缺口，兩邊都會回應），而波浪線走的是另一條路——
+`Source.OnIdle` 到 `BeginParse(ParseReason.Check)`——完全不看這個旗標。
+
+順帶收掉的是 `RadLangSvc.Source.OnCommand` 裡「Backspace／Delete 時重新篩選舊版
+清單」那一段：它只在清單顯示中才執行，而那正是刪字元時跳錯誤對話框的來源。
+
+三件事讓這條路可靠：`HandleCompletionResponse` 是 internal 且非虛擬，RadLangSvc
+覆寫不了；它的 `LanguagePreferences` 子類別（`SqlIntelliSenseSettings`）也沒有覆寫
+`AutoListMembers`；而 `LanguagePreferences` 實作 `IVsTextManagerEvents2`，所以寫下去
+立刻生效，不必重開查詢視窗——`enableIntellisense` 是在 `RadLangSvc.Source` 的建構式
+裡抓進欄位的，那個才需要重開。
 
 早期版本改用執行期硬關對方 session 的做法，但在 SSMS 22 兩條管線共用同一條
 命令鏈，整批關掉會連帶收掉自己剛觸發的那一個，反而讓清單完全不出現。

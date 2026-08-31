@@ -28,6 +28,7 @@ public static class SqlAssistMonikers
     public const string WildcardLayout = "sqlAssist.general.wildcardLayout";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
+    public const string SuppressNativeMemberList = "sqlAssist.suggestions.suppressNativeMemberList";
     public const string TriggerAfterCharacters = "sqlAssist.suggestions.triggerAfterCharacters";
     public const string IncludeSnippets = "sqlAssist.suggestions.includeSnippets";
     public const string IncludeDatabaseObjects = "sqlAssist.suggestions.includeDatabaseObjects";
@@ -47,10 +48,15 @@ public static class SqlAssistMonikers
     /// SSMS 內建 T-SQL IntelliSense 的總開關。
     /// </summary>
     /// <remarks>
-    /// 由 SSMS 自己的 <c>RadLangSvc.registration.json</c> 註冊，不是我們的設定。
-    /// 兩份建議清單同時出現時會互搶，設定頁的警告訊息與「關閉 SSMS 內建的
-    /// T-SQL IntelliSense」命令都指向它。前綴不是 <see cref="Category"/>，
-    /// 所以不會被 <see cref="All"/> 收進去——本來就不該訂閱別人的設定。
+    /// 由 SSMS 自己的 <c>RadLangSvc.registration.json</c> 註冊，不是我們的設定，
+    /// 前綴也不是 <see cref="Category"/>，所以不會被 <see cref="All"/> 收進去——
+    /// 本來就不該訂閱別人的設定。
+    ///
+    /// 這個擴充<b>不會</b>去動它，只讀來顯示在診斷狀態裡。它是總開關：
+    /// 同一份註冊檔裡的 <c>underlineErrors</c>（紅色錯誤波浪線）與
+    /// <c>autoOutlining</c> 都以 <c>enableWhen</c> 掛在它底下，關掉它等於
+    /// 連錯誤檢查一起關掉。要擋的只是它自動彈出的那份清單，那走
+    /// <see cref="SuppressNativeMemberList"/>。
     /// </remarks>
     public const string NativeIntelliSenseEnabled = "languages.sql.intelliSense.enableIntellisense";
 
