@@ -8,6 +8,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
 
@@ -151,12 +152,17 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 
         // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
         var snippetCaret = -1;
+        string? snippetText = null;
 
         if (snippet is not null)
         {
-            var expanded = snippet.Expand(out var caretOffset);
+            // 多行片段要跟著這份檔案的換行。用 Expansion 的原文會把 LF 直接插進
+            // 一份 CRLF 的指令碼裡，而混合換行不會報錯，只會讓下一次 diff 整段變紅。
+            snippetText = snippet.Expansion.GetText(
+                SnapshotNewLine.Resolve(snapshot, span.Start.Position),
+                out var caretOffset);
 
-            if (caretOffset != expanded.Length)
+            if (caretOffset != snippetText.Length)
             {
                 snippetCaret = caretOffset;
             }
@@ -168,7 +174,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             return CommitResult.Unhandled;
         }
 
-        var insertionText = SqlInsertionText.Build(suggestion, context, settings);
+        var insertionText = snippetText ?? SqlInsertionText.Build(suggestion, context, settings);
         var insertionStart = span.Start.Position;
         ITextSnapshot applied;
 

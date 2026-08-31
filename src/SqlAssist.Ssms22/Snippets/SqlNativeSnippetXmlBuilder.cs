@@ -13,25 +13,33 @@ namespace SqlAssist.Ssms22.Snippets;
 internal static class SqlNativeSnippetXmlBuilder
 {
     private const string Namespace = "http://schemas.microsoft.com/VisualStudio/2005/CodeSnippet";
+
+    /// <summary>
+    /// 每一筆片段的 XML 只組一次。
+    /// </summary>
+    /// <remarks>
+    /// 鍵是不可變的片段本身，所以整份清單換掉時快取跟著回收，不必手動失效。
+    /// 刻意在提交時才組：預先替 36 筆各組兩份（CRLF 與 LF）是替使用者這一輩子
+    /// 可能只用兩三筆的東西付錢，而組一份 1KB 字串的成本，比接著要做的
+    /// MSXML DOM 建立與 COM 呼叫小上好幾個數量級。
+    /// </remarks>
     private static readonly ConditionalWeakTable<SqlSnippet, CachedXml> Cache = new();
 
-    /// <summary>在候選目錄重建時先算好字串，提交按鍵只付一次 MSXML DOM 成本。</summary>
-    public static void Prepare(SqlSnippet snippet)
-    {
-        if (snippet.ExpansionMode == SqlSnippetExpansionMode.TabStops)
-        {
-            _ = Cache.GetValue(snippet, Build).CrLf;
-        }
-    }
+    private static readonly ConditionalWeakTable<SqlSnippet, CachedXml>.CreateValueCallback CreateCache =
+        snippet => new CachedXml(snippet);
+
+    /// <summary>
+    /// MSXML 的型別；<c>GetTypeFromProgID</c> 會查登錄，不必每次提交都付。
+    /// </summary>
+    private static readonly Lazy<Type> DocumentType = new(
+        () => Type.GetTypeFromProgID("Msxml2.DOMDocument.6.0", throwOnError: false)
+            ?? Type.GetTypeFromProgID("Msxml2.DOMDocument", throwOnError: true)!,
+        isThreadSafe: true);
 
     public static SqlNativeSnippetDom CreateNode(SqlSnippet snippet, string newLine)
     {
-        var cached = Cache.GetValue(snippet, Build);
-        var xml = string.Equals(newLine, "\n", StringComparison.Ordinal)
-            ? cached.Lf
-            : cached.CrLf;
-        var documentType = Type.GetTypeFromProgID("Msxml2.DOMDocument.6.0", throwOnError: false)
-            ?? Type.GetTypeFromProgID("Msxml2.DOMDocument", throwOnError: true)!;
+        var xml = Cache.GetValue(snippet, CreateCache).For(newLine);
+        var documentType = DocumentType.Value;
         var document = Activator.CreateInstance(documentType)
             ?? throw new InvalidOperationException("無法建立 MSXML DOMDocument。");
         var transferred = false;
@@ -88,22 +96,12 @@ internal static class SqlNativeSnippetXmlBuilder
         }
     }
 
-    internal static string GetXml(SqlSnippet snippet, string newLine = "\r\n")
-    {
-        var cached = Cache.GetValue(snippet, Build);
-        return string.Equals(newLine, "\n", StringComparison.Ordinal) ? cached.Lf : cached.CrLf;
-    }
+    internal static string GetXml(SqlSnippet snippet, string newLine = "\r\n") =>
+        Cache.GetValue(snippet, CreateCache).For(newLine);
 
-    private static CachedXml Build(SqlSnippet snippet)
+    private static string BuildXml(SqlSnippet snippet, string newLine)
     {
         var expansion = snippet.Expansion;
-        return new CachedXml(
-            BuildXml(snippet, expansion, "\r\n"),
-            BuildXml(snippet, expansion, "\n"));
-    }
-
-    private static string BuildXml(SqlSnippet snippet, SqlSnippetExpansion expansion, string newLine)
-    {
         var xml = new StringBuilder(snippet.Code.Length + 512);
         xml.Append("<CodeSnippets xmlns=\"").Append(Namespace).Append("\">");
         xml.Append("<CodeSnippet Format=\"1.0.0\"><Header><Title>");
@@ -158,17 +156,28 @@ internal static class SqlNativeSnippetXmlBuilder
         }
     }
 
+    /// <summary>一筆片段的 XML，兩種換行各自在第一次要到時才組。</summary>
+    /// <remarks>
+    /// 一份指令碼只會用到其中一種，另一種通常一輩子不會被要。沒有加鎖：
+    /// 提交都在 UI 執行緒上，就算真的重入，兩邊算出來的也是同一個字串。
+    /// </remarks>
     private sealed class CachedXml
     {
-        public CachedXml(string crLf, string lf)
+        private readonly SqlSnippet _snippet;
+        private string? _crLf;
+        private string? _lf;
+
+        public CachedXml(SqlSnippet snippet)
         {
-            CrLf = crLf;
-            Lf = lf;
+            _snippet = snippet;
         }
 
-        public string CrLf { get; }
-
-        public string Lf { get; }
+        public string For(string newLine)
+        {
+            return string.Equals(newLine, "\n", StringComparison.Ordinal)
+                ? _lf ??= BuildXml(_snippet, "\n")
+                : _crLf ??= BuildXml(_snippet, "\r\n");
+        }
     }
 
     private static void ReleaseComObject(object value)
