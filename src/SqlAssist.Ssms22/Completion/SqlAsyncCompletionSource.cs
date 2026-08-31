@@ -397,12 +397,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             if (!ReferenceEquals(_builtInSnippets, snippets))
             {
                 _builtIn = BuiltInSuggestionCatalog.Create(snippets);
-
-                foreach (var snippet in snippets.Snippets)
-                {
-                    SqlNativeSnippetXmlBuilder.Prepare(snippet);
-                }
-
                 _builtInSnippets = snippets;
             }
 
