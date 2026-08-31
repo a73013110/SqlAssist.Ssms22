@@ -12,6 +12,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Wildcards;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -22,8 +23,8 @@ namespace SqlAssist.Ssms22.Completion;
 /// <remarks>
 /// 建議清單本身的 Tab／Enter／上下鍵完全由平台處理，這裡不介入——
 /// 只有預覽視窗是自己的承載視窗，平台不知道它存在，才需要接手按鍵。
-/// 清單沒開著時的 Tab 由 <see cref="Completion.SqlWildcardCommandHandler"/> 接，
-/// 那是另一件事：把選取清單裡的 <c>*</c> 展開成欄位。
+/// 清單沒開著時的 Tab 由 <see cref="SqlTabCommandHandler"/> 接，
+/// 它集中處理 Snippet 欄位與萬用字元的優先順序。
 ///
 /// 這些方法都在按鍵路徑上，由編輯器的命令系統直接呼叫。
 /// <b>任何一個丟出例外，使用者按一次鍵就會看到一次錯誤對話框</b>，
@@ -81,8 +82,21 @@ internal sealed class SqlAssistCompletionCommandHandler :
     {
         return SqlAssistPlatformGuard.Run(
             "處理 Esc 按鍵",
-            () => SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview
-                && preview.Collapse(),
+            () =>
+            {
+                if (Broker.GetSession(args.TextView) is not null)
+                {
+                    return false;
+                }
+
+                if (SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview &&
+                    preview.Collapse())
+                {
+                    return true;
+                }
+
+                return SqlSnippetExpansionController.Peek(args.TextView)?.EndForEscape() == true;
+            },
             fallback: false);
     }
 
@@ -180,10 +194,18 @@ internal sealed class SqlAssistCompletionCommandHandler :
     {
         SqlAssistPlatformGuard.Run(
             "處理 TypeChar 按鍵",
-            () => SqlKeywordCasing.ApplyBeforeTypedCharacter(
-                args.TextView,
-                args.SubjectBuffer,
-                args.TypedChar));
+            () =>
+            {
+                // 自動大寫是 Snippet Engine 之外的緩衝區編輯，欄位 session 開著時
+                // 暫停它，避免欄位標記或同名欄位同步被外部修改打斷。
+                if (SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession != true)
+                {
+                    SqlKeywordCasing.ApplyBeforeTypedCharacter(
+                        args.TextView,
+                        args.SubjectBuffer,
+                        args.TypedChar);
+                }
+            });
 
         if (!SqlCompletionContextAnalyzer.IsIdentifierCharacter(args.TypedChar))
         {

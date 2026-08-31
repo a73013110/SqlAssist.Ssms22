@@ -62,7 +62,7 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.suggestions.triggerAfterCharacters</summary>
     public int TriggerAfterCharacters { get; init; } = SqlAssistLimits.DefaultTriggerCharacters;
 
-    /// <summary>sqlAssist.suggestions.includeSnippets：ssf、ap、af 這三個程式碼片段。</summary>
+    /// <summary>sqlAssist.suggestions.includeSnippets：內建與使用者自訂的程式碼片段。</summary>
     public bool IncludeSnippets { get; init; } = true;
 
     /// <summary>

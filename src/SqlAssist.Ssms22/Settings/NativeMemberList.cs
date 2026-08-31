@@ -1,8 +1,6 @@
 using System;
 using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Settings;
 using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Settings;
 using Microsoft.VisualStudio.TextManager.Interop;
 using SqlAssist.Ssms22;
 
@@ -43,23 +41,9 @@ namespace SqlAssist.Ssms22.Settings;
 /// </remarks>
 internal static class NativeMemberList
 {
-    /// <summary>
-    /// SSMS T-SQL 語言服務的識別碼，取自 <c>RadLangSvc.pkgdef</c> 的
-    /// <c>Languages\Language Services\SQL</c>。
-    /// </summary>
-    /// <remarks>
-    /// 只當備援：實際值優先向殼層問一次，SSMS 換掉語言服務時跟得上。
-    /// 兩邊都不對時，寫進去的偏好沒有人讀，不會有副作用。
-    /// </remarks>
-    private static readonly Guid FallbackLanguageService = new("c4d96929-a9b0-42cc-b3e0-adac0435d7f2");
-
-    /// <summary>殼層設定存放區裡登記語言服務識別碼的位置。</summary>
-    private const string LanguageServiceCollection = @"Languages\Language Services\SQL";
-
     private static readonly object Gate = new();
 
     private static IServiceProvider? _serviceProvider;
-    private static Guid? _languageService;
 
     /// <summary>記下取得殼層服務的入口；重複呼叫只有第一次生效。</summary>
     public static void Initialize(IServiceProvider serviceProvider)
@@ -68,6 +52,8 @@ internal static class NativeMemberList
         {
             _serviceProvider ??= serviceProvider;
         }
+
+        SqlLanguageService.Initialize(serviceProvider);
     }
 
     /// <summary>
@@ -170,7 +156,7 @@ internal static class NativeMemberList
 
         // guidLang 是輸入，其餘欄位由殼層填回來；整份讀回來再寫回去，
         // 只改一個欄位，才不會把使用者其他的語言偏好一起改掉。
-        var current = new[] { new LANGPREFERENCES2 { guidLang = ResolveLanguageService() } };
+        var current = new[] { new LANGPREFERENCES2 { guidLang = SqlLanguageService.Resolve() } };
 
         if (ErrorHandler.Failed(manager.GetUserPreferences2(null, null, current, null)))
         {
@@ -182,40 +168,4 @@ internal static class NativeMemberList
         return true;
     }
 
-    private static Guid ResolveLanguageService()
-    {
-        lock (Gate)
-        {
-            return _languageService ??= ReadLanguageService();
-        }
-    }
-
-    private static Guid ReadLanguageService()
-    {
-        if (_serviceProvider is not { } serviceProvider)
-        {
-            return FallbackLanguageService;
-        }
-
-        var declared = SqlAssistPlatformGuard.Probe(
-            "讀取 SQL 語言服務識別碼",
-            () =>
-            {
-                var store = new ShellSettingsManager(serviceProvider)
-                    .GetReadOnlySettingsStore(SettingsScope.Configuration);
-
-                return store.CollectionExists(LanguageServiceCollection)
-                    ? store.GetString(LanguageServiceCollection, string.Empty, string.Empty)
-                    : string.Empty;
-            },
-            fallback: string.Empty);
-
-        if (Guid.TryParse(declared, out var value))
-        {
-            return value;
-        }
-
-        SqlAssistDiagnostics.Write($"SQL 語言服務識別碼改用內建值：{FallbackLanguageService}");
-        return FallbackLanguageService;
-    }
 }

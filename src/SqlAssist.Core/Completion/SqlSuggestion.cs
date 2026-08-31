@@ -13,7 +13,8 @@ public sealed class SqlSuggestion
         bool triggerFollowUp = false,
         string? schemaName = null,
         object? tag = null,
-        SqlKeywordPosition positions = SqlKeywordPosition.Any)
+        SqlKeywordPosition positions = SqlKeywordPosition.Any,
+        bool isDestructive = false)
     {
         DisplayText = displayText;
         InsertionText = insertionText;
@@ -24,6 +25,7 @@ public sealed class SqlSuggestion
         SchemaName = schemaName;
         Tag = tag;
         Positions = positions;
+        IsDestructive = isDestructive;
     }
 
     public string DisplayText { get; }
@@ -50,9 +52,11 @@ public sealed class SqlSuggestion
     /// 這筆建議可以出現的位置。
     /// </summary>
     /// <remarks>
-    /// 只有關鍵字會收斂到特定位置；資料庫物件與 Snippet 一律是
-    /// <see cref="SqlKeywordPosition.Any"/>，它們的過濾走
+    /// 關鍵字、內建函式與 Snippet 會收斂到特定位置；資料庫物件的過濾走
     /// <see cref="CompletionTarget"/> 那條路。
     /// </remarks>
     public SqlKeywordPosition Positions { get; }
+
+    /// <summary>沒有輸入前綴時不主動顯示的危險項目。</summary>
+    public bool IsDestructive { get; }
 }

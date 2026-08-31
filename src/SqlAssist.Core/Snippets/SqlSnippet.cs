@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Snippets;
 
@@ -38,6 +39,7 @@ public sealed class SqlSnippet
 {
     /// <summary>游標定位標記；展開後游標停在這裡，標記本身不會留在文字裡。</summary>
     public const string CaretMarker = "$end$";
+    private readonly Lazy<SqlSnippetExpansion> _expansion;
 
     public SqlSnippet(
         string shortcut,
@@ -45,15 +47,33 @@ public sealed class SqlSnippet
         string title = "",
         string description = "",
         bool triggerFollowUp = false,
-        IReadOnlyList<SqlSnippetPlaceholder>? placeholders = null)
+        IReadOnlyList<SqlSnippetPlaceholder>? placeholders = null,
+        string id = "",
+        SqlSnippetCategory category = SqlSnippetCategory.Other,
+        bool isDestructive = false,
+        SqlSnippetExpansionMode expansionMode = SqlSnippetExpansionMode.Caret,
+        SqlKeywordPosition positions = SqlKeywordPosition.Any)
     {
+        Id = id ?? string.Empty;
         Shortcut = shortcut ?? string.Empty;
         Code = code ?? string.Empty;
         Title = string.IsNullOrWhiteSpace(title) ? Shortcut : title;
         Description = description ?? string.Empty;
-        TriggerFollowUp = triggerFollowUp;
         Placeholders = placeholders ?? Array.Empty<SqlSnippetPlaceholder>();
+        Category = category;
+        IsDestructive = isDestructive;
+        ExpansionMode = expansionMode == SqlSnippetExpansionMode.TabStops && Placeholders.Count == 0
+            ? SqlSnippetExpansionMode.Caret
+            : expansionMode;
+        TriggerFollowUp = ExpansionMode == SqlSnippetExpansionMode.Caret && triggerFollowUp;
+        Positions = positions == SqlKeywordPosition.None ? SqlKeywordPosition.Any : positions;
+        _expansion = new Lazy<SqlSnippetExpansion>(
+            () => SqlSnippetExpansion.Create(this),
+            isThreadSafe: true);
     }
+
+    /// <summary>跨版本不變的識別碼；內建片段的捷徑即使改名也靠它套用 override。</summary>
+    public string Id { get; }
 
     /// <summary>輸入這串字就會展開；大小寫不敏感，整份清單裡必須唯一。</summary>
     public string Shortcut { get; }
@@ -82,6 +102,19 @@ public sealed class SqlSnippet
 
     public IReadOnlyList<SqlSnippetPlaceholder> Placeholders { get; }
 
+    public SqlSnippetCategory Category { get; }
+
+    /// <summary>危險片段在沒有輸入前綴時不主動顯示。</summary>
+    public bool IsDestructive { get; }
+
+    public SqlSnippetExpansionMode ExpansionMode { get; }
+
+    /// <summary>片段可以出現的 SQL 文法位置。</summary>
+    public SqlKeywordPosition Positions { get; }
+
+    /// <summary>同一筆不可變片段只剖析一次，Completion 與原生 XML 共用結果。</summary>
+    public SqlSnippetExpansion Expansion => _expansion.Value;
+
     /// <summary>
     /// 把佔位符換成預設值、移除游標標記之後的文字，以及游標該落在哪裡。
     /// </summary>
@@ -91,22 +124,8 @@ public sealed class SqlSnippet
     /// </remarks>
     public string Expand(out int caretOffset)
     {
-        var text = Code;
-
-        foreach (var placeholder in Placeholders)
-        {
-            text = text.Replace("$" + placeholder.Id + "$", placeholder.DefaultValue);
-        }
-
-        var marker = text.IndexOf(CaretMarker, StringComparison.Ordinal);
-
-        if (marker < 0)
-        {
-            caretOffset = text.Length;
-            return text;
-        }
-
-        caretOffset = marker;
-        return text.Remove(marker, CaretMarker.Length);
+        var expansion = Expansion;
+        caretOffset = expansion.CaretOffset;
+        return expansion.Text;
     }
 }

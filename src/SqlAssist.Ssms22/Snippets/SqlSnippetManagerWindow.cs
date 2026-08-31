@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.UI;
@@ -27,11 +28,18 @@ namespace SqlAssist.Ssms22.Snippets;
 /// </remarks>
 internal sealed class SnippetDraft : INotifyPropertyChanged
 {
+    private string _id = SqlSnippetIdentity.NewCustomId();
     private string _shortcut = string.Empty;
     private string _title = string.Empty;
     private string _description = string.Empty;
     private string _code = string.Empty;
     private bool _triggerFollowUp;
+    private SqlSnippetCategory _category = SqlSnippetCategory.Other;
+    private bool _isDestructive;
+    private SqlSnippetExpansionMode _expansionMode = SqlSnippetExpansionMode.TabStops;
+    private SqlKeywordPosition _positions = SqlKeywordPosition.Any;
+    private bool _isCustomized;
+    private bool _isDisabled;
 
     public SnippetDraft()
     {
@@ -39,11 +47,16 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
 
     public SnippetDraft(SqlSnippet snippet)
     {
+        _id = string.IsNullOrWhiteSpace(snippet.Id) ? SqlSnippetIdentity.NewCustomId() : snippet.Id;
         _shortcut = snippet.Shortcut;
         _title = snippet.Title;
         _description = snippet.Description;
         _code = snippet.Code;
         _triggerFollowUp = snippet.TriggerFollowUp;
+        _category = snippet.Category;
+        _isDestructive = snippet.IsDestructive;
+        _expansionMode = snippet.ExpansionMode;
+        _positions = snippet.Positions;
 
         foreach (var placeholder in snippet.Placeholders)
         {
@@ -51,7 +64,47 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
         }
     }
 
+    public SnippetDraft(SqlSnippetConfigurationEntry entry) : this(entry.Snippet)
+    {
+        IsBuiltIn = entry.IsBuiltIn;
+        _isCustomized = entry.IsCustomized;
+        _isDisabled = entry.IsDisabled;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Id => _id;
+
+    public bool IsBuiltIn { get; private set; }
+
+    public bool IsCustomized
+    {
+        get => _isCustomized;
+        private set
+        {
+            if (Set(ref _isCustomized, value))
+            {
+                Notify(nameof(Caption));
+            }
+        }
+    }
+
+    public bool IsDisabled
+    {
+        get => _isDisabled;
+        set
+        {
+            if (Set(ref _isDisabled, value))
+            {
+                if (IsBuiltIn)
+                {
+                    IsCustomized = true;
+                }
+
+                Notify(nameof(Caption));
+            }
+        }
+    }
 
     public string Shortcut
     {
@@ -102,12 +155,69 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
         set => Set(ref _triggerFollowUp, value);
     }
 
+    public SqlSnippetCategory Category
+    {
+        get => _category;
+        set
+        {
+            if (Set(ref _category, value))
+            {
+                Notify(nameof(Caption));
+            }
+        }
+    }
+
+    public bool IsDestructive
+    {
+        get => _isDestructive;
+        set => Set(ref _isDestructive, value);
+    }
+
+    public SqlSnippetExpansionMode ExpansionMode
+    {
+        get => _expansionMode;
+        set => Set(ref _expansionMode, value);
+    }
+
+    public SqlKeywordPosition Positions
+    {
+        get => _positions;
+        set => Set(ref _positions, value);
+    }
+
     public ObservableCollection<PlaceholderDraft> Placeholders { get; } = new();
 
-    public string Caption =>
-        string.IsNullOrWhiteSpace(Title) || string.Equals(Title, Shortcut, StringComparison.Ordinal)
-            ? Shortcut
-            : $"{Shortcut} — {Title}";
+    public string Caption
+    {
+        get
+        {
+            var title = string.IsNullOrWhiteSpace(Title) ||
+                          string.Equals(Title, Shortcut, StringComparison.Ordinal)
+                ? Shortcut
+                : $"{Shortcut} — {Title}";
+            var caption = $"[{CategoryLabel(Category)}] {title}";
+
+            if (IsDisabled)
+            {
+                return caption + "（已停用）";
+            }
+
+            return IsBuiltIn && IsCustomized ? caption + "（已自訂）" : caption;
+        }
+    }
+
+    private static string CategoryLabel(SqlSnippetCategory category)
+    {
+        return category switch
+        {
+            SqlSnippetCategory.Select => "SELECT",
+            SqlSnippetCategory.Dml => "DML",
+            SqlSnippetCategory.Ddl => "DDL",
+            SqlSnippetCategory.ControlFlow => "流程",
+            SqlSnippetCategory.Clause => "子句",
+            _ => "其他"
+        };
+    }
 
     /// <summary>依程式碼重算佔位符，保留已經設定好的預設值與說明。</summary>
     public void SyncPlaceholders()
@@ -132,7 +242,53 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
             Title.Trim(),
             Description.Trim(),
             TriggerFollowUp,
-            Placeholders.Select(item => item.ToPlaceholder()).ToArray());
+            Placeholders.Select(item => item.ToPlaceholder()).ToArray(),
+            Id,
+            Category,
+            IsDestructive,
+            ExpansionMode,
+            Positions);
+    }
+
+    public void Restore(SqlSnippet definition)
+    {
+        _id = definition.Id;
+        Shortcut = definition.Shortcut;
+        Title = definition.Title;
+        Description = definition.Description;
+        Code = definition.Code;
+        TriggerFollowUp = definition.TriggerFollowUp;
+        Category = definition.Category;
+        IsDestructive = definition.IsDestructive;
+        ExpansionMode = definition.ExpansionMode;
+        Positions = definition.Positions;
+        Placeholders.Clear();
+
+        foreach (var placeholder in definition.Placeholders)
+        {
+            Placeholders.Add(new PlaceholderDraft(placeholder));
+        }
+
+        IsDisabled = false;
+        IsCustomized = false;
+        Notify(nameof(Caption));
+    }
+
+    public void MakeCustomCopy()
+    {
+        _id = SqlSnippetIdentity.NewCustomId();
+        IsBuiltIn = false;
+        IsCustomized = false;
+        IsDisabled = false;
+        Notify(nameof(Caption));
+    }
+
+    public void RefreshCustomization(SqlSnippet definition)
+    {
+        if (IsBuiltIn)
+        {
+            IsCustomized = IsDisabled || !SqlSnippetMerger.AreEquivalent(ToSnippet(), definition);
+        }
     }
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? name = null)
@@ -170,6 +326,19 @@ internal sealed class PlaceholderDraft
     public SqlSnippetPlaceholder ToPlaceholder() => new(Id, DefaultValue ?? string.Empty, ToolTip ?? string.Empty);
 }
 
+internal sealed class Choice<T>
+{
+    public Choice(T value, string label)
+    {
+        Value = value;
+        Label = label;
+    }
+
+    public T Value { get; }
+
+    public string Label { get; }
+}
+
 /// <summary>
 /// Snippet 管理員。
 /// </summary>
@@ -189,10 +358,16 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     private readonly TextBox _titleBox;
     private readonly TextBox _descriptionBox;
     private readonly TextBox _codeBox;
+    private readonly ComboBox _categoryBox;
+    private readonly ComboBox _expansionModeBox;
+    private readonly CheckBox _destructiveBox;
     private readonly CheckBox _followUpBox;
     private readonly DataGrid _placeholderGrid;
     private readonly TextBlock _statusText;
     private readonly StackPanel _editor;
+    private readonly Button _restoreSelectedButton;
+    private readonly Button _saveButton;
+    private readonly bool _isReadOnly;
 
     /// <summary>
     /// 字級與行高。
@@ -219,9 +394,12 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
 
-        foreach (var snippet in SqlSnippetStore.Current.Snippets)
+        var configuration = SqlSnippetStore.Configuration;
+        _isReadOnly = SqlSnippetStore.IsReadOnly;
+
+        foreach (var entry in configuration.Entries)
         {
-            _drafts.Add(new SnippetDraft(snippet));
+            _drafts.Add(new SnippetDraft(entry));
         }
 
         _list = new ListBox
@@ -242,6 +420,23 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _titleBox = SqlAssistChrome.CreateTextBox(Metrics);
         _descriptionBox = SqlAssistChrome.CreateTextBox(Metrics);
 
+        _categoryBox = CreateChoiceBox(
+            new[]
+            {
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Select, "SELECT"),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Dml, "DML"),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Ddl, "DDL"),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.ControlFlow, "流程控制／交易"),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Clause, "查詢子句／其他"),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Other, "其他")
+            });
+        _expansionModeBox = CreateChoiceBox(
+            new[]
+            {
+                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.TabStops, "依序按 Tab 跳轉"),
+                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.Caret, "只移動游標")
+            });
+
         _codeBox = SqlAssistChrome.CreateTextBox(Metrics);
         _codeBox.AcceptsReturn = true;
         _codeBox.AcceptsTab = true;
@@ -259,6 +454,16 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             Padding = default,
             Template = SqlAssistChrome.CreateCheckBoxTemplate()
         };
+        _expansionModeBox.SelectionChanged += (_, _) => UpdateFollowUpAvailability();
+
+        _destructiveBox = new CheckBox
+        {
+            Content = "危險操作（無輸入前綴時隱藏）",
+            Foreground = VsThemeBrushes.ListForeground,
+            Margin = new Thickness(0, 10, 0, 0),
+            Padding = default,
+            Template = SqlAssistChrome.CreateCheckBoxTemplate()
+        };
 
         _placeholderGrid = CreatePlaceholderGrid();
 
@@ -266,6 +471,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _statusText.Margin = new Thickness(0, 0, 12, 0);
 
         _editor = BuildEditor();
+        _restoreSelectedButton = CreateButton("還原此預設", OnRestoreSelected);
+        _saveButton = CreateButton("儲存", OnSave, primary: true);
         Content = BuildLayout();
 
         if (_drafts.Count > 0)
@@ -278,6 +485,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         }
 
         ReportStoreError();
+
+        if (_isReadOnly)
+        {
+            _saveButton.IsEnabled = false;
+        }
     }
 
     private SnippetDraft? Selected => _list.SelectedItem as SnippetDraft;
@@ -348,15 +560,23 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         panel.Children.Add(SqlAssistChrome.CreateLabel("說明", Metrics));
         panel.Children.Add(_descriptionBox);
 
+        panel.Children.Add(SqlAssistChrome.CreateLabel("分類", Metrics));
+        panel.Children.Add(_categoryBox);
+
+        panel.Children.Add(SqlAssistChrome.CreateLabel("展開模式", Metrics));
+        panel.Children.Add(_expansionModeBox);
+
         panel.Children.Add(SqlAssistChrome.CreateLabel("程式碼", Metrics));
         panel.Children.Add(_codeBox);
         panel.Children.Add(SqlAssistChrome.CreateHint(
             "以 $名稱$ 標示佔位符，展開時會換成下面設定的預設值；" +
             "以 $end$ 標示展開後游標要停的位置。", Metrics));
 
+        panel.Children.Add(_destructiveBox);
+
         panel.Children.Add(_followUpBox);
         panel.Children.Add(SqlAssistChrome.CreateHint(
-            "接續清單的內容由展開後的文字決定——程式碼結尾是 FROM 就只列資料表與檢視。",
+            "只適用於「只移動游標」模式；接續內容由展開後的 SQL 上下文決定。",
             Metrics));
 
         panel.Children.Add(SqlAssistChrome.CreateLabel("佔位符", Metrics));
@@ -410,14 +630,14 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         actions.Children.Add(CreateButton("開啟檔案位置", OnRevealFile));
+        actions.Children.Add(_restoreSelectedButton);
         actions.Children.Add(CreateButton("還原預設", OnRestoreDefaults));
 
         var confirm = new StackPanel { Orientation = Orientation.Horizontal };
 
         // 整個視窗只有這一顆按鈕帶底色；主要動作只能有一個，多給一個就沒有主要。
-        var save = CreateButton("儲存", OnSave, primary: true);
-        save.IsDefault = true;
-        confirm.Children.Add(save);
+        _saveButton.IsDefault = true;
+        confirm.Children.Add(_saveButton);
 
         var cancel = CreateButton("取消", (_, _) => Close());
         cancel.IsCancel = true;
@@ -448,6 +668,15 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         return button;
     }
 
+    private static ComboBox CreateChoiceBox<T>(IEnumerable<Choice<T>> choices)
+    {
+        var box = SqlAssistChrome.CreateComboBox(Metrics);
+        box.ItemsSource = choices;
+        box.DisplayMemberPath = nameof(Choice<T>.Label);
+        box.SelectedValuePath = nameof(Choice<T>.Value);
+        return box;
+    }
+
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs eventArgs)
     {
         // 換選取之前先把畫面上的值收回上一筆，否則編輯到一半切走就沒了。
@@ -466,13 +695,17 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _titleBox.Text = draft?.Title ?? string.Empty;
         _descriptionBox.Text = draft?.Description ?? string.Empty;
         _codeBox.Text = draft?.Code ?? string.Empty;
+        _categoryBox.SelectedValue = draft?.Category ?? SqlSnippetCategory.Other;
+        _expansionModeBox.SelectedValue = draft?.ExpansionMode ?? SqlSnippetExpansionMode.Caret;
+        _destructiveBox.IsChecked = draft?.IsDestructive ?? false;
         _followUpBox.IsChecked = draft?.TriggerFollowUp ?? false;
         _placeholderGrid.ItemsSource = draft?.Placeholders;
+        UpdateFollowUpAvailability();
     }
 
     private void PullFromEditor(SnippetDraft? draft)
     {
-        if (draft is null)
+        if (draft is null || draft.IsDisabled)
         {
             return;
         }
@@ -484,7 +717,19 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         draft.Title = _titleBox.Text;
         draft.Description = _descriptionBox.Text;
         draft.Code = _codeBox.Text;
+        draft.Category = _categoryBox.SelectedValue is SqlSnippetCategory category
+            ? category
+            : SqlSnippetCategory.Other;
+        draft.ExpansionMode = _expansionModeBox.SelectedValue is SqlSnippetExpansionMode mode
+            ? mode
+            : SqlSnippetExpansionMode.Caret;
+        draft.IsDestructive = _destructiveBox.IsChecked == true;
         draft.TriggerFollowUp = _followUpBox.IsChecked == true;
+
+        if (draft.IsBuiltIn && SqlSnippetDefaults.Current.TryGetById(draft.Id, out var definition))
+        {
+            draft.RefreshCustomization(definition);
+        }
     }
 
     /// <summary>
@@ -496,13 +741,23 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     /// </remarks>
     private void UpdateEditorEnabled()
     {
-        var enabled = Selected is not null;
+        var enabled = !_isReadOnly && Selected is { IsDisabled: false };
         _editor.IsEnabled = enabled;
         _editor.Opacity = enabled ? 1.0 : 0.4;
+        _restoreSelectedButton.IsEnabled = !_isReadOnly && Selected is
+        {
+            IsBuiltIn: true,
+            IsCustomized: true
+        };
     }
 
     private void OnAdd(object sender, RoutedEventArgs eventArgs)
     {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
         PullFromEditor(Selected);
 
         var draft = new SnippetDraft
@@ -520,6 +775,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private void OnDuplicate(object sender, RoutedEventArgs eventArgs)
     {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
         PullFromEditor(Selected);
 
         if (Selected is not { } source)
@@ -531,6 +791,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         {
             Shortcut = NextShortcut(source.Shortcut)
         };
+        copy.MakeCustomCopy();
 
         _drafts.Add(copy);
         _list.SelectedItem = copy;
@@ -540,20 +801,34 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private void OnDelete(object sender, RoutedEventArgs eventArgs)
     {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
         if (Selected is not { } draft)
         {
             return;
         }
 
+        var action = draft.IsBuiltIn ? "停用" : "刪除";
         var confirmed = MessageBox.Show(
             this,
-            $"要刪除「{draft.Caption}」嗎？",
+            $"要{action}「{draft.Caption}」嗎？",
             "SqlAssist",
             MessageBoxButton.OKCancel,
             MessageBoxImage.Question);
 
         if (confirmed != MessageBoxResult.OK)
         {
+            return;
+        }
+
+        if (draft.IsBuiltIn)
+        {
+            draft.IsDisabled = true;
+            PushToEditor(draft);
+            UpdateEditorEnabled();
             return;
         }
 
@@ -573,9 +848,14 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private void OnRestoreDefaults(object sender, RoutedEventArgs eventArgs)
     {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
         var confirmed = MessageBox.Show(
             this,
-            "要把清單換成內建的 ssf、ap、af 嗎？目前的內容會被取代，按「儲存」之後才會寫回檔案。",
+            "要還原全部 40 筆內建片段並移除自訂片段嗎？按「儲存」之後才會寫回檔案。",
             "SqlAssist",
             MessageBoxButton.OKCancel,
             MessageBoxImage.Warning);
@@ -587,12 +867,36 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         _drafts.Clear();
 
-        foreach (var snippet in SqlSnippetLibrary.CreateDefault().Snippets)
+        foreach (var snippet in SqlSnippetDefaults.Current.Snippets)
         {
-            _drafts.Add(new SnippetDraft(snippet));
+            _drafts.Add(new SnippetDraft(new SqlSnippetConfigurationEntry(
+                snippet,
+                isBuiltIn: true,
+                isCustomized: false,
+                isDisabled: false)));
         }
 
         _list.SelectedIndex = 0;
+        UpdateEditorEnabled();
+    }
+
+    private void OnRestoreSelected(object sender, RoutedEventArgs eventArgs)
+    {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
+        PullFromEditor(Selected);
+
+        if (Selected is not { IsBuiltIn: true } draft ||
+            !SqlSnippetDefaults.Current.TryGetById(draft.Id, out var definition))
+        {
+            return;
+        }
+
+        draft.Restore(definition);
+        PushToEditor(draft);
         UpdateEditorEnabled();
     }
 
@@ -631,6 +935,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private void OnSave(object sender, RoutedEventArgs eventArgs)
     {
+        if (RejectReadOnly())
+        {
+            return;
+        }
+
         PullFromEditor(Selected);
 
         if (!TryBuildLibrary(out var library, out var invalid, out var error))
@@ -666,6 +975,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         foreach (var draft in _drafts)
         {
+            if (draft.IsDisabled)
+            {
+                continue;
+            }
+
             // 逐筆累加而不是最後一次檢查：撞名要指得出是哪一筆，
             // 而「已經收進去的那些」正好就是判斷撞名的依據。
             if (!accumulated.ValidateShortcut(draft.Shortcut?.Trim(), null, out error))
@@ -719,9 +1033,31 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     {
         if (SqlSnippetStore.LastError is { } error)
         {
-            // 檔案讀壞時清單是空的。這裡必須講清楚，否則使用者會以為
-            // 自己的 Snippet 被刪光了，然後按下儲存把空清單寫回去。
+            // 檔案讀壞時畫面仍列內建值，但使用者資料沒有套上；必須講清楚並保持唯讀，
+            // 否則看起來像「自訂項目被刪光」，再存一次就真的覆蓋原檔。
             _statusText.Text = $"讀取檔案時發生問題：{error}";
         }
+    }
+
+    private void UpdateFollowUpAvailability()
+    {
+        var enabled = _expansionModeBox.SelectedValue is SqlSnippetExpansionMode.Caret;
+        _followUpBox.IsEnabled = enabled;
+
+        if (!enabled)
+        {
+            _followUpBox.IsChecked = false;
+        }
+    }
+
+    private bool RejectReadOnly()
+    {
+        if (!_isReadOnly)
+        {
+            return false;
+        }
+
+        _statusText.Text = SqlSnippetStore.LastError ?? "Snippet 檔案目前是唯讀狀態。";
+        return true;
     }
 }

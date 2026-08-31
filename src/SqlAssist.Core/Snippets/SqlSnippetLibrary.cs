@@ -14,14 +14,16 @@ namespace SqlAssist.Core.Snippets;
 public sealed class SqlSnippetLibrary
 {
     /// <summary>檔案格式版本；欄位語意有不相容變動時才加。</summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     private readonly Dictionary<string, SqlSnippet> _byShortcut;
+    private readonly Dictionary<string, SqlSnippet> _byId;
 
     public SqlSnippetLibrary(IReadOnlyList<SqlSnippet> snippets)
     {
         Snippets = snippets ?? Array.Empty<SqlSnippet>();
         _byShortcut = new Dictionary<string, SqlSnippet>(StringComparer.OrdinalIgnoreCase);
+        _byId = new Dictionary<string, SqlSnippet>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var snippet in Snippets)
         {
@@ -31,41 +33,12 @@ public sealed class SqlSnippetLibrary
             {
                 _byShortcut[snippet.Shortcut] = snippet;
             }
+
+            if (!string.IsNullOrWhiteSpace(snippet.Id) && !_byId.ContainsKey(snippet.Id))
+            {
+                _byId[snippet.Id] = snippet;
+            }
         }
-    }
-
-    /// <summary>
-    /// 內建的預設清單。
-    /// </summary>
-    /// <remarks>
-    /// 第一次啟動、或使用者把檔案刪掉時用它建檔。內容等於 0.13 之前寫死在
-    /// <c>BuiltInSuggestionCatalog</c> 裡的那三個，換掉儲存機制不改變預設行為。
-    /// </remarks>
-    public static SqlSnippetLibrary CreateDefault()
-    {
-        return new SqlSnippetLibrary(new[]
-        {
-            new SqlSnippet(
-                "ssf",
-                "SELECT * FROM ",
-                "SELECT * FROM",
-                "SELECT * FROM fragment",
-                triggerFollowUp: true),
-
-            new SqlSnippet(
-                "ap",
-                "ALTER PROCEDURE ",
-                "ALTER PROCEDURE",
-                "ALTER PROCEDURE fragment",
-                triggerFollowUp: true),
-
-            new SqlSnippet(
-                "af",
-                "ALTER FUNCTION ",
-                "ALTER FUNCTION",
-                "ALTER FUNCTION fragment",
-                triggerFollowUp: true)
-        });
     }
 
     public static SqlSnippetLibrary Empty { get; } = new(Array.Empty<SqlSnippet>());
@@ -83,6 +56,17 @@ public sealed class SqlSnippetLibrary
         }
 
         return _byShortcut.TryGetValue(shortcut, out snippet!);
+    }
+
+    public bool TryGetById(string id, out SqlSnippet snippet)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            snippet = null!;
+            return false;
+        }
+
+        return _byId.TryGetValue(id, out snippet!);
     }
 
     /// <summary>新增或以捷徑為鍵取代一筆，回傳新的清單。</summary>

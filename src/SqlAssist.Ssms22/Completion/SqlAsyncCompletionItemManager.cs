@@ -196,7 +196,7 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
 
         foreach (var item in data.InitialSortedItemList)
         {
-            if (IsIncluded(item, selected))
+            if (IsIncluded(item, selected) && !IsDestructiveWithoutPrefix(item, selected))
             {
                 builder.Add(new CompletionItemWithHighlight(item));
             }
@@ -206,6 +206,20 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             builder.ToImmutable(),
             0,
             SqlCompletionFilters.Sort(data.SelectedFilters));
+    }
+
+    private static bool IsDestructiveWithoutPrefix(
+        CompletionItem item,
+        IReadOnlyCollection<CompletionFilter> selected)
+    {
+        // 使用者主動按了分類篩選鈕時照樣列出；只有 Ctrl+Space 的「全部」首頁隱藏。
+        return item.Properties.TryGetProperty<SqlSuggestion>(
+                   SqlAsyncCompletionSource.SuggestionKey,
+                   out var suggestion) &&
+               suggestion is not null &&
+               !SuggestionMatcher.IsVisibleWithoutPrefix(
+                   suggestion,
+                   categorySelected: selected.Count > 0);
     }
 
     /// <summary>使用者按下的分類篩選鈕。</summary>

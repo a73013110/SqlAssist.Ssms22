@@ -50,10 +50,12 @@ internal readonly struct TextReplacement
 internal sealed class TextViewEditCoordinator
 {
     private readonly ITextView _textView;
+    private readonly ITextBuffer _buffer;
 
-    public TextViewEditCoordinator(ITextView textView)
+    public TextViewEditCoordinator(ITextView textView, ITextBuffer? buffer = null)
     {
         _textView = textView ?? throw new ArgumentNullException(nameof(textView));
+        _buffer = buffer ?? textView.TextBuffer;
     }
 
     /// <summary>
@@ -95,7 +97,7 @@ internal sealed class TextViewEditCoordinator
             // 這裡是從背景工作回到 UI 執行緒後執行的，沒有其他人會接這個例外。
             SqlAssistPlatformGuard.Run($"替換{operationName}", () =>
             {
-                var buffer = _textView.TextBuffer;
+                var buffer = _buffer;
                 var target = span.GetSpan(buffer.CurrentSnapshot);
 
                 if (buildReplacement(target) is not { } replacement)
@@ -117,7 +119,20 @@ internal sealed class TextViewEditCoordinator
                     ? replacement.Text.Length
                     : replacement.CaretOffset;
                 var caret = Math.Min(target.Start.Position + offset, updated.Length);
-                _textView.Caret.MoveTo(new SnapshotPoint(updated, caret));
+                var caretPoint = new SnapshotPoint(updated, caret);
+                var viewPoint = ReferenceEquals(updated.TextBuffer, _textView.TextBuffer)
+                    ? caretPoint
+                    : _textView.BufferGraph.MapUpToBuffer(
+                        caretPoint,
+                        PointTrackingMode.Positive,
+                        PositionAffinity.Successor,
+                        _textView.TextBuffer);
+
+                if (viewPoint is { } mapped)
+                {
+                    _textView.Caret.MoveTo(mapped);
+                }
+
                 _textView.Caret.EnsureVisible();
                 SqlAssistRuntimeState.MarkExpansion(replacement.ExpansionLabel);
                 SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);

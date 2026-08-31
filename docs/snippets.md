@@ -1,59 +1,111 @@
 # 程式碼片段
 
-預設有三個，都可以改：
+內建 40 筆 SQL Server 2016 SP1 以上可用的片段；由
+`工具 → SqlAssist → 程式碼片段…` 增刪修，也可以從設定頁進入。
 
-| 輸入 | 展開結果 | 接續行為 |
-|---|---|---|
-| `ssf` | `SELECT * FROM ` | 接著只顯示 Table／View |
-| `ap` | `ALTER PROCEDURE ` | 接著只顯示 Procedure |
-| `af` | `ALTER FUNCTION ` | 接著只顯示 Function |
+| 分類 | 捷徑 |
+|---|---|
+| SELECT | `ssf`、`st100`、`st1`、`ssc`、`sd` |
+| DML | `ii`、`iis`、`ui`、`df`、`mg` |
+| DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`citvf`、`cix`、`at`、`dt`、`ap`、`af` |
+| 流程控制／交易 | `beg`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
+| 查詢子句／其他 | `ij`、`lj`、`ob`、`gb`、`cte`、`sno`、`ptt`、`tt` |
 
-由 `工具 → SqlAssist → 程式碼片段…` 增刪修，也可以從設定頁的「編輯程式碼片段…」進入。
+`cf` 是純量函式、`citvf` 是內嵌資料表值函式。CASE 使用 `cs`，不占用 T-SQL
+關鍵字 `CASE`。`ui`、`df` 與 `mg` 預設含 `1 = 0`，仍必須在執行前檢查條件；
+這些危險片段在沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
 
-程式碼裡可以放兩種標記：
+## 佔位符與 Tab 導航
 
-- `$名稱$` 是佔位符，展開時換成設定的預設值。佔位符清單由程式碼推導，
-  不另外維護——能各自編輯的兩份東西遲早會分岔。
-- `$end$` 標示展開後游標要停的位置，標記本身不會留在文字裡。
+- `$名稱$` 是欄位。集合與 Tab 順序一律由程式碼中的**首次出現順序**推導；
+  `placeholders` 只保存預設值與說明，載入時由 `Reconcile()` 自動自癒。
+- 同名欄位會同步修改。
+- `$end$` 是最後落點，內建片段至多一個。
+- `$selected$` 保留給原生 Expansion Engine；從建議清單展開時通常是空字串。
+- 沒有宣告的 `$名稱$` 與不成標記的 `$` 原樣保留。轉成原生 XML 時，
+  `SqlSnippetExpansion` 會把字面 `$` 轉成 `$$`，不讓引擎誤認成欄位。
 
-「展開後立刻再顯示一次建議清單」控制接續行為。接續清單的**內容**由展開後的文字
-決定，不是由片段本身指定：程式碼結尾落在 `FROM` 後面就只列資料表與檢視。
+`expansionMode` 有兩種：
 
-接續清單由本擴充自己重開，不是交給平台。提交時回報的 `CommitBehavior.Retrigger`
-**在 SSMS 22 上是死的**：編輯器組件裡沒有任何一處讀那個旗標——Enter 與 Tab 只測
-`RaiseFurtherReturnKeyAndTabKeyCommandHandlers`，輸入字元只測
-`SuppressFurtherTypeCharCommandHandlers`。因此 `ssf` 展開成 `SELECT * FROM ` 之後
-畫面就停在那裡，得再多打一個字母才等到清單。重開的做法見下一節。
+| 值 | 行為 |
+|---|---|
+| `tabStops` | 使用 SSMS 原生 Expansion Engine；Tab 下一欄、Shift+Tab 上一欄、最後一次 Tab 到 `$end$` |
+| `caret` | 一次插入完整文字，只把游標移到 `$end$` |
 
-### 儲存格式
+按鍵優先順序只有一份，寫在 `Ssms22/Wildcards/SqlTabCommandHandler`：
 
-存成一份 JSON，路徑是 `%APPDATA%\SqlAssist\snippets.json`，可以直接用編輯器改，
-也可以整份複製到另一台機器。
+1. Completion 清單開著時，Tab／Enter 先提交清單。
+2. Snippet session 開著時，Tab／Shift+Tab 導航欄位。
+3. 沒有 session 時，Tab 才嘗試展開 `SELECT *`。
+4. 都不符合就交回編輯器做一般縮排。
+
+Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 session 中仍是換行：
+先結束欄位追蹤，再交回編輯器。Session 開著時暫停關鍵字自動大寫，避免外部編輯破壞
+原生欄位標記；在欄位內一般輸入仍會照常叫出 Completion。
+
+提交時先讓 Completion session 關閉，再於 Dispatcher Background 呼叫
+`IVsExpansion.InsertSpecificExpansion`。原生 API 不可用且緩衝區尚未改動時，自動退回
+`caret` 模式；若引擎在回報失敗前已經改動文字，禁止再插一次 fallback，以免內容重複。
+
+## 內建值與使用者 override
+
+內建定義只有一份：
+`src/SqlAssist.Core/Snippets/DefaultSnippets.json`，以 Embedded Resource 隨 VSIX 發布。
+不要把 40 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
+
+使用者檔位於 `%APPDATA%\SqlAssist\snippets.json`，v2 只存：
+
+- 修改過的內建項目；
+- `{ "id": "builtin...", "disabled": true }` 的停用紀錄；
+- 使用者新增的完整項目。
+
+檔案不存在代表「完全使用內建值」，不會在第一次啟動時建檔。這讓新版 VSIX 可以直接
+更新未自訂的內建片段。管理介面會標示「已自訂」與「已停用」，並提供「還原此預設」；
+全部還原後寫出的 override 清單是空的。
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "snippets": [
     {
+      "id": "builtin.ssf",
+      "category": "select",
       "shortcut": "ssf",
       "title": "SELECT * FROM",
-      "description": "SELECT * FROM fragment",
-      "triggerFollowUp": true,
-      "code": "SELECT * FROM $table$$end$",
+      "description": "查詢資料表的所有欄位",
+      "expansionMode": "tabStops",
+      "positions": ["StatementStart"],
+      "code": "SELECT *\nFROM [$schema$].[$table$]$end$;",
       "placeholders": [
-        { "id": "table", "default": "", "tooltip": "資料表名稱" }
+        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
+        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
       ]
-    }
+    },
+    { "id": "builtin.dt", "disabled": true }
   ]
 }
 ```
 
-讀取刻意寬容：允許 `//` 註解與尾隨逗號，認不得的欄位略過，壞掉的單一項目跳過。
-整份檔案讀不成 JSON 時退回空清單而**不是**用預設清單覆蓋——使用者的內容還在
-檔案裡，用預設清單蓋掉等於幫他刪光。管理介面會把錯誤原因顯示在下方。
+`category` 是固定集合：`select`、`dml`、`ddl`、`controlFlow`、`clause`、`other`；
+不認得的值落到 `other`。`positions` 重用 `SqlKeywordPosition`，缺席為 `Any`。
+`minimumSqlServerVersion` 不存在：產品下限已固定，為它查詢每條連線的版本只會把資料庫 I/O
+帶進按鍵路徑。
 
-這是 SqlAssist 自己的格式，**與 SSMS 的 `.snippet` XML 不互通**：
-SSMS「程式碼片段管理員」（Ctrl+K, Ctrl+X）裡的內容不會出現在這裡。
+## 遷移、相容與存檔
 
-不放進 Unified Settings 是因為那裡只收 boolean、integer、enum 與 string，
-一份可增刪的清單塞不進去。
+- v1 是完整清單。第一次讀到時，先把原檔備份成
+  `%APPDATA%\SqlAssist\snippets.v1.backup.json`（只寫一次），再與不可修改的 v1
+  三筆凍結快照比較，轉成最小 v2 override。
+- v1 自訂捷徑若在 v2 成為內建捷徑，會轉成該內建 ID 的 override，不產生兩筆撞名項目。
+- `version > 2` 時可以讀已知欄位，但整份進入唯讀模式，避免舊版把新欄位覆蓋掉。
+- v2 保留頂層 `snippets` 鍵並只新增欄位；降回舊版時，舊讀取器至少仍看得到完整 override
+  與自訂項目。
+- 存檔先寫同目錄暫存檔，再用 `File.Replace` 原子置換；目標不存在時才用 `File.Move`。
+- 允許 JSON 註解與尾隨逗號。整份語法壞掉時保留原檔、切成唯讀、顯示錯誤，並繼續提供內建片段。
+
+不使用檔案監看器：清單只在第一次使用時載入並維持穩定參考，管理介面成功存檔才換快照。
+因此按鍵路徑沒有磁碟 I/O，也不會因每次 `Current` 產生新物件而重建整批建議。直接用文字
+編輯器修改 JSON 後，需要重新啟動 SSMS 才會載入。
+
+這是 SqlAssist 自己的格式，與 SSMS「程式碼片段管理員」的 `.snippet` 檔不互相註冊；
+只有提交時把選到的項目轉成記憶體中的原生 XML。
