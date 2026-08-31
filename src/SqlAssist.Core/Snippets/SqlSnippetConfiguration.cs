@@ -31,12 +31,14 @@ public sealed class SqlSnippetConfigurationEntry
         SqlSnippet snippet,
         bool isBuiltIn,
         bool isCustomized,
-        bool isDisabled)
+        bool isDisabled,
+        bool isShadowed = false)
     {
         Snippet = snippet;
         IsBuiltIn = isBuiltIn;
         IsCustomized = isCustomized;
         IsDisabled = isDisabled;
+        IsShadowed = isShadowed;
     }
 
     public SqlSnippet Snippet { get; }
@@ -45,5 +47,20 @@ public sealed class SqlSnippetConfigurationEntry
 
     public bool IsCustomized { get; }
 
+    /// <summary>使用者主動停用；會寫成檔案裡的停用紀錄。</summary>
     public bool IsDisabled { get; }
+
+    /// <summary>
+    /// 捷徑被另一筆優先的項目佔走，因此這一輪不進建議清單。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="IsDisabled"/> 分開的理由：遮住是<b>當下的計算結果</b>，
+    /// 不是使用者的決定。混成同一個狀態時，存檔會替被遮住的內建片段寫下
+    /// 永久的停用紀錄——使用者只是自己建了一個同捷徑的片段，之後把它改名，
+    /// 內建那筆卻再也回不來了。
+    /// </remarks>
+    public bool IsShadowed { get; }
+
+    /// <summary>這一輪要不要出現在建議清單。</summary>
+    public bool IsEffective => !IsDisabled && !IsShadowed;
 }

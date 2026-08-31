@@ -40,6 +40,7 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
     private SqlKeywordPosition _positions = SqlKeywordPosition.Any;
     private bool _isCustomized;
     private bool _isDisabled;
+    private bool _isShadowed;
 
     public SnippetDraft()
     {
@@ -69,6 +70,7 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
         IsBuiltIn = entry.IsBuiltIn;
         _isCustomized = entry.IsCustomized;
         _isDisabled = entry.IsDisabled;
+        _isShadowed = entry.IsShadowed;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -106,6 +108,26 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 捷徑被另一筆優先的項目佔走。
+    /// </summary>
+    /// <remarks>
+    /// 只是這一輪的計算結果，不是使用者的決定，因此不能寫成停用紀錄——
+    /// 改掉撞名的那一筆之後這一筆就會自己回來。改了捷徑就當場解除，
+    /// 使用者才看得出「這樣改就對了」。
+    /// </remarks>
+    public bool IsShadowed
+    {
+        get => _isShadowed;
+        private set
+        {
+            if (Set(ref _isShadowed, value))
+            {
+                Notify(nameof(Caption));
+            }
+        }
+    }
+
     public string Shortcut
     {
         get => _shortcut;
@@ -113,6 +135,9 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
         {
             if (Set(ref _shortcut, value))
             {
+                // 改了捷徑就不再撞名，遮住的狀態當場解除。
+                IsShadowed = false;
+
                 // 清單左欄顯示的是「捷徑 — 標題」，改捷徑要即時反映。
                 Notify(nameof(Caption));
             }
@@ -200,6 +225,11 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
             if (IsDisabled)
             {
                 return caption + "（已停用）";
+            }
+
+            if (IsShadowed)
+            {
+                return caption + "（捷徑被其他片段佔用）";
             }
 
             return IsBuiltIn && IsCustomized ? caption + "（已自訂）" : caption;
@@ -942,7 +972,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         PullFromEditor(Selected);
 
-        if (!TryBuildLibrary(out var library, out var invalid, out var error))
+        if (!TryBuildEntries(out var entries, out var invalid, out var error))
         {
             if (invalid is not null)
             {
@@ -954,53 +984,91 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             return;
         }
 
-        if (!SqlSnippetStore.Save(library!))
+        if (!SqlSnippetStore.Save(entries!))
         {
             _statusText.Text = $"儲存失敗：{SqlSnippetStore.LastError}";
             return;
         }
 
-        SqlAssistDiagnostics.WriteAlways($"Snippet 已更新，共 {library!.Count} 筆");
+        SqlAssistDiagnostics.WriteAlways(
+            $"Snippet 已更新，共 {SqlSnippetStore.Current.Count} 筆生效");
         DialogResult = true;
         Close();
     }
 
-    private bool TryBuildLibrary(
-        out SqlSnippetLibrary? library,
+    /// <summary>
+    /// 把清單裡的每一筆轉成要寫回檔案的項目。
+    /// </summary>
+    /// <remarks>
+    /// 停用的項目也要交出去：內建片段的停用是使用者的決定，必須寫成停用紀錄，
+    /// 否則下一次載入又會回來。被遮住的同樣要交出去——那是計算結果不是決定，
+    /// 漏掉它就等於在檔案裡把它刪掉。
+    /// </remarks>
+    private bool TryBuildEntries(
+        out IReadOnlyList<SqlSnippetConfigurationEntry>? entries,
         out SnippetDraft? invalid,
         out string error)
     {
-        library = null;
-        var accumulated = SqlSnippetLibrary.Empty;
+        entries = null;
+        var result = new List<SqlSnippetConfigurationEntry>(_drafts.Count);
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var draft in _drafts)
         {
-            if (draft.IsDisabled)
+            var shortcut = draft.Shortcut?.Trim() ?? string.Empty;
+
+            if (!draft.IsDisabled)
             {
-                continue;
+                // 逐筆累加而不是最後一次檢查：撞名要指得出是哪一筆，
+                // 而「已經收進去的那些」正好就是判斷撞名的依據。
+                //
+                // 被遮住的項目跳過這一關：它的撞名是手改檔案帶進來的，
+                // 擋在這裡只會讓使用者連別的欄位都存不回去。合併時仍會
+                // 挑出同一個贏家，改掉捷徑就自己解除。
+                if (!draft.IsShadowed && !ValidateShortcut(shortcut, taken, out error))
+                {
+                    invalid = draft;
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(draft.Code))
+                {
+                    invalid = draft;
+                    error = $"「{draft.Caption}」還沒有程式碼。";
+                    return false;
+                }
+
+                taken.Add(shortcut);
             }
 
-            // 逐筆累加而不是最後一次檢查：撞名要指得出是哪一筆，
-            // 而「已經收進去的那些」正好就是判斷撞名的依據。
-            if (!accumulated.ValidateShortcut(draft.Shortcut?.Trim(), null, out error))
-            {
-                invalid = draft;
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(draft.Code))
-            {
-                invalid = draft;
-                error = $"「{draft.Caption}」還沒有程式碼。";
-                return false;
-            }
-
-            accumulated = accumulated.Set(draft.ToSnippet());
+            result.Add(new SqlSnippetConfigurationEntry(
+                draft.ToSnippet(),
+                draft.IsBuiltIn,
+                draft.IsCustomized,
+                draft.IsDisabled,
+                draft.IsShadowed));
         }
 
-        library = accumulated;
+        entries = result;
         invalid = null;
         error = string.Empty;
+        return true;
+    }
+
+    /// <summary>捷徑的格式與唯一性；格式那一條沿用模型的判斷。</summary>
+    private static bool ValidateShortcut(string shortcut, ICollection<string> taken, out string error)
+    {
+        if (!SqlSnippetLibrary.Empty.ValidateShortcut(shortcut, null, out error))
+        {
+            return false;
+        }
+
+        if (taken.Contains(shortcut))
+        {
+            error = $"捷徑「{shortcut}」已經有人用了。";
+            return false;
+        }
+
         return true;
     }
 
