@@ -48,6 +48,27 @@ public sealed class SqlSnippetDefaultsTests
         }
     }
 
+    /// <remarks>
+    /// 這三筆的價值來自連線中繼資料，不是靜態骨架：<c>ap</c> 之後選到程序才會由
+    /// <c>SqlCommitExpander</c> 放進完整定義。改成 Tab Stop 會把這條鏈整個切斷，
+    /// 而症狀只是「清單沒有跳出來」，沒有任何錯誤。
+    /// </remarks>
+    [Theory]
+    [InlineData("ssf", CompletionTarget.DataSource)]
+    [InlineData("ap", CompletionTarget.Procedure)]
+    [InlineData("af", CompletionTarget.Function)]
+    public void 接續片段展開後落在會列出該類物件的位置(string shortcut, CompletionTarget target)
+    {
+        Assert.True(SqlSnippetDefaults.Current.TryGet(shortcut, out var snippet));
+        Assert.Equal(SqlSnippetExpansionMode.Caret, snippet.ExpansionMode);
+        Assert.True(snippet.TriggerFollowUp, shortcut);
+
+        var expanded = snippet.Expand(out var caret);
+
+        Assert.Equal(expanded.Length, caret);
+        Assert.Equal(target, SqlCompletionContextAnalyzer.Analyze(expanded).Target);
+    }
+
     [Fact]
     public void CASE捷徑不與關鍵字撞名()
     {
