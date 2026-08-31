@@ -14,6 +14,19 @@ namespace SqlAssist.Core.Snippets;
 /// </remarks>
 public static class SqlSnippetPlaceholders
 {
+    /// <summary>游標落點標記的名稱；完整標記見 <see cref="SqlSnippet.CaretMarker"/>。</summary>
+    internal const string EndId = "end";
+
+    /// <summary>原生 Expansion Engine 的選取文字標記名稱。</summary>
+    internal const string SelectedId = "selected";
+
+    /// <summary>系統識別字，不能當佔位符 ID。</summary>
+    internal static bool IsReserved(string id) =>
+        IsNamed(id, EndId) || IsNamed(id, SelectedId);
+
+    internal static bool IsNamed(string id, string reserved) =>
+        string.Equals(id, reserved, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// 依出現順序取出程式碼裡的佔位符名稱，重複的只留第一次。
     /// </summary>
@@ -29,54 +42,78 @@ public static class SqlSnippetPlaceholders
             return Array.Empty<string>();
         }
 
-        var names = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<string>? names = null;
+        HashSet<string>? seen = null;
         var index = 0;
 
         while (index < code!.Length)
         {
-            var open = code.IndexOf('$', index);
-
-            if (open < 0 || open + 1 >= code.Length)
+            if (code[index] != '$' || !TryReadMarker(code, index, out var name, out var end))
             {
-                break;
-            }
-
-            var end = open + 1;
-
-            if (!IsNameStart(code[end]))
-            {
-                index = open + 1;
+                index++;
                 continue;
-            }
-
-            end++;
-
-            while (end < code.Length && IsNamePart(code[end]))
-            {
-                end++;
-            }
-
-            if (end >= code.Length || code[end] != '$')
-            {
-                index = open + 1;
-                continue;
-            }
-
-            var name = code.Substring(open + 1, end - open - 1);
-
-            if (!string.Equals(name, "end", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(name, "selected", StringComparison.OrdinalIgnoreCase) &&
-                seen.Add(name))
-            {
-                names.Add(name);
             }
 
             // 從結尾的 $ 之後繼續：$a$$b$ 的第二個佔位符要認得出來。
-            index = end + 1;
+            index = end;
+
+            if (IsReserved(name))
+            {
+                continue;
+            }
+
+            // 大多數片段只有幾個欄位，而沒有欄位的片段完全不必配置。
+            names ??= new List<string>(4);
+            seen ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (seen.Add(name))
+            {
+                names.Add(name);
+            }
         }
 
-        return names;
+        return (IReadOnlyList<string>?)names ?? Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// 讀出 <paramref name="open"/> 起的一個 <c>$名稱$</c> 標記。
+    /// </summary>
+    /// <param name="code">整段程式碼。</param>
+    /// <param name="open">要檢查的位置，必須是一個錢字號。</param>
+    /// <param name="id">標記名稱，讀不成標記時為空字串。</param>
+    /// <param name="end">標記結束的下一個位置；讀不成時無意義。</param>
+    /// <remarks>
+    /// 標記語法只有這一份。<see cref="Extract"/> 與 <see cref="SqlSnippetExpansion"/>
+    /// 一定要走同一個掃描器：兩份各自實作時，症狀是「管理介面列得出這個欄位，
+    /// 展開時卻沒有被取代」，而兩邊看起來都對。
+    ///
+    /// <c>$$</c> 不是標記（名稱不能是空的），因此原樣留給呼叫端當字面錢字號處理。
+    /// </remarks>
+    internal static bool TryReadMarker(string code, int open, out string id, out int end)
+    {
+        id = string.Empty;
+        end = open + 1;
+
+        if (end >= code.Length || !IsNameStart(code[end]))
+        {
+            return false;
+        }
+
+        end++;
+
+        while (end < code.Length && IsNamePart(code[end]))
+        {
+            end++;
+        }
+
+        if (end >= code.Length || code[end] != '$')
+        {
+            return false;
+        }
+
+        id = code.Substring(open + 1, end - open - 1);
+        end++;
+        return true;
     }
 
     /// <summary>
@@ -112,7 +149,7 @@ public static class SqlSnippetPlaceholders
         return result;
     }
 
-    internal static bool IsNameStart(char value) => char.IsLetter(value) || value == '_';
+    private static bool IsNameStart(char value) => char.IsLetter(value) || value == '_';
 
-    internal static bool IsNamePart(char value) => char.IsLetterOrDigit(value) || value == '_';
+    private static bool IsNamePart(char value) => char.IsLetterOrDigit(value) || value == '_';
 }

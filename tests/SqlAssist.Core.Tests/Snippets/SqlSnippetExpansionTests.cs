@@ -48,6 +48,28 @@ public sealed class SqlSnippetExpansionTests
         Assert.Equal("PRINT '$$5'; SELECT $known$, $$unknown$$, $$$end$", expansion.NativeCode);
     }
 
+    /// <remarks>
+    /// 管理介面的欄位清單來自 <c>Extract</c>，展開來自 <c>SqlSnippetExpansion</c>。
+    /// 兩份掃描器各自實作時的症狀是「介面列得出這個欄位，展開卻沒被取代」，
+    /// 而兩邊單看都對——所以這裡直接比對兩者的輸出。
+    /// </remarks>
+    [Theory]
+    [InlineData("$a$$b$")]
+    [InlineData("$a$ + $a$ + $b$")]
+    [InlineData("PRINT '$5'; $known$, $_x1$, $$, $end$, $selected$")]
+    [InlineData("沒有任何標記")]
+    [InlineData("$")]
+    public void 佔位符的集合與順序在兩個消費端一致(string code)
+    {
+        var names = SqlSnippetPlaceholders.Extract(code);
+        var snippet = new SqlSnippet(
+            "x",
+            code,
+            placeholders: names.Select(name => new SqlSnippetPlaceholder(name)).ToArray());
+
+        Assert.Equal(names, snippet.Expansion.Fields.Select(field => field.Id).ToArray());
+    }
+
     [Fact]
     public void selected是保留標記而不是可編輯欄位()
     {

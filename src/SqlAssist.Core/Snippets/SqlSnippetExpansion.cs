@@ -64,14 +64,15 @@ public sealed class SqlSnippetExpansion
 
         while (index < snippet.Code.Length)
         {
-            if (snippet.Code[index] != '$' || !TryReadMarker(snippet.Code, index, out var id, out var end))
+            if (snippet.Code[index] != '$' ||
+                !SqlSnippetPlaceholders.TryReadMarker(snippet.Code, index, out var id, out var end))
             {
                 AppendLiteral(snippet.Code[index], text, native);
                 index++;
                 continue;
             }
 
-            if (string.Equals(id, "end", StringComparison.OrdinalIgnoreCase))
+            if (SqlSnippetPlaceholders.IsNamed(id, SqlSnippetPlaceholders.EndId))
             {
                 if (caretOffset < 0)
                 {
@@ -87,10 +88,10 @@ public sealed class SqlSnippetExpansion
                 continue;
             }
 
-            if (string.Equals(id, "selected", StringComparison.OrdinalIgnoreCase))
+            if (SqlSnippetPlaceholders.IsNamed(id, SqlSnippetPlaceholders.SelectedId))
             {
                 // Completion 提交沒有選取文字；原生引擎仍保留官方的 $selected$ 語意。
-                native.Append("$selected$");
+                native.Append('$').Append(SqlSnippetPlaceholders.SelectedId).Append('$');
                 index = end;
                 continue;
             }
@@ -132,33 +133,6 @@ public sealed class SqlSnippetExpansion
         }
 
         return new SqlSnippetExpansion(text.ToString(), native.ToString(), caretOffset, fields);
-    }
-
-    private static bool TryReadMarker(string code, int open, out string id, out int end)
-    {
-        id = string.Empty;
-        end = open + 1;
-
-        if (end >= code.Length || !SqlSnippetPlaceholders.IsNameStart(code[end]))
-        {
-            return false;
-        }
-
-        end++;
-
-        while (end < code.Length && SqlSnippetPlaceholders.IsNamePart(code[end]))
-        {
-            end++;
-        }
-
-        if (end >= code.Length || code[end] != '$')
-        {
-            return false;
-        }
-
-        id = code.Substring(open + 1, end - open - 1);
-        end++;
-        return true;
     }
 
     private static string NormalizeLineEndings(string value, string newLine)
