@@ -32,23 +32,6 @@ public static class SqlSnippetSerializer
         }));
     }
 
-    /// <summary>相容舊呼叫端：只回傳檔案裡啟用且有完整內容的項目。</summary>
-    public static SqlSnippetLibrary Deserialize(string text)
-    {
-        var document = DeserializeDocument(text);
-        var snippets = new List<SqlSnippet>(document.Snippets.Count);
-
-        foreach (var record in document.Snippets)
-        {
-            if (!record.Disabled && record.Snippet is { } snippet)
-            {
-                snippets.Add(snippet);
-            }
-        }
-
-        return new SqlSnippetLibrary(snippets);
-    }
-
     /// <summary>剖析一份 Snippet 檔；版本缺席時視為 v1。</summary>
     /// <exception cref="JsonParseException">內容不是合法的 JSON。</exception>
     public static SqlSnippetDocument DeserializeDocument(string text)
