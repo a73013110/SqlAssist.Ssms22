@@ -73,18 +73,22 @@ public sealed class SqlSnippetTests
     [Fact]
     public void 寫出去再讀回來內容不變()
     {
-        var original = SqlSnippetDefaults.Current.Set(new SqlSnippet(
+        var custom = new SqlSnippet(
             "ins",
             "INSERT INTO $table$\nVALUES ($end$);",
             "插入",
             "含「引號」與\t定位字元的說明",
             triggerFollowUp: true,
-            new[] { new SqlSnippetPlaceholder("table", "dbo.T", "資料表名稱") }));
+            new[] { new SqlSnippetPlaceholder("table", "dbo.T", "資料表名稱") },
+            id: "user.ins");
+        var original = new SqlSnippetDocument(
+            SqlSnippetLibrary.CurrentVersion,
+            new[] { new SqlSnippetOverride(custom.Id, disabled: false, custom) });
 
         var round = SqlSnippetSerializer.Deserialize(SqlSnippetSerializer.Serialize(original));
 
-        Assert.Equal(original.Count, round.Count);
         Assert.True(round.TryGet("ins", out var snippet));
+        Assert.Equal("user.ins", snippet.Id);
         Assert.Equal("INSERT INTO $table$\nVALUES ($end$);", snippet.Code);
         Assert.Equal("含「引號」與\t定位字元的說明", snippet.Description);
         Assert.True(snippet.TriggerFollowUp);

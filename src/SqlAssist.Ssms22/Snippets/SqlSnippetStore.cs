@@ -124,6 +124,12 @@ internal static class SqlSnippetStore
     {
         var defaults = SqlSnippetDefaults.Current;
 
+        if (SqlSnippetDefaults.LastError is { } resourceError)
+        {
+            // 建置期的錯，執行期救不了；但擴充仍要能用，所以只記錄不停擺。
+            SqlAssistDiagnostics.WriteAlways($"內建 Snippet 無法載入：{resourceError}");
+        }
+
         try
         {
             if (!File.Exists(FilePath))
@@ -232,9 +238,19 @@ internal static class SqlSnippetStore
         }
         finally
         {
-            if (File.Exists(temporaryPath))
+            // 清暫存檔本身失敗不能蓋掉真正的原因：從 finally 丟出去的例外會取代
+            // 正在往上傳的那一個，於是使用者看到的是「刪不掉暫存檔」而不是
+            // 「磁碟已滿」。留一個孤兒暫存檔，下一次存檔會用新的名字。
+            try
             {
-                File.Delete(temporaryPath);
+                if (File.Exists(temporaryPath))
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+            catch (Exception exception) when (IsFileFailure(exception))
+            {
+                SqlAssistDiagnostics.Write($"清除 Snippet 暫存檔失敗：{exception.Message}");
             }
         }
     }

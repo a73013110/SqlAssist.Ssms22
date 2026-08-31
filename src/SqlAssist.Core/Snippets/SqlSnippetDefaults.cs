@@ -41,38 +41,67 @@ public static class SqlSnippetDefaults
             triggerFollowUp: true)
     });
 
+    /// <summary>上一次載入內建資源失敗的原因；成功時為 null。</summary>
+    /// <remarks>
+    /// 呼叫端（Ssms22 的 Snippet 檔存取）拿它去寫診斷紀錄與管理介面的錯誤列。
+    /// </remarks>
+    public static string? LastError { get; private set; }
+
+    /// <summary>
+    /// 讀內嵌資源。
+    /// </summary>
+    /// <remarks>
+    /// 讀不到一律降級成空清單，<b>不</b>丟例外。這是建置期的錯（資源沒有進組件、
+    /// 內容壞掉），正確性由 <c>SqlSnippetDefaultsTests</c> 守；而執行期這個屬性掛在
+    /// 建議清單的路徑上，丟出去就是使用者每按一次鍵看到一次錯誤對話框，而且
+    /// <see cref="Lazy{T}"/> 會把例外<b>永久快取</b>起來反覆重丟。
+    /// 沒有內建片段只是少了 40 筆建議，其餘功能照常。
+    /// </remarks>
     private static SqlSnippetLibrary LoadCurrent()
     {
-        var assembly = typeof(SqlSnippetDefaults).GetTypeInfo().Assembly;
-
-        using var stream = assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"找不到內建 Snippet 資源：{ResourceName}");
-        using var reader = new StreamReader(stream);
-        var document = SqlSnippetSerializer.DeserializeDocument(reader.ReadToEnd());
-
-        if (document.Version != SqlSnippetLibrary.CurrentVersion)
+        try
         {
-            throw new InvalidOperationException(
-                $"內建 Snippet 版本為 {document.Version}，程式支援 {SqlSnippetLibrary.CurrentVersion}。");
-        }
+            var assembly = typeof(SqlSnippetDefaults).GetTypeInfo().Assembly;
 
-        var snippets = new List<SqlSnippet>(document.Snippets.Count);
+            using var stream = assembly.GetManifestResourceStream(ResourceName);
 
-        foreach (var record in document.Snippets)
-        {
-            if (!record.Disabled && record.Snippet is { } snippet)
+            if (stream is null)
             {
-                snippets.Add(snippet);
+                return Fail($"找不到內建 Snippet 資源：{ResourceName}");
             }
+
+            using var reader = new StreamReader(stream);
+            var document = SqlSnippetSerializer.DeserializeDocument(reader.ReadToEnd());
+
+            if (document.Version != SqlSnippetLibrary.CurrentVersion)
+            {
+                return Fail(
+                    $"內建 Snippet 版本為 {document.Version}，程式支援 {SqlSnippetLibrary.CurrentVersion}。");
+            }
+
+            var snippets = new List<SqlSnippet>(document.Snippets.Count);
+
+            foreach (var record in document.Snippets)
+            {
+                if (!record.Disabled && record.Snippet is { } snippet)
+                {
+                    snippets.Add(snippet);
+                }
+            }
+
+            return snippets.Count == 0
+                ? Fail("內建 Snippet 資源沒有可用項目。")
+                : new SqlSnippetLibrary(snippets);
         }
-
-        var library = new SqlSnippetLibrary(snippets);
-
-        if (library.Count == 0)
+        catch (Exception exception)
         {
-            throw new InvalidOperationException("內建 Snippet 資源沒有可用項目。");
+            return Fail($"內建 Snippet 資源讀取失敗：{exception.Message}");
         }
+    }
 
-        return library;
+    private static SqlSnippetLibrary Fail(string reason)
+    {
+        LastError = reason;
+        return SqlSnippetLibrary.Empty;
     }
 }
