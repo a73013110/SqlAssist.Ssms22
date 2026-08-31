@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -53,11 +54,18 @@ internal static class SqlSnippetStore
         }
     }
 
-    public static bool Save(SqlSnippetLibrary library)
+    /// <summary>
+    /// 把管理介面的完整清單寫回檔案。
+    /// </summary>
+    /// <remarks>
+    /// 收的是全部項目而不是有效清單：被同捷徑遮住的項目仍然是使用者的資料，
+    /// 只傳有效清單會讓它被當成「已刪除」寫成停用紀錄。
+    /// </remarks>
+    public static bool Save(IReadOnlyList<SqlSnippetConfigurationEntry> entries)
     {
-        if (library is null)
+        if (entries is null)
         {
-            throw new ArgumentNullException(nameof(library));
+            throw new ArgumentNullException(nameof(entries));
         }
 
         lock (Gate)
@@ -72,7 +80,7 @@ internal static class SqlSnippetStore
 
             try
             {
-                var document = SqlSnippetMerger.CreateOverrides(library, SqlSnippetDefaults.Current);
+                var document = SqlSnippetMerger.CreateOverrides(entries, SqlSnippetDefaults.Current);
                 WriteDocument(document);
                 _configuration = SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, document);
                 LastError = null;

@@ -91,23 +91,33 @@ public static class SqlSnippetMerger
                 isDisabled: false));
         }
 
-        var effective = ChooseShortcutWinners(entries);
-        var winners = new HashSet<SqlSnippet>(effective);
+        var winners = ChooseShortcutWinners(entries);
+        var effective = new List<SqlSnippet>(winners.Count);
 
         for (var index = 0; index < entries.Count; index++)
         {
             var entry = entries[index];
 
-            if (!entry.IsDisabled && !winners.Contains(entry.Snippet))
+            if (entry.IsDisabled)
             {
-                // 使用者項目優先時，把被遮住的低優先項目明確呈現為停用；
-                // 管理介面才能直接存檔，不會載入成功卻因同捷徑而永遠存不回去。
-                entries[index] = new SqlSnippetConfigurationEntry(
-                    entry.Snippet,
-                    entry.IsBuiltIn,
-                    isCustomized: entry.IsBuiltIn || entry.IsCustomized,
-                    isDisabled: true);
+                continue;
             }
+
+            if (winners.Contains(entry))
+            {
+                effective.Add(entry.Snippet);
+                continue;
+            }
+
+            // 使用者項目優先，被遮住的低優先項目這一輪不進清單——但那是計算結果，
+            // 不是使用者停用了它。標成 IsDisabled 的話，存檔就會替它寫下永久的
+            // 停用紀錄，之後把撞名的那一筆改名也救不回來。
+            entries[index] = new SqlSnippetConfigurationEntry(
+                entry.Snippet,
+                entry.IsBuiltIn,
+                entry.IsCustomized,
+                isDisabled: false,
+                isShadowed: true);
         }
 
         return new SqlSnippetConfiguration(
@@ -116,14 +126,21 @@ public static class SqlSnippetMerger
             document);
     }
 
-    /// <summary>把管理介面的有效清單縮成只含差異的 v2 文件。</summary>
+    /// <summary>
+    /// 把管理介面的完整清單縮成只含差異的 v2 文件。
+    /// </summary>
+    /// <remarks>
+    /// 收的是<b>全部</b>項目而不是有效清單：被遮住的項目仍然是使用者的資料，
+    /// 只是這一輪沒進建議清單。只傳有效清單的話，這裡分不出「使用者刪掉了它」
+    /// 與「它的捷徑這一輪被別人佔走」，於是後者也會被寫成永久的停用紀錄。
+    /// </remarks>
     public static SqlSnippetDocument CreateOverrides(
-        SqlSnippetLibrary effective,
+        IReadOnlyList<SqlSnippetConfigurationEntry> entries,
         SqlSnippetLibrary defaults)
     {
-        if (effective is null)
+        if (entries is null)
         {
-            throw new ArgumentNullException(nameof(effective));
+            throw new ArgumentNullException(nameof(entries));
         }
 
         if (defaults is null)
@@ -132,53 +149,55 @@ public static class SqlSnippetMerger
         }
 
         var records = new List<SqlSnippetOverride>();
-        var consumed = new HashSet<SqlSnippet>();
+        var consumed = new HashSet<SqlSnippetConfigurationEntry>();
+        var byId = new Dictionary<string, SqlSnippetConfigurationEntry>(StringComparer.OrdinalIgnoreCase);
         var usedIds = new HashSet<string>(defaults.Snippets.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in entries)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.Snippet.Id) && !byId.ContainsKey(entry.Snippet.Id))
+            {
+                byId[entry.Snippet.Id] = entry;
+            }
+        }
 
         foreach (var definition in defaults.Snippets)
         {
-            SqlSnippet? current = null;
-            SqlSnippet? source = null;
-
-            if (effective.TryGetById(definition.Id, out var byId))
+            if (!byId.TryGetValue(definition.Id, out var entry))
             {
-                current = byId;
-                source = byId;
-            }
-            else if (effective.TryGet(definition.Shortcut, out var byShortcut) &&
-                     string.IsNullOrWhiteSpace(byShortcut.Id))
-            {
-                // 舊呼叫端建立的模型沒有 ID；同捷徑仍可安全對回原本的內建項目。
-                current = WithId(byShortcut, definition.Id);
-                source = byShortcut;
+                // 管理介面裡整筆不見了＝使用者刪掉它，那才寫停用紀錄。
+                records.Add(new SqlSnippetOverride(definition.Id, disabled: true));
+                continue;
             }
 
-            if (current is null)
+            consumed.Add(entry);
+
+            if (entry.IsDisabled)
             {
                 records.Add(new SqlSnippetOverride(definition.Id, disabled: true));
                 continue;
             }
 
-            consumed.Add(source!);
+            var current = WithId(entry.Snippet, definition.Id);
 
             if (!AreEquivalent(current, definition))
             {
-                records.Add(new SqlSnippetOverride(definition.Id, disabled: false, WithId(current, definition.Id)));
+                records.Add(new SqlSnippetOverride(definition.Id, disabled: false, current));
             }
         }
 
-        foreach (var snippet in effective.Snippets)
+        foreach (var entry in entries)
         {
-            if (consumed.Contains(snippet))
+            // 自訂項目沒有可以還原的內建定義，停用它就是刪掉它。
+            if (consumed.Contains(entry) || entry.IsDisabled)
             {
                 continue;
             }
 
-            var id = SqlSnippetIdentity.IsValid(snippet.Id) && !usedIds.Contains(snippet.Id)
-                ? snippet.Id
+            var id = SqlSnippetIdentity.IsValid(entry.Snippet.Id) && usedIds.Add(entry.Snippet.Id)
+                ? entry.Snippet.Id
                 : NextCustomId(usedIds);
-            usedIds.Add(id);
-            records.Add(new SqlSnippetOverride(id, disabled: false, WithId(snippet, id)));
+            records.Add(new SqlSnippetOverride(id, disabled: false, WithId(entry.Snippet, id)));
         }
 
         return new SqlSnippetDocument(SqlSnippetLibrary.CurrentVersion, records);
@@ -313,10 +332,11 @@ public static class SqlSnippetMerger
         return true;
     }
 
-    private static IReadOnlyList<SqlSnippet> ChooseShortcutWinners(
+    /// <summary>撞捷徑時誰進得了建議清單；使用者的資料優先。</summary>
+    private static HashSet<SqlSnippetConfigurationEntry> ChooseShortcutWinners(
         IReadOnlyList<SqlSnippetConfigurationEntry> entries)
     {
-        var winners = new Dictionary<string, SqlSnippetConfigurationEntry>(StringComparer.OrdinalIgnoreCase);
+        var byShortcut = new Dictionary<string, SqlSnippetConfigurationEntry>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in entries)
         {
@@ -325,19 +345,16 @@ public static class SqlSnippetMerger
                 continue;
             }
 
-            if (!winners.TryGetValue(entry.Snippet.Shortcut, out var existing) ||
+            // 同優先度時保留先遇到的：內建照 JSON 順序、自訂照檔案順序，
+            // 兩次載入同一份檔案要得到同一個贏家。
+            if (!byShortcut.TryGetValue(entry.Snippet.Shortcut, out var existing) ||
                 Priority(entry) > Priority(existing))
             {
-                winners[entry.Snippet.Shortcut] = entry;
+                byShortcut[entry.Snippet.Shortcut] = entry;
             }
         }
 
-        return entries
-            .Where(entry => !entry.IsDisabled &&
-                winners.TryGetValue(entry.Snippet.Shortcut, out var winner) &&
-                ReferenceEquals(entry, winner))
-            .Select(entry => entry.Snippet)
-            .ToArray();
+        return new HashSet<SqlSnippetConfigurationEntry>(byShortcut.Values);
     }
 
     private static int Priority(SqlSnippetConfigurationEntry entry) =>
@@ -394,7 +411,7 @@ public static class SqlSnippetMerger
     {
         var candidate = SqlSnippetIdentity.NewCustomId();
 
-        while (used.Contains(candidate))
+        while (!used.Add(candidate))
         {
             candidate = SqlSnippetIdentity.NewCustomId();
         }
