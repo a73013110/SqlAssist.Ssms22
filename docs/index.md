@@ -13,6 +13,7 @@
 | 排名順序不對 | [completion.md](completion.md) | `Core/Matching/FuzzyMatcher.cs`、`Core/Completion/SuggestionMatcher.cs` |
 | 某個位置不該開清單／該開沒開 | [completion.md](completion.md) | `Core/Completion/SqlCompletionContextAnalyzer.cs`、`Core/Completion/SqlCompletionTriggers.cs` |
 | 打完某個字沒有重開清單 | [completion.md](completion.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| SSMS 自己的清單也跟著彈出來 | [completion.md](completion.md) | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
 | 提交建議後寫進去的文字不對 | [completion.md](completion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
 | 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
@@ -68,7 +69,7 @@
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
 | `Wildcards/` | Tab 鍵展開與可展開提示 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Snippets/` | 片段檔存取與管理員視窗 | [snippets.md](snippets.md) |
-| `Settings/` | Unified Settings 讀取與預覽視窗尺寸 | [settings.md](settings.md) |
+| `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
 | `Connections/` | 取得 SSMS 查詢視窗的連線 | [metadata.md](metadata.md) |
 | `Commands/` | 命令識別碼與工具選單命令 | [development.md](development.md) |
 | `UI/` | 全擴充共用的外觀與佈景筆刷 | [structure-preview.md](structure-preview.md) |
@@ -90,6 +91,7 @@
 | 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
 | 腳本的 SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |

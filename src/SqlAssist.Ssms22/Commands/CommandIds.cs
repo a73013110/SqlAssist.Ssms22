@@ -5,7 +5,7 @@ namespace SqlAssist.Ssms22.Commands;
 /// <remarks>
 /// 這些數值是使用者自訂鍵盤快速鍵的定址方式，不要為了整齊而重新編號——
 /// 換掉一個 ID 等於安靜地解除他綁在上面的快速鍵。
-/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205）刻意不回收。
+/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205、0x0207）刻意不回收。
 ///
 /// 同一組數值也寫在 <c>Menus.vsct</c> 的 IDSymbol 與 <c>SqlAssist.registration.json</c>
 /// 的按鈕（十進位）裡。三者分歧不會編譯失敗，按鈕就只是按不到，
@@ -25,9 +25,6 @@ internal static class CommandIds
 
     /// <summary>選單項目，同時也是設定頁上的按鈕（註冊檔寫成十進位的 521）。</summary>
     public const int ManageSnippets = 0x0209;
-
-    /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 519）。</summary>
-    public const int DisableNativeIntelliSense = 0x0207;
 
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
