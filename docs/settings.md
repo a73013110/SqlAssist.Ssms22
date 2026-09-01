@@ -9,7 +9,7 @@
 | 一般 | 啟用 SqlAssist | `true` |
 | | 輸入時把 T-SQL 關鍵字轉成大寫 | `true` |
 | | 按 Tab 把 SELECT * 展開成欄位清單 | `true` |
-| | 展開後的欄位怎麼排 | `oneLineWhenShort` |
+| | SELECT * 展開後的欄位排版 | `oneLineWhenShort` |
 | 建議清單 | 輸入時自動彈出建議清單 | `true` |
 | | 只使用 SqlAssist 的建議清單 | `true` |
 | | 輸入幾個字元後才彈出清單 | `1` |
@@ -81,7 +81,7 @@ SSMS 自己的 `RadLangSvc.registration.json` 也只做同分類參照。
 `sqlAssist.general.wildcardLayout` 原本寫成
 `${config:sqlAssist.general.enabled} == 'true' && ${config:sqlAssist.general.expandWildcardOnTab} == 'true'`——
 兩個參照都在 `general` 分類裡，殼層照樣安靜地把整項丟掉：設定頁上完全看不到
-「展開後的欄位怎麼排」，讀取時只拿得到 `NotPersisted`。改成單一參照就回來了，
+「SELECT * 展開後的欄位排版」，讀取時只拿得到 `NotPersisted`。改成單一參照就回來了，
 `SqlAssistRegistrationTests.設定的條件式只參照一個設定` 擋下再犯。
 
 這條限制只管**設定自己的** `enableWhen`；分類上 `messages`／`commands` 的條件式不受限，
@@ -90,6 +90,32 @@ SSMS 的 `SqlStudio.registration.json` 就有複合條件的 `visibleWhen`。
 附帶的好處是設定頁的縮排跟著那個參照走：`wildcardLayout` 現在縮排在
 「按 Tab 把 SELECT * 展開成欄位清單」底下，而不是和它並排在「啟用 SqlAssist」下面。
 **選哪一個設定當參照，就是在選它排在誰底下。**
+
+## 設定變多之後要怎麼分類
+
+「建議清單」一頁已經有 10 項，混了觸發時機、內容來源、插入格式與語句展開四件事，
+遲早得拆。拆法有兩條限制先決定了能拆到什麼程度，不先知道就會做白工。
+
+**moniker 是使用者資料，不是分類名稱。** 設定值以 moniker 為鍵存放並跟著漫遊同步，
+改名等於讓所有自訂過的使用者看起來全部回到預設。所以「顯示在哪一頁」與
+「存在哪個鍵」必須分開處理：既有設定沿用歷史 moniker，只有新設定才從一開始就放對前綴。
+
+**`placements` 與 `enableWhen` 只能二選一。** schema 允許用 `placements` 指定顯示分類
+而不動 moniker，但同一項設定的 `enableWhen` 只要出現 `${config:...}` 就不能再寫
+`placements`（`registration.schema.json` 的欄位說明明講）。20 項設定裡有 15 項帶條件式，
+真要照「使用者想完成的工作」重分頁，需要搬動的十幾項裡有 11 項得整條拿掉——
+代價不只是總開關關掉時不變灰，連縮排一起沒了：`wildcardLayout` 會從
+「按 Tab 把 SELECT * 展開成欄位清單」底下掉出來變成並排的獨立項目，
+而它在 Tab 展開關掉時毫無意義。
+
+所以先做的是不必動 moniker 也不必動條件式的那一半，已經做完：`order` 改成依
+「同一頁裡的哪一段」留號段（段隔 100、段內隔 10；建議清單是 100 觸發、200 內容來源、
+300 插入格式、400 語句展開），每項設定與每個分類都補上 `additionalKeywords`——
+這一欄先前一個都沒寫，搜尋「自動完成」「IntelliSense」「schema」「星號」「log」
+全都是空的，而那才是使用者找不到設定最常見的原因，不是分類不對。
+
+還沒做也暫時不做的是分頁本身。真要動樹狀結構，先用實驗版在實機比較
+「少了 11 個縮排」和「一頁 10 項」哪個比較難用，別在驗證升級與漫遊資料前先改 moniker。
 
 ## 四件刻意<b>不</b>是設定的東西
 
