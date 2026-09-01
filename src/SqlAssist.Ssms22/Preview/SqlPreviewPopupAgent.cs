@@ -68,6 +68,9 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private bool _hasDocumentColumn;
 
+    /// <summary>文件欄底界是誰算出來的；認錯了只會表現成「預覽矮了一截」，沒有別的徵兆。</summary>
+    private string _documentColumnSource = "none";
+
     /// <summary>已經回報過內容掛在別的承載視窗上；這件事會每一次重排都成立一次。</summary>
     private bool _reportedDetachedContent;
 
@@ -518,16 +521,12 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private PreviewRectangle GetAvailableBounds(PreviewRectangle anchor)
     {
         var visual = _view.VisualElement;
-        var viewTopLeft = visual.PointToScreen(new Point(0, 0));
-        var viewBottomRight = visual.PointToScreen(
-            new Point(Math.Max(1, visual.ActualWidth), Math.Max(1, visual.ActualHeight)));
-        var left = Math.Min(viewTopLeft.X, viewBottomRight.X);
-        var top = Math.Min(viewTopLeft.Y, viewBottomRight.Y);
-        var right = Math.Max(viewTopLeft.X, viewBottomRight.X);
-        var bottom = Math.Max(viewTopLeft.Y, viewBottomRight.Y);
+        var editor = GetScreenBounds(visual);
+        var left = editor.Left;
+        var top = editor.Top;
+        var right = editor.Right;
         var devicePadding = ToDeviceSize(BoundsPadding, BoundsPadding);
-        var editor = new PreviewRectangle(left, top, right - left, bottom - top);
-        bottom = ResolveDocumentColumnBottom(visual, editor);
+        var bottom = ResolveDocumentColumnBottom(visual, editor);
 
         if (NativeScreen.TryGetWorkArea(new Point(anchor.Left, anchor.Top)) is { } workArea)
         {
@@ -559,16 +558,28 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return _documentColumnBottom;
         }
 
-        var left = editor.Left;
-        var top = editor.Top;
-        var right = editor.Right;
-        var editorBottom = editor.Bottom;
-        var bottom = editorBottom;
-        var ancestorTolerance = ToDeviceSize(48, 48);
+        // 比對邊界一律用含裝飾邊的編輯器控制項，不能用文字 Viewport：後者的左界不含
+        // 中斷點欄、行號欄與變更欄，右界不含捲軸，加起來超過任何合理容忍值，於是
+        // 每一個祖先都被判成不是同一欄，文件欄永遠找不到——症狀就是查詢一有結果，
+        // 預覽的底就卡在文字區底部，蓋不到結果窗格。
+        var chrome = ResolveEditorChrome(visual);
+        var hasChrome = !ReferenceEquals(chrome, visual);
+        var column = hasChrome ? GetScreenBounds(chrome) : editor;
+        var left = column.Left;
+        var top = column.Top;
+        var right = column.Right;
+        var columnBottom = Math.Max(column.Bottom, editor.Bottom);
+        var bottom = editor.Bottom;
+
+        // 找得到編輯器控制項時左右界已經吻合，只需容忍邊框與 DPI 捨入；認不出來時
+        // 基準退回文字 Viewport，容忍值就得放到整條左側裝飾邊之外。
+        var toleranceUnits = hasChrome ? 24 : 96;
+        var ancestorTolerance = ToDeviceSize(toleranceUnits, toleranceUnits);
         var expandedByWpfParent = false;
         var minimumUsefulExpansion = Math.Max(8, ancestorTolerance.Height / 2);
+        _documentColumnSource = hasChrome ? "none/chrome" : "none/view";
 
-        for (DependencyObject? current = VisualTreeHelper.GetParent(visual);
+        for (DependencyObject? current = VisualTreeHelper.GetParent(chrome);
              current is not null;
              current = VisualTreeHelper.GetParent(current))
         {
@@ -595,30 +606,72 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
                 Math.Abs(ancestorBottomRight.X - right) <= ancestorTolerance.Width &&
                 Math.Abs(ancestorTopLeft.Y - top) <= ancestorTolerance.Height;
             if (sameDocumentColumn &&
-                ancestorBottomRight.Y > editorBottom + minimumUsefulExpansion)
+                ancestorBottomRight.Y > columnBottom + minimumUsefulExpansion)
             {
                 bottom = Math.Max(bottom, ancestorBottomRight.Y);
                 expandedByWpfParent = true;
+                _documentColumnSource = "wpf";
 
                 // 最近一個向下擴張的同欄父容器就是 editor/results splitter；不再爬到 Shell root。
                 break;
             }
         }
 
-        var editorBounds = new Rect(left, top, right - left, editorBottom - top);
+        var columnBounds = new Rect(left, top, right - left, columnBottom - top);
         if (!expandedByWpfParent &&
             NativeScreen.TryGetDocumentColumnBottom(
                 visual,
-                editorBounds,
+                columnBounds,
                 ancestorTolerance.Width) is { } nativeBottom)
         {
             bottom = Math.Max(bottom, nativeBottom);
+            _documentColumnSource = "win32";
         }
 
         _documentColumnEditor = editor;
         _documentColumnBottom = bottom;
         _hasDocumentColumn = true;
         return bottom;
+    }
+
+    /// <summary>
+    /// 含中斷點欄、行號欄與捲軸的編輯器控制項；認不出來時回傳原本的文字 Viewport。
+    /// </summary>
+    /// <remarks>
+    /// 這裡刻意找實作 <see cref="IWpfTextViewHost"/> 的那一層，而不是數幾層祖先或比對
+    /// 型別名稱：編輯器的內部視覺結構會隨版本增減層數，而這個介面是公開契約。
+    /// </remarks>
+    private static FrameworkElement ResolveEditorChrome(FrameworkElement visual)
+    {
+        for (DependencyObject? current = VisualTreeHelper.GetParent(visual);
+             current is not null;
+             current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is Window)
+            {
+                break;
+            }
+
+            if (current is FrameworkElement { ActualWidth: > 0, ActualHeight: > 0 } element &&
+                current is IWpfTextViewHost)
+            {
+                return element;
+            }
+        }
+
+        return visual;
+    }
+
+    private static PreviewRectangle GetScreenBounds(FrameworkElement element)
+    {
+        var topLeft = element.PointToScreen(new Point(0, 0));
+        var bottomRight = element.PointToScreen(
+            new Point(Math.Max(1, element.ActualWidth), Math.Max(1, element.ActualHeight)));
+        return new PreviewRectangle(
+            Math.Min(topLeft.X, bottomRight.X),
+            Math.Min(topLeft.Y, bottomRight.Y),
+            Math.Max(1, Math.Abs(bottomRight.X - topLeft.X)),
+            Math.Max(1, Math.Abs(bottomRight.Y - topLeft.Y)));
     }
 
     private IReadOnlyList<PreviewRectangle> GetObstacleBounds(Geometry geometry)
@@ -827,6 +880,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             $"視窗 {popupScreen.Left:F0},{popupScreen.Top:F0}–{popupScreen.Right:F0},{popupScreen.Bottom:F0}　" +
             $"錨點 {anchorScreen.Left:F0},{anchorScreen.Top:F0}–{anchorScreen.Right:F0},{anchorScreen.Bottom:F0}　" +
             $"文件 {_availableBounds.Left:F0},{_availableBounds.Top:F0}–{_availableBounds.Right:F0},{_availableBounds.Bottom:F0}　" +
+            $"底界來源 {_documentColumnSource}　" +
             $"有效 {effectiveSize.Width:F0}×{effectiveSize.Height:F0} DIP　" +
             $"DPI {dpiSize.Width:F0}×{dpiSize.Height:F0}　Zoom {_view.ZoomLevel:F0}%　" +
             $"保留區 {_obstacles.Count}{DescribeObstacles()}　fallback {_usedFallback}　" +
