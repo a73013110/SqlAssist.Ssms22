@@ -30,6 +30,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-A
 		docs\architecture.md = docs\architecture.md
 		docs\completion.md = docs\completion.md
 		docs\development.md = docs\development.md
+		docs\getting-started.md = docs\getting-started.md
+		docs\index.md = docs\index.md
 		docs\metadata.md = docs\metadata.md
 		docs\settings.md = docs\settings.md
 		docs\snippets.md = docs\snippets.md
@@ -49,6 +51,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393
 		tools\Test-CommandTable.ps1 = tools\Test-CommandTable.ps1
 		tools\Test-VsixPackage.ps1 = tools\Test-VsixPackage.ps1
 		tools\Uninstall-Extension.ps1 = tools\Uninstall-Extension.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{F15806DE-7900-4301-9DA0-70A3D4EDA7C6}"
+	ProjectSection(SolutionItems) = preProject
+		docs\images\completion.png = docs\images\completion.png
+		docs\images\expand-star.png = docs\images\expand-star.png
+		docs\images\hero.png = docs\images\hero.png
+		docs\images\logo.png = docs\images\logo.png
+		docs\images\README.md = docs\images\README.md
+		docs\images\social-preview.png = docs\images\social-preview.png
+		docs\images\structure-preview.png = docs\images\structure-preview.png
 	EndProjectSection
 EndProject
 Global
@@ -131,6 +144,7 @@ Global
 		{0354E203-91FB-49F3-A687-E020902BC82A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{D3510574-E2A6-411F-ACEF-013DDC216B68} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{5BF27E2D-1A43-4794-9420-F0183ADF2042} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{F15806DE-7900-4301-9DA0-70A3D4EDA7C6} = {EF86EC9E-AE01-4761-823F-555C9A09339D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CDA4571B-BBA9-4475-89F5-C66A30A41808}
