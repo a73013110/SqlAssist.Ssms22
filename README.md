@@ -7,8 +7,10 @@
 ![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-<!-- 產生 docs/images/hero.png 之後把下面這一行的註解拿掉；規格與提示詞見 docs/images/README.md -->
-<!-- <p align="center"><img src="docs/images/hero.png" alt="SqlAssist 在 SSMS 查詢視窗中列出資料庫物件建議" width="900"></p> -->
+<p align="center">
+  <img src="docs/images/hero.png" width="900"
+       alt="編輯器裡的游標連到一張建議清單卡片；清單每一列前面是物件種類圖示，名稱開頭幾個字元以亮色標出，代表比對命中的位置">
+</p>
 
 SqlAssist 是安裝在 **SQL Server Management Studio 22** 裡的 VSIX 擴充套件，不是另一套
 SQL 編輯器，也不是 SSMS 的修改版——你仍然在原本的查詢視窗裡工作。
@@ -44,10 +46,31 @@ BEGIN
     ...
 ```
 
-<!-- 補上實機截圖之後把下面三行的註解拿掉；檔名與拍法見 docs/images/README.md -->
-<!-- <img src="docs/images/completion.png" alt="建議清單" width="440"> -->
-<!-- <img src="docs/images/expand-star.png" alt="展開 SELECT *" width="440"> -->
-<!-- <img src="docs/images/structure-preview.png" alt="物件結構預覽" width="440"> -->
+<p align="center">
+  <img src="docs/images/expand-star.png" width="820"
+       alt="上半是 SELECT * FROM dbo.Books，游標停在星號後面；按下 Tab 之後，下半變成逐行列出 BookId、ISBN、Title 等九個欄位的 SELECT">
+</p>
+
+<details>
+<summary>再看兩張：建議清單與物件結構預覽</summary>
+
+<br>
+
+輸入 `Li` 就列出符合的資料表，選取的那一個在下方展開欄位、型別與 `PK`、`NOT NULL` 旗標：
+
+<p align="center">
+  <img src="docs/images/completion.png" width="820"
+       alt="SELECT * FROM Li 之後彈出建議清單，列出 Libraries、LibraryBranches 等資料表；下方面板顯示 dbo.Libraries 的七個欄位、型別與旗標">
+</p>
+
+預覽的**指令碼**分頁給的是可以直接執行的完整定義，可以捲動、選取、複製：
+
+<p align="center">
+  <img src="docs/images/structure-preview.png" width="820"
+       alt="浮動結構預覽的指令碼分頁，顯示 dbo.LibraryAnnouncement 的 CREATE TABLE 與後面接著的 CREATE NONCLUSTERED INDEX，有 T-SQL 語法著色">
+</p>
+
+</details>
 
 ## 它能幫你做什麼？
 
