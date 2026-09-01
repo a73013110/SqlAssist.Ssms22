@@ -70,19 +70,42 @@ internal static class PreviewChrome
         };
     }
 
-    /// <summary>各種物件的圖示外框；都是純線條沒有填色，深淺主題都成立。</summary>
+    /// <summary>
+    /// 各種物件的圖示外框；都是純線條沒有填色，深淺主題都成立。
+    /// </summary>
+    /// <remarks>
+    /// 認不出來的種類落在最後那個圓，而圓在這裡的意思就是「不知道這是什麼」。
+    /// 因此**每一種真的會出現在預覽裡的物件都要有自己的一筆**：少一筆的症狀不是
+    /// 沒有圖示，是畫出一個看起來像沒載入完的空圓。檢視原本是一個沒有瞳孔的眼睛
+    /// 外框，在 16 點上與那個圓幾乎分不出來，正是這個症狀的另一種形式。
+    /// </remarks>
     public static Geometry GeometryFor(SqlObjectKind kind)
     {
         var data = kind switch
         {
             SqlObjectKind.Table => "M2.5,3.5 H13.5 V12.5 H2.5 Z M2.5,6.5 H13.5 M6,6.5 V12.5",
-            SqlObjectKind.View => "M2,8 C4.5,4.5 11.5,4.5 14,8 C11.5,11.5 4.5,11.5 2,8 Z",
+
+            // 眼睛：外框加瞳孔。少了瞳孔就只是一個橢圓。
+            SqlObjectKind.View =>
+                "M2,8 C4.5,4.5 11.5,4.5 14,8 C11.5,11.5 4.5,11.5 2,8 Z "
+                + "M8,6.4 A1.6,1.6 0 1,0 8,9.6 A1.6,1.6 0 1,0 8,6.4",
             SqlObjectKind.Procedure => "M6,3.5 L3,8 L6,12.5 M10,3.5 L13,8 L10,12.5",
             SqlObjectKind.ScalarFunction or
                 SqlObjectKind.InlineTableFunction or
                 SqlObjectKind.TableValuedFunction =>
                 "M5,12.5 V5.5 A2,2 0 0,1 9,5.5 M3.5,8 H8.5 M10.5,8 H13.5",
             SqlObjectKind.Synonym => "M3,8 H10.5 M8,5.5 L10.5,8 L8,10.5 M13,4 V12",
+
+            // 閃電：觸發程序是「某件事發生時自己跑起來」。
+            SqlObjectKind.Trigger => "M9,2.5 L4.5,8.5 H7.5 L7,13.5 L11.5,7.5 H8.5 Z",
+
+            // 往上的階梯：序號一個一個往上長。
+            SqlObjectKind.Sequence => "M2.5,12.5 H5.5 V9.5 H8.5 V6.5 H11.5 V3.5 H13.5",
+
+            // 資料表加一個角標，與真的資料表分得開：型別不是資料，是形狀。
+            SqlObjectKind.TableType =>
+                "M2.5,3.5 H10.5 V12.5 H2.5 Z M2.5,6.5 H10.5 M6,6.5 V12.5 "
+                + "M11.5,2.5 H14.5 M13,1 V4",
             _ => "M8,3.5 A4.5,4.5 0 1,0 8,12.5 A4.5,4.5 0 1,0 8,3.5"
         };
 

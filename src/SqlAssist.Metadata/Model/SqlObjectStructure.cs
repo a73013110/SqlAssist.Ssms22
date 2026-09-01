@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using SqlAssist.Metadata.Formatting;
@@ -69,9 +69,16 @@ public sealed class SqlObjectStructure
     /// </remarks>
     public string BuildScript()
     {
-        if (Object.Kind.IsModule() && !string.IsNullOrWhiteSpace(Definition))
+        // 模組的分支必須整個接走，不能只在「拿得到定義」時接。檢視同時是模組
+        // 也有欄位，定義取不到時原本會掉進下面的 CREATE TABLE，於是一個檢視被
+        // 寫成一張資料表——那不只是排版難看，是指令碼在說謊：照著執行會多出
+        // 一張同名的資料表。取不到定義的兩個原因寫在輸出裡，否則使用者只看得到
+        // 「這個物件沒有指令碼」而查不出為什麼。
+        if (Object.Kind.IsModule())
         {
-            return Definition!;
+            return string.IsNullOrWhiteSpace(Definition)
+                ? BuildMissingDefinitionScript()
+                : Definition!;
         }
 
         if (!Object.Kind.HasColumns() && Columns.Count == 0)
@@ -114,6 +121,47 @@ public sealed class SqlObjectStructure
         {
             builder.AppendLine();
             builder.AppendLine(foreignKey.ToScript(name));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// 取不到定義的模組：說明原因，並把查得到的欄位與參數以註解列出來。
+    /// </summary>
+    /// <remarks>
+    /// 整段都是註解，因為這裡沒有一行是可以執行的。猜一個 CREATE VIEW 的骨架
+    /// 出來反而更糟——那是本擴充沒有讀到的東西，與 <c>SELECT *</c> 不做部分展開
+    /// 是同一條理由。
+    /// </remarks>
+    private string BuildMissingDefinitionScript()
+    {
+        var builder = new StringBuilder();
+        builder.Append("-- 取不到 ").Append(Object.QualifiedName).AppendLine(" 的定義。");
+        builder.AppendLine("-- OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，");
+        builder.AppendLine("-- 或是目前的登入沒有它的 VIEW DEFINITION 權限。");
+
+        if (Columns.Count > 0)
+        {
+            builder.AppendLine();
+            builder.Append("-- ").Append(Object.Kind.ToDisplayName()).Append(" 的欄位（")
+                .Append(Columns.Count).AppendLine(" 個）：");
+
+            foreach (var column in Columns)
+            {
+                builder.Append("--     ").AppendLine(column.ToScriptLine());
+            }
+        }
+
+        if (Parameters.Count > 0)
+        {
+            builder.AppendLine();
+            builder.Append("-- 參數（").Append(Parameters.Count).AppendLine(" 個）：");
+
+            foreach (var parameter in Parameters)
+            {
+                builder.Append("--     ").AppendLine(parameter.ToScriptLine());
+            }
         }
 
         return builder.ToString();

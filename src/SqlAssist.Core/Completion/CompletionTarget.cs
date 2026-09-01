@@ -53,6 +53,14 @@ public enum CompletionTarget
     /// </remarks>
     DataType,
 
+    /// <summary><c>ALTER</c>、<c>DROP VIEW</c> 之後。</summary>
+    /// <remarks>
+    /// 檢視同時是資料來源，因此 <see cref="DataSource"/> 裡本來就有它；分出這一個
+    /// 是為了 <c>ALTER VIEW</c>／<c>DROP VIEW</c> 那兩個位置——那裡列出資料表只會讓
+    /// 使用者選到一個在該語句裡一定失敗的名稱。
+    /// </remarks>
+    View,
+
     /// <summary><c>ALTER</c>、<c>DROP</c>、<c>DISABLE</c>、<c>ENABLE TRIGGER</c> 之後。</summary>
     Trigger,
 

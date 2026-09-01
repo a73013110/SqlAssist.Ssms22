@@ -1,4 +1,4 @@
-using SqlAssist.Core.Completion;
+﻿using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
 using Xunit;
@@ -20,7 +20,16 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("TRUNCATE TABLE ", CompletionTarget.DataSource)]
     [InlineData("DROP TRIGGER IF EXISTS ", CompletionTarget.Trigger)]
     [InlineData("ALTER PROCEDURE ", CompletionTarget.Procedure)]
+    [InlineData("ALTER PROC ", CompletionTarget.Procedure)]
     [InlineData("ALTER FUNCTION ", CompletionTarget.Function)]
+    [InlineData("ALTER VIEW ", CompletionTarget.View)]
+    [InlineData("CREATE OR ALTER VIEW ", CompletionTarget.View)]
+    [InlineData("ALTER TRIGGER ", CompletionTarget.Trigger)]
+    [InlineData("DROP VIEW ", CompletionTarget.View)]
+    [InlineData("DROP VIEW IF EXISTS ", CompletionTarget.View)]
+    [InlineData("DROP PROCEDURE ", CompletionTarget.Procedure)]
+    [InlineData("DROP PROC IF EXISTS ", CompletionTarget.Procedure)]
+    [InlineData("DROP FUNCTION ", CompletionTarget.Function)]
     [InlineData("USE ", CompletionTarget.Database)]
     [InlineData("GO\nUSE ", CompletionTarget.Database)]
     public void 依前導關鍵字決定建議目標(string textBeforeCaret, CompletionTarget expected)
@@ -86,6 +95,10 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("ALTER PROCEDURE ", CompletionIntent.AlterDefinition)]
     [InlineData("ALTER FUNCTION ", CompletionIntent.AlterDefinition)]
     [InlineData("ALTER TRIGGER ", CompletionIntent.AlterDefinition)]
+    [InlineData("ALTER VIEW ", CompletionIntent.AlterDefinition)]
+    [InlineData("DROP VIEW ", CompletionIntent.Reference)]
+    [InlineData("DROP PROCEDURE ", CompletionIntent.Reference)]
+    [InlineData("DROP FUNCTION ", CompletionIntent.Reference)]
     [InlineData("EXEC ", CompletionIntent.ExecuteCall)]
     [InlineData("EXECUTE ", CompletionIntent.ExecuteCall)]
     [InlineData("exec usp", CompletionIntent.ExecuteCall)]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -17,7 +17,7 @@ public sealed class SqlSnippetDefaultsTests
     {
         var defaults = SqlSnippetDefaults.Current;
 
-        Assert.Equal(43, defaults.Count);
+        Assert.Equal(45, defaults.Count);
         Assert.Equal(
             defaults.Count,
             defaults.Snippets.Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
@@ -81,6 +81,8 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("oa", CompletionTarget.Function, CompletionIntent.Reference)]
     [InlineData("ap", CompletionTarget.Procedure, CompletionIntent.AlterDefinition)]
     [InlineData("af", CompletionTarget.Function, CompletionIntent.AlterDefinition)]
+    [InlineData("av", CompletionTarget.View, CompletionIntent.AlterDefinition)]
+    [InlineData("atr", CompletionTarget.Trigger, CompletionIntent.AlterDefinition)]
     public void 接續片段展開後落在會列出該類物件的位置(
         string shortcut,
         CompletionTarget target,
@@ -111,7 +113,7 @@ public sealed class SqlSnippetDefaultsTests
         var covered = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "ssf", "st100", "st1", "ssc", "sd", "ii", "ui", "df",
-            "ij", "lj", "rj", "fj", "cj", "ca", "oa", "ap", "af"
+            "ij", "lj", "rj", "fj", "cj", "ca", "oa", "ap", "af", "av", "atr"
         };
 
         var actual = SqlSnippetDefaults.Current.Snippets
