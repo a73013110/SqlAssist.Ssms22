@@ -68,6 +68,9 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     {
         SqlAssistPlatformGuard.Run("建立 SQL 編輯器時初始化 SqlAssist", () =>
         {
+            // 先掛上關閉事件再計數：反過來的話，中間任何一次失敗都會讓計數只增不減，
+            // 而「關於與診斷」的編輯器數量就會永遠停在一個對不上的值。
+            textView.Closed += OnTextViewClosed;
             SqlAssistRuntimeState.MarkTextViewCreated();
             ActiveSqlEditor.Track(textView); // 工具選單的命令需要知道游標在哪個編輯器。
 
@@ -94,5 +97,15 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
             SqlCompletionServices.GetMetadataService(textView, ServiceProvider).BeginWarmup();
             SqlAssistDiagnostics.WriteAlways("SQL 編輯器已建立，SqlAssist 已載入", textView);
         });
+    }
+
+    private static void OnTextViewClosed(object sender, EventArgs eventArgs)
+    {
+        if (sender is IWpfTextView textView)
+        {
+            textView.Closed -= OnTextViewClosed;
+        }
+
+        SqlAssistRuntimeState.MarkTextViewClosed();
     }
 }

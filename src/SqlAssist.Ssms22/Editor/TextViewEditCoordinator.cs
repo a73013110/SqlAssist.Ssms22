@@ -3,18 +3,25 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Diagnostics;
 
 namespace SqlAssist.Ssms22.Editor;
 
 /// <summary>要寫回編輯器的文字，以及寫進去之後要留下的紀錄。</summary>
 internal readonly struct TextReplacement
 {
-    public TextReplacement(string text, string expansionLabel, string successMessage, int caretOffset = -1)
+    public TextReplacement(
+        string text,
+        SqlAssistActivityKind activityKind,
+        string successMessage,
+        int caretOffset = -1,
+        int affectedItemCount = 0)
     {
         Text = text;
-        ExpansionLabel = expansionLabel;
+        ActivityKind = activityKind;
         SuccessMessage = successMessage;
         CaretOffset = caretOffset;
+        AffectedItemCount = affectedItemCount;
     }
 
     public string Text { get; }
@@ -29,8 +36,13 @@ internal readonly struct TextReplacement
     /// </remarks>
     public int CaretOffset { get; }
 
-    /// <summary>寫進 <see cref="SqlAssistRuntimeState"/> 的簡短描述，診斷狀態會顯示它。</summary>
-    public string ExpansionLabel { get; }
+    /// <summary>
+    /// 寫進 <see cref="SqlAssistRuntimeState"/> 的動作種類；不用任意文字，
+    /// 才不會把資料庫物件名稱或 SQL 內容帶進可公開貼出的診斷摘要。
+    /// </summary>
+    public SqlAssistActivityKind ActivityKind { get; }
+
+    public int AffectedItemCount { get; }
 
     public string SuccessMessage { get; }
 }
@@ -134,7 +146,9 @@ internal sealed class TextViewEditCoordinator
                 }
 
                 _textView.Caret.EnsureVisible();
-                SqlAssistRuntimeState.MarkExpansion(replacement.ExpansionLabel);
+                SqlAssistRuntimeState.MarkActivity(
+                    replacement.ActivityKind,
+                    replacement.AffectedItemCount);
                 SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);
             });
         }

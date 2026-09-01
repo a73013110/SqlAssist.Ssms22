@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using MSXML;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
@@ -203,7 +204,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
             // 引擎已經在 OnBeforeInsertion／OnAfterInsertion 回呼裡給過同一個 session，
             // 這裡只是補上「引擎沒有回呼就成功返回」的情形。
             _session = session;
-            SqlAssistRuntimeState.MarkExpansion(request.Snippet.Title);
+            SqlAssistRuntimeState.MarkActivity(SqlAssistActivityKind.SnippetExpanded);
             SqlAssistDiagnostics.Write($"已啟動原生 Snippet：{request.Snippet.Shortcut}");
 
             // 引擎已經把游標放進第一格，這一格要什麼由重開的那次分析決定。
@@ -234,7 +235,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
                     out var caretOffset);
                 return new TextReplacement(
                     text,
-                    request.Snippet.Title,
+                    SqlAssistActivityKind.SnippetExpanded,
                     $"原生 Snippet 不可用，已以游標模式展開：{request.Snippet.Shortcut}",
                     caretOffset);
             });

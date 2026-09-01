@@ -25,6 +25,7 @@ Metadata，因為那兩個專案跑得起單元測試；需要就放 Ssms22，�
 ```text
 src/SqlAssist.Core           純邏輯，可完整單元測試
   Settings/                  設定模型、moniker、註冊值到強型別快照的對應
+  Diagnostics/               版本解讀、健康檢查，以及視窗與匿名摘要共用的欄位清單
   Completion/                建議項、上下文分析、觸發條件與排名
   Keywords/                  關鍵字與內建函式目錄、大小寫改寫、位置判斷
   Parsing/                   詞法器、語彙狀態、語句範圍模型、欄位來源解析、文字來源介面
@@ -48,7 +49,7 @@ src/SqlAssist.Ssms22         net48 VSIX
   Preview/                   浮動結構預覽視窗
   Snippets/                  片段檔、管理介面與 SSMS 原生 Expansion 接線
   Settings/                  Unified Settings 服務的接線與快取
-  Commands/                  工具選單的命令與命令識別碼
+  Commands/                  工具選單命令、命令識別碼與「關於與診斷」視窗
   Editor/                    文字檢視接線、Tab 與 Enter 的優先順序、游標處物件定位、關鍵字大寫
   Connections/               SSMS 連線的取得，以及依連線提供中繼資料
   UI/                        所有自建介面的唯一外觀來源
@@ -87,6 +88,8 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Ssms22/SqlLanguageService` | SQL 語言服務 GUID | 內建清單偏好與原生 Snippet 各自連到不同語言服務 |
 | `Ssms22/Editor/SqlObjectLocator` | 位置到物件的解析 | 滑鼠提示與結構面板對同一個位置給出不同答案 |
 | `Ssms22/SqlAssistPlatformGuard` | 平台邊界的例外收斂 | 忘記收斂的 handler 讓輸入中斷或跳出錯誤對話框 |
+| `Core/Diagnostics/SqlAssistDiagnosticSections` | 「關於與診斷」視窗與可貼出摘要要列的欄位 | 新增一個設定只改了視窗，回報問題時看到的那一份少一列 |
+| `Core/Diagnostics/SqlAssistHealthSummary` | 一整組健康檢查收斂成的那一句結論 | 抬頭的徽章說「狀態良好」，下面的結論說「已暫停」 |
 | `Ssms22/UI/SqlAssistChrome` | 所有自建介面的外觀 | 兩個視窗長得像但又不完全一樣 |
 | `tools/SqlAssist.Tools.psm1` | SSMS 路徑、擴充 Id、安裝探索 | 「安裝成功但部署說找不到」 |
 

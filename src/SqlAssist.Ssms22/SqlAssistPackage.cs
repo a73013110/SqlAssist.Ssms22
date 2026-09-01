@@ -1,9 +1,11 @@
 using System;
 using System.ComponentModel.Design;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
+using SqlAssist.Core.Diagnostics;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Settings;
 
@@ -23,9 +25,10 @@ public sealed class SqlAssistPackage : AsyncPackage
     /// <summary>Unified Settings 的註冊檔，相對於擴充的安裝資料夾。</summary>
     private const string SettingsManifestFile = "SqlAssist.registration.json";
 
-    /// <summary>版本一律由組件中繼資料取得，避免與 csproj 的 Version 脫節。</summary>
-    internal static string PackageVersion =>
-        typeof(SqlAssistPackage).Assembly.GetName().Version?.ToString() ?? "未知";
+    /// <summary>版本一律由 NBGV 寫進組件的中繼資料取得。</summary>
+    internal static SqlAssistBuildVersion BuildVersion { get; } = CreateBuildVersion();
+
+    internal static string PackageVersion => BuildVersion.DisplayVersion;
 
     private const string NoSolutionUiContextGuid = "adfc4e64-0397-11d1-9f4e-00a0c911004f";
 
@@ -52,7 +55,7 @@ public sealed class SqlAssistPackage : AsyncPackage
             }
 
             SqlAssistCommands.Register(this, commandService);
-            SqlAssistRuntimeState.MarkPackageLoaded();
+            SqlAssistRuntimeState.MarkPackageReady();
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage {PackageVersion} 已載入，工具選單已註冊");
         }
         catch (Exception exception)
@@ -63,6 +66,18 @@ public sealed class SqlAssistPackage : AsyncPackage
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage 載入失敗：{exception}");
             throw;
         }
+    }
+
+    private static SqlAssistBuildVersion CreateBuildVersion()
+    {
+        var assembly = typeof(SqlAssistPackage).Assembly;
+
+        // AssemblyVersion 為了二進位相容固定在 0.14.0.0；真正每次建置都會變的是
+        // InformationalVersion。把前者拿來顯示，patch 看起來就會永遠是零。
+        return SqlAssistBuildVersion.Create(
+            assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+            assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version,
+            assembly.GetName().Version?.ToString());
     }
 
     protected override void Dispose(bool disposing)

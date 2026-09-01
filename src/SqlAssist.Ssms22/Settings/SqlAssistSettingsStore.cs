@@ -38,6 +38,9 @@ internal static class SqlAssistSettingsStore
     /// <summary>目前生效的設定。任何時候都可以讀，不會回傳 null。</summary>
     public static SqlAssistSettings Current => _current;
 
+    /// <summary>是否已接上 SSMS Unified Settings；否則 <see cref="Current"/> 是內建預設值。</summary>
+    public static bool IsConnected => _reader is not null;
+
     /// <summary>
     /// 接上 Unified Settings。重複呼叫只有第一次會生效。
     /// </summary>

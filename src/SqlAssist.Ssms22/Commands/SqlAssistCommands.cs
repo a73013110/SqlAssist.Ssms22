@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel.Design;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
@@ -54,7 +53,7 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
-        AddCommand(CommandIds.ShowDiagnostics, ShowDiagnostics);
+        AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
@@ -185,50 +184,19 @@ internal sealed class SqlAssistCommands
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
     }
 
-    private void ShowDiagnostics(object? sender, EventArgs eventArgs)
+    private void ShowAboutAndDiagnostics(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        var settings = SqlAssistSettingsStore.Current;
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "未知";
 
-        var message =
-            $"版本：{version}\r\n" +
-            $"AsyncPackage：{FormatState(SqlAssistRuntimeState.PackageLoaded)}\r\n" +
-            $"已建立 SQL 編輯器：{SqlAssistRuntimeState.TextViewCount}\r\n" +
-            $"最後展開：{SqlAssistRuntimeState.LastExpansion}\r\n\r\n" +
-            $"── 一般 ──\r\n" +
-            $"啟用 SqlAssist：{FormatState(settings.Enabled)}\r\n" +
-            $"輸入時關鍵字轉大寫：{FormatState(settings.UppercaseKeywordsOnType)}\r\n" +
-            $"按 Tab 展開 SELECT *：{FormatState(settings.ExpandWildcardOnTab)}" +
-            $"（{settings.WildcardLayout}）\r\n\r\n" +
-            $"── 建議清單 ──\r\n" +
-            $"自動彈出：{FormatState(settings.SuggestionsEnabled)}\r\n" +
-            $"觸發字元數：{settings.TriggerAfterCharacters}\r\n" +
-            $"程式碼片段：{FormatState(settings.IncludeSnippets)}\r\n" +
-            $"資料庫物件與欄位：{FormatState(settings.IncludeDatabaseObjects)}\r\n" +
-            $"分類篩選列：{FormatState(settings.ShowCategoryFilters)}\r\n" +
-            $"補結構描述／方括號：{FormatState(settings.QualifyObjectNames)}／" +
-            $"{FormatState(settings.UseSquareBrackets)}\r\n" +
-            $"只使用 SqlAssist 的清單：{FormatState(settings.SuppressNativeMemberList)}" +
-            $"（實際 {FormatNativeMemberList()}）\r\n" +
-            $"SSMS 內建 IntelliSense：{FormatNativeIntelliSense()}\r\n\r\n" +
-            $"── 物件結構 ──\r\n" +
-            $"滑鼠停留提示：{FormatState(settings.HoverEnabled)}\r\n" +
-            $"預覽時機：{settings.PreviewMode}（{settings.PreviewDelayMilliseconds} ms）\r\n" +
-            $"預覽位置／字級：{settings.PreviewPlacement}／{settings.PreviewFontSize}\r\n" +
-            $"預覽視窗尺寸：上下 {PreviewWindowState.StackedWidth?.ToString("F0") ?? "自動"}×{PreviewWindowState.StackedHeight:F0}；" +
-            $"側邊 {PreviewWindowState.BesideWidth:F0}×{PreviewWindowState.BesideHeight:F0}\r\n\r\n" +
-            $"── 診斷 ──\r\n" +
-            $"詳細診斷記錄：{FormatState(settings.VerboseLogging)}\r\n" +
-            $"診斷檔：{SqlAssistDiagnostics.LogPath}";
-
-        VsShellUtilities.ShowMessageBox(
-            _package,
-            message,
-            "SqlAssist 診斷狀態",
-            OLEMSGICON.OLEMSGICON_INFO,
-            OLEMSGBUTTON.OLEMSGBUTTON_OK,
-            OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+        try
+        {
+            var snapshot = SqlAssistDiagnosticSnapshotFactory.Create();
+            new SqlAssistAboutWindow(snapshot, TryOpenSettings, OpenDiagnosticsLogCore).ShowModal();
+        }
+        catch (Exception exception)
+        {
+            Report("開啟關於與診斷", exception);
+        }
     }
 
     /// <summary>
@@ -259,12 +227,8 @@ internal sealed class SqlAssistCommands
 
         try
         {
-            IServiceProvider serviceProvider = _package;
-
-            if (serviceProvider.GetService(typeof(SVsUnifiedSettingsUiController))
-                is IVsUnifiedSettingsUiController2 controller)
+            if (TryOpenSettings())
             {
-                controller.ShowUnifiedSettingsDialog(new[] { SqlAssistMonikers.Category });
                 return;
             }
 
@@ -276,19 +240,40 @@ internal sealed class SqlAssistCommands
         }
     }
 
+    private bool TryOpenSettings()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        IServiceProvider serviceProvider = _package;
+
+        if (serviceProvider.GetService(typeof(SVsUnifiedSettingsUiController))
+            is not IVsUnifiedSettingsUiController2 controller)
+        {
+            return false;
+        }
+
+        controller.ShowUnifiedSettingsDialog(new[] { SqlAssistMonikers.Category });
+        return true;
+    }
+
     private void OpenDiagnosticsLog(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
         try
         {
-            SqlAssistDiagnostics.EnsureLogFile();
-            VsShellUtilities.OpenDocument(_package, SqlAssistDiagnostics.LogPath);
+            OpenDiagnosticsLogCore();
         }
         catch (Exception exception)
         {
             Report("開啟診斷紀錄檔", exception);
         }
+    }
+
+    private void OpenDiagnosticsLogCore()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        SqlAssistDiagnostics.EnsureLogFile();
+        VsShellUtilities.OpenDocument(_package, SqlAssistDiagnostics.LogPath);
     }
 
     /// <remarks>
@@ -299,39 +284,5 @@ internal sealed class SqlAssistCommands
     {
         SqlMetadataService.InvalidateAll();
         SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
-    }
-
-    private static string FormatState(bool enabled)
-    {
-        return enabled ? "啟用" : "停用";
-    }
-
-    /// <remarks>
-    /// 建議的狀態是「啟用」：紅色錯誤波浪線與大綱都掛在它底下，關掉它等於
-    /// 連錯誤檢查一起關掉，而互搶的那一半已經由
-    /// <see cref="NativeMemberList"/> 單獨擋掉了。
-    /// </remarks>
-    private static string FormatNativeIntelliSense()
-    {
-        return SqlAssistSettingsStore.TryGetNativeIntelliSenseEnabled() switch
-        {
-            true => "啟用（錯誤波浪線與大綱可用）",
-            false => "停用（沒有錯誤波浪線，建議開回來）",
-            null => "讀不到"
-        };
-    }
-
-    /// <summary>設定要的樣子與 SSMS 語言偏好實際的樣子分開顯示。</summary>
-    /// <remarks>
-    /// 兩者不一致就是「寫進去了但沒生效」，那是這個功能唯一會安靜失敗的方式。
-    /// </remarks>
-    private static string FormatNativeMemberList()
-    {
-        return NativeMemberList.TryGetSuppressed() switch
-        {
-            true => "內建清單已擋下",
-            false => "內建清單仍會彈出",
-            null => "讀不到"
-        };
     }
 }
