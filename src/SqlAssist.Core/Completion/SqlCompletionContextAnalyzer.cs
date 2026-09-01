@@ -235,7 +235,8 @@ public static class SqlCompletionContextAnalyzer
         // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示。
         intent = CompletionIntent.AlterDefinition;
 
-        if (EndsWithKeywords(text, "ALTER", "PROCEDURE", out keywordStart))
+        if (EndsWithKeywords(text, "ALTER", "PROCEDURE", out keywordStart) ||
+            EndsWithKeywords(text, "ALTER", "PROC", out keywordStart))
         {
             return CompletionTarget.Procedure;
         }
@@ -245,7 +246,15 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Function;
         }
 
-        // 觸發程序與模組一樣改得動，因此 ALTER 之後同樣放進完整定義。
+        // 檢視與觸發程序在 SqlObjectKinds.IsModule 裡與程序、函式同一類，
+        // OBJECT_DEFINITION 一樣拿得到定義，因此 ALTER 之後同樣放進完整定義。
+        // 少了檢視這一條的症狀不是「清單怪怪的」而是 ALTER VIEW 之後整份清單
+        // 都是資料表與關鍵字，選中的名稱在那個語句裡一定失敗。
+        if (EndsWithKeywords(text, "ALTER", "VIEW", out keywordStart))
+        {
+            return CompletionTarget.View;
+        }
+
         if (EndsWithKeywords(text, "ALTER", "TRIGGER", out keywordStart))
         {
             return CompletionTarget.Trigger;
@@ -276,6 +285,25 @@ public static class SqlCompletionContextAnalyzer
             EndsWithKeywords(text, "ENABLE", "TRIGGER", out keywordStart))
         {
             return CompletionTarget.Trigger;
+        }
+
+        // DROP 之後要的只是一個名稱，因此與同名的 ALTER 分在不同的意圖。
+        // 模組家族每一種都要各寫一條：漏掉的那一種沒有任何徵兆，只是使用者在
+        // 那個位置沒有清單，而那正是 ALTER VIEW 之前的處境。
+        if (EndsWithKeywords(text, "DROP", "VIEW", out keywordStart))
+        {
+            return CompletionTarget.View;
+        }
+
+        if (EndsWithKeywords(text, "DROP", "PROCEDURE", out keywordStart) ||
+            EndsWithKeywords(text, "DROP", "PROC", out keywordStart))
+        {
+            return CompletionTarget.Procedure;
+        }
+
+        if (EndsWithKeywords(text, "DROP", "FUNCTION", out keywordStart))
+        {
+            return CompletionTarget.Function;
         }
 
         // 這三個位置文法上只接得了既有的資料表。ALTER 家族的 PROCEDURE／FUNCTION／

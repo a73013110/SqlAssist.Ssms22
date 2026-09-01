@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using SqlAssist.Metadata.Model;
 using Xunit;
 
@@ -221,6 +221,57 @@ public sealed class SqlObjectStructureTests
                 definition: "CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;"));
 
         Assert.Equal("CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;", structure.BuildScript());
+    }
+
+    /// <summary>
+    /// 檢視同時是模組也有欄位。定義取不到時原本會掉進 CREATE TABLE 那一支，
+    /// 於是一個檢視被寫成一張同名的資料表——照著執行就真的多出一張表。
+    /// </summary>
+    /// <remarks>
+    /// OBJECT_DEFINITION 傳回 NULL 的兩個原因（WITH ENCRYPTION、沒有
+    /// VIEW DEFINITION 權限）要寫在輸出裡，否則使用者查不出為什麼沒有指令碼。
+    /// </remarks>
+    [Fact]
+    public void 取不到定義的檢視不會被寫成資料表()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(3, "dbo", "v_Loan", SqlObjectKind.View),
+                new[]
+                {
+                    Column(1, "LoanId", "int", nullable: false),
+                    Column(2, "CopyNo", "varchar(10)", nullable: true)
+                }));
+
+        var script = structure.BuildScript();
+
+        Assert.DoesNotContain("CREATE TABLE", script);
+        Assert.Contains("取不到 [dbo].[v_Loan] 的定義", script);
+        Assert.Contains("VIEW DEFINITION", script);
+
+        // 查得到的欄位仍然要看得到，只是整段都是註解——這裡沒有一行執行得動。
+        Assert.Contains("--     [LoanId] int NOT NULL", script);
+
+        foreach (var line in script.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            Assert.True(trimmed.Length == 0 || trimmed.StartsWith("--"), line);
+        }
+    }
+
+    /// <summary>取不到定義的程序列出參數，理由與檢視列出欄位相同。</summary>
+    [Fact]
+    public void 取不到定義的程序列出參數()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(4, "dbo", "usp_Renew", SqlObjectKind.Procedure),
+                parameters: new[] { new SqlParameterInfo(1, "@LoanId", "int", false) }));
+
+        var script = structure.BuildScript();
+
+        Assert.Contains("取不到 [dbo].[usp_Renew] 的定義", script);
+        Assert.Contains("--     @LoanId int", script);
     }
 
     [Fact]

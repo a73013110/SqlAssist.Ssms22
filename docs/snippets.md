@@ -1,13 +1,13 @@
 # 程式碼片段
 
-內建 43 筆 SQL Server 2016 SP1 以上可用的片段；由
+內建 45 筆 SQL Server 2016 SP1 以上可用的片段；由
 `工具 → SqlAssist → 程式碼片段…` 增刪修，也可以從設定頁進入。
 
 | 分類 | 捷徑 |
 |---|---|
 | SELECT | `ssf`、`st100`、`st1`、`ssc`、`sd` |
 | DML | `ii`、`ui`、`df`、`mg` |
-| DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`citvf`、`cix`、`at`、`dt`、`ap`、`af` |
+| DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`citvf`、`cix`、`at`、`dt`、`ap`、`af`、`av`、`atr` |
 | 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
 | 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`sno`、`ptt` |
 
@@ -17,7 +17,7 @@
 
 ## 半句話加接續建議
 
-17 筆片段**刻意不是 Tab Stop**，而是 `caret` 加接續建議：插入單獨一行的半句話，
+19 筆片段**刻意不是 Tab Stop**，而是 `caret` 加接續建議：插入單獨一行的半句話，
 游標停在尾巴，接著由建議清單接手。
 
 | 片段 | 插入 | 接著列出 |
@@ -27,12 +27,13 @@
 | `ui`、`df` | `UPDATE `、`DELETE FROM ` | 資料表與檢視 |
 | `ij`、`lj`、`rj`、`fj`、`cj` | `INNER JOIN `… | 資料表與檢視 |
 | `ca`、`oa` | `CROSS APPLY `、`OUTER APPLY ` | 函式 |
-| `ap`、`af` | `ALTER PROCEDURE `、`ALTER FUNCTION ` | 程序、函式；`ap` 提交時放進完整定義 |
+| `ap`、`af`、`av`、`atr` | `ALTER PROCEDURE `、`ALTER FUNCTION `、`ALTER VIEW `、`ALTER TRIGGER ` | 程序、函式、檢視、觸發程序；提交時放進完整定義 |
 
 它們要填的是資料表、程序與函式的**真實名稱**，那份清單來自連線的中繼資料；
 換成 `[dbo].[TableName]` 這種靜態欄位等於把這個擴充最核心的東西換掉。`ii` 與
-`ap` 更是整條鏈的起點——選到資料表或程序之後由 `SqlCommitExpander` 放進可執行的
-整句（見 [completion.md](completion.md)）。要 CREATE 的骨架請用 `cp`、`cf`、
+`ap` 家族更是整條鏈的起點——選到資料表或模組之後由 `SqlCommitExpander` 放進可執行的
+整句（見 [completion.md](completion.md)）。四筆 `ALTER` 走的是同一份展開，因為
+檢視與觸發程序在 `SqlObjectKinds.IsModule` 裡與程序、函式同一類。要 CREATE 的骨架請用 `cp`、`cf`、
 `citvf`，那三筆才是 Tab Stop。
 
 **接得下去的條件是「展開出來的那一行結尾剛好是一個會列出東西的關鍵字」**，
@@ -165,7 +166,7 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 
 內建定義只有一份：
 `src/SqlAssist.Core/Snippets/DefaultSnippets.json`，以 Embedded Resource 隨 VSIX 發布。
-不要把 43 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
+不要把 45 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
 
 使用者檔位於 `%APPDATA%\SqlAssist\snippets.json`，v2 只存：
 

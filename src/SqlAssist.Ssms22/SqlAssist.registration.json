@@ -108,7 +108,7 @@
       "default": true,
       "order": 200,
       "title": "列出程式碼片段",
-      "description": "把內建與自訂的程式碼片段一起列進建議清單。內建片段共 43 筆。",
+      "description": "把內建與自訂的程式碼片段一起列進建議清單。內建片段共 45 筆。",
       "additionalKeywords": [ "snippet", "範本", "template", "縮寫", "捷徑" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'",
       "commands": [

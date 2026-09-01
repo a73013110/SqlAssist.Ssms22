@@ -270,6 +270,28 @@
       "positions": ["StatementStart", "BlockStart"],
       "code": "ALTER FUNCTION $end$"
     },
+    {
+      "id": "builtin.av",
+      "category": "ddl",
+      "shortcut": "av",
+      "title": "ALTER VIEW",
+      "description": "修改檢視；接著列出檢視並放進完整定義",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": "ALTER VIEW $end$"
+    },
+    {
+      "id": "builtin.atr",
+      "category": "ddl",
+      "shortcut": "atr",
+      "title": "ALTER TRIGGER",
+      "description": "修改觸發程序；接著列出觸發程序並放進完整定義",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": "ALTER TRIGGER $end$"
+    },
 
     {
       "id": "builtin.beg",

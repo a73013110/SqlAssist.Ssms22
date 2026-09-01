@@ -16,7 +16,7 @@
 取得詞首加成。因此輸入 `libr` 時 `Lib_Reader` 就會排在第一，不必打到 `lib_re`。
 命中的字元會在清單中以粗體標示。
 
-43 筆 Snippet 不再以固定最高類別加成塞滿清單：沒有前綴時排在欄位、關鍵字與常用物件
+45 筆 Snippet 不再以固定最高類別加成塞滿清單：沒有前綴時排在欄位、關鍵字與常用物件
 之後，危險片段直接隱藏；輸入從捷徑開頭命中時才恢復最高加成，純子序列命中則維持低分。
 每筆另帶 `SqlKeywordPosition`，語句級 DDL 不會混進 SELECT 欄位位置。這三層規則都在
 Core，避免原生清單與測試用排名走出不同結果。
@@ -420,9 +420,11 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View | 插入名稱 |
 | `CROSS APPLY`、`OUTER APPLY` | Function | 插入名稱 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
-| `ALTER PROCEDURE` | Procedure | 展開完整 ALTER 定義 |
+| `ALTER PROCEDURE`／`PROC` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
+| `ALTER VIEW` | View | 展開完整 ALTER 定義 |
 | `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
+| `DROP PROCEDURE`／`PROC`、`DROP FUNCTION`、`DROP VIEW` | 同上各一類 | 插入名稱 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
 | `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
@@ -501,6 +503,10 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 資料庫裡都存在，是產品事實而不是誰的 schema。少了這兩筆的話，使用者連「打 `sys`
 再按 Tab」這條路都沒有。
 
+`DROP` 家族與它們對稱：`DROP PROCEDURE`、`DROP FUNCTION`、`DROP VIEW` 之後同樣
+只列那一類，但意圖是 `Reference`——那個位置要的只是一個名稱，把整份定義放進去
+反而讓語句不合法。少寫哪一條都沒有徵兆，只是使用者在那個位置沒有清單。
+
 觸發程序、序列與使用者自訂的資料表型別**只在自己的位置出現**，不進一般清單。
 理由與全域變數同一條：`SELECT tr` 不該冒出觸發程序，而 `EXEC ` 之後選到一個觸發
 程序一定執行失敗。觸發程序算模組（`OBJECT_DEFINITION` 拿得到定義），所以
@@ -519,7 +525,12 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 `ap` → `Tab` → 選取程序 → `Tab`，編輯器會直接放進該程序可執行的完整定義，
 可以立刻修改並更新。定義開頭的 `CREATE` 或 `CREATE OR ALTER` 會改寫成 `ALTER`，
 主體完全不動（主體裡的 `CREATE TABLE #tmp` 之類的語句不受影響），游標停在標頭的
-物件名稱之後。`ALTER FUNCTION`、`ALTER TRIGGER` 走的是同一份展開，行為完全一致。
+物件名稱之後。`ALTER FUNCTION`、`ALTER VIEW`、`ALTER TRIGGER` 走的是同一份展開，
+行為完全一致——那四種在 `SqlObjectKinds.IsModule` 裡是同一類，`OBJECT_DEFINITION`
+都拿得到定義。
+
+定義取不到只有兩個原因（物件是 `WITH ENCRYPTION` 建的，或這個登入沒有它的
+`VIEW DEFINITION` 權限），這時維持只插入名稱，並在診斷紀錄裡寫明。
 
 ## 提交時展開成整句
 

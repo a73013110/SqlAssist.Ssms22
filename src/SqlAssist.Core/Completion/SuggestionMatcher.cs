@@ -290,6 +290,7 @@ public static class SuggestionMatcher
             // 使用者自訂的資料表型別與內建型別在同一個位置。
             CompletionTarget.DataType => kind is SuggestionKind.DataType
                 or SuggestionKind.UserDefinedType,
+            CompletionTarget.View => kind == SuggestionKind.View,
             CompletionTarget.Trigger => kind == SuggestionKind.Trigger,
             CompletionTarget.Sequence => kind == SuggestionKind.Sequence,
             CompletionTarget.DatePart => kind == SuggestionKind.DatePart,

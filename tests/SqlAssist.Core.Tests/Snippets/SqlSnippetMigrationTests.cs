@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -12,7 +12,7 @@ public sealed class SqlSnippetMigrationTests
         var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(Ssf, Ap, Af), SqlSnippetDefaults.Current);
 
         Assert.Empty(migrated.Snippets);
-        Assert.Equal(43, SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, migrated).Library.Count);
+        Assert.Equal(45, SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, migrated).Library.Count);
     }
 
     [Fact]
