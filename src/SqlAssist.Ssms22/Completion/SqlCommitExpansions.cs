@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
@@ -48,7 +48,8 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
         return new TextReplacement(
             script,
             $"ALTER {Object.QualifiedName}",
-            $"已展開 {Object.QualifiedName} 的完整 ALTER 語句");
+            $"已展開 {Object.QualifiedName} 的完整 ALTER 語句",
+            SqlModuleScript.FindHeaderNameEnd(script));
     }
 }
 
