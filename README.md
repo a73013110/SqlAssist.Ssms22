@@ -1,100 +1,116 @@
 # SqlAssist for SSMS 22
 
-針對 SQL Server Management Studio 22.9.x 開發的 T-SQL 生產力擴充套件。
-版本由 git 歷史自動決定，最新版請見 [GitHub Releases](https://github.com/a73013110/SqlAssist.Ssms22/releases)。
+**把 SSMS 22 的 T-SQL 編輯器補上「懂你目前這個資料庫」的即時建議、SQL 展開與物件預覽。**
 
-輸入時即時建議 T-SQL 關鍵字、內建函式、程式碼片段與資料庫物件，排名採用詞首感知的
-模糊比對；按 Tab 把 `SELECT *` 展開成完整欄位清單；滑鼠停留或按向右鍵看得到物件的
-完整結構。設定全部走 SSMS 22 的 Unified Settings。
+[![Release](https://img.shields.io/github/v/release/a73013110/SqlAssist.Ssms22?sort=semver)](https://github.com/a73013110/SqlAssist.Ssms22/releases)
+[![License](https://img.shields.io/github/license/a73013110/SqlAssist.Ssms22)](LICENSE)
+![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
+![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-## 功能
+<!-- 產生 docs/images/hero.png 之後把下面這一行的註解拿掉；規格與提示詞見 docs/images/README.md -->
+<!-- <p align="center"><img src="docs/images/hero.png" alt="SqlAssist 在 SSMS 查詢視窗中列出資料庫物件建議" width="900"></p> -->
 
-| 功能 | 一句話 | 詳細 |
-|---|---|---|
-| 建議清單 | 由平台原生非同步 IntelliSense 呈現，排名自己做 | [completion.md](docs/completion.md) |
-| 關鍵字大寫 | 打完 `select` 按空白就變 `SELECT` | [completion.md](docs/completion.md) |
-| 欄位建議 | 輸入 `別名.` 列出該資料來源的欄位、型別與 PK | [completion.md](docs/completion.md) |
-| 程式碼片段 | 43 筆內建與自訂片段，支援 Tab／Shift+Tab 欄位導航 | [snippets.md](docs/snippets.md) |
-| 展開 `SELECT *` | Tab 換成完整欄位清單，三種排法 | [wildcard-expansion.md](docs/wildcard-expansion.md) |
-| 展開整句 | `INSERT INTO`、`EXEC`、`ALTER` 之後提交物件就補齊整句 | [completion.md](docs/completion.md) |
-| 物件結構 | 停留提示與可複製的浮動預覽 | [structure-preview.md](docs/structure-preview.md) |
+SqlAssist 是安裝在 **SQL Server Management Studio 22** 裡的 VSIX 擴充套件，不是另一套
+SQL 編輯器，也不是 SSMS 的修改版——你仍然在原本的查詢視窗裡工作。
 
-## 文件
+建議完全在你的機器上算出來：需要的資料表、欄位與程序資訊，只向**你已經連上的那台
+SQL Server** 查詢，不經過任何雲端服務，也沒有 AI 模型參與。
 
-| 文件 | 內容 |
+[安裝與開始使用](docs/getting-started.md) ·
+[下載 VSIX](https://github.com/a73013110/SqlAssist.Ssms22/releases) ·
+[回報問題](https://github.com/a73013110/SqlAssist.Ssms22/issues) ·
+[開發者文件](docs/index.md)
+
+## 三十秒看它做什麼
+
+```sql
+-- 1. 記得用途、記不得全名？打三個字母就找得到：libr → Tab
+SELECT * FROM dbo.Lib_Reader
+
+-- 2. 游標停在 * 後面按 Tab，換成明確欄位
+SELECT
+    Id,
+    Name,
+    BranchId
+FROM dbo.Lib_Reader
+
+-- 3. 打 ap → Tab 選一個預存程序，整份可執行的定義直接進編輯器，
+--    游標停在名稱後面，可以立刻改、立刻執行
+ALTER PROCEDURE dbo.usp_Loan_Renew
+    @LoanId int,
+    @Days   int = 7
+AS
+BEGIN
+    ...
+```
+
+<!-- 補上實機截圖之後把下面三行的註解拿掉；檔名與拍法見 docs/images/README.md -->
+<!-- <img src="docs/images/completion.png" alt="建議清單" width="440"> -->
+<!-- <img src="docs/images/expand-star.png" alt="展開 SELECT *" width="440"> -->
+<!-- <img src="docs/images/structure-preview.png" alt="物件結構預覽" width="440"> -->
+
+## 它能幫你做什麼？
+
+| 寫 SQL 時遇到的事 | SqlAssist 的做法 |
 |---|---|
-| [index.md](docs/index.md) | 從「我要改什麼」或手上的檔案路徑，找到該讀的文件與該進入的程式碼 |
-| [architecture.md](docs/architecture.md) | 三個專案的分層、資料夾規則、為什麼改用平台原生管線 |
-| [completion.md](docs/completion.md) | 建議清單、關鍵字目錄、內建函式、自動大寫、上下文與欄位建議 |
-| [snippets.md](docs/snippets.md) | 程式碼片段的格式、佔位符與接續行為 |
-| [wildcard-expansion.md](docs/wildcard-expansion.md) | `SELECT *` 展開的判斷、欄位來源與排版 |
-| [structure-preview.md](docs/structure-preview.md) | 停留提示、浮動預覽與整個擴充的外觀規則 |
-| [settings.md](docs/settings.md) | 設定清單、Unified Settings 的限制與刻意不做成設定的東西 |
-| [metadata.md](docs/metadata.md) | 中繼資料的四層按需載入與快取 |
-| [development.md](docs/development.md) | 環境需求、建置、測試、安裝、偵錯、診斷 |
+| 記得用途，卻記不完整物件名稱 | 輸入 `libr`，用詞首感知的模糊比對找到 `Lib_Reader` |
+| 不想離開編輯器查欄位 | 輸入 `lr.`，直接列出該來源的欄位、型別與主索引鍵 |
+| 想把 `SELECT *` 改成明確欄位 | 游標停在 `*` 後按 Tab，展開成完整欄位清單 |
+| 每次都要重打 `INSERT` 或 `EXEC` 骨架 | 選取物件後，自動補齊欄位、值或參數清單 |
+| 想改一個預存程序，卻要先去物件總管找 | 打 `ap` 選它，完整的 `ALTER` 定義直接進編輯器 |
+| 想先確認資料表或預存程序的結構 | 滑鼠停留快速看摘要，或開啟可複製的完整結構預覽 |
+| 常寫重複的 SQL 樣板 | 使用 45 筆內建片段，並以 Tab／Shift+Tab 在欄位間移動 |
 
-改程式之前先看 [CLAUDE.md](CLAUDE.md)：那裡是這個專案踩過坑之後定下來的硬規則。
+此外還包含依位置過濾的 T-SQL 關鍵字、內建函式與變數建議、輸入時自動大寫，以及
+欄位／資料表／檢視等分類篩選。功能細節可從[使用與功能文件](#使用與功能文件)進入。
 
-## 專案結構
+## 安裝
 
-```text
-src/SqlAssist.Core       netstandard2.0，無 Visual Studio 相依，可完整單元測試
-src/SqlAssist.Metadata   netstandard2.0，只依賴 System.Data
-src/SqlAssist.Ssms22     net48 VSIX
-tests/                   鏡像 src 的資料夾結構
-tools/                   建置、安裝、偵錯與關鍵字產生腳本
-docs/                    按主題切開的說明文件
-```
+需要 **Windows x64** 與 **SSMS 22.9.x**。不必 clone 這個專案，也不必安裝 .NET SDK。
 
-核心邏輯刻意集中在沒有 Visual Studio 相依的兩個專案，因此排名、解析與中繼資料
-對應都可以在不啟動 SSMS 的情況下驗證。目前共 589 項單元測試。
-資料夾即命名空間，細節見 [architecture.md](docs/architecture.md)。
+1. 到 [Releases](https://github.com/a73013110/SqlAssist.Ssms22/releases)，從最新版本的
+   **Assets** 下載 `SqlAssist.Ssms22.vsix`。
+2. 儲存查詢，關閉所有 SSMS 視窗。
+3. 開啟 `.vsix`，確認安裝目標是 **SQL Server Management Studio 22**。
+4. 重新啟動 SSMS。看到 **工具 → SqlAssist** 就代表裝好了。
 
-## 快速開始
+裝不起來、想知道第一次該試什麼、或要解除安裝，看[安裝與開始使用](docs/getting-started.md)。
 
-```powershell
-Set-Location 'D:\GitProject\SqlAssist.Ssms22'
-.\tools\Run-CoreTests.ps1
-.\tools\Build-Extension.ps1
-.\tools\Install-Extension.ps1
-```
+<details>
+<summary>Releases 頁面顯示尚無任何版本？</summary>
 
-需要 Windows x64、SSMS 22.9.x 與 .NET SDK 10.0.400。
-安裝前請關閉所有 SSMS 視窗，安裝後重新啟動。
-完整說明見 [development.md](docs/development.md)。
+代表目前還沒有公開、可直接安裝的 VSIX。GitHub 自動產生的 Source code 壓縮檔**不是**
+安裝檔；想自行建置請看[開發文件](docs/development.md)。
 
-**請維持 SSMS 內建的 T-SQL IntelliSense 為開啟**——紅色錯誤波浪線與大綱都掛在
-它底下，關掉它等於連語法檢查一起關掉。會與 SqlAssist 互搶的只有它自動彈出的
-那份清單，預設開啟的「只使用 SqlAssist 的建議清單」已經單獨擋掉了，
-理由見 [completion.md](docs/completion.md)。
+</details>
 
-## 目前限制
+> [!IMPORTANT]
+> 請維持 SSMS 內建的 T-SQL IntelliSense 開啟。SqlAssist 預設只擋掉會互相干擾的
+> 內建自動建議清單，紅色錯誤波浪線、大綱與參數提示仍由 SSMS 提供。
 
-- 建議項還沒有圖示。原生清單支援 `ImageElement`，只是尚未挑選 moniker。
-- 未限定的欄位建議不分子句：`GROUP BY` 之後與 `SELECT` 之後給的是同一份清單。
-- 逗號分隔的資料來源清單不會收斂目標：`FROM A a, |` 之後給的是完整清單，
-  而不是只有資料表與檢視。逗號之後要判斷還在不在資料來源位置，得把資料表清單的
-  文法（AS、資料表提示、衍生資料表、資料表值函式）再剖析一次；
-  症狀只是清單偏寬而不是空的，暫時不值得多維護一份文法。
-- 尚未依外部索引鍵補完 JOIN 條件。
-- **建議清單**尚未支援暫存表、資料表變數、CTE 名稱與跨資料庫參考的欄位：
-  輸入 `c.` 時列不出 CTE `c` 的欄位。展開 `SELECT *` 是另一條路徑，
-  它讀的是指令碼裡的選取清單，衍生資料表與 CTE 都支援。
-- 尚未實作結果格的 `Script as INSERT`、`Copy as IN clause`；功能落地前不提供對應設定。
-- 關鍵字目錄只涵蓋保留字加一份非保留字補充清單。非保留字（`FILELISTONLY`、
-  `ROWTERMINATOR` 這類）在文法上不是關鍵字，任何剖析器都列不出來，
-  要補只能加進產生器的補充清單，或做成程式碼片段。
-- 程式碼片段與 SSMS 的 `.snippet` 不互通，也還沒有匯入轉換。
-- 佔位符只有預設值，展開後不能用 Tab 在欄位之間巡覽。`INSERT`／`EXEC` 展開出來的
-  預留值同樣是純文字，要自己移動游標去填。
-- SSMS 目前不正式支援第三方擴充套件，安裝與載入方式需要以實機驗證。
-- Unified Settings 的服務型別取自 `Microsoft.Internal.VisualStudio.Interop`，
-  那是內部 API。取不到服務時會安靜地回退到內建預設值，但 SSMS 改版有可能讓
-  設定變成唯讀。
+> [!WARNING]
+> [SSMS 目前未正式支援第三方擴充套件](https://learn.microsoft.com/en-us/ssms/faq#are-extensions-supported-in-ssms)；
+> 本專案以 SSMS 22.9.x 實機驗證，SSMS 更新後仍可能需要等待相容性確認。
 
-## 下一階段
+## 使用與功能文件
 
-1. 依外部索引鍵補完 JOIN 條件。
-2. 依子句細分未限定的欄位建議（`GROUP BY` 之後不該出現不可分組的欄位）。
-3. 建議項圖示與篩選列（只看資料表、只看欄位）。
-4. 結果格的 `Script as INSERT`、`Copy as IN clause`。
+| 我想知道…… | 文件 |
+|---|---|
+| 怎麼安裝、確認載入與開始使用 | [安裝與開始使用](docs/getting-started.md) |
+| 建議清單、關鍵字大寫、欄位與整句展開 | [建議清單](docs/completion.md) |
+| 內建／自訂片段與 Tab 欄位導航 | [程式碼片段](docs/snippets.md) |
+| `SELECT *` 怎麼展開與排版 | [展開 SELECT *](docs/wildcard-expansion.md) |
+| 滑鼠提示與完整物件結構預覽 | [物件結構預覽](docs/structure-preview.md) |
+| 功能開關、顯示方式與診斷設定 | [設定](docs/settings.md) |
+
+## 開發者入口
+
+想閱讀原始碼、建置 VSIX 或參與開發，請從下列文件開始；README 只保留入口，不重複
+專案內部細節。
+
+- [文件索引](docs/index.md)：依「想改什麼」或檔案路徑找到對應文件與程式碼。
+- [建置、測試、安裝與發布](docs/development.md)：開發環境與工具腳本。
+- [架構](docs/architecture.md)：Core、Metadata 與 SSMS 接線層的分工。
+- [專案開發規範](CLAUDE.md)：動手前必讀的限制與踩坑記錄。
+
+本專案採用 [MIT License](LICENSE)。
