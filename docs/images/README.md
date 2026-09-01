@@ -1,44 +1,75 @@
 # 圖片
 
-`README.md` 與文件用到的圖片都放這裡。目前每一張都還沒有產出，README 裡對應的
-`<img>` 已經先寫好並註解起來——檔案放進來之後把註解拿掉就會顯示。
+`README.md` 與文件用到的圖片都放這裡。
 
 ## 檔案清單
 
-| 檔名 | 用途 | 尺寸 | 怎麼來 |
+| 檔名 | 用途 | 實際尺寸 | 狀態 |
 |---|---|---|---|
-| `hero.png` | README 標題下方的橫幅 | 1200 × 400 | 產生 |
-| `social-preview.png` | GitHub 的 Social preview（分享連結時顯示的縮圖） | 1280 × 640 | 產生 |
-| `logo.png` | 專案圖示，之後也可以當 VSIX 的圖示 | 512 × 512 | 產生 |
-| `completion.png` | 建議清單 | 寬 880 | **實機截圖** |
-| `expand-star.png` | `SELECT *` 展開前後 | 寬 880 | **實機截圖** |
-| `structure-preview.png` | 浮動結構預覽 | 寬 880 | **實機截圖** |
+| `hero.png` | README 標題下方的橫幅 | 2172 × 724 | 已接上 |
+| `expand-star.png` | `SELECT *` 展開前後 | 1470 × 1070 | 已接上 |
+| `completion.png` | 建議清單與欄位面板 | 1438 × 1093 | 已接上（收在 `<details>` 裡） |
+| `structure-preview.png` | 浮動結構預覽的指令碼分頁 | 1494 × 1053 | 已接上（收在 `<details>` 裡） |
+| `social-preview.png` | GitHub 的 Social preview | 1774 × 887 | 待上傳，見下 |
+| `logo.png` | 專案圖示 | 1254 × 1254 | 已重畫，還沒接上任何地方，見下 |
 
-`social-preview.png` 不會出現在 README 裡，要到 GitHub 的
-**Settings → General → Social preview** 上傳。那張圖決定這個連結貼到 Teams、Slack
-或社群時長什麼樣子，是「會不會有人點進來」影響最大的一張。
+README 裡的四張圖都指定 `width`，不是原尺寸貼上去：`hero.png` 給 900、其餘給 820。
+原尺寸會把版面撐開，而 GitHub 不會幫忙縮。
 
-## 截圖不要用生成的
+每一張都壓過（`logo.png`、`hero.png` 等已轉成調色盤 PNG），維持原尺寸但檔案小得多。
+補新圖時記得一起壓：這些圖每一次 clone 都會整份帶下來，而且圖片改一次就在 git 裡
+多存一份完整的內容，不像文字檔只存差異。
 
-前三張是插畫，生成沒問題。後三張**一定要實機截圖**：這個專案的讀者天天在看 SSMS，
-一張長得不太對的假 SSMS 視窗，只會讓人覺得整個專案也不太可靠。
+### `social-preview.png` 不出現在 README
 
-截圖時：
+它要到 GitHub 的 **Settings → General → Social preview** 上傳。那張圖決定這個連結
+貼到 Teams、Slack 或社群時長什麼樣子——README 的第一畫面只有已經點進來的人看得到，
+這一張決定的是有沒有人點進來。
 
-- **只用虛構的圖書館領域命名**（`Lib_Reader`、`PUBLISHER`、`Cat_BookCopy`、`Loan`…）。
-  這個 repo 是公開的，真實系統的資料表與欄位名稱本身就是使用者的私有資產，
-  理由見 [CLAUDE.md](../../CLAUDE.md)。連線列與資料庫下拉選單也要一起避開。
-- 六張圖統一用同一個 SSMS 佈景主題（深色或淺色擇一）與同一個縮放比例。
-- 裁到剛好包住要講的東西，不要整個 SSMS 視窗——README 上縮圖之後什麼都看不清楚。
-- 存成 PNG。
+### `logo.png` 目前還沒接到任何地方
+
+這一張已經重畫過，圖示的三個基本條件都補上了：正方形（1254 × 1254）、圓角方形的
+深靛藍到藍色漸層底、銳利的白色圓柱與亮青色游標，四周留白、沒有任何一邊被畫布切掉，
+縮到 32 點仍然認得出是「資料庫＋游標」。
+
+還沒接上是因為現在沒有需要它的位置，不是因為它不能用：
+
+- **README 用不到**。標題下方已經有 `hero.png`，同一個畫面再放一顆圖示只是重複。
+- **VSIX 還沒有圖示資產**。`source.extension.vsixmanifest` 目前沒有 `Icon` 與
+  `PreviewImage`，要接的話得同時加資產宣告與專案檔的 `Content` 項目，那是建置的
+  改動不是文件的改動。
+
+接上去之前要先處理一件事：**圓角外的四個角落是不透明的黑色**，不是透明。放在淺色
+底上會看到四個小黑角。要在淺色主題裡用之前，先把圓角外緣裁成透明。
+
+## 這些圖是怎麼來的
+
+`hero.png`、`social-preview.png` 是生成的插畫；`completion.png`、
+`structure-preview.png` 是實機畫面；`expand-star.png` 是加了「展開前／展開後」
+說明框的合成圖。
+
+合成圖要留意兩件事，決定要不要重做時可以參考：
+
+- 圖上那個視窗外框不是 SSMS 22 的樣子（SSMS 22 是 VS 2022 的外觀）。天天在看 SSMS
+  的讀者會發現對不起來。
+- 說明框上的字是圖片的一部分，改文案就得重畫，翻譯與螢幕閱讀器也讀不到。
+  README 裡每一張都寫了完整的 `alt`，至少讀得到的那一份是有的。
+
+畫面圖一律**只用虛構的圖書館領域命名**。這個 repo 是公開的，真實系統的資料表與欄位
+名稱本身就是使用者的私有資產，理由見 [CLAUDE.md](../../CLAUDE.md)。連線列、資料庫
+下拉選單與登入名稱也要一起看過——那三個地方最容易漏。
+
+目前這幾張用的是 `LibraryDB`／`Libraries`／`LibraryAnnouncement` 這一套，
+與文件和測試裡的 `Lib_Reader`、`PUBLISHER`、`Cat_BookCopy`、`Loan` 不是同一套寫法。
+兩者都在同一個虛構領域裡，沒有外洩問題；只是下次補圖時沿用文件那一套會更一致。
 
 ## 產生用的提示詞
 
 提示詞刻意用英文寫：影像模型對英文的描述詞彙反應比較準，這裡的文字是丟給模型的
-輸入而不是給人讀的說明。三張都**刻意要求不要出現可讀的文字**——影像模型拼出來的
+輸入而不是給人讀的說明。插畫都**刻意要求不要出現可讀的文字**——影像模型拼出來的
 英文單字幾乎都是壞的，而壞掉的字比沒有字更傷。
 
-### `hero.png`（1200 × 400）
+### `hero.png`
 
 ```text
 A wide modern developer-tool hero banner, 1200x400. Dark charcoal background with a
@@ -52,7 +83,7 @@ editor to the card. Flat vector illustration, clean, high contrast, generous neg
 space. No logos, no people, no legible words or letters anywhere.
 ```
 
-### `social-preview.png`（1280 × 640）
+### `social-preview.png`
 
 ```text
 A clean 1280x640 open-graph card for a developer tool. Deep indigo to charcoal gradient
@@ -63,15 +94,14 @@ for text to be added later. Flat vector, minimal, high contrast, no text, no let
 no logos.
 ```
 
-上傳前自己在圖上加「SqlAssist for SSMS 22」一行字——留白就是為了這個。
-讓模型直接畫字幾乎一定會拼錯。
-
-### `logo.png`（512 × 512）
+### `logo.png`（現在這一張就是照這份重畫的）
 
 ```text
-A minimal flat app icon, 512x512, centred on a rounded square with a deep indigo to blue
-gradient. The mark is a simple database cylinder outlined in white with even thick
-strokes, and a small bright cyan text-cursor bar standing beside it. Nothing else. Flat
-vector, no text, no shadows, generous padding, still legible when scaled down to 32
-pixels.
+A minimal flat app icon. The canvas must be exactly square, 512x512. The artwork is a
+rounded square tile with a deep indigo to blue gradient, with clear empty padding
+between the tile edge and the mark. Centred on the tile: a simple database cylinder
+outlined in white with even, sharp, uniform strokes, and a small bright cyan
+text-cursor bar standing beside it. Crisp vector edges with no glow, no blur, no drop
+shadow and no bloom. Nothing is cropped by the canvas edge. Flat vector, no text, no
+letters, still clearly legible when scaled down to 32 pixels.
 ```
