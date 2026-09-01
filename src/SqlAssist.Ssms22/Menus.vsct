@@ -72,7 +72,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
-        <Strings><ButtonText>顯示診斷狀態</ButtonText></Strings>
+        <Strings><ButtonText>關於與診斷…</ButtonText></Strings>
       </Button>
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenDiagnosticsLog" priority="0x0200" type="Button">

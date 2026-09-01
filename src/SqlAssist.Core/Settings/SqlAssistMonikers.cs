@@ -54,7 +54,7 @@ public static class SqlAssistMonikers
     /// 前綴也不是 <see cref="Category"/>，所以不會被 <see cref="All"/> 收進去——
     /// 本來就不該訂閱別人的設定。
     ///
-    /// 這個擴充<b>不會</b>去動它，只讀來顯示在診斷狀態裡。它是總開關：
+    /// 這個擴充<b>不會</b>去動它，只讀來顯示在「關於與診斷」裡。它是總開關：
     /// 同一份註冊檔裡的 <c>underlineErrors</c>（紅色錯誤波浪線）與
     /// <c>autoOutlining</c> 都以 <c>enableWhen</c> 掛在它底下，關掉它等於
     /// 連錯誤檢查一起關掉。要擋的只是它自動彈出的那份清單，那走

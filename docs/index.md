@@ -67,6 +67,7 @@
 | `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`EXEC` 呼叫、參數預設值） | [completion.md](completion.md) |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 | [settings.md](settings.md) |
+| `Diagnostics/` | 版本解讀、健康檢查，以及視窗與匿名診斷摘要共用的欄位清單 | [development.md](development.md) |
 | `Json/` | 最小 JSON 讀寫（Snippet 檔與註冊檔測試用） | — |
 
 ### SqlAssist.Metadata（netstandard2.0，只依賴 `System.Data`）
@@ -90,7 +91,7 @@
 | `Snippets/` | 片段檔、管理員視窗與原生 Expansion Session | [snippets.md](snippets.md) |
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
 | `Connections/` | 取得 SSMS 查詢視窗的連線 | [metadata.md](metadata.md) |
-| `Commands/` | 命令識別碼與工具選單命令 | [development.md](development.md) |
+| `Commands/` | 命令識別碼、工具選單命令與「關於與診斷」視窗 | [development.md](development.md) |
 | `UI/` | 全擴充共用的外觀與佈景筆刷 | [structure-preview.md](structure-preview.md) |
 
 ## 只有一份的東西
@@ -116,6 +117,7 @@
 | Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
+| 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | Snippet 純文字、游標與欄位位置的計算 | `Core/Snippets/SqlSnippetExpansion.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |

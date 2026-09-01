@@ -201,6 +201,12 @@ Esc 關不掉預覽、輸入點號不重開清單——那就是這一件事，�
 
 ## 診斷
 
+SSMS 裡的 **工具 → SqlAssist → 關於與診斷…** 會顯示發布版號、Build commit、SSMS／Windows
+環境、目前生效的設定與健康檢查。按「複製診斷資訊」產生的摘要不含 SQL、伺服器名稱、
+資料庫名稱與 Windows 使用者名稱，適合直接貼到公開 Issue。
+
+完整紀錄用於需要逐步追查的問題，仍可能包含資料庫物件名稱；分享前要先檢查內容。
+
 ```text
 %LOCALAPPDATA%\SqlAssist.Ssms22\SqlAssist.log
 ```

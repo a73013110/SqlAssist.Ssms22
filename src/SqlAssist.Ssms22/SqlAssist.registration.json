@@ -265,7 +265,7 @@
       "messages": [
         {
           "severity": "informational",
-          "text": "SSMS 的 T-SQL IntelliSense 請保持開啟——紅色錯誤波浪線與大綱都在它底下。「只使用 SqlAssist 的建議清單」已經擋掉它會互搶的那一部分。目前狀態見「工具 → SqlAssist → 顯示診斷狀態」。"
+          "text": "SSMS 的 T-SQL IntelliSense 請保持開啟——紅色錯誤波浪線與大綱都在它底下。「只使用 SqlAssist 的建議清單」已經擋掉它會互搶的那一部分。目前狀態見「工具 → SqlAssist → 關於與診斷…」。"
         }
       ]
     },

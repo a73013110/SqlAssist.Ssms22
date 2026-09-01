@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Wildcards;
@@ -239,7 +240,8 @@ internal sealed class SqlWildcardExpander
 
         return new TextReplacement(
             text,
-            $"* → {columns.Count} 個欄位",
-            $"已把萬用字元展開成 {columns.Count} 個欄位");
+            SqlAssistActivityKind.WildcardExpanded,
+            $"已把萬用字元展開成 {columns.Count} 個欄位",
+            affectedItemCount: columns.Count);
     }
 }

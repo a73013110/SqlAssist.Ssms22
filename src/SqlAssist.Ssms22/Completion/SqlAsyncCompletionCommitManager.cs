@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -218,7 +219,10 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             applied = result;
         }
 
-        SqlAssistRuntimeState.MarkExpansion(insertionText.TrimEnd());
+        SqlAssistRuntimeState.MarkActivity(
+            snippet is null
+                ? SqlAssistActivityKind.SuggestionCommitted
+                : SqlAssistActivityKind.SnippetExpanded);
         SqlAssistDiagnostics.Write($"Suggestion 已提交：{suggestion.DisplayText}");
 
         if (snippetCaret >= 0)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Statements;
@@ -47,7 +48,7 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
 
         return new TextReplacement(
             script,
-            $"ALTER {Object.QualifiedName}",
+            SqlAssistActivityKind.AlterExpanded,
             $"已展開 {Object.QualifiedName} 的完整 ALTER 語句",
             SqlModuleScript.FindHeaderNameEnd(script));
     }
@@ -114,9 +115,10 @@ internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
 
         return new TextReplacement(
             text,
-            $"INSERT {Object.QualifiedName}",
+            SqlAssistActivityKind.InsertExpanded,
             $"已展開 {Object.QualifiedName} 的 {columns.Count} 個欄位與 VALUES",
-            caretOffset);
+            caretOffset,
+            columns.Count);
     }
 }
 
@@ -181,9 +183,10 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
 
         return new TextReplacement(
             text,
-            $"EXEC {Object.QualifiedName}",
+            SqlAssistActivityKind.ExecuteExpanded,
             $"已展開 {Object.QualifiedName} 的 {parameters.Count} 個參數",
-            caretOffset);
+            caretOffset,
+            parameters.Count);
     }
 
     /// <summary>

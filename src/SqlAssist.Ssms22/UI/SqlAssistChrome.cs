@@ -128,6 +128,26 @@ internal static class SqlAssistChrome
         };
     }
 
+    /// <summary>短狀態用的圓角徽章；不能只靠顏色傳達狀態，文字仍是必要內容。</summary>
+    public static Border CreateBadge(string text, Metrics metrics, bool accent = false)
+    {
+        return new Border
+        {
+            Background = accent ? VsThemeBrushes.AccentBackground : VsThemeBrushes.BadgeBackground,
+            BorderBrush = accent ? VsThemeBrushes.AccentBorder : VsThemeBrushes.Hairline,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(InnerRadius),
+            Padding = new Thickness(8, 2, 8, 3),
+            Child = new TextBlock
+            {
+                Text = text,
+                FontFamily = InterfaceFont,
+                FontSize = metrics.Caption,
+                Foreground = VsThemeBrushes.ListForeground
+            }
+        };
+    }
+
     /// <summary>
     /// 沒有邊框的按鈕，滑鼠移上去才長出底色。
     /// </summary>

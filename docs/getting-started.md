@@ -58,8 +58,9 @@ SSMS 若安裝在自訂位置，請把 `$installer` 改成該安裝目錄下的
 - 顯示即時建議
 - 顯示游標處物件的結構
 - 重新整理建議
+- 程式碼片段…
 - 設定…
-- 顯示診斷狀態
+- 關於與診斷…
 
 若整個選單不存在，先確認安裝目標與 SSMS 版本，再依本頁的[問題排查](#問題排查)處理。
 
@@ -94,7 +95,7 @@ Tab／Shift+Tab 在欄位之間移動；完整捷徑表見[程式碼片段](snip
 | 資料表剛變更，想重新載入 | **工具 → SqlAssist → 重新整理建議** |
 | 修改功能行為 | `Ctrl+,` 後搜尋 `SqlAssist` |
 | 編輯內建或自訂片段 | **工具 → SqlAssist → 程式碼片段…** |
-| 回報問題前檢查狀態 | **工具 → SqlAssist → 顯示診斷狀態** |
+| 回報問題前檢查狀態 | **工具 → SqlAssist → 關於與診斷…** |
 
 ## 更新
 
@@ -132,7 +133,7 @@ $installer = Join-Path $env:ProgramFiles 'Microsoft SQL Server Management Studio
 
 - 確認使用的是 Windows x64 與 SSMS 22.9.x。
 - 關閉所有 SSMS 視窗後重新安裝 VSIX。
-- 開啟 **工具 → SqlAssist → 顯示診斷狀態**，並在需要回報時啟用詳細診斷紀錄。
+- 開啟 **工具 → SqlAssist → 關於與診斷…**，先複製匿名診斷摘要；只有需要逐步追查時才啟用詳細診斷紀錄。
 
 診斷紀錄位於：
 
@@ -140,7 +141,7 @@ $installer = Join-Path $env:ProgramFiles 'Microsoft SQL Server Management Studio
 %LOCALAPPDATA%\SqlAssist.Ssms22\SqlAssist.log
 ```
 
-回報問題時，請附上 SSMS 版本、SqlAssist 版本、重現步驟與診斷狀態；貼上 SQL 或紀錄前，
+回報問題時，請附上 SSMS 版本、SqlAssist 版本、重現步驟與複製出的診斷摘要；貼上 SQL 或紀錄前，
 請先移除伺服器名稱、資料庫名稱、帳號及公司內部的結構描述與物件名稱。
 
 - [建立 GitHub Issue](https://github.com/a73013110/SqlAssist.Ssms22/issues)
