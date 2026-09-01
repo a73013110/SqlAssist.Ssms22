@@ -66,6 +66,17 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**用 `SqlAssistPlatformGuard` 吞掉 Core 與 Metadata 的商業邏輯錯誤，
   也**禁止**用它處理「使用者按了卻沒反應」的失敗——工具選單的命令、預覽的狀態列、
   Snippet 管理員都要顯示訊息，每一句都不同。不走它的地方一律在該處註明理由。
+- **禁止**在 Snippet 樣板裡把結構描述與物件名稱拆成 `$schema$.$object$` 兩格。
+  第一格的答案幾乎永遠是 `dbo`，而建議清單依設定插進來的 `[dbo].[Lib_Reader]`
+  這種寫法根本填不進拆開的格子。
+- **禁止**為 Snippet 欄位另外宣告「這一格要列哪一類物件」。那份判斷在
+  `SqlCompletionContextAnalyzer`，它讀的是實際文字；多一份宣告的症狀是樣板改了、
+  宣告沒改，而清單靜靜地不再出現。
+- **禁止**把 Snippet 欄位的上下文一律截到該格起點。只有「整格還是樣板填的預設值」
+  那一次要當它不存在；使用者一打字，那幾個字就是前綴，而那是無限定字的格子
+  （`INSERT (|)`）唯一的參與條件。截點只有
+  `SqlSnippetExpansionController.ResolveAnalysisEnd` 一份，排名器也要照同一條
+  把預設值視為空前綴，否則 Tab 進去的清單會被自己的預設值濾光。
 - **禁止**再寫一份 SQL 註解略過或括號配對。`Core/Parsing` 的 `SqlTrivia` 與
   `SqlTokenNavigator` 是唯一出處；自己寫的那一份漏掉巢狀註解已經發生過一次。
 - **禁止**在工具腳本裡寫死 SSMS 路徑或擴充的 Identity Id；

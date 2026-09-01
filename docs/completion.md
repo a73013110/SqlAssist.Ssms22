@@ -417,17 +417,47 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 
 | 游標前方 | 只顯示 | 提交行為 |
 |---|---|---|
-| `FROM`、`JOIN`、`UPDATE`、`INTO` | Table、View | 插入名稱 |
+| `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View | 插入名稱 |
 | `CROSS APPLY`、`OUTER APPLY` | Function | 插入名稱 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `ALTER PROCEDURE` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
 | `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
+| `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
+
+`USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
+`SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
+症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
+
+`IF EXISTS` 在比對前先剝掉一次，`DROP TABLE IF EXISTS `、`DROP TRIGGER IF EXISTS `
+因此不必各寫一條加長版。剝除只砍尾端，前面每個詞元的位置都沒有位移，所以語句
+關鍵字的起點仍然指得回原文；`IF EXISTS (SELECT …)` 那種流程控制剝完是空字串或
+另一個語句的尾巴，兩者都推不出目標，與剝之前一樣不會有清單。
+
+`ON` 沒有進這張表：它同時是 `CREATE INDEX … ON` 的資料表位置與 JOIN 條件的欄位位置，
+目前分不出來。`cix` 片段的資料表欄位因此沒有清單，那個已知缺口釘在
+`SqlSnippetDefaultsTests.索引的資料表欄位目前分不出JOIN條件因此沒有清單`。
+
+### MERGE 的動作子句
+
+`WHEN MATCHED THEN UPDATE SET …`、`WHEN NOT MATCHED THEN INSERT …` 裡的
+`UPDATE`／`INSERT`／`DELETE` 屬於同一個 MERGE，不是新敘述的開頭
+（`SqlScopeAnalyzer.IsMergeAction`）。把它們當成邊界的話，游標一進到 `WHEN` 之後，
+`target` 與 `source` 兩個別名就全部解析不出來——症狀是 `target.` 與 `source.`
+都不再列欄位，而 `INSERT (` 連一個候選都沒有。
+
+認的是**前一個詞元是不是 `THEN`**，不是「這份指令碼裡有沒有 MERGE」：一個 MERGE
+之後接著獨立的 `UPDATE`，那個 `UPDATE` 仍然必須切斷範圍。T-SQL 裡 `THEN` 只出現在
+CASE 與 MERGE，而 CASE 的 `THEN` 後面是運算式，不會是這三個關鍵字。
+
+`INSERT (` 括號裡文法上只該有 target 的欄位，但範圍解析給的是整個 MERGE 的兩張表。
+收斂成一張要另外記住「這個括號屬於 INSERT 子句」；多幾個選不中的名稱是多按幾下，
+兩張表都不列的話那一格就完全沒有補字。
 | `sys.`、`INFORMATION_SCHEMA.` | 目錄檢視、DMV 與系統程序 | 插入名稱 |
 | `u.`（`u` 是敘述中的別名） | 該資料表的欄位 | 插入欄位名稱 |
 

@@ -41,6 +41,61 @@ public sealed class SqlColumnCompletionTests
             .ToArray();
     }
 
+    /// <remarks>
+    /// MERGE 的動作子句過去解析不出 target 與 source：<c>WHEN MATCHED THEN UPDATE</c>
+    /// 裡的 UPDATE 被當成新敘述的開頭，範圍就從那裡切斷了（見
+    /// <c>SqlScopeAnalyzer.IsMergeAction</c>）。症狀是 Snippet 的 <c>mg</c> 走到
+    /// 第三格之後，每一格都不再有清單。
+    /// </remarks>
+    [Fact]
+    public void MERGE的UPDATE子句解析得出target()
+    {
+        var table = ResolvedTable(Analyze("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED THEN\n    UPDATE SET target.| = source.CopyNo"));
+
+        Assert.Equal("Loan", table.ObjectName);
+    }
+
+    [Fact]
+    public void MERGE的UPDATE子句解析得出source()
+    {
+        var table = ResolvedTable(Analyze("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED THEN\n    UPDATE SET target.CopyNo = source.|"));
+
+        Assert.Equal("LoanDetail", table.ObjectName);
+    }
+
+    [Fact]
+    public void MERGE的VALUES子句解析得出source()
+    {
+        var table = ResolvedTable(
+            Analyze("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (CopyNo)\n    VALUES (source.|)"));
+
+        Assert.Equal("LoanDetail", table.ObjectName);
+    }
+
+    /// <summary>
+    /// <c>INSERT (C|)</c> 沒有限定字，列的是敘述看得到的來源。
+    /// </summary>
+    /// <remarks>
+    /// 那裡文法上只該有 target 的欄位，但範圍解析給的是整個 MERGE 的兩張表，
+    /// 收斂成一張要另外記住「這個括號屬於 INSERT 子句」。多幾個選不中的名稱是
+    /// 多按幾下，而兩張表都不列的話那一格就完全沒有補字——<c>mg</c> 過去正是如此。
+    ///
+    /// 要有前綴才成立：那個位置推不出目標，空前綴時整份不參與，
+    /// 與 <c>SELECT |</c> 是同一條規則。
+    /// </remarks>
+    [Fact]
+    public void MERGE的INSERT欄位清單看得到兩張表()
+    {
+        var context = Analyze("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (C|)");
+
+        Assert.True(context.IsValid);
+        Assert.Null(context.Qualifier);
+        Assert.Equal("C", context.Prefix);
+        Assert.Equal(
+            new[] { "Loan", "LoanDetail" },
+            context.ScopeSources.Select(source => source.Table!.ObjectName).ToArray());
+    }
+
     [Fact]
     public void 別名限定字解析成欄位目標()
     {

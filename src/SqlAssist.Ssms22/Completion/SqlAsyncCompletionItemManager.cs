@@ -271,12 +271,35 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         return false;
     }
 
-    /// <summary>取得使用者在建議範圍內已經輸入的文字。</summary>
+    /// <summary>
+    /// 取得使用者在建議範圍內已經輸入的文字。
+    /// </summary>
+    /// <remarks>
+    /// 原生 Snippet 欄位剛進去時，整格是<b>樣板填的預設值</b>而不是使用者打的字。
+    /// 拿它當篩選前綴會把清單濾光——<c>dbo.TargetTable</c> 比不中任何一個資料表
+    /// 名稱，而 <see cref="Filter"/> 一個都沒中就回 null，平台會把我們剛開的
+    /// session 直接關掉，看起來就是「Tab 進去沒有清單，打了字才有」。
+    ///
+    /// 比對的是<b>當下</b>的文字，不是一個記在 session 上的旗標：使用者一打字，
+    /// 格子內容就不再等於預設值，這裡自然恢復正常比對，不必有人去清狀態。
+    /// </remarks>
     private static string GetTypedText(IAsyncCompletionSession session, AsyncCompletionSessionDataSnapshot data)
     {
         var span = session.ApplicableToSpan;
 
-        return span is null ? string.Empty : span.GetText(data.Snapshot);
+        if (span is null)
+        {
+            return string.Empty;
+        }
+
+        var text = span.GetText(data.Snapshot);
+
+        return session.Properties.TryGetProperty<string>(
+                   SqlAsyncCompletionSource.FieldDefaultKey,
+                   out var fieldDefault) &&
+               string.Equals(text, fieldDefault, StringComparison.Ordinal)
+            ? string.Empty
+            : text;
     }
 
     /// <summary>

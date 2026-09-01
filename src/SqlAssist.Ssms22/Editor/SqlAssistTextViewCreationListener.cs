@@ -87,7 +87,7 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
 
             if (EditorAdapters is { } adapters)
             {
-                SqlSnippetExpansionController.Attach(textView, adapters);
+                SqlSnippetExpansionController.Attach(textView, adapters, AsyncCompletionBroker);
             }
 
             // 趁編輯器剛開、SSMS 還不忙的時候先解析連線，否則第一次按鍵要付這筆成本。

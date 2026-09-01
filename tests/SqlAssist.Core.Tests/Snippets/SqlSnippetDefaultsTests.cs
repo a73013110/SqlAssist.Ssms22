@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -142,17 +144,22 @@ public sealed class SqlSnippetDefaultsTests
         {
             foreach (var placeholder in snippet.Placeholders)
             {
-                // 空白、數字、SQL 常值與型別名稱都不是識別字，不必列進白名單。
-                if (placeholder.DefaultValue.Length == 0 ||
-                    !LooksLikeIdentifier(placeholder.DefaultValue))
+                // 限定名稱要逐段檢查。dbo.TableName 整串比對時 LooksLikeIdentifier
+                // 會因為那個點號判定「不是識別字」而整筆放行——而物件欄位合併之後，
+                // 預設值正好都是這個形狀，等於守門對最該守的那一族失效。
+                foreach (var part in placeholder.DefaultValue.Split('.'))
                 {
-                    continue;
-                }
+                    // 空白、數字、SQL 常值與型別名稱都不是識別字，不必列進白名單。
+                    if (part.Length == 0 || !LooksLikeIdentifier(part))
+                    {
+                        continue;
+                    }
 
-                Assert.True(
-                    allowed.Contains(placeholder.DefaultValue),
-                    $"{snippet.Shortcut} 的 ${placeholder.Id}$ 預設值「{placeholder.DefaultValue}」" +
-                    "不在通用佔位名稱清單裡；真實系統的名稱不能進這個 repo。");
+                    Assert.True(
+                        allowed.Contains(part),
+                        $"{snippet.Shortcut} 的 ${placeholder.Id}$ 預設值「{placeholder.DefaultValue}」" +
+                        $"裡的「{part}」不在通用佔位名稱清單裡；真實系統的名稱不能進這個 repo。");
+                }
             }
         }
     }
@@ -292,6 +299,151 @@ public sealed class SqlSnippetDefaultsTests
         {
             Assert.Contains(shortcut, available);
         }
+    }
+
+    /// <remarks>
+    /// 結構描述與名稱分成兩格的代價是每個物件都要按兩次 Tab，而第一格的答案幾乎
+    /// 永遠是 dbo——那一次 Tab 是白按的。合成一格之後，Completion 依設定插進來的
+    /// <c>dbo.Lib_Reader</c>、<c>Lib_Reader</c>、<c>[dbo].[Lib_Reader]</c> 三種寫法
+    /// 也才填得進同一格（見 <c>SqlInsertionText</c>）；拆成兩格時第三種根本放不下。
+    /// </remarks>
+    [Fact]
+    public void 物件欄位不拆成結構描述與名稱兩格()
+    {
+        var split = new Regex(@"\$[A-Za-z][A-Za-z0-9]*\$\.\$[A-Za-z]");
+
+        foreach (var snippet in SqlSnippetDefaults.Current.Snippets)
+        {
+            Assert.False(
+                split.IsMatch(snippet.Code),
+                $"{snippet.Shortcut} 把結構描述與名稱拆成兩格了；合成一格填完整名稱。");
+        }
+    }
+
+    /// <remarks>
+    /// 這一族欄位的價值來自「Tab 進去就有清單」。清單開不開，由展開文字中這一格
+    /// <b>起點之前</b>的那一段決定——樣板把 FROM 換成別的字、或在關鍵字與欄位之間
+    /// 多一個字元，清單就靜靜地不再出現，沒有任何錯誤。這裡把那條鏈釘死。
+    ///
+    /// 分析的是展開後的文字而不是 <c>Code</c>：前面幾格已經填成預設值，
+    /// 而使用者在編輯器裡看到的正是那一份。
+    /// </remarks>
+    [Theory]
+    [InlineData("mg", "targetTable")]
+    [InlineData("mg", "sourceTable")]
+    [InlineData("cv", "sourceTable")]
+    [InlineData("citvf", "sourceTable")]
+    [InlineData("at", "table")]
+    [InlineData("dt", "table")]
+    [InlineData("ife", "table")]
+    [InlineData("ifne", "table")]
+    [InlineData("cur", "table")]
+    [InlineData("cte", "table")]
+    public void 物件欄位落在會列出資料來源的位置(string shortcut, string fieldId)
+    {
+        var context = AnalyzeBeforeField(shortcut, fieldId);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+    }
+
+    /// <remarks>
+    /// 反過來守：這幾格填的是使用者正要取的<b>新名字</b>，清單裡沒有一項會是對的。
+    /// 彈出來的唯一效果是他順手按下 Enter，剛打的名字被換成別人的資料表。
+    ///
+    /// 不必為此加旗標：<c>CREATE TABLE</c>、<c>CREATE VIEW</c> 這些位置推不出目標，
+    /// 前綴又被清空，分析器自己就回報不參與。「什麼時候該有清單」的規則因此
+    /// 只有一份，在分析器裡。
+    /// </remarks>
+    [Theory]
+    [InlineData("ctb", "table")]
+    [InlineData("cv", "view")]
+    [InlineData("cp", "procedure")]
+    [InlineData("cf", "function")]
+    [InlineData("citvf", "function")]
+    public void 新建物件的名稱欄位不主動開清單(string shortcut, string fieldId)
+    {
+        Assert.False(AnalyzeBeforeField(shortcut, fieldId).IsValid);
+    }
+
+    /// <remarks>
+    /// <b>已知缺口，不是期望行為。</b><c>cix</c> 的資料表欄位落在 <c>ON</c> 之後，
+    /// 而 <c>ON</c> 也是 JOIN 條件的位置——那裡要的是欄位，不是資料表。目前分不出
+    /// 這兩者，所以這一格沒有清單。
+    ///
+    /// 釘在這裡是為了讓它別被遺忘：哪天分析器認得 <c>CREATE … INDEX … ON</c>，
+    /// 這個測試會失敗，那時把這一行移到上面那組即可。
+    /// </remarks>
+    [Fact]
+    public void 索引的資料表欄位目前分不出JOIN條件因此沒有清單()
+    {
+        Assert.False(AnalyzeBeforeField("cix", "table").IsValid);
+    }
+
+    /// <remarks>
+    /// <c>mg</c> 的六個欄位格分屬 target 與 source。它們曾經是三個同名欄位，
+    /// 而原生引擎會把同名的同步起來——選了目標的比對鍵，來源那一邊就跟著變成
+    /// 同一個名字，可是兩張表不一定同名。拆開之後這裡連「這一格該列哪張表的
+    /// 欄位」一起守。
+    ///
+    /// 走全文分析：限定字要解析成資料表，得看得到游標後方的
+    /// <c>MERGE INTO … AS target</c>。
+    /// </remarks>
+    [Theory]
+    [InlineData("targetKey", "TargetTable")]
+    [InlineData("sourceKey", "SourceTable")]
+    [InlineData("targetUpdate", "TargetTable")]
+    [InlineData("sourceUpdate", "SourceTable")]
+    [InlineData("sourceInsert", "SourceTable")]
+    public void MERGE片段的欄位格解析得出它屬於哪一張表(string fieldId, string expected)
+    {
+        var context = AnalyzeInField("mg", fieldId);
+
+        Assert.Equal(CompletionTarget.Column, context.Target);
+
+        var source = Assert.Single(context.ColumnSources!);
+
+        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
+        Assert.Equal(expected, source.Table!.ObjectName);
+    }
+
+    /// <remarks>
+    /// <c>INSERT ($targetInsert$)</c> 沒有限定字，那個位置推不出目標，
+    /// 而剛進格時前綴又是空的——與 <c>SELECT |</c> 一樣要打了字才有清單。
+    /// 這不是缺口：那一格文法上是 target 的欄位，使用者打第一個字母時
+    /// 敘述範圍會把兩張表的欄位都交出來（見
+    /// <c>SqlColumnCompletionTests.MERGE的INSERT欄位清單看得到兩張表</c>）。
+    /// </remarks>
+    [Fact]
+    public void MERGE的INSERT欄位格要打了字才有清單()
+    {
+        Assert.False(AnalyzeInField("mg", "targetInsert").IsValid);
+    }
+
+    /// <summary>展開文字中某一格<b>起點</b>那個位置的全文分析結果。</summary>
+    private static SqlCompletionContext AnalyzeInField(string shortcut, string fieldId)
+    {
+        var expansion = Snippet(shortcut).Expansion;
+        var field = expansion.Fields.Single(
+            item => string.Equals(item.Placeholder.Id, fieldId, StringComparison.Ordinal));
+
+        return SqlCompletionContextAnalyzer.Analyze(expansion.Text, field.Offset);
+    }
+
+    /// <summary>展開文字中某一格<b>起點之前</b>那一段的分析結果。</summary>
+    private static SqlCompletionContext AnalyzeBeforeField(string shortcut, string fieldId)
+    {
+        var expansion = Snippet(shortcut).Expansion;
+        var field = expansion.Fields.Single(
+            item => string.Equals(item.Placeholder.Id, fieldId, StringComparison.Ordinal));
+
+        return SqlCompletionContextAnalyzer.Analyze(expansion.Text.Substring(0, field.Offset));
+    }
+
+    private static SqlSnippet Snippet(string shortcut)
+    {
+        return SqlSnippetDefaults.Current.Snippets.Single(
+            item => string.Equals(item.Shortcut, shortcut, StringComparison.Ordinal));
     }
 
     private static IReadOnlyCollection<string> Available(string prefix)
