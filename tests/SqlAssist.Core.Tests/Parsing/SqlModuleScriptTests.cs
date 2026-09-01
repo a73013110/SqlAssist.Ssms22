@@ -1,4 +1,5 @@
-﻿using SqlAssist.Core.Parsing;
+﻿using System;
+using SqlAssist.Core.Parsing;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Parsing;
@@ -101,6 +102,86 @@ public sealed class SqlModuleScriptTests
         Assert.True(SqlModuleScript.TryConvertCreateToAlter(
             "CREATE VIEW dbo.v_Test AS SELECT 1 AS X", out var view));
         Assert.StartsWith("ALTER VIEW", view);
+    }
+
+    /// <summary>
+    /// 展開之後游標停在名稱之後：停在結尾的話一展開就被捲到定義的最後一行。
+    /// </summary>
+    [Theory]
+    [InlineData("ALTER PROCEDURE dbo.usp_Test AS SELECT 1", "ALTER PROCEDURE dbo.usp_Test")]
+    [InlineData("ALTER PROC dbo.usp_Test AS SELECT 1", "ALTER PROC dbo.usp_Test")]
+    [InlineData("ALTER FUNCTION dbo.fn_Test() RETURNS int AS BEGIN RETURN 1 END", "ALTER FUNCTION dbo.fn_Test")]
+    [InlineData("ALTER TRIGGER dbo.tr_Loan ON dbo.Loan AFTER INSERT AS SELECT 1", "ALTER TRIGGER dbo.tr_Loan")]
+    [InlineData("ALTER VIEW dbo.v_Test AS SELECT 1 AS X", "ALTER VIEW dbo.v_Test")]
+    [InlineData("ALTER PROCEDURE [dbo].[usp_Test] AS SELECT 1", "ALTER PROCEDURE [dbo].[usp_Test]")]
+    [InlineData("ALTER PROCEDURE usp_Test AS SELECT 1", "ALTER PROCEDURE usp_Test")]
+    [InlineData("alter procedure dbo.usp_Test as select 1", "alter procedure dbo.usp_Test")]
+    [InlineData("ALTER PROCEDURE dbo . usp_Test AS SELECT 1", "ALTER PROCEDURE dbo . usp_Test")]
+    [InlineData("ALTER PROCEDURE\r\n    dbo.usp_Test\r\n    @ReaderId int\r\nAS\r\nSELECT 1", "ALTER PROCEDURE\r\n    dbo.usp_Test")]
+    public void 名稱結束的位置(string script, string expectedPrefix)
+    {
+        Assert.Equal(expectedPrefix.Length, SqlModuleScript.FindHeaderNameEnd(script));
+    }
+
+    /// <summary>
+    /// 標頭在改寫之後才算得準：<c>CREATE OR ALTER</c> 併成一個 <c>ALTER</c>，
+    /// 後面每一個字元都往前位移，在原始定義上算出來的位置會落在名稱中間。
+    /// </summary>
+    [Fact]
+    public void 改寫之後的位置對得上名稱()
+    {
+        const string definition = "CREATE OR ALTER PROCEDURE dbo.usp_Test AS SELECT 1";
+
+        Assert.True(SqlModuleScript.TryConvertCreateToAlter(definition, out var script));
+        Assert.Equal("ALTER PROCEDURE dbo.usp_Test", script.Substring(0, SqlModuleScript.FindHeaderNameEnd(script)));
+    }
+
+    [Fact]
+    public void 開頭的註解算進位置裡()
+    {
+        const string script = "-- 版權宣告\r\n/* 說明 */\r\nALTER PROCEDURE dbo.usp_Test AS SELECT 1";
+
+        Assert.Equal(
+            "-- 版權宣告\r\n/* 說明 */\r\nALTER PROCEDURE dbo.usp_Test".Length,
+            SqlModuleScript.FindHeaderNameEnd(script));
+    }
+
+    /// <summary>
+    /// 標頭只切前面一小段來找，因此超長的開頭註解會把名稱推出那個視窗；
+    /// 少了退回完整掃描的那一步，症狀是「有版權宣告的程序游標停在最後一行」。
+    /// </summary>
+    [Fact]
+    public void 超長的開頭註解仍找得到名稱()
+    {
+        var script = "/*" + new string('x', 4000) + "*/\r\nALTER PROCEDURE dbo.usp_Test AS SELECT 1";
+
+        Assert.Equal(
+            script.IndexOf("dbo.usp_Test", StringComparison.Ordinal) + "dbo.usp_Test".Length,
+            SqlModuleScript.FindHeaderNameEnd(script));
+    }
+
+    /// <summary>
+    /// 視窗剛好切在名稱中間時同樣要退回完整掃描，否則游標會停在名稱的一半上。
+    /// </summary>
+    [Fact]
+    public void 名稱橫跨視窗邊界仍找得到結尾()
+    {
+        var name = new string('n', 200);
+        var script = "/*" + new string('x', 900) + "*/ ALTER PROCEDURE dbo." + name + " AS SELECT 1";
+
+        Assert.Equal(script.IndexOf(name, StringComparison.Ordinal) + name.Length, SqlModuleScript.FindHeaderNameEnd(script));
+    }
+
+    /// <summary>認不出標頭時回傳 -1，由呼叫端退回停在結尾。</summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("SELECT 1")]
+    [InlineData("-- 只有註解")]
+    [InlineData("ALTER PROCEDURE")]
+    public void 認不出標頭時回傳負值(string script)
+    {
+        Assert.Equal(-1, SqlModuleScript.FindHeaderNameEnd(script));
     }
 
     [Theory]

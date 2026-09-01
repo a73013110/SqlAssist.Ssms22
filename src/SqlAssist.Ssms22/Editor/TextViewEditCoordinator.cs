@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
@@ -23,9 +23,9 @@ internal readonly struct TextReplacement
     /// 替換後游標要停在 <see cref="Text"/> 的第幾個字元；負值代表停在結尾。
     /// </summary>
     /// <remarks>
-    /// 展開成骨架的兩種（INSERT、EXEC）要停在第一個待填的值上——那是使用者
-    /// 接下來要做的第一件事，停在結尾等於逼他自己捲回去。整句換成既有定義的
-    /// ALTER 沒有這種位置，維持停在結尾。
+    /// 三種展開都不停在結尾——停在結尾等於一展開就被捲到最後一行，使用者得自己捲回去。
+    /// 展開成骨架的兩種（INSERT、EXEC）停在第一個待填的值上，那是他接下來要做的第一件事；
+    /// 整句換成既有定義的 ALTER 停在標頭的物件名稱之後，那是他讀一份定義的起點。
     /// </remarks>
     public int CaretOffset { get; }
 
