@@ -227,6 +227,11 @@ public static class SqlCompletionContextAnalyzer
         out int keywordStart,
         out CompletionIntent intent)
     {
+        // IF EXISTS 是 DROP 家族共用的修飾字，先剝一次就不必為 DROP TABLE、
+        // DROP TRIGGER、DROP SEQUENCE 各寫一條加長版比對。只砍尾端，前面每個詞元的
+        // 位置都沒有位移，因此底下算出來的 keywordStart 仍然指得回原文。
+        text = TrimTrailingIfExists(text);
+
         // ALTER 之後要放進完整定義，因此與 EXEC 之類的單純參考分開表示。
         intent = CompletionIntent.AlterDefinition;
 
@@ -273,6 +278,16 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Trigger;
         }
 
+        // 這三個位置文法上只接得了既有的資料表。ALTER 家族的 PROCEDURE／FUNCTION／
+        // TRIGGER 與 DROP 家族的 TRIGGER／SEQUENCE 都已經在這裡，只差資料表——
+        // 少的那一條沒有任何症狀，只是使用者在最常改的位置沒有清單。
+        if (EndsWithKeywords(text, "ALTER", "TABLE", out keywordStart) ||
+            EndsWithKeywords(text, "DROP", "TABLE", out keywordStart) ||
+            EndsWithKeywords(text, "TRUNCATE", "TABLE", out keywordStart))
+        {
+            return CompletionTarget.DataSource;
+        }
+
         // NEXT VALUE FOR 的尾巴就是 VALUE FOR；再往前的 NEXT 不必看。
         if (EndsWithKeywords(text, "VALUE", "FOR", out keywordStart) ||
             EndsWithKeywords(text, "ALTER", "SEQUENCE", out keywordStart) ||
@@ -298,16 +313,32 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.Function;
         }
 
+        // USING 與 FROM 是同一條文法（MERGE 的來源）。SqlKeywordPositionAnalyzer 與
+        // SqlScopeAnalyzer 早就這樣歸類，只有這一份漏掉——症狀是 USING 之後完全沒有
+        // 清單，而使用者看不出它和 FROM 之後有什麼不同。
         if (EndsWithKeyword(text, "FROM", out keywordStart) ||
             EndsWithKeyword(text, "JOIN", out keywordStart) ||
             EndsWithKeyword(text, "UPDATE", out keywordStart) ||
-            EndsWithKeyword(text, "INTO", out keywordStart))
+            EndsWithKeyword(text, "INTO", out keywordStart) ||
+            EndsWithKeyword(text, "USING", out keywordStart))
         {
             return CompletionTarget.DataSource;
         }
 
         keywordStart = -1;
         return CompletionTarget.Any;
+    }
+
+    /// <summary>剝掉尾端的 <c>IF EXISTS</c>；沒有的話原樣回傳。</summary>
+    /// <remarks>
+    /// <c>IF EXISTS (SELECT …)</c> 那種流程控制不會誤傷：剝完是空字串或另一個
+    /// 語句的尾巴，兩者都推不出目標，結果與剝之前一樣是 <see cref="CompletionTarget.Any"/>。
+    /// </remarks>
+    private static string TrimTrailingIfExists(string text)
+    {
+        return EndsWithKeywords(text, "IF", "EXISTS", out var start)
+            ? text.Substring(0, start).TrimEnd()
+            : text;
     }
 
     private static bool EndsWithKeywords(string text, string first, string second, out int keywordStart)

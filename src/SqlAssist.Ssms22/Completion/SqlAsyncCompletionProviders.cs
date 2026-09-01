@@ -77,6 +77,7 @@ internal sealed class SqlAsyncCompletionSourceProvider : IAsyncCompletionSourceP
             () => textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlAsyncCompletionSource),
                 () => new SqlAsyncCompletionSource(
+                    textView,
                     SqlCompletionServices.GetMetadataService(textView, ServiceProvider),
                     ServiceProvider)));
     }

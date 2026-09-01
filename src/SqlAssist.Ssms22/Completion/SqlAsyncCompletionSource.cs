@@ -36,6 +36,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// <summary>把建議項原始資料掛回 <see cref="CompletionItem"/> 的鍵。</summary>
     internal const string SuggestionKey = "SqlAssist.Suggestion";
 
+    /// <summary>這一次的適用範圍是原生 Snippet 欄位時，樣板為它填的預設值。</summary>
+    /// <remarks>
+    /// 排名器要用它把「整格還是樣板的字」判成空前綴。放在 session 上而不是欄位：
+    /// 排名器是所有編輯器共用的<b>一個</b>實例，存不了任何一個 session 的狀態。
+    /// </remarks>
+    internal const string FieldDefaultKey = "SqlAssist.SnippetFieldDefault";
+
     /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
     private static SqlSnippetLibrary? _builtInSnippets;
 
@@ -46,8 +53,31 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     private readonly SqlMetadataService _metadataService;
     private readonly IServiceProvider _serviceProvider;
 
-    public SqlAsyncCompletionSource(SqlMetadataService metadataService, IServiceProvider serviceProvider)
+    /// <summary>問原生 Snippet 欄位範圍要它；來源與編輯器是一對一的。</summary>
+    private readonly ITextView _textView;
+
+    /// <summary>
+    /// 上一次 <see cref="InitializeCompletion"/> 判定的原生 Snippet 欄位範圍。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="GetCompletionContextAsync"/> 需要知道「這一次是不是欄位模式」，
+    /// 但它跑在平台的背景執行緒上，而欄位範圍只能在 UI 執行緒向引擎要（COM）。
+    /// 因此在 UI 執行緒上判定一次、記在這裡，背景那一步只比對 <see cref="Span"/>
+    /// 相不相等——那是實質不可變的結構，而且要比對的就是上一步剛寫進去的那一次。
+    ///
+    /// 一個欄位就夠：來源是每個編輯器一份，而同一個編輯器同時只有一個 session。
+    /// </remarks>
+    private Span? _fieldSpan;
+
+    /// <summary>與 <see cref="_fieldSpan"/> 同一次判定的欄位預設值。</summary>
+    private string _fieldDefault = string.Empty;
+
+    public SqlAsyncCompletionSource(
+        ITextView textView,
+        SqlMetadataService metadataService,
+        IServiceProvider serviceProvider)
     {
+        _textView = textView;
         _metadataService = metadataService;
         _serviceProvider = serviceProvider;
     }
@@ -67,16 +97,26 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     private CompletionStartData InitializeCompletionCore(SnapshotPoint triggerLocation)
     {
         var settings = SqlAssistSettingsStore.Current;
+        _fieldSpan = null;
+        _fieldDefault = string.Empty;
 
         if (!settings.Enabled || !settings.SuggestionsEnabled)
         {
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
 
+        // 原生 Snippet 欄位裡，適用範圍是整格、上下文只看這一格起點之前的文字；
+        // 沒有 session 時這個查詢第一行就走掉，一般編輯不付任何代價。
+        var fieldSpan = SqlSnippetExpansionController.FindFieldSpan(_textView, triggerLocation);
+
         // 只看游標前文就夠：適用範圍與要不要參與只跟詞元起點、前綴與前方關鍵字有關。
         // 這個方法在按鍵路徑上同步執行，換成全文分析等於每按一鍵就多掃一次整份指令碼。
         var context = SqlCompletionContextAnalyzer.Analyze(
-            triggerLocation.Snapshot.GetText(0, triggerLocation.Position));
+            triggerLocation.Snapshot.GetText(
+                0,
+                SqlSnippetExpansionController.ResolveAnalysisEnd(
+                    fieldSpan,
+                    triggerLocation.Position)));
 
         if (!context.IsValid)
         {
@@ -88,6 +128,15 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             context.Prefix.Length < settings.TriggerAfterCharacters)
         {
             return CompletionStartData.DoesNotParticipateInCompletion;
+        }
+
+        // 欄位模式的範圍已經由引擎給定，不必再驗詞元起點——那個起點算的是
+        // 「這一格之前」那一段的尾巴，與這次要取代的範圍無關。
+        if (fieldSpan is { } field)
+        {
+            _fieldSpan = field.Span.Span;
+            _fieldDefault = field.DefaultValue;
+            return new CompletionStartData(CompletionParticipation.ProvidesItems, field.Span);
         }
 
         // 範圍必須自己驗一次，不能靠例外兜底：TokenStart 是從文字分析算出來的，
@@ -116,18 +165,26 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     {
         return SqlAssistPlatformGuard.RunAsync(
             "建議清單取得",
-            () => GetCompletionContextCoreAsync(session, triggerLocation, token),
+            () => GetCompletionContextCoreAsync(session, triggerLocation, applicableToSpan, token),
             fallback: CompletionContext.Empty);
     }
 
     private async Task<CompletionContext> GetCompletionContextCoreAsync(
         IAsyncCompletionSession session,
         SnapshotPoint triggerLocation,
+        SnapshotSpan applicableToSpan,
         CancellationToken token)
     {
         var total = System.Diagnostics.Stopwatch.StartNew();
         var settings = SqlAssistSettingsStore.Current;
-        var context = Analyze(triggerLocation);
+        var context = Analyze(triggerLocation, applicableToSpan);
+
+        // 排名器讀這一份判斷「整格還不是使用者打的字」。它自己比對當下的文字，
+        // 因此使用者一打字就自動失效，不必在這裡跟著更新。
+        if (_fieldSpan == applicableToSpan.Span && _fieldDefault.Length > 0)
+        {
+            session.Properties[FieldDefaultKey] = _fieldDefault;
+        }
 
         // 使用者輸入 a. 的那一刻才查欄位，等待就完全落在打字的節奏上。
         // 但這時他已經打過 FROM PUBLISHER a，敘述裡有哪些資料表是已知的，
@@ -421,10 +478,29 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         };
     }
 
-    private static SqlCompletionContext Analyze(SnapshotPoint triggerLocation)
+    /// <summary>
+    /// 這一次清單的上下文。
+    /// </summary>
+    /// <remarks>
+    /// 欄位模式下改從<b>這一格的起點</b>分析。不這樣做的話，前綴會是格子裡的
+    /// <c>TargetTable</c>、限定字會是 <c>dbo</c>：前者讓
+    /// <c>SuggestionMatcher</c> 把整份清單濾光，後者讓插入文字退化成不帶結構描述的
+    /// 簡名。兩個症狀都沒有錯誤訊息。
+    ///
+    /// 判斷靠 <see cref="_fieldSpan"/> 而不是重問一次引擎：這個方法在平台的背景
+    /// 執行緒上，那個查詢是 COM，只能在 UI 執行緒做。
+    /// </remarks>
+    private SqlCompletionContext Analyze(SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan)
     {
-        return SqlCompletionContextAnalyzer.Analyze(
-            triggerLocation.Snapshot.GetText(),
-            triggerLocation.Position);
+        // 只有「整格還是樣板填的預設值」那一次要當它不存在；使用者打過字之後，
+        // 那幾個字就是前綴，照一般方式分析到游標為止。判斷與
+        // SqlSnippetExpansionController.ResolveAnalysisEnd 是同一條規則，
+        // 這裡不能改問引擎——這個方法在平台的背景執行緒上。
+        var caret = _fieldSpan == applicableToSpan.Span &&
+            string.Equals(applicableToSpan.GetText(), _fieldDefault, StringComparison.Ordinal)
+            ? applicableToSpan.Start.Position
+            : triggerLocation.Position;
+
+        return SqlCompletionContextAnalyzer.Analyze(triggerLocation.Snapshot.GetText(), caret);
     }
 }

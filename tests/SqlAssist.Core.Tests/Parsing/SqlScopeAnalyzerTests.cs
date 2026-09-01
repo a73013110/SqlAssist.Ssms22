@@ -12,6 +12,57 @@ public sealed class SqlScopeAnalyzerTests
         return SqlScopeAnalyzer.Analyze(input.Text, input.Caret);
     }
 
+    /// <remarks>
+    /// <c>WHEN MATCHED THEN UPDATE</c>、<c>WHEN NOT MATCHED THEN INSERT</c> 裡的
+    /// <c>UPDATE</c>／<c>INSERT</c> 屬於同一個 MERGE，不是新敘述的開頭。把它們當成
+    /// 邊界的話，游標一進到 <c>WHEN</c> 之後，MERGE 的 target 與 source 兩個別名
+    /// 就全部解析不出來——症狀是 <c>target.|</c> 與 <c>source.|</c> 都不再列欄位。
+    /// </remarks>
+    [Theory]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.| = source.CopyNo")]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED THEN\n    UPDATE SET target.| = source.CopyNo")]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED THEN\n    UPDATE SET target.CopyNo = source.|")]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (|)")]
+    [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (CopyNo)\n    VALUES (source.|)")]
+    public void MERGE的動作子句仍看得到target與source(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.Equal(2, scope.Tables.Count);
+        Assert.True(scope.TryResolve("target", out var target));
+        Assert.Equal("Loan", target.ObjectName);
+        Assert.True(scope.TryResolve("source", out var source));
+        Assert.Equal("LoanDetail", source.ObjectName);
+    }
+
+    /// <summary>THEN 之外的 UPDATE 與 INSERT 仍然是敘述邊界。</summary>
+    /// <remarks>
+    /// 認的是「前一個詞元是不是 THEN」，不是「這份指令碼裡有沒有 MERGE」。
+    /// 一個 MERGE 之後接著獨立的 UPDATE，那個 UPDATE 必須切斷範圍，
+    /// 否則它會看到上一句 MERGE 的兩張表。
+    /// </remarks>
+    [Fact]
+    public void MERGE之後獨立的UPDATE仍是新敘述()
+    {
+        var scope = Analyze(
+            "MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED THEN" +
+            "\n    UPDATE SET target.CopyNo = source.CopyNo;\n\nUPDATE dbo.Branch SET x = |");
+        var table = Assert.Single(scope.Tables);
+
+        Assert.Equal("Branch", table.ObjectName);
+    }
+
+    /// <summary>CASE 的 THEN 後面是運算式，不會撞上這條規則。</summary>
+    [Fact]
+    public void CASE的THEN不會讓後面的敘述併進來()
+    {
+        var scope = Analyze(
+            "SELECT CASE WHEN 1 = 1 THEN 'x' ELSE 'y' END FROM dbo.Loan;\nUPDATE dbo.Branch SET x = |");
+        var table = Assert.Single(scope.Tables);
+
+        Assert.Equal("Branch", table.ObjectName);
+    }
+
     [Fact]
     public void 取得單一資料表與別名()
     {

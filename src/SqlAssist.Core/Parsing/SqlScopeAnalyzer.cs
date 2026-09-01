@@ -177,13 +177,43 @@ public static class SqlScopeAnalyzer
 
             if (token.Kind == SqlTokenKind.Identifier &&
                 !token.IsQuoted &&
-                StatementKeywords.Contains(token.Value))
+                StatementKeywords.Contains(token.Value) &&
+                !IsMergeAction(tokens, i))
             {
                 return i;
             }
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// 這個敘述關鍵字其實是 MERGE 的動作子句，不是新敘述的開頭。
+    /// </summary>
+    /// <remarks>
+    /// <c>WHEN MATCHED THEN UPDATE SET …</c>、<c>WHEN NOT MATCHED THEN INSERT …</c>
+    /// 裡的三個關鍵字屬於同一個 MERGE。把它們當成邊界的話，游標一進到 <c>WHEN</c>
+    /// 之後，<c>target</c> 與 <c>source</c> 兩個別名就全部解析不出來——症狀是
+    /// <c>target.|</c> 與 <c>source.|</c> 都不再列欄位，而 <c>INSERT (|)</c> 連
+    /// 一個候選都沒有。
+    ///
+    /// 認的是<b>前一個詞元是不是 THEN</b>，不是「這份指令碼裡有沒有 MERGE」。
+    /// 一個 MERGE 之後接著獨立的 UPDATE，那個 UPDATE 仍然必須切斷範圍。
+    /// T-SQL 裡 THEN 只出現在 CASE 與 MERGE，而 CASE 的 THEN 後面是運算式，
+    /// 不會是這三個關鍵字。
+    /// </remarks>
+    private static bool IsMergeAction(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        if (index <= 0 || !tokens[index - 1].IsKeyword("THEN"))
+        {
+            return false;
+        }
+
+        var token = tokens[index];
+
+        return token.IsKeyword("UPDATE") ||
+               token.IsKeyword("INSERT") ||
+               token.IsKeyword("DELETE");
     }
 
     private static int FindScopeEnd(IReadOnlyList<SqlToken> tokens, int start)
@@ -224,7 +254,8 @@ public static class SqlScopeAnalyzer
             if (i > start &&
                 token.Kind == SqlTokenKind.Identifier &&
                 !token.IsQuoted &&
-                StatementKeywords.Contains(token.Value))
+                StatementKeywords.Contains(token.Value) &&
+                !IsMergeAction(tokens, i))
             {
                 return i;
             }

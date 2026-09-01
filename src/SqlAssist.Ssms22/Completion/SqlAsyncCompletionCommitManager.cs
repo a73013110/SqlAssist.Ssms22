@@ -73,14 +73,15 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         // 提交失敗不可以讓按鍵處理鏈整個炸掉；交還給平台用預設方式插入。
         return SqlAssistPlatformGuard.Run(
             "提交建議",
-            () => TryCommitCore(session, buffer, item),
+            () => TryCommitCore(session, buffer, item, typedChar),
             fallback: CommitResult.Unhandled);
     }
 
     private CommitResult TryCommitCore(
         IAsyncCompletionSession session,
         ITextBuffer buffer,
-        CompletionItem item)
+        CompletionItem item,
+        char typedChar)
     {
         if (!item.Properties.TryGetProperty<SqlSuggestion>(
                 SqlAsyncCompletionSource.SuggestionKey,
@@ -146,7 +147,33 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與語句的
         // 關鍵字起點，兩者都在游標之前。欄位的插入文字在建立建議時就定案了，
         // 這裡不必再解析一次別名。
-        var context = SqlCompletionContextAnalyzer.Analyze(snapshot.GetText(0, span.End));
+        //
+        // 在原生 Snippet 欄位裡則要截到這一格的起點：格子裡是樣板填的
+        // dbo.TargetTable，把它算進來的話 dbo 會被當成限定字，插進去的名稱就少了
+        // 結構描述。範圍重問一次而不是從建議來源傳過來——緩衝區在這中間可能已經
+        // 變了，而這是整條路徑上唯一還來得及發現的地方。
+        var fieldSpan = SqlSnippetExpansionController.FindFieldSpan(session.TextView, span.Start);
+        var context = SqlCompletionContextAnalyzer.Analyze(
+            snapshot.GetText(
+                0,
+                SqlSnippetExpansionController.ResolveAnalysisEnd(fieldSpan, span.End.Position)));
+
+        // Tab 在欄位裡有兩件事要做：提交這一格，然後走到下一格。平台的 Tab 只做
+        // 得了第一件，所以第二件排在這一輪命令之後自己做——不靠
+        // CommitBehavior.RaiseFurtherReturnKeyAndTabKeyCommandHandlers 把命令鏈接
+        // 下去，那要求本處理常式與平台的先後順序固定，而目前兩者都只寫 Before=default。
+        //
+        // 排程而不是原地呼叫：文字要等這次提交寫完才是最終狀態，而下一格的清單
+        // 是由 MoveNext 自己重開的（見 SqlSnippetExpansionController）。
+        //
+        // 只認 Tab：Enter 在 session 裡的語意是換行並結束欄位追蹤，
+        // 那一條寫在 SqlTabCommandHandler，這裡不改它。平台若在 Tab 提交時傳的
+        // 不是 \t，退化成「再按一次 Tab 才跳格」，與改動前一樣。
+        if (fieldSpan is not null && typedChar == '\t')
+        {
+            TextViewDispatch.AfterCurrentCommand(session.TextView, "提交後前往下一格", view =>
+                SqlSnippetExpansionController.Peek(view)?.MoveNext());
+        }
         var settings = SqlAssistSettingsStore.Current;
         var expansion = SqlCommitExpander.Resolve(suggestion, context, span.End, settings);
 

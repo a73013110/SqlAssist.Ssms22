@@ -119,15 +119,20 @@ internal static class SqlNativeSnippetXmlBuilder
 
             foreach (var field in expansion.Fields)
             {
+                var placeholder = field.Placeholder;
                 xml.Append("<Literal><ID>");
-                AppendText(xml, field.Id);
+                AppendText(xml, placeholder.Id);
                 xml.Append("</ID><ToolTip>");
-                AppendText(xml, field.ToolTip);
+                AppendText(xml, placeholder.ToolTip);
                 xml.Append("</ToolTip><Default>");
 
                 // 空 Default 在不同版本的 Expansion Engine 行為不一致；ID 本身可選取、
                 // 可直接覆寫，且不會產生一個看不見卻佔著 Tab 順序的欄位。
-                AppendText(xml, string.IsNullOrEmpty(field.DefaultValue) ? field.Id : field.DefaultValue);
+                AppendText(
+                    xml,
+                    string.IsNullOrEmpty(placeholder.DefaultValue)
+                        ? placeholder.Id
+                        : placeholder.DefaultValue);
                 xml.Append("</Default></Literal>");
             }
 

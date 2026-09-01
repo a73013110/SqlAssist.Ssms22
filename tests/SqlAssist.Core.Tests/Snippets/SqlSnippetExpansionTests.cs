@@ -32,7 +32,8 @@ public sealed class SqlSnippetExpansionTests
 
         // 同名欄位只宣告一次；同步由原生引擎的標記做，不是我們算位置。
         var field = Assert.Single(expansion.Fields);
-        Assert.Equal("name", field.Id);
+        Assert.Equal("name", field.Placeholder.Id);
+        Assert.Equal(0, field.Offset);
         Assert.Equal("$name$ + $name$$end$", expansion.NativeCode);
     }
 
@@ -69,7 +70,9 @@ public sealed class SqlSnippetExpansionTests
             code,
             placeholders: names.Select(name => new SqlSnippetPlaceholder(name)).ToArray());
 
-        Assert.Equal(names, snippet.Expansion.Fields.Select(field => field.Id).ToArray());
+        Assert.Equal(
+            names,
+            snippet.Expansion.Fields.Select(field => field.Placeholder.Id).ToArray());
     }
 
     [Fact]

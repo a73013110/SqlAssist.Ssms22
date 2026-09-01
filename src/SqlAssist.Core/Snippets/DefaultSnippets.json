@@ -1,4 +1,4 @@
-{
+﻿{
   "version": 2,
   "snippets": [
     {
@@ -6,7 +6,7 @@
       "category": "select",
       "shortcut": "ssf",
       "title": "SELECT * FROM",
-      "description": "查詢資料表的所有欄位；接著列出資料表與檢視",
+      "description": "查詢資料表的所有欄位",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
@@ -17,7 +17,7 @@
       "category": "select",
       "shortcut": "st100",
       "title": "SELECT TOP 100",
-      "description": "查詢前 100 筆資料；接著列出資料表與檢視",
+      "description": "查詢前 100 筆資料",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
@@ -28,7 +28,7 @@
       "category": "select",
       "shortcut": "st1",
       "title": "SELECT TOP 1",
-      "description": "查詢第一筆資料；接著列出資料表與檢視",
+      "description": "查詢第一筆資料",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
@@ -39,7 +39,7 @@
       "category": "select",
       "shortcut": "ssc",
       "title": "SELECT COUNT",
-      "description": "計算資料筆數；接著列出資料表與檢視",
+      "description": "計算資料筆數",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
@@ -73,7 +73,7 @@
       "category": "dml",
       "shortcut": "ui",
       "title": "UPDATE",
-      "description": "更新資料；接著列出資料表與檢視，SET 與 WHERE 自行填寫",
+      "description": "更新資料，SET 與 WHERE 自行填寫",
       "isDestructive": true,
       "triggerFollowUp": true,
       "expansionMode": "caret",
@@ -85,7 +85,7 @@
       "category": "dml",
       "shortcut": "df",
       "title": "DELETE FROM",
-      "description": "刪除資料；接著列出資料表與檢視，WHERE 自行填寫",
+      "description": "刪除資料，WHERE 自行填寫",
       "isDestructive": true,
       "triggerFollowUp": true,
       "expansionMode": "caret",
@@ -101,15 +101,16 @@
       "isDestructive": true,
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "MERGE INTO $targetSchema$.$targetTable$ AS target\nUSING $sourceSchema$.$sourceTable$ AS source\n    ON target.$keyColumn$ = source.$keyColumn$\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.$updateColumn$ = source.$updateColumn$\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ($insertColumn$)\n    VALUES (source.$insertColumn$)$end$;",
+      "code": "MERGE INTO $targetTable$ AS target\nUSING $sourceTable$ AS source\n    ON target.$targetKey$ = source.$sourceKey$\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.$targetUpdate$ = source.$sourceUpdate$\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ($targetInsert$)\n    VALUES (source.$sourceInsert$)$end$;",
       "placeholders": [
-        { "id": "targetSchema", "default": "dbo", "tooltip": "目標結構描述" },
-        { "id": "targetTable", "default": "TargetTable", "tooltip": "目標資料表" },
-        { "id": "sourceSchema", "default": "dbo", "tooltip": "來源結構描述" },
-        { "id": "sourceTable", "default": "SourceTable", "tooltip": "來源資料表" },
-        { "id": "keyColumn", "default": "KeyColumn", "tooltip": "比對鍵；相同名稱會同步" },
-        { "id": "updateColumn", "default": "UpdateColumn", "tooltip": "更新欄位；相同名稱會同步" },
-        { "id": "insertColumn", "default": "InsertColumn", "tooltip": "新增欄位；相同名稱會同步" }
+        { "id": "targetTable", "default": "dbo.TargetTable", "tooltip": "目標資料表；可含結構描述" },
+        { "id": "sourceTable", "default": "dbo.SourceTable", "tooltip": "來源資料表；可含結構描述" },
+        { "id": "targetKey", "default": "KeyColumn", "tooltip": "目標的比對鍵" },
+        { "id": "sourceKey", "default": "KeyColumn", "tooltip": "來源的比對鍵；兩邊不一定同名" },
+        { "id": "targetUpdate", "default": "UpdateColumn", "tooltip": "要更新的目標欄位" },
+        { "id": "sourceUpdate", "default": "UpdateColumn", "tooltip": "值取自來源的哪一欄" },
+        { "id": "targetInsert", "default": "InsertColumn", "tooltip": "要寫入的目標欄位" },
+        { "id": "sourceInsert", "default": "InsertColumn", "tooltip": "值取自來源的哪一欄" }
       ]
     },
 
@@ -134,10 +135,9 @@
       "description": "建立資料表",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE TABLE $schema$.$table$\n(\n    $column$ $dataType$ NOT NULL\n)$end$;",
+      "code": "CREATE TABLE $table$\n(\n    $column$ $dataType$ NOT NULL\n)$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
         { "id": "dataType", "default": "INT", "tooltip": "資料型別" }
       ]
@@ -150,13 +150,11 @@
       "description": "建立檢視",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE VIEW $schema$.$view$\nAS\nSELECT $column$\nFROM $sourceSchema$.$sourceTable$$end$;",
+      "code": "CREATE VIEW $view$\nAS\nSELECT $column$\nFROM $sourceTable$$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "檢視的結構描述" },
-        { "id": "view", "default": "ViewName", "tooltip": "檢視名稱" },
+        { "id": "view", "default": "dbo.ViewName", "tooltip": "檢視名稱；可含結構描述" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
-        { "id": "sourceSchema", "default": "dbo", "tooltip": "來源結構描述" },
-        { "id": "sourceTable", "default": "TableName", "tooltip": "來源資料表" }
+        { "id": "sourceTable", "default": "dbo.TableName", "tooltip": "來源資料表；可含結構描述" }
       ]
     },
     {
@@ -167,10 +165,9 @@
       "description": "建立預存程序",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE PROCEDURE $schema$.$procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
+      "code": "CREATE PROCEDURE $procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "procedure", "default": "ProcedureName", "tooltip": "預存程序名稱" },
+        { "id": "procedure", "default": "dbo.ProcedureName", "tooltip": "預存程序名稱；可含結構描述" },
         { "id": "body", "default": "SELECT 1;", "tooltip": "程序內容" }
       ]
     },
@@ -182,10 +179,9 @@
       "description": "建立純量函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION $schema$.$function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
+      "code": "CREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "function", "default": "FunctionName", "tooltip": "函式名稱" },
+        { "id": "function", "default": "dbo.FunctionName", "tooltip": "函式名稱；可含結構描述" },
         { "id": "parameter", "default": "Value", "tooltip": "參數名稱" },
         { "id": "parameterType", "default": "INT", "tooltip": "參數型別" },
         { "id": "returnType", "default": "INT", "tooltip": "回傳型別" },
@@ -200,15 +196,13 @@
       "description": "建立內嵌資料表值函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION $schema$.$function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT $column$\n    FROM $sourceSchema$.$sourceTable$\n)$end$;",
+      "code": "CREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT $column$\n    FROM $sourceTable$\n)$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "function", "default": "FunctionName", "tooltip": "函式名稱" },
+        { "id": "function", "default": "dbo.FunctionName", "tooltip": "函式名稱；可含結構描述" },
         { "id": "parameter", "default": "Value", "tooltip": "參數名稱" },
         { "id": "parameterType", "default": "INT", "tooltip": "參數型別" },
         { "id": "column", "default": "ColumnName", "tooltip": "回傳欄位" },
-        { "id": "sourceSchema", "default": "dbo", "tooltip": "來源結構描述" },
-        { "id": "sourceTable", "default": "TableName", "tooltip": "來源資料表" }
+        { "id": "sourceTable", "default": "dbo.TableName", "tooltip": "來源資料表；可含結構描述" }
       ]
     },
     {
@@ -219,11 +213,10 @@
       "description": "建立非叢集索引",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE NONCLUSTERED INDEX $index$\nON $schema$.$table$ ($column$)$end$;",
+      "code": "CREATE NONCLUSTERED INDEX $index$\nON $table$ ($column$)$end$;",
       "placeholders": [
         { "id": "index", "default": "IX_TableName_ColumnName", "tooltip": "索引名稱" },
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "column", "default": "ColumnName", "tooltip": "索引欄位" }
       ]
     },
@@ -235,10 +228,9 @@
       "description": "修改資料表",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "ALTER TABLE $schema$.$table$\n$action$$end$;",
+      "code": "ALTER TABLE $table$\n$action$$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "action", "default": "ADD ColumnName INT NULL", "tooltip": "ALTER TABLE 動作" }
       ]
     },
@@ -251,10 +243,9 @@
       "isDestructive": true,
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DROP TABLE IF EXISTS $schema$.$table$$end$;",
+      "code": "DROP TABLE IF EXISTS $table$$end$;",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" }
       ]
     },
     {
@@ -331,10 +322,9 @@
       "description": "資料存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM $schema$.$table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
         { "id": "body", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
       ]
@@ -347,10 +337,9 @@
       "description": "資料不存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM $schema$.$table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
       "placeholders": [
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
         { "id": "body", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
       ]
@@ -406,12 +395,11 @@
       "description": "完整的本機快速順向 CURSOR 樣板",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT $column$\nFROM $schema$.$table$;\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $body$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
+      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT $column$\nFROM $table$;\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $body$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
       "placeholders": [
         { "id": "cursor", "default": "item_cursor", "tooltip": "游標名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "讀取欄位" },
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" },
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "variable", "default": "Value", "tooltip": "接收資料的變數；請先宣告" },
         { "id": "body", "default": "SELECT @Value;", "tooltip": "逐筆處理內容" }
       ]
@@ -435,7 +423,7 @@
       "category": "clause",
       "shortcut": "ij",
       "title": "INNER JOIN",
-      "description": "加入 INNER JOIN；接著列出資料表與檢視",
+      "description": "加入 INNER JOIN",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["TableSourceTail"],
@@ -446,7 +434,7 @@
       "category": "clause",
       "shortcut": "lj",
       "title": "LEFT JOIN",
-      "description": "加入 LEFT JOIN；接著列出資料表與檢視",
+      "description": "加入 LEFT JOIN",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["TableSourceTail"],
@@ -457,7 +445,7 @@
       "category": "clause",
       "shortcut": "rj",
       "title": "RIGHT JOIN",
-      "description": "加入 RIGHT JOIN；接著列出資料表與檢視",
+      "description": "加入 RIGHT JOIN",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["TableSourceTail"],
@@ -468,7 +456,7 @@
       "category": "clause",
       "shortcut": "fj",
       "title": "FULL JOIN",
-      "description": "加入 FULL JOIN；接著列出資料表與檢視",
+      "description": "加入 FULL JOIN",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["TableSourceTail"],
@@ -479,7 +467,7 @@
       "category": "clause",
       "shortcut": "cj",
       "title": "CROSS JOIN",
-      "description": "加入 CROSS JOIN；接著列出資料表與檢視",
+      "description": "加入 CROSS JOIN",
       "triggerFollowUp": true,
       "expansionMode": "caret",
       "positions": ["TableSourceTail"],
@@ -542,12 +530,11 @@
       "description": "建立 CTE 並查詢",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": ";WITH $cte$ AS\n(\n    SELECT $column$\n    FROM $schema$.$table$\n)\nSELECT *\nFROM $cte$$end$;",
+      "code": ";WITH $cte$ AS\n(\n    SELECT $column$\n    FROM $table$\n)\nSELECT *\nFROM $cte$$end$;",
       "placeholders": [
         { "id": "cte", "default": "cte", "tooltip": "CTE 名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
-        { "id": "schema", "default": "dbo", "tooltip": "結構描述" },
-        { "id": "table", "default": "TableName", "tooltip": "資料表名稱" }
+        { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" }
       ]
     },
     {
