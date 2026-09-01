@@ -91,7 +91,9 @@ if (git -C $root tag --list $tag) {
     throw "$tag 已經存在。同一個 commit 只發布一次；有新變更請先 commit，height 會自己往前。"
 }
 
-git -C $root tag $tag
+# 用 annotated tag：訊息裡記完整四段版號，把 tag 名稱丟掉的第四段補回來，之後才回推得出
+# 使用者手上的 VSIX 是哪一次建置。附帶的好處是 git describe 預設就認得它，不必加 --tags。
+git -C $root tag -a $tag -m "SqlAssist $version"
 git -C $root push $Remote $tag
 
 # --generate-notes 讓 GitHub 自己從 commit 產生變更摘要，省下手寫；草稿階段還能改。
