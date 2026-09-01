@@ -1,11 +1,26 @@
 # 索引
 
-從「我要做的事」或「我手上的檔案」找到該讀的文件與該進入的程式碼。
+所有文件的入口，分成兩半：**上半給使用者**——裝起來、開始用；**下半給開發者**——
+從「我要改什麼」或手上的檔案路徑，找到該讀的文件與該進入的程式碼。
 文件本身不重複解釋內容，那些在各自的檔裡；這裡只負責指路。
 
-規則見 [CLAUDE.md](../CLAUDE.md)，動手前先讀對應的那一份文件。
+只是想裝來用的話，[安裝與開始使用](getting-started.md) 一頁就夠了。
+
+## 我只想安裝或使用
+
+| 想做的事 | 文件 |
+|---|---|
+| 下載 VSIX、安裝、確認載入與問題排查 | [getting-started.md](getting-started.md) |
+| 了解建議清單、欄位補全與整句展開 | [completion.md](completion.md) |
+| 查 Snippet 捷徑與 Tab 欄位導航 | [snippets.md](snippets.md) |
+| 了解 `SELECT *` 展開 | [wildcard-expansion.md](wildcard-expansion.md) |
+| 使用滑鼠提示與完整結構預覽 | [structure-preview.md](structure-preview.md) |
+| 尋找功能設定 | [settings.md](settings.md) |
 
 ## 我要改的是……
+
+以下開始是開發者的部分。動手之前先讀 [CLAUDE.md](../CLAUDE.md)——那是這個專案踩過坑
+之後定下來的硬規則，每一條後面都有一次實際的事故；再讀下表對應的那一份文件。
 
 | 想做的事 | 先讀 | 從這裡進去 |
 |---|---|---|
