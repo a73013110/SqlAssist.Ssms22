@@ -193,6 +193,46 @@ public sealed class SqlCompletionContextAnalyzerTests
     }
 
     /// <summary>
+    /// 正在打的是一個數值常值時不開清單。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 的一般識別字不能以數字開頭，所以清單裡沒有一項會是對的。位置分析
+    /// 在這裡也幫不上忙——運算子之後一律是 <c>Any</c>，於是整個目錄進場，
+    /// 模糊比對把 <c>10</c> 對到 <c>LOG10</c>，而使用者順手按下 Enter 就把數字
+    /// 換成了一個函式名稱。與 <c>SqlCompletionTriggers.IsIdentifierLike</c>
+    /// 不讓 <c>1.5</c> 的點號彈出物件清單是同一條理由。
+    /// </remarks>
+    [Theory]
+    [InlineData("UPDATE #Loan SET Fine = Fine - 1")]
+    [InlineData("UPDATE #Loan SET Fine = Fine - 10")]
+    [InlineData("SELECT TOP 1")]
+    [InlineData("SELECT * FROM dbo.Loan WHERE ReaderId = 12")]
+
+    // 小數點與十六進位一樣拆得出以數字開頭的詞元。
+    [InlineData("SELECT 1.5")]
+    [InlineData("SELECT 0x1F")]
+    public void 數值常值不建議(string textBeforeCaret)
+    {
+        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+    }
+
+    /// <summary>數字只在詞元開頭才算數值常值。</summary>
+    /// <remarks>
+    /// <c>Cat_BookCopy2</c> 這種名字很常見，而暫存資料表的 <c>#</c> 也在詞元開頭。
+    /// 把整個詞元含不含數字當成判準的話，收掉的是使用者真的要補的名稱。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.Cat_BookCopy2", "Cat_BookCopy2")]
+    [InlineData("SELECT * FROM #Loan2", "#Loan2")]
+    public void 數字不在開頭時照常建議(string textBeforeCaret, string prefix)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(prefix, context.Prefix);
+    }
+
+    /// <summary>
     /// 使用者正在取名字的位置不開清單。
     /// </summary>
     /// <remarks>
@@ -257,12 +297,18 @@ public sealed class SqlCompletionContextAnalyzerTests
     }
 
     /// <summary>別名寫完之後就恢復正常，那裡要的是 WHERE、JOIN 這些子句關鍵字。</summary>
+    /// <remarks>
+    /// 換行之後多出來的 <c>StatementStart</c> 是另一條規則，見
+    /// <c>SqlKeywordPositionAnalyzer.AddStatementStartOnNewLine</c>。
+    /// </remarks>
     [Fact]
     public void 別名寫完之後恢復建議()
     {
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT * FROM (SELECT 1 AS a) d\r\nWHE");
 
         Assert.True(context.IsValid);
-        Assert.Equal(SqlKeywordPosition.TableSourceTail, context.KeywordPosition);
+        Assert.Equal(
+            SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart,
+            context.KeywordPosition);
     }
 }

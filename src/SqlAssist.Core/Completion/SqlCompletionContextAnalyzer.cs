@@ -34,6 +34,17 @@ public static class SqlCompletionContextAnalyzer
             return AnalyzeVariable(textBeforeCaret, tokenStart);
         }
 
+        // 數字開頭的詞元是一個數值常值：T-SQL 的一般識別字不能以數字開頭，
+        // 所以清單裡沒有一項會是對的。位置分析在這裡也幫不上忙——運算子之後
+        // 一律是 Any，於是 SET Quantity = Quantity - 10 打到 10 的時候整個目錄
+        // 進場，模糊比對撈回 LOG10，而使用者順手按下 Enter 就把數字換成了
+        // 一個函式名稱。擋數值常值與 SqlCompletionTriggers.IsIdentifierLike
+        // 不讓 1.5 的點號彈出物件清單是同一條理由。
+        if (tokenStart < textBeforeCaret.Length && char.IsDigit(textBeforeCaret[tokenStart]))
+        {
+            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+        }
+
         // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
         // 但這裡不用特別處理：限定字會讓 Target 收斂，關鍵字已經被目標過濾擋掉。
         //
