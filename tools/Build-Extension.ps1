@@ -30,7 +30,7 @@ if (-not $visualStudioPath) {
 $msBuild = Join-Path $visualStudioPath 'MSBuild\Current\Bin\MSBuild.exe'
 
 # 命令表掛錯層不會編譯失敗，選單只是安靜地不出現，因此在建置前先驗證。
-& (Join-Path $PSScriptRoot 'Test-CommandTable.ps1')
+& (Join-Path $PSScriptRoot 'Test-CommandTable.ps1') -SsmsInstallDir $ssmsPath
 
 # 明確使用方案的 x64 組態，統一輸出到 bin\x64。
 & $msBuild `

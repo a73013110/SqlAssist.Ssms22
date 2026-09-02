@@ -38,4 +38,24 @@ internal static class CommandIds
 
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
+
+    /// <summary>
+    /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
+    /// </summary>
+    /// <remarks>
+    /// 原本是一次性的驗證命令，用來證明 <c>Menus.vsct</c> 那個群組真的掛進了
+    /// <c>IDM_SQLWB_SQLRESGRID_CONTEXT</c>。留下來的理由是它問的問題沒有別的
+    /// 地方問得到：SSMS 換版之後，結果格線的功能會安靜地整組失效——
+    /// 沒有例外、沒有記錄，跟 MEF 快取過期同一類。那時候要先知道格線還在不在、
+    /// 方法還叫不叫這個名字，才有辦法往下查。
+    ///
+    /// 報告一律不含儲存格內容，只記型別與是否為 <c>NULL</c>。
+    /// </remarks>
+    public const int ProbeResultGrid = 0x0300;
+
+    /// <summary>結果格線：把選取範圍寫成 <c>#temp</c> 的建表與灌資料指令碼。</summary>
+    public const int ResultGridTempTable = 0x0301;
+
+    /// <summary>結果格線：把選取範圍寫成可以接在 <c>WHERE</c> 後面的條件。</summary>
+    public const int ResultGridInPredicate = 0x0302;
 }

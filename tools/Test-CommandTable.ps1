@@ -3,7 +3,8 @@
 param(
     [string]$VsctPath,
     [string]$CommandIdsPath,
-    [string]$RegistrationPath
+    [string]$RegistrationPath,
+    [string]$SsmsInstallDir
 )
 
 # 同一組命令的識別碼寫在三個地方：VSCT 的 IDSymbol、C# 的 CommandIds 常數，
@@ -17,6 +18,7 @@ param(
 # 因此在建置前直接對來源檔驗證。
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 
 $root = Split-Path -Parent $PSScriptRoot
 
@@ -64,7 +66,11 @@ function Test-Placement {
     $parentId = $parent.id
     $expectedPrefix = if ($ExpectedParentKind -eq 'Group') { 'IDG_' } else { 'IDM_' }
 
-    if ($parentGuid -eq 'guidSHLMainMenu') {
+    # 慣例對殼層與 SSMS 的命令表都成立，所以只要識別碼帶前綴就一律檢查——
+    # 原本只認 guidSHLMainMenu，掛到別人的選單上會安靜地跳過，
+    # 而那正是這個檢查要擋的那一種失敗。
+    if ($parentGuid -ne 'guidSqlAssistCommandSet' -and
+        ($parentId.StartsWith('IDM_') -or $parentId.StartsWith('IDG_'))) {
         if (-not $parentId.StartsWith($expectedPrefix)) {
             $problems.Add(
                 "$Kind '$($Node.id)' 掛在 '$parentId' 底下，但它必須掛在一個 $ExpectedParentKind（$expectedPrefix*）底下。")
@@ -232,6 +238,71 @@ foreach ($reference in Get-VsctReference -Element $registration.RootElement) {
 }
 
 $registration.Dispose()
+
+# 掛進 SSMS 自己選單的那些群組，父選單的 GUID 與 ID 是 SSMS 的內部值，不是公開的
+# 擴充契約。SSMS 改版換掉其中一個的症狀是那一段選單安靜地不出現——沒有例外、
+# 沒有紀錄，要等使用者按不到才發現。這些值全都來自公開類別 SQLWorkbenchCommands，
+# 所以在這裡直接跟安裝好的 SSMS 對一次，把執行期的沉默失敗提前成建置失敗。
+$sqlEditorsPath = Join-Path (Get-SsmsInstallPath -InstallDir $SsmsInstallDir) `
+    'Common7\IDE\Extensions\Application\SQLEditors.dll'
+
+if (-not (Test-Path -LiteralPath $sqlEditorsPath)) {
+    Write-Warning "找不到 $sqlEditorsPath，略過 SSMS 選單識別碼比對。"
+}
+else {
+    $workbenchCommands = [System.Reflection.Assembly]::LoadFrom($sqlEditorsPath).GetType(
+        'Microsoft.SqlServer.Management.UI.VSIntegration.Editors.SQLWorkbenchCommands')
+
+    if ($null -eq $workbenchCommands) {
+        $problems.Add('SQLEditors.dll 裡找不到 SQLWorkbenchCommands，無法比對 SSMS 的選單識別碼。')
+    }
+    else {
+        # 每一項是「VSCT 的 GuidSymbol 名稱 → SSMS 欄位名稱」與其底下的
+        # 「IDSymbol 名稱 → SSMS 常數名稱」。名稱一致是刻意的，好一眼看出出處。
+        $ssmsMenus = @{
+            guidSqlWorkbenchEditorGroup = @{
+                Field = 'GUID_SQLEditorGroup'
+                Ids   = @('IDM_SQLWB_SQLRESGRID_CONTEXT')
+            }
+        }
+
+        foreach ($symbolName in $ssmsMenus.Keys) {
+            $expected = $ssmsMenus[$symbolName]
+            $symbol = $vsct.SelectSingleNode(
+                "//ct:Symbols/ct:GuidSymbol[@name='$symbolName']", $ns)
+
+            if ($null -eq $symbol) {
+                $problems.Add("命令表沒有宣告 $symbolName。")
+                continue
+            }
+
+            $actualGuid = [string]$workbenchCommands.GetField($expected.Field).GetValue($null)
+
+            if ($symbol.value.Trim('{', '}') -ne $actualGuid) {
+                $problems.Add(
+                    "$symbolName 是 $($symbol.value)，但 SSMS 的 " +
+                    "SQLWorkbenchCommands.$($expected.Field) 是 {$actualGuid}。")
+            }
+
+            foreach ($idName in $expected.Ids) {
+                $idSymbol = $symbol.SelectSingleNode("ct:IDSymbol[@name='$idName']", $ns)
+
+                if ($null -eq $idSymbol) {
+                    $problems.Add("$symbolName 底下沒有宣告 $idName。")
+                    continue
+                }
+
+                $actualId = $workbenchCommands.GetField($idName).GetRawConstantValue()
+
+                if ([Convert]::ToInt32($idSymbol.value, 16) -ne $actualId) {
+                    $problems.Add(
+                        "$idName 是 $($idSymbol.value)，但 SSMS 的 " +
+                        "SQLWorkbenchCommands.$idName 是 $('0x{0:X4}' -f $actualId)。")
+                }
+            }
+        }
+    }
+}
 
 if ($problems.Count -gt 0) {
     throw "命令表檢查失敗：`n  " + ($problems -join "`n  ")

@@ -11,6 +11,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.ResultGrid;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
 
@@ -70,6 +71,24 @@ internal sealed class SqlAssistCommands
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
+
+        // 結果格線的右鍵選單。狀態由 ResultGridActions 回答：找不到格線就停用，
+        // 但仍然看得見——使用者因此知道這個功能存在，只是現在沒有東西可以做。
+        AddCommand(
+            CommandIds.ResultGridTempTable,
+            (_, _) => ResultGridActions.CreateTempTableScript(_package),
+            ResultGridActions.IsAvailable);
+
+        AddCommand(
+            CommandIds.ResultGridInPredicate,
+            (_, _) => ResultGridActions.CopyInPredicate(_package),
+            ResultGridActions.IsAvailable);
+
+        // 探測只在「詳細記錄」打開時出現。它是診斷工具，不是功能。
+        AddCommand(
+            CommandIds.ProbeResultGrid,
+            ProbeResultGrid,
+            isVisible: () => SqlAssistSettingsStore.Current.VerboseLogging);
     }
 
     private void AddToggleCommand(
@@ -107,20 +126,45 @@ internal sealed class SqlAssistCommands
     /// 命令什麼時候可用；省略代表永遠可用。綁了鍵的命令一定要給——殼層是先問過
     /// 狀態才派送的，而回報可用卻什麼都不做，跟按鍵沒反應在使用者眼裡是同一件事。
     /// </param>
-    private void AddCommand(int commandId, EventHandler handler, Func<bool>? isEnabled = null)
+    /// <param name="isVisible">
+    /// 命令什麼時候出現在選單上；省略代表永遠出現。
+    /// </param>
+    /// <remarks>
+    /// 停用與隱藏是兩件事，不要拿其中一個代替另一個。停用的項目仍然看得見，
+    /// 使用者因此知道功能存在、只是現在用不上；隱藏留給「這個使用者根本不該
+    /// 看到它」的那一種，目前只有診斷用的探測。
+    /// </remarks>
+    private void AddCommand(
+        int commandId,
+        EventHandler handler,
+        Func<bool>? isEnabled = null,
+        Func<bool>? isVisible = null)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         var menuCommand = new OleMenuCommand(
             handler,
             new CommandID(CommandIds.CommandSet, commandId));
 
-        if (isEnabled is not null)
+        if (isEnabled is not null || isVisible is not null)
         {
             menuCommand.BeforeQueryStatus += (_, _) =>
-                menuCommand.Enabled = SqlAssistPlatformGuard.Run(
-                    "查詢命令狀態",
-                    isEnabled,
-                    fallback: false);
+            {
+                if (isVisible is not null)
+                {
+                    menuCommand.Visible = SqlAssistPlatformGuard.Run(
+                        "查詢命令可見度",
+                        isVisible,
+                        fallback: false);
+                }
+
+                if (isEnabled is not null)
+                {
+                    menuCommand.Enabled = SqlAssistPlatformGuard.Run(
+                        "查詢命令狀態",
+                        isEnabled,
+                        fallback: false);
+                }
+            };
         }
 
         _commandService.AddCommand(menuCommand);
@@ -271,6 +315,36 @@ internal sealed class SqlAssistCommands
             OLEMSGICON.OLEMSGICON_INFO,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
+    }
+
+    /// <summary>
+    /// 跑一次結果格線探測，報告寫進診斷紀錄檔。
+    /// </summary>
+    /// <remarks>
+    /// 這是診斷工具而不是功能，只在「詳細記錄」打開時出現。SSMS 換版之後，
+    /// 結果格線的命令會安靜地整組失效——那時候要先問出格線還在不在、
+    /// 方法還叫不叫這個名字。
+    ///
+    /// 回饋走對話框：這個命令不在按鍵路徑上，而「按了沒反應」正是它要排除的失敗。
+    /// </remarks>
+    private void ProbeResultGrid(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            var report = SqlAssistResultGridProbe.Run();
+            var summary = Array.Find(
+                report.Split('\n'),
+                line => line.StartsWith("找到格線數量", StringComparison.Ordinal))
+                ?.Trim() ?? "（報告裡沒有格線數量那一行）";
+
+            ShowMessage($"結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。");
+        }
+        catch (Exception exception)
+        {
+            Report("探測結果格線", exception);
+        }
     }
 
     private void ShowAboutAndDiagnostics(object? sender, EventArgs eventArgs)
