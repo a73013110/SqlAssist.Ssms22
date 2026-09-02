@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;
@@ -91,11 +91,34 @@ public sealed class SqlObjectScriptTests
     }
 
     /// <remarks>
-    /// 資料表型別有欄位，落到資料表那一支就會被寫成 CREATE TABLE——照著執行
-    /// 會多出一張同名的資料表。與檢視取不到定義時不能掉進 CREATE TABLE 同一條理由。
+    /// 欄位查得回來與否是這一輪的事，不是種類的事：資料表過得了種類那一關，
+    /// 卻可能一列都沒有回來（物件被卸除、權限被收回）。BuildScript 那一端已經
+    /// 換成整段註解，這裡要確認的是它原樣帶出來，沒有被當成 CREATE 改寫掉，
+    /// 也沒有留下一段只剩空括號、卻仍然貼得上去的 CREATE TABLE。
     /// </remarks>
     [Fact]
-    public void 資料表型別不寫成CREATE_TABLE()
+    public void 取不到欄位的資料表整段註解()
+    {
+        var script = SqlObjectScript.BuildEditable(
+            new SqlObjectStructure(
+                new SqlObjectDetail(new SqlObjectInfo(5, "dbo", "Lib_Tag", SqlObjectKind.Table))),
+            "\r\n");
+
+        Assert.StartsWith(Header + "-- 取不到 [dbo].[Lib_Tag] 的欄位。", script.Text);
+        Assert.Contains("sys.columns", script.Text);
+        Assert.DoesNotContain("CREATE TABLE", script.Text);
+    }
+
+    /// <remarks>
+    /// 資料表型別有欄位，落到資料表那一支就會被寫成 CREATE TABLE——照著執行
+    /// 會多出一張同名的資料表。與檢視取不到定義時不能掉進 CREATE TABLE 同一條理由。
+    ///
+    /// 這一條與浮動預覽的指令碼分頁走同一個判斷（<c>HasExecutableScript</c>），
+    /// 所以 F12 拿到的就是 BuildScript 組出來的 CREATE TYPE，只多包了批次樣板。
+    /// 兩邊各留一份判斷的症狀，就是同一個型別在預覽是 CREATE TABLE、在這裡是註解。
+    /// </remarks>
+    [Fact]
+    public void 資料表型別寫成CREATE_TYPE()
     {
         var script = SqlObjectScript.BuildEditable(
             new SqlObjectStructure(
@@ -104,9 +127,13 @@ public sealed class SqlObjectScriptTests
                     new[] { new SqlColumnInfo(1, "LoanId", "int", false) })),
             "\r\n");
 
+        Assert.StartsWith(Header + "CREATE TYPE [dbo].[LoanIdList] AS TABLE", script.Text);
+        Assert.Contains("    [LoanId] int NOT NULL", script.Text);
+        Assert.EndsWith("GO\r\n", script.Text);
         Assert.DoesNotContain("CREATE TABLE", script.Text);
-        Assert.Contains("-- 無法為 [dbo].[LoanIdList]（Table type）產生可以執行的指令碼。", script.Text);
-        Assert.Contains("--     [LoanId] int NOT NULL", script.Text);
+
+        // 型別沒有 ALTER 的整體寫法，開頭的 CREATE 不可以被改寫掉。
+        Assert.DoesNotContain("ALTER", script.Text);
     }
 
     /// <remarks>

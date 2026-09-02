@@ -63,6 +63,13 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**讓 `DbException` 冒出 `SqlMetadataCatalog`。連不上、逾時、權限不足在
   `TryLoad` 降級成「這一輪沒有資料」；冒出去會讓平台邊界每按一次鍵記一份完整堆疊。
   只接 `DbException`，失敗不進快取，理由見 [docs/metadata.md](docs/metadata.md)。
+- **禁止**在資料不齊時輸出半份可以執行的東西。種類問
+  `SqlObjectKinds.HasExecutableScript`、這一次查到的資料問
+  `SqlObjectStructure.CanBuildExecutableScript`，任何一道不過就整段換成註解，
+  寫明缺什麼、兩個可能的原因與查得到的部分（格式只有 `BuildUnavailableScript` 一份）。
+  查詢成功卻一列都沒有回來是常態不是例外：物件清單是快取的，中繼資料的可見度
+  照權限過濾。少了欄位的 `CREATE TABLE` 只剩一對空括號，卻仍然貼得上去，
+  理由見 [docs/metadata.md](docs/metadata.md)。
 - **禁止**用 `SqlAssistPlatformGuard` 吞掉 Core 與 Metadata 的商業邏輯錯誤，
   也**禁止**用它處理「使用者按了卻沒反應」的失敗——工具選單的命令、預覽的狀態列、
   Snippet 管理員都要顯示訊息，每一句都不同。不走它的地方一律在該處註明理由。

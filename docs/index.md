@@ -53,6 +53,7 @@
 | 新增一個設定 | [settings.md](settings.md) | 四處都要動，見下方「新增設定」 |
 | 查詢的 SQL 或載入分層 | [metadata.md](metadata.md) | `Metadata/Querying/SqlMetadataQueries.cs` |
 | 連不上資料庫時的行為 | [metadata.md](metadata.md) | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| 指令碼整段變成註解（缺定義、缺欄位） | [metadata.md](metadata.md) | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |
 | 建置、安裝、偵錯、發布 | [development.md](development.md) | `tools/` 底下的腳本，見下方「工具腳本」 |
 | 分層規則、資料夾規則 | [architecture.md](architecture.md) | — |
 
