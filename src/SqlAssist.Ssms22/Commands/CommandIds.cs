@@ -61,4 +61,7 @@ internal static class CommandIds
 
     /// <summary>結果格線：每一欄的統計摘要。</summary>
     public const int ResultGridProfile = 0x0303;
+
+    /// <summary>結果格線：這一格的完整內容。</summary>
+    public const int ResultGridCell = 0x0304;
 }

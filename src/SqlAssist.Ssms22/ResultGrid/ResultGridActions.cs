@@ -111,6 +111,30 @@ internal static class ResultGridActions
         new ResultGridProfileWindow(table, ResultGridProfile.Build(table)).ShowModal();
     }
 
+    /// <summary>把使用者點的那一格完整顯示出來。</summary>
+    /// <remarks>
+    /// 這一個不走 <see cref="Prepare"/>：它只要一格，而 Prepare 會把選取範圍
+    /// 撐成矩形再整塊讀進來。點在一個 178 欄的結果上，那是一次沒有必要的全表讀取。
+    /// </remarks>
+    public static void ShowCell(IServiceProvider serviceProvider)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (!SsmsResultGrid.TryGetActive(out var grid, out var failure))
+        {
+            SqlAssistStatusBar.Show(serviceProvider, failure);
+            return;
+        }
+
+        if (!grid!.TryReadAnchorCell(out var column, out var value, out failure))
+        {
+            SqlAssistStatusBar.Show(serviceProvider, failure);
+            return;
+        }
+
+        new ResultGridCellWindow(ResultGridCellText.Create(column!, value)).ShowModal();
+    }
+
     /// <summary>命令什麼時候可用：SqlAssist 啟用，而且找得到一個有資料的結果格線。</summary>
     /// <remarks>
     /// 這是右鍵選單每次彈出都會問到的路徑，所以只做「找不找得到格線」這一件事，

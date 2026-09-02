@@ -135,6 +135,10 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Strings><ButtonText>欄位剖析…</ButtonText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0400" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Strings><ButtonText>檢視這一格的完整內容…</ButtonText></Strings>
+      </Button>
 
       <!--
         格線內部的探測。留著而不是刪掉：SSMS 換版之後這一組功能安靜地失效時，
@@ -218,6 +222,7 @@
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />
       <IDSymbol name="cmdidResultGridProfile" value="0x0303" />
+      <IDSymbol name="cmdidResultGridCell" value="0x0304" />
     </GuidSymbol>
 
     <!--
