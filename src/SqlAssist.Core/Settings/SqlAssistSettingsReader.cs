@@ -46,6 +46,10 @@ public static class SqlAssistSettingsReader
             WildcardLayout = ParseWildcardLayout(
                 Value(source, SqlAssistMonikers.WildcardLayout, string.Empty),
                 defaults.WildcardLayout),
+            AutoPairDelimiters = Value(
+                source,
+                SqlAssistMonikers.AutoPairDelimiters,
+                defaults.AutoPairDelimiters),
 
             SuggestionsEnabled = Value(
                 source,

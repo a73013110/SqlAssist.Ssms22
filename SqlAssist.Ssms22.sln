@@ -28,6 +28,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-AE01-4761-823F-555C9A09339D}"
 	ProjectSection(SolutionItems) = preProject
 		docs\architecture.md = docs\architecture.md
+		docs\auto-pairing.md = docs\auto-pairing.md
 		docs\completion.md = docs\completion.md
 		docs\development.md = docs\development.md
 		docs\getting-started.md = docs\getting-started.md

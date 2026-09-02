@@ -18,7 +18,7 @@ using SqlAssist.Ssms22.Wildcards;
 namespace SqlAssist.Ssms22.Completion;
 
 /// <summary>
-/// 結構預覽的按鍵操作，以及輸入分隔字元時的關鍵字自動大寫。
+/// 結構預覽的按鍵操作，以及輸入字元時的關鍵字自動大寫與分隔字元自動配對。
 /// </summary>
 /// <remarks>
 /// 建議清單本身的 Tab／Enter／上下鍵完全由平台處理，這裡不介入——
@@ -44,7 +44,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     ICommandHandler<PageUpKeyCommandArgs>,
     ICommandHandler<PageDownKeyCommandArgs>,
     ICommandHandler<CopyCommandArgs>,
-    ICommandHandler<TypeCharCommandArgs>
+    ICommandHandler<TypeCharCommandArgs>,
+    ICommandHandler<BackspaceKeyCommandArgs>
 {
     /// <summary>輸入限定字的點號之後要把建議清單重開一次，那要經過 broker。</summary>
     [Import]
@@ -69,6 +70,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(CopyCommandArgs args) => CommandState.Unspecified;
 
     public CommandState GetCommandState(TypeCharCommandArgs args) => CommandState.Unspecified;
+
+    public CommandState GetCommandState(BackspaceKeyCommandArgs args) => CommandState.Unspecified;
 
     /// <summary>
     /// Esc 收掉預覽。
@@ -178,10 +181,12 @@ internal sealed class SqlAssistCompletionCommandHandler :
     }
 
     /// <summary>
-    /// 輸入字元時把剛打完的關鍵字轉成大寫，並在詞元結束時重開建議清單。
+    /// 輸入字元時把剛打完的關鍵字轉成大寫、自動配對分隔字元，並在詞元結束時重開建議清單。
     /// </summary>
     /// <remarks>
-    /// 一律回傳 false：這個處理常式只負責改寫已經在緩衝區裡的那個字，
+    /// 只有「跳過自己補上的結尾字元」與「包夾選取範圍」會回傳 true——那兩次
+    /// 使用者要的字元已經在文字裡了，再讓編輯器插入一次就是多一個。其餘一律
+    /// 回傳 false：改寫大寫與補上結尾字元都只動已經在緩衝區裡的文字，
     /// 使用者輸入的字元仍然交給編輯器插入，其他擴充也還看得到這次按鍵。
     ///
     /// 這裡只用字元本身做第一層篩選，而那條規則與重開清單的判斷共用同一份
@@ -193,20 +198,35 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// </remarks>
     public bool ExecuteCommand(TypeCharCommandArgs args, CommandExecutionContext executionContext)
     {
-        SqlAssistPlatformGuard.Run(
+        var handled = SqlAssistPlatformGuard.Run(
             "處理 TypeChar 按鍵",
             () =>
             {
-                // 自動大寫是 Snippet Engine 之外的緩衝區編輯，欄位 session 開著時
-                // 暫停它，避免欄位標記或同名欄位同步被外部修改打斷。
-                if (SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession != true)
+                // 自動大寫與自動配對都是 Snippet Engine 之外的緩衝區編輯，
+                // 欄位 session 開著時暫停它們，避免欄位標記或同名欄位同步被外部修改打斷。
+                if (SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession == true)
                 {
-                    SqlKeywordCasing.ApplyBeforeTypedCharacter(
-                        args.TextView,
-                        args.SubjectBuffer,
-                        args.TypedChar);
+                    return false;
                 }
-            });
+
+                SqlKeywordCasing.ApplyBeforeTypedCharacter(
+                    args.TextView,
+                    args.SubjectBuffer,
+                    args.TypedChar);
+
+                // 建議清單開著時一律讓開：那一次 TypeChar 可能是提交鍵，
+                // 吞掉它等於提交不了；而在 session 中途插字元也會讓適用範圍失準。
+                if (Broker.GetSession(args.TextView) is not null)
+                {
+                    return false;
+                }
+
+                return SqlAutoPairing.TryHandleTypedCharacter(
+                    args.TextView,
+                    args.SubjectBuffer,
+                    args.TypedChar);
+            },
+            fallback: false);
 
         if (SqlCompletionTriggers.MayChangeContext(args.TypedChar))
         {
@@ -215,7 +235,25 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 () => SqlCompletionReopen.AfterSeparator(args.TextView, Broker));
         }
 
-        return false;
+        return handled;
+    }
+
+    /// <summary>
+    /// Backspace 刪掉開頭字元時，把自動補上的另一半一起收掉。
+    /// </summary>
+    /// <remarks>
+    /// 參與條件與 TypeChar 完全相同（Snippet 欄位、建議清單各自讓開），
+    /// 兩邊分岔的症狀是「補得出來卻收不掉」：打了左括號馬上後悔按 Backspace，
+    /// 右括號留在原地。
+    /// </remarks>
+    public bool ExecuteCommand(BackspaceKeyCommandArgs args, CommandExecutionContext executionContext)
+    {
+        return SqlAssistPlatformGuard.Run(
+            "處理 Backspace 按鍵",
+            () => SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession != true
+                && Broker.GetSession(args.TextView) is null
+                && SqlAutoPairing.TryHandleBackspace(args.TextView, args.SubjectBuffer),
+            fallback: false);
     }
 
     /// <summary>只撤銷預覽目標，不吞掉按鍵；平台仍完整執行原本命令。</summary>

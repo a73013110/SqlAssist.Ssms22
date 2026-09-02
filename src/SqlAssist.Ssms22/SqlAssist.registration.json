@@ -74,6 +74,15 @@
       "additionalKeywords": [ "怎麼排", "換行", "格式", "layout", "每欄一行" ],
       "enableWhen": "${config:sqlAssist.general.expandWildcardOnTab} == 'true'"
     },
+    "sqlAssist.general.autoPairDelimiters": {
+      "type": "boolean",
+      "default": true,
+      "order": 400,
+      "title": "自動補上成對的括號與引號",
+      "description": "輸入 ( ' [ \" 時補上另一半並把游標留在中間；接著輸入結尾字元會跳過補上的那一個，Backspace 刪掉開頭字元時把空的另一半一起收掉，先選取一段文字再輸入開頭字元則是把它包起來。字串與註解裡不配對，建議清單或程式碼片段欄位開著時也不介入。BEGIN…END 不在這一項底下，那是程式碼片段。",
+      "additionalKeywords": [ "括號", "引號", "配對", "自動關閉", "auto close", "bracket", "quote" ],
+      "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
+    },
 
     "sqlAssist.suggestions.enabled": {
       "type": "boolean",

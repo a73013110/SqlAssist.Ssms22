@@ -26,6 +26,7 @@ public static class SqlAssistMonikers
     public const string UppercaseKeywordsOnType = "sqlAssist.general.uppercaseKeywordsOnType";
     public const string ExpandWildcardOnTab = "sqlAssist.general.expandWildcardOnTab";
     public const string WildcardLayout = "sqlAssist.general.wildcardLayout";
+    public const string AutoPairDelimiters = "sqlAssist.general.autoPairDelimiters";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
     public const string SuppressNativeMemberList = "sqlAssist.suggestions.suppressNativeMemberList";
