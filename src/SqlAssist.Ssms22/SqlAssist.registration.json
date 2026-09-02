@@ -166,6 +166,15 @@
       "additionalKeywords": [ "新增資料", "欄位清單", "產生 SQL", "樣板", "IDENTITY" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
+    "sqlAssist.suggestions.expandMergeStatement": {
+      "type": "boolean",
+      "default": true,
+      "order": 405,
+      "title": "在 MERGE INTO 之後展開完整的比對鍵與動作子句",
+      "description": "選取目標資料表後展開成 ON 比對鍵、UPDATE SET、INSERT 與 VALUES；比對鍵取自主索引鍵，兩個動作子句都帶著 AND 1 = 0，確認條件之前不會真的改到資料。關閉後只插入名稱。",
+      "additionalKeywords": [ "合併", "upsert", "同步", "主索引鍵", "產生 SQL" ],
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
     "sqlAssist.suggestions.expandProcedureCall": {
       "type": "boolean",
       "default": true,

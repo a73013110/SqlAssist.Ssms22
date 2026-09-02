@@ -70,6 +70,7 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("ssc", CompletionTarget.DataSource, CompletionIntent.Reference)]
     [InlineData("sd", CompletionTarget.DataSource, CompletionIntent.Reference)]
     [InlineData("ii", CompletionTarget.DataSource, CompletionIntent.InsertStatement)]
+    [InlineData("mg", CompletionTarget.DataSource, CompletionIntent.MergeStatement)]
     [InlineData("ui", CompletionTarget.DataSource, CompletionIntent.Reference)]
     [InlineData("df", CompletionTarget.DataSource, CompletionIntent.Reference)]
     [InlineData("ij", CompletionTarget.DataSource, CompletionIntent.Reference)]
@@ -112,7 +113,7 @@ public sealed class SqlSnippetDefaultsTests
     {
         var covered = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "ssf", "st100", "st1", "ssc", "sd", "ii", "ui", "df",
+            "ssf", "st100", "st1", "ssc", "sd", "ii", "ui", "df", "mg",
             "ij", "lj", "rj", "fj", "cj", "ca", "oa", "ap", "af", "av", "atr"
         };
 
@@ -359,8 +360,6 @@ public sealed class SqlSnippetDefaultsTests
     /// 而使用者在編輯器裡看到的正是那一份。
     /// </remarks>
     [Theory]
-    [InlineData("mg", "targetTable")]
-    [InlineData("mg", "sourceTable")]
     [InlineData("cv", "sourceTable")]
     [InlineData("ctf", "sourceTable")]
     [InlineData("at", "table")]
@@ -417,46 +416,6 @@ public sealed class SqlSnippetDefaultsTests
         var source = Assert.Single(context.ScopeSources);
 
         Assert.Equal("Lib_Reader", source.Table!.ObjectName);
-    }
-
-    /// <remarks>
-    /// <c>mg</c> 的六個欄位格分屬 target 與 source。它們曾經是三個同名欄位，
-    /// 而原生引擎會把同名的同步起來——選了目標的比對鍵，來源那一邊就跟著變成
-    /// 同一個名字，可是兩張表不一定同名。拆開之後這裡連「這一格該列哪張表的
-    /// 欄位」一起守。
-    ///
-    /// 走全文分析：限定字要解析成資料表，得看得到游標後方的
-    /// <c>MERGE INTO … AS target</c>。
-    /// </remarks>
-    [Theory]
-    [InlineData("targetKey", "TargetTable")]
-    [InlineData("sourceKey", "SourceTable")]
-    [InlineData("targetUpdate", "TargetTable")]
-    [InlineData("sourceUpdate", "SourceTable")]
-    [InlineData("sourceInsert", "SourceTable")]
-    public void MERGE片段的欄位格解析得出它屬於哪一張表(string fieldId, string expected)
-    {
-        var context = AnalyzeInField("mg", fieldId);
-
-        Assert.Equal(CompletionTarget.Column, context.Target);
-
-        var source = Assert.Single(context.ColumnSources!);
-
-        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
-        Assert.Equal(expected, source.Table!.ObjectName);
-    }
-
-    /// <remarks>
-    /// <c>INSERT ($targetInsert$)</c> 沒有限定字，那個位置推不出目標，
-    /// 而剛進格時前綴又是空的——與 <c>SELECT |</c> 一樣要打了字才有清單。
-    /// 這不是缺口：那一格文法上是 target 的欄位，使用者打第一個字母時
-    /// 敘述範圍會把兩張表的欄位都交出來（見
-    /// <c>SqlColumnCompletionTests.MERGE的INSERT欄位清單看得到兩張表</c>）。
-    /// </remarks>
-    [Fact]
-    public void MERGE的INSERT欄位格要打了字才有清單()
-    {
-        Assert.False(AnalyzeInField("mg", "targetInsert").IsValid);
     }
 
     /// <summary>展開文字中某一格<b>起點</b>那個位置的全文分析結果。</summary>

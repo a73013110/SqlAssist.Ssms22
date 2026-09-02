@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -36,6 +36,8 @@ public static class SqlAssistMonikers
     public const string QualifyObjectNames = "sqlAssist.suggestions.qualifyObjectNames";
     public const string UseSquareBrackets = "sqlAssist.suggestions.useSquareBrackets";
     public const string ExpandInsertStatement = "sqlAssist.suggestions.expandInsertStatement";
+
+    public const string ExpandMergeStatement = "sqlAssist.suggestions.expandMergeStatement";
     public const string ExpandProcedureCall = "sqlAssist.suggestions.expandProcedureCall";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";

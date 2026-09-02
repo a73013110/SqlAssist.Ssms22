@@ -96,22 +96,13 @@
       "id": "builtin.mg",
       "category": "dml",
       "shortcut": "mg",
-      "title": "MERGE",
-      "description": "MERGE 樣板；執行前務必檢查並行與條件",
+      "title": "MERGE INTO",
+      "description": "合併資料；選好目標資料表後展開比對鍵、UPDATE 與 INSERT",
       "isDestructive": true,
-      "expansionMode": "tabStops",
+      "triggerFollowUp": true,
+      "expansionMode": "caret",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "MERGE INTO $targetTable$ AS target\nUSING $sourceTable$ AS source\n    ON target.$targetKey$ = source.$sourceKey$\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET target.$targetUpdate$ = source.$sourceUpdate$\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT ($targetInsert$)\n    VALUES (source.$sourceInsert$)$end$;",
-      "placeholders": [
-        { "id": "targetTable", "default": "dbo.TargetTable", "tooltip": "目標資料表；可含結構描述" },
-        { "id": "sourceTable", "default": "dbo.SourceTable", "tooltip": "來源資料表；可含結構描述" },
-        { "id": "targetKey", "default": "KeyColumn", "tooltip": "目標的比對鍵" },
-        { "id": "sourceKey", "default": "KeyColumn", "tooltip": "來源的比對鍵；兩邊不一定同名" },
-        { "id": "targetUpdate", "default": "UpdateColumn", "tooltip": "要更新的目標欄位" },
-        { "id": "sourceUpdate", "default": "UpdateColumn", "tooltip": "值取自來源的哪一欄" },
-        { "id": "targetInsert", "default": "InsertColumn", "tooltip": "要寫入的目標欄位" },
-        { "id": "sourceInsert", "default": "InsertColumn", "tooltip": "值取自來源的哪一欄" }
-      ]
+      "code": "MERGE INTO $end$"
     },
 
     {
