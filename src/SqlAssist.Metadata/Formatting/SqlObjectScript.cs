@@ -102,10 +102,20 @@ public static class SqlObjectScript
     /// 取不到定義時 <see cref="SqlObjectStructure.BuildScript"/> 給的是整段註解，
     /// <see cref="SqlModuleScript.TryConvertCreateToAlter"/> 認不出開頭的關鍵字而
     /// 回報失敗，於是原樣保留——那正是要的結果。</item>
-    /// <item><b>資料表</b>——維持 <c>CREATE TABLE</c>。沒有對應的 <c>ALTER TABLE</c>
-    /// 整體寫法，改下去得到的是一段執行到一半才失敗的指令碼。</item>
-    /// <item><b>其餘</b>（同義字、序列、資料表型別、認不出來的種類）——整段註解。</item>
+    /// <item><b>資料表與資料表型別</b>——維持 <c>CREATE TABLE</c> 與
+    /// <c>CREATE TYPE ... AS TABLE</c>。這兩者都沒有對應的 <c>ALTER</c> 整體寫法，
+    /// 改下去得到的是一段執行到一半才失敗的指令碼。</item>
+    /// <item><b>其餘</b>（同義字、序列、認不出來的種類）——整段註解。</item>
     /// </list>
+    ///
+    /// 「哪一類寫得出來」由 <see cref="SqlObjectKinds.HasExecutableScript"/> 一份說了算，
+    /// 不在這裡另列種類：這條路徑與浮動預覽的指令碼分頁各留一份判斷的症狀，
+    /// 就是同一個物件在兩邊得到不同的東西。
+    ///
+    /// 「這一次的資料夠不夠」則不必在這裡判。種類過得了關、資料卻不齊時
+    /// （模組沒有定義、資料表沒有欄位），<see cref="SqlObjectStructure.BuildScript"/>
+    /// 給的已經是整段註解，原樣送出去就是對的。那一份註解寫的是缺什麼與為什麼，
+    /// 與這裡「這一類物件本來就組不出來」是兩件事，不能互相取代。
     /// </remarks>
     private static string BuildBody(SqlObjectStructure structure)
     {
@@ -118,22 +128,21 @@ public static class SqlObjectScript
             return SqlModuleScript.TryConvertCreateToAlter(script, out var altered) ? altered : script;
         }
 
-        return kind == SqlObjectKind.Table ? structure.BuildScript() : BuildUnscriptableBody(structure);
+        return kind.HasExecutableScript() ? structure.BuildScript() : BuildUnscriptableBody(structure);
     }
 
     /// <summary>
     /// 寫不出可執行指令碼的物件：整段註解，並說明為什麼。
     /// </summary>
     /// <remarks>
-    /// 同義字指向誰、序列的起始值與增量、資料表型別的 <c>CREATE TYPE ... AS TABLE</c>
-    /// 語法，這三樣都不在本擴充查詢的中繼資料裡。
+    /// 同義字指向誰、序列的起始值與增量，這兩樣都不在本擴充查詢的中繼資料裡。
     /// <see cref="SqlObjectStructure.BuildScript"/> 在這裡給的是一段給人看的摘要
     /// （<c>Synonym [dbo].[syn_Loan]</c> 這種），那份文字貼在唯讀的預覽窗格裡沒有問題，
     /// 但這裡產生的是要拿去執行的指令碼——原樣送出去就是一句不是 T-SQL 的東西。
     ///
-    /// 資料表型別尤其要擋掉：它有欄位，落到資料表那一支會被寫成 <c>CREATE TABLE</c>，
-    /// 而那是指令碼在說謊，照著執行會多出一張同名的資料表。與檢視取不到定義時
-    /// 不能掉進 <c>CREATE TABLE</c> 是同一條理由。
+    /// 資料表型別曾經也走這一支。它有欄位，當時落到資料表那一支會被寫成
+    /// <c>CREATE TABLE</c>，而那是指令碼在說謊，照著執行會多出一張同名的資料表；
+    /// 現在 <c>BuildScript</c> 直接組 <c>CREATE TYPE ... AS TABLE</c>，兩邊都不必再繞。
     /// </remarks>
     private static string BuildUnscriptableBody(SqlObjectStructure structure)
     {
@@ -142,7 +151,7 @@ public static class SqlObjectScript
             .Append('（').Append(structure.Object.Kind.ToDisplayName())
             .AppendLine("）產生可以執行的指令碼。");
         builder.AppendLine("-- 這一類物件的定義來源不在 SqlAssist 查詢的中繼資料裡：");
-        builder.AppendLine("-- 同義字指向哪個物件、序列的起始值與增量、資料表型別的 CREATE TYPE 語法。");
+        builder.AppendLine("-- 同義字指向哪個物件、序列的起始值與增量。");
         builder.AppendLine("-- 以下是查得到的部分：");
         builder.AppendLine();
 

@@ -259,6 +259,73 @@ public sealed class SqlObjectStructureTests
         }
     }
 
+    /// <summary>
+    /// 查詢成功卻一個欄位都沒有回來：組出來的 CREATE TABLE 只剩一對空括號，
+    /// 而那仍然貼得上去——執行下去建出一張沒有欄位的資料表。
+    /// </summary>
+    /// <remarks>
+    /// 這一格與模組取不到定義是同一類問題，因此走同一份輸出：整段註解、
+    /// 寫明缺什麼與兩個可能的原因。原因不寫進去的話，使用者查不出該去看權限、
+    /// 看物件還在不在，還是看連線。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Table)]
+    [InlineData(SqlObjectKind.TableType)]
+    public void 取不到欄位時整段註解(SqlObjectKind kind)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(new SqlObjectInfo(7, "dbo", "Lib_Tag", kind)));
+
+        var script = structure.BuildScript();
+
+        Assert.False(structure.CanBuildExecutableScript);
+        Assert.Contains("取不到 [dbo].[Lib_Tag] 的欄位", script);
+        Assert.Contains("sys.columns", script);
+        Assert.DoesNotContain("CREATE TABLE", script);
+        Assert.DoesNotContain("CREATE TYPE", script);
+
+        foreach (var line in script.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            Assert.True(trimmed.Length == 0 || trimmed.StartsWith("--"), line);
+        }
+    }
+
+    /// <summary>
+    /// 「這一次的資料夠不夠」只有一份判斷，組指令碼與問這個屬性走的是同一條。
+    /// </summary>
+    /// <remarks>
+    /// 分成兩份的症狀是屬性說寫得出來、組出來的卻是一段註解——新的表面要問
+    /// 「這份結構能不能給使用者一段可以執行的東西」時，問的就是這個屬性。
+    /// </remarks>
+    [Fact]
+    public void 資料夠不夠與組出來的東西一致()
+    {
+        var ready = new SqlObjectStructure(
+            new SqlObjectDetail(
+                Table(),
+                new[] { Column(1, "Id", "int", nullable: false) }));
+
+        var missingColumns = new SqlObjectStructure(new SqlObjectDetail(Table()));
+
+        var missingDefinition = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(8, "dbo", "v_Loan", SqlObjectKind.View),
+                new[] { Column(1, "LoanId", "int", nullable: false) }));
+
+        // 同義字寫不出指令碼是種類的事，與這一輪查到多少資料無關。
+        var synonym = new SqlObjectStructure(
+            new SqlObjectDetail(new SqlObjectInfo(9, "dbo", "syn_Loan", SqlObjectKind.Synonym)));
+
+        Assert.True(ready.CanBuildExecutableScript);
+        Assert.False(missingColumns.CanBuildExecutableScript);
+        Assert.False(missingDefinition.CanBuildExecutableScript);
+        Assert.False(synonym.CanBuildExecutableScript);
+
+        Assert.StartsWith("CREATE TABLE", ready.BuildScript());
+        Assert.StartsWith("-- 取不到", missingColumns.BuildScript());
+        Assert.StartsWith("-- 取不到", missingDefinition.BuildScript());
+    }
     /// <summary>取不到定義的程序列出參數，理由與檢視列出欄位相同。</summary>
     [Fact]
     public void 取不到定義的程序列出參數()
@@ -272,6 +339,70 @@ public sealed class SqlObjectStructureTests
 
         Assert.Contains("取不到 [dbo].[usp_Renew] 的定義", script);
         Assert.Contains("--     @LoanId int", script);
+    }
+
+    /// <summary>
+    /// 資料表型別有欄位，落到 CREATE TABLE 那一支就是指令碼在說謊：指令碼分頁的
+    /// 文字文件上明說可以直接執行，照著執行卻會多出一張同名的資料表。
+    /// </summary>
+    /// <remarks>
+    /// 主索引鍵要寫成不具名的內嵌條件約束——CREATE TYPE 的括號裡不收
+    /// <c>CONSTRAINT 名稱</c>，照資料表那一支搬過來會語法錯誤；而其餘索引的
+    /// CREATE INDEX 與 ALTER TABLE 對型別都不合法，整組不能跟在後面。
+    /// </remarks>
+    [Fact]
+    public void 資料表型別寫成CREATE_TYPE()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(5, "dbo", "LoanIdList", SqlObjectKind.TableType),
+                new[]
+                {
+                    Column(1, "LoanId", "int", nullable: false, primaryKey: true),
+                    Column(2, "CopyNo", "varchar(10)", nullable: true)
+                }),
+            new[]
+            {
+                // 型別的條件約束一律命名不得，這個名字是引擎自己配的。
+                new SqlIndexInfo(1, "PK__LoanIdLi__6E1F6D1A", new[] { new SqlIndexColumn("LoanId") },
+                    isPrimaryKey: true, isUnique: true, typeDescription: "CLUSTERED"),
+                new SqlIndexInfo(2, "IX_CopyNo", new[] { new SqlIndexColumn("CopyNo") },
+                    typeDescription: "NONCLUSTERED")
+            });
+
+        var script = structure.BuildScript();
+
+        Assert.Contains("CREATE TYPE [dbo].[LoanIdList] AS TABLE", script);
+        Assert.Contains("    [LoanId] int NOT NULL,", script);
+        Assert.Contains("    [CopyNo] varchar(10) NULL,", script);
+        Assert.Contains("    PRIMARY KEY CLUSTERED ([LoanId] ASC)", script);
+        Assert.DoesNotContain("CREATE TABLE", script);
+        Assert.DoesNotContain("CONSTRAINT", script);
+
+        // 這兩個寫法對型別都不合法；跟在 CREATE TYPE 後面就是一段執行到一半才失敗的指令碼。
+        // 比對整句而不是只比關鍵字：結尾那一行交代用的註解裡就有這兩個字。
+        Assert.DoesNotContain("CREATE NONCLUSTERED INDEX [IX_CopyNo]", script);
+        Assert.DoesNotContain("ALTER TABLE [dbo].[LoanIdList]", script);
+
+        // 省略掉的索引要留一行交代，否則這份文字看起來就像那個型別只有主索引鍵。
+        Assert.Contains("-- 另有 1 個索引沒有寫進來", script);
+    }
+
+    /// <summary>沒有索引的資料表型別不留逗號，也不多那一行交代。</summary>
+    [Fact]
+    public void 沒有索引的資料表型別不留逗號也不加註解()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(6, "dbo", "TagIdList", SqlObjectKind.TableType),
+                new[] { Column(1, "TagId", "int", nullable: false) }));
+
+        var script = structure.BuildScript();
+
+        Assert.Contains(
+            "    [TagId] int NOT NULL" + System.Environment.NewLine + ");",
+            script);
+        Assert.DoesNotContain("另有", script);
     }
 
     [Fact]

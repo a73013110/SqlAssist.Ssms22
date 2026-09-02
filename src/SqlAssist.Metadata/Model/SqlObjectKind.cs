@@ -74,6 +74,23 @@ public static class SqlObjectKinds
             or SqlObjectKind.View;
     }
 
+    /// <summary>
+    /// <see cref="SqlObjectStructure.BuildScript"/> 寫得出可以執行的 T-SQL 嗎。
+    /// </summary>
+    /// <remarks>
+    /// 模組給定義原文，資料表重建 <c>CREATE TABLE</c>，資料表型別重建
+    /// <c>CREATE TYPE ... AS TABLE</c>。其餘（同義字、序列、認不出來的種類）
+    /// 只給得出一段給人看的摘要，那不是 T-SQL——F12 因此把它整段註解掉。
+    ///
+    /// 這一條刻意由浮動預覽的指令碼分頁與 F12 共用。兩邊各留一份判斷的症狀
+    /// 就是資料表型別那一次：F12 擋掉了，預覽卻把一個型別寫成 <c>CREATE TABLE</c>，
+    /// 而那份文字文件上明說可以直接執行。
+    /// </remarks>
+    public static bool HasExecutableScript(this SqlObjectKind kind)
+    {
+        return kind.IsModule() || kind is SqlObjectKind.Table or SqlObjectKind.TableType;
+    }
+
     /// <summary>是否為 <c>EXEC</c> 呼叫得動、因而有具名參數的模組。</summary>
     /// <remarks>
     /// 純量函式算在內：<c>EXEC @fee = dbo.fn_Fee 1</c> 是合法的寫法，
