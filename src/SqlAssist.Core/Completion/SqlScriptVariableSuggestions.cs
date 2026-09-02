@@ -41,15 +41,28 @@ public static class SqlScriptVariableSuggestions
     /// </summary>
     /// <param name="tokens">整份指令碼的詞法單元。</param>
     /// <param name="caretPosition">游標位置。</param>
+    /// <param name="scriptTables">
+    /// 讀得出資料行的資料表變數宣告。掛在建議項上，提交之後
+    /// <c>INSERT INTO @rows</c> 才展得開整句——這種名稱中繼資料一列都查不到，
+    /// 只補一個字的話使用者還是得把每一個欄位自己打一遍。
+    /// </param>
     /// <remarks>
     /// 只收<b>結束於游標之前</b>的詞元。少了這一條，使用者打到一半的 <c>@pu</c>
     /// 自己會出現在清單裡，而選它等於什麼都沒做。
     /// </remarks>
-    public static IReadOnlyList<SqlSuggestion> Create(IReadOnlyList<SqlToken> tokens, int caretPosition)
+    public static IReadOnlyList<SqlSuggestion> Create(
+        IReadOnlyList<SqlToken> tokens,
+        int caretPosition,
+        IReadOnlyDictionary<string, SqlScriptTable> scriptTables)
     {
         if (tokens is null)
         {
             throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (scriptTables is null)
+        {
+            throw new ArgumentNullException(nameof(scriptTables));
         }
 
         List<SqlSuggestion>? suggestions = null;
@@ -68,13 +81,15 @@ public static class SqlScriptVariableSuggestions
             }
 
             var description = DescribeType(tokens, index);
+            scriptTables.TryGetValue(token.Value, out var table);
 
             (suggestions ??= new List<SqlSuggestion>()).Add(new SqlSuggestion(
                 token.Value,
                 token.Value,
                 description,
                 $"{token.Value}（{description}）",
-                SuggestionKind.Variable));
+                SuggestionKind.Variable,
+                tag: table));
         }
 
         return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();

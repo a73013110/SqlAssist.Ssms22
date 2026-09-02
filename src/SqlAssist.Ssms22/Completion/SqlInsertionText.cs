@@ -58,10 +58,14 @@ internal static class SqlInsertionText
     /// 名稱含空白或保留字時仍必須加括號，這條由
     /// <see cref="SqlIdentifier.QuoteIfNeeded"/> 負責。展開萬用字元、
     /// 建立欄位建議時適用同一條規則，所以這個方法開放給同組件使用。
+    ///
+    /// 反過來，開著「一律加方括號」也不代表什麼都包得下去：指令碼自己宣告的名稱
+    /// 不在這個設定的管轄內（<see cref="SqlIdentifier.IsScriptScoped"/>）。
+    /// <c>[#tmp]</c> 合法卻不是任何人會手寫的樣子，而 <c>[@rows]</c> 根本不合法。
     /// </remarks>
     public static string Quote(string name, SqlAssistSettings settings)
     {
-        return settings.UseSquareBrackets
+        return settings.UseSquareBrackets && !SqlIdentifier.IsScriptScoped(name)
             ? SqlIdentifier.Quote(name)
             : SqlIdentifier.QuoteIfNeeded(name);
     }

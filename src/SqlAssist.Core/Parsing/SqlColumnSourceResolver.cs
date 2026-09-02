@@ -63,6 +63,10 @@ public sealed class SqlColumnSourceResolver
 
     private readonly IReadOnlyList<SqlToken> _tokens;
 
+    /// <summary>指令碼裡宣告的暫存資料表與資料表變數，第一次真的要用到才收集。</summary>
+    /// <remarks>與 <see cref="_commonTableExpressions"/> 同一條理由與同一個時機。</remarks>
+    private IReadOnlyDictionary<string, SqlScriptTable>? _scriptTables;
+
     /// <summary>
     /// 指令碼裡的 CTE 名冊，第一次真的要用到才收集。
     /// </summary>
@@ -190,6 +194,17 @@ public sealed class SqlColumnSourceResolver
     /// </remarks>
     public IEnumerable<string> CommonTableExpressionNames => CommonTableExpressions.Keys;
 
+    /// <summary>
+    /// 指令碼裡宣告的暫存資料表與資料表變數。
+    /// </summary>
+    /// <remarks>
+    /// 建議清單要拿它替 <c>#tmp</c>、<c>@rows</c> 這些名稱掛上資料行清單，
+    /// 提交之後才展得開 <c>INSERT</c> 骨架。與欄位解析共用同一份名冊，
+    /// 呼叫端不必為了拿資料行再掃一次同一份文字。
+    /// </remarks>
+    public IReadOnlyDictionary<string, SqlScriptTable> ScriptTables =>
+        _scriptTables ??= SqlScriptTableCollector.Collect(_tokens);
+
     private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
         _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
 
@@ -213,11 +228,12 @@ public sealed class SqlColumnSourceResolver
         {
             var open = FindTokenAt(_tokens, reference.Start);
 
-            // 衍生資料表的第一個詞法單元是左括號；資料表變數（@t）不是，
-            // 而它的欄位既不在指令碼裡也不在中繼資料裡，只能放棄。
+            // 衍生資料表的第一個詞法單元是左括號；資料表變數（@t）不是。
+            // 它的欄位確實不在中繼資料裡——資料表變數根本不是 sys.objects 裡的物件
+            // ——但 DECLARE @t TABLE (…) 就寫在指令碼裡，讀得出來。
             if (open < 0 || !_tokens[open].IsPunctuation("("))
             {
-                return false;
+                return TryResolveScriptTable(reference.ObjectName, qualifier, sources);
             }
 
             var close = SqlTokenNavigator.FindClosingParenthesis(_tokens, open, _tokens.Count);
@@ -252,7 +268,34 @@ public sealed class SqlColumnSourceResolver
             }
         }
 
+        // 暫存資料表在 tempdb 裡，而中繼資料只看得到目前連線的那一個資料庫；
+        // 交給下面那一行的話，查詢一定落空而使用者什麼欄位都看不到。
+        // 帶結構描述的名稱不必問：#tmp 不會寫成 dbo.#tmp。
+        if (reference.SchemaName is null &&
+            TryResolveScriptTable(reference.ObjectName, qualifier, sources))
+        {
+            return true;
+        }
+
         sources.Add(SqlColumnSource.FromTable(reference, qualifier));
+        return true;
+    }
+
+    /// <summary>
+    /// 把指令碼自己宣告的資料表攤平成欄位來源。
+    /// </summary>
+    /// <remarks>
+    /// 沒有資料行時當成解析不出來：<c>SELECT … INTO #tmp</c> 建立的暫存資料表
+    /// 名冊裡有名稱卻沒有資料行，回報空清單會讓呼叫端以為那張表真的一欄都沒有。
+    /// </remarks>
+    private bool TryResolveScriptTable(string name, string? qualifier, List<SqlColumnSource> sources)
+    {
+        if (!ScriptTables.TryGetValue(name, out var table) || table.ColumnNames.Count == 0)
+        {
+            return false;
+        }
+
+        sources.Add(SqlColumnSource.FromNames(table.ColumnNames, qualifier, table.Name));
         return true;
     }
 

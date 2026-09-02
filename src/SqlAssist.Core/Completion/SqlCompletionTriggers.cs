@@ -57,8 +57,7 @@ public static class SqlCompletionTriggers
         }
 
         // 還在打識別字時什麼都不用做：平台自己的篩選是對的。
-        if (SqlCompletionContextAnalyzer.IsIdentifierCharacter(
-                textBeforeCaret[textBeforeCaret.Length - 1]))
+        if (!MayChangeContext(textBeforeCaret[textBeforeCaret.Length - 1]))
         {
             return false;
         }
@@ -74,6 +73,25 @@ public static class SqlCompletionTriggers
         return context.Qualifier is null
             ? context.Target != CompletionTarget.Any
             : IsIdentifierLike(context.Qualifier);
+    }
+
+    /// <summary>
+    /// 剛輸入的這個字元有沒有可能把上下文整個換掉。
+    /// </summary>
+    /// <remarks>
+    /// 識別字的字元只會把候選變少，平台自己的篩選是對的——<b>除了小老鼠</b>。
+    /// 它雖然構得成識別字（<c>@@ROWCOUNT</c> 的詞元起點必須落在第一個小老鼠上），
+    /// 但打出來的那一刻目標會整個換掉：<c>INSERT INTO </c> 開著的是資料表清單，
+    /// 而 <c>INSERT INTO @</c> 要的是他自己宣告的變數，兩份沒有一項重疊。
+    /// 平台只會拿新文字去比對舊清單，一個都比不中就默默把清單關掉——症狀正是
+    /// 「單打一個 <c>@</c> 沒有清單，再多打一個字母才出現」。
+    ///
+    /// 判斷與 <see cref="ShouldReopen"/> 共用：呼叫端要用同一條規則決定要不要問，
+    /// 各寫一份的話這裡放行了、那裡卻擋掉，等於沒改。
+    /// </remarks>
+    public static bool MayChangeContext(char value)
+    {
+        return !SqlCompletionContextAnalyzer.IsIdentifierCharacter(value) || value == '@';
     }
 
     /// <summary>

@@ -162,7 +162,11 @@ internal sealed class SqlMetadataService : IDisposable
             {
                 foreach (var name in source.Names)
                 {
-                    suggestions.Add(BuildScriptColumnSuggestion(name, settings, qualifier: null));
+                    suggestions.Add(BuildScriptColumnSuggestion(
+                        name,
+                        settings,
+                        qualifier: null,
+                        source.SourceName));
                 }
 
                 continue;
@@ -440,7 +444,8 @@ internal sealed class SqlMetadataService : IDisposable
                     suggestions.Add(BuildScriptColumnSuggestion(
                         name,
                         settings,
-                        qualify ? source.Qualifier : null));
+                        qualify ? source.Qualifier : null,
+                        source.SourceName));
                 }
 
                 continue;
@@ -931,22 +936,27 @@ internal sealed class SqlMetadataService : IDisposable
     /// 那些要追到最內層的資料表，而中間任何一段運算式都會讓答案不成立。
     /// 說明欄改寫來源本身：使用者要的是「這個名稱打不打得出來」。
     ///
+    /// 暫存資料表與資料表變數說得出出處，就寫它的名字：在
+    /// <c>UPDATE #Loan SET |</c> 看到「查詢結果」會讓人以為認錯了東西。
+    ///
     /// 欄位的排序刻意保留選取清單的順序，與資料表欄位保留定義順序同一個理由。
     /// </remarks>
     private static SqlSuggestion BuildScriptColumnSuggestion(
         string name,
         SqlAssistSettings settings,
-        string? qualifier)
+        string? qualifier,
+        string? sourceName)
     {
         var quoted = Quote(name, settings);
         var insertionText = qualifier is null ? quoted : Quote(qualifier, settings) + "." + quoted;
+        var origin = sourceName ?? "查詢結果";
         var source = qualifier is null ? string.Empty : $" · {qualifier}";
 
         return new SqlSuggestion(
             name,
             insertionText,
-            $"查詢結果{source}",
-            $"查詢結果\r\n{name}",
+            $"{origin}{source}",
+            $"{origin}\r\n{name}",
             SuggestionKind.Column);
     }
 

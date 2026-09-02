@@ -56,7 +56,8 @@ internal static class SqlCompletionReopen
     /// 輸入結束詞元的字元之後的清單。
     /// </summary>
     /// <remarks>
-    /// 由呼叫端先擋掉識別字字元，這裡再問一次
+    /// 由呼叫端先用 <see cref="SqlCompletionTriggers.MayChangeContext"/> 擋掉不可能
+    /// 換掉上下文的字元，這裡再問一次
     /// <see cref="SqlCompletionTriggers.ShouldReopen"/>——那一份判斷要看的是
     /// 字元<b>已經進入緩衝區之後</b>的文字，所以只能在這裡問。
     /// </remarks>

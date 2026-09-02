@@ -184,8 +184,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// 一律回傳 false：這個處理常式只負責改寫已經在緩衝區裡的那個字，
     /// 使用者輸入的字元仍然交給編輯器插入，其他擴充也還看得到這次按鍵。
     ///
-    /// 這裡只用字元本身做第一層篩選——識別字的字元一定不會換掉上下文，
-    /// 平台自己的篩選是對的，連排程都不必。真正的判斷在
+    /// 這裡只用字元本身做第一層篩選，而那條規則與重開清單的判斷共用同一份
+    /// （<see cref="SqlCompletionTriggers.MayChangeContext"/>）：篩掉的字元
+    /// 連排程都不必，而放行的字元不代表一定會重開。真正的判斷在
     /// <see cref="SqlCompletionReopen.AfterSeparator"/> 裡，
     /// 因為它要看的是這個字元<b>已經進入緩衝區之後</b>的文字：
     /// 此時此刻那個字元還沒被插入。
@@ -207,7 +208,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 }
             });
 
-        if (!SqlCompletionContextAnalyzer.IsIdentifierCharacter(args.TypedChar))
+        if (SqlCompletionTriggers.MayChangeContext(args.TypedChar))
         {
             SqlAssistPlatformGuard.Run(
                 "處理 TypeChar 按鍵",

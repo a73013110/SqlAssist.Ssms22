@@ -100,6 +100,45 @@ public sealed class SqlCompletionTriggerTests
     }
 
     /// <summary>
+    /// 小老鼠雖然構得成識別字，打出來的那一刻仍然要重開。
+    /// </summary>
+    /// <remarks>
+    /// <c>INSERT INTO </c> 那一刻開著的是資料表清單，而 <c>INSERT INTO @</c> 要的是
+    /// 使用者自己宣告的變數——兩份清單沒有一項重疊，平台比不中就默默把清單關掉。
+    /// 症狀是「單打一個 <c>@</c> 什麼都沒有，再多打一個字母才出現」。
+    /// <c>@@</c> 同理：那一份是系統的全域變數，又是另一份封閉清單。
+    /// </remarks>
+    [Fact]
+    public void 小老鼠要重開()
+    {
+        Assert.True(ShouldReopen("INSERT INTO @|"));
+        Assert.True(ShouldReopen("SELECT * FROM @|"));
+        Assert.True(ShouldReopen("SET @|"));
+        Assert.True(ShouldReopen("SELECT @@|"));
+    }
+
+    /// <summary>正在宣告一個新名字的位置仍然不重開；那裡沒有一項是對的。</summary>
+    [Fact]
+    public void 宣告變數的位置不重開()
+    {
+        Assert.False(ShouldReopen("DECLARE @|"));
+        Assert.False(ShouldReopen("DECLARE @readerId INT, @|"));
+    }
+
+    /// <summary>要不要問與問出來的答案共用同一條規則，兩邊分岔等於沒改。</summary>
+    [Theory]
+    [InlineData('@', true)]
+    [InlineData('.', true)]
+    [InlineData(' ', true)]
+    [InlineData('a', false)]
+    [InlineData('_', false)]
+    [InlineData('#', false)]
+    public void 字元本身決定要不要問(char value, bool expected)
+    {
+        Assert.Equal(expected, SqlCompletionTriggers.MayChangeContext(value));
+    }
+
+    /// <summary>
     /// 小數點不是限定字。
     /// </summary>
     /// <remarks>
