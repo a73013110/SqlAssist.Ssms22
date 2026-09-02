@@ -278,14 +278,42 @@ public sealed class SqlSnippetDefaultsTests
     }
 
     /// <remarks>
+    /// 四筆 <c>CREATE</c> 模組片段共用同一份註解標頭。各寫一份的症狀是「改了其中
+    /// 一份、另外三份還是舊格式」，而那要把四段字串攤開比對才看得出來。
+    ///
+    /// 標頭本身也守著兩件事：它不含錢字號（否則會多出使用者沒宣告的欄位），
+    /// 而且註解不會改變下一格的上下文——後者由
+    /// <see cref="新建物件的名稱欄位不主動開清單"/> 連帶守住，那幾格分析的正是
+    /// 「標頭加上 CREATE …」這一整段。
+    /// </remarks>
+    [Fact]
+    public void 四筆CREATE模組片段共用同一份註解標頭()
+    {
+        const string header =
+            "-- =============================================\n" +
+            "-- Author:\t\t\n" +
+            "-- Create date: \n" +
+            "-- Description:\t\n" +
+            "-- =============================================\n";
+
+        foreach (var shortcut in new[] { "cp", "cv", "cf", "ctf" })
+        {
+            var code = Snippet(shortcut).Code;
+
+            Assert.StartsWith(header, code, StringComparison.Ordinal);
+            Assert.DoesNotContain('$', header);
+        }
+    }
+
+    /// <remarks>
     /// <c>positions</c> 給得太緊的症狀是全靜默的：使用者只覺得「這個片段有時候
     /// 有、有時候沒有」。每一筆都要有一個「一定找得到」的位置守著。
     /// </remarks>
     [Theory]
     // 語句級：語句開頭與 BEGIN…END 區塊裡都要在。曾經只給 StatementStart，
     // 於是 BEGIN 之後（分析器只回報 BlockStart）整批語句片段全部消失。
-    [InlineData("SELECT 1;\n", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
-    [InlineData("BEGIN\n    ", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,citvf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
+    [InlineData("SELECT 1;\n", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,ctf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
+    [InlineData("BEGIN\n    ", "ssf,st100,st1,ssc,sd,ii,ui,df,mg,cdb,ctb,cv,cp,cf,ctf,cix,at,dt,ap,af,be,bt,ct,rt,ife,ifne,wl,tc,cur,trn,cte,sno,ptt")]
     // 運算式級：CASE 在選取清單、逗號之後與述詞裡都要在。
     [InlineData("SELECT ", "cs")]
     [InlineData("SELECT a, ", "cs")]
@@ -334,7 +362,7 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("mg", "targetTable")]
     [InlineData("mg", "sourceTable")]
     [InlineData("cv", "sourceTable")]
-    [InlineData("citvf", "sourceTable")]
+    [InlineData("ctf", "sourceTable")]
     [InlineData("at", "table")]
     [InlineData("dt", "table")]
     [InlineData("ife", "table")]
@@ -362,7 +390,7 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("cv", "view")]
     [InlineData("cp", "procedure")]
     [InlineData("cf", "function")]
-    [InlineData("citvf", "function")]
+    [InlineData("ctf", "function")]
     public void 新建物件的名稱欄位不主動開清單(string shortcut, string fieldId)
     {
         Assert.False(AnalyzeBeforeField(shortcut, fieldId).IsValid);
