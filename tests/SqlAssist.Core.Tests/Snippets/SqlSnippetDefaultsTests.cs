@@ -27,6 +27,7 @@ public sealed class SqlSnippetDefaultsTests
         Assert.All(defaults.Snippets, snippet =>
         {
             Assert.True(SqlSnippetIdentity.IsValid(snippet.Id), snippet.Id);
+            Assert.Equal("builtin." + snippet.Shortcut, snippet.Id); // 識別碼與捷徑不同會讓 override 的鍵難以追蹤。
             Assert.True(SqlSnippetLibrary.Empty.ValidateShortcut(snippet.Shortcut, null, out var error), error);
             Assert.False(SqlKeywordCatalog.TryGetCanonical(snippet.Shortcut, out _), snippet.Shortcut);
             Assert.DoesNotContain("$CURSOR$", snippet.Code, StringComparison.Ordinal);
