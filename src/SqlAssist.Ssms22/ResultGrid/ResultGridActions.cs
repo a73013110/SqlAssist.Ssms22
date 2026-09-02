@@ -63,7 +63,21 @@ internal static class ResultGridActions
     }
 
     /// <summary>把選取範圍寫成可以接在 <c>WHERE</c> 後面的條件，複製到剪貼簿。</summary>
-    public static void CopyInPredicate(IServiceProvider serviceProvider)
+    public static void CopyInPredicate(IServiceProvider serviceProvider) =>
+        Copy(serviceProvider, "IN 條件", SqlInPredicateScript.Build);
+
+    /// <summary>把選取範圍寫成 Markdown 表格，複製到剪貼簿。</summary>
+    /// <remarks>
+    /// SSMS 自己的「另存結果為…」也有 Markdown，但它一律寫成檔案、一律整份結果。
+    /// 這裡補的是那個落差：貼進工單或 PR 的時候要的是剪貼簿裡的幾列。
+    /// </remarks>
+    public static void CopyMarkdownTable(IServiceProvider serviceProvider) =>
+        Copy(serviceProvider, "Markdown 表格", SqlMarkdownTableScript.Build);
+
+    private static void Copy(
+        IServiceProvider serviceProvider,
+        string what,
+        Func<ResultGridTable, string> build)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -72,19 +86,17 @@ internal static class ResultGridActions
             return;
         }
 
-        var predicate = SqlInPredicateScript.Build(table!);
-
         try
         {
-            Clipboard.SetText(predicate);
-            SqlAssistStatusBar.Show(serviceProvider, Describe(table!, "已複製 IN 條件"));
+            Clipboard.SetText(build(table!));
+            SqlAssistStatusBar.Show(serviceProvider, Describe(table!, "已複製" + what));
         }
         catch (Exception exception)
         {
             // 剪貼簿被別的程序鎖住時會擲例外。這一句一定要說出來——
             // 使用者接下來要按的是 Ctrl+V，而那時候貼出來的是舊的東西。
-            SqlAssistDiagnostics.WriteAlways($"複製 IN 條件失敗：{exception}");
-            SqlAssistStatusBar.Show(serviceProvider, $"複製 IN 條件失敗：{exception.Message}");
+            SqlAssistDiagnostics.WriteAlways($"複製{what}失敗：{exception}");
+            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗：{exception.Message}");
         }
     }
 

@@ -5,6 +5,21 @@ using System.Text;
 
 namespace SqlAssist.Metadata.ResultGrid;
 
+/// <summary>值要寫成給人看的文字時，用哪一種寫法。</summary>
+public enum ResultGridTextStyle
+{
+    /// <summary>
+    /// 保留 T-SQL 的寫法：字串帶引號與 <c>N</c> 前綴，二進位每 32 位元組換一行。
+    /// </summary>
+    /// <remarks>
+    /// 給「看完一格之後多半要把它貼進一句 <c>WHERE</c>」的場合。
+    /// </remarks>
+    Literal,
+
+    /// <summary>沒有引號、沒有前綴、不換行。給表格的一格用。</summary>
+    Plain
+}
+
 /// <summary>
 /// 一格的完整內容，以及一句描述它有多大。
 /// </summary>
@@ -53,27 +68,71 @@ public sealed class ResultGridCellText
             return new ResultGridCellText(prefix + "NULL", string.Empty, isNull: true);
         }
 
-        if (TryText(value, out var text))
+        var text = Display(column, value, ResultGridTextStyle.Literal);
+
+        if (TryText(value, out var raw))
         {
-            return new ResultGridCellText(
-                prefix + Count(text!.Length, "個字元"),
-                text,
-                isNull: false);
+            return new ResultGridCellText(prefix + Count(raw!.Length, "個字元"), text, isNull: false);
         }
 
         if (TryBinary(value, out var bytes))
         {
-            return new ResultGridCellText(
-                prefix + Count(bytes!.Length, "個位元組"),
-                Hex(bytes),
-                isNull: false);
+            return new ResultGridCellText(prefix + Count(bytes!.Length, "個位元組"), text, isNull: false);
         }
 
-        var literal = SqlValueLiteral.TryFormat(value, column.ServerDataType, out var formatted, out _)
-            ? formatted
-            : value!.ToString() ?? string.Empty;
+        return new ResultGridCellText(prefix + value!.GetType().Name, text, isNull: false);
+    }
 
-        return new ResultGridCellText(prefix + value!.GetType().Name, literal, isNull: false);
+    /// <summary>
+    /// 值寫成給人看的文字。<b>所有「不是要拿去執行」的呈現都走這裡。</b>
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="SqlValueLiteral"/> 是兩個不同的問題，不是同一件事寫兩份：
+    /// 那邊回答「貼進查詢裡要長什麼樣」，這邊回答「給人讀要長什麼樣」。
+    /// 文字在這裡不帶引號也不跳脫，因為讀的人要看的是內容本身。
+    ///
+    /// 但兩者共用同一份型別判斷：日期的精確度、數值的格式化都從
+    /// <see cref="SqlValueLiteral"/> 借過來，再視需要脫掉外層引號。各算一次的話，
+    /// 儲存格視窗與 Markdown 表格會顯示不同的日期精確度，而那看起來像資料有問題。
+    /// </remarks>
+    public static string Display(ResultGridColumn column, object? value, ResultGridTextStyle style)
+    {
+        if (column is null)
+        {
+            throw new ArgumentNullException(nameof(column));
+        }
+
+        if (SqlValueLiteral.IsNullValue(value))
+        {
+            return string.Empty;
+        }
+
+        if (TryText(value, out var raw))
+        {
+            return raw!;
+        }
+
+        if (TryBinary(value, out var bytes))
+        {
+            return style == ResultGridTextStyle.Plain ? Hex(bytes!, wrap: false) : Hex(bytes!, wrap: true);
+        }
+
+        if (!SqlValueLiteral.TryFormat(value, column.ServerDataType, out var literal, out _))
+        {
+            return value!.ToString() ?? string.Empty;
+        }
+
+        return style == ResultGridTextStyle.Plain ? Unquote(literal) : literal;
+    }
+
+    /// <summary>脫掉字面值外層的引號與 <c>N</c> 前綴，並把 <c>''</c> 還原成一個引號。</summary>
+    private static string Unquote(string literal)
+    {
+        var start = literal.Length > 1 && literal[0] == 'N' && literal[1] == '\'' ? 1 : 0;
+
+        return literal.Length - start >= 2 && literal[start] == '\'' && literal[literal.Length - 1] == '\''
+            ? literal.Substring(start + 1, literal.Length - start - 2).Replace("''", "'")
+            : literal;
     }
 
     private static string Count(int value, string unit) =>
@@ -127,7 +186,7 @@ public sealed class ResultGridCellText
     /// 每 32 個位元組換一行。不換行的話，一段 8 KB 的 <c>varbinary</c> 會變成一條
     /// 一萬六千字元的單行——捲得到頭，但看不出任何結構。
     /// </remarks>
-    private static string Hex(byte[] bytes)
+    private static string Hex(byte[] bytes, bool wrap)
     {
         const int PerLine = 32;
         var builder = new StringBuilder(2 + (bytes.Length * 2) + (bytes.Length / PerLine));
@@ -135,7 +194,7 @@ public sealed class ResultGridCellText
 
         for (var index = 0; index < bytes.Length; index++)
         {
-            if (index > 0 && index % PerLine == 0)
+            if (wrap && index > 0 && index % PerLine == 0)
             {
                 builder.AppendLine();
             }

@@ -64,4 +64,7 @@ internal static class CommandIds
 
     /// <summary>結果格線：這一格的完整內容。</summary>
     public const int ResultGridCell = 0x0304;
+
+    /// <summary>結果格線：把選取範圍寫成 Markdown 表格。</summary>
+    public const int ResultGridMarkdown = 0x0305;
 }
