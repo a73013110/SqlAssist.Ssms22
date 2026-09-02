@@ -1,4 +1,4 @@
-using System;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Statements;
 
@@ -24,7 +24,7 @@ public static class SqlLiteralDefaults
     /// </param>
     public static string ForType(string? dataType)
     {
-        switch (BaseTypeName(dataType))
+        switch (SqlTypeName.BaseOf(dataType))
         {
             // Unicode 字串少了 N 前綴會先降成非 Unicode 再轉回來，那是使用者沒要求的失真。
             case "nchar":
@@ -76,18 +76,5 @@ public static class SqlLiteralDefaults
             default:
                 return "NULL";
         }
-    }
-
-    /// <summary>取左括號之前那一段並轉成小寫；<c>decimal(18,2)</c> 得到 <c>decimal</c>。</summary>
-    private static string BaseTypeName(string? dataType)
-    {
-        if (string.IsNullOrEmpty(dataType))
-        {
-            return string.Empty;
-        }
-
-        var parenthesis = dataType!.IndexOf('(');
-        var name = parenthesis < 0 ? dataType : dataType.Substring(0, parenthesis);
-        return name.Trim().ToLowerInvariant();
     }
 }

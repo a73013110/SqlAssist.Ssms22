@@ -301,6 +301,7 @@ public static class SqlAssistDiagnosticReport
             SqlAssistActivityKind.ExecuteExpanded => WithCount("展開 EXEC", activity, "個參數"),
             SqlAssistActivityKind.FunctionCallExpanded => WithCount("補上函式引數", activity, "個引數"),
             SqlAssistActivityKind.DefinitionOpened => "在新查詢視窗開啟定義",
+            SqlAssistActivityKind.ResultGridScripted => "從查詢結果產生指令碼",
             _ => "未知活動"
         };
 
