@@ -265,6 +265,10 @@ public static class SuggestionMatcher
             SuggestionKind.Table => 20,
             SuggestionKind.View => 18,
             SuggestionKind.Procedure => 16,
+
+            // 資料表值函式排在純量函式之上而在預存程序之下：它與資料表、檢視
+            // 競爭同一個位置（FROM 之後），而那個位置使用者要的通常是一張表。
+            SuggestionKind.TableFunction => 15,
             SuggestionKind.Function => 14,
             SuggestionKind.Schema => 10,
             _ => 0
@@ -277,11 +281,21 @@ public static class SuggestionMatcher
         {
             // 指令碼宣告的 CTE 與暫存資料表在這個位置與資料表完全同格：
             // FROM 後面接得了它們，而它們不在中繼資料裡。
+            //
+            // 資料表值函式也在這裡：FROM dbo.fn_LoansByReader(1) 是合法的資料來源，
+            // 而中繼資料層的 SqlObjectKinds.IsDataSource 早就這樣認了。
             CompletionTarget.DataSource => kind is SuggestionKind.Table
                 or SuggestionKind.View
+                or SuggestionKind.TableFunction
                 or SuggestionKind.ScriptDataSource,
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
-            CompletionTarget.Function => kind == SuggestionKind.Function,
+
+            // ALTER／DROP FUNCTION 兩種函式都改得動也刪得掉。
+            CompletionTarget.Function => kind is SuggestionKind.Function
+                or SuggestionKind.TableFunction,
+
+            // APPLY 之後只有資料表值函式接得上。
+            CompletionTarget.TableFunction => kind == SuggestionKind.TableFunction,
             CompletionTarget.Column => kind == SuggestionKind.Column,
             CompletionTarget.Database => kind == SuggestionKind.Database,
             CompletionTarget.GlobalVariable => kind == SuggestionKind.GlobalVariable,

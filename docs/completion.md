@@ -320,10 +320,14 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 位置不該冒出 `COUNT`。`ALTER FUNCTION` 之後也不列——內建函式沒有定義可以改，
 出現在那裡只會讓使用者選到一個改不了的東西。
 
-自動大寫**不**涵蓋內建函式。那個功能改寫的是剛打完的整個字，而 `year`、`month`、
-`day`、`format` 這些名稱同時是很常見的資料行名稱，把使用者的 `SELECT year FROM t`
-改成 `SELECT YEAR FROM t` 沒有壞處也沒有好處，只是他沒有要求的改動。
-關鍵字不一樣：那些字在該位置只可能是關鍵字。
+自動大寫涵蓋內建函式，但**只在打出左括號時**：`max(` 得到 `MAX(`，`sum(`、
+`count(`、`dateadd(` 同理。`max ` 與 `max,` 一個都不動——`year`、`month`、`day`、
+`format` 這些名稱同時是很常見的資料行名稱，`SELECT year FROM t` 被改成
+`SELECT YEAR FROM t` 是使用者沒有要求的改動，在 CS 定序的資料庫上還會把查詢改壞。
+左括號是唯一分得開的依據：`max(` 在 T-SQL 裡只能是呼叫。
+
+同時是內建型別的名稱（`char`、`nchar`）一個都不改：型別本來就不做自動大寫，
+`CAST(x AS char(10))` 不該因為打了左括號就變成 `CHAR(10)`。
 
 ## 全域變數
 
@@ -515,15 +519,16 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 
 | 游標前方 | 只顯示 | 提交行為 |
 |---|---|---|
-| `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View | 插入名稱 |
-| `CROSS APPLY`、`OUTER APPLY` | Function | 插入名稱 |
+| `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View、資料表值函式 | 插入名稱；函式補上引數 |
+| `CROSS APPLY`、`OUTER APPLY` | 資料表值函式 | 補上引數 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
 | `ALTER PROCEDURE`／`PROC` | Procedure | 展開完整 ALTER 定義 |
-| `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
+| `ALTER FUNCTION` | 兩種函式 | 展開完整 ALTER 定義 |
 | `ALTER VIEW` | View | 展開完整 ALTER 定義 |
 | `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
 | `DROP PROCEDURE`／`PROC`、`DROP FUNCTION`、`DROP VIEW` | 同上各一類 | 插入名稱 |
+| 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上引數 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
 | `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
@@ -599,12 +604,28 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 而 `CREATE TABLE`、`SELECT INTO`、`INSERT INTO` 各認一次的話，漏掉的那一種寫法
 就會安靜地少一個名稱。
 
-`APPLY` 之後列的是**函式**而不是資料表——那個位置文法上要的是資料表值函式或
-衍生資料表，`CROSS APPLY dbo.Loan` 剖析得過卻沒有意義。認的是 `APPLY` 一個字，
-前面的 `CROSS` 與 `OUTER` 不改變後面要什麼，多比一次只是多一條會漏的路。
-代價是純量函式會一起列出來：中繼資料把純量、內嵌資料表值與多語句資料表值函式
-對應到同一個 `SuggestionKind`，要分開得新增一種類別。多幾個選不中的名稱是多按
-幾下，而把整個位置讓掉的話 `APPLY` 之後就完全沒有補字。
+### 資料表值函式與純量函式分開
+
+`SuggestionKind.TableFunction` 與 `SuggestionKind.Function` 是兩類：前者是內嵌
+（`IF`）與多語句（`TF`）資料表值函式，後者是純量函式。中繼資料層的
+`SqlObjectKinds.IsDataSource` 早就這樣分了，只有建議項這一層曾經把三種函式壓成
+同一類——症狀是 `FROM dbo.fn_` 之後整份清單一個函式都沒有，
+而使用者看不出它和資料表有什麼不同。
+
+分完之後三個位置各自對了：
+
+- `FROM`、`JOIN`、`USING` 之後多列資料表值函式，純量函式仍然不列——
+  它回傳的是一個值，放在那裡剖析不過。
+- `APPLY` 之後**只**列資料表值函式。那個位置文法上要的是資料表值函式或衍生資料表，
+  `CROSS APPLY dbo.Loan` 剖析得過卻沒有意義；而純量函式從前是連帶列出來的雜訊。
+  認的是 `APPLY` 一個字，前面的 `CROSS` 與 `OUTER` 不改變後面要什麼。
+- `ALTER FUNCTION`、`DROP FUNCTION` 之後兩種都列：兩種都改得動也刪得掉。
+
+反過來也不能把資料表值函式併進 `Table`：那樣 `ALTER FUNCTION` 之後就列不出它們了。
+
+`APPLY` 有自己的 `CompletionTarget` 而不是共用 `Function`，還有第二個好處：
+`CompletionTarget.Function` 因此收斂成「`ALTER`／`DROP FUNCTION` 的那個名稱」，
+提交時分得出「這裡要補引數」還是「這裡只要名稱」——見下面的函式引數。
 
 ### 系統物件只在兩個位置拉進來
 
@@ -662,7 +683,8 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 
 有四個位置提交的不是一個名稱，而是一整句：`ALTER PROCEDURE` 之後放進完整定義，
 `INSERT INTO` 之後放進欄位清單與 `VALUES`，`MERGE INTO` 之後放進比對鍵與兩個動作
-子句，`EXEC` 之後放進具名傳值的參數清單。
+子句，`EXEC` 之後放進具名傳值的參數清單。第五種只換掉剛插入的那個名稱，
+見[函式的引數](#提交函式時補上引數)。
 
 `INSERT INTO #Loan` 與 `INSERT INTO @rows` 走的是完全同一條路，差別只在欄位從哪裡來
 ——那兩種名稱中繼資料查不到，欄位改讀[指令碼裡的宣告](#指令碼宣告的資料表)。
@@ -711,11 +733,16 @@ EXEC dbo.usp_Loan_Renew @LoanId = 0,                     -- int
                         @NewDueDate = @NewDueDate OUTPUT -- datetime2(7)
 ```
 
-四種只有「換成什麼」不一樣，「怎麼安全地換」是同一份：先把名稱插進去，用
-`ITrackingSpan` 記住整句的範圍，到背景取物件細節，回來確認原文還在原處才替換。
-共用的那一份在 `Ssms22/Completion/SqlCommitExpander`，各自的「換成什麼」在
-`SqlCommitExpansions`。各寫一份的下場是其中一份少了一道，而少的那一道會覆蓋
-使用者的輸入。
+五種展開只有「換成什麼」與「換掉哪一段」不一樣，「怎麼安全地換」是同一份：
+先把名稱插進去，用 `ITrackingSpan` 記住範圍，到背景取物件細節，回來確認原文
+還在原處才替換。共用的那一份在 `Ssms22/Completion/SqlCommitExpander`，
+各自的「換成什麼」在 `SqlCommitExpansions`。各寫一份的下場是其中一份少了一道，
+而少的那一道會覆蓋使用者的輸入。
+
+「換掉哪一段」只有兩個答案，由 `SqlCommitExpansionScope` 表示：上面四種從決定
+目標的那個關鍵字起算（`ALTER`、`INSERT INTO`、`MERGE`、`EXEC`），函式的引數則只
+蓋掉剛插入的名稱。後者非分開不可——`SELECT dbo.fn_DueDate` 那個位置根本沒有
+「決定目標的關鍵字」，`TargetKeywordStart` 是 -1。
 
 四種都**不**停在整段的結尾：定義動輒數十行，停在結尾等於一展開就被捲到最後一行，
 使用者得自己捲回去才看得到剛剛選的是什麼。
@@ -752,6 +779,46 @@ MERGE 同時會改與插，展開出來的又是一句立刻執行得動的語�
 `target.` 與 `source.` 照樣列得出欄位。那條鏈以前由片段的欄位格守著，
 現在守在 `SqlMergeStatementTextTests.展開出來的別名解析得回資料表`。
 
+### 提交函式時補上引數
+
+括號在 T-SQL 裡不是選擇性的：`SELECT dbo.fn_DueDate` 不是「呼叫但沒傳引數」，
+而是一個語法錯誤；沒有參數的函式也一樣要寫 `()`。所以提交一個使用者自訂函式時
+一併補上整組引數，依參數型別填預留值：
+
+```text
+SELECT dbo.fn_DueDate(NULL)
+FROM dbo.fn_LoansByReader(0, NULL, N'')
+```
+
+排版與 `EXEC` 正好相反，因為 T-SQL 對兩者的要求相反：`EXEC` 收具名傳值，
+所以那一支每個參數一列、對齊 `@`、在右邊註明型別，有預設值的參數還可以整列刪掉；
+函式只收**位置**引數，`dbo.fn_DueDate(@days = 1)` 不合法，有預設值的參數也不能省略
+（省略的寫法是 `DEFAULT` 這個關鍵字，位置照留）。因此這一支排成一行、只有值，
+連參數名稱都寫不進去——而它本來就常常出現在運算式中間，拆成多列會把使用者
+正在寫的那句話撐開。型別看不到不是資訊遺失：滑鼠停留提示與浮動預覽本來就列著
+整份參數清單，在編輯器裡再寫一次只是讓他多刪一次註解。
+
+預留值與 `INSERT`／`EXEC` 共用同一份 `Core/Statements/SqlLiteralDefaults`：
+數值 `0`、字串 `''`／`N''`、日期 `NULL`、`uniqueidentifier` 是 `NEWID()`。
+各寫一份的下場是其中一份給日期填了空字串，而那會安靜地存進 1900-01-01。
+
+要不要補由**被選中的東西**決定，不由位置決定——括號要不要寫跟前面是 `SELECT`
+還是 `FROM` 無關。唯一的例外是 `ALTER`／`DROP FUNCTION`：那裡是宣告位置，
+補上括號會讓那句 DDL 語法錯誤，所以擋的是 `CompletionTarget.Function` 這個目標。
+`APPLY` 因此必須有自己的目標，否則兩種位置分不開。
+
+參數一個都撈不到時**照樣**補上一對空括號，這與 `INSERT` 骨架「欄位撈不到就整個
+放棄」相反，因為兩者的失敗長得不一樣：沒有欄位的 `INSERT` 是一句跑得動卻錯的話，
+而沒有參數的函式呼叫本來就寫成 `()`——那是正確答案，不是半成品。
+細節整個取不到（連不上、權限不足）時維持只插入名稱。
+
+等待期間使用者自己打了左括號的話這一次就不補：追蹤範圍是 `EdgeExclusive`，
+他打的那個字元落在範圍**外**，範圍裡的字一個都沒變，光看範圍內的文字看不出這件事，
+補上去的結果會是 `dbo.fn_DueDate(NULL)(`。
+
+T-SQL 的**內建**函式不走這條路：它們的左括號寫在建議項自己的插入文字裡
+（`Core/Keywords/SqlFunctionCatalog`），那一份不查資料庫，也不受這個開關影響。
+
 ### 只要名稱的時候按一次復原
 
 `INSERT INTO t SELECT …` 與照順序傳值的 `EXEC p 1, 2` 都是常見寫法，那些時候展開
@@ -761,7 +828,8 @@ MERGE 同時會改與插，展開出來的又是一句立刻執行得動的語�
 刻意不做成「Tab 展開、Enter 只插入名稱」：`SqlAssistCompletionCommandHandler` 沒有
 接管清單的 Tab 與 Enter，那兩個鍵由平台處理；自己攔一個處理常式記下按了哪個鍵也
 不可靠——本擴充與平台的處理常式都排在 `default` 之前，彼此的先後順序沒有保證。
-不想要展開的人另有兩個開關，見 [settings.md](settings.md)。
+不想要展開的人另有四個開關（`INSERT`、`MERGE`、`EXEC`、函式引數各一），
+見 [settings.md](settings.md)。
 
 ### 哪些欄位插不進去
 

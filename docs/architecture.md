@@ -84,7 +84,7 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Ssms22/Editor/TextViewDispatch` | 排到「這一輪命令結束之後」再做 | 在原地做的看到上一個狀態：重開的清單、算出來的範圍都是錯的 |
 | `Ssms22/Editor/SqlTabCommandHandler` | Tab／Shift+Tab／Enter 的優先順序 | 兩個 `Before=default` 的 Tab handler 互相競速，按 Tab 提交清單卻展開了萬用字元 |
 | `Ssms22/Editor/SqlShellCommandFilter` | 殼層命令的攔截點與命令診斷 | 各自掛一份濾鏡就是各自付一次每按鍵的成本；而少了它，命令根本到不了現代管線 |
-| `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
+| `Ssms22/Completion/SqlCommitExpander` | 提交後改寫文字的流程（ALTER 定義、INSERT／MERGE 骨架、EXEC 呼叫、函式引數） | 五種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
 | `Core/Snippets/SqlSnippetExpansion` | Snippet 的純文字、游標、欄位位置與錢字號規則 | caret fallback 與原生 XML 對同一段程式碼產生不同結果 |
 | `Ssms22/Snippets/SqlSnippetExpansionController` | 游標落在哪一格，以及「整格還是預設值時當它不存在」 | 建議來源與提交各算一次截點：清單開得出來、插進去的名稱卻少了結構描述 |
 | `Ssms22/SqlLanguageService` | SQL 語言服務 GUID | 內建清單偏好與原生 Snippet 各自連到不同語言服務 |

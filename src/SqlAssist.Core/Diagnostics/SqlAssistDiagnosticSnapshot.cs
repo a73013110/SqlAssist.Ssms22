@@ -14,6 +14,7 @@ public enum SqlAssistActivityKind
     InsertExpanded,
     MergeExpanded,
     ExecuteExpanded,
+    FunctionCallExpanded,
     DefinitionOpened
 }
 

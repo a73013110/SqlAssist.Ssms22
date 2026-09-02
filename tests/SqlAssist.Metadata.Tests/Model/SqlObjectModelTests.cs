@@ -64,6 +64,51 @@ public sealed class SqlObjectModelTests
         Assert.Equal(expected, kind.IsModule());
     }
 
+    /// <remarks>
+    /// 括號在 T-SQL 裡不是選擇性的：<c>SELECT dbo.fn_DueDate</c> 不是「呼叫但沒
+    /// 傳引數」，而是一個語法錯誤。三種函式都算，資料表值的那兩種也一樣。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.ScalarFunction, true)]
+    [InlineData(SqlObjectKind.InlineTableFunction, true)]
+    [InlineData(SqlObjectKind.TableValuedFunction, true)]
+    [InlineData(SqlObjectKind.Procedure, false)]
+    [InlineData(SqlObjectKind.Table, false)]
+    public void 判斷是否為要寫括號的函式(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.IsFunction());
+    }
+
+    /// <remarks>
+    /// 同義字與序列的定義不在 <c>sys.sql_modules</c> 裡，而是目錄檢視上的
+    /// 那幾個欄位；組回 T-SQL 的那一份在 <c>SqlCatalogScript</c>。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Synonym, true)]
+    [InlineData(SqlObjectKind.Sequence, true)]
+    [InlineData(SqlObjectKind.Procedure, false)]
+    [InlineData(SqlObjectKind.Table, false)]
+    public void 判斷定義是否由目錄檢視組出來(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.HasSynthesizedDefinition());
+    }
+
+    /// <remarks>
+    /// 只剩認不出來的種類寫不出可執行的指令碼。這一條由浮動預覽的指令碼分頁
+    /// 與 F12 共用，兩邊各留一份判斷的症狀是同一個物件在兩邊得到不同的東西。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Procedure, true)]
+    [InlineData(SqlObjectKind.Table, true)]
+    [InlineData(SqlObjectKind.TableType, true)]
+    [InlineData(SqlObjectKind.Synonym, true)]
+    [InlineData(SqlObjectKind.Sequence, true)]
+    [InlineData(SqlObjectKind.Unknown, false)]
+    public void 判斷這一類寫不寫得出可執行的指令碼(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.HasExecutableScript());
+    }
+
     [Theory]
     [InlineData("Lib_Reader", "[Lib_Reader]")]
     [InlineData("Loan Detail", "[Loan Detail]")]

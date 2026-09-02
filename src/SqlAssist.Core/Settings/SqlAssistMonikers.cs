@@ -39,6 +39,7 @@ public static class SqlAssistMonikers
 
     public const string ExpandMergeStatement = "sqlAssist.suggestions.expandMergeStatement";
     public const string ExpandProcedureCall = "sqlAssist.suggestions.expandProcedureCall";
+    public const string ExpandFunctionCall = "sqlAssist.suggestions.expandFunctionCall";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";
     public const string PreviewMode = "sqlAssist.structure.previewMode";

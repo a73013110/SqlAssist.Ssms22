@@ -23,6 +23,21 @@ public enum SuggestionKind
     BuiltInFunction,
 
     /// <summary>
+    /// 資料表值函式：內嵌的（<c>IF</c>）與多敘述的（<c>TF</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Function"/> 分開：那一類是純量函式，只出現在運算式位置；
+    /// 這一類接得上 <c>FROM</c>、<c>JOIN</c> 與 <c>APPLY</c>，因為它回傳的是一份資料列集。
+    /// 中繼資料層的 <c>SqlObjectKinds.IsDataSource</c> 早就這樣分了，只有建議項這一層
+    /// 把三種函式壓成同一類——症狀是 <c>FROM dbo.fn_</c> 之後整份清單一個函式都沒有，
+    /// 而使用者看不出它和資料表有什麼不同。
+    ///
+    /// 反過來也不能併進 <see cref="Table"/>：那樣 <c>ALTER FUNCTION</c>／
+    /// <c>DROP FUNCTION</c> 之後就列不出它們了。
+    /// </remarks>
+    TableFunction,
+
+    /// <summary>
     /// 指令碼自己宣告的資料來源：CTE 與暫存資料表。
     /// </summary>
     /// <remarks>

@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 
@@ -459,7 +460,11 @@ public sealed class SqlMetadataCatalog
 
         if (!objectInfo.Kind.IsModule())
         {
-            return new SqlObjectDetail(objectInfo, columns, new List<SqlParameterInfo>(), definition: null);
+            return new SqlObjectDetail(
+                objectInfo,
+                columns,
+                new List<SqlParameterInfo>(),
+                LoadSynthesizedDefinition(connection, objectInfo, cancellationToken));
         }
 
         var parameters = ReadList(
@@ -475,6 +480,49 @@ public sealed class SqlMetadataCatalog
         var definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
 
         return new SqlObjectDetail(objectInfo, columns, parameters, definition);
+    }
+
+    /// <summary>
+    /// 同義字與序列的定義：目錄檢視上的那幾個欄位，組成一段 <c>CREATE</c>。
+    /// </summary>
+    /// <remarks>
+    /// 與模組的定義放進同一個欄位（<see cref="SqlObjectDetail.Definition"/>），
+    /// 因為對所有下游而言它們就是同一件事：一段照著執行就會得到這個物件的 T-SQL。
+    /// 分成兩個欄位的話，滑鼠停留提示、預覽的指令碼分頁與 F12 每一條都要多問一次
+    /// 「這一種要看哪一個欄位」，而漏掉的那一條會安靜地退回「沒有定義」。
+    ///
+    /// 這兩支查詢只在<b>這一種物件</b>的細節被要求時才送出——多一次來回，
+    /// 但那一次不在按鍵路徑上，而且同一個物件只會付一次（細節有快取）。
+    /// </remarks>
+    private string? LoadSynthesizedDefinition(
+        IDbConnection connection,
+        SqlObjectInfo objectInfo,
+        CancellationToken cancellationToken)
+    {
+        switch (objectInfo.Kind)
+        {
+            case SqlObjectKind.Synonym:
+                using (var command = CreateCommand(connection, SqlMetadataQueries.SynonymBase))
+                {
+                    AddObjectIdParameter(command, objectInfo.ObjectId);
+                    var value = command.ExecuteScalar();
+
+                    return SqlCatalogScript.ForSynonym(objectInfo, value as string);
+                }
+
+            case SqlObjectKind.Sequence:
+                var rows = ReadList(
+                    connection,
+                    SqlMetadataQueries.Sequence,
+                    SqlMetadataReader.ReadSequence,
+                    cancellationToken,
+                    objectInfo.ObjectId);
+
+                return SqlCatalogScript.ForSequence(objectInfo, rows.Count == 0 ? null : rows[0]);
+
+            default:
+                return null;
+        }
     }
 
     /// <summary>

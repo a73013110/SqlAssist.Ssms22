@@ -182,6 +182,44 @@ public static class SqlFunctionCatalog
     private static readonly object Gate = new();
 
     /// <summary>
+    /// 自動大寫查得到的名稱。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="All"/> 分開建，因為排除的東西不一樣。這一份多排掉內建資料型別：
+    /// <c>char</c> 同時是型別與函式，而型別刻意不做自動大寫
+    /// （<c>SqlKeywordCatalog</c> 的 <c>DataTypes</c>），
+    /// <c>CAST(x AS char(10))</c> 不該因為打了左括號就變成 <c>CHAR(10)</c>。
+    ///
+    /// 關鍵字也一併排掉，理由與建議清單那一份相同——那些字走關鍵字目錄那條路，
+    /// 而且它們在那裡還帶著位置資訊。
+    ///
+    /// 這份是雜湊集合而不是走 <see cref="All"/> 找一遍：
+    /// 查表在按鍵路徑上，每按一次左括號就問一次。
+    /// </remarks>
+    private static readonly HashSet<string> UppercaseNames = BuildUppercaseNames();
+
+    /// <summary>
+    /// 查出某個內建函式名稱的標準寫法。
+    /// </summary>
+    /// <remarks>
+    /// 大小寫不敏感；不是內建函式、或同時是關鍵字或內建型別時回傳 false。
+    /// 呼叫端只在使用者打的是左括號時才問（見 <c>SqlKeywordCase</c>）——
+    /// <c>SELECT max FROM t</c> 的 <c>max</c> 可能是一個資料行的名字，
+    /// 而 <c>max(</c> 在 T-SQL 裡只有一種意思。
+    /// </remarks>
+    public static bool TryGetCanonical(string word, out string canonical)
+    {
+        if (string.IsNullOrEmpty(word) || !UppercaseNames.Contains(word))
+        {
+            canonical = string.Empty;
+            return false;
+        }
+
+        canonical = word.ToUpperInvariant();
+        return true;
+    }
+
+    /// <summary>
     /// 內建函式的建議項。
     /// </summary>
     /// <remarks>
@@ -197,6 +235,21 @@ public static class SqlFunctionCatalog
                 return _suggestions ??= Build();
             }
         }
+    }
+
+    private static HashSet<string> BuildUppercaseNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, _) in Definitions)
+        {
+            if (!SqlKeywordCatalog.IsKeywordOrDataType(name))
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
     }
 
     private static IReadOnlyList<SqlSuggestion> Build()

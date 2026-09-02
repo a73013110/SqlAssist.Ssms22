@@ -39,15 +39,21 @@ public static class SqlKeywordCase
     /// </summary>
     /// <param name="text">整份文字。</param>
     /// <param name="position">即將輸入分隔字元的位置，也就是游標位置。</param>
+    /// <param name="separator">
+    /// 即將輸入的那個分隔字元；不知道時傳 <c>\0</c>，那時只認關鍵字。
+    /// </param>
     /// <returns>不需要改寫時回傳 null。</returns>
-    public static SqlKeywordRewrite? TryUppercaseWordBefore(string text, int position)
+    public static SqlKeywordRewrite? TryUppercaseWordBefore(
+        string text,
+        int position,
+        char separator = '\0')
     {
         if (text is null)
         {
             throw new ArgumentNullException(nameof(text));
         }
 
-        return TryUppercaseWordBefore(new SqlStringText(text), position);
+        return TryUppercaseWordBefore(new SqlStringText(text), position, separator);
     }
 
     /// <summary>
@@ -58,7 +64,10 @@ public static class SqlKeywordCase
     /// 先往回讀那幾個字元、查表確認是關鍵字，最後才做要掃過整份文字的語彙判斷。
     /// 打字時絕大多數按鍵在查表那一步就結束了。
     /// </remarks>
-    public static SqlKeywordRewrite? TryUppercaseWordBefore(ISqlTextSource text, int position)
+    public static SqlKeywordRewrite? TryUppercaseWordBefore(
+        ISqlTextSource text,
+        int position,
+        char separator = '\0')
     {
         if (text is null)
         {
@@ -85,7 +94,7 @@ public static class SqlKeywordCase
 
         var word = text.Substring(start, end - start);
 
-        if (!SqlKeywordCatalog.TryGetCanonical(word, out var canonical))
+        if (!TryGetCanonical(word, separator, out var canonical))
         {
             return null;
         }
@@ -109,6 +118,28 @@ public static class SqlKeywordCase
         }
 
         return new SqlKeywordRewrite(start, end - start, canonical);
+    }
+
+    /// <summary>
+    /// 這個字後面接的字元決定它算不算一個該大寫的字。
+    /// </summary>
+    /// <remarks>
+    /// 關鍵字不看分隔字元：<c>select</c> 後面接空白、逗號還是括號都一樣是關鍵字。
+    ///
+    /// 內建函式看。它們在文法上是<b>識別字</b>，ScriptDom 的 token 列舉裡一個都沒有
+    /// （見 <see cref="SqlFunctionCatalog"/>），所以關鍵字目錄查不到——那正是
+    /// <c>SELECT max( …</c> 的 <c>max</c> 一直沒有被改寫的原因。
+    /// 但也不能因此就一律改寫：<c>SELECT max FROM t</c> 的 <c>max</c> 可能是一個
+    /// 資料行的名字，在 CS 定序的資料庫上改掉它就是把查詢改壞。
+    ///
+    /// 分辨的依據只有一個而且很硬：左括號。<c>max(</c> 在 T-SQL 裡只能是呼叫，
+    /// 不會是別的東西。用「在不在函式目錄裡」當依據不行——那份清單裡的
+    /// <c>LEN</c>、<c>RANK</c>、<c>FORMAT</c> 全都是常見的資料行名稱。
+    /// </remarks>
+    private static bool TryGetCanonical(string word, char separator, out string canonical)
+    {
+        return SqlKeywordCatalog.TryGetCanonical(word, out canonical) ||
+               (separator == '(' && SqlFunctionCatalog.TryGetCanonical(word, out canonical));
     }
 
     /// <summary>

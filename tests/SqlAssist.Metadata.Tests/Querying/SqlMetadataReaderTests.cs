@@ -6,6 +6,46 @@ namespace SqlAssist.Metadata.Tests.Querying;
 
 public sealed class SqlMetadataReaderTests
 {
+    /// <remarks>
+    /// 四個界限值在伺服器端就 CONVERT 成字串：用 GetValue 收 sql_variant 拿到的是
+    /// 裝箱的原生型別，一個 decimal(38,0) 的序列會讓任何一種整數轉型當場溢位，
+    /// 而那會讓整份中繼資料被降級成「這一輪沒有資料」。
+    /// </remarks>
+    [Fact]
+    public void 讀取序列()
+    {
+        // type_name, precision, scale, start, increment, min, max, cycling, cached, cache_size
+        var record = new FakeDataRecord(
+            "decimal", (byte)18, (byte)0, "1", "1", "1", "999999999999999999",
+            false, true, 50);
+
+        var sequence = SqlMetadataReader.ReadSequence(record);
+
+        Assert.Equal("decimal(18,0)", sequence.DataType);
+        Assert.Equal("1", sequence.StartValue);
+        Assert.Equal("999999999999999999", sequence.MaximumValue);
+        Assert.False(sequence.IsCycling);
+        Assert.True(sequence.IsCached);
+        Assert.Equal(50, sequence.CacheSize);
+    }
+
+    /// <remarks>
+    /// <c>cache_size</c> 為 NULL 是「開著快取但大小交給引擎決定」，
+    /// 那要寫成不帶數字的 <c>CACHE</c>，寫成 <c>CACHE 0</c> 會被拒絕。
+    /// </remarks>
+    [Fact]
+    public void 讀取沒有指定快取大小的序列()
+    {
+        var record = new FakeDataRecord(
+            "int", (byte)10, (byte)0, "1", "1", "1", "2147483647", true, true, null);
+
+        var sequence = SqlMetadataReader.ReadSequence(record);
+
+        Assert.Equal("int", sequence.DataType);
+        Assert.True(sequence.IsCycling);
+        Assert.Null(sequence.CacheSize);
+    }
+
     [Fact]
     public void 讀取物件()
     {

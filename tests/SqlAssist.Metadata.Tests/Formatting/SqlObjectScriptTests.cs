@@ -137,12 +137,31 @@ public sealed class SqlObjectScriptTests
     }
 
     /// <remarks>
-    /// 同義字指向誰不在本擴充查詢的中繼資料裡，組不出 CREATE SYNONYM。
-    /// BuildScript 給的摘要（<c>Synonym [dbo].[syn_Loan]</c>）不是 T-SQL，
-    /// 原樣送進查詢視窗就是一執行就語法錯誤。
+    /// 同義字與序列沒有 <c>ALTER</c> 的整體寫法，維持 <c>CREATE</c>——
+    /// 改寫成 ALTER 得到的是一段執行到一半才失敗的指令碼。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Synonym, "CREATE SYNONYM [dbo].[syn_Loan]\r\nFOR [Lib].[dbo].[Loan];")]
+    [InlineData(SqlObjectKind.Sequence, "CREATE SEQUENCE [dbo].[seq_LoanNo]\r\n    AS int;")]
+    public void 同義字與序列維持CREATE(SqlObjectKind kind, string definition)
+    {
+        var script = SqlObjectScript.BuildEditable(
+            new SqlObjectStructure(
+                new SqlObjectDetail(new SqlObjectInfo(5, "dbo", "obj", kind), definition: definition)),
+            "\r\n");
+
+        Assert.StartsWith(Header + definition, script.Text);
+        Assert.EndsWith("GO\r\n", script.Text);
+        Assert.DoesNotContain("ALTER", script.Text);
+        Assert.DoesNotContain("--", script.Text);
+    }
+
+    /// <remarks>
+    /// 查不到 <c>sys.synonyms</c> 那一列時（物件被卸除、權限被收回）就沒有定義，
+    /// 而 BuildScript 給的那段說明不是 T-SQL——原樣送進查詢視窗就是一執行就錯。
     /// </remarks>
     [Fact]
-    public void 同義字整段註解掉()
+    public void 取不到指向的同義字整段註解掉()
     {
         var script = SqlObjectScript.BuildEditable(
             new SqlObjectStructure(

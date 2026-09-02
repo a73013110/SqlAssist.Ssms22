@@ -5,7 +5,26 @@ public enum CompletionTarget
     Any,
     DataSource,
     Procedure,
+
+    /// <summary><c>ALTER</c>、<c>DROP FUNCTION</c> 之後；純量函式與資料表值函式都算。</summary>
+    /// <remarks>
+    /// 這裡是<b>宣告</b>位置，不是呼叫位置：提交之後要的只有名稱，補上引數清單反而
+    /// 讓那句 DDL 語法錯誤。分辨呼叫與宣告的就是這個目標，
+    /// 見 <c>SqlCommitExpander.Resolve</c>。
+    /// </remarks>
     Function,
+
+    /// <summary><c>CROSS</c>／<c>OUTER APPLY</c> 之後。</summary>
+    /// <remarks>
+    /// 與 <see cref="Function"/> 分開：那裡是 DDL 的宣告位置，這裡是呼叫位置，
+    /// 而且文法上只接得了資料表值函式——純量函式放在 <c>APPLY</c> 後面剖析不過。
+    /// 併在一起的代價有兩個：清單裡混進一批選不中的純量函式，
+    /// 而且提交時分不出「要補引數」還是「只要名稱」。
+    ///
+    /// 與 <see cref="DataSource"/> 也分開：<c>APPLY</c> 後面放資料表雖然剖析得過，
+    /// 卻沒有任何意義——那正是 <c>CROSS JOIN</c> 該做的事。
+    /// </remarks>
+    TableFunction,
 
     /// <summary>限定字解析成敘述中的資料來源，因此建議該來源的欄位。</summary>
     Column,
