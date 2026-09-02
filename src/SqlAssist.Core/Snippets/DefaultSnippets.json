@@ -180,7 +180,7 @@
       ]
     },
     {
-      "id": "builtin.citvf",
+      "id": "builtin.ctf",
       "category": "ddl",
       "shortcut": "ctf",
       "title": "CREATE FUNCTION（內嵌資料表值）",
@@ -285,7 +285,7 @@
     },
 
     {
-      "id": "builtin.beg",
+      "id": "builtin.be",
       "category": "controlFlow",
       "shortcut": "be",
       "title": "BEGIN END",
