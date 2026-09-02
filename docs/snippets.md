@@ -7,13 +7,37 @@
 |---|---|
 | SELECT | `ssf`、`st100`、`st1`、`ssc`、`sd` |
 | DML | `ii`、`ui`、`df`、`mg` |
-| DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`citvf`、`cix`、`at`、`dt`、`ap`、`af`、`av`、`atr` |
+| DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`ctf`、`cix`、`at`、`dt`、`ap`、`af`、`av`、`atr` |
 | 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
 | 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`sno`、`ptt` |
 
-`cf` 是純量函式、`citvf` 是內嵌資料表值函式。CASE 使用 `cs`、BEGIN…END 使用
+`cf` 是純量函式、`ctf` 是內嵌資料表值函式——要記的是這一組**對比**而不是縮寫，
+所以只差「多回傳一張表」的那個 `t`。CASE 使用 `cs`、BEGIN…END 使用
 `be`，都不占用同名的 T-SQL 關鍵字。`ui`、`df`、`mg` 與 `dt` 標成危險片段：
 沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
+
+`ctf` 的識別碼仍然是 `builtin.citvf`。override 以 **識別碼**為鍵（見下方「內建值與
+使用者 override」），改識別碼會讓已經自訂過那一筆的人多出一筆撞名的自訂項目；
+沿用舊識別碼則是「沒改過的人自動拿到新捷徑，改過的人保留自己的」。`builtin.beg`
+的捷徑是 `be`，早就是同一個做法。
+
+### CREATE 模組片段的註解標頭
+
+`cp`、`cv`、`cf`、`ctf` 展開時前面帶一份與 SSMS 內建範本同格式的註解標頭
+（作者、建立日期、說明），值的欄位對齊在第 16 欄。四筆共用同一份字串，
+守門的是 `SqlSnippetDefaultsTests.四筆CREATE模組片段共用同一份註解標頭`。
+
+**刻意不做成 Tab Stop 欄位。** 做成欄位的話 Tab 順序會變成作者→日期→說明→物件
+名稱，而最常走的那條路（`cp` → Tab → 打名字）就要多按三次；標頭多半是事後補的，
+不該擋在主線上。日期同理不自動填：原生 Expansion Engine 沒有日期函式，
+`SqlNativeSnippetXmlBuilder.GetExpansionFunction` 也回 `E_NOTIMPL`，要自動填得在
+`SqlSnippetExpansion` 加一種「計算型預設值」讓原生與 `caret` 降級兩條路共用求值——
+那是另一件事，分開做。
+
+註解不影響下一格的清單：`SqlLexicalContext` 讓游標落在 `--` 之後時整份不參與，
+而標頭之後的 `CREATE PROCEDURE ` 仍然推不出目標（那是使用者正要取的新名字）。
+兩者都由 `新建物件的名稱欄位不主動開清單` 連帶守著——它分析的正是「標頭加上
+`CREATE …`」這一整段。
 
 ## 半句話加接續建議
 
@@ -34,7 +58,7 @@
 `ap` 家族更是整條鏈的起點——選到資料表或模組之後由 `SqlCommitExpander` 放進可執行的
 整句（見 [completion.md](completion.md)）。四筆 `ALTER` 走的是同一份展開，因為
 檢視與觸發程序在 `SqlObjectKinds.IsModule` 裡與程序、函式同一類。要 CREATE 的骨架請用 `cp`、`cf`、
-`citvf`，那三筆才是 Tab Stop。
+`ctf`，那三筆才是 Tab Stop。
 
 **接得下去的條件是「展開出來的那一行結尾剛好是一個會列出東西的關鍵字」**，
 因為接續清單的內容由 `SqlCompletionContextAnalyzer` 從游標前一個詞元推出來。

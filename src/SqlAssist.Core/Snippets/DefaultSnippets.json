@@ -150,7 +150,7 @@
       "description": "建立檢視",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE VIEW $view$\nAS\nSELECT $column$\nFROM $sourceTable$$end$;",
+      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE VIEW $view$\nAS\nSELECT $column$\nFROM $sourceTable$$end$;",
       "placeholders": [
         { "id": "view", "default": "dbo.ViewName", "tooltip": "檢視名稱；可含結構描述" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
@@ -165,7 +165,7 @@
       "description": "建立預存程序",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE PROCEDURE $procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
+      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE PROCEDURE $procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
       "placeholders": [
         { "id": "procedure", "default": "dbo.ProcedureName", "tooltip": "預存程序名稱；可含結構描述" },
         { "id": "body", "default": "SELECT 1;", "tooltip": "程序內容" }
@@ -179,7 +179,7 @@
       "description": "建立純量函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
+      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS $returnType$\nAS\nBEGIN\n    RETURN $expression$;\nEND$end$;",
       "placeholders": [
         { "id": "function", "default": "dbo.FunctionName", "tooltip": "函式名稱；可含結構描述" },
         { "id": "parameter", "default": "Value", "tooltip": "參數名稱" },
@@ -191,12 +191,12 @@
     {
       "id": "builtin.citvf",
       "category": "ddl",
-      "shortcut": "citvf",
+      "shortcut": "ctf",
       "title": "CREATE FUNCTION（內嵌資料表值）",
       "description": "建立內嵌資料表值函式",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "CREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT $column$\n    FROM $sourceTable$\n)$end$;",
+      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE FUNCTION $function$\n(\n    @$parameter$ $parameterType$\n)\nRETURNS TABLE\nAS\nRETURN\n(\n    SELECT $column$\n    FROM $sourceTable$\n)$end$;",
       "placeholders": [
         { "id": "function", "default": "dbo.FunctionName", "tooltip": "函式名稱；可含結構描述" },
         { "id": "parameter", "default": "Value", "tooltip": "參數名稱" },
