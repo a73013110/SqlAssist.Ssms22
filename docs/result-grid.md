@@ -12,6 +12,7 @@
 |---|---|---|
 | 建立 #temp 指令碼 | `DROP` 守門 ＋ `CREATE TABLE #SqlAssistRows` ＋ `INSERT` ＋ `SELECT` | 新查詢視窗（沿用同一個連線） |
 | 複製成 IN 條件 | 一段接得上 `WHERE` 的述詞 | 剪貼簿 |
+| 複製成 Markdown 表格 | 對齊過的 Markdown 表格 | 剪貼簿 |
 | 欄位剖析 | 每一欄的 `NULL`／空字串／相異值數與範圍 | 一個可以複製成 TSV 的視窗 |
 | 檢視這一格的完整內容 | 那一格的原文，加上型別與大小 | 一個可以選、可以捲的視窗 |
 | 探測這個結果格線 | 格線內部狀態的報告 | 診斷紀錄檔（只在「詳細記錄」開啟時出現） |
@@ -36,6 +37,22 @@
 文字欄位另外報字元數範圍，那是找截斷的第一個線索——整欄都剛好 20 個字元的
 `nvarchar(20)` 值得看一眼。最小與最大寫成 T-SQL 字面值而不是顯示字串，因為它們的
 下一步幾乎一定是被貼進一句 `WHERE`。
+
+## 為什麼沒有 Excel 匯出
+
+SSMS 22 自己就有：「另存結果為…」的存檔對話方塊裡有 CSV、TSV、JSON、XML、
+**Markdown** 與 **XLSX** 六種格式（`GridSaveFormats`）。重做一份只會多一個要跟著
+SSMS 改版維護的東西。
+
+Markdown 例外，因為內建那條路有一個補得起來的落差：它一律**寫成檔案**、一律
+**整份結果**，看不到選取範圍。而真正要貼進工單、PR 或聊天室的時候，要的是剪貼簿
+裡的那幾列。所以「複製成 Markdown 表格」做的只有那一半，XLSX 就不重做。
+
+表格是給人讀的，所以值不帶引號也不帶 `N` 前綴，但日期的精確度仍然跟著型別走——
+與儲存格視窗共用同一份判斷，否則同一個值在兩個地方長得不一樣，看起來像資料有問題。
+真正的 `NULL` 寫成斜體的 `*NULL*`，一個內容剛好是 `NULL` 的字串就是那四個字：
+兩者在渲染出來的表格上一個是斜體一個不是。豎線跳脫成 `\|`，換行換成 `<br>`——
+不處理的話，前者會切出一欄不存在的欄，後者會把一列切成兩列。
 
 ## 選取範圍怎麼算
 
@@ -119,8 +136,9 @@ SSMS 自己的「複製」給的是 TSV，而那份文字裡資料庫的 `NULL` 
 | 值轉成字面值的規則 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | `#temp` 指令碼的長相 | `Metadata/ResultGrid/SqlTempTableScript.cs` |
 | `IN` 條件的長相 | `Metadata/ResultGrid/SqlInPredicateScript.cs` |
+| Markdown 表格的長相 | `Metadata/ResultGrid/SqlMarkdownTableScript.cs` |
 | 欄位剖析算什麼 | `Metadata/ResultGrid/ResultGridProfile.cs` |
-| 儲存格內容怎麼呈現 | `Metadata/ResultGrid/ResultGridCellText.cs` |
+| 儲存格內容怎麼呈現、值的顯示文字 | `Metadata/ResultGrid/ResultGridCellText.cs` |
 | 兩個視窗的長相 | `Ssms22/ResultGrid/ResultGridProfileWindow.cs`、`ResultGridCellWindow.cs`（外觀一律走 `UI/SqlAssistChrome.cs`） |
 | 選取範圍怎麼換算、格數上限 | `Metadata/ResultGrid/ResultGridSelectionPlan.cs` |
 | 從格線取資料 | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
