@@ -54,6 +54,22 @@ Markdown 例外，因為內建那條路有一個補得起來的落差：它一�
 兩者在渲染出來的表格上一個是斜體一個不是。豎線跳脫成 `\|`，換行換成 `<br>`——
 不處理的話，前者會切出一欄不存在的欄，後者會把一列切成兩列。
 
+## 為什麼沒有 UPDATE／DELETE
+
+原本規劃過「照主索引鍵產生 `UPDATE`／`DELETE`」，查完之後放棄，理由是資料拿不到而
+不是不想做。
+
+結果格線的結構描述來自 `QEResultSet.GetSchemaRow`，而那份 schema table 是
+`m_reader.GetSchemaTable()`——那個 reader 是用
+`CommandBehavior.SequentialAccess`（連線啟用 Always Encrypted 時是 `Default`）
+執行的，全組件沒有一處用 `KeyInfo`。少了 `KeyInfo`，schema table 的 `IsKey` 與
+`BaseTableName` 都不會填。也就是說格線既不知道這些欄屬於哪一張資料表，
+也不知道哪幾欄是鍵。
+
+那就只剩下猜：從查詢文字裡挑一個 `FROM`，再假設選到的欄能唯一識別資料列。
+`DELETE` 猜錯是救不回來的，而「識別出這幾列」這件事 `IN` 條件已經做到了——
+把它貼進自己寫的 `DELETE` 只多一步，而那一步正是該由人確認的一步。
+
 ## 選取範圍怎麼算
 
 - **沒有選取**：整份結果。
