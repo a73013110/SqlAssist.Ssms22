@@ -36,6 +36,55 @@ public sealed class SqlAutoPairAnalyzerTests
     }
 
     /// <remarks>
+    /// 內建函式與帶參數的型別，插入文字自己帶著左括號；提交完沒有人補右括號的話，
+    /// 編輯器裡留下的是 <c>SELECT GETDATE(</c> 這種跑不掉的語法錯誤。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT |", "GETDATE(", ')')]
+    [InlineData("SELECT | FROM dbo.Loan", "COUNT(", ')')]
+    [InlineData("DECLARE @Barcode |", "varchar(", ')')]
+    [InlineData("SELECT DATEDIFF(DAY, |)", "GETDATE(", ')')]
+    public void 插入文字帶著開頭字元就補上結尾字元(
+        string sqlWithCaret,
+        string insertionText,
+        char expected)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+
+        Assert.Equal(
+            expected,
+            SqlAutoPairAnalyzer.InsertionCloseFor(
+                new SqlStringText(input.Text),
+                input.Caret,
+                insertionText));
+    }
+
+    /// <remarks>
+    /// 不補的條件與使用者自己打左括號完全相同——右邊還有字時補上的那一個
+    /// 會夾在中間。名稱結尾沒有開頭字元的那些（一般關鍵字、資料表、欄位）
+    /// 本來就不該多出任何字元，這裡一併守住。
+    ///
+    /// 引號結尾另有理由：語彙狀態問的是插入<b>之前</b>的位置，
+    /// 而引號是開是關要看它插進去之後的狀態。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT |LoanId FROM dbo.Loan", "COUNT(")]
+    [InlineData("SELECT |", "GETDATE")]
+    [InlineData("SELECT |", "")]
+    [InlineData("SELECT * FROM |", "[dbo].[Lib_Reader]")]
+    [InlineData("SELECT |", "N'")]
+    public void 不該補的時候一個字元都不補(string sqlWithCaret, string insertionText)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+
+        Assert.Null(
+            SqlAutoPairAnalyzer.InsertionCloseFor(
+                new SqlStringText(input.Text),
+                input.Caret,
+                insertionText));
+    }
+
+    /// <remarks>
     /// 右邊還有字時補上的那一半會被夾在中間，使用者接著打的每一個字都在配對外面：
     /// <c>(|CopyNo = 1</c> 打完是 <c>()CopyNo = 1</c>。這是最刺眼的一種誤補。
     /// </remarks>

@@ -19,6 +19,11 @@ namespace SqlAssist.Ssms22.Editor;
 /// 而 <c>'abc|'</c> 想補一個跳脫用的單引號會變成跳過去。因此每補一個結尾字元就
 /// 記一個 <see cref="ITrackingPoint"/>，只有記錄裡的那一個才跳過、才一起刪。
 ///
+/// 提交建議時走的是 <see cref="ResolveInsertionClose"/> 與
+/// <see cref="NoteInsertedClose"/> 這一對：插入文字自己帶著左括號（<c>GETDATE(</c>），
+/// 右括號由提交那一次編輯一起寫進去，寫完再回來記一筆。分成兩個方法是因為
+/// 那個字元不是這裡插的——記錄要等提交的編輯套用之後才有位置可以記。
+///
 /// 補結尾字元刻意<b>不</b>連同開頭字元一起插入：只插結尾字元、把游標留在它前面，
 /// 開頭字元仍由編輯器自己插入。這樣選取取代、覆寫模式與虛擬空白都還是平台的行為，
 /// 不必在這裡重寫一份。代價是 Ctrl+Z 要按兩次才連補上的字元一起收掉——
@@ -71,6 +76,44 @@ internal static class SqlAutoPairing
 
         InsertClose(textView, buffer, caret.Position, close, tracker);
         return false;
+    }
+
+    /// <summary>
+    /// 提交建議寫進去的文字以開頭字元結尾時，要一併補上的結尾字元。
+    /// </summary>
+    /// <param name="position">提交要換掉的那一段的終點，插入文字還沒寫進去。</param>
+    /// <returns>要補上的字元；不該補時為 <c>null</c>。</returns>
+    /// <remarks>
+    /// 只回答「補什麼」，不自己寫緩衝區：提交本來就要換掉一段文字，
+    /// 把結尾字元併進那一次編輯才會是一次復原，也才不會在程式碼片段的欄位
+    /// session 裡多出一次外部修改。補上之後呼叫端要記得
+    /// <see cref="NoteInsertedClose"/>，否則接著打 <c>)</c> 會再插一個。
+    /// </remarks>
+    public static char? ResolveInsertionClose(
+        ITextView textView,
+        SnapshotPoint position,
+        string insertionText)
+    {
+        if (!IsEnabled() || textView is null || textView.IsClosed)
+        {
+            return null;
+        }
+
+        return SqlAutoPairAnalyzer.InsertionCloseFor(
+            new SnapshotTextSource(position.Snapshot),
+            position.Position,
+            insertionText);
+    }
+
+    /// <summary>記下這個結尾字元是自動補出來的。</summary>
+    public static void NoteInsertedClose(
+        ITextView textView,
+        ITextSnapshot snapshot,
+        int position,
+        char close)
+    {
+        SqlAutoPairTracker.Get(textView).Push(snapshot, position, close);
+        SqlAssistDiagnostics.Write($"提交建議時自動補上 {close}", textView);
     }
 
     /// <summary>
@@ -207,9 +250,7 @@ internal static class SqlAutoPairing
     {
         caret = default;
 
-        var settings = SqlAssistSettingsStore.Current;
-
-        if (!settings.Enabled || !settings.AutoPairDelimiters)
+        if (!IsEnabled())
         {
             return false;
         }
@@ -228,6 +269,13 @@ internal static class SqlAutoPairing
 
         caret = position;
         return true;
+    }
+
+    private static bool IsEnabled()
+    {
+        var settings = SqlAssistSettingsStore.Current;
+
+        return settings.Enabled && settings.AutoPairDelimiters;
     }
 
     /// <summary>
