@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;

@@ -1,4 +1,4 @@
-﻿#Requires -Version 7.0
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     以 ScriptDom 產生 T-SQL 關鍵字目錄（SqlKeywordCatalog.Generated.cs）。
@@ -410,6 +410,7 @@ $null = $builder.AppendLine('    };')
 $null = $builder.AppendLine('}')
 
 $resolved = [System.IO.Path]::GetFullPath($OutputPath)
-[System.IO.File]::WriteAllText($resolved, $builder.ToString(), [System.Text.UTF8Encoding]::new($true))
+$output = $builder.ToString().Replace("`r`n", "`n").Replace("`r", "`n")
+[System.IO.File]::WriteAllText($resolved, $output, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "已寫出 $resolved"

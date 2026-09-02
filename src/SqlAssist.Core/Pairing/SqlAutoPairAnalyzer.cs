@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Pairing;

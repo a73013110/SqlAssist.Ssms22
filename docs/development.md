@@ -33,8 +33,20 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 git config core.hooksPath .githooks
 ```
 
-之後每次 `git push` 都會先跑 `Check-Docs.ps1` 再跑 `Run-CoreTests.ps1`，任何一個
-失敗就擋下來。真的要略過時用 `git push --no-verify`。
+之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1` 與
+`Run-CoreTests.ps1`，任何一個失敗就擋下來。真的要略過時用 `git push --no-verify`。
+
+### 文字檔格式
+
+所有文字檔統一為 **UTF-8（無 BOM）與 LF**。根目錄的 `.gitattributes` 會覆蓋
+Windows 全域的 `core.autocrlf=true`，`.editorconfig` 則讓支援它的編輯器在儲存時沿用
+同一份規則。這樣產生器或補丁工具寫出的 LF 不必再整檔「還原 CRLF」。
+
+push 前的 hook 會先執行下列檢查，遇到 BOM、CRLF、無效 UTF-8 或缺少檔尾換行就停止：
+
+```powershell
+.\tools\Check-TextFiles.ps1
+```
 
 ## 工具腳本的共用設定
 

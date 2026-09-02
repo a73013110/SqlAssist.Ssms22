@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Diagnostics;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;

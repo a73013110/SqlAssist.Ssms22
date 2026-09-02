@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 

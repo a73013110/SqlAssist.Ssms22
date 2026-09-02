@@ -1,4 +1,4 @@
-﻿using SqlAssist.Core.Completion;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Formatting;
 

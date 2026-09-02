@@ -1,4 +1,4 @@
-﻿using SqlAssist.Core.Completion;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
 using Xunit;

@@ -1,4 +1,4 @@
-﻿namespace SqlAssist.Core.Settings;
+namespace SqlAssist.Core.Settings;
 
 /// <summary>
 /// SqlAssist 的全部設定，一次讀進來的一份不可變快照。
