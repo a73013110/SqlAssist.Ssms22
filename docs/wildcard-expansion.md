@@ -46,6 +46,7 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 | 資料表、檢視 | 中繼資料的第二層 |
 | 衍生資料表 `(SELECT …) d` | 讀它自己的選取清單 |
 | CTE `WITH c AS (…)` | 讀主體的選取清單；有寫資料行清單就以它為準 |
+| 暫存資料表 `#Loan`、資料表變數 `@rows` | 讀 `CREATE TABLE`／`DECLARE … TABLE` 的資料行清單 |
 | 巢狀的 `*` | 往內遞迴，把最外層的別名一路帶著走 |
 
 `(SELECT * FROM dbo.PUBLISHER c) d` 的欄位在外層要寫成 `d.欄位`——內層的 `c`
@@ -55,9 +56,10 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 遞迴 CTE 取 `UNION ALL` 之前那一段的欄位名稱，後面那一段不必看；直接參照自己的
 CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 
-**任何一個來源解析不出來就完全不展開**，不做部分展開：資料表變數的欄位既不在
-指令碼裡也不在中繼資料裡，`SELECT Qty * Price` 這種沒有名稱的運算式在外層也無從稱呼。
-少了幾個欄位的 `SELECT` 仍然執行得動，卻執行出錯的結果——那比什麼都不做糟糕得多。
+**任何一個來源解析不出來就完全不展開**，不做部分展開：`SELECT … INTO #Loan`
+建立的暫存資料表沒有資料行定義，`SELECT Qty * Price` 這種沒有名稱的運算式在外層
+也無從稱呼。少了幾個欄位的 `SELECT` 仍然執行得動，卻執行出錯的結果——
+那比什麼都不做糟糕得多。
 
 ### 加不加別名
 

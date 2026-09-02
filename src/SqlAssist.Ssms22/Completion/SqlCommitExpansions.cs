@@ -26,6 +26,9 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
 
     public SqlObjectInfo Object { get; }
 
+    /// <summary>定義只有中繼資料層拿得到，這裡永遠要查。</summary>
+    public SqlObjectDetail? KnownDetail => null;
+
     public string OperationName => "ALTER 語句";
 
     public string LeadingKeyword => "ALTER";
@@ -64,18 +67,31 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
 /// 反過來，欄位一個都撈不到時<b>整個放棄</b>，維持只插入名稱：同義字在
 /// <c>sys.columns</c> 裡沒有列，撈到空清單就組出 <c>INSERT INTO syn () VALUES ()</c>
 /// ——那比什麼都不做糟糕得多。這與展開 <c>SELECT *</c> 不做部分展開是同一條理由。
+///
+/// 暫存資料表與資料表變數走的是同一個類別，只是細節由呼叫端先讀好交進來
+/// （建構函式的 <c>knownDetail</c>）：它們的資料行寫在指令碼裡而不在中繼資料裡，
+/// 但「哪些插得進去」與「排版長什麼樣」與資料庫物件一模一樣。
 /// </remarks>
 internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
 {
     private readonly SqlAssistSettings _settings;
 
-    public SqlInsertStatementExpansion(SqlObjectInfo objectInfo, SqlAssistSettings settings)
+    /// <param name="knownDetail">
+    /// 提交當下就讀好的細節；資料庫物件傳 null，由中繼資料層去查。
+    /// </param>
+    public SqlInsertStatementExpansion(
+        SqlObjectInfo objectInfo,
+        SqlAssistSettings settings,
+        SqlObjectDetail? knownDetail = null)
     {
         Object = objectInfo;
         _settings = settings;
+        KnownDetail = knownDetail;
     }
 
     public SqlObjectInfo Object { get; }
+
+    public SqlObjectDetail? KnownDetail { get; }
 
     public string OperationName => "INSERT 語句";
 
@@ -137,13 +153,23 @@ internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
 {
     private readonly SqlAssistSettings _settings;
 
-    public SqlMergeStatementExpansion(SqlObjectInfo objectInfo, SqlAssistSettings settings)
+    /// <param name="knownDetail">
+    /// 提交當下就讀好的細節；資料庫物件傳 null，由中繼資料層去查。
+    /// 與 <see cref="SqlInsertStatementExpansion"/> 同一條理由。
+    /// </param>
+    public SqlMergeStatementExpansion(
+        SqlObjectInfo objectInfo,
+        SqlAssistSettings settings,
+        SqlObjectDetail? knownDetail = null)
     {
         Object = objectInfo;
         _settings = settings;
+        KnownDetail = knownDetail;
     }
 
     public SqlObjectInfo Object { get; }
+
+    public SqlObjectDetail? KnownDetail { get; }
 
     public string OperationName => "MERGE 語句";
 
@@ -211,6 +237,9 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
     }
 
     public SqlObjectInfo Object { get; }
+
+    /// <summary>參數與定義只有中繼資料層拿得到，這裡永遠要查。</summary>
+    public SqlObjectDetail? KnownDetail => null;
 
     public string OperationName => "EXEC 語句";
 

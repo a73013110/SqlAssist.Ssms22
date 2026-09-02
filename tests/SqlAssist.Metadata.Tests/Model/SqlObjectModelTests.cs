@@ -76,7 +76,6 @@ public sealed class SqlObjectModelTests
     [Theory]
     [InlineData("Lib_Reader", true)]
     [InlineData("_temp", true)]
-    [InlineData("#tmp", false)]
     [InlineData("Loan Detail", false)]
     [InlineData("1Table", false)]
     [InlineData("", false)]
@@ -86,6 +85,49 @@ public sealed class SqlObjectModelTests
 
         // 這幾個都不是保留字，所以形狀合格就等於不必加括號。
         Assert.Equal(isRegular ? name : SqlIdentifier.Quote(name), SqlIdentifier.QuoteIfNeeded(name));
+    }
+
+    /// <summary>
+    /// 井號與小老鼠開頭的名稱形狀合格，不必加括號。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 允許的四種開頭裡有這兩種，它們不是例外。判成不合格的症狀是暫存資料表
+    /// 被寫成 <c>[#tmp]</c>——合法卻沒有人這樣手寫——而資料表變數被寫成
+    /// <c>[@rows]</c>，那根本不是合法的 T-SQL，貼進編輯器就是語法錯誤。
+    /// </remarks>
+    [Theory]
+    [InlineData("#tmp")]
+    [InlineData("##Shared")]
+    [InlineData("@rows")]
+    public void 指令碼宣告的名稱不加括號(string name)
+    {
+        Assert.True(SqlIdentifier.IsRegular(name));
+        Assert.True(SqlIdentifier.IsScriptScoped(name));
+        Assert.Equal(name, SqlIdentifier.QuoteIfNeeded(name));
+    }
+
+    [Theory]
+    [InlineData("Lib_Reader")]
+    [InlineData("_temp")]
+    [InlineData("Loan Detail")]
+    public void 一般名稱不算指令碼宣告(string name)
+    {
+        Assert.False(SqlIdentifier.IsScriptScoped(name));
+    }
+
+    /// <summary>
+    /// 沒有結構描述的物件只寫名稱本身。
+    /// </summary>
+    /// <remarks>
+    /// 暫存資料表與資料表變數沒有結構描述，補一個 <c>dbo</c> 是說謊——
+    /// 而紀錄檔裡的 <c>[dbo].[#tmp]</c> 會讓人去追一個不存在的物件。
+    /// </remarks>
+    [Fact]
+    public void 沒有結構描述時只寫名稱()
+    {
+        Assert.Equal(
+            "#StationStock",
+            new SqlObjectInfo(0, string.Empty, "#StationStock", SqlObjectKind.Table).QualifiedName);
     }
 
     [Theory]

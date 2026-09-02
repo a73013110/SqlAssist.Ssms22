@@ -30,9 +30,15 @@ public static class SqlScriptDataSourceSuggestions
     /// CTE 名冊；由 <see cref="SqlColumnSourceResolver"/> 交出來，
     /// 與欄位解析共用同一次掃描的結果。
     /// </param>
+    /// <param name="scriptTables">
+    /// 讀得出資料行的那些宣告，同樣由 <see cref="SqlColumnSourceResolver"/> 交出來。
+    /// 掛在建議項上，提交之後 <c>INSERT INTO #tmp</c> 才展得開整句——查不到中繼資料
+    /// 的名稱如果只補一個字，使用者還是得自己把每一個欄位打一遍。
+    /// </param>
     public static IReadOnlyList<SqlSuggestion> Create(
         IReadOnlyList<SqlToken> tokens,
-        IEnumerable<string> commonTableExpressionNames)
+        IEnumerable<string> commonTableExpressionNames,
+        IReadOnlyDictionary<string, SqlScriptTable> scriptTables)
     {
         if (tokens is null)
         {
@@ -42,6 +48,11 @@ public static class SqlScriptDataSourceSuggestions
         if (commonTableExpressionNames is null)
         {
             throw new ArgumentNullException(nameof(commonTableExpressionNames));
+        }
+
+        if (scriptTables is null)
+        {
+            throw new ArgumentNullException(nameof(scriptTables));
         }
 
         List<SqlSuggestion>? suggestions = null;
@@ -70,21 +81,24 @@ public static class SqlScriptDataSourceSuggestions
 
             if (seen.Add(token.Value))
             {
+                scriptTables.TryGetValue(token.Value, out var table);
+
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(token.Value, TemporaryTableDescription));
+                    Create(token.Value, TemporaryTableDescription, table));
             }
         }
 
         return (IReadOnlyList<SqlSuggestion>?)suggestions ?? Array.Empty<SqlSuggestion>();
     }
 
-    private static SqlSuggestion Create(string name, string description)
+    private static SqlSuggestion Create(string name, string description, SqlScriptTable? table = null)
     {
         return new SqlSuggestion(
             name,
             name,
             description,
             $"{name}（{description}）",
-            SuggestionKind.ScriptDataSource);
+            SuggestionKind.ScriptDataSource,
+            tag: table);
     }
 }

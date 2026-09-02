@@ -130,7 +130,8 @@ public sealed class SqlScriptVariableTests
     {
         var variables = SqlScriptVariableSuggestions.Create(
             SqlAssist.Core.Parsing.SqlTokenizer.Tokenize("DECLARE @rows INT "),
-            caretPosition: 19);
+            caretPosition: 19,
+            new System.Collections.Generic.Dictionary<string, SqlAssist.Core.Parsing.SqlScriptTable>());
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT ro");
 
         Assert.NotEmpty(variables);

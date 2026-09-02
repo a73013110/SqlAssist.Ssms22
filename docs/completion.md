@@ -621,6 +621,10 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 `INSERT INTO` 之後放進欄位清單與 `VALUES`，`MERGE INTO` 之後放進比對鍵與兩個動作
 子句，`EXEC` 之後放進具名傳值的參數清單。
 
+`INSERT INTO #Loan` 與 `INSERT INTO @rows` 走的是完全同一條路，差別只在欄位從哪裡來
+——那兩種名稱中繼資料查不到，欄位改讀[指令碼裡的宣告](#指令碼宣告的資料表)。
+「怎麼安全地把整句換掉」與「換成什麼樣子」兩段都不必為它們重寫。
+
 ```text
 INSERT INTO dbo.Cat_BookCopy
 (
@@ -821,11 +825,48 @@ SELECT a.| FROM (SELECT c.PUBL_CODE, c.SHELF_LOCATION_CODE FROM dbo.PUBLISHER c)
 ;WITH c AS (SELECT Id FROM dbo.Item) SELECT x.| FROM c x
 ```
 
-只有資料表變數（`@rows`）仍然放棄：它的欄位既不在指令碼裡也不在中繼資料裡。
-放棄時維持原本的結構描述解讀，讓使用者至少還看得到物件清單。
+暫存資料表與資料表變數走的是同一條路：它們的欄位中繼資料一列都查不到——
+資料表變數不是 `sys.objects` 裡的物件，暫存資料表在 tempdb 裡，而擴充只查目前連線的
+那一個資料庫——但那些欄位就寫在使用者眼前的 `CREATE TABLE #Loan (…)` 與
+`DECLARE @rows TABLE (…)` 括號裡，讀得出來，見[指令碼宣告的資料表](#指令碼宣告的資料表)。
 
-指令碼裡讀出來的欄位沒有型別、NULL 與 PK——那些要追到最內層的資料表，
+只有讀不出宣告的時候才放棄（例如 `SELECT … INTO #Loan` 建立的暫存資料表，
+那裡沒有資料行定義）。放棄時維持原本的結構描述解讀，讓使用者至少還看得到物件清單。
+
+子查詢與 CTE 讀出來的欄位沒有型別、NULL 與 PK——那些要追到最內層的資料表，
 而中間任何一段運算式都會讓答案不成立。說明欄因此只寫「查詢結果」。
+
+### 指令碼宣告的資料表
+
+`#Loan` 與 `@rows` 的欄位中繼資料一列都查不到，但它們的宣告就在使用者眼前：
+
+```sql
+CREATE TABLE #Loan (Id INT IDENTITY(1,1) PRIMARY KEY, CopyNo NVARCHAR(20) NOT NULL);
+DECLARE @rows TABLE (Id INT IDENTITY(1,1) PRIMARY KEY, CopyNo NVARCHAR(20) NOT NULL);
+```
+
+那份括號由 `Core/Parsing/SqlScriptTableCollector` 讀出來，接進
+`SqlColumnSourceResolver`——於是**同一次修改讓四個位置一起活過來**：`SET |` 與
+`WHERE |` 的欄位建議、`#Loan.` 與 `@rows.` 的欄位、`SELECT *` 按 Tab 的展開，
+以及提交 `INSERT INTO`／`MERGE INTO` 之後的整句展開。各自接一條的話，
+漏掉的那一條沒有徵兆，只是使用者在那個位置又得把每個欄位重打一遍。
+
+只認**帶著資料行定義**的兩種寫法。`SELECT … INTO #Loan` 不在裡面：那裡沒有型別，
+而少了型別的 `INSERT` 骨架會替使用者猜錯字面值——那張表的**名稱**仍然照列，
+名稱與欄位是兩件事。`RETURNS @rows TABLE (…)` 則免費一起認得，
+因為認的是「變數 `TABLE (`」這個形狀本身。
+
+`CREATE TABLE` 這兩個字是必要條件而不是修飾：`INSERT INTO #Loan (CopyNo, ReaderId)`
+的形狀與資料行清單一模一樣，少了前綴就會把使用者剛寫的 `INSERT` 讀成一份宣告，
+而那份假宣告裡每個欄位都沒有型別，還會蓋掉真正的那一份。
+
+一般資料表（`CREATE TABLE dbo.Loan (…)`）也不收：它在中繼資料裡，
+而那一份回答的是「現在長什麼樣」，指令碼裡這一份回答的是「正要變成什麼樣」。
+
+讀出來的資料行在 `Metadata/Model/SqlScriptTableDetail` 換成中繼資料層的欄位模型，
+目的只有一個——**不要有第二份「哪些欄位插得進去」**。換過來之後，暫存資料表與
+資料表變數走的就是資料庫物件那一份展開，[排除規則](#哪些欄位插不進去)與
+[值先填什麼](#值先填什麼)一個字都不必重寫。
 
 ### 只有開啟查詢的括號才切開範圍
 
@@ -872,6 +913,12 @@ SELECT a.N     → 這時才重新問來源，欄位清單終於出現
 只看文字不碰編輯器，可以完整單元測試：
 
 - 前一個字元還能構成識別字（`SELECT CUST|`）→ 不重開，平台自己的篩選是對的。
+- **小老鼠除外**：它構得成識別字（`@@ROW` 的詞元起點必須落在第一個小老鼠上），
+  但打出來的那一刻目標會整個換掉。`INSERT INTO ` 開著的是資料表清單，
+  `INSERT INTO @` 要的是使用者自己宣告的變數，兩份沒有一項重疊——症狀是
+  「單打一個 `@` 什麼都沒有，`@S` 才有提示」。`@@` 同理，那又是另一份封閉清單。
+  判斷與呼叫端共用 `SqlCompletionTriggers.MayChangeContext`：一邊放行、
+  另一邊擋掉，等於沒改。
 - 有限定字（`a.`、`dbo.`、`[dbo].`）→ 重開。
 - 前方關鍵字已經指定了物件類別（`FROM `、`JOIN `、`EXEC `、`USE `、
   `ALTER PROCEDURE `）→ 重開。少了這一條，`SELECT * FROM |` 也要再多打一個字母
@@ -911,8 +958,8 @@ session?.OpenOrUpdate(trigger, caret, token);        // 3
 
 沒有限定字的位置（`SELECT |`、`WHERE |`、`ON |`）也會列出敘述看得到的欄位，
 而且排在資料庫物件之前——在這些位置要的幾乎都是欄位。這裡走的是同一個
-解析器，所以子查詢與 CTE 的欄位一樣列得出來；解析不出來的那一個來源跳過，
-其他來源照列——與限定字的位置不同，這裡少列一個資料表變數的欄位
+解析器，所以子查詢、CTE、暫存資料表與資料表變數的欄位一樣列得出來；解析不出來的
+那一個來源跳過，其他來源照列——與限定字的位置不同，這裡少列一個來源的欄位
 不影響其他來源的正確性。
 
 敘述裡有兩個以上**相異的限定字**時，插入的文字會自動補上別名，否則

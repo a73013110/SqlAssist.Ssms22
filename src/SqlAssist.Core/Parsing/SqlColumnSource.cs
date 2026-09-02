@@ -22,12 +22,14 @@ public sealed class SqlColumnSource
         SqlColumnSourceKind kind,
         SqlTableReference? table,
         IReadOnlyList<string> names,
-        string? qualifier)
+        string? qualifier,
+        string? sourceName)
     {
         Kind = kind;
         Table = table;
         Names = names;
         Qualifier = qualifier;
+        SourceName = sourceName;
     }
 
     public SqlColumnSourceKind Kind { get; }
@@ -41,6 +43,16 @@ public sealed class SqlColumnSource
     /// <summary>要補在欄位前面的名稱；敘述裡讀不出可用的名稱時為 null。</summary>
     public string? Qualifier { get; }
 
+    /// <summary>
+    /// 這些名稱是從哪裡讀出來的，寫進建議清單的說明欄；讀不出出處時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 子查詢與 CTE 的欄位只知道「它是某個查詢的輸出」，說明欄寫得出的就只有
+    /// 那句話。暫存資料表與資料表變數不一樣——它們有名字，而使用者在
+    /// <c>UPDATE #Loan SET |</c> 那裡看到「查詢結果」會以為認錯了東西。
+    /// </remarks>
+    public string? SourceName { get; }
+
     public static SqlColumnSource FromTable(SqlTableReference table, string? qualifier)
     {
         if (table is null)
@@ -48,16 +60,20 @@ public sealed class SqlColumnSource
             throw new ArgumentNullException(nameof(table));
         }
 
-        return new SqlColumnSource(SqlColumnSourceKind.Table, table, NoNames, qualifier);
+        return new SqlColumnSource(SqlColumnSourceKind.Table, table, NoNames, qualifier, sourceName: null);
     }
 
-    public static SqlColumnSource FromNames(IReadOnlyList<string> names, string? qualifier)
+    /// <param name="sourceName">名稱的出處；子查詢與 CTE 這種說不出出處的來源傳 null。</param>
+    public static SqlColumnSource FromNames(
+        IReadOnlyList<string> names,
+        string? qualifier,
+        string? sourceName = null)
     {
         if (names is null)
         {
             throw new ArgumentNullException(nameof(names));
         }
 
-        return new SqlColumnSource(SqlColumnSourceKind.Names, table: null, names, qualifier);
+        return new SqlColumnSource(SqlColumnSourceKind.Names, table: null, names, qualifier, sourceName);
     }
 }

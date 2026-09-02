@@ -144,13 +144,34 @@ public sealed class SqlWildcardAnalyzerTests
     }
 
     /// <remarks>
-    /// 資料表變數的欄位既不在指令碼裡也不在中繼資料裡，只能整個放棄——
-    /// 少了幾個欄位的 SELECT 仍然執行得動，卻執行出錯的結果。
+    /// 沒有宣告在這份指令碼裡的資料表變數，欄位既不在指令碼裡也不在中繼資料裡，
+    /// 只能整個放棄——少了幾個欄位的 SELECT 仍然執行得動，卻執行出錯的結果。
     /// </remarks>
     [Fact]
-    public void 資料表變數不展開()
+    public void 找不到宣告的資料表變數不展開()
     {
         Assert.Null(Analyze("SELECT *| FROM @rows r"));
+    }
+
+    /// <summary>
+    /// 指令碼自己宣告的資料表展得開。
+    /// </summary>
+    /// <remarks>
+    /// 資料表變數不是 <c>sys.objects</c> 裡的物件，暫存資料表在 tempdb 裡，
+    /// 兩者的欄位中繼資料一列都查不到——但 <c>DECLARE @rows TABLE (…)</c> 與
+    /// <c>CREATE TABLE #Loan (…)</c> 就寫在上面幾行，讀得出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));\r\nSELECT *| FROM @rows")]
+    [InlineData("DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));\r\nSELECT r.*| FROM @rows r")]
+    [InlineData("CREATE TABLE #Loan (Id INT, CopyNo NVARCHAR(20));\r\nSELECT *| FROM #Loan")]
+    [InlineData("CREATE TABLE #Loan (Id INT, CopyNo NVARCHAR(20));\r\nSELECT *| FROM [#Loan]")]
+    public void 指令碼宣告的資料表展得開(string sqlWithCaret)
+    {
+        var source = Assert.Single(Expand(sqlWithCaret).Sources);
+
+        Assert.Equal(SqlColumnSourceKind.Names, source.Kind);
+        Assert.Equal(new[] { "Id", "CopyNo" }, source.Names);
     }
 
     [Fact]

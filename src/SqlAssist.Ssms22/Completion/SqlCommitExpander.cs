@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -64,6 +65,16 @@ internal interface ISqlCommitExpansion
     /// <summary>要展開的物件；決定去中繼資料層拿誰的細節。</summary>
     SqlObjectInfo Object { get; }
 
+    /// <summary>
+    /// 提交當下就已經知道的細節；為 null 才去中繼資料層查。
+    /// </summary>
+    /// <remarks>
+    /// 指令碼自己宣告的暫存資料表與資料表變數走這一條：它們的資料行就寫在
+    /// 使用者眼前的宣告裡，中繼資料反而一列都查不到。查得到與查不到只差在
+    /// 「細節從哪裡來」，替換那一段完全相同，所以共用同一條路而不是另開一條。
+    /// </remarks>
+    SqlObjectDetail? KnownDetail { get; }
+
     /// <summary>寫進紀錄與復原堆疊的操作名稱，例如「ALTER 語句」。</summary>
     string OperationName { get; }
 
@@ -116,9 +127,33 @@ internal sealed class SqlCommitExpander
         int caretPosition,
         SqlAssistSettings settings)
     {
-        if (context.TargetKeywordStart < 0 ||
-            caretPosition < context.TargetKeywordStart ||
-            selected.Tag is not SqlObjectInfo objectInfo)
+        if (context.TargetKeywordStart < 0 || caretPosition < context.TargetKeywordStart)
+        {
+            return null;
+        }
+
+        // 指令碼自己宣告的資料表：資料行在提交當下就全部讀完了，不必再問誰。
+        // 只有 INSERT 與 MERGE 兩種意圖用得到——它們要的就是資料行，
+        // 而 ALTER 的定義與 EXEC 的參數這兩種名稱一個都給不出來。
+        if (selected.Tag is SqlScriptTable scriptTable)
+        {
+            var detail = SqlScriptTableDetail.Create(scriptTable);
+
+            return context.Intent switch
+            {
+                CompletionIntent.InsertStatement => settings.ExpandInsertStatement
+                    ? new SqlInsertStatementExpansion(detail.Object, settings, detail)
+                    : null,
+
+                CompletionIntent.MergeStatement => settings.ExpandMergeStatement
+                    ? new SqlMergeStatementExpansion(detail.Object, settings, detail)
+                    : null,
+
+                _ => null
+            };
+        }
+
+        if (selected.Tag is not SqlObjectInfo objectInfo)
         {
             return null;
         }
@@ -187,7 +222,7 @@ internal sealed class SqlCommitExpander
         ITrackingSpan statementSpan,
         string insertedName)
     {
-        var detail = await _metadataService
+        var detail = expansion.KnownDetail ?? await _metadataService
             .GetDetailAsync(expansion.Object, CancellationToken.None)
             .ConfigureAwait(false);
 

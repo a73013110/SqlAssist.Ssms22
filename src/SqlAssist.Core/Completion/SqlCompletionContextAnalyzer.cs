@@ -154,10 +154,16 @@ public static class SqlCompletionContextAnalyzer
         }
 
         // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
+        // 資料表變數要多帶一份資料行清單：INSERT INTO @rows 提交之後展的是整句，
+        // 而那份清單只存在於 DECLARE @rows TABLE (…) 裡。
         if (context.Target == CompletionTarget.Variable)
         {
-            return context.WithScriptSources(
-                SqlScriptVariableSuggestions.Create(SqlTokenizer.Tokenize(sql), caretPosition));
+            var variableTokens = SqlTokenizer.Tokenize(sql);
+
+            return context.WithScriptSources(SqlScriptVariableSuggestions.Create(
+                variableTokens,
+                caretPosition,
+                SqlScriptTableCollector.Collect(variableTokens)));
         }
 
         var tokens = SqlTokenizer.Tokenize(sql);
@@ -171,8 +177,10 @@ public static class SqlCompletionContextAnalyzer
             // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
             // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
             return context.Target == CompletionTarget.DataSource
-                ? withScope.WithScriptSources(
-                    SqlScriptDataSourceSuggestions.Create(tokens, resolver.CommonTableExpressionNames))
+                ? withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(
+                    tokens,
+                    resolver.CommonTableExpressionNames,
+                    resolver.ScriptTables))
                 : withScope;
         }
 
@@ -230,6 +238,22 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
+        // INSERT INTO @rows 與 MERGE INTO @rows 提交之後要展開的是整句，與
+        // INSERT INTO dbo.Loan 完全同格——差別只在清單裡放的是他自己宣告的名稱。
+        // 少了這兩行的症狀是：資料表變數選得到，卻只補了一個名稱，
+        // 每一個欄位仍然要自己打一遍。
+        //
+        // 只收資料來源位置：EXEC dbo.p @ 的 @ 後面是引數而不是那句話的目標，
+        // 在那裡帶著 ExecuteCall 會讓提交去展開一個變數。
+        var beforeToken = textBeforeCaret.Substring(0, tokenStart).TrimEnd();
+        var statementTarget = DetermineTarget(beforeToken, out var keywordStart, out var intent);
+
+        if (statementTarget != CompletionTarget.DataSource)
+        {
+            keywordStart = -1;
+            intent = CompletionIntent.Reference;
+        }
+
         // EXEC dbo.usp_Renew @| 的位置除了他自己的變數，還要列出那個程序的參數。
         // 參數在中繼資料裡，這裡只記下他在呼叫誰。
         return new SqlCompletionContext(
@@ -237,6 +261,8 @@ public static class SqlCompletionContextAnalyzer
             tokenStart,
             prefix,
             CompletionTarget.Variable,
+            targetKeywordStart: keywordStart,
+            intent: intent,
             executedModule: SqlExecutedModule.Find(tokens));
     }
 
