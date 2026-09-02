@@ -12,10 +12,21 @@
 |---|---|---|
 | 建立 #temp 指令碼 | `DROP` 守門 ＋ `CREATE TABLE #SqlAssistRows` ＋ `INSERT` ＋ `SELECT` | 新查詢視窗（沿用同一個連線） |
 | 複製成 IN 條件 | 一段接得上 `WHERE` 的述詞 | 剪貼簿 |
+| 欄位剖析 | 每一欄的 `NULL`／空字串／相異值數與範圍 | 一個可以複製成 TSV 的視窗 |
 | 探測這個結果格線 | 格線內部狀態的報告 | 診斷紀錄檔（只在「詳細記錄」開啟時出現） |
 
-兩種產出的去處不同，因為用法不同：`#temp` 是完整的一段指令碼，開進新視窗按 F5
-就能跑；`IN` 條件是要貼進手上那一句查詢的，開新視窗反而多一次搬運。
+三種產出的去處不同，因為用法不同：`#temp` 是完整的一段指令碼，開進新視窗按 F5
+就能跑；`IN` 條件是要貼進手上那一句查詢的，開新視窗反而多一次搬運；欄位剖析的用途
+是**看**不是貼，178 欄的摘要塞進查詢視窗變成 178 行註解，比原本捲格線還難讀。
+
+欄位剖析在寬表上的價值遠高於窄表。真正想知道的往往只是「哪幾欄整欄是 `NULL`、
+哪幾欄從頭到尾只有一個值」——那兩件事看資料看不出來，看摘要一眼就有。統計的對象
+刻意就是眼前這一份結果，不是資料表的全貌；後者下一句 `GROUP BY` 比較快也比較準。
+
+`NULL` 與空字串分開算：兩者在格線上都是不顯眼的一格，查問題時卻代表完全不同的事。
+文字欄位另外報字元數範圍，那是找截斷的第一個線索——整欄都剛好 20 個字元的
+`nvarchar(20)` 值得看一眼。最小與最大寫成 T-SQL 字面值而不是顯示字串，因為它們的
+下一步幾乎一定是被貼進一句 `WHERE`。
 
 ## 選取範圍怎麼算
 
@@ -99,6 +110,8 @@ SSMS 自己的「複製」給的是 TSV，而那份文字裡資料庫的 `NULL` 
 | 值轉成字面值的規則 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | `#temp` 指令碼的長相 | `Metadata/ResultGrid/SqlTempTableScript.cs` |
 | `IN` 條件的長相 | `Metadata/ResultGrid/SqlInPredicateScript.cs` |
+| 欄位剖析算什麼 | `Metadata/ResultGrid/ResultGridProfile.cs` |
+| 欄位剖析視窗的長相 | `Ssms22/ResultGrid/ResultGridProfileWindow.cs`（外觀一律走 `UI/SqlAssistChrome.cs`） |
 | 選取範圍怎麼換算、格數上限 | `Metadata/ResultGrid/ResultGridSelectionPlan.cs` |
 | 從格線取資料 | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
 | 產出交到哪裡、失敗怎麼說 | `Ssms22/ResultGrid/ResultGridActions.cs` |

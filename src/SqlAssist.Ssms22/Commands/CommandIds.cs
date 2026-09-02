@@ -58,4 +58,7 @@ internal static class CommandIds
 
     /// <summary>結果格線：把選取範圍寫成可以接在 <c>WHERE</c> 後面的條件。</summary>
     public const int ResultGridInPredicate = 0x0302;
+
+    /// <summary>結果格線：每一欄的統計摘要。</summary>
+    public const int ResultGridProfile = 0x0303;
 }
