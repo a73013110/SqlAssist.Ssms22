@@ -1,4 +1,4 @@
-
+﻿
 
 namespace SqlAssist.Core.Settings;
 
@@ -78,6 +78,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.ExpandInsertStatement,
                 defaults.ExpandInsertStatement),
+            ExpandMergeStatement = Value(
+                source,
+                SqlAssistMonikers.ExpandMergeStatement,
+                defaults.ExpandMergeStatement),
             ExpandProcedureCall = Value(
                 source,
                 SqlAssistMonikers.ExpandProcedureCall,

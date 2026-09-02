@@ -135,6 +135,11 @@ internal sealed class SqlCommitExpander
                     ? new SqlInsertStatementExpansion(objectInfo, settings)
                     : null;
 
+            case CompletionIntent.MergeStatement:
+                return settings.ExpandMergeStatement && objectInfo.Kind.HasColumns()
+                    ? new SqlMergeStatementExpansion(objectInfo, settings)
+                    : null;
+
             case CompletionIntent.ExecuteCall:
                 return settings.ExpandProcedureCall && objectInfo.Kind.IsExecutable()
                     ? new SqlProcedureCallExpansion(objectInfo)

@@ -291,6 +291,18 @@ public static class SqlCompletionContextAnalyzer
             return CompletionTarget.DataSource;
         }
 
+        // MERGE 與 INSERT 同一條理由，而且更成立：那句話還沒寫完，
+        // 而 MERGE 是三個子句都要逐欄重打的語句。INTO 可以省略（MERGE dbo.T AS t），
+        // 兩種寫法都要認——漏掉哪一種都是那個寫法安靜地退化成只補名稱。
+        // 這一條必須排在下面單獨的 INTO 之前，否則 MERGE INTO 會被那一條接走。
+        intent = CompletionIntent.MergeStatement;
+
+        if (EndsWithKeywords(text, "MERGE", "INTO", out keywordStart) ||
+            EndsWithKeyword(text, "MERGE", out keywordStart))
+        {
+            return CompletionTarget.DataSource;
+        }
+
         intent = CompletionIntent.ExecuteCall;
 
         if (EndsWithKeyword(text, "EXEC", out keywordStart) ||

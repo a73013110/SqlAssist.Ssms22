@@ -100,6 +100,17 @@ public sealed class SqlAssistSettings
     public bool ExpandInsertStatement { get; init; } = true;
 
     /// <summary>
+    /// sqlAssist.suggestions.expandMergeStatement
+    /// </summary>
+    /// <remarks>
+    /// 在 <c>MERGE INTO </c> 之後提交一張資料表時，把整句展開成比對鍵、
+    /// <c>UPDATE SET</c>、<c>INSERT</c> 與 <c>VALUES</c>。與
+    /// <see cref="ExpandInsertStatement"/> 分成兩個開關的理由與 <c>EXEC</c> 相同：
+    /// 展開的東西不同，想關掉其中一個的理由也不同。
+    /// </remarks>
+    public bool ExpandMergeStatement { get; init; } = true;
+
+    /// <summary>
     /// sqlAssist.suggestions.expandProcedureCall
     /// </summary>
     /// <remarks>

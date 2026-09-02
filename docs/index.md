@@ -1,4 +1,4 @@
-# 索引
+﻿# 索引
 
 所有文件的入口，分成兩半：**上半給使用者**——裝起來、開始用；**下半給開發者**——
 從「我要改什麼」或手上的檔案路徑，找到該讀的文件與該進入的程式碼。
@@ -31,7 +31,7 @@
 | 打完某個字沒有重開清單 | [completion.md](completion.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SSMS 自己的清單也跟著彈出來 | [completion.md](completion.md) | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
 | 提交建議後寫進去的文字不對 | [completion.md](completion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
-| `INSERT INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion.md](completion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
+| `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion.md](completion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
 | 展開的整句蓋錯位置或沒有蓋上去 | [completion.md](completion.md) | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
 | 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
@@ -71,7 +71,7 @@
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
 | `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
-| `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`EXEC` 呼叫、參數預設值） | [completion.md](completion.md) |
+| `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`MERGE` 骨架、`EXEC` 呼叫、參數預設值） | [completion.md](completion.md) |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 | [settings.md](settings.md) |
 | `Diagnostics/` | 版本解讀、健康檢查，以及視窗與匿名診斷摘要共用的欄位清單 | [development.md](development.md) |
@@ -127,7 +127,7 @@
 | 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 攔截殼層命令（F12…），以及「按了沒反應」時的命令診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
-| 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
+| 提交後把整句換掉（ALTER／INSERT／MERGE／EXEC 四種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |

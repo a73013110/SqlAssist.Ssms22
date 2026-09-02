@@ -19,6 +19,16 @@ public enum CompletionIntent
     /// <summary>展開成完整的 <c>INSERT</c>：欄位清單加上對應的 <c>VALUES</c> 預留值。</summary>
     InsertStatement,
 
+    /// <summary>
+    /// 展開成完整的 <c>MERGE</c>：比對鍵、<c>UPDATE SET</c>、<c>INSERT</c> 與
+    /// <c>VALUES</c> 一次填滿。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="InsertStatement"/> 分開而不是共用：目標同樣是一張資料表，
+    /// 但 MERGE 要的是三份不同的欄位清單，而且要知道哪幾欄是比對鍵。
+    /// </remarks>
+    MergeStatement,
+
     /// <summary>展開成具名傳值的 <c>EXEC</c>，必要時補上 OUTPUT 參數的 <c>DECLARE</c>。</summary>
     ExecuteCall
 }

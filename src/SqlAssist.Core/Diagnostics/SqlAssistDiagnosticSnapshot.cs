@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Diagnostics;
@@ -12,6 +12,7 @@ public enum SqlAssistActivityKind
     WildcardExpanded,
     AlterExpanded,
     InsertExpanded,
+    MergeExpanded,
     ExecuteExpanded,
     DefinitionOpened
 }

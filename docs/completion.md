@@ -1,4 +1,4 @@
-# 建議清單
+﻿# 建議清單
 
 輸入時彈出的建議清單：排名、觸發時機、上下文收斂，以及清單內容的來源
 （T-SQL 關鍵字、內建函式、資料型別、全域變數、程式碼片段、資料庫物件，以及指令碼
@@ -451,6 +451,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View | 插入名稱 |
 | `CROSS APPLY`、`OUTER APPLY` | Function | 插入名稱 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
+| `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
 | `ALTER PROCEDURE`／`PROC` | Procedure | 展開完整 ALTER 定義 |
 | `ALTER FUNCTION` | Function | 展開完整 ALTER 定義 |
 | `ALTER VIEW` | View | 展開完整 ALTER 定義 |
@@ -592,8 +593,9 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 
 ## 提交時展開成整句
 
-有三個位置提交的不是一個名稱，而是一整句：`ALTER PROCEDURE` 之後放進完整定義，
-`INSERT INTO` 之後放進欄位清單與 `VALUES`，`EXEC` 之後放進具名傳值的參數清單。
+有四個位置提交的不是一個名稱，而是一整句：`ALTER PROCEDURE` 之後放進完整定義，
+`INSERT INTO` 之後放進欄位清單與 `VALUES`，`MERGE INTO` 之後放進比對鍵與兩個動作
+子句，`EXEC` 之後放進具名傳值的參數清單。
 
 ```text
 INSERT INTO dbo.Cat_BookCopy
@@ -611,22 +613,45 @@ VALUES
 ```
 
 ```text
+MERGE INTO dbo.Cat_BookCopy AS target
+USING dbo.SourceTable AS source
+    ON target.CopyId = source.CopyId
+WHEN MATCHED AND 1 = 0 THEN
+    UPDATE SET
+        target.CopyNo = source.CopyNo,
+        target.Barcode = source.Barcode
+WHEN NOT MATCHED BY TARGET AND 1 = 0 THEN
+    INSERT
+    (
+        CopyNo,
+        Barcode
+    )
+    VALUES
+    (
+        source.CopyNo,
+        source.Barcode
+    );
+```
+
+```text
 DECLARE @NewDueDate datetime2(7);
 EXEC dbo.usp_Loan_Renew @LoanId = 0,                     -- int
                         @Days = 0,                       -- int，選擇性
                         @NewDueDate = @NewDueDate OUTPUT -- datetime2(7)
 ```
 
-三種只有「換成什麼」不一樣，「怎麼安全地換」是同一份：先把名稱插進去，用
+四種只有「換成什麼」不一樣，「怎麼安全地換」是同一份：先把名稱插進去，用
 `ITrackingSpan` 記住整句的範圍，到背景取物件細節，回來確認原文還在原處才替換。
 共用的那一份在 `Ssms22/Completion/SqlCommitExpander`，各自的「換成什麼」在
 `SqlCommitExpansions`。各寫一份的下場是其中一份少了一道，而少的那一道會覆蓋
 使用者的輸入。
 
-三種都**不**停在整段的結尾：定義動輒數十行，停在結尾等於一展開就被捲到最後一行，
+四種都**不**停在整段的結尾：定義動輒數十行，停在結尾等於一展開就被捲到最後一行，
 使用者得自己捲回去才看得到剛剛選的是什麼。
 
 `INSERT` 與 `EXEC` 停在**第一個要填的值**上——展開之後要做的第一件事就是填它。
+`MERGE` 停在 `USING` 後面的來源資料表上，理由相同：三個子句都填好了，
+唯一還沒填的就是它。
 `ALTER` 沒有待填的值，停在標頭的**物件名稱之後**：讀一份既有定義是從名稱與參數
 開始看的。位置由 `Core/Parsing/SqlModuleScript.FindHeaderNameEnd` 算，`PROCEDURE`、
 `FUNCTION`、`TRIGGER`、`VIEW` 因此一次到齊——它只跳過物件種類那個詞元而不比對字面值，
@@ -636,6 +661,25 @@ EXEC dbo.usp_Loan_Renew @LoanId = 0,                     -- int
 `ALTER` 會讓後面每個字元往前位移，在原始定義上算出來的會落在名稱中間），而且標頭只切
 定義的前 1024 個字元來找——這一段跑在 UI 執行緒上，為了三個詞元把整份切完是白付的代價。
 名稱被超長的開頭註解推出那個視窗、或剛好被視窗切斷時才退回完整掃描。
+
+### MERGE 的三條保守規則
+
+MERGE 同時會改與插，展開出來的又是一句立刻執行得動的語句，所以三個地方刻意保守
+（`Core/Statements/SqlMergeStatementText`）：
+
+| 規則 | 不這樣做會怎樣 |
+|---|---|
+| 比對鍵取**主索引鍵**；沒有主索引鍵時留 `KeyColumn` 這個編譯不過的佔位字 | 猜一個欄位當鍵不會報錯，只會把資料寫到別列去 |
+| 兩個動作子句都帶著 `AND 1 = 0` | 一次誤按 F5 就是一次資料事故 |
+| `UPDATE SET` 不含比對鍵；整張表都是鍵時整個 `WHEN MATCHED` 就不寫 | 空的 `SET` 是語法錯誤，而更新鍵本身沒有意義 |
+
+比對鍵**不**過濾 `CanInsert`：IDENTITY 的主索引鍵插不進去，但它正是最該拿來比對
+的那一欄。欄位清單則照 `INSERT` 那一份的規則排除四種插不進去的欄位，
+一個欄位都撈不到時整個放棄、維持只插入名稱——理由與 `INSERT` 完全相同。
+
+展開出來的 `target` 與 `source` 兩個別名解析得回那兩張表，所以接著改條件時
+`target.` 與 `source.` 照樣列得出欄位。那條鏈以前由片段的欄位格守著，
+現在守在 `SqlMergeStatementTextTests.展開出來的別名解析得回資料表`。
 
 ### 只要名稱的時候按一次復原
 

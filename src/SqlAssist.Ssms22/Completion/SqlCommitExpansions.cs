@@ -123,6 +123,79 @@ internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
 }
 
 /// <summary>
+/// 把已插入的資料表名稱換成一整句 <c>MERGE</c> 骨架。
+/// </summary>
+/// <remarks>
+/// 與 <see cref="SqlInsertStatementExpansion"/> 共用同一條「一個欄位都撈不到就整個
+/// 放棄」的規則：組出一句沒有欄位的 MERGE 比什麼都不做糟糕得多。
+///
+/// 比對鍵取主索引鍵，而且<b>不</b>過濾 <c>CanInsert</c>——IDENTITY 的主索引鍵插不
+/// 進去，但它正是最該拿來比對的那一欄。排版與「沒有主索引鍵時留佔位字」的理由見
+/// <see cref="SqlMergeStatementText"/>。
+/// </remarks>
+internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
+{
+    private readonly SqlAssistSettings _settings;
+
+    public SqlMergeStatementExpansion(SqlObjectInfo objectInfo, SqlAssistSettings settings)
+    {
+        Object = objectInfo;
+        _settings = settings;
+    }
+
+    public SqlObjectInfo Object { get; }
+
+    public string OperationName => "MERGE 語句";
+
+    public string LeadingKeyword => "MERGE";
+
+    public TextReplacement? Build(SqlObjectDetail detail, SqlStatementSite site, string insertedName)
+    {
+        var keys = new List<string>();
+        var columns = new List<string>(detail.Columns.Count);
+
+        foreach (var column in detail.Columns)
+        {
+            if (column.IsPrimaryKey)
+            {
+                keys.Add(SqlInsertionText.Quote(column.Name, _settings));
+            }
+
+            if (column.CanInsert)
+            {
+                columns.Add(SqlInsertionText.Quote(column.Name, _settings));
+            }
+        }
+
+        if (columns.Count == 0)
+        {
+            SqlAssistDiagnostics.WriteAlways(
+                $"{Object.QualifiedName} 沒有插得進去的欄位，維持只插入名稱");
+            return null;
+        }
+
+        var text = SqlMergeStatementText.Build(
+            insertedName,
+            keys,
+            columns,
+            site.Indent,
+            site.NewLine,
+            out var caretOffset);
+
+        var keyNote = keys.Count > 0
+            ? $"{keys.Count} 個主索引鍵欄位"
+            : "沒有主索引鍵，比對鍵留了佔位字";
+
+        return new TextReplacement(
+            text,
+            SqlAssistActivityKind.MergeExpanded,
+            $"已展開 {Object.QualifiedName} 的 {columns.Count} 個欄位（{keyNote}）",
+            caretOffset,
+            columns.Count);
+    }
+}
+
+/// <summary>
 /// 把已插入的模組名稱換成一整句具名傳值的 <c>EXEC</c>。
 /// </summary>
 /// <remarks>
