@@ -298,6 +298,7 @@ public static class SqlAssistDiagnosticReport
             SqlAssistActivityKind.AlterExpanded => "展開 ALTER 定義",
             SqlAssistActivityKind.InsertExpanded => WithCount("展開 INSERT", activity, "個欄位"),
             SqlAssistActivityKind.ExecuteExpanded => WithCount("展開 EXEC", activity, "個參數"),
+            SqlAssistActivityKind.DefinitionOpened => "在新查詢視窗開啟定義",
             _ => "未知活動"
         };
 

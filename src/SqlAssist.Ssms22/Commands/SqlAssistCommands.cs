@@ -49,6 +49,13 @@ internal sealed class SqlAssistCommands
             () => SqlAssistSettingsStore.Current.SuggestionsEnabled,
             "即時建議");
 
+        // 這一個綁著 F12（見 Menus.vsct），因此狀態必須跟著編輯器走：全域鍵繫結
+        // 在物件總管、結果格線上也收得到，回報停用才會讓那些地方的 F12 照常落回殼層。
+        AddCommand(
+            CommandIds.GoToDefinition,
+            GoToDefinition,
+            () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
+
         AddCommand(CommandIds.ShowObjectStructure, ShowObjectStructure);
         AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
@@ -90,12 +97,73 @@ internal sealed class SqlAssistCommands
         _commandService.AddCommand(menuCommand);
     }
 
-    private void AddCommand(int commandId, EventHandler handler)
+    /// <param name="isEnabled">
+    /// 命令什麼時候可用；省略代表永遠可用。綁了鍵的命令一定要給——殼層是先問過
+    /// 狀態才派送的，而回報可用卻什麼都不做，跟按鍵沒反應在使用者眼裡是同一件事。
+    /// </param>
+    private void AddCommand(int commandId, EventHandler handler, Func<bool>? isEnabled = null)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _commandService.AddCommand(new OleMenuCommand(
+        var menuCommand = new OleMenuCommand(
             handler,
-            new CommandID(CommandIds.CommandSet, commandId)));
+            new CommandID(CommandIds.CommandSet, commandId));
+
+        if (isEnabled is not null)
+        {
+            menuCommand.BeforeQueryStatus += (_, _) =>
+                menuCommand.Enabled = SqlAssistPlatformGuard.Run(
+                    "查詢命令狀態",
+                    isEnabled,
+                    fallback: false);
+        }
+
+        _commandService.AddCommand(menuCommand);
+    }
+
+    /// <summary>
+    /// 把游標處的物件定義開進新的查詢視窗。
+    /// </summary>
+    /// <remarks>
+    /// 與 F12 是同一份實作（<see cref="SqlDefinitionOpener"/>）。
+    ///
+    /// 回饋一律走狀態列，<b>不用對話框</b>——這個命令綁著 F12，而一個要按確定才
+    /// 消失的視窗出現在按鍵路徑上，比沒有反應更糟。其他工具選單命令維持對話框，
+    /// 它們都不在按鍵路徑上。
+    /// </remarks>
+    private void GoToDefinition(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            SqlAssistDiagnostics.Write("移至定義命令抵達 SqlAssist（命令表）");
+
+            // BeforeQueryStatus 已經擋掉這兩種，但殼層不保證每一次派送前都問過狀態。
+            if (!SqlAssistSettingsStore.Current.Enabled)
+            {
+                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                return;
+            }
+
+            if (ActiveSqlEditor.Current is not { } textView)
+            {
+                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                return;
+            }
+
+            if (!SqlCompletionServices
+                    .GetDefinitionOpener(textView, _package)
+                    .TryBegin(textView.Caret.Position.BufferPosition))
+            {
+                SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
+            }
+        }
+        catch (Exception exception)
+        {
+            // 同上：這條路徑綁著按鍵，例外也走狀態列。
+            SqlAssistDiagnostics.WriteAlways($"開啟物件定義失敗：{exception}");
+            SqlAssistStatusBar.Show(_package, $"開啟物件定義失敗：{exception.Message}");
+        }
     }
 
     /// <summary>

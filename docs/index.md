@@ -15,6 +15,7 @@
 | 查 Snippet 捷徑與 Tab 欄位導航 | [snippets.md](snippets.md) |
 | 了解 `SELECT *` 展開 | [wildcard-expansion.md](wildcard-expansion.md) |
 | 使用滑鼠提示與完整結構預覽 | [structure-preview.md](structure-preview.md) |
+| 按 F12 在新查詢視窗看物件定義 | [go-to-definition.md](go-to-definition.md) |
 | 尋找功能設定 | [settings.md](settings.md) |
 
 ## 我要改的是……
@@ -44,6 +45,11 @@
 | 滑鼠停留提示的內容 | [structure-preview.md](structure-preview.md) | `Ssms22/QuickInfo/SqlQuickInfoContentBuilder.cs` |
 | 浮動預覽的行為或擺放 | [structure-preview.md](structure-preview.md) | `Ssms22/Preview/SqlStructurePreview.cs` |
 | 任何顏色、字型、按鈕樣式 | [structure-preview.md](structure-preview.md) | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
+| 按了某個鍵卻沒反應（F12 之類） | [go-to-definition.md](go-to-definition.md) | `Ssms22/Editor/SqlShellCommandFilter.cs`（**唯一**攔得到殼層命令的位置） |
+| F12 抵達了卻沒開視窗 | [go-to-definition.md](go-to-definition.md) | `Ssms22/Editor/SqlDefinitionOpener.cs` |
+| 新增選單項目或鍵繫結後沒生效 | [development.md](development.md) | `Menus.vsct` ＋ `ProvideMenuResource` 版號，且必須重新安裝 |
+| F12 開出來的指令碼內容不對 | [go-to-definition.md](go-to-definition.md) | `Metadata/Formatting/SqlObjectScript.cs` |
+| 新查詢視窗沒有沿用連線 | [go-to-definition.md](go-to-definition.md) | `Ssms22/Connections/SsmsScriptWindow.cs` |
 | 新增一個設定 | [settings.md](settings.md) | 四處都要動，見下方「新增設定」 |
 | 查詢的 SQL 或載入分層 | [metadata.md](metadata.md) | `Metadata/Querying/SqlMetadataQueries.cs` |
 | 連不上資料庫時的行為 | [metadata.md](metadata.md) | `Metadata/Caching/SqlMetadataCatalog.cs` |
@@ -77,20 +83,20 @@
 | `Model/` | 物件、欄位、參數、索引、外來鍵的模型 | [metadata.md](metadata.md) |
 | `Querying/` | 分層的中繼資料查詢與資料列對應 | [metadata.md](metadata.md) |
 | `Caching/` | 依「伺服器＋資料庫」快取，並協調分層載入 | [metadata.md](metadata.md) |
-| `Formatting/` | 型別字串、識別字括號、欄位的呈現語意 | [metadata.md](metadata.md) |
+| `Formatting/` | 型別字串、識別字括號、欄位的呈現語意，以及可執行指令碼的批次樣板 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
 
 ### SqlAssist.Ssms22（net48 VSIX，只做接線）
 
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
 | `Completion/` | 平台原生非同步 IntelliSense 的來源、排序、提交與重開 | [completion.md](completion.md) |
-| `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫 | [architecture.md](architecture.md) |
+| `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫、F12 移至定義 | [architecture.md](architecture.md)、[go-to-definition.md](go-to-definition.md) |
 | `QuickInfo/` | 滑鼠停留提示 | [structure-preview.md](structure-preview.md) |
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
 | `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Snippets/` | 片段檔、管理員視窗與原生 Expansion Session | [snippets.md](snippets.md) |
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
-| `Connections/` | 取得 SSMS 查詢視窗的連線 | [metadata.md](metadata.md) |
+| `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
 | `Commands/` | 命令識別碼、工具選單命令與「關於與診斷」視窗 | [development.md](development.md) |
 | `UI/` | 全擴充共用的外觀與佈景筆刷 | [structure-preview.md](structure-preview.md) |
 
@@ -111,10 +117,14 @@
 | 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
 | DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
-| 背景結果寫回編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs` |
+| 背景結果寫回編輯器（替換既有文字與寫進空白緩衝區） | `Ssms22/Editor/TextViewEditCoordinator.cs` |
+| 目前的 SQL 編輯器，以及取回剛建立的那一個 | `Ssms22/Editor/ActiveSqlEditor.cs` |
+| 可執行指令碼的批次樣板與 `CREATE` → `ALTER` | `Metadata/Formatting/SqlObjectScript.cs` |
+| 進度與失敗顯示在 SSMS 狀態列 | `Ssms22/SqlAssistStatusBar.cs` |
 | 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
+| 攔截殼層命令（F12…），以及「按了沒反應」時的命令診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
 | 提交後把整句換掉（ALTER／INSERT／EXEC 三種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |

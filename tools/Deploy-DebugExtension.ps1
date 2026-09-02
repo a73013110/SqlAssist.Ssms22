@@ -60,6 +60,37 @@ if ($installedMajorMinor -ne $builtMajorMinor) {
     throw "VSIX 主版本不一致（已安裝 $($installation.Version)，建置 $builtVersion）。請重新安裝 Debug VSIX。"
 }
 
+# 命令表（選單項目、命令識別碼、鍵繫結）雖然編譯在 DLL 的資源裡，殼層卻是照
+# pkgdef 的 "Menus.ctmenu, N" 那個 N 決定要不要重讀的。只換 DLL 的話 N 沒變，
+# 殼層繼續用舊的命令表——症狀是新的選單項目不出現、新綁的鍵完全沒反應，
+# 而且沒有任何錯誤訊息。與 MEF 快取是同一類的坑，但清快取救不了它：
+# pkgdef 本身也不在部署清單裡，非重新安裝不可。
+function Get-MenuResourceVersion {
+    param([string]$PkgDefPath)
+
+    if (-not (Test-Path -LiteralPath $PkgDefPath)) {
+        return $null
+    }
+
+    $match = [regex]::Match(
+        [System.IO.File]::ReadAllText($PkgDefPath),
+        'Menus\.ctmenu,\s*(\d+)')
+
+    return $match.Success ? $match.Groups[1].Value : $null
+}
+
+$builtMenuVersion = Get-MenuResourceVersion (Join-Path $outputPath 'SqlAssist.Ssms22.pkgdef')
+$installedMenuVersion = Get-MenuResourceVersion (Join-Path $installation.Path 'SqlAssist.Ssms22.pkgdef')
+
+if ($builtMenuVersion -and $installedMenuVersion -and $builtMenuVersion -ne $installedMenuVersion) {
+    throw @"
+命令表版本不一致（已安裝 $installedMenuVersion，建置 $builtMenuVersion）。
+部署只會替換 DLL，不會更新 pkgdef，殼層會繼續使用舊的命令表——新的選單項目與
+鍵繫結都不會生效，而且不會有任何錯誤。請改用：
+  tools\Install-Extension.ps1 -Configuration Debug
+"@
+}
+
 $fileNames = @(
     'SqlAssist.Core.dll',
     'SqlAssist.Core.pdb',

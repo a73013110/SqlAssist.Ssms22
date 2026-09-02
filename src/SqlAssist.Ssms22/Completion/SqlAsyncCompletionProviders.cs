@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Connections;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Wildcards;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -53,6 +54,23 @@ internal static class SqlCompletionServices
             return textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlCommitExpander),
                 () => new SqlCommitExpander(textView, GetMetadataService(textView, serviceProvider)));
+        }
+    }
+
+    /// <remarks>
+    /// 一個編輯器一份：重入防護（連按 F12 不開兩個視窗）記在實例上，
+    /// 每次按鍵都新建一個等於那道防護不存在。
+    /// </remarks>
+    public static SqlDefinitionOpener GetDefinitionOpener(ITextView textView, IServiceProvider serviceProvider)
+    {
+        lock (SyncRoot)
+        {
+            return textView.Properties.GetOrCreateSingletonProperty(
+                typeof(SqlDefinitionOpener),
+                () => new SqlDefinitionOpener(
+                    textView,
+                    GetMetadataService(textView, serviceProvider),
+                    serviceProvider));
         }
     }
 }

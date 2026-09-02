@@ -31,6 +31,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-A
 		docs\completion.md = docs\completion.md
 		docs\development.md = docs\development.md
 		docs\getting-started.md = docs\getting-started.md
+		docs\go-to-definition.md = docs\go-to-definition.md
 		docs\index.md = docs\index.md
 		docs\metadata.md = docs\metadata.md
 		docs\settings.md = docs\settings.md
