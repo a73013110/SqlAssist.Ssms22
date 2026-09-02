@@ -11,21 +11,37 @@
   // 且 "default" 必須與該屬性的預設值一致。三者由
   // SqlAssistSettingsReaderTests 檢查，漏掉任何一步都是建置失敗。
   //
+  // 分類依「使用者想完成哪件事」切，不依「這件事由誰觸發」：決定最後寫進
+  // 編輯器什麼文字的設定全部在 insertion，不管它是由 Tab、由建議提交還是
+  // 由按鍵處理器啟動的。照觸發路徑分類的版本存在過——展開 SELECT * 因為
+  // 走 Tab 而被放在 general，四種語句展開因為走建議提交而被放在 suggestions，
+  // 同一件事散在兩頁；而使用者要找的是「插進去的東西長什麼樣」，
+  // 不是「這是哪一條程式碼路徑」。
+  //
   // enableWhen／visibleWhen 只能參照「同一個分類裡」的設定。
   // 跨分類參照不會報錯，殼層會安靜地把整個設定丟掉——該分類的設定
   // 全被丟掉之後就變成空分類，而空分類預設不顯示，於是整頁人間蒸發。
   // 第一次實作 Unified Settings 時就是這樣讓「建議清單」與「物件結構」整頁消失的。
   // SqlAssistRegistrationTests 會擋下再犯。
   //
+  // 因此 insertion 這一頁沒有任何一項掛得上「啟用 SqlAssist」或「輸入時自動
+  // 彈出建議清單」——那兩個總開關在別的分類裡。跨頁的相依只能寫進描述文字，
+  // structure 與 diagnostics 兩頁本來就是這樣處理的。
+  //
   // 設定的 enableWhen 還只能參照「一個」設定。wildcardLayout 原本寫成
   // enabled == true && expandWildcardOnTab == true，SSMS 22 同樣安靜地把它丟掉：
   // 設定頁上完全看不到那一項，讀取時只拿得到 NotPersisted。改成單一參照就回來了，
   // 附帶的好處是殼層會依那個參照把它縮排在被參照的設定底下。
   //
+  // placements 可以讓一項設定顯示在別的分類而不動 moniker，但 schema 明講：
+  // enableWhen 只要用到 ${config:...} 就不能再寫 placements。縮排是 enableWhen
+  // 生出來的，兩者只能挑一個，所以分頁一律靠 moniker 本身，不用 placements。
+  //
   // order 依「同一頁裡的哪一段」留號段，段與段之間隔 100，段內隔 10：
-  // 建議清單是 100 觸發、200 內容來源、300 插入格式、400 語句展開。
-  // 用連號的話每插一項就要把整頁重排一次，而 order 改動在設定頁上看不出來，
-  // 只會在下一次有人抱怨「那一項跑到別的地方去了」時才發現。
+  // 建議清單是 100 觸發、200 內容來源；插入與展開是 100 名稱格式、
+  // 200 欄位展開、300 語句展開。用連號的話每插一項就要把整頁重排一次，
+  // 而 order 改動在設定頁上看不出來，只會在下一次有人抱怨
+  // 「那一項跑到別的地方去了」時才發現。
   //
   // additionalKeywords 是搜尋用的同義詞，標題裡已經有的字不必再列。
   // 設定頁只比對標題、描述與這一欄，所以使用者慣用而我們沒寫進標題的說法
@@ -38,7 +54,7 @@
       "default": true,
       "order": 100,
       "title": "啟用 SqlAssist",
-      "description": "關閉後不顯示建議清單、不做關鍵字大寫、也不顯示物件結構。等同快捷鍵 Ctrl+Alt+Shift+S。",
+      "description": "關閉後不顯示建議清單、不做關鍵字大寫、不展開任何語句，也不顯示物件結構。等同快捷鍵 Ctrl+Alt+Shift+S。",
       "additionalKeywords": [ "停用", "關閉", "總開關", "disable" ]
     },
     "sqlAssist.general.uppercaseKeywordsOnType": {
@@ -50,34 +66,10 @@
       "additionalKeywords": [ "自動大寫", "小寫", "casing", "uppercase", "keyword" ],
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
-    "sqlAssist.general.expandWildcardOnTab": {
-      "type": "boolean",
-      "default": true,
-      "order": 300,
-      "title": "按 Tab 把 SELECT * 展開成欄位清單",
-      "description": "游標停在選取清單的 * 後方時顯示提示，按 Tab 換成完整欄位。支援資料表、檢視、子查詢與 CTE；a.* 只展開該來源，敘述有兩個以上來源時自動補上別名。",
-      "additionalKeywords": [ "星號", "萬用字元", "wildcard", "展開欄位", "expand" ],
-      "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
-    },
-    "sqlAssist.general.wildcardLayout": {
-      "type": "string",
-      "default": "oneLineWhenShort",
-      "order": 310,
-      "enum": [ "oneLineWhenShort", "onePerLine", "fillWidth" ],
-      "enumItemLabels": [
-        "放得下就排成一行，放不下才每欄一行",
-        "永遠每欄一行",
-        "依行寬排滿，一行放多個欄位"
-      ],
-      "title": "SELECT * 展開後的欄位排版",
-      "description": "每欄一行時，新增或移除欄位只會動到一行，比對版本差異最清楚。另外兩種的換行位置由欄位名稱的長度決定。",
-      "additionalKeywords": [ "怎麼排", "換行", "格式", "layout", "每欄一行" ],
-      "enableWhen": "${config:sqlAssist.general.expandWildcardOnTab} == 'true'"
-    },
     "sqlAssist.general.autoPairDelimiters": {
       "type": "boolean",
       "default": true,
-      "order": 400,
+      "order": 210,
       "title": "自動補上成對的括號與引號",
       "description": "輸入 ( ' [ \" 時補上另一半並把游標留在中間；接著輸入結尾字元會跳過補上的那一個，Backspace 刪掉開頭字元時把空的另一半一起收掉，先選取一段文字再輸入開頭字元則是把它包起來。從建議清單提交自己帶著左括號的項目（GETDATE、varchar）時也一併補上右括號。字串與註解裡不配對，建議清單或程式碼片段欄位開著時也不介入。BEGIN…END 不在這一項底下，那是程式碼片段。",
       "additionalKeywords": [ "括號", "引號", "配對", "自動關閉", "auto close", "bracket", "quote" ],
@@ -112,6 +104,15 @@
       "additionalKeywords": [ "觸發", "最少字元", "太早跳出", "trigger" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
+    "sqlAssist.suggestions.showCategoryFilters": {
+      "type": "boolean",
+      "default": true,
+      "order": 130,
+      "title": "在建議清單上方顯示分類篩選列",
+      "description": "按下欄位、資料表、檢視等按鈕只看該分類，也可以按 Alt 加上按鈕的存取鍵。不選任何一顆就是全部。清單裡只有一種分類時不會出現。",
+      "additionalKeywords": [ "filter", "只看欄位", "只看資料表", "存取鍵", "工具列" ],
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
     "sqlAssist.suggestions.includeSnippets": {
       "type": "boolean",
       "default": true,
@@ -135,72 +136,98 @@
       "default": true,
       "order": 210,
       "title": "列出資料庫物件與欄位",
-      "description": "關閉後完全不查詢連線的資料庫，清單只剩 T-SQL 關鍵字與程式碼片段。",
+      "description": "關閉後完全不查詢連線的資料庫，清單只剩 T-SQL 關鍵字與程式碼片段。「插入與展開」頁的語句展開也會跟著沒有材料可用。",
       "additionalKeywords": [ "資料表", "檢視", "預存程序", "中繼資料", "metadata" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
-    "sqlAssist.suggestions.showCategoryFilters": {
+
+    "sqlAssist.insertion.qualifyObjectNames": {
       "type": "boolean",
       "default": true,
-      "order": 130,
-      "title": "在建議清單上方顯示分類篩選列",
-      "description": "按下欄位、資料表、檢視等按鈕只看該分類，也可以按 Alt 加上按鈕的存取鍵。不選任何一顆就是全部。清單裡只有一種分類時不會出現。",
-      "additionalKeywords": [ "filter", "只看欄位", "只看資料表", "存取鍵", "工具列" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "order": 100,
+      "title": "插入物件時補上結構描述名稱",
+      "description": "例如插入 dbo.Lib_Reader 而不是 Lib_Reader。總開關在「一般」頁。",
+      "additionalKeywords": [ "schema", "dbo", "限定名稱", "完整名稱", "qualify" ]
     },
-    "sqlAssist.suggestions.qualifyObjectNames": {
+    "sqlAssist.insertion.useSquareBrackets": {
+      "type": "boolean",
+      "default": false,
+      "order": 110,
+      "title": "插入物件時加上方括號",
+      "description": "例如插入 [dbo].[Lib_Reader]。關閉時仍會為含空白或保留字的名稱加上括號，否則插入的 SQL 無效。",
+      "additionalKeywords": [ "[]", "中括號", "bracket", "跳脫", "保留字" ]
+    },
+    "sqlAssist.insertion.expandWildcardOnTab": {
+      "type": "boolean",
+      "default": true,
+      "order": 200,
+      "title": "按 Tab 把 SELECT * 展開成欄位清單",
+      "description": "游標停在選取清單的 * 後方時顯示提示，按 Tab 換成完整欄位。支援資料表、檢視、子查詢與 CTE；a.* 只展開該來源，敘述有兩個以上來源時自動補上別名。只要有一個來源解析不出來就完全不展開。",
+      "additionalKeywords": [ "星號", "萬用字元", "wildcard", "展開欄位", "expand" ]
+    },
+    "sqlAssist.insertion.wildcardLayout": {
+      "type": "string",
+      "default": "oneLineWhenShort",
+      "order": 210,
+      "enum": [ "oneLineWhenShort", "onePerLine", "fillWidth" ],
+      "enumItemLabels": [
+        "放得下就排成一行，放不下才每欄一行",
+        "永遠每欄一行",
+        "依行寬排滿，一行放多個欄位"
+      ],
+      "title": "SELECT * 展開後的欄位排版",
+      "description": "每欄一行時，新增或移除欄位只會動到一行，比對版本差異最清楚。另外兩種的換行位置由欄位名稱的長度決定。",
+      "additionalKeywords": [ "怎麼排", "換行", "格式", "layout", "每欄一行" ],
+      "enableWhen": "${config:sqlAssist.insertion.expandWildcardOnTab} == 'true'"
+    },
+    "sqlAssist.insertion.expandAlterDefinition": {
       "type": "boolean",
       "default": true,
       "order": 300,
-      "title": "插入物件時補上結構描述名稱",
-      "description": "例如插入 dbo.Lib_Reader 而不是 Lib_Reader。",
-      "additionalKeywords": [ "schema", "dbo", "限定名稱", "完整名稱", "qualify" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "title": "在 ALTER 之後展開完整定義",
+      "description": "在 ALTER PROCEDURE、ALTER FUNCTION、ALTER VIEW、ALTER TRIGGER 之後選取物件時，把伺服器上目前的 CREATE 定義取回來改寫成 ALTER 整句貼上，游標停在名稱後面。定義取不到或不是 CREATE 開頭時維持只插入名稱。關閉後只插入名稱，也不會為此向伺服器查詢定義。",
+      "additionalKeywords": [ "修改", "定義", "改寫", "sp_helptext", "產生 SQL" ]
     },
-    "sqlAssist.suggestions.useSquareBrackets": {
-      "type": "boolean",
-      "default": false,
-      "order": 310,
-      "title": "插入物件時加上方括號",
-      "description": "例如插入 [dbo].[Lib_Reader]。關閉時仍會為含空白或保留字的名稱加上括號，否則插入的 SQL 無效。",
-      "additionalKeywords": [ "[]", "中括號", "bracket", "跳脫", "保留字" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
-    },
-    "sqlAssist.suggestions.expandInsertStatement": {
+    "sqlAssist.insertion.expandInsertStatement": {
       "type": "boolean",
       "default": true,
-      "order": 400,
+      "order": 310,
       "title": "在 INSERT INTO 之後展開完整的欄位與 VALUES",
       "description": "選取資料表後不只補上名稱，而是展開成每列一個欄位的清單加上對應的 VALUES 預留值。IDENTITY、計算欄位、rowversion 與時態資料表的期間欄位會排除。關閉後只插入名稱。",
-      "additionalKeywords": [ "新增資料", "欄位清單", "產生 SQL", "樣板", "IDENTITY" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "additionalKeywords": [ "新增資料", "欄位清單", "產生 SQL", "樣板", "IDENTITY" ]
     },
-    "sqlAssist.suggestions.expandMergeStatement": {
+    "sqlAssist.insertion.expandMergeStatement": {
       "type": "boolean",
       "default": true,
-      "order": 405,
+      "order": 320,
       "title": "在 MERGE INTO 之後展開完整的比對鍵與動作子句",
       "description": "選取目標資料表後展開成 ON 比對鍵、UPDATE SET、INSERT 與 VALUES；比對鍵取自主索引鍵，兩個動作子句都帶著 AND 1 = 0，確認條件之前不會真的改到資料。關閉後只插入名稱。",
-      "additionalKeywords": [ "合併", "upsert", "同步", "主索引鍵", "產生 SQL" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "additionalKeywords": [ "合併", "upsert", "同步", "主索引鍵", "產生 SQL" ]
     },
-    "sqlAssist.suggestions.expandProcedureCall": {
+    "sqlAssist.insertion.expandProcedureCall": {
       "type": "boolean",
       "default": true,
-      "order": 410,
+      "order": 330,
       "title": "在 EXEC 之後展開完整的參數清單",
       "description": "選取預存程序後展開成具名傳值的呼叫，每個參數一列並註明型別；有預設值的參數標示為選擇性，OUTPUT 參數會一併補上 DECLARE。關閉後只插入名稱。",
-      "additionalKeywords": [ "預存程序", "stored procedure", "呼叫", "OUTPUT", "產生 SQL" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "additionalKeywords": [ "預存程序", "stored procedure", "呼叫", "OUTPUT", "產生 SQL" ]
     },
-    "sqlAssist.suggestions.expandFunctionCall": {
+    "sqlAssist.insertion.includeOptionalParameters": {
       "type": "boolean",
       "default": true,
-      "order": 415,
+      "order": 340,
+      "title": "EXEC 展開時包含選擇性參數",
+      "description": "關閉後只展開必填參數，在定義裡已經給了預設值的那些一律省略——省略選擇性參數本來就是合法的呼叫方式，參數很多的程序因此短得多。整支程序的參數都有預設值時就不展開了，維持只插入名稱。",
+      "additionalKeywords": [ "預設值", "必填", "選填", "optional", "default", "太長" ],
+      "enableWhen": "${config:sqlAssist.insertion.expandProcedureCall} == 'true'"
+    },
+    "sqlAssist.insertion.expandFunctionCall": {
+      "type": "boolean",
+      "default": true,
+      "order": 350,
       "title": "選取自訂函式後補上括號與引數",
       "description": "選取純量函式或資料表值函式後補上一整組引數，依參數型別填入預留值（數值 0、字串 ''、日期 NULL），沒有參數的函式補一對空括號。函式的括號在 T-SQL 裡本來就非寫不可。關閉後只插入名稱。",
-      "additionalKeywords": [ "使用者自訂函式", "function", "括號", "引數", "參數", "產生 SQL" ],
-      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+      "additionalKeywords": [ "使用者自訂函式", "function", "括號", "引數", "參數", "產生 SQL" ]
     },
 
     "sqlAssist.structure.hoverEnabled": {
@@ -280,13 +307,13 @@
     },
     "sqlAssist.general": {
       "title": "一般",
-      "description": "總開關與編輯行為。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
+      "description": "總開關與輸入時的改寫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
       "additionalKeywords": [ "總開關", "停用", "全域" ],
       "order": 100
     },
     "sqlAssist.suggestions": {
       "title": "建議清單",
-      "description": "輸入時自動彈出的建議清單，以及提交時插入的文字格式。",
+      "description": "清單什麼時候彈出來、裡面列些什麼。選取之後插進編輯器的文字長什麼樣在「插入與展開」頁。",
       "additionalKeywords": [ "自動完成", "補全", "智慧感知", "IntelliSense", "completion" ],
       "order": 200,
       "messages": [
@@ -296,16 +323,22 @@
         }
       ]
     },
+    "sqlAssist.insertion": {
+      "title": "插入與展開",
+      "description": "決定最後寫進編輯器的是什麼文字：物件名稱的寫法、SELECT * 展開成欄位，以及五種語句展開。總開關在「一般」頁，語句展開另外需要「建議清單」頁的清單開著。",
+      "additionalKeywords": [ "展開", "產生 SQL", "樣板", "骨架", "expand", "generate", "星號", "schema" ],
+      "order": 300
+    },
     "sqlAssist.structure": {
       "title": "物件結構",
-      "description": "滑鼠停留提示與建議清單旁的浮動結構預覽，兩者互不影響。",
+      "description": "滑鼠停留提示與建議清單旁的浮動結構預覽，兩者互不影響。總開關在「一般」頁。",
       "additionalKeywords": [ "預覽", "hover", "quick info", "欄位型別" ],
-      "order": 300
+      "order": 400
     },
     "sqlAssist.diagnostics": {
       "title": "診斷",
       "additionalKeywords": [ "log", "除錯", "紀錄檔", "問題回報" ],
-      "order": 400,
+      "order": 500,
       "commands": [
         {
           "vsct": {

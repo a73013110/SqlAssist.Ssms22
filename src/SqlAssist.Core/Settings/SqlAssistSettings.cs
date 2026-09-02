@@ -27,25 +27,6 @@ public sealed class SqlAssistSettings
     public bool UppercaseKeywordsOnType { get; init; } = true;
 
     /// <summary>
-    /// sqlAssist.general.expandWildcardOnTab
-    /// </summary>
-    /// <remarks>
-    /// 游標停在選取清單的 <c>*</c> 後方時，按 Tab 把它換成完整的欄位清單，
-    /// 同時決定那個「按 Tab 展開」的提示要不要出現——提示與行為是同一件事，
-    /// 分成兩個開關只會讓人調出「看得到提示、按了沒反應」的組合。
-    /// </remarks>
-    public bool ExpandWildcardOnTab { get; init; } = true;
-
-    /// <summary>
-    /// sqlAssist.general.wildcardLayout
-    /// </summary>
-    /// <remarks>
-    /// 只在 <see cref="ExpandWildcardOnTab"/> 開著時看得到效果；註冊檔也是這樣
-    /// 用 <c>enableWhen</c> 綁住的，兩個設定因此必須留在同一個分類裡。
-    /// </remarks>
-    public SqlWildcardLayout WildcardLayout { get; init; } = SqlWildcardLayout.OneLineWhenShort;
-
-    /// <summary>
     /// sqlAssist.general.autoPairDelimiters
     /// </summary>
     /// <remarks>
@@ -77,18 +58,6 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.suggestions.triggerAfterCharacters</summary>
     public int TriggerAfterCharacters { get; init; } = SqlAssistLimits.DefaultTriggerCharacters;
 
-    /// <summary>sqlAssist.suggestions.includeSnippets：內建與使用者自訂的程式碼片段。</summary>
-    public bool IncludeSnippets { get; init; } = true;
-
-    /// <summary>
-    /// sqlAssist.suggestions.includeDatabaseObjects
-    /// </summary>
-    /// <remarks>
-    /// 整個中繼資料層的閘門：物件清單、欄位建議、敘述範圍欄位與欄位預熱
-    /// 全都掛在它下面。關掉之後不會對連線的資料庫送出任何查詢。
-    /// </remarks>
-    public bool IncludeDatabaseObjects { get; init; } = true;
-
     /// <summary>
     /// sqlAssist.suggestions.showCategoryFilters
     /// </summary>
@@ -98,14 +67,61 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool ShowCategoryFilters { get; init; } = true;
 
-    /// <summary>sqlAssist.suggestions.qualifyObjectNames</summary>
+    /// <summary>sqlAssist.suggestions.includeSnippets：內建與使用者自訂的程式碼片段。</summary>
+    public bool IncludeSnippets { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.suggestions.includeDatabaseObjects
+    /// </summary>
+    /// <remarks>
+    /// 整個中繼資料層的閘門：物件清單、欄位建議、敘述範圍欄位與欄位預熱
+    /// 全都掛在它下面。關掉之後不會對連線的資料庫送出任何查詢，
+    /// 「插入與展開」那幾項也就沒有材料可以展開。
+    /// </remarks>
+    public bool IncludeDatabaseObjects { get; init; } = true;
+
+    /// <summary>sqlAssist.insertion.qualifyObjectNames</summary>
     public bool QualifyObjectNames { get; init; } = true;
 
-    /// <summary>sqlAssist.suggestions.useSquareBrackets</summary>
+    /// <summary>sqlAssist.insertion.useSquareBrackets</summary>
     public bool UseSquareBrackets { get; init; }
 
     /// <summary>
-    /// sqlAssist.suggestions.expandInsertStatement
+    /// sqlAssist.insertion.expandWildcardOnTab
+    /// </summary>
+    /// <remarks>
+    /// 游標停在選取清單的 <c>*</c> 後方時，按 Tab 把它換成完整的欄位清單，
+    /// 同時決定那個「按 Tab 展開」的提示要不要出現——提示與行為是同一件事，
+    /// 分成兩個開關只會讓人調出「看得到提示、按了沒反應」的組合。
+    ///
+    /// 由 Tab 觸發而不是由建議提交觸發，但使用者感覺到的是「編輯器裡多出一串欄位」，
+    /// 所以歸在 <c>insertion</c> 而不是 <c>general</c>。
+    /// </remarks>
+    public bool ExpandWildcardOnTab { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.insertion.wildcardLayout
+    /// </summary>
+    /// <remarks>
+    /// 只在 <see cref="ExpandWildcardOnTab"/> 開著時看得到效果；註冊檔也是這樣
+    /// 用 <c>enableWhen</c> 綁住的，兩個設定因此必須留在同一個分類裡。
+    /// </remarks>
+    public SqlWildcardLayout WildcardLayout { get; init; } = SqlWildcardLayout.OneLineWhenShort;
+
+    /// <summary>
+    /// sqlAssist.insertion.expandAlterDefinition
+    /// </summary>
+    /// <remarks>
+    /// 在 <c>ALTER PROCEDURE</c>／<c>FUNCTION</c>／<c>VIEW</c>／<c>TRIGGER</c> 之後
+    /// 提交一個模組時，把伺服器上的 <c>CREATE</c> 定義取回來改寫成 <c>ALTER</c> 整句貼上。
+    ///
+    /// 關掉它同時省下那一次查詢：<c>SqlAlterStatementExpansion.KnownDetail</c> 是
+    /// <c>null</c>（定義只有中繼資料層拿得到），不建立展開就不會去問。
+    /// </remarks>
+    public bool ExpandAlterDefinition { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.insertion.expandInsertStatement
     /// </summary>
     /// <remarks>
     /// 在 <c>INSERT INTO </c> 之後提交一張資料表時，把整句展開成欄位清單加
@@ -115,7 +131,7 @@ public sealed class SqlAssistSettings
     public bool ExpandInsertStatement { get; init; } = true;
 
     /// <summary>
-    /// sqlAssist.suggestions.expandMergeStatement
+    /// sqlAssist.insertion.expandMergeStatement
     /// </summary>
     /// <remarks>
     /// 在 <c>MERGE INTO </c> 之後提交一張資料表時，把整句展開成比對鍵、
@@ -126,7 +142,7 @@ public sealed class SqlAssistSettings
     public bool ExpandMergeStatement { get; init; } = true;
 
     /// <summary>
-    /// sqlAssist.suggestions.expandProcedureCall
+    /// sqlAssist.insertion.expandProcedureCall
     /// </summary>
     /// <remarks>
     /// 在 <c>EXEC </c> 之後提交一個模組時，把整句展開成具名傳值的呼叫。
@@ -136,7 +152,25 @@ public sealed class SqlAssistSettings
     public bool ExpandProcedureCall { get; init; } = true;
 
     /// <summary>
-    /// sqlAssist.suggestions.expandFunctionCall
+    /// sqlAssist.insertion.includeOptionalParameters
+    /// </summary>
+    /// <remarks>
+    /// 關掉之後 <c>EXEC</c> 的骨架只留必填參數。這不是「少展開一點」的折衷：
+    /// 省略有預設值的參數本來就是合法的呼叫方式，而參數二三十個的程序展開出來
+    /// 有一半是使用者接著要一行一行刪掉的。
+    ///
+    /// 是哪些參數有預設值由 <c>SqlModuleParameterDefaults</c> 從定義文字判斷，
+    /// 而那份判斷本來就跑（展開時要標示「選擇性」），所以關掉不省查詢也不多花錢。
+    /// 定義取不到時那份清單是空的，於是所有參數都算必填——寧可展開得多，
+    /// 也不要因為讀不到定義就把該填的參數吞掉。
+    ///
+    /// 整支程序的參數都有預設值時，篩完一個不剩，那一次就退回只插入名稱：
+    /// <c>EXEC dbo.uspFoo</c> 本身就是完整的呼叫，不是半成品。
+    /// </remarks>
+    public bool IncludeOptionalParameters { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.insertion.expandFunctionCall
     /// </summary>
     /// <remarks>
     /// 提交一個使用者自訂函式時補上引數清單：<c>SELECT dbo.fn_DueDate(NULL)</c>、

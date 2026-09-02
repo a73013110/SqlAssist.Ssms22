@@ -227,7 +227,9 @@ internal sealed class SqlCommitExpander
         switch (context.Intent)
         {
             case CompletionIntent.AlterDefinition:
-                return canReplaceStatement && objectInfo.Kind.IsModule()
+                return canReplaceStatement &&
+                       settings.ExpandAlterDefinition &&
+                       objectInfo.Kind.IsModule()
                     ? new SqlAlterStatementExpansion(objectInfo)
                     : null;
 
@@ -252,7 +254,7 @@ internal sealed class SqlCommitExpander
                 return canReplaceStatement &&
                        settings.ExpandProcedureCall &&
                        objectInfo.Kind.IsExecutable()
-                    ? new SqlProcedureCallExpansion(objectInfo)
+                    ? new SqlProcedureCallExpansion(objectInfo, settings)
                     : null;
         }
 

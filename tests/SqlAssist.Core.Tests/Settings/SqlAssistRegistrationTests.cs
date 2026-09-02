@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using SqlAssist.Core.Settings;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Settings;
@@ -21,7 +22,7 @@ public sealed class SqlAssistRegistrationTests
     /// 改名等於讓所有既有使用者的設定回退到預設值。
     /// </summary>
     [Theory]
-    [InlineData("sqlAssist.general.wildcardLayout", "oneLineWhenShort", "onePerLine", "fillWidth")]
+    [InlineData("sqlAssist.insertion.wildcardLayout", "oneLineWhenShort", "onePerLine", "fillWidth")]
     [InlineData("sqlAssist.structure.previewMode", "delay", "rightArrow", "off")]
     [InlineData("sqlAssist.structure.previewPlacement", "stacked", "beside")]
     public void 列舉的字面值不變(string moniker, params string[] expected)
@@ -128,6 +129,63 @@ public sealed class SqlAssistRegistrationTests
         }
 
         Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
+    /// <summary>
+    /// 每一個設定的分類都在 <c>categories</c> 裡註冊過。
+    /// </summary>
+    /// <remarks>
+    /// moniker 的前綴就是它要出現在哪一頁。前綴打錯或新開了一個分類卻忘了替它
+    /// 寫標題，殼層一樣不會抱怨：那一頁要嘛沒有標題，要嘛整組設定落在別人的頁面上。
+    /// 拆分頁時第一個會漏的就是這一步——設定全部改好了，分類卻只有舊的那幾個。
+    /// </remarks>
+    [Fact]
+    public void 每一個設定的分類都註冊過()
+    {
+        using var document = RegistrationManifest.Open();
+
+        var categories = document.RootElement
+            .GetProperty("categories")
+            .EnumerateObject()
+            .Select(category => category.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var violations = RegistrationManifest.Monikers
+            .Select(moniker => moniker[..moniker.LastIndexOf('.')])
+            .Distinct(StringComparer.Ordinal)
+            .Where(category => !categories.Contains(category))
+            .Select(category => $"分類 {category} 有設定卻沒有註冊")
+            .ToArray();
+
+        Assert.True(violations.Length == 0, string.Join("\n", violations));
+    }
+
+    /// <summary>
+    /// 註冊過的分類都真的有設定。
+    /// </summary>
+    /// <remarks>
+    /// 反方向同樣要擋：空分類預設不顯示，所以搬走最後一項設定卻留著分類，
+    /// 症狀是設定頁上憑空少一頁而註冊檔看起來一切正常。根分類 <c>sqlAssist</c>
+    /// 本來就只當容器，不算在內。
+    /// </remarks>
+    [Fact]
+    public void 註冊過的分類都有設定()
+    {
+        using var document = RegistrationManifest.Open();
+
+        var used = RegistrationManifest.Monikers
+            .Select(moniker => moniker[..moniker.LastIndexOf('.')])
+            .ToHashSet(StringComparer.Ordinal);
+
+        var violations = document.RootElement
+            .GetProperty("categories")
+            .EnumerateObject()
+            .Select(category => category.Name)
+            .Where(category => category != SqlAssistMonikers.Category && !used.Contains(category))
+            .Select(category => $"分類 {category} 沒有任何設定")
+            .ToArray();
+
+        Assert.True(violations.Length == 0, string.Join("\n", violations));
     }
 
     /// <summary>條件式參照的 moniker 必須真的存在，打錯字同樣會讓整頁消失。</summary>

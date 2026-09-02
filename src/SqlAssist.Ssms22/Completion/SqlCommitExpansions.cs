@@ -237,9 +237,12 @@ internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
 /// </remarks>
 internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
 {
-    public SqlProcedureCallExpansion(SqlObjectInfo objectInfo)
+    private readonly SqlAssistSettings _settings;
+
+    public SqlProcedureCallExpansion(SqlObjectInfo objectInfo, SqlAssistSettings settings)
     {
         Object = objectInfo;
+        _settings = settings;
     }
 
     public SqlObjectInfo Object { get; }
@@ -266,20 +269,31 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
                 continue;
             }
 
+            var isOptional = optional.Contains(parameter.Name);
+
+            // 省略選擇性參數是合法的呼叫方式，不是少展開一半。定義讀不到時
+            // optional 是空的，於是每個參數都算必填——寧可展開得多，也不要因為
+            // 讀不到定義就把該填的參數吞掉，那一句貼上去才是真的執行不了。
+            if (isOptional && !_settings.IncludeOptionalParameters)
+            {
+                continue;
+            }
+
             parameters.Add(new SqlStatementParameter(
                 parameter.Name,
                 parameter.DataType,
                 parameter.IsOutput,
-                optional.Contains(parameter.Name)));
+                isOptional));
         }
 
         // 沒有參數的程序展開起來與只插入名稱完全一樣，那就不必動它——
         // 擴充預存程序（sp_executesql 的鄰居）在 sys.parameters 裡也沒有列，
-        // 同樣落在這一條。
+        // 同樣落在這一條。整支程序的參數都有預設值而使用者又選擇不展開它們時，
+        // 篩完也是一個不剩，走的是同一條路：EXEC 加上名稱本身就是完整的呼叫。
         if (parameters.Count == 0)
         {
             SqlAssistDiagnostics.Write(
-                $"{Object.QualifiedName} 沒有參數，維持只插入名稱");
+                $"{Object.QualifiedName} 沒有要展開的參數，維持只插入名稱");
             return null;
         }
 

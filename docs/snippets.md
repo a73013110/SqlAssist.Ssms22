@@ -89,7 +89,7 @@
 `CompletionTarget.Function` 讓掉的話那個位置就完全沒有補字。
 
 Tab Stop 樣板一律**不寫方括號**。要不要加括號由「插入物件時加上方括號」
-（`sqlAssist.suggestions.useSquareBrackets`，預設關閉）決定，樣板自己寫死
+（`sqlAssist.insertion.useSquareBrackets`，預設關閉）決定，樣板自己寫死
 `[dbo].[TableName]` 的話，同一份指令碼裡就會出現兩種風格，而那個差別使用者從來
 沒有要求過。含空白或保留字的名稱仍然要自己補上括號。
 
