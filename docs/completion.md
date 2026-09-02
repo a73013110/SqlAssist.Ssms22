@@ -947,6 +947,22 @@ SELECT a.| FROM (SELECT c.PUBL_CODE, c.SHELF_LOCATION_CODE FROM dbo.PUBLISHER c)
 子查詢與 CTE 讀出來的欄位沒有型別、NULL 與 PK——那些要追到最內層的資料表，
 而中間任何一段運算式都會讓答案不成立。說明欄因此只寫「查詢結果」。
 
+### 資料表值函式的別名
+
+```sql
+SELECT f.| FROM dbo.fn_LoansByReader(0) f
+SELECT * FROM dbo.Loan l CROSS APPLY dbo.fn_LoansByReader(l.CopyNo) f
+```
+
+`f` 與資料表的別名走同一條路：範圍分析把引數清單整段跳過——引數裡的逗號不是來源
+清單的逗號，巢狀的括號也要一次跳完——攤平出來的仍然是一個中繼資料來源，
+欄位由第二層的 `sys.columns` 給，見 [metadata.md](metadata.md) 的
+「資料行查得到，不代表它是一張資料表」。`SELECT *` 展開同理。
+
+只有提交後的展開閘門要另外問一句：`INSERT INTO dbo.fn_LoansByReader` 剖析不過，
+所以那裡問的是「插得進去嗎」而不是「查不查得到資料行」——不然選一個函式就會把一段
+跑不動的骨架整句蓋在使用者打的那一行上。
+
 ### 指令碼宣告的資料表
 
 `#Loan` 與 `@rows` 的欄位中繼資料一列都查不到，但它們的宣告就在使用者眼前：

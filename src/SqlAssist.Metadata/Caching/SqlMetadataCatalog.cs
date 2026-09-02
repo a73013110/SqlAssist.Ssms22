@@ -336,7 +336,10 @@ public sealed class SqlMetadataCatalog
             return null;
         }
 
-        var structure = objectInfo.Kind.HasColumns()
+        // 索引與外來鍵只有本身就是一張資料表的那幾類查得出東西。資料表值函式
+        // 這一輪也有資料行了，但它的指令碼來自定義本文，索引寫不進
+        // CREATE FUNCTION——為它多跑一次第四層查詢，換不到任何顯示得出來的分頁。
+        var structure = objectInfo.Kind.IsTableShaped()
             ? await Task
                 .Run(() => TryLoad(() => LoadStructure(detail, cancellationToken)), cancellationToken)
                 .ConfigureAwait(false)
@@ -449,7 +452,7 @@ public sealed class SqlMetadataCatalog
         using var connection = _connectionSource.OpenConnection();
         var objectId = objectInfo.ObjectId;
 
-        var columns = objectInfo.Kind.HasColumns()
+        var columns = objectInfo.Kind.HasCatalogColumns()
             ? ReadList(
                 connection,
                 SqlMetadataQueries.Columns,

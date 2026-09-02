@@ -149,6 +149,27 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Equal("s", table.Alias);
     }
 
+    /// <summary>
+    /// 引數清單整段跳過，中間的逗號與巢狀括號都不改變答案。
+    /// </summary>
+    /// <remarks>
+    /// <c>FROM</c> 後面接得了逗號分隔的清單，所以引數的逗號認錯的話會多出一個
+    /// 憑空冒出來的來源；而巢狀括號只跳一層的話，別名會被算進資料來源裡。
+    /// 兩種都是同一個症狀：<c>f.</c> 一個欄位都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0, N'x') f")]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(dbo.fn_DueDate(GETDATE(), 14)) f")]
+    public void 資料表值函式的引數不影響來源清單(string sqlWithCaret)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal("dbo", table.SchemaName);
+        Assert.Equal("fn_LoansByReader", table.ObjectName);
+        Assert.Equal("f", table.Alias);
+        Assert.False(table.IsDerived);
+    }
+
     [Fact]
     public void 衍生資料表標記為無中繼資料但保留別名()
     {

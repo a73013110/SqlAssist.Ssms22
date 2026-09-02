@@ -46,12 +46,24 @@ public sealed class SqlObjectDetail
 
     /// <summary>
     /// 組出給預覽窗格與滑鼠停留提示使用的文字。
-    /// 有欄位的物件顯示欄位結構，其餘顯示定義本文（同義字與序列的定義是本擴充
-    /// 自己從目錄檢視組出來的，見 <see cref="Definition"/>）。
+    /// 本身就是一組資料行的物件顯示欄位結構，其餘顯示定義本文（同義字與序列的
+    /// 定義是本擴充自己從目錄檢視組出來的，見 <see cref="Definition"/>）。
     /// </summary>
+    /// <remarks>
+    /// 三道判斷的順序都是有理由的：
+    ///
+    /// 檢視同時有欄位也有定義，欄位優先——那是使用者停在一個檢視上時要看的東西。
+    /// 資料表值函式反過來：它的資料行是回傳值的形狀，定義本文才同時說得出它吃
+    /// 什麼引數、回傳什麼。順序顛倒的症狀是一個函式的預覽只剩一串資料行，
+    /// 而看的人根本不知道要怎麼呼叫它。
+    ///
+    /// 最後那道 <see cref="Columns"/> 是給認不出來的種類留的：
+    /// <see cref="SqlObjectKinds.IsTableShaped"/> 說不出它是什麼，
+    /// 但既然真的查到了資料行，列出來仍然勝過一行光禿禿的標題。
+    /// </remarks>
     public string BuildPreview()
     {
-        if (Object.Kind.HasColumns() || Columns.Count > 0)
+        if (Object.Kind.IsTableShaped())
         {
             return BuildColumnPreview();
         }
@@ -61,7 +73,7 @@ public sealed class SqlObjectDetail
             return Definition!;
         }
 
-        return BuildSignaturePreview();
+        return Columns.Count > 0 ? BuildColumnPreview() : BuildSignaturePreview();
     }
 
     private string BuildColumnPreview()

@@ -231,17 +231,20 @@ internal sealed class SqlCommitExpander
                     ? new SqlAlterStatementExpansion(objectInfo)
                     : null;
 
+            // 問的是「插得進去嗎」而不是「查得到資料行嗎」：資料表值函式兩者都答
+            // 得出資料行，但 INSERT INTO dbo.fn_LoansByReader 剖析不過，
+            // 展開只是把一段跑不動的骨架整句蓋在使用者打的那一行上。
             case CompletionIntent.InsertStatement:
                 return canReplaceStatement &&
                        settings.ExpandInsertStatement &&
-                       objectInfo.Kind.HasColumns()
+                       objectInfo.Kind.IsInsertTarget()
                     ? new SqlInsertStatementExpansion(objectInfo, settings)
                     : null;
 
             case CompletionIntent.MergeStatement:
                 return canReplaceStatement &&
                        settings.ExpandMergeStatement &&
-                       objectInfo.Kind.HasColumns()
+                       objectInfo.Kind.IsInsertTarget()
                     ? new SqlMergeStatementExpansion(objectInfo, settings)
                     : null;
 

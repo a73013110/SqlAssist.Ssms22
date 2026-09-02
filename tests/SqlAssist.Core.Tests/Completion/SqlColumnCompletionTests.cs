@@ -368,4 +368,47 @@ public sealed class SqlColumnCompletionTests
 
         Assert.Equal("Copy", source.Table!.ObjectName);
     }
+
+    /// <summary>
+    /// 資料表值函式的別名要解析成那個函式，而不是被引數的括號吃掉。
+    /// </summary>
+    /// <remarks>
+    /// 它的資料行由中繼資料給（<c>SqlObjectKinds.HasCatalogColumns</c>），
+    /// 因此這裡要的是一個 <see cref="SqlColumnSourceKind.Table"/> 來源——
+    /// 攤平成別的東西、或者根本沒有來源，<c>f.</c> 都是一個欄位都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT f.| FROM dbo.fn_LoansByReader(0) f")]
+    [InlineData("SELECT f.| FROM dbo.fn_LoansByReader(@ReaderId, N'x') AS f")]
+    [InlineData("SELECT f.| FROM dbo.Loan l CROSS APPLY dbo.fn_LoansByReader(l.CopyNo) f")]
+    public void 資料表值函式的別名解析成該函式(string sqlWithCaret)
+    {
+        var table = ResolvedTable(Analyze(sqlWithCaret));
+
+        Assert.Equal("dbo", table.SchemaName);
+        Assert.Equal("fn_LoansByReader", table.ObjectName);
+        Assert.False(table.IsDerived);
+    }
+
+    /// <remarks>
+    /// 引數本身是一次函式呼叫時括號是巢狀的；只跳一層的話後面的別名會被當成
+    /// 資料來源的一部分，那個別名就再也解析不出來。
+    /// </remarks>
+    [Fact]
+    public void 引數裡還有函式呼叫時別名仍解析得出來()
+    {
+        var table = ResolvedTable(
+            Analyze("SELECT f.| FROM dbo.fn_LoansByReader(dbo.fn_DueDate(GETDATE(), 14)) f"));
+
+        Assert.Equal("fn_LoansByReader", table.ObjectName);
+    }
+
+    /// <summary>沒有別名時用函式名稱限定，與資料表同一條規則。</summary>
+    [Fact]
+    public void 沒有別名的資料表值函式用函式名稱限定()
+    {
+        var table = ResolvedTable(Analyze("SELECT fn_LoansByReader.| FROM dbo.fn_LoansByReader(0)"));
+
+        Assert.Equal("fn_LoansByReader", table.ObjectName);
+    }
 }
