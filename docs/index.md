@@ -17,6 +17,7 @@
 | 了解括號與引號的自動配對 | [auto-pairing.md](auto-pairing.md) |
 | 使用滑鼠提示與完整結構預覽 | [structure-preview.md](structure-preview.md) |
 | 按 F12 在新查詢視窗看物件定義 | [go-to-definition.md](go-to-definition.md) |
+| 把查詢結果變成 `#temp` 指令碼或 `IN` 條件 | [result-grid.md](result-grid.md) |
 | 尋找功能設定 | [settings.md](settings.md) |
 
 ## 我要改的是……
@@ -50,6 +51,7 @@
 | 任何顏色、字型、按鈕樣式 | [structure-preview.md](structure-preview.md) | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
 | 按了某個鍵卻沒反應（F12 之類） | [go-to-definition.md](go-to-definition.md) | `Ssms22/Editor/SqlShellCommandFilter.cs`（**唯一**攔得到殼層命令的位置） |
 | F12 抵達了卻沒開視窗 | [go-to-definition.md](go-to-definition.md) | `Ssms22/Editor/SqlDefinitionOpener.cs` |
+| 結果格線右鍵選單的命令、產出的 SQL 不對 | [result-grid.md](result-grid.md) | `Metadata/ResultGrid/`、`Ssms22/ResultGrid/` |
 | 新增選單項目或鍵繫結後沒生效 | [development.md](development.md) | `Menus.vsct` ＋ `ProvideMenuResource` 版號，且必須重新安裝 |
 | F12 開出來的指令碼內容不對 | [go-to-definition.md](go-to-definition.md) | `Metadata/Formatting/SqlObjectScript.cs` |
 | 新查詢視窗沒有沿用連線 | [go-to-definition.md](go-to-definition.md) | `Ssms22/Connections/SsmsScriptWindow.cs` |
@@ -89,6 +91,7 @@
 | `Querying/` | 分層的中繼資料查詢與資料列對應 | [metadata.md](metadata.md) |
 | `Caching/` | 依「伺服器＋資料庫」快取，並協調分層載入 | [metadata.md](metadata.md) |
 | `Formatting/` | 型別字串、識別字括號、欄位的呈現語意，以及可執行指令碼的批次樣板 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
+| `ResultGrid/` | 查詢結果的欄位與資料列模型、值轉字面值、`#temp` 與 `IN` 的產生 | [result-grid.md](result-grid.md) |
 
 ### SqlAssist.Ssms22（net48 VSIX，只做接線）
 
@@ -103,6 +106,7 @@
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 | [settings.md](settings.md) |
 | `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
 | `Commands/` | 命令識別碼、工具選單命令與「關於與診斷」視窗 | [development.md](development.md) |
+| `ResultGrid/` | 從 SSMS 結果格線取出選取範圍，並把產出交給新查詢視窗或剪貼簿 | [result-grid.md](result-grid.md) |
 | `UI/` | 全擴充共用的外觀與佈景筆刷 | [structure-preview.md](structure-preview.md) |
 
 ## 只有一份的東西
@@ -121,6 +125,8 @@
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 識別字加括號、型別格式化 | `Metadata/Formatting/SqlIdentifier.cs`、`SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
+| 從 SSMS 結果格線取資料（兩套欄索引只換算一次） | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
 | 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
 | DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |

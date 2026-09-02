@@ -22,6 +22,31 @@
         再各自標上 CommandWellOnly。
       -->
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" priority="0x0900" />
+
+      <!--
+        掛進 SSMS 查詢結果格線的右鍵選單。父選單是 SSMS 內部的命令表項目，不是
+        公開的擴充契約，值的出處是 SQLEditors.dll：DisplaySqlResultsTabControl
+        的 WndProc 收到 WM_CONTEXTMENU、確認作用中控制項是 GridControl 之後，
+        呼叫 CommonUtils.DisplayPopupMenu(shell, 112, x, y, selectedTab)，而那個
+        多載補上的群組就是 SQLWorkbenchCommands.GUID_SQLEditorGroup。
+        全組件只有那一處用 112，其他窗格各自不同（訊息 96、執行計畫 128），
+        所以這個 ID 沒有歧義。
+
+        SSMS 改版換掉其中任何一個值的症狀，是這一段選單安靜地不出現——沒有例外、
+        沒有紀錄，跟命令掛錯層是同一類。兩個常數都在公開類別 SQLWorkbenchCommands
+        裡，所以 tools\Test-CommandTable.ps1 有辦法在建置期比對，不必等使用者發現。
+      -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridGroup" priority="0x0800">
+        <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
+      </Group>
+
+      <!-- 子選單裡的命令。掛在子選單自己底下，不是上面那個掛進 SSMS 的群組。 -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0100">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" />
+      </Group>
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0900">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" />
+      </Group>
     </Groups>
 
     <Menus>
@@ -34,6 +59,19 @@
       -->
       <Menu guid="guidSqlAssistCommandSet" id="SqlAssistMenu" priority="0x0700" type="Menu">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_TOOLS_OTHER2" />
+        <CommandFlag>AlwaysCreate</CommandFlag>
+        <Strings>
+          <ButtonText>SqlAssist</ButtonText>
+          <CommandName>SqlAssist</CommandName>
+        </Strings>
+      </Menu>
+
+      <!--
+        結果格線的右鍵選單是 SSMS 自己的，上面已經有十幾項。收成一層子選單，
+        本擴充的命令再多也只佔一列，而且看得出是誰加的。
+      -->
+      <Menu guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" priority="0x0100" type="Menu">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridGroup" />
         <CommandFlag>AlwaysCreate</CommandFlag>
         <Strings>
           <ButtonText>SqlAssist</ButtonText>
@@ -83,6 +121,25 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <Strings><ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText></Strings>
+      </Button>
+
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Strings><ButtonText>建立 #temp 指令碼（新查詢視窗）</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0200" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Strings><ButtonText>複製成 IN 條件</ButtonText></Strings>
+      </Button>
+
+      <!--
+        格線內部的探測。留著而不是刪掉：SSMS 換版之後這一組功能安靜地失效時，
+        它是唯一問得出「格線還在不在、方法還叫不叫這個名字」的東西。
+        只在「詳細記錄」打開時才出現，平常不佔使用者的選單。
+      -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidProbeResultGrid" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" />
+        <Strings><ButtonText>探測這個結果格線（診斷）</ButtonText></Strings>
       </Button>
     </Buttons>
   </Commands>
@@ -139,6 +196,10 @@
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
       <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
+      <IDSymbol name="SqlAssistResultGridGroup" value="0x1600" />
+      <IDSymbol name="SqlAssistResultGridMenu" value="0x1610" />
+      <IDSymbol name="SqlAssistResultGridActionsGroup" value="0x1620" />
+      <IDSymbol name="SqlAssistResultGridDiagnosticsGroup" value="0x1630" />
       <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
@@ -149,6 +210,18 @@
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
+      <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
+      <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
+      <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />
+    </GuidSymbol>
+
+    <!--
+      SSMS 自己的選單群組，值取自 SQLEditors.dll 的公開類別 SQLWorkbenchCommands
+      （GUID_SQLEditorGroup 與 IDM_SQLWB_SQLRESGRID_CONTEXT = 112）。
+      這裡只宣告我們要掛進去的那一個選單，不複製整份清單。
+    -->
+    <GuidSymbol name="guidSqlWorkbenchEditorGroup" value="{33F13AC3-80BB-4ECB-85BC-225435603A5E}">
+      <IDSymbol name="IDM_SQLWB_SQLRESGRID_CONTEXT" value="0x0070" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>
