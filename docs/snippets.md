@@ -125,9 +125,10 @@ Tab Stop 沒有清單。
 | 這一格前面是 | 結果 |
 |---|---|
 | `MERGE INTO `、`USING `、`FROM `、`ALTER TABLE `… | 列出資料表與檢視 |
+| `CREATE INDEX ix ON ` 這種 DDL 的 `ON` | 同上；與 JOIN 條件的 `ON` 由 `SqlDdlTarget` 分開 |
 | `target.`、`source.` 這種別名限定字 | 列出那一張表的欄位 |
 | `CREATE TABLE `、`CREATE VIEW `、`CREATE PROCEDURE `… | 不參與；那是使用者正要取的新名字 |
-| `INSERT (` 這種推不出目標又沒有限定字的位置 | 打了字才有；列出敘述看得到的欄位 |
+| `INSERT (`、`CREATE INDEX … ON t (` 這種推不出目標又沒有限定字的位置 | 打了字才有；列出敘述看得到的欄位 |
 
 第二列不必特別處理：那些位置推不出目標，前綴又是空的，分析器自己就回報不參與。
 兩列各有守門測試（`物件欄位落在會列出資料來源的位置`、`新建物件的名稱欄位不主動開清單`）。
