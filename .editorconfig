@@ -1,0 +1,7 @@
+root = true
+
+# 產生器與編輯器共用同一份格式，避免只因 BOM 或換行造成整檔差異。
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true

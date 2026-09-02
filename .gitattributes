@@ -1,4 +1,8 @@
-# git 在 Windows 上（core.autocrlf=true）會在簽出時把 LF 換成 CRLF，而 sh 讀到
-# CRLF 結尾的 shebang 會回報 "bad interpreter" ——症狀是 hook 看起來裝好了卻每次
-# 都失敗，而錯誤訊息完全不提換行。hook 一律保持 LF。
-.githooks/** text eol=lf
+# 版本庫一律使用 LF，避免 Windows 的 core.autocrlf 與產生器反覆改寫整份檔案。
+* text=auto eol=lf
+
+# 測試來源可能刻意含 NUL；仍須視為文字，否則 Git 會略過換行規則。
+*.cs text eol=lf
+
+# 二進位資產不得套用文字正規化。
+*.png binary

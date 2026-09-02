@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace SqlAssist.Ssms22.Commands;
 

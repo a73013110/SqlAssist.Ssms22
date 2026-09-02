@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Parsing;

@@ -1,4 +1,4 @@
-﻿namespace SqlAssist.Core.Completion;
+namespace SqlAssist.Core.Completion;
 
 public enum SuggestionKind
 {

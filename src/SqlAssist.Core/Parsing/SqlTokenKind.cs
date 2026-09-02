@@ -1,4 +1,4 @@
-﻿namespace SqlAssist.Core.Parsing;
+namespace SqlAssist.Core.Parsing;
 
 /// <summary>T-SQL 詞法單元的種類。</summary>
 /// <remarks>

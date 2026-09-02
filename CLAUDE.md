@@ -135,6 +135,13 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
   試過而失敗的做法、以及不這樣寫會出現的症狀。現有檔案就是範本。
 - **禁止**用非繁體中文撰寫註解與文件。
 
+## 文字檔格式
+
+- 所有文字檔一律使用 **UTF-8（無 BOM）與 LF**；唯一規格是根目錄的
+  `.editorconfig` 與 `.gitattributes`，`core.autocrlf` 不得覆蓋它。
+- **禁止**在工作結束前批次「還原 CRLF」或補回 BOM。產生與修改時直接保留 LF，並以
+  `tools/Check-TextFiles.ps1` 驗證；只為換行重寫整份檔案會製造無意義差異與 token 成本。
+
 ## 文件
 
 文件是按需讀的，但「按需」的前提是那一份夠小。讀進 context 的每一個 token，都會被

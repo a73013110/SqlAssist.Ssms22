@@ -1,4 +1,4 @@
-﻿
+
 
 namespace SqlAssist.Core.Settings;
 

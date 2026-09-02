@@ -2,8 +2,8 @@
 # 忘記跑測試就 push 時，錯誤要等到下一次有人 clone 或發布才會浮出來。
 # 全部測試不到三秒，擋在 push 之前是最便宜的一道。
 #
-# 文件檢查排在測試前面：它更快，而且它擋的兩件事（超出大小預算、斷掉的
-# Markdown 連結）在執行期完全沒有徵兆，只有人點下去才會發現。
+# 文字格式與文件檢查排在測試前面：它們更快，而且格式漂移會讓後續差異整檔失真，
+# 文件超出大小預算或連結斷掉則要等到人點下去才會發現。
 #
 # 啟用方式（clone 之後要做一次，git 不會自動套用版控裡的 hook）：
 #   git config core.hooksPath .githooks
@@ -11,6 +11,8 @@
 # 真的要略過時用 git push --no-verify。
 
 root="$(git rev-parse --show-toplevel)" || exit 1
+
+pwsh -NoProfile -File "$root/tools/Check-TextFiles.ps1" || exit 1
 
 pwsh -NoProfile -File "$root/tools/Check-Docs.ps1" || exit 1
 

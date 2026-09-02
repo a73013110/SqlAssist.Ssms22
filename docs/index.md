@@ -1,4 +1,4 @@
-﻿# 索引
+# 索引
 
 所有文件的入口，分成兩半：**上半給使用者**——裝起來、開始用；**下半給開發者**——
 從「我要改什麼」或手上的檔案路徑，找到該讀的文件與該進入的程式碼。
@@ -174,6 +174,7 @@
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
+| `Check-TextFiles.ps1` | 檢查文字檔皆為 UTF-8（無 BOM）、LF 且有檔尾換行 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
 | `SqlAssist.Tools.psm1` | 上述腳本共用的環境探索 |
 
