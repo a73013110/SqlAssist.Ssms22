@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Parsing;
 
@@ -77,6 +77,13 @@ public static class SqlKeywordPositionAnalyzer
     /// 另一個 JOIN、GROUP、ORDER）。只給 <see cref="SqlKeywordPosition.ExpressionTail"/>
     /// 的話 WHERE 永遠不會出現——那正是「INNER JOIN 的 ON 寫完之後打不出 WHERE」。
     /// 位置本來就是旗標，文法允許兩個就報兩個，不必挑一個猜。
+    ///
+    /// <c>SET</c> 是同一件事的第二次：<c>UPDATE t SET a = 1 </c> 之後接得了
+    /// <c>WHERE</c>、<c>FROM</c>、<c>OUTPUT</c>、<c>OPTION</c>，而那一整組字掛的是
+    /// <see cref="SqlKeywordPosition.TableSourceTail"/>——只給述詞尾端的症狀就是
+    /// <c>UPDATE</c> 寫到一半打不出 <c>WHERE</c>。工作階段選項的
+    /// <c>SET NOCOUNT ON</c> 會拿到同一組位置，那是「位置分析看到 SET 一律回報
+    /// 同一個位置」這個既有取捨的延伸，代價是清單多幾個字。
     /// </remarks>
     private static readonly Dictionary<string, SqlKeywordPosition> ClauseAnchors =
         new(StringComparer.OrdinalIgnoreCase)
@@ -93,7 +100,7 @@ public static class SqlKeywordPositionAnalyzer
 
             ["WHERE"] = SqlKeywordPosition.ExpressionTail,
             ["HAVING"] = SqlKeywordPosition.ExpressionTail,
-            ["SET"] = SqlKeywordPosition.ExpressionTail
+            ["SET"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.TableSourceTail
         };
 
     /// <summary>
@@ -183,11 +190,73 @@ public static class SqlKeywordPositionAnalyzer
 
         // 沒有 AS 的別名也是名字。這一支放在最後而不是併進 AnalyzeAt：
         // 它要看的是原文裡的換行，而詞元串流沒有那個資訊。
-        return position == SqlKeywordPosition.TableSourceTail &&
-               StaysOnSameLine(textBeforeToken) &&
-               IsTableAliasSlot(tokens, tokens.Count - 1)
-            ? SqlKeywordPosition.None
+        if (position == SqlKeywordPosition.TableSourceTail &&
+            StaysOnSameLine(textBeforeToken) &&
+            IsTableAliasSlot(tokens, tokens.Count - 1))
+        {
+            return SqlKeywordPosition.None;
+        }
+
+        return AddStatementStartOnNewLine(position, textBeforeToken);
+    }
+
+    /// <summary>子句尾端又換了行時，這裡同時也可能是下一個敘述的開頭。</summary>
+    private const SqlKeywordPosition ClauseTailPositions =
+        SqlKeywordPosition.TableSourceTail |
+        SqlKeywordPosition.ExpressionTail |
+        SqlKeywordPosition.OrderByTail;
+
+    /// <summary>
+    /// 子句寫完又換了行時，把語句開頭補進位置裡。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 的分號是選用的，所以敘述的結尾沒有任何詞元標示得出來：
+    /// <c>WHERE a = 1</c> 之後換行寫 <c>SELECT</c> 與換行寫 <c>AND</c>，在詞元串流上
+    /// 完全一樣。少了這一條的症狀是使用者不打分號時，下一句的所有語句級片段
+    /// （<c>ssf</c>…）在清單裡一個都沒有，而打了分號就有——他看不出兩者的差別，
+    /// 只會覺得片段時有時無。
+    ///
+    /// 補的是位元而不是換掉：位置本來就是旗標，<c>AND</c>、<c>OR</c>、<c>ORDER</c>
+    /// 這些續寫子句的字一個都不能少。猜錯敘述邊界的代價必須是清單多幾個字，
+    /// 不能是少幾個字。
+    ///
+    /// 只認 <see cref="ClauseTailPositions"/> 那三個「子句已經寫完」的尾端。
+    /// <see cref="SqlKeywordPosition.SelectListTail"/> 不在裡面：<c>SELECT a</c>
+    /// 換行之後幾乎總是接著寫下一個欄位或 <c>FROM</c>，在那裡放進 64 個語句開頭的字
+    /// 與 35 筆片段，使用者真正要的欄位就被擠下去了。
+    ///
+    /// 換行是唯一的線索，理由與 <see cref="StaysOnSameLine"/> 相同，只是方向相反：
+    /// 同一行代表他還在寫同一個子句。
+    /// </remarks>
+    private static SqlKeywordPosition AddStatementStartOnNewLine(
+        SqlKeywordPosition position,
+        string textBeforeToken)
+    {
+        return (position & ClauseTailPositions) != SqlKeywordPosition.None &&
+               StartsOnNewLine(textBeforeToken)
+            ? position | SqlKeywordPosition.StatementStart
             : position;
+    }
+
+    /// <summary>游標與前一個詞元之間隔了至少一個換行。</summary>
+    private static bool StartsOnNewLine(string textBeforeToken)
+    {
+        for (var index = textBeforeToken.Length - 1; index >= 0; index--)
+        {
+            var character = textBeforeToken[index];
+
+            if (!char.IsWhiteSpace(character))
+            {
+                return false;
+            }
+
+            if (character == '\n')
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

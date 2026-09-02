@@ -65,7 +65,9 @@ public sealed class SqlKeywordPositionTests
     // 樣板是 SELECT * FROM t {關鍵字}，但那一行的同一個位置也是別名的位置，
     // 而別名一定寫在同一行——換行之後才是純粹的資料來源尾端。
     // 兩者的分野見「資料來源之後的別名位置不接受任何關鍵字」。
-    [InlineData("SELECT * FROM t\r\n", SqlKeywordPosition.TableSourceTail)]
+    // 換行還會多帶一個位元進來，見「換行之後的子句尾端也是下一句的開頭」。
+    [InlineData("SELECT * FROM t\r\n",
+        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart)]
     [InlineData("SELECT * FROM t WHERE ", SqlKeywordPosition.Predicate)]
     [InlineData("SELECT * FROM t WHERE a = 1 ", SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT * FROM t ORDER ", SqlKeywordPosition.ByAnchor)]
@@ -179,16 +181,22 @@ public sealed class SqlKeywordPositionTests
     /// 換成另一個問題。
     /// </remarks>
     [Theory]
-    [InlineData("SELECT * FROM CTE_TEST a ")]
-    [InlineData("SELECT * FROM CTE_TEST AS a ")]
-    [InlineData("SELECT * FROM dbo.PUBLISHER\r\n")]
-    [InlineData("SELECT * FROM dbo.PUBLISHER\n")]
-    [InlineData("SELECT * FROM dbo.T WITH (NOLOCK) ")]
-    public void 別名寫完或換行之後恢復成資料來源尾端(string textBeforeToken)
+    [InlineData("SELECT * FROM CTE_TEST a ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("SELECT * FROM CTE_TEST AS a ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("SELECT * FROM dbo.T WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
+
+    // 換行多出來的那個位元是「下一句可以開始了」，見
+    // 「換行之後的子句尾端也是下一句的開頭」。資料來源尾端一個都沒少，
+    // 這個測試守的仍然是同一件事。
+    [InlineData("SELECT * FROM dbo.PUBLISHER\r\n",
+        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart)]
+    [InlineData("SELECT * FROM dbo.PUBLISHER\n",
+        SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart)]
+    public void 別名寫完或換行之後恢復成資料來源尾端(
+        string textBeforeToken,
+        SqlKeywordPosition expected)
     {
-        Assert.Equal(
-            SqlKeywordPosition.TableSourceTail,
-            SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
     }
 
     /// <summary>
@@ -281,9 +289,10 @@ public sealed class SqlKeywordPositionTests
     {
         // FROM [FROM] 裡的 [FROM] 是資料表名稱，游標在它後面是資料來源之後、
         // 不是 FROM 之後。當成關鍵字的話這裡會是 DataSource。
-        // 換行寫是為了避開別名的位置，那是另一條規則。
+        // 換行寫是為了避開別名的位置，那是另一條規則；換行順帶帶進來的
+        // StatementStart 是第三條，兩者都與這裡要守的事無關。
         Assert.Equal(
-            SqlKeywordPosition.TableSourceTail,
+            SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart,
             SqlKeywordPositionAnalyzer.Analyze("SELECT * FROM [FROM]\r\n"));
     }
 
@@ -304,6 +313,16 @@ public sealed class SqlKeywordPositionTests
 
     // 衍生資料表寫完、補上別名之後才輪到子句關鍵字。
     [InlineData("SELECT * FROM (SELECT 1 AS a) d ", "WHERE", true)]
+
+    // SET 子句寫完之後接得了 WHERE、FROM、OPTION，而那一整組字掛的是資料來源尾端。
+    // 只給述詞尾端的症狀是 UPDATE 寫到一半打不出 WHERE，而那是這個語句最常打的
+    // 下一個字；暫存資料表與資料表變數走的是同一條路，一起守。
+    [InlineData("UPDATE dbo.Loan SET CopyNo = 'C1' ", "WHERE", true)]
+    [InlineData("UPDATE #Loan\r\nSET CopyNo = 'C1'\r\n", "WHERE", true)]
+    [InlineData("UPDATE @Loan\r\nSET CopyNo = 'C1'\r\n", "WHERE", true)]
+
+    // 述詞續寫的字不能因此掉：位置是聯集，不是換一個。
+    [InlineData("UPDATE dbo.Loan SET CopyNo = 'C1' ", "AND", true)]
 
     // 選取清單的下一項要的是運算式，不是接在整份清單之後的字。
     [InlineData("SELECT a, ", "CASE", true)]
@@ -394,5 +413,49 @@ public sealed class SqlKeywordPositionTests
         // FILLFACTOR 這種深層子句字沒有樣板涵蓋得到。分不出位置的代價是多幾個字，
         // 猜錯位置的代價是使用者永遠打不出來——所以 fail-open。
         Assert.Equal(SqlKeywordPosition.Any, SqlKeywordCatalog.GetPositions("FILLFACTOR"));
+    }
+
+    /// <summary>
+    /// 換行之後的子句尾端也是下一句的開頭。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 的分號是選用的，敘述的結尾沒有任何詞元標示得出來——
+    /// <c>WHERE a = 1</c> 之後換行寫 <c>SELECT</c> 與換行寫 <c>AND</c>，
+    /// 在詞元串流上完全一樣。少了這一條，使用者不打分號時下一句的語句級片段
+    /// 一個都不會出現，而打了分號就有；他看不出兩者的差別，只會覺得片段時有時無。
+    ///
+    /// 補的是位元不是換一個，所以續寫子句的字一個都不能少——那是這個修正
+    /// 從一個問題換成另一個問題的地方。
+    /// </remarks>
+    [Theory]
+    [InlineData("UPDATE dbo.Loan SET CopyNo = 'C1' WHERE ReaderId = 1\r\n", "ssf", true)]
+    [InlineData("SELECT * FROM dbo.Loan\r\n", "ssf", true)]
+    [InlineData("SELECT * FROM dbo.Loan ORDER BY CopyNo\r\n", "ssf", true)]
+
+    // 同一行代表他還在寫同一個子句，語句級片段不進場。
+    [InlineData("SELECT * FROM dbo.Loan WHERE ReaderId = 1 ", "ssf", false)]
+
+    // 選取清單換行之後接的幾乎總是下一個欄位或 FROM。在那裡放進 64 個語句開頭的字
+    // 與 35 筆片段，使用者真正要的欄位就被擠下去了。
+    [InlineData("SELECT CopyNo\r\n", "ssf", false)]
+
+    // 反方向：續寫的字沒有因為多了語句開頭就掉。
+    [InlineData("SELECT * FROM dbo.Loan WHERE ReaderId = 1\r\n", "AND", true)]
+    [InlineData("SELECT * FROM dbo.Loan\r\n", "WHERE", true)]
+    [InlineData("SELECT * FROM dbo.Loan ORDER BY CopyNo\r\n", "DESC", true)]
+    public void 換行之後的子句尾端也是下一句的開頭(
+        string textBeforeCaret,
+        string displayText,
+        bool expected)
+    {
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current);
+        var context = SqlCompletionContextAnalyzer.Analyze(
+            textBeforeCaret + displayText.Substring(0, 1));
+
+        var matched = SuggestionMatcher
+            .Filter(suggestions, context)
+            .Any(suggestion => suggestion.DisplayText == displayText);
+
+        Assert.Equal(expected, matched);
     }
 }
