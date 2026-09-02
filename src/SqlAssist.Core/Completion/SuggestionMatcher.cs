@@ -317,26 +317,62 @@ public static class SuggestionMatcher
     }
 
     /// <summary>
-    /// 關鍵字、內建函式與 Snippet 要落在文法允許它出現的位置。
+    /// 文法只接受關鍵字的位置；名稱在這幾處一個都不對。
     /// </summary>
     /// <remarks>
-    /// 資料庫物件沒有位置旗標；Snippet 在只有三筆時也是 Any，擴充到 43 筆後
-    /// 必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單中間。
+    /// 這一份刻意短，而且每一項都要說得出「那裡沒有任何名稱是合法的」：
     ///
-    /// 內建函式一起收在這裡的理由與關鍵字相同：語句開頭、資料來源位置與
-    /// DDL 物件位置不該冒出 <c>COUNT</c>。
+    /// <list type="bullet">
+    /// <item><c>ORDER |</c>／<c>GROUP |</c> 之後只有 <c>BY</c>。</item>
+    /// <item><c>CREATE |</c>／<c>ALTER |</c>／<c>DROP |</c> 之後是物件<b>種類</b>。</item>
+    /// <item><c>ALTER TABLE t |</c> 與 <c>ALTER TABLE t ADD |</c> 之後是動作，
+    /// 或者使用者正要取的新資料行名稱。</item>
+    /// </list>
+    ///
+    /// <c>INSERT |</c> 刻意<b>不</b>在裡面：<c>INSERT dbo.Loan VALUES (…)</c> 是合法的
+    /// T-SQL，<c>INTO</c> 可以省略。<c>SET |</c> 也不在——位置分析看到 <c>SET</c> 一律
+    /// 回報同一個位置，而 <c>UPDATE t SET |</c> 要的是資料行。
+    ///
+    /// <c>ColumnDefinition</c>、<c>CaseArm</c>、<c>CaseBody</c> 也不在，理由不一樣：
+    /// 那三個位置目前只有<b>產生器</b>認得，<see cref="SqlKeywordPositionAnalyzer"/>
+    /// 一次都回不出來（<c>CREATE TABLE t (a int |</c> 回的是 <c>Any</c>）。
+    /// 列進來只是宣告一件不會發生的事，等分析器認得它們的那天再一起加。
+    /// </remarks>
+    private const SqlKeywordPosition KeywordOnlyPositions =
+        SqlKeywordPosition.ByAnchor |
+        SqlKeywordPosition.DdlObject |
+        SqlKeywordPosition.AlterTableAction |
+        SqlKeywordPosition.AlterTableAdd;
+
+    /// <summary>
+    /// 每一種建議項都要落在文法允許它出現的位置。
+    /// </summary>
+    /// <remarks>
+    /// 關鍵字、內建函式與 Snippet 各自帶著旗標比對。Snippet 在只有三筆時也是 Any，
+    /// 擴充到 45 筆後必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單
+    /// 中間；內建函式一起收在這裡的理由相同：語句開頭與 DDL 物件位置不該冒出
+    /// <c>COUNT</c>。
+    ///
+    /// 其餘的都是<b>名稱</b>（資料表、程序、欄位、CTE…），它們沒有旗標可帶——
+    /// 名稱是執行期從中繼資料來的。反過來列「哪些位置一個名稱都不接受」就夠了，
+    /// 而且那份清單短得多，見 <see cref="KeywordOnlyPositions"/>。少了這一半的症狀是
+    /// <c>ALTER TABLE t |</c> 之後照樣列出整個資料庫的資料表與預存程序。
+    ///
+    /// 比的是「位置裡還有沒有別的位元」而不是位元交集，理由與
+    /// <c>SqlKeywordPositionAnalyzer.IntroducesAlias</c> 完全相同：判不出位置時回傳的
+    /// <see cref="SqlKeywordPosition.Any"/> 含著上面每一個旗標，用交集的話
+    /// fail-open 會變成 fail-closed，**每一個**位置的資料庫物件都會消失。
     /// </remarks>
     private static bool IsAllowedForPosition(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        if (suggestion.Kind is not (
-                SuggestionKind.Keyword or
-                SuggestionKind.BuiltInFunction or
-                SuggestionKind.Snippet))
+        if (suggestion.Kind is SuggestionKind.Keyword or
+            SuggestionKind.BuiltInFunction or
+            SuggestionKind.Snippet)
         {
-            return true;
+            return (suggestion.Positions & context.KeywordPosition) != SqlKeywordPosition.None;
         }
 
-        return (suggestion.Positions & context.KeywordPosition) != SqlKeywordPosition.None;
+        return (context.KeywordPosition & ~KeywordOnlyPositions) != SqlKeywordPosition.None;
     }
 
     /// <summary>

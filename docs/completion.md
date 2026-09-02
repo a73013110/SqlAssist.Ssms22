@@ -154,6 +154,30 @@ ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CH
 `AlterTableAction`，而那個字正是那個位置最常打的。續尾取聯集，多一條只會讓分類
 更寬鬆。
 
+#### 位置過濾也管資料庫物件
+
+關鍵字、內建函式與片段各自帶著位置旗標，**名稱沒有**——資料表與程序是執行期從
+中繼資料來的，帶不了旗標。所以反過來列「哪些位置一個名稱都不接受」，而那份清單
+短得多，每一項都要說得出「那裡沒有任何名稱是合法的」：
+
+| 位置 | 那裡只接受 |
+|---|---|
+| `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
+| `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
+| `AlterTableAction`（`ALTER TABLE t \|`） | `ADD`、`ALTER`、`DROP`、`CHECK`… |
+| `AlterTableAdd`（`ALTER TABLE t ADD \|`） | 條件約束關鍵字，或使用者正要取的新資料行名稱 |
+
+`InsertTarget` 刻意不在裡面：`INSERT dbo.Loan VALUES (…)` 是合法的 T-SQL，`INTO`
+可以省略。`SetTarget` 也不在——位置分析看到 `SET` 一律回報同一個位置，而
+`UPDATE t SET |` 要的是資料行。`ColumnDefinition`、`CaseArm`、`CaseBody` 不在的理由
+不一樣：那三個位置目前只有**產生器**認得，分析器一次都回不出來
+（`CREATE TABLE t (a int |` 回的是 `Any`），列進來只是宣告一件不會發生的事。
+
+判斷比的是「位置裡還有沒有別的位元」而不是位元交集，理由與 `AS` 那條規則完全相同：
+判不出位置時回傳的 `Any` 含著上表每一個旗標，用交集的話 fail-open 會變成
+fail-closed，**每一個**位置的資料庫物件都會消失——那比原本的雜訊嚴重得多。
+兩個方向都釘在 `SqlKeywordPositionTests.位置過濾也管資料庫物件`。
+
 #### 往回找子句關鍵字時要認得的兩個結構
 
 「最近的子句關鍵字」不是往回數詞元就找得到的，路上有兩個結構不認得就會判錯，
