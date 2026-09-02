@@ -53,7 +53,11 @@
         <Strings><ButtonText>顯示即時建議</ButtonText></Strings>
       </Button>
 
-      <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0100" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidGoToDefinition" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Strings><ButtonText>移至定義</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>顯示游標處物件的結構</ButtonText></Strings>
       </Button>
@@ -89,6 +93,23 @@
                 editor="guidVSStd97"
                 key1="S"
                 mod1="Control Alt Shift" />
+    <!--
+      F12。實測 SSMS 22 沒有把 F12 綁在 Edit.GoToDefinition 上——濾鏡掛好了也從來
+      收不到 VSStd97/GotoDefn，紀錄檔顯示命令是從這一條鍵繫結進來的。因此這裡不是
+      備援，是唯一真正生效的路；拿掉它 F12 就完全沒有反應。
+
+      全域範圍（guidVSStd97）而不是某個編輯器範圍：SSMS 的查詢視窗用的是它自己的
+      編輯器工廠，猜錯 GUID 的症狀是繫結安靜地不生效。全域一定註冊得上，代價是
+      在非 SQL 編輯器裡也綁到，因此命令自己要在沒有 SQL 編輯器時回報停用——
+      停用的命令不會被派送，那些地方的 F12 就照常落回殼層。
+
+      使用者若在「選項 → 鍵盤」把 Edit.GoToDefinition 綁到別的鍵，那一條由
+      SqlShellCommandFilter 接，與這裡互斥（鍵繫結只會解析出一個命令）。
+    -->
+    <KeyBinding guid="guidSqlAssistCommandSet"
+                id="cmdidGoToDefinition"
+                editor="guidVSStd97"
+                key1="VK_F12" />
   </KeyBindings>
 
   <Symbols>
@@ -108,6 +129,7 @@
       <IDSymbol name="cmdidShowObjectStructure" value="0x0206" />
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
+      <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

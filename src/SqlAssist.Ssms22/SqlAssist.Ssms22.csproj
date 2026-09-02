@@ -144,6 +144,15 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\SqlWorkbench.Interfaces.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!--
+      F12 另開查詢視窗要把目前的連線資訊原封傳給 IScriptFactory，而
+      UIConnectionInfo／UIConnectionGroupInfo 這兩個型別在這個組件裡。
+      本擴充只把它們當成不透明的傳遞值，不讀任何成員。
+    -->
+    <Reference Include="Microsoft.SqlServer.RegSvrEnum">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.RegSvrEnum.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Design" />
   </ItemGroup>
@@ -180,5 +189,7 @@
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.TextManager.Interop.8.0.dll')" Text="找不到 TextManager Interop 8.0，原生 Snippet Expansion 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.MSXML.dll')" Text="找不到 Microsoft.MSXML，原生 Snippet XML 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Editor.dll')" Text="找不到 Microsoft.VisualStudio.Editor，無法取得 SSMS 文字緩衝區介面。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\SqlWorkbench.Interfaces.dll')" Text="找不到 SqlWorkbench.Interfaces，取不到 SSMS 的連線與查詢視窗服務。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.RegSvrEnum.dll')" Text="找不到 Microsoft.SqlServer.RegSvrEnum，F12 另開查詢視窗無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
   </Target>
 </Project>

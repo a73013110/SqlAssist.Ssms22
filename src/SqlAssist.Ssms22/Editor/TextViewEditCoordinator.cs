@@ -127,35 +127,96 @@ internal sealed class TextViewEditCoordinator
                     return;
                 }
 
-                var offset = replacement.CaretOffset < 0 || replacement.CaretOffset > replacement.Text.Length
-                    ? replacement.Text.Length
-                    : replacement.CaretOffset;
-                var caret = Math.Min(target.Start.Position + offset, updated.Length);
-                var caretPoint = new SnapshotPoint(updated, caret);
-                var viewPoint = ReferenceEquals(updated.TextBuffer, _textView.TextBuffer)
-                    ? caretPoint
-                    : _textView.BufferGraph.MapUpToBuffer(
-                        caretPoint,
-                        PointTrackingMode.Positive,
-                        PositionAffinity.Successor,
-                        _textView.TextBuffer);
-
-                if (viewPoint is { } mapped)
-                {
-                    _textView.Caret.MoveTo(mapped);
-                }
-
-                _textView.Caret.EnsureVisible();
-                SqlAssistRuntimeState.MarkActivity(
-                    replacement.ActivityKind,
-                    replacement.AffectedItemCount);
-                SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);
+                Complete(updated, target.Start.Position, replacement);
             });
         }
         finally
         {
             suppressBufferChange?.Invoke(false);
         }
+    }
+
+    /// <summary>
+    /// 把整份文字寫進一個還是空的緩衝區。
+    /// </summary>
+    /// <remarks>
+    /// 用在「另開一個查詢視窗顯示物件定義」：目的地是剛建立、還沒有任何內容的
+    /// 編輯器，沒有要追蹤的範圍，也沒有等待期間會被使用者改掉的原文。
+    /// 對應 <see cref="ReplaceTracked"/> 那一道「原文還在原處」的守門，
+    /// 這裡是<b>緩衝區必須還是空的</b>：認錯視窗就是把指令碼蓋到使用者正在編輯的
+    /// 查詢上，而那是這個類別存在的唯一理由。
+    ///
+    /// 與 <see cref="ReplaceTracked"/> 的另外兩點差別，各有理由：
+    /// <list type="bullet">
+    /// <item>不自己切執行緒。呼叫端剛在 UI 執行緒上建立這個編輯器，
+    /// 不可能從別處拿到它；真的不在 UI 執行緒就是程式錯誤，要看得見。</item>
+    /// <item>不收斂例外。這條路徑是使用者按 F12 觸發的，安靜地什麼都不做
+    /// 等於故障；失敗要冒到呼叫端去顯示訊息。</item>
+    /// </list>
+    /// </remarks>
+    /// <returns>寫進去了為 true；緩衝區不是空的或編輯器已關閉為 false。</returns>
+    public bool InsertIntoBlank(TextReplacement replacement)
+    {
+        if (ResolveDispatcher() is { } dispatcher && !dispatcher.CheckAccess())
+        {
+            throw new InvalidOperationException("InsertIntoBlank 只能在 UI 執行緒上呼叫。");
+        }
+
+        if (_textView.IsClosed)
+        {
+            return false;
+        }
+
+        var buffer = _buffer;
+
+        if (buffer.CurrentSnapshot.Length != 0)
+        {
+            return false;
+        }
+
+        using var edit = buffer.CreateEdit();
+        edit.Insert(0, replacement.Text);
+        var updated = edit.Apply();
+
+        if (edit.Canceled)
+        {
+            return false;
+        }
+
+        Complete(updated, 0, replacement);
+        return true;
+    }
+
+    /// <summary>
+    /// 編輯完成之後共通的收尾：游標落點、活動紀錄與診斷訊息。
+    /// </summary>
+    /// <remarks>
+    /// 兩條寫入路徑只有「寫什麼」不同，收尾完全一樣。各寫一份的下場是其中一份
+    /// 忘了 <c>EnsureVisible</c> 或忘了記活動，而那不會有任何徵兆。
+    /// </remarks>
+    private void Complete(ITextSnapshot updated, int start, TextReplacement replacement)
+    {
+        var offset = replacement.CaretOffset < 0 || replacement.CaretOffset > replacement.Text.Length
+            ? replacement.Text.Length
+            : replacement.CaretOffset;
+        var caret = Math.Min(start + offset, updated.Length);
+        var caretPoint = new SnapshotPoint(updated, caret);
+        var viewPoint = ReferenceEquals(updated.TextBuffer, _textView.TextBuffer)
+            ? caretPoint
+            : _textView.BufferGraph.MapUpToBuffer(
+                caretPoint,
+                PointTrackingMode.Positive,
+                PositionAffinity.Successor,
+                _textView.TextBuffer);
+
+        if (viewPoint is { } mapped)
+        {
+            _textView.Caret.MoveTo(mapped);
+        }
+
+        _textView.Caret.EnsureVisible();
+        SqlAssistRuntimeState.MarkActivity(replacement.ActivityKind, replacement.AffectedItemCount);
+        SqlAssistDiagnostics.WriteAlways(replacement.SuccessMessage, _textView);
     }
 
     private Dispatcher? ResolveDispatcher()

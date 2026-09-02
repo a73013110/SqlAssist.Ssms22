@@ -78,10 +78,12 @@ src/SqlAssist.Ssms22         net48 VSIX
 | `Core/Parsing/SqlTokenNavigator` | 括號配對、跳過，以及「這個括號是不是子查詢」 | 括號不成對時，Scope 與萬用字元對同一段文字給出不同判斷；認得的開頭關鍵字分岔時，範圍分析與位置分析對同一個括號給出不同答案 |
 | `Core/Parsing/SqlColumnSourceResolver` | 別名指向哪些欄位 | 同一個衍生資料表，`a.*` 展得開、`a.` 卻一個建議都沒有 |
 | `Metadata/Formatting/SqlColumnPresentation` | 欄位性質與它的名稱 | 新增一種性質，某個表面就是少標一項 |
-| `Ssms22/Editor/TextViewEditCoordinator` | 非同步替換文字的那道防線 | 覆蓋掉使用者在等待期間打的字 |
+| `Ssms22/Editor/TextViewEditCoordinator` | 非同步寫回文字的那道防線（替換既有文字、寫進空白緩衝區） | 覆蓋掉使用者在等待期間打的字；或把新視窗的指令碼寫進他正在編輯的查詢 |
+| `Ssms22/Editor/ActiveSqlEditor` | 目前的 SQL 編輯器，以及「這一次呼叫期間建立的那一個」 | 工具選單的命令找不到編輯器；F12 把定義寫進來源視窗而不是新視窗 |
 | `Ssms22/Editor/SnapshotNewLine` | 寫回去的多行文字用哪一種換行 | 同一份指令碼混進兩種換行，下一次 diff 整段變紅 |
 | `Ssms22/Editor/TextViewDispatch` | 排到「這一輪命令結束之後」再做 | 在原地做的看到上一個狀態：重開的清單、算出來的範圍都是錯的 |
 | `Ssms22/Editor/SqlTabCommandHandler` | Tab／Shift+Tab／Enter 的優先順序 | 兩個 `Before=default` 的 Tab handler 互相競速，按 Tab 提交清單卻展開了萬用字元 |
+| `Ssms22/Editor/SqlShellCommandFilter` | 殼層命令的攔截點與命令診斷 | 各自掛一份濾鏡就是各自付一次每按鍵的成本；而少了它，命令根本到不了現代管線 |
 | `Ssms22/Completion/SqlCommitExpander` | 提交後把整句換掉的流程（ALTER 定義、INSERT 骨架、EXEC 呼叫） | 三種展開裡有一種少了一道守門，那一種會蓋到別人的語句 |
 | `Core/Snippets/SqlSnippetExpansion` | Snippet 的純文字、游標、欄位位置與錢字號規則 | caret fallback 與原生 XML 對同一段程式碼產生不同結果 |
 | `Ssms22/Snippets/SqlSnippetExpansionController` | 游標落在哪一格，以及「整格還是預設值時當它不存在」 | 建議來源與提交各算一次截點：清單開得出來、插進去的名稱卻少了結構描述 |
@@ -117,9 +119,9 @@ Task 是不是取消狀態判斷結果作廢，吞掉取消再交出替代值等
 
 **不**走 `SqlAssistPlatformGuard` 的四種情形，每一處都在程式碼裡註明了理由：
 
-- 失敗要讓使用者看見：工具選單的命令、預覽視窗的狀態列、Snippet 管理員。
-  Guard 的意思是「這一輪安靜地什麼都不做」，但使用者是自己按下去的，
-  什麼都沒發生等於故障。
+- 失敗要讓使用者看見：工具選單的命令、預覽視窗的狀態列、Snippet 管理員，
+  以及 F12 移至定義（走 SSMS 的狀態列）。Guard 的意思是「這一輪安靜地什麼都不做」，
+  但使用者是自己按下去的，什麼都沒發生等於故障。
 - 記錄後重擲：`SqlAssistPackage` 的載入失敗，殼層要靠例外知道套件沒載入成功。
 - 有例外篩選的預期失敗：`SqlSnippetStore` 只接檔案系統錯誤，序列化的程式錯誤
   該讓它浮出來。

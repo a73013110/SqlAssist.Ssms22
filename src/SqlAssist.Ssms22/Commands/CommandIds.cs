@@ -23,6 +23,16 @@ internal static class CommandIds
     public const int RefreshSuggestions = 0x0202;
     public const int ShowObjectStructure = 0x0206;
 
+    /// <summary>
+    /// 移至定義；<c>Menus.vsct</c> 把 F12 綁在這一個上。
+    /// </summary>
+    /// <remarks>
+    /// 實測 SSMS 22 並沒有把 F12 綁在 <c>Edit.GoToDefinition</c> 上，所以這條
+    /// 鍵繫結才是 F12 真正走的路，不是備援。改動時要連 <c>Menus.vsct</c> 的
+    /// <c>KeyBindings</c> 一起看。
+    /// </remarks>
+    public const int GoToDefinition = 0x020A;
+
     /// <summary>選單項目，同時也是設定頁上的按鈕（註冊檔寫成十進位的 521）。</summary>
     public const int ManageSnippets = 0x0209;
 

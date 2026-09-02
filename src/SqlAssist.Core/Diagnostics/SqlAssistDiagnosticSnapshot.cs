@@ -12,7 +12,8 @@ public enum SqlAssistActivityKind
     WildcardExpanded,
     AlterExpanded,
     InsertExpanded,
-    ExecuteExpanded
+    ExecuteExpanded,
+    DefinitionOpened
 }
 
 /// <summary>最近一次可辨識的 SqlAssist 動作。</summary>

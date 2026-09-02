@@ -88,6 +88,10 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
 
             SqlWildcardHint.Attach(textView, AsyncCompletionBroker, ToolTipPresenterFactory);
 
+            // 殼層命令要在別人之前攔到，掛得越早越好；同時它也是「按了某個鍵卻沒
+            // 反應」時唯一看得到命令的地方，所以放在其他接線之前。
+            SqlShellCommandFilter.Attach(textView, EditorAdapters, ServiceProvider);
+
             if (EditorAdapters is { } adapters)
             {
                 SqlSnippetExpansionController.Attach(textView, adapters, AsyncCompletionBroker);
