@@ -60,6 +60,9 @@ public static class SqlAssistDiagnosticSections
             {
                 Row("SqlAssist", SqlAssistDiagnosticReport.FormatState(settings.Enabled)),
                 Row("輸入時關鍵字轉大寫", SqlAssistDiagnosticReport.FormatState(settings.UppercaseKeywordsOnType)),
+
+                // 這一項改變的是每一次按鍵的結果，回報「多了一個括號」時第一個要問的就是它。
+                Row("分隔字元自動配對", SqlAssistDiagnosticReport.FormatState(settings.AutoPairDelimiters)),
                 Row(
                     "Tab 展開 SELECT *",
                     Join(

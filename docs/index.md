@@ -14,6 +14,7 @@
 | 了解建議清單、欄位補全與整句展開 | [completion.md](completion.md) |
 | 查 Snippet 捷徑與 Tab 欄位導航 | [snippets.md](snippets.md) |
 | 了解 `SELECT *` 展開 | [wildcard-expansion.md](wildcard-expansion.md) |
+| 了解括號與引號的自動配對 | [auto-pairing.md](auto-pairing.md) |
 | 使用滑鼠提示與完整結構預覽 | [structure-preview.md](structure-preview.md) |
 | 按 F12 在新查詢視窗看物件定義 | [go-to-definition.md](go-to-definition.md) |
 | 尋找功能設定 | [settings.md](settings.md) |
@@ -36,6 +37,7 @@
 | 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
 | 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
 | 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
+| 括號或引號補得不是時候、跳不過去 | [auto-pairing.md](auto-pairing.md) | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | `@` 或 `@@` 之後列出來的東西不對 | [completion.md](completion.md) | `Core/Completion/SqlScriptVariableSuggestions.cs`、`SqlExecutedModule.cs`、`Core/Keywords/SqlGlobalVariableCatalog.cs` |
 | `別名.` 列出來的欄位不對 | [completion.md](completion.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
 | `#tmp`／`@rows` 的欄位列不出來或展不開 | [completion.md](completion.md) | `Core/Parsing/SqlScriptTableCollector.cs` |
@@ -69,6 +71,7 @@
 | `Completion/` | 建議項的模型、上下文判斷、篩選與排名 | [completion.md](completion.md) |
 | `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion.md](completion.md) |
 | `Matching/` | 與領域無關的字串模糊比對（**禁止**參照 `Completion/`） | [completion.md](completion.md) |
+| `Pairing/` | 輸入分隔字元時要不要補上另一半 | [auto-pairing.md](auto-pairing.md) |
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
 | `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
@@ -92,7 +95,7 @@
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
 | `Completion/` | 平台原生非同步 IntelliSense 的來源、排序、提交與重開 | [completion.md](completion.md) |
-| `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫、F12 移至定義 | [architecture.md](architecture.md)、[go-to-definition.md](go-to-definition.md) |
+| `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫、分隔字元配對、F12 移至定義 | [architecture.md](architecture.md)、[go-to-definition.md](go-to-definition.md) |
 | `QuickInfo/` | 滑鼠停留提示 | [structure-preview.md](structure-preview.md) |
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
 | `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） | [wildcard-expansion.md](wildcard-expansion.md) |
@@ -129,6 +132,7 @@
 | 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
+| 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | 攔截殼層命令（F12…），以及「按了沒反應」時的命令診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
 | 提交後改寫文字（ALTER／INSERT／MERGE／EXEC／函式引數五種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |

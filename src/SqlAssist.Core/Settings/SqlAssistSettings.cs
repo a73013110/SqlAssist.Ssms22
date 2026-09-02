@@ -45,6 +45,20 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public SqlWildcardLayout WildcardLayout { get; init; } = SqlWildcardLayout.OneLineWhenShort;
 
+    /// <summary>
+    /// sqlAssist.general.autoPairDelimiters
+    /// </summary>
+    /// <remarks>
+    /// 輸入 <c>(</c>、<c>'</c>、<c>[</c>、<c>"</c> 時補上另一半，打結尾字元時跳過補上的那一個，
+    /// Backspace 刪掉開頭字元時把空的另一半一起收掉，有選取範圍時包夾它。
+    /// 四種行為是同一件事的四個方向，分成多個開關只會調出自相矛盾的組合
+    /// （補得出來卻收不掉）。
+    ///
+    /// <c>BEGIN</c>…<c>END</c> 不在這個開關底下：那是程式碼片段的守備範圍，
+    /// 與「每一次按鍵都要判斷」的分隔字元不是同一個機制。
+    /// </remarks>
+    public bool AutoPairDelimiters { get; init; } = true;
+
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;
 

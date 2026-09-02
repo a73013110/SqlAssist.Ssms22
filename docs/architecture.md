@@ -32,6 +32,7 @@ src/SqlAssist.Core           純邏輯，可完整單元測試
   Wildcards/                 SELECT * 的星號判定與展開後的欄位排版
   Preview/                   預覽的矩形定位、避障與雙側縮放純邏輯
   Matching/                  與領域無關的詞首感知模糊比對
+  Pairing/                   輸入分隔字元時要不要補上另一半
   Snippets/                  片段模型、佔位符推導、展開與 JSON 序列化
   Json/                      最小的 JSON 讀寫器（Core 零相依，不引 System.Text.Json）
   IsExternalInit.cs          netstandard2.0 用 init 存取子的編譯器墊片
@@ -50,7 +51,7 @@ src/SqlAssist.Ssms22         net48 VSIX
   Snippets/                  片段檔、管理介面與 SSMS 原生 Expansion 接線
   Settings/                  Unified Settings 服務的接線與快取
   Commands/                  工具選單命令、命令識別碼與「關於與診斷」視窗
-  Editor/                    文字檢視接線、Tab 與 Enter 的優先順序、游標處物件定位、關鍵字大寫
+  Editor/                    文字檢視接線、Tab 與 Enter 的優先順序、游標處物件定位、關鍵字大寫、分隔字元配對
   Connections/               SSMS 連線的取得，以及依連線提供中繼資料
   UI/                        所有自建介面的唯一外觀來源
   SqlAssistPackage.cs        套件進入點

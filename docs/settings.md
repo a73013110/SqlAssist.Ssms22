@@ -10,6 +10,7 @@
 | | 輸入時把 T-SQL 關鍵字轉成大寫 | `true` |
 | | 按 Tab 把 SELECT * 展開成欄位清單 | `true` |
 | | SELECT * 展開後的欄位排版 | `oneLineWhenShort` |
+| | 自動補上成對的括號與引號 | `true` |
 | 建議清單 | 輸入時自動彈出建議清單 | `true` |
 | | 只使用 SqlAssist 的建議清單 | `true` |
 | | 輸入幾個字元後才彈出清單 | `1` |
