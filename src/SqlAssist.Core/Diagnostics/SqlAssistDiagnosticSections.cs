@@ -56,18 +56,13 @@ public static class SqlAssistDiagnosticSections
 
         return new[]
         {
-            new SqlAssistDiagnosticSection("一般與編輯", new[]
+            new SqlAssistDiagnosticSection("一般", new[]
             {
                 Row("SqlAssist", SqlAssistDiagnosticReport.FormatState(settings.Enabled)),
                 Row("輸入時關鍵字轉大寫", SqlAssistDiagnosticReport.FormatState(settings.UppercaseKeywordsOnType)),
 
                 // 這一項改變的是每一次按鍵的結果，回報「多了一個括號」時第一個要問的就是它。
-                Row("分隔字元自動配對", SqlAssistDiagnosticReport.FormatState(settings.AutoPairDelimiters)),
-                Row(
-                    "Tab 展開 SELECT *",
-                    Join(
-                        SqlAssistDiagnosticReport.FormatState(settings.ExpandWildcardOnTab),
-                        SqlAssistDiagnosticReport.FormatWildcardLayout(settings.WildcardLayout)))
+                Row("分隔字元自動配對", SqlAssistDiagnosticReport.FormatState(settings.AutoPairDelimiters))
             }),
             new SqlAssistDiagnosticSection("建議清單", new[]
             {
@@ -83,18 +78,34 @@ public static class SqlAssistDiagnosticSections
                         $"資料庫物件 {SqlAssistDiagnosticReport.FormatState(settings.IncludeDatabaseObjects)}")),
                 Row("分類篩選列", SqlAssistDiagnosticReport.FormatState(settings.ShowCategoryFilters)),
                 Row(
+                    "只使用 SqlAssist 清單",
+                    SqlAssistDiagnosticReport.FormatState(settings.SuppressNativeMemberList))
+            }),
+
+            // 語句展開一項一列，不再兩兩併成一行：回報「它沒有展開」時要看的就是
+            // 這五列裡的哪一列是關的，而併行的版本每加一種展開就得決定塞進哪一格，
+            // 上一次的結果是 MERGE 與自訂函式加了設定卻沒進到這份報告裡。
+            new SqlAssistDiagnosticSection("插入與展開", new[]
+            {
+                Row(
                     "物件名稱格式",
                     Join(
                         $"結構描述 {SqlAssistDiagnosticReport.FormatState(settings.QualifyObjectNames)}",
                         $"方括號 {SqlAssistDiagnosticReport.FormatState(settings.UseSquareBrackets)}")),
                 Row(
-                    "語句展開",
+                    "Tab 展開 SELECT *",
                     Join(
-                        $"INSERT {SqlAssistDiagnosticReport.FormatState(settings.ExpandInsertStatement)}",
-                        $"EXEC {SqlAssistDiagnosticReport.FormatState(settings.ExpandProcedureCall)}")),
+                        SqlAssistDiagnosticReport.FormatState(settings.ExpandWildcardOnTab),
+                        SqlAssistDiagnosticReport.FormatWildcardLayout(settings.WildcardLayout))),
+                Row("ALTER 展開定義", SqlAssistDiagnosticReport.FormatState(settings.ExpandAlterDefinition)),
+                Row("INSERT 展開欄位", SqlAssistDiagnosticReport.FormatState(settings.ExpandInsertStatement)),
+                Row("MERGE 展開子句", SqlAssistDiagnosticReport.FormatState(settings.ExpandMergeStatement)),
                 Row(
-                    "只使用 SqlAssist 清單",
-                    SqlAssistDiagnosticReport.FormatState(settings.SuppressNativeMemberList))
+                    "EXEC 展開參數",
+                    Join(
+                        SqlAssistDiagnosticReport.FormatState(settings.ExpandProcedureCall),
+                        settings.IncludeOptionalParameters ? "含選擇性參數" : "只含必填參數")),
+                Row("自訂函式補引數", SqlAssistDiagnosticReport.FormatState(settings.ExpandFunctionCall))
             }),
             new SqlAssistDiagnosticSection("物件結構", new[]
             {

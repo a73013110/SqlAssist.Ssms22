@@ -39,13 +39,6 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.UppercaseKeywordsOnType,
                 defaults.UppercaseKeywordsOnType),
-            ExpandWildcardOnTab = Value(
-                source,
-                SqlAssistMonikers.ExpandWildcardOnTab,
-                defaults.ExpandWildcardOnTab),
-            WildcardLayout = ParseWildcardLayout(
-                Value(source, SqlAssistMonikers.WildcardLayout, string.Empty),
-                defaults.WildcardLayout),
             AutoPairDelimiters = Value(
                 source,
                 SqlAssistMonikers.AutoPairDelimiters,
@@ -61,15 +54,16 @@ public static class SqlAssistSettingsReader
                 defaults.SuppressNativeMemberList),
             TriggerAfterCharacters = SqlAssistLimits.ClampTriggerCharacters(
                 Value(source, SqlAssistMonikers.TriggerAfterCharacters, defaults.TriggerAfterCharacters)),
+            ShowCategoryFilters = Value(
+                source,
+                SqlAssistMonikers.ShowCategoryFilters,
+                defaults.ShowCategoryFilters),
             IncludeSnippets = Value(source, SqlAssistMonikers.IncludeSnippets, defaults.IncludeSnippets),
             IncludeDatabaseObjects = Value(
                 source,
                 SqlAssistMonikers.IncludeDatabaseObjects,
                 defaults.IncludeDatabaseObjects),
-            ShowCategoryFilters = Value(
-                source,
-                SqlAssistMonikers.ShowCategoryFilters,
-                defaults.ShowCategoryFilters),
+
             QualifyObjectNames = Value(
                 source,
                 SqlAssistMonikers.QualifyObjectNames,
@@ -78,6 +72,17 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.UseSquareBrackets,
                 defaults.UseSquareBrackets),
+            ExpandWildcardOnTab = Value(
+                source,
+                SqlAssistMonikers.ExpandWildcardOnTab,
+                defaults.ExpandWildcardOnTab),
+            WildcardLayout = ParseWildcardLayout(
+                Value(source, SqlAssistMonikers.WildcardLayout, string.Empty),
+                defaults.WildcardLayout),
+            ExpandAlterDefinition = Value(
+                source,
+                SqlAssistMonikers.ExpandAlterDefinition,
+                defaults.ExpandAlterDefinition),
             ExpandInsertStatement = Value(
                 source,
                 SqlAssistMonikers.ExpandInsertStatement,
@@ -90,6 +95,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.ExpandProcedureCall,
                 defaults.ExpandProcedureCall),
+            IncludeOptionalParameters = Value(
+                source,
+                SqlAssistMonikers.IncludeOptionalParameters,
+                defaults.IncludeOptionalParameters),
             ExpandFunctionCall = Value(
                 source,
                 SqlAssistMonikers.ExpandFunctionCall,

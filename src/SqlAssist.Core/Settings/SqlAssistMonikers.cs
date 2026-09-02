@@ -24,23 +24,25 @@ public static class SqlAssistMonikers
 
     public const string Enabled = "sqlAssist.general.enabled";
     public const string UppercaseKeywordsOnType = "sqlAssist.general.uppercaseKeywordsOnType";
-    public const string ExpandWildcardOnTab = "sqlAssist.general.expandWildcardOnTab";
-    public const string WildcardLayout = "sqlAssist.general.wildcardLayout";
     public const string AutoPairDelimiters = "sqlAssist.general.autoPairDelimiters";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
     public const string SuppressNativeMemberList = "sqlAssist.suggestions.suppressNativeMemberList";
     public const string TriggerAfterCharacters = "sqlAssist.suggestions.triggerAfterCharacters";
+    public const string ShowCategoryFilters = "sqlAssist.suggestions.showCategoryFilters";
     public const string IncludeSnippets = "sqlAssist.suggestions.includeSnippets";
     public const string IncludeDatabaseObjects = "sqlAssist.suggestions.includeDatabaseObjects";
-    public const string ShowCategoryFilters = "sqlAssist.suggestions.showCategoryFilters";
-    public const string QualifyObjectNames = "sqlAssist.suggestions.qualifyObjectNames";
-    public const string UseSquareBrackets = "sqlAssist.suggestions.useSquareBrackets";
-    public const string ExpandInsertStatement = "sqlAssist.suggestions.expandInsertStatement";
 
-    public const string ExpandMergeStatement = "sqlAssist.suggestions.expandMergeStatement";
-    public const string ExpandProcedureCall = "sqlAssist.suggestions.expandProcedureCall";
-    public const string ExpandFunctionCall = "sqlAssist.suggestions.expandFunctionCall";
+    public const string QualifyObjectNames = "sqlAssist.insertion.qualifyObjectNames";
+    public const string UseSquareBrackets = "sqlAssist.insertion.useSquareBrackets";
+    public const string ExpandWildcardOnTab = "sqlAssist.insertion.expandWildcardOnTab";
+    public const string WildcardLayout = "sqlAssist.insertion.wildcardLayout";
+    public const string ExpandAlterDefinition = "sqlAssist.insertion.expandAlterDefinition";
+    public const string ExpandInsertStatement = "sqlAssist.insertion.expandInsertStatement";
+    public const string ExpandMergeStatement = "sqlAssist.insertion.expandMergeStatement";
+    public const string ExpandProcedureCall = "sqlAssist.insertion.expandProcedureCall";
+    public const string IncludeOptionalParameters = "sqlAssist.insertion.includeOptionalParameters";
+    public const string ExpandFunctionCall = "sqlAssist.insertion.expandFunctionCall";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";
     public const string PreviewMode = "sqlAssist.structure.previewMode";

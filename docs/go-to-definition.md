@@ -229,7 +229,7 @@ factory.CreateNewBlankScript(ScriptType.Sql, active.UIConnectionInfo, null);
 
 ## 為什麼沒有專屬設定
 
-`sqlAssist.enabled` 關掉時這個功能一起關掉，除此之外沒有旋鈕。多一個設定就要動
+`sqlAssist.general.enabled` 關掉時這個功能一起關掉，除此之外沒有旋鈕。多一個設定就要動
 註冊檔、POCO、moniker 與讀取對應四處（[settings.md](settings.md)），而這個功能
 沒有「有些人要、有些人不要」的分歧——它只在使用者主動按鍵時才發生，不按就完全
 不存在。
