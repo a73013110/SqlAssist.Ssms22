@@ -112,16 +112,47 @@ ScriptDom 的 token 列舉沒有它們，SqlParser 的 Scanner 也一律回報�
 `SqlKeywordPositionAnalyzer` 判斷游標當下在哪個位置後過濾：
 
 ```text
-（語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…（53 個）
+（語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…（64 個）
+SELECT * FROM t ORDER BY    → CASE、CONVERT、COALESCE…（28 個）
 SELECT * FROM t ORDER BY a  → ASC、DESC
-CREATE                → TABLE、VIEW、PROCEDURE…（22 個）
-SELECT * FROM t WHERE → EXISTS、NOT、CASE…（22 個）
+CREATE                → TABLE、VIEW、PROCEDURE…（33 個）
+SELECT * FROM t WHERE → EXISTS、NOT、CASE…（33 個）
+ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
+ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 ```
 
 位置切在「游標前一個詞元」之後，因為那正是分析器認得的粒度——它分不出
 `FROM t ` 的 `t` 是資料表還是聯結對象，目錄就不假裝分得出來。
-產生器判不出位置的 25 個深層子句字（`FILLFACTOR`、`STOPLIST`…）一律放行：
+產生器判不出位置的 24 個深層子句字（`FILLFACTOR`、`STOPLIST`…）一律放行：
 分不出位置的代價是清單多幾個字，猜錯位置的代價是使用者永遠打不出來。
+
+#### `Any` 是給「判不出來」用的，不是給「不想判」用的
+
+`Any` 含所有位元，而過濾是 `positions & 目前位置`，所以**回一次 `Any` 等於
+191 個關鍵字與 45 筆片段全部進場**。分析器判得出來卻回 `Any` 的地方，症狀量得出來
+——同一組候選、同一個前綴 `C`：
+
+| 位置 | 回報 | 候選數 | 前幾名 |
+|---|---|---|---|
+| `SELECT C` | `SelectList` | 61 | `cs`，接著就是欄位 |
+| `ORDER BY C`（修正前） | `Any` | 118 | 捷徑以 `c` 開頭的 13 筆片段全包，欄位掉到第 14 |
+| `ORDER BY C`（修正後） | `OrderByColumn` | 30 | `cs`，接著就是欄位 |
+| `ALTER TABLE t ADD C`（修正前） | `Any` | 118 | 同上 |
+| `ALTER TABLE t ADD C`（修正後） | `AlterTableAdd` | 24 | 欄位、`CHECK`、`CONSTRAINT` |
+
+因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
+`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn` 都是**自己的成員**，
+不再借用 `Any`。`OrderByTail` 是欄位**之後**的 `ASC`／`DESC`，兩者不能混。
+
+`ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，
+不是「這份指令碼裡有沒有 `ALTER TABLE`」——理由與 `SqlScopeAnalyzer.IsMergeAction`
+相同，接在後面的獨立敘述不屬於它。名稱單位含點號（`dbo.t` 是一個不是兩個），
+那份走訪與別名判斷共用 `SqlTokenNavigator.SkipQualifiedNameBackward`。
+
+`ALTER TABLE t ALTER` 在 ScriptDom 眼中直接是語法錯誤（它要看到 `COLUMN` 才收），
+所以產生器的續尾清單多了 `COLUMN x int` 一條；少了它，`ALTER` 就分不到
+`AlterTableAction`，而那個字正是那個位置最常打的。續尾取聯集，多一條只會讓分類
+更寬鬆。
 
 #### 往回找子句關鍵字時要認得的兩個結構
 

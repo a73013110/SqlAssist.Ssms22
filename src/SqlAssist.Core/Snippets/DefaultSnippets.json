@@ -401,7 +401,7 @@
       "title": "CASE WHEN",
       "description": "CASE 條件運算式",
       "expansionMode": "tabStops",
-      "positions": ["SelectList", "Predicate"],
+      "positions": ["SelectList", "Predicate", "OrderByColumn"],
       "code": "CASE\n    WHEN $condition$ THEN $result$\n    ELSE $fallback$\nEND$end$",
       "placeholders": [
         { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
