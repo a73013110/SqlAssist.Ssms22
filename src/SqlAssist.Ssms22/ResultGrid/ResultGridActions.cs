@@ -88,6 +88,29 @@ internal static class ResultGridActions
         }
     }
 
+    /// <summary>把選取範圍整理成每一欄的統計摘要，開一個視窗顯示。</summary>
+    /// <remarks>
+    /// 這一個的產出不進編輯器也不進剪貼簿，因為它的用途是看不是貼。
+    /// 詳細理由見 <see cref="ResultGridProfileWindow"/>。
+    /// </remarks>
+    public static void ShowProfile(IServiceProvider serviceProvider)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (!Prepare(serviceProvider, out var table))
+        {
+            return;
+        }
+
+        if (table!.IsEmpty)
+        {
+            SqlAssistStatusBar.Show(serviceProvider, "選取範圍裡沒有資料列可以剖析。");
+            return;
+        }
+
+        new ResultGridProfileWindow(table, ResultGridProfile.Build(table)).ShowModal();
+    }
+
     /// <summary>命令什麼時候可用：SqlAssist 啟用，而且找得到一個有資料的結果格線。</summary>
     /// <remarks>
     /// 這是右鍵選單每次彈出都會問到的路徑，所以只做「找不找得到格線」這一件事，
