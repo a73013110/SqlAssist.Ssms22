@@ -3,9 +3,8 @@
 SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0，零 VS 相依）、
 `SqlAssist.Metadata`（netstandard2.0，只依賴 `System.Data`）、`SqlAssist.Ssms22`（net48 VSIX）。
 
-細節按需查 [docs/](docs/)：`architecture`、`completion`、`snippets`、`wildcard-expansion`、
-`structure-preview`、`settings`、`metadata`、`development`。不確定該讀哪一份、或手上只有一個
-檔案路徑時，先看 [docs/index.md](docs/index.md)。**動手前先讀對應的那一份**，
+細節在 [docs/](docs/)。要讀哪一份一律先看 [docs/index.md](docs/index.md)——它從
+「我要改什麼」或一個檔案路徑指到該讀的文件與該進去的程式碼。**動手前先讀指到的那一份**，
 下面每一條禁令背後都有一次踩過的坑，理由寫在文件裡。
 
 ## 分層
@@ -135,4 +134,21 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**寫「這行在做什麼」的註解。註解只寫**為什麼**：這樣選的理由、
   試過而失敗的做法、以及不這樣寫會出現的症狀。現有檔案就是範本。
 - **禁止**用非繁體中文撰寫註解與文件。
+
+## 文件
+
+文件是按需讀的，但「按需」的前提是那一份夠小。讀進 context 的每一個 token，都會被
+這個 session 之後的每一次呼叫重新計費一次——一份 68 KB 的文件被讀進來一次，代價是
+幾百萬 token，而症狀只是「最近消耗得有點快」，沒有任何一個地方會報錯。
+
+- **禁止**整檔讀超過 8000 字元的文件。先用 [docs/index.md](docs/index.md) 選對那一份，
+  再 `grep -n` 定位、`sed -n 'a,bp'` 取那一段。
+- **禁止**讓 `docs/` 底下任何一份超過 14000 字元，或讓 `CLAUDE.md` 超過 8000 字元。
+  超過就依主題拆成分冊，每一份開頭寫清楚範圍並回連母檔，然後更新
+  [docs/index.md](docs/index.md) 的路由表。`CLAUDE.md` 的門檻更嚴，因為它每一次
+  呼叫都會重送一遍。
+- **禁止**在 `CLAUDE.md` 裡列舉 `docs/` 的檔名。那份清單會腐爛，而且拆一次檔就要改
+  兩個地方；路由只有 `docs/index.md` 一份。
 - **禁止**把細節寫回 `README.md`；它只做入口與索引，內容進 `docs/`。
+- **禁止**改完文件不跑 `tools\Check-Docs.ps1`。它一次檢查大小預算與所有 Markdown
+  連結和錨點——拆檔之後斷掉的連結不會有任何徵兆，點下去才發現，通常是幾個月後。

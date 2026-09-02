@@ -55,7 +55,7 @@
 它們要填的是資料表、程序與函式的**真實名稱**，那份清單來自連線的中繼資料；
 換成 `[dbo].[TableName]` 這種靜態欄位等於把這個擴充最核心的東西換掉。`ii` 與
 `ap` 家族更是整條鏈的起點——選到資料表或模組之後由 `SqlCommitExpander` 放進可執行的
-整句（見 [completion.md](completion.md)）。四筆 `ALTER` 走的是同一份展開，因為
+整句（見 [completion-commit-expansion.md](completion-commit-expansion.md)）。四筆 `ALTER` 走的是同一份展開，因為
 檢視與觸發程序在 `SqlObjectKinds.IsModule` 裡與程序、函式同一類。要 CREATE 的骨架請用 `cp`、`cf`、
 `ctf`，那三筆才是 Tab Stop。
 
@@ -65,7 +65,7 @@
 「只能手動慢慢打欄位」的那句話。改成與 `ii` 同一條鏈之後，選好目標資料表就由
 `SqlMergeStatementText` 依中繼資料一次填滿三個子句，唯一還要填的是來源資料表，
 游標就停在那裡。展開的規則（比對鍵取主索引鍵、`AND 1 = 0` 閘門、`UPDATE SET`
-不含鍵）見 [completion.md](completion.md#提交時展開成整句)。
+不含鍵）見 [completion-commit-expansion.md](completion-commit-expansion.md)。
 
 **接得下去的條件是「展開出來的那一行結尾剛好是一個會列出東西的關鍵字」**，
 因為接續清單的內容由 `SqlCompletionContextAnalyzer` 從游標前一個詞元推出來。
@@ -77,7 +77,7 @@
 
 單行也是刻意的。`ij`、`lj` 曾經連 `AS t` 與 `ON 1 = 1` 一起插進去，代價是每次
 都要回頭刪掉猜錯的別名與條件。改成單行之後別名與 `ON` 要自己打——`ON` 有關鍵字
-自動大寫接著，而別名那一格本來就不開清單（見 [completion.md](completion.md) 的
+自動大寫接著，而別名那一格本來就不開清單（見 [completion-catalogs.md](completion-catalogs.md) 的
 「沒有 AS 的別名靠換行分辨」）。
 
 `sd` 展開的是 `SELECT DISTINCT * FROM `。`DISTINCT *` 通常不是最終要的，但選完
