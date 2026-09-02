@@ -56,17 +56,24 @@ internal static class SqlQuickInfoContentBuilder
             return BuildDefinition(detail.Definition!, openStructure);
         }
 
-        // 標題帶上欄位總數：清單被截斷時，使用者至少知道自己看到的是幾分之幾。
-        var elements = new List<object>
-        {
-            detail.Columns.Count > 0
-                ? BuildHeader(detail.Object, $"（{detail.Columns.Count} 個欄位）")
-                : BuildHeader(detail.Object)
-        };
+        // 資料表值函式的資料行也載入了，但這裡列的仍然是參數：滑鼠停在
+        // dbo.fn_LoansByReader 上的人正要呼叫它，該填什麼引數才是他問的事。
+        // 回傳幾個資料行改寫進標題——那句話值得說，但不值得佔掉整個提示。
+        var showsColumns = detail.Object.Kind.IsTableShaped();
+
+        // 標題帶上總數：清單被截斷時，使用者至少知道自己看到的是幾分之幾。
+        // 括號裡的說法要與底下列出來的東西一致，否則使用者會把參數看成欄位。
+        var summary = detail.Columns.Count == 0
+            ? null
+            : showsColumns
+                ? $"（{detail.Columns.Count} 個欄位）"
+                : $"（回傳 {detail.Columns.Count} 個資料行）";
+
+        var elements = new List<object> { BuildHeader(detail.Object, summary) };
 
         var hidden = 0;
 
-        if (detail.Object.Kind.HasColumns())
+        if (showsColumns)
         {
             hidden = Math.Max(0, detail.Columns.Count - MaximumColumns);
             elements.AddRange(BuildColumns(detail.Columns));

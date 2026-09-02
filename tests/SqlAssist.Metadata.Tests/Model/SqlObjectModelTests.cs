@@ -44,13 +44,54 @@ public sealed class SqlObjectModelTests
         Assert.Equal(expected, kind.IsDataSource());
     }
 
+    /// <remarks>
+    /// 資料表值函式的資料行在 <c>sys.columns</c> 裡與資料表的欄位放在一起。
+    /// 漏掉它的症狀是 <c>FROM dbo.fn_LoansByReader(0) f</c> 之後 <c>f.</c>
+    /// 一個欄位都列不出來，<c>SELECT *</c> 也展不開——第二層根本沒有為它查過。
+    /// </remarks>
     [Theory]
     [InlineData(SqlObjectKind.Table, true)]
     [InlineData(SqlObjectKind.View, true)]
+    [InlineData(SqlObjectKind.TableType, true)]
+    [InlineData(SqlObjectKind.InlineTableFunction, true)]
+    [InlineData(SqlObjectKind.TableValuedFunction, true)]
+    [InlineData(SqlObjectKind.ScalarFunction, false)]
     [InlineData(SqlObjectKind.Procedure, false)]
-    public void 判斷是否有欄位(SqlObjectKind kind, bool expected)
+    [InlineData(SqlObjectKind.Synonym, false)]
+    public void 判斷sys_columns查不查得到資料行(SqlObjectKind kind, bool expected)
     {
-        Assert.Equal(expected, kind.HasColumns());
+        Assert.Equal(expected, kind.HasCatalogColumns());
+    }
+
+    /// <remarks>
+    /// 資料表值函式查得到資料行，但那是它<b>回傳值</b>的形狀，物件本身是一段
+    /// 要填引數才叫得動的程式；滑鼠停留提示與第四層查詢問的是這一條。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Table, true)]
+    [InlineData(SqlObjectKind.View, true)]
+    [InlineData(SqlObjectKind.TableType, true)]
+    [InlineData(SqlObjectKind.InlineTableFunction, false)]
+    [InlineData(SqlObjectKind.TableValuedFunction, false)]
+    [InlineData(SqlObjectKind.Procedure, false)]
+    public void 判斷物件本身是不是一組資料行(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.IsTableShaped());
+    }
+
+    /// <remarks>
+    /// <c>INSERT INTO dbo.fn_LoansByReader</c> 剖析不過，因此提交後的欄位骨架
+    /// 展開不能問「查不查得到資料行」；資料表型別在那個位置也不是合法的名稱。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Table, true)]
+    [InlineData(SqlObjectKind.View, true)]
+    [InlineData(SqlObjectKind.TableType, false)]
+    [InlineData(SqlObjectKind.InlineTableFunction, false)]
+    [InlineData(SqlObjectKind.TableValuedFunction, false)]
+    public void 判斷插不插得進去(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.IsInsertTarget());
     }
 
     [Theory]
@@ -296,6 +337,37 @@ public sealed class SqlObjectModelTests
 
         Assert.Contains("Procedure [dbo].[usp_Encrypted]", preview);
         Assert.Contains("@Id int", preview);
+    }
+
+    /// <remarks>
+    /// 資料表值函式的資料行載入之後，預覽仍然要給定義本文：那份文字同時說得出
+    /// 它吃什麼引數、回傳什麼，而一串資料行說不出該怎麼呼叫它。
+    /// </remarks>
+    [Fact]
+    public void 資料表值函式預覽顯示定義而不是回傳的資料行()
+    {
+        var detail = new SqlObjectDetail(
+            new SqlObjectInfo(5, "dbo", "fn_LoansByReader", SqlObjectKind.InlineTableFunction),
+            new[] { new SqlColumnInfo(1, "CopyNo", "int", false) },
+            new[] { new SqlParameterInfo(1, "@ReaderId", "int", false) },
+            "CREATE FUNCTION dbo.fn_LoansByReader (@ReaderId int) RETURNS TABLE AS RETURN SELECT 1 AS CopyNo");
+
+        Assert.Equal(
+            "CREATE FUNCTION dbo.fn_LoansByReader (@ReaderId int) RETURNS TABLE AS RETURN SELECT 1 AS CopyNo",
+            detail.BuildPreview());
+    }
+
+    /// <remarks>
+    /// 加密的資料表值函式沒有定義可以給，這時查得到的資料行勝過一行光禿禿的標題。
+    /// </remarks>
+    [Fact]
+    public void 沒有定義時退回顯示查得到的資料行()
+    {
+        var detail = new SqlObjectDetail(
+            new SqlObjectInfo(6, "dbo", "fn_LoansByReader", SqlObjectKind.InlineTableFunction),
+            new[] { new SqlColumnInfo(1, "CopyNo", "int", false) });
+
+        Assert.Contains("[CopyNo] int NOT NULL", detail.BuildPreview());
     }
 
     [Fact]

@@ -309,4 +309,48 @@ public sealed class SqlWildcardAnalyzerTests
 
         Assert.Equal(new[] { "b:表 B" }, Names(target));
     }
+
+    /// <summary>
+    /// 資料表值函式是一般的資料來源，欄位由中繼資料給。
+    /// </summary>
+    /// <remarks>
+    /// 引數清單不影響它是什麼：這裡攤平出來的仍然是一個資料表來源，
+    /// 而它的資料行在 <c>sys.columns</c> 裡查得到
+    /// （<c>SqlObjectKinds.HasCatalogColumns</c>）。
+    /// </remarks>
+    [Fact]
+    public void 資料表值函式的萬用字元可以展開()
+    {
+        var target = Expand("SELECT *| FROM dbo.fn_LoansByReader(0) f");
+        var source = Assert.Single(target.Sources);
+
+        Assert.Equal(SqlColumnSourceKind.Table, source.Kind);
+        Assert.Equal("fn_LoansByReader", source.Table!.ObjectName);
+        Assert.Equal("dbo", source.Table.SchemaName);
+        Assert.Equal("f", source.Qualifier);
+    }
+
+    /// <remarks>
+    /// 引數裡的逗號不是資料來源清單的逗號。認錯的話會多出一個叫
+    /// <c>N'x'</c> 的來源，而 <c>ResolveAll</c> 只要有一個解析不出來就整個不展開
+    /// ——症狀是這一句的 <c>SELECT *</c> 安靜地沒有反應。
+    /// </remarks>
+    [Fact]
+    public void 資料表值函式的引數逗號不算資料來源清單()
+    {
+        var target = Expand("SELECT *| FROM dbo.fn_LoansByReader(0, N'x') f");
+
+        Assert.Equal(new[] { "f:表 fn_LoansByReader" }, Names(target));
+        Assert.False(target.Qualify);
+    }
+
+    /// <remarks>資料表與資料表值函式併用時，兩個來源都要在。</remarks>
+    [Fact]
+    public void APPLY接上的資料表值函式也一起展開()
+    {
+        var target = Expand("SELECT *| FROM dbo.Loan l CROSS APPLY dbo.fn_LoansByReader(l.CopyNo) f");
+
+        Assert.Equal(new[] { "l:表 Loan", "f:表 fn_LoansByReader" }, Names(target));
+        Assert.True(target.Qualify);
+    }
 }
