@@ -15,7 +15,8 @@ public enum SqlAssistActivityKind
     MergeExpanded,
     ExecuteExpanded,
     FunctionCallExpanded,
-    DefinitionOpened
+    DefinitionOpened,
+    ResultGridScripted
 }
 
 /// <summary>最近一次可辨識的 SqlAssist 動作。</summary>
