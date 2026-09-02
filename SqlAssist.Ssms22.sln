@@ -44,12 +44,14 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393-0A06-41A8-81F5-7125FBF96322}"
 	ProjectSection(SolutionItems) = preProject
 		tools\Build-Extension.ps1 = tools\Build-Extension.ps1
+		tools\Check-Docs.ps1 = tools\Check-Docs.ps1
 		tools\Deploy-DebugExtension.ps1 = tools\Deploy-DebugExtension.ps1
 		tools\Generate-Keywords.ps1 = tools\Generate-Keywords.ps1
 		tools\Install-Extension.ps1 = tools\Install-Extension.ps1
 		tools\Publish-Release.ps1 = tools\Publish-Release.ps1
 		tools\Run-CoreTests.ps1 = tools\Run-CoreTests.ps1
 		tools\Show-Diagnostics.ps1 = tools\Show-Diagnostics.ps1
+		tools\SqlAssist.Tools.psm1 = tools\SqlAssist.Tools.psm1
 		tools\Test-CommandTable.ps1 = tools\Test-CommandTable.ps1
 		tools\Test-VsixPackage.ps1 = tools\Test-VsixPackage.ps1
 		tools\Uninstall-Extension.ps1 = tools\Uninstall-Extension.ps1

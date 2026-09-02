@@ -52,7 +52,7 @@ GO
 
 F12 之後接著要做的事幾乎都是「改一下再執行」。給 `CREATE` 的話每一次都要自己把
 第一個字改掉，而那正是提交建議時 `ap` 展開成完整 `ALTER` 定義已經在做的事
-（[completion.md](completion.md)）——兩條路徑對同一個模組給出不同的開頭關鍵字，
+（[completion-commit-expansion.md](completion-commit-expansion.md)）——兩條路徑對同一個模組給出不同的開頭關鍵字，
 只會讓人以為其中一條壞了。
 
 資料表與資料表型別**不**改寫。`ALTER TABLE` 沒有對應的整體寫法，型別更是連

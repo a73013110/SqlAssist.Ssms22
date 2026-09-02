@@ -28,19 +28,19 @@
 |---|---|---|
 | 建議清單多／少了某一類項目 | [completion.md](completion.md) | `Core/Completion/BuiltInSuggestionCatalog.cs`、`Ssms22/Completion/SqlAsyncCompletionSource.cs` |
 | 排名順序不對 | [completion.md](completion.md) | `Core/Matching/FuzzyMatcher.cs`、`Core/Completion/SuggestionMatcher.cs` |
-| 某個位置不該開清單／該開沒開 | [completion.md](completion.md) | `Core/Completion/SqlCompletionContextAnalyzer.cs`、`Core/Completion/SqlCompletionTriggers.cs` |
-| 打完某個字沒有重開清單 | [completion.md](completion.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| 某個位置不該開清單／該開沒開 | [completion-context.md](completion-context.md) | `Core/Completion/SqlCompletionContextAnalyzer.cs`、`Core/Completion/SqlCompletionTriggers.cs` |
+| 打完某個字沒有重開清單 | [completion-columns.md](completion-columns.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SSMS 自己的清單也跟著彈出來 | [completion.md](completion.md) | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
-| 提交建議後寫進去的文字不對 | [completion.md](completion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
-| `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion.md](completion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
-| 展開的整句蓋錯位置或沒有蓋上去 | [completion.md](completion.md) | `Ssms22/Completion/SqlCommitExpander.cs` |
-| 關鍵字清單要增刪 | [completion.md](completion.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
-| 內建函式、全域變數或型別要增刪 | [completion.md](completion.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
-| 自動大寫的時機 | [completion.md](completion.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
+| 提交建議後寫進去的文字不對 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
+| `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
+| 展開的整句蓋錯位置或沒有蓋上去 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Ssms22/Completion/SqlCommitExpander.cs` |
+| 關鍵字清單要增刪 | [completion-catalogs.md](completion-catalogs.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
+| 內建函式、全域變數或型別要增刪 | [completion-catalogs.md](completion-catalogs.md)、[completion-variables.md](completion-variables.md) | `Core/Keywords/` 底下的 `SqlFunctionCatalog.cs`、`SqlGlobalVariableCatalog.cs`、`SqlDataTypeCatalog.cs` |
+| 自動大寫的時機 | [completion-context.md](completion-context.md) | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
 | 括號或引號補得不是時候、跳不過去 | [auto-pairing.md](auto-pairing.md) | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
-| `@` 或 `@@` 之後列出來的東西不對 | [completion.md](completion.md) | `Core/Completion/SqlScriptVariableSuggestions.cs`、`SqlExecutedModule.cs`、`Core/Keywords/SqlGlobalVariableCatalog.cs` |
-| `別名.` 列出來的欄位不對 | [completion.md](completion.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
-| `#tmp`／`@rows` 的欄位列不出來或展不開 | [completion.md](completion.md) | `Core/Parsing/SqlScriptTableCollector.cs` |
+| `@` 或 `@@` 之後列出來的東西不對 | [completion-variables.md](completion-variables.md) | `Core/Completion/SqlScriptVariableSuggestions.cs`、`SqlExecutedModule.cs`、`Core/Keywords/SqlGlobalVariableCatalog.cs` |
+| `別名.` 列出來的欄位不對 | [completion-columns.md](completion-columns.md) | `Core/Parsing/SqlScopeAnalyzer.cs`、`Core/Parsing/SqlColumnSourceResolver.cs` |
+| `#tmp`／`@rows` 的欄位列不出來或展不開 | [completion-columns.md](completion-columns.md) | `Core/Parsing/SqlScriptTableCollector.cs` |
 | 程式碼片段的格式、合併或展開行為 | [snippets.md](snippets.md) | `Core/Snippets/DefaultSnippets.json`、`SqlSnippetExpansion.cs`、`SqlSnippetMerger.cs`、`SqlSnippetSerializer.cs` |
 | `SELECT *` 展不開或展錯 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardAnalyzer.cs` |
 | 展開後的欄位排版 | [wildcard-expansion.md](wildcard-expansion.md) | `Core/Wildcards/SqlWildcardExpansionText.cs` |
@@ -68,14 +68,14 @@
 
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
-| `Completion/` | 建議項的模型、上下文判斷、篩選與排名 | [completion.md](completion.md) |
-| `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion.md](completion.md) |
+| `Completion/` | 建議項的模型、上下文判斷、篩選與排名 | [completion.md](completion.md)、[completion-context.md](completion-context.md) |
+| `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion-catalogs.md](completion-catalogs.md)、[completion-context.md](completion-context.md) |
 | `Matching/` | 與領域無關的字串模糊比對（**禁止**參照 `Completion/`） | [completion.md](completion.md) |
 | `Pairing/` | 輸入分隔字元時要不要補上另一半 | [auto-pairing.md](auto-pairing.md) |
-| `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion.md](completion.md)、[architecture.md](architecture.md) |
+| `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion-columns.md](completion-columns.md)、[architecture.md](architecture.md) |
 | `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
-| `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`MERGE` 骨架、`EXEC` 呼叫、參數預設值） | [completion.md](completion.md) |
+| `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`MERGE` 骨架、`EXEC` 呼叫、參數預設值） | [completion-commit-expansion.md](completion-commit-expansion.md) |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 | [wildcard-expansion.md](wildcard-expansion.md) |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 | [settings.md](settings.md) |
 | `Diagnostics/` | 版本解讀、健康檢查，以及視窗與匿名診斷摘要共用的欄位清單 | [development.md](development.md) |
@@ -94,7 +94,7 @@
 
 | 資料夾 | 職責 | 文件 |
 |---|---|---|
-| `Completion/` | 平台原生非同步 IntelliSense 的來源、排序、提交與重開 | [completion.md](completion.md) |
+| `Completion/` | 平台原生非同步 IntelliSense 的來源、排序、提交與重開 | [completion.md](completion.md)、[completion-commit-expansion.md](completion-commit-expansion.md) |
 | `Editor/` | 編輯器接線、Tab 與 Enter 的優先順序、非同步寫回、物件定位、大寫改寫、分隔字元配對、F12 移至定義 | [architecture.md](architecture.md)、[go-to-definition.md](go-to-definition.md) |
 | `QuickInfo/` | 滑鼠停留提示 | [structure-preview.md](structure-preview.md) |
 | `Preview/` | 浮動結構預覽與其專屬外觀 | [structure-preview.md](structure-preview.md) |
@@ -174,6 +174,7 @@
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
+| `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
 | `SqlAssist.Tools.psm1` | 上述腳本共用的環境探索 |
 
 ## 測試

@@ -33,8 +33,8 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 git config core.hooksPath .githooks
 ```
 
-之後每次 `git push` 都會先跑 `Run-CoreTests.ps1`，失敗就擋下來。真的要略過時用
-`git push --no-verify`。
+之後每次 `git push` 都會先跑 `Check-Docs.ps1` 再跑 `Run-CoreTests.ps1`，任何一個
+失敗就擋下來。真的要略過時用 `git push --no-verify`。
 
 ## 工具腳本的共用設定
 
