@@ -95,7 +95,8 @@ Tab／Shift+Tab 在欄位之間移動；完整捷徑表見[程式碼片段](snip
 | 暫時停用整個擴充 | `Ctrl+Alt+Shift+S`，或 **工具 → SqlAssist → 啟用 SqlAssist** |
 | 只關閉自動建議 | **工具 → SqlAssist → 顯示即時建議** |
 | 看某個物件到底怎麼寫的 | `F12`，或 **工具 → SqlAssist → 移至定義** |
-| 資料表剛變更，想重新載入 | **工具 → SqlAssist → 重新整理建議** |
+| 查看游標處物件的完整結構 | `Ctrl+F12`，或 **工具 → SqlAssist → 顯示游標處物件的結構** |
+| 資料表剛變更，想重新載入 | `Ctrl+Shift+D`，或 **工具 → SqlAssist → 重新整理建議** |
 | 修改功能行為 | `Ctrl+,` 後搜尋 `SqlAssist` |
 | 編輯內建或自訂片段 | **工具 → SqlAssist → 程式碼片段…** |
 | 回報問題前檢查狀態 | **工具 → SqlAssist → 關於與診斷…** |
@@ -123,7 +124,7 @@ $installer = Join-Path $env:ProgramFiles 'Microsoft SQL Server Management Studio
 ### 看得到 SqlAssist，但沒有資料庫物件
 
 - 確認目前查詢視窗已連線到資料庫。
-- 從 **工具 → SqlAssist → 重新整理建議** 重新載入。
+- 按 `Ctrl+Shift+D`，或從 **工具 → SqlAssist → 重新整理建議** 重新載入。
 - 確認設定「列出資料庫物件與欄位」仍為開啟。
 - 權限不足、逾時或連線失敗時，這一輪會退回只有 T-SQL 關鍵字與片段的建議。
 
