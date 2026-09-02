@@ -24,6 +24,8 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
         Object = objectInfo;
     }
 
+    public SqlCommitExpansionScope Scope => SqlCommitExpansionScope.Statement;
+
     public SqlObjectInfo Object { get; }
 
     /// <summary>定義只有中繼資料層拿得到，這裡永遠要查。</summary>
@@ -90,6 +92,8 @@ internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
     }
 
     public SqlObjectInfo Object { get; }
+
+    public SqlCommitExpansionScope Scope => SqlCommitExpansionScope.Statement;
 
     public SqlObjectDetail? KnownDetail { get; }
 
@@ -169,6 +173,8 @@ internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
 
     public SqlObjectInfo Object { get; }
 
+    public SqlCommitExpansionScope Scope => SqlCommitExpansionScope.Statement;
+
     public SqlObjectDetail? KnownDetail { get; }
 
     public string OperationName => "MERGE 語句";
@@ -237,6 +243,8 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
     }
 
     public SqlObjectInfo Object { get; }
+
+    public SqlCommitExpansionScope Scope => SqlCommitExpansionScope.Statement;
 
     /// <summary>參數與定義只有中繼資料層拿得到，這裡永遠要查。</summary>
     public SqlObjectDetail? KnownDetail => null;
@@ -312,4 +320,99 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
         return length == 0 ? "EXEC" : text.Substring(0, length);
     }
 
+}
+
+/// <summary>
+/// 在剛插入的函式名稱後面補上一整組引數。
+/// </summary>
+/// <remarks>
+/// 與上面四種的差別只有一個：換掉的不是整句，而是<b>剛插入的那個名稱</b>
+/// （<see cref="SqlCommitExpansionScope.InsertedName"/>）。函式出現在哪個子句
+/// 由使用者決定，那些位置大多沒有「決定目標的關鍵字」可以當整句的起點。
+///
+/// 括號不是體貼而是必要：<c>SELECT dbo.fn_DueDate</c> 是語法錯誤，
+/// 沒有參數的函式也一樣要寫 <c>()</c>。引數的值一律是預留位置，
+/// 挑選規則與 EXEC 骨架共用 <see cref="SqlLiteralDefaults"/>——各寫一份的下場是
+/// 其中一份給日期填了空字串，而那會安靜地存進 1900-01-01。
+///
+/// 參數一個都撈不到時<b>照樣</b>補上一對空括號，這與 INSERT 骨架「欄位撈不到就整個
+/// 放棄」相反，因為兩者的失敗長得不一樣：沒有欄位的 <c>INSERT</c> 是一句跑得動卻
+/// 錯的話，而沒有參數的函式呼叫本來就寫成 <c>()</c>——那是正確答案，不是半成品。
+/// </remarks>
+internal sealed class SqlFunctionCallExpansion : ISqlCommitExpansion
+{
+    private readonly string _insertedName;
+
+    /// <param name="insertedName">
+    /// 提交時寫進緩衝區的名稱。等待期間的原文比對要用它，
+    /// 見 <see cref="LeadingKeyword"/>。
+    /// </param>
+    public SqlFunctionCallExpansion(SqlObjectInfo objectInfo, string insertedName)
+    {
+        Object = objectInfo;
+        _insertedName = insertedName;
+    }
+
+    public SqlCommitExpansionScope Scope => SqlCommitExpansionScope.InsertedName;
+
+    public SqlObjectInfo Object { get; }
+
+    /// <summary>參數只有中繼資料層拿得到，這裡永遠要查。</summary>
+    public SqlObjectDetail? KnownDetail => null;
+
+    public string OperationName => "函式引數";
+
+    /// <summary>
+    /// 這一段必須仍是剛插入的那個名稱。
+    /// </summary>
+    /// <remarks>
+    /// 整句展開比的是 <c>ALTER</c>、<c>EXEC</c> 這種關鍵字，這裡沒有關鍵字可比——
+    /// 範圍本來就只有名稱。等待期間使用者若把它刪掉或改成別的字，比對就不成立，
+    /// 括號因此不會補到別人的名稱上。
+    /// </remarks>
+    public string LeadingKeyword => _insertedName;
+
+    public TextReplacement? Build(SqlObjectDetail detail, SqlStatementSite site, string insertedName)
+    {
+        // 等待期間使用者已經自己打了左括號：再補一組就變成 dbo.fn_DueDate(NULL)(。
+        // 這一關其他四種展開不需要——它們換掉的是整句，而整句展開的下一個字元
+        // 是什麼並不會讓結果重複。
+        if (site.NextCharacter == '(')
+        {
+            SqlAssistDiagnostics.Write(
+                $"{Object.QualifiedName} 後面已經有左括號，這一次不補引數");
+            return null;
+        }
+
+        var arguments = new List<SqlStatementParameter>(detail.Parameters.Count);
+
+        foreach (var parameter in detail.Parameters)
+        {
+            // parameter_id 0 是函式的傳回值，不是呼叫時傳得進去的東西。
+            if (parameter.Ordinal <= 0)
+            {
+                continue;
+            }
+
+            // 函式只收位置引數，沒有「這一個可以省略」這回事：定義裡寫了預設值的
+            // 參數，呼叫時要嘛給值、要嘛寫 DEFAULT，位置照留。因此這裡不必像
+            // EXEC 那樣去讀定義找預設值，也就少一次剖析。
+            arguments.Add(new SqlStatementParameter(
+                parameter.Name,
+                parameter.DataType,
+                parameter.IsOutput,
+                isOptional: false));
+        }
+
+        var text = SqlFunctionCallText.Build(insertedName, arguments, out var caretOffset);
+
+        return new TextReplacement(
+            text,
+            SqlAssistActivityKind.FunctionCallExpanded,
+            arguments.Count == 0
+                ? $"已補上 {Object.QualifiedName} 的空括號（沒有參數）"
+                : $"已補上 {Object.QualifiedName} 的 {arguments.Count} 個引數",
+            caretOffset,
+            arguments.Count);
+    }
 }

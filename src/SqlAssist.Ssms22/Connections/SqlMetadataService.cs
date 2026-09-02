@@ -1033,8 +1033,11 @@ internal sealed class SqlMetadataService : IDisposable
             SqlObjectKind.View => SuggestionKind.View,
             SqlObjectKind.Procedure => SuggestionKind.Procedure,
             SqlObjectKind.ScalarFunction => SuggestionKind.Function,
-            SqlObjectKind.InlineTableFunction => SuggestionKind.Function,
-            SqlObjectKind.TableValuedFunction => SuggestionKind.Function,
+
+            // 資料表值函式與純量函式分開：前者接得上 FROM、JOIN 與 APPLY，
+            // 後者只出現在運算式位置。壓成同一類的症狀是 FROM 之後一個函式都不出現。
+            SqlObjectKind.InlineTableFunction => SuggestionKind.TableFunction,
+            SqlObjectKind.TableValuedFunction => SuggestionKind.TableFunction,
             SqlObjectKind.Trigger => SuggestionKind.Trigger,
             SqlObjectKind.Sequence => SuggestionKind.Sequence,
             SqlObjectKind.TableType => SuggestionKind.UserDefinedType,

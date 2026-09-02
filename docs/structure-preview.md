@@ -41,6 +41,16 @@ SSMS 詢問目前連線——那個呼叫有 UI 執行緒相依性，忙的時�
 把一個檢視寫成 `CREATE TABLE`。那不只是難看，是指令碼在說謊：照著執行會多出
 一張同名的資料表。
 
+同義字與序列的定義不在 `sys.sql_modules` 裡，`OBJECT_DEFINITION` 對它們一律回傳
+NULL；它們的定義就是目錄檢視上的那幾個欄位，由 `SqlCatalogScript` 組成
+`CREATE SYNONYM … FOR …;` 與 `CREATE SEQUENCE …;`（見 [metadata.md](metadata.md)）。
+到了指令碼分頁與 F12 之後，它們與模組拿到定義原文走的是同一條路。
+
+滑鼠停留提示對這兩種也直接顯示那段 `CREATE`，而不是「`Synonym [dbo].[syn_Loan]`」
+——後者說不出它指向誰，而那是使用者把滑鼠停在同義字上時唯一要問的事。
+提示畫的是同一份 `Definition`，不是自己再組一次：兩份格式的症狀是提示與 F12
+開出來的指令碼寫法不同，而且沒有任何徵兆。
+
 資料表型別走自己的一支，寫成 `CREATE TYPE ... AS TABLE`。它也有欄位，不接走
 就是同一個謊。主索引鍵寫成**不具名**的內嵌條件約束——`CREATE TYPE` 的括號裡
 不收 `CONSTRAINT 名稱`，型別的條件約束一律命名不得，而查到的那個名字本來就是

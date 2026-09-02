@@ -313,7 +313,8 @@ public sealed class SqlObjectStructureTests
                 new SqlObjectInfo(8, "dbo", "v_Loan", SqlObjectKind.View),
                 new[] { Column(1, "LoanId", "int", nullable: false) }));
 
-        // 同義字寫不出指令碼是種類的事，與這一輪查到多少資料無關。
+        // 同義字的定義是 sys.synonyms 上的一個欄位，查不到那一列就跟模組
+        // 取不到定義一樣，是「這一輪的資料不齊」而不是「這一類寫不出來」。
         var synonym = new SqlObjectStructure(
             new SqlObjectDetail(new SqlObjectInfo(9, "dbo", "syn_Loan", SqlObjectKind.Synonym)));
 
@@ -325,6 +326,40 @@ public sealed class SqlObjectStructureTests
         Assert.StartsWith("CREATE TABLE", ready.BuildScript());
         Assert.StartsWith("-- 取不到", missingColumns.BuildScript());
         Assert.StartsWith("-- 取不到", missingDefinition.BuildScript());
+    }
+
+    /// <remarks>
+    /// 同義字與序列的定義由 <c>SqlCatalogScript</c> 從目錄檢視組出來，放進
+    /// <c>Definition</c>；到了這裡與模組拿到定義原文走的是同一條路。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.Synonym, "CREATE SYNONYM [dbo].[syn_Loan]\r\nFOR [Lib].[dbo].[Loan];")]
+    [InlineData(SqlObjectKind.Sequence, "CREATE SEQUENCE [dbo].[seq_LoanNo]\r\n    AS int;")]
+    public void 目錄檢視的定義就是指令碼(SqlObjectKind kind, string definition)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(10, "dbo", "obj", kind),
+                definition: definition));
+
+        Assert.True(structure.CanBuildExecutableScript);
+        Assert.Equal(definition, structure.BuildScript());
+    }
+
+    /// <remarks>
+    /// 缺定義的原因要說對：同義字的定義從來不經過加密與 VIEW DEFINITION 權限
+    /// 那兩關，照模組的說法寫會讓使用者去查一個不存在的原因。
+    /// </remarks>
+    [Fact]
+    public void 查不到同義字那一列時說的是目錄檢視()
+    {
+        var script = new SqlObjectStructure(
+            new SqlObjectDetail(new SqlObjectInfo(11, "dbo", "syn_Loan", SqlObjectKind.Synonym)))
+            .BuildScript();
+
+        Assert.Contains("取不到 [dbo].[syn_Loan] 的定義", script);
+        Assert.Contains("sys.synonyms", script);
+        Assert.DoesNotContain("OBJECT_DEFINITION", script);
     }
     /// <summary>取不到定義的程序列出參數，理由與檢視列出欄位相同。</summary>
     [Fact]

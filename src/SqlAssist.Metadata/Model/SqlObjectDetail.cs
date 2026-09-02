@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using SqlAssist.Metadata.Formatting;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -31,12 +32,22 @@ public sealed class SqlObjectDetail
 
     public IReadOnlyList<SqlParameterInfo> Parameters { get; }
 
-    /// <summary>物件的 T-SQL 定義；非模組物件或加密物件為 null。</summary>
+    /// <summary>
+    /// 物件的 T-SQL 定義。
+    /// </summary>
+    /// <remarks>
+    /// 兩個來源：模組來自 <c>OBJECT_DEFINITION</c>，同義字與序列由
+    /// <see cref="SqlCatalogScript"/> 從目錄檢視組出來。刻意共用同一個欄位——
+    /// 對每一個下游而言它們就是同一件事：一段照著執行就會得到這個物件的 T-SQL。
+    ///
+    /// 加密的模組、查不到那一列的同義字與序列，以及其餘種類都是 null。
+    /// </remarks>
     public string? Definition { get; }
 
     /// <summary>
     /// 組出給預覽窗格與滑鼠停留提示使用的文字。
-    /// 有欄位的物件顯示欄位結構，模組類物件顯示原始定義。
+    /// 有欄位的物件顯示欄位結構，其餘顯示定義本文（同義字與序列的定義是本擴充
+    /// 自己從目錄檢視組出來的，見 <see cref="Definition"/>）。
     /// </summary>
     public string BuildPreview()
     {

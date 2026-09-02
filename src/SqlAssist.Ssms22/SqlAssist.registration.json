@@ -184,6 +184,15 @@
       "additionalKeywords": [ "預存程序", "stored procedure", "呼叫", "OUTPUT", "產生 SQL" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
+    "sqlAssist.suggestions.expandFunctionCall": {
+      "type": "boolean",
+      "default": true,
+      "order": 415,
+      "title": "選取自訂函式後補上括號與引數",
+      "description": "選取純量函式或資料表值函式後補上一整組引數，依參數型別填入預留值（數值 0、字串 ''、日期 NULL），沒有參數的函式補一對空括號。函式的括號在 T-SQL 裡本來就非寫不可。關閉後只插入名稱。",
+      "additionalKeywords": [ "使用者自訂函式", "function", "括號", "引數", "參數", "產生 SQL" ],
+      "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
+    },
 
     "sqlAssist.structure.hoverEnabled": {
       "type": "boolean",

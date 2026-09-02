@@ -402,13 +402,9 @@ public static class SqlCompletionContextAnalyzer
         // CROSS／OUTER APPLY 之後文法上只接得了資料表值函式與衍生資料表，資料表
         // 本身放在那裡雖然剖析得過卻沒有意義。認的是 APPLY 一個字：前面那個
         // CROSS／OUTER 不改變後面要什麼，多比一次只是多一條會漏的路。
-        //
-        // 純量函式會跟著一起列出來——目錄把三種函式對應到同一個 SuggestionKind，
-        // 分開得新增一種類別。多幾個選不中的名稱是一次多按幾下，而把整個
-        // CompletionTarget.Function 讓掉的話 APPLY 之後就完全沒有補字。
         if (EndsWithKeyword(text, "APPLY", out keywordStart))
         {
-            return CompletionTarget.Function;
+            return CompletionTarget.TableFunction;
         }
 
         // USING 與 FROM 是同一條文法（MERGE 的來源）。SqlKeywordPositionAnalyzer 與

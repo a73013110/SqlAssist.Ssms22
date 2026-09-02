@@ -76,9 +76,11 @@ internal static class SqlCompletionFilters
     /// 建議項所屬的分類。
     /// </summary>
     /// <remarks>
-    /// 使用者自訂函式與 T-SQL 內建函式在這裡併成同一顆：分開是為了
-    /// <c>ALTER FUNCTION</c> 的語境過濾（見 <see cref="SuggestionKind.BuiltInFunction"/>），
-    /// 那層邏輯與篩選鈕無關，而篩選列上分成兩顆對使用者沒有意義。
+    /// 純量函式、資料表值函式與 T-SQL 內建函式在這裡併成同一顆：分開是為了
+    /// 語境過濾（<c>ALTER FUNCTION</c> 不列內建函式、<c>FROM</c> 不列純量函式，
+    /// 見 <see cref="SuggestionKind.BuiltInFunction"/> 與
+    /// <see cref="SuggestionKind.TableFunction"/>），那層邏輯與篩選鈕無關，
+    /// 而篩選列上分成三顆對使用者沒有意義。
     ///
     /// 結構描述、資料庫、型別與小老鼠開頭的那幾類沒有自己的篩選鈕——它們分別只
     /// 出現在 <c>USE</c>、型別位置、<c>@@</c> 與 <c>@</c> 之後，當下清單裡幾乎只有
@@ -97,7 +99,9 @@ internal static class SqlCompletionFilters
             SuggestionKind.Table or SuggestionKind.ScriptDataSource => Tables,
             SuggestionKind.View => Views,
             SuggestionKind.Procedure => Procedures,
-            SuggestionKind.Function or SuggestionKind.BuiltInFunction => Functions,
+            SuggestionKind.Function
+                or SuggestionKind.TableFunction
+                or SuggestionKind.BuiltInFunction => Functions,
             SuggestionKind.Keyword => Keywords,
             SuggestionKind.Snippet => Snippets,
             _ => Others

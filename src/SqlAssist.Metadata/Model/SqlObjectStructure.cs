@@ -82,18 +82,21 @@ public sealed class SqlObjectStructure
     /// </summary>
     /// <remarks>
     /// 模組類物件直接給定義本文——那本來就是可執行的原文，重組只會失真。
+    /// 同義字與序列走同一支：它們的定義不在 <c>sys.sql_modules</c> 裡，
+    /// 而是由 <see cref="SqlCatalogScript"/> 從目錄檢視組回 <c>CREATE</c>，
+    /// 但到了這裡兩者沒有差別。
     /// 資料表則重建 CREATE TABLE，並把主索引鍵寫進條件約束，
     /// 其餘索引與外來鍵接在後面，順序與 SSMS 的指令碼一致。
     /// 資料表型別另有一支，見 <see cref="BuildCreateTypeScript"/>。
     ///
-    /// 寫不出來的三種情形全部在 <see cref="CheckAvailability"/> 判掉，
+    /// 寫不出來的情形全部在 <see cref="CheckAvailability"/> 判掉，
     /// 沒有一種會掉進後面的組字串。
     /// </remarks>
     public string BuildScript()
     {
         switch (CheckAvailability())
         {
-            // 寫不出 T-SQL 的種類（同義字、序列、認不出來的）只給一段給人看的摘要。
+            // 寫不出 T-SQL 的種類（現在只剩認不出來的那些）只給一段給人看的摘要。
             // 那份文字貼在唯讀的預覽窗格裡沒有問題，要拿去執行的 F12 那一端會再
             // 把它整段註解掉。
             case ScriptAvailability.UnscriptableKind:
@@ -102,11 +105,21 @@ public sealed class SqlObjectStructure
             // 檢視同時是模組也有欄位。定義取不到時原本會掉進 CREATE TABLE 那一支，
             // 於是一個檢視被寫成一張資料表——那不只是排版難看，是指令碼在說謊：
             // 照著執行會多出一張同名的資料表。
+            //
+            // 缺定義的原因分兩種說法，因為兩種物件的定義根本不從同一個地方來：
+            // 說錯的話使用者會去查加密與 VIEW DEFINITION 權限，而同義字的定義
+            // 從來不經過那兩關。
             case ScriptAvailability.MissingDefinition:
-                return BuildUnavailableScript(
-                    "定義",
-                    "OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，",
-                    "或是目前的登入沒有它的 VIEW DEFINITION 權限。");
+                return Object.Kind.HasSynthesizedDefinition()
+                    ? BuildUnavailableScript(
+                        "定義",
+                        "sys.synonyms／sys.sequences 一列都沒有回來，而查詢本身沒有失敗——",
+                        "原因只有兩個：物件在建議清單被快取之後卸除，",
+                        "或是這個登入對它的權限在那之後被收回。")
+                    : BuildUnavailableScript(
+                        "定義",
+                        "OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，",
+                        "或是目前的登入沒有它的 VIEW DEFINITION 權限。");
 
             // 一個欄位都沒有時組出來的是一對空括號，而那仍然是一段貼得上去的
             // CREATE TABLE：執行下去建出一張沒有欄位的資料表，比什麼都不做糟。
@@ -117,7 +130,7 @@ public sealed class SqlObjectStructure
                     "建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。");
         }
 
-        if (Object.Kind.IsModule())
+        if (Object.Kind.ScriptsFromDefinition())
         {
             return Definition!;
         }
@@ -139,9 +152,9 @@ public sealed class SqlObjectStructure
             return ScriptAvailability.UnscriptableKind;
         }
 
-        // 模組的分支必須整個接走，不能只在「拿得到定義」時接：檢視同時是模組
-        // 也有欄位，漏掉就會掉進資料表那一支。
-        if (Object.Kind.IsModule())
+        // 以定義為指令碼的那一族必須整個接走，不能只在「拿得到定義」時接：
+        // 檢視同時是模組也有欄位，漏掉就會掉進資料表那一支。
+        if (Object.Kind.ScriptsFromDefinition())
         {
             return string.IsNullOrWhiteSpace(Definition)
                 ? ScriptAvailability.MissingDefinition

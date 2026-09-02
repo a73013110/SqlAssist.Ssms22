@@ -37,7 +37,8 @@ GO
 | 資料表型別 | 重建的 `CREATE TYPE ... AS TABLE`，主索引鍵寫成不具名的內嵌條件約束 |
 | 取不到定義的模組 | 整段註解，寫明兩個可能的原因與查得到的欄位、參數 |
 | 取不到欄位的資料表、資料表型別 | 整段註解，寫明兩個可能的原因 |
-| 同義字、序列 | 整段註解，寫明為什麼組不出可執行的指令碼 |
+| 同義字、序列 | `CREATE SYNONYM`、`CREATE SEQUENCE`（維持 CREATE，這兩種沒有整體的 ALTER 寫法） |
+| 認不出來的種類 | 整段註解，寫明為什麼組不出可執行的指令碼 |
 
 前五列與浮動預覽的**指令碼**分頁是同一份（[structure-preview.md](structure-preview.md)），
 差別只在這裡多包了批次樣板並把模組改成 `ALTER`。
@@ -57,15 +58,21 @@ F12 之後接著要做的事幾乎都是「改一下再執行」。給 `CREATE` 
 資料表與資料表型別**不**改寫。`ALTER TABLE` 沒有對應的整體寫法，型別更是連
 `ALTER TYPE` 都沒有；改下去得到的是一段執行到一半才失敗的指令碼。
 
-### 為什麼有些種類整段是註解
+資料表也不改寫成 `ALTER`，同義字與序列同理：`CREATE SYNONYM` 沒有整體的 `ALTER`
+寫法，序列的 `ALTER SEQUENCE` 則改不了型別，貼上去只會在第一個子句就失敗。
 
-同義字指向哪個物件、序列的起始值與增量，這兩樣都不在 SqlAssist 查詢的中繼資料裡。
-硬湊一份出來就是指令碼在說謊，與檢視取不到定義時不能掉進 `CREATE TABLE` 是同一
-條理由。
+### 為什麼還留著「整段註解」這一支
 
-資料表型別曾經也在這一列。它有欄位，不擋掉就會被寫成 `CREATE TABLE`，照著執行會
-多出一張同名的資料表——而它需要的 `CREATE TYPE ... AS TABLE` 其實查得到的資料就
-組得出來，所以現在直接組，兩邊都不必再繞。
+只剩 `SqlObjectKinds.FromSysObjectType` 認不出來的種類會走到那裡。這一支不能拿掉：
+沒見過的型別代碼一律對應到 `Unknown`，而 SQL Server 的物件型別只會愈來愈多，
+硬湊一份指令碼出來就是指令碼在說謊。
+
+同義字、序列與資料表型別曾經都在這一列。前兩者的定義其實就是目錄檢視上的那幾個
+欄位（`sys.synonyms.base_object_name`、`sys.sequences` 的界限與快取），
+現在由 `Metadata/Formatting/SqlCatalogScript` 組回 `CREATE`，見
+[metadata.md](metadata.md)。資料表型別則有欄位，不擋掉會被寫成 `CREATE TABLE`，
+照著執行會多出一張同名的資料表——而它需要的 `CREATE TYPE ... AS TABLE` 查得到的
+資料就組得出來，所以現在直接組，三種都不必再繞。
 
 「哪一類寫得出可以執行的指令碼」由 `SqlObjectKinds.HasExecutableScript` 一份說了算，
 這條路徑與浮動預覽的指令碼分頁共用。各留一份判斷的症狀已經發生過一次：同一個

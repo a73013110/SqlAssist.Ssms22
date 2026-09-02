@@ -21,9 +21,11 @@ namespace SqlAssist.Ssms22.Completion;
 /// <remarks>
 /// 大部分項目交還給平台處理即可（它會插入 <see cref="CompletionItem.InsertText"/>），
 /// 只有三種情形要自己接手：原生 Tab Stop Snippet、設定了接續建議的 caret Snippet，
-/// 以及提交後要把整個語句換掉的三種展開——<c>ALTER PROCEDURE</c> 的完整定義、
-/// <c>INSERT INTO</c> 的欄位與 <c>VALUES</c>、<c>EXEC</c> 的具名參數清單。
-/// 後三種只有「換成什麼」不同，「怎麼安全地換」共用 <see cref="SqlCommitExpander"/>。
+/// 以及提交後要改寫文字的那幾種展開——<c>ALTER PROCEDURE</c> 的完整定義、
+/// <c>INSERT INTO</c> 的欄位與 <c>VALUES</c>、<c>MERGE</c> 的三段子句、
+/// <c>EXEC</c> 的具名參數清單，以及函式名稱後面的引數。
+/// 它們只有「換成什麼」與「換掉哪一段」不同，「怎麼安全地換」共用
+/// <see cref="SqlCommitExpander"/>。
 /// </remarks>
 internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitManager
 {
@@ -176,7 +178,6 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 SqlSnippetExpansionController.Peek(view)?.MoveNext());
         }
         var settings = SqlAssistSettingsStore.Current;
-        var expansion = SqlCommitExpander.Resolve(suggestion, context, span.End, settings);
 
         // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
         var snippetCaret = -1;
@@ -196,14 +197,24 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
         }
 
+        // 插入文字要在問展開之前算好：函式的引數補在這個名稱後面，而等它回來時
+        // 唯一能確認「要接括號的還是同一個名稱」的依據就是這串字。
+        // 這一步只是組字串，而且提交路徑上一次按鍵只走一遍，不在按鍵路徑上。
+        var insertionText = snippetText ?? SqlInsertionText.Build(suggestion, context, settings);
+        var insertionStart = span.Start.Position;
+        var expansion = SqlCommitExpander.Resolve(
+            suggestion,
+            context,
+            span.End,
+            settings,
+            insertionText);
+
         // 一般項目讓平台自己插入，行為與其他語言一致。
         if (expansion is null && !suggestion.TriggerFollowUp && snippetCaret < 0)
         {
             return CommitResult.Unhandled;
         }
 
-        var insertionText = snippetText ?? SqlInsertionText.Build(suggestion, context, settings);
-        var insertionStart = span.Start.Position;
         ITextSnapshot applied;
 
         using (var edit = buffer.CreateEdit())
@@ -242,9 +253,15 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             // 範圍要等名稱插好之後才建立，否則會漏掉剛插進去的名稱——理由寫在
             // SqlCommitExpander.CreateStatementSpan。起點與終點都以這次編輯的
             // 結果算：取代的起點不會位移，終點就是插入文字的結尾。
+            //
+            // 起點有兩個答案，由展開自己說：整句展開從決定目標的關鍵字起算，
+            // 函式的引數則只蓋掉剛插入的名稱——後者大多沒有關鍵字可以起算
+            // （SELECT dbo.fn_… 的 TargetKeywordStart 是 -1）。
             var statementSpan = SqlCommitExpander.CreateStatementSpan(
                 applied,
-                context.TargetKeywordStart,
+                expansion.Scope == SqlCommitExpansionScope.Statement
+                    ? context.TargetKeywordStart
+                    : insertionStart,
                 insertionStart + insertionText.Length);
 
             // 展開是另一次獨立的編輯，因此按一次復原就退回「只插入名稱」的狀態——

@@ -92,6 +92,36 @@ public static class SqlMetadataReader
             record.GetString(6));
     }
 
+    /// <remarks>
+    /// 型別走與資料行、參數同一支 <see cref="SqlTypeFormatter.Format"/>：
+    /// <c>sys.sequences</c> 只認得整數與 <c>decimal</c>／<c>numeric</c>，
+    /// 而後者非帶精確度與小數位不可，<c>AS decimal</c> 建出來的序列不是同一個東西。
+    /// 長度傳 0——那組型別一個都不看它。
+    /// </remarks>
+    public static SqlSequenceInfo ReadSequence(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        var dataType = SqlTypeFormatter.Format(
+            record.GetString(0),
+            maxLength: 0,
+            record.GetByte(1),
+            record.GetByte(2));
+
+        return new SqlSequenceInfo(
+            dataType,
+            record.GetString(3),
+            record.GetString(4),
+            record.GetString(5),
+            record.GetString(6),
+            record.GetBoolean(7),
+            record.GetBoolean(8),
+            record.IsDBNull(9) ? null : record.GetInt32(9));
+    }
+
     public static SqlParameterInfo ReadParameter(IDataRecord record)
     {
         if (record is null)

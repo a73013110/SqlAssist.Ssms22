@@ -225,4 +225,49 @@ ORDER BY p.parameter_id;";
     /// <summary>第三層：模組定義本文。加密物件會回傳 NULL。</summary>
     public const string Definition = @"
 SELECT OBJECT_DEFINITION(@objectId);";
+
+    /// <summary>
+    /// 第三層：同義字指向的物件。
+    /// </summary>
+    /// <remarks>
+    /// 同義字沒有 <c>sys.sql_modules</c> 的列，<c>OBJECT_DEFINITION</c> 對它一律
+    /// 回傳 NULL——這一欄就是它的定義。取回來之後由
+    /// <see cref="SqlAssist.Metadata.Formatting.SqlCatalogScript.ForSynonym"/> 組成 <c>CREATE SYNONYM</c>。
+    ///
+    /// <c>base_object_name</c> 存的是已經加好方括號的多段式名稱，而且不保證指得到
+    /// 存在的物件：同義字可以指向一個還沒建立、甚至在別台伺服器上的東西。
+    /// 因此這裡不 JOIN 回 <c>sys.objects</c>——那會讓一個完全合法的同義字查不到定義。
+    /// </remarks>
+    public const string SynonymBase = @"
+SELECT sn.base_object_name
+FROM sys.synonyms AS sn
+WHERE sn.object_id = @objectId;";
+
+    /// <summary>
+    /// 第三層：序列的界限、循環與快取設定。
+    /// </summary>
+    /// <remarks>
+    /// 四個界限值在 <c>sys.sequences</c> 裡是 <c>sql_variant</c>，實際型別隨序列
+    /// 自己的型別而變。在伺服器端 <c>CONVERT</c> 成字串再讀：用
+    /// <c>IDataRecord.GetValue</c> 收 <c>sql_variant</c> 拿到的是裝箱的原生型別，
+    /// 一個 <c>decimal(38,0)</c> 的序列會讓任何一種整數轉型當場溢位，
+    /// 而那一整份中繼資料會被降級成「這一輪沒有資料」。
+    ///
+    /// <c>current_value</c> 刻意不取：它每取一次號就變，而這裡要的是定義。
+    /// </remarks>
+    public const string Sequence = @"
+SELECT
+    t.name AS type_name,
+    s.precision,
+    s.scale,
+    CONVERT(nvarchar(64), s.start_value) AS start_value,
+    CONVERT(nvarchar(64), s.increment) AS increment,
+    CONVERT(nvarchar(64), s.minimum_value) AS minimum_value,
+    CONVERT(nvarchar(64), s.maximum_value) AS maximum_value,
+    s.is_cycling,
+    s.is_cached,
+    s.cache_size
+FROM sys.sequences AS s
+INNER JOIN sys.types AS t ON t.user_type_id = s.user_type_id
+WHERE s.object_id = @objectId;";
 }

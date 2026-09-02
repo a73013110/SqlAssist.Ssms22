@@ -120,6 +120,20 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool ExpandProcedureCall { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.suggestions.expandFunctionCall
+    /// </summary>
+    /// <remarks>
+    /// 提交一個使用者自訂函式時補上引數清單：<c>SELECT dbo.fn_DueDate(NULL)</c>、
+    /// <c>FROM dbo.fn_LoansByReader(0)</c>。與上面三個分成獨立的開關，理由相同——
+    /// 展開的東西不同，想關掉它的理由也不同：這一個補的是括號與預留值，
+    /// 而括號在 T-SQL 裡本來就非寫不可。
+    ///
+    /// 只管使用者自訂函式。T-SQL 內建函式的左括號寫在建議項自己的插入文字裡
+    /// （<c>SqlFunctionCatalog</c>），那一份不查資料庫，也不受這個開關影響。
+    /// </remarks>
+    public bool ExpandFunctionCall { get; init; } = true;
+
     /// <summary>sqlAssist.structure.hoverEnabled：滑鼠停留提示，與浮動預覽是兩個獨立的表面。</summary>
     public bool HoverEnabled { get; init; } = true;
 

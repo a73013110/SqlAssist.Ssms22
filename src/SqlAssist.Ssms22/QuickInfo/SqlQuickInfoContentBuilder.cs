@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
+using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 
@@ -26,6 +28,13 @@ internal static class SqlQuickInfoContentBuilder
     /// <summary>最多顯示的參數數。</summary>
     private const int MaximumParameters = 8;
 
+    /// <summary>直接顯示定義本文時，最多顯示幾行。</summary>
+    /// <remarks>
+    /// 只有同義字與序列走這條路，兩者最長就是八行；上限在這裡是為了擋住
+    /// 「有一天別的種類也走進來」，而不是為了截斷這兩種。
+    /// </remarks>
+    private const int MaximumDefinitionLines = 10;
+
     private const string OpenStructureText = "開啟完整結構";
 
     private const string OpenStructureTooltip = "開啟浮動結構視窗：可捲動、可用滑鼠選取複製，Esc 關閉";
@@ -35,6 +44,18 @@ internal static class SqlQuickInfoContentBuilder
     /// </param>
     public static ContainerElement Build(SqlObjectDetail detail, Action? openStructure = null)
     {
+        // 同義字與序列的定義是本擴充自己從目錄檢視組出來的一小段 CREATE，
+        // 而那段文字本身就是最好的標題：「Synonym [dbo].[syn_Loan]」說不出它指向誰，
+        // 而「它指向誰」正是使用者把滑鼠停在同義字上時唯一要問的事。
+        //
+        // 這裡刻意不自己組一次 CREATE SYNONYM，而是把 Definition 畫出來：
+        // 兩份格式的症狀是提示與 F12 開出來的指令碼寫法不同，而且沒有任何徵兆。
+        if (detail.Object.Kind.HasSynthesizedDefinition() &&
+            !string.IsNullOrWhiteSpace(detail.Definition))
+        {
+            return BuildDefinition(detail.Definition!, openStructure);
+        }
+
         // 標題帶上欄位總數：清單被截斷時，使用者至少知道自己看到的是幾分之幾。
         var elements = new List<object>
         {
@@ -138,6 +159,93 @@ internal static class SqlQuickInfoContentBuilder
             ClassifiedTextRunStyle.Underline));
 
         return new ClassifiedTextElement(runs);
+    }
+
+    /// <summary>
+    /// 把一段定義本文畫成提示內容。
+    /// </summary>
+    /// <remarks>
+    /// 著色走 <see cref="SqlTokenizer"/> 與 <see cref="SqlKeywordCatalog"/>，
+    /// 與浮動預覽的指令碼分頁同一組出處——照關鍵字字面值再列一份的話，
+    /// 新增一個關鍵字時只會有一邊跟著變。
+    ///
+    /// 逐行分開成 <see cref="ClassifiedTextElement"/>：提示視窗不會自己斷行，
+    /// 整段塞進一個元素會排成一長行而被螢幕邊界切掉。
+    /// </remarks>
+    private static ContainerElement BuildDefinition(string definition, Action? openStructure)
+    {
+        var lines = definition.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var elements = new List<object>();
+        var shown = 0;
+
+        foreach (var line in lines)
+        {
+            if (line.Trim().Length == 0)
+            {
+                continue;
+            }
+
+            if (shown == MaximumDefinitionLines)
+            {
+                break;
+            }
+
+            shown++;
+            elements.Add(new ClassifiedTextElement(BuildCodeRuns(line)));
+        }
+
+        if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
+        {
+            elements.Add(footer);
+        }
+
+        return new ContainerElement(ContainerElementStyle.Stacked, elements);
+    }
+
+    /// <remarks>
+    /// 詞元之間的原文（空白、換行）照原樣補回去，靠的是每個詞元自己的位置——
+    /// 依詞元種類重新拼一次空白的話，<c>FOR [Lib].[dbo].[Loan]</c> 會變成
+    /// <c>FOR [Lib] . [dbo] . [Loan]</c>。
+    /// </remarks>
+    private static List<ClassifiedTextRun> BuildCodeRuns(string line)
+    {
+        var runs = new List<ClassifiedTextRun>();
+        var position = 0;
+
+        foreach (var token in SqlTokenizer.TokenizeWithComments(line))
+        {
+            if (token.Start > position)
+            {
+                runs.Add(Text(line.Substring(position, token.Start - position)));
+            }
+
+            // 畫出去的是 Text 不是 Value：後者去掉了方括號，
+            // [dbo].[syn_Loan] 會被畫成 dbo.syn_Loan——那是另一個名稱。
+            runs.Add(new ClassifiedTextRun(ClassificationFor(token), token.Text));
+            position = token.Start + token.Length;
+        }
+
+        if (position < line.Length)
+        {
+            runs.Add(Text(line.Substring(position)));
+        }
+
+        return runs;
+    }
+
+    /// <remarks>加了方括號的名稱一律不是關鍵字：<c>[KEY]</c> 是欄位名，不是 <c>KEY</c>。</remarks>
+    private static string ClassificationFor(SqlToken token)
+    {
+        return token.Kind switch
+        {
+            SqlTokenKind.Comment => PredefinedClassificationTypeNames.Comment,
+            SqlTokenKind.String => PredefinedClassificationTypeNames.String,
+            SqlTokenKind.Number => PredefinedClassificationTypeNames.Number,
+            SqlTokenKind.Identifier when !token.IsQuoted &&
+                SqlKeywordCatalog.IsKeywordOrDataType(token.Value) =>
+                PredefinedClassificationTypeNames.Keyword,
+            _ => PredefinedClassificationTypeNames.Identifier
+        };
     }
 
     private static ClassifiedTextElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)

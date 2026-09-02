@@ -299,6 +299,7 @@ public static class SqlAssistDiagnosticReport
             SqlAssistActivityKind.InsertExpanded => WithCount("展開 INSERT", activity, "個欄位"),
             SqlAssistActivityKind.MergeExpanded => WithCount("展開 MERGE", activity, "個欄位"),
             SqlAssistActivityKind.ExecuteExpanded => WithCount("展開 EXEC", activity, "個參數"),
+            SqlAssistActivityKind.FunctionCallExpanded => WithCount("補上函式引數", activity, "個引數"),
             SqlAssistActivityKind.DefinitionOpened => "在新查詢視窗開啟定義",
             _ => "未知活動"
         };

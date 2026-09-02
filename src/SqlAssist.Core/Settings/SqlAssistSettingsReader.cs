@@ -86,6 +86,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.ExpandProcedureCall,
                 defaults.ExpandProcedureCall),
+            ExpandFunctionCall = Value(
+                source,
+                SqlAssistMonikers.ExpandFunctionCall,
+                defaults.ExpandFunctionCall),
 
             HoverEnabled = Value(source, SqlAssistMonikers.HoverEnabled, defaults.HoverEnabled),
             PreviewMode = ParsePreviewMode(

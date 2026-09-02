@@ -16,11 +16,16 @@ namespace SqlAssist.Ssms22.Completion;
 /// <summary>語句要寫進哪一行；縮排與換行字元都由那一行決定。</summary>
 internal readonly struct SqlStatementSite
 {
-    private SqlStatementSite(string indent, string newLine, string statementText)
+    private SqlStatementSite(
+        string indent,
+        string newLine,
+        string statementText,
+        char nextCharacter)
     {
         Indent = indent;
         NewLine = newLine;
         StatementText = statementText;
+        NextCharacter = nextCharacter;
     }
 
     /// <summary>語句所在行的前導空白，原樣重複到展開出來的每一行。</summary>
@@ -34,6 +39,17 @@ internal readonly struct SqlStatementSite
 
     /// <summary>要被換掉的那一段原文；使用者寫的關鍵字大小寫與寫法都在裡面。</summary>
     public string StatementText { get; }
+
+    /// <summary>
+    /// 緊接在這一段後面的那個字元；已經到緩衝區結尾時是 <c>\0</c>。
+    /// </summary>
+    /// <remarks>
+    /// 查詢期間使用者仍在打字，而提交完一個函式名稱之後最順手的下一個鍵正是左括號。
+    /// 追蹤範圍是 <see cref="SpanTrackingMode.EdgeExclusive"/>，他打的那個字元落在
+    /// 範圍<b>外</b>，範圍裡的字一個都沒變——光看範圍內的文字看不出這件事，
+    /// 補上去的結果會是 <c>dbo.fn_DueDate(NULL)(</c>。
+    /// </remarks>
+    public char NextCharacter { get; }
 
     public static SqlStatementSite From(SnapshotSpan target)
     {
@@ -49,19 +65,54 @@ internal readonly struct SqlStatementSite
         return new SqlStatementSite(
             text.Substring(0, length),
             SnapshotNewLine.Resolve(target.Snapshot, target.Start.Position),
-            target.GetText());
+            target.GetText(),
+            target.End.Position < target.Snapshot.Length
+                ? target.Snapshot[target.End.Position]
+                : '\0');
     }
 }
 
-/// <summary>提交建議後要把整個語句換成什麼。</summary>
+/// <summary>提交之後要換掉的是哪一段。</summary>
 /// <remarks>
-/// 三種展開（ALTER 定義、INSERT 骨架、EXEC 呼叫）只有「換成什麼」不一樣，
+/// 只有這一件事在各種展開之間不一樣，其餘（切執行緒、取最新範圍、確認原文還在）
+/// 完全共用。分成兩種而不是讓每一種自己算起點：起點只有這兩個答案，
+/// 而算錯的症狀是把使用者前面那半句話一起蓋掉。
+/// </remarks>
+internal enum SqlCommitExpansionScope
+{
+    /// <summary>
+    /// 從決定目標的那個關鍵字起，到剛插入的名稱結尾。
+    /// </summary>
+    /// <remarks>
+    /// <c>ALTER PROCEDURE</c>、<c>INSERT INTO</c>、<c>MERGE</c>、<c>EXEC</c> 四種
+    /// 都是整句換掉，因為要寫回去的東西本來就從那個關鍵字開始。
+    /// </remarks>
+    Statement,
+
+    /// <summary>
+    /// 只有剛插入的那個名稱。
+    /// </summary>
+    /// <remarks>
+    /// 函式的引數清單接在名稱後面，前面是什麼子句都不影響它——<c>SELECT</c>、
+    /// <c>WHERE</c>、<c>FROM</c>、<c>CROSS APPLY</c> 都可能，而其中大部分位置
+    /// 根本沒有「決定目標的關鍵字」可以當起點（<c>TargetKeywordStart</c> 是 -1）。
+    /// </remarks>
+    InsertedName
+}
+
+/// <summary>提交建議後要把哪一段換成什麼。</summary>
+/// <remarks>
+/// 五種展開（ALTER 定義、INSERT 骨架、MERGE 骨架、EXEC 呼叫、函式引數）
+/// 只有「換成什麼」與「換掉哪一段」不一樣，
 /// 「怎麼安全地換」完全相同：切 UI 執行緒、檢查編輯器已關閉、從
 /// <see cref="ITrackingSpan"/> 取最新範圍、確認等待期間原文還在原處。
 /// 各寫一份的下場是其中一份少了一道，而少的那一道會覆蓋使用者的輸入。
 /// </remarks>
 internal interface ISqlCommitExpansion
 {
+    /// <summary>要被換掉的範圍從哪裡起算。</summary>
+    SqlCommitExpansionScope Scope { get; }
+
     /// <summary>要展開的物件；決定去中繼資料層拿誰的細節。</summary>
     SqlObjectInfo Object { get; }
 
@@ -79,11 +130,12 @@ internal interface ISqlCommitExpansion
     string OperationName { get; }
 
     /// <summary>
-    /// 語句必須仍以這個關鍵字開頭，否則放棄。
+    /// 這一段必須仍以這個字串開頭，否則放棄。
     /// </summary>
     /// <remarks>
-    /// 查詢期間使用者可能已經把整句刪掉或改寫了。範圍的起點就是那個關鍵字，
-    /// 起點不再是它就代表要換的東西已經不在原處——這時候把文字蓋上去等於改到別人的語句。
+    /// 查詢期間使用者可能已經把整句刪掉或改寫了。範圍的起點是那個關鍵字
+    /// （整句範圍）或剛插入的名稱（名稱範圍），起點不再是它就代表要換的東西
+    /// 已經不在原處——這時候把文字蓋上去等於改到別人的語句。
     /// </remarks>
     string LeadingKeyword { get; }
 
@@ -120,23 +172,37 @@ internal sealed class SqlCommitExpander
     /// 三個閘門的順序固定：先問上下文（他在哪個位置提交），再問設定（他要不要這個展開），
     /// 最後問物件本身（這個東西展得開嗎）。設定放中間是因為關掉之後就不必再判斷物件，
     /// 而物件那一關擋掉的是「同義字沒有欄位」「擴充預存程序沒有參數」這一類。
+    ///
+    /// 四種整句展開由<b>位置</b>決定（<see cref="CompletionIntent"/>），函式的引數清單
+    /// 則由<b>被選中的東西</b>決定：括號要不要補，跟前面是 <c>SELECT</c> 還是
+    /// <c>FROM</c> 無關，只跟它是不是函式有關。因此它接在意圖判斷之後，
+    /// 而不是再多一個意圖。
     /// </remarks>
+    /// <param name="insertedName">
+    /// 這次提交寫進緩衝區的名稱，含結構描述與方括號；等待期間的原文比對要用它。
+    /// </param>
     public static ISqlCommitExpansion? Resolve(
         SqlSuggestion selected,
         SqlCompletionContext context,
         int caretPosition,
-        SqlAssistSettings settings)
+        SqlAssistSettings settings,
+        string insertedName)
     {
-        if (context.TargetKeywordStart < 0 || caretPosition < context.TargetKeywordStart)
-        {
-            return null;
-        }
+        // 整句展開要蓋掉「關鍵字 → 名稱」那一段，算不出起點就整個不做。
+        // 函式的引數接在名稱後面，與這個起點無關，所以不在這一關擋。
+        var canReplaceStatement =
+            context.TargetKeywordStart >= 0 && caretPosition >= context.TargetKeywordStart;
 
         // 指令碼自己宣告的資料表：資料行在提交當下就全部讀完了，不必再問誰。
         // 只有 INSERT 與 MERGE 兩種意圖用得到——它們要的就是資料行，
         // 而 ALTER 的定義與 EXEC 的參數這兩種名稱一個都給不出來。
         if (selected.Tag is SqlScriptTable scriptTable)
         {
+            if (!canReplaceStatement)
+            {
+                return null;
+            }
+
             var detail = SqlScriptTableDetail.Create(scriptTable);
 
             return context.Intent switch
@@ -161,28 +227,44 @@ internal sealed class SqlCommitExpander
         switch (context.Intent)
         {
             case CompletionIntent.AlterDefinition:
-                return objectInfo.Kind.IsModule()
+                return canReplaceStatement && objectInfo.Kind.IsModule()
                     ? new SqlAlterStatementExpansion(objectInfo)
                     : null;
 
             case CompletionIntent.InsertStatement:
-                return settings.ExpandInsertStatement && objectInfo.Kind.HasColumns()
+                return canReplaceStatement &&
+                       settings.ExpandInsertStatement &&
+                       objectInfo.Kind.HasColumns()
                     ? new SqlInsertStatementExpansion(objectInfo, settings)
                     : null;
 
             case CompletionIntent.MergeStatement:
-                return settings.ExpandMergeStatement && objectInfo.Kind.HasColumns()
+                return canReplaceStatement &&
+                       settings.ExpandMergeStatement &&
+                       objectInfo.Kind.HasColumns()
                     ? new SqlMergeStatementExpansion(objectInfo, settings)
                     : null;
 
             case CompletionIntent.ExecuteCall:
-                return settings.ExpandProcedureCall && objectInfo.Kind.IsExecutable()
+                return canReplaceStatement &&
+                       settings.ExpandProcedureCall &&
+                       objectInfo.Kind.IsExecutable()
                     ? new SqlProcedureCallExpansion(objectInfo)
                     : null;
-
-            default:
-                return null;
         }
+
+        // 到這裡只剩 CompletionIntent.Reference。函式在這些位置一律是「呼叫」，
+        // 而 T-SQL 的函式呼叫非有括號不可，因此補上引數清單。
+        //
+        // 唯一的例外是 ALTER／DROP FUNCTION 那個位置（CompletionTarget.Function）：
+        // 那裡要的是名稱本身，補上括號會讓那句 DDL 語法錯誤。ALTER 走的是上面的
+        // AlterDefinition，DROP 與它同一個目標卻是 Reference，
+        // 所以擋的是目標而不是意圖。
+        return settings.ExpandFunctionCall &&
+               objectInfo.Kind.IsFunction() &&
+               context.Target != CompletionTarget.Function
+            ? new SqlFunctionCallExpansion(objectInfo, insertedName)
+            : null;
     }
 
     /// <summary>記住要被整句換掉的那一段。</summary>
@@ -240,6 +322,10 @@ internal sealed class SqlCommitExpander
             _setSuppressBufferChange);
     }
 
+    /// <remarks>
+    /// 比的是「開頭還是不是原來那個字」而不是整段相等：整句範圍的後半在等待期間
+    /// 本來就可能被使用者改過（他一邊等一邊在打字），而那不是放棄的理由。
+    /// </remarks>
     private static TextReplacement? BuildGuarded(
         ISqlCommitExpansion expansion,
         SqlObjectDetail detail,

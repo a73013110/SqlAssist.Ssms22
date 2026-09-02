@@ -36,11 +36,16 @@ internal static class SqlKeywordCasing
             return;
         }
 
-        Apply(textView, buffer);
+        Apply(textView, buffer, typedCharacter);
     }
 
     /// <summary>把游標前的關鍵字改成大寫；不是關鍵字就什麼都不做。</summary>
-    public static void Apply(ITextView textView, ITextBuffer buffer)
+    /// <param name="separator">
+    /// 使用者即將輸入的那個分隔字元。<c>\0</c> 代表不是打字觸發的（例如 Enter 之後
+    /// 的收尾），那時只認關鍵字——內建函式要看到左括號才算數，理由見
+    /// <see cref="SqlKeywordCase"/>。
+    /// </param>
+    public static void Apply(ITextView textView, ITextBuffer buffer, char separator = '\0')
     {
         if (textView is null || buffer is null || textView.IsClosed)
         {
@@ -70,7 +75,8 @@ internal static class SqlKeywordCasing
 
         var rewrite = SqlKeywordCase.TryUppercaseWordBefore(
             new SnapshotTextSource(snapshot),
-            caret.Position);
+            caret.Position,
+            separator);
 
         if (rewrite is null)
         {

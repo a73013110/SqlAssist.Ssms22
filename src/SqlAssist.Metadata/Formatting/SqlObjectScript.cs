@@ -105,7 +105,10 @@ public static class SqlObjectScript
     /// <item><b>資料表與資料表型別</b>——維持 <c>CREATE TABLE</c> 與
     /// <c>CREATE TYPE ... AS TABLE</c>。這兩者都沒有對應的 <c>ALTER</c> 整體寫法，
     /// 改下去得到的是一段執行到一半才失敗的指令碼。</item>
-    /// <item><b>其餘</b>（同義字、序列、認不出來的種類）——整段註解。</item>
+    /// <item><b>同義字與序列</b>——本擴充自己組的 <c>CREATE SYNONYM</c>／
+    /// <c>CREATE SEQUENCE</c>（見 <see cref="SqlCatalogScript"/>）。這兩種沒有
+    /// <c>ALTER</c> 的整體寫法，維持 <c>CREATE</c>。</item>
+    /// <item><b>其餘</b>（認不出來的種類）——整段註解。</item>
     /// </list>
     ///
     /// 「哪一類寫得出來」由 <see cref="SqlObjectKinds.HasExecutableScript"/> 一份說了算，
@@ -135,14 +138,19 @@ public static class SqlObjectScript
     /// 寫不出可執行指令碼的物件：整段註解，並說明為什麼。
     /// </summary>
     /// <remarks>
-    /// 同義字指向誰、序列的起始值與增量，這兩樣都不在本擴充查詢的中繼資料裡。
     /// <see cref="SqlObjectStructure.BuildScript"/> 在這裡給的是一段給人看的摘要
-    /// （<c>Synonym [dbo].[syn_Loan]</c> 這種），那份文字貼在唯讀的預覽窗格裡沒有問題，
+    /// （<c>Object [dbo].[Foo]</c> 這種），那份文字貼在唯讀的預覽窗格裡沒有問題，
     /// 但這裡產生的是要拿去執行的指令碼——原樣送出去就是一句不是 T-SQL 的東西。
     ///
-    /// 資料表型別曾經也走這一支。它有欄位，當時落到資料表那一支會被寫成
-    /// <c>CREATE TABLE</c>，而那是指令碼在說謊，照著執行會多出一張同名的資料表；
-    /// 現在 <c>BuildScript</c> 直接組 <c>CREATE TYPE ... AS TABLE</c>，兩邊都不必再繞。
+    /// 現在只剩認不出來的種類會走到這裡，但這一支不能拿掉：
+    /// <c>SqlObjectKinds.FromSysObjectType</c> 對沒見過的型別代碼回傳
+    /// <c>Unknown</c>，而 SQL Server 的物件型別只會愈來愈多。
+    ///
+    /// 同義字、序列與資料表型別曾經都走這一支。前兩者的定義現在由
+    /// <see cref="SqlCatalogScript"/> 從目錄檢視組回 <c>CREATE</c>；
+    /// 資料表型別則直接組 <c>CREATE TYPE ... AS TABLE</c>——它有欄位，
+    /// 當時落到資料表那一支會被寫成 <c>CREATE TABLE</c>，而那是指令碼在說謊，
+    /// 照著執行會多出一張同名的資料表。
     /// </remarks>
     private static string BuildUnscriptableBody(SqlObjectStructure structure)
     {
@@ -150,8 +158,7 @@ public static class SqlObjectScript
         builder.Append("-- 無法為 ").Append(structure.Object.QualifiedName)
             .Append('（').Append(structure.Object.Kind.ToDisplayName())
             .AppendLine("）產生可以執行的指令碼。");
-        builder.AppendLine("-- 這一類物件的定義來源不在 SqlAssist 查詢的中繼資料裡：");
-        builder.AppendLine("-- 同義字指向哪個物件、序列的起始值與增量。");
+        builder.AppendLine("-- SqlAssist 認不得這個物件的種類，因此不知道它的定義該長什麼樣。");
         builder.AppendLine("-- 以下是查得到的部分：");
         builder.AppendLine();
 
