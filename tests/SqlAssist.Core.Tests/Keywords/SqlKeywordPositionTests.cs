@@ -342,6 +342,52 @@ public sealed class SqlKeywordPositionTests
         Assert.Equal(expected, matched);
     }
 
+    /// <summary>
+    /// 位置過濾也管資料庫物件。
+    /// </summary>
+    /// <remarks>
+    /// 名稱沒有位置旗標可帶——它們是執行期從中繼資料來的，所以反過來列
+    /// 「哪些位置一個名稱都不接受」。少了這一半的症狀是 <c>ALTER TABLE t |</c>
+    /// 之後照樣列出整個資料庫的資料表與預存程序，而文法上對的只有八個字。
+    ///
+    /// 兩個方向都要守。判不出位置時回傳的 <c>Any</c> 含著那份清單裡的每一個旗標，
+    /// 用位元交集判斷的話 fail-open 會變成 fail-closed，<b>每一個</b>位置的資料庫
+    /// 物件都會消失——那比原本的雜訊嚴重得多。
+    /// </remarks>
+    [Theory]
+    [InlineData("ALTER TABLE dbo.t ", false)]
+    [InlineData("ALTER TABLE dbo.t ADD ", false)]
+    [InlineData("CREATE ", false)]
+    [InlineData("SELECT * FROM t ORDER ", false)]
+
+    // 反方向：這些位置本來就是要選名稱的，一個都不能少。
+    [InlineData("SELECT * FROM ", true)]
+    [InlineData("SELECT ", true)]
+    [InlineData("SELECT * FROM t WHERE ", true)]
+    [InlineData("SELECT * FROM t ORDER BY ", true)]
+
+    // INSERT 之後的 INTO 可以省略，所以那裡的資料表要留著。
+    [InlineData("INSERT ", true)]
+
+    // 判不出位置時是 Any，那是 fail-open：名稱照列。CREATE TABLE 的資料行定義
+    // 目前就落在這裡——ColumnDefinition 只有產生器認得，分析器回不出來。
+    [InlineData("SELECT * FROM t WHERE a = 1 AND ", true)]
+    [InlineData("CREATE TABLE t (a int ", true)]
+    public void 位置過濾也管資料庫物件(string textBeforeCaret, bool expected)
+    {
+        var table = new SqlSuggestion(
+            "Lib_Reader",
+            "[dbo].[Lib_Reader]",
+            "Table · dbo",
+            "Table Lib_Reader",
+            SuggestionKind.Table,
+            schemaName: "dbo");
+
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + "L");
+
+        Assert.Equal(expected, SuggestionMatcher.Filter(new[] { table }, context).Count == 1);
+    }
+
     [Fact]
     public void 產生器判不出位置的關鍵字一律放行()
     {
