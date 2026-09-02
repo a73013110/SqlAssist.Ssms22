@@ -20,11 +20,12 @@ namespace SqlAssist.Ssms22.Completion;
 /// </summary>
 /// <remarks>
 /// 大部分項目交還給平台處理即可（它會插入 <see cref="CompletionItem.InsertText"/>），
-/// 只有三種情形要自己接手：原生 Tab Stop Snippet、設定了接續建議的 caret Snippet，
+/// 只有四種情形要自己接手：原生 Tab Stop Snippet、設定了接續建議的 caret Snippet、
+/// 插入文字自己帶著左括號的那些（內建函式與帶參數的型別，右括號要一起寫進去），
 /// 以及提交後要改寫文字的那幾種展開——<c>ALTER PROCEDURE</c> 的完整定義、
 /// <c>INSERT INTO</c> 的欄位與 <c>VALUES</c>、<c>MERGE</c> 的三段子句、
 /// <c>EXEC</c> 的具名參數清單，以及函式名稱後面的引數。
-/// 它們只有「換成什麼」與「換掉哪一段」不同，「怎麼安全地換」共用
+/// 展開只有「換成什麼」與「換掉哪一段」不同，「怎麼安全地換」共用
 /// <see cref="SqlCommitExpander"/>。
 /// </remarks>
 internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitManager
@@ -179,8 +180,9 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         }
         var settings = SqlAssistSettingsStore.Current;
 
-        // Snippet 要自己插入才放得下游標：$end$ 決定的位置不是文字結尾。
-        var snippetCaret = -1;
+        // 提交之後游標要擺在插入文字的哪一個位置；-1 代表照平台的預設留在結尾。
+        // Snippet 的 $end$ 與補上的右括號都會用到它，兩者不會同時出現。
+        var caretOffset = -1;
         string? snippetText = null;
 
         if (snippet is not null)
@@ -189,11 +191,11 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             // 一份 CRLF 的指令碼裡，而混合換行不會報錯，只會讓下一次 diff 整段變紅。
             snippetText = snippet.Expansion.GetText(
                 SnapshotNewLine.Resolve(snapshot, span.Start.Position),
-                out var caretOffset);
+                out var snippetCaret);
 
-            if (caretOffset != snippetText.Length)
+            if (snippetCaret != snippetText.Length)
             {
-                snippetCaret = caretOffset;
+                caretOffset = snippetCaret;
             }
         }
 
@@ -209,8 +211,25 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             settings,
             insertionText);
 
+        // 內建函式與帶參數的型別，插入文字自己帶著左括號（GETDATE(、varchar(），
+        // 而平台只會照著寫進去——提交完停在編輯器裡的是一句語法錯誤。右括號併進
+        // 下面那一次編輯，所以 Ctrl+Z 一次就連它一起收掉，程式碼片段的欄位
+        // session 也不會多看到一次外部修改。
+        //
+        // 只在沒有展開、也不是片段時問：使用者自訂函式的引數（dbo.fn_DueDate(NULL)）
+        // 自己就補了右括號，片段的括號寫在樣板裡，兩者都不缺這一個。
+        var insertionClose = expansion is null && snippet is null
+            ? SqlAutoPairing.ResolveInsertionClose(session.TextView, span.End, insertionText)
+            : null;
+
+        if (insertionClose is char closeCharacter)
+        {
+            insertionText += closeCharacter;
+            caretOffset = insertionText.Length - 1;
+        }
+
         // 一般項目讓平台自己插入，行為與其他語言一致。
-        if (expansion is null && !suggestion.TriggerFollowUp && snippetCaret < 0)
+        if (expansion is null && !suggestion.TriggerFollowUp && caretOffset < 0)
         {
             return CommitResult.Unhandled;
         }
@@ -236,16 +255,27 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 : SqlAssistActivityKind.SnippetExpanded);
         SqlAssistDiagnostics.Write($"Suggestion 已提交：{suggestion.DisplayText}");
 
-        if (snippetCaret >= 0)
+        if (caretOffset >= 0)
         {
             // 編輯已經套用，insertionStart 在新快照裡仍然有效——取代的起點不會位移。
-            var caret = insertionStart + snippetCaret;
+            var caret = insertionStart + caretOffset;
             var current = session.TextView.TextSnapshot;
 
             if (caret <= current.Length)
             {
                 session.TextView.Caret.MoveTo(new SnapshotPoint(current, caret));
             }
+        }
+
+        if (insertionClose is char inserted)
+        {
+            // 記錄要等編輯套用之後才建立得起來，而且只有記在案的那一個才跳得過去：
+            // 少了這一筆，接著打的右括號會插在補上的那一個前面，變成 GETDATE())。
+            SqlAutoPairing.NoteInsertedClose(
+                session.TextView,
+                applied,
+                insertionStart + insertionText.Length - 1,
+                inserted);
         }
 
         if (expansion is not null)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Pairing;
@@ -7,18 +7,19 @@ namespace SqlAssist.Core.Pairing;
 /// 輸入分隔字元時要不要自動補上另一半。
 /// </summary>
 /// <remarks>
-/// 四條規則各自獨立，呼叫端按「這一次按鍵是哪一種」擇一詢問：
+/// 五條規則各自獨立，呼叫端按「這一次是哪一種」擇一詢問：
 ///
 /// <list type="bullet">
 /// <item><see cref="AutoCloseFor"/>——打開頭字元，後面補上結尾字元。</item>
 /// <item><see cref="ShouldOvertype"/>——打結尾字元，而它已經在游標右邊了。</item>
 /// <item><see cref="IsEmptyPair"/>——Backspace 落在一對空的配對中間。</item>
 /// <item><see cref="SurroundCloseFor"/>——有選取範圍時打開頭字元，包夾它。</item>
+/// <item><see cref="InsertionCloseFor"/>——提交的建議自己帶了開頭字元。</item>
 /// </list>
 ///
-/// 每一條都在按鍵路徑上，因此順序刻意由便宜到昂貴：先看字元本身（一次比較），
+/// 前四條都在按鍵路徑上，因此順序刻意由便宜到昂貴：先看字元本身（一次比較），
 /// 再看游標右邊那一個字元，最後才做需要從頭掃到游標的語彙狀態判斷。
-/// 打字時絕大多數按鍵在第一步就結束。
+/// 打字時絕大多數按鍵在第一步就結束。最後一條問在提交建議時，一次提交只問一遍。
 ///
 /// 「這一次是不是我補的」不在這裡——那是編輯器的狀態，不是文字判斷。
 /// 但 <see cref="ShouldOvertype"/> 與 <see cref="IsEmptyPair"/> 仍然留在這裡：
@@ -54,6 +55,41 @@ public static class SqlAutoPairAnalyzer
         }
 
         // 字串、註解與識別字裡面不配對：那裡的括號與引號都是內容，不是語法。
+        return SqlLexicalContext.IsCode(sql, position) ? pair.Close : null;
+    }
+
+    /// <summary>
+    /// 提交建議寫進去的 <paramref name="insertionText"/> 以開頭字元結尾時，要補上的結尾字元。
+    /// </summary>
+    /// <param name="position">
+    /// 要被換掉的那一段的終點，而 <paramref name="insertionText"/> <b>還沒</b>寫進文字。
+    /// </param>
+    /// <returns>要補上的字元；不該補時為 <c>null</c>。</returns>
+    /// <remarks>
+    /// 內建函式與帶參數的型別，插入文字本身就帶著左括號（<c>GETDATE(</c>、
+    /// <c>varchar(</c>），而平台只會照著寫進去——右括號沒有人補的話，
+    /// 提交完停在編輯器裡的是一句語法錯誤。條件與使用者自己打左括號完全相同，
+    /// 所以問的是同一份規則。
+    ///
+    /// 兩端相同的配對（引號）不走這條：這裡的語彙狀態問的是插入<b>之前</b>的位置，
+    /// 而引號是開是關要看它自己插進去之後的狀態，那兩個答案不一樣。
+    /// </remarks>
+    public static char? InsertionCloseFor(ISqlTextSource sql, int position, string insertionText)
+    {
+        Validate(sql, position, nameof(position));
+
+        if (string.IsNullOrEmpty(insertionText) ||
+            !SqlDelimiterPairs.TryFromOpen(insertionText[insertionText.Length - 1], out var pair) ||
+            pair.Open == pair.Close)
+        {
+            return null;
+        }
+
+        if (!IsBoundaryAfter(sql, position))
+        {
+            return null;
+        }
+
         return SqlLexicalContext.IsCode(sql, position) ? pair.Close : null;
     }
 
