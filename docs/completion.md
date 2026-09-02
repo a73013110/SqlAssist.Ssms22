@@ -460,6 +460,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
+| `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
 
@@ -472,9 +473,35 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 關鍵字的起點仍然指得回原文；`IF EXISTS (SELECT …)` 那種流程控制剝完是空字串或
 另一個語句的尾巴，兩者都推不出目標，與剝之前一樣不會有清單。
 
-`ON` 沒有進這張表：它同時是 `CREATE INDEX … ON` 的資料表位置與 JOIN 條件的欄位位置，
-目前分不出來。`cix` 片段的資料表欄位因此沒有清單，那個已知缺口釘在
-`SqlSnippetDefaultsTests.索引的資料表欄位目前分不出JOIN條件因此沒有清單`。
+### `ON` 後面是資料表還是述詞
+
+`ON` 在 T-SQL 裡是兩件完全不同的事，而分得開的線索在它**前面**：
+
+```text
+CREATE INDEX ix ON |          → 資料表；ON 前面是「名稱＋INDEX」
+CREATE TRIGGER tr ON |        → 同上，TRIGGER
+DROP INDEX ix ON |            → 同上
+ALTER INDEX ALL ON |          → 同上（ALL 是關鍵字，但那一格仍然是索引的名稱）
+CREATE STATISTICS st ON |     → 同上，STATISTICS
+JOIN b ON |、MERGE … ON |     → 述詞；ON 前面是別名或 AS
+GRANT SELECT ON |             → 述詞那一邊；ON 前面是關鍵字，不是名稱單位
+CREATE INDEX ix ON t (a) ON | → 檔案群組；ON 前面是右括號
+```
+
+判斷刻意**只看 `ON` 前面那兩個名稱單位**，不往回走到敘述開頭：
+「名稱之後是 `INDEX`／`STATISTICS`／`TRIGGER`」這個形狀只有 DDL 寫得出來，
+而往回走要多認一整套邊界，還會把最後那個檔案群組的 `ON` 一起收進來。
+`CREATE`／`ALTER`／`DROP` 三個動詞不必比：名稱後面接 `ON` 的物件只有那三種，
+比不比對得到同一個答案，而漏掉 `CREATE OR ALTER TRIGGER` 的症狀是那裡安靜地沒有清單。
+
+這份判斷有**兩個**呼叫端，共用 `Core/Parsing/SqlDdlTarget`：建議目標（列不列資料表）
+與 `SqlScopeAnalyzer`（那張表算不算資料來源）。各寫一份的症狀是清單列得出資料表、
+欄位卻一個都沒有——而那正是修正前的樣子：`cix` 的資料表格從來沒有清單，
+資料行格列出來的是整個資料庫的資料表與預存程序。
+
+反方向比正方向重要：把 JOIN 條件誤判成資料來源的話，`ON b.|` 會退回
+「`b` 是結構描述」的解讀而完全列不出欄位，那是每天都會走到的路徑。
+兩邊都釘在 `SqlDdlTargetTests`。
 
 ### MERGE 的動作子句
 

@@ -300,10 +300,15 @@ public static class SqlScopeAnalyzer
                 continue;
             }
 
+            // ON 不在 SourceKeywords 裡，它絕大多數時候是 JOIN 條件；只有
+            // CREATE INDEX ix ON t、CREATE TRIGGER tr ON t 這一族後面接的是資料表。
+            // 少了這一條，索引與觸發程序的 DDL 裡完全沒有欄位建議，
+            // 而清單會退化成整個資料庫的物件——見 SqlDdlTarget。
             if (depth > 0 ||
                 token.Kind != SqlTokenKind.Identifier ||
                 token.IsQuoted ||
-                !SourceKeywords.Contains(token.Value))
+                (!SourceKeywords.Contains(token.Value) &&
+                    !SqlDdlTarget.IsDataSourceOn(tokens, index)))
             {
                 index++;
                 continue;

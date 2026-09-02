@@ -77,6 +77,27 @@ public static class SqlCompletionContextAnalyzer
             return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
         }
 
+        // CREATE INDEX ix ON | 的 ON 後面是資料表，JOIN b ON | 的 ON 後面是述詞。
+        // 這一條先問，因為它是唯一需要看詞元的：DetermineTarget 只認得游標前一、
+        // 兩個詞元的字面值，而分辨這兩種 ON 要再往前看一個名稱單位。
+        // 判斷本身與範圍分析共用 SqlDdlTarget——分岔的症狀是清單列得出資料表、
+        // 欄位卻一個都沒有。
+        var ddlOn = SqlDdlTarget.FindTrailingDataSourceOn(tokens);
+
+        if (ddlOn >= 0)
+        {
+            return new SqlCompletionContext(
+                isValid: true,
+                tokenStart,
+                prefix,
+                CompletionTarget.DataSource,
+                qualifier,
+                tokens[ddlOn].Start,
+                CompletionIntent.Reference,
+                columnSources: null,
+                keywordPosition);
+        }
+
         var target = DetermineTarget(
             qualifier is null ? beforeToken : beforeQualifier,
             out var targetKeywordStart,

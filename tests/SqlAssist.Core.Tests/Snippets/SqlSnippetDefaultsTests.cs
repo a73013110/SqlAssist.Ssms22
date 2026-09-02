@@ -369,6 +369,10 @@ public sealed class SqlSnippetDefaultsTests
     [InlineData("ifne", "table")]
     [InlineData("cur", "table")]
     [InlineData("cte", "table")]
+
+    // cix 的資料表格落在 ON 之後。ON 同時是 JOIN 條件的位置，兩者曾經分不出來，
+    // 這一格因此長期沒有清單；SqlDdlTarget 補上之後移到這一組。
+    [InlineData("cix", "table")]
     public void 物件欄位落在會列出資料來源的位置(string shortcut, string fieldId)
     {
         var context = AnalyzeBeforeField(shortcut, fieldId);
@@ -397,17 +401,22 @@ public sealed class SqlSnippetDefaultsTests
     }
 
     /// <remarks>
-    /// <b>已知缺口，不是期望行為。</b><c>cix</c> 的資料表欄位落在 <c>ON</c> 之後，
-    /// 而 <c>ON</c> 也是 JOIN 條件的位置——那裡要的是欄位，不是資料表。目前分不出
-    /// 這兩者，所以這一格沒有清單。
-    ///
-    /// 釘在這裡是為了讓它別被遺忘：哪天分析器認得 <c>CREATE … INDEX … ON</c>，
-    /// 這個測試會失敗，那時把這一行移到上面那組即可。
+    /// <c>cix</c> 的資料行格與 <c>INSERT (|)</c> 一樣沒有限定字、也推不出目標，
+    /// 因此打了字才有清單；打了之後由敘述範圍把 <c>ON</c> 後面那張表交出來。
+    /// 這一格曾經連打了字都只列得出整個資料庫的物件——範圍分析不認得
+    /// <c>CREATE INDEX … ON</c>，那張表根本不在候選裡。
     /// </remarks>
     [Fact]
-    public void 索引的資料表欄位目前分不出JOIN條件因此沒有清單()
+    public void 索引的資料行格打了字之後看得到那張表()
     {
-        Assert.False(AnalyzeBeforeField("cix", "table").IsValid);
+        const string sql = "CREATE NONCLUSTERED INDEX IX_TableName_ColumnName\nON dbo.Lib_Reader (C";
+        var context = SqlCompletionContextAnalyzer.Analyze(sql, sql.Length);
+
+        Assert.True(context.IsValid);
+
+        var source = Assert.Single(context.ScopeSources);
+
+        Assert.Equal("Lib_Reader", source.Table!.ObjectName);
     }
 
     /// <remarks>
