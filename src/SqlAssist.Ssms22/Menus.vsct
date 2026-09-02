@@ -94,6 +94,16 @@
                 key1="S"
                 mod1="Control Alt Shift" />
     <!--
+      與 F12 使用同一條命令表路徑。SSMS 查詢視窗沒有一個可依賴的編輯器範圍，
+      所以仍綁在全域範圍；命令處理器在 SqlAssist 停用或沒有 SQL 編輯器時回報停用，
+      避免 Ctrl+Shift+D 在其他表面攔走殼層原本的行為。
+    -->
+    <KeyBinding guid="guidSqlAssistCommandSet"
+                id="cmdidRefreshSuggestions"
+                editor="guidVSStd97"
+                key1="D"
+                mod1="Control Shift" />
+    <!--
       F12。實測 SSMS 22 沒有把 F12 綁在 Edit.GoToDefinition 上——濾鏡掛好了也從來
       收不到 VSStd97/GotoDefn，紀錄檔顯示命令是從這一條鍵繫結進來的。因此這裡不是
       備援，是唯一真正生效的路；拿掉它 F12 就完全沒有反應。
@@ -110,6 +120,15 @@
                 id="cmdidGoToDefinition"
                 editor="guidVSStd97"
                 key1="VK_F12" />
+    <!--
+      Alt+F12 在 SSMS 22 實機上不會抵達命令表或命令濾鏡；改用 Ctrl+F12，並沿用
+      F12 的全域範圍。命令狀態守門可避免在沒有 SQL 編輯器時攔走按鍵。
+    -->
+    <KeyBinding guid="guidSqlAssistCommandSet"
+                id="cmdidShowObjectStructure"
+                editor="guidVSStd97"
+                key1="VK_F12"
+                mod1="Control" />
   </KeyBindings>
 
   <Symbols>

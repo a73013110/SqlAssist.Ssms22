@@ -49,15 +49,21 @@ internal sealed class SqlAssistCommands
             () => SqlAssistSettingsStore.Current.SuggestionsEnabled,
             "即時建議");
 
-        // 這一個綁著 F12（見 Menus.vsct），因此狀態必須跟著編輯器走：全域鍵繫結
-        // 在物件總管、結果格線上也收得到，回報停用才會讓那些地方的 F12 照常落回殼層。
+        // 這三個命令都有全域鍵繫結（見 Menus.vsct），因此狀態必須跟著編輯器走；
+        // 回報停用才不會在 SqlAssist 停用或沒有 SQL 編輯器時攔走殼層原本的按鍵行為。
         AddCommand(
             CommandIds.GoToDefinition,
             GoToDefinition,
             () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
 
-        AddCommand(CommandIds.ShowObjectStructure, ShowObjectStructure);
-        AddCommand(CommandIds.RefreshSuggestions, RefreshSuggestions);
+        AddCommand(
+            CommandIds.ShowObjectStructure,
+            ShowObjectStructure,
+            () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
+        AddCommand(
+            CommandIds.RefreshSuggestions,
+            RefreshSuggestions,
+            () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
@@ -172,7 +178,8 @@ internal sealed class SqlAssistCommands
     /// <remarks>
     /// 平常的入口是建議清單的向右鍵與滑鼠停留提示裡的連結，
     /// 但前者要有清單、後者要求「滑鼠停留時顯示物件結構」是開著的。
-    /// 這個命令讓預覽在任何設定下都還有一個入口。
+    /// 這個命令讓預覽在任何設定下都還有一個入口，並由 Ctrl+F12 直接呼叫。
+    /// 回饋走狀態列而不是對話框，避免快捷鍵路徑打斷編輯。
     /// </remarks>
     private void ShowObjectStructure(object? sender, EventArgs eventArgs)
     {
@@ -185,11 +192,20 @@ internal sealed class SqlAssistCommands
         try
         {
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            SqlAssistDiagnostics.WriteAlways("顯示物件結構命令抵達 SqlAssist（命令表）");
+
+            // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
+            if (!SqlAssistSettingsStore.Current.Enabled)
+            {
+                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                return;
+            }
+
             var textView = ActiveSqlEditor.Current;
 
             if (textView is null)
             {
-                ShowMessage("請先把游標放進 SQL 查詢視窗。");
+                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
                 return;
             }
 
@@ -206,7 +222,7 @@ internal sealed class SqlAssistCommands
 
             if (location is null)
             {
-                ShowMessage("游標處不是可辨識的資料庫物件。");
+                SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
                 return;
             }
 
@@ -219,11 +235,16 @@ internal sealed class SqlAssistCommands
             if (SqlStructurePreview.GetOrCreate(textView, _package) is { } preview)
             {
                 preview.ShowAt(anchor, location.Object, metadataService);
+                return;
             }
+
+            SqlAssistStatusBar.Show(_package, "查詢視窗已關閉，無法顯示物件結構。");
         }
         catch (Exception exception)
         {
-            Report("開啟物件結構", exception);
+            // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
+            SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
+            SqlAssistStatusBar.Show(_package, $"開啟物件結構失敗：{exception.Message}");
         }
     }
 
@@ -350,7 +371,21 @@ internal sealed class SqlAssistCommands
     /// </remarks>
     private void RefreshSuggestions(object? sender, EventArgs eventArgs)
     {
-        SqlMetadataService.InvalidateAll();
-        SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            SqlMetadataService.InvalidateAll();
+            SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
+            SqlAssistStatusBar.Show(
+                _package,
+                "建議快取已清除；下次開啟建議清單時會重新讀取資料庫。");
+        }
+        catch (Exception exception)
+        {
+            // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
+            SqlAssistDiagnostics.WriteAlways($"重新整理建議失敗：{exception}");
+            SqlAssistStatusBar.Show(_package, $"重新整理建議失敗：{exception.Message}");
+        }
     }
 }
