@@ -159,7 +159,18 @@ $ContextTemplates = [ordered]@{
     # WHERE a = 1 之後才是 AND、OR 與後續子句。分析器一樣分不出來。
     ExpressionTail   = @('SELECT * FROM t WHERE a ', 'SELECT * FROM t WHERE a = 1 ')
     OrderByTail      = @('SELECT * FROM t ORDER BY a ')
+
+    # 欄位本身的位置。兩個都要：ORDER BY 接得了 ASC／DESC 以外的運算式關鍵字
+    # （CASE、CONVERT、IIF），GROUP BY 接得了 ROLLUP、CUBE、GROUPING SETS。
+    OrderByColumn    = @('SELECT * FROM t ORDER BY ', 'SELECT * FROM t GROUP BY ')
+
     ByAnchor         = @('SELECT * FROM t ORDER ', 'SELECT * FROM t GROUP ')
+
+    # ALTER TABLE 的三個位置。少了它們，這三處一律回 Any，於是 191 個關鍵字
+    # 與 45 筆片段全部進場——而 SQL Prompt 在 ADD 之後只給九個字。
+    AlterTableAction = @('ALTER TABLE t ')
+    AlterTableAdd    = @('ALTER TABLE t ADD ')
+    AlterTableColumn = @('ALTER TABLE t ALTER COLUMN ', 'ALTER TABLE t DROP COLUMN ')
     DdlObject        = @('CREATE ', 'ALTER ', 'DROP ')
     CaseArm          = @('SELECT CASE WHEN a = 1 ', 'SELECT CASE a WHEN 1 ')
     CaseBody         = @('SELECT CASE WHEN a = 1 THEN 1 ')
@@ -176,7 +187,12 @@ $Continuations = @(
     '', ' x', ' x FROM y', ' * FROM y', ' TABLE x', ' TABLE x (a int)',
     ' x = 1', ' 1', ' 1 END', ' (1)', ' x.y', ' PROC p AS SELECT 1',
     ' x AS SELECT 1', ' DATABASE x', ' VIEW v AS SELECT 1', ' BY x',
-    ' JOIN y ON x.a = y.a', ' NULL', ' KEY', ' ON x TO y', ' OFF', ')'
+    ' JOIN y ON x.a = y.a', ' NULL', ' KEY', ' ON x TO y', ' OFF', ')',
+
+    # ALTER TABLE t ALTER 在剖析器眼中直接是語法錯誤——它要看到 COLUMN 才收。
+    # 少了這一條，ALTER 就不會分到 AlterTableAction，而「猜錯位置的代價是使用者
+    # 永遠打不出來」。續尾取聯集，多一條只會讓分類更寬鬆。
+    ' COLUMN x int'
 )
 
 # 46010 = "'X' 附近的語法不正確"。出現在關鍵字結尾之前代表剖析器根本吃不下它。

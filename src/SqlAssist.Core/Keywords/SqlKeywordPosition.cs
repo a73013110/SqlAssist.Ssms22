@@ -48,6 +48,18 @@ public enum SqlKeywordPosition
     /// <summary>ORDER BY 或 GROUP BY 的欄位之後——ASC、DESC。</summary>
     OrderByTail = 1 << 7,
 
+    /// <summary>
+    /// ORDER BY 或 GROUP BY 要的那個欄位本身，含逗號之後的下一項。
+    /// </summary>
+    /// <remarks>
+    /// 分析器一直知道這裡要的是欄位，卻只回得出 <see cref="Any"/>——列舉裡沒有
+    /// 對應的成員，<see cref="OrderByTail"/> 是欄位<b>之後</b>的 ASC／DESC。
+    /// 回 <see cref="Any"/> 的代價量得出來：同一組候選、同一個前綴 <c>C</c>，
+    /// <c>SELECT C</c> 只有 62 筆而 <c>ORDER BY C</c> 有 118 筆，而且前 13 名
+    /// 全被捷徑以 <c>C</c> 開頭的片段占滿，欄位掉到第 14 名之後。
+    /// </remarks>
+    OrderByColumn = 1 << 16,
+
     /// <summary>ORDER、GROUP 之後——BY。</summary>
     ByAnchor = 1 << 8,
 
@@ -72,9 +84,25 @@ public enum SqlKeywordPosition
     /// <summary>INSERT 之後——INTO、TOP。</summary>
     InsertTarget = 1 << 15,
 
+    /// <summary>ALTER TABLE 的目標之後——ADD、ALTER、DROP、CHECK、ENABLE、SWITCH。</summary>
+    AlterTableAction = 1 << 17,
+
+    /// <summary>
+    /// ALTER TABLE t ADD 之後——CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、INDEX。
+    /// </summary>
+    /// <remarks>
+    /// 這一格也接得了使用者自己取的新資料行名稱，所以不能回
+    /// <see cref="None"/>——那會讓整份上下文不參與，連新資料行的型別補字都沒有。
+    /// </remarks>
+    AlterTableAdd = 1 << 18,
+
+    /// <summary>ALTER TABLE t ALTER／DROP COLUMN 之後要的那個既有資料行。</summary>
+    AlterTableColumn = 1 << 19,
+
     /// <summary>全部位置；分析器判不出上下文，或關鍵字沒有分到任何位置時使用。</summary>
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail
-        | ByAnchor | DdlObject | CaseArm | CaseBody | ColumnDefinition
-        | BlockStart | SetTarget | InsertTarget
+        | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
+        | ColumnDefinition | BlockStart | SetTarget | InsertTarget
+        | AlterTableAction | AlterTableAdd | AlterTableColumn
 }

@@ -58,6 +58,36 @@ public static class SqlTokenNavigator
             && QueryKeywords.Contains(tokens[next].Value);
     }
 
+    /// <summary>
+    /// 從一個限定名稱的<b>最後一個</b>詞元往回走到它的第一個詞元。
+    /// </summary>
+    /// <remarks>
+    /// <c>dbo.Lib_Reader</c> 是一個資料來源而不是兩個，所以往回數「名稱單位」的
+    /// 每一處都得先跳過點號。各寫一份的症狀是其中一份只認得簡名——
+    /// <c>FROM Lib_Reader </c> 判得出別名位置，<c>FROM dbo.Lib_Reader </c> 卻判不出來。
+    ///
+    /// <paramref name="last"/> 不是識別字時原樣回傳：呼叫端要問的是位置，
+    /// 而不是「這裡有沒有名稱」。
+    /// </remarks>
+    public static int SkipQualifiedNameBackward(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
+        var index = last;
+
+        while (index >= 2 &&
+               tokens[index - 1].IsPunctuation(".") &&
+               tokens[index - 2].Kind == SqlTokenKind.Identifier)
+        {
+            index -= 2;
+        }
+
+        return index;
+    }
+
     /// <summary>從 <paramref name="open"/> 起找出對應的右括號；配不起來時回傳 -1。</summary>
     public static int FindClosingParenthesis(IReadOnlyList<SqlToken> tokens, int open, int end)
     {

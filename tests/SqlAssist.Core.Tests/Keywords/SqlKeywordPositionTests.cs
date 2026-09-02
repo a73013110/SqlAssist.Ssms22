@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
@@ -237,8 +237,41 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT a, ", SqlKeywordPosition.SelectList)]
     [InlineData("SELECT * FROM t1, ", SqlKeywordPosition.DataSource)]
     [InlineData("SELECT * FROM t WHERE a IN (1, ", SqlKeywordPosition.Predicate)]
-    [InlineData("SELECT * FROM t ORDER BY a, ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT * FROM t ORDER BY a, ", SqlKeywordPosition.OrderByColumn)]
     public void 逗號回到清單起點(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
+    /// <summary>
+    /// ORDER BY／GROUP BY 要的那個欄位，以及 ALTER TABLE 的三個位置。
+    /// </summary>
+    /// <remarks>
+    /// 這四處以前一律回 <see cref="SqlKeywordPosition.Any"/>，於是 191 個關鍵字與
+    /// 45 筆片段全部進場：同一組候選、同一個前綴 <c>C</c>，<c>SELECT C</c> 只有
+    /// 62 筆而 <c>ORDER BY C</c> 有 118 筆，前 13 名全被捷徑以 <c>C</c> 開頭的片段
+    /// 占滿。<c>Any</c> 是給「判不出來」用的，而分析器在這四處都判得出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM t ORDER BY ", SqlKeywordPosition.OrderByColumn)]
+    [InlineData("SELECT * FROM t GROUP BY ", SqlKeywordPosition.OrderByColumn)]
+
+    // 欄位之後仍然是 ASC／DESC，不是另一個欄位。
+    [InlineData("SELECT * FROM t ORDER BY a ", SqlKeywordPosition.OrderByTail)]
+
+    [InlineData("ALTER TABLE t ", SqlKeywordPosition.AlterTableAction)]
+    [InlineData("ALTER TABLE dbo.t ", SqlKeywordPosition.AlterTableAction)]
+    [InlineData("ALTER TABLE dbo.t ADD ", SqlKeywordPosition.AlterTableAdd)]
+    [InlineData("ALTER TABLE dbo.t ALTER COLUMN ", SqlKeywordPosition.AlterTableColumn)]
+    [InlineData("ALTER TABLE dbo.t DROP COLUMN ", SqlKeywordPosition.AlterTableColumn)]
+
+    // 認的是「往回正好是 ALTER TABLE 加一個名稱單位」，不是「這份指令碼裡有沒有
+    // ALTER TABLE」：接在後面的獨立敘述不屬於它。
+    [InlineData("ALTER TABLE dbo.t ADD a INT;\nSELECT ", SqlKeywordPosition.SelectList)]
+    [InlineData("CREATE TABLE dbo.t ", SqlKeywordPosition.Any)]
+    public void 欄位與ALTER_TABLE的位置不再fail_open(
+        string textBeforeToken,
+        SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
     }
@@ -275,6 +308,26 @@ public sealed class SqlKeywordPositionTests
     // 選取清單的下一項要的是運算式，不是接在整份清單之後的字。
     [InlineData("SELECT a, ", "CASE", true)]
     [InlineData("SELECT a, ", "FROM", false)]
+
+    // ORDER BY 的欄位位置：運算式關鍵字要在，語句級的字不能在。
+    [InlineData("SELECT * FROM t ORDER BY ", "CASE", true)]
+    [InlineData("SELECT * FROM t ORDER BY ", "CONVERT", true)]
+    [InlineData("SELECT * FROM t ORDER BY ", "CREATE", false)]
+    [InlineData("SELECT * FROM t ORDER BY ", "PROCEDURE", false)]
+
+    // DESC 屬於欄位「之後」，在欄位這一格不該出現。
+    [InlineData("SELECT * FROM t ORDER BY ", "DESC", false)]
+
+    // ALTER TABLE：SQL Prompt 在 ADD 之後給的就是這幾個字。
+    [InlineData("ALTER TABLE dbo.t ", "ADD", true)]
+    [InlineData("ALTER TABLE dbo.t ", "ALTER", true)]
+    [InlineData("ALTER TABLE dbo.t ", "SELECT", false)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "CONSTRAINT", true)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "DEFAULT", true)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "PRIMARY", true)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "UNIQUE", true)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "CREATE", false)]
+    [InlineData("ALTER TABLE dbo.t ADD ", "PROCEDURE", false)]
     public void 位置過濾決定關鍵字出不出現(string textBeforeCaret, string keyword, bool expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + keyword.Substring(0, 1));

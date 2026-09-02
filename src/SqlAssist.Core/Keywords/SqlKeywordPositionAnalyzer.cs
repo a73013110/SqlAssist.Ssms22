@@ -241,12 +241,7 @@ public static class SqlKeywordPositionAnalyzer
             return false;
         }
 
-        while (index >= 2 &&
-               tokens[index - 1].IsPunctuation(".") &&
-               tokens[index - 2].Kind == SqlTokenKind.Identifier)
-        {
-            index -= 2;
-        }
+        index = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index);
 
         if (index < 1)
         {
@@ -264,8 +259,61 @@ public static class SqlKeywordPositionAnalyzer
 
         // FROM a, b | 的逗號也開啟一個資料來源，但 SELECT a, b | 的不是。
         return previous.IsPunctuation(",")
-            && FindAnchorPosition(tokens, index - 2, ListAnchors, SqlKeywordPosition.Any)
+            && FindAnchorPosition(tokens, index - 2, ListAnchors, SqlKeywordPosition.OrderByColumn)
                 == SqlKeywordPosition.DataSource;
+    }
+
+    /// <summary>
+    /// 游標落在 <c>ALTER TABLE</c> 的三個位置之一。
+    /// </summary>
+    /// <remarks>
+    /// 這三處以前一律回 <see cref="SqlKeywordPosition.Any"/>，代價是 191 個關鍵字與
+    /// 45 筆片段全部進場——使用者在 <c>ADD </c> 之後看到的是整個資料庫，而文法上
+    /// 對的只有九個字。
+    ///
+    /// 認的是「往回正好是 <c>ALTER TABLE</c> 加一個名稱單位」而不是「這份指令碼裡
+    /// 有沒有 ALTER TABLE」，理由與 <c>SqlScopeAnalyzer.IsMergeAction</c> 相同：
+    /// 一個 <c>ALTER TABLE</c> 之後接著獨立的敘述時，那個敘述不屬於它。
+    ///
+    /// <c>ADD COLUMN</c> 不必判——T-SQL 沒有這種寫法，<c>COLUMN</c> 只跟在
+    /// <c>ALTER</c> 與 <c>DROP</c> 後面。
+    /// </remarks>
+    private static bool TryResolveAlterTable(
+        IReadOnlyList<SqlToken> tokens,
+        int last,
+        out SqlKeywordPosition position)
+    {
+        if (tokens[last].IsKeyword("ADD"))
+        {
+            position = SqlKeywordPosition.AlterTableAdd;
+            return IsAlterTableTarget(tokens, last - 1);
+        }
+
+        if (tokens[last].IsKeyword("COLUMN"))
+        {
+            position = SqlKeywordPosition.AlterTableColumn;
+            return last >= 1
+                && (tokens[last - 1].IsKeyword("ALTER") || tokens[last - 1].IsKeyword("DROP"))
+                && IsAlterTableTarget(tokens, last - 2);
+        }
+
+        position = SqlKeywordPosition.AlterTableAction;
+        return IsAlterTableTarget(tokens, last);
+    }
+
+    /// <summary><paramref name="last"/> 是 <c>ALTER TABLE</c> 目標名稱的最後一個詞元。</summary>
+    private static bool IsAlterTableTarget(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        if (last < 2 || tokens[last].Kind != SqlTokenKind.Identifier)
+        {
+            return false;
+        }
+
+        var start = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last);
+
+        return start >= 2
+            && tokens[start - 1].IsKeyword("TABLE")
+            && tokens[start - 2].IsKeyword("ALTER");
     }
 
     /// <summary>
@@ -293,9 +341,10 @@ public static class SqlKeywordPositionAnalyzer
         }
 
         // SELECT a, | 與 FROM a, | 都是清單再來一項，位置回到清單的起點。
+        // ORDER BY a, | 也一樣：下一項仍然是欄位。
         if (token.IsPunctuation(","))
         {
-            return FindAnchorPosition(tokens, last - 1, ListAnchors, SqlKeywordPosition.Any);
+            return FindAnchorPosition(tokens, last - 1, ListAnchors, SqlKeywordPosition.OrderByColumn);
         }
 
         if (token.IsPunctuation(")"))
@@ -334,8 +383,14 @@ public static class SqlKeywordPositionAnalyzer
 
             if (IsOrderOrGroupBy(tokens, last))
             {
-                // ORDER BY | 要的是欄位，不是關鍵字。
-                return SqlKeywordPosition.Any;
+                return SqlKeywordPosition.OrderByColumn;
+            }
+
+            // ALTER TABLE 的三個位置要排在「認得但沒有對應位置」之前：ADD 與 COLUMN
+            // 都是目錄認得的關鍵字，讓那一條先接走的話這裡永遠回 Any。
+            if (TryResolveAlterTable(tokens, last, out var alterPosition))
+            {
+                return alterPosition;
             }
 
             if (SqlKeywordCatalog.IsKeyword(token.Value))
@@ -447,7 +502,11 @@ public static class SqlKeywordPositionAnalyzer
     /// <summary>
     /// 往回找最近的子句關鍵字，並以 <paramref name="anchors"/> 換成位置。
     /// </summary>
-    /// <param name="orderByPosition">錨點是 ORDER BY／GROUP BY 的 BY 時用的位置。</param>
+    /// <param name="orderByPosition">
+    /// 錨點是 ORDER BY／GROUP BY 的 BY 時用的位置。子句尾端問的是欄位<b>之後</b>
+    /// （<see cref="SqlKeywordPosition.OrderByTail"/>，也就是 ASC／DESC），
+    /// 清單起點問的是欄位本身（<see cref="SqlKeywordPosition.OrderByColumn"/>）。
+    /// </param>
     /// <remarks>
     /// 途中遇到右括號一律跳到配對的左括號之前：那一整組是一個運算元，
     /// 裡面的子句屬於它自己。配不起來的左括號（使用者才剛打開、還沒關上的那個）
