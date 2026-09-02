@@ -153,6 +153,63 @@ internal sealed class SsmsResultGrid
     }
 
     /// <summary>
+    /// 讀出使用者剛剛點的那一格。
+    /// </summary>
+    /// <remarks>
+    /// 取的是選取範圍第一個區塊的左上角。SSMS 在按右鍵時會把游標下那一格選起來，
+    /// 所以那一格就是它。不另外去問格線的「目前儲存格」：那個屬性的名稱與語意
+    /// 沒有文件，而選取範圍這條路已經在其他命令上驗過。
+    ///
+    /// 只讀一格，不走選取範圍換算：那一層會把選取撐成矩形，而這裡要的就是一格。
+    /// </remarks>
+    public bool TryReadAnchorCell(out ResultGridColumn? column, out object? value, out string failure)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        column = null;
+        value = null;
+
+        var totalColumns = GridReflection.Property<int>(_storage, "NumberOfDataColumns") ?? 0;
+        var totalRows = GridReflection.Property<long>(_storage, "TotalNumberOfRows") ?? 0L;
+
+        if (!TryCheckColumnOrder(totalColumns, out failure))
+        {
+            return false;
+        }
+
+        var blocks = ReadSelection(totalColumns);
+
+        if (blocks.Count == 0)
+        {
+            failure = "先在結果格線裡點一格，再執行一次這個命令。";
+            return false;
+        }
+
+        var row = blocks[0].Top;
+        var dataColumn = blocks[0].Left;
+
+        if (row < 0 || row >= totalRows || dataColumn < 0 || dataColumn >= totalColumns)
+        {
+            failure = "點到的位置不在資料範圍內。";
+            return false;
+        }
+
+        var getCellData = GridReflection.BindCell(_storage, "GetCellData");
+        var isCellDataNull = GridReflection.BindCellFlag(_storage, "IsCellDataNull");
+
+        if (getCellData is null || isCellDataNull is null)
+        {
+            failure = "這個版本的 SSMS 沒有提供讀取儲存格的方法，無法從結果格線取值。";
+            return false;
+        }
+
+        var gridColumn = dataColumn + RowNumberColumns;
+        column = ReadColumns(new[] { dataColumn })[0];
+        value = isCellDataNull(row, gridColumn) ? null : getCellData(row, gridColumn);
+        failure = string.Empty;
+        return true;
+    }
+
+    /// <summary>
     /// 使用者拖動過欄位順序的話就整段拒絕。
     /// </summary>
     /// <remarks>

@@ -13,6 +13,7 @@
 | 建立 #temp 指令碼 | `DROP` 守門 ＋ `CREATE TABLE #SqlAssistRows` ＋ `INSERT` ＋ `SELECT` | 新查詢視窗（沿用同一個連線） |
 | 複製成 IN 條件 | 一段接得上 `WHERE` 的述詞 | 剪貼簿 |
 | 欄位剖析 | 每一欄的 `NULL`／空字串／相異值數與範圍 | 一個可以複製成 TSV 的視窗 |
+| 檢視這一格的完整內容 | 那一格的原文，加上型別與大小 | 一個可以選、可以捲的視窗 |
 | 探測這個結果格線 | 格線內部狀態的報告 | 診斷紀錄檔（只在「詳細記錄」開啟時出現） |
 
 三種產出的去處不同，因為用法不同：`#temp` 是完整的一段指令碼，開進新視窗按 F5
@@ -22,6 +23,14 @@
 欄位剖析在寬表上的價值遠高於窄表。真正想知道的往往只是「哪幾欄整欄是 `NULL`、
 哪幾欄從頭到尾只有一個值」——那兩件事看資料看不出來，看摘要一眼就有。統計的對象
 刻意就是眼前這一份結果，不是資料表的全貌；後者下一句 `GROUP BY` 比較快也比較準。
+
+格線一列只有一行高，而它顯示的字數上限是 65535（`NumberOfCharsToShow`）——一段
+`nvarchar(max)` 的 XML 在格線上只看得到開頭那幾十個字，而且沒有「後面還有」的提示。
+「檢視這一格的完整內容」取的是選取範圍第一個區塊的左上角，也就是剛剛按右鍵那一格。
+文字與 XML 給原文（要讀的是內容本身，多一層引號跳脫只會擋路），二進位給十六進位
+並每 32 位元組換行，其他型別給 T-SQL 字面值（那時候的下一步多半是貼進一句 `WHERE`）。
+長度單位跟著型別走：文字算字元、二進位算位元組——混成同一個數字的話，
+「這一欄會不會被截斷」就答不出來了。
 
 `NULL` 與空字串分開算：兩者在格線上都是不顯眼的一格，查問題時卻代表完全不同的事。
 文字欄位另外報字元數範圍，那是找截斷的第一個線索——整欄都剛好 20 個字元的
@@ -111,7 +120,8 @@ SSMS 自己的「複製」給的是 TSV，而那份文字裡資料庫的 `NULL` 
 | `#temp` 指令碼的長相 | `Metadata/ResultGrid/SqlTempTableScript.cs` |
 | `IN` 條件的長相 | `Metadata/ResultGrid/SqlInPredicateScript.cs` |
 | 欄位剖析算什麼 | `Metadata/ResultGrid/ResultGridProfile.cs` |
-| 欄位剖析視窗的長相 | `Ssms22/ResultGrid/ResultGridProfileWindow.cs`（外觀一律走 `UI/SqlAssistChrome.cs`） |
+| 儲存格內容怎麼呈現 | `Metadata/ResultGrid/ResultGridCellText.cs` |
+| 兩個視窗的長相 | `Ssms22/ResultGrid/ResultGridProfileWindow.cs`、`ResultGridCellWindow.cs`（外觀一律走 `UI/SqlAssistChrome.cs`） |
 | 選取範圍怎麼換算、格數上限 | `Metadata/ResultGrid/ResultGridSelectionPlan.cs` |
 | 從格線取資料 | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
 | 產出交到哪裡、失敗怎麼說 | `Ssms22/ResultGrid/ResultGridActions.cs` |

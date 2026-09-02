@@ -89,6 +89,11 @@ internal sealed class SqlAssistCommands
             (_, _) => ResultGridActions.ShowProfile(_package),
             ResultGridActions.IsAvailable);
 
+        AddCommand(
+            CommandIds.ResultGridCell,
+            (_, _) => ResultGridActions.ShowCell(_package),
+            ResultGridActions.IsAvailable);
+
         // 探測只在「詳細記錄」打開時出現。它是診斷工具，不是功能。
         AddCommand(
             CommandIds.ProbeResultGrid,
