@@ -400,10 +400,13 @@ public sealed class SqlMetadataCatalog
     {
         using var connection = _connectionSource.OpenConnection();
 
+        // 每一筆都記下自己是從哪個資料庫來的。object_id 只在單一資料庫裡唯一，
+        // 而下游（滑鼠停留、結構預覽、F12、提交後展開）拿著這個物件回頭要
+        // 第二、三、四層時，必須換到同一個資料庫的目錄才問得到對的東西。
         var objects = ReadList(
                 connection,
                 SqlMetadataQueries.Objects,
-                SqlMetadataReader.ReadObject,
+                record => SqlMetadataReader.ReadObject(record, _connectionSource.DatabaseName),
                 cancellationToken)
             .FindAll(info => info.Kind != SqlObjectKind.Unknown);
 
@@ -442,7 +445,7 @@ public sealed class SqlMetadataCatalog
         return ReadList(
                 connection,
                 SqlMetadataQueries.SystemObjects,
-                SqlMetadataReader.ReadObject,
+                record => SqlMetadataReader.ReadObject(record, _connectionSource.DatabaseName),
                 cancellationToken)
             .FindAll(info => info.Kind != SqlObjectKind.Unknown);
     }

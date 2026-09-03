@@ -7,6 +7,25 @@ namespace SqlAssist.Metadata.Tests.Querying;
 public sealed class SqlMetadataReaderTests
 {
     /// <remarks>
+    /// <c>object_id</c> 只在自己那個資料庫裡唯一。物件不記得自己從哪個資料庫來的話，
+    /// 下游拿它回頭要欄位時會問到目前連線裡剛好同號的那一個——欄位清單看起來
+    /// 完全正常，卻屬於另一張表。
+    /// </remarks>
+    [Fact]
+    public void 讀取物件時記下所屬資料庫()
+    {
+        var record = new FakeDataRecord(42, "dbo", "Loan", "U");
+
+        var scoped = SqlMetadataReader.ReadObject(record, "LibArchive");
+        var local = SqlMetadataReader.ReadObject(record);
+
+        Assert.Equal("LibArchive", scoped.DatabaseName);
+        Assert.Null(local.DatabaseName);
+        Assert.Equal(42, scoped.ObjectId);
+        Assert.Equal(SqlObjectKind.Table, scoped.Kind);
+    }
+
+    /// <remarks>
     /// 四個界限值在伺服器端就 CONVERT 成字串：用 GetValue 收 sql_variant 拿到的是
     /// 裝箱的原生型別，一個 decimal(38,0) 的序列會讓任何一種整數轉型當場溢位，
     /// 而那會讓整份中繼資料被降級成「這一輪沒有資料」。

@@ -29,7 +29,7 @@ namespace SqlAssist.Ssms22.Connections;
 internal sealed class SqlMetadataService : IDisposable
 {
     private readonly object _syncRoot = new();
-    private readonly HashSet<int> _warmingDetails = new();
+    private readonly HashSet<string> _warmingDetails = new(StringComparer.OrdinalIgnoreCase);
     private readonly IServiceProvider _serviceProvider;
     private SsmsConnectionSource? _connectionSource;
     private SqlMetadataCatalog? _catalog;
@@ -72,17 +72,43 @@ internal sealed class SqlMetadataService : IDisposable
     /// 取得目前資料庫的物件建議。回傳的建議只帶名稱層級的資訊，
     /// 欄位與定義要另外呼叫 <see cref="GetDetailAsync"/>。
     /// </summary>
-    public async Task<IReadOnlyList<SqlSuggestion>> GetSuggestionsAsync(
+    public Task<IReadOnlyList<SqlSuggestion>> GetSuggestionsAsync(
         CancellationToken cancellationToken)
     {
-        var catalog = ResolveCatalog();
+        return GetSuggestionsAsync(qualifierPath: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// 取得限定字所指位置的物件建議：沒有限定字或本地限定字用目前連線的資料庫，
+    /// 跨資料庫則用同一台伺服器上的那一個。
+    /// </summary>
+    /// <remarks>
+    /// 跨資料庫第一次一定要查一輪，而這條路徑跑在平台的背景工作上，不是按鍵路徑
+    /// ——清單會晚一點出現，不會讓打字卡住。之後就與本地的目錄一樣命中快取。
+    ///
+    /// 只在<b>使用者真的打出資料庫名稱</b>之後才走到這裡。預先把每一個進得去的
+    /// 資料庫都撈一份的話，共用主機上等於幾十輪查詢與幾十份常駐快照，
+    /// 而其中九成九不會有人用到。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlSuggestion>> GetSuggestionsAsync(
+        SqlObjectPath? qualifierPath,
+        CancellationToken cancellationToken)
+    {
+        var catalog = ScopeTo(ResolveCatalog(), qualifierPath);
 
         if (catalog is null)
         {
             return Array.Empty<SqlSuggestion>();
         }
 
+        var timer = Stopwatch.StartNew();
         var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+
+        if (qualifierPath is { IsCrossDatabase: true })
+        {
+            ReportIfSlow($"跨資料庫建議 {qualifierPath.DatabaseName}（第一層）", timer);
+        }
+
         return BuildSuggestions(snapshot);
     }
 
@@ -95,9 +121,10 @@ internal sealed class SqlMetadataService : IDisposable
     /// 第一次被問到才查資料庫，之後整個工作階段都用快取。
     /// </remarks>
     public async Task<IReadOnlyList<SqlSuggestion>> GetSystemSuggestionsAsync(
+        SqlObjectPath? qualifierPath,
         CancellationToken cancellationToken)
     {
-        if (ResolveCatalog() is not { } catalog)
+        if (ScopeTo(ResolveCatalog(), qualifierPath) is not { } catalog)
         {
             return Array.Empty<SqlSuggestion>();
         }
@@ -117,9 +144,17 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>取得目前資料庫的第一層中繼資料；沒有可用連線時回傳 null。</summary>
-    public async Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
+    public Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
     {
-        var catalog = ResolveCatalog();
+        return GetSnapshotAsync(path: null, cancellationToken);
+    }
+
+    /// <summary>取得路徑指名的那個資料庫的第一層中繼資料；查不到時回傳 null。</summary>
+    public async Task<SqlDatabaseSnapshot?> GetSnapshotAsync(
+        SqlObjectPath? path,
+        CancellationToken cancellationToken)
+    {
+        var catalog = ScopeTo(ResolveCatalog(), path);
 
         if (catalog is null)
         {
@@ -297,7 +332,7 @@ internal sealed class SqlMetadataService : IDisposable
     /// </remarks>
     public IReadOnlyList<string>? PeekColumnNames(SqlTableReference table)
     {
-        var catalog = PeekCatalog();
+        var catalog = ScopeTo(PeekCatalog(), table?.Path);
         var snapshot = catalog?.CachedSnapshot;
 
         if (catalog is null || snapshot is null || snapshot.IsEmpty)
@@ -344,7 +379,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var catalog = ResolveCatalog();
+        var catalog = ScopeTo(ResolveCatalog(), table.Path);
 
         if (catalog is null)
         {
@@ -371,7 +406,7 @@ internal sealed class SqlMetadataService : IDisposable
     private static bool TryPeekResolved(
         SqlMetadataCatalog catalog,
         SqlDatabaseSnapshot snapshot,
-        SqlTableReference table,
+        SqlTableReference? table,
         out SqlObjectInfo objectInfo,
         out SqlObjectDetail detail)
     {
@@ -454,14 +489,20 @@ internal sealed class SqlMetadataService : IDisposable
             // 目錄與第一層快照只在真的有資料表來源時才解析：一份全是子查詢的敘述
             // 不必為了列欄位去碰連線。
             catalog ??= ResolveCatalog();
-            snapshot ??= catalog?.CachedSnapshot;
 
-            if (catalog is null || snapshot is null || snapshot.IsEmpty)
+            // 敘述可以同時 JOIN 本地與跨資料庫的表，所以快照要跟著來源走，
+            // 不能整段共用一份——共用的症狀是跨資料庫那一張比對到本地的同名表。
+            var sourceCatalog = ScopeTo(catalog, source.Table!.Path);
+            var sourceSnapshot = ReferenceEquals(sourceCatalog, catalog)
+                ? snapshot ??= catalog?.CachedSnapshot
+                : sourceCatalog?.CachedSnapshot;
+
+            if (sourceCatalog is null || sourceSnapshot is null || sourceSnapshot.IsEmpty)
             {
                 continue;
             }
 
-            if (!TryPeekResolved(catalog, snapshot, source.Table!, out var objectInfo, out var detail))
+            if (!TryPeekResolved(sourceCatalog, sourceSnapshot, source.Table!, out var objectInfo, out var detail))
             {
                 continue;
             }
@@ -516,9 +557,9 @@ internal sealed class SqlMetadataService : IDisposable
     /// 目前已快取的第一層資料；沒有現成的目錄或還沒載入時回傳 null。
     /// </summary>
     /// <remarks>不觸發任何查詢，也不向 SSMS 詢問連線。滑鼠停留提示走這條路。</remarks>
-    public SqlDatabaseSnapshot? PeekSnapshot()
+    public SqlDatabaseSnapshot? PeekSnapshot(SqlObjectPath? path = null)
     {
-        var snapshot = PeekCatalog()?.CachedSnapshot;
+        var snapshot = ScopeTo(PeekCatalog(), path)?.CachedSnapshot;
         return snapshot is null || snapshot.IsEmpty ? null : snapshot;
     }
 
@@ -530,7 +571,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var catalog = PeekCatalog();
+        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
 
         return catalog is not null && catalog.TryGetCachedDetail(objectInfo.ObjectId, out var detail)
             ? detail
@@ -552,16 +593,20 @@ internal sealed class SqlMetadataService : IDisposable
             return;
         }
 
-        var catalog = PeekCatalog();
+        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
 
         if (catalog is null || catalog.TryGetCachedDetail(objectInfo.ObjectId, out _))
         {
             return;
         }
 
+        // object_id 只在自己那個資料庫裡唯一，所以在途的鍵要帶上資料庫；
+        // 只用編號的話，兩個資料庫裡剛好同號的物件會互相把對方的預熱擋掉。
+        var warmingKey = objectInfo.DatabaseName + "|" + objectInfo.ObjectId;
+
         lock (_syncRoot)
         {
-            if (!_warmingDetails.Add(objectInfo.ObjectId))
+            if (!_warmingDetails.Add(warmingKey))
             {
                 return;
             }
@@ -584,7 +629,7 @@ internal sealed class SqlMetadataService : IDisposable
                 {
                     lock (_syncRoot)
                     {
-                        _warmingDetails.Remove(objectInfo.ObjectId);
+                        _warmingDetails.Remove(warmingKey);
                     }
                 }
             }));
@@ -610,14 +655,12 @@ internal sealed class SqlMetadataService : IDisposable
         // 呼叫端在按鍵路徑上，一定要先離開它的執行緒再開始查。
         SqlAssistPlatformGuard.BeginProbe("預先載入欄位", () => Task.Run(async () =>
         {
-            var catalog = ResolveCatalog();
+            var editorCatalog = ResolveCatalog();
 
-            if (catalog is null || !catalog.IsSnapshotFresh)
+            if (editorCatalog is null)
             {
                 return;
             }
-
-            var snapshot = await catalog.GetSnapshotAsync(CancellationToken.None).ConfigureAwait(false);
 
             foreach (var source in sources)
             {
@@ -628,6 +671,17 @@ internal sealed class SqlMetadataService : IDisposable
                 }
 
                 var table = source.Table!;
+                var catalog = ScopeTo(editorCatalog, table.Path);
+
+                // 預熱刻意只在第一層已經新鮮時才做：這是背景的加速手段，
+                // 不該自己去觸發一輪第一層查詢。跨資料庫的目錄一開始必定不新鮮，
+                // 所以第一次要靠使用者真的打出 LibArchive.dbo. 那一次去載入。
+                if (catalog is null || !catalog.IsSnapshotFresh)
+                {
+                    continue;
+                }
+
+                var snapshot = catalog.CachedSnapshot;
                 var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
                 if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
@@ -668,9 +722,9 @@ internal sealed class SqlMetadataService : IDisposable
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
-        var catalog = ResolveCatalog();
+        var catalog = ScopeTo(ResolveCatalog(), objectInfo?.DatabaseName);
 
-        if (catalog is null)
+        if (catalog is null || objectInfo is null)
         {
             return null;
         }
@@ -686,7 +740,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var catalog = PeekCatalog();
+        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
 
         return catalog is not null && catalog.TryGetCachedStructure(objectInfo.ObjectId, out var structure)
             ? structure
@@ -698,7 +752,7 @@ internal sealed class SqlMetadataService : IDisposable
     {
         if (objectInfo is not null)
         {
-            PeekCatalog()?.InvalidateObject(objectInfo.ObjectId);
+            ScopeTo(PeekCatalog(), objectInfo.DatabaseName)?.InvalidateObject(objectInfo.ObjectId);
         }
     }
 
@@ -712,9 +766,9 @@ internal sealed class SqlMetadataService : IDisposable
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
-        var catalog = ResolveCatalog();
+        var catalog = ScopeTo(ResolveCatalog(), objectInfo?.DatabaseName);
 
-        if (catalog is null)
+        if (catalog is null || objectInfo is null)
         {
             return null;
         }
@@ -741,6 +795,58 @@ internal sealed class SqlMetadataService : IDisposable
             _connectionSource = null;
             _catalog = null;
         }
+    }
+
+    /// <summary>
+    /// 把目錄換成路徑指名的那一個資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 沒有路徑、或路徑就在目前這條連線上時原樣回傳，所以呼叫端不必自己分兩種
+    /// 情形——分兩種的症狀是某一條路徑忘了換，而它會安靜地拿本地同名的物件回答。
+    ///
+    /// 連結伺服器一律回傳 null，也就是<b>明確地沒有建議</b>。理由是延遲與可用性
+    /// 都由對方那台伺服器決定：取名稱清單要走分散式查詢，而目錄的載入閘是每個
+    /// 目錄一把，卡住的那一輪會擋住同一個資料庫的後續查詢；連結伺服器的登入失敗
+    /// 還會冒出 SSMS 自己的對話框，那不是 DbException 的降級接得住的。
+    /// 沉默是刻意的結果：先前那個「沉默」其實是列出目前連線裡同名的東西，
+    /// 而那看起來完全正常。
+    /// </remarks>
+    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectPath? path)
+    {
+        if (catalog is null || path is null || path.IsLocal)
+        {
+            return catalog;
+        }
+
+        return path.IsCrossServer ? null : ScopeTo(catalog, path.DatabaseName);
+    }
+
+    /// <summary>把目錄換成指定名稱的那一個資料庫；名稱為空時原樣回傳。</summary>
+    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, string? databaseName)
+    {
+        if (catalog is null || string.IsNullOrEmpty(databaseName))
+        {
+            return catalog;
+        }
+
+        SsmsConnectionSource? source;
+
+        lock (_syncRoot)
+        {
+            source = _disposed ? null : _connectionSource;
+        }
+
+        if (source is null)
+        {
+            return null;
+        }
+
+        // 與查詢視窗自己那個資料庫同名時就是同一份目錄。這一條讓 SqlObjectInfo
+        // 可以無條件記下自己的資料庫，而不必分「本地」與「跨庫」兩種寫法——
+        // 分兩種的症狀是某一條路徑忘了標，於是拿本地同號的物件回答。
+        return string.Equals(source.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase)
+            ? catalog
+            : SqlMetadataCatalogRegistry.Default.GetOrCreateFor(source, databaseName!);
     }
 
     /// <summary>

@@ -364,7 +364,10 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return SqlDataTypeCatalog.All;
             }
 
-            var types = await _metadataService.GetSuggestionsAsync(token).ConfigureAwait(false);
+            var types = await _metadataService
+                .GetSuggestionsAsync(context.QualifierPath, token)
+                .ConfigureAwait(false);
+
             return SqlDataTypeCatalog.All.Concat(types).ToArray();
         }
 
@@ -375,6 +378,18 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return await _metadataService
                 .GetColumnSuggestionsAsync(context.ColumnSources!, settings.IncludeDatabaseObjects, token)
                 .ConfigureAwait(false);
+        }
+
+        // 跨資料庫或跨伺服器的限定字：清單只能來自那個地方。混進本地的物件、
+        // 關鍵字與敘述裡的欄位就是「看起來完全正常，選中的每一個名稱卻不是
+        // 使用者指名的那一個」——而關鍵字與片段在限定字之後本來就一個都不對。
+        if (context.QualifierPath is { IsLocal: false })
+        {
+            return settings.IncludeDatabaseObjects
+                ? await _metadataService
+                    .GetSuggestionsAsync(context.QualifierPath, token)
+                    .ConfigureAwait(false)
+                : Array.Empty<SqlSuggestion>();
         }
 
         // 指令碼自己宣告的 CTE 與暫存資料表不必對資料庫送出任何查詢，
@@ -401,7 +416,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         if (context.WantsSystemObjects)
         {
             var system = await _metadataService
-                .GetSystemSuggestionsAsync(token)
+                .GetSystemSuggestionsAsync(context.QualifierPath, token)
                 .ConfigureAwait(false);
 
             candidates = candidates.Concat(system);
