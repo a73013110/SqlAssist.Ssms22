@@ -6,7 +6,13 @@
 TestResults/
 artifacts/
 
-# 個人 AI 工具的快取與機器路徑不提交；可重用的設定步驟放在文件。
-/.serena/
+# 共用設定跟著版本庫；索引、記憶、紀錄及個人覆寫留在每台機器。
+/.serena/*
+!/.serena/project.yml
+
+# 客戶端的本機 MCP 登記可能含機器路徑；換設備照文件設定，不同步這兩份。
 /.codex/config.toml
+/.mcp.json
+
+# 共用 Hook 在 .claude/settings.json，個人權限與覆寫不提交。
 /.claude/settings.local.json

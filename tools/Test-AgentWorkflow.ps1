@@ -1,4 +1,11 @@
 #Requires -Version 7.0
+
+<#
+.SYNOPSIS
+驗證分段讀檔、輸出節流及文件檢查器，避免省 token 時漏掉失敗。
+.DESCRIPTION
+工具維護或 pre-push 時使用；不呼叫模型，也不是產品單元測試。
+#>
 [CmdletBinding()]
 param()
 

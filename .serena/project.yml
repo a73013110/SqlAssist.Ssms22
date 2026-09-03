@@ -1,0 +1,28 @@
+# 共用的語言、唯讀策略與上下文提示隨 Git 同步；機器差異放在被忽略的 project.local.yml。
+project_name: "SqlAssist.Ssms22"
+language_servers:
+- csharp
+encoding: "utf-8"
+activation_command:
+activation_command_timeout: 180
+line_ending: "lf"
+language_backend:
+ignore_all_files_in_gitignore: true
+ls_specific_settings: {}
+ls_workspace_folders: ["."]
+ls_additional_workspace_folders: []
+ignored_paths: []
+read_only: true
+excluded_tools:
+- execute_shell_command
+included_optional_tools: []
+fixed_tools: []
+default_modes:
+added_modes:
+initial_prompt: >-
+  先遵守專案 CLAUDE.md 與 docs/index.md 的按需路由。
+  先查符號概覽，再讀必要符號本體；不要全庫 onboarding、重建完整架構摘要，
+  或把記憶檔當成比原始碼與既有文件更高的規範。
+symbol_info_budget:
+read_only_memory_patterns: []
+ignored_memory_patterns: []
