@@ -67,7 +67,7 @@ pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Build-Exte
 ## 選用工具
 
 - [RTK 短教學](ai-rtk.md)：壓縮命令輸出；Claude 用共用 Hook，Codex 依共用規則使用。
-- [Serena 短教學](ai-serena.md)：查 C# 符號；**Claude 用外掛，Codex 保留自己的 MCP 設定**。
+- [Serena 短教學](ai-serena.md)：查 C# 符號；**兩端共用本機 CLI，各自一份專案 MCP 設定**。
 - 沒安裝、沒連線或查不到時，回退原生讀檔／搜尋，不自動安裝或重建全庫。
 
 ## 維護時驗證
