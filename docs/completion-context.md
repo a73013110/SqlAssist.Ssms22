@@ -73,6 +73,8 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
+| `LibArchive.dbo.`、`LibArchive..` | 那個資料庫的物件 | 插入名稱 |
+| `[192.0.2.10].[LibArchive].[dbo].` | — | 認得出來，但不給建議 |
 
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
@@ -216,3 +218,24 @@ CTE 只存在於指令碼裡，暫存資料表在 tempdb 裡，兩者一個都�
 定義取不到只有兩個原因（物件是 `WITH ENCRYPTION` 建的，或這個登入沒有它的
 `VIEW DEFINITION` 權限），這時維持只插入名稱，並在診斷紀錄裡寫明。
 
+## 限定字是一條路徑，不是一個識別字
+
+點號前方那幾段一起讀進 `SqlObjectPath`（`Core/Parsing`），最右邊一段是結構描述或
+別名，往左依序是資料庫與連結伺服器。只讀最右邊一段有兩個症狀，而兩個都沒有徵兆：
+清單改列**目前連線**的 `dbo` 物件，而剝完之後的位置判斷停在 `FROM LibArchive.` 上，
+連 `FROM` 都看不到，建議目標退成 `Any`——關鍵字與片段於是混了進來。
+
+三條規則跟著路徑走，各寫一份的話同一個名稱會在某條路徑上認得、在另一條上不認得：
+
+- **右對齊。** 省略一律從左邊省，所以最右邊永遠是名稱（限定字則是結構描述）。
+- **空的中間段當成沒寫。** `LibArchive..` 少的是結構描述，不是資料庫。存成空字串的話
+  下游會拿它去比對，而沒有任何結構描述叫做空字串。
+- **超過上限就整個不認。** 取最右邊那幾段的話，使用者打錯的一串名稱會安靜地
+  變成一個查得到的東西。
+
+多段的限定字**不會**被當成別名：別名只有一段。拿最右邊那一段去比對別名的話，
+剛好取名叫 `dbo` 的別名會把清單換成它的欄位。
+
+「有沒有限定字」一律問 `QualifierPath` 而不是問 `Qualifier`：`LibArchive..` 有路徑
+卻沒有結構描述那一段，問錯的症狀是插入文字自己補上 `[dbo].`，寫出
+`LibArchive..[dbo].[Loan]`。
