@@ -1,11 +1,14 @@
 # SqlAssist for SSMS 22
 
-SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0，零 VS 相依）、
+SSMS 22.9.x 的 T-SQL 擴充：`SqlAssist.Core`（netstandard2.0，零 VS 相依）、
 `SqlAssist.Metadata`（netstandard2.0，只依賴 `System.Data`）、`SqlAssist.Ssms22`（net48 VSIX）。
 
-細節在 [docs/](docs/)。要讀哪一份一律先看 [docs/index.md](docs/index.md)——它從
-「我要改什麼」或一個檔案路徑指到該讀的文件與該進去的程式碼。**動手前先讀指到的那一份**，
-下面每一條禁令背後都有一次踩過的坑，理由寫在文件裡。
+## 開始工作
+
+Claude Code 讀本檔；Codex 由 `AGENTS.md` 引導讀本檔。兩者共用同一套規則，不另複製一份。
+本檔只放通用硬規則。**先讀 [docs/index.md](docs/index.md)，再讀變更範圍對應的護欄章節
+與功能文件，才能動手。** 功能禁令只是移到按需文件，沒有取消；跨範圍修改必須合併閱讀。
+不清楚位置時才查索引指向的詳細路徑表，不要先讀所有文件或建立全專案摘要。
 
 ## 分層
 
@@ -30,102 +33,6 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
   例外只有 T-SQL 本身的保留字案例（`Order`、`User`）與產品內建的片段捷徑（`ssf`），
   那些是語言與產品事實，不是誰的 schema。
 
-## 設定
-
-新增一個設定必須同時動四處，漏掉後三處的任何一處都是建置失敗（不是執行期回退）：
-`SqlAssist.registration.json`、`Core/Settings/SqlAssistSettings` 屬性、
-`SqlAssistMonikers` 常數、`SqlAssistSettingsReader.Read()` 對應。
-
-- **禁止**手寫 moniker 清單。`SqlAssistMonikers.All` 由反射產生。
-- **禁止**讓註冊檔的 `default` 與 POCO 的屬性預設值分歧。
-- **禁止**讓 `enableWhen`／`visibleWhen` 跨分類參照——殼層會安靜地讓整個設定頁消失。
-- **禁止**讓設定的 `enableWhen` 參照一個以上的設定；同分類也不行，那一項會安靜地消失。
-  設定頁的縮排就是照這個參照排的，所以參照誰＝排在誰底下。
-- **禁止**改動既有 `enum` 的字面值；那等於讓所有使用者的設定回退到預設。
-- **禁止**把清單型資料放進 Unified Settings，它只收 bool／int／enum／string。
-- **禁止**在取不到 Unified Settings 服務時讓擴充停擺；一律回退到內建預設值。
-
-## 共用元件
-
-同一件事寫成兩份時，症狀一律是「其中一份改了另一份沒改」，而且沒有任何徵兆。
-共用元件的清單與各自的分岔症狀見 [docs/architecture.md](docs/architecture.md)。
-
-- **禁止**在背景工作裡直接改編輯器緩衝區。非同步替換一律走
-  `Editor/TextViewEditCoordinator`：切 UI 執行緒、檢查編輯器已關閉、從
-  `ITrackingSpan` 取最新範圍、確認原文還在原處，少一道就會覆蓋使用者的輸入。
-- **禁止**在 Ssms22 的平台邊界自己寫 `try`／`catch`——MEF 建立方法、編輯器事件、
-  按鍵處理常式、派送佇列上的工作、沒有人接結果的背景工作，一律走
-  `SqlAssistPlatformGuard`。三族方法的分工與四種例外情形見
-  [docs/architecture.md](docs/architecture.md)。
-- **禁止**用 `Run` 記錄「會連續失敗」的平台探測（佈景筆刷、DPI、預先載入）；
-  那要用 `Probe`／`BeginProbe`，否則紀錄檔會被灌滿而蓋掉真正的錯誤。
-- **禁止**讓 `DbException` 冒出 `SqlMetadataCatalog`。連不上、逾時、權限不足在
-  `TryLoad` 降級成「這一輪沒有資料」；冒出去會讓平台邊界每按一次鍵記一份完整堆疊。
-  只接 `DbException`，失敗不進快取，理由見 [docs/metadata.md](docs/metadata.md)。
-- **禁止**在資料不齊時輸出半份可以執行的東西。種類問
-  `SqlObjectKinds.HasExecutableScript`、這一次查到的資料問
-  `SqlObjectStructure.CanBuildExecutableScript`，任何一道不過就整段換成註解，
-  寫明缺什麼、兩個可能的原因與查得到的部分（格式只有 `BuildUnavailableScript` 一份）。
-  查詢成功卻一列都沒有回來是常態不是例外：物件清單是快取的，中繼資料的可見度
-  照權限過濾。少了欄位的 `CREATE TABLE` 只剩一對空括號，卻仍然貼得上去，
-  理由見 [docs/metadata.md](docs/metadata.md)。
-- **禁止**用 `SqlAssistPlatformGuard` 吞掉 Core 與 Metadata 的商業邏輯錯誤，
-  也**禁止**用它處理「使用者按了卻沒反應」的失敗——工具選單的命令、預覽的狀態列、
-  Snippet 管理員都要顯示訊息，每一句都不同。不走它的地方一律在該處註明理由。
-- **禁止**在 Snippet 樣板裡把結構描述與物件名稱拆成 `$schema$.$object$` 兩格。
-  第一格的答案幾乎永遠是 `dbo`，而建議清單依設定插進來的 `[dbo].[Lib_Reader]`
-  這種寫法根本填不進拆開的格子。
-- **禁止**為 Snippet 欄位另外宣告「這一格要列哪一類物件」。那份判斷在
-  `SqlCompletionContextAnalyzer`，它讀的是實際文字；多一份宣告的症狀是樣板改了、
-  宣告沒改，而清單靜靜地不再出現。
-- **禁止**把 Snippet 欄位的上下文一律截到該格起點。只有「整格還是樣板填的預設值」
-  那一次要當它不存在；使用者一打字，那幾個字就是前綴，而那是無限定字的格子
-  （`INSERT (|)`）唯一的參與條件。截點只有
-  `SqlSnippetExpansionController.ResolveAnalysisEnd` 一份，排名器也要照同一條
-  把預設值視為空前綴，否則 Tab 進去的清單會被自己的預設值濾光。
-- **禁止**再寫一份 SQL 註解略過或括號配對。`Core/Parsing` 的 `SqlTrivia` 與
-  `SqlTokenNavigator` 是唯一出處；自己寫的那一份漏掉巢狀註解已經發生過一次。
-- **禁止**在工具腳本裡寫死 SSMS 路徑或擴充的 Identity Id；
-  一律從 `tools/SqlAssist.Tools.psm1` 取，並支援 `-SsmsInstallDir` 覆寫。
-
-## 按鍵與滑鼠路徑
-
-- **禁止**在按鍵或滑鼠移動路徑上同步查詢資料庫。沒命中快取就這一輪不顯示，
-  背景補上之後下一次就有。
-- **禁止**在 QuickInfo 路徑向 SSMS 詢問目前連線——那個呼叫有 UI 執行緒相依性。
-- **禁止**做部分展開。`SELECT *` 只要有一個來源解析不出來就完全不展開；
-  少幾個欄位的 `SELECT` 執行得動卻執行出錯的結果，比什麼都不做糟。
-
-## 平台
-
-- **禁止**依賴 `CommitBehavior.Retrigger`：SSMS 22 的編輯器組件沒有任何一處讀它。
-- **禁止**用 `DismissAllSessions` 搶 session。重開清單一律走 `SqlCompletionReopen`
-  的三步驟（Dismiss → TriggerCompletion → OpenOrUpdate），一步都不能少。
-- **禁止**在原地重開建議清單；必須排到派送佇列的 Background 優先權。
-- **禁止**在浮動預覽裡內嵌真正的編輯器，或依賴 `ApplicationCommands.Copy` 的繞送。
-- **禁止**在 `UI/SqlAssistChrome` 之外另立一套外觀。字型、字級推導、按鈕、輸入欄位、
-  核取方塊與資料格樣板只有那一個來源；`Preview/PreviewChrome` 只放別的視窗用不到的東西。
-- **禁止**用現代編輯器的 `ICommandHandler` 接殼層命令（F12 之類）。SSMS 的查詢視窗
-  在核心編輯器外面還有自己的文件檢視與舊版語言服務，命令到不了現代管線——實測
-  F12 連一行紀錄都沒有。兩條會動的路：命令表的鍵繫結（SSMS 22 沒有把 F12 綁在
-  `Edit.GoToDefinition` 上，所以那才是 F12 真正走的路），以及
-  `Editor/SqlShellCommandFilter`（`IVsTextView` 上的 `IOleCommandTarget`，插在鏈
-  最前面）。濾鏡**必須**在 `QueryStatus` 回報 supported＋enabled：沒有人認領的命令
-  是停用的，停用的命令連 `Exec` 都不會發出去。那條路徑每個按鍵都會走過，**禁止**在
-  轉傳之前做 GUID 比對以外的任何事。詳見
-  [docs/go-to-definition.md](docs/go-to-definition.md)。
-- **禁止**改了 `Menus.vsct` 卻沒把 `ProvideMenuResource` 的版號加一，也**禁止**
-  改完命令表後用 `Deploy-DebugExtension.ps1` 部署。殼層照 pkgdef 的
-  `Menus.ctmenu, N` 決定要不要重讀命令表，而 pkgdef 不在部署清單裡，清快取也沒用。
-  症狀與 MEF 快取同一類：新選單不出現、新綁的鍵沒反應，沒有例外也沒有記錄。
-  改命令表一律走 `Install-Extension.ps1` 重新安裝。
-- **禁止**搬動 MEF 匯出型別（`[Export]`、`[Export(typeof(ICommandHandler))]`、
-  `IWpfTextViewCreationListener`…）的命名空間之後，只把 DLL 部署過去就開始測。
-  SSMS 的 MEF 快取記的是完整型別名稱，會**安靜地**讓那些部件建立失敗——沒有例外、
-  沒有記錄，只有「功能整組消失」。`Deploy-DebugExtension.ps1` 已經每次都清快取，
-  但**禁止**繞過它手動複製 DLL。判斷依據：記錄檔沒有「SQL 編輯器已建立」就是快取過期。
-  詳見 [docs/development.md](docs/development.md)。
-
 ## 程式碼與建置
 
 - **禁止**留下編譯警告（`TreatWarningsAsErrors`），也**禁止**關掉 `Nullable`。
@@ -134,6 +41,8 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
 - **禁止**寫「這行在做什麼」的註解。註解只寫**為什麼**：這樣選的理由、
   試過而失敗的做法、以及不這樣寫會出現的症狀。現有檔案就是範本。
 - **禁止**用非繁體中文撰寫註解與文件。
+- **禁止**在工具腳本裡寫死 SSMS 路徑或擴充的 Identity Id；
+  一律從 `tools/SqlAssist.Tools.psm1` 取，並支援 `-SsmsInstallDir` 覆寫。
 
 ## 文字檔格式
 
@@ -141,21 +50,37 @@ SSMS 22.9.x 的 T-SQL 擴充。三個專案：`SqlAssist.Core`（netstandard2.0�
   `.editorconfig` 與 `.gitattributes`，`core.autocrlf` 不得覆蓋它。
 - **禁止**在工作結束前批次「還原 CRLF」或補回 BOM。產生與修改時直接保留 LF，並以
   `tools/Check-TextFiles.ps1` 驗證；只為換行重寫整份檔案會製造無意義差異與 token 成本。
+- 原始診斷串流是例外：只存放在被忽略的 `artifacts/`，保留原編碼與換行，不得提交。
 
-## 文件
+## 按需讀取與輸出節流
 
-文件是按需讀的，但「按需」的前提是那一份夠小。讀進 context 的每一個 token，都會被
-這個 session 之後的每一次呼叫重新計費一次——一份 68 KB 的文件被讀進來一次，代價是
-幾百萬 token，而症狀只是「最近消耗得有點快」，沒有任何一個地方會報錯。
+- 預設先查檔名、符號與標題，再讀命中區段；搜尋限相關目錄。除非正在排查產物，
+  不掃 `bin/`、`obj/`、`.vs/`、快取與完整紀錄。不把生成檔或全專案打包灌入上下文。
+- **禁止**整檔讀超過 8000 字元的文件。長檔用 `tools/Read-Context.ps1` 按行讀取
+  （預設 80 行、最多約 6000 字元），依續讀提示補足；命中片段不是完整證據。
+- 建置、測試與其他高輸出非互動命令，優先透過 `tools/Invoke-QuietCommand.ps1`。
+  它保留完整 stdout／stderr 與結束碼，只顯示有上限的尾段；失敗先定位紀錄再讀取。
+  **禁止**用截斷、只比對「成功」字樣、略過測試或吞掉結束碼來換取省 token。
+- RTK 與 Serena 都是選用工具。需要它們才由索引讀教學；未安裝、未連線或未命中時
+  回退原生命令。不要把它們的完整手冊、生成記憶或工具清單加入本檔。
+- RTK 可用時可用於唯讀 Git 摘要；完整 diff 與完整搜尋仍用原生命令
+  （啟用 RTK Hook 時用 `rtk proxy` 繞過過濾）。
+  Serena 已連線時先查符號概覽，再讀必要符號本體；不為節省 token 重複安裝或重建全庫。
+- 回覆只列變更、驗證與未解風險，不重貼完整程式碼或成功紀錄。
+  不相關工作另開 task；同一問題保留必要上下文。快取折扣不等於上下文消失，
+  字元預算也不等於精確 token／訂閱額度。
 
-- **禁止**整檔讀超過 8000 字元的文件。先用 [docs/index.md](docs/index.md) 選對那一份，
-  再 `grep -n` 定位、`sed -n 'a,bp'` 取那一段。
-- **禁止**讓 `docs/` 底下任何一份超過 14000 字元，或讓 `CLAUDE.md` 超過 8000 字元。
-  超過就依主題拆成分冊，每一份開頭寫清楚範圍並回連母檔，然後更新
-  [docs/index.md](docs/index.md) 的路由表。`CLAUDE.md` 的門檻更嚴，因為它每一次
-  呼叫都會重送一遍。
-- **禁止**在 `CLAUDE.md` 裡列舉 `docs/` 的檔名。那份清單會腐爛，而且拆一次檔就要改
-  兩個地方；路由只有 `docs/index.md` 一份。
+```powershell
+# 代理與人工使用同一套驗證，不為了縮短輸出另寫一份測試流程。
+pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Run-CoreTests.ps1
+pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Build-Extension.ps1
+```
+
+## 文件維護
+
+- `CLAUDE.md` 上限 3500 字元、`AGENTS.md` 上限 800 字元、索引上限 4000 字元，
+  其他 `docs/` 文件上限 14000 字元；由 `tools/Check-Docs.ps1` 守住，超過就按主題拆分。
+- **禁止**在本檔列舉 `docs/` 檔名。路由只有 [docs/index.md](docs/index.md) 一份。
 - **禁止**把細節寫回 `README.md`；它只做入口與索引，內容進 `docs/`。
-- **禁止**改完文件不跑 `tools\Check-Docs.ps1`。它一次檢查大小預算與所有 Markdown
-  連結和錨點——拆檔之後斷掉的連結不會有任何徵兆，點下去才發現，通常是幾個月後。
+- **禁止**改完文件不跑 `tools/Check-Docs.ps1`；文字格式另跑 `tools/Check-TextFiles.ps1`。
+  修改讀取／節流腳本時，另跑 `tools/Test-AgentWorkflow.ps1`，不可只測成功路徑。

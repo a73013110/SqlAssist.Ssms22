@@ -24,6 +24,9 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
 （.NET 10 SDK 不再支援 VSTest 轉接層）。
 
+AI 執行上述流程時，使用 [共用輸出包裝器](ai-workflow.md#工具輸出節流)，只縮短呈現，
+不改變測試、建置範圍或結束碼。人工需要即時完整輸出時仍可直接執行原腳本。
+
 ### push 前自動跑測試
 
 版本庫附了一個 `pre-push` hook。git 不會自動套用版控裡的 hook，clone 之後要手動
@@ -33,8 +36,9 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 git config core.hooksPath .githooks
 ```
 
-之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1` 與
-`Run-CoreTests.ps1`，任何一個失敗就擋下來。真的要略過時用 `git push --no-verify`。
+之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1`、
+`Test-AgentWorkflow.ps1` 與 `Run-CoreTests.ps1`，任何一個失敗就擋下來。
+真的要略過時用 `git push --no-verify`。
 
 ### 文字檔格式
 
@@ -241,3 +245,26 @@ SSMS 裡的 **工具 → SqlAssist → 關於與診斷…** 會顯示發布版�
 ```powershell
 .\tools\Show-Diagnostics.ps1
 ```
+
+## 工具腳本
+
+AI 的區段讀取與輸出節流另見 [共用工作流程](ai-workflow.md)。
+
+| 腳本 | 做什麼 |
+|---|---|
+| `Run-CoreTests.ps1` | 以方案為目標跑單元測試（執行器由 `global.json` 指定） |
+| `Build-Extension.ps1` | 建置並產出 VSIX |
+| `Install-Extension.ps1` | 以官方 VSIXInstaller 安裝 |
+| `Uninstall-Extension.ps1` | 解除安裝（保留使用者設定與紀錄） |
+| `Deploy-DebugExtension.ps1` | 部署 Debug 組件並**清除 MEF 快取**，供 F5 偵錯 |
+| `Show-Diagnostics.ps1` | 顯示安裝狀態與最近的診斷紀錄 |
+| `Generate-Keywords.ps1` | 以 ScriptDom 重新產生 `SqlKeywordCatalog.Generated.cs` |
+| `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
+| `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
+| `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
+| `Check-TextFiles.ps1` | 檢查文字檔皆為 UTF-8（無 BOM）、LF 且有檔尾換行 |
+| `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
+| `Read-Context.ps1` | 依行號及字元預算讀取區段，提供續讀起點 |
+| `Invoke-QuietCommand.ps1` | 保留原始紀錄、結束碼及逾時狀態，只顯示有界尾段 |
+| `Test-AgentWorkflow.ps1` | 驗證讀取預算、節流失敗語意、引數與文件檢查器 |
+| `SqlAssist.Tools.psm1` | 上述腳本共用的環境探索 |

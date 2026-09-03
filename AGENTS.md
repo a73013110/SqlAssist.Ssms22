@@ -1,5 +1,4 @@
 # 專案代理規則
 
-開始分析、修改程式碼或執行命令前，必須先讀取並遵守根目錄的 `CLAUDE.md`。
-
-`CLAUDE.md` 視為本專案的主要開發規範；若與本檔衝突，以 `AGENTS.md` 為準。
+Claude Code 與 Codex 共用 `CLAUDE.md` 的按需文件路由及工具輸出規則。
+本檔只做入口，不複製功能禁令或 RTK／Serena 手冊。

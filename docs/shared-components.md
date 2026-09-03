@@ -1,0 +1,43 @@
+# 共用元件表
+
+範圍：新增或改動共用邏輯前查找唯一出處，避免再造一份。返回 [索引](index.md)。
+
+同一件事寫成兩份時，症狀一律是「其中一份改了另一份沒改」。要用這些功能時
+一律呼叫既有的那一份，不要在自己的檔案裡再寫一次。分岔的實際症狀見
+[architecture.md](architecture.md)。
+
+| 這件事 | 唯一出處 |
+|---|---|
+| 略過 SQL 註解與空白 | `Core/Parsing/SqlTrivia.cs` |
+| 括號配對、還沒關上的左括號、判斷括號後是不是查詢、往回跳過限定名稱 | `Core/Parsing/SqlTokenNavigator.cs` |
+| 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
+| 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
+| 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
+| 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
+| 識別字加括號、型別格式化 | `Metadata/Formatting/SqlIdentifier.cs`、`SqlTypeFormatter.cs` |
+| 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
+| 從 SSMS 結果格線取資料（兩套欄索引只換算一次） | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
+| 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
+| 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
+| DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
+| 背景結果寫回編輯器（替換既有文字與寫進空白緩衝區） | `Ssms22/Editor/TextViewEditCoordinator.cs` |
+| 目前的 SQL 編輯器，以及取回剛建立的那一個 | `Ssms22/Editor/ActiveSqlEditor.cs` |
+| 可執行指令碼的批次樣板與 `CREATE` → `ALTER` | `Metadata/Formatting/SqlObjectScript.cs` |
+| 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
+| 進度與失敗顯示在 SSMS 狀態列 | `Ssms22/SqlAssistStatusBar.cs` |
+| 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
+| 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
+| Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
+| 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
+| 攔截殼層命令（F12…），以及「按了沒反應」時的命令診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
+| 提交後改寫文字（ALTER／INSERT／MERGE／EXEC／函式引數五種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
+| 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
+| 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
+| 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| Snippet 純文字、游標與欄位位置的計算 | `Core/Snippets/SqlSnippetExpansion.cs` |
+| SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
+| 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
+| 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
+| 腳本的 SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
