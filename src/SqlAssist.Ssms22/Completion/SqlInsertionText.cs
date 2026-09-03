@@ -40,7 +40,7 @@ internal static class SqlInsertionText
             return objectName + ".";
         }
 
-        if (context.Qualifier is not null ||
+        if (context.QualifierPath is not null ||
             !settings.QualifyObjectNames ||
             string.IsNullOrWhiteSpace(suggestion.SchemaName))
         {

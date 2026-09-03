@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 
@@ -55,7 +56,7 @@ public static class SqlCompletionContextAnalyzer
         var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var prefix = textBeforeCaret.Substring(tokenStart);
         var beforeToken = textBeforeToken.TrimEnd();
-        var qualifier = ExtractQualifier(beforeToken, out var beforeQualifier);
+        var qualifierPath = ExtractQualifierPath(beforeToken, out var beforeQualifier);
 
         // 引數與提示的封閉清單同樣排在「這裡不接受任何關鍵字」之前：
         // 那幾個位置除了清單上的字沒有別的東西是對的。
@@ -76,7 +77,7 @@ public static class SqlCompletionContextAnalyzer
                 tokenStart,
                 prefix,
                 CompletionTarget.DataType,
-                qualifier);
+                qualifierPath);
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
@@ -102,7 +103,7 @@ public static class SqlCompletionContextAnalyzer
                 tokenStart,
                 prefix,
                 CompletionTarget.DataSource,
-                qualifier,
+                qualifierPath,
                 tokens[ddlOn].Start,
                 CompletionIntent.Reference,
                 columnSources: null,
@@ -110,17 +111,17 @@ public static class SqlCompletionContextAnalyzer
         }
 
         var target = DetermineTarget(
-            qualifier is null ? beforeToken : beforeQualifier,
+            qualifierPath is null ? beforeToken : beforeQualifier,
             out var targetKeywordStart,
             out var intent);
-        var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifier is not null;
+        var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifierPath is not null;
 
         return new SqlCompletionContext(
             isValid,
             tokenStart,
             prefix,
             target,
-            qualifier,
+            qualifierPath,
             targetKeywordStart,
             intent,
             columnSources: null,
@@ -182,7 +183,7 @@ public static class SqlCompletionContextAnalyzer
         var resolver = new SqlColumnSourceResolver(tokens);
         var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
 
-        if (context.Qualifier is null)
+        if (context.QualifierPath is null)
         {
             // CTE 與暫存資料表只存在於這份指令碼裡，中繼資料查不到它們。
             // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
@@ -203,7 +204,12 @@ public static class SqlCompletionContextAnalyzer
             return withScope;
         }
 
-        if (!scope.TryResolve(context.Qualifier, out var table))
+        // 多段的限定字不可能是別名：別名只有一段，而 LibArchive.dbo. 這種寫法
+        // 說的是「哪一個資料庫的哪一個結構描述」。拿最右邊那一段去比對別名的話，
+        // 剛好取名叫 dbo 的別名會讓清單改列它的欄位。
+        if (!context.QualifierPath.IsLocal ||
+            context.Qualifier is null ||
+            !scope.TryResolve(context.Qualifier, out var table))
         {
             return withScope;
         }
@@ -468,7 +474,23 @@ public static class SqlCompletionContextAnalyzer
         return true;
     }
 
-    private static string? ExtractQualifier(string text, out string beforeQualifier)
+    /// <summary>
+    /// 剝掉游標前方的限定字，回傳它的完整位置。
+    /// </summary>
+    /// <param name="beforeQualifier">
+    /// 整串限定字<b>之前</b>的文字，供 <see cref="DetermineTarget"/> 判斷位置。
+    /// 沒有限定字或限定字不合法時等於原文。
+    /// </param>
+    /// <remarks>
+    /// 一路往左剝，不是只剝一段：<c>LibArchive.dbo.</c> 與 <c>dbo.</c> 在文字上只差
+    /// 一段，要的東西卻在不同的資料庫裡。只剝一段有兩個症狀，而兩個都沒有徵兆——
+    /// 清單列出目前連線的 dbo 物件，而 <paramref name="beforeQualifier"/> 停在
+    /// <c>FROM LibArchive.</c> 上，位置判斷連 <c>FROM</c> 都看不到。
+    ///
+    /// 超過上限就整個不認。取最右邊三段的話，使用者打錯的一串名稱會安靜地
+    /// 變成一個查得到的東西。
+    /// </remarks>
+    private static SqlObjectPath? ExtractQualifierPath(string text, out string beforeQualifier)
     {
         beforeQualifier = text;
 
@@ -477,25 +499,45 @@ public static class SqlCompletionContextAnalyzer
             return null;
         }
 
-        var beforeDot = text.Substring(0, text.Length - 1).TrimEnd();
+        var parts = new List<string>(SqlObjectPath.MaximumQualifierParts);
+        var remaining = text;
 
-        if (beforeDot.EndsWith("]", StringComparison.Ordinal))
+        // 多讀一段才停，好讓超出上限的情形被 TryParseQualifier 擋下來而不是悄悄截短。
+        while (remaining.EndsWith(".", StringComparison.Ordinal) &&
+               parts.Count <= SqlObjectPath.MaximumQualifierParts)
         {
-            var openingBracket = beforeDot.LastIndexOf('[', beforeDot.Length - 1);
+            var beforeDot = remaining.Substring(0, remaining.Length - 1).TrimEnd();
 
-            if (openingBracket >= 0)
+            if (beforeDot.EndsWith("]", StringComparison.Ordinal))
             {
-                beforeQualifier = beforeDot.Substring(0, openingBracket).TrimEnd();
-                return beforeDot
+                var openingBracket = beforeDot.LastIndexOf('[', beforeDot.Length - 1);
+
+                if (openingBracket < 0)
+                {
+                    break;
+                }
+
+                parts.Insert(0, beforeDot
                     .Substring(openingBracket + 1, beforeDot.Length - openingBracket - 2)
-                    .Replace("]]", "]");
+                    .Replace("]]", "]"));
+                remaining = beforeDot.Substring(0, openingBracket).TrimEnd();
+                continue;
             }
+
+            // 空段是 LibArchive.. 這種省略結構描述的寫法。每一圈至少吃掉一個點號，
+            // 所以空段不會讓迴圈停不下來。
+            var qualifierStart = FindPreviousTokenStart(beforeDot, beforeDot.Length);
+            parts.Insert(0, beforeDot.Substring(qualifierStart));
+            remaining = beforeDot.Substring(0, qualifierStart).TrimEnd();
         }
 
-        var qualifierStart = FindPreviousTokenStart(beforeDot, beforeDot.Length);
-        beforeQualifier = beforeDot.Substring(0, qualifierStart).TrimEnd();
-        var qualifier = beforeDot.Substring(qualifierStart);
-        return qualifier.Length == 0 ? null : qualifier;
+        if (!SqlObjectPath.TryParseQualifier(parts, out var path))
+        {
+            return null;
+        }
+
+        beforeQualifier = remaining;
+        return path;
     }
 
     /// <summary>

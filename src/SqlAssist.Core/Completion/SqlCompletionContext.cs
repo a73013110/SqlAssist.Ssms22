@@ -16,7 +16,7 @@ public sealed class SqlCompletionContext
         int tokenStart,
         string prefix,
         CompletionTarget target,
-        string? qualifier = null,
+        SqlObjectPath? qualifierPath = null,
         int targetKeywordStart = -1,
         CompletionIntent intent = CompletionIntent.Reference,
         IReadOnlyList<SqlColumnSource>? columnSources = null,
@@ -30,7 +30,7 @@ public sealed class SqlCompletionContext
         TokenStart = tokenStart;
         Prefix = prefix;
         Target = target;
-        Qualifier = qualifier;
+        QualifierPath = qualifierPath;
         TargetKeywordStart = targetKeywordStart;
         Intent = intent;
         ColumnSources = columnSources;
@@ -48,14 +48,28 @@ public sealed class SqlCompletionContext
     public CompletionTarget Target { get; }
 
     /// <summary>
-    /// 點號前方的識別字。
+    /// 點號前方的那幾段，最右邊一段是結構描述或別名。
+    /// </summary>
+    /// <remarks>
+    /// 是一條路徑而不是一個識別字：<c>LibArchive.dbo.</c> 與 <c>dbo.</c> 在文字上
+    /// 只差一段，但要的東西在不同的資料庫裡。只留最右邊一段的症狀是前者列出
+    /// <b>目前連線</b>的 dbo 物件——清單看起來完全正常，選中的每一個名稱卻都不是
+    /// 使用者指名的那一個。
+    /// </remarks>
+    public SqlObjectPath? QualifierPath { get; }
+
+    /// <summary>
+    /// 點號前方的識別字，也就是路徑最右邊那一段。
     /// </summary>
     /// <remarks>
     /// 光靠語彙分析無法判斷它是結構描述、別名還是資料表名稱——<c>dbo.</c> 與 <c>u.</c>
     /// 在文字上長得一樣。要區分必須知道敘述看得到哪些資料來源，
     /// 因此由帶語句範圍的多載負責解析，解析成功時會填入 <see cref="ColumnSources"/>。
+    ///
+    /// <c>LibArchive..</c> 這種省略結構描述的寫法有路徑卻沒有這一段，
+    /// 所以「有沒有限定字」要問 <see cref="QualifierPath"/>，不要問這一個。
     /// </remarks>
-    public string? Qualifier { get; }
+    public string? Qualifier => QualifierPath?.SchemaName;
 
     /// <summary>
     /// 限定字解析出的欄位來源；<see cref="Target"/> 為
@@ -151,7 +165,7 @@ public sealed class SqlCompletionContext
             TokenStart,
             Prefix,
             Target,
-            Qualifier,
+            QualifierPath,
             TargetKeywordStart,
             Intent,
             ColumnSources,
@@ -169,7 +183,7 @@ public sealed class SqlCompletionContext
             TokenStart,
             Prefix,
             Target,
-            Qualifier,
+            QualifierPath,
             TargetKeywordStart,
             Intent,
             ColumnSources,
@@ -187,7 +201,7 @@ public sealed class SqlCompletionContext
             TokenStart,
             Prefix,
             CompletionTarget.Column,
-            Qualifier,
+            QualifierPath,
             TargetKeywordStart,
             CompletionIntent.Reference,
             sources,
