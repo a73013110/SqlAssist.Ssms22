@@ -63,6 +63,10 @@
   `Menus.ctmenu, N` 決定要不要重讀命令表，而 pkgdef 不在部署清單裡，清快取也沒用。
   症狀與 MEF 快取同一類：新選單不出現、新綁的鍵沒反應，沒有例外也沒有記錄。
   改命令表一律走 `Install-Extension.ps1` 重新安裝。
+- **禁止**讓命令自己算可見度（`BeforeQueryStatus` 設 `Visible`）卻沒在命令表標上
+  `DynamicVisibility` 與 `DefaultInvisible`。殼層只有看到前者才理會 `QueryStatus`
+  回報的「隱藏」，否則項目照樣出現在選單上——沒有例外、沒有紀錄，而且從程式碼上
+  看完全正確。`tools/Test-CommandTable.ps1` 會比對兩邊。
 - **禁止**搬動 MEF 匯出型別（`[Export]`、`[Export(typeof(ICommandHandler))]`、
   `IWpfTextViewCreationListener`…）的命名空間之後，只把 DLL 部署過去就開始測。
   SSMS 的 MEF 快取記的是完整型別名稱，會**安靜地**讓那些部件建立失敗——沒有例外、
