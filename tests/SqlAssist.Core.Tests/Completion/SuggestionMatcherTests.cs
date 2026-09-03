@@ -6,6 +6,7 @@ using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
 
+[Collection(nameof(SqlSuggestionUsageCollection))]
 public sealed class SuggestionMatcherTests
 {
     private static SqlSuggestion Table(string name, string schema = "dbo")

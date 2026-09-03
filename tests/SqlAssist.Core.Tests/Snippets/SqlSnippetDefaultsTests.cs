@@ -10,6 +10,7 @@ using Xunit;
 
 namespace SqlAssist.Core.Tests.Snippets;
 
+[Collection(nameof(SqlSuggestionUsageCollection))]
 public sealed class SqlSnippetDefaultsTests
 {
     [Fact]
