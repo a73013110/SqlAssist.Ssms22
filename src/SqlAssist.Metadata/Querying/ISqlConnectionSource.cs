@@ -18,6 +18,17 @@ public interface ISqlConnectionSource
     /// </summary>
     string CacheKey { get; }
 
+    /// <summary>
+    /// 只識別「同一個伺服器」的穩定字串，不含資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 跨資料庫建議要為<b>同一條連線的另一個資料庫</b>另開一份目錄，而目錄以
+    /// <see cref="CacheKey"/> 分。少了這一個，換資料庫的鍵只能靠字串拼湊回去，
+    /// 而拼法一旦與 <c>SqlConnectionCacheKey</c> 分岔，同一個資料庫就會拿到兩份
+    /// 目錄——症狀是查詢次數加倍，而兩份的過期時間各走各的。
+    /// </remarks>
+    string ServerCacheKey { get; }
+
     /// <summary>目前查詢視窗選取的資料庫名稱。</summary>
     string DatabaseName { get; }
 

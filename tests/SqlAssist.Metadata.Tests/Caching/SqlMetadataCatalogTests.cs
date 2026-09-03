@@ -84,6 +84,8 @@ public sealed class SqlMetadataCatalogTests
     {
         public string CacheKey => "server-a|db1";
 
+        public string ServerCacheKey => "server-a";
+
         public string DatabaseName => "db1";
 
         /// <summary>開過幾次連線；用來確認失敗沒有被當成結果快取起來。</summary>
