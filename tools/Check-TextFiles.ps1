@@ -8,9 +8,10 @@ $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
 $errors = [System.Collections.Generic.List[string]]::new()
 $textFileCount = 0
 
-$trackedFiles = @(& git -C $root -c core.quotepath=false ls-files --eol)
+# 新增但尚未 stage 的腳本與文件也要驗證；否則第一次提交最容易漏掉 BOM／CRLF。
+$trackedFiles = @(& git -C $root -c core.quotepath=false ls-files --cached --others --exclude-standard --eol)
 if ($LASTEXITCODE -ne 0) {
-    throw '無法取得 Git 追蹤檔案。'
+    throw '無法取得 Git 工作樹檔案。'
 }
 
 foreach ($entry in $trackedFiles) {
@@ -22,8 +23,9 @@ foreach ($entry in $trackedFiles) {
 
     $attributes = $entry.Substring(0, $separator)
     $isExplicitText = $attributes -match 'attr/text(?:\s|$)'
-    if ($attributes -match 'attr/-text(?:\s|$)' -or
-        ($attributes.StartsWith('i/-text', [System.StringComparison]::Ordinal) -and -not $isExplicitText)) {
+    $detectedBinary = $attributes.StartsWith('i/-text', [System.StringComparison]::Ordinal) -or
+        $attributes -match '^i/\s+w/-text(?:\s|$)'
+    if ($attributes -match 'attr/-text(?:\s|$)' -or ($detectedBinary -and -not $isExplicitText)) {
         continue
     }
 

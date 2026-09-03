@@ -1,115 +1,126 @@
+#Requires -Version 7.0
 [CmdletBinding()]
 param(
-    # 每一份 docs 的字元上限。中文一個字約等於一個 token，所以字元數比位元組數
-    # 更接近「讀這一份要付多少 context」——那才是拆檔的真正理由。
+    # 字元只是穩定的檔案預算，不假設中文與模型 token 一比一，也不估算快取費用。
+    [ValidateRange(1, 2147483647)]
     [int]$CharBudget = 14000,
     [int]$WarnAt = 10000,
-    # CLAUDE.md 每一次 API 呼叫都會重送一遍，成本是 docs 的數十倍，門檻另計。
-    [int]$ClaudeMdBudget = 8000
+    [ValidateRange(1, 2147483647)]
+    [int]$ClaudeMdBudget = 3500,
+    [ValidateRange(1, 2147483647)]
+    [int]$IndexMdBudget = 4000,
+    [ValidateRange(1, 2147483647)]
+    [int]$AgentsMdBudget = 800,
+    [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
+$rootPath = (Resolve-Path -LiteralPath $Root).ProviderPath
 
-function Get-DocText([string]$path) {
-    # -Raw 保留換行；utf8 讀取會自動吃掉 BOM，字元數才不會因為 BOM 多算三個。
-    # CR 也一併去掉：它不是內容也不佔 token，留著會讓 CRLF 的檔案憑空多出 3% 的「大小」。
-    (Get-Content -LiteralPath $path -Raw -Encoding utf8) -replace "`r", ''
-}
-
-# 標題轉錨點：GitHub 會轉小寫、丟掉標點、把空白換成連字號，中文原樣保留。
-# 這裡只做同一組轉換，比對不上就是連結真的會落空。
-function ConvertTo-Anchor([string]$text) {
-    $t = $text.Trim().ToLowerInvariant()
-    $t = $t -replace '`', ''
-    $t = $t -replace '[^\p{L}\p{Nd}\s_-]', ''
-    $t = $t -replace '\s+', '-'
-    return $t
-}
-
-$docs = @(Get-ChildItem -LiteralPath (Join-Path $root 'docs') -Filter '*.md' -Recurse)
-$targets = @($docs) + @(Get-Item -LiteralPath (Join-Path $root 'README.md'))
-
-$over = [System.Collections.Generic.List[object]]::new()
-$warn = [System.Collections.Generic.List[object]]::new()
-$maxLen = 0
-$maxName = ''
-
-foreach ($f in $targets) {
-    $len = (Get-DocText $f.FullName).Length
-    $rel = $f.FullName.Substring($root.Length + 1).Replace('\', '/')
-    if ($len -gt $maxLen) { $maxLen = $len; $maxName = $rel }
-    if ($len -gt $CharBudget) { $over.Add([pscustomobject]@{ Path = $rel; Len = $len }) }
-    elseif ($len -gt $WarnAt) { $warn.Add([pscustomobject]@{ Path = $rel; Len = $len }) }
-}
-
-$claudeMd = Join-Path $root 'CLAUDE.md'
-$claudeLen = (Get-DocText $claudeMd).Length
-
-# 連結檢查。拆檔之後最容易壞的就是連結，而 Markdown 壞連結不會有任何徵兆——
-# 點下去才發現，通常是幾個月後的事。
-$anchors = @{}
-foreach ($f in $targets) {
-    $rel = $f.FullName.Substring($root.Length + 1).Replace('\', '/')
-    $set = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($line in (Get-DocText $f.FullName) -split "`n") {
-        if ($line -match '^#{1,6}\s+(.*)$') { [void]$set.Add((ConvertTo-Anchor $Matches[1])) }
+function Get-MarkdownLines([string]$Text) {
+    $fence = ''
+    $fenceLength = 0
+    $number = 0
+    foreach ($line in $Text -split "`n") {
+        $number++
+        # 程式碼範例的 # 註解與 Markdown 字串不是標題或連結，不能拿來充當有效錨點。
+        if ($line -match '^ {0,3}(`{3,}|~{3,})(.*)$') {
+            $marker = $Matches[1]
+            $suffix = $Matches[2]
+            if (-not $fence) {
+                $fence = $marker.Substring(0, 1)
+                $fenceLength = $marker.Length
+            }
+            elseif ($marker.StartsWith($fence) -and $marker.Length -ge $fenceLength -and -not $suffix.Trim()) {
+                $fence = ''
+            }
+            continue
+        }
+        if (-not $fence) { [pscustomobject]@{ Number = $number; Text = $line } }
     }
-    $anchors[$rel] = $set
+}
+
+function ConvertTo-Anchor([string]$Text) {
+    $value = ($Text -replace '<[^>]+>', '').Trim().ToLowerInvariant()
+    $value = $value -replace '`', ''
+    $value = $value -replace '[^\p{L}\p{Nd}\s_-]', ''
+    return $value -replace '\s+', '-'
+}
+
+$targets = @(Get-ChildItem -LiteralPath (Join-Path $rootPath 'docs') -Filter '*.md' -Recurse)
+foreach ($name in @('README.md', 'CLAUDE.md', 'AGENTS.md')) {
+    $targets += Get-Item -LiteralPath (Join-Path $rootPath $name)
+}
+$budgets = @{ 'CLAUDE.md' = $ClaudeMdBudget; 'AGENTS.md' = $AgentsMdBudget; 'docs/index.md' = $IndexMdBudget }
+$over = [System.Collections.Generic.List[string]]::new()
+$warn = [System.Collections.Generic.List[string]]::new()
+$anchors = @{}
+$linesByPath = @{}
+$lengths = @{}
+
+foreach ($file in $targets) {
+    $relative = [System.IO.Path]::GetRelativePath($rootPath, $file.FullName).Replace('\', '/')
+    $text = [System.IO.File]::ReadAllText($file.FullName) -replace "`r", ''
+    $lengths[$relative] = $text.Length
+    $budget = if ($budgets.ContainsKey($relative)) { $budgets[$relative] } else { $CharBudget }
+    if ($text.Length -gt $budget) { $over.Add("$relative：$($text.Length)/$budget 字元") }
+    elseif ($text.Length -gt $WarnAt) { $warn.Add("$relative：$($text.Length) 字元") }
+
+    $linesByPath[$file.FullName] = @(Get-MarkdownLines $text)
+    $set = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($line in $linesByPath[$file.FullName]) {
+        if ($line.Text -match '^#{1,6}\s+(.*)$') {
+            $anchor = ConvertTo-Anchor $Matches[1]
+            $unique = $anchor
+            $suffix = 0
+            while ($set.Contains($unique)) { $suffix++; $unique = "$anchor-$suffix" }
+            [void]$set.Add($unique)
+        }
+    }
+    $anchors[$file.FullName] = $set
 }
 
 $broken = [System.Collections.Generic.List[string]]::new()
-foreach ($f in @($targets) + @(Get-Item -LiteralPath $claudeMd)) {
-    $rel = $f.FullName.Substring($root.Length + 1).Replace('\', '/')
-    $dir = Split-Path -Parent $f.FullName
-    $n = 0
-    foreach ($line in (Get-DocText $f.FullName) -split "`n") {
-        $n++
-        foreach ($m in [regex]::Matches($line, '\]\(([^)\s]+?\.md)(#[^)\s]*)?\)')) {
-            $dest = Join-Path $dir $m.Groups[1].Value
-            if (-not (Test-Path -LiteralPath $dest)) {
-                $broken.Add("${rel}:${n} 檔案不存在 -> $($m.Groups[1].Value)")
-                continue
+foreach ($file in $targets) {
+    $relative = [System.IO.Path]::GetRelativePath($rootPath, $file.FullName).Replace('\', '/')
+    foreach ($line in $linesByPath[$file.FullName]) {
+        foreach ($match in [regex]::Matches($line.Text, '\]\(([^)\s]+)\)')) {
+            $link = $match.Groups[1].Value
+            # 遠端 README.md 不能當成本機路徑；外部來源由作者另行核對，不在本機驗證假裝通過。
+            if ($link -match '^(?:[a-z][a-z0-9+.-]*:|//)') { continue }
+            $parts = $link.Split('#', 2)
+            if ($parts[0] -and $parts[0] -notmatch '\.md$') { continue }
+            $target = if ($parts[0]) {
+                [System.IO.Path]::GetFullPath((Join-Path $file.DirectoryName ([uri]::UnescapeDataString($parts[0]))))
             }
-            if ($m.Groups[2].Success) {
-                $destRel = (Resolve-Path -LiteralPath $dest).Path.Substring($root.Length + 1).Replace('\', '/')
-                $want = $m.Groups[2].Value.Substring(1)
-                if ($anchors.ContainsKey($destRel) -and -not $anchors[$destRel].Contains($want)) {
-                    $broken.Add("${rel}:${n} 錨點不存在 -> $($m.Groups[1].Value)#$want")
+            else { $file.FullName }
+            if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+                $broken.Add("${relative}:$($line.Number) 檔案不存在 -> $link")
+            }
+            elseif ($parts.Length -eq 2 -and $parts[1] -and $anchors.ContainsKey($target)) {
+                $want = [uri]::UnescapeDataString($parts[1])
+                if (-not $anchors[$target].Contains($want)) {
+                    $broken.Add("${relative}:$($line.Number) 錨點不存在 -> $link")
                 }
             }
         }
     }
 }
 
-$failed = $false
-
 if ($broken.Count -gt 0) {
-    $failed = $true
-    Write-Host "壞掉的連結：" -ForegroundColor Red
+    Write-Host '壞掉的本機 Markdown 連結：' -ForegroundColor Red
     $broken | ForEach-Object { Write-Host "  $_" }
 }
-
 if ($over.Count -gt 0) {
-    $failed = $true
-    Write-Host "超過 $CharBudget 字元，必須拆分並更新 docs/index.md：" -ForegroundColor Red
-    $over | ForEach-Object { Write-Host ("  {0,-44}{1,7} 字元" -f $_.Path, $_.Len) }
+    Write-Host '文件超過各自預算，請拆分並更新索引：' -ForegroundColor Red
+    $over | ForEach-Object { Write-Host "  $_" }
 }
-
-if ($claudeLen -gt $ClaudeMdBudget) {
-    $failed = $true
-    Write-Host "CLAUDE.md 超過 $ClaudeMdBudget 字元（目前 $claudeLen）：" -ForegroundColor Red
-    Write-Host "  它每一次 API 呼叫都會重送，細節請移進 docs/，只留禁令與指路。"
-}
-
 if ($warn.Count -gt 0) {
-    Write-Host "接近上限，下次擴充前先想好怎麼拆：" -ForegroundColor Yellow
-    $warn | ForEach-Object { Write-Host ("  {0,-44}{1,7} 字元" -f $_.Path, $_.Len) }
+    Write-Host '接近單檔上限，擴充前請先拆分：' -ForegroundColor Yellow
+    $warn | ForEach-Object { Write-Host "  $_" }
 }
+if ($broken.Count -gt 0 -or $over.Count -gt 0) { throw '文件檢查未通過。' }
 
-if ($failed) { throw '文件檢查未通過。' }
-
-if ($warn.Count -eq 0) {
-    Write-Host ("文件檢查通過：{0} 份，最大 {1} 字元（{2}）；CLAUDE.md {3}/{4}。" -f `
-        $targets.Count, $maxLen, $maxName, $claudeLen, $ClaudeMdBudget)
-}
+Write-Host ("文件檢查通過：{0} 份；CLAUDE {1}/{2}、AGENTS {3}/{4}、索引 {5}/{6} 字元。" -f `
+    $targets.Count, $lengths['CLAUDE.md'], $ClaudeMdBudget, $lengths['AGENTS.md'], $AgentsMdBudget, `
+    $lengths['docs/index.md'], $IndexMdBudget)

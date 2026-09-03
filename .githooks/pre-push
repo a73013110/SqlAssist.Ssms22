@@ -1,6 +1,6 @@
 #!/bin/sh
 # 忘記跑測試就 push 時，錯誤要等到下一次有人 clone 或發布才會浮出來。
-# 全部測試不到三秒，擋在 push 之前是最便宜的一道。
+# 工具回歸與單元測試一起把關，避免節流器吞掉失敗，讓後面的驗證看起來全綠。
 #
 # 文字格式與文件檢查排在測試前面：它們更快，而且格式漂移會讓後續差異整檔失真，
 # 文件超出大小預算或連結斷掉則要等到人點下去才會發現。
@@ -15,5 +15,7 @@ root="$(git rev-parse --show-toplevel)" || exit 1
 pwsh -NoProfile -File "$root/tools/Check-TextFiles.ps1" || exit 1
 
 pwsh -NoProfile -File "$root/tools/Check-Docs.ps1" || exit 1
+
+pwsh -NoProfile -File "$root/tools/Test-AgentWorkflow.ps1" || exit 1
 
 exec pwsh -NoProfile -File "$root/tools/Run-CoreTests.ps1"
