@@ -3,6 +3,7 @@
 ## 環境需求
 
 - Windows x64
+- PowerShell 7+
 - SQL Server Management Studio 22.9.x
 - Visual Studio 18／2026 或相容的 MSBuild
 - .NET SDK 10.0.400
@@ -39,6 +40,26 @@ git config core.hooksPath .githooks
 之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1`、
 `Test-AgentWorkflow.ps1` 與 `Run-CoreTests.ps1`，任何一個失敗就擋下來。
 真的要略過時用 `git push --no-verify`。
+
+
+### PowerShell 輸出編碼
+
+工具一律使用 **PowerShell 7+**。檔案是 UTF-8，不代表子程序的輸出也會是 UTF-8；
+Git GUI、終端機與無主控台程序可能使用不同代碼頁。所有 PS1 在執行工作前共用：
+
+```powershell
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+# 回傳給目前腳本的作用域，避免只改到模組內的管道偏好。
+$OutputEncoding = Initialize-SqlAssistUtf8Output
+```
+
+父程序若用 ProcessStartInfo 讀取這些腳本，stdout／stderr 解碼也要明確指定 UTF-8；
+只指定父端編碼不會替子程序轉碼。[Microsoft 說明](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.standardoutputencoding)
+建置查詢 vswhere 另加 `-utf8`，避免中文安裝路徑被破壞。
+節流器的原始命令紀錄仍直接保存位元組，不把外部程式的 OEM 輸出硬轉成 UTF-8。
+
+`Test-AgentWorkflow.ps1` 會檢查所有腳本的共用入口，並從 UTF-8、Big5、CP437 啟動子程序，
+驗證中文／Emoji、stdout／stderr、原生管道、Git 檔名及失敗結束碼。不以略過 hook 解決亂碼。
 
 ### 文字檔格式
 
@@ -267,4 +288,4 @@ AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-w
 | `Read-Context.ps1` | 給 AI 分段讀長檔，不一次讀完整份 |
 | `Invoke-QuietCommand.ps1` | 給 AI 短輸出，完整命令紀錄留在磁碟 |
 | `Test-AgentWorkflow.ps1` | 工具回歸檢查，不是產品單元測試 |
-| `SqlAssist.Tools.psm1` | 上述腳本共用的環境探索 |
+| `SqlAssist.Tools.psm1` | 共用 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 |

@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 
 $root = Get-SqlAssistRoot
 $ssmsPath = Get-SsmsInstallPath -InstallDir $SsmsInstallDir -Require
@@ -17,7 +18,9 @@ if (-not (Test-Path -LiteralPath $vsWhere)) {
     throw '找不到 vswhere.exe。'
 }
 
+# vswhere 的管道輸出預設跟著代碼頁，非 ASCII 安裝路徑必須明確使用 UTF-8。
 $visualStudioPath = & $vsWhere `
+    -utf8 `
     -latest `
     -products Microsoft.VisualStudio.Product.Enterprise `
     -version '[18.0,19.0)' `

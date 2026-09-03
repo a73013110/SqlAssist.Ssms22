@@ -4,6 +4,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 
 $installed = Get-SqlAssistInstallation
 

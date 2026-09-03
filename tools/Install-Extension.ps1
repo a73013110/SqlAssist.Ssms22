@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 
 Assert-SsmsClosed -Action '執行安裝'
 $installer = Get-SsmsVsixInstaller -InstallDir $SsmsInstallDir

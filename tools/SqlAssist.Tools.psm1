@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    建置、安裝與診斷腳本共用的環境探索。
+    工具腳本共用的 UTF-8 輸出與環境探索。
 
 .DESCRIPTION
     SSMS 的安裝路徑、擴充的 Identity Id、以及「已安裝的 SqlAssist 在哪裡」原本
@@ -10,6 +10,30 @@
 
     所有預設值只留在這裡，每支腳本都收 -SsmsInstallDir 參數把它覆寫掉。
 #>
+
+<#
+.SYNOPSIS
+    統一腳本的 UTF-8 輸出，回傳供呼叫端設定管道的編碼。
+
+.DESCRIPTION
+    Git GUI 啟動的父程序可能用 UTF-8 解碼，但無主控台的子程序卻回到 Big5／CP437，
+    即使原始檔正確也會出現亂碼。每支腳本開始工作前明確設定，不依賴啟動環境。
+    不寫入使用者／系統的永久設定，也不轉碼原始紀錄；外部程式另依自身編碼處理。
+
+.EXAMPLE
+    $OutputEncoding = Initialize-SqlAssistUtf8Output
+#>
+function Initialize-SqlAssistUtf8Output {
+    [CmdletBinding()]
+    [OutputType([System.Text.Encoding])]
+    param()
+
+    $encoding = [System.Text.UTF8Encoding]::new($false)
+    [Console]::OutputEncoding = $encoding
+
+    # 管道偏好屬於呼叫端作用域，只改模組內的同名變數不會生效。
+    return $encoding
+}
 
 $DefaultSsmsInstallDir = 'C:\Program Files\Microsoft SQL Server Management Studio 22\Release'
 
@@ -216,6 +240,7 @@ function Assert-SsmsClosed {
 }
 
 Export-ModuleMember -Function `
+    Initialize-SqlAssistUtf8Output, `
     Get-SqlAssistRoot, `
     Get-SsmsInstallPath, `
     Get-SsmsVsixInstaller, `
