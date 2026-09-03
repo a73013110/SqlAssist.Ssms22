@@ -5,3 +5,8 @@ root = true
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
+
+# Visual Studio 只在看到 BOM 時才把 .sln 當 UTF-8；缺 BOM 會讓中文的方案項目變成亂碼，
+# 而且 VS 會自己補回 BOM。這是唯一允許 BOM 的檔案類型。
+[*.sln]
+charset = utf-8-bom

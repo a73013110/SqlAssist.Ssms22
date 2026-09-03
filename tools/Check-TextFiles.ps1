@@ -42,10 +42,18 @@ foreach ($entry in $trackedFiles) {
     $bytes = [System.IO.File]::ReadAllBytes($path)
     $textFileCount++
 
-    if ($bytes.Length -ge 3 -and
+    $hasBom = $bytes.Length -ge 3 -and
         $bytes[0] -eq 0xEF -and
         $bytes[1] -eq 0xBB -and
-        $bytes[2] -eq 0xBF) {
+        $bytes[2] -eq 0xBF
+
+    # Visual Studio 只在看到 BOM 時才把 .sln 當 UTF-8；少了 BOM，中文的方案項目會依系統
+    # ANSI 代碼頁解讀成亂碼，而且 VS 一存檔就自己補回 BOM，讓工作區永遠掛著一筆假差異。
+    $requiresBom = [System.IO.Path]::GetExtension($relativePath) -ieq '.sln'
+    if ($requiresBom -and -not $hasBom) {
+        $errors.Add("$relativePath：缺少 UTF-8 BOM")
+    }
+    elseif ($hasBom -and -not $requiresBom) {
         $errors.Add("$relativePath：含 UTF-8 BOM")
     }
 
@@ -74,4 +82,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Host "文字檔格式檢查通過：$textFileCount 個 UTF-8（無 BOM）／LF 檔案。"
+Write-Host "文字檔格式檢查通過：$textFileCount 個 UTF-8／LF 檔案（除 .sln 外皆無 BOM）。"
