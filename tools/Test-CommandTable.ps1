@@ -3,6 +3,7 @@
 param(
     [string]$VsctPath,
     [string]$CommandIdsPath,
+    [string]$CommandsPath,
     [string]$RegistrationPath,
     [string]$SsmsInstallDir
 )
@@ -28,6 +29,10 @@ if (-not $VsctPath) {
 
 if (-not $CommandIdsPath) {
     $CommandIdsPath = Join-Path $root 'src\SqlAssist.Ssms22\Commands\CommandIds.cs'
+}
+
+if (-not $CommandsPath) {
+    $CommandsPath = Join-Path $root 'src\SqlAssist.Ssms22\Commands\SqlAssistCommands.cs'
 }
 
 if (-not $RegistrationPath) {
@@ -190,6 +195,33 @@ foreach ($name in $csharpCommandIds.Keys) {
 foreach ($name in $vsctCommandIds.Keys) {
     if (-not $csharpCommandIds.ContainsKey($name)) {
         $problems.Add("命令表宣告了 cmdid$name，但 CommandIds.cs 沒有對應的常數。")
+    }
+}
+
+# 會自己隱藏的命令必須在命令表標上 DynamicVisibility。殼層只有看到那個旗標時才
+# 理會 QueryStatus 回報的「隱藏」，否則 BeforeQueryStatus 把 Visible 設成 false
+# 也沒有用，項目照樣出現在選單上——沒有例外、沒有紀錄，而且從程式碼上看完全正確。
+# DefaultInvisible 管的是套件還沒載入的那一段，殼層那時候照命令表的預設值畫。
+$commandsText = Get-Content -LiteralPath $CommandsPath -Raw -Encoding UTF8
+$buttonFlags = @{}
+
+foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
+    $buttonFlags[$button.id] = @($button.SelectNodes('ct:CommandFlag', $ns) | ForEach-Object { $_.InnerText })
+}
+
+foreach ($match in [regex]::Matches($commandsText, 'AddCommand\(\s*CommandIds\.(\w+)[^;]*?isVisible:')) {
+    $id = 'cmdid' + $match.Groups[1].Value
+
+    if (-not $buttonFlags.ContainsKey($id)) {
+        continue
+    }
+
+    foreach ($flag in 'DefaultInvisible', 'DynamicVisibility') {
+        if ($flag -notin $buttonFlags[$id]) {
+            $problems.Add(
+                "$id 在 SqlAssistCommands.cs 有 isVisible 判斷，命令表卻沒有標記 $flag，" +
+                "殼層會忽略它回報的隱藏狀態。")
+        }
     }
 }
 

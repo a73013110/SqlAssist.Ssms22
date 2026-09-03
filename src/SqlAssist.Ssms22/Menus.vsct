@@ -155,9 +155,17 @@
         格線內部的探測。留著而不是刪掉：SSMS 換版之後這一組功能安靜地失效時，
         它是唯一問得出「格線還在不在、方法還叫不叫這個名字」的東西。
         只在「詳細記錄」打開時才出現，平常不佔使用者的選單。
+
+        兩個旗標缺一不可，而少了它們的症狀是安靜的：殼層只有在命令標了
+        DynamicVisibility 時才理會 QueryStatus 回報的「隱藏」，否則
+        BeforeQueryStatus 把 Visible 設成 false 也沒有用，項目照樣出現在選單上
+        ——沒有例外、沒有紀錄，而且從程式碼上看完全正確。
+        DefaultInvisible 管的是另一半：套件還沒載入時，殼層照命令表的預設值畫。
       -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidProbeResultGrid" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" />
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
         <Strings><ButtonText>結果診斷資訊…</ButtonText></Strings>
       </Button>
     </Buttons>
