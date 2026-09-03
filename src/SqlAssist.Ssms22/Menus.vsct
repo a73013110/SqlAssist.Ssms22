@@ -36,16 +36,19 @@
         沒有紀錄，跟命令掛錯層是同一類。兩個常數都在公開類別 SQLWorkbenchCommands
         裡，所以 tools\Test-CommandTable.ps1 有辦法在建置期比對，不必等使用者發現。
       -->
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridGroup" priority="0x0800">
+      <!--
+        命令直接掛在格線的右鍵選單上，不收成子選單：這些命令的用法是「選幾格、
+        按右鍵、挑一個」，多一層子選單就是每一次都多一次移動與等待展開。
+        群組本身就是殼層畫分隔線的單位，所以掛成獨立的一組之後，上下各有一條線
+        把它與 SSMS 自己的項目隔開，第一項的標頭再說明這一段是誰加的。
+      -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0800">
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
       </Group>
 
-      <!-- 子選單裡的命令。掛在子選單自己底下，不是上面那個掛進 SSMS 的群組。 -->
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0100">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" />
-      </Group>
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0900">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" />
+      <!-- 診斷另外一組，才會被分隔線隔開；它平常不出現。 -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0810">
+        <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
       </Group>
     </Groups>
 
@@ -59,19 +62,6 @@
       -->
       <Menu guid="guidSqlAssistCommandSet" id="SqlAssistMenu" priority="0x0700" type="Menu">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_TOOLS_OTHER2" />
-        <CommandFlag>AlwaysCreate</CommandFlag>
-        <Strings>
-          <ButtonText>SqlAssist</ButtonText>
-          <CommandName>SqlAssist</CommandName>
-        </Strings>
-      </Menu>
-
-      <!--
-        結果格線的右鍵選單是 SSMS 自己的，上面已經有十幾項。收成一層子選單，
-        本擴充的命令再多也只佔一列，而且看得出是誰加的。
-      -->
-      <Menu guid="guidSqlAssistCommandSet" id="SqlAssistResultGridMenu" priority="0x0100" type="Menu">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridGroup" />
         <CommandFlag>AlwaysCreate</CommandFlag>
         <Strings>
           <ButtonText>SqlAssist</ButtonText>
@@ -121,6 +111,18 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <Strings><ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText></Strings>
+      </Button>
+
+      <!--
+        永遠停用的標頭，只為了說明底下這一段是誰加的。分隔線畫得出「這是一組」，
+        畫不出「這一組是 SqlAssist」，而右鍵選單上其餘十幾項都是 SSMS 自己的。
+        另一個選擇是每一項都加「SqlAssist：」前綴，那是五行重複的雜訊換同一件事。
+        停用而不是隱藏：它不是命令，按下去不該有任何事發生。
+      -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridHeader" priority="0x0050" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <CommandFlag>DefaultDisabled</CommandFlag>
+        <Strings><ButtonText>SqlAssist</ButtonText></Strings>
       </Button>
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
@@ -208,8 +210,6 @@
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
       <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
-      <IDSymbol name="SqlAssistResultGridGroup" value="0x1600" />
-      <IDSymbol name="SqlAssistResultGridMenu" value="0x1610" />
       <IDSymbol name="SqlAssistResultGridActionsGroup" value="0x1620" />
       <IDSymbol name="SqlAssistResultGridDiagnosticsGroup" value="0x1630" />
       <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207 是已移除的命令，不回收。 -->
@@ -228,6 +228,7 @@
       <IDSymbol name="cmdidResultGridProfile" value="0x0303" />
       <IDSymbol name="cmdidResultGridCell" value="0x0304" />
       <IDSymbol name="cmdidResultGridMarkdown" value="0x0305" />
+      <IDSymbol name="cmdidResultGridHeader" value="0x0306" />
     </GuidSymbol>
 
     <!--

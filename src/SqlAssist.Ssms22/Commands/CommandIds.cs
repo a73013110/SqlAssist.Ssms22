@@ -67,4 +67,14 @@ internal static class CommandIds
 
     /// <summary>結果格線：把選取範圍寫成 Markdown 表格。</summary>
     public const int ResultGridMarkdown = 0x0305;
+
+    /// <summary>
+    /// 結果格線右鍵選單上那一段的標頭，永遠停用。
+    /// </summary>
+    /// <remarks>
+    /// 命令攤平到 SSMS 自己的右鍵選單之後，分隔線畫得出「這是一組」，
+    /// 畫不出「這一組是誰加的」。它是一個標籤不是命令，所以沒有處理常式，
+    /// 而且一律回報停用——回報可用卻什麼都不做，在使用者眼裡就是按鈕壞了。
+    /// </remarks>
+    public const int ResultGridHeader = 0x0306;
 }
