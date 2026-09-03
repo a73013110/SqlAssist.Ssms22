@@ -47,6 +47,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 
 $SsmsInstallDir = Get-SsmsInstallPath -InstallDir $SsmsInstallDir
 $scriptDomPath = Join-Path $SsmsInstallDir 'Common7\IDE\Extensions\Application\Microsoft.SqlServer.TransactSql.ScriptDom.dll'

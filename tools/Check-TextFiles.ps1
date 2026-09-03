@@ -3,6 +3,8 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 $root = Split-Path -Parent $PSScriptRoot
 $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
 $errors = [System.Collections.Generic.List[string]]::new()

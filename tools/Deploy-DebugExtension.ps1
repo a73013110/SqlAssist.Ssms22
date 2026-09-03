@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 
 $outputPath = Join-Path (Get-SqlAssistRoot) 'src\SqlAssist.Ssms22\bin\x64\Debug\net48'
 # 來源 Manifest 的版號是 GetBuildVersion 佔位符，只有建置產物裡才是展開後的實際版號。

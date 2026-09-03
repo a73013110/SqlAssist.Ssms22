@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 [CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
@@ -5,6 +6,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 $root = Split-Path -Parent $PSScriptRoot
 
 # 測試執行器由 global.json 的 test.runner 指定為 Microsoft.Testing.Platform。

@@ -10,6 +10,8 @@
 param()
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$OutputEncoding = Initialize-SqlAssistUtf8Output
 $root = Split-Path -Parent $PSScriptRoot
 $pwsh = Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })
 $testRoot = Join-Path $root ('artifacts/agent-workflow-tests/' + [guid]::NewGuid().ToString('N') + ' 空白 [案例]')
@@ -28,9 +30,14 @@ function Write-Fixture([string]$Name, [string]$Content) {
     return $path
 }
 
-function Invoke-TestScript([string]$Script, [hashtable]$Parameters) {
+function Invoke-TestScript([string]$Script, [hashtable]$Parameters, [int]$InitialCodePage = 0) {
     # 獨立程序才能驗證真正的結束碼，不能讓被測腳本的 exit 終止測試本身。
-    $statement = "& '$($Script.Replace("'", "''"))'"
+    # 刻意保留預設或指定舊代碼頁；先替被測腳本改成 UTF-8 會掩蓋它漏做初始化的錯誤。
+    $statement = if ($InitialCodePage) {
+        "[Console]::OutputEncoding = [Text.Encoding]::GetEncoding($InitialCodePage); " +
+        "`$OutputEncoding = [Console]::OutputEncoding; "
+    } else { '' }
+    $statement += "& '$($Script.Replace("'", "''"))'"
     foreach ($key in $Parameters.Keys) {
         $values = @($Parameters[$key] | ForEach-Object { "'$(([string]$_).Replace("'", "''"))'" })
         $value = if ($Parameters[$key] -is [array]) { '@(' + ($values -join ',') + ')' } else { $values[0] }
@@ -43,6 +50,8 @@ function Invoke-TestScript([string]$Script, [hashtable]$Parameters) {
     $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
+    $info.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false, $true)
+    $info.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false, $true)
     foreach ($value in @('-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand',
         [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($statement)))) {
         $info.ArgumentList.Add($value)
@@ -222,6 +231,70 @@ Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('docs/index.md'
 [System.IO.File]::AppendAllText((Join-Path $docsRoot 'AGENTS.md'), "`n[錯誤](docs/不存在.md)`n", $utf8)
 $check = Invoke-TestScript $checker @{ Root = $docsRoot }
 Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('AGENTS.md')) 'Codex 入口的壞連結也必須阻擋'
+
+# 不執行安裝、部署與發布流程；以語法樹確認每個入口先套用同一份編碼設定。
+foreach ($scriptFile in (Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File)) {
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($scriptFile.FullName, [ref]$null, [ref]$parseErrors)
+    Assert-Condition ($parseErrors.Count -eq 0 -and $ast.ScriptRequirements.RequiredPSVersion.Major -ge 7) "$($scriptFile.Name) 必須可解析並要求 PowerShell 7"
+    $prefix = ($ast.EndBlock.Statements | Select-Object -First 3 | ForEach-Object { $_.Extent.Text }) -join "`n"
+    Assert-Condition ($prefix.Contains("Import-Module (Join-Path `$PSScriptRoot 'SqlAssist.Tools.psm1') -Force") -and
+        $prefix.Contains('$OutputEncoding = Initialize-SqlAssistUtf8Output')) "$($scriptFile.Name) 必須在工作開始前初始化 UTF-8"
+}
+
+$moduleSource = Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1'
+Copy-Item -LiteralPath $moduleSource -Destination (Join-Path $testRoot 'SqlAssist.Tools.psm1')
+$boundary = Write-Fixture '文字邊界.ps1' @'
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
+$before = [Console]::OutputEncoding.CodePage
+$OutputEncoding = Initialize-SqlAssistUtf8Output
+# 用真正的原生管道驗證呼叫端偏好，避免只檢查模組內的同名變數。
+$receiver = "[Console]::InputEncoding = [Text.UTF8Encoding]::new(`$false); [Console]::OutputEncoding = [Text.UTF8Encoding]::new(`$false); [Console]::Write([Console]::In.ReadToEnd())"
+$pwsh = Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })
+$text = '中文 🧪' | & $pwsh -NoProfile -NonInteractive -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($receiver)))
+if ($LASTEXITCODE -ne 0) { throw '原生管道測試失敗。' }
+[Console]::WriteLine((@{ text = $text; before = $before; after = [Console]::OutputEncoding.CodePage; pipe = $OutputEncoding.CodePage; bom = $OutputEncoding.GetPreamble().Length } | ConvertTo-Json -Compress))
+[Console]::Error.WriteLine('錯誤 中文 🧪')
+exit 23
+'@
+$unicodeSource = Write-Fixture '中文🧪.txt' "中文 🧪`n"
+[System.IO.File]::AppendAllText((Join-Path $docsRoot 'AGENTS.md'), "`n[錯誤](docs/不存在🧪.md)`n", $utf8)
+
+# 真正的 Git UTF-8 檔名也要跨過 PowerShell 的原生輸出解碼，不只驗證畫面上的中文訊息。
+$gitRoot = Join-Path $testRoot 'git-encoding'
+$gitTools = Join-Path $gitRoot 'tools'
+[void][System.IO.Directory]::CreateDirectory($gitTools)
+Copy-Item -LiteralPath $moduleSource -Destination (Join-Path $gitTools 'SqlAssist.Tools.psm1')
+$textChecker = Join-Path $gitTools 'Check-TextFiles.ps1'
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Check-TextFiles.ps1') -Destination $textChecker
+& git -C $gitRoot init --quiet
+Assert-Condition ($LASTEXITCODE -eq 0) '編碼測試的隔離 Git 版本庫必須建立成功'
+$unicodePath = Join-Path $gitRoot '中文🧪.txt'
+$codePages = if ($IsWindows) { @(65001, 950, 437) } else { @(65001) }
+foreach ($codePage in $codePages) {
+    $probe = Invoke-TestScript $boundary @{} -InitialCodePage $codePage
+    $data = $probe.Out | ConvertFrom-Json
+    Assert-Condition ($probe.ExitCode -eq 23 -and $data.text -ceq '中文 🧪') "CP$codePage 必須保留原生管道文字與失敗碼"
+    Assert-Condition ($data.before -eq $codePage -and $data.after -eq 65001 -and $data.pipe -eq 65001 -and $data.bom -eq 0) "CP$codePage 只在明確初始化後改成無 BOM UTF-8"
+    Assert-Condition ($probe.Error.Trim() -ceq '錯誤 中文 🧪') "CP$codePage 的 stderr 必須維持 UTF-8"
+
+    $read = Invoke-TestScript $reader @{ Path = $unicodeSource } -InitialCodePage $codePage
+    Assert-Condition ($read.ExitCode -eq 0 -and $read.Out.Contains('1: 中文 🧪')) "CP$codePage 的分段讀取不可破壞中文或 Emoji"
+    $wrapped = Invoke-TestScript (Join-Path $PSScriptRoot 'Invoke-QuietCommand.ps1') @{
+        ScriptPath = $boundary; LogDirectory = (Join-Path $testRoot "encoding-$codePage"); MaxChars = 2048
+    } -InitialCodePage $codePage
+    Assert-Condition ($wrapped.ExitCode -eq 23 -and $wrapped.Out.Contains('錯誤 中文 🧪') -and $wrapped.Error.Length -eq 0) "CP$codePage 的預覽與失敗碼不可受父子程序代碼頁影響"
+
+    $check = Invoke-TestScript $checker @{ Root = $docsRoot } -InitialCodePage $codePage
+    Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('不存在🧪.md')) "CP$codePage 的文件錯誤必須保留中文檔名"
+
+    [System.IO.File]::WriteAllText($unicodePath, "中文 🧪`n", $utf8)
+    $check = Invoke-TestScript $textChecker @{} -InitialCodePage $codePage
+    Assert-Condition ($check.ExitCode -eq 0 -and $check.Out.Contains('文字檔格式檢查通過')) "CP$codePage 必須正確解讀 Git 的 Unicode 檔名"
+    [System.IO.File]::WriteAllText($unicodePath, "中文 🧪`r`n", $utf8)
+    $check = Invoke-TestScript $textChecker @{} -InitialCodePage $codePage
+    Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('中文🧪.txt') -and $check.Out.Contains('CRLF')) "CP$codePage 不可讓編碼修正掩蓋真正的格式錯誤"
+}
 
 Write-Host "AI 工作流程驗證通過：$script:checks 項；合成輸出 $sampleRawChars → $samplePreviewChars 字元（不是模型 token 量測）。"
 Write-Host "測試紀錄：$testRoot"
