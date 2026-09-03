@@ -42,6 +42,17 @@ rtk telemetry disable
 Claude 可用 `/hooks` 核對 Project Settings。若個人全域／本機設定已有同一個 Hook，
 只保留一份，不要刪除其他 Hook 或權限。[Claude Hook 說明](https://code.claude.com/docs/en/hooks)
 
+## 實測壓縮率，以及為什麼帳面收益仍然很低
+
+壓縮率與輸出大小成正比（本 repo 實測）：`tree src` 2164→213 位元組、
+`find src -name "*.cs"` 12973→1407、`grep -rn public src` 1441→204 行，都是省八九成；
+但 `ls src/SqlAssist.Core` 169→196，小輸出因為多了統計行而淨虧。
+
+即使如此，累計 `rtk gain` 長期停在 1% 以下。原因不是 RTK 失效，而是 **Hook 只攔 Bash**：
+Claude Code 的 Grep／Glob／Read 是獨立工具，不經過 Bash，日常搜尋與讀檔根本碰不到 RTK，
+真正流經 Bash 的幾乎只剩 Git。要拿到上表的收益，得刻意用 Bash 跑 `find`／`tree`／`grep`，
+而那通常不如直接用內建工具。**先看 `rtk gain` 再決定要不要留，不要憑壓縮率想像收益。**
+
 ## 日常使用
 
 ```powershell
