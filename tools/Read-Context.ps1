@@ -1,4 +1,11 @@
 #Requires -Version 7.0
+
+<#
+.SYNOPSIS
+讓 AI 分段讀長檔，避免整份文件佔滿上下文；不需要 RTK 或 Serena。
+.EXAMPLE
+./tools/Read-Context.ps1 -Path docs/development.md -StartLine 20 -LineCount 40
+#>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]

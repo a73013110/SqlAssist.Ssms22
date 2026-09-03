@@ -1,4 +1,13 @@
 #Requires -Version 7.0
+
+<#
+.SYNOPSIS
+完整紀錄留在磁碟，只給 AI 短輸出；不縮減測試，也不吞失敗結束碼。
+.DESCRIPTION
+不是建置／測試本身；用 -ScriptPath 包住既有 PS1。不可包 MCP 或互動命令。
+.EXAMPLE
+./tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Run-CoreTests.ps1
+#>
 [CmdletBinding(DefaultParameterSetName = 'Native')]
 param(
     [Parameter(Mandatory, ParameterSetName = 'Native')]

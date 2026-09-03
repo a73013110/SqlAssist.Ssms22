@@ -248,7 +248,7 @@ SSMS 裡的 **工具 → SqlAssist → 關於與診斷…** 會顯示發布版�
 
 ## 工具腳本
 
-AI 的區段讀取與輸出節流另見 [共用工作流程](ai-workflow.md)。
+AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-workflow.md#腳本用途)。
 
 | 腳本 | 做什麼 |
 |---|---|
@@ -264,7 +264,7 @@ AI 的區段讀取與輸出節流另見 [共用工作流程](ai-workflow.md)。
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
 | `Check-TextFiles.ps1` | 檢查文字檔皆為 UTF-8（無 BOM）、LF 且有檔尾換行 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
-| `Read-Context.ps1` | 依行號及字元預算讀取區段，提供續讀起點 |
-| `Invoke-QuietCommand.ps1` | 保留原始紀錄、結束碼及逾時狀態，只顯示有界尾段 |
-| `Test-AgentWorkflow.ps1` | 驗證讀取預算、節流失敗語意、引數與文件檢查器 |
+| `Read-Context.ps1` | 給 AI 分段讀長檔，不一次讀完整份 |
+| `Invoke-QuietCommand.ps1` | 給 AI 短輸出，完整命令紀錄留在磁碟 |
+| `Test-AgentWorkflow.ps1` | 工具回歸檢查，不是產品單元測試 |
 | `SqlAssist.Tools.psm1` | 上述腳本共用的環境探索 |
