@@ -46,8 +46,9 @@ Claude Code 讀本檔；Codex 由 `AGENTS.md` 引導讀本檔。兩者共用同�
 
 ## 文字檔格式
 
-- 所有文字檔一律使用 **UTF-8（無 BOM）與 LF**；唯一規格是根目錄的
-  `.editorconfig` 與 `.gitattributes`，`core.autocrlf` 不得覆蓋它。
+- 所有文字檔一律使用 **UTF-8（無 BOM）與 LF**；唯一例外是 `.sln`，Visual Studio
+  只認 BOM 才當 UTF-8。唯一規格是根目錄的 `.editorconfig` 與 `.gitattributes`，
+  `core.autocrlf` 不得覆蓋它。
 - **禁止**在工作結束前批次「還原 CRLF」或補回 BOM。產生與修改時直接保留 LF，並以
   `tools/Check-TextFiles.ps1` 驗證；只為換行重寫整份檔案會製造無意義差異與 token 成本。
 - 原始診斷串流是例外：只存放在被忽略的 `artifacts/`，保留原編碼與換行，不得提交。

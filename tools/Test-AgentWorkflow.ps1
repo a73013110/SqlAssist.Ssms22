@@ -296,5 +296,20 @@ foreach ($codePage in $codePages) {
     Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('中文🧪.txt') -and $check.Out.Contains('CRLF')) "CP$codePage 不可讓編碼修正掩蓋真正的格式錯誤"
 }
 
+# .sln 的 BOM 是 Visual Studio 的硬需求，兩個方向都要驗；只測「有 BOM 會通過」的話，
+# 反向規則失效時沒人會發現，其他檔案又會悄悄開始接受 BOM。
+[System.IO.File]::WriteAllText($unicodePath, "中文 🧪`n", $utf8)
+$solutionPath = Join-Path $gitRoot '方案.sln'
+$solutionText = "Microsoft Visual Studio Solution File, Format Version 12.00`n"
+[System.IO.File]::WriteAllText($solutionPath, $solutionText, $utf8)
+$check = Invoke-TestScript $textChecker @{}
+Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('方案.sln') -and $check.Out.Contains('缺少 UTF-8 BOM')) '.sln 缺少 BOM 必須失敗'
+[System.IO.File]::WriteAllText($solutionPath, $solutionText, [System.Text.UTF8Encoding]::new($true))
+$check = Invoke-TestScript $textChecker @{}
+Assert-Condition ($check.ExitCode -eq 0) '.sln 含 BOM 必須通過'
+[System.IO.File]::WriteAllText($solutionPath, "$solutionText`r`n", [System.Text.UTF8Encoding]::new($true))
+$check = Invoke-TestScript $textChecker @{}
+Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('CRLF')) '.sln 的 BOM 例外不得放寬換行規則'
+
 Write-Host "AI 工作流程驗證通過：$script:checks 項；合成輸出 $sampleRawChars → $samplePreviewChars 字元（不是模型 token 量測）。"
 Write-Host "測試紀錄：$testRoot"
