@@ -74,6 +74,10 @@ internal sealed class SqlAssistCommands
 
         // 結果格線的右鍵選單。狀態由 ResultGridActions 回答：找不到格線就停用，
         // 但仍然看得見——使用者因此知道這個功能存在，只是現在沒有東西可以做。
+
+        // 標頭是標籤不是命令：沒有處理常式，也永遠停用。
+        AddCommand(CommandIds.ResultGridHeader, (_, _) => { }, isEnabled: () => false);
+
         AddCommand(
             CommandIds.ResultGridTempTable,
             (_, _) => ResultGridActions.CreateTempTableScript(_package),

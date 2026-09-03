@@ -15,7 +15,7 @@ namespace SqlAssist.Ssms22;
 // 版號一變，殼層下次載入就重建命令表快取。新增命令、選單項目或鍵繫結時**一定**要
 // 加一：不加的話換掉 DLL 也沒有用，殼層仍在用舊的命令表——症狀是新的選單項目不出現、
 // 新綁的鍵沒反應，而且沒有任何錯誤。與 MEF 快取是同一類的坑。
-[ProvideMenuResource("Menus.ctmenu", 10)]
+[ProvideMenuResource("Menus.ctmenu", 11)]
 [ProvideAutoLoad(NoSolutionUiContextGuid, PackageAutoLoadFlags.BackgroundLoad)]
 // 設定全部由 Unified Settings 提供：這個屬性在 pkgdef 寫下 SettingsManifests 項目，
 // 殼層啟動時就會讀進註冊檔，不必等套件載入。
