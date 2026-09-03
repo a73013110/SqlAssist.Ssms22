@@ -38,6 +38,7 @@
 | ResultGrid、結果轉 SQL | [結果格線](result-grid.md) |
 | Settings、Monikers、registration、Limits | [設定](settings.md) |
 | Metadata、Querying、Caching、Formatting、Model | [中繼資料](metadata.md) |
+| 跨資料庫、四段式名稱、連結伺服器 | [中繼資料](metadata.md)＋[上下文與觸發](completion-context.md) |
 | 建置、測試、tools、版本、安裝、部署、診斷 | [開發](development.md) |
 | AI 入門、新設備、PS 腳本用途、按需讀取與輸出節流 | [AI 工作流程：先看這頁](ai-workflow.md) |
 | 安裝／設定／使用／驗證 RTK | [RTK 教學](ai-rtk.md) |
