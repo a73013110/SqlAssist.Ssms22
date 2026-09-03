@@ -398,7 +398,21 @@ public static class SuggestionMatcher
     /// </remarks>
     private static bool IsAllowedForSchema(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        if (context.Target == CompletionTarget.Column || string.IsNullOrEmpty(context.Qualifier))
+        if (context.Target == CompletionTarget.Column || context.QualifierPath is null)
+        {
+            return true;
+        }
+
+        // 資料庫名稱在任何一個點號之後都不對：USE 之後才是它的位置。
+        // 這一條要問路徑而不是問 Qualifier——LibArchive.. 有路徑卻沒有結構描述那一段，
+        // 問 Qualifier 的話整份過濾會被跳過，那個資料庫的名稱清單就跟著列出來。
+        if (suggestion.Kind == SuggestionKind.Database)
+        {
+            return false;
+        }
+
+        // 省略結構描述的 LibArchive.. 沒有東西可以比對，那個資料庫的物件全部放行。
+        if (string.IsNullOrEmpty(context.Qualifier))
         {
             return true;
         }

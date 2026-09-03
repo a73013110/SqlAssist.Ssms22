@@ -1,3 +1,4 @@
+using System.Linq;
 using SqlAssist.Core.Completion;
 using Xunit;
 
@@ -126,6 +127,28 @@ public sealed class SqlCrossDatabaseCompletionTests
     {
         Assert.True(Analyze("SELECT * FROM LibArchive.sys.|").WantsSystemObjects);
         Assert.False(Analyze("SELECT * FROM LibArchive.dbo.|").WantsSystemObjects);
+    }
+
+    /// <remarks>
+    /// 資料庫名稱只在 <c>USE</c> 之後才對。省略結構描述的 <c>LibArchive..</c> 沒有
+    /// 東西可以比對，整份結構描述過濾會被跳過——不特別擋的話，那個資料庫的
+    /// 名稱清單就跟著列出來了。
+    /// </remarks>
+    [Fact]
+    public void 點號之後不列資料庫名稱()
+    {
+        var candidates = new[]
+        {
+            new SqlSuggestion("LibArchive", "LibArchive", "Database", "USE LibArchive", SuggestionKind.Database),
+            new SqlSuggestion("Loan", "Loan", "Table", "Loan", SuggestionKind.Table, schemaName: "dbo")
+        };
+
+        var names = SuggestionMatcher
+            .Filter(candidates, Analyze("SELECT * FROM LibArchive..|"))
+            .Select(suggestion => suggestion.DisplayText)
+            .ToArray();
+
+        Assert.Equal(new[] { "Loan" }, names);
     }
 
     /// <remarks>
