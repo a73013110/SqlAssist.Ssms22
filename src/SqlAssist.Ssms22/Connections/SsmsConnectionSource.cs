@@ -20,14 +20,20 @@ internal sealed class SsmsConnectionSource : ISqlConnectionSource, IDisposable
     private readonly IDbConnection _template;
     private bool _disposed;
 
-    private SsmsConnectionSource(IDbConnection template, string databaseName, string cacheKey)
+    private SsmsConnectionSource(
+        IDbConnection template,
+        string databaseName,
+        string serverCacheKey)
     {
         _template = template;
         DatabaseName = databaseName;
-        CacheKey = cacheKey;
+        ServerCacheKey = serverCacheKey;
+        CacheKey = SqlConnectionCacheKey.Compose(serverCacheKey, databaseName);
     }
 
     public string CacheKey { get; }
+
+    public string ServerCacheKey { get; }
 
     public string DatabaseName { get; }
 
@@ -50,8 +56,8 @@ internal sealed class SsmsConnectionSource : ISqlConnectionSource, IDisposable
         }
 
         var databaseName = editorConnection.Database ?? string.Empty;
-        var cacheKey = SqlConnectionCacheKey.Create(template.ConnectionString, databaseName);
-        return new SsmsConnectionSource(template, databaseName, cacheKey);
+        var serverCacheKey = SqlConnectionCacheKey.CreateServerKey(template.ConnectionString);
+        return new SsmsConnectionSource(template, databaseName, serverCacheKey);
     }
 
     public IDbConnection OpenConnection()

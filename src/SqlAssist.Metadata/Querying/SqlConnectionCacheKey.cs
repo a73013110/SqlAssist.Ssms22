@@ -28,8 +28,27 @@ public static class SqlConnectionCacheKey
 
     public static string Create(string? connectionString, string? databaseName)
     {
+        return Compose(CreateServerKey(connectionString), databaseName);
+    }
+
+    /// <summary>只識別伺服器的鍵，不含資料庫。</summary>
+    public static string CreateServerKey(string? connectionString)
+    {
+        return Normalize(connectionString);
+    }
+
+    /// <summary>
+    /// 把伺服器鍵與資料庫名稱組成完整的快取鍵。
+    /// </summary>
+    /// <remarks>
+    /// 組合規則只有這一份。跨資料庫建議要為同一條連線的另一個資料庫算鍵，
+    /// 在呼叫端自己拼字串的話，拼法一旦與這裡分岔，同一個資料庫就會拿到兩份目錄
+    /// ——症狀是查詢次數加倍，而兩份的過期時間各走各的。
+    /// </remarks>
+    public static string Compose(string? serverCacheKey, string? databaseName)
+    {
         var builder = new StringBuilder();
-        builder.Append(Normalize(connectionString));
+        builder.Append(serverCacheKey ?? string.Empty);
         builder.Append('|');
         builder.Append((databaseName ?? string.Empty).ToLowerInvariant());
         return builder.ToString();
