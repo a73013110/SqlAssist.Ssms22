@@ -95,7 +95,7 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 專案檔、VSIX Manifest 與 README 都不再寫死版號。
 
 ```json
-{ "version": "0.14" }
+{ "version": "0.15" }
 ```
 
 `version` 只寫 `major.minor`，第三段（patch）填的是 **git height**——從 HEAD 回推到
@@ -103,9 +103,9 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 
 | 產物 | 格式 | 範例 |
 |---|---|---|
-| VSIX Manifest／`AssemblyFileVersion` | `major.minor.height.commitId` | `0.14.7.64243` |
-| `AssemblyInformationalVersion` | `major.minor.height+commitId` | `0.14.7+faf306205d` |
-| `AssemblyVersion` | `major.minor.0.0` | `0.14.0.0` |
+| VSIX Manifest／`AssemblyFileVersion` | `major.minor.height.commitId` | `0.15.7.64243` |
+| `AssemblyInformationalVersion` | `major.minor.height+commitId` | `0.15.7+faf306205d` |
+| `AssemblyVersion` | `major.minor.0.0` | `0.15.0.0` |
 
 第三段每個 commit 遞增，所以**每一次 commit 建出來的 VSIX 都能直接覆蓋安裝**，
 不必再手動把 Manifest 的版號 +1。這正是舊版 Manifest 一路累加到 `0.13.14`，
@@ -116,23 +116,27 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 只有 **minor 或 major 要進位時**才改，patch 自己會走：
 
 ```powershell
-# 開始開發 0.15 這一輪。改完 commit，height 歸零重算。
-# version.json: "version": "0.15"
-git commit -am "build: 版號進入 0.15"
-git tag v0.15.0    # 選用，只是給人看的發布記錄，不影響版號計算
+# 開始開發 0.16 這一輪。改完 commit，height 歸零重算。
+# version.json: "version": "0.16"
+git commit -am "build: 版號進入 0.16"
+git tag v0.16.0    # 選用，只是給人看的發布記錄，不影響版號計算
 ```
 
 Tag 不參與版號計算，加不加都不影響建置結果。
 
-### 三個會踩到的地方
+### 四個會踩到的地方
 
 - **改了程式卻沒 commit，版號不動。** height 是從 commit 算的，工作目錄的變更不列入。
   日常偵錯走 `Deploy-DebugExtension.ps1`（直接覆蓋檔案、不比對版號遞增），不受影響。
 - **淺層 clone 會靜靜退成 `0.0.x`。** CI 上 `actions/checkout` 必須設
   `fetch-depth: 0`。`Test-VsixPackage.ps1` 會擋下這種版號，不會讓它包成 VSIX。
 - **只改文件不會推進版號。** `version.json` 的 `pathFilters` 排除了 `docs/`、
-  `README.md`、`CLAUDE.md` 與 `LICENSE`，因為那些內容不進 VSIX，
-  不該讓已安裝的使用者看到一個「新版本」。
+  根目錄的說明文字（`README.md`、`CLAUDE.md`、`AGENTS.md`、`LICENSE`）、代理設定
+  （`.claude/`、`.codex/`、`.serena/`、`.mcp.json`）與只當參考的 `menus.decompiled.*`，
+  因為那些內容不進 VSIX，不該讓已安裝的使用者看到一個「新版本」。
+- **加 pathFilters 會讓版號倒退。** 排除項目變多，height 就重新算成一個更小的數，
+  已安裝的使用者會覆蓋不了。所以調整 `pathFilters` 只能跟 minor 進位放在同一個
+  commit——那時 height 本來就歸零，不存在倒退。
 
 `Deploy-DebugExtension.ps1` 只比對已安裝與建置版號的 `major.minor`。兩者不同時
 代表 pkgdef、vsct 或 Manifest 的註冊內容已經改變，必須重跑 `Install-Extension.ps1`，
