@@ -357,8 +357,8 @@ public static class SqlScopeAnalyzer
 
         var start = index;
         var first = tokens[index];
-        string? schemaName = null;
-        var objectName = string.Empty;
+        SqlObjectPath? path = null;
+        var derivedName = string.Empty;
         var isDerived = false;
 
         if (first.IsPunctuation("("))
@@ -370,7 +370,7 @@ public static class SqlScopeAnalyzer
         }
         else if (first.Kind == SqlTokenKind.Variable)
         {
-            objectName = first.Value;
+            derivedName = first.Value;
             isDerived = true;
             index++;
         }
@@ -378,23 +378,30 @@ public static class SqlScopeAnalyzer
         {
             var parts = new List<string>();
 
-            while (index < end &&
-                   tokens[index].Kind == SqlTokenKind.Identifier &&
-                   (tokens[index].IsQuoted || !ClauseKeywords.Contains(tokens[index].Value)))
+            while (index < end)
             {
-                parts.Add(tokens[index].Value);
-                index++;
+                if (tokens[index].Kind == SqlTokenKind.Identifier &&
+                    (tokens[index].IsQuoted || !ClauseKeywords.Contains(tokens[index].Value)))
+                {
+                    parts.Add(tokens[index].Value);
+                    index++;
+                }
+                else if (parts.Count > 0 && tokens[index].IsPunctuation("."))
+                {
+                    // 剛吃掉一個點號又碰到一個，代表中間這一段省略了：
+                    // db..object 少寫結構描述，server...object 連資料庫也少寫。
+                    // 補一個空段而不是跳過，位置才對得回去——跳過的話
+                    // server...object 會右對齊成 server.object，指到別的東西。
+                    parts.Add(string.Empty);
+                }
+                else
+                {
+                    break;
+                }
 
                 if (index < end && tokens[index].IsPunctuation("."))
                 {
                     index++;
-
-                    // db..object 這種寫法中間那段是空的。
-                    if (index < end && tokens[index].IsPunctuation("."))
-                    {
-                        parts.Add(string.Empty);
-                    }
-
                     continue;
                 }
 
@@ -406,12 +413,12 @@ public static class SqlScopeAnalyzer
                 return false;
             }
 
-            objectName = parts[parts.Count - 1];
-            schemaName = parts.Count >= 2 ? parts[parts.Count - 2] : null;
-
-            if (string.IsNullOrEmpty(schemaName))
+            // 段數超過上限的名稱查不到，但別名仍要記下來，所以退成衍生來源
+            // 而不是整個丟掉：丟掉的話後面用這個別名限定欄位會被誤判成結構描述。
+            if (!SqlObjectPath.TryParseName(parts, out path))
             {
-                schemaName = null;
+                derivedName = parts[parts.Count - 1];
+                isDerived = true;
             }
 
             // 資料表值函式：CROSS APPLY dbo.fn_Split(x) s
@@ -433,13 +440,12 @@ public static class SqlScopeAnalyzer
 
         var alias = TryReadAlias(tokens, ref index, end);
 
-        reference = new SqlTableReference(
-            schemaName,
-            objectName,
-            alias,
-            isDerived,
-            tokens[start].Start,
-            tokens[Math.Max(start, index - 1)].End);
+        var referenceStart = tokens[start].Start;
+        var referenceEnd = tokens[Math.Max(start, index - 1)].End;
+
+        reference = isDerived || path is null
+            ? new SqlTableReference(derivedName, alias, referenceStart, referenceEnd)
+            : new SqlTableReference(path, alias, referenceStart, referenceEnd);
 
         next = index;
         return true;
