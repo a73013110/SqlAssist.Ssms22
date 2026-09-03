@@ -1,26 +1,9 @@
 # Serena：選用的 C# 符號搜尋
 
-**Claude Code 用外掛；Codex 用本機 MCP。兩者不需要共用一套安裝腳本。**
+**Claude Code 與 Codex 都用同一支本機 CLI，各自只加一份專案設定。**
 沒裝也可用原生讀檔、搜尋與測試。日常先看 [AI 工作流程](ai-workflow.md)，返回 [索引](index.md)。
 
-## Claude Code：直接安裝外掛
-
-在 Claude Code 輸入：
-
-```text
-/plugin install serena@claude-plugins-official
-```
-
-也可用 `/plugin` 的 Discover 搜尋 Serena，安裝至 User scope，讓其他專案也能使用。
-已看到 `plugin:serena:serena` 且啟用，就不必重裝。依安裝結果重開 Claude，再用 `/mcp` 檢查。
-若外掛提示缺少 uv／語言服務依賴，照外掛說明補裝；不用再手動登記另一份 Serena。
-[Claude 官方外掛說明](https://code.claude.com/docs/en/discover-plugins)
-
-**不要再執行 `claude mcp add serena` 或建立手動 Serena 的 `.mcp.json`。**
-若舊設備仍有名為 `serena` 的 Local／Project MCP，確認來源後只移除舊項目，
-保留 `plugin:serena:serena` 及其他伺服器。[MCP 作用範圍](https://code.claude.com/docs/en/mcp#mcp-installation-scopes)
-
-## Codex：安裝獨立 CLI
+## 安裝本機 CLI（兩端共用）
 
 目前已可用的設備不用重做。新設備需要 PowerShell 7、uv 與 .NET 10+；
 這是 C# 語言服務的需求，**不改產品的 netstandard2.0／net48**。
@@ -38,9 +21,43 @@ uv tool install --python 3.13 'serena-agent==1.7.0'
 uv tool update-shell
 ```
 
-再重開終端機，確認 `serena --version` 為 `1.7.0`。
+再重開終端機，確認 `serena --version` 為 `1.7.0`，並用 `Get-Command serena` 記下完整路徑。
 [Serena 安裝](https://oraios.github.io/serena/02-usage/010_installation.html)、
 [C# 需求](https://github.com/oraios/serena/blob/v1.7.0/docs/01-about/020_programming-languages.md)
+
+**不要裝 `serena@claude-plugins-official` 外掛。**它用 `uvx --from git+…` 每次啟動都去
+解析 GitHub，版本不固定、冷啟動會超過預設 30 秒逾時，而且不帶 `--context` 與
+`--open-web-dashboard false`——每個交談都會另開一個儀表板分頁，並端出 Claude Code
+本來就有的讀檔／編輯／執行工具。已經裝了就用 `claude plugin uninstall serena@claude-plugins-official`
+移除，再重開 Claude Code。
+
+## Claude Code：只設定這個專案
+
+建立／編輯專案根目錄的 `.mcp.json`（已被 `.gitignore` 忽略，不進版控）：
+
+```json
+{
+  "mcpServers": {
+    "serena": {
+      "command": "C:/Users/<你>/.local/bin/serena.exe",
+      "args": [
+        "start-mcp-server",
+        "--context", "claude-code",
+        "--project", "D:/GitProject/SqlAssist.Ssms22",
+        "--open-web-dashboard", "false"
+      ]
+    }
+  }
+}
+```
+
+**路徑務必換成這台設備的實際位置**，`command` 用 `Get-Command serena` 查到的完整路徑。
+重開 Claude Code 後首次會詢問是否信任這台 server；允許後 `.claude/settings.local.json`
+的 `enabledMcpjsonServers` 會記下 `serena`。用 `/mcp` 確認狀態。
+
+**不要用 `claude mcp add --scope local`。**它以專案路徑當索引鍵寫進 `~/.claude.json`，
+而同一個資料夾可能同時存在 `D:\GitProject\…` 與 `D:/GitProject/…` 兩筆條目，
+斜線方向不同就讀不到，看起來像設定憑空消失。`.mcp.json` 放在專案內沒有這個問題。
 
 ## Codex：只設定這個專案
 
@@ -68,6 +85,13 @@ PYTHONUTF8 = '1'
 CLI 也可用 `codex mcp list`。不要再建立指向同一專案的全域重複登記。
 [OpenAI 官方 MCP 文件](https://learn.chatgpt.com/docs/extend/mcp)
 
+## 儀表板與並存
+
+MCP 是 stdio、每個交談各起一個 Serena 程序，這是常態；Claude 與 Codex 同時開就會有兩組。
+上面的 `--open-web-dashboard false` 只擋自動開分頁。要連本機的
+`~/.serena/serena_config.yml` 一起關，把 `web_dashboard_open_on_launch` 設為 `false`；
+需要時再手動開 http://localhost:24282/dashboard/ 。此檔是每台設備一份，不進版控。
+
 ## 兩者共用的專案規則
 
 [.serena/project.yml](../.serena/project.yml) 隨 Git 共用：C#、UTF-8／LF、唯讀、
@@ -90,5 +114,6 @@ CLI 也可用 `codex mcp list`。不要再建立指向同一專案的全域重�
 - 要排查獨立 CLI 時，才用 `serena project health-check .`；輸出很多可套用節流助手。
   若有 `FindReferencingSymbolsTool failed`，即使結束碼為 0，也不能宣稱所有符號功能正常。
 - Windows CLI 出現編碼錯誤，可在當前終端機設 `$env:PYTHONUTF8 = '1'`，不必改整台設備。
-- 停用：Claude 用 `/plugin` 停用 Serena 外掛；Codex 在本機 Serena 區塊加
-  `enabled = false`。**不要把 RTK 或輸出節流器套在 MCP 的 stdio 指令外面。**
+- 停用：Claude 把 `.claude/settings.local.json` 的 `enabledMcpjsonServers` 清空，
+  或移掉 `.mcp.json` 的 serena 區塊；Codex 在本機 Serena 區塊加 `enabled = false`。
+  **不要把 RTK 或輸出節流器套在 MCP 的 stdio 指令外面。**
