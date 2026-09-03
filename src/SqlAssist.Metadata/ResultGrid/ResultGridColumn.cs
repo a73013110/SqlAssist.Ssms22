@@ -17,12 +17,20 @@ namespace SqlAssist.Metadata.ResultGrid;
 /// </remarks>
 public sealed class ResultGridColumn
 {
-    public ResultGridColumn(string? name, string? serverDataType)
+    public ResultGridColumn(
+        string? name,
+        string? serverDataType,
+        int? maxLength = null,
+        int? precision = null,
+        int? scale = null)
     {
         Name = string.IsNullOrWhiteSpace(name) ? string.Empty : name!.Trim();
         ServerDataType = string.IsNullOrWhiteSpace(serverDataType)
             ? string.Empty
             : serverDataType!.Trim();
+        MaxLength = maxLength;
+        Precision = precision;
+        Scale = scale;
     }
 
     /// <summary>
@@ -39,31 +47,27 @@ public sealed class ResultGridColumn
     /// <summary>伺服器回報的型別，例如 <c>nvarchar(50)</c>；取不到時是空字串。</summary>
     public string ServerDataType { get; }
 
-    /// <summary>去掉長度與精確度的小寫基底型別名。</summary>
-    public string BaseTypeName => SqlTypeName.BaseOf(ServerDataType);
-
     /// <summary>
-    /// 建 <c>#temp</c> 用的型別。
+    /// 這一欄的最大長度：文字算字元、二進位算位元組；問不出來時是 <c>null</c>。
     /// </summary>
     /// <remarks>
-    /// 多數型別照抄就好，只有兩類不行，而且兩類都是「建得起來卻插不進去」：
-    /// <c>timestamp</c>／<c>rowversion</c> 由引擎自己產生，明確插值會直接失敗；
-    /// 型別名稱取不到時沒有東西可抄。前者換成 <c>varbinary(8)</c>——那是它實際的
-    /// 儲存形狀，值原封不動搬得過去；後者回傳空字串，由呼叫端整段拒絕。
+    /// 三個長度與精確度都是<b>額外</b>的資訊，不是 <see cref="ServerDataType"/>
+    /// 的一部分：結果格線回報的型別名稱不帶括號（<c>varchar</c> 而不是
+    /// <c>varchar(20)</c>），而 T-SQL 對省略的長度有自己的預設值，
+    /// 於是 <c>CREATE TABLE</c> 建得起來、<c>INSERT</c> 也跑得動，
+    /// 只是資料被截斷。怎麼補回去見 <c>SqlTempTableColumnType</c>。
+    ///
+    /// <c>null</c> 是常態不是例外：<c>int</c> 這種型別本來就沒有長度可言，
+    /// 而運算式欄位有時候整份結構描述都問不出來。
     /// </remarks>
-    public string TempTableType()
-    {
-        switch (BaseTypeName)
-        {
-            case "":
-                return string.Empty;
+    public int? MaxLength { get; }
 
-            case "timestamp":
-            case "rowversion":
-                return "varbinary(8)";
+    /// <summary>數值型別的總位數；問不出來或不適用時是 <c>null</c>。</summary>
+    public int? Precision { get; }
 
-            default:
-                return ServerDataType;
-        }
-    }
+    /// <summary>數值型別的小數位數；問不出來或不適用時是 <c>null</c>。</summary>
+    public int? Scale { get; }
+
+    /// <summary>去掉長度與精確度的小寫基底型別名。</summary>
+    public string BaseTypeName => SqlTypeName.BaseOf(ServerDataType);
 }

@@ -100,6 +100,32 @@ Markdown 例外，因為內建那條路有一個補得起來的落差：它一�
 - **`NULL` 不用等號比。** `x IN (NULL)` 與 `x = NULL` 都恆為 UNKNOWN，於是使用者
   明明選了那一列，條件卻永遠比不到它。`NULL` 一律改寫成 `IS NULL`。
 
+## 長度與精確度
+
+結果格線回報的型別名稱**不帶括號**：`GetServerDataTypeName` 給的是 `varchar`，
+不是 `varchar(20)`。而 T-SQL 對省略的長度另有預設值，兩者湊起來就是那一句
+「字串或二進位資料會被截斷」——`CREATE TABLE` 裡的 `varchar` 就是 `varchar(1)`。
+
+一句錯誤訊息還算好的。`decimal` 省略精確度是 `decimal(18,0)`，小數點後面整段被
+四捨五入掉，沒有錯誤也沒有警告，而這個功能的用途正是把資料原封不動搬過來。
+
+長度與精確度另外從結構描述列（`GetSchemaRow` 的 `ColumnSize`、`NumericPrecision`、
+`NumericScale`）問。規則只有一條：**寧可放寬，不可猜窄**（`SqlTempTableColumnType.cs`）。
+
+| 情形 | 寫出來的型別 |
+|---|---|
+| 問得到長度 | 照抄，`varchar(20)` |
+| 問不到長度 | 同族裡裝得下任何值的那一個：`varchar(max)`、`nvarchar(max)`、`varbinary(max)` |
+| 定長型別問不到長度 | 一併換成變長的——沒有 `char(max)` 這種東西 |
+| 長度超過型別上限（`nvarchar(max)` 回報 1073741823） | `(max)`，那本來就是它的意思 |
+| 問不到 `decimal` 精確度 | 總位數取滿 38，小數位數取實際出現過的最多那一個 |
+| 省略時預設就是最大值（`datetime2`、`time`、`float`） | 不加括號 |
+
+不照觀察到的最長那一列開長度，理由與整段都寫成允許 `NULL` 相同：格線知道的是
+「這一次查到的資料」，不是欄位的定義；照資料收緊，使用者改資料重跑時就會被截斷。
+`decimal` 是唯一的例外，因為它沒有 `(max)` 可以退——而它安全的理由是同一欄的值
+來自同一個 `decimal(p, s)`，取滿 38 位再配上觀察到的最大小數位數一定裝得下。
+
 ## 什麼時候整段拒絕
 
 輸出換成一整段註解，寫明缺什麼、怎麼辦——與 `SqlObjectStructure` 缺定義時同一份
@@ -156,6 +182,7 @@ SSMS 自己的「複製」給的是 TSV，而那份文字裡資料庫的 `NULL` 
 |---|---|
 | 值轉成字面值的規則 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | `#temp` 指令碼的長相 | `Metadata/ResultGrid/SqlTempTableScript.cs` |
+| 欄位長度與精確度怎麼補 | `Metadata/ResultGrid/SqlTempTableColumnType.cs` |
 | `IN` 條件的長相 | `Metadata/ResultGrid/SqlInPredicateScript.cs` |
 | Markdown 表格的長相 | `Metadata/ResultGrid/SqlMarkdownTableScript.cs` |
 | 欄位剖析算什麼 | `Metadata/ResultGrid/ResultGridProfile.cs` |
