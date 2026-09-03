@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -38,20 +39,31 @@ public static class SqlIdentifierScanner
             return null;
         }
 
-        var qualifier = TryReadQualifierBefore(text, start, out var qualifierStart)
-            ? text.Substring(qualifierStart, start - qualifierStart)
-            : null;
+        // 一路往左吃限定字，不是只吃一段：只吃一段的話
+        // [192.0.2.10].[LibArchive].[dbo].[Loan] 會被讀成 dbo.Loan，
+        // 而 F12 會跳到目前連線裡同名的那一個物件——跳錯地方比跳不動糟。
+        //
+        // 讀到上限之後還有下一段，代表這個名稱段數過多。那時不留下路徑，
+        // 讓下游明確地查不到，而不是拿最後四段去猜。
+        var parts = new List<string> { name };
+        var referenceStart = start;
+        var cursor = start;
 
-        if (qualifier is null)
+        while (TryReadQualifierBefore(text, cursor, out var qualifierStart))
         {
-            return new SqlIdentifierReference(name, null, start, end - start);
+            parts.Insert(0, Unquote(TrimTrailingDot(
+                text.Substring(qualifierStart, cursor - qualifierStart))));
+            referenceStart = qualifierStart;
+            cursor = qualifierStart;
+
+            if (parts.Count > SqlObjectPath.MaximumNameParts)
+            {
+                break;
+            }
         }
 
-        return new SqlIdentifierReference(
-            name,
-            Unquote(TrimTrailingDot(qualifier)),
-            qualifierStart,
-            end - qualifierStart);
+        SqlObjectPath.TryParseName(parts, out var path);
+        return new SqlIdentifierReference(name, path, referenceStart, end - referenceStart);
     }
 
     /// <summary>讀出位置所在的識別字，支援方括號與雙引號括住的形式。</summary>
@@ -226,6 +238,14 @@ public static class SqlIdentifierScanner
         if (index == 0)
         {
             return false;
+        }
+
+        // 又一個點號，代表中間這一段省略了：LibArchive..Loan 少寫結構描述。
+        // 回報一個零長度的段，右對齊時位置才對得回去。
+        if (text[index - 1] == '.')
+        {
+            qualifierStart = index;
+            return true;
         }
 
         if (text[index - 1] == ']' || text[index - 1] == '"')

@@ -31,16 +31,21 @@ public sealed class SqlExecutedModule
             "OUTPUT", "OUT", "DEFAULT", "NULL"
         };
 
-    private SqlExecutedModule(string? schemaName, string objectName)
+    private SqlExecutedModule(SqlObjectPath path)
     {
-        SchemaName = schemaName;
-        ObjectName = objectName;
+        Path = path;
     }
 
-    /// <summary>限定的結構描述；沒寫時為 null。</summary>
-    public string? SchemaName { get; }
+    /// <summary>被呼叫的模組的完整位置。</summary>
+    public SqlObjectPath Path { get; }
 
-    public string ObjectName { get; }
+    /// <summary>限定的結構描述；沒寫時為 null。</summary>
+    public string? SchemaName => Path.SchemaName;
+
+    public string ObjectName => Path.Name;
+
+    /// <summary>這個模組在目前這條連線上查得到嗎。</summary>
+    public bool IsLocal => Path.IsLocal;
 
     /// <summary>
     /// 從游標前方的詞元找出正在呼叫的模組；不在 <c>EXEC</c> 的引數清單裡就回傳 null。
@@ -75,41 +80,52 @@ public sealed class SqlExecutedModule
     }
 
     /// <summary>
-    /// 讀 <c>EXEC</c> 後面那個一段或兩段的名稱。
+    /// 讀 <c>EXEC</c> 後面那個一到四段的名稱。
     /// </summary>
     /// <remarks>
-    /// 三段式的 <c>db.dbo.p</c> 取後兩段：中繼資料只看得到目前連線的資料庫，
-    /// 而跨資料庫呼叫在那份清單上找不到，取後兩段至少讓同名的那一個對得上。
+    /// 曾經只取後兩段，理由是「中繼資料只看得到目前連線的資料庫，取後兩段至少讓
+    /// 同名的那一個對得上」。那個理由不成立：對得上的是<b>另一個</b>程序，
+    /// 而參數清單長得不一樣時，使用者按著提示填完的每一個引數都是錯的。
+    /// 現在整串留著，由取參數的那一層決定查不查得到。
+    ///
     /// <c>EXEC ('SELECT 1')</c> 與 <c>EXEC @procName</c> 讀不出名稱，回傳 null。
     /// </remarks>
     private static SqlExecutedModule? ParseName(IReadOnlyList<SqlToken> tokens, int start)
     {
-        var parts = new List<string>(3);
+        var parts = new List<string>(SqlObjectPath.MaximumNameParts);
         var index = start;
 
-        while (index < tokens.Count &&
-               tokens[index].Kind == SqlTokenKind.Identifier &&
-               (tokens[index].IsQuoted || !SqlKeywordCatalog.IsKeyword(tokens[index].Value)))
+        while (index < tokens.Count)
         {
-            parts.Add(tokens[index].Value);
-            index++;
-
-            if (index >= tokens.Count || !tokens[index].IsPunctuation("."))
+            if (tokens[index].Kind == SqlTokenKind.Identifier &&
+                (tokens[index].IsQuoted || !SqlKeywordCatalog.IsKeyword(tokens[index].Value)))
+            {
+                parts.Add(tokens[index].Value);
+                index++;
+            }
+            else if (parts.Count > 0 && tokens[index].IsPunctuation("."))
+            {
+                // db..p 這種寫法中間那段是空的；補一個空段而不是跳過，
+                // 右對齊時位置才對得回去。
+                parts.Add(string.Empty);
+            }
+            else
             {
                 break;
             }
 
-            index++;
+            if (index < tokens.Count && tokens[index].IsPunctuation("."))
+            {
+                index++;
+                continue;
+            }
+
+            break;
         }
 
-        if (parts.Count == 0)
-        {
-            return null;
-        }
-
-        var name = parts[parts.Count - 1];
-        var schema = parts.Count >= 2 ? parts[parts.Count - 2] : null;
-        return new SqlExecutedModule(schema, name);
+        return SqlObjectPath.TryParseName(parts, out var path)
+            ? new SqlExecutedModule(path!)
+            : null;
     }
 
     private static bool IsArgumentToken(SqlToken token)
