@@ -18,7 +18,15 @@ public sealed class SqlObjectInfo
     /// <c>[dbo].[#tmp]</c> 是假的，而 <c>[dbo].[@rows]</c> 連文法都不成立，
     /// 兩者出現在紀錄檔裡只會讓人去追一個不存在的物件。
     /// </remarks>
-    public SqlObjectInfo(int objectId, string schemaName, string name, SqlObjectKind kind)
+    /// <param name="databaseName">
+    /// 這個物件所屬的資料庫；查詢視窗自己那條連線的物件為 null。
+    /// </param>
+    public SqlObjectInfo(
+        int objectId,
+        string schemaName,
+        string name,
+        SqlObjectKind kind,
+        string? databaseName = null)
     {
         if (schemaName is null)
         {
@@ -34,9 +42,29 @@ public sealed class SqlObjectInfo
         SchemaName = schemaName;
         Name = name;
         Kind = kind;
+        DatabaseName = databaseName;
     }
 
+    /// <summary>
+    /// <c>object_id</c>。
+    /// </summary>
+    /// <remarks>
+    /// 只在<b>它自己那個資料庫裡</b>唯一。跨資料庫時兩個不同的物件拿到同一個
+    /// 編號是常態，所以任何以這個編號查快取的地方都要先換到
+    /// <see cref="DatabaseName"/> 那一份目錄——不換的症狀是拿到另一個資料庫裡
+    /// 剛好同號的那個物件的欄位。
+    /// </remarks>
     public int ObjectId { get; }
+
+    /// <summary>
+    /// 這個物件所屬的資料庫；查詢視窗自己那條連線的物件為 null。
+    /// </summary>
+    /// <remarks>
+    /// 帶在物件身上而不是由呼叫端一路傳下去：滑鼠停留提示、結構預覽、F12、
+    /// 提交後展開都會拿著一個 <see cref="SqlObjectInfo"/> 回頭要第二、三、四層，
+    /// 每一條都自己記住「這是從哪個資料庫來的」就是五份會各自忘記更新的狀態。
+    /// </remarks>
+    public string? DatabaseName { get; }
 
     public string SchemaName { get; }
 

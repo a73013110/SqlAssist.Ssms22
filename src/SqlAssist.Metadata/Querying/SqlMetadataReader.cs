@@ -15,7 +15,11 @@ namespace SqlAssist.Metadata.Querying;
 /// </remarks>
 public static class SqlMetadataReader
 {
-    public static SqlObjectInfo ReadObject(IDataRecord record)
+    /// <param name="databaseName">
+    /// 這一批物件所屬的資料庫；查詢視窗自己那條連線的傳 null。
+    /// <c>object_id</c> 只在單一資料庫裡唯一，跨資料庫查快取一定要先換目錄。
+    /// </param>
+    public static SqlObjectInfo ReadObject(IDataRecord record, string? databaseName = null)
     {
         if (record is null)
         {
@@ -26,7 +30,8 @@ public static class SqlMetadataReader
             record.GetInt32(0),
             record.GetString(1),
             record.GetString(2),
-            SqlObjectKinds.FromSysObjectType(record.GetString(3)));
+            SqlObjectKinds.FromSysObjectType(record.GetString(3)),
+            databaseName);
     }
 
     public static SqlColumnInfo ReadColumn(IDataRecord record)

@@ -54,7 +54,9 @@ internal static class SqlObjectLocator
             return null;
         }
 
-        var snapshot = await metadataService.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var snapshot = await metadataService
+            .GetSnapshotAsync(reference.Path, cancellationToken)
+            .ConfigureAwait(false);
 
         if (snapshot is null || ResolveCandidate(snapshot, text, position, reference) is not { } candidate)
         {
@@ -92,7 +94,7 @@ internal static class SqlObjectLocator
             return null;
         }
 
-        var snapshot = metadataService.PeekSnapshot();
+        var snapshot = metadataService.PeekSnapshot(reference.Path);
 
         if (snapshot is null || ResolveCandidate(snapshot, text, position, reference) is not { } candidate)
         {
@@ -154,7 +156,10 @@ internal static class SqlObjectLocator
     {
         owner = null!;
 
+        // 多段的限定字不可能是別名：別名只有一段。多段時拿最右邊那一段去比對別名，
+        // 剛好取名叫 dbo 的別名會讓 F12 跳到它指的那張表。
         if (reference.Qualifier is null ||
+            reference.Path is not { IsLocal: true } ||
             !scope.TryResolve(reference.Qualifier, out var table) ||
             table.IsDerived)
         {
@@ -211,6 +216,12 @@ internal static class SqlObjectLocator
             scope.TryResolve(reference.Name, out var aliased) &&
             !aliased.IsDerived)
         {
+            // 別名可能指向另一個資料庫的表，那時這一份快照回答不了它。
+            if (aliased.Path is { IsLocal: false })
+            {
+                return Array.Empty<SqlObjectInfo>();
+            }
+
             var byAlias = snapshot.Find(aliased.ObjectName, aliased.SchemaName);
 
             if (byAlias.Count > 0)
@@ -221,8 +232,10 @@ internal static class SqlObjectLocator
 
         var matches = snapshot.Find(reference.Name, reference.Qualifier);
 
-        // 限定詞可能是別的資料庫或找不到的結構描述，退回只用名稱比對。
-        return matches.Count == 0 && reference.Qualifier is not null
+        // 限定詞找不到時退回只用名稱比對——但只限這個名稱本來就指著這份快照的時候。
+        // 跨資料庫的名稱這樣退的話，會跳到目前連線裡剛好同名的那一個物件，
+        // 而畫面上完全看不出跳錯了；跨伺服器的名稱連快照都拿不到，走不到這裡。
+        return matches.Count == 0 && reference.Qualifier is not null && reference.IsLocal
             ? snapshot.Find(reference.Name)
             : matches;
     }
