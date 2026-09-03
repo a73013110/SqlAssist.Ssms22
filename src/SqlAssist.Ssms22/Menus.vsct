@@ -37,16 +37,23 @@
         裡，所以 tools\Test-CommandTable.ps1 有辦法在建置期比對，不必等使用者發現。
 
         命令直接掛在這裡，不收成子選單：它們的用法是「選幾格、按右鍵、挑一個」，
-        多一層子選單就是每一次都多一次移動與等待展開。群組本身就是殼層畫分隔線的
-        單位，所以掛成獨立的一組之後，上下各有一條線把它與 SSMS 自己的項目隔開，
-        第一項的標頭再說明這一段是誰加的。
+        多一層子選單就是每一次都多一次移動與等待展開。
+
+        群組是殼層畫分隔線的單位，所以分成三組就是三段。分法照的是「按下去之後
+        東西跑到哪裡」，不是功能相不相像：第一組進剪貼簿，接下來要按的是 Ctrl+V；
+        第二組開一個新的視窗，畫面會換掉。混在一起的話，使用者要一項一項讀完
+        才知道哪一個會把手上的畫面換掉。
       -->
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0800">
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" priority="0x0800">
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
       </Group>
 
-      <!-- 診斷另外一組，才會被分隔線隔開；它平常不出現。 -->
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0810">
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0810">
+        <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
+      </Group>
+
+      <!-- 診斷第三組。它只在「詳細記錄」打開時出現，那時候才會多一條分隔線。 -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0820">
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
       </Group>
     </Groups>
@@ -112,41 +119,36 @@
         <Strings><ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText></Strings>
       </Button>
 
-      <!--
-        永遠停用的標頭，只為了說明底下這一段是誰加的。分隔線畫得出「這是一組」，
-        畫不出「這一組是 SqlAssist」，而右鍵選單上其餘十幾項都是 SSMS 自己的。
-        另一個選擇是每一項都加「SqlAssist：」前綴，那是五行重複的雜訊換同一件事。
-        停用而不是隱藏：它不是命令，按下去不該有任何事發生。
-      -->
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridHeader" priority="0x0050" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
-        <CommandFlag>DefaultDisabled</CommandFlag>
-        <Strings><ButtonText>SqlAssist</ButtonText></Strings>
-      </Button>
-
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
-        <Strings><ButtonText>建立 #temp 指令碼（新查詢視窗）</ButtonText></Strings>
-      </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0200" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+      <!-- 第一組：產出進剪貼簿，接下來要按的是 Ctrl+V。 -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Strings><ButtonText>複製成 IN 條件</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridMarkdown" priority="0x0250" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridMarkdown" priority="0x0200" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Strings><ButtonText>複製成 Markdown 表格</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0260" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0300" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Strings><ButtonText>複製成 JSON</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0300" type="Button">
+
+      <!--
+        第二組：會開一個新的視窗，畫面跟著換掉。三項都帶刪節號，
+        那是殼層一貫的「按下去還有下一個畫面」記號，與上面那一組的差別
+        在選單上看得出來。
+      -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Strings><ButtonText>建立 #temp 指令碼（新視窗）…</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Strings><ButtonText>欄位剖析…</ButtonText></Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0400" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
-        <Strings><ButtonText>檢視這一格的完整內容…</ButtonText></Strings>
+        <Strings><ButtonText>檢視這一格完整內容…</ButtonText></Strings>
       </Button>
 
       <!--
@@ -156,7 +158,7 @@
       -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidProbeResultGrid" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" />
-        <Strings><ButtonText>探測這個結果格線（診斷）</ButtonText></Strings>
+        <Strings><ButtonText>結果診斷資訊…</ButtonText></Strings>
       </Button>
     </Buttons>
   </Commands>
@@ -213,9 +215,10 @@
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
       <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
+      <IDSymbol name="SqlAssistResultGridCopyGroup" value="0x1610" />
       <IDSymbol name="SqlAssistResultGridActionsGroup" value="0x1620" />
       <IDSymbol name="SqlAssistResultGridDiagnosticsGroup" value="0x1630" />
-      <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207 是已移除的命令，不回收。 -->
+      <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207、0x0306 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
       <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
@@ -231,7 +234,6 @@
       <IDSymbol name="cmdidResultGridProfile" value="0x0303" />
       <IDSymbol name="cmdidResultGridCell" value="0x0304" />
       <IDSymbol name="cmdidResultGridMarkdown" value="0x0305" />
-      <IDSymbol name="cmdidResultGridHeader" value="0x0306" />
       <IDSymbol name="cmdidResultGridJson" value="0x0307" />
     </GuidSymbol>
 
