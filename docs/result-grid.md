@@ -18,6 +18,7 @@
 | 建立 #temp 指令碼 | `DROP` 守門 ＋ `CREATE TABLE #SqlAssistRows` ＋ `INSERT` ＋ `SELECT` | 新查詢視窗（沿用同一個連線） |
 | 複製成 IN 條件 | 一段接得上 `WHERE` 的述詞 | 剪貼簿 |
 | 複製成 Markdown 表格 | 對齊過的 Markdown 表格 | 剪貼簿 |
+| 複製成 JSON | 一列一個物件的 JSON 陣列 | 剪貼簿 |
 | 欄位剖析 | 每一欄的 `NULL`／空字串／相異值數與範圍 | 一個可以複製成 TSV 的視窗 |
 | 檢視這一格的完整內容 | 那一格的原文，加上型別與大小 | 一個可以選、可以捲的視窗 |
 | 探測這個結果格線 | 格線內部狀態的報告 | 診斷紀錄檔（只在「詳細記錄」開啟時出現） |
@@ -58,6 +59,28 @@ Markdown 例外，因為內建那條路有一個補得起來的落差：它一�
 真正的 `NULL` 寫成斜體的 `*NULL*`，一個內容剛好是 `NULL` 的字串就是那四個字：
 兩者在渲染出來的表格上一個是斜體一個不是。豎線跳脫成 `\|`，換行換成 `<br>`——
 不處理的話，前者會切出一欄不存在的欄，後者會把一列切成兩列。
+
+## JSON 的型別對應
+
+JSON 是這一組命令裡**唯一分得出 `NULL` 的文字格式**：真正的 `NULL` 是 `null`，
+一個內容剛好是 `NULL` 這四個字的字串是 `"NULL"`，不必像 Markdown 那樣靠斜體區分。
+
+去處只有三種，而挑錯的代價各不相同：數值寫成字串之後，收下這份 JSON 的那一端
+要嘛比對失敗、要嘛自己再轉一次；字串寫成數值則會掉前導零。所以判斷一律看伺服器
+給的型別，不看值長什麼樣——與 `#temp` 那段「別從值反推型別」是同一個理由。
+
+| 來源 | JSON |
+|---|---|
+| SQL `NULL` | `null` |
+| `bit` | `true`／`false` |
+| 數值型別 | 不加引號的數值 |
+| 二進位 | `"0x..."` 字串 |
+| 其餘（文字、日期、GUID、XML） | 字串 |
+
+值走 `ResultGridCellText.Display`，與 Markdown 表格同一份，日期精確度在兩個命令裡
+才不會不一樣。也因此轉不成 T-SQL 字面值的型別在這裡**不會**整段拒絕：這一份的用途
+是讀與貼，不是拿去執行。非 ASCII 照原樣寫出去而不是 `\uXXXX`——中文值轉成六個字元
+一組之後就沒得讀了，而這份東西的去處正是工單與設定檔。
 
 ## 為什麼沒有 UPDATE／DELETE
 
@@ -185,6 +208,7 @@ SSMS 自己的「複製」給的是 TSV，而那份文字裡資料庫的 `NULL` 
 | 欄位長度與精確度怎麼補 | `Metadata/ResultGrid/SqlTempTableColumnType.cs` |
 | `IN` 條件的長相 | `Metadata/ResultGrid/SqlInPredicateScript.cs` |
 | Markdown 表格的長相 | `Metadata/ResultGrid/SqlMarkdownTableScript.cs` |
+| JSON 的長相與型別對應 | `Metadata/ResultGrid/SqlJsonArrayScript.cs` |
 | 欄位剖析算什麼 | `Metadata/ResultGrid/ResultGridProfile.cs` |
 | 儲存格內容怎麼呈現、值的顯示文字 | `Metadata/ResultGrid/ResultGridCellText.cs` |
 | 兩個視窗的長相 | `Ssms22/ResultGrid/ResultGridProfileWindow.cs`、`ResultGridCellWindow.cs`（外觀一律走 `UI/SqlAssistChrome.cs`） |

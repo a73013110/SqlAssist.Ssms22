@@ -35,12 +35,11 @@
         SSMS 改版換掉其中任何一個值的症狀，是這一段選單安靜地不出現——沒有例外、
         沒有紀錄，跟命令掛錯層是同一類。兩個常數都在公開類別 SQLWorkbenchCommands
         裡，所以 tools\Test-CommandTable.ps1 有辦法在建置期比對，不必等使用者發現。
-      -->
-      <!--
-        命令直接掛在格線的右鍵選單上，不收成子選單：這些命令的用法是「選幾格、
-        按右鍵、挑一個」，多一層子選單就是每一次都多一次移動與等待展開。
-        群組本身就是殼層畫分隔線的單位，所以掛成獨立的一組之後，上下各有一條線
-        把它與 SSMS 自己的項目隔開，第一項的標頭再說明這一段是誰加的。
+
+        命令直接掛在這裡，不收成子選單：它們的用法是「選幾格、按右鍵、挑一個」，
+        多一層子選單就是每一次都多一次移動與等待展開。群組本身就是殼層畫分隔線的
+        單位，所以掛成獨立的一組之後，上下各有一條線把它與 SSMS 自己的項目隔開，
+        第一項的標頭再說明這一段是誰加的。
       -->
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" priority="0x0800">
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
@@ -137,6 +136,10 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Strings><ButtonText>複製成 Markdown 表格</ButtonText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0260" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Strings><ButtonText>複製成 JSON</ButtonText></Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Strings><ButtonText>欄位剖析…</ButtonText></Strings>
@@ -229,6 +232,7 @@
       <IDSymbol name="cmdidResultGridCell" value="0x0304" />
       <IDSymbol name="cmdidResultGridMarkdown" value="0x0305" />
       <IDSymbol name="cmdidResultGridHeader" value="0x0306" />
+      <IDSymbol name="cmdidResultGridJson" value="0x0307" />
     </GuidSymbol>
 
     <!--

@@ -77,4 +77,7 @@ internal static class CommandIds
     /// 而且一律回報停用——回報可用卻什麼都不做，在使用者眼裡就是按鈕壞了。
     /// </remarks>
     public const int ResultGridHeader = 0x0306;
+
+    /// <summary>結果格線：把選取範圍寫成 JSON 陣列。</summary>
+    public const int ResultGridJson = 0x0307;
 }

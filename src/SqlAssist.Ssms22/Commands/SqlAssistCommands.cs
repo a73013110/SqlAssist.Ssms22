@@ -89,6 +89,11 @@ internal sealed class SqlAssistCommands
             ResultGridActions.IsAvailable);
 
         AddCommand(
+            CommandIds.ResultGridJson,
+            (_, _) => ResultGridActions.CopyJson(_package),
+            ResultGridActions.IsAvailable);
+
+        AddCommand(
             CommandIds.ResultGridProfile,
             (_, _) => ResultGridActions.ShowProfile(_package),
             ResultGridActions.IsAvailable);

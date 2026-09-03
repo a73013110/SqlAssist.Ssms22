@@ -74,6 +74,14 @@ internal static class ResultGridActions
     public static void CopyMarkdownTable(IServiceProvider serviceProvider) =>
         Copy(serviceProvider, "Markdown 表格", SqlMarkdownTableScript.Build);
 
+    /// <summary>把選取範圍寫成 JSON 陣列，複製到剪貼簿。</summary>
+    /// <remarks>
+    /// 與 Markdown 同一個落差：SSMS 自己的 JSON 匯出一律寫成檔案、一律整份結果，
+    /// 而要餵給 API 或貼進設定檔的時候，去處是剪貼簿裡的那幾列。
+    /// </remarks>
+    public static void CopyJson(IServiceProvider serviceProvider) =>
+        Copy(serviceProvider, "JSON", SqlJsonArrayScript.Build);
+
     private static void Copy(
         IServiceProvider serviceProvider,
         string what,
