@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -292,18 +293,58 @@ internal sealed class SsmsResultGrid
     {
         var names = ReadColumnNames();
         var serverType = GridReflection.BindByIndex(_storage, "GetServerDataTypeName");
+        var schemaRow = GridReflection.BindByIndex(_storage, "GetSchemaRow");
         var descriptors = new ResultGridColumn[columns.Count];
 
         for (var index = 0; index < columns.Count; index++)
         {
             var column = columns[index];
+            var schema = schemaRow?.Invoke(column) as DataRow;
 
             descriptors[index] = new ResultGridColumn(
                 column < names.Count ? names[column] : null,
-                serverType?.Invoke(column) as string);
+                serverType?.Invoke(column) as string,
+                Facet(schema, "ColumnSize"),
+                Facet(schema, "NumericPrecision"),
+                Facet(schema, "NumericScale"));
         }
 
         return descriptors;
+    }
+
+    /// <summary>
+    /// 結構描述列上的一個整數欄；沒有那一欄、值是 <c>DBNull</c> 或型別對不上時
+    /// 回傳 <c>null</c>。
+    /// </summary>
+    /// <remarks>
+    /// <c>GetServerDataTypeName</c> 只給型別名稱，不給長度——<c>varchar</c> 而不是
+    /// <c>varchar(20)</c>。長度與精確度只有這裡問得到，而少了它們產出的
+    /// <c>CREATE TABLE</c> 會安靜地把資料截短（見 <c>SqlTempTableColumnType</c>）。
+    ///
+    /// 結構描述列的 <c>NumericPrecision</c> 與 <c>NumericScale</c> 在 SqlClient 上
+    /// 是 <c>short</c>，<c>ColumnSize</c> 是 <c>int</c>，所以這裡認一整族整數而不是
+    /// 只認 <c>int</c>；用型別比對而不是 <c>Convert</c>，才不必為了一個轉不動的值
+    /// 在平台邊界上自己寫 <c>try</c>／<c>catch</c>。
+    ///
+    /// 整列問不出來不是致命的：產指令碼那一層會退到 <c>varchar(max)</c> 這種
+    /// 裝得下任何值的型別。KeyInfo 沒下、<c>IsKey</c> 與 <c>BaseTableName</c> 是空的
+    /// 都不影響這三欄，那是另一回事（見 docs/result-grid.md）。
+    /// </remarks>
+    private static int? Facet(DataRow? schema, string name)
+    {
+        if (schema is null || !schema.Table.Columns.Contains(name))
+        {
+            return null;
+        }
+
+        return schema[name] switch
+        {
+            int value => value,
+            short value => value,
+            byte value => value,
+            long value when value >= int.MinValue && value <= int.MaxValue => (int)value,
+            _ => null,
+        };
     }
 
     /// <remarks>

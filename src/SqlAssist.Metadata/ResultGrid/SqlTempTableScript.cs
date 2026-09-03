@@ -53,17 +53,19 @@ public static class SqlTempTableScript
                 "先在結果格線裡選幾格，再執行一次這個命令。");
         }
 
-        if (!TryDescribeColumns(table, out var definitions, out var typeFailure))
-        {
-            return ResultGridLiterals.Unavailable(UnavailableHeadline, typeFailure);
-        }
-
+        // 先轉字面值再描述欄位，不是相反：問不出精確度的 decimal 欄要從實際的值
+        // 反推小數位數（見 SqlTempTableColumnType），而那份值就是這裡轉出來的。
         if (!ResultGridLiterals.TryFormatAll(table, out var literals, out var valueFailure))
         {
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
                 valueFailure,
                 "把那一欄從選取範圍拿掉之後再試一次；其餘欄位都轉得出來。");
+        }
+
+        if (!TryDescribeColumns(table, literals, out var definitions, out var typeFailure))
+        {
+            return ResultGridLiterals.Unavailable(UnavailableHeadline, typeFailure);
         }
 
         var builder = new StringBuilder(ResultGridLiterals.EstimateLength(literals) + 512);
@@ -82,6 +84,7 @@ public static class SqlTempTableScript
     /// <summary>每一欄的名稱與型別；任何一欄沒有型別就整段拒絕。</summary>
     private static bool TryDescribeColumns(
         ResultGridTable table,
+        string[][] literals,
         out (string Name, string Type)[] definitions,
         out string failure)
     {
@@ -91,7 +94,9 @@ public static class SqlTempTableScript
 
         for (var index = 0; index < table.Columns.Count; index++)
         {
-            var type = table.Columns[index].TempTableType();
+            var type = SqlTempTableColumnType.For(
+                table.Columns[index],
+                ColumnLiterals(literals, index));
 
             if (type.Length == 0)
             {
@@ -108,6 +113,19 @@ public static class SqlTempTableScript
         }
 
         return true;
+    }
+
+    /// <summary>把一欄的字面值從列優先的陣列裡挑出來。</summary>
+    private static string[] ColumnLiterals(string[][] literals, int index)
+    {
+        var column = new string[literals.Length];
+
+        for (var row = 0; row < literals.Length; row++)
+        {
+            column[row] = index < literals[row].Length ? literals[row][index] : string.Empty;
+        }
+
+        return column;
     }
 
     /// <remarks>

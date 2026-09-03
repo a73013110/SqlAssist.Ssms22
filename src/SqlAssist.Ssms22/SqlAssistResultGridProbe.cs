@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Reflection;
@@ -427,8 +428,36 @@ internal static class SqlAssistResultGridProbe
                 + " Formatted=" + Describe(() => Invoke(storage, "GetFormattedDataTypeName", index))
                 + " XML=" + Describe(() => Invoke(storage, "IsXMLColumn", index))
                 + " JSON=" + Describe(() => Invoke(storage, "IsJsonColumn", index))
-                + " 有 SchemaRow=" + Describe(() => Invoke(storage, "GetSchemaRow", index) is not null));
+                + " 有 SchemaRow=" + Describe(() => Invoke(storage, "GetSchemaRow", index) is not null)
+                + " " + Describe(() => Facets(Invoke(storage, "GetSchemaRow", index))));
         }
+    }
+
+    /// <summary>
+    /// 結構描述列上的長度與精確度。
+    /// </summary>
+    /// <remarks>
+    /// 這三個值只有結構描述列問得到，而 <c>GetServerDataTypeName</c> 給的型別名稱
+    /// 不帶括號。少了它們，<c>CREATE TABLE</c> 會寫成 <c>varchar</c>（也就是
+    /// <c>varchar(1)</c>）而把資料截斷。所以 SSMS 換版之後這一組功能開始截斷資料時，
+    /// 要先在這裡看出「結構描述列還在不在、欄位還叫不叫這些名字」。
+    /// </remarks>
+    private static string Facets(object? schemaRow)
+    {
+        if (schemaRow is not DataRow row)
+        {
+            return "長度=（沒有 SchemaRow）";
+        }
+
+        var text = new StringBuilder();
+
+        foreach (var name in new[] { "ColumnSize", "NumericPrecision", "NumericScale" })
+        {
+            text.Append(text.Length == 0 ? string.Empty : " ").Append(name).Append('=')
+                .Append(row.Table.Columns.Contains(name) ? row[name]?.ToString() ?? "null" : "（沒有這一欄）");
+        }
+
+        return text.ToString();
     }
 
     /// <summary>
