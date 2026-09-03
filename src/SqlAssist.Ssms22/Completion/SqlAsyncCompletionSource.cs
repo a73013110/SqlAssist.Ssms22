@@ -124,7 +124,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
 
         if (context.Target == CompletionTarget.Any &&
-            context.Qualifier is null &&
+            context.QualifierPath is null &&
             context.Prefix.Length < settings.TriggerAfterCharacters)
         {
             return CompletionStartData.DoesNotParticipateInCompletion;

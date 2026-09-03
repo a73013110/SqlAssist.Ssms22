@@ -70,9 +70,11 @@ public static class SqlCompletionTriggers
             return false;
         }
 
-        return context.Qualifier is null
+        // 限定字有路徑卻沒有最右邊那一段，是 LibArchive.. 這種省略結構描述的寫法。
+        // 那一樣要重開清單：使用者剛打完的第二個點號正是「換一個資料庫」的意思。
+        return context.QualifierPath is null
             ? context.Target != CompletionTarget.Any
-            : IsIdentifierLike(context.Qualifier);
+            : context.Qualifier is null || IsIdentifierLike(context.Qualifier);
     }
 
     /// <summary>
