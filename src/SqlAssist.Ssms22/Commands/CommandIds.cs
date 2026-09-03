@@ -5,7 +5,7 @@ namespace SqlAssist.Ssms22.Commands;
 /// <remarks>
 /// 這些數值是使用者自訂鍵盤快速鍵的定址方式，不要為了整齊而重新編號——
 /// 換掉一個 ID 等於安靜地解除他綁在上面的快速鍵。
-/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205、0x0207）刻意不回收。
+/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205、0x0207、0x0306）刻意不回收。
 ///
 /// 同一組數值也寫在 <c>Menus.vsct</c> 的 IDSymbol 與 <c>SqlAssist.registration.json</c>
 /// 的按鈕（十進位）裡。三者分歧不會編譯失敗，按鈕就只是按不到，
@@ -67,16 +67,6 @@ internal static class CommandIds
 
     /// <summary>結果格線：把選取範圍寫成 Markdown 表格。</summary>
     public const int ResultGridMarkdown = 0x0305;
-
-    /// <summary>
-    /// 結果格線右鍵選單上那一段的標頭，永遠停用。
-    /// </summary>
-    /// <remarks>
-    /// 命令攤平到 SSMS 自己的右鍵選單之後，分隔線畫得出「這是一組」，
-    /// 畫不出「這一組是誰加的」。它是一個標籤不是命令，所以沒有處理常式，
-    /// 而且一律回報停用——回報可用卻什麼都不做，在使用者眼裡就是按鈕壞了。
-    /// </remarks>
-    public const int ResultGridHeader = 0x0306;
 
     /// <summary>結果格線：把選取範圍寫成 JSON 陣列。</summary>
     public const int ResultGridJson = 0x0307;
