@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
@@ -42,6 +43,18 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// 排名器是所有編輯器共用的<b>一個</b>實例，存不了任何一個 session 的狀態。
     /// </remarks>
     internal const string FieldDefaultKey = "SqlAssist.SnippetFieldDefault";
+
+    /// <summary>中繼資料認出的限定字最左邊那一段落在哪一格。</summary>
+    /// <remarks>
+    /// 只看文字時 <c>dbo.</c>、<c>LibArchive.</c> 與 <c>LibMirror.</c> 是同一個形狀，
+    /// 認出來要問這條連線上的三份名單，而提交在按鍵路徑上，不能再問一次。
+    /// 因此把答案掛在 session 上帶到提交那一端，由
+    /// <see cref="SqlObjectPath.TryRealign"/> 照同一個方法挪回去。
+    ///
+    /// 記在 session 而不是每一個 <see cref="CompletionItem"/> 上：同一次清單裡
+    /// 每一項的限定字都是同一串，掛幾百份是同一個答案。
+    /// </remarks>
+    internal const string QualifierSlotKey = "SqlAssist.QualifierSlot";
 
     /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
     private static SqlSnippetLibrary? _builtInSnippets;
@@ -189,6 +202,14 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             context = await _metadataService
                 .ResolveQualifierAsync(context, token)
                 .ConfigureAwait(false);
+        }
+
+        // 提交那一端的上下文是從文字重新分析的，認不出「LibArchive. 其實是資料庫」
+        // ——那是中繼資料的答案，而提交在按鍵路徑上，不能再問一次。整條路上只認
+        // 這一次，答案帶著走。
+        if (context.QualifierPath is { } resolvedQualifier)
+        {
+            session.Properties[QualifierSlotKey] = resolvedQualifier.LeftmostSlot;
         }
 
         // 排名器讀這一份判斷「整格還不是使用者打的字」。它自己比對當下的文字，

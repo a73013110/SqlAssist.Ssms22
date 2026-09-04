@@ -359,8 +359,9 @@ internal sealed class SqlFunctionCallExpansion : ISqlCommitExpansion
     private readonly string _insertedName;
 
     /// <param name="insertedName">
-    /// 提交時寫進緩衝區的名稱。等待期間的原文比對要用它，
-    /// 見 <see cref="LeadingKeyword"/>。
+    /// 提交之後緩衝區裡站著的那個完整名稱，含使用者自己打的限定字。
+    /// 等待期間的原文比對要用它，見 <see cref="LeadingKeyword"/>——
+    /// 要被換掉的範圍同樣從限定字起算，兩邊指的必須是同一段。
     /// </param>
     public SqlFunctionCallExpansion(SqlObjectInfo objectInfo, string insertedName)
     {

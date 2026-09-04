@@ -90,12 +90,16 @@ internal enum SqlCommitExpansionScope
     Statement,
 
     /// <summary>
-    /// 只有剛插入的那個名稱。
+    /// 只有剛提交的那個名稱，從使用者自己打的限定字起算。
     /// </summary>
     /// <remarks>
     /// 函式的引數清單接在名稱後面，前面是什麼子句都不影響它——<c>SELECT</c>、
     /// <c>WHERE</c>、<c>FROM</c>、<c>CROSS APPLY</c> 都可能，而其中大部分位置
     /// 根本沒有「決定目標的關鍵字」可以當起點（<c>TargetKeywordStart</c> 是 -1）。
+    ///
+    /// 從限定字起算而不是從插入點起算：<c>LibArchive.dbo.fn_DueDate</c> 裡使用者
+    /// 自己打的是前面那一段，而寫回去的是整個名稱加引數。兩邊不一致的話，
+    /// 等待期間的原文比對會拿整個名稱去比對只有後半段的範圍，括號一次都補不上。
     /// </remarks>
     InsertedName
 }
@@ -139,7 +143,12 @@ internal interface ISqlCommitExpansion
     /// </remarks>
     string LeadingKeyword { get; }
 
-    /// <param name="insertedName">提交時已經寫進緩衝區的物件名稱，含結構描述與方括號。</param>
+    /// <param name="insertedName">
+    /// 提交之後緩衝區裡站著的那個完整名稱：使用者自己打的限定字
+    /// （<c>LibArchive.</c>）加上這次寫進去的插入文字，含結構描述與方括號。
+    /// 只取插入的那一段會把跨資料庫那幾段寫丟——重組出來的整句仍然合法，
+    /// 指的卻是目前連線裡同名的那個物件。
+    /// </param>
     /// <returns>要寫回去的內容；null 代表這一次不展開，維持只插入名稱。</returns>
     TextReplacement? Build(SqlObjectDetail detail, SqlStatementSite site, string insertedName);
 }
@@ -179,7 +188,8 @@ internal sealed class SqlCommitExpander
     /// 而不是再多一個意圖。
     /// </remarks>
     /// <param name="insertedName">
-    /// 這次提交寫進緩衝區的名稱，含結構描述與方括號；等待期間的原文比對要用它。
+    /// 提交之後緩衝區裡站著的那個完整名稱，含使用者自己打的限定字、結構描述
+    /// 與方括號；等待期間的原文比對要用它。
     /// </param>
     public static ISqlCommitExpansion? Resolve(
         SqlSuggestion selected,
@@ -226,7 +236,19 @@ internal sealed class SqlCommitExpander
 
         switch (context.Intent)
         {
+            // ALTER 沒有跨資料庫這回事：T-SQL 只改得動目前這個資料庫裡的模組，
+            // 而展開放進去的是對面那個資料庫的定義。它的標頭是兩段式的
+            // ALTER PROCEDURE [dbo].[usp_Renew]，蓋掉的範圍卻從 ALTER 起算——
+            // 使用者打的 LibArchive. 連同整句一起被換掉，剩下一句語法完全正確、
+            // 執行起來卻改到「目前連線」裡同名的那個模組。維持只插入名稱。
             case CompletionIntent.AlterDefinition:
+                if (context.QualifierPath is { IsLocal: false })
+                {
+                    SqlAssistDiagnostics.Write(
+                        $"{objectInfo.QualifiedName} 不在目前這個資料庫裡，ALTER 不展開定義");
+                    return null;
+                }
+
                 return canReplaceStatement &&
                        settings.ExpandAlterDefinition &&
                        objectInfo.Kind.IsModule()
