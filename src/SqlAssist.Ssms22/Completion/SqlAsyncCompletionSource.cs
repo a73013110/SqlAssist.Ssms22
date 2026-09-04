@@ -179,6 +179,18 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         var settings = SqlAssistSettingsStore.Current;
         var context = Analyze(triggerLocation, applicableToSpan);
 
+        // 限定字最左邊那一段是結構描述、資料庫還是連結伺服器，只看文字分不出來。
+        // 在問清單之前就換成對齊過的上下文，後面的候選來源、過濾與插入文字才會
+        // 讀到同一個答案；各自再判一次的話，症狀是清單列得出來、Tab 下去少一段。
+        //
+        // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，這裡跟著不問。
+        if (settings.IncludeDatabaseObjects)
+        {
+            context = await _metadataService
+                .ResolveQualifierAsync(context, token)
+                .ConfigureAwait(false);
+        }
+
         // 排名器讀這一份判斷「整格還不是使用者打的字」。它自己比對當下的文字，
         // 因此使用者一打字就自動失效，不必在這裡跟著更新。
         if (_fieldSpan == applicableToSpan.Span && _fieldDefault.Length > 0)
