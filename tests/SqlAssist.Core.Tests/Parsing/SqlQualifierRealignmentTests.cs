@@ -130,6 +130,32 @@ public sealed class SqlQualifierRealignmentTests
         Assert.Equal("dbo", Qualifier("dbo").LeftmostQualifier);
     }
 
+    /// <summary>
+    /// 認過一次的答案要挪得回同一條路徑。
+    /// </summary>
+    /// <remarks>
+    /// 提交那一端的上下文是從文字重新分析的，而中繼資料只在建立清單時認一次
+    /// （認一次要送查詢，提交在按鍵路徑上）。答案就是最左邊那一段落在哪一格，
+    /// 帶著它照同一個方法挪回去，兩端讀到的才是同一條路徑——挪不回去的症狀是
+    /// 清單列得出來、Tab 下去卻少一段。
+    /// </remarks>
+    [Theory]
+    [InlineData(new[] { "LibArchive" }, SqlQualifierSlot.Database)]
+    [InlineData(new[] { "LibMirror" }, SqlQualifierSlot.Server)]
+    [InlineData(new[] { "LibMirror", "LibArchive" }, SqlQualifierSlot.Server)]
+    [InlineData(new[] { "LibArchive", "" }, SqlQualifierSlot.Database)]
+    [InlineData(new[] { "dbo" }, SqlQualifierSlot.Schema)]
+    public void 帶著最左邊那一格就挪得回同一條路徑(string[] parts, SqlQualifierSlot leftmost)
+    {
+        Assert.True(Qualifier(parts).TryRealign(leftmost, out var resolved));
+
+        // 建立清單時記下的就是這一格，提交時拿它再挪一次剛解析出來的同一串限定字。
+        Assert.Equal(leftmost, resolved.LeftmostSlot);
+        Assert.True(Qualifier(parts).TryRealign(resolved.LeftmostSlot, out var again));
+        Assert.Equal(resolved.ToString(), again.ToString());
+        Assert.Equal(resolved.QualifierEnd, again.QualifierEnd);
+    }
+
     /// <remarks>
     /// 完整名稱沒有「還沒打完的那一格」，重新對齊對它沒有意義：
     /// <c>LibArchive.dbo.Loan</c> 的每一段都已經被使用者寫死了。

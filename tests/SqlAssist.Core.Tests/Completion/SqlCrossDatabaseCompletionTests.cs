@@ -151,6 +151,58 @@ public sealed class SqlCrossDatabaseCompletionTests
         Assert.Equal(new[] { "Loan" }, names);
     }
 
+    /// <summary>
+    /// 限定字的起點要指得回原文。
+    /// </summary>
+    /// <remarks>
+    /// 提交之後要把整句換掉的那幾種展開蓋掉的範圍從關鍵字起算，而使用者自己打的
+    /// 限定字就落在關鍵字與剛插入的名稱之間。少了這個位置，換回去的只有
+    /// 「關鍵字加插入的名稱」：<c>INSERT INTO LibArchive.dbo.Loan</c> 會被寫成
+    /// <c>INSERT INTO dbo.Loan</c>——語法完全正確，插進去的卻是目前連線裡同名的
+    /// 那一張表，而畫面上看不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("INSERT INTO LibArchive.dbo.|", "LibArchive.dbo.")]
+    [InlineData("SELECT * FROM LibArchive..|", "LibArchive..")]
+    [InlineData("SELECT * FROM dbo.|", "dbo.")]
+    [InlineData("SELECT TOP 100 * FROM [192.0.2.10].[LibArchive].[dbo].|", "[192.0.2.10].[LibArchive].[dbo].")]
+    public void 限定字的起點指得回原文(string sqlWithCaret, string expected)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.NotNull(context.QualifierPath);
+        Assert.Equal(
+            expected,
+            input.Text.Substring(context.QualifierStart, context.TokenStart - context.QualifierStart));
+    }
+
+    /// <remarks>
+    /// 沒有限定字時要說「沒有」，不是說 0——說 0 的話，提交會把整句從行首
+    /// 抄一段進來當成名稱的一部分。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM |")]
+    [InlineData("SELECT * FROM Lo|")]
+    [InlineData("SELECT * FROM a.b.c.d.|")]
+    public void 沒有限定字時沒有起點(string sqlWithCaret)
+    {
+        Assert.Equal(-1, Analyze(sqlWithCaret).QualifierStart);
+    }
+
+    /// <remarks>
+    /// 段與段之間允許有空白（<c>LibArchive . dbo .</c> 是合法的 T-SQL）。
+    /// 起點連空白一起算進去的話，整句展開會把那幾個空白也搬進重組出來的名稱裡。
+    /// </remarks>
+    [Fact]
+    public void 限定字前後的空白不算進起點()
+    {
+        var input = SqlWithCaret.Parse("INSERT INTO   LibArchive . dbo .|");
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.Equal("LibArchive . dbo .", input.Text.Substring(context.QualifierStart).TrimEnd());
+    }
+
     /// <remarks>
     /// 打完第二個點號正是「換一個資料庫」的意思，清單要跟著重開。
     /// </remarks>

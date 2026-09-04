@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -148,9 +149,9 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }
 
-        // 只看游標前文就夠：提交要的是限定字（決定要不要補結構描述）與語句的
-        // 關鍵字起點，兩者都在游標之前。欄位的插入文字在建立建議時就定案了，
-        // 這裡不必再解析一次別名。
+        // 只看游標前文就夠：提交要的是限定字（決定展開成什麼）、限定字的起點與
+        // 語句關鍵字的起點，三者都在游標之前。插入文字在建立建議時就定案了，
+        // 這裡不必再算一次，也不必再解析一次別名。
         //
         // 在原生 Snippet 欄位裡則要截到這一格的起點：格子裡是樣板填的
         // dbo.TargetTable，把它算進來的話 dbo 會被當成限定字，插進去的名稱就少了
@@ -161,6 +162,20 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             snapshot.GetText(
                 0,
                 SqlSnippetExpansionController.ResolveAnalysisEnd(fieldSpan, span.End.Position)));
+
+        // 重新分析出來的限定字一律是右對齊的原判（最右邊那一段當成結構描述）。
+        // 「LibArchive. 其實是資料庫」是中繼資料認出來的，答案在建立清單時就存進
+        // session 了；這裡照同一個方法挪回去，提交這一端讀到的才與清單同一份。
+        // 不挪的症狀是 IsLocal 說謊：跨資料庫的名稱在這裡看起來像本地的，
+        // 而不能跨資料庫的展開（ALTER）會照本地的規則展下去。
+        if (session.Properties.TryGetProperty<SqlQualifierSlot>(
+                SqlAsyncCompletionSource.QualifierSlotKey,
+                out var leftmostSlot) &&
+            context.QualifierPath is { } qualifier &&
+            qualifier.TryRealign(leftmostSlot, out var realigned))
+        {
+            context = context.WithQualifierPath(realigned);
+        }
 
         // Tab 在欄位裡有兩件事要做：提交這一格，然後走到下一格。平台的 Tab 只做
         // 得了第一件，所以第二件排在這一輪命令之後自己做——不靠
@@ -199,17 +214,34 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
         }
 
-        // 插入文字要在問展開之前算好：函式的引數補在這個名稱後面，而等它回來時
-        // 唯一能確認「要接括號的還是同一個名稱」的依據就是這串字。
-        // 這一步只是組字串，而且提交路徑上一次按鍵只走一遍，不在按鍵路徑上。
-        var insertionText = snippetText ?? SqlInsertionText.Build(suggestion, context, settings);
+        // 插入文字只有一份：建立這筆建議時就算好，交還給平台時它照著寫進去
+        // （CompletionItem.InsertText），自己接手時也用同一串。
+        //
+        // 曾經在這裡照重新分析的上下文再算一次。那不對，而且只在跨資料庫時看得出來：
+        // 「LibArchive. 其實是資料庫而不是結構描述」是中繼資料認出來的，整條路上
+        // 只認一次，記在建立清單時的那個上下文裡（SqlMetadataService
+        // .ResolveQualifierAsync）。這裡的上下文重新分析自文字，不可能知道那件事，
+        // 於是同一筆建議交還給平台時寫出 LibArchive.dbo.SetPassWd，換成這裡接手
+        // （函式引數、EXEC 骨架、補右括號、接續建議）卻寫出 LibArchive.SetPassWd
+        // ——那會被讀成「結構描述 LibArchive」，執行起來是「找不到資料行」。
+        var insertionText = snippetText ?? item.InsertText;
         var insertionStart = span.Start.Position;
+
+        // 展開拿到的是緩衝區裡站著的那個「完整名稱」，不是只有剛插進去的那一段。
+        // 使用者自己打的限定字就在它前面，而整句展開蓋掉的範圍從關鍵字起算，
+        // 連那一段一起蓋掉：少了它，INSERT INTO LibArchive.dbo.Loan 會被換成
+        // INSERT INTO dbo.Loan——語法完全正確，插進去的卻是目前連線裡同名的
+        // 那一張表，而畫面上看不出來。
+        var nameStart = context.QualifierStart >= 0 && context.QualifierStart <= insertionStart
+            ? context.QualifierStart
+            : insertionStart;
+        var writtenName = snapshot.GetText(nameStart, insertionStart - nameStart) + insertionText;
         var expansion = SqlCommitExpander.Resolve(
             suggestion,
             context,
             span.End,
             settings,
-            insertionText);
+            writtenName);
 
         // 內建函式與帶參數的型別，插入文字自己帶著左括號（GETDATE(、varchar(），
         // 而平台只會照著寫進去——提交完停在編輯器裡的是一句語法錯誤。右括號併進
@@ -285,18 +317,23 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             // 結果算：取代的起點不會位移，終點就是插入文字的結尾。
             //
             // 起點有兩個答案，由展開自己說：整句展開從決定目標的關鍵字起算，
-            // 函式的引數則只蓋掉剛插入的名稱——後者大多沒有關鍵字可以起算
+            // 函式的引數則只蓋掉剛提交的那個名稱——後者大多沒有關鍵字可以起算
             // （SELECT dbo.fn_… 的 TargetKeywordStart 是 -1）。
+            //
+            // 「那個名稱」從限定字起算而不是從插入點起算，範圍才與 writtenName
+            // 對得起來：SELECT LibArchive.dbo.fn_DueDate 的引數要接在整個名稱後面，
+            // 從插入點起算的話，比對原文的那一關會拿 LibArchive.dbo.fn_DueDate
+            // 去比對只有 dbo.fn_DueDate 的範圍，於是括號一次都補不上。
             var statementSpan = SqlCommitExpander.CreateStatementSpan(
                 applied,
                 expansion.Scope == SqlCommitExpansionScope.Statement
                     ? context.TargetKeywordStart
-                    : insertionStart,
+                    : nameStart,
                 insertionStart + insertionText.Length);
 
             // 展開是另一次獨立的編輯，因此按一次復原就退回「只插入名稱」的狀態——
             // 想要 INSERT INTO t SELECT … 或照順序傳值的 EXEC 時走的就是那條路。
-            _commitExpander.Begin(expansion, statementSpan, insertionText);
+            _commitExpander.Begin(expansion, statementSpan, writtenName);
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }
 

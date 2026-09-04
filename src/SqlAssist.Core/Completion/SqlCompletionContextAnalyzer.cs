@@ -56,7 +56,10 @@ public static class SqlCompletionContextAnalyzer
         var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var prefix = textBeforeCaret.Substring(tokenStart);
         var beforeToken = textBeforeToken.TrimEnd();
-        var qualifierPath = ExtractQualifierPath(beforeToken, out var beforeQualifier);
+        var qualifierPath = ExtractQualifierPath(
+            beforeToken,
+            out var beforeQualifier,
+            out var qualifierStart);
 
         // 引數與提示的封閉清單同樣排在「這裡不接受任何關鍵字」之前：
         // 那幾個位置除了清單上的字沒有別的東西是對的。
@@ -77,7 +80,8 @@ public static class SqlCompletionContextAnalyzer
                 tokenStart,
                 prefix,
                 CompletionTarget.DataType,
-                qualifierPath);
+                qualifierPath,
+                qualifierStart: qualifierStart);
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
@@ -107,7 +111,8 @@ public static class SqlCompletionContextAnalyzer
                 tokens[ddlOn].Start,
                 CompletionIntent.Reference,
                 columnSources: null,
-                keywordPosition);
+                keywordPosition,
+                qualifierStart: qualifierStart);
         }
 
         var target = DetermineTarget(
@@ -125,7 +130,8 @@ public static class SqlCompletionContextAnalyzer
             targetKeywordStart,
             intent,
             columnSources: null,
-            keywordPosition);
+            keywordPosition,
+            qualifierStart: qualifierStart);
     }
 
     /// <summary>
@@ -481,6 +487,10 @@ public static class SqlCompletionContextAnalyzer
     /// 整串限定字<b>之前</b>的文字，供 <see cref="DetermineTarget"/> 判斷位置。
     /// 沒有限定字或限定字不合法時等於原文。
     /// </param>
+    /// <param name="qualifierStart">
+    /// 整串限定字在原文中的起點；沒有限定字或限定字不合法時為 -1。
+    /// 用途見 <see cref="SqlCompletionContext.QualifierStart"/>。
+    /// </param>
     /// <remarks>
     /// 一路往左剝，不是只剝一段：<c>LibArchive.dbo.</c> 與 <c>dbo.</c> 在文字上只差
     /// 一段，要的東西卻在不同的資料庫裡。只剝一段有兩個症狀，而兩個都沒有徵兆——
@@ -490,9 +500,13 @@ public static class SqlCompletionContextAnalyzer
     /// 超過上限就整個不認。取最右邊三段的話，使用者打錯的一串名稱會安靜地
     /// 變成一個查得到的東西。
     /// </remarks>
-    private static SqlObjectPath? ExtractQualifierPath(string text, out string beforeQualifier)
+    private static SqlObjectPath? ExtractQualifierPath(
+        string text,
+        out string beforeQualifier,
+        out int qualifierStart)
     {
         beforeQualifier = text;
+        qualifierStart = -1;
 
         if (!text.EndsWith(".", StringComparison.Ordinal))
         {
@@ -526,9 +540,9 @@ public static class SqlCompletionContextAnalyzer
 
             // 空段是 LibArchive.. 這種省略結構描述的寫法。每一圈至少吃掉一個點號，
             // 所以空段不會讓迴圈停不下來。
-            var qualifierStart = FindPreviousTokenStart(beforeDot, beforeDot.Length);
-            parts.Insert(0, beforeDot.Substring(qualifierStart));
-            remaining = beforeDot.Substring(0, qualifierStart).TrimEnd();
+            var segmentStart = FindPreviousTokenStart(beforeDot, beforeDot.Length);
+            parts.Insert(0, beforeDot.Substring(segmentStart));
+            remaining = beforeDot.Substring(0, segmentStart).TrimEnd();
         }
 
         if (!SqlObjectPath.TryParseQualifier(parts, out var path))
@@ -537,6 +551,18 @@ public static class SqlCompletionContextAnalyzer
         }
 
         beforeQualifier = remaining;
+
+        // 剝到最後剩下的那一段是限定字之前的文字，而每一圈都 TrimEnd 過，
+        // 所以限定字真正的起點是它後面第一個非空白字元——中間允許有空白
+        // （LibArchive . dbo . 是合法的 T-SQL），連空白一起算進去的話，
+        // 整句展開會把使用者打的那幾個空白也搬進重組出來的名稱裡。
+        qualifierStart = remaining.Length;
+
+        while (qualifierStart < text.Length && char.IsWhiteSpace(text[qualifierStart]))
+        {
+            qualifierStart++;
+        }
+
         return path;
     }
 

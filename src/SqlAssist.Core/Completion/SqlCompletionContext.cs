@@ -23,7 +23,8 @@ public sealed class SqlCompletionContext
         SqlKeywordPosition keywordPosition = SqlKeywordPosition.Any,
         IReadOnlyList<SqlColumnSource>? scopeSources = null,
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
-        SqlExecutedModule? executedModule = null)
+        SqlExecutedModule? executedModule = null,
+        int qualifierStart = -1)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         IsValid = isValid;
@@ -37,6 +38,7 @@ public sealed class SqlCompletionContext
         KeywordPosition = keywordPosition;
         ScopeSources = scopeSources ?? NoSources;
         ExecutedModule = executedModule;
+        QualifierStart = qualifierStart;
     }
 
     public bool IsValid { get; }
@@ -57,6 +59,22 @@ public sealed class SqlCompletionContext
     /// 使用者指名的那一個。
     /// </remarks>
     public SqlObjectPath? QualifierPath { get; }
+
+    /// <summary>
+    /// 整串限定字在原文中的起點；沒有限定字時為 -1。
+    /// </summary>
+    /// <remarks>
+    /// 提交之後要把整句換掉的那幾種展開（<c>INSERT</c>、<c>MERGE</c>、<c>EXEC</c>）
+    /// 蓋掉的範圍從關鍵字起算，而使用者自己打的限定字就落在關鍵字與剛插入的名稱
+    /// 之間。少了這個位置，換回去的只有「關鍵字加插入的名稱」，
+    /// <c>INSERT INTO LibArchive.dbo.Loan</c> 會被寫成
+    /// <c>INSERT INTO dbo.Loan</c>——語法完全正確，插進去的卻是<b>目前連線</b>裡
+    /// 同名的那一張表，而畫面上看不出來。
+    ///
+    /// 記位置而不是記文字：使用者寫的方括號、大小寫與段數都原樣留在緩衝區裡，
+    /// 重組一份的話還要再決定一次「他到底寫了什麼」，而那正是這裡不做的事。
+    /// </remarks>
+    public int QualifierStart { get; }
 
     /// <summary>
     /// 點號前方的識別字，也就是路徑最右邊那一段。
@@ -172,7 +190,8 @@ public sealed class SqlCompletionContext
             KeywordPosition,
             sources,
             ScriptSources,
-            ExecutedModule);
+            ExecutedModule,
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -190,7 +209,8 @@ public sealed class SqlCompletionContext
             KeywordPosition,
             ScopeSources,
             sources,
-            ExecutedModule);
+            ExecutedModule,
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
@@ -215,7 +235,8 @@ public sealed class SqlCompletionContext
             KeywordPosition,
             ScopeSources,
             ScriptSources,
-            ExecutedModule);
+            ExecutedModule,
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -233,6 +254,7 @@ public sealed class SqlCompletionContext
             KeywordPosition,
             ScopeSources,
             ScriptSources,
-            ExecutedModule);
+            ExecutedModule,
+            QualifierStart);
     }
 }

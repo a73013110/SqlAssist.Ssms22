@@ -95,7 +95,18 @@ public sealed class SqlObjectPath
     /// </remarks>
     public string? LeftmostQualifier => HasName || QualifierSlotCount == 0
         ? null
-        : SlotValue((SqlQualifierSlot)(QualifierSlotCount - 1 + (int)QualifierEnd));
+        : SlotValue(LeftmostSlot);
+
+    /// <summary>限定字最左邊那一段落在哪一格。</summary>
+    /// <remarks>
+    /// 這就是 <see cref="TryRealign"/> 的參數：中繼資料認出最左邊那一段是什麼之後
+    /// 得到的答案，就記在這裡。提交時上下文是從文字重新分析的，不可能再認一次
+    /// （認一次要送查詢，而提交在按鍵路徑上），因此建立清單時把這一格帶著走，
+    /// 提交時照同一個方法挪回去——各挪各的話，症狀是清單列得出來、
+    /// Tab 下去卻少一段。
+    /// </remarks>
+    public SqlQualifierSlot LeftmostSlot =>
+        (SqlQualifierSlot)(QualifierSlotCount - 1 + (int)QualifierEnd);
 
     /// <summary>這是完整名稱（true）還是只有限定字（false）。</summary>
     public bool HasName => Name.Length > 0;
