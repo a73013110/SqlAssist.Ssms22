@@ -104,12 +104,59 @@ internal sealed class SqlMetadataService : IDisposable
         var timer = Stopwatch.StartNew();
         var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
 
-        if (qualifierPath is { IsCrossDatabase: true })
+        // 跨伺服器那一條的耗時由對方決定，紀錄裡要看得出是哪一台——本機慢與
+        // 對面慢的處理方式完全不同，混成同一行等於每次都要再問一次。
+        if (qualifierPath is { IsCrossServer: true })
+        {
+            ReportIfSlow(
+                $"連結伺服器建議 {qualifierPath.ServerName}.{qualifierPath.DatabaseName}（第一層）",
+                timer);
+        }
+        else if (qualifierPath is { IsCrossDatabase: true })
         {
             ReportIfSlow($"跨資料庫建議 {qualifierPath.DatabaseName}（第一層）", timer);
         }
 
-        return BuildSuggestions(snapshot);
+        // 連結伺服器只在目前這條連線的清單裡才對：往右走過任何一格之後，
+        // 那一格的下一段不可能再是一台伺服器（T-SQL 沒有五段式名稱）。
+        return BuildSuggestions(snapshot, includeLinkedServers: qualifierPath is null or { IsLocal: true });
+    }
+
+    /// <summary>
+    /// 用目前這條連線的名單認出限定字，回傳重新對齊過的上下文。
+    /// </summary>
+    /// <remarks>
+    /// 只看文字時 <c>dbo.</c>、<c>LibArchive.</c> 與 <c>SQL209.</c> 是同一個形狀，
+    /// 建議清單、插入文字與目錄選擇卻要三種不同的答案。因此在<b>問清單之前</b>
+    /// 先把上下文換成對齊過的那一個，後面三條路都讀同一份——各自再判一次的話，
+    /// 症狀是清單列得出來、Tab 下去卻少一段。
+    ///
+    /// 讀的是本機第一層快照，也就是候選清單下一步無論如何都要載入的那一份，
+    /// 所以這裡不會多送一輪查詢。刻意等它而不是只取已經快取的：查詢視窗剛開的
+    /// 第一次補全還沒有快照，只取快取的症狀是「第一次沒有清單，再按一次才有」。
+    ///
+    /// 認不出來就維持右對齊的原判，也就是這個功能出現之前的行為。
+    /// </remarks>
+    public async Task<SqlCompletionContext> ResolveQualifierAsync(
+        SqlCompletionContext context,
+        CancellationToken cancellationToken)
+    {
+        // 限定字已經解析成別名時（u.），清單裡放的是欄位，那一段不是任何名稱空間。
+        if (context.QualifierPath is not { } qualifier ||
+            context.Target == CompletionTarget.Column)
+        {
+            return context;
+        }
+
+        if (ResolveCatalog() is not { } catalog)
+        {
+            return context;
+        }
+
+        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var resolved = SqlQualifierResolver.Resolve(qualifier, snapshot);
+
+        return ReferenceEquals(resolved, qualifier) ? context : context.WithQualifierPath(resolved);
     }
 
     /// <summary>
@@ -571,7 +618,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
+        var catalog = ScopeTo(PeekCatalog(), objectInfo);
 
         return catalog is not null && catalog.TryGetCachedDetail(objectInfo.ObjectId, out var detail)
             ? detail
@@ -593,7 +640,7 @@ internal sealed class SqlMetadataService : IDisposable
             return;
         }
 
-        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
+        var catalog = ScopeTo(PeekCatalog(), objectInfo);
 
         if (catalog is null || catalog.TryGetCachedDetail(objectInfo.ObjectId, out _))
         {
@@ -602,7 +649,11 @@ internal sealed class SqlMetadataService : IDisposable
 
         // object_id 只在自己那個資料庫裡唯一，所以在途的鍵要帶上資料庫；
         // 只用編號的話，兩個資料庫裡剛好同號的物件會互相把對方的預熱擋掉。
-        var warmingKey = objectInfo.DatabaseName + "|" + objectInfo.ObjectId;
+        // 伺服器也要進鍵：object_id 跨到別台之後同號的物件毫無關係，
+        // 少了它會讓兩個不同物件的預熱互相抵銷成一次。
+        var warmingKey = objectInfo.ServerName + "|" +
+                         objectInfo.DatabaseName + "|" +
+                         objectInfo.ObjectId;
 
         lock (_syncRoot)
         {
@@ -722,7 +773,7 @@ internal sealed class SqlMetadataService : IDisposable
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
-        var catalog = ScopeTo(ResolveCatalog(), objectInfo?.DatabaseName);
+        var catalog = ScopeTo(ResolveCatalog(), objectInfo);
 
         if (catalog is null || objectInfo is null)
         {
@@ -740,7 +791,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var catalog = ScopeTo(PeekCatalog(), objectInfo.DatabaseName);
+        var catalog = ScopeTo(PeekCatalog(), objectInfo);
 
         return catalog is not null && catalog.TryGetCachedStructure(objectInfo.ObjectId, out var structure)
             ? structure
@@ -752,7 +803,7 @@ internal sealed class SqlMetadataService : IDisposable
     {
         if (objectInfo is not null)
         {
-            ScopeTo(PeekCatalog(), objectInfo.DatabaseName)?.InvalidateObject(objectInfo.ObjectId);
+            ScopeTo(PeekCatalog(), objectInfo)?.InvalidateObject(objectInfo.ObjectId);
         }
     }
 
@@ -766,7 +817,7 @@ internal sealed class SqlMetadataService : IDisposable
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
     {
-        var catalog = ScopeTo(ResolveCatalog(), objectInfo?.DatabaseName);
+        var catalog = ScopeTo(ResolveCatalog(), objectInfo);
 
         if (catalog is null || objectInfo is null)
         {
@@ -798,18 +849,14 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 把目錄換成路徑指名的那一個資料庫。
+    /// 把目錄換成路徑指名的那一台伺服器、那一個資料庫。
     /// </summary>
     /// <remarks>
-    /// 沒有路徑、或路徑就在目前這條連線上時原樣回傳，所以呼叫端不必自己分兩種
-    /// 情形——分兩種的症狀是某一條路徑忘了換，而它會安靜地拿本地同名的物件回答。
+    /// 沒有路徑、或路徑就在目前這條連線上時原樣回傳，所以呼叫端不必自己分三種
+    /// 情形——分開寫的症狀是某一條路徑忘了換，而它會安靜地拿本地同名的物件回答。
     ///
-    /// 連結伺服器一律回傳 null，也就是<b>明確地沒有建議</b>。理由是延遲與可用性
-    /// 都由對方那台伺服器決定：取名稱清單要走分散式查詢，而目錄的載入閘是每個
-    /// 目錄一把，卡住的那一輪會擋住同一個資料庫的後續查詢；連結伺服器的登入失敗
-    /// 還會冒出 SSMS 自己的對話框，那不是 DbException 的降級接得住的。
-    /// 沉默是刻意的結果：先前那個「沉默」其實是列出目前連線裡同名的東西，
-    /// 而那看起來完全正常。
+    /// 兩種「別的地方」在這裡收斂成同一個回傳型別：同一台伺服器的別的資料庫是
+    /// 換連線，別台伺服器是換 SQL 的限定字。上面四層一行都不知道差別。
     /// </remarks>
     private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectPath? path)
     {
@@ -818,13 +865,31 @@ internal sealed class SqlMetadataService : IDisposable
             return catalog;
         }
 
-        return path.IsCrossServer ? null : ScopeTo(catalog, path.DatabaseName);
+        return ScopeTo(catalog, path.DatabaseName, path.ServerName);
     }
 
-    /// <summary>把目錄換成指定名稱的那一個資料庫；名稱為空時原樣回傳。</summary>
-    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, string? databaseName)
+    /// <summary>
+    /// 把目錄換成這個物件自己記下的來源。
+    /// </summary>
+    /// <remarks>
+    /// 每一條路徑都問物件，而不是各自從物件身上拆出資料庫與伺服器再傳進來：
+    /// 拆的地方有六處，漏掉一處的症狀是那一條安靜地拿本機同號的物件回答，
+    /// 而 <c>object_id</c> 撞號在跨資料庫是常態、跨伺服器更是毫無關係。
+    /// </remarks>
+    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectInfo? objectInfo)
     {
-        if (catalog is null || string.IsNullOrEmpty(databaseName))
+        return objectInfo is null
+            ? catalog
+            : ScopeTo(catalog, objectInfo.DatabaseName, objectInfo.ServerName);
+    }
+
+    /// <summary>把目錄換成指定的伺服器與資料庫；兩者都沒指定時原樣回傳。</summary>
+    private SqlMetadataCatalog? ScopeTo(
+        SqlMetadataCatalog? catalog,
+        string? databaseName,
+        string? serverName = null)
+    {
+        if (catalog is null || (string.IsNullOrEmpty(databaseName) && string.IsNullOrEmpty(serverName)))
         {
             return catalog;
         }
@@ -839,6 +904,11 @@ internal sealed class SqlMetadataService : IDisposable
         if (source is null)
         {
             return null;
+        }
+
+        if (!string.IsNullOrEmpty(serverName))
+        {
+            return SqlMetadataCatalogRegistry.Default.GetOrCreateFor(source, serverName!, databaseName);
         }
 
         // 與查詢視窗自己那個資料庫同名時就是同一份目錄。這一條讓 SqlObjectInfo
@@ -1000,7 +1070,9 @@ internal sealed class SqlMetadataService : IDisposable
         }
     }
 
-    private static IReadOnlyList<SqlSuggestion> BuildSuggestions(SqlDatabaseSnapshot snapshot)
+    private static IReadOnlyList<SqlSuggestion> BuildSuggestions(
+        SqlDatabaseSnapshot snapshot,
+        bool includeLinkedServers = false)
     {
         var suggestions = new List<SqlSuggestion>(
             snapshot.Objects.Count + snapshot.Schemas.Count + snapshot.Databases.Count);
@@ -1029,6 +1101,23 @@ internal sealed class SqlMetadataService : IDisposable
                 "Database",
                 $"USE {SqlIdentifier.QuoteIfNeeded(database)}",
                 SuggestionKind.Database));
+        }
+
+        if (includeLinkedServers)
+        {
+            foreach (var server in snapshot.LinkedServers)
+            {
+                // 與結構描述一樣帶著點號提交，清單接著開下一段（那台伺服器的
+                // 資料庫）。名稱不保證是識別字的形狀——連結伺服器可以直接以位址
+                // 命名，方括號由 SqlInsertionText 依同一條規則補。
+                suggestions.Add(new SqlSuggestion(
+                    server,
+                    server,
+                    "Linked server",
+                    $"連結伺服器 {SqlIdentifier.QuoteIfNeeded(server)}",
+                    SuggestionKind.LinkedServer,
+                    triggerFollowUp: true));
+            }
         }
 
         return suggestions;
