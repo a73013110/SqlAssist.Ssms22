@@ -8,6 +8,7 @@ $OutputEncoding = Initialize-SqlAssistUtf8Output
 $root = Split-Path -Parent $PSScriptRoot
 $strictUtf8 = [System.Text.UTF8Encoding]::new($false, $true)
 $errors = [System.Collections.Generic.List[string]]::new()
+$normalizedFiles = [System.Collections.Generic.List[string]]::new()
 $textFileCount = 0
 
 # 新增但尚未 stage 的腳本與文件也要驗證；否則第一次提交最容易漏掉 BOM／CRLF。
@@ -57,19 +58,55 @@ foreach ($entry in $trackedFiles) {
         $errors.Add("$relativePath：含 UTF-8 BOM")
     }
 
+    $isValidUtf8 = $true
     try {
         [void]$strictUtf8.GetString($bytes)
     }
     catch [System.Text.DecoderFallbackException] {
+        $isValidUtf8 = $false
         $errors.Add("$relativePath：不是有效的 UTF-8")
     }
 
     if ($bytes -contains 0x0D) {
-        $errors.Add("$relativePath：含 CR 或 CRLF 換行")
+        if (-not $isValidUtf8) {
+            # 先保留無效編碼的原始位元，避免自動修正時破壞仍需人工判斷的內容。
+            $errors.Add("$relativePath：含 CR 或 CRLF 換行，但因編碼無效無法自動修正")
+        }
+        else {
+            # 以位元正規化可原樣保留 .sln 的 BOM，也不會為其他檔案新增 BOM。
+            $normalizedBytes = [System.Collections.Generic.List[byte]]::new($bytes.Length)
+            for ($index = 0; $index -lt $bytes.Length; $index++) {
+                if ($bytes[$index] -ne 0x0D) {
+                    $normalizedBytes.Add($bytes[$index])
+                    continue
+                }
+
+                $normalizedBytes.Add(0x0A)
+                if ($index + 1 -lt $bytes.Length -and $bytes[$index + 1] -eq 0x0A) {
+                    $index++
+                }
+            }
+
+            try {
+                $bytes = $normalizedBytes.ToArray()
+                [System.IO.File]::WriteAllBytes($path, $bytes)
+                $normalizedFiles.Add($relativePath)
+            }
+            catch {
+                $errors.Add("$relativePath：無法將 CR 或 CRLF 換行自動轉換為 LF：$($_.Exception.Message)")
+            }
+        }
     }
 
     if ($bytes.Length -gt 0 -and $bytes[-1] -ne 0x0A) {
         $errors.Add("$relativePath：檔尾缺少 LF")
+    }
+}
+
+if ($normalizedFiles.Count -gt 0) {
+    Write-Host '已自動將 CR 或 CRLF 換行轉換為 LF：' -ForegroundColor Yellow
+    foreach ($relativePath in $normalizedFiles) {
+        Write-Host "  - $relativePath" -ForegroundColor Yellow
     }
 }
 

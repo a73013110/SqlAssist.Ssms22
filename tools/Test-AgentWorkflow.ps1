@@ -298,7 +298,9 @@ foreach ($codePage in $codePages) {
     Assert-Condition ($check.ExitCode -eq 0 -and $check.Out.Contains('文字檔格式檢查通過')) "CP$codePage 必須正確解讀 Git 的 Unicode 檔名"
     [System.IO.File]::WriteAllText($unicodePath, "中文 🧪`r`n", $utf8)
     $check = Invoke-TestScript $textChecker @{} -InitialCodePage $codePage
-    Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('中文🧪.txt') -and $check.Out.Contains('CRLF')) "CP$codePage 不可讓編碼修正掩蓋真正的格式錯誤"
+    $normalizedUnicodeBytes = [System.IO.File]::ReadAllBytes($unicodePath)
+    Assert-Condition ($check.ExitCode -eq 0 -and $check.Out.Contains('中文🧪.txt') -and $check.Out.Contains('自動') -and
+        -not ($normalizedUnicodeBytes -contains 0x0D)) "CP$codePage 必須自動修正 Unicode 檔名的 CRLF"
 }
 
 # .sln 的 BOM 是 Visual Studio 的硬需求，兩個方向都要驗；只測「有 BOM 會通過」的話，
@@ -314,7 +316,13 @@ $check = Invoke-TestScript $textChecker @{}
 Assert-Condition ($check.ExitCode -eq 0) '.sln 含 BOM 必須通過'
 [System.IO.File]::WriteAllText($solutionPath, "$solutionText`r`n", [System.Text.UTF8Encoding]::new($true))
 $check = Invoke-TestScript $textChecker @{}
-Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('CRLF')) '.sln 的 BOM 例外不得放寬換行規則'
+$normalizedSolutionBytes = [System.IO.File]::ReadAllBytes($solutionPath)
+$hasSolutionBom = $normalizedSolutionBytes.Length -ge 3 -and
+    $normalizedSolutionBytes[0] -eq 0xEF -and
+    $normalizedSolutionBytes[1] -eq 0xBB -and
+    $normalizedSolutionBytes[2] -eq 0xBF
+Assert-Condition ($check.ExitCode -eq 0 -and $check.Out.Contains('方案.sln') -and $check.Out.Contains('自動') -and
+    $hasSolutionBom -and -not ($normalizedSolutionBytes -contains 0x0D)) '.sln 的 CRLF 必須自動轉換為 LF 且保留 BOM'
 
 # 文件拆分會刪除已追蹤檔；git ls-files --cached 仍列出它，檢查器不可把合法刪檔當格式錯誤。
 [System.IO.File]::WriteAllText($solutionPath, $solutionText, [System.Text.UTF8Encoding]::new($true))
