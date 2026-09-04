@@ -16,7 +16,7 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 提示走的是編輯器自己的提示視窗（與滑鼠停留提示同一套），不會搶走鍵盤焦點；
 建議清單開著時它會讓位，兩個小視窗貼在同一行旁邊只會互相擋住。
 
-### 哪些星號算數
+## 哪些星號算數
 
 `*` 在 T-SQL 裡絕大多數時候是乘號。唯一分得開的依據是它前面接什麼：
 
@@ -34,7 +34,7 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 數字刻意只在 `TOP` 後面才放行。少了這個條件，`SELECT 5 * 3` 的乘號就會被當成
 萬用字元——而那正是第一版的行為。
 
-### 欄位從哪裡來
+## 欄位從哪裡來
 
 判斷「這個星號是不是萬用字元」在 `Core/Wildcards/SqlWildcardAnalyzer`，
 「這個來源給得出哪些欄位」則在 `Core/Parsing/SqlColumnSourceResolver`——
@@ -61,7 +61,7 @@ CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 也無從稱呼。少了幾個欄位的 `SELECT` 仍然執行得動，卻執行出錯的結果——
 那比什麼都不做糟糕得多。
 
-### 加不加別名
+## 加不加別名
 
 敘述裡只有一個資料來源時不加：欄位名稱不可能模稜兩可，補上去只是雜訊。
 有兩個以上就一律加上別名，否則 `SELECT Name FROM A a JOIN B b` 會因為欄位名稱
@@ -70,7 +70,7 @@ CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 
 方括號跟著「插入物件時加上方括號」走，與建議清單提交時是同一條規則。
 
-### 欄位怎麼排
+## 欄位怎麼排
 
 「SELECT * 展開後的欄位排版」有三種選擇，差別只在**整份放不下一行**的時候：
 
@@ -94,7 +94,7 @@ CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 行寬本身（120 個字元）不做成設定。排法是使用者感覺得到的，分界點落在 118
 還是 124 他不會有意見。
 
-### Tab 的四種意思
+## Tab 的四種意思
 
 Tab 在編輯器裡可能是提交建議清單、前進到下一個 Snippet 欄位、展開萬用字元，
 或一般縮排。全部由 `SqlTabCommandHandler` 依這個順序判斷；Shift+Tab 只在

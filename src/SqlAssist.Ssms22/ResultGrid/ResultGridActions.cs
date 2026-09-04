@@ -23,7 +23,7 @@ namespace SqlAssist.Ssms22.ResultGrid;
 /// <c>IN</c> 條件是一段<b>述詞</b>，進剪貼簿——它要貼進使用者手上那一句 SQL 的
 /// <c>WHERE</c> 後面，開一個新視窗反而多一次搬運。
 ///
-/// 這裡不走 <see cref="SqlAssistPlatformGuard"/>：CLAUDE.md 明文禁止用它處理
+/// 這裡不走 <see cref="SqlAssistPlatformGuard"/>：平台接線護欄禁止用它處理
 /// 「使用者按了卻沒反應」的失敗。每一種失敗都要說出自己的那一句，
 /// 而 Guard 會把它們全部收斂成一次靜靜的什麼都不做。
 /// </remarks>

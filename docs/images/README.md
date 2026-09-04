@@ -1,111 +1,33 @@
-# 圖片
+# README 與發布圖片
 
-`README.md` 與文件用到的圖片都放這裡。
+## 現有資產
 
-## 檔案清單
+| 用途 | 檔案 |
+|---|---|
+| README | `hero.png`、`completion.png` |
+| 語句展開示例 | `expand-star.png`、`expand-insert-into.png`、`expand-merge-into.png`、`expand-exec.png`、`expand-def-procedure.png` |
+| 功能畫面 | `structure-preview.png`、`result-grid-utility.png` |
+| GitHub 分享預覽 | `social-preview.png` |
+| VSIX 圖示 | `logo.png` |
 
-| 檔名 | 用途 | 實際尺寸 | 狀態 |
-|---|---|---|---|
-| `hero.png` | README 標題下方的橫幅 | 2172 × 724 | 已接上 |
-| `expand-star.png` | `SELECT *` 展開前後 | 1470 × 1070 | 已接上 |
-| `completion.png` | 建議清單與欄位面板 | 1438 × 1093 | 已接上（收在 `<details>` 裡） |
-| `structure-preview.png` | 浮動結構預覽的指令碼分頁 | 1494 × 1053 | 已接上（收在 `<details>` 裡） |
-| `social-preview.png` | GitHub 的 Social preview | 1774 × 887 | 待上傳，見下 |
-| `logo.png` | 專案圖示 | 1254 × 1254 | VSIX 的 `Icon` 與 `PreviewImage`，見下 |
+## 加圖規則
 
-README 裡的四張圖都指定 `width`，不是原尺寸貼上去：`hero.png` 給 900、其餘給 820。
-原尺寸會把版面撐開，而 GitHub 不會幫忙縮。
+- README 顯示寬度：`hero.png` 900，其餘 820；不要用原尺寸撐開頁面。
+- PNG 加入前先壓縮。Git 會保留每一版完整二進位內容，不能把圖片當文字差異看待。
+- 實機畫面只用[允許的虛構圖書館名稱](../rules-code.md)，並檢查連線列、資料庫下拉與
+  登入名稱。現有 `LibraryDB` 系列也是假資料；新圖優先沿用文件中的 `Lib_Reader` 系列。
+- 每張內容圖都寫能獨立理解的 `alt`。不要把必要說明烙進圖片；那無法翻譯，也無法被
+  螢幕閱讀器讀取。
+- 畫面外框、主題與控制項必須來自目前支援的 SSMS 22；過時外框不再當正式截圖。
 
-每一張都壓過（`logo.png`、`hero.png` 等已轉成調色盤 PNG），維持原尺寸但檔案小得多。
-補新圖時記得一起壓：這些圖每一次 clone 都會整份帶下來，而且圖片改一次就在 git 裡
-多存一份完整的內容，不像文字檔只存差異。
+## 特殊檔案
 
-### `social-preview.png` 不出現在 README
+`social-preview.png` 不放 README；到 GitHub 的 **Settings → General → Social preview**
+上傳，供 Teams、Slack 與社群連結預覽使用。
 
-它要到 GitHub 的 **Settings → General → Social preview** 上傳。那張圖決定這個連結
-貼到 Teams、Slack 或社群時長什麼樣子——README 的第一畫面只有已經點進來的人看得到，
-這一張決定的是有沒有人點進來。
+`logo.png` 同時是 VSIX manifest 的 `<Icon>` 與 `<PreviewImage>`。專案以 `Link` 放入 VSIX
+根目錄，殼層自行縮放，因此不要維護另一份縮圖。四角必須透明且沒有與黑底混色的暗邊，
+才能同時適用 SSMS 深淺主題。
 
-### `logo.png` 是 VSIX 的圖示
-
-`source.extension.vsixmanifest` 的兩個元素都指向它：
-
-- `<Icon>`——SSMS 的**擴充功能管理員**（延伸模組 → 管理延伸模組）清單裡，每一列
-  左邊那顆小圖示。已安裝、可用、更新三個分頁都是同一顆。
-- `<PreviewImage>`——在清單裡點選那一列之後，右側詳細資料窗格上方的大圖。
-
-殼層會自己縮到需要的點數，所以**不裁縮圖**：專案檔用 `Link` 把這個檔案原封不動接進
-VSIX 根目錄，`Icon` 與 `PreviewImage` 指的是同一個檔名。另存一份 90 點的縮圖只會多
-一個「圖改了縮圖沒改」的失敗模式，而那個失敗沒有任何徵兆。
-
-圓角外的四個角落已經裁成透明（半徑 239 的圓角，四邊各內縮 2 點），淺色底上不會看到
-黑角，也沒有沿著圓弧的暗邊——那 2 點就是為了把原本與黑底混色的那一圈排掉，留在裡面
-會變成一條灰邊。裁切後仍然是調色盤 PNG，164 個項目、17 級 alpha，不透明區的每一個
-像素與裁切前逐位元相同。透明在這裡是必要的：擴充功能管理員跟著 SSMS 的佈景走，
-淺色佈景下不透明的黑角會是四個小黑點。
-
-README 反而用不到它——標題下方已經有 `hero.png`，同一個畫面再放一顆圖示只是重複。
-
-## 這些圖是怎麼來的
-
-`hero.png`、`social-preview.png` 是生成的插畫；`completion.png`、
-`structure-preview.png` 是實機畫面；`expand-star.png` 是加了「展開前／展開後」
-說明框的合成圖。
-
-合成圖要留意兩件事，決定要不要重做時可以參考：
-
-- 圖上那個視窗外框不是 SSMS 22 的樣子（SSMS 22 是 VS 2022 的外觀）。天天在看 SSMS
-  的讀者會發現對不起來。
-- 說明框上的字是圖片的一部分，改文案就得重畫，翻譯與螢幕閱讀器也讀不到。
-  README 裡每一張都寫了完整的 `alt`，至少讀得到的那一份是有的。
-
-畫面圖一律**只用虛構的圖書館領域命名**。這個 repo 是公開的，真實系統的資料表與欄位
-名稱本身就是使用者的私有資產，理由見 [CLAUDE.md](../../CLAUDE.md)。連線列、資料庫
-下拉選單與登入名稱也要一起看過——那三個地方最容易漏。
-
-目前這幾張用的是 `LibraryDB`／`Libraries`／`LibraryAnnouncement` 這一套，
-與文件和測試裡的 `Lib_Reader`、`PUBLISHER`、`Cat_BookCopy`、`Loan` 不是同一套寫法。
-兩者都在同一個虛構領域裡，沒有外洩問題；只是下次補圖時沿用文件那一套會更一致。
-
-## 產生用的提示詞
-
-提示詞刻意用英文寫：影像模型對英文的描述詞彙反應比較準，這裡的文字是丟給模型的
-輸入而不是給人讀的說明。插畫都**刻意要求不要出現可讀的文字**——影像模型拼出來的
-英文單字幾乎都是壞的，而壞掉的字比沒有字更傷。
-
-### `hero.png`
-
-```text
-A wide modern developer-tool hero banner, 1200x400. Dark charcoal background with a
-subtle diagonal gradient toward deep indigo. On the left, an abstract stylized code
-editor panel: soft-focus rows of monospaced code in muted grey-blue, deliberately
-unreadable. On the right, a crisp floating autocomplete card with rounded corners, a
-thin light border and five list rows; each row has a small coloured glyph on the left
-and a horizontal bar standing in for a name, with the first few characters of each bar
-highlighted in bright cyan to suggest matched letters. A soft cyan glow links the
-editor to the card. Flat vector illustration, clean, high contrast, generous negative
-space. No logos, no people, no legible words or letters anywhere.
-```
-
-### `social-preview.png`
-
-```text
-A clean 1280x640 open-graph card for a developer tool. Deep indigo to charcoal gradient
-background. Centred composition: a simplified database cylinder outlined in white on the
-left, connected by a thin cyan line to a floating autocomplete list card on the right
-with four rows of abstract highlighted bars. Wide empty margins at the top and bottom
-for text to be added later. Flat vector, minimal, high contrast, no text, no letters,
-no logos.
-```
-
-### `logo.png`（現在這一張就是照這份重畫的）
-
-```text
-A minimal flat app icon. The canvas must be exactly square, 512x512. The artwork is a
-rounded square tile with a deep indigo to blue gradient, with clear empty padding
-between the tile edge and the mark. Centred on the tile: a simple database cylinder
-outlined in white with even, sharp, uniform strokes, and a small bright cyan
-text-cursor bar standing beside it. Crisp vector edges with no glow, no blur, no drop
-shadow and no bloom. Nothing is cropped by the canvas edge. Flat vector, no text, no
-letters, still clearly legible when scaled down to 32 pixels.
-```
+插畫來源與可重製提示詞見[生成提示詞](prompts.md)；`completion.png`、
+`structure-preview.png` 與結果格線圖片則是實機畫面或標註後的實機畫面。

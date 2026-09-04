@@ -8,7 +8,7 @@ namespace SqlAssist.Metadata.ResultGrid;
 /// </summary>
 /// <remarks>
 /// 所有結果格線命令都吃這一個型別，格線的反射只在
-/// <c>Ssms22/ResultGrid/</c> 那一層做一次。分成兩層的理由是 CLAUDE.md 那條
+/// <c>Ssms22/ResultGrid/</c> 那一層做一次。分成兩層是為了遵守分層護欄：
 /// 「禁止把只看文字就能判斷的邏輯寫進 Ssms22」：產指令碼、去重欄名、判斷值轉不轉得出來
 /// 全部是純邏輯，寫在這裡才跑得了單元測試。
 ///

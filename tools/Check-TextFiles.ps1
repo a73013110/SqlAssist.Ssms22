@@ -34,7 +34,7 @@ foreach ($entry in $trackedFiles) {
     $relativePath = $entry.Substring($separator + 1)
     $path = Join-Path $root $relativePath
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
-        $errors.Add("找不到追蹤檔案：$relativePath")
+        # --cached 也會列出工作樹中已刪除的檔案；沒有位元組可檢查是合法的刪檔，不是格式錯誤。
         continue
     }
 

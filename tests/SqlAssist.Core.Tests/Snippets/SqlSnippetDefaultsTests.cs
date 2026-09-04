@@ -128,7 +128,7 @@ public sealed class SqlSnippetDefaultsTests
     }
 
     /// <remarks>
-    /// 這個 repo 是公開的，識別字本身就是使用者的私有資產（見 CLAUDE.md）。
+    /// 這個 repo 是公開的，識別字本身就是使用者的私有資產。
     /// 內建片段是最容易不小心把真實 schema 名稱帶進來的地方：寫樣板時手邊
     /// 正好開著一份真的指令碼。這裡只認一組通用佔位名稱，要加新的就得先想過。
     /// </remarks>

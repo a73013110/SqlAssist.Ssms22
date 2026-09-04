@@ -25,11 +25,12 @@ AI 相關只保留三個 PowerShell 腳本，需 **PowerShell 7**，不依賴 RT
 
 ```powershell
 # 先定位章節，避免為了找一段規則而讀整份文件。
-Select-String -Path docs/change-rules.md -Pattern '^## '
-./tools/Read-Context.ps1 -Path docs/change-rules.md -StartLine 1 -LineCount 40
+Select-String -Path docs/rules-platform.md -Pattern 'MEF'
+./tools/Read-Context.ps1 -Path docs/rules-platform.md -StartLine 1 -LineCount 40
 ```
 
-預設最多 80 行、約 6000 字元，會附行號及續讀位置。超長單行不硬切；需要時按資料格式
+預設最多 80 行、約 4500 字元，會附行號及續讀位置；Markdown 單檔另由檢查器限制在
+4000 字元。超長單行不硬切；需要時按資料格式
 抽取欄位。搜尋片段不是完整證據，空結果也不代表沒有其他引用。
 
 ## 工具輸出節流
