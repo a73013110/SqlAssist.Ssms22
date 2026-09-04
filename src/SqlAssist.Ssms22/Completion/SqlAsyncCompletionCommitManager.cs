@@ -300,15 +300,12 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }
 
-        // 以點號結尾的插入文字是一條還沒走完的名稱：結構描述、連結伺服器，
-        // 以及資料來源位置的資料庫。這一條問的是<b>真的寫進去的文字</b>而不是
-        // 建議項上的旗標，因為同一筆資料庫建議在 USE 之後是整句的終點、在 FROM
-        // 之後才是中間段——旗標在建立清單時決定，那時還不知道是哪一種。
+        // 沒有勾接續的片段到這裡就結束；文字已經插好，游標也已經就位。
         //
-        // 不接續的症狀是使用者得自己補點號，而補之前平台看到的是一個比不中
-        // 任何東西的前綴，清單會直接關掉。
-        if (!suggestion.TriggerFollowUp &&
-            !insertionText.EndsWith(".", StringComparison.Ordinal))
+        // 名稱的中間段（結構描述、資料庫、連結伺服器）不走這裡：它們只寫名稱本身，
+        // 由使用者自己打點號，而打出點號會讓上下文整個換掉，重開清單那條路
+        // 本來就會接手。
+        if (!suggestion.TriggerFollowUp)
         {
             return new CommitResult(isHandled: true, CommitBehavior.None);
         }
