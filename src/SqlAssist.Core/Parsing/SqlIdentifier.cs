@@ -1,7 +1,7 @@
 using System;
 using SqlAssist.Core.Keywords;
 
-namespace SqlAssist.Metadata.Formatting;
+namespace SqlAssist.Core.Parsing;
 
 public static class SqlIdentifier
 {

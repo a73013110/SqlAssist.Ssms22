@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 
 namespace SqlAssist.Metadata.Model;

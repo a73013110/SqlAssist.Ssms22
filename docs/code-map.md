@@ -16,7 +16,7 @@
 | 某個位置不該開清單／該開沒開 | [completion-context.md](completion-context.md) | `Core/Completion/SqlCompletionContextAnalyzer.cs`、`Core/Completion/SqlCompletionTriggers.cs` |
 | 打完某個字沒有重開清單 | [completion-columns.md](completion-columns.md) | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SSMS 自己的清單也跟著彈出來 | [completion.md](completion.md) | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
-| 提交建議後寫進去的文字不對 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Ssms22/Completion/SqlInsertionText.cs`、`SqlAsyncCompletionCommitManager.cs` |
+| 提交建議後寫進去的文字不對 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Core/Completion/SqlInsertionText.cs`（規則）、`Ssms22/Completion/SqlAsyncCompletionCommitManager.cs`（接線） |
 | `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 提交後展開的整句不對 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Core/Statements/`（排版與規則）、`Ssms22/Completion/SqlCommitExpansions.cs` |
 | 展開的整句蓋錯位置或沒有蓋上去 | [completion-commit-expansion.md](completion-commit-expansion.md) | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 關鍵字清單要增刪 | [completion-catalogs.md](completion-catalogs.md) | `tools/Generate-Keywords.ps1`（**不要**手改 `.Generated.cs`） |
@@ -58,7 +58,7 @@
 | `Keywords/` | 關鍵字、內建函式、全域變數與型別目錄、位置分層、自動大寫 | [completion-catalogs.md](completion-catalogs.md)、[completion-context.md](completion-context.md) |
 | `Matching/` | 與領域無關的字串模糊比對（**禁止**參照 `Completion/`） | [completion.md](completion.md) |
 | `Pairing/` | 輸入分隔字元時要不要補上另一半 | [auto-pairing.md](auto-pairing.md) |
-| `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析 | [completion-columns.md](completion-columns.md)、[architecture.md](architecture.md) |
+| `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析、識別字括號化 | [completion-columns.md](completion-columns.md)、[architecture.md](architecture.md) |
 | `Preview/` | 浮動預覽的矩形定位、避障、方向遲滯與雙側縮放 | [structure-preview.md](structure-preview.md) |
 | `Snippets/` | 程式碼片段的模型、展開、佔位符與序列化 | [snippets.md](snippets.md) |
 | `Statements/` | 提交後展開成整句的排版與規則（`INSERT` 骨架、`MERGE` 骨架、`EXEC` 呼叫、參數預設值） | [completion-commit-expansion.md](completion-commit-expansion.md) |
@@ -74,7 +74,7 @@
 | `Model/` | 物件、欄位、參數、索引、外來鍵的模型 | [metadata.md](metadata.md) |
 | `Querying/` | 分層的中繼資料查詢與資料列對應 | [metadata.md](metadata.md) |
 | `Caching/` | 依「伺服器＋資料庫」快取，並協調分層載入 | [metadata.md](metadata.md) |
-| `Formatting/` | 型別字串、識別字括號、欄位的呈現語意，以及可執行指令碼的批次樣板 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
+| `Formatting/` | 型別字串、欄位的呈現語意，以及可執行指令碼的批次樣板 | [metadata.md](metadata.md)、[go-to-definition.md](go-to-definition.md) |
 | `ResultGrid/` | 查詢結果的欄位與資料列模型、值轉字面值、`#temp` 與 `IN` 的產生 | [result-grid.md](result-grid.md) |
 
 ### SqlAssist.Ssms22（net48 VSIX，只做接線）

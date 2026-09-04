@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text;
-using SqlAssist.Metadata.Formatting;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Metadata.ResultGrid;
 

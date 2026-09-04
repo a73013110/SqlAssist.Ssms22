@@ -17,6 +17,11 @@ Metadata，因為那兩個專案跑得起單元測試；需要就放 Ssms22，�
 `Core/Settings/SqlAssistSettingsReader`，Ssms22 只把 `ISettingsReader` 包成
 `ISettingValueSource`。
 
+判準與檔案放在哪裡無關，只與相依有關：`SqlInsertionText`（提交一筆建議要寫進去的
+那串字）曾經住在 Ssms22，只因為它用得到當時放在 Metadata 的 `SqlIdentifier`。
+那個識別字括號化只依賴 `Core/Keywords`，一個資料庫欄位都不碰——把它移回
+`Core/Parsing` 之後，「補不補結構描述」整條規則就跟著回到測得到的那一側。
+
 ## 資料夾即命名空間
 
 `src/SqlAssist.Core/Settings/` 對應 `SqlAssist.Core.Settings`，測試專案鏡像同一份
@@ -26,9 +31,9 @@ Metadata，因為那兩個專案跑得起單元測試；需要就放 Ssms22，�
 src/SqlAssist.Core           純邏輯，可完整單元測試
   Settings/                  設定模型、moniker、註冊值到強型別快照的對應
   Diagnostics/               版本解讀、健康檢查，以及視窗與匿名摘要共用的欄位清單
-  Completion/                建議項、上下文分析、觸發條件與排名
+  Completion/                建議項、上下文分析、觸發條件、排名與提交時的插入文字
   Keywords/                  關鍵字與內建函式目錄、大小寫改寫、位置判斷
-  Parsing/                   詞法器、語彙狀態、語句範圍模型、欄位來源解析、文字來源介面
+  Parsing/                   詞法器、語彙狀態、語句範圍模型、欄位來源解析、識別字括號化、文字來源介面
   Wildcards/                 SELECT * 的星號判定與展開後的欄位排版
   Preview/                   預覽的矩形定位、避障與雙側縮放純邏輯
   Matching/                  與領域無關的詞首感知模糊比對
@@ -41,7 +46,7 @@ src/SqlAssist.Metadata       只依賴 System.Data
   Model/                     物件、欄位、參數、索引與外鍵的唯讀模型
   Querying/                  連線來源、目錄查詢語句與資料列對應
   Caching/                   四層按需載入的快取與連線層級的登錄
-  Formatting/                識別字括號化、型別字串格式化、欄位性質的顯示語意
+  Formatting/                型別字串格式化、欄位性質的顯示語意、可執行指令碼的批次樣板
 
 src/SqlAssist.Ssms22         net48 VSIX
   Completion/                平台非同步 IntelliSense 的來源、排名器與提交管理員

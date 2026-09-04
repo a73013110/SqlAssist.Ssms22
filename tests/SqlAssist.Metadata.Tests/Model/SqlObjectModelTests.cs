@@ -1,4 +1,5 @@
 using System.Linq;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;

@@ -27,7 +27,7 @@
 | 建議清單、Matching、排序、內建 IntelliSense | [補全](completion.md) |
 | CompletionContext、Triggers、KeywordCase、出現時機 | [上下文與觸發](completion-context.md) |
 | 別名欄位、Scope、ColumnSource、暫存表、重開清單 | [欄位解析](completion-columns.md) |
-| 提交、Commit、INSERT／MERGE／EXEC／ALTER、Statements | [提交與展開](completion-commit-expansion.md) |
+| 提交、插入文字、結構描述、方括號、INSERT／MERGE／EXEC／ALTER | [提交與展開](completion-commit-expansion.md) |
 | Keywords、函式、型別、生成關鍵字 | [目錄](completion-catalogs.md) |
 | 變數、全域變數、模組參數 | [變數補全](completion-variables.md) |
 | Snippets、Tab Stop、片段管理、Tab／Enter | [片段](snippets.md) |

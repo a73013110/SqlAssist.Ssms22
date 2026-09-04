@@ -9,11 +9,9 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Caching;
-using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22;
-using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Connections;

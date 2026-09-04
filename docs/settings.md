@@ -48,7 +48,7 @@ moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 「插入物件時加上方括號」管的是**資料庫物件**的名稱。暫存資料表（`#Loan`）與資料表變數
 （`@rows`）不在它的管轄內，開著也不會被包起來：`[#Loan]` 雖然合法卻不是任何人會手寫的
 樣子，而 `[@rows]` 根本不是合法的 T-SQL，貼進編輯器就是語法錯誤。規則只有一份，在
-`Metadata/Formatting/SqlIdentifier.IsScriptScoped`。
+`Core/Parsing/SqlIdentifier.IsScriptScoped`。
 
 ## 新增一個設定
 
