@@ -107,6 +107,23 @@ WHERE d.state = 0
 ORDER BY d.name;";
 
     /// <summary>
+    /// 第一層：這台伺服器掛的連結伺服器，四段式名稱的第一段。
+    /// </summary>
+    /// <remarks>
+    /// <c>is_linked = 1</c> 把自己這一列（<c>server_id = 0</c>）排除掉：本機伺服器
+    /// 的名字寫在四段式名稱裡雖然合法，走的卻不是連結伺服器那條路，
+    /// 列進來會讓使用者選到一條繞遠路的寫法。
+    ///
+    /// <c>sys.servers</c> 依權限過濾列，沒有權限的登入看到的是空的而不是錯誤，
+    /// 所以這條查詢不需要另外的降級。
+    /// </remarks>
+    public const string LinkedServers = @"
+SELECT s.name
+FROM sys.servers AS s
+WHERE s.is_linked = 1
+ORDER BY s.name;";
+
+    /// <summary>
     /// 第二層：單一物件的欄位。主索引鍵資訊由 sys.indexes／sys.index_columns 帶出，
     /// 讓滑鼠停留提示能直接標示 PK。
     /// </summary>
@@ -223,8 +240,20 @@ WHERE p.object_id = @objectId
 ORDER BY p.parameter_id;";
 
     /// <summary>第三層：模組定義本文。加密物件會回傳 NULL。</summary>
+    /// <remarks>
+    /// 讀 <c>sys.sql_modules</c> 而不是 <c>OBJECT_DEFINITION</c>，雖然兩者讀的是
+    /// 同一欄：那是本機函式，加不了限定字，跨到連結伺服器時會在<b>對方登入的
+    /// 預設資料庫</b>裡找 object_id，於是拿到另一個資料庫裡剛好同號的那個物件的
+    /// 定義——而畫面上看不出來。目錄檢視則跟著 <see cref="SqlCatalogQualifier"/> 走。
+    ///
+    /// 行為完全一致：加密物件的那一列 <c>definition</c> 是 NULL，沒有
+    /// <c>VIEW DEFINITION</c> 權限時整列看不到，而呼叫端用 <c>ExecuteScalar</c>
+    /// 讀，兩種都得到 null。
+    /// </remarks>
     public const string Definition = @"
-SELECT OBJECT_DEFINITION(@objectId);";
+SELECT m.definition
+FROM sys.sql_modules AS m
+WHERE m.object_id = @objectId;";
 
     /// <summary>
     /// 第三層：同義字指向的物件。

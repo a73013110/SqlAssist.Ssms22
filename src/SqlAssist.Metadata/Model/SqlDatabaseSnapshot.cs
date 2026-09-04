@@ -18,12 +18,14 @@ public sealed class SqlDatabaseSnapshot
         IReadOnlyList<SqlObjectInfo> objects,
         IReadOnlyList<string> schemas,
         IReadOnlyList<string> databases,
-        DateTimeOffset loadedAt)
+        DateTimeOffset loadedAt,
+        IReadOnlyList<string>? linkedServers = null)
     {
         DatabaseName = databaseName ?? string.Empty;
         Objects = SortByName(objects);
         Schemas = schemas ?? Array.Empty<string>();
         Databases = databases ?? Array.Empty<string>();
+        LinkedServers = linkedServers ?? Array.Empty<string>();
         LoadedAt = loadedAt;
     }
 
@@ -50,9 +52,28 @@ public sealed class SqlDatabaseSnapshot
     /// </remarks>
     public IReadOnlyList<string> Databases { get; }
 
+    /// <summary>
+    /// 這一台伺服器上掛的連結伺服器，四段式名稱的第一段。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Databases"/> 一樣是伺服器層級的內容放在資料庫層級的快照裡，
+    /// 理由也一樣：幾列名稱不值得多養一層快取與它的失效規則。
+    ///
+    /// 這份清單本身<b>不需要</b>對任何一台連結伺服器送出查詢——<c>sys.servers</c>
+    /// 就在目前這條連線上。沒有它的話，只看文字分不出 <c>SQL209.</c> 是結構描述、
+    /// 資料庫還是伺服器，而右對齊會一律猜成結構描述，於是清單一筆都比不中。
+    /// </remarks>
+    public IReadOnlyList<string> LinkedServers { get; }
+
     public DateTimeOffset LoadedAt { get; }
 
-    public bool IsEmpty => Objects.Count == 0 && Schemas.Count == 0;
+    /// <summary>這份快照什麼都沒有，等於還沒載入成功。</summary>
+    /// <remarks>
+    /// 資料庫清單也要算進來。連結伺服器本身那一格（<c>LibMirror.</c>）的快照
+    /// <b>只有</b>資料庫清單——不算的話它永遠不「新鮮」，於是每按一次鍵就重查一次
+    /// 那台伺服器，而那一輪的延遲由對方決定。
+    /// </remarks>
+    public bool IsEmpty => Objects.Count == 0 && Schemas.Count == 0 && Databases.Count == 0;
 
     /// <summary>
     /// 依名稱尋找物件。未指定 <paramref name="schemaName"/> 時會跨結構描述比對，
