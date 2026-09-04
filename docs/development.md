@@ -63,11 +63,12 @@ $OutputEncoding = Initialize-SqlAssistUtf8Output
 
 ### 文字檔格式
 
-所有文字檔統一為 **UTF-8（無 BOM）與 LF**。根目錄的 `.gitattributes` 會覆蓋
-Windows 全域的 `core.autocrlf=true`，`.editorconfig` 則讓支援它的編輯器在儲存時沿用
+所有文字檔統一為 **UTF-8 與 LF**；除 `.sln` 保留 BOM 外，其餘檔案不含 BOM。根目錄的
+`.gitattributes` 會覆蓋 Windows 全域的 `core.autocrlf=true`，`.editorconfig` 則讓支援它的編輯器在儲存時沿用
 同一份規則。這樣產生器或補丁工具寫出的 LF 不必再整檔「還原 CRLF」。
 
-push 前的 hook 會先執行下列檢查，遇到 BOM、CRLF、無效 UTF-8 或缺少檔尾換行就停止：
+push 前的 hook 會先執行下列檢查。遇到 CR 或 CRLF 會直接轉成 LF；遇到
+BOM（`.sln` 除外）、無效 UTF-8 或缺少檔尾換行仍會停止：
 
 ```powershell
 .\tools\Check-TextFiles.ps1
@@ -104,7 +105,7 @@ AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-w
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
-| `Check-TextFiles.ps1` | 檢查文字檔皆為 UTF-8（無 BOM）、LF 且有檔尾換行 |
+| `Check-TextFiles.ps1` | 將 CR／CRLF 自動轉成 LF，並檢查文字檔皆為 UTF-8（除 `.sln` 外無 BOM）且有檔尾換行 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
 | `Read-Context.ps1` | 給 AI 分段讀長檔，不一次讀完整份 |
 | `Invoke-QuietCommand.ps1` | 給 AI 短輸出，完整命令紀錄留在磁碟 |
