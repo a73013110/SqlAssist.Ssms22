@@ -64,12 +64,40 @@ public sealed class SqlLinkedServerCompletionTests
     }
 
     /// <remarks>
-    /// 運算式位置不收：放進來的話每一次按鍵都要多背一份跟運算式無關的名單。
+    /// <c>SELECT LibArchive.dbo.fn_Fee(1)</c> 是合法的，所以運算式位置也要有
+    /// 第一段。只補資料來源那一格的話，使用者會遇到「同一個名稱在 FROM 之後
+    /// 建議得出來、在 SELECT 之後就沒有」，而語法明明都合法。
     /// </remarks>
     [Fact]
-    public void 運算式位置不列資料庫()
+    public void 運算式位置也列得出第一段()
     {
-        Assert.DoesNotContain("LibArchive", Filter("SELECT | FROM Loan"));
+        var names = Filter("SELECT | FROM Loan");
+
+        Assert.Contains("LibArchive", names);
+        Assert.Contains("LibMirror", names);
+    }
+
+    /// <remarks>
+    /// <c>EXEC LibArchive.dbo.usp_Renew</c> 同理；<c>NEXT VALUE FOR</c> 與
+    /// <c>APPLY</c> 走的是同一條規則。
+    /// </remarks>
+    [Fact]
+    public void EXEC之後也列得出第一段()
+    {
+        Assert.Contains("LibArchive", Filter("EXEC |"));
+    }
+
+    /// <remarks>
+    /// 接不到物件的位置就不收：資料表提示那一格放進來的話，每一次按鍵都要多背
+    /// 一份一定比不中的名單。
+    /// </remarks>
+    [Fact]
+    public void 接不到物件的位置不列第一段()
+    {
+        var names = Filter("SELECT * FROM Loan WITH (|");
+
+        Assert.DoesNotContain("LibArchive", names);
+        Assert.DoesNotContain("LibMirror", names);
     }
 
     [Fact]
@@ -117,5 +145,31 @@ public sealed class SqlLinkedServerCompletionTests
     public void 結構描述之後不列連結伺服器()
     {
         Assert.Equal(new[] { "Loan" }, Filter("SELECT * FROM dbo.|"));
+    }
+
+    /// <remarks>
+    /// 名稱的中間段只寫名稱本身，點號由使用者自己打——而打出點號要能把清單
+    /// 重開起來，否則使用者得再多打一個字元才看得到下一段。
+    ///
+    /// 以位址命名的連結伺服器是這裡唯一的陷阱：剝掉方括號之後它以數字開頭，
+    /// 與 <c>1.5</c> 這種小數長得一樣，而擋小數正是這條規則本來的用意。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM LibMirror.")]
+    [InlineData("SELECT * FROM [LibMirror].")]
+    [InlineData("SELECT * FROM [192.0.2.10].")]
+    [InlineData("SELECT * FROM [192.0.2.10].[LibArchive].")]
+    public void 自己打出點號之後清單要重開(string textBeforeCaret)
+    {
+        Assert.True(SqlCompletionTriggers.ShouldReopen(textBeforeCaret));
+    }
+
+    /// <remarks>
+    /// 小數仍然要擋：分不出來的代價是每次輸入小數點都彈出整個資料庫的物件清單。
+    /// </remarks>
+    [Fact]
+    public void 小數點不重開清單()
+    {
+        Assert.False(SqlCompletionTriggers.ShouldReopen("SELECT * FROM Loan WHERE Fee > 1."));
     }
 }

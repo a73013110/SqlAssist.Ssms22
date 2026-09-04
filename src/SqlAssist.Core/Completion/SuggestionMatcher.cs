@@ -281,6 +281,15 @@ public static class SuggestionMatcher
 
     private static bool IsAllowedForTarget(SuggestionKind kind, CompletionTarget target)
     {
+        // 資料庫與連結伺服器是多段式名稱的第一段，不是某一種物件。凡是寫得出
+        // 多段式名稱的位置就該有它們，而那是由「這個位置接不接得住一個物件」
+        // 決定的，不是由目標的名字決定的——逐個目標補的話，漏掉的那一個
+        // 沒有徵兆：使用者只會看到「這裡沒有建議」，而語法明明合法。
+        if (kind is SuggestionKind.Database or SuggestionKind.LinkedServer)
+        {
+            return IsQualifiedNameStart(kind, target);
+        }
+
         return target switch
         {
             // 指令碼宣告的 CTE 與暫存資料表在這個位置與資料表完全同格：
@@ -400,6 +409,38 @@ public static class SuggestionMatcher
     }
 
     /// <summary>
+    /// 這個位置寫得出多段式名稱嗎。
+    /// </summary>
+    /// <remarks>
+    /// 寫得出的是「會接一個資料庫物件」的位置：<c>FROM</c>、<c>JOIN</c> 之外，
+    /// 運算式裡的純量函式（<c>SELECT LibArchive.dbo.fn_Fee(1)</c>）、<c>EXEC</c>
+    /// 的程序、<c>APPLY</c> 的資料表值函式、<c>NEXT VALUE FOR</c> 的序列，
+    /// 以及 <c>DROP VIEW</c> 這一類都算。
+    ///
+    /// 排除的是根本接不到物件的位置：欄位（<c>a.</c> 之後）、變數與全域變數、
+    /// 資料型別、日期部分與兩種提示。那些位置放進來的話，每一次按鍵都要多背
+    /// 一份一定比不中的名單。
+    ///
+    /// <c>USE</c> 是唯一的特例：那裡的資料庫名稱是整句的<b>終點</b>而不是名稱的
+    /// 第一段，而連結伺服器在那裡根本接不上（<c>USE</c> 換不了伺服器）。
+    /// </remarks>
+    private static bool IsQualifiedNameStart(SuggestionKind kind, CompletionTarget target)
+    {
+        if (target == CompletionTarget.Database)
+        {
+            return kind == SuggestionKind.Database;
+        }
+
+        return target is CompletionTarget.Any
+            or CompletionTarget.DataSource
+            or CompletionTarget.Procedure
+            or CompletionTarget.Function
+            or CompletionTarget.TableFunction
+            or CompletionTarget.Sequence
+            or CompletionTarget.View;
+    }
+
+    /// <summary>
     /// 限定字要當成結構描述來過濾。
     /// </summary>
     /// <remarks>
@@ -413,13 +454,12 @@ public static class SuggestionMatcher
             return true;
         }
 
+        // 沒有限定字時哪些類別出得來，由位置決定（IsQualifiedNameStart），
+        // 不在這裡再判一次——兩處各判一份的話，放行的那一處會被另一處擋掉，
+        // 而症狀是「這個位置就是沒有建議」，看不出是誰擋的。
         if (context.QualifierPath is null)
         {
-            // 資料庫與連結伺服器在這一格都是「名稱的第一段」，提交時帶著點號，
-            // 清單接著開下一段。但只有 USE 與資料來源這兩個位置接得住它們：
-            // SELECT | 那種位置放進來的話，每一次按鍵都要多背一份跟運算式無關的名單。
-            return suggestion.Kind != SuggestionKind.Database ||
-                   context.Target is CompletionTarget.Database or CompletionTarget.DataSource;
+            return true;
         }
 
         // 連結伺服器之後只能是資料庫：SQL209. 的下一段沒有別的東西可以接。
