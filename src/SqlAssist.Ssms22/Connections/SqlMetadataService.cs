@@ -1079,15 +1079,17 @@ internal sealed class SqlMetadataService : IDisposable
 
         AddObjects(suggestions, snapshot.Objects);
 
+        // 名稱的中間段一律只寫名稱本身：點號由使用者自己打，而打出點號會讓上下文
+        // 整個換掉，重開清單那條路本來就會接手。連點號一起寫進去等於替使用者決定
+        // 「你還要繼續往下走」，想直接用這個名稱的人得先退掉一個他沒要求的字元。
         foreach (var schema in snapshot.Schemas)
         {
             suggestions.Add(new SqlSuggestion(
                 schema,
-                SqlIdentifier.Quote(schema) + ".",
+                schema,
                 "Schema",
                 $"Schema {SqlIdentifier.Quote(schema)}",
                 SuggestionKind.Schema,
-                triggerFollowUp: true,
                 schemaName: schema));
         }
 
@@ -1107,16 +1109,14 @@ internal sealed class SqlMetadataService : IDisposable
         {
             foreach (var server in snapshot.LinkedServers)
             {
-                // 與結構描述一樣帶著點號提交，清單接著開下一段（那台伺服器的
-                // 資料庫）。名稱不保證是識別字的形狀——連結伺服器可以直接以位址
-                // 命名，方括號由 SqlInsertionText 依同一條規則補。
+                // 名稱不保證是識別字的形狀——連結伺服器可以直接以位址命名，
+                // 方括號由 SqlInsertionText 依與其他名稱同一條規則補。
                 suggestions.Add(new SqlSuggestion(
                     server,
                     server,
                     "Linked server",
                     $"連結伺服器 {SqlIdentifier.QuoteIfNeeded(server)}",
-                    SuggestionKind.LinkedServer,
-                    triggerFollowUp: true));
+                    SuggestionKind.LinkedServer));
             }
         }
 

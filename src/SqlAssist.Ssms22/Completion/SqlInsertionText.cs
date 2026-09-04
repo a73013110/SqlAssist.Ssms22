@@ -36,18 +36,21 @@ internal static class SqlInsertionText
 
         var objectName = Quote(suggestion.DisplayText, settings);
 
-        // 結構描述、連結伺服器與資料庫都是路徑的中間段，不是終點：帶著點號寫進去，
-        // 清單就會接著開下一段。少了那個點號，使用者得自己補，而補之前平台看到的是
-        // 一個比不中任何東西的前綴，清單會直接關掉。
+        // 路徑的中間段只寫名稱本身，點號留給使用者自己打。
         //
-        // 唯一的例外是 USE：那個位置的資料庫名稱就是整句的終點，補上點號會寫出
-        // USE LibArchive.——而那不是合法的語句。
-        if (suggestion.Kind == SuggestionKind.Schema ||
-            suggestion.Kind == SuggestionKind.LinkedServer ||
-            (suggestion.Kind == SuggestionKind.Database &&
-             context.Target != CompletionTarget.Database))
+        // 曾經連點號一起寫進去，想省一個按鍵並順便接著開下一段。那不對：提交一筆
+        // 建議的意思是「我要這個名稱」，不是「我要繼續往下走」——選了資料庫想直接
+        // 換行去寫別的、或想手動打結構描述的人，都得先退掉一個他沒要求的字元。
+        // 接續的部分本來就有人做了：打出點號會讓上下文整個換掉，
+        // SqlCompletionTriggers 因此重開清單，而那條路徑對每一段都一樣。
+        //
+        // 這一條也擋住「把結構描述限定到自己身上」：這幾類的 SchemaName 就是它們
+        // 自己，掉進下面那段會寫出 dbo.dbo。
+        if (suggestion.Kind is SuggestionKind.Schema
+            or SuggestionKind.Database
+            or SuggestionKind.LinkedServer)
         {
-            return objectName + ".";
+            return objectName;
         }
 
         if (!NeedsSchema(context, settings) ||
