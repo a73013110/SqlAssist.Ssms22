@@ -61,9 +61,32 @@ Place the cursor after `*` and press `Tab` to expand it into an indented, multi-
 Selecting an object in specific syntax positions expands complete, ready-to-run statement scaffolds:
 
 - **`INSERT INTO`**: Selecting a table expands formatted column lists and inserts type-aware default value placeholders in the `VALUES` clause.
+
+  <p align="center">
+    <img src="docs/images/expand-insert-into.png" width="820"
+         alt="Before and after pressing Tab on a table suggestion after INSERT INTO, expanding it into columns and a VALUES block">
+  </p>
+
 - **`EXEC`**: Selecting a stored procedure expands all named parameters, type annotations, and necessary `OUTPUT` variable declarations.
+
+  <p align="center">
+    <img src="docs/images/expand-exec.png" width="820"
+         alt="Before and after committing a stored procedure after EXEC, expanding it into named parameters">
+  </p>
+
 - **`ALTER PROCEDURE / FUNCTION`**: Typing `ap` or `af` and selecting an object inserts its complete, executable definition directly into the editor—ready for in-place modification and execution.
+
+  <p align="center">
+    <img src="docs/images/expand-def-procedure.png" width="820"
+         alt="Before and after committing a stored procedure after ALTER PROCEDURE, loading its complete definition into the editor">
+  </p>
+
 - **`MERGE INTO`**: Selecting a table generates a comprehensive `USING ... ON ... WHEN MATCHED` template.
+
+  <p align="center">
+    <img src="docs/images/expand-merge-into.png" width="820"
+         alt="Before and after committing a table after MERGE INTO, expanding it into a complete MERGE statement template">
+  </p>
 
 ---
 
@@ -84,6 +107,11 @@ Inspect object schemas and underlying definitions without digging through deep O
 ## Result Grid Utilities
 
 After running a query, right-click any selected cells in the result grid to transform data directly in memory, without issuing extra server round-trips:
+
+<p align="center">
+  <img src="docs/images/result-grid-utility.png" width="820"
+       alt="Selected SSMS result grid rows with SqlAssist context-menu commands for copying, scripting, profiling, and viewing full cell content">
+</p>
 
 - **Script as #temp Table**: Generates an executable script containing `CREATE TABLE #SqlAssistRows`, batched `INSERT` statements, and a final `SELECT` in a new query window for instant debugging.
 - **Copy as IN Clause**: Formats selected values into a clean `IN ('val1', 'val2')` predicate ready to paste straight into a `WHERE` clause.

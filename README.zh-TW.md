@@ -63,9 +63,32 @@ SQL Server** 查詢，不經過任何雲端服務，也沒有 AI 模型參與。
 在特定語法情境下選取物件，直接補齊整份語句骨架：
 
 - **`INSERT INTO`**：選取資料表後按 Enter，自動產生欄位清單與帶有型別預設值的 `VALUES` 區塊。
+
+  <p align="center">
+    <img src="docs/images/expand-insert-into.png" width="820"
+         alt="在 INSERT INTO 後選取資料表並按下 Tab，從建議清單展開成欄位清單與 VALUES 區塊的前後對照">
+  </p>
+
 - **`EXEC`**：選取預存程序後，自動帶出所有具名參數、型別註解與必要的 `OUTPUT` 變數。
+
+  <p align="center">
+    <img src="docs/images/expand-exec.png" width="820"
+         alt="在 EXEC 後提交預存程序，展開成具名參數清單的前後對照">
+  </p>
+
 - **`ALTER PROCEDURE / FUNCTION`**：打 `ap` 或 `af` 選取物件，整份可執行的定義直接載入編輯器，游標停在名稱後方，原地修改、原地執行。
+
+  <p align="center">
+    <img src="docs/images/expand-def-procedure.png" width="820"
+         alt="在 ALTER PROCEDURE 後提交預存程序，將完整定義載入編輯器的前後對照">
+  </p>
+
 - **`MERGE INTO`**：選取資料表後，自動展開 `USING ... ON ... WHEN MATCHED` 的完整範本。
+
+  <p align="center">
+    <img src="docs/images/expand-merge-into.png" width="820"
+         alt="在 MERGE INTO 後提交資料表，展開成完整 MERGE 語句範本的前後對照">
+  </p>
 
 ---
 
@@ -86,6 +109,11 @@ SQL Server** 查詢，不經過任何雲端服務，也沒有 AI 模型參與。
 ## 查詢結果格線工具
 
 執行查詢後，在結果格線上選取資料並按右鍵，可以直接把格線上的資料轉成後續除錯或分享所需的內容，完全在本地記憶體處理，不發送額外查詢：
+
+<p align="center">
+  <img src="docs/images/result-grid-utility.png" width="820"
+       alt="在 SSMS 查詢結果格線選取多列後開啟右鍵選單，顯示 SqlAssist 的複製、指令碼、欄位剖析與完整內容命令">
+</p>
 
 - **建立 #temp 指令碼**：把選取的資料轉成包含 `CREATE TABLE #SqlAssistRows`、批量 `INSERT` 與 `SELECT` 的完整腳本，在新查詢視窗直接執行。
 - **複製成 IN 條件**：將選取的一至多欄複製為格式正確的 `IN ('val1', 'val2')` 述詞，直接貼進 `WHERE`。
