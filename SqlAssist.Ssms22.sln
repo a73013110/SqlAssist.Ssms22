@@ -22,6 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "方案項目", "方案項�
 		Directory.Build.props = Directory.Build.props
 		global.json = global.json
 		README.md = README.md
+		README.zh-TW.md = README.zh-TW.md
 		version.json = version.json
 	EndProjectSection
 EndProject
@@ -72,10 +73,15 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{F15806DE-7900-4301-9DA0-70A3D4EDA7C6}"
 	ProjectSection(SolutionItems) = preProject
 		docs\images\completion.png = docs\images\completion.png
+		docs\images\expand-def-procedure.png = docs\images\expand-def-procedure.png
+		docs\images\expand-exec.png = docs\images\expand-exec.png
+		docs\images\expand-insert-into.png = docs\images\expand-insert-into.png
+		docs\images\expand-merge-into.png = docs\images\expand-merge-into.png
 		docs\images\expand-star.png = docs\images\expand-star.png
 		docs\images\hero.png = docs\images\hero.png
 		docs\images\logo.png = docs\images\logo.png
 		docs\images\README.md = docs\images\README.md
+		docs\images\result-grid-utility.png = docs\images\result-grid-utility.png
 		docs\images\social-preview.png = docs\images\social-preview.png
 		docs\images\structure-preview.png = docs\images\structure-preview.png
 	EndProjectSection
