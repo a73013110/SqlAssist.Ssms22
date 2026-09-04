@@ -21,7 +21,7 @@ namespace SqlAssist.Ssms22.ResultGrid;
 /// 那幾欄」。要帶走的人按「複製」拿 TSV，貼進哪裡都能排。
 ///
 /// 外觀全部走 <see cref="SqlAssistChrome"/>，一個樣式都不自己定義——
-/// 這是 CLAUDE.md 那條「禁止在 UI/SqlAssistChrome 之外另立一套外觀」。
+/// 這是自製 UI 準則的「禁止在 UI/SqlAssistChrome 之外另立一套外觀」。
 /// </remarks>
 internal sealed class ResultGridProfileWindow : DialogWindow
 {

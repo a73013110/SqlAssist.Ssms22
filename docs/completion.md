@@ -1,17 +1,7 @@
 # 建議清單
 
-輸入時彈出的建議清單。這一份寫排名、觸發時機與清單引擎本身；清單內容的來源與各種
-收斂規則按主題分成下面幾份，動手前讀相關的那一份就夠，不必整包讀。程式碼片段的
-格式與管理見 [snippets.md](snippets.md)。
-
-| 要改的東西 | 讀哪一份 |
-| --- | --- |
-| 排名、觸發時機、與 SSMS 內建 IntelliSense 並存 | 本檔 |
-| T-SQL 關鍵字、內建函式、資料型別的目錄與位置分層 | [completion-catalogs.md](completion-catalogs.md) |
-| `@@` 全域變數、`@` 變數與參數 | [completion-variables.md](completion-variables.md) |
-| 某個位置該顯示什麼、關鍵字自動大寫 | [completion-context.md](completion-context.md) |
-| 提交時寫進去的名稱，以及展開成整句（`INSERT`／`MERGE`／`EXEC`／`ALTER`） | [completion-commit-expansion.md](completion-commit-expansion.md) |
-| `別名.` 之後的欄位、範圍切割、重開清單 | [completion-columns.md](completion-columns.md) |
+本頁只處理排名、清單引擎與 SSMS 內建 IntelliSense；候選來源、上下文與提交規則由
+[文件路由](index.md)直接指向各自的葉文件。
 
 ## 清單內容與排名
 
@@ -88,4 +78,3 @@ AutoListMembers || reason == CompleteWord || reason == DisplayMemberList
 早期版本改用執行期硬關對方 session 的做法，但在 SSMS 22 兩條管線共用同一條
 命令鏈，整批關掉會連帶收掉自己剛觸發的那一個，反而讓清單完全不出現。
 那條路徑已經移除。
-

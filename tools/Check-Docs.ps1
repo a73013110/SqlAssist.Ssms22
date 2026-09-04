@@ -3,14 +3,14 @@
 param(
     # 字元只是穩定的檔案預算，不假設中文與模型 token 一比一，也不估算快取費用。
     [ValidateRange(1, 2147483647)]
-    [int]$CharBudget = 14000,
-    [int]$WarnAt = 10000,
+    [int]$CharBudget = 4000,
+    [int]$WarnAt = 3900,
     [ValidateRange(1, 2147483647)]
-    [int]$ClaudeMdBudget = 3500,
+    [int]$ClaudeMdBudget = 1000,
     [ValidateRange(1, 2147483647)]
-    [int]$IndexMdBudget = 4000,
+    [int]$IndexMdBudget = 3500,
     [ValidateRange(1, 2147483647)]
-    [int]$AgentsMdBudget = 800,
+    [int]$AgentsMdBudget = 400,
     [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -50,7 +50,7 @@ function ConvertTo-Anchor([string]$Text) {
 }
 
 $targets = @(Get-ChildItem -LiteralPath (Join-Path $rootPath 'docs') -Filter '*.md' -Recurse)
-foreach ($name in @('README.md', 'CLAUDE.md', 'AGENTS.md')) {
+foreach ($name in @('README.md', 'README.zh-TW.md', 'CLAUDE.md', 'AGENTS.md')) {
     $targets += Get-Item -LiteralPath (Join-Path $rootPath $name)
 }
 $budgets = @{ 'CLAUDE.md' = $ClaudeMdBudget; 'AGENTS.md' = $AgentsMdBudget; 'docs/index.md' = $IndexMdBudget }

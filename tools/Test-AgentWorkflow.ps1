@@ -203,7 +203,7 @@ Assert-Condition ($read.ExitCode -eq 1) 'BOM 不可讓非 UTF-8 來源繞過讀�
 
 $docsRoot = Join-Path $testRoot 'docs-fixture'
 [void][System.IO.Directory]::CreateDirectory((Join-Path $docsRoot 'docs'))
-foreach ($name in @('README.md', 'CLAUDE.md', 'AGENTS.md')) {
+foreach ($name in @('README.md', 'README.zh-TW.md', 'CLAUDE.md', 'AGENTS.md')) {
     [System.IO.File]::WriteAllText((Join-Path $docsRoot $name), "# 規則`n`n## 規則`n", $utf8)
 }
 $indexPath = Join-Path $docsRoot 'docs/index.md'
@@ -228,6 +228,11 @@ Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('錨點不存�
 [System.IO.File]::WriteAllText($indexPath, $validIndex + "`n", $utf8)
 $check = Invoke-TestScript $checker @{ Root = $docsRoot; IndexMdBudget = 10 }
 Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('docs/index.md')) '短索引預算必須能阻擋膨脹'
+$leafPath = Join-Path $docsRoot 'docs/leaf.md'
+[System.IO.File]::WriteAllText($leafPath, "# 葉文件`n`n$('內容' * 40)`n", $utf8)
+$check = Invoke-TestScript $checker @{ Root = $docsRoot; CharBudget = 40 }
+Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('docs/leaf.md')) '一般文件預算必須能阻擋葉文件膨脹'
+Remove-Item -LiteralPath $leafPath
 [System.IO.File]::AppendAllText((Join-Path $docsRoot 'AGENTS.md'), "`n[錯誤](docs/不存在.md)`n", $utf8)
 $check = Invoke-TestScript $checker @{ Root = $docsRoot }
 Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('AGENTS.md')) 'Codex 入口的壞連結也必須阻擋'
@@ -310,6 +315,16 @@ Assert-Condition ($check.ExitCode -eq 0) '.sln 含 BOM 必須通過'
 [System.IO.File]::WriteAllText($solutionPath, "$solutionText`r`n", [System.Text.UTF8Encoding]::new($true))
 $check = Invoke-TestScript $textChecker @{}
 Assert-Condition ($check.ExitCode -ne 0 -and $check.Out.Contains('CRLF')) '.sln 的 BOM 例外不得放寬換行規則'
+
+# 文件拆分會刪除已追蹤檔；git ls-files --cached 仍列出它，檢查器不可把合法刪檔當格式錯誤。
+[System.IO.File]::WriteAllText($solutionPath, $solutionText, [System.Text.UTF8Encoding]::new($true))
+$deletedPath = Join-Path $gitRoot '準備刪除.md'
+[System.IO.File]::WriteAllText($deletedPath, "# 準備刪除`n", $utf8)
+& git -C $gitRoot -c core.autocrlf=false add -- '準備刪除.md'
+Assert-Condition ($LASTEXITCODE -eq 0) '刪檔格式測試必須先建立索引項目'
+Remove-Item -LiteralPath $deletedPath
+$check = Invoke-TestScript $textChecker @{}
+Assert-Condition ($check.ExitCode -eq 0) '文字格式檢查不得阻擋已追蹤檔案的合法刪除'
 
 Write-Host "AI 工作流程驗證通過：$script:checks 項；合成輸出 $sampleRawChars → $samplePreviewChars 字元（不是模型 token 量測）。"
 Write-Host "測試紀錄：$testRoot"

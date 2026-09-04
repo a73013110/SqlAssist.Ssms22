@@ -15,7 +15,7 @@ namespace SqlAssist.Ssms22.ResultGrid;
 /// <remarks>
 /// 這是整組結果格線功能唯一碰得到 SSMS 內部型別的地方。取出來的東西一律是
 /// <see cref="ResultGridTable"/>，之後的判斷與產指令碼全部在 <c>SqlAssist.Metadata</c>
-/// 裡跑得了單元測試——CLAUDE.md 那條「禁止把只看文字就能判斷的邏輯寫進 Ssms22」
+/// 裡跑得了單元測試——「禁止把只看文字就能判斷的邏輯寫進 Ssms22」
 /// 在這裡的實際形狀就是這一條界線。
 ///
 /// <b>兩套欄索引。</b>同一個儲存體上，<c>GetServerDataTypeName</c> 那一族吃 0 起算

@@ -15,7 +15,7 @@ param(
     [ValidateRange(1, 500)]
     [int]$LineCount = 80,
     [ValidateRange(1024, 8000)]
-    [int]$MaxChars = 6000
+    [int]$MaxChars = 4500
 )
 
 $ErrorActionPreference = 'Stop'

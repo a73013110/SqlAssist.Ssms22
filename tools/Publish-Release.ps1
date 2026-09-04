@@ -84,7 +84,7 @@ $vsix = Get-SqlAssistVsixPath
 $version = [version](Get-SqlAssistVsixVersion -VsixPath $vsix)
 
 # Manifest 的版號有四段，第四段由 commit id 推導、不遞增，只用來回推來源。
-# tag 取前三段，與 docs/development.md 的 v0.15.0 寫法一致；帶著第四段的 tag
+# tag 取前三段，與 docs/release.md 的 v0.15.0 寫法一致；帶著第四段的 tag
 # 排序看起來像亂數，也讓「這一版是哪一版」多一段要對照的數字。
 $tag = 'v{0}.{1}.{2}' -f $version.Major, $version.Minor, $version.Build
 

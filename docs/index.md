@@ -1,71 +1,66 @@
-# 索引
+# 文件路由
 
-先讀 [CLAUDE.md](../CLAUDE.md)，再依本頁選擇必要護欄與功能文件。
-只讀與這次任務有關的章節；長文件先查標題／行號，不依連結把整棵文件樹讀完。
+只讀本次修改命中的護欄與主題；跨範圍取聯集。先以檔名、符號或標題定位，不沿連結
+預讀整棵文件樹。護欄是必讀規則，不是延伸閱讀。
 
-## 修改前必讀的護欄
+## 修改前護欄
 
-按**實際修改的檔案與行為**選擇；跨領域讀取所有相關列，測試依被測功能比照。
-本表指向的禁令與根目錄規則具有相同約束力，不能因為檔案搬家而略過。
-
-| 會修改的範圍 | 必讀章節 |
+| 實際變更 | 必讀 |
 |---|---|
-| 任一層的 Settings、註冊 JSON、設定頁 | [設定](change-rules.md#設定) |
-| `SqlAssist.Ssms22` 的接線、事件、命令、UI、MEF、連線與部署 | [平台接線](change-rules.md#平台接線) |
-| Metadata 的查詢、快取、結構、可執行指令碼 | [中繼資料](change-rules.md#中繼資料) |
-| Snippets、Parsing、Wildcards、補全上下文、SQL 掃描 | [片段與解析](change-rules.md#片段與解析) |
-| 新增或調整跨功能共用邏輯 | 相關護欄＋[共用元件表](shared-components.md) |
+| `.cs`、測試、專案檔、`tools/` | [程式碼](rules-code.md) |
+| `CLAUDE.md`、`AGENTS.md`、README、`docs/`、AI 工具 | [文件](rules-docs.md) |
+| Settings、registration、設定頁 | [設定](rules-settings.md) |
+| Ssms22 事件、命令、MEF、連線、部署 | [平台](rules-platform.md) |
+| 自製視窗、控制項、排版、色彩 | [平台](rules-platform.md)＋[UI 準則](ui-guidelines.md) |
+| Metadata 查詢、快取、結構、指令碼 | [中繼資料](rules-metadata.md) |
+| Snippets、Parsing、Wildcards、上下文、SQL 掃描 | [片段與解析](rules-parsing.md) |
+| 跨功能共用邏輯 | 上述護欄＋[唯一實作](shared-components.md) |
 
-## 我要改的是……
+## 主題
 
-選功能文件後，再以標題或符號搜尋必要區段。仍不清楚程式位置時，查
-[詳細路徑表](code-map.md#我要改的是)，不要先讀整份架構與全部來源。
-
-| 任務或路徑關鍵字 | 文件 |
+| 關鍵字／症狀 | 文件 |
 |---|---|
-| 分層、命名空間、共用元件、平台邊界 | [架構](architecture.md) |
-| 建議清單、Matching、排序、內建 IntelliSense | [補全](completion.md) |
-| CompletionContext、Triggers、KeywordCase、出現時機 | [上下文與觸發](completion-context.md) |
-| 別名欄位、Scope、ColumnSource、暫存表、重開清單 | [欄位解析](completion-columns.md) |
-| 提交、插入文字、結構描述、方括號、INSERT／MERGE／EXEC／ALTER | [提交與展開](completion-commit-expansion.md) |
-| Keywords、函式、型別、生成關鍵字 | [目錄](completion-catalogs.md) |
-| 變數、全域變數、模組參數 | [變數補全](completion-variables.md) |
-| Snippets、Tab Stop、片段管理、Tab／Enter | [片段](snippets.md) |
-| Wildcards、SELECT *、Tab 展開 | [星號展開](wildcard-expansion.md) |
+| 分層、平台邊界、原生補全管線 | [架構](architecture.md) |
+| SqlAssistPlatformGuard、Run／Probe／Begin | [平台 Guard](platform-guard.md) |
+| 不知道該改哪個型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
+| 建議清單、Matching、排名、內建 IntelliSense | [補全](completion.md) |
+| CompletionContext、Triggers、KeywordCase、一般位置 | [上下文](completion-context.md) |
+| `ON` 是資料表或述詞、MERGE 動作子句 | [ON／MERGE](completion-on-merge.md) |
+| TVF／純量函式、系統物件出現範圍 | [物件種類](completion-object-kinds.md) |
+| 多段式名稱、資料庫／結構描述判定、右對齊 | [限定名稱](qualified-names.md) |
+| 別名欄位、ColumnSource、暫存表、資料表變數 | [欄位](completion-columns.md) |
+| Scope、括號範圍、清單重開 | [範圍與重開](completion-reopen.md) |
+| 提交名稱、結構描述、方括號、點號 | [插入文字](completion-insertion.md) |
+| ALTER／INSERT／MERGE／EXEC 展開、游標、復原 | [整句展開](statement-expansion.md) |
+| 函式引數、INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
+| 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
+| 子句回溯、別名、換行邊界、數值不開清單 | [關鍵字邊界](completion-keyword-context.md) |
+| 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
+| 變數、全域變數、模組參數 | [變數](completion-variables.md) |
+| 片段內容與接續建議 | [片段](snippets.md) |
+| Tab Stop、欄位建議、Tab／Enter | [片段導航](snippet-navigation.md) |
+| 使用者 override、合併、遷移、存檔 | [片段存放](snippet-storage.md) |
+| SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |
-| QuickInfo、Preview、UI、Chrome、視窗與佈景 | [結構預覽](structure-preview.md) |
-| F12、ShellCommandFilter、Definition、ScriptWindow | [移至定義](go-to-definition.md) |
-| ResultGrid、結果轉 SQL | [結果格線](result-grid.md) |
-| Settings、Monikers、registration、Limits | [設定](settings.md) |
-| Metadata、Querying、Caching、Formatting、Model | [中繼資料](metadata.md) |
-| 跨資料庫、四段式名稱、連結伺服器 | [中繼資料](metadata.md)＋[上下文與觸發](completion-context.md) |
-| 建置、測試、tools、版本、安裝、部署、診斷 | [開發](development.md) |
-| AI 入門、新設備、PS 腳本用途、按需讀取與輸出節流 | [AI 工作流程：先看這頁](ai-workflow.md) |
-| 安裝／設定／使用／驗證 RTK | [RTK 教學](ai-rtk.md) |
+| QuickInfo、物件預覽內容 | [結構預覽](structure-preview.md) |
+| Popup、Placement、方向、焦點 | [預覽視窗](preview-window.md) |
+| 預覽操作、按需載入、Resize、效能 | [預覽互動](preview-interaction.md) |
+| Chrome、視覺規格、對話框排版 | [UI 準則](ui-guidelines.md) |
+| F12 物件種類、產生定義、失敗註解 | [F12 指令碼](definition-scripts.md) |
+| F12 執行緒、連線、新查詢視窗 | [移至定義](go-to-definition.md) |
+| ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |
+| ResultGrid 命令、JSON、欄位剖析、完整內容 | [結果格線](result-grid.md) |
+| 字面值、長度、精確度、輸出效能 | [格線輸出](result-grid-generation.md) |
+| 設定項、分類、按鈕、非設定項 | [設定](settings.md) |
+| 新增設定、enableWhen、enum 相容 | [設定結構](settings-schema.md) |
+| 中繼資料分層載入、跨資料庫 | [中繼資料](metadata.md) |
+| 連結伺服器、OPENQUERY、遠端失敗 | [遠端中繼資料](metadata-remote.md) |
+| 舊版 SQL、權限、缺欄位、降級 | [相容與失敗](metadata-compatibility.md) |
+| 建置、測試、文字格式、工具腳本 | [開發](development.md) |
+| 版本、發布、安裝、解除安裝 | [發布](release.md) |
+| VSIX 偵錯、MEF／命令快取、診斷 | [偵錯](debugging.md) |
+| AI 分段讀取、輸出節流、新設備 | [AI 工作流程](ai-workflow.md) |
+| RTK 安裝與限制 | [RTK](ai-rtk.md) |
+| README 截圖、logo、social preview、生成圖 | [圖片規則](images/README.md)／[提示詞](images/prompts.md) |
 
-## 資料夾對應
-
-細表在 [程式碼地圖](code-map.md#資料夾對應)。`tests/` 鏡像被測專案的資料夾；
-Core／Metadata 可單元測試，Ssms22 只接平台，不另放可獨立測試的商業邏輯。
-
-## 只有一份的東西
-
-需要新增共用邏輯時才查 [唯一實作](shared-components.md)，不要複製新版本。
-
-## 新增設定
-
-先讀上方設定護欄；四個必改位置與守門測試在 [新增設定](code-map.md#新增設定)。
-
-## 工具腳本
-
-腳本清單在 [開發文件](development.md#工具腳本)；完整紀錄與輸出上限在
-[AI 共用工作流程](ai-workflow.md#工具輸出節流)。
-
-## 測試
-
-路徑與游標測試助手見 [測試對照](code-map.md#測試)，執行方式見
-[建置與測試](development.md#建置與測試)。節流不改變測試範圍與判定。
-
-## 我只想安裝或使用
-
-先看 [安裝與開始使用](getting-started.md)。功能說明直接使用上方對應文件，不需要讀代理護欄。
+只安裝或使用產品時讀[開始使用](getting-started.md)，不需要代理護欄。
