@@ -70,6 +70,55 @@ public sealed class SqlMetadataCatalogRegistryTests
     }
 
     /// <remarks>
+    /// 連結伺服器上的 <c>LibArchive</c> 與本機的 <c>LibArchive</c> 是兩個不同的
+    /// 資料庫。共用同一份目錄的話，先載入的那一份會替另一個回答，
+    /// 而清單看起來完全正常。
+    /// </remarks>
+    [Fact]
+    public void 連結伺服器上的同名資料庫是另一份目錄()
+    {
+        var registry = new SqlMetadataCatalogRegistry();
+        var editor = new FakeConnectionSource("server-a|db1");
+
+        var local = registry.GetOrCreateFor(editor, "LibArchive");
+        var remote = registry.GetOrCreateFor(editor, "LibMirror", "LibArchive");
+
+        Assert.NotSame(local, remote);
+        Assert.Same(remote, registry.GetOrCreateFor(editor, "libmirror", "libarchive"));
+    }
+
+    /// <remarks>
+    /// 兩台連結伺服器上的同名資料庫同理，而且更容易撞：跨伺服器的 object_id
+    /// 之間毫無關係，拿錯一份就是整批欄位都對不上。
+    /// </remarks>
+    [Fact]
+    public void 不同連結伺服器各有自己的目錄()
+    {
+        var registry = new SqlMetadataCatalogRegistry();
+        var editor = new FakeConnectionSource("server-a|db1");
+
+        Assert.NotSame(
+            registry.GetOrCreateFor(editor, "LibMirror", "LibArchive"),
+            registry.GetOrCreateFor(editor, "LibBackup", "LibArchive"));
+    }
+
+    /// <remarks>
+    /// 伺服器本身那一格（<c>LibMirror.</c>）只問資料庫清單，與它底下任何一個
+    /// 資料庫的目錄都不是同一份。
+    /// </remarks>
+    [Fact]
+    public void 伺服器本身與它的資料庫是不同目錄()
+    {
+        var registry = new SqlMetadataCatalogRegistry();
+        var editor = new FakeConnectionSource("server-a|db1");
+
+        var root = registry.GetOrCreateFor(editor, "LibMirror", null);
+
+        Assert.NotSame(root, registry.GetOrCreateFor(editor, "LibMirror", "LibArchive"));
+        Assert.Same(root, registry.GetOrCreateFor(editor, "LibMirror", null));
+    }
+
+    /// <remarks>
     /// 跨資料庫先建過同一個資料庫的目錄時要改掛成編輯器的，不能重建一份——
     /// 重建的症狀是同一個資料庫被查兩輪，而兩份的過期時間各走各的。
     /// </remarks>

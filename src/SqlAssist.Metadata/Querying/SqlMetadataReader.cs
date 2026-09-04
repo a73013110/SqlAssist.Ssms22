@@ -19,7 +19,13 @@ public static class SqlMetadataReader
     /// 這一批物件所屬的資料庫；查詢視窗自己那條連線的傳 null。
     /// <c>object_id</c> 只在單一資料庫裡唯一，跨資料庫查快取一定要先換目錄。
     /// </param>
-    public static SqlObjectInfo ReadObject(IDataRecord record, string? databaseName = null)
+    /// <param name="serverName">
+    /// 這一批物件所在的連結伺服器；目前這台伺服器上的傳 null。
+    /// </param>
+    public static SqlObjectInfo ReadObject(
+        IDataRecord record,
+        string? databaseName = null,
+        string? serverName = null)
     {
         if (record is null)
         {
@@ -31,7 +37,8 @@ public static class SqlMetadataReader
             record.GetString(1),
             record.GetString(2),
             SqlObjectKinds.FromSysObjectType(record.GetString(3)),
-            databaseName);
+            databaseName,
+            serverName);
     }
 
     public static SqlColumnInfo ReadColumn(IDataRecord record)

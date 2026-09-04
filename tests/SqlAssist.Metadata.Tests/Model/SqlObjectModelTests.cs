@@ -7,6 +7,24 @@ namespace SqlAssist.Metadata.Tests.Model;
 
 public sealed class SqlObjectModelTests
 {
+    /// <remarks>
+    /// 連結伺服器本身那一格的快照只有資料庫清單。算成空的話它永遠不「新鮮」，
+    /// 於是每按一次鍵就重查一次那台伺服器，而那一輪的延遲由對方決定。
+    /// </remarks>
+    [Fact]
+    public void 只有資料庫清單的快照不算空的()
+    {
+        var snapshot = new SqlDatabaseSnapshot(
+            string.Empty,
+            System.Array.Empty<SqlObjectInfo>(),
+            System.Array.Empty<string>(),
+            new[] { "LibArchive" },
+            System.DateTimeOffset.UtcNow);
+
+        Assert.False(snapshot.IsEmpty);
+        Assert.True(SqlDatabaseSnapshot.Empty.IsEmpty);
+    }
+
     [Theory]
     [InlineData("U", SqlObjectKind.Table)]
     [InlineData("V", SqlObjectKind.View)]

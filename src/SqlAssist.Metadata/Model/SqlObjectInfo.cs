@@ -21,12 +21,16 @@ public sealed class SqlObjectInfo
     /// <param name="databaseName">
     /// 這個物件所屬的資料庫；查詢視窗自己那條連線的物件為 null。
     /// </param>
+    /// <param name="serverName">
+    /// 這個物件所在的連結伺服器；目前這台伺服器上的物件為 null。
+    /// </param>
     public SqlObjectInfo(
         int objectId,
         string schemaName,
         string name,
         SqlObjectKind kind,
-        string? databaseName = null)
+        string? databaseName = null,
+        string? serverName = null)
     {
         if (schemaName is null)
         {
@@ -43,6 +47,7 @@ public sealed class SqlObjectInfo
         Name = name;
         Kind = kind;
         DatabaseName = databaseName;
+        ServerName = serverName;
     }
 
     /// <summary>
@@ -65,6 +70,16 @@ public sealed class SqlObjectInfo
     /// 每一條都自己記住「這是從哪個資料庫來的」就是五份會各自忘記更新的狀態。
     /// </remarks>
     public string? DatabaseName { get; }
+
+    /// <summary>
+    /// 這個物件所在的連結伺服器；目前這台伺服器上的物件為 null。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="DatabaseName"/> 同一個理由，而且非有不可：<c>object_id</c>
+    /// 連「同一台伺服器」都不保證，換到別台之後同號的物件更是毫無關係。
+    /// 少了這一欄，跨伺服器物件的欄位、F12 與結構預覽會拿本機同號的東西回答。
+    /// </remarks>
+    public string? ServerName { get; }
 
     public string SchemaName { get; }
 

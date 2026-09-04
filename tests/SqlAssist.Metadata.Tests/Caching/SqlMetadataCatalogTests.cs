@@ -66,6 +66,66 @@ public sealed class SqlMetadataCatalogTests
     }
 
     /// <summary>
+    /// 剛失敗過的目標不再每一次按鍵都重撞一次。
+    /// </summary>
+    /// <remarks>
+    /// 失敗刻意不進快取，而空快照永遠不算新鮮——兩條加起來，連不上的目標會變成
+    /// 每一次按鍵重開一條連線，且每一次都要等滿命令逾時。使用者看到的是打字卡住。
+    /// </remarks>
+    [Fact]
+    public async Task 退避期間不再重開連線()
+    {
+        var source = new FailingConnectionSource();
+        var catalog = new SqlMetadataCatalog(
+            source,
+            TimeSpan.FromMinutes(5),
+            failureBackoff: TimeSpan.FromMinutes(5));
+
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+
+        Assert.Equal(1, source.Attempts);
+    }
+
+    /// <summary>
+    /// 退避只是延後，不是放棄：連線恢復之後不必重開查詢視窗。
+    /// </summary>
+    [Fact]
+    public async Task 退避結束後會再試一次()
+    {
+        var source = new FailingConnectionSource();
+        var catalog = new SqlMetadataCatalog(
+            source,
+            TimeSpan.FromMinutes(5),
+            failureBackoff: TimeSpan.Zero);
+
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+
+        Assert.Equal(2, source.Attempts);
+    }
+
+    /// <summary>
+    /// 按重新整理的人就是在說「我修好了，現在再試一次」。
+    /// </summary>
+    [Fact]
+    public async Task 重新整理會清掉退避()
+    {
+        var source = new FailingConnectionSource();
+        var catalog = new SqlMetadataCatalog(
+            source,
+            TimeSpan.FromMinutes(5),
+            failureBackoff: TimeSpan.FromMinutes(5));
+
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+        catalog.Invalidate();
+        await catalog.GetSnapshotAsync(CancellationToken.None);
+
+        Assert.Equal(2, source.Attempts);
+    }
+
+    /// <summary>
     /// 契約違反是程式錯誤，必須一路浮到平台邊界去留下完整堆疊。
     /// </summary>
     [Fact]

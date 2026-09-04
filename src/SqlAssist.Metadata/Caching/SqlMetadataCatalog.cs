@@ -23,6 +23,20 @@ public sealed class SqlMetadataCatalog
     /// <summary>明細快取的上限。超過時整批清掉，換取實作簡單與可預期的記憶體用量。</summary>
     private const int MaximumCachedDetails = 256;
 
+    /// <summary>載入失敗之後隔多久才願意再試一次。</summary>
+    /// <remarks>
+    /// 短到使用者修好連線之後不會覺得「怎麼還是沒有」，長到一輪按鍵不會撞第二次。
+    /// </remarks>
+    private static readonly TimeSpan DefaultFailureBackoff = TimeSpan.FromSeconds(20);
+
+    /// <summary>跨到別台伺服器時的命令逾時，比本機短。</summary>
+    /// <remarks>
+    /// 延遲與可用性由<b>對方那台伺服器</b>決定，而載入閘是每個目錄一把——等滿本機
+    /// 那個逾時只是讓「這一格沒有建議」晚很久才確定下來。配合失敗退避，
+    /// 對面不通最多讓使用者等這麼久一次。
+    /// </remarks>
+    private const int RemoteCommandTimeoutSeconds = 8;
+
     private readonly SemaphoreSlim _snapshotGate = new(1, 1);
     private readonly object _detailLock = new();
     private readonly Dictionary<int, SqlObjectDetail> _details = new();
@@ -30,7 +44,12 @@ public sealed class SqlMetadataCatalog
     private readonly ISqlConnectionSource _connectionSource;
     private readonly TimeSpan _lifetime;
     private readonly int _commandTimeoutSeconds;
+    private readonly TimeSpan _failureBackoff;
+    private readonly SqlCatalogQualifier _qualifier;
     private SqlDatabaseSnapshot _snapshot = SqlDatabaseSnapshot.Empty;
+
+    /// <summary>上一次載入失敗的時刻；沒有失敗過時為 0。</summary>
+    private long _failedAtTicks;
 
     private readonly SemaphoreSlim _systemGate = new(1, 1);
 
@@ -40,11 +59,15 @@ public sealed class SqlMetadataCatalog
     public SqlMetadataCatalog(
         ISqlConnectionSource connectionSource,
         TimeSpan lifetime,
-        int commandTimeoutSeconds = 15)
+        int commandTimeoutSeconds = 15,
+        TimeSpan? failureBackoff = null,
+        SqlCatalogQualifier? qualifier = null)
     {
         _connectionSource = connectionSource ?? throw new ArgumentNullException(nameof(connectionSource));
         _lifetime = lifetime;
         _commandTimeoutSeconds = commandTimeoutSeconds;
+        _failureBackoff = failureBackoff ?? DefaultFailureBackoff;
+        _qualifier = qualifier ?? SqlCatalogQualifier.Local;
     }
 
     public string CacheKey => _connectionSource.CacheKey;
@@ -59,6 +82,9 @@ public sealed class SqlMetadataCatalog
 
         // 系統物件沒有有效期，只有這裡會把它丟掉——換連線就是換一台伺服器。
         Volatile.Write(ref _systemObjects, null);
+
+        // 失敗退避一起清掉：按重新整理的人就是在說「我修好了，現在再試一次」。
+        Volatile.Write(ref _failedAtTicks, 0);
 
         lock (_detailLock)
         {
@@ -104,6 +130,14 @@ public sealed class SqlMetadataCatalog
             return cached;
         }
 
+        // 剛失敗過就先不試。失敗的結果刻意不進快取（連線恢復之後才不會卡在空的），
+        // 而空快照永遠不算新鮮——兩條加起來，連不上的目標會變成「每一次按鍵重開一條
+        // 連線去撞同一堵牆」，而每一次都要等滿命令逾時。使用者看到的是打字整個卡住。
+        if (IsInFailureBackoff())
+        {
+            return cached;
+        }
+
         if (!cached.IsEmpty)
         {
             BeginBackgroundRefresh();
@@ -126,11 +160,14 @@ public sealed class SqlMetadataCatalog
 
             if (loaded is null)
             {
-                // 連不上就維持空快照：它永遠不算新鮮，下一次按鍵會自然再試一次。
+                // 連不上就維持空快照，只記下失敗的時刻。把空的寫進快取會讓連線
+                // 恢復之後仍然拿到空的，而完全不記則是下一次按鍵立刻再撞一次。
+                RecordFailure();
                 return SqlDatabaseSnapshot.Empty;
             }
 
             Volatile.Write(ref _snapshot, loaded);
+            Volatile.Write(ref _failedAtTicks, 0);
             return loaded;
         }
         finally
@@ -154,6 +191,19 @@ public sealed class SqlMetadataCatalog
     ///
     /// 失敗的結果一律不進快取：那會讓連線恢復之後仍然拿到空的。
     /// </remarks>
+    private void RecordFailure()
+    {
+        Volatile.Write(ref _failedAtTicks, DateTimeOffset.UtcNow.UtcTicks);
+    }
+
+    private bool IsInFailureBackoff()
+    {
+        var failedAt = Volatile.Read(ref _failedAtTicks);
+
+        return failedAt != 0 &&
+               DateTimeOffset.UtcNow.UtcTicks - failedAt < _failureBackoff.Ticks;
+    }
+
     private static T? TryLoad<T>(Func<T> load)
         where T : class
     {
@@ -179,10 +229,16 @@ public sealed class SqlMetadataCatalog
         {
             try
             {
-                // 更新失敗就繼續用舊資料，使用者不需要知道。
+                // 更新失敗就繼續用舊資料，使用者不需要知道；但仍要記下失敗，
+                // 否則舊資料一過期就變成每一次按鍵排一次註定失敗的背景更新。
                 if (TryLoad(() => LoadSnapshot(CancellationToken.None)) is { } loaded)
                 {
                     Volatile.Write(ref _snapshot, loaded);
+                    Volatile.Write(ref _failedAtTicks, 0);
+                }
+                else
+                {
+                    RecordFailure();
                 }
             }
             catch
@@ -400,13 +456,28 @@ public sealed class SqlMetadataCatalog
     {
         using var connection = _connectionSource.OpenConnection();
 
-        // 每一筆都記下自己是從哪個資料庫來的。object_id 只在單一資料庫裡唯一，
-        // 而下游（滑鼠停留、結構預覽、F12、提交後展開）拿著這個物件回頭要
-        // 第二、三、四層時，必須換到同一個資料庫的目錄才問得到對的東西。
+        // 連結伺服器本身那一格（LibMirror.）要的只有資料庫清單。物件與結構描述
+        // 要再往右一格才問得到，在這裡先撈一份等於對那台伺服器多送兩輪
+        // 誰也不會看的查詢——而那兩輪的延遲由對方決定。
+        if (_qualifier.IsServerRoot)
+        {
+            return new SqlDatabaseSnapshot(
+                string.Empty,
+                Array.Empty<SqlObjectInfo>(),
+                Array.Empty<string>(),
+                ReadDatabases(connection, cancellationToken),
+                DateTimeOffset.UtcNow);
+        }
+
+        // 每一筆都記下自己是從哪台伺服器的哪個資料庫來的。object_id 只在單一
+        // 資料庫裡唯一，而下游（滑鼠停留、結構預覽、F12、提交後展開）拿著這個物件
+        // 回頭要第二、三、四層時，必須換到同一份目錄才問得到對的東西。
+        var databaseName = _qualifier.DatabaseName ?? _connectionSource.DatabaseName;
+
         var objects = ReadList(
                 connection,
                 SqlMetadataQueries.Objects,
-                record => SqlMetadataReader.ReadObject(record, _connectionSource.DatabaseName),
+                record => SqlMetadataReader.ReadObject(record, databaseName, _qualifier.ServerName),
                 cancellationToken)
             .FindAll(info => info.Kind != SqlObjectKind.Unknown);
 
@@ -416,12 +487,14 @@ public sealed class SqlMetadataCatalog
             record => record.GetString(0),
             cancellationToken);
 
+        // 連結伺服器上再掛的連結伺服器沒有用：T-SQL 沒有五段式名稱。
         return new SqlDatabaseSnapshot(
-            _connectionSource.DatabaseName,
+            databaseName,
             objects,
             schemas,
             ReadDatabases(connection, cancellationToken),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            _qualifier.IsRemote ? null : ReadLinkedServers(connection, cancellationToken));
     }
 
     /// <remarks>
@@ -434,6 +507,20 @@ public sealed class SqlMetadataCatalog
         return TryLoad(() => ReadList(
             connection,
             SqlMetadataQueries.Databases,
+            record => record.GetString(0),
+            cancellationToken)) ?? new List<string>();
+    }
+
+    /// <remarks>
+    /// 與資料庫清單同理，查不到就當成一台都沒掛。這條查的是<b>本機</b>的
+    /// <c>sys.servers</c>，不對任何一台連結伺服器送出查詢——真正要跨過去的
+    /// 是使用者打出那個名字之後的事。
+    /// </remarks>
+    private List<string> ReadLinkedServers(IDbConnection connection, CancellationToken cancellationToken)
+    {
+        return TryLoad(() => ReadList(
+            connection,
+            SqlMetadataQueries.LinkedServers,
             record => record.GetString(0),
             cancellationToken)) ?? new List<string>();
     }
@@ -480,8 +567,7 @@ public sealed class SqlMetadataCatalog
             cancellationToken,
             objectId);
 
-        using var command = CreateCommand(connection, SqlMetadataQueries.Definition);
-        AddObjectIdParameter(command, objectId);
+        using var command = CreateCommand(connection, SqlMetadataQueries.Definition, objectId);
         var value = command.ExecuteScalar();
         var definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
 
@@ -508,9 +594,11 @@ public sealed class SqlMetadataCatalog
         switch (objectInfo.Kind)
         {
             case SqlObjectKind.Synonym:
-                using (var command = CreateCommand(connection, SqlMetadataQueries.SynonymBase))
+                using (var command = CreateCommand(
+                    connection,
+                    SqlMetadataQueries.SynonymBase,
+                    objectInfo.ObjectId))
                 {
-                    AddObjectIdParameter(command, objectInfo.ObjectId);
                     var value = command.ExecuteScalar();
 
                     return SqlCatalogScript.ForSynonym(objectInfo, value as string);
@@ -548,13 +636,7 @@ public sealed class SqlMetadataCatalog
         int? objectId = null)
     {
         var items = new List<T>();
-        using var command = CreateCommand(connection, commandText);
-
-        if (objectId is { } id)
-        {
-            AddObjectIdParameter(command, id);
-        }
-
+        using var command = CreateCommand(connection, commandText, objectId);
         using var reader = command.ExecuteReader();
 
         while (reader.Read())
@@ -566,11 +648,26 @@ public sealed class SqlMetadataCatalog
         return items;
     }
 
-    private IDbCommand CreateCommand(IDbConnection connection, string commandText)
+    /// <summary>
+    /// 建立命令，並把查詢改寫成打到這個目錄的目標。
+    /// </summary>
+    /// <remarks>
+    /// 限定字與參數的決定都收在這一處：跨伺服器時 <c>@objectId</c> 必須內嵌成常值
+    /// （<c>OPENQUERY</c> 的內層是字串常值，參數傳不進去），漏掉的那一條查詢
+    /// 會變成執行期的「必須宣告純量變數」，而 <c>TryLoad</c> 會把它降級成
+    /// 「這一輪沒有資料」——症狀是那一層安靜地空掉。
+    /// </remarks>
+    private IDbCommand CreateCommand(IDbConnection connection, string commandText, int? objectId = null)
     {
         var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.CommandTimeout = _commandTimeoutSeconds;
+        command.CommandText = _qualifier.Compose(commandText, objectId);
+        command.CommandTimeout = _qualifier.IsRemote ? RemoteCommandTimeoutSeconds : _commandTimeoutSeconds;
+
+        if (objectId is { } id && !_qualifier.IsRemote)
+        {
+            AddObjectIdParameter(command, id);
+        }
+
         return command;
     }
 

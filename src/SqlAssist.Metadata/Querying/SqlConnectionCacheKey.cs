@@ -44,13 +44,24 @@ public static class SqlConnectionCacheKey
     /// 組合規則只有這一份。跨資料庫建議要為同一條連線的另一個資料庫算鍵，
     /// 在呼叫端自己拼字串的話，拼法一旦與這裡分岔，同一個資料庫就會拿到兩份目錄
     /// ——症狀是查詢次數加倍，而兩份的過期時間各走各的。
+    ///
+    /// <paramref name="linkedServerName"/> 一定要進鍵：連結伺服器上的
+    /// <c>LibArchive</c> 與本機的 <c>LibArchive</c> 是兩個不同的資料庫，
+    /// 少了這一段兩者會共用同一份目錄，而先載入的那一份會替另一個回答。
     /// </remarks>
-    public static string Compose(string? serverCacheKey, string? databaseName)
+    public static string Compose(string? serverCacheKey, string? databaseName, string? linkedServerName = null)
     {
         var builder = new StringBuilder();
         builder.Append(serverCacheKey ?? string.Empty);
         builder.Append('|');
         builder.Append((databaseName ?? string.Empty).ToLowerInvariant());
+
+        if (!string.IsNullOrEmpty(linkedServerName))
+        {
+            builder.Append('@');
+            builder.Append(linkedServerName!.ToLowerInvariant());
+        }
+
         return builder.ToString();
     }
 

@@ -107,6 +107,56 @@ public sealed class SqlMetadataCatalogRegistry
         }
     }
 
+    /// <summary>
+    /// 取得<b>連結伺服器</b>上的目錄；<paramref name="databaseName"/> 為 null 時
+    /// 是那台伺服器本身，只問得到資料庫清單。
+    /// </summary>
+    /// <remarks>
+    /// 連結伺服器換不了連線——那台伺服器不是我們連得上的——所以這裡與跨資料庫
+    /// 相反：連線來源原封不動，換的是 SQL 的限定字（<see cref="SqlCatalogQualifier"/>）。
+    /// 共用的部分因此比跨資料庫還多：連目錄的連線都是同一條。
+    ///
+    /// 這一類目錄與跨資料庫的一起參與淘汰。使用者打得出來的伺服器與資料庫組合
+    /// 沒有上限，而每一份都是一條隨著輸入成長的記憶體。
+    /// </remarks>
+    public SqlMetadataCatalog GetOrCreateFor(
+        ISqlConnectionSource connectionSource,
+        string serverName,
+        string? databaseName)
+    {
+        if (connectionSource is null)
+        {
+            throw new ArgumentNullException(nameof(connectionSource));
+        }
+
+        if (string.IsNullOrWhiteSpace(serverName))
+        {
+            throw new ArgumentException("伺服器名稱不可為空。", nameof(serverName));
+        }
+
+        var qualifier = string.IsNullOrWhiteSpace(databaseName)
+            ? SqlCatalogQualifier.ForLinkedServer(serverName)
+            : SqlCatalogQualifier.ForLinkedServer(serverName, databaseName!);
+
+        var cacheKey = SqlConnectionCacheKey.Compose(
+            connectionSource.ServerCacheKey,
+            databaseName,
+            serverName);
+
+        lock (_syncRoot)
+        {
+            if (_catalogs.TryGetValue(cacheKey, out var existing))
+            {
+                existing.LastUsed = ++_clock;
+                return existing.Catalog;
+            }
+
+            var added = Add(connectionSource, isPinned: false, qualifier: qualifier, cacheKey: cacheKey);
+            EvictScopedOverflow();
+            return added.Catalog;
+        }
+    }
+
     /// <summary>清空所有目錄的快取，但保留實例，避免正在使用的呼叫端拿到孤兒物件。</summary>
     public void InvalidateAll()
     {
@@ -119,11 +169,20 @@ public sealed class SqlMetadataCatalogRegistry
         }
     }
 
-    private Entry Add(ISqlConnectionSource connectionSource, bool isPinned)
+    private Entry Add(
+        ISqlConnectionSource connectionSource,
+        bool isPinned,
+        SqlCatalogQualifier? qualifier = null,
+        string? cacheKey = null)
     {
         var entry = new Entry(
-            new SqlMetadataCatalog(connectionSource, Lifetime, CommandTimeoutSeconds),
-            connectionSource.CacheKey)
+            new SqlMetadataCatalog(
+                connectionSource,
+                Lifetime,
+                CommandTimeoutSeconds,
+                failureBackoff: null,
+                qualifier: qualifier),
+            cacheKey ?? connectionSource.CacheKey)
         {
             IsPinned = isPinned,
             LastUsed = ++_clock
