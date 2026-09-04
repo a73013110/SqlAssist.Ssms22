@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Completion;
 
@@ -237,9 +238,6 @@ public static class SuggestionMatcher
             // 文法上非有不可的那個字。
             SuggestionKind.BuiltInFunction => 28,
 
-            // 只有 USE 之後才會出現，那個位置沒有別的東西跟它競爭。
-            SuggestionKind.Database => 25,
-
             // 同上：只有 @ 之後才會出現，清單裡整批都是同一類，
             // 這兩個值不會與任何別的類別比大小。列出來只是不留白。
             SuggestionKind.GlobalVariable => 25,
@@ -271,6 +269,12 @@ public static class SuggestionMatcher
             SuggestionKind.TableFunction => 15,
             SuggestionKind.Function => 14,
             SuggestionKind.Schema => 10,
+
+            // 這兩類排在最底：它們與資料表競爭 FROM 之後那一格，而那裡使用者要的
+            // 幾乎都是目前這個資料庫的表。USE 之後沒有別的東西跟資料庫競爭，
+            // 所以壓低不影響那個位置——常用的那幾個會被使用紀錄自己拉上來。
+            SuggestionKind.Database => 9,
+            SuggestionKind.LinkedServer => 8,
             _ => 0
         };
     }
@@ -284,10 +288,16 @@ public static class SuggestionMatcher
             //
             // 資料表值函式也在這裡：FROM dbo.fn_LoansByReader(1) 是合法的資料來源，
             // 而中繼資料層的 SqlObjectKinds.IsDataSource 早就這樣認了。
+            // 連結伺服器與資料庫也在這裡：四段式名稱是合法的資料來源，而它的
+            // 第一、二段就長這樣。它們能不能出現在游標<b>這一格</b>是另一個問題，
+            // 由 IsAllowedForSchema 依限定字停在哪一格決定——這裡只說
+            // 「這個目標接不接得住這個類別」。
             CompletionTarget.DataSource => kind is SuggestionKind.Table
                 or SuggestionKind.View
                 or SuggestionKind.TableFunction
-                or SuggestionKind.ScriptDataSource,
+                or SuggestionKind.ScriptDataSource
+                or SuggestionKind.LinkedServer
+                or SuggestionKind.Database,
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
 
             // ALTER／DROP FUNCTION 兩種函式都改得動也刪得掉。
@@ -398,12 +408,35 @@ public static class SuggestionMatcher
     /// </remarks>
     private static bool IsAllowedForSchema(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        if (context.Target == CompletionTarget.Column || context.QualifierPath is null)
+        if (context.Target == CompletionTarget.Column)
         {
             return true;
         }
 
-        // 資料庫名稱在任何一個點號之後都不對：USE 之後才是它的位置。
+        if (context.QualifierPath is null)
+        {
+            // 資料庫與連結伺服器在這一格都是「名稱的第一段」，提交時帶著點號，
+            // 清單接著開下一段。但只有 USE 與資料來源這兩個位置接得住它們：
+            // SELECT | 那種位置放進來的話，每一次按鍵都要多背一份跟運算式無關的名單。
+            return suggestion.Kind != SuggestionKind.Database ||
+                   context.Target is CompletionTarget.Database or CompletionTarget.DataSource;
+        }
+
+        // 連結伺服器之後只能是資料庫：SQL209. 的下一段沒有別的東西可以接。
+        // 物件與結構描述要再往右一格才出得來，這裡放行的話清單會列出一批
+        // 選了就寫成三段式、而那台伺服器上根本查不到的名稱。
+        if (context.QualifierPath.QualifierEnd == SqlQualifierSlot.Server)
+        {
+            return suggestion.Kind == SuggestionKind.Database;
+        }
+
+        // 連結伺服器只在最左邊那一格對，往右一格起都不對。
+        if (suggestion.Kind == SuggestionKind.LinkedServer)
+        {
+            return false;
+        }
+
+        // 資料庫名稱在其餘任何一個點號之後都不對：USE 與連結伺服器之後才是它的位置。
         // 這一條要問路徑而不是問 Qualifier——LibArchive.. 有路徑卻沒有結構描述那一段，
         // 問 Qualifier 的話整份過濾會被跳過，那個資料庫的名稱清單就跟著列出來。
         if (suggestion.Kind == SuggestionKind.Database)
@@ -411,8 +444,10 @@ public static class SuggestionMatcher
             return false;
         }
 
-        // 省略結構描述的 LibArchive.. 沒有東西可以比對，那個資料庫的物件全部放行。
-        if (string.IsNullOrEmpty(context.Qualifier))
+        // 限定字停在資料庫那一格（LibArchive.）時，下一段是結構描述或物件，兩者都對；
+        // 省略結構描述的 LibArchive.. 則是沒有東西可以比對。兩種都不做結構描述過濾。
+        if (context.QualifierPath.QualifierEnd == SqlQualifierSlot.Database ||
+            string.IsNullOrEmpty(context.Qualifier))
         {
             return true;
         }

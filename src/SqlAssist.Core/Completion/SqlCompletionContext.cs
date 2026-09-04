@@ -193,6 +193,31 @@ public sealed class SqlCompletionContext
             ExecutedModule);
     }
 
+    /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
+    /// <remarks>
+    /// 只看文字時 <c>LibArchive.</c> 與 <c>dbo.</c> 沒有分別，右對齊只能先當成
+    /// 結構描述。認出它其實是資料庫或連結伺服器要有中繼資料，那一層拿到答案後
+    /// 用這個方法把整個上下文換掉，而不是自己記一份「其實是資料庫」的旗標——
+    /// 記在旁邊的話，過濾、插入文字、目錄選擇這三條路會各問各的，
+    /// 症狀是清單列得出來、Tab 下去卻少一段。
+    /// </remarks>
+    public SqlCompletionContext WithQualifierPath(SqlObjectPath path)
+    {
+        return new SqlCompletionContext(
+            IsValid,
+            TokenStart,
+            Prefix,
+            Target,
+            path,
+            TargetKeywordStart,
+            Intent,
+            ColumnSources,
+            KeywordPosition,
+            ScopeSources,
+            ScriptSources,
+            ExecutedModule);
+    }
+
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
     internal SqlCompletionContext AsColumnsOf(IReadOnlyList<SqlColumnSource> sources)
     {

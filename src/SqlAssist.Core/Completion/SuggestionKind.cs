@@ -117,6 +117,17 @@ public enum SuggestionKind
     TableHint,
 
     /// <summary><c>OPTION (…)</c> 的查詢提示（<c>RECOMPILE</c>、<c>MAXDOP</c>…）。</summary>
-    QueryHint
+    QueryHint,
+
+    /// <summary>連結伺服器；四段式名稱的第一段。</summary>
+    /// <remarks>
+    /// 與 <see cref="Database"/> 分開：資料庫只在 <c>USE</c> 之後與連結伺服器之後
+    /// 才對，而這一類接在 <c>FROM</c>、<c>JOIN</c> 之後——兩者從來不出現在同一格。
+    ///
+    /// 加在列舉<b>最後面</b>而不是排在 <see cref="Database"/> 旁邊：
+    /// <see cref="SqlSuggestionUsage"/> 把 <c>(int)Kind</c> 寫進使用紀錄當鍵，
+    /// 插在中間會讓既有紀錄整批對到別的類別上。
+    /// </remarks>
+    LinkedServer
 }
 

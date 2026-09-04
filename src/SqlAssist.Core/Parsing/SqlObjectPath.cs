@@ -26,12 +26,20 @@ public sealed class SqlObjectPath
     /// <summary>限定字最多三段：名稱的四段扣掉名稱自己。</summary>
     public const int MaximumQualifierParts = MaximumNameParts - 1;
 
-    private SqlObjectPath(string? serverName, string? databaseName, string? schemaName, string name)
+    private SqlObjectPath(
+        string? serverName,
+        string? databaseName,
+        string? schemaName,
+        string name,
+        int qualifierSlotCount,
+        SqlQualifierSlot qualifierEnd)
     {
         ServerName = serverName;
         DatabaseName = databaseName;
         SchemaName = schemaName;
         Name = name;
+        QualifierSlotCount = qualifierSlotCount;
+        QualifierEnd = qualifierEnd;
     }
 
     /// <summary>連結伺服器名稱；沒寫時為 null。</summary>
@@ -57,6 +65,37 @@ public sealed class SqlObjectPath
     /// 由 <see cref="HasName"/> 回答。
     /// </remarks>
     public string Name { get; }
+
+    /// <summary>限定字實際寫出來的段數，空的中間段也算一段。</summary>
+    /// <remarks>
+    /// 與「有幾格不是 null」不同：<c>LibArchive..</c> 是兩段，而結構描述那一格是
+    /// null。<see cref="TryRealign"/> 要靠這個數字才知道最左邊那一段落在哪一格。
+    /// </remarks>
+    public int QualifierSlotCount { get; }
+
+    /// <summary>限定字最右邊那一段是哪一格。</summary>
+    /// <remarks>
+    /// 剛解析出來一律是 <see cref="SqlQualifierSlot.Schema"/>，因為右對齊就是這樣定的。
+    /// 中繼資料認出最左邊那一段其實是資料庫或連結伺服器之後，由
+    /// <see cref="TryRealign"/> 整條往左挪，這裡跟著改。
+    ///
+    /// 它與「<see cref="SchemaName"/> 是不是 null」不能互相推導，而兩者的差別正是
+    /// 插入文字要不要自己補上結構描述：<c>LibArchive..</c> 停在結構描述那一格
+    /// （使用者已經用第二個點號說了「照預設解析」），補上去會寫出四段式的
+    /// <c>LibArchive..[dbo].[Loan]</c>；<c>LibArchive.</c> 停在資料庫那一格，
+    /// 不補則會寫出被讀成「結構描述.物件」的兩段式名稱，而那個結構描述並不存在。
+    /// </remarks>
+    public SqlQualifierSlot QualifierEnd { get; }
+
+    /// <summary>限定字最左邊那一段；沒有限定字或那一段是空的時為 null。</summary>
+    /// <remarks>
+    /// 這是唯一需要被中繼資料認一次的字：往右的每一段都由它決定要怎麼讀。
+    /// 拿最右邊那一段去認的話，<c>SQL209.GD_HOTAI.</c> 會問「有沒有一個資料庫
+    /// 叫 GD_HOTAI」——答案在那台伺服器上，而不在目前這條連線上。
+    /// </remarks>
+    public string? LeftmostQualifier => HasName || QualifierSlotCount == 0
+        ? null
+        : SlotValue((SqlQualifierSlot)(QualifierSlotCount - 1 + (int)QualifierEnd));
 
     /// <summary>這是完整名稱（true）還是只有限定字（false）。</summary>
     public bool HasName => Name.Length > 0;
@@ -144,6 +183,52 @@ public sealed class SqlObjectPath
     }
 
     /// <summary>
+    /// 把整條限定字往左挪，讓最左邊那一段落在 <paramref name="leftmost"/> 這一格。
+    /// </summary>
+    /// <remarks>
+    /// 右對齊是唯一只看文字就做得出的假設，但它對 <c>LibArchive.</c> 與 <c>SQL209.</c>
+    /// 都會猜成結構描述。要分辨得知道這台伺服器上有哪些資料庫、掛了哪些連結伺服器，
+    /// 那是中繼資料的事；中繼資料只回答最左邊那一段是什麼，段位怎麼挪算在這裡。
+    /// 兩邊各算一份的話，症狀是清單列得出來、插入文字卻少了一段。
+    ///
+    /// 只吃剛解析出來的限定字（<see cref="QualifierEnd"/> 還是
+    /// <see cref="SqlQualifierSlot.Schema"/>），挪過的不再挪第二次——重複套用會把
+    /// 已經正確的路徑推出上限。挪不動時回傳 false 並維持原樣，呼叫端拿到的
+    /// 就是原本那個右對齊的解讀。
+    /// </remarks>
+    public bool TryRealign(SqlQualifierSlot leftmost, out SqlObjectPath realigned)
+    {
+        realigned = this;
+
+        if (HasName || QualifierEnd != SqlQualifierSlot.Schema)
+        {
+            return false;
+        }
+
+        var steps = (int)leftmost - (QualifierSlotCount - 1);
+
+        if (steps == 0)
+        {
+            return true;
+        }
+
+        if (steps < 0 || QualifierSlotCount + steps > MaximumQualifierParts)
+        {
+            return false;
+        }
+
+        realigned = new SqlObjectPath(
+            SlotValue((SqlQualifierSlot)((int)SqlQualifierSlot.Server - steps)),
+            SlotValue((SqlQualifierSlot)((int)SqlQualifierSlot.Database - steps)),
+            SlotValue((SqlQualifierSlot)((int)SqlQualifierSlot.Schema - steps)),
+            Name,
+            QualifierSlotCount,
+            (SqlQualifierSlot)steps);
+
+        return true;
+    }
+
+    /// <summary>
     /// 把最右邊 <paramref name="slotCount"/> 段對到結構描述、資料庫、伺服器。
     /// </summary>
     /// <remarks>
@@ -157,7 +242,7 @@ public sealed class SqlObjectPath
         var schema = SlotAt(parts, slotCount - 1);
         var database = SlotAt(parts, slotCount - 2);
         var server = SlotAt(parts, slotCount - 3);
-        return new SqlObjectPath(server, database, schema, name);
+        return new SqlObjectPath(server, database, schema, name, slotCount, SqlQualifierSlot.Schema);
     }
 
     private static string? SlotAt(IReadOnlyList<string> parts, int index)
@@ -169,6 +254,18 @@ public sealed class SqlObjectPath
 
         var value = parts[index];
         return string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    /// <summary>某一格現在放的是什麼；超出範圍的格子當成沒寫。</summary>
+    private string? SlotValue(SqlQualifierSlot slot)
+    {
+        return slot switch
+        {
+            SqlQualifierSlot.Schema => SchemaName,
+            SqlQualifierSlot.Database => DatabaseName,
+            SqlQualifierSlot.Server => ServerName,
+            _ => null
+        };
     }
 
     /// <summary>兩個路徑指的是不是同一台伺服器的同一個資料庫。</summary>
@@ -188,21 +285,25 @@ public sealed class SqlObjectPath
         var builder = new StringBuilder();
 
         // 中間段省略時點號不能跟著省：伺服器加名稱要寫成 srv...Loan，
-        // 少一個點就變成另一個名稱。
-        if (ServerName is not null)
+        // 少一個點就變成另一個名稱。反過來，限定字停在哪一格就只寫到哪一格
+        // ——挪到伺服器那一格的 SQL209. 補滿點號會變成 SQL209...，
+        // 那是「伺服器加預設資料庫加預設結構描述」，不是使用者打的東西。
+        var outermost = ServerName is not null
+            ? SqlQualifierSlot.Server
+            : DatabaseName is not null
+                ? SqlQualifierSlot.Database
+                : SchemaName is not null
+                    ? SqlQualifierSlot.Schema
+                    : (SqlQualifierSlot?)null;
+
+        if (outermost is { } start)
         {
-            builder.Append(ServerName).Append('.');
-            builder.Append(DatabaseName).Append('.');
-            builder.Append(SchemaName).Append('.');
-        }
-        else if (DatabaseName is not null)
-        {
-            builder.Append(DatabaseName).Append('.');
-            builder.Append(SchemaName).Append('.');
-        }
-        else if (SchemaName is not null)
-        {
-            builder.Append(SchemaName).Append('.');
+            var last = HasName ? SqlQualifierSlot.Schema : QualifierEnd;
+
+            for (var slot = (int)start; slot >= (int)last; slot--)
+            {
+                builder.Append(SlotValue((SqlQualifierSlot)slot)).Append('.');
+            }
         }
 
         builder.Append(Name);
