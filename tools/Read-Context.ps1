@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-讓 AI 分段讀長檔，避免整份文件佔滿上下文；不需要 RTK 或 Serena。
+讓 AI 分段讀長檔，避免整份文件佔滿上下文；不需要 RTK 或其他 AI 輔助工具。
 .EXAMPLE
 ./tools/Read-Context.ps1 -Path docs/development.md -StartLine 20 -LineCount 40
 #>

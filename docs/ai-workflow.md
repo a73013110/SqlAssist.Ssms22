@@ -1,12 +1,12 @@
 # AI 開發：先看這頁
 
-**直接開 Claude Code 或 Codex 就能工作，不必先安裝 RTK／Serena，也沒有專案初始化腳本。**
+**直接開 Claude Code 或 Codex 就能工作，不必先安裝 RTK，也沒有專案初始化腳本。**
 Claude 讀 [CLAUDE.md](../CLAUDE.md)；Codex 由 [AGENTS.md](../AGENTS.md) 讀同一份規則。
 兩者都先查 [文件索引](index.md)，再讀本次修改需要的章節，不先讀全庫。
 
 ## 腳本用途
 
-AI 相關只保留三個 PowerShell 腳本，需 **PowerShell 7**，不依賴 RTK、Serena 或模型 API。
+AI 相關只保留三個 PowerShell 腳本，需 **PowerShell 7**，不依賴 RTK 或模型 API。
 
 | 腳本 | 白話用途 | 什麼時候需要 |
 |---|---|---|
@@ -56,10 +56,9 @@ pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Build-Exte
 |---|---|
 | 文件、上述三個腳本 | 隨 Git 共用，clone 後可直接沿用 |
 | [.claude/settings.json](../.claude/settings.json) | 共用 RTK Hook；有 RTK 才執行，沒裝就略過 |
-| [.serena/project.yml](../.serena/project.yml) | 共用 C#、唯讀及按需查詢規則；本身不會啟動 MCP |
 | `.codex/config.toml`、`.mcp.json` | 本機 MCP 登記，可能含機器路徑，不進 Git |
-| `.claude/settings.local.json`、`.serena/project.local.yml` | 個人覆寫，不進 Git |
-| `.serena/` 其他內容、`artifacts/` | 快取、記憶、紀錄及暫存，不進 Git |
+| `.claude/settings.local.json` | 個人覆寫，不進 Git |
+| `artifacts/` | 紀錄及暫存，不進 Git |
 
 **換設備只要 clone、登入客戶端；需要加速工具時才照下面安裝。**
 不複製別台電腦的登入資料、全域設定或絕對路徑，不需要同步暫存紀錄。
@@ -67,8 +66,7 @@ pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Build-Exte
 ## 選用工具
 
 - [RTK 短教學](ai-rtk.md)：壓縮命令輸出；Claude 用共用 Hook，Codex 依共用規則使用。
-- [Serena 短教學](ai-serena.md)：查 C# 符號；**兩端共用本機 CLI，各自一份專案 MCP 設定**。
-- 沒安裝、沒連線或查不到時，回退原生讀檔／搜尋，不自動安裝或重建全庫。
+- 沒安裝 RTK 時回退原生命令，不自動安裝。
 
 ## 維護時驗證
 
