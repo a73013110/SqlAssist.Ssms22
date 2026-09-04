@@ -6,10 +6,6 @@
 TestResults/
 artifacts/
 
-# 共用設定跟著版本庫；索引、記憶、紀錄及個人覆寫留在每台機器。
-/.serena/*
-!/.serena/project.yml
-
 # 客戶端的本機 MCP 登記可能含機器路徑；換設備照文件設定，不同步這兩份。
 /.codex/config.toml
 /.mcp.json

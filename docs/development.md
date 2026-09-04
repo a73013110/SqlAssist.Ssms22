@@ -131,7 +131,7 @@ Tag 不參與版號計算，加不加都不影響建置結果。
   `fetch-depth: 0`。`Test-VsixPackage.ps1` 會擋下這種版號，不會讓它包成 VSIX。
 - **只改文件不會推進版號。** `version.json` 的 `pathFilters` 排除了 `docs/`、
   根目錄的說明文字（`README.md`、`CLAUDE.md`、`AGENTS.md`、`LICENSE`）、代理設定
-  （`.claude/`、`.codex/`、`.serena/`、`.mcp.json`）與只當參考的 `menus.decompiled.*`，
+  （`.claude/`、`.codex/`、`.mcp.json`）與只當參考的 `menus.decompiled.*`，
   因為那些內容不進 VSIX，不該讓已安裝的使用者看到一個「新版本」。
 - **加 pathFilters 會讓版號倒退。** 排除項目變多，height 就重新算成一個更小的數，
   已安裝的使用者會覆蓋不了。所以調整 `pathFilters` 只能跟 minor 進位放在同一個

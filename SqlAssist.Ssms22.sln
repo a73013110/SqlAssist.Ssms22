@@ -29,7 +29,6 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-AE01-4761-823F-555C9A09339D}"
 	ProjectSection(SolutionItems) = preProject
 		docs\ai-rtk.md = docs\ai-rtk.md
-		docs\ai-serena.md = docs\ai-serena.md
 		docs\ai-workflow.md = docs\ai-workflow.md
 		docs\architecture.md = docs\architecture.md
 		docs\auto-pairing.md = docs\auto-pairing.md

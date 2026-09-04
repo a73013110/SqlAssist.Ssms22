@@ -42,7 +42,6 @@
 | 建置、測試、tools、版本、安裝、部署、診斷 | [開發](development.md) |
 | AI 入門、新設備、PS 腳本用途、按需讀取與輸出節流 | [AI 工作流程：先看這頁](ai-workflow.md) |
 | 安裝／設定／使用／驗證 RTK | [RTK 教學](ai-rtk.md) |
-| Serena：本機 CLI、Claude／Codex MCP、符號搜尋 | [Serena 教學](ai-serena.md) |
 
 ## 資料夾對應
 
