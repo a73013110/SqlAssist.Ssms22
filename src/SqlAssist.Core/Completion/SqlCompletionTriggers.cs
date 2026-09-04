@@ -74,7 +74,7 @@ public static class SqlCompletionTriggers
         // 那一樣要重開清單：使用者剛打完的第二個點號正是「換一個資料庫」的意思。
         return context.QualifierPath is null
             ? context.Target != CompletionTarget.Any
-            : context.Qualifier is null || IsIdentifierLike(context.Qualifier);
+            : context.Qualifier is null || IsIdentifierLike(context.Qualifier, textBeforeCaret);
     }
 
     /// <summary>
@@ -103,9 +103,21 @@ public static class SqlCompletionTriggers
     /// 擋的是數值字面值：<c>1.5</c> 的點號前面是 <c>1</c>，一樣是「限定字加點號」，
     /// 但使用者在打的是一個數字，不是在引用什麼東西。分不出來的代價是
     /// 每次輸入小數點都彈出整個資料庫的物件清單。
+    ///
+    /// 因此要看原文而不是只看剝好的那一段：連結伺服器可以直接以位址命名
+    /// （<c>[192.0.2.10].</c>），剝掉方括號之後它以數字開頭，長得就像一個小數。
+    /// 而方括號本身已經把話說完了——加了括號的一定是識別字。
     /// </remarks>
-    private static bool IsIdentifierLike(string qualifier)
+    private static bool IsIdentifierLike(string qualifier, string textBeforeCaret)
     {
+        // 走到這裡代表限定字解析成功，而那要求原文以點號結尾，
+        // 所以倒數第二個字元就是限定字的最後一個字元。
+        if (textBeforeCaret.Length >= 2 &&
+            textBeforeCaret[textBeforeCaret.Length - 2] == ']')
+        {
+            return true;
+        }
+
         if (qualifier.Length == 0)
         {
             return false;
