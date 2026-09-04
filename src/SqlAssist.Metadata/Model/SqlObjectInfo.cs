@@ -1,5 +1,5 @@
 using System;
-using SqlAssist.Metadata.Formatting;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Metadata.Model;
 

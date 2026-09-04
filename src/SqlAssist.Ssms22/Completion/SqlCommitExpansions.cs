@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;

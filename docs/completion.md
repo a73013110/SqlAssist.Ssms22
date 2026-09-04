@@ -10,7 +10,7 @@
 | T-SQL 關鍵字、內建函式、資料型別的目錄與位置分層 | [completion-catalogs.md](completion-catalogs.md) |
 | `@@` 全域變數、`@` 變數與參數 | [completion-variables.md](completion-variables.md) |
 | 某個位置該顯示什麼、關鍵字自動大寫 | [completion-context.md](completion-context.md) |
-| 提交後展開成整句（`INSERT`／`MERGE`／`EXEC`／`ALTER`） | [completion-commit-expansion.md](completion-commit-expansion.md) |
+| 提交時寫進去的名稱，以及展開成整句（`INSERT`／`MERGE`／`EXEC`／`ALTER`） | [completion-commit-expansion.md](completion-commit-expansion.md) |
 | `別名.` 之後的欄位、範圍切割、重開清單 | [completion-columns.md](completion-columns.md) |
 
 ## 清單內容與排名

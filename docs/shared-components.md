@@ -19,7 +19,9 @@
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
 | 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
-| 識別字加括號、型別格式化 | `Metadata/Formatting/SqlIdentifier.cs`、`SqlTypeFormatter.cs` |
+| 識別字加括號（形狀、保留字、指令碼自己宣告的名稱） | `Core/Parsing/SqlIdentifier.cs` |
+| 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
+| 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 從 SSMS 結果格線取資料（兩套欄索引只換算一次） | `Ssms22/ResultGrid/SsmsResultGrid.cs` |

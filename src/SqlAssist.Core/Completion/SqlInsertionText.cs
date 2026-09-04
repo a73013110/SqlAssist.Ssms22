@@ -1,35 +1,23 @@
-using SqlAssist.Core.Completion;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
-using SqlAssist.Metadata.Formatting;
 
-namespace SqlAssist.Ssms22.Completion;
+namespace SqlAssist.Core.Completion;
 
 /// <summary>
 /// 決定提交一筆建議時要寫進編輯器的文字。
 /// </summary>
-internal static class SqlInsertionText
+/// <remarks>
+/// 只吃建議項、上下文與設定，三個都是純資料，所以整組情境都測得到；Ssms22 那一側
+/// 只負責在建立項目與提交時呼叫它，並把結果交給編輯器。
+/// </remarks>
+public static class SqlInsertionText
 {
     public static string Build(
         SqlSuggestion suggestion,
         SqlCompletionContext context,
         SqlAssistSettings settings)
     {
-        // 欄位的插入文字在建立建議時就決定好了（含必要的別名限定），
-        // 內建函式則帶著左括號，兩者都不能再套用物件用的結構描述規則。
-        // 全域變數也在這裡：把 @@ROWCOUNT 當成物件名稱去加方括號，
-        // 寫進編輯器的會是 [@@ROWCOUNT]。
-        if (suggestion.Kind == SuggestionKind.Keyword ||
-            suggestion.Kind == SuggestionKind.Snippet ||
-            suggestion.Kind == SuggestionKind.Column ||
-            suggestion.Kind == SuggestionKind.BuiltInFunction ||
-            suggestion.Kind == SuggestionKind.GlobalVariable ||
-            suggestion.Kind == SuggestionKind.Variable ||
-            suggestion.Kind == SuggestionKind.DataType ||
-            suggestion.Kind == SuggestionKind.Parameter ||
-            suggestion.Kind == SuggestionKind.DatePart ||
-            suggestion.Kind == SuggestionKind.TableHint ||
-            suggestion.Kind == SuggestionKind.QueryHint)
+        if (CarriesOwnInsertionText(suggestion.Kind))
         {
             return suggestion.InsertionText;
         }
@@ -63,6 +51,38 @@ internal static class SqlInsertionText
     }
 
     /// <summary>
+    /// 這一類的插入文字在建立建議時就定案了，這裡原樣送出。
+    /// </summary>
+    /// <remarks>
+    /// 欄位帶著必要的別名限定，內建函式帶著左括號，參數帶著 <c> = </c>，
+    /// 三者都不能再套用物件用的結構描述規則。全域變數也在這裡：把
+    /// <c>@@ROWCOUNT</c> 當成物件名稱去加方括號，寫進編輯器的會是
+    /// <c>[@@ROWCOUNT]</c>。
+    ///
+    /// 寫成 <c>switch</c> 而不是一串 <c>||</c>：這個方法在建立清單時每一筆建議都
+    /// 走一遍，列舉的 <c>switch</c> 讓編譯器有機會編成一次跳躍表而不是十一次比較；
+    /// 新增一種建議時，該不該進這份名單也只有這裡要看。
+    /// </remarks>
+    private static bool CarriesOwnInsertionText(SuggestionKind kind)
+    {
+        return kind switch
+        {
+            SuggestionKind.Keyword => true,
+            SuggestionKind.Snippet => true,
+            SuggestionKind.Column => true,
+            SuggestionKind.BuiltInFunction => true,
+            SuggestionKind.GlobalVariable => true,
+            SuggestionKind.Variable => true,
+            SuggestionKind.DataType => true,
+            SuggestionKind.Parameter => true,
+            SuggestionKind.DatePart => true,
+            SuggestionKind.TableHint => true,
+            SuggestionKind.QueryHint => true,
+            _ => false
+        };
+    }
+
+    /// <summary>
     /// 這個位置要不要由插入文字自己補上結構描述。
     /// </summary>
     /// <remarks>
@@ -93,7 +113,8 @@ internal static class SqlInsertionText
     /// 關掉「一律加方括號」只代表不想看到多餘的括號，不是要產生無效語法：
     /// 名稱含空白或保留字時仍必須加括號，這條由
     /// <see cref="SqlIdentifier.QuoteIfNeeded"/> 負責。展開萬用字元、
-    /// 建立欄位建議時適用同一條規則，所以這個方法開放給同組件使用。
+    /// 建立欄位建議時適用同一條規則，所以這個方法是公開的——那兩處在 Ssms22，
+    /// 各自照設定再判斷一次就會分岔。
     ///
     /// 反過來，開著「一律加方括號」也不代表什麼都包得下去：指令碼自己宣告的名稱
     /// 不在這個設定的管轄內（<see cref="SqlIdentifier.IsScriptScoped"/>）。

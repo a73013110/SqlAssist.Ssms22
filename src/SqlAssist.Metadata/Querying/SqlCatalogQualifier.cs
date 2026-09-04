@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using SqlAssist.Metadata.Formatting;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Metadata.Querying;
 
