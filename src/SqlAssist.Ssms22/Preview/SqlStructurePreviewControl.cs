@@ -12,7 +12,6 @@ using System.Windows.Media;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -474,9 +473,16 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         _icon.Visibility = Visibility.Visible;
 
         _title.Inlines.Clear();
-        _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.SchemaName) + ".")
+
+        // 指令碼自己宣告的名稱沒有結構描述，那時整段前綴都不寫：[].[#TempTest]
+        // 宣稱有一個叫空字串的結構描述，而 [dbo].[@rows] 連文法都不成立。
+        if (objectInfo.SchemaPrefix is { Length: > 0 } prefix)
+        {
+            _title.Inlines.Add(new Run(prefix)
                 .WithTheme(Run.ForegroundProperty, ThemeBrush.DimForeground));
-        _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.Name))
+        }
+
+        _title.Inlines.Add(new Run(objectInfo.QuotedName)
         {
             FontWeight = FontWeights.SemiBold
         });

@@ -66,14 +66,12 @@ public static class SqlScriptTableDetail
                 defaultDefinition: column.HasDefault ? DefaultMarker : null));
         }
 
-        var isVariable = table.Name.Length > 0 && table.Name[0] == '@';
+        // 名稱決定種類，而那條規則有第二個呼叫端（建議清單選到的項目），所以不寫在這裡。
+        var kind = SqlScriptDeclarations.KindOf(table.Name);
+        var isVariable = kind == SqlObjectKind.TableVariable;
 
         return new SqlObjectDetail(
-            new SqlObjectInfo(
-                0,
-                string.Empty,
-                table.Name,
-                isVariable ? SqlObjectKind.TableVariable : SqlObjectKind.TemporaryTable),
+            new SqlObjectInfo(0, string.Empty, table.Name, kind),
             columns,
             parameters: null,
             // RETURNS @rows TABLE (…) 認得的是「變數 TABLE (」這個形狀本身，原文因此

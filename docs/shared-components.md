@@ -17,6 +17,7 @@
 | 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
 | 指令碼宣告的資料來源換成物件明細（含宣告原文） | `Metadata/Model/SqlScriptTableDetail.cs` |
+| 拿名稱向這份指令碼換宣告（Hover、預覽與 F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
 | 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 識別字加括號（形狀、保留字、指令碼自己宣告的名稱） | `Core/Parsing/SqlIdentifier.cs` |

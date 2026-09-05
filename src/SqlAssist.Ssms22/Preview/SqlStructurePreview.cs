@@ -67,6 +67,16 @@ internal sealed class SqlStructurePreview
     /// </remarks>
     private SqlObjectStructure? _targetScript;
 
+    /// <summary>目前這份文字的指令碼宣告名冊，與它所屬的版本。</summary>
+    /// <remarks>
+    /// 名冊要掃過整份文字，所以只在真的要畫的時候才建，而且照版本留著：使用者
+    /// 按著方向鍵在清單裡上下走時文字一個字都沒動，那一段路上一次都不必重掃。
+    /// 反過來，文字一改就得換一份——舊的那一份會交出使用者已經刪掉的宣告。
+    /// </remarks>
+    private ITextSnapshot? _declarationsSnapshot;
+
+    private SqlScriptDeclarations? _declarations;
+
     private SqlMetadataService? _metadataService;
     private CancellationTokenSource? _loading;
     private CancellationTokenSource? _selectionRefresh;
@@ -77,7 +87,7 @@ internal sealed class SqlStructurePreview
 
     private bool _layoutUpdateQueued;
 
-    private bool _selectedItemIsSqlObject;
+    private bool _selectedItemHasStructure;
 
     private bool _selectionPending;
 
@@ -208,7 +218,7 @@ internal sealed class SqlStructurePreview
                 _target = null;
                 _targetScript = null;
                 _metadataService = null;
-                _selectedItemIsSqlObject = false;
+                _selectedItemHasStructure = false;
                 _selectionPending = false;
                 _expandWhenSelectionReady = false;
                 DetachInputTracking();
@@ -268,7 +278,7 @@ internal sealed class SqlStructurePreview
             return false;
         }
 
-        if (_selectedItemIsSqlObject)
+        if (_selectedItemHasStructure)
         {
             return Expand();
         }
@@ -335,7 +345,7 @@ internal sealed class SqlStructurePreview
         _target = null;
         _targetScript = null;
         _metadataService = null;
-        _selectedItemIsSqlObject = false;
+        _selectedItemHasStructure = false;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
         session.Dismissed += OnSessionEnded;
@@ -413,7 +423,7 @@ internal sealed class SqlStructurePreview
             _target = null;
             _targetScript = null;
             _metadataService = null;
-            _selectedItemIsSqlObject = false;
+            _selectedItemHasStructure = false;
             _selectionPending = false;
             _expandWhenSelectionReady = false;
             DetachInputTracking();
@@ -473,7 +483,7 @@ internal sealed class SqlStructurePreview
         var settings = SqlAssistSettingsStore.Current;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
-        _selectedItemIsSqlObject = objectInfo is not null;
+        _selectedItemHasStructure = objectInfo is not null;
 
         // 平台一次換選取會通知好幾輪，多數輪次解析出來的是同一個物件。
         // 展開狀態下解析出 null 是例外：那時畫面上可能還停在「正在取得目前建議項目…」，
@@ -708,7 +718,7 @@ internal sealed class SqlStructurePreview
         session.ItemsUpdated -= OnSessionItemsUpdated;
         _view.TextBuffer.Changed -= OnTextBufferChanged;
         _session = null;
-        _selectedItemIsSqlObject = false;
+        _selectedItemHasStructure = false;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
         DetachInputTracking();
@@ -747,7 +757,7 @@ internal sealed class SqlStructurePreview
     /// 使用者看到的是每按一次方向鍵閃一下，而且剛送出的查詢會被取消再送一次。
     /// 該不該換內容留給 <see cref="ApplyVerifiedSelection"/>，只有它知道新舊是不是同一個。
     ///
-    /// 舊物件留在畫面上不會被誤用：這裡把 <see cref="_selectedItemIsSqlObject"/> 壓成
+    /// 舊物件留在畫面上不會被誤用：這裡把 <see cref="_selectedItemHasStructure"/> 壓成
     /// false，向右鍵因此走「等對帳完成再展開」那條路，不會拿上一項展開。
     /// </remarks>
     private void BeginReconcile(IAsyncCompletionSession session, bool cancelExpandIntent)
@@ -762,7 +772,7 @@ internal sealed class SqlStructurePreview
             _expandWhenSelectionReady = false;
         }
 
-        _selectedItemIsSqlObject = false;
+        _selectedItemHasStructure = false;
         _selectionPending = true;
 
         // 「停夠久才自動展開」的倒數前提是使用者停在同一項上，換了就重新起算——
@@ -789,7 +799,7 @@ internal sealed class SqlStructurePreview
         StopPendingWork();
         _target = null;
         _targetScript = null;
-        _selectedItemIsSqlObject = false;
+        _selectedItemHasStructure = false;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
         if (IsExpanded)
@@ -875,7 +885,10 @@ internal sealed class SqlStructurePreview
                         _metadataService is { } metadataService)
                     {
                         // 只有此處同時驗證過 source、generation 與 recent model，才可更新 target。
-                        ApplyVerifiedSelection(session, suggestion.Tag as SqlObjectInfo, metadataService);
+                        ApplyVerifiedSelection(
+                            session,
+                            SqlSuggestionTarget.Describe(suggestion),
+                            metadataService);
                     }
                     else
                     {
@@ -963,11 +976,10 @@ internal sealed class SqlStructurePreview
         _timerExpands = false;
         _loading?.Cancel();
 
-        // 指令碼宣告的物件在定位那一步就讀完了，不必經過任何一層快取或查詢。
-        if (_targetScript is { } declared && IsSameObject(declared.Object, objectInfo))
+        // 指令碼自己宣告的物件不必經過任何一層快取或查詢：答案就在使用者眼前的文字裡。
+        if (objectInfo.Kind.IsScriptDeclared())
         {
-            control.Populate(declared);
-            ShowAgent();
+            ShowDeclared(control, objectInfo);
             return;
         }
 
@@ -990,6 +1002,52 @@ internal sealed class SqlStructurePreview
         _timerGeneration = _generation;
         _timer.Interval = TimeSpan.FromMilliseconds(QueryDebounceMilliseconds);
         _timer.Start();
+    }
+
+    /// <summary>
+    /// 畫一個這份指令碼自己宣告的物件。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留與 Ctrl+F12 在定位那一步就把明細讀好了，直接畫；建議清單那條入口
+    /// 只知道名稱，這裡才去問名冊。兩條路徑最後畫的是同一份東西。
+    /// </remarks>
+    private void ShowDeclared(SqlStructurePreviewControl control, SqlObjectInfo objectInfo)
+    {
+        if (_targetScript is null || !IsSameObject(_targetScript.Object, objectInfo))
+        {
+            _targetScript = FindDeclared(objectInfo.Name) is { } detail
+                ? new SqlObjectStructure(detail)
+                : null;
+        }
+
+        if (_targetScript is { } declared)
+        {
+            control.Populate(declared);
+        }
+        else
+        {
+            // 名稱認得出來、資料行讀不出來：SELECT … INTO #Loan 的欄位不寫在任何一段
+            // 宣告裡。說出實情，不要畫一個空的結構讓人以為它真的沒有欄位。
+            control.ShowMessage(
+                objectInfo.QualifiedName,
+                "這個名稱是這份指令碼自己宣告的，但目前的文字裡讀不出它的資料行。");
+        }
+
+        ShowAgent();
+    }
+
+    /// <summary>問這份文字宣告了什麼；名冊照文字版本留著，同一個版本只掃一次。</summary>
+    private SqlObjectDetail? FindDeclared(string name)
+    {
+        var snapshot = _view.TextBuffer.CurrentSnapshot;
+
+        if (!ReferenceEquals(_declarationsSnapshot, snapshot))
+        {
+            _declarationsSnapshot = snapshot;
+            _declarations = SqlScriptDeclarations.Create(snapshot.GetText());
+        }
+
+        return _declarations?.Find(name);
     }
 
     private void OnTimerTick(object sender, EventArgs eventArgs)
@@ -1410,6 +1468,10 @@ internal sealed class SqlStructurePreview
         _loading = null;
         _selectionRefresh?.Cancel();
         _selectionRefresh = null;
+
+        // 名冊抓著那個版本的整份文字，視窗都關了不必再留著。
+        _declarationsSnapshot = null;
+        _declarations = null;
         DetachSession();
 
         if (_agent is { } agent)
