@@ -82,27 +82,30 @@ FROM dbo.PUBLISHER ⏎          → 換行了，WHERE 與下一個 SELECT 照常
 
 ## 沒有分號時，換行就是敘述邊界
 
-T-SQL 的分號是**選用的**，所以敘述的結尾沒有任何詞元標示得出來：`WHERE a = 1` 之後
-換行寫 `SELECT` 與換行寫 `AND`，在詞元串流上完全一樣。位置分析看到的只有上一句的
-子句尾端，於是下一句的語句級片段（`ssf`…）一個都不會出現——而打了分號就有。
-使用者看不出這兩者的差別，只會覺得片段時有時無。
-
-線索與別名那條規則是同一個，只是方向相反：**子句已經寫完，而且游標換了行**，
-就把 `StatementStart` 補進位置裡。
+省略分號時，`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元串流分不出差別。
+只保留上一句子句尾端會把下一句的語句級片段（`ssf`…）濾光。因此**子句已到尾端，
+而且游標換了行**，就補上 `StatementStart`。
 
 ```text
-UPDATE #Loan ⏎ SET CopyNo = 'C1' ⏎ WHERE ReaderId = 1 ⏎ |  → ssf、SELECT 照常
-SELECT * FROM dbo.Loan ⏎ |                                  → 同上
-SELECT * FROM dbo.Loan WHERE ReaderId = 1 |                 → 同一行，不補
-SELECT CopyNo ⏎ |                                           → 選取清單不比照辦理
+UPDATE #Loan SET CopyNo = 'C1' WHERE ReaderId = 1 ⏎ | → ssf、SELECT 照常
+SELECT * FROM dbo.Loan ⏎ | → 同上
+SELECT * FROM dbo.Loan WHERE ReaderId = 1 | → 同一行，不補
+SELECT dbo.fn_Fee('') ⏎ | → ssf、SELECT、FROM 同時保留
+SELECT CopyNo ⏎ | → 同上
+SELECT dbo.fn_Fee(1 ⏎ | → 括號未關，不補語句開頭
 ```
 
-補的是**位元**而不是換掉一個：位置本來就是旗標，`AND`、`OR`、`ORDER` 這些續寫子句的
-字一個都不能少。猜錯敘述邊界的代價必須是清單多幾個字，不能是少幾個字。
+補的是**旗標聯集**，不能換掉原位置：`FROM`、`AND`、`OR`、`ORDER` 等續寫建議不能少。
 
-只認三個「子句已經寫完」的尾端——資料來源尾端、述詞尾端、`ORDER BY` 的欄位之後。
-選取清單尾端不在裡面：`SELECT a` 換行之後幾乎總是接著寫下一個欄位或 `FROM`，
-在那裡放進 64 個語句開頭的字與 35 筆片段，使用者真正要的欄位就被擠下去了。
+認四種尾端：選取清單、資料來源、述詞、`ORDER BY` 欄位之後。舊修正 `48a8194`
+為減少候選而排除選取清單，漏掉 `SELECT 函式／常數／變數` 不需要 `FROM` 的情境。
+現在一致補位元，不特判函式，也不改成 `Any`；代價是跨行候選增加，但不能用封死
+下一句片段來減少雜訊。
+
+換行看的是最後一個 SQL 詞元到游標之間的原文（LF、CRLF、CR 都認），所以區塊註解
+不會遮住邊界，字串或加引號名稱內的換行也不會誤算。尚未關閉的括號由
+`SqlTokenNavigator` 判斷：函式引數、子查詢與 CTE 內不因換行補語句開頭。
+逗號與 `AS` 後仍沿用原規則；這是補全提示，不是完整 SQL 語法驗證。
 
 ## 數值常值不開清單
 
