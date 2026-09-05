@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-驗證分段讀檔、輸出節流及文件檢查器，避免省 token 時漏掉失敗。
+驗證分段讀檔、RTK、輸出節流及文件檢查器，避免省 token 時漏掉失敗。
 .DESCRIPTION
 工具維護或 pre-push 時使用；不呼叫模型，也不是產品單元測試。
 #>
@@ -333,6 +333,70 @@ Assert-Condition ($LASTEXITCODE -eq 0) '刪檔格式測試必須先建立索引�
 Remove-Item -LiteralPath $deletedPath
 $check = Invoke-TestScript $textChecker @{}
 Assert-Condition ($check.ExitCode -eq 0) '文字格式檢查不得阻擋已追蹤檔案的合法刪除'
+
+# RTK 是選配；有安裝才驗證真實執行檔，不用假摘要或全域 gain 數字宣稱本次有省。
+$rtk = Get-Command rtk -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($rtk) {
+    $rtkRoot = Join-Path $testRoot 'rtk-overview'
+    [void][System.IO.Directory]::CreateDirectory($rtkRoot)
+    & git -C $rtkRoot init --quiet
+    Assert-Condition ($LASTEXITCODE -eq 0) 'RTK 測試必須使用隔離版本庫，不碰產品的暫存區'
+    $sqlPath = Join-Path $rtkRoot 'Loan.sql'
+    [System.IO.File]::WriteAllText($sqlPath, "SELECT 0 AS LoanId;`n", $utf8)
+    & git -C $rtkRoot -c core.autocrlf=false add -- 'Loan.sql'
+    Assert-Condition ($LASTEXITCODE -eq 0) 'RTK 測試的基準檔必須加入隔離索引'
+    $sqlChanges = (1..400 | ForEach-Object { "SELECT $_ AS LoanId; -- 中文回歸" }) -join "`n"
+    [System.IO.File]::AppendAllText($sqlPath, "$sqlChanges`n", $utf8)
+
+    $rtkProbe = Write-Fixture 'rtk-probe.ps1' @'
+param([string]$RtkPath, [string]$Repository, [string]$Mode)
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$OutputEncoding = [Console]::OutputEncoding
+$gitArguments = @('--no-pager', '-C', $Repository, '-c', 'core.autocrlf=false',
+    'diff', '--no-ext-diff', '--no-textconv', '--color=never', '--', 'Loan.sql')
+switch ($Mode) {
+    'raw' { & git @gitArguments }
+    'overview' { & $RtkPath git @gitArguments }
+    'lossless' { & $RtkPath proxy git @gitArguments }
+    'failure' { & $RtkPath proxy git -C $Repository rev-parse --verify refs/heads/does-not-exist }
+    'raw-failure' { & git -C $Repository rev-parse --verify refs/heads/does-not-exist }
+    default { throw '未知的 RTK 測試模式' }
+}
+exit $LASTEXITCODE
+'@
+    $runs = @{}
+    foreach ($mode in @('raw', 'overview', 'lossless', 'failure', 'raw-failure')) {
+        $run = Invoke-TestScript $rtkProbe @{ RtkPath = $rtk.Source; Repository = $rtkRoot; Mode = $mode }
+        $runs[$mode] = $run
+        [System.IO.File]::WriteAllText((Join-Path $rtkRoot "$mode.stdout.log"), $run.Out, $utf8)
+        [System.IO.File]::WriteAllText((Join-Path $rtkRoot "$mode.stderr.log"), $run.Error, $utf8)
+    }
+    $raw = $runs.raw
+    $overview = $runs.overview
+    $lossless = $runs.lossless
+    $failed = $runs.failure
+    $rawFailed = $runs.'raw-failure'
+    Assert-Condition ($raw.ExitCode -eq 0 -and $raw.Out.Contains('SELECT 400 AS LoanId;')) '原生 diff 必須包含完整測試尾端'
+    Assert-Condition ($overview.ExitCode -eq 0 -and $overview.Out.Contains('Loan.sql')) 'RTK 概覽必須保留變更檔案資訊'
+    Assert-Condition ($overview.Out.Length -gt 0 -and $overview.Out.Length -lt $raw.Out.Length / 2) 'RTK 必須確實壓縮長 diff 的概覽，不能只是原樣轉交'
+    Assert-Condition ($lossless.ExitCode -eq $raw.ExitCode -and $lossless.Out -ceq $raw.Out -and
+        $lossless.Error -ceq $raw.Error) '最終審查的 proxy 必須保留完整 diff 與兩個串流'
+    Assert-Condition ($rawFailed.ExitCode -ne 0 -and $failed.ExitCode -eq $rawFailed.ExitCode -and
+        $failed.Error -ceq $rawFailed.Error) 'proxy 不得吞掉原生 Git 失敗碼與錯誤訊息'
+    $evidence = [ordered]@{
+        raw_chars = $raw.Out.Length
+        overview_chars = $overview.Out.Length
+        reduction_percent = [Math]::Round(100 * (1 - $overview.Out.Length / [double]$raw.Out.Length), 1)
+        lossless_equal = $true
+        failure_exit_code = $failed.ExitCode
+        measurement = '隔離案例的命令輸出字元，不是整段對話的模型 token'
+    }
+    [System.IO.File]::WriteAllText((Join-Path $rtkRoot 'evidence.json'), ($evidence | ConvertTo-Json), $utf8)
+    Write-Host "RTK 概覽實測：$($evidence.raw_chars) → $($evidence.overview_chars) 字元，減少 $($evidence.reduction_percent)%；proxy 原文與失敗碼一致。"
+} else {
+    Write-Host 'RTK 未安裝：略過 RTK 執行檔檢查；分段讀檔與輸出節流檢查仍完整執行。'
+}
 
 Write-Host "AI 工作流程驗證通過：$script:checks 項；合成輸出 $sampleRawChars → $samplePreviewChars 字元（不是模型 token 量測）。"
 Write-Host "測試紀錄：$testRoot"

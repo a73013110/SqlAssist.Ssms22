@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22;
 
@@ -44,6 +45,7 @@ public sealed class SqlAssistPackage : AsyncPackage
             // SSMS 啟動且沒有方案時自動載入，確保工具選單的命令處理器已完成註冊。
             await base.InitializeAsync(cancellationToken, progress);
             await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+            VsThemeBrushes.Initialize();
 
             // 命令的勾選狀態要靠設定回答，所以設定必須先接上。
             SqlAssistSettingsStore.Initialize(this);
@@ -88,6 +90,7 @@ public sealed class SqlAssistPackage : AsyncPackage
         if (disposing)
         {
             SqlAssistSettingsStore.Shutdown();
+            VsThemeBrushes.Shutdown();
         }
 
         base.Dispose(disposing);

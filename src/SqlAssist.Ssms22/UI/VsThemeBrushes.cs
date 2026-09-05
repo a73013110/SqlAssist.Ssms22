@@ -1,109 +1,187 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.VisualStudio.PlatformUI;
-using SqlAssist.Ssms22;
+using Microsoft.VisualStudio.Shell;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>
-/// 解析 SSMS 目前佈景主題的筆刷。
-/// </summary>
-/// <remarks>
-/// 原本建議視窗一律使用 <see cref="SystemColors"/>，那跟的是 Windows 佈景主題而不是
-/// SSMS 的，所以 Windows 淺色搭配 SSMS 深色時會出現白底黑字的清單。
-/// 這裡改為向 VS 的主題資源字典查詢；查不到時退回原本的系統色，
-/// 讓建議視窗在任何情況下都還是看得見。
-/// </remarks>
+/// <summary>唯一的 SSMS 主題接線；只在主題改變時解析、推導及發布筆刷。</summary>
 internal static class VsThemeBrushes
 {
-    public static Brush ListBackground =>
-        Resolve(EnvironmentColors.ToolTipBrushKey, SystemColors.WindowBrush);
+    private static readonly ThemeResourceSet Palette = new();
+    private static Dispatcher? _dispatcher;
+    private static ThemeRefreshQueue? _refreshQueue;
 
-    public static Brush ListForeground =>
-        Resolve(EnvironmentColors.ToolTipTextBrushKey, SystemColors.WindowTextBrush);
+    public static event EventHandler? Changed;
 
-    public static Brush DimForeground =>
-        Resolve(EnvironmentColors.SystemGrayTextBrushKey, SystemColors.GrayTextBrush);
-
-    /// <summary>工具視窗的底色；與提示視窗不同，工具視窗停駐在 IDE 裡，跟的是另一組資源。</summary>
-    public static Brush WindowBackground =>
-        Resolve(EnvironmentColors.ToolWindowBackgroundBrushKey, SystemColors.ControlBrush);
-
-    public static Brush WindowForeground =>
-        Resolve(EnvironmentColors.ToolWindowTextBrushKey, SystemColors.ControlTextBrush);
-
-    public static Brush Border =>
-        Resolve(EnvironmentColors.ToolTipBorderBrushKey, SystemColors.ActiveBorderBrush);
-
-    /// <summary>分隔用的細線，比 <see cref="Border"/> 淡得多。</summary>
-    public static Brush Hairline => Overlay(0.10);
-
-    /// <summary>滑鼠掃過的那一列。</summary>
-    public static Brush RowHover => Overlay(0.05);
-
-    /// <summary>交替列；淡到只夠讓眼睛沿著一列橫著走，不會被讀成分組。</summary>
-    public static Brush RowAlternate => Overlay(0.045);
-
-    /// <summary>選取的儲存格；也是按鈕被滑鼠掃過時的底色。</summary>
-    public static Brush RowSelected => Overlay(0.12);
-
-    /// <summary>按下去的那一刻；比滑鼠掃過再重一階，手指離開就退回去。</summary>
-    public static Brush RowPressed => Overlay(0.18);
-
-    /// <summary>分段控制器的底槽。</summary>
-    public static Brush SegmentTrack => Overlay(0.06);
-
-    /// <summary>中性徽章的底色。</summary>
-    public static Brush BadgeBackground => Overlay(0.07);
-
-    /// <summary>
-    /// 強調用徽章的底色；整個視窗只有主索引鍵用得到。
-    /// </summary>
-    /// <remarks>
-    /// 備援刻意不是 <see cref="SystemColors.HighlightBrush"/>。那是一塊飽和的實心藍，
-    /// 徽章上的字仍然是淡色的前景色，疊上去就是看不清楚的深藍配灰。
-    /// 主題查不到時退回中性徽章——少一點強調只是平了一點，配錯色卻是讀不到。
-    /// </remarks>
-    public static Brush AccentBackground =>
-        Resolve(EnvironmentColors.AccentPaleBrushKey, BadgeBackground);
-
-    public static Brush AccentBorder =>
-        Resolve(EnvironmentColors.AccentBorderBrushKey, Hairline);
-
-    /// <summary>
-    /// 前景色的低透明度版本。
-    /// </summary>
-    /// <remarks>
-    /// 層次刻意不用主題裡現成的那些筆刷。它們是為停駐面板調的，放在提示視窗的
-    /// 底色上不是太重就是完全看不見，而且淺色與深色主題各偏一邊。
-    /// 從前景色本身按比例調淡，兩種主題就自動各自成立——淺色主題得到淡灰，
-    /// 深色主題得到淡白，對比永遠是同一個量。
-    ///
-    /// 取不到顏色時回傳透明而不是猜一個灰：少一層底色只是平了一點，
-    /// 猜錯方向卻會在深色主題上糊成一片。
-    /// </remarks>
-    private static Brush Overlay(double opacity)
+    public static Brush Get(ThemeBrush key)
     {
-        if (ListForeground is not SolidColorBrush { Color: var color })
+        Initialize();
+        return Palette.Get(key);
+    }
+
+    public static void Apply(FrameworkElement root)
+    {
+        Initialize();
+        if (!root.Resources.MergedDictionaries.Contains(Palette.Resources))
         {
-            return System.Windows.Media.Brushes.Transparent;
+            root.Resources.MergedDictionaries.Add(Palette.Resources);
+        }
+    }
+
+    public static void Initialize()
+    {
+        if (_dispatcher is not null)
+        {
+            _dispatcher.VerifyAccess();
+            return;
         }
 
-        var brush = new SolidColorBrush(
-            Color.FromArgb((byte)Math.Round(opacity * 255), color.R, color.G, color.B));
-
-        brush.Freeze();
-        return brush;
+        var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        dispatcher.VerifyAccess();
+        _dispatcher = dispatcher;
+        Refresh();
+        _refreshQueue = new ThemeRefreshQueue(dispatcher,
+            () => SqlAssistPlatformGuard.Probe("更新佈景主題筆刷", Refresh));
+        VSColorTheme.ThemeChanged += OnThemeChanged;
+        SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
     }
 
-    private static Brush Resolve(object resourceKey, Brush fallback)
+    public static void Shutdown()
     {
-        // 主題字典由 VS 併入 Application.Current.Resources；SSMS 若尚未載入
-        // 或鍵值不存在，TryFindResource 會回傳 null 而不是擲例外。
-        return SqlAssistPlatformGuard.Probe(
-            "解析佈景主題筆刷",
-            () => Application.Current?.TryFindResource(resourceKey) is Brush brush ? brush : fallback,
-            fallback);
+        VSColorTheme.ThemeChanged -= OnThemeChanged;
+        SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
+        _refreshQueue?.Dispose();
+        _refreshQueue = null;
+        _dispatcher = null;
     }
+
+    private static void OnThemeChanged(ThemeChangedEventArgs args) => QueueRefresh();
+
+    private static void OnSystemParametersChanged(object sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(SystemParameters.HighContrast))
+        {
+            QueueRefresh();
+        }
+    }
+
+    private static void QueueRefresh()
+    {
+        // 等殼層併入新資源後再讀；同一輪廣播只發布一次，不在每個查詢視窗重查。
+        SqlAssistPlatformGuard.Probe("排程佈景主題更新", () => _refreshQueue?.Request());
+    }
+
+    private static void Refresh()
+    {
+        var highContrast = SystemParameters.HighContrast;
+        var window = ResolvePair(
+            EnvironmentColors.ToolWindowBackgroundBrushKey, EnvironmentColors.ToolWindowTextBrushKey,
+            EnvironmentColors.ToolWindowBackgroundColorKey, EnvironmentColors.ToolWindowTextColorKey,
+            SystemColors.WindowColor, SystemColors.WindowTextColor);
+        var list = ResolvePair(
+            EnvironmentColors.ToolTipBrushKey, EnvironmentColors.ToolTipTextBrushKey,
+            EnvironmentColors.ToolTipColorKey, EnvironmentColors.ToolTipTextColorKey,
+            window.Background, window.Foreground);
+
+        // 高對比尊重系統的完整前景／背景組，不能把選取色降成 12% 透明。
+        var foreground = highContrast ? SystemColors.WindowTextColor : list.Foreground;
+        var background = highContrast ? SystemColors.WindowColor : list.Background;
+        var dim = highContrast ? foreground : Resolve(
+            EnvironmentColors.SystemGrayTextBrushKey, EnvironmentColors.SystemGrayTextColorKey, foreground);
+        var border = highContrast ? foreground : Resolve(
+            EnvironmentColors.ToolTipBorderBrushKey, EnvironmentColors.ToolTipBorderColorKey, foreground);
+        var badge = Overlay(foreground, 0.07);
+        var accent = Resolve(EnvironmentColors.AccentPaleBrushKey, EnvironmentColors.AccentPaleColorKey, background);
+        var accentBorder = Resolve(EnvironmentColors.AccentBorderBrushKey, EnvironmentColors.AccentBorderColorKey, border);
+
+        Palette.Update(new Dictionary<ThemeBrush, Color>
+        {
+            [ThemeBrush.ListBackground] = background,
+            [ThemeBrush.ListForeground] = foreground,
+            [ThemeBrush.DimForeground] = ThemeColorMath.EnsureContrast(dim, background, foreground),
+            [ThemeBrush.WindowBackground] = highContrast ? background : window.Background,
+            [ThemeBrush.WindowForeground] = highContrast ? foreground : window.Foreground,
+            [ThemeBrush.Border] = border,
+            [ThemeBrush.Hairline] = highContrast ? foreground : Overlay(foreground, 0.10),
+            [ThemeBrush.RowHover] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.05),
+            [ThemeBrush.RowSelected] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.12),
+            [ThemeBrush.SelectedForeground] = highContrast ? SystemColors.HighlightTextColor : foreground,
+            [ThemeBrush.RowPressed] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.18),
+            [ThemeBrush.RowAlternate] = highContrast ? background : Overlay(foreground, 0.045),
+            [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
+            [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
+            // 自訂 Accent 若與一般文字衝突，只降級徽章底色，不修改使用者的 SSMS 設定。
+            [ThemeBrush.AccentBackground] = highContrast ? background :
+                ThemeColorMath.Contrast(foreground, ThemeColorMath.Composite(accent, background)) >= 4.5 ? accent : badge,
+            [ThemeBrush.AccentBorder] = highContrast ? foreground : accentBorder
+        });
+
+        // 捲軸、選單與下拉 Popup 交給 SSMS 的完整樣式，不只覆寫控制項表面的底色。
+        PublishStyle(typeof(ScrollBar), VsResourceKeys.ScrollBarStyleKey);
+        PublishStyle(typeof(ComboBox), VsResourceKeys.ComboBoxStyleKey);
+        PublishStyle(typeof(ComboBoxItem), VsResourceKeys.ComboBoxItemStyleKey);
+        PublishStyle(typeof(ContextMenu), VsResourceKeys.ContextMenuStyleKey);
+        PublishStyle(typeof(ToolTip), VsResourceKeys.LargeToolTipStyleKey);
+        Changed?.Invoke(null, EventArgs.Empty);
+    }
+
+    private static void PublishStyle(Type controlType, object key)
+    {
+        SqlAssistPlatformGuard.Probe("解析 SSMS 控制項樣式", () =>
+        {
+            if (Application.Current?.TryFindResource(key) is Style style &&
+                style.TargetType.IsAssignableFrom(controlType))
+            {
+                if (!ReferenceEquals(Palette.Resources[controlType], style))
+                {
+                    Palette.Resources[controlType] = style;
+                }
+            }
+            else
+            {
+                // 主題移除某個樣式時不能保留上一個主題的快照；退回局部系統色別名。
+                Palette.Resources.Remove(controlType);
+            }
+        });
+    }
+
+    private static Color Overlay(Color color, double opacity) =>
+        Color.FromArgb((byte)Math.Round(opacity * 255), color.R, color.G, color.B);
+
+    private static (Color Background, Color Foreground) ResolvePair(
+        object backgroundKey, object foregroundKey, ThemeResourceKey backgroundColorKey,
+        ThemeResourceKey foregroundColorKey, Color fallbackBackground, Color fallbackForeground)
+    {
+        var background = TryResolve(backgroundKey, backgroundColorKey);
+        var foreground = TryResolve(foregroundKey, foregroundColorKey);
+        // 缺一個鍵就整組退回；逐項退回 Windows 會把 SSMS 暗底與系統黑字湊在一起。
+        return background.HasValue && foreground.HasValue
+            ? (background.Value, foreground.Value)
+            : (fallbackBackground, fallbackForeground);
+    }
+
+    private static Color Resolve(object key, ThemeResourceKey colorKey, Color fallback) =>
+        TryResolve(key, colorKey) ?? fallback;
+
+    private static Color? TryResolve(object key, ThemeResourceKey colorKey) => SqlAssistPlatformGuard.Probe<Color?>(
+        "解析佈景主題顏色",
+        () =>
+        {
+            if (Application.Current?.TryFindResource(key) is SolidColorBrush brush)
+            {
+                return brush.Color;
+            }
+
+            // WPF 字典尚未併入時仍先問殼層；Windows 系統色是最後且成對的備援。
+            var color = VSColorTheme.GetThemedColor(colorKey);
+            return color.IsEmpty ? (Color?)null : Color.FromArgb(color.A, color.R, color.G, color.B);
+        },
+        fallback: null);
 }

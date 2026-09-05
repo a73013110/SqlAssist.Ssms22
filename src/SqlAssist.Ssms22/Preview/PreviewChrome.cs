@@ -72,7 +72,7 @@ internal static class PreviewChrome
     public static DataTemplate CreateFlagsCellTemplate(string path, SqlAssistChrome.Metrics metrics)
     {
         var chip = new FrameworkElementFactory(typeof(Border)) { Name = "chip" };
-        chip.SetValue(Border.BackgroundProperty, VsThemeBrushes.BadgeBackground);
+        chip.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground);
         chip.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         chip.SetValue(Border.PaddingProperty, new Thickness(6, 0, 6, 1));
         chip.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
@@ -82,17 +82,17 @@ internal static class PreviewChrome
         text.SetBinding(TextBlock.TextProperty, new Binding());
         text.SetValue(TextBlock.FontFamilyProperty, SqlAssistChrome.InterfaceFont);
         text.SetValue(TextBlock.FontSizeProperty, metrics.Badge);
-        text.SetValue(TextBlock.ForegroundProperty, VsThemeBrushes.DimForeground);
+        text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
         chip.AppendChild(text);
 
         var chipTemplate = new DataTemplate { VisualTree = chip };
 
         // 整個視窗只有主索引鍵用強調色。多給一個，強調就不再是強調。
         var primaryKey = new DataTrigger { Binding = new Binding(), Value = PrimaryKeyFlag };
-        primaryKey.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.AccentBackground, "chip"));
-        primaryKey.Setters.Add(new Setter(Border.BorderBrushProperty, VsThemeBrushes.AccentBorder, "chip"));
+        primaryKey.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "chip"));
+        primaryKey.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "chip"));
         primaryKey.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(1), "chip"));
-        primaryKey.Setters.Add(new Setter(TextBlock.ForegroundProperty, VsThemeBrushes.ListForeground, "chipText"));
+        primaryKey.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.ListForeground, "chipText"));
         chipTemplate.Triggers.Add(primaryKey);
 
         var panel = new FrameworkElementFactory(typeof(StackPanel));

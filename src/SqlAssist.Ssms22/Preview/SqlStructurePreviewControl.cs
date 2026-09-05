@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
+using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Model;
@@ -59,7 +60,7 @@ internal sealed class PreviewResizeDragEventArgs : EventArgs
 /// <see cref="ApplicationCommands.Copy"/> 的繞送：浮動視窗裡的鍵盤焦點
 /// 未必落在預期的元素上，命令繞送不到就會變成「選得起來但複製不了」。
 /// </remarks>
-internal sealed class SqlStructurePreviewControl : UserControl
+internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
 {
     /// <summary>
     /// 角落握把的邊長。
@@ -214,18 +215,20 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// <summary>指令碼只組一次；複製與顯示都用同一份。</summary>
     private string? _scriptText;
 
-    private SqlScriptDocument.Palette? _palette;
+    private readonly IWpfTextView _view;
+    private SqlScriptTheme? _scriptTheme;
 
-    public SqlStructurePreviewControl()
+    public SqlStructurePreviewControl(IWpfTextView view)
     {
+        _view = view;
+        VsThemeBrushes.Apply(this);
         _icon = PreviewChrome.CreateObjectIcon();
 
         _title = new TextBlock
         {
             FontFamily = SqlAssistChrome.InterfaceFont,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = VsThemeBrushes.ListForeground
-        };
+            TextTrimming = TextTrimming.CharacterEllipsis
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
 
         // 摘要從底部搬到標題底下：物件的欄位數與主索引鍵是「這是什麼」的一部分，
         // 該跟名字待在一起。底部那一條留給操作之後的回饋，平常是空的。
@@ -233,9 +236,8 @@ internal sealed class SqlStructurePreviewControl : UserControl
         {
             FontFamily = SqlAssistChrome.InterfaceFont,
             Margin = new Thickness(0, 1, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            Foreground = VsThemeBrushes.DimForeground
-        };
+            TextTrimming = TextTrimming.CharacterEllipsis
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
         _status.Margin = new Thickness(24, 0, 24, 6);
@@ -277,12 +279,12 @@ internal sealed class SqlStructurePreviewControl : UserControl
             IsInactiveSelectionHighlightEnabled = true,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(6, 0, 0, 8),
-            Background = VsThemeBrushes.ListBackground,
-            Foreground = VsThemeBrushes.ListForeground,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             ContextMenu = CreateScriptMenu()
-        };
+        }.WithTheme(RichTextBox.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(RichTextBox.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(RichTextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
 
         _columnsTab = new TabItem { Header = "欄位", Content = _columns };
         _indexesTab = new TabItem { Header = "索引", Content = _indexes };
@@ -299,12 +301,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _tabs = new TabControl
         {
-            Background = VsThemeBrushes.ListBackground,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
             FontFamily = SqlAssistChrome.InterfaceFont,
             Template = SqlAssistChrome.CreateTabControlTemplate()
-        };
+        }.WithTheme(TabControl.BackgroundProperty, ThemeBrush.ListBackground);
         _tabs.Items.Add(_columnsTab);
         _tabs.Items.Add(_indexesTab);
         _tabs.Items.Add(_foreignKeysTab);
@@ -363,12 +364,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _root = new Border
         {
-            Background = VsThemeBrushes.ListBackground,
-            BorderBrush = VsThemeBrushes.Border,
             BorderThickness = new Thickness(1),
             SnapsToDevicePixels = true,
             Child = overlay
-        };
+        }.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
 
         // 原生圖示依實際底色轉換，避免深色與高對比主題出現不相容的光暈。
         _root.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, new Binding(nameof(Border.Background))
@@ -475,9 +475,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
         _title.Inlines.Clear();
         _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.SchemaName) + ".")
-        {
-            Foreground = VsThemeBrushes.DimForeground
-        });
+                .WithTheme(Run.ForegroundProperty, ThemeBrush.DimForeground));
         _title.Inlines.Add(new Run(SqlIdentifier.Quote(objectInfo.Name))
         {
             FontWeight = FontWeights.SemiBold
@@ -604,8 +602,9 @@ internal sealed class SqlStructurePreviewControl : UserControl
             }
             else if (ReferenceEquals(tab, _scriptTab))
             {
-                _palette ??= SqlScriptDocument.CreatePalette();
-                _script.Document = SqlScriptDocument.Build(GetScript(), _palette);
+                _scriptTheme ??= new SqlScriptTheme(_view, _script);
+                _scriptTheme.EnsureCurrent();
+                _script.Document = SqlScriptDocument.Build(GetScript(), _scriptTheme.Resources);
             }
         }
         catch (Exception exception)
@@ -828,6 +827,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private ContextMenu CreateScriptMenu()
     {
         var menu = new ContextMenu();
+        VsThemeBrushes.Apply(menu);
         var copy = new MenuItem { Header = "複製選取內容" };
         copy.Click += (_, _) => CopySelection();
         var copyAll = new MenuItem { Header = "複製完整指令碼" };
@@ -841,6 +841,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     private ContextMenu CreateGridMenu()
     {
         var menu = new ContextMenu();
+        VsThemeBrushes.Apply(menu);
         var copy = new MenuItem { Header = "複製選取的儲存格" };
         copy.Click += (_, _) => CopySelection();
         var copyAll = new MenuItem { Header = "複製整個表格" };
@@ -1051,7 +1052,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         button.ToolTip = tooltip;
 
         // 標題列的動作比內容次要一階，用淡一級的前景色。
-        button.Foreground = VsThemeBrushes.DimForeground;
+        button.SetResourceReference(Control.ForegroundProperty, ThemeBrush.DimForeground);
 
         // 按鈕不吃焦點：按一下複製之後，焦點該留在原本選取的地方。
         button.Focusable = false;
@@ -1101,7 +1102,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         lines.SetValue(
             System.Windows.Shapes.Path.DataProperty,
             Geometry.Parse("M 2,14 L 14,2 M 6,14 L 14,6 M 10,14 L 14,10"));
-        lines.SetValue(System.Windows.Shapes.Path.StrokeProperty, VsThemeBrushes.DimForeground);
+        lines.SetResourceReference(System.Windows.Shapes.Path.StrokeProperty, ThemeBrush.DimForeground);
         lines.SetValue(System.Windows.Shapes.Path.StrokeThicknessProperty, 1.0);
         lines.SetValue(IsHitTestVisibleProperty, false);
         root.AppendChild(lines);
@@ -1119,9 +1120,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// </remarks>
     private DataGrid CreateGrid(params (string Header, string Path)[] columns)
     {
-        var grid = SqlAssistChrome.CreateDataGrid(
-            SqlAssistChrome.DefaultMetrics,
-            VsThemeBrushes.ListBackground);
+        var grid = SqlAssistChrome.CreateDataGrid(SqlAssistChrome.DefaultMetrics);
 
         // 外觀之外的都是這個視窗自己的行為：以儲存格為選取單位、允許橫向捲動，
         // 以及一份自己的內容選單。
@@ -1204,5 +1203,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _flags.CellTemplate = PreviewChrome.CreateFlagsCellTemplate(
             nameof(ColumnRow.FlagList),
             metrics);
+    }
+
+    public void Dispose()
+    {
+        _scriptTheme?.Dispose();
+        _scriptTheme = null;
     }
 }

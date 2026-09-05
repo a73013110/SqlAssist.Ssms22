@@ -30,6 +30,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
 
     public ResultGridCellWindow(ResultGridCellText cell)
     {
+        VsThemeBrushes.Apply(this);
         _cell = cell;
 
         Title = "SqlAssist — 儲存格內容";
@@ -38,8 +39,8 @@ internal sealed class ResultGridCellWindow : DialogWindow
         MinWidth = 420;
         MinHeight = 260;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = VsThemeBrushes.WindowBackground;
-        Foreground = VsThemeBrushes.WindowForeground;
+        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
+        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);

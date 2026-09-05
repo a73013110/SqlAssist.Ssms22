@@ -18,11 +18,8 @@ namespace SqlAssist.Ssms22.UI;
 /// 都從這裡取字型、字級、控制項樣板與間距。分成兩份的話，改一邊忘了另一邊
 /// 的症狀是「兩個視窗長得像但又不完全一樣」——那比一開始就不統一更難看。
 ///
-/// 樣板全部用 <see cref="FrameworkElementFactory"/> 在程式碼裡組出來，
-/// 整份原始碼沒有任何 XAML：為了幾個樣板引入資源字典會讓顏色的來源分裂成兩套，
-/// 字典裡只能用 <c>DynamicResource</c> 查主題鍵，那條路沒有備援，
-/// SSMS 還沒併入主題字典時會直接解析成透明。顏色一律從
-/// <see cref="VsThemeBrushes"/> 取，備援才有地方寫。
+/// 樣板只持有語意資源鍵，不保存建立當下的 Brush。動態資源及備援由同一份
+/// ThemeResourceSet 提供，主題切換不用重建控制項、樣板或資料列。
 ///
 /// 版面的原則是「用留白分層，不用線條」：層次靠間距與極淡的底色，
 /// 只有需要框住一整塊內容時才畫一條細線。
@@ -91,13 +88,12 @@ internal static class SqlAssistChrome
     {
         return new Border
         {
-            Background = VsThemeBrushes.ListBackground,
-            BorderBrush = VsThemeBrushes.Hairline,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(InnerRadius + 1),
             SnapsToDevicePixels = true,
             Child = child
-        };
+        }.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
     }
 
     /// <summary>區塊標題：靠字重而不是字級把段落分開。</summary>
@@ -109,9 +105,8 @@ internal static class SqlAssistChrome
             FontFamily = InterfaceFont,
             FontSize = metrics.Caption,
             FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground,
             Margin = new Thickness(0, 12, 0, 4)
-        };
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
     }
 
     /// <summary>欄位底下的說明；永遠比它說明的東西淡。</summary>
@@ -122,10 +117,9 @@ internal static class SqlAssistChrome
             Text = text,
             FontFamily = InterfaceFont,
             FontSize = metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(2, 5, 0, 0)
-        };
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
     }
 
     /// <summary>短狀態用的圓角徽章；不能只靠顏色傳達狀態，文字仍是必要內容。</summary>
@@ -133,8 +127,6 @@ internal static class SqlAssistChrome
     {
         return new Border
         {
-            Background = accent ? VsThemeBrushes.AccentBackground : VsThemeBrushes.BadgeBackground,
-            BorderBrush = accent ? VsThemeBrushes.AccentBorder : VsThemeBrushes.Hairline,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(InnerRadius),
             Padding = new Thickness(8, 2, 8, 3),
@@ -142,10 +134,10 @@ internal static class SqlAssistChrome
             {
                 Text = text,
                 FontFamily = InterfaceFont,
-                FontSize = metrics.Caption,
-                Foreground = VsThemeBrushes.ListForeground
-            }
-        };
+                FontSize = metrics.Caption
+            }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground)
+        }.WithTheme(Border.BackgroundProperty, accent ? ThemeBrush.AccentBackground : ThemeBrush.BadgeBackground)
+            .WithTheme(Border.BorderBrushProperty, accent ? ThemeBrush.AccentBorder : ThemeBrush.Hairline);
     }
 
     /// <summary>
@@ -157,7 +149,7 @@ internal static class SqlAssistChrome
     /// </remarks>
     public static ControlTemplate CreateGhostButtonTemplate()
     {
-        return CreateButtonTemplate(Brushes.Transparent);
+        return CreateButtonTemplate(primary: false);
     }
 
     /// <summary>
@@ -170,13 +162,23 @@ internal static class SqlAssistChrome
     /// </remarks>
     public static ControlTemplate CreatePrimaryButtonTemplate()
     {
-        return CreateButtonTemplate(VsThemeBrushes.SegmentTrack);
+        return CreateButtonTemplate(primary: true);
     }
 
-    private static ControlTemplate CreateButtonTemplate(Brush resting)
+    private static ControlTemplate CreateButtonTemplate(bool primary)
     {
         var background = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
-        background.SetValue(Border.BackgroundProperty, resting);
+        if (primary)
+        {
+            background.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
+        }
+        else
+        {
+            background.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        }
+
+        background.SetValue(Border.BorderBrushProperty, Brushes.Transparent);
+        background.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         background.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
         background.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
 
@@ -189,11 +191,20 @@ internal static class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BackgroundProperty, VsThemeBrushes.RowSelected, "bg");
+            Border.BackgroundProperty, ThemeBrush.RowSelected, "bg");
 
-        AddTrigger(
-            template, ButtonBase.IsPressedProperty,
-            Border.BackgroundProperty, VsThemeBrushes.RowPressed, "bg");
+        AddTrigger(template, UIElement.IsMouseOverProperty,
+            TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            Border.BackgroundProperty, ThemeBrush.RowSelected, "bg");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            Border.BorderBrushProperty, ThemeBrush.Border, "bg");
+
+        // 按下的回饋優先於焦點，否則滑鼠按下取得焦點後會把 pressed 底色蓋回去。
+        AddTrigger(template, ButtonBase.IsPressedProperty,
+            Border.BackgroundProperty, ThemeBrush.RowPressed, "bg");
 
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.4, "bg"));
@@ -217,9 +228,8 @@ internal static class SqlAssistChrome
             Padding = new Thickness(12, 4, 12, 5),
             FontFamily = InterfaceFont,
             FontSize = metrics.Body,
-            Foreground = VsThemeBrushes.ListForeground,
             Template = primary ? CreatePrimaryButtonTemplate() : CreateGhostButtonTemplate()
-        };
+        }.WithTheme(Button.ForegroundProperty, ThemeBrush.ListForeground);
     }
 
     /// <summary>底部那一條回饋訊息；平常是空的，所以永遠比內容淡。</summary>
@@ -229,10 +239,9 @@ internal static class SqlAssistChrome
         {
             FontFamily = InterfaceFont,
             FontSize = metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center
-        };
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
     }
 
     /// <summary>
@@ -246,9 +255,9 @@ internal static class SqlAssistChrome
     /// 唯讀與可編輯、選取單位、捲軸與內容選單留給呼叫端：那些是各自的行為，
     /// 不是外觀。字級可以事後覆寫，浮動預覽的字級是設定項。
     /// </remarks>
-    public static DataGrid CreateDataGrid(Metrics metrics, Brush background)
+    public static DataGrid CreateDataGrid(Metrics metrics, bool transparent = false)
     {
-        return new DataGrid
+        var grid = new DataGrid
         {
             AutoGenerateColumns = false,
             CanUserAddRows = false,
@@ -259,10 +268,6 @@ internal static class SqlAssistChrome
             // 格線是最吵的一種分隔方式：一百多列就是一百多條線。
             // 層次改交給交替底色，那是不用畫線也看得出來的。
             GridLinesVisibility = DataGridGridLinesVisibility.None,
-            Background = background,
-            Foreground = VsThemeBrushes.ListForeground,
-            RowBackground = background,
-            AlternatingRowBackground = VsThemeBrushes.RowAlternate,
             AlternationCount = 2,
             BorderThickness = default,
             FontFamily = InterfaceFont,
@@ -270,7 +275,21 @@ internal static class SqlAssistChrome
             RowHeight = metrics.RowHeight,
             ColumnHeaderStyle = CreateColumnHeaderStyle(metrics),
             CellStyle = CreateCellStyle()
-        };
+        }.WithTheme(DataGrid.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(DataGrid.AlternatingRowBackgroundProperty, ThemeBrush.RowAlternate);
+
+        if (transparent)
+        {
+            grid.Background = Brushes.Transparent;
+            grid.RowBackground = Brushes.Transparent;
+        }
+        else
+        {
+            grid.WithTheme(Control.BackgroundProperty, ThemeBrush.ListBackground)
+                    .WithTheme(DataGrid.RowBackgroundProperty, ThemeBrush.ListBackground);
+        }
+
+        return grid;
     }
 
     /// <summary>
@@ -285,7 +304,7 @@ internal static class SqlAssistChrome
     {
         var field = new FrameworkElementFactory(typeof(Border)) { Name = "field" };
         field.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
-        field.SetValue(Border.BorderBrushProperty, VsThemeBrushes.Hairline);
+        field.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         field.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         field.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
         field.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
@@ -306,11 +325,11 @@ internal static class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BorderBrushProperty, VsThemeBrushes.Border, "field");
+            Border.BorderBrushProperty, ThemeBrush.Border, "field");
 
         AddTrigger(
             template, UIElement.IsKeyboardFocusWithinProperty,
-            Border.BorderBrushProperty, VsThemeBrushes.AccentBorder, "field");
+            Border.BorderBrushProperty, ThemeBrush.AccentBorder, "field");
 
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.5, "field"));
@@ -326,14 +345,13 @@ internal static class SqlAssistChrome
         {
             FontFamily = InterfaceFont,
             FontSize = metrics.Body,
-            Background = VsThemeBrushes.ListBackground,
-            Foreground = VsThemeBrushes.ListForeground,
-            CaretBrush = VsThemeBrushes.ListForeground,
-            SelectionBrush = VsThemeBrushes.RowSelected,
             Padding = new Thickness(8, 5, 8, 6),
             BorderThickness = new Thickness(1),
             Template = CreateTextBoxTemplate()
-        };
+        }.WithTheme(TextBox.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(TextBox.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(TextBox.CaretBrushProperty, ThemeBrush.ListForeground)
+            .WithTheme(TextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
     }
 
     /// <summary>下拉選單的字型、色彩與基本尺寸。</summary>
@@ -345,11 +363,10 @@ internal static class SqlAssistChrome
             Padding = new Thickness(8, 3, 8, 3),
             FontFamily = InterfaceFont,
             FontSize = metrics.Body,
-            Foreground = VsThemeBrushes.ListForeground,
-            Background = VsThemeBrushes.ListBackground,
-            BorderBrush = VsThemeBrushes.Hairline,
             BorderThickness = new Thickness(1)
-        };
+        }.WithTheme(ComboBox.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(ComboBox.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(ComboBox.BorderBrushProperty, ThemeBrush.Hairline);
     }
 
     /// <summary>
@@ -369,8 +386,8 @@ internal static class SqlAssistChrome
         box.SetValue(FrameworkElement.WidthProperty, 14.0);
         box.SetValue(FrameworkElement.HeightProperty, 14.0);
         box.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        box.SetValue(Border.BackgroundProperty, VsThemeBrushes.SegmentTrack);
-        box.SetValue(Border.BorderBrushProperty, VsThemeBrushes.Hairline);
+        box.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
+        box.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
@@ -378,7 +395,7 @@ internal static class SqlAssistChrome
 
         var check = new FrameworkElementFactory(typeof(Path)) { Name = "check" };
         check.SetValue(Path.DataProperty, Geometry.Parse("M 2,6.5 L 4.8,9.3 L 10,3.2"));
-        check.SetValue(Shape.StrokeProperty, VsThemeBrushes.ListForeground);
+        check.SetResourceReference(Shape.StrokeProperty, ThemeBrush.ListForeground);
         check.SetValue(Shape.StrokeThicknessProperty, 1.6);
         check.SetValue(Shape.StrokeStartLineCapProperty, PenLineCap.Round);
         check.SetValue(Shape.StrokeEndLineCapProperty, PenLineCap.Round);
@@ -399,12 +416,15 @@ internal static class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BorderBrushProperty, VsThemeBrushes.Border, "box");
+            Border.BorderBrushProperty, ThemeBrush.Border, "box");
+
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            Border.BorderBrushProperty, ThemeBrush.AccentBorder, "box");
 
         var isChecked = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
         isChecked.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "check"));
-        isChecked.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.AccentBackground, "box"));
-        isChecked.Setters.Add(new Setter(Border.BorderBrushProperty, VsThemeBrushes.AccentBorder, "box"));
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "box"));
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "box"));
         template.Triggers.Add(isChecked);
 
         return template;
@@ -424,18 +444,21 @@ internal static class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BackgroundProperty, VsThemeBrushes.RowHover, "row");
+            Border.BackgroundProperty, ThemeBrush.RowHover, "row");
+        AddTrigger(template, UIElement.IsMouseOverProperty,
+            TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "row");
 
         // 選取寫在滑鼠之後：兩個條件同時成立時，後宣告的那一個才是使用者要看的。
         var selected = new Trigger { Property = ListBoxItem.IsSelectedProperty, Value = true };
-        selected.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.RowSelected, "row"));
+        selected.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.RowSelected, "row"));
+        selected.Setters.Add(ThemeResourceSet.Setter(TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "row"));
         template.Triggers.Add(selected);
 
         var style = new Style(typeof(ListBoxItem));
         style.Setters.Add(new Setter(Control.TemplateProperty, template));
         style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
         style.Setters.Add(new Setter(Control.FontSizeProperty, metrics.Body));
-        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         style.Setters.Add(new Setter(
             Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
         return style;
@@ -460,7 +483,7 @@ internal static class SqlAssistChrome
 
         var track = new FrameworkElementFactory(typeof(Border));
         track.SetValue(DockPanel.DockProperty, Dock.Top);
-        track.SetValue(Border.BackgroundProperty, VsThemeBrushes.SegmentTrack);
+        track.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
         track.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         track.SetValue(Border.PaddingProperty, new Thickness(2));
         track.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
@@ -486,12 +509,14 @@ internal static class SqlAssistChrome
     {
         var segment = new FrameworkElementFactory(typeof(Border)) { Name = "segment" };
         segment.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        segment.SetValue(Border.BorderBrushProperty, Brushes.Transparent);
+        segment.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         segment.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
         segment.SetValue(Border.PaddingProperty, new Thickness(12, 3, 12, 4));
 
         var label = new FrameworkElementFactory(typeof(ContentPresenter)) { Name = "label" };
         label.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(TabItem.Header)));
-        label.SetValue(TextElement.ForegroundProperty, VsThemeBrushes.DimForeground);
+        label.SetResourceReference(TextElement.ForegroundProperty, ThemeBrush.DimForeground);
         label.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         segment.AppendChild(label);
 
@@ -500,11 +525,12 @@ internal static class SqlAssistChrome
         // 滑鼠掃過只把字提亮，不加底色——底色是「被選中」的專屬訊號。
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            TextElement.ForegroundProperty, VsThemeBrushes.ListForeground, "label");
+            TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label");
 
         var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
-        selected.Setters.Add(new Setter(Border.BackgroundProperty, VsThemeBrushes.ListBackground, "segment"));
-        selected.Setters.Add(new Setter(TextElement.ForegroundProperty, VsThemeBrushes.ListForeground, "label"));
+        selected.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.ListBackground, "segment"));
+        selected.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.Hairline, "segment"));
+        selected.Setters.Add(ThemeResourceSet.Setter(TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label"));
         template.Triggers.Add(selected);
 
         return template;
@@ -515,9 +541,9 @@ internal static class SqlAssistChrome
     {
         var style = new Style(typeof(DataGridColumnHeader));
         style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
-        style.Setters.Add(new Setter(Control.BorderBrushProperty, VsThemeBrushes.Hairline));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.BorderBrushProperty, ThemeBrush.Hairline));
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0, 0, 0, 1)));
-        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.DimForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
         style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
         style.Setters.Add(new Setter(Control.FontSizeProperty, metrics.ColumnHeader));
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 0, 10, 0)));
@@ -535,8 +561,8 @@ internal static class SqlAssistChrome
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
 
         var selected = new Trigger { Property = DataGridCell.IsSelectedProperty, Value = true };
-        selected.Setters.Add(new Setter(Control.BackgroundProperty, VsThemeBrushes.RowSelected));
-        selected.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
+        selected.Setters.Add(ThemeResourceSet.Setter(Control.BackgroundProperty, ThemeBrush.RowSelected));
+        selected.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.SelectedForeground));
         style.Triggers.Add(selected);
 
         return style;
@@ -562,10 +588,10 @@ internal static class SqlAssistChrome
     public static Style CreateCellEditorStyle()
     {
         var style = new Style(typeof(TextBox));
-        style.Setters.Add(new Setter(Control.BackgroundProperty, VsThemeBrushes.ListBackground));
-        style.Setters.Add(new Setter(Control.ForegroundProperty, VsThemeBrushes.ListForeground));
-        style.Setters.Add(new Setter(TextBoxBase.CaretBrushProperty, VsThemeBrushes.ListForeground));
-        style.Setters.Add(new Setter(TextBoxBase.SelectionBrushProperty, VsThemeBrushes.RowSelected));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.BackgroundProperty, ThemeBrush.ListBackground));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.CaretBrushProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.SelectionBrushProperty, ThemeBrush.RowSelected));
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 0, 8, 0)));
         style.Setters.Add(new Setter(
@@ -582,11 +608,11 @@ internal static class SqlAssistChrome
         ControlTemplate template,
         DependencyProperty property,
         DependencyProperty target,
-        object targetValue,
+        ThemeBrush targetValue,
         string targetName)
     {
         var trigger = new Trigger { Property = property, Value = true };
-        trigger.Setters.Add(new Setter(target, targetValue, targetName));
+        trigger.Setters.Add(ThemeResourceSet.Setter(target, targetValue, targetName));
         template.Triggers.Add(trigger);
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Composition;
 using System.Threading;
 using Microsoft.VisualStudio.Text.Classification;
+using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Preview;
@@ -38,11 +39,11 @@ internal sealed class SqlPreviewServices
     }
 
     /// <summary>編輯器目前佈景主題的文字外觀；取不到時回傳 null，由呼叫端退回預設值。</summary>
-    public IClassificationFormatMap? TryGetTextFormatMap()
+    public IClassificationFormatMap? TryGetTextFormatMap(ITextView view)
     {
         return SqlAssistPlatformGuard.Probe<IClassificationFormatMap?>(
             "解析編輯器文字外觀",
-            () => FormatMapService.GetClassificationFormatMap("text"),
+            () => FormatMapService.GetClassificationFormatMap(view),
             fallback: null);
     }
 }
