@@ -22,6 +22,7 @@ using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.QuickInfo;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -467,7 +468,10 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         var item = new CompletionItem(
             displayText: suggestion.DisplayText,
             source: this,
-            icon: null!,
+            // 同義字雖歸入資料表篩選類別，項目圖示仍須呈現真正物件種類。
+            icon: suggestion.Tag is SqlObjectInfo objectInfo
+                ? SqlIcons.GetImageElement(objectInfo.Kind)
+                : SqlIcons.GetImageElement(suggestion.Kind),
             filters: withFilters
                 ? SqlCompletionFilters.For(suggestion.Kind)
                 : ImmutableArray<CompletionFilter>.Empty,

@@ -45,5 +45,6 @@
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |
+| SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
 | 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
 | 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |

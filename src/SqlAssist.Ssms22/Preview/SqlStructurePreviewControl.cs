@@ -9,6 +9,8 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.VisualStudio.Imaging;
+using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Model;
@@ -161,7 +163,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// </remarks>
     private static readonly SqlAssistChrome.Metrics TitleBarMetrics = new(12);
 
-    private readonly System.Windows.Shapes.Path _icon;
+    private readonly CrispImage _icon;
     private readonly TextBlock _title;
     private readonly TextBlock _summary;
     private readonly TextBlock _status;
@@ -368,6 +370,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
             Child = overlay
         };
 
+        // 原生圖示依實際底色轉換，避免深色與高對比主題出現不相容的光暈。
+        _root.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, new Binding(nameof(Border.Background))
+        {
+            Source = _root,
+            Converter = new BrushToColorConverter()
+        });
+
         // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
         TextOptions.SetTextFormattingMode(_root, TextFormattingMode.Ideal);
 
@@ -442,7 +451,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _scriptText = null;
         _populated.Clear();
         SetTitle(objectInfo);
-        _summary.Text = "載入中…";
+        _summary.Text = objectInfo.Kind.ToDisplayName() + "　載入中…";
         _status.Text = string.Empty;
         ClearTabs();
     }
@@ -455,13 +464,13 @@ internal sealed class SqlStructurePreviewControl : UserControl
     /// 命中第四層時呼叫端會直接 <see cref="Populate(SqlObjectStructure)"/>，
     /// 標題就會停在上一個物件上——畫面出現「標題是同義字、內容是資料表」。
     ///
-    /// 物件種類改由圖示表示，結構描述壓成淡色：讀完整串
-    /// 「Table　[dbo].[PUBLISHER]」要掃過十八個字，而真正要找的只有 PUBLISHER。
+    /// 種類文字併入淡色摘要，圖示只輔助辨識，讓名稱維持標題的視覺重點。
     /// </remarks>
     private void SetTitle(SqlObjectInfo objectInfo)
     {
-        _icon.Data = PreviewChrome.GeometryFor(objectInfo.Kind);
+        _icon.Moniker = SqlIcons.GetMoniker(objectInfo.Kind);
         _icon.ToolTip = objectInfo.Kind.ToDisplayName();
+        AutomationProperties.SetName(_icon, SqlIcons.GetImageElement(objectInfo.Kind).AutomationName);
         _icon.Visibility = Visibility.Visible;
 
         _title.Inlines.Clear();
@@ -482,7 +491,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
         _scriptText = null;
         _populated.Clear();
 
-        // 沒有物件就沒有種類，圖示留著只會是一個不知道在指什麼的圓圈。
+        // 沒有物件語意的訊息不顯示圖示，避免誤認為未知種類的物件。
         _icon.Visibility = Visibility.Collapsed;
         _title.Inlines.Clear();
         _title.Inlines.Add(new Run(title));
@@ -977,10 +986,11 @@ internal sealed class SqlStructurePreviewControl : UserControl
 
     private static string BuildSummary(SqlObjectStructure structure, bool partial)
     {
-        var builder = new StringBuilder();
+        var builder = new StringBuilder(structure.Object.Kind.ToDisplayName());
 
         if (structure.Columns.Count > 0)
         {
+            Separate(builder);
             builder.Append(structure.Columns.Count).Append(" 個欄位");
         }
 
@@ -1020,7 +1030,7 @@ internal sealed class SqlStructurePreviewControl : UserControl
             builder.Append(structure.ForeignKeys.Count).Append(" 個外來鍵");
         }
 
-        return builder.Length == 0 ? structure.Object.Kind.ToDisplayName() : builder.ToString();
+        return builder.ToString();
     }
 
     private static void Separate(StringBuilder builder)

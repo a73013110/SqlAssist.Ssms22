@@ -54,8 +54,11 @@ Titlebar 回答「這是哪個工具」，內容第一列只放**新的資訊**�
 - 資料格不畫格線，以 4.5% 交替底色分列，表頭只留底線。交替色須設在 DataGrid 的
   `RowBackground`／`AlternatingRowBackground`，不要用會被轉移屬性蓋掉的 Row trigger。
 - 一個視窗只有一個主要動作；放在右側並給淡底。次要動作用幽靈按鈕，停駐或按下才顯色。
-- `PreviewChrome.cs` 只保留預覽專屬的淡入、物件圖示與旗標徽章；每種物件須有明確圖示，
-  fallback 圓只代表未知種類。共用樣板仍回到 `SqlAssistChrome`，不另開 ResourceDictionary。
+- `PreviewChrome.cs` 只保留預覽專屬的淡入、圖示控制項排版與旗標徽章；SQL 圖示來源見
+  [共用元件表](shared-components.md)，種類文字仍保留在摘要。共用樣板仍回到 `SqlAssistChrome`，
+  不另開 ResourceDictionary。
+- SQL 圖示保留原生目錄的語意配色，不強制染色或為了顏色替換成不相干圖示，避免補全、
+  QuickInfo 與預覽的呈現分歧；辨識同時依靠形狀、種類文字與 Tooltip。
 
 ## 互動與品質
 

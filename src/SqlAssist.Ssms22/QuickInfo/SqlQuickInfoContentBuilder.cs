@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
+using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
@@ -53,7 +55,7 @@ internal static class SqlQuickInfoContentBuilder
         if (detail.Object.Kind.HasSynthesizedDefinition() &&
             !string.IsNullOrWhiteSpace(detail.Definition))
         {
-            return BuildDefinition(detail.Definition!, openStructure);
+            return BuildDefinition(detail.Object, detail.Definition!, openStructure);
         }
 
         // 資料表值函式的資料行也載入了，但這裡列的仍然是參數：滑鼠停在
@@ -122,10 +124,13 @@ internal static class SqlQuickInfoContentBuilder
     {
         var elements = new List<object>
         {
-            new ClassifiedTextElement(
-                Keyword("COLUMN"),
-                Text(" "),
-                Identifier(owner.QualifiedName)),
+            new ContainerElement(
+                ContainerElementStyle.Wrapped,
+                SqlIcons.GetImageElement(SuggestionKind.Column),
+                new ClassifiedTextElement(
+                    Keyword("COLUMN"),
+                    Text(" "),
+                    Identifier(owner.QualifiedName))),
             new ClassifiedTextElement(BuildColumnRuns(column, "  "))
         };
 
@@ -179,7 +184,10 @@ internal static class SqlQuickInfoContentBuilder
     /// 逐行分開成 <see cref="ClassifiedTextElement"/>：提示視窗不會自己斷行，
     /// 整段塞進一個元素會排成一長行而被螢幕邊界切掉。
     /// </remarks>
-    private static ContainerElement BuildDefinition(string definition, Action? openStructure)
+    private static ContainerElement BuildDefinition(
+        SqlObjectInfo objectInfo,
+        string definition,
+        Action? openStructure)
     {
         var lines = definition.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var elements = new List<object>();
@@ -197,8 +205,12 @@ internal static class SqlQuickInfoContentBuilder
                 break;
             }
 
+            var text = new ClassifiedTextElement(BuildCodeRuns(line));
+            // 定義本身已包含種類與名稱，只在首個非空白列加圖示，不重複標題。
+            elements.Add(shown == 0
+                ? new ContainerElement(ContainerElementStyle.Wrapped, SqlIcons.GetImageElement(objectInfo.Kind), text)
+                : (object)text);
             shown++;
-            elements.Add(new ClassifiedTextElement(BuildCodeRuns(line)));
         }
 
         if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
@@ -255,7 +267,7 @@ internal static class SqlQuickInfoContentBuilder
         };
     }
 
-    private static ClassifiedTextElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)
+    private static ContainerElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)
     {
         var runs = new List<ClassifiedTextRun>
         {
@@ -270,7 +282,10 @@ internal static class SqlQuickInfoContentBuilder
             runs.Add(Comment(suffix!));
         }
 
-        return new ClassifiedTextElement(runs);
+        return new ContainerElement(
+            ContainerElementStyle.Wrapped,
+            SqlIcons.GetImageElement(objectInfo.Kind),
+            new ClassifiedTextElement(runs));
     }
 
     private static IEnumerable<object> BuildColumns(IReadOnlyList<SqlColumnInfo> columns)
