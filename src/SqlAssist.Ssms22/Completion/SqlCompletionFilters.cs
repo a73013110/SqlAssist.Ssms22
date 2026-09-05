@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Microsoft.VisualStudio.Core.Imaging;
-using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -25,28 +24,34 @@ namespace SqlAssist.Ssms22.Completion;
 internal static class SqlCompletionFilters
 {
     private static readonly ImmutableArray<CompletionFilter> Columns =
-        One("欄位", "c", KnownImageIds.Column);
+        One("欄位", "c", SqlIcons.GetImageElement(SuggestionKind.Column));
 
     private static readonly ImmutableArray<CompletionFilter> Tables =
-        One("資料表", "t", KnownImageIds.Table);
+        One("資料表", "t", SqlIcons.GetImageElement(SuggestionKind.Table));
 
     private static readonly ImmutableArray<CompletionFilter> Views =
-        One("檢視", "v", KnownImageIds.View);
+        One("檢視", "v", SqlIcons.GetImageElement(SuggestionKind.View));
 
     private static readonly ImmutableArray<CompletionFilter> Procedures =
-        One("預存程序", "p", KnownImageIds.StoredProcedure);
+        One("預存程序", "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
 
-    private static readonly ImmutableArray<CompletionFilter> Functions =
-        One("函式", "f", KnownImageIds.ScalarFunction);
+    private static readonly ImmutableArray<CompletionFilter> ScalarFunctions =
+        One("純量函式", "f", SqlIcons.GetImageElement(SuggestionKind.Function));
+
+    private static readonly ImmutableArray<CompletionFilter> TableFunctions =
+        One("資料表值函式（含內嵌與多敘述）", "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
+
+    private static readonly ImmutableArray<CompletionFilter> BuiltInFunctions =
+        One("內建函式", "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
 
     private static readonly ImmutableArray<CompletionFilter> Keywords =
-        One("關鍵字", "k", KnownImageIds.IntellisenseKeyword);
+        One("關鍵字", "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
 
     private static readonly ImmutableArray<CompletionFilter> Snippets =
-        One("程式碼片段", "s", KnownImageIds.Snippet);
+        One("程式碼片段", "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
 
     private static readonly ImmutableArray<CompletionFilter> Others =
-        One("其他", "o", KnownImageIds.Ellipsis);
+        One("其他", "o", SqlIcons.Ellipsis);
 
     /// <summary>
     /// 篩選鈕由左到右的順序。
@@ -66,7 +71,9 @@ internal static class SqlCompletionFilters
         Tables[0],
         Views[0],
         Procedures[0],
-        Functions[0],
+        ScalarFunctions[0],
+        TableFunctions[0],
+        BuiltInFunctions[0],
         Keywords[0],
         Snippets[0],
         Others[0]
@@ -76,11 +83,9 @@ internal static class SqlCompletionFilters
     /// 建議項所屬的分類。
     /// </summary>
     /// <remarks>
-    /// 純量函式、資料表值函式與 T-SQL 內建函式在這裡併成同一顆：分開是為了
-    /// 語境過濾（<c>ALTER FUNCTION</c> 不列內建函式、<c>FROM</c> 不列純量函式，
-    /// 見 <see cref="SuggestionKind.BuiltInFunction"/> 與
-    /// <see cref="SuggestionKind.TableFunction"/>），那層邏輯與篩選鈕無關，
-    /// 而篩選列上分成三顆對使用者沒有意義。
+    /// 函式按使用方式分成內建、純量與資料表值，避免大量內建函式淹沒資料庫函式。
+    /// 內嵌與多敘述同屬資料表值函式，呼叫位置相同，不再按實作方式拆按鈕；
+    /// 真正物件種類仍由項目說明與預覽呈現。篩選只縮小既有候選，不擴張 SQL 語境。
     ///
     /// 結構描述、資料庫、型別與小老鼠開頭的那幾類沒有自己的篩選鈕——它們分別只
     /// 出現在 <c>USE</c>、型別位置、<c>@@</c> 與 <c>@</c> 之後，當下清單裡幾乎只有
@@ -99,11 +104,24 @@ internal static class SqlCompletionFilters
             SuggestionKind.Table or SuggestionKind.ScriptDataSource => Tables,
             SuggestionKind.View => Views,
             SuggestionKind.Procedure => Procedures,
-            SuggestionKind.Function
-                or SuggestionKind.TableFunction
-                or SuggestionKind.BuiltInFunction => Functions,
+            SuggestionKind.Function => ScalarFunctions,
+            SuggestionKind.TableFunction => TableFunctions,
+            SuggestionKind.BuiltInFunction => BuiltInFunctions,
             SuggestionKind.Keyword => Keywords,
             SuggestionKind.Snippet => Snippets,
+            SuggestionKind.Schema
+                or SuggestionKind.Database
+                or SuggestionKind.GlobalVariable
+                or SuggestionKind.Variable
+                or SuggestionKind.DataType
+                or SuggestionKind.Parameter
+                or SuggestionKind.Trigger
+                or SuggestionKind.Sequence
+                or SuggestionKind.UserDefinedType
+                or SuggestionKind.DatePart
+                or SuggestionKind.TableHint
+                or SuggestionKind.QueryHint
+                or SuggestionKind.LinkedServer => Others,
             _ => Others
         };
     }
@@ -179,12 +197,9 @@ internal static class SqlCompletionFilters
         return false;
     }
 
-    private static ImmutableArray<CompletionFilter> One(string displayText, string accessKey, int imageId)
+    // 僅供靜態初始化呼叫；For() 必須重用同一顆篩選器，才能保留平台的選取狀態。
+    private static ImmutableArray<CompletionFilter> One(string displayText, string accessKey, ImageElement image)
     {
-        var image = new ImageElement(
-            new ImageId(KnownImageIds.ImageCatalogGuid, imageId),
-            displayText);
-
         return ImmutableArray.Create(new CompletionFilter(displayText, accessKey, image));
     }
 }

@@ -78,9 +78,19 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- 分類篩選鈕的圖示；KnownImageIds 只是常數與目錄 GUID，殼層本來就載入這個組件。 -->
+    <!-- 補全、結構預覽與 QuickInfo 共用殼層圖示目錄及原生 Image Service。 -->
     <Reference Include="Microsoft.VisualStudio.ImageCatalog">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.ImageCatalog.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Imaging">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Imaging.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Imaging.Interop.14.0.DesignTime.dll</HintPath>
+      <!-- SSMS 22 的 VS 18.x 組件直接參考此 Interop；內嵌會觸發 CS1762，須沿用殼層型別。 -->
+      <EmbedInteropTypes>false</EmbedInteropTypes>
       <Private>false</Private>
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Utilities">
