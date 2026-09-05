@@ -164,6 +164,14 @@ internal sealed class SqlDefinitionOpener
 
         var objectInfo = location.Object;
 
+        // 暫存資料表、資料表變數與 CTE 的定義就是使用者眼前那幾行。開一個新視窗把它
+        // 複製一份，等於請他去看他已經在看的東西；而中繼資料對它們一列都查不到，
+        // 交給下面那一段只會回報「取不到結構」，那句話還把原因說錯了。
+        if (objectInfo.Kind.IsScriptDeclared())
+        {
+            return $"{objectInfo.QualifiedName} 是這份指令碼自己宣告的，定義就在目前的查詢視窗裡。";
+        }
+
         var structure = await _metadataService
             .GetStructureAsync(objectInfo, CancellationToken.None)
             .ConfigureAwait(false);

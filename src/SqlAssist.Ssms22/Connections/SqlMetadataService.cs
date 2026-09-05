@@ -879,11 +879,22 @@ internal sealed class SqlMetadataService : IDisposable
     /// 每一條路徑都問物件，而不是各自從物件身上拆出資料庫與伺服器再傳進來：
     /// 拆的地方有六處，漏掉一處的症狀是那一條安靜地拿本機同號的物件回答，
     /// 而 <c>object_id</c> 撞號在跨資料庫是常態、跨伺服器更是毫無關係。
+    ///
+    /// 指令碼自己宣告的名稱在這裡一律沒有目錄可換。它們不在任何一個
+    /// <c>sys.objects</c> 裡，<c>object_id</c> 也一律是 0——而第二、三層快取正是
+    /// 照編號存的，放行的症狀是兩個不同的暫存資料表互相蓋掉對方的欄位，
+    /// 外加每一次都白跑一趟查不到東西的查詢。它們的明細由
+    /// <see cref="SqlObjectLookup"/> 直接讀出來，本來就不必經過這一層。
     /// </remarks>
     private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectInfo? objectInfo)
     {
-        return objectInfo is null
-            ? catalog
+        if (objectInfo is null)
+        {
+            return catalog;
+        }
+
+        return objectInfo.Kind.IsScriptDeclared()
+            ? null
             : ScopeTo(catalog, objectInfo.DatabaseName, objectInfo.ServerName);
     }
 

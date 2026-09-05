@@ -17,7 +17,16 @@ public enum SqlObjectKind
     Sequence,
 
     /// <summary>使用者自訂資料表型別；<c>DECLARE @t dbo.XType</c> 的那個型別。</summary>
-    TableType
+    TableType,
+
+    /// <summary><c>CREATE TABLE #tmp (…)</c> 建立的暫存資料表。</summary>
+    TemporaryTable,
+
+    /// <summary><c>DECLARE @rows TABLE (…)</c> 宣告的資料表變數。</summary>
+    TableVariable,
+
+    /// <summary><c>WITH c AS ( … )</c> 宣告的通用資料表運算式。</summary>
+    CommonTableExpression
 }
 
 public static class SqlObjectKinds
@@ -51,7 +60,27 @@ public static class SqlObjectKinds
             or SqlObjectKind.View
             or SqlObjectKind.InlineTableFunction
             or SqlObjectKind.TableValuedFunction
-            or SqlObjectKind.Synonym;
+            or SqlObjectKind.Synonym
+            || kind.IsScriptDeclared();
+    }
+
+    /// <summary>
+    /// 這個名稱是指令碼自己宣告的，中繼資料裡一列都查不到。
+    /// </summary>
+    /// <remarks>
+    /// 暫存資料表在 tempdb 裡，而擴充只查目前連線的那一個資料庫；資料表變數
+    /// 根本不是 <c>sys.objects</c> 裡的物件；CTE 只存在於這份指令碼裡。三者的
+    /// 欄位就寫在使用者眼前的宣告括號裡，由 <c>Core/Parsing</c> 讀出來。
+    ///
+    /// 分出這一條的理由與 <see cref="HasSynthesizedDefinition"/> 相同：問這件事的
+    /// 地方有好幾個（物件定位、指令碼從哪裡來、中繼資料要不要接手），而它們的
+    /// <c>object_id</c> 一律是 0——照編號查快取會讓兩個不同的暫存資料表互相蓋掉。
+    /// </remarks>
+    public static bool IsScriptDeclared(this SqlObjectKind kind)
+    {
+        return kind is SqlObjectKind.TemporaryTable
+            or SqlObjectKind.TableVariable
+            or SqlObjectKind.CommonTableExpression;
     }
 
     /// <summary><c>sys.columns</c> 查得到這一類物件的資料行嗎。</summary>
@@ -91,7 +120,8 @@ public static class SqlObjectKinds
     /// </remarks>
     public static bool IsTableShaped(this SqlObjectKind kind)
     {
-        return kind is SqlObjectKind.Table or SqlObjectKind.View or SqlObjectKind.TableType;
+        return kind is SqlObjectKind.Table or SqlObjectKind.View or SqlObjectKind.TableType
+            || kind.IsScriptDeclared();
     }
 
     /// <summary><c>INSERT</c>／<c>MERGE</c> 插得進去的資料表嗎。</summary>
@@ -107,7 +137,10 @@ public static class SqlObjectKinds
     /// </remarks>
     public static bool IsInsertTarget(this SqlObjectKind kind)
     {
-        return kind is SqlObjectKind.Table or SqlObjectKind.View;
+        return kind is SqlObjectKind.Table
+            or SqlObjectKind.View
+            or SqlObjectKind.TemporaryTable
+            or SqlObjectKind.TableVariable;
     }
 
     /// <summary>是否為以 T-SQL 定義、可取得原始程式碼的模組。</summary>
@@ -148,7 +181,13 @@ public static class SqlObjectKinds
     /// </remarks>
     public static bool ScriptsFromDefinition(this SqlObjectKind kind)
     {
-        return kind.IsModule() || kind.HasSynthesizedDefinition();
+        // 暫存資料表與資料表變數的「定義」是使用者眼前那份宣告的原文。由讀出來的
+        // 資料行重組一份 CREATE TABLE 會失真：文字讀得出「有沒有 DEFAULT」，
+        // 卻讀不出它寫的是什麼，重組出來的那一段貼回編輯器執行不了。
+        // CTE 不在裡面——它的宣告不是一句可以單獨執行的敘述，見 HasExecutableScript。
+        return kind.IsModule()
+            || kind.HasSynthesizedDefinition()
+            || kind is SqlObjectKind.TemporaryTable or SqlObjectKind.TableVariable;
     }
 
     /// <summary>
@@ -209,6 +248,9 @@ public static class SqlObjectKinds
             SqlObjectKind.Trigger => "Trigger",
             SqlObjectKind.Sequence => "Sequence",
             SqlObjectKind.TableType => "Table type",
+            SqlObjectKind.TemporaryTable => "Temp table",
+            SqlObjectKind.TableVariable => "Table variable",
+            SqlObjectKind.CommonTableExpression => "CTE",
             _ => "Object"
         };
     }

@@ -32,7 +32,8 @@ internal static class SqlObjectLocator
             return null;
         }
 
-        var detail = candidate.NeedsColumn
+        // 指令碼宣告的物件在候選人身上就帶著明細；再問中繼資料一次是白跑的查詢。
+        var detail = candidate.ScriptDetail is null && candidate.NeedsColumn
             ? await metadataService.GetDetailAsync(candidate.Object, cancellationToken).ConfigureAwait(false)
             : null;
         return lookup.Locate(candidate, detail);
@@ -47,6 +48,9 @@ internal static class SqlObjectLocator
             return null;
         }
 
-        return lookup.Locate(candidate, candidate.NeedsColumn ? metadataService.PeekDetail(candidate.Object) : null);
+        var detail = candidate.ScriptDetail is null && candidate.NeedsColumn
+            ? metadataService.PeekDetail(candidate.Object)
+            : null;
+        return lookup.Locate(candidate, detail);
     }
 }

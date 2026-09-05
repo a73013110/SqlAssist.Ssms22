@@ -76,7 +76,13 @@ public static class SqlScriptTableCollector
 
             if (!result.ContainsKey(name))
             {
-                result.Add(name, new SqlScriptTable(name, ReadColumns(tokens, listStart + 1, listEnd)));
+                result.Add(
+                    name,
+                    new SqlScriptTable(
+                        name,
+                        ReadColumns(tokens, listStart + 1, listEnd),
+                        tokens[index].Start,
+                        tokens[listEnd].End));
             }
 
             index = listEnd;

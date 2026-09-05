@@ -9,16 +9,22 @@ namespace SqlAssist.Core.Parsing;
 /// </remarks>
 public sealed class SqlCommonTableExpression
 {
+    /// <param name="start">名稱在原始文字裡的位置。</param>
+    /// <param name="end">主體右括號之後的字元位置。</param>
     public SqlCommonTableExpression(
         string name,
         IReadOnlyList<string> columnNames,
         int bodyStart,
-        int bodyEnd)
+        int bodyEnd,
+        int start,
+        int end)
     {
         Name = name;
         ColumnNames = columnNames;
         BodyStart = bodyStart;
         BodyEnd = bodyEnd;
+        Start = start;
+        End = end;
     }
 
     public string Name { get; }
@@ -37,4 +43,16 @@ public sealed class SqlCommonTableExpression
 
     /// <summary>主體的結束索引（右括號的位置，不含）。</summary>
     public int BodyEnd { get; }
+
+    /// <summary>
+    /// <c>名稱 [(資料行清單)] AS ( 主體 )</c> 這一整段在原始文字裡的範圍，
+    /// 不含前面的 <c>WITH</c> 與逗號。
+    /// </summary>
+    /// <remarks>
+    /// 字元位置與上面兩個詞法單元索引並存，因為要的東西不同：讀選取清單在詞法
+    /// 串流上工作，而結構預覽要交出去的是使用者眼前那一段<b>原文</b>。
+    /// </remarks>
+    public int Start { get; }
+
+    public int End { get; }
 }

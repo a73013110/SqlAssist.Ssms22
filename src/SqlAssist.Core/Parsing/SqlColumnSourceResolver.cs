@@ -205,6 +205,80 @@ public sealed class SqlColumnSourceResolver
     public IReadOnlyDictionary<string, SqlScriptTable> ScriptTables =>
         _scriptTables ??= SqlScriptTableCollector.Collect(_tokens);
 
+    /// <summary>
+    /// 指令碼裡的某一個 CTE；這個名稱不是 CTE 時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留提示與結構預覽的物件定位問的是這一份。它們原本只問中繼資料，
+    /// 而 CTE 只存在於這份指令碼裡——症狀是使用者上一行才寫下的名稱，
+    /// 停在上面卻什麼都不顯示。與欄位解析共用同一次掃描的結果。
+    /// </remarks>
+    public SqlCommonTableExpression? FindCommonTableExpression(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return CommonTableExpressions.TryGetValue(name, out var cte) ? cte : null;
+    }
+
+    /// <summary>
+    /// 一個 CTE 的輸出欄位名稱；讀不出來時回傳空清單。
+    /// </summary>
+    /// <remarks>
+    /// 讀不出來的只有一種情形：主體是 <c>SELECT *</c> 而它打在資料庫的資料表上，
+    /// 那份名單只有中繼資料知道，而問這個問題的滑鼠停留路徑不等查詢。
+    /// 空清單與「這個 CTE 真的一欄都沒有」在畫面上是同一件事——兩者都只顯示得出
+    /// 名稱——因此不另外分一種回傳值；「不是 CTE」那一種由
+    /// <see cref="FindCommonTableExpression"/> 用 null 回答。
+    ///
+    /// 攤平走的是與欄位建議、<c>SELECT *</c> 展開同一份遞迴，明確寫出的資料行清單
+    /// 覆寫主體算出來的名稱這一條因此不必再寫一次。
+    /// </remarks>
+    public IReadOnlyList<string> ResolveCommonTableExpressionColumns(SqlCommonTableExpression commonTableExpression)
+    {
+        if (commonTableExpression is null)
+        {
+            throw new ArgumentNullException(nameof(commonTableExpression));
+        }
+
+        if (commonTableExpression.ColumnNames.Count > 0)
+        {
+            return commonTableExpression.ColumnNames;
+        }
+
+        var sources = new List<SqlColumnSource>();
+        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { commonTableExpression.Name };
+
+        if (!TryExpandQuery(
+                commonTableExpression.BodyStart,
+                commonTableExpression.BodyEnd,
+                qualifier: null,
+                depth: 1,
+                visiting,
+                sources))
+        {
+            return Array.Empty<string>();
+        }
+
+        var names = new List<string>();
+
+        foreach (var source in sources)
+        {
+            // 一個來源要問中繼資料就整份放棄：半份欄位清單看起來與完整的一模一樣，
+            // 而使用者會照著它去找一個根本沒列出來的欄位。
+            if (source.Kind != SqlColumnSourceKind.Names)
+            {
+                return Array.Empty<string>();
+            }
+
+            names.AddRange(source.Names);
+        }
+
+        return names;
+    }
+
     private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
         _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
 
@@ -668,7 +742,13 @@ public sealed class SqlColumnSourceResolver
                 {
                     result.Add(
                         name.Value,
-                        new SqlCommonTableExpression(name.Value, columns, cursor + 2, bodyEnd));
+                        new SqlCommonTableExpression(
+                            name.Value,
+                            columns,
+                            cursor + 2,
+                            bodyEnd,
+                            name.Start,
+                            tokens[bodyEnd].End));
                 }
 
                 cursor = bodyEnd + 1;

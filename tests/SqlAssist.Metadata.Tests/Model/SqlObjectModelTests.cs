@@ -56,6 +56,8 @@ public sealed class SqlObjectModelTests
     [InlineData(SqlObjectKind.View, true)]
     [InlineData(SqlObjectKind.Synonym, true)]
     [InlineData(SqlObjectKind.InlineTableFunction, true)]
+    [InlineData(SqlObjectKind.TemporaryTable, true)]
+    [InlineData(SqlObjectKind.CommonTableExpression, true)]
     [InlineData(SqlObjectKind.Procedure, false)]
     [InlineData(SqlObjectKind.ScalarFunction, false)]
     public void 判斷是否為資料來源(SqlObjectKind kind, bool expected)
@@ -77,6 +79,9 @@ public sealed class SqlObjectModelTests
     [InlineData(SqlObjectKind.ScalarFunction, false)]
     [InlineData(SqlObjectKind.Procedure, false)]
     [InlineData(SqlObjectKind.Synonym, false)]
+    [InlineData(SqlObjectKind.TemporaryTable, false)]
+    [InlineData(SqlObjectKind.TableVariable, false)]
+    [InlineData(SqlObjectKind.CommonTableExpression, false)]
     public void 判斷sys_columns查不查得到資料行(SqlObjectKind kind, bool expected)
     {
         Assert.Equal(expected, kind.HasCatalogColumns());
@@ -93,6 +98,9 @@ public sealed class SqlObjectModelTests
     [InlineData(SqlObjectKind.InlineTableFunction, false)]
     [InlineData(SqlObjectKind.TableValuedFunction, false)]
     [InlineData(SqlObjectKind.Procedure, false)]
+    [InlineData(SqlObjectKind.TemporaryTable, true)]
+    [InlineData(SqlObjectKind.TableVariable, true)]
+    [InlineData(SqlObjectKind.CommonTableExpression, true)]
     public void 判斷物件本身是不是一組資料行(SqlObjectKind kind, bool expected)
     {
         Assert.Equal(expected, kind.IsTableShaped());
@@ -108,6 +116,9 @@ public sealed class SqlObjectModelTests
     [InlineData(SqlObjectKind.TableType, false)]
     [InlineData(SqlObjectKind.InlineTableFunction, false)]
     [InlineData(SqlObjectKind.TableValuedFunction, false)]
+    [InlineData(SqlObjectKind.TemporaryTable, true)]
+    [InlineData(SqlObjectKind.TableVariable, true)]
+    [InlineData(SqlObjectKind.CommonTableExpression, false)]
     public void 判斷插不插得進去(SqlObjectKind kind, bool expected)
     {
         Assert.Equal(expected, kind.IsInsertTarget());
@@ -164,9 +175,32 @@ public sealed class SqlObjectModelTests
     [InlineData(SqlObjectKind.Synonym, true)]
     [InlineData(SqlObjectKind.Sequence, true)]
     [InlineData(SqlObjectKind.Unknown, false)]
+    [InlineData(SqlObjectKind.TemporaryTable, true)]
+    [InlineData(SqlObjectKind.TableVariable, true)]
+
+    // CTE 的宣告不是一句可以單獨執行的敘述：它得接著一段查詢，
+    // 而鏈在一起的 WITH a AS (…), b AS (…) 只取出 b 更是可能少了 a。
+    [InlineData(SqlObjectKind.CommonTableExpression, false)]
     public void 判斷這一類寫不寫得出可執行的指令碼(SqlObjectKind kind, bool expected)
     {
         Assert.Equal(expected, kind.HasExecutableScript());
+    }
+
+    /// <remarks>
+    /// 這三種的 <c>object_id</c> 一律是 0，而中繼資料的第二、三層快取正是照編號
+    /// 存的。放行的症狀是兩個不同的暫存資料表互相蓋掉對方的欄位，
+    /// 外加每一次都白跑一趟查不到東西的查詢。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectKind.TemporaryTable, true)]
+    [InlineData(SqlObjectKind.TableVariable, true)]
+    [InlineData(SqlObjectKind.CommonTableExpression, true)]
+    [InlineData(SqlObjectKind.Table, false)]
+    [InlineData(SqlObjectKind.TableType, false)]
+    [InlineData(SqlObjectKind.Unknown, false)]
+    public void 判斷是不是指令碼自己宣告的(SqlObjectKind kind, bool expected)
+    {
+        Assert.Equal(expected, kind.IsScriptDeclared());
     }
 
     [Theory]
