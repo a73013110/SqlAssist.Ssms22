@@ -367,7 +367,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
             BorderThickness = new Thickness(1),
             SnapsToDevicePixels = true,
             Child = overlay
-        }.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground)
+        }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground)
             .WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
 
         // 原生圖示依實際底色轉換，避免深色與高對比主題出現不相容的光暈。

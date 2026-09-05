@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Styles;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -81,47 +81,37 @@ internal static class VsThemeBrushes
     private static void Refresh()
     {
         var highContrast = SystemParameters.HighContrast;
-        var window = ResolvePair(
+        var fallback = ResolvePair(
             EnvironmentColors.ToolWindowBackgroundBrushKey, EnvironmentColors.ToolWindowTextBrushKey,
             EnvironmentColors.ToolWindowBackgroundColorKey, EnvironmentColors.ToolWindowTextColorKey,
             SystemColors.WindowColor, SystemColors.WindowTextColor);
+        // SSMS 的彩色主題只覆寫 Fluent Shell tokens；舊 Environment／ToolTip 仍可能是中性灰。
+        // 使用公開的內容表面，不挪用 ShellInternal 主視窗標題列的裝飾色。
+        var window = ResolvePair(
+            ShellColors.SolidBackgroundFillTertiaryBrushKey, ShellColors.TextFillPrimaryBrushKey,
+            ShellColors.SolidBackgroundFillTertiaryColorKey, ShellColors.TextFillPrimaryColorKey,
+            fallback.Background, fallback.Foreground);
         var list = ResolvePair(
-            EnvironmentColors.ToolTipBrushKey, EnvironmentColors.ToolTipTextBrushKey,
-            EnvironmentColors.ToolTipColorKey, EnvironmentColors.ToolTipTextColorKey,
+            ShellColors.SolidBackgroundFillQuaternaryBrushKey, ShellColors.TextFillPrimaryBrushKey,
+            ShellColors.SolidBackgroundFillQuaternaryColorKey, ShellColors.TextFillPrimaryColorKey,
             window.Background, window.Foreground);
 
         // 高對比尊重系統的完整前景／背景組，不能把選取色降成 12% 透明。
-        var foreground = highContrast ? SystemColors.WindowTextColor : list.Foreground;
-        var background = highContrast ? SystemColors.WindowColor : list.Background;
-        var dim = highContrast ? foreground : Resolve(
-            EnvironmentColors.SystemGrayTextBrushKey, EnvironmentColors.SystemGrayTextColorKey, foreground);
-        var border = highContrast ? foreground : Resolve(
-            EnvironmentColors.ToolTipBorderBrushKey, EnvironmentColors.ToolTipBorderColorKey, foreground);
-        var badge = Overlay(foreground, 0.07);
-        var accent = Resolve(EnvironmentColors.AccentPaleBrushKey, EnvironmentColors.AccentPaleColorKey, background);
-        var accentBorder = Resolve(EnvironmentColors.AccentBorderBrushKey, EnvironmentColors.AccentBorderColorKey, border);
-
-        Palette.Update(new Dictionary<ThemeBrush, Color>
+        if (highContrast)
         {
-            [ThemeBrush.ListBackground] = background,
-            [ThemeBrush.ListForeground] = foreground,
-            [ThemeBrush.DimForeground] = ThemeColorMath.EnsureContrast(dim, background, foreground),
-            [ThemeBrush.WindowBackground] = highContrast ? background : window.Background,
-            [ThemeBrush.WindowForeground] = highContrast ? foreground : window.Foreground,
-            [ThemeBrush.Border] = border,
-            [ThemeBrush.Hairline] = highContrast ? foreground : Overlay(foreground, 0.10),
-            [ThemeBrush.RowHover] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.05),
-            [ThemeBrush.RowSelected] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.12),
-            [ThemeBrush.SelectedForeground] = highContrast ? SystemColors.HighlightTextColor : foreground,
-            [ThemeBrush.RowPressed] = highContrast ? SystemColors.HighlightColor : Overlay(foreground, 0.18),
-            [ThemeBrush.RowAlternate] = highContrast ? background : Overlay(foreground, 0.045),
-            [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
-            [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
-            // 自訂 Accent 若與一般文字衝突，只降級徽章底色，不修改使用者的 SSMS 設定。
-            [ThemeBrush.AccentBackground] = highContrast ? background :
-                ThemeColorMath.Contrast(foreground, ThemeColorMath.Composite(accent, background)) >= 4.5 ? accent : badge,
-            [ThemeBrush.AccentBorder] = highContrast ? foreground : accentBorder
-        });
+            window = list = (SystemColors.WindowColor, SystemColors.WindowTextColor);
+        }
+
+        var foreground = list.Foreground;
+        var dim = highContrast ? foreground : Resolve(
+            ShellColors.TextFillSecondaryBrushKey, ShellColors.TextFillSecondaryColorKey, foreground);
+        var border = highContrast ? foreground : Resolve(
+            ShellColors.SurfaceStrokeFlyoutBrushKey, ShellColors.SurfaceStrokeFlyoutColorKey, foreground);
+        var accent = highContrast ? foreground : Resolve(
+            ShellColors.AccentFillDefaultBrushKey, ShellColors.AccentFillDefaultColorKey, foreground);
+
+        Palette.Update(ThemePalette.Create(window, list, dim, border, accent, highContrast,
+            (SystemColors.HighlightColor, SystemColors.HighlightTextColor)));
 
         // 捲軸、選單與下拉 Popup 交給 SSMS 的完整樣式，不只覆寫控制項表面的底色。
         PublishStyle(typeof(ScrollBar), VsResourceKeys.ScrollBarStyleKey);
@@ -151,9 +141,6 @@ internal static class VsThemeBrushes
             }
         });
     }
-
-    private static Color Overlay(Color color, double opacity) =>
-        Color.FromArgb((byte)Math.Round(opacity * 255), color.R, color.G, color.B);
 
     private static (Color Background, Color Foreground) ResolvePair(
         object backgroundKey, object foregroundKey, ThemeResourceKey backgroundColorKey,

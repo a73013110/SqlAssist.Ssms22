@@ -156,9 +156,8 @@ internal static class SqlAssistChrome
     /// 主要動作用的按鈕。
     /// </summary>
     /// <remarks>
-    /// 刻意不用飽和的強調色：那塊藍上面的字仍然是主題的前景色，
-    /// 深淺兩種主題總有一種讀不清楚。這裡只是把幽靈按鈕的靜止狀態
-    /// 從透明換成極淡的底色——同一套語言裡的一階，不是另一種控制項。
+    /// 使用經過對比檢查的淡主題強調色，不讓飽和底色與一般前景互相衝突。
+    /// 只把幽靈按鈕的靜止狀態從透明換成淡底，不另立一套控制項。
     /// </remarks>
     public static ControlTemplate CreatePrimaryButtonTemplate()
     {
@@ -170,7 +169,7 @@ internal static class SqlAssistChrome
         var background = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
         if (primary)
         {
-            background.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
+            background.SetResourceReference(Border.BackgroundProperty, ThemeBrush.AccentBackground);
         }
         else
         {
