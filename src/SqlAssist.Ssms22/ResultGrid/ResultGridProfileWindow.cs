@@ -32,6 +32,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
 
     public ResultGridProfileWindow(ResultGridTable table, IReadOnlyList<ResultGridColumnProfile> profiles)
     {
+        VsThemeBrushes.Apply(this);
         _profiles = profiles;
 
         Title = "SqlAssist — 欄位剖析";
@@ -40,8 +41,8 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         MinWidth = 640;
         MinHeight = 400;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = VsThemeBrushes.WindowBackground;
-        Foreground = VsThemeBrushes.WindowForeground;
+        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
+        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
@@ -98,7 +99,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
     /// </remarks>
     private DataGrid CreateGrid()
     {
-        var grid = SqlAssistChrome.CreateDataGrid(Metrics, Brushes.Transparent);
+        var grid = SqlAssistChrome.CreateDataGrid(Metrics, transparent: true);
         grid.IsReadOnly = true;
         grid.ItemsSource = _profiles;
         grid.SelectionUnit = DataGridSelectionUnit.FullRow;

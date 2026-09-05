@@ -30,6 +30,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         Func<bool> openSettings,
         Action openLog)
     {
+        VsThemeBrushes.Apply(this);
         _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
         _openSettings = openSettings ?? throw new ArgumentNullException(nameof(openSettings));
         _openLog = openLog ?? throw new ArgumentNullException(nameof(openLog));
@@ -45,8 +46,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         MinWidth = 680;
         MinHeight = 540;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = VsThemeBrushes.WindowBackground;
-        Foreground = VsThemeBrushes.WindowForeground;
+        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
+        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
 
@@ -104,8 +105,6 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             {
                 Width = 72,
                 Height = 72,
-                Background = VsThemeBrushes.AccentBackground,
-                BorderBrush = VsThemeBrushes.AccentBorder,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(16),
                 Child = new TextBlock
@@ -114,11 +113,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
                     FontFamily = SqlAssistChrome.InterfaceFont,
                     FontSize = 24,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = VsThemeBrushes.ListForeground,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
-                }
-            };
+                }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground)
+            }.WithTheme(Border.BackgroundProperty, ThemeBrush.AccentBackground)
+                .WithTheme(Border.BorderBrushProperty, ThemeBrush.AccentBorder);
         }
 
         Grid.SetColumn(mark, 0);
@@ -133,17 +132,15 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         {
             Text = _snapshot.ProductName,
             FontSize = Metrics.Title + 4,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground
-        });
+            FontWeight = FontWeights.SemiBold
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
         copy.Children.Add(new TextBlock
         {
             Text = _snapshot.Description,
             FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 3, 0, 8)
-        });
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
 
         var badges = new StackPanel { Orientation = Orientation.Horizontal };
         badges.Children.Add(SqlAssistChrome.CreateBadge(
@@ -171,12 +168,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         var tabs = new TabControl
         {
-            Background = VsThemeBrushes.WindowBackground,
             BorderThickness = default,
             Padding = default,
             FontFamily = SqlAssistChrome.InterfaceFont,
             Template = SqlAssistChrome.CreateTabControlTemplate()
-        };
+        }.WithTheme(TabControl.BackgroundProperty, ThemeBrush.WindowBackground);
 
         tabs.Items.Add(CreateTab("概覽", BuildOverview()));
         tabs.Items.Add(CreateTab("設定摘要", BuildSettings()));
@@ -284,17 +280,15 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             Text = _summary.Headline,
             FontSize = Metrics.Title + 1,
             FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground,
             TextWrapping = TextWrapping.Wrap
-        });
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
         copy.Children.Add(new TextBlock
         {
             Text = _summary.Detail,
             FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 4, 0, 0)
-        });
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
 
         var surface = SqlAssistChrome.CreateSurface(copy);
         surface.Padding = new Thickness(16);
@@ -438,9 +432,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             Text = title,
             FontSize = Metrics.Title,
             FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground,
             Margin = new Thickness(0, 0, 0, string.IsNullOrWhiteSpace(description) ? 8 : 2)
-        });
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
 
         if (!string.IsNullOrWhiteSpace(description))
         {
@@ -448,10 +441,9 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             {
                 Text = description,
                 FontSize = Metrics.Caption,
-                Foreground = VsThemeBrushes.DimForeground,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, children.Length == 0 ? 0 : 9)
-            });
+            }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
         }
 
         foreach (var child in children)
@@ -475,19 +467,17 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         {
             Text = label,
             FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             VerticalAlignment = VerticalAlignment.Top
-        });
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
 
         var valueText = new TextBlock
         {
             Text = value,
             FontFamily = useCodeFont ? SqlAssistChrome.CodeFont : SqlAssistChrome.InterfaceFont,
             FontSize = useCodeFont ? Metrics.Caption : Metrics.Body,
-            Foreground = VsThemeBrushes.ListForeground,
             TextWrapping = TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Top
-        };
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
         Grid.SetColumn(valueText, 1);
         row.Children.Add(valueText);
         return row;
@@ -503,24 +493,21 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         row.Children.Add(new TextBlock
         {
             Text = Glyph(check.Level),
-            FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground
-        });
+            FontWeight = FontWeights.SemiBold
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
 
         var state = new StackPanel();
         state.Children.Add(new TextBlock
         {
             Text = check.Name,
             FontSize = Metrics.Body,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = VsThemeBrushes.ListForeground
-        });
+            FontWeight = FontWeights.SemiBold
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
         state.Children.Add(new TextBlock
         {
             Text = check.Status,
-            FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground
-        });
+            FontSize = Metrics.Caption
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
         Grid.SetColumn(state, 1);
         row.Children.Add(state);
 
@@ -528,10 +515,9 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         {
             Text = check.Detail,
             FontSize = Metrics.Caption,
-            Foreground = VsThemeBrushes.DimForeground,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(8, 1, 0, 0)
-        };
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
         Grid.SetColumn(detail, 2);
         row.Children.Add(detail);
         return row;

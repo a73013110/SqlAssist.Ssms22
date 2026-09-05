@@ -410,14 +410,15 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     public SqlSnippetManagerWindow()
     {
+        VsThemeBrushes.Apply(this);
         Title = "SqlAssist — 程式碼片段";
         Width = 940;
         Height = 700;
         MinWidth = 760;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = VsThemeBrushes.WindowBackground;
-        Foreground = VsThemeBrushes.WindowForeground;
+        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
+        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
 
@@ -479,21 +480,19 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _followUpBox = new CheckBox
         {
             Content = "展開後立刻再顯示一次建議清單",
-            Foreground = VsThemeBrushes.ListForeground,
             Margin = new Thickness(0, 16, 0, 0),
             Padding = default,
             Template = SqlAssistChrome.CreateCheckBoxTemplate()
-        };
+        }.WithTheme(CheckBox.ForegroundProperty, ThemeBrush.ListForeground);
         _expansionModeBox.SelectionChanged += (_, _) => UpdateFollowUpAvailability();
 
         _destructiveBox = new CheckBox
         {
             Content = "危險操作（無輸入前綴時隱藏）",
-            Foreground = VsThemeBrushes.ListForeground,
             Margin = new Thickness(0, 10, 0, 0),
             Padding = default,
             Template = SqlAssistChrome.CreateCheckBoxTemplate()
-        };
+        }.WithTheme(CheckBox.ForegroundProperty, ThemeBrush.ListForeground);
 
         _placeholderGrid = CreatePlaceholderGrid();
 
@@ -534,7 +533,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     /// </remarks>
     private DataGrid CreatePlaceholderGrid()
     {
-        var grid = SqlAssistChrome.CreateDataGrid(Metrics, Brushes.Transparent);
+        var grid = SqlAssistChrome.CreateDataGrid(Metrics, transparent: true);
         grid.MinHeight = 110;
         grid.MaxHeight = 200;
 

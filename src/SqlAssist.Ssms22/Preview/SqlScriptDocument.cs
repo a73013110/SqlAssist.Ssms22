@@ -1,16 +1,21 @@
-using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Documents;
-using System.Windows.Media;
-using Microsoft.VisualStudio.Language.StandardClassification;
-using Microsoft.VisualStudio.Text.Classification;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
-using SqlAssist.Ssms22;
-using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
+
+internal enum ScriptResource
+{
+    FontFamily,
+    FontSize,
+    Background,
+    Foreground,
+    Keyword,
+    Comment,
+    String,
+    Number
+}
 
 /// <summary>
 /// 把 T-SQL 指令碼排成帶語法著色的流程文件。
@@ -23,7 +28,7 @@ namespace SqlAssist.Ssms22.Preview;
 ///
 /// 改用 <see cref="System.Windows.Controls.RichTextBox"/>：選取、Ctrl+C 與右鍵選單
 /// 都是 WPF 原生行為，焦點也留在同一棵樹裡。顏色與字型改向編輯器的
-/// <see cref="IClassificationFormatMap"/> 借，看起來仍然是 SSMS 目前的佈景主題。
+/// 分類外觀對應表借；主題變更只更新資源，不重新建立文件。
 /// </remarks>
 internal static class SqlScriptDocument
 {
@@ -35,127 +40,22 @@ internal static class SqlScriptDocument
     /// </remarks>
     private const int MaximumColorizedLength = 60_000;
 
-    /// <summary>字型與顏色都取不到時的備援，與 SSMS 查詢視窗的預設值一致。</summary>
-    private static readonly FontFamily FallbackFont = new("Consolas");
-
-    private const double FallbackFontSize = 12.5;
-
-    public sealed class Palette
-    {
-        public Palette(
-            FontFamily fontFamily,
-            double fontSize,
-            Brush foreground,
-            Brush keyword,
-            Brush comment,
-            Brush text,
-            Brush number)
-        {
-            FontFamily = fontFamily;
-            FontSize = fontSize;
-            Foreground = foreground;
-            Keyword = keyword;
-            Comment = comment;
-            Text = text;
-            Number = number;
-        }
-
-        public FontFamily FontFamily { get; }
-
-        public double FontSize { get; }
-
-        public Brush Foreground { get; }
-
-        public Brush Keyword { get; }
-
-        public Brush Comment { get; }
-
-        public Brush Text { get; }
-
-        public Brush Number { get; }
-    }
-
-    /// <summary>
-    /// 讀出編輯器目前的字型與分類顏色。
-    /// </summary>
-    /// <remarks>
-    /// 直接寫死顏色的話，深色佈景主題下會變成看不見的字。
-    /// 任何一項取不到就退回可讀的預設值，不讓整個分頁因為配色而失效。
-    /// </remarks>
-    public static Palette CreatePalette()
-    {
-        var fontFamily = FallbackFont;
-        var fontSize = FallbackFontSize;
-        var foreground = VsThemeBrushes.ListForeground;
-        var keyword = foreground;
-        var comment = VsThemeBrushes.DimForeground;
-        var text = foreground;
-        var number = foreground;
-
-        SqlAssistPlatformGuard.Probe("解析指令碼配色", () =>
-        {
-            if (SqlPreviewServices.Current is { } services &&
-                services.TryGetTextFormatMap() is { } formatMap)
-            {
-                var defaults = formatMap.DefaultTextProperties;
-
-                if (!defaults.TypefaceEmpty)
-                {
-                    fontFamily = defaults.Typeface.FontFamily;
-                }
-
-                if (!defaults.FontRenderingEmSizeEmpty)
-                {
-                    fontSize = defaults.FontRenderingEmSize;
-                }
-
-                if (!defaults.ForegroundBrushEmpty)
-                {
-                    foreground = defaults.ForegroundBrush;
-                }
-
-                var registry = services.ClassificationRegistry;
-                keyword = Resolve(formatMap, registry, PredefinedClassificationTypeNames.Keyword, foreground);
-                comment = Resolve(formatMap, registry, PredefinedClassificationTypeNames.Comment, comment);
-                text = Resolve(formatMap, registry, PredefinedClassificationTypeNames.String, foreground);
-                number = Resolve(formatMap, registry, PredefinedClassificationTypeNames.Number, foreground);
-            }
-        });
-
-        return new Palette(fontFamily, fontSize, foreground, keyword, comment, text, number);
-    }
-
-    private static Brush Resolve(
-        IClassificationFormatMap formatMap,
-        IClassificationTypeRegistryService registry,
-        string classificationName,
-        Brush fallback)
-    {
-        var classification = registry.GetClassificationType(classificationName);
-
-        if (classification is null)
-        {
-            return fallback;
-        }
-
-        var properties = formatMap.GetTextProperties(classification);
-        return properties.ForegroundBrushEmpty ? fallback : properties.ForegroundBrush;
-    }
-
     /// <summary>把指令碼排成一份可選取、可複製的流程文件。</summary>
-    public static FlowDocument Build(string script, Palette palette)
+    public static FlowDocument Build(string script, ResourceDictionary resources)
     {
         var document = new FlowDocument
         {
-            FontFamily = palette.FontFamily,
-            FontSize = palette.FontSize,
-            Foreground = palette.Foreground,
+            Resources = resources,
             PagePadding = new Thickness(8, 6, 8, 6),
 
             // 指令碼不換行：一行 CREATE TABLE 的欄位定義被折成兩行反而更難讀，
             // 讓水平捲軸負責就好。
             PageWidth = 4000
         };
+
+        document.SetResourceReference(FlowDocument.FontFamilyProperty, ScriptResource.FontFamily);
+        document.SetResourceReference(FlowDocument.FontSizeProperty, ScriptResource.FontSize);
+        document.SetResourceReference(FlowDocument.ForegroundProperty, ScriptResource.Foreground);
 
         var paragraph = new Paragraph
         {
@@ -171,65 +71,56 @@ internal static class SqlScriptDocument
 
         if (script.Length > MaximumColorizedLength)
         {
-            Append(paragraph, script, palette.Foreground);
+            Append(paragraph, script, ScriptResource.Foreground);
             document.Blocks.Add(paragraph);
             return document;
         }
 
         var position = 0;
 
-        foreach (var token in Tokenize(script))
+        foreach (var token in SqlTokenizer.TokenizeWithComments(script))
         {
             if (token.Start > position)
             {
-                Append(paragraph, script.Substring(position, token.Start - position), palette.Foreground);
+                Append(paragraph, script.Substring(position, token.Start - position), ScriptResource.Foreground);
             }
 
-            Append(paragraph, token.Text, BrushFor(token, palette));
+            Append(paragraph, token.Text, BrushFor(token));
             position = token.End;
         }
 
         if (position < script.Length)
         {
-            Append(paragraph, script.Substring(position), palette.Foreground);
+            Append(paragraph, script.Substring(position), ScriptResource.Foreground);
         }
 
         document.Blocks.Add(paragraph);
         return document;
     }
 
-    private static IReadOnlyList<SqlToken> Tokenize(string script)
-    {
-        // 著色失敗只該讓指令碼變成黑白，不該讓分頁開不起來。
-        return SqlAssistPlatformGuard.Run(
-            "指令碼著色分析",
-            () => SqlTokenizer.TokenizeWithComments(script),
-            fallback: Array.Empty<SqlToken>());
-    }
-
-    private static Brush BrushFor(SqlToken token, Palette palette)
+    private static ScriptResource BrushFor(SqlToken token)
     {
         return token.Kind switch
         {
-            SqlTokenKind.Comment => palette.Comment,
-            SqlTokenKind.String => palette.Text,
-            SqlTokenKind.Number => palette.Number,
-            SqlTokenKind.Identifier => IdentifierBrush(token, palette),
-            _ => palette.Foreground
+            SqlTokenKind.Comment => ScriptResource.Comment,
+            SqlTokenKind.String => ScriptResource.String,
+            SqlTokenKind.Number => ScriptResource.Number,
+            SqlTokenKind.Identifier => IdentifierBrush(token),
+            _ => ScriptResource.Foreground
         };
     }
 
     /// <remarks>加了方括號的名稱一律不是關鍵字：<c>[KEY]</c> 是欄位名，不是 <c>KEY</c>。</remarks>
-    private static Brush IdentifierBrush(SqlToken token, Palette palette)
+    private static ScriptResource IdentifierBrush(SqlToken token)
     {
         if (token.IsQuoted)
         {
-            return palette.Foreground;
+            return ScriptResource.Foreground;
         }
 
         return SqlKeywordCatalog.IsKeywordOrDataType(token.Value)
-            ? palette.Keyword
-            : palette.Foreground;
+            ? ScriptResource.Keyword
+            : ScriptResource.Foreground;
     }
 
     /// <summary>
@@ -238,7 +129,7 @@ internal static class SqlScriptDocument
     /// <remarks>
     /// <see cref="Run"/> 裡的換行字元不會斷行，整份指令碼會被排成一長行。
     /// </remarks>
-    private static void Append(Paragraph paragraph, string text, Brush brush)
+    private static void Append(Paragraph paragraph, string text, ScriptResource brush)
     {
         var start = 0;
 
@@ -259,7 +150,7 @@ internal static class SqlScriptDocument
 
             if (length > 0)
             {
-                paragraph.Inlines.Add(new Run(text.Substring(start, length)) { Foreground = brush });
+                AppendRun(paragraph, text.Substring(start, length), brush);
             }
 
             paragraph.Inlines.Add(new LineBreak());
@@ -268,7 +159,15 @@ internal static class SqlScriptDocument
 
         if (start < text.Length)
         {
-            paragraph.Inlines.Add(new Run(text.Substring(start)) { Foreground = brush });
+            AppendRun(paragraph, text.Substring(start), brush);
         }
+    }
+
+    private static void AppendRun(Paragraph paragraph, string text, ScriptResource brush)
+    {
+        var run = new Run(text);
+        // Run 只記住分類，不保存 Brush；切換主題不改變文字、選取與捲動位置。
+        run.SetResourceReference(TextElement.ForegroundProperty, brush);
+        paragraph.Inlines.Add(run);
     }
 }

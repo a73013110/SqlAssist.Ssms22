@@ -25,6 +25,9 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 測試執行器由 `global.json` 的 `test.runner` 指定為 Microsoft.Testing.Platform
 （.NET 10 SDK 不再支援 VSTest 轉接層）。
 
+方案也包含 net48 的 `SqlAssist.Ssms22.Tests`，直接編譯產品的純 WPF 元件並在 STA
+執行主題回歸測試；不需要啟動 SSMS。實機驗收範圍見[主題連動](themes.md)。
+
 AI 執行上述流程時，使用 [共用輸出包裝器](ai-workflow.md#工具輸出節流)，只縮短呈現，
 不改變測試、建置範圍或結束碼。人工需要即時完整輸出時仍可直接執行原腳本。
 

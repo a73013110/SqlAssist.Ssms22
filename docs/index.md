@@ -46,6 +46,7 @@
 | Popup、Placement、方向、焦點 | [預覽視窗](preview-window.md) |
 | 預覽操作、按需載入、Resize、效能 | [預覽互動](preview-interaction.md) |
 | Chrome、視覺規格、對話框排版 | [UI 準則](ui-guidelines.md) |
+| 深淺主題切換、配色快取、分類色、高對比 | [主題連動](themes.md) |
 | F12 物件種類、產生定義、失敗註解 | [F12 指令碼](definition-scripts.md) |
 | F12 執行緒、連線、新查詢視窗 | [移至定義](go-to-definition.md) |
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |

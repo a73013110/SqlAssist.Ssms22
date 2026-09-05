@@ -42,41 +42,39 @@ rtk telemetry disable
 Claude 可用 `/hooks` 核對 Project Settings。若個人全域／本機設定已有同一個 Hook，
 只保留一份，不要刪除其他 Hook 或權限。[Claude Hook 說明](https://code.claude.com/docs/en/hooks)
 
-## 實測壓縮率，以及為什麼帳面收益仍然很低
+## 為什麼有 RTK，仍不一定省 token
 
-壓縮率與輸出大小成正比（本 repo 實測）：`tree src` 2164→213 位元組、
-`find src -name "*.cs"` 12973→1407、`grep -rn public src` 1441→204 行，都是省八九成；
-但 `ls src/SqlAssist.Core` 169→196，小輸出因為多了統計行而淨虧。
+先前樣本中，大量檔名與搜尋結果曾縮減八九成；但小目錄清單也曾從 169 增為 196
+位元組。效果取決於命令與資料形狀，不能只看有沒有 `rtk` 前綴或保證固定節省率。
 
-即使如此，累計 `rtk gain` 長期停在 1% 以下。原因不是 RTK 失效，而是 **Hook 只攔 Bash**：
-Claude Code 的 Grep／Glob／Read 是獨立工具，不經過 Bash，日常搜尋與讀檔根本碰不到 RTK，
-真正流經 Bash 的幾乎只剩 Git。要拿到上表的收益，得刻意用 Bash 跑 `find`／`tree`／`grep`，
-而那通常不如直接用內建工具。**先看 `rtk gain` 再決定要不要留，不要憑壓縮率想像收益。**
+- `rtk proxy` 的定義是「不過濾，只追蹤用量」；加了前綴不代表內容有壓縮。
+- `rtk read` 預設也是 `--level none`。完整讀取不會自動變摘要；先定位與分段才是重點。
+- 本專案 Claude Hook 只攔 Bash；獨立 Grep／Glob／Read 及其他工具輸出不會自動經過 RTK。
+- 建置與測試的短輸出由 `Invoke-QuietCommand.ps1` 產生，不能全歸功於 RTK。
+- `rtk gain` 預設是全域累計的命令輸出估算，不是本次任務或整段對話的實際節省率。
+  歷史百分比不能當現況，也不為追求統計數字而重複執行命令。
 
 ## 日常使用
 
-```powershell
-# 狀態查詢只需摘要；審查差異則必須保留完整內容。
-rtk git status
-rtk git log
-rtk proxy git diff --no-ext-diff
-```
+選命令的唯一流程見 [AI 工作流程：輸出分工](ai-workflow.md#輸出分工)。不要把「完整審查
+不能壓縮」誤解成「探索時也要輸出整份原文」。
 
-- 未安裝就直接用 `git`、`rg` 等原生命令，不能仍硬加 `rtk` 前綴。
-- 完整搜尋、必要護欄及原始錯誤不能用有損摘要代替。
-- 本專案建置、Microsoft.Testing.Platform 測試仍用 [輸出節流助手](ai-workflow.md#工具輸出節流)，
-  不改成 `rtk test`／`rtk err`。Hook 也不代表 Claude 內建 Read／Grep 全部會被改寫。
+本專案建置、Microsoft.Testing.Platform 測試仍走既有助手，不改成 `rtk test`／`rtk err`。
 
 ## 測試與排錯
 
-1. 比較原生 `git status --short` 與 `rtk git status`，檔案狀態應一致。
-2. Claude／Codex 各開新 task，要求用 RTK 查 Git 狀態；檢查實際工具紀錄及 `rtk gain`。
-3. 驗證 proxy 不吞掉失敗：
+工具維護或升級 RTK 時執行一次，不在每個任務重新跑壓縮實驗：
 
 ```powershell
-rtk proxy pwsh -NoProfile -Command 'exit 23'
-if ($LASTEXITCODE -ne 23) { throw '結束碼未保留。' }
+# 真正呼叫已安裝的 RTK；完整輸出留在被忽略的測試目錄。
+rtk proxy pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Test-AgentWorkflow.ps1
 ```
+
+此檢查在隔離 Git 版本庫比對原生 diff、RTK 壓縮概覽及 proxy 原文，要求概覽確實
+縮短、proxy 的 stdout／stderr 與失敗碼保持一致。前後字元數與原始輸出保存在
+`artifacts/agent-workflow-tests/*/rtk-overview/`；未安裝 RTK 時明確略過該部分。
+這是工具回歸案例，不是實際任務的 token 節省率；代理是否選對命令仍須檢查工具紀錄。
+測試命令也可能列入 RTK 全域累計，因此不以測試後的 `gain` 增幅作為實際任務成效。
 
 終端機可用、App 不行時，先完整重開 App 並核對其 PATH，不重複安裝。
 Hook 過濾有疑慮時用 `rtk proxy` 繞過；停用時只調整 RTK 那一項，不關掉所有 Hook。

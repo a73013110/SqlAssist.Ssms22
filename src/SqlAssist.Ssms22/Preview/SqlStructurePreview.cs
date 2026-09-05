@@ -1051,7 +1051,7 @@ internal sealed class SqlStructurePreview
 
         return SqlAssistPlatformGuard.Create("建立結構預覽", () =>
         {
-            var control = new SqlStructurePreviewControl();
+            var control = new SqlStructurePreviewControl(_view);
             control.ResizeStarted += OnResizeStarted;
             control.ResizeDelta += OnResizeDelta;
             control.ResizeCompleted += OnResizeCompleted;
@@ -1391,6 +1391,7 @@ internal sealed class SqlStructurePreview
             control.ResizeCompleted -= OnResizeCompleted;
             control.SizeResetRequested -= OnSizeResetRequested;
             control.CloseRequested -= OnCloseRequested;
+            control.Dispose();
             _control = null;
         }
 

@@ -40,7 +40,8 @@ Titlebar 回答「這是哪個工具」，內容第一列只放**新的資訊**�
 ## 視覺語言只有一份
 
 字型、字級、按鈕、輸入欄位、核取方塊、分頁、清單與資料格一律由
-`UI/SqlAssistChrome.cs` 建立；顏色一律由 `VsThemeBrushes` 取得。中性色由前景色按比例
+`UI/SqlAssistChrome.cs` 建立；顏色一律繫結 `VsThemeBrushes` 發布的動態資源，
+不得保存一次性筆刷；生命週期見[主題連動](themes.md)。中性色由前景色按比例
 混合，讓深淺主題維持同一對比。不得在功能目錄複製樣板、硬寫 RGB，或讓 Windows
 預設控制項在 SSMS 深色主題露出白底。
 
