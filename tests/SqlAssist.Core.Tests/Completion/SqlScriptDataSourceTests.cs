@@ -1,11 +1,12 @@
 using System.Linq;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Parsing;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Completion;
 
 /// <summary>
-/// 指令碼自己宣告的資料來源：CTE 與暫存資料表。
+/// 指令碼自己宣告的資料來源：CTE、暫存資料表與資料表變數。
 /// </summary>
 /// <remarks>
 /// 中繼資料只看得到目前連線資料庫的 <c>sys.objects</c>，這兩種名稱一個都不在裡面。
@@ -54,6 +55,61 @@ public sealed class SqlScriptDataSourceTests
     public void FROM之後列出暫存資料表(string sqlWithCaret, string expected)
     {
         Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 資料表變數與暫存資料表在這個位置是同一種東西。
+    /// </summary>
+    /// <remarks>
+    /// 缺了這一份的症狀是 <c>DECLARE @rows TABLE (…)</c> 寫在上一行，
+    /// <c>SELECT * FROM </c> 卻一個建議都沒有——非得自己先打一個小老鼠，
+    /// 換到另一份清單去，而那份清單裡它與純量變數長得一模一樣。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @rows TABLE (CopyNo NVARCHAR(20));\r\nSELECT * FROM |", "@rows")]
+    [InlineData(
+        "CREATE FUNCTION f () RETURNS @out TABLE (a int) AS BEGIN\r\nSELECT * FROM |",
+        "@out")]
+    public void FROM之後列出資料表變數(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 讀不出資料行清單的小老鼠不算資料來源。
+    /// </summary>
+    /// <remarks>
+    /// 井號開頭看形狀就分得完，小老鼠不行：<c>@readerId</c> 與 <c>@rows</c> 是同一種
+    /// 詞元。一律放行的症狀是 <c>FROM </c> 之後列出使用者宣告過的每一個純量變數，
+    /// 而它們一個都插不進那個位置。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE @readerId INT;\r\nSELECT * FROM |")]
+    [InlineData("DECLARE @rows dbo.LoanList READONLY;\r\nSELECT * FROM |")]
+    public void 不是資料表的變數不列出(string sqlWithCaret)
+    {
+        Assert.Empty(ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 提交之後的整句展開靠的是掛在項目上的那份宣告。
+    /// </summary>
+    /// <remarks>
+    /// 少了它，<c>INSERT INTO @rows</c> 只補得到一個名稱——這種名稱中繼資料一列都
+    /// 查不到，使用者還是得把每一個欄位自己打一遍。
+    /// </remarks>
+    [Fact]
+    public void 資料表變數帶著自己的資料行清單()
+    {
+        var input = SqlWithCaret.Parse(
+            "DECLARE @rows TABLE (CopyNo NVARCHAR(20), ReaderId INT);\r\nSELECT * FROM |");
+
+        var suggestion = Assert.Single(
+            SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret).ScriptSources);
+
+        var table = Assert.IsType<SqlScriptTable>(suggestion.Tag);
+
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, table.ColumnNames);
     }
 
     [Fact]

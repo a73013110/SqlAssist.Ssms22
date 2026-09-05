@@ -99,8 +99,11 @@ internal static class SqlCompletionFilters
         {
             SuggestionKind.Column => Columns,
 
-            // CTE 與暫存資料表歸在「資料表」：它們在使用者眼中就是資料表，
-            // 分成兩顆按鈕只是讓他多按一次才找得到。
+            // CTE、暫存資料表與資料表變數歸在「資料表」：那顆按鈕問的是「這個
+            // 位置我要一張表」，而它們在那個位置就是表。獨立一顆的代價不只是多
+            // 按一次——按下「資料表」之後，他上一行才寫下的 #Loan 反而消失了，
+            // 而那正是他最可能要選的那一個。要單獨找它們的人打前綴更快：
+            // 那個名稱是他自己剛取的。
             SuggestionKind.Table or SuggestionKind.ScriptDataSource => Tables,
             SuggestionKind.View => Views,
             SuggestionKind.Procedure => Procedures,

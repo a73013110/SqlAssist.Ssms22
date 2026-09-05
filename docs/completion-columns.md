@@ -86,6 +86,23 @@ DECLARE @rows TABLE (Id INT IDENTITY(1,1) PRIMARY KEY, CopyNo NVARCHAR(20) NOT N
 一般資料表（`CREATE TABLE dbo.Loan (…)`）也不收：它在中繼資料裡，
 而那一份回答的是「現在長什麼樣」，指令碼裡這一份回答的是「正要變成什麼樣」。
 
+### 名稱也要出現在 `FROM` 之後
+
+同一份宣告回答的不只是欄位：使用者寫完 `DECLARE @rows TABLE (…)`，下一行打
+`SELECT * FROM ` 要的就是那個名稱，而中繼資料一列都查不到它。CTE、暫存資料表與
+資料表變數因此併在同一份 `Core/Completion/SqlScriptDataSourceSuggestions` 裡。
+
+只有暫存資料表看形狀就分得完：井號開頭的識別字在 T-SQL 裡只有這一種意思。
+資料表變數不行——`@rows` 與 `@readerId` 是同一種詞元，分辨的憑據只有那份宣告本身，
+所以這一種只認名冊裡讀得出資料行的。少了這一條的症狀是 `FROM ` 之後列出使用者
+宣告過的每一個純量變數，而它們一個都插不進那個位置；反過來整份不收的症狀是使用者
+非得自己先打一個小老鼠，換到[變數](completion-variables.md)那份清單去才找得到它。
+
+三種在清單裡共用同一個圖示（`Ssms22/UI/SqlIcons`），與資料庫資料表分得開：它們
+回答的是同一件事——這是一張只活在這份文字裡的表，連線一斷就沒了。資料表變數曾經
+跟著區域變數走，症狀是同一份 `FROM` 清單裡 `#Loan` 與 `@rows` 長得像兩種東西。
+讀不出資料行的 `@readerId` 不在此列，它在清單與預覽裡都仍然是一個變數。
+
 讀出來的資料行在 `Metadata/Model/SqlScriptTableDetail` 換成中繼資料層的欄位模型，
 目的只有一個——**不要有第二份「哪些欄位插得進去」**。換過來之後，暫存資料表與
 資料表變數走的就是資料庫物件那一份展開，[排除規則](statement-values.md#哪些欄位插不進去)與
