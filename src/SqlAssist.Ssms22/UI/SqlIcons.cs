@@ -36,7 +36,16 @@ internal static class SqlIcons
     private static readonly Definition BuiltInFunction = new(KnownMonikers.Method, "內建函式");
     private static readonly Definition TableFunction = new(KnownMonikers.TableFunction, "資料表值函式");
     private static readonly Definition InlineTableFunction = new(KnownMonikers.TableFunction, "內嵌資料表值函式");
-    private static readonly Definition ScriptDataSource = new(KnownMonikers.Table, "指令碼資料來源");
+
+    /// <summary>指令碼自己宣告的資料來源：表格加上一份指令碼。</summary>
+    /// <remarks>
+    /// 影像目錄裡沒有暫存資料表這一項，而與資料庫資料表共用 <c>Table</c> 的症狀是
+    /// 清單與預覽都看不出 <c>#Loan</c> 與 <c>dbo.Loan</c> 是兩種不同的東西——
+    /// 前者只活在這份文字裡，連線一斷就沒了。
+    /// </remarks>
+    private static readonly Definition ScriptDataSource =
+        new(KnownMonikers.TableScript, "指令碼資料來源");
+
     private static readonly Definition Database = new(KnownMonikers.Database, "資料庫");
     private static readonly Definition GlobalVariable = new(KnownMonikers.GlobalVariable, "全域變數");
     private static readonly Definition Variable = new(KnownMonikers.LocalVariable, "區域變數");
@@ -104,11 +113,12 @@ internal static class SqlIcons
         SqlObjectKind.Sequence => Sequence,
         SqlObjectKind.TableType => TableType,
 
-        // 指令碼自己宣告的三種。暫存資料表與建議清單裡的 ScriptDataSource 同一個
-        // 圖示，資料表變數跟著區域變數走——它在使用者眼裡就是一個變數。
-        SqlObjectKind.TemporaryTable => ScriptDataSource,
+        // 指令碼自己宣告的三種。暫存資料表與 CTE 都是建議清單裡的
+        // ScriptDataSource，圖示跟著同一個——同一個項目在清單與預覽裡換一張臉，
+        // 使用者會以為自己選到了別的東西。資料表變數跟著區域變數走：
+        // 它在使用者眼裡就是一個變數，清單裡也是這樣畫的。
+        SqlObjectKind.TemporaryTable or SqlObjectKind.CommonTableExpression => ScriptDataSource,
         SqlObjectKind.TableVariable => Variable,
-        SqlObjectKind.CommonTableExpression => View,
         _ => Unknown
     };
 }

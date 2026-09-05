@@ -269,6 +269,30 @@ public sealed class SqlObjectModelTests
             new SqlObjectInfo(0, string.Empty, "#StationStock", SqlObjectKind.Table).QualifiedName);
     }
 
+    /// <summary>
+    /// 完整名稱拆成前綴與名稱兩段，而且拆出來還是同一個。
+    /// </summary>
+    /// <remarks>
+    /// 結構預覽的標題要把結構描述畫成淡色、名稱畫成粗體，只能分兩段畫。它自己
+    /// 拼一次的症狀是 <c>[].[#TempTest]</c>——那宣稱有一個叫空字串的結構描述。
+    /// </remarks>
+    [Theory]
+    [InlineData("dbo", "Lib_Reader", "[dbo].", "[Lib_Reader]")]
+    [InlineData("", "#Loan", "", "#Loan")]
+    [InlineData("", "@rows", "", "@rows")]
+    public void 完整名稱拆得成標題的兩段(
+        string schemaName,
+        string name,
+        string expectedPrefix,
+        string expectedName)
+    {
+        var info = new SqlObjectInfo(0, schemaName, name, SqlObjectKind.Table);
+
+        Assert.Equal(expectedPrefix, info.SchemaPrefix);
+        Assert.Equal(expectedName, info.QuotedName);
+        Assert.Equal(info.QualifiedName, info.SchemaPrefix + info.QuotedName);
+    }
+
     [Theory]
     [InlineData("Order")]
     [InlineData("Key")]

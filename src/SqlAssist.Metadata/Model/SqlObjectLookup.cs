@@ -23,9 +23,9 @@ public sealed class SqlObjectLookup
 
     /// <summary>指令碼宣告的名冊，第一次真的要用到才建立。</summary>
     /// <remarks>
-    /// 與欄位建議共用同一個解析器，「這個名稱宣告了哪些資料行」因此只有一份。
+    /// 與建議清單的預覽共用同一份，「這個名稱宣告了哪些資料行」因此只有一個答案。
     /// </remarks>
-    private SqlColumnSourceResolver? _resolver;
+    private SqlScriptDeclarations? _declarations;
 
     /// <summary>指令碼那一支的答案；文字與識別字都固定，算一次就不會變。</summary>
     private Candidate? _scriptCandidate;
@@ -126,7 +126,9 @@ public sealed class SqlObjectLookup
             : new SqlObjectLocation(Reference, candidate.Object, column: null, detail: candidate.ScriptDetail);
     }
 
-    private SqlColumnSourceResolver Resolver => _resolver ??= new SqlColumnSourceResolver(_tokens);
+    /// <remarks>詞法單元傳進去，指令碼名冊與範圍分析共用同一次掃描。</remarks>
+    private SqlScriptDeclarations Declarations =>
+        _declarations ??= SqlScriptDeclarations.Create(_text, _tokens);
 
     /// <summary>把識別字解析成這份指令碼自己宣告的物件；不是的話回傳 null。</summary>
     private Candidate? FindScriptCandidate()
@@ -153,7 +155,7 @@ public sealed class SqlObjectLookup
                 return null;
             }
 
-            return FindDeclared(owner.ObjectName) is { } ownerDetail
+            return Declarations.Find(owner.ObjectName) is { } ownerDetail
                 ? new Candidate(ownerDetail.Object, needsColumn: true, ownerDetail)
                 : null;
         }
@@ -162,42 +164,13 @@ public sealed class SqlObjectLookup
         // c 是 Loan，即使這份指令碼別的地方剛好有一個叫 c 的 CTE。
         if (_scope.TryResolve(Reference.Name, out var aliased))
         {
-            return aliased.SchemaName is null && FindDeclared(aliased.ObjectName) is { } aliasedDetail
+            return aliased.SchemaName is null && Declarations.Find(aliased.ObjectName) is { } aliasedDetail
                 ? new Candidate(aliasedDetail.Object, needsColumn: false, aliasedDetail)
                 : null;
         }
 
-        return FindDeclared(Reference.Name) is { } detail
+        return Declarations.Find(Reference.Name) is { } detail
             ? new Candidate(detail.Object, needsColumn: false, detail)
-            : null;
-    }
-
-    /// <summary>這個名稱是不是這份指令碼宣告的；是的話連明細一起讀出來。</summary>
-    /// <remarks>
-    /// 井號與小老鼠開頭是暫存資料表與資料表變數的必要條件，而那是一個字元的判斷：
-    /// 絕大多數的停留都落在一般名稱上，那時連資料表名冊都不必建。
-    /// </remarks>
-    private SqlObjectDetail? FindDeclared(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return null;
-        }
-
-        if (SqlIdentifier.IsScriptScoped(name))
-        {
-            // 資料行讀不出來的宣告（SELECT … INTO #Loan）名冊裡根本沒有，
-            // 那時退回去查快照——名稱與資料行是兩件事。
-            return Resolver.ScriptTables.TryGetValue(name, out var table)
-                ? SqlScriptTableDetail.Create(table, _text)
-                : null;
-        }
-
-        return Resolver.FindCommonTableExpression(name) is { } commonTableExpression
-            ? SqlScriptTableDetail.Create(
-                commonTableExpression,
-                Resolver.ResolveCommonTableExpressionColumns(commonTableExpression),
-                _text)
             : null;
     }
 

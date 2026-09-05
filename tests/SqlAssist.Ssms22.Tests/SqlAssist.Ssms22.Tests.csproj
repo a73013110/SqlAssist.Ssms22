@@ -12,9 +12,11 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />
     <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
+    <ProjectReference Include="..\..\src\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- 直接編譯產品的純 WPF 實作，在相同 net48 執行；不以假的 SSMS 服務替代產品行為。 -->
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Completion\SqlSuggestionTarget.cs" Link="Product\Completion\SqlSuggestionTarget.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeResourceSet.cs" Link="Product\UI\ThemeResourceSet.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeColorMath.cs" Link="Product\UI\ThemeColorMath.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemePalette.cs" Link="Product\UI\ThemePalette.cs" />
