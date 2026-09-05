@@ -601,10 +601,16 @@ internal sealed class SqlMetadataService : IDisposable
     /// <summary>
     /// 目前已快取的第一層資料；沒有現成的目錄或還沒載入時回傳 null。
     /// </summary>
-    /// <remarks>不觸發任何查詢，也不向 SSMS 詢問連線。滑鼠停留提示走這條路。</remarks>
+    /// <remarks>只回傳現成資料；缺少或過期時排程背景預載，不在呼叫端等待查詢或解析連線。</remarks>
     public SqlDatabaseSnapshot? PeekSnapshot(SqlObjectPath? path = null)
     {
-        var snapshot = ScopeTo(PeekCatalog(), path)?.CachedSnapshot;
+        var catalog = ScopeTo(PeekCatalog(), path);
+        var snapshot = catalog?.CachedSnapshot;
+        if (catalog is not null)
+        {
+            SqlAssistPlatformGuard.BeginProbe("預載物件清單", catalog.WarmSnapshotAsync);
+        }
+
         return snapshot is null || snapshot.IsEmpty ? null : snapshot;
     }
 
@@ -991,7 +997,13 @@ internal sealed class SqlMetadataService : IDisposable
         {
             try
             {
-                ResolveCatalogFromEditor();
+                var catalog = ResolveCatalogFromEditor();
+                var settings = SqlAssistSettingsStore.Current;
+                if (catalog is not null && settings.Enabled && settings.HoverEnabled)
+                {
+                    // 清單查詢有自己的載入閘；慢查詢不能把連線重新確認一起鎖住。
+                    SqlAssistPlatformGuard.BeginProbe("預載物件清單", catalog.WarmSnapshotAsync);
+                }
             }
             finally
             {
@@ -1001,14 +1013,14 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 主動預熱：在編輯器剛建立、SSMS 還不忙的時候先問一次連線。
+    /// 主動預熱：在編輯器剛建立時解析連線並預載目前資料庫的物件名稱。
     /// </summary>
     /// <remarks>
-    /// 沒有預熱的話，第一次按鍵仍然要付一次完整的連線解析成本。
+    /// 直接貼上 SQL 的使用者不一定會觸發建議清單，Hover 不可依賴建議先替它載入資料。
     /// </remarks>
     public void BeginWarmup()
     {
-        SqlAssistPlatformGuard.BeginProbe("預熱連線", () => _ = ResolveCatalog());
+        BeginCatalogRecheck();
     }
 
     private SqlMetadataCatalog? ResolveCatalogFromEditor()

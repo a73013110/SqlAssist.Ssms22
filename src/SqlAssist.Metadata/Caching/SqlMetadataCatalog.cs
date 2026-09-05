@@ -47,6 +47,7 @@ public sealed class SqlMetadataCatalog
     private readonly TimeSpan _failureBackoff;
     private readonly SqlCatalogQualifier _qualifier;
     private SqlDatabaseSnapshot _snapshot = SqlDatabaseSnapshot.Empty;
+    private int _snapshotVersion;
 
     /// <summary>上一次載入失敗的時刻；沒有失敗過時為 0。</summary>
     private long _failedAtTicks;
@@ -78,16 +79,15 @@ public sealed class SqlMetadataCatalog
     /// <summary>清空所有層級的快取，下一次查詢會重新讀取資料庫。</summary>
     public void Invalidate()
     {
-        Volatile.Write(ref _snapshot, SqlDatabaseSnapshot.Empty);
-
         // 系統物件沒有有效期，只有這裡會把它丟掉——換連線就是換一台伺服器。
         Volatile.Write(ref _systemObjects, null);
 
-        // 失敗退避一起清掉：按重新整理的人就是在說「我修好了，現在再試一次」。
-        Volatile.Write(ref _failedAtTicks, 0);
-
         lock (_detailLock)
         {
+            // 清除期間仍在飛的第一層查詢不得把舊清單寫回來。
+            _snapshotVersion++;
+            Volatile.Write(ref _snapshot, SqlDatabaseSnapshot.Empty);
+            Volatile.Write(ref _failedAtTicks, 0);
             _details.Clear();
             _structures.Clear();
         }
@@ -140,7 +140,7 @@ public sealed class SqlMetadataCatalog
 
         if (!cached.IsEmpty)
         {
-            BeginBackgroundRefresh();
+            _ = RefreshSnapshotInBackgroundAsync();
             return cached;
         }
 
@@ -149,26 +149,15 @@ public sealed class SqlMetadataCatalog
 
         try
         {
-            if (IsFresh(CachedSnapshot))
+            if (IsFresh(CachedSnapshot) || IsInFailureBackoff())
             {
                 return CachedSnapshot;
             }
 
-            var loaded = await Task
-                .Run(() => TryLoad(() => LoadSnapshot(cancellationToken)), cancellationToken)
+            var version = Volatile.Read(ref _snapshotVersion);
+            return await Task.Run(
+                    () => LoadAndPublishSnapshot(cancellationToken, version), cancellationToken)
                 .ConfigureAwait(false);
-
-            if (loaded is null)
-            {
-                // 連不上就維持空快照，只記下失敗的時刻。把空的寫進快取會讓連線
-                // 恢復之後仍然拿到空的，而完全不記則是下一次按鍵立刻再撞一次。
-                RecordFailure();
-                return SqlDatabaseSnapshot.Empty;
-            }
-
-            Volatile.Write(ref _snapshot, loaded);
-            Volatile.Write(ref _failedAtTicks, 0);
-            return loaded;
         }
         finally
         {
@@ -217,41 +206,71 @@ public sealed class SqlMetadataCatalog
         }
     }
 
-    /// <summary>在背景更新第一層資料；已經有人在更新時直接略過。</summary>
-    private void BeginBackgroundRefresh()
+    /// <summary>非阻塞地預載第一層；新鮮、退避或已有查詢在途時不另排工作。</summary>
+    /// <remarks>回傳本次啟動的工作供平台觀察例外；不等待其他呼叫端已啟動的載入。</remarks>
+    public Task WarmSnapshotAsync()
     {
-        if (!_snapshotGate.Wait(0))
+        if (IsSnapshotFresh || IsInFailureBackoff() || !_snapshotGate.Wait(0))
         {
-            return;
+            return Task.CompletedTask;
         }
 
-        _ = Task.Run(() =>
+        // 取得閘之前，另一條前景或預載查詢可能剛好完成。
+        if (IsSnapshotFresh || IsInFailureBackoff())
+        {
+            _snapshotGate.Release();
+            return Task.CompletedTask;
+        }
+
+        var version = Volatile.Read(ref _snapshotVersion);
+        return Task.Run(() =>
         {
             try
             {
-                // 更新失敗就繼續用舊資料，使用者不需要知道；但仍要記下失敗，
-                // 否則舊資料一過期就變成每一次按鍵排一次註定失敗的背景更新。
-                if (TryLoad(() => LoadSnapshot(CancellationToken.None)) is { } loaded)
-                {
-                    Volatile.Write(ref _snapshot, loaded);
-                    Volatile.Write(ref _failedAtTicks, 0);
-                }
-                else
-                {
-                    RecordFailure();
-                }
-            }
-            catch
-            {
-                // 這是沒有人會接結果的背景工作，程式錯誤在這裡冒出去只會變成
-                // 無人觀察的 Task 例外。Metadata 這一層沒有記錄器可用，
-                // 只能讓它停在這裡；真正的錯誤會在下一次前景載入時原地重現。
+                LoadAndPublishSnapshot(CancellationToken.None, version);
             }
             finally
             {
                 _snapshotGate.Release();
             }
         });
+    }
+
+    private SqlDatabaseSnapshot LoadAndPublishSnapshot(CancellationToken cancellationToken, int version)
+    {
+        var loaded = TryLoad(() => LoadSnapshot(cancellationToken));
+        lock (_detailLock)
+        {
+            if (_snapshotVersion != version)
+            {
+                return CachedSnapshot;
+            }
+
+            if (loaded is null)
+            {
+                // 失敗不覆蓋舊快照；預載與前景讀取共用同一份退避。
+                RecordFailure();
+            }
+            else
+            {
+                Volatile.Write(ref _snapshot, loaded);
+                Volatile.Write(ref _failedAtTicks, 0);
+            }
+
+            return CachedSnapshot;
+        }
+    }
+
+    private async Task RefreshSnapshotInBackgroundAsync()
+    {
+        try
+        {
+            await WarmSnapshotAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // 舊快照更新沒有等待者；維持既有降級，契約錯誤留給下次前景載入重現。
+        }
     }
 
     /// <summary>

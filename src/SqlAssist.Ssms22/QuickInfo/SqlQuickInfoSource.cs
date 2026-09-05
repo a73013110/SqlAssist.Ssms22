@@ -24,38 +24,31 @@ namespace SqlAssist.Ssms22.QuickInfo;
 /// </remarks>
 internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
 {
-    /// <summary>整份文字與上一次的解析結果，依快照快取。</summary>
+    /// <summary>整份文字與上一次的語法分析，依文字快照快取，不保存中繼資料結果。</summary>
     /// <remarks>
     /// 一次滑鼠停留會產生數個 session，滑鼠在同一個字上輕微移動也會重來一次，
     /// 而 <see cref="SqlAssist.Core.Parsing.SqlScopeAnalyzer"/> 每一次都要對整份文字
     /// 做詞法分析。以單一不可變物件整份換掉，讀取端不必擔心欄位之間彼此不同步。
     /// </remarks>
-    private sealed class ResolvedIdentifier
+    private sealed class ParsedIdentifier
     {
-        public ResolvedIdentifier(ITextSnapshot snapshot, string text, int start, int end, SqlObjectLocation? location)
+        public ParsedIdentifier(ITextSnapshot snapshot, string text, SqlObjectLookup lookup)
         {
             Snapshot = snapshot;
             Text = text;
-            Start = start;
-            End = end;
-            Location = location;
+            Lookup = lookup;
         }
 
         public ITextSnapshot Snapshot { get; }
 
         public string Text { get; }
 
-        public int Start { get; }
-
-        public int End { get; }
-
-        /// <summary>解析結果；掃到識別字但不是資料庫物件時為 null，這個「沒有」同樣值得記住。</summary>
-        public SqlObjectLocation? Location { get; }
+        public SqlObjectLookup Lookup { get; }
     }
 
     private readonly ITextBuffer _textBuffer;
     private readonly IServiceProvider _serviceProvider;
-    private ResolvedIdentifier? _resolved;
+    private ParsedIdentifier? _parsed;
     private bool _disposed;
 
     public SqlQuickInfoSource(ITextBuffer textBuffer, IServiceProvider serviceProvider)
@@ -172,12 +165,12 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         };
     }
 
-    /// <summary>解析游標處的識別字；快照沒變且位置仍落在上一次的識別字範圍內就沿用結果。</summary>
+    /// <summary>只重用語法分析；清快取與背景載入不會改變 SQL 文字，物件與欄位必須重新比對。</summary>
     private SqlObjectLocation? Resolve(SqlMetadataService metadataService, ITextSnapshot snapshot, int position)
     {
-        var resolved = Volatile.Read(ref _resolved);
-        var text = resolved is not null && ReferenceEquals(resolved.Snapshot, snapshot)
-            ? resolved.Text
+        var parsed = Volatile.Read(ref _parsed);
+        var text = parsed is not null && ReferenceEquals(parsed.Snapshot, snapshot)
+            ? parsed.Text
             : snapshot.GetText();
 
         var reference = SqlIdentifierScanner.FindAt(text, position);
@@ -187,20 +180,22 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             return null;
         }
 
-        if (resolved is not null &&
-            ReferenceEquals(resolved.Snapshot, snapshot) &&
-            reference.Start == resolved.Start &&
-            reference.End == resolved.End)
+        if (parsed is not null &&
+            ReferenceEquals(parsed.Snapshot, snapshot) &&
+            reference.Start == parsed.Lookup.Reference.Start &&
+            reference.End == parsed.Lookup.Reference.End)
         {
-            return resolved.Location;
+            return SqlObjectLocator.LocateCached(metadataService, parsed.Lookup);
         }
 
-        var location = SqlObjectLocator.LocateCached(metadataService, text, position);
-        Volatile.Write(
-            ref _resolved,
-            new ResolvedIdentifier(snapshot, text, reference.Start, reference.End, location));
+        var lookup = SqlObjectLookup.Create(text, position);
+        if (lookup is null)
+        {
+            return null;
+        }
 
-        return location;
+        Volatile.Write(ref _parsed, new ParsedIdentifier(snapshot, text, lookup));
+        return SqlObjectLocator.LocateCached(metadataService, lookup);
     }
 
     public void Dispose()
@@ -212,6 +207,6 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
 
         // 中繼資料服務的所有權在 TextView，這裡只放掉自己的快取。
         _disposed = true;
-        Volatile.Write(ref _resolved, null);
+        Volatile.Write(ref _parsed, null);
     }
 }
