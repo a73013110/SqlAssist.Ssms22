@@ -474,7 +474,7 @@ internal sealed class SqlAssistCommands
             SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
             SqlAssistStatusBar.Show(
                 _package,
-                "建議快取已清除；下次開啟建議清單時會重新讀取資料庫。");
+                "建議快取已清除；下次開啟建議清單或停留物件時會在背景重新載入。");
         }
         catch (Exception exception)
         {
