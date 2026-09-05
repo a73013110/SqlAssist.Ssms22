@@ -191,7 +191,7 @@ public static class SqlCompletionContextAnalyzer
 
         if (context.QualifierPath is null)
         {
-            // CTE 與暫存資料表只存在於這份指令碼裡，中繼資料查不到它們。
+            // CTE、暫存資料表與資料表變數只存在於這份指令碼裡，中繼資料查不到它們。
             // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
             // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
             return context.Target == CompletionTarget.DataSource

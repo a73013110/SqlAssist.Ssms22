@@ -41,7 +41,8 @@ internal static class SqlSuggestionTarget
             SuggestionKind.Variable when suggestion.Tag is SqlScriptTable =>
                 new SqlObjectInfo(0, string.Empty, name, SqlScriptDeclarations.KindOf(name)),
 
-            // 這份清單只收兩種：井號開頭的暫存資料表，其餘的是 CTE。
+            // 這份清單收三種：井號與小老鼠開頭的名稱由名稱本身分得出來，
+            // 其餘的是 CTE。
             SuggestionKind.ScriptDataSource => new SqlObjectInfo(
                 0,
                 string.Empty,

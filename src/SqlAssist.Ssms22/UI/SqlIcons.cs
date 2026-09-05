@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Imaging.Interop;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.UI;
@@ -69,6 +70,23 @@ internal static class SqlIcons
 
     public static ImageElement GetImageElement(SuggestionKind kind) => GetDefinition(kind).Element;
 
+    /// <summary>
+    /// 依建議項本身挑圖示。
+    /// </summary>
+    /// <remarks>
+    /// 同一個 <see cref="SuggestionKind"/> 未必是同一種東西，所以帶著來源資料的
+    /// 優先：同義字歸入資料表那一類，圖示卻要畫成同義字；資料表變數在
+    /// <c>@</c> 之後那份清單裡是 <see cref="SuggestionKind.Variable"/>，
+    /// 而它與 <c>FROM</c> 之後的自己是同一張表——分辨的憑據就是它有沒有帶著宣告
+    /// （<see cref="SqlScriptTable"/>），讀不出資料行的 <c>@readerId</c> 沒有。
+    /// </remarks>
+    public static ImageElement GetImageElement(SqlSuggestion suggestion) => suggestion.Tag switch
+    {
+        SqlObjectInfo objectInfo => GetImageElement(objectInfo.Kind),
+        SqlScriptTable => ScriptDataSource.Element,
+        _ => GetImageElement(suggestion.Kind)
+    };
+
     public static ImageElement GetImageElement(SqlObjectKind kind) => GetDefinition(kind).Element;
 
     private static Definition GetDefinition(SuggestionKind kind) => kind switch
@@ -113,12 +131,14 @@ internal static class SqlIcons
         SqlObjectKind.Sequence => Sequence,
         SqlObjectKind.TableType => TableType,
 
-        // 指令碼自己宣告的三種。暫存資料表與 CTE 都是建議清單裡的
-        // ScriptDataSource，圖示跟著同一個——同一個項目在清單與預覽裡換一張臉，
-        // 使用者會以為自己選到了別的東西。資料表變數跟著區域變數走：
-        // 它在使用者眼裡就是一個變數，清單裡也是這樣畫的。
-        SqlObjectKind.TemporaryTable or SqlObjectKind.CommonTableExpression => ScriptDataSource,
-        SqlObjectKind.TableVariable => Variable,
+        // 指令碼自己宣告的三種共用同一個圖示。它們回答的是同一個問題——這是一張
+        // 只活在這份文字裡的表，連線一斷就沒了——而 @rows 曾經跟著區域變數走，
+        // 症狀是同一份 FROM 清單裡 #Loan 與 @rows 長得像兩種東西，
+        // 使用者得自己記住哪個小老鼠是表。讀不出資料行的 @readerId 不走到這裡：
+        // 它做不出 SqlObjectInfo，清單與預覽都仍然是一個變數。
+        SqlObjectKind.TemporaryTable
+            or SqlObjectKind.CommonTableExpression
+            or SqlObjectKind.TableVariable => ScriptDataSource,
         _ => Unknown
     };
 }

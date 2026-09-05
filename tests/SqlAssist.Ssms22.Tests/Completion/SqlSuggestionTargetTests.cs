@@ -39,6 +39,7 @@ public sealed class SqlSuggestionTargetTests
     [Theory]
     [InlineData("#Loan", SqlObjectKind.TemporaryTable)]
     [InlineData("##Loan", SqlObjectKind.TemporaryTable)]
+    [InlineData("@rows", SqlObjectKind.TableVariable)]
     [InlineData("c", SqlObjectKind.CommonTableExpression)]
     public void 指令碼宣告的資料來源認得出種類(string name, SqlObjectKind kind)
     {

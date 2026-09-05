@@ -468,10 +468,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         var item = new CompletionItem(
             displayText: suggestion.DisplayText,
             source: this,
-            // 同義字雖歸入資料表篩選類別，項目圖示仍須呈現真正物件種類。
-            icon: suggestion.Tag is SqlObjectInfo objectInfo
-                ? SqlIcons.GetImageElement(objectInfo.Kind)
-                : SqlIcons.GetImageElement(suggestion.Kind),
+            // 篩選類別與圖示不是同一個問題：同義字歸入資料表那一類，圖示仍須
+            // 呈現真正的物件種類，判斷整份在 SqlIcons。
+            icon: SqlIcons.GetImageElement(suggestion),
             filters: withFilters
                 ? SqlCompletionFilters.For(suggestion.Kind)
                 : ImmutableArray<CompletionFilter>.Empty,
