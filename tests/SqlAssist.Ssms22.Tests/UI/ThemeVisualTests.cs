@@ -65,22 +65,12 @@ public sealed class ThemeVisualTests
             content.Children.Add(SqlAssistChrome.CreateHint("樣式、選取文字、交替列及輸入欄位應保持可讀。", metrics));
 
             var root = new Border { Child = content }
-                .WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground);
+                .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
             root.Resources.MergedDictionaries.Add(palette.Resources);
             var directory = FindOutputDirectory();
-            foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
+            foreach (var mode in new[] { "light", "mango", "cool-breeze", "dark", "plum", "forest", "high-contrast", "light-again" })
             {
-                var dark = mode is "dark" or "high-contrast";
-                var colors = ThemeResourceSetTests.ColorsFor(dark);
-                var foreground = dark ? Colors.White : Colors.Black;
-                colors[ThemeBrush.DimForeground] = foreground;
-                colors[ThemeBrush.Border] = foreground;
-                colors[ThemeBrush.AccentBorder] = foreground;
-                colors[ThemeBrush.Hairline] = foreground;
-                colors[ThemeBrush.RowSelected] = mode == "high-contrast" ? Colors.Yellow : dark ? Colors.DimGray : Colors.LightGray;
-                colors[ThemeBrush.RowAlternate] = mode == "high-contrast" ? Colors.Black : dark ? Color.FromRgb(32, 32, 32) : Colors.WhiteSmoke;
-                colors[ThemeBrush.SelectedForeground] = mode == "high-contrast" ? Colors.Black : foreground;
-                palette.Update(colors);
+                palette.Update(ThemePaletteTests.ColorsFor(mode));
 
                 foreach (var dpi in new[] { 96, 144, 192 })
                 {

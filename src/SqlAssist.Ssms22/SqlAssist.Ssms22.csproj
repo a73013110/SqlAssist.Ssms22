@@ -101,6 +101,11 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Shell.15.0.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Fluent 主題的公開語意色；由 SSMS 提供，不把殼層組件包進 VSIX。 -->
+    <Reference Include="Microsoft.VisualStudio.Shell.Styles">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.Styles.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!--
       殼層的設定存放區（SettingsScope.Configuration）。只用來讀
       Languages\Language Services\SQL 的識別碼——那是 pkgdef 合併出來的機碼，

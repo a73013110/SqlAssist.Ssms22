@@ -3,6 +3,19 @@
 介面跟隨 SSMS，不讀 Windows 的深淺模式或自行保存 `isDark`。Windows 系統色只用於
 高對比與最後備援。自訂編輯器配色屬於另一個範圍，不能拿 SQL 前景搭配 Tooltip 底色。
 
+## 彩色主題取色
+
+SSMS 新彩色主題使用 Fluent `ShellColors`；舊 `EnvironmentColors.ToolTip` 等鍵仍可能
+只有中性灰，不能以「有收到換主題事件」當成已跟隨色系。
+
+- 預覽抬頭／頁尾與對話框外層用 `SolidBackgroundFillTertiary`，內容表面用
+  `SolidBackgroundFillQuaternary`，文字分別取 `TextFillPrimary`／`TextFillSecondary`。
+- 焦點、主索引鍵徽章、主要按鈕與選取使用 `AccentFillDefault` 推導淡色回饋；
+  `ThemePalette` 在視窗與內容兩種底色上檢查對比，必要時減淡而不換成固定灰。
+- 取公開的內容語意色，不挪用 `ShellInternal` 的主標題列裝飾色；因此同色系不代表
+  所有區域都塗成主標題列的飽和色。SQL 區域仍使用下方的編輯器分類配色。
+- 缺少 Fluent 前景或背景時整組降級到既有殼層／系統備援，不能混用新底色與舊文字。
+
 ## 唯一來源與生命週期
 
 - `UI/VsThemeBrushes` 只訂閱一次 `VSColorTheme.ThemeChanged`，並接收高對比變更。
@@ -36,13 +49,15 @@
 ## 驗證
 
 `SqlAssist.Ssms22.Tests` 在 net48 STA 執行產品的純 WPF 實作，不需啟動 SSMS。
-涵蓋雙向換色、Run 與選取保留、樣板與選取配對、筆刷共用、局部系統鍵及通知合併。
+涵蓋同深淺不同色系的雙向換色、透明文字合成、雙表面對比、Run 與選取保留、
+樣板與選取配對、筆刷共用、局部系統鍵及通知合併。
 共用控制項的多 DPI 渲染輸出位於被忽略的 `artifacts/theme-qa/`；這些是測試配色，
 不是 SSMS 實機截圖，也不能取代原生 Popup 的整合驗收。
 
 SSMS 手動驗收：
 
 1. 同一查詢視窗切換淺色 → 深色 → 淺色，分別在預覽顯示中及隱藏後重開驗證。
+   另測 Mango Paradise ↔ Cool Breeze、Juicy Plum ↔ Mystical Forest，不能只測亮暗。
 2. 驗證所有分頁、載入／錯誤狀態、右鍵選單、捲軸與握把，不應出現新舊主題混色。
 3. 檢查片段管理員、診斷、欄位剖析與完整儲存格內容；Windows 與 SSMS 設相反主題。
 4. 更改 SQL 字型、字級及分類色；保留選取與捲動、確認沒有額外中繼資料查詢。
@@ -50,4 +65,6 @@ SSMS 手動驗收：
 6. 多個查詢視窗連續切換主題再關閉，確認沒有延後更新錯誤或事件造成的視窗滯留。
 
 平台依據：[VS 色彩服務](https://learn.microsoft.com/en-us/visualstudio/extensibility/ux-guidelines/colors-and-styling-for-visual-studio?view=vs-2022)、
+[Fluent 主題遷移](https://learn.microsoft.com/en-us/visualstudio/extensibility/migration/modernize-theme-colors?view=visualstudio)、
+[語意色用途](https://learn.microsoft.com/en-us/visualstudio/extensibility/ux-guidelines/theme-color-token-reference?view=visualstudio)、
 [編輯器分類外觀](https://learn.microsoft.com/en-us/dotnet/api/microsoft.visualstudio.text.classification.iclassificationformatmap?view=visualstudiosdk-2022)。

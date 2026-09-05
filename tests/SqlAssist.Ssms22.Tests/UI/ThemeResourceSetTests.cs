@@ -14,6 +14,35 @@ namespace SqlAssist.Ssms22.Tests.UI;
 public sealed class ThemeResourceSetTests
 {
     [Fact]
+    public void ExistingWindowsAndPrimaryButtonKeepFollowingColoredThemes()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var button = SqlAssistChrome.CreateButton("複製", SqlAssistChrome.DefaultMetrics, primary: true);
+            var root = new Border { Child = button }
+                .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
+            var popup = new ContextMenu().WithTheme(Control.BackgroundProperty, ThemeBrush.ListBackground);
+            root.Resources.MergedDictionaries.Add(palette.Resources);
+            popup.Resources.MergedDictionaries.Add(palette.Resources);
+            palette.Update(ThemePaletteTests.ColorsFor("mango"));
+            button.ApplyTemplate();
+            var surface = Assert.IsType<Border>(button.Template.FindName("bg", button));
+
+            // 不重建已封存的樣板，也不只測深淺相反的兩個主題。
+            foreach (var mode in new[] { "mango", "cool-breeze", "mango", "plum", "forest", "high-contrast", "mango" })
+            {
+                var colors = ThemePaletteTests.ColorsFor(mode);
+                palette.Update(colors);
+                Assert.Equal(colors[ThemeBrush.WindowBackground], ColorOf(root.Background));
+                Assert.Equal(colors[ThemeBrush.ListBackground], ColorOf(popup.Background));
+                Assert.Equal(colors[ThemeBrush.AccentBackground], ColorOf(surface.Background));
+                Assert.Same(surface, button.Template.FindName("bg", button));
+            }
+        });
+    }
+
+    [Fact]
     public void ExistingControlsAndInlineTextFollowBothThemeDirections()
     {
         WpfTest.Run(() =>
