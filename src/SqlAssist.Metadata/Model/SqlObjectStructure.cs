@@ -103,6 +103,15 @@ public sealed class SqlObjectStructure
             case ScriptAvailability.UnscriptableKind:
                 return Detail.BuildPreview();
 
+            // 指令碼宣告的東西不經過 OBJECT_DEFINITION，也不經過目錄檢視，
+            // 底下那兩種說法對它都是錯的——使用者會去查加密與 VIEW DEFINITION
+            // 權限，而它從來不經過那兩關。
+            case ScriptAvailability.MissingDefinition when Object.Kind.IsScriptDeclared():
+                return BuildUnavailableScript(
+                    "宣告原文",
+                    "這個名稱是這份指令碼自己宣告的，宣告的位置卻已經不在目前的文字裡了——",
+                    "多半是提示顯示之後、開啟結構之前，那幾行被改掉或刪掉了。");
+
             // 檢視同時是模組也有欄位。定義取不到時原本會掉進 CREATE TABLE 那一支，
             // 於是一個檢視被寫成一張資料表——那不只是排版難看，是指令碼在說謊：
             // 照著執行會多出一張同名的資料表。

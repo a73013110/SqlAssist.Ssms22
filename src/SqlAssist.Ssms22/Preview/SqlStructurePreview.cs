@@ -55,6 +55,18 @@ internal sealed class SqlStructurePreview
     private IAsyncCompletionSession? _observedSession;
     private IAsyncCompletionSession? _session;
     private SqlObjectInfo? _target;
+
+    /// <summary>
+    /// 目前這個目標已經讀好的結構；要向中繼資料要的物件為 null。
+    /// </summary>
+    /// <remarks>
+    /// 指令碼自己宣告的暫存資料表、資料表變數與 CTE 走這裡。它們的
+    /// <c>object_id</c> 一律是 0，中繼資料的第二、三層快取卻是照編號存的——
+    /// 交給一般的載入路徑不是拿到別的東西，就是白等一次查不到東西的查詢。
+    /// 一律與 <see cref="_target"/> 一起指派，兩者不同步的症狀是畫面停在上一個物件。
+    /// </remarks>
+    private SqlObjectStructure? _targetScript;
+
     private SqlMetadataService? _metadataService;
     private CancellationTokenSource? _loading;
     private CancellationTokenSource? _selectionRefresh;
@@ -194,6 +206,7 @@ internal sealed class SqlStructurePreview
                 _view.TextBuffer.Changed -= OnTextBufferChanged;
                 _session = null;
                 _target = null;
+                _targetScript = null;
                 _metadataService = null;
                 _selectedItemIsSqlObject = false;
                 _selectionPending = false;
@@ -320,6 +333,7 @@ internal sealed class SqlStructurePreview
         _observedSession = session;
         _anchor = session.ApplicableToSpan;
         _target = null;
+        _targetScript = null;
         _metadataService = null;
         _selectedItemIsSqlObject = false;
         _selectionPending = false;
@@ -397,6 +411,7 @@ internal sealed class SqlStructurePreview
                 _observedSession = null;
             }
             _target = null;
+            _targetScript = null;
             _metadataService = null;
             _selectedItemIsSqlObject = false;
             _selectionPending = false;
@@ -473,6 +488,7 @@ internal sealed class SqlStructurePreview
             StopPendingWork();
             _metadataService = metadataService;
             _target = objectInfo;
+            _targetScript = null;
         }
 
         if (expandWhenReady &&
@@ -529,11 +545,17 @@ internal sealed class SqlStructurePreview
     /// 詳細資料與結構查詢從頭到尾都以 ObjectId 當識別，這裡跟著同一套才不會出現
     /// 「快取認為是同一個、預覽認為換人了」。參考相等目前剛好成立，但那只是因為
     /// 兩次都讀到同一個 CompletionItem，換一條入口（停留提示、工具選單）就不成立。
+    ///
+    /// 指令碼自己宣告的物件沒有 <c>object_id</c>，一律是 0；只比編號會把 <c>#a</c>
+    /// 與 <c>#b</c> 當成同一個，症狀是換了目標畫面卻還停在上一份結構。
     /// </remarks>
     private static bool IsSameObject(SqlObjectInfo? left, SqlObjectInfo? right) =>
         left is null
             ? right is null
-            : right is not null && left.ObjectId == right.ObjectId;
+            : right is not null &&
+              left.ObjectId == right.ObjectId &&
+              (left.ObjectId != 0 ||
+               string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>展開預覽；已經展開時回傳 false，讓按鍵照原本的方式往下走。</summary>
     public bool Expand()
@@ -599,7 +621,14 @@ internal sealed class SqlStructurePreview
     /// 滑鼠停留提示的連結與工具選單的命令走這條路。與建議清單共用同一個視窗、
     /// 同一份資料路徑，差別只在錨點與誰負責收掉它。
     /// </remarks>
-    public void ShowAt(ITrackingSpan anchor, SqlObjectInfo objectInfo, SqlMetadataService metadataService)
+    /// <param name="script">
+    /// 指令碼自己宣告的物件已經讀好的結構；要向中繼資料要的物件傳 null。
+    /// </param>
+    public void ShowAt(
+        ITrackingSpan anchor,
+        SqlObjectInfo objectInfo,
+        SqlMetadataService metadataService,
+        SqlObjectStructure? script = null)
     {
         if (_closed || objectInfo is null)
         {
@@ -613,6 +642,7 @@ internal sealed class SqlStructurePreview
             StopPendingWork();
             _anchor = anchor;
             _target = objectInfo;
+            _targetScript = script;
             _metadataService = metadataService;
             IsExpanded = true;
             ShowTarget(objectInfo, metadataService);
@@ -758,6 +788,7 @@ internal sealed class SqlStructurePreview
         _generation++;
         StopPendingWork();
         _target = null;
+        _targetScript = null;
         _selectedItemIsSqlObject = false;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
@@ -931,6 +962,14 @@ internal sealed class SqlStructurePreview
         _timer.Stop();
         _timerExpands = false;
         _loading?.Cancel();
+
+        // 指令碼宣告的物件在定位那一步就讀完了，不必經過任何一層快取或查詢。
+        if (_targetScript is { } declared && IsSameObject(declared.Object, objectInfo))
+        {
+            control.Populate(declared);
+            ShowAgent();
+            return;
+        }
 
         if (metadataService.PeekStructure(objectInfo) is { } structure)
         {

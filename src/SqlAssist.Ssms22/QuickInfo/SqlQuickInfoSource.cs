@@ -113,12 +113,17 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             new Span(location.Reference.Start, location.Reference.Length),
             SpanTrackingMode.EdgeInclusive);
 
+        // 指令碼自己宣告的暫存資料表、資料表變數與 CTE 在定位那一步就把明細讀出來了。
+        // 它們的 object_id 一律是 0，回頭問中繼資料不是白跑一次查詢就是拿到別的東西。
+        var script = location.Detail is { } scriptDetail ? new SqlObjectStructure(scriptDetail) : null;
+
         // 提示只給一眼看得完的份量，看不完的那一半交給浮動預覽。
         var openStructure = CreateOpenStructureAction(
             textView,
             metadataService,
             applicableSpan,
-            location.Object);
+            location.Object,
+            script);
 
         if (location.Column is { } column)
         {
@@ -128,7 +133,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
                 SqlQuickInfoContentBuilder.BuildColumn(location.Object, column, openStructure));
         }
 
-        var detail = metadataService.PeekDetail(location.Object);
+        var detail = location.Detail ?? metadataService.PeekDetail(location.Object);
 
         if (detail is null)
         {
@@ -150,17 +155,19 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
     /// 開的是建議清單用的同一個浮動預覽，錨在同一個識別字上。
     /// 兩條入口共用一份視窗與一份載入邏輯，行為與外觀不會有兩套。
     /// </remarks>
+    /// <param name="script">指令碼宣告的物件已經讀好的結構；資料庫物件傳 null。</param>
     private Action CreateOpenStructureAction(
         ITextView textView,
         SqlMetadataService metadataService,
         ITrackingSpan anchor,
-        SqlObjectInfo objectInfo)
+        SqlObjectInfo objectInfo,
+        SqlObjectStructure? script)
     {
         return () =>
         {
             if (SqlStructurePreview.GetOrCreate(textView, _serviceProvider) is { } preview)
             {
-                preview.ShowAt(anchor, objectInfo, metadataService);
+                preview.ShowAt(anchor, objectInfo, metadataService, script);
             }
         };
     }

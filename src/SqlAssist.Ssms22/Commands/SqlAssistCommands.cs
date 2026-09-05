@@ -6,6 +6,7 @@ using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core.Settings;
+using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
@@ -299,7 +300,13 @@ internal sealed class SqlAssistCommands
 
             if (SqlStructurePreview.GetOrCreate(textView, _package) is { } preview)
             {
-                preview.ShowAt(anchor, location.Object, metadataService);
+                // 暫存資料表、資料表變數與 CTE 的結構在定位那一步就讀出來了；
+                // 它們不在中繼資料裡，交給一般載入路徑只會等到一句「沒有可用的連線」。
+                preview.ShowAt(
+                    anchor,
+                    location.Object,
+                    metadataService,
+                    location.Detail is { } detail ? new SqlObjectStructure(detail) : null);
                 return;
             }
 

@@ -19,7 +19,9 @@ namespace SqlAssist.Core.Parsing;
 /// </remarks>
 public sealed class SqlScriptTable
 {
-    public SqlScriptTable(string name, IReadOnlyList<SqlScriptColumn> columns)
+    /// <param name="start">宣告的第一個字元位置（<c>CREATE</c> 或變數本身）。</param>
+    /// <param name="end">資料行清單右括號之後的位置。</param>
+    public SqlScriptTable(string name, IReadOnlyList<SqlScriptColumn> columns, int start, int end)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -33,6 +35,8 @@ public sealed class SqlScriptTable
 
         Name = name;
         Columns = columns;
+        Start = start;
+        End = end;
 
         var names = new string[columns.Count];
 
@@ -46,6 +50,18 @@ public sealed class SqlScriptTable
 
     /// <summary>宣告時寫的名稱，含開頭的井號或小老鼠。</summary>
     public string Name { get; }
+
+    /// <summary>
+    /// 這份宣告在原始文字裡的範圍。
+    /// </summary>
+    /// <remarks>
+    /// 留著位置而不是只留讀出來的資料行，是為了讓結構預覽的指令碼分頁交出<b>原文</b>。
+    /// 由資料行重組一份 <c>CREATE TABLE</c> 會失真：讀得出「有沒有 DEFAULT」卻讀不出
+    /// 它寫的是什麼，重組出來的那一段貼回編輯器根本執行不了。
+    /// </remarks>
+    public int Start { get; }
+
+    public int End { get; }
 
     /// <summary>依宣告順序排列的資料行。</summary>
     public IReadOnlyList<SqlScriptColumn> Columns { get; }

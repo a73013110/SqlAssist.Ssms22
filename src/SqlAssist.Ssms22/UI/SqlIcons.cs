@@ -103,6 +103,12 @@ internal static class SqlIcons
         SqlObjectKind.Trigger => Trigger,
         SqlObjectKind.Sequence => Sequence,
         SqlObjectKind.TableType => TableType,
+
+        // 指令碼自己宣告的三種。暫存資料表與建議清單裡的 ScriptDataSource 同一個
+        // 圖示，資料表變數跟著區域變數走——它在使用者眼裡就是一個變數。
+        SqlObjectKind.TemporaryTable => ScriptDataSource,
+        SqlObjectKind.TableVariable => Variable,
+        SqlObjectKind.CommonTableExpression => View,
         _ => Unknown
     };
 }

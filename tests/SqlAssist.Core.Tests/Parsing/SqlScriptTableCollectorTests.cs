@@ -140,6 +140,25 @@ public sealed class SqlScriptTableCollectorTests
         Assert.Equal("NVARCHAR(20)", table.Columns[1].DataType);
     }
 
+    /// <summary>
+    /// 記下宣告在原文裡的範圍。
+    /// </summary>
+    /// <remarks>
+    /// 結構預覽的指令碼分頁交出去的是這一段原文。由讀出來的資料行重組一份會失真：
+    /// 文字讀得出「有沒有 DEFAULT」，卻讀不出它寫的是什麼。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT 1; CREATE TABLE #Loan (CopyNo NVARCHAR(20));", "#Loan",
+        "CREATE TABLE #Loan (CopyNo NVARCHAR(20))")]
+    [InlineData("DECLARE @readerId INT, @Loan TABLE (CopyNo NVARCHAR(20));", "@Loan",
+        "@Loan TABLE (CopyNo NVARCHAR(20))")]
+    public void 記下宣告在原文裡的範圍(string sql, string name, string expected)
+    {
+        var table = Collect(sql, name);
+
+        Assert.Equal(expected, sql.Substring(table.Start, table.End - table.Start));
+    }
+
     /// <summary>一般資料表不收：它在中繼資料裡，那一份才是現在的樣子。</summary>
     [Fact]
     public void 一般資料表不收()

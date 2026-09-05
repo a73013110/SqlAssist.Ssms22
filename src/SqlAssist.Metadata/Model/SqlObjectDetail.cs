@@ -63,6 +63,14 @@ public sealed class SqlObjectDetail
     /// </remarks>
     public string BuildPreview()
     {
+        // 指令碼自己宣告的東西，交得出來最好的一份就是使用者眼前那段宣告的原文。
+        // 只有 CTE 走到這裡——它的宣告不是一句可以單獨執行的敘述，因此不算可執行
+        // 指令碼；暫存資料表與資料表變數在 SqlObjectStructure.BuildScript 就接走了。
+        if (Object.Kind.IsScriptDeclared() && !string.IsNullOrWhiteSpace(Definition))
+        {
+            return Definition!;
+        }
+
         if (Object.Kind.IsTableShaped())
         {
             return BuildColumnPreview();
