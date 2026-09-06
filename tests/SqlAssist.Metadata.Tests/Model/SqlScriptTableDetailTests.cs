@@ -1,5 +1,6 @@
 using System.Linq;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;
@@ -14,6 +15,10 @@ namespace SqlAssist.Metadata.Tests.Model;
 /// </remarks>
 public sealed class SqlScriptTableDetailTests
 {
+    /// <summary>換行固定成 LF，期望值才寫得出來。</summary>
+    private static SqlScriptContext Context() =>
+        new(SqlScriptOptions.Fidelity, newLine: "\n");
+
     private static SqlObjectDetail Create(string sql, string name, string? script = null)
     {
         var tables = SqlScriptTableCollector.Collect(SqlTokenizer.Tokenize(sql));
@@ -105,7 +110,7 @@ public sealed class SqlScriptTableDetailTests
         var structure = new SqlObjectStructure(Create(script, "#Loan", script));
 
         Assert.True(structure.CanBuildExecutableScript);
-        Assert.Equal("CREATE TABLE #Loan (Id INT DEFAULT (0))", structure.BuildScript());
+        Assert.StartsWith("CREATE TABLE #Loan (Id INT DEFAULT (0))", structure.BuildScript(Context()));
     }
 
     /// <summary>
@@ -118,7 +123,7 @@ public sealed class SqlScriptTableDetailTests
         const string script = "CREATE FUNCTION dbo.fn_X() RETURNS @rows TABLE (Id INT) AS BEGIN RETURN END";
         var structure = new SqlObjectStructure(Create(script, "@rows", script));
 
-        Assert.Equal("DECLARE @rows TABLE (Id INT)", structure.BuildScript());
+        Assert.StartsWith("DECLARE @rows TABLE (Id INT)", structure.BuildScript(Context()));
     }
 
     /// <summary>

@@ -645,7 +645,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
 
     private string GetScript()
     {
-        return _scriptText ??= _structure?.BuildScript() ?? string.Empty;
+        return _scriptText ??= _structure?.BuildScript(
+            SqlScriptPreferences.Create(Environment.NewLine)) ?? string.Empty;
     }
 
     /// <summary>

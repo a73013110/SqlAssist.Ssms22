@@ -13,6 +13,13 @@
     <PackageReference Include="xunit.v3" Version="4.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <!--
+      三組風格的逐字快照。輸出變了就要有人看過那份 diff，確認是想要的改變，
+      再更新這幾個檔案——「語意等價」沒有辦法自動判定，排版正是三組風格唯一的差別。
+    -->
+    <None Include="Golden\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
   </ItemGroup>
 </Project>

@@ -47,6 +47,7 @@ public sealed record SqlScriptOptions
     public static readonly SqlScriptOptions Minimal = new()
     {
         Style = SqlScriptStyle.Minimal,
+        QuoteIdentifiers = false,
         QuoteDataTypes = false,
         SpaceBeforeTypeArguments = false,
         SpaceAfterArgumentComma = false,
@@ -175,6 +176,9 @@ public sealed record SqlScriptOptions
     public SqlSetOptionOutput SetOptions { get; init; } = SqlSetOptionOutput.None;
 
     public SqlExistenceCheck ExistenceCheck { get; init; } = SqlExistenceCheck.None;
+
+    /// <summary>模組（程序、函式、觸發程序、檢視）的定義寫成 CREATE 還是 ALTER。</summary>
+    public SqlModuleStatement ModuleStatement { get; init; } = SqlModuleStatement.Create;
 
     /// <summary>檔頭註解：來源伺服器、資料庫、產生時間、工具版本與選項摘要。</summary>
     public bool IncludeHeaderComment { get; init; }

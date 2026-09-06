@@ -30,109 +30,109 @@ public readonly struct SqlObjectScriptText
 /// 把物件結構組成一份可以直接貼進查詢視窗執行的指令碼。
 /// </summary>
 /// <remarks>
-/// 與 <see cref="SqlObjectStructure.BuildScript"/> 的分工：那裡負責「這個物件的
-/// 定義長什麼樣」，這裡負責「要讓它單獨執行還缺什麼」——批次分隔、SET 選項，
-/// 以及模組要改寫成 <c>ALTER</c>。合成一個方法的話，浮動預覽的指令碼分頁
-/// 就會跟著多出兩行 SET 與兩個 GO，那份文字是拿來對照的，不是拿來執行的。
+/// 與 <see cref="TSqlScriptRenderer"/> 的分工：那裡負責「這個物件的定義長什麼樣」，
+/// 這裡負責「送進一個新的查詢視窗還缺什麼」——換行要統一成目的地文件的那一種，
+/// 游標要停在名稱之後，以及認不出來的種類要整段註解掉。
+///
+/// 批次分隔、SET 選項與模組的 <c>CREATE</c> → <c>ALTER</c> 改寫都<b>不</b>在這裡：
+/// 那三件事在 <see cref="SqlScriptOptions"/> 上各有一個選項，而排版只有 renderer
+/// 一份。曾經在這一層另外加一組樣板，症狀是選項開著時同一份指令碼有兩行 SET
+/// 與兩個結尾的 GO。
 /// </remarks>
 public static class SqlObjectScript
 {
-    /// <summary>
-    /// 指令碼開頭固定的批次。
-    /// </summary>
-    /// <remarks>
-    /// 兩個 SET 不是裝飾：<c>ALTER PROCEDURE</c> 必須是批次裡的第一個敘述，
-    /// 所以它們後面一定要有 <c>GO</c> 才分得開；而計算欄位、篩選索引與索引檢視
-    /// 對這兩個選項的值有要求，少了它們的 <c>CREATE TABLE</c> 在某些連線設定下
-    /// 會直接失敗。SSMS 自己的「編寫指令碼為」也是照這三行開頭的。
-    /// </remarks>
-    private static readonly string[] HeaderLines =
-    {
-        "SET QUOTED_IDENTIFIER ON",
-        "SET ANSI_NULLS ON",
-        "GO"
-    };
-
-    private const string BatchSeparator = "GO";
-
-    /// <param name="newLine">
-    /// 目的地文件使用的換行字元。不是 <c>\r\n</c>、<c>\n</c>、<c>\r</c> 其中之一時
-    /// 退回作業系統預設值。
+    /// <param name="context">
+    /// 排版選項與目的地文件的換行字元。換行由 <see cref="SqlScriptContext"/> 收斂，
+    /// 這裡不再自己判斷——兩份判斷會在其中一份改了之後給出不同的換行。
     /// </param>
-    public static SqlObjectScriptText BuildEditable(SqlObjectStructure structure, string? newLine)
+    public static SqlObjectScriptText BuildEditable(SqlObjectStructure structure, SqlScriptContext context)
     {
         if (structure is null)
         {
             throw new ArgumentNullException(nameof(structure));
         }
 
-        var lineBreak = ResolveLineBreak(newLine);
+        if (context is null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
 
-        // 換行統一要在算游標位置<b>之前</b>做完：改寫換行會讓後面每一個字元位移，
+        var lineBreak = context.NewLine;
+
+        // 換行統一要在算游標位置之前做完：改寫換行會讓後面每一個字元位移，
         // 在原文上算出來的落點會掉在名稱中間。
-        var body = Rewrite(BuildBody(structure), lineBreak);
-        var builder = new StringBuilder(body.Length + 64);
+        var text = Rewrite(BuildBody(structure, context), lineBreak);
 
-        foreach (var line in HeaderLines)
+        if (!text.EndsWith(lineBreak, StringComparison.Ordinal))
         {
-            builder.Append(line).Append(lineBreak);
+            text += lineBreak;
         }
 
-        var headerLength = builder.Length;
-        builder.Append(body);
+        return new SqlObjectScriptText(text, FindCaret(text));
+    }
 
-        if (!body.EndsWith(lineBreak, StringComparison.Ordinal))
+    /// <summary>游標該停在哪裡。</summary>
+    /// <remarks>
+    /// 開頭的 <c>SET</c> 批次要先跳過再問名稱：<see cref="SqlModuleScript.FindHeaderNameEnd"/>
+    /// 要求第一個詞元就是 <c>CREATE</c> 或 <c>ALTER</c>，前面多兩行設定它就一律回報
+    /// 找不到，而那會讓每一次 F12 都停在整份指令碼的最前面。
+    ///
+    /// 認不出標頭（取不到定義時整段是註解）就停在本體的第一個字元，不是停在結尾
+    /// ——見 <see cref="SqlObjectScriptText.CaretOffset"/>。
+    /// </remarks>
+    private static int FindCaret(string text)
+    {
+        var offset = SkipLeadingSetBatches(text);
+        var nameEnd = SqlModuleScript.FindHeaderNameEnd(text.Substring(offset));
+
+        return nameEnd < 0 ? offset : offset + nameEnd;
+    }
+
+    /// <summary>回傳第一個不是 <c>SET</c> 也不是 <c>GO</c> 的那一行從哪裡開始。</summary>
+    private static int SkipLeadingSetBatches(string text)
+    {
+        var index = 0;
+
+        while (index < text.Length)
         {
-            builder.Append(lineBreak);
+            var lineEnd = text.IndexOf('\n', index);
+            var stop = lineEnd < 0 ? text.Length : lineEnd;
+            var line = text.Substring(index, stop - index).Trim();
+
+            if (line.Length != 0 &&
+                !line.StartsWith("SET ", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(line, "GO", StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+
+            if (lineEnd < 0)
+            {
+                return 0;
+            }
+
+            index = lineEnd + 1;
         }
 
-        builder.Append(BatchSeparator).Append(lineBreak);
-
-        // 認不出標頭（取不到定義時整段是註解）就停在本體的第一個字元，
-        // 不是停在結尾——見 SqlObjectScriptText.CaretOffset。
-        var nameEnd = SqlModuleScript.FindHeaderNameEnd(body);
-        return new SqlObjectScriptText(builder.ToString(), headerLength + Math.Max(nameEnd, 0));
+        return 0;
     }
 
     /// <remarks>
-    /// 三支，差別在「這一類物件寫得出可以執行的指令碼嗎」：
-    ///
-    /// <list type="bullet">
-    /// <item><b>模組</b>——定義原文改寫成 <c>ALTER</c>，讓它可以直接改完就執行。
-    /// 取不到定義時 <see cref="SqlObjectStructure.BuildScript"/> 給的是整段註解，
-    /// <see cref="SqlModuleScript.TryConvertCreateToAlter"/> 認不出開頭的關鍵字而
-    /// 回報失敗，於是原樣保留——那正是要的結果。</item>
-    /// <item><b>資料表與資料表型別</b>——維持 <c>CREATE TABLE</c> 與
-    /// <c>CREATE TYPE ... AS TABLE</c>。這兩者都沒有對應的 <c>ALTER</c> 整體寫法，
-    /// 改下去得到的是一段執行到一半才失敗的指令碼。</item>
-    /// <item><b>同義字與序列</b>——本擴充自己組的 <c>CREATE SYNONYM</c>／
-    /// <c>CREATE SEQUENCE</c>（見 <see cref="SqlCatalogScript"/>）。這兩種沒有
-    /// <c>ALTER</c> 的整體寫法，維持 <c>CREATE</c>。</item>
-    /// <item><b>其餘</b>（認不出來的種類）——整段註解。</item>
-    /// </list>
+    /// 兩支，差別在「這一類物件寫得出可以執行的指令碼嗎」。
     ///
     /// 「哪一類寫得出來」由 <see cref="SqlObjectKinds.HasExecutableScript"/> 一份說了算，
     /// 不在這裡另列種類：這條路徑與浮動預覽的指令碼分頁各留一份判斷的症狀，
     /// 就是同一個物件在兩邊得到不同的東西。
     ///
     /// 「這一次的資料夠不夠」則不必在這裡判。種類過得了關、資料卻不齊時
-    /// （模組沒有定義、資料表沒有欄位），<see cref="SqlObjectStructure.BuildScript"/>
-    /// 給的已經是整段註解，原樣送出去就是對的。那一份註解寫的是缺什麼與為什麼，
-    /// 與這裡「這一類物件本來就組不出來」是兩件事，不能互相取代。
+    /// （模組沒有定義、資料表沒有欄位），renderer 給的已經是整段註解，
+    /// 原樣送出去就是對的。那一份註解寫的是缺什麼與為什麼，與這裡
+    /// 「這一類物件本來就組不出來」是兩件事，不能互相取代。
     /// </remarks>
-    private static string BuildBody(SqlObjectStructure structure)
-    {
-        var kind = structure.Object.Kind;
-
-        if (kind.IsModule())
-        {
-            var script = structure.BuildScript();
-
-            return SqlModuleScript.TryConvertCreateToAlter(script, out var altered) ? altered : script;
-        }
-
-        return kind.HasExecutableScript() ? structure.BuildScript() : BuildUnscriptableBody(structure);
-    }
+    private static string BuildBody(SqlObjectStructure structure, SqlScriptContext context) =>
+        structure.Object.Kind.HasExecutableScript()
+            ? structure.BuildScript(context)
+            : BuildUnscriptableBody(structure);
 
     /// <summary>
     /// 寫不出可執行指令碼的物件：整段註解，並說明為什麼。
@@ -189,13 +189,6 @@ public static class SqlObjectScript
         var trimmed = new string[lines.Length - 1];
         Array.Copy(lines, trimmed, trimmed.Length);
         return trimmed;
-    }
-
-    private static string ResolveLineBreak(string? newLine)
-    {
-        return newLine == "\r\n" || newLine == "\n" || newLine == "\r"
-            ? newLine
-            : Environment.NewLine;
     }
 
     /// <summary>把整份文字的換行統一成 <paramref name="lineBreak"/>。</summary>

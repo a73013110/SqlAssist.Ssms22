@@ -113,3 +113,18 @@ public enum SqlExistenceCheck
     /// <summary>資料表包 <c>IF OBJECT_ID(...) IS NULL</c>，其餘物件包對應的 <c>IF NOT EXISTS</c>。</summary>
     IfNotExists
 }
+
+/// <summary>模組的定義原文以哪一個關鍵字開頭。</summary>
+/// <remarks>
+/// F12 之後接著要做的事幾乎都是「改一下再執行」，所以那條路走
+/// <see cref="Alter"/>；浮動預覽那一份是拿來對照的，維持原文的
+/// <see cref="Create"/>。資料表、資料表型別、同義字與序列不受這個選項影響：
+/// <c>ALTER TABLE</c> 沒有整體寫法，<c>ALTER TYPE</c> 不存在，
+/// 硬改只會讓指令碼執行失敗。
+/// </remarks>
+public enum SqlModuleStatement
+{
+    Create,
+
+    Alter
+}

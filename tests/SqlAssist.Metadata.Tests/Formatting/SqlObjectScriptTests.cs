@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;
@@ -14,8 +15,24 @@ namespace SqlAssist.Metadata.Tests.Formatting;
 /// </remarks>
 public sealed class SqlObjectScriptTests
 {
+    /// <remarks>
+    /// 兩個 SET 各自是一個敘述，因此各自跟著一個 GO——F12 那條路把
+    /// <c>BatchSeparation</c> 開著，而 <c>ALTER PROCEDURE</c> 必須是批次裡的
+    /// 第一個敘述。順序照 SSMS 的「編寫指令碼為」。
+    /// </remarks>
     private const string Header =
-        "SET QUOTED_IDENTIFIER ON\r\nSET ANSI_NULLS ON\r\nGO\r\n";
+        "SET ANSI_NULLS ON\r\nGO\r\nSET QUOTED_IDENTIFIER ON\r\nGO\r\n";
+
+    /// <summary>F12 送進新查詢視窗用的那一組選項。</summary>
+    private static SqlScriptContext Execution(string? newLine) =>
+        new(
+            SqlScriptOptions.Fidelity with
+            {
+                SetOptions = SqlSetOptionOutput.AlwaysOn,
+                BatchSeparation = SqlBatchSeparation.BetweenStatements,
+                ModuleStatement = SqlModuleStatement.Alter
+            },
+            newLine: newLine);
 
     private static SqlObjectStructure Module(
         SqlObjectKind kind,
@@ -43,7 +60,7 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "CREATE PROCEDURE dbo.usp_LoanFinish\r\nAS\r\nSELECT 1;"),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.Equal(
             Header + "ALTER PROCEDURE dbo.usp_LoanFinish\r\nAS\r\nSELECT 1;\r\nGO\r\n",
@@ -55,7 +72,7 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.View, "v_LoanDetail", "CREATE OR ALTER VIEW dbo.v_LoanDetail AS SELECT 1 AS x;"),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.Contains("ALTER VIEW dbo.v_LoanDetail", script.Text);
         Assert.DoesNotContain("CREATE", script.Text);
@@ -68,7 +85,7 @@ public sealed class SqlObjectScriptTests
     [Fact]
     public void 資料表維持CREATE_TABLE()
     {
-        var script = SqlObjectScript.BuildEditable(Table(), "\r\n");
+        var script = SqlObjectScript.BuildEditable(Table(), Execution("\r\n"));
 
         Assert.StartsWith(Header + "CREATE TABLE [dbo].[Lib_Reader]", script.Text);
         Assert.EndsWith("GO\r\n", script.Text);
@@ -83,9 +100,9 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.View, "v_LoanDetail", definition: null),
-            "\r\n");
+            Execution("\r\n"));
 
-        Assert.StartsWith(Header + "-- 取不到 [dbo].[v_LoanDetail] 的定義。", script.Text);
+        Assert.StartsWith("-- 取不到 [dbo].[v_LoanDetail] 的定義。", script.Text);
         Assert.Contains("WITH ENCRYPTION", script.Text);
         Assert.DoesNotContain("CREATE TABLE", script.Text);
     }
@@ -102,9 +119,9 @@ public sealed class SqlObjectScriptTests
         var script = SqlObjectScript.BuildEditable(
             new SqlObjectStructure(
                 new SqlObjectDetail(new SqlObjectInfo(5, "dbo", "Lib_Tag", SqlObjectKind.Table))),
-            "\r\n");
+            Execution("\r\n"));
 
-        Assert.StartsWith(Header + "-- 取不到 [dbo].[Lib_Tag] 的欄位。", script.Text);
+        Assert.StartsWith("-- 取不到 [dbo].[Lib_Tag] 的欄位。", script.Text);
         Assert.Contains("sys.columns", script.Text);
         Assert.DoesNotContain("CREATE TABLE", script.Text);
     }
@@ -125,10 +142,10 @@ public sealed class SqlObjectScriptTests
                 new SqlObjectDetail(
                     new SqlObjectInfo(3, "dbo", "LoanIdList", SqlObjectKind.TableType),
                     new[] { new SqlColumnInfo(1, "LoanId", "int", false) })),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.StartsWith(Header + "CREATE TYPE [dbo].[LoanIdList] AS TABLE", script.Text);
-        Assert.Contains("    [LoanId] int NOT NULL", script.Text);
+        Assert.Contains("[LoanId] int NOT NULL", script.Text);
         Assert.EndsWith("GO\r\n", script.Text);
         Assert.DoesNotContain("CREATE TABLE", script.Text);
 
@@ -148,7 +165,7 @@ public sealed class SqlObjectScriptTests
         var script = SqlObjectScript.BuildEditable(
             new SqlObjectStructure(
                 new SqlObjectDetail(new SqlObjectInfo(5, "dbo", "obj", kind), definition: definition)),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.StartsWith(Header + definition, script.Text);
         Assert.EndsWith("GO\r\n", script.Text);
@@ -166,13 +183,13 @@ public sealed class SqlObjectScriptTests
         var script = SqlObjectScript.BuildEditable(
             new SqlObjectStructure(
                 new SqlObjectDetail(new SqlObjectInfo(4, "dbo", "syn_Loan", SqlObjectKind.Synonym))),
-            "\r\n");
+            Execution("\r\n"));
 
         foreach (var line in script.Text.Split(new[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
         {
             Assert.True(
                 line.StartsWith("--", StringComparison.Ordinal) ||
-                line is "SET QUOTED_IDENTIFIER ON" or "SET ANSI_NULLS ON" or "GO",
+                line is "SET ANSI_NULLS ON" or "SET QUOTED_IDENTIFIER ON" or "GO",
                 $"這一行不是註解也不是樣板：{line}");
         }
     }
@@ -182,7 +199,7 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "CREATE PROCEDURE dbo.usp_LoanFinish\r\n@Id int\r\nAS\r\nSELECT 1;"),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.Equal(
             Header + "ALTER PROCEDURE dbo.usp_LoanFinish",
@@ -198,9 +215,10 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", definition: null),
-            "\r\n");
+            Execution("\r\n"));
 
-        Assert.Equal(Header.Length, script.CaretOffset);
+        // 整段是註解，前面沒有 SET 批次可以跳過，所以停在第一個字元。
+        Assert.Equal(0, script.CaretOffset);
     }
 
     /// <remarks>
@@ -214,10 +232,10 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "CREATE PROCEDURE dbo.usp_LoanFinish\nAS\rSELECT 1;\r\nRETURN;"),
-            newLine);
+            Execution(newLine));
 
-        // 樣板 3 個換行、定義 3 個、定義結尾補 1 個、結尾的 GO 1 個。
-        Assert.Equal(8, script.Text.Split(new[] { newLine }, StringSplitOptions.None).Length - 1);
+        // 兩個 SET 敘述各佔 2 行、定義內 3 個、定義結尾補 1 個、結尾的 GO 1 個。
+        Assert.Equal(9, script.Text.Split(new[] { newLine }, StringSplitOptions.None).Length - 1);
 
         var remainder = script.Text.Replace(newLine, " ");
         Assert.DoesNotContain('\r', remainder);
@@ -229,9 +247,9 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "CREATE PROCEDURE dbo.usp_LoanFinish AS SELECT 1;"),
-            newLine: " ");
+            Execution(" "));
 
-        Assert.StartsWith("SET QUOTED_IDENTIFIER ON" + Environment.NewLine, script.Text);
+        Assert.StartsWith("SET ANSI_NULLS ON" + Environment.NewLine, script.Text);
     }
 
     /// <remarks>已經是 ALTER 的定義不能再被動一次，否則關鍵字會被吃掉。</remarks>
@@ -240,7 +258,7 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "ALTER PROCEDURE dbo.usp_LoanFinish AS SELECT 1;"),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.Equal(
             Header + "ALTER PROCEDURE dbo.usp_LoanFinish AS SELECT 1;\r\nGO\r\n",
@@ -255,7 +273,7 @@ public sealed class SqlObjectScriptTests
     {
         var script = SqlObjectScript.BuildEditable(
             Module(SqlObjectKind.Procedure, "usp_LoanFinish", "CREATE PROCEDURE dbo.usp_LoanFinish AS SELECT 1;\r\n"),
-            "\r\n");
+            Execution("\r\n"));
 
         Assert.EndsWith("SELECT 1;\r\nGO\r\n", script.Text);
     }

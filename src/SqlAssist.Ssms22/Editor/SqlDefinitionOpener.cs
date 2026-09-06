@@ -184,7 +184,7 @@ internal sealed class SqlDefinitionOpener
         // 目的地是 SSMS 剛開的空白查詢視窗，那份文件一行都還沒有——
         // SnapshotNewLine 在空白緩衝區上算出來的就是這個值。先在背景組好，
         // 才不必為了一份幾萬行的定義讓 UI 執行緒等一次字串處理。
-        var script = SqlObjectScript.BuildEditable(structure, Environment.NewLine);
+        var script = SqlObjectScript.BuildEditable(structure, SqlScriptPreferences.CreateForExecution(Environment.NewLine));
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         return Write(script, objectInfo);

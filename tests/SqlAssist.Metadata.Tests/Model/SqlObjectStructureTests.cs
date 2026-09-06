@@ -1,11 +1,26 @@
 using System.Collections.Generic;
+using SqlAssist.Core.Scripting;
+using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;
 
 namespace SqlAssist.Metadata.Tests.Model;
 
+/// <summary>
+/// 結構模型自己答得出來的那幾件事：多列結果怎麼合併、這一次的資料夠不夠，
+/// 以及不夠時要說什麼。
+/// </summary>
+/// <remarks>
+/// 排版不在這裡：那是 <see cref="TSqlScriptRenderer"/> 的事，測試在
+/// <c>Formatting/TSqlScriptRendererTests</c>。兩邊都驗排版的話，改一個選項
+/// 要改兩份期望值，而漏掉的那一份會擋在無關的測試上。
+/// </remarks>
 public sealed class SqlObjectStructureTests
 {
+    /// <summary>換行固定成 <c>\n</c>，期望值才寫得出來。</summary>
+    private static SqlScriptContext Context() =>
+        new(SqlScriptOptions.Fidelity, newLine: "\n");
+
     private static SqlObjectInfo Table() => new(1, "dbo", "Lib_Reader", SqlObjectKind.Table);
 
     private static SqlColumnInfo Column(
@@ -66,56 +81,6 @@ public sealed class SqlObjectStructureTests
     }
 
     [Fact]
-    public void 索引寫成可執行的建立語句()
-    {
-        var index = new SqlIndexInfo(
-            2,
-            "IX_Name",
-            new[]
-            {
-                new SqlIndexColumn("Last"),
-                new SqlIndexColumn("First", isDescending: true),
-                new SqlIndexColumn("Email", isIncluded: true)
-            },
-            isUnique: true,
-            typeDescription: "NONCLUSTERED",
-            filterDefinition: "([IsDeleted]=(0))");
-
-        Assert.Equal(
-            "CREATE UNIQUE NONCLUSTERED INDEX [IX_Name] ON [dbo].[Lib_Reader] " +
-            "([Last] ASC, [First] DESC) INCLUDE ([Email]) WHERE ([IsDeleted]=(0));",
-            index.ToScript("[dbo].[Lib_Reader]"));
-    }
-
-    [Fact]
-    public void 主索引鍵與唯一條件約束寫成ALTER_TABLE()
-    {
-        // 兩者在 sys.indexes 裡與一般索引長得一樣，但用 CREATE INDEX 寫出來不能執行。
-        var primaryKey = new SqlIndexInfo(
-            1,
-            "PK_Lib_Reader",
-            new[] { new SqlIndexColumn("Id") },
-            isPrimaryKey: true,
-            isUnique: true,
-            typeDescription: "CLUSTERED");
-
-        var unique = new SqlIndexInfo(
-            3,
-            "UQ_Lib_Reader_Email",
-            new[] { new SqlIndexColumn("Email") },
-            isUnique: true,
-            isUniqueConstraint: true,
-            typeDescription: "NONCLUSTERED");
-
-        Assert.Equal(
-            "ALTER TABLE [dbo].[Lib_Reader] ADD CONSTRAINT [PK_Lib_Reader] PRIMARY KEY CLUSTERED ([Id] ASC);",
-            primaryKey.ToScript("[dbo].[Lib_Reader]"));
-        Assert.Equal(
-            "ALTER TABLE [dbo].[Lib_Reader] ADD CONSTRAINT [UQ_Lib_Reader_Email] UNIQUE NONCLUSTERED ([Email] ASC);",
-            unique.ToScript("[dbo].[Lib_Reader]"));
-    }
-
-    [Fact]
     public void 外來鍵的多列結果依名稱合併()
     {
         var rows = new List<SqlForeignKeyRow>
@@ -133,6 +98,10 @@ public sealed class SqlObjectStructureTests
         Assert.Equal("CopyId, CopyKind → [dbo].[Copy].Id, Kind", keys[1].DescribeColumns());
     }
 
+    /// <remarks>
+    /// 「有沒有參考動作」只有這一份判斷，清單顯示與指令碼都問它。各自比對字面值的話，
+    /// 其中一份漏掉 <c>NO_ACTION</c> 以外的新動作就會寫出兩種說法。
+    /// </remarks>
     [Fact]
     public void 沒有參考動作時不顯示動作()
     {
@@ -143,72 +112,24 @@ public sealed class SqlObjectStructureTests
             new[] { new SqlForeignKeyColumn("CopyId", "Id") });
 
         Assert.Equal(string.Empty, key.DescribeActions());
-        Assert.Equal(
-            "ALTER TABLE [dbo].[Loans] ADD CONSTRAINT [FK_Loan_Copy] " +
-            "FOREIGN KEY ([CopyId]) REFERENCES [dbo].[Copy] ([Id]);",
-            key.ToScript("[dbo].[Loans]"));
+        Assert.False(key.HasDeleteAction);
+        Assert.False(key.HasUpdateAction);
     }
 
     [Fact]
-    public void 資料表的指令碼含主索引鍵條件約束與其餘索引()
+    public void 有參考動作時兩個問法一致()
     {
-        var structure = new SqlObjectStructure(
-            new SqlObjectDetail(
-                Table(),
-                new[]
-                {
-                    Column(1, "Id", "int", nullable: false, identity: true, primaryKey: true),
-                    Column(2, "Name", "nvarchar(50)", nullable: true, defaultDefinition: "('')")
-                }),
-            new[]
-            {
-                new SqlIndexInfo(1, "PK_Lib_Reader", new[] { new SqlIndexColumn("Id") },
-                    isPrimaryKey: true, isUnique: true, typeDescription: "CLUSTERED"),
-                new SqlIndexInfo(2, "IX_Name", new[] { new SqlIndexColumn("Name") },
-                    typeDescription: "NONCLUSTERED")
-            },
-            new[]
-            {
-                new SqlForeignKeyInfo(
-                    "FK_Lib_Reader_Branch",
-                    "dbo",
-                    "Branch",
-                    new[] { new SqlForeignKeyColumn("BranchId", "Id") })
-            });
+        var key = new SqlForeignKeyInfo(
+            "FK_Loan_Reader",
+            "dbo",
+            "Lib_Reader",
+            new[] { new SqlForeignKeyColumn("UserId", "Id") },
+            deleteAction: "CASCADE",
+            updateAction: "SET_NULL");
 
-        var script = structure.BuildScript();
-
-        Assert.Contains("CREATE TABLE [dbo].[Lib_Reader]", script);
-        Assert.Contains("    [Id] int IDENTITY NOT NULL,", script);
-        Assert.Contains("    [Name] nvarchar(50) NULL DEFAULT (''),", script);
-        Assert.Contains("    CONSTRAINT [PK_Lib_Reader] PRIMARY KEY CLUSTERED ([Id] ASC)", script);
-        Assert.Contains("CREATE NONCLUSTERED INDEX [IX_Name]", script);
-        Assert.Contains("ADD CONSTRAINT [FK_Lib_Reader_Branch] FOREIGN KEY ([BranchId])", script);
-
-        // 主索引鍵已經寫進 CREATE TABLE，不可以再單獨輸出一次。
-        Assert.DoesNotContain("ADD CONSTRAINT [PK_Lib_Reader]", script);
-
-        // 欄位定義不加 -- PK 註解，否則整段貼上去會被註解吃掉後面的逗號。
-        Assert.DoesNotContain("-- PK", script);
-    }
-
-    [Fact]
-    public void 計算欄位寫成AS運算式而不是型別()
-    {
-        var structure = new SqlObjectStructure(
-            new SqlObjectDetail(
-                Table(),
-                new[]
-                {
-                    Column(1, "Id", "int", nullable: false),
-                    Column(2, "FullName", "nvarchar(200)", nullable: true,
-                        computed: true, computedDefinition: "([First]+' '+[Last])")
-                }));
-
-        var script = structure.BuildScript();
-
-        Assert.Contains("    [FullName] AS ([First]+' '+[Last])", script);
-        Assert.DoesNotContain("[FullName] nvarchar(200)", script);
+        Assert.True(key.HasDeleteAction);
+        Assert.True(key.HasUpdateAction);
+        Assert.Contains("ON DELETE CASCADE", key.DescribeActions());
     }
 
     [Fact]
@@ -220,7 +141,9 @@ public sealed class SqlObjectStructureTests
                 parameters: new[] { new SqlParameterInfo(1, "@Id", "int", false) },
                 definition: "CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;"));
 
-        Assert.Equal("CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;", structure.BuildScript());
+        Assert.StartsWith(
+            "CREATE PROCEDURE dbo.usp_GetBook @Id int AS SELECT 1;",
+            structure.BuildScript(Context()));
     }
 
     /// <summary>
@@ -243,7 +166,7 @@ public sealed class SqlObjectStructureTests
                     Column(2, "CopyNo", "varchar(10)", nullable: true)
                 }));
 
-        var script = structure.BuildScript();
+        var script = structure.BuildScript(Context());
 
         Assert.DoesNotContain("CREATE TABLE", script);
         Assert.Contains("取不到 [dbo].[v_Loan] 的定義", script);
@@ -252,11 +175,7 @@ public sealed class SqlObjectStructureTests
         // 查得到的欄位仍然要看得到，只是整段都是註解——這裡沒有一行執行得動。
         Assert.Contains("--     [LoanId] int NOT NULL", script);
 
-        foreach (var line in script.Split('\n'))
-        {
-            var trimmed = line.Trim();
-            Assert.True(trimmed.Length == 0 || trimmed.StartsWith("--"), line);
-        }
+        AssertEveryLineIsComment(script);
     }
 
     /// <summary>
@@ -276,7 +195,7 @@ public sealed class SqlObjectStructureTests
         var structure = new SqlObjectStructure(
             new SqlObjectDetail(new SqlObjectInfo(7, "dbo", "Lib_Tag", kind)));
 
-        var script = structure.BuildScript();
+        var script = structure.BuildScript(Context());
 
         Assert.False(structure.CanBuildExecutableScript);
         Assert.Contains("取不到 [dbo].[Lib_Tag] 的欄位", script);
@@ -284,11 +203,7 @@ public sealed class SqlObjectStructureTests
         Assert.DoesNotContain("CREATE TABLE", script);
         Assert.DoesNotContain("CREATE TYPE", script);
 
-        foreach (var line in script.Split('\n'))
-        {
-            var trimmed = line.Trim();
-            Assert.True(trimmed.Length == 0 || trimmed.StartsWith("--"), line);
-        }
+        AssertEveryLineIsComment(script);
     }
 
     /// <summary>
@@ -323,9 +238,9 @@ public sealed class SqlObjectStructureTests
         Assert.False(missingDefinition.CanBuildExecutableScript);
         Assert.False(synonym.CanBuildExecutableScript);
 
-        Assert.StartsWith("CREATE TABLE", ready.BuildScript());
-        Assert.StartsWith("-- 取不到", missingColumns.BuildScript());
-        Assert.StartsWith("-- 取不到", missingDefinition.BuildScript());
+        Assert.StartsWith("CREATE TABLE", ready.BuildScript(Context()));
+        Assert.StartsWith("-- 取不到", missingColumns.BuildScript(Context()));
+        Assert.StartsWith("-- 取不到", missingDefinition.BuildScript(Context()));
     }
 
     /// <remarks>
@@ -333,8 +248,8 @@ public sealed class SqlObjectStructureTests
     /// <c>Definition</c>；到了這裡與模組拿到定義原文走的是同一條路。
     /// </remarks>
     [Theory]
-    [InlineData(SqlObjectKind.Synonym, "CREATE SYNONYM [dbo].[syn_Loan]\r\nFOR [Lib].[dbo].[Loan];")]
-    [InlineData(SqlObjectKind.Sequence, "CREATE SEQUENCE [dbo].[seq_LoanNo]\r\n    AS int;")]
+    [InlineData(SqlObjectKind.Synonym, "CREATE SYNONYM [dbo].[syn_Loan]\nFOR [Lib].[dbo].[Loan];")]
+    [InlineData(SqlObjectKind.Sequence, "CREATE SEQUENCE [dbo].[seq_LoanNo]\n    AS int;")]
     public void 目錄檢視的定義就是指令碼(SqlObjectKind kind, string definition)
     {
         var structure = new SqlObjectStructure(
@@ -343,7 +258,7 @@ public sealed class SqlObjectStructureTests
                 definition: definition));
 
         Assert.True(structure.CanBuildExecutableScript);
-        Assert.Equal(definition, structure.BuildScript());
+        Assert.StartsWith(definition, structure.BuildScript(Context()));
     }
 
     /// <remarks>
@@ -355,12 +270,13 @@ public sealed class SqlObjectStructureTests
     {
         var script = new SqlObjectStructure(
             new SqlObjectDetail(new SqlObjectInfo(11, "dbo", "syn_Loan", SqlObjectKind.Synonym)))
-            .BuildScript();
+            .BuildScript(Context());
 
         Assert.Contains("取不到 [dbo].[syn_Loan] 的定義", script);
         Assert.Contains("sys.synonyms", script);
         Assert.DoesNotContain("OBJECT_DEFINITION", script);
     }
+
     /// <summary>取不到定義的程序列出參數，理由與檢視列出欄位相同。</summary>
     [Fact]
     public void 取不到定義的程序列出參數()
@@ -370,86 +286,18 @@ public sealed class SqlObjectStructureTests
                 new SqlObjectInfo(4, "dbo", "usp_Renew", SqlObjectKind.Procedure),
                 parameters: new[] { new SqlParameterInfo(1, "@LoanId", "int", false) }));
 
-        var script = structure.BuildScript();
+        var script = structure.BuildScript(Context());
 
         Assert.Contains("取不到 [dbo].[usp_Renew] 的定義", script);
         Assert.Contains("--     @LoanId int", script);
     }
 
-    /// <summary>
-    /// 資料表型別有欄位，落到 CREATE TABLE 那一支就是指令碼在說謊：指令碼分頁的
-    /// 文字文件上明說可以直接執行，照著執行卻會多出一張同名的資料表。
-    /// </summary>
-    /// <remarks>
-    /// 主索引鍵要寫成不具名的內嵌條件約束——CREATE TYPE 的括號裡不收
-    /// <c>CONSTRAINT 名稱</c>，照資料表那一支搬過來會語法錯誤；而其餘索引的
-    /// CREATE INDEX 與 ALTER TABLE 對型別都不合法，整組不能跟在後面。
-    /// </remarks>
-    [Fact]
-    public void 資料表型別寫成CREATE_TYPE()
+    private static void AssertEveryLineIsComment(string script)
     {
-        var structure = new SqlObjectStructure(
-            new SqlObjectDetail(
-                new SqlObjectInfo(5, "dbo", "LoanIdList", SqlObjectKind.TableType),
-                new[]
-                {
-                    Column(1, "LoanId", "int", nullable: false, primaryKey: true),
-                    Column(2, "CopyNo", "varchar(10)", nullable: true)
-                }),
-            new[]
-            {
-                // 型別的條件約束一律命名不得，這個名字是引擎自己配的。
-                new SqlIndexInfo(1, "PK__LoanIdLi__6E1F6D1A", new[] { new SqlIndexColumn("LoanId") },
-                    isPrimaryKey: true, isUnique: true, typeDescription: "CLUSTERED"),
-                new SqlIndexInfo(2, "IX_CopyNo", new[] { new SqlIndexColumn("CopyNo") },
-                    typeDescription: "NONCLUSTERED")
-            });
-
-        var script = structure.BuildScript();
-
-        Assert.Contains("CREATE TYPE [dbo].[LoanIdList] AS TABLE", script);
-        Assert.Contains("    [LoanId] int NOT NULL,", script);
-        Assert.Contains("    [CopyNo] varchar(10) NULL,", script);
-        Assert.Contains("    PRIMARY KEY CLUSTERED ([LoanId] ASC)", script);
-        Assert.DoesNotContain("CREATE TABLE", script);
-        Assert.DoesNotContain("CONSTRAINT", script);
-
-        // 這兩個寫法對型別都不合法；跟在 CREATE TYPE 後面就是一段執行到一半才失敗的指令碼。
-        // 比對整句而不是只比關鍵字：結尾那一行交代用的註解裡就有這兩個字。
-        Assert.DoesNotContain("CREATE NONCLUSTERED INDEX [IX_CopyNo]", script);
-        Assert.DoesNotContain("ALTER TABLE [dbo].[LoanIdList]", script);
-
-        // 省略掉的索引要留一行交代，否則這份文字看起來就像那個型別只有主索引鍵。
-        Assert.Contains("-- 另有 1 個索引沒有寫進來", script);
-    }
-
-    /// <summary>沒有索引的資料表型別不留逗號，也不多那一行交代。</summary>
-    [Fact]
-    public void 沒有索引的資料表型別不留逗號也不加註解()
-    {
-        var structure = new SqlObjectStructure(
-            new SqlObjectDetail(
-                new SqlObjectInfo(6, "dbo", "TagIdList", SqlObjectKind.TableType),
-                new[] { Column(1, "TagId", "int", nullable: false) }));
-
-        var script = structure.BuildScript();
-
-        Assert.Contains(
-            "    [TagId] int NOT NULL" + System.Environment.NewLine + ");",
-            script);
-        Assert.DoesNotContain("另有", script);
-    }
-
-    [Fact]
-    public void 沒有主索引鍵時最後一個欄位不留逗號()
-    {
-        var structure = new SqlObjectStructure(
-            new SqlObjectDetail(
-                Table(),
-                new[] { Column(1, "Id", "int", nullable: false) }));
-
-        Assert.Contains(
-            "    [Id] int NOT NULL" + System.Environment.NewLine + ");",
-            structure.BuildScript());
+        foreach (var line in script.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            Assert.True(trimmed.Length == 0 || trimmed.StartsWith("--"), line);
+        }
     }
 }

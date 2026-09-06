@@ -162,6 +162,15 @@ public sealed class SqlForeignKeyInfo
     }
 
     /// <summary>參考動作的簡短描述；兩者都是 NO_ACTION 時回傳空字串。</summary>
+    /// <summary>刪除時有明確動作（不是 <c>NO_ACTION</c>）。</summary>
+    /// <remarks>
+    /// 判斷只有這一份：指令碼那一端與清單顯示各自比對字面值的話，
+    /// 其中一份漏掉 <c>NO_ACTION</c> 以外的新動作就會寫出兩種說法。
+    /// </remarks>
+    public bool HasDeleteAction => !IsNoAction(DeleteAction);
+
+    public bool HasUpdateAction => !IsNoAction(UpdateAction);
+
     public string DescribeActions()
     {
         var builder = new StringBuilder();
@@ -181,30 +190,6 @@ public sealed class SqlForeignKeyInfo
             builder.Append("ON UPDATE ").Append(UpdateAction.Replace('_', ' '));
         }
 
-        return builder.ToString();
-    }
-
-    /// <summary>組出可以直接執行的 ALTER TABLE 語句。</summary>
-    public string ToScript(string qualifiedObjectName)
-    {
-        var builder = new StringBuilder();
-        builder.Append("ALTER TABLE ").Append(qualifiedObjectName)
-            .Append(" ADD CONSTRAINT ").Append(SqlIdentifier.Quote(Name))
-            .Append(" FOREIGN KEY (").Append(BuildColumnList(referenced: false)).Append(')')
-            .Append(" REFERENCES ").Append(ReferencedQualifiedName)
-            .Append(" (").Append(BuildColumnList(referenced: true)).Append(')');
-
-        if (!IsNoAction(DeleteAction))
-        {
-            builder.Append(" ON DELETE ").Append(DeleteAction.Replace('_', ' '));
-        }
-
-        if (!IsNoAction(UpdateAction))
-        {
-            builder.Append(" ON UPDATE ").Append(UpdateAction.Replace('_', ' '));
-        }
-
-        builder.Append(';');
         return builder.ToString();
     }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Querying;
 
 namespace SqlAssist.Metadata.Model;
@@ -224,87 +223,6 @@ public sealed class SqlIndexInfo
         }
 
         return IsUnique ? $"UNIQUE {TypeDescription}" : TypeDescription;
-    }
-
-    /// <summary>
-    /// 組出可以直接執行的建立語句。
-    /// </summary>
-    /// <remarks>
-    /// 主索引鍵與唯一條件約束寫成 ALTER TABLE，其餘寫成 CREATE INDEX——
-    /// 這兩者在 sys.indexes 裡長得一樣，但用錯寫法產生的指令碼不能執行。
-    /// 主索引鍵在 <see cref="SqlObjectStructure"/> 裡是寫進 CREATE TABLE 的，
-    /// 這裡的寫法供單獨複製某個索引時使用。
-    /// </remarks>
-    public string ToScript(string qualifiedObjectName)
-    {
-        var builder = new StringBuilder();
-        var keys = BuildColumnList(included: false);
-
-        if (IsPrimaryKey || IsUniqueConstraint)
-        {
-            builder.Append("ALTER TABLE ").Append(qualifiedObjectName)
-                .Append(" ADD CONSTRAINT ").Append(SqlIdentifier.Quote(Name))
-                .Append(IsPrimaryKey ? " PRIMARY KEY " : " UNIQUE ")
-                .Append(TypeDescription)
-                .Append(" (").Append(keys).Append(");");
-            return builder.ToString();
-        }
-
-        builder.Append("CREATE ");
-
-        if (IsUnique)
-        {
-            builder.Append("UNIQUE ");
-        }
-
-        builder.Append(TypeDescription).Append(" INDEX ").Append(SqlIdentifier.Quote(Name))
-            .Append(" ON ").Append(qualifiedObjectName)
-            .Append(" (").Append(keys).Append(')');
-
-        var included = BuildColumnList(included: true);
-
-        if (included.Length > 0)
-        {
-            builder.Append(" INCLUDE (").Append(included).Append(')');
-        }
-
-        if (!string.IsNullOrWhiteSpace(FilterDefinition))
-        {
-            builder.Append(" WHERE ").Append(FilterDefinition);
-        }
-
-        builder.Append(';');
-        return builder.ToString();
-    }
-
-    /// <summary>索引鍵欄位的括號內容，供 CREATE TABLE 的主索引鍵條件約束使用。</summary>
-    public string BuildKeyColumnList() => BuildColumnList(included: false);
-
-    private string BuildColumnList(bool included)
-    {
-        var builder = new StringBuilder();
-
-        foreach (var column in Columns)
-        {
-            if (column.IsIncluded != included)
-            {
-                continue;
-            }
-
-            if (builder.Length > 0)
-            {
-                builder.Append(", ");
-            }
-
-            builder.Append(SqlIdentifier.Quote(column.Name));
-
-            if (!included)
-            {
-                builder.Append(column.IsDescending ? " DESC" : " ASC");
-            }
-        }
-
-        return builder.ToString();
     }
 
     private static SqlIndexInfo Create(SqlIndexRow row, List<SqlIndexColumn> columns)
