@@ -74,4 +74,4 @@ SqlAssist 是安裝於 **SQL Server Management Studio 22** 的 VSIX，不是另�
 ## 深入了解
 
 [開始使用](docs/getting-started.md)說明安裝與更新；[文件路由](docs/index.md#主題)涵蓋所有功能、
-設定與開發主題。貢獻者請先讀 [CLAUDE.md](CLAUDE.md)。專案採用 [MIT License](LICENSE)。
+設定與開發主題。貢獻者請先讀 [CLAUDE.md](CLAUDE.md)。專案採用 [Apache License 2.0](LICENSE)。

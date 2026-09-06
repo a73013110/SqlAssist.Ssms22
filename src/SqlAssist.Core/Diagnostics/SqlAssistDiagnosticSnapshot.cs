@@ -54,7 +54,7 @@ public sealed class SqlAssistDiagnosticSnapshot
 
     public string ContactEmail { get; init; } = "a73013110@gmail.com";
 
-    public string License { get; init; } = "MIT";
+    public string License { get; init; } = "Apache-2.0";
 
     public string RepositoryUrl { get; init; } = "https://github.com/a73013110/SqlAssist.Ssms22";
 

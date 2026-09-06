@@ -75,4 +75,4 @@ Requires **Windows x64** and **SSMS 22.9.x**.
 
 [Getting Started](docs/getting-started.md) covers setup and updates; [documentation](docs/index.md#主題)
 covers features, settings, and development. Contributors begin with [CLAUDE.md](CLAUDE.md).
-[MIT License](LICENSE).
+[Apache License 2.0](LICENSE).
