@@ -48,8 +48,8 @@ public sealed class SqlLargeObjectInIncludeRule : ISqlSchemaRule
 /// SCHEMA-002：索引鍵是另一個索引的前綴。
 /// </summary>
 /// <remarks>
-/// 前綴重疊的索引多半可以直接刪掉：查詢用得到 <c>(A)</c> 的時候，
-/// <c>(A, B)</c> 一樣用得到。留著的代價是每一次寫入都要多維護一份。
+/// 只提示候選重疊，不把鍵前綴相同當成可刪除的證據：篩選範圍、排序與
+/// INCLUDE 都可能是保留索引的理由，真正取捨仍須看查詢計畫與工作負載。
 ///
 /// 主索引鍵與唯一索引<b>不</b>報：它們同時是條件約束，刪不掉也不該刪。
 /// </remarks>
@@ -61,24 +61,40 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
-        var keys = new List<(SqlIndexInfo Index, List<string> Columns)>();
+        var keys = new List<IndexFacts>();
 
         foreach (var index in structure.Indexes)
         {
-            keys.Add((index, SqlSchemaColumnFacts.KeyColumnNames(index)));
+            if (!index.Options.IsDisabled && index.TypeDescription.Equals("NONCLUSTERED", StringComparison.OrdinalIgnoreCase))
+            {
+                keys.Add(new IndexFacts(index));
+            }
         }
 
-        foreach (var (index, columns) in keys)
+        foreach (var candidate in keys)
         {
+            var index = candidate.Index;
+            var columns = candidate.Keys;
             // 主索引鍵與唯一索引同時是條件約束，刪不掉也不該刪。
             if (index.IsPrimaryKey || index.IsUnique || index.IsUniqueConstraint || columns.Count == 0)
             {
                 continue;
             }
 
-            foreach (var (other, otherColumns) in keys)
+            foreach (var other in keys)
             {
-                if (ReferenceEquals(index, other) || !IsPrefix(columns, otherColumns))
+                if (ReferenceEquals(index, other.Index) || !IsPrefix(columns, other.Keys) ||
+                    !string.Equals(index.FilterDefinition ?? string.Empty, other.Index.FilterDefinition ?? string.Empty, StringComparison.Ordinal) ||
+                    !candidate.Available.IsSubsetOf(other.Available))
+                {
+                    continue;
+                }
+
+                // 完全相同的兩個普通索引只報一個，避免兩則建議互相把對方當成可保留者。
+                if (!other.Index.IsUnique && !other.Index.IsPrimaryKey && !other.Index.IsUniqueConstraint &&
+                    columns.Count == other.Keys.Count && candidate.Available.SetEquals(other.Available) &&
+                    (index.IndexId < other.Index.IndexId ||
+                        (index.IndexId == other.Index.IndexId && string.CompareOrdinal(index.Name, other.Index.Name) <= 0)))
                 {
                     continue;
                 }
@@ -86,7 +102,8 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
                 yield return new SqlSchemaFinding(
                     Id,
                     SqlSchemaSeverity.Warning,
-                    $"索引鍵 ({string.Join(", ", columns)}) 是 {other.Name} 的前綴，多半可以刪掉。",
+                    $"索引鍵 ({index.DescribeKeyColumns()}) 與 {other.Index.Name} 重疊；" +
+                    "篩選、排序與涵蓋欄位相容，可評估整併，仍須先驗證查詢計畫與工作負載。",
                     index.Name);
 
                 break;
@@ -95,9 +112,9 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
     }
 
     /// <remarks>
-    /// 完全相同也算前綴——兩個索引鍵一模一樣的索引是最該刪的那一種。
+    /// 完全相同也算前綴；是否值得整併仍由篩選與涵蓋欄位的檢查決定。
     /// </remarks>
-    private static bool IsPrefix(List<string> candidate, List<string> longer)
+    private static bool IsPrefix(List<SqlIndexColumn> candidate, List<SqlIndexColumn> longer)
     {
         if (candidate.Count > longer.Count)
         {
@@ -106,13 +123,34 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
 
         for (var index = 0; index < candidate.Count; index++)
         {
-            if (!string.Equals(candidate[index], longer[index], StringComparison.OrdinalIgnoreCase))
+            if (candidate[index].IsDescending != longer[index].IsDescending ||
+                !string.Equals(candidate[index].Name, longer[index].Name, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    private sealed class IndexFacts
+    {
+        public IndexFacts(SqlIndexInfo index)
+        {
+            Index = index;
+            foreach (var column in index.Columns)
+            {
+                Available.Add(column.Name);
+                if (!column.IsIncluded)
+                {
+                    Keys.Add(column);
+                }
+            }
+        }
+
+        public SqlIndexInfo Index { get; }
+        public List<SqlIndexColumn> Keys { get; } = new();
+        public HashSet<string> Available { get; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }
 
@@ -141,7 +179,8 @@ public sealed class SqlHeapTableRule : ISqlSchemaRule
 
         foreach (var index in structure.Indexes)
         {
-            if (index.TypeDescription.Equals(Clustered, StringComparison.OrdinalIgnoreCase))
+            if (index.TypeDescription.Equals(Clustered, StringComparison.OrdinalIgnoreCase) ||
+                index.TypeDescription.Equals("CLUSTERED COLUMNSTORE", StringComparison.OrdinalIgnoreCase))
             {
                 yield break;
             }

@@ -95,6 +95,12 @@ public static class SqlObjectScript
 
         while (index < text.Length)
         {
+            // 檔頭與健檢註解可能排在 SET 之前；沿用共用的註解掃描，不另造一份詞法器。
+            index = SqlTrivia.Skip(text, index, text.Length);
+            if (index == text.Length)
+            {
+                return 0;
+            }
             var lineEnd = text.IndexOf('\n', index);
             var stop = lineEnd < 0 ? text.Length : lineEnd;
             var line = text.Substring(index, stop - index).Trim();
@@ -155,9 +161,8 @@ public static class SqlObjectScript
     private static string BuildUnscriptableBody(SqlObjectStructure structure)
     {
         var builder = new StringBuilder();
-        builder.Append("-- 無法為 ").Append(structure.Object.QualifiedName)
-            .Append('（').Append(structure.Object.Kind.ToDisplayName())
-            .AppendLine("）產生可以執行的指令碼。");
+        SqlScriptComment.AppendLine(builder, "無法為 " + structure.Object.QualifiedName +
+            "（" + structure.Object.Kind.ToDisplayName() + "）產生可以執行的指令碼。", Environment.NewLine);
         builder.AppendLine("-- SqlAssist 認不得這個物件的種類，因此不知道它的定義該長什麼樣。");
         builder.AppendLine("-- 以下是查得到的部分：");
         builder.AppendLine();

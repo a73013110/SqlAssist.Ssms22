@@ -98,7 +98,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     {
         if (value is { Length: > 0 })
         {
-            builder.Append("-- ").Append(label).Append('：').Append(value).Append(context.NewLine);
+            SqlScriptComment.AppendLine(builder, label + "：" + value, context.NewLine);
         }
     }
 
@@ -132,7 +132,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         foreach (var finding in findings)
         {
-            builder.Append("-- ").Append(finding.Describe()).Append(context.NewLine);
+            SqlScriptComment.AppendLine(builder, finding.Describe(), context.NewLine);
         }
 
         statements.Add(new Statement(builder.ToString().TrimEnd(), batched: false));
@@ -289,10 +289,11 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         {
             if (!trigger.CanScript)
             {
-                statements.Add(new Statement(
-                    "-- 取不到觸發程序 " + Identifier(trigger.Name, options) +
-                    " 的定義：它是 WITH ENCRYPTION 建立的，或這個登入沒有它的 VIEW DEFINITION 權限。",
-                    batched: false));
+                var unavailable = new StringBuilder();
+                SqlScriptComment.AppendLine(unavailable,
+                    "取不到觸發程序 " + Identifier(trigger.Name, options) +
+                    " 的定義：它是 WITH ENCRYPTION 建立的，或這個登入沒有它的 VIEW DEFINITION 權限。", context.NewLine);
+                statements.Add(new Statement(unavailable.ToString(), batched: false));
                 continue;
             }
 
@@ -326,7 +327,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         string tableName,
         SqlScriptContext context)
     {
-        var options = context.Options;
+        var options = CheckOptions(check, context.Options);
         var builder = new StringBuilder();
         builder.Append("ALTER TABLE ").Append(tableName).Append(' ');
 
@@ -350,7 +351,8 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         statements.Add(new Statement(
             GuardsEnabled(options)
-                ? Guard(statement, ConstraintMissing(check.Name, tableName, options), context)
+                ? Guard(statement, RetainsConstraintName(check.Name, check.IsSystemNamed, options)
+                    ? ConstraintMissing(check.Name, tableName, options) : null, context)
                 : statement,
             batched: true));
 
@@ -374,13 +376,26 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         SqlObjectStructure structure,
         SqlScriptContext context)
     {
-        if (!context.Options.IncludeExtendedProperties)
+        if (!context.Options.IncludeExtendedProperties || structure.ExtendedProperties.Count == 0)
         {
             return;
         }
 
+        var targets = ExtendedPropertyTargets(structure, context.Options);
         foreach (var property in structure.ExtendedProperties)
         {
+            if (property.Level != SqlExtendedPropertyLevel.Table &&
+                (property.TargetName is null || !targets.TryGetValue(property.Level, out var names) ||
+                    !names.Contains(property.TargetName)))
+            {
+                var skipped = new StringBuilder();
+                SqlScriptComment.AppendLine(skipped,
+                    "未輸出擴充屬性 " + property.Name + "：目標 " + property.TargetName +
+                    " 未包含於本次指令碼，或其名稱已省略。", context.NewLine);
+                statements.Add(new Statement(skipped.ToString(), batched: false));
+                continue;
+            }
+
             statements.Add(new Statement(
                 SqlExtendedPropertyScript.Build(
                     property,
@@ -390,6 +405,57 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                     context.NewLine),
                 batched: true));
         }
+    }
+
+    private static Dictionary<SqlExtendedPropertyLevel, HashSet<string>> ExtendedPropertyTargets(
+        SqlObjectStructure structure, SqlScriptOptions options)
+    {
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var indexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var constraints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var column in structure.Columns)
+        {
+            columns.Add(column.Name);
+            if (!string.IsNullOrWhiteSpace(column.DefaultDefinition) &&
+                RetainsConstraintName(column.Script.DefaultConstraintName, column.Script.DefaultIsSystemNamed, options))
+            {
+                constraints.Add(column.Script.DefaultConstraintName!);
+            }
+        }
+        foreach (var index in structure.Indexes)
+        {
+            if ((!index.IsPrimaryKey && !options.IncludeIndexes) ||
+                ((index.IsPrimaryKey || index.IsUniqueConstraint) && !RetainsConstraintName(index.Name, false, options)))
+            {
+                continue;
+            }
+            indexes.Add(index.Name);
+            if (index.IsPrimaryKey || index.IsUniqueConstraint)
+            {
+                constraints.Add(index.Name);
+            }
+        }
+        foreach (var check in structure.CheckConstraints)
+        {
+            if (options.IncludeCheckConstraints && RetainsConstraintName(check.Name, check.IsSystemNamed, CheckOptions(check, options)))
+            {
+                constraints.Add(check.Name);
+            }
+        }
+        foreach (var key in structure.ForeignKeys)
+        {
+            if (options.IncludeForeignKeys && RetainsConstraintName(key.Name, false, options))
+            {
+                constraints.Add(key.Name);
+            }
+        }
+        // 只建一次輸出目標集合，避免每筆擴充屬性重掃全部欄位與索引。
+        return new Dictionary<SqlExtendedPropertyLevel, HashSet<string>>
+        {
+            [SqlExtendedPropertyLevel.Column] = columns,
+            [SqlExtendedPropertyLevel.Index] = indexes,
+            [SqlExtendedPropertyLevel.Constraint] = constraints
+        };
     }
 
     /// <summary>模組、同義字與序列：定義原文就是它的指令碼。</summary>
@@ -415,7 +481,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             SqlModuleScript.TryConvertCreateToAlter(definition, out var altered)
                 ? altered
                 : definition,
-            batched: true));
+            batched: true, requiresBatch: structure.Object.Kind.IsModule()));
     }
 
     /// <remarks>
@@ -861,18 +927,22 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         bool systemNamed,
         SqlScriptOptions options)
     {
-        if (string.IsNullOrEmpty(name) || options.ConstraintNaming == SqlConstraintNaming.Never)
-        {
-            return;
-        }
-
-        if (options.ConstraintNaming == SqlConstraintNaming.OnlyUserNamed && systemNamed)
+        if (!RetainsConstraintName(name, systemNamed, options))
         {
             return;
         }
 
         builder.Append("CONSTRAINT ").Append(Identifier(name!, options)).Append(' ');
     }
+
+    private static bool RetainsConstraintName(string? name, bool systemNamed, SqlScriptOptions options) =>
+        !string.IsNullOrEmpty(name) && options.ConstraintNaming != SqlConstraintNaming.Never &&
+        (options.ConstraintNaming != SqlConstraintNaming.OnlyUserNamed || !systemNamed);
+
+    // 後續 NOCHECK 必須指到同一個約束；可執行性優先於省略系統名稱的風格。
+    private static SqlScriptOptions CheckOptions(SqlCheckConstraint check, SqlScriptOptions options) =>
+        check.IsDisabled && options.ConstraintNaming != SqlConstraintNaming.Always
+            ? options with { ConstraintNaming = SqlConstraintNaming.Always } : options;
 
     private static string BuildConstraint(SqlIndexInfo index, string tableName, SqlScriptContext context)
     {
@@ -907,21 +977,10 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             return null;
         }
 
-        var schema = SchemaPrefixOf(tableName);
-
-        return "NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(" +
-               SqlValueLiteral.Text(schema + Quote(name, options)) + "))";
+        // 不拆已跳脫的名稱：[dbo].[Loan.Detail] 裡的最後一個點不是結構描述分隔符。
+        return "NOT EXISTS (SELECT 1 FROM sys.objects WHERE parent_object_id = OBJECT_ID(" +
+               SqlValueLiteral.Text(tableName) + ") AND name = " + SqlValueLiteral.Text(name) + ")";
     }
-
-    /// <summary>從已經限定好的資料表名稱取出結構描述那一段（含結尾的點）。</summary>
-    private static string SchemaPrefixOf(string qualifiedTableName)
-    {
-        var separator = qualifiedTableName.LastIndexOf('.');
-
-        return separator < 0 ? string.Empty : qualifiedTableName.Substring(0, separator + 1);
-    }
-
-    private static string Quote(string name, SqlScriptOptions options) => Identifier(name, options);
 
     private static string BuildCreateIndex(SqlIndexInfo index, string tableName, SqlScriptContext context)
     {
@@ -1128,9 +1187,15 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     {
         var separated = context.Options.BatchSeparation == SqlBatchSeparation.BetweenStatements;
         var builder = new StringBuilder();
+        var batchHasStatement = false;
 
         foreach (var statement in statements)
         {
+            // 模組必須位於新批次開頭；只在它後面加 GO 無法隔開前面的 CREATE TABLE／SET。
+            if (statement.RequiresBatch && batchHasStatement)
+            {
+                builder.Append(context.Options.BatchSeparator).Append(context.NewLine);
+            }
             builder.Append(statement.Text);
 
             if (!statement.Text.EndsWith(context.NewLine, StringComparison.Ordinal))
@@ -1141,10 +1206,12 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             if ((separated && statement.Batched) || statement.RequiresBatch)
             {
                 builder.Append(context.Options.BatchSeparator).Append(context.NewLine);
+                batchHasStatement = false;
             }
             else
             {
                 builder.Append(context.NewLine);
+                batchHasStatement |= statement.Batched;
             }
         }
 

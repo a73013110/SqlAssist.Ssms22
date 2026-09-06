@@ -83,6 +83,12 @@ public sealed class SqlSchemaAnalyzer
             throw new ArgumentNullException(nameof(structure));
         }
 
+        // 第四層失敗時「沒有索引／約束」不是事實；獨立呼叫分析器也不能產生假警告。
+        if (structure.IsStructureUnavailable || structure.IsStructurePending)
+        {
+            return Array.Empty<SqlSchemaFinding>();
+        }
+
         var findings = new List<SqlSchemaFinding>();
 
         foreach (var rule in _rules)

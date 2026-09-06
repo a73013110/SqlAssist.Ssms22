@@ -30,7 +30,8 @@ public sealed class SqlObjectStructure
         IReadOnlyList<SqlCheckConstraint>? checkConstraints = null,
         SqlTableStorage? storage = null,
         IReadOnlyList<SqlTriggerInfo>? triggers = null,
-        bool structureUnavailable = false)
+        bool structureUnavailable = false,
+        bool structurePending = false)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
@@ -40,6 +41,7 @@ public sealed class SqlObjectStructure
         Storage = storage ?? SqlTableStorage.None;
         Triggers = triggers ?? NoTriggers;
         IsStructureUnavailable = structureUnavailable;
+        IsStructurePending = structurePending;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -84,6 +86,9 @@ public sealed class SqlObjectStructure
     /// 症狀是一張有五個索引的資料表被重建成沒有索引的資料表，而畫面上看不出來。
     /// </remarks>
     public bool IsStructureUnavailable { get; }
+
+    /// <summary>只有第二層、第四層仍在載入；不能讓「複製全部」把部分結構當成完整 DDL。</summary>
+    public bool IsStructurePending { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey
@@ -199,6 +204,20 @@ public sealed class SqlObjectStructure
                     "逾時，或這一版伺服器沒有查詢用到的某個目錄檢視欄位。伺服器說的那句話",
                     "在「詳細記錄」打開時寫在診斷紀錄檔裡。");
                 return true;
+
+            case ScriptAvailability.MissingExpressions:
+                script = BuildUnavailableScript(
+                    "計算資料行、預設值或 CHECK 運算式",
+                    "已查到欄位或條件約束，但無法取得完整運算式；可能缺少 VIEW DEFINITION 權限，",
+                    "或物件在讀取期間已被修改。保留欄位摘要，不產生不完整的 CREATE／ALTER。");
+                return true;
+
+            case ScriptAvailability.StructurePending:
+                script = BuildUnavailableScript(
+                    "完整結構",
+                    "索引與條件約束仍在載入中，請等載入完成後再複製指令碼；",
+                    "目前只顯示已取得的欄位，不將部分資料重建成可執行 SQL。");
+                return true;
         }
 
         script = string.Empty;
@@ -233,9 +252,33 @@ public sealed class SqlObjectStructure
 
         // 欄位齊了也不夠：這一族的指令碼是從第四層重建的，少了索引與條件約束
         // 的 CREATE TABLE 一樣貼得上去，建出來的卻是另一張表。
-        return IsStructureUnavailable
-            ? ScriptAvailability.IncompleteStructure
-            : ScriptAvailability.Ready;
+        if (IsStructurePending)
+        {
+            return ScriptAvailability.StructurePending;
+        }
+
+        if (IsStructureUnavailable)
+        {
+            return ScriptAvailability.IncompleteStructure;
+        }
+
+        foreach (var column in Columns)
+        {
+            if ((column.IsComputed && string.IsNullOrWhiteSpace(column.ComputedDefinition)) ||
+                (!string.IsNullOrEmpty(column.Script.DefaultConstraintName) && string.IsNullOrWhiteSpace(column.DefaultDefinition)))
+            {
+                return ScriptAvailability.MissingExpressions;
+            }
+        }
+        foreach (var check in CheckConstraints)
+        {
+            if (string.IsNullOrWhiteSpace(check.Definition))
+            {
+                return ScriptAvailability.MissingExpressions;
+            }
+        }
+
+        return ScriptAvailability.Ready;
     }
 
     /// <summary>指令碼寫不寫得出來，以及寫不出來時缺的是什麼。</summary>
@@ -245,7 +288,9 @@ public sealed class SqlObjectStructure
         UnscriptableKind,
         MissingDefinition,
         MissingColumns,
-        IncompleteStructure
+        IncompleteStructure,
+        MissingExpressions,
+        StructurePending
     }
 
     /// <summary>
@@ -266,12 +311,11 @@ public sealed class SqlObjectStructure
     private string BuildUnavailableScript(string missing, params string[] reasons)
     {
         var builder = new StringBuilder();
-        builder.Append("-- 取不到 ").Append(Object.QualifiedName)
-            .Append(" 的").Append(missing).AppendLine("。");
+        SqlScriptComment.AppendLine(builder, "取不到 " + Object.QualifiedName + " 的" + missing + "。", Environment.NewLine);
 
         foreach (var reason in reasons)
         {
-            builder.Append("-- ").AppendLine(reason);
+            SqlScriptComment.AppendLine(builder, reason, Environment.NewLine);
         }
 
         if (Columns.Count > 0)
@@ -282,7 +326,7 @@ public sealed class SqlObjectStructure
 
             foreach (var column in Columns)
             {
-                builder.Append("--     ").AppendLine(column.ToScriptLine());
+                SqlScriptComment.AppendLine(builder, "    " + column.ToScriptLine(), Environment.NewLine);
             }
         }
 
@@ -293,7 +337,7 @@ public sealed class SqlObjectStructure
 
             foreach (var parameter in Parameters)
             {
-                builder.Append("--     ").AppendLine(parameter.ToScriptLine());
+                SqlScriptComment.AppendLine(builder, "    " + parameter.ToScriptLine(), Environment.NewLine);
             }
         }
 

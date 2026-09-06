@@ -91,7 +91,8 @@ public static class SqlScriptOptionsSerializer
         }
 
         var style = ParseEnum(root[StyleMember].AsString(), SqlScriptStyle.Fidelity);
-        var result = Copy(SqlScriptOptions.ForStyle(style), style);
+        // record 的 with 已建立獨立副本，不必再反射複製每個屬性，也不會污染共用預設值。
+        var result = SqlScriptOptions.ForStyle(style) with { };
         var overrides = root[OverridesMember];
 
         foreach (var property in Properties)
@@ -107,23 +108,6 @@ public static class SqlScriptOptionsSerializer
             {
                 property.SetValue(result, value);
             }
-        }
-
-        return result;
-    }
-
-    /// <remarks>
-    /// 逐項複製而不是 <c>with</c>：反射要寫進去的是一個新的實例，
-    /// 直接對 <see cref="SqlScriptOptions.Fidelity"/> 那幾個共用的靜態值
-    /// <c>SetValue</c> 會改掉所有人的預設值。
-    /// </remarks>
-    private static SqlScriptOptions Copy(SqlScriptOptions source, SqlScriptStyle style)
-    {
-        var result = new SqlScriptOptions { Style = style };
-
-        foreach (var property in Properties)
-        {
-            property.SetValue(result, property.GetValue(source));
         }
 
         return result;

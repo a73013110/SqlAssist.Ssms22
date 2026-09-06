@@ -746,7 +746,7 @@ public sealed class TSqlScriptRendererTests
 
         Assert.Contains("IF OBJECT_ID(N'[dbo].[Loan]', 'U') IS NULL\nCREATE TABLE", script);
         Assert.Contains(
-            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PK_Loan]'))\n" +
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE parent_object_id = OBJECT_ID(N'[dbo].[Loan]') AND name = N'PK_Loan')\n" +
             "ALTER TABLE [dbo].[Loan] ADD CONSTRAINT [PK_Loan]",
             script);
         Assert.Contains(
@@ -754,7 +754,7 @@ public sealed class TSqlScriptRendererTests
             "AND name = N'IX_Loan_2')\nCREATE UNIQUE NONCLUSTERED INDEX",
             script);
         Assert.Contains(
-            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_Loan_RenewCount]'))",
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE parent_object_id = OBJECT_ID(N'[dbo].[Loan]') AND name = N'CK_Loan_RenewCount')",
             script);
     }
 
@@ -815,6 +815,7 @@ public sealed class TSqlScriptRendererTests
             SqlScriptOptions.Minimal with { IncludeTriggers = true });
 
         Assert.Contains("CREATE TRIGGER dbo.TR_Loan_Audit", script);
+        Assert.Contains("\nGO\nCREATE TRIGGER dbo.TR_Loan_Audit", script);
         Assert.Contains("AS SELECT 1;\nGO\n", script);
     }
 

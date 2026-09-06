@@ -801,7 +801,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     /// </remarks>
     public void PopulatePartial(SqlObjectDetail detail)
     {
-        Populate(new SqlObjectStructure(detail), partial: true);
+        Populate(new SqlObjectStructure(detail, structurePending: true), partial: true);
     }
 
     public void Populate(SqlObjectStructure structure)
@@ -1020,7 +1020,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     /// <summary>複製整份指令碼，與目前在哪個分頁無關。</summary>
     public void CopyAll()
     {
-        Copy(GetScript(), "已複製完整指令碼到剪貼簿。");
+        Copy(GetScript(), _structure is { CanBuildExecutableScript: true }
+            ? "已複製完整指令碼到剪貼簿。"
+            : "已複製結構說明；完整可執行指令碼目前不可用。");
     }
 
     private void CopyGridAll()
