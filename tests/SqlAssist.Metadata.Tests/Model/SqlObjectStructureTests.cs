@@ -292,6 +292,72 @@ public sealed class SqlObjectStructureTests
         Assert.Contains("--     @LoanId int", script);
     }
 
+    /// <summary>
+    /// 第四層查詢失敗與「查詢成功卻沒有索引」必須分得開。
+    /// </summary>
+    /// <remarks>
+    /// 兩者在模型上長得一模一樣——都是空的索引清單——但答案相反：後者的答案就是
+    /// 沒有索引，前者是還沒問到。混成同一件事的症狀是一張有五個索引、兩個外來鍵
+    /// 與一個觸發程序的資料表被重建成一張什麼都沒有的資料表，而它照樣貼得上去。
+    /// 這與少了欄位的 <c>CREATE TABLE</c> 是同一條理由。
+    /// </remarks>
+    [Fact]
+    public void 第四層失敗時整段註解()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                Table(),
+                new[] { Column(1, "ReaderId", "int", nullable: false) }),
+            structureUnavailable: true);
+
+        var script = structure.BuildScript(Context());
+
+        Assert.True(structure.IsStructureUnavailable);
+        Assert.False(structure.CanBuildExecutableScript);
+        Assert.Contains("取不到 [dbo].[Lib_Reader] 的索引與條件約束", script);
+        Assert.DoesNotContain("CREATE TABLE", script);
+
+        // 查得到的部分照樣列出來：那是這一輪唯一真的問到的東西。
+        Assert.Contains("ReaderId", script);
+
+        AssertEveryLineIsComment(script);
+    }
+
+    /// <remarks>
+    /// 空的索引清單本身不是失敗。沒有這一條的話，把「不完整」判成預設值就沒有
+    /// 任何徵兆——每一張沒有索引的資料表都會變成一段註解。
+    /// </remarks>
+    [Fact]
+    public void 沒有索引的資料表照樣寫得出指令碼()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                Table(),
+                new[] { Column(1, "ReaderId", "int", nullable: false) }));
+
+        Assert.False(structure.IsStructureUnavailable);
+        Assert.True(structure.CanBuildExecutableScript);
+        Assert.StartsWith("CREATE TABLE", structure.BuildScript(Context()));
+    }
+
+    /// <remarks>
+    /// 檢視與模組的指令碼是定義原文，第四層在那一族身上只帶擴充屬性。
+    /// 讓它們也掉進「資料不齊」那一支，等於一條查詢失敗就連定義都不給了，
+    /// 而那份文字明明已經在手上。
+    /// </remarks>
+    [Fact]
+    public void 第四層失敗不影響以定義為指令碼的那一族()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(8, "dbo", "v_Loan", SqlObjectKind.View),
+                new[] { Column(1, "LoanId", "int", nullable: false) },
+                definition: "CREATE VIEW dbo.v_Loan AS SELECT 1 AS LoanId;"),
+            structureUnavailable: true);
+
+        Assert.True(structure.CanBuildExecutableScript);
+    }
+
     private static void AssertEveryLineIsComment(string script)
     {
         foreach (var line in script.Split('\n'))

@@ -1014,6 +1014,16 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
             return builder.ToString();
         }
 
+        // 第四層查詢失敗時底下每一行都會說謊：沒有索引、沒有外來鍵、「沒有主索引鍵」
+        // ——那全是空清單，不是答案。這一行同時是使用者唯一看得到的線索，
+        // 告訴他去哪裡找真正的原因。
+        if (structure.IsStructureUnavailable)
+        {
+            Separate(builder);
+            builder.Append("索引與外來鍵讀取失敗；原因見診斷紀錄檔（需開啟詳細記錄）");
+            return builder.ToString();
+        }
+
         if (structure.PrimaryKey is { } primaryKey)
         {
             Separate(builder);

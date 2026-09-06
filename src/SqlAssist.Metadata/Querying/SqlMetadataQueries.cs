@@ -265,10 +265,22 @@ ORDER BY i.index_id, ic.is_included_column, ic.key_ordinal, ic.index_column_id;"
     /// <c>TEXTIMAGE_ON</c>」用它，不要自己掃資料行的型別：<c>xml</c>、CLR 型別
     /// 與 <c>varchar(max)</c> 都算，漏一種就是一份與來源不同的資料表。
     ///
-    /// <c>uses_ansi_nulls</c> 與 <c>uses_quoted_identifier</c> 反推建立當時的那兩個
-    /// <c>SET</c>。反推而不是一律寫 <c>ON</c>：計算資料行、篩選索引與索引檢視對
-    /// 這兩個選項的值有要求，而一張在 <c>OFF</c> 之下建起來的資料表，
+    /// 兩個 <c>SET</c> 反推建立當時的值，而不是一律寫 <c>ON</c>：計算資料行、
+    /// 篩選索引與索引檢視對它們的值有要求，一張在 <c>OFF</c> 之下建起來的資料表，
     /// 用 <c>ON</c> 重建可能直接失敗。
+    ///
+    /// <c>ANSI_NULLS</c> 在 <c>sys.tables.uses_ansi_nulls</c>；<c>QUOTED_IDENTIFIER</c>
+    /// <b>不在任何一個目錄檢視上</b>，只問得到 <c>OBJECTPROPERTY</c>——
+    /// <c>sys.tables</c> 沒有 <c>uses_quoted_identifier</c> 這一欄（那是
+    /// <c>sys.sql_modules</c> 的欄位）。直接 SELECT 它會讓整條查詢變成
+    /// <c>Invalid column name</c>，而那是 <c>DbException</c>，會被降級吃掉，
+    /// 與 <c>COLUMNPROPERTY(…, 'GeneratedAlwaysType')</c> 是同一條規則。
+    ///
+    /// <c>CONVERT(bit, …)</c> 不能省：<c>OBJECTPROPERTY</c> 回傳 <c>int</c>，
+    /// 讀取端要的是 <c>GetBoolean</c>，型別不合會丟 <c>InvalidCastException</c>——
+    /// 那不是 <c>DbException</c>，接不住。跨連結伺服器時它在對方登入的預設資料庫裡
+    /// 找 object_id，多半得到 NULL，讀取端的 fallback 是 <c>true</c>，
+    /// 與 <c>COLUMNPROPERTY</c> 那幾條的降級一致。
     /// </remarks>
     public const string TableStorage = @"
 SELECT
@@ -277,7 +289,7 @@ SELECT
     lob.name AS lob_filegroup_name,
     t.uses_ansi_nulls,
     pc.name AS partition_column_name,
-    t.uses_quoted_identifier
+    CONVERT(bit, OBJECTPROPERTY(t.object_id, 'IsQuotedIdentOn')) AS uses_quoted_identifier
 FROM sys.tables AS t
 LEFT JOIN sys.indexes AS i
     ON i.object_id = t.object_id AND i.index_id IN (0, 1)

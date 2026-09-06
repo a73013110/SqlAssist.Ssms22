@@ -21,6 +21,35 @@ public sealed class SqlCatalogQualifierTests
     /// <summary>沒有被限定字前置的目錄檢視參考。</summary>
     private static readonly Regex UnqualifiedCatalogView = new(@"(?<!\]\.)\bsys\.");
 
+    /// <summary>加不了限定字的本機中繼資料函式。</summary>
+    /// <remarks>
+    /// 這一族吃的是 object_id／column_id，而它們在<b>執行這句話的那個資料庫</b>裡
+    /// 解析。跨資料庫時連線已經換過去了所以沒事；跨連結伺服器時整句在對方執行，
+    /// 目錄檢視被 <c>[db].sys.</c> 換到了對的資料庫，這一族卻仍然在對方登入的
+    /// 預設資料庫裡找——多半得到 NULL，運氣不好時得到另一個剛好同號的物件的答案。
+    /// </remarks>
+    private static readonly Regex LocalMetadataFunction = new(
+        @"\b(OBJECT_DEFINITION|OBJECT_NAME|OBJECT_SCHEMA_NAME|OBJECT_ID|OBJECTPROPERTY(EX)?" +
+        @"|COLUMNPROPERTY|INDEXPROPERTY|INDEX_COL|SCHEMA_NAME|SCHEMA_ID|DB_NAME|DB_ID)\s*\(",
+        RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// 允許用本機函式的查詢，以及那一次為什麼非用不可。
+    /// </summary>
+    /// <remarks>
+    /// 用名單而不是全面禁止：有些東西目錄檢視上根本沒有，只問得到這一族。
+    /// 名單存在的意義是讓下一次新增變成一個要寫理由的決定，而不是順手加一個
+    /// <c>OBJECT_DEFINITION</c>——那一條的降級沒有任何徵兆。
+    /// </remarks>
+    private static readonly Dictionary<string, string> LocalFunctionsAllowed = new()
+    {
+        [nameof(SqlMetadataQueries.Columns)] =
+            "GeneratedAlwaysType、IsSparse、IsRowGuidCol 走 COLUMNPROPERTY，" +
+            "因為 sys.columns.generated_always_type 要 SQL Server 2016 才有。",
+        [nameof(SqlMetadataQueries.TableStorage)] =
+            "QUOTED_IDENTIFIER 不在任何目錄檢視上，只問得到 OBJECTPROPERTY。"
+    };
+
     public static TheoryData<string, string> AllQueries()
     {
         var data = new TheoryData<string, string>();
@@ -39,6 +68,31 @@ public sealed class SqlCatalogQualifierTests
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(field => field.FieldType == typeof(string) &&
                             field.Name != nameof(SqlMetadataQueries.ObjectIdParameterName));
+    }
+
+    /// <summary>
+    /// 本機中繼資料函式只出現在名單上的那幾條。
+    /// </summary>
+    /// <remarks>
+    /// 這一條與限定字那一條是同一個症狀的兩半：漏掉的東西會在本機執行成功並
+    /// 回傳本機的答案，畫面上看不出退過。<c>OBJECT_DEFINITION</c> 已經因此換成
+    /// <c>sys.sql_modules</c> 兩次（模組定義與觸發程序），這裡把第三次擋在測試上。
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(AllQueries))]
+    public void 本機中繼資料函式只出現在說得出理由的查詢裡(string name, string query)
+    {
+        if (LocalFunctionsAllowed.ContainsKey(name))
+        {
+            return;
+        }
+
+        var found = LocalMetadataFunction.Match(query);
+
+        Assert.False(
+            found.Success,
+            $"{name} 用了加不了限定字的 {found.Value}；" +
+            "改走目錄檢視，真的沒有別的來源時把理由寫進 LocalFunctionsAllowed。");
     }
 
     [Fact]

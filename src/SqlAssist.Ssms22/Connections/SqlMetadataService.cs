@@ -55,6 +55,23 @@ internal sealed class SqlMetadataService : IDisposable
     private static readonly TimeSpan CatalogRecheckInterval = TimeSpan.FromSeconds(10);
     private bool _disposed;
 
+    /// <remarks>
+    /// 接線放在靜態建構函式而不是套件初始化：MEF 的補全元件不等 AsyncPackage
+    /// 就會開始查詢，接晚了的症狀是最想看的那一次失敗剛好沒有留下紀錄。
+    /// 這個型別是 Ssms22 進入中繼資料層的唯一入口，任何一條查詢都在它之後。
+    ///
+    /// 走 <see cref="SqlAssistDiagnostics.Write"/> 而不是 <c>WriteAlways</c>：
+    /// 連線斷掉時每按一次鍵就失敗一次，平常一律不寫才留得住紀錄檔的訊噪比。
+    /// 使用者看得到的入口是預覽裡那句「第四層查詢失敗」，它會把人帶去打開詳細記錄。
+    /// 只寫訊息不寫堆疊——這裡要的是伺服器說了什麼，例如
+    /// <c>Invalid column name 'uses_quoted_identifier'</c>。
+    /// </remarks>
+    static SqlMetadataService()
+    {
+        SqlMetadataFailure.Reporter = (operation, exception) =>
+            SqlAssistDiagnostics.Write($"中繼資料查詢失敗：{operation}｜{exception.Message}");
+    }
+
     public SqlMetadataService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));

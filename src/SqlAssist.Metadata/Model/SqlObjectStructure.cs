@@ -29,7 +29,8 @@ public sealed class SqlObjectStructure
         IReadOnlyList<SqlExtendedProperty>? extendedProperties = null,
         IReadOnlyList<SqlCheckConstraint>? checkConstraints = null,
         SqlTableStorage? storage = null,
-        IReadOnlyList<SqlTriggerInfo>? triggers = null)
+        IReadOnlyList<SqlTriggerInfo>? triggers = null,
+        bool structureUnavailable = false)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
@@ -38,6 +39,7 @@ public sealed class SqlObjectStructure
         CheckConstraints = checkConstraints ?? NoCheckConstraints;
         Storage = storage ?? SqlTableStorage.None;
         Triggers = triggers ?? NoTriggers;
+        IsStructureUnavailable = structureUnavailable;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -70,6 +72,14 @@ public sealed class SqlObjectStructure
 
     /// <summary>掛在這張資料表上的觸發程序。</summary>
     public IReadOnlyList<SqlTriggerInfo> Triggers { get; }
+
+    /// <summary>第四層查詢失敗，索引以下的每一族都只是「還沒問到」而不是「沒有」。</summary>
+    /// <remarks>
+    /// 與「查詢成功卻一列都沒有回來」必須分得開：後者是常態，答案就是沒有；
+    /// 這一個是查詢本身失敗，而空的清單在這時候是<b>錯的答案</b>。混成同一件事的
+    /// 症狀是一張有五個索引的資料表被重建成沒有索引的資料表，而畫面上看不出來。
+    /// </remarks>
+    public bool IsStructureUnavailable { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey
@@ -174,6 +184,17 @@ public sealed class SqlObjectStructure
                     "sys.columns 一列都沒有回來，而查詢本身沒有失敗——原因只有兩個：物件在",
                     "建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。");
                 return true;
+
+            // 這一種與上面那一種相反：查詢本身失敗了，所以空的索引清單不是答案。
+            // 照樣寫出 CREATE TABLE 的話會建出一張少了索引、條件約束與觸發程序的
+            // 資料表，而它仍然貼得上去——與少了欄位的那一種同一條理由。
+            case ScriptAvailability.IncompleteStructure:
+                script = BuildUnavailableScript(
+                    "索引與條件約束",
+                    "第四層查詢失敗了，而空的索引清單在這時候不是答案——原因可能是連線中斷、",
+                    "逾時，或這一版伺服器沒有查詢用到的某個目錄檢視欄位。伺服器說的那句話",
+                    "在「詳細記錄」打開時寫在診斷紀錄檔裡。");
+                return true;
         }
 
         script = string.Empty;
@@ -201,7 +222,16 @@ public sealed class SqlObjectStructure
                 : ScriptAvailability.Ready;
         }
 
-        return Columns.Count == 0 ? ScriptAvailability.MissingColumns : ScriptAvailability.Ready;
+        if (Columns.Count == 0)
+        {
+            return ScriptAvailability.MissingColumns;
+        }
+
+        // 欄位齊了也不夠：這一族的指令碼是從第四層重建的，少了索引與條件約束
+        // 的 CREATE TABLE 一樣貼得上去，建出來的卻是另一張表。
+        return IsStructureUnavailable
+            ? ScriptAvailability.IncompleteStructure
+            : ScriptAvailability.Ready;
     }
 
     /// <summary>指令碼寫不寫得出來，以及寫不出來時缺的是什麼。</summary>
@@ -210,7 +240,8 @@ public sealed class SqlObjectStructure
         Ready,
         UnscriptableKind,
         MissingDefinition,
-        MissingColumns
+        MissingColumns,
+        IncompleteStructure
     }
 
     /// <summary>

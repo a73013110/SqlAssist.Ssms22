@@ -5,6 +5,12 @@
   `TryLoad` 降級成「這一輪沒有資料」；冒出去會讓平台邊界每按一次鍵記一份完整堆疊。
   只接 `DbException`，失敗不進快取，理由見[相容與失敗](metadata-compatibility.md)。
 
+- **禁止**讓查詢失敗降級到一個字都不留。`TryLoad` 一律帶上「哪一條查詢」，
+  伺服器說的那句話走 `SqlMetadataFailure.Reporter`（Ssms22 接到「詳細記錄」，
+  平常不寫）。也**禁止**直接 SELECT 目錄檢視上沒有的欄位；只問得到
+  `OBJECTPROPERTY`／`COLUMNPROPERTY` 的東西要列進測試的 `LocalFunctionsAllowed`
+  並寫明理由——那一族加不了限定字。理由見[相容與失敗](metadata-compatibility.md)。
+
 - **禁止**在資料不齊時輸出半份可以執行的東西。種類問
   `SqlObjectKinds.HasExecutableScript`、這一次查到的資料問
   `SqlObjectStructure.CanBuildExecutableScript`，任何一道不過就整段換成註解，

@@ -22,7 +22,7 @@
 預覽文字同理以定義本文優先：那份文字同時說得出它吃什麼引數、回傳什麼，
 而一串資料行說不出該怎麼呼叫它。
 
-## 只用得到舊版也有的欄位
+## 只 SELECT 目錄檢視真的有的欄位
 
 第二層要判斷「這個欄位插不插得進去」，其中 `GENERATED ALWAYS`（時態資料表的期間
 欄位、帳本資料表的異動欄位）走 `COLUMNPROPERTY(…, 'GeneratedAlwaysType')`，
@@ -33,6 +33,17 @@
 症狀因此不是「少判斷一種欄位」，而是欄位建議、`SELECT *` 展開與結構預覽在那些
 伺服器上**一起安靜地消失**。`COLUMNPROPERTY` 對認不得的屬性名稱回傳 NULL，
 `NULL > 0` 不成立，舊版自然得到 0，不必為此再開一條依版本組字串的路。
+
+「這一版沒有」與「從來就沒有」是同一種病。`sys.tables` 沒有 `uses_quoted_identifier`
+（那是 `sys.sql_modules` 的欄位），第四層曾經直接 SELECT 它，於是**每一張資料表**的
+索引與條件約束整條查不到，而預覽顯示的是「沒有可用的連線」——連線好好的。
+`QUOTED_IDENTIFIER` 只問得到 `OBJECTPROPERTY(…, 'IsQuotedIdentOn')`，
+且要 `CONVERT(bit, …)`：它回傳 `int`，讀取端的 `GetBoolean` 收到會丟
+`InvalidCastException`，而那不是 `DbException`，降級接不住。
+
+這一族函式加不了限定字，跨連結伺服器時會在對方登入的**預設資料庫**裡解析
+（與 `OBJECT_DEFINITION` 同一個坑）。因此測試反射掃過每一條查詢，只有說得出
+理由並列進 `LocalFunctionsAllowed` 的才准用。
 
 ## 資料庫說不行的時候
 
@@ -47,6 +58,17 @@
 降級之後，各個表面本來就備好的處置終於用得上：`SELECT *` 展開拿到 `null` 欄位
 名稱就整個放棄（不做部分展開），結構預覽顯示「沒有可用的連線；請先在查詢視窗
 連上資料庫。」——那句話是為這個情形寫的，在降級之前它永遠不會出現。
+
+降級到**一個字都不留**是另一回事：查詢寫錯與連線中斷在畫面上長得一模一樣，
+唯一分得出來的資訊正是被吃掉的那句 `Invalid column name '…'`。`TryLoad` 因此把
+「哪一條查詢」加上伺服器說的那句話送進 `SqlMetadataFailure.Reporter`，Ssms22 接到
+「詳細記錄」那一段——平常一個位元組都不寫，訊噪比不變，出問題時打開就看得到。
+只送訊息不送堆疊。
+
+第四層（索引、條件約束、觸發程序、擴充屬性）另外有一條：查詢失敗時**不回 `null`**，
+而是回傳只有第二層、且 `IsStructureUnavailable` 為真的結構。回 `null` 的話結構預覽
+只有一句「沒有可用的連線」，會把第二層已經畫出來的欄位整片蓋掉，並且把使用者送去
+查一個好好的連線。這一份不進快取，也過不了下一節的 `CanBuildExecutableScript`。
 
 三件事刻意不這樣做：
 
@@ -70,6 +92,10 @@
 |---|---|
 | `SqlObjectKinds.HasExecutableScript` | 這一**類**物件寫得出可以執行的 T-SQL 嗎 |
 | `SqlObjectStructure.CanBuildExecutableScript` | 這一**次**查到的資料夠不夠 |
+
+空的索引清單有兩種來源，答案相反：查詢成功而那張表真的沒有索引，以及第四層
+失敗所以還沒問到。`IsStructureUnavailable` 分開這兩件事；混成一件的症狀是一張有
+五個索引與一個觸發程序的資料表被重建成什麼都沒有的資料表，而它照樣貼得上去。
 
 兩道都過才組指令碼；任何一道不過就整段換成註解，寫明缺了什麼、兩個可能的原因，
 以及查得到的部分——格式只有 `SqlObjectStructure.BuildUnavailableScript` 一份，

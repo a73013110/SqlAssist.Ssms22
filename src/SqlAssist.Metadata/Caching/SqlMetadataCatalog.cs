@@ -193,15 +193,21 @@ public sealed class SqlMetadataCatalog
                DateTimeOffset.UtcNow.UtcTicks - failedAt < _failureBackoff.Ticks;
     }
 
-    private static T? TryLoad<T>(Func<T> load)
+    /// <param name="operation">
+    /// 哪一條查詢。降級之後畫面上分不出「連線斷了」與「這條查詢寫錯了」，
+    /// 而紀錄檔裡唯一分得出來的線索就是這個名稱加上伺服器說的那句話；
+    /// 送出去的地方見 <see cref="SqlMetadataFailure"/>。
+    /// </param>
+    private static T? TryLoad<T>(string operation, Func<T> load)
         where T : class
     {
         try
         {
             return load();
         }
-        catch (DbException)
+        catch (DbException exception)
         {
+            SqlMetadataFailure.Report(operation, exception);
             return null;
         }
     }
@@ -238,7 +244,7 @@ public sealed class SqlMetadataCatalog
 
     private SqlDatabaseSnapshot LoadAndPublishSnapshot(CancellationToken cancellationToken, int version)
     {
-        var loaded = TryLoad(() => LoadSnapshot(cancellationToken));
+        var loaded = TryLoad("物件清單（第一層）", () => LoadSnapshot(cancellationToken));
         lock (_detailLock)
         {
             if (_snapshotVersion != version)
@@ -305,7 +311,9 @@ public sealed class SqlMetadataCatalog
             }
 
             var loaded = await Task
-                .Run(() => TryLoad(() => LoadSystemObjects(cancellationToken)), cancellationToken)
+                .Run(
+                    () => TryLoad("系統物件清單", () => LoadSystemObjects(cancellationToken)),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             if (loaded is null)
@@ -360,7 +368,11 @@ public sealed class SqlMetadataCatalog
         }
 
         var detail = await Task
-            .Run(() => TryLoad(() => LoadDetail(objectInfo, cancellationToken)), cancellationToken)
+            .Run(
+                () => TryLoad(
+                    $"{objectInfo.QualifiedName} 的欄位與定義（第二層）",
+                    () => LoadDetail(objectInfo, cancellationToken)),
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (detail is null)
@@ -388,7 +400,10 @@ public sealed class SqlMetadataCatalog
     /// 只有使用者主動打開結構面板時才會走到這裡，因此可以放心多查兩次；
     /// 按鍵路徑上的 <see cref="GetDetailAsync"/> 不受影響。
     /// </remarks>
-    /// <returns>資料庫取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。</returns>
+    /// <returns>
+    /// 第二層都取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。第二層拿到了
+    /// 而第四層失敗時回傳一份標記為不完整的結構，不是 <c>null</c>——說明見下方。
+    /// </returns>
     public async Task<SqlObjectStructure?> GetStructureAsync(
         SqlObjectInfo objectInfo,
         CancellationToken cancellationToken)
@@ -414,17 +429,33 @@ public sealed class SqlMetadataCatalog
         // 索引與外來鍵只有本身就是一張資料表的那幾類查得出東西。資料表值函式
         // 這一輪也有資料行了，但它的指令碼來自定義本文，索引寫不進
         // CREATE FUNCTION——為它多跑一次第四層查詢，換不到任何顯示得出來的分頁。
-        var structure = objectInfo.Kind.IsTableShaped()
-            ? await Task
-                .Run(() => TryLoad(() => LoadStructure(detail, cancellationToken)), cancellationToken)
-                .ConfigureAwait(false)
-            : new SqlObjectStructure(detail);
-
-        if (structure is null)
+        if (!objectInfo.Kind.IsTableShaped())
         {
-            return null;
+            return Cache(objectInfo, new SqlObjectStructure(detail));
         }
 
+        var structure = await Task
+            .Run(
+                () => TryLoad(
+                    $"{objectInfo.QualifiedName} 的索引與條件約束（第四層）",
+                    () => LoadStructure(detail, cancellationToken)),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        // 第四層失敗不回 null。回 null 的話呼叫端分不出「連不上」與「這一條查詢
+        // 壞了」，而結構預覽對 null 只有一句「沒有可用的連線」——第二層明明已經
+        // 把欄位畫出來了，那句話會把它整片蓋掉，並且把使用者送去查一個好好的連線。
+        // 改成回傳只有第二層、且標記為不完整的結構：給人看的欄位留著，
+        // 要拿去執行的指令碼由 CanBuildExecutableScript 擋下並說明原因。
+        //
+        // 這一份不進快取——失敗不進快取，否則連線恢復之後仍然拿到殘缺的那一份。
+        return structure is null
+            ? new SqlObjectStructure(detail, structureUnavailable: true)
+            : Cache(objectInfo, structure);
+    }
+
+    private SqlObjectStructure Cache(SqlObjectInfo objectInfo, SqlObjectStructure structure)
+    {
         lock (_detailLock)
         {
             if (_structures.Count >= MaximumCachedDetails)
@@ -567,7 +598,7 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private List<string> ReadDatabases(IDbConnection connection, CancellationToken cancellationToken)
     {
-        return TryLoad(() => ReadList(
+        return TryLoad("資料庫清單", () => ReadList(
             connection,
             SqlMetadataQueries.Databases,
             record => record.GetString(0),
@@ -581,7 +612,7 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private List<string> ReadLinkedServers(IDbConnection connection, CancellationToken cancellationToken)
     {
-        return TryLoad(() => ReadList(
+        return TryLoad("連結伺服器清單", () => ReadList(
             connection,
             SqlMetadataQueries.LinkedServers,
             record => record.GetString(0),
