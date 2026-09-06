@@ -49,6 +49,12 @@ public static class SqlAssistMonikers
     public const string PreviewDelay = "sqlAssist.structure.previewDelay";
     public const string PreviewPlacement = "sqlAssist.structure.previewPlacement";
     public const string PreviewFontSize = "sqlAssist.structure.previewFontSize";
+    public const string ScriptStyle = "sqlAssist.structure.scriptStyle";
+    public const string ScriptIncludeExtendedProperties =
+        "sqlAssist.structure.scriptIncludeExtendedProperties";
+    public const string ScriptIncludeAnalyzerComments =
+        "sqlAssist.structure.scriptIncludeAnalyzerComments";
+    public const string ScriptIncludeHeaderComment = "sqlAssist.structure.scriptIncludeHeaderComment";
 
     public const string VerboseLogging = "sqlAssist.diagnostics.verboseLogging";
 

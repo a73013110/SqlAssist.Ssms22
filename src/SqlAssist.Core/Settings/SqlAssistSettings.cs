@@ -1,3 +1,5 @@
+using SqlAssist.Core.Scripting;
+
 namespace SqlAssist.Core.Settings;
 
 /// <summary>
@@ -211,6 +213,30 @@ public sealed class SqlAssistSettings
     /// 是要拿去跟查詢視窗裡的程式碼對照的。
     /// </remarks>
     public double PreviewFontSize { get; init; } = SqlAssistLimits.DefaultPreviewFontSize;
+
+    /// <summary>
+    /// sqlAssist.structure.scriptStyle
+    /// </summary>
+    /// <remarks>
+    /// F12 與浮動預覽的指令碼分頁共用這一組。逐項的開關<b>不</b>放進 Unified
+    /// Settings：那是四十幾個旋鈕，而每一個都要動四處並過守門測試，設定頁也會
+    /// 從五項變成五十項。風格是那些開關的具名組合，要再細調的人改的是
+    /// SqlScriptOptions 本身。
+    /// </remarks>
+    public SqlScriptStyle ScriptStyle { get; init; } = SqlScriptStyle.Fidelity;
+
+    /// <summary>sqlAssist.structure.scriptIncludeExtendedProperties</summary>
+    /// <remarks>
+    /// 單獨拉出來是因為它最常被關掉：一張三十個資料行的資料表，說明會佔掉
+    /// 整份指令碼的一半以上，而要的人與不要的人各佔一半。
+    /// </remarks>
+    public bool ScriptIncludeExtendedProperties { get; init; } = true;
+
+    /// <summary>sqlAssist.structure.scriptIncludeAnalyzerComments</summary>
+    public bool ScriptIncludeAnalyzerComments { get; init; }
+
+    /// <summary>sqlAssist.structure.scriptIncludeHeaderComment</summary>
+    public bool ScriptIncludeHeaderComment { get; init; }
 
     /// <summary>sqlAssist.diagnostics.verboseLogging</summary>
     public bool VerboseLogging { get; init; }

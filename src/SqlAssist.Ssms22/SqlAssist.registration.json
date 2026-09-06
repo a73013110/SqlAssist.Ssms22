@@ -288,6 +288,44 @@
       "additionalKeywords": [ "字型大小", "字體", "font", "太小", "放大" ],
       "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
     },
+    "sqlAssist.structure.scriptStyle": {
+      "type": "string",
+      "default": "fidelity",
+      "order": 300,
+      "enum": [ "fidelity", "ssmsNative", "minimal" ],
+      "enumItemLabels": [
+        "還原度優先（條件約束獨立成敘述、每一段接 GO）",
+        "與 SSMS 的「編寫指令碼為」一致",
+        "只留執行得起來所必需的部分"
+      ],
+      "title": "產生指令碼的風格",
+      "description": "F12 與浮動預覽的指令碼分頁都用這一組。還原度優先那一組會寫出定序、識別值種子、預設值條件約束的名稱與檔案群組。",
+      "additionalKeywords": [ "script", "create table", "編寫指令碼", "還原", "風格", "F12" ]
+    },
+    "sqlAssist.structure.scriptIncludeExtendedProperties": {
+      "type": "boolean",
+      "default": true,
+      "order": 310,
+      "title": "指令碼包含資料行說明",
+      "description": "把 MS_Description 重建成 sp_addextendedproperty。資料表、資料行、索引與條件約束四層都會寫出來。",
+      "additionalKeywords": [ "MS_Description", "說明", "註解", "extended property", "欄位說明" ]
+    },
+    "sqlAssist.structure.scriptIncludeAnalyzerComments": {
+      "type": "boolean",
+      "default": false,
+      "order": 320,
+      "title": "指令碼附上結構健檢的發現",
+      "description": "在每個物件前面寫成 -- [SCHEMA-001][Warning] … 的註解。檢查的是 INCLUDE 帶大型物件、同語意資料行型別不一致、列舉欄位缺少 CHECK 這一類問題。",
+      "additionalKeywords": [ "analyzer", "健檢", "檢查", "SCHEMA-", "建議", "lint" ]
+    },
+    "sqlAssist.structure.scriptIncludeHeaderComment": {
+      "type": "boolean",
+      "default": false,
+      "order": 330,
+      "title": "指令碼附上來源檔頭",
+      "description": "在最前面寫出來源伺服器與資料庫、產生時間、工具版本與風格。存檔之後分得出這一份是從哪一台抓的。",
+      "additionalKeywords": [ "header", "檔頭", "來源", "產生時間", "版本" ]
+    },
 
     "sqlAssist.diagnostics.verboseLogging": {
       "type": "boolean",

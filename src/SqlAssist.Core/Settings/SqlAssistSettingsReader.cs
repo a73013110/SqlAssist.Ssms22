@@ -1,5 +1,7 @@
 
 
+using SqlAssist.Core.Scripting;
+
 namespace SqlAssist.Core.Settings;
 
 /// <summary>
@@ -116,6 +118,22 @@ public static class SqlAssistSettingsReader
             PreviewFontSize = SqlAssistLimits.ClampPreviewFontSize(
                 Value(source, SqlAssistMonikers.PreviewFontSize, (int)defaults.PreviewFontSize)),
 
+            ScriptStyle = ParseScriptStyle(
+                Value(source, SqlAssistMonikers.ScriptStyle, string.Empty),
+                defaults.ScriptStyle),
+            ScriptIncludeExtendedProperties = Value(
+                source,
+                SqlAssistMonikers.ScriptIncludeExtendedProperties,
+                defaults.ScriptIncludeExtendedProperties),
+            ScriptIncludeAnalyzerComments = Value(
+                source,
+                SqlAssistMonikers.ScriptIncludeAnalyzerComments,
+                defaults.ScriptIncludeAnalyzerComments),
+            ScriptIncludeHeaderComment = Value(
+                source,
+                SqlAssistMonikers.ScriptIncludeHeaderComment,
+                defaults.ScriptIncludeHeaderComment),
+
             VerboseLogging = Value(source, SqlAssistMonikers.VerboseLogging, defaults.VerboseLogging)
         };
     }
@@ -132,6 +150,17 @@ public static class SqlAssistSettingsReader
             "off" => SqlPreviewMode.Off,
             "delay" => SqlPreviewMode.Delay,
             "rightArrow" => SqlPreviewMode.RightArrow,
+            _ => fallback
+        };
+    }
+
+    private static SqlScriptStyle ParseScriptStyle(string value, SqlScriptStyle fallback)
+    {
+        return value switch
+        {
+            "fidelity" => SqlScriptStyle.Fidelity,
+            "ssmsNative" => SqlScriptStyle.SsmsNative,
+            "minimal" => SqlScriptStyle.Minimal,
             _ => fallback
         };
     }
