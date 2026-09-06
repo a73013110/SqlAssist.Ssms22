@@ -37,8 +37,9 @@ SELECT a.| FROM (SELECT c.PUBL_CODE, c.SHELF_LOCATION_CODE FROM dbo.PUBLISHER c)
 那一個資料庫——但那些欄位就寫在使用者眼前的 `CREATE TABLE #Loan (…)` 與
 `DECLARE @rows TABLE (…)` 括號裡，讀得出來，見[指令碼宣告的資料表](#指令碼宣告的資料表)。
 
-只有讀不出宣告的時候才放棄（例如 `SELECT … INTO #Loan` 建立的暫存資料表，
-那裡沒有資料行定義）。放棄時維持原本的結構描述解讀，讓使用者至少還看得到物件清單。
+`SELECT … INTO #Loan` 沒有那份括號，欄位卻同樣寫在眼前，
+見[投影出來的暫存資料表](#投影出來的暫存資料表)。真的讀不出來時才放棄，並維持原本的結構描述
+解讀，讓使用者至少還看得到物件清單。
 
 子查詢與 CTE 讀出來的欄位沒有型別、NULL 與 PK——那些要追到最內層的資料表，
 而中間任何一段運算式都會讓答案不成立。說明欄因此只寫「查詢結果」。
@@ -74,10 +75,9 @@ DECLARE @rows TABLE (Id INT IDENTITY(1,1) PRIMARY KEY, CopyNo NVARCHAR(20) NOT N
 以及提交 `INSERT INTO`／`MERGE INTO` 之後的整句展開。各自接一條的話，
 漏掉的那一條沒有徵兆，只是使用者在那個位置又得把每個欄位重打一遍。
 
-只認**帶著資料行定義**的兩種寫法。`SELECT … INTO #Loan` 不在裡面：那裡沒有型別，
-而少了型別的 `INSERT` 骨架會替使用者猜錯字面值——那張表的**名稱**仍然照列，
-名稱與欄位是兩件事。`RETURNS @rows TABLE (…)` 則免費一起認得，
-因為認的是「變數 `TABLE (`」這個形狀本身。
+只認**帶著資料行定義**的兩種寫法。`SELECT … INTO #Loan` 不在這一份名冊裡：
+那裡沒有型別，而少了型別的 `INSERT` 骨架會替使用者猜錯字面值。
+`RETURNS @rows TABLE (…)` 則免費一起認得，因為認的是「變數 `TABLE (`」這個形狀本身。
 
 `CREATE TABLE` 這兩個字是必要條件而不是修飾：`INSERT INTO #Loan (CopyNo, ReaderId)`
 的形狀與資料行清單一模一樣，少了前綴就會把使用者剛寫的 `INSERT` 讀成一份宣告，
@@ -85,6 +85,22 @@ DECLARE @rows TABLE (Id INT IDENTITY(1,1) PRIMARY KEY, CopyNo NVARCHAR(20) NOT N
 
 一般資料表（`CREATE TABLE dbo.Loan (…)`）也不收：它在中繼資料裡，
 而那一份回答的是「現在長什麼樣」，指令碼裡這一份回答的是「正要變成什麼樣」。
+
+### 投影出來的暫存資料表
+
+`SELECT … INTO #Loan` 讀不出的是**型別**，不是名稱——欄位就寫在那句 `SELECT` 的
+選取清單裡。它與 CTE 同一個形狀，因此走同一份遞迴，`SELECT *`
+往它讀的那張表攤平下去。與帶型別的宣告合成同一個 `SqlScriptTable`
+（唯一出處 `FindScriptTable`），下游一個字都不必分辨；沒有型別的欄位填 `NULL`，
+見[展開內容](statement-values.md#值先填什麼)。
+
+從 `SELECT` 往前認而不是從 `INTO` 往回認（`INSERT INTO #Loan (…)` 形狀一模一樣）；
+同理 `ExtractSources` 在 `SELECT` 開頭的敘述裡不收 `INTO` 的目標——那張表是**正要
+建立**的，收了會讓 `WHERE |` 把它跟真正的來源混著列。
+
+資料行**延後**算：`FROM ` 之後只要名稱，投影卻要整段遞迴攤平；算完記在那張表上。
+投影不出來（`SELECT * INTO #Loan`）時資料行是空的：預覽說實情，提交退回只補名稱
+——空括號的 `INSERT` 貼得上去，比什麼都不做糟。
 
 ### 名稱也要出現在 `FROM` 之後
 

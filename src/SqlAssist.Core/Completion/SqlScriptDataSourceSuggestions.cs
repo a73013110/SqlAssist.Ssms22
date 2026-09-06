@@ -28,39 +28,32 @@ public static class SqlScriptDataSourceSuggestions
     /// 組出這份指令碼宣告的資料來源。
     /// </summary>
     /// <param name="tokens">整份指令碼的詞法單元。</param>
-    /// <param name="commonTableExpressionNames">
-    /// CTE 名冊；由 <see cref="SqlColumnSourceResolver"/> 交出來，
-    /// 與欄位解析共用同一次掃描的結果。
-    /// </param>
-    /// <param name="scriptTables">
-    /// 讀得出資料行的那些宣告，同樣由 <see cref="SqlColumnSourceResolver"/> 交出來。
-    /// 掛在建議項上，提交之後 <c>INSERT INTO #tmp</c> 才展得開整句——查不到中繼資料
-    /// 的名稱如果只補一個字，使用者還是得自己把每一個欄位打一遍。
+    /// <param name="resolver">
+    /// 與欄位解析共用同一次掃描的那一份。CTE 名冊與「這個名稱是一張什麼樣的表」
+    /// 都問它，呼叫端不必為了拿名稱再掃一次同一份文字。
+    ///
+    /// 資料行掛在建議項上，提交之後 <c>INSERT INTO #tmp</c> 才展得開整句——查不到
+    /// 中繼資料的名稱如果只補一個字，使用者還是得自己把每一個欄位打一遍。
+    /// <c>SELECT … INTO</c> 那一種的資料行是延後算的，這裡只會付到名稱的成本。
     /// </param>
     public static IReadOnlyList<SqlSuggestion> Create(
         IReadOnlyList<SqlToken> tokens,
-        IEnumerable<string> commonTableExpressionNames,
-        IReadOnlyDictionary<string, SqlScriptTable> scriptTables)
+        SqlColumnSourceResolver resolver)
     {
         if (tokens is null)
         {
             throw new ArgumentNullException(nameof(tokens));
         }
 
-        if (commonTableExpressionNames is null)
+        if (resolver is null)
         {
-            throw new ArgumentNullException(nameof(commonTableExpressionNames));
-        }
-
-        if (scriptTables is null)
-        {
-            throw new ArgumentNullException(nameof(scriptTables));
+            throw new ArgumentNullException(nameof(resolver));
         }
 
         List<SqlSuggestion>? suggestions = null;
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var name in commonTableExpressionNames)
+        foreach (var name in resolver.CommonTableExpressionNames)
         {
             if (seen.Add(name))
             {
@@ -83,10 +76,8 @@ public static class SqlScriptDataSourceSuggestions
 
             if (seen.Add(token.Value))
             {
-                scriptTables.TryGetValue(token.Value, out var table);
-
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(token.Value, TemporaryTableDescription, table));
+                    Create(token.Value, TemporaryTableDescription, resolver.FindScriptTable(token.Value)));
             }
         }
 
@@ -94,7 +85,7 @@ public static class SqlScriptDataSourceSuggestions
         // @rows 與 @readerId 是同一種詞元，分辨的憑據只有 DECLARE @rows TABLE (…)
         // 這份宣告本身。反過來把每個小老鼠詞元都當成資料來源，FROM 之後就會列出
         // 使用者宣告的每一個純量變數。
-        foreach (var table in scriptTables.Values)
+        foreach (var table in resolver.ScriptTables.Values)
         {
             if (table.Name.Length > 1 && table.Name[0] == '@' && seen.Add(table.Name))
             {

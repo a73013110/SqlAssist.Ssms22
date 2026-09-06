@@ -195,10 +195,7 @@ public static class SqlCompletionContextAnalyzer
             // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
             // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
             return context.Target == CompletionTarget.DataSource
-                ? withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(
-                    tokens,
-                    resolver.CommonTableExpressionNames,
-                    resolver.ScriptTables))
+                ? withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(tokens, resolver))
                 : withScope;
         }
 

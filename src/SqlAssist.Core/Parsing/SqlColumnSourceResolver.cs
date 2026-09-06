@@ -61,6 +61,9 @@ public sealed class SqlColumnSourceResolver
     private static readonly Dictionary<string, SqlCommonTableExpression> NoCommonTableExpressions =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly Dictionary<string, SqlSelectIntoTable> NoSelectIntoTables =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly IReadOnlyList<SqlToken> _tokens;
 
     /// <summary>指令碼裡宣告的暫存資料表與資料表變數，第一次真的要用到才收集。</summary>
@@ -76,6 +79,20 @@ public sealed class SqlColumnSourceResolver
     /// 那些情形連掃描都省下來。
     /// </remarks>
     private IReadOnlyDictionary<string, SqlCommonTableExpression>? _commonTableExpressions;
+
+    /// <summary><c>SELECT … INTO #tmp</c> 建立的暫存資料表，第一次真的要用到才收集。</summary>
+    /// <remarks>
+    /// 與上面兩份同一條理由與同一個時機，而且比它們更少用得到：只有帶資料行定義的
+    /// 宣告落空之後才會問到這一份。
+    /// </remarks>
+    private IReadOnlyDictionary<string, SqlSelectIntoTable>? _selectIntoTables;
+
+    /// <summary>已經包好的投影資料表；同一個名稱問幾次都是同一個物件。</summary>
+    /// <remarks>
+    /// 同一個名稱在一輪操作裡會被問好幾次（清單選到、按向右鍵看預覽、提交展開），
+    /// 而資料行掛在物件上算一次就記住。每次重包一個新的，那份延後就等於沒有。
+    /// </remarks>
+    private Dictionary<string, SqlScriptTable>? _projectedTables;
 
     public SqlColumnSourceResolver(IReadOnlyList<SqlToken> tokens)
     {
@@ -206,6 +223,129 @@ public sealed class SqlColumnSourceResolver
         _scriptTables ??= SqlScriptTableCollector.Collect(_tokens);
 
     /// <summary>
+    /// 這個名稱在這份指令碼裡是一張什麼樣的資料表；不是的話回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 「指令碼自己宣告的資料表長什麼樣」的<b>唯一出處</b>：建議清單掛在項目上的
+    /// 那一份、滑鼠停留與預覽問的那一份、提交之後展開 <c>INSERT</c> 用的那一份，
+    /// 全部問這裡。各自接一條的症狀是同一個名稱在三個表面顯示成三種東西。
+    ///
+    /// 兩個出處，順序固定：帶著型別的宣告（<c>CREATE TABLE #tmp (…)</c>、
+    /// <c>DECLARE @tmp TABLE (…)</c>）說得比較多，落空才輪到
+    /// <c>SELECT … INTO #tmp</c> 投影出來的那一份。後者的資料行是<b>延後</b>算的，
+    /// 見 <see cref="SqlScriptTable"/>：<c>FROM</c> 之後的清單只要名稱。
+    /// </remarks>
+    public SqlScriptTable? FindScriptTable(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (ScriptTables.TryGetValue(name, out var declared))
+        {
+            return declared;
+        }
+
+        if (FindSelectIntoTable(name) is not { } selectInto)
+        {
+            return null;
+        }
+
+        _projectedTables ??= new Dictionary<string, SqlScriptTable>(StringComparer.OrdinalIgnoreCase);
+
+        if (!_projectedTables.TryGetValue(name, out var projected))
+        {
+            projected = new SqlScriptTable(
+                selectInto.Name,
+                () => ProjectScriptColumns(selectInto),
+                selectInto.Start,
+                selectInto.End);
+
+            _projectedTables.Add(name, projected);
+        }
+
+        return projected;
+    }
+
+    /// <summary>
+    /// 指令碼裡由 <c>SELECT … INTO #tmp</c> 建立的暫存資料表；不是的話回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 這種寫法沒有資料行定義，<see cref="ScriptTables"/> 那份名冊裡一個都不會有
+    /// ——那一份收的是帶型別的宣告。但資料行仍然寫在使用者眼前：就在那句
+    /// <c>SELECT</c> 的選取清單裡，與 CTE 是同一條推理，也走同一份遞迴。
+    ///
+    /// 呼叫順序因此固定：先問 <see cref="ScriptTables"/>，落空才問這一份。
+    /// 同一個名稱兩種寫法都有時，帶型別的那一份說得比較多。
+    /// </remarks>
+    public SqlSelectIntoTable? FindSelectIntoTable(string name)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        return SelectIntoTables.TryGetValue(name, out var table) ? table : null;
+    }
+
+    /// <summary>
+    /// 一個 <c>SELECT … INTO</c> 暫存資料表的資料行名稱；讀不出來時回傳空清單。
+    /// </summary>
+    /// <remarks>
+    /// 讀不出來的情形與 CTE 一模一樣，因此兩者共用
+    /// <see cref="ProjectColumnNames"/>：選取清單裡有 <c>*</c> 而它打在資料庫的
+    /// 資料表上時，那份名單只有中繼資料知道，而問這個問題的滑鼠停留路徑不等查詢。
+    /// </remarks>
+    public IReadOnlyList<string> ResolveSelectIntoColumns(SqlSelectIntoTable table)
+    {
+        if (table is null)
+        {
+            throw new ArgumentNullException(nameof(table));
+        }
+
+        return ProjectColumnNames(table.BodyStart, table.BodyEnd, table.Name);
+    }
+
+    /// <summary>
+    /// 把投影出來的欄位名稱換成資料行。
+    /// </summary>
+    /// <remarks>
+    /// 型別、NULL、預設值與主索引鍵一律讀不出來——那些要追到最內層的資料表，
+    /// 而中間任何一段運算式都會讓答案不成立。空字串在這裡不是遺漏而是實話，
+    /// 與計算資料行同一個做法：<c>INSERT</c> 骨架據此給 <c>NULL</c>，
+    /// 那是唯一不會替使用者猜錯內容的預留值。
+    ///
+    /// 反過來說，讀不出型別<b>不代表</b>讀不出名稱。名稱寫在選取清單裡，
+    /// 而 <c>INSERT INTO #tmp (…)</c> 要的正是那一份。
+    /// </remarks>
+    private IReadOnlyList<SqlScriptColumn> ProjectScriptColumns(SqlSelectIntoTable table)
+    {
+        var names = ResolveSelectIntoColumns(table);
+
+        if (names.Count == 0)
+        {
+            return Array.Empty<SqlScriptColumn>();
+        }
+
+        var columns = new SqlScriptColumn[names.Count];
+
+        for (var index = 0; index < names.Count; index++)
+        {
+            columns[index] = new SqlScriptColumn(
+                names[index],
+                string.Empty,
+                isNullable: true,
+                hasDefault: false,
+                isIdentity: false,
+                isComputed: false,
+                isPrimaryKey: false);
+        }
+
+        return columns;
+    }
+
+    /// <summary>
     /// 指令碼裡的某一個 CTE；這個名稱不是 CTE 時回傳 null。
     /// </summary>
     /// <remarks>
@@ -248,16 +388,35 @@ public sealed class SqlColumnSourceResolver
             return commonTableExpression.ColumnNames;
         }
 
-        var sources = new List<SqlColumnSource>();
-        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { commonTableExpression.Name };
+        return ProjectColumnNames(
+            commonTableExpression.BodyStart,
+            commonTableExpression.BodyEnd,
+            commonTableExpression.Name);
+    }
 
-        if (!TryExpandQuery(
-                commonTableExpression.BodyStart,
-                commonTableExpression.BodyEnd,
-                qualifier: null,
-                depth: 1,
-                visiting,
-                sources))
+    private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
+        _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
+
+    private IReadOnlyDictionary<string, SqlSelectIntoTable> SelectIntoTables =>
+        _selectIntoTables ??= CollectSelectIntoTables(_tokens);
+
+    /// <summary>
+    /// 把一段查詢投影成一串欄位名稱；讀不出來時回傳空清單。
+    /// </summary>
+    /// <param name="seedName">
+    /// 這段查詢自己的名稱，先放進展開中的名冊擋住自我參照
+    /// （遞迴 CTE，以及 <c>SELECT … INTO #t … FROM #t</c>）。
+    /// </param>
+    /// <remarks>
+    /// CTE 與 <c>SELECT … INTO</c> 問的是同一件事：「這段查詢在外層看得到哪些欄位」。
+    /// 各寫一份的症狀是同一種選取清單在兩處給出不同的答案，而且沒有任何徵兆。
+    /// </remarks>
+    private IReadOnlyList<string> ProjectColumnNames(int bodyStart, int bodyEnd, string seedName)
+    {
+        var sources = new List<SqlColumnSource>();
+        var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { seedName };
+
+        if (!TryExpandQuery(bodyStart, bodyEnd, qualifier: null, depth: 1, visiting, sources))
         {
             return Array.Empty<string>();
         }
@@ -278,9 +437,6 @@ public sealed class SqlColumnSourceResolver
 
         return names;
     }
-
-    private IReadOnlyDictionary<string, SqlCommonTableExpression> CommonTableExpressions =>
-        _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
 
     /// <summary>
     /// 把一個資料來源攤平成欄位來源。
@@ -307,7 +463,7 @@ public sealed class SqlColumnSourceResolver
             // ——但 DECLARE @t TABLE (…) 就寫在指令碼裡，讀得出來。
             if (open < 0 || !_tokens[open].IsPunctuation("("))
             {
-                return TryResolveScriptTable(reference.ObjectName, qualifier, sources);
+                return TryResolveScriptTable(reference.ObjectName, qualifier, depth, visiting, sources);
             }
 
             var close = SqlTokenNavigator.FindClosingParenthesis(_tokens, open, _tokens.Count);
@@ -346,7 +502,7 @@ public sealed class SqlColumnSourceResolver
         // 交給下面那一行的話，查詢一定落空而使用者什麼欄位都看不到。
         // 帶結構描述的名稱不必問：#tmp 不會寫成 dbo.#tmp。
         if (reference.SchemaName is null &&
-            TryResolveScriptTable(reference.ObjectName, qualifier, sources))
+            TryResolveScriptTable(reference.ObjectName, qualifier, depth, visiting, sources))
         {
             return true;
         }
@@ -359,17 +515,68 @@ public sealed class SqlColumnSourceResolver
     /// 把指令碼自己宣告的資料表攤平成欄位來源。
     /// </summary>
     /// <remarks>
-    /// 沒有資料行時當成解析不出來：<c>SELECT … INTO #tmp</c> 建立的暫存資料表
-    /// 名冊裡有名稱卻沒有資料行，回報空清單會讓呼叫端以為那張表真的一欄都沒有。
+    /// 資料行有兩個出處，順序固定：先問帶著型別的宣告
+    /// （<c>CREATE TABLE #tmp (…)</c>、<c>DECLARE @tmp TABLE (…)</c>），
+    /// 落空才問 <c>SELECT … INTO #tmp</c> 那句 <c>SELECT</c> 的選取清單。
+    /// 同一個名稱兩種寫法都有時前者說得比較多，而後者是<b>唯一</b>寫得出
+    /// <c>SELECT * INTO #tmp FROM dbo.Loan</c> 那些欄位的地方——它整份攤平到
+    /// 中繼資料那一層，與子查詢的 <c>*</c> 走同一條遞迴。
+    ///
+    /// 空的資料行清單當成解析不出來：回報空清單會讓呼叫端以為那張表真的一欄都沒有。
     /// </remarks>
-    private bool TryResolveScriptTable(string name, string? qualifier, List<SqlColumnSource> sources)
+    private bool TryResolveScriptTable(
+        string name,
+        string? qualifier,
+        int depth,
+        HashSet<string> visiting,
+        List<SqlColumnSource> sources)
     {
-        if (!ScriptTables.TryGetValue(name, out var table) || table.ColumnNames.Count == 0)
+        if (ScriptTables.TryGetValue(name, out var table) && table.ColumnNames.Count > 0)
+        {
+            sources.Add(SqlColumnSource.FromNames(table.ColumnNames, qualifier, table.Name));
+            return true;
+        }
+
+        // SELECT … INTO #t … FROM #t 會參照自己，沒有這道關就會一直展開下去。
+        if (!SelectIntoTables.TryGetValue(name, out var selectInto) || !visiting.Add(name))
         {
             return false;
         }
 
-        sources.Add(SqlColumnSource.FromNames(table.ColumnNames, qualifier, table.Name));
+        var before = sources.Count;
+
+        try
+        {
+            if (!TryExpandQuery(
+                    selectInto.BodyStart,
+                    selectInto.BodyEnd,
+                    qualifier,
+                    depth + 1,
+                    visiting,
+                    sources))
+            {
+                return false;
+            }
+        }
+        finally
+        {
+            visiting.Remove(name);
+        }
+
+        // 這一份說得出出處，就把名字補上：在 UPDATE #Loan SET | 看到「查詢結果」
+        // 會讓人以為認錯了東西。攤平到資料庫資料表的那幾筆不動——它們的出處由
+        // 中繼資料自己說，而那才是使用者要找的那張表。
+        for (var index = before; index < sources.Count; index++)
+        {
+            if (sources[index].Kind == SqlColumnSourceKind.Names)
+            {
+                sources[index] = SqlColumnSource.FromNames(
+                    sources[index].Names,
+                    sources[index].Qualifier,
+                    selectInto.Name);
+            }
+        }
+
         return true;
     }
 
@@ -766,6 +973,104 @@ public sealed class SqlColumnSourceResolver
         }
 
         return result ?? NoCommonTableExpressions;
+    }
+
+    /// <summary>
+    /// 收集指令碼裡所有 <c>SELECT … INTO #tmp</c> 建立的暫存資料表。
+    /// </summary>
+    /// <remarks>
+    /// 從 <c>SELECT</c> 往前認而不是從 <c>INTO</c> 往回認：<c>INSERT INTO #tmp</c>
+    /// 的形狀與這裡一模一樣，往回認會把使用者剛寫的那句 INSERT 讀成一份宣告，
+    /// 而那份「宣告」的資料行其實是插入目標的資料行清單。
+    ///
+    /// 認出一句就整句跳過。巢狀的 <c>SELECT</c>（衍生資料表、CTE 主體、
+    /// <c>IN (SELECT …)</c>）寫不出 <c>SELECT … INTO</c>，掃進去只是白費。
+    ///
+    /// 一句都沒有時共用同一份空名冊，與另外兩份名冊同一條理由。
+    /// </remarks>
+    private static IReadOnlyDictionary<string, SqlSelectIntoTable> CollectSelectIntoTables(
+        IReadOnlyList<SqlToken> tokens)
+    {
+        Dictionary<string, SqlSelectIntoTable>? result = null;
+
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            if (!tokens[index].IsKeyword("SELECT"))
+            {
+                continue;
+            }
+
+            var end = SqlScopeAnalyzer.FindStatementEnd(tokens, index);
+            var target = FindSelectIntoTarget(tokens, index + 1, end);
+
+            if (target > 0)
+            {
+                var name = tokens[target].Value;
+                result ??= new Dictionary<string, SqlSelectIntoTable>(StringComparer.OrdinalIgnoreCase);
+
+                // 同名時保留先出現的那一個，與另外兩份名冊同一條規則。
+                if (!result.ContainsKey(name))
+                {
+                    result.Add(
+                        name,
+                        new SqlSelectIntoTable(
+                            name,
+                            index,
+                            end,
+                            tokens[index].Start,
+                            tokens[end - 1].End));
+                }
+            }
+
+            index = Math.Max(index, end - 1);
+        }
+
+        return result ?? NoSelectIntoTables;
+    }
+
+    /// <summary>
+    /// 這句 <c>SELECT</c> 的 <c>INTO</c> 指到的暫存資料表詞法單元；沒有時回傳 -1。
+    /// </summary>
+    /// <remarks>
+    /// 只認深度 0 的 <c>INTO</c>：巢狀查詢裡的那一個屬於它自己。井號開頭則是必要
+    /// 條件——<c>SELECT … INTO dbo.NewTable</c> 建的是一張真的資料表，那是中繼資料
+    /// 的事，拿這份還沒執行的投影去蓋掉它，等於用「正要變成什麼樣」回答
+    /// 「現在長什麼樣」。
+    /// </remarks>
+    private static int FindSelectIntoTarget(IReadOnlyList<SqlToken> tokens, int start, int end)
+    {
+        var depth = 0;
+
+        for (var index = start; index < end; index++)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation("("))
+            {
+                depth++;
+                continue;
+            }
+
+            if (token.IsPunctuation(")"))
+            {
+                depth--;
+                continue;
+            }
+
+            if (depth != 0 || !token.IsKeyword("INTO"))
+            {
+                continue;
+            }
+
+            return index + 1 < end &&
+                tokens[index + 1].Kind == SqlTokenKind.Identifier &&
+                tokens[index + 1].Value.Length > 1 &&
+                tokens[index + 1].Value[0] == '#'
+                ? index + 1
+                : -1;
+        }
+
+        return -1;
     }
 
     private static IReadOnlyList<string> ReadColumnList(IReadOnlyList<SqlToken> tokens, int start, int end)

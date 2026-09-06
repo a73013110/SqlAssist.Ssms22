@@ -56,10 +56,9 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 遞迴 CTE 取 `UNION ALL` 之前那一段的欄位名稱，後面那一段不必看；直接參照自己的
 CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 
-**任何一個來源解析不出來就完全不展開**，不做部分展開：`SELECT … INTO #Loan`
-建立的暫存資料表沒有資料行定義，`SELECT Qty * Price` 這種沒有名稱的運算式在外層
-也無從稱呼。少了幾個欄位的 `SELECT` 仍然執行得動，卻執行出錯的結果——
-那比什麼都不做糟糕得多。
+**任何一個來源解析不出來就完全不展開**，不做部分展開：`SELECT Qty * Price` 這種
+沒有名稱的運算式在外層無從稱呼。少了幾個欄位的 `SELECT` 仍然執行得動，
+卻執行出錯的結果——那比什麼都不做糟糕得多。
 
 ## 加不加別名
 

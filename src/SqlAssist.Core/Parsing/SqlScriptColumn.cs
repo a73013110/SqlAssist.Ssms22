@@ -38,10 +38,12 @@ public sealed class SqlScriptColumn
 
     public string Name { get; }
 
-    /// <summary>宣告時寫的型別；計算資料行為空字串。</summary>
+    /// <summary>宣告時寫的型別；讀不出來時是空字串。</summary>
     /// <remarks>
-    /// 計算資料行的型別要看運算式推導，光讀文字推不出來。它本來就插不進去，
-    /// 空字串在這裡不是遺漏而是實話。
+    /// 兩種情形讀不出來：計算資料行的型別要看運算式推導，
+    /// <c>SELECT … INTO #tmp</c> 投影出來的資料行則要追到最內層的資料表。
+    /// 空字串在這裡不是遺漏而是實話，下游據此給 <c>NULL</c> 這個唯一不會替使用者
+    /// 猜錯內容的預留值，並在 <c>INSERT</c> 骨架的註解裡略過型別那一段。
     /// </remarks>
     public string DataType { get; }
 

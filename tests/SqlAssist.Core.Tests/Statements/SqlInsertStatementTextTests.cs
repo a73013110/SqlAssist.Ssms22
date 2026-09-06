@@ -65,6 +65,38 @@ public sealed class SqlInsertStatementTextTests
         Assert.Contains($"    {expected} -- PUBL_CODE - varchar(10)", text);
     }
 
+    /// <summary>
+    /// 型別讀不出來時註解只寫欄位名稱。
+    /// </summary>
+    /// <remarks>
+    /// <c>SELECT … INTO #tmp</c> 投影出來的資料行沒有型別。留一個結尾的
+    /// 「 - 」看起來像是漏了什麼東西；值則走可為 NULL 那一條，填 <c>NULL</c>。
+    /// </remarks>
+    [Fact]
+    public void 沒有型別時註解不留空的破折號()
+    {
+        var text = Build(
+            new[]
+            {
+                new SqlStatementColumn("ID", string.Empty, isNullable: true, hasDefault: false),
+                new SqlStatementColumn("Name", string.Empty, isNullable: true, hasDefault: false)
+            },
+            out _);
+
+        Assert.Equal(
+            "INSERT INTO dbo.Cat_BookCopy\r\n" +
+            "(\r\n" +
+            "    ID,\r\n" +
+            "    Name\r\n" +
+            ")\r\n" +
+            "VALUES\r\n" +
+            "(\r\n" +
+            "    NULL, -- ID\r\n" +
+            "    NULL  -- Name\r\n" +
+            ")",
+            text);
+    }
+
     /// <remarks>展開之後使用者要做的第一件事就是填第一個值。</remarks>
     [Fact]
     public void 游標停在第一個值上()

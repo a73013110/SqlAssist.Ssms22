@@ -101,18 +101,136 @@ public sealed class SqlScriptTableCompletionTests
     }
 
     /// <summary>
-    /// 讀不出資料行的暫存資料表維持原本的行為。
+    /// <c>SELECT … INTO #tmp</c> 的資料行寫在選取清單裡。
     /// </summary>
     /// <remarks>
-    /// <c>SELECT … INTO #tmp</c> 沒有資料行定義。回報一份空清單會讓呼叫端以為
-    /// 那張表真的一欄都沒有，而它該做的是照舊去問中繼資料。
+    /// 這種寫法沒有資料行定義，帶型別的那份名冊一個都不會收——但欄位仍然寫在
+    /// 使用者眼前，讀得出來，與 CTE 是同一條推理。少了這一條的症狀是使用者上一句
+    /// 才建立的暫存資料表，下一句改它時每個欄位都得自己重打。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan;\r\nUPDATE #Loan SET C|")]
+    [InlineData("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan;\r\nSELECT C| FROM #Loan")]
+    public void SELECT_INTO的資料行讀得出來(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, ScopeColumns(sqlWithCaret));
+    }
+
+    [Theory]
+    [InlineData("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan;\r\nSELECT #Loan.| FROM #Loan")]
+    [InlineData("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan;\r\nSELECT l.| FROM #Loan l")]
+    public void SELECT_INTO的限定字之後也列得出欄位(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, QualifiedColumns(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 欄位的出處寫的是那張暫存資料表的名字。
+    /// </summary>
+    /// <remarks>
+    /// 說明欄留空會退回「查詢結果」，而在 <c>UPDATE #Loan SET |</c> 看到那四個字
+    /// 會讓人以為認錯了東西。
     /// </remarks>
     [Fact]
-    public void 沒有宣告資料行時仍當成資料表()
+    public void SELECT_INTO的欄位說得出出處()
+    {
+        var context = Analyze("SELECT CopyNo INTO #Loan FROM dbo.Loan;\r\nUPDATE #Loan SET C|");
+
+        Assert.Equal("#Loan", Assert.Single(context.ScopeSources).SourceName);
+    }
+
+    /// <summary>
+    /// 選取清單是 <c>*</c> 時，攤平到它讀的那張資料表。
+    /// </summary>
+    /// <remarks>
+    /// 那份名單只有中繼資料知道，而這裡本來就會去問——與子查詢的 <c>*</c> 走同一條
+    /// 遞迴。攤不平的是<b>投影</b>那一支（滑鼠停留與預覽不等查詢），不是這一支。
+    /// </remarks>
+    [Fact]
+    public void 星號的SELECT_INTO攤平到來源資料表()
     {
         Assert.Equal(
-            new[] { "表 #Loan" },
+            new[] { "表 Loan" },
             ScopeColumns("SELECT * INTO #Loan FROM dbo.Loan;\r\nUPDATE #Loan SET C|"));
+    }
+
+    /// <summary>
+    /// 建立它的那一句自己不受影響。
+    /// </summary>
+    /// <remarks>
+    /// <c>INTO</c> 後面那張表是<b>正要建立</b>的，不是這句查詢讀得到的來源；
+    /// 收進來的症狀是這裡把它投影出來的欄位跟真正的來源混在一起列出來。
+    /// </remarks>
+    [Fact]
+    public void 建立它的那一句只看得到真正的來源()
+    {
+        Assert.Equal(
+            new[] { "表 Loan" },
+            ScopeColumns("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan WHERE C|"));
+    }
+
+    /// <summary>
+    /// <c>SELECT … INTO</c> 一樣帶得出展開整句所需的資料。
+    /// </summary>
+    /// <remarks>
+    /// 讀不出的是<b>型別</b>，不是名稱——而 <c>INSERT INTO #Loan</c> 要的正是那份
+    /// 名稱清單。沒有型別的欄位在骨架裡填 <c>NULL</c>，那是唯一不會替使用者猜錯
+    /// 內容的預留值（<c>SqlInsertStatementText.Literal</c>）。
+    ///
+    /// 掛的是同一個 <see cref="SqlScriptTable"/>，下游因此一個字都不必分辨。
+    /// </remarks>
+    [Theory]
+    [InlineData("INSERT INTO #L|", CompletionIntent.InsertStatement)]
+    [InlineData("MERGE INTO #L|", CompletionIntent.MergeStatement)]
+    public void SELECT_INTO帶得出展開整句所需的資料(string tail, CompletionIntent intent)
+    {
+        var context = Analyze("SELECT CopyNo, ReaderId INTO #Loan FROM dbo.Loan;\r\n" + tail);
+
+        Assert.Equal(intent, context.Intent);
+        Assert.True(context.TargetKeywordStart >= 0);
+
+        var suggestion = Assert.Single(context.ScriptSources, item => item.DisplayText == "#Loan");
+
+        Assert.Equal(
+            new[] { "CopyNo", "ReaderId" },
+            Assert.IsType<SqlScriptTable>(suggestion.Tag).ColumnNames);
+    }
+
+    /// <summary>
+    /// 使用者實際會寫的樣子：資料來源是一組 <c>VALUES</c>。
+    /// </summary>
+    /// <remarks>
+    /// 選取清單自己就寫出了名稱，<c>FROM</c> 後面是什麼根本不必看。
+    /// </remarks>
+    [Fact]
+    public void 選取清單寫得出名稱時來源是什麼都不必看()
+    {
+        var context = Analyze(
+            "SELECT ID, Name INTO #Temp FROM (VALUES (1, N'Alice'), (2, N'Bob')) AS T(ID, Name);\r\n" +
+            "INSERT INTO #T|");
+
+        Assert.Equal(
+            new[] { "ID", "Name" },
+            Assert.IsType<SqlScriptTable>(
+                Assert.Single(context.ScriptSources, item => item.DisplayText == "#Temp").Tag).ColumnNames);
+    }
+
+    /// <summary>
+    /// 投影不出資料行時掛的是空清單，提交之後退回只補名稱。
+    /// </summary>
+    /// <remarks>
+    /// <c>SELECT *</c> 的名單只有中繼資料知道。空括號的 <c>INSERT</c> 仍然貼得上去，
+    /// 那比什麼都不做糟——擋在 <c>SqlCommitExpander</c>，與 <c>SELECT *</c> 不做部分
+    /// 展開是同一條理由。
+    /// </remarks>
+    [Fact]
+    public void 投影不出資料行時掛的是空清單()
+    {
+        var context = Analyze("SELECT * INTO #Loan FROM dbo.Loan;\r\nINSERT INTO #L|");
+
+        Assert.Empty(
+            Assert.IsType<SqlScriptTable>(
+                Assert.Single(context.ScriptSources, item => item.DisplayText == "#Loan").Tag).ColumnNames);
     }
 
     /// <summary>

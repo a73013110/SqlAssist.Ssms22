@@ -42,6 +42,11 @@ public static class SqlScriptTableDetail
     /// 整份指令碼的原文；傳進來時會從中取出這份宣告，成為
     /// <see cref="SqlObjectDetail.Definition"/>。只要名稱與資料行的呼叫端傳 null。
     /// </param>
+    /// <remarks>
+    /// <c>SELECT … INTO #tmp</c> 投影出來的那一份也走這裡，差別只在型別是空字串
+    /// ——而那正是 <see cref="SqlColumnInfo"/> 對「讀不出型別」的說法，
+    /// <c>INSERT</c> 骨架據此給 <c>NULL</c>。原文不必補前綴，那一句本身就執行得動。
+    /// </remarks>
     public static SqlObjectDetail Create(SqlScriptTable table, string? script = null)
     {
         if (table is null)
@@ -85,6 +90,11 @@ public static class SqlScriptTableDetail
     /// <remarks>
     /// 欄位只有名稱：型別、NULL 與 PK 要追到最內層的資料表，而中間任何一段運算式
     /// 都會讓答案不成立，見 <c>docs/completion-columns.md</c>。
+    ///
+    /// <c>SELECT … INTO #tmp</c> 的資料行同樣只有名稱，卻不走這裡：它在
+    /// <see cref="SqlColumnSourceResolver.FindScriptTable"/> 就已經是一張
+    /// <see cref="SqlScriptTable"/>，與帶型別的宣告共用上面那一支。CTE 分開是因為
+    /// 它不是 <c>INSERT</c> 插得進去的東西，也沒有一句單獨執行得動的宣告。
     /// </remarks>
     /// <param name="columnNames">
     /// 輸出欄位名稱，由 <see cref="SqlColumnSourceResolver"/> 攤平；讀不出來時是空的。
@@ -121,6 +131,7 @@ public static class SqlScriptTableDetail
                 SqlObjectKind.CommonTableExpression),
             columns,
             parameters: null,
+            // WITH 不在這一段範圍裡，補上之後才是一句貼得上去的宣告。
             definition: Slice(script, commonTableExpression.Start, commonTableExpression.End, "WITH "));
     }
 

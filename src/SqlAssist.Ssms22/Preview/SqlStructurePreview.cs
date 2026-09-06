@@ -1026,8 +1026,9 @@ internal sealed class SqlStructurePreview
         }
         else
         {
-            // 名稱認得出來、資料行讀不出來：SELECT … INTO #Loan 的欄位不寫在任何一段
-            // 宣告裡。說出實情，不要畫一個空的結構讓人以為它真的沒有欄位。
+            // 名稱認得出來、資料行讀不出來：SELECT * INTO #Loan FROM dbo.Loan 的欄位
+            // 只有中繼資料知道，而這條路徑不等查詢。說出實情，不要畫一個空的結構
+            // 讓人以為它真的沒有欄位。
             control.ShowMessage(
                 objectInfo.QualifiedName,
                 "這個名稱是這份指令碼自己宣告的，但目前的文字裡讀不出它的資料行。");

@@ -83,10 +83,13 @@ public sealed class SqlScriptDeclarations
 
         if (SqlIdentifier.IsScriptScoped(name))
         {
-            // 資料行讀不出來的宣告（SELECT … INTO #Loan）名冊裡根本沒有，
-            // 那時交回 null——名稱與資料行是兩件事。
-            return _resolver.ScriptTables.TryGetValue(name, out var table)
-                ? SqlScriptTableDetail.Create(table, _text)
+            // 帶型別的宣告與 SELECT … INTO 投影出來的那一份走同一條，順序與取捨都在
+            // FindScriptTable 裡。資料行一個都讀不出來時交回 null——空的資料行清單會
+            // 讓提示寫出「沒有欄位」，而那是假話；呼叫端交回 null 時說的則是實情。
+            var table = _resolver.FindScriptTable(name);
+
+            return table is { } declared && declared.Columns.Count > 0
+                ? SqlScriptTableDetail.Create(declared, _text)
                 : null;
         }
 
@@ -97,4 +100,5 @@ public sealed class SqlScriptDeclarations
                 _text)
             : null;
     }
+
 }

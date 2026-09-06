@@ -103,7 +103,7 @@ public static class SqlScopeAnalyzer
             return new SqlStatementScope(Array.Empty<SqlTableReference>(), caretPosition, caretPosition);
         }
 
-        var end = FindScopeEnd(tokens, start);
+        var end = FindStatementEnd(tokens, start);
         var tables = ExtractSources(tokens, start, end);
 
         return new SqlStatementScope(
@@ -216,8 +216,24 @@ public static class SqlScopeAnalyzer
                token.IsKeyword("DELETE");
     }
 
-    private static int FindScopeEnd(IReadOnlyList<SqlToken> tokens, int start)
+    /// <summary>
+    /// 從 <paramref name="start"/> 這個詞法單元起算，這一句敘述到哪裡結束（不含）。
+    /// </summary>
+    /// <remarks>
+    /// 深度 0 的分號、<c>GO</c>、右括號，或下一個敘述開頭的關鍵字；都沒有就到文字結尾。
+    ///
+    /// 公開出來是因為問這個問題的不只範圍分析：<c>SELECT … INTO #tmp</c> 的名冊要
+    /// 知道那句 <c>SELECT</c> 涵蓋到哪裡，才讀得出它投影出來的資料行。各寫一份的
+    /// 症狀是同一段文字在兩處切在不同的地方，而偏掉的那一份沒有任何徵兆——
+    /// 只是資料來源清單多出或少掉幾張表。
+    /// </remarks>
+    public static int FindStatementEnd(IReadOnlyList<SqlToken> tokens, int start)
     {
+        if (tokens is null)
+        {
+            throw new ArgumentNullException(nameof(tokens));
+        }
+
         var depth = 0;
 
         for (var i = start; i < tokens.Count; i++)
@@ -289,6 +305,12 @@ public static class SqlScopeAnalyzer
         var index = start;
         var depth = 0;
 
+        // SELECT … INTO #tmp 的 INTO 接的是一張正要建立的資料表，不是這句查詢讀得到
+        // 的來源。INSERT INTO 的那一個相反——它就是使用者要填資料行的目標，而兩者的
+        // 形狀一模一樣，分辨的憑據只有這句敘述的第一個字。收錯的症狀是 WHERE | 把
+        // 那張表投影出來的欄位跟真正的來源混在一起列出來。
+        var selectInto = start < end && tokens[start].IsKeyword("SELECT");
+
         while (index < end)
         {
             var token = tokens[index];
@@ -316,6 +338,7 @@ public static class SqlScopeAnalyzer
 
             // FROM 與 INTO 後面可以是逗號分隔的清單，JOIN／APPLY／USING 只接一個。
             var allowsList = token.IsKeyword("FROM") || token.IsKeyword("INTO");
+            var collects = !selectInto || !token.IsKeyword("INTO");
             index++;
 
             while (index < end)
@@ -325,7 +348,11 @@ public static class SqlScopeAnalyzer
                     break;
                 }
 
-                references.Add(reference);
+                if (collects)
+                {
+                    references.Add(reference);
+                }
+
                 index = next;
 
                 if (!allowsList || index >= end || !tokens[index].IsPunctuation(","))

@@ -88,7 +88,15 @@ public static class SqlInsertStatementText
             var value = values[index] + (index == columns.Count - 1 ? string.Empty : ",");
             builder.Append(body).Append(value);
             builder.Append(' ', widest - value.Length + 1);
-            builder.Append("-- ").Append(columns[index].Name).Append(" - ").Append(columns[index].DataType);
+            builder.Append("-- ").Append(columns[index].Name);
+
+            // 型別讀不出來時就不寫（SELECT … INTO #tmp 投影出來的資料行）：
+            // 留一個結尾的「 - 」看起來像是漏了什麼東西。
+            if (columns[index].DataType.Length > 0)
+            {
+                builder.Append(" - ").Append(columns[index].DataType);
+            }
+
             builder.Append(newLine);
         }
 

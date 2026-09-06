@@ -10,9 +10,10 @@ namespace SqlAssist.Core.Parsing;
 /// <remarks>
 /// 只認<b>帶著資料行定義</b>的兩種寫法：<c>CREATE TABLE #tmp (…)</c> 與
 /// <c>DECLARE @tmp TABLE (…)</c>（函式的 <c>RETURNS @tmp TABLE (…)</c> 是同一個
-/// 形狀，因此免費一起認得）。<c>SELECT … INTO #tmp</c> 不在裡面：那裡沒有型別，
-/// 而少了型別的 <c>INSERT</c> 骨架會替使用者猜錯字面值——名稱那一份仍然照列，
-/// 見 <c>SqlScriptDataSourceSuggestions</c>。
+/// 形狀，因此免費一起認得）。<c>SELECT … INTO #tmp</c> 不在這一份裡：它的資料行
+/// 要把整段選取清單遞迴攤平，而這裡是一趟走完的線性掃描，收得起來的只有形狀就看
+/// 得出來的東西。那一種由 <see cref="SqlColumnSourceResolver.FindScriptTable"/>
+/// 延後投影，兩者在那裡合成同一個型別。
 ///
 /// <c>CREATE TABLE</c> 這兩個字是必要條件而不是修飾：<c>INSERT INTO #tmp (a, b)</c>
 /// 的形狀與資料行清單一模一樣，少了前綴就會把使用者剛寫的 INSERT 讀成一份宣告，

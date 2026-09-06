@@ -208,7 +208,10 @@ internal sealed class SqlCommitExpander
         // 而 ALTER 的定義與 EXEC 的參數這兩種名稱一個都給不出來。
         if (selected.Tag is SqlScriptTable scriptTable)
         {
-            if (!canReplaceStatement)
+            // 一個資料行都讀不出來時退回只補名稱。SELECT * INTO #tmp FROM dbo.Loan
+            // 的那份名單只有中繼資料知道，而空括號的 INSERT 仍然貼得上去——
+            // 與 SELECT * 不做部分展開是同一條理由。
+            if (!canReplaceStatement || scriptTable.Columns.Count == 0)
             {
                 return null;
             }
