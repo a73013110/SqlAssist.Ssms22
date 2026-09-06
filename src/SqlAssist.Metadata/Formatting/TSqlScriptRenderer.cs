@@ -39,6 +39,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         }
 
         var statements = new List<Statement>();
+        AppendHeaderComment(statements, context);
 
         foreach (var structure in objects)
         {
@@ -46,6 +47,94 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         }
 
         return Join(statements, context);
+    }
+
+    /// <summary>
+    /// 檔頭註解：這份指令碼從哪裡來、什麼時候產生的、用哪一組風格。
+    /// </summary>
+    /// <remarks>
+    /// 存檔之後看得出來源是這份文字唯一的用處。少了它，一個資料夾裡的十份
+    /// <c>CREATE TABLE</c> 分不出是從測試機還是正式機抓的——而那正是有人會照著
+    /// 執行一次的情形。
+    ///
+    /// 查不到的欄位整行不寫，不留一行「來源：（未知）」：那一行沒有帶任何資訊，
+    /// 只是讓檔頭長一點。
+    /// </remarks>
+    private static void AppendHeaderComment(List<Statement> statements, SqlScriptContext context)
+    {
+        if (!context.Options.IncludeHeaderComment)
+        {
+            return;
+        }
+
+        var builder = new StringBuilder();
+        AppendCommentLine(builder, context, "來源", JoinSource(context));
+        AppendCommentLine(builder, context, "產生時間", context.GeneratedAt?.ToString("u"));
+        AppendCommentLine(builder, context, "工具", context.ToolVersion);
+        AppendCommentLine(builder, context, "風格", context.Options.Style.ToString());
+
+        if (builder.Length > 0)
+        {
+            statements.Add(new Statement(builder.ToString().TrimEnd(), batched: false));
+        }
+    }
+
+    private static string? JoinSource(SqlScriptContext context)
+    {
+        if (context.ServerName is not { Length: > 0 } server)
+        {
+            return context.DatabaseName;
+        }
+
+        return context.DatabaseName is { Length: > 0 } database ? server + "." + database : server;
+    }
+
+    private static void AppendCommentLine(
+        StringBuilder builder,
+        SqlScriptContext context,
+        string label,
+        string? value)
+    {
+        if (value is { Length: > 0 })
+        {
+            builder.Append("-- ").Append(label).Append('：').Append(value).Append(context.NewLine);
+        }
+    }
+
+    /// <summary>
+    /// 健檢的發現，寫成這個物件前面的一段註解。
+    /// </summary>
+    /// <remarks>
+    /// 排在物件的第一個敘述之前而不是整份的最前面：多物件時每一張表的發現要跟著
+    /// 自己那張表，否則一份三十張表的指令碼開頭會是一整頁分不出屬於誰的警告。
+    ///
+    /// 這一段不參與批次分隔——全是註解的東西後面接一個 <c>GO</c> 沒有意義。
+    /// </remarks>
+    private static void AppendAnalyzerComments(
+        List<Statement> statements,
+        SqlObjectStructure structure,
+        SqlScriptContext context)
+    {
+        if (!context.Options.IncludeAnalyzerComments || context.Analyzer is not { } analyzer)
+        {
+            return;
+        }
+
+        var findings = analyzer.Analyze(structure);
+
+        if (findings.Count == 0)
+        {
+            return;
+        }
+
+        var builder = new StringBuilder();
+
+        foreach (var finding in findings)
+        {
+            builder.Append("-- ").Append(finding.Describe()).Append(context.NewLine);
+        }
+
+        statements.Add(new Statement(builder.ToString().TrimEnd(), batched: false));
     }
 
     /// <summary>一個敘述，以及它算不算一個要用 <c>GO</c> 隔開的批次。</summary>
@@ -79,6 +168,8 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             statements.Add(new Statement(unavailable, batched: false));
             return;
         }
+
+        AppendAnalyzerComments(statements, structure, context);
 
         // SET 選項在這裡加，不在下面三支各加一次：漏掉其中一支的症狀是同一份
         // 指令碼裡有的物件前面有那兩行、有的沒有，而那不是任何一個選項說的。

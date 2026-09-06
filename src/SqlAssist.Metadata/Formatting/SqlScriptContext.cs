@@ -1,5 +1,6 @@
 using System;
 using SqlAssist.Core.Scripting;
+using SqlAssist.Metadata.Analysis;
 
 namespace SqlAssist.Metadata.Formatting;
 
@@ -24,7 +25,8 @@ public sealed class SqlScriptContext
         string? serverName = null,
         string? databaseName = null,
         string? toolVersion = null,
-        DateTimeOffset? generatedAt = null)
+        DateTimeOffset? generatedAt = null,
+        SqlSchemaAnalyzer? analyzer = null)
     {
         Options = options ?? throw new ArgumentNullException(nameof(options));
         DatabaseCollation = databaseCollation;
@@ -33,6 +35,7 @@ public sealed class SqlScriptContext
         DatabaseName = databaseName;
         ToolVersion = toolVersion;
         GeneratedAt = generatedAt;
+        Analyzer = analyzer;
     }
 
     public SqlScriptOptions Options { get; }
@@ -59,8 +62,29 @@ public sealed class SqlScriptContext
 
     public DateTimeOffset? GeneratedAt { get; }
 
+    /// <summary>
+    /// 結構健檢；null 代表這一次不跑。
+    /// </summary>
+    /// <remarks>
+    /// 帶分析器而不是帶一份現成的發現清單：多物件時每一張表的發現要跟著自己那張表，
+    /// 而呼叫端先跑一輪再攤平成一份清單的話，那個對應關係就得靠名稱再湊回來。
+    ///
+    /// 跑不跑由這一格決定，寫不寫由 <see cref="SqlScriptOptions.IncludeAnalyzerComments"/>
+    /// 決定。兩個開關不是重複：關掉輸出仍然可能要跑健檢（獨立的結果面板），
+    /// 而關掉分析器則連跑都不跑。
+    /// </remarks>
+    public SqlSchemaAnalyzer? Analyzer { get; }
+
     public SqlScriptContext WithOptions(SqlScriptOptions options) =>
-        new(options, DatabaseCollation, NewLine, ServerName, DatabaseName, ToolVersion, GeneratedAt);
+        new(
+            options,
+            DatabaseCollation,
+            NewLine,
+            ServerName,
+            DatabaseName,
+            ToolVersion,
+            GeneratedAt,
+            Analyzer);
 
     /// <remarks>
     /// 不是那三種換行之一時退回作業系統預設值。換行必須在算游標位置之前就定好，

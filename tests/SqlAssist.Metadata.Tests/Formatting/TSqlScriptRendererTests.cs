@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using SqlAssist.Core.Scripting;
+using SqlAssist.Metadata.Analysis;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using Xunit;
@@ -321,6 +322,91 @@ public sealed class TSqlScriptRendererTests
             Context(SqlScriptOptions.Fidelity with { ForeignKeysWithNoCheck = true }));
 
         Assert.Contains("ALTER TABLE [dbo].[Loan] WITH NOCHECK ADD CONSTRAINT [FK_Loan_Copy]", script);
+    }
+
+    // ── 檔頭與健檢註解 ────────────────────────────────────────────────
+
+    [Fact]
+    public void 檔頭註解帶出來源與產生時間()
+    {
+        var context = new SqlScriptContext(
+            SqlScriptOptions.Fidelity with { IncludeHeaderComment = true },
+            newLine: "\n",
+            serverName: "LIB01",
+            databaseName: "LibraryDb",
+            toolVersion: "SqlAssist 1.2.3",
+            generatedAt: new DateTimeOffset(2026, 9, 6, 8, 30, 0, TimeSpan.Zero));
+
+        var script = TSqlScriptRenderer.Default.Render(LoanTableFixture.Create(), context);
+
+        Assert.StartsWith("-- 來源：LIB01.LibraryDb\n", script);
+        Assert.Contains("-- 產生時間：2026-09-06 08:30:00Z", script);
+        Assert.Contains("-- 工具：SqlAssist 1.2.3", script);
+        Assert.Contains("-- 風格：Fidelity", script);
+    }
+
+    /// <remarks>
+    /// 查不到的欄位整行不寫：一行「來源：（未知）」沒有帶任何資訊。
+    /// </remarks>
+    [Fact]
+    public void 查不到來源時檔頭不留空欄()
+    {
+        var context = new SqlScriptContext(
+            SqlScriptOptions.Fidelity with { IncludeHeaderComment = true },
+            newLine: "\n");
+
+        var script = TSqlScriptRenderer.Default.Render(LoanTableFixture.Create(), context);
+
+        Assert.DoesNotContain("-- 來源：", script);
+        Assert.DoesNotContain("-- 產生時間：", script);
+        Assert.StartsWith("-- 風格：Fidelity", script);
+    }
+
+    [Fact]
+    public void 關掉檔頭之後第一行就是敘述()
+    {
+        Assert.StartsWith("CREATE TABLE", Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void 健檢的發現寫成物件前面的註解()
+    {
+        var script = TSqlScriptRenderer.Default.Render(
+            LoanTableFixture.Create(),
+            new SqlScriptContext(
+                SqlScriptOptions.Fidelity with { IncludeAnalyzerComments = true },
+                newLine: "\n",
+                analyzer: SqlSchemaAnalyzer.Default));
+
+        Assert.StartsWith("-- [SCHEMA-001][Warning] IX_Loan_3：", script);
+        Assert.Contains("-- [SCHEMA-006][Warning] Status：", script);
+
+        // 全是註解的東西後面接一個 GO 沒有意義。
+        Assert.DoesNotContain("--\nGO", script);
+    }
+
+    /// <remarks>
+    /// 跑不跑由分析器決定，寫不寫由選項決定；兩個開關不是重複。
+    /// </remarks>
+    [Fact]
+    public void 沒有分析器或關掉輸出時都不寫健檢註解()
+    {
+        Assert.DoesNotContain(
+            "SCHEMA-",
+            TSqlScriptRenderer.Default.Render(
+                LoanTableFixture.Create(),
+                new SqlScriptContext(
+                    SqlScriptOptions.Fidelity with { IncludeAnalyzerComments = true },
+                    newLine: "\n")));
+
+        Assert.DoesNotContain(
+            "SCHEMA-",
+            TSqlScriptRenderer.Default.Render(
+                LoanTableFixture.Create(),
+                new SqlScriptContext(
+                    SqlScriptOptions.Fidelity,
+                    newLine: "\n",
+                    analyzer: SqlSchemaAnalyzer.Default)));
     }
 
     // ── 儲存位置 ──────────────────────────────────────────────────────
