@@ -25,7 +25,17 @@ internal static class LoanTableFixture
             new SqlObjectDetail(new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table), Columns()),
             Indexes(),
             extendedProperties: ExtendedProperties(),
-            checkConstraints: CheckConstraints());
+            checkConstraints: CheckConstraints(),
+            storage: new SqlTableStorage(Primary, lobFilegroupName: "PRIMARY"));
+
+    /// <summary>
+    /// 預設檔案群組。
+    /// </summary>
+    /// <remarks>
+    /// LOB 那一格刻意不是 null：這張表有 <c>nvarchar(max)</c>，所以來源上一定有
+    /// <c>lob_data_space_id</c>，而 <c>TEXTIMAGE_ON</c> 是還原度差最多的那幾項之一。
+    /// </remarks>
+    private static readonly SqlDataSpace Primary = new("PRIMARY", "FG");
 
     /// <remarks>
     /// 只對 <c>RenewCount</c> 加，<c>Status</c> 刻意不加：健檢的「列舉語意欄位
@@ -101,7 +111,8 @@ internal static class LoanTableFixture
             new[] { new SqlIndexColumn("LoanId") },
             isPrimaryKey: true,
             isUnique: true,
-            typeDescription: "CLUSTERED"),
+            typeDescription: "CLUSTERED",
+            dataSpace: Primary),
         new SqlIndexInfo(
             2,
             "IX_Loan_1",
@@ -112,13 +123,15 @@ internal static class LoanTableFixture
                 new SqlIndexColumn("IsActive", isIncluded: true),
                 new SqlIndexColumn("DueTime", isIncluded: true)
             },
-            typeDescription: "NONCLUSTERED"),
+            typeDescription: "NONCLUSTERED",
+            dataSpace: Primary),
         new SqlIndexInfo(
             3,
             "IX_Loan_2",
             new[] { new SqlIndexColumn("PublicId") },
             isUnique: true,
-            typeDescription: "NONCLUSTERED"),
+            typeDescription: "NONCLUSTERED",
+            dataSpace: Primary),
         new SqlIndexInfo(
             4,
             "IX_Loan_3",
@@ -137,7 +150,8 @@ internal static class LoanTableFixture
                 new SqlIndexColumn("RenewCount", isIncluded: true)
             },
             typeDescription: "NONCLUSTERED",
-            filterDefinition: "([IsActive]=(1))")
+            filterDefinition: "([IsActive]=(1))",
+            dataSpace: Primary)
     };
 
     private static SqlColumnInfo Identity(int ordinal, string name, string type, short length, byte precision) =>

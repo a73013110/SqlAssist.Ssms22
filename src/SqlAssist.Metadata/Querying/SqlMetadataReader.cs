@@ -91,8 +91,15 @@ public static class SqlMetadataReader
     private static string? ReadOptionalString(IDataRecord record, int ordinal) =>
         record.FieldCount > ordinal && !record.IsDBNull(ordinal) ? record.GetString(ordinal) : null;
 
-    private static bool ReadOptionalBoolean(IDataRecord record, int ordinal) =>
-        record.FieldCount > ordinal && !record.IsDBNull(ordinal) && record.GetBoolean(ordinal);
+    /// <param name="fallback">
+    /// 讀不到時的值。預設是 ON 的選項（<c>ALLOW_ROW_LOCKS</c>、
+    /// <c>ALLOW_PAGE_LOCKS</c>）一定要傳 <c>true</c>：給錯的話每一個索引都會多出
+    /// 一個 <c>= OFF</c>，而那會靜靜地改掉那張表的鎖定行為。
+    /// </param>
+    private static bool ReadOptionalBoolean(IDataRecord record, int ordinal, bool fallback = false) =>
+        record.FieldCount > ordinal && !record.IsDBNull(ordinal)
+            ? record.GetBoolean(ordinal)
+            : fallback;
 
     public static SqlIndexRow ReadIndexRow(IDataRecord record)
     {
@@ -111,7 +118,68 @@ public static class SqlMetadataReader
             record.IsDBNull(6) ? null : record.GetString(6),
             record.GetString(7),
             record.GetBoolean(8),
-            record.GetBoolean(9));
+            record.GetBoolean(9),
+            ReadIndexOptions(record),
+            ReadDataSpace(record, 18, 19, 20));
+    }
+
+    /// <remarks>
+    /// 選項全部走 <see cref="ReadOptionalBoolean"/> 那一族的防護：索引查詢的欄位
+    /// 是後來加的，而假資料列與舊的呼叫端只組得出前十欄。多讀一欄拿到的
+    /// <see cref="System.IndexOutOfRangeException"/> 不是 <c>DbException</c>，
+    /// 不會被降級成「這一輪沒有資料」。
+    ///
+    /// <c>allow_row_locks</c> 與 <c>allow_page_locks</c> 的預設是 <b>ON</b>，
+    /// 所以讀不到時要給 <c>true</c> 而不是 <c>false</c>——給錯的話每一個索引
+    /// 都會多出兩個 <c>= OFF</c>，而那會靜靜地改掉那張表的鎖定行為。
+    /// </remarks>
+    private static SqlIndexOptions ReadIndexOptions(IDataRecord record)
+    {
+        return new SqlIndexOptions(
+            record.FieldCount > 10 && !record.IsDBNull(10) ? record.GetByte(10) : (byte)0,
+            ReadOptionalBoolean(record, 11),
+            ReadOptionalBoolean(record, 12),
+            ReadOptionalBoolean(record, 13, fallback: true),
+            ReadOptionalBoolean(record, 14, fallback: true),
+            ReadOptionalBoolean(record, 15),
+            ReadOptionalBoolean(record, 16),
+            ReadOptionalString(record, 17));
+    }
+
+    /// <summary>檔案群組或分割配置；名稱讀不到時整個為 null。</summary>
+    private static SqlDataSpace? ReadDataSpace(
+        IDataRecord record,
+        int nameOrdinal,
+        int typeOrdinal,
+        int partitionColumnOrdinal)
+    {
+        var name = ReadOptionalString(record, nameOrdinal);
+
+        return name is null
+            ? null
+            : new SqlDataSpace(
+                name,
+                ReadOptionalString(record, typeOrdinal),
+                ReadOptionalString(record, partitionColumnOrdinal));
+    }
+
+    /// <remarks>
+    /// 查不到那一列時（資料表剛被卸除、權限被收回）回傳
+    /// <see cref="SqlTableStorage.None"/>，而它的每一個欄位都是「沒有」——
+    /// 猜一個 <c>[PRIMARY]</c> 出來是指令碼在說謊，那張表可能建在別的檔案群組上。
+    /// </remarks>
+    public static SqlTableStorage ReadTableStorage(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        return new SqlTableStorage(
+            ReadDataSpace(record, 0, 1, 4),
+            ReadOptionalString(record, 2),
+            ReadOptionalBoolean(record, 3, fallback: true),
+            ReadOptionalBoolean(record, 5, fallback: true));
     }
 
     public static SqlCheckConstraint ReadCheckConstraint(IDataRecord record)

@@ -26,13 +26,15 @@ public sealed class SqlObjectStructure
         IReadOnlyList<SqlIndexInfo>? indexes = null,
         IReadOnlyList<SqlForeignKeyInfo>? foreignKeys = null,
         IReadOnlyList<SqlExtendedProperty>? extendedProperties = null,
-        IReadOnlyList<SqlCheckConstraint>? checkConstraints = null)
+        IReadOnlyList<SqlCheckConstraint>? checkConstraints = null,
+        SqlTableStorage? storage = null)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
         ForeignKeys = foreignKeys ?? NoForeignKeys;
         ExtendedProperties = extendedProperties ?? NoExtendedProperties;
         CheckConstraints = checkConstraints ?? NoCheckConstraints;
+        Storage = storage ?? SqlTableStorage.None;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -59,6 +61,9 @@ public sealed class SqlObjectStructure
 
     /// <summary>資料表上的 CHECK 條件約束。</summary>
     public IReadOnlyList<SqlCheckConstraint> CheckConstraints { get; }
+
+    /// <summary>資料表本身的儲存位置與建立當時的 SET 選項；查不到時每個欄位都是「沒有」。</summary>
+    public SqlTableStorage Storage { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey

@@ -19,14 +19,14 @@ CREATE TABLE [dbo].[Loan](
 	[CreateTime] [datetime] NOT NULL CONSTRAINT [DF_Loan_CreateTime] DEFAULT (getdate()),
 	[UpdateUser] [nvarchar](50) COLLATE Chinese_Taiwan_Stroke_CI_AS NULL,
 	[UpdateTime] [datetime] NULL,
-	CONSTRAINT [PK_Loan] PRIMARY KEY CLUSTERED ([LoanId] ASC)
-)
+	CONSTRAINT [PK_Loan] PRIMARY KEY CLUSTERED ([LoanId] ASC) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 GO
-CREATE NONCLUSTERED INDEX [IX_Loan_1] ON [dbo].[Loan] ([Status] ASC, [LoanTime] DESC) INCLUDE ([IsActive], [DueTime])
+CREATE NONCLUSTERED INDEX [IX_Loan_1] ON [dbo].[Loan] ([Status] ASC, [LoanTime] DESC) INCLUDE ([IsActive], [DueTime]) ON [PRIMARY]
 GO
-CREATE UNIQUE NONCLUSTERED INDEX [IX_Loan_2] ON [dbo].[Loan] ([PublicId] ASC)
+CREATE UNIQUE NONCLUSTERED INDEX [IX_Loan_2] ON [dbo].[Loan] ([PublicId] ASC) ON [PRIMARY]
 GO
-CREATE NONCLUSTERED INDEX [IX_Loan_3] ON [dbo].[Loan] ([TargetBranchNo] ASC, [LoanTime] ASC) INCLUDE ([LoanId], [PublicId], [Status], [Title], [Remark], [BranchNo], [LoanUser], [DueTime], [RenewCount]) WHERE ([IsActive]=(1))
+CREATE NONCLUSTERED INDEX [IX_Loan_3] ON [dbo].[Loan] ([TargetBranchNo] ASC, [LoanTime] ASC) INCLUDE ([LoanId], [PublicId], [Status], [Title], [Remark], [BranchNo], [LoanUser], [DueTime], [RenewCount]) WHERE ([IsActive]=(1)) ON [PRIMARY]
 GO
 ALTER TABLE [dbo].[Loan] ADD CONSTRAINT [CK_Loan_RenewCount] CHECK ([RenewCount]>=(0))
 GO

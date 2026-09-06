@@ -323,6 +323,190 @@ public sealed class TSqlScriptRendererTests
         Assert.Contains("ALTER TABLE [dbo].[Loan] WITH NOCHECK ADD CONSTRAINT [FK_Loan_Copy]", script);
     }
 
+    // ── 儲存位置 ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void 資料表寫出檔案群組與TEXTIMAGE_ON()
+    {
+        Assert.Contains(") ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]", Render(SqlScriptOptions.Fidelity));
+    }
+
+    /// <remarks>
+    /// <c>TEXTIMAGE_ON</c> 指的也是一個檔案群組，跟著一起關掉：只留半個儲存位置
+    /// 的指令碼，會指名一個在目的地不一定存在的檔案群組。
+    /// </remarks>
+    [Fact]
+    public void 關掉檔案群組之後連TEXTIMAGE_ON都不寫()
+    {
+        var script = Render(SqlScriptOptions.Fidelity with { IncludeFilegroup = false });
+
+        Assert.DoesNotContain("[PRIMARY]", script);
+    }
+
+    [Fact]
+    public void 關掉TEXTIMAGE_ON之後只剩檔案群組()
+    {
+        var script = Render(SqlScriptOptions.Fidelity with { IncludeTextImageOn = false });
+
+        Assert.Contains(") ON [PRIMARY]", script);
+        Assert.DoesNotContain("TEXTIMAGE_ON", script);
+    }
+
+    /// <remarks>
+    /// 沒有 LOB 資料行的資料表在來源上 <c>lob_data_space_id</c> 就是 NULL，
+    /// 多寫一個 <c>TEXTIMAGE_ON</c> 出來是憑空多的。
+    /// </remarks>
+    [Fact]
+    public void 沒有LOB資料行時不寫TEXTIMAGE_ON()
+    {
+        var script = RenderStorage(new SqlTableStorage(new SqlDataSpace("SECONDARY", "FG")));
+
+        Assert.Contains(") ON [SECONDARY]", script);
+        Assert.DoesNotContain("TEXTIMAGE_ON", script);
+    }
+
+    [Fact]
+    public void 索引寫出自己的檔案群組()
+    {
+        Assert.Contains(
+            "CREATE UNIQUE NONCLUSTERED INDEX [IX_Loan_2] ON [dbo].[Loan] ([PublicId]) ON [PRIMARY]",
+            Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void 主索引鍵獨立成敘述時也帶檔案群組()
+    {
+        Assert.Contains(
+            "ADD CONSTRAINT [PK_Loan] PRIMARY KEY CLUSTERED ([LoanId]) ON [PRIMARY]",
+            Render(SqlScriptOptions.Fidelity));
+    }
+
+    /// <remarks>
+    /// 分割配置與檔案群組在 sys.data_spaces 裡是同一張表、同一個名稱欄位，
+    /// 寫出來的 T-SQL 卻完全不同；當成檔案群組寫會得到一段語法錯誤的指令碼。
+    /// </remarks>
+    [Fact]
+    public void 分割配置寫成配置名稱加分割資料行()
+    {
+        var script = RenderStorage(
+            new SqlTableStorage(new SqlDataSpace("ps_Loan", "PS", "LoanTime")));
+
+        Assert.Contains(") ON [ps_Loan]([LoanTime])", script);
+    }
+
+    /// <remarks>
+    /// 只寫 <c>ON [ps_Loan]</c> 是語法錯誤，而少一個 ON 子句只是讓它落到預設
+    /// 檔案群組——兩者都不對，但後者至少執行得起來。
+    /// </remarks>
+    [Fact]
+    public void 分割配置查不到分割資料行時整段不寫()
+    {
+        var script = RenderStorage(new SqlTableStorage(new SqlDataSpace("ps_Loan", "PS")));
+
+        Assert.DoesNotContain("ps_Loan", script);
+    }
+
+    [Fact]
+    public void 關掉分割配置之後不寫那一段()
+    {
+        var script = RenderStorage(
+            new SqlTableStorage(new SqlDataSpace("ps_Loan", "PS", "LoanTime")),
+            SqlScriptOptions.Fidelity with { IncludePartitionScheme = false });
+
+        Assert.DoesNotContain("ps_Loan", script);
+    }
+
+    /// <remarks>
+    /// 一張在 OFF 之下建起來的資料表，用 ON 重建可能直接失敗——而失敗還算好的，
+    /// 計算資料行的運算式在兩種設定下算出不同結果才是真的難查。
+    /// </remarks>
+    [Fact]
+    public void SET選項依目錄反推建立當時的值()
+    {
+        var script = RenderStorage(
+            new SqlTableStorage(usesAnsiNulls: false, usesQuotedIdentifier: true),
+            SqlScriptOptions.SsmsNative);
+
+        Assert.StartsWith("SET ANSI_NULLS OFF", script);
+        Assert.Contains("SET QUOTED_IDENTIFIER ON", script);
+    }
+
+    [Fact]
+    public void 固定寫ON時不看目錄()
+    {
+        var script = RenderStorage(
+            new SqlTableStorage(usesAnsiNulls: false, usesQuotedIdentifier: false),
+            SqlScriptOptions.Fidelity with { SetOptions = SqlSetOptionOutput.AlwaysOn });
+
+        Assert.StartsWith("SET ANSI_NULLS ON", script);
+        Assert.Contains("SET QUOTED_IDENTIFIER ON", script);
+    }
+
+    // ── 索引選項 ──────────────────────────────────────────────────────
+
+    /// <remarks>
+    /// 全是預設值的索引後面掛七、八個 <c>= OFF</c> 沒有一個帶資訊。
+    /// </remarks>
+    [Fact]
+    public void 全是預設值的索引不寫WITH()
+    {
+        Assert.DoesNotContain("WITH (", Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void 只寫出與預設值不同的索引選項()
+    {
+        var script = RenderIndexOptions(new SqlIndexOptions(
+            fillFactor: 80,
+            isPadded: true,
+            allowPageLocks: false,
+            noRecompute: true,
+            dataCompression: "PAGE"));
+
+        Assert.Contains(
+            "WITH (PAD_INDEX = ON, FILLFACTOR = 80, STATISTICS_NORECOMPUTE = ON, " +
+            "ALLOW_PAGE_LOCKS = OFF, DATA_COMPRESSION = PAGE)",
+            script);
+
+        // 這兩個沒有被動過，不該出現。
+        Assert.DoesNotContain("ALLOW_ROW_LOCKS", script);
+        Assert.DoesNotContain("IGNORE_DUP_KEY", script);
+    }
+
+    [Fact]
+    public void 沒有壓縮的索引不寫DATA_COMPRESSION()
+    {
+        Assert.DoesNotContain(
+            "DATA_COMPRESSION",
+            RenderIndexOptions(new SqlIndexOptions(dataCompression: "NONE")));
+    }
+
+    [Fact]
+    public void 關掉索引選項之後一個都不寫()
+    {
+        var script = RenderIndexOptions(
+            new SqlIndexOptions(fillFactor: 80),
+            SqlScriptOptions.Fidelity with { IncludeNonDefaultIndexOptions = false });
+
+        Assert.DoesNotContain("WITH (", script);
+    }
+
+    /// <remarks>
+    /// 不停用的話那張表會多出一個來源上不存在的索引——寫入會慢下來，
+    /// 而查詢計畫也會跟著改變。
+    /// </remarks>
+    [Fact]
+    public void 停用的索引建完之後再停回去()
+    {
+        var script = RenderIndexOptions(new SqlIndexOptions(isDisabled: true));
+
+        Assert.Contains("CREATE NONCLUSTERED INDEX [IX_Loan_Status] ON [dbo].[Loan]", script);
+        Assert.Contains("ALTER INDEX [IX_Loan_Status] ON [dbo].[Loan] DISABLE", script);
+
+        // 停用不是 WITH 括號裡的選項，寫進去是語法錯誤。
+        Assert.DoesNotContain("IS_DISABLED", script);
+    }
+
     // ── CHECK 條件約束 ────────────────────────────────────────────────
 
     [Fact]
@@ -693,6 +877,40 @@ public sealed class TSqlScriptRendererTests
     /// </remarks>
     private static string Normalize(string text) =>
         text.Replace("\r\n", "\n").Replace("\r", "\n");
+
+    /// <summary>只換掉儲存位置的最小資料表。</summary>
+    private static string RenderStorage(SqlTableStorage storage, SqlScriptOptions? options = null)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table),
+                new[] { new SqlColumnInfo(1, "LoanTime", "datetime", false) }),
+            storage: storage);
+
+        return TSqlScriptRenderer.Default.Render(
+            structure, Context(options ?? SqlScriptOptions.Fidelity));
+    }
+
+    /// <summary>只有一個索引、只換掉它的選項的最小資料表。</summary>
+    private static string RenderIndexOptions(SqlIndexOptions indexOptions, SqlScriptOptions? options = null)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table),
+                new[] { new SqlColumnInfo(1, "Status", "tinyint", false) }),
+            new[]
+            {
+                new SqlIndexInfo(
+                    2,
+                    "IX_Loan_Status",
+                    new[] { new SqlIndexColumn("Status") },
+                    typeDescription: "NONCLUSTERED",
+                    options: indexOptions)
+            });
+
+        return TSqlScriptRenderer.Default.Render(
+            structure, Context(options ?? SqlScriptOptions.Fidelity));
+    }
 
     /// <summary>只有 CHECK 條件約束的最小資料表，讓期望值短到看得出差別。</summary>
     private static string RenderChecks(SqlCheckConstraint check, SqlScriptOptions? options = null)

@@ -200,6 +200,15 @@ ORDER BY c.column_id;";
     /// <c>type = 0</c> 是堆積，沒有索引名稱也沒有意義，直接排除。
     /// 排序把索引鍵欄位排在 INCLUDE 欄位前面：INCLUDE 欄位的 key_ordinal 是 0，
     /// 只依 key_ordinal 排會讓它們跑到最前面。
+    ///
+    /// <c>STATISTICS_NORECOMPUTE</c> 的來源是 <c>sys.stats.no_recompute</c>，
+    /// 不在 <c>sys.indexes</c> 上——每個索引有一份同號的統計資料，鍵是
+    /// <c>stats_id = index_id</c>。<c>DATA_COMPRESSION</c> 則在
+    /// <c>sys.partitions</c>，只取第一個分割：其餘分割各自可以不同，
+    /// 而那要寫成 <c>ON PARTITIONS (…)</c>，不是這一層能表達的。
+    ///
+    /// 三個 JOIN 都限制成最多一列（<c>stats_id</c>、<c>partition_number = 1</c>、
+    /// <c>partition_ordinal = 1</c>），不會讓每個資料行多出幾列。
     /// </remarks>
     public const string Indexes = @"
 SELECT
@@ -212,16 +221,75 @@ SELECT
     i.filter_definition,
     c.name AS column_name,
     ic.is_descending_key,
-    ic.is_included_column
+    ic.is_included_column,
+    i.fill_factor,
+    i.is_padded,
+    i.ignore_dup_key,
+    i.allow_row_locks,
+    i.allow_page_locks,
+    i.is_disabled,
+    st.no_recompute,
+    p.data_compression_desc,
+    ds.name AS data_space_name,
+    ds.type AS data_space_type,
+    pc.name AS partition_column_name
 FROM sys.indexes AS i
 INNER JOIN sys.index_columns AS ic
     ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 INNER JOIN sys.columns AS c
     ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+LEFT JOIN sys.stats AS st
+    ON st.object_id = i.object_id AND st.stats_id = i.index_id
+LEFT JOIN sys.partitions AS p
+    ON p.object_id = i.object_id AND p.index_id = i.index_id AND p.partition_number = 1
+LEFT JOIN sys.data_spaces AS ds
+    ON ds.data_space_id = i.data_space_id
+LEFT JOIN sys.index_columns AS pic
+    ON pic.object_id = i.object_id AND pic.index_id = i.index_id AND pic.partition_ordinal = 1
+LEFT JOIN sys.columns AS pc
+    ON pc.object_id = pic.object_id AND pc.column_id = pic.column_id
 WHERE i.object_id = @objectId
   AND i.type <> 0
   AND i.name IS NOT NULL
 ORDER BY i.index_id, ic.is_included_column, ic.key_ordinal, ic.index_column_id;";
+
+    /// <summary>
+    /// 第四層：資料表本身的儲存位置與建立時的 SET 選項。
+    /// </summary>
+    /// <remarks>
+    /// 資料表沒有自己的 <c>data_space_id</c>，那個值在它的叢集索引或堆積上
+    /// （<c>index_id</c> 0 或 1）——所以要繞回 <c>sys.indexes</c>。
+    ///
+    /// <c>lob_data_space_id</c> 只有真的有 LOB 資料行時才不是 NULL，
+    /// 而它正是 <c>TEXTIMAGE_ON</c> 的來源。判斷「這張表要不要寫
+    /// <c>TEXTIMAGE_ON</c>」用它，不要自己掃資料行的型別：<c>xml</c>、CLR 型別
+    /// 與 <c>varchar(max)</c> 都算，漏一種就是一份與來源不同的資料表。
+    ///
+    /// <c>uses_ansi_nulls</c> 與 <c>uses_quoted_identifier</c> 反推建立當時的那兩個
+    /// <c>SET</c>。反推而不是一律寫 <c>ON</c>：計算資料行、篩選索引與索引檢視對
+    /// 這兩個選項的值有要求，而一張在 <c>OFF</c> 之下建起來的資料表，
+    /// 用 <c>ON</c> 重建可能直接失敗。
+    /// </remarks>
+    public const string TableStorage = @"
+SELECT
+    ds.name AS filegroup_name,
+    ds.type AS filegroup_type,
+    lob.name AS lob_filegroup_name,
+    t.uses_ansi_nulls,
+    pc.name AS partition_column_name,
+    t.uses_quoted_identifier
+FROM sys.tables AS t
+LEFT JOIN sys.indexes AS i
+    ON i.object_id = t.object_id AND i.index_id IN (0, 1)
+LEFT JOIN sys.data_spaces AS ds
+    ON ds.data_space_id = i.data_space_id
+LEFT JOIN sys.data_spaces AS lob
+    ON lob.data_space_id = t.lob_data_space_id
+LEFT JOIN sys.index_columns AS pic
+    ON pic.object_id = i.object_id AND pic.index_id = i.index_id AND pic.partition_ordinal = 1
+LEFT JOIN sys.columns AS pc
+    ON pc.object_id = pic.object_id AND pc.column_id = pic.column_id
+WHERE t.object_id = @objectId;";
 
     /// <summary>第四層：單一資料表向外參考的外來鍵；複合鍵會有多列。</summary>
     public const string ForeignKeys = @"

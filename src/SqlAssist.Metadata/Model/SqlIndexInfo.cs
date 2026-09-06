@@ -48,7 +48,9 @@ public sealed class SqlIndexRow
         string? filterDefinition,
         string columnName,
         bool isDescending,
-        bool isIncluded)
+        bool isIncluded,
+        SqlIndexOptions? options = null,
+        SqlDataSpace? dataSpace = null)
     {
         IndexId = indexId;
         Name = name;
@@ -60,6 +62,8 @@ public sealed class SqlIndexRow
         ColumnName = columnName;
         IsDescending = isDescending;
         IsIncluded = isIncluded;
+        Options = options ?? SqlIndexOptions.Default;
+        DataSpace = dataSpace;
     }
 
     public int IndexId { get; }
@@ -81,6 +85,10 @@ public sealed class SqlIndexRow
     public bool IsDescending { get; }
 
     public bool IsIncluded { get; }
+
+    public SqlIndexOptions Options { get; }
+
+    public SqlDataSpace? DataSpace { get; }
 }
 
 /// <summary>資料表或索引檢視的單一索引。</summary>
@@ -94,7 +102,9 @@ public sealed class SqlIndexInfo
         bool isUnique = false,
         bool isUniqueConstraint = false,
         string typeDescription = "NONCLUSTERED",
-        string? filterDefinition = null)
+        string? filterDefinition = null,
+        SqlIndexOptions? options = null,
+        SqlDataSpace? dataSpace = null)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -109,6 +119,8 @@ public sealed class SqlIndexInfo
         IsUniqueConstraint = isUniqueConstraint;
         TypeDescription = typeDescription ?? string.Empty;
         FilterDefinition = filterDefinition;
+        Options = options ?? SqlIndexOptions.Default;
+        DataSpace = dataSpace;
     }
 
     public int IndexId { get; }
@@ -130,6 +142,12 @@ public sealed class SqlIndexInfo
 
     /// <summary>篩選索引的條件；一般索引為 null。</summary>
     public string? FilterDefinition { get; }
+
+    /// <summary>WITH (…) 裡的那幾個選項；查不到時全部是預設值。</summary>
+    public SqlIndexOptions Options { get; }
+
+    /// <summary>索引存在哪一個檔案群組或分割配置；查不到時為 null。</summary>
+    public SqlDataSpace? DataSpace { get; }
 
     /// <summary>把查詢回傳的扁平結果合併成索引清單，順序沿用輸入順序。</summary>
     public static IReadOnlyList<SqlIndexInfo> FromRows(IEnumerable<SqlIndexRow> rows)
@@ -235,7 +253,9 @@ public sealed class SqlIndexInfo
             row.IsUnique,
             row.IsUniqueConstraint,
             row.TypeDescription,
-            row.FilterDefinition);
+            row.FilterDefinition,
+            row.Options,
+            row.DataSpace);
     }
 
     public override string ToString() => $"{DescribeKind()} {Name} ({DescribeKeyColumns()})";

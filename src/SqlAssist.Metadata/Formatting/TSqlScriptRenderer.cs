@@ -82,7 +82,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         // SET 選項在這裡加，不在下面三支各加一次：漏掉其中一支的症狀是同一份
         // 指令碼裡有的物件前面有那兩行、有的沒有，而那不是任何一個選項說的。
-        AppendSetOptions(statements, context.Options);
+        AppendSetOptions(statements, context.Options, structure.Storage);
 
         if (structure.Object.Kind.ScriptsFromDefinition())
         {
@@ -132,6 +132,11 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                 }
 
                 statements.Add(new Statement(BuildCreateIndex(index, name, context), batched: true));
+
+                if (index.Options.IsDisabled)
+                {
+                    statements.Add(new Statement(BuildDisableIndex(index, name, context), batched: true));
+                }
             }
         }
 
@@ -258,17 +263,31 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     /// <remarks>
     /// 這兩行不是裝飾：計算資料行、篩選索引與索引檢視對這兩個選項的值有要求，
     /// 少了它們的 <c>CREATE TABLE</c> 在某些連線設定下會直接失敗。
+    ///
+    /// <see cref="SqlSetOptionOutput.FromCatalog"/> 依 <c>sys.tables</c> 反推建立
+    /// 當時的值，而不是一律寫 <c>ON</c>：一張在 <c>OFF</c> 之下建起來的資料表，
+    /// 用 <c>ON</c> 重建可能直接失敗——而失敗還算好的，計算資料行的運算式在兩種
+    /// 設定下算出不同結果才是真的難查。
     /// </remarks>
-    private static void AppendSetOptions(List<Statement> statements, SqlScriptOptions options)
+    private static void AppendSetOptions(
+        List<Statement> statements,
+        SqlScriptOptions options,
+        SqlTableStorage storage)
     {
         if (options.SetOptions == SqlSetOptionOutput.None)
         {
             return;
         }
 
-        statements.Add(new Statement("SET ANSI_NULLS ON", batched: true));
-        statements.Add(new Statement("SET QUOTED_IDENTIFIER ON", batched: true));
+        var fromCatalog = options.SetOptions == SqlSetOptionOutput.FromCatalog;
+        var ansiNulls = !fromCatalog || storage.UsesAnsiNulls;
+        var quotedIdentifier = !fromCatalog || storage.UsesQuotedIdentifier;
+
+        statements.Add(new Statement("SET ANSI_NULLS " + OnOff(ansiNulls), batched: true));
+        statements.Add(new Statement("SET QUOTED_IDENTIFIER " + OnOff(quotedIdentifier), batched: true));
     }
+
+    private static string OnOff(bool value) => value ? "ON" : "OFF";
 
     private string BuildCreateTable(SqlObjectStructure structure, SqlScriptContext context, string name)
     {
@@ -278,7 +297,103 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         AppendOpenBrace(builder, context);
         AppendColumns(builder, structure, context, BuildInlineConstraints(structure, context));
         builder.Append(')');
+        AppendDataSpace(builder, structure.Storage.DataSpace, options);
+        AppendTextImageOn(builder, structure.Storage, options);
         return Terminate(builder, options).ToString();
+    }
+
+    /// <summary>
+    /// <c>ON [檔案群組]</c>，或分割配置的 <c>ON [配置]([資料行])</c>。
+    /// </summary>
+    /// <remarks>
+    /// 兩者在 <c>sys.data_spaces</c> 裡是同一張表、同一個名稱欄位，寫出來的 T-SQL
+    /// 卻完全不同。分割配置查不到分割資料行時整段不寫：只寫 <c>ON [ps_Loan]</c>
+    /// 是語法錯誤，而少一個 <c>ON</c> 子句只是讓它落到預設檔案群組——
+    /// 兩者都不對，但後者至少執行得起來。
+    /// </remarks>
+    private static void AppendDataSpace(
+        StringBuilder builder,
+        SqlDataSpace? dataSpace,
+        SqlScriptOptions options)
+    {
+        if (dataSpace is null || !options.IncludeFilegroup)
+        {
+            return;
+        }
+
+        if (!dataSpace.IsPartitionScheme)
+        {
+            builder.Append(" ON ").Append(Identifier(dataSpace.Name, options));
+            return;
+        }
+
+        if (!options.IncludePartitionScheme || dataSpace.PartitionColumnName is null)
+        {
+            return;
+        }
+
+        builder.Append(" ON ").Append(Identifier(dataSpace.Name, options))
+            .Append('(').Append(Identifier(dataSpace.PartitionColumnName, options)).Append(')');
+    }
+
+    /// <remarks>
+    /// 有沒有 LOB 資料行一律問 <c>lob_data_space_id</c>，不要自己掃資料行的型別：
+    /// <c>xml</c>、CLR 型別與 <c>varchar(max)</c> 都算，漏一種就是一份與來源
+    /// 不同的資料表。
+    ///
+    /// 從屬於 <see cref="SqlScriptOptions.IncludeFilegroup"/>：<c>TEXTIMAGE_ON</c>
+    /// 指的也是一個檔案群組，關掉「寫出檔案群組」卻留著它，得到的是一份指名了
+    /// 半個儲存位置的指令碼——而那個檔案群組在目的地不一定存在。
+    /// </remarks>
+    private static void AppendTextImageOn(
+        StringBuilder builder,
+        SqlTableStorage storage,
+        SqlScriptOptions options)
+    {
+        if (options.IncludeFilegroup &&
+            options.IncludeTextImageOn &&
+            storage.LobFilegroupName is { Length: > 0 } lob)
+        {
+            builder.Append(" TEXTIMAGE_ON ").Append(Identifier(lob, options));
+        }
+    }
+
+    /// <summary><c>WITH (…)</c>，只有與預設值不同的那幾個選項。</summary>
+    /// <remarks>
+    /// 「預設值是什麼」由 <see cref="SqlIndexOptions.DescribeNonDefaults"/> 一份說了算：
+    /// 排版這一層也記一份的話，其中一份忘了某個選項的預設值，那個選項就會在
+    /// 每一份指令碼裡出現。
+    /// </remarks>
+    private static void AppendIndexOptions(
+        StringBuilder builder,
+        SqlIndexInfo index,
+        SqlScriptOptions options)
+    {
+        if (!options.IncludeNonDefaultIndexOptions)
+        {
+            return;
+        }
+
+        var items = index.Options.DescribeNonDefaults();
+
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        builder.Append(" WITH (");
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(items[i]);
+        }
+
+        builder.Append(')');
     }
 
     /// <remarks>
@@ -363,6 +478,8 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         builder.Append(index.IsPrimaryKey ? "PRIMARY KEY " : "UNIQUE ")
             .Append(index.TypeDescription)
             .Append(" (").Append(KeyColumns(index, options)).Append(')');
+        AppendIndexOptions(builder, index, options);
+        AppendDataSpace(builder, index.DataSpace, options);
         return builder.ToString();
     }
 
@@ -568,6 +685,8 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         builder.Append(index.IsPrimaryKey ? "PRIMARY KEY " : "UNIQUE ")
             .Append(index.TypeDescription)
             .Append(" (").Append(KeyColumns(index, options)).Append(')');
+        AppendIndexOptions(builder, index, options);
+        AppendDataSpace(builder, index.DataSpace, options);
         return Terminate(builder, options).ToString();
     }
 
@@ -598,7 +717,23 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             builder.Append(" WHERE ").Append(index.FilterDefinition);
         }
 
+        AppendIndexOptions(builder, index, options);
+        AppendDataSpace(builder, index.DataSpace, options);
         return Terminate(builder, options).ToString();
+    }
+
+    /// <summary>把索引停回去。</summary>
+    /// <remarks>
+    /// <c>CREATE INDEX</c> 的 <c>WITH</c> 括號裡沒有「停用」這個選項，只能建完再停。
+    /// 不停的話那張表會多出一個來源上不存在的索引——寫入會慢下來，
+    /// 而查詢計畫也會跟著改變。
+    /// </remarks>
+    private static string BuildDisableIndex(SqlIndexInfo index, string tableName, SqlScriptContext context)
+    {
+        var builder = new StringBuilder();
+        builder.Append("ALTER INDEX ").Append(Identifier(index.Name, context.Options))
+            .Append(" ON ").Append(tableName).Append(" DISABLE");
+        return Terminate(builder, context.Options).ToString();
     }
 
     private static string BuildForeignKey(

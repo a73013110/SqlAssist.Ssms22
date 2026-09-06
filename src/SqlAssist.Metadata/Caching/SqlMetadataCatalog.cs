@@ -479,12 +479,24 @@ public sealed class SqlMetadataCatalog
                 objectId)
             : new List<SqlCheckConstraint>();
 
+        // 只有資料表有檔案群組。檢視、資料表型別與指令碼宣告的東西問不到那一列，
+        // 而查詢成功卻沒有列與查詢失敗在這裡是同一個結果：什麼都不寫。
+        var storage = detail.Object.Kind == SqlObjectKind.Table
+            ? ReadList(
+                connection,
+                SqlMetadataQueries.TableStorage,
+                SqlMetadataReader.ReadTableStorage,
+                cancellationToken,
+                objectId)
+            : new List<SqlTableStorage>();
+
         return new SqlObjectStructure(
             detail,
             SqlIndexInfo.FromRows(indexRows),
             SqlForeignKeyInfo.FromRows(foreignKeyRows),
             extendedProperties,
-            checkConstraints);
+            checkConstraints,
+            storage.Count > 0 ? storage[0] : SqlTableStorage.None);
     }
 
     private bool IsFresh(SqlDatabaseSnapshot snapshot)

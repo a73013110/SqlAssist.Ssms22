@@ -249,6 +249,84 @@ public sealed class SqlMetadataReaderTests
         Assert.Equal("(傳回值)", SqlMetadataReader.ReadParameter(record).Name);
     }
 
+    [Fact]
+    public void 讀取索引選項與檔案群組()
+    {
+        // 前 10 欄與舊查詢相同，之後是選項、統計資料、壓縮與資料空間。
+        var record = new FakeDataRecord(
+            2, "IX_Loan_1", false, false, false, "NONCLUSTERED", null, "Status", false, false,
+            (byte)80, true, false, true, false, false, true, "PAGE", "FG_Loan", "FG", null);
+
+        var row = SqlMetadataReader.ReadIndexRow(record);
+
+        Assert.Equal((byte)80, row.Options.FillFactor);
+        Assert.True(row.Options.IsPadded);
+        Assert.False(row.Options.AllowPageLocks);
+        Assert.True(row.Options.NoRecompute);
+        Assert.Equal("PAGE", row.Options.DataCompression);
+        Assert.Equal("FG_Loan", row.DataSpace?.Name);
+        Assert.False(row.DataSpace?.IsPartitionScheme);
+    }
+
+    /// <remarks>
+    /// ALLOW_ROW_LOCKS 與 ALLOW_PAGE_LOCKS 的預設是 ON。讀不到時給錯的話，
+    /// 每一個索引都會多出一個 = OFF，而那會靜靜地改掉那張表的鎖定行為。
+    /// </remarks>
+    [Fact]
+    public void 只給得出舊欄位的索引列拿到預設選項()
+    {
+        var record = new FakeDataRecord(
+            2, "IX_Loan_1", false, false, false, "NONCLUSTERED", null, "Status", false, false);
+
+        var row = SqlMetadataReader.ReadIndexRow(record);
+
+        Assert.True(row.Options.AllowRowLocks);
+        Assert.True(row.Options.AllowPageLocks);
+        Assert.False(row.Options.IsPadded);
+        Assert.Empty(row.Options.DescribeNonDefaults());
+        Assert.Null(row.DataSpace);
+    }
+
+    [Fact]
+    public void 讀取資料表的檔案群組與LOB檔案群組()
+    {
+        var record = new FakeDataRecord("PRIMARY", "FG", "PRIMARY", true, null, true);
+
+        var storage = SqlMetadataReader.ReadTableStorage(record);
+
+        Assert.Equal("PRIMARY", storage.DataSpace?.Name);
+        Assert.Equal("PRIMARY", storage.LobFilegroupName);
+        Assert.True(storage.UsesAnsiNulls);
+        Assert.True(storage.UsesQuotedIdentifier);
+    }
+
+    [Fact]
+    public void 讀取分割配置時一併帶回分割資料行()
+    {
+        var record = new FakeDataRecord("ps_Loan", "PS", null, true, "LoanTime", true);
+
+        var storage = SqlMetadataReader.ReadTableStorage(record);
+
+        Assert.True(storage.DataSpace?.IsPartitionScheme);
+        Assert.Equal("LoanTime", storage.DataSpace?.PartitionColumnName);
+        Assert.Null(storage.LobFilegroupName);
+    }
+
+    /// <remarks>
+    /// 猜一個 [PRIMARY] 出來是指令碼在說謊：那張表可能建在別的檔案群組上。
+    /// </remarks>
+    [Fact]
+    public void 查不到檔案群組時整個為null()
+    {
+        var record = new FakeDataRecord(null, null, null, false, null, false);
+
+        var storage = SqlMetadataReader.ReadTableStorage(record);
+
+        Assert.Null(storage.DataSpace);
+        Assert.Null(storage.LobFilegroupName);
+        Assert.False(storage.UsesAnsiNulls);
+    }
+
     [Theory]
     [InlineData(0, null, SqlExtendedPropertyLevel.Table)]
     [InlineData(1, "LoanUser", SqlExtendedPropertyLevel.Column)]
