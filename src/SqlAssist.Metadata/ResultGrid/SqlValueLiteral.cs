@@ -163,19 +163,22 @@ public static class SqlValueLiteral
     public static bool IsNullValue(object? value) =>
         value is null || value is DBNull || (value is INullable nullable && nullable.IsNull);
 
-    /// <summary>把文字包成字面值，單引號跳脫成兩個。</summary>
+    /// <summary>
+    /// 把文字包成 T-SQL 字串字面值，單引號跳脫成兩個。
+    /// </summary>
+    /// <remarks>
+    /// 結果格線與擴充屬性的指令碼共用這一份。各自跳脫一次的症狀是其中一邊
+    /// 漏掉單引號，而那不是排版問題——一個說明裡帶了單引號的資料行會讓整份
+    /// 指令碼在那一行語法錯誤。
+    /// </remarks>
+    /// <param name="unicode">加上 <c>N</c> 前綴。非 Unicode 的目標欄位才關掉。</param>
+    public static string Text(string? text, bool unicode = true) =>
+        text is null ? Null : (unicode ? "N" : string.Empty) + Quote(text);
+
     private static bool TryText(string? text, string? serverDataType, out string literal, out string reason)
     {
         reason = string.Empty;
-
-        if (text is null)
-        {
-            literal = Null;
-            return true;
-        }
-
-        var prefix = SqlTypeName.IsNonUnicodeText(serverDataType) ? string.Empty : "N";
-        literal = prefix + Quote(text);
+        literal = Text(text, !SqlTypeName.IsNonUnicodeText(serverDataType));
         return true;
     }
 

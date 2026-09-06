@@ -18,15 +18,18 @@ public sealed class SqlObjectStructure
 {
     private static readonly SqlIndexInfo[] NoIndexes = Array.Empty<SqlIndexInfo>();
     private static readonly SqlForeignKeyInfo[] NoForeignKeys = Array.Empty<SqlForeignKeyInfo>();
+    private static readonly SqlExtendedProperty[] NoExtendedProperties = Array.Empty<SqlExtendedProperty>();
 
     public SqlObjectStructure(
         SqlObjectDetail detail,
         IReadOnlyList<SqlIndexInfo>? indexes = null,
-        IReadOnlyList<SqlForeignKeyInfo>? foreignKeys = null)
+        IReadOnlyList<SqlForeignKeyInfo>? foreignKeys = null,
+        IReadOnlyList<SqlExtendedProperty>? extendedProperties = null)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
         ForeignKeys = foreignKeys ?? NoForeignKeys;
+        ExtendedProperties = extendedProperties ?? NoExtendedProperties;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -42,6 +45,14 @@ public sealed class SqlObjectStructure
     public IReadOnlyList<SqlIndexInfo> Indexes { get; }
 
     public IReadOnlyList<SqlForeignKeyInfo> ForeignKeys { get; }
+
+    /// <summary>資料表、資料行、索引與條件約束上的擴充屬性。</summary>
+    /// <remarks>
+    /// 與索引、外來鍵同屬第四層：只有使用者主動打開結構或要一份指令碼時才載入。
+    /// 併進按鍵路徑上的第二層等於讓每一次輸入 <c>a.</c> 多付一次查詢，
+    /// 而建議清單一個字都用不到它。
+    /// </remarks>
+    public IReadOnlyList<SqlExtendedProperty> ExtendedProperties { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey

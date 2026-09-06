@@ -114,6 +114,33 @@ public static class SqlMetadataReader
             record.GetBoolean(9));
     }
 
+    /// <remarks>
+    /// <c>level</c> 是查詢自己編的號（0 資料表、1 資料行、2 索引、3 條件約束），
+    /// 不是目錄檢視上的欄位。認不得的號一律當成資料表層級——多寫一筆掛在資料表上
+    /// 的說明，比整份指令碼因為一個沒見過的類別而失敗好。
+    /// </remarks>
+    public static SqlExtendedProperty ReadExtendedProperty(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        var level = record.GetInt32(0) switch
+        {
+            1 => SqlExtendedPropertyLevel.Column,
+            2 => SqlExtendedPropertyLevel.Index,
+            3 => SqlExtendedPropertyLevel.Constraint,
+            _ => SqlExtendedPropertyLevel.Table
+        };
+
+        return new SqlExtendedProperty(
+            level,
+            record.GetString(1),
+            record.IsDBNull(2) ? string.Empty : record.GetString(2),
+            record.IsDBNull(4) ? null : record.GetString(4));
+    }
+
     public static SqlForeignKeyRow ReadForeignKeyRow(IDataRecord record)
     {
         if (record is null)

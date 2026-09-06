@@ -142,6 +142,35 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                 statements.Add(new Statement(BuildForeignKey(foreignKey, name, context), batched: true));
             }
         }
+
+        AppendExtendedProperties(statements, structure, context);
+    }
+
+    /// <remarks>
+    /// 排在最後，而且一定要排在索引與條件約束後面：掛在索引或條件約束上的說明，
+    /// 在那個東西還不存在時執行就是一句錯誤。
+    /// </remarks>
+    private static void AppendExtendedProperties(
+        List<Statement> statements,
+        SqlObjectStructure structure,
+        SqlScriptContext context)
+    {
+        if (!context.Options.IncludeExtendedProperties)
+        {
+            return;
+        }
+
+        foreach (var property in structure.ExtendedProperties)
+        {
+            statements.Add(new Statement(
+                SqlExtendedPropertyScript.Build(
+                    property,
+                    structure.Object.SchemaName,
+                    structure.Object.Name,
+                    context.Options,
+                    context.NewLine),
+                batched: true));
+        }
     }
 
     /// <summary>模組、同義字與序列：定義原文就是它的指令碼。</summary>

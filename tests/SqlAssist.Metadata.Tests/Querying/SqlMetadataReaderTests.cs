@@ -249,6 +249,45 @@ public sealed class SqlMetadataReaderTests
         Assert.Equal("(傳回值)", SqlMetadataReader.ReadParameter(record).Name);
     }
 
+    [Theory]
+    [InlineData(0, null, SqlExtendedPropertyLevel.Table)]
+    [InlineData(1, "LoanUser", SqlExtendedPropertyLevel.Column)]
+    [InlineData(2, "IX_Loan_1", SqlExtendedPropertyLevel.Index)]
+    [InlineData(3, "DF_Loan_IsActive", SqlExtendedPropertyLevel.Constraint)]
+    public void 擴充屬性的層級依查詢自己編的號對應(
+        int level, string? target, SqlExtendedPropertyLevel expected)
+    {
+        var record = new FakeDataRecord(level, "MS_Description", "借閱主表", 0, target);
+
+        var property = SqlMetadataReader.ReadExtendedProperty(record);
+
+        Assert.Equal(expected, property.Level);
+        Assert.Equal("MS_Description", property.Name);
+        Assert.Equal(target, property.TargetName);
+    }
+
+    /// <remarks>
+    /// 沒見過的類別號一律當成資料表層級：多寫一筆掛在資料表上的說明，
+    /// 比整份指令碼因為一個新類別而失敗好。
+    /// </remarks>
+    [Fact]
+    public void 認不得的擴充屬性層級退回資料表()
+    {
+        var record = new FakeDataRecord(99, "MS_Description", "說明", 0, null);
+
+        Assert.Equal(
+            SqlExtendedPropertyLevel.Table,
+            SqlMetadataReader.ReadExtendedProperty(record).Level);
+    }
+
+    [Fact]
+    public void 沒有值的擴充屬性讀成空字串而不是null()
+    {
+        var record = new FakeDataRecord(0, "MS_Description", null, 0, null);
+
+        Assert.Equal(string.Empty, SqlMetadataReader.ReadExtendedProperty(record).Value);
+    }
+
     [Fact]
     public void 讀取識別資料行的種子與遞增量以及預設值條件約束的名稱()
     {

@@ -460,10 +460,20 @@ public sealed class SqlMetadataCatalog
                 objectId)
             : new List<SqlForeignKeyRow>();
 
+        // 擴充屬性與索引、外來鍵同一層，走同一條連線：分開載入等於在使用者
+        // 打開結構的那一刻多開一次連線，而那三份資料一定是一起要的。
+        var extendedProperties = ReadList(
+            connection,
+            SqlMetadataQueries.ExtendedProperties,
+            SqlMetadataReader.ReadExtendedProperty,
+            cancellationToken,
+            objectId);
+
         return new SqlObjectStructure(
             detail,
             SqlIndexInfo.FromRows(indexRows),
-            SqlForeignKeyInfo.FromRows(foreignKeyRows));
+            SqlForeignKeyInfo.FromRows(foreignKeyRows),
+            extendedProperties);
     }
 
     private bool IsFresh(SqlDatabaseSnapshot snapshot)

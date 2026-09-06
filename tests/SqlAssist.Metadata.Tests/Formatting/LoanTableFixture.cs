@@ -23,7 +23,41 @@ internal static class LoanTableFixture
     public static SqlObjectStructure Create() =>
         new(
             new SqlObjectDetail(new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table), Columns()),
-            Indexes());
+            Indexes(),
+            extendedProperties: ExtendedProperties());
+
+    /// <remarks>
+    /// 說明刻意含單引號（<c>Reader's</c>）與中文：單引號沒有跳脫成兩個的話，
+    /// 那一行會語法錯誤；而少了 <c>N</c> 前綴的中文會在非 Unicode 定序的
+    /// 資料庫上變成問號，卻不會報錯。
+    /// </remarks>
+    private static IReadOnlyList<SqlExtendedProperty> ExtendedProperties() => new[]
+    {
+        Description(SqlExtendedPropertyLevel.Table, null, "借閱主表"),
+        Description(SqlExtendedPropertyLevel.Column, "LoanId", "借閱編號（自動遞增）"),
+        Description(SqlExtendedPropertyLevel.Column, "PublicId", "借閱 UUID（唯一），提供公開查詢"),
+        Description(SqlExtendedPropertyLevel.Column, "Status", "狀態：1=預約, 2=借出, 3=歸還"),
+        Description(SqlExtendedPropertyLevel.Column, "Title", "書名"),
+        Description(SqlExtendedPropertyLevel.Column, "Remark", "備註"),
+        Description(SqlExtendedPropertyLevel.Column, "BranchNo", "借出分館"),
+        Description(SqlExtendedPropertyLevel.Column, "LoanUser", "借閱人員（Reader's account）"),
+        Description(SqlExtendedPropertyLevel.Column, "LoanTime", "借出時間"),
+        Description(SqlExtendedPropertyLevel.Column, "DueTime", "到期時間（可為 null，表示不限期）"),
+        Description(SqlExtendedPropertyLevel.Column, "TargetBranchNo", "還書分館"),
+        Description(SqlExtendedPropertyLevel.Column, "RenewCount", "續借次數"),
+        Description(SqlExtendedPropertyLevel.Column, "IsActive", "啟用狀態"),
+        Description(SqlExtendedPropertyLevel.Column, "CreateUser", "建立者"),
+        Description(SqlExtendedPropertyLevel.Column, "CreateTime", "建立時間"),
+        Description(SqlExtendedPropertyLevel.Column, "UpdateUser", "修改者"),
+        Description(SqlExtendedPropertyLevel.Column, "UpdateTime", "修改時間"),
+        Description(SqlExtendedPropertyLevel.Index, "IX_Loan_3", "公開查詢用的涵蓋索引")
+    };
+
+    private static SqlExtendedProperty Description(
+        SqlExtendedPropertyLevel level,
+        string? target,
+        string value) =>
+        new(level, "MS_Description", value, target);
 
     private static IReadOnlyList<SqlColumnInfo> Columns() => new[]
     {

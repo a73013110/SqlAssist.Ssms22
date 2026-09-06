@@ -247,6 +247,65 @@ INNER JOIN sys.schemas AS rs
 WHERE fk.parent_object_id = @objectId
 ORDER BY fk.name, fkc.constraint_column_id;";
 
+    /// <summary>
+    /// 第四層：單一資料表上的擴充屬性，含資料行、索引與條件約束三層。
+    /// </summary>
+    /// <remarks>
+    /// <c>value</c> 在伺服器端就 <c>CONVERT</c> 成字串：那一欄是 <c>sql_variant</c>，
+    /// 用 <c>GetValue</c> 收到的是裝箱的原生型別，而下游要的一律是寫進指令碼的那串字。
+    /// 與序列的界限值同一個理由。
+    ///
+    /// 三段 <c>UNION</c> 對應三種掛法，而它們的 <c>major_id</c> 根本不是同一個東西：
+    /// 資料表與資料行掛在資料表自己身上（<c>class = 1</c>，<c>minor_id</c> 是
+    /// <c>column_id</c>，0 代表資料表本身）；索引是 <c>class = 7</c>，
+    /// <c>minor_id</c> 是 <c>index_id</c>；條件約束則掛在<b>條件約束自己</b>的
+    /// object_id 上，所以要從 <c>parent_object_id</c> 回頭找。少掉第三段的症狀是
+    /// 條件約束上的說明安靜地消失。
+    ///
+    /// <c>level</c> 這一欄是本查詢自己編的號，不是目錄檢視上的欄位；排序也照它走，
+    /// 讓資料表的說明排在資料行前面——與 SSMS 和 Fidelity 的輸出順序一致。
+    /// </remarks>
+    public const string ExtendedProperties = @"
+SELECT level, property_name, property_value, minor_id, target_name
+FROM (
+    SELECT
+        CONVERT(int, CASE WHEN ep.minor_id = 0 THEN 0 ELSE 1 END) AS level,
+        ep.name AS property_name,
+        CONVERT(nvarchar(max), ep.value) AS property_value,
+        ep.minor_id,
+        c.name AS target_name
+    FROM sys.extended_properties AS ep
+    LEFT JOIN sys.columns AS c
+        ON c.object_id = ep.major_id AND c.column_id = ep.minor_id
+    WHERE ep.class = 1 AND ep.major_id = @objectId
+    UNION ALL
+    SELECT
+        2 AS level,
+        ep.name AS property_name,
+        CONVERT(nvarchar(max), ep.value) AS property_value,
+        ep.minor_id,
+        i.name AS target_name
+    FROM sys.extended_properties AS ep
+    INNER JOIN sys.indexes AS i
+        ON i.object_id = ep.major_id AND i.index_id = ep.minor_id
+    WHERE ep.class = 7 AND ep.major_id = @objectId
+    UNION ALL
+    SELECT
+        3 AS level,
+        ep.name AS property_name,
+        CONVERT(nvarchar(max), ep.value) AS property_value,
+        0 AS minor_id,
+        o.name AS target_name
+    FROM sys.extended_properties AS ep
+    INNER JOIN sys.objects AS o
+        ON o.object_id = ep.major_id
+    WHERE ep.class = 1
+      AND ep.minor_id = 0
+      AND o.parent_object_id = @objectId
+      AND o.type IN ('C', 'D', 'F', 'PK', 'UQ')
+) AS properties
+ORDER BY level, minor_id, target_name, property_name;";
+
     /// <summary>第二層：單一模組的參數。</summary>
     public const string Parameters = @"
 SELECT

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -322,6 +323,87 @@ public sealed class TSqlScriptRendererTests
         Assert.Contains("ALTER TABLE [dbo].[Loan] WITH NOCHECK ADD CONSTRAINT [FK_Loan_Copy]", script);
     }
 
+    // ── 擴充屬性 ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void 資料表與資料行的說明寫成sp_addextendedproperty()
+    {
+        var script = Render(SqlScriptOptions.Fidelity);
+
+        Assert.Contains(
+            "EXEC sp_addextendedproperty N'MS_Description', N'借閱主表', " +
+            "'SCHEMA', N'dbo', 'TABLE', N'Loan', NULL, NULL",
+            script);
+
+        Assert.Contains(
+            "EXEC sp_addextendedproperty N'MS_Description', N'書名', " +
+            "'SCHEMA', N'dbo', 'TABLE', N'Loan', 'COLUMN', N'Title'",
+            script);
+    }
+
+    [Fact]
+    public void 索引層級的說明用INDEX當level2()
+    {
+        Assert.Contains(
+            "'SCHEMA', N'dbo', 'TABLE', N'Loan', 'INDEX', N'IX_Loan_3'",
+            Render(SqlScriptOptions.Fidelity));
+    }
+
+    /// <remarks>
+    /// 單引號沒有跳脫成兩個的話，那一行會語法錯誤——而說明裡有沒有單引號
+    /// 完全看當初是誰寫的。
+    /// </remarks>
+    [Fact]
+    public void 說明裡的單引號跳脫成兩個()
+    {
+        Assert.Contains("N'借閱人員（Reader''s account）'", Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void 關掉擴充屬性之後一筆都不寫()
+    {
+        var script = Render(SqlScriptOptions.Fidelity with { IncludeExtendedProperties = false });
+
+        Assert.DoesNotContain("extendedproperty", script);
+    }
+
+    /// <remarks>
+    /// 同一份指令碼會套到已經有說明的資料庫，而 <c>sp_addextendedproperty</c>
+    /// 對已存在的屬性是失敗，不是覆寫。
+    /// </remarks>
+    [Fact]
+    public void 自動判斷模式先查存不存在再決定新增或更新()
+    {
+        var script = Render(
+            SqlScriptOptions.Fidelity with
+            {
+                ExtendedPropertyProcedure = SqlExtendedPropertyProcedure.AddOrUpdate
+            });
+
+        Assert.Contains("IF NOT EXISTS (SELECT 1 FROM sys.fn_listextendedproperty(", script);
+        Assert.Contains("EXEC sp_addextendedproperty", script);
+        Assert.Contains("EXEC sp_updateextendedproperty", script);
+
+        // 查存不存在與寫入必須帶同一組 level 引數，否則每一個資料行的說明
+        // 都會被判斷成「資料表上沒有這個屬性」而走到 add 那一支。
+        Assert.Contains(
+            "sys.fn_listextendedproperty(N'MS_Description', 'SCHEMA', N'dbo', 'TABLE', N'Loan', 'COLUMN', N'Title')",
+            script);
+    }
+
+    /// <remarks>
+    /// 掛在索引或條件約束上的說明，在那個東西還不存在時執行就是一句錯誤。
+    /// </remarks>
+    [Fact]
+    public void 說明排在索引與條件約束後面()
+    {
+        var script = Render(SqlScriptOptions.Fidelity);
+
+        Assert.True(
+            script.IndexOf("CREATE NONCLUSTERED INDEX [IX_Loan_3]", StringComparison.Ordinal) <
+            script.IndexOf("EXEC sp_addextendedproperty", StringComparison.Ordinal));
+    }
+
     // ── 批次與識別字 ──────────────────────────────────────────────────
 
     [Fact]
@@ -506,11 +588,44 @@ public sealed class TSqlScriptRendererTests
     [InlineData(SqlScriptStyle.Minimal)]
     public void 三組風格的輸出與快照逐字相同(SqlScriptStyle style)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Golden", "Loan." + style + ".sql");
-        var expected = File.ReadAllText(path);
+        var actual = Normalize(Render(SqlScriptOptions.ForStyle(style)));
 
-        Assert.Equal(Normalize(expected), Normalize(Render(SqlScriptOptions.ForStyle(style))));
+        if (ShouldUpdateGoldenFiles)
+        {
+            File.WriteAllText(GoldenSourcePath(style), actual);
+            return;
+        }
+
+        var expected = File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "Golden", FileName(style)));
+
+        Assert.Equal(Normalize(expected), actual);
     }
+
+    /// <summary>
+    /// 設了 <c>SQLASSIST_UPDATE_GOLDEN=1</c> 時改成把目前的輸出寫回快照。
+    /// </summary>
+    /// <remarks>
+    /// 手工重產的話，改一次 renderer 就要有人記得三個檔案各要重新貼一次，
+    /// 而漏掉的那一個會以「快照不符」的樣子擋在下一次無關的修改上。
+    ///
+    /// 刻意做成環境變數而不是自動更新：自動更新等於這個測試永遠不會紅，
+    /// 而它唯一的用處就是紅給人看。更新完一定要看過 <c>git diff</c>。
+    /// </remarks>
+    private static bool ShouldUpdateGoldenFiles =>
+        Environment.GetEnvironmentVariable("SQLASSIST_UPDATE_GOLDEN") == "1";
+
+    /// <remarks>
+    /// 寫回原始碼樹而不是輸出目錄：寫進 <c>bin</c> 的話下一次建置就被覆蓋回去，
+    /// 而使用者會以為更新失敗。路徑由這個檔案自己的位置推出來，
+    /// 不寫死版本庫的絕對路徑。
+    /// </remarks>
+    private static string GoldenSourcePath(
+        SqlScriptStyle style,
+        [CallerFilePath] string callerPath = "") =>
+        Path.Combine(Path.GetDirectoryName(callerPath)!, "..", "Golden", FileName(style));
+
+    private static string FileName(SqlScriptStyle style) => "Loan." + style + ".sql";
 
     /// <remarks>
     /// 快照檔在版本庫裡是 LF，但取出來的那一份要看 git 的設定；比對前統一，
