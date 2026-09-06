@@ -314,6 +314,16 @@ public sealed class SqlColumnCompletionTests
         Assert.Equal(new[] { "Code", "Name" }, Columns(Analyze(sqlWithCaret)));
     }
 
+    /// <summary>資料表提示後面的來源仍然解析得出來。</summary>
+    /// <remarks>提示沒有整段跳完的話，逗號之後那張表就不在範圍裡，<c>c.</c> 什麼都列不出來。</remarks>
+    [Theory]
+    [InlineData("SELECT c.| FROM dbo.Loan l (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT c.| FROM dbo.Loan l WITH (NOLOCK), dbo.Copy c")]
+    public void 資料表提示後面的別名仍然解析得出來(string sqlWithCaret)
+    {
+        Assert.Equal("Copy", ResolvedTable(Analyze(sqlWithCaret)).ObjectName);
+    }
+
     /// <summary>資料行清單的括號還沒關上時當成沒寫，主體算得出來的名稱仍然算數。</summary>
     /// <remarks>讀一半的清單會覆寫掉正確的答案，而使用者只是還沒打完。</remarks>
     [Fact]

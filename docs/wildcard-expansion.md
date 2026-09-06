@@ -54,6 +54,10 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 文法就是這樣切的：`dbo.fn(x) f (NOLOCK)` 是舊式資料表提示，形狀一樣，而 `NOLOCK`
 不是保留字，猜括號內容分不出來。
 
+`SELECT … INTO #Loan` 投影出來的暫存資料表往它讀的那張表追下去，追到中繼資料
+也算數——展開等得起一次查詢。QuickInfo 與預覽不等，所以同一張 `#Loan` 在那兩處
+可能什麼都不顯示；那不是分岔，是同一份遞迴在兩種預算下停在不同的地方。
+
 `(SELECT * FROM dbo.PUBLISHER c) d` 的欄位在外層要寫成 `d.欄位`——內層的 `c`
 在外面根本不存在。三種欄位別名寫法都讀得出來：`Id AS Code`、`Total = Qty * Price`、
 `ISNULL(Memo, '') Note`。
@@ -64,6 +68,12 @@ CTE（`WITH c AS (SELECT * FROM c)`）則整個放棄。
 **任何一個來源解析不出來就完全不展開**，不做部分展開：`SELECT Qty * Price` 這種
 沒有名稱的運算式在外層無從稱呼。少了幾個欄位的 `SELECT` 仍然執行得動，
 卻執行出錯的結果——那比什麼都不做糟糕得多。
+
+同一條規則管住「讀來源」那一步：來源自己帶的括號——引數清單、資料表提示、
+`TABLESAMPLE`——一律整段跳完。**不讀內容與不跳過是兩件事**：停在括號前面的話，
+後面那個逗號就不再是來源清單的逗號，`FROM dbo.Loan l (NOLOCK), dbo.Copy c` 的
+`dbo.Copy` 整個消失——而這一次連「解析不出來」都不會發生，展開的是一份看起來
+完整的錯誤結果。
 
 ## 加不加別名
 

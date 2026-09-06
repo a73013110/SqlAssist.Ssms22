@@ -203,6 +203,46 @@ public sealed class SqlWildcardAnalyzerTests
         Assert.Equal(new[] { "d:Id", "d:表 PUBLISHER" }, Names(target));
     }
 
+    /// <summary>
+    /// 資料表提示不會讓 <c>SELECT *</c> 少展開一個來源。
+    /// </summary>
+    /// <remarks>
+    /// 剖析若停在 <c>(NOLOCK)</c> 前面，後面那個逗號就不再是來源清單的逗號，
+    /// <c>dbo.Copy</c> 整個消失——而少了一半欄位的 <c>SELECT</c> 仍然執行得動，
+    /// 只是執行出錯的結果。這一種比展不開糟得多，因為看不出少了東西。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT *| FROM dbo.Loan l (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT *| FROM dbo.Loan l WITH (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT *| FROM dbo.Loan l TABLESAMPLE (10 PERCENT), dbo.Copy c")]
+    public void 資料表提示不會造成部分展開(string sqlWithCaret)
+    {
+        var target = Expand(sqlWithCaret);
+
+        Assert.Equal(new[] { "l:表 Loan", "c:表 Copy" }, Names(target));
+        Assert.True(target.Qualify);
+    }
+
+    /// <summary>
+    /// <c>SELECT … INTO #Temp FROM dbo.fn(…)</c> 的星號追得到資料表值函式。
+    /// </summary>
+    /// <remarks>
+    /// 與 QuickInfo／預覽刻意不同：那條路徑不等查詢，遇到要問中繼資料的來源就整份
+    /// 放棄，所以 <c>#Temp</c> 停在那裡什麼都不顯示。Tab 展開等得起，於是往下追到
+    /// 函式那一層。兩個答案不是各寫一份分岔出來的——中間那份遞迴只有一份，
+    /// 差別只在呼叫端付不付得起一次查詢。
+    /// </remarks>
+    [Fact]
+    public void 投影暫存表的星號追到資料表值函式()
+    {
+        var target = Expand(
+            "SELECT * INTO #Temp FROM dbo.fn_LoansByReader(0) f (NOLOCK); SELECT *| FROM #Temp");
+        var source = Assert.Single(target.Sources);
+
+        Assert.Equal("fn_LoansByReader", source.Table!.ObjectName);
+        Assert.Equal("#Temp", source.Qualifier);
+    }
+
     /// <summary>別名後面寫出來的資料行清單覆寫主體，與 CTE 同一條規則。</summary>
     /// <remarks>
     /// 資料表值建構式只有這一條路：<c>VALUES</c> 不是 <c>SELECT</c>，

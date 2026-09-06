@@ -244,6 +244,35 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Empty(table.ColumnNames);
     }
 
+    /// <summary>
+    /// 來源後面的資料表提示要整段跳完，否則逗號清單在那裡斷掉。
+    /// </summary>
+    /// <remarks>
+    /// 不讀它的內容與不<b>跳過</b>它是兩件事。只做前者的話，剖析停在括號前面，
+    /// 後面那個逗號就不再是來源清單的逗號——症狀是 <c>c.</c> 一個欄位都列不出來，
+    /// 而 <c>SELECT *</c> 更糟：它以為只有一個來源，展開成一份少了一半欄位、
+    /// 卻仍然執行得動的選取清單。
+    ///
+    /// 別名之前與之後都要跳：文法把 <c>TABLESAMPLE</c> 與 <c>WITH (…)</c> 排在別名
+    /// 之後，而實際指令碼裡兩種順序都寫得出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT | FROM dbo.Loan l (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT | FROM dbo.Loan l WITH (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT | FROM dbo.Loan WITH (NOLOCK) l, dbo.Copy c")]
+    [InlineData("SELECT | FROM dbo.Loan l TABLESAMPLE (10 PERCENT), dbo.Copy c")]
+    [InlineData("SELECT | FROM dbo.Loan TABLESAMPLE SYSTEM (10 PERCENT) REPEATABLE (205), dbo.Copy c")]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (NOLOCK), dbo.Copy c")]
+    [InlineData("SELECT | FROM (VALUES (1)) T (CopyNo), dbo.Copy c")]
+    public void 資料表提示不會截斷來源清單(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.Equal(2, scope.Tables.Count);
+        Assert.True(scope.TryResolve("c", out var copy));
+        Assert.Equal("Copy", copy.ObjectName);
+    }
+
     /// <summary>括號還沒關上時當成沒寫，位置也留在原地。</summary>
     /// <remarks>使用者正打到一半，而讀一半的清單會覆寫掉主體算得出來的名稱。</remarks>
     [Fact]

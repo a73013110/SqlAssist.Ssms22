@@ -485,14 +485,14 @@ public static class SqlScopeAnalyzer
             return false;
         }
 
-        // 資料表提示夾在名稱與別名之間：FROM Loans WITH (NOLOCK) o
-        if (index + 1 < end && tokens[index].IsKeyword("WITH") && tokens[index + 1].IsPunctuation("("))
-        {
-            index = SqlTokenNavigator.SkipParenthesised(tokens, index + 1, end);
-        }
+        // 別名之前與之後都要跳：文法把 TABLESAMPLE 與 WITH (…) 排在別名後面，
+        // 而 FROM Loans WITH (NOLOCK) o 這種順序在實際指令碼裡一樣寫得出來。
+        SkipTableSourceTail(tokens, ref index, end);
 
         var alias = TryReadAlias(tokens, ref index, end);
-        var columnNames = TryReadColumnList(tokens, ref index, end, takesColumnList && alias is not null);
+        var columnNames = ReadAliasParentheses(tokens, ref index, end, takesColumnList && alias is not null);
+
+        SkipTableSourceTail(tokens, ref index, end);
 
         var referenceStart = tokens[start].Start;
         var referenceEnd = tokens[Math.Max(start, index - 1)].End;
@@ -536,9 +536,15 @@ public static class SqlScopeAnalyzer
     }
 
     /// <summary>
-    /// 別名後面明確寫出的資料行清單：<c>(VALUES (1, N'Alice')) AS T (ID, Name)</c>。
+    /// 別名後面那串括號：資料行清單或舊式資料表提示，<b>兩種都要跳完</b>。
     /// </summary>
     /// <remarks>
+    /// 「不讀它的內容」與「不跳過它」是兩件事，而只做前者會壞得更難看：剖析停在
+    /// 括號前面，後面那個逗號就不再是來源清單的逗號，
+    /// <c>FROM dbo.Loan l (NOLOCK), dbo.Copy c</c> 的 <c>dbo.Copy</c> 整個消失。
+    /// <c>c.</c> 列不出欄位還算看得出來，<c>SELECT *</c> 展開才是真的糟——它以為只有
+    /// 一個來源，攤出一份少了一半欄位、卻仍然執行得動的選取清單。
+    ///
     /// 接得住它的只有<b>衍生資料表</b>與 <see cref="RowsetFunctions"/>——T-SQL 的
     /// <c>table_source</c> 文法裡只有這兩條後面有 <c>(column_alias …)</c>，具名資料表
     /// 與使用者定義的資料表值函式後面就只有別名。所以別名後面那串括號是不是資料行
@@ -558,13 +564,13 @@ public static class SqlScopeAnalyzer
     /// 括號還沒關上時當成沒寫，並把位置留在原地：使用者正打到一半，而讀一半的清單
     /// 會覆寫掉主體算得出來的名稱。
     /// </remarks>
-    private static IReadOnlyList<string> TryReadColumnList(
+    private static IReadOnlyList<string> ReadAliasParentheses(
         IReadOnlyList<SqlToken> tokens,
         ref int index,
         int end,
-        bool takesColumnList)
+        bool isColumnList)
     {
-        if (!takesColumnList || index >= end || !tokens[index].IsPunctuation("("))
+        if (index >= end || !tokens[index].IsPunctuation("("))
         {
             return Array.Empty<string>();
         }
@@ -576,9 +582,50 @@ public static class SqlScopeAnalyzer
             return Array.Empty<string>();
         }
 
-        var names = ReadColumnList(tokens, index + 1, close);
+        var names = isColumnList ? ReadColumnList(tokens, index + 1, close) : Array.Empty<string>();
         index = close + 1;
         return names;
+    }
+
+    /// <summary>
+    /// 跳過接在資料來源後面的 <c>TABLESAMPLE</c> 與 <c>WITH (…)</c>。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="ReadAliasParentheses"/> 同一個理由：跳不完的話逗號清單就在這裡
+    /// 斷掉。<c>TABLESAMPLE [SYSTEM] (…) [REPEATABLE (…)]</c> 三段都認，因為它們是
+    /// 同一個子句拆出來的，少認一段與完全不認的症狀一模一樣。
+    ///
+    /// 括號配不起來時停在原地，不硬吃到敘述結尾：使用者正打到一半的
+    /// <c>WITH (</c> 後面往往就是他要的東西。
+    /// </remarks>
+    private static void SkipTableSourceTail(IReadOnlyList<SqlToken> tokens, ref int index, int end)
+    {
+        while (index < end &&
+               (tokens[index].IsKeyword("WITH") ||
+                   tokens[index].IsKeyword("TABLESAMPLE") ||
+                   tokens[index].IsKeyword("REPEATABLE")))
+        {
+            var open = index + 1;
+
+            if (open < end && tokens[open].IsKeyword("SYSTEM"))
+            {
+                open++;
+            }
+
+            if (open >= end || !tokens[open].IsPunctuation("("))
+            {
+                return;
+            }
+
+            var close = SqlTokenNavigator.FindClosingParenthesis(tokens, open, end);
+
+            if (close < 0)
+            {
+                return;
+            }
+
+            index = close + 1;
+        }
     }
 
     /// <summary>讀出一對括號之間的資料行名稱。</summary>
