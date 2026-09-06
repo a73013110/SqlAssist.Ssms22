@@ -734,6 +734,124 @@ public sealed class TSqlScriptRendererTests
             script.IndexOf("EXEC sp_addextendedproperty", StringComparison.Ordinal));
     }
 
+    // ── 存在性判斷 ────────────────────────────────────────────────────
+
+    [Fact]
+    public void 冪等模式在每一種敘述前面包上存在性判斷()
+    {
+        var script = Render(SqlScriptOptions.Fidelity with
+        {
+            ExistenceCheck = SqlExistenceCheck.IfNotExists
+        });
+
+        Assert.Contains("IF OBJECT_ID(N'[dbo].[Loan]', 'U') IS NULL\nCREATE TABLE", script);
+        Assert.Contains(
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PK_Loan]'))\n" +
+            "ALTER TABLE [dbo].[Loan] ADD CONSTRAINT [PK_Loan]",
+            script);
+        Assert.Contains(
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Loan]') " +
+            "AND name = N'IX_Loan_2')\nCREATE UNIQUE NONCLUSTERED INDEX",
+            script);
+        Assert.Contains(
+            "IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_Loan_RenewCount]'))",
+            script);
+    }
+
+    /// <remarks>
+    /// OBJECT_ID 對索引一律回傳 NULL——索引名稱只在它所屬的資料表裡唯一，
+    /// 不在結構描述裡。用它包出來的 IF 會永遠成立，第二次執行照樣失敗。
+    /// </remarks>
+    [Fact]
+    public void 索引的判斷問的是sys_indexes而不是OBJECT_ID()
+    {
+        var script = Render(SqlScriptOptions.Fidelity with
+        {
+            ExistenceCheck = SqlExistenceCheck.IfNotExists
+        });
+
+        Assert.DoesNotContain("OBJECT_ID(N'[dbo].[IX_Loan_2]')", script);
+    }
+
+    /// <remarks>
+    /// 名稱被省略掉的條件約束本來就重複執行不了，包一層問不出答案的 IF
+    /// 只是讓人以為包好了。
+    /// </remarks>
+    [Fact]
+    public void 沒有名稱的條件約束不包存在性判斷()
+    {
+        var script = RenderChecks(
+            new SqlCheckConstraint("CK_Loan_Status", "([Status]>(0))"),
+            SqlScriptOptions.Fidelity with
+            {
+                ExistenceCheck = SqlExistenceCheck.IfNotExists,
+                ConstraintNaming = SqlConstraintNaming.Never
+            });
+
+        // 資料表本身仍然包得起來（它有名字）；沒有名稱的是那個條件約束。
+        Assert.Contains("IF OBJECT_ID(N'[dbo].[Loan]', 'U') IS NULL", script);
+        Assert.Contains("\nALTER TABLE [dbo].[Loan] ADD CHECK ([Status]>(0))", script);
+        Assert.DoesNotContain("IF NOT EXISTS", script);
+    }
+
+    [Fact]
+    public void 關掉冪等模式之後一個IF都沒有()
+    {
+        Assert.DoesNotContain("IF ", Render(SqlScriptOptions.Fidelity));
+    }
+
+    // ── 觸發程序 ──────────────────────────────────────────────────────
+
+    /// <remarks>
+    /// CREATE TRIGGER 必須是批次裡的第一個敘述，所以即使批次分隔關掉，
+    /// 它後面仍然要有一個 GO——沒有的話那份指令碼在 CREATE TABLE 之後就整段
+    /// 語法錯誤。
+    /// </remarks>
+    [Fact]
+    public void 觸發程序即使關掉批次分隔也自己一個批次()
+    {
+        var script = RenderTriggers(
+            new SqlTriggerInfo("TR_Loan_Audit", "CREATE TRIGGER dbo.TR_Loan_Audit ON dbo.Loan AFTER INSERT AS SELECT 1;"),
+            SqlScriptOptions.Minimal with { IncludeTriggers = true });
+
+        Assert.Contains("CREATE TRIGGER dbo.TR_Loan_Audit", script);
+        Assert.Contains("AS SELECT 1;\nGO\n", script);
+    }
+
+    [Fact]
+    public void 停用的觸發程序建完之後再停回去()
+    {
+        var script = RenderTriggers(
+            new SqlTriggerInfo(
+                "TR_Loan_Audit",
+                "CREATE TRIGGER dbo.TR_Loan_Audit ON dbo.Loan AFTER INSERT AS SELECT 1;",
+                isDisabled: true));
+
+        Assert.Contains("DISABLE TRIGGER [TR_Loan_Audit] ON [dbo].[Loan]", script);
+    }
+
+    /// <remarks>
+    /// 那張表在來源上有這個觸發程序，而重建出來的沒有——安靜地少一個是說謊。
+    /// </remarks>
+    [Fact]
+    public void 取不到定義的觸發程序換成一行註解()
+    {
+        var script = RenderTriggers(new SqlTriggerInfo("TR_Loan_Audit", definition: null));
+
+        Assert.Contains("-- 取不到觸發程序 [TR_Loan_Audit] 的定義", script);
+        Assert.Contains("VIEW DEFINITION", script);
+    }
+
+    [Fact]
+    public void 關掉觸發程序之後一個都不寫()
+    {
+        var script = RenderTriggers(
+            new SqlTriggerInfo("TR_Loan_Audit", "CREATE TRIGGER dbo.TR_Loan_Audit ON dbo.Loan AFTER INSERT AS SELECT 1;"),
+            SqlScriptOptions.Fidelity);
+
+        Assert.DoesNotContain("TR_Loan_Audit", script);
+    }
+
     // ── 批次與識別字 ──────────────────────────────────────────────────
 
     [Fact]
@@ -996,6 +1114,20 @@ public sealed class TSqlScriptRendererTests
 
         return TSqlScriptRenderer.Default.Render(
             structure, Context(options ?? SqlScriptOptions.Fidelity));
+    }
+
+    /// <summary>只掛一個觸發程序的最小資料表。</summary>
+    private static string RenderTriggers(SqlTriggerInfo trigger, SqlScriptOptions? options = null)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table),
+                new[] { new SqlColumnInfo(1, "LoanId", "int", false) }),
+            triggers: new[] { trigger });
+
+        return TSqlScriptRenderer.Default.Render(
+            structure,
+            Context(options ?? SqlScriptOptions.Fidelity with { IncludeTriggers = true }));
     }
 
     /// <summary>只有 CHECK 條件約束的最小資料表，讓期望值短到看得出差別。</summary>

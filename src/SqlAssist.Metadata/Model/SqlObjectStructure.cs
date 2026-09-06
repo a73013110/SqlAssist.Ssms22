@@ -20,6 +20,7 @@ public sealed class SqlObjectStructure
     private static readonly SqlForeignKeyInfo[] NoForeignKeys = Array.Empty<SqlForeignKeyInfo>();
     private static readonly SqlExtendedProperty[] NoExtendedProperties = Array.Empty<SqlExtendedProperty>();
     private static readonly SqlCheckConstraint[] NoCheckConstraints = Array.Empty<SqlCheckConstraint>();
+    private static readonly SqlTriggerInfo[] NoTriggers = Array.Empty<SqlTriggerInfo>();
 
     public SqlObjectStructure(
         SqlObjectDetail detail,
@@ -27,7 +28,8 @@ public sealed class SqlObjectStructure
         IReadOnlyList<SqlForeignKeyInfo>? foreignKeys = null,
         IReadOnlyList<SqlExtendedProperty>? extendedProperties = null,
         IReadOnlyList<SqlCheckConstraint>? checkConstraints = null,
-        SqlTableStorage? storage = null)
+        SqlTableStorage? storage = null,
+        IReadOnlyList<SqlTriggerInfo>? triggers = null)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
@@ -35,6 +37,7 @@ public sealed class SqlObjectStructure
         ExtendedProperties = extendedProperties ?? NoExtendedProperties;
         CheckConstraints = checkConstraints ?? NoCheckConstraints;
         Storage = storage ?? SqlTableStorage.None;
+        Triggers = triggers ?? NoTriggers;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -64,6 +67,9 @@ public sealed class SqlObjectStructure
 
     /// <summary>資料表本身的儲存位置與建立當時的 SET 選項；查不到時每個欄位都是「沒有」。</summary>
     public SqlTableStorage Storage { get; }
+
+    /// <summary>掛在這張資料表上的觸發程序。</summary>
+    public IReadOnlyList<SqlTriggerInfo> Triggers { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey

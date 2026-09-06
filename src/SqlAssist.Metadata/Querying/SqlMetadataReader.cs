@@ -182,6 +182,19 @@ public static class SqlMetadataReader
             ReadOptionalBoolean(record, 5, fallback: true));
     }
 
+    public static SqlTriggerInfo ReadTrigger(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        return new SqlTriggerInfo(
+            record.GetString(0),
+            record.IsDBNull(1) ? null : record.GetString(1),
+            record.GetBoolean(2));
+    }
+
     public static SqlCheckConstraint ReadCheckConstraint(IDataRecord record)
     {
         if (record is null)

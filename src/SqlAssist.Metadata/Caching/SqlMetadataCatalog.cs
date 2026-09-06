@@ -490,13 +490,24 @@ public sealed class SqlMetadataCatalog
                 objectId)
             : new List<SqlTableStorage>();
 
+        // 只有資料表掛得住觸發程序，而且只有指令碼要它——結構面板不列。
+        var triggers = detail.Object.Kind == SqlObjectKind.Table
+            ? ReadList(
+                connection,
+                SqlMetadataQueries.Triggers,
+                SqlMetadataReader.ReadTrigger,
+                cancellationToken,
+                objectId)
+            : new List<SqlTriggerInfo>();
+
         return new SqlObjectStructure(
             detail,
             SqlIndexInfo.FromRows(indexRows),
             SqlForeignKeyInfo.FromRows(foreignKeyRows),
             extendedProperties,
             checkConstraints,
-            storage.Count > 0 ? storage[0] : SqlTableStorage.None);
+            storage.Count > 0 ? storage[0] : SqlTableStorage.None,
+            triggers);
     }
 
     private bool IsFresh(SqlDatabaseSnapshot snapshot)

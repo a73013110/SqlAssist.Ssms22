@@ -4,6 +4,7 @@ using System.Text;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Model;
+using SqlAssist.Metadata.ResultGrid;
 
 namespace SqlAssist.Metadata.Formatting;
 
@@ -141,18 +142,26 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     /// <remarks>
     /// 資料不齊時輸出的那一整段註解<b>不</b>算：後面接一個 <c>GO</c> 雖然合法，
     /// 卻讓「這份輸出從頭到尾都是註解」不再成立，而那正是那一段唯一的保證。
+    ///
+    /// <see cref="RequiresBatch"/> 是另一回事：那幾種敘述<b>必須</b>自己一個批次，
+    /// 語言規定如此。批次分隔關掉時它們仍然要有 <c>GO</c>，否則那份指令碼根本
+    /// 執行不了——可執行性不是風格偏好。
     /// </remarks>
     private readonly struct Statement
     {
-        public Statement(string text, bool batched)
+        public Statement(string text, bool batched, bool requiresBatch = false)
         {
             Text = text;
             Batched = batched;
+            RequiresBatch = requiresBatch;
         }
 
         public string Text { get; }
 
         public bool Batched { get; }
+
+        /// <summary><c>CREATE TRIGGER</c> 這一族：語言規定它必須是批次裡的第一個敘述。</summary>
+        public bool RequiresBatch { get; }
     }
 
     /// <summary>單一物件；多物件是它的清單版本。</summary>
@@ -247,7 +256,58 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             }
         }
 
+        AppendTriggers(statements, structure, context);
         AppendExtendedProperties(statements, structure, context);
+    }
+
+    /// <summary>
+    /// 觸發程序：定義原文，停用時再停回去。
+    /// </summary>
+    /// <remarks>
+    /// 每一個都必須自己一個批次，語言規定 <c>CREATE TRIGGER</c> 是批次裡的第一個
+    /// 敘述——所以即使批次分隔關掉，它們後面仍然會有一個 <c>GO</c>。沒有的話，
+    /// 那份指令碼在 <c>CREATE TABLE</c> 之後就整段語法錯誤，而使用者看到的是
+    /// 「這個工具產不出能跑的東西」。
+    ///
+    /// 定義取不到的（加密、沒有 <c>VIEW DEFINITION</c> 權限）換成一行註解，
+    /// 不是安靜地少一個：那張表在來源上有這個觸發程序，而重建出來的沒有。
+    /// </remarks>
+    private static void AppendTriggers(
+        List<Statement> statements,
+        SqlObjectStructure structure,
+        SqlScriptContext context)
+    {
+        if (!context.Options.IncludeTriggers)
+        {
+            return;
+        }
+
+        var options = context.Options;
+        var tableName = QualifiedName(structure.Object, options);
+
+        foreach (var trigger in structure.Triggers)
+        {
+            if (!trigger.CanScript)
+            {
+                statements.Add(new Statement(
+                    "-- 取不到觸發程序 " + Identifier(trigger.Name, options) +
+                    " 的定義：它是 WITH ENCRYPTION 建立的，或這個登入沒有它的 VIEW DEFINITION 權限。",
+                    batched: false));
+                continue;
+            }
+
+            statements.Add(new Statement(trigger.Definition!, batched: true, requiresBatch: true));
+
+            if (!trigger.IsDisabled)
+            {
+                continue;
+            }
+
+            var disable = new StringBuilder();
+            disable.Append("DISABLE TRIGGER ").Append(Identifier(trigger.Name, options))
+                .Append(" ON ").Append(tableName);
+            statements.Add(new Statement(Terminate(disable, options).ToString(), batched: true));
+        }
     }
 
     /// <summary>
@@ -285,7 +345,14 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         }
 
         builder.Append(check.Definition);
-        statements.Add(new Statement(Terminate(builder, options).ToString(), batched: true));
+
+        var statement = Terminate(builder, options).ToString();
+
+        statements.Add(new Statement(
+            GuardsEnabled(options)
+                ? Guard(statement, ConstraintMissing(check.Name, tableName, options), context)
+                : statement,
+            batched: true));
 
         if (!check.IsDisabled)
         {
@@ -390,7 +457,12 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         builder.Append(')');
         AppendDataSpace(builder, structure.Storage.DataSpace, options);
         AppendTextImageOn(builder, structure.Storage, options);
-        return Terminate(builder, options).ToString();
+
+        var statement = Terminate(builder, options).ToString();
+
+        return GuardsEnabled(options)
+            ? Guard(statement, ObjectMissing(name, "U"), context)
+            : statement;
     }
 
     /// <summary>
@@ -448,6 +520,41 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             builder.Append(" TEXTIMAGE_ON ").Append(Identifier(lob, options));
         }
     }
+
+    /// <summary>
+    /// 在敘述前面包一層存在性判斷，讓整份指令碼可以重複執行。
+    /// </summary>
+    /// <remarks>
+    /// 模組（程序、函式、觸發程序、檢視）<b>不</b>包：那幾種必須是批次裡的第一個
+    /// 敘述，包進 <c>IF</c> 之後就不是了，只能改走 <c>EXEC('CREATE …')</c> 的
+    /// 動態 SQL——而那會把定義原文變成一個字串，裡面的單引號要全部跳脫，
+    /// 存回去的定義從此與來源不同。真的要那個效果的是 <c>CREATE OR ALTER</c>，
+    /// 而它是版本相依的另一件事。
+    ///
+    /// 沒有名稱可以問的條件約束（選項省略了系統配的名稱）也不包：那時本來就
+    /// 重複執行不了，包一層問不出答案的 <c>IF</c> 只是讓人以為包好了。
+    /// </remarks>
+    private static string Guard(string statement, string? condition, SqlScriptContext context) =>
+        condition is null ? statement : "IF " + condition + context.NewLine + statement;
+
+    /// <summary>物件不存在的條件；<paramref name="type"/> 是 <c>sys.objects.type</c>。</summary>
+    private static string? ObjectMissing(string? quotedName, string type) =>
+        quotedName is null
+            ? null
+            : "OBJECT_ID(" + SqlValueLiteral.Text(quotedName) + ", '" + type + "') IS NULL";
+
+    /// <remarks>
+    /// 索引名稱只在它所屬的資料表裡唯一，不在結構描述裡，所以問不了
+    /// <c>OBJECT_ID</c>——那個函式對索引一律回傳 NULL，包出來的 <c>IF</c>
+    /// 會永遠成立，於是第二次執行照樣失敗。
+    /// </remarks>
+    private static string IndexMissing(string indexName, string tableName) =>
+        "NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(" +
+        SqlValueLiteral.Text(tableName) + ") AND name = " +
+        SqlValueLiteral.Text(indexName) + ")";
+
+    private static bool GuardsEnabled(SqlScriptOptions options) =>
+        options.ExistenceCheck == SqlExistenceCheck.IfNotExists;
 
     /// <summary><c>WITH (…)</c>，只有與預設值不同的那幾個選項。</summary>
     /// <remarks>
@@ -778,8 +885,43 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             .Append(" (").Append(KeyColumns(index, options)).Append(')');
         AppendIndexOptions(builder, index, options);
         AppendDataSpace(builder, index.DataSpace, options);
-        return Terminate(builder, options).ToString();
+
+        var statement = Terminate(builder, options).ToString();
+
+        return GuardsEnabled(options)
+            ? Guard(statement, ConstraintMissing(index.Name, tableName, options), context)
+            : statement;
     }
+
+    /// <summary>
+    /// 條件約束不存在的條件。
+    /// </summary>
+    /// <remarks>
+    /// 條件約束的名稱在結構描述裡唯一，所以問得了 <c>OBJECT_ID</c>；但選項省略了
+    /// 名稱時（系統配的那些）就沒有東西可以問，那時回 null 讓呼叫端整個不包。
+    /// </remarks>
+    private static string? ConstraintMissing(string name, string tableName, SqlScriptOptions options)
+    {
+        if (options.ConstraintNaming == SqlConstraintNaming.Never)
+        {
+            return null;
+        }
+
+        var schema = SchemaPrefixOf(tableName);
+
+        return "NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(" +
+               SqlValueLiteral.Text(schema + Quote(name, options)) + "))";
+    }
+
+    /// <summary>從已經限定好的資料表名稱取出結構描述那一段（含結尾的點）。</summary>
+    private static string SchemaPrefixOf(string qualifiedTableName)
+    {
+        var separator = qualifiedTableName.LastIndexOf('.');
+
+        return separator < 0 ? string.Empty : qualifiedTableName.Substring(0, separator + 1);
+    }
+
+    private static string Quote(string name, SqlScriptOptions options) => Identifier(name, options);
 
     private static string BuildCreateIndex(SqlIndexInfo index, string tableName, SqlScriptContext context)
     {
@@ -810,7 +952,12 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         AppendIndexOptions(builder, index, options);
         AppendDataSpace(builder, index.DataSpace, options);
-        return Terminate(builder, options).ToString();
+
+        var statement = Terminate(builder, options).ToString();
+
+        return GuardsEnabled(options)
+            ? Guard(statement, IndexMissing(index.Name, tableName), context)
+            : statement;
     }
 
     /// <summary>把索引停回去。</summary>
@@ -857,7 +1004,11 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             builder.Append(" ON UPDATE ").Append(foreignKey.UpdateAction.Replace('_', ' '));
         }
 
-        return Terminate(builder, options).ToString();
+        var statement = Terminate(builder, options).ToString();
+
+        return GuardsEnabled(options)
+            ? Guard(statement, ConstraintMissing(foreignKey.Name, tableName, options), context)
+            : statement;
     }
 
     private static string KeyColumns(SqlIndexInfo index, SqlScriptOptions options)
@@ -987,7 +1138,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                 builder.Append(context.NewLine);
             }
 
-            if (separated && statement.Batched)
+            if ((separated && statement.Batched) || statement.RequiresBatch)
             {
                 builder.Append(context.Options.BatchSeparator).Append(context.NewLine);
             }

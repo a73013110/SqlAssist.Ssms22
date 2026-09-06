@@ -316,6 +316,30 @@ WHERE fk.parent_object_id = @objectId
 ORDER BY fk.name, fkc.constraint_column_id;";
 
     /// <summary>
+    /// 第四層：掛在單一資料表上的觸發程序。
+    /// </summary>
+    /// <remarks>
+    /// 定義走 <c>sys.sql_modules</c> 的 <c>LEFT JOIN</c> 而不是 <c>OBJECT_DEFINITION</c>：
+    /// 那是本機函式，加不了限定字，跨到連結伺服器時會在對方登入的預設資料庫裡
+    /// 找 object_id——與模組定義那一條同一個理由。加密的觸發程序那一欄是 NULL，
+    /// 讀取端據此整個跳過。
+    ///
+    /// <c>parent_class = 1</c> 只收掛在物件上的那些；掛在資料庫或伺服器上的
+    /// DDL 觸發程序不屬於任何一張資料表。
+    /// </remarks>
+    public const string Triggers = @"
+SELECT
+    tr.name AS trigger_name,
+    m.definition,
+    tr.is_disabled
+FROM sys.triggers AS tr
+LEFT JOIN sys.sql_modules AS m ON m.object_id = tr.object_id
+WHERE tr.parent_id = @objectId
+  AND tr.parent_class = 1
+  AND tr.is_ms_shipped = 0
+ORDER BY tr.name;";
+
+    /// <summary>
     /// 第四層：單一資料表上的 <c>CHECK</c> 條件約束。
     /// </summary>
     /// <remarks>
