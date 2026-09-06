@@ -19,7 +19,7 @@ namespace SqlAssist.Core.Scripting;
 /// </remarks>
 public sealed record SqlScriptOptions
 {
-    /// <summary>Fidelity 的「Script as CREATE」。</summary>
+    /// <summary>還原度優先：把足以還原原始定義的細節都寫出來。</summary>
     public static readonly SqlScriptOptions Fidelity = new();
 
     /// <summary>SSMS 內建的「編寫指令碼為 &gt; CREATE 至」。</summary>
@@ -69,7 +69,7 @@ public sealed record SqlScriptOptions
 
     // ── 版面 ──────────────────────────────────────────────────────────
 
-    /// <summary>資料行定義前面的縮排。Fidelity 頂格，因此預設是空字串。</summary>
+    /// <summary>資料行定義前面的縮排。Fidelity 風格頂格，因此預設是空字串。</summary>
     public string Indent { get; init; } = string.Empty;
 
     public SqlBracePlacement BracePlacement { get; init; } = SqlBracePlacement.NewLine;

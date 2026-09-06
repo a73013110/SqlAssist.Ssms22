@@ -338,7 +338,7 @@ public sealed class SqlKeywordPositionTests
     // DESC 屬於欄位「之後」，在欄位這一格不該出現。
     [InlineData("SELECT * FROM t ORDER BY ", "DESC", false)]
 
-    // ALTER TABLE：Fidelity 在 ADD 之後給的就是這幾個字。
+    // ALTER TABLE：成熟的補全工具在 ADD 之後給的就是這幾個字。
     [InlineData("ALTER TABLE dbo.t ", "ADD", true)]
     [InlineData("ALTER TABLE dbo.t ", "ALTER", true)]
     [InlineData("ALTER TABLE dbo.t ", "SELECT", false)]

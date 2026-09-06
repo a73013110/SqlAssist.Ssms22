@@ -168,7 +168,7 @@ $ContextTemplates = [ordered]@{
     ByAnchor         = @('SELECT * FROM t ORDER ', 'SELECT * FROM t GROUP ')
 
     # ALTER TABLE 的三個位置。少了它們，這三處一律回 Any，於是 191 個關鍵字
-    # 與 45 筆片段全部進場——而 Fidelity 在 ADD 之後只給九個字。
+    # 與 45 筆片段全部進場——而成熟的補全工具在 ADD 之後只給九個字。
     AlterTableAction = @('ALTER TABLE t ')
     AlterTableAdd    = @('ALTER TABLE t ADD ')
     AlterTableColumn = @('ALTER TABLE t ALTER COLUMN ', 'ALTER TABLE t DROP COLUMN ')

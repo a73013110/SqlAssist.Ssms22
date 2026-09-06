@@ -15,7 +15,7 @@ namespace SqlAssist.Metadata.Formatting;
 /// 而填錯的症狀不是報錯，是屬性掛到另一個東西上。
 ///
 /// 型別引數（<c>'SCHEMA'</c>、<c>'TABLE'</c>、<c>'COLUMN'</c>）刻意<b>不</b>加
-/// <c>N</c>，名稱引數則一律加：SSMS 與 Fidelity 都是這樣寫，而那不是巧合——
+/// <c>N</c>，名稱引數則一律加：SSMS 產生的指令碼就是這樣寫，而那不是巧合——
 /// 型別是固定的關鍵字，名稱則可能有中文。
 /// </remarks>
 public static class SqlExtendedPropertyScript

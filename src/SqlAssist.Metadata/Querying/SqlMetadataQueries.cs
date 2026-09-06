@@ -428,7 +428,7 @@ ORDER BY cc.name;";
     /// 條件約束上的說明安靜地消失。
     ///
     /// <c>level</c> 這一欄是本查詢自己編的號，不是目錄檢視上的欄位；排序也照它走，
-    /// 讓資料表的說明排在資料行前面——與 SSMS 和 Fidelity 的輸出順序一致。
+    /// 讓資料表的說明排在資料行前面——與 SSMS 的輸出順序一致。
     /// </remarks>
     public const string ExtendedProperties = @"
 SELECT level, property_name, property_value, minor_id, target_name
