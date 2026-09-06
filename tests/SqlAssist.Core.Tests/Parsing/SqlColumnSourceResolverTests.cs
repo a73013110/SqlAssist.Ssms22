@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using SqlAssist.Core.Parsing;
 using Xunit;
 
@@ -15,6 +16,19 @@ public sealed class SqlColumnSourceResolverTests
 {
     private static SqlColumnSourceResolver Resolve(string sql) =>
         new(SqlTokenizer.Tokenize(sql));
+
+    /// <summary>把敘述裡的一個別名攤平成欄位來源；解析不出來就是失敗。</summary>
+    private static IReadOnlyList<SqlColumnSource> ResolveAlias(string sql, string alias)
+    {
+        var tokens = SqlTokenizer.Tokenize(sql);
+
+        Assert.True(SqlScopeAnalyzer.Analyze(tokens, sql.Length).TryResolve(alias, out var reference));
+
+        var sources = new SqlColumnSourceResolver(tokens).Resolve(reference);
+
+        Assert.NotNull(sources);
+        return sources!;
+    }
 
     [Fact]
     public void 不是CTE的名稱回傳null()
@@ -73,6 +87,54 @@ public sealed class SqlColumnSourceResolverTests
         var resolver = Resolve(";WITH c AS (SELECT Id, * FROM dbo.Loan) SELECT * FROM c");
 
         Assert.Empty(resolver.ResolveCommonTableExpressionColumns(resolver.FindCommonTableExpression("c")!));
+    }
+
+    /// <summary>
+    /// 資料表值建構式的輸出欄位就是別名後面那份資料行清單。
+    /// </summary>
+    /// <remarks>
+    /// <c>VALUES</c> 不是 <c>SELECT</c>，主體一個名稱都讀不出來——那份清單是唯一的
+    /// 出處。少了它的症狀是 <c>T.</c>、<c>SELECT T.*</c> 與投影出來的暫存資料表
+    /// 一起變成空的。
+    /// </remarks>
+    [Fact]
+    public void 資料表值建構式讀別名後面的資料行清單()
+    {
+        var source = Assert.Single(
+            ResolveAlias("SELECT * FROM (VALUES (1, N'Alice')) AS T (CopyNo, ReaderId)", "T"));
+
+        Assert.Equal(SqlColumnSourceKind.Names, source.Kind);
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, source.Names);
+        Assert.Equal("T", source.Qualifier);
+    }
+
+    /// <summary>
+    /// 資料列集函式的輸出欄位也是別名後面那份資料行清單。
+    /// </summary>
+    /// <remarks>
+    /// 那是它唯一的出處：連結伺服器上那句查詢的結果，中繼資料一列都答不出來。
+    /// </remarks>
+    [Fact]
+    public void 資料列集函式讀別名後面的資料行清單()
+    {
+        var source = Assert.Single(
+            ResolveAlias("SELECT * FROM OPENQUERY(LibArchive, 'SELECT 1, 2') AS T (CopyNo, ReaderId)", "T"));
+
+        Assert.Equal(SqlColumnSourceKind.Names, source.Kind);
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, source.Names);
+    }
+
+    /// <summary>
+    /// 衍生資料表寫出來的資料行清單覆寫主體算出來的名稱。
+    /// </summary>
+    /// <remarks>與上面的 CTE 是同一條規則，因此走同一份實作。</remarks>
+    [Fact]
+    public void 衍生資料表的資料行清單優先於主體()
+    {
+        var source = Assert.Single(
+            ResolveAlias("SELECT * FROM (SELECT Id, Title FROM dbo.Copy) AS T (CopyNo, ReaderId)", "T"));
+
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, source.Names);
     }
 
     /// <summary>

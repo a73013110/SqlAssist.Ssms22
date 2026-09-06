@@ -203,6 +203,19 @@ public sealed class SqlWildcardAnalyzerTests
         Assert.Equal(new[] { "d:Id", "d:表 PUBLISHER" }, Names(target));
     }
 
+    /// <summary>別名後面寫出來的資料行清單覆寫主體，與 CTE 同一條規則。</summary>
+    /// <remarks>
+    /// 資料表值建構式只有這一條路：<c>VALUES</c> 不是 <c>SELECT</c>，
+    /// 主體一個名稱都讀不出來，少了這份清單同一個星號就展不開。
+    /// </remarks>
+    [Fact]
+    public void 衍生資料表的資料行清單優先()
+    {
+        var target = Expand("SELECT T.*| FROM (VALUES (1, N'Alice')) AS T (Code, Name)");
+
+        Assert.Equal(new[] { "T:Code", "T:Name" }, Names(target));
+    }
+
     [Fact]
     public void 讀得出三種欄位別名寫法()
     {

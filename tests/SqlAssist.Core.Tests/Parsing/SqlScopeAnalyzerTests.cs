@@ -179,6 +179,82 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Equal("d", table.Alias);
     }
 
+    /// <summary>
+    /// 別名後面明確寫出的資料行清單要讀出來。
+    /// </summary>
+    /// <remarks>
+    /// 資料表值建構式的欄位名稱<b>只</b>寫在這裡：<c>VALUES</c> 不是 <c>SELECT</c>，
+    /// 主體一個名稱都讀不出來。少了這一份的症狀是 <c>T.</c> 一個欄位都列不出來，
+    /// <c>SELECT T.*</c> 也展不開。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT | FROM (VALUES (1, N'Alice')) AS T (CopyNo, ReaderId)")]
+    [InlineData("SELECT | FROM (VALUES (1, N'Alice')) T (CopyNo, ReaderId)")]
+    [InlineData("SELECT | FROM (SELECT CopyNo, ReaderId FROM dbo.Loan) AS T (CopyNo, ReaderId)")]
+    public void 讀出別名後面的資料行清單(string sqlWithCaret)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal("T", table.Alias);
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, table.ColumnNames);
+    }
+
+    /// <summary>
+    /// 資料列集函式與衍生資料表一樣接得住資料行清單。
+    /// </summary>
+    /// <remarks>
+    /// 文法上的 <c>rowset_function</c>，與使用者定義的資料表值函式同形狀卻不同待遇，
+    /// 所以那三個名字只能寫死。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT | FROM OPENQUERY(LibArchive, 'SELECT 1, 2') AS T (CopyNo, ReaderId)")]
+    [InlineData("SELECT | FROM OPENROWSET(BULK N'loans.csv', SINGLE_CLOB) T (CopyNo, ReaderId)")]
+    public void 資料列集函式的別名後面讀得到資料行清單(string sqlWithCaret)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal("T", table.Alias);
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, table.ColumnNames);
+    }
+
+    /// <summary>
+    /// 其餘具名來源後面那串括號是資料表提示，不是資料行清單。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 的 <c>table_source</c> 文法裡只有 <c>derived_table</c> 與
+    /// <c>rowset_function</c> 後面有 <c>(column_alias …)</c>；具名資料表與使用者定義
+    /// 的資料表值函式後面就只有別名，那串括號是舊式提示。兩者形狀一模一樣，所以憑據
+    /// 只能是來源的形狀——實測回報過的症狀是
+    /// <c>SELECT * INTO #Temp FROM dbo.fn(x) f (NOLOCK)</c> 之後，<c>#Temp</c> 的結構
+    /// 只剩一個叫 NOLOCK 的欄位。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT | FROM dbo.Loan l (NOLOCK)", "Loan")]
+    [InlineData("SELECT | FROM dbo.Loan WITH (NOLOCK) l", "Loan")]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (NOLOCK)", "fn_LoansByReader")]
+    [InlineData("SELECT | FROM dbo.fn_LoansByReader(0) l (CopyNo, ReaderId)", "fn_LoansByReader")]
+    [InlineData("SELECT | FROM dbo.OPENQUERY(0) l (CopyNo, ReaderId)", "OPENQUERY")]
+    [InlineData("SELECT | FROM [OPENQUERY](0) l (CopyNo, ReaderId)", "OPENQUERY")]
+    public void 具名來源後面的括號不是資料行清單(string sqlWithCaret, string objectName)
+    {
+        var table = Assert.Single(Analyze(sqlWithCaret).Tables);
+
+        Assert.Equal(objectName, table.ObjectName);
+        Assert.Equal("l", table.Alias);
+        Assert.Empty(table.ColumnNames);
+    }
+
+    /// <summary>括號還沒關上時當成沒寫，位置也留在原地。</summary>
+    /// <remarks>使用者正打到一半，而讀一半的清單會覆寫掉主體算得出來的名稱。</remarks>
+    [Fact]
+    public void 還沒關上的資料行清單當成沒寫()
+    {
+        var table = Assert.Single(Analyze("SELECT | FROM (SELECT CopyNo FROM dbo.Loan) AS T (Cop").Tables);
+
+        Assert.Equal("T", table.Alias);
+        Assert.Empty(table.ColumnNames);
+    }
+
     [Fact]
     public void 資料表變數標記為無中繼資料()
     {

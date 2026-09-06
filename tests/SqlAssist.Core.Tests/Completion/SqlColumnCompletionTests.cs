@@ -298,6 +298,33 @@ public sealed class SqlColumnCompletionTests
     }
 
     /// <summary>
+    /// 別名後面寫出來的資料行清單同樣覆寫主體。
+    /// </summary>
+    /// <remarks>
+    /// 與 CTE 是同一條規則。資料表值建構式更只有這一條路：<c>VALUES</c> 不是
+    /// <c>SELECT</c>，主體一個名稱都讀不出來，少了這份清單 <c>T.</c> 就一個欄位
+    /// 都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT T.| FROM (VALUES (1, N'Alice'), (2, N'Bob')) AS T (Code, Name)")]
+    [InlineData("SELECT T.| FROM (SELECT Id, Title FROM dbo.Copy) AS T (Code, Name)")]
+    [InlineData("SELECT * FROM (VALUES (1, N'Alice')) AS T (Code, Name) WHERE T.|")]
+    public void 衍生資料表的資料行清單優先(string sqlWithCaret)
+    {
+        Assert.Equal(new[] { "Code", "Name" }, Columns(Analyze(sqlWithCaret)));
+    }
+
+    /// <summary>資料行清單的括號還沒關上時當成沒寫，主體算得出來的名稱仍然算數。</summary>
+    /// <remarks>讀一半的清單會覆寫掉正確的答案，而使用者只是還沒打完。</remarks>
+    [Fact]
+    public void 還沒關上的資料行清單不覆寫主體()
+    {
+        var context = Analyze("SELECT T.| FROM (SELECT Id, Title FROM dbo.Copy) AS T (Cod");
+
+        Assert.Equal(new[] { "Id", "Title" }, Columns(context));
+    }
+
+    /// <summary>
     /// 衍生資料表裡的 <c>*</c> 要遞迴到底層的資料表，欄位才問得到中繼資料。
     /// </summary>
     [Fact]

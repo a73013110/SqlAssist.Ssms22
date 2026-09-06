@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -6,10 +7,16 @@ namespace SqlAssist.Core.Parsing;
 public sealed class SqlTableReference
 {
     /// <summary>具名的資料來源：一到四段的名稱，可能跨資料庫或跨伺服器。</summary>
-    public SqlTableReference(SqlObjectPath path, string? alias, int start, int end)
+    public SqlTableReference(
+        SqlObjectPath path,
+        string? alias,
+        int start,
+        int end,
+        IReadOnlyList<string>? columnNames = null)
     {
         Path = path ?? throw new ArgumentNullException(nameof(path));
         Alias = alias;
+        ColumnNames = columnNames ?? Array.Empty<string>();
         IsDerived = false;
         Start = start;
         End = end;
@@ -24,10 +31,16 @@ public sealed class SqlTableReference
     /// 「路徑是 null 但 isDerived 是 false」這種說不通的組合就建得出來，
     /// 而下游會拿它去查中繼資料。
     /// </remarks>
-    public SqlTableReference(string objectName, string? alias, int start, int end)
+    public SqlTableReference(
+        string objectName,
+        string? alias,
+        int start,
+        int end,
+        IReadOnlyList<string>? columnNames = null)
     {
         DerivedName = objectName ?? string.Empty;
         Alias = alias;
+        ColumnNames = columnNames ?? Array.Empty<string>();
         IsDerived = true;
         Start = start;
         End = end;
@@ -52,6 +65,19 @@ public sealed class SqlTableReference
 
     /// <summary>別名，沒寫時為 null。</summary>
     public string? Alias { get; }
+
+    /// <summary>
+    /// 別名後面明確寫出的資料行清單，沒寫時是空的。
+    /// </summary>
+    /// <remarks>
+    /// 有寫的話它就是這個來源的輸出欄位名稱，括號裡的主體不必再看——與 CTE 的
+    /// <c>WITH c (a, b) AS (…)</c> 是同一條規則，見
+    /// <see cref="SqlCommonTableExpression.ColumnNames"/>。
+    ///
+    /// <c>(VALUES (1, N'Alice')) AS T (ID, Name)</c> 的欄位<b>只</b>寫在這裡：
+    /// 資料表值建構式不是 <c>SELECT</c>，主體一個名稱都讀不出來。
+    /// </remarks>
+    public IReadOnlyList<string> ColumnNames { get; }
 
     /// <summary>是否為衍生資料表或資料表值建構式，這種來源查不到中繼資料。</summary>
     public bool IsDerived { get; }

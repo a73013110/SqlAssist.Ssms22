@@ -55,6 +55,42 @@ public sealed class SqlSelectIntoTableTests
         Assert.Empty(resolver.ResolveSelectIntoColumns(resolver.FindSelectIntoTable("#Loan")!));
     }
 
+    /// <summary>
+    /// <c>SELECT *</c> 打在資料表值建構式上時，資料行是別名後面那份清單。
+    /// </summary>
+    /// <remarks>
+    /// 選取清單自己沒寫名稱，而 <c>VALUES</c> 的主體也讀不出名稱——那份清單是唯一
+    /// 的出處。少了它的症狀是 <c>#Loan</c> 的預覽與 <c>INSERT INTO #Loan</c> 的整句
+    /// 展開都只剩一個名稱。
+    /// </remarks>
+    [Fact]
+    public void 投影資料表值建構式的資料行清單()
+    {
+        var resolver = Resolve("SELECT * INTO #Loan FROM (VALUES (1, N'Alice')) AS T (CopyNo, ReaderId)");
+
+        Assert.Equal(
+            new[] { "CopyNo", "ReaderId" },
+            resolver.ResolveSelectIntoColumns(resolver.FindSelectIntoTable("#Loan")!));
+        Assert.Equal(new[] { "CopyNo", "ReaderId" }, resolver.FindScriptTable("#Loan")!.ColumnNames);
+    }
+
+    /// <summary>
+    /// 資料表值函式後面的括號不是資料行清單。
+    /// </summary>
+    /// <remarks>
+    /// 實測回報：<c>#Temp</c> 的結構只剩一個叫 NOLOCK 的欄位。T-SQL 的
+    /// <c>table_source</c> 文法只讓<b>衍生資料表</b>接資料行清單，資料表值函式
+    /// 後面只有別名——那串括號是提示，讀成欄位會把整張表的結構換成假的。
+    /// </remarks>
+    [Fact]
+    public void 資料表值函式後面的括號不是資料行清單()
+    {
+        var resolver = Resolve("SELECT * INTO #Temp FROM dbo.fn_LoansByReader(0) f (NOLOCK)");
+
+        Assert.Empty(resolver.ResolveSelectIntoColumns(resolver.FindSelectIntoTable("#Temp")!));
+        Assert.Empty(resolver.FindScriptTable("#Temp")!.Columns);
+    }
+
     /// <summary>參照自己的寫法不會一直展開下去。</summary>
     [Fact]
     public void 自我參照不會無限展開()

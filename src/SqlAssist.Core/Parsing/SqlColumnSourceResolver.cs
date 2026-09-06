@@ -454,6 +454,13 @@ public sealed class SqlColumnSourceResolver
             return false;
         }
 
+        // AS T (ID, Name) 寫出來了就以它為準，括號裡的主體不必再看。
+        // (VALUES …) 只有這一條路：它不是 SELECT，主體一個名稱都讀不出來。
+        if (TryUseColumnNames(reference.ColumnNames, qualifier, sources))
+        {
+            return true;
+        }
+
         if (reference.IsDerived)
         {
             var open = FindTokenAt(_tokens, reference.Start);
@@ -476,9 +483,8 @@ public sealed class SqlColumnSourceResolver
         if (reference.SchemaName is null &&
             CommonTableExpressions.TryGetValue(reference.ObjectName, out var cte))
         {
-            if (cte.ColumnNames.Count > 0)
+            if (TryUseColumnNames(cte.ColumnNames, qualifier, sources))
             {
-                sources.Add(SqlColumnSource.FromNames(cte.ColumnNames, qualifier));
                 return true;
             }
 
@@ -508,6 +514,29 @@ public sealed class SqlColumnSourceResolver
         }
 
         sources.Add(SqlColumnSource.FromTable(reference, qualifier));
+        return true;
+    }
+
+    /// <summary>
+    /// 明確寫出的資料行清單覆寫主體算出來的名稱；沒寫時回傳 false。
+    /// </summary>
+    /// <remarks>
+    /// CTE 的 <c>WITH c (a, b) AS (…)</c> 與資料來源的 <c>AS T (a, b)</c> 是同一條
+    /// 規則，只是清單掛在不同的物件上。各接一條的症狀是其中一邊接住了、另一邊沒有
+    /// ——而 <c>(VALUES (1, N'Alice')) AS T (ID, Name)</c> 的欄位<b>只</b>寫在那份
+    /// 清單裡，走不到這裡就整個來源都給不出欄位。
+    /// </remarks>
+    private static bool TryUseColumnNames(
+        IReadOnlyList<string> columnNames,
+        string? qualifier,
+        List<SqlColumnSource> sources)
+    {
+        if (columnNames.Count == 0)
+        {
+            return false;
+        }
+
+        sources.Add(SqlColumnSource.FromNames(columnNames, qualifier));
         return true;
     }
 
@@ -924,7 +953,7 @@ public sealed class SqlColumnSourceResolver
                         break;
                     }
 
-                    columns = ReadColumnList(tokens, cursor + 1, listEnd);
+                    columns = SqlScopeAnalyzer.ReadColumnList(tokens, cursor + 1, listEnd);
                     cursor = listEnd + 1;
                 }
 
@@ -1071,21 +1100,6 @@ public sealed class SqlColumnSourceResolver
         }
 
         return -1;
-    }
-
-    private static IReadOnlyList<string> ReadColumnList(IReadOnlyList<SqlToken> tokens, int start, int end)
-    {
-        var names = new List<string>();
-
-        for (var index = start; index < end; index++)
-        {
-            if (tokens[index].Kind == SqlTokenKind.Identifier)
-            {
-                names.Add(tokens[index].Value);
-            }
-        }
-
-        return names;
     }
 
     private static int FindTokenAt(IReadOnlyList<SqlToken> tokens, int position)

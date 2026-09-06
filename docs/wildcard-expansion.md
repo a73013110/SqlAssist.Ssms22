@@ -46,8 +46,13 @@ SELECT PublisherId, PublisherName, CreatedAt, ModifiedAt FROM dbo.PUBLISHER
 | 資料表、檢視 | 中繼資料的第二層 |
 | 衍生資料表 `(SELECT …) d` | 讀它自己的選取清單 |
 | CTE `WITH c AS (…)` | 讀主體的選取清單；有寫資料行清單就以它為準 |
+| 帶資料行清單 `… AS T (a, b)` | 就是那份清單；`(VALUES …)` 只有這條路 |
 | 暫存資料表 `#Loan`、資料表變數 `@rows` | 讀 `CREATE TABLE`／`DECLARE … TABLE` 的資料行清單 |
 | 巢狀的 `*` | 往內遞迴，把最外層的別名一路帶著走 |
+
+資料行清單只有衍生資料表與 `OPENROWSET`／`OPENQUERY`／`OPENDATASOURCE` 接得住，
+文法就是這樣切的：`dbo.fn(x) f (NOLOCK)` 是舊式資料表提示，形狀一樣，而 `NOLOCK`
+不是保留字，猜括號內容分不出來。
 
 `(SELECT * FROM dbo.PUBLISHER c) d` 的欄位在外層要寫成 `d.欄位`——內層的 `c`
 在外面根本不存在。三種欄位別名寫法都讀得出來：`Id AS Code`、`Total = Qty * Price`、
