@@ -54,4 +54,49 @@ public sealed class SqlTypeFormatterTests
     {
         Assert.Throws<ArgumentException>(() => SqlTypeFormatter.Format(typeName!, 0, 0, 0));
     }
+
+    [Theory]
+    [InlineData("nvarchar", (short)400, (byte)0, (byte)0, "[nvarchar] (200)")]
+    [InlineData("nvarchar", (short)-1, (byte)0, (byte)0, "[nvarchar] (max)")]
+    [InlineData("int", (short)4, (byte)10, (byte)0, "[int]")]
+    [InlineData("decimal", (short)9, (byte)18, (byte)2, "[decimal] (18, 2)")]
+    [InlineData("float", (short)8, (byte)53, (byte)0, "[float]")]
+    public void Fidelity風格加方括號並在括號前後留空格(
+        string typeName, short maxLength, byte precision, byte scale, string expected)
+    {
+        var formatted = SqlTypeFormatter.Format(
+            typeName, maxLength, precision, scale,
+            quoteTypeName: true, spaceBeforeArguments: true, spaceAfterComma: true);
+
+        Assert.Equal(expected, formatted);
+    }
+
+    [Theory]
+    [InlineData("nvarchar", (short)400, (byte)0, (byte)0, "[nvarchar](200)")]
+    [InlineData("decimal", (short)9, (byte)18, (byte)2, "[decimal](18,2)")]
+    public void SsmsNative風格加方括號但不留空格(
+        string typeName, short maxLength, byte precision, byte scale, string expected)
+    {
+        var formatted = SqlTypeFormatter.Format(
+            typeName, maxLength, precision, scale,
+            quoteTypeName: true, spaceBeforeArguments: false, spaceAfterComma: false);
+
+        Assert.Equal(expected, formatted);
+    }
+
+    /// <remarks>
+    /// 不加括號的呼叫端（建議清單、滑鼠停留提示）與原本的單參數多載必須逐字相同，
+    /// 否則換一個排版選項會連提示的文字一起改掉。
+    /// </remarks>
+    [Theory]
+    [InlineData("nvarchar", (short)400, (byte)0, (byte)0)]
+    [InlineData("decimal", (short)9, (byte)18, (byte)2)]
+    [InlineData("datetime2", (short)8, (byte)27, (byte)7)]
+    public void 緊湊寫法與原本的多載完全相同(
+        string typeName, short maxLength, byte precision, byte scale)
+    {
+        Assert.Equal(
+            SqlTypeFormatter.Format(typeName, maxLength, precision, scale),
+            SqlTypeFormatter.Format(typeName, maxLength, precision, scale, false, false, false));
+    }
 }

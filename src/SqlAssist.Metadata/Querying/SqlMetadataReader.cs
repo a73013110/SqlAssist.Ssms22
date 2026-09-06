@@ -54,6 +54,20 @@ public static class SqlMetadataReader
             record.GetByte(4),
             record.GetByte(5));
 
+        var script = new SqlColumnScriptDetail(
+            record.GetString(2),
+            record.GetInt16(3),
+            record.GetByte(4),
+            record.GetByte(5),
+            ReadOptionalString(record, 13),
+            ReadOptionalString(record, 14),
+            ReadOptionalString(record, 15),
+            ReadOptionalString(record, 16),
+            ReadOptionalBoolean(record, 17),
+            ReadOptionalBoolean(record, 18),
+            record.FieldCount > 19 && record.GetBoolean(19),
+            record.FieldCount > 20 && record.GetBoolean(20));
+
         return new SqlColumnInfo(
             record.GetInt32(0),
             record.GetString(1),
@@ -64,8 +78,21 @@ public static class SqlMetadataReader
             record.GetBoolean(9),
             record.IsDBNull(10) ? null : record.GetString(10),
             record.IsDBNull(11) ? null : record.GetString(11),
-            record.GetBoolean(12));
+            record.GetBoolean(12),
+            script);
     }
+
+    /// <remarks>
+    /// 先問 <see cref="IDataRecord.FieldCount"/> 再讀：指令碼宣告的資料表與測試用的
+    /// 假資料列只組得出前面那幾欄，而多讀一欄拿到的是
+    /// <see cref="System.IndexOutOfRangeException"/>——那不是 <c>DbException</c>，
+    /// 不會被降級成「這一輪沒有資料」，而會一路冒到平台邊界去。
+    /// </remarks>
+    private static string? ReadOptionalString(IDataRecord record, int ordinal) =>
+        record.FieldCount > ordinal && !record.IsDBNull(ordinal) ? record.GetString(ordinal) : null;
+
+    private static bool ReadOptionalBoolean(IDataRecord record, int ordinal) =>
+        record.FieldCount > ordinal && !record.IsDBNull(ordinal) && record.GetBoolean(ordinal);
 
     public static SqlIndexRow ReadIndexRow(IDataRecord record)
     {

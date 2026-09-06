@@ -17,7 +17,8 @@ public sealed class SqlColumnInfo
         bool isPrimaryKey = false,
         string? defaultDefinition = null,
         string? computedDefinition = null,
-        bool isGeneratedAlways = false)
+        bool isGeneratedAlways = false,
+        SqlColumnScriptDetail? script = null)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -34,6 +35,7 @@ public sealed class SqlColumnInfo
         DefaultDefinition = defaultDefinition;
         ComputedDefinition = computedDefinition;
         IsGeneratedAlways = isGeneratedAlways;
+        Script = script ?? SqlColumnScriptDetail.None;
     }
 
     public int Ordinal { get; }
@@ -60,6 +62,9 @@ public sealed class SqlColumnInfo
     /// 以及帳本資料表的異動與序號欄。
     /// </summary>
     public bool IsGeneratedAlways { get; }
+
+    /// <summary>只有重建指令碼才需要的細節；沒有查到時是空值而不是 null。</summary>
+    public SqlColumnScriptDetail Script { get; }
 
     /// <summary>
     /// 這個欄位能不能出現在 <c>INSERT</c> 的資料行清單裡。

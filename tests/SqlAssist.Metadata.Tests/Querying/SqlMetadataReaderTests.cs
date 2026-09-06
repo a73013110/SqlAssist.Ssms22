@@ -248,4 +248,72 @@ public sealed class SqlMetadataReaderTests
 
         Assert.Equal("(傳回值)", SqlMetadataReader.ReadParameter(record).Name);
     }
+
+    [Fact]
+    public void 讀取識別資料行的種子與遞增量以及預設值條件約束的名稱()
+    {
+        // 前 13 欄與舊查詢相同，之後是定序、識別值、預設值名稱與三個旗標。
+        var record = new FakeDataRecord(
+            1, "LoanId", "int", (short)4, (byte)10, (byte)0,
+            false, true, false, true, null, null, false,
+            null, "1", "1", "DF_Loan_LoanId", false, false, false, false);
+
+        var script = SqlMetadataReader.ReadColumn(record).Script;
+
+        Assert.Equal("1", script.IdentitySeed);
+        Assert.Equal("1", script.IdentityIncrement);
+        Assert.Equal("DF_Loan_LoanId", script.DefaultConstraintName);
+        Assert.False(script.DefaultIsSystemNamed);
+    }
+
+    [Fact]
+    public void 讀取資料行定序與稀疏及唯一識別旗標()
+    {
+        var record = new FakeDataRecord(
+            4, "BorrowerName", "nvarchar", (short)100, (byte)0, (byte)0,
+            true, false, false, false, null, null, false,
+            "Chinese_Taiwan_Stroke_CI_AS", null, null, null, false, false, true, true);
+
+        var script = SqlMetadataReader.ReadColumn(record).Script;
+
+        Assert.Equal("Chinese_Taiwan_Stroke_CI_AS", script.CollationName);
+        Assert.True(script.IsSparse);
+        Assert.True(script.IsRowGuidCol);
+        Assert.Equal("nvarchar", script.TypeName);
+        Assert.Equal((short)100, script.MaxLength);
+    }
+
+    /// <remarks>
+    /// 指令碼宣告的資料表與舊的假資料列只組得出前 13 欄。多讀一欄拿到的是
+    /// IndexOutOfRangeException，那不是 DbException，不會被降級成
+    /// 「這一輪沒有資料」，而會一路冒到平台邊界去。
+    /// </remarks>
+    [Fact]
+    public void 只給得出舊欄位的資料列讀得到空的指令碼細節()
+    {
+        var record = new FakeDataRecord(
+            1, "LoanId", "int", (short)4, (byte)10, (byte)0,
+            false, true, false, true, null, null, false);
+
+        var script = SqlMetadataReader.ReadColumn(record).Script;
+
+        Assert.Null(script.CollationName);
+        Assert.Null(script.IdentitySeed);
+        Assert.False(script.IsSparse);
+        Assert.Equal("int", script.TypeName);
+    }
+
+    [Fact]
+    public void 系統配的預設值名稱看得出來是系統配的()
+    {
+        var record = new FakeDataRecord(
+            5, "IsReturned", "bit", (short)1, (byte)1, (byte)0,
+            false, false, false, false, "((0))", null, false,
+            null, null, null, "DF__Loan__IsRet__2A4B", true, false, false, false);
+
+        var script = SqlMetadataReader.ReadColumn(record).Script;
+
+        Assert.True(script.DefaultIsSystemNamed);
+        Assert.Equal("DF__Loan__IsRet__2A4B", script.DefaultConstraintName);
+    }
 }

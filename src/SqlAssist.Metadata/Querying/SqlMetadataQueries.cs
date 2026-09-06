@@ -135,6 +135,13 @@ ORDER BY s.name;";
     /// 於是欄位建議、萬用字元展開與結構預覽在那些伺服器上會一起安靜地消失。
     /// <c>COLUMNPROPERTY</c> 對認不得的屬性名稱回傳 NULL，NULL &gt; 0 不成立，
     /// 舊版因此自然得到 0，不必為此再開一條依版本組字串的路。
+    ///
+    /// <c>IsSparse</c> 與 <c>IsRowGuidCol</c> 走同一個函式，理由相同：
+    /// <c>sys.columns.is_sparse</c> 要 SQL Server 2008 才有。
+    ///
+    /// 識別值的種子與遞增量在伺服器端就 <c>CONVERT</c> 成字串：那兩欄是
+    /// <c>sql_variant</c>，用 <c>GetValue</c> 收到的是裝箱的原生型別，
+    /// 一個 <c>decimal(38,0)</c> 的識別資料行會讓任何一種整數轉型當場溢位。
     /// </remarks>
     public const string Columns = @"
 SELECT
@@ -153,9 +160,25 @@ SELECT
     CONVERT(bit, CASE
         WHEN COLUMNPROPERTY(c.object_id, c.name, 'GeneratedAlwaysType') > 0 THEN 1
         ELSE 0
-    END) AS is_generated_always
+    END) AS is_generated_always,
+    c.collation_name,
+    CONVERT(nvarchar(64), ic.seed_value) AS identity_seed,
+    CONVERT(nvarchar(64), ic.increment_value) AS identity_increment,
+    dc.name AS default_constraint_name,
+    dc.is_system_named AS default_is_system_named,
+    cc.is_persisted,
+    CONVERT(bit, CASE
+        WHEN COLUMNPROPERTY(c.object_id, c.name, 'IsSparse') > 0 THEN 1
+        ELSE 0
+    END) AS is_sparse,
+    CONVERT(bit, CASE
+        WHEN COLUMNPROPERTY(c.object_id, c.name, 'IsRowGuidCol') > 0 THEN 1
+        ELSE 0
+    END) AS is_row_guid_col
 FROM sys.columns AS c
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
+LEFT JOIN sys.identity_columns AS ic
+    ON ic.object_id = c.object_id AND ic.column_id = c.column_id
 LEFT JOIN sys.indexes AS pk
     ON pk.object_id = c.object_id AND pk.is_primary_key = 1
 LEFT JOIN sys.index_columns AS pkc
