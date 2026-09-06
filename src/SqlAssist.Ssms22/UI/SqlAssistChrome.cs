@@ -278,6 +278,57 @@ internal static class SqlAssistChrome
         }.WithTheme(Button.ForegroundProperty, ThemeBrush.ListForeground);
     }
 
+    /// <summary>精簡確認內容：影響說明與單一頁尾，不重複原生標題列。</summary>
+    public static Grid CreateConfirmationContent(
+        string message, string detail, string action, out Button confirm, out Button cancel)
+    {
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontFamily = InterfaceFont,
+            FontSize = DefaultMetrics.Body,
+            TextWrapping = TextWrapping.Wrap
+        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.WindowForeground));
+        var hint = CreateHint(detail, DefaultMetrics);
+        hint.Margin = new Thickness(0, 8, 0, 0);
+        body.Children.Add(hint);
+        // 長片段名稱只捲動訊息本身，避免把取消按鈕推到視窗外。
+        root.Children.Add(new ScrollViewer
+        {
+            Content = body,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            MaxHeight = 240,
+            Focusable = false
+        });
+
+        var footer = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0)
+        };
+        cancel = CreateButton("取消", DefaultMetrics);
+        // Enter 與 Esc 都先保留草稿；只有明確移到動作按鈕後才允許破壞性操作。
+        cancel.IsDefault = true;
+        cancel.IsCancel = true;
+        cancel.MinWidth = 80;
+        confirm = CreateButton(action, DefaultMetrics, primary: true);
+        confirm.MinWidth = 80;
+        confirm.Margin = new Thickness(8, 0, 0, 0);
+        footer.Children.Add(cancel);
+        footer.Children.Add(confirm);
+        Grid.SetRow(footer, 1);
+        root.Children.Add(footer);
+        System.Windows.Input.FocusManager.SetFocusedElement(root, cancel);
+        return root;
+    }
+
     /// <summary>底部那一條回饋訊息；平常是空的，所以永遠比內容淡。</summary>
     public static TextBlock CreateStatusText(Metrics metrics)
     {

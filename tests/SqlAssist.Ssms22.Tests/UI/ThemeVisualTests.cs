@@ -12,6 +12,54 @@ namespace SqlAssist.Ssms22.Tests.UI;
 public sealed class ThemeVisualTests
 {
     [Fact]
+    public void ConfirmationRendersWithLiveThemeAtMultipleDpi()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var content = SqlAssistChrome.CreateConfirmationContent(
+                "要還原全部內建片段並移除自訂片段嗎？",
+                "內建片段的修改與停用狀態也會重設。按「儲存」後才會寫回檔案。",
+                "還原預設", out var confirm, out var cancel);
+            var root = new Border { Child = content }
+                .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
+            root.Resources.MergedDictionaries.Add(palette.Resources);
+            var body = (StackPanel)((ScrollViewer)content.Children[0]).Content;
+            var message = (TextBlock)body.Children[0];
+            var hint = (TextBlock)body.Children[1];
+            var directory = FindOutputDirectory();
+
+            foreach (var mode in new[] { "light", "dark", "mango", "plum", "high-contrast", "light-again" })
+            {
+                var colors = ThemePaletteTests.ColorsFor(mode);
+                palette.Update(colors);
+                root.Measure(new Size(440, double.PositiveInfinity));
+                var height = Math.Ceiling(root.DesiredSize.Height);
+                root.Arrange(new Rect(0, 0, 440, height));
+                root.UpdateLayout();
+
+                Assert.Equal(colors[ThemeBrush.WindowForeground], ((SolidColorBrush)message.Foreground).Color);
+                Assert.Equal(colors[ThemeBrush.DimForeground], ((SolidColorBrush)hint.Foreground).Color);
+                Assert.Equal(colors[ThemeBrush.ListForeground], ((SolidColorBrush)cancel.Foreground).Color);
+                var background = (Border)confirm.Template.FindName("bg", confirm);
+                Assert.Equal(colors[ThemeBrush.AccentBackground], ((SolidColorBrush)background.Background).Color);
+                foreach (var dpi in new[] { 96, 144, 192 })
+                {
+                    var bitmap = new RenderTargetBitmap(440 * dpi / 96, (int)Math.Ceiling(height * dpi / 96), dpi, dpi, PixelFormats.Pbgra32);
+                    bitmap.Render(root);
+                    if (directory is not null)
+                    {
+                        var encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+                        using var file = File.Create(Path.Combine(directory, $"confirmation-{mode}-{dpi}.png"));
+                        encoder.Save(file);
+                    }
+                }
+            }
+        });
+    }
+
+    [Fact]
     public void SharedControlsRenderAfterRepeatedThemeChangesAtMultipleDpi()
     {
         WpfTest.Run(() =>

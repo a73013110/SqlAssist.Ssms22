@@ -10,6 +10,49 @@ namespace SqlAssist.Ssms22.Tests.UI;
 
 public sealed class SqlAssistChromeTests
 {
+    [Theory]
+    [InlineData("刪除")]
+    [InlineData("停用")]
+    [InlineData("還原預設")]
+    public void ConfirmationDefaultsToCancelAndKeepsActionsOutsideScrollableContent(string action)
+    {
+        WpfTest.Run(() =>
+        {
+            var message = "要移除「Loan_" + new string('x', 2000) + "」嗎？";
+            var content = SqlAssistChrome.CreateConfirmationContent(
+                message, "按「儲存」後才會寫回檔案。", action, out var confirm, out var cancel);
+            Assert.Equal(action, confirm.Content);
+            Assert.False(confirm.IsDefault);
+            Assert.False(confirm.IsCancel);
+            Assert.True(cancel.IsDefault);
+            Assert.True(cancel.IsCancel);
+            Assert.Same(cancel, System.Windows.Input.FocusManager.GetFocusedElement(content));
+            Assert.Equal(SqlAssistChrome.DefaultMetrics.Body, confirm.FontSize);
+            Assert.Equal(confirm.FontSize, cancel.FontSize);
+            Assert.Equal(confirm.MinWidth, cancel.MinWidth);
+
+            var scroll = Assert.IsType<ScrollViewer>(content.Children[0]);
+            var body = Assert.IsType<StackPanel>(scroll.Content);
+            var text = Assert.IsType<TextBlock>(body.Children[0]);
+            var footer = Assert.IsType<StackPanel>(content.Children[1]);
+            Assert.Equal(message, text.Text);
+            Assert.Equal(TextWrapping.Wrap, text.TextWrapping);
+            Assert.Same(cancel, footer.Children[0]);
+            Assert.Same(confirm, footer.Children[1]);
+            Assert.Equal(1, Grid.GetRow(footer));
+
+            content.Measure(new Size(408, double.PositiveInfinity));
+            content.Arrange(new Rect(content.DesiredSize));
+            content.UpdateLayout();
+            Assert.True(scroll.ScrollableHeight > 0);
+            Assert.InRange(scroll.ActualHeight, 1, 240);
+            Assert.True(footer.TranslatePoint(new Point(), content).Y >= scroll.ActualHeight);
+            Assert.InRange(footer.ActualWidth, 1, content.ActualWidth);
+            Assert.True(confirm.ActualHeight > 0);
+            Assert.Equal(confirm.ActualHeight, cancel.ActualHeight);
+        });
+    }
+
     [Fact]
     public void BrandMarkUsesLiveThemeBrushesAndVectorGeometryAtMultipleDpi()
     {

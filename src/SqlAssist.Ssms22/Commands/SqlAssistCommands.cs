@@ -330,17 +330,17 @@ internal sealed class SqlAssistCommands
     private void Report(string operation, Exception exception)
     {
         SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
-        ShowMessage($"{operation}失敗：{exception.Message}");
+        ShowMessage($"{operation}失敗：{exception.Message}", OLEMSGICON.OLEMSGICON_CRITICAL);
     }
 
-    private void ShowMessage(string message)
+    private void ShowMessage(string message, OLEMSGICON icon = OLEMSGICON.OLEMSGICON_WARNING)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         VsShellUtilities.ShowMessageBox(
             _package,
             message,
             "SqlAssist",
-            OLEMSGICON.OLEMSGICON_INFO,
+            icon,
             OLEMSGBUTTON.OLEMSGBUTTON_OK,
             OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
     }
@@ -353,7 +353,7 @@ internal sealed class SqlAssistCommands
     /// 結果格線的命令會安靜地整組失效——那時候要先問出格線還在不在、
     /// 方法還叫不叫這個名字。
     ///
-    /// 回饋走對話框：這個命令不在按鍵路徑上，而「按了沒反應」正是它要排除的失敗。
+    /// 成功只回報狀態列，完整報告留在紀錄檔；失敗仍以原生訊息框說明原因。
     /// </remarks>
     private void ProbeResultGrid(object? sender, EventArgs eventArgs)
     {
@@ -367,7 +367,7 @@ internal sealed class SqlAssistCommands
                 line => line.StartsWith("找到格線數量", StringComparison.Ordinal))
                 ?.Trim() ?? "（報告裡沒有格線數量那一行）";
 
-            ShowMessage($"結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, $"結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。");
         }
         catch (Exception exception)
         {
