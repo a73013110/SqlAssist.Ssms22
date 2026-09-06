@@ -228,15 +228,13 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
             FontFamily = SqlAssistChrome.InterfaceFont,
             TextTrimming = TextTrimming.CharacterEllipsis
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
+        _title.SetBinding(ToolTipProperty,
+            new Binding(nameof(TextBlock.Text)) { Source = _title });
 
         // 摘要從底部搬到標題底下：物件的欄位數與主索引鍵是「這是什麼」的一部分，
         // 該跟名字待在一起。底部那一條留給操作之後的回饋，平常是空的。
-        _summary = new TextBlock
-        {
-            FontFamily = SqlAssistChrome.InterfaceFont,
-            Margin = new Thickness(0, 1, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis
-        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
+        _summary = SqlAssistChrome.CreateMetadataText(string.Empty, SqlAssistChrome.DefaultMetrics);
+        _summary.Margin = new Thickness(0, 4, 0, 0);
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
         _status.Margin = new Thickness(24, 0, 24, 6);
@@ -315,6 +313,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
+            Margin = new Thickness(12, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center
         };
         buttons.Children.Add(CreateButton("複製選取", CopySelection, "複製目前分頁選取的內容"));
@@ -325,7 +324,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         caption.Children.Add(_title);
         caption.Children.Add(_summary);
 
-        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(14, 12, 10, 10) };
+        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(16, 12, 12, 12) };
         DockPanel.SetDock(buttons, Dock.Right);
         DockPanel.SetDock(_icon, Dock.Left);
         header.Children.Add(buttons);

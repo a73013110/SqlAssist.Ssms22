@@ -83,6 +83,45 @@ internal static class SqlAssistChrome
     /// </remarks>
     public static Metrics DefaultMetrics { get; } = new(SqlAssistLimits.DefaultPreviewFontSize);
 
+    /// <summary>視窗內的產品標誌：資料庫與插入游標，保留小尺寸辨識度並跟隨 Fluent 配色。</summary>
+    public static Border CreateBrandMark()
+    {
+        // 使用向量而非縮小發布用 PNG；沒有固定藍底、星光與點陣邊緣，換色也不必換圖。
+        var glyph = new Canvas { Width = 48, Height = 48 };
+        var database = new Path
+        {
+            Data = Geometry.Parse(
+                "M10,14 C10,9.3 28,9.3 28,14 L28,32 C28,36.7 10,36.7 10,32 Z " +
+                "M10,14 C10,18.7 28,18.7 28,14 M10,23 C10,27.7 28,27.7 28,23"),
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round
+        }.WithTheme(Shape.StrokeProperty, ThemeBrush.ListForeground);
+        var caret = new Path
+        {
+            Data = Geometry.Parse("M33,19 H38 M35.5,19 V34 M33,34 H38"),
+            StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round
+        }.WithTheme(Shape.StrokeProperty, ThemeBrush.AccentBorder);
+        glyph.Children.Add(database);
+        glyph.Children.Add(caret);
+
+        return new Border
+        {
+            Width = 48,
+            Height = 48,
+            CornerRadius = new CornerRadius(12),
+            BorderThickness = new Thickness(1),
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+            Child = new Viewbox { Child = glyph, Stretch = Stretch.Uniform }
+        }.WithTheme(Border.BackgroundProperty, ThemeBrush.AccentBackground)
+            .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
+    }
+
     /// <summary>一塊內容的底：底色比視窗淺一階，四周一條細線。</summary>
     public static Border CreateSurface(UIElement? child = null)
     {
@@ -120,6 +159,14 @@ internal static class SqlAssistChrome
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(2, 5, 0, 0)
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
+    }
+
+    /// <summary>單行脈絡資訊；不再用第二個標題搶走內容的閱讀空間。</summary>
+    public static TextBlock CreateMetadataText(string text, Metrics metrics)
+    {
+        var metadata = CreateStatusText(metrics);
+        metadata.Text = text;
+        return metadata;
     }
 
     /// <summary>短狀態用的圓角徽章；不能只靠顏色傳達狀態，文字仍是必要內容。</summary>
@@ -234,13 +281,16 @@ internal static class SqlAssistChrome
     /// <summary>底部那一條回饋訊息；平常是空的，所以永遠比內容淡。</summary>
     public static TextBlock CreateStatusText(Metrics metrics)
     {
-        return new TextBlock
+        var status = new TextBlock
         {
             FontFamily = InterfaceFont,
             FontSize = metrics.Caption,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
+        status.SetBinding(FrameworkElement.ToolTipProperty,
+            new Binding(nameof(TextBlock.Text)) { RelativeSource = RelativeSource.Self });
+        return status;
     }
 
     /// <summary>
@@ -306,7 +356,8 @@ internal static class SqlAssistChrome
         field.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         field.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         field.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
-        field.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+        // TextBox 的文字視圖已套用 Padding；外框再套一次會讓輸入框過高、左右縮排加倍。
+        field.SetValue(Border.PaddingProperty, default(Thickness));
         field.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
 
         var host = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
@@ -536,7 +587,10 @@ internal static class SqlAssistChrome
     }
 
     /// <summary>欄位標題：一條細線把它跟資料分開，字比資料更小也更淡。</summary>
-    public static Style CreateColumnHeaderStyle(Metrics metrics)
+    public static Style CreateColumnHeaderStyle(
+        Metrics metrics,
+        HorizontalAlignment alignment = HorizontalAlignment.Left,
+        string? tooltip = null)
     {
         var style = new Style(typeof(DataGridColumnHeader));
         style.Setters.Add(new Setter(Control.BackgroundProperty, Brushes.Transparent));
@@ -548,7 +602,11 @@ internal static class SqlAssistChrome
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(10, 0, 10, 0)));
         style.Setters.Add(new Setter(FrameworkElement.HeightProperty, metrics.RowHeight + 2));
         style.Setters.Add(new Setter(
-            Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+            Control.HorizontalContentAlignmentProperty, alignment));
+        if (tooltip is not null)
+        {
+            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, tooltip));
+        }
         return style;
     }
 
@@ -568,12 +626,16 @@ internal static class SqlAssistChrome
     }
 
     /// <summary>資料格裡的文字：垂直置中，左右留出與標題一致的內距。</summary>
-    public static Style CreateCellTextStyle()
+    public static Style CreateCellTextStyle(TextAlignment alignment = TextAlignment.Left)
     {
         var style = new Style(typeof(TextBlock));
         style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(10, 0, 10, 0)));
         style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
         style.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+        style.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, alignment));
+        // 省略只影響版面；完整值仍可從 Tooltip 讀取，不必拉寬整張表。
+        style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty,
+            new Binding(nameof(TextBlock.Text)) { RelativeSource = RelativeSource.Self }));
         return style;
     }
 

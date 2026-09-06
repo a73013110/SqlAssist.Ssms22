@@ -51,21 +51,21 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
 
-        var logo = TryLoadLogo();
-        Icon = logo;
+        // 原生標題列保留套件圖示；內容標誌另外用可隨主題換色的向量。
+        Icon = TryLoadLogo();
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
-        Content = BuildLayout(logo);
+        Content = BuildLayout();
     }
 
-    private Grid BuildLayout(ImageSource? logo)
+    private Grid BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(16) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var header = BuildHeader(logo);
+        var header = BuildHeader();
         Grid.SetRow(header, 0);
         root.Children.Add(header);
 
@@ -80,46 +80,13 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         return root;
     }
 
-    private Border BuildHeader(ImageSource? logo)
+    private Border BuildHeader()
     {
         var layout = new Grid();
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        FrameworkElement mark;
-
-        if (logo is not null)
-        {
-            mark = new Image
-            {
-                Source = logo,
-                Width = 72,
-                Height = 72,
-                Stretch = Stretch.Uniform,
-                SnapsToDevicePixels = true
-            };
-        }
-        else
-        {
-            mark = new Border
-            {
-                Width = 72,
-                Height = 72,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(16),
-                Child = new TextBlock
-                {
-                    Text = "SA",
-                    FontFamily = SqlAssistChrome.InterfaceFont,
-                    FontSize = 24,
-                    FontWeight = FontWeights.SemiBold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground)
-            }.WithTheme(Border.BackgroundProperty, ThemeBrush.AccentBackground)
-                .WithTheme(Border.BorderBrushProperty, ThemeBrush.AccentBorder);
-        }
-
+        var mark = SqlAssistChrome.CreateBrandMark();
         Grid.SetColumn(mark, 0);
         layout.Children.Add(mark);
 
@@ -131,7 +98,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         copy.Children.Add(new TextBlock
         {
             Text = _snapshot.ProductName,
-            FontSize = Metrics.Title + 4,
+            FontSize = Metrics.Title,
             FontWeight = FontWeights.SemiBold
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
         copy.Children.Add(new TextBlock
@@ -145,8 +112,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         var badges = new StackPanel { Orientation = Orientation.Horizontal };
         badges.Children.Add(SqlAssistChrome.CreateBadge(
             $"版本 {_snapshot.BuildVersion.DisplayVersion}",
-            Metrics,
-            accent: true));
+            Metrics));
 
         // 抬頭的徽章三個分頁都看得到，所以放最短的那一句；完整結論在「概覽」上方。
         var statusBadge = SqlAssistChrome.CreateBadge(
@@ -159,9 +125,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         Grid.SetColumn(copy, 1);
         layout.Children.Add(copy);
 
-        var surface = SqlAssistChrome.CreateSurface(layout);
-        surface.Padding = new Thickness(18);
-        return surface;
+        // 品牌資訊留在原生標題列下的一列，不再額外包成大型展示卡。
+        return new Border { Child = layout };
     }
 
     private TabControl BuildTabs()
@@ -187,7 +152,6 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         content.Children.Add(CreateSection(
             "關於 SqlAssist",
             null,
-            CreateInfoRow("版本", _snapshot.BuildVersion.DisplayVersion),
             CreateInfoRow(
                 "Build",
                 $"{_snapshot.BuildVersion.FullVersion} · commit {_snapshot.BuildVersion.ShortCommitId}"),
@@ -290,10 +254,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             Margin = new Thickness(0, 4, 0, 0)
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.DimForeground));
 
-        var surface = SqlAssistChrome.CreateSurface(copy);
-        surface.Padding = new Thickness(16);
-        surface.Margin = new Thickness(0, 0, 0, 12);
-        return surface;
+        return new Border
+        {
+            Child = copy,
+            Margin = new Thickness(0, 0, 0, 24)
+        };
     }
 
     private DockPanel BuildFooter()
@@ -388,14 +353,14 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         return new TabItem
         {
             Header = header,
-            Content = content,
+            Content = SqlAssistChrome.CreateSurface(content),
             Template = SqlAssistChrome.CreateTabItemTemplate()
         };
     }
 
     private static StackPanel CreateTabPanel()
     {
-        return new StackPanel { Margin = new Thickness(14, 2, 14, 0) };
+        return new StackPanel { Margin = new Thickness(16, 12, 16, 0) };
     }
 
     private static ScrollViewer CreateScrollViewer(UIElement content)
@@ -451,10 +416,12 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             content.Children.Add(child);
         }
 
-        var surface = SqlAssistChrome.CreateSurface(content);
-        surface.Padding = new Thickness(16, 13, 16, 14);
-        surface.Margin = new Thickness(0, 0, 0, 12);
-        return surface;
+        // 區塊靠字重與留白分層；整頁不再重複套外框。
+        return new Border
+        {
+            Child = content,
+            Margin = new Thickness(0, 0, 0, 24)
+        };
     }
 
     private static Grid CreateInfoRow(string label, string value, bool useCodeFont = false)

@@ -475,7 +475,9 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _codeBox.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         _codeBox.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         _codeBox.FontFamily = SqlAssistChrome.CodeFont;
-        _codeBox.MinHeight = 120;
+        // 長片段在自己的編輯區捲動，不把整份表單撐成數千像素。
+        _codeBox.MinHeight = 180;
+        _codeBox.MaxHeight = 280;
 
         _followUpBox = new CheckBox
         {
@@ -575,25 +577,16 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     {
         var panel = new StackPanel();
 
-        // 第一個標題不留上緣空白：它上面就是視窗邊，再留一次會歪掉。
-        var shortcutLabel = SqlAssistChrome.CreateLabel("捷徑", Metrics);
-        shortcutLabel.Margin = new Thickness(0, 0, 0, 4);
-        panel.Children.Add(shortcutLabel);
-        panel.Children.Add(_shortcutBox);
+        panel.Children.Add(CreateFieldPair("捷徑", _shortcutBox, "標題", _titleBox));
         panel.Children.Add(SqlAssistChrome.CreateHint(
-            "在編輯器裡打這串字，就會在建議清單裡出現。只能用字母、數字與底線。", Metrics));
-
-        panel.Children.Add(SqlAssistChrome.CreateLabel("標題", Metrics));
-        panel.Children.Add(_titleBox);
+            "輸入捷徑即可顯示建議；捷徑限字母、數字與底線。", Metrics));
 
         panel.Children.Add(SqlAssistChrome.CreateLabel("說明", Metrics));
         panel.Children.Add(_descriptionBox);
 
-        panel.Children.Add(SqlAssistChrome.CreateLabel("分類", Metrics));
-        panel.Children.Add(_categoryBox);
-
-        panel.Children.Add(SqlAssistChrome.CreateLabel("展開模式", Metrics));
-        panel.Children.Add(_expansionModeBox);
+        var choices = CreateFieldPair("分類", _categoryBox, "展開模式", _expansionModeBox);
+        choices.Margin = new Thickness(0, 16, 0, 0);
+        panel.Children.Add(choices);
 
         panel.Children.Add(SqlAssistChrome.CreateLabel("程式碼", Metrics));
         panel.Children.Add(_codeBox);
@@ -615,6 +608,30 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         panel.Children.Add(placeholders);
 
         return panel;
+    }
+
+    private static Grid CreateFieldPair(string firstTitle, Control first, string secondTitle, Control second)
+    {
+        var pair = new Grid();
+        pair.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        pair.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        pair.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        void AddField(string title, Control control, int column)
+        {
+            var field = new StackPanel();
+            var label = SqlAssistChrome.CreateLabel(title, Metrics);
+            label.Margin = new Thickness(0, 0, 0, 4);
+            field.Children.Add(label);
+            field.Children.Add(control);
+            System.Windows.Automation.AutomationProperties.SetName(control, title);
+            Grid.SetColumn(field, column);
+            pair.Children.Add(field);
+        }
+
+        AddField(firstTitle, first, 0);
+        AddField(secondTitle, second, 2);
+        return pair;
     }
 
     private Grid BuildLayout()
@@ -666,12 +683,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         // 整個視窗只有這一顆按鈕帶底色；主要動作只能有一個，多給一個就沒有主要。
         _saveButton.IsDefault = true;
-        confirm.Children.Add(_saveButton);
-
         var cancel = CreateButton("取消", (_, _) => Close());
         cancel.IsCancel = true;
-        cancel.Margin = default;
         confirm.Children.Add(cancel);
+        _saveButton.Margin = default;
+        confirm.Children.Add(_saveButton);
 
         DockPanel.SetDock(actions, Dock.Left);
         DockPanel.SetDock(confirm, Dock.Right);
