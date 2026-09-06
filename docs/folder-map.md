@@ -19,6 +19,7 @@
 | `Statements/` | INSERT／MERGE／EXEC／函式展開與預留值 |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 |
 | `Settings/` | 設定 POCO、moniker、數值範圍與讀取 |
+| `Scripting/` | 指令碼選項、三組風格與它們的序列化 |
 | `Diagnostics/` | 版本、健康檢查與匿名診斷摘要 |
 | `Json/` | 最小 JSON 讀寫（Snippet 檔與註冊檔測試用） |
 
@@ -29,7 +30,8 @@
 | `Model/` | 物件、欄位、參數、索引、外來鍵的模型 |
 | `Querying/` | 分層的中繼資料查詢與資料列對應 |
 | `Caching/` | 依「伺服器＋資料庫」快取，並協調分層載入 |
-| `Formatting/` | 型別、欄位呈現與可執行指令碼樣板 |
+| `Formatting/` | 型別、欄位呈現，以及重建物件定義的排版與批次樣板 |
+| `Analysis/` | 結構健檢的規則與分析器 |
 | `ResultGrid/` | 格線模型、值轉字面值、`#temp` 與 `IN` |
 
 ## SqlAssist.Ssms22（net48 VSIX，只做接線）

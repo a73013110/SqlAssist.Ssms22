@@ -12,7 +12,7 @@
 | Settings、registration、設定頁 | [設定](rules-settings.md) |
 | Ssms22 事件、命令、MEF、連線、部署 | [平台](rules-platform.md) |
 | 自製視窗、控制項、排版、色彩 | [平台](rules-platform.md)＋[UI 準則](ui-guidelines.md) |
-| Metadata 查詢、快取、結構、指令碼 | [中繼資料](rules-metadata.md) |
+| Metadata 查詢、快取、結構、指令碼、健檢 | [中繼資料](rules-metadata.md) |
 | Snippets、Parsing、Wildcards、上下文、SQL 掃描 | [片段與解析](rules-parsing.md) |
 | 跨功能共用邏輯 | 上述護欄＋[唯一實作](shared-components.md) |
 
@@ -47,6 +47,8 @@
 | 預覽操作、按需載入、Resize、效能 | [預覽互動](preview-interaction.md) |
 | Chrome、視覺規格、對話框排版 | [UI 準則](ui-guidelines.md) |
 | 深淺主題切換、配色快取、分類色、高對比 | [主題連動](themes.md) |
+| 指令碼風格、選項、還原度、快照 | [指令碼產生](script-generation.md) |
+| 健檢規則、嚴重度、誤報 | [結構健檢](schema-analysis.md) |
 | F12 物件種類、產生定義、失敗註解 | [F12 指令碼](definition-scripts.md) |
 | F12 執行緒、連線、新查詢視窗 | [移至定義](go-to-definition.md) |
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |
