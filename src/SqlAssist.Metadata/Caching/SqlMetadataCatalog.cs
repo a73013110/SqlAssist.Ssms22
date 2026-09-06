@@ -469,11 +469,22 @@ public sealed class SqlMetadataCatalog
             cancellationToken,
             objectId);
 
+        // 檢視與資料表型別都沒有 CHECK 條件約束，少一次來回。
+        var checkConstraints = detail.Object.Kind == SqlObjectKind.Table
+            ? ReadList(
+                connection,
+                SqlMetadataQueries.CheckConstraints,
+                SqlMetadataReader.ReadCheckConstraint,
+                cancellationToken,
+                objectId)
+            : new List<SqlCheckConstraint>();
+
         return new SqlObjectStructure(
             detail,
             SqlIndexInfo.FromRows(indexRows),
             SqlForeignKeyInfo.FromRows(foreignKeyRows),
-            extendedProperties);
+            extendedProperties,
+            checkConstraints);
     }
 
     private bool IsFresh(SqlDatabaseSnapshot snapshot)

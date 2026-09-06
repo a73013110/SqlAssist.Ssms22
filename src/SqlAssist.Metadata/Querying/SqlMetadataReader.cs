@@ -114,6 +114,22 @@ public static class SqlMetadataReader
             record.GetBoolean(9));
     }
 
+    public static SqlCheckConstraint ReadCheckConstraint(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        return new SqlCheckConstraint(
+            record.GetString(0),
+            record.IsDBNull(1) ? string.Empty : record.GetString(1),
+            record.GetBoolean(2),
+            record.GetBoolean(3),
+            record.GetBoolean(4),
+            record.IsDBNull(5) ? null : record.GetString(5));
+    }
+
     /// <remarks>
     /// <c>level</c> 是查詢自己編的號（0 資料表、1 資料行、2 索引、3 條件約束），
     /// 不是目錄檢視上的欄位。認不得的號一律當成資料表層級——多寫一筆掛在資料表上

@@ -248,6 +248,31 @@ WHERE fk.parent_object_id = @objectId
 ORDER BY fk.name, fkc.constraint_column_id;";
 
     /// <summary>
+    /// 第四層：單一資料表上的 <c>CHECK</c> 條件約束。
+    /// </summary>
+    /// <remarks>
+    /// <c>is_disabled</c> 一定要取。停用的條件約束在重建出來的資料表上如果變成
+    /// 啟用的，那張表會開始擋掉來源允許的資料——而那是在資料匯入到一半才發現的
+    /// 那種差異。
+    ///
+    /// <c>parent_column_id</c> 是 0 時代表寫在資料表層級而不是某個資料行上；
+    /// <c>LEFT JOIN</c> 因此接不到列，資料行名稱是 NULL，正好是要的結果。
+    /// </remarks>
+    public const string CheckConstraints = @"
+SELECT
+    cc.name AS constraint_name,
+    cc.definition,
+    cc.is_disabled,
+    cc.is_not_for_replication,
+    cc.is_system_named,
+    c.name AS column_name
+FROM sys.check_constraints AS cc
+LEFT JOIN sys.columns AS c
+    ON c.object_id = cc.parent_object_id AND c.column_id = cc.parent_column_id
+WHERE cc.parent_object_id = @objectId
+ORDER BY cc.name;";
+
+    /// <summary>
     /// 第四層：單一資料表上的擴充屬性，含資料行、索引與條件約束三層。
     /// </summary>
     /// <remarks>

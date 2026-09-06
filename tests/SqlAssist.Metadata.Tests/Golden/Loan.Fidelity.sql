@@ -26,6 +26,8 @@ CREATE UNIQUE NONCLUSTERED INDEX [IX_Loan_2] ON [dbo].[Loan] ([PublicId])
 GO
 CREATE NONCLUSTERED INDEX [IX_Loan_3] ON [dbo].[Loan] ([TargetBranchNo], [LoanTime]) INCLUDE ([LoanId], [PublicId], [Status], [Title], [Remark], [BranchNo], [LoanUser], [DueTime], [RenewCount]) WHERE ([IsActive]=(1))
 GO
+ALTER TABLE [dbo].[Loan] ADD CONSTRAINT [CK_Loan_RenewCount] CHECK ([RenewCount]>=(0))
+GO
 EXEC sp_addextendedproperty N'MS_Description', N'借閱主表', 'SCHEMA', N'dbo', 'TABLE', N'Loan', NULL, NULL
 GO
 EXEC sp_addextendedproperty N'MS_Description', N'借閱編號（自動遞增）', 'SCHEMA', N'dbo', 'TABLE', N'Loan', 'COLUMN', N'LoanId'

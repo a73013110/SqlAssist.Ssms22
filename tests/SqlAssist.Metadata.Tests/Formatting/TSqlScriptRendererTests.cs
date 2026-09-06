@@ -323,6 +323,66 @@ public sealed class TSqlScriptRendererTests
         Assert.Contains("ALTER TABLE [dbo].[Loan] WITH NOCHECK ADD CONSTRAINT [FK_Loan_Copy]", script);
     }
 
+    // ── CHECK 條件約束 ────────────────────────────────────────────────
+
+    [Fact]
+    public void CHECK條件約束寫成ALTER_TABLE()
+    {
+        Assert.Contains(
+            "ALTER TABLE [dbo].[Loan] ADD CONSTRAINT [CK_Loan_RenewCount] CHECK ([RenewCount]>=(0))",
+            Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void 關掉CHECK之後一個都不寫()
+    {
+        Assert.DoesNotContain(
+            "CK_Loan_RenewCount",
+            Render(SqlScriptOptions.Fidelity with { IncludeCheckConstraints = false }));
+    }
+
+    /// <remarks>
+    /// 停用狀態非寫不可：省略的話重建出來的資料表會開始擋掉來源允許的資料，
+    /// 而那是在資料匯入到一半才發現的那種差異。
+    /// </remarks>
+    [Fact]
+    public void 停用的CHECK以WITH_NOCHECK建立並停回去()
+    {
+        var script = RenderChecks(
+            new SqlCheckConstraint("CK_Loan_Status", "([Status]>(0))", isDisabled: true));
+
+        Assert.Contains(
+            "ALTER TABLE [dbo].[Loan] WITH NOCHECK ADD CONSTRAINT [CK_Loan_Status] CHECK ([Status]>(0))",
+            script);
+        Assert.Contains("ALTER TABLE [dbo].[Loan] NOCHECK CONSTRAINT [CK_Loan_Status]", script);
+    }
+
+    [Fact]
+    public void 啟用的CHECK不寫多餘的停用敘述()
+    {
+        Assert.DoesNotContain("NOCHECK", Render(SqlScriptOptions.Fidelity));
+    }
+
+    [Fact]
+    public void NOT_FOR_REPLICATION寫在CHECK與運算式之間()
+    {
+        var script = RenderChecks(
+            new SqlCheckConstraint("CK_Loan_Status", "([Status]>(0))", isNotForReplication: true));
+
+        Assert.Contains("CHECK NOT FOR REPLICATION ([Status]>(0))", script);
+    }
+
+    [Fact]
+    public void 系統命名的CHECK在僅限使用者命名時省略名稱()
+    {
+        var script = RenderChecks(
+            new SqlCheckConstraint("CK__Loan__Status__2A4B", "([Status]>(0))", isSystemNamed: true),
+            SqlScriptOptions.Fidelity with { ConstraintNaming = SqlConstraintNaming.OnlyUserNamed });
+
+        Assert.Contains("ALTER TABLE [dbo].[Loan] ADD CHECK ([Status]>(0))", script);
+        Assert.DoesNotContain("CK__Loan__Status__2A4B", script);
+    }
+
     // ── 擴充屬性 ──────────────────────────────────────────────────────
 
     [Fact]
@@ -633,6 +693,19 @@ public sealed class TSqlScriptRendererTests
     /// </remarks>
     private static string Normalize(string text) =>
         text.Replace("\r\n", "\n").Replace("\r", "\n");
+
+    /// <summary>只有 CHECK 條件約束的最小資料表，讓期望值短到看得出差別。</summary>
+    private static string RenderChecks(SqlCheckConstraint check, SqlScriptOptions? options = null)
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table),
+                new[] { new SqlColumnInfo(1, "Status", "tinyint", false) }),
+            checkConstraints: new[] { check });
+
+        return TSqlScriptRenderer.Default.Render(
+            structure, Context(options ?? SqlScriptOptions.Fidelity));
+    }
 
     private static SqlObjectStructure Simple(string name) =>
         new(

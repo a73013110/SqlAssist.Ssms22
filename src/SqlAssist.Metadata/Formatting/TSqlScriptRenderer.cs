@@ -135,6 +135,14 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             }
         }
 
+        if (options.IncludeCheckConstraints)
+        {
+            foreach (var check in structure.CheckConstraints)
+            {
+                AppendCheckConstraint(statements, check, name, context);
+            }
+        }
+
         if (options.IncludeForeignKeys)
         {
             foreach (var foreignKey in structure.ForeignKeys)
@@ -144,6 +152,54 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         }
 
         AppendExtendedProperties(statements, structure, context);
+    }
+
+    /// <summary>
+    /// 一個 <c>CHECK</c> 條件約束，停用時多一個敘述把它停回去。
+    /// </summary>
+    /// <remarks>
+    /// 停用狀態非寫不可：省略的話重建出來的資料表會開始擋掉來源允許的資料，
+    /// 而那是在資料匯入到一半才發現的那種差異。
+    ///
+    /// 停用的條件約束連建立時都要 <c>WITH NOCHECK</c>：<c>ALTER TABLE</c> 預設
+    /// 會拿現有的資料驗一次，而那些資料正是當初讓它被停用的原因。
+    /// </remarks>
+    private static void AppendCheckConstraint(
+        List<Statement> statements,
+        SqlCheckConstraint check,
+        string tableName,
+        SqlScriptContext context)
+    {
+        var options = context.Options;
+        var builder = new StringBuilder();
+        builder.Append("ALTER TABLE ").Append(tableName).Append(' ');
+
+        if (check.IsDisabled)
+        {
+            builder.Append("WITH NOCHECK ");
+        }
+
+        builder.Append("ADD ");
+        AppendConstraintName(builder, check.Name, check.IsSystemNamed, options);
+        builder.Append("CHECK ");
+
+        if (check.IsNotForReplication)
+        {
+            builder.Append("NOT FOR REPLICATION ");
+        }
+
+        builder.Append(check.Definition);
+        statements.Add(new Statement(Terminate(builder, options).ToString(), batched: true));
+
+        if (!check.IsDisabled)
+        {
+            return;
+        }
+
+        var disable = new StringBuilder();
+        disable.Append("ALTER TABLE ").Append(tableName)
+            .Append(" NOCHECK CONSTRAINT ").Append(Identifier(check.Name, options));
+        statements.Add(new Statement(Terminate(disable, options).ToString(), batched: true));
     }
 
     /// <remarks>

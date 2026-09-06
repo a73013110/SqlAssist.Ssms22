@@ -24,7 +24,17 @@ internal static class LoanTableFixture
         new(
             new SqlObjectDetail(new SqlObjectInfo(1, "dbo", "Loan", SqlObjectKind.Table), Columns()),
             Indexes(),
-            extendedProperties: ExtendedProperties());
+            extendedProperties: ExtendedProperties(),
+            checkConstraints: CheckConstraints());
+
+    /// <remarks>
+    /// 只對 <c>RenewCount</c> 加，<c>Status</c> 刻意不加：健檢的「列舉語意欄位
+    /// 缺少 CHECK」要有東西可以抓，而那條規則的來源就是這張表。
+    /// </remarks>
+    private static IReadOnlyList<SqlCheckConstraint> CheckConstraints() => new[]
+    {
+        new SqlCheckConstraint("CK_Loan_RenewCount", "([RenewCount]>=(0))")
+    };
 
     /// <remarks>
     /// 說明刻意含單引號（<c>Reader's</c>）與中文：單引號沒有跳脫成兩個的話，

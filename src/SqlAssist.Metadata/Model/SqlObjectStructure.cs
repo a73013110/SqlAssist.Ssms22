@@ -19,17 +19,20 @@ public sealed class SqlObjectStructure
     private static readonly SqlIndexInfo[] NoIndexes = Array.Empty<SqlIndexInfo>();
     private static readonly SqlForeignKeyInfo[] NoForeignKeys = Array.Empty<SqlForeignKeyInfo>();
     private static readonly SqlExtendedProperty[] NoExtendedProperties = Array.Empty<SqlExtendedProperty>();
+    private static readonly SqlCheckConstraint[] NoCheckConstraints = Array.Empty<SqlCheckConstraint>();
 
     public SqlObjectStructure(
         SqlObjectDetail detail,
         IReadOnlyList<SqlIndexInfo>? indexes = null,
         IReadOnlyList<SqlForeignKeyInfo>? foreignKeys = null,
-        IReadOnlyList<SqlExtendedProperty>? extendedProperties = null)
+        IReadOnlyList<SqlExtendedProperty>? extendedProperties = null,
+        IReadOnlyList<SqlCheckConstraint>? checkConstraints = null)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
         ForeignKeys = foreignKeys ?? NoForeignKeys;
         ExtendedProperties = extendedProperties ?? NoExtendedProperties;
+        CheckConstraints = checkConstraints ?? NoCheckConstraints;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -53,6 +56,9 @@ public sealed class SqlObjectStructure
     /// 而建議清單一個字都用不到它。
     /// </remarks>
     public IReadOnlyList<SqlExtendedProperty> ExtendedProperties { get; }
+
+    /// <summary>資料表上的 CHECK 條件約束。</summary>
+    public IReadOnlyList<SqlCheckConstraint> CheckConstraints { get; }
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey
