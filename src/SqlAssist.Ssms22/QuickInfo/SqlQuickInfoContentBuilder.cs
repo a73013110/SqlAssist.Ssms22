@@ -137,22 +137,23 @@ internal static class SqlQuickInfoContentBuilder
         Action? openStructure = null)
     {
         // 型別與旗標說得出這一行「是什麼」，說不出它「為什麼在」——
-        // 停在一個叫 Status 的 tinyint 上時，要問的正好是後者。
-        // 說明跟著名稱與所屬物件放進同一疊，不另外開一段：那一段留白會讓
+        // 停在一個叫 Status 的 tinyint 上時，要問的正好是後者，所以說明緊接著名稱，
+        // 所屬物件退到它下面。說明與名稱放進同一疊，不另外開一段：那一段留白會讓
         // 「這是誰」與「它是什麼型別」之間多出一道看不出理由的分隔。
         var caption = new List<object>
         {
             new ContainerElement(
                 ContainerElementStyle.Wrapped,
                 SqlIcons.GetImageElement(SuggestionKind.Column),
-                Line(Title(column.Name))),
-            Line(Comment($"欄位 · {owner.QualifiedName}"))
+                Line(Title(column.Name)))
         };
 
         if (BuildDescription(column.Description) is { } description)
         {
             caption.Add(description);
         }
+
+        caption.Add(Line(Comment($"欄位 · {owner.QualifiedName}")));
 
         var elements = new List<object>
         {
@@ -314,14 +315,17 @@ internal static class SqlQuickInfoContentBuilder
         {
             new ContainerElement(ContainerElementStyle.Wrapped,
                 SqlIcons.GetImageElement(objectInfo.Kind),
-                Line(Title(objectInfo.QualifiedName))),
-            Line(Comment(summary))
+                Line(Title(objectInfo.QualifiedName)))
         };
 
+        // 說明緊接著名稱，種類與規模退到它下面：停在一個沒看過的資料表上時要問的是
+        // 「這張表在做什麼」，而「Table · 23 個欄位」擋在中間會讓那一句晚一行才讀到。
         if (BuildDescription(description) is { } text)
         {
             lines.Add(text);
         }
+
+        lines.Add(Line(Comment(summary)));
 
         return new ContainerElement(ContainerElementStyle.Stacked, lines);
     }

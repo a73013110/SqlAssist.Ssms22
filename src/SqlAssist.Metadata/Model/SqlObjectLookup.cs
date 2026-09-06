@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Metadata.Model;
@@ -88,12 +89,27 @@ public sealed class SqlObjectLookup
         public SqlObjectDetail? ScriptDetail { get; }
     }
 
-    public Candidate? FindCandidate(SqlDatabaseSnapshot? snapshot)
+    /// <param name="peekDetail">
+    /// 拿資料來源換已經在手上的欄位明細，未限定的欄位要靠它才判斷得出來；
+    /// 傳 null 等於「一份明細都沒有」，那時未限定的名稱只當作物件解析。
+    /// 滑鼠停留傳的是只讀快取的那一份，使用者主動按下的路徑傳的是已經載好的那一份。
+    /// </param>
+    public Candidate? FindCandidate(
+        SqlDatabaseSnapshot? snapshot,
+        Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail = null)
     {
         // 指令碼自己宣告的東西不必等連線，也不受快取影響：答案就在使用者眼前的文字裡。
         if (FindScriptCandidate() is { } script)
         {
             return script;
+        }
+
+        // 未限定的欄位排在物件之前：SELECT／WHERE 裡寫得出來的單段名稱，語意上就是
+        // 某個來源的欄位。先問快照的症狀是 SELECT Branch FROM dbo.Loan 停在 Branch 上
+        // 時畫出 dbo.Branch 那張表的結構——看起來正常，答的卻是另一個問題。
+        if (FindColumnCandidate(snapshot, peekDetail) is { } column)
+        {
+            return column;
         }
 
         if (snapshot is null || snapshot.IsEmpty)
@@ -172,6 +188,172 @@ public sealed class SqlObjectLookup
         return Declarations.Find(Reference.Name) is { } detail
             ? new Candidate(detail.Object, needsColumn: false, detail)
             : null;
+    }
+
+    /// <summary>
+    /// 把沒有限定字的識別字解析成這條敘述某個資料來源的欄位。
+    /// </summary>
+    /// <remarks>
+    /// 少了這一條，<c>SELECT CopyNo FROM dbo.Cat_BookCopy</c> 停在 <c>CopyNo</c> 上
+    /// 什麼都沒有，同一個欄位加上別名寫成 <c>c.CopyNo</c> 卻答得出來——差別只在
+    /// 使用者有沒有多打兩個字，而那不是他問的問題。
+    ///
+    /// 兩個來源都有同名欄位時 T-SQL 自己也判不出來，這裡就不猜：挑第一個等於
+    /// 指著另一張表的欄位說這是你要的那一個。
+    /// </remarks>
+    private Candidate? FindColumnCandidate(
+        SqlDatabaseSnapshot? snapshot,
+        Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail)
+    {
+        if (!IsColumnPosition())
+        {
+            return null;
+        }
+
+        Candidate? found = null;
+
+        foreach (var table in _scope.Tables)
+        {
+            var (owner, detail, isScript) = ResolveSource(table, snapshot, peekDetail);
+
+            if (detail is null || !HasColumn(detail, Reference.Name))
+            {
+                continue;
+            }
+
+            if (found is not null)
+            {
+                return null;
+            }
+
+            found = new Candidate(owner, needsColumn: true, isScript ? detail : null);
+        }
+
+        return found;
+    }
+
+    /// <summary>
+    /// 未限定的欄位可能屬於哪些資料庫來源。
+    /// </summary>
+    /// <remarks>
+    /// 等得起查詢的呼叫端用它決定要把哪幾份明細載齊，判斷本身仍然在
+    /// <see cref="FindCandidate"/> 裡——兩邊各判一次的症狀是載了一堆用不到的明細，
+    /// 或是載得不夠而答不出來。指令碼自己宣告的來源不在此列：它們的欄位就寫在
+    /// 眼前的括號裡，不必載。
+    /// </remarks>
+    public IReadOnlyList<SqlObjectInfo> FindColumnSources(SqlDatabaseSnapshot? snapshot)
+    {
+        if (snapshot is null || snapshot.IsEmpty || !IsColumnPosition())
+        {
+            return Array.Empty<SqlObjectInfo>();
+        }
+
+        var sources = new List<SqlObjectInfo>();
+
+        foreach (var table in _scope.Tables)
+        {
+            if (!IsMetadataSource(table))
+            {
+                continue;
+            }
+
+            var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+            if (matches.Count > 0)
+            {
+                sources.Add(matches[0]);
+            }
+        }
+
+        return sources;
+    }
+
+    /// <summary>把敘述裡的一個資料來源換成物件與已經在手上的明細。</summary>
+    /// <returns>換不出物件或明細還沒有時 <c>Detail</c> 為 null。</returns>
+    private (SqlObjectInfo Owner, SqlObjectDetail? Detail, bool IsScript) ResolveSource(
+        SqlTableReference table,
+        SqlDatabaseSnapshot? snapshot,
+        Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail)
+    {
+        // 順序與整支一樣：先問這份指令碼宣告了什麼，再問快照。
+        if (table.SchemaName is null && Declarations.Find(table.ObjectName) is { } declared)
+        {
+            return (declared.Object, declared, true);
+        }
+
+        if (!IsMetadataSource(table) || snapshot is null || snapshot.IsEmpty)
+        {
+            return (null!, null, false);
+        }
+
+        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+
+        return matches.Count == 0
+            ? (null!, null, false)
+            : (matches[0], peekDetail?.Invoke(matches[0]), false);
+    }
+
+    /// <summary>
+    /// 衍生資料表與跨庫、跨伺服器的來源查不到欄位明細。
+    /// </summary>
+    /// <remarks>
+    /// 後者若拿目前連線裡同名的表來回答，看到的是一份看起來正常、實際上屬於
+    /// 另一張表的欄位——與 <see cref="SqlTableReference.IsLocal"/> 擋的是同一件事。
+    /// </remarks>
+    private static bool IsMetadataSource(SqlTableReference table) => !table.IsDerived && table.IsLocal;
+
+    /// <summary>游標底下這個名稱有沒有可能是這條敘述某個來源的欄位。</summary>
+    private bool IsColumnPosition()
+    {
+        if (Reference.Qualifier is not null || _scope.Tables.Count == 0 || !IsColumnShapedName())
+        {
+            return false;
+        }
+
+        foreach (var table in _scope.Tables)
+        {
+            // 游標停在 FROM／JOIN／UPDATE／INSERT INTO 的那一段名稱上時，它是資料來源
+            // 本身，不是誰的欄位——那一段留給後面的物件解析。
+            if (Reference.Start >= table.Start && Reference.Start <= table.End)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// 這個名稱寫成裸字時可能是欄位嗎。
+    /// </summary>
+    /// <remarks>
+    /// 保留字裸寫一定不是欄位參考（<c>SELECT Order FROM t</c> 是語法錯誤），
+    /// 而滑鼠會停在 <c>SELECT</c>、<c>FROM</c>、<c>WHERE</c> 上的次數遠多於停在欄位上。
+    /// 少了這一道，每一次停在關鍵字上都會把整條敘述的來源明細掃過一輪。
+    /// 加了方括號就是識別字，<c>[Order]</c> 照樣要能回答。
+    /// </remarks>
+    private bool IsColumnShapedName()
+    {
+        if (!SqlKeywordCatalog.IsReservedIdentifier(Reference.Name))
+        {
+            return true;
+        }
+
+        var start = Reference.Start;
+        return start < _text.Length && (_text[start] == '[' || _text[start] == '"');
+    }
+
+    private static bool HasColumn(SqlObjectDetail detail, string name)
+    {
+        foreach (var column in detail.Columns)
+        {
+            if (string.Equals(column.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>判斷這個參考是不是「敘述中某個資料來源的欄位」，是的話取出該資料來源。</summary>

@@ -147,6 +147,132 @@ public sealed class SqlObjectLookupTests
         Assert.Same(table, lookup.FindCandidate(Snapshot(table))!.Object);
     }
 
+    /// <summary>
+    /// 沒有限定字的欄位也要認得出來。
+    /// </summary>
+    /// <remarks>
+    /// 少了這一條，<c>SELECT ReaderId FROM dbo.Lib_Reader</c> 停在 <c>ReaderId</c> 上
+    /// 什麼都沒有，多打一個別名寫成 <c>r.ReaderId</c> 卻答得出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT ReaderId FROM dbo.Lib_Reader")]
+    [InlineData("SELECT * FROM dbo.Lib_Reader WHERE ReaderId = 1")]
+    [InlineData("UPDATE dbo.Lib_Reader SET ReaderId = 1")]
+    public void 未限定的欄位也解析得出所屬資料表(string sql)
+    {
+        var table = Table(1, "Library");
+        var column = new SqlColumnInfo(1, "ReaderId", "int", false);
+        var detail = new SqlObjectDetail(table, new[] { column });
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("ReaderId", StringComparison.Ordinal))!;
+
+        var candidate = lookup.FindCandidate(Snapshot(table), _ => detail)!;
+
+        Assert.True(candidate.NeedsColumn);
+        Assert.Same(table, candidate.Object);
+        Assert.Same(column, lookup.Locate(candidate, detail)!.Column);
+
+        // 明細還沒進快取時不亂猜；呼叫端預載之後同一份語法分析要能重新回答。
+        Assert.Null(lookup.FindCandidate(Snapshot(table)));
+    }
+
+    /// <summary>指令碼自己宣告的來源不必等連線，未限定的欄位也一樣。</summary>
+    [Theory]
+    [InlineData("CREATE TABLE #Loan (CopyNo INT); SELECT CopyNo FROM #Loan", "#Loan")]
+    [InlineData("DECLARE @rows TABLE (CopyNo INT); SELECT CopyNo FROM @rows", "@rows")]
+    [InlineData(";WITH c AS (SELECT CopyNo FROM dbo.Loan) SELECT CopyNo FROM c", "c")]
+    public void 未限定的欄位在指令碼宣告的來源上不必等連線(string sql, string name)
+    {
+        var lookup = SqlObjectLookup.Create(sql, sql.LastIndexOf("CopyNo", StringComparison.Ordinal))!;
+
+        var candidate = lookup.FindCandidate(null)!;
+
+        Assert.True(candidate.NeedsColumn);
+        Assert.Equal(name, candidate.Object.Name);
+        Assert.Equal("CopyNo", lookup.Locate(candidate)!.Column!.Name);
+    }
+
+    /// <summary>
+    /// 停在資料來源那一段名稱上時它是物件，不是同名的欄位。
+    /// </summary>
+    /// <remarks>
+    /// 少了這一道，<c>FROM Lib_Reader</c> 的那個名稱會被自己的同名欄位搶走，
+    /// 提示畫的是一個欄位，而使用者指的是整張表。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM Lib_Reader")]
+    [InlineData("SELECT * FROM Lib_Reader AS Lib_Reader")]
+    public void 停在資料來源本身時仍然解析成物件(string sql)
+    {
+        var table = Table(1, "Library");
+        var detail = new SqlObjectDetail(table, new[] { new SqlColumnInfo(1, "Lib_Reader", "int", false) });
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("Lib_Reader", StringComparison.Ordinal))!;
+
+        var candidate = lookup.FindCandidate(Snapshot(table), _ => detail)!;
+
+        Assert.False(candidate.NeedsColumn);
+        Assert.Same(table, candidate.Object);
+    }
+
+    /// <summary>兩個來源都有這個欄位時 T-SQL 自己也判不出來，挑一個等於猜。</summary>
+    [Fact]
+    public void 兩個來源都有同名欄位時不猜()
+    {
+        const string sql = "SELECT CopyNo FROM dbo.Lib_Reader r JOIN dbo.Loan l ON r.ReaderId = l.ReaderId";
+        var reader = Table(1, "Library");
+        var loan = new SqlObjectInfo(2, "dbo", "Loan", SqlObjectKind.Table, "Library");
+        var snapshot = new SqlDatabaseSnapshot(
+            "Library",
+            new[] { reader, loan },
+            new[] { "dbo" },
+            Array.Empty<string>(),
+            DateTimeOffset.UtcNow);
+        var column = new SqlColumnInfo(1, "CopyNo", "int", false);
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("CopyNo", StringComparison.Ordinal))!;
+
+        Assert.Null(lookup.FindCandidate(snapshot, owner => new SqlObjectDetail(owner, new[] { column })));
+    }
+
+    /// <summary>
+    /// 保留字裸寫一定不是欄位參考，別為它把來源明細掃過一輪。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停在 <c>SELECT</c>、<c>FROM</c> 上的次數遠多於停在欄位上，而那條路徑
+    /// 在滑鼠移動的軌跡上。加了方括號就是識別字，那時照樣要回答。
+    /// </remarks>
+    [Fact]
+    public void 保留字不會去問來源明細()
+    {
+        var table = Table(1, "Library");
+        var detail = new SqlObjectDetail(table, new[] { new SqlColumnInfo(1, "Key", "int", false) });
+
+        const string bare = "SELECT Key FROM dbo.Lib_Reader";
+        var asked = 0;
+        var lookup = SqlObjectLookup.Create(bare, bare.IndexOf("Key", StringComparison.Ordinal))!;
+
+        Assert.Null(lookup.FindCandidate(Snapshot(table), _ => { asked++; return detail; }));
+        Assert.Equal(0, asked);
+
+        const string quoted = "SELECT [Key] FROM dbo.Lib_Reader";
+        var quotedLookup = SqlObjectLookup.Create(quoted, quoted.IndexOf("Key", StringComparison.Ordinal))!;
+
+        Assert.True(quotedLookup.FindCandidate(Snapshot(table), _ => detail)!.NeedsColumn);
+    }
+
+    /// <summary>等得起查詢的呼叫端靠這一份決定要把哪幾份明細載齊。</summary>
+    [Fact]
+    public void 未限定的欄位交得出要載明細的來源()
+    {
+        const string sql = "SELECT ReaderId FROM dbo.Lib_Reader";
+        var table = Table(1, "Library");
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("ReaderId", StringComparison.Ordinal))!;
+
+        Assert.Same(table, Assert.Single(lookup.FindColumnSources(Snapshot(table))));
+
+        // 停在資料來源自己身上時沒有欄位要解析，也就沒有明細要載。
+        var onSource = SqlObjectLookup.Create(sql, sql.IndexOf("Lib_Reader", StringComparison.Ordinal))!;
+        Assert.Empty(onSource.FindColumnSources(Snapshot(table)));
+    }
+
     private static SqlObjectInfo Table(int id, string database) =>
         new(id, "dbo", "Lib_Reader", SqlObjectKind.Table, database);
 
