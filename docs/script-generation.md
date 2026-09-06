@@ -71,6 +71,36 @@ PROCEDURE` 必須是批次裡的第一個敘述所以要有 `GO`；計算資料�
   全不寫會漏掉真的調過的 `FILLFACTOR` 與 `DATA_COMPRESSION`。預設值由
   `SqlIndexOptions` 一份說了算。
 
+## 資料不齊時交出什麼
+
+模組（程序、函式、檢視、觸發程序）的指令碼就是 `OBJECT_DEFINITION` 的原文，
+重組只會失真。取不到定義時**整段換成註解**，寫明兩個可能的原因（物件是
+`WITH ENCRYPTION` 建的，或這個登入沒有 `VIEW DEFINITION` 權限）並附上查得到的
+欄位與參數——檢視同時是模組也有欄位，少了這一條就會掉進資料表那一支，
+把一個檢視寫成 `CREATE TABLE`。那不只是難看，是指令碼在說謊：照著執行會多出
+一張同名的資料表。
+
+同義字與序列的定義不在 `sys.sql_modules` 裡，`OBJECT_DEFINITION` 對它們一律回傳
+NULL；它們的定義就是目錄檢視上的那幾個欄位，由 `SqlCatalogScript` 組成
+`CREATE SYNONYM … FOR …;` 與 `CREATE SEQUENCE …;`（見 [metadata.md](metadata.md)）。
+到了指令碼分頁與 F12 之後，它們與模組拿到定義原文走的是同一條路。
+
+資料表型別走自己的一支，寫成 `CREATE TYPE ... AS TABLE`。它也有欄位，不接走
+就是同一個謊。主索引鍵寫成**不具名**的內嵌條件約束——`CREATE TYPE` 的括號裡
+不收 `CONSTRAINT 名稱`，型別的條件約束一律命名不得，而查到的那個名字本來就是
+引擎自己配的。其餘索引整組不寫，並在結尾註明省略了幾個：`CREATE INDEX` 與
+`ALTER TABLE` 對型別都不合法，括號裡的內嵌 `INDEX` 又收不下 INCLUDE 與篩選條件。
+一行都不交代的話，那份文字看起來就像那個型別只有主索引鍵。
+
+欄位一列都沒有回來時（物件在清單被快取之後卸除，或這個登入對它的權限被收回），
+資料表與資料表型別也是**整段註解**，格式與取不到定義的模組共用一份。要拿去執行的
+輸出是全有或全無：少了欄位的 `CREATE TABLE` 只剩一對空括號，卻仍然貼得上去。
+兩道判斷（種類、這一次的資料）見 [metadata.md](metadata.md)。
+
+第四層查詢失敗是第三種：欄位照畫（那是第二層拿到的），指令碼分頁整段換成註解。
+空的索引清單在這時候不是答案，而「沒有主索引鍵」會是一句謊話；分辨的方式見
+[相容與失敗](metadata-compatibility.md)。
+
 ## 快照
 
 三組風格各有一份 `tests/SqlAssist.Metadata.Tests/Golden/Loan.<風格>.sql`，

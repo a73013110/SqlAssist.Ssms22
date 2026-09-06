@@ -55,7 +55,7 @@ internal static class SqlQuickInfoContentBuilder
         if (detail.Object.Kind.HasSynthesizedDefinition() &&
             !string.IsNullOrWhiteSpace(detail.Definition))
         {
-            return BuildDefinition(detail.Object, detail.Definition!, openStructure);
+            return BuildDefinition(detail, openStructure);
         }
 
         // 資料表值函式的資料行也載入了，但這裡列的仍然是參數：滑鼠停在
@@ -81,7 +81,10 @@ internal static class SqlQuickInfoContentBuilder
             }
         }
 
-        var elements = new List<object> { BuildHeader(detail.Object, string.Join(" · ", summary)) };
+        var elements = new List<object>
+        {
+            BuildHeader(detail.Object, string.Join(" · ", summary), detail.Description)
+        };
         var body = new List<object>();
 
         var hidden = 0;
@@ -133,14 +136,27 @@ internal static class SqlQuickInfoContentBuilder
         SqlColumnInfo column,
         Action? openStructure = null)
     {
+        // 型別與旗標說得出這一行「是什麼」，說不出它「為什麼在」——
+        // 停在一個叫 Status 的 tinyint 上時，要問的正好是後者。
+        // 說明跟著名稱與所屬物件放進同一疊，不另外開一段：那一段留白會讓
+        // 「這是誰」與「它是什麼型別」之間多出一道看不出理由的分隔。
+        var caption = new List<object>
+        {
+            new ContainerElement(
+                ContainerElementStyle.Wrapped,
+                SqlIcons.GetImageElement(SuggestionKind.Column),
+                Line(Title(column.Name))),
+            Line(Comment($"欄位 · {owner.QualifiedName}"))
+        };
+
+        if (BuildDescription(column.Description) is { } description)
+        {
+            caption.Add(description);
+        }
+
         var elements = new List<object>
         {
-            new ContainerElement(ContainerElementStyle.Stacked,
-                new ContainerElement(
-                    ContainerElementStyle.Wrapped,
-                    SqlIcons.GetImageElement(SuggestionKind.Column),
-                    Line(Title(column.Name))),
-                Line(Comment($"欄位 · {owner.QualifiedName}"))),
+            new ContainerElement(ContainerElementStyle.Stacked, caption),
             new ClassifiedTextElement(BuildColumnRuns(column, includeName: false))
         };
 
@@ -194,12 +210,10 @@ internal static class SqlQuickInfoContentBuilder
     /// 逐行分開成 <see cref="ClassifiedTextElement"/>：提示視窗不會自己斷行，
     /// 整段塞進一個元素會排成一長行而被螢幕邊界切掉。
     /// </remarks>
-    private static ContainerElement BuildDefinition(
-        SqlObjectInfo objectInfo,
-        string definition,
-        Action? openStructure)
+    private static ContainerElement BuildDefinition(SqlObjectDetail detail, Action? openStructure)
     {
-        var lines = definition.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        var objectInfo = detail.Object;
+        var lines = detail.Definition!.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var elements = new List<object>();
         var shown = 0;
 
@@ -221,6 +235,13 @@ internal static class SqlQuickInfoContentBuilder
                 ? new ContainerElement(ContainerElementStyle.Wrapped, SqlIcons.GetImageElement(objectInfo.Kind), text)
                 : (object)text);
             shown++;
+        }
+
+        // 說明是使用者自己寫的一句話，定義本文說不出來；同義字指向誰與它為什麼
+        // 存在是兩件事，兩件都要。
+        if (BuildDescription(detail.Description) is { } description)
+        {
+            elements.Add(description);
         }
 
         var sections = new List<object> { new ContainerElement(ContainerElementStyle.Stacked, elements) };
@@ -278,19 +299,44 @@ internal static class SqlQuickInfoContentBuilder
         };
     }
 
-    private static ContainerElement BuildHeader(SqlObjectInfo objectInfo, string? suffix = null)
+    private static ContainerElement BuildHeader(
+        SqlObjectInfo objectInfo,
+        string? suffix = null,
+        string? description = null)
     {
         var summary = objectInfo.Kind.ToDisplayName();
         if (!string.IsNullOrEmpty(suffix))
         {
             summary += " · " + suffix;
         }
-        return new ContainerElement(
-            ContainerElementStyle.Stacked,
+
+        var lines = new List<object>
+        {
             new ContainerElement(ContainerElementStyle.Wrapped,
                 SqlIcons.GetImageElement(objectInfo.Kind),
                 Line(Title(objectInfo.QualifiedName))),
-            Line(Comment(summary)));
+            Line(Comment(summary))
+        };
+
+        if (BuildDescription(description) is { } text)
+        {
+            lines.Add(text);
+        }
+
+        return new ContainerElement(ContainerElementStyle.Stacked, lines);
+    }
+
+    /// <summary>
+    /// 說明那一行；沒有掛說明時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 收斂空白與截斷都走 <see cref="SqlDescriptionText"/>：提示視窗不會自己斷行，
+    /// 一段帶換行的說明會排成一長行而被螢幕邊界切掉，而看的人看不出後面還有東西。
+    /// 全文留給結構預覽——那裡有 Tooltip，也捲得動。
+    /// </remarks>
+    private static ClassifiedTextElement? BuildDescription(string? description)
+    {
+        return SqlDescriptionText.Summarize(description) is { } text ? Line(Comment(text)) : null;
     }
 
     private static IEnumerable<object> BuildColumns(IReadOnlyList<SqlColumnInfo> columns)

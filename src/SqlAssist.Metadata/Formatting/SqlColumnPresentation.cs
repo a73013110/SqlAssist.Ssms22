@@ -10,6 +10,23 @@ public enum SqlColumnFlag
     PrimaryKey,
     NotNull,
     Identity,
+
+    /// <summary><c>ROWGUIDCOL</c>；一張資料表最多一個。</summary>
+    RowGuidCol,
+
+    /// <summary><c>SPARSE</c>：這一行的 NULL 不佔空間，但非 NULL 的值比較貴。</summary>
+    Sparse,
+
+    /// <summary>
+    /// 值由引擎產生：時態資料表的 <c>PERIOD FOR SYSTEM_TIME</c> 兩欄，
+    /// 以及帳本資料表的異動與序號欄。
+    /// </summary>
+    /// <remarks>
+    /// 值得標出來的理由與 <see cref="Identity"/> 同一條：這一行寫不進去，
+    /// 而看的人多半正要寫一句 <c>INSERT</c>。
+    /// </remarks>
+    GeneratedAlways,
+
     Computed
 }
 
@@ -52,6 +69,23 @@ public static class SqlColumnPresentation
             flags.Add(SqlColumnFlag.Identity);
         }
 
+        // 這兩個在 SqlColumnScriptDetail 裡，與資料行同一次查詢回來；
+        // 沒查到細節時那份是空值，於是自然不標——不會變成「這一行不是 SPARSE」。
+        if (column.Script.IsRowGuidCol)
+        {
+            flags.Add(SqlColumnFlag.RowGuidCol);
+        }
+
+        if (column.Script.IsSparse)
+        {
+            flags.Add(SqlColumnFlag.Sparse);
+        }
+
+        if (column.IsGeneratedAlways)
+        {
+            flags.Add(SqlColumnFlag.GeneratedAlways);
+        }
+
         if (column.IsComputed)
         {
             flags.Add(SqlColumnFlag.Computed);
@@ -68,6 +102,9 @@ public static class SqlColumnPresentation
             SqlColumnFlag.PrimaryKey => "PK",
             SqlColumnFlag.NotNull => "NOT NULL",
             SqlColumnFlag.Identity => "IDENTITY",
+            SqlColumnFlag.RowGuidCol => "ROWGUIDCOL",
+            SqlColumnFlag.Sparse => "SPARSE",
+            SqlColumnFlag.GeneratedAlways => "GENERATED ALWAYS",
             SqlColumnFlag.Computed => "COMPUTED",
             _ => throw new ArgumentOutOfRangeException(nameof(flag), flag, "未涵蓋的欄位性質。")
         };

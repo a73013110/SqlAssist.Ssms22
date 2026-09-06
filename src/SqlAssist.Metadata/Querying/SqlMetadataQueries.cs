@@ -142,6 +142,11 @@ ORDER BY s.name;";
     /// 識別值的種子與遞增量在伺服器端就 <c>CONVERT</c> 成字串：那兩欄是
     /// <c>sql_variant</c>，用 <c>GetValue</c> 收到的是裝箱的原生型別，
     /// 一個 <c>decimal(38,0)</c> 的識別資料行會讓任何一種整數轉型當場溢位。
+    ///
+    /// 資料行的說明（<c>MS_Description</c>）掛在這一條上而不是另開一次查詢：
+    /// <c>sys.extended_properties</c> 的鍵是 class＋major_id＋minor_id＋name，
+    /// 四個都給定就最多接得到一列，多的只有一欄，不是多一輪來回。
+    /// 值同樣在伺服器端 <c>CONVERT</c>——它也是 <c>sql_variant</c>。
     /// </remarks>
     public const string Columns = @"
 SELECT
@@ -174,7 +179,8 @@ SELECT
     CONVERT(bit, CASE
         WHEN COLUMNPROPERTY(c.object_id, c.name, 'IsRowGuidCol') > 0 THEN 1
         ELSE 0
-    END) AS is_row_guid_col
+    END) AS is_row_guid_col,
+    CONVERT(nvarchar(max), ep.value) AS column_description
 FROM sys.columns AS c
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.identity_columns AS ic
@@ -189,8 +195,38 @@ LEFT JOIN sys.default_constraints AS dc
     ON dc.parent_object_id = c.object_id AND dc.parent_column_id = c.column_id
 LEFT JOIN sys.computed_columns AS cc
     ON cc.object_id = c.object_id AND cc.column_id = c.column_id
+LEFT JOIN sys.extended_properties AS ep
+    ON ep.class = 1
+   AND ep.major_id = c.object_id
+   AND ep.minor_id = c.column_id
+   AND ep.name = 'MS_Description'
 WHERE c.object_id = @objectId
 ORDER BY c.column_id;";
+
+    /// <summary>
+    /// 第二層：物件自己的 <c>MS_Description</c>。
+    /// </summary>
+    /// <remarks>
+    /// 說明放在第二層而不是跟著第四層的擴充屬性走，理由是<b>誰要看它</b>：
+    /// 滑鼠停留提示只讀快取、不等查詢，而第四層要使用者主動打開結構才載入——
+    /// 併在那裡的話，提示上的說明只有「剛好開過結構」的物件才有，
+    /// 而畫面上看不出那個差別。
+    ///
+    /// 資料行的說明不走這一條，它跟著 <see cref="Columns"/> 的
+    /// <c>LEFT JOIN</c> 一起回來：那是同一列多取一欄，不是多一次來回。
+    /// 這一條問的是資料表本身（<c>minor_id = 0</c>），一列都沒有就是沒有說明。
+    ///
+    /// 只取 <c>MS_Description</c>。其餘擴充屬性一個都不會顯示在提示或預覽上，
+    /// 撈回來只是讓每一次停留多付流量；要寫進指令碼的那一份仍由第四層的
+    /// <see cref="ExtendedProperties"/> 整批取回。
+    /// </remarks>
+    public const string ObjectDescription = @"
+SELECT CONVERT(nvarchar(max), ep.value) AS object_description
+FROM sys.extended_properties AS ep
+WHERE ep.class = 1
+  AND ep.major_id = @objectId
+  AND ep.minor_id = 0
+  AND ep.name = 'MS_Description';";
 
     /// <summary>
     /// 第四層：單一資料表的索引。

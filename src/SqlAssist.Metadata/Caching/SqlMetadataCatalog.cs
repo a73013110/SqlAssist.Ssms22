@@ -645,13 +645,19 @@ public sealed class SqlMetadataCatalog
                 objectId)
             : new List<SqlColumnInfo>();
 
+        // 說明與資料行同一層：滑鼠停留提示只讀快取、不等查詢，併進第四層的話
+        // 提示上只有「剛好開過結構」的物件才有說明，而畫面上看不出那個差別。
+        // 資料行的說明沒有這一次來回，它跟著 sys.columns 的 LEFT JOIN 一起回來。
+        var description = ReadObjectDescription(connection, objectId, cancellationToken);
+
         if (!objectInfo.Kind.IsModule())
         {
             return new SqlObjectDetail(
                 objectInfo,
                 columns,
                 new List<SqlParameterInfo>(),
-                LoadSynthesizedDefinition(connection, objectInfo, cancellationToken));
+                LoadSynthesizedDefinition(connection, objectInfo, cancellationToken),
+                description);
         }
 
         var parameters = ReadList(
@@ -665,7 +671,27 @@ public sealed class SqlMetadataCatalog
         var value = command.ExecuteScalar();
         var definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
 
-        return new SqlObjectDetail(objectInfo, columns, parameters, definition);
+        return new SqlObjectDetail(objectInfo, columns, parameters, definition, description);
+    }
+
+    /// <remarks>
+    /// 一列都沒有就是沒有掛說明，與查詢失敗分得開——失敗在
+    /// <see cref="TryLoad{T}"/> 就整份第二層降級成「這一輪沒有資料」了，
+    /// 走不到這裡。
+    /// </remarks>
+    private string? ReadObjectDescription(
+        IDbConnection connection,
+        int objectId,
+        CancellationToken cancellationToken)
+    {
+        var rows = ReadList(
+            connection,
+            SqlMetadataQueries.ObjectDescription,
+            record => record.IsDBNull(0) ? null : record.GetString(0),
+            cancellationToken,
+            objectId);
+
+        return rows.Count > 0 ? rows[0] : null;
     }
 
     /// <summary>

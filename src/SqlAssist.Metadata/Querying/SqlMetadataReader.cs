@@ -79,7 +79,8 @@ public static class SqlMetadataReader
             record.IsDBNull(10) ? null : record.GetString(10),
             record.IsDBNull(11) ? null : record.GetString(11),
             record.GetBoolean(12),
-            script);
+            script,
+            ReadOptionalString(record, 21));
     }
 
     /// <remarks>

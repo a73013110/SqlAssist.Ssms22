@@ -18,7 +18,8 @@ public sealed class SqlColumnInfo
         string? defaultDefinition = null,
         string? computedDefinition = null,
         bool isGeneratedAlways = false,
-        SqlColumnScriptDetail? script = null)
+        SqlColumnScriptDetail? script = null,
+        string? description = null)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -36,6 +37,7 @@ public sealed class SqlColumnInfo
         ComputedDefinition = computedDefinition;
         IsGeneratedAlways = isGeneratedAlways;
         Script = script ?? SqlColumnScriptDetail.None;
+        Description = description;
     }
 
     public int Ordinal { get; }
@@ -65,6 +67,21 @@ public sealed class SqlColumnInfo
 
     /// <summary>只有重建指令碼才需要的細節；沒有查到時是空值而不是 null。</summary>
     public SqlColumnScriptDetail Script { get; }
+
+    /// <summary>
+    /// 這個資料行的 <c>MS_Description</c>；沒有掛說明時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 與資料行一起回來（同一條 <c>sys.columns</c> 查詢多一個 <c>LEFT JOIN</c>），
+    /// 不跟著第四層的擴充屬性走：滑鼠停留提示只讀快取、不等查詢，而第四層要
+    /// 使用者主動打開結構才載入——併在那裡的話，提示上的說明只有「剛好開過結構」
+    /// 的資料表才有，而畫面上看不出那個差別。
+    ///
+    /// 這裡刻意不放進 <see cref="SqlColumnScriptDetail"/>：那一份是「只有重建
+    /// 指令碼才需要」的東西，而說明正好相反——寫指令碼的那一端讀的是第四層的
+    /// <c>sys.extended_properties</c> 整批屬性，看的人讀的是這一個。
+    /// </remarks>
+    public string? Description { get; }
 
     /// <summary>
     /// 這個欄位能不能出現在 <c>INSERT</c> 的資料行清單裡。

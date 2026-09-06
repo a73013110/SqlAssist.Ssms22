@@ -126,6 +126,41 @@ public sealed class SqlMetadataReaderTests
         Assert.Equal("[UserId] int IDENTITY NOT NULL -- PK", line);
     }
 
+    /// <summary>
+    /// 資料行的說明跟著資料行一起回來。
+    /// </summary>
+    /// <remarks>
+    /// 說明掛在 <c>sys.columns</c> 那條查詢的最後一欄（<c>LEFT JOIN</c> 多一欄，
+    /// 不是多一輪來回）。順序對不上的症狀不是編譯錯誤，而是提示上出現另一個欄位的
+    /// 說明——那比沒有說明糟。
+    /// </remarks>
+    [Fact]
+    public void 讀取欄位說明()
+    {
+        var record = new FakeDataRecord(
+            1, "Id", "int", (short)4, (byte)10, (byte)0,
+            false, true, false, true, null, null, false,
+            null, null, null, null, false, false, false, false,
+            "讀者編號");
+
+        Assert.Equal("讀者編號", SqlMetadataReader.ReadColumn(record).Description);
+    }
+
+    /// <remarks>
+    /// 指令碼宣告的資料表與這裡的假資料列都只組得出前面那幾欄。多讀一欄拿到的是
+    /// <c>IndexOutOfRangeException</c>——那不是 <c>DbException</c>，不會被降級成
+    /// 「這一輪沒有資料」，而會一路冒到平台邊界去。
+    /// </remarks>
+    [Fact]
+    public void 沒有說明那一欄時不當機()
+    {
+        var record = new FakeDataRecord(
+            1, "Id", "int", (short)4, (byte)10, (byte)0,
+            false, true, false, true, null, null, false);
+
+        Assert.Null(SqlMetadataReader.ReadColumn(record).Description);
+    }
+
     [Fact]
     public void 讀取計算欄位的運算式()
     {

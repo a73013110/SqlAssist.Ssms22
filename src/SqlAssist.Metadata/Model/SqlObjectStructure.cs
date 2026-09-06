@@ -52,6 +52,10 @@ public sealed class SqlObjectStructure
 
     public string? Definition => Detail.Definition;
 
+    /// <summary>物件自己的 <c>MS_Description</c>；第二層就帶回來了，見
+    /// <see cref="SqlObjectDetail.Description"/>。</summary>
+    public string? Description => Detail.Description;
+
     public IReadOnlyList<SqlIndexInfo> Indexes { get; }
 
     public IReadOnlyList<SqlForeignKeyInfo> ForeignKeys { get; }
