@@ -11,8 +11,7 @@
 `Metadata/Formatting/SqlColumnPresentation` 一份，提示與預覽一起變。
 支援方括號、雙引號與結構描述限定，指令碼自己宣告的名稱見下一節。
 
-物件與資料行的 `MS_Description` 緊接在名稱底下，種類與規模退到它下面——停在一個
-沒看過的資料表上時要問的是它在做什麼，那一句不該晚一行才讀到。說明跟著第二層一起回來
+物件與資料行的 `MS_Description` 寫在種類那一行底下。它跟著第二層一起回來
 （理由見 [metadata.md](metadata.md)），不必先打開結構。提示視窗不會自己斷行，
 說明因此先收斂空白再截短（`Metadata/Formatting/SqlDescriptionText`），
 全文留給捲得動也有 Tooltip 的浮動預覽。
