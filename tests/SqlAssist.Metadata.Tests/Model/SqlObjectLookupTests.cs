@@ -273,9 +273,120 @@ public sealed class SqlObjectLookupTests
         Assert.Empty(onSource.FindColumnSources(Snapshot(table)));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void 欄位來源不完整或有歧義時不退回同名物件(bool complete)
+    {
+        const string sql = "SELECT Branch FROM dbo.Lib_Reader r JOIN dbo.Loan l ON r.ReaderId = l.ReaderId";
+        var reader = Table(1, "Library");
+        var loan = new SqlObjectInfo(2, "dbo", "Loan", SqlObjectKind.Table, "Library");
+        var branch = new SqlObjectInfo(3, "dbo", "Branch", SqlObjectKind.Table, "Library");
+        var snapshot = Snapshot(reader, loan, branch);
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("Branch", StringComparison.Ordinal))!;
+        var column = new SqlColumnInfo(1, "Branch", "int", false);
+
+        Assert.Null(lookup.FindCandidate(snapshot));
+        Assert.Null(lookup.FindCandidate(snapshot, owner => owner == reader || complete
+            ? new SqlObjectDetail(owner, new[] { column }) : null));
+
+        // 同一份語法在明細齊全且只有一個來源符合時才能回答。
+        var candidate = lookup.FindCandidate(snapshot, owner => new SqlObjectDetail(owner,
+            owner == reader ? new[] { column } : Array.Empty<SqlColumnInfo>()));
+        Assert.Same(reader, candidate!.Object);
+        Assert.True(candidate.NeedsColumn);
+    }
+
+    [Theory]
+    [InlineData("LibArchive.dbo.Loan l")]
+    [InlineData("LibMirror.LibArchive.dbo.Loan l")]
+    [InlineData("(SELECT Branch FROM dbo.Loan) l")]
+    public void 不可解析的來源不能被忽略而讓另一來源勝出(string source)
+    {
+        var sql = "SELECT Branch FROM dbo.Lib_Reader r JOIN " + source + " ON 1 = 1";
+        var reader = Table(1, "Library");
+        var column = new SqlColumnInfo(1, "Branch", "int", false);
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("Branch", StringComparison.Ordinal))!;
+        Assert.Null(lookup.FindCandidate(Snapshot(reader), owner => new SqlObjectDetail(owner, new[] { column })));
+    }
+
+    [Theory]
+    [InlineData("LibArchive.dbo.Lib_Reader r")]
+    [InlineData("LibMirror.LibArchive.dbo.Lib_Reader r")]
+    [InlineData("(SELECT ReaderId FROM dbo.Lib_Reader) r")]
+    public void 限定欄位的來源不可解析時不借用本機同名物件(string source)
+    {
+        var sql = "SELECT r.ReaderId FROM " + source;
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("ReaderId", StringComparison.Ordinal))!;
+        var namedLikeColumn = new SqlObjectInfo(2, "dbo", "ReaderId", SqlObjectKind.Table, "Library");
+        Assert.Null(lookup.FindCandidate(Snapshot(Table(1, "Library"), namedLikeColumn)));
+    }
+
+    [Fact]
+    public void 自我連接明細只載一次但欄位仍有歧義()
+    {
+        const string sql = "SELECT ReaderId FROM dbo.Lib_Reader r JOIN dbo.Lib_Reader other ON 1 = 1";
+        var table = Table(1, "Library");
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("ReaderId", StringComparison.Ordinal))!;
+        Assert.Single(lookup.FindColumnSources(Snapshot(table)));
+        Assert.Null(lookup.FindCandidate(Snapshot(table), owner => new SqlObjectDetail(owner,
+            new[] { new SqlColumnInfo(1, "ReaderId", "int", false) })));
+    }
+
+    [Fact]
+    public void 指令碼來源不載入同名的資料庫物件()
+    {
+        const string sql = ";WITH Lib_Reader AS (SELECT ReaderId FROM dbo.Loan) SELECT ReaderId FROM Lib_Reader";
+        var lookup = SqlObjectLookup.Create(sql, sql.LastIndexOf("ReaderId", StringComparison.Ordinal))!;
+        Assert.Empty(lookup.FindColumnSources(Snapshot(Table(1, "Library"))));
+    }
+
+    [Theory]
+    [InlineData("ReaderId")]
+    [InlineData("r.ReaderId")]
+    [InlineData("r")]
+    public void 跨庫省略結構描述也不能借用同名CTE(string target)
+    {
+        var sql = ";WITH Lib_Reader AS (SELECT ReaderId FROM dbo.Loan) SELECT " + target +
+            " FROM LibArchive..Lib_Reader r";
+        var position = sql.IndexOf("SELECT " + target + " FROM LibArchive", StringComparison.Ordinal) + 7;
+        if (target.Contains('.'))
+        {
+            position += 2;
+        }
+
+        var lookup = SqlObjectLookup.Create(sql, position)!;
+        Assert.Null(lookup.FindCandidate(Snapshot(Table(1, "Library"))));
+    }
+
+    [Fact]
+    public void 明細不完整仍會詢問其餘來源供背景預載()
+    {
+        const string sql = "SELECT ReaderId FROM dbo.Lib_Reader r JOIN dbo.Loan l ON 1 = 1";
+        var table = Table(1, "Library");
+        var loan = new SqlObjectInfo(2, "dbo", "Loan", SqlObjectKind.Table, "Library");
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("ReaderId", StringComparison.Ordinal))!;
+        var asked = new System.Collections.Generic.List<SqlObjectInfo>();
+        Assert.Null(lookup.FindCandidate(Snapshot(table, loan), owner => { asked.Add(owner); return null; }));
+        Assert.Equal(new[] { table, loan }, asked);
+    }
+
+    [Theory]
+    [InlineData("SELECT Lib_Reader FROM dbo.Lib_Reader", "Lib_Reader")]
+    [InlineData("SELECT r FROM dbo.Lib_Reader r", "r")]
+    public void 欄位與來源名稱或別名相同時仍優先採用欄位(string sql, string name)
+    {
+        var table = Table(1, "Library");
+        var detail = new SqlObjectDetail(table, new[] { new SqlColumnInfo(1, name, "int", false) });
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(name, StringComparison.Ordinal))!;
+        var candidate = lookup.FindCandidate(Snapshot(table), _ => detail);
+        Assert.True(candidate!.NeedsColumn);
+        Assert.Equal(name, lookup.Locate(candidate, detail)!.Column!.Name);
+    }
+
     private static SqlObjectInfo Table(int id, string database) =>
         new(id, "dbo", "Lib_Reader", SqlObjectKind.Table, database);
 
-    private static SqlDatabaseSnapshot Snapshot(SqlObjectInfo table) =>
-        new(table.DatabaseName!, new[] { table }, new[] { "dbo" }, Array.Empty<string>(), DateTimeOffset.UtcNow);
+    private static SqlDatabaseSnapshot Snapshot(params SqlObjectInfo[] tables) =>
+        new(tables[0].DatabaseName!, tables, new[] { "dbo" }, Array.Empty<string>(), DateTimeOffset.UtcNow);
 }

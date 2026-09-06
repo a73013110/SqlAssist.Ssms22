@@ -91,7 +91,7 @@ public sealed class SqlObjectLookup
 
     /// <param name="peekDetail">
     /// 拿資料來源換已經在手上的欄位明細，未限定的欄位要靠它才判斷得出來；
-    /// 傳 null 等於「一份明細都沒有」，那時未限定的名稱只當作物件解析。
+    /// 傳 null 等於「一份明細都沒有」，不能把尚未確認的欄位退回同名物件。
     /// 滑鼠停留傳的是只讀快取的那一份，使用者主動按下的路徑傳的是已經載好的那一份。
     /// </param>
     public Candidate? FindCandidate(
@@ -107,7 +107,8 @@ public sealed class SqlObjectLookup
         // 未限定的欄位排在物件之前：SELECT／WHERE 裡寫得出來的單段名稱，語意上就是
         // 某個來源的欄位。先問快照的症狀是 SELECT Branch FROM dbo.Loan 停在 Branch 上
         // 時畫出 dbo.Branch 那張表的結構——看起來正常，答的卻是另一個問題。
-        if (FindColumnCandidate(snapshot, peekDetail) is { } column)
+        var column = FindColumnCandidate(snapshot, peekDetail, out var unresolvedColumn);
+        if (column is not null || unresolvedColumn)
         {
             return column;
         }
@@ -119,7 +120,7 @@ public sealed class SqlObjectLookup
 
         if (TryResolveColumnOwner(snapshot, _scope, Reference, out var owner))
         {
-            return new Candidate(owner, needsColumn: true);
+            return owner is null ? null : new Candidate(owner, needsColumn: true);
         }
 
         var matches = ResolveObject(snapshot, _scope, Reference);
@@ -166,7 +167,7 @@ public sealed class SqlObjectLookup
         {
             if (Reference.Path is not { IsLocal: true } ||
                 !_scope.TryResolve(Reference.Qualifier, out var owner) ||
-                owner.SchemaName is not null)
+                !owner.IsLocal || owner.SchemaName is not null)
             {
                 return null;
             }
@@ -180,7 +181,7 @@ public sealed class SqlObjectLookup
         // c 是 Loan，即使這份指令碼別的地方剛好有一個叫 c 的 CTE。
         if (_scope.TryResolve(Reference.Name, out var aliased))
         {
-            return aliased.SchemaName is null && Declarations.Find(aliased.ObjectName) is { } aliasedDetail
+            return aliased.IsLocal && aliased.SchemaName is null && Declarations.Find(aliased.ObjectName) is { } aliasedDetail
                 ? new Candidate(aliasedDetail.Object, needsColumn: false, aliasedDetail)
                 : null;
         }
@@ -203,8 +204,10 @@ public sealed class SqlObjectLookup
     /// </remarks>
     private Candidate? FindColumnCandidate(
         SqlDatabaseSnapshot? snapshot,
-        Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail)
+        Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail,
+        out bool unresolved)
     {
+        unresolved = false;
         if (!IsColumnPosition())
         {
             return null;
@@ -214,22 +217,37 @@ public sealed class SqlObjectLookup
 
         foreach (var table in _scope.Tables)
         {
-            var (owner, detail, isScript) = ResolveSource(table, snapshot, peekDetail);
+            var (_, detail, isScript) = ResolveSource(table, snapshot, peekDetail);
 
-            if (detail is null || !HasColumn(detail, Reference.Name))
+            if (detail is null)
+            {
+                // 未載入不等於沒有同名欄位；仍走完來源，讓 Hover 的預載委派補齊快取。
+                unresolved = true;
+                continue;
+            }
+
+            if (!HasColumn(detail, Reference.Name))
             {
                 continue;
             }
 
             if (found is not null)
             {
+                unresolved = true;
                 return null;
             }
 
-            found = new Candidate(owner, needsColumn: true, isScript ? detail : null);
+            found = new Candidate(detail.Object, needsColumn: true, isScript ? detail : null);
         }
 
-        return found;
+        // 沒有欄位證據時仍可提示明確的別名；但已找到的欄位及歧義不能被別名搶走。
+        if (found is null && _scope.TryResolve(Reference.Name, out var aliased) &&
+            !string.IsNullOrEmpty(aliased.Alias))
+        {
+            unresolved = false;
+        }
+
+        return unresolved ? null : found;
     }
 
     /// <summary>
@@ -249,19 +267,15 @@ public sealed class SqlObjectLookup
         }
 
         var sources = new List<SqlObjectInfo>();
+        var seen = new HashSet<SqlObjectInfo>();
 
         foreach (var table in _scope.Tables)
         {
-            if (!IsMetadataSource(table))
+            // 與欄位判斷共用來源解析，避免 CTE 與同名資料庫物件各走一套規則。
+            var (owner, _, isScript) = ResolveSource(table, snapshot, peekDetail: null);
+            if (!isScript && owner is not null && seen.Add(owner))
             {
-                continue;
-            }
-
-            var matches = snapshot.Find(table.ObjectName, table.SchemaName);
-
-            if (matches.Count > 0)
-            {
-                sources.Add(matches[0]);
+                sources.Add(owner);
             }
         }
 
@@ -270,26 +284,26 @@ public sealed class SqlObjectLookup
 
     /// <summary>把敘述裡的一個資料來源換成物件與已經在手上的明細。</summary>
     /// <returns>換不出物件或明細還沒有時 <c>Detail</c> 為 null。</returns>
-    private (SqlObjectInfo Owner, SqlObjectDetail? Detail, bool IsScript) ResolveSource(
+    private (SqlObjectInfo? Owner, SqlObjectDetail? Detail, bool IsScript) ResolveSource(
         SqlTableReference table,
         SqlDatabaseSnapshot? snapshot,
         Func<SqlObjectInfo, SqlObjectDetail?>? peekDetail)
     {
         // 順序與整支一樣：先問這份指令碼宣告了什麼，再問快照。
-        if (table.SchemaName is null && Declarations.Find(table.ObjectName) is { } declared)
+        if (table.IsLocal && table.SchemaName is null && Declarations.Find(table.ObjectName) is { } declared)
         {
             return (declared.Object, declared, true);
         }
 
         if (!IsMetadataSource(table) || snapshot is null || snapshot.IsEmpty)
         {
-            return (null!, null, false);
+            return (null, null, false);
         }
 
         var matches = snapshot.Find(table.ObjectName, table.SchemaName);
 
         return matches.Count == 0
-            ? (null!, null, false)
+            ? (null, null, false)
             : (matches[0], peekDetail?.Invoke(matches[0]), false);
     }
 
@@ -356,33 +370,30 @@ public sealed class SqlObjectLookup
         return false;
     }
 
-    /// <summary>判斷這個參考是不是「敘述中某個資料來源的欄位」，是的話取出該資料來源。</summary>
+    /// <summary>認出欄位限定詞；來源無法由這份快照解析時，仍回傳 true 以禁止物件猜測。</summary>
     private static bool TryResolveColumnOwner(
         SqlDatabaseSnapshot snapshot,
         SqlStatementScope scope,
         SqlIdentifierReference reference,
-        out SqlObjectInfo owner)
+        out SqlObjectInfo? owner)
     {
-        owner = null!;
+        owner = null;
 
         // 多段的限定字不可能是別名：別名只有一段。多段時拿最右邊那一段去比對別名，
         // 剛好取名叫 dbo 的別名會讓 F12 跳到它指的那張表。
         if (reference.Qualifier is null ||
             reference.Path is not { IsLocal: true } ||
-            !scope.TryResolve(reference.Qualifier, out var table) ||
-            table.IsDerived)
+            !scope.TryResolve(reference.Qualifier, out var table))
         {
             return false;
         }
 
-        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
-
-        if (matches.Count == 0)
+        // 認出限定詞就不再猜物件；跨庫與衍生來源也不能借用本機同名資料。
+        if (IsMetadataSource(table))
         {
-            return false;
+            var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+            owner = matches.Count == 0 ? null : matches[0];
         }
-
-        owner = matches[0];
         return true;
     }
 

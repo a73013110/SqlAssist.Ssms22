@@ -22,6 +22,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemePalette.cs" Link="Product\UI\ThemePalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeRefreshQueue.cs" Link="Product\UI\ThemeRefreshQueue.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.cs" Link="Product\UI\SqlAssistChrome.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlDataGridText.cs" Link="Product\UI\SqlDataGridText.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Preview\SqlScriptDocument.cs" Link="Product\Preview\SqlScriptDocument.cs" />
   </ItemGroup>
 </Project>

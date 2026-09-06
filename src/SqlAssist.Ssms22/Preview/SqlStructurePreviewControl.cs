@@ -815,6 +815,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         _scriptText = null;
         _populated.Clear();
         SetTitle(structure.Object);
+        // 切頁可能同步回報顯示失敗，不能在填入之後再把那句訊息清掉。
+        _status.Text = string.Empty;
 
         // 空的分頁留在畫面上只會讓人多點一次才知道沒東西。第四層還沒到齊時，
         // 靠它的那幾頁一律不顯示——空清單在那個時候不是答案。
@@ -834,7 +836,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         PopulateSelectedTab();
         _summary.Text = BuildSummary(structure, partial);
         SetDescription(structure.Description);
-        _status.Text = string.Empty;
     }
 
     private TabItem? FirstVisibleTab()
@@ -919,39 +920,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         {
             if (_optionalColumns.Contains(column))
             {
-                column.Visibility = Visible(HasAnyValue(column, rows));
+                column.Visibility = Visible(SqlDataGridText.HasAnyValue(column, rows));
             }
         }
-    }
-
-    private static bool HasAnyValue(DataGridColumn column, System.Collections.IEnumerable rows)
-    {
-        var path = GetBindingPath(column);
-
-        if (path.Length == 0)
-        {
-            return true;
-        }
-
-        // 屬性只解析一次：一張兩百個資料行的表乘上幾個可收欄，逐格反射會被量出來。
-        System.Reflection.PropertyInfo? property = null;
-
-        foreach (var row in rows)
-        {
-            property ??= row.GetType().GetProperty(path);
-
-            if (property is null)
-            {
-                return true;
-            }
-
-            if (!string.IsNullOrEmpty(property.GetValue(row)?.ToString()))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private GridTab? FindGridTab(TabItem item)
@@ -1034,7 +1005,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
 
         if (tab.Content is DataGrid grid)
         {
-            var text = BuildGridText(grid, selectedOnly: true);
+            var text = SqlDataGridText.Build(grid, selectedOnly: true);
 
             if (string.IsNullOrEmpty(text))
             {
@@ -1056,131 +1027,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     {
         if (_tabs.SelectedItem is TabItem { Content: DataGrid grid })
         {
-            Copy(BuildGridText(grid, selectedOnly: false), "已複製整個表格。");
+            Copy(SqlDataGridText.Build(grid, selectedOnly: false), "已複製整個表格。");
         }
-    }
-
-    /// <summary>
-    /// 自己把資料格排成定位字元分隔的文字。
-    /// </summary>
-    /// <remarks>
-    /// 不用 <see cref="DataGrid"/> 內建的複製命令：那條路要求資料格持有鍵盤焦點，
-    /// 而浮動視窗裡的焦點未必在那裡，結果就是選單項目變成灰的、Ctrl+C 沒有反應。
-    /// 自己組文字則不管焦點在哪都成立。
-    /// </remarks>
-    private static string BuildGridText(DataGrid grid, bool selectedOnly)
-    {
-        var builder = new StringBuilder();
-        var rows = new List<object>();
-
-        if (selectedOnly)
-        {
-            foreach (var cell in grid.SelectedCells)
-            {
-                if (cell.Item is { } item && !rows.Contains(item))
-                {
-                    rows.Add(item);
-                }
-            }
-        }
-        else if (grid.ItemsSource is IEnumerable<object> items)
-        {
-            rows.AddRange(items);
-        }
-
-        if (rows.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var columns = new List<DataGridColumn>();
-
-        foreach (var column in grid.Columns)
-        {
-            // 收起來的欄不複製：畫面上沒有的東西不該出現在剪貼簿裡，
-            // 而它整欄都是空的，貼出去只是多幾個定位字元。
-            if (column.Visibility != Visibility.Visible)
-            {
-                continue;
-            }
-
-            // 只選了幾欄時就只複製那幾欄，這正是以儲存格為選取單位的用意。
-            if (!selectedOnly || IsColumnSelected(grid, column))
-            {
-                columns.Add(column);
-            }
-        }
-
-        AppendLine(builder, columns, column => column.Header?.ToString() ?? string.Empty);
-
-        foreach (var row in rows)
-        {
-            AppendLine(builder, columns, column => GetCellText(column, row));
-        }
-
-        return builder.ToString();
-    }
-
-    private static bool IsColumnSelected(DataGrid grid, DataGridColumn column)
-    {
-        foreach (var cell in grid.SelectedCells)
-        {
-            if (ReferenceEquals(cell.Column, column))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static void AppendLine(
-        StringBuilder builder,
-        List<DataGridColumn> columns,
-        Func<DataGridColumn, string> select)
-    {
-        for (var index = 0; index < columns.Count; index++)
-        {
-            if (index > 0)
-            {
-                builder.Append('\t');
-            }
-
-            builder.Append(select(columns[index]));
-        }
-
-        builder.AppendLine();
-    }
-
-    /// <summary>
-    /// 讀出某一格要複製的文字。
-    /// </summary>
-    /// <remarks>
-    /// 徽章欄不是文字欄，沒有繫結路徑可以讀，於是退回
-    /// <see cref="DataGridColumn.SortMemberPath"/>——那裡指向旗標的純文字版本。
-    /// 少了這一段，複製欄位表就會多出一個永遠是空的欄。
-    /// </remarks>
-    private static string GetCellText(DataGridColumn column, object row)
-    {
-        var path = GetBindingPath(column);
-
-        if (path.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        var value = row.GetType().GetProperty(path)?.GetValue(row);
-        return value?.ToString() ?? string.Empty;
-    }
-
-    /// <summary>這一欄讀的是資料列的哪一個屬性；讀不出來時是空字串。</summary>
-    private static string GetBindingPath(DataGridColumn column)
-    {
-        return column switch
-        {
-            DataGridTextColumn { Binding: Binding { Path.Path: { Length: > 0 } bound } } => bound,
-            _ => column.SortMemberPath ?? string.Empty
-        };
     }
 
     private void Copy(string text, string successMessage)
