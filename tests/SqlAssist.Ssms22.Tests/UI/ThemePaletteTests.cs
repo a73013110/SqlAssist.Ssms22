@@ -10,6 +10,33 @@ namespace SqlAssist.Ssms22.Tests.UI;
 public sealed class ThemePaletteTests
 {
     [Theory]
+    [InlineData("mango", 0x101010)]
+    [InlineData("cool-breeze", 0x303F4F)]
+    [InlineData("plum", 0xFFFFFF)]
+    [InlineData("forest", 0xDDEEFF)]
+    public void 自訂編輯器底色與殼層不同時仍可辨認色帶(string mode, int backgroundRgb)
+    {
+        var background = Color.FromRgb((byte)(backgroundRgb >> 16), (byte)(backgroundRgb >> 8), (byte)backgroundRgb);
+        var palette = ColorsFor(mode);
+        var roles = new[] { ThemeBrush.Block, ThemeBrush.BlockTry, ThemeBrush.BlockCatch,
+            ThemeBrush.BlockCase, ThemeBrush.BlockParenthesis, ThemeBrush.BlockBracket };
+        var colors = roles.Select(role => ThemeColorMath.EnsureGraphicContrast(palette[role], background)).ToArray();
+        Assert.Equal(roles.Length, colors.Distinct().Count());
+        foreach (var color in colors)
+        {
+            Assert.True(ThemeColorMath.Contrast(color, background) >= 3);
+            Assert.Equal(color, ThemeColorMath.EnsureGraphicContrast(color, background));
+        }
+    }
+
+    [Fact]
+    public void 色帶與底色相同也能恢復對比()
+    {
+        Assert.True(ThemeColorMath.Contrast(ThemeColorMath.EnsureGraphicContrast(Colors.Black, Colors.Black), Colors.Black) >= 3);
+        Assert.True(ThemeColorMath.Contrast(ThemeColorMath.EnsureGraphicContrast(Colors.White, Colors.White), Colors.White) >= 3);
+    }
+
+    [Theory]
     [InlineData("light")]
     [InlineData("mango")]
     [InlineData("cool-breeze")]

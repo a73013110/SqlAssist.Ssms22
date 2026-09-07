@@ -53,6 +53,7 @@ internal sealed class BlockOverviewMargin : IWpfTextViewMargin
         _canvas.Children.Add(_opening);
         _canvas.Children.Add(_closing);
         VsThemeBrushes.Apply(_canvas);
+        EditorBlockTheme.Get(view).Apply(_canvas);
         _state.Changed += OnStateChanged;
         _map.MappingChanged += OnChanged;
         if (_scrollBar is not null) _scrollBar.TrackSpanChanged += OnChanged;

@@ -39,10 +39,7 @@ internal static class ThemePalette
         {
             if (highContrast) return foreground;
             var candidate = ThemeColorMath.RotateHue(accent, index * 60);
-            // 色帶不是文字，採 3:1 圖形對比；保留各種類色相，不把深色主題全部退成白色。
-            for (var opacity = 0.05; ThemeColorMath.Contrast(candidate, background) < 3 && opacity <= 1; opacity += 0.05)
-                candidate = ThemeColorMath.Composite(Overlay(foreground, opacity), candidate);
-            return candidate;
+            return ThemeColorMath.EnsureGraphicContrast(candidate, background);
         }
 
         return new Dictionary<ThemeBrush, Color>

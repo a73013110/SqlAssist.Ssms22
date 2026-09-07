@@ -26,4 +26,15 @@ public sealed class BlockContextTextTests
     [Fact]
     public void 行號必須為一基底() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => BlockContextText.Format(BlockKind.Block, 0, "BEGIN", ""));
+
+    [Theory]
+    [InlineData(0, "")]
+    [InlineData(1, "")]
+    [InlineData(1, " ")]
+    [InlineData(8, "\t")]
+    public void 有界行前綴的尾端不留下半個Unicode字元(int indentation, string trailing)
+    {
+        var prefix = new string(' ', indentation) + new string('x', 159) + "\ud83d" + trailing;
+        Assert.Equal(new string('x', 159) + "…", BlockContextText.Summarize(prefix));
+    }
 }

@@ -29,7 +29,7 @@ internal sealed class BlockGlyphTaggerProvider : IViewTaggerProvider
     public ITagger<T>? CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag =>
         SqlAssistPlatformGuard.Create("建立區塊邊欄 Tagger", () =>
             textView is IWpfTextView view && !view.IsClosed && buffer == view.TextBuffer
-                ? view.Properties.GetOrCreateSingletonProperty(() => new BlockGlyphTagger(view)) as ITagger<T> : null);
+                ? new BlockGlyphTagger(view) as ITagger<T> : null);
 }
 
 [Export(typeof(IGlyphFactoryProvider))]
@@ -38,13 +38,22 @@ internal sealed class BlockGlyphTaggerProvider : IViewTaggerProvider
 [TagType(typeof(BlockGlyphTag))]
 internal sealed class BlockGlyphFactoryProvider : IGlyphFactoryProvider
 {
-    public IGlyphFactory GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) => new Factory();
+    public IGlyphFactory? GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) =>
+        SqlAssistPlatformGuard.Create("建立區塊色帶工廠", () => new Factory(view));
 
     private sealed class Factory : IGlyphFactory
     {
+        private readonly EditorBlockTheme _theme;
+        public Factory(IWpfTextView view) => _theme = EditorBlockTheme.Get(view);
+
         public UIElement? GenerateGlyph(IWpfTextViewLine line, IGlyphTag tag) =>
-            SqlAssistPlatformGuard.Create("繪製區塊邊欄色帶", () => tag is BlockGlyphTag block
-                ? SqlAssistChrome.CreateBlockGlyph(block.Kind, line.Height, block.Description) : null);
+            SqlAssistPlatformGuard.Create("繪製區塊邊欄色帶", () =>
+            {
+                if (tag is not BlockGlyphTag block) return null;
+                var glyph = SqlAssistChrome.CreateBlockGlyph(block.Kind, line.Height, block.Description);
+                _theme.Apply(glyph);
+                return glyph;
+            });
     }
 }
 

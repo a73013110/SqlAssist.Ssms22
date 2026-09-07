@@ -25,8 +25,9 @@ internal sealed class BlockHighlightProvider : IViewTaggerProvider
 
     public ITagger<T>? CreateTagger<T>(ITextView textView, ITextBuffer buffer) where T : ITag =>
         SqlAssistPlatformGuard.Create("建立區塊高亮", () =>
-            textView is IWpfTextView view && buffer == view.TextBuffer
-                ? view.Properties.GetOrCreateSingletonProperty(() => new BlockHighlightTagger(view, FormatMaps.GetEditorFormatMap(view))) as ITagger<T>
+            textView is IWpfTextView view && !view.IsClosed && buffer == view.TextBuffer
+                // Tagger 由 aggregator 釋放；只共用 view 狀態，不快取可被別人 Dispose 的 Tagger。
+                ? new BlockHighlightTagger(view, FormatMaps.GetEditorFormatMap(view)) as ITagger<T>
                 : null);
 }
 

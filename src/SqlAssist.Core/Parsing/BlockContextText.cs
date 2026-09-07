@@ -33,7 +33,14 @@ public static class BlockContextText
             }
             else result.Append(value);
         }
-        return result.ToString().TrimEnd();
+        // 呼叫端只讀有限長度的行前綴，輸入本身也可能剛好截在代理對中間。
+        while (result.Length > 0 && result[result.Length - 1] == ' ') result.Length--;
+        if (result.Length > 0 && char.IsHighSurrogate(result[result.Length - 1]))
+        {
+            result.Length--;
+            result.Append('…');
+        }
+        return result.ToString();
     }
 
     public static string Format(BlockKind kind, int oneBasedLine, string openingLine, string precedingLine)

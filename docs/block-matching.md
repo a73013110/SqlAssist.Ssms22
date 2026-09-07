@@ -45,12 +45,14 @@ A、B、D、E 跟隨游標所在的配對端點；F 也可顯示游標所在區�
 
 關鍵字不覆寫使用者的字型與色彩；B 的自訂色可在字型與色彩中選「SqlAssist 區塊區間背景」。
 色帶配色由共用主題色相推導；高對比不塗 B 背景，色帶與提示改用可讀的主題色。
+`EditorBlockTheme` 再以實際編輯器底色校正 D／E 對比，不假設編輯器與殼層的深淺相同。
 F 的摘要讀取有長度上限，捲動只重新定位，不重新解析 SQL。
 
 ## 平台探測結論
 
 - SSMS 實機 `ContentType=SQL`、基底 `code`，`bracehighlight` 有 Fill 與 ZOrder。
 - 原生 outlining 轉接器使用 **buffer** aggregator；C 不可只匯出 view tagger。
+- Aggregator 會於內容類型變更時 Dispose 並重建 Tagger；A／C／D 各次提供新 Tagger，只共用分析與檢視狀態。
 - Marker renderer 優先讀 `BackgroundColor`，所以 B 的自訂色也要套透明度，不能只改 Fill。
 - ViewportRelative 只自動處理後續位移；F 初次加入仍須使用 `ViewportTop／Left` 文件座標。
 - 不更動 SSMS 自己的大綱或原生導引線開關；其顯示條件可能影響實機結果。
