@@ -196,10 +196,28 @@ public static class SqlTokenNavigator
     public static bool[] FindPairedParentheses(IReadOnlyList<SqlToken> tokens, int start, int end)
     {
         var paired = new bool[Math.Max(0, end - start)];
+        foreach (var pair in FindParenthesisPairs(tokens, start, end))
+        {
+            paired[pair.Key - start] = true;
+            paired[pair.Value - start] = true;
+        }
+
+        return paired;
+    }
+
+    /// <summary>一次建立括號索引，避免各呈現層與分析器重複逐端掃描。</summary>
+    public static IEnumerable<KeyValuePair<int, int>> FindParenthesisPairs(
+        IReadOnlyList<SqlToken> tokens, int start, int end, Func<SqlToken, bool>? reset = null)
+    {
         var open = new Stack<int>();
 
         for (var index = start; index < end; index++)
         {
+            if (reset?.Invoke(tokens[index]) == true)
+            {
+                open.Clear();
+                continue;
+            }
             if (tokens[index].IsPunctuation("("))
             {
                 open.Push(index);
@@ -208,11 +226,9 @@ public static class SqlTokenNavigator
 
             if (tokens[index].IsPunctuation(")") && open.Count > 0)
             {
-                paired[open.Pop() - start] = true;
-                paired[index - start] = true;
+                yield return new KeyValuePair<int, int>(open.Pop(), index);
             }
         }
 
-        return paired;
     }
 }

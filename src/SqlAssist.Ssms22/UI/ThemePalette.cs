@@ -35,6 +35,16 @@ internal static class ThemePalette
             return tint;
         }
 
+        Color BlockColor(int index)
+        {
+            if (highContrast) return foreground;
+            var candidate = ThemeColorMath.RotateHue(accent, index * 60);
+            // 色帶不是文字，採 3:1 圖形對比；保留各種類色相，不把深色主題全部退成白色。
+            for (var opacity = 0.05; ThemeColorMath.Contrast(candidate, background) < 3 && opacity <= 1; opacity += 0.05)
+                candidate = ThemeColorMath.Composite(Overlay(foreground, opacity), candidate);
+            return candidate;
+        }
+
         return new Dictionary<ThemeBrush, Color>
         {
             [ThemeBrush.ListBackground] = background,
@@ -52,7 +62,13 @@ internal static class ThemePalette
             [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
             [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
             [ThemeBrush.AccentBackground] = highContrast ? background : Tint(0.12),
-            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent
+            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,
+            [ThemeBrush.Block] = BlockColor(0),
+            [ThemeBrush.BlockTry] = BlockColor(1),
+            [ThemeBrush.BlockCatch] = BlockColor(2),
+            [ThemeBrush.BlockCase] = BlockColor(3),
+            [ThemeBrush.BlockParenthesis] = BlockColor(4),
+            [ThemeBrush.BlockBracket] = BlockColor(5)
         };
     }
 

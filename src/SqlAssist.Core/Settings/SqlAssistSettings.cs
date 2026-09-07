@@ -16,6 +16,18 @@ namespace SqlAssist.Core.Settings;
 /// </remarks>
 public sealed class SqlAssistSettings
 {
+    public bool BlockMatchingEnabled { get; init; } = true;
+    public bool BlockKeywordHighlight { get; init; } = true;
+    public bool BlockRangeBackground { get; init; } = true;
+    public bool BlockStructure { get; init; } = true;
+    public bool BlockGlyphs { get; init; }
+    public bool BlockOverview { get; init; } = true;
+    public bool BlockContextHint { get; init; } = true;
+    public bool BlockSameLineBackground { get; init; }
+    public bool BlockMatchParentheses { get; init; } = true;
+    public bool BlockMatchCase { get; init; } = true;
+    public int BlockDebounceMilliseconds { get; init; } = SqlAssistLimits.DefaultBlockDebounce;
+
     /// <summary>sqlAssist.general.enabled</summary>
     public bool Enabled { get; init; } = true;
 

@@ -49,6 +49,95 @@
   // 否則搜尋結果是空的——那是找不到設定最常見的原因，不是分類不對。
   "properties": {
 
+    "sqlAssist.blocks.enabled": {
+      "type": "boolean",
+      "default": true,
+      "title": "啟用 T-SQL 區塊配對高亮",
+      "description": "在起訖關鍵字上標示配對。SqlAssist 總開關關閉時也會停用。",
+      "order": 100
+    },
+    "sqlAssist.blocks.keywordHighlight": {
+      "type": "boolean",
+      "default": true,
+      "title": "配對關鍵字高亮",
+      "description": "沿用編輯器的括號配對色彩。",
+      "order": 110,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.rangeBackground": {
+      "type": "boolean",
+      "default": true,
+      "title": "區間微透背景色",
+      "description": "以約 8% 透明度標示目前配對區間；高對比模式保留關鍵字而不塗背景。",
+      "order": 120,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.structure": {
+      "type": "boolean",
+      "default": true,
+      "title": "結構導引線與摺疊",
+      "description": "由 SSMS 編輯器繪製跨行區塊的導引線與大綱摺疊。",
+      "order": 130,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.glyphs": {
+      "type": "boolean",
+      "default": false,
+      "title": "行號邊欄指示條",
+      "description": "在目前配對區塊涵蓋的每一行顯示種類色帶。",
+      "order": 140,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.overview": {
+      "type": "boolean",
+      "default": true,
+      "title": "捲軸概覽標記",
+      "description": "在捲軸標示目前配對的兩端，包含已捲出畫面的端點。",
+      "order": 150,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.contextHint": {
+      "type": "boolean",
+      "default": true,
+      "title": "跨頁上下文提示",
+      "description": "起始行已捲出畫面時，在頂端顯示所屬區塊的文字摘要。",
+      "order": 160,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.sameLineBackground": {
+      "type": "boolean",
+      "default": false,
+      "title": "進階：同一行區塊也顯示背景色",
+      "description": "預設同行 CASE／括號只高亮兩端；需同時開啟區間微透背景色。",
+      "order": 215,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.matchParentheses": {
+      "type": "boolean",
+      "default": true,
+      "title": "進階：配對括號 ( ) [ ]",
+      "description": "方括號只配對識別字的外框，不把跳脫的 ]] 當成結尾。",
+      "order": 200,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.matchCase": {
+      "type": "boolean",
+      "default": true,
+      "title": "進階：配對 CASE…END",
+      "description": "停用時仍解析 CASE，避免它的 END 被誤配到外層 BEGIN。",
+      "order": 210,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.debounce": {
+      "type": "integer",
+      "default": 150,
+      "minimum": 50,
+      "maximum": 2000,
+      "title": "進階：Debounce 毫秒數",
+      "description": "停止輸入多久後在背景更新配對；游標移動不重新解析。",
+      "order": 220,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
     "sqlAssist.general.enabled": {
       "type": "boolean",
       "default": true,
@@ -372,6 +461,11 @@
       "description": "滑鼠停留提示與建議清單旁的浮動結構預覽，兩者互不影響。總開關在「一般」頁。",
       "additionalKeywords": [ "預覽", "hover", "quick info", "欄位型別" ],
       "order": 400
+    },
+    "sqlAssist.blocks": {
+      "title": "區塊配對",
+      "description": "T-SQL 起訖關鍵字與括號高亮。",
+      "order": 450
     },
     "sqlAssist.diagnostics": {
       "title": "診斷",

@@ -24,7 +24,7 @@ namespace SqlAssist.Ssms22.UI;
 /// 版面的原則是「用留白分層，不用線條」：層次靠間距與極淡的底色，
 /// 只有需要框住一整塊內容時才畫一條細線。
 /// </remarks>
-internal static class SqlAssistChrome
+internal static partial class SqlAssistChrome
 {
     /// <summary>介面字型；沒有 Variable 字族的機器會退回 Segoe UI。</summary>
     public static readonly FontFamily InterfaceFont = new("Segoe UI Variable Text, Segoe UI");

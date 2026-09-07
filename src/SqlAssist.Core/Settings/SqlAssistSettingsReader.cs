@@ -37,6 +37,18 @@ public static class SqlAssistSettingsReader
         return new SqlAssistSettings
         {
             Enabled = Value(source, SqlAssistMonikers.Enabled, defaults.Enabled),
+            BlockMatchingEnabled = Value(source, SqlAssistMonikers.BlockMatchingEnabled, defaults.BlockMatchingEnabled),
+            BlockKeywordHighlight = Value(source, SqlAssistMonikers.BlockKeywordHighlight, defaults.BlockKeywordHighlight),
+            BlockRangeBackground = Value(source, SqlAssistMonikers.BlockRangeBackground, defaults.BlockRangeBackground),
+            BlockStructure = Value(source, SqlAssistMonikers.BlockStructure, defaults.BlockStructure),
+            BlockGlyphs = Value(source, SqlAssistMonikers.BlockGlyphs, defaults.BlockGlyphs),
+            BlockOverview = Value(source, SqlAssistMonikers.BlockOverview, defaults.BlockOverview),
+            BlockContextHint = Value(source, SqlAssistMonikers.BlockContextHint, defaults.BlockContextHint),
+            BlockSameLineBackground = Value(source, SqlAssistMonikers.BlockSameLineBackground, defaults.BlockSameLineBackground),
+            BlockMatchParentheses = Value(source, SqlAssistMonikers.BlockMatchParentheses, defaults.BlockMatchParentheses),
+            BlockMatchCase = Value(source, SqlAssistMonikers.BlockMatchCase, defaults.BlockMatchCase),
+            BlockDebounceMilliseconds = SqlAssistLimits.ClampBlockDebounce(
+                Value(source, SqlAssistMonikers.BlockDebounce, defaults.BlockDebounceMilliseconds)),
             UppercaseKeywordsOnType = Value(
                 source,
                 SqlAssistMonikers.UppercaseKeywordsOnType,

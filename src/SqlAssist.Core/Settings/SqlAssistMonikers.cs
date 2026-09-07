@@ -23,6 +23,17 @@ public static class SqlAssistMonikers
     public const string Category = "sqlAssist";
 
     public const string Enabled = "sqlAssist.general.enabled";
+    public const string BlockMatchingEnabled = "sqlAssist.blocks.enabled";
+    public const string BlockKeywordHighlight = "sqlAssist.blocks.keywordHighlight";
+    public const string BlockRangeBackground = "sqlAssist.blocks.rangeBackground";
+    public const string BlockStructure = "sqlAssist.blocks.structure";
+    public const string BlockGlyphs = "sqlAssist.blocks.glyphs";
+    public const string BlockOverview = "sqlAssist.blocks.overview";
+    public const string BlockContextHint = "sqlAssist.blocks.contextHint";
+    public const string BlockSameLineBackground = "sqlAssist.blocks.sameLineBackground";
+    public const string BlockMatchParentheses = "sqlAssist.blocks.matchParentheses";
+    public const string BlockMatchCase = "sqlAssist.blocks.matchCase";
+    public const string BlockDebounce = "sqlAssist.blocks.debounce";
     public const string UppercaseKeywordsOnType = "sqlAssist.general.uppercaseKeywordsOnType";
     public const string AutoPairDelimiters = "sqlAssist.general.autoPairDelimiters";
 

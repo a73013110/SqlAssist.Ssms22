@@ -1,12 +1,12 @@
 # 設定
 
-本頁記錄現有選項與設定頁行為；新增或改動 schema 先讀[設定結構](settings-schema.md)。
+變更 schema 先讀[設定結構](settings-schema.md)。
 
 設定全部由 **SSMS 22 的 Unified Settings** 提供，沒有自訂設定檔。
 按 `Ctrl+,` 開啟設定視窗，或從 **工具 → SqlAssist → 設定…** 直接跳到 SqlAssist 分類。
 改完立即生效，不必重開查詢視窗；設定會跟著 SSMS 的設定漫遊同步。
 
-共 25 項，分五頁：
+區塊選項見[區塊配對](block-matching.md)，其餘如下：
 
 | 分類 | 設定 | 預設 |
 | --- | --- | --- |
@@ -43,11 +43,9 @@
 moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 `sqlAssist.suggestions.triggerAfterCharacters`。
 註冊檔在 [`src/SqlAssist.Ssms22/SqlAssist.registration.json`](../src/SqlAssist.Ssms22/SqlAssist.registration.json)，
-它是「有哪些設定」的唯一權威來源：`SqlAssistSettingsReaderTests` 以它為基準反推程式碼，
-檢查每一個 moniker 都有常數、都被讀進 `SqlAssistSettings` 的某個屬性、預設值兩邊一致，
-而且都在變更訂閱清單裡。漏掉任何一步都是建置失敗，不會變成執行期的安靜回退。
+它是設定清單的唯一權威來源；四處對應與守門測試見[設定結構](settings-schema.md#新增一個設定)。
 
-「啟用 SqlAssist」是總開關，關掉之後其餘四頁的功能全部停止運作，但**設定頁上不會跟著變灰**——
+「啟用 SqlAssist」是總開關，關掉之後其他分類的功能全部停止運作，但**設定頁上不會跟著變灰**——
 原因見[設定條件式](settings-schema.md#條件式只能參照一個同分類的設定)。「插入與展開」那幾種語句展開另外
 還需要「建議清單」開著，因為它們是在提交建議時發生的；同樣的理由，同樣不會變灰。
 

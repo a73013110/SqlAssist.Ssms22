@@ -12,6 +12,9 @@ namespace SqlAssist.Core.Settings;
 /// </remarks>
 public static class SqlAssistLimits
 {
+    public const int DefaultBlockDebounce = 150;
+    public static int ClampBlockDebounce(int value) => Clamp(value, 50, 2000);
+
     public const int MinimumTriggerCharacters = 1;
 
     public const int MaximumTriggerCharacters = 10;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Media;
 using SqlAssist.Ssms22.UI;
 using Xunit;
@@ -8,6 +9,23 @@ namespace SqlAssist.Ssms22.Tests.UI;
 
 public sealed class ThemePaletteTests
 {
+    [Theory]
+    [InlineData("light")]
+    [InlineData("mango")]
+    [InlineData("cool-breeze")]
+    [InlineData("dark")]
+    [InlineData("plum")]
+    [InlineData("forest")]
+    public void 區塊種類使用不同色相且色帶維持圖形對比(string mode)
+    {
+        var colors = ColorsFor(mode);
+        var roles = new[] { ThemeBrush.Block, ThemeBrush.BlockTry, ThemeBrush.BlockCatch,
+            ThemeBrush.BlockCase, ThemeBrush.BlockParenthesis, ThemeBrush.BlockBracket };
+        Assert.Equal(roles.Length, roles.Select(role => colors[role]).Distinct().Count());
+        foreach (var role in roles)
+            Assert.True(ThemeColorMath.Contrast(colors[role], colors[ThemeBrush.ListBackground]) >= 3);
+    }
+
     [Theory]
     [InlineData("light")]
     [InlineData("mango")]

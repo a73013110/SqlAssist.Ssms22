@@ -15,7 +15,7 @@ namespace SqlAssist.Core.Parsing;
 /// 空白與註解不會出現在輸出中，但每個詞法單元都帶原始位置，
 /// 因此仍可對應回編輯器的位移。
 /// </remarks>
-public static class SqlTokenizer
+public static partial class SqlTokenizer
 {
     /// <summary>將整份文字切成詞法單元，略過空白與註解。</summary>
     public static IReadOnlyList<SqlToken> Tokenize(string sql)

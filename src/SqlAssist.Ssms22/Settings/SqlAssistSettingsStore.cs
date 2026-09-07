@@ -38,6 +38,9 @@ internal static class SqlAssistSettingsStore
     /// <summary>目前生效的設定。任何時候都可以讀，不會回傳 null。</summary>
     public static SqlAssistSettings Current => _current;
 
+    /// <summary>可能由背景執行緒通知；呈現層必須派送至其 UI 執行緒並於關閉時解除訂閱。</summary>
+    public static event EventHandler? Changed;
+
     /// <summary>是否已接上 SSMS Unified Settings；否則 <see cref="Current"/> 是內建預設值。</summary>
     public static bool IsConnected => _reader is not null;
 
@@ -81,6 +84,7 @@ internal static class SqlAssistSettingsStore
 
                         var reader = _manager.GetReader();
                         _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
+                        NotifyChanged();
                         _reader = reader;
 
                         // 訂閱回呼可能來自任何執行緒；這裡只換掉一個 volatile 欄位，
@@ -214,9 +218,17 @@ internal static class SqlAssistSettingsStore
             "重新讀取設定",
             () => _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader)));
 
-        // 其餘設定放著等人來讀就好，只有這一個要推到擴充外面去。
+        NotifyChanged();
+        // 語言偏好還要推到擴充外面去。
         // 少了這一行，勾掉「只使用 SqlAssist 的建議清單」要重開 SSMS 才會生效。
         NativeMemberList.ApplyFromSettings();
+    }
+
+    private static void NotifyChanged()
+    {
+        if (Changed is not { } handlers) return;
+        foreach (EventHandler handler in handlers.GetInvocationList())
+            SqlAssistPlatformGuard.Run("通知設定變更", () => handler(null, EventArgs.Empty));
     }
 
     /// <summary>

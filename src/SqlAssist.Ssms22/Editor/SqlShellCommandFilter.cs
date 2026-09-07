@@ -152,6 +152,7 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
 
     public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
     {
+        // TODO：GOTOBRACE／GOTOBRACE_EXT 於此接共用 BlockMatcher 查詢，QueryStatus 同步認領；不另綁快捷鍵。
         if (pguidCmdGroup == StandardCommandSet && nCmdID == GoToDefinitionCommandId)
         {
             // 這是按鍵路徑，丟出例外就是使用者按一次鍵看到一次錯誤對話框。

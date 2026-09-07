@@ -23,7 +23,13 @@ internal enum ThemeBrush
     SegmentTrack,
     BadgeBackground,
     AccentBackground,
-    AccentBorder
+    AccentBorder,
+    Block,
+    BlockTry,
+    BlockCatch,
+    BlockCase,
+    BlockParenthesis,
+    BlockBracket
 }
 
 /// <summary>同一份動態資源供所有視窗與獨立 Popup 使用，不保存任何控制項參考。</summary>
