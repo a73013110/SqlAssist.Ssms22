@@ -140,7 +140,7 @@ public sealed class ThemeVisualTests
         });
     }
 
-    private static string? FindOutputDirectory()
+    internal static string? FindOutputDirectory()
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
         {

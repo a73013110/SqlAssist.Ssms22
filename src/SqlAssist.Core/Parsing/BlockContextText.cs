@@ -11,7 +11,7 @@ public static class BlockContextText
     public static string KindName(BlockKind kind) => kind switch
     {
         BlockKind.Try => "BEGIN TRY", BlockKind.Catch => "BEGIN CATCH", BlockKind.Case => "CASE",
-        BlockKind.Parenthesis => "( )", BlockKind.Bracket => "[ ]", _ => "BEGIN"
+        BlockKind.Parenthesis => "( )", BlockKind.Bracket => "[ ]", BlockKind.String => "'…'", _ => "BEGIN"
     };
 
     public static string Summarize(string text)
@@ -43,13 +43,13 @@ public static class BlockContextText
         return result.ToString();
     }
 
-    public static string Format(BlockKind kind, int oneBasedLine, string openingLine, string precedingLine)
+    public static string Format(BlockKind kind, int oneBasedLine, string openingLine)
     {
         if (oneBasedLine < 1) throw new ArgumentOutOfRangeException(nameof(oneBasedLine));
         var summary = Summarize(openingLine);
-        // BEGIN 自成一行時帶上控制它的前一行，讓 IF／WHILE 的條件仍可辨認。
+        // 相鄰不代表語法歸屬；沒有控制流程語法樹時不猜測上一行，也不重複區塊名稱。
         if (string.Equals(summary, KindName(kind), StringComparison.OrdinalIgnoreCase))
-            summary = Summarize(precedingLine);
+            summary = string.Empty;
         return $"↑ {KindName(kind)}（第 {oneBasedLine} 行） {summary}".TrimEnd();
     }
 }

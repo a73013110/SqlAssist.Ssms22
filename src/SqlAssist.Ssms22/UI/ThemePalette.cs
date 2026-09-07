@@ -35,14 +35,7 @@ internal static class ThemePalette
             return tint;
         }
 
-        Color BlockColor(int index)
-        {
-            if (highContrast) return foreground;
-            var candidate = ThemeColorMath.RotateHue(accent, index * 60);
-            return ThemeColorMath.EnsureGraphicContrast(candidate, background);
-        }
-
-        return new Dictionary<ThemeBrush, Color>
+        var colors = new Dictionary<ThemeBrush, Color>
         {
             [ThemeBrush.ListBackground] = background,
             [ThemeBrush.ListForeground] = foreground,
@@ -59,14 +52,11 @@ internal static class ThemePalette
             [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
             [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
             [ThemeBrush.AccentBackground] = highContrast ? background : Tint(0.12),
-            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,
-            [ThemeBrush.Block] = BlockColor(0),
-            [ThemeBrush.BlockTry] = BlockColor(1),
-            [ThemeBrush.BlockCatch] = BlockColor(2),
-            [ThemeBrush.BlockCase] = BlockColor(3),
-            [ThemeBrush.BlockParenthesis] = BlockColor(4),
-            [ThemeBrush.BlockBracket] = BlockColor(5)
+            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent
         };
+        foreach (var pair in BlockPalette.Create(background, foreground, accent, null, highContrast))
+            colors[pair.Key] = pair.Value;
+        return colors;
     }
 
     private static Color Overlay(Color color, double opacity) =>

@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Design;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Media;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
@@ -15,6 +16,7 @@ using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.ResultGrid;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Commands;
 
@@ -72,6 +74,11 @@ internal sealed class SqlAssistCommands
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
+        AddColorCommand(CommandIds.PickBlockAccent, SqlAssistMonikers.BlockAccentColor, s => s.BlockAccentColor, ThemeBrush.AccentBorder);
+        AddColorCommand(CommandIds.PickBlockKeywordForeground, SqlAssistMonikers.BlockKeywordForeground, s => s.BlockKeywordForeground, ThemeBrush.BlockKeywordForeground);
+        AddColorCommand(CommandIds.PickBlockKeywordBackground, SqlAssistMonikers.BlockKeywordBackground, s => s.BlockKeywordBackground, ThemeBrush.BlockKeywordBackground);
+        AddColorCommand(CommandIds.PickBlockSymbolForeground, SqlAssistMonikers.BlockSymbolForeground, s => s.BlockSymbolForeground, ThemeBrush.BlockSymbolForeground);
+        AddColorCommand(CommandIds.PickBlockSymbolBackground, SqlAssistMonikers.BlockSymbolBackground, s => s.BlockSymbolBackground, ThemeBrush.BlockSymbolBackground);
 
         // 結果格線的右鍵選單。狀態由 ResultGridActions 回答：找不到格線就停用，
         // 但仍然看得見——使用者因此知道這個功能存在，只是現在沒有東西可以做。
@@ -458,6 +465,32 @@ internal sealed class SqlAssistCommands
         {
             Report("開啟診斷紀錄檔", exception);
         }
+    }
+
+    private void AddColorCommand(int commandId, string moniker, Func<SqlAssistSettings, string> read, ThemeBrush role)
+    {
+        AddCommand(commandId, (_, _) =>
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            // 使用者選色與設定寫入失敗要顯示原因，不交給 Guard 靜默降級。
+            try
+            {
+                IServiceProvider services = _package;
+                if (services.GetService(typeof(SVsUIShell)) is not IVsUIShell shell)
+                {
+                    ShowMessage("無法開啟色彩選取視窗；仍可在設定欄位輸入 #RRGGBB。");
+                    return;
+                }
+                Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(shell.GetDialogOwnerHwnd(out var owner));
+                var color = SqlColorPicker.Pick(owner, read(SqlAssistSettingsStore.Current), ((SolidColorBrush)VsThemeBrushes.Get(role)).Color);
+                if (color is not null && !SqlAssistSettingsStore.TrySetValue(moniker, color))
+                    ShowMessage("色彩未儲存成功，請確認設定欄位的目前值及設定服務狀態後重試。");
+            }
+            catch (Exception exception)
+            {
+                Report("選取區塊色彩", exception);
+            }
+        });
     }
 
     private void OpenDiagnosticsLogCore()

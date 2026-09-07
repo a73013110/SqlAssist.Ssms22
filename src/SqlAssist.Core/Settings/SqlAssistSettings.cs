@@ -18,12 +18,19 @@ public sealed class SqlAssistSettings
 {
     public bool BlockMatchingEnabled { get; init; } = true;
     public bool BlockKeywordHighlight { get; init; } = true;
+    public string BlockKeywordForeground { get; init; } = string.Empty;
+    public string BlockKeywordBackground { get; init; } = string.Empty;
+    public string BlockSymbolForeground { get; init; } = string.Empty;
+    public string BlockSymbolBackground { get; init; } = string.Empty;
     public bool BlockRangeBackground { get; init; } = true;
+    public bool BlockRangeInside { get; init; } = true;
+    public string BlockAccentColor { get; init; } = string.Empty;
     public bool BlockStructure { get; init; } = true;
-    public bool BlockGlyphs { get; init; }
+    public bool BlockOutlining { get; init; }
+    public bool BlockGlyphs { get; init; } = true;
     public bool BlockOverview { get; init; } = true;
-    public bool BlockContextHint { get; init; } = true;
-    public bool BlockSameLineBackground { get; init; }
+    public bool BlockContextHint { get; init; }
+    public bool BlockSameLineBackground { get; init; } = true;
     public bool BlockMatchParentheses { get; init; } = true;
     public bool BlockMatchCase { get; init; } = true;
     public int BlockDebounceMilliseconds { get; init; } = SqlAssistLimits.DefaultBlockDebounce;

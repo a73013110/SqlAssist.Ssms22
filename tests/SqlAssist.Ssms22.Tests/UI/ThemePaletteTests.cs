@@ -21,7 +21,7 @@ public sealed class ThemePaletteTests
         var roles = new[] { ThemeBrush.Block, ThemeBrush.BlockTry, ThemeBrush.BlockCatch,
             ThemeBrush.BlockCase, ThemeBrush.BlockParenthesis, ThemeBrush.BlockBracket };
         var colors = roles.Select(role => ThemeColorMath.EnsureGraphicContrast(palette[role], background)).ToArray();
-        Assert.Equal(roles.Length, colors.Distinct().Count());
+        Assert.Single(colors.Distinct());
         foreach (var color in colors)
         {
             Assert.True(ThemeColorMath.Contrast(color, background) >= 3);
@@ -43,12 +43,12 @@ public sealed class ThemePaletteTests
     [InlineData("dark")]
     [InlineData("plum")]
     [InlineData("forest")]
-    public void 區塊種類使用不同色相且色帶維持圖形對比(string mode)
+    public void 區塊種類共用基準色且色帶維持圖形對比(string mode)
     {
         var colors = ColorsFor(mode);
         var roles = new[] { ThemeBrush.Block, ThemeBrush.BlockTry, ThemeBrush.BlockCatch,
             ThemeBrush.BlockCase, ThemeBrush.BlockParenthesis, ThemeBrush.BlockBracket };
-        Assert.Equal(roles.Length, roles.Select(role => colors[role]).Distinct().Count());
+        Assert.Single(roles.Select(role => colors[role]).Distinct());
         foreach (var role in roles)
             Assert.True(ThemeColorMath.Contrast(colors[role], colors[ThemeBrush.ListBackground]) >= 3);
     }
@@ -148,7 +148,8 @@ public sealed class ThemePaletteTests
         Assert.Equal(Colors.Black, colors[ThemeBrush.SelectedForeground]);
         Assert.Equal(Colors.Black, colors[ThemeBrush.AccentBackground]);
         Assert.Equal(Colors.Black, colors[ThemeBrush.RowAlternate]);
-        foreach (var color in colors.Values)
+        Assert.Equal((byte)0, colors[ThemeBrush.BlockRange].A);
+        foreach (var color in colors.Where(pair => pair.Key != ThemeBrush.BlockRange).Select(pair => pair.Value))
         {
             Assert.Equal((byte)255, color.A);
         }

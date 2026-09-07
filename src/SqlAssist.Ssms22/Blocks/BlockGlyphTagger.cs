@@ -51,6 +51,7 @@ internal sealed class BlockGlyphFactoryProvider : IGlyphFactoryProvider
             {
                 if (tag is not BlockGlyphTag block) return null;
                 var glyph = SqlAssistChrome.CreateBlockGlyph(block.Kind, line.Height, block.Description);
+                VsThemeBrushes.Apply(glyph);
                 _theme.Apply(glyph);
                 return glyph;
             });
@@ -93,7 +94,7 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
             if (requested.IsEmpty && range.Contains(requested.Start))
             {
                 var blank = requested.Start.GetContainingLine();
-                if (seen.Add(blank.LineNumber)) yield return new TagSpan<BlockGlyphTag>(blank.ExtentIncludingLineBreak, tag);
+                if (seen.Add(blank.LineNumber)) yield return new TagSpan<BlockGlyphTag>(blank.Extent, tag);
                 continue;
             }
             var overlap = requested.Intersection(range);
@@ -102,7 +103,9 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
             var last = (span.End - 1).GetContainingLine().LineNumber;
             // 只為平台要求的行產生色帶，萬行區塊也不預建萬個 WPF 元素。
             for (var i = first; i <= last; i++)
-                if (seen.Add(i)) yield return new TagSpan<BlockGlyphTag>(range.Snapshot.GetLineFromLineNumber(i).ExtentIncludingLineBreak, tag);
+                // 原生 margin 以 IntersectsWith 移除重繪行的舊圖示；含換行會碰到下一行起點，
+                // 捲動時重繪下一行便誤刪上一行的色帶。空白行仍保留合法的零長度 extent。
+                if (seen.Add(i)) yield return new TagSpan<BlockGlyphTag>(range.Snapshot.GetLineFromLineNumber(i).Extent, tag);
         }
     }
 
@@ -112,7 +115,7 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
         if (_disposed || _view.IsClosed) return;
         var previous = _selection?.Range;
         SnapshotSpan? next = null;
-        var pair = _state.SelectedPair;
+        var pair = _state.RangePair ?? _state.ContextPair;
         if (_state.Settings.BlockGlyphs && pair is not null && _state.Snapshot is { } snapshot)
         {
             var first = snapshot.GetLineFromPosition(pair.Span.Start);

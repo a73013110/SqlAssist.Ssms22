@@ -59,73 +59,134 @@
     "sqlAssist.blocks.keywordHighlight": {
       "type": "boolean",
       "default": true,
-      "title": "配對關鍵字高亮",
-      "description": "沿用編輯器的括號配對色彩。",
+      "title": "配對端點高亮",
+      "description": "游標位於端點時，以較明顯的前景與背景標示配對；不改動 SSMS 原生括號配色。",
       "order": 110,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.keywordForeground": {
+      "type": "string",
+      "default": "",
+      "title": "全域高亮預設前景色",
+      "description": "所有配對端點共用；符號可在其種類底下覆寫。留空自動配色，支援 #RRGGBB，並依背景校正文字對比。",
+      "order": 120,
+      "enableWhen": "${config:sqlAssist.blocks.keywordHighlight} == 'true'",
+      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 529 } }]
+    },
+    "sqlAssist.blocks.keywordBackground": {
+      "type": "string",
+      "default": "",
+      "title": "全域高亮預設背景色",
+      "description": "所有配對端點共用；符號可在其種類底下覆寫。留空使用共用基準色，支援 #RRGGBB，並自動適配深淺底色。",
+      "order": 130,
+      "enableWhen": "${config:sqlAssist.blocks.keywordHighlight} == 'true'",
+      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 530 } }]
+    },
+    "sqlAssist.blocks.symbolForeground": {
+      "type": "string",
+      "default": "",
+      "title": "符號高亮前景色（括號、方括號、字串引號）",
+      "description": "留空繼承全域高亮預設；支援 #RRGGBB，並校正文字對比。需開啟配對端點高亮才會顯示。",
+      "order": 210,
+      "enableWhen": "${config:sqlAssist.blocks.matchParentheses} == 'true'",
+      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 531 } }]
+    },
+    "sqlAssist.blocks.symbolBackground": {
+      "type": "string",
+      "default": "",
+      "title": "符號高亮背景色（括號、方括號、字串引號）",
+      "description": "留空繼承全域高亮預設；支援 #RRGGBB，並自動適配深淺底色。需開啟配對端點高亮才會顯示。",
+      "order": 220,
+      "enableWhen": "${config:sqlAssist.blocks.matchParentheses} == 'true'",
+      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 532 } }]
     },
     "sqlAssist.blocks.rangeBackground": {
       "type": "boolean",
       "default": true,
-      "title": "區間微透背景色",
-      "description": "以約 8% 透明度標示目前配對區間；高對比模式保留關鍵字而不塗背景。",
-      "order": 120,
+      "title": "區間淡色背景",
+      "description": "依基準色與實際編輯器底色推導淡色背景，不更改 SQL 字色；高對比模式不塗背景。",
+      "order": 300,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.accentColor": {
+      "type": "string",
+      "default": "",
+      "title": "共用基準色（背景、端點與指示條）",
+      "description": "留空跟隨 SSMS 主題；例如 #4F86C6，也可按鈕選色。供區間、未另設色的端點、邊欄、概覽與提示共用，因此不隸屬區間背景開關。無效格式回退主題，高對比忽略自訂色；原生導引線除外。",
+      "order": 800,
+      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'",
+      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 528 } }]
+    },
+    "sqlAssist.blocks.rangeInside": {
+      "type": "boolean",
+      "default": true,
+      "title": "游標在區塊內也顯示最近一層背景",
+      "description": "不必停在關鍵字上；只標示最近符合設定的一層，不疊加多層色彩。關閉後恢復只在端點顯示。",
+      "order": 310,
+      "enableWhen": "${config:sqlAssist.blocks.rangeBackground} == 'true'"
     },
     "sqlAssist.blocks.structure": {
       "type": "boolean",
       "default": true,
-      "title": "結構導引線與摺疊",
-      "description": "由 SSMS 編輯器繪製跨行區塊的導引線與大綱摺疊。",
-      "order": 130,
+      "title": "結構導引線",
+      "description": "由 SSMS 繪製。色彩由環境的字型與色彩中「結構輔助線／Structure Guide Lines」的背景色管理，會影響所有原生結構導引線。",
+      "order": 400,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+    },
+    "sqlAssist.blocks.outlining": {
+      "type": "boolean",
+      "default": false,
+      "title": "進階：補足 SSMS 未提供的區塊摺疊",
+      "description": "只在原生缺少區塊 +/− 時使用，通常保持關閉。SSMS 本來就能摺疊 BEGIN／END 時，切換可能沒有可見差異；不會開關原生摺疊。",
+      "order": 410,
+      "enableWhen": "${config:sqlAssist.blocks.structure} == 'true'"
     },
     "sqlAssist.blocks.glyphs": {
       "type": "boolean",
-      "default": false,
+      "default": true,
       "title": "行號邊欄指示條",
-      "description": "在目前配對區塊涵蓋的每一行顯示種類色帶。",
-      "order": 140,
+      "description": "在游標所在區塊的每一行顯示指示條；啟用區間背景時跟隨同一層，不必停在關鍵字上。",
+      "order": 500,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.overview": {
       "type": "boolean",
       "default": true,
       "title": "捲軸概覽標記",
-      "description": "在捲軸標示目前配對的兩端，包含已捲出畫面的端點。",
-      "order": 150,
+      "description": "游標位於區塊內即可在捲軸顯示起訖與範圍色帶，不必停在 BEGIN／END；跟隨背景範圍，背景關閉時仍可獨立顯示。",
+      "order": 600,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.contextHint": {
       "type": "boolean",
-      "default": true,
+      "default": false,
       "title": "跨頁上下文提示",
-      "description": "起始行已捲出畫面時，在頂端顯示所屬區塊的文字摘要。",
-      "order": 160,
+      "description": "起始行已捲出畫面時顯示摘要；滑鼠移入呈現手形與連結色，點擊返回起始行，不占用鍵盤焦點或快捷鍵。",
+      "order": 700,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.sameLineBackground": {
       "type": "boolean",
-      "default": false,
-      "title": "進階：同一行區塊也顯示背景色",
-      "description": "預設同行 CASE／括號只高亮兩端；需同時開啟區間微透背景色。",
-      "order": 215,
-      "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
+      "default": true,
+      "title": "同一行區塊也顯示背景色",
+      "description": "也顯示同行 CASE、括號或字串區間；關閉後略過同行區塊並保留外層跨行背景，不影響端點高亮。",
+      "order": 320,
+      "enableWhen": "${config:sqlAssist.blocks.rangeBackground} == 'true'"
     },
     "sqlAssist.blocks.matchParentheses": {
       "type": "boolean",
       "default": true,
-      "title": "進階：配對括號 ( ) [ ]",
-      "description": "方括號只配對識別字的外框，不把跳脫的 ]] 當成結尾。",
+      "title": "納入配對種類：括號、方括號與字串引號",
+      "description": "配對 ( )、[ ] 與 '…'（含 N'…'），同時影響所有區塊呈現。只取外框，字串內跳脫的 '' 與識別字內的 ]] 不當端點。",
       "order": 200,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.matchCase": {
       "type": "boolean",
       "default": true,
-      "title": "進階：配對 CASE…END",
-      "description": "停用時仍解析 CASE，避免它的 END 被誤配到外層 BEGIN。",
-      "order": 210,
+      "title": "納入配對種類：CASE…END",
+      "description": "同時影響所有區塊呈現；停用時仍解析 CASE，避免它的 END 被誤配到外層 BEGIN。",
+      "order": 250,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.debounce": {
@@ -135,7 +196,7 @@
       "maximum": 2000,
       "title": "進階：Debounce 毫秒數",
       "description": "停止輸入多久後在背景更新配對；游標移動不重新解析。",
-      "order": 220,
+      "order": 900,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.general.enabled": {

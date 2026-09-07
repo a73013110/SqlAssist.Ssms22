@@ -71,11 +71,11 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
                 var first = cache.Snapshot.GetLineFromPosition(pair.Span.Start);
                 var last = cache.Snapshot.GetLineFromPosition(pair.Span.End - 1);
                 if (first.LineNumber == last.LineNumber) continue;
-                yield return cache.Tags.GetOrAdd(pair, p => CreateTag(cache.Snapshot, p, first));
+                yield return cache.Tags.GetOrAdd(pair, p => CreateTag(cache.Snapshot, p, first, cache.Settings.BlockOutlining));
             }
     }
 
-    private static ITagSpan<IStructureTag> CreateTag(ITextSnapshot snapshot, BlockPair pair, ITextSnapshotLine header)
+    private static ITagSpan<IStructureTag> CreateTag(ITextSnapshot snapshot, BlockPair pair, ITextSnapshotLine header, bool outlining)
     {
         var span = new Span(pair.Span.Start, pair.Span.Length);
         var summary = BlockContextText.Summarize(snapshot.GetText(header.Start.Position,
@@ -83,9 +83,9 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
         var tag = new StructureTag(snapshot,
             outliningSpan: Span.FromBounds(header.End.Position, span.End),
             headerSpan: header.Extent.Span, guideLineSpan: span, guideLineHorizontalAnchor: span.Start,
-            type: pair.Kind is BlockKind.Case or BlockKind.Parenthesis or BlockKind.Bracket
+            type: pair.Kind == BlockKind.Case || BlockDisplayRules.IsSymbol(pair.Kind)
                 ? PredefinedStructureTagTypes.Expression : PredefinedStructureTagTypes.Statement,
-            isCollapsible: true, isDefaultCollapsed: false, isImplementation: false,
+            isCollapsible: outlining, isDefaultCollapsed: false, isImplementation: false,
             collapsedForm: "…", collapsedHintForm: $"{summary}（第 {header.LineNumber + 1} 行）");
         return new TagSpan<IStructureTag>(new SnapshotSpan(snapshot, span), tag);
     }
@@ -103,6 +103,7 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
             _analysis.Snapshot is { } snapshot && _analysis.Matcher is { } matcher)
         {
             if (_cache is { } old && old.Snapshot == snapshot &&
+                old.Settings.BlockOutlining == settings.BlockOutlining &&
                 old.Settings.BlockMatchCase == settings.BlockMatchCase &&
                 old.Settings.BlockMatchParentheses == settings.BlockMatchParentheses) return;
             next = new Cache(snapshot, matcher, settings);

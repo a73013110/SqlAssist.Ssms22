@@ -33,6 +33,15 @@ public sealed class BlockMatcher
             var token = tokens[i];
             bool Next(string word, int offset = 1) => i + offset < tokens.Count && tokens[i + offset].IsKeyword(word);
             if (token.IsKeyword("GO")) { stack.Clear(); continue; }
+            if (token.Kind == SqlTokenKind.String)
+            {
+                // ScriptDom 已辨認完整字串與跳脫；只取外框，不掃描內容中的引號或 SQL。
+                var quote = token.Text.Length > 0 && token.Text[0] == '\'' ? 0 : 1;
+                if (token.Text.Length >= quote + 2 && token.Text[quote] == '\'' && token.Text[token.Text.Length - 1] == '\'')
+                    pairs.Add(new BlockPair(BlockKind.String,
+                        new[] { new BlockSpan(token.Start + quote, 1) }, new[] { new BlockSpan(token.End - 1, 1) }));
+                continue;
+            }
             if (token.IsQuoted && token.Text.Length >= 2 && token.Text[0] == '[' && token.Text[token.Text.Length - 1] == ']')
             {
                 pairs.Add(new BlockPair(BlockKind.Bracket,
@@ -116,6 +125,22 @@ public sealed class BlockMatcher
         var result = new List<BlockPair>();
         for (var pair = GetEnclosingBlock(position); pair is not null; pair = _parents[pair]) result.Add(pair);
         return result.AsReadOnly();
+    }
+
+    /// <summary>直接沿父索引找第一個符合者；游標路徑不配置整份祖先清單。</summary>
+    public BlockPair? FindEnclosingBlock(int position, Func<BlockPair, bool> accepts)
+    {
+        if (accepts is null) throw new ArgumentNullException(nameof(accepts));
+        return FindEnclosingBlock(position, accepts, static (pair, filter) => filter(pair));
+    }
+
+    /// <summary>將篩選狀態以值傳入，避免每次游標查詢都建立捕捉設定的閉包。</summary>
+    public BlockPair? FindEnclosingBlock<TState>(int position, TState state, Func<BlockPair, TState, bool> accepts)
+    {
+        if (accepts is null) throw new ArgumentNullException(nameof(accepts));
+        for (var pair = GetEnclosingBlock(position); pair is not null; pair = _parents[pair])
+            if (accepts(pair, state)) return pair;
+        return null;
     }
 
     /// <summary>只列出與半開區間重疊的區塊；供可視區域取 Tag，不遍歷整份文件。</summary>

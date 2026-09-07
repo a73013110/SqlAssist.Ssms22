@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace SqlAssist.Core.Parsing;
 
-public enum BlockKind { Block, Try, Catch, Case, Parenthesis, Bracket }
+public enum BlockKind { Block, Try, Catch, Case, Parenthesis, Bracket, String }
 
 /// <summary>半開區間；複合端點分成詞元，註解與空白不算關鍵字。</summary>
 public readonly struct BlockSpan

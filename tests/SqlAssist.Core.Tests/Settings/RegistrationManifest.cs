@@ -116,11 +116,10 @@ internal sealed class RegistrationSetting
             case "string":
             {
                 var value = declared.GetString()!;
-                var alternate = declaration
-                    .GetProperty("enum")
+                var alternate = declaration.TryGetProperty("enum", out var choices) ? choices
                     .EnumerateArray()
                     .Select(item => item.GetString()!)
-                    .First(item => item != value);
+                    .First(item => item != value) : value == "#4F86C6" ? "#8050B0" : "#4F86C6";
 
                 return new RegistrationSetting(moniker, value, alternate);
             }

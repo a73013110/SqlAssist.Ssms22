@@ -27,6 +27,8 @@
   <ItemGroup>
     <!-- 直接參考 SSMS 22 的 18.x 編輯器介面，避免以 VS 17 組件編譯後發生版本不符。 -->
     <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
     <Reference Include="Microsoft.VisualStudio.CoreUtility">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.CoreUtility.dll</HintPath>
       <Private>false</Private>

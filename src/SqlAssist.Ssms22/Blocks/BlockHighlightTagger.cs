@@ -33,7 +33,6 @@ internal sealed class BlockHighlightProvider : IViewTaggerProvider
 
 internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
 {
-    private static readonly TextMarkerTag Highlight = new("bracehighlight");
     private static readonly TextMarkerTag Range = new(BlockRangeFormat.FormatName);
     private readonly IWpfTextView _view;
     private readonly BlockViewState _state;
@@ -57,12 +56,12 @@ internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
 
     public IEnumerable<ITagSpan<TextMarkerTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
-        // 此路徑只讀至多四個端點與一段背景，絕不取全文或啟動同步解析。
+        // 此路徑只讀一段背景，絕不取全文或啟動同步解析；端點分類由共用狀態另行提供。
         var tags = _tags;
         if (!_reportedTags && tags.Length > 0)
         {
             _reportedTags = true;
-            SqlAssistDiagnostics.WriteAlways($"區塊 GetTags 首次提供 {tags.Length} 個端點；要求範圍 {spans.Count}");
+            SqlAssistDiagnostics.Write($"區塊背景 GetTags 首次提供 {tags.Length} 段範圍；要求範圍 {spans.Count}");
         }
         foreach (var tag in tags)
             if (spans.Count > 0 && tag.Span.Snapshot == spans[0].Snapshot && spans.IntersectsWith(tag.Span))
@@ -80,14 +79,11 @@ internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
         if (_disposed || _view.IsClosed) return;
         var snapshot = _view.TextSnapshot;
         var settings = _state.Settings;
-        var pair = _state.Snapshot == snapshot ? _state.SelectedPair : null;
+        var pair = _state.Snapshot == snapshot ? _state.RangePair : null;
 
-        var nextTags = new List<ITagSpan<TextMarkerTag>>(5);
+        var nextTags = new List<ITagSpan<TextMarkerTag>>(1);
         if (pair is not null)
         {
-            if (settings.BlockKeywordHighlight)
-                foreach (var span in pair.Opening.Concat(pair.Closing))
-                    nextTags.Add(new TagSpan<TextMarkerTag>(new SnapshotSpan(snapshot, span.Start, span.Length), Highlight));
             var sameLine = snapshot.GetLineNumberFromPosition(pair.Span.Start) ==
                 snapshot.GetLineNumberFromPosition(pair.Span.End - 1);
             if (BlockDisplayRules.ShowRange(settings, sameLine, SystemParameters.HighContrast))
@@ -97,7 +93,7 @@ internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
         var previous = _tags;
         if (previous.Length == next.Length && previous.Select(t => (t.Span, t.Tag.Type)).SequenceEqual(next.Select(t => (t.Span, t.Tag.Type)))) return;
         _tags = next;
-        // 只失效新舊端點，而不是每次游標移動都讓整份文件重新取 Tag。
+        // 只失效新舊區間，而不是每次游標移動都讓整份文件重新取 Tag。
         foreach (var tag in previous.Concat(next))
             TagsChanged?.Invoke(this, new SnapshotSpanEventArgs(tag.Span.TranslateTo(snapshot, SpanTrackingMode.EdgeExclusive)));
     }

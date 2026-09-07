@@ -6,13 +6,30 @@ namespace SqlAssist.Core.Tests.Parsing;
 
 public sealed class BlockContextTextTests
 {
-    [Fact]
-    public void BEGIN自成一行時保留前一行條件() =>
-        Assert.Equal("↑ BEGIN（第 42 行） IF 1 = 1", BlockContextText.Format(BlockKind.Block, 42, "  BEGIN", " IF 1 = 1 "));
+    [Theory]
+    [InlineData(BlockKind.Block, "  BEGIN", "BEGIN")]
+    [InlineData(BlockKind.Try, "begin try", "BEGIN TRY")]
+    [InlineData(BlockKind.Catch, " BEGIN CATCH ", "BEGIN CATCH")]
+    [InlineData(BlockKind.Case, "CASE", "CASE")]
+    public void 獨立關鍵字只顯示種類與行號(BlockKind kind, string opening, string name) =>
+        Assert.Equal($"↑ {name}（第 42 行）", BlockContextText.Format(kind, 42, opening));
 
     [Fact]
     public void 同行內容與種類均可辨認() =>
-        Assert.Equal("↑ CASE（第 3 行） SELECT CASE WHEN 1=1", BlockContextText.Format(BlockKind.Case, 3, "SELECT CASE WHEN 1=1", ""));
+        Assert.Equal("↑ CASE（第 3 行） SELECT CASE WHEN 1=1", BlockContextText.Format(BlockKind.Case, 3, "SELECT CASE WHEN 1=1"));
+
+    [Theory]
+    [InlineData("END TRY")]
+    [InlineData("IF 1 = 1")]
+    [InlineData("-- IF 1 = 1")]
+    [InlineData("GO")]
+    public void 前一行不是摘要的輸入(string preceding)
+    {
+        var sql = preceding + "\nBEGIN\nSELECT 1;\nEND";
+        var pair = new BlockMatcher(sql).GetEnclosingBlock(sql.IndexOf("SELECT", StringComparison.Ordinal))!;
+        var opening = sql.Substring(pair.Span.Start).Split('\n')[0];
+        Assert.Equal("↑ BEGIN（第 2 行）", BlockContextText.Format(pair.Kind, 2, opening));
+    }
 
     [Fact]
     public void 長行有界且不拆UTF16代理對()
@@ -25,7 +42,7 @@ public sealed class BlockContextTextTests
 
     [Fact]
     public void 行號必須為一基底() =>
-        Assert.Throws<ArgumentOutOfRangeException>(() => BlockContextText.Format(BlockKind.Block, 0, "BEGIN", ""));
+        Assert.Throws<ArgumentOutOfRangeException>(() => BlockContextText.Format(BlockKind.Block, 0, "BEGIN"));
 
     [Theory]
     [InlineData(0, "")]

@@ -20,8 +20,11 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeResourceSet.cs" Link="Product\UI\ThemeResourceSet.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeColorMath.cs" Link="Product\UI\ThemeColorMath.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemePalette.cs" Link="Product\UI\ThemePalette.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\BlockPalette.cs" Link="Product\UI\BlockPalette.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\EditorFormatChanges.cs" Link="Product\UI\EditorFormatChanges.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeRefreshQueue.cs" Link="Product\UI\ThemeRefreshQueue.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.cs" Link="Product\UI\SqlAssistChrome.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlDataGridText.cs" Link="Product\UI\SqlDataGridText.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Preview\SqlScriptDocument.cs" Link="Product\Preview\SqlScriptDocument.cs" />
   </ItemGroup>

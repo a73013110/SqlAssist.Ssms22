@@ -7,13 +7,19 @@ internal static class ThemeColorMath
 {
     /// <summary>圖形至少 3:1；向黑或白漸進調整，保留種類色相且不假設編輯器與殼層同色。</summary>
     public static Color EnsureGraphicContrast(Color candidate, Color background)
+        => EnsureMinimumContrast(candidate, background, 3);
+
+    public static Color EnsureTextContrast(Color candidate, Color background)
+        => EnsureMinimumContrast(candidate, background, 4.5);
+
+    private static Color EnsureMinimumContrast(Color candidate, Color background, double minimum)
     {
         candidate = Composite(candidate, background);
         var target = Contrast(Colors.Black, background) >= Contrast(Colors.White, background) ? Colors.Black : Colors.White;
         for (var step = 0; step <= 20; step++)
         {
             var color = Composite(Color.FromArgb((byte)Math.Round(255 * step / 20.0), target.R, target.G, target.B), candidate);
-            if (Contrast(color, background) >= 3) return color;
+            if (Contrast(color, background) >= minimum) return color;
         }
         return target;
     }

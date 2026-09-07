@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Parsing;
@@ -28,6 +27,7 @@ internal sealed class BlockViewState : IDisposable
     public BlockMatcher? Matcher { get; private set; }
     public BlockPair? SelectedPair { get; private set; }
     public BlockPair? ContextPair { get; private set; }
+    public BlockPair? RangePair { get; private set; }
     public event EventHandler<BlockChangedEventArgs>? Changed;
 
     public static BlockViewState Get(IWpfTextView view) =>
@@ -63,6 +63,7 @@ internal sealed class BlockViewState : IDisposable
         if (_disposed || _view.IsClosed) return;
         var oldSelected = SelectedPair;
         var oldContext = ContextPair;
+        var oldRange = RangePair;
         var oldSnapshot = Snapshot;
         var oldSettings = Settings;
         Settings = SqlAssistSettingsStore.Current;
@@ -72,12 +73,23 @@ internal sealed class BlockViewState : IDisposable
         var valid = Snapshot == position.Snapshot && Settings.Enabled && Settings.BlockMatchingEnabled;
         SelectedPair = valid ? Matcher?.FindPairAt(position.Position) : null;
         if (SelectedPair is { } selected && !BlockDisplayRules.IsKindEnabled(selected.Kind, Settings)) SelectedPair = null;
-        ContextPair = valid && Settings.BlockContextHint ? SelectedPair ?? Matcher?.GetEnclosingBlock(position.Position) : null;
-        if (ContextPair is { } context && !BlockDisplayRules.IsKindEnabled(context.Kind, Settings))
-            ContextPair = Matcher?.GetAncestors(position.Position).FirstOrDefault(p => BlockDisplayRules.IsKindEnabled(p.Kind, Settings));
+        ContextPair = valid && Matcher is { } matcher &&
+            (Settings.BlockContextHint || Settings.BlockGlyphs || Settings.BlockOverview || Settings.BlockRangeBackground)
+            ? SelectedPair ?? BlockDisplayRules.FindContext(matcher, position.Position, Settings) : null;
+        RangePair = null;
+        if (valid && Matcher is { } rangeMatcher && Settings.BlockRangeBackground)
+        {
+            bool Accepts(BlockPair pair) => Settings.BlockSameLineBackground ||
+                Snapshot!.GetLineNumberFromPosition(pair.Span.Start) != Snapshot.GetLineNumberFromPosition(pair.Span.End - 1);
+            // 最近「符合背景設定」的一層：同行括號關閉時仍保留外層 BEGIN 的背景。
+            RangePair = Settings.BlockRangeInside
+                ? ContextPair is { } context && Accepts(context) ? context : BlockDisplayRules.FindContext(rangeMatcher, position.Position, Settings, Accepts)
+                : SelectedPair is { } endpoint && Accepts(endpoint) ? endpoint : null;
+        }
 
         // 同一端點內移動或同區塊內打量文字，不讓六個呈現層重建相同內容。
         if (change == BlockChange.Caret && oldSelected == SelectedPair && oldContext == ContextPair &&
+            oldRange == RangePair &&
             oldSnapshot == Snapshot && ReferenceEquals(oldSettings, Settings)) return;
 
         if (Changed is not { } handlers) return;
@@ -101,5 +113,6 @@ internal sealed class BlockViewState : IDisposable
         Snapshot = null;
         SelectedPair = null;
         ContextPair = null;
+        RangePair = null;
     }
 }

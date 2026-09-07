@@ -76,8 +76,6 @@ public sealed class BlockMatcherTests
     }
 
     [Theory]
-    [InlineData("'BEGIN END ( ) [x]' -- CASE END\n/* BEGIN /* ( */ END */")]
-    [InlineData("N'BEGIN '' END' \"CASE END\"")]
     [InlineData("BEGIN")]
     [InlineData("END")]
     [InlineData("BEGIN TRY END CATCH")]
@@ -89,7 +87,7 @@ public sealed class BlockMatcherTests
     [InlineData(")")]
     [InlineData("BEGIN\nGO\nEND")]
     [InlineData("(\nGO\n)")]
-    public void 忽略註解字串與未配對殘留(string sql) => Assert.Empty(new BlockMatcher(sql).Pairs);
+    public void 忽略未配對殘留(string sql) => Assert.Empty(new BlockMatcher(sql).Pairs);
 
     [Fact]
     public void 方括號只配真正的外框()
@@ -109,7 +107,7 @@ public sealed class BlockMatcherTests
     [Fact]
     public void 字串不能把BEGIN和TRY串起來()
     {
-        Assert.Equal(BlockKind.Block, Assert.Single(new BlockMatcher("BEGIN 'x' TRY END").Pairs).Kind);
+        Assert.Equal(BlockKind.Block, new BlockMatcher("BEGIN 'x' TRY END").FindPairAt(0)!.Kind);
     }
 
     [Fact]

@@ -39,6 +39,12 @@ internal static class CommandIds
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
 
+    public const int PickBlockAccent = 0x0210;
+    public const int PickBlockKeywordForeground = 0x0211;
+    public const int PickBlockKeywordBackground = 0x0212;
+    public const int PickBlockSymbolForeground = 0x0213;
+    public const int PickBlockSymbolBackground = 0x0214;
+
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
     /// </summary>

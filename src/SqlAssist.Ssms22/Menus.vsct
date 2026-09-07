@@ -119,6 +119,32 @@
         <Strings><ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText></Strings>
       </Button>
 
+      <!-- 選色命令只從設定欄位旁啟動，不增加工具選單項目。 -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockAccent" priority="0x0300" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>選取 SqlAssist 區塊共用基準色</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordForeground" priority="0x0310" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>選取 SqlAssist 全域高亮預設前景色</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordBackground" priority="0x0320" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>選取 SqlAssist 全域高亮預設背景色</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolForeground" priority="0x0330" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>選取 SqlAssist 符號高亮前景色</ButtonText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolBackground" priority="0x0340" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings><ButtonText>選取 SqlAssist 符號高亮背景色</ButtonText></Strings>
+      </Button>
       <!-- 第一組：產出進剪貼簿，接下來要按的是 Ctrl+V。 -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
@@ -236,6 +262,11 @@
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
+      <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
+      <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
+      <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />
+      <IDSymbol name="cmdidPickBlockSymbolForeground" value="0x0213" />
+      <IDSymbol name="cmdidPickBlockSymbolBackground" value="0x0214" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />
