@@ -68,7 +68,7 @@
       "type": "string",
       "default": "",
       "title": "全域高亮預設前景色",
-      "description": "所有配對端點共用；符號可在其種類底下覆寫。留空自動配色，支援 #RRGGBB，並依背景校正文字對比。",
+      "description": "所有配對端點共用；符號可在其種類底下覆寫。有效 #RRGGBB 字色保持原值，必要時調整背景以維持可讀性；留空才自動選字色，高對比模式除外。",
       "order": 120,
       "enableWhen": "${config:sqlAssist.blocks.keywordHighlight} == 'true'",
       "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 529 } }]
@@ -86,7 +86,7 @@
       "type": "string",
       "default": "",
       "title": "符號高亮前景色（括號、方括號、字串引號）",
-      "description": "留空繼承全域高亮預設；支援 #RRGGBB，並校正文字對比。需開啟配對端點高亮才會顯示。",
+      "description": "有效 #RRGGBB 字色保持原值，必要時調整背景；留空繼承全域高亮預設，高對比模式除外。需開啟配對端點高亮才會顯示。",
       "order": 210,
       "enableWhen": "${config:sqlAssist.blocks.matchParentheses} == 'true'",
       "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 531 } }]
@@ -159,7 +159,7 @@
     },
     "sqlAssist.blocks.contextHint": {
       "type": "boolean",
-      "default": false,
+      "default": true,
       "title": "跨頁上下文提示",
       "description": "起始行已捲出畫面時顯示摘要；滑鼠移入呈現手形與連結色，點擊返回起始行，不占用鍵盤焦點或快捷鍵。",
       "order": 700,

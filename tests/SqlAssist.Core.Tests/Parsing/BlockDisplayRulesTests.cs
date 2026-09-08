@@ -7,7 +7,7 @@ namespace SqlAssist.Core.Tests.Parsing;
 public sealed class BlockDisplayRulesTests
 {
     [Fact]
-    public void 預設顯示最近區間與概覽但不啟用提示或重複摺疊()
+    public void 預設顯示最近區間概覽與提示但不啟用重複摺疊()
     {
         var settings = new SqlAssistSettings();
         Assert.True(settings.BlockRangeInside);
@@ -20,7 +20,7 @@ public sealed class BlockDisplayRulesTests
         Assert.False(settings.BlockOutlining);
         Assert.True(settings.BlockOverview);
         Assert.True(settings.BlockSameLineBackground);
-        Assert.False(settings.BlockContextHint);
+        Assert.True(settings.BlockContextHint);
     }
 
     [Fact]

@@ -90,6 +90,7 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
         properties[EditorFormatDefinition.BackgroundColorId] = fill.Color;
         properties[EditorFormatDefinition.BackgroundBrushId] = fill;
         _formats.SetProperties(name, properties);
+        SqlAssistDiagnostics.Write($"區塊端點配色 {name}：字色={ink.Color}，背景={fill.Color}");
     }
 
     private void Refresh()

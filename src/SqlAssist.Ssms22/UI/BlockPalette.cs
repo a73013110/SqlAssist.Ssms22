@@ -19,18 +19,20 @@ internal static class BlockPalette
         var graphic = highContrast ? text : ThemeColorMath.EnsureGraphicContrast(accent, background);
         var range = highContrast ? Colors.Transparent : Tint(graphic, background, text, 0.12);
         var hint = highContrast ? background : ThemeColorMath.Composite(Tint(graphic, background, text, 0.06), background);
-        var keyword = Endpoint(settings?.BlockKeywordForeground, settings?.BlockKeywordBackground);
+        var globalInk = ReadOptionalColor(settings?.BlockKeywordForeground);
+        var keyword = Endpoint(globalInk, settings?.BlockKeywordBackground);
         // 細項只覆寫指定通道；留空或無效值繼承全域「原始基準值」，再依實際背景校正。
-        var symbol = Endpoint(settings?.BlockSymbolForeground, settings?.BlockSymbolBackground,
-            ReadColor(settings?.BlockKeywordForeground, foreground), ReadColor(settings?.BlockKeywordBackground, accent));
+        var symbol = Endpoint(ReadOptionalColor(settings?.BlockSymbolForeground) ?? globalInk, settings?.BlockSymbolBackground,
+            ReadColor(settings?.BlockKeywordBackground, accent));
 
-        (Color Foreground, Color Background) Endpoint(string? foregroundPreference, string? backgroundPreference,
-            Color? defaultForeground = null, Color? defaultBackground = null)
+        (Color Foreground, Color Background) Endpoint(Color? explicitInk, string? backgroundPreference, Color? defaultBackground = null)
         {
             // 端點面積小，採實色高亮而非區間淡底；分類標籤才能改字色，marker 前景其實是框線。
             if (highContrast) return (background, text);
             var fill = ThemeColorMath.EnsureGraphicContrast(ReadColor(backgroundPreference, defaultBackground ?? accent), background);
-            var ink = ThemeColorMath.EnsureTextContrast(ReadColor(foregroundPreference, defaultForeground ?? foreground), fill);
+            if (explicitInk is { } requested)
+                return (requested, ThemeColorMath.EnsureBackgroundForText(fill, requested, background));
+            var ink = ThemeColorMath.EnsureTextContrast(foreground, fill);
             return (ink, fill);
         }
         return new Dictionary<ThemeBrush, Color>
@@ -53,8 +55,11 @@ internal static class BlockPalette
     }
 
     private static Color ReadColor(string? preference, Color fallback) =>
+        ReadOptionalColor(preference) ?? fallback;
+
+    private static Color? ReadOptionalColor(string? preference) =>
         SqlColorPreference.TryParseRgb(preference, out var rgb)
-            ? Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb) : fallback;
+            ? Color.FromRgb((byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb) : null;
 
     private static Color Tint(Color accent, Color background, Color text, double opacity)
     {

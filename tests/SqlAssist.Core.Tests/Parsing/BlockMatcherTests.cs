@@ -175,8 +175,12 @@ public sealed class BlockMatcherTests
     public void 游標熱路徑不為每次二分搜尋配置委派()
     {
         var matcher = new BlockMatcher("BEGIN SELECT (1) END");
-        _ = matcher.FindPairAt(0);
-        _ = matcher.GetEnclosingBlock(8);
+        // net10 的分層 JIT 可能在首次迴圈配置資料；先暖機，量測只針對穩態查詢配置。
+        for (var i = 0; i < 5000; i++)
+        {
+            _ = matcher.FindPairAt(0);
+            _ = matcher.GetEnclosingBlock(8);
+        }
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < 10000; i++)
         {

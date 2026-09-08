@@ -15,6 +15,39 @@ namespace SqlAssist.Ssms22.Tests.UI;
 
 public sealed class BlockPaletteTests
 {
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    [InlineData("mango")]
+    [InlineData("forest")]
+    public void 指定白字在全域與符號高亮都保持白色(string mode)
+    {
+        var shell = ThemePaletteTests.ColorsFor(mode);
+        foreach (var fill in new[] { "", "#FFFFFF", "#4F86C6", "#FFFF00", "#000000" })
+        {
+            var palette = BlockPalette.Create(shell[ThemeBrush.ListBackground], shell[ThemeBrush.ListForeground],
+                shell[ThemeBrush.AccentBorder], "#4F86C6", false,
+                new SqlAssistSettings { BlockKeywordForeground = "#FFFFFF", BlockKeywordBackground = fill, BlockSymbolBackground = fill });
+            Assert.Equal(Colors.White, palette[ThemeBrush.BlockKeywordForeground]);
+            Assert.Equal(Colors.White, palette[ThemeBrush.BlockSymbolForeground]);
+            Assert.True(ThemeColorMath.Contrast(Colors.White, palette[ThemeBrush.BlockKeywordBackground]) >= 4.5);
+            Assert.True(ThemeColorMath.Contrast(Colors.White, palette[ThemeBrush.BlockSymbolBackground]) >= 4.5);
+        }
+    }
+
+    [Fact]
+    public void 符號可獨立指定白字且低對比不改動指定RGB()
+    {
+        var palette = BlockPalette.Create(Colors.White, Colors.Black, Colors.Blue, "#4F86C6", false,
+            new SqlAssistSettings { BlockSymbolForeground = "#FFFFFF" });
+        Assert.Equal(Colors.White, palette[ThemeBrush.BlockSymbolForeground]);
+        var ink = Color.FromRgb(107, 107, 107);
+        var background = ThemeColorMath.EnsureBackgroundForText(Colors.Gray, ink, Color.FromRgb(188, 188, 188));
+        Assert.True(ThemeColorMath.Contrast(ink, background) >= 4.5);
+        // 此組顏色無法同時達到文字 4.5:1 及外部底色 3:1，應保留字色而非偷偷改字。
+        Assert.True(ThemeColorMath.Contrast(background, Color.FromRgb(188, 188, 188)) < 3);
+    }
+
     [Fact]
     public void 符號留空繼承全域且可單獨覆寫任一通道()
     {
@@ -35,7 +68,7 @@ public sealed class BlockPaletteTests
     [InlineData("dark")]
     [InlineData("mango")]
     [InlineData("forest")]
-    public void 端點前背景分開自訂且維持文字與編輯器對比(string mode)
+    public void 端點字色保持指定值並調整背景以維持可讀(string mode)
     {
         var shell = ThemePaletteTests.ColorsFor(mode);
         var settings = new SqlAssistSettings
@@ -46,12 +79,13 @@ public sealed class BlockPaletteTests
         var colors = BlockPalette.Create(shell[ThemeBrush.ListBackground], shell[ThemeBrush.ListForeground],
             shell[ThemeBrush.AccentBorder], "#4F86C6", false, settings);
         Assert.NotEqual(colors[ThemeBrush.BlockKeywordBackground], colors[ThemeBrush.BlockSymbolBackground]);
+        Assert.Equal(Colors.Yellow, colors[ThemeBrush.BlockKeywordForeground]);
+        Assert.Equal(Color.FromRgb(0, 0x22, 0xAA), colors[ThemeBrush.BlockSymbolForeground]);
         foreach (var pair in new[] { (ThemeBrush.BlockKeywordForeground, ThemeBrush.BlockKeywordBackground),
             (ThemeBrush.BlockSymbolForeground, ThemeBrush.BlockSymbolBackground) })
         {
             Assert.Equal((byte)255, colors[pair.Item2].A);
             Assert.True(ThemeColorMath.Contrast(colors[pair.Item1], colors[pair.Item2]) >= 4.5);
-            Assert.True(ThemeColorMath.Contrast(colors[pair.Item2], shell[ThemeBrush.ListBackground]) >= 3);
         }
     }
 
@@ -182,7 +216,8 @@ public sealed class BlockPaletteTests
                 var shell = ThemePaletteTests.ColorsFor(mode);
                 resources.Update(shell);
                 var palette = BlockPalette.Create(shell[ThemeBrush.ListBackground], shell[ThemeBrush.ListForeground],
-                    shell[ThemeBrush.AccentBorder], "#4F86C6", mode == "high-contrast");
+                    shell[ThemeBrush.AccentBorder], "#4F86C6", mode == "high-contrast",
+                    new SqlAssistSettings { BlockKeywordForeground = "#FFFFFF" });
                 resources.Update(palette);
                 var old = resources.Get(ThemeBrush.BlockRange);
                 resources.Update(palette);
@@ -204,6 +239,7 @@ public sealed class BlockPaletteTests
                     root.Dispatcher.Invoke(DispatcherPriority.ApplicationIdle, new Action(() => { }));
                     Assert.Same(resources.Get(ThemeBrush.BlockHintBackground), hint.Background);
                     Assert.Same(resources.Get(ThemeBrush.BlockHintForeground), text.Foreground);
+                    Assert.Equal(palette[ThemeBrush.BlockKeywordForeground], ((SolidColorBrush)sql.Inlines.FirstInline.Foreground).Color);
                     if (!render) continue;
                     var bitmap = new RenderTargetBitmap(width * dpi / 96, 136 * dpi / 96, dpi, dpi, PixelFormats.Pbgra32);
                     bitmap.Render(root);

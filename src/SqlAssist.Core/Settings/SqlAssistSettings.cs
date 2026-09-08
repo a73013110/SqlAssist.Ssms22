@@ -29,7 +29,7 @@ public sealed class SqlAssistSettings
     public bool BlockOutlining { get; init; }
     public bool BlockGlyphs { get; init; } = true;
     public bool BlockOverview { get; init; } = true;
-    public bool BlockContextHint { get; init; }
+    public bool BlockContextHint { get; init; } = true;
     public bool BlockSameLineBackground { get; init; } = true;
     public bool BlockMatchParentheses { get; init; } = true;
     public bool BlockMatchCase { get; init; } = true;

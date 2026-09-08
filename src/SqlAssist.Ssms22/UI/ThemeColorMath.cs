@@ -12,6 +12,27 @@ internal static class ThemeColorMath
     public static Color EnsureTextContrast(Color candidate, Color background)
         => EnsureMinimumContrast(candidate, background, 4.5);
 
+    /// <summary>固定使用者字色，優先同時滿足文字與外部底色對比；無法兼得時以文字可讀為先。</summary>
+    public static Color EnsureBackgroundForText(Color candidate, Color foreground, Color editorBackground)
+    {
+        candidate = Composite(candidate, editorBackground);
+        Color? readable = null;
+        // 有界搜尋只發生在配色變更，不進入游標、捲動或 GetTags 路徑。
+        for (var step = 0; step <= 20; step++)
+        {
+            for (var direction = 0; direction < 2; direction++)
+            {
+                var channel = direction == 0 ? (byte)0 : (byte)255;
+                var adjusted = Composite(Color.FromArgb((byte)Math.Round(255 * step / 20.0), channel, channel, channel), candidate);
+                if (Contrast(foreground, adjusted) < 4.5) continue;
+                readable ??= adjusted;
+                if (Contrast(adjusted, editorBackground) >= 3) return adjusted;
+            }
+        }
+        // 某些指定字色無法同時滿足兩個表面；不可為了背景辨識度把自訂白字改成黑字。
+        return readable ?? (Contrast(foreground, Colors.Black) >= Contrast(foreground, Colors.White) ? Colors.Black : Colors.White);
+    }
+
     private static Color EnsureMinimumContrast(Color candidate, Color background, double minimum)
     {
         candidate = Composite(candidate, background);
