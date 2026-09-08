@@ -40,13 +40,14 @@ internal sealed class SqlSnippetSurroundPicker
     private SqlSnippetSurroundPicker(
         IWpfTextView view,
         IReadOnlyList<SqlSnippet> snippets,
+        int selectedIndex,
         Action<SqlSnippet> chosen)
     {
         _view = view;
         _chosen = chosen;
 
         var metrics = SqlAssistChrome.DefaultMetrics;
-        _list = CreateList(snippets, metrics);
+        _list = CreateList(snippets, selectedIndex, metrics);
 
         var layout = new StackPanel { Margin = new Thickness(8) };
         layout.Children.Add(_list);
@@ -94,13 +95,19 @@ internal sealed class SqlSnippetSurroundPicker
     /// 回呼而不是回傳選取結果：清單是非模態的，答案要等使用者按鍵之後才有，
     /// 而呼叫端此時已經把選取範圍存成追蹤範圍，等得起。
     /// </remarks>
+    /// <param name="selectedIndex">
+    /// 預先選起來的那一筆，由 <see cref="SqlSnippetSurroundHistory"/> 決定。
+    /// 這裡只負責夾範圍：清單順序是設定檔的順序，而「第一筆」不該因為別的分類
+    /// 多了一筆可包夾的片段就換人。
+    /// </param>
     public static void Show(
         IWpfTextView view,
         SnapshotPoint anchor,
         IReadOnlyList<SqlSnippet> snippets,
+        int selectedIndex,
         Action<SqlSnippet> chosen)
     {
-        var picker = new SqlSnippetSurroundPicker(view, snippets, chosen);
+        var picker = new SqlSnippetSurroundPicker(view, snippets, selectedIndex, chosen);
         picker.Open(anchor);
     }
 
@@ -115,10 +122,22 @@ internal sealed class SqlSnippetSurroundPicker
 
         // 開啟之後才拿得到容器；焦點要落在項目上，方向鍵才由清單處理而不是編輯器。
         _list.UpdateLayout();
+
+        // 預選的那一筆不見得在第一頁：清單超過高度就會捲動，而選在畫面外
+        // 等於使用者看不出 Enter 會拿到什麼。
+        if (_list.SelectedItem is not null)
+        {
+            _list.ScrollIntoView(_list.SelectedItem);
+            _list.UpdateLayout();
+        }
+
         Keyboard.Focus(_list.SelectedItem as ListBoxItem ?? (IInputElement)_list);
     }
 
-    private ListBox CreateList(IReadOnlyList<SqlSnippet> snippets, SqlAssistChrome.Metrics metrics)
+    private ListBox CreateList(
+        IReadOnlyList<SqlSnippet> snippets,
+        int selectedIndex,
+        SqlAssistChrome.Metrics metrics)
     {
         var list = new ListBox
         {
@@ -146,7 +165,9 @@ internal sealed class SqlSnippetSurroundPicker
             list.Items.Add(item);
         }
 
-        list.SelectedIndex = 0;
+        list.SelectedIndex = list.Items.Count == 0
+            ? -1
+            : Math.Min(Math.Max(selectedIndex, 0), list.Items.Count - 1);
         list.PreviewKeyDown += OnListKeyDown;
         list.PreviewTextInput += OnListTextInput;
         return list;

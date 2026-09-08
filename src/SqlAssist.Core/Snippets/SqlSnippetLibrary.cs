@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Snippets;
 
@@ -100,6 +101,16 @@ public sealed class SqlSnippetLibrary
                 error = $"捷徑只能用字母、數字與底線，不能有「{character}」。";
                 return false;
             }
+        }
+
+        // 與 T-SQL 關鍵字撞名的捷徑會把那個字本身吃掉。展開器比對的是游標前方的
+        // 那一個詞元，而使用者打 SELECT 時要的多半是關鍵字本身——分不出來的位置
+        // 不該由片段贏走。內建片段用 cs、be、ifb 讓開這一條，自訂的走同一份規則——
+        // 規則只有這一份，管理介面的存檔檢查也是呼叫這裡。
+        if (SqlKeywordCatalog.TryGetCanonical(shortcut!, out var keyword))
+        {
+            error = $"捷徑不能與 T-SQL 關鍵字「{keyword}」同名。";
+            return false;
         }
 
         if (!string.Equals(shortcut, allowedExisting, StringComparison.OrdinalIgnoreCase) &&

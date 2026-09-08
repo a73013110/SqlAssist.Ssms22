@@ -65,6 +65,27 @@ public sealed class SqlSnippetSurroundTests
         Assert.Equal("SELECT 1;\nSELECT 2;", SqlSnippetSurround.Reindent("SELECT 1;\rSELECT 2;", ""));
     }
 
+    /// <remarks>
+    /// 錨點出現兩次時選取的內容會被複製兩份。內建片段有
+    /// <c>SqlSnippetDefaultsTests.包夾欄位在樣板裡只出現一次</c> 守著，而使用者
+    /// 自己寫的樣板原本沒有人擋——症狀要等到某一次 Ctrl+K, Ctrl+S 才發作，
+    /// 那時看到的是「包完之後多了一份一樣的程式碼」。這一份規則因此在 Core，
+    /// 管理介面存檔前呼叫同一個。
+    /// </remarks>
+    [Theory]
+    [InlineData("BEGIN\n    $surround$\nEND", true)]
+    [InlineData("IF $condition$\nBEGIN\n    $surround$\nEND", true)]
+    [InlineData("SELECT 1;", true)]
+    [InlineData("", true)]
+    [InlineData(null, true)]
+    [InlineData("BEGIN\n    $surround$\nEND\nELSE\nBEGIN\n    $surround$\nEND", false)]
+    [InlineData("$SURROUND$ $surround$", false)]
+    public void 包夾錨點最多只能出現一次(string? code, bool expected)
+    {
+        Assert.Equal(expected, SqlSnippetPlaceholders.ValidateSurroundAnchor(code, out var error));
+        Assert.Equal(expected, error.Length == 0);
+    }
+
     [Fact]
     public void 沒有選取內容時是空字串()
     {

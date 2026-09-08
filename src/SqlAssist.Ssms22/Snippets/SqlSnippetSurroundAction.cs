@@ -93,7 +93,13 @@ internal static class SqlSnippetSurroundAction
             view,
             target.Start,
             candidates,
-            snippet => Insert(view, buffer, tracking, expected, surroundText, snippet));
+            SqlSnippetSurroundHistory.PreferredIndex(candidates),
+            snippet =>
+            {
+                // 選定了才記：按 Esc 取消的那一次不算用過。
+                SqlSnippetSurroundHistory.Record(snippet);
+                Insert(view, buffer, tracking, expected, surroundText, snippet);
+            });
 
         message = string.Empty;
         return true;
@@ -109,6 +115,8 @@ internal static class SqlSnippetSurroundAction
     /// <summary>這一輪清單裡可以包夾的片段，維持設定檔的順序。</summary>
     /// <remarks>
     /// 不重新排名：包夾清單只有幾筆，而使用者記得的是它們在管理介面裡的順序。
+    /// 預選哪一筆由 <see cref="SqlSnippetSurroundHistory"/> 回答，因此新增一筆可包夾
+    /// 的片段不會換掉「開起來按 Enter」會拿到的那一筆。
     /// 危險片段的規則也不適用——那條規則管的是「沒有輸入前綴時不主動顯示」，
     /// 而這份清單是使用者自己按鍵叫出來的。
     /// </remarks>

@@ -4,7 +4,7 @@
 
 內建定義只有一份：
 `src/SqlAssist.Core/Snippets/DefaultSnippets.json`，以 Embedded Resource 隨 VSIX 發布。
-不要把 45 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
+不要把 49 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
 
 使用者檔位於 `%APPDATA%\SqlAssist\snippets.json`，v2 只存：
 

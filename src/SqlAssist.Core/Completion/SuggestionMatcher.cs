@@ -382,7 +382,7 @@ public static class SuggestionMatcher
     /// </summary>
     /// <remarks>
     /// 關鍵字、內建函式與 Snippet 各自帶著旗標比對。Snippet 在只有三筆時也是 Any，
-    /// 擴充到 45 筆後必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單
+    /// 擴充到 49 筆後必須共用這套過濾，否則 CREATE TABLE 會出現在 SELECT 欄位清單
     /// 中間；內建函式一起收在這裡的理由相同：語句開頭與 DDL 物件位置不該冒出
     /// <c>COUNT</c>。
     ///

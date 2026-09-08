@@ -1055,6 +1055,16 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
                     return false;
                 }
 
+                // 包夾錨點重複要擋在寫進檔案之前。放行的話症狀要等到某一次
+                // Ctrl+K, Ctrl+S 才發作，而那時看到的是「包完之後多了一份一樣的
+                // 程式碼」，沒有人會回頭懷疑樣板。
+                if (!SqlSnippetPlaceholders.ValidateSurroundAnchor(draft.Code, out var anchorError))
+                {
+                    invalid = draft;
+                    error = $"「{draft.Caption}」{anchorError}";
+                    return false;
+                }
+
                 taken.Add(shortcut);
             }
 

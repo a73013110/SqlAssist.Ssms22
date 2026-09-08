@@ -156,10 +156,10 @@
       "description": "建立預存程序",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE PROCEDURE $procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $body$\nEND$end$;",
+      "code": "-- =============================================\n-- Author:\t\t\n-- Create date: \n-- Description:\t\n-- =============================================\nCREATE PROCEDURE $procedure$\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    $surround$\nEND$end$;",
       "placeholders": [
         { "id": "procedure", "default": "dbo.ProcedureName", "tooltip": "預存程序名稱；可含結構描述" },
-        { "id": "body", "default": "SELECT 1;", "tooltip": "程序內容" }
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "程序內容" }
       ]
     },
     {
@@ -328,6 +328,20 @@
       "code": "ROLLBACK TRANSACTION;$end$"
     },
     {
+      "id": "builtin.ifb",
+      "category": "controlFlow",
+      "shortcut": "ifb",
+      "title": "IF",
+      "description": "條件成立時執行區塊",
+      "expansionMode": "tabStops",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": "IF $condition$\nBEGIN\n    $surround$\nEND$end$",
+      "placeholders": [
+        { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
+      ]
+    },
+    {
       "id": "builtin.ife",
       "category": "controlFlow",
       "shortcut": "ife",
@@ -428,6 +442,19 @@
       "code": "SET XACT_ABORT ON;\n\nBEGIN TRY\n    BEGIN TRANSACTION;\n\n    $surround$\n\n    COMMIT TRANSACTION;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0\n        ROLLBACK TRANSACTION;\n\n    THROW;\nEND CATCH$end$;",
       "placeholders": [
         { "id": "surround", "default": "SELECT 1;", "tooltip": "交易內容" }
+      ]
+    },
+    {
+      "id": "builtin.trr",
+      "category": "controlFlow",
+      "shortcut": "trr",
+      "title": "交易試跑",
+      "description": "在交易裡試跑後回復；確認無誤再改成 COMMIT",
+      "expansionMode": "tabStops",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": "BEGIN TRANSACTION;\n\n$surround$\n\n-- 確認結果無誤後改成 COMMIT TRANSACTION;\nROLLBACK TRANSACTION;$end$",
+      "placeholders": [
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "要試跑的內容" }
       ]
     },
 
@@ -548,6 +575,34 @@
         { "id": "cte", "default": "cte", "tooltip": "CTE 名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "欄位名稱" },
         { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" }
+      ]
+    },
+    {
+      "id": "builtin.wcte",
+      "category": "clause",
+      "shortcut": "wcte",
+      "title": "包成 CTE",
+      "description": "把查詢放進 CTE 再查詢",
+      "expansionMode": "tabStops",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": ";WITH $cte$ AS\n(\n    $surround$\n)\nSELECT *\nFROM $cte$$end$;",
+      "placeholders": [
+        { "id": "cte", "default": "cte", "tooltip": "CTE 名稱；相同名稱會同步" },
+        { "id": "surround", "default": "SELECT * FROM dbo.TableName", "tooltip": "CTE 的查詢內容" }
+      ]
+    },
+    {
+      "id": "builtin.wdt",
+      "category": "clause",
+      "shortcut": "wdt",
+      "title": "包成衍生資料表",
+      "description": "把查詢放進 FROM 的子查詢",
+      "expansionMode": "tabStops",
+      "positions": ["StatementStart", "BlockStart"],
+      "code": "SELECT *\nFROM\n(\n    $surround$\n) AS $alias$$end$;",
+      "placeholders": [
+        { "id": "surround", "default": "SELECT * FROM dbo.TableName", "tooltip": "子查詢內容" },
+        { "id": "alias", "default": "t", "tooltip": "衍生資料表別名" }
       ]
     },
     {

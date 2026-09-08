@@ -139,6 +139,30 @@ public sealed class SqlSnippetTests
         Assert.Equal(expected, library.ValidateShortcut(shortcut, allowedExisting: null, out _));
     }
 
+    /// <remarks>
+    /// 與關鍵字撞名的捷徑會把那個字本身吃掉：使用者打 <c>select</c> 想要的多半是
+    /// 關鍵字，而展開器分不出這一次要的是哪一個。內建片段用 <c>cs</c>、<c>be</c>、
+    /// <c>ifb</c> 讓開這一條路，而那條規則原本只有內建片段的守門測試在管——
+    /// 使用者自己在管理介面加一筆 <c>select</c> 沒有人擋。規則因此放在
+    /// <see cref="SqlSnippetLibrary.ValidateShortcut"/>，管理介面存檔時走的正是它。
+    /// </remarks>
+    [Theory]
+    [InlineData("select")]
+    [InlineData("BEGIN")]
+    [InlineData("while")]
+    [InlineData("Case")]
+    public void 捷徑不能與T_SQL關鍵字撞名(string shortcut)
+    {
+        Assert.False(
+            SqlSnippetDefaults.Current.ValidateShortcut(shortcut, allowedExisting: null, out var error));
+        Assert.Contains("關鍵字", error);
+
+        // 連「這一筆本來就叫這個名字」也擋：舊檔帶進來的撞名要修掉，
+        // 放行等於讓它繼續吃掉那個關鍵字。
+        Assert.False(
+            SqlSnippetDefaults.Current.ValidateShortcut(shortcut, allowedExisting: shortcut, out _));
+    }
+
     [Fact]
     public void 編輯既有項目時不會被自己的捷徑擋下來()
     {

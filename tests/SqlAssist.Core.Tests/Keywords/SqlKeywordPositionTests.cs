@@ -257,7 +257,7 @@ public sealed class SqlKeywordPositionTests
     /// </summary>
     /// <remarks>
     /// 這四處以前一律回 <see cref="SqlKeywordPosition.Any"/>，於是 191 個關鍵字與
-    /// 45 筆片段全部進場：同一組候選、同一個前綴 <c>C</c>，<c>SELECT C</c> 只有
+    /// 49 筆片段全部進場：同一組候選、同一個前綴 <c>C</c>，<c>SELECT C</c> 只有
     /// 62 筆而 <c>ORDER BY C</c> 有 118 筆，前 13 名全被捷徑以 <c>C</c> 開頭的片段
     /// 占滿。<c>Any</c> 是給「判不出來」用的，而分析器在這四處都判得出來。
     /// </remarks>

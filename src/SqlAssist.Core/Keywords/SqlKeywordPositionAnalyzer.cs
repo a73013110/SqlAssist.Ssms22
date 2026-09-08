@@ -343,7 +343,7 @@ public static class SqlKeywordPositionAnalyzer
     /// </summary>
     /// <remarks>
     /// 這三處以前一律回 <see cref="SqlKeywordPosition.Any"/>，代價是 191 個關鍵字與
-    /// 45 筆片段全部進場——使用者在 <c>ADD </c> 之後看到的是整個資料庫，而文法上
+    /// 49 筆片段全部進場——使用者在 <c>ADD </c> 之後看到的是整個資料庫，而文法上
     /// 對的只有九個字。
     ///
     /// 認的是「往回正好是 <c>ALTER TABLE</c> 加一個名稱單位」而不是「這份指令碼裡

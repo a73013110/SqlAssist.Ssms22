@@ -1,6 +1,6 @@
 # 程式碼片段
 
-內建 45 筆 SQL Server 2016 SP1 以上可用的片段；由
+內建 49 筆 SQL Server 2016 SP1 以上可用的片段；由
 `工具 → SqlAssist → 程式碼片段…` 增刪修，也可以從設定頁進入。
 
 | 分類 | 捷徑 |
@@ -8,15 +8,17 @@
 | SELECT | `ssf`、`st100`、`st1`、`ssc`、`sd` |
 | DML | `ii`、`ui`、`df`、`mg` |
 | DDL | `cdb`、`ctb`、`cv`、`cp`、`cf`、`ctf`、`cix`、`at`、`dt`、`ap`、`af`、`av`、`atr` |
-| 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
-| 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`sno`、`ptt` |
+| 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ifb`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn`、`trr` |
+| 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`wcte`、`wdt`、`sno`、`ptt` |
 
-流程控制那七筆另外可以**包住選取範圍**（Ctrl+K, Ctrl+S），規則見
-[片段包夾](snippet-surround.md)。
+`cp`、流程控制那一族與 `wcte`、`wdt` 共 12 筆可以**包住選取範圍**（Ctrl+K,
+Ctrl+S），規則見[片段包夾](snippet-surround.md)。`trr` 是把 `trn` 的 COMMIT 換成
+ROLLBACK 的試跑版；`wcte`、`wdt` 沒有選取時就是 CTE 與衍生資料表的骨架。
 
 `cf` 是純量函式、`ctf` 是內嵌資料表值函式——要記的是這一組**對比**而不是縮寫，
 所以只差「多回傳一張表」的那個 `t`。CASE 使用 `cs`、BEGIN…END 使用
-`be`，都不占用同名的 T-SQL 關鍵字。`ui`、`df`、`mg` 與 `dt` 標成危險片段：
+`be`、純 IF 使用 `ifb`，都不占用同名的 T-SQL 關鍵字；自訂片段存檔時由
+`SqlSnippetLibrary.ValidateShortcut` 走同一條規則擋下。`ui`、`df`、`mg` 與 `dt` 標成危險片段：
 沒有輸入任何前綴時不主動顯示，輸入捷徑或按下 Snippet 分類仍找得到。
 
 內建片段的識別碼統一使用 `builtin.<捷徑>`：`ctf` 是 `builtin.ctf`，`be` 是

@@ -135,6 +135,49 @@ public static class SqlSnippetPlaceholders
     }
 
     /// <summary>
+    /// 檢查包夾錨點在這一份樣板裡最多只出現一次。
+    /// </summary>
+    /// <remarks>
+    /// 出現兩次時，選取的內容會被<b>複製兩份</b>。同名欄位的同步是原生引擎用標記
+    /// 做的，而包夾這一格填進去之後已經不是欄位，沒有人會替它同步——症狀是包完
+    /// 之後多了一份一模一樣的程式碼，而樣板看起來完全合理。
+    ///
+    /// 內建片段由 <c>SqlSnippetDefaultsTests.包夾欄位在樣板裡只出現一次</c> 守著，
+    /// 這一份則是同一條規則對<b>使用者自己寫的樣板</b>那一半：管理介面存檔前呼叫，
+    /// 擋在寫進檔案之前，而不是等到某一次包夾才發作。
+    /// </remarks>
+    public static bool ValidateSurroundAnchor(string? code, out string error)
+    {
+        var count = 0;
+        var index = 0;
+
+        while (code is not null && index < code.Length)
+        {
+            if (code[index] != '$' || !TryReadMarker(code, index, out var name, out var end))
+            {
+                index++;
+                continue;
+            }
+
+            index = end;
+
+            if (IsNamed(name, SurroundId))
+            {
+                count++;
+            }
+        }
+
+        if (count > 1)
+        {
+            error = $"包夾錨點 ${SurroundId}$ 只能出現一次，這一份出現了 {count} 次。";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    /// <summary>
     /// 依程式碼重算佔位符清單，並保留使用者已經設定的預設值與說明。
     /// </summary>
     public static IReadOnlyList<SqlSnippetPlaceholder> Reconcile(
