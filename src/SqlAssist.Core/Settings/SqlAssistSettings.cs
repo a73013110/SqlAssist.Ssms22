@@ -207,6 +207,15 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.structure.hoverEnabled：滑鼠停留提示，與浮動預覽是兩個獨立的表面。</summary>
     public bool HoverEnabled { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.structure.builtInHelp：內建名稱的滑鼠停留說明。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="HoverEnabled"/> 分開，因為關掉它的理由不同：物件結構要查中繼資料，
+    /// 內建說明只查一份內嵌資料，不受連線與快取影響。已經熟記 T-SQL 的人只想關掉後者。
+    /// </remarks>
+    public bool BuiltInHelpEnabled { get; init; } = true;
+
     /// <summary>sqlAssist.structure.previewMode</summary>
     public SqlPreviewMode PreviewMode { get; init; } = SqlPreviewMode.Delay;
 

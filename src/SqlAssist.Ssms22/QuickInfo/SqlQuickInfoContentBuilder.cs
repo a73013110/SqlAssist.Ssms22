@@ -41,6 +41,14 @@ internal static class SqlQuickInfoContentBuilder
 
     private const string OpenStructureTooltip = "開啟浮動結構視窗：可捲動、可用滑鼠選取複製，Esc 關閉";
 
+    private const string OpenReferenceText = "開啟完整說明";
+
+    private const string OpenReferenceTooltip = "開啟浮動視窗：各引數查得到哪些值，可捲動也可以複製";
+
+    private const string OnlineDocsText = "線上文件";
+
+    private const string OnlineDocsTooltip = "以預設瀏覽器開啟 Microsoft Learn 上的說明";
+
     /// <param name="openStructure">
     /// 「開啟完整結構」要執行的動作；建議清單的說明面板沒有可點擊的地方，傳 null 即可。
     /// </param>
@@ -163,6 +171,95 @@ internal static class SqlQuickInfoContentBuilder
         if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
         {
             elements.Add(footer);
+        }
+
+        return Sections(elements);
+    }
+
+    /// <summary>
+    /// 內建名稱的提示：簽章、一行用途與一段範例。
+    /// </summary>
+    /// <remarks>
+    /// 與物件提示共用同一組元素與同一套留白，因此主題、字型與螢幕邊界都不必自己處理。
+    /// 簽章與範例走 <see cref="BuildCodeRuns"/>，著色出處與浮動預覽的指令碼分頁同一份。
+    /// </remarks>
+    /// <param name="openReference">
+    /// 「開啟完整說明」要執行的動作；沒有對照表、或說明面板沒有可點擊的地方時傳 null。
+    /// </param>
+    /// <param name="openDocs">線上文件要執行的動作；沒有文件位址時傳 null。</param>
+    public static ContainerElement BuildBuiltIn(
+        SqlBuiltInDoc doc,
+        Action? openReference = null,
+        Action? openDocs = null)
+    {
+        var caption = new List<object>
+        {
+            new ContainerElement(
+                ContainerElementStyle.Wrapped,
+                SqlIcons.GetImageElement(doc.Kind.ToSuggestionKind()),
+                Line(Title(doc.Name))),
+                Line(Comment(doc.Kind.GetDisplayName()))
+        };
+
+        var elements = new List<object> { new ContainerElement(ContainerElementStyle.Stacked, caption) };
+        var body = new List<object>();
+
+        if (doc.Signature.Length > 0)
+        {
+            body.Add(new ClassifiedTextElement(BuildCodeRuns(doc.Signature)));
+        }
+
+        // 說明是我們自己寫的一行，長度由 SqlBuiltInDocCatalogTests 守住；
+        // 這裡仍走同一份收斂，兩個表面的斷行與省略號才不會有兩套。
+        if (BuildDescription(doc.Summary) is { } summary)
+        {
+            body.Add(summary);
+        }
+
+        if (doc.Example.Length > 0)
+        {
+            var runs = new List<ClassifiedTextRun> { Comment("範例  ") };
+            runs.AddRange(BuildCodeRuns(doc.Example));
+            body.Add(new ClassifiedTextElement(runs));
+        }
+
+        if (body.Count > 0)
+        {
+            elements.Add(new ContainerElement(ContainerElementStyle.Stacked, body));
+        }
+
+        // 提示只給一眼看得完的份量：style 有十六個值，datepart 有十五個，
+        // 那是捲得動也選得起來的浮動視窗才裝得下的東西。
+        var footer = new List<ClassifiedTextRun>();
+
+        if (openReference is not null)
+        {
+            footer.Add(new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                OpenReferenceText,
+                openReference,
+                OpenReferenceTooltip,
+                ClassifiedTextRunStyle.Underline));
+        }
+
+        if (openDocs is not null)
+        {
+            if (footer.Count > 0)
+            {
+                footer.Add(Text("　"));
+            }
+
+            footer.Add(new ClassifiedTextRun(
+                PredefinedClassificationTypeNames.Identifier,
+                OnlineDocsText,
+                openDocs,
+                OnlineDocsTooltip,
+                ClassifiedTextRunStyle.Underline));
+        }
+
+        if (footer.Count > 0)
+        {
+            elements.Add(new ClassifiedTextElement(footer));
         }
 
         return Sections(elements);

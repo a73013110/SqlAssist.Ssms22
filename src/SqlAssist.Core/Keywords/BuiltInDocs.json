@@ -1,0 +1,460 @@
+{
+  "version": 1,
+  "tables": {
+    "dateStyles": {
+      "title": "style（日期時間）",
+      "columns": [
+        "style",
+        "格式",
+        "轉成 2026-09-08 21:30:00"
+      ],
+      "rows": [
+        [
+          "0",
+          "mon dd yyyy hh:miAM（預設）",
+          "Sep  8 2026  9:30PM"
+        ],
+        [
+          "1",
+          "mm/dd/yy（美式）",
+          "09/08/26"
+        ],
+        [
+          "3",
+          "dd/mm/yy（英法）",
+          "08/09/26"
+        ],
+        [
+          "12",
+          "yymmdd",
+          "260908"
+        ],
+        [
+          "23",
+          "yyyy-mm-dd（與語言無關）",
+          "2026-09-08"
+        ],
+        [
+          "101",
+          "mm/dd/yyyy（美式）",
+          "09/08/2026"
+        ],
+        [
+          "102",
+          "yyyy.mm.dd（ANSI）",
+          "2026.09.08"
+        ],
+        [
+          "103",
+          "dd/mm/yyyy（英法）",
+          "08/09/2026"
+        ],
+        [
+          "104",
+          "dd.mm.yyyy（德式）",
+          "08.09.2026"
+        ],
+        [
+          "108",
+          "hh:mi:ss（只有時間）",
+          "21:30:00"
+        ],
+        [
+          "111",
+          "yyyy/mm/dd（日式）",
+          "2026/09/08"
+        ],
+        [
+          "112",
+          "yyyymmdd（與語言無關）",
+          "20260908"
+        ],
+        [
+          "120",
+          "yyyy-mm-dd hh:mi:ss（ODBC，與語言無關）",
+          "2026-09-08 21:30:00"
+        ],
+        [
+          "121",
+          "yyyy-mm-dd hh:mi:ss.mmm",
+          "2026-09-08 21:30:00.000"
+        ],
+        [
+          "126",
+          "yyyy-mm-ddThh:mi:ss.mmm（ISO 8601）",
+          "2026-09-08T21:30:00.000"
+        ],
+        [
+          "127",
+          "同 126 再加 Z（UTC）",
+          "2026-09-08T21:30:00.000Z"
+        ]
+      ]
+    },
+    "numberStyles": {
+      "title": "style（數值）",
+      "columns": [
+        "style",
+        "適用型別",
+        "輸出"
+      ],
+      "rows": [
+        [
+          "0",
+          "money、smallmoney",
+          "沒有千分位，小數兩位：1234.50"
+        ],
+        [
+          "1",
+          "money、smallmoney",
+          "有千分位，小數兩位：1,234.50"
+        ],
+        [
+          "2",
+          "money、smallmoney",
+          "沒有千分位，小數四位：1234.5000"
+        ],
+        [
+          "0",
+          "float、real",
+          "最多 6 位，必要時用科學記號"
+        ],
+        [
+          "1",
+          "float、real",
+          "一律科學記號，8 位數"
+        ],
+        [
+          "2",
+          "float、real",
+          "一律科學記號，16 位數"
+        ]
+      ]
+    },
+    "formatStrings": {
+      "title": "常用格式字串",
+      "columns": [
+        "格式",
+        "說明",
+        "範例"
+      ],
+      "rows": [
+        [
+          "yyyy-MM-dd",
+          "年月日，月與日補零",
+          "2026-09-08"
+        ],
+        [
+          "yyyy/MM/dd HH:mm",
+          "24 小時制",
+          "2026/09/08 21:30"
+        ],
+        [
+          "yyyy年M月d日",
+          "自訂文字直接寫在格式裡",
+          "2026年9月8日"
+        ],
+        [
+          "d",
+          "短日期，隨文化特性改變",
+          "2026/9/8"
+        ],
+        [
+          "D",
+          "長日期，隨文化特性改變",
+          "2026年9月8日"
+        ],
+        [
+          "N0",
+          "千分位，不留小數",
+          "1,235"
+        ],
+        [
+          "N2",
+          "千分位，小數兩位",
+          "1,234.50"
+        ],
+        [
+          "C",
+          "貨幣，隨文化特性改變",
+          "NT$1,234.50"
+        ],
+        [
+          "P1",
+          "百分比，小數一位",
+          "12.3%"
+        ],
+        [
+          "0.##",
+          "小數最多兩位，尾端的零不留",
+          "1234.5"
+        ]
+      ]
+    }
+  },
+  "docs": [
+    {
+      "name": "CAST",
+      "kind": "function",
+      "summary": "把運算式轉成指定型別，轉不過去整句失敗（要容錯用 TRY_CAST）。型別寫在 AS 後面。",
+      "example": "SELECT CAST('2026-09-08' AS date)   -- 2026-09-08",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cast-and-convert-transact-sql"
+    },
+    {
+      "name": "CONVERT",
+      "kind": "function",
+      "summary": "把運算式轉成指定型別，並可用 style 決定日期與數值的格式。型別寫在最前面，與 CAST 的順序相反。",
+      "example": "SELECT CONVERT(varchar(10), GETDATE(), 120)   -- 2026-09-08（style 120 = ODBC）",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cast-and-convert-transact-sql",
+      "references": [
+        "dateStyles",
+        "numberStyles"
+      ]
+    },
+    {
+      "name": "TRY_CONVERT",
+      "kind": "function",
+      "summary": "與 CONVERT 相同，但轉不過去時回傳 NULL 而不是讓整句失敗。清洗來路不明的字串時用它。",
+      "example": "SELECT TRY_CONVERT(int, 'x')   -- NULL",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/try-convert-transact-sql",
+      "references": [
+        "dateStyles",
+        "numberStyles"
+      ]
+    },
+    {
+      "name": "ISNULL",
+      "kind": "function",
+      "summary": "第一個引數是 NULL 時改用第二個。回傳型別跟著第一個引數走，替代值可能因此被截斷。",
+      "example": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab'，不是 'abc'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/isnull-transact-sql"
+    },
+    {
+      "name": "COALESCE",
+      "kind": "function",
+      "summary": "回傳第一個不是 NULL 的值，個數不限。回傳型別取優先順序最高者，不像 ISNULL 會被截斷。",
+      "example": "SELECT COALESCE(NULL, NULL, 'abc')   -- 'abc'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/coalesce-transact-sql"
+    },
+    {
+      "name": "NULLIF",
+      "kind": "function",
+      "summary": "兩個值相等時回傳 NULL，否則回傳第一個。常用來把「0」變成 NULL 以避開除以零。",
+      "example": "SELECT 10 / NULLIF(0, 0)   -- NULL，不會拋出除以零",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/nullif-transact-sql"
+    },
+    {
+      "name": "IIF",
+      "kind": "function",
+      "summary": "只有兩個分支的 CASE 簡寫；條件成立回傳第二個引數，否則回傳第三個。兩個分支都會參與型別推導。",
+      "example": "SELECT IIF(1 > 2, '是', '否')   -- '否'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-iif-transact-sql"
+    },
+    {
+      "name": "DATEADD",
+      "kind": "function",
+      "summary": "在日期上加減一段時間，number 為負就往前。datepart 寫 DAY、MONTH 這類名稱，不加引號。",
+      "example": "SELECT DATEADD(DAY, -14, GETDATE())   -- 兩週前的同一時刻",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/dateadd-transact-sql",
+      "references": [
+        "datePart"
+      ]
+    },
+    {
+      "name": "DATEDIFF",
+      "kind": "function",
+      "summary": "兩個日期之間跨過幾個 datepart 邊界，不是「相差多久」——差 1 分鐘也可能算成跨了 1 天。",
+      "example": "SELECT DATEDIFF(DAY, '2026-09-08 23:59', '2026-09-09 00:01')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datediff-transact-sql",
+      "references": [
+        "datePart"
+      ]
+    },
+    {
+      "name": "DATEPART",
+      "kind": "function",
+      "summary": "取出日期的某一段，回傳整數。要文字（月份名、星期名）用 DATENAME。",
+      "example": "SELECT DATEPART(WEEKDAY, '2026-09-08')   -- 3（受 SET DATEFIRST 影響）",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datepart-transact-sql",
+      "references": [
+        "datePart"
+      ]
+    },
+    {
+      "name": "EOMONTH",
+      "kind": "function",
+      "summary": "該月最後一天；第二個引數是先加減幾個月。算月底區間不必自己處理 28、30、31 天。",
+      "example": "SELECT EOMONTH('2026-02-10')   -- 2026-02-28",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/eomonth-transact-sql"
+    },
+    {
+      "name": "FORMAT",
+      "kind": "function",
+      "summary": "依 .NET 格式字串把值排成文字，可指定文化特性。它每一列都要走一次 CLR，大量資料上比 CONVERT 慢得多。",
+      "example": "SELECT FORMAT(1234.5, 'N2', 'zh-TW')   -- 1,234.50",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/format-transact-sql",
+      "references": [
+        "formatStrings"
+      ]
+    },
+    {
+      "name": "CHARINDEX",
+      "kind": "function",
+      "summary": "找出子字串第一次出現的位置，從 1 起算；找不到回傳 0。要找的那一段寫在前面。",
+      "example": "SELECT CHARINDEX('-', 'ABC-123')   -- 4",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/charindex-transact-sql"
+    },
+    {
+      "name": "SUBSTRING",
+      "kind": "function",
+      "summary": "從第 start 個字元起取 length 個字元，start 從 1 起算。長度超出尾端不會出錯，只會取到結束為止。",
+      "example": "SELECT SUBSTRING('ABC-123', 5, 3)   -- '123'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/substring-transact-sql"
+    },
+    {
+      "name": "LEN",
+      "kind": "function",
+      "summary": "字串長度，但會忽略結尾的空白；要含空白或算位元組數用 DATALENGTH。",
+      "example": "SELECT LEN('ab  '), DATALENGTH('ab  ')   -- 2, 4",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/len-transact-sql"
+    },
+    {
+      "name": "STRING_AGG",
+      "kind": "function",
+      "summary": "把群組內的值串成一個字串。要指定順序就接 WITHIN GROUP (ORDER BY …)，否則順序不保證。",
+      "example": "SELECT STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo) FROM dbo.Cat_BookCopy",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/string-agg-transact-sql"
+    },
+    {
+      "name": "ROW_NUMBER",
+      "kind": "function",
+      "summary": "依 OVER 裡的排序給每一列連號，同分也不重號（要重號用 RANK）。ORDER BY 是必填。",
+      "example": "SELECT ROW_NUMBER() OVER (ORDER BY CopyNo DESC) FROM dbo.Cat_BookCopy",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/row-number-transact-sql"
+    },
+    {
+      "name": "NVARCHAR",
+      "kind": "dataType",
+      "example": "DECLARE @title nvarchar(200)   -- 不寫長度時預設 1，MAX 可放到 2 GB",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/nchar-and-nvarchar-transact-sql"
+    },
+    {
+      "name": "VARCHAR",
+      "kind": "dataType",
+      "example": "DECLARE @code varchar(20)   -- 存不了定序以外的字元，多語系請改用 NVARCHAR",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/char-and-varchar-transact-sql"
+    },
+    {
+      "name": "DECIMAL",
+      "kind": "dataType",
+      "example": "DECLARE @amount decimal(18, 2)   -- 18 位總長度，其中 2 位是小數",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/decimal-and-numeric-transact-sql"
+    },
+    {
+      "name": "DATETIME2",
+      "kind": "dataType",
+      "example": "DECLARE @at datetime2(3)   -- 括號裡是小數秒位數，預設 7",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/datetime2-transact-sql"
+    },
+    {
+      "name": "BIT",
+      "kind": "dataType",
+      "example": "DECLARE @isActive bit = 1   -- 字串 'TRUE'／'FALSE' 也轉得進來",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/bit-transact-sql"
+    },
+    {
+      "name": "UNIQUEIDENTIFIER",
+      "kind": "dataType",
+      "example": "DECLARE @id uniqueidentifier = NEWID()   -- 當叢集索引鍵會造成分頁分割",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/uniqueidentifier-transact-sql"
+    },
+    {
+      "name": "DATENAME",
+      "kind": "function",
+      "summary": "取出日期的某一段並回傳文字，結果隨語言設定改變；要整數用 DATEPART。",
+      "example": "SELECT DATENAME(MONTH, '2026-09-08')   -- 09（語言為英文時是 September）",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datename-transact-sql",
+      "references": [
+        "datePart"
+      ]
+    },
+    {
+      "name": "NOLOCK",
+      "kind": "tableHint",
+      "example": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- 同一列可能讀到兩次，也可能一次都沒讀到",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "READPAST",
+      "kind": "tableHint",
+      "example": "SELECT TOP (1) CopyNo FROM dbo.Copy WITH (READPAST, UPDLOCK)   -- 取一件沒有人在處理的",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "UPDLOCK",
+      "kind": "tableHint",
+      "example": "SELECT CopyNo FROM dbo.Copy WITH (UPDLOCK) WHERE CopyNo = 1   -- 先鎖住等一下要改的那列",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "INDEX",
+      "kind": "tableHint",
+      "example": "SELECT * FROM dbo.Loan WITH (INDEX(IX_Loan_ReaderId))   -- 括號裡是索引名稱或編號",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "RECOMPILE",
+      "kind": "queryHint",
+      "example": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (RECOMPILE)   -- 計畫不進快取",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "MAXDOP",
+      "kind": "queryHint",
+      "example": "SELECT COUNT(*) FROM dbo.LoanDetail OPTION (MAXDOP 1)   -- 0 是交給伺服器組態決定",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "OPTIMIZE FOR UNKNOWN",
+      "kind": "queryHint",
+      "example": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (OPTIMIZE FOR UNKNOWN)",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "FORCE ORDER",
+      "kind": "queryHint",
+      "example": "SELECT * FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo OPTION (FORCE ORDER)",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "@@ROWCOUNT",
+      "kind": "globalVariable",
+      "example": "UPDATE dbo.Loan SET LoanDate = SYSDATETIME(); SELECT @@ROWCOUNT   -- 下一個敘述就蓋掉它",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/rowcount-transact-sql"
+    },
+    {
+      "name": "@@ERROR",
+      "kind": "globalVariable",
+      "example": "IF @@ERROR <> 0 ROLLBACK TRANSACTION   -- 只反映上一個敘述，新寫的請用 TRY…CATCH",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/error-transact-sql"
+    },
+    {
+      "name": "@@IDENTITY",
+      "kind": "globalVariable",
+      "example": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- 觸發程序會帶偏 @@IDENTITY",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/identity-transact-sql"
+    },
+    {
+      "name": "@@TRANCOUNT",
+      "kind": "globalVariable",
+      "example": "BEGIN TRANSACTION; SELECT @@TRANCOUNT   -- 巢狀交易只有最外層的 COMMIT 真的認可",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/trancount-transact-sql"
+    },
+    {
+      "name": "@@FETCH_STATUS",
+      "kind": "globalVariable",
+      "example": "WHILE @@FETCH_STATUS = 0 FETCH NEXT FROM copies INTO @copyNo   -- 0 才是真的取到了",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/fetch-status-transact-sql"
+    }
+  ]
+}

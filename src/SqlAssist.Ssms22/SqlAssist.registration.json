@@ -388,6 +388,15 @@
       "description": "停在資料表、檢視、預存程序上時顯示欄位型別、NULL、主索引鍵等資訊。總開關在「一般」頁。",
       "additionalKeywords": [ "hover", "quick info", "tooltip", "工具提示", "欄位型別" ]
     },
+    "sqlAssist.structure.builtInHelp": {
+      "type": "boolean",
+      "default": true,
+      "order": 110,
+      "title": "滑鼠停留時顯示內建名稱的說明",
+      "description": "停在 CONVERT、DATEDIFF、NVARCHAR 這類內建名稱上時顯示引數順序、用途與一段範例。不查資料庫，沒有連線也看得到。",
+      "additionalKeywords": [ "內建函式", "built-in", "簽章", "signature", "範例", "CONVERT", "用法" ],
+      "enableWhen": "${config:sqlAssist.structure.hoverEnabled} == 'true'"
+    },
     "sqlAssist.structure.previewMode": {
       "type": "string",
       "default": "delay",

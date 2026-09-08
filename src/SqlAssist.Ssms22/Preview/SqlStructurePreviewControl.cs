@@ -12,6 +12,8 @@ using System.Windows.Media;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -70,6 +72,56 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     /// 會出現「握把改大了、門檻沒跟著改」這種看不出關聯的失準。
     /// </remarks>
     public const double GripSize = 16;
+
+    /// <summary>
+    /// 內建對照表的一列。
+    /// </summary>
+    /// <remarks>
+    /// 四個具名屬性而不是索引子：資料格的複製與空欄收合都靠繫結路徑反射屬性，
+    /// <c>[0]</c> 這種路徑在那條路上讀不出來，症狀是整張表複製出來一片空白。
+    /// </remarks>
+    private sealed class ReferenceRow
+    {
+        public ReferenceRow(IReadOnlyList<string> cells)
+        {
+            Cell1 = Cell(cells, 0);
+            Cell2 = Cell(cells, 1);
+            Cell3 = Cell(cells, 2);
+            Cell4 = Cell(cells, 3);
+        }
+
+        public string Cell1 { get; }
+
+        public string Cell2 { get; }
+
+        public string Cell3 { get; }
+
+        public string Cell4 { get; }
+
+        private static string Cell(IReadOnlyList<string> cells, int index) =>
+            index < cells.Count ? cells[index] : string.Empty;
+    }
+
+    /// <summary>
+    /// 一張內建對照表的分頁。
+    /// </summary>
+    /// <remarks>
+    /// 重複使用而不是每次顯示都建一組新的：建立資料格會連帶建立一份內容選單，
+    /// 而那份選單會被登記到 <c>_contextMenus</c> 裡跟著視窗一輩子。
+    /// 欄位標題與可見性每次重設，欄數上限是四。
+    /// </remarks>
+    private sealed class ReferenceTab
+    {
+        public ReferenceTab(TabItem item, DataGrid grid)
+        {
+            Item = item;
+            Grid = grid;
+        }
+
+        public TabItem Item { get; }
+
+        public DataGrid Grid { get; }
+    }
 
     private sealed class ColumnRow
     {
@@ -429,6 +481,12 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
 
     private readonly List<ContextMenu> _contextMenus = new();
 
+    /// <summary>內建對照表的分頁，依需要長出來之後就留著重複使用。</summary>
+    private readonly List<ReferenceTab> _referenceTabs = new();
+
+    /// <summary>目前畫的是內建說明而不是資料庫物件。</summary>
+    private SqlBuiltInDoc? _builtIn;
+
     /// <summary>目前顯示的結構；分頁按需填內容時要回頭讀它。</summary>
     private SqlObjectStructure? _structure;
 
@@ -735,6 +793,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         _structure = null;
         _scriptText = null;
         _populated.Clear();
+        LeaveBuiltIn();
         SetTitle(objectInfo);
         _summary.Text = objectInfo.Kind.ToDisplayName() + "　載入中…";
         SetDescription(null);
@@ -775,12 +834,149 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         });
     }
 
+    /// <summary>
+    /// 顯示一個內建名稱的完整說明：簽章、用途、範例，以及各引數的對照表。
+    /// </summary>
+    /// <remarks>
+    /// 與物件結構共用同一個視窗殼層、同一套擺放、縮放與複製。內容則完全不同：
+    /// 沒有查詢也沒有分層載入，資料是隨組件發布的一份，因此直接填完，不走
+    /// 「只填看得見的分頁」那條路——那條路省的是查詢與版面計算，而這裡兩者都沒有。
+    ///
+    /// 範例沿用指令碼分頁：那是同一個唯讀的著色文字框，換一個標題就是了。
+    /// 另外開一個一模一樣的控制項，只會多一份要跟著佈景主題更新的東西。
+    /// </remarks>
+    public void ShowBuiltIn(SqlBuiltInDoc doc)
+    {
+        _structure = null;
+        _builtIn = doc;
+        _populated.Clear();
+        ClearTabs();
+
+        _icon.Moniker = SqlIcons.GetMoniker(Kind(doc));
+        _icon.ToolTip = KindName(doc);
+        AutomationProperties.SetName(_icon, SqlIcons.GetImageElement(Kind(doc)).AutomationName);
+        _icon.Visibility = Visibility.Visible;
+
+        _title.Inlines.Clear();
+        _title.Inlines.Add(new Run(doc.Name) { FontWeight = FontWeights.SemiBold });
+
+        // 簽章排在名稱底下的摘要位置：那是使用者開這個視窗時第一個要看的東西，
+        // 而它與物件的「23 個欄位」佔的是同一個位置。
+        _summary.Text = doc.Signature.Length > 0 ? doc.Signature : KindName(doc);
+        SetDescription(doc.Summary);
+        _status.Text = string.Empty;
+
+        foreach (var tab in _gridTabs)
+        {
+            tab.Item.Visibility = Visibility.Collapsed;
+        }
+
+        _scriptText = doc.Example;
+        _scriptTab.Header = "範例";
+        _scriptTab.Visibility = Visible(doc.Example.Length > 0);
+
+        for (var index = 0; index < _referenceTabs.Count || index < doc.References.Count; index++)
+        {
+            var tab = EnsureReferenceTab(index);
+
+            if (index >= doc.References.Count)
+            {
+                tab.Item.Visibility = Visibility.Collapsed;
+                tab.Grid.ItemsSource = null;
+                continue;
+            }
+
+            FillReference(tab, doc.References[index]);
+        }
+
+        // 落在對照表而不是範例：使用者是從提示點進來的，那段範例他剛剛才看過，
+        // 而他要的是「style 到底有哪些」。沒有對照表時才退回範例。
+        _tabs.SelectedItem = _referenceTabs.Count > 0 && doc.References.Count > 0
+            ? _referenceTabs[0].Item
+            : FirstVisibleTab();
+
+        PopulateBuiltInTab();
+    }
+
+    /// <summary>對照表分頁不多也不大，建立時就填完；範例分頁沿用著色那一份。</summary>
+    private void PopulateBuiltInTab()
+    {
+        if (_tabs.SelectedItem is not TabItem tab || !ReferenceEquals(tab, _scriptTab))
+        {
+            return;
+        }
+
+        if (!_populated.Add(tab))
+        {
+            return;
+        }
+
+        _scriptTheme ??= new SqlScriptTheme(_view, _script);
+        _scriptTheme.EnsureCurrent();
+        _script.Document = SqlScriptDocument.Build(GetScript(), _scriptTheme.Resources);
+    }
+
+    private void FillReference(ReferenceTab tab, SqlBuiltInReference reference)
+    {
+        tab.Item.Header = reference.Title;
+        tab.Item.Visibility = Visibility.Visible;
+
+        for (var column = 0; column < tab.Grid.Columns.Count; column++)
+        {
+            var used = column < reference.Columns.Count;
+            tab.Grid.Columns[column].Header = used ? reference.Columns[column] : string.Empty;
+            tab.Grid.Columns[column].Visibility = Visible(used);
+        }
+
+        var rows = new List<ReferenceRow>(reference.Rows.Count);
+
+        foreach (var row in reference.Rows)
+        {
+            rows.Add(new ReferenceRow(row));
+        }
+
+        tab.Grid.ItemsSource = rows;
+    }
+
+    private ReferenceTab EnsureReferenceTab(int index)
+    {
+        if (index < _referenceTabs.Count)
+        {
+            return _referenceTabs[index];
+        }
+
+        var grid = CreateGrid(
+            (string.Empty, nameof(ReferenceRow.Cell1)),
+            new GridColumn(string.Empty, nameof(ReferenceRow.Cell2), GridColumn.TextWidth),
+            new GridColumn(string.Empty, nameof(ReferenceRow.Cell3), GridColumn.TextWidth),
+            new GridColumn(string.Empty, nameof(ReferenceRow.Cell4), GridColumn.TextWidth));
+
+        var item = new TabItem
+        {
+            Content = grid,
+            Template = SqlAssistChrome.CreateTabItemTemplate(),
+            Visibility = Visibility.Collapsed
+        };
+
+        _tabs.Items.Add(item);
+        var tab = new ReferenceTab(item, grid);
+        _referenceTabs.Add(tab);
+        return tab;
+    }
+
+    // 圖示與那一行種類文字與滑鼠停留提示共用同一份對照（SqlBuiltInKinds）：
+    // 兩個表面畫的是同一個名稱，分成兩份的症狀是改了一邊另一邊沒改。
+    private static SuggestionKind Kind(SqlBuiltInDoc doc) => doc.Kind.ToSuggestionKind();
+
+    private static string KindName(SqlBuiltInDoc doc) => doc.Kind.GetDisplayName();
+
     /// <summary>顯示一段訊息取代內容，例如沒有連線或這一項沒有結構。</summary>
     public void ShowMessage(string title, string message)
     {
         _structure = null;
         _scriptText = null;
         _populated.Clear();
+        LeaveBuiltIn();
 
         // 沒有物件語意的訊息不顯示圖示，避免誤認為未知種類的物件。
         _icon.Visibility = Visibility.Collapsed;
@@ -814,6 +1010,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         _structure = structure;
         _scriptText = null;
         _populated.Clear();
+        LeaveBuiltIn();
         SetTitle(structure.Object);
         // 切頁可能同步回報顯示失敗，不能在填入之後再把那句訊息清掉。
         _status.Text = string.Empty;
@@ -860,6 +1057,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         }
 
         PopulateSelectedTab();
+        PopulateBuiltInTab();
     }
 
     /// <summary>
@@ -974,6 +1172,30 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         _script.Document = new System.Windows.Documents.FlowDocument();
     }
 
+    /// <summary>
+    /// 換回資料庫物件那一組內容。
+    /// </summary>
+    /// <remarks>
+    /// 對照表分頁收掉、指令碼分頁的標題換回來。少了這一步的症狀是看過一次
+    /// <c>CONVERT</c> 之後，接下來每一個資料表都帶著一個「style（日期時間）」分頁。
+    /// </remarks>
+    private void LeaveBuiltIn()
+    {
+        if (_builtIn is null)
+        {
+            return;
+        }
+
+        _builtIn = null;
+        _scriptTab.Header = "指令碼";
+
+        foreach (var tab in _referenceTabs)
+        {
+            tab.Item.Visibility = Visibility.Collapsed;
+            tab.Grid.ItemsSource = null;
+        }
+    }
+
     private string GetScript()
     {
         return _scriptText ??= _structure?.BuildScript(
@@ -1018,8 +1240,24 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     }
 
     /// <summary>複製整份指令碼，與目前在哪個分頁無關。</summary>
+    /// <remarks>
+    /// 內建說明沒有指令碼，那時「全部」指的是目前這張對照表——十六列 style
+    /// 正是使用者會想貼到別處留著的東西。
+    /// </remarks>
     public void CopyAll()
     {
+        if (_builtIn is not null)
+        {
+            if (_tabs.SelectedItem is TabItem { Content: DataGrid })
+            {
+                CopyGridAll();
+                return;
+            }
+
+            Copy(GetScript(), "已複製範例。");
+            return;
+        }
+
         Copy(GetScript(), _structure is { CanBuildExecutableScript: true }
             ? "已複製完整指令碼到剪貼簿。"
             : "已複製結構說明；完整可執行指令碼目前不可用。");

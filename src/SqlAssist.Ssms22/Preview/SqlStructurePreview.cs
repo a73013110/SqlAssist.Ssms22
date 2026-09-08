@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -656,6 +657,44 @@ internal sealed class SqlStructurePreview
             _metadataService = metadataService;
             IsExpanded = true;
             ShowTarget(objectInfo, metadataService);
+        });
+    }
+
+    /// <summary>
+    /// 顯示一個內建名稱的完整說明，錨在指定的範圍上。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="ShowAt"/> 共用同一個視窗、同一套擺放與縮放，差別在於這條路
+    /// <b>沒有目標物件也沒有中繼資料</b>：內容是隨組件發布的一份資料，畫完就結束，
+    /// 不查、不等、不需要連線。因此 <c>_target</c> 與 <c>_metadataService</c> 一律清掉，
+    /// 留著會讓後續的對帳把畫面換回上一個資料表。
+    /// </remarks>
+    public void ShowBuiltInAt(ITrackingSpan anchor, SqlBuiltInDoc doc)
+    {
+        if (_closed || doc is null)
+        {
+            return;
+        }
+
+        Invoke(() =>
+        {
+            DetachSession();
+            _generation++;
+            StopPendingWork();
+            _anchor = anchor;
+            _target = null;
+            _targetScript = null;
+            _metadataService = null;
+            IsExpanded = true;
+
+            if (EnsureControl() is { } control)
+            {
+                _timer.Stop();
+                _timerExpands = false;
+                _loading?.Cancel();
+                control.ShowBuiltIn(doc);
+                ShowAgent();
+            }
         });
     }
 

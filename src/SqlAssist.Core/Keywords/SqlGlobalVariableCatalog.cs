@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
 
@@ -90,6 +91,30 @@ public static class SqlGlobalVariableCatalog
                 return _suggestions ??= Build();
             }
         }
+    }
+
+    /// <summary>查出一個全域變數的一行說明；名稱含前面兩個小老鼠，大小寫不敏感。</summary>
+    /// <remarks>
+    /// 這一行是它們說明的唯一出處，滑鼠停留提示與建議清單問的是同一份
+    /// （<see cref="SqlBuiltInDocCatalog"/>）。線性掃過的理由同
+    /// <see cref="SqlDataTypeCatalog.TryGetDescription"/>。
+    /// </remarks>
+    public static bool TryGetDescription(string? name, out string description)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value) in Definitions)
+            {
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    description = value;
+                    return true;
+                }
+            }
+        }
+
+        description = string.Empty;
+        return false;
     }
 
     private static IReadOnlyList<SqlSuggestion> Build()

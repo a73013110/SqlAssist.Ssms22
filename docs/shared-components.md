@@ -38,6 +38,7 @@
 | F12 與預覽要用哪一組指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
 | 擴充屬性的 `sp_addextendedproperty` 八個引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
 | 說明收成單行與截斷（提示、說明面板與預覽共用） | `Metadata/Formatting/SqlDescriptionText.cs` |
+| 內建名稱的簽章、用途與範例（提示與說明面板共用） | `Core/Keywords/SqlBuiltInDocCatalog.cs` |
 | 檔頭、健檢與降級摘要的逐行 SQL 註解 | `Metadata/Formatting/SqlScriptComment.cs` |
 | 索引選項的預設值是什麼 | `Metadata/Model/SqlIndexOptions.cs` |
 | 結構健檢的規則集合與失敗隔離 | `Metadata/Analysis/SqlSchemaAnalyzer.cs` |

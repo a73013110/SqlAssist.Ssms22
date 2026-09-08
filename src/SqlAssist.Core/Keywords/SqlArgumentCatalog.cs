@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
 
@@ -138,6 +139,109 @@ public static class SqlArgumentCatalog
                 return _queryHints ??= Build(QueryHintDefinitions, SuggestionKind.QueryHint);
             }
         }
+    }
+
+    /// <summary>
+    /// 查出一個提示或日期部分的一行說明；大小寫不敏感。
+    /// </summary>
+    /// <remarks>
+    /// 這一行是它們說明的唯一出處，滑鼠停留提示與建議清單問的是同一份
+    /// （<see cref="SqlBuiltInDocCatalog"/>）。抄進內建說明資源的症狀是改了一邊
+    /// 另一邊沒改，而兩邊都看得見。
+    ///
+    /// 種類由呼叫端指定而不是三份一起找：<c>WITH (MAXDOP)</c> 的 <c>MAXDOP</c>
+    /// 是查詢提示寫錯了位置，不是資料表提示，答得出來反而是提示自己編的。
+    /// 線性掃過的理由同 <see cref="SqlDataTypeCatalog.TryGetDescription"/>。
+    /// </remarks>
+    public static bool TryGetDescription(string? name, SqlBuiltInKind kind, out string description)
+    {
+        switch (kind)
+        {
+            case SqlBuiltInKind.DatePart:
+                return TryFind(DatePartDefinitions, name, leading: false, out description);
+            case SqlBuiltInKind.TableHint:
+                return TryFind(TableHintDefinitions, name, leading: false, out description);
+            case SqlBuiltInKind.QueryHint:
+                return TryFind(QueryHintDefinitions, name, leading: false, out description);
+            default:
+                description = string.Empty;
+                return false;
+        }
+    }
+
+    /// <summary>這個名稱是不是三份封閉清單裡的字，或多字寫法的第一個詞。</summary>
+    /// <remarks>
+    /// 給滑鼠停留提示先擋一道用：那條路要判斷位置就得先做一次詞法分析，
+    /// 而停在字上的絕大多數名稱根本不在這三份清單裡。
+    ///
+    /// 第一個詞也算，否則 <c>FORCE ORDER</c> 停在 <c>FORCE</c> 上會在這裡就被擋掉，
+    /// 呼叫端沒有機會把後面那個詞接上去再查一次。
+    /// </remarks>
+    public static bool Contains(string? name)
+    {
+        return TryFind(DatePartDefinitions, name, leading: true, out _) ||
+            TryFind(TableHintDefinitions, name, leading: true, out _) ||
+            TryFind(QueryHintDefinitions, name, leading: true, out _);
+    }
+
+    private static bool TryFind(
+        (string Name, string Description)[] definitions,
+        string? name,
+        bool leading,
+        out string description)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value) in definitions)
+            {
+                if (Matches(candidate, name!, leading))
+                {
+                    description = value;
+                    return true;
+                }
+            }
+        }
+
+        description = string.Empty;
+        return false;
+    }
+
+    private static bool TryFind(
+        (string Name, string Description, bool TakesArguments)[] definitions,
+        string? name,
+        bool leading,
+        out string description)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value, _) in definitions)
+            {
+                if (Matches(candidate, name!, leading))
+                {
+                    description = value;
+                    return true;
+                }
+            }
+        }
+
+        description = string.Empty;
+        return false;
+    }
+
+    /// <param name="leading">
+    /// 多字寫法的第一個詞算不算命中（<c>FORCE</c> 之於 <c>FORCE ORDER</c>）。
+    /// </param>
+    private static bool Matches(string candidate, string name, bool leading)
+    {
+        if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return leading &&
+            candidate.Length > name.Length &&
+            candidate[name.Length] == ' ' &&
+            string.Compare(candidate, 0, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0;
     }
 
     private static IReadOnlyList<SqlSuggestion> BuildDateParts()

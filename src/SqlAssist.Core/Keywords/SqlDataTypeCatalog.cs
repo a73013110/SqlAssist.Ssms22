@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
 
@@ -81,6 +82,30 @@ public static class SqlDataTypeCatalog
     private static IReadOnlyList<SqlSuggestion>? _suggestions;
 
     private static readonly object Gate = new();
+
+    /// <summary>查出一個內建型別的一行說明；大小寫不敏感。</summary>
+    /// <remarks>
+    /// 這一行是型別說明的唯一出處，滑鼠停留提示與建議清單問的是同一份
+    /// （<see cref="SqlBuiltInDocCatalog"/>）。線性掃過的理由同
+    /// <see cref="SqlFunctionCatalog.TryGetSignature"/>。
+    /// </remarks>
+    public static bool TryGetDescription(string? name, out string description)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value, _) in Definitions)
+            {
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    description = value;
+                    return true;
+                }
+            }
+        }
+
+        description = string.Empty;
+        return false;
+    }
 
     /// <summary>內建型別的建議項。</summary>
     public static IReadOnlyList<SqlSuggestion> All

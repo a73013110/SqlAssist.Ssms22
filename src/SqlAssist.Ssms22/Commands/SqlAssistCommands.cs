@@ -6,6 +6,9 @@ using System.Windows.Media;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -267,6 +270,41 @@ internal sealed class SqlAssistCommands
         _ = ShowObjectStructureAsync();
     }
 
+    /// <summary>
+    /// 游標停在內建函式或型別上時，用同一個視窗顯示它的完整說明。
+    /// </summary>
+    /// <remarks>
+    /// 只有真的裝得滿一個視窗才開：對照表或範例其中之一。兩者都沒有時只剩一個標題，
+    /// 那還不如把「不是可辨識的資料庫物件」說清楚——使用者至少知道要換個字試。
+    /// </remarks>
+    private bool ShowBuiltInStructure(
+        IWpfTextView textView,
+        Microsoft.VisualStudio.Text.ITextSnapshot snapshot,
+        string text,
+        int position)
+    {
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        if (!SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) ||
+            (!doc.HasReferences && doc.Example.Length == 0))
+        {
+            return false;
+        }
+
+        if (SqlStructurePreview.GetOrCreate(textView, _package) is not { } preview)
+        {
+            return false;
+        }
+
+        preview.ShowBuiltInAt(
+            snapshot.CreateTrackingSpan(
+                new Microsoft.VisualStudio.Text.Span(reference!.Start, reference.Length),
+                Microsoft.VisualStudio.Text.SpanTrackingMode.EdgeInclusive),
+            doc);
+
+        return true;
+    }
+
     private async Task ShowObjectStructureAsync()
     {
         try
@@ -302,7 +340,13 @@ internal sealed class SqlAssistCommands
 
             if (location is null)
             {
-                SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
+                // CONVERT 與 DATEADD 不是資料庫物件，但游標停在它們上面時
+                // 使用者要問的事一模一樣：這個引數可以填什麼。同一個視窗答得出來。
+                if (!ShowBuiltInStructure(textView, caret.Snapshot, text, caret.Position))
+                {
+                    SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
+                }
+
                 return;
             }
 

@@ -63,6 +63,7 @@ public static class SqlAssistMonikers
     public const string ExpandFunctionCall = "sqlAssist.insertion.expandFunctionCall";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";
+    public const string BuiltInHelp = "sqlAssist.structure.builtInHelp";
     public const string PreviewMode = "sqlAssist.structure.previewMode";
     public const string PreviewDelay = "sqlAssist.structure.previewDelay";
     public const string PreviewPlacement = "sqlAssist.structure.previewPlacement";

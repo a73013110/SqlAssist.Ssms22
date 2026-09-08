@@ -126,6 +126,10 @@ public static class SqlAssistSettingsReader
                 defaults.ExpandFunctionCall),
 
             HoverEnabled = Value(source, SqlAssistMonikers.HoverEnabled, defaults.HoverEnabled),
+            BuiltInHelpEnabled = Value(
+                source,
+                SqlAssistMonikers.BuiltInHelp,
+                defaults.BuiltInHelpEnabled),
             PreviewMode = ParsePreviewMode(
                 Value(source, SqlAssistMonikers.PreviewMode, string.Empty),
                 defaults.PreviewMode),

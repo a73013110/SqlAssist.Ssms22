@@ -8,5 +8,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <EmbeddedResource Include="Snippets\DefaultSnippets.json" />
+    <EmbeddedResource Include="Keywords\BuiltInDocs.json" />
   </ItemGroup>
 </Project>

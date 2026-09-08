@@ -333,14 +333,20 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         {
             preview.ReconcileSelection(session, _metadataService);
 
-            // 預覽視窗接手之後就不要再回傳說明內容：
-            // 兩個視窗同時貼在清單旁邊只會互相搶位置。
-            return null;
+            // 預覽已經展開時整份讓給它：兩個視窗同時貼在清單旁邊會互相搶位置，
+            // 而預覽對非物件項會自己說「這一項不是資料庫物件」。
+            //
+            // 還沒展開時畫面上根本沒有那個視窗，說明面板照常畫——一併吞掉的症狀是
+            // 打開浮動預覽之後，選到 CONVERT 連引數順序那一行都不見了。
+            if (preview.IsExpanded || objectInfo is not null)
+            {
+                return null;
+            }
         }
 
         if (objectInfo is null)
         {
-            return suggestion.Preview;
+            return BuildBuiltInDescription(suggestion) ?? (object)suggestion.Preview;
         }
 
         var detail = await _metadataService.GetDetailAsync(objectInfo, token).ConfigureAwait(false);
@@ -348,6 +354,28 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         return detail is null
             ? SqlQuickInfoContentBuilder.BuildLoading(objectInfo)
             : SqlQuickInfoContentBuilder.Build(detail);
+    }
+
+    /// <summary>
+    /// 內建名稱在說明面板裡的內容；不是內建名稱或沒有寫過說明時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 與滑鼠停留提示同一份資料、同一個建構器，因此清單裡看到的與停在字上看到的
+    /// 是同一段話。說明面板沒有可點擊的地方，線上文件那一行不畫。
+    ///
+    /// 種類已經在建議項上，不必再從文字猜一次——<c>YEAR</c> 在日期部分與內建函式
+    /// 目錄裡各有一筆，猜的話兩邊都說得通。
+    /// </remarks>
+    private static object? BuildBuiltInDescription(SqlSuggestion suggestion)
+    {
+        if (!SqlBuiltInKinds.TryFromSuggestionKind(suggestion.Kind, out var kind))
+        {
+            return null;
+        }
+
+        return SqlBuiltInDocCatalog.TryGet(suggestion.DisplayText, kind, out var doc)
+            ? SqlQuickInfoContentBuilder.BuildBuiltIn(doc)
+            : null;
     }
 
     private async Task<IReadOnlyList<SqlSuggestion>> GetCandidatesAsync(

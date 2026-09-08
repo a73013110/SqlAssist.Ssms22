@@ -220,6 +220,36 @@ public static class SqlFunctionCatalog
     }
 
     /// <summary>
+    /// 查出一個內建函式的簽章。
+    /// </summary>
+    /// <remarks>
+    /// 大小寫不敏感，而且刻意查 <see cref="Definitions"/> 而不是 <see cref="All"/>：
+    /// 後者把與關鍵字重疊的名稱讓給了關鍵字目錄，但 <c>CONVERT</c>、<c>LEFT</c>
+    /// 正是使用者最常停上去問引數順序的字。讓開是建議清單才有的兩難
+    /// （收進去 <c>LEFT JOIN</c> 就消失了），滑鼠停留提示沒有那個問題。
+    ///
+    /// 線性掃過 118 筆而不另外建字典：呼叫端是滑鼠停留與說明面板，
+    /// 一次停留只問一次，字典省下的時間換不回它佔的記憶體。
+    /// </remarks>
+    public static bool TryGetSignature(string? name, out string signature)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            foreach (var (candidate, value) in Definitions)
+            {
+                if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    signature = value;
+                    return true;
+                }
+            }
+        }
+
+        signature = string.Empty;
+        return false;
+    }
+
+    /// <summary>
     /// 內建函式的建議項。
     /// </summary>
     /// <remarks>
