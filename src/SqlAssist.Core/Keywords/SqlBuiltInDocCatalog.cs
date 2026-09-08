@@ -286,9 +286,9 @@ public static class SqlBuiltInDocCatalog
     /// 反過來不成立：沒有左括號的 <c>year</c> 不能退回去當函式解釋。
     /// </param>
     /// <remarks>
-    /// 大小寫不敏感。查得到簽章或說明其中之一就算命中——118 個函式的用途是人寫的
-    /// 內容，會分批補齊，而在那之前光是一行簽章就已經回答了「引數順序是什麼」，
-    /// 那正是 <c>CONVERT</c> 最常被停上去問的事。
+    /// 大小寫不敏感。查得到簽章或說明其中之一就算命中：函式一定有簽章，提示與型別
+    /// 那幾種一定有那一行說明，兩邊都不必等資源寫過才答得出來——一行簽章本身就已經
+    /// 回答了「引數順序是什麼」，那正是 <c>CONVERT</c> 最常被停上去問的事。
     /// </remarks>
     public static bool TryGet(string? name, SqlBuiltInKind preferred, out SqlBuiltInDoc doc)
     {

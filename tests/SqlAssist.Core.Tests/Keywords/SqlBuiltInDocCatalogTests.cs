@@ -73,14 +73,25 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.NotEqual(string.Empty, doc.Example);
     }
 
-    /// <summary>沒有寫過說明的名稱至少要有簽章，否則提示等於把那個字再唸一次。</summary>
+    /// <summary>
+    /// 每一個內建函式都要有一行用途與一段範例，「一半有一半沒有」就是建置失敗。
+    /// </summary>
+    /// <remarks>
+    /// 問的是 <see cref="SqlFunctionCatalog.Names"/> 而不是 <c>All</c>：後者把與關鍵字
+    /// 重疊的名稱讓給了關鍵字目錄，而 <c>CONVERT</c>、<c>LEFT</c> 正是最常被停上去問的
+    /// 那幾個，拿建議清單那一份反推等於漏掉最該守的名稱。
+    /// </remarks>
     [Fact]
-    public void 只有簽章的函式照樣命中()
+    public void 每一個內建函式都寫過用途與範例()
     {
-        Assert.True(SqlBuiltInDocCatalog.TryGet("NEWID", SqlBuiltInKind.Function, out var doc));
-
-        Assert.Equal("NEWID()", doc.Signature);
-        Assert.Equal(string.Empty, doc.Summary);
+        Assert.All(SqlFunctionCatalog.Names, name =>
+        {
+            Assert.True(SqlBuiltInDocCatalog.TryGet(name, SqlBuiltInKind.Function, out var doc), name);
+            Assert.NotEqual(string.Empty, doc.Signature);
+            Assert.True(doc.Summary.Length > 0, name);
+            Assert.True(doc.Example.Length > 0, name);
+            Assert.StartsWith("https://learn.microsoft.com/", doc.DocsUrl, StringComparison.Ordinal);
+        });
     }
 
     [Theory]
@@ -174,7 +185,8 @@ public sealed class SqlBuiltInDocCatalogTests
     {
         Assert.True(SqlBuiltInDocCatalog.TryGet(name, SqlBuiltInKind.Function, out var doc));
 
-        var table = Assert.Single(doc.References);
+        // datepart 一律排在第一個分頁；DATEPART 與 DATENAME 後面還跟著 DATEFIRST 那張。
+        var table = doc.References[0];
         Assert.Equal(SqlArgumentCatalog.DateParts.Count, table.Rows.Count);
         Assert.Equal(SqlArgumentCatalog.DateParts[0].DisplayText, table.Rows[0][0]);
         Assert.Equal(SqlArgumentCatalog.DateParts[0].Description, table.Rows[0][1]);
@@ -224,6 +236,15 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.True(SqlBuiltInDocCatalog.TryGet("TRY_CONVERT", SqlBuiltInKind.Function, out var tryConvert));
         Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var convert));
         Assert.Equal(convert.References.Count, tryConvert.References.Count);
+
+        Assert.True(SqlBuiltInDocCatalog.TryGet("PATINDEX", SqlBuiltInKind.Function, out var patIndex));
+        Assert.Single(patIndex.References);
+
+        Assert.True(SqlBuiltInDocCatalog.TryGet("DATEPART", SqlBuiltInKind.Function, out var datePart));
+        Assert.Equal(2, datePart.References.Count);
+
+        Assert.True(SqlBuiltInDocCatalog.TryGet("OPENJSON", SqlBuiltInKind.Function, out var openJson));
+        Assert.Equal(2, openJson.References.Count);
     }
 
     /// <summary>

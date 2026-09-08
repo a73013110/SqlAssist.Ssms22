@@ -182,6 +182,16 @@ public static class SqlFunctionCatalog
     private static readonly object Gate = new();
 
     /// <summary>
+    /// 全部的內建函式名稱，含讓給關鍵字目錄的那幾個。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="All"/> 的差別同 <see cref="TryGetSignature"/>：這一份是「哪些字是
+    /// 內建函式」的完整答案，<c>CONVERT</c>、<c>LEFT</c> 都在裡面。說明的涵蓋範圍要
+    /// 對得回這一份，拿建議清單那一份反推正好漏掉最常被停上去問的那幾個。
+    /// </remarks>
+    public static IReadOnlyList<string> Names { get; } = BuildNames();
+
+    /// <summary>
     /// 自動大寫查得到的名稱。
     /// </summary>
     /// <remarks>
@@ -265,6 +275,18 @@ public static class SqlFunctionCatalog
                 return _suggestions ??= Build();
             }
         }
+    }
+
+    private static IReadOnlyList<string> BuildNames()
+    {
+        var names = new string[Definitions.Length];
+
+        for (var index = 0; index < names.Length; index++)
+        {
+            names[index] = Definitions[index].Name;
+        }
+
+        return names;
     }
 
     private static HashSet<string> BuildUppercaseNames()
