@@ -68,7 +68,7 @@ public sealed class SqlSnippetSurroundTests
     /// <remarks>
     /// 錨點出現兩次時選取的內容會被複製兩份。內建片段有
     /// <c>SqlSnippetDefaultsTests.包夾欄位在樣板裡只出現一次</c> 守著，而使用者
-    /// 自己寫的樣板原本沒有人擋——症狀要等到某一次 Ctrl+K, Ctrl+S 才發作，
+    /// 自己寫的樣板原本沒有人擋——症狀要等到某一次包夾才發作，
     /// 那時看到的是「包完之後多了一份一樣的程式碼」。這一份規則因此在 Core，
     /// 管理介面存檔前呼叫同一個。
     /// </remarks>

@@ -68,8 +68,8 @@ internal sealed class SqlAssistCommands
             CommandIds.RefreshSuggestions,
             RefreshSuggestions,
             () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
-        // 也綁了鍵（Ctrl+K, Ctrl+S），所以同樣要回答狀態；沒有選取時回報停用，
-        // 那個和絃才落得回 SSMS 原本的行為。
+        // 沒有鍵繫結，但殼層命令濾鏡與右鍵選單都要問狀態；沒有選取時回報停用，
+        // 右鍵選單上那一項就是灰的，而不是按下去什麼都不會發生。
         AddCommand(
             CommandIds.SurroundWith,
             SurroundWith,
@@ -339,7 +339,7 @@ internal sealed class SqlAssistCommands
     /// </summary>
     /// <remarks>
     /// 與 <c>Edit.SurroundWith</c> 走同一份實作（<see cref="SqlSnippetSurroundAction"/>）。
-    /// 回饋一律走狀態列，<b>不用對話框</b>——這個命令綁著 Ctrl+K, Ctrl+S，
+    /// 回饋一律走狀態列，<b>不用對話框</b>——這個命令也可能從濾鏡那條按鍵路徑進來，
     /// 而一個要按確定才消失的視窗出現在按鍵路徑上，比沒有反應更糟。
     /// </remarks>
     private void SurroundWith(object? sender, EventArgs eventArgs)

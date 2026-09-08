@@ -8,7 +8,7 @@ namespace SqlAssist.Core.Snippets;
 /// <remarks>
 /// 這些規則原本只在管理介面存檔時跑，而 <c>snippets.json</c> 是使用者可以直接
 /// 手改的：撞關鍵字的捷徑會安靜地吃掉那個關鍵字的補全，重複的包夾錨點要等到
-/// 某一次 Ctrl+K, Ctrl+S 才把選取的內容複製兩份。<see cref="SqlSnippetMerger.Merge"/>
+/// 某一次包夾才把選取的內容複製兩份。<see cref="SqlSnippetMerger.Merge"/>
 /// 因此在載入時重跑同一份規則，但<b>只回報不修正</b>——安靜地丟掉那一筆，使用者
 /// 只會看到片段消失而沒有任何說明。
 ///

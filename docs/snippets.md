@@ -11,8 +11,8 @@
 | 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ifb`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn`、`trr` |
 | 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`wcte`、`wdt`、`sno`、`ptt` |
 
-`cp`、流程控制那一族與 `wcte`、`wdt` 共 12 筆可以**包住選取範圍**（Ctrl+K,
-Ctrl+S），規則見[片段包夾](snippet-surround.md)。`trr` 是把 `trn` 的 COMMIT 換成
+`cp`、流程控制那一族與 `wcte`、`wdt` 共 12 筆可以**包住選取範圍**（右鍵選單），
+規則見[片段包夾](snippet-surround.md)。`trr` 是把 `trn` 的 COMMIT 換成
 ROLLBACK 的試跑版；`wcte`、`wdt` 沒有選取時就是 CTE 與衍生資料表的骨架。
 
 `cf` 是純量函式、`ctf` 是內嵌資料表值函式——要記的是這一組**對比**而不是縮寫，

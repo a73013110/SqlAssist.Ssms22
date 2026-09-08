@@ -52,6 +52,25 @@
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
       </Group>
 
+      <!--
+        掛進 SQL 查詢視窗「文字區」的右鍵選單，自成一段。父選單同樣是 SSMS 的內部
+        值：ScriptEditorControl 收到右鍵時呼叫
+        CommonUtils.DisplayPopupMenu(shell, ScriptEditorContextMenuID, x, y, this,
+        ScriptEditorContextMenuGroup)，而 SqlScriptEditorControl 在一般查詢視窗回的是
+        80（IDM_SQLWB_SQLSCRIPT_CONTEXT）＋基底的 GUID_SQLEditorGroup——與結果格線
+        同一個群組 GUID，只有選單 ID 不同。
+
+        除錯中或開的是 SQL 物件文件時，它改回 VS 的 IDM_VS_CTXT_CODEWIN（1037），
+        這一段就不會出現。那不是失敗，是 SSMS 換了另一份選單。
+
+        自己一組而不是併進 SSMS 既有的段落：包夾的用法是「選一段、按右鍵、挑一個」，
+        與旁邊的執行、連線、結果去向不是同一件事，殼層在群組之間畫的那條分隔線
+        正是使用者一眼找到它的依據。
+      -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" priority="0x0500">
+        <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLSCRIPT_CONTEXT" />
+      </Group>
+
       <!-- 診斷第三組。它只在「詳細記錄」打開時出現，那時候才會多一條分隔線。 -->
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" priority="0x0820">
         <Parent guid="guidSqlWorkbenchEditorGroup" id="IDM_SQLWB_SQLRESGRID_CONTEXT" />
@@ -201,6 +220,17 @@
     </Buttons>
   </Commands>
 
+  <!--
+    同一個命令要出現在第二個地方只能用 CommandPlacement：<Button> 的 <Parent> 只有
+    一個，再宣告一顆按鈕則是另一個命令，狀態、鍵繫結與註冊檔都得再接一次，
+    而兩份實作分岔的症狀是其中一個入口安靜地停在舊行為。
+  -->
+  <CommandPlacements>
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0100">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
+
   <KeyBindings>
     <KeyBinding guid="guidSqlAssistCommandSet"
                 id="cmdidToggleEnabled"
@@ -244,22 +274,11 @@
                 key1="VK_F12"
                 mod1="Control" />
     <!--
-      Ctrl+K, Ctrl+S 是 Visual Studio 的 Edit.SurroundWith。這裡與 F12 同一種
-      兩條路：SSMS 若自己綁了那個和絃，命令會走 VSStd2K/SURROUNDWITH 被
-      SqlShellCommandFilter 接住，這條繫結就解析不到；沒綁時才由這裡送出。
-
-      兩條的終點是同一份實作，因此就算兩邊都存在也不會有行為分岔——這與 F12
-      不同：那時候是「濾鏡收不到，所以繫結是唯一的路」，這裡是「哪一條成立都可以」。
-      命令自己在沒有 SQL 編輯器、沒有選取或沒有可包夾片段時回報停用，
-      停用的命令不會被派送，該和絃就落回 SSMS 原本的行為。
+      包夾命令刻意沒有鍵繫結。Ctrl+K, Ctrl+S 在 SSMS 上是它自己的
+      Edit.SurroundWith，實測那條和絃解析得到的是內建行為，我們的繫結搶不到也
+      不該搶——入口是右鍵選單與工具選單。使用者若自己把 Edit.SurroundWith 綁到
+      某個鍵，SqlShellCommandFilter 那條路仍然接得住，終點是同一份實作。
     -->
-    <KeyBinding guid="guidSqlAssistCommandSet"
-                id="cmdidSurroundWith"
-                editor="guidVSStd97"
-                key1="K"
-                mod1="Control"
-                key2="S"
-                mod2="Control" />
   </KeyBindings>
 
   <Symbols>
@@ -273,6 +292,7 @@
       <IDSymbol name="SqlAssistResultGridCopyGroup" value="0x1610" />
       <IDSymbol name="SqlAssistResultGridActionsGroup" value="0x1620" />
       <IDSymbol name="SqlAssistResultGridDiagnosticsGroup" value="0x1630" />
+      <IDSymbol name="SqlAssistEditorContextGroup" value="0x1700" />
       <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207、0x0306 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
@@ -300,10 +320,13 @@
 
     <!--
       SSMS 自己的選單群組，值取自 SQLEditors.dll 的公開類別 SQLWorkbenchCommands
-      （GUID_SQLEditorGroup 與 IDM_SQLWB_SQLRESGRID_CONTEXT = 112）。
-      這裡只宣告我們要掛進去的那一個選單，不複製整份清單。
+      （GUID_SQLEditorGroup，以及 IDM_SQLWB_SQLSCRIPT_CONTEXT = 80、
+      IDM_SQLWB_SQLRESGRID_CONTEXT = 112）。查詢視窗的文字區與結果格線共用那個
+      群組 GUID，只有選單 ID 不同。這裡只宣告我們要掛進去的那兩個選單，
+      不複製整份清單。
     -->
     <GuidSymbol name="guidSqlWorkbenchEditorGroup" value="{33F13AC3-80BB-4ECB-85BC-225435603A5E}">
+      <IDSymbol name="IDM_SQLWB_SQLSCRIPT_CONTEXT" value="0x0050" />
       <IDSymbol name="IDM_SQLWB_SQLRESGRID_CONTEXT" value="0x0070" />
     </GuidSymbol>
   </Symbols>

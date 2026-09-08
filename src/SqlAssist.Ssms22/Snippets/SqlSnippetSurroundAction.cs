@@ -34,9 +34,9 @@ internal static class SqlSnippetSurroundAction
 
     /// <summary>命令狀態：有 SQL 編輯器、SqlAssist 開著，而且選了東西。</summary>
     /// <remarks>
-    /// 綁了鍵的命令一定要回答這個問題。回報可用卻什麼都不做，跟按鍵沒反應在
-    /// 使用者眼裡是同一件事；而回報停用時殼層根本不會派送，Ctrl+K, Ctrl+S 就
-    /// 落回 SSMS 原本的行為。
+    /// 選單與濾鏡都要問這個問題。回報可用卻什麼都不做，跟按鍵沒反應在使用者
+    /// 眼裡是同一件事；而回報停用時殼層根本不會派送，使用者綁在
+    /// <c>Edit.SurroundWith</c> 上的那個鍵就落回 SSMS 原本的行為。
     /// </remarks>
     public static bool IsAvailable() => IsAvailable(ActiveSqlEditor.Current);
 

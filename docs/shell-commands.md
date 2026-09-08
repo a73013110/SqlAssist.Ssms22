@@ -21,9 +21,10 @@
 兩者互斥——鍵繫結只會解析出一個命令——所以不會執行兩次。`SqlDefinitionOpener`
 的重入防護是最後一道保險。
 
-Ctrl+K, Ctrl+S 的包夾命令用同一種兩條路，但結論相反：兩條的終點是同一份實作，
-哪一條成立都可以（見[片段包夾](snippet-surround.md)）。它攔的是 `VSStd2K/SURROUNDWITH`，
-而 `VSStd2K` 也是打字用的 `TYPECHAR` 那一組——所以那個分支每個按鍵都會走進來，
+包夾命令只有一條殼層路徑：濾鏡攔 `VSStd2K/SURROUNDWITH`，接的是使用者自己綁在
+`Edit.SurroundWith` 上的鍵。命令表那邊**沒有**鍵繫結——Ctrl+K, Ctrl+S 在 SSMS 上
+解析得到的是內建行為，繫結搶不到（見[片段包夾](snippet-surround.md)）。
+`VSStd2K` 也是打字用的 `TYPECHAR` 那一組，所以那個分支每個按鍵都會走進來，
 下一步只剩一次整數比對。
 
 現代命令管線那一條**已經移除**：實測證明它接不到，而濾鏡永遠排在它前面，

@@ -98,6 +98,12 @@ foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
     Test-Placement -Node $button -Kind 'Button' -ExpectedParentKind 'Group' -OwnIdsOfExpectedKind $ownGroupIds
 }
 
+# 同一個命令的第二個位置是用 CommandPlacement 接的，掛錯層的症狀與按鈕一樣安靜：
+# 那個入口就是不出現，而原本那個照常能按，看起來只像「右鍵選單沒做出來」。
+foreach ($placement in $vsct.SelectNodes('//ct:CommandPlacements/ct:CommandPlacement', $ns)) {
+    Test-Placement -Node $placement -Kind 'CommandPlacement' -ExpectedParentKind 'Group' -OwnIdsOfExpectedKind $ownGroupIds
+}
+
 
 # 沒有 <Parent> 的群組是刻意的：Unified Settings 的設定頁按鈕必須存在於命令表，
 # 但不該出現在任何選單。這只有在底下每一顆按鈕都標了 CommandWellOnly 時才成立——
@@ -134,7 +140,8 @@ foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
 $declaredIds = @($vsct.SelectNodes('//ct:Symbols/ct:GuidSymbol[@name="guidSqlAssistCommandSet"]/ct:IDSymbol', $ns) |
     ForEach-Object { $_.name })
 $usedIds = @($ownGroupIds) + @($ownMenuIds) +
-    @($vsct.SelectNodes('//ct:Buttons/ct:Button', $ns) | ForEach-Object { $_.id })
+    @($vsct.SelectNodes('//ct:Buttons/ct:Button', $ns) | ForEach-Object { $_.id }) +
+    @($vsct.SelectNodes('//ct:CommandPlacements/ct:CommandPlacement', $ns) | ForEach-Object { $_.id })
 
 foreach ($id in $usedIds) {
     if ($id -notin $declaredIds) {
@@ -295,7 +302,7 @@ else {
         $ssmsMenus = @{
             guidSqlWorkbenchEditorGroup = @{
                 Field = 'GUID_SQLEditorGroup'
-                Ids   = @('IDM_SQLWB_SQLRESGRID_CONTEXT')
+                Ids   = @('IDM_SQLWB_SQLSCRIPT_CONTEXT', 'IDM_SQLWB_SQLRESGRID_CONTEXT')
             }
         }
 
