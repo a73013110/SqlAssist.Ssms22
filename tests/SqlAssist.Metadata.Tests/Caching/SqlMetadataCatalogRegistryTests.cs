@@ -135,6 +135,27 @@ public sealed class SqlMetadataCatalogRegistryTests
     }
 
     /// <remarks>
+    /// 接續上一個情境：交出去的那一份當場被釋放，所以呼叫端只能改用目錄手上的那一份。
+    /// 自己留一份的症狀是使用者先打過 <c>LibArchive.dbo.</c> 再 <c>USE LibArchive</c>
+    /// 之後，每一個限定名稱都以 ObjectDisposedException 收場，而連線沒有變過也就
+    /// 再也不會重建，直到關掉查詢視窗為止。
+    /// </remarks>
+    [Fact]
+    public void 沿用時目錄手上的來源沒有被釋放()
+    {
+        var registry = new SqlMetadataCatalogRegistry();
+        var editor = new FakeConnectionSource("server-a|db1");
+        registry.GetOrCreateFor(editor, "LibArchive");
+
+        var switched = new FakeConnectionSource("server-a|libarchive");
+        var catalog = registry.GetOrCreate(switched);
+
+        Assert.True(switched.IsDisposed);
+        Assert.NotSame(switched, catalog.ConnectionSource);
+        Assert.False(editor.IsDisposed);
+    }
+
+    /// <remarks>
     /// 跨資料庫的目錄是使用者打字打出來的，沒有上限就是一條隨著輸入成長的記憶體：
     /// 第一層快照常駐，而一個資料庫動輒幾千列。
     /// </remarks>

@@ -29,6 +29,12 @@
   `SqlCatalogQualifier` 與 `OPENQUERY`，並配短逾時與失敗退避；查不到就沒有建議，絕不
   回退本機同名物件。理由見[遠端中繼資料](metadata-remote.md)。
 
+- **禁止**在 `SqlMetadataCatalogRegistry` 之外持有 `ISqlConnectionSource`。所有權在註冊表，
+  同一個快取鍵重複建立時多出來的那一份會當場釋放，而呼叫端分不出留下的是不是自己那份。
+  要換資料庫或伺服器時，從手上那份目錄的 `ConnectionSource` 取。自己留一份的症狀是先打過
+  `LibArchive.dbo.` 再 `USE LibArchive` 之後，每個限定名稱都以 ObjectDisposedException
+  收場；那不是 `DbException`，降級接不住，而連線沒變過也就再也不會重建。
+
 - **禁止**預先載入所有進得去的資料庫。第一層快照是常駐的，共用主機上等於幾十輪
   查詢與幾十份常駐快照，而其中九成九不會有人用到。只在使用者真的打出資料庫名稱
   之後才建目錄，而且跨資料庫的目錄數量要有上限。

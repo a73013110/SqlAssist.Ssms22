@@ -27,7 +27,15 @@ public sealed class SqlDatabaseScopedConnectionSource : ISqlConnectionSource
             throw new ArgumentException("資料庫名稱不可為空。", nameof(databaseName));
         }
 
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        if (inner is null)
+        {
+            throw new ArgumentNullException(nameof(inner));
+        }
+
+        // 疊在另一個「指向別的資料庫」的來源上時直接接到最裡面那一層。每一層都會在
+        // 開連線時多發一次 ChangeDatabase，而那是一趟往返；查詢視窗換過幾次資料庫，
+        // 疊起來的層數就跟著長，症狀是跨資料庫查詢愈用愈慢。
+        _inner = inner is SqlDatabaseScopedConnectionSource scoped ? scoped._inner : inner;
         DatabaseName = databaseName;
         CacheKey = SqlConnectionCacheKey.Compose(inner.ServerCacheKey, databaseName);
     }

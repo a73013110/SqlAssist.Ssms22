@@ -73,6 +73,21 @@ public sealed class SqlMetadataCatalog
 
     public string CacheKey => _connectionSource.CacheKey;
 
+    /// <summary>
+    /// 這份目錄實際使用的連線來源；要換到別的資料庫或別台伺服器時從這裡取。
+    /// </summary>
+    /// <remarks>
+    /// 連線來源的所有權在 <see cref="SqlMetadataCatalogRegistry"/>：同一個快取鍵重複
+    /// 建立時多出來的那一份會被釋放，而交出去的呼叫端無從得知留下來的是不是自己那一份。
+    /// 因此呼叫端<b>禁止</b>自己留一份來源，一律從手上這份目錄取。
+    ///
+    /// 自己留的症狀是：使用者先打過 <c>LibArchive.dbo.</c>（建了那個資料庫的目錄），
+    /// 再 <c>USE LibArchive</c> 切過去，這一次交出去的來源就是多出來的那一份、當場被
+    /// 釋放，而呼叫端手上還握著它——之後每一個限定名稱都以 ObjectDisposedException
+    /// 收場，連線沒有變過也就再也不會重建，直到關掉查詢視窗為止。
+    /// </remarks>
+    public ISqlConnectionSource ConnectionSource => _connectionSource;
+
     /// <summary>目前已快取的第一層資料；尚未載入時為空快照。呼叫端可用它先畫出清單。</summary>
     public SqlDatabaseSnapshot CachedSnapshot => Volatile.Read(ref _snapshot);
 

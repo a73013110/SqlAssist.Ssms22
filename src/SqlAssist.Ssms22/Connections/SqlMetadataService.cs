@@ -29,7 +29,6 @@ internal sealed class SqlMetadataService : IDisposable
     private readonly object _syncRoot = new();
     private readonly HashSet<string> _warmingDetails = new(StringComparer.OrdinalIgnoreCase);
     private readonly IServiceProvider _serviceProvider;
-    private SsmsConnectionSource? _connectionSource;
     private SqlMetadataCatalog? _catalog;
 
     /// <summary>上一次從編輯器連線算出的快取鍵，用來判斷連線或資料庫有沒有換過。</summary>
@@ -864,7 +863,6 @@ internal sealed class SqlMetadataService : IDisposable
 
             // 連線來源的所有權在 SqlMetadataCatalogRegistry：目錄是跨查詢視窗共用的，
             // 這裡釋放會讓其他還開著的視窗一起失效。
-            _connectionSource = null;
             _catalog = null;
         }
     }
@@ -926,17 +924,10 @@ internal sealed class SqlMetadataService : IDisposable
             return catalog;
         }
 
-        SsmsConnectionSource? source;
-
-        lock (_syncRoot)
-        {
-            source = _disposed ? null : _connectionSource;
-        }
-
-        if (source is null)
-        {
-            return null;
-        }
+        // 連線來源一律從手上這份目錄取，不另外留一份：所有權在註冊表，
+        // 交出去的那一份可能已經被當成重複的釋放掉，理由見
+        // SqlMetadataCatalog.ConnectionSource。
+        var source = catalog.ConnectionSource;
 
         if (!string.IsNullOrEmpty(serverName))
         {
@@ -1095,15 +1086,17 @@ internal sealed class SqlMetadataService : IDisposable
             }
 
             _editorCacheKey = cacheKey;
-            _connectionSource = SsmsConnectionSource.TryCreate(editorConnection);
+            var connectionSource = SsmsConnectionSource.TryCreate(editorConnection);
 
-            if (_connectionSource is null)
+            if (connectionSource is null)
             {
                 _catalog = null;
                 return null;
             }
 
-            _catalog = SqlMetadataCatalogRegistry.Default.GetOrCreate(_connectionSource);
+            // 交出去之後就不再持有：註冊表已經有同一個快取鍵的目錄時，這一份會被
+            // 當成重複的釋放掉，留著它等於留一個已釋放的物件。
+            _catalog = SqlMetadataCatalogRegistry.Default.GetOrCreate(connectionSource);
             return _catalog;
         }
     }
