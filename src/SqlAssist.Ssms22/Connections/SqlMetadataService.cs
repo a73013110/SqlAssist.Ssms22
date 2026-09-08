@@ -744,12 +744,32 @@ internal sealed class SqlMetadataService : IDisposable
                 var table = source.Table!;
                 var catalog = ScopeTo(editorCatalog, table.Path);
 
-                // 預熱刻意只在第一層已經新鮮時才做：這是背景的加速手段，
-                // 不該自己去觸發一輪第一層查詢。跨資料庫的目錄一開始必定不新鮮，
-                // 所以第一次要靠使用者真的打出 LibArchive.dbo. 那一次去載入。
-                if (catalog is null || !catalog.IsSnapshotFresh)
+                if (catalog is null)
                 {
                     continue;
+                }
+
+                // 目前這條連線的第一層不在這裡觸發：那是建議清單自己的工作，
+                // 這裡只是背景加速，不該再排一輪同樣的查詢。
+                //
+                // 跨資料庫的目錄相反——沒有別人會去載它。敘述已經把那個資料庫的
+                // 名字寫出來了（FROM LibArchive.dbo.Loan l），等於使用者指名要它；
+                // 從前要等他真的打出那一整串限定字才載，症狀是 SET | 與 WHERE |
+                // 這種沒有限定字的位置永遠列不出跨庫來源的欄位，而同一份欄位
+                // 打出 l. 就有。載一次就進快取，重複與失敗退避由這一支自己擋。
+                if (!catalog.IsSnapshotFresh)
+                {
+                    if (ReferenceEquals(catalog, editorCatalog))
+                    {
+                        continue;
+                    }
+
+                    await catalog.WarmSnapshotAsync().ConfigureAwait(false);
+
+                    if (!catalog.IsSnapshotFresh)
+                    {
+                        continue;
+                    }
                 }
 
                 var snapshot = catalog.CachedSnapshot;

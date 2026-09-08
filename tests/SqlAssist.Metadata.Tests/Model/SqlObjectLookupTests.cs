@@ -384,6 +384,63 @@ public sealed class SqlObjectLookupTests
         Assert.Equal(name, lookup.Locate(candidate, detail)!.Column!.Name);
     }
 
+    /// <summary>
+    /// 跨資料庫的來源換得到自己那個目錄的快照時，欄位就要答得出來。
+    /// </summary>
+    /// <remarks>
+    /// 從前這一支只認得目前這條連線的快照，跨庫來源一律解析不出來——症狀是
+    /// <c>FROM LibArchive.dbo.Lib_Reader r</c> 之後 <c>r.ReaderId</c> 停上去什麼
+    /// 都沒有，而同一份欄位在建議清單裡列得出來（那一邊早就逐來源換目錄了）。
+    /// 未限定的欄位更慘：只要敘述裡有一個跨庫來源，整段判斷就跟著放棄。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT r.ReaderId FROM LibArchive.dbo.Lib_Reader r", "ReaderId")]
+    [InlineData("SELECT ReaderId FROM LibArchive.dbo.Lib_Reader r", "ReaderId")]
+    public void 跨庫來源換得到目錄時欄位解析得出來(string sql, string hover)
+    {
+        var remote = Table(7, "LibArchive");
+        var detail = new SqlObjectDetail(remote, new[] { new SqlColumnInfo(1, "ReaderId", "int", false) });
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(hover, StringComparison.Ordinal))!;
+
+        var candidate = lookup.FindCandidate(
+            snapshot: null,
+            peekDetail: owner => ReferenceEquals(owner, remote) ? detail : null,
+            peekSnapshot: path => string.Equals(path.DatabaseName, "LibArchive", StringComparison.OrdinalIgnoreCase)
+                ? Snapshot(remote)
+                : null)!;
+
+        Assert.True(candidate.NeedsColumn);
+        Assert.Same(remote, candidate.Object);
+        Assert.Equal("ReaderId", lookup.Locate(candidate, detail)!.Column!.Name);
+    }
+
+    /// <summary>換不到那個目錄時仍然不拿本機同名的表頂替。</summary>
+    [Theory]
+    [InlineData("SELECT r.ReaderId FROM LibArchive.dbo.Lib_Reader r", "ReaderId")]
+    [InlineData("SELECT ReaderId FROM LibArchive.dbo.Lib_Reader r", "ReaderId")]
+    public void 換不到跨庫目錄時不借用本機同名物件(string sql, string hover)
+    {
+        var local = Table(1, "Library");
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(hover, StringComparison.Ordinal))!;
+
+        Assert.Null(lookup.FindCandidate(
+            Snapshot(local),
+            peekDetail: _ => new SqlObjectDetail(local, new[] { new SqlColumnInfo(1, "ReaderId", "int", false) })));
+    }
+
+    /// <summary>要先載哪幾個目錄，只問一次：同一個資料庫的兩張表不排兩輪。</summary>
+    [Fact]
+    public void 跨庫來源依目錄去重()
+    {
+        const string sql =
+            "SELECT | FROM LibArchive.dbo.Loan l JOIN LibArchive.dbo.Copy c ON l.CopyNo = c.CopyNo JOIN dbo.Branch b ON 1 = 1";
+        var lookup = SqlObjectLookup.Create(sql.Replace("|", "x"), sql.IndexOf('|'))!;
+
+        var external = lookup.FindExternalSources();
+
+        Assert.Equal("LibArchive", Assert.Single(external).DatabaseName);
+    }
+
     private static SqlObjectInfo Table(int id, string database) =>
         new(id, "dbo", "Lib_Reader", SqlObjectKind.Table, database);
 

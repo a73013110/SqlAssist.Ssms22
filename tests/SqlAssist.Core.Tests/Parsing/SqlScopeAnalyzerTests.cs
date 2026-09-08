@@ -341,6 +341,37 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Contains(scope.Tables, t => t.ObjectName == "Lib_Reader" && t.Alias == "u");
     }
 
+    /// <summary>
+    /// <c>UPDATE a … FROM T a</c> 的 <c>a</c> 是別名，不是另一個資料來源。
+    /// </summary>
+    /// <remarks>
+    /// 多收一個叫 a 的來源時，中繼資料層會為一個不存在的名稱查一輪，而未限定
+    /// 欄位的判斷會因為「有一個來源解析不出來」整段放棄——症狀是 <c>SET |</c> 的
+    /// 欄位停上去沒有任何提示，而 <c>a.</c> 的欄位清單卻正常。
+    /// </remarks>
+    [Theory]
+    [InlineData("UPDATE a SET Name = 'x' FROM dbo.Lib_Reader a WHERE |")]
+    [InlineData("DELETE FROM a FROM dbo.Lib_Reader a WHERE |")]
+    public void 指向別名的更新目標不算資料來源(string sql)
+    {
+        var scope = Analyze(sql);
+
+        var table = Assert.Single(scope.Tables);
+        Assert.Equal("Lib_Reader", table.ObjectName);
+        Assert.Equal("a", table.Alias);
+    }
+
+    /// <summary>沒有同名別名時，更新目標仍然是一張資料表。</summary>
+    [Theory]
+    [InlineData("UPDATE Lib_Reader SET Name = 'x' WHERE |")]
+    [InlineData("UPDATE dbo.a SET Name = 'x' FROM dbo.Lib_Reader a WHERE |")]
+    public void 沒有同名別名的更新目標仍算資料來源(string sql)
+    {
+        var scope = Analyze(sql);
+
+        Assert.Contains(scope.Tables, t => t.ObjectName is "Lib_Reader" or "a" && t.Alias is null);
+    }
+
     [Fact]
     public void DELETE的FROM子句仍可解析()
     {

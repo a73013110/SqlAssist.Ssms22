@@ -28,9 +28,17 @@ internal static class SqlObjectLocator
             .GetSnapshotAsync(lookup.Reference.Path, cancellationToken)
             .ConfigureAwait(false);
 
+        // 敘述裡指名別的資料庫時，那個目錄的第一層也要載齊：使用者主動按下的路徑
+        // 等得起查詢，而少了這一輪，跨庫來源的欄位答不答得出來只取決於快取剛好
+        // 有沒有載過——同一個 c.CopyNo 有時有 F12，有時說不是可辨識的物件。
+        foreach (var external in lookup.FindExternalSources())
+        {
+            await metadataService.GetSnapshotAsync(external, cancellationToken).ConfigureAwait(false);
+        }
+
         // 第一輪只用現成的明細：絕大多數的位置根本不必看欄位，看得到的那些多半也
         // 已經在快取裡（建議清單載過同一份）。
-        var candidate = lookup.FindCandidate(snapshot, metadataService.PeekDetail);
+        var candidate = lookup.FindCandidate(snapshot, metadataService.PeekDetail, metadataService.PeekSnapshot);
 
         if (candidate is null)
         {
@@ -64,7 +72,7 @@ internal static class SqlObjectLocator
         SqlDatabaseSnapshot? snapshot,
         CancellationToken cancellationToken)
     {
-        var sources = lookup.FindColumnSources(snapshot);
+        var sources = lookup.FindColumnSources(snapshot, metadataService.PeekSnapshot);
 
         if (sources.Count == 0)
         {
@@ -86,7 +94,8 @@ internal static class SqlObjectLocator
             ? null
             : lookup.FindCandidate(
                 snapshot,
-                owner => details.TryGetValue(owner, out var detail) ? detail : null);
+                owner => details.TryGetValue(owner, out var detail) ? detail : null,
+                metadataService.PeekSnapshot);
     }
 
     /// <summary>Hover 只取現成資料；不足時交由服務背景預載，不等待資料庫。</summary>
@@ -94,7 +103,8 @@ internal static class SqlObjectLocator
     {
         var candidate = lookup.FindCandidate(
             metadataService.PeekSnapshot(lookup.Reference.Path),
-            owner => PeekOrWarm(metadataService, owner));
+            owner => PeekOrWarm(metadataService, owner),
+            metadataService.PeekSnapshot);
 
         if (candidate is null)
         {

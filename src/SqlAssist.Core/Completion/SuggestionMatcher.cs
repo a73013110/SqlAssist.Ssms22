@@ -18,20 +18,32 @@ public static class SuggestionMatcher
     /// <remarks>
     /// 每一層的倍率都大於它底下所有層的最大總和，因此低層只在高層打平時才說得上話：
     ///
-    ///   比對品質（8192／分） ＞ 最近用過（3072） ＞ 類別（最多 40×64＝2560） ＞ 名稱長度（最多 63）
+    ///   比對品質（8192／分） ＞ 類別（最多 40×128＝5120） ＞ 最近用過（64） ＞ 名稱長度（最多 63）
     ///
     /// 這個關係必須維持。倍率一旦太靠近，低層就會翻過高層——曾經
     /// 長度懲罰上限 64、類別加成最多 40，兩者同一量級，於是
     /// <c>LIBRARY_LOAN_HISTORY_DETAIL</c>（欄位 35−27＝8）輸給
     /// <c>USERS</c>（資料表 20−5＝15），正好違反「欄位優先於資料表」。
+    ///
+    /// 「最近用過」曾經壓在類別之上，而那條規則在真實的編輯順序下必定反過來咬人：
+    /// 使用者剛從清單裡挑完 <c>FROM dbo.Loan l, dbo.Copy c</c>，游標一移到
+    /// <c>SET |</c> 或 <c>WHERE |</c>，那幾張表就全部帶著加成排在敘述自己的欄位
+    /// 前面——而他要的正是欄位。類別說的是「這個位置文法上要什麼」，
+    /// 使用紀錄只是跨敘述的猜測，猜測不該翻過眼前這句話的證據。
+    /// 降到類別之下，它仍然做原本真正有價值的那件事：同一類別內把常用的拉到前面。
     /// </remarks>
     private const int FuzzyScoreScale = 8192;
 
-    /// <summary>最近提交過的加成；壓得過類別偏好，壓不過更好的比對品質。</summary>
-    private const int RecentlyUsedBonus = 3072;
+    /// <summary>
+    /// 最近提交過的加成。
+    /// </summary>
+    /// <remarks>
+    /// 壓得過名稱長度，壓不過類別偏好：它排的是「同一類別裡先看哪一個」。
+    /// </remarks>
+    private const int RecentlyUsedBonus = 64;
 
-    /// <summary>類別偏好的倍率。</summary>
-    private const int KindBonusScale = 64;
+    /// <summary>類別偏好的倍率；要大於最近用過加成與長度懲罰的總和。</summary>
+    private const int KindBonusScale = 128;
 
     /// <summary>長度懲罰的上限，避免超長物件名稱把分數拉到失真。</summary>
     private const int MaximumLengthPenalty = 63;
@@ -221,7 +233,7 @@ public static class SuggestionMatcher
 
     /// <summary>
     /// 類別偏好；由 <see cref="KindBonusScale"/> 放大成一個層級，
-    /// 只在比對品質與最近使用都打平時決定順序。
+    /// 只在比對品質打平時決定順序，並壓過最近使用與名稱長度。
     /// </summary>
     private static int KindBonus(SuggestionKind kind)
     {
@@ -272,7 +284,7 @@ public static class SuggestionMatcher
 
             // 這兩類排在最底：它們與資料表競爭 FROM 之後那一格，而那裡使用者要的
             // 幾乎都是目前這個資料庫的表。USE 之後沒有別的東西跟資料庫競爭，
-            // 所以壓低不影響那個位置——常用的那幾個會被使用紀錄自己拉上來。
+            // 所以壓低不影響那個位置——同一類別裡常用的那幾個仍會被使用紀錄拉上來。
             SuggestionKind.Database => 9,
             SuggestionKind.LinkedServer => 8,
             _ => 0

@@ -381,7 +381,53 @@ public static class SqlScopeAnalyzer
             }
         }
 
+        RemoveAliasReferences(references);
         return references;
+    }
+
+    /// <summary>
+    /// 把「其實是別名」的那個來源從清單裡拿掉。
+    /// </summary>
+    /// <remarks>
+    /// <c>UPDATE a SET … FROM dbo.Loan a</c> 的 <c>a</c> 不是一張叫 a 的資料表，
+    /// 而是同一句 FROM 子句裡那個別名——<c>DELETE FROM a FROM dbo.Loan a</c> 同理。
+    /// 收成一個具名來源的話，中繼資料層會為一個不存在的名稱查一輪、
+    /// 而且每一次按鍵都查；更糟的是未限定欄位的判斷會因為「有一個來源解析不出來」
+    /// 整段放棄，症狀是 <c>SET |</c> 的欄位停上去什麼提示都沒有。
+    ///
+    /// 判斷條件只有「單段裸名，而且同一句裡有人用這個名字當別名」：帶結構描述的
+    /// <c>UPDATE dbo.Loan</c> 不可能是別名，而 T-SQL 本來就不允許同一句裡有兩個
+    /// 相同的相關名稱，因此不必分辨是哪個關鍵字帶進來的。
+    /// </remarks>
+    private static void RemoveAliasReferences(List<SqlTableReference> references)
+    {
+        if (references.Count < 2)
+        {
+            return;
+        }
+
+        var aliases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var reference in references)
+        {
+            if (!string.IsNullOrEmpty(reference.Alias))
+            {
+                aliases.Add(reference.Alias!);
+            }
+        }
+
+        if (aliases.Count == 0)
+        {
+            return;
+        }
+
+        references.RemoveAll(reference =>
+            string.IsNullOrEmpty(reference.Alias) &&
+            !reference.IsDerived &&
+            reference.SchemaName is null &&
+            reference.DatabaseName is null &&
+            reference.ServerName is null &&
+            aliases.Contains(reference.ObjectName));
     }
 
     private static bool TryParseTableReference(
