@@ -72,7 +72,7 @@ public static class SqlSnippetSurroundHistory
     /// <summary>清空；測試用。</summary>
     public static void Clear() => Volatile.Write(ref _lastKey, null);
 
-    /// <summary>識別碼優先，沒有識別碼的（v1 遷移前的舊片段）退回捷徑。</summary>
+    /// <summary>識別碼優先，沒有識別碼時退回捷徑。</summary>
     private static string? KeyOf(SqlSnippet? snippet)
     {
         if (snippet is null)

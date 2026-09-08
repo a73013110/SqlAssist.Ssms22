@@ -101,7 +101,7 @@ public sealed class SqlSnippetTests
         // 檔案是使用者可以手改的，壞掉一筆不該讓其他 Snippet 一起消失。
         var library = ReadLibrary("""
             {
-              "version": 1,
+              "version": 2,
               "snippets": [
                 { "shortcut": "ok", "code": "SELECT 1" },
                 { "shortcut": "", "code": "SELECT 2" },
@@ -194,7 +194,7 @@ public sealed class SqlSnippetTests
         var library = ReadLibrary("""
             {
               // 我的片段
-              "version": 1,
+              "version": 2,
               "snippets": [
                 { "shortcut": "a", "code": "SELECT 1" },
               ],
@@ -202,6 +202,21 @@ public sealed class SqlSnippetTests
             """);
 
         Assert.Equal(1, library.Count);
+    }
+
+    /// <remarks>
+    /// 手改檔案常常不寫 version，0.14.22 以前的 v1 檔也不再有遷移路徑。
+    /// 兩者都當現行版本讀，才不會有人抱著一份讀不動又救不回來的檔案。
+    /// </remarks>
+    [Theory]
+    [InlineData("{ \"snippets\": [] }")]
+    [InlineData("{ \"version\": 1, \"snippets\": [] }")]
+    public void 版本缺席或比現行舊都照現行版本讀(string text)
+    {
+        var document = SqlSnippetSerializer.DeserializeDocument(text);
+
+        Assert.Equal(SqlSnippetLibrary.CurrentVersion, document.Version);
+        Assert.False(document.IsNewerThanSupported);
     }
 
     [Fact]

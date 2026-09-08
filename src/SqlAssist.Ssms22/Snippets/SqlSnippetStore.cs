@@ -25,11 +25,6 @@ internal static class SqlSnippetStore
         "SqlAssist",
         "snippets.json");
 
-    public static string LegacyBackupPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "SqlAssist",
-        "snippets.v1.backup.json");
-
     public static string? LastError { get; private set; }
 
     public static bool IsReadOnly
@@ -179,15 +174,6 @@ internal static class SqlSnippetStore
                 return SqlSnippetMerger.Merge(defaults, document);
             }
 
-            if (document.Version == 1)
-            {
-                WriteLegacyBackupOnce();
-                document = SqlSnippetMerger.MigrateVersion1(document, defaults);
-                WriteDocument(document);
-                SqlAssistDiagnostics.WriteAlways(
-                    $"已把 Snippet v1 遷移成 v2；原檔保留於 {LegacyBackupPath}");
-            }
-
             _readOnly = false;
             LastError = null;
             return SqlSnippetMerger.Merge(defaults, document);
@@ -206,32 +192,6 @@ internal static class SqlSnippetStore
             LastError = exception.Message;
             SqlAssistDiagnostics.WriteAlways($"讀取 Snippet 失敗：{exception}");
             return SqlSnippetMerger.Merge(defaults, SqlSnippetDocument.Empty);
-        }
-    }
-
-    private static void WriteLegacyBackupOnce()
-    {
-        if (File.Exists(LegacyBackupPath))
-        {
-            return;
-        }
-
-        var directory = Path.GetDirectoryName(LegacyBackupPath);
-
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        // File.Copy 保留原始位元組與編碼；overwrite=false 也讓兩個 SSMS 行程
-        // 同時遷移時不會覆蓋先完成的那一份。
-        try
-        {
-            File.Copy(FilePath, LegacyBackupPath, overwrite: false);
-        }
-        catch (IOException) when (File.Exists(LegacyBackupPath))
-        {
-            // 另一個 SSMS 行程先完成了同一份冪等遷移；既有備份才是應保留的那份。
         }
     }
 

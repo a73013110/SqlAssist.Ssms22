@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Snippets;
 
-/// <summary>內建定義、override、停用紀錄與 v1 遷移的純文字邏輯。</summary>
+/// <summary>內建定義、override 與停用紀錄的純文字邏輯。</summary>
 public static class SqlSnippetMerger
 {
     public static SqlSnippetConfiguration Merge(
@@ -83,7 +82,7 @@ public static class SqlSnippetMerger
 
             var id = SqlSnippetIdentity.IsValid(record.Id)
                 ? record.Id
-                : SqlSnippetIdentity.CreateMigratedId(record.Snippet.Shortcut);
+                : SqlSnippetIdentity.CreateIdFromShortcut(record.Snippet.Shortcut);
             entries.Add(new SqlSnippetConfigurationEntry(
                 WithId(record.Snippet, id),
                 isBuiltIn: false,
@@ -219,89 +218,6 @@ public static class SqlSnippetMerger
         return new SqlSnippetDocument(SqlSnippetLibrary.CurrentVersion, records);
     }
 
-    /// <summary>把 v1 的完整清單轉成 v2 差異；相同輸入永遠產生相同 ID 與內容。</summary>
-    public static SqlSnippetDocument MigrateVersion1(
-        SqlSnippetDocument legacy,
-        SqlSnippetLibrary defaults)
-    {
-        if (legacy.Version != 1)
-        {
-            throw new ArgumentException("只有 v1 文件可以走 v1 遷移。", nameof(legacy));
-        }
-
-        var legacyItems = legacy.Snippets
-            .Where(item => !item.Disabled && item.Snippet is not null)
-            .Select(item => item.Snippet!)
-            .ToList();
-        var records = new List<SqlSnippetOverride>();
-        var consumed = new HashSet<SqlSnippet>();
-        var usedIds = new HashSet<string>(defaults.Snippets.Select(item => item.Id), StringComparer.OrdinalIgnoreCase);
-        var claimedBuiltInIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var frozen in SqlSnippetDefaults.LegacyVersion1.Snippets)
-        {
-            var old = legacyItems.FirstOrDefault(item =>
-                string.Equals(item.Shortcut, frozen.Shortcut, StringComparison.OrdinalIgnoreCase));
-            var current = defaults.Snippets.FirstOrDefault(item =>
-                string.Equals(item.Shortcut, frozen.Shortcut, StringComparison.OrdinalIgnoreCase));
-
-            if (current is null)
-            {
-                continue;
-            }
-
-            claimedBuiltInIds.Add(current.Id);
-
-            if (old is null)
-            {
-                records.Add(new SqlSnippetOverride(current.Id, disabled: true));
-                continue;
-            }
-
-            consumed.Add(old);
-
-            if (!AreLegacyEquivalent(old, frozen))
-            {
-                records.Add(new SqlSnippetOverride(
-                    current.Id,
-                    disabled: false,
-                    FromLegacy(old, current.Id, current)));
-            }
-        }
-
-        foreach (var snippet in legacyItems)
-        {
-            if (consumed.Contains(snippet))
-            {
-                continue;
-            }
-
-            if (defaults.TryGet(snippet.Shortcut, out var newlyBuiltIn))
-            {
-                // v1 時代的自訂捷徑可能在 v2 變成內建項目。讓使用者內容成為該筆
-                // 內建定義的 override，否則管理介面會同時出現兩個同捷徑項目而無法存檔。
-                if (claimedBuiltInIds.Add(newlyBuiltIn.Id))
-                {
-                    records.Add(new SqlSnippetOverride(
-                        newlyBuiltIn.Id,
-                        disabled: false,
-                        FromLegacy(snippet, newlyBuiltIn.Id, newlyBuiltIn)));
-                }
-
-                continue;
-            }
-
-            var id = NextMigratedId(snippet.Shortcut, usedIds);
-            usedIds.Add(id);
-            records.Add(new SqlSnippetOverride(
-                id,
-                disabled: false,
-                FromLegacy(snippet, id, template: null)));
-        }
-
-        return new SqlSnippetDocument(SqlSnippetLibrary.CurrentVersion, records);
-    }
-
     public static bool AreEquivalent(SqlSnippet left, SqlSnippet right)
     {
         return string.Equals(left.Shortcut, right.Shortcut, StringComparison.Ordinal) &&
@@ -313,16 +229,6 @@ public static class SqlSnippetMerger
                left.IsDestructive == right.IsDestructive &&
                left.ExpansionMode == right.ExpansionMode &&
                left.Positions == right.Positions &&
-               PlaceholdersEqual(left.Placeholders, right.Placeholders);
-    }
-
-    private static bool AreLegacyEquivalent(SqlSnippet left, SqlSnippet right)
-    {
-        return string.Equals(left.Shortcut, right.Shortcut, StringComparison.Ordinal) &&
-               string.Equals(left.Code, right.Code, StringComparison.Ordinal) &&
-               string.Equals(left.Title, right.Title, StringComparison.Ordinal) &&
-               string.Equals(left.Description, right.Description, StringComparison.Ordinal) &&
-               left.TriggerFollowUp == right.TriggerFollowUp &&
                PlaceholdersEqual(left.Placeholders, right.Placeholders);
     }
 
@@ -376,22 +282,6 @@ public static class SqlSnippetMerger
     private static int Priority(SqlSnippetConfigurationEntry entry) =>
         entry.IsBuiltIn && !entry.IsCustomized ? 1 : 2;
 
-    private static SqlSnippet FromLegacy(SqlSnippet source, string id, SqlSnippet? template)
-    {
-        return new SqlSnippet(
-            source.Shortcut,
-            source.Code,
-            source.Title,
-            source.Description,
-            source.TriggerFollowUp,
-            SqlSnippetPlaceholders.Reconcile(source.Code, source.Placeholders),
-            id,
-            template?.Category ?? SqlSnippetCategory.Other,
-            template?.IsDestructive ?? false,
-            SqlSnippetExpansionMode.Caret,
-            template?.Positions ?? SqlKeywordPosition.Any);
-    }
-
     private static SqlSnippet WithId(SqlSnippet source, string id)
     {
         return new SqlSnippet(
@@ -406,21 +296,6 @@ public static class SqlSnippetMerger
             source.IsDestructive,
             source.ExpansionMode,
             source.Positions);
-    }
-
-    private static string NextMigratedId(string shortcut, ISet<string> used)
-    {
-        var baseId = SqlSnippetIdentity.CreateMigratedId(shortcut);
-        var candidate = baseId;
-        var suffix = 2;
-
-        while (used.Contains(candidate))
-        {
-            candidate = baseId + "." + suffix;
-            suffix++;
-        }
-
-        return candidate;
     }
 
     private static string NextCustomId(ISet<string> used)

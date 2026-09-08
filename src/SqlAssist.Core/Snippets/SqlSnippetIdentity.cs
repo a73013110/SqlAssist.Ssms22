@@ -7,18 +7,22 @@ public static class SqlSnippetIdentity
 {
     public static string NewCustomId() => "user." + Guid.NewGuid().ToString("N");
 
-    /// <summary>v1 遷移必須冪等，所以不能使用每次都不同的 Guid。</summary>
-    public static string CreateMigratedId(string shortcut)
+    /// <summary>手改檔案沒寫 <c>id</c> 時，從捷徑推出識別碼。</summary>
+    /// <remarks>
+    /// 不能用 <see cref="NewCustomId"/>：同一份檔案每次載入都會得到新的識別碼，
+    /// 包夾的最近使用紀錄與管理介面的選取都跟著失憶。
+    /// </remarks>
+    public static string CreateIdFromShortcut(string shortcut)
     {
-        var builder = new StringBuilder("user.v1.");
+        var builder = new StringBuilder("user.");
 
         foreach (var character in (shortcut ?? string.Empty).ToLowerInvariant())
         {
             builder.Append(IsPart(character) ? character : '_');
         }
 
-        return builder.Length == "user.v1.".Length
-            ? "user.v1.snippet"
+        return builder.Length == "user.".Length
+            ? "user.snippet"
             : builder.ToString();
     }
 

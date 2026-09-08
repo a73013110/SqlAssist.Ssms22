@@ -32,16 +32,20 @@ public static class SqlSnippetSerializer
         }));
     }
 
-    /// <summary>剖析一份 Snippet 檔；版本缺席時視為 v1。</summary>
+    /// <summary>剖析一份 Snippet 檔；版本缺席或比現行舊都照現行版本讀。</summary>
+    /// <remarks>
+    /// 手改檔案經常不寫 <c>version</c>，而更舊的版本號已經沒有對應的讀法。
+    /// 留著它只會讓那份檔案整份進唯讀，使用者卻沒有任何可以照做的修法。
+    /// </remarks>
     /// <exception cref="JsonParseException">內容不是合法的 JSON。</exception>
     public static SqlSnippetDocument DeserializeDocument(string text)
     {
         var root = JsonReader.Parse(text);
-        var version = root["version"].AsInt32(1);
+        var version = root["version"].AsInt32(SqlSnippetLibrary.CurrentVersion);
 
-        if (version < 1)
+        if (version < SqlSnippetLibrary.CurrentVersion)
         {
-            version = 1;
+            version = SqlSnippetLibrary.CurrentVersion;
         }
 
         var records = new List<SqlSnippetOverride>();

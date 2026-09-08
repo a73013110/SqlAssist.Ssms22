@@ -4,57 +4,8 @@ using Xunit;
 
 namespace SqlAssist.Core.Tests.Snippets;
 
-public sealed class SqlSnippetMigrationTests
+public sealed class SqlSnippetOverrideTests
 {
-    [Fact]
-    public void 原封不動的v1預設不產生override()
-    {
-        var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(Ssf, Ap, Af), SqlSnippetDefaults.Current);
-
-        Assert.Empty(migrated.Snippets);
-        Assert.Equal(49, SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, migrated).Library.Count);
-    }
-
-    [Fact]
-    public void 改過ssf只產生一筆override且維持caret模式()
-    {
-        var changed = Ssf.Replace("SELECT * FROM ", "SELECT TOP (10) * FROM ");
-        var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(changed, Ap, Af), SqlSnippetDefaults.Current);
-
-        var record = Assert.Single(migrated.Snippets);
-        Assert.Equal("builtin.ssf", record.Id);
-        Assert.False(record.Disabled);
-        Assert.Equal(SqlSnippetExpansionMode.Caret, record.Snippet!.ExpansionMode);
-    }
-
-    [Fact]
-    public void v1刪掉af會產生停用紀錄()
-    {
-        var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(Ssf, Ap), SqlSnippetDefaults.Current);
-
-        var record = Assert.Single(migrated.Snippets);
-        Assert.Equal("builtin.af", record.Id);
-        Assert.True(record.Disabled);
-    }
-
-    [Fact]
-    public void v1自訂捷徑後來成為內建時轉成該內建項目的override()
-    {
-        const string join = """
-            {
-              "shortcut": "ij",
-              "title": "我的 INNER JOIN",
-              "code": "INNER JOIN "
-            }
-            """;
-        var migrated = SqlSnippetMerger.MigrateVersion1(ReadV1(Ssf, Ap, Af, join), SqlSnippetDefaults.Current);
-
-        var record = Assert.Single(migrated.Snippets);
-        Assert.Equal("builtin.ij", record.Id);
-        Assert.Equal(SqlSnippetExpansionMode.Caret, record.Snippet!.ExpansionMode);
-        Assert.Equal("我的 INNER JOIN", record.Snippet.Title);
-    }
-
     [Fact]
     public void 沒改預設時v2檔案沒有任何紀錄()
     {
@@ -138,45 +89,4 @@ public sealed class SqlSnippetMigrationTests
         Assert.True(builtIn.IsShadowed);
         Assert.False(builtIn.IsEffective);
     }
-
-    private static SqlSnippetDocument ReadV1(params string[] snippets)
-    {
-        var body = string.Join(",", snippets);
-        return SqlSnippetSerializer.DeserializeDocument($$"""
-            {
-              "version": 1,
-              "snippets": [{{body}}]
-            }
-            """);
-    }
-
-    private const string Ssf = """
-        {
-          "shortcut": "ssf",
-          "title": "SELECT * FROM",
-          "description": "SELECT * FROM fragment",
-          "triggerFollowUp": true,
-          "code": "SELECT * FROM "
-        }
-        """;
-
-    private const string Ap = """
-        {
-          "shortcut": "ap",
-          "title": "ALTER PROCEDURE",
-          "description": "ALTER PROCEDURE fragment",
-          "triggerFollowUp": true,
-          "code": "ALTER PROCEDURE "
-        }
-        """;
-
-    private const string Af = """
-        {
-          "shortcut": "af",
-          "title": "ALTER FUNCTION",
-          "description": "ALTER FUNCTION fragment",
-          "triggerFollowUp": true,
-          "code": "ALTER FUNCTION "
-        }
-        """;
 }

@@ -81,7 +81,7 @@ public sealed class SqlSnippetSurroundHistoryTests : IDisposable
         Assert.Equal(-1, SqlSnippetSurroundHistory.PreferredIndex(null));
     }
 
-    /// <remarks>沒有識別碼的（v1 遷移前的舊片段）退回捷徑，不是整個不記。</remarks>
+    /// <remarks>沒有識別碼的片段退回捷徑，不是整個不記。</remarks>
     [Fact]
     public void 沒有識別碼的片段以捷徑記()
     {

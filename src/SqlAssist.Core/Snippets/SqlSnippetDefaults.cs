@@ -15,32 +15,6 @@ public static class SqlSnippetDefaults
     /// <summary>隨組件發布、可由新版 VSIX 更新的 49 筆內建定義。</summary>
     public static SqlSnippetLibrary Current => CurrentValue.Value;
 
-    /// <summary>
-    /// v1 遷移的凍結比較基準。這三筆必須永遠維持 0.13 的原值；
-    /// 改成新版預設會讓未修改過的使用者檔案被誤判成三筆 override。
-    /// </summary>
-    public static SqlSnippetLibrary LegacyVersion1 { get; } = new(new[]
-    {
-        new SqlSnippet(
-            "ssf",
-            "SELECT * FROM ",
-            "SELECT * FROM",
-            "SELECT * FROM fragment",
-            triggerFollowUp: true),
-        new SqlSnippet(
-            "ap",
-            "ALTER PROCEDURE ",
-            "ALTER PROCEDURE",
-            "ALTER PROCEDURE fragment",
-            triggerFollowUp: true),
-        new SqlSnippet(
-            "af",
-            "ALTER FUNCTION ",
-            "ALTER FUNCTION",
-            "ALTER FUNCTION fragment",
-            triggerFollowUp: true)
-    });
-
     /// <summary>上一次載入內建資源失敗的原因；成功時為 null。</summary>
     /// <remarks>
     /// 呼叫端（Ssms22 的 Snippet 檔存取）拿它去寫診斷紀錄與管理介面的錯誤列。
