@@ -153,6 +153,19 @@ public sealed class SqlBuiltInDoc
     /// <summary>有沒有值得開一個視窗慢慢看的東西。</summary>
     public bool HasReferences => References.Count > 0;
 
+    /// <summary>
+    /// 值不值得為它單獨開一個浮動視窗。
+    /// </summary>
+    /// <remarks>
+    /// 對照表或範例其中之一。兩者都沒有時視窗裡只剩一個標題與一行說明，而那一行
+    /// 使用者已經在提示或說明面板上看過了。Ctrl+F12 與建議清單那兩條入口問的是同一
+    /// 件事，寫成兩份的症狀是同一個名稱在兩條入口上開得起來的不一樣。
+    ///
+    /// 滑鼠停留提示的「開啟完整說明」用的是更嚴的一條（只看對照表）：範例就印在那個
+    /// 提示裡，為它再開一個視窗等於把使用者眼前的東西再放大一次。
+    /// </remarks>
+    public bool DeservesWindow => HasReferences || Example.Length > 0;
+
     /// <summary>除了名稱以外還有東西可說嗎。</summary>
     /// <remarks>
     /// 只有名稱的話，提示等於把使用者停在上面的那個字再唸一次，不值得一個視窗。

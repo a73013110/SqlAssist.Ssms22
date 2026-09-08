@@ -274,8 +274,9 @@ internal sealed class SqlAssistCommands
     /// 游標停在內建函式或型別上時，用同一個視窗顯示它的完整說明。
     /// </summary>
     /// <remarks>
-    /// 只有真的裝得滿一個視窗才開：對照表或範例其中之一。兩者都沒有時只剩一個標題，
-    /// 那還不如把「不是可辨識的資料庫物件」說清楚——使用者至少知道要換個字試。
+    /// 只有真的裝得滿一個視窗才開（<see cref="SqlBuiltInDoc.DeservesWindow"/>，
+    /// 與建議清單那條入口同一條規則）。裝不滿時只剩一個標題，那還不如把「不是可辨識的
+    /// 資料庫物件」說清楚——使用者至少知道要換個字試。
     /// </remarks>
     private bool ShowBuiltInStructure(
         IWpfTextView textView,
@@ -285,8 +286,7 @@ internal sealed class SqlAssistCommands
     {
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
-        if (!SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) ||
-            (!doc.HasReferences && doc.Example.Length == 0))
+        if (!SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) || !doc.DeservesWindow)
         {
             return false;
         }

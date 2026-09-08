@@ -333,11 +333,15 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         {
             preview.ReconcileSelection(session, _metadataService);
 
-            // 預覽已經展開時整份讓給它：兩個視窗同時貼在清單旁邊會互相搶位置，
-            // 而預覽對非物件項會自己說「這一項不是資料庫物件」。
+            // 預覽已經展開時整份讓給它：兩個視窗同時貼在清單旁邊會互相搶位置。展開狀態
+            // 下它畫得出資料庫物件、指令碼自己宣告的名稱與內建說明，只有其餘的項目才說
+            // 沒有東西可以顯示。
             //
             // 還沒展開時畫面上根本沒有那個視窗，說明面板照常畫——一併吞掉的症狀是
-            // 打開浮動預覽之後，選到 CONVERT 連引數順序那一行都不見了。
+            // 打開浮動預覽之後，選到 CONVERT 連引數順序那一行都不見了。內建說明沒有跟著
+            // 物件一起讓掉，因為這一份正是「一眼看得完」的那一半，而且查表就有；
+            // 看不完的對照表才是向右鍵要開的東西。物件先讓掉的理由則是成本：那一條要
+            // await 一次 GetDetailAsync，而使用者多半只是按著方向鍵路過。
             if (preview.IsExpanded || objectInfo is not null)
             {
                 return null;
