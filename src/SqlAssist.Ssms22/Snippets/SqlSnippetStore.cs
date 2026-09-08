@@ -122,6 +122,34 @@ internal static class SqlSnippetStore
 
     private static SqlSnippetConfiguration Load()
     {
+        var configuration = LoadConfiguration();
+        ReportRuleViolations(configuration);
+        return configuration;
+    }
+
+    /// <summary>
+    /// 逐筆記下手改檔案帶進來的規則違規。
+    /// </summary>
+    /// <remarks>
+    /// 不切唯讀也不丟掉那一筆：整份 JSON 壞掉才需要保護原檔，單筆違規只是
+    /// 那一筆會出怪事（撞關鍵字的捷徑吃掉補全、重複的包夾錨點複製兩份）。
+    /// 紀錄留給診斷，標示留給管理介面——兩邊都沒有的話，症狀要等到使用者
+    /// 自己撞上才會出現，而那時看起來像產品壞了。
+    /// </remarks>
+    private static void ReportRuleViolations(SqlSnippetConfiguration configuration)
+    {
+        foreach (var entry in configuration.Entries)
+        {
+            if (entry.ValidationError is { } violation)
+            {
+                SqlAssistDiagnostics.WriteAlways(
+                    $"Snippet「{entry.Snippet.Shortcut}」不符規則：{violation}（{FilePath}）");
+            }
+        }
+    }
+
+    private static SqlSnippetConfiguration LoadConfiguration()
+    {
         var defaults = SqlSnippetDefaults.Current;
 
         if (SqlSnippetDefaults.LastError is { } resourceError)

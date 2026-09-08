@@ -170,6 +170,9 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
             if (Set(ref _code, value))
             {
                 SyncPlaceholders();
+
+                // 標題帶著「不符規則」的標記，而包夾錨點那一條看的是樣板。
+                Notify(nameof(Caption));
             }
         }
     }
@@ -212,6 +215,20 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
 
     public ObservableCollection<PlaceholderDraft> Placeholders { get; } = new();
 
+    /// <summary>
+    /// 這一筆不符規則的原因；<c>null</c> 代表沒問題。
+    /// </summary>
+    /// <remarks>
+    /// 每次讀都重算而不是從載入時的結果抄一份：使用者改掉捷徑或樣板之後標記要
+    /// 當場消失，才看得出「這樣改就對了」。判斷與存檔、載入同一份
+    /// （<see cref="SqlSnippetValidation"/>），所以清單上沒有標記的那一筆不會
+    /// 在按下儲存時突然被退回。
+    /// </remarks>
+    public string? ValidationError =>
+        IsDisabled || SqlSnippetValidation.Validate(Shortcut?.Trim(), Code, IsShadowed, out var error)
+            ? null
+            : error;
+
     public string Caption
     {
         get
@@ -225,6 +242,13 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
             if (IsDisabled)
             {
                 return caption + "（已停用）";
+            }
+
+            // 排在「被佔用」前面：不符規則要使用者動手改，而且整份存不回去；
+            // 被佔用改掉撞名的那一筆就自己解除。
+            if (ValidationError is not null)
+            {
+                return caption + "（不符規則）";
             }
 
             if (IsShadowed)
@@ -515,7 +539,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             UpdateEditorEnabled();
         }
 
-        ReportStoreError();
+        ReportLoadState();
 
         if (_isReadOnly)
         {
@@ -732,6 +756,14 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         PushToEditor(Selected);
         UpdateEditorEnabled();
+
+        // 清單上只標得下「不符規則」四個字，原因要選起來才看得到。不改成一直清空
+        // 狀態列：讀檔問題與唯讀原因也顯示在同一行，選個項目就把它抹掉的話，
+        // 使用者再也找不回那句話。
+        if (Selected?.ValidationError is { } violation)
+        {
+            _statusText.Text = $"{violation}修好之前整份存不回檔案。";
+        }
     }
 
     private void PushToEditor(SnippetDraft? draft)
@@ -1032,44 +1064,42 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         foreach (var draft in _drafts)
         {
-            var shortcut = draft.Shortcut?.Trim() ?? string.Empty;
+            var snippet = draft.ToSnippet();
 
             if (!draft.IsDisabled)
             {
-                // 逐筆累加而不是最後一次檢查：撞名要指得出是哪一筆，
-                // 而「已經收進去的那些」正好就是判斷撞名的依據。
-                //
-                // 被遮住的項目跳過這一關：它的撞名是手改檔案帶進來的，
-                // 擋在這裡只會讓使用者連別的欄位都存不回去。合併時仍會
-                // 挑出同一個贏家，改掉捷徑就自己解除。
-                if (!draft.IsShadowed && !ValidateShortcut(shortcut, taken, out error))
+                // 捷徑格式、關鍵字撞名與包夾錨點走 Core 那一份：載入時用它標示、
+                // 這裡用它擋下，兩邊的判斷必須一樣，否則清單上沒有標記的那一筆
+                // 會在按下儲存時突然被退回。被遮住的項目讓開捷徑那一條——它的
+                // 撞名是手改檔案帶進來的，擋在這裡只會讓使用者連別的欄位都存不回去。
+                if (!SqlSnippetValidation.Validate(snippet.Shortcut, snippet.Code, draft.IsShadowed, out error))
                 {
                     invalid = draft;
+                    error = $"「{draft.Caption}」{error}";
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(draft.Code))
+                // 逐筆累加而不是最後一次檢查：撞名要指得出是哪一筆，
+                // 而「已經收進去的那些」正好就是判斷撞名的依據。
+                if (!draft.IsShadowed && taken.Contains(snippet.Shortcut))
+                {
+                    invalid = draft;
+                    error = $"「{draft.Caption}」捷徑「{snippet.Shortcut}」已經有人用了。";
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(snippet.Code))
                 {
                     invalid = draft;
                     error = $"「{draft.Caption}」還沒有程式碼。";
                     return false;
                 }
 
-                // 包夾錨點重複要擋在寫進檔案之前。放行的話症狀要等到某一次
-                // Ctrl+K, Ctrl+S 才發作，而那時看到的是「包完之後多了一份一樣的
-                // 程式碼」，沒有人會回頭懷疑樣板。
-                if (!SqlSnippetPlaceholders.ValidateSurroundAnchor(draft.Code, out var anchorError))
-                {
-                    invalid = draft;
-                    error = $"「{draft.Caption}」{anchorError}";
-                    return false;
-                }
-
-                taken.Add(shortcut);
+                taken.Add(snippet.Shortcut);
             }
 
             result.Add(new SqlSnippetConfigurationEntry(
-                draft.ToSnippet(),
+                snippet,
                 draft.IsBuiltIn,
                 draft.IsCustomized,
                 draft.IsDisabled,
@@ -1079,23 +1109,6 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         entries = result;
         invalid = null;
         error = string.Empty;
-        return true;
-    }
-
-    /// <summary>捷徑的格式與唯一性；格式那一條沿用模型的判斷。</summary>
-    private static bool ValidateShortcut(string shortcut, ICollection<string> taken, out string error)
-    {
-        if (!SqlSnippetLibrary.Empty.ValidateShortcut(shortcut, null, out error))
-        {
-            return false;
-        }
-
-        if (taken.Contains(shortcut))
-        {
-            error = $"捷徑「{shortcut}」已經有人用了。";
-            return false;
-        }
-
         return true;
     }
 
@@ -1124,13 +1137,23 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         return prefix;
     }
 
-    private void ReportStoreError()
+    private void ReportLoadState()
     {
         if (SqlSnippetStore.LastError is { } error)
         {
             // 檔案讀壞時畫面仍列內建值，但使用者資料沒有套上；必須講清楚並保持唯讀，
             // 否則看起來像「自訂項目被刪光」，再存一次就真的覆蓋原檔。
             _statusText.Text = $"讀取檔案時發生問題：{error}";
+            return;
+        }
+
+        // 手改檔案帶進來的單筆違規比整份壞掉輕，不切唯讀也不丟掉資料——但要在
+        // 一開啟就講出有幾筆，否則使用者只會在清單裡看到一個標記，不知道去哪裡找。
+        var invalid = _drafts.Count(item => item.ValidationError is not null);
+
+        if (invalid > 0)
+        {
+            _statusText.Text = $"有 {invalid} 筆片段不符規則，已在清單標示；選起來看原因。";
         }
     }
 

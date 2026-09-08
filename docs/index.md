@@ -40,7 +40,7 @@
 | 片段內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、欄位建議、Tab／Enter | [片段導航](snippet-navigation.md) |
 | 包住選取範圍、Ctrl+K Ctrl+S、`$surround$` | [片段包夾](snippet-surround.md) |
-| 使用者 override、合併、遷移、存檔 | [片段存放](snippet-storage.md) |
+| 使用者 override、合併、遷移、存檔、手改違規 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |

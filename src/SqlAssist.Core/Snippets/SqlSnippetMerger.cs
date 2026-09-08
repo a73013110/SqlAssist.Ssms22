@@ -100,24 +100,40 @@ public static class SqlSnippetMerger
 
             if (entry.IsDisabled)
             {
-                continue;
-            }
-
-            if (winners.Contains(entry))
-            {
-                effective.Add(entry.Snippet);
+                // 停用的項目不進清單也不展開，兩條規則對它都沒有症狀可以講。
                 continue;
             }
 
             // 使用者項目優先，被遮住的低優先項目這一輪不進清單——但那是計算結果，
             // 不是使用者停用了它。標成 IsDisabled 的話，存檔就會替它寫下永久的
             // 停用紀錄，之後把撞名的那一筆改名也救不回來。
+            var shadowed = !winners.Contains(entry);
+
+            if (!shadowed)
+            {
+                effective.Add(entry.Snippet);
+            }
+
+            // 手改檔案繞得過管理介面的存檔檢查，所以載入時重跑同一份規則。只標不改：
+            // 這一筆照樣留在清單與建議裡，原因交給管理介面與診斷紀錄。
+            var valid = SqlSnippetValidation.Validate(
+                entry.Snippet.Shortcut,
+                entry.Snippet.Code,
+                shadowed,
+                out var violation);
+
+            if (!shadowed && valid)
+            {
+                continue;
+            }
+
             entries[index] = new SqlSnippetConfigurationEntry(
                 entry.Snippet,
                 entry.IsBuiltIn,
                 entry.IsCustomized,
                 isDisabled: false,
-                isShadowed: true);
+                isShadowed: shadowed,
+                validationError: valid ? null : violation);
         }
 
         return new SqlSnippetConfiguration(

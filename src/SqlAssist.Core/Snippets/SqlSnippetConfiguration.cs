@@ -32,13 +32,15 @@ public sealed class SqlSnippetConfigurationEntry
         bool isBuiltIn,
         bool isCustomized,
         bool isDisabled,
-        bool isShadowed = false)
+        bool isShadowed = false,
+        string? validationError = null)
     {
         Snippet = snippet;
         IsBuiltIn = isBuiltIn;
         IsCustomized = isCustomized;
         IsDisabled = isDisabled;
         IsShadowed = isShadowed;
+        ValidationError = validationError;
     }
 
     public SqlSnippet Snippet { get; }
@@ -60,6 +62,14 @@ public sealed class SqlSnippetConfigurationEntry
     /// 內建那筆卻再也回不來了。
     /// </remarks>
     public bool IsShadowed { get; }
+
+    /// <summary>載入時就不符規則的原因；<c>null</c> 代表這一筆沒問題。</summary>
+    /// <remarks>
+    /// 只帶原因，不動資料：整份 JSON 壞掉才切唯讀，單筆違規照樣留在清單裡，由
+    /// 管理介面標出來、由 Store 記進診斷。安靜地丟掉那一筆的話，使用者會發現
+    /// 片段消失卻沒有任何說明。規則見 <see cref="SqlSnippetValidation"/>。
+    /// </remarks>
+    public string? ValidationError { get; }
 
     /// <summary>這一輪要不要出現在建議清單。</summary>
     public bool IsEffective => !IsDisabled && !IsShadowed;

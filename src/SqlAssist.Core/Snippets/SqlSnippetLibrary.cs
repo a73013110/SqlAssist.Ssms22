@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Snippets;
 
@@ -85,36 +84,16 @@ public sealed class SqlSnippetLibrary
     /// <param name="error">不能用時的原因。</param>
     public bool ValidateShortcut(string? shortcut, string? allowedExisting, out string error)
     {
-        if (string.IsNullOrWhiteSpace(shortcut))
+        // 只看一份樣板就能判斷的那幾條在 SqlSnippetValidation：載入時也要跑同一份，
+        // 而載入端沒有「編輯中的這一筆」可以讓開撞名那一條。
+        if (!SqlSnippetValidation.ValidateShortcut(shortcut, out error))
         {
-            error = "捷徑不能空白。";
             return false;
         }
 
-        // 展開器是在「游標前方的那一個詞元」上比對的，含空白或標點的捷徑
-        // 永遠不會被切成同一個詞元，也就永遠展不開。與其存進去再讓使用者
-        // 納悶為什麼沒反應，不如當場擋下來。
-        foreach (var character in shortcut!)
-        {
-            if (!char.IsLetterOrDigit(character) && character != '_')
-            {
-                error = $"捷徑只能用字母、數字與底線，不能有「{character}」。";
-                return false;
-            }
-        }
-
-        // 與 T-SQL 關鍵字撞名的捷徑會把那個字本身吃掉。展開器比對的是游標前方的
-        // 那一個詞元，而使用者打 SELECT 時要的多半是關鍵字本身——分不出來的位置
-        // 不該由片段贏走。內建片段用 cs、be、ifb 讓開這一條，自訂的走同一份規則——
-        // 規則只有這一份，管理介面的存檔檢查也是呼叫這裡。
-        if (SqlKeywordCatalog.TryGetCanonical(shortcut!, out var keyword))
-        {
-            error = $"捷徑不能與 T-SQL 關鍵字「{keyword}」同名。";
-            return false;
-        }
-
+        // 空白已經被上面那一份規則擋掉了。
         if (!string.Equals(shortcut, allowedExisting, StringComparison.OrdinalIgnoreCase) &&
-            _byShortcut.ContainsKey(shortcut))
+            _byShortcut.ContainsKey(shortcut!))
         {
             error = $"捷徑「{shortcut}」已經有人用了。";
             return false;
