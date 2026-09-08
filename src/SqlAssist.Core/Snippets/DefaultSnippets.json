@@ -292,9 +292,9 @@
       "description": "BEGIN／END 區塊",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "BEGIN\n    $body$\nEND$end$",
+      "code": "BEGIN\n    $surround$\nEND$end$",
       "placeholders": [
-        { "id": "body", "default": "SELECT 1;", "tooltip": "區塊內容" }
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "區塊內容" }
       ]
     },
     {
@@ -335,11 +335,11 @@
       "description": "資料存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $surround$\nEND$end$",
       "placeholders": [
         { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
-        { "id": "body", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
       ]
     },
     {
@@ -350,11 +350,11 @@
       "description": "資料不存在時執行",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $body$\nEND$end$",
+      "code": "IF NOT EXISTS\n(\n    SELECT 1\n    FROM $table$\n    WHERE $condition$\n)\nBEGIN\n    $surround$\nEND$end$",
       "placeholders": [
         { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "condition", "default": "1 = 1", "tooltip": "判斷條件" },
-        { "id": "body", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "成立時執行的內容" }
       ]
     },
     {
@@ -365,10 +365,10 @@
       "description": "WHILE 迴圈",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "WHILE $condition$\nBEGIN\n    $body$\nEND$end$",
+      "code": "WHILE $condition$\nBEGIN\n    $surround$\nEND$end$",
       "placeholders": [
         { "id": "condition", "default": "1 = 1", "tooltip": "迴圈條件" },
-        { "id": "body", "default": "BREAK;", "tooltip": "迴圈內容" }
+        { "id": "surround", "default": "BREAK;", "tooltip": "迴圈內容" }
       ]
     },
     {
@@ -379,9 +379,9 @@
       "description": "TRY／CATCH 例外處理",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "BEGIN TRY\n    $tryBody$\nEND TRY\nBEGIN CATCH\n    $catchBody$\n    THROW;\nEND CATCH$end$;",
+      "code": "BEGIN TRY\n    $surround$\nEND TRY\nBEGIN CATCH\n    $catchBody$\n    THROW;\nEND CATCH$end$;",
       "placeholders": [
-        { "id": "tryBody", "default": "SELECT 1;", "tooltip": "主要處理內容" },
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "主要處理內容" },
         { "id": "catchBody", "default": "SELECT ERROR_MESSAGE();", "tooltip": "錯誤處理內容" }
       ]
     },
@@ -408,13 +408,13 @@
       "description": "完整的本機快速順向 CURSOR 樣板",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT $column$\nFROM $table$;\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $body$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
+      "code": "DECLARE $cursor$ CURSOR LOCAL FAST_FORWARD FOR\nSELECT $column$\nFROM $table$;\n\nOPEN $cursor$;\nFETCH NEXT FROM $cursor$ INTO @$variable$;\n\nWHILE @@FETCH_STATUS = 0\nBEGIN\n    $surround$\n    FETCH NEXT FROM $cursor$ INTO @$variable$;\nEND;\n\nCLOSE $cursor$;\nDEALLOCATE $cursor$$end$;",
       "placeholders": [
         { "id": "cursor", "default": "item_cursor", "tooltip": "游標名稱；相同名稱會同步" },
         { "id": "column", "default": "ColumnName", "tooltip": "讀取欄位" },
         { "id": "table", "default": "dbo.TableName", "tooltip": "資料表名稱；可含結構描述" },
         { "id": "variable", "default": "Value", "tooltip": "接收資料的變數；請先宣告" },
-        { "id": "body", "default": "SELECT @Value;", "tooltip": "逐筆處理內容" }
+        { "id": "surround", "default": "SELECT @Value;", "tooltip": "逐筆處理內容" }
       ]
     },
     {
@@ -425,9 +425,9 @@
       "description": "含 XACT_ABORT、TRY／CATCH 與回復的交易",
       "expansionMode": "tabStops",
       "positions": ["StatementStart", "BlockStart"],
-      "code": "SET XACT_ABORT ON;\n\nBEGIN TRY\n    BEGIN TRANSACTION;\n\n    $body$\n\n    COMMIT TRANSACTION;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0\n        ROLLBACK TRANSACTION;\n\n    THROW;\nEND CATCH$end$;",
+      "code": "SET XACT_ABORT ON;\n\nBEGIN TRY\n    BEGIN TRANSACTION;\n\n    $surround$\n\n    COMMIT TRANSACTION;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0\n        ROLLBACK TRANSACTION;\n\n    THROW;\nEND CATCH$end$;",
       "placeholders": [
-        { "id": "body", "default": "SELECT 1;", "tooltip": "交易內容" }
+        { "id": "surround", "default": "SELECT 1;", "tooltip": "交易內容" }
       ]
     },
 

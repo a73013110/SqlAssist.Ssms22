@@ -68,6 +68,13 @@ internal sealed class SqlAssistCommands
             CommandIds.RefreshSuggestions,
             RefreshSuggestions,
             () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
+        // 也綁了鍵（Ctrl+K, Ctrl+S），所以同樣要回答狀態；沒有選取時回報停用，
+        // 那個和絃才落得回 SSMS 原本的行為。
+        AddCommand(
+            CommandIds.SurroundWith,
+            SurroundWith,
+            SqlSnippetSurroundAction.IsAvailable);
+
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
@@ -324,6 +331,48 @@ internal sealed class SqlAssistCommands
             // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
             SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
             SqlAssistStatusBar.Show(_package, $"開啟物件結構失敗：{exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 以片段包住選取範圍。
+    /// </summary>
+    /// <remarks>
+    /// 與 <c>Edit.SurroundWith</c> 走同一份實作（<see cref="SqlSnippetSurroundAction"/>）。
+    /// 回饋一律走狀態列，<b>不用對話框</b>——這個命令綁著 Ctrl+K, Ctrl+S，
+    /// 而一個要按確定才消失的視窗出現在按鍵路徑上，比沒有反應更糟。
+    /// </remarks>
+    private void SurroundWith(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            SqlAssistDiagnostics.Write("包夾命令抵達 SqlAssist（命令表）");
+
+            // BeforeQueryStatus 已經擋掉這幾種，但殼層不保證每一次派送前都問過狀態。
+            if (!SqlAssistSettingsStore.Current.Enabled)
+            {
+                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                return;
+            }
+
+            if (ActiveSqlEditor.Current is not { } textView)
+            {
+                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                return;
+            }
+
+            if (!SqlSnippetSurroundAction.TryBegin(textView, out var message))
+            {
+                SqlAssistStatusBar.Show(_package, message);
+            }
+        }
+        catch (Exception exception)
+        {
+            // 同上：這條路徑綁著按鍵，例外也走狀態列。
+            SqlAssistDiagnostics.WriteAlways($"以片段包住選取範圍失敗：{exception}");
+            SqlAssistStatusBar.Show(_package, $"以片段包住選取範圍失敗：{exception.Message}");
         }
     }
 

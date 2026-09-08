@@ -54,7 +54,7 @@ by the SSMS grid.
 
 <p align="center"><img src="docs/images/result-grid-utility.png" width="820" alt="Result-grid menu for export, profiling, and full cell content"></p>
 
-Also included: T-SQL snippets with Tab Stops, automatic bracket/quote pairing, and feature toggles.
+Also included: T-SQL snippets with Tab Stops and surround-with, bracket/quote pairing, and toggles.
 
 ## Install
 

@@ -99,6 +99,10 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>重新整理建議</ButtonText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0250" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Strings><ButtonText>以片段包住選取範圍</ButtonText></Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidManageSnippets" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Strings><ButtonText>程式碼片段…</ButtonText></Strings>
@@ -239,6 +243,23 @@
                 editor="guidVSStd97"
                 key1="VK_F12"
                 mod1="Control" />
+    <!--
+      Ctrl+K, Ctrl+S 是 Visual Studio 的 Edit.SurroundWith。這裡與 F12 同一種
+      兩條路：SSMS 若自己綁了那個和絃，命令會走 VSStd2K/SURROUNDWITH 被
+      SqlShellCommandFilter 接住，這條繫結就解析不到；沒綁時才由這裡送出。
+
+      兩條的終點是同一份實作，因此就算兩邊都存在也不會有行為分岔——這與 F12
+      不同：那時候是「濾鏡收不到，所以繫結是唯一的路」，這裡是「哪一條成立都可以」。
+      命令自己在沒有 SQL 編輯器、沒有選取或沒有可包夾片段時回報停用，
+      停用的命令不會被派送，該和絃就落回 SSMS 原本的行為。
+    -->
+    <KeyBinding guid="guidSqlAssistCommandSet"
+                id="cmdidSurroundWith"
+                editor="guidVSStd97"
+                key1="K"
+                mod1="Control"
+                key2="S"
+                mod2="Control" />
   </KeyBindings>
 
   <Symbols>
@@ -262,6 +283,7 @@
       <IDSymbol name="cmdidOpenDiagnosticsLog" value="0x0208" />
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
+      <IDSymbol name="cmdidSurroundWith" value="0x020B" />
       <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
       <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />

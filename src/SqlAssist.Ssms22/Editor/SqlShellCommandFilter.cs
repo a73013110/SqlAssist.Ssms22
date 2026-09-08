@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.TextManager.Interop;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Snippets;
 
 // Microsoft.VisualStudio.OLE.Interop 自己有一個 IServiceProvider（COM 的那個）與
 // 一個 Constants，跟殼層的同名。這裡要的都是另一邊，明確指名才不會編譯失敗。
@@ -47,6 +48,11 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
     private static readonly Guid StandardCommandSet = VSConstants.GUID_VSStandardCommandSet97;
 
     private const uint GoToDefinitionCommandId = (uint)VSConstants.VSStd97CmdID.GotoDefn;
+
+    /// <summary>編輯器命令集，<c>Edit.SurroundWith</c>（Ctrl+K, Ctrl+S）屬於這一組。</summary>
+    private static readonly Guid EditorCommandSet = VSConstants.VSStd2K;
+
+    private const uint SurroundWithCommandId = (uint)VSConstants.VSStd2KCmdID.SURROUNDWITH;
 
     private const int NotSupported = (int)OleConstants.OLECMDERR_E_NOTSUPPORTED;
 
@@ -136,13 +142,32 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
     /// </remarks>
     public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
     {
-        if (pguidCmdGroup == StandardCommandSet &&
-            cCmds == 1 &&
-            prgCmds[0].cmdID == GoToDefinitionCommandId &&
-            SqlAssistSettingsStore.Current.Enabled)
+        if (cCmds == 1)
         {
-            prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
-            return VSConstants.S_OK;
+            if (pguidCmdGroup == StandardCommandSet)
+            {
+                if (prgCmds[0].cmdID == GoToDefinitionCommandId &&
+                    SqlAssistSettingsStore.Current.Enabled)
+                {
+                    prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
+                    return VSConstants.S_OK;
+                }
+            }
+            else if (pguidCmdGroup == EditorCommandSet)
+            {
+                // 打字用的 TYPECHAR 也在這一組，所以這個分支每個按鍵都會走進來，
+                // 而下一步就只剩一次整數比對——比對不中時什麼都不做就往下轉。
+                // 只在真的做得到時認領：沒有選取或沒有可包夾的片段時讓開，
+                // Ctrl+K, Ctrl+S 就落回 SSMS 自己的行為，而不是變成一個按下去
+                // 什麼都不會發生的鍵。
+                if (prgCmds[0].cmdID == SurroundWithCommandId &&
+                    SqlAssistSettingsStore.Current.Enabled &&
+                    SqlSnippetSurroundAction.IsAvailable(_textView))
+                {
+                    prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
+                    return VSConstants.S_OK;
+                }
+            }
         }
 
         return _next is { } next
@@ -158,6 +183,13 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
             // 這是按鍵路徑，丟出例外就是使用者按一次鍵看到一次錯誤對話框。
             // 沒有接手時往下轉，讓 SSMS 仍有機會處理。
             if (SqlAssistPlatformGuard.Run("處理移至定義命令", TryGoToDefinition, fallback: false))
+            {
+                return VSConstants.S_OK;
+            }
+        }
+        else if (pguidCmdGroup == EditorCommandSet && nCmdID == SurroundWithCommandId)
+        {
+            if (SqlAssistPlatformGuard.Run("處理包夾命令", TrySurroundWith, fallback: false))
             {
                 return VSConstants.S_OK;
             }
@@ -180,6 +212,21 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
         return SqlCompletionServices
             .GetDefinitionOpener(_textView, _serviceProvider)
             .TryBegin(_textView.Caret.Position.BufferPosition);
+    }
+
+    /// <remarks>
+    /// 失敗時回 false 讓命令往下轉，不在這裡顯示訊息：這條路徑上的失敗只有
+    /// 「沒有選取」與「沒有可包夾的片段」兩種，而 <c>QueryStatus</c> 已經讓開了，
+    /// 走到這裡代表殼層仍然派送過來——那時候讓 SSMS 接手比彈一句話有用。
+    /// 命令表那一條（工具選單與鍵繫結）才需要說明原因，它由
+    /// <c>SqlAssistCommands</c> 走狀態列回報。
+    /// </remarks>
+    private bool TrySurroundWith()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        SqlAssistDiagnostics.Write("包夾命令抵達 SqlAssist（殼層命令濾鏡）");
+
+        return SqlSnippetSurroundAction.TryBegin(_textView, out _);
     }
 
     /// <summary>

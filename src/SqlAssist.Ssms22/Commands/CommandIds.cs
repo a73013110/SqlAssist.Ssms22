@@ -36,6 +36,16 @@ internal static class CommandIds
     /// <summary>選單項目，同時也是設定頁上的按鈕（註冊檔寫成十進位的 521）。</summary>
     public const int ManageSnippets = 0x0209;
 
+    /// <summary>
+    /// 以片段包住選取範圍；<c>Menus.vsct</c> 把 Ctrl+K, Ctrl+S 綁在這一個上。
+    /// </summary>
+    /// <remarks>
+    /// 與 F12 同一種兩條路：SSMS 若自己把該和絃綁在 <c>Edit.SurroundWith</c> 上，
+    /// 命令會由 <c>SqlShellCommandFilter</c> 接；沒綁時才走這一條鍵繫結。
+    /// 兩條的終點都是同一份實作，所以就算兩邊都存在也不會有行為分岔。
+    /// </remarks>
+    public const int SurroundWith = 0x020B;
+
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
 

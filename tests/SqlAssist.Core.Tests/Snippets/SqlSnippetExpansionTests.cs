@@ -87,6 +87,89 @@ public sealed class SqlSnippetExpansionTests
     }
 
     [Fact]
+    public void 包夾把選取文字填進錨點且那一格不再是可導航欄位()
+    {
+        var snippet = Block();
+
+        var expansion = SqlSnippetExpansion.Create(snippet, "SELECT CopyNo\nFROM dbo.Loan;");
+
+        Assert.Equal("BEGIN\n    SELECT CopyNo\n    FROM dbo.Loan;\nEND", expansion.Text);
+
+        // 已經有內容的格子不該被引擎選起來——那樣使用者下一個按鍵就會把自己
+        // 剛包進去的東西刪掉。
+        Assert.Empty(expansion.Fields);
+        Assert.Equal("BEGIN\n    SELECT CopyNo\n    FROM dbo.Loan;\nEND$end$", expansion.NativeCode);
+    }
+
+    [Fact]
+    public void 包夾內容裡的錢字號對原生引擎跳脫()
+    {
+        var expansion = SqlSnippetExpansion.Create(Block(), "PRINT '$1';");
+
+        Assert.Equal("BEGIN\n    PRINT '$1';\nEND", expansion.Text);
+        Assert.Equal("BEGIN\n    PRINT '$$1';\nEND$end$", expansion.NativeCode);
+    }
+
+    [Fact]
+    public void 沒有選取時包夾欄位就是一格普通的Tab欄位()
+    {
+        var snippet = Block();
+
+        var field = Assert.Single(snippet.Expansion.Fields);
+        Assert.Equal(SqlSnippetPlaceholders.SurroundId, field.Placeholder.Id);
+        Assert.Equal("BEGIN\n    SELECT 1;\nEND", snippet.Expansion.Text);
+    }
+
+    [Fact]
+    public void 包夾保留其餘欄位的Tab導航()
+    {
+        var snippet = new SqlSnippet(
+            "wl",
+            "WHILE $condition$\nBEGIN\n    $surround$\nEND$end$",
+            placeholders: new[]
+            {
+                new SqlSnippetPlaceholder("condition", "1 = 1"),
+                new SqlSnippetPlaceholder(SqlSnippetPlaceholders.SurroundId, "BREAK;")
+            },
+            expansionMode: SqlSnippetExpansionMode.TabStops);
+
+        var surrounded = snippet.WithSurroundText("SELECT 1;");
+
+        // 條件那一格還在，所以包夾之後游標落在真正還要填的位置。
+        var field = Assert.Single(surrounded.Expansion.Fields);
+        Assert.Equal("condition", field.Placeholder.Id);
+        Assert.Equal(SqlSnippetExpansionMode.TabStops, surrounded.ExpansionMode);
+    }
+
+    /// <remarks>
+    /// 只剩包夾欄位的片段（<c>be</c>、<c>trn</c>）填掉之後就沒有可導航欄位了。
+    /// 那時候還啟動原生 session 只會多一條按鍵路徑與一趟 COM，而且復原會多一格。
+    /// </remarks>
+    [Fact]
+    public void 沒有剩餘欄位的包夾降級成單次插入()
+    {
+        var surrounded = Block().WithSurroundText("SELECT 1;");
+
+        Assert.Equal(SqlSnippetExpansionMode.Caret, surrounded.ExpansionMode);
+        Assert.False(surrounded.CanSurround);
+
+        // 原片段不受影響：整份清單是共用的不可變參考。
+        Assert.True(Block().CanSurround);
+    }
+
+    private static SqlSnippet Block()
+    {
+        return new SqlSnippet(
+            "be",
+            "BEGIN\n    $surround$\nEND$end$",
+            placeholders: new[]
+            {
+                new SqlSnippetPlaceholder(SqlSnippetPlaceholders.SurroundId, "SELECT 1;")
+            },
+            expansionMode: SqlSnippetExpansionMode.TabStops);
+    }
+
+    [Fact]
     public void 依編輯器換行格式產生文字且同步修正游標位移()
     {
         var snippet = new SqlSnippet("x", "BEGIN\n    SELECT 1;$end$\nEND");

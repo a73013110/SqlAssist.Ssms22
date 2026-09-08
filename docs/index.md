@@ -39,6 +39,7 @@
 | 變數、全域變數、模組參數 | [變數](completion-variables.md) |
 | 片段內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、欄位建議、Tab／Enter | [片段導航](snippet-navigation.md) |
+| 包住選取範圍、Ctrl+K Ctrl+S、`$surround$` | [片段包夾](snippet-surround.md) |
 | 使用者 override、合併、遷移、存檔 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |

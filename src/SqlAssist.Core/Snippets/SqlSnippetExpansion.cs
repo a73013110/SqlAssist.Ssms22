@@ -76,7 +76,19 @@ public sealed class SqlSnippetExpansion
 
     public string GetNativeCode(string newLine) => NormalizeLineEndings(NativeCode, newLine);
 
-    public static SqlSnippetExpansion Create(SqlSnippet snippet)
+    /// <param name="snippet">要展開的片段。</param>
+    /// <param name="surroundText">
+    /// 包夾時使用者選取的文字；一般插入時為 <c>null</c>。
+    /// </param>
+    /// <remarks>
+    /// 包夾與插入走的是<b>同一份</b>樣板與同一條展開路徑，差別只有包夾欄位
+    /// （<see cref="SqlSnippetPlaceholders.SurroundId"/>）填的是選取的文字而不是預設值，
+    /// 而且填了之後就不再是可導航欄位——它已經有內容了，讓引擎把它選起來，
+    /// 使用者下一個按鍵就會把自己剛包進去的東西刪掉。
+    ///
+    /// 其餘欄位照舊是 Tab Stop，所以 <c>wl</c> 包夾之後游標仍然落在條件那一格。
+    /// </remarks>
+    public static SqlSnippetExpansion Create(SqlSnippet snippet, string? surroundText = null)
     {
         if (snippet is null)
         {
@@ -139,6 +151,17 @@ public sealed class SqlSnippetExpansion
                 continue;
             }
 
+            if (surroundText is not null &&
+                SqlSnippetPlaceholders.IsNamed(id, SqlSnippetPlaceholders.SurroundId))
+            {
+                AppendLiteral(
+                    SqlSnippetSurround.Reindent(surroundText, AnchorIndent(text)),
+                    text,
+                    native);
+                index = end;
+                continue;
+            }
+
             // 起點要在附加預設值之前取，那才是這一格在展開文字裡的開頭。
             var offset = text.Length;
             text.Append(placeholder.DefaultValue);
@@ -196,6 +219,31 @@ public sealed class SqlSnippetExpansion
 
         return builder.ToString();
     }
+
+    /// <summary>目前這一行在錨點之前的縮排；錨點不在行首時沒有縮排可言。</summary>
+    /// <remarks>
+    /// 從已經產生的文字往回讀，而不是掃樣板：樣板裡的前一格可能已經被預設值換掉，
+    /// 長度不同，而要對齊的是<b>展開後</b>的那一行。
+    /// </remarks>
+    private static string AnchorIndent(StringBuilder text)
+    {
+        var index = text.Length;
+
+        while (index > 0 && text[index - 1] != '\n')
+        {
+            if (text[index - 1] != ' ' && text[index - 1] != '\t')
+            {
+                return string.Empty;
+            }
+
+            index--;
+        }
+
+        return text.ToString(index, text.Length - index);
+    }
+
+    private static void AppendLiteral(string value, StringBuilder text, StringBuilder native) =>
+        AppendLiteral(value, 0, value.Length, text, native);
 
     private static void AppendLiteral(char value, StringBuilder text, StringBuilder native)
     {

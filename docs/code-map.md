@@ -24,6 +24,7 @@
 | `#tmp`／`@rows` 的欄位列不出來或展不開 | `Core/Parsing/SqlScriptTableCollector.cs` |
 | 程式碼片段的格式或展開行為 | `Core/Snippets/DefaultSnippets.json`、`SqlSnippetExpansion.cs` |
 | 片段合併、override 或存檔 | `SqlSnippetMerger.cs`、`SqlSnippetSerializer.cs` |
+| 包住選取範圍的清單、縮排或觸發 | `Core/Snippets/SqlSnippetSurround.cs`、`Ssms22/Snippets/SqlSnippetSurroundAction.cs` |
 | `SELECT *` 展不開或展錯 | `Core/Wildcards/SqlWildcardAnalyzer.cs` |
 | 展開後的欄位排版 | `Core/Wildcards/SqlWildcardExpansionText.cs` |
 | Tab／Shift+Tab 的行為 | `Ssms22/Editor/SqlTabCommandHandler.cs` |

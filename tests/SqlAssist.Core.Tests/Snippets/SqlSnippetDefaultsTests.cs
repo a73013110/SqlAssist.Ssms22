@@ -457,6 +457,72 @@ public sealed class SqlSnippetDefaultsTests
             .ToArray();
     }
 
+    /// <remarks>
+    /// 包夾清單就是這一份：<c>Ctrl+K, Ctrl+S</c> 列出來的內容由「樣板裡有沒有
+    /// <c>$surround$</c>」推導，沒有第二份宣告。新增可包夾的片段時要在這裡加一行——
+    /// 少了這份清單，把某一格改名或改錯的症狀只是「那一筆從包夾清單裡消失了」，
+    /// 而它在建議清單裡看起來完全正常。
+    /// </remarks>
+    [Fact]
+    public void 可包夾的內建片段就是流程控制那一族()
+    {
+        var shortcuts = SqlSnippetDefaults.Current.Snippets
+            .Where(snippet => snippet.CanSurround)
+            .Select(snippet => snippet.Shortcut)
+            .ToArray();
+
+        Assert.Equal(new[] { "be", "ife", "ifne", "wl", "tc", "cur", "trn" }, shortcuts);
+    }
+
+    /// <remarks>
+    /// 包夾欄位出現兩次的話，選取的內容就會被複製兩份。同名欄位的同步是原生引擎
+    /// 用標記做的，而包夾這一格在填進去之後已經不是欄位了，沒有人會替它同步。
+    /// </remarks>
+    [Fact]
+    public void 包夾欄位在樣板裡只出現一次()
+    {
+        foreach (var snippet in SqlSnippetDefaults.Current.Snippets.Where(item => item.CanSurround))
+        {
+            Assert.Equal(1, Count(snippet.Code, "$" + SqlSnippetPlaceholders.SurroundId + "$"));
+        }
+    }
+
+    /// <remarks>
+    /// 包夾欄位在展開時是最先要填的那一格，所以它在樣板裡的順序決定了「沒有選取
+    /// 時直接展開」的 Tab 路徑。<c>tc</c> 曾經是 <c>tryBody</c> 在前、
+    /// <c>catchBody</c> 在後；把前者改名成包夾欄位時若順序跟著換位，展開之後游標
+    /// 會先跳到 CATCH 區塊——看起來像片段寫錯，其實是欄位順序。
+    /// </remarks>
+    [Fact]
+    public void 包夾欄位維持在樣板的原順序()
+    {
+        var tryCatch = SqlSnippetDefaults.Current.Snippets.Single(item => item.Shortcut == "tc");
+
+        Assert.Equal(
+            new[] { SqlSnippetPlaceholders.SurroundId, "catchBody" },
+            tryCatch.Placeholders.Select(item => item.Id).ToArray());
+    }
+
+    /// <remarks>
+    /// 包夾的定義就是「這段內容被包進一個區塊裡」。錨點放錯位置（放在 <c>BEGIN</c>
+    /// 之前、或放在 <c>END</c> 之後）時，展開出來的文字看起來仍然合理，只是選取的
+    /// 內容根本沒有被包起來——那是唯一真正要守的性質，所以直接問配對器。
+    /// </remarks>
+    [Fact]
+    public void 包夾之後選取內容確實落在一個區塊裡()
+    {
+        const string body = "PRINT 'wrapped';";
+
+        foreach (var snippet in SqlSnippetDefaults.Current.Snippets.Where(item => item.CanSurround))
+        {
+            var text = snippet.WithSurroundText(body).Expansion.Text;
+            var offset = text.IndexOf(body, StringComparison.Ordinal);
+
+            Assert.True(offset >= 0, snippet.Shortcut);
+            Assert.NotNull(new BlockMatcher(text).GetEnclosingBlock(offset));
+        }
+    }
+
     private static int Count(string text, string value)
     {
         var count = 0;

@@ -11,6 +11,9 @@
 | 流程控制／交易 | `be`、`bt`、`ct`、`rt`、`ife`、`ifne`、`wl`、`tc`、`cs`、`cur`、`trn` |
 | 查詢子句／其他 | `ij`、`lj`、`rj`、`fj`、`cj`、`ca`、`oa`、`ob`、`gb`、`cte`、`sno`、`ptt` |
 
+流程控制那七筆另外可以**包住選取範圍**（Ctrl+K, Ctrl+S），規則見
+[片段包夾](snippet-surround.md)。
+
 `cf` 是純量函式、`ctf` 是內嵌資料表值函式——要記的是這一組**對比**而不是縮寫，
 所以只差「多回傳一張表」的那個 `t`。CASE 使用 `cs`、BEGIN…END 使用
 `be`，都不占用同名的 T-SQL 關鍵字。`ui`、`df`、`mg` 與 `dt` 標成危險片段：

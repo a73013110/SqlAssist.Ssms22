@@ -20,6 +20,24 @@ public static class SqlSnippetPlaceholders
     /// <summary>原生 Expansion Engine 的選取文字標記名稱。</summary>
     internal const string SelectedId = "selected";
 
+    /// <summary>
+    /// 包夾錨點的欄位名稱：有選取範圍時，選取的文字就填進這一格。
+    /// </summary>
+    /// <remarks>
+    /// <b>刻意不是 <see cref="SelectedId"/>。</b><c>$selected$</c> 是原生 Expansion
+    /// Engine 的保留字，宣告一個同名的 <c>Literal</c> 會與引擎自己的語意相撞，而
+    /// 那條路要求在產生原生 XML 時多一層「欄位名稱換名」的映射——一份只為了沿用
+    /// 別人的字而存在的映射，改錯了就是包夾安靜地填不進去。
+    ///
+    /// <c>surround</c> 對引擎來說只是一個普通欄位名稱，因此<b>沒有選取範圍時它就是
+    /// 一格普通的 Tab Stop</b>，預設值與說明照舊——<c>be</c>、<c>wl</c> 這些片段
+    /// 直接輸入捷徑展開的行為完全沒有改變。
+    ///
+    /// 「這一筆能不能包夾」因此不需要任何新欄位：樣板裡有沒有這一格就是答案，
+    /// 使用者自訂片段把某一格命名成 <c>surround</c> 也就自動支援包夾。
+    /// </remarks>
+    public const string SurroundId = "surround";
+
     /// <summary>系統識別字，不能當佔位符 ID。</summary>
     internal static bool IsReserved(string id) =>
         IsNamed(id, EndId) || IsNamed(id, SelectedId);
