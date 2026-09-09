@@ -124,6 +124,38 @@ WHERE s.is_linked = 1
 ORDER BY s.name;";
 
     /// <summary>
+    /// 這台伺服器支援的定序名稱。
+    /// </summary>
+    /// <remarks>
+    /// <c>sys.fn_helpcollations()</c> 從 SQL Server 2000 就有，而且不看權限——
+    /// 這是一份與資料無關的常數表。它與物件清單分開快取：名單屬於<b>伺服器</b>，
+    /// 與目前連線的是哪一個資料庫無關，跟著每一份目錄各存一次的話，
+    /// 使用者每打出一個跨資料庫的限定字就多五千多個字串。
+    ///
+    /// 不做成寫死的內建目錄：SQL Server 2019 之後有五千五百筆以上，
+    /// 而每一版都在增加——寫死的那一份會在下一版開始漏掉名稱，
+    /// 而漏掉哪一個使用者完全看不出來。
+    /// </remarks>
+    public const string Collations = @"
+SELECT c.name
+FROM sys.fn_helpcollations() AS c
+ORDER BY c.name;";
+
+    /// <summary>
+    /// 目前這個資料庫的定序。
+    /// </summary>
+    /// <remarks>
+    /// 與定序名單分開查：這一個屬於資料庫，名單屬於伺服器，兩者的快取層級不同。
+    ///
+    /// 走 <c>DATABASEPROPERTYEX</c> 而不是 <c>sys.databases.collation_name</c>：
+    /// 後者在共用主機上讀得到的列只有自己進得去的那幾個，而這條查的正是
+    /// 目前連線的那一個——問自己一定答得出來。查不到時是 NULL，
+    /// 呼叫端當成「這一輪沒有」，不是錯誤。
+    /// </remarks>
+    public const string DatabaseCollation = @"
+SELECT CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'));";
+
+    /// <summary>
     /// 第二層：單一物件的欄位。主索引鍵資訊由 sys.indexes／sys.index_columns 帶出，
     /// 讓滑鼠停留提示能直接標示 PK。
     /// </summary>

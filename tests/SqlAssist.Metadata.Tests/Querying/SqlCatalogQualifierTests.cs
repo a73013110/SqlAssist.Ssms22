@@ -47,7 +47,12 @@ public sealed class SqlCatalogQualifierTests
             "GeneratedAlwaysType、IsSparse、IsRowGuidCol 走 COLUMNPROPERTY，" +
             "因為 sys.columns.generated_always_type 要 SQL Server 2016 才有。",
         [nameof(SqlMetadataQueries.TableStorage)] =
-            "QUOTED_IDENTIFIER 不在任何目錄檢視上，只問得到 OBJECTPROPERTY。"
+            "QUOTED_IDENTIFIER 不在任何目錄檢視上，只問得到 OBJECTPROPERTY。",
+        [nameof(SqlMetadataQueries.DatabaseCollation)] =
+            "問的是「目前這個資料庫」，而指出它的方式只有 DB_NAME／DB_ID；" +
+            "sys.databases 要先知道名字，那個名字正是這條要問的東西。" +
+            "這一條只在本機目錄上執行——連結伺服器的目錄一律不問定序，" +
+            "見 SqlMetadataCatalog.GetCollationsAsync。"
     };
 
     public static TheoryData<string, string> AllQueries()

@@ -90,6 +90,7 @@ internal static class SqlCompletionFilters
     /// 結構描述、資料庫、型別與小老鼠開頭的那幾類沒有自己的篩選鈕——它們分別只
     /// 出現在 <c>USE</c>、型別位置、<c>@@</c> 與 <c>@</c> 之後，當下清單裡幾乎只有
     /// 一類，給它一顆按了也不會有任何變化——但仍然歸到「其他」，
+    /// 定序同理（<c>COLLATE</c> 之後那份清單裡只有定序），
     /// 而不是留成沒有分類。每一項都有分類，按下任何一顆篩選鈕之後，
     /// 剩下的就一定是那一類，不會有「沒被篩掉但也不屬於任何一顆」的漏網項目。
     /// </remarks>
@@ -124,7 +125,9 @@ internal static class SqlCompletionFilters
                 or SuggestionKind.DatePart
                 or SuggestionKind.TableHint
                 or SuggestionKind.QueryHint
-                or SuggestionKind.LinkedServer => Others,
+                or SuggestionKind.LinkedServer
+                or SuggestionKind.Collation
+                or SuggestionKind.CollationInUse => Others,
             _ => Others
         };
     }

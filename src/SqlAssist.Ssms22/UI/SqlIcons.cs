@@ -60,6 +60,13 @@ internal static class SqlIcons
     private static readonly Definition TableHint = new(KnownMonikers.IntellisenseKeyword, "資料表提示");
     private static readonly Definition QueryHint = new(KnownMonikers.IntellisenseKeyword, "查詢提示");
     private static readonly Definition LinkedServer = new(KnownMonikers.LinkedServer, "連結伺服器");
+
+    /// <remarks>
+    /// 影像目錄裡沒有定序這一項，借字母排序那一顆：那正是定序決定的事
+    /// （比較與排序的規則），而 <c>IntellisenseKeyword</c> 已經被兩種提示佔著，
+    /// 再多一類就分不出誰是誰。
+    /// </remarks>
+    private static readonly Definition Collation = new(KnownMonikers.SortAscending, "定序");
     private static readonly Definition Other = new(KnownMonikers.Ellipsis, "其他");
 
     public static ImageElement Ellipsis => Other.Element;
@@ -114,6 +121,7 @@ internal static class SqlIcons
         SuggestionKind.TableHint => TableHint,
         SuggestionKind.QueryHint => QueryHint,
         SuggestionKind.LinkedServer => LinkedServer,
+        SuggestionKind.Collation or SuggestionKind.CollationInUse => Collation,
         _ => Unknown
     };
 

@@ -199,6 +199,14 @@ public static class SqlCompletionContextAnalyzer
                 SqlScriptTableCollector.Collect(variableTokens)));
         }
 
+        // 定序只要「這份指令碼裡出現過哪些 COLLATE」，敘述有哪些資料來源與欄位
+        // 都無關，底下整趟範圍解析可以省下來。
+        if (context.Target == CompletionTarget.Collation)
+        {
+            return context.WithScriptSources(
+                SqlScriptCollationSuggestions.Create(SqlTokenizer.Tokenize(sql)));
+        }
+
         var tokens = SqlTokenizer.Tokenize(sql);
         var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
         var resolver = new SqlColumnSourceResolver(tokens);

@@ -57,6 +57,11 @@ public sealed class SqlMetadataCatalog
     /// <summary>系統物件；只有真的被問到才載入，見 <see cref="GetSystemObjectsAsync"/>。</summary>
     private IReadOnlyList<SqlObjectInfo>? _systemObjects;
 
+    private readonly SemaphoreSlim _collationGate = new(1, 1);
+
+    /// <summary>定序；只有游標落在 <c>COLLATE</c> 之後才載入，見 <see cref="GetCollationsAsync"/>。</summary>
+    private SqlCollations? _collations;
+
     public SqlMetadataCatalog(
         ISqlConnectionSource connectionSource,
         TimeSpan lifetime,
@@ -342,6 +347,65 @@ public sealed class SqlMetadataCatalog
         finally
         {
             _systemGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// 取得定序名單與目前資料庫的定序；第一次被問到才查資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 與系統物件同一種處境：一份幾千筆、只有一個位置用得到、而且不會在一次
+    /// 工作階段中途變動的清單，因此同樣只在真的被問到時才載入、不設有效期。
+    /// 差別在快取的層級——名單屬於伺服器而不是資料庫，跨目錄共用，
+    /// 見 <see cref="SqlServerCollationCache"/>。
+    ///
+    /// 查不到時回傳 <see cref="SqlCollations.Empty"/> 並且<b>不</b>記進快取，
+    /// 與其他層同一條規則。那個位置不會因此空掉：<c>DATABASE_DEFAULT</c> 與
+    /// 這份指令碼已經寫過的定序都不必問伺服器，由 Core 那一側補上。
+    ///
+    /// 連結伺服器的目錄一律回傳空的：定序屬於執行個體，而使用者正在編輯的
+    /// 這份指令碼跑在<b>本機</b>那條連線上。把對面那台的名單列出來，
+    /// 選中的每一個名稱都可能在這裡不存在，而畫面上看不出差別。
+    /// </remarks>
+    public async Task<SqlCollations> GetCollationsAsync(CancellationToken cancellationToken)
+    {
+        if (_qualifier.IsRemote)
+        {
+            return SqlCollations.Empty;
+        }
+
+        if (Volatile.Read(ref _collations) is { } cached)
+        {
+            return cached;
+        }
+
+        await _collationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            if (Volatile.Read(ref _collations) is { } raced)
+            {
+                return raced;
+            }
+
+            var loaded = await Task
+                .Run(
+                    () => TryLoad("定序名單", () => LoadCollations(cancellationToken)),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (loaded is null)
+            {
+                return SqlCollations.Empty;
+            }
+
+            SqlServerCollationCache.Set(_connectionSource.ServerCacheKey, loaded.Names);
+            Volatile.Write(ref _collations, loaded);
+            return loaded;
+        }
+        finally
+        {
+            _collationGate.Release();
         }
     }
 
@@ -632,6 +696,37 @@ public sealed class SqlMetadataCatalog
             SqlMetadataQueries.LinkedServers,
             record => record.GetString(0),
             cancellationToken)) ?? new List<string>();
+    }
+
+    private SqlCollations LoadCollations(CancellationToken cancellationToken)
+    {
+        using var connection = _connectionSource.OpenConnection();
+
+        // 同一台伺服器已經問過就不再問第二次；那一份與連到哪個資料庫無關。
+        var names = SqlServerCollationCache.TryGet(_connectionSource.ServerCacheKey, out var shared)
+            ? shared
+            : ReadList(
+                connection,
+                SqlMetadataQueries.Collations,
+                record => record.GetString(0),
+                cancellationToken);
+
+        return new SqlCollations(names, ReadDatabaseCollation(connection, cancellationToken));
+    }
+
+    /// <remarks>
+    /// 與資料庫清單同理：這一個查不到不該讓整份名單跟著沒有。少了它只是
+    /// 「排在最前面的那一個不見了」，而整份名單沒有的話那個位置只剩兩個字。
+    /// </remarks>
+    private string? ReadDatabaseCollation(IDbConnection connection, CancellationToken cancellationToken)
+    {
+        var rows = TryLoad("資料庫定序", () => ReadList(
+            connection,
+            SqlMetadataQueries.DatabaseCollation,
+            record => record.IsDBNull(0) ? null : record.GetString(0),
+            cancellationToken));
+
+        return rows is { Count: > 0 } ? rows[0] : null;
     }
 
     private List<SqlObjectInfo> LoadSystemObjects(CancellationToken cancellationToken)

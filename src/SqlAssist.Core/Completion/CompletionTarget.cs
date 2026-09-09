@@ -93,6 +93,19 @@ public enum CompletionTarget
     TableHint,
 
     /// <summary><c>OPTION (</c> 的查詢提示。</summary>
-    QueryHint
+    QueryHint,
+
+    /// <summary><c>COLLATE</c> 之後的定序名稱。</summary>
+    /// <remarks>
+    /// 與其他封閉位置差在清單的來源：日期部分與兩種提示的名稱寫在
+    /// <see cref="Keywords.SqlArgumentCatalog"/> 裡，定序名稱只有伺服器知道
+    /// （<c>sys.fn_helpcollations()</c>，SQL Server 2019 之後五千多筆且隨版本增加），
+    /// 寫死一份的下一個版本就開始說謊。
+    ///
+    /// 三種 <c>COLLATE</c> 的位置——運算式之後、資料行定義、
+    /// <c>CREATE</c>／<c>ALTER DATABASE</c>——在這裡不分：文法上接得了的東西
+    /// 完全一樣，分開只是多兩條會漏的路。
+    /// </remarks>
+    Collation
 }
 

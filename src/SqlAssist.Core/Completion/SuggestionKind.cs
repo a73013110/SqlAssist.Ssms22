@@ -128,6 +128,27 @@ public enum SuggestionKind
     /// <see cref="SqlSuggestionUsage"/> 把 <c>(int)Kind</c> 寫進使用紀錄當鍵，
     /// 插在中間會讓既有紀錄整批對到別的類別上。
     /// </remarks>
-    LinkedServer
+    LinkedServer,
+
+    /// <summary>伺服器支援的定序名稱；只出現在 <c>COLLATE</c> 之後。</summary>
+    /// <remarks>
+    /// 與 <see cref="Keyword"/> 分開：定序在文法上不是關鍵字，關鍵字目錄裡只有
+    /// <c>COLLATE</c> 本身；而這一份有五千多筆，混進一般清單的話每一次按鍵都要
+    /// 多比對五千個一定比不中的名稱。
+    /// </remarks>
+    Collation,
+
+    /// <summary>目前資料庫與這份指令碼實際在用的定序。</summary>
+    /// <remarks>
+    /// 與 <see cref="Collation"/> 分開的理由與 <see cref="ScriptDataSource"/> 對
+    /// <see cref="Table"/> 完全相同：東西是同一種，排名必須不同。五千多個定序
+    /// 名稱長得幾乎一樣（只差 <c>_CI_AS</c>、<c>_CS_AS</c> 這種尾巴），模糊比對
+    /// 撈回來的順序沒有意義，而使用者要的幾乎一定是這個資料庫的那一個、
+    /// 或者他在上面幾行剛寫過的那一個。
+    ///
+    /// 目前資料庫的定序算在裡面：這份指令碼裡每一個沒有加 <c>COLLATE</c> 的
+    /// 字串比較用的就是它，加上 <c>COLLATE</c> 通常正是要把某一邊<b>對齊</b>到它。
+    /// </remarks>
+    CollationInUse
 }
 

@@ -259,6 +259,13 @@ public static class SuggestionMatcher
             SuggestionKind.DatePart => 25,
             SuggestionKind.TableHint => 25,
             SuggestionKind.QueryHint => 25,
+            SuggestionKind.Collation => 25,
+
+            // 唯一與同類別比大小的一個：COLLATE 之後那份清單有五千多筆，
+            // 而名稱長得幾乎一樣（只差 _CI_AS、_CS_AS 這種尾巴），模糊比對的
+            // 順序沒有意義。目前資料庫的定序與這份指令碼已經寫過的那一個
+            // 排在前面，其餘照舊——差一個層級就壓得過長度懲罰與最近使用。
+            SuggestionKind.CollationInUse => 30,
 
             // 自訂型別排在內建型別之上：DECLARE @t | 打出前綴時，
             // 使用者要的是自己那一個，內建型別他背得起來。
@@ -342,6 +349,11 @@ public static class SuggestionMatcher
             CompletionTarget.TableHint => kind == SuggestionKind.TableHint,
             CompletionTarget.QueryHint => kind == SuggestionKind.QueryHint,
 
+            // 兩類是同一種東西、不同的來源，排名才分開；能不能出現在這個位置
+            // 沒有差別。
+            CompletionTarget.Collation => kind is SuggestionKind.Collation
+                or SuggestionKind.CollationInUse,
+
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
             // 候選清單是依上下文組出來的，沒有範圍就不會有欄位，這裡不必再擋。
@@ -357,7 +369,9 @@ public static class SuggestionMatcher
                 or SuggestionKind.Sequence
                 or SuggestionKind.DatePart
                 or SuggestionKind.TableHint
-                or SuggestionKind.QueryHint)
+                or SuggestionKind.QueryHint
+                or SuggestionKind.Collation
+                or SuggestionKind.CollationInUse)
         };
     }
 

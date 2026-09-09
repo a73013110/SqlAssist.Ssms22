@@ -456,6 +456,29 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return SqlArgumentCatalog.QueryHints;
         }
 
+        // 定序只有伺服器知道，但那個位置不會因為問不到而空掉：DATABASE_DEFAULT
+        // 這兩個字與這份指令碼已經寫過的定序都不必送出查詢。關掉「列出資料庫物件
+        // 與欄位」的人要的是「不要連線」，剩下的正好是這一份。
+        if (context.Target == CompletionTarget.Collation)
+        {
+            var known = SqlCollationCatalog.Defaults.Concat(context.ScriptSources).ToArray();
+
+            if (!settings.IncludeDatabaseObjects)
+            {
+                return known;
+            }
+
+            var exclude = new HashSet<string>(
+                known.Select(item => item.DisplayText),
+                StringComparer.OrdinalIgnoreCase);
+
+            var collations = await _metadataService
+                .GetCollationSuggestionsAsync(exclude, token)
+                .ConfigureAwait(false);
+
+            return known.Concat(collations).ToArray();
+        }
+
         // 內建型別是一份封閉的清單，但使用者自訂的資料表型別在資料庫裡，
         // DECLARE @t dbo.XType 要的正是後者。
         if (context.Target == CompletionTarget.DataType)

@@ -25,6 +25,7 @@
 | 不知道該改哪個型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
 | 建議清單、Matching、排名、內建 IntelliSense | [補全](completion.md) |
 | CompletionContext、Triggers、KeywordCase、一般位置 | [上下文](completion-context.md) |
+| `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
 | `ON` 是資料表或述詞、MERGE 動作子句 | [ON／MERGE](completion-on-merge.md) |
 | TVF／純量函式、系統物件出現範圍 | [物件種類](completion-object-kinds.md) |
 | 多段式名稱、資料庫／結構描述判定、右對齊 | [限定名稱](qualified-names.md) |

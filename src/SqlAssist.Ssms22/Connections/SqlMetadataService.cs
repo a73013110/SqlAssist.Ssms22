@@ -204,6 +204,70 @@ internal sealed class SqlMetadataService : IDisposable
         return suggestions;
     }
 
+    /// <summary>
+    /// 取得 <c>COLLATE</c> 之後的定序建議。
+    /// </summary>
+    /// <remarks>
+    /// 一律問查詢視窗自己那條連線的目錄，不跟著限定字換——定序屬於<b>執行個體</b>，
+    /// 而使用者正在編輯的這份指令碼跑在那條連線上。跨資料庫或跨伺服器的目錄
+    /// 回答的是別台機器支援什麼，選中的名稱在這裡可能根本不存在。
+    ///
+    /// 目前資料庫的那一個換成 <see cref="SuggestionKind.CollationInUse"/>：五千多個
+    /// 名稱長得幾乎一樣，模糊比對撈回來的順序沒有意義，而使用者要的幾乎一定是它。
+    ///
+    /// 查不到時回傳空清單。那個位置不會因此空掉——<c>DATABASE_DEFAULT</c> 與
+    /// 這份指令碼已經寫過的定序都不必問伺服器，由呼叫端補上。
+    /// </remarks>
+    /// <param name="exclude">呼叫端已經放進清單的名稱；同一個名稱不列第二次。</param>
+    public async Task<IReadOnlyList<SqlSuggestion>> GetCollationSuggestionsAsync(
+        ISet<string> exclude,
+        CancellationToken cancellationToken)
+    {
+        if (exclude is null)
+        {
+            throw new ArgumentNullException(nameof(exclude));
+        }
+
+        if (ResolveCatalog() is not { } catalog)
+        {
+            return Array.Empty<SqlSuggestion>();
+        }
+
+        var timer = Stopwatch.StartNew();
+        var collations = await catalog.GetCollationsAsync(cancellationToken).ConfigureAwait(false);
+        var suggestions = new List<SqlSuggestion>(collations.Names.Count + 1);
+
+        // 名單查不到而資料庫的定序查得到時仍然列出它：那一個正是使用者最常要的。
+        if (collations.DatabaseCollation is { Length: > 0 } database && !exclude.Contains(database))
+        {
+            exclude.Add(database);
+            suggestions.Add(CreateCollation(database, isDatabaseDefault: true));
+        }
+
+        foreach (var name in collations.Names)
+        {
+            if (!exclude.Contains(name))
+            {
+                suggestions.Add(CreateCollation(name, isDatabaseDefault: false));
+            }
+        }
+
+        ReportIfSlow($"定序建議（{suggestions.Count} 筆）", timer);
+        return suggestions;
+    }
+
+    private static SqlSuggestion CreateCollation(string name, bool isDatabaseDefault)
+    {
+        var description = isDatabaseDefault ? "目前資料庫的定序" : "定序";
+
+        return new SqlSuggestion(
+            name,
+            name,
+            description,
+            description,
+            isDatabaseDefault ? SuggestionKind.CollationInUse : SuggestionKind.Collation);
+    }
+
     /// <summary>取得目前資料庫的第一層中繼資料；沒有可用連線時回傳 null。</summary>
     public Task<SqlDatabaseSnapshot?> GetSnapshotAsync(CancellationToken cancellationToken)
     {

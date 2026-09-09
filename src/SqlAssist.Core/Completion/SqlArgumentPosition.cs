@@ -5,14 +5,17 @@ using SqlAssist.Core.Parsing;
 namespace SqlAssist.Core.Completion;
 
 /// <summary>
-/// 游標是不是停在一個「只有幾個字合法」的引數或提示位置。
+/// 游標是不是停在一個「只有那一份清單合法」的封閉位置。
 /// </summary>
 /// <remarks>
 /// 與 <see cref="SqlDataTypePosition"/> 同一種判斷、同一個代價權衡：判定成立時整份
-/// 清單就換掉，因此只收看得出來的三種，其餘一律照常。
+/// 清單就換掉，因此只收看得出來的四種，其餘一律照常。
 ///
-/// 三種都認得出來，是因為它們的左括號前面那個字就把話說完了——
-/// <c>DATEADD(</c>、<c>WITH (</c>、<c>OPTION (</c>。
+/// 四種都認得出來，是因為游標前面那個字就把話說完了——
+/// <c>DATEADD(</c>、<c>WITH (</c>、<c>OPTION (</c> 與 <c>COLLATE</c>。
+///
+/// 定序與另外三種差在清單的來源不在本機（見 <see cref="CompletionTarget.Collation"/>），
+/// 但「這裡文法上要什麼」仍然只看文字，因此判斷留在這一份，不跟著清單搬去中繼資料層。
 /// </remarks>
 public static class SqlArgumentPosition
 {
@@ -41,6 +44,15 @@ public static class SqlArgumentPosition
         if (last < 0)
         {
             return false;
+        }
+
+        // COLLATE | ——三種位置（運算式之後、資料行定義、CREATE／ALTER DATABASE）
+        // 前面長得都不一樣，後面要的東西卻完全一樣，所以只認 COLLATE 這個字。
+        // 這一條沒有括號可以配，也不必往前多看一個詞元。
+        if (tokens[last].IsKeyword("COLLATE"))
+        {
+            target = CompletionTarget.Collation;
+            return true;
         }
 
         // DATEADD(| ——只有第一個引數；打過逗號之後那裡要的是數字與日期。
