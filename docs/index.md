@@ -14,7 +14,7 @@
 | 自製視窗、控制項、排版、色彩 | [平台](rules-platform.md)＋[UI 準則](ui-guidelines.md) |
 | Metadata 查詢、快取、結構、指令碼、健檢 | [中繼資料](rules-metadata.md) |
 | Snippets、Parsing、Wildcards、上下文、SQL 掃描 | [片段與解析](rules-parsing.md) |
-| 跨功能共用邏輯 | 上述護欄＋[唯一實作](shared-components.md) |
+| 跨功能共用邏輯 | 上述護欄＋[唯一實作](shared-components.md)／[平台](shared-components-platform.md) |
 
 ## 主題
 
@@ -37,17 +37,17 @@
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
 | 子句回溯、別名、換行邊界、數值不開清單 | [關鍵字邊界](completion-keyword-context.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
-| 內建名稱的用途、範例、CONVERT 的 style、提示、datepart | [內建說明](builtin-help.md) |
+| 內建名稱的用途、範例、style、datepart；算不算內建名稱 | [內建說明](builtin-help.md)／[辨識](builtin-help-recognition.md) |
 | 函式簽章、目前輪到第幾個引數 | [參數提示](parameter-hint.md) |
 | 變數、全域變數、模組參數 | [變數](completion-variables.md) |
 | 片段內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、欄位建議、Tab／Enter | [片段導航](snippet-navigation.md) |
-| 包住選取範圍、右鍵選單、`Edit.SurroundWith`、`$surround$` | [片段包夾](snippet-surround.md) |
+| 包住選取範圍、`$surround$`；清單吃不到 Tab／↑↓／Enter | [片段包夾](snippet-surround.md)／[按鍵](snippet-surround-keys.md) |
 | 使用者 override、合併、版本、存檔、手改違規 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
-| QuickInfo、物件預覽內容 | [結構預覽](structure-preview.md) |
+| QuickInfo、物件預覽內容；暫存表、資料表變數、CTE | [結構預覽](structure-preview.md)／[指令碼宣告](script-declared-objects.md) |
 | Popup、Placement、方向、焦點 | [預覽視窗](preview-window.md) |
 | 預覽操作、按需載入、Resize、效能 | [預覽互動](preview-interaction.md) |
 | Chrome、視覺規格、對話框排版 | [UI 準則](ui-guidelines.md) |
@@ -59,12 +59,12 @@
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |
 | ResultGrid 命令、JSON、欄位剖析、完整內容 | [結果格線](result-grid.md) |
 | 字面值、長度、精確度、輸出效能 | [格線輸出](result-grid-generation.md) |
-| 設定項、分類、按鈕、非設定項 | [設定](settings.md) |
+| 設定項、非設定項；設定頁按鈕、工具選單、關於 | [設定](settings.md)／[入口](settings-entries.md) |
 | 新增設定、enableWhen、enum 相容 | [設定結構](settings-schema.md) |
 | 中繼資料分層載入、跨資料庫 | [中繼資料](metadata.md) |
 | 連結伺服器、OPENQUERY、遠端失敗 | [遠端中繼資料](metadata-remote.md) |
 | 舊版 SQL、權限、缺欄位、降級 | [相容與失敗](metadata-compatibility.md) |
-| 建置、測試、文字格式、工具腳本 | [開發](development.md) |
+| 建置、測試、工具腳本；UTF-8／LF、BOM、輸出編碼 | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 版本、發布、安裝、解除安裝 | [發布](release.md) |
 | VSIX 偵錯、MEF／命令快取、診斷 | [偵錯](debugging.md) |
 | AI 分段讀取、輸出節流、新設備 | [AI 工作流程](ai-workflow.md) |

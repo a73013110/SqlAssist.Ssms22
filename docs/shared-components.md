@@ -2,10 +2,12 @@
 
 範圍：新增或改動共用邏輯前查找唯一出處，避免再造一份。返回 [索引](index.md)。
 
-直接重用下列實作，不在功能目錄重寫，以免行為分岔。
+本頁是 Core 與 Metadata 的純邏輯；Ssms22 接線層與工具腳本見
+[平台共用元件](shared-components-platform.md)。直接重用下列實作，不在功能目錄重寫，
+以免行為分岔。
 
 | 這件事 | 唯一出處 |
-|---|---|
+| --- | --- |
 | 一個名稱有幾段、哪一段是什麼（右對齊、空的中間段、段數上限） | `Core/Parsing/SqlObjectPath.cs` |
 | 把連線指向同一台伺服器的另一個資料庫 | `Metadata/Querying/SqlDatabaseScopedConnectionSource.cs` |
 | 把查詢指向連結伺服器（`OPENQUERY` 包裝、`sys.` 限定字、內嵌 object_id） | `Metadata/Querying/SqlCatalogQualifier.cs` |
@@ -26,15 +28,10 @@
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（先問指令碼再問快照；語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
-| 從 SSMS 結果格線取資料（兩套欄索引只換算一次） | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
 | 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
-| DPI 與螢幕工作區換算 | `Ssms22/Preview/NativeScreen.cs` |
-| 背景結果寫回編輯器（替換既有文字與寫進空白緩衝區） | `Ssms22/Editor/TextViewEditCoordinator.cs` |
-| 目前的 SQL 編輯器，以及取回剛建立的那一個 | `Ssms22/Editor/ActiveSqlEditor.cs` |
 | 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
 | 指令碼的所有開關與三組具名風格 | `Core/Scripting/SqlScriptOptions.cs` |
-| F12 與預覽要用哪一組指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
 | 擴充屬性的 `sp_addextendedproperty` 八個引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
 | 說明收成單行與截斷（提示、說明面板與預覽共用） | `Metadata/Formatting/SqlDescriptionText.cs` |
 | 內建名稱的簽章、用途與範例（提示、說明面板與浮動預覽共用） | `Core/Keywords/SqlBuiltInDocCatalog.cs` |
@@ -43,24 +40,7 @@
 | 結構健檢的規則集合與失敗隔離 | `Metadata/Analysis/SqlSchemaAnalyzer.cs` |
 | 送進查詢視窗前的換行統一與游標落點 | `Metadata/Formatting/SqlObjectScript.cs` |
 | 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
-| 進度與失敗顯示在 SSMS 狀態列 | `Ssms22/SqlAssistStatusBar.cs` |
-| 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
-| 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
-| Tab／Shift+Tab／Enter 的優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
-| 攔截殼層命令（F12…），以及「按了沒反應」時的命令診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
-| 提交後改寫文字（ALTER／INSERT／MERGE／EXEC／函式引數五種共用） | `Ssms22/Completion/SqlCommitExpander.cs` |
-| 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
-| 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
-| SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
-| 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
-| 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |
-| WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
-| SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
-| 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
-| 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |
 | 區塊色彩 | [唯一實作](block-colors.md) |
-| 動態配色資源與合併更新通知 | `Ssms22/UI/ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
-| 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |

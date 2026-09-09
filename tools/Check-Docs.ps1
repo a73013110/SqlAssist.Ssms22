@@ -8,7 +8,7 @@ param(
     [ValidateRange(1, 2147483647)]
     [int]$ClaudeMdBudget = 1000,
     [ValidateRange(1, 2147483647)]
-    [int]$IndexMdBudget = 3500,
+    [int]$IndexMdBudget = 4000,
     [ValidateRange(1, 2147483647)]
     [int]$AgentsMdBudget = 400,
     [string]$Root = (Split-Path -Parent $PSScriptRoot)
