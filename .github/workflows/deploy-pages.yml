@@ -40,12 +40,48 @@ jobs:
 
       - name: Prepare VitePress Site Structure
         run: |
-          mkdir -p .site/.vitepress
+          mkdir -p .site/.vitepress/theme
           mkdir -p .site/public
 
-          # 建立軟連結：將現有文件與圖片映射至 site
-          ln -s ../../docs .site/guide
-          ln -s ../../docs/images .site/public/images
+          # 實體複製 docs 與圖片至 site 目錄，杜絕 symlink 相對層級錯誤
+          cp -r docs .site/guide
+          cp -r docs/images .site/public/images
+
+          # 建立 SEO 爬蟲指引 robots.txt
+          cat << 'EOF' > .site/public/robots.txt
+          User-agent: *
+          Allow: /
+          Sitemap: https://a73013110.github.io/SqlAssist.Ssms22/sitemap.xml
+          EOF
+
+          # 建立 SSMS 22 科技紫主題樣式
+          cat << 'EOF' > .site/.vitepress/theme/style.css
+          :root {
+            --vp-c-brand-1: #6a35a5;
+            --vp-c-brand-2: #8247c9;
+            --vp-c-brand-3: #9b5ee0;
+            --vp-c-brand-soft: rgba(106, 53, 165, 0.12);
+          }
+          .dark {
+            --vp-c-brand-1: #a060ea;
+            --vp-c-brand-2: #8e4ad9;
+            --vp-c-brand-3: #6a35a5;
+            --vp-c-brand-soft: rgba(160, 96, 234, 0.16);
+          }
+          .vp-doc img {
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+          }
+          EOF
+
+          cat << 'EOF' > .site/.vitepress/theme/index.ts
+          import DefaultTheme from 'vitepress/theme'
+          import './style.css'
+
+          export default {
+            extends: DefaultTheme
+          }
+          EOF
 
           # 動態建立 VitePress 設定檔
           cat << 'EOF' > .site/.vitepress/config.mts
@@ -53,46 +89,104 @@ jobs:
 
           export default defineConfig({
             title: 'SqlAssist for SSMS 22',
-            description: 'Database-aware completion, SQL expansion, and previews inside the SSMS 22 T-SQL editor.',
+            description: '為 SSMS 22.9.x 量身打造的 T-SQL 智慧自動補全與結構預覽擴充套件。',
             base: '/SqlAssist.Ssms22/',
             ignoreDeadLinks: true,
+            sitemap: {
+              hostname: 'https://a73013110.github.io/SqlAssist.Ssms22'
+            },
 
             head: [
               ['link', { rel: 'icon', href: '/images/hero.png' }],
-              ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22' }],
+              ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22, 結構預覽, 自動補全' }],
               ['meta', { property: 'og:title', content: 'SqlAssist for SSMS 22' }],
-              ['meta', { property: 'og:description', content: '為 SSMS 22.9.x 量身打造的 T-SQL 智慧自動補全與結構預覽外掛。' }],
-              ['meta', { property: 'og:image', content: 'https://a73013110.github.io/SqlAssist.Ssms22/images/hero.png' }]
+              ['meta', { property: 'og:description', content: '為 SSMS 22.9.x 量身打造的 T-SQL 智慧自動補全與結構預覽外掛。純本地執行、毫秒級響應。' }],
+              ['meta', { property: 'og:image', content: 'https://a73013110.github.io/SqlAssist.Ssms22/images/hero.png' }],
+              ['meta', { name: 'twitter:card', content: 'summary_large_image' }]
             ],
 
             themeConfig: {
+              logo: '/images/hero.png',
+              siteTitle: 'SqlAssist',
+
               nav: [
                 { text: '首頁', link: '/' },
                 { text: '開始使用', link: '/guide/getting-started' },
                 { text: '功能導覽', link: '/#核心功能特色一覽' },
-                { text: '版本下載', link: 'https://github.com/a73013110/SqlAssist.Ssms22/releases' }
+                { text: '文檔索引', link: '/guide/index' },
+                { text: '下載 VSIX', link: 'https://github.com/a73013110/SqlAssist.Ssms22/releases' }
               ],
 
               sidebar: {
                 '/guide/': [
                   {
-                    text: '入門指引',
+                    text: '🚀 入門與架構',
                     items: [
                       { text: '快速開始', link: '/guide/getting-started' },
-                      { text: '核心架構', link: '/guide/architecture' }
+                      { text: '核心架構', link: '/guide/architecture' },
+                      { text: '設定選項', link: '/guide/settings' },
+                      { text: '主題與色彩', link: '/guide/themes' }
                     ]
                   },
                   {
-                    text: '主要功能',
+                    text: '💡 智慧自動補全',
                     items: [
-                      { text: '智慧自動補全', link: '/guide/completion' },
-                      { text: '萬用字元與語句展開', link: '/guide/statement-expansion' },
-                      { text: '原地結構預覽', link: '/guide/structure-preview' },
-                      { text: '結果格線增強', link: '/guide/result-grid' },
-                      { text: '程式碼片段 (Snippets)', link: '/guide/snippets' }
+                      { text: '自動補全總覽', link: '/guide/completion' },
+                      { text: '關鍵字建議', link: '/guide/completion-keywords' },
+                      { text: '欄位與別名', link: '/guide/completion-columns' },
+                      { text: '變數與暫存表', link: '/guide/completion-variables' },
+                      { text: '內建說明與型態', link: '/guide/builtin-help' },
+                      { text: '參數資訊提示', link: '/guide/parameter-hint' }
+                    ]
+                  },
+                  {
+                    text: '⚡ 展開、片段與編輯',
+                    items: [
+                      { text: '萬用字元 * 展開', link: '/guide/wildcard-expansion' },
+                      { text: 'INSERT / EXEC 語句展開', link: '/guide/statement-expansion' },
+                      { text: 'T-SQL 片段導航', link: '/guide/snippets' },
+                      { text: '自動配對括號與引號', link: '/guide/auto-pairing' },
+                      { text: 'BEGIN/END 區塊配對', link: '/guide/block-matching' }
+                    ]
+                  },
+                  {
+                    text: '🔍 預覽、格線與定義',
+                    items: [
+                      { text: '原地物件結構預覽', link: '/guide/structure-preview' },
+                      { text: 'F12 移至定義腳本', link: '/guide/go-to-definition' },
+                      { text: '結果格線增強工具', link: '/guide/result-grid' },
+                      { text: '格線快速腳本產生', link: '/guide/result-grid-generation' }
+                    ]
+                  },
+                  {
+                    text: '🛠️ 開發與維護',
+                    items: [
+                      { text: '文件路由清單', link: '/guide/index' },
+                      { text: '中繼資料分層與快取', link: '/guide/metadata' },
+                      { text: '結構健檢分析', link: '/guide/schema-analysis' },
+                      { text: '版本發布指引', link: '/guide/release' }
                     ]
                   }
                 ]
+              },
+
+              outline: {
+                level: 'deep',
+                label: '本頁目錄'
+              },
+
+              docFooter: {
+                prev: '上一篇',
+                next: '下一篇'
+              },
+
+              lastUpdated: {
+                text: '最後更新於'
+              },
+
+              editLink: {
+                pattern: 'https://github.com/a73013110/SqlAssist.Ssms22/edit/master/docs/:path',
+                text: '在 GitHub 上編輯此頁'
               },
 
               socialLinks: [
@@ -125,8 +219,8 @@ jobs:
               },
 
               footer: {
-                message: '以 Apache-2.0 授權條款發布',
-                copyright: 'Copyright © 2025 SqlAssist.Ssms22'
+                message: '以 Apache-2.0 授權條款發布 · 專為 SSMS 22 設計',
+                copyright: 'Copyright © 2026 SqlAssist.Ssms22'
               }
             }
           })
