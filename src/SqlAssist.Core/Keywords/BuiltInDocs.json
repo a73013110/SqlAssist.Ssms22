@@ -511,7 +511,7 @@
       "kind": "function",
       "summary": "只有兩個分支的 CASE 簡寫；條件成立回傳第二個引數，否則回傳第三個。兩個分支都會參與型別推導。",
       "example": "SELECT IIF(1 > 2, '是', '否')   -- '否'",
-      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-iif-transact-sql"
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-iif-transact-sql"
     },
     {
       "name": "DATEADD",
@@ -1174,7 +1174,7 @@
       "kind": "function",
       "summary": "依索引挑出第幾個值，從 1 起算；超出範圍回傳 NULL。",
       "example": "SELECT CHOOSE(2, '借出', '在架', '遺失')   -- '在架'",
-      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-choose-transact-sql"
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-choose-transact-sql"
     },
     {
       "name": "ISNUMERIC",

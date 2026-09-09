@@ -110,6 +110,7 @@ AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-w
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
 | `Check-TextFiles.ps1` | 將 CR／CRLF 自動轉成 LF，並檢查文字檔皆為 UTF-8（除 `.sln` 外無 BOM）且有檔尾換行 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
+| `Check-DocLinks.ps1` | 核對內建說明的線上文件位址是否還回得了 200（要連外，單獨執行） |
 | `Read-Context.ps1` | 給 AI 分段讀長檔，不一次讀完整份 |
 | `Invoke-QuietCommand.ps1` | 給 AI 短輸出，完整命令紀錄留在磁碟 |
 | `Test-AgentWorkflow.ps1` | 工具回歸檢查，不是產品單元測試 |
