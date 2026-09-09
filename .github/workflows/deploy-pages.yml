@@ -1,0 +1,222 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'README.zh-TW.md'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare VitePress Site Structure
+        run: |
+          mkdir -p .site/.vitepress
+          mkdir -p .site/public
+
+          # 建立軟連結：將現有文件與圖片映射至 site
+          ln -s ../../docs .site/guide
+          ln -s ../../docs/images .site/public/images
+
+          # 動態建立 VitePress 設定檔
+          cat << 'EOF' > .site/.vitepress/config.mts
+          import { defineConfig } from 'vitepress'
+
+          export default defineConfig({
+            title: 'SqlAssist for SSMS 22',
+            description: 'Database-aware completion, SQL expansion, and previews inside the SSMS 22 T-SQL editor.',
+            base: '/SqlAssist.Ssms22/',
+            ignoreDeadLinks: true,
+
+            head: [
+              ['link', { rel: 'icon', href: '/images/hero.png' }],
+              ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22' }],
+              ['meta', { property: 'og:title', content: 'SqlAssist for SSMS 22' }],
+              ['meta', { property: 'og:description', content: '為 SSMS 22.9.x 量身打造的 T-SQL 智慧自動補全與結構預覽外掛。' }],
+              ['meta', { property: 'og:image', content: 'https://a73013110.github.io/SqlAssist.Ssms22/images/hero.png' }]
+            ],
+
+            themeConfig: {
+              nav: [
+                { text: '首頁', link: '/' },
+                { text: '開始使用', link: '/guide/getting-started' },
+                { text: '功能導覽', link: '/#核心功能特色一覽' },
+                { text: '版本下載', link: 'https://github.com/a73013110/SqlAssist.Ssms22/releases' }
+              ],
+
+              sidebar: {
+                '/guide/': [
+                  {
+                    text: '入門指引',
+                    items: [
+                      { text: '快速開始', link: '/guide/getting-started' },
+                      { text: '核心架構', link: '/guide/architecture' }
+                    ]
+                  },
+                  {
+                    text: '主要功能',
+                    items: [
+                      { text: '智慧自動補全', link: '/guide/completion' },
+                      { text: '萬用字元與語句展開', link: '/guide/statement-expansion' },
+                      { text: '原地結構預覽', link: '/guide/structure-preview' },
+                      { text: '結果格線增強', link: '/guide/result-grid' },
+                      { text: '程式碼片段 (Snippets)', link: '/guide/snippets' }
+                    ]
+                  }
+                ]
+              },
+
+              socialLinks: [
+                { icon: 'github', link: 'https://github.com/a73013110/SqlAssist.Ssms22' }
+              ],
+
+              search: {
+                provider: 'local',
+                options: {
+                  locales: {
+                    root: {
+                      translations: {
+                        button: {
+                          buttonText: '搜尋文件',
+                          buttonAriaLabel: '搜尋文件'
+                        },
+                        modal: {
+                          noResultsText: '找不到相關結果',
+                          resetButtonTitle: '清除搜尋條件',
+                          footer: {
+                            selectText: '選擇',
+                            navigateText: '切換',
+                            closeText: '關閉'
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+
+              footer: {
+                message: '以 Apache-2.0 授權條款發布',
+                copyright: 'Copyright © 2025 SqlAssist.Ssms22'
+              }
+            }
+          })
+          EOF
+
+          # 動態建立產品首頁 Landing Page
+          cat << 'EOF' > .site/index.md
+          ---
+          layout: home
+
+          hero:
+            name: "SqlAssist for SSMS 22"
+            text: "T-SQL 智慧自動補全與結構預覽"
+            tagline: "為 SSMS 22.9.x 量身打造。純本地運行、毫秒級響應、無任何雲端或 AI 依賴。"
+            image:
+              src: /images/hero.png
+              alt: SqlAssist for SSMS 22 預覽圖
+            actions:
+              - theme: brand
+                text: 開始使用
+                link: /guide/getting-started
+              - theme: alt
+                text: 下載 VSIX (GitHub)
+                link: https://github.com/a73013110/SqlAssist.Ssms22/releases
+              - theme: alt
+                text: GitHub 原始碼
+                link: https://github.com/a73013110/SqlAssist.Ssms22
+
+          features:
+            - icon: ⚡
+              title: 深度資料庫感知補全
+              details: 依 SQL 子句上下文智慧切換建議清單，支援首字母/駝峰縮寫、別名、暫存表、自訂變數與即時欄位型態提示。
+            - icon: 📑
+              title: Tab 一鍵展開樣板
+              details: 萬用字元 * 快速展開為明確欄位；INSERT、EXEC、MERGE、ALTER 自動產生對應結構與具型別的預留值。
+            - icon: 🔍
+              title: 原地物件結構預覽
+              details: 免跳出查詢視窗！原地即時預覽資料表欄位、型別、主鍵、索引及 DDL 定義，支援 F12 快速移至定義。
+            - icon: 📊
+              title: 結果格線增強工具
+              details: 查詢結果直接生成 #temp 建立腳本或 IN 清單、一鍵匯出 Markdown / JSON，並可檢視遭 SSMS 截斷的儲存格內容。
+            - icon: 🛡️
+              title: 100% 隱私與純本機執行
+              details: 純原生 C# / MEF 擴充套件，中繼資料僅向連線的 SQL Server 查詢，無任何外部連線、雲端或 AI 傳輸。
+            - icon: 🎨
+              title: 完美融入 SSMS 22
+              details: 深度整合 SSMS 22 深淺主題、配色快取、自訂字型色彩與多種個人化設定，提供極致流暢的編輯體驗。
+          ---
+
+          ## 核心功能特色一覽
+
+          ### 1. 深度上下文自動補全
+          依目前輸入的 SQL 子句（SELECT、FROM、WHERE、JOIN、GROUP BY 等）精準過濾關鍵字與資料庫物件，大幅提升編寫 T-SQL 的流暢度。
+
+          <p align="center">
+            <img src="/images/completion.png" alt="智慧補全" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-width: 100%;">
+          </p>
+
+          ### 2. 智慧語法展開（Tab Expand）
+          在 `SELECT *` 按下 Tab 即可自動替換為格式化的明確欄位清單。支援 `INSERT INTO`、`EXEC`、`MERGE` 自動填入參數與結構。
+
+          <p align="center">
+            <img src="/images/expand-star.png" alt="星號展開" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-width: 100%;">
+          </p>
+
+          ### 3. 原地結構預覽與 F12 移至定義
+          隨時按快捷鍵檢視資料表結構，包括欄位型別、Null 限制、主鍵、外鍵及索引定義，甚至能直接複製 DDL。
+
+          <p align="center">
+            <img src="/images/structure-preview.png" alt="結構預覽" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-width: 100%;">
+          </p>
+
+          ### 4. 實用結果格線右鍵工具
+          直接將查詢結果的選取範圍轉為 `#temp` 暫存表建立指令碼、`IN ('a', 'b')` 清單，或匯出為 Markdown 與 JSON 格式。
+
+          <p align="center">
+            <img src="/images/result-grid-utility.png" alt="結果格線工具" style="border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); max-width: 100%;">
+          </p>
+          EOF
+
+      - name: Install VitePress and Build Site
+        run: |
+          npm install -D vitepress@1.6.4
+          npx vitepress build .site
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site/.vitepress/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
