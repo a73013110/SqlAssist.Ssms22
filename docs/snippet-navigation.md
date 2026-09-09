@@ -99,7 +99,6 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 `caret` 模式；若引擎在回報失敗前已經改動文字，禁止再插一次 fallback，以免內容重複。
 
 引擎**不會**自己縮排：`Code` 是逐字插進去的，第 2 行之後一律從第 0 欄開始。
-`IVsExpansionClient.FormatSpan` 是唯一的補救點，回報 `S_OK` 卻什麼都不做等於告訴
-引擎「已經排好了」。SqlAssist 在那裡把插入點所在行的前導空白補到後續每一行
-（空白行不補），而且只在插入那一次做——欄位導覽時引擎可能再叫一次，
-補第二遍就會多推一層縮排。
+`IVsExpansionClient.FormatSpan` 在插入那一次補後續非空行的基準縮排，欄位導覽時不重複補。
+原生、游標降級與包夾預覽共用 `SqlSnippetIndentation` 的續行判定；原生逐點插入保住欄位
+標記，降級一次替換並同步調整游標偏移，避免兩條路的縮排不同。

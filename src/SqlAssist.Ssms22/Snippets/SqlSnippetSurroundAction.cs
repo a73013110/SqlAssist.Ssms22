@@ -84,8 +84,23 @@ internal static class SqlSnippetSurroundAction
             return false;
         }
 
-        var (target, surroundText) = ResolveTarget(view.Selection.StreamSelectionSpan.SnapshotSpan);
+        var selection = view.Selection.StreamSelectionSpan.SnapshotSpan;
+        if (string.IsNullOrWhiteSpace(selection.GetText()))
+        {
+            message = "選取範圍只有空白，請選取要包住的 SQL。";
+            return false;
+        }
+
+        var resolved = SqlSnippetSurroundSelection.Resolve(new SnapshotTextSource(selection.Snapshot),
+            selection.Start.Position, selection.Length);
+        var target = new SnapshotSpan(selection.Snapshot, resolved.Start, resolved.Length);
         var buffer = target.Snapshot.TextBuffer;
+        if (buffer.IsReadOnly(target.Span))
+        {
+            message = "選取範圍為唯讀，無法包夾。";
+            return false;
+        }
+
         var expected = target.GetText();
         var tracking = target.Snapshot.CreateTrackingSpan(target, SpanTrackingMode.EdgeExclusive);
 
@@ -94,12 +109,8 @@ internal static class SqlSnippetSurroundAction
             target.Start,
             candidates,
             SqlSnippetSurroundHistory.PreferredIndex(candidates),
-            snippet =>
-            {
-                // 選定了才記：按 Esc 取消的那一次不算用過。
-                SqlSnippetSurroundHistory.Record(snippet);
-                Insert(view, buffer, tracking, expected, surroundText, snippet);
-            });
+            resolved,
+            snippet => Insert(view, buffer, tracking, expected, resolved.Text, snippet));
 
         message = string.Empty;
         return true;
@@ -144,72 +155,6 @@ internal static class SqlSnippetSurroundAction
         return result;
     }
 
-    /// <summary>
-    /// 決定要換掉哪一段，以及要包進去的是哪一段文字。
-    /// </summary>
-    /// <remarks>
-    /// 跨行的選取一律<b>擴成整行</b>：拖選時起點與終點多半停在半個字上，而包起來的
-    /// 是<i>語句</i>不是字串——照原樣包會把第一行的縮排留在 <c>BEGIN</c> 前面。
-    /// 擴成整行同時讓「去掉共同縮排」有意義：第一行的前導空白這時候才是真的縮排，
-    /// 而不是「選取起點剛好在第幾欄」。單行選取<b>不</b>擴，那通常是刻意選了一段
-    /// 運算式，擴成整行等於改掉他的範圍。
-    ///
-    /// <b>兩個回傳值刻意不同。</b>要換掉的範圍從第一行的縮排<i>之後</i>開始，
-    /// 要包的文字則從行首算起：
-    ///
-    /// <list type="bullet">
-    /// <item>那一段縮排留在緩衝區裡，<c>FormatSpan</c> 才有基準可以補到後續每一行。
-    ///   從第 0 欄換起的話它會讀到空字串，整段包好的區塊就貼到最左邊——原本縮在
-    ///   兩層裡的程式碼包一次就跑到最外層。</item>
-    /// <item>而共同縮排要從行首算才對：少了第一行那一段，它會算成零，於是每一行都
-    ///   多推一層。</item>
-    /// </list>
-    /// </remarks>
-    private static (SnapshotSpan Target, string SurroundText) ResolveTarget(SnapshotSpan selection)
-    {
-        var snapshot = selection.Snapshot;
-        var first = snapshot.GetLineFromPosition(selection.Start.Position);
-        var last = snapshot.GetLineFromPosition(selection.End.Position);
-
-        if (first.LineNumber == last.LineNumber)
-        {
-            return (selection, selection.GetText());
-        }
-
-        // 終點剛好停在行首時，那一行使用者其實沒有選到，往回退一行才不會多包一行空的。
-        if (selection.End.Position == last.Start.Position)
-        {
-            last = snapshot.GetLineFromLineNumber(last.LineNumber - 1);
-        }
-
-        var full = new SnapshotSpan(
-            snapshot,
-            Span.FromBounds(first.Start.Position, last.End.Position));
-
-        return (
-            new SnapshotSpan(
-                snapshot,
-                Span.FromBounds(first.Start.Position + IndentLength(first.GetText()), last.End.Position)),
-            full.GetText());
-    }
-
-    /// <summary>一行的前導空白長度；整行都是空白時算成零。</summary>
-    /// <remarks>
-    /// 整行空白時不往後推：那代表使用者是從一行空行開始選的，把起點推到行尾只會
-    /// 讓包好的區塊從那一行的尾巴長出來。
-    /// </remarks>
-    private static int IndentLength(string line)
-    {
-        var length = 0;
-
-        while (length < line.Length && (line[length] == ' ' || line[length] == '\t'))
-        {
-            length++;
-        }
-
-        return length == line.Length ? 0 : length;
-    }
-
     /// <summary>把選取文字接進片段，再交給既有的展開路徑。</summary>
     private static void Insert(
         IWpfTextView view,
@@ -229,6 +174,15 @@ internal static class SqlSnippetSurroundAction
         // 已經定案的焦點與緩衝區。在原地做的症狀是引擎插得進去、游標卻留在別處。
         TextViewDispatch.AfterCurrentCommand(view, "以片段包住選取範圍", target =>
         {
+            var current = tracking.GetSpan(buffer.CurrentSnapshot);
+            // 清單是非模態的；內容變動後不能清掉使用者的新選取，也不能記成成功使用。
+            if (!string.Equals(current.GetText(), expected, StringComparison.Ordinal) || buffer.IsReadOnly(current.Span))
+            {
+                SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
+                    "選取內容已變更或改為唯讀，未套用包夾；請重新選取。");
+                return;
+            }
+
             // 要包的範圍已經存成追蹤範圍，選取本身在這裡只剩顯示用途。留著的話：
             // 降級路徑只移動游標、不動選取，使用者會看到一段跟著文字長大的反白；
             // 原生路徑則是引擎選第一格時才順手蓋掉，兩條的收尾因此不一致。
@@ -238,7 +192,7 @@ internal static class SqlSnippetSurroundAction
             {
                 // 包夾欄位填掉之後沒有剩下任何可導航欄位（be、trn 就是這一種）：
                 // 一次緩衝區編輯即可，復原是一格，也不必付原生引擎那趟 COM。
-                SqlSnippetExpansionController.InsertFallback(target, request);
+                InsertCaret(target, request, snippet);
                 return;
             }
 
@@ -256,8 +210,13 @@ internal static class SqlSnippetSurroundAction
 
             if (result == NativeSnippetInsertionResult.FailedWithoutChange)
             {
-                SqlSnippetExpansionController.InsertFallback(target, request);
+                InsertCaret(target, request, snippet);
                 return;
+            }
+
+            if (result == NativeSnippetInsertionResult.Succeeded)
+            {
+                SqlSnippetSurroundHistory.Record(snippet);
             }
 
             if (result == NativeSnippetInsertionResult.FailedAfterChange)
@@ -266,7 +225,24 @@ internal static class SqlSnippetSurroundAction
                 SqlAssistDiagnostics.WriteAlways(
                     $"原生 Snippet 在回報失敗前已改動文字，已略過降級插入：{snippet.Shortcut}",
                     target);
+                SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
+                    "原生片段引擎未完成包夾；為避免重複插入已停止，請檢查內容，必要時復原。");
             }
         });
+    }
+
+    private static void InsertCaret(ITextView view, SqlSnippetExpansionRequest request, SqlSnippet original)
+    {
+        var before = request.Buffer.CurrentSnapshot;
+        SqlSnippetExpansionController.InsertFallback(view, request);
+        if (!ReferenceEquals(before, request.Buffer.CurrentSnapshot))
+        {
+            SqlSnippetSurroundHistory.Record(original);
+        }
+        else
+        {
+            SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
+                "未能寫入包夾內容；請確認查詢可編輯後重試。");
+        }
     }
 }

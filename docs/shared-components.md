@@ -2,8 +2,7 @@
 
 範圍：新增或改動共用邏輯前查找唯一出處，避免再造一份。返回 [索引](index.md)。
 
-同一件事寫成兩份時，症狀一律是「其中一份改了另一份沒改」。要用這些功能時
-直接呼叫下列既有實作，不要在功能目錄重寫。
+直接重用下列實作，不在功能目錄重寫，以免行為分岔。
 
 | 這件事 | 唯一出處 |
 |---|---|
@@ -54,7 +53,7 @@
 | 平台邊界的例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
-| Snippet 純文字、游標與欄位位置的計算 | `Core/Snippets/SqlSnippetExpansion.cs` |
+| Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板 | `Ssms22/UI/SqlAssistChrome.cs` |

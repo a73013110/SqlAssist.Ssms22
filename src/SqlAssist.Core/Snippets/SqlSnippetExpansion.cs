@@ -76,6 +76,12 @@ public sealed class SqlSnippetExpansion
 
     public string GetNativeCode(string newLine) => NormalizeLineEndings(NativeCode, newLine);
 
+    public string GetText(string newLine, string baseIndent, out int caretOffset)
+    {
+        var text = GetText(newLine, out caretOffset);
+        return SqlSnippetIndentation.Apply(text, baseIndent, ref caretOffset);
+    }
+
     /// <param name="snippet">要展開的片段。</param>
     /// <param name="surroundText">
     /// 包夾時使用者選取的文字；一般插入時為 <c>null</c>。

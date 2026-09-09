@@ -616,7 +616,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         panel.Children.Add(_codeBox);
         panel.Children.Add(SqlAssistChrome.CreateHint(
             "以 $名稱$ 標示佔位符，展開時會換成下面設定的預設值；" +
-            "以 $end$ 標示展開後游標要停的位置。", Metrics));
+            "以 $end$ 標示展開後游標要停的位置。\n" +
+            "加入一個 $surround$ 即可從右鍵包住選取 SQL；其餘欄位要能以 Tab 切換，請選「依序按 Tab 跳轉」。", Metrics));
 
         panel.Children.Add(_destructiveBox);
 

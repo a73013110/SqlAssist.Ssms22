@@ -230,8 +230,10 @@ internal sealed class SqlSnippetExpansionController : IDisposable
                     return null;
                 }
 
+                var line = target.Start.GetContainingLine();
                 var text = expansion.GetText(
                     SnapshotNewLine.Resolve(target.Snapshot, target.Start.Position),
+                    SqlSnippetIndentation.LeadingWhitespace(line.GetText(), target.Start.Position - line.Start.Position),
                     out var caretOffset);
                 return new TextReplacement(
                     text,
@@ -442,7 +444,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
             return;
         }
 
-        var indent = LeadingWhitespace(
+        var indent = SqlSnippetIndentation.LeadingWhitespace(
             snapshot.GetLineFromLineNumber(span.iStartLine).GetText(),
             span.iStartIndex);
 
@@ -455,16 +457,16 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         // 也會在復原堆疊上留下好幾格。
         using var edit = buffer.CreateEdit();
 
-        for (var number = span.iStartLine + 1; number <= span.iEndLine; number++)
+        var inserted = ToSnapshotSpan(span, snapshot);
+        if (inserted is null)
         {
-            var line = snapshot.GetLineFromLineNumber(number);
+            return;
+        }
 
-            // 空白行不補：那只會變成一行看不見的尾隨空白，
-            // 而且下一次存檔又會被編輯器刪掉，diff 多出無意義的變動。
-            if (line.Length > 0)
-            {
-                edit.Insert(line.Start.Position, indent);
-            }
+        // 與游標模式、預覽使用同一份行首判定，但以逐點插入保住原生欄位標記。
+        foreach (var offset in SqlSnippetIndentation.ContinuationStarts(inserted.Value.GetText()))
+        {
+            edit.Insert(inserted.Value.Start.Position + offset, indent);
         }
 
         edit.Apply();
@@ -557,23 +559,6 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         return end < start
             ? null
             : new SnapshotSpan(snapshot, Span.FromBounds(start, end));
-    }
-
-    /// <summary>取一行的前導空白，最多取到片段的起始欄。</summary>
-    /// <remarks>
-    /// 夾在起始欄是為了「片段起點落在前導空白之內」這種情形：
-    /// 整行縮排 8 格但游標停在第 4 欄時，補 8 格會把後續行推得比第一行還深。
-    /// </remarks>
-    private static string LeadingWhitespace(string line, int startIndex)
-    {
-        var length = 0;
-
-        while (length < line.Length && length < startIndex && char.IsWhiteSpace(line[length]))
-        {
-            length++;
-        }
-
-        return length == 0 ? string.Empty : line.Substring(0, length);
     }
 
     private void OnTextViewClosed(object sender, EventArgs eventArgs)

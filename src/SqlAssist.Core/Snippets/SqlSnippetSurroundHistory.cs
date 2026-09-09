@@ -27,8 +27,8 @@ public static class SqlSnippetSurroundHistory
 
     /// <summary>記下這一次用出去的片段。</summary>
     /// <remarks>
-    /// 呼叫點在「使用者選定」那個回呼裡，不是開清單的時候：按 Esc 取消的那一次
-    /// 不算用過，記下去會讓下一次的預選項變成他剛剛放棄的那一筆。
+    /// 呼叫點在確認插入成功之後；取消、唯讀或原文已變動都不算用過，
+    /// 否則下一次預選會變成根本沒有套用的那一筆。
     /// </remarks>
     public static void Record(SqlSnippet? snippet)
     {

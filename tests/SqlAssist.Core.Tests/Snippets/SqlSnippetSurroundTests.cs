@@ -5,6 +5,30 @@ namespace SqlAssist.Core.Tests.Snippets;
 
 public sealed class SqlSnippetSurroundTests
 {
+    [Theory]
+    [InlineData("BEGIN $surround$ END", true)]
+    [InlineData("BEGIN $SURROUND$ END", true)]
+    [InlineData("BEGIN $surround$ $surround$ END", false)]
+    [InlineData("BEGIN SELECT 1; END", false)]
+    public void 可包夾必須有唯一且實際存在的錨點(string code, bool expected)
+    {
+        var snippet = new SqlSnippet("mine", code,
+            placeholders: new[] { new SqlSnippetPlaceholder("surround") });
+        Assert.Equal(expected, snippet.CanSurround);
+        if (!expected)
+        {
+            Assert.Throws<System.InvalidOperationException>(() => snippet.WithSurroundText("SELECT 1;"));
+        }
+    }
+
+    [Fact]
+    public void 未宣告的錨點不能吞掉選取SQL()
+    {
+        var snippet = new SqlSnippet("mine", "BEGIN $surround$ END");
+        Assert.False(snippet.CanSurround);
+        Assert.Throws<System.InvalidOperationException>(() => snippet.WithSurroundText("SELECT 1;"));
+    }
+
     [Fact]
     public void 單行選取原樣接進錨點()
     {

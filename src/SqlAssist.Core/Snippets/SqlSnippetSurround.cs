@@ -17,9 +17,9 @@ namespace SqlAssist.Core.Snippets;
 ///   第 2 行起一律從第 0 欄開始。</item>
 /// </list>
 ///
-/// 整段插入點的<b>基準</b>縮排不在這裡：那一份由
-/// <c>SqlSnippetExpansionController.FormatSpan</c> 在插入之後補，而它補的是
-/// 「插入點所在行的前導空白」，與包夾與否無關。兩者相加才是最後看到的縮排。
+/// 整段插入點的<b>基準</b>縮排由 <see cref="SqlSnippetIndentation"/> 負責，
+/// 原生 FormatSpan、游標模式與預覽共用；它補的是插入點所在行的前導空白，
+/// 與包夾與否無關。兩者相加才是最後看到的縮排。
 /// </remarks>
 public static class SqlSnippetSurround
 {

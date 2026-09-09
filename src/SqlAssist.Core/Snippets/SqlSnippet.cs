@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 
@@ -70,7 +71,10 @@ public sealed class SqlSnippet
             : expansionMode;
         TriggerFollowUp = ExpansionMode == SqlSnippetExpansionMode.Caret && triggerFollowUp;
         Positions = positions == SqlKeywordPosition.None ? SqlKeywordPosition.Any : positions;
-        CanSurround = HasSurroundField(Placeholders);
+        // 手改 JSON 的違規項目仍留在管理員，但不能讓包夾複製或遺失使用者的 SQL。
+        CanSurround = HasSurroundField(Placeholders) &&
+            SqlSnippetPlaceholders.Extract(Code).Contains(SqlSnippetPlaceholders.SurroundId, StringComparer.OrdinalIgnoreCase) &&
+            SqlSnippetPlaceholders.ValidateSurroundAnchor(Code, out _);
         _expansion = new Lazy<SqlSnippetExpansion>(
             () => SqlSnippetExpansion.Create(this),
             isThreadSafe: true);
@@ -180,6 +184,11 @@ public sealed class SqlSnippet
     /// </remarks>
     public SqlSnippet WithSurroundText(string? selectedText)
     {
+        if (!CanSurround)
+        {
+            throw new InvalidOperationException("片段必須包含唯一且已宣告的 $surround$ 欄位才能包夾。");
+        }
+
         return new SqlSnippet(this, SqlSnippetExpansion.Create(this, selectedText ?? string.Empty));
     }
 
