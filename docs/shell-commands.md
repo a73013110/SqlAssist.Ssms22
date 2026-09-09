@@ -26,9 +26,10 @@
 後面那份 SQL——與焦點在哪個視窗無關，換視窗殼層修不掉。作法與規則見
 [片段包夾](snippet-surround.md)。
 
-包夾命令只有一條殼層路徑：濾鏡攔 `VSStd2K/SURROUNDWITH`，接的是使用者自己綁在
-`Edit.SurroundWith` 上的鍵。命令表那邊**沒有**鍵繫結——Ctrl+K, Ctrl+S 在 SSMS 上
-解析得到的是內建行為，繫結搶不到（見[片段包夾](snippet-surround.md)）。
+包夾命令兩條路都有：命令表把 Ctrl+Alt+S 綁在自己的命令上，濾鏡再攔
+`VSStd2K/SURROUNDWITH`，接使用者自己綁在 `Edit.SurroundWith` 上的鍵。命令表不綁
+Ctrl+K, Ctrl+S——那條和絃在 SSMS 上解析得到的是內建行為，搶不到（見
+[片段包夾](snippet-surround.md)）。
 `VSStd2K` 也是打字用的 `TYPECHAR` 那一組，所以那個分支每個按鍵都會走進來，
 下一步只剩一次整數比對。
 

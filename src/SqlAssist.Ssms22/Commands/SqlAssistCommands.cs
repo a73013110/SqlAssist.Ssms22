@@ -71,8 +71,8 @@ internal sealed class SqlAssistCommands
             CommandIds.RefreshSuggestions,
             RefreshSuggestions,
             () => SqlAssistSettingsStore.Current.Enabled && ActiveSqlEditor.Current is not null);
-        // 沒有鍵繫結，但殼層命令濾鏡與右鍵選單都要問狀態；沒有選取時回報停用，
-        // 右鍵選單上那一項就是灰的，而不是按下去什麼都不會發生。
+        // 全域鍵繫結（Ctrl+Alt+S）、殼層命令濾鏡與右鍵選單都要問狀態；沒有選取時
+        // 回報停用，右鍵選單上那一項就是灰的，Ctrl+Alt+S 也照常落回殼層。
         AddCommand(
             CommandIds.SurroundWith,
             SurroundWith,

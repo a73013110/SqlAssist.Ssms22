@@ -37,13 +37,13 @@ internal static class CommandIds
     public const int ManageSnippets = 0x0209;
 
     /// <summary>
-    /// 以片段包住選取範圍；入口是查詢視窗的右鍵選單與工具選單。
+    /// 以片段包住選取範圍；入口是 Ctrl+Alt+S、查詢視窗的右鍵選單與工具選單。
     /// </summary>
     /// <remarks>
-    /// 刻意沒有鍵繫結：Ctrl+K, Ctrl+S 在 SSMS 上解析得到的是它自己的
-    /// <c>Edit.SurroundWith</c>，那條和絃留給內建行為。使用者若把
+    /// 鍵繫結是 Ctrl+Alt+S 而不是 Ctrl+K, Ctrl+S：後者在 SSMS 上解析得到的是它
+    /// 自己的 <c>Edit.SurroundWith</c>，實測搶不到。使用者若把
     /// <c>Edit.SurroundWith</c> 綁到某個鍵，<c>SqlShellCommandFilter</c> 那條路
-    /// 接得住，終點是同一份實作。
+    /// 也接得住，終點是同一份實作。
     /// </remarks>
     public const int SurroundWith = 0x020B;
 

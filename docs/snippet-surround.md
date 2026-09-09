@@ -2,7 +2,7 @@
 
 ## 操作
 
-1. 選取 T-SQL，右鍵選「以片段包住選取範圍」；也可走 **工具 → SqlAssist**。
+1. 選取 T-SQL 後按 `Ctrl+Alt+S`，或從右鍵／工具選單選「以片段包住選取範圍」。
 2. 直接輸入捷徑、標題或說明搜尋，例如 `be`、`交易`；空白分隔的關鍵字必須全部相符。
 3. 用 ↑／↓ 或單擊選取片段，右側先看**包入這段 SQL 的實際展開預覽**。
 4. Enter、雙擊項目或「套用」才會改動查詢；Esc、「取消」或點到清單外面不套用。
@@ -134,16 +134,17 @@ END$end$
 - 非模態清單開著時內容可能變動；套用前重新檢查追蹤範圍與原文，不覆蓋新輸入。
 - 同一編輯器只開一份清單；點到其他查詢頁或工具窗關閉時不搶回焦點。
 
-## 入口是選單，不是鍵
+## 入口
 
 | 入口 | 接線 |
 |---|---|
-| 查詢視窗右鍵，自成一段 | SSMS 的 `IDM_SQLWB_SQLSCRIPT_CONTEXT`（選單 ID 80） |
-| 工具 → SqlAssist | 同一命令的 `CommandPlacement`，不複製按鈕 |
+| `Ctrl+Alt+S` | 命令表的全域鍵繫結 |
+| 查詢視窗右鍵，自成一段 | `IDM_SQLWB_SQLSCRIPT_CONTEXT`（選單 ID 80） |
+| 工具 → SqlAssist | 同一命令的 `CommandPlacement` |
 | 自訂綁在 `Edit.SurroundWith` 的鍵 | `SqlShellCommandFilter` 攔 `VSStd2K/SURROUNDWITH` |
 
-**Ctrl+K, Ctrl+S 刻意不綁**：SSMS 會解析成自己的內建行為，不能把它說成 SqlAssist
-快捷鍵。除錯中或 SQL 物件文件改走 `IDM_VS_CTXT_CODEWIN`，那裡不會出現這段右鍵選單。
+**Ctrl+K, Ctrl+S 不綁**：SSMS 解析成內建行為搶不到，預設鍵才取 Ctrl+Alt+S。
+除錯中或 SQL 物件文件改走 `IDM_VS_CTXT_CODEWIN`，那裡不會出現這段右鍵選單。
 
 沒有 SQL 編輯器、沒有一般選取或沒有候選時，選單停用但不隱藏；濾鏡不認領，留給
 SSMS 原本行為。選單失敗用狀態列說明，濾鏡失敗往下轉。見[殼層命令](shell-commands.md)。
