@@ -34,10 +34,13 @@ namespace SqlAssist.Ssms22.Settings;
 /// 抓進欄位的，那個才需要重開）。
 ///
 /// 這是唯一一個作用在<b>擴充之外</b>的設定，因此不能只放著等人來讀，要一直推：
-/// 套件載入、每次建立 SQL 編輯器、設定變更時各重套一次。SSMS 22 的設定 UI 沒有
-/// 暴露這個旗標，唯一的寫入者就是這裡，所以「還原」就是寫回 1——
-/// <c>RadLangSvc.pkgdef</c> 註冊的預設值就是 <c>ShowCompletion=1</c>。
-/// 套件卸載時會還原，讓擴充不留痕跡。
+/// 套件載入、每次建立 SQL 編輯器、設定變更時各重套一次。要一直推是因為
+/// <b>寫得到它的不只我們</b>：這個旗標就是 設定 → 語言 → Transact-SQL → 一般 →
+/// 陳述式完成 底下的「自動列出成員」核取方塊（隔壁的「參數資訊」對應
+/// <c>fAutoListParams</c>，這個擴充不動它）。使用者在那一頁勾回來之後，
+/// 下一次套用會再寫成 0——那是「只使用 SqlAssist 的建議清單」開著時的預期行為，
+/// 不是 bug。「還原」則是寫回 1——<c>RadLangSvc.pkgdef</c> 註冊的預設值就是
+/// <c>ShowCompletion=1</c>。套件卸載時會還原，讓擴充不留痕跡。
 /// </remarks>
 internal static class NativeMemberList
 {

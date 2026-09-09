@@ -75,6 +75,11 @@ SSMS 內建的 T-SQL IntelliSense 是舊版語言服務（MPF 的
 把舊版語言服務的 `LANGPREFERENCES2.fAutoListMembers` 設成 0，其餘一切照舊。
 實作與逐條理由見 `Ssms22/Settings/NativeMemberList`。
 
+那個旗標在 SSMS 的設定頁上看得到也改得動——語言 → Transact-SQL → 一般 →
+陳述式完成 → 自動列出成員，所以寫它的不只這個擴充。使用者在那裡勾回來之後，
+下一次套用（套件載入、建立 SQL 編輯器、設定變更）會再寫成 0；那是本項開著時的
+預期行為。隔壁的「參數資訊」對應 `fAutoListParams`，這個擴充不動它。
+
 分得開是因為決定「要不要把清單畫出來」的那一行讀的就是它。
 `Source.HandleCompletionResponse` 只在下列條件成立時才呼叫 `completionSet.Init`：
 

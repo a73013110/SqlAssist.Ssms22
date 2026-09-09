@@ -239,7 +239,7 @@
       "default": true,
       "order": 110,
       "title": "只使用 SqlAssist 的建議清單",
-      "description": "SSMS 內建的 T-SQL IntelliSense 打字時會彈出自己的清單，兩份同時出現會互相干擾。開啟這一項只擋掉它自動彈出的清單，它的紅色錯誤波浪線、大綱與參數提示照常運作。請不要整個關閉 SSMS 的 T-SQL IntelliSense——那會連錯誤檢查一起關掉。",
+      "description": "SSMS 內建的 T-SQL IntelliSense 打字時會彈出自己的清單，兩份同時出現會互相干擾。開啟這一項只擋掉它自動彈出的清單，它的紅色錯誤波浪線、大綱與參數提示照常運作。做法是取消勾選 設定 → 語言 → Transact-SQL 裡的「自動列出成員」；在那裡勾回來，下次套用時會再被取消。請不要整個關閉 SSMS 的 T-SQL IntelliSense——那會連錯誤檢查一起關掉。",
       "additionalKeywords": [ "內建", "原生", "衝突", "重複", "IntelliSense" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
