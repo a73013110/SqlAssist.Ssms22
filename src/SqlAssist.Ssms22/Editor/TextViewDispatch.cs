@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text.Editor;
 
@@ -22,15 +23,29 @@ namespace SqlAssist.Ssms22.Editor;
 /// </remarks>
 internal static class TextViewDispatch
 {
+    /// <remarks>
+    /// 呼叫端可能已經在背景（查完中繼資料才回頭排一件 UI 的事），所以先取派送器再問
+    /// 別的：<c>textView.IsClosed</c> 那一問留給排進去之後在 UI 執行緒上做，
+    /// 免得在背景執行緒上碰編輯器。
+    ///
+    /// 取不到派送器就整件事不做。這裡曾經退回 <c>Dispatcher.CurrentDispatcher</c>，
+    /// 而那在背景執行緒上會<b>當場建一個沒有人抽的佇列</b>——工作排進去之後永遠不會執行，
+    /// 而且一行紀錄都沒有。
+    /// </remarks>
     public static void AfterCurrentCommand(ITextView? textView, string operation, Action<ITextView> work)
     {
-        if (textView is null || textView.IsClosed)
+        if (textView is null)
         {
             return;
         }
 
         var dispatcher = (textView as IWpfTextView)?.VisualElement.Dispatcher
-            ?? Dispatcher.CurrentDispatcher;
+            ?? Application.Current?.Dispatcher;
+
+        if (dispatcher is null)
+        {
+            return;
+        }
 
         dispatcher.BeginInvoke(
             DispatcherPriority.Background,

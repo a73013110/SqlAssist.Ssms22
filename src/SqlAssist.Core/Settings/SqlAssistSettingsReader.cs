@@ -134,6 +134,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.BuiltInHelp,
                 defaults.BuiltInHelpEnabled),
+            ParameterHintEnabled = Value(
+                source,
+                SqlAssistMonikers.ParameterHint,
+                defaults.ParameterHintEnabled),
             PreviewMode = ParsePreviewMode(
                 Value(source, SqlAssistMonikers.PreviewMode, string.Empty),
                 defaults.PreviewMode),

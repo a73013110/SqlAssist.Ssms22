@@ -1,7 +1,9 @@
 using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Commanding;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Editor.Commanding.Commands;
 using Microsoft.VisualStudio.Utilities;
@@ -50,6 +52,13 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// <summary>輸入限定字的點號之後要把建議清單重開一次，那要經過 broker。</summary>
     [Import]
     internal IAsyncCompletionBroker Broker { get; set; } = null!;
+
+    /// <summary>純量函式的參數提示要經過平台的簽章 broker。</summary>
+    [Import]
+    internal ISignatureHelpBroker SignatureBroker { get; set; } = null!;
+
+    [Import]
+    internal SVsServiceProvider ServiceProvider { get; set; } = null!;
 
     public string DisplayName => "SqlAssist 結構預覽操作";
 
@@ -242,6 +251,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 () => SqlCompletionReopen.AfterSeparator(args.TextView, Broker));
         }
 
+        RequestParameterHint(args.TextView, args.TypedChar);
         return handled;
     }
 
@@ -261,6 +271,35 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 && Broker.GetSession(args.TextView) is null
                 && SqlAutoPairing.TryHandleBackspace(args.TextView, args.SubjectBuffer),
             fallback: false);
+    }
+
+    /// <summary>
+    /// 打完左括號或逗號之後，看看游標是不是落進了純量函式的引數清單。
+    /// </summary>
+    /// <remarks>
+    /// 逗號只在提示還沒開著時問：開著的那一份自己盯著編輯，逗號一進緩衝區它就把
+    /// 粗體移到下一個參數（<c>SqlFunctionSignature</c>）。在這裡再問一次會把它收掉
+    /// 重開，畫面閃一下，還多付一次中繼資料查詢。
+    ///
+    /// 左括號反過來一律問：<c>dbo.f(dbo.g(</c> 裡面那一個開的是<b>另一個</b>函式，
+    /// 沿用外面那一份講的會是錯的名稱。
+    /// </remarks>
+    private void RequestParameterHint(ITextView textView, char typedCharacter)
+    {
+        if (typedCharacter != '(' && typedCharacter != ',')
+        {
+            return;
+        }
+
+        SqlAssistPlatformGuard.Run("排程函式參數提示", () =>
+        {
+            var help = SqlCompletionServices.GetSignatureHelp(textView, ServiceProvider, SignatureBroker);
+
+            if (typedCharacter == '(' || !help.IsActive)
+            {
+                help.RequestAfterCurrentCommand();
+            }
+        });
     }
 
     /// <summary>只撤銷預覽目標，不吞掉按鍵；平台仍完整執行原本命令。</summary>

@@ -114,6 +114,7 @@ public static class SqlAssistDiagnosticSections
             new SqlAssistDiagnosticSection("物件結構", new[]
             {
                 Row("滑鼠停留提示", SqlAssistDiagnosticReport.FormatState(settings.HoverEnabled)),
+                Row("函式參數提示", SqlAssistDiagnosticReport.FormatState(settings.ParameterHintEnabled)),
                 Row("浮動預覽", SqlAssistDiagnosticReport.FormatPreview(settings)),
                 Row("預覽位置", SqlAssistDiagnosticReport.FormatPreviewPlacement(settings.PreviewPlacement)),
                 Row("預覽字級", settings.PreviewFontSize.ToString("0.#", CultureInfo.InvariantCulture))

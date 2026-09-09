@@ -13,6 +13,7 @@ using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Signatures;
 using SqlAssist.Ssms22.Snippets;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -34,13 +35,16 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
 {
     private readonly SqlCommitExpander _commitExpander;
     private readonly IAsyncCompletionBroker? _broker;
+    private readonly SqlSignatureHelp? _signatureHelp;
 
     public SqlAsyncCompletionCommitManager(
         SqlCommitExpander commitExpander,
-        IAsyncCompletionBroker? broker)
+        IAsyncCompletionBroker? broker,
+        SqlSignatureHelp? signatureHelp = null)
     {
         _commitExpander = commitExpander;
         _broker = broker;
+        _signatureHelp = signatureHelp;
     }
 
     /// <summary>
@@ -350,9 +354,13 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             // 使用者把那個核取方塊關掉時，這一次就是沒有作用的一次。
             //
             // 引數預留值那一種不叫：值馬上就會蓋上來，而參數資訊講的正是那幾格。
+            //
+            // 純量函式那一格 SSMS 一律不給（見 SqlSignatureHelp），所以兩邊都叫：
+            // 各自認得的名稱不重疊，先把兩份都請出來，浮得出來的只會有一份。
             if (inserted == ')' && expansion is null)
             {
                 SqlShellParameterInfo.Request();
+                _signatureHelp?.Request();
             }
         }
 

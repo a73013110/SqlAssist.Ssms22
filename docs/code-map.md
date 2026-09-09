@@ -29,6 +29,7 @@
 | 展開後的欄位排版 | `Core/Wildcards/SqlWildcardExpansionText.cs` |
 | Tab／Shift+Tab 的行為 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 滑鼠停留提示的內容 | `Ssms22/QuickInfo/SqlQuickInfoContentBuilder.cs` |
+| 函式參數提示浮不出來、粗體停在錯的引數 | `Ssms22/Signatures/SqlSignatureHelp.cs`、`Core/Completion/SqlCallSignature.cs` |
 | 浮動預覽的行為或擺放 | `Ssms22/Preview/SqlStructurePreview.cs` |
 | 任何自製 UI、顏色、字型或排版 | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
 | 按了某個鍵卻沒反應（F12 之類） | `Ssms22/Editor/SqlShellCommandFilter.cs` |

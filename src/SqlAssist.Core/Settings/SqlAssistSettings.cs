@@ -238,6 +238,21 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool BuiltInHelpEnabled { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.structure.parameterHint
+    /// </summary>
+    /// <remarks>
+    /// 游標停在使用者自訂函式的引數清單裡時，浮出一行簽章並把目前的引數標成粗體。
+    ///
+    /// 與 <see cref="HoverEnabled"/> 分開，因為兩者的時機相反：那一份要滑鼠停下來，
+    /// 這一份跟著游標走，打字時就在眼前——嫌它擋住程式碼的人想關掉的只有這一個。
+    ///
+    /// 只做<b>純量</b>函式。SSMS 自己的「陳述式完成 → 參數資訊」涵蓋內建函式，
+    /// 以及 <c>FROM</c> 後面的資料表值函式（2026-09 實機量測），那些位置再浮一份
+    /// 是兩個視窗搶同一格；純量函式在運算式位置它一律不給，缺的正是這一格。
+    /// </remarks>
+    public bool ParameterHintEnabled { get; init; } = true;
+
     /// <summary>sqlAssist.structure.previewMode</summary>
     public SqlPreviewMode PreviewMode { get; init; } = SqlPreviewMode.Delay;
 

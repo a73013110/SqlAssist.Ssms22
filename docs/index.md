@@ -38,6 +38,7 @@
 | 子句回溯、別名、換行邊界、數值不開清單 | [關鍵字邊界](completion-keyword-context.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
 | 內建名稱的用途、範例、CONVERT 的 style、提示、datepart | [內建說明](builtin-help.md) |
+| 函式簽章、目前輪到第幾個引數 | [參數提示](parameter-hint.md) |
 | 變數、全域變數、模組參數 | [變數](completion-variables.md) |
 | 片段內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、欄位建議、Tab／Enter | [片段導航](snippet-navigation.md) |

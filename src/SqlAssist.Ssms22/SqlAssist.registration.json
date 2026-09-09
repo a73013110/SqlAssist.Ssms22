@@ -406,6 +406,14 @@
       "additionalKeywords": [ "內建函式", "built-in", "簽章", "signature", "範例", "CONVERT", "用法" ],
       "enableWhen": "${config:sqlAssist.structure.hoverEnabled} == 'true'"
     },
+    "sqlAssist.structure.parameterHint": {
+      "type": "boolean",
+      "default": true,
+      "order": 120,
+      "title": "輸入自訂函式的引數時顯示參數提示",
+      "description": "游標停在純量函式的括號裡時浮出一行簽章（dbo.dtoc(@ddate smalldatetime) RETURNS varchar(10)），目前輪到的引數以粗體標示，打逗號會跟著往下走。只做純量函式：內建函式與 FROM 後面的資料表值函式由 SSMS 自己的「陳述式完成 → 參數資訊」負責。",
+      "additionalKeywords": [ "簽章", "signature", "參數資訊", "引數", "使用者自訂函式", "提示" ]
+    },
     "sqlAssist.structure.previewMode": {
       "type": "string",
       "default": "delay",

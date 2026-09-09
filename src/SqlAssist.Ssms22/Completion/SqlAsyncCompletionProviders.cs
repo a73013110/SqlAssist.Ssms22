@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.Composition;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
@@ -7,6 +8,7 @@ using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Signatures;
 using SqlAssist.Ssms22.Wildcards;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -54,6 +56,24 @@ internal static class SqlCompletionServices
             return textView.Properties.GetOrCreateSingletonProperty(
                 typeof(SqlCommitExpander),
                 () => new SqlCommitExpander(textView, GetMetadataService(textView, serviceProvider)));
+        }
+    }
+
+    /// <remarks>
+    /// 一個編輯器一份：備好的簽章與已經開著的 session 都記在實例上，
+    /// 每次按鍵都新建一個等於平台永遠取不到內容。
+    /// </remarks>
+    public static SqlSignatureHelp GetSignatureHelp(
+        ITextView textView,
+        IServiceProvider serviceProvider,
+        ISignatureHelpBroker broker)
+    {
+        lock (SyncRoot)
+        {
+            return SqlSignatureHelp.GetOrCreate(
+                textView,
+                GetMetadataService(textView, serviceProvider),
+                broker);
         }
     }
 
@@ -132,6 +152,10 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
     [Import]
     internal IAsyncCompletionBroker Broker { get; set; } = null!;
 
+    /// <summary>提交完一個純量函式之後，游標就落在括號裡，那裡要浮出簽章。</summary>
+    [Import]
+    internal ISignatureHelpBroker SignatureBroker { get; set; } = null!;
+
     public IAsyncCompletionCommitManager? GetOrCreate(ITextView textView)
     {
         return SqlAssistPlatformGuard.Create<IAsyncCompletionCommitManager>(
@@ -140,6 +164,7 @@ internal sealed class SqlAsyncCompletionCommitManagerProvider : IAsyncCompletion
                 typeof(SqlAsyncCompletionCommitManager),
                 () => new SqlAsyncCompletionCommitManager(
                     SqlCompletionServices.GetCommitExpander(textView, ServiceProvider),
-                    Broker)));
+                    Broker,
+                    SqlCompletionServices.GetSignatureHelp(textView, ServiceProvider, SignatureBroker))));
     }
 }
