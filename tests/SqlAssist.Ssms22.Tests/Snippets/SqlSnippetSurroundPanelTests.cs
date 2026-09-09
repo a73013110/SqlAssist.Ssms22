@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SqlAssist.Core.Parsing;
@@ -26,11 +27,11 @@ public sealed class SqlSnippetSurroundPanelTests
             var preferred = panel.SelectedSnippet;
             panel.Filter("TRR");
             Assert.Equal("trr", panel.SelectedSnippet?.Shortcut);
-            Assert.Contains("ROLLBACK TRANSACTION;", panel.Preview.Text);
+            Assert.Contains("ROLLBACK TRANSACTION;", panel.PreviewText);
             Assert.True(panel.ApplyButton.IsEnabled);
             panel.Filter("不存在的片段");
             Assert.Null(panel.SelectedSnippet);
-            Assert.Empty(panel.Preview.Text);
+            Assert.Empty(panel.PreviewText);
             Assert.False(panel.ApplyButton.IsEnabled);
             panel.Filter("");
             Assert.Same(preferred, panel.SelectedSnippet);
@@ -65,8 +66,8 @@ public sealed class SqlSnippetSurroundPanelTests
             var snippet = Snippet("be", "區塊");
             var panel = new SqlSnippetSurroundPanel(new[] { snippet }, 0, selection);
             Assert.Equal(selection.BaseIndent + snippet.WithSurroundText(selection.Text).Expansion
-                .GetText("\n", selection.BaseIndent, out _), panel.Preview.Text);
-            Assert.Contains("'$end$'", panel.Preview.Text);
+                .GetText("\n", selection.BaseIndent, out _), panel.PreviewText);
+            Assert.Contains("'$end$'", panel.PreviewText);
             Assert.True(snippet.CanSurround);
             Assert.Contains("$surround$", snippet.Code);
         });
@@ -80,8 +81,30 @@ public sealed class SqlSnippetSurroundPanelTests
             var sql = "SELECT '" + new string('a', 20000) + "';";
             var snippet = Snippet("be", "區塊");
             var panel = new SqlSnippetSurroundPanel(new[] { snippet }, 0, Selection(sql));
-            Assert.Equal(16000, panel.Preview.Text.Length);
+            Assert.Equal(16000, panel.PreviewText.Length);
             Assert.Contains(sql, snippet.WithSurroundText(sql).Expansion.Text);
+        });
+    }
+
+    [Fact]
+    public void 預覽把選取的SQL與新增的外框分開呈現()
+    {
+        WpfTest.Run(() =>
+        {
+            var selection = Selection("SELECT CopyNo\nFROM dbo.Copy;");
+            var panel = new SqlSnippetSurroundPanel(new[] { Snippet("be", "區塊") }, 0, selection);
+            var runs = panel.Preview.Document.Blocks.OfType<Paragraph>().Single()
+                .Inlines.OfType<Run>().ToArray();
+            var highlighted = runs
+                .Where(run => run.ReadLocalValue(TextElement.BackgroundProperty) != DependencyProperty.UnsetValue)
+                .Select(run => run.Text)
+                .ToArray();
+
+            // 上色不改內容：串起來仍然是完整的預覽文字。
+            Assert.Equal(panel.PreviewText, string.Concat(runs.Select(run => run.Text)));
+
+            // 有底色的就是選取的 SQL，一行一段；外框與行首縮排都不上底色。
+            Assert.Equal(new[] { "SELECT CopyNo\n", "FROM dbo.Copy;" }, highlighted);
         });
     }
 
@@ -105,15 +128,17 @@ public sealed class SqlSnippetSurroundPanelTests
             {
                 var colors = ThemePaletteTests.ColorsFor(mode);
                 palette.Update(colors);
-                foreach (var width in new[] { 560, 720 })
+                // 視窗的最小寬度與預設寬度：兩端都要能讀，預覽在兩端都比清單寬。
+                foreach (var width in new[] { 720, 1040 })
                 {
                     root.Measure(new Size(width, 440));
                     root.Arrange(new Rect(0, 0, width, 440));
                     root.UpdateLayout();
                     Assert.True(panel.List.ActualWidth > 150);
-                    Assert.True(panel.Preview.ActualWidth > 250);
+                    Assert.True(panel.Preview.ActualWidth > panel.List.ActualWidth);
                     Assert.True(panel.ApplyButton.ActualHeight > 0);
                     Assert.Equal(colors[ThemeBrush.ListForeground], ((SolidColorBrush)panel.Preview.Foreground).Color);
+                    Assert.Equal(colors[ThemeBrush.ListBackground], ((SolidColorBrush)panel.Preview.Background).Color);
                     Assert.Equal(colors[ThemeBrush.ListBackground], ((SolidColorBrush)panel.SearchBox.Background).Color);
                     foreach (var dpi in new[] { 96, 144, 192 })
                     {

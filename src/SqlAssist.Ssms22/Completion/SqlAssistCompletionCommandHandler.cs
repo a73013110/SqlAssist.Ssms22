@@ -74,12 +74,12 @@ internal sealed class SqlAssistCompletionCommandHandler :
     public CommandState GetCommandState(BackspaceKeyCommandArgs args) => CommandState.Unspecified;
 
     /// <summary>
-    /// Esc 收掉預覽。
+    /// Esc 收掉包夾清單或預覽。
     /// </summary>
     /// <remarks>
     /// 只處理「不是建議清單開出來的」那種預覽——由清單開出來的，
     /// 讓平台照常關清單就好，清單一關預覽自己會跟著收。
-    /// 這樣 Esc 永遠只需要按一次。
+    /// 這樣 Esc 永遠只需要按一次；包夾清單也是為了同一件事接在這裡。
     /// </remarks>
     public bool ExecuteCommand(EscapeKeyCommandArgs args, CommandExecutionContext executionContext)
     {
@@ -87,6 +87,13 @@ internal sealed class SqlAssistCompletionCommandHandler :
             "處理 Esc 按鍵",
             () =>
             {
+                // 包夾清單排在最前面：它開著的時候 Esc 就是「關掉它」，而且第一次按
+                // 就要關得掉——殼層不一定會把那一次變成命令送進命令鏈。
+                if (SqlSnippetSurroundPicker.TryCancel(args.TextView))
+                {
+                    return true;
+                }
+
                 if (Broker.GetSession(args.TextView) is not null)
                 {
                     return false;

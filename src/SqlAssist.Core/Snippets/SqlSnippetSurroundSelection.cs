@@ -21,6 +21,25 @@ public sealed class SqlSnippetSurroundSelection
     public string BaseIndent { get; }
     public bool ExpandedToLines { get; }
 
+    /// <summary>會被包住的行數；LF、CRLF 與單獨的 CR 都算一次換行。</summary>
+    public int LineCount
+    {
+        get
+        {
+            var lines = 1;
+            for (var index = 0; index < Text.Length; index++)
+            {
+                if (Text[index] == '\n' ||
+                    (Text[index] == '\r' && (index + 1 == Text.Length || Text[index + 1] != '\n')))
+                {
+                    lines++;
+                }
+            }
+
+            return lines;
+        }
+    }
+
     public static SqlSnippetSurroundSelection Resolve(ISqlTextSource source, int start, int length)
     {
         if (source is null)

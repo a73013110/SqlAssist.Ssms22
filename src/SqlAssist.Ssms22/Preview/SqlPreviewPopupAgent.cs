@@ -175,11 +175,20 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             () => _view.QueueSpaceReservationStackRefresh());
     }
 
+    /// <summary>回報這一輪佔用的幾何；<c>null</c> 代表請空間管理員收掉這個 Agent。</summary>
+    /// <remarks>
+    /// SSMS 22.10 的組件把整個 <c>ISpaceReservationAgent</c> 標成不可為 NULL，但
+    /// <c>null</c>（收掉）與 <see cref="Geometry.Empty"/>（留著，這一輪不畫）在管理員
+    /// 眼裡是兩件事，本檔案兩種都用得到。跟著改成不可為 NULL 會把「收掉」變成「留著」，
+    /// 那是行為變更而不是修警告，因此只在這一個成員抑制註解不符。
+    /// </remarks>
+#pragma warning disable CS8766
     public Geometry? PositionAndDisplay(Geometry reservedSpace) =>
         SqlAssistPlatformGuard.Run<Geometry?>(
             "定位結構預覽",
             () => PositionAndDisplayCore(reservedSpace),
             fallback: null);
+#pragma warning restore CS8766
 
     private Geometry? PositionAndDisplayCore(Geometry reservedSpace)
     {

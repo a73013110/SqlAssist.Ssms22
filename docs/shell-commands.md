@@ -21,6 +21,11 @@
 兩者互斥——鍵繫結只會解析出一個命令——所以不會執行兩次。`SqlDefinitionOpener`
 的重入防護是最後一道保險。
 
+濾鏡的第二個用途是**把按鍵還給自己的非模態視窗**。殼層照作用中的視窗框架（清單開著
+時仍是查詢視窗）預先解析按鍵，Tab、↑↓、Enter、Delete 就沿著命令鏈進來，不攔就是改到
+後面那份 SQL——與焦點在哪個視窗無關，換視窗殼層修不掉。作法與規則見
+[片段包夾](snippet-surround.md)。
+
 包夾命令只有一條殼層路徑：濾鏡攔 `VSStd2K/SURROUNDWITH`，接的是使用者自己綁在
 `Edit.SurroundWith` 上的鍵。命令表那邊**沒有**鍵繫結——Ctrl+K, Ctrl+S 在 SSMS 上
 解析得到的是內建行為，繫結搶不到（見[片段包夾](snippet-surround.md)）。

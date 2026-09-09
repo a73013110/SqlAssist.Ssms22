@@ -16,7 +16,8 @@
 
 ## 品質與公開內容
 
-- `TreatWarningsAsErrors` 與 Nullable 必須維持啟用。
+- `TreatWarningsAsErrors` 與 Nullable 必須維持啟用。SSMS 更新換掉參考組件的註解時，
+  先照新契約改寫，`!` 與 `#pragma` 是最後手段且要寫明理由，見[開發](development.md)。
 - 測試使用 Microsoft.Testing.Platform；執行 `tools/Run-CoreTests.ps1` 或 `dotnet test <方案>`，
   不得加回 VSTest 轉接層。
 - 註解只寫理由、失敗方案或不照做的症狀，不逐行翻譯程式碼。

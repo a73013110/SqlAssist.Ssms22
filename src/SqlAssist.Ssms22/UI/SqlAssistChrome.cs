@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -133,6 +134,41 @@ internal static partial class SqlAssistChrome
             Child = child
         }.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground)
             .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
+    }
+
+    /// <summary>
+    /// 右下角的調整大小握把。
+    /// </summary>
+    /// <remarks>
+    /// 給沒有原生標題列的浮動內容用：整塊 14×14 都要抓得到，所以底是透明的
+    /// <see cref="Border"/> 而不是只有兩條線——只有線條可以命中的話，使用者會覺得
+    /// 這個角落時靈時不靈。實際的縮放交給呼叫端，這裡只提供外觀與游標。
+    /// </remarks>
+    public static Thumb CreateResizeGrip()
+    {
+        var area = new FrameworkElementFactory(typeof(Border));
+        area.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+
+        var lines = new FrameworkElementFactory(typeof(Path));
+        lines.SetValue(Path.DataProperty, Geometry.Parse("M12,4 L4,12 M12,8 L8,12"));
+        lines.SetValue(Shape.StrokeThicknessProperty, 1.0);
+        lines.SetValue(Shape.StrokeStartLineCapProperty, PenLineCap.Round);
+        lines.SetValue(Shape.StrokeEndLineCapProperty, PenLineCap.Round);
+        lines.SetResourceReference(Shape.StrokeProperty, ThemeBrush.DimForeground);
+        area.AppendChild(lines);
+
+        return new Thumb
+        {
+            Width = 14,
+            Height = 14,
+            Margin = new Thickness(0, 0, 2, 2),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Cursor = System.Windows.Input.Cursors.SizeNWSE,
+            Focusable = false,
+            ToolTip = "拖曳調整大小",
+            Template = new ControlTemplate(typeof(Thumb)) { VisualTree = area }
+        };
     }
 
     /// <summary>區塊標題：靠字重而不是字級把段落分開。</summary>
@@ -400,7 +436,13 @@ internal static partial class SqlAssistChrome
     /// <c>PART_ContentHost</c> 的，換掉樣板之後那條路就斷了——程式碼欄位明明設了
     /// <see cref="ScrollBarVisibility.Auto"/> 卻捲不動，就是漏掉這兩條繫結。
     /// </remarks>
-    public static ControlTemplate CreateTextBoxTemplate()
+    public static ControlTemplate CreateTextBoxTemplate() => CreateTextBoxTemplate(typeof(TextBox));
+
+    /// <param name="targetType">
+    /// 套用樣板的控制項型別。<see cref="RichTextBox"/> 與 <see cref="TextBox"/> 的外框
+    /// 完全相同，但 <c>ControlTemplate</c> 的 TargetType 必須對得上，否則套不上去。
+    /// </param>
+    public static ControlTemplate CreateTextBoxTemplate(Type targetType)
     {
         var field = new FrameworkElementFactory(typeof(Border)) { Name = "field" };
         field.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
@@ -422,7 +464,7 @@ internal static partial class SqlAssistChrome
             TemplatedParent(nameof(TextBoxBase.VerticalScrollBarVisibility)));
         field.AppendChild(host);
 
-        var template = new ControlTemplate(typeof(TextBox)) { VisualTree = field };
+        var template = new ControlTemplate(targetType) { VisualTree = field };
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
@@ -453,6 +495,79 @@ internal static partial class SqlAssistChrome
             .WithTheme(TextBox.ForegroundProperty, ThemeBrush.ListForeground)
             .WithTheme(TextBox.CaretBrushProperty, ThemeBrush.ListForeground)
             .WithTheme(TextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
+    }
+
+    /// <summary>
+    /// 唯讀的程式碼檢視區：與輸入欄位同一個外框，但內容可以分段上色。
+    /// </summary>
+    /// <remarks>
+    /// 用 <see cref="RichTextBox"/> 而不是 <see cref="TextBox"/>，是因為預覽要用顏色
+    /// 分出「原本的 SQL」與「片段新增的外框」，而 <c>TextBox</c> 只有一種前景色。
+    /// 仍然可以選取與複製——那是這個區塊最常見的下一步，<c>TextBlock</c> 做不到。
+    /// 不換行：SQL 折行之後對不齊，寬度不夠時用水平捲軸。
+    /// </remarks>
+    public static RichTextBox CreateCodeViewer(Metrics metrics)
+    {
+        var viewer = new RichTextBox
+        {
+            FontFamily = CodeFont,
+            FontSize = metrics.Body,
+            Padding = new Thickness(8, 5, 8, 6),
+            BorderThickness = new Thickness(1),
+            IsReadOnly = true,
+            IsDocumentEnabled = false,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Template = CreateTextBoxTemplate(typeof(RichTextBox))
+        };
+        viewer.WithTheme(RichTextBox.BackgroundProperty, ThemeBrush.ListBackground)
+            .WithTheme(RichTextBox.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(RichTextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
+        return viewer;
+    }
+
+    /// <summary>
+    /// 把整份文件換成一段程式碼；不換行、不留段落間距。
+    /// </summary>
+    /// <remarks>
+    /// 頁寬要自己算：<see cref="FlowDocument"/> 預設照可視寬度折行，SQL 一折就對不齊。
+    /// 但固定給一個很大的值會讓水平捲軸永遠都在，所以照最長的一行估——等寬字型的
+    /// 前進寬度約是字級的 0.62 倍，寧可估寬一點點，也不要估窄而折行。
+    /// </remarks>
+    public static void SetCode(RichTextBox viewer, string text, IEnumerable<Inline> content)
+    {
+        var paragraph = new Paragraph { Margin = default };
+        paragraph.Inlines.AddRange(content);
+        viewer.Document = new FlowDocument(paragraph)
+        {
+            PagePadding = default,
+            PageWidth = Math.Max(1, LongestLine(text) * viewer.FontSize * 0.62),
+            FontFamily = viewer.FontFamily,
+            FontSize = viewer.FontSize
+        };
+        viewer.ScrollToHome();
+    }
+
+    private static int LongestLine(string text)
+    {
+        var longest = 0;
+        var current = 0;
+        foreach (var character in text)
+        {
+            if (character == '\n' || character == '\r')
+            {
+                current = 0;
+                continue;
+            }
+
+            current++;
+            if (current > longest)
+            {
+                longest = current;
+            }
+        }
+
+        return longest;
     }
 
     /// <summary>下拉選單的字型、色彩與基本尺寸。</summary>

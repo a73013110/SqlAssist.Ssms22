@@ -64,6 +64,22 @@ $OutputEncoding = Initialize-SqlAssistUtf8Output
 `Test-AgentWorkflow.ps1` 會檢查所有腳本的共用入口，並從 UTF-8、Big5、CP437 啟動子程序，
 驗證中文／Emoji、stdout／stderr、原生管道、Git 檔名及失敗結束碼。不以略過 hook 解決亂碼。
 
+### SSMS 更新後突然編譯失敗
+
+參考組件是 SSMS 安裝目錄裡的那一份（`SsmsInstallDir`），SSMS 自動更新之後那些
+組件也跟著換。22.10 就是這樣：編輯器介面新增了可為 NULL 的註解，`git` 沒有任何
+變更的程式碼也開始出現 `CS8766`／`CS8604`。判斷方式是先把工作區存起來，用未修改的
+`master` 建置一次；還是失敗就與本次修改無關。
+
+處理原則照序：**先看能不能照新契約寫**（例如工廠改成一定回得出東西、取不到分類型別
+就不上色並記一行），做不到才用**單一成員**的 `#pragma warning disable` 並在文件註解
+寫清楚為什麼——目前只有 `SqlPreviewPopupAgent.PositionAndDisplay` 是這一類：`null`
+與 `Geometry.Empty` 在空間管理員眼裡是兩件事，跟著改型別是行為變更而不是修警告。
+**不要**用 `!` 把可為 NULL 的值硬塞進不可為 NULL 的位置，那只是把 NRE 推到執行期。
+
+也不要用 `dotnet build` 建置本方案：它不會帶 `SsmsInstallDir`，還會覆寫 `obj` 裡的
+解析結果，症狀與 SSMS 更新一模一樣。一律走 `tools\Build-Extension.ps1`。
+
 ### 文字檔格式
 
 所有文字檔統一為 **UTF-8 與 LF**；除 `.sln` 保留 BOM 外，其餘檔案不含 BOM。根目錄的

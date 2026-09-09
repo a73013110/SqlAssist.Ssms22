@@ -116,4 +116,32 @@ public sealed class SqlSnippetSurroundTests
         Assert.Equal(string.Empty, SqlSnippetSurround.Reindent(null, "    "));
         Assert.Equal(string.Empty, SqlSnippetSurround.Reindent(string.Empty, "    "));
     }
+
+    [Theory]
+    [InlineData("\n", "")]
+    [InlineData("\r\n", "  ")]
+    public void 繪製結果標得出包夾內容的位置(string newLine, string baseIndent)
+    {
+        const string sql = "SELECT CopyNo\nFROM dbo.Copy;";
+        var render = Block().WithSurroundText(sql).Expansion.Render(newLine, baseIndent);
+
+        Assert.True(render.HasSurround);
+
+        // 錨點縮排、換行與基準縮排都套用過之後，那一段仍然只包住使用者的 SQL。
+        var surround = render.Text.Substring(render.SurroundOffset, render.SurroundLength);
+        Assert.Equal("SELECT CopyNo" + newLine + baseIndent + "    FROM dbo.Copy;", surround);
+        Assert.StartsWith("BEGIN" + newLine + baseIndent + "    ", render.Text);
+        Assert.EndsWith("END", render.Text);
+    }
+
+    [Fact]
+    public void 不是包夾展開時沒有範圍可標()
+    {
+        var render = Block().Expansion.Render("\n", string.Empty);
+        Assert.False(render.HasSurround);
+        Assert.Equal(-1, render.SurroundOffset);
+    }
+
+    private static SqlSnippet Block() => new("be", "BEGIN\n    $surround$\nEND$end$",
+        placeholders: new[] { new SqlSnippetPlaceholder("surround") });
 }

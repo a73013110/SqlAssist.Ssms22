@@ -36,8 +36,8 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
     private readonly BlockViewState _state;
     private readonly EditorBlockTheme _theme;
     private readonly ThemeRefreshQueue _queue;
-    private readonly ClassificationTag _keyword;
-    private readonly ClassificationTag _symbol;
+    private readonly ClassificationTag? _keyword;
+    private readonly ClassificationTag? _symbol;
     private ITagSpan<ClassificationTag>[] _tags = Array.Empty<ITagSpan<ClassificationTag>>();
     private bool _disposed;
     public event EventHandler<SnapshotSpanEventArgs>? TagsChanged;
@@ -49,8 +49,8 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
         _state = BlockViewState.Get(view);
         _theme = EditorBlockTheme.Get(view);
         _theme.AttachFormats(formats);
-        _keyword = new ClassificationTag(types.GetClassificationType(BlockEndpointFormat.Keyword));
-        _symbol = new ClassificationTag(types.GetClassificationType(BlockEndpointFormat.Symbol));
+        _keyword = ResolveTag(types, BlockEndpointFormat.Keyword);
+        _symbol = ResolveTag(types, BlockEndpointFormat.Symbol);
         _queue = new ThemeRefreshQueue(view.VisualElement.Dispatcher,
             () => SqlAssistPlatformGuard.Probe("更新區塊端點配色", UpdateColors));
         _state.Changed += OnState;
@@ -67,6 +67,24 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
         foreach (var tag in _tags)
             if (spans.Count > 0 && spans[0].Snapshot == tag.Span.Snapshot && spans.IntersectsWith(tag.Span))
                 yield return tag;
+    }
+
+    /// <summary>
+    /// 分類型別由本擴充自己匯出；註冊表沒有它時不上色，而不是讓編輯器建立失敗。
+    /// </summary>
+    /// <remarks>
+    /// 真的取不到就是 MEF 快取過期那一類問題（見[偵錯]），症狀本來就會是「整組功能
+    /// 消失」；在這裡丟例外只會多一個看不懂的對話框，所以記一行再讓其餘功能照常。
+    /// </remarks>
+    private static ClassificationTag? ResolveTag(IClassificationTypeRegistryService types, string name)
+    {
+        if (types.GetClassificationType(name) is { } type)
+        {
+            return new ClassificationTag(type);
+        }
+
+        SqlAssistDiagnostics.WriteAlways($"找不到分類型別 {name}，區塊端點這一輪不上色");
+        return null;
     }
 
     private void UpdateColors()
@@ -98,9 +116,11 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
         if (_disposed || _view.IsClosed) return;
         var snapshot = _view.TextSnapshot;
         var pair = _state.Settings.BlockKeywordHighlight && _state.Snapshot == snapshot ? _state.SelectedPair : null;
-        var next = pair is null ? Array.Empty<ITagSpan<ClassificationTag>>() :
+        var keyword = _keyword;
+        var symbol = _symbol;
+        var next = pair is null || keyword is null || symbol is null ? Array.Empty<ITagSpan<ClassificationTag>>() :
             pair.Opening.Concat(pair.Closing).Select(span => (ITagSpan<ClassificationTag>)new TagSpan<ClassificationTag>(
-                new SnapshotSpan(snapshot, span.Start, span.Length), BlockDisplayRules.IsSymbol(pair.Kind) ? _symbol : _keyword)).ToArray();
+                new SnapshotSpan(snapshot, span.Start, span.Length), BlockDisplayRules.IsSymbol(pair.Kind) ? symbol : keyword)).ToArray();
         if (_tags.Length == next.Length && _tags.Select(t => (t.Span, t.Tag)).SequenceEqual(next.Select(t => (t.Span, t.Tag)))) return;
         var old = _tags;
         _tags = next;

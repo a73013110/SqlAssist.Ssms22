@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.UI;
 
@@ -27,14 +28,15 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         _selection = selection;
         _preferred = snippets.Count == 0 ? null : snippets[Math.Min(Math.Max(selectedIndex, 0), snippets.Count - 1)];
         var metrics = SqlAssistChrome.DefaultMetrics;
-        Margin = new Thickness(12);
+        // 右下角讓給調整大小的握把，其餘沿用浮動內容的外距。
+        Margin = new Thickness(12, 12, 12, 12);
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var header = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-        header.Children.Add(SqlAssistChrome.CreateMetadataText(
-            selection.ExpandedToLines ? "跨行選取已擴成整行；請先確認預覽" : "選擇片段包住 SQL（不會執行）", metrics));
+        // 標題列已經說了這是哪個工具；第一列只放新的資訊：實際會被包住的是哪些內容。
+        header.Children.Add(SqlAssistChrome.CreateMetadataText(Describe(selection), metrics));
         SearchBox = SqlAssistChrome.CreateTextBox(metrics);
         SearchBox.Margin = new Thickness(0, 8, 0, 4);
         SearchBox.ToolTip = "搜尋捷徑、標題或說明；空白分隔多個關鍵字";
@@ -47,9 +49,10 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         Children.Add(header);
 
         var body = new Grid();
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+        // 清單只放捷徑與標題，寬度夠讀就好；剩下的都留給預覽，那才是要看完的內容。
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
         List = new ListBox
         {
             BorderThickness = new Thickness(0),
@@ -67,12 +70,8 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         _previewHint.Margin = new Thickness(0, 0, 0, 8);
         DockPanel.SetDock(_previewHint, Dock.Top);
         detail.Children.Add(_previewHint);
-        Preview = SqlAssistChrome.CreateTextBox(metrics);
-        Preview.FontFamily = SqlAssistChrome.CodeFont;
-        Preview.IsReadOnly = true;
-        Preview.AcceptsReturn = true;
-        Preview.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-        Preview.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        Preview = SqlAssistChrome.CreateCodeViewer(metrics);
+        Preview.ToolTip = "反白處是選取的 SQL，淡色是片段新增的外框";
         AutomationProperties.SetName(Preview, "包夾後 SQL 預覽");
         detail.Children.Add(Preview);
         Grid.SetColumn(detail, 2);
@@ -97,7 +96,10 @@ internal sealed class SqlSnippetSurroundPanel : Grid
 
     public TextBox SearchBox { get; }
     public ListBox List { get; }
-    public TextBox Preview { get; }
+    public RichTextBox Preview { get; }
+
+    /// <summary>目前預覽的純文字；上色不改內容，測試與診斷都看這一份。</summary>
+    public string PreviewText { get; private set; } = string.Empty;
     public Button ApplyButton { get; }
     public Button CancelButton { get; }
     public SqlSnippet? SelectedSnippet => (List.SelectedItem as ListBoxItem)?.Tag as SqlSnippet;
@@ -139,21 +141,101 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         _previewed = snippet;
         if (snippet is null)
         {
-            Preview.Clear();
+            PreviewText = string.Empty;
+            SqlAssistChrome.SetCode(Preview, string.Empty, Array.Empty<Inline>());
             _previewHint.Text = "套用預覽";
             return;
         }
 
         // 使用真正的展開結果，不以 Replace 模擬欄位、跳脫或縮排。
         var expanded = snippet.WithSurroundText(_selection.Text);
-        var text = _selection.BaseIndent + expanded.Expansion.GetText("\n", _selection.BaseIndent, out _);
-        Preview.Text = text.Length > PreviewLimit ? text.Substring(0, PreviewLimit) : text;
-        Preview.ScrollToHome();
-        _previewHint.Text = text.Length > PreviewLimit
+        var render = expanded.Expansion.Render("\n", _selection.BaseIndent);
+        var text = _selection.BaseIndent + render.Text;
+        var truncated = text.Length > PreviewLimit;
+        PreviewText = truncated ? text.Substring(0, PreviewLimit) : text;
+
+        // 前面補的基準縮排也要算進位置；由 Core 一次算好，不在這裡用字串比對找。
+        var start = render.HasSurround ? render.SurroundOffset + _selection.BaseIndent.Length : -1;
+        SqlAssistChrome.SetCode(Preview, PreviewText, Highlight(PreviewText, start, render.SurroundLength));
+        _previewHint.Text = truncated
             ? "預覽已截短；套用仍保留完整 SQL"
             : expanded.ExpansionMode == SqlSnippetExpansionMode.TabStops
                 ? $"套用後以 Tab 填寫 {expanded.Expansion.Fields.Count} 個欄位"
                 : "套用後游標移至結尾落點";
+    }
+
+    /// <summary>
+    /// 把預覽分成「選取的 SQL」與「片段新增的外框」兩種呈現。
+    /// </summary>
+    /// <remarks>
+    /// 新增的部分用淡色而不是強調色：強調色在這個介面裡是焦點與選取的意思，
+    /// 而且真正該一眼看到的是「我的 SQL 被放到哪裡」，不是外框本身。
+    /// 範圍超出截短後的長度時只標到看得見的地方，不動實際插入的內容。
+    /// </remarks>
+    private static IEnumerable<Inline> Highlight(string text, int start, int length)
+    {
+        var from = Math.Max(0, Math.Min(start, text.Length));
+        var to = start < 0 ? from : Math.Max(from, Math.Min(start + length, text.Length));
+        if (start < 0 || to == from)
+        {
+            yield return Frame(text);
+            yield break;
+        }
+
+        yield return Frame(text.Substring(0, from));
+        foreach (var line in SelectedLines(text.Substring(from, to - from)))
+        {
+            yield return line;
+        }
+
+        yield return Frame(text.Substring(to));
+    }
+
+    /// <remarks>
+    /// 每一行的前導空白留在外框那一色。整行從行首開始上底色的話，會像連縮排都被選走，
+    /// 而第一行的縮排本來就屬於樣板，兩者對不齊看起來更像畫錯。
+    /// </remarks>
+    private static IEnumerable<Inline> SelectedLines(string text)
+    {
+        var index = 0;
+        while (index < text.Length)
+        {
+            // 預覽一律以 \n 繪製；換行本身跟著上一段走，不另外開一段。
+            var lineEnd = text.IndexOf('\n', index);
+            var stop = lineEnd < 0 ? text.Length : lineEnd + 1;
+            var content = index;
+            while (content < stop && (text[content] == ' ' || text[content] == '\t'))
+            {
+                content++;
+            }
+
+            if (content > index)
+            {
+                yield return Frame(text.Substring(index, content - index));
+            }
+
+            if (stop > content)
+            {
+                yield return Selected(text.Substring(content, stop - content));
+            }
+
+            index = stop;
+        }
+    }
+
+    private static Run Frame(string text) =>
+        new Run(text).WithTheme(TextElement.ForegroundProperty, ThemeBrush.DimForeground);
+
+    private static Run Selected(string text) =>
+        new Run(text)
+            .WithTheme(TextElement.ForegroundProperty, ThemeBrush.ListForeground)
+            .WithTheme(TextElement.BackgroundProperty, ThemeBrush.BadgeBackground);
+
+    /// <summary>被包住的內容有多少；跨行擴成整行時要先講，那是使用者沒有選到的部分。</summary>
+    private static string Describe(SqlSnippetSurroundSelection selection)
+    {
+        var summary = $"包住 {selection.LineCount} 行 · {selection.Text.Length} 個字元，不會執行 SQL";
+        return selection.ExpandedToLines ? $"跨行選取已擴成整行；請先確認預覽 · {summary}" : summary;
     }
 
     private static ListBoxItem CreateItem(SqlSnippet snippet)

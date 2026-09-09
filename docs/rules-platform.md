@@ -37,7 +37,8 @@
   `Editor/SqlShellCommandFilter`（`IVsTextView` 上的 `IOleCommandTarget`，插在鏈
   最前面）。濾鏡**必須**在 `QueryStatus` 回報 supported＋enabled：沒有人認領的命令
   是停用的，停用的命令連 `Exec` 都不會發出去。那條路徑每個按鍵都會走過，**禁止**在
-  轉傳之前做 GUID 比對以外的任何事。詳見
+  轉傳之前做 GUID 比對與一次靜態旗標讀取以外的任何事——目前唯一的旗標是
+  `SqlSnippetSurroundPicker.IsOpen`，為 false 時連 `Guid` 複製都不做。詳見
   [殼層命令](shell-commands.md)。
 - **禁止**改了 `Menus.vsct` 卻沒把 `ProvideMenuResource` 的版號加一，也**禁止**
   改完命令表後用 `Deploy-DebugExtension.ps1` 部署。殼層照 pkgdef 的

@@ -38,13 +38,15 @@ internal sealed class BlockGlyphTaggerProvider : IViewTaggerProvider
 [TagType(typeof(BlockGlyphTag))]
 internal sealed class BlockGlyphFactoryProvider : IGlyphFactoryProvider
 {
-    public IGlyphFactory? GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) =>
-        SqlAssistPlatformGuard.Create("建立區塊色帶工廠", () => new Factory(view));
+    // 工廠本身不做任何會失敗的事，所以一定回得出來；取佈景與畫圖都在 GenerateGlyph
+    // 裡，那裡回 null 是「這一行不畫」的正常結果。
+    public IGlyphFactory GetGlyphFactory(IWpfTextView view, IWpfTextViewMargin margin) => new Factory(view);
 
     private sealed class Factory : IGlyphFactory
     {
-        private readonly EditorBlockTheme _theme;
-        public Factory(IWpfTextView view) => _theme = EditorBlockTheme.Get(view);
+        private readonly IWpfTextView _view;
+        private EditorBlockTheme? _theme;
+        public Factory(IWpfTextView view) => _view = view;
 
         public UIElement? GenerateGlyph(IWpfTextViewLine line, IGlyphTag tag) =>
             SqlAssistPlatformGuard.Create("繪製區塊邊欄色帶", () =>
@@ -52,7 +54,7 @@ internal sealed class BlockGlyphFactoryProvider : IGlyphFactoryProvider
                 if (tag is not BlockGlyphTag block) return null;
                 var glyph = SqlAssistChrome.CreateBlockGlyph(block.Kind, line.Height, block.Description);
                 VsThemeBrushes.Apply(glyph);
-                _theme.Apply(glyph);
+                (_theme ??= EditorBlockTheme.Get(_view)).Apply(glyph);
                 return glyph;
             });
     }
