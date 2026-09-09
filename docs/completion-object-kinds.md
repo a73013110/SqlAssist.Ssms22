@@ -21,7 +21,7 @@
 
 `APPLY` 有自己的 `CompletionTarget` 而不是共用 `Function`，還有第二個好處：
 `CompletionTarget.Function` 因此收斂成「`ALTER`／`DROP FUNCTION` 的那個名稱」，
-提交時分得出「這裡要補引數」還是「這裡只要名稱」——見[函式引數](statement-values.md#提交函式時補上引數)。
+提交時分得出「這裡要補括號」還是「這裡只要名稱」——見[函式呼叫](function-call-insertion.md)。
 
 ## 系統物件只在兩個位置拉進來
 

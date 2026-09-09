@@ -61,6 +61,7 @@ public static class SqlAssistMonikers
     public const string ExpandProcedureCall = "sqlAssist.insertion.expandProcedureCall";
     public const string IncludeOptionalParameters = "sqlAssist.insertion.includeOptionalParameters";
     public const string ExpandFunctionCall = "sqlAssist.insertion.expandFunctionCall";
+    public const string ExpandFunctionArguments = "sqlAssist.insertion.expandFunctionArguments";
 
     public const string HoverEnabled = "sqlAssist.structure.hoverEnabled";
     public const string BuiltInHelp = "sqlAssist.structure.builtInHelp";

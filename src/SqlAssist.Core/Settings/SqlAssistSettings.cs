@@ -194,15 +194,37 @@ public sealed class SqlAssistSettings
     /// sqlAssist.insertion.expandFunctionCall
     /// </summary>
     /// <remarks>
-    /// 提交一個使用者自訂函式時補上引數清單：<c>SELECT dbo.fn_DueDate(NULL)</c>、
-    /// <c>FROM dbo.fn_LoansByReader(0)</c>。與上面三個分成獨立的開關，理由相同——
-    /// 展開的東西不同，想關掉它的理由也不同：這一個補的是括號與預留值，
-    /// 而括號在 T-SQL 裡本來就非寫不可。
+    /// 提交一個使用者自訂函式時補上一對空括號，游標停在中間：
+    /// <c>SELECT dbo.fn_DueDate(|)</c>、<c>FROM dbo.fn_LoansByReader(|)</c>。
+    /// 預設開著，理由與其他四個展開不同——那四個補的是可以不要的方便，
+    /// 這一個補的是<b>非寫不可</b>的語法：<c>SELECT dbo.fn_DueDate</c> 是語法錯誤，
+    /// 沒有參數的函式也一樣要寫 <c>()</c>。
+    ///
+    /// 括號裡要不要再填預留值由 <see cref="ExpandFunctionArguments"/> 決定；
+    /// 這一個關掉之後那一個就沒有意義了，所以它掛在這一個底下。
     ///
     /// 只管使用者自訂函式。T-SQL 內建函式的左括號寫在建議項自己的插入文字裡
     /// （<c>SqlFunctionCatalog</c>），那一份不查資料庫，也不受這個開關影響。
     /// </remarks>
     public bool ExpandFunctionCall { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.insertion.expandFunctionArguments
+    /// </summary>
+    /// <remarks>
+    /// 開著時括號裡再依參數型別填一組預留值：<c>SELECT dbo.fn_DueDate(NULL)</c>、
+    /// <c>FROM dbo.fn_LoansByReader(0, NULL, N'')</c>，游標停在第一個引數上。
+    ///
+    /// 預設<b>關著</b>，與其他四個展開相反。那四個省下來的是使用者本來就要一列一列
+    /// 打出來的東西；這一份預留值只是照型別猜的字面值，接著每一個都要換掉，
+    /// 而且填進去之後游標旁邊站的是 <c>NULL</c> 而不是空括號——參數叫什麼、
+    /// 現在輪到第幾個，反而要自己去別的地方看。空括號留給 SSMS 自己的
+    /// 「陳述式完成 → 參數資訊」接手，那一份知道的比預留值多。
+    ///
+    /// 只在 <see cref="ExpandFunctionCall"/> 開著時有效：括號都不補的話，
+    /// 沒有地方可以放引數。
+    /// </remarks>
+    public bool ExpandFunctionArguments { get; init; }
 
     /// <summary>sqlAssist.structure.hoverEnabled：滑鼠停留提示，與浮動預覽是兩個獨立的表面。</summary>
     public bool HoverEnabled { get; init; } = true;

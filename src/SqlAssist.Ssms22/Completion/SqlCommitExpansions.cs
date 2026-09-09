@@ -342,11 +342,13 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
 /// </summary>
 /// <remarks>
 /// 與上面四種的差別只有一個：換掉的不是整句，而是<b>剛插入的那個名稱</b>
-/// （<see cref="SqlCommitExpansionScope.InsertedName"/>）。函式出現在哪個子句
-/// 由使用者決定，那些位置大多沒有「決定目標的關鍵字」可以當整句的起點。
+/// （<see cref="SqlCommitExpansionScope.InsertedName"/>）連同提交時就寫好的那對
+/// 空括號。函式出現在哪個子句由使用者決定，那些位置大多沒有「決定目標的關鍵字」
+/// 可以當整句的起點。
 ///
-/// 括號不是體貼而是必要：<c>SELECT dbo.fn_DueDate</c> 是語法錯誤，
-/// 沒有參數的函式也一樣要寫 <c>()</c>。引數的值一律是預留位置，
+/// 括號本身不在這裡補——那是「補上括號」那個開關的事，提交時就一起寫進去了，
+/// 不必等中繼資料（<c>SqlFunctionCallInsertion</c>）。這一支只負責把那對空括號
+/// 換成填了預留值的引數清單，預設是關著的。引數的值一律是預留位置，
 /// 挑選規則與 EXEC 骨架共用 <see cref="SqlLiteralDefaults"/>——各寫一份的下場是
 /// 其中一份給日期填了空字串，而那會安靜地存進 1900-01-01。
 ///
@@ -379,18 +381,32 @@ internal sealed class SqlFunctionCallExpansion : ISqlCommitExpansion
     public string OperationName => "函式引數";
 
     /// <summary>
-    /// 這一段必須仍是剛插入的那個名稱。
+    /// 這一段必須仍以剛插入的那個名稱開頭。
     /// </summary>
     /// <remarks>
     /// 整句展開比的是 <c>ALTER</c>、<c>EXEC</c> 這種關鍵字，這裡沒有關鍵字可比——
-    /// 範圍本來就只有名稱。等待期間使用者若把它刪掉或改成別的字，比對就不成立，
-    /// 括號因此不會補到別人的名稱上。
+    /// 範圍本來就只有名稱加括號。等待期間使用者若把它刪掉或改成別的字，比對就不成立，
+    /// 引數因此不會補到別人的名稱上。括號裡被打了東西則要另外一關擋，
+    /// 見 <see cref="Build"/>：那一段在範圍<b>內</b>，開頭比對看不出來。
     /// </remarks>
     public string LeadingKeyword => _insertedName;
 
     public TextReplacement? Build(SqlObjectDetail detail, SqlStatementSite site, string insertedName)
     {
-        // 等待期間使用者已經自己打了左括號：再補一組就變成 dbo.fn_DueDate(NULL)(。
+        // 提交時已經補上一對空括號（那是「補上括號」那個開關的事，不等中繼資料），
+        // 引數是蓋在它上面的第二次編輯。等待期間使用者可能已經自己在括號裡打了東西
+        // ——而那一段落在追蹤範圍「內」，比對開頭的那一關看不出來，蓋上去等於把他
+        // 打好的引數刪掉。所以要求那一段仍是一對空括號。
+        if (!site.StatementText.EndsWith("()", StringComparison.Ordinal))
+        {
+            SqlAssistDiagnostics.Write(
+                $"{Object.QualifiedName} 的括號裡已經有內容，這一次不補引數");
+            return null;
+        }
+
+        // 等待期間使用者在右括號後面又打了一個左括號：補上去會變成
+        // dbo.fn_DueDate(NULL)(。那個字元落在追蹤範圍外（EdgeExclusive），
+        // 範圍裡的字一個都沒變，只有看下一個字元才看得出來。
         // 這一關其他四種展開不需要——它們換掉的是整句，而整句展開的下一個字元
         // 是什麼並不會讓結果重複。
         if (site.NextCharacter == '(')

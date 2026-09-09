@@ -90,7 +90,7 @@ internal enum SqlCommitExpansionScope
     Statement,
 
     /// <summary>
-    /// 只有剛提交的那個名稱，從使用者自己打的限定字起算。
+    /// 只有剛提交的那個名稱與跟著寫進去的空括號，從使用者自己打的限定字起算。
     /// </summary>
     /// <remarks>
     /// 函式的引數清單接在名稱後面，前面是什麼子句都不影響它——<c>SELECT</c>、
@@ -284,15 +284,16 @@ internal sealed class SqlCommitExpander
         }
 
         // 到這裡只剩 CompletionIntent.Reference。函式在這些位置一律是「呼叫」，
-        // 而 T-SQL 的函式呼叫非有括號不可，因此補上引數清單。
+        // 而 T-SQL 的函式呼叫非有括號不可。補到哪一步（不補、只補括號、連引數一起補）
+        // 由 SqlFunctionCallInsertion 回答——提交那一端要問同一件事，
+        // 各判斷一次的症狀是兩邊都補：括號寫進去了，引數又蓋上來一次。
         //
-        // 唯一的例外是 ALTER／DROP FUNCTION 那個位置（CompletionTarget.Function）：
-        // 那裡要的是名稱本身，補上括號會讓那句 DDL 語法錯誤。ALTER 走的是上面的
-        // AlterDefinition，DROP 與它同一個目標卻是 Reference，
-        // 所以擋的是目標而不是意圖。
-        return settings.ExpandFunctionCall &&
-               objectInfo.Kind.IsFunction() &&
-               context.Target != CompletionTarget.Function
+        // 這裡只接「連引數一起補」那一種。只補括號不必查中繼資料，也就不必展開，
+        // 提交時併進插入文字那一次編輯就寫完了。
+        return SqlFunctionCallInsertion.Resolve(
+                   objectInfo.Kind.IsFunction(),
+                   context.Target,
+                   settings) == SqlFunctionCallInsertionMode.Arguments
             ? new SqlFunctionCallExpansion(objectInfo, insertedName)
             : null;
     }

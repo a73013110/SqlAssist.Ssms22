@@ -124,6 +124,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.ExpandFunctionCall,
                 defaults.ExpandFunctionCall),
+            ExpandFunctionArguments = Value(
+                source,
+                SqlAssistMonikers.ExpandFunctionArguments,
+                defaults.ExpandFunctionArguments),
 
             HoverEnabled = Value(source, SqlAssistMonikers.HoverEnabled, defaults.HoverEnabled),
             BuiltInHelpEnabled = Value(

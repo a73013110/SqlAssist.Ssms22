@@ -32,7 +32,8 @@
 | Scope、括號範圍、清單重開 | [範圍與重開](completion-reopen.md) |
 | 提交名稱、結構描述、方括號、點號 | [插入文字](completion-insertion.md) |
 | ALTER／INSERT／MERGE／EXEC 展開、游標、復原 | [整句展開](statement-expansion.md) |
-| 函式引數、INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
+| INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
+| 自訂函式的括號、引數預留值、參數資訊 | [函式呼叫](function-call-insertion.md) |
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
 | 子句回溯、別名、換行邊界、數值不開清單 | [關鍵字邊界](completion-keyword-context.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |

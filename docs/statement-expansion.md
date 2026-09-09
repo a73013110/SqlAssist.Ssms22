@@ -7,7 +7,7 @@
 有四個位置提交的不是一個名稱，而是一整句：`ALTER PROCEDURE` 之後放進完整定義，
 `INSERT INTO` 之後放進欄位清單與 `VALUES`，`MERGE INTO` 之後放進比對鍵與兩個動作
 子句，`EXEC` 之後放進具名傳值的參數清單。第五種只換掉剛插入的那個名稱，
-見[函式的引數](statement-values.md#提交函式時補上引數)。
+見[函式呼叫](function-call-insertion.md)。
 
 `INSERT INTO #Loan` 與 `INSERT INTO @rows` 走的是完全同一條路，差別只在欄位從哪裡來
 ——那兩種名稱中繼資料查不到，欄位改讀[指令碼裡的宣告](completion-columns.md#指令碼宣告的資料表)。
@@ -125,5 +125,5 @@ MERGE 同時會改與插，展開出來的又是一句立刻執行得動的語�
 刻意不做成「Tab 展開、Enter 只插入名稱」：`SqlAssistCompletionCommandHandler` 沒有
 接管清單的 Tab 與 Enter，那兩個鍵由平台處理；自己攔一個處理常式記下按了哪個鍵也
 不可靠——本擴充與平台的處理常式都排在 `default` 之前，彼此的先後順序沒有保證。
-不想要展開的人另有五個開關（`ALTER`、`INSERT`、`MERGE`、`EXEC`、函式引數各一），
+不想要展開的人另有六個開關（`ALTER`、`INSERT`、`MERGE`、`EXEC` 各一，函式的括號與引數兩個），
 全部在設定的「插入與展開」頁，見 [settings.md](settings.md)。

@@ -105,7 +105,11 @@ public static class SqlAssistDiagnosticSections
                     Join(
                         SqlAssistDiagnosticReport.FormatState(settings.ExpandProcedureCall),
                         settings.IncludeOptionalParameters ? "含選擇性參數" : "只含必填參數")),
-                Row("自訂函式補引數", SqlAssistDiagnosticReport.FormatState(settings.ExpandFunctionCall))
+                Row(
+                    "自訂函式補括號",
+                    Join(
+                        SqlAssistDiagnosticReport.FormatState(settings.ExpandFunctionCall),
+                        settings.ExpandFunctionArguments ? "括號裡填引數" : "只補空括號"))
             }),
             new SqlAssistDiagnosticSection("物件結構", new[]
             {

@@ -8,6 +8,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Core.Statements;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Editor;
@@ -243,21 +244,54 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             settings,
             writtenName);
 
-        // 內建函式與帶參數的型別，插入文字自己帶著左括號（GETDATE(、varchar(），
-        // 而平台只會照著寫進去——提交完停在編輯器裡的是一句語法錯誤。右括號併進
-        // 下面那一次編輯，所以 Ctrl+Z 一次就連它一起收掉，程式碼片段的欄位
-        // session 也不會多看到一次外部修改。
+        // 使用者自訂函式：「補上括號」開著時，這一次要寫的是名稱加一對空括號，
+        // 游標停在中間。補到哪一步由 SqlFunctionCallInsertion 回答，展開那一端
+        // 問的是同一份，所以兩邊不會各補一次。
         //
-        // 只在沒有展開、也不是片段時問：使用者自訂函式的引數（dbo.fn_DueDate(NULL)）
-        // 自己就補了右括號，片段的括號寫在樣板裡，兩者都不缺這一個。
-        var insertionClose = expansion is null && snippet is null
-            ? SqlAutoPairing.ResolveInsertionClose(session.TextView, span.End, insertionText)
-            : null;
+        // 括號成對寫進去，刻意不只寫左括號讓下面那一份自動配對接手：那一份有自己的
+        // 開關，而且游標右邊還有字時本來就不補，兩者任一不成立時留在編輯器裡的會是
+        // dbo.dtoc( 這種缺一半的呼叫。括號在 T-SQL 裡不是體貼而是語法。
+        //
+        // 「填入引數預留值」開著時也照樣先寫這一對，引數是接著蓋上來的第二次編輯：
+        // 兩個開關是包含關係，補括號那一個不該因為另一個開著就失效。少了這一步，
+        // 中繼資料取不到（連不上、權限不足）時整句只剩 dbo.dtoc——一個使用者
+        // 明明把「補上括號」開著卻拿到的語法錯誤。
+        var functionCall = suggestion.Tag is SqlObjectInfo functionInfo
+            ? SqlFunctionCallInsertion.Resolve(functionInfo.Kind.IsFunction(), context.Target, settings)
+            : SqlFunctionCallInsertionMode.None;
 
-        if (insertionClose is char closeCharacter)
+        char? insertedClose = null;
+
+        if (snippet is null && functionCall != SqlFunctionCallInsertionMode.None)
         {
-            insertionText += closeCharacter;
-            caretOffset = insertionText.Length - 1;
+            // 空括號也走 SqlFunctionCallText：函式呼叫長什麼樣子只有那一份說得算，
+            // 在這裡自己接兩個字元的話，哪天引數的排版改了這一條不會跟著改。
+            insertionText = SqlFunctionCallText.Build(
+                insertionText,
+                Array.Empty<SqlStatementParameter>(),
+                out caretOffset);
+            insertedClose = ')';
+        }
+        else
+        {
+            // 內建函式與帶參數的型別，插入文字自己帶著左括號（GETDATE(、varchar(），
+            // 而平台只會照著寫進去——提交完停在編輯器裡的是一句語法錯誤。右括號併進
+            // 下面那一次編輯，所以 Ctrl+Z 一次就連它一起收掉，程式碼片段的欄位
+            // session 也不會多看到一次外部修改。
+            //
+            // 只在沒有展開、也不是片段時問：ALTER／INSERT／MERGE／EXEC 的骨架與片段的
+            // 樣板裡本來就寫著自己的括號，兩者都不缺這一個。使用者自訂函式走的是上面
+            // 那一條，根本到不了這裡。
+            var insertionClose = expansion is null && snippet is null
+                ? SqlAutoPairing.ResolveInsertionClose(session.TextView, span.End, insertionText)
+                : null;
+
+            if (insertionClose is char closeCharacter)
+            {
+                insertionText += closeCharacter;
+                caretOffset = insertionText.Length - 1;
+                insertedClose = closeCharacter;
+            }
         }
 
         // 一般項目讓平台自己插入，行為與其他語言一致。
@@ -299,7 +333,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
         }
 
-        if (insertionClose is char inserted)
+        if (insertedClose is char inserted)
         {
             // 記錄要等編輯套用之後才建立得起來，而且只有記在案的那一個才跳得過去：
             // 少了這一筆，接著打的右括號會插在補上的那一個前面，變成 GETDATE())。
@@ -308,6 +342,18 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
                 applied,
                 insertionStart + insertionText.Length - 1,
                 inserted);
+
+            // 游標剛落進一對剛寫好的括號裡，這正是使用者自己打左括號時的狀態——
+            // 差別只在那個字元是這次編輯寫進去的，沒有經過殼層的命令派送，
+            // SSMS 的「陳述式完成 → 參數資訊」因此不會自己浮出來。明示叫用一次，
+            // 內容與涵蓋範圍都交給它決定：沒有東西可顯示（使用者自訂函式）或
+            // 使用者把那個核取方塊關掉時，這一次就是沒有作用的一次。
+            //
+            // 引數預留值那一種不叫：值馬上就會蓋上來，而參數資訊講的正是那幾格。
+            if (inserted == ')' && expansion is null)
+            {
+                SqlShellParameterInfo.Request();
+            }
         }
 
         if (expansion is not null)

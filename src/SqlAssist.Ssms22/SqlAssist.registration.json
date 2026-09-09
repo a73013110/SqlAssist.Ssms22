@@ -375,9 +375,18 @@
       "type": "boolean",
       "default": true,
       "order": 350,
-      "title": "選取自訂函式後補上括號與引數",
-      "description": "選取純量函式或資料表值函式後補上一整組引數，依參數型別填入預留值（數值 0、字串 ''、日期 NULL），沒有參數的函式補一對空括號。函式的括號在 T-SQL 裡本來就非寫不可。關閉後只插入名稱。",
-      "additionalKeywords": [ "使用者自訂函式", "function", "括號", "引數", "參數", "產生 SQL" ]
+      "title": "選取自訂函式後補上括號",
+      "description": "選取純量函式或資料表值函式後補上一對空括號，游標停在中間，接著由 SSMS 的「陳述式完成 → 參數資訊」告訴你要填什麼。函式的括號在 T-SQL 裡本來就非寫不可，沒有參數的函式也一樣要寫 ()。關閉後只插入名稱。",
+      "additionalKeywords": [ "使用者自訂函式", "function", "括號", "參數資訊", "產生 SQL" ]
+    },
+    "sqlAssist.insertion.expandFunctionArguments": {
+      "type": "boolean",
+      "default": false,
+      "order": 360,
+      "title": "括號裡填入引數預留值",
+      "description": "開啟後不只補括號，還依參數型別填入一整組預留值（數值 0、字串 ''、日期 NULL、uniqueidentifier NEWID()），游標停在第一個引數上。預設關閉：預留值只是照型別猜的，每一個接著都要換掉，而空括號讓 SSMS 的參數資訊接手告訴你參數叫什麼。",
+      "additionalKeywords": [ "引數", "參數", "預留值", "placeholder", "預設值", "產生 SQL" ],
+      "enableWhen": "${config:sqlAssist.insertion.expandFunctionCall} == 'true'"
     },
 
     "sqlAssist.structure.hoverEnabled": {

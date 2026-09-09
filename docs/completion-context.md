@@ -56,8 +56,8 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 
 | 游標前方 | 只顯示 | 提交行為 |
 |---|---|---|
-| `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View、資料表值函式 | 插入名稱；函式補上引數 |
-| `CROSS APPLY`、`OUTER APPLY` | 資料表值函式 | 補上引數 |
+| `FROM`、`JOIN`、`UPDATE`、`INTO`、`USING` | Table、View、資料表值函式 | 插入名稱；函式補上括號 |
+| `CROSS APPLY`、`OUTER APPLY` | 資料表值函式 | 補上括號 |
 | `INSERT INTO` | Table、View | 展開欄位清單與 `VALUES` |
 | `MERGE`／`MERGE INTO` | Table、View | 展開比對鍵、`UPDATE SET`、`INSERT` 與 `VALUES` |
 | `ALTER PROCEDURE`／`PROC` | Procedure | 展開完整 ALTER 定義 |
@@ -65,7 +65,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `ALTER VIEW` | View | 展開完整 ALTER 定義 |
 | `ALTER TRIGGER` | Trigger | 展開完整 ALTER 定義 |
 | `DROP PROCEDURE`／`PROC`、`DROP FUNCTION`、`DROP VIEW` | 同上各一類 | 插入名稱 |
-| 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上引數 |
+| 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
 | `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
