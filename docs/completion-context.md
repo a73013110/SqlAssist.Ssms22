@@ -72,6 +72,7 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
+| `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
 | `LibArchive.dbo.`、`LibArchive..` | 那個資料庫的物件 | 插入名稱 |
 | `[192.0.2.10].[LibArchive].[dbo].` | — | 認得出來，但不給建議 |
@@ -79,6 +80,13 @@ SELECT * FROM dbo.Loan OPTION (| → RECOMPILE、MAXDOP、FORCE ORDER…（17 �
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
+
+逗號那一列不靠前導關鍵字：前一、兩個詞元只有一個逗號，答案來自
+`SqlKeywordPositionAnalyzer` 的位置（逗號回到清單起點），這裡不再自己回頭找 `FROM`。
+只多問一次括號，把 `INSERT INTO T (a, ` 的資料行清單排除；括號裡裝的是查詢時仍然
+算數，那是衍生資料表自己的 `FROM` 清單。少了這一列有兩個症狀：逗號之後空前綴時
+整份上下文不參與，以及 `FROM a, LibArchive.` 的限定字會被當成別名——它比中的是
+使用者才打了一半的那個名稱，清單於是改列一張不存在的資料表的欄位。
 
 `IF EXISTS` 在比對前先剝掉一次，`DROP TABLE IF EXISTS `、`DROP TRIGGER IF EXISTS `
 因此不必各寫一條加長版。剝除只砍尾端，前面每個詞元的位置都沒有位移，所以語句

@@ -539,6 +539,56 @@ public sealed class SqlKeywordPositionTests
             suggestion => suggestion.DisplayText == "ssf");
     }
 
+    /// <summary>
+    /// <c>NOT</c> 同時是述詞的開頭與運算子的一半。
+    /// </summary>
+    /// <remarks>
+    /// <c>WHERE NOT </c> 之後開始一個述詞，<c>a.Big5Code NOT </c> 之後接的是
+    /// <c>IN</c>／<c>LIKE</c>／<c>BETWEEN</c>，而那三個字掛的是
+    /// <see cref="SqlKeywordPosition.ExpressionTail"/>。只給述詞起點的症狀是
+    /// <c>NOT </c> 之後打 <c>i</c> 完全等不到 <c>IN</c>。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM t WHERE NOT ")]
+    [InlineData("SELECT * FROM t WHERE a NOT ")]
+    [InlineData("SELECT * FROM t WHERE a = 1 AND t.b NOT ")]
+    public void NOT之後同時是述詞起點與運算式尾端(string textBeforeToken)
+    {
+        var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
+
+        Assert.Equal(
+            SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail,
+            position);
+        Assert.Contains(
+            SqlKeywordCatalog.SuggestionKeywords,
+            keyword => keyword == "IN" &&
+                (SqlKeywordCatalog.GetPositions(keyword) & position) != SqlKeywordPosition.None);
+    }
+
+    /// <summary>
+    /// 尾端的點號屬於正在輸入的那個名稱，位置由整個名稱之前的東西決定。
+    /// </summary>
+    /// <remarks>
+    /// 少了這一條，限定字之後一律是 <see cref="SqlKeywordPosition.Any"/>，
+    /// 而那讓 <c>FROM a, LibArchive.</c> 在位置上與 <c>SELECT LibArchive.</c>
+    /// 沒有差別——前者要的只有資料來源。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.", SqlKeywordPosition.DataSource)]
+    [InlineData("SELECT * FROM a, LibArchive.dbo.", SqlKeywordPosition.DataSource)]
+    [InlineData("SELECT * FROM t WHERE t.", SqlKeywordPosition.Predicate)]
+    [InlineData("SELECT t.", SqlKeywordPosition.SelectList)]
+    [InlineData("SELECT * FROM t ORDER BY t.", SqlKeywordPosition.OrderByColumn)]
+
+    // 空段不是限定字，照舊落在「判不出來」那一支。小數點根本走不到這裡：
+    // 詞法分析把 1. 掃成一個數值詞元，位置仍然由子句錨點決定。
+    [InlineData("SELECT * FROM LibArchive..", SqlKeywordPosition.Any)]
+    [InlineData("SELECT 1.", SqlKeywordPosition.SelectListTail)]
+    public void 尾端點號由名稱之前的位置決定(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken));
+    }
+
     [Theory]
     [InlineData("SELECT dbo.fn_Fee('');\n")]
     [InlineData("SELECT dbo.fn_Fee('')\nGO\n")]

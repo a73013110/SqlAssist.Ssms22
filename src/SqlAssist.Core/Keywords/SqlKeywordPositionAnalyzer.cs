@@ -52,7 +52,12 @@ public static class SqlKeywordPositionAnalyzer
             ["WHEN"] = SqlKeywordPosition.Predicate,
             ["AND"] = SqlKeywordPosition.Predicate,
             ["OR"] = SqlKeywordPosition.Predicate,
-            ["NOT"] = SqlKeywordPosition.Predicate,
+
+            // NOT 與 ON 同一條理由：文法允許兩個位置就報兩個，不必挑一個猜。
+            // WHERE NOT | 開的是一個述詞，而 x NOT | 是運算子的一半——IN、LIKE、
+            // BETWEEN 都掛在 ExpressionTail，只給述詞起點的症狀是
+            // a.Big5Code NOT | 之後打不出 IN。
+            ["NOT"] = SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail,
 
             ["ORDER"] = SqlKeywordPosition.ByAnchor,
             ["GROUP"] = SqlKeywordPosition.ByAnchor,
@@ -434,6 +439,23 @@ public static class SqlKeywordPositionAnalyzer
             return IsBareAtSign(token.Value)
                 ? SqlKeywordPosition.None
                 : FindClausePosition(tokens, last);
+        }
+
+        // 尾端的點號是使用者正在打的那個名稱的一部分（dbo.、a.），不是一個算完的
+        // 運算元：位置由整個名稱之前的東西決定，與名稱只打了一半沒有關係。
+        // 少了這一條，限定字之後一律是 Any——症狀是 FROM a, dbo. 在位置上與
+        // SELECT dbo. 沒有差別，而前者要的只有資料來源。
+        //
+        // 前面不是識別字時照舊：LibArchive.. 的空段不是限定字，而 1.5 的小數點
+        // 根本走不到這裡——詞法分析把它掃成一個數值詞元。
+        if (token.IsPunctuation(".") &&
+            last >= 1 &&
+            tokens[last - 1].Kind == SqlTokenKind.Identifier)
+        {
+            return AnalyzeAt(
+                tokens,
+                SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last - 1) - 1,
+                followAlias);
         }
 
         if (token.Kind is SqlTokenKind.Punctuation or SqlTokenKind.Operator)

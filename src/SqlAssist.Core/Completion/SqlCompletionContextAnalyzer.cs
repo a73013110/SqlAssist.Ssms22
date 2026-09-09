@@ -119,6 +119,21 @@ public static class SqlCompletionContextAnalyzer
             qualifierPath is null ? beforeToken : beforeQualifier,
             out var targetKeywordStart,
             out var intent);
+
+        // FROM a, | 與 FROM a, LibArchive.| 都還在同一個資料來源清單裡，而
+        // DetermineTarget 只認得游標前一、兩個詞元的字面值——那裡只有一個逗號。
+        // 位置分析早就回答過同一個問題（逗號回到清單的起點），這裡用它的答案，
+        // 不再自己回頭找一次 FROM。
+        //
+        // 少了這一條，逗號之後的目標是 Any 而前綴是空的，來源根本不參與，
+        // 使用者要多打一個字才有清單，而那一份還缺了只存在於指令碼裡的暫存
+        // 資料表與 CTE；限定字那一支更糟——它會被當成別名，列出一張不存在的
+        // 資料表的欄位，看起來就是「這裡永遠沒有建議」。
+        if (target == CompletionTarget.Any && ContinuesDataSourceList(tokens, keywordPosition))
+        {
+            target = CompletionTarget.DataSource;
+        }
+
         var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifierPath is not null;
 
         return new SqlCompletionContext(
@@ -284,6 +299,34 @@ public static class SqlCompletionContextAnalyzer
             targetKeywordStart: keywordStart,
             intent: intent,
             executedModule: SqlExecutedModule.Find(tokens));
+    }
+
+    /// <summary>
+    /// 游標還在同一個 FROM／JOIN 清單裡，也就是逗號之後的下一個資料來源。
+    /// </summary>
+    /// <remarks>
+    /// 判斷本身不重寫：<see cref="SqlKeywordPositionAnalyzer"/> 的
+    /// <see cref="SqlKeywordPosition.DataSource"/> 說的就是這件事，
+    /// 各寫一份的症狀是關鍵字清單與物件清單對同一個逗號各有一套說法。
+    ///
+    /// 只多問一次括號。位置分析找子句錨點時會穿過還沒關上的左括號——
+    /// <c>SELECT COUNT(a, </c> 的位置本來就該由外層的 SELECT 決定——但那也讓
+    /// <c>INSERT INTO T (a, </c> 的資料行清單拿到資料來源的位置，而那裡要的是
+    /// T 的資料行，不是另一張資料表。括號裡裝的是一個查詢時仍然算數：
+    /// 那是衍生資料表自己的 FROM 清單。
+    /// </remarks>
+    private static bool ContinuesDataSourceList(
+        IReadOnlyList<SqlToken> tokens,
+        SqlKeywordPosition keywordPosition)
+    {
+        if (keywordPosition != SqlKeywordPosition.DataSource)
+        {
+            return false;
+        }
+
+        var unclosed = SqlTokenNavigator.FindUnclosedParenthesis(tokens, tokens.Count - 1);
+
+        return unclosed < 0 || SqlTokenNavigator.OpensQuery(tokens, unclosed);
     }
 
     /// <summary>

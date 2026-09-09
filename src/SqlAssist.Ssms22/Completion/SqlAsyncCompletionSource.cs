@@ -144,13 +144,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
 
-        // 欄位模式的範圍已經由引擎給定，不必再驗詞元起點——那個起點算的是
-        // 「這一格之前」那一段的尾巴，與這次要取代的範圍無關。
         if (fieldSpan is { } field)
         {
             _fieldSpan = field.Span.Span;
             _fieldDefault = field.DefaultValue;
-            return new CompletionStartData(CompletionParticipation.ProvidesItems, field.Span);
+            return new CompletionStartData(
+                CompletionParticipation.ProvidesItems,
+                ResolveFieldApplicableSpan(field, context));
         }
 
         // 範圍必須自己驗一次，不能靠例外兜底：TokenStart 是從文字分析算出來的，
@@ -168,6 +168,41 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             Span.FromBounds(context.TokenStart, triggerLocation.Position));
 
         return new CompletionStartData(CompletionParticipation.ProvidesItems, applicableSpan);
+    }
+
+    /// <summary>
+    /// 原生 Snippet 欄位裡這次要取代的範圍。
+    /// </summary>
+    /// <remarks>
+    /// 整格還是<b>樣板填的預設值</b>時就是整格：那幾個字不是使用者打的，
+    /// 詞元起點算的是這一格<b>之前</b>那一段的尾巴，與這次要取代的範圍無關。
+    ///
+    /// 使用者一打字就改以詞元起點為界，而那唯一會與格子起點不同的情形正是
+    /// 限定字：<c>ORDER BY [a.]</c> 這一格裡打下 <c>a.</c> 之後，整格是
+    /// <c>a.</c> 而要取代的只有點號<b>之後</b>那一段。整格當範圍的話，篩選前綴
+    /// 會是 <c>a.</c>——它比不中任何一個資料行名稱，而
+    /// <see cref="SqlAsyncCompletionItemManager"/> 一個都沒中就回 null，平台會把
+    /// 剛開的 session 直接關掉。症狀是「格子裡打 <c>a.</c> 沒有清單，
+    /// 把 <c>a.</c> 刪掉反而有」，而那正是限定字唯一有用的那一次。
+    ///
+    /// 終點仍然是格子的尾端而不是游標：提交要換掉的是這一格，不是游標前那幾個字。
+    /// </remarks>
+    private static SnapshotSpan ResolveFieldApplicableSpan(
+        SqlSnippetFieldSpan field,
+        SqlCompletionContext context)
+    {
+        var start = field.Span.Start.Position;
+
+        if (field.HoldsDefault ||
+            context.TokenStart <= start ||
+            context.TokenStart > field.Span.End.Position)
+        {
+            return field.Span;
+        }
+
+        return new SnapshotSpan(
+            field.Span.Snapshot,
+            Span.FromBounds(context.TokenStart, field.Span.End.Position));
     }
 
     public Task<CompletionContext> GetCompletionContextAsync(

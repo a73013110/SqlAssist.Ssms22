@@ -58,6 +58,23 @@ public sealed class SqlScriptDataSourceTests
     }
 
     /// <summary>
+    /// 逗號開啟的下一個資料來源同樣列得出指令碼自己宣告的名稱。
+    /// </summary>
+    /// <remarks>
+    /// 只認 <c>FROM </c> 而不認逗號的症狀最難自己看出來：<c>FROM dbo.T a, </c>
+    /// 之後打 <c>#</c> 什麼都沒有，而同一份指令碼上面幾行才剛
+    /// <c>CREATE TABLE #table_temp</c>。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE TABLE #Tmp (a int);\r\nSELECT * FROM dbo.PUBLISHER p, |", "#Tmp")]
+    [InlineData("CREATE TABLE #Tmp (a int);\r\nUPDATE a\r\nSET a.x = 1\r\nFROM dbo.T a, |", "#Tmp")]
+    [InlineData(";WITH c1 AS (SELECT 1 AS a)\r\nSELECT * FROM dbo.PUBLISHER p, |", "c1")]
+    public void 逗號之後也列出指令碼宣告的資料來源(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
     /// 資料表變數與暫存資料表在這個位置是同一種東西。
     /// </summary>
     /// <remarks>

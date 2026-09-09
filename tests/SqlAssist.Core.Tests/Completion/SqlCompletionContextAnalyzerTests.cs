@@ -41,6 +41,69 @@ public sealed class SqlCompletionContextAnalyzerTests
     }
 
     /// <summary>
+    /// 逗號之後仍然在同一個資料來源清單裡。
+    /// </summary>
+    /// <remarks>
+    /// 前導關鍵字只認得游標前一、兩個詞元，而那裡只有一個逗號。判成
+    /// <see cref="CompletionTarget.Any"/> 的症狀是空前綴時整個上下文不參與——
+    /// <c>FROM dbo.T a, </c> 之後完全沒有清單，使用者要多打一個字才等到一份
+    /// 還缺了暫存資料表與 CTE 的名單。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.T a, ")]
+    [InlineData("SELECT * FROM dbo.T a,")]
+    [InlineData("UPDATE a\r\nSET a.x = 1\r\nFROM dbo.T a, ")]
+    [InlineData("SELECT * FROM (SELECT * FROM dbo.T a, ")]
+    public void 逗號之後仍是資料來源(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+    }
+
+    /// <summary>
+    /// 逗號之後的限定字是結構描述或資料庫，不是別名。
+    /// </summary>
+    /// <remarks>
+    /// 目標留在 <see cref="CompletionTarget.Any"/> 的話，帶語句範圍的多載會拿
+    /// <c>LibArchive</c> 去比對別名——而使用者才剛打下的那半個名稱本身就站在
+    /// FROM 清單裡，於是比中了自己，清單改列一張不存在的資料表的欄位。
+    /// 症狀是「點號之後沒有建議，再多打一個字才有」。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.T a, LibArchive.|")]
+    [InlineData("SELECT * FROM dbo.T a, LibArchive.dbo.|")]
+    public void 逗號之後的限定字不當成別名(string sqlWithCaret)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        Assert.True(context.IsValid);
+        Assert.Equal(CompletionTarget.DataSource, context.Target);
+        Assert.Null(context.ColumnSources);
+        Assert.NotNull(context.QualifierPath);
+    }
+
+    /// <summary>
+    /// <c>INSERT</c> 的資料行清單不是資料來源清單。
+    /// </summary>
+    /// <remarks>
+    /// 位置分析找子句錨點時會穿過還沒關上的左括號，於是這裡的逗號也拿到資料來源
+    /// 的位置。跟著把目標改成資料來源的話，<c>INSERT INTO T (a, </c> 會列出整個
+    /// 資料庫的資料表，而那一格文法上只接得了 T 的資料行。
+    /// </remarks>
+    [Theory]
+    [InlineData("INSERT INTO dbo.T (a, ")]
+    [InlineData("INSERT INTO dbo.T (a, b, ")]
+    public void INSERT的資料行清單不是資料來源(string textBeforeCaret)
+    {
+        Assert.Equal(
+            CompletionTarget.Any,
+            SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
+    }
+
+    /// <summary>
     /// 沒有輸入前綴、也沒有可據以縮小範圍的前導關鍵字時不主動跳出清單，
     /// 否則按下空白鍵就會列出整個資料庫。
     /// </summary>
