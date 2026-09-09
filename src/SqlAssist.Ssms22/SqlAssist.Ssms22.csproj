@@ -15,6 +15,11 @@
     <CopyBuildOutputToOutputDirectory>true</CopyBuildOutputToOutputDirectory>
     <SsmsInstallDir Condition="'$(SsmsInstallDir)' == ''">C:\Program Files\Microsoft SQL Server Management Studio 22\Release</SsmsInstallDir>
     <Platforms>AnyCPU;x64</Platforms>
+    <!-- SSMS 安裝目錄裡的組件彼此就有一堆版本不一致（System.Text.Json、Numerics.Vectors…），
+         加上我們刻意參考契約版本而非宿主的修補版本，RAR 的 MSB3277 在這個專案永遠會出現，
+         早已沒有訊號價值——0.17.1 那次真正的版本問題就是被它蓋掉的。降為訊息，把關改由
+         tools/Test-VsixPackage.ps1 直接讀產出組件的參考版本負責。 -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +27,13 @@
     <ProjectReference Include="..\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" PrivateAssets="all" />
+    <!-- 取 NuGet 的契約版本（組件版本 10.0.0.0），與 SSMS 編輯器組件自己引用的版本一致，
+         並以 ExcludeAssets="runtime" 讓它不進 VSIX；執行期一律用 SSMS 已載入的那份。
+         **禁止**改抓 PublicAssemblies 的 DLL：那會把建置機當下的修補版本（例如 10.0.0.10）
+         寫進參考，而 Ssms.exe.config 的 bindingRedirect 只涵蓋到宿主自己那份，裝到較舊的
+         SSMS 上就是 FileNotFoundException，且只有用到的功能會整組失效——SSMS 22.9 帶的是
+         10.0.0.8，22.10 已經是 10.0.0.10。 -->
+    <PackageReference Include="System.Collections.Immutable" Version="10.0.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <ItemGroup>
@@ -65,10 +77,6 @@
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Language">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="System.Collections.Immutable">
-      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\System.Collections.Immutable.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- System.Collections.Immutable 的公開簽章用到 Span<>，編譯期必須看得到。 -->

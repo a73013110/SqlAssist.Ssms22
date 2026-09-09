@@ -66,6 +66,7 @@
 | 連結伺服器、OPENQUERY、遠端失敗 | [遠端中繼資料](metadata-remote.md) |
 | 舊版 SQL、權限、缺欄位、降級 | [相容與失敗](metadata-compatibility.md) |
 | 建置、測試、工具腳本；UTF-8／LF、BOM、輸出編碼 | [開發](development.md)／[文字與編碼](text-encoding.md) |
+| 組件參考版本、裝到別台就 FileNotFoundException | [程式碼](rules-code.md) |
 | 版本、發布、安裝、解除安裝 | [發布](release.md) |
 | VSIX 偵錯、MEF／命令快取、診斷 | [偵錯](debugging.md) |
 | AI 分段讀取、輸出節流、新設備 | [AI 工作流程](ai-workflow.md) |
