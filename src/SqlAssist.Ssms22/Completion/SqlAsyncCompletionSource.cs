@@ -1,3 +1,5 @@
+using SqlAssist.Ssms22.Editor;
+using SqlAssist.Core.Notifications;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -228,6 +230,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         var settings = SqlAssistSettingsStore.Current;
         var context = Analyze(triggerLocation, applicableToSpan);
 
+        // 這一則正是「打開建議清單卻不知道背景在忙什麼」的答案：底下的限定名稱解析與
+        // 每一條中繼資料查詢都併進這一列。三軸是 Completion／Typing／Info——每按一次鍵
+        // 就走一次，因此不是 User；「建議清單」那一格預設關著，想看的人自己打開。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.PreparingSuggestions,
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Info,
+            DescribeTarget(context.Target), ActiveSqlEditor.GetContextName(_textView));
+
         // 限定字最左邊那一段是結構描述、資料庫還是連結伺服器，只看文字分不出來。
         // 在問清單之前就換成對齊過的上下文，後面的候選來源、過濾與插入文字才會
         // 讀到同一個答案；各自再判一次的話，症狀是清單列得出來、Tab 下去少一段。
@@ -235,9 +244,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，這裡跟著不問。
         if (settings.IncludeDatabaseObjects)
         {
-            context = await _metadataService
-                .ResolveQualifierAsync(context, token)
-                .ConfigureAwait(false);
+            // 限定名稱解析自己就要問一次中繼資料；分開一列，才看得出「清單還沒出來」
+            // 是卡在這一步還是卡在候選清單上。
+            using (NotificationCenter.Default.Begin(NotificationCatalog.ResolvingQualifier,
+                       NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
+                       context.Prefix, ActiveSqlEditor.GetContextName(_textView)))
+            {
+                context = await _metadataService
+                    .ResolveQualifierAsync(context, token)
+                    .ConfigureAwait(false);
+            }
         }
 
         // 提交那一端的上下文是從文字重新分析的，認不出「LibArchive. 其實是資料庫」
@@ -388,7 +404,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return BuildBuiltInDescription(suggestion) ?? (object)suggestion.Preview;
         }
 
-        var detail = await _metadataService.GetDetailAsync(objectInfo, token).ConfigureAwait(false);
+        using var notification = NotificationCenter.Default.Begin(
+            NotificationCatalog.LoadingSuggestionDescription, NotificationKind.Completion,
+            NotificationOrigin.Typing, NotificationLevel.Debug,
+            objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView));
+        var detail = await _metadataService
+            .GetDetailAsync(objectInfo, token, NotificationOrigin.Typing)
+            .ConfigureAwait(false);
 
         return detail is null
             ? SqlQuickInfoContentBuilder.BuildLoading(objectInfo)
@@ -631,6 +653,32 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// 判斷靠 <see cref="_fieldSpan"/> 而不是重問一次引擎：這個方法在平台的背景
     /// 執行緒上，那個查詢是 COM，只能在 UI 執行緒做。
     /// </remarks>
+    /// <summary>這一次清單在找什麼；通知的主體。</summary>
+    /// <remarks>
+    /// switch 回常數而不是 <c>ToString()</c>：這一段每按一次鍵都走一次，而
+    /// 列舉名稱的字串化每次都配置一份，即使通知被篩掉也一樣。
+    /// </remarks>
+    private static string DescribeTarget(CompletionTarget target) => target switch
+    {
+        CompletionTarget.DataSource => "資料來源",
+        CompletionTarget.Procedure => "預存程序",
+        CompletionTarget.Function => "函式",
+        CompletionTarget.TableFunction => "資料表值函式",
+        CompletionTarget.Column => "資料行",
+        CompletionTarget.Database => "資料庫",
+        CompletionTarget.GlobalVariable => "全域變數",
+        CompletionTarget.Variable => "變數",
+        CompletionTarget.DataType => "資料型別",
+        CompletionTarget.View => "檢視",
+        CompletionTarget.Trigger => "觸發程序",
+        CompletionTarget.Sequence => "序列",
+        CompletionTarget.DatePart => "日期部分",
+        CompletionTarget.TableHint => "資料表提示",
+        CompletionTarget.QueryHint => "查詢提示",
+        CompletionTarget.Collation => "定序",
+        _ => "",
+    };
+
     private SqlCompletionContext Analyze(SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan)
     {
         // 只有「整格還是樣板填的預設值」那一次要當它不存在；使用者打過字之後，

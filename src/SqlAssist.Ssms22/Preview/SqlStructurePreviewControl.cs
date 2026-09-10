@@ -14,6 +14,7 @@ using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -1198,8 +1199,18 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
 
     private string GetScript()
     {
-        return _scriptText ??= _structure?.BuildScript(
-            SqlScriptPreferences.Create(Environment.NewLine, _structure.Object)) ?? string.Empty;
+        if (_scriptText is not null || _structure is null)
+        {
+            return _scriptText ?? string.Empty;
+        }
+
+        // 使用者切到指令碼分頁或按下複製才會走到這裡，因此是 User。裡面還有一則
+        // 「執行結構健檢」——那一段才是真正花時間的部分。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.GeneratingObjectScript,
+            NotificationKind.Preview, NotificationOrigin.User, NotificationLevel.Info,
+            _structure.Object.QualifiedName);
+        return _scriptText = _structure.BuildScript(
+            SqlScriptPreferences.Create(Environment.NewLine, _structure.Object));
     }
 
     /// <summary>

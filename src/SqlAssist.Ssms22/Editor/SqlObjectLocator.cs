@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Connections;
 
@@ -10,11 +11,17 @@ namespace SqlAssist.Ssms22.Editor;
 internal static class SqlObjectLocator
 {
     /// <summary>使用者主動要求的結構面板與 F12，允許等候中繼資料。</summary>
+    /// <param name="origin">
+    /// 誰觸發的。這條路徑同時服務 F12（<see cref="NotificationOrigin.User"/>）與
+    /// 打字時的參數提示（<see cref="NotificationOrigin.Typing"/>），底下的中繼資料
+    /// 查詢該用哪一種降噪門檻只有呼叫端知道。
+    /// </param>
     public static async Task<SqlObjectLocation?> LocateAsync(
         SqlMetadataService metadataService,
         string text,
         int position,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         // 大型貼上腳本的敘述分析也不佔用命令呼叫端的 UI 執行緒。
         var lookup = await Task.Run(() => SqlObjectLookup.Create(text, position), cancellationToken)
@@ -45,7 +52,7 @@ internal static class SqlObjectLocator
             // 沒有答案的位置才可能是未限定的欄位。使用者主動按下的路徑等得起查詢，
             // 把這條敘述的資料來源明細補齊再判斷一次；少了這一輪，同一個欄位
             // F12 得到的答案會取決於快取剛好有沒有載過。
-            candidate = await LocateColumnAsync(metadataService, lookup, snapshot, cancellationToken)
+            candidate = await LocateColumnAsync(metadataService, lookup, snapshot, cancellationToken, origin)
                 .ConfigureAwait(false);
         }
 
@@ -56,7 +63,7 @@ internal static class SqlObjectLocator
 
         // 指令碼宣告的物件在候選人身上就帶著明細；再問中繼資料一次是白跑的查詢。
         var detail = candidate.ScriptDetail is null && candidate.NeedsColumn
-            ? await metadataService.GetDetailAsync(candidate.Object, cancellationToken).ConfigureAwait(false)
+            ? await metadataService.GetDetailAsync(candidate.Object, cancellationToken, origin).ConfigureAwait(false)
             : null;
         return lookup.Locate(candidate, detail);
     }
@@ -70,7 +77,8 @@ internal static class SqlObjectLocator
         SqlMetadataService metadataService,
         SqlObjectLookup lookup,
         SqlDatabaseSnapshot? snapshot,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         var sources = lookup.FindColumnSources(snapshot, metadataService.PeekSnapshot);
 
@@ -84,7 +92,7 @@ internal static class SqlObjectLocator
 
         foreach (var source in sources)
         {
-            if (await metadataService.GetDetailAsync(source, cancellationToken).ConfigureAwait(false) is { } detail)
+            if (await metadataService.GetDetailAsync(source, cancellationToken, origin).ConfigureAwait(false) is { } detail)
             {
                 details[source] = detail;
             }

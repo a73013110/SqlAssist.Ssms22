@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.TextManager.Interop;
 using MSXML;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
@@ -174,6 +175,11 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         _buffer = request.Buffer;
         _snippet = request.Snippet;
         _formatPending = true;
+
+        // 使用者自己按下 Tab 展開；「程式碼片段」那一格關著就是連這一列也不想看。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.ExpandingSnippet,
+            NotificationKind.Snippets, NotificationOrigin.User, NotificationLevel.Debug,
+            request.Snippet.Shortcut, ActiveSqlEditor.GetContextName(_textView));
         var span = ToTextSpan(target);
         SqlNativeSnippetDom? dom = null;
         IVsExpansionSession? session = null;
@@ -193,6 +199,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
 
             if (ErrorHandler.Failed(result) || session is null)
             {
+                notification.Fail();
                 var changed = !ReferenceEquals(before, request.Buffer.CurrentSnapshot);
                 EndCurrent(leaveCaret: true);
                 changed |= !ReferenceEquals(before, request.Buffer.CurrentSnapshot);

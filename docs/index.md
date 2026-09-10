@@ -1,7 +1,6 @@
 # 文件路由
 
-只讀本次修改命中的護欄與主題；跨範圍取聯集。先以檔名、符號或標題定位，不沿連結
-預讀整棵文件樹。護欄是必讀規則，不是延伸閱讀。
+只讀本次修改命中的護欄與主題；跨範圍取聯集。護欄是必讀規則，不是延伸閱讀。
 
 ## 修改前護欄
 
@@ -53,6 +52,8 @@
 | 預覽操作、按需載入、Resize、效能 | [預覽互動](preview-interaction.md) |
 | Chrome、視覺規格、對話框排版 | [UI 準則](ui-guidelines.md) |
 | 深淺主題切換、配色快取、分類色、高對比 | [主題連動](themes.md) |
+| 背景載入、計數、合併、統計、退場、玻璃提示 | [通知提示](notifications.md) |
+| 三軸、可見度、降級、種類開關、改名、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
 | 指令碼風格、選項、還原度、資料不齊時整段註解、快照 | [指令碼產生](script-generation.md) |
 | 健檢規則、嚴重度、誤報 | [結構健檢](schema-analysis.md) |
 | F12 物件種類、產生定義、失敗註解 | [F12 指令碼](definition-scripts.md) |

@@ -6,7 +6,8 @@
 按 `Ctrl+,`，或從 **工具 → SqlAssist → 設定…** 直接跳到 SqlAssist 分類。
 改完立即生效，不必重開查詢視窗，並跟著 SSMS 的設定漫遊同步。
 
-區塊選項見[區塊配對](block-matching.md)，其餘如下：
+區塊選項見[區塊配對](block-matching.md)，「通知與背景工作」一整頁見[通知提示](notifications.md#呈現與設定)，
+其餘如下：
 
 | 分類 | 設定 | 預設 |
 | --- | --- | --- |
@@ -44,7 +45,9 @@
 | 診斷 | 寫入詳細診斷紀錄 | `false` |
 
 moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
-`sqlAssist.suggestions.triggerAfterCharacters`。
+`sqlAssist.suggestions.triggerAfterCharacters`。「通知與背景工作」那一頁是
+`sqlAssist.notifications.*`，其中十一個種類開關不寫成 moniker 常數與屬性，改由
+`NotificationKindToggle.All` 那張表驅動，新增一個種類只動註冊檔與那張表。
 註冊檔在 [`src/SqlAssist.Ssms22/SqlAssist.registration.json`](../src/SqlAssist.Ssms22/SqlAssist.registration.json)，
 它是設定清單的唯一權威來源；四處對應與守門測試見[設定結構](settings-schema.md#新增一個設定)。
 

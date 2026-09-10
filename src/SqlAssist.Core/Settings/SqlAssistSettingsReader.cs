@@ -1,5 +1,6 @@
 
 
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Scripting;
 
 namespace SqlAssist.Core.Settings;
@@ -37,6 +38,18 @@ public static class SqlAssistSettingsReader
         return new SqlAssistSettings
         {
             Enabled = Value(source, SqlAssistMonikers.Enabled, defaults.Enabled),
+            NotificationEnabled = Value(source, SqlAssistMonikers.NotificationEnabled, defaults.NotificationEnabled),
+            NotificationGlass = Value(source, SqlAssistMonikers.NotificationGlass, defaults.NotificationGlass),
+            NotificationAnimation = Value(source, SqlAssistMonikers.NotificationAnimation, defaults.NotificationAnimation),
+            NotificationForceAnimation = Value(source, SqlAssistMonikers.NotificationForceAnimation, defaults.NotificationForceAnimation),
+            NotificationExpanded = Value(source, SqlAssistMonikers.NotificationExpanded, defaults.NotificationExpanded),
+            NotificationDelay = SqlAssistLimits.ClampNotificationTime(Value(source, SqlAssistMonikers.NotificationDelay, defaults.NotificationDelay), 0),
+            NotificationRetention = SqlAssistLimits.ClampNotificationTime(Value(source, SqlAssistMonikers.NotificationRetention, defaults.NotificationRetention), 800),
+            NotificationVerbosity = ParseVerbosity(
+                Value(source, SqlAssistMonikers.NotificationVerbosity, string.Empty), defaults.NotificationVerbosity),
+            NotificationKinds = ReadKinds(source, defaults.NotificationKinds),
+            NotificationFailures = Value(source, SqlAssistMonikers.NotificationFailures, defaults.NotificationFailures),
+            NotificationDegraded = Value(source, SqlAssistMonikers.NotificationDegraded, defaults.NotificationDegraded),
             BlockMatchingEnabled = Value(source, SqlAssistMonikers.BlockMatchingEnabled, defaults.BlockMatchingEnabled),
             BlockKeywordHighlight = Value(source, SqlAssistMonikers.BlockKeywordHighlight, defaults.BlockKeywordHighlight),
             BlockKeywordForeground = Value(source, SqlAssistMonikers.BlockKeywordForeground, defaults.BlockKeywordForeground),
@@ -174,6 +187,31 @@ public static class SqlAssistSettingsReader
         source.TryGetValue<T>(moniker, out var value) ? value : fallback;
 
     /// <summary>無法辨識的值一律當成預設值，而不是列舉的第一個成員。</summary>
+    private static NotificationVerbosity ParseVerbosity(string value, NotificationVerbosity fallback)
+    {
+        return value switch
+        {
+            "quiet" => NotificationVerbosity.Quiet,
+            "normal" => NotificationVerbosity.Normal,
+            "verbose" => NotificationVerbosity.Verbose,
+            "all" => NotificationVerbosity.All,
+            _ => fallback,
+        };
+    }
+
+    /// <summary>種類開關照 <see cref="NotificationKindToggle.All"/> 這張表讀，不逐項寫。</summary>
+    private static NotificationKindSwitches ReadKinds(ISettingValueSource source, NotificationKindSwitches defaults)
+    {
+        var switches = defaults;
+
+        foreach (var toggle in NotificationKindToggle.All)
+        {
+            switches = switches.With(toggle.Kind, Value(source, toggle.Moniker, defaults[toggle.Kind]));
+        }
+
+        return switches;
+    }
+
     private static SqlPreviewMode ParsePreviewMode(string value, SqlPreviewMode fallback)
     {
         return value switch

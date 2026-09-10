@@ -1,5 +1,7 @@
 using System;
 using System.Threading.Tasks;
+using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22;
 
@@ -159,16 +161,41 @@ internal static class SqlAssistPlatformGuard
             fallback: false);
     }
 
-    /// <summary>起一個沒有人會去接結果的背景工作。</summary>
-    public static void Begin(string operation, Func<Task> work)
+    /// <summary>
+    /// 起一個沒有人會去接結果的背景工作，並整批追蹤成一則通知。
+    /// </summary>
+    /// <param name="operation">
+    /// <see cref="NotificationCatalog"/> 的常數標題；動詞開頭、不含物件名稱與狀態。
+    /// </param>
+    /// <param name="kind">哪一個子系統。</param>
+    /// <param name="origin">
+    /// 誰觸發的。<see cref="NotificationOrigin.User"/> 跨得過降噪門檻，因此只有真的由
+    /// 使用者按鍵或命令觸發的才可以標它；打字時反覆觸發的標
+    /// <see cref="NotificationOrigin.Typing"/>，預載與快取重整標
+    /// <see cref="NotificationOrigin.Ambient"/>。
+    /// </param>
+    /// <param name="level">詳細度門檻。</param>
+    /// <param name="context">
+    /// 文件延後工作必須帶原始來源，不能在執行時猜目前取得焦點的文件。
+    /// </param>
+    /// <param name="subject">這件事作用在哪個物件；沒有單一物件時留空。</param>
+    /// <remarks>
+    /// 三軸都要明寫。帶預設值的版本讓「忘了分類」與「想過之後選了 Unclassified」
+    /// 在程式碼上長得一樣，而漏掉的那一個會用最寬鬆的門檻一路顯示到使用者面前。
+    /// </remarks>
+    public static void Begin(string operation, Func<Task> work,
+        NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
+        string context, string subject = "")
     {
-        _ = AwaitAsync(operation, work, expected: false);
+        _ = AwaitAsync(operation, work, expected: false, context, kind, origin, level, subject);
     }
 
-    /// <inheritdoc cref="Begin(string, Func{Task})"/>
-    public static void Begin(string operation, Action work)
+    /// <inheritdoc cref="Begin(string, Func{Task}, NotificationKind, NotificationOrigin, NotificationLevel, string, string)"/>
+    public static void Begin(string operation, Action work,
+        NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
+        string context, string subject = "")
     {
-        Begin(operation, () => Task.Run(work));
+        Begin(operation, () => Task.Run(work), kind, origin, level, context, subject);
     }
 
     /// <summary>
@@ -189,17 +216,28 @@ internal static class SqlAssistPlatformGuard
         BeginProbe(operation, () => Task.Run(work));
     }
 
-    private static async Task AwaitAsync(string operation, Func<Task> work, bool expected)
+    private static async Task AwaitAsync(string operation, Func<Task> work, bool expected, string context = "",
+        NotificationKind kind = NotificationKind.Unclassified,
+        NotificationOrigin origin = NotificationOrigin.Ambient,
+        NotificationLevel level = NotificationLevel.Info,
+        string subject = "")
     {
+        // 預載由目錄實際查詢計數，避免命中快取與定期探測也冒出提示。
+        // BeginProbe 走 expected: true，這裡就是它不整批追蹤的那一行。
+        using var notification = expected
+            ? null
+            : NotificationCenter.Default.Begin(operation, kind, origin, level, subject, context);
         try
         {
             await work().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
+            notification?.Cancel();
         }
         catch (Exception exception)
         {
+            notification?.Fail();
             if (expected)
             {
                 SqlAssistDiagnostics.Write($"{operation}失敗：{exception.Message}");

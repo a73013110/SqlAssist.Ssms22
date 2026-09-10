@@ -4,6 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
@@ -147,6 +149,7 @@ public sealed class SqlMetadataCatalog
 
         if (IsFresh(cached))
         {
+            NoteCacheHit(NotificationOrigin.Typing, cached.DatabaseName);
             return cached;
         }
 
@@ -175,8 +178,10 @@ public sealed class SqlMetadataCatalog
             }
 
             var version = Volatile.Read(ref _snapshotVersion);
+            // 前景載入永遠是打字打出來的：使用者按了鍵、清單要資料，才會走到這裡。
             return await Task.Run(
-                    () => LoadAndPublishSnapshot(cancellationToken, version), cancellationToken)
+                    () => LoadAndPublishSnapshot(cancellationToken, version, NotificationOrigin.Typing),
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
         finally
@@ -218,17 +223,90 @@ public sealed class SqlMetadataCatalog
     /// 而紀錄檔裡唯一分得出來的線索就是這個名稱加上伺服器說的那句話；
     /// 送出去的地方見 <see cref="SqlMetadataFailure"/>。
     /// </param>
-    private static T? TryLoad<T>(string operation, Func<T> load)
+    /// <param name="origin">
+    /// 誰觸發了這一次載入。打字路徑與預載在畫面上的降噪門檻不同，而併進外層工作的
+    /// 巢狀查詢沿用外層那一份。
+    /// </param>
+    /// <param name="subject">物件限定名稱；清單類的查詢沒有單一主體，留空。</param>
+    private T? TryLoad<T>(string operation, NotificationOrigin origin, Func<T> load, string subject = "")
         where T : class
     {
+        // 三軸明寫：中繼資料查詢一律是 Metadata，等級一律 Info——比 Info 低的只有
+        // 快取命中，而那一條根本不查資料庫。標題是常數，主體與來源是既有字串的引用，
+        // 因此通知被可見度篩掉時這一段一個字串都不配置。
+        using var notification = NotificationCenter.Default.Begin(operation, NotificationKind.Metadata,
+            origin, NotificationLevel.Info, subject, ContextName, joinParent: true);
+        // 遠端跳躍只由最外層那一次說明；巢狀查詢已經併進外層，跟著開會讓同一次載入
+        // 冒出好幾列一模一樣的提示。
+        using var hop = notification.OwnsItem ? BeginHop(origin) : null;
         try
         {
             return load();
         }
         catch (DbException exception)
         {
-            SqlMetadataFailure.Report(operation, exception);
+            notification.Fail();
+            hop?.Degrade();
+            // 紀錄檔要分得出「哪一條查詢」加「哪一個物件」，而通知的標題已經不含物件
+            // 名稱了。組字串只在真的失敗時付一次，熱路徑一個字串都不配置。
+            SqlMetadataFailure.Report(
+                subject.Length == 0 ? operation : operation + "：" + subject, exception);
             return null;
+        }
+        catch (OperationCanceledException)
+        {
+            notification.Cancel();
+            hop?.Cancel();
+            throw;
+        }
+        catch
+        {
+            // 只標記結果，不改變非資料庫例外原本的傳播契約。
+            notification.Fail();
+            hop?.Fail();
+            throw;
+        }
+    }
+
+    /// <summary>畫面上「這一份目錄是從哪裡來的」；不隨焦點更新，也不放路徑或認證。</summary>
+    private string ContextName => _qualifier.DatabaseName ?? _connectionSource.DatabaseName;
+
+    /// <summary>
+    /// 這一次查詢跳到了別的地方時的說明；就在本機同一個資料庫上時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 兩者都慢，而畫面上原本完全看不出來——<c>Context</c> 只有資料庫名，
+    /// 跨庫與遠端跳躍看起來與本機查詢一模一樣。連結伺服器用 <c>Notice</c>：
+    /// 它慢得使用者一定會發現，而「建議清單怎麼卡住了」這句問題只有這一列答得出來。
+    /// </remarks>
+    private NotificationScope? BeginHop(NotificationOrigin origin)
+    {
+        if (_qualifier.ServerName is { } serverName)
+        {
+            return NotificationCenter.Default.BeginDetached(NotificationCatalog.QueryingLinkedServer,
+                NotificationKind.Metadata, origin, NotificationLevel.Notice, serverName, ContextName);
+        }
+
+        // 換連線的資料庫是跨資料庫的唯一形狀，見 SqlDatabaseScopedConnectionSource。
+        return _connectionSource is SqlDatabaseScopedConnectionSource
+            ? NotificationCenter.Default.BeginDetached(NotificationCatalog.ConnectingToDatabase,
+                NotificationKind.Metadata, origin, NotificationLevel.Info,
+                _connectionSource.DatabaseName, ContextName)
+            : null;
+    }
+
+    /// <summary>
+    /// 記一次快取命中；只進診斷統計，永不上畫面。
+    /// </summary>
+    /// <remarks>
+    /// <c>Trace</c> 只有詳細度明選「全部」才放行。少了這一條就答不出「哪些動作在重複」
+    /// ——畫面上只看得到真的查了資料庫的那幾次，而重複的按鍵大多是命中快取。
+    /// </remarks>
+    private void NoteCacheHit(NotificationOrigin origin, string subject)
+    {
+        using (NotificationCenter.Default.Begin(NotificationCatalog.CacheHit, NotificationKind.Metadata,
+                   origin, NotificationLevel.Trace, subject, ContextName))
+        {
         }
     }
 
@@ -253,7 +331,8 @@ public sealed class SqlMetadataCatalog
         {
             try
             {
-                LoadAndPublishSnapshot(CancellationToken.None, version);
+                // 沒有人要求的預載；跨不過降噪門檻，但仍然計數與寫診斷。
+                LoadAndPublishSnapshot(CancellationToken.None, version, NotificationOrigin.Ambient);
             }
             finally
             {
@@ -262,9 +341,10 @@ public sealed class SqlMetadataCatalog
         });
     }
 
-    private SqlDatabaseSnapshot LoadAndPublishSnapshot(CancellationToken cancellationToken, int version)
+    private SqlDatabaseSnapshot LoadAndPublishSnapshot(CancellationToken cancellationToken, int version,
+        NotificationOrigin origin)
     {
-        var loaded = TryLoad("物件清單（第一層）", () => LoadSnapshot(cancellationToken));
+        var loaded = TryLoad(NotificationCatalog.LoadingObjects, origin, () => LoadSnapshot(cancellationToken));
         lock (_detailLock)
         {
             if (_snapshotVersion != version)
@@ -332,7 +412,8 @@ public sealed class SqlMetadataCatalog
 
             var loaded = await Task
                 .Run(
-                    () => TryLoad("系統物件清單", () => LoadSystemObjects(cancellationToken)),
+                    () => TryLoad(NotificationCatalog.LoadingSystemObjects, NotificationOrigin.Typing,
+                        () => LoadSystemObjects(cancellationToken)),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -390,7 +471,8 @@ public sealed class SqlMetadataCatalog
 
             var loaded = await Task
                 .Run(
-                    () => TryLoad("定序名單", () => LoadCollations(cancellationToken)),
+                    () => TryLoad(NotificationCatalog.LoadingCollations, NotificationOrigin.Typing,
+                        () => LoadCollations(cancellationToken)),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -429,28 +511,40 @@ public sealed class SqlMetadataCatalog
 
     /// <summary>取得單一物件的欄位、參數與定義；結果會被快取。</summary>
     /// <returns>資料庫取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。</returns>
+    /// <param name="origin">
+    /// 誰觸發了這一次；同一個查詢在打字路徑與使用者按下去的命令上該有不同的降噪門檻。
+    /// </param>
     public async Task<SqlObjectDetail?> GetDetailAsync(
         SqlObjectInfo objectInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         if (objectInfo is null)
         {
             throw new ArgumentNullException(nameof(objectInfo));
         }
 
+        SqlObjectDetail? hit;
+
         lock (_detailLock)
         {
-            if (_details.TryGetValue(objectInfo.ObjectId, out var cached))
-            {
-                return cached;
-            }
+            _details.TryGetValue(objectInfo.ObjectId, out hit);
+        }
+
+        if (hit is not null)
+        {
+            // 記在鎖外：通知會廣播出去，而那條路上有 UI 派送——不該壓在明細鎖裡。
+            NoteCacheHit(origin, objectInfo.QualifiedName);
+            return hit;
         }
 
         var detail = await Task
             .Run(
                 () => TryLoad(
-                    $"{objectInfo.QualifiedName} 的欄位與定義（第二層）",
-                    () => LoadDetail(objectInfo, cancellationToken)),
+                    NotificationCatalog.LoadingColumns,
+                    origin,
+                    () => LoadDetail(objectInfo, cancellationToken),
+                    objectInfo.QualifiedName),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -483,24 +577,31 @@ public sealed class SqlMetadataCatalog
     /// 第二層都取不到時為 <c>null</c>；理由見 <see cref="TryLoad{T}"/>。第二層拿到了
     /// 而第四層失敗時回傳一份標記為不完整的結構，不是 <c>null</c>——說明見下方。
     /// </returns>
+    /// <param name="origin"><inheritdoc cref="GetDetailAsync" path="/param[@name='origin']"/></param>
     public async Task<SqlObjectStructure?> GetStructureAsync(
         SqlObjectInfo objectInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         if (objectInfo is null)
         {
             throw new ArgumentNullException(nameof(objectInfo));
         }
 
+        SqlObjectStructure? hit;
+
         lock (_detailLock)
         {
-            if (_structures.TryGetValue(objectInfo.ObjectId, out var cached))
-            {
-                return cached;
-            }
+            _structures.TryGetValue(objectInfo.ObjectId, out hit);
         }
 
-        if (await GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false) is not { } detail)
+        if (hit is not null)
+        {
+            NoteCacheHit(origin, objectInfo.QualifiedName);
+            return hit;
+        }
+
+        if (await GetDetailAsync(objectInfo, cancellationToken, origin).ConfigureAwait(false) is not { } detail)
         {
             return null;
         }
@@ -516,8 +617,10 @@ public sealed class SqlMetadataCatalog
         var structure = await Task
             .Run(
                 () => TryLoad(
-                    $"{objectInfo.QualifiedName} 的索引與條件約束（第四層）",
-                    () => LoadStructure(detail, cancellationToken)),
+                    NotificationCatalog.LoadingIndexes,
+                    origin,
+                    () => LoadStructure(detail, cancellationToken),
+                    objectInfo.QualifiedName),
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -677,7 +780,7 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private List<string> ReadDatabases(IDbConnection connection, CancellationToken cancellationToken)
     {
-        return TryLoad("資料庫清單", () => ReadList(
+        return TryLoad(NotificationCatalog.LoadingDatabases, NotificationOrigin.Typing, () => ReadList(
             connection,
             SqlMetadataQueries.Databases,
             record => record.GetString(0),
@@ -691,7 +794,7 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private List<string> ReadLinkedServers(IDbConnection connection, CancellationToken cancellationToken)
     {
-        return TryLoad("連結伺服器清單", () => ReadList(
+        return TryLoad(NotificationCatalog.LoadingLinkedServers, NotificationOrigin.Typing, () => ReadList(
             connection,
             SqlMetadataQueries.LinkedServers,
             record => record.GetString(0),
@@ -720,7 +823,7 @@ public sealed class SqlMetadataCatalog
     /// </remarks>
     private string? ReadDatabaseCollation(IDbConnection connection, CancellationToken cancellationToken)
     {
-        var rows = TryLoad("資料庫定序", () => ReadList(
+        var rows = TryLoad(NotificationCatalog.LoadingDatabaseCollation, NotificationOrigin.Typing, () => ReadList(
             connection,
             SqlMetadataQueries.DatabaseCollation,
             record => record.IsDBNull(0) ? null : record.GetString(0),

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Core.Settings;
 
@@ -10,7 +11,8 @@ namespace SqlAssist.Core.Settings;
 /// </summary>
 /// <remarks>
 /// Unified Settings 以字串定址，打錯字不會有編譯錯誤，只會在執行期
-/// 安靜地回退到預設值——所以字串只在這裡出現一次。
+/// 安靜地回退到預設值——所以每個字串只寫一次：多數在這裡，通知的種類開關在
+/// <see cref="NotificationKindToggle.All"/> 那張表上，兩邊在 <see cref="All"/> 會合。
 ///
 /// 放在 Core 而不是 SSMS 專案：真正屬於平台的是
 /// <c>ISettingsReader</c> 與 <c>SVsUnifiedSettingsManager</c>，
@@ -19,6 +21,16 @@ namespace SqlAssist.Core.Settings;
 /// </remarks>
 public static class SqlAssistMonikers
 {
+    public const string NotificationEnabled = "sqlAssist.notifications.enabled";
+    public const string NotificationGlass = "sqlAssist.notifications.glass";
+    public const string NotificationAnimation = "sqlAssist.notifications.animation";
+    public const string NotificationForceAnimation = "sqlAssist.notifications.forceAnimation";
+    public const string NotificationExpanded = "sqlAssist.notifications.expanded";
+    public const string NotificationDelay = "sqlAssist.notifications.delay";
+    public const string NotificationRetention = "sqlAssist.notifications.retention";
+    public const string NotificationVerbosity = "sqlAssist.notifications.verbosity";
+    public const string NotificationFailures = "sqlAssist.notifications.failures";
+    public const string NotificationDegraded = "sqlAssist.notifications.degraded";
     /// <summary>整個分類的前綴；「設定…」命令用它定位設定頁，也是 <see cref="All"/> 的篩選條件。</summary>
     public const string Category = "sqlAssist";
 
@@ -101,6 +113,9 @@ public static class SqlAssistMonikers
     /// <remarks>
     /// 由上面的常數反射產生，而不是再手寫一次清單：手寫的版本漏掉一個
     /// 不會有任何徵兆，只會變成「改了設定要重開查詢視窗才生效」。
+    /// 通知的種類開關是表驅動的，moniker 寫在
+    /// <see cref="NotificationKindToggle.All"/>，在這裡併進來——所以新增一個種類
+    /// 仍然不必回頭改這個檔案。
     /// 只在型別初始化時跑一次。
     /// </remarks>
     public static readonly string[] All = Discover();
@@ -109,12 +124,19 @@ public static class SqlAssistMonikers
     {
         var prefix = Category + ".";
 
-        return typeof(SqlAssistMonikers)
+        var declared = typeof(SqlAssistMonikers)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(field => field.IsLiteral && field.FieldType == typeof(string))
             .Select(field => (string?)field.GetRawConstantValue())
-            .Where(moniker => moniker is not null && moniker.StartsWith(prefix, StringComparison.Ordinal))
-            .Select(moniker => moniker!)
+            .Where(moniker => moniker is not null)
+            .Select(moniker => moniker!);
+
+        var kinds = NotificationKindToggle.All.Select(toggle => toggle.Moniker);
+
+        return declared
+            .Concat(kinds)
+            .Where(moniker => moniker.StartsWith(prefix, StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
             .OrderBy(moniker => moniker, StringComparer.Ordinal)
             .ToArray();
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Metadata.Analysis;
@@ -89,6 +90,12 @@ public sealed class SqlSchemaAnalyzer
             return Array.Empty<SqlSchemaFinding>();
         }
 
+        // 健檢掃過每一個資料行與每一個索引，是產生指令碼裡最花時間的一段，而畫面上
+        // 只看得到「產生物件指令碼」停在那裡。使用者是自己按下去的，因此是 User；
+        // 等級 Debug——想知道慢在哪裡的人才需要看到這一列。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.RunningSchemaAnalysis,
+            NotificationKind.Preview, NotificationOrigin.User, NotificationLevel.Debug,
+            structure.Object.QualifiedName);
         var findings = new List<SqlSchemaFinding>();
 
         foreach (var rule in _rules)

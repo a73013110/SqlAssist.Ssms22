@@ -1,3 +1,4 @@
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Scripting;
 
 namespace SqlAssist.Core.Settings;
@@ -16,6 +17,19 @@ namespace SqlAssist.Core.Settings;
 /// </remarks>
 public sealed class SqlAssistSettings
 {
+    public bool NotificationEnabled { get; init; } = true;
+    public bool NotificationGlass { get; init; } = true;
+    public bool NotificationAnimation { get; init; } = true;
+    public bool NotificationForceAnimation { get; init; } = true;
+    public bool NotificationExpanded { get; init; } = true;
+    public int NotificationDelay { get; init; } = 0;
+    public int NotificationRetention { get; init; } = 2500;
+    public NotificationVerbosity NotificationVerbosity { get; init; } = NotificationVerbosity.Normal;
+    /// <summary>各種類的顯示開關；表在 <see cref="NotificationKindToggle.All"/>，這裡不逐項列。</summary>
+    /// <remarks>每一個種類都有一格；關掉之後連使用者自己觸發的那一類也不再上畫面。</remarks>
+    public NotificationKindSwitches NotificationKinds { get; init; } = NotificationKindSwitches.Defaults;
+    public bool NotificationFailures { get; init; } = true;
+    public bool NotificationDegraded { get; init; } = true;
     public bool BlockMatchingEnabled { get; init; } = true;
     public bool BlockKeywordHighlight { get; init; } = true;
     public string BlockKeywordForeground { get; init; } = string.Empty;

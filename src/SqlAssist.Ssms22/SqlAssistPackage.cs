@@ -6,7 +6,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Commands;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
@@ -40,6 +42,9 @@ public sealed class SqlAssistPackage : AsyncPackage
         CancellationToken cancellationToken,
         IProgress<ServiceProgressData> progress)
     {
+        NotificationCenter.Default.Completed += OnNotificationCompleted;
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.InitializingPackage,
+            NotificationKind.Package, NotificationOrigin.Startup, NotificationLevel.Info);
         try
         {
             // SSMS 啟動且沒有方案時自動載入，確保工具選單的命令處理器已完成註冊。
@@ -55,6 +60,7 @@ public sealed class SqlAssistPackage : AsyncPackage
 
             if (commandService is null)
             {
+                notification.Fail();
                 SqlAssistDiagnostics.WriteAlways("AsyncPackage 無法取得 OleMenuCommandService");
                 return;
             }
@@ -65,6 +71,8 @@ public sealed class SqlAssistPackage : AsyncPackage
         }
         catch (Exception exception)
         {
+            if (exception is OperationCanceledException) notification.Cancel();
+            else notification.Fail();
             // 即使套件載入失敗，也要留下可由診斷腳本讀取的原因。
             // 不走 SqlAssistPlatformGuard：那一族會吞掉例外，而殼層要靠它知道
             // 這個套件沒載入成功；記錄完仍然重擲。
@@ -85,12 +93,20 @@ public sealed class SqlAssistPackage : AsyncPackage
             assembly.GetName().Version?.ToString());
     }
 
+    private static void OnNotificationCompleted(NotificationItem item) =>
+        SqlAssistPlatformGuard.Probe("記錄通知結果", () => SqlAssistDiagnostics.Write(
+            $"通知 id={item.Id} kind={item.Kind} severity={item.Severity} status={item.Status} elapsedMs={(item.Finished - item.Started)?.TotalMilliseconds:0}"));
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            NotificationCenter.Default.Completed -= OnNotificationCompleted;
+            SqlAssistPlatformGuard.Run("釋放通知提示", NotificationAdornmentProvider.Shutdown);
             SqlAssistSettingsStore.Shutdown();
             VsThemeBrushes.Shutdown();
+            // 診斷是批次寫檔的，最後一批還在佇列裡；卸載時要倒完才輪得到殼層關閉。
+            SqlAssistDiagnostics.Flush();
         }
 
         base.Dispose(disposing);

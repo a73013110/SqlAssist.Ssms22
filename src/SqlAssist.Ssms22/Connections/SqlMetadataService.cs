@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Caching;
@@ -420,7 +421,9 @@ internal sealed class SqlMetadataService : IDisposable
             return Array.Empty<SqlSuggestion>();
         }
 
-        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+        var detail = await catalog
+            .GetDetailAsync(matches[0], cancellationToken, NotificationOrigin.Typing)
+            .ConfigureAwait(false);
 
         ReportIfSlow($"參數建議 {matches[0].QualifiedName}（第二層）", timer);
 
@@ -520,7 +523,9 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         var cached = catalog.TryGetCachedDetail(matches[0].ObjectId, out _);
-        var detail = await catalog.GetDetailAsync(matches[0], cancellationToken).ConfigureAwait(false);
+        var detail = await catalog
+            .GetDetailAsync(matches[0], cancellationToken, NotificationOrigin.Typing)
+            .ConfigureAwait(false);
         return new ResolvedTable(matches[0], detail, cached);
     }
 
@@ -756,7 +761,9 @@ internal sealed class SqlMetadataService : IDisposable
 
                 try
                 {
-                    await catalog.GetDetailAsync(objectInfo, CancellationToken.None).ConfigureAwait(false);
+                    await catalog
+                        .GetDetailAsync(objectInfo, CancellationToken.None, NotificationOrigin.Ambient)
+                        .ConfigureAwait(false);
                     SqlAssistDiagnostics.Write(
                         $"已預先載入 {objectInfo.QualifiedName} 的結構（{timer.ElapsedMilliseconds} ms）");
                 }
@@ -845,7 +852,9 @@ internal sealed class SqlMetadataService : IDisposable
                 }
 
                 var timer = Stopwatch.StartNew();
-                await catalog.GetDetailAsync(matches[0], CancellationToken.None).ConfigureAwait(false);
+                await catalog
+                    .GetDetailAsync(matches[0], CancellationToken.None, NotificationOrigin.Ambient)
+                    .ConfigureAwait(false);
                 SqlAssistDiagnostics.Write(
                     $"已預先載入 {matches[0].QualifiedName} 的欄位（{timer.ElapsedMilliseconds} ms）");
             }
@@ -873,9 +882,14 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>載入單一物件的欄位、參數與定義。</summary>
+    /// <param name="origin">
+    /// 誰觸發了這一次。同一條查詢在打字路徑與使用者按下去的命令上要有不同的降噪門檻，
+    /// 而目錄那一層看不出差別——只有呼叫端知道。
+    /// </param>
     public async Task<SqlObjectDetail?> GetDetailAsync(
         SqlObjectInfo objectInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         var catalog = ScopeTo(ResolveCatalog(), objectInfo);
 
@@ -884,7 +898,7 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        return await catalog.GetDetailAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+        return await catalog.GetDetailAsync(objectInfo, cancellationToken, origin).ConfigureAwait(false);
     }
 
     /// <summary>只看第四層快取裡有沒有這個物件的結構；沒有就回傳 null，不觸發查詢。</summary>
@@ -917,9 +931,11 @@ internal sealed class SqlMetadataService : IDisposable
     /// <remarks>
     /// 只有結構面板會走到這裡，允許等資料庫；連線還沒解析出來時也願意問一次 SSMS。
     /// </remarks>
+    /// <param name="origin"><inheritdoc cref="GetDetailAsync" path="/param[@name='origin']"/></param>
     public async Task<SqlObjectStructure?> GetStructureAsync(
         SqlObjectInfo objectInfo,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
     {
         var catalog = ScopeTo(ResolveCatalog(), objectInfo);
 
@@ -929,7 +945,7 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         var timer = Stopwatch.StartNew();
-        var structure = await catalog.GetStructureAsync(objectInfo, cancellationToken).ConfigureAwait(false);
+        var structure = await catalog.GetStructureAsync(objectInfo, cancellationToken, origin).ConfigureAwait(false);
         ReportIfSlow($"物件結構 {objectInfo.QualifiedName}（第四層）", timer);
         return structure;
     }
@@ -1096,8 +1112,12 @@ internal sealed class SqlMetadataService : IDisposable
             return;
         }
 
-        SqlAssistPlatformGuard.BeginProbe("重新確認連線", () =>
+        // BeginProbe 不整批追蹤——週期性探測反覆閃現提示比沒有提示更糟。這一則由
+        // 這裡自己開：Ambient／Debug，只有把詳細度調到「詳細」的人才看得到。
+        SqlAssistPlatformGuard.BeginProbe(NotificationCatalog.ReconfirmingConnection, () =>
         {
+            using var notification = NotificationCenter.Default.Begin(NotificationCatalog.ReconfirmingConnection,
+                NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Debug);
             try
             {
                 var catalog = ResolveCatalogFromEditor();
@@ -1170,10 +1190,16 @@ internal sealed class SqlMetadataService : IDisposable
             }
 
             _editorCacheKey = cacheKey;
+
+            // 只有真的要換一份連線來源才開這一則：快取鍵沒變的那幾千次在上面就回去了。
+            using var notification = NotificationCenter.Default.Begin(
+                NotificationCatalog.CreatingMetadataConnection, NotificationKind.Package,
+                NotificationOrigin.Ambient, NotificationLevel.Info, editorConnection.Database);
             var connectionSource = SsmsConnectionSource.TryCreate(editorConnection);
 
             if (connectionSource is null)
             {
+                notification.Fail();
                 _catalog = null;
                 return null;
             }

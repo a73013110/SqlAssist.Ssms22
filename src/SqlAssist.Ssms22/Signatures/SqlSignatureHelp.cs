@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Statements;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Connections;
@@ -144,9 +145,12 @@ internal sealed class SqlSignatureHelp
         var text = snapshot.GetText();
         var position = caret.Position;
 
+        // 打字時每一個左括號與逗號都會走一次，因此是 Typing／Debug。
         SqlAssistPlatformGuard.Begin(
-            "顯示函式參數提示",
-            () => RequestAsync(snapshot, text, position));
+            NotificationCatalog.ShowingSignatureHelp,
+            () => RequestAsync(snapshot, text, position),
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
+            ActiveSqlEditor.GetContextName(_textView));
     }
 
     /// <summary>
@@ -174,7 +178,8 @@ internal sealed class SqlSignatureHelp
         }
 
         var location = await SqlObjectLocator
-            .LocateAsync(_metadataService, text, site.NameStart, CancellationToken.None)
+            .LocateAsync(_metadataService, text, site.NameStart, CancellationToken.None,
+                NotificationOrigin.Typing)
             .ConfigureAwait(false);
 
         // 只做純量函式；資料表值函式與內建名稱交給 SSMS 自己那一份。
@@ -187,7 +192,7 @@ internal sealed class SqlSignatureHelp
 
         var detail = location.Detail
             ?? await _metadataService
-                .GetDetailAsync(location.Object, CancellationToken.None)
+                .GetDetailAsync(location.Object, CancellationToken.None, NotificationOrigin.Typing)
                 .ConfigureAwait(false);
 
         if (detail is null || Build(detail) is not { } signature)

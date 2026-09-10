@@ -1,4 +1,6 @@
 using System;
+using SqlAssist.Core.Notifications;
+using SqlAssist.Ssms22.Editor;
 using System.Threading;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
@@ -88,7 +90,7 @@ internal sealed class BlockAnalysis
         var snapshot = _buffer.CurrentSnapshot;
         var pending = new CancellationTokenSource();
         _pending = pending;
-        SqlAssistPlatformGuard.Begin("背景分析 T-SQL 區塊", async () =>
+        SqlAssistPlatformGuard.Begin(NotificationCatalog.AnalyzingBlocks, async () =>
         {
             // 取消只丟棄過期結果；ScriptDom 本身無取消 API，因此同 buffer 限制一份解析。
             using (pending)
@@ -116,6 +118,7 @@ internal sealed class BlockAnalysis
                     });
                 }
             }
-        });
+        }, NotificationKind.Analysis, NotificationOrigin.Typing, NotificationLevel.Debug,
+            ActiveSqlEditor.GetContextName(_buffer));
     }
 }

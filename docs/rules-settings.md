@@ -3,7 +3,8 @@
 修改 Settings、註冊 JSON 或設定頁前必讀。
 新增一個設定必須同時動四處，漏掉後三處的任何一處都是建置失敗（不是執行期回退）：
 `SqlAssist.registration.json`、`Core/Settings/SqlAssistSettings` 屬性、
-`SqlAssistMonikers` 常數、`SqlAssistSettingsReader.Read()` 對應。
+`SqlAssistMonikers` 常數、`SqlAssistSettingsReader.Read()` 對應。整組同型的設定改以
+Core 的一張表驅動時（例如通知的種類開關），後三處由表推導，只剩註冊檔與表兩處要動。
 
 - **禁止**手寫 moniker 清單。`SqlAssistMonikers.All` 由反射產生。
 - **禁止**讓註冊檔的 `default` 與 POCO 的屬性預設值分歧。
@@ -13,4 +14,8 @@
 - **禁止**改動既有 `enum` 的字面值；那等於讓所有使用者的設定回退到預設。
 - **禁止**把清單型資料放進 Unified Settings，它只收 bool／int／enum／string。
 - **禁止**在取不到 Unified Settings 服務時讓擴充停擺；一律回退到內建預設值。
-- **禁止**只為「可設定」就新增設定；不用時沒有成本、沒有實際分歧的行為不需要旋鈕。
+- **禁止**新增按了不會怎樣的設定。判準是**關掉之後行為真的不同**，不是「這個值有人
+  可能想改」。分歧要由設定自己造成：需要別的條件同時成立才看得出差別的，不是分歧。
+- 同一組概念要嘛整組給旋鈕、要嘛整組不給。只給一半的話，沒有旋鈕的那幾項看起來像壞的，
+  而使用者分不出「這裡沒有開關」與「開關失效」。給了就要讓它管得住自己那一組的全部路徑——
+  例如通知的種類開關排在觸發來源之前，關掉一類連使用者自己觸發的那條也擋下來。

@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -62,6 +63,10 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         // 取消狀態判斷這一輪作廢。
         //
         // CompletionList<T> 沒有公開建構式，重排過的清單只能由 session 生出來。
+        // 排序與篩選都在按鍵路徑上，因此是 Typing／Debug：想知道清單為什麼慢的人
+        // 才需要看到它們，平常一列都不該冒出來。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.SortingSuggestions,
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug);
         return Task.FromResult(
             SqlAssistPlatformGuard.RunPropagatingCancellation(
                 "建議清單排序",
@@ -74,6 +79,8 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionInitialDataSnapshot data,
         CancellationToken token)
     {
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.SortingSuggestions,
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug);
         return Task.FromResult(
             SqlAssistPlatformGuard.RunPropagatingCancellation(
                 "建議清單排序",
@@ -112,6 +119,8 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
         AsyncCompletionSessionDataSnapshot data,
         CancellationToken token)
     {
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.FilteringSuggestions,
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug);
         // 這裡丟出例外會讓整個 session 掛掉；退回不篩選的完整清單。
         return Task.FromResult(
             SqlAssistPlatformGuard.RunPropagatingCancellation(

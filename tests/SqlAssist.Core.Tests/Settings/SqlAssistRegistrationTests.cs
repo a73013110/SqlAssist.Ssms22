@@ -22,6 +22,7 @@ public sealed class SqlAssistRegistrationTests
     /// 改名等於讓所有既有使用者的設定回退到預設值。
     /// </summary>
     [Theory]
+    [InlineData("sqlAssist.notifications.verbosity", "quiet", "normal", "verbose", "all")]
     [InlineData("sqlAssist.insertion.wildcardLayout", "oneLineWhenShort", "onePerLine", "fillWidth")]
     [InlineData("sqlAssist.structure.previewMode", "delay", "rightArrow", "off")]
     [InlineData("sqlAssist.structure.previewPlacement", "stacked", "beside")]

@@ -24,6 +24,10 @@ internal enum ThemeBrush
     BadgeBackground,
     AccentBackground,
     AccentBorder,
+    NotificationSuccess,
+    NotificationFailure,
+    NotificationRunning,
+    NotificationRunningEnd,
     Block,
     BlockTry,
     BlockCatch,
@@ -43,6 +47,12 @@ internal enum ThemeBrush
 /// <summary>同一份動態資源供所有視窗與獨立 Popup 使用，不保存任何控制項參考。</summary>
 internal sealed class ThemeResourceSet
 {
+    // XAML 的 x:Static 需要公開欄位；型別本身仍限於組件內部。
+    public const string NotificationSpinnerKey = "SqlAssist.NotificationSpinner";
+    internal const string NotificationGlassKey = "SqlAssist.NotificationGlass";
+    public const string NotificationDimKey = "SqlAssist.NotificationDim";
+    public const string NotificationRimKey = "SqlAssist.NotificationRim";
+    public const string NotificationSheenKey = "SqlAssist.NotificationSheen";
     private static readonly (ResourceKey Brush, ResourceKey? Color, ThemeBrush Role)[] SystemAliases =
     {
         (SystemColors.WindowBrushKey, SystemColors.WindowColorKey, ThemeBrush.ListBackground),
@@ -80,6 +90,46 @@ internal sealed class ThemeResourceSet
             Resources[pair.Key] = brush;
         }
 
+        if (colors.TryGetValue(ThemeBrush.NotificationRunning, out var running) && colors.TryGetValue(ThemeBrush.NotificationRunningEnd, out var end) &&
+            (Resources[NotificationSpinnerKey] is not LinearGradientBrush gradient || gradient.GradientStops[0].Color != running || gradient.GradientStops[1].Color != end))
+        {
+            var spinner = new LinearGradientBrush(running, end, 45);
+            spinner.Freeze();
+            Resources[NotificationSpinnerKey] = spinner;
+        }
+
+        // 材質保持主題色與高覆蓋率，文字不跟著透明；高對比由表面切回實色。
+        if (colors.TryGetValue(ThemeBrush.ListBackground, out var surface))
+        {
+            var glassColor = Color.FromArgb(224, surface.R, surface.G, surface.B);
+            var foreground = colors[ThemeBrush.ListForeground];
+            var sheen = Color.FromArgb(8, foreground.R, foreground.G, foreground.B);
+            Color LitSurface(Color backdrop) => ThemeColorMath.Composite(sheen, ThemeColorMath.Composite(glassColor, backdrop));
+            // SQL 編輯器可能使用相反的自訂底色；最差黑／白底仍須保留文字對比。
+            while (glassColor.A < 255 && (ThemeColorMath.Contrast(foreground, LitSurface(Colors.Black)) < 4.5 ||
+                ThemeColorMath.Contrast(foreground, LitSurface(Colors.White)) < 4.5))
+                glassColor.A++;
+            if (Resources[NotificationGlassKey] is not SolidColorBrush glass || glass.Color != glassColor)
+            {
+                var brush = new SolidColorBrush(glassColor);
+                brush.Freeze();
+                Resources[NotificationGlassKey] = brush;
+            }
+            var dim = colors[ThemeBrush.DimForeground];
+            var black = LitSurface(Colors.Black);
+            var white = LitSurface(Colors.White);
+            dim = ThemeColorMath.EnsureTextContrast(dim, ThemeColorMath.Contrast(dim, black) < ThemeColorMath.Contrast(dim, white) ? black : white);
+            if (Resources[NotificationDimKey] is not SolidColorBrush previousDim || previousDim.Color != dim)
+            {
+                var brush = new SolidColorBrush(dim);
+                brush.Freeze();
+                Resources[NotificationDimKey] = brush;
+            }
+
+            UpdateNotificationGradient(NotificationRimKey, foreground, 82, 12);
+            UpdateNotificationGradient(NotificationSheenKey, foreground, 8, 0);
+        }
+
         // 原生樣板的角落填色、預設文字選取仍可能讀系統鍵；別名只作用在本擴充根節點，
         // 不修改 Application.Resources，更不改 SSMS 或 Windows 的全域配色。
         foreach (var alias in SystemAliases)
@@ -93,6 +143,16 @@ internal sealed class ThemeResourceSet
                 }
             }
         }
+    }
+
+    private void UpdateNotificationGradient(string key, Color color, byte startAlpha, byte endAlpha)
+    {
+        var start = Color.FromArgb(startAlpha, color.R, color.G, color.B);
+        var end = Color.FromArgb(endAlpha, color.R, color.G, color.B);
+        if (Resources[key] is LinearGradientBrush previous && previous.GradientStops[0].Color == start && previous.GradientStops[1].Color == end) return;
+        var gradient = new LinearGradientBrush(start, end, 45);
+        gradient.Freeze();
+        Resources[key] = gradient;
     }
 
     public Brush Get(ThemeBrush key) => (Brush)Resources[key];

@@ -52,7 +52,13 @@ internal static class ThemePalette
             [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
             [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
             [ThemeBrush.AccentBackground] = highContrast ? background : Tint(0.12),
-            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent
+            [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,
+            // 狀態只染圖形；文字仍沿用可讀的主題前景，高對比則由形狀辨識。
+            [ThemeBrush.NotificationSuccess] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Color.FromRgb(38, 166, 112), background),
+            [ThemeBrush.NotificationFailure] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Color.FromRgb(225, 77, 95), background),
+            [ThemeBrush.NotificationRunning] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(accent, background),
+            [ThemeBrush.NotificationRunningEnd] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(
+                ThemeColorMath.Composite(Overlay(foreground, 0.25), accent), background)
         };
         foreach (var pair in BlockPalette.Create(background, foreground, accent, null, highContrast))
             colors[pair.Key] = pair.Value;

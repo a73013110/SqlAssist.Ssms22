@@ -67,6 +67,8 @@ internal static class SqlAssistDiagnosticSnapshotFactory
             "讀取診斷紀錄狀態",
             () =>
             {
+                // 紀錄是批次寫出的；先倒完再量，否則大小與時間都停在上一批。
+                SqlAssistDiagnostics.Flush();
                 var file = new FileInfo(SqlAssistDiagnostics.LogPath);
 
                 if (!file.Exists)

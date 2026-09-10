@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
@@ -89,6 +90,12 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             return null;
         }
 
+        // 滑鼠掃過每一個識別字都會走一次，因此是 Typing；「物件提示與結構預覽」
+        // 那一格預設關著，想看背景在載入什麼的人自己打開。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.PreparingObjectHint,
+            NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Info,
+            context: ActiveSqlEditor.GetContextName(textView));
+
         var snapshot = _textBuffer.CurrentSnapshot;
         var triggerPoint = session.GetTriggerPoint(snapshot);
 
@@ -132,6 +139,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
 
         if (location.Column is { } column)
         {
+            notification.Report(location.Object.QualifiedName);
             SqlAssistDiagnostics.Write($"已顯示欄位提示：{location.Object.QualifiedName}.{column.Name}");
             return new QuickInfoItem(
                 applicableSpan,
@@ -149,6 +157,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
                 SqlQuickInfoContentBuilder.BuildLoading(location.Object, openStructure));
         }
 
+        notification.Report(location.Object.QualifiedName);
         SqlAssistDiagnostics.Write($"已顯示物件提示：{location.Object.QualifiedName}");
         return new QuickInfoItem(applicableSpan, SqlQuickInfoContentBuilder.Build(detail, openStructure));
     }

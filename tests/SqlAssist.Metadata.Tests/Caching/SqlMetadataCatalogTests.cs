@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
@@ -39,7 +40,7 @@ public sealed class SqlMetadataCatalogTests
     {
         var catalog = CreateCatalog();
 
-        Assert.Null(await catalog.GetDetailAsync(AnyObject, CancellationToken.None));
+        Assert.Null(await catalog.GetDetailAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing));
     }
 
     [Fact]
@@ -47,7 +48,7 @@ public sealed class SqlMetadataCatalogTests
     {
         var catalog = CreateCatalog();
 
-        Assert.Null(await catalog.GetStructureAsync(AnyObject, CancellationToken.None));
+        Assert.Null(await catalog.GetStructureAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing));
     }
 
     /// <summary>
@@ -59,8 +60,8 @@ public sealed class SqlMetadataCatalogTests
         var source = new FailingConnectionSource();
         var catalog = new SqlMetadataCatalog(source, TimeSpan.FromMinutes(5));
 
-        await catalog.GetDetailAsync(AnyObject, CancellationToken.None);
-        await catalog.GetDetailAsync(AnyObject, CancellationToken.None);
+        await catalog.GetDetailAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing);
+        await catalog.GetDetailAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing);
 
         Assert.False(catalog.TryGetCachedDetail(AnyObject.ObjectId, out _));
         Assert.Equal(2, source.Attempts);
@@ -135,7 +136,7 @@ public sealed class SqlMetadataCatalogTests
         var catalog = CreateCatalog();
 
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => catalog.GetDetailAsync(null!, CancellationToken.None));
+            () => catalog.GetDetailAsync(null!, CancellationToken.None, NotificationOrigin.Typing));
     }
 
     /// <summary>
@@ -159,7 +160,7 @@ public sealed class SqlMetadataCatalogTests
 
         try
         {
-            await CreateCatalog().GetDetailAsync(AnyObject, CancellationToken.None);
+            await CreateCatalog().GetDetailAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing);
         }
         finally
         {
@@ -183,7 +184,7 @@ public sealed class SqlMetadataCatalogTests
 
         try
         {
-            Assert.Null(await CreateCatalog().GetDetailAsync(AnyObject, CancellationToken.None));
+            Assert.Null(await CreateCatalog().GetDetailAsync(AnyObject, CancellationToken.None, NotificationOrigin.Typing));
         }
         finally
         {

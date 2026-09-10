@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Commands;
@@ -17,6 +20,9 @@ namespace SqlAssist.Ssms22.Commands;
 internal sealed class SqlAssistAboutWindow : DialogWindow
 {
     private static readonly SqlAssistChrome.Metrics Metrics = SqlAssistChrome.DefaultMetrics;
+
+    private const string CountOrderText = "依次數";
+    private const string ElapsedOrderText = "依總耗時";
 
     private readonly SqlAssistDiagnosticSnapshot _snapshot;
     private readonly IReadOnlyList<SqlAssistHealthCheck> _health;
@@ -142,6 +148,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         tabs.Items.Add(CreateTab("概覽", BuildOverview()));
         tabs.Items.Add(CreateTab("設定摘要", BuildSettings()));
         tabs.Items.Add(CreateTab("診斷", BuildDiagnostics()));
+        tabs.Items.Add(CreateTab("工作階段統計", BuildNotificationDigest()));
+        tabs.Items.Add(CreateTab("通知失敗", BuildNotificationFailures()));
         return tabs;
     }
 
@@ -233,9 +241,94 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         return CreateScrollViewer(content);
     }
 
-    /// <remarks>
-    /// 這裡刻意不再放一次狀態徽章：抬頭已經有一個，而且三個分頁都看得到。
-    /// </remarks>
+    /// <summary>回答「哪些動作在重複」：統計不受通知可見度影響，隱藏的一樣計入。</summary>
+    private UIElement BuildNotificationDigest()
+    {
+        var content = CreateTabPanel();
+        content.Children.Add(SqlAssistChrome.CreateHint(
+            "本次工作階段每一件事的呼叫次數與耗時。被通知設定隱藏的、只進統計的與快取命中都逐次計入，" +
+            "畫面上合併成一列的重複也是。不保存 SQL、連線字串或例外內容。", Metrics));
+
+        var order = SqlAssistChrome.CreateComboBox(Metrics);
+        order.Items.Add(CountOrderText);
+        order.Items.Add(ElapsedOrderText);
+        order.SelectedIndex = 0;
+        order.Width = 132;
+        AutomationProperties.SetName(order, "工作階段統計的排序依據");
+
+        var chooser = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 12) };
+        var label = SqlAssistChrome.CreateLabel("排序", Metrics);
+        label.Margin = new Thickness(0, 0, 8, 0);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        chooser.Children.Add(label);
+        chooser.Children.Add(order);
+        content.Children.Add(chooser);
+
+        var rows = new StackPanel();
+        content.Children.Add(rows);
+        // 切換排序順便重讀統計；這一頁沒有自己的計時器，數字停在最後一次互動。
+        order.SelectionChanged += (_, _) => FillNotificationDigest(rows, order.SelectedIndex);
+        FillNotificationDigest(rows, order.SelectedIndex);
+        return CreateScrollViewer(content);
+    }
+
+    private void FillNotificationDigest(Panel rows, int selectedOrder)
+    {
+        try
+        {
+            rows.Children.Clear();
+            var entries = NotificationCenter.Default.Digest.Snapshot(selectedOrder == 1
+                ? NotificationDigestOrder.TotalElapsed
+                : NotificationDigestOrder.Count);
+            if (entries.Count == 0)
+            {
+                rows.Children.Add(SqlAssistChrome.CreateHint("目前沒有統計資料。", Metrics));
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                rows.Children.Add(CreateInfoRow(
+                    entry.IsOther ? "其他" : NotificationKindToggle.For(entry.Kind).Title,
+                    DescribeDigestEntry(entry)));
+            }
+        }
+        catch (Exception exception)
+        {
+            // 使用者剛切換的排序不能沒有反應；這裡不走安靜略過的平台探測。
+            ReportActionFailure("排序工作階段統計", exception);
+        }
+    }
+
+    private static string DescribeDigestEntry(NotificationDigestEntry entry)
+    {
+        var headline = entry.Subject.Length == 0 ? entry.Title : entry.Title + " · " + entry.Subject;
+        var stats = $"{entry.Count} 次 · 總 {FormatMilliseconds(entry.Total)}" +
+            $" · 平均 {FormatMilliseconds(entry.Average)} · 最大 {FormatMilliseconds(entry.Max)}";
+        if (entry.Failed > 0) stats += $" · 失敗 {entry.Failed}";
+        if (entry.Degraded > 0) stats += $" · 降級 {entry.Degraded}";
+        return headline + Environment.NewLine + stats;
+    }
+
+    /// <summary>統一用毫秒，讓不同量級的兩列仍然可以直接比大小。</summary>
+    private static string FormatMilliseconds(TimeSpan elapsed) =>
+        elapsed.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) + " ms";
+
+    private UIElement BuildNotificationFailures()
+    {
+        var content = CreateTabPanel();
+        content.Children.Add(SqlAssistChrome.CreateHint(
+            "本次工作階段最近 30 項失敗；重新開啟此視窗可更新。不保存 SQL、連線字串或例外內容。", Metrics));
+        var failures = SqlAssist.Core.Notifications.NotificationCenter.Default.RecentFailures;
+        if (failures.Count == 0)
+            content.Children.Add(SqlAssistChrome.CreateHint("目前沒有失敗紀錄。", Metrics));
+        foreach (var item in failures.Reverse())
+            content.Children.Add(CreateInfoRow(item.Finished?.ToLocalTime().ToString("HH:mm:ss") ?? "",
+                $"{item.Title} · {item.Context}\n{item.Kind} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
+        return CreateScrollViewer(content);
+    }
+
+    /// <remarks>不重複抬頭已顯示的狀態徽章。</remarks>
     private Border CreateHealthSummary()
     {
         var copy = new StackPanel();

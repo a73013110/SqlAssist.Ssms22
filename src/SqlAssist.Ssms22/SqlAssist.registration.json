@@ -503,6 +503,187 @@
       "additionalKeywords": [ "header", "檔頭", "來源", "產生時間", "版本" ]
     },
 
+    "sqlAssist.notifications.enabled": {
+      "type": "boolean",
+      "default": true,
+      "order": 100,
+      "title": "顯示通知提示",
+      "description": "在目前 SQL 編輯區右上角顯示執行中與近期完成的工作。"
+    },
+    "sqlAssist.notifications.glass": {
+      "type": "boolean",
+      "default": true,
+      "order": 110,
+      "title": "玻璃材質",
+      "description": "使用主題色的層次邊緣；高對比一律使用不透明材質。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.animation": {
+      "type": "boolean",
+      "default": true,
+      "order": 120,
+      "title": "淡入與淡出動畫",
+      "description": "控制通知進出、明細、狀態圖示及進度條動畫；預設獨立於 Windows 動畫偏好。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.forceAnimation": {
+      "type": "boolean",
+      "default": true,
+      "order": 125,
+      "title": "忽略 Windows 動畫設定",
+      "description": "僅強制此通知的所有動畫，不更動 Windows；高對比仍停用動畫，關閉上方動畫開關仍優先。",
+      "enableWhen": "${config:sqlAssist.notifications.animation} == 'true'"
+    },
+    "sqlAssist.notifications.expanded": {
+      "type": "boolean",
+      "default": true,
+      "order": 130,
+      "title": "預設展開明細",
+      "description": "顯示每一項的標題、對象與成功、部分成功、失敗、取消狀態。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.delay": {
+      "type": "integer",
+      "default": 0,
+      "order": 140,
+      "title": "顯示延遲（毫秒）",
+      "description": "延遲顯示提示；預設立即顯示。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "minimum": 0,
+      "maximum": 30000
+    },
+    "sqlAssist.notifications.retention": {
+      "type": "integer",
+      "default": 2500,
+      "order": 150,
+      "title": "完成保留時間（毫秒）",
+      "description": "完成項目到期後同時從完成數與總數扣除；失敗與部分成功至少保留六秒。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "minimum": 800,
+      "maximum": 30000
+    },
+    "sqlAssist.notifications.verbosity": {
+      "type": "string",
+      "default": "normal",
+      "order": 160,
+      "enum": [ "quiet", "normal", "verbose", "all" ],
+      "enumItemLabels": [
+        "安靜：只留下值得知道的事",
+        "一般：顯示各項工作",
+        "詳細：連逐次的細節工作都顯示",
+        "全部：連只進診斷統計的追蹤工作也顯示"
+      ],
+      "title": "詳細度",
+      "description": "決定工作要到哪一階才上畫面。你剛觸發的動作、失敗與部分成功不受這個門檻影響；「全部」會把打字時的追蹤工作也放上來。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "verbosity", "詳細", "安靜", "降噪", "太吵" ]
+    },
+    "sqlAssist.notifications.metadata": {
+      "type": "boolean",
+      "default": true,
+      "order": 200,
+      "title": "中繼資料載入",
+      "description": "自動發生的物件、欄位、定序與快取查詢；不包含快取命中。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.completion": {
+      "type": "boolean",
+      "default": false,
+      "order": 210,
+      "title": "建議清單",
+      "description": "輸入時準備、排序建議清單與參數提示；預設隱藏高頻提示。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.analysis": {
+      "type": "boolean",
+      "default": false,
+      "order": 220,
+      "title": "語法與區塊分析",
+      "description": "輸入時反覆執行的 T-SQL 分析；預設隱藏以減少干擾。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.preview": {
+      "type": "boolean",
+      "default": false,
+      "order": 230,
+      "title": "物件提示與結構預覽",
+      "description": "滑鼠停留提示與浮動結構預覽自己的載入工作。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.package": {
+      "type": "boolean",
+      "default": false,
+      "order": 240,
+      "title": "初始化與連線",
+      "description": "啟動 SqlAssist 的準備工作、建立與重新確認中繼資料連線。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.editing": {
+      "type": "boolean",
+      "default": true,
+      "order": 250,
+      "title": "編輯與展開",
+      "description": "按 Tab 展開 SELECT *、展開語句樣板與自動配對這類寫回編輯器的工作。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.navigation": {
+      "type": "boolean",
+      "default": true,
+      "order": 260,
+      "title": "移至定義",
+      "description": "F12 產生定義並另開查詢視窗的過程。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.results": {
+      "type": "boolean",
+      "default": true,
+      "order": 270,
+      "title": "結果格線",
+      "description": "從查詢結果產生指令碼、複製完整內容與剖析欄位。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.snippets": {
+      "type": "boolean",
+      "default": true,
+      "order": 280,
+      "title": "程式碼片段",
+      "description": "載入、儲存與還原內建及自訂片段。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.settings": {
+      "type": "boolean",
+      "default": true,
+      "order": 290,
+      "title": "設定",
+      "description": "重新讀取設定與套用到編輯器的結果回饋。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.unclassified": {
+      "type": "boolean",
+      "default": true,
+      "order": 300,
+      "title": "未分類",
+      "description": "還沒歸類的工作。預設顯示，關掉之後新加入的工作可能整批安靜消失。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "其他", "unclassified", "漏分類" ]
+    },
+    "sqlAssist.notifications.failures": {
+      "type": "boolean",
+      "default": true,
+      "order": 400,
+      "title": "顯示所有種類的失敗",
+      "description": "獨立控制錯誤提示，即使該種類已隱藏仍可顯示；不影響診斷紀錄。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
+    },
+    "sqlAssist.notifications.degraded": {
+      "type": "boolean",
+      "default": true,
+      "order": 410,
+      "title": "顯示部分成功",
+      "description": "主要結果拿到了、但有一部分資料取不到的工作；關掉之後它們併回一般成功。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "降級", "degraded", "部分資料", "取不到" ]
+    },
     "sqlAssist.diagnostics.verboseLogging": {
       "type": "boolean",
       "default": false,
@@ -514,6 +695,12 @@
   },
 
   "categories": {
+    "sqlAssist.notifications": {
+      "title": "通知與背景工作",
+      "description": "提示跟隨目前 SQL 編輯區，顯示全套件正在做與剛做完的事。",
+      "additionalKeywords": [ "背景", "背景工作", "提示", "notification", "進度" ],
+      "order": 475
+    },
     "sqlAssist": {
       "title": "SqlAssist",
       "description": "T-SQL 即時建議、程式碼片段與資料庫物件結構預覽。",

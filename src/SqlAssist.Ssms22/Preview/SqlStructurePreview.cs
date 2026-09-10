@@ -1,4 +1,6 @@
 using System;
+using SqlAssist.Core.Notifications;
+using SqlAssist.Ssms22.Editor;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -856,8 +858,10 @@ internal sealed class SqlStructurePreview
                 }
 
                 SqlAssistPlatformGuard.Begin(
-                    "取得最新的建議選取",
-                    () => RefreshSelectionAsync(session, source, generation));
+                    NotificationCatalog.RefreshingPreviewSelection,
+                    () => RefreshSelectionAsync(session, source, generation),
+                    NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Debug,
+                    ActiveSqlEditor.GetContextName(_view));
             }));
     }
 
@@ -1136,8 +1140,10 @@ internal sealed class SqlStructurePreview
 
         // 取消一律當成正常結束：換了物件或收起了視窗，什麼都不用做。
         SqlAssistPlatformGuard.Begin(
-            "載入結構預覽",
-            () => LoadAsync(objectInfo, metadataService, source, generation));
+            NotificationCatalog.LoadingStructurePreview,
+            () => LoadAsync(objectInfo, metadataService, source, generation),
+            NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Info,
+            ActiveSqlEditor.GetContextName(_view), objectInfo.QualifiedName);
     }
 
     private async Task LoadAsync(
@@ -1148,7 +1154,7 @@ internal sealed class SqlStructurePreview
     {
         var cancellationToken = source.Token;
         var structure = await metadataService
-            .GetStructureAsync(objectInfo, cancellationToken)
+            .GetStructureAsync(objectInfo, cancellationToken, NotificationOrigin.Typing)
             .ConfigureAwait(false);
 
         await _view.VisualElement.Dispatcher.InvokeAsync(

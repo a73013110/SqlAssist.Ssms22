@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Utilities.UnifiedSettings;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22;
 
@@ -213,10 +214,22 @@ internal static class SqlAssistSettingsStore
             return;
         }
 
+        // 設定頁按下去與殼層自己推的更新走同一條路，分不出誰觸發的；
+        // 一律標 Ambient，讓它跟著詳細度門檻走而不是無條件顯示。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.ReloadingSettings,
+            NotificationKind.Settings, NotificationOrigin.Ambient, NotificationLevel.Debug);
         // 保留上一份可用的快照，總比切回預設值讓使用者的設定突然失效好。
-        SqlAssistPlatformGuard.Run(
-            "重新讀取設定",
-            () => _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader)));
+        if (!SqlAssistPlatformGuard.Run(
+                "重新讀取設定",
+                () =>
+                {
+                    _current = SqlAssistSettingsReader.Read(new UnifiedSettingsSource(reader));
+                    return true;
+                },
+                fallback: false))
+        {
+            notification.Fail();
+        }
 
         NotifyChanged();
         // 語言偏好還要推到擴充外面去。

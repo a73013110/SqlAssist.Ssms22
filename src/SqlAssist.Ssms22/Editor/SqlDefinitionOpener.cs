@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -105,6 +106,11 @@ internal sealed class SqlDefinitionOpener
     /// </remarks>
     private async Task OpenAsync(ITextSnapshot snapshot, int position)
     {
+        // 使用者自己按下 F12，因此是 User——它跨得過降噪門檻，但跨不過「移至定義」
+        // 那一格開關，關掉的人就是不想再看到這一列。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.GoingToDefinition,
+            NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Info,
+            context: ActiveSqlEditor.GetContextName(_textView));
         string? failure = null;
 
         try
@@ -120,6 +126,7 @@ internal sealed class SqlDefinitionOpener
         }
         finally
         {
+            if (failure is not null) notification.Fail();
             Volatile.Write(ref _inFlight, 0);
         }
 
@@ -154,7 +161,7 @@ internal sealed class SqlDefinitionOpener
         var text = await Task.Run(() => snapshot.GetText()).ConfigureAwait(false);
 
         var location = await SqlObjectLocator
-            .LocateAsync(_metadataService, text, position, CancellationToken.None)
+            .LocateAsync(_metadataService, text, position, CancellationToken.None, NotificationOrigin.User)
             .ConfigureAwait(false);
 
         if (location is null)
@@ -173,7 +180,7 @@ internal sealed class SqlDefinitionOpener
         }
 
         var structure = await _metadataService
-            .GetStructureAsync(objectInfo, CancellationToken.None)
+            .GetStructureAsync(objectInfo, CancellationToken.None, NotificationOrigin.User)
             .ConfigureAwait(false);
 
         if (structure is null)
@@ -184,7 +191,14 @@ internal sealed class SqlDefinitionOpener
         // 目的地是 SSMS 剛開的空白查詢視窗，那份文件一行都還沒有——
         // SnapshotNewLine 在空白緩衝區上算出來的就是這個值。先在背景組好，
         // 才不必為了一份幾萬行的定義讓 UI 執行緒等一次字串處理。
-        var script = SqlObjectScript.BuildEditable(structure, SqlScriptPreferences.CreateForExecution(Environment.NewLine, structure.Object));
+        SqlObjectScriptText script;
+
+        using (NotificationCenter.Default.Begin(NotificationCatalog.GeneratingDefinitionScript,
+                   NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Info,
+                   objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView)))
+        {
+            script = SqlObjectScript.BuildEditable(structure, SqlScriptPreferences.CreateForExecution(Environment.NewLine, structure.Object));
+        }
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         return Write(script, objectInfo);
@@ -202,10 +216,14 @@ internal sealed class SqlDefinitionOpener
             return null;
         }
 
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.OpeningQueryWindow,
+            NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Debug,
+            objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView));
         var view = SsmsScriptWindow.TryCreateBlankQuery(_serviceProvider, out var failure);
 
         if (view is null)
         {
+            notification.Fail();
             return failure;
         }
 
@@ -218,8 +236,12 @@ internal sealed class SqlDefinitionOpener
         // 空白查詢視窗的樣板是一個 0 位元組的檔案，所以這一道守門平常永遠成立。
         // 它擋的是「拿到的不是剛開的那個視窗」——那一次會把指令碼蓋到使用者
         // 正在編輯的查詢上，而那是無法復原的損失。
-        return new TextViewEditCoordinator(view).InsertIntoBlank(replacement)
-            ? null
-            : "新查詢視窗不是空的，已取消寫入定義。";
+        if (new TextViewEditCoordinator(view).InsertIntoBlank(replacement))
+        {
+            return null;
+        }
+
+        notification.Fail();
+        return "新查詢視窗不是空的，已取消寫入定義。";
     }
 }

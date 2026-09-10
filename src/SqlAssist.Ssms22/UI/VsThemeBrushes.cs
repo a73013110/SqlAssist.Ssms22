@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Styles;
+using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -48,7 +49,7 @@ internal static class VsThemeBrushes
         _dispatcher = dispatcher;
         Refresh();
         _refreshQueue = new ThemeRefreshQueue(dispatcher,
-            () => SqlAssistPlatformGuard.Probe("更新佈景主題筆刷", Refresh));
+            () => SqlAssistPlatformGuard.Probe("更新佈景主題筆刷", RefreshTracked));
         VSColorTheme.ThemeChanged += OnThemeChanged;
         SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
     }
@@ -60,6 +61,21 @@ internal static class VsThemeBrushes
         _refreshQueue?.Dispose();
         _refreshQueue = null;
         _dispatcher = null;
+    }
+
+    /// <summary>
+    /// 與 <see cref="Refresh"/> 同一件事，只是整批追蹤成一則通知。
+    /// </summary>
+    /// <remarks>
+    /// 初始化那一次不追蹤：套件初始化已經是一則通知，主題筆刷是它裡面的一步。
+    /// 之後每一次都是殼層廣播換佈景或高對比觸發的，沒有人要求，因此是 Ambient；
+    /// 等級 Trace——正常情況下它從不失敗，而失敗有獨立通道。
+    /// </remarks>
+    private static void RefreshTracked()
+    {
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.RebuildingThemeBrushes,
+            NotificationKind.Settings, NotificationOrigin.Ambient, NotificationLevel.Trace);
+        Refresh();
     }
 
     private static void OnThemeChanged(ThemeChangedEventArgs args) => QueueRefresh();

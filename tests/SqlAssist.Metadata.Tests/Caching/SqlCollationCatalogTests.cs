@@ -141,7 +141,7 @@ public sealed class SqlCollationCatalogTests
             SqlMetadataFailure.Reporter = previous;
         }
 
-        Assert.Contains(reported, line => line.StartsWith("定序名單", StringComparison.Ordinal));
+        Assert.Contains(reported, line => line.StartsWith("載入定序名單", StringComparison.Ordinal));
     }
 
     private static SqlMetadataCatalog Create(ISqlConnectionSource source) =>

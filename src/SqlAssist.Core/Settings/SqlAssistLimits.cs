@@ -12,6 +12,7 @@ namespace SqlAssist.Core.Settings;
 /// </remarks>
 public static class SqlAssistLimits
 {
+    public static int ClampNotificationTime(int value, int minimum) => System.Math.Max(minimum, System.Math.Min(30000, value));
     public const int DefaultBlockDebounce = 150;
     public static int ClampBlockDebounce(int value) => Clamp(value, 50, 2000);
 

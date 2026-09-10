@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
@@ -325,9 +326,13 @@ internal sealed class SqlCommitExpander
     /// <summary>在背景取得物件細節並替換整個語句。</summary>
     public void Begin(ISqlCommitExpansion expansion, ITrackingSpan statementSpan, string insertedName)
     {
+        // 標題是常數，展開的是哪一種語句由 Subject 上的物件名稱說明——原本的
+        // $"展開{OperationName}" 每按一次 Tab 就配置一次，而這一列預設是關著的。
         SqlAssistPlatformGuard.Begin(
-            $"展開{expansion.OperationName}",
-            () => ExpandAsync(expansion, statementSpan, insertedName));
+            NotificationCatalog.ExpandingStatement,
+            () => ExpandAsync(expansion, statementSpan, insertedName),
+            NotificationKind.Editing, NotificationOrigin.User, NotificationLevel.Info,
+            ActiveSqlEditor.GetContextName(_textView), expansion.Object.QualifiedName);
     }
 
     private async Task ExpandAsync(
@@ -336,7 +341,7 @@ internal sealed class SqlCommitExpander
         string insertedName)
     {
         var detail = expansion.KnownDetail ?? await _metadataService
-            .GetDetailAsync(expansion.Object, CancellationToken.None)
+            .GetDetailAsync(expansion.Object, CancellationToken.None, NotificationOrigin.User)
             .ConfigureAwait(false);
 
         if (detail is null)

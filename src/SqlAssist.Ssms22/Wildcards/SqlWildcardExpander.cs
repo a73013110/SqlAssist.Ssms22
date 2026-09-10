@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Wildcards;
@@ -109,8 +110,10 @@ internal sealed class SqlWildcardExpander
         // 一定要換到背景執行緒：解析連線那一步有 UI 執行緒相依性，實測塞住時要 1908 ms，
         // 在原地開始等於按一次 Tab 就讓編輯器停格將近兩秒。
         SqlAssistPlatformGuard.Begin(
-            "展開萬用字元",
-            () => Task.Run(() => ExpandAsync(target, span, settings)));
+            NotificationCatalog.ExpandingWildcard,
+            () => Task.Run(() => ExpandAsync(target, span, settings)),
+            NotificationKind.Editing, NotificationOrigin.User, NotificationLevel.Info,
+            ActiveSqlEditor.GetContextName(_textView));
         return true;
     }
 

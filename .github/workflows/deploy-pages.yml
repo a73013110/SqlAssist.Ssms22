@@ -97,7 +97,7 @@ jobs:
             },
 
             head: [
-              ['link', { rel: 'icon', href: '/images/hero.png' }],
+              ['link', { rel: 'icon', href: '/images/logo.png' }],
               ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22, 結構預覽, 自動補全' }],
               ['meta', { property: 'og:title', content: 'SqlAssist for SSMS 22' }],
               ['meta', { property: 'og:description', content: '為 SSMS 22.9.x 量身打造的 T-SQL 智慧自動補全與結構預覽外掛。純本地執行、毫秒級響應。' }],
@@ -106,7 +106,7 @@ jobs:
             ],
 
             themeConfig: {
-              logo: '/images/hero.png',
+              logo: '/images/logo.png',
               siteTitle: 'SqlAssist',
 
               nav: [

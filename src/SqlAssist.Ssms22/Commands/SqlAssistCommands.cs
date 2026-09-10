@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
@@ -336,7 +337,8 @@ internal sealed class SqlAssistCommands
                 metadataService,
                 text,
                 caret.Position,
-                CancellationToken.None);
+                CancellationToken.None,
+                NotificationOrigin.User);
 
             if (location is null)
             {
