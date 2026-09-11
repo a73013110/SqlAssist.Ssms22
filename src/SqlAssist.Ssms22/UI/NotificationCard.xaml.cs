@@ -148,10 +148,10 @@ internal partial class NotificationCard : Border
         Progress.ToolTip = description;
         AutomationProperties.SetName(Progress, description);
         AutomationProperties.SetName(this, description);
-        // 所有工作共享來源時只在抬頭下方顯示一次；混合來源仍保留各列的歸屬。
-        var commonContext = items.Count > 0 && items.All(x => x.Context == items[0].Context) ? items[0].Context : "";
-        ContextLabel.Text = commonContext; ContextLabel.ToolTip = commonContext;
-        ContextLabel.Visibility = commonContext.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // 全部指向同一份文件時只在抬頭下方顯示一次；指向不同文件才保留各列的歸屬。
+        var commonDocument = CommonDocument(items);
+        ContextLabel.Text = commonDocument; ContextLabel.ToolTip = commonDocument;
+        ContextLabel.Visibility = commonDocument.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var id in _rows.Keys.Where(id => items.All(x => x.Id != id)).ToArray())
         { _rows[id].StopMotion(); DetailsPanel.Children.Remove(_rows[id]); _rows.Remove(id); }
         var index = 0;
@@ -162,7 +162,7 @@ internal partial class NotificationCard : Border
             if (row is null) { row = new NotificationRow(item); _rows.Add(item.Id, row); }
             if (DetailsPanel.Children.IndexOf(row) != index)
             { DetailsPanel.Children.Remove(row); DetailsPanel.Children.Insert(index, row); }
-            row.Update(item, commonContext.Length == 0, motion && expanded);
+            row.Update(item, commonDocument.Length == 0, motion && expanded);
             // 首次展開由整個明細區動畫；同時把各列高度歸零會量到零高度而在結尾跳動。
             if (added && expanded && _expanded)
                 row.Reveal(motion, DetailsPanel.ActualWidth > 0 ? DetailsPanel.ActualWidth : Math.Max(0, Math.Min(Width, MaxWidth) - 18));
@@ -211,6 +211,28 @@ internal partial class NotificationCard : Border
             DetailScroll.BeginAnimation(OpacityProperty, null);
             DetailScroll.BeginAnimation(HeightProperty, null);
         }
+    }
+
+    /// <summary>
+    /// 這一批共同的文件；指向兩份以上文件時回空字串。
+    /// </summary>
+    /// <remarks>
+    /// 沒有文件的列（套件初始化、重建主題筆刷、中繼資料查詢）不參與比較。它們算進來的話，
+    /// 一列不屬於任何文件的背景工作就會把抬頭那一行整個收掉，而畫面上的其他列明明都來自
+    /// 同一份查詢——那正是檔名時有時無的成因。
+    /// </remarks>
+    private static string CommonDocument(IReadOnlyList<NotificationCardItem> items)
+    {
+        var common = "";
+        for (var index = 0; index < items.Count; index++)
+        {
+            var document = items[index].Document;
+            if (document.Length == 0) continue;
+            if (common.Length == 0) common = document;
+            else if (!string.Equals(common, document, StringComparison.Ordinal)) return "";
+        }
+
+        return common;
     }
 
     internal void Transition(bool show, bool fresh, bool motion, NotificationPosition position)

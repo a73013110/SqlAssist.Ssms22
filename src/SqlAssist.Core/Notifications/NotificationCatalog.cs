@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Notifications;
 /// <remarks>
 /// 文案契約：<see cref="NotificationItem.Title"/> 是動詞開頭的現在進行式短語、常數字串，
 /// 不含物件名稱、不含狀態、不加標點。物件限定名稱放 <see cref="NotificationItem.Subject"/>，
-/// 來源文件或資料庫放 <see cref="NotificationItem.Context"/>。
+/// 發起的文件放 <see cref="NotificationItem.Document"/>，資料庫放 <see cref="NotificationItem.Source"/>。
 ///
 /// 常數而不是內插字串，是因為通知在熱路徑上：建議清單每按一次鍵開一次，
 /// 中繼資料每一條查詢開一次。組字串的版本即使通知被可見度篩掉也已經配置完畢，
@@ -26,6 +26,9 @@ public static class NotificationCatalog
 
     /// <summary>完成後轉過去式用的前綴；目錄裡每一個標題都是動詞開頭，接得上。</summary>
     private const string PastTense = "已";
+
+    /// <summary>同一行裡兩段文字之間的分隔。</summary>
+    private const string Separator = " · ";
 
     // ── 中繼資料 ──────────────────────────────────────────────────────────
     public const string LoadingObjects = "載入物件清單";
@@ -95,6 +98,25 @@ public static class NotificationCatalog
             ? PastTense + item.Title + FormatElapsed(item)
             : item.Title;
     }
+
+    /// <summary>
+    /// 一列的出處：「哪一份文件 · 哪一個資料庫」。
+    /// </summary>
+    /// <remarks>
+    /// 分隔符號與缺一半時的寫法集中在這裡：通知卡片與「關於與診斷」的失敗列都要寫這一句，
+    /// 兩邊各拼一次就會在同一份資料上出現兩種讀法。
+    /// </remarks>
+    public static string Provenance(string document, string source)
+    {
+        document ??= ""; source ??= "";
+        if (document.Length == 0) return source;
+        return source.Length == 0 ? document : document + Separator + source;
+    }
+
+    /// <inheritdoc cref="Provenance(string, string)"/>
+    public static string Provenance(NotificationItem item) => item is null
+        ? throw new ArgumentNullException(nameof(item))
+        : Provenance(item.Document, item.Source);
 
     /// <summary>狀態列與輔助技術唸出來的那一句。</summary>
     public static string StatusText(NotificationStatus status) => status switch

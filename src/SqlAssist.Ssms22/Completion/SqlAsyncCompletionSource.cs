@@ -235,7 +235,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 就走一次，因此不是 User；「建議清單」那一格預設關著，想看的人自己打開。
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.PreparingSuggestions,
             NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Info,
-            DescribeTarget(context.Target), ActiveSqlEditor.GetContextName(_textView));
+            DescribeTarget(context.Target), ActiveSqlEditor.GetDocumentName(_textView));
 
         // 限定字最左邊那一段是結構描述、資料庫還是連結伺服器，只看文字分不出來。
         // 在問清單之前就換成對齊過的上下文，後面的候選來源、過濾與插入文字才會
@@ -248,7 +248,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             // 是卡在這一步還是卡在候選清單上。
             using (NotificationCenter.Default.Begin(NotificationCatalog.ResolvingQualifier,
                        NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
-                       context.Prefix, ActiveSqlEditor.GetContextName(_textView)))
+                       context.Prefix, ActiveSqlEditor.GetDocumentName(_textView)))
             {
                 context = await _metadataService
                     .ResolveQualifierAsync(context, token)
@@ -407,7 +407,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         using var notification = NotificationCenter.Default.Begin(
             NotificationCatalog.LoadingSuggestionDescription, NotificationKind.Completion,
             NotificationOrigin.Typing, NotificationLevel.Debug,
-            objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView));
+            objectInfo.QualifiedName, ActiveSqlEditor.GetDocumentName(_textView));
         var detail = await _metadataService
             .GetDetailAsync(objectInfo, token, NotificationOrigin.Typing)
             .ConfigureAwait(false);

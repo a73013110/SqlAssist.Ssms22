@@ -113,7 +113,7 @@ internal sealed class SqlWildcardExpander
             NotificationCatalog.ExpandingWildcard,
             () => Task.Run(() => ExpandAsync(target, span, settings)),
             NotificationKind.Editing, NotificationOrigin.User, NotificationLevel.Info,
-            ActiveSqlEditor.GetContextName(_textView));
+            ActiveSqlEditor.GetDocumentName(_textView));
         return true;
     }
 

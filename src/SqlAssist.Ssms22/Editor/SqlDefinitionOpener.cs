@@ -110,7 +110,7 @@ internal sealed class SqlDefinitionOpener
         // 那一格開關，關掉的人就是不想再看到這一列。
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.GoingToDefinition,
             NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Info,
-            context: ActiveSqlEditor.GetContextName(_textView));
+            document: ActiveSqlEditor.GetDocumentName(_textView));
         string? failure = null;
 
         try
@@ -195,7 +195,7 @@ internal sealed class SqlDefinitionOpener
 
         using (NotificationCenter.Default.Begin(NotificationCatalog.GeneratingDefinitionScript,
                    NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Info,
-                   objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView)))
+                   objectInfo.QualifiedName, ActiveSqlEditor.GetDocumentName(_textView)))
         {
             script = SqlObjectScript.BuildEditable(structure, SqlScriptPreferences.CreateForExecution(Environment.NewLine, structure.Object));
         }
@@ -218,7 +218,7 @@ internal sealed class SqlDefinitionOpener
 
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.OpeningQueryWindow,
             NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Debug,
-            objectInfo.QualifiedName, ActiveSqlEditor.GetContextName(_textView));
+            objectInfo.QualifiedName, ActiveSqlEditor.GetDocumentName(_textView));
         var view = SsmsScriptWindow.TryCreateBlankQuery(_serviceProvider, out var failure);
 
         if (view is null)

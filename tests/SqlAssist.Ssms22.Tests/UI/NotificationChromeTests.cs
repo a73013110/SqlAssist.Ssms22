@@ -36,7 +36,7 @@ public sealed class NotificationChromeTests
         WpfTest.Run(() =>
         {
             var center = new NotificationCenter();
-            var task = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "LibArchive");
+            var task = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, source: "LibArchive");
             var root = SqlAssistChrome.CreateNotificationCard();
             var details = root.DetailsPanel;
             root.Update(Cards(center), true, true);
@@ -91,7 +91,7 @@ public sealed class NotificationChromeTests
         WpfTest.Run(() =>
         {
             var root = new NotificationCard();
-            var item = new NotificationCardItem(7, "已還原預設片段", "SELECT 範本", "Loan.sql", "已寫回使用者資料夾",
+            var item = new NotificationCardItem(7, "已還原預設片段", "SELECT 範本", "Loan.sql", "", "已寫回使用者資料夾",
                 NotificationVisualStatus.Completed, "已完成", 1);
             root.Update(new[] { item }, true, false);
             var row = Assert.IsType<NotificationRow>(root.DetailsPanel.Children[0]);
@@ -152,10 +152,10 @@ public sealed class NotificationChromeTests
             Directory.CreateDirectory(directory);
             var root = SqlAssistChrome.CreateNotificationCard();
             var center = new NotificationCenter();
-            using var running = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "LibArchive.sql");
+            using var running = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "LibArchive.sql");
             running.Report("正在建立區塊結構");
-            using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "Loan.sql")) { }
-            using (var failure = center.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "Copy.sql")) failure.Fail();
+            using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "Loan.sql")) { }
+            using (var failure = center.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "Copy.sql")) failure.Fail();
             for (var i = 0; i < 4; i++)
                 using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info,
                            "dbo.Lib_Reader", "Lib_Reader_LongFileName.sql")) { }
@@ -166,11 +166,11 @@ public sealed class NotificationChromeTests
                 .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
             frame.Resources.MergedDictionaries.Add(resources.Resources);
             var common = new NotificationCenter();
-            using var analysis = common.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql");
+            using var analysis = common.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql");
             analysis.Report("正在建立區塊結構");
-            using (common.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql")) { }
-            using (common.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql")) { }
-            using (var failure = common.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql")) failure.Fail();
+            using (common.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql")) { }
+            using (common.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql")) { }
+            using (var failure = common.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql")) failure.Fail();
             foreach (var shared in new[] { false, true })
             {
             // 不同測試來源的流水號會重複，須換表面以符合正式環境單一通知來源的契約。
@@ -207,7 +207,7 @@ public sealed class NotificationChromeTests
             var root = SqlAssistChrome.CreateNotificationCard();
             root.Update(new[]
             {
-                new NotificationCardItem(1, new string('長', 200), new string('名', 60), new string('源', 200), "",
+                new NotificationCardItem(1, new string('長', 200), new string('名', 60), new string('源', 200), "", "",
                     NotificationVisualStatus.Running, "執行中", 1)
             }, true, false);
             root.Constrain(new Size(260, 200));
@@ -275,7 +275,7 @@ public sealed class NotificationChromeTests
             var summary = root.SummaryButton;
             var details = root.DetailsPanel;
             var center = new NotificationCenter();
-            using var running = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "Lib_Reader.sql");
+            using var running = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "Lib_Reader.sql");
             // 主體各不相同才會保持六列；合併只收攏完全相同的那幾次。
             for (var i = 0; i < 6; i++)
                 using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info,
@@ -338,8 +338,8 @@ public sealed class NotificationChromeTests
         {
             var root = new NotificationCard();
             var center = new NotificationCenter();
-            using var first = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql");
-            using var second = center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "SQLQuery1.sql");
+            using var first = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql");
+            using var second = center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "SQLQuery1.sql");
             root.Update(Cards(center), true, false);
             Assert.Equal("SQLQuery1.sql", root.ContextLabel.Text);
             Assert.Equal(Visibility.Visible, root.ContextLabel.Visibility);
@@ -352,13 +352,48 @@ public sealed class NotificationChromeTests
             Assert.Equal("正在建立區塊結構", ((TextBlock)text.Children[2]).Text);
             root.Measure(new Size(250, 500)); root.Arrange(new Rect(root.DesiredSize)); root.UpdateLayout();
             Assert.True(((TextBlock)text.Children[0]).ActualWidth >= 200);
-            using var third = center.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "Loan.sql");
+            using var third = center.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "Loan.sql");
             root.Update(Cards(center), true, false);
             Assert.Equal(Visibility.Collapsed, root.ContextLabel.Visibility);
             Assert.Equal(Visibility.Visible, ((TextBlock)text.Children[1]).Visibility);
             root.Transition(true, true, SqlAssistChrome.NotificationMotionEnabled(true, true, false, false), NotificationPosition.TopRight);
             Assert.True(root.HasAnimatedProperties);
             root.StopMotion();
+        });
+    }
+
+    /// <summary>
+    /// 抬頭那一行回答「這一批在哪一份文件上」，只看有文件的那幾列。
+    /// </summary>
+    /// <remarks>
+    /// 文件與資料庫共用一格的版本，只要混進一列資料庫名或一列沒有出處的背景工作，
+    /// 抬頭的檔名就整個收掉——同一次查詢看起來是檔名時有時無。
+    /// </remarks>
+    [Fact]
+    public void 沒有文件的工作不收掉抬頭的檔名()
+    {
+        WpfTest.Run(() =>
+        {
+            var root = new NotificationCard();
+            var suggestions = new NotificationCardItem(1, "已準備建議清單", "資料行", "SQLQuery1.sql", "", "",
+                NotificationVisualStatus.Completed, "已完成", 1);
+            var objects = new NotificationCardItem(2, "已載入物件清單", "", "", "LibArchive", "",
+                NotificationVisualStatus.Completed, "已完成", 1);
+            var startup = new NotificationCardItem(3, "已初始化 SqlAssist", "", "", "", "",
+                NotificationVisualStatus.Completed, "已完成", 1);
+            root.Update(new[] { suggestions, objects, startup }, true, false);
+            Assert.Equal("SQLQuery1.sql", root.ContextLabel.Text);
+            Assert.Equal(Visibility.Visible, root.ContextLabel.Visibility);
+            // 抬頭已經寫了文件，列上只留資料庫；兩者都沒有的那一列不預留空白行。
+            Assert.Equal(Visibility.Collapsed, SourceLine(root, 0).Visibility);
+            Assert.Equal("LibArchive", SourceLine(root, 1).Text);
+            Assert.Equal(Visibility.Collapsed, SourceLine(root, 2).Visibility);
+
+            // 指向兩份文件才收掉抬頭，並把文件補回各列。
+            root.Update(new[] { suggestions, objects with { Id = 4, Document = "Loan.sql" } }, true, false);
+            Assert.Equal(Visibility.Collapsed, root.ContextLabel.Visibility);
+            Assert.Equal("SQLQuery1.sql", SourceLine(root, 0).Text);
+            Assert.Equal("Loan.sql · LibArchive", SourceLine(root, 1).Text);
         });
     }
 
@@ -369,4 +404,12 @@ public sealed class NotificationChromeTests
         (System.Windows.Shapes.Path)((Grid)row.Child).Children[0];
 
     private static Border Badge(NotificationRow row) => (Border)((Grid)row.Child).Children[2];
+
+    /// <summary>列上那一行出處：標題下方、訊息上方。</summary>
+    private static TextBlock SourceLine(NotificationCard root, int index)
+    {
+        var row = Assert.IsType<NotificationRow>(root.DetailsPanel.Children[index]);
+        var text = Assert.IsType<StackPanel>(Assert.IsType<Grid>(row.Child).Children[1]);
+        return (TextBlock)text.Children[1];
+    }
 }

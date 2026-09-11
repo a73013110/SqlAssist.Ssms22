@@ -26,7 +26,7 @@ public sealed class NotificationHostTests
         var item = Assert.Single(NotificationHost.Project(Read(center), new SqlAssistSettings()).Items);
         Assert.Equal("已載入欄位與定義", item.Title);
         Assert.Equal("dbo.Loan", item.Subject);
-        Assert.Equal("Loan.sql", item.Context);
+        Assert.Equal("Loan.sql", item.Document);
         Assert.Equal(NotificationVisualStatus.Completed, item.Status);
         Assert.Equal("已完成", item.StatusText);
         Assert.Equal(3, item.Repeat);
@@ -147,6 +147,24 @@ public sealed class NotificationHostTests
         // 每個編輯區各自訂閱通知來源的版本已經改成訂閱呈現端。
         Assert.Contains("NotificationHost.Default.Changed += OnNotifications;", source, StringComparison.Ordinal);
         Assert.DoesNotContain("NotificationCenter.Default", source, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 卡片不歸編輯區持有，換編輯區也不算這一批結束。
+    /// </summary>
+    /// <remarks>
+    /// 每個編輯區各建一張卡片的版本，F12 開新查詢視窗會讓同一份提示整個重建；
+    /// 而把「不是我的了」當成結束，接手的那一個就會重播入場動畫。判斷本身在
+    /// <c>NotificationHandover</c>，這裡看的是接線。
+    /// </remarks>
+    [Fact]
+    public void 卡片不由編輯區持有且交接不算結束()
+    {
+        var source = ReadProductSource("Editor/NotificationAdornment.cs");
+        Assert.DoesNotContain("CreateNotificationCard", source, StringComparison.Ordinal);
+        Assert.Contains("NotificationSurface.Default", source, StringComparison.Ordinal);
+        var refresh = Section(source, "private void Refresh()", "private void PositionSurface");
+        Assert.Contains("Hide(now, retire: !enabled);", refresh, StringComparison.Ordinal);
     }
 
     private static string Section(string source, string start, string end)

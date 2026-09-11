@@ -150,7 +150,7 @@ internal sealed class SqlSignatureHelp
             NotificationCatalog.ShowingSignatureHelp,
             () => RequestAsync(snapshot, text, position),
             NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
-            ActiveSqlEditor.GetContextName(_textView));
+            ActiveSqlEditor.GetDocumentName(_textView));
     }
 
     /// <summary>

@@ -32,6 +32,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCardItem.cs" Link="Product\UI\NotificationCardItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationRow.cs" Link="Product\UI\NotificationRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Editor\NotificationHost.cs" Link="Product\Editor\NotificationHost.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Editor\NotificationHandover.cs" Link="Product\Editor\NotificationHandover.cs" />
     <Page Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCard.xaml" Link="UI\NotificationCard.xaml" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCard.xaml.cs" Link="UI\NotificationCard.xaml.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlDataGridText.cs" Link="Product\UI\SqlDataGridText.cs" />

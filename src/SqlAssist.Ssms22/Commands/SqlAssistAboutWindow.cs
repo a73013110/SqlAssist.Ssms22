@@ -324,7 +324,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             content.Children.Add(SqlAssistChrome.CreateHint("目前沒有失敗紀錄。", Metrics));
         foreach (var item in failures.Reverse())
             content.Children.Add(CreateInfoRow(item.Finished?.ToLocalTime().ToString("HH:mm:ss") ?? "",
-                $"{item.Title} · {item.Context}\n{item.Kind} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
+                $"{item.Title} · {NotificationCatalog.Provenance(item)}\n{item.Kind} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
         return CreateScrollViewer(content);
     }
 

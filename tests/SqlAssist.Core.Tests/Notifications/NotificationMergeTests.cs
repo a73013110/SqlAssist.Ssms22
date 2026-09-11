@@ -9,20 +9,21 @@ namespace SqlAssist.Core.Tests.Notifications;
 public sealed class NotificationMergeTests
 {
     [Fact]
-    public void 種類標題主體與來源任一不同就不合併()
+    public void 種類標題主體文件與資料庫任一不同就不合併()
     {
         var now = DateTimeOffset.UtcNow;
         var center = new NotificationCenter(() => now);
-        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", context: "LibArchive");
-        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", context: "LibArchive");
-        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Copy", context: "LibArchive");
-        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", context: "LibReports");
-        Complete(center, NotificationCatalog.LoadingIndexes, subject: "dbo.Loan", context: "LibArchive");
+        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", document: "Loan.sql", source: "LibArchive");
+        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", document: "Loan.sql", source: "LibArchive");
+        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Copy", document: "Loan.sql", source: "LibArchive");
+        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", document: "Loan.sql", source: "LibReports");
+        Complete(center, NotificationCatalog.LoadingColumns, subject: "dbo.Loan", document: "Report.sql", source: "LibArchive");
+        Complete(center, NotificationCatalog.LoadingIndexes, subject: "dbo.Loan", document: "Loan.sql", source: "LibArchive");
         Complete(center, NotificationCatalog.LoadingColumns, kind: NotificationKind.Preview,
-            subject: "dbo.Loan", context: "LibArchive");
+            subject: "dbo.Loan", document: "Loan.sql", source: "LibArchive");
 
         var merged = NotificationMerge.Collapse(Read(center));
-        Assert.Equal(5, merged.Count);
+        Assert.Equal(6, merged.Count);
         Assert.Equal(2, merged[0].Repeat);
         Assert.All(merged.Skip(1), item => Assert.Equal(1, item.Repeat));
     }
@@ -103,13 +104,15 @@ public sealed class NotificationMergeTests
     }
 
     private static NotificationScope Begin(NotificationCenter center, string title,
-        NotificationKind kind = NotificationKind.Metadata, string subject = "", string context = "") =>
-        center.BeginDetached(title, kind, NotificationOrigin.Typing, NotificationLevel.Info, subject, context);
+        NotificationKind kind = NotificationKind.Metadata, string subject = "",
+        string document = "", string source = "") =>
+        center.BeginDetached(title, kind, NotificationOrigin.Typing, NotificationLevel.Info, subject, document, source);
 
     private static void Complete(NotificationCenter center, string title, Action<NotificationScope>? result = null,
-        NotificationKind kind = NotificationKind.Metadata, string subject = "", string context = "")
+        NotificationKind kind = NotificationKind.Metadata, string subject = "",
+        string document = "", string source = "")
     {
-        using var scope = Begin(center, title, kind, subject, context);
+        using var scope = Begin(center, title, kind, subject, document, source);
         result?.Invoke(scope);
     }
 

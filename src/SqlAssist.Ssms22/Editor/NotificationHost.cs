@@ -136,7 +136,8 @@ internal sealed class NotificationHost
         item.Id,
         NotificationCatalog.Headline(item),
         item.Subject,
-        item.Context,
+        item.Document,
+        item.Source,
         NotificationCatalog.ResultMessage(item),
         // Degraded 還沒有專屬視覺，暫時落在取消的叉號上；警告圖示與警告色需要新的主題筆刷。
         item.Status switch

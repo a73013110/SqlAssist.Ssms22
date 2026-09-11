@@ -94,7 +94,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         // 那一格預設關著，想看背景在載入什麼的人自己打開。
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.PreparingObjectHint,
             NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Info,
-            context: ActiveSqlEditor.GetContextName(textView));
+            document: ActiveSqlEditor.GetDocumentName(textView));
 
         var snapshot = _textBuffer.CurrentSnapshot;
         var triggerPoint = session.GetTriggerPoint(snapshot);

@@ -175,7 +175,7 @@ internal static class SqlAssistPlatformGuard
     /// <see cref="NotificationOrigin.Ambient"/>。
     /// </param>
     /// <param name="level">詳細度門檻。</param>
-    /// <param name="context">
+    /// <param name="document">
     /// 文件延後工作必須帶原始來源，不能在執行時猜目前取得焦點的文件。
     /// </param>
     /// <param name="subject">這件事作用在哪個物件；沒有單一物件時留空。</param>
@@ -185,17 +185,17 @@ internal static class SqlAssistPlatformGuard
     /// </remarks>
     public static void Begin(string operation, Func<Task> work,
         NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
-        string context, string subject = "")
+        string document, string subject = "")
     {
-        _ = AwaitAsync(operation, work, expected: false, context, kind, origin, level, subject);
+        _ = AwaitAsync(operation, work, expected: false, document, kind, origin, level, subject);
     }
 
     /// <inheritdoc cref="Begin(string, Func{Task}, NotificationKind, NotificationOrigin, NotificationLevel, string, string)"/>
     public static void Begin(string operation, Action work,
         NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
-        string context, string subject = "")
+        string document, string subject = "")
     {
-        Begin(operation, () => Task.Run(work), kind, origin, level, context, subject);
+        Begin(operation, () => Task.Run(work), kind, origin, level, document, subject);
     }
 
     /// <summary>
@@ -216,7 +216,7 @@ internal static class SqlAssistPlatformGuard
         BeginProbe(operation, () => Task.Run(work));
     }
 
-    private static async Task AwaitAsync(string operation, Func<Task> work, bool expected, string context = "",
+    private static async Task AwaitAsync(string operation, Func<Task> work, bool expected, string document = "",
         NotificationKind kind = NotificationKind.Unclassified,
         NotificationOrigin origin = NotificationOrigin.Ambient,
         NotificationLevel level = NotificationLevel.Info,
@@ -226,7 +226,7 @@ internal static class SqlAssistPlatformGuard
         // BeginProbe 走 expected: true，這裡就是它不整批追蹤的那一行。
         using var notification = expected
             ? null
-            : NotificationCenter.Default.Begin(operation, kind, origin, level, subject, context);
+            : NotificationCenter.Default.Begin(operation, kind, origin, level, subject, document);
         try
         {
             await work().ConfigureAwait(false);

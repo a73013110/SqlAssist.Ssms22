@@ -332,7 +332,7 @@ internal sealed class SqlCommitExpander
             NotificationCatalog.ExpandingStatement,
             () => ExpandAsync(expansion, statementSpan, insertedName),
             NotificationKind.Editing, NotificationOrigin.User, NotificationLevel.Info,
-            ActiveSqlEditor.GetContextName(_textView), expansion.Object.QualifiedName);
+            ActiveSqlEditor.GetDocumentName(_textView), expansion.Object.QualifiedName);
     }
 
     private async Task ExpandAsync(

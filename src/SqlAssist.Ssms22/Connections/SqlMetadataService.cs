@@ -1192,9 +1192,11 @@ internal sealed class SqlMetadataService : IDisposable
             _editorCacheKey = cacheKey;
 
             // 只有真的要換一份連線來源才開這一則：快取鍵沒變的那幾千次在上面就回去了。
+            // 資料庫是「資料從哪裡來」而不是這件事作用的物件；放 Subject 會與中繼資料
+            // 那幾列同一個字出現在兩種位置上。
             using var notification = NotificationCenter.Default.Begin(
                 NotificationCatalog.CreatingMetadataConnection, NotificationKind.Package,
-                NotificationOrigin.Ambient, NotificationLevel.Info, editorConnection.Database);
+                NotificationOrigin.Ambient, NotificationLevel.Info, source: editorConnection.Database);
             var connectionSource = SsmsConnectionSource.TryCreate(editorConnection);
 
             if (connectionSource is null)

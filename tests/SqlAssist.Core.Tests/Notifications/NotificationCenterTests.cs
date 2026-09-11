@@ -29,15 +29,16 @@ public sealed class NotificationCenterTests
     }
 
     [Fact]
-    public void 標題主體與來源分開保存()
+    public void 標題主體文件與資料庫分開保存()
     {
         var center = new NotificationCenter();
         using (center.Begin("載入欄位與定義", NotificationKind.Metadata, NotificationOrigin.User,
-            NotificationLevel.Info, subject: "dbo.Loan", context: "LibArchive")) { }
+            NotificationLevel.Info, subject: "dbo.Loan", document: "Loan.sql", source: "LibArchive")) { }
         var item = Assert.Single(Read(center));
         Assert.Equal("載入欄位與定義", item.Title);
         Assert.Equal("dbo.Loan", item.Subject);
-        Assert.Equal("LibArchive", item.Context);
+        Assert.Equal("Loan.sql", item.Document);
+        Assert.Equal("LibArchive", item.Source);
         Assert.DoesNotContain("dbo.Loan", item.Title);
     }
 
@@ -141,11 +142,11 @@ public sealed class NotificationCenterTests
     public void 獨立背景工作不因父工作完成而消失且來源不跟著焦點改變()
     {
         var center = new NotificationCenter();
-        var parent = Begin(center, "初始化 SqlAssist", context: "SQL 編輯區 1");
-        var child = Begin(center, "建立中繼資料連線", context: "LibArchive");
+        var parent = Begin(center, "初始化 SqlAssist", document: "SQL 編輯區 1");
+        var child = Begin(center, "建立中繼資料連線", source: "LibArchive");
         parent.Dispose();
         Assert.Equal(2, Read(center).Count);
-        Assert.Equal("LibArchive", Assert.Single(Read(center), x => x.Status == NotificationStatus.Running).Context);
+        Assert.Equal("LibArchive", Assert.Single(Read(center), x => x.Status == NotificationStatus.Running).Source);
         child.Fail(); child.Dispose();
         Assert.Single(Read(center), x => x.Status == NotificationStatus.Succeeded);
         Assert.Single(Read(center), x => x.Status == NotificationStatus.Failed);
@@ -344,10 +345,27 @@ public sealed class NotificationCenterTests
         Assert.Equal("40", items[1].Subject);
     }
 
+    /// <summary>
+    /// 出處那一行的寫法只有目錄一份。
+    /// </summary>
+    /// <remarks>
+    /// 通知卡片與「關於與診斷」的失敗列都要寫這一句；兩邊各拼一次就會在同一份資料上
+    /// 出現兩種讀法，而少了哪一半又各自要補一次判斷。
+    /// </remarks>
+    [Theory]
+    [InlineData("Loan.sql", "LibArchive", "Loan.sql · LibArchive")]
+    [InlineData("Loan.sql", "", "Loan.sql")]
+    [InlineData("", "LibArchive", "LibArchive")]
+    [InlineData("", "", "")]
+    public void 出處由文件與資料庫組成(string document, string source, string expected)
+    {
+        Assert.Equal(expected, NotificationCatalog.Provenance(document, source));
+    }
+
     private static NotificationScope Begin(NotificationCenter center, string title,
         NotificationKind kind = NotificationKind.Metadata, NotificationOrigin origin = NotificationOrigin.Ambient,
-        string subject = "", string context = "", bool joinParent = false) =>
-        center.Begin(title, kind, origin, NotificationLevel.Info, subject, context, joinParent);
+        string subject = "", string document = "", string source = "", bool joinParent = false) =>
+        center.Begin(title, kind, origin, NotificationLevel.Info, subject, document, source, joinParent);
 
     private static IReadOnlyList<NotificationItem> Read(NotificationCenter center) =>
         center.Snapshot(TimeSpan.FromMilliseconds(2500), TimeSpan.FromSeconds(6));

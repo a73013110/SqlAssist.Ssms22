@@ -27,4 +27,5 @@
 | 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |
 | 動態配色資源與合併更新通知 | `Ssms22/UI/ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
 | 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Editor/NotificationHost.cs` |
+| 通知卡片本身（整個處理程序一張，在編輯區之間搬家） | `Ssms22/Editor/NotificationSurface.cs` |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |

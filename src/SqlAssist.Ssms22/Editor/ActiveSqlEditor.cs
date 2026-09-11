@@ -17,18 +17,17 @@ namespace SqlAssist.Ssms22.Editor;
 internal static class ActiveSqlEditor
 {
     public static event EventHandler? Changed;
-    private static volatile string _contextName = "";
     private static int _nextOrigin;
-    public static string ContextName => _contextName;
 
     private sealed class Origin
     {
         public string Name { get; } = $"SQL 編輯區 {Interlocked.Increment(ref _nextOrigin)}";
     }
 
-    public static string GetContextName(ITextView view) => GetContextName(view.TextBuffer);
+    public static string GetDocumentName(ITextView view) => GetDocumentName(view.TextBuffer);
 
-    public static string GetContextName(ITextBuffer buffer) => SqlAssistPlatformGuard.Probe("取得活動來源文件", () =>
+    /// <summary>通知上「這件事是在哪一份文件上發生的」；拿不到檔名時退回穩定的編輯區編號。</summary>
+    public static string GetDocumentName(ITextBuffer buffer) => SqlAssistPlatformGuard.Probe("取得活動來源文件", () =>
         buffer.Properties.TryGetProperty(typeof(ITextDocument), out ITextDocument document)
             ? Path.GetFileName(document.FilePath)
             : buffer.Properties.GetOrCreateSingletonProperty(() => new Origin()).Name, "SQL 編輯區");
@@ -145,7 +144,6 @@ internal static class ActiveSqlEditor
             if (ReferenceEquals(_current, textView))
             {
                 _current = null;
-                _contextName = "";
             }
         }
         SqlAssistPlatformGuard.Run("更新目前通知編輯區", () => Changed?.Invoke(null, EventArgs.Empty));
@@ -153,7 +151,6 @@ internal static class ActiveSqlEditor
 
     private static void Set(IWpfTextView textView)
     {
-        _contextName = GetContextName(textView);
         lock (SyncRoot)
         {
             _current = textView;

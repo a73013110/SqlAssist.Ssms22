@@ -13,7 +13,8 @@ public static class NotificationMerge
 {
     /// <summary>
     /// 依 (<see cref="NotificationItem.Kind"/>、<see cref="NotificationItem.Title"/>、
-    /// <see cref="NotificationItem.Subject"/>、<see cref="NotificationItem.Context"/>) 合併。
+    /// <see cref="NotificationItem.Subject"/>、<see cref="NotificationItem.Document"/>、
+    /// <see cref="NotificationItem.Source"/>) 合併。
     /// </summary>
     /// <remarks>
     /// 只合併已完成且結果相同的項目：執行中的各自成列才保得住進度感，
@@ -26,11 +27,11 @@ public static class NotificationMerge
     {
         if (items is null) throw new ArgumentNullException(nameof(items));
         var merged = new List<NotificationItem>(items.Count);
-        var positions = new Dictionary<(NotificationKind, string, string, string, NotificationStatus), int>();
+        var positions = new Dictionary<(NotificationKind, string, string, string, string, NotificationStatus), int>();
         foreach (var item in items)
         {
             if (item.Status == NotificationStatus.Running) { merged.Add(item); continue; }
-            var key = (item.Kind, item.Title, item.Subject, item.Context, item.Status);
+            var key = (item.Kind, item.Title, item.Subject, item.Document, item.Source, item.Status);
             if (positions.TryGetValue(key, out var position))
                 merged[position] = merged[position].WithRepeat(merged[position].Repeat + item.Repeat);
             else

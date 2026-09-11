@@ -54,7 +54,7 @@ public sealed class NotificationMotionTests
                 var resources = new ThemeResourceSet();
                 resources.Update(colors);
                 var center = new NotificationCenter();
-                using var scope = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, context: "LibArchive.sql");
+                using var scope = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "LibArchive.sql");
                 scope.Report("正在整理欄位資訊");
                 var comparison = new StackPanel { Orientation = Orientation.Horizontal };
                 byte[]? glassPixels = null;

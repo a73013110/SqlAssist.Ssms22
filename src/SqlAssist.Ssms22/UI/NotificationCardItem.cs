@@ -14,7 +14,8 @@ internal enum NotificationVisualStatus { Pending, Running, Completed, Failed, Ca
 /// <param name="Id">列的身分；同一個 Id 會沿用同一列，狀態改變不重建也不重排。</param>
 /// <param name="Title">主要那一行的措辭，已經是完成後的過去式與耗時。</param>
 /// <param name="Subject">這件事作用在哪個物件；接在標題同一行。</param>
-/// <param name="Context">從哪個文件或資料庫發起；全部相同時只在抬頭下顯示一次。</param>
+/// <param name="Document">從哪一份文件發起；有文件的列都指向同一份時只在抬頭下顯示一次。</param>
+/// <param name="Source">資料從哪一個資料庫來；永遠留在列上，不參與抬頭的去重。</param>
 /// <param name="Message">工作自己回報或由結果決定的那一行；空字串代表不預留列。</param>
 /// <param name="StatusText">狀態列與輔助技術唸出來的那一句。</param>
 /// <param name="Repeat">這一列代表幾次呼叫；大於 1 才顯示 ×N 徽章。</param>
@@ -22,7 +23,8 @@ internal sealed record NotificationCardItem(
     long Id,
     string Title,
     string Subject,
-    string Context,
+    string Document,
+    string Source,
     string Message,
     NotificationVisualStatus Status,
     string StatusText,

@@ -119,6 +119,6 @@ internal sealed class BlockAnalysis
                 }
             }
         }, NotificationKind.Analysis, NotificationOrigin.Typing, NotificationLevel.Debug,
-            ActiveSqlEditor.GetContextName(_buffer));
+            ActiveSqlEditor.GetDocumentName(_buffer));
     }
 }

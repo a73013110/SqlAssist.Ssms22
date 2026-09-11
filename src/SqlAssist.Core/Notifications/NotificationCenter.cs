@@ -50,14 +50,14 @@ public sealed class NotificationCenter
     /// <paramref name="title"/> 必須是 <see cref="NotificationCatalog"/> 的常數。
     /// </remarks>
     public NotificationScope Begin(string title, NotificationKind kind, NotificationOrigin origin,
-        NotificationLevel level, string subject = "", string context = "",
+        NotificationLevel level, string subject = "", string document = "", string source = "",
         bool joinParent = false)
     {
         var parent = _current.Value;
         // 同一輪同步巢狀目錄查詢只算一次；獨立背景工作仍有自己的生命週期。
         if (joinParent && parent is not null && !parent.IsDisposed)
             return new NotificationScope(this, parent.Id, parent, ownsItem: false);
-        return Create(title, kind, origin, level, subject, context, parent, ambient: true);
+        return Create(title, kind, origin, level, subject, document, source, parent, ambient: true);
     }
 
     /// <summary>
@@ -69,18 +69,19 @@ public sealed class NotificationCenter
     /// 全部併進這一列，畫面上就只剩遠端提示、看不到到底在載入什麼。
     /// </remarks>
     public NotificationScope BeginDetached(string title, NotificationKind kind, NotificationOrigin origin,
-        NotificationLevel level, string subject = "", string context = "") =>
-        Create(title, kind, origin, level, subject, context, _current.Value, ambient: false);
+        NotificationLevel level, string subject = "", string document = "", string source = "") =>
+        Create(title, kind, origin, level, subject, document, source, _current.Value, ambient: false);
 
     private NotificationScope Create(string title, NotificationKind kind, NotificationOrigin origin,
-        NotificationLevel level, string subject, string context, NotificationScope? parent, bool ambient)
+        NotificationLevel level, string subject, string document, string source,
+        NotificationScope? parent, bool ambient)
     {
         NotificationScope scope;
         lock (_gate)
         {
             Trim();
             scope = new NotificationScope(this, ++_nextId, parent, ownsItem: true, ambient);
-            _items.Add(new NotificationItem(scope.Id, title, subject, context, _clock(),
+            _items.Add(new NotificationItem(scope.Id, title, subject, document, source, _clock(),
                 NotificationStatus.Running, null, "", kind, origin, level));
             _version++;
             if (ambient) _current.Value = scope;

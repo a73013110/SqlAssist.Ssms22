@@ -179,7 +179,7 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         // 使用者自己按下 Tab 展開；「程式碼片段」那一格關著就是連這一列也不想看。
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.ExpandingSnippet,
             NotificationKind.Snippets, NotificationOrigin.User, NotificationLevel.Debug,
-            request.Snippet.Shortcut, ActiveSqlEditor.GetContextName(_textView));
+            request.Snippet.Shortcut, ActiveSqlEditor.GetDocumentName(_textView));
         var span = ToTextSpan(target);
         SqlNativeSnippetDom? dom = null;
         IVsExpansionSession? session = null;

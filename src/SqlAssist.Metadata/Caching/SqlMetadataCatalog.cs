@@ -235,7 +235,7 @@ public sealed class SqlMetadataCatalog
         // 快取命中，而那一條根本不查資料庫。標題是常數，主體與來源是既有字串的引用，
         // 因此通知被可見度篩掉時這一段一個字串都不配置。
         using var notification = NotificationCenter.Default.Begin(operation, NotificationKind.Metadata,
-            origin, NotificationLevel.Info, subject, ContextName, joinParent: true);
+            origin, NotificationLevel.Info, subject, source: SourceName, joinParent: true);
         // 遠端跳躍只由最外層那一次說明；巢狀查詢已經併進外層，跟著開會讓同一次載入
         // 冒出好幾列一模一樣的提示。
         using var hop = notification.OwnsItem ? BeginHop(origin) : null;
@@ -269,7 +269,8 @@ public sealed class SqlMetadataCatalog
     }
 
     /// <summary>畫面上「這一份目錄是從哪裡來的」；不隨焦點更新，也不放路徑或認證。</summary>
-    private string ContextName => _qualifier.DatabaseName ?? _connectionSource.DatabaseName;
+    /// <remarks>中繼資料層拿不到編輯器，因此只填得出資料庫這一半，文件那一半留空。</remarks>
+    private string SourceName => _qualifier.DatabaseName ?? _connectionSource.DatabaseName;
 
     /// <summary>
     /// 這一次查詢跳到了別的地方時的說明；就在本機同一個資料庫上時回傳 null。
@@ -284,14 +285,14 @@ public sealed class SqlMetadataCatalog
         if (_qualifier.ServerName is { } serverName)
         {
             return NotificationCenter.Default.BeginDetached(NotificationCatalog.QueryingLinkedServer,
-                NotificationKind.Metadata, origin, NotificationLevel.Notice, serverName, ContextName);
+                NotificationKind.Metadata, origin, NotificationLevel.Notice, serverName, source: SourceName);
         }
 
         // 換連線的資料庫是跨資料庫的唯一形狀，見 SqlDatabaseScopedConnectionSource。
         return _connectionSource is SqlDatabaseScopedConnectionSource
             ? NotificationCenter.Default.BeginDetached(NotificationCatalog.ConnectingToDatabase,
                 NotificationKind.Metadata, origin, NotificationLevel.Info,
-                _connectionSource.DatabaseName, ContextName)
+                _connectionSource.DatabaseName, source: SourceName)
             : null;
     }
 
@@ -305,7 +306,7 @@ public sealed class SqlMetadataCatalog
     private void NoteCacheHit(NotificationOrigin origin, string subject)
     {
         using (NotificationCenter.Default.Begin(NotificationCatalog.CacheHit, NotificationKind.Metadata,
-                   origin, NotificationLevel.Trace, subject, ContextName))
+                   origin, NotificationLevel.Trace, subject, source: SourceName))
         {
         }
     }

@@ -861,7 +861,7 @@ internal sealed class SqlStructurePreview
                     NotificationCatalog.RefreshingPreviewSelection,
                     () => RefreshSelectionAsync(session, source, generation),
                     NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Debug,
-                    ActiveSqlEditor.GetContextName(_view));
+                    ActiveSqlEditor.GetDocumentName(_view));
             }));
     }
 
@@ -1143,7 +1143,7 @@ internal sealed class SqlStructurePreview
             NotificationCatalog.LoadingStructurePreview,
             () => LoadAsync(objectInfo, metadataService, source, generation),
             NotificationKind.Preview, NotificationOrigin.Typing, NotificationLevel.Info,
-            ActiveSqlEditor.GetContextName(_view), objectInfo.QualifiedName);
+            ActiveSqlEditor.GetDocumentName(_view), objectInfo.QualifiedName);
     }
 
     private async Task LoadAsync(
