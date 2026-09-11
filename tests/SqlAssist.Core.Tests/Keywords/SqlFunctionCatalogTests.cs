@@ -33,6 +33,43 @@ public sealed class SqlFunctionCatalogTests
     }
 
     /// <summary>
+    /// 同一族的名稱要嘛整族都在，要嘛整族都不在。
+    /// </summary>
+    /// <remarks>
+    /// 手寫的清單最容易缺的不是冷門函式，而是同一族裡剩下的那幾個：收了
+    /// <c>OBJECT_ID</c> 與 <c>OBJECT_NAME</c> 卻沒有 <c>OBJECT_DEFINITION</c>，
+    /// 使用者看到的是「這個清單認得一半」。這裡挑的是每一族的代表，
+    /// 新增一族時跟著加一筆。
+    /// </remarks>
+    [Theory]
+    [InlineData("OBJECT_DEFINITION")]
+    [InlineData("OBJECT_SCHEMA_NAME")]
+    [InlineData("OBJECTPROPERTY")]
+    [InlineData("OBJECTPROPERTYEX")]
+    [InlineData("COLUMNPROPERTY")]
+    [InlineData("SCHEMA_ID")]
+    [InlineData("DB_ID")]
+    [InlineData("TYPE_NAME")]
+    [InlineData("SERVERPROPERTY")]
+    [InlineData("IS_OBJECTSIGNED")]
+    [InlineData("IS_SRVROLEMEMBER")]
+    [InlineData("HAS_PERMS_BY_NAME")]
+    [InlineData("USER_ID")]
+    [InlineData("HASHBYTES")]
+    [InlineData("COMPRESS")]
+    [InlineData("XACT_STATE")]
+    [InlineData("PI")]
+    [InlineData("ATN2")]
+    [InlineData("GREATEST")]
+    [InlineData("DATETRUNC")]
+    [InlineData("PERCENTILE_CONT")]
+    [InlineData("JSON_OBJECT")]
+    public void 同一族的其餘名稱也在清單裡(string name)
+    {
+        Assert.Equal(SuggestionKind.BuiltInFunction, Get(name).Kind);
+    }
+
+    /// <summary>
     /// 插入文字帶著左括號。
     /// </summary>
     /// <remarks>

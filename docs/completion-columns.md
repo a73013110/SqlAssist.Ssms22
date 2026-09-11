@@ -43,6 +43,9 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 子查詢與 CTE 讀出來的欄位沒有型別、NULL 與 PK——那些要追到最內層的資料表，
 而中間任何一段運算式都會讓答案不成立。說明欄因此只寫「查詢結果」。
 
+系統檢視（`FROM sys.triggers`）的欄位走同一條路，兩處不同都收斂在中繼資料層，
+見[物件種類](completion-object-kinds.md)。
+
 ## 資料表值函式的別名
 
 `SELECT f.| FROM dbo.Loan l CROSS APPLY dbo.fn_LoansByReader(l.CopyNo) f` 的 `f`

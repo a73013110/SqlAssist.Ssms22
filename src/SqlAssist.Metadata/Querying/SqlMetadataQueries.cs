@@ -1,4 +1,4 @@
-
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Metadata.Querying;
 
@@ -180,7 +180,37 @@ SELECT CONVERT(nvarchar(128), DATABASEPROPERTYEX(DB_NAME(), 'Collation'));";
     /// 四個都給定就最多接得到一列，多的只有一欄，不是多一輪來回。
     /// 值同樣在伺服器端 <c>CONVERT</c>——它也是 <c>sql_variant</c>。
     /// </remarks>
-    public const string Columns = @"
+    public const string Columns = ColumnsHead + "sys.columns" + ColumnsTail;
+
+    /// <summary>
+    /// 第二層：系統物件的欄位。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Columns"/> 是同一份本體，只換掉資料行的目錄檢視：
+    /// <c>sys.columns</c> 只收使用者物件，<c>sys.triggers</c>、
+    /// <c>INFORMATION_SCHEMA.TABLES</c> 這一類系統檢視的資料行全都只在
+    /// <c>sys.all_columns</c> 上。抄成第二份完整查詢的症狀是改了一邊另一邊沒改，
+    /// 而少掉的那幾欄在畫面上看不出來。
+    ///
+    /// 反過來讓所有物件都走 <c>sys.all_columns</c> 也不行：那是一個聯集檢視，
+    /// 而這一條在「使用者選了一張表」的路徑上，多付的是每一張使用者資料表。
+    /// </remarks>
+    public const string SystemColumns = ColumnsHead + "sys.all_columns" + ColumnsTail;
+
+    /// <summary>
+    /// 某個結構描述底下的物件該問哪一條欄位查詢。
+    /// </summary>
+    /// <remarks>
+    /// 判斷放在查詢這一邊而不是載入那一邊：那裡拿得到的只有「這個物件是誰」，
+    /// 而「這個名稱要問哪一個目錄檢視」是查詢自己的事，也只有在這裡測得到。
+    /// </remarks>
+    public static string ColumnsFor(string? schemaName)
+    {
+        return SqlSystemSchemas.IsSystem(schemaName) ? SystemColumns : Columns;
+    }
+
+    /// <summary>欄位查詢的前半段，到資料行的目錄檢視名稱為止。</summary>
+    private const string ColumnsHead = @"
 SELECT
     c.column_id,
     c.name AS column_name,
@@ -213,7 +243,10 @@ SELECT
         ELSE 0
     END) AS is_row_guid_col,
     CONVERT(nvarchar(max), ep.value) AS column_description
-FROM sys.columns AS c
+FROM ";
+
+    /// <summary>欄位查詢的後半段，從資料行的目錄檢視名稱之後接下去。</summary>
+    private const string ColumnsTail = @" AS c
 INNER JOIN sys.types AS t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.identity_columns AS ic
     ON ic.object_id = c.object_id AND ic.column_id = c.column_id

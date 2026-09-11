@@ -542,8 +542,9 @@ internal sealed class SqlMetadataService : IDisposable
         }
 
         var timer = Stopwatch.StartNew();
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var matches = snapshot.Find(module.ObjectName, module.SchemaName);
+        var matches = await catalog
+            .FindObjectsAsync(module.ObjectName, module.SchemaName, cancellationToken)
+            .ConfigureAwait(false);
 
         if (matches.Count == 0 || !matches[0].Kind.IsExecutable())
         {
@@ -643,8 +644,11 @@ internal sealed class SqlMetadataService : IDisposable
             return null;
         }
 
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-        var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+        // 走目錄那一支而不是自己比對快照：sys.triggers 這一類名稱的答案不在第一層，
+        // 而那一份只有被指名時才載入。
+        var matches = await catalog
+            .FindObjectsAsync(table.ObjectName, table.SchemaName, cancellationToken)
+            .ConfigureAwait(false);
 
         if (matches.Count == 0)
         {
@@ -972,8 +976,13 @@ internal sealed class SqlMetadataService : IDisposable
                     }
                 }
 
-                var snapshot = catalog.CachedSnapshot;
-                var matches = snapshot.Find(table.ObjectName, table.SchemaName);
+                // 第一層在上面已經確認新鮮，這一支不會多送一輪查詢；但敘述寫出
+                // sys.triggers 時它會把系統物件那一份載進來——只讀快取的
+                // GetCachedScopeColumns 沒有別的機會等到它，症狀是 SELECT | 與
+                // WHERE | 永遠列不出系統檢視的欄位，而打出 t. 卻列得出來。
+                var matches = await catalog
+                    .FindObjectsAsync(table.ObjectName, table.SchemaName, CancellationToken.None)
+                    .ConfigureAwait(false);
 
                 if (matches.Count == 0 || catalog.TryGetCachedDetail(matches[0].ObjectId, out _))
                 {

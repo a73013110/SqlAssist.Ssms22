@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -13,6 +14,12 @@ public sealed class SqlDatabaseSnapshot
         Array.Empty<string>(),
         DateTimeOffset.MinValue);
 
+    /// <summary>依名稱查物件的索引；<see cref="Find"/> 在每一次按鍵上，不逐一掃過清單。</summary>
+    private readonly Dictionary<string, IReadOnlyList<SqlObjectInfo>> _index;
+
+    /// <summary>系統物件的索引；那一份還沒載入時是空的。</summary>
+    private readonly Dictionary<string, IReadOnlyList<SqlObjectInfo>> _systemIndex;
+
     public SqlDatabaseSnapshot(
         string databaseName,
         IReadOnlyList<SqlObjectInfo> objects,
@@ -20,13 +27,66 @@ public sealed class SqlDatabaseSnapshot
         IReadOnlyList<string> databases,
         DateTimeOffset loadedAt,
         IReadOnlyList<string>? linkedServers = null)
+        : this(
+            databaseName,
+            SortByName(objects),
+            schemas,
+            databases,
+            loadedAt,
+            linkedServers,
+            Array.Empty<SqlObjectInfo>())
+    {
+    }
+
+    /// <param name="objects">已經排序過的物件清單。</param>
+    private SqlDatabaseSnapshot(
+        string databaseName,
+        IReadOnlyList<SqlObjectInfo> objects,
+        IReadOnlyList<string> schemas,
+        IReadOnlyList<string> databases,
+        DateTimeOffset loadedAt,
+        IReadOnlyList<string>? linkedServers,
+        IReadOnlyList<SqlObjectInfo> systemObjects)
     {
         DatabaseName = databaseName ?? string.Empty;
-        Objects = SortByName(objects);
+        Objects = objects;
         Schemas = schemas ?? Array.Empty<string>();
         Databases = databases ?? Array.Empty<string>();
         LinkedServers = linkedServers ?? Array.Empty<string>();
         LoadedAt = loadedAt;
+        SystemObjects = systemObjects;
+        _index = BuildIndex(Objects);
+        _systemIndex = BuildIndex(SystemObjects);
+    }
+
+    /// <summary>
+    /// 接上分開載入的那一份系統物件，回傳新的快照。
+    /// </summary>
+    /// <remarks>
+    /// 併進同一份快照而不是讓每個呼叫端各問一次：「這個名稱是哪個物件」在滑鼠停留、
+    /// F12、欄位建議、<c>SELECT *</c> 展開與結構預覽上是同一個問題，各接一條的症狀是
+    /// <c>FROM sys.triggers</c> 之後有的位置列得出欄位、有的位置什麼都沒有，
+    /// 而畫面上看不出差別。
+    ///
+    /// 刻意不併進 <see cref="Objects"/>：那一份是列給使用者看的清單，而系統物件有
+    /// 一兩千筆，混進去等於打第一個字元時真正要找的東西被 <c>sp_</c> 開頭的名稱淹掉。
+    /// <see cref="Find"/> 只在限定字是系統結構描述時才問這一份。
+    /// </remarks>
+    public SqlDatabaseSnapshot WithSystemObjects(IReadOnlyList<SqlObjectInfo>? systemObjects)
+    {
+        if (systemObjects is null || systemObjects.Count == 0)
+        {
+            return this;
+        }
+
+        return new SqlDatabaseSnapshot(
+            DatabaseName,
+            Objects,
+            Schemas,
+            Databases,
+            LoadedAt,
+            LinkedServers,
+            systemObjects);
     }
 
     public string DatabaseName { get; }
@@ -65,6 +125,12 @@ public sealed class SqlDatabaseSnapshot
     /// </remarks>
     public IReadOnlyList<string> LinkedServers { get; }
 
+    /// <summary>
+    /// <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的物件；那一份還沒載入時是空的。
+    /// </summary>
+    /// <remarks>與 <see cref="Objects"/> 分開放，理由見 <see cref="WithSystemObjects"/>。</remarks>
+    public IReadOnlyList<SqlObjectInfo> SystemObjects { get; }
+
     public DateTimeOffset LoadedAt { get; }
 
     /// <summary>這份快照什麼都沒有，等於還沒載入成功。</summary>
@@ -79,6 +145,12 @@ public sealed class SqlDatabaseSnapshot
     /// 依名稱尋找物件。未指定 <paramref name="schemaName"/> 時會跨結構描述比對，
     /// 並把 dbo 的結果排在前面——沒有明確限定時那通常才是使用者想看的那一個。
     /// </summary>
+    /// <remarks>
+    /// 限定字是 <c>sys</c> 或 <c>INFORMATION_SCHEMA</c> 時查的是
+    /// <see cref="SystemObjects"/>，而且<b>只</b>查那一份：使用者建不出那兩個結構描述
+    /// 底下的東西。反過來，沒有限定字時一個系統物件都不查——<c>FROM objects</c> 在
+    /// T-SQL 裡本來就不成立，答得出來的只會是我們自己編的。
+    /// </remarks>
     public IReadOnlyList<SqlObjectInfo> Find(string name, string? schemaName = null)
     {
         if (string.IsNullOrEmpty(name))
@@ -86,30 +158,79 @@ public sealed class SqlDatabaseSnapshot
             return Array.Empty<SqlObjectInfo>();
         }
 
-        var matches = new List<SqlObjectInfo>();
+        var index = SqlSystemSchemas.IsSystem(schemaName) ? _systemIndex : _index;
 
-        foreach (var info in Objects)
+        if (!index.TryGetValue(name, out var candidates))
         {
-            if (!string.Equals(info.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrEmpty(schemaName) &&
-                !string.Equals(info.SchemaName, schemaName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            matches.Add(info);
+            return Array.Empty<SqlObjectInfo>();
         }
 
-        if (matches.Count > 1)
+        if (string.IsNullOrEmpty(schemaName))
         {
-            matches.Sort((left, right) => Rank(left).CompareTo(Rank(right)));
+            return candidates;
+        }
+
+        // 同一個名稱落在兩個結構描述上是少數，那時才配置一份過濾後的清單。
+        if (candidates.Count == 1)
+        {
+            return InSchema(candidates[0], schemaName!)
+                ? candidates
+                : Array.Empty<SqlObjectInfo>();
+        }
+
+        var matches = new List<SqlObjectInfo>(candidates.Count);
+
+        foreach (var info in candidates)
+        {
+            if (InSchema(info, schemaName!))
+            {
+                matches.Add(info);
+            }
         }
 
         return matches;
+    }
+
+    private static bool InSchema(SqlObjectInfo info, string schemaName)
+    {
+        return string.Equals(info.SchemaName, schemaName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 依名稱分組，同名的多筆把 dbo 排在前面。
+    /// </summary>
+    /// <remarks>
+    /// 建索引的成本付在載入那一次，而 <see cref="Find"/> 在每一次按鍵上——一條敘述有
+    /// 幾個資料來源就問幾次。掃過幾千個物件的原本是每一次按鍵，現在是每一次載入。
+    /// </remarks>
+    private static Dictionary<string, IReadOnlyList<SqlObjectInfo>> BuildIndex(
+        IReadOnlyList<SqlObjectInfo> objects)
+    {
+        var index = new Dictionary<string, IReadOnlyList<SqlObjectInfo>>(
+            objects.Count,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var info in objects)
+        {
+            if (index.TryGetValue(info.Name, out var existing))
+            {
+                ((List<SqlObjectInfo>)existing).Add(info);
+                continue;
+            }
+
+            index[info.Name] = new List<SqlObjectInfo> { info };
+        }
+
+        foreach (var bucket in index.Values)
+        {
+            if (bucket.Count > 1)
+            {
+                ((List<SqlObjectInfo>)bucket).Sort(
+                    (left, right) => Rank(left).CompareTo(Rank(right)));
+            }
+        }
+
+        return index;
     }
 
     private static IReadOnlyList<SqlObjectInfo> SortByName(IReadOnlyList<SqlObjectInfo>? objects)

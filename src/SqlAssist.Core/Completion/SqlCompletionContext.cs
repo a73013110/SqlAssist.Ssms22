@@ -151,8 +151,7 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public bool WantsSystemObjects =>
         (Target == CompletionTarget.Procedure && Intent == CompletionIntent.ExecuteCall) ||
-        string.Equals(Qualifier, "sys", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(Qualifier, "INFORMATION_SCHEMA", StringComparison.OrdinalIgnoreCase);
+        SqlSystemSchemas.IsSystem(Qualifier);
 
     /// <summary>
     /// 決定 <see cref="Target"/> 的關鍵字在原文中的起點，例如 <c>ALTER PROCEDURE</c> 的

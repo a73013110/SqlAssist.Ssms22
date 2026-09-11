@@ -46,6 +46,8 @@ public sealed class SqlCatalogQualifierTests
         [nameof(SqlMetadataQueries.Columns)] =
             "GeneratedAlwaysType、IsSparse、IsRowGuidCol 走 COLUMNPROPERTY，" +
             "因為 sys.columns.generated_always_type 要 SQL Server 2016 才有。",
+        [nameof(SqlMetadataQueries.SystemColumns)] =
+            "與 Columns 是同一份本體，只換掉資料行的目錄檢視；理由同上。",
         [nameof(SqlMetadataQueries.TableStorage)] =
             "QUOTED_IDENTIFIER 不在任何目錄檢視上，只問得到 OBJECTPROPERTY。",
         [nameof(SqlMetadataQueries.DatabaseCollation)] =

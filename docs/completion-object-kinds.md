@@ -23,7 +23,7 @@
 `CompletionTarget.Function` 因此收斂成「`ALTER`／`DROP FUNCTION` 的那個名稱」，
 提交時分得出「這裡要補括號」還是「這裡只要名稱」——見[函式呼叫](function-call-insertion.md)。
 
-## 系統物件只在兩個位置拉進來
+## 系統物件只在三個位置拉進來
 
 `sys.objects`、`sys.dm_exec_requests`、`sp_executesql`、`sp_help` 這些原本一個都列不出來
 ——第一層查詢寫死 `is_ms_shipped = 0`，結構描述清單也明確排除了 `sys` 與
@@ -31,10 +31,26 @@
 
 它們現在有自己的查詢，而且**與第一層分開、只在被問到時才跑**：光是一個使用者資料庫
 底下就有一兩千列，併進第一層等於每一次開啟查詢視窗都多付兩倍代價，換來的東西九成的
-時間沒有人要。只有兩個位置會問：
+時間沒有人要。只有三個位置會問：
 
 - 使用者自己打出了 `sys.` 或 `INFORMATION_SCHEMA.`
 - 游標在 `EXEC ` 之後——`sp_executesql`、`sp_help` 一律不加結構描述就呼叫
+- 敘述把系統物件寫成了資料來源（`FROM sys.triggers`）
+
+第三個位置要的不是那份清單而是**那一張表的欄位**：`SELECT |` 與 `WHERE |` 只讀快取，
+而快取要等到有人去載。載入接在欄位預熱上（`SqlMetadataService.WarmColumns`），
+名稱的解析則收斂在 `SqlMetadataCatalog.FindObjectsAsync`——第一層答不出來而限定字正是
+那兩個結構描述時，順手把系統物件載進來，載完併回同一份快照。少了這一條的症狀是
+`FROM sys.triggers` 之後每一個位置都列不出欄位，而畫面上只是什麼都沒發生。
+
+併回快照（`SqlDatabaseSnapshot.WithSystemObjects`）而不是各自留一份：「這個名稱是哪個
+物件」在建議清單、`SELECT *` 展開、滑鼠停留與 F12 上是同一個問題。但**不**併進
+`Objects`——那一份是列給使用者看的清單，只有 `Find` 在限定字是系統結構描述時才問得到
+系統物件。沒有限定字時一個都不列：`FROM triggers` 在 T-SQL 裡本來就不成立。
+
+欄位本身要改問 `sys.all_columns`：`sys.columns` 只收使用者物件，拿它去問系統檢視的
+結果是「查詢成功，但一個欄位都沒有」，而那與權限不足看起來一模一樣。兩條查詢由同一份
+本體組出來（`SqlMetadataQueries.ColumnsFor`），不是抄成兩份。
 
 `ALTER PROCEDURE ` 不算，雖然它的目標同樣是預存程序：系統程序改不動，列出來只會讓
 使用者選到一個改不了的東西，與內建函式不進 `ALTER FUNCTION` 是同一條理由。

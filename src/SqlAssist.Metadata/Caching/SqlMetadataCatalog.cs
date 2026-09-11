@@ -5,6 +5,7 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -360,7 +361,9 @@ public sealed class SqlMetadataCatalog
             }
             else
             {
-                Volatile.Write(ref _snapshot, loaded);
+                // 重新載入的第一層要把系統物件接回去，否則快照一過期，
+                // FROM sys.triggers 的欄位就會在下一次背景更新之後安靜地消失。
+                Volatile.Write(ref _snapshot, loaded.WithSystemObjects(Volatile.Read(ref _systemObjects)));
                 Volatile.Write(ref _failedAtTicks, 0);
             }
 
@@ -424,12 +427,49 @@ public sealed class SqlMetadataCatalog
             }
 
             Volatile.Write(ref _systemObjects, loaded);
+
+            lock (_detailLock)
+            {
+                Volatile.Write(ref _snapshot, CachedSnapshot.WithSystemObjects(loaded));
+            }
+
             return loaded;
         }
         finally
         {
             _systemGate.Release();
         }
+    }
+
+    /// <summary>
+    /// 依名稱解析物件；限定字是系統結構描述而第一層答不出來時，順便把系統物件載進來。
+    /// </summary>
+    /// <remarks>
+    /// 「這個名稱是哪個物件」只有這一個入口能同時回答使用者物件與系統物件：
+    /// 第一層刻意不收 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c>（那一份有一兩千筆），
+    /// 而使用者把 <c>sys.triggers</c> 寫進 <c>FROM</c> 就是指名要它。
+    /// 少了這一支的症狀是那張表的欄位在每一個位置都列不出來——建議清單、
+    /// <c>SELECT *</c> 展開、滑鼠停留與 F12 一起沒有，而畫面上只是「什麼都沒發生」。
+    ///
+    /// 沒有限定字時一個字都不多查：<c>FROM triggers</c> 在 T-SQL 裡本來就不成立，
+    /// 為它載一份一兩千筆的清單只是每一次按鍵多付一輪查詢。
+    /// </remarks>
+    public async Task<IReadOnlyList<SqlObjectInfo>> FindObjectsAsync(
+        string name,
+        string? schemaName,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        var matches = snapshot.Find(name, schemaName);
+
+        if (matches.Count > 0 || !SqlSystemSchemas.IsSystem(schemaName))
+        {
+            return matches;
+        }
+
+        // 併進快照的是這一支自己，載完之後要讀回最新的那一份。
+        await GetSystemObjectsAsync(cancellationToken).ConfigureAwait(false);
+        return CachedSnapshot.Find(name, schemaName);
     }
 
     /// <summary>
@@ -850,10 +890,13 @@ public sealed class SqlMetadataCatalog
         using var connection = _connectionSource.OpenConnection();
         var objectId = objectInfo.ObjectId;
 
+        // sys.columns 只收使用者物件：sys.triggers、INFORMATION_SCHEMA.TABLES 這些
+        // 系統檢視的資料行一列都不在上面，拿它去問的結果是「查詢成功，但沒有欄位」，
+        // 而那與權限不足看起來一模一樣。
         var columns = objectInfo.Kind.HasCatalogColumns()
             ? ReadList(
                 connection,
-                SqlMetadataQueries.Columns,
+                SqlMetadataQueries.ColumnsFor(objectInfo.SchemaName),
                 SqlMetadataReader.ReadColumn,
                 cancellationToken,
                 objectId)

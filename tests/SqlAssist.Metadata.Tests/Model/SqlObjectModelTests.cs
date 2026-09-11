@@ -365,6 +365,60 @@ public sealed class SqlObjectModelTests
         Assert.Equal("sales", matches[0].SchemaName);
     }
 
+    /// <summary>
+    /// 系統物件只有被限定字指名時才找得到。
+    /// </summary>
+    /// <remarks>
+    /// 第一層刻意不收 sys 與 INFORMATION_SCHEMA（那一份有一兩千筆），
+    /// 但使用者把 sys.triggers 寫進 FROM 就是指名要它——找不到的症狀是那張表的
+    /// 欄位在建議清單、SELECT * 展開、滑鼠停留與 F12 上一起消失。
+    /// </remarks>
+    [Theory]
+    [InlineData("sys")]
+    [InlineData("SYS")]
+    [InlineData("INFORMATION_SCHEMA")]
+    public void 限定在系統結構描述時找得到系統物件(string schemaName)
+    {
+        var snapshot = Snapshot(new SqlObjectInfo(1, "dbo", "Lib_Reader", SqlObjectKind.Table))
+            .WithSystemObjects(new[]
+            {
+                new SqlObjectInfo(11, "sys", "triggers", SqlObjectKind.View),
+                new SqlObjectInfo(12, "INFORMATION_SCHEMA", "triggers", SqlObjectKind.View)
+            });
+
+        var match = Assert.Single(snapshot.Find("TRIGGERS", schemaName));
+
+        Assert.Equal(schemaName, match.SchemaName, ignoreCase: true);
+    }
+
+    /// <remarks>
+    /// <c>FROM triggers</c> 在 T-SQL 裡本來就不成立；答得出來只會是我們自己編的。
+    /// 系統物件也不該混進列給使用者看的那一份清單——那裡打第一個字元時，
+    /// 真正要找的東西會被 sp_ 開頭的名稱淹掉。
+    /// </remarks>
+    [Fact]
+    public void 沒有限定字時找不到系統物件()
+    {
+        var snapshot = Snapshot(new SqlObjectInfo(1, "dbo", "Lib_Reader", SqlObjectKind.Table))
+            .WithSystemObjects(new[] { new SqlObjectInfo(11, "sys", "triggers", SqlObjectKind.View) });
+
+        Assert.Empty(snapshot.Find("triggers"));
+        Assert.Empty(snapshot.Find("triggers", "dbo"));
+        Assert.Single(snapshot.Objects);
+        Assert.Single(snapshot.Find("Lib_Reader"));
+    }
+
+    /// <remarks>還沒載入那一份時，快照仍然是同一個物件，不必白配置一份索引。</remarks>
+    [Fact]
+    public void 沒有系統物件時不換掉快照()
+    {
+        var snapshot = Snapshot(new SqlObjectInfo(1, "dbo", "Lib_Reader", SqlObjectKind.Table));
+
+        Assert.Same(snapshot, snapshot.WithSystemObjects(null));
+        Assert.Same(snapshot, snapshot.WithSystemObjects(System.Array.Empty<SqlObjectInfo>()));
+        Assert.Empty(snapshot.SystemObjects);
+    }
+
     [Fact]
     public void 找不到時回傳空清單()
     {

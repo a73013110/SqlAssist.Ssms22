@@ -1384,6 +1384,538 @@
       ]
     },
     {
+      "name": "ACOS",
+      "kind": "function",
+      "summary": "反餘弦，引數要在 -1 到 1 之間，回傳弧度。",
+      "example": "SELECT ACOS(1)   -- 0",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/acos-transact-sql"
+    },
+    {
+      "name": "APPROX_COUNT_DISTINCT",
+      "kind": "function",
+      "summary": "近似的相異值個數，誤差約 2%；資料量大時比 COUNT(DISTINCT) 省很多。",
+      "example": "SELECT APPROX_COUNT_DISTINCT(CopyNo) FROM dbo.Loan   -- 近似值，不保證等於實際個數",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/approx-count-distinct-transact-sql"
+    },
+    {
+      "name": "ASIN",
+      "kind": "function",
+      "summary": "反正弦，引數要在 -1 到 1 之間，回傳弧度。",
+      "example": "SELECT ASIN(0)   -- 0",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/asin-transact-sql"
+    },
+    {
+      "name": "ATAN",
+      "kind": "function",
+      "summary": "反正切，回傳弧度。",
+      "example": "SELECT ATAN(1)   -- 0.785398163397448（π/4）",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/atan-transact-sql"
+    },
+    {
+      "name": "ATN2",
+      "kind": "function",
+      "summary": "兩個引數的反正切，分得出象限；ATAN 只有一個引數做不到。",
+      "example": "SELECT ATN2(1, 1)   -- 0.785398163397448（π/4）",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/atn2-transact-sql"
+    },
+    {
+      "name": "COL_LENGTH",
+      "kind": "function",
+      "summary": "資料行的長度（位元組）；nvarchar 是字元數的兩倍。",
+      "example": "SELECT COL_LENGTH('dbo.Loan', 'CopyNo')   -- nvarchar(20) 得到 40",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/col-length-transact-sql"
+    },
+    {
+      "name": "COL_NAME",
+      "kind": "function",
+      "summary": "由 object_id 與 column_id 反查資料行名稱。",
+      "example": "SELECT COL_NAME(OBJECT_ID('dbo.Loan'), 1)   -- 第一個資料行的名稱",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/col-name-transact-sql"
+    },
+    {
+      "name": "COLUMNPROPERTY",
+      "kind": "function",
+      "summary": "查資料行的屬性，例如 IsIdentity、IsComputed。",
+      "example": "SELECT COLUMNPROPERTY(OBJECT_ID('dbo.Loan'), 'Id', 'IsIdentity')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/columnproperty-transact-sql"
+    },
+    {
+      "name": "COMPRESS",
+      "kind": "function",
+      "summary": "用 GZIP 壓成 varbinary(max)，解開要用 DECOMPRESS。",
+      "example": "SELECT DATALENGTH(COMPRESS(REPLICATE('a', 1000)))   -- 遠小於 1000",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/compress-transact-sql"
+    },
+    {
+      "name": "CONNECTIONPROPERTY",
+      "kind": "function",
+      "summary": "目前這條連線的屬性，例如 client_net_address。",
+      "example": "SELECT CONNECTIONPROPERTY('client_net_address')   -- 用戶端位址",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/connectionproperty-transact-sql"
+    },
+    {
+      "name": "CONTEXT_INFO",
+      "kind": "function",
+      "summary": "這個工作階段用 SET CONTEXT_INFO 存的 128 個位元組。",
+      "example": "SELECT CONTEXT_INFO()   -- 沒設定過就是 NULL",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/context-info-transact-sql"
+    },
+    {
+      "name": "COS",
+      "kind": "function",
+      "summary": "餘弦，引數是弧度。",
+      "example": "SELECT COS(0)   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cos-transact-sql"
+    },
+    {
+      "name": "COT",
+      "kind": "function",
+      "summary": "餘切，引數是弧度；0 會因為除以零而失敗。",
+      "example": "SELECT COT(1)   -- 0.642092615934331",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cot-transact-sql"
+    },
+    {
+      "name": "CRYPT_GEN_RANDOM",
+      "kind": "function",
+      "summary": "加密強度的亂數位元組，長度自己指定。",
+      "example": "SELECT CRYPT_GEN_RANDOM(4)   -- 4 個位元組的亂數",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/crypt-gen-random-transact-sql"
+    },
+    {
+      "name": "CUME_DIST",
+      "kind": "function",
+      "summary": "累積分布：小於或等於這一列的比例，值落在 0 到 1 之間。",
+      "example": "SELECT CUME_DIST() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- 最後一列一定是 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cume-dist-transact-sql"
+    },
+    {
+      "name": "CURRENT_TIMEZONE",
+      "kind": "function",
+      "summary": "這台伺服器目前的時區名稱。",
+      "example": "SELECT CURRENT_TIMEZONE()   -- 'Taipei Standard Time'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/current-timezone-transact-sql"
+    },
+    {
+      "name": "CURRENT_TIMEZONE_ID",
+      "kind": "function",
+      "summary": "這台伺服器目前的時區識別碼，可直接餵給 AT TIME ZONE。",
+      "example": "SELECT SYSDATETIME() AT TIME ZONE CURRENT_TIMEZONE_ID()   -- 補上時區位移",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/current-timezone-id-transact-sql"
+    },
+    {
+      "name": "DATABASE_PRINCIPAL_ID",
+      "kind": "function",
+      "summary": "資料庫主體的識別碼，省略引數就是目前的使用者。",
+      "example": "SELECT DATABASE_PRINCIPAL_ID('dbo')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/database-principal-id-transact-sql"
+    },
+    {
+      "name": "DATABASEPROPERTYEX",
+      "kind": "function",
+      "summary": "查資料庫的屬性，例如 Collation、Recovery。",
+      "example": "SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation')   -- 目前資料庫的定序",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/databasepropertyex-transact-sql"
+    },
+    {
+      "name": "DATE_BUCKET",
+      "kind": "function",
+      "summary": "把時間歸到固定寬度的區間起點，用來分組。",
+      "example": "SELECT DATE_BUCKET(WEEK, 2, '2026-09-08')   -- 每兩週一格，回傳那一格的起點",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/date-bucket-transact-sql"
+    },
+    {
+      "name": "DATEDIFF_BIG",
+      "kind": "function",
+      "summary": "與 DATEDIFF 相同，但回傳 bigint，奈秒差不會溢位。",
+      "example": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF 會溢位",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datediff-big-transact-sql"
+    },
+    {
+      "name": "DATETIME2FROMPARTS",
+      "kind": "function",
+      "summary": "用各個部分組出 datetime2，最後一個引數是小數秒位數。",
+      "example": "SELECT DATETIME2FROMPARTS(2026, 9, 8, 21, 30, 0, 0, 3)   -- 2026-09-08 21:30:00.000",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datetime2fromparts-transact-sql"
+    },
+    {
+      "name": "DATETIMEFROMPARTS",
+      "kind": "function",
+      "summary": "用各個部分組出 datetime，任何一段不合法就整句失敗。",
+      "example": "SELECT DATETIMEFROMPARTS(2026, 9, 8, 21, 30, 0, 0)   -- 2026-09-08 21:30:00.000",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datetimefromparts-transact-sql"
+    },
+    {
+      "name": "DATETIMEOFFSETFROMPARTS",
+      "kind": "function",
+      "summary": "用各個部分組出 datetimeoffset，位移寫成時與分兩段。",
+      "example": "SELECT DATETIMEOFFSETFROMPARTS(2026, 9, 8, 21, 30, 0, 0, 8, 0, 0)   -- +08:00",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datetimeoffsetfromparts-transact-sql"
+    },
+    {
+      "name": "DATETRUNC",
+      "kind": "function",
+      "summary": "把日期時間截到指定的單位，回傳型別跟著引數走。",
+      "example": "SELECT DATETRUNC(MONTH, CONVERT(date, '2026-09-08'))   -- 2026-09-01",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datetrunc-transact-sql"
+    },
+    {
+      "name": "DB_ID",
+      "kind": "function",
+      "summary": "資料庫的識別碼，省略引數就是目前這個資料庫。",
+      "example": "SELECT DB_ID()   -- 目前資料庫的 database_id",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/db-id-transact-sql"
+    },
+    {
+      "name": "DECOMPRESS",
+      "kind": "function",
+      "summary": "解開 COMPRESS 的值，回傳 varbinary(max)，要自己轉回型別。",
+      "example": "SELECT CAST(DECOMPRESS(COMPRESS('abc')) AS varchar(max))   -- 'abc'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/decompress-transact-sql"
+    },
+    {
+      "name": "DECRYPTBYPASSPHRASE",
+      "kind": "function",
+      "summary": "用密語解密；密語不對時回傳 NULL 而不是報錯。",
+      "example": "SELECT CAST(DECRYPTBYPASSPHRASE('key', @cipher) AS varchar(max))   -- 'abc'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/decryptbypassphrase-transact-sql"
+    },
+    {
+      "name": "DEGREES",
+      "kind": "function",
+      "summary": "弧度換成角度。",
+      "example": "SELECT DEGREES(PI())   -- 180",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/degrees-transact-sql"
+    },
+    {
+      "name": "ENCRYPTBYPASSPHRASE",
+      "kind": "function",
+      "summary": "用密語加密成 varbinary(8000)；密語自己保管。",
+      "example": "SELECT ENCRYPTBYPASSPHRASE('key', 'abc')   -- 每次執行的結果都不一樣",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/encryptbypassphrase-transact-sql"
+    },
+    {
+      "name": "FORMATMESSAGE",
+      "kind": "function",
+      "summary": "照樣板填入參數組出字串，不會丟出錯誤。",
+      "example": "SELECT FORMATMESSAGE('第 %d 本：%s', 3, 'Loan')   -- '第 3 本：Loan'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/formatmessage-transact-sql"
+    },
+    {
+      "name": "GREATEST",
+      "kind": "function",
+      "summary": "回傳最大的那一個值，NULL 一律忽略；2022 起才有。",
+      "example": "SELECT GREATEST(3, 7, NULL)   -- 7",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-greatest-transact-sql"
+    },
+    {
+      "name": "HASHBYTES",
+      "kind": "function",
+      "summary": "算雜湊值；2016 起只剩 SHA2_256 與 SHA2_512 值得用。",
+      "example": "SELECT HASHBYTES('SHA2_256', N'abc')   -- 32 個位元組",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/hashbytes-transact-sql"
+    },
+    {
+      "name": "HAS_PERMS_BY_NAME",
+      "kind": "function",
+      "summary": "目前這個登入對某個物件有沒有指定的權限。",
+      "example": "SELECT HAS_PERMS_BY_NAME('dbo.Loan', 'OBJECT', 'SELECT')   -- 1 代表有",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/has-perms-by-name-transact-sql"
+    },
+    {
+      "name": "HOST_ID",
+      "kind": "function",
+      "summary": "用戶端的處理序識別碼，配合 HOST_NAME 分得出同一台機器上的連線。",
+      "example": "SELECT HOST_ID()   -- 用戶端應用程式的處理序編號",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/host-id-transact-sql"
+    },
+    {
+      "name": "IDENT_INCR",
+      "kind": "function",
+      "summary": "識別資料行的遞增量。",
+      "example": "SELECT IDENT_INCR('dbo.Loan')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/ident-incr-transact-sql"
+    },
+    {
+      "name": "IDENT_SEED",
+      "kind": "function",
+      "summary": "識別資料行的種子值，也就是第一列拿到的那個值。",
+      "example": "SELECT IDENT_SEED('dbo.Loan')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/ident-seed-transact-sql"
+    },
+    {
+      "name": "INDEX_COL",
+      "kind": "function",
+      "summary": "索引第幾個鍵資料行的名稱。",
+      "example": "SELECT INDEX_COL('dbo.Loan', 1, 1)   -- 叢集索引的第一個鍵資料行",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/index-col-transact-sql"
+    },
+    {
+      "name": "INDEXPROPERTY",
+      "kind": "function",
+      "summary": "查索引的屬性，例如 IsClustered、IsUnique。",
+      "example": "SELECT INDEXPROPERTY(OBJECT_ID('dbo.Loan'), 'PK_Loan', 'IsClustered')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/indexproperty-transact-sql"
+    },
+    {
+      "name": "IS_MEMBER",
+      "kind": "function",
+      "summary": "目前的使用者是不是這個資料庫角色或 Windows 群組的成員。",
+      "example": "SELECT IS_MEMBER('db_owner')   -- 1 代表是",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/is-member-transact-sql"
+    },
+    {
+      "name": "IS_OBJECTSIGNED",
+      "kind": "function",
+      "summary": "這個物件有沒有被指定的憑證或非對稱金鑰簽署。",
+      "example": "SELECT IS_OBJECTSIGNED('OBJECT', OBJECT_ID('dbo.usp_Loan'), 'certificate', @thumbprint)",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/is-objectsigned-transact-sql"
+    },
+    {
+      "name": "IS_ROLEMEMBER",
+      "kind": "function",
+      "summary": "指定的主體是不是這個資料庫角色的成員。",
+      "example": "SELECT IS_ROLEMEMBER('db_datareader')   -- 1 代表是",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/is-rolemember-transact-sql"
+    },
+    {
+      "name": "IS_SRVROLEMEMBER",
+      "kind": "function",
+      "summary": "指定的登入是不是這個伺服器角色的成員。",
+      "example": "SELECT IS_SRVROLEMEMBER('sysadmin')   -- 1 代表是",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/is-srvrolemember-transact-sql"
+    },
+    {
+      "name": "JSON_ARRAY",
+      "kind": "function",
+      "summary": "組出 JSON 陣列字串；2022 起才有。",
+      "example": "SELECT JSON_ARRAY(1, 'a', NULL)   -- '[1,\"a\"]'，NULL 預設略過",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-array-transact-sql"
+    },
+    {
+      "name": "JSON_OBJECT",
+      "kind": "function",
+      "summary": "組出 JSON 物件字串；2022 起才有。",
+      "example": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1}'，NULL 預設略過",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-object-transact-sql"
+    },
+    {
+      "name": "JSON_PATH_EXISTS",
+      "kind": "function",
+      "summary": "路徑存不存在，回傳 1 或 0；2022 起才有。",
+      "example": "SELECT JSON_PATH_EXISTS('{\"a\":1}', '$.a')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/json-path-exists-transact-sql"
+    },
+    {
+      "name": "LEAST",
+      "kind": "function",
+      "summary": "回傳最小的那一個值，NULL 一律忽略；2022 起才有。",
+      "example": "SELECT LEAST(3, 7, NULL)   -- 3",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-least-transact-sql"
+    },
+    {
+      "name": "OBJECT_DEFINITION",
+      "kind": "function",
+      "summary": "模組的定義本文；加密過或沒有權限時回傳 NULL。",
+      "example": "SELECT OBJECT_DEFINITION(OBJECT_ID('dbo.usp_Loan'))   -- CREATE PROCEDURE ...",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/object-definition-transact-sql"
+    },
+    {
+      "name": "OBJECTPROPERTY",
+      "kind": "function",
+      "summary": "查物件的屬性，例如 IsTable、TableHasPrimaryKey。",
+      "example": "SELECT OBJECTPROPERTY(OBJECT_ID('dbo.Loan'), 'TableHasPrimaryKey')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/objectproperty-transact-sql"
+    },
+    {
+      "name": "OBJECTPROPERTYEX",
+      "kind": "function",
+      "summary": "與 OBJECTPROPERTY 相同，但回傳 sql_variant，屬性也更多。",
+      "example": "SELECT OBJECTPROPERTYEX(OBJECT_ID('dbo.Loan'), 'BaseType')   -- 'U'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/objectpropertyex-transact-sql"
+    },
+    {
+      "name": "OBJECT_SCHEMA_NAME",
+      "kind": "function",
+      "summary": "由 object_id 反查結構描述名稱。",
+      "example": "SELECT OBJECT_SCHEMA_NAME(OBJECT_ID('dbo.Loan'))   -- 'dbo'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/object-schema-name-transact-sql"
+    },
+    {
+      "name": "ORIGINAL_LOGIN",
+      "kind": "function",
+      "summary": "最初連進來的那個登入，EXECUTE AS 切換過也不會變。",
+      "example": "SELECT ORIGINAL_LOGIN()   -- 切換身分之後仍然是原本那個登入",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/original-login-transact-sql"
+    },
+    {
+      "name": "PARSENAME",
+      "kind": "function",
+      "summary": "取四段式名稱的第幾段；1 是最右邊的物件名稱。",
+      "example": "SELECT PARSENAME('LibArchive.dbo.Loan', 2)   -- 'dbo'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/parsename-transact-sql"
+    },
+    {
+      "name": "PERCENTILE_CONT",
+      "kind": "function",
+      "summary": "百分位數，落在兩列之間時內插；中位數就是 0.5。",
+      "example": "SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CopyNo) OVER () FROM dbo.Loan",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/percentile-cont-transact-sql"
+    },
+    {
+      "name": "PERCENTILE_DISC",
+      "kind": "function",
+      "summary": "百分位數，一定回傳資料裡真的存在的值，不內插。",
+      "example": "SELECT PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY CopyNo) OVER () FROM dbo.Loan",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/percentile-disc-transact-sql"
+    },
+    {
+      "name": "PERCENT_RANK",
+      "kind": "function",
+      "summary": "相對排名，值落在 0 到 1；第一列一定是 0。",
+      "example": "SELECT PERCENT_RANK() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- (排名-1)/(列數-1)",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/percent-rank-transact-sql"
+    },
+    {
+      "name": "PI",
+      "kind": "function",
+      "summary": "圓周率。",
+      "example": "SELECT PI()   -- 3.14159265358979",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/pi-transact-sql"
+    },
+    {
+      "name": "RADIANS",
+      "kind": "function",
+      "summary": "角度換成弧度；整數引數會得到截斷過的整數。",
+      "example": "SELECT RADIANS(180.0)   -- 3.141592653589793",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/radians-transact-sql"
+    },
+    {
+      "name": "SCHEMA_ID",
+      "kind": "function",
+      "summary": "結構描述的識別碼，省略引數就是預設結構描述。",
+      "example": "SELECT SCHEMA_ID('dbo')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/schema-id-transact-sql"
+    },
+    {
+      "name": "SERVERPROPERTY",
+      "kind": "function",
+      "summary": "查執行個體的屬性，例如 ProductVersion、Edition。",
+      "example": "SELECT SERVERPROPERTY('ProductVersion')   -- '16.0.4165.4'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/serverproperty-transact-sql"
+    },
+    {
+      "name": "SESSION_CONTEXT",
+      "kind": "function",
+      "summary": "讀這個工作階段用 sp_set_session_context 存的值。",
+      "example": "SELECT SESSION_CONTEXT(N'ReaderId')   -- 沒設定過就是 NULL",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/session-context-transact-sql"
+    },
+    {
+      "name": "SIN",
+      "kind": "function",
+      "summary": "正弦，引數是弧度。",
+      "example": "SELECT SIN(0)   -- 0",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/sin-transact-sql"
+    },
+    {
+      "name": "SMALLDATETIMEFROMPARTS",
+      "kind": "function",
+      "summary": "用各個部分組出 smalldatetime，精確度只到分鐘。",
+      "example": "SELECT SMALLDATETIMEFROMPARTS(2026, 9, 8, 21, 30)   -- 2026-09-08 21:30:00",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/smalldatetimefromparts-transact-sql"
+    },
+    {
+      "name": "SQL_VARIANT_PROPERTY",
+      "kind": "function",
+      "summary": "查 sql_variant 值的基底型別、精確度這些屬性。",
+      "example": "SELECT SQL_VARIANT_PROPERTY(CAST(1 AS sql_variant), 'BaseType')   -- 'int'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/sql-variant-property-transact-sql"
+    },
+    {
+      "name": "STATS_DATE",
+      "kind": "function",
+      "summary": "統計資料上一次更新的時間。",
+      "example": "SELECT STATS_DATE(OBJECT_ID('dbo.Loan'), 1)   -- 第一份統計資料的時間",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/stats-date-transact-sql"
+    },
+    {
+      "name": "STRING_ESCAPE",
+      "kind": "function",
+      "summary": "逸出特殊字元，type 目前只支援 json。",
+      "example": "SELECT STRING_ESCAPE('a/b', 'json')   -- 'a\\/b'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/string-escape-transact-sql"
+    },
+    {
+      "name": "SUSER_ID",
+      "kind": "function",
+      "summary": "登入的識別碼，省略引數就是目前這個連線的登入。",
+      "example": "SELECT SUSER_ID()   -- 目前登入的 principal_id",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/suser-id-transact-sql"
+    },
+    {
+      "name": "SUSER_NAME",
+      "kind": "function",
+      "summary": "由登入識別碼反查名稱；SUSER_SNAME 吃的是 SID。",
+      "example": "SELECT SUSER_NAME(1)   -- 'sa'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/suser-name-transact-sql"
+    },
+    {
+      "name": "SUSER_SID",
+      "kind": "function",
+      "summary": "登入的 SID，省略引數就是目前這個連線的登入。",
+      "example": "SELECT SUSER_SID('sa')   -- 0x01",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/suser-sid-transact-sql"
+    },
+    {
+      "name": "TAN",
+      "kind": "function",
+      "summary": "正切，引數是弧度。",
+      "example": "SELECT TAN(0)   -- 0",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/tan-transact-sql"
+    },
+    {
+      "name": "TIMEFROMPARTS",
+      "kind": "function",
+      "summary": "用各個部分組出 time，最後一個引數是小數秒位數。",
+      "example": "SELECT TIMEFROMPARTS(21, 30, 0, 0, 0)   -- 21:30:00",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/timefromparts-transact-sql"
+    },
+    {
+      "name": "TYPE_ID",
+      "kind": "function",
+      "summary": "型別的識別碼，查不到回傳 NULL。",
+      "example": "SELECT TYPE_ID('nvarchar')   -- 231",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/type-id-transact-sql"
+    },
+    {
+      "name": "TYPE_NAME",
+      "kind": "function",
+      "summary": "由型別識別碼反查名稱。",
+      "example": "SELECT TYPE_NAME(231)   -- 'nvarchar'",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/type-name-transact-sql"
+    },
+    {
+      "name": "TYPEPROPERTY",
+      "kind": "function",
+      "summary": "查型別的屬性，例如 Precision、Scale、AllowsNull。",
+      "example": "SELECT TYPEPROPERTY('int', 'Precision')   -- 10",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/typeproperty-transact-sql"
+    },
+    {
+      "name": "USER_ID",
+      "kind": "function",
+      "summary": "資料庫使用者的識別碼，省略引數就是目前的使用者。",
+      "example": "SELECT USER_ID('dbo')   -- 1",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/user-id-transact-sql"
+    },
+    {
+      "name": "XACT_STATE",
+      "kind": "function",
+      "summary": "交易狀態：1 可以認可、-1 只能回復、0 沒有交易。",
+      "example": "IF XACT_STATE() = -1 ROLLBACK TRANSACTION   -- CATCH 裡先問這一句",
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/xact-state-transact-sql"
+    },
+    {
       "name": "NOLOCK",
       "kind": "tableHint",
       "example": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- 同一列可能讀到兩次，也可能一次都沒讀到",
