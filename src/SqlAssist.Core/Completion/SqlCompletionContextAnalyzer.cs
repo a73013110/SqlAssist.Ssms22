@@ -186,28 +186,32 @@ public static class SqlCompletionContextAnalyzer
             return context;
         }
 
+        // 詞法分析提到這裡：底下三條路各自都要整份詞元，分開切等於同一份文字
+        // 依走哪一條掃兩次。
+        var tokens = SqlTokenizer.Tokenize(sql);
+
+        // 指令碼換過資料庫時，「目前資料庫」可能已經不是建立連線時那一個。
+        // 這裡只把這件事記在上下文裡，要不要重新確認連線由中繼資料層決定。
+        context = context.WithDatabaseSwitch(SqlDatabaseSwitch.FindLast(tokens, caretPosition));
+
         // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
         // 資料表變數要多帶一份資料行清單：INSERT INTO @rows 提交之後展的是整句，
         // 而那份清單只存在於 DECLARE @rows TABLE (…) 裡。
         if (context.Target == CompletionTarget.Variable)
         {
-            var variableTokens = SqlTokenizer.Tokenize(sql);
-
             return context.WithScriptSources(SqlScriptVariableSuggestions.Create(
-                variableTokens,
+                tokens,
                 caretPosition,
-                SqlScriptTableCollector.Collect(variableTokens)));
+                SqlScriptTableCollector.Collect(tokens)));
         }
 
         // 定序只要「這份指令碼裡出現過哪些 COLLATE」，敘述有哪些資料來源與欄位
         // 都無關，底下整趟範圍解析可以省下來。
         if (context.Target == CompletionTarget.Collation)
         {
-            return context.WithScriptSources(
-                SqlScriptCollationSuggestions.Create(SqlTokenizer.Tokenize(sql)));
+            return context.WithScriptSources(SqlScriptCollationSuggestions.Create(tokens));
         }
 
-        var tokens = SqlTokenizer.Tokenize(sql);
         var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
         var resolver = new SqlColumnSourceResolver(tokens);
         var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));

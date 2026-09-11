@@ -596,8 +596,10 @@ internal sealed class SqlAssistCommands
     }
 
     /// <remarks>
-    /// 只清掉中繼資料快取就夠了：原生管線每次觸發都會重新問來源，
-    /// 不需要另外去戳已經開著的清單。
+    /// 不必另外去戳已經開著的清單：原生管線每次觸發都會重新問來源。
+    /// 清的也不只是快取內容——連「現在連到哪個資料庫」都要重新確認，否則換過
+    /// 資料庫之後按下它，重新載入的仍然是舊資料庫的物件，而那正是使用者按它的
+    /// 原因；兩件事一起由 <see cref="SqlMetadataService.InvalidateAll"/> 做掉。
     /// </remarks>
     private void RefreshSuggestions(object? sender, EventArgs eventArgs)
     {

@@ -68,6 +68,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{EF86EC9E-A
 		docs\go-to-definition.md = docs\go-to-definition.md
 		docs\index.md = docs\index.md
 		docs\metadata-compatibility.md = docs\metadata-compatibility.md
+		docs\metadata-connection.md = docs\metadata-connection.md
 		docs\metadata-remote.md = docs\metadata-remote.md
 		docs\metadata.md = docs\metadata.md
 		docs\notifications-design.md = docs\notifications-design.md

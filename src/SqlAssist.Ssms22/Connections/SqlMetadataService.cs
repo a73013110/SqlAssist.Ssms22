@@ -40,6 +40,27 @@ internal sealed class SqlMetadataService : IDisposable
 
     private int _recheckInFlight;
 
+    /// <summary>使用者按過幾次「重新整理建議」。</summary>
+    /// <remarks>
+    /// 靜態的：那個命令是整個擴充一起清，而每個查詢視窗各有一份服務。
+    /// 少了這一個計數，清空的只有快取內容——USE 換過資料庫之後按下重新整理，
+    /// 重新載入的仍然是<b>舊資料庫</b>的物件，而那正是使用者按它的原因。
+    /// </remarks>
+    private static int _invalidationGeneration;
+
+    /// <summary>這個編輯器已經照第幾次清空確認過連線。</summary>
+    private int _confirmedGeneration;
+
+    /// <summary>指令碼裡最後一個 <c>USE</c> 指名的資料庫；沒有時為 null。</summary>
+    /// <remarks>
+    /// 只當成「該再問一次連線了」的訊號，不當成答案：指令碼寫著 <c>USE</c>
+    /// 不代表它執行過，而目前資料庫是連線說了算。
+    /// </remarks>
+    private string? _scriptDatabase;
+
+    /// <summary>正在進行的那一次重新確認；同時只留一份，其他呼叫端一起等它。</summary>
+    private Task<SqlMetadataCatalog?>? _confirming;
+
     /// <summary>
     /// 多久重新問一次 SSMS「現在連到哪裡」。
     /// </summary>
@@ -53,6 +74,20 @@ internal sealed class SqlMetadataService : IDisposable
     /// 但每一次按鍵都要冒一次卡住兩秒的風險不行。
     /// </remarks>
     private static readonly TimeSpan CatalogRecheckInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// 指令碼換過資料庫時，多久願意再問一次 SSMS。
+    /// </summary>
+    /// <remarks>
+    /// 只在「指令碼要的資料庫」與「目前目錄的資料庫」不一致時才適用，一致時
+    /// 一次都不問。不一致有兩種：<c>USE</c> 執行過了（問一次就換過來，之後不再
+    /// 不一致），以及打了 <c>USE</c> 卻還沒執行——後者會一直不一致，所以要有節流。
+    ///
+    /// 一秒是這兩件事的交界：使用者從按下執行到再開一次清單不會比它更快，
+    /// 所以執行完的第一份清單一定確認得到；而清單是一個字一個字開的，
+    /// 沒有節流的話光是打字就會每秒問好幾次。
+    /// </remarks>
+    private static readonly TimeSpan DatabaseSwitchRecheckInterval = TimeSpan.FromSeconds(1);
     private bool _disposed;
 
     /// <remarks>
@@ -77,10 +112,96 @@ internal sealed class SqlMetadataService : IDisposable
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
-    /// <summary>清空所有資料庫的快取。</summary>
+    /// <summary>清空所有資料庫的快取，並讓每個編輯器重新確認自己連到哪裡。</summary>
     public static void InvalidateAll()
     {
         SqlMetadataCatalogRegistry.Default.InvalidateAll();
+        Interlocked.Increment(ref _invalidationGeneration);
+    }
+
+    /// <summary>記下這份指令碼最後一個 <c>USE</c> 指名的資料庫。</summary>
+    /// <remarks>
+    /// 由分析過文字的那一端呼叫（建議清單與 Tab 展開），中繼資料層不自己再掃一次
+    /// ——那會是同一份指令碼在同一次按鍵上多掃一遍。
+    /// </remarks>
+    public void NoteDatabaseSwitch(string? databaseName)
+    {
+        lock (_syncRoot)
+        {
+            _scriptDatabase = string.IsNullOrWhiteSpace(databaseName) ? null : databaseName;
+        }
+    }
+
+    /// <summary>現在連到哪個資料庫這件事需要重新確認。</summary>
+    /// <remarks>
+    /// 給按鍵路徑判斷「這一次能不能直接用快取回答」用，它自己不問 SSMS，
+    /// 只比一次字串與一次時間。
+    /// </remarks>
+    public bool NeedsConnectionConfirmation
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return !_disposed && IsConfirmationDue();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 重新確認「現在連到哪個資料庫」，確認完才回來。
+    /// </summary>
+    /// <remarks>
+    /// 目前資料庫會變，而本擴充只靠十秒一次的背景輪詢發現它——執行完
+    /// <c>USE LibArchive</c> 之後的第一份清單因此仍然是舊資料庫的物件，
+    /// 而畫面上完全看不出退過。這條路徑讓等得起的呼叫端（建議清單、Tab 展開、
+    /// F12 都跑在背景工作上）先確認再回答：晚幾毫秒沒有代價，
+    /// 拿另一個資料庫的同名物件回答則是看不出來的錯。
+    ///
+    /// 按鍵與滑鼠停留路徑一律不呼叫這裡，它們維持「這一輪沒有資料」的規則。
+    /// 不必確認時連一個工作都不開。
+    /// </remarks>
+    public Task ConfirmConnectionAsync()
+    {
+        lock (_syncRoot)
+        {
+            if (_disposed || !IsConfirmationDue())
+            {
+                return Task.CompletedTask;
+            }
+
+            // 同一個編輯器的三個 MEF 元件會在同一輪各問一次，開三個工作等於
+            // 對同一件事排三次 UI 執行緒往返。
+            if (_confirming is { IsCompleted: false } running)
+            {
+                return running;
+            }
+
+            return _confirming = Task.Run(() => SqlAssistPlatformGuard.Probe<SqlMetadataCatalog?>(
+                "重新確認目前連線",
+                ResolveCatalogFromEditor,
+                fallback: null));
+        }
+    }
+
+    /// <summary>呼叫前必須握著 <see cref="_syncRoot"/>。</summary>
+    private bool IsConfirmationDue()
+    {
+        if (_catalog is null || _confirmedGeneration != Volatile.Read(ref _invalidationGeneration))
+        {
+            return true;
+        }
+
+        if (_scriptDatabase is null ||
+            string.Equals(
+                _catalog.ConnectionSource.DatabaseName,
+                _scriptDatabase,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return DateTimeOffset.UtcNow - _catalogCheckedAt >= DatabaseSwitchRecheckInterval;
     }
 
     /// <summary>
@@ -1059,7 +1180,11 @@ internal sealed class SqlMetadataService : IDisposable
             // 這條路徑在每一次按鍵上，絕不能等 SSMS 的 UI 執行緒。
             if (_catalog is not null)
             {
-                if (DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
+                // 確認條件成立時不必等滿十秒：指令碼換過資料庫，或使用者按過
+                // 重新整理。這兩條路不等結果，等得起的呼叫端走
+                // ConfirmConnectionAsync。
+                if (IsConfirmationDue() ||
+                    DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
                 {
                     BeginCatalogRecheck();
                 }
@@ -1091,7 +1216,11 @@ internal sealed class SqlMetadataService : IDisposable
 
             if (_catalog is not null)
             {
-                if (DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
+                // 確認條件成立時不必等滿十秒：指令碼換過資料庫，或使用者按過
+                // 重新整理。這兩條路不等結果，等得起的呼叫端走
+                // ConfirmConnectionAsync。
+                if (IsConfirmationDue() ||
+                    DateTimeOffset.UtcNow - _catalogCheckedAt >= CatalogRecheckInterval)
                 {
                     BeginCatalogRecheck();
                 }
@@ -1150,6 +1279,10 @@ internal sealed class SqlMetadataService : IDisposable
     {
         var timer = Stopwatch.StartNew();
 
+        // 先讀再問：問的途中使用者又按了一次重新整理時，那一次不該被這一輪的
+        // 答案蓋掉——下一次仍然要重新確認。
+        var generation = Volatile.Read(ref _invalidationGeneration);
+
         var editorConnection = SqlAssistPlatformGuard.Run<IDbConnection?>(
             "取得 SSMS 目前連線",
             () =>
@@ -1183,6 +1316,7 @@ internal sealed class SqlMetadataService : IDisposable
             // ConnectionString 未必逐字相同（例如密碼是否回傳），
             // 一旦不同，這個快取判斷就永遠不成立，每次按鍵都要重建連線來源。
             _catalogCheckedAt = DateTimeOffset.UtcNow;
+            _confirmedGeneration = generation;
 
             if (_catalog is not null && string.Equals(_editorCacheKey, cacheKey, StringComparison.Ordinal))
             {

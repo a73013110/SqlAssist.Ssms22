@@ -31,6 +31,10 @@ internal static class SqlObjectLocator
             return null;
         }
 
+        // 指令碼換過資料庫時先確認連線：F12 與參數提示都跑在背景工作上，等得起
+        // 一次往返，而拿另一個資料庫裡同名的物件回答會開出完全無關的定義。
+        await metadataService.ConfirmConnectionAsync().ConfigureAwait(false);
+
         var snapshot = await metadataService
             .GetSnapshotAsync(lookup.Reference.Path, cancellationToken)
             .ConfigureAwait(false);

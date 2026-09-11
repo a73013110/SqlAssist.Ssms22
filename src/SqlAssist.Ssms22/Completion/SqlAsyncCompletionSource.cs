@@ -244,6 +244,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 關掉「列出資料庫物件與欄位」的人要的是「不要連線」，這裡跟著不問。
         if (settings.IncludeDatabaseObjects)
         {
+            // 這份指令碼換過資料庫時，先確認現在真的連到哪裡再問清單。這條路徑
+            // 跑在平台的背景工作上，等得起一次往返；不等的代價是執行完
+            // USE LibArchive 之後的第一份清單仍然列著舊資料庫的物件，
+            // 而畫面上完全看不出退過。
+            _metadataService.NoteDatabaseSwitch(context.DatabaseSwitch);
+            await _metadataService.ConfirmConnectionAsync().ConfigureAwait(false);
+
             // 限定名稱解析自己就要問一次中繼資料；分開一列，才看得出「清單還沒出來」
             // 是卡在這一步還是卡在候選清單上。
             using (NotificationCenter.Default.Begin(NotificationCatalog.ResolvingQualifier,

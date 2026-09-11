@@ -406,4 +406,17 @@ public sealed class SqlWildcardAnalyzerTests
         Assert.Equal(new[] { "l:表 Loan", "f:表 fn_LoansByReader" }, Names(target));
         Assert.True(target.Qualify);
     }
+
+    /// <summary>
+    /// 展開寫回去的是欄位名稱，拿錯資料庫就是把別人的欄位貼進指令碼裡，
+    /// 因此展開器要看得到這份指令碼換過資料庫。
+    /// </summary>
+    [Fact]
+    public void 帶著指令碼換過的資料庫()
+    {
+        var target = Analyze("USE LibArchive; SELECT *| FROM dbo.PUBLISHER");
+
+        Assert.NotNull(target);
+        Assert.Equal("LibArchive", target!.DatabaseSwitch);
+    }
 }

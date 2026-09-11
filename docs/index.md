@@ -1,6 +1,6 @@
 # 文件路由
 
-只讀本次修改命中的護欄與主題；跨範圍取聯集。護欄是必讀規則，不是延伸閱讀。
+只讀本次修改命中的護欄與主題；護欄是必讀規則，不是延伸閱讀。
 
 ## 修改前護欄
 
@@ -54,7 +54,7 @@
 | 深淺主題切換、配色快取、分類色、高對比 | [主題連動](themes.md) |
 | 背景載入、計數、合併、統計、退場、玻璃提示 | [通知提示](notifications.md) |
 | 三軸、可見度、降級、種類開關、改名、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
-| 指令碼風格、選項、還原度、資料不齊時整段註解、快照 | [指令碼產生](script-generation.md) |
+| 指令碼風格、選項、還原度、資料不齊時整段註解 | [指令碼產生](script-generation.md) |
 | 健檢規則、嚴重度、誤報 | [結構健檢](schema-analysis.md) |
 | F12 物件種類、產生定義、失敗註解 | [F12 指令碼](definition-scripts.md) |
 | F12 執行緒、連線、新查詢視窗 | [移至定義](go-to-definition.md) |
@@ -63,15 +63,15 @@
 | 字面值、長度、精確度、輸出效能 | [格線輸出](result-grid-generation.md) |
 | 設定項、非設定項；設定頁按鈕、工具選單、關於 | [設定](settings.md)／[入口](settings-entries.md) |
 | 新增設定、enableWhen、enum 相容 | [設定結構](settings-schema.md) |
-| 中繼資料分層載入、跨資料庫 | [中繼資料](metadata.md) |
+| 分層載入、跨資料庫 | [中繼資料](metadata.md) |
+| 目前資料庫、USE | [目前連線](metadata-connection.md) |
 | 連結伺服器、OPENQUERY、遠端失敗 | [遠端中繼資料](metadata-remote.md) |
 | 舊版 SQL、權限、缺欄位、降級 | [相容與失敗](metadata-compatibility.md) |
 | 建置、測試、工具腳本；UTF-8／LF、BOM、輸出編碼 | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 組件參考版本、裝到別台就 FileNotFoundException | [程式碼](rules-code.md) |
 | 版本、發布、安裝、解除安裝 | [發布](release.md) |
 | VSIX 偵錯、MEF／命令快取、診斷 | [偵錯](debugging.md) |
-| AI 分段讀取、輸出節流、新設備 | [AI 工作流程](ai-workflow.md) |
-| RTK 安裝與限制 | [RTK](ai-rtk.md) |
-| README 截圖、logo、social preview、生成圖 | [圖片規則](images/README.md)／[提示詞](images/prompts.md) |
+| AI 分段讀取、輸出節流、RTK | [AI 工作流程](ai-workflow.md)／[RTK](ai-rtk.md) |
+| README 截圖、logo、social preview | [圖片規則](images/README.md)／[提示詞](images/prompts.md) |
 
-只安裝或使用產品時讀[開始使用](getting-started.md)，不需要代理護欄。
+只使用產品時讀[開始使用](getting-started.md)。
