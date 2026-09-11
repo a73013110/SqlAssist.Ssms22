@@ -9,7 +9,7 @@
 （`Metadata/Model/SqlObjectLookup`）**先問指令碼再問快照**。只問快照的症狀是
 使用者上一行才寫下的名稱，停上去什麼都沒有，Ctrl+F12 還回報「不是可辨識的
 資料庫物件」。欄位就寫在眼前的宣告括號裡，名冊（`Metadata/Model/SqlScriptDeclarations`）
-與[欄位](completion-columns.md#指令碼宣告的資料表)建議共用同一次掃描，三條入口問的
+與[指令碼宣告的資料表](script-tables.md)建議共用同一次掃描，三條入口問的
 也是它。這一支不必等連線，沒連上資料庫時照樣答得出來。
 
 它們沒有 `object_id`（一律是 0），明細因此跟著定位一起交出去，不回頭問中繼資料

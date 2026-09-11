@@ -6,7 +6,7 @@
 按 `Ctrl+,`，或從 **工具 → SqlAssist → 設定…** 直接跳到 SqlAssist 分類。
 改完立即生效，不必重開查詢視窗，並跟著 SSMS 的設定漫遊同步。
 
-區塊選項見[區塊配對](block-matching.md)，「通知與背景工作」一整頁見[通知提示](notifications.md#呈現與設定)，
+區塊選項見[區塊配對](block-matching.md)，「通知與背景工作」一整頁見[通知呈現與驗證](notifications-ui.md#呈現與設定)，
 其餘如下：
 
 | 分類 | 設定 | 預設 |

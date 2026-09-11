@@ -82,7 +82,7 @@ ROLLBACK 的試跑版；`wcte`、`wdt` 沒有選取時就是 CTE 與衍生資料
 
 單行也是刻意的。`ij`、`lj` 曾經連 `AS t` 與 `ON 1 = 1` 一起插進去，代價是每次
 都要回頭刪掉猜錯的別名與條件。改成單行之後別名與 `ON` 要自己打——`ON` 有關鍵字
-自動大寫接著，而別名那一格本來就不開清單（見[沒有 AS 的別名](completion-keyword-context.md#沒有-as-的別名靠換行分辨)）。
+自動大寫接著，而別名那一格本來就不開清單（見[沒有 AS 的別名](completion-no-list.md#沒有-as-的別名靠換行分辨)）。
 
 `sd` 展開的是 `SELECT DISTINCT * FROM `。`DISTINCT *` 通常不是最終要的，但選完
 資料表之後把游標移到 `*` 按 Tab 就展開成完整欄位清單再挑，比 `[$column$]` 一次

@@ -10,7 +10,7 @@
 見[函式呼叫](function-call-insertion.md)。
 
 `INSERT INTO #Loan` 與 `INSERT INTO @rows` 走的是完全同一條路，差別只在欄位從哪裡來
-——那兩種名稱中繼資料查不到，欄位改讀[指令碼裡的宣告](completion-columns.md#指令碼宣告的資料表)。
+——那兩種名稱中繼資料查不到，欄位改讀[指令碼裡的宣告](script-tables.md)。
 「怎麼安全地把整句換掉」與「換成什麼樣子」兩段都不必為它們重寫。
 
 ```text
