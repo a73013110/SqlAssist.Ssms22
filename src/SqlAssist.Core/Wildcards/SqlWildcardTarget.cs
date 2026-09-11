@@ -11,15 +11,13 @@ public sealed class SqlWildcardTarget
         int length,
         string? qualifierText,
         bool qualify,
-        IReadOnlyList<SqlColumnSource> sources,
-        string? databaseSwitch = null)
+        IReadOnlyList<SqlColumnSource> sources)
     {
         Start = start;
         Length = length;
         QualifierText = qualifierText;
         Qualify = qualify;
         Sources = sources;
-        DatabaseSwitch = databaseSwitch;
     }
 
     /// <summary>要被替換掉的範圍起點，含使用者寫下的限定字（<c>a.*</c> 從 <c>a</c> 開始）。</summary>
@@ -49,14 +47,4 @@ public sealed class SqlWildcardTarget
 
     /// <summary>欄位的來源，順序就是展開後的欄位順序。</summary>
     public IReadOnlyList<SqlColumnSource> Sources { get; }
-
-    /// <summary>
-    /// 這份指令碼最後一個 <c>USE</c> 指名的資料庫；沒有 <c>USE</c> 時為 null。
-    /// </summary>
-    /// <remarks>
-    /// 展開寫回去的是欄位名稱，拿錯資料庫的同名資料表就是把別人的欄位貼進
-    /// 使用者的指令碼，而畫面上看不出來。理由與用法見
-    /// <see cref="SqlDatabaseSwitch"/>。
-    /// </remarks>
-    public string? DatabaseSwitch { get; }
 }

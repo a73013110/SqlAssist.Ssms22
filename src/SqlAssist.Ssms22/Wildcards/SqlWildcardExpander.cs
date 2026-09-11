@@ -101,11 +101,9 @@ internal sealed class SqlWildcardExpander
             new Span(target.Start, target.Length),
             SpanTrackingMode.EdgeExclusive);
 
-        // 這份指令碼換過資料庫時，快取裡那份欄位可能是另一個資料庫裡同名資料表
-        // 的——展開寫回去的是欄位名稱，貼進去之後畫面上看不出來。先換到背景把
-        // 連線確認完，慢一輪也不貼錯。
-        _metadataService.NoteDatabaseSwitch(target.DatabaseSwitch);
-
+        // 連線換過時，快取裡那份欄位可能是另一個資料庫裡同名資料表的——展開寫
+        // 回去的是欄位名稱，貼進去之後畫面上看不出來。先換到背景把連線確認完，
+        // 慢一輪也不貼錯。
         if (!_metadataService.NeedsConnectionConfirmation &&
             TryResolveCached(target, settings) is { } columns)
         {

@@ -24,8 +24,7 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlColumnSource>? scopeSources = null,
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
         SqlExecutedModule? executedModule = null,
-        int qualifierStart = -1,
-        string? databaseSwitch = null)
+        int qualifierStart = -1)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         IsValid = isValid;
@@ -40,7 +39,6 @@ public sealed class SqlCompletionContext
         ScopeSources = scopeSources ?? NoSources;
         ExecutedModule = executedModule;
         QualifierStart = qualifierStart;
-        DatabaseSwitch = databaseSwitch;
     }
 
     public bool IsValid { get; }
@@ -135,16 +133,6 @@ public sealed class SqlCompletionContext
     public SqlExecutedModule? ExecutedModule { get; }
 
     /// <summary>
-    /// 游標之前最後一個 <c>USE</c> 指名的資料庫；這份指令碼沒有 <c>USE</c> 時為 null。
-    /// </summary>
-    /// <remarks>
-    /// 不是「該用哪一個資料庫」的答案：指令碼寫著 <c>USE</c> 不代表它執行過。
-    /// 它只回答「這個查詢視窗的目前資料庫可能被換掉了」，由中繼資料層據此決定
-    /// 要不要重新向 SSMS 確認連線，理由見 <see cref="SqlDatabaseSwitch"/>。
-    /// </remarks>
-    public string? DatabaseSwitch { get; }
-
-    /// <summary>
     /// 這個位置要不要 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 底下的系統物件。
     /// </summary>
     /// <remarks>
@@ -187,26 +175,6 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public SqlKeywordPosition KeywordPosition { get; }
 
-    /// <summary>複製這個上下文，補上這份指令碼換過的資料庫。</summary>
-    internal SqlCompletionContext WithDatabaseSwitch(string? databaseName)
-    {
-        return new SqlCompletionContext(
-            IsValid,
-            TokenStart,
-            Prefix,
-            Target,
-            QualifierPath,
-            TargetKeywordStart,
-            Intent,
-            ColumnSources,
-            KeywordPosition,
-            ScopeSources,
-            ScriptSources,
-            ExecutedModule,
-            QualifierStart,
-            databaseName);
-    }
-
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
     {
@@ -223,8 +191,7 @@ public sealed class SqlCompletionContext
             sources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart,
-            DatabaseSwitch);
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -243,8 +210,7 @@ public sealed class SqlCompletionContext
             ScopeSources,
             sources,
             ExecutedModule,
-            QualifierStart,
-            DatabaseSwitch);
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
@@ -270,8 +236,7 @@ public sealed class SqlCompletionContext
             ScopeSources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart,
-            DatabaseSwitch);
+            QualifierStart);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -290,7 +255,6 @@ public sealed class SqlCompletionContext
             ScopeSources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart,
-            DatabaseSwitch);
+            QualifierStart);
     }
 }

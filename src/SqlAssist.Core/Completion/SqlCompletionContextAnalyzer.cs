@@ -190,10 +190,6 @@ public static class SqlCompletionContextAnalyzer
         // 依走哪一條掃兩次。
         var tokens = SqlTokenizer.Tokenize(sql);
 
-        // 指令碼換過資料庫時，「目前資料庫」可能已經不是建立連線時那一個。
-        // 這裡只把這件事記在上下文裡，要不要重新確認連線由中繼資料層決定。
-        context = context.WithDatabaseSwitch(SqlDatabaseSwitch.FindLast(tokens, caretPosition));
-
         // 變數只需要「這份指令碼裡出現過哪些 @名稱」，同樣不必解析範圍與欄位來源。
         // 資料表變數要多帶一份資料行清單：INSERT INTO @rows 提交之後展的是整句，
         // 而那份清單只存在於 DECLARE @rows TABLE (…) 裡。

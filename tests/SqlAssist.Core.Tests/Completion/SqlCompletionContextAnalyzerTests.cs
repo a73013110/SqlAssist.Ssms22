@@ -374,18 +374,4 @@ public sealed class SqlCompletionContextAnalyzerTests
             SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart,
             context.KeywordPosition);
     }
-
-    /// <summary>
-    /// 目前資料庫由連線決定，但「指令碼換過資料庫」只有文字看得出來——
-    /// 中繼資料層據此決定要不要重新確認連線。
-    /// </summary>
-    [Fact]
-    public void 上下文帶著指令碼換過的資料庫()
-    {
-        var input = SqlWithCaret.Parse("USE LibArchive; SELECT * FROM |");
-
-        Assert.Equal(
-            "LibArchive",
-            SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret).DatabaseSwitch);
-    }
 }

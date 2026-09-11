@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Commands;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
@@ -102,6 +103,7 @@ public sealed class SqlAssistPackage : AsyncPackage
         if (disposing)
         {
             NotificationCenter.Default.Completed -= OnNotificationCompleted;
+            SqlAssistPlatformGuard.Run("解除 SSMS 連線變更事件", SqlEditorConnectionWatcher.Shutdown);
             SqlAssistPlatformGuard.Run("釋放通知提示", NotificationAdornmentProvider.Shutdown);
             SqlAssistSettingsStore.Shutdown();
             VsThemeBrushes.Shutdown();

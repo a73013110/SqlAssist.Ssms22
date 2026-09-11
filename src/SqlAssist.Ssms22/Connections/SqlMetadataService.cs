@@ -51,12 +51,22 @@ internal sealed class SqlMetadataService : IDisposable
     /// <summary>這個編輯器已經照第幾次清空確認過連線。</summary>
     private int _confirmedGeneration;
 
-    /// <summary>指令碼裡最後一個 <c>USE</c> 指名的資料庫；沒有時為 null。</summary>
+    /// <summary>SSMS 說這個查詢視窗換過幾次連線。</summary>
     /// <remarks>
-    /// 只當成「該再問一次連線了」的訊號，不當成答案：指令碼寫著 <c>USE</c>
-    /// 不代表它執行過，而目前資料庫是連線說了算。
+    /// 由 <see cref="SqlEditorConnectionWatcher"/> 在 UI 執行緒上加一。事件是
+    /// 「該再問一次」的訊號，不是答案——真的去問 SSMS 留在背景路徑上。
     /// </remarks>
-    private string? _scriptDatabase;
+    private int _connectionEvents;
+
+    /// <summary>這個編輯器已經照第幾次連線事件確認過。</summary>
+    private int _confirmedConnectionEvents;
+
+    /// <summary>這個查詢視窗在 SSMS 裡的識別；還沒取得過焦點時為 null。</summary>
+    /// <remarks>
+    /// 有它就問得到<b>這一個</b>視窗的連線；沒有就只能問作用中的那一個，
+    /// 而使用者切到別的分頁時，那會把別的視窗的連線寫進這一份服務。
+    /// </remarks>
+    private string? _editorMoniker;
 
     /// <summary>正在進行的那一次重新確認；同時只留一份，其他呼叫端一起等它。</summary>
     private Task<SqlMetadataCatalog?>? _confirming;
@@ -74,20 +84,6 @@ internal sealed class SqlMetadataService : IDisposable
     /// 但每一次按鍵都要冒一次卡住兩秒的風險不行。
     /// </remarks>
     private static readonly TimeSpan CatalogRecheckInterval = TimeSpan.FromSeconds(10);
-
-    /// <summary>
-    /// 指令碼換過資料庫時，多久願意再問一次 SSMS。
-    /// </summary>
-    /// <remarks>
-    /// 只在「指令碼要的資料庫」與「目前目錄的資料庫」不一致時才適用，一致時
-    /// 一次都不問。不一致有兩種：<c>USE</c> 執行過了（問一次就換過來，之後不再
-    /// 不一致），以及打了 <c>USE</c> 卻還沒執行——後者會一直不一致，所以要有節流。
-    ///
-    /// 一秒是這兩件事的交界：使用者從按下執行到再開一次清單不會比它更快，
-    /// 所以執行完的第一份清單一定確認得到；而清單是一個字一個字開的，
-    /// 沒有節流的話光是打字就會每秒問好幾次。
-    /// </remarks>
-    private static readonly TimeSpan DatabaseSwitchRecheckInterval = TimeSpan.FromSeconds(1);
     private bool _disposed;
 
     /// <remarks>
@@ -119,16 +115,37 @@ internal sealed class SqlMetadataService : IDisposable
         Interlocked.Increment(ref _invalidationGeneration);
     }
 
-    /// <summary>記下這份指令碼最後一個 <c>USE</c> 指名的資料庫。</summary>
-    /// <remarks>
-    /// 由分析過文字的那一端呼叫（建議清單與 Tab 展開），中繼資料層不自己再掃一次
-    /// ——那會是同一份指令碼在同一次按鍵上多掃一遍。
-    /// </remarks>
-    public void NoteDatabaseSwitch(string? databaseName)
+    /// <summary>記下 SSMS 給這個查詢視窗的識別。</summary>
+    public void NoteEditorMoniker(string? editorMoniker)
     {
         lock (_syncRoot)
         {
-            _scriptDatabase = string.IsNullOrWhiteSpace(databaseName) ? null : databaseName;
+            _editorMoniker = string.IsNullOrEmpty(editorMoniker) ? null : editorMoniker;
+        }
+    }
+
+    /// <summary>SSMS 說有一個查詢視窗換了連線。</summary>
+    /// <remarks>
+    /// 認得出不是自己那個視窗就不理。認不出來（還沒取得識別，或事件沒指名視窗）
+    /// 一律當成自己的：多問一次連線只是一次背景往返，錯過一次則是整份清單都錯。
+    /// </remarks>
+    public void NoteConnectionChanged(string? editorMoniker)
+    {
+        lock (_syncRoot)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(editorMoniker) &&
+                _editorMoniker is { } mine &&
+                !string.Equals(mine, editorMoniker, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Interlocked.Increment(ref _connectionEvents);
         }
     }
 
@@ -187,21 +204,12 @@ internal sealed class SqlMetadataService : IDisposable
     /// <summary>呼叫前必須握著 <see cref="_syncRoot"/>。</summary>
     private bool IsConfirmationDue()
     {
-        if (_catalog is null || _confirmedGeneration != Volatile.Read(ref _invalidationGeneration))
-        {
-            return true;
-        }
-
-        if (_scriptDatabase is null ||
-            string.Equals(
-                _catalog.ConnectionSource.DatabaseName,
-                _scriptDatabase,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return DateTimeOffset.UtcNow - _catalogCheckedAt >= DatabaseSwitchRecheckInterval;
+        // 四種換法收斂在這一個判斷上：三種都由 SSMS 的連線事件送來，第四種是
+        // 使用者按重新整理。每一種各長一套判斷的話，漏掉的那一種會安靜地用舊
+        // 資料庫的物件回答。
+        return _catalog is null ||
+            _confirmedGeneration != Volatile.Read(ref _invalidationGeneration) ||
+            _confirmedConnectionEvents != Volatile.Read(ref _connectionEvents);
     }
 
     /// <summary>
@@ -1086,6 +1094,9 @@ internal sealed class SqlMetadataService : IDisposable
             // 這裡釋放會讓其他還開著的視窗一起失效。
             _catalog = null;
         }
+
+        // 在鎖外面解除：watcher 拿自己的鎖，而它發通知時會反過來拿這裡這一個。
+        SqlEditorConnectionWatcher.Unregister(this);
     }
 
     /// <summary>
@@ -1275,28 +1286,115 @@ internal sealed class SqlMetadataService : IDisposable
         BeginCatalogRecheck();
     }
 
+    /// <summary>
+    /// 向 SSMS 取得<b>這一個</b>查詢視窗的連線。
+    /// </summary>
+    /// <remarks>
+    /// <c>GetCurrentConnection()</c> 回答的是<b>目前作用中</b>那個視窗，而這條路徑
+    /// 跑在背景工作上：使用者切到別的分頁時，它會把別的視窗的連線寫進這一份服務，
+    /// 而畫面上看不出來——兩個視窗連到不同資料庫時，切回來的第一份清單就是別人的。
+    /// 有識別就指名問，沒有才退回作用中的那一個。
+    ///
+    /// 指名問回 null 有兩種：這個視窗真的沒有連線（剛斷線），以及手上的識別過期
+    /// （另存新檔會換掉它）。前者不能退回作用中視窗的連線——那正是這裡要消滅的
+    /// 污染——所以問一次 SSMS 開著哪些查詢視窗，兩種分開處理。
+    /// </remarks>
+    private IDbConnection? ResolveEditorConnection(Stopwatch timer)
+    {
+        if (_serviceProvider.GetService(typeof(SSqlEditorService)) is not ISqlEditorService editorService)
+        {
+            return null;
+        }
+
+        string? moniker;
+
+        lock (_syncRoot)
+        {
+            moniker = _editorMoniker;
+        }
+
+        if (moniker is null)
+        {
+            var active = editorService.GetCurrentConnection();
+            ReportIfSlow("向 SSMS 取得目前連線", timer);
+            return active;
+        }
+
+        var connection = editorService.GetConnectionForSpecificQueryEditor(moniker);
+        ReportIfSlow("向 SSMS 取得這個查詢視窗的連線", timer);
+
+        if (connection is not null || IsKnownEditor(editorService, moniker))
+        {
+            return connection;
+        }
+
+        SqlAssistDiagnostics.WriteAlways($"SSMS 不認得查詢視窗識別 {moniker}，改用作用中視窗的連線");
+
+        lock (_syncRoot)
+        {
+            // 丟掉過期的識別，下一次取得焦點時 watcher 會換上新的。
+            if (string.Equals(_editorMoniker, moniker, StringComparison.Ordinal))
+            {
+                _editorMoniker = null;
+            }
+        }
+
+        return editorService.GetCurrentConnection();
+    }
+
+    /// <summary>SSMS 現在還開著這個識別指的查詢視窗嗎。</summary>
+    private static bool IsKnownEditor(ISqlEditorService editorService, string moniker)
+    {
+        var editors = editorService.ListOpenedQueryEditorCaptionsWithMonikers(false);
+
+        if (editors is null)
+        {
+            return false;
+        }
+
+        foreach (var editor in editors)
+        {
+            if (string.Equals(editor.moniker, moniker, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private SqlMetadataCatalog? ResolveCatalogFromEditor()
     {
         var timer = Stopwatch.StartNew();
 
-        // 先讀再問：問的途中使用者又按了一次重新整理時，那一次不該被這一輪的
-        // 答案蓋掉——下一次仍然要重新確認。
+        // 先讀再問：問的途中使用者又按了一次重新整理、或 SSMS 又送來一次連線事件時，
+        // 那一次不該被這一輪的答案蓋掉——下一次仍然要重新確認。
         var generation = Volatile.Read(ref _invalidationGeneration);
+        var connectionEvents = Volatile.Read(ref _connectionEvents);
 
         var editorConnection = SqlAssistPlatformGuard.Run<IDbConnection?>(
-            "取得 SSMS 目前連線",
-            () =>
-            {
-                var editorService =
-                    _serviceProvider.GetService(typeof(SSqlEditorService)) as ISqlEditorService;
-                var connection = editorService?.GetCurrentConnection();
-                ReportIfSlow("向 SSMS 取得目前連線", timer);
-                return connection;
-            },
+            "向 SSMS 取得查詢視窗的連線",
+            () => ResolveEditorConnection(timer),
             fallback: null);
 
         if (editorConnection is null)
         {
+            lock (_syncRoot)
+            {
+                if (_disposed)
+                {
+                    return null;
+                }
+
+                // 記下這一次真的問過了。不記的話，斷線期間每一條等得起的路徑都會
+                // 因為旗標還在而再排一次 UI 往返，而那個呼叫塞住時要 1908 ms。
+                // 手上那份目錄留著不動：它是同一個資料庫的，只是現在查不動而已，
+                // 丟掉等於重新連上之前連一個名稱都列不出來。
+                _catalogCheckedAt = DateTimeOffset.UtcNow;
+                _confirmedGeneration = generation;
+                _confirmedConnectionEvents = connectionEvents;
+            }
+
             return null;
         }
 
@@ -1317,6 +1415,7 @@ internal sealed class SqlMetadataService : IDisposable
             // 一旦不同，這個快取判斷就永遠不成立，每次按鍵都要重建連線來源。
             _catalogCheckedAt = DateTimeOffset.UtcNow;
             _confirmedGeneration = generation;
+            _confirmedConnectionEvents = connectionEvents;
 
             if (_catalog is not null && string.Equals(_editorCacheKey, cacheKey, StringComparison.Ordinal))
             {

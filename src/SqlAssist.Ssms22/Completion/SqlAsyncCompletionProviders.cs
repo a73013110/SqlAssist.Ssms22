@@ -33,6 +33,10 @@ internal static class SqlCompletionServices
                 () =>
                 {
                     var service = new SqlMetadataService(serviceProvider);
+
+                    // 連線變更由 SSMS 的事件通知，而事件是全域服務的、服務是每個
+                    // 編輯器一份；對應關係就在這裡建立，也在這裡隨視窗關閉解除。
+                    SqlEditorConnectionWatcher.Attach(textView, service, serviceProvider);
                     textView.Closed += (_, _) => service.Dispose();
                     return service;
                 });

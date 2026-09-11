@@ -119,8 +119,7 @@ public static class SqlWildcardAnalyzer
             caretPosition - start,
             qualifierText,
             qualify: qualifierText is not null || references.Count > 1,
-            sources,
-            SqlDatabaseSwitch.FindLast(tokens, caretPosition));
+            sources);
     }
 
     /// <summary>找出結尾正好落在游標上的那個星號。</summary>
