@@ -46,6 +46,8 @@ public static class QueryMemoryStorageSelfTest
             var contentId = QueryContent.Create(sql).ContentId;
             var policy = new QueryMemoryPolicy(false, false, TimeSpan.FromMinutes(10), true, false);
             var savedId = Guid.NewGuid();
+            // 逐秒遞增的擷取時間讓筆數配額有明確界線；同一毫秒的執行會整批保留而驗不到配額。
+            var start = DateTimeOffset.UtcNow;
 
             using (var repository = await IsolatedQueryMemoryRepository.OpenAsync(database, ssmsIdeDirectory, token).ConfigureAwait(false))
             {
@@ -54,10 +56,10 @@ public static class QueryMemoryStorageSelfTest
                 var processor = new QueryMemoryProcessor(repository, engine);
                 for (var i = 1; i <= 20; i++)
                     await processor.ProcessAsync(new QueryMemoryCapture(Guid.NewGuid(), document, session, i,
-                        DateTimeOffset.UtcNow, QueryCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), policy, token).ConfigureAwait(false);
+                        start.AddSeconds(i), QueryCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), policy, token).ConfigureAwait(false);
                 var state = await repository.ReadSessionAsync(session.SessionId, token).ConfigureAwait(false);
                 var write = engine.Prepare(new QueryMemoryCapture(Guid.NewGuid(), document, session, 21,
-                    DateTimeOffset.UtcNow, QueryCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), state, policy)
+                    start.AddSeconds(21), QueryCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), state, policy)
                     ?? throw new InvalidOperationException("未產生測試交易。");
                 Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.Committed, "首次提交");
                 Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.AlreadyCommitted, "冪等重送");
@@ -89,7 +91,7 @@ public static class QueryMemoryStorageSelfTest
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Saved 不刪除 History 內容");
                 report.WriteLine("通過：Saved Query CRUD、scope 分頁、版本衝突與刪除後歷史保留。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
-                report.WriteLine("通過：有界維護續跑、容量量測與無法回收時保護 Session head／Recovery。");
+                report.WriteLine("通過：有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery。");
             }
             using (File.Open(database, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
             report.WriteLine("通過：第二次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
@@ -110,21 +112,28 @@ public static class QueryMemoryStorageSelfTest
     {
         var usage = await repository.ReadUsageAsync(token).ConfigureAwait(false);
         Require(usage.ContentBytes == 2L * sql.Length && usage.DatabaseFileBytes > 0, "邏輯容量與實體檔案量測");
-        var policy = new QueryMemoryMaintenancePolicy(DateTimeOffset.MaxValue, DateTimeOffset.MaxValue, 0);
+        // 只給筆數配額、不給截止時間：期限內但超額的執行也要回收，head 內容仍受保護。
+        await DrainAsync(repository, new QueryMemoryMaintenancePolicy(null, null, null, 5, 0), token).ConfigureAwait(false);
+        Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(50, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 5,
+            "Execution 筆數配額");
+        Require((await repository.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "筆數配額不刪除 Session head 內容");
+        var result = await DrainAsync(repository, new QueryMemoryMaintenancePolicy(DateTimeOffset.MaxValue, DateTimeOffset.MaxValue, 0), token).ConfigureAwait(false);
+        Require(result.CapacityStatus == QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, "受保護內容無法回收");
+        Require((await repository.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "維護保留 head／Recovery 內容");
+        Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(1, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 0,
+            "維護清除過期執行");
+    }
+
+    private static async Task<QueryMemoryMaintenanceResult> DrainAsync(IsolatedQueryMemoryRepository repository,
+        QueryMemoryMaintenancePolicy policy, CancellationToken token)
+    {
         string? cursor = null;
         for (var batch = 0; batch < 40; batch++)
         {
             token.ThrowIfCancellationRequested();
             var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 4, cursor), token).ConfigureAwait(false);
             Require(result.ExaminedCandidates <= 4 && result.DeletedRows <= 8, "清理工作量上限");
-            if (result.Cursor == null && !result.RequiresAnotherPass)
-            {
-                Require(result.CapacityStatus == QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, "受保護內容無法回收");
-                Require((await repository.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "維護保留 head／Recovery 內容");
-                Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(1, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 0,
-                    "維護清除過期執行");
-                return;
-            }
+            if (result.Cursor == null && !result.RequiresAnotherPass) return result;
             cursor = result.Cursor;
         }
         throw new InvalidOperationException("維護未在自我測試上限內收斂。");
