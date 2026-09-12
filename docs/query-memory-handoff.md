@@ -42,7 +42,7 @@ pkgdef、Manifest 或其他安裝資產變更仍須 Install；完整條件見[De
 Saved 外鍵保護均有真實 SQLite 測試。自我測試已加入 Saved CRUD／scope；SQL 擷取仍停用。
 詳細責任與限制見 [Saved 與維護](query-memory-saved.md)，不可把 metadata CRUD 當成 SQL 編輯流程。
 
-## B2a 已完成
+## B2a 程式與自動驗證已完成
 
 `IQueryMemoryMaintenanceRepository` 與 SQLite／隔離 Hosting
 共用；v2 → v3 migration 建立 `StorageUsage` trigger 及引用索引。期限清理按五階段 keyset 分批，
