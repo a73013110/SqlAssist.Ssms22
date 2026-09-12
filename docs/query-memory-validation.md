@@ -17,6 +17,30 @@
 快取；沒有複製白名單外輸出。這證明 Query Memory.Hosting／Sqlite 純程式碼改動可走 Deploy，
 不代表 SSMS 重新啟動、既有功能共存或本批後的儲存自我測試已完成。
 
+## B1 自動驗證與待驗
+
+2026-09-12，產品提交 `52a73ff`：完整測試 2853 項成功、0 失敗、0 略過（較 A 批新增 27 項）。
+涵蓋有資料的 v1 → v2 migration、並行開啟、DDL 失敗回復、Saved CRUD／scope／版本衝突、
+外鍵引用保護、Recovery 替換／Close 保留 Saved 內容，以及 scope 分頁索引不做暫存排序。
+這不是容量清理的驗收；完整邊界見 [Saved 與維護](query-memory-saved.md)。
+
+Release／Debug VSIX 建置及 38 檔封裝檢查通過；Debug 部署隔離 fixture 59 項通過。
+Release 封裝 probe 通過標準／外部 LoadFrom 載入、新版自我測試、雙程序 40 次執行與負向案例。
+封裝 Hosting 建置為 `0.17.17+52a73ff778`，紀錄保存在
+`artifacts/query-memory-package/b7c3f586217a4facb6d54b6ecd262db5/`；
+部署 fixture 為 `artifacts/debug-deployment-tests/da1b325404744169b817adb036772afb/`。
+完整測試紀錄為 `artifacts/ai-logs/20260912-162513-c3a74a0839d94888918c1592c639d5d3/`。
+這些本機產物不隨 Git 共用；文件與 UTF-8／LF 檢查亦已通過。
+
+本批僅修改產品程式碼與測試，**應使用 Deploy**；schema migration 隨程式執行，不是安裝資產。
+未修改 provider、native、隔離 config、命令表或 Manifest。關閉 SSMS 後執行
+`tools/Deploy-DebugExtension.ps1`，再依下列步驟測試；尚未代為部署或操作 SSMS。
+首次安裝或預檢指出安裝資產不相容仍須 Install，不能繞過預檢。
+
+本批仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
+舊版自我測試 PASS 不涵蓋本批；本次新版報告應多出「Saved Query CRUD、scope 分頁、版本衝突與
+刪除後歷史保留」。仍未啟用 SQL 擷取，retention、容量回收、Saved SQL 編輯／搜尋與 UI 尚未完成。
+
 ## 更新後如何測試
 
 | 變更 | 部署方式 |
@@ -33,7 +57,7 @@ Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Depl
 日常 Debug 驗證不能取代發布前對真正 VSIX 的安裝與封裝驗證。
 
 儲存邏輯變更跑完整測試及封裝測試，再在 SSMS 自我測試；其他功能變更另測該功能。
-自我測試報告不能證明尚未實作的 retention、Saved Queries 或擷取接線正確。
+自我測試報告不能證明尚未實作的 retention、Saved SQL 編輯或擷取接線正確。
 
 ## 操作
 
@@ -58,6 +82,7 @@ Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Depl
 
 - 背景建立專用資料庫，保存 21 次內建圖書館範例 SQL，驗證冪等重送不重複新增。
 - 卸載隔離 AppDomain，再重新開啟，驗證筆數、內容位址共用與全文還原。
+- 驗證 Saved CRUD、scope 分頁與過期版本拒絕；刪除 Saved 後 History 內容仍可讀。
 - 再次卸載，獨占開啟資料庫，確認檔案控制代碼已釋放。
 - 比對宿主 AppDomain 前後的 provider 組件；新增 provider 即回報失敗。
 - 報告逐步落盤，失敗保留最後成功步驟與例外；取消或失敗不宣稱通過。

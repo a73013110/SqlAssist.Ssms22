@@ -22,9 +22,10 @@
 | `dddabee` | SSMS 儲存自我測試命令 |
 | `1b7fd2a` | 外部 LoadFrom 載入的代理轉型修正、回歸測試 |
 | `0b23c56` | A 批 Debug 部署白名單、完整預檢、SHA-256 驗證與隔離 fixture |
+| `52a73ff` | B1：Saved CRUD／scope、GUID CAS、schema v2 migration 與真實引用保護測試 |
 
-最近產品驗證：完整測試 2826 項通過；Debug 部署隔離測試 59 項通過；
-真正安裝目錄的 Debug 部署已成功驗證 11 個檔案並清除兩份快取；SSMS 儲存自我測試仍是使用者回報 PASS。
+最近完整測試 2853 項通過（新增 27 項）；B1 的封裝與未驗項目見[驗收](query-memory-validation.md)。
+A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
 這不是整個功能完成：正式擷取、設定與 History UI 仍未啟用；其他實機門檻以驗收文件為準。
 
 ## A 批已完成
@@ -33,12 +34,20 @@
 Query Memory.Hosting／Sqlite 純程式碼改動已用真實安裝目錄成功 Deploy。provider、native、隔離設定、
 pkgdef、Manifest 或其他安裝資產變更仍須 Install；完整條件見[Debug 部署完整性](debug-deployment.md)。
 
+## B1 已完成
+
+已沿用原始 SavedQuery 形狀完成既有 Revision 的 CRUD／scope；儲存與隔離 Hosting 共用
+`ISavedQueryRepository`，沒有改造背景擷取流程。v1 有資料升級至 v2、並行開啟、失敗回復及
+Saved 外鍵保護均有真實 SQLite 測試。自我測試已加入 Saved CRUD／scope；SQL 擷取仍停用。
+詳細責任與限制見 [Saved 與維護](query-memory-saved.md)，不可把 metadata CRUD 當成 SQL 編輯流程。
+
 ## 建議下一批
 
-**B：儲存維護與 Saved Queries**。接續核心文件的後續批次，不重建 storage。
-先定義保留／引用保護契約及 schema migration，再做有界清理、容量策略、Saved CRUD／scope。
-活動 Recovery、Session head、Pinned、Manual 與 Saved 引用不得被清成懸空。
-Saved 尚未落地時，不能宣稱已驗證 Saved 引用保護；要有真實 SQLite 回歸測試。
+**B2：有界儲存維護**。先讀 [Saved 與維護](query-memory-saved.md)的保留契約，再依政策設計
+清理工作量、容量量測與逐批回收。不得重建 storage、重做 Saved CRUD 或把所有版本無條件刪除。
+活動 Recovery、Session 的兩種 head、Pinned、Manual 與 Saved 引用不得被清成懸空；
+用真實 SQLite 補上清理與 Saved 更新競賽、容量無法回收、取消及恢復續跑測試。
+Saved SQL 編輯／建立新版本的交易流程與搜尋仍需後續批次，不自行補猜產品互動規格。
 
 **C：擷取、設定與 UI**。待前置契約和實機門檻確認後，依核心文件分批完成。
 不要因自我測試 PASS 就啟用實際 SQL 擷取；隱私設定與可見的降級提示仍未完成。

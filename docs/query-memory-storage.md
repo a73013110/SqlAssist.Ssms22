@@ -19,6 +19,7 @@ async ADO.NET 方法仍同步執行。本實作明確在背景做 I/O，不把 `
 
 - schema 有 application_id、user_version 與 StoreId；交易內重讀版本，避免雙程序初始化競賽。
   未知／未來版本、不相干 SQLite 與損壞檔案直接失敗，不自動刪除或重建。
+- 現行 schema v2；v1 逐版升級與 Saved 引用契約見 [Saved 與維護](query-memory-saved.md)。
 - WAL、外鍵與 IMMEDIATE 寫交易；每次操作獨立連線，不保留 connection pool。
   busy 等待預設 5 秒，可由建立 repository 的參數調整至 1～60 秒。
 - CaptureId 重送判斷在 CAS 之前；衝突、SQL 例外或取消不留下部分交易。
@@ -70,4 +71,4 @@ AppDomain 不隔離程序層級的 native DLL；載入來源檢查失敗即拒�
 不從 NuGet cache 或建置目錄補 DLL，不安裝／解除安裝擴充。紀錄留在 `artifacts/`。
 
 SSMS 安裝後載入已回報通過；[驗收狀態](query-memory-validation.md)區分已驗證與待確認項目。
-目前未接編輯器事件，也未完成 retention、Saved Queries CRUD、設定或 History UI。
+目前未接編輯器事件，也未完成 retention、Saved SQL 編輯流程、設定或 History UI。
