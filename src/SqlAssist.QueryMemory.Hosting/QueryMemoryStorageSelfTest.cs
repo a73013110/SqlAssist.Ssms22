@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ public static class QueryMemoryStorageSelfTest
 
     // 刪除收藏不連帶刪版本，這份 SQL 會活到下一輪維護，容量驗證必須把它算進去。
     private const string SavedEditSql = "SELECT * FROM Lib_Reader WHERE ReaderId = 1;";
+    private const string RecoverySql = "SELECT CopyNo FROM Cat_BookCopy;";
 
     public static Task RunAsync(string runDirectory, string? ssmsIdeDirectory, CancellationToken cancellationToken) =>
         Task.Run(() => RunCoreAsync(runDirectory, ssmsIdeDirectory, cancellationToken), cancellationToken);
@@ -49,6 +51,7 @@ public static class QueryMemoryStorageSelfTest
             var contentId = QueryContent.Create(sql).ContentId;
             var policy = new QueryMemoryPolicy(false, false, TimeSpan.FromMinutes(10), true, false);
             var savedId = Guid.NewGuid();
+            var lease = "";
             // 逐秒遞增的擷取時間讓筆數配額有明確界線；同一毫秒的執行會整批保留而驗不到配額。
             var start = DateTimeOffset.UtcNow;
 
@@ -104,9 +107,17 @@ public static class QueryMemoryStorageSelfTest
                 report.WriteLine("通過：Saved Query CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
                 report.WriteLine("通過：有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery。");
+                lease = await VerifySessionLeaseAsync(reopened, document, start, token).ConfigureAwait(false);
+                report.WriteLine("通過：Session 心跳租約在租約還在時保護未存檔草稿，期限到了也不回收。");
+            }
+            token.ThrowIfCancellationRequested();
+            using (var reaper = await IsolatedQueryMemoryRepository.OpenAsync(database, ssmsIdeDirectory, token).ConfigureAwait(false))
+            {
+                await VerifyLeaseReclaimAndCompactionAsync(reaper, lease, token).ConfigureAwait(false);
+                report.WriteLine("通過：回收失效租約後才清除未存檔草稿，WAL 截斷與整理保留其餘內容。");
             }
             using (File.Open(database, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
-            report.WriteLine("通過：第二次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
+            report.WriteLine("通過：最後一次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
             var added = ProviderAssemblies().Except(before, StringComparer.Ordinal).ToArray();
             Require(added.Length == 0, "宿主 AppDomain 未新增 provider：" + string.Join(" | ", added));
             report.WriteLine("通過：宿主 AppDomain 未新增 SQLite provider。");
@@ -162,6 +173,67 @@ public static class QueryMemoryStorageSelfTest
         Require((await repository.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "維護保留 head／Recovery 內容");
         Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(1, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 0,
             "維護清除過期執行");
+    }
+
+    /// <summary>寫進一份未存檔草稿並回傳本程序的租約識別碼；下一個 repository 才驗得到跨程序回收。</summary>
+    private static async Task<string> VerifySessionLeaseAsync(IsolatedQueryMemoryRepository repository,
+        QueryDocument document, DateTimeOffset start, CancellationToken token)
+    {
+        // 用另一台機器當擁有者：跨機器只認過期，同一次自我測試就能確定地走完回收那條路。
+        var owner = new QueryMemoryLeaseOwner(Environment.MachineName + "-OFFLINE", Process.GetCurrentProcess().Id, start);
+        var lease = await repository.OpenLeaseAsync(owner, start, token).ConfigureAwait(false);
+        Require(await repository.RenewLeaseAsync(start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
+        var session = new QuerySession(Guid.NewGuid(), document.DocumentId, start);
+        var drafts = new QueryMemoryPolicy(true, false, TimeSpan.FromMinutes(10), false, true);
+        await new QueryMemoryProcessor(repository, new QueryRevisionEngine()).ProcessAsync(
+            new QueryMemoryCapture(Guid.NewGuid(), document, session, 1, start.AddSeconds(300),
+                QueryCaptureKind.DraftIdle, new QueryTextSnapshot(RecoverySql)), drafts, token).ConfigureAwait(false);
+        await DrainAsync(repository, RecoveryExpired(), token).ConfigureAwait(false);
+        Require(await repository.ReadContentAsync(QueryContent.Create(RecoverySql).ContentId, token).ConfigureAwait(false) != null,
+            "租約保護未存檔草稿");
+        return lease;
+    }
+
+    private static async Task VerifyLeaseReclaimAndCompactionAsync(IsolatedQueryMemoryRepository repository,
+        string lease, CancellationToken token)
+    {
+        var recoveryContent = QueryContent.Create(RecoverySql).ContentId;
+        Require(await repository.ReadContentAsync(recoveryContent, token).ConfigureAwait(false) != null, "重新開啟後草稿仍在");
+        var reaper = new QueryMemoryLeaseReaper(Environment.MachineName, IsOwnerRunning);
+        using var current = Process.GetCurrentProcess();
+        var alive = new QueryMemoryLease(lease,
+            new QueryMemoryLeaseOwner(Environment.MachineName, current.Id, current.StartTime), DateTimeOffset.UtcNow);
+        // 還在執行的本機程序永遠不該被判成可回收，否則使用者正在編輯的內容會消失。
+        Require(reaper.Reclaimable(new[] { alive }).Count == 0, "還活著的程序不回收");
+        var expired = await repository.ReadExpiredLeasesAsync(DateTimeOffset.UtcNow, 10, token).ConfigureAwait(false);
+        Require(expired.Count == 1 && expired[0].LeaseId == lease, "讀出過期租約");
+        var reclaimable = reaper.Reclaimable(expired);
+        Require(reclaimable.Count == 1 && reclaimable[0] == lease, "確認程序已不存在");
+        Require(await repository.ReleaseLeasesAsync(reclaimable, DateTimeOffset.UtcNow, token).ConfigureAwait(false) == 1, "釋放失效租約");
+        await DrainAsync(repository, RecoveryExpired(), token).ConfigureAwait(false);
+        Require(await repository.ReadContentAsync(recoveryContent, token).ConfigureAwait(false) == null, "回收未存檔草稿");
+        var checkpoint = await repository.CheckpointAsync(token).ConfigureAwait(false);
+        Require(checkpoint.Truncated && checkpoint.Usage.WalFileBytes == 0, "背景 checkpoint 截斷 WAL");
+        var compacted = await repository.CompactAsync(token).ConfigureAwait(false);
+        Require(compacted.DatabaseFileBytes > 0 && compacted.WalFileBytes == 0, "手動整理後資料庫仍可用");
+        Require(compacted.DatabaseFileBytes <= checkpoint.Usage.DatabaseFileBytes, "手動整理不會放大資料庫");
+    }
+
+    /// <summary>連未存檔草稿都過期的政策；Recovery 期限是獨立的一個，不跟著草稿期限走。</summary>
+    private static QueryMemoryMaintenancePolicy RecoveryExpired() =>
+        new(DateTimeOffset.MaxValue, DateTimeOffset.MaxValue, null, null, null, null, DateTimeOffset.MaxValue);
+
+    private static bool IsOwnerRunning(QueryMemoryLeaseOwner owner)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(owner.ProcessId);
+            return QueryMemoryLeaseReaper.IsSameProcess(owner, process.StartTime);
+        }
+        // 沒有這個 PID 或程序已結束才算不在；問不到細節（例如存取被拒）一律當成還活著。
+        catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+        catch (Win32Exception) { return true; }
     }
 
     private static async Task<QueryMemoryMaintenanceResult> DrainAsync(IsolatedQueryMemoryRepository repository,

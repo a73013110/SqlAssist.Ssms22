@@ -47,13 +47,24 @@ public sealed class QueryMemoryLeaseReaper
     private static readonly TimeSpan StartTimeTolerance = TimeSpan.FromSeconds(1);
 
     private readonly string _machineName;
-    private readonly Func<int, DateTimeOffset?> _processStartTime;
+    private readonly Func<QueryMemoryLeaseOwner, bool> _isOwnerRunning;
 
-    public QueryMemoryLeaseReaper(string machineName, Func<int, DateTimeOffset?> processStartTime)
+    /// <param name="isOwnerRunning">
+    /// 這個擁有者的程序是否還在。判斷不出來時必須回報 true：寧可留下遺留租約，
+    /// 也不要刪掉使用者正在編輯的未存檔內容。比對啟動時間請用 <see cref="IsSameProcess"/>。
+    /// </param>
+    public QueryMemoryLeaseReaper(string machineName, Func<QueryMemoryLeaseOwner, bool> isOwnerRunning)
     {
         if (string.IsNullOrWhiteSpace(machineName)) throw new ArgumentException("缺少本機名稱。", nameof(machineName));
         _machineName = machineName;
-        _processStartTime = processStartTime ?? throw new ArgumentNullException(nameof(processStartTime));
+        _isOwnerRunning = isOwnerRunning ?? throw new ArgumentNullException(nameof(isOwnerRunning));
+    }
+
+    /// <summary>PID 會被重用；啟動時間對不上就是另一個程序，原本那個已經不在了。</summary>
+    public static bool IsSameProcess(QueryMemoryLeaseOwner owner, DateTimeOffset startTime)
+    {
+        if (owner == null) throw new ArgumentNullException(nameof(owner));
+        return (startTime - owner.ProcessStartTime).Duration() <= StartTimeTolerance;
     }
 
     public IReadOnlyList<string> Reclaimable(IReadOnlyList<QueryMemoryLease> expired)
@@ -63,16 +74,11 @@ public sealed class QueryMemoryLeaseReaper
         foreach (var lease in expired)
         {
             if (lease == null) throw new ArgumentException("租約清單含有空項目。", nameof(expired));
-            if (!IsAlive(lease.Owner)) reclaimable.Add(lease.LeaseId);
+            // 別台機器的程序查不到，也不該假設它還活著；那裡的心跳過期就是全部證據。
+            var running = string.Equals(lease.Owner.MachineName, _machineName, StringComparison.OrdinalIgnoreCase)
+                && _isOwnerRunning(lease.Owner);
+            if (!running) reclaimable.Add(lease.LeaseId);
         }
         return reclaimable;
-    }
-
-    private bool IsAlive(QueryMemoryLeaseOwner owner)
-    {
-        // 別台機器的程序查不到，也不該假設它死了；那裡的過期判斷就是全部證據。
-        if (!string.Equals(owner.MachineName, _machineName, StringComparison.OrdinalIgnoreCase)) return false;
-        var started = _processStartTime(owner.ProcessId);
-        return started.HasValue && (started.Value - owner.ProcessStartTime).Duration() <= StartTimeTolerance;
     }
 }
