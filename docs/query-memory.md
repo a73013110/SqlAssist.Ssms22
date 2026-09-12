@@ -51,7 +51,7 @@ SSMS 快照可能另保留編輯器內部資料。
 ## 後續批次與驗收門檻
 
 1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
-   尚須確認真正宿主內的並存、安裝與卸載。通過前不啟用擷取。
+   已提供[自我測試命令](query-memory-validation.md)，待確認宿主並存、安裝與卸載。通過前不啟用擷取。
 2. **儲存維護**：已有 schema v1、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
 3. **容量與 Saved Queries**：設定驅動 retention、儲存上限、分批清理孤立 Content；

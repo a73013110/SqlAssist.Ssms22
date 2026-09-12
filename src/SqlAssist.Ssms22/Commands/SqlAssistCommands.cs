@@ -82,6 +82,9 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
+        AddCommand(CommandIds.ProbeQueryMemory, (_, _) => SqlAssistQueryMemoryCommand.Execute(_package),
+            () => !SqlAssistQueryMemoryCommand.IsRunning,
+            isVisible: () => SqlAssistSettingsStore.Current.VerboseLogging);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);

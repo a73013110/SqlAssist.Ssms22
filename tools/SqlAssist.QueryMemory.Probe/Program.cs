@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -13,7 +14,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         Console.OutputEncoding = new UTF8Encoding(false);
-        if (args.Length != 3) { Console.Error.WriteLine("用法：Probe <SSMS IDE 目錄> <隔離資料庫> runtime|write|verify"); return 2; }
+        if (args.Length != 3) { Console.Error.WriteLine("用法：Probe <SSMS IDE 目錄> <隔離資料庫> runtime|write|verify|self-test"); return 2; }
         try { return Run(args[0], args[1], args[2]); }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
     }
@@ -22,6 +23,13 @@ internal static class Program
     private static int Run(string ssmsDirectory, string database, string mode)
     {
         if (!Environment.Is64BitProcess) throw new InvalidOperationException("Probe 必須使用 x64。");
+        if (mode == "self-test")
+        {
+            var directory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(database)), "self-test");
+            QueryMemoryStorageSelfTest.RunAsync(directory, ssmsDirectory, CancellationToken.None).GetAwaiter().GetResult();
+            Console.WriteLine(File.ReadAllText(Path.Combine(directory, QueryMemoryStorageSelfTest.ReportFileName)));
+            return 0;
+        }
         using var repository = IsolatedQueryMemoryRepository.OpenAsync(database, ssmsDirectory, CancellationToken.None).GetAwaiter().GetResult();
         if (mode == "runtime")
         {
