@@ -23,7 +23,7 @@
 | `1b7fd2a` | 外部 LoadFrom 載入的代理轉型修正、回歸測試 |
 | `0b23c56` | A 批 Debug 部署白名單、完整預檢、SHA-256 驗證與隔離 fixture |
 | `52a73ff` | B1：Saved CRUD／scope、GUID CAS、schema v2 migration 與真實引用保護測試 |
-| 工作區本批 | B2a：schema v3、政策驅動有界清理、容量計量、游標續跑與引用競賽測試（待提交） |
+| `ee8800a` | B2a：schema v3、政策驅動有界清理、容量計量、游標續跑與引用競賽測試 |
 
 最近完整測試 2879 項通過（B2a 新增 26 項）；B1／B2a 的封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
