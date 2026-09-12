@@ -62,6 +62,7 @@
 | 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 組件版本不符、FileNotFoundException | [程式碼](rules-code.md) |
 | 發布、安裝／移除、VSIX 偵錯、MEF／命令快取 | [發布](release.md)／[偵錯](debugging.md) |
+| Debug 部署完整性、必要／可選檔案、Deploy／Install 門檻 | [部署契約](debug-deployment.md) |
 | AI／RTK、README 圖片 | [AI 工作流程](ai-workflow.md)／[RTK](ai-rtk.md)／[圖片規則](images/README.md)／[提示詞](images/prompts.md) |
 
 只使用產品時讀[開始使用](getting-started.md)。

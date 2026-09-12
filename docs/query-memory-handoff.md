@@ -21,17 +21,19 @@
 | `6859668` | SQLite schema v1、WAL／去重／分頁、隔離層及封裝測試 |
 | `dddabee` | SSMS 儲存自我測試命令 |
 | `1b7fd2a` | 外部 LoadFrom 載入的代理轉型修正、回歸測試 |
+| A 批（本次） | Debug 部署白名單、完整預檢、SHA-256 驗證與隔離 fixture |
 
-最近產品驗證：完整測試 2826 項通過；真正 SSMS 的自我測試已由使用者回報 PASS。
+最近產品驗證：完整測試 2826 項通過；Debug 部署隔離測試 59 項通過；
+真正安裝目錄的 Debug 部署已成功驗證 11 個檔案並清除兩份快取；SSMS 儲存自我測試仍是使用者回報 PASS。
 這不是整個功能完成：正式擷取、設定與 History UI 仍未啟用；其他實機門檻以驗收文件為準。
 
-## 建議下一批
+## A 批已完成
 
-**A：先修補 Debug 部署完整性**。部署清單漏了新儲存組件，不能宣稱 Deploy 已更新 Query Memory。
-範圍限 `tools/` 的部署／驗證及相關文件；先設計必要／可選檔案與升級時的重裝條件，
-避免把全部建置輸出（尤其 System.*）複製進 SSMS。複製前完整檢查來源，部署後比對 hash，
-用隔離 fixture 驗證成功及缺檔失敗，不對使用者安裝目錄做破壞性測試。
-只有實際部署驗證成功後，才更新文件宣稱 Query Memory 純程式碼改動可走 Deploy。
+`Deploy-DebugExtension.ps1` 現在只替換白名單內的產品 DLL／PDB 與註冊 JSON；
+Query Memory.Hosting／Sqlite 純程式碼改動已用真實安裝目錄成功 Deploy。provider、native、隔離設定、
+pkgdef、Manifest 或其他安裝資產變更仍須 Install；完整條件見[Debug 部署完整性](debug-deployment.md)。
+
+## 建議下一批
 
 **B：儲存維護與 Saved Queries**。接續核心文件的後續批次，不重建 storage。
 先定義保留／引用保護契約及 schema migration，再做有界清理、容量策略、Saved CRUD／scope。

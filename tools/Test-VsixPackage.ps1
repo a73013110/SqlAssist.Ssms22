@@ -56,22 +56,8 @@ function Get-SystemAssemblyReference {
     return $versions
 }
 
-$requiredEntries = @(
-    'extension.vsixmanifest',
-    'SqlAssist.Core.dll',
-    'SqlAssist.Metadata.dll',
-    'SqlAssist.QueryMemory.Sqlite.dll',
-    'SqlAssist.QueryMemory.Hosting.dll',
-    'QueryMemory.Sqlite.config',
-    'ThirdPartyLicenses.txt',
-    'Microsoft.Data.Sqlite.dll',
-    'SQLitePCLRaw.core.dll',
-    'SQLitePCLRaw.batteries_v2.dll',
-    'SQLitePCLRaw.provider.e_sqlite3.dll',
-    'e_sqlite3.dll',
-    'SqlAssist.Ssms22.dll',
-    'SqlAssist.Ssms22.pkgdef'
-)
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Deployment.psm1') -Force
+$requiredEntries = @(Get-SqlAssistDeploymentFile | Where-Object Required | Select-Object -ExpandProperty Name)
 
 if (-not (Test-Path -LiteralPath $VsixPath)) {
     throw "找不到 VSIX：$VsixPath"

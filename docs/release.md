@@ -49,9 +49,8 @@ Tag 不參與版號計算，加不加都不影響建置結果。
   已安裝的使用者會覆蓋不了。所以調整 `pathFilters` 只能跟 minor 進位放在同一個
   commit——那時 height 本來就歸零，不存在倒退。
 
-`Deploy-DebugExtension.ps1` 只比對已安裝與建置版號的 `major.minor`。兩者不同時
-代表 pkgdef、vsct 或 Manifest 的註冊內容已經改變，必須重跑 `Install-Extension.ps1`，
-光覆蓋 DLL 不夠。
+`Deploy-DebugExtension.ps1` 允許 patch／revision 不同；major.minor、Manifest／pkgdef
+註冊或安裝資產變更仍須 Install。完整判定與失敗邊界見[Debug 部署契約](debug-deployment.md)。
 
 ## 發布
 

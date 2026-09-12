@@ -10,18 +10,25 @@
 全文還原、檔案釋放及宿主 AppDomain 未新增 provider。未提供 SSMS 完整產品版號。
 這是使用者提供的驗收證據，不是代理自行操作 SSMS；尚未回報既有功能共存、重啟後再次測試與解除安裝。
 
+## A 批 Debug 部署驗證
+
+2026-09-12，代理在使用者關閉 SSMS 後，以最新 Debug 輸出執行 `Deploy-DebugExtension.ps1 -SkipBuild`。
+真實安裝目錄成功更新 11 個白名單檔案，逐一完成 SHA-256 驗證並清除 ComponentModel／Unified Settings
+快取；沒有複製白名單外輸出。這證明 Query Memory.Hosting／Sqlite 純程式碼改動可走 Deploy，
+不代表 SSMS 重新啟動、既有功能共存或本批後的儲存自我測試已完成。
+
 ## 更新後如何測試
 
 | 變更 | 部署方式 |
 |---|---|
-| 只改目前 Debug 部署清單涵蓋的 Core／Metadata／Ssms22 程式碼 | 可用 `Deploy-DebugExtension.ps1`；仍須先關閉 SSMS |
-| Query Memory.Hosting／Sqlite 程式碼 | **目前使用完整建置＋Install**；Debug 清單尚未包含這兩個 DLL |
+| 只改白名單內的 Core／Metadata／Ssms22／Query Memory.Hosting／Sqlite 程式碼 | 可用 `Deploy-DebugExtension.ps1`；仍須先關閉 SSMS |
+| `SqlAssist.registration.json` 或可選 PDB | 可用 `Deploy-DebugExtension.ps1`；部署後會清快取 |
 | 新增／升級 provider、native DLL、隔離 config 或封裝檔案 | 完整建置、封裝驗證、Install、自我測試 |
-| 命令表、pkgdef、Manifest 或 major.minor 改變 | Install；不能用清快取替代重新註冊 |
+| 命令表、pkgdef（僅 CacheTag 變動除外）、Manifest 或 major.minor 改變 | Install；不能用清快取替代重新註冊 |
 | 只有文件 | 不需部署 |
 
-Debug 腳本目前會複製 `SqlAssist.registration.json` 並清除定義快取；設定變更不必然都要重裝，
-但涉及註冊結構或安裝資產時仍用 Install。參數與版號規則見[發布與安裝](release.md)。
+Debug 腳本會在完整預檢與 hash 驗證後複製允許替換的檔案並清除定義快取；安裝資產變更不會部分覆寫。
+參數與版號規則見[發布與安裝](release.md)。
 Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Deploy 預設會建置 Debug。
 日常 Debug 驗證不能取代發布前對真正 VSIX 的安裝與封裝驗證。
 
@@ -31,7 +38,7 @@ Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Depl
 ## 操作
 
 1. 儲存工作並關閉所有 SSMS 視窗，使用 `tools/Install-Extension.ps1` 安裝本次建置。
-   此批新增命令，命令資源已升至 21；不可只部署 DLL，詳見[安裝](release.md#安裝)。
+   首次安裝或命令資源有變更時必須 Install；本批純程式碼可 Deploy，不能以 Deploy 取代命令註冊，詳見[安裝](release.md#安裝)。
 2. 啟動 SSMS，在「工具 → SqlAssist → 設定」開啟詳細記錄。
 3. 執行「工具 → SqlAssist → Query Memory 儲存自我測試…」。
    狀態列會顯示執行中，同一程序不接受重複執行；完成後原生訊息框顯示結果與報告路徑。
