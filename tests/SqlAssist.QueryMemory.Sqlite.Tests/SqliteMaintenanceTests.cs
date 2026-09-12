@@ -506,4 +506,99 @@ public sealed class SqliteMaintenanceTests
         Assert.NotNull(await repository.ReadContentAsync(auto.ContentId, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
+
+    private static async Task<Guid> SeedBaseRevision(SqliteTestStore store, SqliteQueryMemoryRepository repository)
+    {
+        await store.Process(repository, store.Capture(), Token);
+        var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
+        Assert.NotNull(state?.LatestRevision);
+        return state.LatestRevision.RevisionId;
+    }
+
+    private static async Task<SavedQuery> SeedSaved(SqliteQueryMemoryRepository repository, Guid revisionId, string name)
+    {
+        var query = new SavedQuery(Guid.NewGuid(), name, null, revisionId, SavedQueryScope.Global, null, false);
+        Assert.Equal(SavedQueryWriteResult.Committed, await repository.WriteSavedQueryAsync(new SavedQueryWrite(query), Token));
+        return query;
+    }
+
+    private static string EditSql(string tag, int index) => "SELECT * FROM Loan WHERE Branch='" + tag + index + "';";
+
+    private static async Task<List<Guid>> EditSaved(SqliteQueryMemoryRepository repository, Guid savedQueryId,
+        string tag, int count, int startSeconds, int stepSeconds = 60)
+    {
+        var revisions = new List<Guid>();
+        for (var index = 0; index < count; index++)
+        {
+            var saved = await repository.ReadSavedQueryAsync(savedQueryId, Token);
+            Assert.NotNull(saved);
+            var edit = new SavedQueryEdit(savedQueryId, saved.Version, Guid.NewGuid(), EditSql(tag, index),
+                SqliteTestStore.Start.AddSeconds(startSeconds + index * stepSeconds));
+            Assert.Equal(SavedQueryWriteResult.Committed, await repository.EditSavedQuerySqlAsync(edit, Token));
+            revisions.Add(edit.RevisionId);
+        }
+        return revisions;
+    }
+
+    private static string Key(Guid id) => id.ToString("N");
+
+    [Fact]
+    public async Task SavedRevisionQuotaTrimsOldEditsButKeepsCurrentAndOtherSavedReferences()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var basis = await SeedBaseRevision(store, repository);
+        var query = await SeedSaved(repository, basis, "讀者收藏");
+        var edits = await EditSaved(repository, query.SavedQueryId, "A", 4, 60);
+        // 另一個收藏指著中段版本；配額不得越過任何 Saved 引用。
+        await SeedSaved(repository, edits[0], "讀者備份");
+        var result = await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, null, 2));
+        Assert.Equal(new[] { edits[0], edits[2], edits[3] }.Select(Key).OrderBy(id => id, StringComparer.Ordinal),
+            store.Query("SELECT RevisionId FROM Revisions WHERE SavedQueryId IS NOT NULL ORDER BY RevisionId;"));
+        Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("A", 1)).ContentId, Token));
+        // 配額不碰擷取產生的版本，也不改變容量狀態的定義。
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Key(basis) + "';"));
+        Assert.Equal(QueryMemoryCapacityStatus.WithinLimit, result.CapacityStatus);
+        Assert.Equal(store.Scalar("SELECT SUM(2 * Length) FROM Contents;"), result.Usage.ContentBytes);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task SavedRevisionQuotaCountsEachQuerySeparatelyAndKeepsTiedTimestamps()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var basis = await SeedBaseRevision(store, repository);
+        var tied = await SeedSaved(repository, basis, "同刻收藏");
+        await EditSaved(repository, tied.SavedQueryId, "T", 3, 60, 0);
+        var stepped = await SeedSaved(repository, basis, "遞增收藏");
+        var steps = await EditSaved(repository, stepped.SavedQueryId, "S", 3, 600);
+        await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, null, 1));
+        // 三個版本同一時間，第 1 新的界線不比任何列新，配額因此不刪任何一列。
+        Assert.Equal(3L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId='" + Key(tied.SavedQueryId) + "';"));
+        // 界線逐個收藏解析；快取不會把別的收藏算進同一份配額。
+        Assert.Equal(new[] { Key(steps[2]) }, store.Query("SELECT RevisionId FROM Revisions WHERE SavedQueryId='" + Key(stepped.SavedQueryId) + "';"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task SavedEditsIgnoreDraftRetentionUntilTheSavedQueryIsDeleted()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var basis = await SeedBaseRevision(store, repository);
+        var query = await SeedSaved(repository, basis, "讀者收藏");
+        await EditSaved(repository, query.SavedQueryId, "D", 2, 60);
+        // 收藏還在、沒有配額就是不限；草稿期限不回收它的 SQL 版本。
+        await Drain(repository, Expired());
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
+        var saved = await repository.ReadSavedQueryAsync(query.SavedQueryId, Token);
+        Assert.NotNull(saved);
+        Assert.Equal(SavedQueryWriteResult.Committed, await repository.DeleteSavedQueryAsync(query.SavedQueryId, saved.Version, Token));
+        // 收藏消失後標記成為孤立資料，改依草稿期限回收，不需要另開刪除路徑。
+        await Drain(repository, Expired());
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
+        Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("D", 0)).ContentId, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
 }

@@ -26,6 +26,7 @@ public sealed class QueryMemoryMaintenanceContractTests
         Assert.Equal(0, policy.MaxContentBytes);
         Assert.Null(policy.MaxExecutionEvents);
         Assert.Null(policy.MaxAutoRevisionsPerSession);
+        Assert.Null(policy.MaxRevisionsPerSavedQuery);
     }
 
     [Fact]
@@ -33,9 +34,11 @@ public sealed class QueryMemoryMaintenanceContractTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new QueryMemoryMaintenancePolicy(null, null, null, -1));
         Assert.Throws<ArgumentOutOfRangeException>(() => new QueryMemoryMaintenancePolicy(null, null, null, null, -1));
-        var policy = new QueryMemoryMaintenancePolicy(null, null, null, 0, 50);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryMemoryMaintenancePolicy(null, null, null, null, null, -1));
+        var policy = new QueryMemoryMaintenancePolicy(null, null, null, 0, 50, 10);
         Assert.Equal(0, policy.MaxExecutionEvents);
         Assert.Equal(50, policy.MaxAutoRevisionsPerSession);
+        Assert.Equal(10, policy.MaxRevisionsPerSavedQuery);
         Assert.Null(policy.MaxContentBytes);
         Assert.Null(policy.ExecutionBefore);
     }
