@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -140,7 +139,7 @@ ON CONFLICT(ContentId) DO NOTHING;", ("$id", content.ContentId), ("$hash", conte
         return key;
     }
 
-    private static string Field(string? value) => value == null ? "-1:" : value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
+    private static string Field(string? value) => SqliteFilterKey.Field(value);
 
     private static void WriteHistory(SqliteConnection connection, SqliteTransaction transaction, string key, Guid sessionId,
         Guid? revisionId, string contentId, DateTimeOffset time, QueryHistoryKind kind, QueryConnectionContext? context, string? contextId)

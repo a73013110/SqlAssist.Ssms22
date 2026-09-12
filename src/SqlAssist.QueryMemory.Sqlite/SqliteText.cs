@@ -32,35 +32,3 @@ internal static class SqliteText
         return text.Substring(0, length).Replace('\0', ' ');
     }
 }
-
-/// <summary>字面、區分大小寫的 KMP 搜尋；每次查詢只編譯一次，不為每列建立完整 SQL 字串。</summary>
-internal sealed class SqliteTextMatcher
-{
-    private readonly string _needle;
-    private readonly int[] _prefix;
-
-    public SqliteTextMatcher(string needle)
-    {
-        _needle = needle;
-        _prefix = new int[needle.Length];
-        for (int i = 1, j = 0; i < needle.Length; i++)
-        {
-            while (j > 0 && needle[i] != needle[j]) j = _prefix[j - 1];
-            if (needle[i] == needle[j]) j++;
-            _prefix[i] = j;
-        }
-    }
-
-    public bool Matches(byte[] bytes)
-    {
-        if (_needle.Length == 0) return true;
-        for (int i = 0, j = 0; i + 1 < bytes.Length; i += 2)
-        {
-            var value = (char)(bytes[i] | (bytes[i + 1] << 8));
-            while (j > 0 && value != _needle[j]) j = _prefix[j - 1];
-            if (value == _needle[j]) j++;
-            if (j == _needle.Length) return true;
-        }
-        return false;
-    }
-}

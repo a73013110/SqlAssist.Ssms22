@@ -103,16 +103,9 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
             conditions.Add("(h.CreatedAt, h.EntryKey) < ($time, $key)");
             parameters.Add(("$time", cursor.Ticks)); parameters.Add(("$key", cursor.EntryKey));
         }
-        if (request.Search is string search && search.Length != 0)
-        {
-            var matcher = new SqliteTextMatcher(search);
-            connection.CreateFunction<byte[], bool>("qm_matches", bytes =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return matcher.Matches(bytes);
-            });
-            conditions.Add("qm_matches(c.SqlBytes)");
-        }
+        // History 只搜尋 SQL 全文；顯示名稱與連線不是搜尋目標，語意與 Saved 的欄位清單分開。
+        if (SqliteSearchFilter.Create(request.Search) is SqliteSearchFilter search)
+            conditions.Add(search.Apply(connection, parameters, "c.SqlBytes", cancellationToken));
         var where = conditions.Count == 0 ? "" : " WHERE " + string.Join(" AND ", conditions);
         // 投影只拿 Preview。全文搜尋雖需掃候選 BLOB，但不將全部 SQL 載入列表或應用程式快取。
         using var command = Command(connection, null, @"SELECT h.EntryKey,h.SessionId,h.RevisionId,h.ContentId,h.CreatedAt,

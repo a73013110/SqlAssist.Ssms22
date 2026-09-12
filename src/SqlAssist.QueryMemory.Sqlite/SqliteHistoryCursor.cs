@@ -32,8 +32,7 @@ internal sealed class SqliteHistoryCursor
 
     private static string Fingerprint(QueryHistoryRequest request)
     {
-        string Field(string? value) => value == null ? "-1:" : value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
-        // 長度前綴避免分隔符出現在使用者文字時，讓不同 filter 得到同一指紋。
+        string Field(string? value) => SqliteFilterKey.Field(value);
         return QueryContent.Create(((int)request.Kind).ToString(CultureInfo.InvariantCulture) + ";" +
             Field(request.Search) + Field(request.Server) + Field(request.Database) +
             Field(request.Since?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture)) +
