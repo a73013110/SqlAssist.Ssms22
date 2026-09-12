@@ -48,6 +48,29 @@ public sealed partial class SqliteQueryMemoryRepository
         catch (FileNotFoundException) { return 0; }
     }
 
+    public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    {
+        using var connection = Connect();
+        cancellationToken.ThrowIfCancellationRequested();
+        // TRUNCATE 要求所有讀取者都在最新快照；還有人讀舊快照就回報 busy，不中斷他們也不改資料。
+        bool truncated;
+        using (var command = Command(connection, null, "PRAGMA wal_checkpoint(TRUNCATE);"))
+        using (var reader = command.ExecuteReader())
+            truncated = reader.Read() && reader.GetInt64(0) == 0;
+        return new QueryMemoryCheckpointResult(truncated, ReadUsage(connection, null));
+    }, cancellationToken);
+
+    public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    {
+        using var connection = Connect();
+        cancellationToken.ThrowIfCancellationRequested();
+        // VACUUM 不能在交易內；重建期間需要與資料庫等量的暫存空間，因此不排進背景維護。
+        Execute(connection, null, "VACUUM;");
+        // 重建結果先進 WAL，不接著 checkpoint 主檔案就不會縮小，使用者會看到「整理完卻沒變小」。
+        Execute(connection, null, "PRAGMA wal_checkpoint(TRUNCATE);");
+        return ReadUsage(connection, null);
+    }, cancellationToken);
+
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));

@@ -8,15 +8,13 @@ using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
 using SqlAssist.QueryMemory.Hosting;
 using Xunit;
+using static SqlAssist.QueryMemory.Sqlite.Tests.SqliteTestStore;
 
 namespace SqlAssist.QueryMemory.Sqlite.Tests;
 
 public sealed class SqliteMaintenanceTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
-    private static QueryMemoryMaintenancePolicy Expired(long? capacity = null) =>
-        new(SqliteTestStore.Start.AddDays(1), SqliteTestStore.Start.AddDays(1), capacity);
-
     private static async Task<QueryRevision> SeedLeaf(SqliteTestStore store, SqliteQueryMemoryRepository repository)
     {
         await store.Process(repository, store.Capture(selected: "SELECT * FROM Lib_Tag;",
@@ -25,20 +23,6 @@ public sealed class SqliteMaintenanceTests
         Assert.NotNull(state?.LatestExecutionRevision);
         await store.Process(repository, store.Capture(2, selected: "SELECT * FROM Loan;", seconds: 1), Token);
         return state.LatestExecutionRevision;
-    }
-
-    private static async Task<QueryMemoryMaintenanceResult> Drain(IQueryMemoryMaintenanceRepository repository,
-        QueryMemoryMaintenancePolicy policy, int budget = 2, string? cursor = null)
-    {
-        for (var batch = 0; batch < 200; batch++)
-        {
-            var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, budget, cursor), Token);
-            Assert.InRange(result.ExaminedCandidates, 0, budget);
-            Assert.InRange(result.DeletedRows, 0, 2 * result.ExaminedCandidates);
-            if (result.Cursor == null && !result.RequiresAnotherPass) return result;
-            cursor = result.Cursor;
-        }
-        throw new InvalidOperationException("維護未在測試上限內收斂。");
     }
 
     private static async Task<List<QueryRevision>> SeedAutoDrafts(SqliteTestStore store, SqliteQueryMemoryRepository repository,

@@ -9,6 +9,12 @@ public interface IQueryMemoryMaintenanceRepository
 {
     Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken);
     Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken);
+
+    /// <summary>實體整理與有界清理分開；可重複執行，被讀取者擋下時回報未截斷而不中斷他們。</summary>
+    Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken);
+
+    /// <summary>重建整個資料庫，時間隨資料量成長；只供設定頁的手動命令，不進排程。</summary>
+    Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>UTC 半開截止時間；null 停用該類保留清理，容量上限不授權刪除期限內資料。</summary>
@@ -62,6 +68,10 @@ public sealed class QueryMemoryMaintenanceRequest
 public sealed record QueryMemoryUsage(long ContentBytes, long DatabaseFileBytes, long WalFileBytes);
 
 public enum QueryMemoryCapacityStatus { WithinLimit, MoreWorkRequired, CannotReclaimWithinPolicy }
+
+/// <summary>Truncated 為 false 表示仍有連線在讀舊快照，WAL 沒有歸零；重排下一輪即可，不是失敗。</summary>
+[Serializable]
+public sealed record QueryMemoryCheckpointResult(bool Truncated, QueryMemoryUsage Usage);
 
 /// <summary>Cursor 為 null 才完成一輪；有刪除時需再巡一輪處理新孤立父版本。</summary>
 [Serializable]
