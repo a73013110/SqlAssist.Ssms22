@@ -57,15 +57,12 @@ public sealed class BlockStringTests
     {
         var matcher = new BlockMatcher("BEGIN " + new string('(', 500) + "1" + new string(')', 500) + " END");
         Func<BlockPair, bool> accepts = p => p.Kind == BlockKind.Block;
-        // net10 的分層 JIT 可能在首次迴圈配置資料；先暖機，量測只針對穩態查詢配置。
-        for (var i = 0; i < 5000; i++) _ = matcher.FindEnclosingBlock(507, accepts);
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) _ = matcher.FindEnclosingBlock(507, accepts);
-        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, 1024);
+        Assert.InRange(
+            AllocationProbe.MeasureSteadyState(() => _ = matcher.FindEnclosingBlock(507, accepts), iterations: 1000),
+            0, 1024);
         var settings = new SqlAssistSettings { BlockMatchParentheses = false };
-        for (var i = 0; i < 5000; i++) _ = BlockDisplayRules.FindContext(matcher, 507, settings);
-        before = GC.GetAllocatedBytesForCurrentThread();
-        for (var i = 0; i < 1000; i++) _ = BlockDisplayRules.FindContext(matcher, 507, settings);
-        Assert.InRange(GC.GetAllocatedBytesForCurrentThread() - before, 0, 1024);
+        Assert.InRange(
+            AllocationProbe.MeasureSteadyState(() => _ = BlockDisplayRules.FindContext(matcher, 507, settings), iterations: 1000),
+            0, 1024);
     }
 }

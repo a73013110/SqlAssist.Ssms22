@@ -24,8 +24,8 @@
 | `0b23c56` | A 批 Debug 部署白名單、完整預檢、SHA-256 驗證與隔離 fixture |
 | `52a73ff` | B1：Saved CRUD／scope、GUID CAS、schema v2 migration 與真實引用保護測試 |
 | `ee8800a` | B2a：schema v3、政策驅動有界清理、容量計量、游標續跑與引用競賽測試 |
-| `0b45bdd` | B2b-1：政策驅動筆數配額、schema v4 部分索引、自我測試與封裝 probe 涵蓋 |
-| `f6a82b3` | B3：Saved 名稱／說明／SQL 全文搜尋，與 History 共用字面搜尋條件 |
+| `2e8a5e5` | B2b-1：政策驅動筆數配額、schema v4 部分索引、自我測試與封裝 probe 涵蓋 |
+| `2e639d8` | B3：Saved 名稱／說明／SQL 全文搜尋，與 History 共用字面搜尋條件 |
 
 最近完整測試 2890 項通過（B3 新增 4 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
