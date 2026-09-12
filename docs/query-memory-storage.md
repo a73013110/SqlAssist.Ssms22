@@ -19,7 +19,7 @@ async ADO.NET 方法仍同步執行。本實作明確在背景做 I/O，不把 `
 
 - schema 有 application_id、user_version 與 StoreId；交易內重讀版本，避免雙程序初始化競賽。
   未知／未來版本、不相干 SQLite 與損壞檔案直接失敗，不自動刪除或重建。
-- 現行 schema v5；v1 → v2 見 [Saved](query-memory-saved.md)，v2 → v5 計量、索引與配額見[有界維護](query-memory-maintenance.md)。
+- 現行 schema v6；v1 → v2 見 [Saved](query-memory-saved.md)，v2 → v5 計量、索引與配額見[有界維護](query-memory-maintenance.md)。
 - WAL、外鍵與 IMMEDIATE 寫交易；每次操作獨立連線，不保留 connection pool。
   busy 等待預設 5 秒，可由建立 repository 的參數調整至 1～60 秒。
 - CaptureId 重送判斷在 CAS 之前；衝突、SQL 例外或取消不留下部分交易。
@@ -74,3 +74,18 @@ AppDomain 不隔離程序層級的 native DLL；載入來源檢查失敗即拒�
 SSMS 安裝後載入已回報通過；[驗收狀態](query-memory-validation.md)區分已驗證與待確認項目。
 已提供[有界期限清理、筆數配額與容量量測](query-memory-maintenance.md)，未接排程或編輯器事件。
 [Saved SQL 編輯](query-memory-saved.md#sql-編輯)的交易流程已完成；設定及 History UI 仍未完成。
+
+## Session 心跳租約
+
+一個程序在 `Leases` 續一列心跳，開啟後寫入的 Session 都標上該租約；同一個三元組重開沿用
+原本那一列，既有 Session 才不會落在沒人續的租約上。同一張表另留固定識別碼 `maintenance`
+作跨程序維護租約，只認過期不判斷存活。v6 的 `Sessions.LeaseId` 是外鍵，先解除標記才刪得掉
+租約列；升級後既有 Session 一律無租約，不追認有程序還在用它們。
+
+心跳過期只是宿主可以去確認，不是可以刪。跨機器只認過期；同機還要比對 MachineName／
+ProcessId／ProcessStartTime，PID 會被重用，啟動時間對不上就是另一個程序。判斷不出來一律
+視為還活著，寧可留下遺留租約，也不要刪掉正在編輯的未存檔內容。判斷到刪除之間對方可能回來
+續約，交易內重查過期才解除標記並刪租約列；自己的與維護租約不會被釋放，續約回報 false 是
+租約已被回收的唯一訊號，呼叫端必須重新開啟。
+
+釋放只是讓 Session 回到無人擁有；Recovery 仍要等 `RecoveryBefore` 才由[有界維護](query-memory-maintenance.md)回收。
