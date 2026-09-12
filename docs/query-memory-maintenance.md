@@ -75,4 +75,4 @@ Contents INSERT／DELETE／Length UPDATE trigger 在同一交易維護計量，�
 
 待補宿主排程與跨程序活動 Recovery 判定；配額值由設定批次提供，宿主未給就是不限。
 容量壓力下是否提前淘汰期限內版本、版本鏈保留方式及實體檔案整理，須先確認政策，不自行補猜。
-Saved SQL 編輯／搜尋、隱私設定與 History UI 仍依[接續](query-memory-handoff.md)另批處理。
+Saved SQL 編輯、隱私設定與 History UI 仍依[接續](query-memory-handoff.md)另批處理。
