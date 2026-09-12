@@ -21,9 +21,9 @@
 |---|---|
 | 分層、平台邊界、SqlAssistPlatformGuard | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
 | 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
-| Query Memory／SQLite | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[實測](query-memory-validation.md) |
+| Query Memory／SQLite | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[實測](query-memory-validation.md)／[接續](query-memory-handoff.md) |
 | 建議清單、Matching、排名、IntelliSense | [補全](completion.md) |
-| CompletionContext、Triggers、KeywordCase、一般位置 | [上下文](completion-context.md) |
+| CompletionContext、觸發與大小寫 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
 | `ON` 是資料表或述詞、MERGE 動作子句 | [ON／MERGE](completion-on-merge.md) |
 | TVF／純量函式、系統物件範圍 | [物件種類](completion-object-kinds.md) |
@@ -31,7 +31,7 @@
 | 別名欄位、ColumnSource、暫存表、資料表變數 | [欄位](completion-columns.md)／[指令碼宣告](script-tables.md) |
 | Scope、括號範圍、重開清單 | [範圍與重開](completion-reopen.md) |
 | 提交名稱、結構描述、方括號、點號 | [插入文字](completion-insertion.md) |
-| ALTER／INSERT／MERGE／EXEC 展開、游標、復原 | [整句展開](statement-expansion.md) |
+| 整句展開、游標、復原 | [整句展開](statement-expansion.md) |
 | INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
 | 自訂函式括號、引數預留值、參數資訊 | [函式呼叫](function-call-insertion.md) |
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |

@@ -69,5 +69,5 @@ AppDomain 不隔離程序層級的 native DLL；載入來源檢查失敗即拒�
 另以不含 SqlAssist DLL 的啟動目錄搭配 `LoadFrom` 重跑，涵蓋代理跨載入內容的回歸案例。
 不從 NuGet cache 或建置目錄補 DLL，不安裝／解除安裝擴充。紀錄留在 `artifacts/`。
 
-**仍須實機驗收**：在 SSMS 安裝後載入，與宿主既有 SQLite 功能並存，確認卸載與重新啟動。
+SSMS 安裝後載入已回報通過；[驗收狀態](query-memory-validation.md)區分已驗證與待確認項目。
 目前未接編輯器事件，也未完成 retention、Saved Queries CRUD、設定或 History UI。
