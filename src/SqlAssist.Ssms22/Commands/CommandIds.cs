@@ -53,6 +53,12 @@ internal static class CommandIds
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
 
+    /// <summary>
+    /// 查詢記憶的手動整理，掛在設定頁的「查詢記憶」分類上（註冊檔寫成十進位的 525）。
+    /// </summary>
+    /// <remarks>完整 VACUUM 只由使用者按；背景排程只做 WAL 截斷。</remarks>
+    public const int CompactQueryMemory = 0x020D;
+
     public const int PickBlockAccent = 0x0210;
     public const int PickBlockKeywordForeground = 0x0211;
     public const int PickBlockKeywordBackground = 0x0212;

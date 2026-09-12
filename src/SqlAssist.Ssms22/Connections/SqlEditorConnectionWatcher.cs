@@ -5,6 +5,7 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.QueryMemory;
 
 namespace SqlAssist.Ssms22.Connections;
 
@@ -160,15 +161,15 @@ internal static class SqlEditorConnectionWatcher
     }
 
     private static void OnConnectionChanged(object sender, SqlEditorConnectionEventArgs eventArgs) =>
-        Notify("連線變更", eventArgs);
+        Notify("連線變更", eventArgs, connected: true);
 
     private static void OnConnectionDisconnected(object sender, SqlEditorConnectionEventArgs eventArgs) =>
-        Notify("連線中斷", eventArgs);
+        Notify("連線中斷", eventArgs, connected: false);
 
     /// <remarks>
     /// 事件處理常式跑在 UI 執行緒上，丟出例外就是使用者眼前的錯誤對話框。
     /// </remarks>
-    private static void Notify(string reason, SqlEditorConnectionEventArgs? eventArgs)
+    private static void Notify(string reason, SqlEditorConnectionEventArgs? eventArgs, bool connected)
     {
         SqlAssistPlatformGuard.Run($"處理 SSMS {reason}", () =>
         {
@@ -177,6 +178,12 @@ internal static class SqlEditorConnectionWatcher
             // 使用者換一次連線才一行，而「哪一種換法有沒有觸發事件」只有這裡看得出來。
             SqlAssistDiagnostics.WriteAlways(
                 $"SSMS {reason}：{(string.IsNullOrEmpty(moniker) ? "（未指名視窗）" : moniker)}");
+
+            // 查詢記憶要記下「這段 SQL 是對哪台伺服器、哪個資料庫跑的」。這一刻 SSMS
+            // 剛更新完自己的 UI，向它要連線最便宜；擷取當下再問會把那筆延遲加在 F5 上。
+            // 走 Probe：問不到就是這一次沒有連線內容，SQL 本身仍然照常擷取。
+            SqlAssistPlatformGuard.Probe("記下查詢視窗連線", () => QueryMemoryConnections.Note(moniker,
+                connected ? ResolveEditorService()?.GetConnectionForSpecificQueryEditor(moniker) : null));
 
             SqlMetadataService[] services;
 
