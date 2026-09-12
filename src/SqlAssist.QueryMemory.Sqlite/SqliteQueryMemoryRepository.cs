@@ -13,6 +13,7 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
 {
     private readonly string _connectionString;
     private string _storeId = "";
+    private string? _leaseId;
 
     private SqliteQueryMemoryRepository(string path, int busyTimeoutSeconds)
     {
@@ -101,6 +102,13 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
             cancellationToken.ThrowIfCancellationRequested();
             Execute(connection, transaction, SqliteSchema.Migrate4To5);
             Execute(connection, transaction, "PRAGMA user_version=5;");
+            version = 5;
+        }
+        if (version == 5)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Execute(connection, transaction, SqliteSchema.Migrate5To6);
+            Execute(connection, transaction, "PRAGMA user_version=6;");
         }
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
             _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";

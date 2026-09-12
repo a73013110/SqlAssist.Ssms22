@@ -36,6 +36,7 @@ public sealed class QueryMemoryRetentionLadder
             throw Invalid(level, "容量上限");
         if (Loosens(looser.DraftBefore, tighter.DraftBefore)) throw Invalid(level, "草稿截止時間");
         if (Loosens(looser.ExecutionBefore, tighter.ExecutionBefore)) throw Invalid(level, "執行截止時間");
+        if (Loosens(looser.RecoveryBefore, tighter.RecoveryBefore)) throw Invalid(level, "未存檔草稿截止時間");
         if (Loosens(looser.MaxExecutionEvents, tighter.MaxExecutionEvents)) throw Invalid(level, "執行筆數配額");
         if (Loosens(looser.MaxAutoRevisionsPerSession, tighter.MaxAutoRevisionsPerSession)) throw Invalid(level, "每 Session 版本配額");
         if (Loosens(looser.MaxRevisionsPerSavedQuery, tighter.MaxRevisionsPerSavedQuery)) throw Invalid(level, "每 Saved 版本配額");

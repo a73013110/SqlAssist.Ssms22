@@ -11,10 +11,13 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 public sealed partial class SqliteQueryMemoryRepository
 {
+    private const int ExecutionStage = 0, HistoryStage = 1, RevisionStage = 2, RecoveryStage = 3, ContentStage = 4;
+
+    // Recovery 排在內容之前，同一輪釋出的未存檔草稿內容才回收得到；順序改動要一併改上面的常數。
     private static readonly (string Table, string Key)[] MaintenanceStages =
     {
         ("Executions", "ExecutionId"), ("History", "EntryKey"), ("Revisions", "RevisionId"),
-        ("Contents", "ContentId"), ("Contexts", "ContextId"),
+        ("Recovery", "SessionId"), ("Contents", "ContentId"), ("Contexts", "ContextId"),
     };
 
     private const string UnprotectedRevision = @"
@@ -126,16 +129,16 @@ public sealed partial class SqliteQueryMemoryRepository
         object? revision = null;
         long? autoQuota = null;
         long? savedQuota = null;
-        if (stage == 0)
+        if (stage == ExecutionStage)
         {
             using var read = Command(connection, transaction,
                 "SELECT RevisionId FROM Executions WHERE ExecutionId=$id;", ("$id", key));
             revision = read.ExecuteScalar();
         }
-        else if (stage <= 2)
+        else if (stage == HistoryStage || stage == RevisionStage)
         {
             // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
-            using var read = Command(connection, transaction, stage == 1
+            using var read = Command(connection, transaction, stage == HistoryStage
                 ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection,r.SavedQueryId FROM History h
  LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;"
                 : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection,SavedQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key));
@@ -156,11 +159,13 @@ public sealed partial class SqliteQueryMemoryRepository
             ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
             ("$savedEdit", (int)QueryRevisionReason.SavedQueryEdit), ("$savedQuota", savedQuota),
+            ("$recoveryHistory", "s" + key),
+            ("$recovery", policy.RecoveryBefore.HasValue ? (object)Ticks(policy.RecoveryBefore.Value) : null),
         };
         string sql;
         switch (stage)
         {
-            case 0:
+            case ExecutionStage:
                 // 一個候選最多刪除兩列，沒有 CASCADE 或無界的子列刪除。
                 var eligible = "SELECT 1 FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision;
                 Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$history AND Pinned=0 AND EXISTS(" + eligible + ");", parameters);
@@ -168,12 +173,12 @@ public sealed partial class SqliteQueryMemoryRepository
                 Execute(connection, transaction, "DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
                     UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
                 return historyDeleted + (int)ScalarLong(connection, transaction, "SELECT changes();");
-            case 1:
-                // Recovery 不憑年齡推定已失效；必須等宿主生命週期有可靠訊號才能解除保護。
+            case HistoryStage:
+                // Recovery 的投影沒有 RevisionId，另由 Recovery 階段連同 Recovery 一起處理。
                 sql = @"DELETE FROM History WHERE EntryKey=$id AND Kind=2 AND RevisionId IS NOT NULL
  AND (CreatedAt<$draft OR CreatedAt<$autoQuota) AND Pinned=0" + UnprotectedRevision;
                 break;
-            case 2:
+            case RevisionStage:
                 // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Saved 版本配額能回收它。
                 sql = @"DELETE FROM Revisions WHERE RevisionId=$id
  AND (CreatedAt < CASE
@@ -187,7 +192,19 @@ public sealed partial class SqliteQueryMemoryRepository
  AND NOT EXISTS(SELECT 1 FROM Executions WHERE RevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$id)";
                 break;
-            case 3:
+            case RecoveryStage:
+                // 租約還在就代表那個程序可能還開著這份未存檔草稿；過期只是宿主可以去確認，不是可以刪。
+                var unowned = "SELECT 1 FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
+                    " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)";
+                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$recoveryHistory AND Pinned=0" +
+                    " AND EXISTS(" + unowned + ");", parameters);
+                var projectionDeleted = (int)ScalarLong(connection, transaction, "SELECT changes();");
+                // Pinned 的投影留著就擋下 Recovery 本身，使用者釘住的草稿不會只剩一半。
+                Execute(connection, transaction, "DELETE FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
+                    " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)" +
+                    " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$recoveryHistory);", parameters);
+                return projectionDeleted + (int)ScalarLong(connection, transaction, "SELECT changes();");
+            case ContentStage:
                 sql = "DELETE FROM Contents WHERE ContentId=$id" + UnreferencedContent;
                 break;
             default:

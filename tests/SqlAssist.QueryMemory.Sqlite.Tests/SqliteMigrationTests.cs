@@ -63,7 +63,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV1(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         foreach (var table in new[] { "Documents", "Sessions", "Contents", "Revisions", "Recovery", "Executions", "Captures", "History" })
             Assert.Equal(1L, store.Scalar("SELECT count(*) FROM " + table + ";"));
@@ -94,14 +94,14 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         store.Scalar("DROP INDEX IX_SavedQueries_ScopeId;");
         await store.Open(Token);
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [InlineData(6)]
+    [InlineData(7)]
     public async Task UnsupportedVersionsAreNotMigrated(int version)
     {
         using var store = new SqliteTestStore();
@@ -153,7 +153,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV2(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         Assert.Equal(2 * Sql.Length, (await repositories[0].ReadUsageAsync(Token)).ContentBytes);
         var saved = await repositories[0].ReadSavedQueryAsync(Guid.ParseExact("33333333333333333333333333333333", "N"), Token);
@@ -175,7 +175,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM SavedQueries;"));
         store.Scalar("DROP INDEX IX_History_Context;");
         var repository = await store.Open(Token);
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
     }
 
@@ -185,7 +185,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV3(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         Assert.Equal(2 * Sql.Length, (await repositories[0].ReadUsageAsync(Token)).ContentBytes);
         var saved = await repositories[0].ReadSavedQueryAsync(Guid.ParseExact("33333333333333333333333333333333", "N"), Token);
@@ -212,7 +212,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(2L * Sql.Length, store.Scalar("SELECT ContentBytes FROM StorageUsage;"));
         store.Scalar("DROP INDEX IX_Revisions_SessionAuto;");
         var repository = await store.Open(Token);
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
     }
 
@@ -220,6 +220,12 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
     {
         CreateV3(store);
         Apply(store, 4);
+    }
+
+    private static void CreateV5(SqliteTestStore store)
+    {
+        CreateV4(store);
+        Apply(store, 5);
     }
 
     private const string SavedId = "33333333333333333333333333333333";
@@ -231,7 +237,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV4(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         // 既有版本不會被追認成某個收藏的 SQL 編輯結果。
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId IS NULL;"));
@@ -261,8 +267,46 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM SavedQueries;"));
         store.Scalar("DROP INDEX IX_Revisions_Saved;");
         var repository = await store.Open(Token);
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_table_info('Revisions') WHERE name='SavedQueryId';"));
         Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
     }
+
+    [Fact]
+    public async Task PopulatedV5MigratesConcurrentlyAndLeavesOldSessionsWithoutALeaseWhileEnablingHeartbeats()
+    {
+        using var store = new SqliteTestStore();
+        CreateV5(store);
+        var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
+        // 升級不追認既有 Session 有人在用；它們的擁有權要等宿主重新開租約才會出現。
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Sessions WHERE LeaseId IS NOT NULL;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
+        var lease = await repositories[0].OpenLeaseAsync(Owner, SqliteTestStore.Start, Token);
+        Assert.Equal(lease, store.Scalar("SELECT LeaseId FROM Leases;"));
+        Assert.Equal(2 * Sql.Length, (await repositories[0].ReadUsageAsync(Token)).ContentBytes);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task FailedV6MigrationRollsBackTheLeaseTableAndColumnAndCanRetry()
+    {
+        using var store = new SqliteTestStore();
+        CreateV5(store);
+        store.Scalar("CREATE INDEX IX_Sessions_Lease ON Documents(DisplayName);");
+        await Assert.ThrowsAsync<SqliteException>(() => store.Open(Token));
+        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        // 建表、ADD COLUMN 與索引同屬一個交易；失敗不能留下半套租約 schema。
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM sqlite_master WHERE name='Leases';"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM pragma_table_info('Sessions') WHERE name='LeaseId';"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM SavedQueries;"));
+        store.Scalar("DROP INDEX IX_Sessions_Lease;");
+        var repository = await store.Open(Token);
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_table_info('Sessions') WHERE name='LeaseId';"));
+        Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
+    }
+
+    private static QueryMemoryLeaseOwner Owner => new("LIBRARYPC", 4242, SqliteTestStore.Start);
 }

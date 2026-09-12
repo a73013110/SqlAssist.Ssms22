@@ -20,8 +20,9 @@ internal sealed class SqliteMaintenanceCursor
             policy.MaxContentBytes?.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.MaxExecutionEvents?.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.MaxAutoRevisionsPerSession?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxRevisionsPerSavedQuery?.ToString(CultureInfo.InvariantCulture) ?? "-");
-        _prefix = "maintenance1|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|";
+            policy.MaxRevisionsPerSavedQuery?.ToString(CultureInfo.InvariantCulture) ?? "-",
+            policy.RecoveryBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-");
+        _prefix = "maintenance2|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|";
         if (request.Cursor == null) return;
         if (request.Cursor.Length > 1024) throw InvalidCursor();
         string value;
@@ -30,7 +31,7 @@ internal sealed class SqliteMaintenanceCursor
         if (!value.StartsWith(_prefix, StringComparison.Ordinal)) throw InvalidCursor();
         var fields = value.Substring(_prefix.Length).Split('|');
         if (fields.Length != 3 || !int.TryParse(fields[0], NumberStyles.None, CultureInfo.InvariantCulture, out var stage) ||
-            stage < 0 || stage >= 5 || fields[1].Length > 128 || (fields[2] != "0" && fields[2] != "1")) throw InvalidCursor();
+            stage < 0 || stage >= 6 || fields[1].Length > 128 || (fields[2] != "0" && fields[2] != "1")) throw InvalidCursor();
         Stage = stage;
         After = fields[1];
         MadeProgress = fields[2] == "1";
