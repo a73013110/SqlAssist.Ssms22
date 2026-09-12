@@ -73,6 +73,10 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.ReadUsage(), cancellationToken);
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
         Invoke(() => _worker.Maintain(request), cancellationToken);
+    public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) =>
+        Invoke(() => _worker.Checkpoint(), cancellationToken);
+    public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
+        Invoke(() => _worker.Compact(), cancellationToken);
 
     private async Task<T> Invoke<T>(Func<T> operation, CancellationToken cancellationToken)
     {

@@ -64,6 +64,8 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QueryMemoryUsage ReadUsage() => Run(() => Repository.ReadUsageAsync(CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request) =>
         Run(() => Repository.MaintainAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    public QueryMemoryCheckpointResult Checkpoint() => Run(() => Repository.CheckpointAsync(CancellationToken.None).GetAwaiter().GetResult());
+    public QueryMemoryUsage Compact() => Run(() => Repository.CompactAsync(CancellationToken.None).GetAwaiter().GetResult());
 
     public string Probe() => Run(() =>
     {

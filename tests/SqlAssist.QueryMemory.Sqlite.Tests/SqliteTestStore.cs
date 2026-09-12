@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
+using Xunit;
 
 namespace SqlAssist.QueryMemory.Sqlite.Tests;
 
@@ -31,6 +32,26 @@ internal sealed class SqliteTestStore : IDisposable
     public Task Process(SqliteQueryMemoryRepository repository, QueryMemoryCapture capture, CancellationToken cancellationToken,
         QueryMemoryPolicy? policy = null) =>
         new QueryMemoryProcessor(repository, new QueryRevisionEngine()).ProcessAsync(capture, policy ?? Policy, cancellationToken);
+
+    /// <summary>所有期限都已過的政策；只留保護根，讓測試分辨「不該刪」與「刪不到」。</summary>
+    public static QueryMemoryMaintenancePolicy Expired(long? capacity = null) =>
+        new(Start.AddDays(1), Start.AddDays(1), capacity);
+
+    /// <summary>逐批巡到一輪結束；順便確認每批都守著工作量上限與每候選最多兩列的刪除。</summary>
+    public static async Task<QueryMemoryMaintenanceResult> Drain(IQueryMemoryMaintenanceRepository repository,
+        QueryMemoryMaintenancePolicy policy, int budget = 2, string? cursor = null)
+    {
+        for (var batch = 0; batch < 200; batch++)
+        {
+            var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, budget, cursor),
+                TestContext.Current.CancellationToken);
+            Assert.InRange(result.ExaminedCandidates, 0, budget);
+            Assert.InRange(result.DeletedRows, 0, 2 * result.ExaminedCandidates);
+            if (result.Cursor == null && !result.RequiresAnotherPass) return result;
+            cursor = result.Cursor;
+        }
+        throw new InvalidOperationException("維護未在測試上限內收斂。");
+    }
 
     public object? Scalar(string sql)
     {
