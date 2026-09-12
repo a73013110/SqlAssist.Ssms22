@@ -17,7 +17,9 @@ internal sealed class SqliteMaintenanceCursor
         var policy = request.Policy;
         var fingerprint = string.Join(";", policy.DraftBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.ExecutionBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxContentBytes?.ToString(CultureInfo.InvariantCulture) ?? "-");
+            policy.MaxContentBytes?.ToString(CultureInfo.InvariantCulture) ?? "-",
+            policy.MaxExecutionEvents?.ToString(CultureInfo.InvariantCulture) ?? "-",
+            policy.MaxAutoRevisionsPerSession?.ToString(CultureInfo.InvariantCulture) ?? "-");
         _prefix = "maintenance1|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|";
         if (request.Cursor == null) return;
         if (request.Cursor.Length > 1024) throw InvalidCursor();
