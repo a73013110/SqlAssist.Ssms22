@@ -17,6 +17,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.QueryMemory;
 using SqlAssist.Ssms22.ResultGrid;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
@@ -88,6 +89,10 @@ internal sealed class SqlAssistCommands
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
+        // 查詢記憶沒有啟用時沒有資料庫可整理，按鈕變灰而不是按下去才說失敗。
+        AddCommand(CommandIds.CompactQueryMemory,
+            (_, _) => SqlAssistQueryMemoryCompactCommand.Execute(_package),
+            () => QueryMemoryHost.IsCapturing && !SqlAssistQueryMemoryCompactCommand.IsRunning);
         AddColorCommand(CommandIds.PickBlockAccent, SqlAssistMonikers.BlockAccentColor, s => s.BlockAccentColor, ThemeBrush.AccentBorder);
         AddColorCommand(CommandIds.PickBlockKeywordForeground, SqlAssistMonikers.BlockKeywordForeground, s => s.BlockKeywordForeground, ThemeBrush.BlockKeywordForeground);
         AddColorCommand(CommandIds.PickBlockKeywordBackground, SqlAssistMonikers.BlockKeywordBackground, s => s.BlockKeywordBackground, ThemeBrush.BlockKeywordBackground);

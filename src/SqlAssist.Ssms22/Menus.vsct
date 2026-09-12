@@ -204,6 +204,16 @@
         </Strings>
       </Button>
 
+      <Button guid="guidSqlAssistCommandSet" id="cmdidCompactQueryMemory" priority="0x0210" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
+        <CommandFlag>CommandWellOnly</CommandFlag>
+        <Strings>
+          <ButtonText>整理 SqlAssist 查詢記憶的資料庫檔案</ButtonText>
+          <CanonicalName>SqlAssist.CompactQueryMemory</CanonicalName>
+          <LocCanonicalName>SqlAssist.整理查詢記憶資料庫</LocCanonicalName>
+        </Strings>
+      </Button>
+
       <!-- 選色命令只從設定欄位旁啟動，不增加工具選單項目。 -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockAccent" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
@@ -421,6 +431,7 @@
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
       <IDSymbol name="cmdidSurroundWith" value="0x020B" />
       <IDSymbol name="cmdidProbeQueryMemory" value="0x020C" />
+      <IDSymbol name="cmdidCompactQueryMemory" value="0x020D" />
       <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
       <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />
