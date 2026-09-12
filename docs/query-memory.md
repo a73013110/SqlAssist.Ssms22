@@ -52,7 +52,7 @@ SSMS 快照可能另保留編輯器內部資料。
 
 1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
    真正 SSMS 已回報[自我測試通過](query-memory-validation.md)，宿主共存／重啟等仍待回報，不啟用擷取。
-2. **儲存維護**：已有 schema v5 與逐版 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
+2. **儲存維護**：已有 schema v6 與逐版 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
 3. **容量與 Saved Queries**：已有 [Saved CRUD／搜尋／SQL 編輯](query-memory-saved.md)及[有界維護](query-memory-maintenance.md)。
    期限清理、筆數配額與容量量測已具備；設定驅動排程與實體整理仍待後續批次。

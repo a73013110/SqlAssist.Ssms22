@@ -27,8 +27,9 @@
 | `2e8a5e5` | B2b-1：政策驅動筆數配額、schema v4 部分索引、自我測試與封裝 probe 涵蓋 |
 | `2e639d8` | B3：Saved 名稱／說明／SQL 全文搜尋，與 History 共用字面搜尋條件 |
 | `fada9ae` | B4：Saved SQL 編輯交易、schema v5 版本標記與每 Saved 版本配額 |
+| `df95ab8` | B2b-2：保留分級、心跳租約與 Recovery 回收、排程節奏、checkpoint 與 VACUUM |
 
-最近完整測試 2900 項通過（B4 新增 10 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
+最近完整測試 2940 項通過（B2b-2 新增 29 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
 這不是整個功能完成：正式擷取、設定與 History UI 仍未啟用；其他實機門檻以驗收文件為準。
 
@@ -61,21 +62,25 @@ pkgdef、Manifest 或其他安裝資產變更仍須 Install；完整條件見[De
 詳細契約見 [Saved](query-memory-saved.md#sql-編輯)與[有界維護](query-memory-maintenance.md)；配額值仍留給設定批次。
 版本清單與還原 API 不在本批，屬 UI 批。
 
-## 下一批：已裁決的語意
+## B2b-2 維護策略延伸已完成
 
-2026-09-12 與使用者確認，以下不再是待補猜的規格；實際數值仍由設定批次提供。
+心跳租約的表形狀 2026-09-12 與使用者確認為獨立 `Leases` 表、Sessions 以外鍵參照，
+同一張表另留固定識別碼作維護租約。契約見[儲存](query-memory-storage.md#session-心跳租約)與[有界維護](query-memory-maintenance.md)。
 
-**B2b-2 維護策略延伸**：
+- **保留分級**：`QueryMemoryRetentionLadder` 只能逐級收緊，容量上限是觸發條件而非分級內容；
+  `QueryMemoryMaintenancePlanner` 決定下一批用哪一級與哪個游標，沒有新增刪除路徑。
+- **心跳租約**：schema v6。Recovery 回收改由政策的 `RecoveryBefore` 授權，null 維持完全不憑
+  年齡刪除；維護因此多一個 Recovery 階段，游標前綴換版。
+- **排程**：`QueryMemoryMaintenanceSchedule` 只決定何時跑，不持有計時器也不呼叫 repository。
+- **實體整理**：`CheckpointAsync` 與 `CompactAsync`；後者只供手動命令。
 
-- 容量超限時把截止時間與配額分級收緊後重跑同一條有界清理，不新增刪除路徑，保護根不放寬。
-- Session 加 MachineName／ProcessId／ProcessStartTime／RenewedAt 心跳；心跳過期且同機同三元組
-  程序不存在，才可回收 Recovery，跨機器只認過期。同一張表兼作跨程序維護 lease。
-- 排程為啟動後延遲首跑、固定間隔與宿主 idle，每次只跑一個有界 `MaintainAsync`；
-  `RequiresAnotherPass` 只排下一輪，不在一次工作中 drain。
-- 實體整理只做背景 `wal_checkpoint(TRUNCATE)`；完整 VACUUM 是設定頁的手動命令，
-  `auto_vacuum` 轉換留到真有需求再開 schema。
+四項都只有核心與儲存層，宿主接線不在本批：計時器、idle 訊號、真正的程序探測
+（要照保守規則實作）與設定頁的整理命令都還沒有人呼叫。
+
+## 下一批
 
 **C 批**：設定先、擷取次之，兩者都不等 UI。擷取預設關閉、由設定開啟，不因自我測試 PASS 就啟用。
+設定要提供保留分級、配額、排程節奏與租約期限的值，並把宿主接線補上。
 
 ## UI 由外部實作
 
