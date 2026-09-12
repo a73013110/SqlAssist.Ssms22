@@ -21,7 +21,7 @@
 |---|---|
 | 分層、平台邊界、SqlAssistPlatformGuard | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
 | 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
-| Query Memory／SQLite | [核心](query-memory.md)／[儲存](query-memory-storage.md) |
+| Query Memory／SQLite | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[實測](query-memory-validation.md) |
 | 建議清單、Matching、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、Triggers、KeywordCase、一般位置 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
@@ -48,10 +48,10 @@
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
 | QuickInfo、物件預覽、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[指令碼宣告](script-declared-objects.md) |
-| Popup、Placement、方向、焦點、按需載入、Resize、效能 | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
-| Chrome、主題配色、排版、高對比 | [UI 準則](ui-guidelines.md)／[主題連動](themes.md) |
-| 背景載入、計數、合併、統計、退場、玻璃提示 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md) |
-| 三軸、可見度、降級、種類開關、改名、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
+| 預覽視窗、定位、焦點、載入、Resize、效能 | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
+| Chrome、配色、高對比 | [UI 準則](ui-guidelines.md)／[主題連動](themes.md) |
+| 通知生命週期與呈現 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md) |
+| 通知可見度、分級、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
 | 指令碼風格、還原度、降級註解、健檢、誤報 | [指令碼產生](script-generation.md)／[結構健檢](schema-analysis.md) |
 | F12 物件種類、產生定義、失敗註解、執行緒、新查詢視窗 | [F12 指令碼](definition-scripts.md)／[移至定義](go-to-definition.md) |
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |

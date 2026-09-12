@@ -175,6 +175,16 @@
           <LocCanonicalName>SqlAssist.設定</LocCanonicalName>
         </Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidProbeQueryMemory" priority="0x0300" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <Strings>
+          <ButtonText>Query Memory 儲存自我測試…</ButtonText>
+          <CanonicalName>SqlAssist.ProbeQueryMemory</CanonicalName>
+          <LocCanonicalName>SqlAssist.QueryMemory儲存自我測試</LocCanonicalName>
+        </Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <Strings>
@@ -410,6 +420,7 @@
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
       <IDSymbol name="cmdidSurroundWith" value="0x020B" />
+      <IDSymbol name="cmdidProbeQueryMemory" value="0x020C" />
       <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
       <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />

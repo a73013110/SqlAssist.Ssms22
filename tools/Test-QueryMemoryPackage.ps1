@@ -48,6 +48,7 @@ function Invoke-Probe([string]$Mode) {
 }
 
 Invoke-Probe 'runtime'
+Invoke-Probe 'self-test'
 # 同時啟動兩個 net48 x64 程序，不以同一程序的兩條連線冒充跨程序驗收。
 $processes = @()
 try {

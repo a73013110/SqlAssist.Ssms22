@@ -60,6 +60,7 @@ AppDomain 不隔離程序層級的 native DLL；載入來源檢查失敗即拒�
 
 工具解開真正 VSIX，以宿主設定及 BCL 在獨立 net48 x64 程序驗證隔離載入、兩程序同時提交
 40 次執行、內容去重、程序結束後檔案釋放；負向案例檢查缺檔、錯誤 native 架構與夾帶 BCL。
+工具也會執行與 SSMS 命令共用的 `QueryMemoryStorageSelfTest`；宿主操作見[實機驗收](query-memory-validation.md)。
 不從 NuGet cache 或建置目錄補 DLL，不安裝／解除安裝擴充。紀錄留在 `artifacts/`。
 
 **仍須實機驗收**：在 SSMS 安裝後載入，與宿主既有 SQLite 功能並存，確認卸載與重新啟動。
