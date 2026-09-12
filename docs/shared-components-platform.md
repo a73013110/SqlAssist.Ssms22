@@ -24,6 +24,7 @@
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
 | 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
 | 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
+| Debug 部署預檢、SHA-256 與 VSIX 必要檔案白名單 | `tools/SqlAssist.Deployment.psm1` |
 | 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |
 | 動態配色資源與合併更新通知 | `Ssms22/UI/ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
 | 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Editor/NotificationHost.cs` |

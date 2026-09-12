@@ -92,6 +92,7 @@ AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-w
 | `Generate-Keywords.ps1` | 以 ScriptDom 重新產生 `SqlKeywordCatalog.Generated.cs` |
 | `Publish-Release.ps1` | 建置、驗證並建立 GitHub 草稿 Release |
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
+| `Test-DebugDeployment.ps1` | 以隔離 fixture 驗證 Debug 部署完整性與 Install 門檻 |
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
 | `Check-TextFiles.ps1` | 將 CR／CRLF 自動轉成 LF，並檢查文字檔皆為 UTF-8（除 `.sln` 外無 BOM）且有檔尾換行 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |

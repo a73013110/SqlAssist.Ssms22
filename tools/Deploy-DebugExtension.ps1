@@ -8,23 +8,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 $OutputEncoding = Initialize-SqlAssistUtf8Output
+Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Deployment.psm1') -Force
 
 $outputPath = Join-Path (Get-SqlAssistRoot) 'src\SqlAssist.Ssms22\bin\x64\Debug\net48'
-# 來源 Manifest 的版號是 GetBuildVersion 佔位符，只有建置產物裡才是展開後的實際版號。
-$builtManifestPath = Join-Path $outputPath 'extension.vsixmanifest'
-
-function Get-MajorMinor {
-    param([string]$Version)
-
-    $parsed = $null
-
-    if (-not [version]::TryParse($Version, [ref]$parsed)) {
-        throw "無法解析 VSIX 版號：$Version"
-    }
-
-    return "$($parsed.Major).$($parsed.Minor)"
-}
-
 Assert-SsmsClosed -Action '部署 Debug 組件'
 
 if (-not $SkipBuild) {
@@ -32,12 +18,6 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot 'Build-Extension.ps1') -Configuration Debug -SsmsInstallDir $SsmsInstallDir
 }
 
-if (-not (Test-Path -LiteralPath $builtManifestPath)) {
-    throw "找不到建置後的 VSIX Manifest：$builtManifestPath。請先執行 Build-Extension.ps1 -Configuration Debug。"
-}
-
-[xml]$builtManifest = Get-Content -LiteralPath $builtManifestPath -Raw
-$builtVersion = [string]$builtManifest.PackageManifest.Metadata.Identity.Version
 $installations = Get-SqlAssistInstallation
 
 if ($installations.Count -eq 0) {
@@ -51,76 +31,8 @@ if ($installations.Count -gt 1) {
 
 $installation = $installations[0]
 
-# 版號的第三段是 git height，每個 commit 都會變動，嚴格比對會讓每次部署都失敗。
-# 這道檢查真正要擋的是 pkgdef、vsct 與 Manifest 註冊已經改變卻沒重裝，
-# 而那些變更一律伴隨 version.json 的 major.minor 調整，因此以 major.minor 為準。
-$installedMajorMinor = Get-MajorMinor $installation.Version
-$builtMajorMinor = Get-MajorMinor $builtVersion
-
-if ($installedMajorMinor -ne $builtMajorMinor) {
-    throw "VSIX 主版本不一致（已安裝 $($installation.Version)，建置 $builtVersion）。請重新安裝 Debug VSIX。"
-}
-
-# 命令表（選單項目、命令識別碼、鍵繫結）雖然編譯在 DLL 的資源裡，殼層卻是照
-# pkgdef 的 "Menus.ctmenu, N" 那個 N 決定要不要重讀的。只換 DLL 的話 N 沒變，
-# 殼層繼續用舊的命令表——症狀是新的選單項目不出現、新綁的鍵完全沒反應，
-# 而且沒有任何錯誤訊息。與 MEF 快取是同一類的坑，但清快取救不了它：
-# pkgdef 本身也不在部署清單裡，非重新安裝不可。
-function Get-MenuResourceVersion {
-    param([string]$PkgDefPath)
-
-    if (-not (Test-Path -LiteralPath $PkgDefPath)) {
-        return $null
-    }
-
-    $match = [regex]::Match(
-        [System.IO.File]::ReadAllText($PkgDefPath),
-        'Menus\.ctmenu,\s*(\d+)')
-
-    return $match.Success ? $match.Groups[1].Value : $null
-}
-
-$builtMenuVersion = Get-MenuResourceVersion (Join-Path $outputPath 'SqlAssist.Ssms22.pkgdef')
-$installedMenuVersion = Get-MenuResourceVersion (Join-Path $installation.Path 'SqlAssist.Ssms22.pkgdef')
-
-if ($builtMenuVersion -and $installedMenuVersion -and $builtMenuVersion -ne $installedMenuVersion) {
-    throw @"
-命令表版本不一致（已安裝 $installedMenuVersion，建置 $builtMenuVersion）。
-部署只會替換 DLL，不會更新 pkgdef，殼層會繼續使用舊的命令表——新的選單項目與
-鍵繫結都不會生效，而且不會有任何錯誤。請改用：
-  tools\Install-Extension.ps1 -Configuration Debug
-"@
-}
-
-$fileNames = @(
-    'SqlAssist.Core.dll',
-    'SqlAssist.Core.pdb',
-    'SqlAssist.Metadata.dll',
-    'SqlAssist.Metadata.pdb',
-    'SqlAssist.Ssms22.dll',
-    'SqlAssist.Ssms22.pdb',
-    'SqlAssist.registration.json'
-)
-
-foreach ($fileName in $fileNames) {
-    $source = Join-Path $outputPath $fileName
-
-    if (-not (Test-Path -LiteralPath $source)) {
-        throw "找不到 Debug 輸出：$source"
-    }
-
-    # 只更新可安全替換的執行階段檔案，不碰 Manifest、PkgDef 與 VSCT 註冊。
-    Copy-Item -LiteralPath $source -Destination $installation.Path -Force
-}
-
-foreach ($fileName in $fileNames) {
-    $source = Join-Path $outputPath $fileName
-    $destination = Join-Path $installation.Path $fileName
-
-    if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) {
-        throw "部署後檔案驗證失敗：$destination"
-    }
-}
+# 安裝資產不覆寫；完整預檢及 SHA-256 驗證由 fixture 共用的部署實作負責。
+$deployed = @(Invoke-SqlAssistDebugFileDeployment -OutputPath $outputPath -InstallationPath $installation.Path)
 
 # SSMS 把 MEF 組合圖與 Unified Settings 的定義各自快取起來，兩份都以「安裝擴充」
 # 為更新時機，不看擴充資料夾裡的 DLL 有沒有換過。只部署 DLL 的話：
@@ -140,7 +52,17 @@ $staleCaches = @(
 $cleared = @()
 
 foreach ($cache in $staleCaches) {
+    # 遞迴刪除前確認絕對路徑仍在本次安裝的 hive，且快取本身不是目錄連結。
+    $cache = [IO.Path]::GetFullPath($cache)
+    $hivePrefix = [IO.Path]::GetFullPath($hiveRoot).TrimEnd('\') + '\'
+    if (-not $cache.StartsWith($hivePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "快取路徑超出安裝 hive：$cache"
+    }
     if (-not (Test-Path -LiteralPath $cache)) {
+        continue
+    }
+    if ((Get-Item -LiteralPath $cache -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        Write-Warning "略過連結快取，請人工確認：$cache"
         continue
     }
 
@@ -156,6 +78,7 @@ foreach ($cache in $staleCaches) {
 
 Write-Host 'Debug 組件部署完成：' -ForegroundColor Green
 Write-Host $installation.Path
+Write-Host "已驗證 $($deployed.Count) 個部署檔案的 SHA-256。"
 
 foreach ($cache in $cleared) {
     Write-Host "已清除快取：$cache" -ForegroundColor DarkGray

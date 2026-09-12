@@ -27,6 +27,8 @@ SSMS，再用下列命令建立並部署最新的 DLL/PDB；腳本會依 Extensi
 修改 VSIX Manifest、PkgDef、VSCT 或版本號時，仍須重新執行 Debug VSIX 安裝，
 不能只部署 DLL。
 
+必要／可選檔案、相依升級與版號判定見[部署完整性](debug-deployment.md)。
+
 ### SSMS 的兩份快取
 
 SSMS 把 MEF 組合圖與 Unified Settings 的定義各自快取在
