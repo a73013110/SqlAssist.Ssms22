@@ -18,6 +18,13 @@ public interface ISavedQueryRepository
     /// </summary>
     Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken cancellationToken);
     Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 改 SQL 一律新增不可變版本，並在同一交易換 CurrentRevisionId。
+    /// 新版本不進 History 投影、不建立 Session，也不改任何 Session 的 head 或序號。
+    /// 版本不符或收藏不存在都回 Conflict，不留下部分寫入；重送不冪等，回應遺失後先重讀。
+    /// </summary>
+    Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken cancellationToken);
 }
 
 // 版本使用不可重用的 token，避免刪除後以相同 Id 重建，讓舊編輯器誤覆寫新資料。
@@ -45,6 +52,30 @@ public sealed class SavedQueryWrite
 
     public SavedQuery Query { get; }
     public Guid? ExpectedVersion { get; }
+}
+
+/// <summary>只改 SQL；名稱、說明、scope 與 Pinned 仍走 <see cref="SavedQueryWrite"/>。</summary>
+[Serializable]
+public sealed class SavedQueryEdit
+{
+    public SavedQueryEdit(Guid savedQueryId, Guid expectedVersion, Guid revisionId, string sql, DateTimeOffset editedAt)
+    {
+        if (savedQueryId == Guid.Empty) throw new ArgumentException("Saved Query 必須有識別碼。", nameof(savedQueryId));
+        if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));
+        if (revisionId == Guid.Empty) throw new ArgumentException("新版本必須有識別碼。", nameof(revisionId));
+        SavedQueryId = savedQueryId;
+        ExpectedVersion = expectedVersion;
+        RevisionId = revisionId;
+        // 只帶原文，內容位址留給儲存層在背景計算，不讓 UI 執行緒為大型 SQL 做雜湊。
+        Sql = sql ?? throw new ArgumentNullException(nameof(sql));
+        EditedAt = editedAt.ToUniversalTime();
+    }
+
+    public Guid SavedQueryId { get; }
+    public Guid ExpectedVersion { get; }
+    public Guid RevisionId { get; }
+    public string Sql { get; }
+    public DateTimeOffset EditedAt { get; }
 }
 
 [Serializable]

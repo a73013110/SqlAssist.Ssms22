@@ -66,6 +66,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.WriteSavedQuery(write), cancellationToken);
     public Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
         Invoke(() => _worker.DeleteSavedQuery(savedQueryId, expectedVersion), cancellationToken);
+    public Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.EditSavedQuerySql(edit), cancellationToken);
 
     public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadUsage(), cancellationToken);

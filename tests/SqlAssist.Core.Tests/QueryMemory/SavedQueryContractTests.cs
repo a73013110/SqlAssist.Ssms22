@@ -53,6 +53,21 @@ public sealed class SavedQueryContractTests
     }
 
     [Fact]
+    public void EditRequiresIdentityExistingVersionAndSql()
+    {
+        var id = Guid.NewGuid();
+        var version = Guid.NewGuid();
+        Assert.Throws<ArgumentException>(() => new SavedQueryEdit(Guid.Empty, version, Guid.NewGuid(), "", DateTimeOffset.UtcNow));
+        // 改 SQL 只能更新既有收藏；沒有讀到版本就不得寫入。
+        Assert.Throws<ArgumentException>(() => new SavedQueryEdit(id, Guid.Empty, Guid.NewGuid(), "", DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentException>(() => new SavedQueryEdit(id, version, Guid.Empty, "", DateTimeOffset.UtcNow));
+        Assert.Throws<ArgumentNullException>(() => new SavedQueryEdit(id, version, Guid.NewGuid(), null!, DateTimeOffset.UtcNow));
+        var edit = new SavedQueryEdit(id, version, Guid.NewGuid(), "", new DateTimeOffset(2026, 9, 12, 8, 0, 0, TimeSpan.FromHours(8)));
+        Assert.Equal("", edit.Sql);
+        Assert.Equal(TimeSpan.Zero, edit.EditedAt.Offset);
+    }
+
+    [Fact]
     public void ScopeValidationIsSharedByRequestsAndWrites()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SavedQueryRequest(10, (SavedQueryScope)100));

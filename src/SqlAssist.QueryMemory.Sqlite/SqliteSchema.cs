@@ -2,7 +2,7 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 internal static class SqliteSchema
 {
-    public const int Version = 4;
+    public const int Version = 5;
     public const int ApplicationId = 0x53514c4d;
 
     // 外鍵延後到 commit，才能在同一交易建立 Session 與指向它的第一份 Revision。
@@ -113,5 +113,12 @@ CREATE INDEX IX_SavedQueries_Context ON SavedQueries(ContextId);
     public const string Migrate3To4 = @"
 CREATE INDEX IX_Revisions_SessionAuto ON Revisions(SessionId, CreatedAt DESC)
     WHERE Reason=0 AND IsExecutionSelection=0;
+";
+
+    // 每 Saved 版本配額要知道版本屬於哪個收藏；ADD COLUMN 不重建資料表，既有列維持 NULL。
+    // 不設外鍵：加了就得在刪除收藏時連帶刪版本或改寫不可變列，改由維護把失去收藏的版本按草稿期限回收。
+    public const string Migrate4To5 = @"
+ALTER TABLE Revisions ADD COLUMN SavedQueryId TEXT;
+CREATE INDEX IX_Revisions_Saved ON Revisions(SavedQueryId, CreatedAt DESC) WHERE SavedQueryId IS NOT NULL;
 ";
 }

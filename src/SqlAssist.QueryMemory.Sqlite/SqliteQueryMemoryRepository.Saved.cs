@@ -55,6 +55,43 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Pinned=excluded.Pinned
         }, cancellationToken);
     }
 
+    public Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken cancellationToken)
+    {
+        if (edit == null) throw new ArgumentNullException(nameof(edit));
+        return Task.Run(() =>
+        {
+            var content = QueryContent.Create(edit.Sql);
+            using var connection = Connect();
+            using var transaction = connection.BeginTransaction(deferred: false);
+            string? contextId;
+            string sessionId;
+            using (var command = Command(connection, transaction, @"SELECT s.Version,s.ContextId,r.SessionId FROM SavedQueries s
+JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId WHERE s.SavedQueryId=$id;", ("$id", Id(edit.SavedQueryId))))
+            using (var reader = command.ExecuteReader())
+            {
+                if (!reader.Read() || Guid.ParseExact(reader.GetString(0), "N") != edit.ExpectedVersion)
+                    return SavedQueryWriteResult.Conflict;
+                contextId = StringOrNull(reader, 1);
+                sessionId = reader.GetString(2);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            WriteContent(connection, transaction, content);
+            // 沿用被編輯版本的 Session，不建假 Session，也不動 head、序號或 Capture；不寫 History 列。
+            // ParentRevisionId 留空：接成版本鏈會讓每個舊版本被子版本永久保護，配額就永遠回收不到。
+            Execute(connection, transaction, @"INSERT INTO Revisions
+(RevisionId,ParentRevisionId,ContentId,SessionId,CreatedAt,Reason,ContextId,IsExecutionSelection,SavedQueryId)
+VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$saved);",
+                ("$id", Id(edit.RevisionId)), ("$content", content.ContentId), ("$session", sessionId),
+                ("$time", Ticks(edit.EditedAt)), ("$reason", (int)QueryRevisionReason.SavedQueryEdit),
+                ("$context", contextId), ("$saved", Id(edit.SavedQueryId)));
+            Execute(connection, transaction, "UPDATE SavedQueries SET CurrentRevisionId=$revision,Version=$version WHERE SavedQueryId=$id;",
+                ("$revision", Id(edit.RevisionId)), ("$version", Id(Guid.NewGuid())), ("$id", Id(edit.SavedQueryId)));
+            cancellationToken.ThrowIfCancellationRequested();
+            transaction.Commit();
+            return SavedQueryWriteResult.Committed;
+        }, cancellationToken);
+    }
+
     public Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken)
     {
         if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));

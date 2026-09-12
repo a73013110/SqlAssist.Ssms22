@@ -94,6 +94,13 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
             cancellationToken.ThrowIfCancellationRequested();
             Execute(connection, transaction, SqliteSchema.Migrate3To4);
             Execute(connection, transaction, "PRAGMA user_version=4;");
+            version = 4;
+        }
+        if (version == 4)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Execute(connection, transaction, SqliteSchema.Migrate4To5);
+            Execute(connection, transaction, "PRAGMA user_version=5;");
         }
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
             _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";

@@ -304,4 +304,118 @@ WHERE s.Scope=2 AND s.Server IS 'LibraryServer' AND s.DatabaseName IS 'Library' 
             Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE"));
         }
     }
+
+    private const string EditedSql = "SELECT * FROM Lib_Tag WHERE TagId=1;";
+
+    private static async Task<SavedQueryEntry> CreateSaved(SqliteTestStore store, SqliteQueryMemoryRepository repository,
+        SavedQuery? query = null)
+    {
+        query ??= await CreateQuery(store, repository);
+        Assert.Equal(SavedQueryWriteResult.Committed, await repository.WriteSavedQueryAsync(new SavedQueryWrite(query), Token));
+        var saved = await repository.ReadSavedQueryAsync(query.SavedQueryId, Token);
+        Assert.NotNull(saved);
+        return saved;
+    }
+
+    [Fact]
+    public async Task EditingSqlSwapsCurrentRevisionInOneTransactionWithoutHistoryOrSession()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var saved = await CreateSaved(store, repository);
+        var edit = new SavedQueryEdit(saved.Query.SavedQueryId, saved.Version, Guid.NewGuid(), EditedSql, SqliteTestStore.Start.AddHours(1));
+        Assert.Equal(SavedQueryWriteResult.Committed, await repository.EditSavedQuerySqlAsync(edit, Token));
+        var edited = await (await store.Open(Token)).ReadSavedQueryAsync(saved.Query.SavedQueryId, Token);
+        Assert.NotNull(edited);
+        Assert.Equal(saved.Query with { CurrentRevisionId = edit.RevisionId }, edited.Query);
+        Assert.Equal(QueryContent.Create(EditedSql).ContentId, edited.ContentId);
+        Assert.Equal(EditedSql, edited.Preview);
+        Assert.NotEqual(saved.Version, edited.Version);
+        Assert.Equal(EditedSql, (await repository.ReadContentAsync(edited.ContentId, Token))?.SqlText);
+        // 舊版本與其歷史都留著；新版本不進 History、不造 Session，也不改 head 或序號。
+        Assert.NotNull(await repository.ReadContentAsync(saved.ContentId, Token));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Sessions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Captures;"));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM History;"));
+        var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
+        Assert.NotNull(state?.LatestRevision);
+        Assert.Equal(saved.Query.CurrentRevisionId, state.LatestRevision.RevisionId);
+        Assert.Equal(1L, state.Version);
+        Assert.Equal(Id(edit.RevisionId), store.Scalar("SELECT RevisionId FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
+        Assert.Equal((long)QueryRevisionReason.SavedQueryEdit,
+            store.Scalar("SELECT Reason FROM Revisions WHERE RevisionId='" + Id(edit.RevisionId) + "';"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Id(edit.RevisionId) + "' AND ParentRevisionId IS NULL;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    private static string Id(Guid id) => id.ToString("N");
+
+    [Fact]
+    public async Task EditingSqlRejectsStaleVersionsMissingQueriesAndCancellationWithoutPartialWrites()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var saved = await CreateSaved(store, repository);
+        var other = await store.Open(Token);
+        var results = await Task.WhenAll(
+            repository.EditSavedQuerySqlAsync(new SavedQueryEdit(saved.Query.SavedQueryId, saved.Version, Guid.NewGuid(),
+                EditedSql, SqliteTestStore.Start.AddHours(1)), Token),
+            other.EditSavedQuerySqlAsync(new SavedQueryEdit(saved.Query.SavedQueryId, saved.Version, Guid.NewGuid(),
+                "SELECT * FROM Loan;", SqliteTestStore.Start.AddHours(2)), Token));
+        Assert.Single(results, result => result == SavedQueryWriteResult.Committed);
+        Assert.Single(results, result => result == SavedQueryWriteResult.Conflict);
+        // 敗方連版本與內容都不留下，重送不冪等，呼叫端必須重讀。
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Contents;"));
+        Assert.Equal(SavedQueryWriteResult.Conflict, await repository.EditSavedQuerySqlAsync(
+            new SavedQueryEdit(Guid.NewGuid(), saved.Version, Guid.NewGuid(), EditedSql, SqliteTestStore.Start), Token));
+        var current = await repository.ReadSavedQueryAsync(saved.Query.SavedQueryId, Token);
+        Assert.NotNull(current);
+        using var source = new CancellationTokenSource(); source.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.EditSavedQuerySqlAsync(
+            new SavedQueryEdit(saved.Query.SavedQueryId, current.Version, Guid.NewGuid(), "SELECT * FROM Branch;",
+                SqliteTestStore.Start.AddHours(3)), source.Token));
+        Assert.Equal(current, await repository.ReadSavedQueryAsync(saved.Query.SavedQueryId, Token));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task EditedSqlReusesScopeContextAndIsSearchableInItsOwnScope()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var query = await CreateQuery(store, repository);
+        var scoped = query with { Scope = SavedQueryScope.Database, Connection = new QueryConnectionContext("LibraryServer", "Library") };
+        var saved = await CreateSaved(store, repository, scoped);
+        var edit = new SavedQueryEdit(scoped.SavedQueryId, saved.Version, Guid.NewGuid(), EditedSql, SqliteTestStore.Start.AddHours(1));
+        Assert.Equal(SavedQueryWriteResult.Committed, await repository.EditSavedQuerySqlAsync(edit, Token));
+        // 新版本沿用收藏自己的連線內容，不另建 Contexts 列，也不從舊版本帶進別的連線。
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts;"));
+        Assert.Equal(store.Scalar("SELECT ContextId FROM SavedQueries;"),
+            store.Scalar("SELECT ContextId FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
+        async Task<int> Search(string search) => (await repository.ReadSavedQueriesAsync(
+            new SavedQueryRequest(5, SavedQueryScope.Database, "LibraryServer", "Library", search), Token)).Items.Count;
+        Assert.Equal(1, await Search("TagId=1"));
+        Assert.Equal(0, await Search("Lib_Reader"));
+        Assert.Empty((await repository.ReadHistoryAsync(new QueryHistoryRequest(10, QueryHistoryKind.All, "TagId=1"), Token)).Items);
+    }
+
+    [Fact]
+    public async Task SavedRevisionLookupUsesThePartialIndex()
+    {
+        using var store = new SqliteTestStore();
+        await store.Open(Token);
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        // 部分索引要看得到 IS NOT NULL 才會命中；界線查詢不得退回掃描整張 Revisions。
+        command.CommandText = @"EXPLAIN QUERY PLAN SELECT CreatedAt FROM Revisions
+WHERE SavedQueryId='a' AND SavedQueryId IS NOT NULL ORDER BY CreatedAt DESC LIMIT 1 OFFSET 4;";
+        using var reader = command.ExecuteReader();
+        var plan = new List<string>();
+        while (reader.Read()) plan.Add(reader.GetString(3));
+        Assert.Contains(plan, line => line.Contains("IX_Revisions_Saved"));
+        Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE"));
+    }
 }

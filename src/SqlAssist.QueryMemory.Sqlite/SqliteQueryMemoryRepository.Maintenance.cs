@@ -129,6 +129,7 @@ public sealed partial class SqliteQueryMemoryRepository
             ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
             ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
+            ("$savedEdit", (int)QueryRevisionReason.SavedQueryEdit),
         };
         string sql;
         switch (stage)
@@ -147,8 +148,12 @@ public sealed partial class SqliteQueryMemoryRepository
  AND (CreatedAt<$draft OR CreatedAt<$autoQuota) AND Pinned=0" + UnprotectedRevision;
                 break;
             case 2:
+                // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Saved 版本配額能回收它。
                 sql = @"DELETE FROM Revisions WHERE RevisionId=$id
- AND (CreatedAt < CASE WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution ELSE $draft END
+ AND (CreatedAt < CASE
+   WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
+   WHEN Reason=$savedEdit AND EXISTS(SELECT 1 FROM SavedQueries WHERE SavedQueryId=Revisions.SavedQueryId) THEN NULL
+   ELSE $draft END
   OR CreatedAt<$autoQuota)" + UnprotectedRevision + @"
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestRevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestExecutionRevisionId=$id)

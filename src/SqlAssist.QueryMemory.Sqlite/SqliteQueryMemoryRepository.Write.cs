@@ -53,7 +53,10 @@ ON CONFLICT(DocumentId) DO UPDATE SET DisplayName=excluded.DisplayName, FilePath
         foreach (var revision in write.Revisions)
         {
             var contextId = WriteContext(connection, transaction, revision.Connection);
-            Execute(connection, transaction, @"INSERT INTO Revisions VALUES($id,$parent,$content,$session,$time,$reason,$context,$selection);",
+            // 明列資料行：擷取寫入不帶 Saved 版本標記，schema 再加欄位也不會錯位。
+            Execute(connection, transaction, @"INSERT INTO Revisions
+(RevisionId,ParentRevisionId,ContentId,SessionId,CreatedAt,Reason,ContextId,IsExecutionSelection)
+VALUES($id,$parent,$content,$session,$time,$reason,$context,$selection);",
                 ("$id", Id(revision.RevisionId)), ("$parent", Id(revision.ParentRevisionId)), ("$content", revision.ContentId),
                 ("$session", Id(revision.SessionId)), ("$time", Ticks(revision.CreatedAt)), ("$reason", (int)revision.Reason),
                 ("$context", contextId), ("$selection", revision.IsExecutionSelection));
