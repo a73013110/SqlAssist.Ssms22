@@ -6,7 +6,8 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 ## 已實作：純核心
 
 程式位於 `src/SqlAssist.Core/QueryMemory/`，測試鏡像於 `tests/SqlAssist.Core.Tests/QueryMemory/`。
-目前不註冊 SSMS 事件、不啟用 SQL 擷取，也沒有 UI。已加入 [SQLite 儲存與隔離載入](query-memory-storage.md)。
+已加入 [SQLite 儲存與隔離載入](query-memory-storage.md)，以及由設定驅動的
+[擷取接線與維護排程](query-memory-capture.md)；整組預設關閉，還沒有 UI。
 
 - `QueryDocument` 不綁連線；`QuerySession` 區隔每次編輯器生命週期。
 - `QueryContent` 精確雜湊 UTF-16LE code units；內容位址含演算法前綴。不正規化空白、
@@ -56,10 +57,8 @@ SSMS 快照可能另保留編輯器內部資料。
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
 3. **容量與 Saved Queries**：已有 [Saved CRUD／搜尋／SQL 編輯](query-memory-saved.md)及[有界維護](query-memory-maintenance.md)。
    期限清理、筆數配額與容量量測已具備；設定驅動排程與實體整理仍待後續批次。
-4. **SSMS 擷取**：Session tracker、可調 idle debounce、可靠的 Execute submitted 訊號與
-   選取範圍、Close／卸載 flush、連線快照。不得改變現有殼層命令熱路徑護欄。
-5. **設定與 UI**：先提供啟用與隱私說明，再接 History／Saved Queries、分頁虛擬化列表、
-   延遲全文預覽、恢復與開新 Query。預覽重用既有 SQL viewer／Chrome，不另造通用視窗框架。
-
-建議起始值留給設定批次：idle 5 秒、auto revision 10 分鐘、draft 30 天、execution 10,000 筆、
-每 Session auto revision 50 筆；儲存上限提供 256 MB／512 MB／1 GB／不限。
+4. **SSMS 擷取**：Session tracker、可調 idle debounce、Execute 訊號與選取範圍、
+   Close／卸載 flush 與連線快照已接上，預設關閉且尚未實機驗證。
+5. **UI**：設定已提供啟用開關與保留值，見[設定與擷取](query-memory-capture.md)；
+   History／Saved Queries、分頁虛擬化列表、延遲全文預覽、恢復與開新 Query 仍未實作。
+   預覽重用既有 SQL viewer／Chrome，不另造通用視窗框架。
