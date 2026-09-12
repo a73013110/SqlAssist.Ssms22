@@ -24,5 +24,19 @@ public sealed class QueryMemoryMaintenanceContractTests
         Assert.Equal(time.ToUniversalTime(), policy.DraftBefore);
         Assert.Null(policy.ExecutionBefore);
         Assert.Equal(0, policy.MaxContentBytes);
+        Assert.Null(policy.MaxExecutionEvents);
+        Assert.Null(policy.MaxAutoRevisionsPerSession);
+    }
+
+    [Fact]
+    public void CountQuotasAreOptionalAndNonNegativeWithoutImplyingACapacityLimit()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryMemoryMaintenancePolicy(null, null, null, -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryMemoryMaintenancePolicy(null, null, null, null, -1));
+        var policy = new QueryMemoryMaintenancePolicy(null, null, null, 0, 50);
+        Assert.Equal(0, policy.MaxExecutionEvents);
+        Assert.Equal(50, policy.MaxAutoRevisionsPerSession);
+        Assert.Null(policy.MaxContentBytes);
+        Assert.Null(policy.ExecutionBefore);
     }
 }

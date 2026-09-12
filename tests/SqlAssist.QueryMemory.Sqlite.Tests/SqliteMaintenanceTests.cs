@@ -41,6 +41,109 @@ public sealed class SqliteMaintenanceTests
         throw new InvalidOperationException("維護未在測試上限內收斂。");
     }
 
+    private static async Task<List<QueryRevision>> SeedAutoDrafts(SqliteTestStore store, SqliteQueryMemoryRepository repository,
+        QuerySession? session, int count, int startSeconds)
+    {
+        var drafts = new List<QueryRevision>();
+        for (var index = 0; index < count; index++)
+        {
+            await store.Process(repository, store.Capture(index + 1, "SELECT * FROM Loan WHERE Branch=" + (startSeconds + index) + ";",
+                QueryCaptureKind.DraftIdle, seconds: startSeconds + 600 * index, session: session), Token);
+            var state = await repository.ReadSessionAsync((session ?? store.Session).SessionId, Token);
+            Assert.NotNull(state?.LatestRevision);
+            drafts.Add(state.LatestRevision);
+        }
+        return drafts;
+    }
+
+    [Fact]
+    public async Task ExecutionQuotaReclaimsInDateEventsAndTheirSelectionRevisions()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var sequence = 1; sequence <= 6; sequence++)
+            await store.Process(repository, store.Capture(sequence,
+                selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";", seconds: sequence), Token);
+        Assert.Equal(6L, store.Scalar("SELECT count(*) FROM Executions;"));
+        // 只給筆數配額、不給截止時間：期限內但超額的執行仍該回收。
+        var result = await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, 2));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM History WHERE Kind=1;"));
+        // 超額執行的選取版本一併回收，配額不會只留下無法回收的孤立版本。
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions WHERE IsExecutionSelection=1;"));
+        Assert.Equal(store.Scalar("SELECT SUM(2 * Length) FROM Contents;"), result.Usage.ContentBytes);
+        Assert.Equal(QueryMemoryCapacityStatus.WithinLimit, result.CapacityStatus);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task ExecutionQuotaKeepsTiedTimestampsAndProtectedRootsAboveTheLimit()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var sequence = 1; sequence <= 4; sequence++)
+            await store.Process(repository, store.Capture(sequence,
+                selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";"), Token);
+        var oldest = store.Scalar("SELECT RevisionId FROM Executions ORDER BY ExecutedAt,ExecutionId LIMIT 1;");
+        await repository.WriteSavedQueryAsync(new SavedQueryWrite(new SavedQuery(Guid.NewGuid(), "讀者收藏", null,
+            Guid.ParseExact((string)oldest!, "N"), SavedQueryScope.Global, null, false)), Token);
+        // 四次執行共用同一個時間，第 1 新的界線不比任何列新，配額因此不刪任何一列。
+        await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, 1));
+        Assert.Equal(4L, store.Scalar("SELECT count(*) FROM Executions;"));
+        // 有截止時間時 Saved 引用的執行仍受保護，配額不會越過保護根。
+        await Drain(repository, new QueryMemoryMaintenancePolicy(null, SqliteTestStore.Start.AddDays(1), null, 1));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(oldest, store.Scalar("SELECT RevisionId FROM Executions;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task AutoRevisionQuotaTrimsEachSessionDraftListWithoutCollapsingProtectedChains()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var second = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var first = await SeedAutoDrafts(store, repository, null, 3, 0);
+        var other = await SeedAutoDrafts(store, repository, second, 2, 1800);
+        store.Scalar("UPDATE History SET Pinned=1 WHERE EntryKey='r" + first[0].RevisionId.ToString("N") + "';");
+        var revisions = store.Scalar("SELECT count(*) FROM Revisions;");
+        // 只設每 Session 配額：較舊 Session 的最新草稿不因另一個 Session 更新而被淘汰。
+        await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, 1));
+        foreach (var (session, kept) in new[] { (store.Session.SessionId, new[] { first[0], first[2] }), (second.SessionId, new[] { other[1] }) })
+            Assert.Equal(kept.Select(draft => "r" + draft.RevisionId.ToString("N")).OrderBy(key => key, StringComparer.Ordinal),
+                store.Query("SELECT EntryKey FROM History WHERE SessionId='" + session.ToString("N") +
+                    "' AND EntryKey LIKE 'r%' ORDER BY EntryKey;"));
+        // ParentRevision 鏈仍保護版本本身；配額只縮短清單投影，不代表版本鏈已回收。
+        Assert.Equal(revisions, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.NotNull(await repository.ReadContentAsync(first[1].ContentId, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task QuotaBoundariesReadOnlyTheNewestRowsThroughIndexesWithoutTemporarySorts()
+    {
+        using var store = new SqliteTestStore();
+        await store.Open(Token);
+        Assert.Equal(0, (int)QueryRevisionReason.AutoCheckpoint);
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
+        connection.Open();
+        var plans = new[]
+        {
+            ("SELECT ExecutedAt FROM Executions ORDER BY ExecutedAt DESC LIMIT 1 OFFSET 9999;", "IX_Executions_Time"),
+            ("SELECT CreatedAt FROM Revisions WHERE SessionId='test' AND Reason=0 AND IsExecutionSelection=0" +
+                " ORDER BY CreatedAt DESC LIMIT 1 OFFSET 49;", "IX_Revisions_SessionAuto"),
+        };
+        foreach (var (sql, index) in plans)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "EXPLAIN QUERY PLAN " + sql;
+            using var reader = command.ExecuteReader();
+            Assert.True(reader.Read());
+            Assert.Contains(index, reader.GetString(3));
+            Assert.False(reader.Read());
+        }
+    }
+
     [Fact]
     public async Task ExpiredLeafAndOrphansAreReclaimedButHeadsAndCaptureReplaySurvive()
     {
@@ -141,6 +244,8 @@ public sealed class SqliteMaintenanceTests
         var otherRepository = await other.Open(Token);
         await Assert.ThrowsAsync<ArgumentException>(() => otherRepository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, first.Cursor), Token));
         await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(0), 1, first.Cursor), Token));
+        var quota = new QueryMemoryMaintenancePolicy(policy.DraftBefore, policy.ExecutionBefore, null, 10, 50);
+        await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(quota, 1, first.Cursor), Token));
         foreach (var cursor in new[] { "!", Convert.ToBase64String(new byte[20]), new string('a', 1025) })
             await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, cursor), Token));
         var reopened = await store.Open(Token);

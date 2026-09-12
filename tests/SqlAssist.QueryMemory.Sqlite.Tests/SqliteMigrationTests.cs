@@ -63,7 +63,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV1(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         foreach (var table in new[] { "Documents", "Sessions", "Contents", "Revisions", "Recovery", "Executions", "Captures", "History" })
             Assert.Equal(1L, store.Scalar("SELECT count(*) FROM " + table + ";"));
@@ -94,14 +94,14 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         store.Scalar("DROP INDEX IX_SavedQueries_ScopeId;");
         await store.Open(Token);
-        Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [InlineData(4)]
+    [InlineData(5)]
     public async Task UnsupportedVersionsAreNotMigrated(int version)
     {
         using var store = new SqliteTestStore();
@@ -126,13 +126,25 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
     private static void CreateV2(SqliteTestStore store)
     {
         CreateV1(store);
-        // 固定的 v2 增量 fixture 不依賴產品 schema，避免新舊版本一起改而失去 migration 證據。
-        using var stream = typeof(SqliteMigrationTests).Assembly.GetManifestResourceStream("SqlAssist.QueryMemory.Sqlite.Tests.QueryMemorySchemaV2.sql")
-            ?? throw new InvalidOperationException("缺少固定 v2 fixture。");
-        using var reader = new StreamReader(stream);
-        store.Scalar(reader.ReadToEnd());
+        Apply(store, 2);
         store.Scalar("INSERT INTO SavedQueries VALUES('33333333333333333333333333333333','讀者收藏',NULL,'" + RevisionId +
             "',0,NULL,NULL,NULL,0,'44444444444444444444444444444444');");
+    }
+
+    private static void CreateV3(SqliteTestStore store)
+    {
+        CreateV2(store);
+        Apply(store, 3);
+    }
+
+    // 固定的增量 fixture 不依賴產品 schema，避免新舊版本一起改而失去 migration 證據。
+    private static void Apply(SqliteTestStore store, int version)
+    {
+        var name = "SqlAssist.QueryMemory.Sqlite.Tests.QueryMemorySchemaV" + version + ".sql";
+        using var stream = typeof(SqliteMigrationTests).Assembly.GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException("缺少固定 v" + version + " fixture。");
+        using var reader = new StreamReader(stream);
+        store.Scalar(reader.ReadToEnd());
     }
 
     [Fact]
@@ -141,7 +153,7 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         using var store = new SqliteTestStore();
         CreateV2(store);
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
-        Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         Assert.Equal(2 * Sql.Length, (await repositories[0].ReadUsageAsync(Token)).ContentBytes);
         var saved = await repositories[0].ReadSavedQueryAsync(Guid.ParseExact("33333333333333333333333333333333", "N"), Token);
@@ -163,7 +175,44 @@ INSERT INTO History VALUES($history,$session,$revision,$content,$time,2,NULL,NUL
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM SavedQueries;"));
         store.Scalar("DROP INDEX IX_History_Context;");
         var repository = await store.Open(Token);
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
+    }
+
+    [Fact]
+    public async Task PopulatedV3MigratesConcurrentlyAndKeepsUsageTokensAndContentWhileEnablingQuotas()
+    {
+        using var store = new SqliteTestStore();
+        CreateV3(store);
+        var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(StoreId, store.Scalar("SELECT StoreId FROM StoreInfo;"));
+        Assert.Equal(2 * Sql.Length, (await repositories[0].ReadUsageAsync(Token)).ContentBytes);
+        var saved = await repositories[0].ReadSavedQueryAsync(Guid.ParseExact("33333333333333333333333333333333", "N"), Token);
+        Assert.NotNull(saved);
+        Assert.Equal(Guid.ParseExact("44444444444444444444444444444444", "N"), saved.Version);
+        Assert.Equal(Sql, (await repositories[0].ReadContentAsync(saved.ContentId, Token))?.SqlText);
+        // 升級後配額界線才有索引可用；舊庫不會因為沒有索引而退回全表掃描。
+        var quota = new QueryMemoryMaintenancePolicy(null, null, null, 1, 1);
+        Assert.Equal(QueryMemoryCapacityStatus.WithinLimit,
+            (await repositories[0].MaintainAsync(new QueryMemoryMaintenanceRequest(quota, 500), Token)).CapacityStatus);
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task FailedV4MigrationRollsBackTheAutoRevisionIndexAndCanRetry()
+    {
+        using var store = new SqliteTestStore();
+        CreateV3(store);
+        store.Scalar("CREATE INDEX IX_Revisions_SessionAuto ON Documents(DisplayName);");
+        await Assert.ThrowsAsync<SqliteException>(() => store.Open(Token));
         Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM SavedQueries;"));
+        Assert.Equal(2L * Sql.Length, store.Scalar("SELECT ContentBytes FROM StorageUsage;"));
+        store.Scalar("DROP INDEX IX_Revisions_SessionAuto;");
+        var repository = await store.Open(Token);
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(2 * Sql.Length, (await repository.ReadUsageAsync(Token)).ContentBytes);
     }
 }

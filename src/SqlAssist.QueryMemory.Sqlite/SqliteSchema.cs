@@ -2,7 +2,7 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 internal static class SqliteSchema
 {
-    public const int Version = 3;
+    public const int Version = 4;
     public const int ApplicationId = 0x53514c4d;
 
     // 外鍵延後到 commit，才能在同一交易建立 Session 與指向它的第一份 Revision。
@@ -107,5 +107,11 @@ CREATE INDEX IX_History_Revision ON History(RevisionId,Pinned);
 CREATE INDEX IX_History_Context ON History(ContextId);
 CREATE INDEX IX_Recovery_Context ON Recovery(ContextId);
 CREATE INDEX IX_SavedQueries_Context ON SavedQueries(ContextId);
+";
+
+    // 每 Session auto revision 配額只能掃描前 N 筆索引項；SQLite 要看到常數條件才會採用部分索引。
+    public const string Migrate3To4 = @"
+CREATE INDEX IX_Revisions_SessionAuto ON Revisions(SessionId, CreatedAt DESC)
+    WHERE Reason=0 AND IsExecutionSelection=0;
 ";
 }

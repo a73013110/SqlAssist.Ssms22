@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -60,6 +61,7 @@ public sealed partial class SqliteQueryMemoryRepository
         // 候選、保護根重查與刪除共用 IMMEDIATE 交易，Saved 更新不可能插進檢查與刪除之間。
         using var transaction = connection.BeginTransaction(deferred: false);
         token.ThrowIfCancellationRequested();
+        var quotas = new MaintenanceQuotas(connection, transaction, request.Policy);
         var examined = 0;
         var deleted = 0;
         while (cursor.Stage < MaintenanceStages.Length && examined < request.CandidateLimit)
@@ -76,7 +78,7 @@ public sealed partial class SqliteQueryMemoryRepository
             foreach (var key in keys)
             {
                 token.ThrowIfCancellationRequested();
-                deleted += DeleteCandidate(connection, transaction, cursor.Stage, key, request.Policy);
+                deleted += DeleteCandidate(connection, transaction, cursor.Stage, key, request.Policy, quotas);
                 cursor.After = key;
                 examined++;
             }
@@ -96,21 +98,36 @@ public sealed partial class SqliteQueryMemoryRepository
     }
 
     private static int DeleteCandidate(SqliteConnection connection, SqliteTransaction transaction, int stage,
-        string key, QueryMemoryMaintenancePolicy policy)
+        string key, QueryMemoryMaintenancePolicy policy, MaintenanceQuotas quotas)
     {
-        var source = MaintenanceStages[stage];
         object? revision = null;
-        if (stage <= 2)
+        long? autoQuota = null;
+        if (stage == 0)
         {
             using var read = Command(connection, transaction,
-                "SELECT RevisionId FROM " + source.Table + " WHERE " + source.Key + "=$id;", ("$id", key));
+                "SELECT RevisionId FROM Executions WHERE ExecutionId=$id;", ("$id", key));
             revision = read.ExecuteScalar();
+        }
+        else if (stage <= 2)
+        {
+            // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
+            using var read = Command(connection, transaction, stage == 1
+                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection FROM History h
+ LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;"
+                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection FROM Revisions WHERE RevisionId=$id;", ("$id", key));
+            using var reader = read.ExecuteReader();
+            if (reader.Read())
+            {
+                revision = StringOrNull(reader, 0);
+                if (!reader.IsDBNull(1) && reader.GetInt64(2) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(3) == 0)
+                    autoQuota = quotas.AutoRevisionCutoff(reader.GetString(1));
+            }
         }
         var parameters = new (string Name, object? Value)[]
         {
             ("$id", key), ("$revision", revision), ("$manual", (int)QueryRevisionReason.ManualSnapshot),
             ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
-            ("$execution", policy.ExecutionBefore.HasValue ? (object)Ticks(policy.ExecutionBefore.Value) : null),
+            ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
         };
         string sql;
@@ -127,11 +144,12 @@ public sealed partial class SqliteQueryMemoryRepository
             case 1:
                 // Recovery 不憑年齡推定已失效；必須等宿主生命週期有可靠訊號才能解除保護。
                 sql = @"DELETE FROM History WHERE EntryKey=$id AND Kind=2 AND RevisionId IS NOT NULL
- AND CreatedAt<$draft AND Pinned=0" + UnprotectedRevision;
+ AND (CreatedAt<$draft OR CreatedAt<$autoQuota) AND Pinned=0" + UnprotectedRevision;
                 break;
             case 2:
                 sql = @"DELETE FROM Revisions WHERE RevisionId=$id
- AND CreatedAt < CASE WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution ELSE $draft END" + UnprotectedRevision + @"
+ AND (CreatedAt < CASE WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution ELSE $draft END
+  OR CreatedAt<$autoQuota)" + UnprotectedRevision + @"
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestRevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestExecutionRevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ParentRevisionId=$id)
@@ -152,5 +170,53 @@ public sealed partial class SqliteQueryMemoryRepository
         }
         Execute(connection, transaction, sql + ";", parameters);
         return (int)ScalarLong(connection, transaction, "SELECT changes();");
+    }
+
+    /// <summary>界線只在批次開始解析一次；批次只刪除比界線更舊的列，最新 N 筆不會在批次內移動。</summary>
+    private sealed class MaintenanceQuotas
+    {
+        private readonly SqliteConnection _connection;
+        private readonly SqliteTransaction _transaction;
+        private readonly QueryMemoryMaintenancePolicy _policy;
+        private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
+
+        public MaintenanceQuotas(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenancePolicy policy)
+        {
+            _connection = connection;
+            _transaction = transaction;
+            _policy = policy;
+            ExecutionCutoff = Later(policy.ExecutionBefore.HasValue ? Ticks(policy.ExecutionBefore.Value) : null,
+                Boundary(policy.MaxExecutionEvents, "SELECT ExecutedAt FROM Executions ORDER BY ExecutedAt DESC"));
+        }
+
+        /// <summary>執行專用版本沿用同一界線，否則配額只會留下永遠無法回收的孤立版本。</summary>
+        public long? ExecutionCutoff { get; }
+
+        public long? AutoRevisionCutoff(string sessionId)
+        {
+            if (!_policy.MaxAutoRevisionsPerSession.HasValue) return null;
+            if (_sessions.TryGetValue(sessionId, out var cached)) return cached;
+            // 常數條件對應 IX_Revisions_SessionAuto，只掃描該 Session 的前 N 筆索引項。
+            var cutoff = Boundary(_policy.MaxAutoRevisionsPerSession, "SELECT CreatedAt FROM Revisions WHERE SessionId=$session" +
+                " AND Reason=" + (int)QueryRevisionReason.AutoCheckpoint + " AND IsExecutionSelection=0 ORDER BY CreatedAt DESC",
+                ("$session", sessionId));
+            _sessions.Add(sessionId, cutoff);
+            return cutoff;
+        }
+
+        private long? Boundary(int? quota, string sql, params (string Name, object? Value)[] parameters)
+        {
+            if (!quota.HasValue) return null;
+            // 配額 0 沒有第 0 新的列可當界線；全部候選都超額，保護根仍由刪除條件擋下。
+            if (quota.Value == 0) return long.MaxValue;
+            using var command = Command(_connection, _transaction, sql + " LIMIT 1 OFFSET " +
+                (quota.Value - 1).ToString(CultureInfo.InvariantCulture) + ";", parameters);
+            // 界線取第 N 新的時間且只刪嚴格更舊的列，同時間的列一併保留，實際筆數可能略多於配額。
+            var value = command.ExecuteScalar();
+            return value == null || value is DBNull ? null : Convert.ToInt64(value, CultureInfo.InvariantCulture);
+        }
+
+        private static long? Later(long? left, long? right) =>
+            left.HasValue && right.HasValue ? Math.Max(left.Value, right.Value) : left ?? right;
     }
 }
