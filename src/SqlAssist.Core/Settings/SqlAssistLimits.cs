@@ -77,6 +77,82 @@ public static class SqlAssistLimits
     public static double ClampPreviewHeight(double value) =>
         Clamp(value, MinimumPreviewHeight, MaximumPreviewHeight, DefaultPreviewHeight);
 
+    /// <summary>停止輸入多久之後記下草稿；再短就變成每按一次鍵排一次工作。</summary>
+    public const int MinimumQueryMemoryIdleSeconds = 1;
+
+    public const int MaximumQueryMemoryIdleSeconds = 120;
+
+    public const int DefaultQueryMemoryIdleSeconds = 5;
+
+    public const int MinimumQueryMemoryAutoRevisionMinutes = 1;
+
+    public const int MaximumQueryMemoryAutoRevisionMinutes = 480;
+
+    public const int DefaultQueryMemoryAutoRevisionMinutes = 10;
+
+    public const int MinimumQueryMemoryRetentionDays = 1;
+
+    /// <summary>十年；再長與「不限」沒有分別，而分級收緊會需要更多輪才追得上容量。</summary>
+    public const int MaximumQueryMemoryRetentionDays = 3650;
+
+    public const int DefaultQueryMemoryDraftRetentionDays = 30;
+
+    public const int DefaultQueryMemoryExecutionRetentionDays = 180;
+
+    /// <summary>未存檔草稿的期限另計；它保護的是當機後還救得回來的內容，不是歷程。</summary>
+    public const int MaximumQueryMemoryUnsavedDraftRetentionDays = 365;
+
+    public const int DefaultQueryMemoryUnsavedDraftRetentionDays = 7;
+
+    public const int MinimumQueryMemoryExecutions = 100;
+
+    public const int MaximumQueryMemoryExecutions = 1000000;
+
+    public const int DefaultQueryMemoryExecutions = 10000;
+
+    public const int MinimumQueryMemorySessionRevisions = 5;
+
+    public const int MaximumQueryMemorySessionRevisions = 5000;
+
+    public const int DefaultQueryMemorySessionRevisions = 50;
+
+    public const int MinimumQueryMemorySavedRevisions = 1;
+
+    public const int MaximumQueryMemorySavedRevisions = 1000;
+
+    public const int DefaultQueryMemorySavedRevisions = 20;
+
+    /// <summary>維護間隔；比五分鐘更密只會讓同一批候選被反覆巡過。</summary>
+    public const int MinimumQueryMemoryMaintenanceMinutes = 5;
+
+    public const int MaximumQueryMemoryMaintenanceMinutes = 1440;
+
+    public const int DefaultQueryMemoryMaintenanceMinutes = 60;
+
+    public static int ClampQueryMemoryIdleSeconds(int value) =>
+        Clamp(value, MinimumQueryMemoryIdleSeconds, MaximumQueryMemoryIdleSeconds);
+
+    public static int ClampQueryMemoryAutoRevisionMinutes(int value) =>
+        Clamp(value, MinimumQueryMemoryAutoRevisionMinutes, MaximumQueryMemoryAutoRevisionMinutes);
+
+    public static int ClampQueryMemoryRetentionDays(int value) =>
+        Clamp(value, MinimumQueryMemoryRetentionDays, MaximumQueryMemoryRetentionDays);
+
+    public static int ClampQueryMemoryUnsavedDraftRetentionDays(int value) =>
+        Clamp(value, MinimumQueryMemoryRetentionDays, MaximumQueryMemoryUnsavedDraftRetentionDays);
+
+    public static int ClampQueryMemoryExecutions(int value) =>
+        Clamp(value, MinimumQueryMemoryExecutions, MaximumQueryMemoryExecutions);
+
+    public static int ClampQueryMemorySessionRevisions(int value) =>
+        Clamp(value, MinimumQueryMemorySessionRevisions, MaximumQueryMemorySessionRevisions);
+
+    public static int ClampQueryMemorySavedRevisions(int value) =>
+        Clamp(value, MinimumQueryMemorySavedRevisions, MaximumQueryMemorySavedRevisions);
+
+    public static int ClampQueryMemoryMaintenanceMinutes(int value) =>
+        Clamp(value, MinimumQueryMemoryMaintenanceMinutes, MaximumQueryMemoryMaintenanceMinutes);
+
     private static int Clamp(int value, int minimum, int maximum) =>
         Math.Min(Math.Max(value, minimum), maximum);
 

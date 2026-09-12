@@ -27,6 +27,7 @@ public sealed class SqlAssistRegistrationTests
     [InlineData("sqlAssist.structure.previewMode", "delay", "rightArrow", "off")]
     [InlineData("sqlAssist.structure.previewPlacement", "stacked", "beside")]
     [InlineData("sqlAssist.structure.scriptStyle", "fidelity", "ssmsNative", "minimal")]
+    [InlineData("sqlAssist.queryMemory.storageLimit", "mb256", "mb512", "gb1", "unlimited")]
     public void 列舉的字面值不變(string moniker, params string[] expected)
     {
         using var document = RegistrationManifest.Open();

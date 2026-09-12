@@ -89,6 +89,21 @@ public static class SqlAssistMonikers
         "sqlAssist.structure.scriptIncludeAnalyzerComments";
     public const string ScriptIncludeHeaderComment = "sqlAssist.structure.scriptIncludeHeaderComment";
 
+    public const string QueryMemoryEnabled = "sqlAssist.queryMemory.enabled";
+    public const string QueryMemoryCaptureExecuted = "sqlAssist.queryMemory.captureExecuted";
+    public const string QueryMemoryCaptureDrafts = "sqlAssist.queryMemory.captureDrafts";
+    public const string QueryMemoryRecoverUnsavedDrafts = "sqlAssist.queryMemory.recoverUnsavedDrafts";
+    public const string QueryMemoryIdleSeconds = "sqlAssist.queryMemory.idleSeconds";
+    public const string QueryMemoryAutoRevisionMinutes = "sqlAssist.queryMemory.autoRevisionMinutes";
+    public const string QueryMemoryDraftRetentionDays = "sqlAssist.queryMemory.draftRetentionDays";
+    public const string QueryMemoryExecutionRetentionDays = "sqlAssist.queryMemory.executionRetentionDays";
+    public const string QueryMemoryUnsavedDraftRetentionDays = "sqlAssist.queryMemory.unsavedDraftRetentionDays";
+    public const string QueryMemoryMaxExecutions = "sqlAssist.queryMemory.maxExecutions";
+    public const string QueryMemoryMaxSessionRevisions = "sqlAssist.queryMemory.maxSessionRevisions";
+    public const string QueryMemoryMaxSavedRevisions = "sqlAssist.queryMemory.maxSavedRevisions";
+    public const string QueryMemoryStorageLimit = "sqlAssist.queryMemory.storageLimit";
+    public const string QueryMemoryMaintenanceMinutes = "sqlAssist.queryMemory.maintenanceMinutes";
+
     public const string VerboseLogging = "sqlAssist.diagnostics.verboseLogging";
 
     /// <summary>

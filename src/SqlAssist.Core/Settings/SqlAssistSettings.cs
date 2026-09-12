@@ -1,4 +1,5 @@
 using SqlAssist.Core.Notifications;
+using SqlAssist.Core.QueryMemory;
 using SqlAssist.Core.Scripting;
 
 namespace SqlAssist.Core.Settings;
@@ -316,6 +317,54 @@ public sealed class SqlAssistSettings
 
     /// <summary>sqlAssist.structure.scriptIncludeHeaderComment</summary>
     public bool ScriptIncludeHeaderComment { get; init; }
+
+    /// <summary>sqlAssist.queryMemory.enabled</summary>
+    /// <remarks>
+    /// 預設關閉，而且只由使用者打開。這一項管的是「要不要把使用者輸入的 SQL 留在磁碟上」，
+    /// 儲存自我測試通過只證明存得起來，不構成替他決定的理由。
+    /// </remarks>
+    public bool QueryMemoryEnabled { get; init; }
+
+    /// <summary>sqlAssist.queryMemory.captureExecuted</summary>
+    public bool QueryMemoryCaptureExecuted { get; init; } = true;
+
+    /// <summary>sqlAssist.queryMemory.captureDrafts</summary>
+    public bool QueryMemoryCaptureDrafts { get; init; } = true;
+
+    /// <summary>sqlAssist.queryMemory.recoverUnsavedDrafts</summary>
+    public bool QueryMemoryRecoverUnsavedDrafts { get; init; } = true;
+
+    /// <summary>sqlAssist.queryMemory.idleSeconds</summary>
+    public int QueryMemoryIdleSeconds { get; init; } = SqlAssistLimits.DefaultQueryMemoryIdleSeconds;
+
+    /// <summary>sqlAssist.queryMemory.autoRevisionMinutes</summary>
+    public int QueryMemoryAutoRevisionMinutes { get; init; } = SqlAssistLimits.DefaultQueryMemoryAutoRevisionMinutes;
+
+    /// <summary>sqlAssist.queryMemory.draftRetentionDays</summary>
+    public int QueryMemoryDraftRetentionDays { get; init; } = SqlAssistLimits.DefaultQueryMemoryDraftRetentionDays;
+
+    /// <summary>sqlAssist.queryMemory.executionRetentionDays</summary>
+    public int QueryMemoryExecutionRetentionDays { get; init; } = SqlAssistLimits.DefaultQueryMemoryExecutionRetentionDays;
+
+    /// <summary>sqlAssist.queryMemory.unsavedDraftRetentionDays</summary>
+    public int QueryMemoryUnsavedDraftRetentionDays { get; init; } =
+        SqlAssistLimits.DefaultQueryMemoryUnsavedDraftRetentionDays;
+
+    /// <summary>sqlAssist.queryMemory.maxExecutions</summary>
+    public int QueryMemoryMaxExecutions { get; init; } = SqlAssistLimits.DefaultQueryMemoryExecutions;
+
+    /// <summary>sqlAssist.queryMemory.maxSessionRevisions</summary>
+    public int QueryMemoryMaxSessionRevisions { get; init; } = SqlAssistLimits.DefaultQueryMemorySessionRevisions;
+
+    /// <summary>sqlAssist.queryMemory.maxSavedRevisions</summary>
+    public int QueryMemoryMaxSavedRevisions { get; init; } = SqlAssistLimits.DefaultQueryMemorySavedRevisions;
+
+    /// <summary>sqlAssist.queryMemory.storageLimit</summary>
+    /// <remarks>屬性不與列舉同名，否則屬性初始設定式無法指名列舉成員。</remarks>
+    public QueryMemoryStorageLimit QueryMemoryStorage { get; init; } = QueryMemoryStorageLimit.Megabytes512;
+
+    /// <summary>sqlAssist.queryMemory.maintenanceMinutes</summary>
+    public int QueryMemoryMaintenanceMinutes { get; init; } = SqlAssistLimits.DefaultQueryMemoryMaintenanceMinutes;
 
     /// <summary>sqlAssist.diagnostics.verboseLogging</summary>
     public bool VerboseLogging { get; init; }
