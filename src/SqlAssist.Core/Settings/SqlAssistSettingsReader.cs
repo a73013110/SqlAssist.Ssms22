@@ -1,6 +1,7 @@
 
 
 using SqlAssist.Core.Notifications;
+using SqlAssist.Core.QueryMemory;
 using SqlAssist.Core.Scripting;
 
 namespace SqlAssist.Core.Settings;
@@ -178,6 +179,41 @@ public static class SqlAssistSettingsReader
                 SqlAssistMonikers.ScriptIncludeHeaderComment,
                 defaults.ScriptIncludeHeaderComment),
 
+            QueryMemoryEnabled = Value(source, SqlAssistMonikers.QueryMemoryEnabled, defaults.QueryMemoryEnabled),
+            QueryMemoryCaptureExecuted = Value(
+                source,
+                SqlAssistMonikers.QueryMemoryCaptureExecuted,
+                defaults.QueryMemoryCaptureExecuted),
+            QueryMemoryCaptureDrafts = Value(
+                source,
+                SqlAssistMonikers.QueryMemoryCaptureDrafts,
+                defaults.QueryMemoryCaptureDrafts),
+            QueryMemoryRecoverUnsavedDrafts = Value(
+                source,
+                SqlAssistMonikers.QueryMemoryRecoverUnsavedDrafts,
+                defaults.QueryMemoryRecoverUnsavedDrafts),
+            QueryMemoryIdleSeconds = SqlAssistLimits.ClampQueryMemoryIdleSeconds(
+                Value(source, SqlAssistMonikers.QueryMemoryIdleSeconds, defaults.QueryMemoryIdleSeconds)),
+            QueryMemoryAutoRevisionMinutes = SqlAssistLimits.ClampQueryMemoryAutoRevisionMinutes(
+                Value(source, SqlAssistMonikers.QueryMemoryAutoRevisionMinutes, defaults.QueryMemoryAutoRevisionMinutes)),
+            QueryMemoryDraftRetentionDays = SqlAssistLimits.ClampQueryMemoryRetentionDays(
+                Value(source, SqlAssistMonikers.QueryMemoryDraftRetentionDays, defaults.QueryMemoryDraftRetentionDays)),
+            QueryMemoryExecutionRetentionDays = SqlAssistLimits.ClampQueryMemoryRetentionDays(
+                Value(source, SqlAssistMonikers.QueryMemoryExecutionRetentionDays, defaults.QueryMemoryExecutionRetentionDays)),
+            QueryMemoryUnsavedDraftRetentionDays = SqlAssistLimits.ClampQueryMemoryUnsavedDraftRetentionDays(
+                Value(source, SqlAssistMonikers.QueryMemoryUnsavedDraftRetentionDays, defaults.QueryMemoryUnsavedDraftRetentionDays)),
+            QueryMemoryMaxExecutions = SqlAssistLimits.ClampQueryMemoryExecutions(
+                Value(source, SqlAssistMonikers.QueryMemoryMaxExecutions, defaults.QueryMemoryMaxExecutions)),
+            QueryMemoryMaxSessionRevisions = SqlAssistLimits.ClampQueryMemorySessionRevisions(
+                Value(source, SqlAssistMonikers.QueryMemoryMaxSessionRevisions, defaults.QueryMemoryMaxSessionRevisions)),
+            QueryMemoryMaxSavedRevisions = SqlAssistLimits.ClampQueryMemorySavedRevisions(
+                Value(source, SqlAssistMonikers.QueryMemoryMaxSavedRevisions, defaults.QueryMemoryMaxSavedRevisions)),
+            QueryMemoryStorage = ParseStorageLimit(
+                Value(source, SqlAssistMonikers.QueryMemoryStorageLimit, string.Empty),
+                defaults.QueryMemoryStorage),
+            QueryMemoryMaintenanceMinutes = SqlAssistLimits.ClampQueryMemoryMaintenanceMinutes(
+                Value(source, SqlAssistMonikers.QueryMemoryMaintenanceMinutes, defaults.QueryMemoryMaintenanceMinutes)),
+
             VerboseLogging = Value(source, SqlAssistMonikers.VerboseLogging, defaults.VerboseLogging)
         };
     }
@@ -241,6 +277,18 @@ public static class SqlAssistSettingsReader
             "onePerLine" => SqlWildcardLayout.OnePerLine,
             "oneLineWhenShort" => SqlWildcardLayout.OneLineWhenShort,
             "fillWidth" => SqlWildcardLayout.FillWidth,
+            _ => fallback
+        };
+    }
+
+    private static QueryMemoryStorageLimit ParseStorageLimit(string value, QueryMemoryStorageLimit fallback)
+    {
+        return value switch
+        {
+            "mb256" => QueryMemoryStorageLimit.Megabytes256,
+            "mb512" => QueryMemoryStorageLimit.Megabytes512,
+            "gb1" => QueryMemoryStorageLimit.Gigabytes1,
+            "unlimited" => QueryMemoryStorageLimit.Unlimited,
             _ => fallback
         };
     }
