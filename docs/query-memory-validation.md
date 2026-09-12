@@ -39,7 +39,10 @@ Release 封裝 probe 通過標準／外部 LoadFrom 載入、新版自我測試�
 
 本批仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
 舊版自我測試 PASS 不涵蓋本批；本次新版報告應多出「Saved Query CRUD、scope 分頁、版本衝突與
-刪除後歷史保留」。仍未啟用 SQL 擷取，retention、容量回收、Saved SQL 編輯／搜尋與 UI 尚未完成。
+刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額、Saved SQL 編輯／搜尋與 UI 尚未完成。
+
+B2a 的自動驗證與維護專用實機步驟見[維護驗收](query-memory-maintenance-validation.md)；本頁保留
+SSMS 安裝／部署生命週期門檻。B2a 尚未部署或操作 SSMS，不能把 2879 項自動測試當成實機通過。
 
 ## 更新後如何測試
 

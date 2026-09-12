@@ -52,11 +52,10 @@ SSMS 快照可能另保留編輯器內部資料。
 
 1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
    真正 SSMS 已回報[自我測試通過](query-memory-validation.md)，宿主共存／重啟等仍待回報，不啟用擷取。
-2. **儲存維護**：已有 schema v2 與 v1 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
+2. **儲存維護**：已有 schema v3 與逐版 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
-3. **容量與 Saved Queries**：設定驅動 retention、儲存上限、分批清理孤立 Content；
-   沿用 [Saved 與維護契約](query-memory-saved.md)，保護 Saved Query、Pinned 與 Manual Snapshot 的引用。
-   活動 Recovery 與 Session head 不得被清理成懸空引用。
+3. **容量與 Saved Queries**：已有 [Saved CRUD](query-memory-saved.md)及[有界維護](query-memory-maintenance.md)。
+   期限清理／容量量測已具備；設定驅動排程、筆數配額與實體整理仍待後續批次。
 4. **SSMS 擷取**：Session tracker、可調 idle debounce、可靠的 Execute submitted 訊號與
    選取範圍、Close／卸載 flush、連線快照。不得改變現有殼層命令熱路徑護欄。
 5. **設定與 UI**：先提供啟用與隱私說明，再接 History／Saved Queries、分頁虛擬化列表、

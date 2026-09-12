@@ -88,6 +88,8 @@ public static class QueryMemoryStorageSelfTest
                 Require(await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false) == null, "Saved Query 已刪除");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Saved 不刪除 History 內容");
                 report.WriteLine("通過：Saved Query CRUD、scope 分頁、版本衝突與刪除後歷史保留。");
+                await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
+                report.WriteLine("通過：有界維護續跑、容量量測與無法回收時保護 Session head／Recovery。");
             }
             using (File.Open(database, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
             report.WriteLine("通過：第二次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
@@ -102,6 +104,30 @@ public static class QueryMemoryStorageSelfTest
             report.WriteLine($"FAIL | {timer.ElapsedMilliseconds} ms | {error}");
             throw;
         }
+    }
+
+    private static async Task VerifyMaintenanceAsync(IsolatedQueryMemoryRepository repository, string contentId, string sql, CancellationToken token)
+    {
+        var usage = await repository.ReadUsageAsync(token).ConfigureAwait(false);
+        Require(usage.ContentBytes == 2L * sql.Length && usage.DatabaseFileBytes > 0, "邏輯容量與實體檔案量測");
+        var policy = new QueryMemoryMaintenancePolicy(DateTimeOffset.MaxValue, DateTimeOffset.MaxValue, 0);
+        string? cursor = null;
+        for (var batch = 0; batch < 40; batch++)
+        {
+            token.ThrowIfCancellationRequested();
+            var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 4, cursor), token).ConfigureAwait(false);
+            Require(result.ExaminedCandidates <= 4 && result.DeletedRows <= 8, "清理工作量上限");
+            if (result.Cursor == null && !result.RequiresAnotherPass)
+            {
+                Require(result.CapacityStatus == QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, "受保護內容無法回收");
+                Require((await repository.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "維護保留 head／Recovery 內容");
+                Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(1, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 0,
+                    "維護清除過期執行");
+                return;
+            }
+            cursor = result.Cursor;
+        }
+        throw new InvalidOperationException("維護未在自我測試上限內收斂。");
     }
 
     private static string[] ProviderAssemblies() => AppDomain.CurrentDomain.GetAssemblies()

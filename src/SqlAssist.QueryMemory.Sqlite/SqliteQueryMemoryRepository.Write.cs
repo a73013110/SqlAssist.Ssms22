@@ -107,10 +107,7 @@ CapturedAt=excluded.CapturedAt, ContextId=excluded.ContextId;",
             (write.Recovery != null && write.Recovery.ContentId != oldRecoveryContent)))
         {
             // 只檢查這次被替換的內容，不做全庫 GC；保留任何版本與其他 Session 的引用。
-            Execute(connection, transaction, @"DELETE FROM Contents WHERE ContentId=$id
-AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContentId=$id)
-AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContentId=$id)
-AND NOT EXISTS(SELECT 1 FROM History WHERE ContentId=$id);", ("$id", oldRecoveryContent));
+            Execute(connection, transaction, "DELETE FROM Contents WHERE ContentId=$id" + UnreferencedContent + ";", ("$id", oldRecoveryContent));
         }
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();

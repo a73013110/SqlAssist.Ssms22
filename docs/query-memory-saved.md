@@ -1,6 +1,6 @@
 # Query Memory：Saved Queries 與維護邊界
 
-本頁是 B1 儲存契約；[核心](query-memory.md)的擷取及 UI 仍未啟用。
+本頁是 B1 儲存契約；B2a 見[有界維護](query-memory-maintenance.md)，擷取及 UI 仍未啟用。
 
 ## B1 已實作
 
@@ -39,19 +39,12 @@ Server／Database 精確、區分大小寫，不以連線 Identity 做 scope 篩
 固定的 v1 SQL fixture 不引用產品最新 schema；真實 SQLite 回歸涵蓋有資料升級、並行開啟、
 DDL 中途失敗回復及重試、根引用與 SQL 原文保留。自我測試驗證全新 v2 與 Saved CRUD，
 不等同於真正 SSMS 既有資料庫的 migration 驗收。
-舊版程式會拒絕 v2，沒有自動降版；回退程式不能靠修改 user_version 或刪庫解決。
+v2 程式會拒絕 v3，沒有自動降版；回退程式不能靠修改 user_version 或刪庫解決。
 
-## B2 必須沿用的保留契約
+## 維護與後續邊界
 
-**尚未實作 retention／容量策略或全庫清理。** 下一批不能把本頁外鍵測試當成清理功能已驗收。
-
-- 清理與新增／更新 Saved 都取得 IMMEDIATE 寫鎖；每批清理的引用檢查與刪除必須在同一交易，避免競賽。
-- Saved、Pinned History、Manual Snapshot、活動 Recovery、Session 的兩種 head 都是保護根。
-  Revision Parent／Execution 等外鍵也須處理；不能關閉外鍵或只靠年齡直接刪除。
-- 保留期限與容量由政策輸入，不把建議值寫死在 Domain。清理筆數／工作量必須有界、可取消。
-- 達容量仍有受保護資料時須回報無法回收，不破壞引用來達到上限。邏輯內容大小與 db／WAL
-  實體檔案大小分開定義，不把刪除列當成磁碟已縮小。
-- Context／Content 等孤立資料另做有界回收；不得在每次儲存收藏時掃描全庫。
+清理的保護根、容量定義、交易競賽與續跑契約統一見[有界維護](query-memory-maintenance.md)。
+B1 的外鍵測試不等於完整容量清理驗收，新增測試與限制見[維護驗收](query-memory-maintenance-validation.md)。
 
 Saved SQL 編輯／新增版本的交易流程、名稱／全文搜尋與 UI 可見範圍合併仍待後續批次。
 本批只提供既有 Revision 的 CRUD／scope 基礎，不宣稱完整 Saved Queries 產品流程完成。

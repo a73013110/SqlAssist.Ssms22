@@ -9,7 +9,7 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Sqlite;
 
 /// <summary>每次操作使用獨立連線；不保留 pool，關閉後不鎖住資料庫或妨礙 VSIX 卸載。</summary>
-public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository
+public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository, IQueryMemoryMaintenanceRepository
 {
     private readonly string _connectionString;
     private string _storeId = "";
@@ -80,6 +80,13 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
             cancellationToken.ThrowIfCancellationRequested();
             Execute(connection, transaction, SqliteSchema.Migrate1To2);
             Execute(connection, transaction, "PRAGMA user_version=2;");
+            version = 2;
+        }
+        if (version == 2)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Execute(connection, transaction, SqliteSchema.Migrate2To3);
+            Execute(connection, transaction, "PRAGMA user_version=3;");
         }
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
             _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";
