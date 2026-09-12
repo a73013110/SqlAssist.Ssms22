@@ -52,7 +52,7 @@ public sealed class SavedQueryRequest
 {
     /// <summary>scope 精確比對，不隱含合併全域或父層。以 SavedQueryId DESC 穩定分頁。</summary>
     public SavedQueryRequest(int pageSize, SavedQueryScope scope = SavedQueryScope.Global,
-        string? server = null, string? database = null, string? cursor = null)
+        string? server = null, string? database = null, string? search = null, string? cursor = null)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
         ValidateScope(scope, server, database);
@@ -60,6 +60,7 @@ public sealed class SavedQueryRequest
         Scope = scope;
         Server = server;
         Database = string.IsNullOrEmpty(database) ? null : database;
+        Search = string.IsNullOrEmpty(search) ? null : search;
         Cursor = cursor;
     }
 
@@ -67,6 +68,12 @@ public sealed class SavedQueryRequest
     public SavedQueryScope Scope { get; }
     public string? Server { get; }
     public string? Database { get; }
+
+    /// <summary>
+    /// 區分大小寫的字面子字串，與 History 搜尋同語意；命中名稱、說明或目前版本的 SQL 全文即納入。
+    /// 它是 scope 之上的額外篩選，不放寬 scope，也不是 FTS 或萬用字元比對。
+    /// </summary>
+    public string? Search { get; }
     public string? Cursor { get; }
 
     internal static void ValidateScope(SavedQueryScope scope, string? server, string? database)

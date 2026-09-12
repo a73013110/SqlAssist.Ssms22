@@ -40,6 +40,19 @@ public sealed class SavedQueryContractTests
         Assert.Throws<ArgumentException>(() => new SavedQueryRequest(10, scope, server, database));
 
     [Fact]
+    public void SearchIsOptionalAndDoesNotWidenScope()
+    {
+        Assert.Null(new SavedQueryRequest(10).Search);
+        Assert.Null(new SavedQueryRequest(10, search: "").Search);
+        // 空白是合法的字面搜尋；只有 null 與空字串代表不篩選。
+        Assert.Equal(" ", new SavedQueryRequest(10, search: " ").Search);
+        var request = new SavedQueryRequest(10, SavedQueryScope.Server, "LibraryServer", search: "Lib_Reader");
+        Assert.Equal("Lib_Reader", request.Search);
+        Assert.Equal(SavedQueryScope.Server, request.Scope);
+        Assert.Throws<ArgumentException>(() => new SavedQueryRequest(10, SavedQueryScope.Global, "LibraryServer", search: "Lib_Reader"));
+    }
+
+    [Fact]
     public void ScopeValidationIsSharedByRequestsAndWrites()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new SavedQueryRequest(10, (SavedQueryScope)100));

@@ -161,6 +161,90 @@ public sealed class SqliteSavedQueryTests
     }
 
     [Fact]
+    public async Task SearchMatchesNameDescriptionAndSqlWithoutWideningScope()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var reader = await CreateQuery(store, repository);
+        await repository.WriteSavedQueryAsync(new SavedQueryWrite(reader), Token);
+        await store.Process(repository, store.Capture(2, "SELECT * FROM Lib_Tag;"), Token);
+        var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
+        Assert.NotNull(state?.LatestRevision);
+        // 說明為 NULL 的收藏仍須靠 SQL 命中；instr 對 NULL 回傳 NULL，不能因此整列消失。
+        var tag = reader with { SavedQueryId = Guid.NewGuid(), Name = "標籤清單", Description = null,
+            CurrentRevisionId = state.LatestRevision.RevisionId };
+        await repository.WriteSavedQueryAsync(new SavedQueryWrite(tag), Token);
+        var scoped = reader with { SavedQueryId = Guid.NewGuid(), Scope = SavedQueryScope.Server,
+            Connection = new QueryConnectionContext("LibraryServer", "") };
+        await repository.WriteSavedQueryAsync(new SavedQueryWrite(scoped), Token);
+
+        async Task<Guid[]> Find(string? search, SavedQueryScope scope = SavedQueryScope.Global, string? server = null) =>
+            (await repository.ReadSavedQueriesAsync(new SavedQueryRequest(20, scope, server, search: search), Token))
+            .Items.Select(item => item.Query.SavedQueryId).ToArray();
+
+        Assert.Equal(new[] { reader.SavedQueryId }, await Find("圖書館範例"));
+        Assert.Equal(new[] { reader.SavedQueryId }, await Find("Lib_Reader"));
+        Assert.Equal(new[] { tag.SavedQueryId }, await Find("標籤"));
+        Assert.Equal(new[] { tag.SavedQueryId }, await Find("Lib_Tag"));
+        Assert.Equal(2, (await Find("SELECT * FROM")).Length);
+        Assert.Equal(2, (await Find(null)).Length);
+        Assert.Equal(2, (await Find("")).Length);
+        foreach (var missing in new[] { "lib_reader", "讀者查詢 ", "' OR 1=1--", "Library.sql" })
+            Assert.Empty(await Find(missing));
+        // 搜尋只在 scope 之內；同一段 SQL 在別的 scope 也不會被帶進來。
+        Assert.Equal(new[] { scoped.SavedQueryId }, await Find("Lib_Reader", SavedQueryScope.Server, "LibraryServer"));
+        Assert.Empty(await Find("Lib_Tag", SavedQueryScope.Server, "LibraryServer"));
+    }
+
+    [Fact]
+    public async Task SearchPagingKeepsKeysetAndBindsCursorToTheTerm()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var query = await CreateQuery(store, repository);
+        var matching = new List<Guid>();
+        for (var i = 1; i <= 5; i++)
+        {
+            var id = Guid.NewGuid();
+            var wanted = i % 2 == 1;
+            if (wanted) matching.Add(id);
+            await repository.WriteSavedQueryAsync(new SavedQueryWrite(query with { SavedQueryId = id,
+                Name = wanted ? "借閱報表 " + i : "其他 " + i }), Token);
+        }
+        var actual = new List<Guid>();
+        string? cursor = null;
+        do
+        {
+            var page = await repository.ReadSavedQueriesAsync(new SavedQueryRequest(2, search: "借閱報表", cursor: cursor), Token);
+            Assert.InRange(page.Items.Count, 1, 2);
+            actual.AddRange(page.Items.Select(item => item.Query.SavedQueryId));
+            cursor = page.NextCursor;
+        } while (cursor != null);
+        Assert.Equal(matching.Select(id => id.ToString("N")).OrderByDescending(id => id, StringComparer.Ordinal), actual.Select(id => id.ToString("N")));
+        var first = await repository.ReadSavedQueriesAsync(new SavedQueryRequest(1, search: "借閱報表"), Token);
+        Assert.NotNull(first.NextCursor);
+        foreach (var other in new string?[] { null, "", "借閱", "借閱報表 " })
+            await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadSavedQueriesAsync(
+                new SavedQueryRequest(1, search: other, cursor: first.NextCursor), Token));
+    }
+
+    [Fact]
+    public async Task SearchCancellationNeverSurfacesProviderExceptions()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var query = await CreateQuery(store, repository);
+        for (var i = 0; i < 20; i++)
+            await repository.WriteSavedQueryAsync(new SavedQueryWrite(query with { SavedQueryId = Guid.NewGuid() }), Token);
+        using var source = new CancellationTokenSource();
+        // 取消可能落在派送前或 BLOB 掃描中；無論哪一種都不得讓 SqliteException 外流。
+        var reading = repository.ReadSavedQueriesAsync(new SavedQueryRequest(200, search: "Lib_Reader"), source.Token);
+        source.Cancel();
+        var error = await Record.ExceptionAsync(() => reading);
+        Assert.True(error is null or OperationCanceledException, error?.ToString());
+    }
+
+    [Fact]
     public async Task CursorsRejectOtherStoresScopesHistoryAndMalformedInput()
     {
         using var store = new SqliteTestStore();
@@ -205,11 +289,19 @@ public sealed class SqliteSavedQueryTests
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "EXPLAIN QUERY PLAN SELECT SavedQueryId FROM SavedQueries WHERE Scope=2 AND Server IS 'LibraryServer' AND DatabaseName IS 'Library' AND SavedQueryId < 'f' ORDER BY SavedQueryId DESC LIMIT 20;";
-        using var reader = command.ExecuteReader();
-        var plan = new List<string>();
-        while (reader.Read()) plan.Add(reader.GetString(3));
-        Assert.Contains(plan, line => line.Contains("IX_SavedQueries_ScopeId"));
-        Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE"));
+        // 搜尋只是 keyset 之上的篩選；加了它仍不得退回全表掃描或暫存排序。
+        connection.CreateFunction<byte[], bool>("qm_matches", _ => true);
+        foreach (var filter in new[] { "", @" AND (instr(s.Name,'報表')>0 OR instr(s.Description,'報表')>0 OR qm_matches(c.SqlBytes))" })
+        {
+            command.CommandText = @"EXPLAIN QUERY PLAN SELECT s.SavedQueryId FROM SavedQueries s
+JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId
+WHERE s.Scope=2 AND s.Server IS 'LibraryServer' AND s.DatabaseName IS 'Library' AND s.SavedQueryId < 'f'" +
+                filter + " ORDER BY s.SavedQueryId DESC LIMIT 20;";
+            using var reader = command.ExecuteReader();
+            var plan = new List<string>();
+            while (reader.Read()) plan.Add(reader.GetString(3));
+            Assert.Contains(plan, line => line.Contains("IX_SavedQueries_ScopeId"));
+            Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE"));
+        }
     }
 }

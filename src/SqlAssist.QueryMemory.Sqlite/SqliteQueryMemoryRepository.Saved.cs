@@ -88,31 +88,49 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Pinned=excluded.Pinned
         if (request == null) throw new ArgumentNullException(nameof(request));
         return Task.Run(() =>
         {
-            // scope 專用前綴防止與 History 游標混用；指紋重用內容雜湊與長度前綴編碼。
-            var prefix = "saved1|" + _storeId + "|" + QueryContent.Create(
-                ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + Field(request.Server) + Field(request.Database)).ContentHash + "|";
-            var after = DecodeSavedCursor(request.Cursor, prefix);
-            using var connection = Connect();
-            using var command = Command(connection, null, SavedProjection + @"
- WHERE s.Scope=$scope AND s.Server IS $server AND s.DatabaseName IS $database" +
-                (after == null ? "" : " AND s.SavedQueryId < $after") + " ORDER BY s.SavedQueryId DESC LIMIT $limit;",
-                ("$scope", (int)request.Scope), ("$server", request.Server), ("$database", request.Database),
-                ("$after", after), ("$limit", request.PageSize + 1));
-            using var reader = command.ExecuteReader();
-            var items = new List<SavedQueryEntry>();
-            string? nextCursor = null;
-            while (reader.Read())
+            try { return ReadSavedQueries(request, cancellationToken); }
+            catch (SqliteException) when (cancellationToken.IsCancellationRequested)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (items.Count == request.PageSize)
-                {
-                    nextCursor = Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + Id(items[items.Count - 1].Query.SavedQueryId)));
-                    break;
-                }
-                items.Add(ReadSavedEntry(reader));
+                // SQLite 會包裝 scalar function 的取消例外；對呼叫端仍保留取消語意。
+                throw new OperationCanceledException(cancellationToken);
             }
-            return new QueryMemoryPage<SavedQueryEntry>(items, nextCursor);
         }, cancellationToken);
+    }
+
+    private QueryMemoryPage<SavedQueryEntry> ReadSavedQueries(SavedQueryRequest request, CancellationToken cancellationToken)
+    {
+        // scope 專用前綴防止與 History 游標混用；指紋重用內容雜湊與長度前綴編碼。
+        var prefix = "saved1|" + _storeId + "|" + QueryContent.Create(
+            ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + Field(request.Server) +
+            Field(request.Database) + Field(request.Search)).ContentHash + "|";
+        var after = DecodeSavedCursor(request.Cursor, prefix);
+        using var connection = Connect();
+        var parameters = new List<(string, object?)>
+        {
+            ("$scope", (int)request.Scope), ("$server", request.Server), ("$database", request.Database),
+            ("$after", after), ("$limit", request.PageSize + 1),
+        };
+        // 搜尋只是 scope keyset 之上的篩選；名稱與說明先比對，命中才需要解出目前版本的 SQL。
+        var search = SqliteSearchFilter.Create(request.Search);
+        using var command = Command(connection, null, SavedProjection + @"
+ WHERE s.Scope=$scope AND s.Server IS $server AND s.DatabaseName IS $database" +
+            (after == null ? "" : " AND s.SavedQueryId < $after") +
+            (search == null ? "" : " AND " + search.Apply(connection, parameters, "c.SqlBytes", cancellationToken, "s.Name", "s.Description")) +
+            " ORDER BY s.SavedQueryId DESC LIMIT $limit;", parameters.ToArray());
+        using var reader = command.ExecuteReader();
+        var items = new List<SavedQueryEntry>();
+        string? nextCursor = null;
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (items.Count == request.PageSize)
+            {
+                nextCursor = Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + Id(items[items.Count - 1].Query.SavedQueryId)));
+                break;
+            }
+            items.Add(ReadSavedEntry(reader));
+        }
+        return new QueryMemoryPage<SavedQueryEntry>(items, nextCursor);
     }
 
     private static string? DecodeSavedCursor(string? cursor, string prefix)
