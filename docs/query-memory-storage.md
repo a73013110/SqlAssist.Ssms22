@@ -43,6 +43,11 @@ async ADO.NET 方法仍同步執行。本實作明確在背景做 I/O，不把 `
 BCL 仍從 SSMS 取得，不在 VSIX 夾帶 System.*。更新 SQLitePCLRaw 時，必須同步核對隔離設定內的
 組件版本並重跑封裝測試，不能只改 NuGet 版號。
 
+SSMS 從 ApplicationBase 外載入擴充，代理回程的按名稱解析會造成 `InvalidCastException`。
+`QueryMemoryRemotingScope` 在 repository 存活期間只解析已載入、完整名稱相符的 Hosting／Core；
+初始化失敗或 Dispose 時解除，不接管 SQLite／BCL。這是 [CLR 載入內容差異](https://learn.microsoft.com/en-us/dotnet/framework/deployment/best-practices-for-assembly-loading)
+的邊界處理，不透過複製 DLL 到 SSMS IDE 或修改宿主設定規避。
+
 跨 AppDomain 的 DTO 複製、SQL、雜湊均在背景進行。此邊界會增加大型 SQL 的暫存記憶體，
 writer 的文字容量估計不是程序記憶體硬上限。隔離呼叫只在派送前接受取消；派送後以交易結果為準。
 先排空 BackgroundWriter，再於背景 Dispose 隔離 repository；不得在 UI 執行緒同步卸載。
@@ -61,6 +66,7 @@ AppDomain 不隔離程序層級的 native DLL；載入來源檢查失敗即拒�
 工具解開真正 VSIX，以宿主設定及 BCL 在獨立 net48 x64 程序驗證隔離載入、兩程序同時提交
 40 次執行、內容去重、程序結束後檔案釋放；負向案例檢查缺檔、錯誤 native 架構與夾帶 BCL。
 工具也會執行與 SSMS 命令共用的 `QueryMemoryStorageSelfTest`；宿主操作見[實機驗收](query-memory-validation.md)。
+另以不含 SqlAssist DLL 的啟動目錄搭配 `LoadFrom` 重跑，涵蓋代理跨載入內容的回歸案例。
 不從 NuGet cache 或建置目錄補 DLL，不安裝／解除安裝擴充。紀錄留在 `artifacts/`。
 
 **仍須實機驗收**：在 SSMS 安裝後載入，與宿主既有 SQLite 功能並存，確認卸載與重新啟動。

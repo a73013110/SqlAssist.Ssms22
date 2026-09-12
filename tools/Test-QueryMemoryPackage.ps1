@@ -49,6 +49,17 @@ function Invoke-Probe([string]$Mode) {
 
 Invoke-Probe 'runtime'
 Invoke-Probe 'self-test'
+# 模擬 SSMS：launcher 不含 SqlAssist DLL，擴充只能從另一個目錄以 LoadFrom 載入。
+$launcherDirectory = Join-Path $work 'external-host'
+$null = New-Item -ItemType Directory -Path $launcherDirectory
+$launcher = Join-Path $launcherDirectory 'SqlAssist.QueryMemory.Probe.exe'
+Copy-Item -LiteralPath $ProbePath -Destination $launcher
+Copy-Item -LiteralPath (Join-Path $ide 'Ssms.exe.config') -Destination ($launcher + '.config')
+$external = Start-Process -FilePath $launcher -WindowStyle Hidden -WorkingDirectory $launcherDirectory -PassThru `
+    -ArgumentList @('--external-load', ('"' + $work + '"'), ('"' + $ide + '"'), ('"' + (Join-Path $work 'external-self-test') + '"')) `
+    -RedirectStandardOutput (Join-Path $work 'external.stdout.log') -RedirectStandardError (Join-Path $work 'external.stderr.log')
+try { Wait-Probe $external 'external' }
+finally { $external.Dispose() }
 # 同時啟動兩個 net48 x64 程序，不以同一程序的兩條連線冒充跨程序驗收。
 $processes = @()
 try {

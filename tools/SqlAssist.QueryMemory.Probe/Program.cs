@@ -1,9 +1,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using SqlAssist.Core.QueryMemory;
 using SqlAssist.QueryMemory.Hosting;
 
@@ -14,6 +16,22 @@ internal static class Program
     private static int Main(string[] args)
     {
         Console.OutputEncoding = new UTF8Encoding(false);
+        if (args.Length == 4 && args[0] == "--external-load")
+        {
+            try
+            {
+                // 從 ApplicationBase 以外載入擴充，不能用 DLL 與 exe 同目錄的測試取代 SSMS 載入情境。
+                var assembly = Assembly.LoadFrom(Path.Combine(args[1], "SqlAssist.QueryMemory.Hosting.dll"));
+                var selfTest = assembly.GetType("SqlAssist.QueryMemory.Hosting.QueryMemoryStorageSelfTest", throwOnError: true);
+                var run = selfTest.GetMethod("RunAsync") ?? throw new MissingMethodException("找不到自我測試入口。");
+                var task = (Task)(run.Invoke(null, new object[] { args[3], args[2], CancellationToken.None })
+                    ?? throw new InvalidOperationException("自我測試沒有傳回 Task。"));
+                task.GetAwaiter().GetResult();
+                Console.WriteLine(File.ReadAllText(Path.Combine(args[3], "report.txt")));
+                return 0;
+            }
+            catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+        }
         if (args.Length != 3) { Console.Error.WriteLine("用法：Probe <SSMS IDE 目錄> <隔離資料庫> runtime|write|verify|self-test"); return 2; }
         try { return Run(args[0], args[1], args[2]); }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }

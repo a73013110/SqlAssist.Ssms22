@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using SqlAssist.Core.QueryMemory;
 using SqlAssist.QueryMemory.Hosting;
@@ -8,6 +9,19 @@ namespace SqlAssist.QueryMemory.Sqlite.Tests;
 
 public sealed class IsolatedRepositoryTests
 {
+    [Fact]
+    public async Task FailedInitializationCanBeFollowedByAnotherRepository()
+    {
+        using var store = new SqliteTestStore();
+        Directory.CreateDirectory(store.DirectoryPath);
+        File.WriteAllText(store.Path, "保留損壞資料庫，不重建");
+        var token = TestContext.Current.CancellationToken;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token));
+        Assert.Equal("保留損壞資料庫，不重建", File.ReadAllText(store.Path));
+        using var reopened = await IsolatedQueryMemoryRepository.OpenAsync(Path.Combine(store.DirectoryPath, "new.db"), null, token);
+        Assert.Contains("3.53.4", await reopened.ProbeAsync(token));
+    }
+
     [Fact]
     public async Task CoreDtosRoundTripThroughIsolatedDomainAndDomainCanReopen()
     {
