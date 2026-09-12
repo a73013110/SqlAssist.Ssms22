@@ -49,4 +49,5 @@
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | SQL 內容位址、版本取樣與交易式儲存契約 | `Core/QueryMemory/QueryContent.cs`、`QueryRevisionEngine.cs`、`IQueryMemoryRepository.cs` |
 | Query Memory 有界背景佇列與交易衝突重試 | `Core/QueryMemory/QueryMemoryBackgroundWriter.cs`、`QueryMemoryProcessor.cs` |
+| Saved Query CRUD、版本衝突與 scope 契約 | `Core/QueryMemory/ISavedQueryRepository.cs`（儲存與隔離層共用） |
 | 區塊色彩 | [唯一實作](block-colors.md) |

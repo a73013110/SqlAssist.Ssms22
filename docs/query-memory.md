@@ -16,7 +16,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 - Execution 獨立於 Revision。相同完整 SQL 或連續相同選取 SQL 重用版本；連線以執行
   當下為準。選取版本不改文件 head，也不覆蓋整份文件的 Recovery。
 - `QueryMemoryPolicy` 是宿主設定的不可變輸入；未把容量與保留天數預設寫死在 Domain。
-- `SavedQuery` 與 scope 先定義資料形狀；編輯、搜尋與保存流程尚未實作。
+- `SavedQuery` 已有 [CRUD／scope 與引用保護](query-memory-saved.md)；SQL 編輯、搜尋與 UI 保存流程尚未實作。
 
 ## 儲存層必須履行的契約
 
@@ -28,7 +28,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 - Session.Sequence 對所有擷取事件遞增，不使用時間或編輯器文字版本當排序依據。
   新 SSMS instance 必須建立新 SessionId；既有文件可共用 DocumentId。
 - 正式關閉先保存最終版本，再於同一交易刪除 Recovery。重送或較舊 idle 不得重新開啟 Session。
-- 列表 API 有上限與 opaque cursor。以時間、唯一鍵做 keyset paging，游標綁定篩選條件；
+- History API 有上限與 opaque cursor。以時間、唯一鍵做 keyset paging，游標綁定篩選條件；
   列表預覽至多 240 個 UTF-16 code units，全文另行讀取。
 - ConnectionIdentity 禁止放完整連線字串、密碼或 Token。
 
@@ -52,10 +52,10 @@ SSMS 快照可能另保留編輯器內部資料。
 
 1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
    真正 SSMS 已回報[自我測試通過](query-memory-validation.md)，宿主共存／重啟等仍待回報，不啟用擷取。
-2. **儲存維護**：已有 schema v1、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
+2. **儲存維護**：已有 schema v2 與 v1 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
 3. **容量與 Saved Queries**：設定驅動 retention、儲存上限、分批清理孤立 Content；
-   保護所有 Saved Query、Pinned 與 Manual Snapshot 的引用，再實作 Saved Query CRUD／scope。
+   沿用 [Saved 與維護契約](query-memory-saved.md)，保護 Saved Query、Pinned 與 Manual Snapshot 的引用。
    活動 Recovery 與 Session head 不得被清理成懸空引用。
 4. **SSMS 擷取**：Session tracker、可調 idle debounce、可靠的 Execute submitted 訊號與
    選取範圍、Close／卸載 flush、連線快照。不得改變現有殼層命令熱路徑護欄。
