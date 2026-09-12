@@ -102,6 +102,7 @@ public sealed partial class SqliteQueryMemoryRepository
     {
         object? revision = null;
         long? autoQuota = null;
+        long? savedQuota = null;
         if (stage == 0)
         {
             using var read = Command(connection, transaction,
@@ -112,15 +113,17 @@ public sealed partial class SqliteQueryMemoryRepository
         {
             // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
             using var read = Command(connection, transaction, stage == 1
-                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection FROM History h
+                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection,r.SavedQueryId FROM History h
  LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;"
-                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection FROM Revisions WHERE RevisionId=$id;", ("$id", key));
+                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection,SavedQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key));
             using var reader = read.ExecuteReader();
             if (reader.Read())
             {
                 revision = StringOrNull(reader, 0);
                 if (!reader.IsDBNull(1) && reader.GetInt64(2) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(3) == 0)
                     autoQuota = quotas.AutoRevisionCutoff(reader.GetString(1));
+                else if (!reader.IsDBNull(4) && reader.GetInt64(2) == (long)QueryRevisionReason.SavedQueryEdit)
+                    savedQuota = quotas.SavedRevisionCutoff(reader.GetString(4));
             }
         }
         var parameters = new (string Name, object? Value)[]
@@ -129,7 +132,7 @@ public sealed partial class SqliteQueryMemoryRepository
             ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
             ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
-            ("$savedEdit", (int)QueryRevisionReason.SavedQueryEdit),
+            ("$savedEdit", (int)QueryRevisionReason.SavedQueryEdit), ("$savedQuota", savedQuota),
         };
         string sql;
         switch (stage)
@@ -152,7 +155,7 @@ public sealed partial class SqliteQueryMemoryRepository
                 sql = @"DELETE FROM Revisions WHERE RevisionId=$id
  AND (CreatedAt < CASE
    WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
-   WHEN Reason=$savedEdit AND EXISTS(SELECT 1 FROM SavedQueries WHERE SavedQueryId=Revisions.SavedQueryId) THEN NULL
+   WHEN Reason=$savedEdit AND EXISTS(SELECT 1 FROM SavedQueries WHERE SavedQueryId=Revisions.SavedQueryId) THEN $savedQuota
    ELSE $draft END
   OR CreatedAt<$autoQuota)" + UnprotectedRevision + @"
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestRevisionId=$id)
@@ -184,6 +187,7 @@ public sealed partial class SqliteQueryMemoryRepository
         private readonly SqliteTransaction _transaction;
         private readonly QueryMemoryMaintenancePolicy _policy;
         private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long?> _saved = new(StringComparer.Ordinal);
 
         public MaintenanceQuotas(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenancePolicy policy)
         {
@@ -206,6 +210,19 @@ public sealed partial class SqliteQueryMemoryRepository
                 " AND Reason=" + (int)QueryRevisionReason.AutoCheckpoint + " AND IsExecutionSelection=0 ORDER BY CreatedAt DESC",
                 ("$session", sessionId));
             _sessions.Add(sessionId, cutoff);
+            return cutoff;
+        }
+
+        /// <summary>界線含目前版本；它本身另受 Saved 引用保護，配額不會把收藏清成沒有 SQL。</summary>
+        public long? SavedRevisionCutoff(string savedQueryId)
+        {
+            if (!_policy.MaxRevisionsPerSavedQuery.HasValue) return null;
+            if (_saved.TryGetValue(savedQueryId, out var cached)) return cached;
+            // 明寫 IS NOT NULL，部分索引才會命中，界線只掃描該收藏的前 N 筆索引項。
+            var cutoff = Boundary(_policy.MaxRevisionsPerSavedQuery,
+                "SELECT CreatedAt FROM Revisions WHERE SavedQueryId=$saved AND SavedQueryId IS NOT NULL ORDER BY CreatedAt DESC",
+                ("$saved", savedQueryId));
+            _saved.Add(savedQueryId, cutoff);
             return cutoff;
         }
 

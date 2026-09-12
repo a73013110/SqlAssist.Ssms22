@@ -17,16 +17,18 @@ public sealed class QueryMemoryMaintenancePolicy
 {
     /// <summary>筆數配額保留最新 N 筆並與截止時間取聯集；受保護根仍不刪除。null 為不限。</summary>
     public QueryMemoryMaintenancePolicy(DateTimeOffset? draftBefore, DateTimeOffset? executionBefore, long? maxContentBytes,
-        int? maxExecutionEvents = null, int? maxAutoRevisionsPerSession = null)
+        int? maxExecutionEvents = null, int? maxAutoRevisionsPerSession = null, int? maxRevisionsPerSavedQuery = null)
     {
         if (maxContentBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxContentBytes));
         if (maxExecutionEvents < 0) throw new ArgumentOutOfRangeException(nameof(maxExecutionEvents));
         if (maxAutoRevisionsPerSession < 0) throw new ArgumentOutOfRangeException(nameof(maxAutoRevisionsPerSession));
+        if (maxRevisionsPerSavedQuery < 0) throw new ArgumentOutOfRangeException(nameof(maxRevisionsPerSavedQuery));
         DraftBefore = draftBefore?.ToUniversalTime();
         ExecutionBefore = executionBefore?.ToUniversalTime();
         MaxContentBytes = maxContentBytes;
         MaxExecutionEvents = maxExecutionEvents;
         MaxAutoRevisionsPerSession = maxAutoRevisionsPerSession;
+        MaxRevisionsPerSavedQuery = maxRevisionsPerSavedQuery;
     }
 
     public DateTimeOffset? DraftBefore { get; }
@@ -34,6 +36,9 @@ public sealed class QueryMemoryMaintenancePolicy
     public long? MaxContentBytes { get; }
     public int? MaxExecutionEvents { get; }
     public int? MaxAutoRevisionsPerSession { get; }
+
+    /// <summary>每個收藏保留最新 N 個 SQL 編輯版本，含目前版本；只有此配額能回收它們。</summary>
+    public int? MaxRevisionsPerSavedQuery { get; }
 }
 
 [Serializable]
