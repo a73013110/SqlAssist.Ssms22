@@ -5,6 +5,7 @@ using System.Linq;
 namespace SqlAssist.Core.QueryMemory;
 
 /// <summary>由版本引擎產生的不可變交易單位，不把儲存層的 SQL 或 provider 暴露給核心。</summary>
+[Serializable]
 public sealed class QueryMemoryWrite
 {
     internal QueryMemoryWrite(QueryMemoryCapture capture, long? expectedVersion,

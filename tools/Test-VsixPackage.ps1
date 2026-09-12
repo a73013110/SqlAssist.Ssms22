@@ -60,6 +60,15 @@ $requiredEntries = @(
     'extension.vsixmanifest',
     'SqlAssist.Core.dll',
     'SqlAssist.Metadata.dll',
+    'SqlAssist.QueryMemory.Sqlite.dll',
+    'SqlAssist.QueryMemory.Hosting.dll',
+    'QueryMemory.Sqlite.config',
+    'ThirdPartyLicenses.txt',
+    'Microsoft.Data.Sqlite.dll',
+    'SQLitePCLRaw.core.dll',
+    'SQLitePCLRaw.batteries_v2.dll',
+    'SQLitePCLRaw.provider.e_sqlite3.dll',
+    'e_sqlite3.dll',
     'SqlAssist.Ssms22.dll',
     'SqlAssist.Ssms22.pkgdef'
 )
@@ -79,6 +88,21 @@ try {
             throw "VSIX 缺少必要檔案：$entryName"
         }
     }
+
+    $nativeStream = [IO.MemoryStream]::new()
+    $entryStream = $archive.GetEntry('e_sqlite3.dll').Open()
+    try {
+        $entryStream.CopyTo($nativeStream)
+        $nativeStream.Position = 0
+        $nativeReader = [System.Reflection.PortableExecutable.PEReader]::new($nativeStream)
+        try {
+            if ($nativeReader.PEHeaders.CoffHeader.Machine -ne [System.Reflection.PortableExecutable.Machine]::Amd64) {
+                throw 'SQLite native runtime 不是 SSMS 所需的 x64。'
+            }
+        }
+        finally { $nativeReader.Dispose() }
+    }
+    finally { $entryStream.Dispose(); $nativeStream.Dispose() }
 
     $manifestEntry = $archive.GetEntry('extension.vsixmanifest')
     $reader = [System.IO.StreamReader]::new($manifestEntry.Open())
@@ -142,7 +166,7 @@ try {
     }
 
     # 夾帶 BCL 外掛組件會和 SSMS 已載入的那份撞型別，MEF 部件會安靜地建立失敗。
-    $bundledSystemAssembly = $entryNames | Where-Object { $_ -like 'System.*.dll' }
+    $bundledSystemAssembly = $entryNames | Where-Object { [IO.Path]::GetFileName($_) -like 'System.*.dll' }
 
     if ($bundledSystemAssembly) {
         throw "VSIX 夾帶了應由 SSMS 提供的組件：$($bundledSystemAssembly -join '、')"
