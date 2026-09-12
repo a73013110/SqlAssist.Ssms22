@@ -39,7 +39,7 @@ Server／Database 精確、區分大小寫，不以連線 Identity 做 scope 篩
 固定的 v1 SQL fixture 不引用產品最新 schema；真實 SQLite 回歸涵蓋有資料升級、並行開啟、
 DDL 中途失敗回復及重試、根引用與 SQL 原文保留。自我測試驗證全新 v2 與 Saved CRUD，
 不等同於真正 SSMS 既有資料庫的 migration 驗收。
-v2 程式會拒絕 v3，沒有自動降版；回退程式不能靠修改 user_version 或刪庫解決。
+舊版程式會拒絕較新 schema，沒有自動降版；回退程式不能靠修改 user_version 或刪庫解決。
 
 ## 維護與後續邊界
 

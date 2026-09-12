@@ -1,13 +1,14 @@
 # Query Memory：有界維護
 
-B2a 提供 `IQueryMemoryMaintenanceRepository`，SQLite 與隔離 Hosting 共用；不接擷取 writer、
+`IQueryMemoryMaintenanceRepository` 由 SQLite 與隔離 Hosting 共用；不接擷取 writer、
 不啟用排程，也不重做 [Saved CRUD](query-memory-saved.md)。驗證見[維護驗收](query-memory-maintenance-validation.md)。
 
 ## 政策與保護根
 
-`QueryMemoryMaintenancePolicy` 接受 Draft／Execution 的 UTC 半開截止時間及可空的內容容量上限。
-null 截止時間停用該類期限清理；null 上限表示不限，0 可用於驗證無法回收情境。
-容量上限只用於回報，不授權刪除期限內資料；天數、筆數配額與設定建議值不寫死在 Domain。
+`QueryMemoryMaintenancePolicy` 接受 Draft／Execution 的 UTC 半開截止時間、可空的內容容量上限，
+以及 Execution 與每 Session auto revision 的可空筆數配額。
+null 截止時間停用該類期限清理；null 上限與 null 配額表示不限，0 可用於驗證無法回收情境。
+容量上限只用於回報，不授權刪除期限內資料；天數、筆數與設定建議值不寫死在 Domain。
 
 - Saved 引用不論 Pinned 都保護 Revision；Manual Snapshot、Pinned History 也保護版本與歷史。
 - Session 的文件／執行 head 不刪除。過期的非受保護 History／Execution 可移除，head 仍可讀。
@@ -18,6 +19,21 @@ null 截止時間停用該類期限清理；null 上限表示不限，0 可用�
 - Session、Document、Capture 冪等紀錄不刪除。重送舊 Capture 不會因維護重新產生 History。
 
 上述保留可能使大部分版本鏈無法回收。不能靠清空 head、關閉外鍵或改寫不可變版本達到容量上限。
+
+## 筆數配額
+
+界線是第 N 新的時間，與截止時間取聯集後才是淘汰條件，期限內但超額的列因此可回收。
+只刪嚴格更舊的列，同時間的列一併保留，實際筆數可能略多於配額；配額 0 表示全部超額。
+配額不放寬任何保護根，也不改變 `CapacityStatus`，該狀態只描述 `MaxContentBytes`。
+
+Execution 配額的界線同時套用執行專用版本，否則配額只會留下無法回收的孤立版本。
+每 Session 配額只認 `AutoCheckpoint` 且非選取的版本，不波及關閉、Recovery 或手動快照。
+超額的 auto revision 先移出 History 清單投影；版本本身仍受 ParentRevision 鏈保護，
+與期限清理同一限制，不能當成版本鏈已回收。
+
+界線每批解析一次並以 Session 快取；批次只刪比界線舊的列，最新 N 筆不會在批次內移動。
+`IX_Executions_Time` 與 v4 的 `IX_Revisions_SessionAuto` 使界線只掃描前 N 筆索引項。
+部分索引要看到常數條件才會命中，`Reason` 因此以常數而非參數寫入界線查詢。
 
 ## 工作量、取消與續跑
 
@@ -39,7 +55,7 @@ SQLite 在候選讀取間、刪除前及 commit 前檢查取消；取消／例�
 跨批不是資料庫快照。插入主鍵落在已巡過範圍或引用並行改變時，下次從頭巡查才會看見；
 不得把一輪完成當作阻止新資料寫入的配額鎖。
 
-## 容量與 schema v3
+## 容量與 schema 升級
 
 `ContentBytes` 為去重後 `2 × Contents.Length`，只計 UTF-16 SQL，不含 metadata／索引／Capture。
 `DatabaseFileBytes`、`WalFileBytes` 為各自的非原子檔案觀測；WAL 消失記為 0。
@@ -51,11 +67,12 @@ SQLite 在候選讀取間、刪除前及 commit 前檢查取消；取消／例�
 
 v2 → v3 在原 migration 交易新增引用索引與單列 `StorageUsage`；一次 SUM 建立基數，
 Contents INSERT／DELETE／Length UPDATE trigger 在同一交易維護計量，去重與回復不重複計數。
-新庫沿用 v1 → v2 → v3；不改 StoreId 或 Saved 版本 token。升級建索引與初次計量需掃描舊庫，
-不受日常候選上限約束，必須留在背景。v2 程式拒絕 v3，不能手改 user_version 降版。
+新庫沿用 v1 → v2 → v3 → v4；不改 StoreId 或 Saved 版本 token。升級建索引與初次計量需掃描舊庫，
+不受日常候選上限約束，必須留在背景。v3 → v4 只新增上述部分索引，不動資料、StoreId 或計量。
+舊版程式拒絕較新 schema，不能手改 user_version 降版。
 
-## 後續 B2b
+## 後續批次
 
-待補 Execution 筆數／每 Session auto revision 配額、宿主排程與跨程序活動 Recovery 判定。
+待補宿主排程與跨程序活動 Recovery 判定；配額值由設定批次提供，宿主未給就是不限。
 容量壓力下是否提前淘汰期限內版本、版本鏈保留方式及實體檔案整理，須先確認政策，不自行補猜。
 Saved SQL 編輯／搜尋、隱私設定與 History UI 仍依[接續](query-memory-handoff.md)另批處理。
