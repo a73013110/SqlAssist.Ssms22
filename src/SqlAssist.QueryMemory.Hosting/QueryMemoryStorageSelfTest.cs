@@ -115,6 +115,8 @@ public static class QueryMemoryStorageSelfTest
             {
                 await VerifyLeaseReclaimAndCompactionAsync(reaper, lease, token).ConfigureAwait(false);
                 report.WriteLine("通過：回收失效租約後才清除未存檔草稿，WAL 截斷與整理保留其餘內容。");
+                await VerifyScheduledMaintenanceAsync(reaper, token).ConfigureAwait(false);
+                report.WriteLine("通過：設定驅動的排程、心跳與保留分級跑完整輪，游標沒有被政策換掉而作廢。");
             }
             using (File.Open(database, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
             report.WriteLine("通過：最後一次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
@@ -129,6 +131,58 @@ public static class QueryMemoryStorageSelfTest
             report.WriteLine($"FAIL | {timer.ElapsedMilliseconds} ms | {error}");
             throw;
         }
+    }
+
+    /// <summary>
+    /// 宿主真正會跑的那一條：設定 → 保留分級 → 排程 → 一次有界維護。
+    /// </summary>
+    /// <remarks>
+    /// 這裡驗的是組裝，不是清理本身（那由上面的 <c>DrainAsync</c> 涵蓋）。最重要的一項是
+    /// 游標：保留分級的截止時間由「現在」換算，每一批都重算的話，同一輪的第二批就會
+    /// 帶著舊游標碰上新政策而被儲存層拒絕——那是只有跑完整輪才看得出來的接線錯誤。
+    /// </remarks>
+    private static async Task VerifyScheduledMaintenanceAsync(IsolatedQueryMemoryRepository repository,
+        CancellationToken token)
+    {
+        var owner = new QueryMemoryLeaseOwner(Environment.MachineName, CurrentProcessId(), CurrentProcessStart());
+        var heartbeat = new QueryMemoryLeaseHeartbeat(repository, owner, TimeSpan.FromMinutes(1));
+        var now = DateTimeOffset.UtcNow;
+        var opened = await heartbeat.BeatAsync(now, token).ConfigureAwait(false);
+        Require(await heartbeat.BeatAsync(now.AddMinutes(1), token).ConfigureAwait(false) == opened, "心跳續用同一個租約");
+
+        // 期限短、配額小，一輪之內真的有東西可以回收；容量不設上限，壓力分級不該被觸發。
+        var plan = new QueryMemoryRetentionPlan(TimeSpan.FromDays(1), TimeSpan.FromDays(1),
+            TimeSpan.FromDays(1), null, 1, 1, 1);
+        var schedule = new QueryMemoryMaintenanceSchedule(now, TimeSpan.Zero, TimeSpan.FromMinutes(60),
+            TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(15));
+        var runner = new QueryMemoryMaintenanceRunner(repository, repository,
+            new QueryMemoryLeaseReaper(Environment.MachineName, IsOwnerRunning), owner, schedule, plan,
+            TimeSpan.FromMinutes(10), candidateLimit: 4);
+
+        for (var tick = 1; tick <= 60; tick++)
+        {
+            token.ThrowIfCancellationRequested();
+            // 每一批都往前五分鐘：排程說可以跑，游標才輪得到下一段。
+            var result = await runner.RunOnceAsync(now.AddMinutes(5 * tick), hostIdle: false,
+                sessionHeartbeatActive: true, token).ConfigureAwait(false);
+            Require(result.Outcome == QueryMemoryMaintenanceOutcome.Maintained, "排程取得維護租約");
+            Require(result.Level == 0, "容量未超限時不進入壓力分級");
+            if (!runner.PendingWork) return;
+        }
+
+        throw new InvalidOperationException("排程維護未在自我測試上限內收斂。");
+    }
+
+    private static int CurrentProcessId()
+    {
+        using var process = Process.GetCurrentProcess();
+        return process.Id;
+    }
+
+    private static DateTimeOffset CurrentProcessStart()
+    {
+        using var process = Process.GetCurrentProcess();
+        return process.StartTime;
     }
 
     /// <summary>回傳改 SQL 之後的版本 token；呼叫端不得沿用編輯前讀到的那一份。</summary>
