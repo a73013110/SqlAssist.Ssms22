@@ -24,8 +24,9 @@
 | `0b23c56` | A 批 Debug 部署白名單、完整預檢、SHA-256 驗證與隔離 fixture |
 | `52a73ff` | B1：Saved CRUD／scope、GUID CAS、schema v2 migration 與真實引用保護測試 |
 | `ee8800a` | B2a：schema v3、政策驅動有界清理、容量計量、游標續跑與引用競賽測試 |
+| `0b45bdd` | B2b-1：政策驅動筆數配額、schema v4 部分索引、自我測試與封裝 probe 涵蓋 |
 
-最近完整測試 2879 項通過（B2a 新增 26 項）；B1／B2a 的封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
+最近完整測試 2886 項通過（B2b-1 新增 7 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
 這不是整個功能完成：正式擷取、設定與 History UI 仍未啟用；其他實機門檻以驗收文件為準。
 
@@ -51,10 +52,17 @@ Saved、Pinned、Manual、Recovery、Session head 與 ParentRevision 保護已�
 邏輯位元組與 DB／WAL 大小分開回報。限制與未實機項目見[維護](query-memory-maintenance.md)及[驗收](query-memory-maintenance-validation.md)。
 Saved SQL 編輯／建立新版本的交易流程與搜尋仍需後續批次，不自行補猜產品互動規格。
 
+## B2b-1 筆數配額已完成
+
+`QueryMemoryMaintenancePolicy` 新增 Execution 與每 Session auto revision 的可空筆數配額，
+界線取第 N 新的時間並與截止時間取聯集，同時間的列一併保留。保護根與 `CapacityStatus` 不受配額影響。
+schema v4 只新增每 Session 界線用的部分索引。配額值仍留給設定批次，Domain 不預設。
+超額 auto revision 只離開 History 清單投影，版本鏈保留限制與期限清理相同；詳見[維護](query-memory-maintenance.md)。
+
 ## 建議下一批
 
-**B2b：維護策略延伸**。待產品確認後再加入宿主排程、Execution／Session 配額、活動 Recovery 租約及實體檔案整理；
-不可把 `MaxContentBytes` 回報當成已完成硬容量配額。
+**B2b-2：維護策略延伸**。待產品確認後再加入宿主排程、活動 Recovery 租約及實體檔案整理；
+不可把 `MaxContentBytes` 回報當成已完成硬容量配額，也不自行決定版本鏈保留方式。
 
 **C：擷取、設定與 UI**。待前置契約和實機門檻確認後，依核心文件分批完成。
 不要因自我測試 PASS 就啟用實際 SQL 擷取；隱私設定與可見的降級提示仍未完成。
