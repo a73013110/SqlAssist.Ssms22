@@ -59,6 +59,7 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QueryMemoryPage<SavedQueryEntry> ReadSavedQueries(SavedQueryRequest request) => Run(() => Repository.ReadSavedQueriesAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public SavedQueryWriteResult WriteSavedQuery(SavedQueryWrite write) => Run(() => Repository.WriteSavedQueryAsync(write, CancellationToken.None).GetAwaiter().GetResult());
     public SavedQueryWriteResult DeleteSavedQuery(Guid id, Guid version) => Run(() => Repository.DeleteSavedQueryAsync(id, version, CancellationToken.None).GetAwaiter().GetResult());
+    public SavedQueryWriteResult EditSavedQuerySql(SavedQueryEdit edit) => Run(() => Repository.EditSavedQuerySqlAsync(edit, CancellationToken.None).GetAwaiter().GetResult());
 
     public QueryMemoryUsage ReadUsage() => Run(() => Repository.ReadUsageAsync(CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request) =>
