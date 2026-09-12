@@ -32,6 +32,7 @@ async ADO.NET 方法仍同步執行。本實作明確在背景做 I/O，不把 `
   cursor 包含 StoreId、篩選指紋與時間／唯一鍵，不接受跨儲存庫或跨篩選重用。
 - Search 是區分大小寫的字面子字串。KMP 搜尋完整 BLOB，不限於 240 字元預覽；
   它不是 FTS，無篩選的大量全文搜尋仍需掃描候選內容。列表不載入全部 SQL。
+  History 與 [Saved](query-memory-saved.md) 共用同一條件；Saved 另先比對名稱與說明。
 
 ## 為什麼需要專用 AppDomain
 

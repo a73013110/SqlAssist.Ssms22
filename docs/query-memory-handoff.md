@@ -25,8 +25,9 @@
 | `52a73ff` | B1：Saved CRUD／scope、GUID CAS、schema v2 migration 與真實引用保護測試 |
 | `ee8800a` | B2a：schema v3、政策驅動有界清理、容量計量、游標續跑與引用競賽測試 |
 | `0b45bdd` | B2b-1：政策驅動筆數配額、schema v4 部分索引、自我測試與封裝 probe 涵蓋 |
+| `f6a82b3` | B3：Saved 名稱／說明／SQL 全文搜尋，與 History 共用字面搜尋條件 |
 
-最近完整測試 2886 項通過（B2b-1 新增 7 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
+最近完整測試 2890 項通過（B3 新增 4 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
 這不是整個功能完成：正式擷取、設定與 History UI 仍未啟用；其他實機門檻以驗收文件為準。
 
@@ -50,7 +51,7 @@ Saved 外鍵保護均有真實 SQLite 測試。自我測試已加入 Saved CRUD�
 游標綁 StoreId／政策，交易內重查引用，取消／失敗回復整批，`RequiresAnotherPass` 支援孤立父版本續跑。
 Saved、Pinned、Manual、Recovery、Session head 與 ParentRevision 保護已用真實 SQLite 覆蓋；容量
 邏輯位元組與 DB／WAL 大小分開回報。限制與未實機項目見[維護](query-memory-maintenance.md)及[驗收](query-memory-maintenance-validation.md)。
-Saved SQL 編輯／建立新版本的交易流程與搜尋仍需後續批次，不自行補猜產品互動規格。
+Saved SQL 編輯／建立新版本的交易流程仍需後續批次，不自行補猜產品互動規格。
 
 ## B2b-1 筆數配額已完成
 
@@ -59,6 +60,13 @@ Saved SQL 編輯／建立新版本的交易流程與搜尋仍需後續批次，�
 schema v4 只新增每 Session 界線用的部分索引。配額值仍留給設定批次，Domain 不預設。
 超額 auto revision 只離開 History 清單投影，版本鏈保留限制與期限清理相同；詳見[維護](query-memory-maintenance.md)。
 
+## B3 Saved 搜尋已完成
+
+`SavedQueryRequest.Search` 是 scope 之上的字面篩選，命中名稱、說明或目前版本的 SQL 全文即納入。
+語意與 History 相同並共用同一個 SQLite 搜尋條件；沒有改動 schema，也沒有新增索引。
+名稱與說明先比對，靠 OR 短路讓多數候選不必解出 SQL BLOB，keyset 與驅動索引不變。
+不要把它當成 Saved SQL 編輯流程或 UI 可見範圍合併；那兩項仍缺產品互動規格，不自行補猜。
+
 ## 建議下一批
 
 **B2b-2：維護策略延伸**。待產品確認後再加入宿主排程、活動 Recovery 租約及實體檔案整理；
@@ -66,6 +74,9 @@ schema v4 只新增每 Session 界線用的部分索引。配額值仍留給設�
 
 **C：擷取、設定與 UI**。待前置契約和實機門檻確認後，依核心文件分批完成。
 不要因自我測試 PASS 就啟用實際 SQL 擷取；隱私設定與可見的降級提示仍未完成。
+
+儲存層只剩 Saved SQL 編輯／新增版本的交易流程沒有實作；它要產品先定義「改 SQL 算不算新版本、
+是否進 History」。沒有這份規格就先做上面兩批的前置確認，不要自行決定版本語意。
 
 ## 每批最低交付
 

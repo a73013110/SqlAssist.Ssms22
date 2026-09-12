@@ -41,10 +41,33 @@ DDL 中途失敗回復及重試、根引用與 SQL 原文保留。自我測試�
 不等同於真正 SSMS 既有資料庫的 migration 驗收。
 舊版程式會拒絕較新 schema，沒有自動降版；回退程式不能靠修改 user_version 或刪庫解決。
 
+## 搜尋
+
+`SavedQueryRequest.Search` 與 History 同語意：區分大小寫的字面子字串，不是 FTS 也不吃萬用字元。
+null 與空字串代表不篩選；空白本身是合法的搜尋內容。
+
+- 名稱、說明或目前版本的 SQL 全文任一命中即納入，三者取聯集，不回報命中的是哪一個欄位。
+- 搜尋只在指定 scope 之內，不合併 Global／Server 父層，也不改變 SavedQueryId DESC 的 keyset。
+- 名稱與說明由 SQLite 以 UTF-8 位元組比對，SQL 全文沿用 History 的 UTF-16 KMP 掃描；
+  TEXT 條件排在 BLOB 之前，靠 OR 短路讓多數候選不必解出全文。說明為 NULL 不影響其他條件。
+- 游標指紋含搜尋字串，換字或清空即失效；跨頁一樣不是資料庫快照，改名後要重新整理。
+
+## 自動驗證
+
+B1 的 CRUD／scope／引用保護紀錄見[實機驗收](query-memory-validation.md)。
+2026-09-12，提交 `f6a82b3` 後完整測試 2890 項成功、0 失敗、0 略過（B3 搜尋新增 4 項）：
+
+- 名稱、說明與 SQL 全文任一命中；說明為 NULL 的收藏仍靠全文命中，不因 `instr` 回傳 NULL 消失。
+- 大小寫不同、尾隨空白與注入字串都不命中；搜尋不把其他 scope 的相同 SQL 帶進結果。
+- 篩選後仍是 SavedQueryId DESC keyset；換字或清空搜尋即拒絕沿用舊游標。
+- `EXPLAIN QUERY PLAN` 確認加上搜尋條件仍走 `IX_SavedQueries_ScopeId`、沒有 TEMP B-TREE。
+- 取消不讓 `SqliteException` 外流；History 搜尋維持只比對 SQL 全文，不含文件顯示名稱。
+- 封裝 probe 以真實 VSIX 與宿主設定重跑，自我測試報告含名稱與全文搜尋、大小寫敏感三項。
+
 ## 維護與後續邊界
 
 清理的保護根、容量定義、交易競賽與續跑契約統一見[有界維護](query-memory-maintenance.md)。
 B1 的外鍵測試不等於完整容量清理驗收，新增測試與限制見[維護驗收](query-memory-maintenance-validation.md)。
 
-Saved SQL 編輯／新增版本的交易流程、名稱／全文搜尋與 UI 可見範圍合併仍待後續批次。
-本批只提供既有 Revision 的 CRUD／scope 基礎，不宣稱完整 Saved Queries 產品流程完成。
+Saved SQL 編輯／新增版本的交易流程與 UI 可見範圍合併仍待後續批次。
+本批只提供既有 Revision 的 CRUD／scope／搜尋基礎，不宣稱完整 Saved Queries 產品流程完成。

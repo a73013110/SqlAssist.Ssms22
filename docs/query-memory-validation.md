@@ -38,11 +38,13 @@ Release 封裝 probe 通過標準／外部 LoadFrom 載入、新版自我測試�
 首次安裝或預檢指出安裝資產不相容仍須 Install，不能繞過預檢。
 
 本批仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
-舊版自我測試 PASS 不涵蓋本批；本次新版報告應多出「Saved Query CRUD、scope 分頁、版本衝突與
-刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額、Saved SQL 編輯／搜尋與 UI 尚未完成。
+舊版自我測試 PASS 不涵蓋本批；報告應含「Saved Query CRUD、scope 分頁、搜尋、版本衝突與
+刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額、Saved SQL 編輯與 UI 尚未完成。
 
-B2a 的自動驗證與維護專用實機步驟見[維護驗收](query-memory-maintenance-validation.md)；本頁保留
-SSMS 安裝／部署生命週期門檻。B2a 尚未部署或操作 SSMS，不能把 2879 項自動測試當成實機通過。
+B2a 與 B2b-1 的自動驗證見[維護驗收](query-memory-maintenance-validation.md)，B3 Saved 搜尋見
+[Saved](query-memory-saved.md#自動驗證)；本頁保留 SSMS 安裝／部署生命週期門檻。
+B2a 之後的批次同樣只改程式碼與測試，可 Deploy，但都尚未部署或操作 SSMS，
+不能把自動測試通過當成實機通過。
 
 ## 更新後如何測試
 
