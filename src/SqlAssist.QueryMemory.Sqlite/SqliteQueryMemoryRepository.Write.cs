@@ -65,10 +65,14 @@ VALUES($id,$parent,$content,$session,$time,$reason,$context,$selection);",
                 WriteHistory(connection, transaction, "r" + Id(revision.RevisionId), revision.SessionId, revision.RevisionId,
                     revision.ContentId, revision.CreatedAt, QueryHistoryKind.Drafts, revision.Connection, contextId);
         }
-        Execute(connection, transaction, @"INSERT INTO Sessions VALUES($id,$document,$start,$close,$version,$sequence,$head,$execution)
+        // 明列資料行並標上本程序的租約：有租約就代表還可能在編輯，維護不得回收這個 Session 的 Recovery。
+        Execute(connection, transaction, @"INSERT INTO Sessions
+(SessionId,DocumentId,StartedAt,ClosedAt,Version,LastSequence,LatestRevisionId,LatestExecutionRevisionId,LeaseId)
+VALUES($id,$document,$start,$close,$version,$sequence,$head,$execution,$lease)
 ON CONFLICT(SessionId) DO UPDATE SET ClosedAt=excluded.ClosedAt, Version=excluded.Version,
 LastSequence=excluded.LastSequence, LatestRevisionId=excluded.LatestRevisionId,
-LatestExecutionRevisionId=excluded.LatestExecutionRevisionId;",
+LatestExecutionRevisionId=excluded.LatestExecutionRevisionId, LeaseId=excluded.LeaseId;",
+            ("$lease", _leaseId),
             ("$id", Id(state.Session.SessionId)), ("$document", Id(state.Session.DocumentId)), ("$start", Ticks(state.Session.StartedAt)),
             ("$close", state.Session.ClosedAt.HasValue ? (object)Ticks(state.Session.ClosedAt.Value) : null),
             ("$version", state.Version), ("$sequence", state.LastSequence), ("$head", Id(state.LatestRevision?.RevisionId)),

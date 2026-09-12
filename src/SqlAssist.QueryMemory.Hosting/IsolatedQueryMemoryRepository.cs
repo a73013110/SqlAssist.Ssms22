@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,8 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只隔離 SQLite provider 的靜態狀態與 binding redirect；不另造通用宿主框架。</summary>
-public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository, IQueryMemoryMaintenanceRepository, IDisposable
+public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository,
+    IQueryMemoryMaintenanceRepository, IQueryMemoryLeaseRepository, IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AppDomain _domain;
@@ -73,6 +75,17 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.ReadUsage(), cancellationToken);
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
         Invoke(() => _worker.Maintain(request), cancellationToken);
+    public Task<string> OpenLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.OpenLease(owner, now), cancellationToken);
+    public Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.RenewLease(now), cancellationToken);
+    public Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadExpiredLeases(expiredBefore, limit), cancellationToken);
+    public Task<int> ReleaseLeasesAsync(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReleaseLeases(leaseIds, expiredBefore), cancellationToken);
+    public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.TryAcquireMaintenanceLease(owner, now, expiredBefore), cancellationToken);
+
     public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) =>
         Invoke(() => _worker.Checkpoint(), cancellationToken);
     public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>

@@ -29,7 +29,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(session.LatestRevision?.RevisionId, entry.RevisionId);
         Assert.Equal("SELECT * FROM Lib_Reader;", (await reopened.ReadContentAsync(entry.ContentId, Token))?.SqlText);
         Assert.Equal("wal", store.Scalar("PRAGMA journal_mode;"));
-        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 

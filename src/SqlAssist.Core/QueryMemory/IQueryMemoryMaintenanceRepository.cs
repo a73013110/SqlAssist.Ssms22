@@ -23,7 +23,8 @@ public sealed class QueryMemoryMaintenancePolicy
 {
     /// <summary>筆數配額保留最新 N 筆並與截止時間取聯集；受保護根仍不刪除。null 為不限。</summary>
     public QueryMemoryMaintenancePolicy(DateTimeOffset? draftBefore, DateTimeOffset? executionBefore, long? maxContentBytes,
-        int? maxExecutionEvents = null, int? maxAutoRevisionsPerSession = null, int? maxRevisionsPerSavedQuery = null)
+        int? maxExecutionEvents = null, int? maxAutoRevisionsPerSession = null, int? maxRevisionsPerSavedQuery = null,
+        DateTimeOffset? recoveryBefore = null)
     {
         if (maxContentBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxContentBytes));
         if (maxExecutionEvents < 0) throw new ArgumentOutOfRangeException(nameof(maxExecutionEvents));
@@ -35,6 +36,7 @@ public sealed class QueryMemoryMaintenancePolicy
         MaxExecutionEvents = maxExecutionEvents;
         MaxAutoRevisionsPerSession = maxAutoRevisionsPerSession;
         MaxRevisionsPerSavedQuery = maxRevisionsPerSavedQuery;
+        RecoveryBefore = recoveryBefore?.ToUniversalTime();
     }
 
     public DateTimeOffset? DraftBefore { get; }
@@ -45,6 +47,13 @@ public sealed class QueryMemoryMaintenancePolicy
 
     /// <summary>每個收藏保留最新 N 個 SQL 編輯版本，含目前版本；只有此配額能回收它們。</summary>
     public int? MaxRevisionsPerSavedQuery { get; }
+
+    /// <summary>
+    /// 未存檔草稿的截止時間；與另外兩個截止時間同一類，只因不破壞既有呼叫端而排在最後。
+    /// null 表示完全不憑年齡回收 Recovery。宿主沒有在續 Session 心跳就不該給值，
+    /// 否則沒有租約的線上 Session 會被當成遺留資料，使用者還開著的未存檔內容就消失了。
+    /// </summary>
+    public DateTimeOffset? RecoveryBefore { get; }
 }
 
 [Serializable]

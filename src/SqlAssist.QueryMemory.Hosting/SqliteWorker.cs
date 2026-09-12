@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -64,6 +65,15 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QueryMemoryUsage ReadUsage() => Run(() => Repository.ReadUsageAsync(CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request) =>
         Run(() => Repository.MaintainAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    public string OpenLease(QueryMemoryLeaseOwner owner, DateTimeOffset now) => Run(() => Repository.OpenLeaseAsync(owner, now, CancellationToken.None).GetAwaiter().GetResult());
+    public bool RenewLease(DateTimeOffset now) => Run(() => Repository.RenewLeaseAsync(now, CancellationToken.None).GetAwaiter().GetResult());
+    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(DateTimeOffset before, int limit) =>
+        Run(() => Repository.ReadExpiredLeasesAsync(before, limit, CancellationToken.None).GetAwaiter().GetResult());
+    public int ReleaseLeases(IReadOnlyList<string> leaseIds, DateTimeOffset before) =>
+        Run(() => Repository.ReleaseLeasesAsync(leaseIds, before, CancellationToken.None).GetAwaiter().GetResult());
+    public bool TryAcquireMaintenanceLease(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
+        Run(() => Repository.TryAcquireMaintenanceLeaseAsync(owner, now, before, CancellationToken.None).GetAwaiter().GetResult());
+
     public QueryMemoryCheckpointResult Checkpoint() => Run(() => Repository.CheckpointAsync(CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryUsage Compact() => Run(() => Repository.CompactAsync(CancellationToken.None).GetAwaiter().GetResult());
 

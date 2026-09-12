@@ -2,7 +2,7 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 internal static class SqliteSchema
 {
-    public const int Version = 5;
+    public const int Version = 6;
     public const int ApplicationId = 0x53514c4d;
 
     // 外鍵延後到 commit，才能在同一交易建立 Session 與指向它的第一份 Revision。
@@ -120,5 +120,20 @@ CREATE INDEX IX_Revisions_SessionAuto ON Revisions(SessionId, CreatedAt DESC)
     public const string Migrate4To5 = @"
 ALTER TABLE Revisions ADD COLUMN SavedQueryId TEXT;
 CREATE INDEX IX_Revisions_Saved ON Revisions(SavedQueryId, CreatedAt DESC) WHERE SavedQueryId IS NOT NULL;
+";
+
+    /// <summary>維護租約用的保留識別碼；32 位十六進位的 Session 租約不可能撞到這個值。</summary>
+    public const string MaintenanceLeaseId = "maintenance";
+
+    // Session 心跳與跨程序維護租約共用這張表：一個程序只續一列，不必每個 Session 各存一份三元組。
+    // LeaseId 設外鍵，釋放時必須先解除 Session 標記才刪得掉租約列，回收不會留下指向空租約的 Session。
+    public const string Migrate5To6 = @"
+CREATE TABLE Leases (
+    LeaseId TEXT PRIMARY KEY, MachineName TEXT NOT NULL, ProcessId INTEGER NOT NULL,
+    ProcessStartTime INTEGER NOT NULL, RenewedAt INTEGER NOT NULL
+);
+CREATE INDEX IX_Leases_Renewed ON Leases(RenewedAt);
+ALTER TABLE Sessions ADD COLUMN LeaseId TEXT REFERENCES Leases(LeaseId);
+CREATE INDEX IX_Sessions_Lease ON Sessions(LeaseId) WHERE LeaseId IS NOT NULL;
 ";
 }
