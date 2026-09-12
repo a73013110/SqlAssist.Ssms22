@@ -12,9 +12,13 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IDis
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AppDomain _domain;
     private readonly SqliteWorker _worker;
+    private readonly QueryMemoryRemotingScope _resolution;
     private bool _disposed;
 
-    private IsolatedQueryMemoryRepository(AppDomain domain, SqliteWorker worker) { _domain = domain; _worker = worker; }
+    private IsolatedQueryMemoryRepository(AppDomain domain, SqliteWorker worker, QueryMemoryRemotingScope resolution)
+    {
+        _domain = domain; _worker = worker; _resolution = resolution;
+    }
 
     public static Task<IsolatedQueryMemoryRepository> OpenAsync(string databasePath, string? ssmsIdeDirectory,
         CancellationToken cancellationToken)
@@ -27,13 +31,20 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IDis
             if (!File.Exists(config)) throw new FileNotFoundException("缺少 Query Memory 隔離載入設定。", config);
             var domain = AppDomain.CreateDomain("SqlAssist.QueryMemory." + Guid.NewGuid().ToString("N"), null,
                 new AppDomainSetup { ApplicationBase = folder, ConfigurationFile = config });
+            var resolution = new QueryMemoryRemotingScope();
             try
             {
-                var worker = (SqliteWorker)domain.CreateInstanceAndUnwrap(typeof(SqliteWorker).Assembly.FullName, typeof(SqliteWorker).FullName);
+                // 實際檔案限定 worker 來源；回程型別解析另由有限生命週期的 resolution 處理。
+                var worker = (SqliteWorker)domain.CreateInstanceFromAndUnwrap(typeof(SqliteWorker).Assembly.Location, typeof(SqliteWorker).FullName);
                 worker.Initialize(databasePath, ssmsIdeDirectory);
-                return new IsolatedQueryMemoryRepository(domain, worker);
+                return new IsolatedQueryMemoryRepository(domain, worker, resolution);
             }
-            catch { AppDomain.Unload(domain); throw; }
+            catch
+            {
+                try { AppDomain.Unload(domain); }
+                finally { resolution.Dispose(); }
+                throw;
+            }
         }, cancellationToken);
     }
 
@@ -69,7 +80,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IDis
         {
             if (_disposed) return;
             _disposed = true;
-            AppDomain.Unload(_domain);
+            try { AppDomain.Unload(_domain); }
+            finally { _resolution.Dispose(); }
         }
         finally { _gate.Release(); }
     }

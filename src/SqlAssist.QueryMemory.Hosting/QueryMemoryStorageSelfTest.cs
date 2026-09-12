@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,6 +32,8 @@ public static class QueryMemoryStorageSelfTest
             report.WriteLine($"Query Memory 儲存自我測試 | {DateTimeOffset.UtcNow:O}");
             report.WriteLine($"程序：{process.ProcessName} ({process.Id})；x64：{Environment.Is64BitProcess}；CLR：{Environment.Version}");
             report.WriteLine($"Hosting：{typeof(QueryMemoryStorageSelfTest).Assembly.FullName}");
+            report.WriteLine($"Hosting 建置：{typeof(QueryMemoryStorageSelfTest).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}");
+            report.WriteLine($"Hosting 路徑：{typeof(QueryMemoryStorageSelfTest).Assembly.Location}");
             report.WriteLine($"宿主目錄：{ssmsIdeDirectory ?? "獨立測試"}");
             report.WriteLine("僅使用內建範例 SQL；未擷取編輯器內容、未連接 SQL Server。");
             if (!Environment.Is64BitProcess) throw new InvalidOperationException("自我測試必須在 x64 程序執行。");
