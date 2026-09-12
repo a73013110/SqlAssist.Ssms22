@@ -7,7 +7,7 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只隔離 SQLite provider 的靜態狀態與 binding redirect；不另造通用宿主框架。</summary>
-public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IDisposable
+public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository, IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AppDomain _domain;
@@ -57,6 +57,15 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IDis
     public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadContent(contentId), cancellationToken);
     public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(() => _worker.Probe(), cancellationToken);
+
+    public Task<SavedQueryEntry?> ReadSavedQueryAsync(Guid savedQueryId, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadSavedQuery(savedQueryId), cancellationToken);
+    public Task<QueryMemoryPage<SavedQueryEntry>> ReadSavedQueriesAsync(SavedQueryRequest request, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadSavedQueries(request), cancellationToken);
+    public Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.WriteSavedQuery(write), cancellationToken);
+    public Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.DeleteSavedQuery(savedQueryId, expectedVersion), cancellationToken);
 
     private async Task<T> Invoke<T>(Func<T> operation, CancellationToken cancellationToken)
     {

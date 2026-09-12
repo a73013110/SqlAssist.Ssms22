@@ -45,6 +45,7 @@ public static class QueryMemoryStorageSelfTest
             const string sql = "SELECT * FROM Lib_Reader;";
             var contentId = QueryContent.Create(sql).ContentId;
             var policy = new QueryMemoryPolicy(false, false, TimeSpan.FromMinutes(10), true, false);
+            var savedId = Guid.NewGuid();
 
             using (var repository = await IsolatedQueryMemoryRepository.OpenAsync(database, ssmsIdeDirectory, token).ConfigureAwait(false))
             {
@@ -61,6 +62,10 @@ public static class QueryMemoryStorageSelfTest
                 Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.Committed, "首次提交");
                 Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.AlreadyCommitted, "冪等重送");
                 report.WriteLine("通過：21 次執行與冪等重送。");
+                var revisionId = write.State.LatestRevision?.RevisionId
+                    ?? throw new InvalidOperationException("自我測試缺少完整 SQL 版本。");
+                var saved = new SavedQuery(savedId, "讀者查詢", null, revisionId, SavedQueryScope.Global, null, false);
+                Require(await repository.WriteSavedQueryAsync(new SavedQueryWrite(saved), token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "新增 Saved Query");
             }
             report.WriteLine("通過：第一次卸載隔離 AppDomain。");
             token.ThrowIfCancellationRequested();
@@ -70,6 +75,19 @@ public static class QueryMemoryStorageSelfTest
                 Require(page.Items.Count == 21 && page.NextCursor == null && page.Items.All(item => item.ContentId == contentId), "重新開啟與內容去重");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "全文還原");
                 report.WriteLine("通過：重新開啟、21 筆紀錄共用內容位址、全文還原。");
+                var saved = await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("Saved Query 重新開啟後遺失。");
+                Require(saved.ContentId == contentId, "Saved Query 共用內容");
+                var changed = saved.Query with { Name = "讀者收藏", Pinned = true, Scope = SavedQueryScope.Database,
+                    Connection = new QueryConnectionContext("LibraryServer", "Library") };
+                Require(await reopened.WriteSavedQueryAsync(new SavedQueryWrite(changed, saved.Version), token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "更新 Saved Query");
+                Require(await reopened.DeleteSavedQueryAsync(savedId, saved.Version, token).ConfigureAwait(false) == SavedQueryWriteResult.Conflict, "Saved Query 過期版本保護");
+                var savedPage = await reopened.ReadSavedQueriesAsync(new SavedQueryRequest(1, SavedQueryScope.Database, "LibraryServer", "Library"), token).ConfigureAwait(false);
+                Require(savedPage.Items.Count == 1 && savedPage.Items[0].Query == changed && savedPage.NextCursor == null, "Saved Query scope 分頁");
+                Require(await reopened.DeleteSavedQueryAsync(savedId, savedPage.Items[0].Version, token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "刪除 Saved Query");
+                Require(await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false) == null, "Saved Query 已刪除");
+                Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Saved 不刪除 History 內容");
+                report.WriteLine("通過：Saved Query CRUD、scope 分頁、版本衝突與刪除後歷史保留。");
             }
             using (File.Open(database, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
             report.WriteLine("通過：第二次卸載與資料庫檔案釋放（不代表 native DLL 已從程序卸載）。");
