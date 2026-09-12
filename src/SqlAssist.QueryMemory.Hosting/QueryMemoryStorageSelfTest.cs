@@ -86,10 +86,17 @@ public static class QueryMemoryStorageSelfTest
                 Require(await reopened.DeleteSavedQueryAsync(savedId, saved.Version, token).ConfigureAwait(false) == SavedQueryWriteResult.Conflict, "Saved Query 過期版本保護");
                 var savedPage = await reopened.ReadSavedQueriesAsync(new SavedQueryRequest(1, SavedQueryScope.Database, "LibraryServer", "Library"), token).ConfigureAwait(false);
                 Require(savedPage.Items.Count == 1 && savedPage.Items[0].Query == changed && savedPage.NextCursor == null, "Saved Query scope 分頁");
+                async Task<int> SearchSavedAsync(string search) =>
+                    (await reopened.ReadSavedQueriesAsync(new SavedQueryRequest(5, SavedQueryScope.Database,
+                        "LibraryServer", "Library", search), token).ConfigureAwait(false)).Items.Count;
+                // 說明為 null 的收藏靠 SQL 全文命中；大小寫不同的字串不得比對成功。
+                Require(await SearchSavedAsync("Lib_Reader").ConfigureAwait(false) == 1, "Saved Query SQL 全文搜尋");
+                Require(await SearchSavedAsync("讀者收藏").ConfigureAwait(false) == 1, "Saved Query 名稱搜尋");
+                Require(await SearchSavedAsync("lib_reader").ConfigureAwait(false) == 0, "Saved Query 搜尋區分大小寫");
                 Require(await reopened.DeleteSavedQueryAsync(savedId, savedPage.Items[0].Version, token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "刪除 Saved Query");
                 Require(await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false) == null, "Saved Query 已刪除");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Saved 不刪除 History 內容");
-                report.WriteLine("通過：Saved Query CRUD、scope 分頁、版本衝突與刪除後歷史保留。");
+                report.WriteLine("通過：Saved Query CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
                 report.WriteLine("通過：有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery。");
             }

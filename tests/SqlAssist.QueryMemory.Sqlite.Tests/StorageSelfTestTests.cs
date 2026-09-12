@@ -22,7 +22,7 @@ public sealed class StorageSelfTestTests
             var report = File.ReadAllText(Path.Combine(directory, QueryMemoryStorageSelfTest.ReportFileName));
             Assert.Contains("PASS |", report);
             Assert.Contains("21 次執行與冪等重送", report);
-            Assert.Contains("Saved Query CRUD、scope 分頁、版本衝突與刪除後歷史保留", report);
+            Assert.Contains("Saved Query CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留", report);
             Assert.Contains("有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery", report);
             Assert.Contains("第二次卸載與資料庫檔案釋放", report);
             Assert.Contains("宿主 AppDomain 未新增 SQLite provider", report);
