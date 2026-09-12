@@ -39,10 +39,10 @@ Release 封裝 probe 通過標準／外部 LoadFrom 載入、新版自我測試�
 
 本批仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
 舊版自我測試 PASS 不涵蓋本批；報告應含「Saved Query CRUD、scope 分頁、搜尋、版本衝突與
-刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額、Saved SQL 編輯與 UI 尚未完成。
+刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額與 UI 尚未完成。
 
-B2a 與 B2b-1 的自動驗證見[維護驗收](query-memory-maintenance-validation.md)，B3 Saved 搜尋見
-[Saved](query-memory-saved.md#自動驗證)；本頁保留 SSMS 安裝／部署生命週期門檻。
+B2a、B2b-1 與 B4 配額的自動驗證見[維護驗收](query-memory-maintenance-validation.md)，
+B3 搜尋與 B4 SQL 編輯見 [Saved](query-memory-saved.md#自動驗證)；本頁保留 SSMS 安裝／部署生命週期門檻。
 B2a 之後的批次同樣只改程式碼與測試，可 Deploy，但都尚未部署或操作 SSMS，
 不能把自動測試通過當成實機通過。
 
@@ -62,7 +62,7 @@ Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Depl
 日常 Debug 驗證不能取代發布前對真正 VSIX 的安裝與封裝驗證。
 
 儲存邏輯變更跑完整測試及封裝測試，再在 SSMS 自我測試；其他功能變更另測該功能。
-自我測試報告不能證明尚未實作的 retention、Saved SQL 編輯或擷取接線正確。
+自我測試報告不能證明尚未實作的維護排程或擷取接線正確。
 
 ## 操作
 
@@ -87,7 +87,7 @@ Install 不會建置；先產生同一 Configuration 的 VSIX，再安裝。Depl
 
 - 背景建立專用資料庫，保存 21 次內建圖書館範例 SQL，驗證冪等重送不重複新增。
 - 卸載隔離 AppDomain，再重新開啟，驗證筆數、內容位址共用與全文還原。
-- 驗證 Saved CRUD、scope 分頁與過期版本拒絕；刪除 Saved 後 History 內容仍可讀。
+- 驗證 Saved CRUD、SQL 編輯、scope 分頁與過期版本拒絕；刪除 Saved 後 History 內容仍可讀。
 - 再次卸載，獨占開啟資料庫，確認檔案控制代碼已釋放。
 - 比對宿主 AppDomain 前後的 provider 組件；新增 provider 即回報失敗。
 - 報告逐步落盤，失敗保留最後成功步驟與例外；取消或失敗不宣稱通過。

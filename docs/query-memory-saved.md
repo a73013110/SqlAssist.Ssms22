@@ -1,8 +1,8 @@
 # Query Memory：Saved Queries 與維護邊界
 
-本頁是 B1 儲存契約；B2a 見[有界維護](query-memory-maintenance.md)，擷取及 UI 仍未啟用。
+本頁是 Saved 儲存契約；清理見[有界維護](query-memory-maintenance.md)，擷取及 UI 仍未啟用。
 
-## B1 已實作
+## CRUD 與引用保護
 
 `ISavedQueryRepository` 是獨立能力，不改動擷取 writer／processor 的責任。
 SQLite 與隔離 Hosting 均實作；沿用既有 `SavedQuery`、Revision、Content 與 ConnectionContext。
@@ -52,9 +52,24 @@ null 與空字串代表不篩選；空白本身是合法的搜尋內容。
   TEXT 條件排在 BLOB 之前，靠 OR 短路讓多數候選不必解出全文。說明為 NULL 不影響其他條件。
 - 游標指紋含搜尋字串，換字或清空即失效；跨頁一樣不是資料庫快照，改名後要重新整理。
 
+## SQL 編輯
+
+`EditSavedQuerySqlAsync` 只改 SQL；名稱、說明、scope 與 Pinned 仍走 `WriteSavedQueryAsync`。
+同一 IMMEDIATE 交易新增不可變版本並換 `CurrentRevisionId` 與版本 token。
+版本不符或收藏不存在都回 Conflict，沒有部分寫入。
+
+- 新版本 Reason 為 `SavedQueryEdit`，不寫 History 列，也不建 Session、Capture 或改任何 head。
+- 沿用被編輯版本的 SessionId，不建假 Session；連線內容取自收藏自己的 scope，不從舊版本帶入。
+- `ParentRevisionId` 留空。接成版本鏈會讓每個舊版本被子版本永久保護，配額就永遠回收不到；
+  版本歸屬改記在 Revisions 的 `SavedQueryId` 標記，交給[有界維護](query-memory-maintenance.md)的配額回收。
+- 內容位址在背景計算並沿用既有去重；相同 SQL 仍建立新版本，不先比對再決定。
+- 不冪等：回應遺失後先重讀版本，重送同一份編輯得到 Conflict，不會產生第二個版本。
+
+舊版本的清單與還原屬 UI 批；儲存層只保證版本保留與配額回收，不提供版本列表 API。
+
 ## 自動驗證
 
-B1 的 CRUD／scope／引用保護紀錄見[實機驗收](query-memory-validation.md)。
+CRUD／scope／引用保護的紀錄見[實機驗收](query-memory-validation.md)。
 2026-09-12，提交 `f6a82b3` 後完整測試 2890 項成功、0 失敗、0 略過（B3 搜尋新增 4 項）：
 
 - 名稱、說明與 SQL 全文任一命中；說明為 NULL 的收藏仍靠全文命中，不因 `instr` 回傳 NULL 消失。
@@ -64,10 +79,14 @@ B1 的 CRUD／scope／引用保護紀錄見[實機驗收](query-memory-validatio
 - 取消不讓 `SqliteException` 外流；History 搜尋維持只比對 SQL 全文，不含文件顯示名稱。
 - 封裝 probe 以真實 VSIX 與宿主設定重跑，自我測試報告含名稱與全文搜尋、大小寫敏感三項。
 
+提交 `fada9ae` 後完整測試 2900 項成功、0 失敗、0 略過（B4 編輯與配額新增 10 項）：
+換到新版本而名稱與 scope 不變、過期版本回 Conflict、不寫 History 也不新增 Session／Capture、
+連線內容重用收藏那一列，以及有資料的 v4 → v5 並行升級與 ADD COLUMN 失敗回復。
+
 ## 維護與後續邊界
 
 清理的保護根、容量定義、交易競賽與續跑契約統一見[有界維護](query-memory-maintenance.md)。
-B1 的外鍵測試不等於完整容量清理驗收，新增測試與限制見[維護驗收](query-memory-maintenance-validation.md)。
+外鍵測試不等於完整容量清理驗收，新增測試與限制見[維護驗收](query-memory-maintenance-validation.md)。
 
-Saved SQL 編輯／新增版本的交易流程與 UI 可見範圍合併仍待後續批次。
-本批只提供既有 Revision 的 CRUD／scope／搜尋基礎，不宣稱完整 Saved Queries 產品流程完成。
+UI 可見範圍合併留給 UI 批，儲存層不因此合併 scope。
+本頁只提供 CRUD／scope／搜尋與 SQL 編輯的儲存基礎，不宣稱完整 Saved Queries 產品流程完成。
