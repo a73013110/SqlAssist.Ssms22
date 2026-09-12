@@ -10,8 +10,8 @@
 | `CLAUDE.md`、`AGENTS.md`、README、`docs/`、AI 工具 | [文件](rules-docs.md) |
 | Settings、registration、設定頁 | [設定](rules-settings.md) |
 | Ssms22 事件、命令、MEF、連線、部署 | [平台](rules-platform.md) |
-| 自製視窗、控制項、排版、色彩 | [平台](rules-platform.md)＋[UI 準則](ui-guidelines.md) |
-| Metadata 查詢、快取、結構、指令碼、健檢 | [中繼資料](rules-metadata.md) |
+| 自製 UI | [平台](rules-platform.md)＋[UI 準則](ui-guidelines.md) |
+| Metadata | [中繼資料](rules-metadata.md) |
 | Snippets、Parsing、Wildcards、上下文、SQL 掃描 | [片段與解析](rules-parsing.md) |
 | 跨功能共用邏輯 | 上述護欄＋[唯一實作](shared-components.md)／[平台](shared-components-platform.md) |
 
@@ -19,9 +19,9 @@
 
 | 關鍵字／症狀 | 文件 |
 |---|---|
-| 分層、平台邊界、原生補全管線、SqlAssistPlatformGuard、Run／Probe／Begin | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
-| 不知道該改哪個型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
-| Query Memory、History、Recovery、Saved Queries | [查詢記憶](query-memory.md) |
+| 分層、平台邊界、SqlAssistPlatformGuard | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
+| 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
+| Query Memory／SQLite | [核心](query-memory.md)／[儲存](query-memory-storage.md) |
 | 建議清單、Matching、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、Triggers、KeywordCase、一般位置 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
@@ -59,9 +59,9 @@
 | 設定、入口、enableWhen、enum 相容 | [設定](settings.md)／[入口](settings-entries.md)／[設定結構](settings-schema.md) |
 | 分層載入、跨資料庫 | [中繼資料](metadata.md)／[跨資料庫](metadata-cross-db.md) |
 | USE、連結伺服器、OPENQUERY、舊版 SQL、權限、降級 | [目前連線](metadata-connection.md)／[遠端中繼資料](metadata-remote.md)／[相容與失敗](metadata-compatibility.md) |
-| 建置、測試、UTF-8／LF、BOM、輸出編碼 | [開發](development.md)／[文字與編碼](text-encoding.md) |
+| 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 組件版本不符、FileNotFoundException | [程式碼](rules-code.md) |
-| 版本、發布、安裝、解除安裝、VSIX 偵錯、MEF／命令快取、診斷 | [發布](release.md)／[偵錯](debugging.md) |
-| AI 分段讀取、輸出節流、RTK、README 截圖、logo、social preview | [AI 工作流程](ai-workflow.md)／[RTK](ai-rtk.md)／[圖片規則](images/README.md)／[提示詞](images/prompts.md) |
+| 發布、安裝／移除、VSIX 偵錯、MEF／命令快取 | [發布](release.md)／[偵錯](debugging.md) |
+| AI／RTK、README 圖片 | [AI 工作流程](ai-workflow.md)／[RTK](ai-rtk.md)／[圖片規則](images/README.md)／[提示詞](images/prompts.md) |
 
 只使用產品時讀[開始使用](getting-started.md)。

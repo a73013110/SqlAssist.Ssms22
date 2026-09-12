@@ -5,6 +5,7 @@ using System.Text;
 namespace SqlAssist.Core.QueryMemory;
 
 /// <summary>精確保留文字，不統一換行、大小寫或空白；只能在背景建立。</summary>
+[Serializable]
 public sealed class QueryContent
 {
     private QueryContent(string contentHash, string sqlText)

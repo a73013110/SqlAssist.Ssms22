@@ -5,6 +5,7 @@ using System.Linq;
 namespace SqlAssist.Core.QueryMemory;
 
 /// <summary>游標由儲存層產生，必須包含穩定排序的時間與唯一鍵，並綁定原篩選條件。</summary>
+[Serializable]
 public sealed class QueryMemoryPage<T>
 {
     public QueryMemoryPage(IEnumerable<T> items, string? nextCursor)
@@ -18,6 +19,7 @@ public sealed class QueryMemoryPage<T>
     public string? NextCursor { get; }
 }
 
+[Serializable]
 public sealed class QueryHistoryRequest
 {
     public QueryHistoryRequest(int pageSize, QueryHistoryKind kind = QueryHistoryKind.All,
@@ -48,6 +50,7 @@ public sealed class QueryHistoryRequest
 }
 
 // 列表只帶有界預覽；SQL 全文另以 ContentId 按需讀取。
+[Serializable]
 public sealed record QueryHistoryItem(Guid ItemId, Guid SessionId, Guid? RevisionId,
     string ContentId, DateTimeOffset CreatedAt, QueryHistoryKind Kind, string DisplayName,
     string Preview, QueryConnectionContext? Connection, bool Pinned);

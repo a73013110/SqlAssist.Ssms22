@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SqlAssist.Core\SqlAssist.Core.csproj" />
     <ProjectReference Include="..\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
+    <ProjectReference Include="..\SqlAssist.QueryMemory.Hosting\SqlAssist.QueryMemory.Hosting.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" PrivateAssets="all" />
     <!-- 取 NuGet 的契約版本（組件版本 10.0.0.0），與 SSMS 編輯器組件自己引用的版本一致，
@@ -34,6 +35,14 @@
          SSMS 上就是 FileNotFoundException，且只有用到的功能會整組失效——SSMS 22.9 帶的是
          10.0.0.8，22.10 已經是 10.0.0.10。 -->
     <PackageReference Include="System.Collections.Immutable" Version="10.0.0" ExcludeAssets="runtime" />
+    <!-- SQLite 的 BCL 相依一律由 SSMS 提供，不讓 NuGet 的副本進入擴充載入範圍。 -->
+    <PackageReference Include="System.Memory" Version="4.6.3" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Buffers" Version="4.6.1" ExcludeAssets="runtime" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" ExcludeAssets="runtime" />
+    <PackageReference Include="SQLite" Version="3.53.4" GeneratePathProperty="true" ExcludeAssets="runtime" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="3.0.5" GeneratePathProperty="true" />
+    <PackageReference Include="SQLitePCLRaw.config.e_sqlite3" Version="3.0.5" GeneratePathProperty="true" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="3.0.5" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -77,15 +86,6 @@
     </Reference>
     <Reference Include="Microsoft.VisualStudio.Language">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Language.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <!-- System.Collections.Immutable 的公開簽章用到 Span<>，編譯期必須看得到。 -->
-    <Reference Include="System.Memory">
-      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\System.Memory.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe">
-      <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- 補全、結構預覽與 QuickInfo 共用殼層圖示目錄及原生 Image Service。 -->
@@ -184,6 +184,34 @@
 
   <ItemGroup>
     <None Include="source.extension.vsixmanifest" />
+    <Content Include="..\..\ThirdPartyLicenses.txt">
+      <Link>ThirdPartyLicenses.txt</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="..\SqlAssist.QueryMemory.Hosting\QueryMemory.Sqlite.config">
+      <Link>QueryMemory.Sqlite.config</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- VSIX 不會自動保留 NuGet native runtime；只封裝 SSMS 使用的 x64 版本。 -->
+    <Content Include="$(PkgSQLite)\runtimes\win-x64\native\e_sqlite3.dll">
+      <Link>e_sqlite3.dll</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- SQLitePCLRaw 由 provider 間接／反射載入，VSSDK 不會將 CopyLocal 等同封裝。 -->
+    <Content Include="$(PkgSQLitePCLRaw_core)\lib\netstandard2.0\SQLitePCLRaw.core.dll">
+      <Link>SQLitePCLRaw.core.dll</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="$(PkgSQLitePCLRaw_config_e_sqlite3)\lib\net471\SQLitePCLRaw.batteries_v2.dll">
+      <Link>SQLitePCLRaw.batteries_v2.dll</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
+    <Content Include="$(PkgSQLitePCLRaw_provider_e_sqlite3)\lib\net471\SQLitePCLRaw.provider.e_sqlite3.dll">
+      <Link>SQLitePCLRaw.provider.e_sqlite3.dll</Link>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <VSCTCompile Include="Menus.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>

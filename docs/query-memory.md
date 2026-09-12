@@ -6,7 +6,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 ## 已實作：純核心
 
 程式位於 `src/SqlAssist.Core/QueryMemory/`，測試鏡像於 `tests/SqlAssist.Core.Tests/QueryMemory/`。
-目前不註冊 SSMS 事件、不啟用 SQL 擷取，也沒有正式持久化 provider 或 UI。
+目前不註冊 SSMS 事件、不啟用 SQL 擷取，也沒有 UI。已加入 [SQLite 儲存與隔離載入](query-memory-storage.md)。
 
 - `QueryDocument` 不綁連線；`QuerySession` 區隔每次編輯器生命週期。
 - `QueryContent` 精確雜湊 UTF-16LE code units；內容位址含演算法前綴。不正規化空白、
@@ -32,7 +32,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
   列表預覽至多 240 個 UTF-16 code units，全文另行讀取。
 - ConnectionIdentity 禁止放完整連線字串、密碼或 Token。
 
-Recording repository **只存在測試專案**，不代表 SQLite 交易、索引與多程序安全已驗證。
+Recording repository **只存在核心測試專案**；SQLite 的真實交易與分頁另有 net48 integration tests。
 
 ## 背景工作與接線責任
 
@@ -50,10 +50,10 @@ SSMS 快照可能另保留編輯器內部資料。
 
 ## 後續批次與驗收門檻
 
-1. **SQLite 封裝 spike**：獨立 storage 專案，驗證 net48、SSMS x64、VSIX native runtime、
-   安裝後載入與卸載；通過前不啟用擷取。不能以開發機可載入取代實際 VSIX 驗證。
-2. **持久化**：schema migration、WAL／busy handling、交易與重送、跨程序寫入、損壞降級、
-   有索引的搜尋分頁；新增真實 SQLite integration tests。
+1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
+   尚須確認真正宿主內的並存、安裝與卸載。通過前不啟用擷取。
+2. **儲存維護**：已有 schema v1、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
+   後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
 3. **容量與 Saved Queries**：設定驅動 retention、儲存上限、分批清理孤立 Content；
    保護所有 Saved Query、Pinned 與 Manual Snapshot 的引用，再實作 Saved Query CRUD／scope。
    活動 Recovery 與 Session head 不得被清理成懸空引用。
