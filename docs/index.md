@@ -19,7 +19,8 @@
 |---|---|
 | 分層、平台邊界、SqlAssistPlatformGuard | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
 | 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
-| Query Memory／SQLite／Saved | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[Saved](query-memory-saved.md)／[實測](query-memory-validation.md)／[接續](query-memory-handoff.md) |
+| Query Memory | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[Saved](query-memory-saved.md)／[實測](query-memory-validation.md)／[接續](query-memory-handoff.md) |
+| Query Memory retention／容量／清理 | [維護](query-memory-maintenance.md)／[維護驗收](query-memory-maintenance-validation.md) |
 | 建議清單、Matching、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |

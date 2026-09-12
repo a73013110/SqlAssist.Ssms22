@@ -7,7 +7,7 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只隔離 SQLite provider 的靜態狀態與 binding redirect；不另造通用宿主框架。</summary>
-public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository, IDisposable
+public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository, IQueryMemoryMaintenanceRepository, IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly AppDomain _domain;
@@ -66,6 +66,11 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.WriteSavedQuery(write), cancellationToken);
     public Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
         Invoke(() => _worker.DeleteSavedQuery(savedQueryId, expectedVersion), cancellationToken);
+
+    public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadUsage(), cancellationToken);
+    public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.Maintain(request), cancellationToken);
 
     private async Task<T> Invoke<T>(Func<T> operation, CancellationToken cancellationToken)
     {
