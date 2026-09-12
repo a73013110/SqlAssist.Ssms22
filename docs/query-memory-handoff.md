@@ -42,14 +42,16 @@ pkgdef、Manifest 或其他安裝資產變更仍須 Install；完整條件見[De
 Saved 外鍵保護均有真實 SQLite 測試。自我測試已加入 Saved CRUD／scope；SQL 擷取仍停用。
 詳細責任與限制見 [Saved 與維護](query-memory-saved.md)，不可把 metadata CRUD 當成 SQL 編輯流程。
 
-## 建議下一批
+## B2a 已完成
 
-**B2a 已完成：有界儲存維護基礎**。`IQueryMemoryMaintenanceRepository` 與 SQLite／隔離 Hosting
+`IQueryMemoryMaintenanceRepository` 與 SQLite／隔離 Hosting
 共用；v2 → v3 migration 建立 `StorageUsage` trigger 及引用索引。期限清理按五階段 keyset 分批，
 游標綁 StoreId／政策，交易內重查引用，取消／失敗回復整批，`RequiresAnotherPass` 支援孤立父版本續跑。
 Saved、Pinned、Manual、Recovery、Session head 與 ParentRevision 保護已用真實 SQLite 覆蓋；容量
 邏輯位元組與 DB／WAL 大小分開回報。限制與未實機項目見[維護](query-memory-maintenance.md)及[驗收](query-memory-maintenance-validation.md)。
 Saved SQL 編輯／建立新版本的交易流程與搜尋仍需後續批次，不自行補猜產品互動規格。
+
+## 建議下一批
 
 **B2b：維護策略延伸**。待產品確認後再加入宿主排程、Execution／Session 配額、活動 Recovery 租約及實體檔案整理；
 不可把 `MaxContentBytes` 回報當成已完成硬容量配額。
