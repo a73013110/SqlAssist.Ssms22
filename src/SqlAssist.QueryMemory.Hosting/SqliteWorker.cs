@@ -55,6 +55,11 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request) => Run(() => Repository.ReadHistoryAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public QueryContent? ReadContent(string contentId) => Run(() => Repository.ReadContentAsync(contentId, CancellationToken.None).GetAwaiter().GetResult());
 
+    public SavedQueryEntry? ReadSavedQuery(Guid id) => Run(() => Repository.ReadSavedQueryAsync(id, CancellationToken.None).GetAwaiter().GetResult());
+    public QueryMemoryPage<SavedQueryEntry> ReadSavedQueries(SavedQueryRequest request) => Run(() => Repository.ReadSavedQueriesAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    public SavedQueryWriteResult WriteSavedQuery(SavedQueryWrite write) => Run(() => Repository.WriteSavedQueryAsync(write, CancellationToken.None).GetAwaiter().GetResult());
+    public SavedQueryWriteResult DeleteSavedQuery(Guid id, Guid version) => Run(() => Repository.DeleteSavedQueryAsync(id, version, CancellationToken.None).GetAwaiter().GetResult());
+
     public string Probe() => Run(() =>
     {
         var version = SqliteRuntime.Probe(_databasePath ?? throw new InvalidOperationException("未初始化。"));

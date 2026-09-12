@@ -9,7 +9,7 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Sqlite;
 
 /// <summary>每次操作使用獨立連線；不保留 pool，關閉後不鎖住資料庫或妨礙 VSIX 卸載。</summary>
-public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
+public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository
 {
     private readonly string _connectionString;
     private string _storeId = "";
@@ -48,7 +48,8 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
         {
             application = ScalarLong(connection, inspection, "PRAGMA application_id;");
             version = ScalarLong(connection, inspection, "PRAGMA user_version;");
-            if ((application != 0 && application != SqliteSchema.ApplicationId) || version > SqliteSchema.Version)
+            if ((application != 0 && application != SqliteSchema.ApplicationId) || version < 0 || version > SqliteSchema.Version ||
+                (application == SqliteSchema.ApplicationId && version == 0))
                 throw new InvalidDataException("不是支援的 Query Memory 資料庫版本。");
             // 同一讀取快照內檢查，避免另一個程序恰好完成 migration 時誤判成外來資料庫。
             if (application == 0 && (version != 0 || ScalarLong(connection, inspection,
@@ -69,10 +70,17 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
                 throw new InvalidDataException("資料庫已被其他程序初始化。");
             Execute(connection, transaction, SqliteSchema.Create);
             Execute(connection, transaction, "INSERT INTO StoreInfo VALUES($id);", ("$id", Guid.NewGuid().ToString("N")));
-            Execute(connection, transaction, "PRAGMA application_id=" + SqliteSchema.ApplicationId + "; PRAGMA user_version=" + SqliteSchema.Version + ";");
+            Execute(connection, transaction, "PRAGMA application_id=" + SqliteSchema.ApplicationId + "; PRAGMA user_version=1;");
+            version = 1;
         }
-        else if (version != SqliteSchema.Version || application != SqliteSchema.ApplicationId)
+        else if (version < 1 || version > SqliteSchema.Version || application != SqliteSchema.ApplicationId)
             throw new InvalidDataException("Query Memory schema 版本不相容。");
+        if (version == 1)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Execute(connection, transaction, SqliteSchema.Migrate1To2);
+            Execute(connection, transaction, "PRAGMA user_version=2;");
+        }
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
             _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";
         if (!Guid.TryParseExact(_storeId, "N", out _)) throw new InvalidDataException("Query Memory 缺少儲存庫識別碼。");

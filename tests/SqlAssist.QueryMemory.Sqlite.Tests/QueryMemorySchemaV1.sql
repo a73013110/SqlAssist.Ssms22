@@ -1,12 +1,4 @@
-namespace SqlAssist.QueryMemory.Sqlite;
-
-internal static class SqliteSchema
-{
-    public const int Version = 2;
-    public const int ApplicationId = 0x53514c4d;
-
-    // 外鍵延後到 commit，才能在同一交易建立 Session 與指向它的第一份 Revision。
-    public const string Create = @"
+-- 固定於 6859668 的 v1 schema；migration fixture 不引用產品的目前版本。
 CREATE TABLE StoreInfo (StoreId TEXT NOT NULL);
 CREATE TABLE Documents (
     DocumentId TEXT PRIMARY KEY, DisplayName TEXT NOT NULL, FilePath TEXT
@@ -64,21 +56,3 @@ CREATE INDEX IX_Revisions_Content ON Revisions(ContentId);
 CREATE INDEX IX_Recovery_Content ON Recovery(ContentId);
 CREATE INDEX IX_History_Content ON History(ContentId);
 CREATE INDEX IX_Executions_Time ON Executions(ExecutedAt DESC);
-";
-
-    // 保留 v1 原始建表流程；新庫也逐版升級，避免兩套 schema 隨時間分岔。
-    public const string Migrate1To2 = @"
-CREATE TABLE SavedQueries (
-    SavedQueryId TEXT PRIMARY KEY, Name TEXT NOT NULL, Description TEXT,
-    CurrentRevisionId TEXT NOT NULL REFERENCES Revisions(RevisionId),
-    Scope INTEGER NOT NULL CHECK(Scope IN (0, 1, 2)),
-    ContextId TEXT REFERENCES Contexts(ContextId), Server TEXT, DatabaseName TEXT,
-    Pinned INTEGER NOT NULL CHECK(Pinned IN (0, 1)), Version TEXT NOT NULL,
-    CHECK((Scope=0 AND ContextId IS NULL AND Server IS NULL AND DatabaseName IS NULL)
-       OR (Scope=1 AND ContextId IS NOT NULL AND Server IS NOT NULL AND DatabaseName IS NULL)
-       OR (Scope=2 AND ContextId IS NOT NULL AND Server IS NOT NULL AND DatabaseName IS NOT NULL))
-);
-CREATE INDEX IX_SavedQueries_ScopeId ON SavedQueries(Scope, Server, DatabaseName, SavedQueryId DESC);
-CREATE INDEX IX_SavedQueries_Revision ON SavedQueries(CurrentRevisionId);
-";
-}
