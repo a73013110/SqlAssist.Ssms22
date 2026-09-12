@@ -1,6 +1,6 @@
 # Query Memory：SSMS 實機驗收
 
-自我測試是[SQLite 儲存](query-memory-storage.md)的載入門檻，不代表 History 功能已啟用。
+自我測試是[SQLite 儲存](query-memory-storage.md)的載入門檻，不代表功能已啟用。
 命令只在開啟 `sqlAssist.diagnostics.verboseLogging` 後出現，不依賴目前查詢或連線。
 
 ## 已回報的實機結果
@@ -8,7 +8,7 @@
 2026-09-12 06:35:05 UTC，使用者回報真正 SSMS x64 程序內的自我測試 PASS（1027 ms）。
 建置為 `0.17.15+1b7fd2a9eb`，SQLite 3.53.4；通過寫入／重送、隔離層卸載、重新開啟、
 全文還原、檔案釋放及宿主 AppDomain 未新增 provider。未提供 SSMS 完整產品版號。
-這是使用者提供的驗收證據，不是代理自行操作 SSMS；尚未回報既有功能共存、重啟後再次測試與解除安裝。
+這是使用者提供的證據，不是代理自行操作 SSMS；尚未回報既有功能共存、重啟與解除安裝。
 
 ## A 批 Debug 部署驗證
 
@@ -26,25 +26,31 @@
 
 Release／Debug VSIX 建置及 38 檔封裝檢查通過；Debug 部署隔離 fixture 59 項通過。
 Release 封裝 probe 通過標準／外部 LoadFrom 載入、新版自我測試、雙程序 40 次執行與負向案例。
-封裝 Hosting 建置為 `0.17.17+52a73ff778`，紀錄保存在
-`artifacts/query-memory-package/b7c3f586217a4facb6d54b6ecd262db5/`；
-部署 fixture 為 `artifacts/debug-deployment-tests/da1b325404744169b817adb036772afb/`。
-完整測試紀錄為 `artifacts/ai-logs/20260912-162513-c3a74a0839d94888918c1592c639d5d3/`。
-這些本機產物不隨 Git 共用；文件與 UTF-8／LF 檢查亦已通過。
+封裝 Hosting 建置為 `0.17.17+52a73ff778`；封裝、部署 fixture 與測試紀錄留在 `artifacts/`，
+不隨 Git 共用。文件與 UTF-8／LF 檢查亦已通過。
 
-本批僅修改產品程式碼與測試，**應使用 Deploy**；schema migration 隨程式執行，不是安裝資產。
-未修改 provider、native、隔離 config、命令表或 Manifest。關閉 SSMS 後執行
-`tools/Deploy-DebugExtension.ps1`，再依下列步驟測試；尚未代為部署或操作 SSMS。
+B1 僅改程式碼與測試，可 Deploy；schema migration 隨程式執行，不是安裝資產。
 首次安裝或預檢指出安裝資產不相容仍須 Install，不能繞過預檢。
 
-本批仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
-舊版自我測試 PASS 不涵蓋本批；報告應含「Saved Query CRUD、scope 分頁、搜尋、版本衝突與
-刪除後歷史保留」。仍未啟用 SQL 擷取，維護排程／完整容量配額與 UI 尚未完成。
+B1 仍待實機：更新後自我測試、SSMS 重啟／既有功能共存、真正舊庫 migration 與解除安裝。
+舊版自我測試 PASS 不涵蓋後續批次；History／Saved UI 仍未實作。
 
 B2a、B2b-1 與 B4 配額的自動驗證見[維護驗收](query-memory-maintenance-validation.md)，
-B3 搜尋與 B4 SQL 編輯見 [Saved](query-memory-saved.md#自動驗證)；本頁保留 SSMS 安裝／部署生命週期門檻。
-B2a 之後的批次同樣只改程式碼與測試，可 Deploy，但都尚未部署或操作 SSMS，
-不能把自動測試通過當成實機通過。
+B3 搜尋與 B4 SQL 編輯見 [Saved](query-memory-saved.md#自動驗證)；本頁保留安裝／部署生命週期門檻。
+B2a 到 B2b-2 只改程式碼與測試可 Deploy，C 批不行；都尚未部署或操作 SSMS。
+
+## C 批設定與擷取待驗
+
+2026-09-12，產品提交 `07d70ae`：完整測試 2987 項成功（較 B2b-2 新增 47 項），Release VSIX
+38 檔封裝檢查與封裝 probe 通過，probe 另涵蓋設定驅動的排程跑完整輪。
+
+本批動到 `SqlAssist.registration.json` 與命令表（新增設定頁的手動整理命令，`Menus.ctmenu`
+版號 22），**必須 Install，不能 Deploy**；清快取取代不了命令表重新註冊。
+
+尚未實機：新的「查詢記憶」設定頁是否出現且不讓其他頁消失、開啟後是否真的擷取、
+`Query.Execute` 在 SSMS 22 是否換得到命令識別碼（換不到只會擷取草稿與關閉，並留下一行紀錄）、
+維護排程與心跳在真正 SSMS 內的行為，以及設定頁「立即整理資料庫檔案…」。
+啟用前先確認既有六個設定分類都還在。
 
 ## 更新後如何測試
 

@@ -91,4 +91,5 @@ v6 新增 `Leases` 表並為 Sessions 加上參照它的 `LeaseId`；既有 Sess
 被讀舊快照的連線擋下時回報未截斷而不中斷對方；VACUUM 重建整個資料庫並接著截斷 WAL，
 只供手動命令，不轉換 `auto_vacuum`。
 
-配額與分級的值仍由設定批次提供，宿主未給就是不限；隱私設定與 History UI 依[接續](query-memory-handoff.md)另批處理。
+配額與分級的日常值來自設定，收緊倍率固定；排程、心跳與擷取的宿主接線見
+[設定與擷取](query-memory-capture.md)。History UI 依[接續](query-memory-handoff.md)另批處理。
