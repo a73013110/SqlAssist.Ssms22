@@ -16,7 +16,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 - Execution 獨立於 Revision。相同完整 SQL 或連續相同選取 SQL 重用版本；連線以執行
   當下為準。選取版本不改文件 head，也不覆蓋整份文件的 Recovery。
 - `QueryMemoryPolicy` 是宿主設定的不可變輸入；未把容量與保留天數預設寫死在 Domain。
-- `SavedQuery` 已有 [CRUD／scope、搜尋與引用保護](query-memory-saved.md)；SQL 編輯與 UI 保存流程尚未實作。
+- `SavedQuery` 已有 [CRUD／scope、搜尋、SQL 編輯與引用保護](query-memory-saved.md)；UI 保存流程尚未實作。
 
 ## 儲存層必須履行的契約
 
@@ -52,9 +52,9 @@ SSMS 快照可能另保留編輯器內部資料。
 
 1. **SSMS 實機載入**：SQLite、隔離 AppDomain、VSIX 缺檔／架構與跨程序測試已具備；
    真正 SSMS 已回報[自我測試通過](query-memory-validation.md)，宿主共存／重啟等仍待回報，不啟用擷取。
-2. **儲存維護**：已有 schema v4 與逐版 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
+2. **儲存維護**：已有 schema v5 與逐版 migration、WAL、busy timeout、交易／重送、損壞拒絕與索引分頁；
    後續 schema 升級仍需逐版 migration 測試，不可重建使用者資料庫。
-3. **容量與 Saved Queries**：已有 [Saved CRUD／搜尋](query-memory-saved.md)及[有界維護](query-memory-maintenance.md)。
+3. **容量與 Saved Queries**：已有 [Saved CRUD／搜尋／SQL 編輯](query-memory-saved.md)及[有界維護](query-memory-maintenance.md)。
    期限清理、筆數配額與容量量測已具備；設定驅動排程與實體整理仍待後續批次。
 4. **SSMS 擷取**：Session tracker、可調 idle debounce、可靠的 Execute submitted 訊號與
    選取範圍、Close／卸載 flush、連線快照。不得改變現有殼層命令熱路徑護欄。

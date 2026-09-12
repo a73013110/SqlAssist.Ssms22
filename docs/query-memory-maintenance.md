@@ -6,7 +6,7 @@
 ## 政策與保護根
 
 `QueryMemoryMaintenancePolicy` 接受 Draft／Execution 的 UTC 半開截止時間、可空的內容容量上限，
-以及 Execution 與每 Session auto revision 的可空筆數配額。
+以及 Execution、每 Session auto revision 與每 Saved 版本的可空筆數配額。
 null 截止時間停用該類期限清理；null 上限與 null 配額表示不限，0 可用於驗證無法回收情境。
 容量上限只用於回報，不授權刪除期限內資料；天數、筆數與設定建議值不寫死在 Domain。
 
@@ -31,9 +31,15 @@ Execution 配額的界線同時套用執行專用版本，否則配額只會留�
 超額的 auto revision 先移出 History 清單投影；版本本身仍受 ParentRevision 鏈保護，
 與期限清理同一限制，不能當成版本鏈已回收。
 
-界線每批解析一次並以 Session 快取；批次只刪比界線舊的列，最新 N 筆不會在批次內移動。
-`IX_Executions_Time` 與 v4 的 `IX_Revisions_SessionAuto` 使界線只掃描前 N 筆索引項。
-部分索引要看到常數條件才會命中，`Reason` 因此以常數而非參數寫入界線查詢。
+每 Saved 版本配額只認 [Saved SQL 編輯](query-memory-saved.md#sql-編輯)產生的版本，界線含目前版本。
+收藏還在時，只有這個配額能回收它的版本，草稿期限不適用；配額為 null 就是不限。
+目前版本另受 Saved 引用保護，配額不會把收藏清成沒有 SQL。收藏刪除後標記成為孤立資料，
+改依草稿期限回收，不另開刪除路徑。
+
+界線每批解析一次並以 Session 或收藏快取；批次只刪比界線舊的列，最新 N 筆不會在批次內移動。
+`IX_Executions_Time`、v4 的 `IX_Revisions_SessionAuto` 與 v5 的 `IX_Revisions_Saved`
+使界線只掃描前 N 筆索引項。部分索引要看到常數條件才會命中，`Reason` 因此以常數而非參數
+寫入界線查詢，`SavedQueryId` 的界線查詢也明寫 `IS NOT NULL`。
 
 ## 工作量、取消與續跑
 
@@ -67,12 +73,14 @@ SQLite 在候選讀取間、刪除前及 commit 前檢查取消；取消／例�
 
 v2 → v3 在原 migration 交易新增引用索引與單列 `StorageUsage`；一次 SUM 建立基數，
 Contents INSERT／DELETE／Length UPDATE trigger 在同一交易維護計量，去重與回復不重複計數。
-新庫沿用 v1 → v2 → v3 → v4；不改 StoreId 或 Saved 版本 token。升級建索引與初次計量需掃描舊庫，
-不受日常候選上限約束，必須留在背景。v3 → v4 只新增上述部分索引，不動資料、StoreId 或計量。
+新庫沿用 v1 → … → v5；不改 StoreId 或 Saved 版本 token。升級建索引與初次計量需掃描舊庫，
+不受日常候選上限約束，必須留在背景。v3 → v4 只新增上述部分索引，v5 以 `ALTER TABLE ADD COLUMN`
+為 Revisions 加上 `SavedQueryId` 標記與部分索引；兩者都不動資料、StoreId 或計量。
+標記不設外鍵：加了就得在刪除收藏時連帶刪版本或改寫不可變列。
 舊版程式拒絕較新 schema，不能手改 user_version 降版。
 
 ## 後續批次
 
-待補宿主排程與跨程序活動 Recovery 判定；配額值由設定批次提供，宿主未給就是不限。
-容量壓力下是否提前淘汰期限內版本、版本鏈保留方式及實體檔案整理，須先確認政策，不自行補猜。
-Saved SQL 編輯、隱私設定與 History UI 仍依[接續](query-memory-handoff.md)另批處理。
+宿主排程、Recovery 心跳租約、容量壓力分級與實體整理的政策已裁決，內容見[接續](query-memory-handoff.md)；
+本頁都未實作。配額值仍由設定批次提供，宿主未給就是不限。
+隱私設定與 History UI 同樣依接續另批處理。

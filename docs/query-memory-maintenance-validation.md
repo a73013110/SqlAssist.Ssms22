@@ -29,15 +29,27 @@
 - `EXPLAIN QUERY PLAN` 確認兩個界線查詢分別命中 `IX_Executions_Time` 與 `IX_Revisions_SessionAuto`。
 - 自我測試與封裝 probe 通過，報告含「筆數配額」；probe 另在真實 VSIX 與宿主設定下重跑。
 
+## B4 每 Saved 版本配額自動驗證
+
+2026-09-12，提交 `fada9ae` 後完整測試 **2900 項成功、0 失敗、0 略過**（B4 共新增 10 項）。涵蓋：
+
+- 配額保留目前版本與被另一個收藏引用的中段版本，只回收其餘超額版本及其內容。
+- 界線逐個收藏解析；同一時間的版本整批保留，快取不把別的收藏算進同一份配額。
+- 收藏還在時草稿期限不回收它的 SQL 版本；刪除收藏後標記成為孤立資料，才依草稿期限回收。
+- 新配額使既有游標失效；`EXPLAIN QUERY PLAN` 確認界線命中 `IX_Revisions_Saved` 且無暫存排序。
+- v4 → v5 並行升級保留計量、Saved token 與內容；`ADD COLUMN` 與索引 DDL 失敗一併回復並可重試。
+- 自我測試與封裝 probe 通過，報告含「Saved Query 改 SQL 建立新版本、不進 History，配額只留最新版本」；
+  probe 以真實 VSIX 與宿主設定重跑，紀錄在 `artifacts/query-memory-package/874e934c…`。
+
 ## 尚未完成或未實機驗證
 
-- 尚未部署或操作真正 SSMS；兩批只改 Core／Query Memory.Hosting／Sqlite／測試，依部署契約可用
+- 尚未部署或操作真正 SSMS；這些批次只改 Core／Query Memory.Hosting／Sqlite／測試，依部署契約可用
   `Deploy-DebugExtension.ps1`，不需 Install。更新後仍要重跑 Query Memory 儲存自我測試、SSMS 重啟、
   既有功能共存及舊庫 migration。
 - 未接宿主排程、活動 Recovery 的跨程序租約判定、VACUUM／checkpoint 或硬磁碟配額。
   `MaxContentBytes` 只回報政策下是否能回收，不提前刪期限內資料。
 - 筆數配額的值仍由後續設定批次提供；超額 auto revision 只離開清單投影，版本鏈未回收。
-- 未啟用 SQL 擷取、設定、Saved SQL 編輯／搜尋與 History UI；B2a 不代表產品功能已開啟。
+- 未啟用 SQL 擷取、設定與 History UI；自動測試通過不代表產品功能已開啟。
 
 ## 手動驗收
 
