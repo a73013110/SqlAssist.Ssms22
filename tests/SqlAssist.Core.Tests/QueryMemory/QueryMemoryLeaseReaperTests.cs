@@ -16,8 +16,8 @@ public sealed class QueryMemoryLeaseReaperTests
     {
         var live = new Dictionary<int, DateTimeOffset>();
         foreach (var process in alive) live.Add(process.Process, process.Started);
-        return new QueryMemoryLeaseReaper("LIBRARYPC",
-            process => live.TryGetValue(process, out var started) ? started : null);
+        return new QueryMemoryLeaseReaper("LIBRARYPC", owner => live.TryGetValue(owner.ProcessId, out var started)
+            && QueryMemoryLeaseReaper.IsSameProcess(owner, started));
     }
 
     [Fact]
@@ -50,10 +50,24 @@ public sealed class QueryMemoryLeaseReaperTests
     [Fact]
     public void StartTimeIsComparedWithATolerancePickedForTwoSeparateObservations()
     {
+        var owner = new QueryMemoryLeaseOwner("LIBRARYPC", 4242, Started);
+        Assert.True(QueryMemoryLeaseReaper.IsSameProcess(owner, Started.AddMilliseconds(900)));
+        Assert.True(QueryMemoryLeaseReaper.IsSameProcess(owner, Started.AddMilliseconds(-900)));
+        Assert.False(QueryMemoryLeaseReaper.IsSameProcess(owner, Started.AddSeconds(5)));
+        Assert.Throws<ArgumentNullException>(() => QueryMemoryLeaseReaper.IsSameProcess(null!, Started));
         var reaper = Reaper((4242, Started.AddMilliseconds(900)));
         Assert.Empty(reaper.Reclaimable(new[] { Lease("mine", "LIBRARYPC", 4242) }));
         Assert.Equal(new[] { "mine" }, Reaper((4242, Started.AddSeconds(5)))
             .Reclaimable(new[] { Lease("mine", "LIBRARYPC", 4242) }));
+    }
+
+    [Fact]
+    public void AnOwnerThatCannotBeCheckedIsTreatedAsRunningSoUnsavedWorkIsNeverGuessedAway()
+    {
+        // 存取被拒之類的情況問不出答案；探測要回報 true，這裡就不該把它放進可回收清單。
+        var reaper = new QueryMemoryLeaseReaper("LIBRARYPC", _ => true);
+        Assert.Empty(reaper.Reclaimable(new[] { Lease("unknown", "LIBRARYPC", 4242) }));
+        Assert.Equal(new[] { "elsewhere" }, reaper.Reclaimable(new[] { Lease("elsewhere", "BRANCHPC", 4242) }));
     }
 
     [Fact]
@@ -67,7 +81,7 @@ public sealed class QueryMemoryLeaseReaperTests
         Assert.Empty(reaper.Reclaimable(Array.Empty<QueryMemoryLease>()));
         Assert.Throws<ArgumentNullException>(() => reaper.Reclaimable(null!));
         Assert.Throws<ArgumentException>(() => reaper.Reclaimable(new QueryMemoryLease[] { null! }));
-        Assert.Throws<ArgumentException>(() => new QueryMemoryLeaseReaper(" ", _ => null));
+        Assert.Throws<ArgumentException>(() => new QueryMemoryLeaseReaper(" ", _ => false));
         Assert.Throws<ArgumentNullException>(() => new QueryMemoryLeaseReaper("LIBRARYPC", null!));
     }
 }
