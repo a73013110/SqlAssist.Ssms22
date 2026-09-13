@@ -56,6 +56,9 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.Commit(write), cancellationToken);
     public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadHistory(request), cancellationToken);
+    public Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>
+        Invoke(() => _worker.ReadConnectionFacets(request), token);
+
     public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadContent(contentId), cancellationToken);
     public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(() => _worker.Probe(), cancellationToken);

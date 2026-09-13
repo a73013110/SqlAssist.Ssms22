@@ -54,7 +54,7 @@ internal static class QueryMemoryHost
     private static int _ticking;
     private static bool _initialized;
     private static int _queueFullReported;
-    private static string _status = "查詢記憶尚未啟用；請在設定中啟用。";
+    private static string _status = "SQL Memory 尚未啟用；請在設定中啟用。";
     private static long _generation;
     public static string Status => Volatile.Read(ref _status);
     public static long Generation => Interlocked.Read(ref _generation);
@@ -74,7 +74,7 @@ internal static class QueryMemoryHost
                 if (!settings.Enabled || !settings.QueryMemoryEnabled || _state is not { } state)
                     throw new InvalidOperationException(Status);
                 if (!ReferenceEquals(expected?.Repository, state.Repository))
-                    throw new InvalidOperationException("查詢記憶已重新開啟；請重新整理後再操作。");
+                    throw new InvalidOperationException("SQL Memory 已重新開啟；請重新整理後再操作。");
                 return await operation(state.Repository, cancellationToken).ConfigureAwait(false);
             }
             finally { Gate.Release(); }
@@ -86,6 +86,8 @@ internal static class QueryMemoryHost
         UseAsync((repository, ct) => repository.ReadHistoryAsync(request, ct), token);
     public static Task<QueryMemoryPage<SavedQueryEntry>> ReadSavedQueriesAsync(SavedQueryRequest request, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadSavedQueriesAsync(request, ct), token);
+    public static Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.ReadConnectionFacetsAsync(request, ct), token);
     public static Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadContentAsync(contentId, ct), token);
     public static Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken token) =>
@@ -115,7 +117,7 @@ internal static class QueryMemoryHost
             _lifetime = new CancellationTokenSource();
             SqlAssistSettingsStore.Changed += OnSettingsChanged;
             // 沒有人接結果的背景工作一律走 Guard；維護失敗只代表下一輪重跑同一個游標。
-            _timer = new Timer(_ => SqlAssistPlatformGuard.BeginProbe("查詢記憶維護排程", TickAsync),
+            _timer = new Timer(_ => SqlAssistPlatformGuard.BeginProbe("SQL Memory 維護排程", TickAsync),
                 null, TimerPeriod, TimerPeriod);
         }
 
@@ -176,11 +178,11 @@ internal static class QueryMemoryHost
     {
         var settings = SqlAssistSettingsStore.Current;
         var wanted = settings.Enabled && settings.QueryMemoryEnabled;
-        _status = wanted ? "正在開啟查詢記憶…" : "查詢記憶已停用；請在設定中啟用。";
+        _status = wanted ? "正在開啟 SQL Memory…" : "SQL Memory 已停用；請在設定中啟用。";
 
         // 走 Begin 而不是 BeginProbe：開不起來就是使用者打開了設定卻什麼都沒記到，
         // 那要看得見，不是可有可無的探測。開檔與建立 AppDomain 都在這條背景路徑上。
-        SqlAssistPlatformGuard.Begin(wanted ? "啟用查詢記憶" : "停用查詢記憶",
+        SqlAssistPlatformGuard.Begin(wanted ? "啟用 SQL Memory" : "停用 SQL Memory",
             () => wanted ? OpenOrUpdateAsync(settings) : CloseAsync(),
             NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info,
             document: string.Empty);
@@ -219,7 +221,7 @@ internal static class QueryMemoryHost
                 _state = state;
                 Interlocked.Increment(ref _generation);
                 _status = "";
-                SqlAssistDiagnostics.WriteAlways("查詢記憶已啟用；擷取與背景整理開始運作。");
+                SqlAssistDiagnostics.WriteAlways("SQL Memory 已啟用；擷取與背景整理開始運作。");
             }
             catch
             {
@@ -231,7 +233,7 @@ internal static class QueryMemoryHost
         catch (Exception error)
         {
             // 狀態供工具窗顯示，例外仍交給既有啟用通知，不把失敗當成空清單。
-            _status = "無法開啟查詢記憶：" + error.Message;
+            _status = "無法開啟 SQL Memory：" + error.Message;
             throw;
         }
         finally { Gate.Release(); }
@@ -246,7 +248,7 @@ internal static class QueryMemoryHost
         {
             state = _state;
             if (failed is not null && !ReferenceEquals(state?.Writer, failed.Writer)) return;
-            if (failed is not null) _status = "查詢記憶寫入失敗，已停止擷取；請檢查診斷後重新啟用。";
+            if (failed is not null) _status = "SQL Memory 寫入失敗，已停止擷取；請檢查診斷後重新啟用。";
             _state = null;
             Interlocked.Increment(ref _generation);
             if (state is null) return;
@@ -257,11 +259,11 @@ internal static class QueryMemoryHost
             }
             catch (Exception error)
             {
-                SqlAssistDiagnostics.WriteAlways($"查詢記憶排空時失敗：{error.Message}");
+                SqlAssistDiagnostics.WriteAlways($"SQL Memory 排空時失敗：{error.Message}");
             }
 
             await Task.Run(() => state.Repository.Dispose()).ConfigureAwait(false);
-            SqlAssistDiagnostics.WriteAlways("查詢記憶已停用；儲存已釋放。");
+            SqlAssistDiagnostics.WriteAlways("SQL Memory 已停用；儲存已釋放。");
         }
         finally { Gate.Release(); }
     }
@@ -293,7 +295,7 @@ internal static class QueryMemoryHost
             if (tick.Outcome == QueryMemoryMaintenanceOutcome.Maintained && tick.Result is { } result)
             {
                 SqlAssistDiagnostics.Write(
-                    $"查詢記憶維護：分級 {tick.Level} 檢查 {result.ExaminedCandidates} 刪除 {result.DeletedRows} " +
+                    $"SQL Memory 維護：分級 {tick.Level} 檢查 {result.ExaminedCandidates} 刪除 {result.DeletedRows} " +
                     $"容量 {result.CapacityStatus} 釋放租約 {tick.ReleasedLeases} 截斷 {tick.Checkpointed}");
             }
         }
@@ -301,7 +303,7 @@ internal static class QueryMemoryHost
         catch (Exception error)
         {
             // 維護失敗不讓擷取跟著停：下一輪重跑同一個游標即可。
-            SqlAssistDiagnostics.WriteAlways($"查詢記憶維護失敗：{error.Message}");
+            SqlAssistDiagnostics.WriteAlways($"SQL Memory 維護失敗：{error.Message}");
         }
         finally { Gate.Release(); Interlocked.Exchange(ref _ticking, 0); }
     }
@@ -312,17 +314,17 @@ internal static class QueryMemoryHost
         {
             if (!completion.IsFaulted) return;
             SqlAssistDiagnostics.WriteAlways(
-                $"查詢記憶背景寫入器已停止：{completion.Exception?.GetBaseException().Message}");
-            SqlAssistPlatformGuard.Begin("釋放失敗的查詢記憶寫入器", () => CloseAsync(state),
+                $"SQL Memory 背景寫入器已停止：{completion.Exception?.GetBaseException().Message}");
+            SqlAssistPlatformGuard.Begin("釋放失敗的 SQL Memory 寫入器", () => CloseAsync(state),
                 NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info, document: string.Empty);
         },
         TaskScheduler.Default);
 
     private static void ReportRejected(QueryMemoryEnqueueResult result)
     {
-        SqlAssistDiagnostics.WriteAlways("查詢記憶拒絕擷取：" + result);
+        SqlAssistDiagnostics.WriteAlways("SQL Memory 拒絕擷取：" + result);
         _status = result == QueryMemoryEnqueueResult.SnapshotTooLarge
-            ? "這份 SQL 太大，本次未記錄。" : "查詢記憶佇列已滿，本次未記錄。";
+            ? "這份 SQL 太大，本次未記錄。" : "SQL Memory 佇列已滿，本次未記錄。";
 
         // 佇列滿是一連串的，狀態列只寫第一次；快照太大每次都值得說，那是使用者改得動的事。
         if (result == QueryMemoryEnqueueResult.QueueFull &&
@@ -334,8 +336,8 @@ internal static class QueryMemoryHost
         if (Volatile.Read(ref _package) is { } package)
         {
             SqlAssistStatusBar.Show(package, result == QueryMemoryEnqueueResult.SnapshotTooLarge
-                ? "這份 SQL 太大，查詢記憶這一次沒有記錄。"
-                : "查詢記憶正在忙，這一次的草稿沒有記錄。");
+                ? "這份 SQL 太大，SQL Memory 這一次沒有記錄。"
+                : "SQL Memory 正在忙，這一次的草稿沒有記錄。");
         }
     }
 

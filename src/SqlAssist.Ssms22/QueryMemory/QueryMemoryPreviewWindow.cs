@@ -63,7 +63,7 @@ internal sealed class QueryMemoryPreviewWindow : DialogWindow
         _delay = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(220) };
         _delay.Tick += (_, _) => { _delay.Stop(); _ = QueryMemoryActions.RunAsync(ReadAsync, Report); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { e.Handled = true; Close(); } };
-        Closed += (_, _) => SqlAssistPlatformGuard.Run("關閉查詢記憶預覽", () =>
+        Closed += (_, _) => SqlAssistPlatformGuard.Run("關閉 SQL Memory 預覽", () =>
         {
             _closed = true; _delay.Stop(); _read.Cancel(); _read.Dispose(); _viewer.Dispose();
             QueryMemoryPreviewPlacement.Save(this, package);
@@ -77,7 +77,7 @@ internal sealed class QueryMemoryPreviewWindow : DialogWindow
         _row = row; _loaded = false;
         _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = false;
         Title = row is null ? "SQL 預覽" : row.Name;
-        _detail.Text = row?.Detail ?? "請在查詢記憶清單選取項目。";
+        _detail.Text = row?.Detail ?? "請在 SQL Memory 清單選取項目。";
         _detail.ToolTip = _detail.Text;
         _viewer.SetSql("");
         _save.Visibility = row?.Saved is null ? Visibility.Visible : Visibility.Collapsed;

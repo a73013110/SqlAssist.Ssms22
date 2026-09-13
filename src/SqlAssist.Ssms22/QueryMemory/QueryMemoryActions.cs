@@ -22,7 +22,7 @@ internal static class QueryMemoryActions
         catch (OperationCanceledException) { }
         catch (Exception error)
         {
-            SqlAssistDiagnostics.WriteAlways("查詢記憶操作失敗：" + error.Message);
+            SqlAssistDiagnostics.WriteAlways("SQL Memory 操作失敗：" + error.Message);
             report(error.Message);
         }
     }
@@ -35,7 +35,7 @@ internal static class QueryMemoryActions
         var view = SsmsScriptWindow.TryCreateBlankQuery(package, out var failure);
         if (view is null) throw new InvalidOperationException(failure);
         if (!new TextViewEditCoordinator(view).InsertIntoBlank(new TextReplacement(sql,
-                SqlAssistActivityKind.QueryMemoryOpened, "已從查詢記憶開啟 SQL；未執行。", caretOffset: 0)))
+                SqlAssistActivityKind.QueryMemoryOpened, "已從 SQL Memory 開啟 SQL；未執行。", caretOffset: 0)))
             throw new InvalidOperationException("新查詢不是空白或已關閉；未寫入 SQL。");
     }
 

@@ -54,6 +54,7 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QuerySessionState? ReadSession(Guid sessionId) => Run(() => Repository.ReadSessionAsync(sessionId, CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryCommitResult Commit(QueryMemoryWrite write) => Run(() => Repository.CommitAsync(write, CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request) => Run(() => Repository.ReadHistoryAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    public string[] ReadConnectionFacets(QueryConnectionFacetRequest request) => Run(() => Repository.ReadConnectionFacetsAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public QueryContent? ReadContent(string contentId) => Run(() => Repository.ReadContentAsync(contentId, CancellationToken.None).GetAwaiter().GetResult());
 
     public SavedQueryEntry? ReadSavedQuery(Guid id) => Run(() => Repository.ReadSavedQueryAsync(id, CancellationToken.None).GetAwaiter().GetResult());

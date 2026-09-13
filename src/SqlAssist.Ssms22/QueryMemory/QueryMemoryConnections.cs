@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using Microsoft.SqlServer.Management.UI.VSIntegration;
+using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.QueryMemory;
+using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Editor;
 
 namespace SqlAssist.Ssms22.QueryMemory;
 
@@ -48,6 +52,19 @@ internal static class QueryMemoryConnections
         {
             return ByMoniker.TryGetValue(moniker!, out var context) ? context : null;
         }
+    }
+
+    /// <summary>僅供使用者按下「目前連線」；直接詢問指定查詢視窗，不做資料庫 I/O。</summary>
+    public static QueryConnectionContext? ReadActive(IServiceProvider services)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        var view = ActiveSqlEditor.Current;
+        if (view is null) return null;
+        var moniker = SqlCompletionServices.GetMetadataService(view, services).EditorMoniker;
+        if (string.IsNullOrEmpty(moniker) || services.GetService(typeof(SSqlEditorService)) is not ISqlEditorService editorService)
+            return null;
+        // 手動動作需要最新值，不能把尚未收到連線事件當作已斷線；也不沿用其他視窗的連線。
+        return Describe(editorService.GetConnectionForSpecificQueryEditor(moniker));
     }
 
     /// <summary>視窗關掉之後不必再留；識別碼會被 SSMS 重複使用。</summary>

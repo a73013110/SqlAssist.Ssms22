@@ -14,6 +14,20 @@ New-Item -ItemType Directory -Path $directory -Force | Out-Null
 # 真正產品命令表包含無 Parent 的 toolbar，不能為了測試把它移成普通選單。
 & $checker -VsctPath $source
 
+[xml]$commands = Get-Content -LiteralPath $source -Raw -Encoding utf8
+$namespaces = [System.Xml.XmlNamespaceManager]::new($commands.NameTable)
+$namespaces.AddNamespace('ct', 'http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable')
+foreach ($entry in @(@('cmdidShowQueryMemory', 'SQL History'), @('cmdidShowSqlFavorites', 'SQL Favorites'))) {
+    $button = $commands.SelectSingleNode('//ct:Button[@id="' + $entry[0] + '"]', $namespaces)
+    if ($button.Strings.ButtonText -ne $entry[1] -or $null -eq $button.Icon -or
+        'IconIsMoniker' -notin $button.CommandFlag -or 'IconAndText' -notin $button.CommandFlag) {
+        throw "SQL Memory 入口缺少名稱或主題圖示：$($entry[0])"
+    }
+    if ($null -eq $commands.SelectSingleNode('//ct:CommandPlacement[@id="' + $entry[0] + '"]/ct:Parent[@id="SqlAssistToolbarGroup"]', $namespaces)) {
+        throw "SQL Memory 入口未放入工具列：$($entry[0])"
+    }
+}
+
 function Assert-Rejected {
     param([string]$Name, [scriptblock]$Mutate, [string]$Expected)
     [xml]$document = Get-Content -LiteralPath $source -Raw -Encoding utf8
