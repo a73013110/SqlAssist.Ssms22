@@ -38,4 +38,4 @@ VSCT 變更仍須遵守[平台護欄](rules-platform.md)的命令資源版號規
 
 涵蓋必要來源／安裝逐檔缺失、相依與註冊升級、可選符號、patch 放行、minor／Manifest 阻擋、
 白名單外檔案、同目錄拒絕、部署後損毀偵測；預檢失敗須比對整個 fixture 安裝目錄未變。
-工具測試不能取代實際部署與 SSMS 重啟驗收；本批結果見[Query Memory 驗收](query-memory-validation.md)。
+工具測試不能取代實際部署與 SSMS 重啟驗收；驗收流程見[SQL Memory 驗收](sql-memory-validation.md)。

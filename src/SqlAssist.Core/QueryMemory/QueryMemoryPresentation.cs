@@ -26,16 +26,16 @@ public enum QueryConnectionSort { Recent, Oldest, Alphabetical, ReverseAlphabeti
 [Serializable]
 public sealed class QueryConnectionFacetRequest
 {
-    public QueryConnectionFacetRequest(bool saved, SavedQueryScope scope, bool databases,
+    public QueryConnectionFacetRequest(bool favorites, FavoriteQueryScope scope, bool databases,
         string? server = null, QueryConnectionSort sort = QueryConnectionSort.Recent, int offset = 0)
     {
-        if (!Enum.IsDefined(typeof(SavedQueryScope), scope)) throw new ArgumentOutOfRangeException(nameof(scope));
+        if (!Enum.IsDefined(typeof(FavoriteQueryScope), scope)) throw new ArgumentOutOfRangeException(nameof(scope));
         if (!Enum.IsDefined(typeof(QueryConnectionSort), sort)) throw new ArgumentOutOfRangeException(nameof(sort));
         if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        Saved = saved; Scope = scope; Databases = databases; Server = server; Sort = sort; Offset = offset;
+        IsFavorites = favorites; Scope = scope; Databases = databases; Server = server; Sort = sort; Offset = offset;
     }
-    public bool Saved { get; }
-    public SavedQueryScope Scope { get; }
+    public bool IsFavorites { get; }
+    public FavoriteQueryScope Scope { get; }
     public bool Databases { get; }
     public string? Server { get; }
     public QueryConnectionSort Sort { get; }

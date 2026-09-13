@@ -13,8 +13,8 @@ public sealed partial class SqliteQueryMemoryRepository
         if (request == null) throw new ArgumentNullException(nameof(request));
         using var connection = Connect();
         var column = request.Databases ? "h.DatabaseName" : "h.Server";
-        var source = request.Saved ? "SavedQueries h JOIN Revisions r ON r.RevisionId=h.CurrentRevisionId" : "History h";
-        var time = request.Saved ? "r.CreatedAt" : "h.CreatedAt";
+        var source = request.IsFavorites ? "FavoriteQueries h JOIN Revisions r ON r.RevisionId=h.CurrentRevisionId" : "History h";
+        var time = request.IsFavorites ? "r.CreatedAt" : "h.CreatedAt";
         var order = request.Sort switch
         {
             QueryConnectionSort.Oldest => "MIN(" + time + ") ASC, Name ASC",
@@ -25,7 +25,7 @@ public sealed partial class SqliteQueryMemoryRepository
         // 識別字與排序僅來自上述封閉集合；所有使用者值仍以參數傳入。
         using var command = Command(connection, null, "SELECT " + column + " AS Name FROM " + source +
             " WHERE " + column + " IS NOT NULL AND " + column + " <> ''" +
-            (request.Saved ? " AND h.Scope=$scope" : "") +
+            (request.IsFavorites ? " AND h.Scope=$scope" : "") +
             (request.Databases && request.Server != null ? " AND h.Server=$server" : "") +
             " GROUP BY " + column + " ORDER BY " + order + " LIMIT 101 OFFSET $offset;",
             ("$scope", (int)request.Scope), ("$server", request.Server), ("$offset", request.Offset));

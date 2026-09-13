@@ -121,14 +121,14 @@
         <Icon guid="ImageCatalogGuid" id="History" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
-        <Strings><ButtonText>SQL History</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
+        <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Icon guid="ImageCatalogGuid" id="Favorite" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
-        <Strings><ButtonText>SQL Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Saved Queries）</ToolTipText></Strings>
+        <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />

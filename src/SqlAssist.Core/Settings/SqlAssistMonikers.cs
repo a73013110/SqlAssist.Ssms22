@@ -100,7 +100,7 @@ public static class SqlAssistMonikers
     public const string QueryMemoryUnsavedDraftRetentionDays = "sqlAssist.queryMemory.unsavedDraftRetentionDays";
     public const string QueryMemoryMaxExecutions = "sqlAssist.queryMemory.maxExecutions";
     public const string QueryMemoryMaxSessionRevisions = "sqlAssist.queryMemory.maxSessionRevisions";
-    public const string QueryMemoryMaxSavedRevisions = "sqlAssist.queryMemory.maxSavedRevisions";
+    public const string QueryMemoryMaxFavoriteRevisions = "sqlAssist.queryMemory.maxFavoriteRevisions";
     public const string QueryMemoryStorageLimit = "sqlAssist.queryMemory.storageLimit";
     public const string QueryMemoryMaintenanceMinutes = "sqlAssist.queryMemory.maintenanceMinutes";
 

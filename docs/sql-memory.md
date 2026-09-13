@@ -1,0 +1,54 @@
+# SQL Memory：產品與架構契約
+
+SQL Memory 是同一個停駐工具窗中的 **History** 與 **Favorites**。History 保存執行與草稿，
+Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不代表執行。
+操作見 [UI](sql-memory-ui.md)，資料見[儲存](sql-memory-storage.md)，清理見[維護](sql-memory-maintenance.md)。
+
+## 分層
+
+- `Core/QueryMemory`：不可變擷取、內容位址、版本引擎、Repository 契約及保留策略。
+  QueryMemory 是查詢資料的內部子系統名稱；產品入口與文案只有 SQL Memory。
+- `QueryMemory.Sqlite`：真實 SQLite 交易、索引、分頁、收藏與維護。
+- `QueryMemory.Hosting`：net48 隔離 AppDomain、DTO 邊界與儲存自我測試。
+- `Ssms22/QueryMemory`：宿主設定、編輯器事件與工具窗操作；樣式與純 WPF 控制項共用 `UI/SqlAssistChrome`。
+- Core／Metadata 不依賴 VS、SSMS 或 SQLite。UI 不持有 repository，所有 I/O 經宿主背景入口。
+
+## 文件、版本與執行
+
+`QueryDocument` 不綁連線；`QuerySession` 對應一次編輯器生命週期。同一路徑可共用 DocumentId，
+新視窗必須有新 SessionId。未存檔視窗各自建立文件身分，不以 `SQLQuery1.sql` 等標題當主鍵。
+
+`QueryContent` 精確雜湊 UTF-16LE code units，內容位址有演算法前綴；不正規化空白、大小寫、
+換行、NUL 或未配對 surrogate，不使用 delta chain。相同 hash 必須核對原文，碰撞拒絕覆寫。
+
+- idle 以每 Session 一份 Recovery 保存最新全文；內容改變且跨過設定間隔才建立 auto revision。
+- 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
+  選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
+- 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。
+- 手動快照即使 SQL 相同也有新版本，且受維護保護；目前工具窗沒有手動快照入口。
+- Favorites metadata 與擷取獨立。`FavoriteQuery` 引用不可變 Revision，不建立假 Session。
+  收藏沒有另一個 Pinned 標記：收藏本身就保護目前版本，不需要「收藏中的收藏」。
+
+`CommitAsync` 在一個交易完成內容去重、版本／執行、Session head、Recovery 及 CaptureId。
+先判斷 CaptureId 重送，再 CAS Session.Version；Session.Sequence 決定擷取順序，不用時間排序取代。
+
+## 擷取與生命週期
+
+`sqlAssist.queryMemory.enabled` 與 SqlAssist 總開關都開啟才運作；SQL Memory 預設關閉。
+停用時不開資料庫、不讀舊資料、不擷取也不維護。設定項與預設值見[設定](settings.md)。
+
+`QueryMemoryHost` 管理隔離儲存、writer、租約心跳及背景維護計時器：
+
+- `ITextBuffer.Changed` 重排 idle 去彈跳；`ITextView.Closed` 擷取最後內容。
+- 殼層濾鏡以 `IVsCmdNameMapping` 解析 `Query.Execute`，只記錄訊號後轉交命令。
+  無法解析會記錄診斷，草稿／關閉擷取仍運作；不得宣稱已追蹤執行。
+- 熱路徑只檢查旗標、記時間及排程；不可變 `ITextSnapshot` 到背景才展開全文。
+- 連線事件在 UI 執行緒更新快取；按鍵與 QuickInfo 路徑不向 SSMS 同步問連線。
+  只保存名稱，不保存連線字串、密碼或 token。
+
+writer 最多接受 64 筆／32 MB 文字估計，包含處理中的項目；同 Session 的待處理 idle 可合併，
+Execute／Close／Manual 是屏障。拒收必須可見，不淘汰已接受的執行事件。文字估計不是程序記憶體上限。
+processor 只對 CAS 做有界重試；一般 I/O 錯誤使 writer fault 並停止接受。強制結束程序仍可能失去未落盤內容。
+
+UI、維護、手動整理與卸載共用宿主閘門；卸載先等待已派送操作及 writer 排空，再於背景卸載 AppDomain。
+每次開庫更新宿主世代，舊成功／失敗回應都不得污染新頁面。驗證邊界見[驗收](sql-memory-validation.md)。

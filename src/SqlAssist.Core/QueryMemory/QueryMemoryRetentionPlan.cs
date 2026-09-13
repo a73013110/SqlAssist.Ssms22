@@ -28,7 +28,7 @@ public sealed class QueryMemoryRetentionPlan
 
     public QueryMemoryRetentionPlan(TimeSpan draftRetention, TimeSpan executionRetention,
         TimeSpan? unsavedDraftRetention, long? maxContentBytes, int? maxExecutionEvents,
-        int? maxAutoRevisionsPerSession, int? maxRevisionsPerSavedQuery)
+        int? maxAutoRevisionsPerSession, int? maxRevisionsPerFavoriteQuery)
     {
         if (draftRetention <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(draftRetention));
         if (executionRetention <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(executionRetention));
@@ -36,14 +36,14 @@ public sealed class QueryMemoryRetentionPlan
         if (maxContentBytes < 0) throw new ArgumentOutOfRangeException(nameof(maxContentBytes));
         if (maxExecutionEvents < 0) throw new ArgumentOutOfRangeException(nameof(maxExecutionEvents));
         if (maxAutoRevisionsPerSession < 0) throw new ArgumentOutOfRangeException(nameof(maxAutoRevisionsPerSession));
-        if (maxRevisionsPerSavedQuery < 0) throw new ArgumentOutOfRangeException(nameof(maxRevisionsPerSavedQuery));
+        if (maxRevisionsPerFavoriteQuery < 0) throw new ArgumentOutOfRangeException(nameof(maxRevisionsPerFavoriteQuery));
         DraftRetention = draftRetention;
         ExecutionRetention = executionRetention;
         UnsavedDraftRetention = unsavedDraftRetention;
         MaxContentBytes = maxContentBytes;
         MaxExecutionEvents = maxExecutionEvents;
         MaxAutoRevisionsPerSession = maxAutoRevisionsPerSession;
-        MaxRevisionsPerSavedQuery = maxRevisionsPerSavedQuery;
+        MaxRevisionsPerFavoriteQuery = maxRevisionsPerFavoriteQuery;
     }
 
     public TimeSpan DraftRetention { get; }
@@ -55,7 +55,7 @@ public sealed class QueryMemoryRetentionPlan
     public long? MaxContentBytes { get; }
     public int? MaxExecutionEvents { get; }
     public int? MaxAutoRevisionsPerSession { get; }
-    public int? MaxRevisionsPerSavedQuery { get; }
+    public int? MaxRevisionsPerFavoriteQuery { get; }
 
     public static long? ToContentBytes(QueryMemoryStorageLimit limit) => limit switch
     {
@@ -89,7 +89,7 @@ public sealed class QueryMemoryRetentionPlan
                 MaxContentBytes,
                 Reduce(MaxExecutionEvents, divisor),
                 Reduce(MaxAutoRevisionsPerSession, divisor),
-                Reduce(MaxRevisionsPerSavedQuery, divisor),
+                Reduce(MaxRevisionsPerFavoriteQuery, divisor),
                 recovery);
         }
 

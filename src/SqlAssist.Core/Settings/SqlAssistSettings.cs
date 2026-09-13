@@ -356,8 +356,8 @@ public sealed class SqlAssistSettings
     /// <summary>sqlAssist.queryMemory.maxSessionRevisions</summary>
     public int QueryMemoryMaxSessionRevisions { get; init; } = SqlAssistLimits.DefaultQueryMemorySessionRevisions;
 
-    /// <summary>sqlAssist.queryMemory.maxSavedRevisions</summary>
-    public int QueryMemoryMaxSavedRevisions { get; init; } = SqlAssistLimits.DefaultQueryMemorySavedRevisions;
+    /// <summary>sqlAssist.queryMemory.maxFavoriteRevisions</summary>
+    public int QueryMemoryMaxFavoriteRevisions { get; init; } = SqlAssistLimits.DefaultQueryMemoryFavoriteRevisions;
 
     /// <summary>sqlAssist.queryMemory.storageLimit</summary>
     /// <remarks>屬性不與列舉同名，否則屬性初始設定式無法指名列舉成員。</remarks>

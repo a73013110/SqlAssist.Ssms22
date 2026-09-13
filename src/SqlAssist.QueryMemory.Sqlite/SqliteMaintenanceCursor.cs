@@ -20,7 +20,7 @@ internal sealed class SqliteMaintenanceCursor
             policy.MaxContentBytes?.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.MaxExecutionEvents?.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.MaxAutoRevisionsPerSession?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxRevisionsPerSavedQuery?.ToString(CultureInfo.InvariantCulture) ?? "-",
+            policy.MaxRevisionsPerFavoriteQuery?.ToString(CultureInfo.InvariantCulture) ?? "-",
             policy.RecoveryBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-");
         _prefix = "maintenance2|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|";
         if (request.Cursor == null) return;

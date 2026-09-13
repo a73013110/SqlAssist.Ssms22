@@ -39,7 +39,7 @@ public sealed class QueryMemoryRetentionLadder
         if (Loosens(looser.RecoveryBefore, tighter.RecoveryBefore)) throw Invalid(level, "未存檔草稿截止時間");
         if (Loosens(looser.MaxExecutionEvents, tighter.MaxExecutionEvents)) throw Invalid(level, "執行筆數配額");
         if (Loosens(looser.MaxAutoRevisionsPerSession, tighter.MaxAutoRevisionsPerSession)) throw Invalid(level, "每 Session 版本配額");
-        if (Loosens(looser.MaxRevisionsPerSavedQuery, tighter.MaxRevisionsPerSavedQuery)) throw Invalid(level, "每 Saved 版本配額");
+        if (Loosens(looser.MaxRevisionsPerFavoriteQuery, tighter.MaxRevisionsPerFavoriteQuery)) throw Invalid(level, "每 Favorite 版本配額");
     }
 
     // null 截止時間停用該類清理，是最寬鬆的一端；收緊只能往現在靠，不能退回 null。

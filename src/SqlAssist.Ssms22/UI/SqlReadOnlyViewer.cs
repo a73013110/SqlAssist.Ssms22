@@ -7,7 +7,7 @@ using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>獨立 SQL 預覽共用表面；原文與呈現文件分離，全文複製不經 WPF 正規化。</summary>
+/// <summary>SQL 唯讀預覽共用表面；原文與呈現文件分離，全文複製不經 WPF 正規化。</summary>
 internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
 {
     private readonly RichTextBox _viewer = SqlAssistChrome.CreateCodeViewer(SqlAssistChrome.DefaultMetrics);
@@ -36,6 +36,7 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
             item.Click += (_, _) => Copy(entry.Item2);
             menu.Items.Add(item);
         }
+        VsThemeBrushes.Apply(menu);
         _viewer.ContextMenu = menu;
     }
 
@@ -65,6 +66,6 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         catch (Exception error) { ReportError?.Invoke("複製 SQL 失敗：" + error.Message); }
     }
     private void OnEditorChanged(object? sender, EventArgs args) =>
-        SqlAssistPlatformGuard.Run("更新獨立 SQL 預覽主題來源", () => _theme.SetView(ActiveSqlEditor.Current));
+        SqlAssistPlatformGuard.Run("更新SQL 唯讀預覽主題來源", () => _theme.SetView(ActiveSqlEditor.Current));
     public void Dispose() { ActiveSqlEditor.Changed -= OnEditorChanged; _theme.Dispose(); }
 }

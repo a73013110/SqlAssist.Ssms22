@@ -69,12 +69,12 @@ public sealed class SqliteMaintenanceTests
             await store.Process(repository, store.Capture(sequence,
                 selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";"), Token);
         var oldest = store.Scalar("SELECT RevisionId FROM Executions ORDER BY ExecutedAt,ExecutionId LIMIT 1;");
-        await repository.WriteSavedQueryAsync(new SavedQueryWrite(new SavedQuery(Guid.NewGuid(), "讀者收藏", null,
-            Guid.ParseExact((string)oldest!, "N"), SavedQueryScope.Global, null, false)), Token);
+        await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null,
+            Guid.ParseExact((string)oldest!, "N"), FavoriteQueryScope.Global, null)), Token);
         // 四次執行共用同一個時間，第 1 新的界線不比任何列新，配額因此不刪任何一列。
         await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, 1));
         Assert.Equal(4L, store.Scalar("SELECT count(*) FROM Executions;"));
-        // 有截止時間時 Saved 引用的執行仍受保護，配額不會越過保護根。
+        // 有截止時間時 Favorite 引用的執行仍受保護，配額不會越過保護根。
         await Drain(repository, new QueryMemoryMaintenancePolicy(null, SqliteTestStore.Start.AddDays(1), null, 1));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
         Assert.Equal(oldest, store.Scalar("SELECT RevisionId FROM Executions;"));
@@ -152,7 +152,7 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Theory]
-    [InlineData("saved")]
+    [InlineData("favorite")]
     [InlineData("pinned")]
     [InlineData("manual")]
     [InlineData("parent")]
@@ -164,9 +164,9 @@ public sealed class SqliteMaintenanceTests
         var id = leaf.RevisionId.ToString("N");
         switch (root)
         {
-            case "saved":
-                await repository.WriteSavedQueryAsync(new SavedQueryWrite(new SavedQuery(Guid.NewGuid(), "讀者收藏", null,
-                    leaf.RevisionId, SavedQueryScope.Global, null, false)), Token);
+            case "favorite":
+                await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null,
+                    leaf.RevisionId, FavoriteQueryScope.Global, null)), Token);
                 break;
             case "pinned": store.Scalar("UPDATE History SET Pinned=1 WHERE RevisionId='" + id + "';"); break;
             case "manual": store.Scalar("UPDATE Revisions SET Reason=3 WHERE RevisionId='" + id + "';"); break;
@@ -275,44 +275,44 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
-    public async Task SavedUpdateRacingMaintenanceNeverLeavesDanglingReferenceOrPartialContext()
+    public async Task FavoriteUpdateRacingMaintenanceNeverLeavesDanglingReferenceOrPartialContext()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var leaf = await SeedLeaf(store, repository);
         var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
         Assert.NotNull(state?.LatestExecutionRevision);
-        var saved = new SavedQuery(Guid.NewGuid(), "讀者收藏", null, state.LatestExecutionRevision.RevisionId, SavedQueryScope.Global, null, false);
-        await repository.WriteSavedQueryAsync(new SavedQueryWrite(saved), Token);
-        var original = await repository.ReadSavedQueryAsync(saved.SavedQueryId, Token);
+        var favorite = new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null, state.LatestExecutionRevision.RevisionId, FavoriteQueryScope.Global, null);
+        await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(favorite), Token);
+        var original = await repository.ReadFavoriteQueryAsync(favorite.FavoriteQueryId, Token);
         Assert.NotNull(original);
         var other = await store.Open(Token);
-        var changed = saved with { CurrentRevisionId = leaf.RevisionId, Scope = SavedQueryScope.Database,
+        var changed = favorite with { CurrentRevisionId = leaf.RevisionId, Scope = FavoriteQueryScope.Database,
             Connection = new QueryConnectionContext("BranchServer", "Library") };
         var update = Record.ExceptionAsync(async () =>
-            Assert.Equal(SavedQueryWriteResult.Committed, await other.WriteSavedQueryAsync(new SavedQueryWrite(changed, original.Version), Token)));
+            Assert.Equal(FavoriteQueryWriteResult.Committed, await other.WriteFavoriteQueryAsync(new FavoriteQueryWrite(changed, original.Version), Token)));
         await Drain(repository, Expired(), 500);
         var error = await update;
         if (error != null) Assert.Equal(19, Assert.IsType<SqliteException>(error).SqliteErrorCode);
-        var current = await other.ReadSavedQueryAsync(saved.SavedQueryId, Token);
+        var current = await other.ReadFavoriteQueryAsync(favorite.FavoriteQueryId, Token);
         Assert.NotNull(current);
-        Assert.Equal(error == null ? changed : saved, current.Query);
+        Assert.Equal(error == null ? changed : favorite, current.Query);
         Assert.NotNull(await other.ReadContentAsync(current.ContentId, Token));
         Assert.Equal(error == null ? 1L : 0L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Fact]
-    public async Task SavedReferenceAddedBetweenBatchesProtectsAlreadyVisitedCandidate()
+    public async Task FavoriteReferenceAddedBetweenBatchesProtectsAlreadyVisitedCandidate()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var leaf = await SeedLeaf(store, repository);
-        // 第一批只處理兩個 Execution；下一批必須重新檢查新加入的 Saved 根。
+        // 第一批只處理兩個 Execution；下一批必須重新檢查新加入的 Favorite 根。
         var first = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(), 2), Token);
         Assert.NotNull(first.Cursor);
-        await repository.WriteSavedQueryAsync(new SavedQueryWrite(new SavedQuery(Guid.NewGuid(), "讀者收藏", null,
-            leaf.RevisionId, SavedQueryScope.Global, null, false)), Token);
+        await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null,
+            leaf.RevisionId, FavoriteQueryScope.Global, null)), Token);
         await Drain(await store.Open(Token), Expired(), 1, first.Cursor);
         Assert.NotNull(await repository.ReadContentAsync(leaf.ContentId, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
@@ -346,9 +346,9 @@ public sealed class SqliteMaintenanceTests
         var probes = new List<(string Table, string Column)>
         {
             ("Revisions", "ParentRevisionId"), ("Sessions", "LatestRevisionId"), ("Sessions", "LatestExecutionRevisionId"),
-            ("Executions", "RevisionId"), ("History", "RevisionId"), ("SavedQueries", "CurrentRevisionId"),
+            ("Executions", "RevisionId"), ("History", "RevisionId"), ("FavoriteQueries", "CurrentRevisionId"),
         };
-        probes.AddRange(new[] { "Revisions", "Executions", "Recovery", "History", "SavedQueries" }.Select(table => (table, "ContextId")));
+        probes.AddRange(new[] { "Revisions", "Executions", "Recovery", "History", "FavoriteQueries" }.Select(table => (table, "ContextId")));
         foreach (var probe in probes)
         {
             using var command = connection.CreateCommand();
@@ -448,19 +448,19 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
-    public async Task SavedScopeChangesLeaveContextForBoundedGcRatherThanScanningOnWrite()
+    public async Task FavoriteScopeChangesLeaveContextForBoundedGcRatherThanScanningOnWrite()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var leaf = await SeedLeaf(store, repository);
-        var query = new SavedQuery(Guid.NewGuid(), "讀者收藏", null, leaf.RevisionId, SavedQueryScope.Database,
-            new QueryConnectionContext("BranchServer", "Library"), false);
-        await repository.WriteSavedQueryAsync(new SavedQueryWrite(query), Token);
-        var saved = await repository.ReadSavedQueryAsync(query.SavedQueryId, Token);
-        Assert.NotNull(saved);
+        var query = new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null, leaf.RevisionId, FavoriteQueryScope.Database,
+            new QueryConnectionContext("BranchServer", "Library"));
+        await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query), Token);
+        var favorite = await repository.ReadFavoriteQueryAsync(query.FavoriteQueryId, Token);
+        Assert.NotNull(favorite);
         await Drain(repository, Expired());
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
-        await repository.WriteSavedQueryAsync(new SavedQueryWrite(query with { Scope = SavedQueryScope.Global, Connection = null }, saved.Version), Token);
+        await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query with { Scope = FavoriteQueryScope.Global, Connection = null }, favorite.Version), Token);
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
         await Drain(repository, Expired());
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
@@ -499,26 +499,26 @@ public sealed class SqliteMaintenanceTests
         return state.LatestRevision.RevisionId;
     }
 
-    private static async Task<SavedQuery> SeedSaved(SqliteQueryMemoryRepository repository, Guid revisionId, string name)
+    private static async Task<FavoriteQuery> SeedFavorite(SqliteQueryMemoryRepository repository, Guid revisionId, string name)
     {
-        var query = new SavedQuery(Guid.NewGuid(), name, null, revisionId, SavedQueryScope.Global, null, false);
-        Assert.Equal(SavedQueryWriteResult.Committed, await repository.WriteSavedQueryAsync(new SavedQueryWrite(query), Token));
+        var query = new FavoriteQuery(Guid.NewGuid(), name, null, revisionId, FavoriteQueryScope.Global, null);
+        Assert.Equal(FavoriteQueryWriteResult.Committed, await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query), Token));
         return query;
     }
 
     private static string EditSql(string tag, int index) => "SELECT * FROM Loan WHERE Branch='" + tag + index + "';";
 
-    private static async Task<List<Guid>> EditSaved(SqliteQueryMemoryRepository repository, Guid savedQueryId,
+    private static async Task<List<Guid>> EditFavorite(SqliteQueryMemoryRepository repository, Guid favoriteQueryId,
         string tag, int count, int startSeconds, int stepSeconds = 60)
     {
         var revisions = new List<Guid>();
         for (var index = 0; index < count; index++)
         {
-            var saved = await repository.ReadSavedQueryAsync(savedQueryId, Token);
-            Assert.NotNull(saved);
-            var edit = new SavedQueryEdit(savedQueryId, saved.Version, Guid.NewGuid(), EditSql(tag, index),
+            var favorite = await repository.ReadFavoriteQueryAsync(favoriteQueryId, Token);
+            Assert.NotNull(favorite);
+            var edit = new FavoriteQueryEdit(favoriteQueryId, favorite.Version, Guid.NewGuid(), EditSql(tag, index),
                 SqliteTestStore.Start.AddSeconds(startSeconds + index * stepSeconds));
-            Assert.Equal(SavedQueryWriteResult.Committed, await repository.EditSavedQuerySqlAsync(edit, Token));
+            Assert.Equal(FavoriteQueryWriteResult.Committed, await repository.EditFavoriteQuerySqlAsync(edit, Token));
             revisions.Add(edit.RevisionId);
         }
         return revisions;
@@ -527,18 +527,18 @@ public sealed class SqliteMaintenanceTests
     private static string Key(Guid id) => id.ToString("N");
 
     [Fact]
-    public async Task SavedRevisionQuotaTrimsOldEditsButKeepsCurrentAndOtherSavedReferences()
+    public async Task FavoriteRevisionQuotaTrimsOldEditsButKeepsCurrentAndOtherFavoriteReferences()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var basis = await SeedBaseRevision(store, repository);
-        var query = await SeedSaved(repository, basis, "讀者收藏");
-        var edits = await EditSaved(repository, query.SavedQueryId, "A", 4, 60);
-        // 另一個收藏指著中段版本；配額不得越過任何 Saved 引用。
-        await SeedSaved(repository, edits[0], "讀者備份");
+        var query = await SeedFavorite(repository, basis, "讀者收藏");
+        var edits = await EditFavorite(repository, query.FavoriteQueryId, "A", 4, 60);
+        // 另一個收藏指著中段版本；配額不得越過任何 Favorite 引用。
+        await SeedFavorite(repository, edits[0], "讀者備份");
         var result = await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, null, 2));
         Assert.Equal(new[] { edits[0], edits[2], edits[3] }.Select(Key).OrderBy(id => id, StringComparer.Ordinal),
-            store.Query("SELECT RevisionId FROM Revisions WHERE SavedQueryId IS NOT NULL ORDER BY RevisionId;"));
+            store.Query("SELECT RevisionId FROM Revisions WHERE FavoriteQueryId IS NOT NULL ORDER BY RevisionId;"));
         Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("A", 1)).ContentId, Token));
         // 配額不碰擷取產生的版本，也不改變容量狀態的定義。
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Key(basis) + "';"));
@@ -548,40 +548,40 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
-    public async Task SavedRevisionQuotaCountsEachQuerySeparatelyAndKeepsTiedTimestamps()
+    public async Task FavoriteRevisionQuotaCountsEachQuerySeparatelyAndKeepsTiedTimestamps()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var basis = await SeedBaseRevision(store, repository);
-        var tied = await SeedSaved(repository, basis, "同刻收藏");
-        await EditSaved(repository, tied.SavedQueryId, "T", 3, 60, 0);
-        var stepped = await SeedSaved(repository, basis, "遞增收藏");
-        var steps = await EditSaved(repository, stepped.SavedQueryId, "S", 3, 600);
+        var tied = await SeedFavorite(repository, basis, "同刻收藏");
+        await EditFavorite(repository, tied.FavoriteQueryId, "T", 3, 60, 0);
+        var stepped = await SeedFavorite(repository, basis, "遞增收藏");
+        var steps = await EditFavorite(repository, stepped.FavoriteQueryId, "S", 3, 600);
         await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, null, 1));
         // 三個版本同一時間，第 1 新的界線不比任何列新，配額因此不刪任何一列。
-        Assert.Equal(3L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId='" + Key(tied.SavedQueryId) + "';"));
+        Assert.Equal(3L, store.Scalar("SELECT count(*) FROM Revisions WHERE FavoriteQueryId='" + Key(tied.FavoriteQueryId) + "';"));
         // 界線逐個收藏解析；快取不會把別的收藏算進同一份配額。
-        Assert.Equal(new[] { Key(steps[2]) }, store.Query("SELECT RevisionId FROM Revisions WHERE SavedQueryId='" + Key(stepped.SavedQueryId) + "';"));
+        Assert.Equal(new[] { Key(steps[2]) }, store.Query("SELECT RevisionId FROM Revisions WHERE FavoriteQueryId='" + Key(stepped.FavoriteQueryId) + "';"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Fact]
-    public async Task SavedEditsIgnoreDraftRetentionUntilTheSavedQueryIsDeleted()
+    public async Task FavoriteEditsIgnoreDraftRetentionUntilTheFavoriteQueryIsDeleted()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         var basis = await SeedBaseRevision(store, repository);
-        var query = await SeedSaved(repository, basis, "讀者收藏");
-        await EditSaved(repository, query.SavedQueryId, "D", 2, 60);
+        var query = await SeedFavorite(repository, basis, "讀者收藏");
+        await EditFavorite(repository, query.FavoriteQueryId, "D", 2, 60);
         // 收藏還在、沒有配額就是不限；草稿期限不回收它的 SQL 版本。
         await Drain(repository, Expired());
-        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
-        var saved = await repository.ReadSavedQueryAsync(query.SavedQueryId, Token);
-        Assert.NotNull(saved);
-        Assert.Equal(SavedQueryWriteResult.Committed, await repository.DeleteSavedQueryAsync(query.SavedQueryId, saved.Version, Token));
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions WHERE FavoriteQueryId IS NOT NULL;"));
+        var favorite = await repository.ReadFavoriteQueryAsync(query.FavoriteQueryId, Token);
+        Assert.NotNull(favorite);
+        Assert.Equal(FavoriteQueryWriteResult.Committed, await repository.DeleteFavoriteQueryAsync(query.FavoriteQueryId, favorite.Version, Token));
         // 收藏消失後標記成為孤立資料，改依草稿期限回收，不需要另開刪除路徑。
         await Drain(repository, Expired());
-        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Revisions WHERE SavedQueryId IS NOT NULL;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Revisions WHERE FavoriteQueryId IS NOT NULL;"));
         Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("D", 0)).ContentId, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }

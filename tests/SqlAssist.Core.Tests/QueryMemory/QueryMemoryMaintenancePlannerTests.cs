@@ -35,7 +35,7 @@ public sealed class QueryMemoryMaintenancePlannerTests
             Level(30, 100), Level(7, 10), Level(7, 10));
         Assert.Equal(4, ladder.Count);
         Assert.Equal(Start.AddDays(-7), ladder[2].DraftBefore);
-        Assert.Equal(10, ladder[3].MaxRevisionsPerSavedQuery);
+        Assert.Equal(10, ladder[3].MaxRevisionsPerFavoriteQuery);
     }
 
     [Theory]

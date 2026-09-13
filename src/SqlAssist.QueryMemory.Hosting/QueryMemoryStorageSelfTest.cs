@@ -17,7 +17,7 @@ public static class QueryMemoryStorageSelfTest
     public const string ReportFileName = "report.txt";
 
     // 刪除收藏不連帶刪版本，這份 SQL 會活到下一輪維護，容量驗證必須把它算進去。
-    private const string SavedEditSql = "SELECT * FROM Lib_Reader WHERE ReaderId = 1;";
+    private const string FavoriteEditSql = "SELECT * FROM Lib_Reader WHERE ReaderId = 1;";
     private const string RecoverySql = "SELECT CopyNo FROM Cat_BookCopy;";
 
     public static Task RunAsync(string runDirectory, string? ssmsIdeDirectory, CancellationToken cancellationToken) =>
@@ -50,7 +50,7 @@ public static class QueryMemoryStorageSelfTest
             const string sql = "SELECT * FROM Lib_Reader;";
             var contentId = QueryContent.Create(sql).ContentId;
             var policy = new QueryMemoryPolicy(false, false, TimeSpan.FromMinutes(10), true, false);
-            var savedId = Guid.NewGuid();
+            var favoriteId = Guid.NewGuid();
             var lease = "";
             // 逐秒遞增的擷取時間讓筆數配額有明確界線；同一毫秒的執行會整批保留而驗不到配額。
             var start = DateTimeOffset.UtcNow;
@@ -72,8 +72,8 @@ public static class QueryMemoryStorageSelfTest
                 report.WriteLine("通過：21 次執行與冪等重送。");
                 var revisionId = write.State.LatestRevision?.RevisionId
                     ?? throw new InvalidOperationException("自我測試缺少完整 SQL 版本。");
-                var saved = new SavedQuery(savedId, "讀者查詢", null, revisionId, SavedQueryScope.Global, null, false);
-                Require(await repository.WriteSavedQueryAsync(new SavedQueryWrite(saved), token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "新增 Saved Query");
+                var favorite = new FavoriteQuery(favoriteId, "讀者查詢", null, revisionId, FavoriteQueryScope.Global, null);
+                Require(await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(favorite), token).ConfigureAwait(false) == FavoriteQueryWriteResult.Committed, "新增 Favorite Query");
             }
             report.WriteLine("通過：第一次卸載隔離 AppDomain。");
             token.ThrowIfCancellationRequested();
@@ -83,28 +83,28 @@ public static class QueryMemoryStorageSelfTest
                 Require(page.Items.Count == 21 && page.NextCursor == null && page.Items.All(item => item.ContentId == contentId), "重新開啟與內容去重");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "全文還原");
                 report.WriteLine("通過：重新開啟、21 筆紀錄共用內容位址、全文還原。");
-                var saved = await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false)
-                    ?? throw new InvalidOperationException("Saved Query 重新開啟後遺失。");
-                Require(saved.ContentId == contentId, "Saved Query 共用內容");
-                var changed = saved.Query with { Name = "讀者收藏", Pinned = true, Scope = SavedQueryScope.Database,
+                var favorite = await reopened.ReadFavoriteQueryAsync(favoriteId, token).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("Favorite Query 重新開啟後遺失。");
+                Require(favorite.ContentId == contentId, "Favorite Query 共用內容");
+                var changed = favorite.Query with { Name = "讀者收藏", Scope = FavoriteQueryScope.Database,
                     Connection = new QueryConnectionContext("LibraryServer", "Library") };
-                Require(await reopened.WriteSavedQueryAsync(new SavedQueryWrite(changed, saved.Version), token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "更新 Saved Query");
-                Require(await reopened.DeleteSavedQueryAsync(savedId, saved.Version, token).ConfigureAwait(false) == SavedQueryWriteResult.Conflict, "Saved Query 過期版本保護");
-                var savedPage = await reopened.ReadSavedQueriesAsync(new SavedQueryRequest(1, SavedQueryScope.Database, "LibraryServer", "Library"), token).ConfigureAwait(false);
-                Require(savedPage.Items.Count == 1 && savedPage.Items[0].Query == changed && savedPage.NextCursor == null, "Saved Query scope 分頁");
-                async Task<int> SearchSavedAsync(string search) =>
-                    (await reopened.ReadSavedQueriesAsync(new SavedQueryRequest(5, SavedQueryScope.Database,
+                Require(await reopened.WriteFavoriteQueryAsync(new FavoriteQueryWrite(changed, favorite.Version), token).ConfigureAwait(false) == FavoriteQueryWriteResult.Committed, "更新 Favorite Query");
+                Require(await reopened.DeleteFavoriteQueryAsync(favoriteId, favorite.Version, token).ConfigureAwait(false) == FavoriteQueryWriteResult.Conflict, "Favorite Query 過期版本保護");
+                var favoritePage = await reopened.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, FavoriteQueryScope.Database, "LibraryServer", "Library"), token).ConfigureAwait(false);
+                Require(favoritePage.Items.Count == 1 && favoritePage.Items[0].Query == changed && favoritePage.NextCursor == null, "Favorite Query scope 分頁");
+                async Task<int> SearchFavoriteAsync(string search) =>
+                    (await reopened.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(5, FavoriteQueryScope.Database,
                         "LibraryServer", "Library", search), token).ConfigureAwait(false)).Items.Count;
                 // 說明為 null 的收藏靠 SQL 全文命中；大小寫不同的字串不得比對成功。
-                Require(await SearchSavedAsync("Lib_Reader").ConfigureAwait(false) == 1, "Saved Query SQL 全文搜尋");
-                Require(await SearchSavedAsync("讀者收藏").ConfigureAwait(false) == 1, "Saved Query 名稱搜尋");
-                Require(await SearchSavedAsync("lib_reader").ConfigureAwait(false) == 0, "Saved Query 搜尋區分大小寫");
-                var current = await VerifySavedEditAsync(reopened, savedId, start, token).ConfigureAwait(false);
-                report.WriteLine("通過：Saved Query 改 SQL 建立新版本、不進 History，配額只留最新版本。");
-                Require(await reopened.DeleteSavedQueryAsync(savedId, current, token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "刪除 Saved Query");
-                Require(await reopened.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false) == null, "Saved Query 已刪除");
-                Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Saved 不刪除 History 內容");
-                report.WriteLine("通過：Saved Query CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
+                Require(await SearchFavoriteAsync("Lib_Reader").ConfigureAwait(false) == 1, "Favorite Query SQL 全文搜尋");
+                Require(await SearchFavoriteAsync("讀者收藏").ConfigureAwait(false) == 1, "Favorite Query 名稱搜尋");
+                Require(await SearchFavoriteAsync("lib_reader").ConfigureAwait(false) == 0, "Favorite Query 搜尋區分大小寫");
+                var current = await VerifyFavoriteEditAsync(reopened, favoriteId, start, token).ConfigureAwait(false);
+                report.WriteLine("通過：Favorite Query 改 SQL 建立新版本、不進 History，配額只留最新版本。");
+                Require(await reopened.DeleteFavoriteQueryAsync(favoriteId, current, token).ConfigureAwait(false) == FavoriteQueryWriteResult.Committed, "刪除 Favorite Query");
+                Require(await reopened.ReadFavoriteQueryAsync(favoriteId, token).ConfigureAwait(false) == null, "Favorite Query 已刪除");
+                Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 Favorite 不刪除 History 內容");
+                report.WriteLine("通過：Favorite Query CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
                 report.WriteLine("通過：有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery。");
                 lease = await VerifySessionLeaseAsync(reopened, document, start, token).ConfigureAwait(false);
@@ -186,29 +186,29 @@ public static class QueryMemoryStorageSelfTest
     }
 
     /// <summary>回傳改 SQL 之後的版本 token；呼叫端不得沿用編輯前讀到的那一份。</summary>
-    private static async Task<Guid> VerifySavedEditAsync(IsolatedQueryMemoryRepository repository, Guid savedId,
+    private static async Task<Guid> VerifyFavoriteEditAsync(IsolatedQueryMemoryRepository repository, Guid favoriteId,
         DateTimeOffset start, CancellationToken token)
     {
         const string first = "SELECT * FROM Lib_Reader WHERE ReaderId > 0;";
-        const string second = SavedEditSql;
-        var before = await repository.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Saved Query 遺失。");
-        var edit = new SavedQueryEdit(savedId, before.Version, Guid.NewGuid(), first, start.AddSeconds(100));
-        Require(await repository.EditSavedQuerySqlAsync(edit, token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "Saved Query 改 SQL");
-        Require(await repository.EditSavedQuerySqlAsync(edit, token).ConfigureAwait(false) == SavedQueryWriteResult.Conflict, "Saved Query 改 SQL 過期版本保護");
-        var edited = await repository.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Saved Query 編輯後遺失。");
-        Require(edited.Query.CurrentRevisionId == edit.RevisionId && edited.ContentId == QueryContent.Create(first).ContentId, "Saved Query 換到新版本");
-        Require(edited.Query with { CurrentRevisionId = before.Query.CurrentRevisionId } == before.Query, "改 SQL 不動名稱、scope 或 Pinned");
+        const string second = FavoriteEditSql;
+        var before = await repository.ReadFavoriteQueryAsync(favoriteId, token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Favorite Query 遺失。");
+        var edit = new FavoriteQueryEdit(favoriteId, before.Version, Guid.NewGuid(), first, start.AddSeconds(100));
+        Require(await repository.EditFavoriteQuerySqlAsync(edit, token).ConfigureAwait(false) == FavoriteQueryWriteResult.Committed, "Favorite Query 改 SQL");
+        Require(await repository.EditFavoriteQuerySqlAsync(edit, token).ConfigureAwait(false) == FavoriteQueryWriteResult.Conflict, "Favorite Query 改 SQL 過期版本保護");
+        var edited = await repository.ReadFavoriteQueryAsync(favoriteId, token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("Favorite Query 編輯後遺失。");
+        Require(edited.Query.CurrentRevisionId == edit.RevisionId && edited.ContentId == QueryContent.Create(first).ContentId, "Favorite Query 換到新版本");
+        Require(edited.Query with { CurrentRevisionId = before.Query.CurrentRevisionId } == before.Query, "改 SQL 不動名稱或 scope");
         Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(50, QueryHistoryKind.All, first), token)
-            .ConfigureAwait(false)).Items.Count == 0, "Saved Query 編輯不進 History");
-        var again = new SavedQueryEdit(savedId, edited.Version, Guid.NewGuid(), second, start.AddSeconds(200));
-        Require(await repository.EditSavedQuerySqlAsync(again, token).ConfigureAwait(false) == SavedQueryWriteResult.Committed, "Saved Query 再次改 SQL");
-        // 每 Saved 版本配額只留最新一版；目前版本與擷取產生的版本都不受影響。
+            .ConfigureAwait(false)).Items.Count == 0, "Favorite Query 編輯不進 History");
+        var again = new FavoriteQueryEdit(favoriteId, edited.Version, Guid.NewGuid(), second, start.AddSeconds(200));
+        Require(await repository.EditFavoriteQuerySqlAsync(again, token).ConfigureAwait(false) == FavoriteQueryWriteResult.Committed, "Favorite Query 再次改 SQL");
+        // 每 Favorite 版本配額只留最新一版；目前版本與擷取產生的版本都不受影響。
         await DrainAsync(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, null, 1), token).ConfigureAwait(false);
         Require(await repository.ReadContentAsync(QueryContent.Create(first).ContentId, token).ConfigureAwait(false) == null, "配額回收舊版本");
-        var kept = await repository.ReadSavedQueryAsync(savedId, token).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("配額後 Saved Query 遺失。");
+        var kept = await repository.ReadFavoriteQueryAsync(favoriteId, token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("配額後 Favorite Query 遺失。");
         Require(kept.Query.CurrentRevisionId == again.RevisionId && kept.ContentId == QueryContent.Create(second).ContentId, "配額保留目前版本");
         return kept.Version;
     }
@@ -216,7 +216,7 @@ public static class QueryMemoryStorageSelfTest
     private static async Task VerifyMaintenanceAsync(IsolatedQueryMemoryRepository repository, string contentId, string sql, CancellationToken token)
     {
         var usage = await repository.ReadUsageAsync(token).ConfigureAwait(false);
-        Require(usage.ContentBytes == 2L * (sql.Length + SavedEditSql.Length) && usage.DatabaseFileBytes > 0, "邏輯容量與實體檔案量測");
+        Require(usage.ContentBytes == 2L * (sql.Length + FavoriteEditSql.Length) && usage.DatabaseFileBytes > 0, "邏輯容量與實體檔案量測");
         // 只給筆數配額、不給截止時間：期限內但超額的執行也要回收，head 內容仍受保護。
         await DrainAsync(repository, new QueryMemoryMaintenancePolicy(null, null, null, 5, 0), token).ConfigureAwait(false);
         Require((await repository.ReadHistoryAsync(new QueryHistoryRequest(50, QueryHistoryKind.Executed), token).ConfigureAwait(false)).Items.Count == 5,

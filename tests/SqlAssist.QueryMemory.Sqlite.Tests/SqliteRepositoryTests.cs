@@ -29,7 +29,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(session.LatestRevision?.RevisionId, entry.RevisionId);
         Assert.Equal("SELECT * FROM Lib_Reader;", (await reopened.ReadContentAsync(entry.ContentId, Token))?.SqlText);
         Assert.Equal("wal", store.Scalar("PRAGMA journal_mode;"));
-        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(1L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
@@ -166,6 +166,39 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(4L, store.Scalar("SELECT count(*) FROM Sessions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task FreshSchemaCreatesFavoriteIndexesLeaseForeignKeyAndUsageTogether()
+    {
+        using var store = new SqliteTestStore();
+        await store.Open(Token);
+        Assert.Equal(0x534d454dL, store.Scalar("PRAGMA application_id;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM StoreInfo;"));
+        Assert.Equal(0L, store.Scalar("SELECT ContentBytes FROM StorageUsage;"));
+        Assert.Contains("FavoriteQueries", store.Query("SELECT name FROM sqlite_master WHERE type='table';"));
+        Assert.Contains("IX_FavoriteQueries_ScopeId", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
+        Assert.Contains("IX_Revisions_Favorite", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_foreign_key_list('Sessions') WHERE \"table\"='Leases' AND \"from\"='LeaseId';"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM pragma_table_info('FavoriteQueries') WHERE name='Pinned';"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task UnsupportedSchemaIsRejectedWithoutChangingContents(int version)
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(), Token);
+        var identity = store.Scalar("SELECT StoreId FROM StoreInfo;");
+        store.Scalar("PRAGMA user_version=" + version + ";");
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.Open(Token));
+        Assert.Equal((long)version, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(identity, store.Scalar("SELECT StoreId FROM StoreInfo;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
     }
 
     [Fact]

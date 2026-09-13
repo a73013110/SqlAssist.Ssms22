@@ -206,8 +206,8 @@ public static class SqlAssistSettingsReader
                 Value(source, SqlAssistMonikers.QueryMemoryMaxExecutions, defaults.QueryMemoryMaxExecutions)),
             QueryMemoryMaxSessionRevisions = SqlAssistLimits.ClampQueryMemorySessionRevisions(
                 Value(source, SqlAssistMonikers.QueryMemoryMaxSessionRevisions, defaults.QueryMemoryMaxSessionRevisions)),
-            QueryMemoryMaxSavedRevisions = SqlAssistLimits.ClampQueryMemorySavedRevisions(
-                Value(source, SqlAssistMonikers.QueryMemoryMaxSavedRevisions, defaults.QueryMemoryMaxSavedRevisions)),
+            QueryMemoryMaxFavoriteRevisions = SqlAssistLimits.ClampQueryMemoryFavoriteRevisions(
+                Value(source, SqlAssistMonikers.QueryMemoryMaxFavoriteRevisions, defaults.QueryMemoryMaxFavoriteRevisions)),
             QueryMemoryStorage = ParseStorageLimit(
                 Value(source, SqlAssistMonikers.QueryMemoryStorageLimit, string.Empty),
                 defaults.QueryMemoryStorage),
