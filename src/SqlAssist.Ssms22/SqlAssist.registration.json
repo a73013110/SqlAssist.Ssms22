@@ -891,7 +891,7 @@
       "order": 450
     },
     "sqlAssist.queryMemory": {
-      "title": "查詢記憶",
+      "title": "SQL Memory",
       "description": "把查詢視窗的 SQL 留在本機資料庫，供之後查閱、還原與收藏。整頁預設關閉。總開關在「一般」頁。",
       "additionalKeywords": [ "history", "歷史", "查詢歷程", "草稿", "還原", "收藏", "隱私" ],
       "order": 460,

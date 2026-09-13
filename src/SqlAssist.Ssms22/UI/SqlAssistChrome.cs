@@ -692,7 +692,7 @@ internal static partial class SqlAssistChrome
     /// <see cref="FrameworkElementFactory"/> 沒辦法宣告資料列定義，
     /// 而「頂端一條、其餘填滿」本來就是停駐面板在做的事。
     /// </remarks>
-    public static ControlTemplate CreateTabControlTemplate()
+    public static ControlTemplate CreateTabControlTemplate(bool compact = false)
     {
         var layout = new FrameworkElementFactory(typeof(DockPanel));
         layout.SetValue(DockPanel.LastChildFillProperty, true);
@@ -703,7 +703,7 @@ internal static partial class SqlAssistChrome
         track.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         track.SetValue(Border.PaddingProperty, new Thickness(2));
         track.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
-        track.SetValue(FrameworkElement.MarginProperty, new Thickness(14, 0, 14, 10));
+        track.SetValue(FrameworkElement.MarginProperty, compact ? new Thickness(0) : new Thickness(14, 0, 14, 10));
 
         var headers = new FrameworkElementFactory(typeof(TabPanel));
         headers.SetValue(Panel.IsItemsHostProperty, true);

@@ -11,16 +11,16 @@ namespace SqlAssist.Ssms22.QueryMemory;
 public sealed class QueryMemoryToolWindow : ToolWindowPane
 {
     private readonly ContentControl _host = new();
-    public QueryMemoryToolWindow() : base(null) { Caption = "查詢記憶"; Content = _host; }
+    public QueryMemoryToolWindow() : base(null) { Caption = "SQL Memory"; Content = _host; }
 
     public override void OnToolWindowCreated()
     {
         base.OnToolWindowCreated();
-        SqlAssistPlatformGuard.Run("建立查詢記憶工具窗", () =>
+        SqlAssistPlatformGuard.Run("建立 SQL Memory 工具窗", () =>
             _host.Content = new QueryMemoryBrowser((SqlAssistPackage)Package));
     }
 
-    internal static void Show(SqlAssistPackage package)
+    internal static void Show(SqlAssistPackage package, bool favorites = false)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         // 主動命令失敗必須可見，不交給 Guard 吞掉。
@@ -28,12 +28,14 @@ public sealed class QueryMemoryToolWindow : ToolWindowPane
         {
             var pane = package.FindToolWindow(typeof(QueryMemoryToolWindow), 0, true);
             if (pane?.Frame is not IVsWindowFrame frame)
-                throw new InvalidOperationException("SSMS 未建立查詢記憶工具窗。");
+                throw new InvalidOperationException("SSMS 未建立 SQL Memory 工具窗。");
             ErrorHandler.ThrowOnFailure(frame.Show());
+            if (pane is QueryMemoryToolWindow window && window._host.Content is QueryMemoryBrowser browser)
+                browser.ShowPage(favorites);
         }
         catch (Exception error)
         {
-            VsShellUtilities.ShowMessageBox(package, error.Message, "開啟查詢記憶失敗",
+            VsShellUtilities.ShowMessageBox(package, error.Message, "開啟 SQL Memory 失敗",
                 OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
     }

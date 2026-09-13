@@ -2,6 +2,7 @@
 <CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
   <Extern href="stdidcmd.h" />
   <Extern href="vsshlids.h" />
+  <Include href="KnownImageIds.vsct" />
 
   <Commands package="guidSqlAssistPackage">
     <Groups>
@@ -117,8 +118,17 @@
     <Buttons>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0080" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
-        <CommandFlag>TextOnly</CommandFlag>
-        <Strings><ButtonText>查詢記憶</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>瀏覽 SQL 歷史與收藏</ToolTipText></Strings>
+        <Icon guid="ImageCatalogGuid" id="History" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings><ButtonText>SQL History</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Icon guid="ImageCatalogGuid" id="Favorite" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings><ButtonText>SQL Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Saved Queries）</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
@@ -361,6 +371,9 @@
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
     </CommandPlacement>
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0110">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
+    </CommandPlacement>
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
     </CommandPlacement>
@@ -427,6 +440,7 @@
     <GuidSymbol name="guidSqlAssistCommandSet" value="{4a188946-9364-4f07-af7e-97f3bd7ca7a7}">
       <IDSymbol name="SqlAssistMenu" value="0x1000" />
       <IDSymbol name="cmdidShowQueryMemory" value="0x020E" />
+      <IDSymbol name="cmdidShowSqlFavorites" value="0x020F" />
       <IDSymbol name="SqlAssistToolbar" value="0x1800" />
       <IDSymbol name="SqlAssistToolbarGroup" value="0x1801" />
       <IDSymbol name="SqlAssistToggleGroup" value="0x1100" />

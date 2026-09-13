@@ -83,6 +83,7 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowQueryMemory, (_, _) => QueryMemoryToolWindow.Show(_package));
+        AddCommand(CommandIds.ShowSqlFavorites, (_, _) => QueryMemoryToolWindow.Show(_package, favorites: true));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
         AddCommand(CommandIds.ProbeQueryMemory, (_, _) => SqlAssistQueryMemoryCommand.Execute(_package),
             () => !SqlAssistQueryMemoryCommand.IsRunning,
