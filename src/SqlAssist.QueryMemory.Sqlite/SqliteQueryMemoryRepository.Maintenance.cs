@@ -21,7 +21,7 @@ public sealed partial class SqliteQueryMemoryRepository
     };
 
     private const string UnprotectedRevision = @"
- AND NOT EXISTS(SELECT 1 FROM SavedQueries WHERE CurrentRevisionId=$revision)
+ AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE CurrentRevisionId=$revision)
  AND NOT EXISTS(SELECT 1 FROM Revisions WHERE RevisionId=$revision AND Reason=$manual)
  AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$revision AND Pinned=1)";
 
@@ -84,7 +84,7 @@ public sealed partial class SqliteQueryMemoryRepository
     {
         var cursor = new SqliteMaintenanceCursor(_storeId, request);
         using var connection = Connect();
-        // 候選、保護根重查與刪除共用 IMMEDIATE 交易，Saved 更新不可能插進檢查與刪除之間。
+        // 候選、保護根重查與刪除共用 IMMEDIATE 交易，Favorite 更新不可能插進檢查與刪除之間。
         using var transaction = connection.BeginTransaction(deferred: false);
         token.ThrowIfCancellationRequested();
         var quotas = new MaintenanceQuotas(connection, transaction, request.Policy);
@@ -128,7 +128,7 @@ public sealed partial class SqliteQueryMemoryRepository
     {
         object? revision = null;
         long? autoQuota = null;
-        long? savedQuota = null;
+        long? favoriteQuota = null;
         if (stage == ExecutionStage)
         {
             using var read = Command(connection, transaction,
@@ -139,17 +139,17 @@ public sealed partial class SqliteQueryMemoryRepository
         {
             // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
             using var read = Command(connection, transaction, stage == HistoryStage
-                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection,r.SavedQueryId FROM History h
+                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection,r.FavoriteQueryId FROM History h
  LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;"
-                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection,SavedQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key));
+                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection,FavoriteQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key));
             using var reader = read.ExecuteReader();
             if (reader.Read())
             {
                 revision = StringOrNull(reader, 0);
                 if (!reader.IsDBNull(1) && reader.GetInt64(2) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(3) == 0)
                     autoQuota = quotas.AutoRevisionCutoff(reader.GetString(1));
-                else if (!reader.IsDBNull(4) && reader.GetInt64(2) == (long)QueryRevisionReason.SavedQueryEdit)
-                    savedQuota = quotas.SavedRevisionCutoff(reader.GetString(4));
+                else if (!reader.IsDBNull(4) && reader.GetInt64(2) == (long)QueryRevisionReason.FavoriteQueryEdit)
+                    favoriteQuota = quotas.FavoriteRevisionCutoff(reader.GetString(4));
             }
         }
         var parameters = new (string Name, object? Value)[]
@@ -158,7 +158,7 @@ public sealed partial class SqliteQueryMemoryRepository
             ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
             ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
-            ("$savedEdit", (int)QueryRevisionReason.SavedQueryEdit), ("$savedQuota", savedQuota),
+            ("$favoriteEdit", (int)QueryRevisionReason.FavoriteQueryEdit), ("$favoriteQuota", favoriteQuota),
             ("$recoveryHistory", "s" + key),
             ("$recovery", policy.RecoveryBefore.HasValue ? (object)Ticks(policy.RecoveryBefore.Value) : null),
         };
@@ -179,11 +179,11 @@ public sealed partial class SqliteQueryMemoryRepository
  AND (CreatedAt<$draft OR CreatedAt<$autoQuota) AND Pinned=0" + UnprotectedRevision;
                 break;
             case RevisionStage:
-                // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Saved 版本配額能回收它。
+                // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
                 sql = @"DELETE FROM Revisions WHERE RevisionId=$id
  AND (CreatedAt < CASE
    WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
-   WHEN Reason=$savedEdit AND EXISTS(SELECT 1 FROM SavedQueries WHERE SavedQueryId=Revisions.SavedQueryId) THEN $savedQuota
+   WHEN Reason=$favoriteEdit AND EXISTS(SELECT 1 FROM FavoriteQueries WHERE FavoriteQueryId=Revisions.FavoriteQueryId) THEN $favoriteQuota
    ELSE $draft END
   OR CreatedAt<$autoQuota)" + UnprotectedRevision + @"
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestRevisionId=$id)
@@ -213,7 +213,7 @@ public sealed partial class SqliteQueryMemoryRepository
  AND NOT EXISTS(SELECT 1 FROM Executions WHERE ContextId=$id)
  AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContextId=$id)
  AND NOT EXISTS(SELECT 1 FROM History WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM SavedQueries WHERE ContextId=$id)";
+ AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE ContextId=$id)";
                 break;
         }
         Execute(connection, transaction, sql + ";", parameters);
@@ -227,7 +227,7 @@ public sealed partial class SqliteQueryMemoryRepository
         private readonly SqliteTransaction _transaction;
         private readonly QueryMemoryMaintenancePolicy _policy;
         private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, long?> _saved = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long?> _favorite = new(StringComparer.Ordinal);
 
         public MaintenanceQuotas(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenancePolicy policy)
         {
@@ -253,16 +253,16 @@ public sealed partial class SqliteQueryMemoryRepository
             return cutoff;
         }
 
-        /// <summary>界線含目前版本；它本身另受 Saved 引用保護，配額不會把收藏清成沒有 SQL。</summary>
-        public long? SavedRevisionCutoff(string savedQueryId)
+        /// <summary>界線含目前版本；它本身另受 Favorite 引用保護，配額不會把收藏清成沒有 SQL。</summary>
+        public long? FavoriteRevisionCutoff(string favoriteQueryId)
         {
-            if (!_policy.MaxRevisionsPerSavedQuery.HasValue) return null;
-            if (_saved.TryGetValue(savedQueryId, out var cached)) return cached;
+            if (!_policy.MaxRevisionsPerFavoriteQuery.HasValue) return null;
+            if (_favorite.TryGetValue(favoriteQueryId, out var cached)) return cached;
             // 明寫 IS NOT NULL，部分索引才會命中，界線只掃描該收藏的前 N 筆索引項。
-            var cutoff = Boundary(_policy.MaxRevisionsPerSavedQuery,
-                "SELECT CreatedAt FROM Revisions WHERE SavedQueryId=$saved AND SavedQueryId IS NOT NULL ORDER BY CreatedAt DESC",
-                ("$saved", savedQueryId));
-            _saved.Add(savedQueryId, cutoff);
+            var cutoff = Boundary(_policy.MaxRevisionsPerFavoriteQuery,
+                "SELECT CreatedAt FROM Revisions WHERE FavoriteQueryId=$favorite AND FavoriteQueryId IS NOT NULL ORDER BY CreatedAt DESC",
+                ("$favorite", favoriteQueryId));
+            _favorite.Add(favoriteQueryId, cutoff);
             return cutoff;
         }
 

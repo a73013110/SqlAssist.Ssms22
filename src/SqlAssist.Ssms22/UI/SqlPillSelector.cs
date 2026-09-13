@@ -19,7 +19,7 @@ internal sealed class SqlPillSelector : WrapPanel
         foreach (var label in labels)
         {
             var index = _buttons.Count;
-            var button = new RadioButton { Content = label, GroupName = group, Style = SqlAssistChrome.CreateQueryPillStyle(label == "執行") };
+            var button = new RadioButton { Content = label, GroupName = group, Style = SqlAssistChrome.CreateQueryPillStyle() };
             AutomationProperties.SetName(button, label);
             button.Checked += (_, _) => SelectedIndex = index;
             _buttons.Add(button); Children.Add(button);
@@ -51,6 +51,8 @@ internal sealed class SqlConnectionFilter : StackPanel
     private readonly List<string> _names = new();
     private readonly string _group = Guid.NewGuid().ToString("N");
     private readonly Button _sortButton;
+    private readonly ScrollViewer _optionsHost;
+    private readonly TextBlock _summary = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private int _sortOrder;
     private string? _value;
     private string _emptyLabel = "全部";
@@ -74,22 +76,28 @@ internal sealed class SqlConnectionFilter : StackPanel
         }
     }
     public int Offset { get; private set; }
+    public bool IsExpanded
+    {
+        get => _optionsHost.Visibility == Visibility.Visible;
+        set { _optionsHost.Visibility = value ? Visibility.Visible : Visibility.Collapsed; UpdateHeading(); }
+    }
 
     public SqlConnectionFilter(string label)
     {
         _label = label;
-        var header = new DockPanel(); Children.Add(header);
+        var header = new DockPanel { MinHeight = 28 }; Children.Add(header);
         _heading = SqlAssistChrome.CreateButton(label, SqlAssistChrome.DefaultMetrics);
-        _heading.Padding = new Thickness(0, 2, 6, 2);
+        _heading.Padding = new Thickness(6, 2, 6, 2);
+        _heading.VerticalAlignment = VerticalAlignment.Center;
         _heading.ToolTip = "展開／收合" + label + "篩選；收合不會清除條件。";
         _heading.Click += (_, _) =>
         {
-            _options.Visibility = _options.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            UpdateHeading();
+            IsExpanded = !IsExpanded;
         };
         DockPanel.SetDock(_heading, Dock.Left); header.Children.Add(_heading);
         _sortButton = SqlAssistChrome.CreateButton("最近", SqlAssistChrome.DefaultMetrics);
         _sortButton.Padding = new Thickness(6, 2, 6, 2);
+        _sortButton.VerticalAlignment = VerticalAlignment.Center;
         _sortButton.ToolTip = label + "排序：最近／最早使用、名稱 A–Z／Z–A";
         UpdateSortButton();
         AutomationProperties.SetName(_sortButton, label + "排序");
@@ -106,9 +114,12 @@ internal sealed class SqlConnectionFilter : StackPanel
             SortMenu.PlacementTarget = _sortButton; SortMenu.IsOpen = true;
         };
         DockPanel.SetDock(_sortButton, Dock.Right); header.Children.Add(_sortButton);
-        // 多連線時只捲動選项，避免擠走整個 SQL 清單。
-        header.Children.Add(new ScrollViewer { Content = _options, MaxHeight = 64,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+        _summary.Margin = new Thickness(4, 0, 4, 0); _summary.VerticalAlignment = VerticalAlignment.Center;
+        header.Children.Add(_summary);
+        // 先顯示條件摘要，使用時才揭露名稱；選項獨佔全寬，不讓窄窗的 Header 跨多列置中。
+        _optionsHost = new ScrollViewer { Content = _options, MaxHeight = 56, Visibility = Visibility.Collapsed,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        Children.Add(_optionsHost);
         _more = SqlAssistChrome.CreateButton("更多名稱", SqlAssistChrome.DefaultMetrics);
         _more.Visibility = Visibility.Collapsed;
         _more.Padding = new Thickness(6, 2, 6, 2);
@@ -160,7 +171,7 @@ internal sealed class SqlConnectionFilter : StackPanel
 
     private void Add(string label, string? value)
     {
-        var button = new RadioButton { Content = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis },
+        var button = new RadioButton { Content = SqlAssistChrome.CreateQueryButtonText(label),
             MaxWidth = 210, GroupName = _group, Tag = value, ToolTip = label, Style = SqlAssistChrome.CreateQueryPillStyle(), IsChecked = _value == value };
         AutomationProperties.SetName(button, _label + "：" + label);
         button.Checked += (_, _) => Value = value;
@@ -169,22 +180,25 @@ internal sealed class SqlConnectionFilter : StackPanel
 
     private void UpdateHeading()
     {
-        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var icon = SqlAssistChrome.CreateQueryButtonIcon("Chevron");
-        icon.LayoutTransform = new System.Windows.Media.RotateTransform(_options.Visibility == Visibility.Visible ? 0 : -90);
-        icon.Margin = new Thickness(0, 0, 4, 0); content.Children.Add(icon);
+        // 旋轉只改繪圖、不改量測；固定 slot 讓收合及焦點都不推動旁邊文字。
+        icon.RenderTransformOrigin = new Point(0.5, 0.5);
+        icon.RenderTransform = new System.Windows.Media.RotateTransform(IsExpanded ? 0 : -90);
+        icon.Margin = new Thickness(0, 0, 6, 0); content.Children.Add(icon);
         content.Children.Add(SqlAssistChrome.CreateQueryButtonText(_label));
         _heading.Content = content;
-        _heading.Template = _value == null ? SqlAssistChrome.CreateGhostButtonTemplate() : SqlAssistChrome.CreatePrimaryButtonTemplate();
+        // Header 只表達 disclosure；選取狀態交給 pills，不把 Header 偽裝成另一個篩選項。
+        _summary.Text = _value ?? _emptyLabel; _summary.ToolTip = _summary.Text;
         _heading.ToolTip = (_value ?? "全部") + "；點擊展開／收合，不清除篩選。";
-        AutomationProperties.SetName(_heading, (_options.Visibility == Visibility.Visible ? "收合" : "展開") + _label);
+        AutomationProperties.SetName(_heading, (IsExpanded ? "收合" : "展開") + _label);
     }
 
     private void UpdateSortButton()
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal };
         content.Children.Add(SqlAssistChrome.CreateQueryButtonText(new[] { "最近", "最早", "A–Z", "Z–A" }[_sortOrder]));
-        var chevron = SqlAssistChrome.CreateQueryButtonIcon("Chevron"); chevron.Width = 10; chevron.Margin = new Thickness(4, 0, 0, 0);
+        var chevron = SqlAssistChrome.CreateQueryButtonIcon("Chevron"); chevron.Margin = new Thickness(4, 0, 0, 0);
         content.Children.Add(chevron); _sortButton.Content = content;
     }
 }

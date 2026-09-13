@@ -26,7 +26,7 @@ public sealed class QueryMemoryMaintenanceContractTests
         Assert.Equal(0, policy.MaxContentBytes);
         Assert.Null(policy.MaxExecutionEvents);
         Assert.Null(policy.MaxAutoRevisionsPerSession);
-        Assert.Null(policy.MaxRevisionsPerSavedQuery);
+        Assert.Null(policy.MaxRevisionsPerFavoriteQuery);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public sealed class QueryMemoryMaintenanceContractTests
         var policy = new QueryMemoryMaintenancePolicy(null, null, null, 0, 50, 10);
         Assert.Equal(0, policy.MaxExecutionEvents);
         Assert.Equal(50, policy.MaxAutoRevisionsPerSession);
-        Assert.Equal(10, policy.MaxRevisionsPerSavedQuery);
+        Assert.Equal(10, policy.MaxRevisionsPerFavoriteQuery);
         Assert.Null(policy.MaxContentBytes);
         Assert.Null(policy.ExecutionBefore);
     }

@@ -9,19 +9,19 @@ using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.QueryMemory;
 
-internal sealed class QueryMemorySqlEditWindow : DialogWindow
+internal sealed class FavoriteSqlEditWindow : DialogWindow
 {
     private readonly SqlAssistPackage _package;
-    private readonly SavedQueryEntry _entry;
+    private readonly FavoriteQueryEntry _entry;
     private readonly SqlTextEditor _editor;
-    private readonly Button _save;
+    private readonly Button _apply;
     private readonly Button _cancel;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
-    private bool _saving;
+    private bool _applying;
     private bool _committed;
     private bool _conflict;
 
-    public QueryMemorySqlEditWindow(SqlAssistPackage package, SavedQueryEntry entry, string sql)
+    public FavoriteSqlEditWindow(SqlAssistPackage package, FavoriteQueryEntry entry, string sql)
     {
         _package = package; _entry = entry; _editor = new SqlTextEditor(sql);
         QueryMemoryActions.ConfigureWindow(this, package, "編輯 SQL — " + entry.Query.Name, 900, 620);
@@ -32,31 +32,31 @@ internal sealed class QueryMemorySqlEditWindow : DialogWindow
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         _cancel = SqlAssistChrome.CreateButton("取消", SqlAssistChrome.DefaultMetrics);
         _cancel.IsCancel = true;
-        _save = SqlAssistChrome.CreateButton("儲存 SQL", SqlAssistChrome.DefaultMetrics, true);
-        _save.IsDefault = true; _save.IsEnabled = false;
-        actions.Children.Add(_cancel); actions.Children.Add(_save); footer.Children.Add(actions);
+        _apply = SqlAssistChrome.CreateButton("更新 SQL", SqlAssistChrome.DefaultMetrics, true);
+        _apply.IsDefault = true; _apply.IsEnabled = false;
+        actions.Children.Add(_cancel); actions.Children.Add(_apply); footer.Children.Add(actions);
         root.Children.Add(_editor); Content = root;
-        _editor.Changed += (_, _) => _save.IsEnabled = _editor.IsModified && !_saving && !_conflict;
-        _save.Click += (_, _) => _ = QueryMemoryActions.RunAsync(SaveAsync, Report);
+        _editor.Changed += (_, _) => _apply.IsEnabled = _editor.IsModified && !_applying && !_conflict;
+        _apply.Click += (_, _) => _ = QueryMemoryActions.RunAsync(ApplyChangesAsync, Report);
         Closing += OnClosing;
     }
 
-    private async Task SaveAsync()
+    private async Task ApplyChangesAsync()
     {
-        if (_saving || _conflict || !_editor.IsModified) return;
-        _saving = true; _save.IsEnabled = _cancel.IsEnabled = false; _editor.IsReadOnly = true;
+        if (_applying || _conflict || !_editor.IsModified) return;
+        _applying = true; _apply.IsEnabled = _cancel.IsEnabled = false; _editor.IsReadOnly = true;
         Report("正在儲存 SQL…");
         try
         {
-            var edit = new SavedQueryEdit(_entry.Query.SavedQueryId, _entry.Version, Guid.NewGuid(), _editor.Text, DateTimeOffset.UtcNow);
-            var result = await QueryMemoryHost.EditSavedQuerySqlAsync(edit, _package.DisposalToken);
-            if (result == SavedQueryWriteResult.Conflict)
+            var edit = new FavoriteQueryEdit(_entry.Query.FavoriteQueryId, _entry.Version, Guid.NewGuid(), _editor.Text, DateTimeOffset.UtcNow);
+            var result = await QueryMemoryHost.EditFavoriteQuerySqlAsync(edit, _package.DisposalToken);
+            if (result == FavoriteQueryWriteResult.Conflict)
             {
                 _conflict = true;
                 Report("收藏已被修改或刪除，未覆寫。請先複製編輯內容，再取消並重新整理清單。");
                 return;
             }
-            _committed = true; _saving = false; DialogResult = true;
+            _committed = true; _applying = false; DialogResult = true;
         }
         catch (Exception error)
         {
@@ -66,15 +66,15 @@ internal sealed class QueryMemorySqlEditWindow : DialogWindow
         }
         finally
         {
-            _saving = false; _editor.IsReadOnly = false; _cancel.IsEnabled = true;
-            _save.IsEnabled = _editor.IsModified && !_conflict;
+            _applying = false; _editor.IsReadOnly = false; _cancel.IsEnabled = true;
+            _apply.IsEnabled = _editor.IsModified && !_conflict;
         }
     }
 
     private void OnClosing(object? sender, CancelEventArgs args)
     {
-        args.Cancel = _saving;
-        if (_saving || _committed || !_editor.IsModified) return;
+        args.Cancel = _applying;
+        if (_applying || _committed || !_editor.IsModified) return;
         QueryMemoryActions.Run(() => args.Cancel = !SqlAssistConfirmationWindow.Confirm(this,
             "捨棄 SQL 變更", "尚有未儲存的 SQL。", "捨棄後無法回復本次編輯；收藏不會改變。", "捨棄變更"),
             message => { args.Cancel = true; Report(message); });

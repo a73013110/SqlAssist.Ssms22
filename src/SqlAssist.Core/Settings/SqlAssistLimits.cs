@@ -116,11 +116,11 @@ public static class SqlAssistLimits
 
     public const int DefaultQueryMemorySessionRevisions = 50;
 
-    public const int MinimumQueryMemorySavedRevisions = 1;
+    public const int MinimumQueryMemoryFavoriteRevisions = 1;
 
-    public const int MaximumQueryMemorySavedRevisions = 1000;
+    public const int MaximumQueryMemoryFavoriteRevisions = 1000;
 
-    public const int DefaultQueryMemorySavedRevisions = 20;
+    public const int DefaultQueryMemoryFavoriteRevisions = 20;
 
     /// <summary>維護間隔；比五分鐘更密只會讓同一批候選被反覆巡過。</summary>
     public const int MinimumQueryMemoryMaintenanceMinutes = 5;
@@ -147,8 +147,8 @@ public static class SqlAssistLimits
     public static int ClampQueryMemorySessionRevisions(int value) =>
         Clamp(value, MinimumQueryMemorySessionRevisions, MaximumQueryMemorySessionRevisions);
 
-    public static int ClampQueryMemorySavedRevisions(int value) =>
-        Clamp(value, MinimumQueryMemorySavedRevisions, MaximumQueryMemorySavedRevisions);
+    public static int ClampQueryMemoryFavoriteRevisions(int value) =>
+        Clamp(value, MinimumQueryMemoryFavoriteRevisions, MaximumQueryMemoryFavoriteRevisions);
 
     public static int ClampQueryMemoryMaintenanceMinutes(int value) =>
         Clamp(value, MinimumQueryMemoryMaintenanceMinutes, MaximumQueryMemoryMaintenanceMinutes);

@@ -8,7 +8,7 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只隔離 SQLite provider 的靜態狀態與 binding redirect；不另造通用宿主框架。</summary>
-public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISavedQueryRepository,
+public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFavoriteQueryRepository,
     IQueryMemoryMaintenanceRepository, IQueryMemoryLeaseRepository, IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -63,16 +63,16 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, ISav
         Invoke(() => _worker.ReadContent(contentId), cancellationToken);
     public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(() => _worker.Probe(), cancellationToken);
 
-    public Task<SavedQueryEntry?> ReadSavedQueryAsync(Guid savedQueryId, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadSavedQuery(savedQueryId), cancellationToken);
-    public Task<QueryMemoryPage<SavedQueryEntry>> ReadSavedQueriesAsync(SavedQueryRequest request, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadSavedQueries(request), cancellationToken);
-    public Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.WriteSavedQuery(write), cancellationToken);
-    public Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid savedQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.DeleteSavedQuery(savedQueryId, expectedVersion), cancellationToken);
-    public Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.EditSavedQuerySql(edit), cancellationToken);
+    public Task<FavoriteQueryEntry?> ReadFavoriteQueryAsync(Guid favoriteQueryId, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadFavoriteQuery(favoriteQueryId), cancellationToken);
+    public Task<QueryMemoryPage<FavoriteQueryEntry>> ReadFavoriteQueriesAsync(FavoriteQueryRequest request, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.ReadFavoriteQueries(request), cancellationToken);
+    public Task<FavoriteQueryWriteResult> WriteFavoriteQueryAsync(FavoriteQueryWrite write, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.WriteFavoriteQuery(write), cancellationToken);
+    public Task<FavoriteQueryWriteResult> DeleteFavoriteQueryAsync(Guid favoriteQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.DeleteFavoriteQuery(favoriteQueryId, expectedVersion), cancellationToken);
+    public Task<FavoriteQueryWriteResult> EditFavoriteQuerySqlAsync(FavoriteQueryEdit edit, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.EditFavoriteQuerySql(edit), cancellationToken);
 
     public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadUsage(), cancellationToken);

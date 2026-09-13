@@ -38,7 +38,7 @@ internal sealed class SqliteTextMatcher
     }
 }
 
-/// <summary>History 與 Saved 共用同一個字面搜尋條件，語意不隨呼叫端分岔。</summary>
+/// <summary>History 與 Favorite 共用同一個字面搜尋條件，語意不隨呼叫端分岔。</summary>
 internal sealed class SqliteSearchFilter
 {
     private const string Function = "qm_matches";

@@ -91,8 +91,8 @@ public sealed class SqliteCompactionTests
         Assert.Equal(reclaimed.ContentBytes, usage.ContentBytes);
         // VACUUM 重建整個資料庫，但識別碼、schema 版本與外鍵完整性都必須沿用。
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
-        Assert.Equal(6L, store.Scalar("PRAGMA user_version;"));
-        Assert.Equal(0x53514c4dL, store.Scalar("PRAGMA application_id;"));
+        Assert.Equal(1L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(0x534d454dL, store.Scalar("PRAGMA application_id;"));
         Assert.NotNull(await repository.ReadSessionAsync(store.Session.SessionId, Token));
     }
 }

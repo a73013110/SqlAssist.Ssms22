@@ -33,8 +33,8 @@ public sealed class QueryMemoryPresentationTests
     [Fact]
     public void FacetRequestRejectsInvalidParameters()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, (SavedQueryScope)99, false));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, SavedQueryScope.Global, false, sort: (QueryConnectionSort)99));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, SavedQueryScope.Global, false, offset: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, (FavoriteQueryScope)99, false));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, sort: (QueryConnectionSort)99));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, offset: -1));
     }
 }

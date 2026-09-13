@@ -103,7 +103,7 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
             conditions.Add("(h.CreatedAt, h.EntryKey) < ($time, $key)");
             parameters.Add(("$time", cursor.Ticks)); parameters.Add(("$key", cursor.EntryKey));
         }
-        // History 只搜尋 SQL 全文；顯示名稱與連線不是搜尋目標，語意與 Saved 的欄位清單分開。
+        // History 只搜尋 SQL 全文；顯示名稱與連線不是搜尋目標，語意與 Favorite 的欄位清單分開。
         if (SqliteSearchFilter.Create(request.Search) is SqliteSearchFilter search)
             conditions.Add(search.Apply(connection, parameters, "c.SqlBytes", cancellationToken));
         var where = conditions.Count == 0 ? "" : " WHERE " + string.Join(" AND ", conditions);

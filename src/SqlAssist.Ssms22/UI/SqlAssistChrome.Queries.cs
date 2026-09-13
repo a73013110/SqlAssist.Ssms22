@@ -12,28 +12,39 @@ namespace SqlAssist.Ssms22.UI;
 
 internal static partial class SqlAssistChrome
 {
-    // 連線沿用中性主題角色；未來 Tab 色擴充只需調整集中於此的 badge。
+    // 狀態不能只靠顏色，卡片仍保留文字標籤。
     internal static ThemeBrush QueryStatusBackground(bool executed) => executed ? ThemeBrush.AccentBackground : ThemeBrush.BadgeBackground;
     internal static ThemeBrush QueryStatusBorder(bool executed) => executed ? ThemeBrush.AccentBorder : ThemeBrush.Hairline;
 
-    public static Geometry QueryIcon(string name) => Geometry.Parse(name switch
+    public static Geometry QueryIcon(string name)
     {
+        var geometry = Geometry.Parse(name switch
+        {
         "Search" => "M 10,6 A 4,4 0 1 1 2,6 A 4,4 0 1 1 10,6 M 9,9 L 14,14",
         "Clear" => "M 4,4 L 12,12 M 12,4 L 4,12",
         "Copy" => "M 6,5 L 13,5 13,14 6,14 Z M 10,5 L 10,2 3,2 3,11 6,11",
         "Open" => "M 9,2 L 14,2 14,7 M 14,2 L 7,9 M 6,3 L 2,3 2,14 13,14 13,10",
         "Favorite" => "M 8,1 L 10,5 15,6 11.5,9.5 12.5,15 8,12.5 3.5,15 4.5,9.5 1,6 6,5 Z",
-        "Preview" => "M 1,8 Q 8,-2 15,8 Q 8,18 1,8 M 10,8 A 2,2 0 1 1 6,8 A 2,2 0 1 1 10,8",
+        "Edit" => "M 3,10 L 11,2 14,5 6,13 2,14 Z M 9,4 L 12,7",
+        "Remove" => "M 3,4 L 13,4 M 6,2 L 10,2 M 4,4 L 5,14 11,14 12,4 M 7,6 L 7,12 M 9,6 L 9,12",
+        "Wrap" => "M 2,3 L 14,3 M 2,7 L 11,7 Q 15,7 14,10 Q 14,12 10,12 L 7,12 M 9,10 L 7,12 9,14 M 2,11 L 4,11",
         "Connection" => "M 8,1 L 8,4 M 8,12 L 8,15 M 1,8 L 4,8 M 12,8 L 15,8 M 13,8 A 5,5 0 1 1 3,8 A 5,5 0 1 1 13,8 M 9,8 A 1,1 0 1 1 7,8 A 1,1 0 1 1 9,8",
         "Chevron" => "M 3,5 L 8,10 13,5",
         "Refresh" => "M 13,6 A 5.5,5.5 0 1 0 13,11 M 13,2 L 13,6 9,6",
         "Settings" => "M 6,1 L 10,1 10.5,3 12,4 14,4 15,7 13.5,8.5 13,10 14,12 11,14 9.5,12.5 7.5,13 6,15 3,13.5 3,11.5 2,10 0.5,9 1.5,6 3.5,5.5 5,4 Z M 10.5,8 A 2.5,2.5 0 1 1 5.5,8 A 2.5,2.5 0 1 1 10.5,8",
         _ => "M 8,2 A 6,6 0 1 1 2,8 M 8,4 L 8,8 11,10"
-    });
+        }).Clone();
+        // Shape.Stretch.Uniform 只縮放 bounds，不保證線條在固定 slot 裡置中；先正規化幾何再以 None 畫出。
+        var bounds = geometry.Bounds;
+        var scale = 12 / System.Math.Max(bounds.Width, bounds.Height);
+        geometry.Transform = new MatrixTransform(scale, 0, 0, scale,
+            7 - (bounds.X + bounds.Width / 2) * scale, 7 - (bounds.Y + bounds.Height / 2) * scale);
+        geometry.Freeze(); return geometry;
+    }
 
     public static Path CreateQueryIcon(string name) => new Path
     {
-        Data = QueryIcon(name), Width = 14, Height = 14, Stretch = Stretch.Uniform, StrokeThickness = 1.3,
+        Data = QueryIcon(name), Width = 14, Height = 14, Stretch = Stretch.None, StrokeThickness = 1.3,
         VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false
     }.WithTheme(Shape.StrokeProperty, ThemeBrush.ListForeground);
 
@@ -66,8 +77,8 @@ internal static partial class SqlAssistChrome
 
     public static Button CreateQueryConnectionButton()
     {
-        var button = CreateButton("", DefaultMetrics, true);
-        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        var button = CreateButton("", DefaultMetrics);
+        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         content.Children.Add(CreateQueryButtonIcon("Connection"));
         var label = CreateQueryButtonText("目前連線"); label.Margin = new Thickness(5, 0, 0, 0); content.Children.Add(label);
         button.Content = content;
@@ -87,6 +98,7 @@ internal static partial class SqlAssistChrome
         var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(actions, 1); toolbar.Children.Add(actions);
         var labels = new System.Collections.Generic.List<TextBlock>();
+        var connectionLabel = (TextBlock)((StackPanel)connection.Content).Children[1];
         foreach (var entry in new[] { (refresh, "Refresh", "重新整理"), (settings, "Settings", "設定") })
         {
             var content = new StackPanel { Orientation = Orientation.Horizontal };
@@ -101,7 +113,11 @@ internal static partial class SqlAssistChrome
             button.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(button);
         }
         // 窄窗只收起次要操作文字，不換行或改變按鈕高度，維持分頁與圖示共用中心線。
-        void UpdateLabels() { foreach (var label in labels) label.Visibility = toolbar.ActualWidth >= 400 ? Visibility.Visible : Visibility.Collapsed; }
+        void UpdateLabels()
+        {
+            foreach (var label in labels) label.Visibility = toolbar.ActualWidth >= 520 ? Visibility.Visible : Visibility.Collapsed;
+            connectionLabel.Visibility = toolbar.ActualWidth >= 380 ? Visibility.Visible : Visibility.Collapsed;
+        }
         toolbar.SizeChanged += (_, _) => UpdateLabels(); UpdateLabels();
         return toolbar;
     }
@@ -129,15 +145,54 @@ internal static partial class SqlAssistChrome
         return border;
     }
 
-    public static Style CreateQueryPillStyle(bool executed = false)
+    public static FrameworkElement CreateQueryHistoryFilters(SqlPillSelector kind, SqlPillSelector period)
+    {
+        var groups = new WrapPanel();
+        AutomationProperties.SetName(kind, "狀態"); AutomationProperties.SetName(period, "期間");
+        groups.Children.Add(kind);
+        var separator = new Border { Child = period, BorderThickness = new Thickness(1, 0, 0, 0),
+            Padding = new Thickness(8, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0) };
+        separator.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        groups.Children.Add(separator); return groups;
+    }
+
+    public static DockPanel CreateQueryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)
+    {
+        var root = new DockPanel();
+        var toolbar = new WrapPanel();
+        foreach (var action in actions) toolbar.Children.Add(action);
+        DockPanel.SetDock(toolbar, Dock.Top); root.Children.Add(toolbar);
+        status.TextWrapping = TextWrapping.Wrap;
+        DockPanel.SetDock(status, Dock.Bottom); root.Children.Add(status);
+        root.Children.Add(viewer); return root;
+    }
+
+    public static ComboBox CreateQueryScopeCombo(params string[] labels)
+    {
+        var combo = CreateComboBox(DefaultMetrics);
+        foreach (var label in labels) combo.Items.Add(label);
+        combo.SelectedIndex = 0; return combo;
+    }
+
+    public static StackPanel CreateQueryField(string label, Control control)
+    {
+        var panel = new StackPanel(); panel.Children.Add(CreateLabel(label, DefaultMetrics));
+        control.Margin = new Thickness(0, 4, 0, 0); panel.Children.Add(control);
+        AutomationProperties.SetName(control, label); return panel;
+    }
+
+    public static Style CreateQueryPillStyle()
     {
         var border = new FrameworkElementFactory(typeof(Border)) { Name = "pill" };
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(11));
         border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        border.SetValue(Border.PaddingProperty, new Thickness(8, 3, 8, 3));
-        border.SetResourceReference(Border.BackgroundProperty, QueryStatusBackground(executed));
+        border.SetValue(Border.PaddingProperty, new Thickness(8, 2, 8, 2));
+        border.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground);
         border.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
-        border.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        border.AppendChild(content);
         var template = new ControlTemplate(typeof(RadioButton)) { VisualTree = border };
         AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "pill");
         AddTrigger(template, UIElement.IsMouseOverProperty, TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "pill");
@@ -158,7 +213,9 @@ internal static partial class SqlAssistChrome
         style.Setters.Add(new Setter(Control.TemplateProperty, template));
         style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
         style.Setters.Add(new Setter(Control.FontSizeProperty, DefaultMetrics.Caption));
-        style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 4)));
+        style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, 2, 4, 2)));
+        style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+        style.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 24d));
         style.Setters.Add(new Setter(Control.FocusVisualStyleProperty, null));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         return style;
@@ -226,16 +283,16 @@ internal static partial class SqlAssistChrome
         code.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 3, 0, 3));
         var sql = BoundText("Preview"); sql.SetValue(TextBlock.FontFamilyProperty, CodeFont);
         sql.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-        sql.SetValue(TextBlock.TextWrappingProperty, TextWrapping.Wrap); sql.SetValue(TextBlock.LineHeightProperty, 16d);
+        sql.SetValue(TextBlock.TextWrappingProperty, TextWrapping.NoWrap); sql.SetValue(TextBlock.LineHeightProperty, 16d);
         sql.SetValue(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight);
-        sql.SetValue(FrameworkElement.MaxHeightProperty, 32d); code.AppendChild(sql); panel.AppendChild(code);
+        sql.SetValue(FrameworkElement.MaxHeightProperty, 16d); code.AppendChild(sql); panel.AppendChild(code);
         var footer = new FrameworkElementFactory(typeof(DockPanel)); panel.AppendChild(footer);
         var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
         actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal); actions.SetValue(DockPanel.DockProperty, Dock.Right);
         actions.SetResourceReference(Panel.BackgroundProperty, ThemeBrush.ListBackground);
         // Hidden 保留尺寸，避免懸停時 badge 跳動；鍵盤進入卡片也揭露動作。
         actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); footer.AppendChild(actions);
-        foreach (var pair in new[] { ("Copy", "複製 SQL"), ("Open", "在新查詢開啟（不執行）"), ("Favorite", "加入收藏"), ("Preview", "預覽") })
+        foreach (var pair in new[] { ("Copy", "複製 SQL"), ("Open", "在新 Query 開啟（不執行）"), ("Favorite", "Add to Favorites") })
         {
             var button = new FrameworkElementFactory(typeof(Button));
             button.SetValue(FrameworkElement.TagProperty, pair.Item1); button.SetValue(FrameworkElement.ToolTipProperty, pair.Item2);
@@ -245,19 +302,22 @@ internal static partial class SqlAssistChrome
             button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
             if (pair.Item1 == "Favorite")
             {
-                button.SetBinding(UIElement.IsEnabledProperty, new Binding("CanSave"));
-                button.SetBinding(FrameworkElement.ToolTipProperty, new Binding("SaveHint"));
+                button.Name = "favoriteAction";
+                button.SetBinding(UIElement.IsEnabledProperty, new Binding("CanAddFavorite"));
+                button.SetBinding(FrameworkElement.ToolTipProperty, new Binding("AddFavoriteHint"));
                 button.SetValue(ToolTipService.ShowOnDisabledProperty, true);
             }
             var icon = new FrameworkElementFactory(typeof(Path)); icon.SetValue(Path.DataProperty, QueryIcon(pair.Item1));
             icon.SetValue(FrameworkElement.WidthProperty, 14d); icon.SetValue(FrameworkElement.HeightProperty, 14d);
-            icon.SetValue(Shape.StretchProperty, Stretch.Uniform); icon.SetValue(Shape.StrokeThicknessProperty, 1.3);
+            icon.SetValue(Shape.StretchProperty, Stretch.None); icon.SetValue(Shape.StrokeThicknessProperty, 1.3);
             icon.SetBinding(Shape.StrokeProperty, QueryButtonForeground());
             button.AppendChild(icon); actions.AppendChild(button);
         }
         var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
         connections.AppendChild(BoundBadge("Server", "server")); connections.AppendChild(BoundBadge("Database", "database"));
         var template = new DataTemplate { VisualTree = panel };
+        var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
+        favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "favoriteAction")); template.Triggers.Add(favorite);
         var noDatabase = new DataTrigger { Binding = new Binding("Database"), Value = "" };
         noDatabase.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(noDatabase);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
@@ -289,7 +349,8 @@ internal static partial class SqlAssistChrome
     {
         var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
         badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        badge.SetValue(Border.PaddingProperty, new Thickness(6, 1, 6, 2)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
+        badge.SetValue(Border.PaddingProperty, new Thickness(6, 1, 6, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
+        badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         badge.SetValue(FrameworkElement.MaxWidthProperty, 180d);
         badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         var text = BoundText(property); text.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);

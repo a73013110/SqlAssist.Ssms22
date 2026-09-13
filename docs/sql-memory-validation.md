@@ -1,0 +1,52 @@
+# SQL Memory：驗證與部署
+
+自動測試、元件渲染、封裝 probe 與 SSMS 實機是不同證據，不互相替代。
+核心／儲存／UI 契約見[索引](index.md)，一般安裝門檻見[部署契約](debug-deployment.md)。
+
+## 自動流程
+
+在專案根目錄執行：
+
+```powershell
+./tools/Run-CoreTests.ps1
+./tools/Build-Extension.ps1
+./tools/Test-QueryMemoryPackage.ps1 `
+  -VsixPath src/SqlAssist.Ssms22/bin/x64/Release/net48/SqlAssist.Ssms22.vsix `
+  -ProbePath tools/SqlAssist.QueryMemory.Probe/bin/x64/Release/net48/SqlAssist.QueryMemory.Probe.exe
+./tools/Test-CommandTableToolbar.ps1
+./tools/Check-Docs.ps1
+./tools/Check-TextFiles.ps1
+```
+
+- Core：內容精確性、版本引擎、背景佇列、分頁世代、收藏 scope／CAS 與維護策略。
+- SQLite：完整新 schema、並行初始化、交易／取消／引用保護、全文搜尋、游標及 EXPLAIN 索引。
+  不再保留未發行舊 schema 的 migration 測試。
+- WPF：共用卡片、清單操作、主從收合／比例、篩選及實際文字／圖示位置；
+  Light／Dark／High Contrast 及彩色主題、320／440／740 DIP、100%／150%／200% 渲染。
+- VSIX build 內含套件檢查；封裝 probe 解開真正 VSIX，不從 NuGet cache 補相依。
+  覆蓋 net48 x64 隔離載入、外部 LoadFrom、雙程序 40 次提交、缺檔／錯誤 native 架構／夾帶 BCL。
+- `QueryMemoryStorageSelfTest` 是 SSMS 診斷命令與 probe 的唯一實作，涵蓋重送、重開、全文、
+  Favorites CRUD／SQL 編輯、配額／租約、檔案釋放及宿主 provider 汙染檢查。
+
+完整命令紀錄在 `artifacts/ai-logs/`；WPF PNG 在 `artifacts/theme-qa/`，都是忽略的驗證產物，
+不是 SSMS 宿主截圖。文件不永久保存批次提交、逐次測試總數或 handoff 順序。
+未載入 SSMS 原生資源的元件測試仍使用系統捲軸；其深色外觀須在宿主驗證，不能以元件 PNG 宣稱通過。
+
+## SSMS 實機門檻
+
+此重構尚未安裝並操作真正 SSMS。過去版本的儲存自我測試 PASS 不代表本版通過。
+命令資源版號 25，變更命令表須 **Install**，不能只 Deploy；不自動關閉使用者 SSMS 或更動既有測試資料庫。
+
+1. 儲存工作並關閉 SSMS，建置後依[發布與安裝](release.md)安裝本版。
+2. 開啟詳細記錄，執行「Query Memory 儲存自我測試…」兩次；確認報告的 Hosting 建置及載入路徑。
+3. 啟用 SQL Memory，驗證停止輸入、執行選取／全文及關閉的擷取，確認 `Query.Execute` 可解析。
+4. 開啟 History／Favorites，測滑鼠與 ↑／↓ 選取、同步 Preview、Enter／雙擊只開新 Query 不執行。
+5. 明／暗／高對比切換、窄窗、不同 DPI 螢幕、splitter 拖曳／鍵盤、收合再開、篩選與焦點不位移。
+6. 收藏新增／編輯／移除、跨程序版本衝突、無連線開新 Query、停用／重新啟用與關閉工具窗。
+7. 操作補全、物件預覽、F12、物件總管、結果格線，再重啟 SSMS 重跑自我測試與基本流程。
+8. 需要驗證解除安裝時先儲存並關閉 SSMS；只照正式卸載流程，不刪除使用者設定或 SQL。
+
+自我測試資料各在 `%LOCALAPPDATA%\SqlAssist.Ssms22\QueryMemorySelfTest\<唯一識別碼>`，
+包含 `report.txt`／`self-test.db`，只用內建圖書館 SQL，不覆寫既有報告。
+失敗保留資料供診斷；回報 SSMS／SqlAssist 版本、步驟與報告即可，不需要業務 SQL 或連線字串。
+PASS 不保證 native DLL 卸載或所有宿主功能相容；未實測項目仍維持待驗。

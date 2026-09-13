@@ -84,18 +84,18 @@ internal static class QueryMemoryHost
     // 對視窗只提供 Core DTO，repository 不會逃離持有閘門的操作範圍。
     public static Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadHistoryAsync(request, ct), token);
-    public static Task<QueryMemoryPage<SavedQueryEntry>> ReadSavedQueriesAsync(SavedQueryRequest request, CancellationToken token) =>
-        UseAsync((repository, ct) => repository.ReadSavedQueriesAsync(request, ct), token);
+    public static Task<QueryMemoryPage<FavoriteQueryEntry>> ReadFavoriteQueriesAsync(FavoriteQueryRequest request, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.ReadFavoriteQueriesAsync(request, ct), token);
     public static Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadConnectionFacetsAsync(request, ct), token);
     public static Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadContentAsync(contentId, ct), token);
-    public static Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken token) =>
-        UseAsync((repository, ct) => repository.WriteSavedQueryAsync(write, ct), token);
-    public static Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken token) =>
-        UseAsync((repository, ct) => repository.EditSavedQuerySqlAsync(edit, ct), token);
-    public static Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid id, Guid version, CancellationToken token) =>
-        UseAsync((repository, ct) => repository.DeleteSavedQueryAsync(id, version, ct), token);
+    public static Task<FavoriteQueryWriteResult> WriteFavoriteQueryAsync(FavoriteQueryWrite write, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.WriteFavoriteQueryAsync(write, ct), token);
+    public static Task<FavoriteQueryWriteResult> EditFavoriteQuerySqlAsync(FavoriteQueryEdit edit, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.EditFavoriteQuerySqlAsync(edit, ct), token);
+    public static Task<FavoriteQueryWriteResult> DeleteFavoriteQueryAsync(Guid id, Guid version, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.DeleteFavoriteQueryAsync(id, version, ct), token);
 
     /// <summary>目前是否真的在擷取；沒有接上儲存時一律 false，呼叫端不必自己判斷設定。</summary>
     public static bool IsCapturing => Volatile.Read(ref _state) is not null;
@@ -343,7 +343,7 @@ internal static class QueryMemoryHost
 
     private static string DatabasePath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "SqlAssist.Ssms22", "QueryMemory", "QueryMemory.db");
+        "SqlAssist.Ssms22", "SQLMemory", "SQLMemory.db");
 
     /// <summary>一份接好線的狀態；設定改變時整份換掉，呼叫端拿到的永遠是一致的一組。</summary>
     private sealed class State
@@ -412,7 +412,7 @@ internal static class QueryMemoryHost
                 QueryMemoryRetentionPlan.ToContentBytes(settings.QueryMemoryStorage),
                 settings.QueryMemoryMaxExecutions,
                 settings.QueryMemoryMaxSessionRevisions,
-                settings.QueryMemoryMaxSavedRevisions);
+                settings.QueryMemoryMaxFavoriteRevisions);
 
             return new QueryMemoryMaintenanceRunner(repository, repository,
                 new QueryMemoryLeaseReaper(Environment.MachineName, QueryMemoryProcessProbe.IsOwnerRunning),

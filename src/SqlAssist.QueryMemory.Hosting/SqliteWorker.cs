@@ -57,11 +57,11 @@ public sealed class SqliteWorker : MarshalByRefObject
     public string[] ReadConnectionFacets(QueryConnectionFacetRequest request) => Run(() => Repository.ReadConnectionFacetsAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public QueryContent? ReadContent(string contentId) => Run(() => Repository.ReadContentAsync(contentId, CancellationToken.None).GetAwaiter().GetResult());
 
-    public SavedQueryEntry? ReadSavedQuery(Guid id) => Run(() => Repository.ReadSavedQueryAsync(id, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryPage<SavedQueryEntry> ReadSavedQueries(SavedQueryRequest request) => Run(() => Repository.ReadSavedQueriesAsync(request, CancellationToken.None).GetAwaiter().GetResult());
-    public SavedQueryWriteResult WriteSavedQuery(SavedQueryWrite write) => Run(() => Repository.WriteSavedQueryAsync(write, CancellationToken.None).GetAwaiter().GetResult());
-    public SavedQueryWriteResult DeleteSavedQuery(Guid id, Guid version) => Run(() => Repository.DeleteSavedQueryAsync(id, version, CancellationToken.None).GetAwaiter().GetResult());
-    public SavedQueryWriteResult EditSavedQuerySql(SavedQueryEdit edit) => Run(() => Repository.EditSavedQuerySqlAsync(edit, CancellationToken.None).GetAwaiter().GetResult());
+    public FavoriteQueryEntry? ReadFavoriteQuery(Guid id) => Run(() => Repository.ReadFavoriteQueryAsync(id, CancellationToken.None).GetAwaiter().GetResult());
+    public QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueries(FavoriteQueryRequest request) => Run(() => Repository.ReadFavoriteQueriesAsync(request, CancellationToken.None).GetAwaiter().GetResult());
+    public FavoriteQueryWriteResult WriteFavoriteQuery(FavoriteQueryWrite write) => Run(() => Repository.WriteFavoriteQueryAsync(write, CancellationToken.None).GetAwaiter().GetResult());
+    public FavoriteQueryWriteResult DeleteFavoriteQuery(Guid id, Guid version) => Run(() => Repository.DeleteFavoriteQueryAsync(id, version, CancellationToken.None).GetAwaiter().GetResult());
+    public FavoriteQueryWriteResult EditFavoriteQuerySql(FavoriteQueryEdit edit) => Run(() => Repository.EditFavoriteQuerySqlAsync(edit, CancellationToken.None).GetAwaiter().GetResult());
 
     public QueryMemoryUsage ReadUsage() => Run(() => Repository.ReadUsageAsync(CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request) =>

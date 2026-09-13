@@ -8,14 +8,14 @@ public enum QueryRevisionReason
     EditorClosed,
     BeforeExecute,
     ManualSnapshot,
-    SavedQueryEdit,
+    FavoriteQueryEdit,
     Recovery,
 }
 
 public enum QueryCaptureKind { DraftIdle, BeforeExecute, EditorClosed, ManualSnapshot, Recovery }
 public enum QueryExecutionScope { Document, Selection }
 public enum QueryExecutionStatus { Unknown, Submitted }
-public enum SavedQueryScope { Global, Server, Database }
+public enum FavoriteQueryScope { Global, Server, Database }
 public enum QueryHistoryKind { All, Executed, Drafts, Pinned }
 
 // 文件身分不包含連線；同一檔案可以在不同頁籤與資料庫中工作。
@@ -44,8 +44,8 @@ public sealed record QueryRecoverySnapshot(Guid SessionId, string ContentId, lon
     DateTimeOffset CapturedAt, QueryConnectionContext? Connection);
 
 [Serializable]
-public sealed record SavedQuery(Guid SavedQueryId, string Name, string? Description,
-    Guid CurrentRevisionId, SavedQueryScope Scope, QueryConnectionContext? Connection, bool Pinned);
+public sealed record FavoriteQuery(Guid FavoriteQueryId, string Name, string? Description,
+    Guid CurrentRevisionId, FavoriteQueryScope Scope, QueryConnectionContext? Connection);
 
 /// <summary>儲存層讀出的 Session 投影；Version 是交易 CAS，不是 UI 的文字版本。</summary>
 [Serializable]

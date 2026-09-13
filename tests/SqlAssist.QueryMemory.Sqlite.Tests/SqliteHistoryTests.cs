@@ -61,7 +61,7 @@ public sealed class SqliteHistoryTests
             Assert.Single(page.Items);
             Assert.InRange(page.Items[0].Preview.Length, 0, 240);
         }
-        // History 的搜尋目標只有 SQL 全文；文件顯示名稱與 Saved 的名稱欄位不在其中。
+        // History 的搜尋目標只有 SQL 全文；文件顯示名稱與 Favorite 的名稱欄位不在其中。
         foreach (var search in new[] { "lib_reader", "' OR 1=1--", "DoesNotExist", "Library.sql" })
             Assert.Empty((await repository.ReadHistoryAsync(new QueryHistoryRequest(10, QueryHistoryKind.Executed, search: search), Token)).Items);
     }

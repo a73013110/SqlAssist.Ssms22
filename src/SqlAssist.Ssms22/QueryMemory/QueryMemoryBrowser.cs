@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Windows.Controls.Primitives;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,9 +16,9 @@ namespace SqlAssist.Ssms22.QueryMemory;
 internal sealed class QueryMemoryBrowser : UserControl, IDisposable
 {
     private readonly SqlAssistPackage _package;
-    private readonly QueryMemoryBrowserState<QueryMemoryRow> _state = new();
+    private readonly QueryMemoryPageState _state = new();
     private readonly ObservableCollection<QueryMemoryRow> _rows = new();
-    private readonly ListBox _list = new();
+    private readonly SqlMemoryList _list = new();
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly SqlConnectionFilter _server = new("伺服器");
@@ -40,7 +39,9 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _hostTimer;
     private CancellationTokenSource _request = new();
-    private QueryMemoryPreviewWindow? _preview;
+    private readonly QueryMemoryDetail _detail;
+    private readonly SqlMemorySplitView _splitView;
+    private readonly FrameworkElement _historyFilters;
     private bool _ready;
     private bool _available;
     private bool _disposed;
@@ -61,7 +62,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         var root = new DockPanel { Margin = new Thickness(8) };
         var header = new StackPanel();
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
-        foreach (var name in new[] { "歷史", "收藏" })
+        foreach (var name in new[] { "History", "Favorites" })
             _tabs.Items.Add(new TabItem { Header = name, Template = SqlAssistChrome.CreateTabItemTemplate() });
         _tabs.SelectedIndex = 0;
         _connection = SqlAssistChrome.CreateQueryConnectionButton();
@@ -73,10 +74,10 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
         header.Children.Add(SqlAssistChrome.CreateSearchBar(_search, clear));
-        var filters = new WrapPanel();
+        var filters = new StackPanel();
         _period.SelectedIndex = 1;
-        _kind.Margin = new Thickness(0, 0, 8, 0);
-        foreach (var control in new UIElement[] { _kind, _period, _scope }) filters.Children.Add(control);
+        _historyFilters = SqlAssistChrome.CreateQueryHistoryFilters(_kind, _period);
+        filters.Children.Add(_historyFilters); filters.Children.Add(_scope);
         _scope.Visibility = Visibility.Collapsed;
         header.Children.Add(filters);
         header.Children.Add(_server); header.Children.Add(_database);
@@ -93,18 +94,13 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         _status.TextWrapping = TextWrapping.Wrap; footer.Children.Add(_status);
 
         _list.ItemsSource = _rows;
-        _list.ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle();
-        _list.ItemTemplate = SqlAssistChrome.CreateSqlSummaryTemplate();
-        _list.BorderThickness = new Thickness(0);
-        _list.SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
-        ScrollViewer.SetCanContentScroll(_list, true);
-        VirtualizingPanel.SetIsVirtualizing(_list, true);
-        VirtualizingPanel.SetVirtualizationMode(_list, VirtualizationMode.Recycling);
-        root.Children.Add(_list); Content = root;
+        _detail = new QueryMemoryDetail(package, Refresh);
+        _splitView = new SqlMemorySplitView(_list, _detail, _detail.Summary);
+        _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
+        root.Children.Add(_splitView); Content = root;
         var menu = new ContextMenu();
         foreach (var pair in new[] { ("複製 SQL", (Action)CopySelected), ("開啟至新查詢", (Action)OpenSelected),
-            ("加入收藏", (Action)SaveSelected), ("預覽", (Action)ShowPreview) })
+            ("Add to Favorites", (Action)AddFavorite) })
         {
             var item = new MenuItem { Header = pair.Item1 };
             item.Click += (_, _) => QueryMemoryActions.Run(pair.Item2, Report);
@@ -116,43 +112,26 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         {
             var row = _list.SelectedItem as QueryMemoryRow;
             foreach (MenuItem item in menu.Items) item.IsEnabled = _available && row is not null;
-            ((MenuItem)menu.Items[2]).IsEnabled = _available && row?.CanSave == true;
-            ((MenuItem)menu.Items[2]).ToolTip = row?.SaveHint;
+            ((MenuItem)menu.Items[2]).IsEnabled = _available && row?.CanAddFavorite == true;
+            ((MenuItem)menu.Items[2]).Visibility = row?.IsFavorite == true ? Visibility.Collapsed : Visibility.Visible;
+            ((MenuItem)menu.Items[2]).ToolTip = row?.AddFavoriteHint;
         });
-        _list.PreviewMouseRightButtonDown += (_, e) => SqlAssistPlatformGuard.Run("選取 SQL Memory 快捷操作項目", () =>
+        _list.RowActionRequested += action => QueryMemoryActions.Run(() =>
         {
-            if (ItemsControl.ContainerFromElement(_list, e.OriginalSource as DependencyObject) is ListBoxItem item)
-                item.IsSelected = true;
-        });
-        _list.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, e) =>
-        {
-            if (e.OriginalSource is not Button { DataContext: QueryMemoryRow row, Tag: string action }) return;
-            e.Handled = true;
-            QueryMemoryActions.Run(() =>
-            {
-                if (!_available) return;
-                _list.SelectedItem = row;
-                if (action == "Preview") ShowPreview();
-                else if (action == "Open") OpenSelected();
-                else if (action == "Copy") CopySelected();
-                else if (action == "Favorite") SaveSelected();
-            }, Report);
-        }));
+            if (!_available) return;
+            if (action == "Open") OpenSelected();
+            else if (action == "Copy") CopySelected();
+            else if (action == "Favorite") AddFavorite();
+        }, Report);
+        _list.OpenRequested += (_, _) => QueryMemoryActions.Run(OpenSelected, Report);
         _list.SelectionChanged += (_, _) => SqlAssistPlatformGuard.Run("切換查詢記憶選取", () =>
         {
             UpdateActions();
-            if (_preview is not null) _preview.Select(_list.SelectedItem as QueryMemoryRow);
+            UpdatePreview();
         });
-        _list.MouseDoubleClick += (_, e) =>
-        {
-            if (e.OriginalSource is DependencyObject source && !IsInsideButton(source) &&
-                ItemsControl.ContainerFromElement(_list, source) is ListBoxItem)
-            { e.Handled = true; ShowPreview(); }
-        };
         PreviewKeyDown += (_, e) => QueryMemoryActions.Run(() =>
         {
             if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { _search.Focus(); e.Handled = true; }
-            else if (e.Key == Key.Enter && Keyboard.FocusedElement is ListBoxItem) { ShowPreview(); e.Handled = true; }
         }, Report);
         _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(300) };
         _searchTimer.Tick += (_, _) => { _searchTimer.Stop(); Load(); };
@@ -171,13 +150,13 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換查詢記憶可見度", () =>
         {
             if (IsVisible) { _hostTimer.Start(); CheckHost(); if (_available && !_state.Loading) Refresh(); }
-            else { _hostTimer.Stop(); _facets.Cancel(); Invalidate(); _preview?.Close(); }
+            else { _hostTimer.Stop(); _facets.Cancel(); Invalidate(); _detail.Select(null); }
         });
         _ready = true;
         UpdateActions();
     }
 
-    private bool Saved => _tabs.SelectedIndex == 1;
+    private bool IsFavorites => _tabs.SelectedIndex == 1;
     public void ShowPage(bool favorites)
     {
         _tabs.SelectedIndex = favorites ? 1 : 0;
@@ -196,7 +175,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         _batchFilters = true;
         try
         {
-            if (Saved) _scope.SelectedIndex = (int)SavedQueryScope.Database;
+            if (IsFavorites) _scope.SelectedIndex = (int)FavoriteQueryScope.Database;
             _server.Value = context.Server; _database.Value = context.Database;
         }
         finally { _batchFilters = false; }
@@ -220,7 +199,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         var requestId = databases ? ++_databaseRequest : ++_serverRequest;
         var host = QueryMemoryHost.Generation;
         var token = _facets.Token;
-        var request = new QueryConnectionFacetRequest(Saved, (SavedQueryScope)_scope.SelectedIndex,
+        var request = new QueryConnectionFacetRequest(IsFavorites, (FavoriteQueryScope)_scope.SelectedIndex,
             databases, databases ? _server.Value : null, (QueryConnectionSort)filter.SortOrder, filter.Offset);
         _ = QueryMemoryActions.RunAsync(async () =>
         {
@@ -240,18 +219,10 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         }, Report);
     }
 
-    private static bool IsInsideButton(DependencyObject source)
+    private void AddFavorite()
     {
-        for (var current = source; current != null; current = current is System.Windows.Media.Visual
-            ? System.Windows.Media.VisualTreeHelper.GetParent(current) : LogicalTreeHelper.GetParent(current))
-            if (current is ButtonBase) return true;
-        return false;
-    }
-
-    private void SaveSelected()
-    {
-        if (!_available || _list.SelectedItem is not QueryMemoryRow { CanSave: true } row) return;
-        var dialog = new QueryMemoryMetadataWindow(_package, row, false);
+        if (!_available || _list.SelectedItem is not QueryMemoryRow { CanAddFavorite: true } row) return;
+        var dialog = new FavoriteMetadataWindow(_package, row, false);
         if (dialog.ShowModal() == true) { Refresh(); Report("已加入收藏。"); }
     }
 
@@ -262,11 +233,13 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         if (!_ready || _disposed || _batchFilters) return;
         QueryMemoryActions.Run(() =>
         {
-            _scope.Visibility = Saved ? Visibility.Visible : Visibility.Collapsed;
-            _kind.Visibility = _period.Visibility = Saved ? Visibility.Collapsed : Visibility.Visible;
-            _server.IsEnabled = !Saved || _scope.SelectedIndex > 0;
-            _database.IsEnabled = !Saved || _scope.SelectedIndex == 2;
-            _server.EmptyLabel = _database.EmptyLabel = Saved ? "請選擇" : "全部";
+            _scope.Visibility = IsFavorites ? Visibility.Visible : Visibility.Collapsed;
+            _historyFilters.Visibility = IsFavorites ? Visibility.Collapsed : Visibility.Visible;
+            _server.IsEnabled = !IsFavorites || _scope.SelectedIndex > 0;
+            _database.IsEnabled = !IsFavorites || _scope.SelectedIndex == 2;
+            _server.Visibility = _server.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
+            _database.Visibility = _database.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
+            _server.EmptyLabel = _database.EmptyLabel = IsFavorites ? "請選擇" : "全部";
             Invalidate();
             _searchTimer.Start();
         }, Report);
@@ -276,7 +249,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
     {
         _searchTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
-        _state.Reset(); _rows.Clear(); _preview?.Select(null); UpdateActions();
+        _state.Reset(); _rows.Clear(); _detail.Select(null); UpdateActions();
         // 時間也是游標指紋的一部分；同一次分頁不能每頁重新計算「最近七天」。
         _since = _period.SelectedIndex switch
         {
@@ -298,9 +271,8 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
             _facets.Cancel(); _server.ResetOptions(); _database.ResetOptions();
             Invalidate();
             if (available) { Load(); ReloadFacets(); }
-            else { _preview?.Close(); Report("SQL Memory 尚未就緒；可由設定啟用或重新啟用。"); }
+            else { _detail.Select(null); Report("SQL Memory 尚未就緒；可由設定啟用或重新啟用。"); }
         }
-        else if (available && _rows.Count == 0 && !_state.Loading && _state.Generation == 0) Refresh();
         if ((DateTime.UtcNow - _lastTimeRefresh).TotalMinutes >= 1)
         {
             _lastTimeRefresh = DateTime.UtcNow;
@@ -330,17 +302,17 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
             var database = _database.Value;
             QueryMemoryRow[] rows;
             string? cursor;
-            if (Saved)
+            if (IsFavorites)
             {
-                var scope = (SavedQueryScope)_scope.SelectedIndex;
-                if (scope != SavedQueryScope.Global && (server is null || scope == SavedQueryScope.Database && database is null))
+                var scope = (FavoriteQueryScope)_scope.SelectedIndex;
+                if (scope != FavoriteQueryScope.Global && (server is null || scope == FavoriteQueryScope.Database && database is null))
                 {
-                    Report(scope == SavedQueryScope.Server ? "請選擇收藏的伺服器。" : "請選擇收藏的伺服器與資料庫，或使用目前連線。");
+                    Report(scope == FavoriteQueryScope.Server ? "請選擇收藏的伺服器。" : "請選擇收藏的伺服器與資料庫，或使用目前連線。");
                     return;
                 }
-                var request = new SavedQueryRequest(50, scope, scope == SavedQueryScope.Global ? null : server,
-                    scope == SavedQueryScope.Database ? database : null, search, _state.Cursor);
-                var page = await QueryMemoryHost.ReadSavedQueriesAsync(request, token);
+                var request = new FavoriteQueryRequest(50, scope, scope == FavoriteQueryScope.Global ? null : server,
+                    scope == FavoriteQueryScope.Database ? database : null, search, _state.Cursor);
+                var page = await QueryMemoryHost.ReadFavoriteQueriesAsync(request, token);
                 rows = page.Items.Select(item => new QueryMemoryRow(item)).ToArray(); cursor = page.NextCursor;
             }
             else
@@ -351,10 +323,12 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
                 rows = page.Items.Select(item => new QueryMemoryRow(item)).ToArray(); cursor = page.NextCursor;
             }
             if (token.IsCancellationRequested || !QueryMemoryHost.IsAvailable || hostGeneration != QueryMemoryHost.Generation ||
-                !_state.Accept(generation, rows, cursor)) return;
+                !_state.Accept(generation, cursor)) return;
             foreach (var row in rows) _rows.Add(row);
             if (_restoreId is { } restore && _rows.FirstOrDefault(row => row.Id == restore) is { } selected)
-            { _list.SelectedItem = selected; _restoreId = null; }
+                _list.SelectedItem = selected;
+            _restoreId = null;
+            if (_list.SelectedItem is null && _rows.Count > 0) _list.SelectedIndex = 0;
             Report(_rows.Count == 0 ? "沒有符合條件的項目。可清除搜尋或放寬期間與範圍。" : "");
         }
         catch (Exception error)
@@ -365,17 +339,8 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         finally { _state.Fail(generation); UpdateActions(); }
     }
 
-    private void ShowPreview() => QueryMemoryActions.Run(() =>
-    {
-        if (!_available || _list.SelectedItem is not QueryMemoryRow row) return;
-        if (_preview is null)
-        {
-            _preview = new QueryMemoryPreviewWindow(_package, Refresh);
-            _preview.Closed += (_, _) => _preview = null;
-            _preview.Select(row); _preview.Show();
-        }
-        else { _preview.Select(row); _preview.Activate(); }
-    }, Report);
+    private void UpdatePreview() =>
+        _detail.Select(_available && IsVisible ? _list.SelectedItem as QueryMemoryRow : null, _splitView.IsDetailExpanded);
 
     private void OpenSelected() => ReadSelectedContent(true);
 
@@ -420,24 +385,10 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
         button.Click += (_, _) => QueryMemoryActions.Run(action, Report);
         return button;
     }
-    internal static ComboBox Combo(params string[] labels)
-    {
-        var combo = SqlAssistChrome.CreateComboBox(SqlAssistChrome.DefaultMetrics);
-        foreach (var label in labels) combo.Items.Add(label);
-        combo.SelectedIndex = 0; return combo;
-    }
-    internal static StackPanel Field(string label, Control control)
-    {
-        var panel = new StackPanel();
-        panel.Children.Add(SqlAssistChrome.CreateLabel(label, SqlAssistChrome.DefaultMetrics));
-        control.Margin = new Thickness(0, 4, 0, 0); panel.Children.Add(control);
-        System.Windows.Automation.AutomationProperties.SetName(control, label);
-        return panel;
-    }
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true; _hostTimer.Stop(); _searchTimer.Stop();
-        _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _preview?.Close();
+        _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
 }

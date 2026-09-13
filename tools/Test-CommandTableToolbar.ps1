@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $directory -Force | Out-Null
 [xml]$commands = Get-Content -LiteralPath $source -Raw -Encoding utf8
 $namespaces = [System.Xml.XmlNamespaceManager]::new($commands.NameTable)
 $namespaces.AddNamespace('ct', 'http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable')
-foreach ($entry in @(@('cmdidShowQueryMemory', 'SQL History'), @('cmdidShowSqlFavorites', 'SQL Favorites'))) {
+foreach ($entry in @(@('cmdidShowQueryMemory', 'History'), @('cmdidShowSqlFavorites', 'Favorites'))) {
     $button = $commands.SelectSingleNode('//ct:Button[@id="' + $entry[0] + '"]', $namespaces)
     if ($button.Strings.ButtonText -ne $entry[1] -or $null -eq $button.Icon -or
         'IconIsMoniker' -notin $button.CommandFlag -or 'IconAndText' -notin $button.CommandFlag) {

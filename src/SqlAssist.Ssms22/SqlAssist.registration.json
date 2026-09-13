@@ -619,7 +619,7 @@
       "enableWhen": "${config:sqlAssist.queryMemory.captureDrafts} == 'true'",
       "additionalKeywords": [ "quota", "配額", "版本", "上限" ]
     },
-    "sqlAssist.queryMemory.maxSavedRevisions": {
+    "sqlAssist.queryMemory.maxFavoriteRevisions": {
       "type": "integer",
       "default": 20,
       "minimum": 1,
@@ -628,7 +628,7 @@
       "description": "收藏的 SQL 每編輯一次留一個版本；目前這一個永遠保留。",
       "order": 250,
       "enableWhen": "${config:sqlAssist.queryMemory.enabled} == 'true'",
-      "additionalKeywords": [ "saved", "收藏", "版本", "上限" ]
+      "additionalKeywords": [ "favorites", "收藏", "版本", "上限" ]
     },
     "sqlAssist.queryMemory.storageLimit": {
       "type": "string",

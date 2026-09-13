@@ -25,7 +25,7 @@ public sealed class QueryMemoryRetentionPlanTests
         Assert.Equal(1024, daily.MaxContentBytes);
         Assert.Equal(100, daily.MaxExecutionEvents);
         Assert.Equal(100, daily.MaxAutoRevisionsPerSession);
-        Assert.Equal(100, daily.MaxRevisionsPerSavedQuery);
+        Assert.Equal(100, daily.MaxRevisionsPerFavoriteQuery);
     }
 
     [Fact]
