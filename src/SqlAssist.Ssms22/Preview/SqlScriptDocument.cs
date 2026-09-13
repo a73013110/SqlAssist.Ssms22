@@ -1,4 +1,7 @@
+using System;
+using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Documents;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
@@ -32,6 +35,13 @@ internal enum ScriptResource
 /// </remarks>
 internal static class SqlScriptDocument
 {
+    private sealed class SourceSpan
+    {
+        public SourceSpan(int start, int length) { Start = start; Length = length; }
+        public int Start { get; }
+        public int Length { get; }
+    }
+    private static readonly ConditionalWeakTable<Inline, SourceSpan> SourceSpans = new();
     /// <summary>超過這個長度就不著色。</summary>
     /// <remarks>
     /// 著色要為每一個詞法單元建立一個 <see cref="Run"/>。幾千行的預存程序會產生
@@ -71,7 +81,7 @@ internal static class SqlScriptDocument
 
         if (script.Length > MaximumColorizedLength)
         {
-            Append(paragraph, script, ScriptResource.Foreground);
+            Append(paragraph, script, ScriptResource.Foreground, 0);
             document.Blocks.Add(paragraph);
             return document;
         }
@@ -82,16 +92,16 @@ internal static class SqlScriptDocument
         {
             if (token.Start > position)
             {
-                Append(paragraph, script.Substring(position, token.Start - position), ScriptResource.Foreground);
+                Append(paragraph, script.Substring(position, token.Start - position), ScriptResource.Foreground, position);
             }
 
-            Append(paragraph, token.Text, BrushFor(token));
+            Append(paragraph, token.Text, BrushFor(token), token.Start);
             position = token.End;
         }
 
         if (position < script.Length)
         {
-            Append(paragraph, script.Substring(position), ScriptResource.Foreground);
+            Append(paragraph, script.Substring(position), ScriptResource.Foreground, position);
         }
 
         document.Blocks.Add(paragraph);
@@ -129,7 +139,7 @@ internal static class SqlScriptDocument
     /// <remarks>
     /// <see cref="Run"/> 裡的換行字元不會斷行，整份指令碼會被排成一長行。
     /// </remarks>
-    private static void Append(Paragraph paragraph, string text, ScriptResource brush)
+    private static void Append(Paragraph paragraph, string text, ScriptResource brush, int sourceStart)
     {
         var start = 0;
 
@@ -150,24 +160,49 @@ internal static class SqlScriptDocument
 
             if (length > 0)
             {
-                AppendRun(paragraph, text.Substring(start, length), brush);
+                AppendRun(paragraph, text.Substring(start, length), brush, sourceStart + start);
             }
 
-            paragraph.Inlines.Add(new LineBreak());
+            var lineBreak = new LineBreak();
+            SourceSpans.Add(lineBreak, new SourceSpan(sourceStart + start + length, index - start - length + 1));
+            paragraph.Inlines.Add(lineBreak);
             start = index + 1;
         }
 
         if (start < text.Length)
         {
-            AppendRun(paragraph, text.Substring(start), brush);
+            AppendRun(paragraph, text.Substring(start), brush, sourceStart + start);
         }
     }
 
-    private static void AppendRun(Paragraph paragraph, string text, ScriptResource brush)
+    private static void AppendRun(Paragraph paragraph, string text, ScriptResource brush, int sourceStart)
     {
         var run = new Run(text);
+        SourceSpans.Add(run, new SourceSpan(sourceStart, text.Length));
         // Run 只記住分類，不保存 Brush；切換主題不改變文字、選取與捲動位置。
         run.SetResourceReference(TextElement.ForegroundProperty, brush);
         paragraph.Inlines.Add(run);
+    }
+
+    /// <summary>選取映射回原文，避免 TextRange.Text 將 LF 轉成 CRLF 或夾入段落結尾。</summary>
+    public static string ReadOriginalSelection(RichTextBox viewer, string original)
+    {
+        var start = OriginalOffset(viewer.Document, viewer.Selection.Start, original.Length);
+        var end = OriginalOffset(viewer.Document, viewer.Selection.End, original.Length);
+        return original.Substring(start, Math.Max(0, end - start));
+    }
+
+    private static int OriginalOffset(FlowDocument document, TextPointer pointer, int length)
+    {
+        if (document.Blocks.FirstBlock is not Paragraph paragraph) return 0;
+        foreach (var inline in paragraph.Inlines)
+        {
+            if (!SourceSpans.TryGetValue(inline, out var span)) continue;
+            if (pointer.CompareTo(inline.ContentStart) <= 0) return span.Start;
+            if (pointer.CompareTo(inline.ContentEnd) <= 0)
+                return inline is Run ? span.Start + Math.Min(span.Length, inline.ContentStart.GetOffsetToPosition(pointer)) : span.Start;
+            if (pointer.CompareTo(inline.ElementEnd) <= 0) return span.Start + span.Length;
+        }
+        return length;
     }
 }

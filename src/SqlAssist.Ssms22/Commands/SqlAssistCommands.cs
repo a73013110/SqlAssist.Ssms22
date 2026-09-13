@@ -82,6 +82,7 @@ internal sealed class SqlAssistCommands
 
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
+        AddCommand(CommandIds.ShowQueryMemory, (_, _) => QueryMemoryToolWindow.Show(_package));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
         AddCommand(CommandIds.ProbeQueryMemory, (_, _) => SqlAssistQueryMemoryCommand.Execute(_package),
             () => !SqlAssistQueryMemoryCommand.IsRunning,
@@ -541,10 +542,11 @@ internal sealed class SqlAssistCommands
         }
     }
 
-    private bool TryOpenSettings()
+    private bool TryOpenSettings() => TryOpenSettings(_package);
+
+    internal static bool TryOpenSettings(IServiceProvider serviceProvider)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        IServiceProvider serviceProvider = _package;
 
         if (serviceProvider.GetService(typeof(SVsUnifiedSettingsUiController))
             is not IVsUnifiedSettingsUiController2 controller)

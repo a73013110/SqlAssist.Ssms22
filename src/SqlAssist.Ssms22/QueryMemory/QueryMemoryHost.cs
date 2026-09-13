@@ -54,6 +54,46 @@ internal static class QueryMemoryHost
     private static int _ticking;
     private static bool _initialized;
     private static int _queueFullReported;
+    private static string _status = "查詢記憶尚未啟用；請在設定中啟用。";
+    private static long _generation;
+    public static string Status => Volatile.Read(ref _status);
+    public static long Generation => Interlocked.Read(ref _generation);
+    public static bool IsAvailable => IsCapturing && SqlAssistSettingsStore.Current.Enabled && SqlAssistSettingsStore.Current.QueryMemoryEnabled;
+
+    // UI 與維護持有同一道閘門；卸載不能越過仍在隔離 AppDomain 內的呼叫。
+    private static Task<T> UseAsync<T>(Func<IsolatedQueryMemoryRepository, CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        var expected = Volatile.Read(ref _state);
+        return Task.Run(async () =>
+        {
+            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var settings = SqlAssistSettingsStore.Current;
+                if (!settings.Enabled || !settings.QueryMemoryEnabled || _state is not { } state)
+                    throw new InvalidOperationException(Status);
+                if (!ReferenceEquals(expected?.Repository, state.Repository))
+                    throw new InvalidOperationException("查詢記憶已重新開啟；請重新整理後再操作。");
+                return await operation(state.Repository, cancellationToken).ConfigureAwait(false);
+            }
+            finally { Gate.Release(); }
+        }, cancellationToken);
+    }
+
+    // 對視窗只提供 Core DTO，repository 不會逃離持有閘門的操作範圍。
+    public static Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.ReadHistoryAsync(request, ct), token);
+    public static Task<QueryMemoryPage<SavedQueryEntry>> ReadSavedQueriesAsync(SavedQueryRequest request, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.ReadSavedQueriesAsync(request, ct), token);
+    public static Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.ReadContentAsync(contentId, ct), token);
+    public static Task<SavedQueryWriteResult> WriteSavedQueryAsync(SavedQueryWrite write, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.WriteSavedQueryAsync(write, ct), token);
+    public static Task<SavedQueryWriteResult> EditSavedQuerySqlAsync(SavedQueryEdit edit, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.EditSavedQuerySqlAsync(edit, ct), token);
+    public static Task<SavedQueryWriteResult> DeleteSavedQueryAsync(Guid id, Guid version, CancellationToken token) =>
+        UseAsync((repository, ct) => repository.DeleteSavedQueryAsync(id, version, ct), token);
 
     /// <summary>目前是否真的在擷取；沒有接上儲存時一律 false，呼叫端不必自己判斷設定。</summary>
     public static bool IsCapturing => Volatile.Read(ref _state) is not null;
@@ -126,13 +166,8 @@ internal static class QueryMemoryHost
     }
 
     /// <summary>設定頁的手動整理；重建整個資料庫，時間隨資料量成長，不進背景排程。</summary>
-    public static async Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken)
-    {
-        var state = Volatile.Read(ref _state)
-            ?? throw new InvalidOperationException("查詢記憶尚未啟用，沒有可以整理的資料庫。");
-
-        return await state.Repository.CompactAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public static Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
+        UseAsync((repository, token) => repository.CompactAsync(token), cancellationToken);
 
     private static void OnSettingsChanged(object? sender, EventArgs eventArgs) => Apply();
 
@@ -141,6 +176,7 @@ internal static class QueryMemoryHost
     {
         var settings = SqlAssistSettingsStore.Current;
         var wanted = settings.Enabled && settings.QueryMemoryEnabled;
+        _status = wanted ? "正在開啟查詢記憶…" : "查詢記憶已停用；請在設定中啟用。";
 
         // 走 Begin 而不是 BeginProbe：開不起來就是使用者打開了設定卻什麼都沒記到，
         // 那要看得見，不是可有可無的探測。開檔與建立 AppDomain 都在這條背景路徑上。
@@ -168,6 +204,7 @@ internal static class QueryMemoryHost
             {
                 // 儲存庫不必重開；只換政策、排程與保留分級，游標跟著整條分級重來。
                 _state = existing.With(settings, owner);
+                _status = "";
                 return;
             }
 
@@ -180,6 +217,8 @@ internal static class QueryMemoryHost
                 var state = State.Create(repository, settings, owner);
                 ObserveWriter(state);
                 _state = state;
+                Interlocked.Increment(ref _generation);
+                _status = "";
                 SqlAssistDiagnostics.WriteAlways("查詢記憶已啟用；擷取與背景整理開始運作。");
             }
             catch
@@ -189,10 +228,16 @@ internal static class QueryMemoryHost
             }
         }
         catch (OperationCanceledException) { }
+        catch (Exception error)
+        {
+            // 狀態供工具窗顯示，例外仍交給既有啟用通知，不把失敗當成空清單。
+            _status = "無法開啟查詢記憶：" + error.Message;
+            throw;
+        }
         finally { Gate.Release(); }
     }
 
-    private static async Task CloseAsync()
+    private static async Task CloseAsync(State? failed = null)
     {
         await Gate.WaitAsync().ConfigureAwait(false);
         State? state;
@@ -200,29 +245,32 @@ internal static class QueryMemoryHost
         try
         {
             state = _state;
+            if (failed is not null && !ReferenceEquals(state?.Writer, failed.Writer)) return;
+            if (failed is not null) _status = "查詢記憶寫入失敗，已停止擷取；請檢查診斷後重新啟用。";
             _state = null;
+            Interlocked.Increment(ref _generation);
+            if (state is null) return;
+            try
+            {
+                // 排空之後才卸載：已接受的擷取必須先完成交易。
+                await state.Writer.CompleteAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                SqlAssistDiagnostics.WriteAlways($"查詢記憶排空時失敗：{error.Message}");
+            }
+
+            await Task.Run(() => state.Repository.Dispose()).ConfigureAwait(false);
+            SqlAssistDiagnostics.WriteAlways("查詢記憶已停用；儲存已釋放。");
         }
         finally { Gate.Release(); }
-
-        if (state is null) return;
-
-        try
-        {
-            // 排空之後才卸載：還在佇列裡的擷取不能宣稱已保存，也不能在卸載後才送進去。
-            await state.Writer.CompleteAsync().ConfigureAwait(false);
-        }
-        catch (Exception error)
-        {
-            SqlAssistDiagnostics.WriteAlways($"查詢記憶排空時失敗：{error.Message}");
-        }
-
-        state.Repository.Dispose();
-        SqlAssistDiagnostics.WriteAlways("查詢記憶已停用；儲存已釋放。");
     }
 
     private static async Task TickAsync()
     {
         if (Interlocked.CompareExchange(ref _ticking, 1, 0) != 0) return;
+
+        await Gate.WaitAsync().ConfigureAwait(false);
 
         try
         {
@@ -255,7 +303,7 @@ internal static class QueryMemoryHost
             // 維護失敗不讓擷取跟著停：下一輪重跑同一個游標即可。
             SqlAssistDiagnostics.WriteAlways($"查詢記憶維護失敗：{error.Message}");
         }
-        finally { Interlocked.Exchange(ref _ticking, 0); }
+        finally { Gate.Release(); Interlocked.Exchange(ref _ticking, 0); }
     }
 
     /// <summary>寫入器 fault 之後不再接收；宿主必須察覺並停用，不能把排空當成保存成功。</summary>
@@ -265,13 +313,16 @@ internal static class QueryMemoryHost
             if (!completion.IsFaulted) return;
             SqlAssistDiagnostics.WriteAlways(
                 $"查詢記憶背景寫入器已停止：{completion.Exception?.GetBaseException().Message}");
-            _ = CloseAsync();
+            SqlAssistPlatformGuard.Begin("釋放失敗的查詢記憶寫入器", () => CloseAsync(state),
+                NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info, document: string.Empty);
         },
         TaskScheduler.Default);
 
     private static void ReportRejected(QueryMemoryEnqueueResult result)
     {
         SqlAssistDiagnostics.WriteAlways("查詢記憶拒絕擷取：" + result);
+        _status = result == QueryMemoryEnqueueResult.SnapshotTooLarge
+            ? "這份 SQL 太大，本次未記錄。" : "查詢記憶佇列已滿，本次未記錄。";
 
         // 佇列滿是一連串的，狀態列只寫第一次；快照太大每次都值得說，那是使用者改得動的事。
         if (result == QueryMemoryEnqueueResult.QueueFull &&

@@ -91,6 +91,10 @@ function Test-Placement {
 }
 
 foreach ($menu in $vsct.SelectNodes('//ct:Menus/ct:Menu', $ns)) {
+    # Toolbar 是殼層根表面，不是子選單；VSCT 官方契約不要求 Parent。
+    if ($menu.type -eq 'Toolbar' -and $null -eq $menu.SelectSingleNode('ct:Parent', $ns)) {
+        continue
+    }
     Test-Placement -Node $menu -Kind 'Menu' -ExpectedParentKind 'Group' -OwnIdsOfExpectedKind $ownGroupIds
 }
 

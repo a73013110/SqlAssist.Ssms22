@@ -7,7 +7,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 
 程式位於 `src/SqlAssist.Core/QueryMemory/`，測試鏡像於 `tests/SqlAssist.Core.Tests/QueryMemory/`。
 已加入 [SQLite 儲存與隔離載入](query-memory-storage.md)，以及由設定驅動的
-[擷取接線與維護排程](query-memory-capture.md)；整組預設關閉，還沒有 UI。
+[擷取接線與維護排程](query-memory-capture.md)；整組預設關閉，[UI v1](query-memory-ui.md)已接線、待實機驗證。
 
 - `QueryDocument` 不綁連線；`QuerySession` 區隔每次編輯器生命週期。
 - `QueryContent` 精確雜湊 UTF-16LE code units；內容位址含演算法前綴。不正規化空白、
@@ -17,7 +17,7 @@ SQL History、Draft Recovery 與 Saved Queries 共用內容儲存，但保持各
 - Execution 獨立於 Revision。相同完整 SQL 或連續相同選取 SQL 重用版本；連線以執行
   當下為準。選取版本不改文件 head，也不覆蓋整份文件的 Recovery。
 - `QueryMemoryPolicy` 是宿主設定的不可變輸入；未把容量與保留天數預設寫死在 Domain。
-- `SavedQuery` 已有 [CRUD／scope、搜尋、SQL 編輯與引用保護](query-memory-saved.md)；UI 保存流程尚未實作。
+- `SavedQuery` 已有 [CRUD／scope、搜尋、SQL 編輯與引用保護](query-memory-saved.md)，UI 保存流程見 [UI](query-memory-ui.md)。
 
 ## 儲存層必須履行的契約
 
@@ -59,6 +59,5 @@ SSMS 快照可能另保留編輯器內部資料。
    期限清理、筆數配額與容量量測已具備；設定驅動排程與實體整理仍待後續批次。
 4. **SSMS 擷取**：Session tracker、可調 idle debounce、Execute 訊號與選取範圍、
    Close／卸載 flush 與連線快照已接上，預設關閉且尚未實機驗證。
-5. **UI**：設定已提供啟用開關與保留值，見[設定與擷取](query-memory-capture.md)；
-   History／Saved Queries、分頁虛擬化列表、延遲全文預覽、恢復與開新 Query 仍未實作。
-   預覽重用既有 SQL viewer／Chrome，不另造通用視窗框架。
+5. **UI**：History／Saved Queries、分頁虛擬化列表、延遲全文預覽、開新 Query 與收藏編輯
+   已接線，見 [UI](query-memory-ui.md)；Recovery 不直接收藏，版本瀏覽／還原仍未實作。
