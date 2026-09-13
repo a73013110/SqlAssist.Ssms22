@@ -21,6 +21,7 @@
 | 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
 | Query Memory | [核心](query-memory.md)／[儲存](query-memory-storage.md)／[Saved](query-memory-saved.md)／[設定](query-memory-capture.md)／[實測](query-memory-validation.md)／[接續](query-memory-handoff.md) |
 | Query Memory retention／容量／清理 | [維護](query-memory-maintenance.md)／[維護驗收](query-memory-maintenance-validation.md) |
+| Query Memory toolbar／清單／收藏編輯 | [UI](query-memory-ui.md) |
 | 建議清單、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |

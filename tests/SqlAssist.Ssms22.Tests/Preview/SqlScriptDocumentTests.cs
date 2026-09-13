@@ -11,6 +11,35 @@ namespace SqlAssist.Ssms22.Tests.Preview;
 
 public sealed class SqlScriptDocumentTests
 {
+    [Theory]
+    [InlineData("SELECT 1;\nSELECT 2;\r\n\tSELECT 3;\n")]
+    [InlineData("SELECT 1;\rSELECT 2;")]
+    [InlineData("SELECT N'圖書館';\0 ")]
+    [InlineData("")]
+    public void CopyWholeSelectionPreservesExactOriginal(string sql)
+    {
+        WpfTest.Run(() =>
+        {
+            var viewer = new RichTextBox { Document = SqlScriptDocument.Build(sql, CreateResources()) };
+            viewer.SelectAll();
+            Assert.Equal(sql, SqlScriptDocument.ReadOriginalSelection(viewer, sql));
+        });
+    }
+
+    [Fact]
+    public void CopyAcrossRunsAndLineBreakPreservesOriginalNewline()
+    {
+        WpfTest.Run(() =>
+        {
+            const string sql = "SELECT 1;\nSELECT 2;";
+            var viewer = new RichTextBox { Document = SqlScriptDocument.Build(sql, CreateResources()) };
+            var paragraph = Assert.IsType<Paragraph>(viewer.Document.Blocks.FirstBlock);
+            var runs = paragraph.Inlines.OfType<Run>().ToArray();
+            viewer.Selection.Select(runs[0].ContentStart.GetPositionAtOffset(2), runs.Last().ContentEnd);
+            Assert.Equal(sql.Substring(2), SqlScriptDocument.ReadOriginalSelection(viewer, sql));
+        });
+    }
+
     [Fact]
     public void UpdatingColorsPreservesDocumentRunsTextAndSelection()
     {

@@ -30,9 +30,9 @@
 | `df95ab8` | B2b-2：保留分級、心跳租約與 Recovery 回收、排程節奏、checkpoint 與 VACUUM |
 | `07d70ae` | C：設定提供保留值、宿主排程與心跳接線、SSMS 擷取事件（預設關閉） |
 
-最近完整測試 2987 項通過（C 批新增 47 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
+UI v1 完整測試 3003 項通過（較 C 批新增 16 項）；封裝與未驗項目見[驗收](query-memory-validation.md)及[維護驗收](query-memory-maintenance-validation.md)。
 A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能當成 B1 已部署或實機通過。
-這不是整個功能完成：擷取與維護已接線但預設關閉、未實機驗證，History／Saved UI 仍未實作。
+擷取與維護預設關閉、未實機驗證；UI v1 已實作，驗收邊界見 [UI](query-memory-ui.md)。
 
 ## A 批已完成
 
@@ -91,11 +91,11 @@ A 批曾在真實安裝目錄驗證 11 個檔案並清除兩份快取；不能�
 
 實機驗收本批：本批動到註冊檔與命令表，**必須 Install**。步驟與待驗清單見[驗收](query-memory-validation.md)。
 
-## UI 由外部實作
+## UI v1 已接線
 
-History／Saved UI 不在本倉庫排程內，由使用者另行指派；本倉庫仍須維持可對接的契約，不得放寬：
-repository 的上限與 opaque keyset 游標、240 字元列表預覽與延遲全文、Saved scope 不合併父層。
-接線與自製視窗另受[平台](rules-platform.md)與 [UI 準則](ui-guidelines.md)約束，不另造通用視窗框架。
+使用者已指派實作 toolbar、清單工具窗、獨立 SQL 預覽及收藏編輯；操作與共用邊界見
+[UI](query-memory-ui.md)。本批未改 repository 契約或 schema，版本清單與還原仍不包含。
+命令表版號 23 與 Tool Window 註冊必須 Install；WPF 元件渲染不代表 SSMS 實機通過。
 
 ## 每批最低交付
 

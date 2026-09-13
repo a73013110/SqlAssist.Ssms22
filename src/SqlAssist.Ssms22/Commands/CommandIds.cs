@@ -58,6 +58,7 @@ internal static class CommandIds
     /// </summary>
     /// <remarks>完整 VACUUM 只由使用者按；背景排程只做 WAL 截斷。</remarks>
     public const int CompactQueryMemory = 0x020D;
+    public const int ShowQueryMemory = 0x020E;
 
     public const int PickBlockAccent = 0x0210;
     public const int PickBlockKeywordForeground = 0x0211;

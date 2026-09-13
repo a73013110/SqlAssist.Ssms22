@@ -5,6 +5,9 @@
 
   <Commands package="guidSqlAssistPackage">
     <Groups>
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" priority="0x0100">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbar" />
+      </Group>
       <!-- 只放「編輯到一半會想按」的東西；設定一次就不再碰的偏好只留在設定頁。 -->
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" priority="0x0100">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
@@ -78,6 +81,10 @@
     </Groups>
 
     <Menus>
+      <Menu guid="guidSqlAssistCommandSet" id="SqlAssistToolbar" priority="0x0100" type="Toolbar">
+        <CommandFlag>DefaultDocked</CommandFlag>
+        <Strings><ButtonText>SqlAssist</ButtonText><CommandName>SqlAssist Toolbar</CommandName></Strings>
+      </Menu>
       <!--
         VSCT 的階層是 Menu → Group → Menu／Button，中間不能跳層。
         子選單的 Parent 必須是一個 Group（IDG_*），不能是 Menu（IDM_*）。
@@ -108,6 +115,11 @@
       元素才算數；`tools/Test-CommandTable.ps1` 也會擋下缺漏與寫錯的元素名稱。
     -->
     <Buttons>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0080" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <CommandFlag>TextOnly</CommandFlag>
+        <Strings><ButtonText>查詢記憶</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>瀏覽 SQL 歷史與收藏</ToolTipText></Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
         <CommandFlag>TextChanges</CommandFlag>
@@ -346,6 +358,9 @@
     而兩份實作分岔的症狀是其中一個入口安靜地停在舊行為。
   -->
   <CommandPlacements>
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0100">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
+    </CommandPlacement>
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
     </CommandPlacement>
@@ -411,6 +426,9 @@
     <GuidSymbol name="guidSqlAssistPackage" value="{b386e18d-f34b-4db4-a40d-b9092a31d89f}" />
     <GuidSymbol name="guidSqlAssistCommandSet" value="{4a188946-9364-4f07-af7e-97f3bd7ca7a7}">
       <IDSymbol name="SqlAssistMenu" value="0x1000" />
+      <IDSymbol name="cmdidShowQueryMemory" value="0x020E" />
+      <IDSymbol name="SqlAssistToolbar" value="0x1800" />
+      <IDSymbol name="SqlAssistToolbarGroup" value="0x1801" />
       <IDSymbol name="SqlAssistToggleGroup" value="0x1100" />
       <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />

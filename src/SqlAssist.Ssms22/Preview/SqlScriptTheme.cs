@@ -13,14 +13,14 @@ namespace SqlAssist.Ssms22.Preview;
 internal sealed class SqlScriptTheme : IDisposable
 {
     private static readonly FontFamily FallbackFont = new("Consolas");
-    private readonly IWpfTextView _view;
+    private IWpfTextView? _view;
     private readonly RichTextBox _host;
     private IClassificationFormatMap? _formatMap;
     private volatile bool _dirty = true;
     private volatile bool _disposed;
     private readonly ThemeRefreshQueue _refreshQueue;
 
-    public SqlScriptTheme(IWpfTextView view, RichTextBox host)
+    public SqlScriptTheme(IWpfTextView? view, RichTextBox host)
     {
         _view = view;
         _host = host;
@@ -38,7 +38,17 @@ internal sealed class SqlScriptTheme : IDisposable
         host.SetResourceReference(Control.ForegroundProperty, ScriptResource.Foreground);
         host.IsVisibleChanged += OnVisibilityChanged;
         VsThemeBrushes.Changed += OnAppearanceChanged;
-        view.BackgroundBrushChanged += OnAppearanceChanged;
+        if (view is not null) view.BackgroundBrushChanged += OnAppearanceChanged;
+    }
+
+    public void SetView(IWpfTextView? view)
+    {
+        if (_disposed || ReferenceEquals(_view, view)) return;
+        if (_view is not null) _view.BackgroundBrushChanged -= OnAppearanceChanged;
+        _view = view;
+        if (view is not null) view.BackgroundBrushChanged += OnAppearanceChanged;
+        _dirty = true;
+        EnsureCurrent();
     }
 
     public ResourceDictionary Resources { get; } = new();
@@ -46,7 +56,7 @@ internal sealed class SqlScriptTheme : IDisposable
     public void EnsureCurrent()
     {
         _host.Dispatcher.VerifyAccess();
-        if (_disposed || _view.IsClosed || (!_dirty && _formatMap is not null))
+        if (_disposed || (!_dirty && (_formatMap is not null || _view is null)))
         {
             return;
         }
@@ -57,7 +67,7 @@ internal sealed class SqlScriptTheme : IDisposable
 
     private void Refresh()
     {
-        var font = FallbackFont;
+        var font = _view is null ? SqlAssistChrome.CodeFont : FallbackFont;
         var fontSize = 12.5;
         var background = VsThemeBrushes.Get(ThemeBrush.ListBackground);
         var foreground = VsThemeBrushes.Get(ThemeBrush.ListForeground);
@@ -69,7 +79,8 @@ internal sealed class SqlScriptTheme : IDisposable
         SqlAssistPlatformGuard.Probe("解析 SQL 編輯器外觀", () =>
         {
             var services = SqlPreviewServices.Current;
-            var map = services?.TryGetTextFormatMap(_view);
+            var view = _view is { IsClosed: false } ? _view : null;
+            var map = view is null ? null : services?.TryGetTextFormatMap(view);
             if (!ReferenceEquals(map, _formatMap))
             {
                 if (_formatMap is not null)
@@ -84,7 +95,7 @@ internal sealed class SqlScriptTheme : IDisposable
                 }
             }
 
-            if (map is null || services is null)
+            if (map is null || services is null || view is null)
             {
                 return;
             }
@@ -105,7 +116,7 @@ internal sealed class SqlScriptTheme : IDisposable
                 // 分類色必須搭配同一個編輯器的底色，不能把 SQL 前景放到 Tooltip 底色上。
                 if (!defaults.ForegroundBrushEmpty &&
                     defaults.ForegroundBrush is SolidColorBrush editorForeground &&
-                    _view.Background is SolidColorBrush editorBackground &&
+                    view.Background is SolidColorBrush editorBackground &&
                     ThemeColorMath.Contrast(editorForeground.Color, editorBackground.Color) >= 4.5)
                 {
                     background = editorBackground;
@@ -204,7 +215,7 @@ internal sealed class SqlScriptTheme : IDisposable
         _disposed = true;
         _refreshQueue.Dispose();
         VsThemeBrushes.Changed -= OnAppearanceChanged;
-        _view.BackgroundBrushChanged -= OnAppearanceChanged;
+        if (_view is not null) _view.BackgroundBrushChanged -= OnAppearanceChanged;
         _host.IsVisibleChanged -= OnVisibilityChanged;
         if (_formatMap is not null)
         {

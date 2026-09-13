@@ -16,7 +16,8 @@ public enum SqlAssistActivityKind
     ExecuteExpanded,
     FunctionCallExpanded,
     DefinitionOpened,
-    ResultGridScripted
+    ResultGridScripted,
+    QueryMemoryOpened
 }
 
 /// <summary>最近一次可辨識的 SqlAssist 動作。</summary>
