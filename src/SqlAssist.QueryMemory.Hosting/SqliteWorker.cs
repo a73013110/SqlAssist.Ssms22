@@ -28,7 +28,9 @@ public sealed class SqliteWorker : MarshalByRefObject
 
     public override object? InitializeLifetimeService() => null;
 
-    public void Initialize(string path, string? ssmsIdeDirectory, int busyTimeoutSeconds)
+    /// <param name="searchCandidates">null 用預設搜尋預算；只有測試會指定，兩者必須同時給。</param>
+    /// <param name="searchBytes">搜尋預算的 SQL 位元組上限。</param>
+    public void Initialize(string path, string? ssmsIdeDirectory, int busyTimeoutSeconds, int? searchCandidates = null, long? searchBytes = null)
     {
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -44,16 +46,19 @@ public sealed class SqliteWorker : MarshalByRefObject
             }
             return null;
         };
-        InitializeStorage(path, busyTimeoutSeconds);
+        InitializeStorage(path, busyTimeoutSeconds, searchCandidates, searchBytes);
         Probe();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void InitializeStorage(string path, int busyTimeoutSeconds)
+    private void InitializeStorage(string path, int busyTimeoutSeconds, int? searchCandidates, long? searchBytes)
     {
         Run(() =>
         {
-            _repository = SqliteQueryMemoryRepository.Open(path, CancellationToken.None, busyTimeoutSeconds);
+            _repository = SqliteQueryMemoryRepository.Open(path, CancellationToken.None, busyTimeoutSeconds,
+                searchCandidates.HasValue || searchBytes.HasValue
+                    ? new SqliteSearchBudget(searchCandidates ?? SqliteSearchBudget.Default.Candidates, searchBytes ?? SqliteSearchBudget.Default.Bytes)
+                    : null);
             _databasePath = path;
             return true;
         });

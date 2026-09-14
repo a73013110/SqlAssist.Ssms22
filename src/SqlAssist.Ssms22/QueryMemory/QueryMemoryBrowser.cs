@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,6 +47,8 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
     private bool _available;
     private bool _disposed;
     private DateTimeOffset? _since;
+    /// <summary>上一頁因搜尋預算提早結束時的進度說明；null 表示游標是一般的「載入更多」。</summary>
+    private string? _searchProgress;
     private Guid? _restoreId;
     private long _hostGeneration;
     private bool _opening;
@@ -249,7 +252,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
     {
         _searchTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
-        _state.Reset(); _rows.Clear(); _detail.Select(null); UpdateActions();
+        _state.Reset(); _rows.Clear(); _detail.Select(null); _searchProgress = null; UpdateActions();
         // 時間也是游標指紋的一部分；同一次分頁不能每頁重新計算「最近七天」。
         _since = _period.SelectedIndex switch
         {
@@ -302,6 +305,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
             var database = _database.Value;
             QueryMemoryRow[] rows;
             string? cursor;
+            string? progress;
             if (IsFavorites)
             {
                 var scope = (FavoriteQueryScope)_scope.SelectedIndex;
@@ -314,6 +318,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
                     scope == FavoriteQueryScope.Database ? database : null, search, _state.Cursor);
                 var page = await QueryMemoryHost.ReadFavoriteQueriesAsync(request, token);
                 rows = page.Items.Select(item => new QueryMemoryRow(item)).ToArray(); cursor = page.NextCursor;
+                progress = page.IsSearchPartial ? "已搜尋部分收藏" : null;
             }
             else
             {
@@ -321,15 +326,20 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
                     server, database, _since, cursor: _state.Cursor);
                 var page = await QueryMemoryHost.ReadHistoryAsync(request, token);
                 rows = page.Items.Select(item => new QueryMemoryRow(item)).ToArray(); cursor = page.NextCursor;
+                progress = !page.IsSearchPartial ? null : page.SearchedThrough is { } through
+                    ? "已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) : "已搜尋部分紀錄";
             }
             if (token.IsCancellationRequested || !QueryMemoryHost.IsAvailable || hostGeneration != QueryMemoryHost.Generation ||
                 !_state.Accept(generation, cursor)) return;
+            _searchProgress = progress;
             foreach (var row in rows) _rows.Add(row);
             if (_restoreId is { } restore && _rows.FirstOrDefault(row => row.Id == restore) is { } selected)
                 _list.SelectedItem = selected;
             _restoreId = null;
             if (_list.SelectedItem is null && _rows.Count > 0) _list.SelectedIndex = 0;
-            Report(_rows.Count == 0 ? "沒有符合條件的項目。可清除搜尋或放寬期間與範圍。" : "");
+            // 搜尋每頁只檢查有限的候選；提早結束不是「沒有結果」，交給使用者決定是否繼續往前找。
+            Report(progress is not null ? progress + "，繼續搜尋可再往前找。" :
+                _rows.Count == 0 ? "沒有符合條件的項目。可清除搜尋或放寬期間與範圍。" : "");
         }
         catch (Exception error)
         {
@@ -375,6 +385,7 @@ internal sealed class QueryMemoryBrowser : UserControl, IDisposable
     private void UpdateActions()
     {
         _more.IsEnabled = _available && !_state.Loading && _state.Cursor is not null;
+        _more.Content = _searchProgress is null ? "載入更多" : "繼續搜尋";
         _connection.IsEnabled = _available;
         _count.Text = $"已載入 {_rows.Count} 筆";
     }

@@ -9,5 +9,6 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <ProjectReference Include="..\SqlAssist.QueryMemory.Sqlite\SqlAssist.QueryMemory.Sqlite.csproj" />
     <Content Include="QueryMemory.Sqlite.config" CopyToOutputDirectory="PreserveNewest" />
+    <InternalsVisibleTo Include="SqlAssist.QueryMemory.Sqlite.Tests" />
   </ItemGroup>
 </Project>

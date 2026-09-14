@@ -289,20 +289,57 @@ public sealed class SqliteFavoriteQueryTests
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
         connection.Open();
         using var command = connection.CreateCommand();
-        // 搜尋只是 keyset 之上的篩選；加了它仍不得退回全表掃描或暫存排序。
-        connection.CreateFunction<byte[], bool>("qm_matches", _ => true);
-        foreach (var filter in new[] { "", @" AND (instr(s.Name,'報表')>0 OR instr(s.Description,'報表')>0 OR qm_matches(c.SqlBytes))" })
+        // 搜尋在讀取端逐列比對；候選查詢仍不得退回全表掃描或暫存排序，否則預算限制不了讀入的 BLOB。
+        foreach (var (after, includeSql) in new[] { (false, false), (true, false), (false, true), (true, true) })
         {
-            command.CommandText = @"EXPLAIN QUERY PLAN SELECT s.FavoriteQueryId FROM FavoriteQueries s
-JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId
-WHERE s.Scope=2 AND s.Server IS 'LibraryServer' AND s.DatabaseName IS 'Library' AND s.FavoriteQueryId < 'f'" +
-                filter + " ORDER BY s.FavoriteQueryId DESC LIMIT 20;";
+            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteQueryMemoryRepository.FavoritePageSql(after, includeSql);
+            command.Parameters.Clear();
+            foreach (var (name, value) in new (string, object)[] { ("$scope", 2), ("$server", "LibraryServer"),
+                ("$database", "Library"), ("$after", "f"), ("$limit", 20) })
+                command.Parameters.AddWithValue(name, value);
             using var reader = command.ExecuteReader();
             var plan = new List<string>();
             while (reader.Read()) plan.Add(reader.GetString(3));
             Assert.Contains(plan, line => line.Contains("IX_FavoriteQueries_ScopeId"));
             Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE"));
         }
+    }
+
+    [Fact]
+    public async Task SearchScanBudgetEndsPagesEarlyAndResumesWithoutGapsOrDuplicates()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, searchBudget: new SqliteSearchBudget(3, long.MaxValue));
+        var query = await CreateQuery(store, repository);
+        var matching = new List<string>();
+        for (var i = 0; i < 12; i++)
+        {
+            var id = Guid.NewGuid();
+            // 名稱與說明各命中一部分，其餘只有 SQL 以外的文字，逼讀取端把預算花在不命中的列上。
+            var name = i % 5 == 0 ? "借閱報表 " + i : "其他 " + i;
+            var description = i % 7 == 3 ? "含借閱報表說明" : null;
+            if (name.Contains("借閱報表") || description != null) matching.Add(id.ToString("N"));
+            await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query with { FavoriteQueryId = id,
+                Name = name, Description = description }), Token);
+        }
+        var actual = new List<string>();
+        string? cursor = null;
+        var pages = 0;
+        var partial = 0;
+        do
+        {
+            var page = await repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(2, search: "借閱報表", cursor: cursor), Token);
+            pages++;
+            Assert.InRange(page.Items.Count, 0, 2);
+            Assert.Null(page.SearchedThrough);
+            if (page.IsSearchPartial) { partial++; Assert.NotNull(page.NextCursor); }
+            actual.AddRange(page.Items.Select(item => item.Query.FavoriteQueryId.ToString("N")));
+            cursor = page.NextCursor;
+        } while (cursor != null);
+        Assert.Equal(matching.OrderByDescending(id => id, StringComparer.Ordinal), actual);
+        // 每頁至多檢查 3 筆：12 筆收藏至少要 4 頁，且一定有頁因預算而提早結束。
+        Assert.True(pages >= 4, pages.ToString());
+        Assert.True(partial > 0);
     }
 
     private const string EditedSql = "SELECT * FROM Lib_Tag WHERE TagId=1;";

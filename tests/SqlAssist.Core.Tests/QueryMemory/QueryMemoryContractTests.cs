@@ -22,6 +22,11 @@ public sealed class QueryMemoryContractTests
         items.Add(2);
         Assert.Single(page.Items);
         Assert.Equal("opaque", page.NextCursor);
+        Assert.False(page.IsSearchPartial);
+        var partial = new QueryMemoryPage<int>(Array.Empty<int>(), "opaque", Start);
+        Assert.True(partial.IsSearchPartial);
+        Assert.Equal(Start, partial.SearchedThrough);
+        Assert.Throws<ArgumentNullException>(() => new QueryMemoryPage<int>(items, null!, Start));
         var request = new QueryHistoryRequest(50, QueryHistoryKind.Executed, "Loan", "LibraryServer", "Library", Start, Start.AddDays(1), "opaque");
         Assert.Equal("Library", request.Database);
         Assert.Equal("opaque", request.Cursor);

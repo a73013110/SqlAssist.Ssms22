@@ -1,8 +1,6 @@
-using System.Collections.Generic;
+using System;
 using System.Globalization;
-using System.Text;
 using System.Threading;
-using Microsoft.Data.Sqlite;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
@@ -38,41 +36,72 @@ internal sealed class SqliteTextMatcher
     }
 }
 
-/// <summary>History 與 Favorite 共用同一個字面搜尋條件，語意不隨呼叫端分岔。</summary>
-internal sealed class SqliteSearchFilter
+/// <summary>單頁搜尋最多檢查的候選列數與 SQL BLOB 位元組數；兩者先到者為準。</summary>
+internal sealed class SqliteSearchBudget
 {
-    private const string Function = "qm_matches";
-    private readonly SqliteTextMatcher _matcher;
-    private readonly string _term;
+    public static readonly SqliteSearchBudget Default = new(2000, 16L * 1024 * 1024);
 
-    private SqliteSearchFilter(string term)
+    public SqliteSearchBudget(int candidates, long bytes)
     {
-        _term = term;
-        _matcher = new SqliteTextMatcher(term);
+        // 候選查詢多讀一列判斷是否還有下一頁，上限因此留一格給 +1。
+        if (candidates < 1 || candidates == int.MaxValue) throw new ArgumentOutOfRangeException(nameof(candidates));
+        if (bytes < 1) throw new ArgumentOutOfRangeException(nameof(bytes));
+        Candidates = candidates;
+        Bytes = bytes;
     }
 
-    public static SqliteSearchFilter? Create(string? search) =>
-        string.IsNullOrEmpty(search) ? null : new SqliteSearchFilter(search!);
+    public int Candidates { get; }
+    public long Bytes { get; }
+}
+
+/// <summary>
+/// History 與 Favorite 共用的字面搜尋；比對在讀取迴圈內逐列進行，而不是當成 SQL 的 WHERE 條件。
+/// </summary>
+/// <remarks>
+/// 放在 WHERE 裡（原本的 <c>qm_matches</c> scalar function）時 SQLite 會一路掃到湊滿 LIMIT 或掃完整表，
+/// 命中很少的搜尋沒有延遲上界，呼叫端也拿不到「掃到哪裡」來續頁。改由讀取端計數後，
+/// 預算用盡就以最後檢查過的鍵產生游標；成本相同（UDF 本來也要把 BLOB 複製成 byte[]）。
+/// 候選查詢必須沿索引串流、不能有暫存排序，否則第一列出來前就已讀完所有 BLOB，預算形同虛設。
+/// </remarks>
+internal sealed class SqliteSearchScan
+{
+    private readonly SqliteTextMatcher _matcher;
+    private readonly SqliteSearchBudget _budget;
+    private readonly CancellationToken _cancellationToken;
+    private int _candidates;
+    private long _bytes;
+
+    private SqliteSearchScan(string term, SqliteSearchBudget budget, CancellationToken cancellationToken)
+    {
+        Term = term;
+        _matcher = new SqliteTextMatcher(term);
+        _budget = budget;
+        _cancellationToken = cancellationToken;
+    }
+
+    public static SqliteSearchScan? Create(string? search, SqliteSearchBudget budget, CancellationToken cancellationToken) =>
+        string.IsNullOrEmpty(search) ? null : new SqliteSearchScan(search!, budget, cancellationToken);
+
+    public string Term { get; }
+
+    /// <summary>候選查詢的 LIMIT：多一列用來分辨「預算用盡但還有候選」與「剛好掃完」。</summary>
+    public int CandidateLimit => _budget.Candidates + 1;
+
+    public bool IsExhausted => _candidates >= _budget.Candidates || _bytes >= _budget.Bytes;
 
     /// <summary>
-    /// 已索引的 TEXT 欄位排在 BLOB 掃描之前，靠 OR 短路擋掉多數候選，不必每列解出完整 SQL。
-    /// TEXT 走 SQLite 的 UTF-8 位元組比對、BLOB 走 UTF-16 code unit 比對；兩者對有效文字結果一致。
+    /// 文字欄位在 C# 以 ordinal 比對，與 BLOB 的 UTF-16 code unit 語意一致；
+    /// SQLite 的 instr 會先把參數轉 UTF-8，未配對 surrogate 會變成 U+FFFD 而誤判命中。
     /// </summary>
-    public string Apply(SqliteConnection connection, List<(string, object?)> parameters, string blobColumn,
-        CancellationToken cancellationToken, params string[] textColumns)
+    public bool Matches(byte[] sql, params string?[] texts)
     {
-        connection.CreateFunction<byte[], bool>(Function, bytes =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            return _matcher.Matches(bytes);
-        });
-        var condition = new StringBuilder("(");
-        if (textColumns.Length != 0)
-        {
-            parameters.Add(("$search", _term));
-            foreach (var column in textColumns) condition.Append("instr(").Append(column).Append(",$search)>0 OR ");
-        }
-        return condition.Append(Function).Append('(').Append(blobColumn).Append("))").ToString();
+        _cancellationToken.ThrowIfCancellationRequested();
+        _candidates++;
+        // SQLite 產生結果列時已讀入整份 BLOB，就算文字先命中也算進位元組預算。
+        _bytes += sql.Length;
+        foreach (var text in texts)
+            if (text != null && text.IndexOf(Term, StringComparison.Ordinal) >= 0) return true;
+        return _matcher.Matches(sql);
     }
 }
 

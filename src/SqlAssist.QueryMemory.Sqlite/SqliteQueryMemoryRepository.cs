@@ -16,6 +16,7 @@ namespace SqlAssist.QueryMemory.Sqlite;
 internal sealed partial class SqliteQueryMemoryRepository
 {
     private readonly string _connectionString;
+    private readonly SqliteSearchBudget _searchBudget;
     private string _storeId = "";
     private string? _leaseId;
 
@@ -26,8 +27,9 @@ internal sealed partial class SqliteQueryMemoryRepository
         set => Volatile.Write(ref _leaseId, value);
     }
 
-    private SqliteQueryMemoryRepository(string path, int busyTimeoutSeconds)
+    private SqliteQueryMemoryRepository(string path, int busyTimeoutSeconds, SqliteSearchBudget searchBudget)
     {
+        _searchBudget = searchBudget;
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path))
             throw new ArgumentException("資料庫必須使用本機絕對路徑。", nameof(path));
         path = Path.GetFullPath(path);
@@ -41,9 +43,10 @@ internal sealed partial class SqliteQueryMemoryRepository
         }.ToString();
     }
 
-    public static SqliteQueryMemoryRepository Open(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
+    public static SqliteQueryMemoryRepository Open(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5,
+        SqliteSearchBudget? searchBudget = null)
     {
-        var repository = new SqliteQueryMemoryRepository(path, busyTimeoutSeconds);
+        var repository = new SqliteQueryMemoryRepository(path, busyTimeoutSeconds, searchBudget ?? SqliteSearchBudget.Default);
         repository.Initialize(cancellationToken);
         return repository;
     }

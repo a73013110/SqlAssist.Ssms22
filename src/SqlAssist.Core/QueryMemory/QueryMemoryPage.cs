@@ -15,8 +15,24 @@ public sealed class QueryMemoryPage<T>
         NextCursor = nextCursor;
     }
 
+    /// <summary>搜尋用盡單頁掃描預算而提早結束的頁；游標接在最後檢查過的候選之後，不是最後一筆結果之後。</summary>
+    public QueryMemoryPage(IEnumerable<T> items, string nextCursor, DateTimeOffset? searchedThrough)
+        : this(items, nextCursor ?? throw new ArgumentNullException(nameof(nextCursor)))
+    {
+        IsSearchPartial = true;
+        SearchedThrough = searchedThrough;
+    }
+
     public IReadOnlyList<T> Items { get; }
     public string? NextCursor { get; }
+
+    /// <summary>
+    /// true 表示還有候選沒檢查，Items 可能少於頁大小甚至為空；以 NextCursor 繼續搜尋，不代表沒有更多結果。
+    /// </summary>
+    public bool IsSearchPartial { get; }
+
+    /// <summary>部分搜尋時最後檢查過的候選時間（含）；沒有時間序的清單（Favorites）為 null。</summary>
+    public DateTimeOffset? SearchedThrough { get; }
 }
 
 [Serializable]

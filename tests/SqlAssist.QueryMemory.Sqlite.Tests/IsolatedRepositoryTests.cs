@@ -119,6 +119,10 @@ SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.Crea
 FROM n, (SELECT * FROM History LIMIT 1) h;");
     }
 
+    /// <summary>放大搜尋預算，讓整份種子資料都在同一頁掃完；預設預算下這個搜尋很快就會以部分結果返回。</summary>
+    private static Task<IsolatedQueryMemoryRepository> OpenForSlowSearch(SqliteTestStore store, CancellationToken token) =>
+        IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token, 5, 1_000_000, long.MaxValue);
+
     /// <summary>給派送一點時間進入 worker；之後仍未完成才代表它真的在隔離 AppDomain 內執行。</summary>
     private static async Task<Task<T>> StartInFlight<T>(Func<Task<T>> operation, CancellationToken token)
     {
@@ -133,7 +137,7 @@ FROM n, (SELECT * FROM History LIMIT 1) h;");
     {
         using var store = new SqliteTestStore();
         var token = TestContext.Current.CancellationToken;
-        using var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        using var repository = await OpenForSlowSearch(store, token);
         await SeedSlowSearch(store, repository, token);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
@@ -157,7 +161,7 @@ FROM n, (SELECT * FROM History LIMIT 1) h;");
     {
         using var store = new SqliteTestStore();
         var token = TestContext.Current.CancellationToken;
-        using var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        using var repository = await OpenForSlowSearch(store, token);
         await SeedSlowSearch(store, repository, token);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
@@ -180,7 +184,7 @@ FROM n, (SELECT * FROM History LIMIT 1) h;");
     {
         using var store = new SqliteTestStore();
         var token = TestContext.Current.CancellationToken;
-        var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        var repository = await OpenForSlowSearch(store, token);
         await SeedSlowSearch(store, repository, token);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);

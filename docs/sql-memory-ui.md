@@ -27,7 +27,10 @@ History 預設全部種類、七天、所有連線；狀態與期間是獨立群
 Favorites 使用 Global／Server／Database scope，不顯示期間或執行狀態，也不合併父層收藏。
 無關的 Server／Database section 隱藏，不用停用灰色控制項佔空間。
 
-搜尋獨佔一列，內嵌放大鏡／清除，Ctrl+F 聚焦；搜尋語意見[儲存](sql-memory-storage.md)。
+搜尋獨佔一列，內嵌放大鏡／清除，Ctrl+F 聚焦；搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
+一頁因預算提早結束時，狀態列顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
+Favorites 顯示「已搜尋部分收藏」；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
+該頁即使沒有命中也不顯示「沒有符合條件」；篩選或搜尋變更時清除進度。
 目前連線一次套用 Server／Database，Favorites 同時切 Database scope；無連線保留篩選並提示。
 此操作只篩選，不切換 SSMS 連線。
 
