@@ -133,7 +133,7 @@ public sealed class SqliteRepositoryTests
     }
 
     [Fact]
-    public async Task ContentCorruptionIsDetectedOnReadAndDeduplication()
+    public async Task ContentCorruptionIsAlwaysDetectedOnReadEvenAfterADedupHitWrite()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
@@ -141,8 +141,22 @@ public sealed class SqliteRepositoryTests
         var id = QueryContent.Create("SELECT 1").ContentId;
         store.Scalar("UPDATE Contents SET SqlBytes=zeroblob(Length*2);");
         await Assert.ThrowsAsync<InvalidDataException>(() => repository.ReadContentAsync(id, Token));
+        // 去重命中只比對 ContentHash／Length（見 docs/sql-memory-storage.md 的取捨），不再讀回整份
+        // BLOB 比對；只有 SqlBytes 本體損壞、中繼資料仍相符時，寫入路徑不會擋下，留給下一次讀取抓到。
+        await store.Process(repository, store.Capture(2, "SELECT 1"), Token);
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Executions;"));
+        await Assert.ThrowsAsync<InvalidDataException>(() => repository.ReadContentAsync(id, Token));
+    }
+
+    [Fact]
+    public async Task MetadataCorruptionIsStillCaughtOnDedupHitWrite()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(sql: "SELECT 1"), Token);
+        // ContentHash 欄位本身損壞（和主鍵 ContentId 嵌的雜湊對不上）仍在寫入路徑的快速比對內被擋下。
+        store.Scalar("UPDATE Contents SET ContentHash='" + new string('0', 64) + "';");
         await Assert.ThrowsAsync<InvalidDataException>(() => store.Process(repository, store.Capture(2, "SELECT 1"), Token));
-        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
     }
 
     [Fact]

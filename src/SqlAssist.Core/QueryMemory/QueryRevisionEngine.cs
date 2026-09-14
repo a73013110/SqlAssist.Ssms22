@@ -51,9 +51,14 @@ public sealed class QueryRevisionEngine
             }
             if (policy.RecoveryEnabled && policy.CaptureUnexecutedDrafts && capture.Kind != QueryCaptureKind.EditorClosed)
             {
-                recovery = new QueryRecoverySnapshot(capture.Session.SessionId, documentContent.ContentId,
-                    capture.Sequence, capture.CapturedAt, capture.Connection);
-                if (contents.Count == 0) contents.Add(documentContent);
+                // 沒有新版本、沒有執行、且 Recovery 已經指向同一份內容時，完全不必再寫一次 Recovery／Content。
+                var recoveryUnchanged = !executing && !create && previous?.RecoveryContentId == documentContent.ContentId;
+                if (!recoveryUnchanged)
+                {
+                    recovery = new QueryRecoverySnapshot(capture.Session.SessionId, documentContent.ContentId,
+                        capture.Sequence, capture.CapturedAt, capture.Connection);
+                    if (contents.Count == 0) contents.Add(documentContent);
+                }
             }
         }
 
@@ -87,8 +92,10 @@ public sealed class QueryRevisionEngine
         var session = previous?.Session ?? capture.Session;
         var closing = capture.Kind == QueryCaptureKind.EditorClosed;
         if (closing) session = session with { ClosedAt = capture.CapturedAt };
+        // 沒有產生新 Recovery 寫入時，沿用先前的 ContentId；關閉一律清空。
+        var recoveryContentId = closing ? null : recovery?.ContentId ?? previous?.RecoveryContentId;
         var state = new QuerySessionState(session, checked((previous?.Version ?? 0) + 1),
-            capture.Sequence, latest, latestExecution);
+            capture.Sequence, latest, latestExecution, recoveryContentId);
         return new QueryMemoryWrite(capture, previous?.Version, state, contents, revisions,
             recovery, closing, execution);
     }

@@ -30,6 +30,19 @@ Incompatible、InvalidArgument、InvalidCursor、Constraint、Unknown，並保�
 SQL 以 UTF-16LE BLOB 保存，全文讀取再次驗證 hash／長度。Recovery 替換只回收被替換且無引用的
 Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents triggers 維護，不 SUM 全庫。
 
+### 擷取路徑：不變內容不寫、去重不讀整份 BLOB
+
+`QuerySessionState.RecoveryContentId` 帶著目前 Recovery 的 ContentId。`QueryRevisionEngine`
+在「沒有新版本、不是執行、且內容的 ContentId 跟它相同」時不產生 Content／Recovery／History
+寫入，只有 Session／Captures 兩張輕量表照常前進維持 Sequence／CAS；晚到 idle 仍受
+`capture.Sequence <= previous.LastSequence` 擋下。連續 idle 但內容不變因此不再每輪重編碼。
+
+去重命中（`ContentId` 已存在）只比對 `Contents.ContentHash` 與 `Length`，不再讀回整份
+`SqlBytes` 比對位元組，命中時也就不必重新編碼 UTF-16LE。SHA-256 碰撞機率遠低於這兩個欄位
+本身損毀的機率，後者仍會被擋下並丟出 `InvalidDataException`。只有 `SqlBytes` 本體單獨損毀、
+Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadContentAsync`）一定重新解碼並
+驗證雜湊，仍會擋下——完整性保證從「每次去重命中都驗」改成「下一次讀全文時驗」。
+
 ## History 與搜尋
 
 History 用時間 DESC／唯一鍵 DESC keyset，每頁 1～200 筆，多讀一筆判斷續頁。時間是 UTC 半開區間，

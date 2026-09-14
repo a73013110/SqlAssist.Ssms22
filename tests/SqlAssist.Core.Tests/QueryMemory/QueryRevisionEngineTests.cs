@@ -84,9 +84,39 @@ public sealed class QueryRevisionEngineTests
         var close = Prepare(Capture(2, "SELECT * FROM Lib_Tag;", QueryCaptureKind.EditorClosed, seconds: 5), first.State);
         Assert.True(close.DeleteRecovery);
         Assert.Null(close.Recovery);
+        Assert.Null(close.State.RecoveryContentId);
         Assert.Equal(Start.AddSeconds(5), close.State.Session.ClosedAt);
         Assert.Equal(QueryRevisionReason.EditorClosed, Assert.Single(close.Revisions).Reason);
         Assert.Null(_engine.Prepare(Capture(3, seconds: 10), close.State, Policy));
+    }
+
+    [Fact]
+    public void UnchangedIdleDraftStopsRewritingRecoveryOnceContentIdMatches()
+    {
+        var first = Prepare(Capture());
+        Assert.NotNull(first.Recovery);
+        Assert.Equal(first.Recovery!.ContentId, first.State.RecoveryContentId);
+
+        // 內容與目前 Recovery 相同、沒有新版本也沒有執行：不得再產生 Content／Recovery 寫入。
+        var unchanged = Prepare(Capture(2, seconds: 5), first.State);
+        Assert.Empty(unchanged.Contents);
+        Assert.Null(unchanged.Recovery);
+        Assert.Equal(first.State.RecoveryContentId, unchanged.State.RecoveryContentId);
+
+        // 之後內容真的變了，仍要照常寫 Recovery。
+        var changed = Prepare(Capture(3, "SELECT * FROM Lib_Tag;", seconds: 10), unchanged.State);
+        Assert.NotNull(changed.Recovery);
+        Assert.NotEqual(first.State.RecoveryContentId, changed.State.RecoveryContentId);
+    }
+
+    [Fact]
+    public void ExecutingWithUnchangedDocumentStillRefreshesRecovery()
+    {
+        var first = Prepare(Capture());
+        // 執行事件即使內容沒變，仍照舊行為更新 Recovery／Sequence，只有非執行的 idle 才會被跳過。
+        var execute = Prepare(Capture(2, kind: QueryCaptureKind.BeforeExecute, seconds: 5), first.State);
+        Assert.NotNull(execute.Recovery);
+        Assert.Equal(first.State.LatestRevision?.ContentId, execute.Recovery!.ContentId);
     }
 
     [Fact]

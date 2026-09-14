@@ -22,8 +22,11 @@ internal sealed partial class SqliteQueryMemoryRepository
         QuerySession session;
         long version, sequence;
         Guid? head, execution;
-        using (var command = Command(connection, transaction, @"SELECT DocumentId,StartedAt,ClosedAt,Version,LastSequence,
-LatestRevisionId,LatestExecutionRevisionId FROM Sessions WHERE SessionId=$id;", ("$id", Id(sessionId))))
+        string? recoveryContentId;
+        // LEFT JOIN 到 Recovery：讓引擎不必另外查一次就能判斷目前內容是否已經和 Recovery 相同。
+        using (var command = Command(connection, transaction, @"SELECT s.DocumentId,s.StartedAt,s.ClosedAt,s.Version,s.LastSequence,
+s.LatestRevisionId,s.LatestExecutionRevisionId,r.ContentId
+FROM Sessions s LEFT JOIN Recovery r ON r.SessionId=s.SessionId WHERE s.SessionId=$id;", ("$id", Id(sessionId))))
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) return null;
@@ -33,10 +36,12 @@ LatestRevisionId,LatestExecutionRevisionId FROM Sessions WHERE SessionId=$id;", 
             sequence = reader.GetInt64(4);
             head = GuidOrNull(reader, 5);
             execution = GuidOrNull(reader, 6);
+            recoveryContentId = StringOrNull(reader, 7);
         }
         return new QuerySessionState(session, version, sequence,
             head.HasValue ? ReadRevision(connection, transaction, head.Value) : null,
-            execution.HasValue ? ReadRevision(connection, transaction, execution.Value) : null);
+            execution.HasValue ? ReadRevision(connection, transaction, execution.Value) : null,
+            recoveryContentId);
     }
 
     private static QueryRevision? ReadRevision(SqliteConnection connection, SqliteTransaction transaction, Guid revisionId)
