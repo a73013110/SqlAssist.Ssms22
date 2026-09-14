@@ -20,8 +20,8 @@ internal sealed class SqliteTestStore : IDisposable
 
     public SqliteTestStore() => Session = new QuerySession(Guid.NewGuid(), Document.DocumentId, Start);
 
-    public Task<SqliteQueryMemoryRepository> Open(CancellationToken cancellationToken) =>
-        SqliteQueryMemoryRepository.OpenAsync(Path, cancellationToken);
+    public Task<SqliteTestRepository> Open(CancellationToken cancellationToken) =>
+        SqliteTestRepository.OpenAsync(Path, cancellationToken);
 
     public QueryMemoryCapture Capture(long sequence = 1, string sql = "SELECT * FROM Lib_Reader;",
         QueryCaptureKind kind = QueryCaptureKind.BeforeExecute, string? selected = null, int seconds = 0,
@@ -29,7 +29,7 @@ internal sealed class SqliteTestStore : IDisposable
         new(Guid.NewGuid(), Document, session ?? Session, sequence, Start.AddSeconds(seconds), kind,
             new QueryTextSnapshot(sql), context, selected == null ? null : new QueryTextSnapshot(selected));
 
-    public Task Process(SqliteQueryMemoryRepository repository, QueryMemoryCapture capture, CancellationToken cancellationToken,
+    public Task Process(SqliteTestRepository repository, QueryMemoryCapture capture, CancellationToken cancellationToken,
         QueryMemoryPolicy? policy = null, string? leaseId = null) =>
         new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => leaseId)
             .ProcessAsync(capture, policy ?? Policy, cancellationToken);

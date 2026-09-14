@@ -8,14 +8,21 @@ using SqlAssist.Core.QueryMemory;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只隔離 SQLite provider 的靜態狀態與 binding redirect；不另造通用宿主框架。</summary>
+/// <remarks>
+/// 操作之間不互斥：每個操作在 worker 端各開連線，讀取與提交靠 WAL 並行，VACUUM 或全文掃描
+/// 不會把 writer、心跳與預覽排在後面。唯一的協調是卸載——操作以共享方式進入，
+/// <see cref="Dispose"/> 等全部離開才卸載 AppDomain。
+/// </remarks>
 public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFavoriteQueryRepository,
     IQueryMemoryMaintenanceRepository, IQueryMemoryLeaseRepository, IDisposable
 {
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly object _sync = new();
     private readonly AppDomain _domain;
     private readonly SqliteWorker _worker;
     private readonly QueryMemoryRemotingScope _resolution;
-    private bool _disposed;
+    private int _active;
+    private bool _disposing;
+    private bool _unloaded;
 
     private IsolatedQueryMemoryRepository(AppDomain domain, SqliteWorker worker, QueryMemoryRemotingScope resolution)
     {
@@ -52,74 +59,113 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
     }
 
     public Task<QuerySessionState?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadSession(sessionId), cancellationToken);
+        Invoke(operation => _worker.ReadSession(operation, sessionId), cancellationToken);
     public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.Commit(write, leaseId), cancellationToken);
+        Invoke(operation => _worker.Commit(operation, write, leaseId), cancellationToken);
     public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadHistory(request), cancellationToken);
+        Invoke(operation => _worker.ReadHistory(operation, request), cancellationToken);
     public Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>
-        Invoke(() => _worker.ReadConnectionFacets(request), token);
+        Invoke(operation => _worker.ReadConnectionFacets(operation, request), token);
 
     public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadContent(contentId), cancellationToken);
-    public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(() => _worker.Probe(), cancellationToken);
+        Invoke(operation => _worker.ReadContent(operation, contentId), cancellationToken);
+    public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(_ => _worker.Probe(), cancellationToken);
 
     public Task<FavoriteQueryEntry?> ReadFavoriteQueryAsync(Guid favoriteQueryId, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadFavoriteQuery(favoriteQueryId), cancellationToken);
+        Invoke(operation => _worker.ReadFavoriteQuery(operation, favoriteQueryId), cancellationToken);
     public Task<QueryMemoryPage<FavoriteQueryEntry>> ReadFavoriteQueriesAsync(FavoriteQueryRequest request, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadFavoriteQueries(request), cancellationToken);
+        Invoke(operation => _worker.ReadFavoriteQueries(operation, request), cancellationToken);
     public Task<FavoriteQueryWriteResult> WriteFavoriteQueryAsync(FavoriteQueryWrite write, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.WriteFavoriteQuery(write), cancellationToken);
+        Invoke(operation => _worker.WriteFavoriteQuery(operation, write), cancellationToken);
     public Task<FavoriteQueryWriteResult> DeleteFavoriteQueryAsync(Guid favoriteQueryId, Guid expectedVersion, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.DeleteFavoriteQuery(favoriteQueryId, expectedVersion), cancellationToken);
+        Invoke(operation => _worker.DeleteFavoriteQuery(operation, favoriteQueryId, expectedVersion), cancellationToken);
     public Task<FavoriteQueryWriteResult> EditFavoriteQuerySqlAsync(FavoriteQueryEdit edit, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.EditFavoriteQuerySql(edit), cancellationToken);
+        Invoke(operation => _worker.EditFavoriteQuerySql(operation, edit), cancellationToken);
 
     public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadUsage(), cancellationToken);
+        Invoke(operation => _worker.ReadUsage(operation), cancellationToken);
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.Maintain(request), cancellationToken);
+        Invoke(operation => _worker.Maintain(operation, request), cancellationToken);
     public Task<string> OpenLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.OpenLease(owner, now), cancellationToken);
+        Invoke(operation => _worker.OpenLease(operation, owner, now), cancellationToken);
     public Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.RenewLease(now), cancellationToken);
+        Invoke(operation => _worker.RenewLease(operation, now), cancellationToken);
     public Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReadExpiredLeases(expiredBefore, limit), cancellationToken);
+        Invoke(operation => _worker.ReadExpiredLeases(operation, expiredBefore, limit), cancellationToken);
     public Task<int> ReleaseLeasesAsync(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.ReleaseLeases(leaseIds, expiredBefore), cancellationToken);
+        Invoke(operation => _worker.ReleaseLeases(operation, leaseIds, expiredBefore), cancellationToken);
     public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.TryAcquireMaintenanceLease(owner, now, expiredBefore), cancellationToken);
+        Invoke(operation => _worker.TryAcquireMaintenanceLease(operation, owner, now, expiredBefore), cancellationToken);
 
     public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) =>
-        Invoke(() => _worker.Checkpoint(), cancellationToken);
+        Invoke(operation => _worker.Checkpoint(operation), cancellationToken);
     public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
-        Invoke(() => _worker.Compact(), cancellationToken);
+        Invoke(operation => _worker.Compact(operation), cancellationToken);
 
-    private async Task<T> Invoke<T>(Func<T> operation, CancellationToken cancellationToken)
+    private async Task<T> Invoke<T>(Func<long, T> operation, CancellationToken cancellationToken)
     {
-        // 等待同一 worker 時不占住 ThreadPool 執行緒，避免大量預覽取消造成執行緒飢餓。
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        Enter();
         try
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(IsolatedQueryMemoryRepository));
-            cancellationToken.ThrowIfCancellationRequested();
-            // 避免取消與跨 AppDomain commit 競賽：派送後以交易結果為準，不宣稱已取消成功寫入。
-            return await Task.Run(operation, cancellationToken).ConfigureAwait(false);
+            // 跨 AppDomain 呼叫會同步占住執行緒；整條路徑只在這裡排一次背景。
+            return await Task.Run(() => Dispatch(operation, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
-        finally { _gate.Release(); }
+        finally { Exit(); }
     }
 
-    /// <summary>宿主先排空 BackgroundWriter，再於背景卸載此 AppDomain。</summary>
-    public void Dispose()
+    private T Dispatch<T>(Func<long, T> operation, CancellationToken cancellationToken)
     {
-        _gate.Wait();
+        var id = _worker.BeginOperation();
         try
         {
-            if (_disposed) return;
-            _disposed = true;
+            // 處置註冊會等執行中的回呼結束，之後才結束操作，取消不會落在已處置的來源上。
+            using (cancellationToken.Register(CancelOperation, id))
+                return operation(id);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // 只有 worker 在提交前放棄才會走到這裡；已提交的操作照常回傳結果，不宣稱已取消。
+            throw new OperationCanceledException(cancellationToken);
+        }
+        finally { _worker.EndOperation(id); }
+    }
+
+    private void CancelOperation(object? state) => _worker.CancelOperation((long)state!);
+
+    private void Enter()
+    {
+        lock (_sync)
+        {
+            if (_disposing) throw new ObjectDisposedException(nameof(IsolatedQueryMemoryRepository));
+            _active++;
+        }
+    }
+
+    private void Exit()
+    {
+        lock (_sync)
+        {
+            if (--_active == 0 && _disposing) Monitor.PulseAll(_sync);
+        }
+    }
+
+    /// <summary>拒絕新操作、等進行中的操作離開，再卸載 AppDomain。</summary>
+    /// <remarks>
+    /// 等待沒有上限，逾時由宿主決定；宿主應先排空 BackgroundWriter 並取消自己的操作，
+    /// 否則這裡會等到長操作自然結束。
+    /// </remarks>
+    public void Dispose()
+    {
+        lock (_sync)
+        {
+            _disposing = true;
+            while (_active != 0) Monitor.Wait(_sync);
+            if (_unloaded) return;
+            _unloaded = true;
+            // 留在鎖內卸載：並行的 Dispose 要等卸載完成才返回；新操作在 _disposing 時已被拒絕，不會卡在鎖上太久。
             try { AppDomain.Unload(_domain); }
             finally { _resolution.Dispose(); }
         }
-        finally { _gate.Release(); }
     }
 }

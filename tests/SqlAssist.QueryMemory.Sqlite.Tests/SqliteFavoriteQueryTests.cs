@@ -13,7 +13,7 @@ public sealed class SqliteFavoriteQueryTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
-    private static async Task<FavoriteQuery> CreateQuery(SqliteTestStore store, SqliteQueryMemoryRepository repository)
+    private static async Task<FavoriteQuery> CreateQuery(SqliteTestStore store, SqliteTestRepository repository)
     {
         await store.Process(repository, store.Capture(), Token);
         var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
@@ -307,7 +307,7 @@ WHERE s.Scope=2 AND s.Server IS 'LibraryServer' AND s.DatabaseName IS 'Library' 
 
     private const string EditedSql = "SELECT * FROM Lib_Tag WHERE TagId=1;";
 
-    private static async Task<FavoriteQueryEntry> CreateFavorite(SqliteTestStore store, SqliteQueryMemoryRepository repository,
+    private static async Task<FavoriteQueryEntry> CreateFavorite(SqliteTestStore store, SqliteTestRepository repository,
         FavoriteQuery? query = null)
     {
         query ??= await CreateQuery(store, repository);

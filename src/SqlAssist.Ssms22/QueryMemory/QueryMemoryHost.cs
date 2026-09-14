@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,8 @@ namespace SqlAssist.Ssms22.QueryMemory;
 /// <remarks>
 /// 全部由設定驅動，預設是關的——擷取的是使用者輸入的 SQL，沒有他明確打開就不該存。
 /// 關掉時不只停止擷取，連背景整理都不跑：那也是在動使用者的資料。
+///
+/// 心跳與維護各有計時器與重入旗標，互不等待；宿主閘門只包開啟、換設定與關閉。
 ///
 /// 計時器刻意不在 UI 執行緒上：維護只呼叫隔離 repository，不碰編輯器緩衝區，
 /// 排在 UI 執行緒上等於讓清理與打字搶同一條執行緒。宿主閒置由
@@ -43,15 +46,25 @@ internal static class QueryMemoryHost
 
     private const long MaximumPendingTextBytes = 32L * 1024 * 1024;
 
+    /// <summary>
+    /// 關閉 SSMS 時排空與卸載的總時限。逾時就放棄剩下的擷取，不讓殼層卡在關閉；
+    /// 強制結束本來就可能遺失未落盤的內容。
+    /// </summary>
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
+
     private static readonly object SyncRoot = new();
+
+    /// <summary>只保護開啟、換設定與關閉這些狀態轉換；讀取、心跳與維護都不經過它。</summary>
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private static SqlAssistPackage? _package;
     private static CancellationTokenSource? _lifetime;
-    private static Timer? _timer;
+    private static Timer? _maintenanceTimer;
+    private static Timer? _heartbeatTimer;
     private static State? _state;
     private static long _lastEditTicks;
-    private static int _ticking;
+    private static int _maintaining;
+    private static int _beating;
     private static bool _initialized;
     private static int _queueFullReported;
     private static int _busyReported;
@@ -61,28 +74,29 @@ internal static class QueryMemoryHost
     public static long Generation => Interlocked.Read(ref _generation);
     public static bool IsAvailable => IsCapturing && SqlAssistSettingsStore.Current.Enabled && SqlAssistSettingsStore.Current.QueryMemoryEnabled;
 
-    // UI 與維護持有同一道閘門；卸載不能越過仍在隔離 AppDomain 內的呼叫。
-    private static Task<T> UseAsync<T>(Func<IsolatedQueryMemoryRepository, CancellationToken, Task<T>> operation,
+    // 不經過宿主閘門：隔離 repository 自己保證卸載會等進行中的呼叫。關閉時取消這份狀態的
+    // 生命週期，長時間的全文搜尋才不會拖住卸載。
+    private static async Task<T> UseAsync<T>(Func<IsolatedQueryMemoryRepository, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
-        var expected = Volatile.Read(ref _state);
-        return Task.Run(async () =>
+        var settings = SqlAssistSettingsStore.Current;
+        if (!settings.Enabled || !settings.QueryMemoryEnabled || Volatile.Read(ref _state) is not { } state)
+            throw new InvalidOperationException(Status);
+
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, state.Lifetime.Token);
+        try
         {
-            await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                var settings = SqlAssistSettingsStore.Current;
-                if (!settings.Enabled || !settings.QueryMemoryEnabled || _state is not { } state)
-                    throw new InvalidOperationException(Status);
-                if (!ReferenceEquals(expected?.Repository, state.Repository))
-                    throw new InvalidOperationException("SQL Memory 已重新開啟；請重新整理後再操作。");
-                return await operation(state.Repository, cancellationToken).ConfigureAwait(false);
-            }
-            finally { Gate.Release(); }
-        }, cancellationToken);
+            return await operation(state.Repository, linked.Token).ConfigureAwait(false);
+        }
+        catch (Exception error) when ((error is OperationCanceledException or ObjectDisposedException) &&
+            !cancellationToken.IsCancellationRequested && state.Lifetime.IsCancellationRequested)
+        {
+            // 呼叫端沒有取消，是儲存在途中被關閉或重開；世代已經換過，舊畫面不會採用這個結果。
+            throw new InvalidOperationException("SQL Memory 已重新開啟或停用；請重新整理後再操作。");
+        }
     }
 
-    // 對視窗只提供 Core DTO，repository 不會逃離持有閘門的操作範圍。
+    // 對視窗只提供 Core DTO，repository 不會逃離單一操作的範圍。
     public static Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken token) =>
         UseAsync((repository, ct) => repository.ReadHistoryAsync(request, ct), token);
     public static Task<QueryMemoryPage<FavoriteQueryEntry>> ReadFavoriteQueriesAsync(FavoriteQueryRequest request, CancellationToken token) =>
@@ -118,17 +132,21 @@ internal static class QueryMemoryHost
             _lifetime = new CancellationTokenSource();
             SqlAssistSettingsStore.Changed += OnSettingsChanged;
             // 沒有人接結果的背景工作一律走 Guard；維護失敗只代表下一輪重跑同一個游標。
-            _timer = new Timer(_ => SqlAssistPlatformGuard.BeginProbe("SQL Memory 維護排程", TickAsync),
+            // 心跳另有計時器：慢的維護批次或手動整理不能讓本程序的租約看起來過期。
+            _maintenanceTimer = new Timer(_ => SqlAssistPlatformGuard.BeginProbe("SQL Memory 維護排程", MaintainAsync),
+                null, TimerPeriod, TimerPeriod);
+            _heartbeatTimer = new Timer(_ => SqlAssistPlatformGuard.BeginProbe("SQL Memory 租約心跳", BeatAsync),
                 null, TimerPeriod, TimerPeriod);
         }
 
         Apply();
     }
 
-    /// <summary>套件卸載：先排空背景寫入器，再卸載隔離 AppDomain。</summary>
+    /// <summary>套件卸載：先排空背景寫入器，再卸載隔離 AppDomain；總時間受 <see cref="ShutdownTimeout"/> 限制。</summary>
     public static void Shutdown()
     {
-        Timer? timer;
+        Timer? maintenanceTimer;
+        Timer? heartbeatTimer;
         CancellationTokenSource? lifetime;
 
         lock (SyncRoot)
@@ -136,18 +154,21 @@ internal static class QueryMemoryHost
             if (!_initialized) return;
             _initialized = false;
             SqlAssistSettingsStore.Changed -= OnSettingsChanged;
-            timer = _timer;
-            _timer = null;
+            maintenanceTimer = _maintenanceTimer;
+            _maintenanceTimer = null;
+            heartbeatTimer = _heartbeatTimer;
+            _heartbeatTimer = null;
             lifetime = _lifetime;
             _lifetime = null;
             _package = null;
         }
 
-        timer?.Dispose();
+        maintenanceTimer?.Dispose();
+        heartbeatTimer?.Dispose();
         lifetime?.Cancel();
-        // 同步等到釋放：SQLite 檔案要在殼層收尾之前放開，不能拖到處理程序結束才發生。
-        CloseAsync().GetAwaiter().GetResult();
-        lifetime?.Dispose();
+        // 同步等：SQLite 檔案要在殼層收尾之前放開。等待有上限，逾時只記錄診斷，不讓 SSMS 卡在關閉。
+        // 逾時時開啟流程可能還拿著 lifetime，不處置它，交給程序結束。
+        if (CloseAsync(timeout: ShutdownTimeout).GetAwaiter().GetResult()) lifetime?.Dispose();
     }
 
     /// <summary>記下最後一次編輯；閒置提前維護只看這個值，不問殼層。</summary>
@@ -171,7 +192,8 @@ internal static class QueryMemoryHost
     /// <summary>設定頁的手動整理；重建整個資料庫，時間隨資料量成長，不進背景排程。</summary>
     /// <remarks>
     /// 先等本程序的 writer 排空，已接受的擷取不必在整理期間擱在記憶體裡。整理期間 writer 不停止：
-    /// 新擷取照常排隊，提交在隔離 repository 內等整理結束；其他程序的忙碌由 processor 退避重試。
+    /// 新擷取照常排隊；VACUUM 持有 SQLite 寫鎖，提交等到 busy timeout 回報忙碌後由 processor 退避重試，
+    /// 與其他程序整理時的情形相同。讀取與心跳不受影響。
     /// </remarks>
     public static async Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken)
     {
@@ -196,7 +218,7 @@ internal static class QueryMemoryHost
         // 走 Begin 而不是 BeginProbe：開不起來就是使用者打開了設定卻什麼都沒記到，
         // 那要看得見，不是可有可無的探測。開檔與建立 AppDomain 都在這條背景路徑上。
         SqlAssistPlatformGuard.Begin(wanted ? "啟用 SQL Memory" : "停用 SQL Memory",
-            () => wanted ? OpenOrUpdateAsync(settings) : CloseAsync(),
+            () => wanted ? OpenOrUpdateAsync(settings) : (Task)CloseAsync(),
             NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info,
             document: string.Empty);
     }
@@ -229,6 +251,8 @@ internal static class QueryMemoryHost
 
             try
             {
+                // 開檔期間套件已經卸載：關閉可能已逾時放棄等待，這份儲存不能再掛上去。
+                lifetime.Token.ThrowIfCancellationRequested();
                 var state = State.Create(repository, settings, owner);
                 ObserveWriter(state);
                 _state = state;
@@ -252,57 +276,96 @@ internal static class QueryMemoryHost
         finally { Gate.Release(); }
     }
 
-    private static async Task CloseAsync(State? failed = null)
+    /// <param name="failed">writer fault 時傳入；狀態已被換掉就什麼都不做。</param>
+    /// <param name="timeout">總時限；null 表示等到完成。逾時只記錄診斷並放棄，不擲出。</param>
+    /// <returns>是否在時限內完成關閉（含沒有東西要關）。</returns>
+    private static async Task<bool> CloseAsync(State? failed = null, TimeSpan? timeout = null)
     {
-        await Gate.WaitAsync().ConfigureAwait(false);
-        State? state;
+        var elapsed = Stopwatch.StartNew();
+        TimeSpan Remaining() => timeout is { } limit
+            ? TimeSpan.FromTicks(Math.Max(0, (limit - elapsed.Elapsed).Ticks))
+            : Timeout.InfiniteTimeSpan;
+
+        // 閘門只在開啟或換設定時被占住；開檔卡住時關閉照樣受時限約束。
+        if (!await Gate.WaitAsync(Remaining()).ConfigureAwait(false))
+        {
+            SqlAssistDiagnostics.WriteAlways("SQL Memory 關閉逾時：開啟流程尚未結束，放棄等待。");
+            return false;
+        }
 
         try
         {
-            state = _state;
-            if (failed is not null && !ReferenceEquals(state?.Writer, failed.Writer)) return;
+            var state = _state;
+            if (failed is not null && !ReferenceEquals(state?.Writer, failed.Writer)) return true;
             if (failed is not null) _status = "SQL Memory 寫入失敗，已停止擷取；請檢查診斷後重新啟用。";
             _state = null;
             Interlocked.Increment(ref _generation);
-            if (state is null) return;
+            if (state is null) return true;
+
+            // 讀取、心跳與維護不必做完；取消後隔離層只剩 writer 已接受的擷取與提交中的交易要等。
+            state.Lifetime.Cancel();
+
+            // 排空之後才卸載：已接受的擷取必須先完成交易。
+            var drain = state.Writer.CompleteAsync();
+            if (!await CompletesWithinAsync(drain, Remaining()).ConfigureAwait(false))
+            {
+                SqlAssistDiagnostics.WriteAlways(
+                    $"SQL Memory 關閉逾時：放棄 {state.Writer.PendingCount} 筆尚未提交的擷取，未卸載隔離儲存。");
+                return false;
+            }
+
             try
             {
-                // 排空之後才卸載：已接受的擷取必須先完成交易。
-                await state.Writer.CompleteAsync().ConfigureAwait(false);
+                await drain.ConfigureAwait(false);
             }
             catch (Exception error)
             {
                 SqlAssistDiagnostics.WriteAlways($"SQL Memory 排空時失敗：{error.Message}");
             }
 
-            await Task.Run(() => state.Repository.Dispose()).ConfigureAwait(false);
+            var dispose = Task.Run(state.Repository.Dispose);
+            if (!await CompletesWithinAsync(dispose, Remaining()).ConfigureAwait(false))
+            {
+                SqlAssistDiagnostics.WriteAlways("SQL Memory 關閉逾時：仍有儲存操作進行中，未卸載隔離儲存。");
+                return false;
+            }
+
+            await dispose.ConfigureAwait(false);
+
             SqlAssistDiagnostics.WriteAlways("SQL Memory 已停用；儲存已釋放。");
+            return true;
         }
         finally { Gate.Release(); }
     }
 
-    private static async Task TickAsync()
+    /// <summary>逾時不取消工作本身；呼叫端放棄等待，工作在背景自然結束或隨程序終止。</summary>
+    private static async Task<bool> CompletesWithinAsync(Task task, TimeSpan timeout)
     {
-        if (Interlocked.CompareExchange(ref _ticking, 1, 0) != 0) return;
+        if (timeout == Timeout.InfiniteTimeSpan || task.IsCompleted)
+        {
+            await Task.WhenAny(task).ConfigureAwait(false);
+            return true;
+        }
 
-        await Gate.WaitAsync().ConfigureAwait(false);
+        using var delay = new CancellationTokenSource();
+        var completed = await Task.WhenAny(task, Task.Delay(timeout, delay.Token)).ConfigureAwait(false);
+        delay.Cancel();
+        return ReferenceEquals(completed, task);
+    }
 
+    private static async Task MaintainAsync()
+    {
+        if (Interlocked.CompareExchange(ref _maintaining, 1, 0) != 0) return;
+
+        var state = Volatile.Read(ref _state);
         try
         {
-            var state = Volatile.Read(ref _state);
-            var lifetime = Volatile.Read(ref _lifetime);
-            if (state is null || lifetime is null || lifetime.IsCancellationRequested) return;
+            if (state is null || state.Lifetime.IsCancellationRequested) return;
 
             var now = DateTimeOffset.UtcNow;
-            var heartbeat = state.Heartbeat;
-            if (heartbeat.IsDue(now))
-            {
-                await heartbeat.BeatAsync(now, lifetime.Token).ConfigureAwait(false);
-            }
-
             var lastEdit = new DateTimeOffset(Interlocked.Read(ref _lastEditTicks), TimeSpan.Zero);
             var tick = await state.Runner
-                .RunOnceAsync(now, now - lastEdit >= IdleThreshold, heartbeat.LeaseId is not null, lifetime.Token)
+                .RunOnceAsync(now, now - lastEdit >= IdleThreshold, state.Heartbeat.LeaseId is not null, state.Lifetime.Token)
                 .ConfigureAwait(false);
 
             if (tick.Outcome == QueryMemoryMaintenanceOutcome.Maintained && tick.Result is { } result)
@@ -312,14 +375,43 @@ internal static class QueryMemoryHost
                     $"容量 {result.CapacityStatus} 釋放租約 {tick.ReleasedLeases} 截斷 {tick.Checkpointed}");
             }
         }
-        catch (OperationCanceledException) { }
+        catch (Exception error) when (IsClosing(error, state)) { }
         catch (Exception error)
         {
             // 維護失敗不讓擷取跟著停：下一輪重跑同一個游標即可。
             SqlAssistDiagnostics.WriteAlways($"SQL Memory 維護失敗：{error.Message}");
         }
-        finally { Gate.Release(); Interlocked.Exchange(ref _ticking, 0); }
+        finally { Interlocked.Exchange(ref _maintaining, 0); }
     }
+
+    /// <summary>續約或重開租約；不等維護批次，也不和維護共用任何鎖。</summary>
+    private static async Task BeatAsync()
+    {
+        if (Interlocked.CompareExchange(ref _beating, 1, 0) != 0) return;
+
+        var state = Volatile.Read(ref _state);
+        try
+        {
+            if (state is null || state.Lifetime.IsCancellationRequested) return;
+
+            var now = DateTimeOffset.UtcNow;
+            if (state.Heartbeat.IsDue(now))
+            {
+                await state.Heartbeat.BeatAsync(now, state.Lifetime.Token).ConfigureAwait(false);
+            }
+        }
+        catch (Exception error) when (IsClosing(error, state)) { }
+        catch (Exception error)
+        {
+            // 下一次計時器再試；租約期限遠長於心跳間隔，一次失敗不會讓別人看到過期。
+            SqlAssistDiagnostics.WriteAlways($"SQL Memory 租約心跳失敗：{error.Message}");
+        }
+        finally { Interlocked.Exchange(ref _beating, 0); }
+    }
+
+    /// <summary>關閉期間的取消與已卸載不是失敗；只有這份狀態真的被關掉時才靜默。</summary>
+    private static bool IsClosing(Exception error, State? state) =>
+        (error is OperationCanceledException or ObjectDisposedException) && state?.Lifetime.IsCancellationRequested == true;
 
     /// <summary>
     /// 寫入器 fault 之後不再接收；宿主必須察覺並停用，不能把排空當成保存成功。
@@ -380,10 +472,11 @@ internal static class QueryMemoryHost
     /// <summary>一份接好線的狀態；設定改變時整份換掉，呼叫端拿到的永遠是一致的一組。</summary>
     private sealed class State
     {
-        private State(IsolatedQueryMemoryRepository repository, QueryMemoryBackgroundWriter writer,
+        private State(IsolatedQueryMemoryRepository repository, CancellationTokenSource lifetime, QueryMemoryBackgroundWriter writer,
             QueryMemoryLeaseHeartbeat heartbeat, QueryMemoryMaintenanceRunner runner, QueryMemoryPolicy policy)
         {
             Repository = repository;
+            Lifetime = lifetime;
             Writer = writer;
             Heartbeat = heartbeat;
             Runner = runner;
@@ -391,6 +484,12 @@ internal static class QueryMemoryHost
         }
 
         public IsolatedQueryMemoryRepository Repository { get; }
+
+        /// <summary>
+        /// 這個儲存庫的使用期間；關閉時取消讀取、心跳與維護，writer 不受影響。
+        /// 刻意不處置：晚到的呼叫仍可能讀取 Token，而它沒有計時器或等待控制代碼要釋放。
+        /// </summary>
+        public CancellationTokenSource Lifetime { get; }
 
         public QueryMemoryBackgroundWriter Writer { get; }
 
@@ -409,13 +508,14 @@ internal static class QueryMemoryHost
                 new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => heartbeat.LeaseId),
                 MaximumPendingCaptures, MaximumPendingTextBytes, ReportBusy);
 
-            return new State(repository, writer, heartbeat,
+            return new State(repository, new CancellationTokenSource(), writer, heartbeat,
                 BuildRunner(repository, settings, owner), BuildPolicy(settings));
         }
 
-        /// <summary>沿用同一個儲存庫、寫入器與心跳，只換掉政策與整條保留分級。</summary>
+        /// <summary>沿用同一個儲存庫、使用期間、寫入器與心跳，只換掉政策與整條保留分級。</summary>
+        /// <remarks>進行中的維護批次仍用舊分級做完這一批；它與新分級各自有界，下一輪才用新的。</remarks>
         public State With(SqlAssistSettings settings, QueryMemoryLeaseOwner owner) =>
-            new(Repository, Writer, Heartbeat, BuildRunner(Repository, settings, owner), BuildPolicy(settings));
+            new(Repository, Lifetime, Writer, Heartbeat, BuildRunner(Repository, settings, owner), BuildPolicy(settings));
 
         private static QueryMemoryPolicy BuildPolicy(SqlAssistSettings settings) => new(
             settings.QueryMemoryCaptureDrafts && settings.QueryMemoryRecoverUnsavedDrafts,

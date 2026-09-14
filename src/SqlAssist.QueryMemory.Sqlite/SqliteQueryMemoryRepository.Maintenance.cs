@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-public sealed partial class SqliteQueryMemoryRepository
+internal sealed partial class SqliteQueryMemoryRepository
 {
     private const int ExecutionStage = 0, HistoryStage = 1, RevisionStage = 2, RecoveryStage = 3, ContentStage = 4;
 
@@ -30,12 +29,12 @@ public sealed partial class SqliteQueryMemoryRepository
  AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContentId=$id)
  AND NOT EXISTS(SELECT 1 FROM History WHERE ContentId=$id)";
 
-    public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    public QueryMemoryUsage ReadUsage(CancellationToken cancellationToken)
     {
         using var connection = Connect();
         cancellationToken.ThrowIfCancellationRequested();
         return ReadUsage(connection, null);
-    }, cancellationToken);
+    }
 
     private QueryMemoryUsage ReadUsage(SqliteConnection connection, SqliteTransaction? transaction)
     {
@@ -51,7 +50,7 @@ public sealed partial class SqliteQueryMemoryRepository
         catch (FileNotFoundException) { return 0; }
     }
 
-    public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    public QueryMemoryCheckpointResult Checkpoint(CancellationToken cancellationToken)
     {
         using var connection = Connect();
         cancellationToken.ThrowIfCancellationRequested();
@@ -61,9 +60,10 @@ public sealed partial class SqliteQueryMemoryRepository
         using (var reader = command.ExecuteReader())
             truncated = reader.Read() && reader.GetInt64(0) == 0;
         return new QueryMemoryCheckpointResult(truncated, ReadUsage(connection, null));
-    }, cancellationToken);
+    }
 
-    public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    /// <remarks>VACUUM 本身不可中斷，取消只在開始前生效；期間其他連線的寫入等到 busy timeout 就回報忙碌。</remarks>
+    public QueryMemoryUsage Compact(CancellationToken cancellationToken)
     {
         using var connection = Connect();
         cancellationToken.ThrowIfCancellationRequested();
@@ -72,16 +72,12 @@ public sealed partial class SqliteQueryMemoryRepository
         // 重建結果先進 WAL，不接著 checkpoint 主檔案就不會縮小，使用者會看到「整理完卻沒變小」。
         Execute(connection, null, "PRAGMA wal_checkpoint(TRUNCATE);");
         return ReadUsage(connection, null);
-    }, cancellationToken);
-
-    public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken)
-    {
-        if (request == null) throw new ArgumentNullException(nameof(request));
-        return Task.Run(() => Maintain(request, cancellationToken), cancellationToken);
     }
 
-    private QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request, CancellationToken token)
+    public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request, CancellationToken token)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        token.ThrowIfCancellationRequested();
         var cursor = new SqliteMaintenanceCursor(_storeId, request);
         using var connection = Connect();
         // 候選、保護根重查與刪除共用 IMMEDIATE 交易，Favorite 更新不可能插進檢查與刪除之間。

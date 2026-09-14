@@ -15,7 +15,7 @@ namespace SqlAssist.QueryMemory.Sqlite.Tests;
 public sealed class SqliteMaintenanceTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
-    private static async Task<QueryRevision> SeedLeaf(SqliteTestStore store, SqliteQueryMemoryRepository repository)
+    private static async Task<QueryRevision> SeedLeaf(SqliteTestStore store, SqliteTestRepository repository)
     {
         await store.Process(repository, store.Capture(selected: "SELECT * FROM Lib_Tag;",
             context: new QueryConnectionContext("LibraryServer", "Library")), Token);
@@ -25,7 +25,7 @@ public sealed class SqliteMaintenanceTests
         return state.LatestExecutionRevision;
     }
 
-    private static async Task<List<QueryRevision>> SeedAutoDrafts(SqliteTestStore store, SqliteQueryMemoryRepository repository,
+    private static async Task<List<QueryRevision>> SeedAutoDrafts(SqliteTestStore store, SqliteTestRepository repository,
         QuerySession? session, int count, int startSeconds)
     {
         var drafts = new List<QueryRevision>();
@@ -491,7 +491,7 @@ public sealed class SqliteMaintenanceTests
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
-    private static async Task<Guid> SeedBaseRevision(SqliteTestStore store, SqliteQueryMemoryRepository repository)
+    private static async Task<Guid> SeedBaseRevision(SqliteTestStore store, SqliteTestRepository repository)
     {
         await store.Process(repository, store.Capture(), Token);
         var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
@@ -499,7 +499,7 @@ public sealed class SqliteMaintenanceTests
         return state.LatestRevision.RevisionId;
     }
 
-    private static async Task<FavoriteQuery> SeedFavorite(SqliteQueryMemoryRepository repository, Guid revisionId, string name)
+    private static async Task<FavoriteQuery> SeedFavorite(SqliteTestRepository repository, Guid revisionId, string name)
     {
         var query = new FavoriteQuery(Guid.NewGuid(), name, null, revisionId, FavoriteQueryScope.Global, null);
         Assert.Equal(FavoriteQueryWriteResult.Committed, await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query), Token));
@@ -508,7 +508,7 @@ public sealed class SqliteMaintenanceTests
 
     private static string EditSql(string tag, int index) => "SELECT * FROM Loan WHERE Branch='" + tag + index + "';";
 
-    private static async Task<List<Guid>> EditFavorite(SqliteQueryMemoryRepository repository, Guid favoriteQueryId,
+    private static async Task<List<Guid>> EditFavorite(SqliteTestRepository repository, Guid favoriteQueryId,
         string tag, int count, int startSeconds, int stepSeconds = 60)
     {
         var revisions = new List<Guid>();

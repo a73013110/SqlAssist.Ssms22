@@ -102,7 +102,7 @@ public sealed class SqliteHistoryTests
     public async Task BusyWriterFailsWithinConfiguredTimeoutWithoutPartialData()
     {
         using var store = new SqliteTestStore();
-        var repository = await SqliteQueryMemoryRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
         using var blocker = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
         blocker.Open();
         using var transaction = blocker.BeginTransaction(deferred: false);
