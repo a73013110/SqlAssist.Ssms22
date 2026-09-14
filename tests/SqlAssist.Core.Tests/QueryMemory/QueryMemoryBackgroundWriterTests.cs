@@ -118,6 +118,75 @@ public sealed class QueryMemoryBackgroundWriterTests
         Assert.Equal(0, writer.PendingCount);
     }
 
+    [Fact]
+    public async Task TransientFailureDropsOnlyThatCaptureAndWriterKeepsRunning()
+    {
+        var repository = new RecordingQueryMemoryRepository();
+        // 一次原始嘗試加一次重試都忙碌：第一筆放棄，之後的擷取照常保存。
+        repository.CommitFailures.Enqueue(Busy());
+        repository.CommitFailures.Enqueue(Busy());
+        var dropped = new System.Collections.Concurrent.ConcurrentQueue<(QueryMemoryCapture Capture, QueryMemoryStorageException Error)>();
+        var writer = new QueryMemoryBackgroundWriter(
+            new QueryMemoryProcessor(repository, new QueryRevisionEngine(), busyDelays: new[] { TimeSpan.Zero }),
+            10, 10000, (capture, error) => dropped.Enqueue((capture, error)));
+        var first = Capture(kind: QueryCaptureKind.BeforeExecute);
+        writer.TryEnqueue(first, Policy);
+        await writer.WaitForIdleAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.False(writer.Completion.IsCompleted);
+        Assert.Equal(1, writer.DroppedCount);
+        var (capture, error) = Assert.Single(dropped);
+        Assert.Same(first, capture);
+        Assert.Equal(5, error.ErrorCode);
+
+        Assert.Equal(QueryMemoryEnqueueResult.Accepted, writer.TryEnqueue(Capture(2, kind: QueryCaptureKind.BeforeExecute), Policy));
+        await writer.CompleteAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(2, Assert.Single(repository.Writes).State.LastSequence);
+        Assert.Equal(0, writer.PendingCount);
+    }
+
+    [Fact]
+    public async Task FatalStorageKindsStillFaultTheWriter()
+    {
+        var failure = new QueryMemoryStorageException(QueryMemoryStorageErrorKind.Corrupt, "測試：資料庫損毀", 11);
+        var repository = new RecordingQueryMemoryRepository { CommitException = failure };
+        var calls = 0;
+        var writer = new QueryMemoryBackgroundWriter(
+            new QueryMemoryProcessor(repository, new QueryRevisionEngine(), busyDelays: new[] { TimeSpan.Zero }),
+            10, 10000, (_, _) => Interlocked.Increment(ref calls));
+        writer.TryEnqueue(Capture(), Policy);
+        Assert.Same(failure, await Assert.ThrowsAsync<QueryMemoryStorageException>(() => writer.Completion.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)));
+        Assert.Equal(QueryMemoryEnqueueResult.Stopped, writer.TryEnqueue(Capture(2), Policy));
+        Assert.Equal(1, repository.CommitAttempts);
+        Assert.Equal(0, calls);
+        // 停止後等待閒置必須立即完成，手動整理不能卡在已經 fault 的 writer 上。
+        await writer.WaitForIdleAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task WaitForIdleCoversInFlightWorkAndHonorsCancellation()
+    {
+        var entered = Signal();
+        var release = Signal();
+        var writer = CreateWriter(BlockFirstRead(entered, release));
+        await writer.WaitForIdleAsync(TestContext.Current.CancellationToken);
+        writer.TryEnqueue(Capture(), Policy);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        var idle = writer.WaitForIdleAsync(TestContext.Current.CancellationToken);
+        Assert.False(idle.IsCompleted);
+        using (var cancellation = new CancellationTokenSource())
+        {
+            var canceled = writer.WaitForIdleAsync(cancellation.Token);
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceled);
+        }
+        release.TrySetResult(true);
+        await idle.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        await writer.CompleteAsync().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+    }
+
+    private static QueryMemoryStorageException Busy() =>
+        new(QueryMemoryStorageErrorKind.Busy, "測試：資料庫忙碌", 5, 5, "SqliteException");
+
     private static QueryMemoryBackgroundWriter CreateWriter(RecordingQueryMemoryRepository repository, int count = 10, long bytes = 10000) =>
         new(new QueryMemoryProcessor(repository, new QueryRevisionEngine()), count, bytes);
 

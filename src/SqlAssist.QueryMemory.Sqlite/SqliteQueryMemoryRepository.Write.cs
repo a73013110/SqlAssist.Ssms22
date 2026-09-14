@@ -10,13 +10,13 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 public sealed partial class SqliteQueryMemoryRepository
 {
-    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, CancellationToken cancellationToken)
+    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
     {
         if (write == null) throw new ArgumentNullException(nameof(write));
-        return Task.Run(() => Commit(write, cancellationToken), cancellationToken);
+        return Task.Run(() => Commit(write, leaseId, cancellationToken), cancellationToken);
     }
 
-    private QueryMemoryCommitResult Commit(QueryMemoryWrite write, CancellationToken cancellationToken)
+    private QueryMemoryCommitResult Commit(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
     {
         using var connection = Connect();
         // IMMEDIATE 在讀 head 之前取得寫鎖，避免 deferred 交易升級時的 SQLITE_BUSY_SNAPSHOT。
@@ -66,13 +66,15 @@ VALUES($id,$parent,$content,$session,$time,$reason,$context,$selection);",
                     revision.ContentId, revision.CreatedAt, QueryHistoryKind.Drafts, revision.Connection, contextId);
         }
         // 明列資料行並標上本程序的租約：有租約就代表還可能在編輯，維護不得回收這個 Session 的 Recovery。
+        // 租約在交易內重查：另一個程序可能在心跳之前已回收它，外鍵失敗會讓整個 writer 停擺。
+        // 回收後寫成無租約，與 ReleaseLeasesAsync 對既有 Session 的處理一致，下一次心跳重開後再標上。
         Execute(connection, transaction, @"INSERT INTO Sessions
 (SessionId,DocumentId,StartedAt,ClosedAt,Version,LastSequence,LatestRevisionId,LatestExecutionRevisionId,LeaseId)
-VALUES($id,$document,$start,$close,$version,$sequence,$head,$execution,$lease)
+VALUES($id,$document,$start,$close,$version,$sequence,$head,$execution,(SELECT LeaseId FROM Leases WHERE LeaseId=$lease))
 ON CONFLICT(SessionId) DO UPDATE SET ClosedAt=excluded.ClosedAt, Version=excluded.Version,
 LastSequence=excluded.LastSequence, LatestRevisionId=excluded.LatestRevisionId,
 LatestExecutionRevisionId=excluded.LatestExecutionRevisionId, LeaseId=excluded.LeaseId;",
-            ("$lease", _leaseId),
+            ("$lease", leaseId),
             ("$id", Id(state.Session.SessionId)), ("$document", Id(state.Session.DocumentId)), ("$start", Ticks(state.Session.StartedAt)),
             ("$close", state.Session.ClosedAt.HasValue ? (object)Ticks(state.Session.ClosedAt.Value) : null),
             ("$version", state.Version), ("$sequence", state.LastSequence), ("$head", Id(state.LatestRevision?.RevisionId)),

@@ -18,8 +18,10 @@ public sealed class SqliteLeaseTests
     private static QueryMemoryMaintenancePolicy ExpiredWithRecovery() =>
         new(Start.AddDays(1), Start.AddDays(1), null, null, null, null, Start.AddDays(1));
 
-    private static Task SeedRecovery(SqliteTestStore store, SqliteQueryMemoryRepository repository) =>
-        store.Process(repository, store.Capture(kind: QueryCaptureKind.DraftIdle), Token, DraftsOnly);
+    private static Task SeedRecovery(SqliteTestStore store, SqliteQueryMemoryRepository repository, string? lease = null,
+        long sequence = 1) =>
+        store.Process(repository, store.Capture(sequence, sequence == 1 ? "SELECT * FROM Lib_Reader;" : "SELECT * FROM Loan WHERE CopyNo > " + sequence + ";",
+            QueryCaptureKind.DraftIdle), Token, DraftsOnly, lease);
 
     [Fact]
     public async Task OpenLeaseStampsSessionsAndTheSameProcessReusesItsRow()
@@ -27,7 +29,7 @@ public sealed class SqliteLeaseTests
         using var store = new SqliteTestStore();
         var first = await store.Open(Token);
         var lease = await first.OpenLeaseAsync(Owner, Start, Token);
-        await SeedRecovery(store, first);
+        await SeedRecovery(store, first, lease);
         Assert.Equal(lease, store.Scalar("SELECT LeaseId FROM Sessions;"));
         // 同一個程序重開 repository 必須沿用原本那一列，既有 Session 才不會落在沒人續的租約上。
         var second = await store.Open(Token);
@@ -46,7 +48,7 @@ public sealed class SqliteLeaseTests
         using var store = new SqliteTestStore();
         var owner = await store.Open(Token);
         var lease = await owner.OpenLeaseAsync(Owner, Start, Token);
-        await SeedRecovery(store, owner);
+        await SeedRecovery(store, owner, lease);
         await Drain(owner, ExpiredWithRecovery());
         // 租約還在就代表那個程序可能還開著這份草稿，期限到了也不能回收。
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Recovery;"));
@@ -158,6 +160,54 @@ public sealed class SqliteLeaseTests
             Assert.Contains(index, reader.GetString(3));
             Assert.False(reader.Read());
         }
+    }
+
+    [Fact]
+    public async Task FailedOpenLeaseLeavesNoIdentifierBehind()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        // 插入後、提交前失敗：舊實作已經把識別碼寫進欄位，回滾後就指向不存在的租約列。
+        store.Scalar("CREATE TRIGGER Test_RejectLease BEFORE INSERT ON Leases BEGIN SELECT RAISE(ABORT,'測試：租約寫入失敗'); END;");
+        await Assert.ThrowsAsync<SqliteException>(() => repository.OpenLeaseAsync(Owner, Start, Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.RenewLeaseAsync(Start, Token));
+
+        store.Scalar("DROP TRIGGER Test_RejectLease;");
+        var busy = await SqliteQueryMemoryRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
+        using (var blocker = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString()))
+        {
+            blocker.Open();
+            using var transaction = blocker.BeginTransaction(deferred: false);
+            Assert.Equal(5, (await Assert.ThrowsAsync<SqliteException>(() => busy.OpenLeaseAsync(Owner, Start, Token))).SqliteErrorCode);
+        }
+        await Assert.ThrowsAsync<InvalidOperationException>(() => busy.RenewLeaseAsync(Start, Token));
+        Assert.NotNull(await busy.OpenLeaseAsync(Owner, Start, Token));
+        Assert.True(await busy.RenewLeaseAsync(Start.AddMinutes(1), Token));
+    }
+
+    [Fact]
+    public async Task CommitAfterAnotherProcessReclaimedTheLeaseWritesAnUnleasedSession()
+    {
+        using var store = new SqliteTestStore();
+        var owner = await store.Open(Token);
+        var lease = await owner.OpenLeaseAsync(Owner, Start, Token);
+        await SeedRecovery(store, owner, lease);
+        var reaper = await store.Open(Token);
+        Assert.Equal(1, await reaper.ReleaseLeasesAsync(new[] { lease }, Start.AddDays(1), Token));
+
+        // 下一次心跳之前 writer 仍帶著舊識別碼；外鍵不得讓擷取失敗，也不得憑空復活租約。
+        await SeedRecovery(store, owner, lease, 2);
+        var other = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, Start);
+        await store.Process(owner, store.Capture(kind: QueryCaptureKind.DraftIdle, session: other), Token, DraftsOnly, lease);
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Sessions WHERE LeaseId IS NULL;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
+        Assert.Equal(2L, store.Scalar("SELECT Version FROM Sessions WHERE SessionId='" + store.Session.SessionId.ToString("N") + "';"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+
+        var reopened = await owner.OpenLeaseAsync(Owner, Start.AddMinutes(1), Token);
+        await SeedRecovery(store, owner, reopened, 3);
+        Assert.Equal(reopened, store.Scalar("SELECT LeaseId FROM Sessions WHERE SessionId='" + store.Session.SessionId.ToString("N") + "';"));
     }
 
     [Fact]

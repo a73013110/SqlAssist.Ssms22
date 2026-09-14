@@ -40,5 +40,6 @@ internal sealed class SqliteMaintenanceCursor
     public string Encode() => Convert.ToBase64String(Encoding.UTF8.GetBytes(_prefix +
         Stage.ToString(CultureInfo.InvariantCulture) + "|" + After + "|" + (MadeProgress ? "1" : "0")));
 
-    private static ArgumentException InvalidCursor() => new("維護游標無效，或不屬於目前儲存庫及政策。", "cursor");
+    private static QueryMemoryStorageException InvalidCursor() =>
+        new(QueryMemoryStorageErrorKind.InvalidCursor, "維護游標無效，或不屬於目前儲存庫及政策。");
 }

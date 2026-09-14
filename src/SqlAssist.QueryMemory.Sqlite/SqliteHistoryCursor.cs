@@ -18,17 +18,20 @@ internal sealed class SqliteHistoryCursor
     public static SqliteHistoryCursor? Decode(QueryHistoryRequest request, string storeId)
     {
         if (request.Cursor == null) return null;
-        if (request.Cursor.Length > 512) throw new ArgumentException("分頁游標無效。", nameof(request));
+        if (request.Cursor.Length > 512) throw InvalidCursor("分頁游標無效。");
         string[] parts;
         try { parts = Encoding.UTF8.GetString(Convert.FromBase64String(request.Cursor)).Split('|'); }
-        catch (FormatException error) { throw new ArgumentException("分頁游標無效。", nameof(request), error); }
+        catch (FormatException) { throw InvalidCursor("分頁游標無效。"); }
         if (parts.Length != 5 || parts[0] != "1" || parts[1] != storeId || parts[2] != Fingerprint(request) ||
             !long.TryParse(parts[3], NumberStyles.None, CultureInfo.InvariantCulture, out var ticks) ||
             ticks > DateTime.MaxValue.Ticks || parts[4].Length != 33 || "ers".IndexOf(parts[4][0]) < 0 ||
             !Guid.TryParseExact(parts[4].Substring(1), "N", out _))
-            throw new ArgumentException("分頁游標失效或不屬於目前篩選條件。", nameof(request));
+            throw InvalidCursor("分頁游標失效或不屬於目前篩選條件。");
         return new SqliteHistoryCursor(ticks, parts[4]);
     }
+
+    private static QueryMemoryStorageException InvalidCursor(string message) =>
+        new(QueryMemoryStorageErrorKind.InvalidCursor, message);
 
     private static string Fingerprint(QueryHistoryRequest request)
     {

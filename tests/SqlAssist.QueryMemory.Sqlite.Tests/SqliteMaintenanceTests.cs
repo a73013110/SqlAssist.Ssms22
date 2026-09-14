@@ -146,9 +146,9 @@ public sealed class SqliteMaintenanceTests
         var replay = store.Capture(3, selected: "SELECT * FROM Loan;", seconds: 2);
         var write = new QueryRevisionEngine().Prepare(replay, before, SqliteTestStore.Policy);
         Assert.NotNull(write);
-        await repository.CommitAsync(write, Token);
+        await repository.CommitAsync(write, null, Token);
         await Drain(repository, Expired());
-        Assert.Equal(QueryMemoryCommitResult.AlreadyCommitted, await repository.CommitAsync(write, Token));
+        Assert.Equal(QueryMemoryCommitResult.AlreadyCommitted, await repository.CommitAsync(write, null, Token));
     }
 
     [Theory]
@@ -226,12 +226,12 @@ public sealed class SqliteMaintenanceTests
         Assert.NotNull(first.Cursor);
         using var other = new SqliteTestStore();
         var otherRepository = await other.Open(Token);
-        await Assert.ThrowsAsync<ArgumentException>(() => otherRepository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, first.Cursor), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(0), 1, first.Cursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => otherRepository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, first.Cursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(0), 1, first.Cursor), Token));
         var quota = new QueryMemoryMaintenancePolicy(policy.DraftBefore, policy.ExecutionBefore, null, 10, 50);
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(quota, 1, first.Cursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(quota, 1, first.Cursor), Token));
         foreach (var cursor in new[] { "!", Convert.ToBase64String(new byte[20]), new string('a', 1025) })
-            await Assert.ThrowsAsync<ArgumentException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, cursor), Token));
+            await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 1, cursor), Token));
         var reopened = await store.Open(Token);
         await Drain(reopened, policy, 3, first.Cursor);
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));

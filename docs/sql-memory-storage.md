@@ -24,6 +24,8 @@
 新庫在 IMMEDIATE 交易一次建立全部表、索引與 triggers；取得寫鎖後重讀身分／版本，
 避免多程序初始化競賽。WAL、外鍵常開；每個操作獨立連線且關閉 pool。
 busy timeout 預設 5 秒，可指定 1～60 秒；取消或失敗回復交易，不留部分資料。
+失敗以 `QueryMemoryStorageException` 分類：Busy（SQLITE_BUSY／LOCKED，唯一可重試）、Io、Corrupt、
+Incompatible、InvalidArgument、InvalidCursor、Constraint、Unknown，並保留 SQLite 主要／延伸錯誤碼。
 
 SQL 以 UTF-16LE BLOB 保存，全文讀取再次驗證 hash／長度。Recovery 替換只回收被替換且無引用的
 Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents triggers 維護，不 SUM 全庫。
@@ -72,6 +74,7 @@ SSMS 必須使用 `IsolatedQueryMemoryRepository`，不得直接建立 SQLite re
 涵蓋 SSMS 在 ApplicationBase 外 LoadFrom 的回程 DTO；失敗與 Dispose 解除解析，不接管 SQLite／BCL。
 native DLL 仍是程序層級；來源檢查失敗即拒絕，AppDomain 不保證 native 卸載或所有宿主功能共存。
 
+worker 以 `SqliteStorageErrors` 轉成不帶 inner exception 的分類例外，分類與錯誤碼跨 AppDomain 保留。
 SQLite async 方法仍可能同步 I/O，repository 明確排背景。DTO 複製與 hash 也在背景，隔離派送後以
 交易結果為準，取消只阻止未派送操作；UI 還須用選取／宿主世代拒絕晚到結果。
 版本與授權以 csproj、隔離 config 及 `ThirdPartyLicenses.txt` 為準；更新 provider 必須重跑[封裝驗證](sql-memory-validation.md)。

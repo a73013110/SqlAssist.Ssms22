@@ -30,8 +30,9 @@ internal sealed class SqliteTestStore : IDisposable
             new QueryTextSnapshot(sql), context, selected == null ? null : new QueryTextSnapshot(selected));
 
     public Task Process(SqliteQueryMemoryRepository repository, QueryMemoryCapture capture, CancellationToken cancellationToken,
-        QueryMemoryPolicy? policy = null) =>
-        new QueryMemoryProcessor(repository, new QueryRevisionEngine()).ProcessAsync(capture, policy ?? Policy, cancellationToken);
+        QueryMemoryPolicy? policy = null, string? leaseId = null) =>
+        new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => leaseId)
+            .ProcessAsync(capture, policy ?? Policy, cancellationToken);
 
     /// <summary>所有期限都已過的政策；只留保護根，讓測試分辨「不該刪」與「刪不到」。</summary>
     public static QueryMemoryMaintenancePolicy Expired(long? capacity = null) =>

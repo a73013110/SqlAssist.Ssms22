@@ -22,8 +22,9 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
         _domain = domain; _worker = worker; _resolution = resolution;
     }
 
+    /// <remarks>失敗一律以 <see cref="QueryMemoryStorageException"/> 回報，分類在隔離 AppDomain 內決定。</remarks>
     public static Task<IsolatedQueryMemoryRepository> OpenAsync(string databasePath, string? ssmsIdeDirectory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
     {
         return Task.Run(() =>
         {
@@ -38,7 +39,7 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
             {
                 // 實際檔案限定 worker 來源；回程型別解析另由有限生命週期的 resolution 處理。
                 var worker = (SqliteWorker)domain.CreateInstanceFromAndUnwrap(typeof(SqliteWorker).Assembly.Location, typeof(SqliteWorker).FullName);
-                worker.Initialize(databasePath, ssmsIdeDirectory);
+                worker.Initialize(databasePath, ssmsIdeDirectory, busyTimeoutSeconds);
                 return new IsolatedQueryMemoryRepository(domain, worker, resolution);
             }
             catch
@@ -52,8 +53,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
 
     public Task<QuerySessionState?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadSession(sessionId), cancellationToken);
-    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, CancellationToken cancellationToken) =>
-        Invoke(() => _worker.Commit(write), cancellationToken);
+    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken) =>
+        Invoke(() => _worker.Commit(write, leaseId), cancellationToken);
     public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken) =>
         Invoke(() => _worker.ReadHistory(request), cancellationToken);
     public Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>

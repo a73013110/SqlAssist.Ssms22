@@ -48,7 +48,9 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 writer 最多接受 64 筆／32 MB 文字估計，包含處理中的項目；同 Session 的待處理 idle 可合併，
 Execute／Close／Manual 是屏障。拒收必須可見，不淘汰已接受的執行事件。文字估計不是程序記憶體上限。
-processor 只對 CAS 做有界重試；一般 I/O 錯誤使 writer fault 並停止接受。強制結束程序仍可能失去未落盤內容。
+processor 對 CAS 衝突與儲存 Busy 各做有界重試，退避期間不持有宿主或隔離層閘門。Busy 重試用盡只放棄該筆並經回呼可見，
+writer 繼續；損毀、不相容或未知錯誤才使 writer fault 並停止接受。強制結束程序仍可能失去未落盤內容。
 
 UI、維護、手動整理與卸載共用宿主閘門；卸載先等待已派送操作及 writer 排空，再於背景卸載 AppDomain。
+手動整理先等本程序 writer 閒置；整理期間擷取照常排隊，提交在隔離層等整理結束，佇列上限不變。
 每次開庫更新宿主世代，舊成功／失敗回應都不得污染新頁面。驗證邊界見[驗收](sql-memory-validation.md)。
