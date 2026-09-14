@@ -41,6 +41,12 @@ internal static class QueryMemoryHost
     /// <summary>啟動後先讓 SSMS 自己開完；維護不跟開窗搶 I/O。</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(3);
 
+    /// <summary>
+    /// 還有工作時的下一批距離。等於計時器解析度：一個計時器週期最多一批有界交易，
+    /// 讓出執行權的同時，積壓一萬個候選約 25 分鐘巡完，不必等上數十個維護間隔。
+    /// </summary>
+    private static readonly TimeSpan PendingDelay = TimerPeriod;
+
     /// <summary>佇列上限；文字位元組是估計值，不是程序記憶體硬上限。</summary>
     private const int MaximumPendingCaptures = 64;
 
@@ -236,14 +242,15 @@ internal static class QueryMemoryHost
 
         try
         {
-            var owner = QueryMemoryProcessProbe.CurrentOwner();
             if (_state is { } existing)
             {
-                // 儲存庫不必重開；只換政策、排程與保留分級，游標跟著整條分級重來。
-                _state = existing.With(settings, owner);
+                // 儲存庫與維護排程都不重開；只換擷取政策與保留計畫，計畫指紋變了游標才跟著重來。
+                _state = existing.With(settings);
                 _status = "";
                 return;
             }
+
+            var owner = QueryMemoryProcessProbe.CurrentOwner();
 
             var repository = await IsolatedQueryMemoryRepository
                 .OpenAsync(DatabasePath(), AppDomain.CurrentDomain.BaseDirectory, lifetime.Token)
@@ -323,6 +330,25 @@ internal static class QueryMemoryHost
                 SqlAssistDiagnostics.WriteAlways($"SQL Memory 排空時失敗：{error.Message}");
             }
 
+            // 交回維護租約，另一個 SSMS 不必等十分鐘過期才能接續共用輪次。停止會等被取消的那一批離開，
+            // 不帶生命週期的 token：它已經取消了，而交回本身只是一句有界的刪除。
+            var stop = state.Runner.StopAsync(CancellationToken.None);
+            if (!await CompletesWithinAsync(stop, Remaining()).ConfigureAwait(false))
+            {
+                SqlAssistDiagnostics.WriteAlways("SQL Memory 關閉逾時：維護批次尚未結束，未交回維護租約也未卸載隔離儲存。");
+                return false;
+            }
+
+            try
+            {
+                await stop.ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                // 交回失敗只代表別人要等租約過期，不影響卸載。
+                SqlAssistDiagnostics.WriteAlways($"SQL Memory 交回維護租約失敗：{error.Message}");
+            }
+
             var dispose = Task.Run(state.Repository.Dispose);
             if (!await CompletesWithinAsync(dispose, Remaining()).ConfigureAwait(false))
             {
@@ -371,8 +397,8 @@ internal static class QueryMemoryHost
             if (tick.Outcome == QueryMemoryMaintenanceOutcome.Maintained && tick.Result is { } result)
             {
                 SqlAssistDiagnostics.Write(
-                    $"SQL Memory 維護：分級 {tick.Level} 檢查 {result.ExaminedCandidates} 刪除 {result.DeletedRows} " +
-                    $"容量 {result.CapacityStatus} 釋放租約 {tick.ReleasedLeases} 截斷 {tick.Checkpointed}");
+                    $"SQL Memory 維護：{tick.Scan} 分級 {tick.Level} 檢查 {result.ExaminedCandidates} 刪除 {result.DeletedRows} " +
+                    $"容量 {result.CapacityStatus} 續巡 {result.Cursor != null} 釋放租約 {tick.ReleasedLeases} 截斷 {tick.Checkpointed}");
             }
         }
         catch (Exception error) when (IsClosing(error, state)) { }
@@ -512,10 +538,17 @@ internal static class QueryMemoryHost
                 BuildRunner(repository, settings, owner), BuildPolicy(settings));
         }
 
-        /// <summary>沿用同一個儲存庫、使用期間、寫入器與心跳，只換掉政策與整條保留分級。</summary>
-        /// <remarks>進行中的維護批次仍用舊分級做完這一批；它與新分級各自有界，下一輪才用新的。</remarks>
-        public State With(SqlAssistSettings settings, QueryMemoryLeaseOwner owner) =>
-            new(Repository, Lifetime, Writer, Heartbeat, BuildRunner(Repository, settings, owner), BuildPolicy(settings));
+        /// <summary>沿用同一個儲存庫、使用期間、寫入器、心跳與維護排程，只換掉擷取政策與保留計畫。</summary>
+        /// <remarks>
+        /// 維護不重建：重建會把啟動延遲重新算一次，而且新舊兩個 runner 可能同時跑批次。
+        /// 進行中的一批仍用舊計畫做完；下一批才讀共用狀態、依新計畫指紋決定是否重開輪次。
+        /// </remarks>
+        public State With(SqlAssistSettings settings)
+        {
+            var interval = Interval(settings);
+            Runner.Reconfigure(BuildPlan(settings), interval, PendingDelay, IdleMinimumGap(interval));
+            return new State(Repository, Lifetime, Writer, Heartbeat, Runner, BuildPolicy(settings));
+        }
 
         private static QueryMemoryPolicy BuildPolicy(SqlAssistSettings settings) => new(
             settings.QueryMemoryCaptureDrafts && settings.QueryMemoryRecoverUnsavedDrafts,
@@ -524,21 +557,20 @@ internal static class QueryMemoryHost
             settings.QueryMemoryCaptureExecuted,
             settings.QueryMemoryCaptureDrafts);
 
-        private static QueryMemoryMaintenanceRunner BuildRunner(IsolatedQueryMemoryRepository repository,
-            SqlAssistSettings settings, QueryMemoryLeaseOwner owner)
-        {
-            var interval = TimeSpan.FromMinutes(settings.QueryMemoryMaintenanceMinutes);
-            var schedule = new QueryMemoryMaintenanceSchedule(DateTimeOffset.UtcNow, StartupDelay, interval,
-                // 還有工作時排近一點，但仍然是下一輪；閒置提前另有最小間隔，免得變成忙碌迴圈。
-                TimeSpan.FromTicks(Math.Max(TimerPeriod.Ticks, interval.Ticks / 10)),
-                TimeSpan.FromTicks(interval.Ticks / 4));
+        private static TimeSpan Interval(SqlAssistSettings settings) =>
+            TimeSpan.FromMinutes(settings.QueryMemoryMaintenanceMinutes);
 
+        // 閒置提前另有最小間隔，免得連續閒置變成忙碌迴圈。
+        private static TimeSpan IdleMinimumGap(TimeSpan interval) => TimeSpan.FromTicks(interval.Ticks / 4);
+
+        private static QueryMemoryRetentionPlan BuildPlan(SqlAssistSettings settings)
+        {
             // 沒有在保留未存檔草稿就不給期限：有期限才需要回收，沒有就完全不憑年齡刪。
             var unsaved = settings.QueryMemoryCaptureDrafts && settings.QueryMemoryRecoverUnsavedDrafts
                 ? TimeSpan.FromDays(settings.QueryMemoryUnsavedDraftRetentionDays)
                 : (TimeSpan?)null;
 
-            var plan = new QueryMemoryRetentionPlan(
+            return new QueryMemoryRetentionPlan(
                 TimeSpan.FromDays(settings.QueryMemoryDraftRetentionDays),
                 TimeSpan.FromDays(settings.QueryMemoryExecutionRetentionDays),
                 unsaved,
@@ -546,10 +578,18 @@ internal static class QueryMemoryHost
                 settings.QueryMemoryMaxExecutions,
                 settings.QueryMemoryMaxSessionRevisions,
                 settings.QueryMemoryMaxFavoriteRevisions);
+        }
+
+        private static QueryMemoryMaintenanceRunner BuildRunner(IsolatedQueryMemoryRepository repository,
+            SqlAssistSettings settings, QueryMemoryLeaseOwner owner)
+        {
+            var interval = Interval(settings);
+            var schedule = new QueryMemoryMaintenanceSchedule(DateTimeOffset.UtcNow, StartupDelay, interval,
+                PendingDelay, IdleMinimumGap(interval));
 
             return new QueryMemoryMaintenanceRunner(repository, repository,
                 new QueryMemoryLeaseReaper(Environment.MachineName, QueryMemoryProcessProbe.IsOwnerRunning),
-                owner, schedule, plan, LeaseExpiry);
+                owner, schedule, BuildPlan(settings), LeaseExpiry);
         }
     }
 }

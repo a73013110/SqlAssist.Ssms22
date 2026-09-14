@@ -29,6 +29,9 @@ public enum QueryMemoryStorageErrorKind
 
     /// <summary>交易違反條件約束。</summary>
     Constraint,
+
+    /// <summary>維護租約已易手，或共用維護狀態已被別的程序推進；整批已回復，重讀狀態即可，不是故障。</summary>
+    Conflict,
 }
 
 /// <summary>

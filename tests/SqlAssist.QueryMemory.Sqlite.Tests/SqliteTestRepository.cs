@@ -49,6 +49,8 @@ internal sealed class SqliteTestRepository : IQueryMemoryRepository, IFavoriteQu
         Run(token => _storage.ReadUsage(token), cancellationToken);
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
         Run(token => _storage.Maintain(request, token), cancellationToken);
+    public Task<QueryMemoryMaintenanceState?> ReadMaintenanceStateAsync(CancellationToken cancellationToken) =>
+        Run(token => _storage.ReadMaintenanceState(token), cancellationToken);
     public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) =>
         Run(token => _storage.Checkpoint(token), cancellationToken);
     public Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
@@ -64,6 +66,8 @@ internal sealed class SqliteTestRepository : IQueryMemoryRepository, IFavoriteQu
         Run(token => _storage.ReleaseLeases(leaseIds, expiredBefore, token), cancellationToken);
     public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
         Run(token => _storage.TryAcquireMaintenanceLease(owner, now, expiredBefore, token), cancellationToken);
+    public Task<bool> ReleaseMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken) =>
+        Run(token => _storage.ReleaseMaintenanceLease(owner, token), cancellationToken);
 
     private static Task<T> Run<T>(Func<CancellationToken, T> operation, CancellationToken cancellationToken) =>
         Task.Run(() => operation(cancellationToken), cancellationToken);

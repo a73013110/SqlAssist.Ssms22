@@ -53,64 +53,95 @@ public sealed class QueryMemoryRetentionLadder
         "保留分級 " + level.ToString(CultureInfo.InvariantCulture) + " 的" + field + "比前一級寬鬆。", "levels");
 }
 
+/// <summary>下一批要跑的輪次、由輪次換算出的政策，以及接續的游標。</summary>
+public sealed record QueryMemoryMaintenanceBatch(QueryMemoryMaintenanceRound Round, QueryMemoryMaintenancePolicy Policy,
+    string? Cursor);
+
+/// <summary>一批寫回狀態之後，下一批會用哪一級，以及是否該把下一批排近。</summary>
+public sealed record QueryMemoryMaintenanceOutlook(int Level, bool PendingWork);
+
 /// <summary>
-/// 依上一輪結果決定下一批維護要用哪一級保留與哪個游標。只在完成一輪的邊界升降級，
-/// 游標因此不會跨級沿用；本身不計時、不呼叫 repository，排程另由宿主負責。
+/// 依共用維護狀態決定下一批：沿用未巡完的輪次，或在輪次邊界套用上一輪的結論後開新輪次。
 /// </summary>
+/// <remarks>
+/// 本身不保存進度：級數、輪次起點與游標都在儲存層的狀態表，換程序或重啟 SSMS 都從那裡接。
+/// 輪次起點決定整條分級的截止時間，接續同一輪時政策逐位元組相同，游標才對得上；
+/// 每開新輪次都以當下換算並保留壓力級，壓力持續期間截止時間才不會凍結。
+/// 本身不計時、不呼叫 repository，排程由宿主負責。
+/// </remarks>
 public sealed class QueryMemoryMaintenancePlanner
 {
-    private QueryMemoryRetentionLadder _ladder;
+    /// <summary>每完成這麼多輪索引巡查就做一次完整掃描，回收索引路徑碰不到的孤立資料。</summary>
+    public const int FullScanEveryRounds = 24;
 
-    public QueryMemoryMaintenancePlanner(QueryMemoryRetentionLadder ladder) =>
-        _ladder = ladder ?? throw new ArgumentNullException(nameof(ladder));
+    public QueryMemoryMaintenancePlanner(QueryMemoryRetentionPlan plan) =>
+        Plan = plan ?? throw new ArgumentNullException(nameof(plan));
 
-    /// <summary>目前分級；0 是日常保留。容量回到上限內就直接回到 0，不逐級退回。</summary>
-    public int Level { get; private set; }
+    public QueryMemoryRetentionPlan Plan { get; }
 
-    public QueryMemoryMaintenancePolicy Policy => _ladder[Level];
+    private static int LevelCount => QueryMemoryRetentionPlan.Tightening.Count;
 
-    public string? Cursor { get; private set; }
-
-    /// <summary>該儘快再跑一批：這一輪未巡完、有刪除要再巡一輪，或剛升級換了保留設定。</summary>
-    public bool PendingWork { get; private set; }
-
-    public QueryMemoryMaintenanceRequest NextRequest(int candidateLimit) =>
-        new(Policy, candidateLimit, Cursor);
-
-    /// <summary>只接受 <see cref="NextRequest"/> 這一輪的結果；跨政策沿用結果會誤判壓力。</summary>
-    public void Observe(QueryMemoryMaintenanceResult result)
+    /// <param name="state">儲存層最後寫回的狀態；null 表示從來沒有人跑過。</param>
+    /// <param name="reclaimUnsavedDrafts">本程序此刻是否真的持有 Session 心跳租約。</param>
+    public QueryMemoryMaintenanceBatch Next(QueryMemoryMaintenanceState? state, DateTimeOffset now, bool reclaimUnsavedDrafts)
     {
-        if (result == null) throw new ArgumentNullException(nameof(result));
-        Cursor = result.Cursor;
-        if (result.Cursor != null) { PendingWork = true; return; }
-        PendingWork = result.RequiresAnotherPass;
-        if (result.CapacityStatus == QueryMemoryCapacityStatus.WithinLimit) { Level = 0; return; }
-        // 只有完整巡過一輪仍沒有東西可回收，才承認這一級的保留擋住了容量而換下一級。
-        if (result.CapacityStatus != QueryMemoryCapacityStatus.CannotReclaimWithinPolicy || Level + 1 >= _ladder.Count) return;
-        Level++;
-        PendingWork = true;
+        var sinceFullScan = state?.Round.RoundsSinceFullScan ?? 0;
+        // 設定一改，舊輪次的政策與壓力級都是依舊設定推出來的，沿用只會拿舊結論套新設定。
+        if (state == null || state.Round.PlanFingerprint != Plan.Fingerprint || state.Round.Level >= LevelCount)
+            return Start(0, QueryMemoryMaintenanceScan.Indexed, sinceFullScan, now, reclaimUnsavedDrafts);
+
+        var round = state.Round;
+        // 心跳斷掉時立刻放棄這一輪，即使正巡到一半：多巡一輪的成本，
+        // 遠小於讓沒有租約的線上 Session 的未存檔草稿被當成遺留資料。
+        if (round.ReclaimsUnsavedDrafts && !reclaimUnsavedDrafts)
+            return Start(0, QueryMemoryMaintenanceScan.Indexed, sinceFullScan, now, false);
+
+        // 起點晚於現在代表時鐘曾被往回調；照舊起點換算的截止時間會落在真實的未來，把期限內的資料當成過期。
+        if (state.Cursor != null && round.StartedAt > now) return Restart(round, now, reclaimUnsavedDrafts);
+        if (state.Cursor != null) return Batch(round, state.Cursor);
+
+        var next = Conclude(state);
+        return Start(next.Level, next.Scan, next.RoundsSinceFullScan, now, reclaimUnsavedDrafts);
     }
 
-    /// <summary>
-    /// 換上以新基準時間換算的分級，但保留目前壓力級；舊游標綁在舊政策上，所以一併丟掉。
-    /// </summary>
-    /// <remarks>
-    /// 壓力期間若不換分級，截止時間會停在建立分級那一刻，之後寫入的資料永遠不會比它舊，
-    /// 按期限清理就整個停住。新分級級數較少時退到最緊的那一級，而不是回到日常級：
-    /// 壓力沒有解除，不該因為換分級就放掉已經收緊的程度。
-    /// </remarks>
-    public void Rebuild(QueryMemoryRetentionLadder ladder)
+    /// <summary>接續的游標被儲存層拒絕時，保留級數與掃描方式從當下重開這一輪；舊游標沒有續讀價值。</summary>
+    public QueryMemoryMaintenanceBatch Restart(QueryMemoryMaintenanceRound round, DateTimeOffset now, bool reclaimUnsavedDrafts)
     {
-        _ladder = ladder ?? throw new ArgumentNullException(nameof(ladder));
-        if (Level >= _ladder.Count) Level = _ladder.Count - 1;
-        Cursor = null;
+        if (round == null) throw new ArgumentNullException(nameof(round));
+        return Start(Math.Min(round.Level, LevelCount - 1), round.Scan, round.RoundsSinceFullScan, now, reclaimUnsavedDrafts);
     }
 
-    /// <summary>設定改變時重新開始；舊游標綁在舊政策上，沿用會被 repository 拒絕。</summary>
-    public void Reset()
+    /// <summary>只看寫回的狀態推算，與下一個程序讀到同一份狀態時得到的結論相同。</summary>
+    public QueryMemoryMaintenanceOutlook Observe(QueryMemoryMaintenanceState state)
     {
-        Level = 0;
-        Cursor = null;
-        PendingWork = false;
+        if (state == null) throw new ArgumentNullException(nameof(state));
+        if (state.Cursor != null) return new QueryMemoryMaintenanceOutlook(state.Round.Level, true);
+        var next = Conclude(state);
+        return new QueryMemoryMaintenanceOutlook(next.Level, next.Urgent);
+    }
+
+    private QueryMemoryMaintenanceBatch Start(int level, QueryMemoryMaintenanceScan scan, int sinceFullScan,
+        DateTimeOffset now, bool reclaimUnsavedDrafts) =>
+        Batch(new QueryMemoryMaintenanceRound(Plan.Fingerprint, now, level, reclaimUnsavedDrafts, scan, sinceFullScan), null);
+
+    private QueryMemoryMaintenanceBatch Batch(QueryMemoryMaintenanceRound round, string? cursor) => new(round,
+        Plan.BuildLadder(round.StartedAt, round.ReclaimsUnsavedDrafts)[round.Level], cursor);
+
+    /// <summary>容量回到上限內就直接回日常級，不逐級退回；只在輪次邊界換級。</summary>
+    private static (int Level, QueryMemoryMaintenanceScan Scan, int RoundsSinceFullScan, bool Urgent) Conclude(
+        QueryMemoryMaintenanceState state)
+    {
+        var round = state.Round;
+        var since = round.Scan == QueryMemoryMaintenanceScan.Full ? 0 : Math.Min(round.RoundsSinceFullScan + 1, FullScanEveryRounds);
+        var routine = since >= FullScanEveryRounds ? QueryMemoryMaintenanceScan.Full : QueryMemoryMaintenanceScan.Indexed;
+        if (state.CapacityStatus == QueryMemoryCapacityStatus.WithinLimit)
+            return (0, routine, since, state.RequiresAnotherPass);
+        if (state.CapacityStatus != QueryMemoryCapacityStatus.CannotReclaimWithinPolicy || round.Level + 1 >= LevelCount)
+            // 最緊的一級也回收不到就是政策擋住了容量，不該一直排下一批空轉。
+            return (round.Level, routine, since, state.RequiresAnotherPass);
+        // 索引巡查看不到索引以外的孤立資料；升級前先完整掃描一輪，確認這一級真的回收不到。
+        return round.Scan == QueryMemoryMaintenanceScan.Indexed
+            ? (round.Level, QueryMemoryMaintenanceScan.Full, since, true)
+            : (round.Level + 1, QueryMemoryMaintenanceScan.Indexed, since, true);
     }
 }

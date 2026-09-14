@@ -327,6 +327,16 @@ public sealed class SqliteMaintenanceTests
         Assert.True(after.Usage.ContentBytes < before.ContentBytes);
         Assert.Null(await isolated.ReadContentAsync(leaf.ContentId, Token));
         Assert.Equal(QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, after.CapacityStatus);
+        // 輪次、Claim 與狀態都要能跨 AppDomain 序列化；租約交回也走同一個邊界。
+        var owner = new QueryMemoryLeaseOwner("LIBRARYPC", 4242, SqliteTestStore.Start);
+        Assert.True(await isolated.TryAcquireMaintenanceLeaseAsync(owner, SqliteTestStore.Start, SqliteTestStore.Start, Token));
+        var round = new QueryMemoryMaintenanceRound("retention1|isolated", SqliteTestStore.Start, 0, true, QueryMemoryMaintenanceScan.Full, 0);
+        var claimed = await isolated.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(0), 500, null,
+            QueryMemoryMaintenanceScan.Full, new QueryMemoryMaintenanceClaim(owner, 0, round)), Token);
+        Assert.Equal(new QueryMemoryMaintenanceState(1, round, claimed.Cursor, claimed.RequiresAnotherPass, claimed.CapacityStatus),
+            await isolated.ReadMaintenanceStateAsync(Token));
+        Assert.True(await isolated.ReleaseMaintenanceLeaseAsync(owner, Token));
+        Assert.False(await isolated.ReleaseMaintenanceLeaseAsync(owner, Token));
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => isolated.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(), 1), cancellation.Token));
     }
@@ -344,6 +354,7 @@ public sealed class SqliteMaintenanceTests
             ("Executions", "RevisionId"), ("History", "RevisionId"), ("FavoriteQueries", "CurrentRevisionId"),
         };
         probes.AddRange(new[] { "Revisions", "Executions", "Recovery", "History", "FavoriteQueries" }.Select(table => (table, "ContextId")));
+        probes.AddRange(new[] { "Revisions", "Recovery", "History" }.Select(table => (table, "ContentId")));
         foreach (var probe in probes)
         {
             using var command = connection.CreateCommand();
@@ -353,12 +364,183 @@ public sealed class SqliteMaintenanceTests
             Assert.Contains("SEARCH", reader.GetString(3));
             Assert.Contains("INDEX", reader.GetString(3));
         }
-        using var candidate = connection.CreateCommand();
-        candidate.CommandText = "EXPLAIN QUERY PLAN SELECT RevisionId FROM Revisions WHERE RevisionId>'test' ORDER BY RevisionId LIMIT 1;";
-        using var plan = candidate.ExecuteReader();
-        Assert.True(plan.Read());
-        Assert.Contains("SEARCH", plan.GetString(3));
-        Assert.False(plan.Read());
+        foreach (var stage in new[] { SqliteMaintenanceStage.Revisions, SqliteMaintenanceStage.Contents, SqliteMaintenanceStage.Contexts })
+        {
+            var plan = Explain(connection, SqliteMaintenanceStages.ByKey(stage));
+            Assert.Contains("SEARCH", Assert.Single(plan));
+        }
+    }
+
+    /// <summary>
+    /// 索引巡查的每個候選與分組查詢都必須是索引範圍搜尋：不掃整張表、不建暫存排序，
+    /// 部分索引的條件也要與查詢逐字相同才會命中。
+    /// </summary>
+    [Fact]
+    public async Task IndexedCandidateQueriesSeekTheirTimeIndexesWithoutScanningOrSorting()
+    {
+        using var store = new SqliteTestStore();
+        await store.Open(Token);
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
+        connection.Open();
+        foreach (var (sql, index) in SqliteMaintenanceStages.CandidateQueries())
+        {
+            var detail = Assert.Single(Explain(connection, sql));
+            Assert.StartsWith("SEARCH", detail);
+            Assert.Contains(index, detail);
+            Assert.DoesNotContain("TEMP B-TREE", detail);
+            // 截止時間必須是索引範圍的上界，而不是讀完範圍再逐列過濾。
+            if (sql.Contains("$cutoff")) Assert.Contains(">(?,?) AND ", detail);
+            if (sql.Contains("$cutoff")) Assert.EndsWith("<?)", detail);
+        }
+    }
+
+    private static List<string> Explain(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "EXPLAIN QUERY PLAN " + sql;
+        using var reader = command.ExecuteReader();
+        var details = new List<string>();
+        while (reader.Read()) details.Add(reader.GetString(3));
+        return details;
+    }
+
+    /// <summary>
+    /// 期限內與配額內的資料再多，索引巡查一輪也只花分組探測的工作量；舊的逐主鍵巡查要逐列看過一遍。
+    /// </summary>
+    [Fact]
+    public async Task UnexpiredBacklogIsNeverExaminedByAnIndexedRound()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var sequence = 1; sequence <= 40; sequence++)
+            await store.Process(repository, store.Capture(sequence,
+                selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";", seconds: sequence), Token);
+        var other = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        await SeedAutoDrafts(store, repository, other, 12, 0);
+        var policy = new QueryMemoryMaintenancePolicy(SqliteTestStore.Start.AddDays(-1), SqliteTestStore.Start.AddDays(-1), 0,
+            100, 50, 20, SqliteTestStore.Start.AddDays(-1));
+
+        // 工作量只給 2：一輪仍在一批內結束，代表 40 次執行、它們的選取版本與草稿都不是候選。
+        var indexed = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 2), Token);
+        Assert.Null(indexed.Cursor);
+        Assert.Equal(1, indexed.ExaminedCandidates);
+        Assert.Equal(0, indexed.DeletedRows);
+        Assert.Equal(QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, indexed.CapacityStatus);
+
+        var full = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 500, null, QueryMemoryMaintenanceScan.Full), Token);
+        Assert.True(full.ExaminedCandidates > 80);
+        Assert.Equal(40L, store.Scalar("SELECT count(*) FROM Executions;"));
+    }
+
+    /// <summary>刪掉版本的同一批就回收它的內容，不必等排在最後、而且很少跑到的內容階段。</summary>
+    [Fact]
+    public async Task DeletingARevisionReclaimsItsContentInTheSameBatch()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var basis = await SeedBaseRevision(store, repository);
+        var query = await SeedFavorite(repository, basis, "讀者收藏");
+        await EditFavorite(repository, query.FavoriteQueryId, "B", 3, 60);
+        var before = await repository.ReadUsageAsync(Token);
+
+        var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(
+            new QueryMemoryMaintenancePolicy(null, null, null, null, null, 1), 500), Token);
+
+        Assert.Null(result.Cursor);
+        // 一個收藏的分組探測，加上兩個超額版本。
+        Assert.Equal(3, result.ExaminedCandidates);
+        Assert.Equal(4, result.DeletedRows);
+        Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("B", 0)).ContentId, Token));
+        Assert.Null(await repository.ReadContentAsync(QueryContent.Create(EditSql("B", 1)).ContentId, Token));
+        Assert.Equal(before.ContentBytes - 2L * (EditSql("B", 0).Length + EditSql("B", 1).Length), result.Usage.ContentBytes);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    /// <summary>過期的執行釋出選取版本，版本階段刪掉之後內容也在同一批回收。</summary>
+    [Fact]
+    public async Task ExpiredExecutionsReleaseSelectionRevisionsAndContentWithinOneBatch()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var leaf = await SeedLeaf(store, repository);
+
+        var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(), 500), Token);
+
+        Assert.Null(result.Cursor);
+        Assert.Null(await repository.ReadContentAsync(leaf.ContentId, Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + leaf.RevisionId.ToString("N") + "';"));
+        Assert.Equal(store.Scalar("SELECT SUM(2 * Length) FROM Contents;"), result.Usage.ContentBytes);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    private static readonly QueryMemoryLeaseOwner MaintenanceOwner = new("LIBRARYPC", 4242, SqliteTestStore.Start);
+
+    /// <summary>
+    /// 輪次、游標與政策指紋寫在狀態表：重開 repository 後照樣接續，
+    /// 而晚到的批次（版本過期或租約易手）整批回復、不蓋掉別人推進過的游標。
+    /// </summary>
+    [Fact]
+    public async Task PersistedStateLetsAReopenedRepositoryResumeAndRejectsStaleOrForeignBatches()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var sequence = 1; sequence <= 6; sequence++)
+            await store.Process(repository, store.Capture(sequence,
+                selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";", seconds: sequence), Token);
+        Assert.Null(await repository.ReadMaintenanceStateAsync(Token));
+        Assert.True(await repository.TryAcquireMaintenanceLeaseAsync(MaintenanceOwner, SqliteTestStore.Start, SqliteTestStore.Start, Token));
+        var policy = Expired();
+        var round = new QueryMemoryMaintenanceRound("retention1|test", SqliteTestStore.Start, 1, false, QueryMemoryMaintenanceScan.Indexed, 3);
+        QueryMemoryMaintenanceRequest Claimed(long version, string? cursor, QueryMemoryLeaseOwner? owner = null) =>
+            new(policy, 2, cursor, QueryMemoryMaintenanceScan.Indexed, new QueryMemoryMaintenanceClaim(owner ?? MaintenanceOwner, version, round));
+
+        var first = await repository.MaintainAsync(Claimed(0, null), Token);
+        Assert.NotNull(first.Cursor);
+        var reopened = await store.Open(Token);
+        var state = await reopened.ReadMaintenanceStateAsync(Token);
+        Assert.Equal(new QueryMemoryMaintenanceState(1, round, first.Cursor, false, first.CapacityStatus), state);
+
+        var executions = store.Scalar("SELECT count(*) FROM Executions;");
+        foreach (var stale in new[] { Claimed(0, first.Cursor), Claimed(1, first.Cursor, MaintenanceOwner with { ProcessId = 77 }) })
+        {
+            var conflict = await Assert.ThrowsAsync<QueryMemoryStorageException>(() => reopened.MaintainAsync(stale, Token));
+            Assert.Equal(QueryMemoryStorageErrorKind.Conflict, conflict.Kind);
+        }
+        Assert.Equal(executions, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(state, await reopened.ReadMaintenanceStateAsync(Token));
+
+        var result = first;
+        for (var version = 1L; result.Cursor != null || result.RequiresAnotherPass; version++)
+        {
+            Assert.True(version < 50);
+            var resumed = (await reopened.ReadMaintenanceStateAsync(Token))!;
+            Assert.Equal(version, resumed.Version);
+            result = await reopened.MaintainAsync(Claimed(version, resumed.Cursor), Token);
+        }
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Null((await reopened.ReadMaintenanceStateAsync(Token))?.Cursor);
+
+        // 交回租約之後，原持有者的批次也不再能寫回。
+        Assert.True(await reopened.ReleaseMaintenanceLeaseAsync(MaintenanceOwner, Token));
+        var version2 = (await reopened.ReadMaintenanceStateAsync(Token))!.Version;
+        Assert.Equal(QueryMemoryStorageErrorKind.Conflict, (await Assert.ThrowsAsync<QueryMemoryStorageException>(() =>
+            reopened.MaintainAsync(Claimed(version2, null), Token))).Kind);
+        Assert.Throws<ArgumentException>(() => new QueryMemoryMaintenanceRequest(policy, 2, null, QueryMemoryMaintenanceScan.Full,
+            new QueryMemoryMaintenanceClaim(MaintenanceOwner, 0, round)));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task FullScanCursorIsNotAcceptedByAnIndexedBatch()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await SeedLeaf(store, repository);
+        var full = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(), 1, null, QueryMemoryMaintenanceScan.Full), Token);
+        Assert.NotNull(full.Cursor);
+        var error = await Assert.ThrowsAsync<QueryMemoryStorageException>(() =>
+            repository.MaintainAsync(new QueryMemoryMaintenanceRequest(Expired(), 1, full.Cursor), Token));
+        Assert.Equal(QueryMemoryStorageErrorKind.InvalidCursor, error.Kind);
     }
 
     [Fact]
@@ -387,15 +569,21 @@ public sealed class SqliteMaintenanceTests
         store.Scalar(@"CREATE TRIGGER FailSecondContent BEFORE DELETE ON Contents
  WHEN (SELECT count(*) FROM Contents)<17 BEGIN SELECT RAISE(ABORT,'測試整批回復'); END;");
         var policy = new QueryMemoryMaintenancePolicy(null, null, 0);
-        await Assert.ThrowsAsync<SqliteException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 3), Token));
+        // 沒有任何列被刪，就沒有引用可以帶出這些孤立內容；索引巡查不為它們掃全表。
+        var indexed = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 3), Token);
+        Assert.Null(indexed.Cursor);
+        Assert.Equal(0, indexed.ExaminedCandidates);
+        Assert.Equal(QueryMemoryCapacityStatus.CannotReclaimWithinPolicy, indexed.CapacityStatus);
+        var full = QueryMemoryMaintenanceScan.Full;
+        await Assert.ThrowsAsync<SqliteException>(() => repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 3, null, full), Token));
         Assert.Equal(17L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Equal(bytes, (await repository.ReadUsageAsync(Token)).ContentBytes);
         store.Scalar("DROP TRIGGER FailSecondContent;");
-        var first = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 3), Token);
+        var first = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 3, null, full), Token);
         Assert.Equal(3, first.ExaminedCandidates);
         Assert.Equal(3, first.DeletedRows);
         Assert.Equal(14L, store.Scalar("SELECT count(*) FROM Contents;"));
-        var result = await Drain(await store.Open(Token), policy, 2, first.Cursor);
+        var result = await Drain(await store.Open(Token), policy, 2, first.Cursor, full);
         Assert.Equal(0, result.Usage.ContentBytes);
         Assert.Equal(QueryMemoryCapacityStatus.WithinLimit, result.CapacityStatus);
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contexts;"));
@@ -442,7 +630,10 @@ public sealed class SqliteMaintenanceTests
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
         await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query with { Scope = FavoriteQueryScope.Global, Connection = null }, favorite.Version), Token);
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
+        // 改 scope 不是維護刪除的列，引用回收帶不出它；由低頻的完整掃描承接。
         await Drain(repository, Expired());
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
+        await Drain(repository, Expired(), scan: QueryMemoryMaintenanceScan.Full);
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contexts WHERE Server='BranchServer';"));
         Assert.NotNull(await repository.ReadContentAsync(leaf.ContentId, Token));
     }

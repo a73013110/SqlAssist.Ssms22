@@ -167,7 +167,16 @@ public static class QueryMemoryStorageSelfTest
                 sessionHeartbeatActive: true, token).ConfigureAwait(false);
             Require(result.Outcome == QueryMemoryMaintenanceOutcome.Maintained, "排程取得維護租約");
             Require(result.Level == 0, "容量未超限時不進入壓力分級");
-            if (!runner.PendingWork) return;
+            if (runner.PendingWork) continue;
+
+            var state = await repository.ReadMaintenanceStateAsync(token).ConfigureAwait(false);
+            Require(state != null && state.Cursor == null && state.Round.PlanFingerprint == plan.Fingerprint,
+                "維護輪次寫回共用狀態表");
+            // 正常卸載交回租約，別的程序不必等十分鐘過期才能接續同一份狀態。
+            Require(await runner.StopAsync(token).ConfigureAwait(false), "停止時交回維護租約");
+            Require(await repository.TryAcquireMaintenanceLeaseAsync(owner with { ProcessId = owner.ProcessId + 1 },
+                now, now.AddMinutes(-10), token).ConfigureAwait(false), "交回後其他程序立即取得維護租約");
+            return;
         }
 
         throw new InvalidOperationException("排程維護未在自我測試上限內收斂。");
@@ -298,7 +307,8 @@ public static class QueryMemoryStorageSelfTest
         {
             token.ThrowIfCancellationRequested();
             var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, 4, cursor), token).ConfigureAwait(false);
-            Require(result.ExaminedCandidates <= 4 && result.DeletedRows <= 8, "清理工作量上限");
+            // 每個候選最多刪本體與投影兩列，每列再帶出一個內容與一個連線。
+            Require(result.ExaminedCandidates <= 4 && result.DeletedRows <= 24, "清理工作量上限");
             if (result.Cursor == null && !result.RequiresAnotherPass) return result;
             cursor = result.Cursor;
         }

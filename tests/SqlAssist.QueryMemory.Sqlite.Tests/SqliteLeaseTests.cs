@@ -122,6 +122,24 @@ public sealed class SqliteLeaseTests
         await Assert.ThrowsAsync<ArgumentNullException>(() => first.TryAcquireMaintenanceLeaseAsync(null!, Start, Start, Token));
     }
 
+    /// <summary>正常卸載交回維護租約，別人不必等過期；但只交得回自己持有的那一列。</summary>
+    [Fact]
+    public async Task ReleasingTheMaintenanceLeaseOnlyRemovesTheOwnersRowAndLetsOthersInImmediately()
+    {
+        using var store = new SqliteTestStore();
+        var first = await store.Open(Token);
+        var second = await store.Open(Token);
+        var other = Owner with { ProcessId = 77 };
+        Assert.True(await first.TryAcquireMaintenanceLeaseAsync(Owner, Start, Start, Token));
+        Assert.False(await second.ReleaseMaintenanceLeaseAsync(other, Token));
+        Assert.False(await second.TryAcquireMaintenanceLeaseAsync(other, Start.AddMinutes(1), Start, Token));
+
+        Assert.True(await first.ReleaseMaintenanceLeaseAsync(Owner, Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
+        Assert.True(await second.TryAcquireMaintenanceLeaseAsync(other, Start.AddMinutes(1), Start, Token));
+        await Assert.ThrowsAsync<ArgumentNullException>(() => first.ReleaseMaintenanceLeaseAsync(null!, Token));
+    }
+
     [Fact]
     public async Task ExpiryAndOwnershipProbesSeekTheirIndexesInsteadOfScanningEveryLease()
     {

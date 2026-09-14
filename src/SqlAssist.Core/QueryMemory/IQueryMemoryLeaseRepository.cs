@@ -35,6 +35,11 @@ public interface IQueryMemoryLeaseRepository
     /// <summary>取得跨程序維護租約；只認過期，重疊維護本來就由有界交易保證正確，不必判斷程序存活。</summary>
     Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now,
         DateTimeOffset expiredBefore, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 正常卸載時交回維護租約，別的程序不必等它過期才接手共用輪次；只刪 <paramref name="owner"/> 持有的那一列。
+    /// </summary>
+    Task<bool> ReleaseMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken);
 }
 
 /// <summary>

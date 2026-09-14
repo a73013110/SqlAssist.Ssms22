@@ -63,7 +63,7 @@ CREATE INDEX IX_History_DatabaseTime ON History(DatabaseName, CreatedAt DESC, En
 CREATE INDEX IX_Revisions_Content ON Revisions(ContentId);
 CREATE INDEX IX_Recovery_Content ON Recovery(ContentId);
 CREATE INDEX IX_History_Content ON History(ContentId);
-CREATE INDEX IX_Executions_Time ON Executions(ExecutedAt DESC);
+CREATE INDEX IX_Executions_Time ON Executions(ExecutedAt, ExecutionId);
 
 CREATE TABLE FavoriteQueries (
     FavoriteQueryId TEXT PRIMARY KEY, Name TEXT NOT NULL, Description TEXT,
@@ -105,7 +105,12 @@ CREATE INDEX IX_FavoriteQueries_Context ON FavoriteQueries(ContextId);
 CREATE INDEX IX_Revisions_SessionAuto ON Revisions(SessionId, CreatedAt DESC)
     WHERE Reason=0 AND IsExecutionSelection=0;
 
-CREATE INDEX IX_Revisions_Favorite ON Revisions(FavoriteQueryId, CreatedAt DESC) WHERE FavoriteQueryId IS NOT NULL;
+CREATE INDEX IX_Revisions_Favorite ON Revisions(FavoriteQueryId, CreatedAt, RevisionId) WHERE FavoriteQueryId IS NOT NULL;
+
+-- 維護候選的時間索引：第二欄是 keyset 的同時間決勝鍵，部分索引條件必須與候選查詢逐字相同才會命中。
+CREATE INDEX IX_History_SessionDrafts ON History(SessionId, CreatedAt, EntryKey) WHERE Kind=2 AND RevisionId IS NOT NULL;
+CREATE INDEX IX_Revisions_SelectionTime ON Revisions(CreatedAt, RevisionId) WHERE IsExecutionSelection=1;
+CREATE INDEX IX_Recovery_Time ON Recovery(CapturedAt, SessionId);
 
 CREATE TABLE Leases (
     LeaseId TEXT PRIMARY KEY, MachineName TEXT NOT NULL, ProcessId INTEGER NOT NULL,
@@ -113,5 +118,14 @@ CREATE TABLE Leases (
 );
 CREATE INDEX IX_Leases_Renewed ON Leases(RenewedAt);
 CREATE INDEX IX_Sessions_Lease ON Sessions(LeaseId) WHERE LeaseId IS NOT NULL;
+
+CREATE TABLE MaintenanceState (
+    Id INTEGER PRIMARY KEY CHECK(Id=1), Version INTEGER NOT NULL CHECK(Version > 0),
+    PlanFingerprint TEXT NOT NULL, RoundStartedAt INTEGER NOT NULL, Level INTEGER NOT NULL CHECK(Level >= 0),
+    ReclaimsUnsavedDrafts INTEGER NOT NULL CHECK(ReclaimsUnsavedDrafts IN (0, 1)), Scan INTEGER NOT NULL CHECK(Scan IN (0, 1)),
+    RoundsSinceFullScan INTEGER NOT NULL CHECK(RoundsSinceFullScan >= 0), Cursor TEXT,
+    RequiresAnotherPass INTEGER NOT NULL CHECK(RequiresAnotherPass IN (0, 1)),
+    CapacityStatus INTEGER NOT NULL CHECK(CapacityStatus IN (0, 1, 2))
+);
 ";
 }

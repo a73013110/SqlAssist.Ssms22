@@ -62,6 +62,36 @@ public sealed class QueryMemoryMaintenanceScheduleTests
         Assert.True(schedule.ShouldRun(Start.AddMinutes(5), hostIdle: true));
     }
 
+    /// <summary>改設定不是重新啟動：啟動延遲仍以 SSMS 開起來那一刻計算，不會每改一次就再等一次。</summary>
+    [Fact]
+    public void ReconfiguringBeforeTheFirstRunKeepsTheOriginalStartupDelay()
+    {
+        var schedule = Schedule();
+        schedule.Reconfigure(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(3), pendingWork: true);
+
+        Assert.Equal(Start.AddMinutes(2), schedule.NextDueAt);
+        Assert.False(schedule.ShouldRun(Start.AddMinutes(1), hostIdle: true));
+        Assert.True(schedule.ShouldRun(Start.AddMinutes(2), hostIdle: false));
+        Assert.Equal(TimeSpan.FromMinutes(10), schedule.Interval);
+    }
+
+    [Fact]
+    public void ReconfiguringAfterARunMeasuresTheNewCadenceFromThatRun()
+    {
+        var schedule = Schedule();
+        schedule.Ran(Start.AddMinutes(2), pendingWork: false);
+
+        // 間隔改短：從上一次執行起算，不必等舊的三十分鐘。
+        schedule.Reconfigure(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), pendingWork: false);
+        Assert.Equal(Start.AddMinutes(12), schedule.NextDueAt);
+
+        // 保留計畫換了就是新的一輪，排在「還有工作」的距離。
+        schedule.Reconfigure(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5), pendingWork: true);
+        Assert.Equal(Start.AddMinutes(3), schedule.NextDueAt);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            schedule.Reconfigure(TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(11), TimeSpan.FromMinutes(5), false));
+    }
+
     [Theory]
     [InlineData(-1, 30, 1, 5)]
     [InlineData(2, 0, 1, 5)]

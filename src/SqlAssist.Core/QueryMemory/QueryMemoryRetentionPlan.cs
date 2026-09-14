@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace SqlAssist.Core.QueryMemory;
 
@@ -46,7 +47,15 @@ public sealed class QueryMemoryRetentionPlan
         MaxExecutionEvents = maxExecutionEvents;
         MaxAutoRevisionsPerSession = maxAutoRevisionsPerSession;
         MaxRevisionsPerFavoriteQuery = maxRevisionsPerFavoriteQuery;
+        // 收緊倍率與下限也決定換算結果；只比設定值的話，改版後同一輪接續會算出不同政策而游標作廢。
+        Fingerprint = string.Join("|", "retention1", Number(draftRetention.Ticks), Number(executionRetention.Ticks),
+            Number(unsavedDraftRetention?.Ticks), Number(maxContentBytes), Number(maxExecutionEvents),
+            Number(maxAutoRevisionsPerSession), Number(maxRevisionsPerFavoriteQuery),
+            string.Join(",", Tightening), Number(MinimumRetention.Ticks));
     }
+
+    /// <summary>整條分級的全部輸入；持久化的維護輪次只在指紋相同時接續，設定一改就從新輪次開始。</summary>
+    public string Fingerprint { get; }
 
     public TimeSpan DraftRetention { get; }
     public TimeSpan ExecutionRetention { get; }
@@ -110,4 +119,6 @@ public sealed class QueryMemoryRetentionPlan
     // 配額 0 表示全部超額，已經是最緊的一端；除下去反而會放寬成 1。
     private static int? Reduce(int? quota, int divisor) =>
         quota is { } value && divisor > 1 && value > 1 ? Math.Max(1, value / divisor) : quota;
+
+    private static string Number(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "-";
 }

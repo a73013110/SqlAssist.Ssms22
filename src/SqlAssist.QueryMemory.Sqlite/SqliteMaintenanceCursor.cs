@@ -5,24 +5,27 @@ using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
+/// <summary>
+/// 綁 StoreId、政策與掃描方式的維護位置：階段、分組鍵、(時間, 鍵) 與本輪是否有進展。
+/// </summary>
+/// <remarks>
+/// 時間階段只用 Time／Key；分組階段 Group 為空表示還沒進任何組，Time 為 null 表示該組已巡完；
+/// 逐鍵階段只用 Key。游標可以存進狀態表跨程序接續，所以格式錯誤與跨政策一律拒絕，不猜測修補。
+/// </remarks>
 internal sealed class SqliteMaintenanceCursor
 {
     private readonly string _prefix;
-    public int Stage { get; set; }
-    public string After { get; set; } = "";
-    public bool MadeProgress { get; set; }
+    private readonly int _stageCount;
 
-    public SqliteMaintenanceCursor(string storeId, QueryMemoryMaintenanceRequest request)
+    public SqliteMaintenanceCursor(string storeId, QueryMemoryMaintenanceRequest request, int stageCount)
     {
         var policy = request.Policy;
-        var fingerprint = string.Join(";", policy.DraftBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.ExecutionBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxContentBytes?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxExecutionEvents?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxAutoRevisionsPerSession?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.MaxRevisionsPerFavoriteQuery?.ToString(CultureInfo.InvariantCulture) ?? "-",
-            policy.RecoveryBefore?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-");
-        _prefix = "maintenance2|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|";
+        _stageCount = stageCount;
+        var fingerprint = string.Join(";", Ticks(policy.DraftBefore), Ticks(policy.ExecutionBefore),
+            Number(policy.MaxContentBytes), Number(policy.MaxExecutionEvents), Number(policy.MaxAutoRevisionsPerSession),
+            Number(policy.MaxRevisionsPerFavoriteQuery), Ticks(policy.RecoveryBefore));
+        _prefix = "maintenance3|" + storeId + "|" + QueryContent.Create(fingerprint).ContentHash + "|" +
+            ((int)request.Scan).ToString(CultureInfo.InvariantCulture) + "|";
         if (request.Cursor == null) return;
         if (request.Cursor.Length > 1024) throw InvalidCursor();
         string value;
@@ -30,16 +33,42 @@ internal sealed class SqliteMaintenanceCursor
         catch (FormatException) { throw InvalidCursor(); }
         if (!value.StartsWith(_prefix, StringComparison.Ordinal)) throw InvalidCursor();
         var fields = value.Substring(_prefix.Length).Split('|');
-        if (fields.Length != 3 || !int.TryParse(fields[0], NumberStyles.None, CultureInfo.InvariantCulture, out var stage) ||
-            stage < 0 || stage >= 6 || fields[1].Length > 128 || (fields[2] != "0" && fields[2] != "1")) throw InvalidCursor();
+        long time = 0;
+        if (fields.Length != 5 || !int.TryParse(fields[0], NumberStyles.None, CultureInfo.InvariantCulture, out var stage) ||
+            stage < 0 || stage >= stageCount || fields[1].Length > 128 || fields[3].Length > 128 ||
+            (fields[2].Length != 0 && !long.TryParse(fields[2], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out time)) ||
+            (fields[4] != "0" && fields[4] != "1")) throw InvalidCursor();
         Stage = stage;
-        After = fields[1];
-        MadeProgress = fields[2] == "1";
+        Group = fields[1];
+        Time = fields[2].Length == 0 ? null : time;
+        Key = fields[3];
+        MadeProgress = fields[4] == "1";
+    }
+
+    public int Stage { get; private set; }
+    public string Group { get; set; } = "";
+    public long? Time { get; set; }
+    public string Key { get; set; } = "";
+    public bool MadeProgress { get; set; }
+
+    public bool Completed => Stage >= _stageCount;
+
+    public void NextStage()
+    {
+        Stage++;
+        Group = "";
+        Time = null;
+        Key = "";
     }
 
     public string Encode() => Convert.ToBase64String(Encoding.UTF8.GetBytes(_prefix +
-        Stage.ToString(CultureInfo.InvariantCulture) + "|" + After + "|" + (MadeProgress ? "1" : "0")));
+        Stage.ToString(CultureInfo.InvariantCulture) + "|" + Group + "|" +
+        (Time?.ToString(CultureInfo.InvariantCulture) ?? "") + "|" + Key + "|" + (MadeProgress ? "1" : "0")));
+
+    private static string Ticks(DateTimeOffset? time) => time?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture) ?? "-";
+
+    private static string Number(long? value) => value?.ToString(CultureInfo.InvariantCulture) ?? "-";
 
     private static QueryMemoryStorageException InvalidCursor() =>
-        new(QueryMemoryStorageErrorKind.InvalidCursor, "維護游標無效，或不屬於目前儲存庫及政策。");
+        new(QueryMemoryStorageErrorKind.InvalidCursor, "維護游標無效，或不屬於目前儲存庫、政策及掃描方式。");
 }
