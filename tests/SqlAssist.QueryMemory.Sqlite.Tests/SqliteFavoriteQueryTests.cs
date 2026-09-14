@@ -224,7 +224,7 @@ public sealed class SqliteFavoriteQueryTests
         var first = await repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, search: "借閱報表"), Token);
         Assert.NotNull(first.NextCursor);
         foreach (var other in new string?[] { null, "", "借閱", "借閱報表 " })
-            await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadFavoriteQueriesAsync(
+            await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadFavoriteQueriesAsync(
                 new FavoriteQueryRequest(1, search: other, cursor: first.NextCursor), Token));
     }
 
@@ -256,13 +256,13 @@ public sealed class SqliteFavoriteQueryTests
         Assert.NotNull(page.NextCursor);
         using var second = new SqliteTestStore();
         var other = await second.Open(Token);
-        await Assert.ThrowsAsync<ArgumentException>(() => other.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, cursor: page.NextCursor), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, FavoriteQueryScope.Server, "LibraryServer", cursor: page.NextCursor), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadHistoryAsync(new QueryHistoryRequest(1, cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => other.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, FavoriteQueryScope.Server, "LibraryServer", cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadHistoryAsync(new QueryHistoryRequest(1, cursor: page.NextCursor), Token));
         var history = await repository.ReadHistoryAsync(new QueryHistoryRequest(1), Token);
         Assert.NotNull(history.NextCursor);
         foreach (var cursor in new[] { history.NextCursor, "!", "", new string('a', 513), Convert.ToBase64String(new byte[] { 1 }) })
-            await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, cursor: cursor), Token));
+            await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadFavoriteQueriesAsync(new FavoriteQueryRequest(1, cursor: cursor), Token));
     }
 
     [Fact]

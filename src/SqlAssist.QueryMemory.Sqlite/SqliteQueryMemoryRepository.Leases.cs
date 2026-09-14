@@ -21,24 +21,27 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryLeaseRepos
             using var transaction = connection.BeginTransaction(deferred: false);
             cancellationToken.ThrowIfCancellationRequested();
             // 同一個程序重開 repository 要沿用原本那一列，否則既有 Session 會留在沒人續心跳的租約上。
+            string? lease;
             using (var existing = Command(connection, transaction, "SELECT LeaseId FROM Leases" +
                 " WHERE MachineName=$machine AND ProcessId=$process AND ProcessStartTime=$started AND LeaseId<>$reserved;",
                 OwnerParameters(owner)))
-                _leaseId = existing.ExecuteScalar() as string;
-            if (_leaseId == null)
+                lease = existing.ExecuteScalar() as string;
+            if (lease == null)
             {
-                _leaseId = Guid.NewGuid().ToString("N");
+                lease = Guid.NewGuid().ToString("N");
                 Execute(connection, transaction, "INSERT INTO Leases VALUES($id,$machine,$process,$started,$now);",
-                    Append(OwnerParameters(owner), ("$id", _leaseId), ("$now", Ticks(now))));
+                    Append(OwnerParameters(owner), ("$id", lease), ("$now", Ticks(now))));
             }
             else
             {
                 Execute(connection, transaction, "UPDATE Leases SET RenewedAt=$now WHERE LeaseId=$id;",
-                    ("$id", _leaseId), ("$now", Ticks(now)));
+                    ("$id", lease), ("$now", Ticks(now)));
             }
             cancellationToken.ThrowIfCancellationRequested();
             transaction.Commit();
-            return _leaseId;
+            // 提交後才記住：忙碌或取消回滾時，欄位不能指向一個 Leases 裡不存在的識別碼。
+            _leaseId = lease;
+            return lease;
         }, cancellationToken);
     }
 

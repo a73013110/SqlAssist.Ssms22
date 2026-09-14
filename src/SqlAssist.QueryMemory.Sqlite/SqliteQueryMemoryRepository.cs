@@ -50,11 +50,11 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
             application = ScalarLong(connection, inspection, "PRAGMA application_id;");
             version = ScalarLong(connection, inspection, "PRAGMA user_version;");
             if ((application != 0 && application != SqliteSchema.ApplicationId) || (application == SqliteSchema.ApplicationId && version != SqliteSchema.Version))
-                throw new InvalidDataException("不是支援的 Query Memory 資料庫版本。");
+                throw Incompatible("不是支援的 Query Memory 資料庫版本。");
             // 同一讀取快照內檢查，避免另一個程序恰好完成初始化時誤判成外來資料庫。
             if (application == 0 && (version != 0 || ScalarLong(connection, inspection,
                 "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%';") != 0))
-                throw new InvalidDataException("資料庫已有非 Query Memory 的內容。");
+                throw Incompatible("資料庫已有非 Query Memory 的內容。");
             inspection.Commit();
         }
         using (var wal = Command(connection, null, "PRAGMA journal_mode=WAL;"))
@@ -67,19 +67,22 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
         if (version == 0 && application == 0)
         {
             if (ScalarLong(connection, transaction, "SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%';") != 0)
-                throw new InvalidDataException("資料庫已被其他程序初始化。");
+                throw Incompatible("資料庫已被其他程序初始化。");
             Execute(connection, transaction, SqliteSchema.Create);
             Execute(connection, transaction, "INSERT INTO StoreInfo VALUES($id);", ("$id", Guid.NewGuid().ToString("N")));
             Execute(connection, transaction, "PRAGMA application_id=" + SqliteSchema.ApplicationId + "; PRAGMA user_version=" + SqliteSchema.Version + ";");
         }
         else if (version != SqliteSchema.Version || application != SqliteSchema.ApplicationId)
-            throw new InvalidDataException("SQL Memory schema 版本不相容；請使用新的開發測試資料庫。");
+            throw Incompatible("SQL Memory schema 版本不相容；請使用新的開發測試資料庫。");
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
             _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";
         if (!Guid.TryParseExact(_storeId, "N", out _)) throw new InvalidDataException("Query Memory 缺少儲存庫識別碼。");
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
     }
+
+    private static QueryMemoryStorageException Incompatible(string message) =>
+        new(QueryMemoryStorageErrorKind.Incompatible, message);
 
     private SqliteConnection Connect()
     {

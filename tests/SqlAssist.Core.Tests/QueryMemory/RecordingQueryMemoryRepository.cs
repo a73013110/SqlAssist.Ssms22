@@ -16,6 +16,9 @@ internal sealed class RecordingQueryMemoryRepository : IQueryMemoryRepository
     public Dictionary<string, QueryContent> Contents { get; } = new();
     public Func<Task>? BeforeRead { get; set; }
     public Exception? CommitException { get; set; }
+    /// <summary>依序各擲出一次，用完後恢復正常提交。</summary>
+    public Queue<Exception> CommitFailures { get; } = new();
+    public List<string?> LeaseIds { get; } = new();
     public int ConflictsRemaining { get; set; }
     public int CommitAttempts { get; private set; }
 
@@ -26,13 +29,14 @@ internal sealed class RecordingQueryMemoryRepository : IQueryMemoryRepository
         lock (_gate) return _sessions.TryGetValue(sessionId, out var state) ? state : null;
     }
 
-    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, CancellationToken cancellationToken)
+    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
             CommitAttempts++;
             if (CommitException != null) throw CommitException;
+            if (CommitFailures.Count > 0) throw CommitFailures.Dequeue();
             if (_captures.Contains(write.CaptureId)) return Task.FromResult(QueryMemoryCommitResult.AlreadyCommitted);
             if (ConflictsRemaining > 0)
             {
@@ -45,6 +49,7 @@ internal sealed class RecordingQueryMemoryRepository : IQueryMemoryRepository
             _sessions[write.State.Session.SessionId] = write.State;
             _captures.Add(write.CaptureId);
             Writes.Add(write);
+            LeaseIds.Add(leaseId);
             return Task.FromResult(QueryMemoryCommitResult.Committed);
         }
     }

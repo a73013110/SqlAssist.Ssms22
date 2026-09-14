@@ -17,6 +17,7 @@ public sealed class QueryMemoryLeaseHeartbeat
     private readonly IQueryMemoryLeaseRepository _leases;
     private readonly QueryMemoryLeaseOwner _owner;
     private DateTimeOffset? _lastBeatAt;
+    private string? _leaseId;
 
     public QueryMemoryLeaseHeartbeat(IQueryMemoryLeaseRepository leases, QueryMemoryLeaseOwner owner, TimeSpan interval)
     {
@@ -28,8 +29,15 @@ public sealed class QueryMemoryLeaseHeartbeat
 
     public TimeSpan Interval { get; }
 
-    /// <summary>目前持有的租約；還沒開或剛被回收時為 null。</summary>
-    public string? LeaseId { get; private set; }
+    /// <summary>
+    /// 目前持有的租約；還沒開或剛被回收時為 null。背景 writer 會在另一條執行緒讀取，
+    /// 讀到剛被回收的舊值也無妨：提交交易會確認租約列仍存在。
+    /// </summary>
+    public string? LeaseId
+    {
+        get => Volatile.Read(ref _leaseId);
+        private set => Volatile.Write(ref _leaseId, value);
+    }
 
     /// <summary>租約被回收過幾次；用來回報「未存檔草稿的擁有權曾經中斷」。</summary>
     public int ReopenCount { get; private set; }

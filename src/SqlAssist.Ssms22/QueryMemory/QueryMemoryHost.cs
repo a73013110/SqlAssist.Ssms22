@@ -54,6 +54,7 @@ internal static class QueryMemoryHost
     private static int _ticking;
     private static bool _initialized;
     private static int _queueFullReported;
+    private static int _busyReported;
     private static string _status = "SQL Memory 尚未啟用；請在設定中啟用。";
     private static long _generation;
     public static string Status => Volatile.Read(ref _status);
@@ -168,8 +169,20 @@ internal static class QueryMemoryHost
     }
 
     /// <summary>設定頁的手動整理；重建整個資料庫，時間隨資料量成長，不進背景排程。</summary>
-    public static Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
-        UseAsync((repository, token) => repository.CompactAsync(token), cancellationToken);
+    /// <remarks>
+    /// 先等本程序的 writer 排空，已接受的擷取不必在整理期間擱在記憶體裡。整理期間 writer 不停止：
+    /// 新擷取照常排隊，提交在隔離 repository 內等整理結束；其他程序的忙碌由 processor 退避重試。
+    /// </remarks>
+    public static async Task<QueryMemoryUsage> CompactAsync(CancellationToken cancellationToken)
+    {
+        if (Volatile.Read(ref _state) is { } state)
+        {
+            await state.Writer.WaitForIdleAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await UseAsync((repository, token) => repository.CompactAsync(token), cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     private static void OnSettingsChanged(object? sender, EventArgs eventArgs) => Apply();
 
@@ -308,7 +321,10 @@ internal static class QueryMemoryHost
         finally { Gate.Release(); Interlocked.Exchange(ref _ticking, 0); }
     }
 
-    /// <summary>寫入器 fault 之後不再接收；宿主必須察覺並停用，不能把排空當成保存成功。</summary>
+    /// <summary>
+    /// 寫入器 fault 之後不再接收；宿主必須察覺並停用，不能把排空當成保存成功。
+    /// 忙碌不會走到這裡：writer 只在損毀、不相容或未知錯誤時 fault。
+    /// </summary>
     private static void ObserveWriter(State state) => _ = state.Writer.Completion.ContinueWith(
         completion =>
         {
@@ -319,6 +335,22 @@ internal static class QueryMemoryHost
                 NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info, document: string.Empty);
         },
         TaskScheduler.Default);
+
+    /// <summary>儲存持續忙碌而放棄一筆擷取；writer 繼續運作，但這一筆沒有保存必須看得見。</summary>
+    private static void ReportBusy(QueryMemoryCapture capture, QueryMemoryStorageException error)
+    {
+        SqlAssistDiagnostics.WriteAlways(
+            $"SQL Memory 儲存持續忙碌，放棄擷取 {capture.Kind}（SQLite {error.ErrorCode}/{error.ExtendedErrorCode}）：{error.Message}");
+        _status = "SQL Memory 資料庫忙碌中，有擷取未記錄。";
+
+        // 忙碌通常一連串發生（例如另一個 SSMS 正在整理），狀態列只寫第一次。
+        if (Interlocked.Exchange(ref _busyReported, 1) != 0) return;
+
+        if (Volatile.Read(ref _package) is { } package)
+        {
+            SqlAssistStatusBar.Show(package, "SQL Memory 資料庫正忙，這一次沒有記錄；稍後的擷取會繼續保存。");
+        }
+    }
 
     private static void ReportRejected(QueryMemoryEnqueueResult result)
     {
@@ -371,12 +403,13 @@ internal static class QueryMemoryHost
         public static State Create(IsolatedQueryMemoryRepository repository, SqlAssistSettings settings,
             QueryMemoryLeaseOwner owner)
         {
+            var heartbeat = new QueryMemoryLeaseHeartbeat(repository, owner, HeartbeatInterval);
+            // 租約明確隨每次提交傳入，不藏在 repository 欄位裡；心跳重開後的下一筆就標上新租約。
             var writer = new QueryMemoryBackgroundWriter(
-                new QueryMemoryProcessor(repository, new QueryRevisionEngine()),
-                MaximumPendingCaptures, MaximumPendingTextBytes);
+                new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => heartbeat.LeaseId),
+                MaximumPendingCaptures, MaximumPendingTextBytes, ReportBusy);
 
-            return new State(repository, writer,
-                new QueryMemoryLeaseHeartbeat(repository, owner, HeartbeatInterval),
+            return new State(repository, writer, heartbeat,
                 BuildRunner(repository, settings, owner), BuildPolicy(settings));
         }
 

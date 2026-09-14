@@ -74,12 +74,12 @@ public sealed class SqliteHistoryTests
         for (var i = 1; i <= 3; i++) await store.Process(repository, store.Capture(i), Token);
         var page = await repository.ReadHistoryAsync(new QueryHistoryRequest(1, QueryHistoryKind.Executed), Token);
         Assert.NotNull(page.NextCursor);
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadHistoryAsync(
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadHistoryAsync(
             new QueryHistoryRequest(1, QueryHistoryKind.Executed, server: "LibraryServer", cursor: page.NextCursor), Token));
-        await Assert.ThrowsAsync<ArgumentException>(() => repository.ReadHistoryAsync(new QueryHistoryRequest(1, cursor: "!invalid!"), Token));
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => repository.ReadHistoryAsync(new QueryHistoryRequest(1, cursor: "!invalid!"), Token));
         using var other = new SqliteTestStore();
         var otherRepository = await other.Open(Token);
-        await Assert.ThrowsAsync<ArgumentException>(() => otherRepository.ReadHistoryAsync(
+        await Assert.ThrowsAsync<QueryMemoryStorageException>(() => otherRepository.ReadHistoryAsync(
             new QueryHistoryRequest(1, QueryHistoryKind.Executed, cursor: page.NextCursor), Token));
         Assert.Equal(2, (await repository.ReadHistoryAsync(new QueryHistoryRequest(20, QueryHistoryKind.Executed, cursor: page.NextCursor), Token)).Items.Count);
     }
@@ -94,7 +94,7 @@ public sealed class SqliteHistoryTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.ReadHistoryAsync(new QueryHistoryRequest(20), cancellation.Token));
         var write = new QueryRevisionEngine().Prepare(store.Capture(), null, SqliteTestStore.Policy);
         Assert.NotNull(write);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.CommitAsync(write, cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.CommitAsync(write, null, cancellation.Token));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contents;"));
     }
 

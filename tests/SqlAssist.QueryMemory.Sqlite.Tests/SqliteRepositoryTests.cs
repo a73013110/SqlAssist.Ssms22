@@ -47,8 +47,8 @@ public sealed class SqliteRepositoryTests
         var capture = store.Capture(21);
         var write = new QueryRevisionEngine().Prepare(capture, state, SqliteTestStore.Policy);
         Assert.NotNull(write);
-        Assert.Equal(QueryMemoryCommitResult.Committed, await repository.CommitAsync(write, Token));
-        Assert.Equal(QueryMemoryCommitResult.AlreadyCommitted, await (await store.Open(Token)).CommitAsync(write, Token));
+        Assert.Equal(QueryMemoryCommitResult.Committed, await repository.CommitAsync(write, null, Token));
+        Assert.Equal(QueryMemoryCommitResult.AlreadyCommitted, await (await store.Open(Token)).CommitAsync(write, null, Token));
         Assert.Equal(21L, store.Scalar("SELECT count(*) FROM Executions;"));
     }
 
@@ -112,8 +112,8 @@ public sealed class SqliteRepositoryTests
         var write = engine.Prepare(store.Capture(), null, SqliteTestStore.Policy);
         var stale = engine.Prepare(store.Capture(2, "SELECT 2"), null, SqliteTestStore.Policy);
         Assert.NotNull(write); Assert.NotNull(stale);
-        Assert.Equal(QueryMemoryCommitResult.Committed, await first.CommitAsync(write, Token));
-        Assert.Equal(QueryMemoryCommitResult.Conflict, await second.CommitAsync(stale, Token));
+        Assert.Equal(QueryMemoryCommitResult.Committed, await first.CommitAsync(write, null, Token));
+        Assert.Equal(QueryMemoryCommitResult.Conflict, await second.CommitAsync(stale, null, Token));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Captures;"));
     }
@@ -195,7 +195,7 @@ public sealed class SqliteRepositoryTests
         await store.Process(repository, store.Capture(), Token);
         var identity = store.Scalar("SELECT StoreId FROM StoreInfo;");
         store.Scalar("PRAGMA user_version=" + version + ";");
-        await Assert.ThrowsAsync<InvalidDataException>(() => store.Open(Token));
+        await AssertIncompatible(() => store.Open(Token));
         Assert.Equal((long)version, store.Scalar("PRAGMA user_version;"));
         Assert.Equal(identity, store.Scalar("SELECT StoreId FROM StoreInfo;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
@@ -207,7 +207,7 @@ public sealed class SqliteRepositoryTests
         using var store = new SqliteTestStore();
         await store.Open(Token);
         store.Scalar("PRAGMA user_version=100;");
-        await Assert.ThrowsAsync<InvalidDataException>(() => store.Open(Token));
+        await AssertIncompatible(() => store.Open(Token));
         Assert.Equal(100L, store.Scalar("PRAGMA user_version;"));
         File.WriteAllText(store.Path, "not a sqlite database");
         await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => store.Open(Token));
@@ -215,7 +215,13 @@ public sealed class SqliteRepositoryTests
         using var foreign = new SqliteTestStore();
         Directory.CreateDirectory(foreign.DirectoryPath);
         foreign.Scalar("CREATE TABLE Lib_Reader(Id INTEGER);");
-        await Assert.ThrowsAsync<InvalidDataException>(() => foreign.Open(Token));
+        await AssertIncompatible(() => foreign.Open(Token));
         Assert.Equal("delete", foreign.Scalar("PRAGMA journal_mode;"));
+    }
+
+    private static async Task AssertIncompatible(Func<Task> open)
+    {
+        var error = await Assert.ThrowsAsync<QueryMemoryStorageException>(open);
+        Assert.Equal(QueryMemoryStorageErrorKind.Incompatible, error.Kind);
     }
 }

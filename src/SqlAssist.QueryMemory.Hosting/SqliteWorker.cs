@@ -20,7 +20,7 @@ public sealed class SqliteWorker : MarshalByRefObject
 
     public override object? InitializeLifetimeService() => null;
 
-    public void Initialize(string path, string? ssmsIdeDirectory)
+    public void Initialize(string path, string? ssmsIdeDirectory, int busyTimeoutSeconds)
     {
         AppDomain.CurrentDomain.AssemblyResolve += (_, request) =>
         {
@@ -36,23 +36,24 @@ public sealed class SqliteWorker : MarshalByRefObject
             }
             return null;
         };
-        InitializeStorage(path);
+        InitializeStorage(path, busyTimeoutSeconds);
         Probe();
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void InitializeStorage(string path)
+    private void InitializeStorage(string path, int busyTimeoutSeconds)
     {
         Run(() =>
         {
-            _repository = SqliteQueryMemoryRepository.OpenAsync(path, CancellationToken.None).GetAwaiter().GetResult();
+            _repository = SqliteQueryMemoryRepository.OpenAsync(path, CancellationToken.None, busyTimeoutSeconds).GetAwaiter().GetResult();
             _databasePath = path;
             return true;
         });
     }
 
     public QuerySessionState? ReadSession(Guid sessionId) => Run(() => Repository.ReadSessionAsync(sessionId, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryCommitResult Commit(QueryMemoryWrite write) => Run(() => Repository.CommitAsync(write, CancellationToken.None).GetAwaiter().GetResult());
+    public QueryMemoryCommitResult Commit(QueryMemoryWrite write, string? leaseId) =>
+        Run(() => Repository.CommitAsync(write, leaseId, CancellationToken.None).GetAwaiter().GetResult());
     public QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request) => Run(() => Repository.ReadHistoryAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public string[] ReadConnectionFacets(QueryConnectionFacetRequest request) => Run(() => Repository.ReadConnectionFacetsAsync(request, CancellationToken.None).GetAwaiter().GetResult());
     public QueryContent? ReadContent(string contentId) => Run(() => Repository.ReadContentAsync(contentId, CancellationToken.None).GetAwaiter().GetResult());
@@ -98,8 +99,8 @@ public sealed class SqliteWorker : MarshalByRefObject
         try { return action(); }
         catch (Exception error)
         {
-            // provider 例外未必能跨 AppDomain 序列化；轉成 BCL 例外並保留失敗，不吞掉交易錯誤。
-            throw new InvalidOperationException("Query Memory 儲存失敗（" + error.GetType().Name + "）：" + error.GetBaseException().Message);
+            // provider 例外未必能跨 AppDomain 序列化；轉成 Core 的分類例外，保留原始錯誤碼，不吞掉交易錯誤。
+            throw SqliteStorageErrors.Translate(error);
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using SqlAssist.Core.QueryMemory;
 using SqlAssist.Ssms22.QueryMemory;
 
 namespace SqlAssist.Ssms22.Commands;
@@ -13,6 +14,9 @@ namespace SqlAssist.Ssms22.Commands;
 /// <remarks>
 /// 完整 <c>VACUUM</c> 重建整個資料庫，時間隨資料量成長，所以是使用者按的一次性命令
 /// 而不是背景排程的一環。背景整理只做 WAL 截斷，那個便宜且可重複。
+///
+/// 整理前先排空本程序已接受的擷取；整理期間擷取照常排隊，等整理結束才寫入，
+/// 佇列滿時照一般規則拒收並提示。文案只能承諾這些，不能說「期間寫入不受影響」。
 ///
 /// 使用者主動觸發的命令自己顯示成敗，不交給 <see cref="SqlAssistPlatformGuard"/>
 /// 靜默吞掉——按了沒反應與按了失敗是兩件不同的事。
@@ -37,7 +41,7 @@ internal static class SqlAssistQueryMemoryCompactCommand
 
         try
         {
-            SqlAssistStatusBar.Show(package, "正在整理查詢記憶的資料庫檔案；期間仍可繼續編輯。");
+            SqlAssistStatusBar.Show(package, "正在整理查詢記憶的資料庫檔案；可繼續編輯，新的紀錄會在整理完成後寫入。");
             var usage = await QueryMemoryHost.CompactAsync(package.DisposalToken).ConfigureAwait(false);
             message = "查詢記憶的資料庫已整理完成。\n" +
                 $"資料庫檔案：{Megabytes(usage.DatabaseFileBytes)}\n" +
@@ -52,7 +56,9 @@ internal static class SqlAssistQueryMemoryCompactCommand
         catch (Exception error)
         {
             SqlAssistDiagnostics.WriteAlways($"查詢記憶手動整理失敗：{error}");
-            message = "無法整理查詢記憶的資料庫：\n" + error.Message;
+            message = (error is QueryMemoryStorageException { IsTransient: true }
+                ? "查詢記憶的資料庫正被其他作業使用，這次沒有整理；請稍後再試。\n"
+                : "無法整理查詢記憶的資料庫：\n") + error.Message;
             icon = OLEMSGICON.OLEMSGICON_WARNING;
         }
 

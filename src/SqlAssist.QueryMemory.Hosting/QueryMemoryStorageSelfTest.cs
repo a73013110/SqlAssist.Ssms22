@@ -67,8 +67,8 @@ public static class QueryMemoryStorageSelfTest
                 var write = engine.Prepare(new QueryMemoryCapture(Guid.NewGuid(), document, session, 21,
                     start.AddSeconds(21), QueryCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), state, policy)
                     ?? throw new InvalidOperationException("未產生測試交易。");
-                Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.Committed, "首次提交");
-                Require(await repository.CommitAsync(write, token).ConfigureAwait(false) == QueryMemoryCommitResult.AlreadyCommitted, "冪等重送");
+                Require(await repository.CommitAsync(write, null, token).ConfigureAwait(false) == QueryMemoryCommitResult.Committed, "首次提交");
+                Require(await repository.CommitAsync(write, null, token).ConfigureAwait(false) == QueryMemoryCommitResult.AlreadyCommitted, "冪等重送");
                 report.WriteLine("通過：21 次執行與冪等重送。");
                 var revisionId = write.State.LatestRevision?.RevisionId
                     ?? throw new InvalidOperationException("自我測試缺少完整 SQL 版本。");
@@ -239,7 +239,7 @@ public static class QueryMemoryStorageSelfTest
         Require(await repository.RenewLeaseAsync(start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
         var session = new QuerySession(Guid.NewGuid(), document.DocumentId, start);
         var drafts = new QueryMemoryPolicy(true, false, TimeSpan.FromMinutes(10), false, true);
-        await new QueryMemoryProcessor(repository, new QueryRevisionEngine()).ProcessAsync(
+        await new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => lease).ProcessAsync(
             new QueryMemoryCapture(Guid.NewGuid(), document, session, 1, start.AddSeconds(300),
                 QueryCaptureKind.DraftIdle, new QueryTextSnapshot(RecoverySql)), drafts, token).ConfigureAwait(false);
         await DrainAsync(repository, RecoveryExpired(), token).ConfigureAwait(false);

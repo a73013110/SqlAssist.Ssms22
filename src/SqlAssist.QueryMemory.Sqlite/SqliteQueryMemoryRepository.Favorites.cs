@@ -173,13 +173,13 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
     private static string? DecodeFavoriteCursor(string? cursor, string prefix)
     {
         if (cursor == null) return null;
-        if (cursor.Length > 512) throw new ArgumentException("Favorite Query 分頁游標無效。", nameof(cursor));
+        if (cursor.Length > 512) throw new QueryMemoryStorageException(QueryMemoryStorageErrorKind.InvalidCursor, "Favorite Query 分頁游標無效。");
         string value;
         try { value = Encoding.UTF8.GetString(Convert.FromBase64String(cursor)); }
-        catch (FormatException error) { throw new ArgumentException("Favorite Query 分頁游標無效。", nameof(cursor), error); }
+        catch (FormatException) { throw new QueryMemoryStorageException(QueryMemoryStorageErrorKind.InvalidCursor, "Favorite Query 分頁游標無效。"); }
         if (!value.StartsWith(prefix, StringComparison.Ordinal) ||
             !Guid.TryParseExact(value.Substring(prefix.Length), "N", out var id))
-            throw new ArgumentException("Favorite Query 游標失效或不屬於目前篩選條件。", nameof(cursor));
+            throw new QueryMemoryStorageException(QueryMemoryStorageErrorKind.InvalidCursor, "Favorite Query 游標失效或不屬於目前篩選條件。");
         return Id(id);
     }
 }
