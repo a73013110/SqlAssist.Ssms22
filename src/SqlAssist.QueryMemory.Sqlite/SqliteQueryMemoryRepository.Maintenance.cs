@@ -10,15 +10,6 @@ namespace SqlAssist.QueryMemory.Sqlite;
 
 internal sealed partial class SqliteQueryMemoryRepository
 {
-    private const int ExecutionStage = 0, HistoryStage = 1, RevisionStage = 2, RecoveryStage = 3, ContentStage = 4;
-
-    // Recovery 排在內容之前，同一輪釋出的未存檔草稿內容才回收得到；順序改動要一併改上面的常數。
-    private static readonly (string Table, string Key)[] MaintenanceStages =
-    {
-        ("Executions", "ExecutionId"), ("History", "EntryKey"), ("Revisions", "RevisionId"),
-        ("Recovery", "SessionId"), ("Contents", "ContentId"), ("Contexts", "ContextId"),
-    };
-
     private const string UnprotectedRevision =
         " AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE CurrentRevisionId=$revision)";
 
@@ -26,6 +17,13 @@ internal sealed partial class SqliteQueryMemoryRepository
  AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContentId=$id)
  AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContentId=$id)
  AND NOT EXISTS(SELECT 1 FROM History WHERE ContentId=$id)";
+
+    private const string UnreferencedContext = @"DELETE FROM Contexts WHERE ContextId=$id
+ AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContextId=$id)
+ AND NOT EXISTS(SELECT 1 FROM Executions WHERE ContextId=$id)
+ AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContextId=$id)
+ AND NOT EXISTS(SELECT 1 FROM History WHERE ContextId=$id)
+ AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE ContextId=$id);";
 
     public QueryMemoryUsage ReadUsage(CancellationToken cancellationToken)
     {
@@ -72,109 +70,320 @@ internal sealed partial class SqliteQueryMemoryRepository
         return ReadUsage(connection, null);
     }
 
+    public QueryMemoryMaintenanceState? ReadMaintenanceState(CancellationToken cancellationToken)
+    {
+        using var connection = Connect();
+        cancellationToken.ThrowIfCancellationRequested();
+        using var command = Command(connection, null, @"SELECT Version,PlanFingerprint,RoundStartedAt,Level,ReclaimsUnsavedDrafts,
+Scan,RoundsSinceFullScan,Cursor,RequiresAnotherPass,CapacityStatus FROM MaintenanceState WHERE Id=1;");
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) return null;
+        var round = new QueryMemoryMaintenanceRound(reader.GetString(1), Time(reader.GetInt64(2)), reader.GetInt32(3),
+            reader.GetInt64(4) == 1, (QueryMemoryMaintenanceScan)reader.GetInt32(5), reader.GetInt32(6));
+        return new QueryMemoryMaintenanceState(reader.GetInt64(0), round, StringOrNull(reader, 7), reader.GetInt64(8) == 1,
+            (QueryMemoryCapacityStatus)reader.GetInt32(9));
+    }
+
     public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request, CancellationToken token)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         token.ThrowIfCancellationRequested();
-        var cursor = new SqliteMaintenanceCursor(_storeId, request);
+        var stages = SqliteMaintenanceStages.For(request.Scan);
+        var cursor = new SqliteMaintenanceCursor(_storeId, request, stages.Length);
         using var connection = Connect();
-        // 候選、保護根重查與刪除共用 IMMEDIATE 交易，Favorite 更新不可能插進檢查與刪除之間。
+        // 租約／狀態版本確認、候選、保護根重查、刪除與狀態寫回共用 IMMEDIATE 交易，
+        // Favorite 更新或另一個維護者都不可能插進檢查與刪除之間。
         using var transaction = connection.BeginTransaction(deferred: false);
         token.ThrowIfCancellationRequested();
-        var quotas = new MaintenanceQuotas(connection, transaction, request.Policy);
-        var examined = 0;
-        var deleted = 0;
-        while (cursor.Stage < MaintenanceStages.Length && examined < request.CandidateLimit)
+        if (request.Claim != null) VerifyClaim(connection, transaction, request.Claim);
+        var batch = new MaintenanceBatch(connection, transaction, request.Policy, token);
+        while (!cursor.Completed && batch.Examined < request.CandidateLimit)
         {
-            var stage = MaintenanceStages[cursor.Stage];
-            var remaining = request.CandidateLimit - examined;
-            var keys = new List<string>();
-            // 先限定候選再查引用；不能把 NOT EXISTS 放在 LIMIT 前而掃過全庫受保護列。
-            using (var command = Command(connection, transaction, "SELECT " + stage.Key + " FROM " + stage.Table +
-                " WHERE " + stage.Key + ">$after ORDER BY " + stage.Key + " LIMIT $limit;",
-                ("$after", cursor.After), ("$limit", remaining)))
-            using (var reader = command.ExecuteReader())
-                while (reader.Read()) { token.ThrowIfCancellationRequested(); keys.Add(reader.GetString(0)); }
-            foreach (var key in keys)
-            {
-                token.ThrowIfCancellationRequested();
-                deleted += DeleteCandidate(connection, transaction, cursor.Stage, key, request.Policy, quotas);
-                cursor.After = key;
-                examined++;
-            }
-            if (keys.Count < remaining) { cursor.Stage++; cursor.After = ""; }
+            if (!batch.Advance(stages[cursor.Stage], cursor, request.CandidateLimit - batch.Examined)) cursor.NextStage();
         }
-        cursor.MadeProgress |= deleted > 0;
-        var completed = cursor.Stage == MaintenanceStages.Length;
+        batch.CollectReleasedReferences();
+        cursor.MadeProgress |= batch.Deleted > 0;
+        var completed = cursor.Completed;
         var usage = ReadUsage(connection, transaction);
         var capacity = !request.Policy.MaxContentBytes.HasValue || usage.ContentBytes <= request.Policy.MaxContentBytes.Value
             ? QueryMemoryCapacityStatus.WithinLimit
             : !completed || cursor.MadeProgress ? QueryMemoryCapacityStatus.MoreWorkRequired
             : QueryMemoryCapacityStatus.CannotReclaimWithinPolicy;
+        var result = new QueryMemoryMaintenanceResult(batch.Examined, batch.Deleted, completed ? null : cursor.Encode(),
+            completed && cursor.MadeProgress, usage, capacity);
+        if (request.Claim != null) SaveState(connection, transaction, request.Claim, result);
         token.ThrowIfCancellationRequested();
         transaction.Commit();
-        return new QueryMemoryMaintenanceResult(examined, deleted, completed ? null : cursor.Encode(),
-            completed && cursor.MadeProgress, usage, capacity);
+        return result;
     }
 
-    private static int DeleteCandidate(SqliteConnection connection, SqliteTransaction transaction, int stage,
-        string key, QueryMemoryMaintenancePolicy policy, MaintenanceQuotas quotas)
+    private static void VerifyClaim(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenanceClaim claim)
     {
-        object? revision = null;
-        long? autoQuota = null;
-        long? favoriteQuota = null;
-        if (stage == ExecutionStage)
+        // 只認三元組相同：租約過期後被別的程序接手，列上的擁有者就換了，晚到的這一批不得寫回。
+        using (var lease = Command(connection, transaction, "SELECT 1 FROM Leases WHERE LeaseId=$reserved" +
+            " AND MachineName=$machine AND ProcessId=$process AND ProcessStartTime=$started;", OwnerParameters(claim.Owner)))
+            if (lease.ExecuteScalar() == null) throw Conflict("維護租約已不屬於這個程序；這一批不寫入。");
+        var version = ScalarLong(connection, transaction, "SELECT coalesce((SELECT Version FROM MaintenanceState WHERE Id=1),0);");
+        if (version != claim.ExpectedVersion) throw Conflict("維護狀態已被其他維護者推進；重讀後再接續。");
+    }
+
+    private static void SaveState(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenanceClaim claim,
+        QueryMemoryMaintenanceResult result)
+    {
+        var round = claim.Round;
+        Execute(connection, transaction, @"INSERT INTO MaintenanceState VALUES(1,$version,$plan,$started,$level,$reclaims,$scan,$since,$cursor,$another,$capacity)
+ON CONFLICT(Id) DO UPDATE SET Version=excluded.Version, PlanFingerprint=excluded.PlanFingerprint,
+RoundStartedAt=excluded.RoundStartedAt, Level=excluded.Level, ReclaimsUnsavedDrafts=excluded.ReclaimsUnsavedDrafts,
+Scan=excluded.Scan, RoundsSinceFullScan=excluded.RoundsSinceFullScan, Cursor=excluded.Cursor,
+RequiresAnotherPass=excluded.RequiresAnotherPass, CapacityStatus=excluded.CapacityStatus;",
+            ("$version", claim.ExpectedVersion + 1), ("$plan", round.PlanFingerprint), ("$started", Ticks(round.StartedAt)),
+            ("$level", round.Level), ("$reclaims", round.ReclaimsUnsavedDrafts), ("$scan", (int)round.Scan),
+            ("$since", round.RoundsSinceFullScan), ("$cursor", result.Cursor), ("$another", result.RequiresAnotherPass),
+            ("$capacity", (int)result.CapacityStatus));
+    }
+
+    private static QueryMemoryStorageException Conflict(string message) => new(QueryMemoryStorageErrorKind.Conflict, message);
+
+    /// <summary>
+    /// 一個 IMMEDIATE 交易內的工作量與引用回收。界線只在批次內解析一次並快取；
+    /// 批次只刪比界線更舊的列，最新 N 筆不會在批次內移動。
+    /// </summary>
+    private sealed class MaintenanceBatch
+    {
+        private const int ExecutionDelete = 0, HistoryDelete = 1, RevisionDelete = 2, RecoveryDelete = 3, ContentDelete = 4,
+            ContextDelete = 5;
+
+        private readonly SqliteConnection _connection;
+        private readonly SqliteTransaction _transaction;
+        private readonly QueryMemoryMaintenancePolicy _policy;
+        private readonly CancellationToken _token;
+        private readonly long? _draft;
+        private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long?> _favorites = new(StringComparer.Ordinal);
+
+        // 本批刪除列所引用的內容與連線；批次結束前逐一重查引用，不為了孤立資料掃全表。
+        private readonly HashSet<string> _releasedContents = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _releasedContexts = new(StringComparer.Ordinal);
+
+        public MaintenanceBatch(SqliteConnection connection, SqliteTransaction transaction,
+            QueryMemoryMaintenancePolicy policy, CancellationToken token)
         {
-            using var read = Command(connection, transaction,
-                "SELECT RevisionId FROM Executions WHERE ExecutionId=$id;", ("$id", key));
-            revision = read.ExecuteScalar();
+            _connection = connection;
+            _transaction = transaction;
+            _policy = policy;
+            _token = token;
+            _draft = policy.DraftBefore.HasValue ? Ticks(policy.DraftBefore.Value) : null;
+            ExecutionCutoff = Later(policy.ExecutionBefore.HasValue ? Ticks(policy.ExecutionBefore.Value) : null,
+                Boundary(policy.MaxExecutionEvents, "SELECT ExecutedAt FROM Executions ORDER BY ExecutedAt DESC"));
         }
-        else if (stage == HistoryStage || stage == RevisionStage)
+
+        /// <summary>分組探測也算一個候選單位，批次工作量才不會隨 Session 或收藏數量無界成長。</summary>
+        public int Examined { get; private set; }
+
+        public int Deleted { get; private set; }
+
+        /// <summary>執行專用版本沿用同一界線，否則配額只會留下永遠無法回收的孤立版本。</summary>
+        private long? ExecutionCutoff { get; }
+
+        /// <returns>true 表示工作量用完而這個階段可能還有候選；false 表示階段已巡完。</returns>
+        public bool Advance(SqliteMaintenanceStage stage, SqliteMaintenanceCursor cursor, int remaining) => stage switch
         {
-            // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
-            using var read = Command(connection, transaction, stage == HistoryStage
-                ? @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection,r.FavoriteQueryId FROM History h
- LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;"
-                : "SELECT RevisionId,SessionId,Reason,IsExecutionSelection,FavoriteQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key));
-            using var reader = read.ExecuteReader();
-            if (reader.Read())
+            SqliteMaintenanceStage.Executions =>
+                ByTime(SqliteMaintenanceStages.Executions, ExecutionCutoff, cursor, remaining, ExecutionDelete),
+            SqliteMaintenanceStage.DraftHistory => _draft.HasValue || _policy.MaxAutoRevisionsPerSession.HasValue
+                ? ByGroup(SqliteMaintenanceStages.DraftHistoryGroup, SqliteMaintenanceStages.DraftHistory,
+                    session => Later(_draft, AutoRevisionCutoff(session)), cursor, remaining, HistoryDelete)
+                : false,
+            SqliteMaintenanceStage.SelectionRevisions =>
+                ByTime(SqliteMaintenanceStages.SelectionRevisions, ExecutionCutoff, cursor, remaining, RevisionDelete),
+            // 收藏還在時只受每 Favorite 配額處理；移除收藏後才改依草稿期限，與刪除條件的 CASE 一致。
+            SqliteMaintenanceStage.FavoriteRevisions => _draft.HasValue || _policy.MaxRevisionsPerFavoriteQuery.HasValue
+                ? ByGroup(SqliteMaintenanceStages.FavoriteRevisionGroup, SqliteMaintenanceStages.FavoriteRevisions,
+                    favorite => FavoriteExists(favorite) ? FavoriteRevisionCutoff(favorite) : _draft, cursor, remaining,
+                    RevisionDelete)
+                : false,
+            SqliteMaintenanceStage.Recovery => ByTime(SqliteMaintenanceStages.Recovery,
+                _policy.RecoveryBefore.HasValue ? Ticks(_policy.RecoveryBefore.Value) : null, cursor, remaining, RecoveryDelete),
+            SqliteMaintenanceStage.Revisions => ByKey(stage, cursor, remaining, RevisionDelete),
+            SqliteMaintenanceStage.Contents => ByKey(stage, cursor, remaining, ContentDelete),
+            SqliteMaintenanceStage.Contexts => ByKey(stage, cursor, remaining, ContextDelete),
+            _ => throw new ArgumentOutOfRangeException(nameof(stage)),
+        };
+
+        /// <summary>本批結束前重查被釋出的內容與連線；每個被刪的列最多各帶出一個。</summary>
+        public void CollectReleasedReferences()
+        {
+            foreach (var content in _releasedContents)
             {
-                revision = StringOrNull(reader, 0);
-                if (!reader.IsDBNull(1) && reader.GetInt64(2) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(3) == 0)
-                    autoQuota = quotas.AutoRevisionCutoff(reader.GetString(1));
-                else if (!reader.IsDBNull(4) && reader.GetInt64(2) == (long)QueryRevisionReason.FavoriteQueryEdit)
-                    favoriteQuota = quotas.FavoriteRevisionCutoff(reader.GetString(4));
+                _token.ThrowIfCancellationRequested();
+                Deleted += Delete("DELETE FROM Contents WHERE ContentId=$id" + UnreferencedContent + ";", ("$id", content));
+            }
+            foreach (var context in _releasedContexts)
+            {
+                _token.ThrowIfCancellationRequested();
+                Deleted += Delete(UnreferencedContext, ("$id", context));
             }
         }
-        var parameters = new (string Name, object? Value)[]
+
+        private bool ByTime(string sql, long? cutoff, SqliteMaintenanceCursor cursor, int remaining, int kind)
         {
-            ("$id", key), ("$revision", revision),
-            ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
-            ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
-            ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
-            ("$favoriteEdit", (int)QueryRevisionReason.FavoriteQueryEdit), ("$favoriteQuota", favoriteQuota),
-            ("$recoveryHistory", "s" + key),
-            ("$recovery", policy.RecoveryBefore.HasValue ? (object)Ticks(policy.RecoveryBefore.Value) : null),
-        };
-        string sql;
-        switch (stage)
+            if (!cutoff.HasValue) return false;
+            // 先限定候選再查引用；不能把 NOT EXISTS 放在 LIMIT 前而掃過全庫受保護列。
+            var candidates = Candidates(sql, remaining, ("$cutoff", cutoff), ("$time", cursor.Time ?? long.MinValue),
+                ("$key", cursor.Key));
+            foreach (var (key, time) in candidates)
+            {
+                Visit(kind, key);
+                cursor.Time = time;
+                cursor.Key = key;
+            }
+            return candidates.Count == remaining;
+        }
+
+        private bool ByGroup(string groupSql, string sql, Func<string, long?> groupCutoff, SqliteMaintenanceCursor cursor,
+            int remaining, int kind)
         {
-            case ExecutionStage:
-                // 一個候選最多刪除兩列，沒有 CASCADE 或無界的子列刪除。
-                var eligible = "SELECT 1 FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision;
-                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$history AND EXISTS(" + eligible + ");", parameters);
-                var historyDeleted = (int)ScalarLong(connection, transaction, "SELECT changes();");
-                Execute(connection, transaction, "DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
-                    UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
-                return historyDeleted + (int)ScalarLong(connection, transaction, "SELECT changes();");
-            case HistoryStage:
-                // Recovery 的投影沒有 RevisionId，另由 Recovery 階段連同 Recovery 一起處理。
-                sql = @"DELETE FROM History WHERE EntryKey=$id AND Kind=2 AND RevisionId IS NOT NULL
- AND (CreatedAt<$draft OR CreatedAt<$autoQuota)" + UnprotectedRevision;
-                break;
-            case RevisionStage:
-                // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
-                sql = @"DELETE FROM Revisions WHERE RevisionId=$id
+            while (remaining > 0)
+            {
+                _token.ThrowIfCancellationRequested();
+                if (cursor.Time == null)
+                {
+                    string? group;
+                    using (var probe = Command(_connection, _transaction, groupSql, ("$group", cursor.Group)))
+                        group = probe.ExecuteScalar() as string;
+                    if (group == null) return false;
+                    cursor.Group = group;
+                    cursor.Time = long.MinValue;
+                    cursor.Key = "";
+                    Examined++;
+                    remaining--;
+                    continue;
+                }
+                var cutoff = groupCutoff(cursor.Group);
+                var candidates = cutoff.HasValue
+                    ? Candidates(sql, remaining, ("$group", cursor.Group), ("$cutoff", cutoff), ("$time", cursor.Time),
+                        ("$key", cursor.Key))
+                    : new List<(string Key, long Time)>();
+                foreach (var (key, time) in candidates)
+                {
+                    Visit(kind, key);
+                    cursor.Time = time;
+                    cursor.Key = key;
+                }
+                if (candidates.Count == remaining) return true;
+                remaining -= candidates.Count;
+                cursor.Time = null;
+                cursor.Key = "";
+            }
+            return true;
+        }
+
+        private bool ByKey(SqliteMaintenanceStage stage, SqliteMaintenanceCursor cursor, int remaining, int kind)
+        {
+            var keys = new List<string>();
+            using (var command = Command(_connection, _transaction, SqliteMaintenanceStages.ByKey(stage),
+                ("$key", cursor.Key), ("$limit", remaining)))
+            using (var reader = command.ExecuteReader())
+                while (reader.Read()) { _token.ThrowIfCancellationRequested(); keys.Add(reader.GetString(0)); }
+            foreach (var key in keys)
+            {
+                Visit(kind, key);
+                cursor.Key = key;
+            }
+            return keys.Count == remaining;
+        }
+
+        private List<(string Key, long Time)> Candidates(string sql, int limit, params (string Name, object? Value)[] parameters)
+        {
+            var candidates = new List<(string Key, long Time)>();
+            using var command = Command(_connection, _transaction, sql, parameters);
+            command.Parameters.AddWithValue("$limit", limit);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                _token.ThrowIfCancellationRequested();
+                candidates.Add((reader.GetString(0), reader.GetInt64(1)));
+            }
+            return candidates;
+        }
+
+        private void Visit(int kind, string key)
+        {
+            _token.ThrowIfCancellationRequested();
+            Deleted += kind switch
+            {
+                ExecutionDelete => DeleteExecution(key),
+                HistoryDelete => DeleteDraftHistory(key),
+                RevisionDelete => DeleteRevision(key),
+                RecoveryDelete => DeleteRecovery(key),
+                ContentDelete => Delete("DELETE FROM Contents WHERE ContentId=$id" + UnreferencedContent + ";", ("$id", key)),
+                _ => Delete(UnreferencedContext, ("$id", key)),
+            };
+            Examined++;
+        }
+
+        private int DeleteExecution(string key)
+        {
+            string revision;
+            string? context;
+            using (var read = Command(_connection, _transaction, "SELECT RevisionId,ContextId FROM Executions WHERE ExecutionId=$id;",
+                ("$id", key)))
+            using (var reader = read.ExecuteReader())
+            {
+                if (!reader.Read()) return 0;
+                revision = reader.GetString(0);
+                context = StringOrNull(reader, 1);
+            }
+            var parameters = new (string Name, object? Value)[]
+            {
+                ("$id", key), ("$revision", revision), ("$execution", ExecutionCutoff), ("$history", "e" + key),
+            };
+            // 一個候選最多刪除兩列，沒有 CASCADE 或無界的子列刪除。
+            var eligible = "SELECT 1 FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision;
+            var deleted = DeleteReleasing("History", "EntryKey=$history",
+                "DELETE FROM History WHERE EntryKey=$history AND EXISTS(" + eligible + ");", parameters);
+            var executions = Delete("DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
+                UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
+            if (executions > 0) Release(null, context);
+            return deleted + executions;
+        }
+
+        private int DeleteDraftHistory(string key)
+        {
+            object? revision = null;
+            long? autoQuota = null;
+            // History 自己沒有 Reason；Draft 的配額分類要看它引用的版本。
+            using (var read = Command(_connection, _transaction, @"SELECT h.RevisionId,r.SessionId,r.Reason,r.IsExecutionSelection FROM History h
+ LEFT JOIN Revisions r ON r.RevisionId=h.RevisionId WHERE h.EntryKey=$id;", ("$id", key)))
+            using (var reader = read.ExecuteReader())
+            {
+                if (!reader.Read()) return 0;
+                revision = StringOrNull(reader, 0);
+                if (!reader.IsDBNull(1) && reader.GetInt64(2) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(3) == 0)
+                    autoQuota = AutoRevisionCutoff(reader.GetString(1));
+            }
+            // Recovery 的投影沒有 RevisionId，另由 Recovery 階段連同 Recovery 一起處理。
+            return DeleteReleasing("History", "EntryKey=$id", @"DELETE FROM History WHERE EntryKey=$id AND Kind=2 AND RevisionId IS NOT NULL
+ AND (CreatedAt<$draft OR CreatedAt<$autoQuota)" + UnprotectedRevision + ";",
+                ("$id", key), ("$revision", revision), ("$draft", _draft), ("$autoQuota", autoQuota));
+        }
+
+        private int DeleteRevision(string key)
+        {
+            long? autoQuota = null;
+            long? favoriteQuota = null;
+            using (var read = Command(_connection, _transaction,
+                "SELECT SessionId,Reason,IsExecutionSelection,FavoriteQueryId FROM Revisions WHERE RevisionId=$id;", ("$id", key)))
+            using (var reader = read.ExecuteReader())
+            {
+                if (!reader.Read()) return 0;
+                if (reader.GetInt64(1) == (long)QueryRevisionReason.AutoCheckpoint && reader.GetInt64(2) == 0)
+                    autoQuota = AutoRevisionCutoff(reader.GetString(0));
+                else if (!reader.IsDBNull(3) && reader.GetInt64(1) == (long)QueryRevisionReason.FavoriteQueryEdit)
+                    favoriteQuota = FavoriteRevisionCutoff(reader.GetString(3));
+            }
+            // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
+            return DeleteReleasing("Revisions", "RevisionId=$id", @"DELETE FROM Revisions WHERE RevisionId=$id
  AND (CreatedAt < CASE
    WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
    WHEN Reason=$favoriteEdit AND EXISTS(SELECT 1 FROM FavoriteQueries WHERE FavoriteQueryId=Revisions.FavoriteQueryId) THEN $favoriteQuota
@@ -184,57 +393,60 @@ internal sealed partial class SqliteQueryMemoryRepository
  AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestExecutionRevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ParentRevisionId=$id)
  AND NOT EXISTS(SELECT 1 FROM Executions WHERE RevisionId=$id)
- AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$id)";
-                break;
-            case RecoveryStage:
-                // 租約還在就代表那個程序可能還開著這份未存檔草稿；過期只是宿主可以去確認，不是可以刪。
-                var unowned = "SELECT 1 FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
-                    " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)";
-                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$recoveryHistory" +
-                    " AND EXISTS(" + unowned + ");", parameters);
-                var projectionDeleted = (int)ScalarLong(connection, transaction, "SELECT changes();");
-                Execute(connection, transaction, "DELETE FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
-                    " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)" +
-                    " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$recoveryHistory);", parameters);
-                return projectionDeleted + (int)ScalarLong(connection, transaction, "SELECT changes();");
-            case ContentStage:
-                sql = "DELETE FROM Contents WHERE ContentId=$id" + UnreferencedContent;
-                break;
-            default:
-                sql = @"DELETE FROM Contexts WHERE ContextId=$id
- AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Executions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM History WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE ContextId=$id)";
-                break;
+ AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$id);",
+                ("$id", key), ("$revision", key), ("$draft", _draft), ("$execution", ExecutionCutoff), ("$autoQuota", autoQuota),
+                ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute),
+                ("$favoriteEdit", (int)QueryRevisionReason.FavoriteQueryEdit), ("$favoriteQuota", favoriteQuota));
         }
-        Execute(connection, transaction, sql + ";", parameters);
-        return (int)ScalarLong(connection, transaction, "SELECT changes();");
-    }
 
-    /// <summary>界線只在批次開始解析一次；批次只刪除比界線更舊的列，最新 N 筆不會在批次內移動。</summary>
-    private sealed class MaintenanceQuotas
-    {
-        private readonly SqliteConnection _connection;
-        private readonly SqliteTransaction _transaction;
-        private readonly QueryMemoryMaintenancePolicy _policy;
-        private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, long?> _favorite = new(StringComparer.Ordinal);
-
-        public MaintenanceQuotas(SqliteConnection connection, SqliteTransaction transaction, QueryMemoryMaintenancePolicy policy)
+        private int DeleteRecovery(string key)
         {
-            _connection = connection;
-            _transaction = transaction;
-            _policy = policy;
-            ExecutionCutoff = Later(policy.ExecutionBefore.HasValue ? Ticks(policy.ExecutionBefore.Value) : null,
-                Boundary(policy.MaxExecutionEvents, "SELECT ExecutedAt FROM Executions ORDER BY ExecutedAt DESC"));
+            var parameters = new (string Name, object? Value)[]
+            {
+                ("$id", key), ("$recoveryHistory", "s" + key),
+                ("$recovery", _policy.RecoveryBefore.HasValue ? (object)Ticks(_policy.RecoveryBefore.Value) : null),
+            };
+            // 租約還在就代表那個程序可能還開著這份未存檔草稿；過期只是宿主可以去確認，不是可以刪。
+            var unowned = "SELECT 1 FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
+                " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)";
+            var projection = DeleteReleasing("History", "EntryKey=$recoveryHistory",
+                "DELETE FROM History WHERE EntryKey=$recoveryHistory AND EXISTS(" + unowned + ");", parameters);
+            return projection + DeleteReleasing("Recovery", "SessionId=$id",
+                "DELETE FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
+                " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)" +
+                " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$recoveryHistory);", parameters);
         }
 
-        /// <summary>執行專用版本沿用同一界線，否則配額只會留下永遠無法回收的孤立版本。</summary>
-        public long? ExecutionCutoff { get; }
+        /// <summary>先記下這一列引用的內容與連線再刪；真的刪掉才交給本批的引用回收。</summary>
+        private int DeleteReleasing(string table, string row, string sql, params (string Name, object? Value)[] parameters)
+        {
+            string? content = null, context = null;
+            using (var read = Command(_connection, _transaction, "SELECT ContentId,ContextId FROM " + table + " WHERE " + row + ";",
+                parameters))
+            using (var reader = read.ExecuteReader())
+            {
+                if (!reader.Read()) return 0;
+                content = StringOrNull(reader, 0);
+                context = StringOrNull(reader, 1);
+            }
+            var deleted = Delete(sql, parameters);
+            if (deleted > 0) Release(content, context);
+            return deleted;
+        }
 
-        public long? AutoRevisionCutoff(string sessionId)
+        private void Release(string? content, string? context)
+        {
+            if (content != null) _releasedContents.Add(content);
+            if (context != null) _releasedContexts.Add(context);
+        }
+
+        private int Delete(string sql, params (string Name, object? Value)[] parameters)
+        {
+            Execute(_connection, _transaction, sql, parameters);
+            return (int)ScalarLong(_connection, _transaction, "SELECT changes();");
+        }
+
+        private long? AutoRevisionCutoff(string sessionId)
         {
             if (!_policy.MaxAutoRevisionsPerSession.HasValue) return null;
             if (_sessions.TryGetValue(sessionId, out var cached)) return cached;
@@ -247,16 +459,23 @@ internal sealed partial class SqliteQueryMemoryRepository
         }
 
         /// <summary>界線含目前版本；它本身另受 Favorite 引用保護，配額不會把收藏清成沒有 SQL。</summary>
-        public long? FavoriteRevisionCutoff(string favoriteQueryId)
+        private long? FavoriteRevisionCutoff(string favoriteQueryId)
         {
             if (!_policy.MaxRevisionsPerFavoriteQuery.HasValue) return null;
-            if (_favorite.TryGetValue(favoriteQueryId, out var cached)) return cached;
+            if (_favorites.TryGetValue(favoriteQueryId, out var cached)) return cached;
             // 明寫 IS NOT NULL，部分索引才會命中，界線只掃描該收藏的前 N 筆索引項。
             var cutoff = Boundary(_policy.MaxRevisionsPerFavoriteQuery,
                 "SELECT CreatedAt FROM Revisions WHERE FavoriteQueryId=$favorite AND FavoriteQueryId IS NOT NULL ORDER BY CreatedAt DESC",
                 ("$favorite", favoriteQueryId));
-            _favorite.Add(favoriteQueryId, cutoff);
+            _favorites.Add(favoriteQueryId, cutoff);
             return cutoff;
+        }
+
+        private bool FavoriteExists(string favoriteQueryId)
+        {
+            using var command = Command(_connection, _transaction, "SELECT 1 FROM FavoriteQueries WHERE FavoriteQueryId=$id;",
+                ("$id", favoriteQueryId));
+            return command.ExecuteScalar() != null;
         }
 
         private long? Boundary(int? quota, string sql, params (string Name, object? Value)[] parameters)

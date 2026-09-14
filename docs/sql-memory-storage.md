@@ -19,7 +19,7 @@
 | Revisions／Executions | 不可變版本與獨立執行事件 |
 | Recovery／Captures／History | 最新未存檔內容、重送紀錄與有索引的歷史投影 |
 | FavoriteQueries | 名稱、說明、scope、目前版本引用與 GUID CAS token |
-| Leases／StorageUsage | 程序／維護租約與交易內內容計量 |
+| Leases／StorageUsage／MaintenanceState | 租約、內容計量與共用維護輪次 |
 
 新庫在 IMMEDIATE 交易一次建立全部表、索引與 triggers；取得寫鎖後重讀身分／版本，
 避免多程序初始化競賽。WAL、外鍵常開；每個操作獨立連線且關閉 pool。
@@ -37,8 +37,8 @@ Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents tr
 寫入，只有 Session／Captures 兩張輕量表照常前進維持 Sequence／CAS；晚到 idle 仍受
 `capture.Sequence <= previous.LastSequence` 擋下。連續 idle 但內容不變因此不再每輪重編碼。
 
-去重命中（`ContentId` 已存在）只比對 `Contents.ContentHash` 與 `Length`，不再讀回整份
-`SqlBytes` 比對位元組，命中時也就不必重新編碼 UTF-16LE。SHA-256 碰撞機率遠低於這兩個欄位
+去重命中（`ContentId` 已存在）只比對 `Contents.ContentHash` 與 `Length`，不讀回
+`SqlBytes`，也不重新編碼 UTF-16LE。SHA-256 碰撞機率遠低於這兩個欄位
 本身損毀的機率，後者仍會被擋下並丟出 `InvalidDataException`。只有 `SqlBytes` 本體單獨損毀、
 Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadContentAsync`）一定重新解碼並
 驗證雜湊，仍會擋下——完整性保證從「每次去重命中都驗」改成「下一次讀全文時驗」。

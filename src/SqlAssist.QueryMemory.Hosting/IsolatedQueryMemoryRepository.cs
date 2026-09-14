@@ -86,6 +86,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
         Invoke(operation => _worker.ReadUsage(operation), cancellationToken);
     public Task<QueryMemoryMaintenanceResult> MaintainAsync(QueryMemoryMaintenanceRequest request, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.Maintain(operation, request), cancellationToken);
+    public Task<QueryMemoryMaintenanceState?> ReadMaintenanceStateAsync(CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.ReadMaintenanceState(operation), cancellationToken);
     public Task<string> OpenLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.OpenLease(operation, owner, now), cancellationToken);
     public Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
@@ -96,6 +98,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
         Invoke(operation => _worker.ReleaseLeases(operation, leaseIds, expiredBefore), cancellationToken);
     public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.TryAcquireMaintenanceLease(operation, owner, now, expiredBefore), cancellationToken);
+    public Task<bool> ReleaseMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.ReleaseMaintenanceLease(operation, owner), cancellationToken);
 
     public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken) =>
         Invoke(operation => _worker.Checkpoint(operation), cancellationToken);

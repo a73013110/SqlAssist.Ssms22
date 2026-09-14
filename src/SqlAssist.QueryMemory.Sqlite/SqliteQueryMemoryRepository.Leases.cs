@@ -121,8 +121,20 @@ internal sealed partial class SqliteQueryMemoryRepository
             ? "INSERT INTO Leases VALUES($reserved,$machine,$process,$started,$now);"
             : "UPDATE Leases SET MachineName=$machine,ProcessId=$process,ProcessStartTime=$started,RenewedAt=$now WHERE LeaseId=$reserved;",
             Append(OwnerParameters(owner), ("$now", Ticks(now))));
+        cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
         return true;
+    }
+
+    public bool ReleaseMaintenanceLease(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken)
+    {
+        if (owner == null) throw new ArgumentNullException(nameof(owner));
+        using var connection = Connect();
+        cancellationToken.ThrowIfCancellationRequested();
+        // 單一條件刪除本身是原子的；別人已經接手（三元組不同）就什麼都不動，共用狀態也不跟著清。
+        Execute(connection, null, "DELETE FROM Leases WHERE LeaseId=$reserved AND MachineName=$machine" +
+            " AND ProcessId=$process AND ProcessStartTime=$started;", OwnerParameters(owner));
+        return ScalarLong(connection, null, "SELECT changes();") == 1;
     }
 
     private static QueryMemoryLease ReadLease(SqliteDataReader reader) => new(reader.GetString(0),

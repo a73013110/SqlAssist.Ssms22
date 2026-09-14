@@ -38,16 +38,20 @@ internal sealed class SqliteTestStore : IDisposable
     public static QueryMemoryMaintenancePolicy Expired(long? capacity = null) =>
         new(Start.AddDays(1), Start.AddDays(1), capacity);
 
-    /// <summary>逐批巡到一輪結束；順便確認每批都守著工作量上限與每候選最多兩列的刪除。</summary>
+    /// <summary>
+    /// 逐批巡到一輪結束；順便確認每批都守著工作量上限，以及每候選最多刪本體與投影兩列、
+    /// 每列再帶出一個內容與一個連線。
+    /// </summary>
     public static async Task<QueryMemoryMaintenanceResult> Drain(IQueryMemoryMaintenanceRepository repository,
-        QueryMemoryMaintenancePolicy policy, int budget = 2, string? cursor = null)
+        QueryMemoryMaintenancePolicy policy, int budget = 2, string? cursor = null,
+        QueryMemoryMaintenanceScan scan = QueryMemoryMaintenanceScan.Indexed)
     {
         for (var batch = 0; batch < 200; batch++)
         {
-            var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, budget, cursor),
+            var result = await repository.MaintainAsync(new QueryMemoryMaintenanceRequest(policy, budget, cursor, scan),
                 TestContext.Current.CancellationToken);
             Assert.InRange(result.ExaminedCandidates, 0, budget);
-            Assert.InRange(result.DeletedRows, 0, 2 * result.ExaminedCandidates);
+            Assert.InRange(result.DeletedRows, 0, 6 * result.ExaminedCandidates);
             if (result.Cursor == null && !result.RequiresAnotherPass) return result;
             cursor = result.Cursor;
         }

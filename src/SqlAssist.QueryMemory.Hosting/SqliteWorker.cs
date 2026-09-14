@@ -100,6 +100,8 @@ public sealed class SqliteWorker : MarshalByRefObject
     public QueryMemoryUsage ReadUsage(long operation) => Run(operation, token => Repository.ReadUsage(token));
     public QueryMemoryMaintenanceResult Maintain(long operation, QueryMemoryMaintenanceRequest request) =>
         Run(operation, token => Repository.Maintain(request, token));
+    public QueryMemoryMaintenanceState? ReadMaintenanceState(long operation) =>
+        Run(operation, token => Repository.ReadMaintenanceState(token));
     public string OpenLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now) =>
         Run(operation, token => Repository.OpenLease(owner, now, token));
     public bool RenewLease(long operation, DateTimeOffset now) => Run(operation, token => Repository.RenewLease(now, token));
@@ -109,6 +111,8 @@ public sealed class SqliteWorker : MarshalByRefObject
         Run(operation, token => Repository.ReleaseLeases(leaseIds, before, token));
     public bool TryAcquireMaintenanceLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
         Run(operation, token => Repository.TryAcquireMaintenanceLease(owner, now, before, token));
+    public bool ReleaseMaintenanceLease(long operation, QueryMemoryLeaseOwner owner) =>
+        Run(operation, token => Repository.ReleaseMaintenanceLease(owner, token));
 
     public QueryMemoryCheckpointResult Checkpoint(long operation) => Run(operation, token => Repository.Checkpoint(token));
     public QueryMemoryUsage Compact(long operation) => Run(operation, token => Repository.Compact(token));

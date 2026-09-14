@@ -74,6 +74,20 @@ public sealed class QueryMemoryRetentionPlanTests
         Assert.Null(Plan(unsavedDays: null).BuildLadder(Now, reclaimUnsavedDrafts: true)[0].RecoveryBefore);
     }
 
+    /// <summary>持久化的維護輪次靠指紋判斷設定有沒有改；任何一個分級輸入不同都不能接續舊游標。</summary>
+    [Fact]
+    public void TheFingerprintChangesWithEveryRetentionInputButNotWithTime()
+    {
+        Assert.Equal(Plan().Fingerprint, Plan().Fingerprint);
+        Assert.NotEqual(Plan().Fingerprint, Plan(draftDays: 29).Fingerprint);
+        Assert.NotEqual(Plan().Fingerprint, Plan(executionDays: 179).Fingerprint);
+        Assert.NotEqual(Plan().Fingerprint, Plan(unsavedDays: null).Fingerprint);
+        Assert.NotEqual(Plan().Fingerprint, Plan(capacity: null).Fingerprint);
+        Assert.NotEqual(Plan().Fingerprint, Plan(quota: 99).Fingerprint);
+        Assert.NotEqual(Plan(quota: 1).Fingerprint, new QueryMemoryRetentionPlan(TimeSpan.FromDays(30),
+            TimeSpan.FromDays(180), TimeSpan.FromDays(7), 1024, 1, 1, 2).Fingerprint);
+    }
+
     [Theory]
     [InlineData(QueryMemoryStorageLimit.Megabytes256, 268435456L)]
     [InlineData(QueryMemoryStorageLimit.Megabytes512, 536870912L)]

@@ -6,10 +6,13 @@ using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.Core.Tests.QueryMemory;
 
-/// <summary>維護與租約兩個契約的記錄式假實作；真正的交易行為由 SQLite 整合測試涵蓋。</summary>
+/// <summary>
+/// 維護與租約兩個契約的記錄式假實作；帶 Claim 的批次照儲存層契約寫回狀態，
+/// 多個 runner 共用同一個實例就等於共用同一個資料庫。真正的交易行為由 SQLite 整合測試涵蓋。
+/// </summary>
 internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceRepository, IQueryMemoryLeaseRepository
 {
-    private readonly Queue<QueryMemoryMaintenanceResult> _results = new();
+    private readonly Queue<Func<QueryMemoryMaintenanceRequest, QueryMemoryMaintenanceResult>> _results = new();
 
     public List<QueryMemoryMaintenanceRequest> Requests { get; } = new();
 
@@ -25,9 +28,17 @@ internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceReposi
 
     public bool MaintenanceLeaseAvailable { get; set; } = true;
 
+    public int MaintenanceLeaseReleases { get; private set; }
+
     public bool RenewSucceeds { get; set; } = true;
 
-    public void Enqueue(QueryMemoryMaintenanceResult result) => _results.Enqueue(result);
+    public QueryMemoryMaintenanceState? State { get; set; }
+
+    public void Enqueue(QueryMemoryMaintenanceResult result) => _results.Enqueue(_ => result);
+
+    /// <summary>下一批以指定例外失敗，什麼都不寫回；模擬整批回復。</summary>
+    public void EnqueueFailure(QueryMemoryStorageErrorKind kind) =>
+        _results.Enqueue(_ => throw new QueryMemoryStorageException(kind, "測試：" + kind));
 
     public Task<QueryMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new QueryMemoryUsage(0, 0, 0));
@@ -36,11 +47,22 @@ internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceReposi
         CancellationToken cancellationToken)
     {
         Requests.Add(request);
-        return Task.FromResult(_results.Count > 0
-            ? _results.Dequeue()
+        var result = _results.Count > 0
+            ? _results.Dequeue()(request)
             : new QueryMemoryMaintenanceResult(0, 0, null, false, new QueryMemoryUsage(0, 0, 0),
-                QueryMemoryCapacityStatus.WithinLimit));
+                QueryMemoryCapacityStatus.WithinLimit);
+        if (request.Claim is { } claim)
+        {
+            if (claim.ExpectedVersion != (State?.Version ?? 0))
+                throw new QueryMemoryStorageException(QueryMemoryStorageErrorKind.Conflict, "測試：狀態版本不符");
+            State = new QueryMemoryMaintenanceState(claim.ExpectedVersion + 1, claim.Round, result.Cursor,
+                result.RequiresAnotherPass, result.CapacityStatus);
+        }
+        return Task.FromResult(result);
     }
+
+    public Task<QueryMemoryMaintenanceState?> ReadMaintenanceStateAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(State);
 
     public Task<QueryMemoryCheckpointResult> CheckpointAsync(CancellationToken cancellationToken)
     {
@@ -77,4 +99,10 @@ internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceReposi
     public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now,
         DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
         Task.FromResult(MaintenanceLeaseAvailable);
+
+    public Task<bool> ReleaseMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken)
+    {
+        MaintenanceLeaseReleases++;
+        return Task.FromResult(true);
+    }
 }
