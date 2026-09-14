@@ -42,6 +42,10 @@
 | 新增一個設定 | 註冊 JSON、POCO、moniker、reader 四處 |
 | 查詢的 SQL 或載入分層 | `Metadata/Querying/SqlMetadataQueries.cs` |
 | 連不上資料庫時的行為 | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| SQL Memory 開不起來、停用後還在擷取、心跳或維護沒跑 | `Core/QueryMemory/QueryMemoryRuntime.cs`（`Ssms22/QueryMemory/QueryMemoryHost.cs` 只接線） |
+| SQL Memory 清單篩選、分頁、晚到回應或選取還原 | `Core/QueryMemory/QueryMemoryBrowserModel.cs` |
+| 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `Core/QueryMemory/QueryDocumentIdentity.cs`、`QuerySelectionText.cs` |
+| SQL Memory 的 SQL、交易或索引 | `QueryMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |
 | 建置、安裝、偵錯、發布 | `tools/` |
 | 分層規則、資料夾規則 | — |
@@ -53,8 +57,8 @@
 ## 測試
 
 `tests/` 鏡像 `src/` 的資料夾結構，所以改了 `Core/Parsing/` 就去看
-`tests/SqlAssist.Core.Tests/Parsing/`。只有兩個測試專案：`SqlAssist.Core.Tests`
-與 `SqlAssist.Metadata.Tests`——`SqlAssist.Ssms22` 沒有測試專案，這正是
+`tests/SqlAssist.Core.Tests/Parsing/`。`SqlAssist.QueryMemory.Sqlite.Tests` 驗真實 SQLite 與隔離層；
+`SqlAssist.Ssms22.Tests` 只連結純 WPF 控制項做渲染測試，不載入 SSMS——這正是
 「**禁止**把只看文字就能判斷的邏輯寫進 Ssms22」的原因。
 
 游標位置的測試寫法見 `tests/SqlAssist.Core.Tests/SqlWithCaret.cs`。

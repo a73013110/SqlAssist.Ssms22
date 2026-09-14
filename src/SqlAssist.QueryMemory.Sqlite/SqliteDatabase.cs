@@ -7,35 +7,26 @@ using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-/// <summary>每次操作使用獨立連線；不保留 pool，關閉後不鎖住資料庫或妨礙 VSIX 卸載。</summary>
+/// <summary>一個 SQL Memory 資料庫檔案：路徑檢查、pragma、schema 身分檢查與指令輔助。</summary>
 /// <remarks>
+/// 每次操作使用獨立連線；不保留 pool，關閉後不鎖住資料庫或妨礙 VSIX 卸載。
+/// 開啟後沒有可變狀態，各聚合的 store 可由多條執行緒同時使用；並行交給 SQLite WAL 與交易。
 /// 只提供同步方法，由隔離 AppDomain 的 worker 直接呼叫；非同步與排背景只在隔離邊界做一次，
 /// 不再「Task.Run 包 I/O、worker 又同步等待」而一個操作占兩條執行緒。
-/// 除了租約識別碼之外沒有可變狀態，可由多條執行緒同時呼叫；並行交給 SQLite WAL 與交易。
 /// </remarks>
-internal sealed partial class SqliteQueryMemoryRepository
+internal sealed class SqliteDatabase
 {
     private readonly string _connectionString;
-    private readonly SqliteSearchBudget _searchBudget;
-    private string _storeId = "";
-    private string? _leaseId;
 
-    /// <summary>心跳重開租約時換值；其他操作只在開始時讀一次快照。</summary>
-    private string? LeaseId
+    private SqliteDatabase(string path, int busyTimeoutSeconds)
     {
-        get => Volatile.Read(ref _leaseId);
-        set => Volatile.Write(ref _leaseId, value);
-    }
-
-    private SqliteQueryMemoryRepository(string path, int busyTimeoutSeconds, SqliteSearchBudget searchBudget)
-    {
-        _searchBudget = searchBudget;
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path))
             throw new ArgumentException("資料庫必須使用本機絕對路徑。", nameof(path));
         path = Path.GetFullPath(path);
         if (path.StartsWith(@"\\", StringComparison.Ordinal))
             throw new ArgumentException("WAL 資料庫不支援網路共用路徑。", nameof(path));
         if (busyTimeoutSeconds < 1 || busyTimeoutSeconds > 60) throw new ArgumentOutOfRangeException(nameof(busyTimeoutSeconds));
+        FilePath = path;
         _connectionString = new SqliteConnectionStringBuilder
         {
             DataSource = path, Pooling = false, ForeignKeys = true,
@@ -43,12 +34,23 @@ internal sealed partial class SqliteQueryMemoryRepository
         }.ToString();
     }
 
-    public static SqliteQueryMemoryRepository Open(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5,
-        SqliteSearchBudget? searchBudget = null)
+    public string FilePath { get; }
+
+    /// <summary>建立資料庫時產生的識別碼；游標綁它，換一個資料庫檔案的舊游標必須被拒絕。</summary>
+    public string StoreId { get; private set; } = "";
+
+    public static SqliteDatabase Open(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
     {
-        var repository = new SqliteQueryMemoryRepository(path, busyTimeoutSeconds, searchBudget ?? SqliteSearchBudget.Default);
-        repository.Initialize(cancellationToken);
-        return repository;
+        var database = new SqliteDatabase(path, busyTimeoutSeconds);
+        database.Initialize(cancellationToken);
+        return database;
+    }
+
+    public SqliteConnection Connect()
+    {
+        var connection = new SqliteConnection(_connectionString);
+        try { connection.Open(); return connection; }
+        catch { connection.Dispose(); throw; }
     }
 
     private void Initialize(CancellationToken cancellationToken)
@@ -88,24 +90,19 @@ internal sealed partial class SqliteQueryMemoryRepository
         }
         else if (version != SqliteSchema.Version || application != SqliteSchema.ApplicationId)
             throw Incompatible("SQL Memory schema 版本不相容；請使用新的開發測試資料庫。");
+        string storeId;
         using (var store = Command(connection, transaction, "SELECT StoreId FROM StoreInfo;"))
-            _storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";
-        if (!Guid.TryParseExact(_storeId, "N", out _)) throw new InvalidDataException("Query Memory 缺少儲存庫識別碼。");
+            storeId = Convert.ToString(store.ExecuteScalar(), CultureInfo.InvariantCulture) ?? "";
+        if (!Guid.TryParseExact(storeId, "N", out _)) throw new InvalidDataException("Query Memory 缺少儲存庫識別碼。");
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
+        StoreId = storeId;
     }
 
     private static QueryMemoryStorageException Incompatible(string message) =>
         new(QueryMemoryStorageErrorKind.Incompatible, message);
 
-    private SqliteConnection Connect()
-    {
-        var connection = new SqliteConnection(_connectionString);
-        try { connection.Open(); return connection; }
-        catch { connection.Dispose(); throw; }
-    }
-
-    private static SqliteCommand Command(SqliteConnection connection, SqliteTransaction? transaction, string sql,
+    public static SqliteCommand Command(SqliteConnection connection, SqliteTransaction? transaction, string sql,
         params (string Name, object? Value)[] parameters)
     {
         var command = connection.CreateCommand();
@@ -115,24 +112,28 @@ internal sealed partial class SqliteQueryMemoryRepository
         return command;
     }
 
-    private static void Execute(SqliteConnection connection, SqliteTransaction? transaction, string sql,
+    public static void Execute(SqliteConnection connection, SqliteTransaction? transaction, string sql,
         params (string Name, object? Value)[] parameters)
     {
         using var command = Command(connection, transaction, sql, parameters);
         command.ExecuteNonQuery();
     }
 
-    private static long ScalarLong(SqliteConnection connection, SqliteTransaction? transaction, string sql,
+    public static long ScalarLong(SqliteConnection connection, SqliteTransaction? transaction, string sql,
         params (string Name, object? Value)[] parameters)
     {
         using var command = Command(connection, transaction, sql, parameters);
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
-    private static string Id(Guid id) => id.ToString("N");
-    private static string? Id(Guid? id) => id?.ToString("N");
-    private static long Ticks(DateTimeOffset time) => time.UtcDateTime.Ticks;
-    private static DateTimeOffset Time(long ticks) => new(ticks, TimeSpan.Zero);
-    private static string? StringOrNull(SqliteDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
-    private static Guid? GuidOrNull(SqliteDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : Guid.ParseExact(reader.GetString(ordinal), "N");
+    /// <summary>上一句 DML 影響的列數；必須在同一個連線上緊接著呼叫。</summary>
+    public static int Changes(SqliteConnection connection, SqliteTransaction? transaction) =>
+        (int)ScalarLong(connection, transaction, "SELECT changes();");
+
+    public static string Id(Guid id) => id.ToString("N");
+    public static string? Id(Guid? id) => id?.ToString("N");
+    public static long Ticks(DateTimeOffset time) => time.UtcDateTime.Ticks;
+    public static DateTimeOffset Time(long ticks) => new(ticks, TimeSpan.Zero);
+    public static string? StringOrNull(SqliteDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
+    public static Guid? GuidOrNull(SqliteDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? null : Guid.ParseExact(reader.GetString(ordinal), "N");
 }

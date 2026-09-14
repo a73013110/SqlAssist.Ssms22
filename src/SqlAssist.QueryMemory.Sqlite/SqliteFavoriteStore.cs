@@ -5,10 +5,13 @@ using System.Text;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
+using static SqlAssist.QueryMemory.Sqlite.SqliteContentRows;
+using static SqlAssist.QueryMemory.Sqlite.SqliteDatabase;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-internal sealed partial class SqliteQueryMemoryRepository
+/// <summary>收藏：metadata CAS、SQL 編輯版本與 scope keyset 分頁。</summary>
+internal sealed class SqliteFavoriteStore
 {
     private const string FavoriteProjection = @"SELECT s.FavoriteQueryId,s.Name,s.Description,s.CurrentRevisionId,
 s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview";
@@ -16,10 +19,19 @@ s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview";
 FROM FavoriteQueries s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId
 JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s.ContextId";
 
+    private readonly SqliteDatabase _database;
+    private readonly SqliteSearchBudget _searchBudget;
+
+    public SqliteFavoriteStore(SqliteDatabase database, SqliteSearchBudget? searchBudget = null)
+    {
+        _database = database ?? throw new ArgumentNullException(nameof(database));
+        _searchBudget = searchBudget ?? SqliteSearchBudget.Default;
+    }
+
     public FavoriteQueryEntry? ReadFavoriteQuery(Guid favoriteQueryId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var command = Command(connection, null, FavoriteProjection + FavoriteSource + " WHERE s.FavoriteQueryId=$id;", ("$id", Id(favoriteQueryId)));
         using var reader = command.ExecuteReader();
         cancellationToken.ThrowIfCancellationRequested();
@@ -29,7 +41,7 @@ JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s
     public FavoriteQueryWriteResult WriteFavoriteQuery(FavoriteQueryWrite write, CancellationToken cancellationToken)
     {
         if (write == null) throw new ArgumentNullException(nameof(write));
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         var query = write.Query;
         // 與擷取、清理共用寫鎖及交易邊界，不能先檢查引用再另開交易刪除。
@@ -57,7 +69,7 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Versi
     {
         if (edit == null) throw new ArgumentNullException(nameof(edit));
         var content = QueryContent.Create(edit.Sql);
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         string? contextId;
         string sessionId;
@@ -90,7 +102,7 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
     public FavoriteQueryWriteResult DeleteFavoriteQuery(Guid favoriteQueryId, Guid expectedVersion, CancellationToken cancellationToken)
     {
         if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         if (ReadFavoriteVersion(connection, transaction, favoriteQueryId) != expectedVersion)
             return FavoriteQueryWriteResult.Conflict;
@@ -117,13 +129,13 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
         // scope 專用前綴防止與 History 游標混用；指紋重用內容雜湊與長度前綴編碼。
-        var prefix = "favorite1|" + _storeId + "|" + QueryContent.Create(
-            ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + Field(request.Server) +
-            Field(request.Database) + Field(request.Search)).ContentHash + "|";
+        var prefix = "favorite1|" + _database.StoreId + "|" + QueryContent.Create(
+            ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + SqliteFilterKey.Field(request.Server) +
+            SqliteFilterKey.Field(request.Database) + SqliteFilterKey.Field(request.Search)).ContentHash + "|";
         var after = DecodeFavoriteCursor(request.Cursor, prefix);
         // 搜尋只是 scope keyset 之上的篩選，同樣受單頁掃描預算限制。
         var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var command = Command(connection, null, FavoritePageSql(after != null, search != null),
             ("$scope", (int)request.Scope), ("$server", request.Server), ("$database", request.Database),
             ("$after", after), ("$limit", search?.CandidateLimit ?? request.PageSize + 1));

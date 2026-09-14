@@ -32,6 +32,9 @@ public enum QueryMemoryStorageErrorKind
 
     /// <summary>維護租約已易手，或共用維護狀態已被別的程序推進；整批已回復，重讀狀態即可，不是故障。</summary>
     Conflict,
+
+    /// <summary>儲存尚未開啟、已停用，或在操作途中被關閉／重新開啟；重新整理即可，不是儲存故障。</summary>
+    Unavailable,
 }
 
 /// <summary>

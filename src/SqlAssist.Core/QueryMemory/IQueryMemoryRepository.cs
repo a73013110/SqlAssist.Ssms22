@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,4 +33,10 @@ public interface IQueryMemoryRepository
     Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken);
 
     Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// History 或 Favorites 出現過的伺服器／資料庫名稱，不讀 SQL。最多回傳
+    /// <see cref="QueryConnectionFacetRequest.PageSize"/> + 1 筆：多出的一筆只表示還有下一頁，不顯示。
+    /// </summary>
+    Task<IReadOnlyList<string>> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken cancellationToken);
 }

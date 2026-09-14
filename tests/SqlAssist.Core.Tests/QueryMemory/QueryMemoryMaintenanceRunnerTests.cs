@@ -33,9 +33,11 @@ public sealed class QueryMemoryMaintenanceRunnerTests
             TimeSpan.FromMinutes(10));
     }
 
+    private const string SessionLease = "lease-self";
+
     private static Task<QueryMemoryMaintenanceTick> Run(QueryMemoryMaintenanceRunner runner, DateTimeOffset now,
         bool idle = false, bool heartbeat = true) =>
-        runner.RunOnceAsync(now, idle, heartbeat, CancellationToken.None);
+        runner.RunOnceAsync(now, idle, heartbeat ? SessionLease : null, CancellationToken.None);
 
     [Fact]
     public async Task NothingRunsBeforeTheStartupDelayHasPassed()
@@ -79,6 +81,21 @@ public sealed class QueryMemoryMaintenanceRunnerTests
 
         Assert.Equal(new[] { "dead" }, repository.Released);
         Assert.Equal(1, tick.ReleasedLeases);
+    }
+
+    /// <summary>本程序的 Session 租約由呼叫端明確排除；心跳卡住而過期時也不會把自己回收掉。</summary>
+    [Fact]
+    public async Task TheSessionLeaseIsExcludedExplicitlyInsteadOfRelyingOnHiddenRepositoryState()
+    {
+        var repository = new FakeQueryMemoryMaintenance();
+        repository.Expired.Add(new QueryMemoryLease(SessionLease, new QueryMemoryLeaseOwner("OTHERPC", 4242, Start), Start));
+        var runner = Runner(repository);
+
+        var tick = await Run(runner, Start);
+
+        Assert.Equal(new string?[] { SessionLease }, repository.ExcludedLeaseIds);
+        Assert.Empty(repository.Released);
+        Assert.Equal(0, tick.ReleasedLeases);
     }
 
     /// <summary>每一批都綁著維護租約的擁有者與讀到的狀態版本；儲存層靠這兩個拒絕晚到的批次。</summary>

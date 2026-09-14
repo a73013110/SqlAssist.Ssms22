@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -53,7 +54,7 @@ internal sealed class SqlConnectionFilter : StackPanel
     private readonly Button _sortButton;
     private readonly ScrollViewer _optionsHost;
     private readonly TextBlock _summary = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
-    private int _sortOrder;
+    private QueryConnectionSort _sort = QueryConnectionSort.Recent;
     private string? _value;
     private string _emptyLabel = "全部";
     public string EmptyLabel
@@ -64,14 +65,14 @@ internal sealed class SqlConnectionFilter : StackPanel
     public event EventHandler? SelectionChanged;
     public event EventHandler? OptionsRequested;
     public ContextMenu SortMenu { get; } = new();
-    public int SortOrder
+    public QueryConnectionSort Sort
     {
-        get => _sortOrder;
+        get => _sort;
         set
         {
-            if (value < 0 || value > 3) throw new ArgumentOutOfRangeException(nameof(value));
-            if (_sortOrder == value) return;
-            _sortOrder = value; UpdateSortButton();
+            if (!QueryMemoryBrowserModel.SortOptions.Any(option => option.Value == value)) throw new ArgumentOutOfRangeException(nameof(value));
+            if (_sort == value) return;
+            _sort = value; UpdateSortButton();
             ResetOptions(); OptionsRequested?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -101,16 +102,15 @@ internal sealed class SqlConnectionFilter : StackPanel
         _sortButton.ToolTip = label + "排序：最近／最早使用、名稱 A–Z／Z–A";
         UpdateSortButton();
         AutomationProperties.SetName(_sortButton, label + "排序");
-        foreach (var text in new[] { "最近使用優先", "最早使用優先", "名稱 A–Z", "名稱 Z–A" })
+        foreach (var option in QueryMemoryBrowserModel.SortOptions)
         {
-            var index = SortMenu.Items.Count;
-            var item = new MenuItem { Header = text, IsCheckable = true };
-            item.Click += (_, _) => SortOrder = index;
+            var item = new MenuItem { Header = option.Label, IsCheckable = true, Tag = option.Value };
+            item.Click += (_, _) => Sort = option.Value;
             SortMenu.Items.Add(item);
         }
         _sortButton.Click += (_, _) =>
         {
-            for (var i = 0; i < SortMenu.Items.Count; i++) ((MenuItem)SortMenu.Items[i]).IsChecked = i == _sortOrder;
+            foreach (MenuItem item in SortMenu.Items) item.IsChecked = Equals(item.Tag, _sort);
             SortMenu.PlacementTarget = _sortButton; SortMenu.IsOpen = true;
         };
         DockPanel.SetDock(_sortButton, Dock.Right); header.Children.Add(_sortButton);
@@ -147,12 +147,13 @@ internal sealed class SqlConnectionFilter : StackPanel
     }
 
     public void ResetOptions() { Offset = 0; _names.Clear(); _more.Visibility = Visibility.Collapsed; Rebuild(); }
-    public void SetOptions(string[] names)
+    /// <param name="names">儲存層多回一筆代表還有下一頁；多出的那一筆不顯示。</param>
+    public void SetOptions(IReadOnlyList<string> names)
     {
-        var count = Math.Min(names.Length, 100);
+        var count = Math.Min(names.Count, QueryConnectionFacetRequest.PageSize);
         for (var i = 0; i < count; i++) if (!_names.Contains(names[i])) _names.Add(names[i]);
         Offset += count;
-        _more.Visibility = names.Length > 100 ? Visibility.Visible : Visibility.Collapsed;
+        _more.Visibility = names.Count > QueryConnectionFacetRequest.PageSize ? Visibility.Visible : Visibility.Collapsed;
         Rebuild();
     }
 
@@ -197,7 +198,8 @@ internal sealed class SqlConnectionFilter : StackPanel
     private void UpdateSortButton()
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal };
-        content.Children.Add(SqlAssistChrome.CreateQueryButtonText(new[] { "最近", "最早", "A–Z", "Z–A" }[_sortOrder]));
+        content.Children.Add(SqlAssistChrome.CreateQueryButtonText(
+            QueryMemoryBrowserModel.SortOptions.First(option => option.Value == _sort).ShortLabel));
         var chevron = SqlAssistChrome.CreateQueryButtonIcon("Chevron"); chevron.Margin = new Thickness(4, 0, 0, 0);
         content.Children.Add(chevron); _sortButton.Content = content;
     }

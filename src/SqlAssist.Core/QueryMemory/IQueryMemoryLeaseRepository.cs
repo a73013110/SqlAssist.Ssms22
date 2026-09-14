@@ -16,19 +16,29 @@ public sealed record QueryMemoryLease(string LeaseId, QueryMemoryLeaseOwner Owne
 /// Session 的心跳租約：租約還在就代表有程序可能還在編輯，維護不得回收該 Session 的 Recovery。
 /// 同一張表另留一列固定識別碼當跨程序維護租約，不為了互斥再開第二套存活判斷。
 /// </summary>
+/// <remarks>
+/// 契約無狀態：repository 不記得「自己的」租約，租約識別碼一律由呼叫端明確傳入。
+/// 同一個 repository 可以同時服務多個擁有者，心跳重開後也不會有舊值藏在實作裡。
+/// </remarks>
 public interface IQueryMemoryLeaseRepository
 {
-    /// <summary>開啟或沿用本程序的租約；之後這個 repository 寫入的 Session 都標上它。</summary>
+    /// <summary>開啟或沿用 <paramref name="owner"/> 的租約並回傳識別碼；呼叫端自行保存並在提交時帶入。</summary>
     Task<string> OpenLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>續心跳。false 表示租約列已被回收，呼叫端必須重新開啟才能繼續宣告擁有權。</summary>
-    Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken);
+    Task<bool> RenewLeaseAsync(string leaseId, DateTimeOffset now, CancellationToken cancellationToken);
 
-    /// <summary>讀出心跳過期的租約，不含維護租約與自己；存活判斷由宿主做，儲存層不認得程序。</summary>
+    /// <summary>
+    /// 讀出心跳過期的租約，不含維護租約與 <paramref name="excludedLeaseId"/>（呼叫端自己的租約）；
+    /// 存活判斷由宿主做，儲存層不認得程序。
+    /// </summary>
     Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit,
-        CancellationToken cancellationToken);
+        string? excludedLeaseId, CancellationToken cancellationToken);
 
-    /// <summary>釋放宿主已確認失效的租約：Session 解除標記後刪除租約列，Recovery 另依草稿期限回收。</summary>
+    /// <summary>
+    /// 釋放宿主已確認失效的租約：Session 解除標記後刪除租約列，Recovery 另依草稿期限回收。
+    /// 交易內重查過期，宿主判斷之後才續上的租約不刪；維護租約永遠略過。
+    /// </summary>
     Task<int> ReleaseLeasesAsync(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore,
         CancellationToken cancellationToken);
 

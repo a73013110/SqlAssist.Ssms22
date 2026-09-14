@@ -1,19 +1,23 @@
 # 架構與平台邊界
 
-## 三個專案
+## 產品專案
 
 | 專案 | 目標 | 相依 | 職責 |
 |---|---|---|---|
-| `SqlAssist.Core` | netstandard2.0 | 無 | 詞法、剖析、排名、設定模型；純文字進、純結果出 |
+| `SqlAssist.Core` | netstandard2.0 | 無 | 詞法、剖析、排名、設定模型、SQL Memory 契約與宿主協調；純邏輯 |
 | `SqlAssist.Metadata` | netstandard2.0 | `System.Data` | 中繼資料查詢、模型與快取 |
-| `SqlAssist.Ssms22` | net48 | SSMS 組件 | MEF、命令、視窗、設定與編輯器接線 |
+| `SqlAssist.QueryMemory.Sqlite` | netstandard2.0 | Core、SQLite | SQL Memory 的 SQLite 交易與查詢 |
+| `SqlAssist.QueryMemory.Hosting` | net48 | Sqlite | 隔離 AppDomain 載入 SQLite，與 SSMS 內建的 provider 分開 |
+| `SqlAssist.Ssms22` | net48 | SSMS 組件、Hosting | MEF、命令、視窗、設定與編輯器接線 |
 
 分層只問：**這段邏輯是否需要 SSMS 才跑得起來？** 不需要就放 Core 或 Metadata，
 需要才放 Ssms22，而且薄到只剩取得服務、掛事件與套用結果。
 
 `SqlCompletionTriggers` 是樣板：Core 判斷文字與游標，Ssms22 只在正確時機呼叫並轉成
 `OpenOrUpdate`。`SqlInsertionText` 也曾因共用型別放錯到 Ssms22；把不碰資料庫的識別字
-括號化移回 Core 後，整條插入規則才重新可測。**放置位置由相依決定，不由現址決定。**
+括號化移回 Core 後，整條插入規則才重新可測。SQL Memory 同理：開關、世代、故障恢復與排程
+在 `Core/QueryMemory/QueryMemoryRuntime`，Ssms22 只讀設定、建立計時器與顯示通知。
+**放置位置由相依決定，不由現址決定。**
 
 ## 導航與唯一實作
 

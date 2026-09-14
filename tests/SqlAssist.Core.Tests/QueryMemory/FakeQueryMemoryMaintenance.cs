@@ -26,6 +26,12 @@ internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceReposi
 
     public int Renews { get; private set; }
 
+    /// <summary>每次續約帶進來的識別碼；契約無狀態，心跳必須自己帶上持有的租約。</summary>
+    public List<string> RenewedLeaseIds { get; } = new();
+
+    /// <summary>每次讀過期租約時排除的識別碼。</summary>
+    public List<string?> ExcludedLeaseIds { get; } = new();
+
     public bool MaintenanceLeaseAvailable { get; set; } = true;
 
     public int MaintenanceLeaseReleases { get; private set; }
@@ -80,14 +86,19 @@ internal sealed class FakeQueryMemoryMaintenance : IQueryMemoryMaintenanceReposi
         return Task.FromResult("lease-" + Opens);
     }
 
-    public Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    public Task<bool> RenewLeaseAsync(string leaseId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         Renews++;
+        RenewedLeaseIds.Add(leaseId);
         return Task.FromResult(RenewSucceeds);
     }
 
     public Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit,
-        CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<QueryMemoryLease>>(Expired);
+        string? excludedLeaseId, CancellationToken cancellationToken)
+    {
+        ExcludedLeaseIds.Add(excludedLeaseId);
+        return Task.FromResult<IReadOnlyList<QueryMemoryLease>>(Expired.FindAll(lease => lease.LeaseId != excludedLeaseId));
+    }
 
     public Task<int> ReleaseLeasesAsync(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore,
         CancellationToken cancellationToken)

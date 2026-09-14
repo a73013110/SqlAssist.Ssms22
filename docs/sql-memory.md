@@ -8,15 +8,17 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 - `Core/QueryMemory`：不可變擷取、內容位址、版本引擎、Repository 契約及保留策略。
   QueryMemory 是查詢資料的內部子系統名稱；產品入口與文案只有 SQL Memory。
-- `QueryMemory.Sqlite`：真實 SQLite 交易、索引、分頁、收藏與維護。
+  宿主協調（`QueryMemoryRuntime`）與瀏覽器模型也在這裡，只依賴介面、時鐘、計時器與設定快照。
+- `QueryMemory.Sqlite`：`SqliteDatabase` 加各聚合的 store（擷取與歷程、收藏、維護、租約）。
 - `QueryMemory.Hosting`：net48 隔離 AppDomain、DTO 邊界與儲存自我測試。
-- `Ssms22/QueryMemory`：宿主設定、編輯器事件與工具窗操作；樣式與純 WPF 控制項共用 `UI/SqlAssistChrome`。
+- `Ssms22/QueryMemory`：讀設定、建立計時器、狀態列、編輯器事件與工具窗繫結。
 - Core／Metadata 不依賴 VS、SSMS 或 SQLite。UI 不持有 repository，所有 I/O 經宿主背景入口。
 
 ## 文件、版本與執行
 
 `QueryDocument` 不綁連線；`QuerySession` 對應一次編輯器生命週期。同一路徑可共用 DocumentId，
 新視窗必須有新 SessionId。未存檔視窗各自建立文件身分，不以 `SQLQuery1.sql` 等標題當主鍵。
+每次擷取前重讀路徑：第一次存檔或另存後，舊 Session 以當下內容正式關閉，新 Session 掛在新路徑的文件上。
 
 `QueryContent` 精確雜湊 UTF-16LE code units，內容位址有演算法前綴；不正規化空白、大小寫、
 換行、NUL 或未配對 surrogate，不使用 delta chain。去重命中的驗證策略與全文讀取的完整性
@@ -25,6 +27,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 - idle 以每 Session 一份 Recovery 保存最新全文；內容改變且跨過設定間隔才建立 auto revision。
 - 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
   選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
+  方塊選取或多重選取依文件順序、以文件換行串接各範圍，不記錄範圍之間沒有執行的文字。
 - 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。
 - Favorites metadata 與擷取獨立。`FavoriteQuery` 引用不可變 Revision，不建立假 Session。
   收藏本身就保護目前版本，不需要「收藏中的收藏」。
@@ -37,7 +40,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 `sqlAssist.queryMemory.enabled` 與 SqlAssist 總開關都開啟才運作；SQL Memory 預設關閉。
 停用時不開資料庫、不讀舊資料、不擷取也不維護。設定項與預設值見[設定](settings.md)。
 
-`QueryMemoryHost` 管理隔離儲存、writer、租約心跳及背景維護計時器：
+`QueryMemoryRuntime` 管理儲存、writer、租約心跳及背景維護排程，狀態改變以事件通知工具窗：
 
 - `ITextBuffer.Changed` 重排 idle 去彈跳；`ITextView.Closed` 擷取最後內容。
 - 殼層濾鏡以 `IVsCmdNameMapping` 解析 `Query.Execute`，只記錄訊號後轉交命令。
@@ -51,8 +54,9 @@ Execute／Close 是屏障。拒收必須可見，不淘汰已接受的執行事�
 processor 對 CAS 衝突與儲存 Busy 各做有界重試，退避期間不持有宿主或隔離層閘門。Busy 重試用盡只放棄該筆並經回呼可見，
 writer 繼續；損毀、不相容或未知錯誤才使 writer fault 並停止接受。強制結束程序仍可能失去未落盤內容。
 
-宿主閘門只包開啟、換設定與關閉；UI、手動整理、維護與心跳不經過它，心跳與維護各有計時器。
+宿主閘門只包開啟、換設定與關閉，排隊的轉換收斂到最新設定；UI、手動整理、維護與心跳不經過它。
 關閉先取消該儲存的讀取、心跳與維護，排空 writer、交回維護租約，等隔離層進行中的操作離開才卸載 AppDomain；
 關閉 SSMS 時總共只等 5 秒，逾時記錄診斷並放棄剩餘擷取。
 手動整理先等本程序 writer 閒置；VACUUM 期間提交遇 Busy 由 processor 退避，讀取照常。
-每次開庫更新宿主世代，舊成功／失敗回應都不得污染新頁面。驗證邊界見[驗收](sql-memory-validation.md)。
+每次開庫或關庫更新宿主世代，舊成功／失敗回應都不得污染新頁面；途中被關閉的讀取以
+`Unavailable` 分類回報。驗證邊界見[驗收](sql-memory-validation.md)。

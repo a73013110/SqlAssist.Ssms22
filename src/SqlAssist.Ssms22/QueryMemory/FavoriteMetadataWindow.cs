@@ -87,7 +87,7 @@ internal sealed class FavoriteMetadataWindow : DialogWindow
         Report("正在儲存收藏…");
         try
         {
-            var result = await QueryMemoryHost.WriteFavoriteQueryAsync(write, _package.DisposalToken);
+            var result = await QueryMemoryHost.Runtime.WriteFavoriteQueryAsync(write, _package.DisposalToken);
             if (result == FavoriteQueryWriteResult.Conflict)
             {
                 _conflict = true; Report("收藏已被修改或刪除；請保留輸入並重新整理，不會覆寫他人的修改。"); return;

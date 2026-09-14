@@ -25,7 +25,7 @@ public sealed class QueryMemoryLeaseHeartbeatTests
         Assert.Equal("lease-1", await heartbeat.BeatAsync(Now.AddMinutes(1), CancellationToken.None));
 
         Assert.Equal(1, repository.Opens);
-        Assert.Equal(1, repository.Renews);
+        Assert.Equal(new[] { "lease-1" }, repository.RenewedLeaseIds);
         Assert.Equal(0, heartbeat.ReopenCount);
     }
 

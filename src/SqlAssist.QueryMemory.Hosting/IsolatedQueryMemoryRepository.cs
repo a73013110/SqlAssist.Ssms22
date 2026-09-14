@@ -13,8 +13,7 @@ namespace SqlAssist.QueryMemory.Hosting;
 /// 不會把 writer、心跳與預覽排在後面。唯一的協調是卸載——操作以共享方式進入，
 /// <see cref="Dispose"/> 等全部離開才卸載 AppDomain。
 /// </remarks>
-public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFavoriteQueryRepository,
-    IQueryMemoryMaintenanceRepository, IQueryMemoryLeaseRepository, IDisposable
+public sealed class IsolatedQueryMemoryRepository : IQueryMemoryStorage
 {
     private readonly object _sync = new();
     private readonly AppDomain _domain;
@@ -69,8 +68,8 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
         Invoke(operation => _worker.Commit(operation, write, leaseId), cancellationToken);
     public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReadHistory(operation, request), cancellationToken);
-    public Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) =>
-        Invoke(operation => _worker.ReadConnectionFacets(operation, request), token);
+    public Task<IReadOnlyList<string>> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken cancellationToken) =>
+        Invoke<IReadOnlyList<string>>(operation => _worker.ReadConnectionFacets(operation, request), cancellationToken);
 
     public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReadContent(operation, contentId), cancellationToken);
@@ -95,10 +94,11 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
         Invoke(operation => _worker.ReadMaintenanceState(operation), cancellationToken);
     public Task<string> OpenLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.OpenLease(operation, owner, now), cancellationToken);
-    public Task<bool> RenewLeaseAsync(DateTimeOffset now, CancellationToken cancellationToken) =>
-        Invoke(operation => _worker.RenewLease(operation, now), cancellationToken);
-    public Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit, CancellationToken cancellationToken) =>
-        Invoke(operation => _worker.ReadExpiredLeases(operation, expiredBefore, limit), cancellationToken);
+    public Task<bool> RenewLeaseAsync(string leaseId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.RenewLease(operation, leaseId, now), cancellationToken);
+    public Task<IReadOnlyList<QueryMemoryLease>> ReadExpiredLeasesAsync(DateTimeOffset expiredBefore, int limit, string? excludedLeaseId,
+        CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.ReadExpiredLeases(operation, expiredBefore, limit, excludedLeaseId), cancellationToken);
     public Task<int> ReleaseLeasesAsync(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReleaseLeases(operation, leaseIds, expiredBefore), cancellationToken);
     public Task<bool> TryAcquireMaintenanceLeaseAsync(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset expiredBefore, CancellationToken cancellationToken) =>

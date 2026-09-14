@@ -49,7 +49,7 @@ internal sealed class FavoriteSqlEditWindow : DialogWindow
         try
         {
             var edit = new FavoriteQueryEdit(_entry.Query.FavoriteQueryId, _entry.Version, Guid.NewGuid(), _editor.Text, DateTimeOffset.UtcNow);
-            var result = await QueryMemoryHost.EditFavoriteQuerySqlAsync(edit, _package.DisposalToken);
+            var result = await QueryMemoryHost.Runtime.EditFavoriteQuerySqlAsync(edit, _package.DisposalToken);
             if (result == FavoriteQueryWriteResult.Conflict)
             {
                 _conflict = true;
