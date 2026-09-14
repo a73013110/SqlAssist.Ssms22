@@ -23,7 +23,7 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         ActiveSqlEditor.Changed += OnEditorChanged;
         _viewer.PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
+            if (e.Key == Key.C && e.KeyboardDevice.Modifiers == ModifierKeys.Control)
             {
                 e.Handled = true;
                 Copy(CopySelection);

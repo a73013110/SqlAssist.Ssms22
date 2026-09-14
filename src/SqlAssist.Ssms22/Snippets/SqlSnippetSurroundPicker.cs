@@ -318,7 +318,7 @@ internal sealed class SqlSnippetSurroundPicker
                 eventArgs.Handled = true;
                 Close(restoreFocus: true);
             }
-            else if (eventArgs.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None &&
+            else if (eventArgs.Key == Key.Enter && eventArgs.KeyboardDevice.Modifiers == ModifierKeys.None &&
                      !_panel.CancelButton.IsKeyboardFocusWithin)
             {
                 eventArgs.Handled = true;
@@ -335,7 +335,7 @@ internal sealed class SqlSnippetSurroundPicker
                         Math.Max(0, _panel.List.SelectedIndex + (eventArgs.Key == Key.Down ? 1 : -1)));
                 }
             }
-            else if (eventArgs.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            else if (eventArgs.Key == Key.F && eventArgs.KeyboardDevice.Modifiers == ModifierKeys.Control)
             {
                 eventArgs.Handled = true;
                 _panel.SearchBox.Focus();

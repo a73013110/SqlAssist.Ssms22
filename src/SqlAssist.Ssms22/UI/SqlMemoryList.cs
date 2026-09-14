@@ -50,7 +50,7 @@ internal sealed class SqlMemoryList : ListBox
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         // ↑／↓ 保留 ListBox 原生 selection/navigation；按鈕的 Enter 由 Button 自己處理。
-        if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
+        if (e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
         { e.Handled = true; OpenRequested?.Invoke(this, EventArgs.Empty); }
         base.OnPreviewKeyDown(e);
     }
