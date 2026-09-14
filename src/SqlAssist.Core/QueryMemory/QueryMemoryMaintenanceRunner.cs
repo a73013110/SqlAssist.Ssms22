@@ -26,8 +26,8 @@ public sealed record QueryMemoryMaintenanceTick(QueryMemoryMaintenanceOutcome Ou
 /// 一次只跑一批：<c>RequiresAnotherPass</c> 與未巡完的游標只把下一輪排近一點，
 /// 不在同一次工作裡 drain——那會讓維護在使用者打字的時候占住整條 I/O。
 ///
-/// 保留分級綁著建立它的那一刻。游標綁定政策，所以只有在「巡完一輪而且沒有壓力」時
-/// 才重算截止時間；壓力期間沿用同一條分級，讓升級與游標對得起來。
+/// 保留分級綁著建立它的那一刻。游標綁定政策，所以一輪之內沿用同一條分級；每巡完一輪
+/// 就以當下重算截止時間並保留壓力級，否則壓力持續期間截止時間會凍結、期限清理整個停住。
 /// </remarks>
 public sealed class QueryMemoryMaintenanceRunner
 {
@@ -143,7 +143,10 @@ public sealed class QueryMemoryMaintenanceRunner
             return;
         }
 
-        if (_planner.Cursor != null || _planner.Level != 0) return;
-        Reset(now, sessionHeartbeatActive);
+        // 游標只需要在同一輪內對得上政策；每到輪次邊界都以這一刻重算，但保留壓力級。
+        // 只在日常級重算的話，壓力持續時截止時間會凍結，之後寫入的資料永遠清不掉。
+        if (_planner.Cursor != null) return;
+        _planner.Rebuild(_plan.BuildLadder(now, sessionHeartbeatActive));
+        _ladderReclaimsUnsavedDrafts = sessionHeartbeatActive;
     }
 }

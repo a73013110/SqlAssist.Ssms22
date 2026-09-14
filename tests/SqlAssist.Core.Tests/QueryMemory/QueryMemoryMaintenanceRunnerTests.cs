@@ -97,7 +97,7 @@ public sealed class QueryMemoryMaintenanceRunnerTests
         Assert.Equal("batch-2", repository.Requests[1].Cursor);
     }
 
-    /// <summary>巡完一輪而且沒有壓力，下一輪才重算截止時間；否則設定值會停在啟用那一刻。</summary>
+    /// <summary>巡完一輪，下一輪就重算截止時間；否則設定值會停在啟用那一刻。</summary>
     [Fact]
     public async Task DeadlinesAreRecomputedOnceTheRoundIsFinished()
     {
@@ -126,9 +126,70 @@ public sealed class QueryMemoryMaintenanceRunnerTests
         await Run(runner, Start.AddMinutes(5));
         Assert.Equal(1, runner.Level);
 
-        // 升級之後沿用收緊那一級的分級，不回頭重算日常保留。
+        // 升級之後留在收緊那一級，截止時間以這一批的時間重算，不回頭用日常保留。
         await Run(runner, Start.AddMinutes(10));
-        Assert.Equal(Start.AddDays(-15), repository.Requests[2].Policy.DraftBefore);
+        Assert.Equal(Start.AddMinutes(10).AddDays(-15), repository.Requests[2].Policy.DraftBefore);
+    }
+
+    /// <summary>
+    /// 停在最緊的一級而且一直回收不到東西時，截止時間仍要跟著時間往前推。
+    /// </summary>
+    /// <remarks>
+    /// 分級若凍結在升級那一刻，之後寫入的資料永遠不會比截止時間舊，按期限清理就完全停住，
+    /// 只有重啟 SSMS 或改設定才會恢復。
+    /// </remarks>
+    [Fact]
+    public async Task SustainedPressureAtTheTightestLevelStillAdvancesTheDeadlines()
+    {
+        var repository = new FakeQueryMemoryMaintenance();
+        for (var round = 0; round < 4; round++)
+            repository.Enqueue(Result(0, null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+        var runner = Runner(repository);
+
+        await Run(runner, Start);
+        await Run(runner, Start.AddMinutes(5));
+        Assert.Equal(2, runner.Level);
+
+        await Run(runner, Start.AddDays(3));
+        await Run(runner, Start.AddDays(6));
+
+        Assert.Equal(2, runner.Level);
+        Assert.Equal(Start.AddDays(3).AddDays(-7.5), repository.Requests[2].Policy.DraftBefore);
+        Assert.Equal(Start.AddDays(6).AddDays(-7.5), repository.Requests[3].Policy.DraftBefore);
+        Assert.Equal(Start.AddDays(6).AddDays(-45), repository.Requests[3].Policy.ExecutionBefore);
+        Assert.Equal(Start.AddDays(6).AddDays(-1.75), repository.Requests[3].Policy.RecoveryBefore);
+    }
+
+    /// <summary>
+    /// 收緊那一級每輪都還有進展時同樣留在原級，但每一輪都以當下重算；一輪之內仍沿用同一份政策。
+    /// </summary>
+    [Fact]
+    public async Task SustainedProgressAtATightenedLevelAdvancesTheDeadlinesBetweenRounds()
+    {
+        var repository = new FakeQueryMemoryMaintenance();
+        repository.Enqueue(Result(0, null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+        repository.Enqueue(Result(4, null, QueryMemoryCapacityStatus.MoreWorkRequired, anotherPass: true));
+        repository.Enqueue(Result(4, "batch-2", QueryMemoryCapacityStatus.MoreWorkRequired));
+        repository.Enqueue(Result(4, null, QueryMemoryCapacityStatus.MoreWorkRequired, anotherPass: true));
+        repository.Enqueue(Result(4, null, QueryMemoryCapacityStatus.MoreWorkRequired, anotherPass: true));
+        var runner = Runner(repository);
+
+        await Run(runner, Start);
+        Assert.Equal(1, runner.Level);
+
+        await Run(runner, Start.AddMinutes(5));
+        await Run(runner, Start.AddDays(2));
+        await Run(runner, Start.AddDays(2).AddMinutes(5));
+        await Run(runner, Start.AddDays(4));
+
+        Assert.Equal(1, runner.Level);
+        Assert.Equal(Start.AddMinutes(5).AddDays(-15), repository.Requests[1].Policy.DraftBefore);
+        Assert.Equal(Start.AddDays(2).AddDays(-15), repository.Requests[2].Policy.DraftBefore);
+        // 游標還開著的那一批不重算，否則游標指紋對不上政策會被儲存層拒絕。
+        Assert.Same(repository.Requests[2].Policy, repository.Requests[3].Policy);
+        Assert.Equal("batch-2", repository.Requests[3].Cursor);
+        Assert.Equal(Start.AddDays(4).AddDays(-15), repository.Requests[4].Policy.DraftBefore);
+        Assert.Null(repository.Requests[4].Cursor);
     }
 
     /// <summary>沒有刪除就不必截斷 WAL：那只是多一次寫入。</summary>

@@ -33,7 +33,7 @@ public sealed class QueryMemoryRetentionPlanTests
     {
         var ladder = Plan().BuildLadder(Now, reclaimUnsavedDrafts: true);
 
-        Assert.Equal(QueryMemoryRetentionPlan.Tightening.Length, ladder.Count);
+        Assert.Equal(QueryMemoryRetentionPlan.Tightening.Count, ladder.Count);
         Assert.Equal(Now.AddDays(-15), ladder[1].DraftBefore);
         Assert.Equal(Now.AddDays(-45), ladder[2].ExecutionBefore);
         Assert.Equal(25, ladder[2].MaxExecutionEvents);
