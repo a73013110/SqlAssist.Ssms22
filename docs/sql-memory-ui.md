@@ -39,9 +39,8 @@ Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevro
 展開後名稱 pills 獨佔全寬、最多兩列高度，避免窄窗 Header 對齊到多列選項的中間。
 名稱有獨立的最近／最早／名稱排序與續頁。
 
-Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；
-所有互動外框預留 1 DIP，只更換 brush，不因 hover／focus／selected 改 padding 或位移。
-工具列窄窗收起文字，圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
+Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；互動狀態不改版面見
+[UI 準則](ui-guidelines.md)。工具列窄窗收起文字，圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
 
 ## 收藏與開啟

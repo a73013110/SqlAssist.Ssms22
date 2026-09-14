@@ -64,6 +64,8 @@ Titlebar 回答「這是哪個工具」，內容第一列只放**新的資訊**�
 ## 互動與品質
 
 - 所有可操作項目要有停駐、按下、停用與可見鍵盤焦點；Tab 順序跟視覺順序一致。
+- 所有互動外框預留 1 DIP，只更換 brush，不因 hover／focus／selected 改 padding 或位移；
+  由 `SqlAssistChrome` 共用樣板的視覺測試保證。
 - 對話框設定唯一 `IsDefault` 與 `IsCancel`；危險動作不能成為預設，也不能只靠紅色警示。
 - 片段確認框共用 `SqlAssistConfirmationWindow`：按鈕明寫刪除／停用／還原預設，取消為
   預設與初始焦點；影響說明交代儲存後才寫檔。一般成功回饋留在狀態列，失敗沿用原生訊息框。

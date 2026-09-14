@@ -34,8 +34,7 @@
 
 ## SSMS 實機門檻
 
-此重構尚未安裝並操作真正 SSMS。過去版本的儲存自我測試 PASS 不代表本版通過。
-命令資源版號 26，變更命令表須 **Install**，不能只 Deploy；不自動關閉使用者 SSMS 或更動既有測試資料庫。
+命令資源版號現為 26；Install／Deploy 的選用規則與一般安裝門檻見[部署契約](debug-deployment.md)。
 
 1. 儲存工作並關閉 SSMS，建置後依[發布與安裝](release.md)安裝本版。
 2. 開啟詳細記錄，執行「SQL Memory 儲存自我測試…」兩次；確認報告的 Isolation 建置及載入路徑。
