@@ -85,20 +85,6 @@ public sealed class SqliteLeaseTests
     }
 
     [Fact]
-    public async Task PinnedRecoveryProjectionKeepsBothTheEntryAndTheDraft()
-    {
-        using var store = new SqliteTestStore();
-        var repository = await store.Open(Token);
-        await SeedRecovery(store, repository);
-        store.Scalar("UPDATE History SET Pinned=1 WHERE EntryKey='s" + store.Session.SessionId.ToString("N") + "';");
-        await Drain(repository, ExpiredWithRecovery());
-        // 釘住的投影擋下 Recovery 本身，使用者不會只剩一半的草稿。
-        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Recovery;"));
-        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM History WHERE Pinned=1;"));
-        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
-    }
-
-    [Fact]
     public async Task ReleaseSkipsLeasesThatCameBackAndNeverTouchesTheMaintenanceLeaseOrItsOwn()
     {
         using var store = new SqliteTestStore();

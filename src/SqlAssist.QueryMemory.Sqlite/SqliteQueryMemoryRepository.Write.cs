@@ -79,10 +79,9 @@ LatestExecutionRevisionId=excluded.LatestExecutionRevisionId, LeaseId=excluded.L
         {
             var execution = write.Execution;
             var contextId = WriteContext(connection, transaction, execution.Connection);
-            Execute(connection, transaction, "INSERT INTO Executions VALUES($id,$revision,$time,$context,$scope,$status,$duration);",
+            Execute(connection, transaction, "INSERT INTO Executions VALUES($id,$revision,$time,$context,$scope);",
                 ("$id", Id(execution.ExecutionId)), ("$revision", Id(execution.RevisionId)), ("$time", Ticks(execution.ExecutedAt)),
-                ("$context", contextId), ("$scope", (int)execution.Scope), ("$status", (int)execution.Status),
-                ("$duration", execution.Duration?.Ticks));
+                ("$context", contextId), ("$scope", (int)execution.Scope));
             var revision = ReadRevision(connection, transaction, execution.RevisionId)
                 ?? throw new InvalidDataException("Execution 缺少 Revision。");
             WriteHistory(connection, transaction, "e" + Id(execution.ExecutionId), state.Session.SessionId,
@@ -135,10 +134,10 @@ ON CONFLICT(ContentId) DO NOTHING;", ("$id", content.ContentId), ("$hash", conte
     private static string? WriteContext(SqliteConnection connection, SqliteTransaction transaction, QueryConnectionContext? context)
     {
         if (context == null) return null;
-        var key = QueryContent.Create(Field(context.Server) + Field(context.Database) + Field(context.ConnectionIdentity)).ContentHash;
-        Execute(connection, transaction, "INSERT INTO Contexts VALUES($id,$server,$database,$identity) ON CONFLICT(ContextId) DO NOTHING;",
-            ("$id", key), ("$server", context.Server), ("$database", context.Database), ("$identity", context.ConnectionIdentity));
-        using var command = Command(connection, transaction, "SELECT Server, DatabaseName, IdentityName FROM Contexts WHERE ContextId=$id;", ("$id", key));
+        var key = QueryContent.Create(Field(context.Server) + Field(context.Database)).ContentHash;
+        Execute(connection, transaction, "INSERT INTO Contexts VALUES($id,$server,$database) ON CONFLICT(ContextId) DO NOTHING;",
+            ("$id", key), ("$server", context.Server), ("$database", context.Database));
+        using var command = Command(connection, transaction, "SELECT Server, DatabaseName FROM Contexts WHERE ContextId=$id;", ("$id", key));
         using var reader = command.ExecuteReader();
         if (!reader.Read() || ReadContext(reader, 0) != context) throw new InvalidDataException("連線識別碼碰撞。");
         return key;

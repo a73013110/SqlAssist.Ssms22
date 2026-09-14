@@ -7,16 +7,13 @@ public enum QueryRevisionReason
     AutoCheckpoint,
     EditorClosed,
     BeforeExecute,
-    ManualSnapshot,
     FavoriteQueryEdit,
-    Recovery,
 }
 
-public enum QueryCaptureKind { DraftIdle, BeforeExecute, EditorClosed, ManualSnapshot, Recovery }
+public enum QueryCaptureKind { DraftIdle, BeforeExecute, EditorClosed }
 public enum QueryExecutionScope { Document, Selection }
-public enum QueryExecutionStatus { Unknown, Submitted }
 public enum FavoriteQueryScope { Global, Server, Database }
-public enum QueryHistoryKind { All, Executed, Drafts, Pinned }
+public enum QueryHistoryKind { All, Executed, Drafts }
 
 // 文件身分不包含連線；同一檔案可以在不同頁籤與資料庫中工作。
 [Serializable]
@@ -25,9 +22,8 @@ public sealed record QueryDocument(Guid DocumentId, string DisplayName, string? 
 public sealed record QuerySession(Guid SessionId, Guid DocumentId, DateTimeOffset StartedAt,
     DateTimeOffset? ClosedAt = null);
 
-/// <summary>Identity 只放不含密碼／Token 的識別值，禁止傳入完整連線字串。</summary>
 [Serializable]
-public sealed record QueryConnectionContext(string Server, string Database, string? ConnectionIdentity = null);
+public sealed record QueryConnectionContext(string Server, string Database);
 
 [Serializable]
 public sealed record QueryRevision(Guid RevisionId, Guid? ParentRevisionId, string ContentId,
@@ -36,8 +32,7 @@ public sealed record QueryRevision(Guid RevisionId, Guid? ParentRevisionId, stri
 
 [Serializable]
 public sealed record QueryExecutionEvent(Guid ExecutionId, Guid RevisionId, DateTimeOffset ExecutedAt,
-    QueryConnectionContext? Connection, QueryExecutionScope Scope,
-    QueryExecutionStatus Status = QueryExecutionStatus.Submitted, TimeSpan? Duration = null);
+    QueryConnectionContext? Connection, QueryExecutionScope Scope);
 
 [Serializable]
 public sealed record QueryRecoverySnapshot(Guid SessionId, string ContentId, long Sequence,

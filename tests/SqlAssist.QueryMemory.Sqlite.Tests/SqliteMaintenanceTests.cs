@@ -89,11 +89,10 @@ public sealed class SqliteMaintenanceTests
         var second = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
         var first = await SeedAutoDrafts(store, repository, null, 3, 0);
         var other = await SeedAutoDrafts(store, repository, second, 2, 1800);
-        store.Scalar("UPDATE History SET Pinned=1 WHERE EntryKey='r" + first[0].RevisionId.ToString("N") + "';");
         var revisions = store.Scalar("SELECT count(*) FROM Revisions;");
         // 只設每 Session 配額：較舊 Session 的最新草稿不因另一個 Session 更新而被淘汰。
         await Drain(repository, new QueryMemoryMaintenancePolicy(null, null, null, null, 1));
-        foreach (var (session, kept) in new[] { (store.Session.SessionId, new[] { first[0], first[2] }), (second.SessionId, new[] { other[1] }) })
+        foreach (var (session, kept) in new[] { (store.Session.SessionId, new[] { first[2] }), (second.SessionId, new[] { other[1] }) })
             Assert.Equal(kept.Select(draft => "r" + draft.RevisionId.ToString("N")).OrderBy(key => key, StringComparer.Ordinal),
                 store.Query("SELECT EntryKey FROM History WHERE SessionId='" + session.ToString("N") +
                     "' AND EntryKey LIKE 'r%' ORDER BY EntryKey;"));
@@ -153,8 +152,6 @@ public sealed class SqliteMaintenanceTests
 
     [Theory]
     [InlineData("favorite")]
-    [InlineData("pinned")]
-    [InlineData("manual")]
     [InlineData("parent")]
     public async Task EveryRevisionRootSurvivesEvenWhenNotAHead(string root)
     {
@@ -168,8 +165,6 @@ public sealed class SqliteMaintenanceTests
                 await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null,
                     leaf.RevisionId, FavoriteQueryScope.Global, null)), Token);
                 break;
-            case "pinned": store.Scalar("UPDATE History SET Pinned=1 WHERE RevisionId='" + id + "';"); break;
-            case "manual": store.Scalar("UPDATE Revisions SET Reason=3 WHERE RevisionId='" + id + "';"); break;
             case "parent":
                 store.Scalar("UPDATE Revisions SET ParentRevisionId='" + id + "' WHERE RevisionId=(SELECT LatestExecutionRevisionId FROM Sessions);");
                 break;
@@ -367,21 +362,6 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
-    public async Task PinProbeSeeksBothColumnsInsteadOfScanningAllExecutionsOfARevision()
-    {
-        using var store = new SqliteTestStore();
-        await store.Open(Token);
-        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "EXPLAIN QUERY PLAN SELECT 1 FROM History WHERE RevisionId='test' AND Pinned=1;";
-        using var reader = command.ExecuteReader();
-        Assert.True(reader.Read());
-        Assert.Contains("RevisionId=? AND Pinned=?", reader.GetString(3));
-        Assert.False(reader.Read());
-    }
-
-    [Fact]
     public async Task OrphanCollectionIsBoundedEvenWithRetentionDisabledAndUsageRollsBackWithDeletes()
     {
         using var store = new SqliteTestStore();
@@ -402,7 +382,7 @@ public sealed class SqliteMaintenanceTests
             insert.ExecuteNonQuery();
             bytes += 2 * content.Length;
         }
-        store.Scalar("INSERT INTO Contexts VALUES('orphan','LibraryServer','Library',NULL);");
+        store.Scalar("INSERT INTO Contexts VALUES('orphan','LibraryServer','Library');");
         Assert.Equal(bytes, (await repository.ReadUsageAsync(Token)).ContentBytes);
         store.Scalar(@"CREATE TRIGGER FailSecondContent BEFORE DELETE ON Contents
  WHEN (SELECT count(*) FROM Contents)<17 BEGIN SELECT RAISE(ABORT,'測試整批回復'); END;");
@@ -468,13 +448,11 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
-    public async Task DraftCutoffIsExclusiveAndIndependentFromExecutionsWhileManualHistorySurvives()
+    public async Task DraftCutoffIsExclusiveAndIndependentFromExecutions()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        await store.Process(repository, store.Capture(kind: QueryCaptureKind.ManualSnapshot), Token);
-        var manual = (await repository.ReadSessionAsync(store.Session.SessionId, Token))?.LatestRevision;
-        Assert.NotNull(manual);
+        await store.Process(repository, store.Capture(kind: QueryCaptureKind.DraftIdle), Token);
         await store.Process(repository, store.Capture(2, "SELECT * FROM Lib_Tag;", QueryCaptureKind.DraftIdle, seconds: 600), Token);
         var auto = (await repository.ReadSessionAsync(store.Session.SessionId, Token))?.LatestRevision;
         Assert.NotNull(auto);
@@ -485,7 +463,6 @@ public sealed class SqliteMaintenanceTests
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM History WHERE EntryKey='r" + auto.RevisionId.ToString("N") + "';"));
         await Drain(repository, new QueryMemoryMaintenancePolicy(SqliteTestStore.Start.AddSeconds(601), null, null));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM History WHERE EntryKey='r" + auto.RevisionId.ToString("N") + "';"));
-        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM History WHERE EntryKey='r" + manual.RevisionId.ToString("N") + "';"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
         Assert.NotNull(await repository.ReadContentAsync(auto.ContentId, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));

@@ -20,9 +20,8 @@ public sealed class QueryRevisionEngine
         }
 
         var executing = capture.Kind == QueryCaptureKind.BeforeExecute;
-        var explicitSnapshot = capture.Kind == QueryCaptureKind.ManualSnapshot || capture.Kind == QueryCaptureKind.Recovery;
         if (executing && !policy.CaptureExecutedSql) return null;
-        if (!executing && !explicitSnapshot && !policy.CaptureUnexecutedDrafts &&
+        if (!executing && !policy.CaptureUnexecutedDrafts &&
             !(capture.Kind == QueryCaptureKind.EditorClosed && previous != null)) return null;
 
         var contents = new List<QueryContent>();
@@ -34,8 +33,7 @@ public sealed class QueryRevisionEngine
         QueryContent? documentContent = null;
 
         // 關閉 draft 擷取後，選取執行不能偷偷保存未執行的整份文件。
-        var includeDocument = policy.CaptureUnexecutedDrafts || explicitSnapshot ||
-            (executing && capture.SelectedText == null);
+        var includeDocument = policy.CaptureUnexecutedDrafts || (executing && capture.SelectedText == null);
         if (includeDocument)
         {
             documentContent = Materialize(capture.DocumentText);
@@ -43,7 +41,7 @@ public sealed class QueryRevisionEngine
             var baseline = latest?.CreatedAt;
             var autoDue = policy.AutoRevisionEnabled &&
                 (!baseline.HasValue || capture.CapturedAt - baseline.Value >= policy.AutoRevisionInterval);
-            var create = explicitSnapshot || (changed && (capture.Kind != QueryCaptureKind.DraftIdle || autoDue));
+            var create = changed && (capture.Kind != QueryCaptureKind.DraftIdle || autoDue);
             if (create)
             {
                 latest = new QueryRevision(Guid.NewGuid(), latest?.RevisionId, documentContent.ContentId,
@@ -108,8 +106,6 @@ public sealed class QueryRevisionEngine
         QueryCaptureKind.DraftIdle => QueryRevisionReason.AutoCheckpoint,
         QueryCaptureKind.BeforeExecute => QueryRevisionReason.BeforeExecute,
         QueryCaptureKind.EditorClosed => QueryRevisionReason.EditorClosed,
-        QueryCaptureKind.ManualSnapshot => QueryRevisionReason.ManualSnapshot,
-        QueryCaptureKind.Recovery => QueryRevisionReason.Recovery,
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 }

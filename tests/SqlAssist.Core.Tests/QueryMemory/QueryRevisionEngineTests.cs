@@ -47,7 +47,6 @@ public sealed class QueryRevisionEngineTests
             Assert.NotNull(write.Execution);
             Assert.Equal(capture.CaptureId, write.Execution.ExecutionId);
             Assert.Equal(context, write.Execution.Connection);
-            Assert.Equal(QueryExecutionStatus.Submitted, write.Execution.Status);
             if (i == 1) revisionId = Assert.Single(write.Revisions).RevisionId;
             else Assert.Empty(write.Revisions);
             Assert.Equal(revisionId, write.Execution.RevisionId);
@@ -76,18 +75,6 @@ public sealed class QueryRevisionEngineTests
         Assert.Single(write.Contents);
         Assert.Equal(write.State.LatestRevision?.RevisionId, write.Execution?.RevisionId);
         Assert.Equal(QueryExecutionScope.Selection, write.Execution?.Scope);
-    }
-
-    [Fact]
-    public void ManualSnapshotOfSameSqlRemainsExplicitAndImmutable()
-    {
-        var first = Prepare(Capture());
-        var manual = Prepare(Capture(2, kind: QueryCaptureKind.ManualSnapshot), first.State);
-        var revision = Assert.Single(manual.Revisions);
-        Assert.Equal(QueryRevisionReason.ManualSnapshot, revision.Reason);
-        Assert.Equal(first.State.LatestRevision?.ContentId, revision.ContentId);
-        Assert.NotEqual(first.State.LatestRevision?.RevisionId, revision.RevisionId);
-        Assert.Equal(QueryRevisionReason.AutoCheckpoint, first.State.LatestRevision?.Reason);
     }
 
     [Fact]

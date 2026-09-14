@@ -45,7 +45,6 @@ public sealed class SqliteHistoryTests
         Assert.Single(page.Items);
         Assert.Equal(SqliteTestStore.Start, page.Items[0].CreatedAt);
         Assert.Equal(3, (await repository.ReadHistoryAsync(new QueryHistoryRequest(20, QueryHistoryKind.Executed, database: "Library"), Token)).Items.Count);
-        Assert.Empty((await repository.ReadHistoryAsync(new QueryHistoryRequest(20, QueryHistoryKind.Pinned), Token)).Items);
     }
 
     [Fact]

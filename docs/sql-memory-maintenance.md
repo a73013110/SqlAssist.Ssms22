@@ -11,9 +11,9 @@
 
 保護根不因容量壓力而放寬：
 
-- 所有 Favorites 的目前 Revision、Manual Snapshot、Pinned History。
+- 所有 Favorites 的目前 Revision。
 - Session 的文件／執行 head，以及仍被子版本引用的 ParentRevision。
-- 有程序心跳租約的 Recovery；Pinned 投影亦保護 Recovery 本體。
+- 有程序心跳租約的 Recovery。
 
 Execution 配額同時限制執行專用版本；auto revision 配額只認非選取的 AutoCheckpoint。
 舊 auto revision 可先離開 History，但 ParentRevision 鏈仍保護內容；不能把清單減少當成版本已回收。
@@ -30,7 +30,7 @@ Execution 配額同時限制執行專用版本；auto revision 配額只認非�
 Execution／Recovery 一個候選最多刪本體與投影兩列，其餘最多一列；沒有 CASCADE。
 
 每批一個 IMMEDIATE 交易，和收藏寫入序列化：收藏先寫入就保護引用，清理先刪掉則收藏被外鍵拒絕。
-引用及 Pinned 探測有索引，取消／錯誤回復整批，先前完成的批次保留。
+引用探測有索引，取消／錯誤回復整批，先前完成的批次保留。
 鎖等待、單一同步 SQL 或大型 BLOB 刪除不是硬毫秒／位元組上限。
 
 游標綁 StoreId 與政策，不接受跨庫／跨政策；改批次大小可以續讀。null 才完成一輪，

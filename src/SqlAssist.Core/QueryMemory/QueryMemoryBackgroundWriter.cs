@@ -77,7 +77,7 @@ public sealed class QueryMemoryBackgroundWriter
             var node = _queue.AddLast(new PendingCapture(capture, policy));
             if (capture.Kind == QueryCaptureKind.DraftIdle) _drafts[capture.Session.SessionId] = node;
             else _drafts.Remove(capture.Session.SessionId);
-            // Execute／Close／Manual 是合併屏障，不能拿後來的 draft 替換它們之前的快照。
+            // Execute／Close 是合併屏障，不能拿後來的 draft 替換它們之前的快照。
             if (replaced == null) _signal.Release();
             return replaced == null ? QueryMemoryEnqueueResult.Accepted : QueryMemoryEnqueueResult.Coalesced;
         }

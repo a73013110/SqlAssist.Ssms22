@@ -17,7 +17,7 @@ public sealed class SqliteRepositoryTests
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        var context = new QueryConnectionContext("LibraryServer", "Library", "ReaderIdentity");
+        var context = new QueryConnectionContext("LibraryServer", "Library");
         await store.Process(repository, store.Capture(context: context), Token);
         var reopened = await store.Open(Token);
         var session = await reopened.ReadSessionAsync(store.Session.SessionId, Token);
@@ -180,7 +180,6 @@ public sealed class SqliteRepositoryTests
         Assert.Contains("IX_FavoriteQueries_ScopeId", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
         Assert.Contains("IX_Revisions_Favorite", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_foreign_key_list('Sessions') WHERE \"table\"='Leases' AND \"from\"='LeaseId';"));
-        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM pragma_table_info('FavoriteQueries') WHERE name='Pinned';"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 

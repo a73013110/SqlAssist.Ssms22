@@ -13,7 +13,7 @@ CREATE TABLE Documents (
     DocumentId TEXT PRIMARY KEY, DisplayName TEXT NOT NULL, FilePath TEXT
 );
 CREATE TABLE Contexts (
-    ContextId TEXT PRIMARY KEY, Server TEXT NOT NULL, DatabaseName TEXT NOT NULL, IdentityName TEXT
+    ContextId TEXT PRIMARY KEY, Server TEXT NOT NULL, DatabaseName TEXT NOT NULL
 );
 CREATE TABLE Contents (
     ContentId TEXT PRIMARY KEY, ContentHash TEXT NOT NULL, SqlBytes BLOB NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE Revisions (
 CREATE TABLE Executions (
     ExecutionId TEXT PRIMARY KEY, RevisionId TEXT NOT NULL REFERENCES Revisions(RevisionId),
     ExecutedAt INTEGER NOT NULL, ContextId TEXT REFERENCES Contexts(ContextId),
-    Scope INTEGER NOT NULL, Status INTEGER NOT NULL, Duration INTEGER
+    Scope INTEGER NOT NULL
 );
 CREATE TABLE Recovery (
     SessionId TEXT PRIMARY KEY REFERENCES Sessions(SessionId), ContentId TEXT NOT NULL REFERENCES Contents(ContentId),
@@ -53,16 +53,13 @@ CREATE TABLE History (
     EntryKey TEXT PRIMARY KEY, SessionId TEXT NOT NULL REFERENCES Sessions(SessionId) DEFERRABLE INITIALLY DEFERRED,
     RevisionId TEXT REFERENCES Revisions(RevisionId), ContentId TEXT NOT NULL REFERENCES Contents(ContentId),
     CreatedAt INTEGER NOT NULL, Kind INTEGER NOT NULL CHECK(Kind IN (1, 2)),
-    ContextId TEXT REFERENCES Contexts(ContextId), Server TEXT, DatabaseName TEXT,
-    Pinned INTEGER NOT NULL DEFAULT 0 CHECK(Pinned IN (0, 1))
+    ContextId TEXT REFERENCES Contexts(ContextId), Server TEXT, DatabaseName TEXT
 );
 CREATE INDEX IX_History_Time ON History(CreatedAt DESC, EntryKey DESC);
 CREATE INDEX IX_History_KindTime ON History(Kind, CreatedAt DESC, EntryKey DESC);
 CREATE INDEX IX_History_ServerTime ON History(Server, CreatedAt DESC, EntryKey DESC);
 CREATE INDEX IX_History_ServerDatabaseTime ON History(Server, DatabaseName, CreatedAt DESC, EntryKey DESC);
 CREATE INDEX IX_History_DatabaseTime ON History(DatabaseName, CreatedAt DESC, EntryKey DESC);
-CREATE INDEX IX_History_PinnedTime ON History(CreatedAt DESC, EntryKey DESC) WHERE Pinned = 1;
-CREATE INDEX IX_Revisions_Session ON Revisions(SessionId, CreatedAt DESC);
 CREATE INDEX IX_Revisions_Content ON Revisions(ContentId);
 CREATE INDEX IX_Recovery_Content ON Recovery(ContentId);
 CREATE INDEX IX_History_Content ON History(ContentId);
@@ -100,7 +97,7 @@ CREATE INDEX IX_Sessions_Head ON Sessions(LatestRevisionId);
 CREATE INDEX IX_Sessions_ExecutionHead ON Sessions(LatestExecutionRevisionId);
 CREATE INDEX IX_Executions_Revision ON Executions(RevisionId);
 CREATE INDEX IX_Executions_Context ON Executions(ContextId);
-CREATE INDEX IX_History_Revision ON History(RevisionId,Pinned);
+CREATE INDEX IX_History_Revision ON History(RevisionId);
 CREATE INDEX IX_History_Context ON History(ContextId);
 CREATE INDEX IX_Recovery_Context ON Recovery(ContextId);
 CREATE INDEX IX_FavoriteQueries_Context ON FavoriteQueries(ContextId);

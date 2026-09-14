@@ -62,7 +62,7 @@ SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents。
 
 Global 不帶連線，Server 只指定 Server，Database 兩者必填；scope 不合併父層，也不是執行連線。
 Favorites 以 FavoriteQueryId DESC keyset，索引涵蓋 Scope／Server／DatabaseName／Id 及版本引用；
-收藏不存在額外 Pinned 排序或保護例外。
+收藏不存在額外排序或保護例外。
 
 ## 隔離載入
 
