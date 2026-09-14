@@ -14,10 +14,8 @@ $OutputEncoding = Initialize-SqlAssistUtf8Output
 父程序若用 ProcessStartInfo 讀取這些腳本，stdout／stderr 解碼也要明確指定 UTF-8；
 只指定父端編碼不會替子程序轉碼。[Microsoft 說明](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.standardoutputencoding)
 建置查詢 vswhere 另加 `-utf8`，避免中文安裝路徑被破壞。
-節流器的原始命令紀錄仍直接保存位元組，不把外部程式的 OEM 輸出硬轉成 UTF-8。
 
-`Test-AgentWorkflow.ps1` 會檢查所有腳本的共用入口，並從 UTF-8、Big5、CP437 啟動子程序，
-驗證中文／Emoji、stdout／stderr、原生管道、Git 檔名及失敗結束碼。不以略過 hook 解決亂碼。
+`Check-TextFiles.ps1` 以語法樹確認 `tools/` 每支腳本都先執行上面兩行。不以略過 hook 解決亂碼。
 
 ## 文字檔格式
 

@@ -28,7 +28,7 @@
 - `SqlMemoryStorageSelfTest` 是 SSMS 診斷命令與 probe 的唯一實作，涵蓋重送、重開、全文、
   Favorites CRUD／SQL 編輯、配額／租約、檔案釋放及宿主 provider 汙染檢查。
 
-完整命令紀錄在 `artifacts/ai-logs/`；WPF PNG 在 `artifacts/theme-qa/`，都是忽略的驗證產物，
+WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 不是 SSMS 宿主截圖。文件不永久保存批次提交、逐次測試總數或 handoff 順序。
 未載入 SSMS 原生資源的元件測試仍使用系統捲軸；其深色外觀須在宿主驗證，不能以元件 PNG 宣稱通過。
 

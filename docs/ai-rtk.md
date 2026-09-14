@@ -50,7 +50,6 @@ Claude 可用 `/hooks` 核對 Project Settings。若個人全域／本機設定�
 - `rtk proxy` 的定義是「不過濾，只追蹤用量」；加了前綴不代表內容有壓縮。
 - `rtk read` 預設也是 `--level none`。完整讀取不會自動變摘要；先定位與分段才是重點。
 - 本專案 Claude Hook 只攔 Bash；獨立 Grep／Glob／Read 及其他工具輸出不會自動經過 RTK。
-- 建置與測試的短輸出由 `Invoke-QuietCommand.ps1` 產生，不能全歸功於 RTK。
 - `rtk gain` 預設是全域累計的命令輸出估算，不是本次任務或整段對話的實際節省率。
   歷史百分比不能當現況，也不為追求統計數字而重複執行命令。
 
@@ -59,22 +58,9 @@ Claude 可用 `/hooks` 核對 Project Settings。若個人全域／本機設定�
 選命令的唯一流程見 [AI 工作流程：輸出分工](ai-workflow.md#輸出分工)。不要把「完整審查
 不能壓縮」誤解成「探索時也要輸出整份原文」。
 
-本專案建置、Microsoft.Testing.Platform 測試仍走既有助手，不改成 `rtk test`／`rtk err`。
+本專案建置、Microsoft.Testing.Platform 測試仍走既有腳本，不改成 `rtk test`／`rtk err`。
 
-## 測試與排錯
-
-工具維護或升級 RTK 時執行一次，不在每個任務重新跑壓縮實驗：
-
-```powershell
-# 真正呼叫已安裝的 RTK；完整輸出留在被忽略的測試目錄。
-rtk proxy pwsh -NoProfile -File tools/Invoke-QuietCommand.ps1 -ScriptPath tools/Test-AgentWorkflow.ps1
-```
-
-此檢查在隔離 Git 版本庫比對原生 diff、RTK 壓縮概覽及 proxy 原文，要求概覽確實
-縮短、proxy 的 stdout／stderr 與失敗碼保持一致。前後字元數與原始輸出保存在
-`artifacts/agent-workflow-tests/*/rtk-overview/`；未安裝 RTK 時明確略過該部分。
-這是工具回歸案例，不是實際任務的 token 節省率；代理是否選對命令仍須檢查工具紀錄。
-測試命令也可能列入 RTK 全域累計，因此不以測試後的 `gain` 增幅作為實際任務成效。
+## 排錯
 
 終端機可用、App 不行時，先完整重開 App 並核對其 PATH，不重複安裝。
 Hook 過濾有疑慮時用 `rtk proxy` 繞過；停用時只調整 RTK 那一項，不關掉所有 Hook。
