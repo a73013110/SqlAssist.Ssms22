@@ -118,6 +118,38 @@ public sealed class QueryMemoryMaintenancePlannerTests
     }
 
     [Fact]
+    public void RebuildSwapsTheLadderButKeepsThePressureLevel()
+    {
+        var planner = new QueryMemoryMaintenancePlanner(
+            new QueryMemoryRetentionLadder(Level(30, 100), Level(14, 50), Level(7, 10)));
+        planner.Observe(Result(null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+        planner.Observe(Result(null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+        planner.Observe(Result("c1", QueryMemoryCapacityStatus.MoreWorkRequired));
+
+        planner.Rebuild(new QueryMemoryRetentionLadder(Level(20, 100), Level(10, 50), Level(5, 10)));
+
+        Assert.Equal(2, planner.Level);
+        Assert.Equal(Start.AddDays(-5), planner.Policy.DraftBefore);
+        // 新政策不能接舊游標。
+        Assert.Null(planner.NextRequest(50).Cursor);
+        Assert.Throws<ArgumentNullException>(() => planner.Rebuild(null!));
+    }
+
+    [Fact]
+    public void RebuildWithFewerLevelsStaysAtTheTightestInsteadOfFallingBackToDaily()
+    {
+        var planner = new QueryMemoryMaintenancePlanner(
+            new QueryMemoryRetentionLadder(Level(30, 100), Level(14, 50), Level(7, 10)));
+        planner.Observe(Result(null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+        planner.Observe(Result(null, QueryMemoryCapacityStatus.CannotReclaimWithinPolicy));
+
+        planner.Rebuild(new QueryMemoryRetentionLadder(Level(30, 100), Level(10, 50)));
+
+        Assert.Equal(1, planner.Level);
+        Assert.Equal(Start.AddDays(-10), planner.Policy.DraftBefore);
+    }
+
+    [Fact]
     public void WithoutACapacityLimitTheLadderNeverEscalates()
     {
         var planner = new QueryMemoryMaintenancePlanner(new QueryMemoryRetentionLadder(

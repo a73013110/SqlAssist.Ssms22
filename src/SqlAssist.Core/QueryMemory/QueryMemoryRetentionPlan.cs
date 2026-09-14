@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SqlAssist.Core.QueryMemory;
 
@@ -21,7 +22,8 @@ public enum QueryMemoryStorageLimit { Megabytes256, Megabytes512, Gigabytes1, Un
 public sealed class QueryMemoryRetentionPlan
 {
     /// <summary>各級的收緊倍率；第一項是日常保留，必須是 1。只能往下，不能放寬。</summary>
-    public static readonly int[] Tightening = { 1, 2, 4 };
+    /// <remarks>公開陣列可被任何呼叫端改寫，整個程序的分級就跟著變；因此只給唯讀檢視。</remarks>
+    public static IReadOnlyList<int> Tightening { get; } = Array.AsReadOnly(new[] { 1, 2, 4 });
 
     /// <summary>收緊到零等於「全部刪掉」，那不是壓力分級該做的事。</summary>
     private static readonly TimeSpan MinimumRetention = TimeSpan.FromDays(1);
@@ -76,7 +78,7 @@ public sealed class QueryMemoryRetentionPlan
     /// </param>
     public QueryMemoryRetentionLadder BuildLadder(DateTimeOffset now, bool reclaimUnsavedDrafts)
     {
-        var levels = new QueryMemoryMaintenancePolicy[Tightening.Length];
+        var levels = new QueryMemoryMaintenancePolicy[Tightening.Count];
         for (var level = 0; level < levels.Length; level++)
         {
             var divisor = Tightening[level];

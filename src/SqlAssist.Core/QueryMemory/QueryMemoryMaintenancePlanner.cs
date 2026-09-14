@@ -59,7 +59,7 @@ public sealed class QueryMemoryRetentionLadder
 /// </summary>
 public sealed class QueryMemoryMaintenancePlanner
 {
-    private readonly QueryMemoryRetentionLadder _ladder;
+    private QueryMemoryRetentionLadder _ladder;
 
     public QueryMemoryMaintenancePlanner(QueryMemoryRetentionLadder ladder) =>
         _ladder = ladder ?? throw new ArgumentNullException(nameof(ladder));
@@ -89,6 +89,21 @@ public sealed class QueryMemoryMaintenancePlanner
         if (result.CapacityStatus != QueryMemoryCapacityStatus.CannotReclaimWithinPolicy || Level + 1 >= _ladder.Count) return;
         Level++;
         PendingWork = true;
+    }
+
+    /// <summary>
+    /// 換上以新基準時間換算的分級，但保留目前壓力級；舊游標綁在舊政策上，所以一併丟掉。
+    /// </summary>
+    /// <remarks>
+    /// 壓力期間若不換分級，截止時間會停在建立分級那一刻，之後寫入的資料永遠不會比它舊，
+    /// 按期限清理就整個停住。新分級級數較少時退到最緊的那一級，而不是回到日常級：
+    /// 壓力沒有解除，不該因為換分級就放掉已經收緊的程度。
+    /// </remarks>
+    public void Rebuild(QueryMemoryRetentionLadder ladder)
+    {
+        _ladder = ladder ?? throw new ArgumentNullException(nameof(ladder));
+        if (Level >= _ladder.Count) Level = _ladder.Count - 1;
+        Cursor = null;
     }
 
     /// <summary>設定改變時重新開始；舊游標綁在舊政策上，沿用會被 repository 拒絕。</summary>
