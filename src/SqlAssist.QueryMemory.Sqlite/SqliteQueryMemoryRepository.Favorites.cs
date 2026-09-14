@@ -11,7 +11,8 @@ namespace SqlAssist.QueryMemory.Sqlite;
 internal sealed partial class SqliteQueryMemoryRepository
 {
     private const string FavoriteProjection = @"SELECT s.FavoriteQueryId,s.Name,s.Description,s.CurrentRevisionId,
-s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview
+s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview";
+    private const string FavoriteSource = @"
 FROM FavoriteQueries s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId
 JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s.ContextId";
 
@@ -19,7 +20,7 @@ JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var connection = Connect();
-        using var command = Command(connection, null, FavoriteProjection + " WHERE s.FavoriteQueryId=$id;", ("$id", Id(favoriteQueryId)));
+        using var command = Command(connection, null, FavoriteProjection + FavoriteSource + " WHERE s.FavoriteQueryId=$id;", ("$id", Id(favoriteQueryId)));
         using var reader = command.ExecuteReader();
         cancellationToken.ThrowIfCancellationRequested();
         return reader.Read() ? ReadFavoriteEntry(reader) : null;
@@ -115,49 +116,41 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
-        try { return ReadFavoriteQueryPage(request, cancellationToken); }
-        catch (SqliteException) when (cancellationToken.IsCancellationRequested)
-        {
-            // SQLite 會包裝 scalar function 的取消例外；對呼叫端仍保留取消語意。
-            throw new OperationCanceledException(cancellationToken);
-        }
-    }
-
-    private QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueryPage(FavoriteQueryRequest request, CancellationToken cancellationToken)
-    {
         // scope 專用前綴防止與 History 游標混用；指紋重用內容雜湊與長度前綴編碼。
         var prefix = "favorite1|" + _storeId + "|" + QueryContent.Create(
             ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + Field(request.Server) +
             Field(request.Database) + Field(request.Search)).ContentHash + "|";
         var after = DecodeFavoriteCursor(request.Cursor, prefix);
+        // 搜尋只是 scope keyset 之上的篩選，同樣受單頁掃描預算限制。
+        var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
         using var connection = Connect();
-        var parameters = new List<(string, object?)>
-        {
+        using var command = Command(connection, null, FavoritePageSql(after != null, search != null),
             ("$scope", (int)request.Scope), ("$server", request.Server), ("$database", request.Database),
-            ("$after", after), ("$limit", request.PageSize + 1),
-        };
-        // 搜尋只是 scope keyset 之上的篩選；名稱與說明先比對，命中才需要解出目前版本的 SQL。
-        var search = SqliteSearchFilter.Create(request.Search);
-        using var command = Command(connection, null, FavoriteProjection + @"
- WHERE s.Scope=$scope AND s.Server IS $server AND s.DatabaseName IS $database" +
-            (after == null ? "" : " AND s.FavoriteQueryId < $after") +
-            (search == null ? "" : " AND " + search.Apply(connection, parameters, "c.SqlBytes", cancellationToken, "s.Name", "s.Description")) +
-            " ORDER BY s.FavoriteQueryId DESC LIMIT $limit;", parameters.ToArray());
+            ("$after", after), ("$limit", search?.CandidateLimit ?? request.PageSize + 1));
         using var reader = command.ExecuteReader();
         var items = new List<FavoriteQueryEntry>();
-        string? nextCursor = null;
+        string? lastId = null;
+        string Cursor() => Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + lastId));
         while (reader.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (items.Count == request.PageSize)
-            {
-                nextCursor = Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + Id(items[items.Count - 1].Query.FavoriteQueryId)));
-                break;
-            }
-            items.Add(ReadFavoriteEntry(reader));
+            // Favorites 沒有時間序；部分搜尋只能說「還有沒檢查的收藏」。
+            if (search?.IsExhausted == true) return new QueryMemoryPage<FavoriteQueryEntry>(items, Cursor(), null);
+            var entry = ReadFavoriteEntry(reader);
+            var matched = search == null ||
+                search.Matches((byte[])reader.GetValue(10), entry.Query.Name, entry.Query.Description);
+            if (matched && items.Count == request.PageSize) return new QueryMemoryPage<FavoriteQueryEntry>(items, Cursor());
+            lastId = Id(entry.Query.FavoriteQueryId);
+            if (matched) items.Add(entry);
         }
-        return new QueryMemoryPage<FavoriteQueryEntry>(items, nextCursor);
+        return new QueryMemoryPage<FavoriteQueryEntry>(items, null);
     }
+
+    /// <summary>必須沿 scope 索引串流而沒有暫存排序，搜尋預算才真的限制讀入的 BLOB；由 EXPLAIN 測試守住。</summary>
+    internal static string FavoritePageSql(bool after, bool includeSql) =>
+        FavoriteProjection + (includeSql ? ",c.SqlBytes" : "") + FavoriteSource + @"
+ WHERE s.Scope=$scope AND s.Server IS $server AND s.DatabaseName IS $database" +
+        (after ? " AND s.FavoriteQueryId < $after" : "") + " ORDER BY s.FavoriteQueryId DESC LIMIT $limit;";
 
     private static string? DecodeFavoriteCursor(string? cursor, string prefix)
     {

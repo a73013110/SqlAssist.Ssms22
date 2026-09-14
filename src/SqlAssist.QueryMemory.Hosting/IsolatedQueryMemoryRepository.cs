@@ -31,7 +31,12 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
 
     /// <remarks>失敗一律以 <see cref="QueryMemoryStorageException"/> 回報，分類在隔離 AppDomain 內決定。</remarks>
     public static Task<IsolatedQueryMemoryRepository> OpenAsync(string databasePath, string? ssmsIdeDirectory,
-        CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
+        CancellationToken cancellationToken, int busyTimeoutSeconds = 5) =>
+        OpenAsync(databasePath, ssmsIdeDirectory, cancellationToken, busyTimeoutSeconds, null, null);
+
+    /// <summary>搜尋預算只給測試放大：隔離層的並行、取消與卸載測試需要一個跑得夠久的搜尋。</summary>
+    internal static Task<IsolatedQueryMemoryRepository> OpenAsync(string databasePath, string? ssmsIdeDirectory,
+        CancellationToken cancellationToken, int busyTimeoutSeconds, int? searchCandidates, long? searchBytes)
     {
         return Task.Run(() =>
         {
@@ -46,7 +51,7 @@ public sealed class IsolatedQueryMemoryRepository : IQueryMemoryRepository, IFav
             {
                 // 實際檔案限定 worker 來源；回程型別解析另由有限生命週期的 resolution 處理。
                 var worker = (SqliteWorker)domain.CreateInstanceFromAndUnwrap(typeof(SqliteWorker).Assembly.Location, typeof(SqliteWorker).FullName);
-                worker.Initialize(databasePath, ssmsIdeDirectory, busyTimeoutSeconds);
+                worker.Initialize(databasePath, ssmsIdeDirectory, busyTimeoutSeconds, searchCandidates, searchBytes);
                 return new IsolatedQueryMemoryRepository(domain, worker, resolution);
             }
             catch

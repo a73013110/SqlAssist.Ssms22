@@ -20,8 +20,9 @@ internal sealed class SqliteTestRepository : IQueryMemoryRepository, IFavoriteQu
 
     private SqliteTestRepository(SqliteQueryMemoryRepository storage) => _storage = storage;
 
-    public static Task<SqliteTestRepository> OpenAsync(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5) =>
-        Task.Run(() => new SqliteTestRepository(SqliteQueryMemoryRepository.Open(path, cancellationToken, busyTimeoutSeconds)), cancellationToken);
+    public static Task<SqliteTestRepository> OpenAsync(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5,
+        SqliteSearchBudget? searchBudget = null) =>
+        Task.Run(() => new SqliteTestRepository(SqliteQueryMemoryRepository.Open(path, cancellationToken, busyTimeoutSeconds, searchBudget)), cancellationToken);
 
     public Task<QuerySessionState?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         Run(token => _storage.ReadSession(sessionId, token), cancellationToken);

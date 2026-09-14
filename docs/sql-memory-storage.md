@@ -45,19 +45,7 @@ Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadC
 
 ## History 與搜尋
 
-History 用時間 DESC／唯一鍵 DESC keyset，每頁 1～200 筆，多讀一筆判斷續頁。時間是 UTC 半開區間，
-Server／Database 精確且區分大小寫；複合索引支援時間、種類與連線篩選。
-執行專用 Revision 不再投影為 Draft；正式草稿與當前 Recovery 可以各有一列。
-
-游標含 StoreId、篩選指紋及位置，不接受跨庫／跨篩選重用。同一輪期間不重算「七天前」。
-分頁不是資料庫快照，並行新增或移動 scope 後須重新整理。
-
-Search 是區分大小寫的字面子字串，不是萬用字元或 FTS。null／空字串停用搜尋，空白是有效內容。
-History 只比對 SQL；Favorites 比對名稱、說明或 SQL 的聯集。SQL 以 KMP 搜尋完整 BLOB，
-不只查列表摘要；大量未篩選搜尋仍需掃描候選，不承諾固定延遲。
-
-連線 facets 獨立分組，不限於已載入清單，不讀 SQL。依時間或名稱排序，一次 100 個名稱及一個續頁訊號，
-offset 續讀；History 不受搜尋／期間限制，Favorites 限定 scope，Database 隨 Server 收斂。
+分頁、游標、搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 
 ## Favorites
 
