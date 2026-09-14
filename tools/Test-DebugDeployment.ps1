@@ -67,17 +67,17 @@ function Assert-Rejected($Fixture, [string]$Expected) {
 
 $fixture = New-Fixture 'success' -RealFiles
 [IO.File]::WriteAllText((Join-Path $fixture.Source 'System.Memory.dll'), '不應部署')
-[IO.File]::WriteAllText((Join-Path $fixture.Source 'SqlAssist.QueryMemory.Probe.exe'), '不應部署')
+[IO.File]::WriteAllText((Join-Path $fixture.Source 'SqlAssist.SqlMemory.Probe.exe'), '不應部署')
 [IO.File]::WriteAllText((Join-Path $fixture.Target 'unrelated.txt'), '保留其他檔案')
 $result = @(Invoke-SqlAssistDebugFileDeployment -OutputPath $fixture.Source -InstallationPath $fixture.Target)
 foreach ($file in $files | Where-Object Required) {
     Assert-Condition ((Get-FileHash (Join-Path $fixture.Source $file.Name)).Hash -eq
         (Get-FileHash (Join-Path $fixture.Target $file.Name)).Hash) "成功部署後內容不同：$($file.Name)"
 }
-Assert-Condition ('SqlAssist.QueryMemory.Hosting.dll' -in $result.Name -and
-    'SqlAssist.QueryMemory.Sqlite.dll' -in $result.Name) 'Query Memory 不在部署結果。'
+Assert-Condition ('SqlAssist.SqlMemory.Isolation.dll' -in $result.Name -and
+    'SqlAssist.SqlMemory.Sqlite.dll' -in $result.Name) 'SQL Memory 不在部署結果。'
 Assert-Condition (-not (Test-Path (Join-Path $fixture.Target 'System.Memory.dll')) -and
-    -not (Test-Path (Join-Path $fixture.Target 'SqlAssist.QueryMemory.Probe.exe'))) '複製了白名單外的輸出。'
+    -not (Test-Path (Join-Path $fixture.Target 'SqlAssist.SqlMemory.Probe.exe'))) '複製了白名單外的輸出。'
 Assert-Condition ([IO.File]::ReadAllText((Join-Path $fixture.Target 'unrelated.txt')) -eq '保留其他檔案') '更動了其他檔案。'
 $script:passed++
 
@@ -141,7 +141,7 @@ foreach ($scenario in @('patch', 'minor', 'asset', 'invalid', 'menu')) {
 }
 
 $fixture = New-Fixture 'source-directory'
-$path = Join-Path $fixture.Source 'SqlAssist.QueryMemory.Sqlite.dll'
+$path = Join-Path $fixture.Source 'SqlAssist.SqlMemory.Sqlite.dll'
 Remove-Item -LiteralPath $path
 $null = New-Item -ItemType Directory -Path $path
 Assert-Rejected $fixture '缺少必要來源檔案或不是檔案'

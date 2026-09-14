@@ -10,14 +10,14 @@
 
 | 分類 | Deploy 行為 |
 |---|---|
-| 五個產品 DLL：Core、Metadata、Ssms22、QueryMemory.Hosting／Sqlite | 必要；來源與安裝都須存在，允許更新 |
+| 五個產品 DLL：Core、Metadata、Ssms22、SqlMemory.Isolation／Sqlite | 必要；來源與安裝都須存在，允許更新 |
 | `SqlAssist.registration.json` | 必要；允許更新，隨後清除設定定義快取 |
 | 上述產品 DLL 的 PDB | 可選；存在就部署，來源缺少時移除對應的舊 PDB，避免符號錯配 |
 | provider、native DLL、ScriptDom、隔離 config、授權、圖示、pkgdef | 必要；來源與安裝 SHA-256 不同（pkgdef 的 CacheTag 除外）或安裝缺檔就要求 Install，不覆寫 |
 | Manifest | 必要；只忽略 Identity 版號的 patch／revision 與 XML 註解，其餘差異要求 Install，不覆寫 |
 | 其他建置輸出，包括 System.*、probe、VSIX | 不部署；封裝檢查仍拒絕夾帶 System.* |
 
-舊安裝缺少 Query Memory 資產時，不能靠 Deploy 補齊。即使 major.minor 相同，
+舊安裝缺少 SQL Memory 資產時，不能靠 Deploy 補齊。即使 major.minor 相同，
 命令表資源版號或其他 pkgdef 內容變更也會要求 Install；不再只比較命令表的一個數字。
 VSCT 變更仍須遵守[平台護欄](rules-platform.md)的命令資源版號規則。
 

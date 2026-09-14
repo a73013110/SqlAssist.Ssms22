@@ -6,13 +6,13 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 ## 分層
 
-- `Core/QueryMemory`：不可變擷取、內容位址、版本引擎、Repository 契約及保留策略。
-  QueryMemory 是查詢資料的內部子系統名稱；產品入口與文案只有 SQL Memory。
-  宿主協調（`QueryMemoryRuntime`）與瀏覽器模型也在這裡，只依賴介面、時鐘、計時器與設定快照。
-- `QueryMemory.Sqlite`：`SqliteDatabase` 加各聚合的 store（擷取與歷程、收藏、維護、租約）。
-- `QueryMemory.Hosting`：net48 隔離 AppDomain、DTO 邊界與儲存自我測試。
-- `Ssms22/QueryMemory`：讀設定、建立計時器、狀態列、編輯器事件與工具窗繫結。
-- Core／Metadata 不依賴 VS、SSMS 或 SQLite。UI 不持有 repository，所有 I/O 經宿主背景入口。
+- `Core/SqlMemory`：不可變擷取、內容位址、版本引擎、Store 契約及保留策略。
+  資料夾、命名空間與型別一律 `SqlMemory` 前綴；產品入口與文案同樣只有 SQL Memory。
+  宿主協調（`SqlMemoryRuntime`）與瀏覽器模型也在這裡，只依賴介面、時鐘、計時器與設定快照。
+- `SqlMemory.Sqlite`：`SqliteDatabase` 加各聚合的 store（擷取與歷程、收藏、維護、租約）。
+- `SqlMemory.Isolation`：net48 隔離 AppDomain、DTO 邊界與儲存自我測試。
+- `Ssms22/SqlMemory`：讀設定、建立計時器、狀態列、編輯器事件與工具窗繫結。
+- Core／Metadata 不依賴 VS、SSMS 或 SQLite。UI 不持有 store，所有 I/O 經宿主背景入口。
 
 ## 文件、版本與執行
 
@@ -29,7 +29,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
   選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
   方塊選取或多重選取依文件順序、以文件換行串接各範圍，不記錄範圍之間沒有執行的文字。
 - 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。
-- Favorites metadata 與擷取獨立。`FavoriteQuery` 引用不可變 Revision，不建立假 Session。
+- Favorites metadata 與擷取獨立。`SqlFavorite` 引用不可變 Revision，不建立假 Session。
   收藏本身就保護目前版本，不需要「收藏中的收藏」。
 
 `CommitAsync` 在一個交易完成內容去重、版本／執行、Session head、Recovery 及 CaptureId。
@@ -37,10 +37,10 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 ## 擷取與生命週期
 
-`sqlAssist.queryMemory.enabled` 與 SqlAssist 總開關都開啟才運作；SQL Memory 預設關閉。
+`sqlAssist.sqlMemory.enabled` 與 SqlAssist 總開關都開啟才運作；SQL Memory 預設關閉。
 停用時不開資料庫、不讀舊資料、不擷取也不維護。設定項與預設值見[設定](settings.md)。
 
-`QueryMemoryRuntime` 管理儲存、writer、租約心跳及背景維護排程，狀態改變以事件通知工具窗：
+`SqlMemoryRuntime` 管理儲存、writer、租約心跳及背景維護排程，狀態改變以事件通知工具窗：
 
 - `ITextBuffer.Changed` 重排 idle 去彈跳；`ITextView.Closed` 擷取最後內容。
 - 殼層濾鏡以 `IVsCmdNameMapping` 解析 `Query.Execute`，只記錄訊號後轉交命令。

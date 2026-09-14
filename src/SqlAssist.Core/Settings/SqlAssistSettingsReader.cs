@@ -1,7 +1,7 @@
 
 
 using SqlAssist.Core.Notifications;
-using SqlAssist.Core.QueryMemory;
+using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Scripting;
 
 namespace SqlAssist.Core.Settings;
@@ -179,40 +179,40 @@ public static class SqlAssistSettingsReader
                 SqlAssistMonikers.ScriptIncludeHeaderComment,
                 defaults.ScriptIncludeHeaderComment),
 
-            QueryMemoryEnabled = Value(source, SqlAssistMonikers.QueryMemoryEnabled, defaults.QueryMemoryEnabled),
-            QueryMemoryCaptureExecuted = Value(
+            SqlMemoryEnabled = Value(source, SqlAssistMonikers.SqlMemoryEnabled, defaults.SqlMemoryEnabled),
+            SqlMemoryCaptureExecuted = Value(
                 source,
-                SqlAssistMonikers.QueryMemoryCaptureExecuted,
-                defaults.QueryMemoryCaptureExecuted),
-            QueryMemoryCaptureDrafts = Value(
+                SqlAssistMonikers.SqlMemoryCaptureExecuted,
+                defaults.SqlMemoryCaptureExecuted),
+            SqlMemoryCaptureDrafts = Value(
                 source,
-                SqlAssistMonikers.QueryMemoryCaptureDrafts,
-                defaults.QueryMemoryCaptureDrafts),
-            QueryMemoryRecoverUnsavedDrafts = Value(
+                SqlAssistMonikers.SqlMemoryCaptureDrafts,
+                defaults.SqlMemoryCaptureDrafts),
+            SqlMemoryCaptureRecovery = Value(
                 source,
-                SqlAssistMonikers.QueryMemoryRecoverUnsavedDrafts,
-                defaults.QueryMemoryRecoverUnsavedDrafts),
-            QueryMemoryIdleSeconds = SqlAssistLimits.ClampQueryMemoryIdleSeconds(
-                Value(source, SqlAssistMonikers.QueryMemoryIdleSeconds, defaults.QueryMemoryIdleSeconds)),
-            QueryMemoryAutoRevisionMinutes = SqlAssistLimits.ClampQueryMemoryAutoRevisionMinutes(
-                Value(source, SqlAssistMonikers.QueryMemoryAutoRevisionMinutes, defaults.QueryMemoryAutoRevisionMinutes)),
-            QueryMemoryDraftRetentionDays = SqlAssistLimits.ClampQueryMemoryRetentionDays(
-                Value(source, SqlAssistMonikers.QueryMemoryDraftRetentionDays, defaults.QueryMemoryDraftRetentionDays)),
-            QueryMemoryExecutionRetentionDays = SqlAssistLimits.ClampQueryMemoryRetentionDays(
-                Value(source, SqlAssistMonikers.QueryMemoryExecutionRetentionDays, defaults.QueryMemoryExecutionRetentionDays)),
-            QueryMemoryUnsavedDraftRetentionDays = SqlAssistLimits.ClampQueryMemoryUnsavedDraftRetentionDays(
-                Value(source, SqlAssistMonikers.QueryMemoryUnsavedDraftRetentionDays, defaults.QueryMemoryUnsavedDraftRetentionDays)),
-            QueryMemoryMaxExecutions = SqlAssistLimits.ClampQueryMemoryExecutions(
-                Value(source, SqlAssistMonikers.QueryMemoryMaxExecutions, defaults.QueryMemoryMaxExecutions)),
-            QueryMemoryMaxSessionRevisions = SqlAssistLimits.ClampQueryMemorySessionRevisions(
-                Value(source, SqlAssistMonikers.QueryMemoryMaxSessionRevisions, defaults.QueryMemoryMaxSessionRevisions)),
-            QueryMemoryMaxFavoriteRevisions = SqlAssistLimits.ClampQueryMemoryFavoriteRevisions(
-                Value(source, SqlAssistMonikers.QueryMemoryMaxFavoriteRevisions, defaults.QueryMemoryMaxFavoriteRevisions)),
-            QueryMemoryStorage = ParseStorageLimit(
-                Value(source, SqlAssistMonikers.QueryMemoryStorageLimit, string.Empty),
-                defaults.QueryMemoryStorage),
-            QueryMemoryMaintenanceMinutes = SqlAssistLimits.ClampQueryMemoryMaintenanceMinutes(
-                Value(source, SqlAssistMonikers.QueryMemoryMaintenanceMinutes, defaults.QueryMemoryMaintenanceMinutes)),
+                SqlAssistMonikers.SqlMemoryCaptureRecovery,
+                defaults.SqlMemoryCaptureRecovery),
+            SqlMemoryIdleSeconds = SqlAssistLimits.ClampSqlMemoryIdleSeconds(
+                Value(source, SqlAssistMonikers.SqlMemoryIdleSeconds, defaults.SqlMemoryIdleSeconds)),
+            SqlMemoryAutoRevisionMinutes = SqlAssistLimits.ClampSqlMemoryAutoRevisionMinutes(
+                Value(source, SqlAssistMonikers.SqlMemoryAutoRevisionMinutes, defaults.SqlMemoryAutoRevisionMinutes)),
+            SqlMemoryDraftRetentionDays = SqlAssistLimits.ClampSqlMemoryRetentionDays(
+                Value(source, SqlAssistMonikers.SqlMemoryDraftRetentionDays, defaults.SqlMemoryDraftRetentionDays)),
+            SqlMemoryExecutionRetentionDays = SqlAssistLimits.ClampSqlMemoryRetentionDays(
+                Value(source, SqlAssistMonikers.SqlMemoryExecutionRetentionDays, defaults.SqlMemoryExecutionRetentionDays)),
+            SqlMemoryRecoveryRetentionDays = SqlAssistLimits.ClampSqlMemoryRecoveryRetentionDays(
+                Value(source, SqlAssistMonikers.SqlMemoryRecoveryRetentionDays, defaults.SqlMemoryRecoveryRetentionDays)),
+            SqlMemoryMaxExecutions = SqlAssistLimits.ClampSqlMemoryExecutions(
+                Value(source, SqlAssistMonikers.SqlMemoryMaxExecutions, defaults.SqlMemoryMaxExecutions)),
+            SqlMemoryMaxSessionRevisions = SqlAssistLimits.ClampSqlMemorySessionRevisions(
+                Value(source, SqlAssistMonikers.SqlMemoryMaxSessionRevisions, defaults.SqlMemoryMaxSessionRevisions)),
+            SqlMemoryMaxFavoriteRevisions = SqlAssistLimits.ClampSqlMemoryFavoriteRevisions(
+                Value(source, SqlAssistMonikers.SqlMemoryMaxFavoriteRevisions, defaults.SqlMemoryMaxFavoriteRevisions)),
+            SqlMemoryStorage = ParseStorageLimit(
+                Value(source, SqlAssistMonikers.SqlMemoryStorageLimit, string.Empty),
+                defaults.SqlMemoryStorage),
+            SqlMemoryMaintenanceMinutes = SqlAssistLimits.ClampSqlMemoryMaintenanceMinutes(
+                Value(source, SqlAssistMonikers.SqlMemoryMaintenanceMinutes, defaults.SqlMemoryMaintenanceMinutes)),
 
             VerboseLogging = Value(source, SqlAssistMonikers.VerboseLogging, defaults.VerboseLogging)
         };
@@ -281,14 +281,14 @@ public static class SqlAssistSettingsReader
         };
     }
 
-    private static QueryMemoryStorageLimit ParseStorageLimit(string value, QueryMemoryStorageLimit fallback)
+    private static SqlMemoryStorageLimit ParseStorageLimit(string value, SqlMemoryStorageLimit fallback)
     {
         return value switch
         {
-            "mb256" => QueryMemoryStorageLimit.Megabytes256,
-            "mb512" => QueryMemoryStorageLimit.Megabytes512,
-            "gb1" => QueryMemoryStorageLimit.Gigabytes1,
-            "unlimited" => QueryMemoryStorageLimit.Unlimited,
+            "mb256" => SqlMemoryStorageLimit.Megabytes256,
+            "mb512" => SqlMemoryStorageLimit.Megabytes512,
+            "gb1" => SqlMemoryStorageLimit.Gigabytes1,
+            "unlimited" => SqlMemoryStorageLimit.Unlimited,
             _ => fallback
         };
     }

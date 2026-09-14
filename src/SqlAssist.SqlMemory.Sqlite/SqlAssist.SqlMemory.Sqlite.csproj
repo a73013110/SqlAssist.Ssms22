@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SqlAssist.Core\SqlAssist.Core.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.12" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- store 只給隔離 worker 與測試；SSMS 必須經由 IsolatedSqlMemoryStore。 -->
+    <InternalsVisibleTo Include="SqlAssist.SqlMemory.Isolation" />
+    <InternalsVisibleTo Include="SqlAssist.SqlMemory.Sqlite.Tests" />
+  </ItemGroup>
+</Project>

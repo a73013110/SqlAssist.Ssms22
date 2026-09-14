@@ -9,7 +9,7 @@ using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
-using SqlAssist.Ssms22.QueryMemory;
+using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Wildcards;
@@ -89,9 +89,9 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
 
             SqlWildcardHint.Attach(textView, AsyncCompletionBroker, ToolTipPresenterFactory);
 
-            // 查詢記憶的來源。一律接上，實際擷不擷取由設定當場回答——設定在編輯器
+            // SQL Memory 的來源。一律接上，實際擷不擷取由設定當場回答——設定在編輯器
             // 開起來之後才打開時，沒有接線的那些視窗會整個工作階段都記不到東西。
-            QueryMemorySessionTracker.Attach(textView, ServiceProvider);
+            SqlCaptureTracker.Attach(textView, ServiceProvider);
 
             // 殼層命令要在別人之前攔到，掛得越早越好；同時它也是「按了某個鍵卻沒
             // 反應」時唯一看得到命令的地方，所以放在其他接線之前。

@@ -116,12 +116,12 @@
       元素才算數；`tools/Test-CommandTable.ps1` 也會擋下缺漏與寫錯的元素名稱。
     -->
     <Buttons>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0080" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlHistory" priority="0x0080" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
         <Icon guid="ImageCatalogGuid" id="History" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
-        <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowQueryMemory</CanonicalName><LocCanonicalName>SqlAssist.ShowQueryMemory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
+        <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowSqlHistory</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlHistory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
@@ -197,14 +197,14 @@
           <LocCanonicalName>SqlAssist.設定</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidProbeQueryMemory" priority="0x0300" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidSqlMemorySelfTest" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>DynamicVisibility</CommandFlag>
         <Strings>
-          <ButtonText>Query Memory 儲存自我測試…</ButtonText>
-          <CanonicalName>SqlAssist.ProbeQueryMemory</CanonicalName>
-          <LocCanonicalName>SqlAssist.QueryMemory儲存自我測試</LocCanonicalName>
+          <ButtonText>SQL Memory 儲存自我測試…</ButtonText>
+          <CanonicalName>SqlAssist.SqlMemorySelfTest</CanonicalName>
+          <LocCanonicalName>SqlAssist.SqlMemory儲存自我測試</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
@@ -226,13 +226,13 @@
         </Strings>
       </Button>
 
-      <Button guid="guidSqlAssistCommandSet" id="cmdidCompactQueryMemory" priority="0x0210" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidCompactSqlMemory" priority="0x0210" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <Strings>
-          <ButtonText>整理 SqlAssist 查詢記憶的資料庫檔案</ButtonText>
-          <CanonicalName>SqlAssist.CompactQueryMemory</CanonicalName>
-          <LocCanonicalName>SqlAssist.整理查詢記憶資料庫</LocCanonicalName>
+          <ButtonText>整理 SqlAssist SQL Memory 的資料庫檔案</ButtonText>
+          <CanonicalName>SqlAssist.CompactSqlMemory</CanonicalName>
+          <LocCanonicalName>SqlAssist.整理SqlMemory資料庫</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -368,7 +368,7 @@
     而兩份實作分岔的症狀是其中一個入口安靜地停在舊行為。
   -->
   <CommandPlacements>
-    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowQueryMemory" priority="0x0100">
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlHistory" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
     </CommandPlacement>
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0110">
@@ -439,7 +439,7 @@
     <GuidSymbol name="guidSqlAssistPackage" value="{b386e18d-f34b-4db4-a40d-b9092a31d89f}" />
     <GuidSymbol name="guidSqlAssistCommandSet" value="{4a188946-9364-4f07-af7e-97f3bd7ca7a7}">
       <IDSymbol name="SqlAssistMenu" value="0x1000" />
-      <IDSymbol name="cmdidShowQueryMemory" value="0x020E" />
+      <IDSymbol name="cmdidShowSqlHistory" value="0x020E" />
       <IDSymbol name="cmdidShowSqlFavorites" value="0x020F" />
       <IDSymbol name="SqlAssistToolbar" value="0x1800" />
       <IDSymbol name="SqlAssistToolbarGroup" value="0x1801" />
@@ -462,8 +462,8 @@
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
       <IDSymbol name="cmdidSurroundWith" value="0x020B" />
-      <IDSymbol name="cmdidProbeQueryMemory" value="0x020C" />
-      <IDSymbol name="cmdidCompactQueryMemory" value="0x020D" />
+      <IDSymbol name="cmdidSqlMemorySelfTest" value="0x020C" />
+      <IDSymbol name="cmdidCompactSqlMemory" value="0x020D" />
       <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
       <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />

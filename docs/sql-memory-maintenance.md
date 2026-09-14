@@ -1,6 +1,6 @@
 # SQL Memory：維護與保護根
 
-`IQueryMemoryMaintenanceRepository` 由 SQLite／Hosting 實作，宿主排程與擷取共用生命週期。
+`ISqlMemoryMaintenanceStore` 由 SQLite／Isolation 實作，宿主排程與擷取共用生命週期。
 維護不另建刪除捷徑；儲存契約見[儲存](sql-memory-storage.md)。
 
 ## 期限、配額與引用
@@ -36,7 +36,7 @@ Execution 配額同時限制執行專用版本；auto revision 配額只認非�
 | Draft History | 逐 Session，組內早於草稿期限或 auto 配額界線 | `IX_History_SessionDrafts` |
 | 選取版本 | 早於執行界線 | `IX_Revisions_SelectionTime` |
 | 收藏版本 | 逐收藏，存在用配額界線、已移除用草稿期限 | `IX_Revisions_Favorite` |
-| Recovery | 早於未存檔草稿期限 | `IX_Recovery_Time` |
+| Recovery | 早於回復內容期限 | `IX_Recovery_Time` |
 
 分組探測算一個單位。擷取的文件版本不是候選：新版本一律接在 head 之後，舊版本必有子版本。
 本批刪除列引用的 ContentId／ContextId 在批次結束前重查引用後刪除，容量同批下降。

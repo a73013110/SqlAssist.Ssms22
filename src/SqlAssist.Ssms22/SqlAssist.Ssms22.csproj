@@ -25,7 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SqlAssist.Core\SqlAssist.Core.csproj" />
     <ProjectReference Include="..\SqlAssist.Metadata\SqlAssist.Metadata.csproj" />
-    <ProjectReference Include="..\SqlAssist.QueryMemory.Hosting\SqlAssist.QueryMemory.Hosting.csproj" />
+    <ProjectReference Include="..\SqlAssist.SqlMemory.Isolation\SqlAssist.SqlMemory.Isolation.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" PrivateAssets="all" />
     <!-- 取 NuGet 的契約版本（組件版本 10.0.0.0），與 SSMS 編輯器組件自己引用的版本一致，
@@ -188,8 +188,8 @@
       <Link>ThirdPartyLicenses.txt</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <Content Include="..\SqlAssist.QueryMemory.Hosting\QueryMemory.Sqlite.config">
-      <Link>QueryMemory.Sqlite.config</Link>
+    <Content Include="..\SqlAssist.SqlMemory.Isolation\SqlMemory.Isolation.config">
+      <Link>SqlMemory.Isolation.config</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
