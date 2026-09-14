@@ -58,7 +58,7 @@ public sealed class QueryMemoryVisualTests
                     index % 2 == 0 ? QueryHistoryKind.Drafts : QueryHistoryKind.Executed,
                     index == 0 ? "借閱查詢" : "借閱明細 — " + index,
                     "SELECT LoanId, CopyNo\nFROM LoanDetail WHERE LoanId = 1;",
-                    new QueryConnectionContext("LibraryServer", "Library"), false))).ToArray(), SelectedIndex = 0
+                    new QueryConnectionContext("LibraryServer", "Library")))).ToArray(), SelectedIndex = 0
             }.WithTheme(Control.BackgroundProperty, ThemeBrush.WindowBackground);
             var historyRows = list.ItemsSource;
             var favoritesRows = Enumerable.Range(0, 2000).Select(index => new QueryMemoryRow(new FavoriteQueryEntry(
@@ -171,7 +171,7 @@ public sealed class QueryMemoryVisualTests
         WpfTest.Run(() =>
         {
             var row = new QueryMemoryRow(new QueryHistoryItem(Guid.NewGuid(), Guid.NewGuid(), null, "id", DateTimeOffset.Now,
-                QueryHistoryKind.Drafts, "借閱查詢", "SELECT * FROM Loan;", null, false));
+                QueryHistoryKind.Drafts, "借閱查詢", "SELECT * FROM Loan;", null));
             var template = SqlAssistChrome.CreateSqlSummaryTemplate();
             template.Seal();
             var content = (FrameworkElement)template.LoadContent(); content.DataContext = row;
@@ -262,7 +262,7 @@ public sealed class QueryMemoryVisualTests
         {
             var list = new SqlMemoryList();
             for (var i = 0; i < 2; i++) list.Items.Add(new QueryMemoryRow(new QueryHistoryItem(Guid.NewGuid(), Guid.NewGuid(),
-                Guid.NewGuid(), "content", DateTimeOffset.Now, QueryHistoryKind.Executed, "借閱查詢", "SELECT 1;", null, false)));
+                Guid.NewGuid(), "content", DateTimeOffset.Now, QueryHistoryKind.Executed, "借閱查詢", "SELECT 1;", null)));
             // 隱藏的 presentation source 供 WPF 路由鍵盤事件，不開使用者可見視窗。
             using var source = new HwndSource(new HwndSourceParameters("SQL Memory keyboard test") { Width = 440, Height = 300, WindowStyle = 0 });
             source.RootVisual = list;

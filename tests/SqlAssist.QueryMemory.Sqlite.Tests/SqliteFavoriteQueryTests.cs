@@ -113,14 +113,14 @@ public sealed class SqliteFavoriteQueryTests
     }
 
     [Fact]
-    public async Task RecoveryReplacementAndClosePreserveFavoriteContentAndManualRevision()
+    public async Task RecoveryReplacementAndClosePreserveFavoriteContent()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        await store.Process(repository, store.Capture(kind: QueryCaptureKind.ManualSnapshot), Token);
+        await store.Process(repository, store.Capture(), Token);
         var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
         Assert.NotNull(state?.LatestRevision);
-        var query = new FavoriteQuery(Guid.NewGuid(), "讀者快照", null, state.LatestRevision.RevisionId, FavoriteQueryScope.Global, null);
+        var query = new FavoriteQuery(Guid.NewGuid(), "讀者收藏", null, state.LatestRevision.RevisionId, FavoriteQueryScope.Global, null);
         await repository.WriteFavoriteQueryAsync(new FavoriteQueryWrite(query), Token);
         await store.Process(repository, store.Capture(2, "SELECT * FROM Lib_Tag;", QueryCaptureKind.DraftIdle), Token);
         await store.Process(repository, store.Capture(3, "SELECT * FROM Lib_Tag;", QueryCaptureKind.EditorClosed), Token);

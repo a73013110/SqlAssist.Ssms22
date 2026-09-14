@@ -11,7 +11,7 @@ namespace SqlAssist.QueryMemory.Sqlite;
 internal sealed partial class SqliteQueryMemoryRepository
 {
     private const string FavoriteProjection = @"SELECT s.FavoriteQueryId,s.Name,s.Description,s.CurrentRevisionId,
-s.Scope,x.Server,x.DatabaseName,x.IdentityName,s.Version,r.ContentId,c.Preview
+s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview
 FROM FavoriteQueries s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId
 JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s.ContextId";
 
@@ -109,7 +109,7 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
     private static FavoriteQueryEntry ReadFavoriteEntry(SqliteDataReader reader) => new(
         new FavoriteQuery(Guid.ParseExact(reader.GetString(0), "N"), reader.GetString(1), StringOrNull(reader, 2),
             Guid.ParseExact(reader.GetString(3), "N"), (FavoriteQueryScope)reader.GetInt32(4), ReadContext(reader, 5)),
-        Guid.ParseExact(reader.GetString(8), "N"), reader.GetString(9), reader.GetString(10));
+        Guid.ParseExact(reader.GetString(7), "N"), reader.GetString(8), reader.GetString(9));
 
     public QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueries(FavoriteQueryRequest request, CancellationToken cancellationToken)
     {

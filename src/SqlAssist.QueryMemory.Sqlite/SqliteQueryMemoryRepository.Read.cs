@@ -42,7 +42,7 @@ LatestRevisionId,LatestExecutionRevisionId FROM Sessions WHERE SessionId=$id;", 
     private static QueryRevision? ReadRevision(SqliteConnection connection, SqliteTransaction transaction, Guid revisionId)
     {
         using var command = Command(connection, transaction, @"SELECT r.ParentRevisionId,r.ContentId,r.SessionId,r.CreatedAt,
-r.Reason,r.IsExecutionSelection,c.Server,c.DatabaseName,c.IdentityName
+r.Reason,r.IsExecutionSelection,c.Server,c.DatabaseName
 FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.RevisionId=$id;", ("$id", Id(revisionId)));
         using var reader = command.ExecuteReader();
         return reader.Read() ? new QueryRevision(revisionId, GuidOrNull(reader, 0), reader.GetString(1),
@@ -51,7 +51,7 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
     }
 
     private static QueryConnectionContext? ReadContext(SqliteDataReader reader, int start) => reader.IsDBNull(start) ? null :
-        new QueryConnectionContext(reader.GetString(start), reader.GetString(start + 1), StringOrNull(reader, start + 2));
+        new QueryConnectionContext(reader.GetString(start), reader.GetString(start + 1));
 
     public QueryContent? ReadContent(string contentId, CancellationToken cancellationToken)
     {
@@ -88,7 +88,6 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
         var parameters = new List<(string, object?)> { ("$limit", request.PageSize + 1) };
         if (request.Kind == QueryHistoryKind.Executed || request.Kind == QueryHistoryKind.Drafts)
         { conditions.Add("h.Kind=$kind"); parameters.Add(("$kind", (int)request.Kind)); }
-        if (request.Kind == QueryHistoryKind.Pinned) conditions.Add("h.Pinned=1");
         if (request.Server != null) { conditions.Add("h.Server=$server"); parameters.Add(("$server", request.Server)); }
         if (request.Database != null) { conditions.Add("h.DatabaseName=$database"); parameters.Add(("$database", request.Database)); }
         if (request.Since.HasValue) { conditions.Add("h.CreatedAt >= $since"); parameters.Add(("$since", Ticks(request.Since.Value))); }
@@ -104,7 +103,7 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
         var where = conditions.Count == 0 ? "" : " WHERE " + string.Join(" AND ", conditions);
         // 投影只拿 Preview。全文搜尋雖需掃候選 BLOB，但不將全部 SQL 載入列表或應用程式快取。
         using var command = Command(connection, null, @"SELECT h.EntryKey,h.SessionId,h.RevisionId,h.ContentId,h.CreatedAt,
-h.Kind,d.DisplayName,c.Preview,x.Server,x.DatabaseName,x.IdentityName,h.Pinned
+h.Kind,d.DisplayName,c.Preview,x.Server,x.DatabaseName
 FROM History h JOIN Sessions s ON s.SessionId=h.SessionId JOIN Documents d ON d.DocumentId=s.DocumentId
 JOIN Contents c ON c.ContentId=h.ContentId LEFT JOIN Contexts x ON x.ContextId=h.ContextId" + where +
             " ORDER BY h.CreatedAt DESC,h.EntryKey DESC LIMIT $limit;", parameters.ToArray());
@@ -125,7 +124,7 @@ JOIN Contents c ON c.ContentId=h.ContentId LEFT JOIN Contexts x ON x.ContextId=h
             lastTicks = reader.GetInt64(4);
             items.Add(new QueryHistoryItem(Guid.ParseExact(lastKey.Substring(1), "N"), Guid.ParseExact(reader.GetString(1), "N"),
                 GuidOrNull(reader, 2), reader.GetString(3), Time(lastTicks), (QueryHistoryKind)reader.GetInt32(5),
-                reader.GetString(6), reader.GetString(7), ReadContext(reader, 8), reader.GetBoolean(11)));
+                reader.GetString(6), reader.GetString(7), ReadContext(reader, 8)));
         }
         return new QueryMemoryPage<QueryHistoryItem>(items, nextCursor);
     }

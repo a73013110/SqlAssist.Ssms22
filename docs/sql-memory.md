@@ -25,9 +25,8 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 - 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
   選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
 - 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。
-- 手動快照即使 SQL 相同也有新版本，且受維護保護；目前工具窗沒有手動快照入口。
 - Favorites metadata 與擷取獨立。`FavoriteQuery` 引用不可變 Revision，不建立假 Session。
-  收藏沒有另一個 Pinned 標記：收藏本身就保護目前版本，不需要「收藏中的收藏」。
+  收藏本身就保護目前版本，不需要「收藏中的收藏」。
 
 `CommitAsync` 在一個交易完成內容去重、版本／執行、Session head、Recovery 及 CaptureId。
 先判斷 CaptureId 重送，再 CAS Session.Version；Session.Sequence 決定擷取順序，不用時間排序取代。
@@ -47,7 +46,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
   只保存名稱，不保存連線字串、密碼或 token。
 
 writer 最多接受 64 筆／32 MB 文字估計，包含處理中的項目；同 Session 的待處理 idle 可合併，
-Execute／Close／Manual 是屏障。拒收必須可見，不淘汰已接受的執行事件。文字估計不是程序記憶體上限。
+Execute／Close 是屏障。拒收必須可見，不淘汰已接受的執行事件。文字估計不是程序記憶體上限。
 processor 對 CAS 衝突與儲存 Busy 各做有界重試，退避期間不持有宿主或隔離層閘門。Busy 重試用盡只放棄該筆並經回呼可見，
 writer 繼續；損毀、不相容或未知錯誤才使 writer fault 並停止接受。強制結束程序仍可能失去未落盤內容。
 

@@ -19,10 +19,8 @@ internal sealed partial class SqliteQueryMemoryRepository
         ("Recovery", "SessionId"), ("Contents", "ContentId"), ("Contexts", "ContextId"),
     };
 
-    private const string UnprotectedRevision = @"
- AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE CurrentRevisionId=$revision)
- AND NOT EXISTS(SELECT 1 FROM Revisions WHERE RevisionId=$revision AND Reason=$manual)
- AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$revision AND Pinned=1)";
+    private const string UnprotectedRevision =
+        " AND NOT EXISTS(SELECT 1 FROM FavoriteQueries WHERE CurrentRevisionId=$revision)";
 
     private const string UnreferencedContent = @"
  AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContentId=$id)
@@ -150,7 +148,7 @@ internal sealed partial class SqliteQueryMemoryRepository
         }
         var parameters = new (string Name, object? Value)[]
         {
-            ("$id", key), ("$revision", revision), ("$manual", (int)QueryRevisionReason.ManualSnapshot),
+            ("$id", key), ("$revision", revision),
             ("$draft", policy.DraftBefore.HasValue ? (object)Ticks(policy.DraftBefore.Value) : null),
             ("$execution", quotas.ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)QueryRevisionReason.BeforeExecute), ("$history", "e" + key),
@@ -164,7 +162,7 @@ internal sealed partial class SqliteQueryMemoryRepository
             case ExecutionStage:
                 // 一個候選最多刪除兩列，沒有 CASCADE 或無界的子列刪除。
                 var eligible = "SELECT 1 FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision;
-                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$history AND Pinned=0 AND EXISTS(" + eligible + ");", parameters);
+                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$history AND EXISTS(" + eligible + ");", parameters);
                 var historyDeleted = (int)ScalarLong(connection, transaction, "SELECT changes();");
                 Execute(connection, transaction, "DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
                     UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
@@ -172,7 +170,7 @@ internal sealed partial class SqliteQueryMemoryRepository
             case HistoryStage:
                 // Recovery 的投影沒有 RevisionId，另由 Recovery 階段連同 Recovery 一起處理。
                 sql = @"DELETE FROM History WHERE EntryKey=$id AND Kind=2 AND RevisionId IS NOT NULL
- AND (CreatedAt<$draft OR CreatedAt<$autoQuota) AND Pinned=0" + UnprotectedRevision;
+ AND (CreatedAt<$draft OR CreatedAt<$autoQuota)" + UnprotectedRevision;
                 break;
             case RevisionStage:
                 // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
@@ -192,10 +190,9 @@ internal sealed partial class SqliteQueryMemoryRepository
                 // 租約還在就代表那個程序可能還開著這份未存檔草稿；過期只是宿主可以去確認，不是可以刪。
                 var unowned = "SELECT 1 FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
                     " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)";
-                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$recoveryHistory AND Pinned=0" +
+                Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$recoveryHistory" +
                     " AND EXISTS(" + unowned + ");", parameters);
                 var projectionDeleted = (int)ScalarLong(connection, transaction, "SELECT changes();");
-                // Pinned 的投影留著就擋下 Recovery 本身，使用者釘住的草稿不會只剩一半。
                 Execute(connection, transaction, "DELETE FROM Recovery WHERE SessionId=$id AND CapturedAt<$recovery" +
                     " AND NOT EXISTS(SELECT 1 FROM Sessions WHERE SessionId=$id AND LeaseId IS NOT NULL)" +
                     " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$recoveryHistory);", parameters);

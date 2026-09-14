@@ -53,4 +53,4 @@ public sealed class QueryHistoryRequest
 [Serializable]
 public sealed record QueryHistoryItem(Guid ItemId, Guid SessionId, Guid? RevisionId,
     string ContentId, DateTimeOffset CreatedAt, QueryHistoryKind Kind, string DisplayName,
-    string Preview, QueryConnectionContext? Connection, bool Pinned);
+    string Preview, QueryConnectionContext? Connection);
