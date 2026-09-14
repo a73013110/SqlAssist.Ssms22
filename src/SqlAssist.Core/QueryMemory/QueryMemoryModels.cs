@@ -43,6 +43,10 @@ public sealed record FavoriteQuery(Guid FavoriteQueryId, string Name, string? De
     Guid CurrentRevisionId, FavoriteQueryScope Scope, QueryConnectionContext? Connection);
 
 /// <summary>儲存層讀出的 Session 投影；Version 是交易 CAS，不是 UI 的文字版本。</summary>
+/// <remarks>
+/// <paramref name="RecoveryContentId"/> 是目前 Recovery 指向的內容位址（沒有 Recovery 時為 null），
+/// 讓引擎在準備下一筆擷取時不必先讀 Recovery 資料表即可判斷內容是否真的變了。
+/// </remarks>
 [Serializable]
 public sealed record QuerySessionState(QuerySession Session, long Version, long LastSequence,
-    QueryRevision? LatestRevision, QueryRevision? LatestExecutionRevision = null);
+    QueryRevision? LatestRevision, QueryRevision? LatestExecutionRevision = null, string? RecoveryContentId = null);

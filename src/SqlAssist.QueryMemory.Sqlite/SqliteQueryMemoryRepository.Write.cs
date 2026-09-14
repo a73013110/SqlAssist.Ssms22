@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
@@ -117,18 +116,26 @@ CapturedAt=excluded.CapturedAt, ContextId=excluded.ContextId;",
         return QueryMemoryCommitResult.Committed;
     }
 
+    // 交易一開始就取得 IMMEDIATE 寫鎖，同一筆 ContentId 不會有並行寫入；先查再寫可以讓已存在的
+    // 內容（去重命中）完全不必重新編碼 UTF-16LE 或讀回整份 BLOB，只比對 Hash 與 Length。
+    // SHA-256 的碰撞機率遠低於磁碟或傳輸層本身出錯的機率，全位元組比對留給
+    // QueryMemoryStorageSelfTest／ReadContent 的完整讀取驗證；取捨見 docs/sql-memory-storage.md。
     private static void WriteContent(SqliteConnection connection, SqliteTransaction transaction, QueryContent content)
     {
+        using (var existing = Command(connection, transaction, "SELECT ContentHash, Length FROM Contents WHERE ContentId=$id;", ("$id", content.ContentId)))
+        using (var reader = existing.ExecuteReader())
+        {
+            if (reader.Read())
+            {
+                if (reader.GetString(0) != content.ContentHash || reader.GetInt64(1) != content.Length)
+                    throw new InvalidDataException("SQL 內容位址碰撞或資料已損壞；不會覆寫舊內容。");
+                return;
+            }
+        }
         var bytes = SqliteText.Encode(content.SqlText);
-        using var insert = Command(connection, transaction, @"INSERT INTO Contents VALUES($id,$hash,$sql,$length,$preview)
+        Execute(connection, transaction, @"INSERT INTO Contents VALUES($id,$hash,$sql,$length,$preview)
 ON CONFLICT(ContentId) DO NOTHING;", ("$id", content.ContentId), ("$hash", content.ContentHash), ("$sql", bytes),
             ("$length", content.Length), ("$preview", SqliteText.Preview(content.SqlText)));
-        if (insert.ExecuteNonQuery() != 0) return;
-        using var existing = Command(connection, transaction, "SELECT ContentHash, Length, SqlBytes FROM Contents WHERE ContentId=$id;", ("$id", content.ContentId));
-        using var reader = existing.ExecuteReader();
-        if (!reader.Read() || reader.GetString(0) != content.ContentHash || reader.GetInt64(1) != content.Length ||
-            !((byte[])reader.GetValue(2)).SequenceEqual(bytes))
-            throw new InvalidDataException("SQL 內容位址碰撞或資料已損壞；不會覆寫舊內容。");
     }
 
     private static string? WriteContext(SqliteConnection connection, SqliteTransaction transaction, QueryConnectionContext? context)

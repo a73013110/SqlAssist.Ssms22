@@ -19,7 +19,8 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 新視窗必須有新 SessionId。未存檔視窗各自建立文件身分，不以 `SQLQuery1.sql` 等標題當主鍵。
 
 `QueryContent` 精確雜湊 UTF-16LE code units，內容位址有演算法前綴；不正規化空白、大小寫、
-換行、NUL 或未配對 surrogate，不使用 delta chain。相同 hash 必須核對原文，碰撞拒絕覆寫。
+換行、NUL 或未配對 surrogate，不使用 delta chain。去重命中的驗證策略與全文讀取的完整性
+保證見[儲存](sql-memory-storage.md)。
 
 - idle 以每 Session 一份 Recovery 保存最新全文；內容改變且跨過設定間隔才建立 auto revision。
 - 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
