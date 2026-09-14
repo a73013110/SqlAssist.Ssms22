@@ -8,6 +8,11 @@ namespace SqlAssist.Core.Tests.Parsing;
 
 public sealed class BlockAnalysisWorkerTests
 {
+    // 只用來偵測卡死，不衡量速度；push 時機器忙碌，背景工作排進執行緒池可能就要數秒。
+    // 放行等待必須比等待開始的上限長，否則逾時的會是測試自己擋住的工作。
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReleaseGuard = TimeSpan.FromSeconds(60);
+
     [Fact]
     public async Task Debounce期間取消不會取得全文()
     {
@@ -30,12 +35,12 @@ public sealed class BlockAnalysisWorkerTests
         var first = worker.AnalyzeAsync(() =>
         {
             entered.SetResult(true);
-            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+            if (!release.Wait(ReleaseGuard)) throw new TimeoutException();
             return "BEGIN END";
         }, 0, CancellationToken.None);
         try
         {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await entered.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
             var read = false;
             var second = worker.AnalyzeAsync(() => { read = true; return "()"; }, 0, cancellation.Token);
             cancellation.Cancel();
@@ -57,12 +62,12 @@ public sealed class BlockAnalysisWorkerTests
         var task = worker.AnalyzeAsync(() =>
         {
             entered.SetResult(true);
-            if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+            if (!release.Wait(ReleaseGuard)) throw new TimeoutException();
             return "BEGIN END";
         }, 0, cancellation.Token);
         try
         {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await entered.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
             cancellation.Cancel();
         }
         finally { release.Set(); }

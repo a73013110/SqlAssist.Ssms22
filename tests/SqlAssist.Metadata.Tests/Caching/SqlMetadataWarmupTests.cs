@@ -13,6 +13,11 @@ namespace SqlAssist.Metadata.Tests.Caching;
 
 public sealed class SqlMetadataWarmupTests
 {
+    // 只用來偵測卡死，不衡量速度；push 時機器忙碌，預載排進執行緒池可能就要數秒。
+    // 放行等待必須比等待開始的上限長，否則逾時的會是測試自己擋住的查詢。
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReleaseGuard = TimeSpan.FromSeconds(60);
+
     [Fact]
     public async Task 不開建議清單也能預載並在清除後用相同文字重新定位()
     {
@@ -45,7 +50,7 @@ public sealed class SqlMetadataWarmupTests
         var warming = catalog.WarmSnapshotAsync();
         try
         {
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await started.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
             Assert.False(warming.IsCompleted);
             Assert.True(catalog.CachedSnapshot.IsEmpty);
             for (var index = 0; index < 32; index++)
@@ -58,7 +63,7 @@ public sealed class SqlMetadataWarmupTests
         finally
         {
             release.Set();
-            await warming.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await warming.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
         }
 
         Assert.False(catalog.CachedSnapshot.IsEmpty);
@@ -84,13 +89,13 @@ public sealed class SqlMetadataWarmupTests
             : catalog.WarmSnapshotAsync();
         try
         {
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await started.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
             catalog.Invalidate();
         }
         finally
         {
             release.Set();
-            await warming.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await warming.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
         }
 
         Assert.True(catalog.CachedSnapshot.IsEmpty);
@@ -118,16 +123,16 @@ public sealed class SqlMetadataWarmupTests
         var foreground = catalog.GetSnapshotAsync(CancellationToken.None);
         try
         {
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await started.Task.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
             Assert.False(foreground.IsCompleted);
         }
         finally
         {
             release.Set();
-            await warming.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            await warming.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
         }
 
-        var snapshot = await foreground.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var snapshot = await foreground.WaitAsync(HangGuard, TestContext.Current.CancellationToken);
         Assert.Equal(fail, snapshot.IsEmpty);
         Assert.Equal(1, source.Attempts);
     }
@@ -167,7 +172,7 @@ public sealed class SqlMetadataWarmupTests
     private static void Block(TaskCompletionSource<bool> started, ManualResetEventSlim release)
     {
         started.TrySetResult(true);
-        if (!release.Wait(TimeSpan.FromSeconds(10)))
+        if (!release.Wait(ReleaseGuard))
         {
             throw new TimeoutException("測試未釋放背景查詢。");
         }

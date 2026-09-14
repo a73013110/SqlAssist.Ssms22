@@ -111,7 +111,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         });
         PreviewKeyDown += (_, e) => SqlMemoryActions.Run(() =>
         {
-            if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control) { _search.Focus(); e.Handled = true; }
+            if (e.Key == Key.F && e.KeyboardDevice.Modifiers == ModifierKeys.Control) { _search.Focus(); e.Handled = true; }
         }, Report);
         _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(300) };
         _searchTimer.Tick += (_, _) => { _searchTimer.Stop(); Load(); };

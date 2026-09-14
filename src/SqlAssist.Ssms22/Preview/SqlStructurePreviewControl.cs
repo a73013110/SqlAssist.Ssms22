@@ -1453,7 +1453,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
         }
 
         if (eventArgs.Key == Key.C &&
-            (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            (eventArgs.KeyboardDevice.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             eventArgs.Handled = true;
             CopySelection();

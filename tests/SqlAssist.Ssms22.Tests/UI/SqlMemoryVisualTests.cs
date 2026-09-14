@@ -274,12 +274,17 @@ public sealed class SqlMemoryVisualTests
             list.SelectedIndex = 0; list.SelectedIndex = 1;
             Assert.Equal(2, selections); Assert.Equal(0, opens);
             var row = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
-            var enter = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Enter)
+            var keyboard = new TestKeyboardDevice();
+            var ctrlEnter = new KeyEventArgs(new TestKeyboardDevice(ModifierKeys.Control), source, 0, Key.Enter)
+                { RoutedEvent = Keyboard.PreviewKeyDownEvent, Source = row };
+            list.RaiseEvent(ctrlEnter);
+            Assert.False(ctrlEnter.Handled); Assert.Equal(0, opens);
+            var enter = new KeyEventArgs(keyboard, source, 0, Key.Enter)
                 { RoutedEvent = Keyboard.PreviewKeyDownEvent, Source = row };
             list.RaiseEvent(enter);
             Assert.True(enter.Handled); Assert.Equal(1, opens);
             var button = Descendants<Button>(row).First();
-            list.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, Key.Enter)
+            list.RaiseEvent(new KeyEventArgs(keyboard, source, 0, Key.Enter)
                 { RoutedEvent = Keyboard.PreviewKeyDownEvent, Source = button });
             Assert.Equal(1, opens);
             button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
