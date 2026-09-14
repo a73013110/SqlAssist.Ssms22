@@ -4,12 +4,12 @@ Set-StrictMode -Version Latest
 function Get-SqlAssistDeploymentFile {
     # 封裝與 Debug 部署共用白名單；建置輸出中的 System.* 絕不能整批帶進宿主。
     foreach ($name in @('SqlAssist.Core', 'SqlAssist.Metadata', 'SqlAssist.Ssms22',
-            'SqlAssist.QueryMemory.Hosting', 'SqlAssist.QueryMemory.Sqlite')) {
+            'SqlAssist.SqlMemory.Isolation', 'SqlAssist.SqlMemory.Sqlite')) {
         [pscustomobject]@{ Name = "$name.dll"; Policy = 'Replace'; Required = $true }
         [pscustomobject]@{ Name = "$name.pdb"; Policy = 'Replace'; Required = $false }
     }
     [pscustomobject]@{ Name = 'SqlAssist.registration.json'; Policy = 'Replace'; Required = $true }
-    foreach ($name in @('SqlAssist.Ssms22.pkgdef', 'QueryMemory.Sqlite.config',
+    foreach ($name in @('SqlAssist.Ssms22.pkgdef', 'SqlMemory.Isolation.config',
             'ThirdPartyLicenses.txt', 'Microsoft.Data.Sqlite.dll', 'SQLitePCLRaw.core.dll',
             'SQLitePCLRaw.batteries_v2.dll', 'SQLitePCLRaw.provider.e_sqlite3.dll',
             'e_sqlite3.dll', 'Microsoft.SqlServer.TransactSql.ScriptDom.dll', 'logo.png')) {

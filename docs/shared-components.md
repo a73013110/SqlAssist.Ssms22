@@ -47,11 +47,11 @@
 | 通知可見度規則（三軸、詳細度門檻、獨立通道） | `Core/Notifications/NotificationVisibility.cs` |
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
-| SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/QueryMemory/QueryContent.cs`、`QueryRevisionEngine.cs`、`IQueryMemoryRepository.cs` |
-| SQL Memory 開啟／關閉、世代、寫入器故障、心跳與維護排程 | `Core/QueryMemory/QueryMemoryRuntime.cs`（設定轉政策在 `QueryMemoryConfiguration.cs`） |
-| SQL Memory 清單的篩選轉請求、分頁世代與選取還原 | `Core/QueryMemory/QueryMemoryBrowserModel.cs` |
-| 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/QueryMemory/QueryDocumentIdentity.cs`、`QuerySelectionText.cs` |
-| Query Memory 有界背景佇列與交易衝突重試 | `Core/QueryMemory/QueryMemoryBackgroundWriter.cs`、`QueryMemoryProcessor.cs` |
-| Favorite Query CRUD、SQL 編輯、版本衝突與 scope 契約 | `Core/QueryMemory/IFavoriteQueryRepository.cs`（儲存與隔離層共用） |
-| Query Memory 有界維護、容量與續跑契約 | `Core/QueryMemory/IQueryMemoryMaintenanceRepository.cs`（儲存與隔離層共用） |
+| SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
+| SQL Memory 開啟／關閉、世代、寫入器故障、心跳與維護排程 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
+| SQL Memory 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/QueryDocumentIdentity.cs`、`QuerySelectionText.cs` |
+| SQL Memory 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
+| SQL Favorite CRUD、SQL 編輯、版本衝突與 scope 契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
+| SQL Memory 有界維護、容量與續跑契約 | `Core/SqlMemory/ISqlMemoryMaintenanceStore.cs`（儲存與隔離層共用） |
 | 區塊色彩 | [唯一實作](block-colors.md) |

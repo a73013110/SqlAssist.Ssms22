@@ -1,0 +1,211 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
+using SqlAssist.Core.SqlMemory;
+using Xunit;
+
+namespace SqlAssist.SqlMemory.Sqlite.Tests;
+
+public sealed class SqliteHistoryTests
+{
+    private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task SameTimestampKeysetPagingHasNoMissingOrDuplicateEntries()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var i = 1; i <= 23; i++) await store.Process(repository, store.Capture(i), Token);
+        var ids = new HashSet<Guid>();
+        string? cursor = null;
+        do
+        {
+            var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(5, SqlHistoryFilter.Executions, cursor: cursor), Token);
+            Assert.InRange(page.Items.Count, 1, 5);
+            foreach (var item in page.Items) Assert.True(ids.Add(item.ItemId));
+            cursor = page.NextCursor;
+        } while (cursor != null);
+        Assert.Equal(23, ids.Count);
+    }
+
+    [Fact]
+    public async Task ServerDatabaseAndHalfOpenTimeFiltersUseExecutionContext()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(1, context: new SqlConnectionLabel("LibraryServer", "Library")), Token);
+        await store.Process(repository, store.Capture(2, seconds: 1, context: new SqlConnectionLabel("LibraryServer", "Archive")), Token);
+        await store.Process(repository, store.Capture(3, seconds: 2, context: new SqlConnectionLabel("LibraryServer", "Library")), Token);
+        await store.Process(repository, store.Capture(4, seconds: 3, context: new SqlConnectionLabel("OtherServer", "Library")), Token);
+        var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions,
+            server: "LibraryServer", database: "Library", since: SqliteTestStore.Start, until: SqliteTestStore.Start.AddSeconds(2)), Token);
+        Assert.Single(page.Items);
+        Assert.Equal(SqliteTestStore.Start, page.Items[0].CreatedAt);
+        Assert.Equal(3, (await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions, database: "Library"), Token)).Items.Count);
+    }
+
+    [Fact]
+    public async Task SearchIsLiteralCaseSensitiveAndIncludesTextBeyondPreview()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var sql = new string(' ', 300) + "SELECT N'Lib_Reader%📚';\0END";
+        await store.Process(repository, store.Capture(sql: sql), Token);
+        foreach (var search in new[] { "Lib_Reader%", "📚", "\0END", " ", "" })
+        {
+            var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions, search: search), Token);
+            Assert.Single(page.Items);
+            Assert.InRange(page.Items[0].Preview.Length, 0, 240);
+        }
+        // History 的搜尋目標只有 SQL 全文；文件顯示名稱與 Favorite 的名稱欄位不在其中。
+        foreach (var search in new[] { "lib_reader", "' OR 1=1--", "DoesNotExist", "Library.sql" })
+            Assert.Empty((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions, search: search), Token)).Items);
+    }
+
+    [Theory]
+    [InlineData(7, long.MaxValue)]
+    [InlineData(1000, 100)]
+    public async Task SearchScanBudgetBoundsEachPageAndResumesWithoutGapsOrDuplicates(int candidates, long bytes)
+    {
+        using var store = new SqliteTestStore();
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, searchBudget: new SqliteSearchBudget(candidates, bytes));
+        var expected = new List<Guid>();
+        for (var i = 1; i <= 40; i++)
+        {
+            // 每列 SQL 超過 50 個 code units（100 位元組），位元組預算因此每頁只容得下一列候選。
+            var table = i % 9 == 0 || i == 1 ? "Lib_Reader" : "Lib_Tag";
+            await store.Process(repository, store.Capture(i, $"SELECT {i:D3}, N'padding padding padding' FROM {table};", seconds: i), Token);
+        }
+        var all = (await repository.ReadHistoryAsync(new SqlHistoryRequest(200, SqlHistoryFilter.Executions), Token)).Items;
+        Assert.Equal(40, all.Count);
+        var perPage = bytes == long.MaxValue ? candidates : 1;
+        var ids = new HashSet<Guid>();
+        var actual = new List<Guid>();
+        string? cursor = null;
+        var boundary = DateTimeOffset.MaxValue;
+        var partial = 0;
+        do
+        {
+            var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(2, SqlHistoryFilter.Executions, "Lib_Reader", cursor: cursor), Token);
+            Assert.InRange(page.Items.Count, 0, 2);
+            foreach (var item in page.Items) { Assert.True(ids.Add(item.ItemId)); actual.Add(item.ItemId); }
+            if (page.IsSearchPartial)
+            {
+                partial++;
+                Assert.NotNull(page.NextCursor);
+                var through = page.SearchedThrough ?? throw new InvalidOperationException("History 部分搜尋必須回報時間。");
+                // 這一頁實際檢查過的候選就是 [through, 上一頁邊界) 之間的列，數量不得超過預算。
+                Assert.InRange(all.Count(item => item.CreatedAt >= through && item.CreatedAt < boundary), 1, perPage);
+                Assert.All(page.Items, item => Assert.True(item.CreatedAt >= through));
+                boundary = through;
+            }
+            else Assert.Null(page.SearchedThrough);
+            cursor = page.NextCursor;
+        } while (cursor != null);
+        Assert.Equal(all.Where(item => item.Preview.Contains("Lib_Reader")).Select(item => item.ItemId), actual);
+        Assert.True(partial >= 40 / perPage - 1, partial.ToString());
+    }
+
+    [Fact]
+    public async Task SearchWithoutAnyMatchStopsAtBudgetAndReportsProgress()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, searchBudget: new SqliteSearchBudget(5, long.MaxValue));
+        for (var i = 1; i <= 12; i++) await store.Process(repository, store.Capture(i, $"SELECT {i} FROM Lib_Tag;", seconds: i), Token);
+        var first = await repository.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "DoesNotExist"), Token);
+        Assert.Empty(first.Items);
+        Assert.True(first.IsSearchPartial);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(8), first.SearchedThrough);
+        var second = await repository.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "DoesNotExist", cursor: first.NextCursor), Token);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(3), second.SearchedThrough);
+        // 剩下兩列不到預算：掃完就是真正的結尾，不留一個只會回空頁的「繼續搜尋」。
+        var last = await repository.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "DoesNotExist", cursor: second.NextCursor), Token);
+        Assert.Empty(last.Items);
+        Assert.False(last.IsSearchPartial);
+        Assert.Null(last.NextCursor);
+        // 游標指紋照舊綁定搜尋字串。
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(
+            new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "DoesNot", cursor: first.NextCursor), Token));
+    }
+
+    [Fact]
+    public async Task CursorCannotBeReusedWithDifferentFiltersOrDatabase()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var i = 1; i <= 3; i++) await store.Process(repository, store.Capture(i), Token);
+        var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(1, SqlHistoryFilter.Executions), Token);
+        Assert.NotNull(page.NextCursor);
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(
+            new SqlHistoryRequest(1, SqlHistoryFilter.Executions, server: "LibraryServer", cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(new SqlHistoryRequest(1, cursor: "!invalid!"), Token));
+        using var other = new SqliteTestStore();
+        var otherRepository = await other.Open(Token);
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => otherRepository.ReadHistoryAsync(
+            new SqlHistoryRequest(1, SqlHistoryFilter.Executions, cursor: page.NextCursor), Token));
+        Assert.Equal(2, (await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions, cursor: page.NextCursor), Token)).Items.Count);
+    }
+
+    [Fact]
+    public async Task CanceledQueriesAndCommitsDoNotWriteAnything()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.ReadHistoryAsync(new SqlHistoryRequest(20), cancellation.Token));
+        var write = new SqlCapturePlanner().Prepare(store.Capture(), null, SqliteTestStore.Policy);
+        Assert.NotNull(write);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.CommitAsync(write, null, cancellation.Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contents;"));
+    }
+
+    [Fact]
+    public async Task BusyWriterFailsWithinConfiguredTimeoutWithoutPartialData()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
+        using var blocker = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
+        blocker.Open();
+        using var transaction = blocker.BeginTransaction(deferred: false);
+        var error = await Assert.ThrowsAsync<SqliteException>(() => store.Process(repository, store.Capture(), Token));
+        Assert.Equal(5, error.SqliteErrorCode);
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contents;"));
+    }
+
+    [Fact]
+    public async Task FilteredKeysetCanUseCompositeIndexWithoutSortingEntireHistory()
+    {
+        using var store = new SqliteTestStore();
+        await store.Open(Token);
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = @"EXPLAIN QUERY PLAN SELECT EntryKey FROM History WHERE Server='LibraryServer' AND DatabaseName='Library'
+AND (CreatedAt,EntryKey) < (100,'e00000000000000000000000000000000') ORDER BY CreatedAt DESC,EntryKey DESC LIMIT 20;";
+        using (var reader = command.ExecuteReader())
+        {
+            var plans = new List<string>();
+            while (reader.Read()) plans.Add(reader.GetString(3));
+            Assert.Contains(plans, plan => plan.Contains("IX_History_ServerDatabaseTime"));
+            Assert.DoesNotContain(plans, plan => plan.Contains("TEMP B-TREE"));
+        }
+        // 實際分頁查詢（含搜尋時帶出的 SqlBytes）在各種篩選組合下都要沿時間索引串流，搜尋預算才限制得了讀入的 BLOB。
+        var filters = new[] { "h.Kind=1", "h.Server='LibraryServer'", "h.DatabaseName='Library'", "h.CreatedAt >= 1", "h.CreatedAt < 100",
+            "(h.CreatedAt, h.EntryKey) < (100, 'e00000000000000000000000000000000')" };
+        for (var mask = 0; mask < 1 << filters.Length; mask++)
+        {
+            var conditions = filters.Where((_, index) => (mask & (1 << index)) != 0).ToArray();
+            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteCaptureStore.HistoryPageSql(conditions, includeSql: true);
+            command.Parameters.Clear();
+            command.Parameters.AddWithValue("$limit", 2001);
+            using var reader = command.ExecuteReader();
+            var plans = new List<string>();
+            while (reader.Read()) plans.Add(reader.GetString(3));
+            Assert.DoesNotContain(plans, plan => plan.Contains("TEMP B-TREE"));
+        }
+    }
+}

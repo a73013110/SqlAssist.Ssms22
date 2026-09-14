@@ -29,7 +29,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryList.cs" Link="Product\UI\SqlMemoryList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemorySplitView.cs" Link="Product\UI\SqlMemorySplitView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\QueryMemory\QueryMemoryRow.cs" Link="Product\QueryMemory\QueryMemoryRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Queries.cs" Link="Product\UI\SqlAssistChrome.Queries.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextEditor.cs" Link="Product\UI\SqlTextEditor.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />

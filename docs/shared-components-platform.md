@@ -32,6 +32,6 @@
 | 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Editor/NotificationHost.cs` |
 | 通知卡片本身（整個處理程序一張，在編輯區之間搬家） | `Ssms22/Editor/NotificationSurface.cs` |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |
-| Query Memory 的 SQLite 隔離載入 | `QueryMemory.Hosting/IsolatedQueryMemoryRepository.cs` |
-| SQL Memory 的設定、計時器與狀態列接線（邏輯在 Core 的 `QueryMemoryRuntime`） | `Ssms22/QueryMemory/QueryMemoryHost.cs` |
-| Query Memory 的宿主／封裝儲存自我測試 | `QueryMemory.Hosting/QueryMemoryStorageSelfTest.cs` |
+| SQL Memory 的 SQLite 隔離載入 | `SqlMemory.Isolation/IsolatedSqlMemoryStore.cs` |
+| SQL Memory 的設定、計時器與狀態列接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
+| SQL Memory 的宿主／封裝儲存自我測試 | `SqlMemory.Isolation/SqlMemoryStorageSelfTest.cs` |

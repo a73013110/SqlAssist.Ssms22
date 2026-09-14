@@ -117,7 +117,7 @@ internal sealed class SqlMetadataService : IDisposable
 
     /// <summary>記下 SSMS 給這個查詢視窗的識別。</summary>
     /// <summary>這個查詢視窗在 SSMS 眼裡的識別；還沒取得時為 null。</summary>
-    /// <remarks>查詢記憶用它向 <c>QueryMemoryConnections</c> 換出伺服器與資料庫名稱。</remarks>
+    /// <remarks>SQL Memory 用它向 <c>QueryWindowConnections</c> 換出伺服器與資料庫名稱。</remarks>
     public string? EditorMoniker
     {
         get

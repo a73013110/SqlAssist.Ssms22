@@ -156,13 +156,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{F15806
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Ssms22.Tests", "tests\SqlAssist.Ssms22.Tests\SqlAssist.Ssms22.Tests.csproj", "{8839E984-F130-4737-9033-1E2EA1E13BD4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.QueryMemory.Sqlite", "src\SqlAssist.QueryMemory.Sqlite\SqlAssist.QueryMemory.Sqlite.csproj", "{E73609AA-07E9-42FA-9C94-8F285362E099}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.SqlMemory.Sqlite", "src\SqlAssist.SqlMemory.Sqlite\SqlAssist.SqlMemory.Sqlite.csproj", "{E73609AA-07E9-42FA-9C94-8F285362E099}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.QueryMemory.Sqlite.Tests", "tests\SqlAssist.QueryMemory.Sqlite.Tests\SqlAssist.QueryMemory.Sqlite.Tests.csproj", "{8555DFCA-F2C6-4E5B-805E-90C81BA0CD68}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.SqlMemory.Sqlite.Tests", "tests\SqlAssist.SqlMemory.Sqlite.Tests\SqlAssist.SqlMemory.Sqlite.Tests.csproj", "{8555DFCA-F2C6-4E5B-805E-90C81BA0CD68}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.QueryMemory.Probe", "tools\SqlAssist.QueryMemory.Probe\SqlAssist.QueryMemory.Probe.csproj", "{41E8AC05-F1F2-4FDD-94FB-5CC3F2B57732}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.SqlMemory.Probe", "tools\SqlAssist.SqlMemory.Probe\SqlAssist.SqlMemory.Probe.csproj", "{41E8AC05-F1F2-4FDD-94FB-5CC3F2B57732}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.QueryMemory.Hosting", "src\SqlAssist.QueryMemory.Hosting\SqlAssist.QueryMemory.Hosting.csproj", "{E0630509-E176-46DE-B438-FA4EA7B08968}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.SqlMemory.Isolation", "src\SqlAssist.SqlMemory.Isolation\SqlAssist.SqlMemory.Isolation.csproj", "{E0630509-E176-46DE-B438-FA4EA7B08968}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

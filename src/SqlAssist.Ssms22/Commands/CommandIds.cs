@@ -48,17 +48,17 @@ internal static class CommandIds
     public const int SurroundWith = 0x020B;
 
     /// <summary>只用內建資料驗證真正宿主內的 SQLite 載入；不擷取使用者 SQL。</summary>
-    public const int ProbeQueryMemory = 0x020C;
+    public const int SqlMemorySelfTest = 0x020C;
 
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
 
     /// <summary>
-    /// 查詢記憶的手動整理，掛在設定頁的「查詢記憶」分類上（註冊檔寫成十進位的 525）。
+    /// SQL Memory 的手動整理，掛在設定頁的「SQL Memory」分類上（註冊檔寫成十進位的 525）。
     /// </summary>
     /// <remarks>完整 VACUUM 只由使用者按；背景排程只做 WAL 截斷。</remarks>
-    public const int CompactQueryMemory = 0x020D;
-    public const int ShowQueryMemory = 0x020E;
+    public const int CompactSqlMemory = 0x020D;
+    public const int ShowSqlHistory = 0x020E;
     public const int ShowSqlFavorites = 0x020F;
 
     public const int PickBlockAccent = 0x0210;

@@ -22,7 +22,7 @@
 | `Scripting/` | 指令碼選項、三組風格與它們的序列化 |
 | `Diagnostics/` | 版本、健康檢查與匿名診斷摘要 |
 | `Json/` | 最小 JSON 讀寫（Snippet 檔與註冊檔測試用） |
-| `QueryMemory/` | SQL Memory 契約、版本引擎、背景寫入、維護策略、宿主協調與瀏覽器模型 |
+| `SqlMemory/` | SQL Memory 契約、版本引擎、背景寫入、維護策略、宿主協調與瀏覽器模型 |
 
 ## SqlAssist.Metadata（netstandard2.0，只依賴 `System.Data`）
 
@@ -39,8 +39,8 @@
 
 | 專案 | 職責 |
 | --- | --- |
-| `SqlAssist.QueryMemory.Sqlite` | `SqliteDatabase`（連線、pragma、schema 身分）與各聚合的 store：擷取與歷程、收藏、維護、租約 |
-| `SqlAssist.QueryMemory.Hosting` | 隔離 AppDomain、跨界 worker 與儲存自我測試 |
+| `SqlAssist.SqlMemory.Sqlite` | `SqliteDatabase`（連線、pragma、schema 身分）與各聚合的 store：擷取與歷程、收藏、維護、租約 |
+| `SqlAssist.SqlMemory.Isolation` | 隔離 AppDomain、跨界 worker 與儲存自我測試 |
 
 ## SqlAssist.Ssms22（net48 VSIX，只做接線）
 
@@ -57,5 +57,5 @@
 | `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 |
 | `Commands/` | 命令識別碼、工具選單與診斷視窗 |
 | `ResultGrid/` | 讀取選取範圍並輸出到視窗或剪貼簿 |
-| `QueryMemory/` | SQL Memory 的設定與計時器接線、編輯器擷取事件、工具窗與對話框 |
+| `SqlMemory/` | SQL Memory 的設定與計時器接線、編輯器擷取事件、工具窗與對話框 |
 | `UI/` | 全擴充共用外觀與佈景筆刷 |

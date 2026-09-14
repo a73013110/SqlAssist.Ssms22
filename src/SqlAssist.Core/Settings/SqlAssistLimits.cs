@@ -78,80 +78,80 @@ public static class SqlAssistLimits
         Clamp(value, MinimumPreviewHeight, MaximumPreviewHeight, DefaultPreviewHeight);
 
     /// <summary>停止輸入多久之後記下草稿；再短就變成每按一次鍵排一次工作。</summary>
-    public const int MinimumQueryMemoryIdleSeconds = 1;
+    public const int MinimumSqlMemoryIdleSeconds = 1;
 
-    public const int MaximumQueryMemoryIdleSeconds = 120;
+    public const int MaximumSqlMemoryIdleSeconds = 120;
 
-    public const int DefaultQueryMemoryIdleSeconds = 5;
+    public const int DefaultSqlMemoryIdleSeconds = 5;
 
-    public const int MinimumQueryMemoryAutoRevisionMinutes = 1;
+    public const int MinimumSqlMemoryAutoRevisionMinutes = 1;
 
-    public const int MaximumQueryMemoryAutoRevisionMinutes = 480;
+    public const int MaximumSqlMemoryAutoRevisionMinutes = 480;
 
-    public const int DefaultQueryMemoryAutoRevisionMinutes = 10;
+    public const int DefaultSqlMemoryAutoRevisionMinutes = 10;
 
-    public const int MinimumQueryMemoryRetentionDays = 1;
+    public const int MinimumSqlMemoryRetentionDays = 1;
 
     /// <summary>十年；再長與「不限」沒有分別，而分級收緊會需要更多輪才追得上容量。</summary>
-    public const int MaximumQueryMemoryRetentionDays = 3650;
+    public const int MaximumSqlMemoryRetentionDays = 3650;
 
-    public const int DefaultQueryMemoryDraftRetentionDays = 30;
+    public const int DefaultSqlMemoryDraftRetentionDays = 30;
 
-    public const int DefaultQueryMemoryExecutionRetentionDays = 180;
+    public const int DefaultSqlMemoryExecutionRetentionDays = 180;
 
     /// <summary>未存檔草稿的期限另計；它保護的是當機後還救得回來的內容，不是歷程。</summary>
-    public const int MaximumQueryMemoryUnsavedDraftRetentionDays = 365;
+    public const int MaximumSqlMemoryRecoveryRetentionDays = 365;
 
-    public const int DefaultQueryMemoryUnsavedDraftRetentionDays = 7;
+    public const int DefaultSqlMemoryRecoveryRetentionDays = 7;
 
-    public const int MinimumQueryMemoryExecutions = 100;
+    public const int MinimumSqlMemoryExecutions = 100;
 
-    public const int MaximumQueryMemoryExecutions = 1000000;
+    public const int MaximumSqlMemoryExecutions = 1000000;
 
-    public const int DefaultQueryMemoryExecutions = 10000;
+    public const int DefaultSqlMemoryExecutions = 10000;
 
-    public const int MinimumQueryMemorySessionRevisions = 5;
+    public const int MinimumSqlMemorySessionRevisions = 5;
 
-    public const int MaximumQueryMemorySessionRevisions = 5000;
+    public const int MaximumSqlMemorySessionRevisions = 5000;
 
-    public const int DefaultQueryMemorySessionRevisions = 50;
+    public const int DefaultSqlMemorySessionRevisions = 50;
 
-    public const int MinimumQueryMemoryFavoriteRevisions = 1;
+    public const int MinimumSqlMemoryFavoriteRevisions = 1;
 
-    public const int MaximumQueryMemoryFavoriteRevisions = 1000;
+    public const int MaximumSqlMemoryFavoriteRevisions = 1000;
 
-    public const int DefaultQueryMemoryFavoriteRevisions = 20;
+    public const int DefaultSqlMemoryFavoriteRevisions = 20;
 
     /// <summary>維護間隔；比五分鐘更密只會讓同一批候選被反覆巡過。</summary>
-    public const int MinimumQueryMemoryMaintenanceMinutes = 5;
+    public const int MinimumSqlMemoryMaintenanceMinutes = 5;
 
-    public const int MaximumQueryMemoryMaintenanceMinutes = 1440;
+    public const int MaximumSqlMemoryMaintenanceMinutes = 1440;
 
-    public const int DefaultQueryMemoryMaintenanceMinutes = 60;
+    public const int DefaultSqlMemoryMaintenanceMinutes = 60;
 
-    public static int ClampQueryMemoryIdleSeconds(int value) =>
-        Clamp(value, MinimumQueryMemoryIdleSeconds, MaximumQueryMemoryIdleSeconds);
+    public static int ClampSqlMemoryIdleSeconds(int value) =>
+        Clamp(value, MinimumSqlMemoryIdleSeconds, MaximumSqlMemoryIdleSeconds);
 
-    public static int ClampQueryMemoryAutoRevisionMinutes(int value) =>
-        Clamp(value, MinimumQueryMemoryAutoRevisionMinutes, MaximumQueryMemoryAutoRevisionMinutes);
+    public static int ClampSqlMemoryAutoRevisionMinutes(int value) =>
+        Clamp(value, MinimumSqlMemoryAutoRevisionMinutes, MaximumSqlMemoryAutoRevisionMinutes);
 
-    public static int ClampQueryMemoryRetentionDays(int value) =>
-        Clamp(value, MinimumQueryMemoryRetentionDays, MaximumQueryMemoryRetentionDays);
+    public static int ClampSqlMemoryRetentionDays(int value) =>
+        Clamp(value, MinimumSqlMemoryRetentionDays, MaximumSqlMemoryRetentionDays);
 
-    public static int ClampQueryMemoryUnsavedDraftRetentionDays(int value) =>
-        Clamp(value, MinimumQueryMemoryRetentionDays, MaximumQueryMemoryUnsavedDraftRetentionDays);
+    public static int ClampSqlMemoryRecoveryRetentionDays(int value) =>
+        Clamp(value, MinimumSqlMemoryRetentionDays, MaximumSqlMemoryRecoveryRetentionDays);
 
-    public static int ClampQueryMemoryExecutions(int value) =>
-        Clamp(value, MinimumQueryMemoryExecutions, MaximumQueryMemoryExecutions);
+    public static int ClampSqlMemoryExecutions(int value) =>
+        Clamp(value, MinimumSqlMemoryExecutions, MaximumSqlMemoryExecutions);
 
-    public static int ClampQueryMemorySessionRevisions(int value) =>
-        Clamp(value, MinimumQueryMemorySessionRevisions, MaximumQueryMemorySessionRevisions);
+    public static int ClampSqlMemorySessionRevisions(int value) =>
+        Clamp(value, MinimumSqlMemorySessionRevisions, MaximumSqlMemorySessionRevisions);
 
-    public static int ClampQueryMemoryFavoriteRevisions(int value) =>
-        Clamp(value, MinimumQueryMemoryFavoriteRevisions, MaximumQueryMemoryFavoriteRevisions);
+    public static int ClampSqlMemoryFavoriteRevisions(int value) =>
+        Clamp(value, MinimumSqlMemoryFavoriteRevisions, MaximumSqlMemoryFavoriteRevisions);
 
-    public static int ClampQueryMemoryMaintenanceMinutes(int value) =>
-        Clamp(value, MinimumQueryMemoryMaintenanceMinutes, MaximumQueryMemoryMaintenanceMinutes);
+    public static int ClampSqlMemoryMaintenanceMinutes(int value) =>
+        Clamp(value, MinimumSqlMemoryMaintenanceMinutes, MaximumSqlMemoryMaintenanceMinutes);
 
     private static int Clamp(int value, int minimum, int maximum) =>
         Math.Min(Math.Max(value, minimum), maximum);

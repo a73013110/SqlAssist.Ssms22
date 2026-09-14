@@ -17,7 +17,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
-using SqlAssist.Ssms22.QueryMemory;
+using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.ResultGrid;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.Snippets;
@@ -82,19 +82,19 @@ internal sealed class SqlAssistCommands
 
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
-        AddCommand(CommandIds.ShowQueryMemory, (_, _) => QueryMemoryToolWindow.Show(_package));
-        AddCommand(CommandIds.ShowSqlFavorites, (_, _) => QueryMemoryToolWindow.Show(_package, favorites: true));
+        AddCommand(CommandIds.ShowSqlHistory, (_, _) => SqlMemoryToolWindow.Show(_package));
+        AddCommand(CommandIds.ShowSqlFavorites, (_, _) => SqlMemoryToolWindow.Show(_package, favorites: true));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
-        AddCommand(CommandIds.ProbeQueryMemory, (_, _) => SqlAssistQueryMemoryCommand.Execute(_package),
-            () => !SqlAssistQueryMemoryCommand.IsRunning,
+        AddCommand(CommandIds.SqlMemorySelfTest, (_, _) => SqlAssistSqlMemorySelfTestCommand.Execute(_package),
+            () => !SqlAssistSqlMemorySelfTestCommand.IsRunning,
             isVisible: () => SqlAssistSettingsStore.Current.VerboseLogging);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
-        // 查詢記憶沒有啟用時沒有資料庫可整理，按鈕變灰而不是按下去才說失敗。
-        AddCommand(CommandIds.CompactQueryMemory,
-            (_, _) => SqlAssistQueryMemoryCompactCommand.Execute(_package),
-            () => QueryMemoryHost.Runtime.IsCapturing && !SqlAssistQueryMemoryCompactCommand.IsRunning);
+        // SQL Memory 沒有啟用時沒有資料庫可整理，按鈕變灰而不是按下去才說失敗。
+        AddCommand(CommandIds.CompactSqlMemory,
+            (_, _) => SqlAssistSqlMemoryCompactCommand.Execute(_package),
+            () => SqlMemoryHost.Runtime.IsCapturing && !SqlAssistSqlMemoryCompactCommand.IsRunning);
         AddColorCommand(CommandIds.PickBlockAccent, SqlAssistMonikers.BlockAccentColor, s => s.BlockAccentColor, ThemeBrush.AccentBorder);
         AddColorCommand(CommandIds.PickBlockKeywordForeground, SqlAssistMonikers.BlockKeywordForeground, s => s.BlockKeywordForeground, ThemeBrush.BlockKeywordForeground);
         AddColorCommand(CommandIds.PickBlockKeywordBackground, SqlAssistMonikers.BlockKeywordBackground, s => s.BlockKeywordBackground, ThemeBrush.BlockKeywordBackground);
