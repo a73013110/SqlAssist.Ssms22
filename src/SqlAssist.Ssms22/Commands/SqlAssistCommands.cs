@@ -94,7 +94,7 @@ internal sealed class SqlAssistCommands
         // 查詢記憶沒有啟用時沒有資料庫可整理，按鈕變灰而不是按下去才說失敗。
         AddCommand(CommandIds.CompactQueryMemory,
             (_, _) => SqlAssistQueryMemoryCompactCommand.Execute(_package),
-            () => QueryMemoryHost.IsCapturing && !SqlAssistQueryMemoryCompactCommand.IsRunning);
+            () => QueryMemoryHost.Runtime.IsCapturing && !SqlAssistQueryMemoryCompactCommand.IsRunning);
         AddColorCommand(CommandIds.PickBlockAccent, SqlAssistMonikers.BlockAccentColor, s => s.BlockAccentColor, ThemeBrush.AccentBorder);
         AddColorCommand(CommandIds.PickBlockKeywordForeground, SqlAssistMonikers.BlockKeywordForeground, s => s.BlockKeywordForeground, ThemeBrush.BlockKeywordForeground);
         AddColorCommand(CommandIds.PickBlockKeywordBackground, SqlAssistMonikers.BlockKeywordBackground, s => s.BlockKeywordBackground, ThemeBrush.BlockKeywordBackground);

@@ -164,7 +164,7 @@ public static class QueryMemoryStorageSelfTest
             token.ThrowIfCancellationRequested();
             // 每一批都往前五分鐘：排程說可以跑，游標才輪得到下一段。
             var result = await runner.RunOnceAsync(now.AddMinutes(5 * tick), hostIdle: false,
-                sessionHeartbeatActive: true, token).ConfigureAwait(false);
+                sessionLeaseId: heartbeat.LeaseId, token).ConfigureAwait(false);
             Require(result.Outcome == QueryMemoryMaintenanceOutcome.Maintained, "排程取得維護租約");
             Require(result.Level == 0, "容量未超限時不進入壓力分級");
             if (runner.PendingWork) continue;
@@ -245,7 +245,7 @@ public static class QueryMemoryStorageSelfTest
         // 用另一台機器當擁有者：跨機器只認過期，同一次自我測試就能確定地走完回收那條路。
         var owner = new QueryMemoryLeaseOwner(Environment.MachineName + "-OFFLINE", Process.GetCurrentProcess().Id, start);
         var lease = await repository.OpenLeaseAsync(owner, start, token).ConfigureAwait(false);
-        Require(await repository.RenewLeaseAsync(start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
+        Require(await repository.RenewLeaseAsync(lease, start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
         var session = new QuerySession(Guid.NewGuid(), document.DocumentId, start);
         var drafts = new QueryMemoryPolicy(true, false, TimeSpan.FromMinutes(10), false, true);
         await new QueryMemoryProcessor(repository, new QueryRevisionEngine(), leaseId: () => lease).ProcessAsync(
@@ -268,7 +268,7 @@ public static class QueryMemoryStorageSelfTest
             new QueryMemoryLeaseOwner(Environment.MachineName, current.Id, current.StartTime), DateTimeOffset.UtcNow);
         // 還在執行的本機程序永遠不該被判成可回收，否則使用者正在編輯的內容會消失。
         Require(reaper.Reclaimable(new[] { alive }).Count == 0, "還活著的程序不回收");
-        var expired = await repository.ReadExpiredLeasesAsync(DateTimeOffset.UtcNow, 10, token).ConfigureAwait(false);
+        var expired = await repository.ReadExpiredLeasesAsync(DateTimeOffset.UtcNow, 10, excludedLeaseId: null, token).ConfigureAwait(false);
         Require(expired.Count == 1 && expired[0].LeaseId == lease, "讀出過期租約");
         var reclaimable = reaper.Reclaimable(expired);
         Require(reclaimable.Count == 1 && reclaimable[0] == lease, "確認程序已不存在");

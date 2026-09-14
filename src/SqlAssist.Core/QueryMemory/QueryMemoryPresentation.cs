@@ -18,26 +18,18 @@ public static class QueryMemoryPresentation
         if (elapsed.TotalDays < 7) return (int)elapsed.TotalDays + " 天前 " + clock;
         return local.ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
     }
-}
 
-public enum QueryConnectionSort { Recent, Oldest, Alphabetical, ReverseAlphabetical }
-
-/// <summary>只讀連線名稱，不讀 SQL；每頁最多 100 個，與清單分頁互不影響。</summary>
-[Serializable]
-public sealed class QueryConnectionFacetRequest
-{
-    public QueryConnectionFacetRequest(bool favorites, FavoriteQueryScope scope, bool databases,
-        string? server = null, QueryConnectionSort sort = QueryConnectionSort.Recent, int offset = 0)
+    /// <summary>使用者動作失敗時的一行訊息；依分類說明下一步，不從例外字串猜原因。</summary>
+    /// <param name="action">動作名稱，例如「載入」「複製」。</param>
+    public static string Failure(string action, Exception error)
     {
-        if (!Enum.IsDefined(typeof(FavoriteQueryScope), scope)) throw new ArgumentOutOfRangeException(nameof(scope));
-        if (!Enum.IsDefined(typeof(QueryConnectionSort), sort)) throw new ArgumentOutOfRangeException(nameof(sort));
-        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        IsFavorites = favorites; Scope = scope; Databases = databases; Server = server; Sort = sort; Offset = offset;
+        if (error == null) throw new ArgumentNullException(nameof(error));
+        return error is QueryMemoryStorageException storage ? storage.Kind switch
+        {
+            QueryMemoryStorageErrorKind.Busy => action + "失敗：資料庫正被其他作業使用；稍後再試。",
+            QueryMemoryStorageErrorKind.InvalidCursor => action + "失敗：清單已變更；請重新整理。",
+            QueryMemoryStorageErrorKind.Unavailable => action + "未完成：" + storage.Message,
+            _ => action + "失敗：" + storage.Message,
+        } : action + "失敗：" + error.Message;
     }
-    public bool IsFavorites { get; }
-    public FavoriteQueryScope Scope { get; }
-    public bool Databases { get; }
-    public string? Server { get; }
-    public QueryConnectionSort Sort { get; }
-    public int Offset { get; }
 }

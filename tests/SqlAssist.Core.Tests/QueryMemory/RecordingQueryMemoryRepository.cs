@@ -57,6 +57,9 @@ internal sealed class RecordingQueryMemoryRepository : IQueryMemoryRepository
     public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken) =>
         throw new NotSupportedException("測試替身不實作正式儲存層的查詢。");
 
+    public Task<IReadOnlyList<string>> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("測試替身不實作正式儲存層的查詢。");
+
     public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken)
     {
         lock (_gate) return Task.FromResult(Contents.TryGetValue(contentId, out var content) ? content : null);

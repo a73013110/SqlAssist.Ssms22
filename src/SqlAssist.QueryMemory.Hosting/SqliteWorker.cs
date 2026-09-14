@@ -14,7 +14,7 @@ namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只在隔離 AppDomain 建立；跨界僅傳遞可序列化的 Core DTO，不傳 provider 物件。</summary>
 /// <remarks>
-/// 可由多條執行緒同時呼叫：repository 每個操作各開連線，並行交給 SQLite WAL 與交易。
+/// 可由多條執行緒同時呼叫：各 store 每個操作各開連線，並行交給 SQLite WAL 與交易。
 /// <see cref="CancellationToken"/> 無法跨 AppDomain，呼叫端先以 <see cref="BeginOperation"/> 取得識別碼，
 /// 取消時呼叫 <see cref="CancelOperation"/>；token 在 worker 端建立，KMP 掃描與交易內檢查才接得到。
 /// </remarks>
@@ -22,9 +22,8 @@ public sealed class SqliteWorker : MarshalByRefObject
 {
     private readonly ConcurrentDictionary<long, CancellationTokenSource> _operations = new();
     private long _nextOperation;
-    private SqliteQueryMemoryRepository? _repository;
-    private string? _databasePath;
-    private SqliteQueryMemoryRepository Repository => _repository ?? throw new InvalidOperationException("尚未初始化 SQLite worker。");
+    private Stores? _stores;
+    private Stores Storage => _stores ?? throw new InvalidOperationException("尚未初始化 SQLite worker。");
 
     public override object? InitializeLifetimeService() => null;
 
@@ -55,11 +54,11 @@ public sealed class SqliteWorker : MarshalByRefObject
     {
         Run(() =>
         {
-            _repository = SqliteQueryMemoryRepository.Open(path, CancellationToken.None, busyTimeoutSeconds,
-                searchCandidates.HasValue || searchBytes.HasValue
-                    ? new SqliteSearchBudget(searchCandidates ?? SqliteSearchBudget.Default.Candidates, searchBytes ?? SqliteSearchBudget.Default.Bytes)
-                    : null);
-            _databasePath = path;
+            var database = SqliteDatabase.Open(path, CancellationToken.None, busyTimeoutSeconds);
+            var budget = searchCandidates.HasValue || searchBytes.HasValue
+                ? new SqliteSearchBudget(searchCandidates ?? SqliteSearchBudget.Default.Candidates, searchBytes ?? SqliteSearchBudget.Default.Bytes)
+                : SqliteSearchBudget.Default;
+            _stores = new Stores(database, budget);
             return true;
         });
     }
@@ -83,48 +82,49 @@ public sealed class SqliteWorker : MarshalByRefObject
         if (_operations.TryRemove(id, out var source)) source.Dispose();
     }
 
-    public QuerySessionState? ReadSession(long operation, Guid sessionId) => Run(operation, token => Repository.ReadSession(sessionId, token));
+    public QuerySessionState? ReadSession(long operation, Guid sessionId) => Run(operation, token => Storage.Captures.ReadSession(sessionId, token));
     public QueryMemoryCommitResult Commit(long operation, QueryMemoryWrite write, string? leaseId) =>
-        Run(operation, token => Repository.Commit(write, leaseId, token));
+        Run(operation, token => Storage.Captures.Commit(write, leaseId, token));
     public QueryMemoryPage<QueryHistoryItem> ReadHistory(long operation, QueryHistoryRequest request) =>
-        Run(operation, token => Repository.ReadHistory(request, token));
+        Run(operation, token => Storage.Captures.ReadHistory(request, token));
     public string[] ReadConnectionFacets(long operation, QueryConnectionFacetRequest request) =>
-        Run(operation, token => Repository.ReadConnectionFacets(request, token));
-    public QueryContent? ReadContent(long operation, string contentId) => Run(operation, token => Repository.ReadContent(contentId, token));
+        Run(operation, token => Storage.Captures.ReadConnectionFacets(request, token));
+    public QueryContent? ReadContent(long operation, string contentId) => Run(operation, token => Storage.Captures.ReadContent(contentId, token));
 
-    public FavoriteQueryEntry? ReadFavoriteQuery(long operation, Guid id) => Run(operation, token => Repository.ReadFavoriteQuery(id, token));
+    public FavoriteQueryEntry? ReadFavoriteQuery(long operation, Guid id) => Run(operation, token => Storage.Favorites.ReadFavoriteQuery(id, token));
     public QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueries(long operation, FavoriteQueryRequest request) =>
-        Run(operation, token => Repository.ReadFavoriteQueries(request, token));
+        Run(operation, token => Storage.Favorites.ReadFavoriteQueries(request, token));
     public FavoriteQueryWriteResult WriteFavoriteQuery(long operation, FavoriteQueryWrite write) =>
-        Run(operation, token => Repository.WriteFavoriteQuery(write, token));
+        Run(operation, token => Storage.Favorites.WriteFavoriteQuery(write, token));
     public FavoriteQueryWriteResult DeleteFavoriteQuery(long operation, Guid id, Guid version) =>
-        Run(operation, token => Repository.DeleteFavoriteQuery(id, version, token));
+        Run(operation, token => Storage.Favorites.DeleteFavoriteQuery(id, version, token));
     public FavoriteQueryWriteResult EditFavoriteQuerySql(long operation, FavoriteQueryEdit edit) =>
-        Run(operation, token => Repository.EditFavoriteQuerySql(edit, token));
+        Run(operation, token => Storage.Favorites.EditFavoriteQuerySql(edit, token));
 
-    public QueryMemoryUsage ReadUsage(long operation) => Run(operation, token => Repository.ReadUsage(token));
+    public QueryMemoryUsage ReadUsage(long operation) => Run(operation, token => Storage.Maintenance.ReadUsage(token));
     public QueryMemoryMaintenanceResult Maintain(long operation, QueryMemoryMaintenanceRequest request) =>
-        Run(operation, token => Repository.Maintain(request, token));
+        Run(operation, token => Storage.Maintenance.Maintain(request, token));
     public QueryMemoryMaintenanceState? ReadMaintenanceState(long operation) =>
-        Run(operation, token => Repository.ReadMaintenanceState(token));
-    public string OpenLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now) =>
-        Run(operation, token => Repository.OpenLease(owner, now, token));
-    public bool RenewLease(long operation, DateTimeOffset now) => Run(operation, token => Repository.RenewLease(now, token));
-    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(long operation, DateTimeOffset before, int limit) =>
-        Run(operation, token => Repository.ReadExpiredLeases(before, limit, token));
-    public int ReleaseLeases(long operation, IReadOnlyList<string> leaseIds, DateTimeOffset before) =>
-        Run(operation, token => Repository.ReleaseLeases(leaseIds, before, token));
-    public bool TryAcquireMaintenanceLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
-        Run(operation, token => Repository.TryAcquireMaintenanceLease(owner, now, before, token));
-    public bool ReleaseMaintenanceLease(long operation, QueryMemoryLeaseOwner owner) =>
-        Run(operation, token => Repository.ReleaseMaintenanceLease(owner, token));
+        Run(operation, token => Storage.Maintenance.ReadMaintenanceState(token));
+    public QueryMemoryCheckpointResult Checkpoint(long operation) => Run(operation, token => Storage.Maintenance.Checkpoint(token));
+    public QueryMemoryUsage Compact(long operation) => Run(operation, token => Storage.Maintenance.Compact(token));
 
-    public QueryMemoryCheckpointResult Checkpoint(long operation) => Run(operation, token => Repository.Checkpoint(token));
-    public QueryMemoryUsage Compact(long operation) => Run(operation, token => Repository.Compact(token));
+    public string OpenLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now) =>
+        Run(operation, token => Storage.Leases.OpenLease(owner, now, token));
+    public bool RenewLease(long operation, string leaseId, DateTimeOffset now) =>
+        Run(operation, token => Storage.Leases.RenewLease(leaseId, now, token));
+    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(long operation, DateTimeOffset before, int limit, string? excludedLeaseId) =>
+        Run(operation, token => Storage.Leases.ReadExpiredLeases(before, limit, excludedLeaseId, token));
+    public int ReleaseLeases(long operation, IReadOnlyList<string> leaseIds, DateTimeOffset before) =>
+        Run(operation, token => Storage.Leases.ReleaseLeases(leaseIds, before, token));
+    public bool TryAcquireMaintenanceLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
+        Run(operation, token => Storage.Leases.TryAcquireMaintenanceLease(owner, now, before, token));
+    public bool ReleaseMaintenanceLease(long operation, QueryMemoryLeaseOwner owner) =>
+        Run(operation, token => Storage.Leases.ReleaseMaintenanceLease(owner, token));
 
     public string Probe() => Run(() =>
     {
-        var version = SqliteRuntime.Probe(_databasePath ?? throw new InvalidOperationException("未初始化。"));
+        var version = SqliteRuntime.Probe(Storage.Database.FilePath);
         var folder = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         var native = Process.GetCurrentProcess().Modules.Cast<ProcessModule>().Single(m =>
             string.Equals(Path.GetFileName(m.FileName), "e_sqlite3.dll", StringComparison.OrdinalIgnoreCase));
@@ -159,5 +159,24 @@ public sealed class SqliteWorker : MarshalByRefObject
             // provider 例外未必能跨 AppDomain 序列化；轉成 Core 的分類例外，保留原始錯誤碼，不吞掉交易錯誤。
             throw SqliteStorageErrors.Translate(error);
         }
+    }
+
+    /// <summary>同一個資料庫檔案上的四個聚合；一起建立、一起隨 AppDomain 卸載。</summary>
+    private sealed class Stores
+    {
+        public Stores(SqliteDatabase database, SqliteSearchBudget budget)
+        {
+            Database = database;
+            Captures = new SqliteCaptureStore(database, budget);
+            Favorites = new SqliteFavoriteStore(database, budget);
+            Maintenance = new SqliteMaintenanceStore(database);
+            Leases = new SqliteLeaseStore(database);
+        }
+
+        public SqliteDatabase Database { get; }
+        public SqliteCaptureStore Captures { get; }
+        public SqliteFavoriteStore Favorites { get; }
+        public SqliteMaintenanceStore Maintenance { get; }
+        public SqliteLeaseStore Leases { get; }
     }
 }

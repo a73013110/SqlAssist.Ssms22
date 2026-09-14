@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
@@ -53,7 +54,7 @@ public sealed class SqliteLeaseTests
         // 租約還在就代表那個程序可能還開著這份草稿，期限到了也不能回收。
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Recovery;"));
         var reaper = await store.Open(Token);
-        var expired = await reaper.ReadExpiredLeasesAsync(Start.AddDays(1), 10, Token);
+        var expired = await reaper.ReadExpiredLeasesAsync(Start.AddDays(1), 10, excludedLeaseId: null, Token);
         var found = Assert.Single(expired);
         Assert.Equal(lease, found.LeaseId);
         Assert.Equal(Owner, found.Owner);
@@ -85,7 +86,7 @@ public sealed class SqliteLeaseTests
     }
 
     [Fact]
-    public async Task ReleaseSkipsLeasesThatCameBackAndNeverTouchesTheMaintenanceLeaseOrItsOwn()
+    public async Task ReleaseSkipsLeasesThatCameBackAndNeverTouchesTheMaintenanceLeaseOrTheExcludedOne()
     {
         using var store = new SqliteTestStore();
         var owner = await store.Open(Token);
@@ -93,12 +94,15 @@ public sealed class SqliteLeaseTests
         var reaper = await store.Open(Token);
         var mine = await reaper.OpenLeaseAsync(Owner with { ProcessId = 77 }, Start, Token);
         Assert.True(await reaper.TryAcquireMaintenanceLeaseAsync(Owner with { ProcessId = 77 }, Start, Start, Token));
-        // 自己的租約與維護租約都不在過期清單裡，避免宿主把自己回收掉。
-        var expired = await reaper.ReadExpiredLeasesAsync(Start.AddDays(1), 10, Token);
+        // 維護租約永遠不在過期清單裡；呼叫端自己的租約要明確排除，儲存層不記得誰是「自己」。
+        Assert.Equal(new[] { lease, mine }.OrderBy(id => id, StringComparer.Ordinal),
+            (await reaper.ReadExpiredLeasesAsync(Start.AddDays(1), 10, excludedLeaseId: null, Token))
+                .Select(found => found.LeaseId).OrderBy(id => id, StringComparer.Ordinal));
+        var expired = await reaper.ReadExpiredLeasesAsync(Start.AddDays(1), 10, mine, Token);
         Assert.Equal(lease, Assert.Single(expired).LeaseId);
-        Assert.True(await owner.RenewLeaseAsync(Start.AddDays(2), Token));
+        Assert.True(await owner.RenewLeaseAsync(lease, Start.AddDays(2), Token));
         // 宿主判斷存活到這裡刪除之間，對方可能已經回來續約；交易內重查才不會誤刪。
-        Assert.Equal(0, await reaper.ReleaseLeasesAsync(new[] { lease, mine, "maintenance" }, Start.AddDays(1), Token));
+        Assert.Equal(0, await reaper.ReleaseLeasesAsync(new[] { lease, "maintenance" }, Start.AddDays(1), Token));
         Assert.Equal(3L, store.Scalar("SELECT count(*) FROM Leases;"));
         await Assert.ThrowsAsync<ArgumentNullException>(() => reaper.ReleaseLeasesAsync(null!, Start, Token));
         await Assert.ThrowsAsync<ArgumentException>(() => reaper.ReleaseLeasesAsync(new string[] { null! }, Start, Token));
@@ -167,15 +171,14 @@ public sealed class SqliteLeaseTests
     }
 
     [Fact]
-    public async Task FailedOpenLeaseLeavesNoIdentifierBehind()
+    public async Task FailedOpenLeaseLeavesNoRowBehind()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        // 插入後、提交前失敗：舊實作已經把識別碼寫進欄位，回滾後就指向不存在的租約列。
+        // 插入後、提交前失敗：交易回滾，不留下沒人持有識別碼的租約列。
         store.Scalar("CREATE TRIGGER Test_RejectLease BEFORE INSERT ON Leases BEGIN SELECT RAISE(ABORT,'測試：租約寫入失敗'); END;");
         await Assert.ThrowsAsync<SqliteException>(() => repository.OpenLeaseAsync(Owner, Start, Token));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.RenewLeaseAsync(Start, Token));
 
         store.Scalar("DROP TRIGGER Test_RejectLease;");
         var busy = await SqliteTestRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
@@ -185,9 +188,9 @@ public sealed class SqliteLeaseTests
             using var transaction = blocker.BeginTransaction(deferred: false);
             Assert.Equal(5, (await Assert.ThrowsAsync<SqliteException>(() => busy.OpenLeaseAsync(Owner, Start, Token))).SqliteErrorCode);
         }
-        await Assert.ThrowsAsync<InvalidOperationException>(() => busy.RenewLeaseAsync(Start, Token));
-        Assert.NotNull(await busy.OpenLeaseAsync(Owner, Start, Token));
-        Assert.True(await busy.RenewLeaseAsync(Start.AddMinutes(1), Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));
+        var opened = await busy.OpenLeaseAsync(Owner, Start, Token);
+        Assert.True(await busy.RenewLeaseAsync(opened, Start.AddMinutes(1), Token));
     }
 
     [Fact]
@@ -215,18 +218,21 @@ public sealed class SqliteLeaseTests
     }
 
     [Fact]
-    public async Task RenewNeedsAnOpenLeaseAndReportsWhenTheRowWasReclaimed()
+    public async Task RenewNeedsALeaseIdentifierAndReportsWhenTheRowWasReclaimed()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.RenewLeaseAsync(Start, Token));
+        await Assert.ThrowsAsync<ArgumentException>(() => repository.RenewLeaseAsync("", Start, Token));
+        await Assert.ThrowsAsync<ArgumentException>(() => repository.RenewLeaseAsync("maintenance", Start, Token));
+        Assert.False(await repository.RenewLeaseAsync(Guid.NewGuid().ToString("N"), Start, Token));
         var lease = await repository.OpenLeaseAsync(Owner, Start, Token);
-        Assert.True(await repository.RenewLeaseAsync(Start.AddMinutes(1), Token));
+        // 契約無狀態：另一個 repository 拿同一個識別碼也續得到，沒有藏在實作裡的「自己的租約」。
         var reaper = await store.Open(Token);
+        Assert.True(await reaper.RenewLeaseAsync(lease, Start.AddMinutes(1), Token));
         Assert.Equal(1, await reaper.ReleaseLeasesAsync(new[] { lease }, Start.AddDays(1), Token));
         // 續約失敗是「租約列已被回收」的唯一訊號；呼叫端必須重新開，不能繼續假裝擁有 Session。
-        Assert.False(await repository.RenewLeaseAsync(Start.AddMinutes(2), Token));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reaper.ReadExpiredLeasesAsync(Start, 0, Token));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reaper.ReadExpiredLeasesAsync(Start, 501, Token));
+        Assert.False(await repository.RenewLeaseAsync(lease, Start.AddMinutes(2), Token));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reaper.ReadExpiredLeasesAsync(Start, 0, null, Token));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reaper.ReadExpiredLeasesAsync(Start, 501, null, Token));
     }
 }

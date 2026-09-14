@@ -292,7 +292,7 @@ public sealed class SqliteFavoriteQueryTests
         // 搜尋在讀取端逐列比對；候選查詢仍不得退回全表掃描或暫存排序，否則預算限制不了讀入的 BLOB。
         foreach (var (after, includeSql) in new[] { (false, false), (true, false), (false, true), (true, true) })
         {
-            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteQueryMemoryRepository.FavoritePageSql(after, includeSql);
+            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteFavoriteStore.FavoritePageSql(after, includeSql);
             command.Parameters.Clear();
             foreach (var (name, value) in new (string, object)[] { ("$scope", 2), ("$server", "LibraryServer"),
                 ("$database", "Library"), ("$after", "f"), ("$limit", 20) })

@@ -76,13 +76,13 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
     private async Task ReadAsync()
     {
         var row = _row; var token = _read.Token;
-        var generation = QueryMemoryHost.Generation;
+        var generation = QueryMemoryHost.Runtime.Generation;
         if (row is null) return;
         try
         {
-            var content = await QueryMemoryHost.ReadContentAsync(row.ContentId, token);
+            var content = await QueryMemoryHost.Runtime.ReadContentAsync(row.ContentId, token);
             if (_disposed || token.IsCancellationRequested || !ReferenceEquals(row, _row) ||
-                !QueryMemoryHost.IsAvailable || generation != QueryMemoryHost.Generation) return;
+                !QueryMemoryHost.Runtime.IsAvailable || generation != QueryMemoryHost.Runtime.Generation) return;
             if (content is null) { Report("內容已被清理或不存在；請重新整理清單。"); return; }
             _viewer.SetSql(content.SqlText);
             _loaded = true; _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = true;
@@ -92,7 +92,7 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
         {
             // 舊讀取的錯誤與舊成功回應一樣，都不能污染目前選取。
             if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(row, _row) &&
-                QueryMemoryHost.IsAvailable && generation == QueryMemoryHost.Generation) Report("SQL 載入失敗：" + error.Message);
+                QueryMemoryHost.Runtime.IsAvailable && generation == QueryMemoryHost.Runtime.Generation) Report(QueryMemoryPresentation.Failure("SQL 載入", error));
         }
     }
 
@@ -112,7 +112,7 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
     {
         if (_row?.Favorite is not { } favorite) return;
         var selected = _row;
-        var generation = QueryMemoryHost.Generation;
+        var generation = QueryMemoryHost.Runtime.Generation;
         var token = _read.Token;
         if (!SqlAssistConfirmationWindow.Confirm(Window.GetWindow(this), "Remove from Favorites", $"刪除「{favorite.Query.Name}」？",
                 "只刪除此收藏，不連帶刪除歷史。", "Remove from Favorites")) return;
@@ -121,9 +121,9 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
         {
             try
             {
-                var result = await QueryMemoryHost.DeleteFavoriteQueryAsync(favorite.Query.FavoriteQueryId, favorite.Version, token);
+                var result = await QueryMemoryHost.Runtime.DeleteFavoriteQueryAsync(favorite.Query.FavoriteQueryId, favorite.Version, token);
                 if (_disposed || token.IsCancellationRequested || !ReferenceEquals(selected, _row) ||
-                    !QueryMemoryHost.IsAvailable || generation != QueryMemoryHost.Generation) return;
+                    !QueryMemoryHost.Runtime.IsAvailable || generation != QueryMemoryHost.Runtime.Generation) return;
                 if (result == FavoriteQueryWriteResult.Conflict) { Report("收藏已被修改或刪除；請重新整理後再操作。"); return; }
                 Select(null); _changed(); Report("收藏已刪除；歷史未刪除。");
             }
@@ -131,7 +131,7 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
             {
                 // 切頁或停用後，已派送的移除可以完成，但不能蓋掉另一筆預覽。
                 if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(selected, _row) &&
-                    QueryMemoryHost.IsAvailable && generation == QueryMemoryHost.Generation) Report("移除收藏未確認：" + error.Message);
+                    QueryMemoryHost.Runtime.IsAvailable && generation == QueryMemoryHost.Runtime.Generation) Report("移除收藏未確認：" + error.Message);
             }
             finally { if (!_disposed && ReferenceEquals(selected, _row)) _actions.IsEnabled = _loaded; }
         }, Report);
@@ -141,7 +141,7 @@ internal sealed class QueryMemoryDetail : UserControl, IDisposable
         var button = SqlAssistChrome.CreateQueryIconButton(icon, text);
         button.Click += (_, _) => QueryMemoryActions.Run(() =>
         {
-            if (_loaded && QueryMemoryHost.IsAvailable) action();
+            if (_loaded && QueryMemoryHost.Runtime.IsAvailable) action();
         }, Report);
         return button;
     }

@@ -47,12 +47,12 @@ public sealed class QueryMemoryLeaseHeartbeat
     /// <summary>開啟或續租；例外交給宿主，不假裝還持有租約。</summary>
     public async Task<string> BeatAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
-        if (LeaseId != null)
+        if (LeaseId is { } current)
         {
-            if (await _leases.RenewLeaseAsync(now, cancellationToken).ConfigureAwait(false))
+            if (await _leases.RenewLeaseAsync(current, now, cancellationToken).ConfigureAwait(false))
             {
                 _lastBeatAt = now;
-                return LeaseId;
+                return current;
             }
 
             // 先放掉再開：中途失敗時寧可回報「沒有租約」，也不要讓維護以為草稿還被保護著。

@@ -52,7 +52,7 @@ public sealed class IsolatedRepositoryTests
                 repository.ReadHistoryAsync(new QueryHistoryRequest(1, cursor: "!invalid!"), token));
             Assert.Equal(QueryMemoryStorageErrorKind.InvalidCursor, cursor.Kind);
             var argument = await Assert.ThrowsAsync<QueryMemoryStorageException>(() =>
-                repository.ReadExpiredLeasesAsync(SqliteTestStore.Start, 0, token));
+                repository.ReadExpiredLeasesAsync(SqliteTestStore.Start, 0, null, token));
             Assert.Equal(QueryMemoryStorageErrorKind.InvalidArgument, argument.Kind);
             Assert.Equal("ArgumentOutOfRangeException", argument.SourceType);
         }

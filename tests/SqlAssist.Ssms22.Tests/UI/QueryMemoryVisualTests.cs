@@ -154,7 +154,7 @@ public sealed class QueryMemoryVisualTests
             Assert.Equal("BranchB", filter.Value);
             var requested = 0;
             filter.OptionsRequested += (_, _) => requested++;
-            filter.SortOrder = 2;
+            filter.Sort = QueryConnectionSort.Alphabetical;
             Assert.Equal(1, requested); Assert.Equal(0, filter.Offset); Assert.Equal("BranchB", filter.Value);
             filter.SetOptions(new[] { "BranchA", "BranchB" });
             heading.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));

@@ -199,7 +199,7 @@ AND (CreatedAt,EntryKey) < (100,'e00000000000000000000000000000000') ORDER BY Cr
         for (var mask = 0; mask < 1 << filters.Length; mask++)
         {
             var conditions = filters.Where((_, index) => (mask & (1 << index)) != 0).ToArray();
-            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteQueryMemoryRepository.HistoryPageSql(conditions, includeSql: true);
+            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteCaptureStore.HistoryPageSql(conditions, includeSql: true);
             command.Parameters.Clear();
             command.Parameters.AddWithValue("$limit", 2001);
             using var reader = command.ExecuteReader();

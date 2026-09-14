@@ -42,7 +42,7 @@ internal static class SqlAssistQueryMemoryCompactCommand
         try
         {
             SqlAssistStatusBar.Show(package, "正在整理查詢記憶的資料庫檔案；可繼續編輯，新的紀錄會在整理完成後寫入。");
-            var usage = await QueryMemoryHost.CompactAsync(package.DisposalToken).ConfigureAwait(false);
+            var usage = await QueryMemoryHost.Runtime.CompactAsync(package.DisposalToken).ConfigureAwait(false);
             message = "查詢記憶的資料庫已整理完成。\n" +
                 $"資料庫檔案：{Megabytes(usage.DatabaseFileBytes)}\n" +
                 $"查詢內容：{Megabytes(usage.ContentBytes)}\n" +

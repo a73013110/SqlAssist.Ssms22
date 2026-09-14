@@ -29,12 +29,4 @@ public sealed class QueryMemoryPresentationTests
         Assert.Equal("2025/09/13 14:00", QueryMemoryPresentation.RelativeTime(now.AddYears(-1), now));
         Assert.StartsWith("剛剛", QueryMemoryPresentation.RelativeTime(now.AddMinutes(2), now));
     }
-
-    [Fact]
-    public void FacetRequestRejectsInvalidParameters()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, (FavoriteQueryScope)99, false));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, sort: (QueryConnectionSort)99));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, offset: -1));
-    }
 }

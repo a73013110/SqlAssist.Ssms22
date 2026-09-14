@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,7 +21,7 @@ public sealed class SqliteConnectionFacetTests
         await store.Process(repository, store.Capture(1, seconds: 0, context: new QueryConnectionContext("BranchB", "Archive")), Token);
         await store.Process(repository, store.Capture(2, seconds: 1, context: new QueryConnectionContext("BranchA", "Main")), Token);
         await store.Process(repository, store.Capture(3, seconds: 2, context: new QueryConnectionContext("BranchB", "Main")), Token);
-        async Task<string[]> Servers(QueryConnectionSort sort) => await repository.ReadConnectionFacetsAsync(new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, sort: sort), Token);
+        async Task<IReadOnlyList<string>> Servers(QueryConnectionSort sort) => await repository.ReadConnectionFacetsAsync(new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, sort: sort), Token);
         Assert.Equal(new[] { "BranchB", "BranchA" }, await Servers(QueryConnectionSort.Recent));
         Assert.Equal(new[] { "BranchB", "BranchA" }, await Servers(QueryConnectionSort.Oldest));
         Assert.Equal(new[] { "BranchA", "BranchB" }, await Servers(QueryConnectionSort.Alphabetical));
@@ -38,9 +39,9 @@ public sealed class SqliteConnectionFacetTests
         for (var i = 1; i <= 105; i++)
             await store.Process(repository, store.Capture(i, seconds: i, context: new QueryConnectionContext("Branch" + i.ToString("D3"), "Main")), Token);
         var first = await repository.ReadConnectionFacetsAsync(new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false), Token);
-        Assert.Equal(101, first.Length);
+        Assert.Equal(QueryConnectionFacetRequest.PageSize + 1, first.Count);
         var next = await repository.ReadConnectionFacetsAsync(new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false, offset: 100), Token);
-        Assert.Equal(5, next.Length);
+        Assert.Equal(5, next.Count);
         Assert.Equal(105, first.Take(100).Concat(next).Distinct().Count());
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => repository.ReadConnectionFacetsAsync(new QueryConnectionFacetRequest(false, FavoriteQueryScope.Global, false), new CancellationToken(true)));
     }

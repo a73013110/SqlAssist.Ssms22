@@ -95,11 +95,12 @@ public sealed class QueryMemoryMaintenanceRunner
         Volatile.Write(ref _reconfiguration, new Reconfiguration(plan, interval, pendingDelay, idleMinimumGap));
     }
 
-    /// <param name="sessionHeartbeatActive">
-    /// 本程序此刻是否真的持有 Session 心跳租約。false 時整輪都不憑年齡回收未存檔草稿。
+    /// <param name="sessionLeaseId">
+    /// 本程序此刻真的持有的 Session 心跳租約；null 時整輪都不憑年齡回收未存檔草稿。
+    /// 回收過期租約時也明確排除它，不靠儲存層記得「自己」是誰。
     /// </param>
     public async Task<QueryMemoryMaintenanceTick> RunOnceAsync(DateTimeOffset now, bool hostIdle,
-        bool sessionHeartbeatActive, CancellationToken cancellationToken)
+        string? sessionLeaseId, CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -116,7 +117,8 @@ public sealed class QueryMemoryMaintenanceRunner
                 return Skipped(QueryMemoryMaintenanceOutcome.LeaseHeldElsewhere, 0);
             }
 
-            var released = await ReleaseDeadLeasesAsync(expiredBefore, cancellationToken).ConfigureAwait(false);
+            var sessionHeartbeatActive = sessionLeaseId != null;
+            var released = await ReleaseDeadLeasesAsync(expiredBefore, sessionLeaseId, cancellationToken).ConfigureAwait(false);
             var state = await _maintenance.ReadMaintenanceStateAsync(cancellationToken).ConfigureAwait(false);
             var version = state?.Version ?? 0;
             var batch = _planner.Next(state, now, sessionHeartbeatActive);
@@ -204,9 +206,11 @@ public sealed class QueryMemoryMaintenanceRunner
         _deletedThisRound = 0;
     }
 
-    private async Task<int> ReleaseDeadLeasesAsync(DateTimeOffset expiredBefore, CancellationToken cancellationToken)
+    private async Task<int> ReleaseDeadLeasesAsync(DateTimeOffset expiredBefore, string? ownLeaseId,
+        CancellationToken cancellationToken)
     {
-        var expired = await _leases.ReadExpiredLeasesAsync(expiredBefore, _leaseBatchLimit, cancellationToken).ConfigureAwait(false);
+        var expired = await _leases.ReadExpiredLeasesAsync(expiredBefore, _leaseBatchLimit, ownLeaseId, cancellationToken)
+            .ConfigureAwait(false);
         if (expired.Count == 0) return 0;
         var reclaimable = _reaper.Reclaimable(expired);
         if (reclaimable.Count == 0) return 0;

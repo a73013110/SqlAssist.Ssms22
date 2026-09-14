@@ -76,7 +76,7 @@ SSMS 必須使用 `IsolatedQueryMemoryRepository`，不得直接建立 SQLite re
 native DLL 仍是程序層級；來源檢查失敗即拒絕，AppDomain 不保證 native 卸載或所有宿主功能共存。
 
 worker 以 `SqliteStorageErrors` 轉成不帶 inner exception 的分類例外，分類與錯誤碼跨 AppDomain 保留。
-SQLite repository 只有同步方法，僅 Hosting 與測試可見；隔離層每個操作只排一次背景，操作間不互斥，
+SQLite store 只有同步方法，僅 Hosting 與測試可見；隔離層每個操作只排一次背景，操作間不互斥，
 Dispose 拒絕新操作並等進行中的操作離開才卸載。取消以 operation id 觸發 worker 端的 token，
 中止提交前檢查點與 KMP 掃描；已提交照常回傳結果，VACUUM 開始後不可中斷。
 UI 仍須用選取／宿主世代拒絕晚到結果。

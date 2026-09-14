@@ -3,21 +3,27 @@ using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
+using static SqlAssist.QueryMemory.Sqlite.SqliteDatabase;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-internal sealed partial class SqliteQueryMemoryRepository
+/// <summary>Session 心跳租約與跨程序維護租約。沒有「自己的租約」欄位：識別碼一律由呼叫端傳入。</summary>
+internal sealed class SqliteLeaseStore
 {
     private const string LeaseColumns = "SELECT LeaseId,MachineName,ProcessId,ProcessStartTime,RenewedAt FROM Leases";
+
+    private readonly SqliteDatabase _database;
+
+    public SqliteLeaseStore(SqliteDatabase database) => _database = database ?? throw new ArgumentNullException(nameof(database));
 
     public string OpenLease(QueryMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken)
     {
         if (owner == null) throw new ArgumentNullException(nameof(owner));
         if (string.IsNullOrWhiteSpace(owner.MachineName)) throw new ArgumentException("租約缺少機器名稱。", nameof(owner));
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         cancellationToken.ThrowIfCancellationRequested();
-        // 同一個程序重開 repository 要沿用原本那一列，否則既有 Session 會留在沒人續心跳的租約上。
+        // 同一個程序重開儲存要沿用原本那一列，否則既有 Session 會留在沒人續心跳的租約上。
         string? lease;
         using (var existing = Command(connection, transaction, "SELECT LeaseId FROM Leases" +
             " WHERE MachineName=$machine AND ProcessId=$process AND ProcessStartTime=$started AND LeaseId<>$reserved;",
@@ -36,34 +42,33 @@ internal sealed partial class SqliteQueryMemoryRepository
         }
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
-        // 提交後才記住：忙碌或取消回滾時，欄位不能指向一個 Leases 裡不存在的識別碼。
-        LeaseId = lease;
         return lease;
     }
 
-    public bool RenewLease(DateTimeOffset now, CancellationToken cancellationToken)
+    public bool RenewLease(string leaseId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var lease = LeaseId ?? throw new InvalidOperationException("尚未開啟 Query Memory 租約。");
-        using var connection = Connect();
+        if (string.IsNullOrEmpty(leaseId)) throw new ArgumentException("缺少租約識別碼。", nameof(leaseId));
+        // 維護租約有自己的取得與交回流程；拿它當 Session 租約續約會讓過期判斷失真。
+        if (leaseId == SqliteSchema.MaintenanceLeaseId) throw new ArgumentException("維護租約不能當成 Session 租約續約。", nameof(leaseId));
+        using var connection = _database.Connect();
         cancellationToken.ThrowIfCancellationRequested();
         Execute(connection, null, "UPDATE Leases SET RenewedAt=$now WHERE LeaseId=$id;",
-            ("$id", lease), ("$now", Ticks(now)));
-        return ScalarLong(connection, null, "SELECT changes();") == 1;
+            ("$id", leaseId), ("$now", Ticks(now)));
+        return Changes(connection, null) == 1;
     }
 
-    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(DateTimeOffset expiredBefore, int limit,
+    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(DateTimeOffset expiredBefore, int limit, string? excludedLeaseId,
         CancellationToken cancellationToken)
     {
         if (limit < 1 || limit > 500) throw new ArgumentOutOfRangeException(nameof(limit));
-        var mine = LeaseId;
-        using var connection = Connect();
+        using var connection = _database.Connect();
         cancellationToken.ThrowIfCancellationRequested();
         // IX_Leases_Renewed 讓過期租約只掃描最舊的前幾列，不隨歷史租約數量成長。
         using var command = Command(connection, null, LeaseColumns +
-            " WHERE RenewedAt<$before AND LeaseId<>$reserved AND ($mine IS NULL OR LeaseId<>$mine)" +
+            " WHERE RenewedAt<$before AND LeaseId<>$reserved AND ($excluded IS NULL OR LeaseId<>$excluded)" +
             " ORDER BY RenewedAt LIMIT $limit;",
             ("$before", Ticks(expiredBefore)), ("$reserved", SqliteSchema.MaintenanceLeaseId),
-            ("$mine", mine), ("$limit", limit));
+            ("$excluded", excludedLeaseId), ("$limit", limit));
         using var reader = command.ExecuteReader();
         var leases = new List<QueryMemoryLease>();
         while (reader.Read())
@@ -74,20 +79,18 @@ internal sealed partial class SqliteQueryMemoryRepository
         return leases;
     }
 
-    public int ReleaseLeases(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore,
-        CancellationToken cancellationToken)
+    public int ReleaseLeases(IReadOnlyList<string> leaseIds, DateTimeOffset expiredBefore, CancellationToken cancellationToken)
     {
         if (leaseIds == null) throw new ArgumentNullException(nameof(leaseIds));
         if (leaseIds.Count > 500) throw new ArgumentOutOfRangeException(nameof(leaseIds));
-        var mine = LeaseId;
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         var released = 0;
         foreach (var leaseId in leaseIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (leaseId == null) throw new ArgumentException("租約清單含有空項目。", nameof(leaseIds));
-            if (leaseId == SqliteSchema.MaintenanceLeaseId || leaseId == mine) continue;
+            if (leaseId == SqliteSchema.MaintenanceLeaseId) continue;
             // IMMEDIATE 交易內重查過期；宿主判斷存活到這裡刪除之間，對方可能已經回來續約。
             using (var still = Command(connection, transaction,
                 "SELECT 1 FROM Leases WHERE LeaseId=$id AND RenewedAt<$before;",
@@ -107,7 +110,7 @@ internal sealed partial class SqliteQueryMemoryRepository
         DateTimeOffset expiredBefore, CancellationToken cancellationToken)
     {
         if (owner == null) throw new ArgumentNullException(nameof(owner));
-        using var connection = Connect();
+        using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         cancellationToken.ThrowIfCancellationRequested();
         QueryMemoryLease? held;
@@ -129,23 +132,24 @@ internal sealed partial class SqliteQueryMemoryRepository
     public bool ReleaseMaintenanceLease(QueryMemoryLeaseOwner owner, CancellationToken cancellationToken)
     {
         if (owner == null) throw new ArgumentNullException(nameof(owner));
-        using var connection = Connect();
+        using var connection = _database.Connect();
         cancellationToken.ThrowIfCancellationRequested();
         // 單一條件刪除本身是原子的；別人已經接手（三元組不同）就什麼都不動，共用狀態也不跟著清。
         Execute(connection, null, "DELETE FROM Leases WHERE LeaseId=$reserved AND MachineName=$machine" +
             " AND ProcessId=$process AND ProcessStartTime=$started;", OwnerParameters(owner));
-        return ScalarLong(connection, null, "SELECT changes();") == 1;
+        return Changes(connection, null) == 1;
     }
 
-    private static QueryMemoryLease ReadLease(SqliteDataReader reader) => new(reader.GetString(0),
-        new QueryMemoryLeaseOwner(reader.GetString(1), reader.GetInt32(2), Time(reader.GetInt64(3))),
-        Time(reader.GetInt64(4)));
-
-    private static (string Name, object? Value)[] OwnerParameters(QueryMemoryLeaseOwner owner) => new (string, object?)[]
+    /// <summary>維護批次在自己的交易內確認維護租約仍屬這個擁有者；參數名稱與這裡的 SQL 一致。</summary>
+    public static (string Name, object? Value)[] OwnerParameters(QueryMemoryLeaseOwner owner) => new (string, object?)[]
     {
         ("$machine", owner.MachineName), ("$process", owner.ProcessId),
         ("$started", Ticks(owner.ProcessStartTime)), ("$reserved", SqliteSchema.MaintenanceLeaseId),
     };
+
+    private static QueryMemoryLease ReadLease(SqliteDataReader reader) => new(reader.GetString(0),
+        new QueryMemoryLeaseOwner(reader.GetString(1), reader.GetInt32(2), Time(reader.GetInt64(3))),
+        Time(reader.GetInt64(4)));
 
     private static (string Name, object? Value)[] Append((string Name, object? Value)[] parameters,
         params (string Name, object? Value)[] extra)
