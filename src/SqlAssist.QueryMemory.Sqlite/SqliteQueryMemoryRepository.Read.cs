@@ -2,21 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-public sealed partial class SqliteQueryMemoryRepository
+internal sealed partial class SqliteQueryMemoryRepository
 {
-    public Task<QuerySessionState?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) => Task.Run(() =>
+    public QuerySessionState? ReadSession(Guid sessionId, CancellationToken cancellationToken)
     {
         using var connection = Connect();
         using var transaction = connection.BeginTransaction(deferred: true);
         cancellationToken.ThrowIfCancellationRequested();
         return ReadSession(connection, transaction, sessionId);
-    }, cancellationToken);
+    }
 
     private static QuerySessionState? ReadSession(SqliteConnection connection, SqliteTransaction transaction, Guid sessionId)
     {
@@ -54,38 +53,34 @@ FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.Revisio
     private static QueryConnectionContext? ReadContext(SqliteDataReader reader, int start) => reader.IsDBNull(start) ? null :
         new QueryConnectionContext(reader.GetString(start), reader.GetString(start + 1), StringOrNull(reader, start + 2));
 
-    public Task<QueryContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken)
+    public QueryContent? ReadContent(string contentId, CancellationToken cancellationToken)
     {
         if (contentId == null) throw new ArgumentNullException(nameof(contentId));
-        return Task.Run<QueryContent?>(() =>
-        {
-            using var connection = Connect();
-            using var command = Command(connection, null, "SELECT SqlBytes,Length,ContentHash FROM Contents WHERE ContentId=$id;", ("$id", contentId));
-            using var reader = command.ExecuteReader();
-            if (!reader.Read()) return null;
-            cancellationToken.ThrowIfCancellationRequested();
-            var content = QueryContent.Create(SqliteText.Decode((byte[])reader.GetValue(0)));
-            if (content.ContentId != contentId || content.Length != reader.GetInt64(1) || content.ContentHash != reader.GetString(2))
-                throw new InvalidDataException("SQL 內容完整性檢查失敗。");
-            return content;
-        }, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var connection = Connect();
+        using var command = Command(connection, null, "SELECT SqlBytes,Length,ContentHash FROM Contents WHERE ContentId=$id;", ("$id", contentId));
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) return null;
+        cancellationToken.ThrowIfCancellationRequested();
+        var content = QueryContent.Create(SqliteText.Decode((byte[])reader.GetValue(0)));
+        if (content.ContentId != contentId || content.Length != reader.GetInt64(1) || content.ContentHash != reader.GetString(2))
+            throw new InvalidDataException("SQL 內容完整性檢查失敗。");
+        return content;
     }
 
-    public Task<QueryMemoryPage<QueryHistoryItem>> ReadHistoryAsync(QueryHistoryRequest request, CancellationToken cancellationToken)
+    public QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request, CancellationToken cancellationToken)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
-        return Task.Run(() =>
+        cancellationToken.ThrowIfCancellationRequested();
+        try { return ReadHistoryPage(request, cancellationToken); }
+        catch (SqliteException) when (cancellationToken.IsCancellationRequested)
         {
-            try { return ReadHistory(request, cancellationToken); }
-            catch (SqliteException) when (cancellationToken.IsCancellationRequested)
-            {
-                // SQLite 會包裝 scalar function 的取消例外；對呼叫端仍保留取消語意。
-                throw new OperationCanceledException(cancellationToken);
-            }
-        }, cancellationToken);
+            // SQLite 會包裝 scalar function 的取消例外；對呼叫端仍保留取消語意。
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
-    private QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request, CancellationToken cancellationToken)
+    private QueryMemoryPage<QueryHistoryItem> ReadHistoryPage(QueryHistoryRequest request, CancellationToken cancellationToken)
     {
         var cursor = SqliteHistoryCursor.Decode(request, _storeId);
         using var connection = Connect();

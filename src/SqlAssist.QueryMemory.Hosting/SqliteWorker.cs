@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,8 +13,15 @@ using SqlAssist.QueryMemory.Sqlite;
 namespace SqlAssist.QueryMemory.Hosting;
 
 /// <summary>只在隔離 AppDomain 建立；跨界僅傳遞可序列化的 Core DTO，不傳 provider 物件。</summary>
+/// <remarks>
+/// 可由多條執行緒同時呼叫：repository 每個操作各開連線，並行交給 SQLite WAL 與交易。
+/// <see cref="CancellationToken"/> 無法跨 AppDomain，呼叫端先以 <see cref="BeginOperation"/> 取得識別碼，
+/// 取消時呼叫 <see cref="CancelOperation"/>；token 在 worker 端建立，KMP 掃描與交易內檢查才接得到。
+/// </remarks>
 public sealed class SqliteWorker : MarshalByRefObject
 {
+    private readonly ConcurrentDictionary<long, CancellationTokenSource> _operations = new();
+    private long _nextOperation;
     private SqliteQueryMemoryRepository? _repository;
     private string? _databasePath;
     private SqliteQueryMemoryRepository Repository => _repository ?? throw new InvalidOperationException("尚未初始化 SQLite worker。");
@@ -45,39 +53,65 @@ public sealed class SqliteWorker : MarshalByRefObject
     {
         Run(() =>
         {
-            _repository = SqliteQueryMemoryRepository.OpenAsync(path, CancellationToken.None, busyTimeoutSeconds).GetAwaiter().GetResult();
+            _repository = SqliteQueryMemoryRepository.Open(path, CancellationToken.None, busyTimeoutSeconds);
             _databasePath = path;
             return true;
         });
     }
 
-    public QuerySessionState? ReadSession(Guid sessionId) => Run(() => Repository.ReadSessionAsync(sessionId, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryCommitResult Commit(QueryMemoryWrite write, string? leaseId) =>
-        Run(() => Repository.CommitAsync(write, leaseId, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryPage<QueryHistoryItem> ReadHistory(QueryHistoryRequest request) => Run(() => Repository.ReadHistoryAsync(request, CancellationToken.None).GetAwaiter().GetResult());
-    public string[] ReadConnectionFacets(QueryConnectionFacetRequest request) => Run(() => Repository.ReadConnectionFacetsAsync(request, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryContent? ReadContent(string contentId) => Run(() => Repository.ReadContentAsync(contentId, CancellationToken.None).GetAwaiter().GetResult());
+    public long BeginOperation()
+    {
+        var id = Interlocked.Increment(ref _nextOperation);
+        _operations[id] = new CancellationTokenSource();
+        return id;
+    }
 
-    public FavoriteQueryEntry? ReadFavoriteQuery(Guid id) => Run(() => Repository.ReadFavoriteQueryAsync(id, CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueries(FavoriteQueryRequest request) => Run(() => Repository.ReadFavoriteQueriesAsync(request, CancellationToken.None).GetAwaiter().GetResult());
-    public FavoriteQueryWriteResult WriteFavoriteQuery(FavoriteQueryWrite write) => Run(() => Repository.WriteFavoriteQueryAsync(write, CancellationToken.None).GetAwaiter().GetResult());
-    public FavoriteQueryWriteResult DeleteFavoriteQuery(Guid id, Guid version) => Run(() => Repository.DeleteFavoriteQueryAsync(id, version, CancellationToken.None).GetAwaiter().GetResult());
-    public FavoriteQueryWriteResult EditFavoriteQuerySql(FavoriteQueryEdit edit) => Run(() => Repository.EditFavoriteQuerySqlAsync(edit, CancellationToken.None).GetAwaiter().GetResult());
+    /// <summary>未知或已結束的識別碼不做事；取消只是請求，是否已提交仍以操作回傳為準。</summary>
+    public void CancelOperation(long id)
+    {
+        if (_operations.TryGetValue(id, out var source)) source.Cancel();
+    }
 
-    public QueryMemoryUsage ReadUsage() => Run(() => Repository.ReadUsageAsync(CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryMaintenanceResult Maintain(QueryMemoryMaintenanceRequest request) =>
-        Run(() => Repository.MaintainAsync(request, CancellationToken.None).GetAwaiter().GetResult());
-    public string OpenLease(QueryMemoryLeaseOwner owner, DateTimeOffset now) => Run(() => Repository.OpenLeaseAsync(owner, now, CancellationToken.None).GetAwaiter().GetResult());
-    public bool RenewLease(DateTimeOffset now) => Run(() => Repository.RenewLeaseAsync(now, CancellationToken.None).GetAwaiter().GetResult());
-    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(DateTimeOffset before, int limit) =>
-        Run(() => Repository.ReadExpiredLeasesAsync(before, limit, CancellationToken.None).GetAwaiter().GetResult());
-    public int ReleaseLeases(IReadOnlyList<string> leaseIds, DateTimeOffset before) =>
-        Run(() => Repository.ReleaseLeasesAsync(leaseIds, before, CancellationToken.None).GetAwaiter().GetResult());
-    public bool TryAcquireMaintenanceLease(QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
-        Run(() => Repository.TryAcquireMaintenanceLeaseAsync(owner, now, before, CancellationToken.None).GetAwaiter().GetResult());
+    /// <remarks>呼叫端必須先解除取消註冊再結束，否則取消可能落在已處置的來源上。</remarks>
+    public void EndOperation(long id)
+    {
+        if (_operations.TryRemove(id, out var source)) source.Dispose();
+    }
 
-    public QueryMemoryCheckpointResult Checkpoint() => Run(() => Repository.CheckpointAsync(CancellationToken.None).GetAwaiter().GetResult());
-    public QueryMemoryUsage Compact() => Run(() => Repository.CompactAsync(CancellationToken.None).GetAwaiter().GetResult());
+    public QuerySessionState? ReadSession(long operation, Guid sessionId) => Run(operation, token => Repository.ReadSession(sessionId, token));
+    public QueryMemoryCommitResult Commit(long operation, QueryMemoryWrite write, string? leaseId) =>
+        Run(operation, token => Repository.Commit(write, leaseId, token));
+    public QueryMemoryPage<QueryHistoryItem> ReadHistory(long operation, QueryHistoryRequest request) =>
+        Run(operation, token => Repository.ReadHistory(request, token));
+    public string[] ReadConnectionFacets(long operation, QueryConnectionFacetRequest request) =>
+        Run(operation, token => Repository.ReadConnectionFacets(request, token));
+    public QueryContent? ReadContent(long operation, string contentId) => Run(operation, token => Repository.ReadContent(contentId, token));
+
+    public FavoriteQueryEntry? ReadFavoriteQuery(long operation, Guid id) => Run(operation, token => Repository.ReadFavoriteQuery(id, token));
+    public QueryMemoryPage<FavoriteQueryEntry> ReadFavoriteQueries(long operation, FavoriteQueryRequest request) =>
+        Run(operation, token => Repository.ReadFavoriteQueries(request, token));
+    public FavoriteQueryWriteResult WriteFavoriteQuery(long operation, FavoriteQueryWrite write) =>
+        Run(operation, token => Repository.WriteFavoriteQuery(write, token));
+    public FavoriteQueryWriteResult DeleteFavoriteQuery(long operation, Guid id, Guid version) =>
+        Run(operation, token => Repository.DeleteFavoriteQuery(id, version, token));
+    public FavoriteQueryWriteResult EditFavoriteQuerySql(long operation, FavoriteQueryEdit edit) =>
+        Run(operation, token => Repository.EditFavoriteQuerySql(edit, token));
+
+    public QueryMemoryUsage ReadUsage(long operation) => Run(operation, token => Repository.ReadUsage(token));
+    public QueryMemoryMaintenanceResult Maintain(long operation, QueryMemoryMaintenanceRequest request) =>
+        Run(operation, token => Repository.Maintain(request, token));
+    public string OpenLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now) =>
+        Run(operation, token => Repository.OpenLease(owner, now, token));
+    public bool RenewLease(long operation, DateTimeOffset now) => Run(operation, token => Repository.RenewLease(now, token));
+    public IReadOnlyList<QueryMemoryLease> ReadExpiredLeases(long operation, DateTimeOffset before, int limit) =>
+        Run(operation, token => Repository.ReadExpiredLeases(before, limit, token));
+    public int ReleaseLeases(long operation, IReadOnlyList<string> leaseIds, DateTimeOffset before) =>
+        Run(operation, token => Repository.ReleaseLeases(leaseIds, before, token));
+    public bool TryAcquireMaintenanceLease(long operation, QueryMemoryLeaseOwner owner, DateTimeOffset now, DateTimeOffset before) =>
+        Run(operation, token => Repository.TryAcquireMaintenanceLease(owner, now, before, token));
+
+    public QueryMemoryCheckpointResult Checkpoint(long operation) => Run(operation, token => Repository.Checkpoint(token));
+    public QueryMemoryUsage Compact(long operation) => Run(operation, token => Repository.Compact(token));
 
     public string Probe() => Run(() =>
     {
@@ -93,6 +127,20 @@ public sealed class SqliteWorker : MarshalByRefObject
                 throw new InvalidOperationException("SQLite provider 不是來自擴充目錄。");
         return "SQLite " + version + "；隔離 provider 與 native 路徑正確。";
     });
+
+    private T Run<T>(long operation, Func<CancellationToken, T> action)
+    {
+        if (!_operations.TryGetValue(operation, out var source))
+            throw new InvalidOperationException("SQL Memory 操作識別碼無效或已結束。");
+        var token = source.Token;
+        try { return action(token); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 例外帶的 token 屬於這個 AppDomain；只傳訊息回去，由隔離邊界換成呼叫端的 token。
+            throw new OperationCanceledException("SQL Memory 操作已取消。");
+        }
+        catch (Exception error) { throw SqliteStorageErrors.Translate(error); }
+    }
 
     private static T Run<T>(Func<T> action)
     {

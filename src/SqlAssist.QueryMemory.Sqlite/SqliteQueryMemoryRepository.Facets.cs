@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-public sealed partial class SqliteQueryMemoryRepository
+internal sealed partial class SqliteQueryMemoryRepository
 {
-    public Task<string[]> ReadConnectionFacetsAsync(QueryConnectionFacetRequest request, CancellationToken token) => Task.Run(() =>
+    public string[] ReadConnectionFacets(QueryConnectionFacetRequest request, CancellationToken token)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
+        token.ThrowIfCancellationRequested();
         using var connection = Connect();
         var column = request.Databases ? "h.DatabaseName" : "h.Server";
         var source = request.IsFavorites ? "FavoriteQueries h JOIN Revisions r ON r.RevisionId=h.CurrentRevisionId" : "History h";
@@ -33,5 +33,5 @@ public sealed partial class SqliteQueryMemoryRepository
         var names = new List<string>();
         while (reader.Read()) { token.ThrowIfCancellationRequested(); names.Add(reader.GetString(0)); }
         return names.ToArray();
-    }, token);
+    }
 }

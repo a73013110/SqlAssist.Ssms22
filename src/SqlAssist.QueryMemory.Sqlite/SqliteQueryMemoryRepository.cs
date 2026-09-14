@@ -2,18 +2,29 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
 /// <summary>每次操作使用獨立連線；不保留 pool，關閉後不鎖住資料庫或妨礙 VSIX 卸載。</summary>
-public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository, IFavoriteQueryRepository, IQueryMemoryMaintenanceRepository
+/// <remarks>
+/// 只提供同步方法，由隔離 AppDomain 的 worker 直接呼叫；非同步與排背景只在隔離邊界做一次，
+/// 不再「Task.Run 包 I/O、worker 又同步等待」而一個操作占兩條執行緒。
+/// 除了租約識別碼之外沒有可變狀態，可由多條執行緒同時呼叫；並行交給 SQLite WAL 與交易。
+/// </remarks>
+internal sealed partial class SqliteQueryMemoryRepository
 {
     private readonly string _connectionString;
     private string _storeId = "";
     private string? _leaseId;
+
+    /// <summary>心跳重開租約時換值；其他操作只在開始時讀一次快照。</summary>
+    private string? LeaseId
+    {
+        get => Volatile.Read(ref _leaseId);
+        set => Volatile.Write(ref _leaseId, value);
+    }
 
     private SqliteQueryMemoryRepository(string path, int busyTimeoutSeconds)
     {
@@ -30,11 +41,11 @@ public sealed partial class SqliteQueryMemoryRepository : IQueryMemoryRepository
         }.ToString();
     }
 
-    public static Task<SqliteQueryMemoryRepository> OpenAsync(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
+    public static SqliteQueryMemoryRepository Open(string path, CancellationToken cancellationToken, int busyTimeoutSeconds = 5)
     {
         var repository = new SqliteQueryMemoryRepository(path, busyTimeoutSeconds);
-        // Microsoft.Data.Sqlite 的 async ADO.NET 仍同步做 I/O，必須明確離開呼叫端執行緒。
-        return Task.Run(() => { repository.Initialize(cancellationToken); return repository; }, cancellationToken);
+        repository.Initialize(cancellationToken);
+        return repository;
     }
 
     private void Initialize(CancellationToken cancellationToken)

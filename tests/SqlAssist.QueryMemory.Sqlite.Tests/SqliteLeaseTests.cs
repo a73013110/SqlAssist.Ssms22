@@ -18,7 +18,7 @@ public sealed class SqliteLeaseTests
     private static QueryMemoryMaintenancePolicy ExpiredWithRecovery() =>
         new(Start.AddDays(1), Start.AddDays(1), null, null, null, null, Start.AddDays(1));
 
-    private static Task SeedRecovery(SqliteTestStore store, SqliteQueryMemoryRepository repository, string? lease = null,
+    private static Task SeedRecovery(SqliteTestStore store, SqliteTestRepository repository, string? lease = null,
         long sequence = 1) =>
         store.Process(repository, store.Capture(sequence, sequence == 1 ? "SELECT * FROM Lib_Reader;" : "SELECT * FROM Loan WHERE CopyNo > " + sequence + ";",
             QueryCaptureKind.DraftIdle), Token, DraftsOnly, lease);
@@ -174,7 +174,7 @@ public sealed class SqliteLeaseTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => repository.RenewLeaseAsync(Start, Token));
 
         store.Scalar("DROP TRIGGER Test_RejectLease;");
-        var busy = await SqliteQueryMemoryRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
+        var busy = await SqliteTestRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
         using (var blocker = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = store.Path, Pooling = false }.ToString()))
         {
             blocker.Open();

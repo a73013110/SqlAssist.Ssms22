@@ -101,6 +101,105 @@ public sealed class IsolatedRepositoryTests
         await task;
     }
 
+    /// <summary>找不到的字面搜尋；每列都得掃完整份大 SQL，沒有取消就要跑很久。</summary>
+    private static readonly QueryHistoryRequest SlowSearch = new(20, search: "Lib_Branch 不存在");
+
+    /// <summary>
+    /// 一份約 1 MB 的 SQL 由數千列 History 引用：資料庫不大，但無篩選的全文搜尋要逐列解出並掃過 BLOB，
+    /// 開發機上完整跑完要十幾秒，遠長於下面的等待與取消時限。
+    /// </summary>
+    private static async Task SeedSlowSearch(SqliteTestStore store, IsolatedQueryMemoryRepository repository, CancellationToken token)
+    {
+        await new QueryMemoryProcessor(repository, new QueryRevisionEngine())
+            .ProcessAsync(store.Capture(sql: "SELECT * FROM Lib_Reader WHERE Note = '" + new string('x', 500_000) + "';"),
+                SqliteTestStore.Policy, token);
+        store.Scalar(@"WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 3000)
+INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,ContextId,Server,DatabaseName)
+SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.CreatedAt, h.Kind, h.ContextId, h.Server, h.DatabaseName
+FROM n, (SELECT * FROM History LIMIT 1) h;");
+    }
+
+    /// <summary>給派送一點時間進入 worker；之後仍未完成才代表它真的在隔離 AppDomain 內執行。</summary>
+    private static async Task<Task<T>> StartInFlight<T>(Func<Task<T>> operation, CancellationToken token)
+    {
+        var running = operation();
+        await Task.Delay(TimeSpan.FromMilliseconds(500), token);
+        Assert.False(running.IsCompleted, "搜尋太快結束，無法驗證並行；請加大種子資料。");
+        return running;
+    }
+
+    [Fact]
+    public async Task ReadsAndCommitsProceedDuringLongRunningSearch()
+    {
+        using var store = new SqliteTestStore();
+        var token = TestContext.Current.CancellationToken;
+        using var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        await SeedSlowSearch(store, repository, token);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
+
+        // 舊設計每個操作互斥，下面兩個呼叫會排在搜尋之後；WAL 下讀取與提交都不必等長讀取。
+        var other = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var commit = new QueryMemoryProcessor(repository, new QueryRevisionEngine())
+            .ProcessAsync(store.Capture(sql: "SELECT * FROM Loan;", session: other), SqliteTestStore.Policy, token);
+        await Within(commit, TimeSpan.FromSeconds(10));
+        var read = repository.ReadSessionAsync(other.SessionId, token);
+        await Within(read, TimeSpan.FromSeconds(10));
+        Assert.NotNull(await read);
+        Assert.False(search.IsCompleted, "提交與讀取應在長搜尋結束前完成。");
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => search);
+    }
+
+    [Fact]
+    public async Task CancellationStopsSearchInsideIsolatedDomain()
+    {
+        using var store = new SqliteTestStore();
+        var token = TestContext.Current.CancellationToken;
+        using var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        await SeedSlowSearch(store, repository, token);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
+
+        cancellation.Cancel();
+        // 已派送的搜尋要在 worker 端的 KMP 掃描中停下，而不是跑完整輪；也不得變成儲存錯誤。
+        var stopped = await Task.WhenAny(search, Task.Delay(TimeSpan.FromSeconds(5), token));
+        Assert.Same(search, stopped);
+        var error = await Record.ExceptionAsync(() => search);
+        Assert.IsAssignableFrom<OperationCanceledException>(error);
+        Assert.Equal(cancellation.Token, ((OperationCanceledException)error!).CancellationToken);
+        Assert.True(search.IsCanceled);
+
+        // 取消只結束那一個操作；同一個 worker 之後照常可用。
+        Assert.NotNull(await repository.ReadSessionAsync(store.Session.SessionId, token));
+    }
+
+    [Fact]
+    public async Task DisposeWaitsForOperationsInFlight()
+    {
+        using var store = new SqliteTestStore();
+        var token = TestContext.Current.CancellationToken;
+        var repository = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        await SeedSlowSearch(store, repository, token);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
+
+        var disposing = Task.Run(repository.Dispose, token);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), token);
+        Assert.False(disposing.IsCompleted, "卸載不得越過仍在隔離 AppDomain 內的操作。");
+        Assert.False(search.IsCompleted);
+        // 卸載開始後拒絕新操作，不排在進行中的操作後面。
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => repository.ReadSessionAsync(store.Session.SessionId, token));
+
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => search);
+        await Within(disposing, TimeSpan.FromSeconds(30));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => repository.ReadSessionAsync(store.Session.SessionId, token));
+        using var reopened = await IsolatedQueryMemoryRepository.OpenAsync(store.Path, null, token);
+        Assert.NotNull(await reopened.ReadSessionAsync(store.Session.SessionId, token));
+    }
+
     [Fact]
     public async Task CoreDtosRoundTripThroughIsolatedDomainAndDomainCanReopen()
     {

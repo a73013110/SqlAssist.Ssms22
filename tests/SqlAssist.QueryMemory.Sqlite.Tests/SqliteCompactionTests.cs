@@ -27,7 +27,7 @@ public sealed class SqliteCompactionTests
         return connection;
     }
 
-    private static async Task Seed(SqliteTestStore store, SqliteQueryMemoryRepository repository, int from, int count)
+    private static async Task Seed(SqliteTestStore store, SqliteTestRepository repository, int from, int count)
     {
         for (var sequence = from; sequence < from + count; sequence++)
             await store.Process(repository, store.Capture(sequence, Bulk(sequence), seconds: sequence), Token);
@@ -55,7 +55,7 @@ public sealed class SqliteCompactionTests
     {
         using var store = new SqliteTestStore();
         // busy timeout 決定 checkpoint 等多久才放棄；測試取最短值，不改動產品預設。
-        var repository = await SqliteQueryMemoryRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
+        var repository = await SqliteTestRepository.OpenAsync(store.Path, Token, busyTimeoutSeconds: 1);
         await Seed(store, repository, 1, 2);
         using var reader = Reader(store);
         using var snapshot = reader.BeginTransaction(deferred: true);

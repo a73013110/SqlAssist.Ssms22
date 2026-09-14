@@ -2,22 +2,18 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.QueryMemory;
 
 namespace SqlAssist.QueryMemory.Sqlite;
 
-public sealed partial class SqliteQueryMemoryRepository
+internal sealed partial class SqliteQueryMemoryRepository
 {
-    public Task<QueryMemoryCommitResult> CommitAsync(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
+    /// <remarks>提交前最後一次檢查取消；已提交就回傳結果，不因之後的取消改稱失敗。</remarks>
+    public QueryMemoryCommitResult Commit(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
     {
         if (write == null) throw new ArgumentNullException(nameof(write));
-        return Task.Run(() => Commit(write, leaseId, cancellationToken), cancellationToken);
-    }
-
-    private QueryMemoryCommitResult Commit(QueryMemoryWrite write, string? leaseId, CancellationToken cancellationToken)
-    {
+        cancellationToken.ThrowIfCancellationRequested();
         using var connection = Connect();
         // IMMEDIATE 在讀 head 之前取得寫鎖，避免 deferred 交易升級時的 SQLITE_BUSY_SNAPSHOT。
         using var transaction = connection.BeginTransaction(deferred: false);
