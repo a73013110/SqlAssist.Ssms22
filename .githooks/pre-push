@@ -1,9 +1,12 @@
 #!/bin/sh
-# 忘記跑測試就 push 時，錯誤要等到下一次有人 clone 或發布才會浮出來。
-# 工具回歸與單元測試一起把關，避免節流器吞掉失敗，讓後面的驗證看起來全綠。
+# 忘記跑測試就 push 時，錯誤要等到下一次有人 clone 或發布才會浮出來；本版庫沒有跑測試的
+# CI，這裡是唯一關卡。
 #
-# 文字格式與文件檢查排在測試前面：它們更快，而且格式漂移會讓後續差異整檔失真，
+# 文字格式與文件檢查排在測試前面：它們只要幾秒，而且格式漂移會讓後續差異整檔失真，
 # 文件超出大小預算或連結斷掉則要等到人點下去才會發現。
+#
+# 單元測試約佔整體時間的九成；推送內容全是文件時跳過，因為文件不進建置，測了也只是重跑
+# 上一次的結果。判斷不了範圍時一律照跑，寧可慢也不漏。
 #
 # 啟用方式（clone 之後要做一次，git 不會自動套用版控裡的 hook）：
 #   git config core.hooksPath .githooks
@@ -16,6 +19,22 @@ pwsh -NoProfile -File "$root/tools/Check-TextFiles.ps1" || exit 1
 
 pwsh -NoProfile -File "$root/tools/Check-Docs.ps1" || exit 1
 
-pwsh -NoProfile -File "$root/tools/Test-AgentWorkflow.ps1" || exit 1
+zero='0000000000000000000000000000000000000000'
+needs_tests=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    # 刪除遠端分支沒有新內容要驗。
+    [ "$local_sha" = "$zero" ] && continue
+    # 以「遠端還沒有的 commit」為範圍，新分支與既有分支用同一套判斷。
+    changed="$(git log --format= --name-only "$local_sha" --not --remotes)" || { needs_tests=1; break; }
+    if printf '%s\n' "$changed" | grep -v -E '^$|^docs/|\.md$|^LICENSE$|^NOTICE$|^\.github/|^\.claude/' >/dev/null; then
+        needs_tests=1
+        break
+    fi
+done
+
+if [ "$needs_tests" -eq 0 ]; then
+    echo '推送內容沒有會影響建置的變更，略過單元測試。'
+    exit 0
+fi
 
 exec pwsh -NoProfile -File "$root/tools/Run-CoreTests.ps1"

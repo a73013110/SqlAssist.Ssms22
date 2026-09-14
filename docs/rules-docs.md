@@ -12,6 +12,6 @@
 - 預算：`CLAUDE.md` 1000、`AGENTS.md` 400、索引 4000、其餘 Markdown 4000 字元；
   3900 字元即警告。字元只作穩定上限，不宣稱等於模型 token。上限是拆檔的門檻，不是
   目標；貼著上限寫等於下一次改動就得再拆一輪。
-- 不整檔讀超過 4000 字元；先查標題，再用 `tools/Read-Context.ps1` 取命中區段。
-- 文件完成後執行 `tools/Check-Docs.ps1` 與 `tools/Check-TextFiles.ps1`；若改讀取、節流或
-  文件檢查腳本，再執行 `tools/Test-AgentWorkflow.ps1`，成功與失敗路徑都要保留。
+- 不整檔讀超過 4000 字元；先查標題，再指定行號範圍讀命中區段。
+- 文件完成後執行 `tools/Check-Docs.ps1` 與 `tools/Check-TextFiles.ps1`；改了這兩支檢查器時，
+  另外手動造一個會失敗的案例確認仍擋得下來。

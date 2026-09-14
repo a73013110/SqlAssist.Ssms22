@@ -103,6 +103,23 @@ foreach ($entry in $trackedFiles) {
     }
 }
 
+# 檔案是 UTF-8 不代表輸出也是；漏掉共用初始化的腳本在 Big5 或 CP437 主控台會把中文路徑與
+# 訊息印成亂碼。只看語法樹，不執行安裝、部署與發布流程。
+$scriptEntry = "Import-Module (Join-Path `$PSScriptRoot 'SqlAssist.Tools.psm1') -Force"
+foreach ($scriptFile in (Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.ps1' -File)) {
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($scriptFile.FullName, [ref]$null, [ref]$parseErrors)
+    if ($parseErrors.Count -gt 0 -or $ast.ScriptRequirements.RequiredPSVersion.Major -lt 7) {
+        $errors.Add("tools/$($scriptFile.Name)：無法解析或未要求 PowerShell 7")
+        continue
+    }
+
+    $prefix = ($ast.EndBlock.Statements | Select-Object -First 3 | ForEach-Object { $_.Extent.Text }) -join "`n"
+    if (-not ($prefix.Contains($scriptEntry) -and $prefix.Contains('$OutputEncoding = Initialize-SqlAssistUtf8Output'))) {
+        $errors.Add("tools/$($scriptFile.Name)：工作開始前未初始化 UTF-8 輸出")
+    }
+}
+
 if ($normalizedFiles.Count -gt 0) {
     Write-Host '已自動將 CR 或 CRLF 換行轉換為 LF：' -ForegroundColor Yellow
     foreach ($relativePath in $normalizedFiles) {

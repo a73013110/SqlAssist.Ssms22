@@ -28,9 +28,6 @@ src\SqlAssist.Ssms22\bin\x64\Release\net48\SqlAssist.Ssms22.vsix
 方案也包含 net48 的 `SqlAssist.Ssms22.Tests`，直接編譯產品的純 WPF 元件並在 STA
 執行主題回歸測試；不需要啟動 SSMS。實機驗收範圍見[主題連動](themes.md)。
 
-AI 執行上述流程時，使用 [共用輸出包裝器](ai-workflow.md#工具輸出節流)，只縮短呈現，
-不改變測試、建置範圍或結束碼。人工需要即時完整輸出時仍可直接執行原腳本。
-
 ### push 前自動跑測試
 
 版本庫附了一個 `pre-push` hook。git 不會自動套用版控裡的 hook，clone 之後要手動
@@ -40,8 +37,9 @@ AI 執行上述流程時，使用 [共用輸出包裝器](ai-workflow.md#工具�
 git config core.hooksPath .githooks
 ```
 
-之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1`、
-`Test-AgentWorkflow.ps1` 與 `Run-CoreTests.ps1`，任何一個失敗就擋下來。
+之後每次 `git push` 都會依序跑 `Check-TextFiles.ps1`、`Check-Docs.ps1` 與
+`Run-CoreTests.ps1`，任何一個失敗就擋下來。推送的 commit 只改到 `docs/`、`*.md`、
+`LICENSE`、`NOTICE`、`.github/` 或 `.claude/` 時略過單元測試。
 真的要略過時用 `git push --no-verify`。
 
 UTF-8／LF 規則與 PowerShell 子程序編碼見[文字檔與編碼](text-encoding.md)。
@@ -79,8 +77,6 @@ SSMS 的安裝路徑、擴充的 Identity Id 與「已安裝的 SqlAssist 在哪
 
 ## 工具腳本
 
-AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-workflow.md#腳本用途)。
-
 | 腳本 | 做什麼 |
 |---|---|
 | `Run-CoreTests.ps1` | 以方案為目標跑單元測試（執行器由 `global.json` 指定） |
@@ -94,10 +90,7 @@ AI 輔助腳本不用每天手動跑；先看 [三個腳本的白話用途](ai-w
 | `Test-VsixPackage.ps1` | 檢查 VSIX 套件結構 |
 | `Test-DebugDeployment.ps1` | 以隔離 fixture 驗證 Debug 部署完整性與 Install 門檻 |
 | `Test-CommandTable.ps1` | 交叉驗證 VSCT、`CommandIds` 與註冊檔的命令識別碼 |
-| `Check-TextFiles.ps1` | 將 CR／CRLF 自動轉成 LF，並檢查文字檔皆為 UTF-8（除 `.sln` 外無 BOM）且有檔尾換行 |
+| `Check-TextFiles.ps1` | 將 CR／CRLF 自動轉成 LF，檢查文字檔皆為 UTF-8（除 `.sln` 外無 BOM）且有檔尾換行，並確認每支腳本先初始化 UTF-8 輸出 |
 | `Check-Docs.ps1` | 檢查文件的大小預算與所有 Markdown 連結和錨點 |
 | `Check-DocLinks.ps1` | 核對內建說明的線上文件位址是否還回得了 200（要連外，單獨執行） |
-| `Read-Context.ps1` | 給 AI 分段讀長檔，不一次讀完整份 |
-| `Invoke-QuietCommand.ps1` | 給 AI 短輸出，完整命令紀錄留在磁碟 |
-| `Test-AgentWorkflow.ps1` | 工具回歸檢查，不是產品單元測試 |
 | `SqlAssist.Tools.psm1` | 共用 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 |
