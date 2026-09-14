@@ -49,17 +49,15 @@ Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadC
 
 ## Favorites
 
-`ISqlFavoriteStore` 由 SQLite／Isolation 實作。名稱 1～200 字元且不可全空白；說明最多 2000 字元。
-SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents。
+`ISqlFavoriteStore` 由 SQLite／Isolation 實作，方法層級契約見該介面的 XML 註解。
+SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents；GUID CAS token 刪除後重建不重用。
 
-- `WriteFavoriteAsync`：null expectedVersion 只允許新增，更新必須符合 GUID token。
-  新增、更新引用與連線在同一交易；Revision 不存在由外鍵拒絕。成功更換 token，刪除後重建不重用。
+- `WriteFavoriteAsync` 的新增、更新引用與連線在同一交易；Revision 不存在由外鍵拒絕。
 - `DeleteFavoriteAsync`：token 不符或不存在回 Conflict；移除收藏不刪 History、Revision 或 Content。
-- `EditFavoriteSqlAsync`：只改 SQL，交易內建立 `FavoriteEdit` Revision，再換目前引用與 token；
-  不寫 History、Capture、head 或新 Session。沿用原版本的 Session，連線取自收藏自己的 scope。
-- SQL 編輯的 ParentRevisionId 留空，避免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
+- `EditFavoriteSqlAsync` 建立的 `FavoriteEdit` Revision 沿用原版本的 Session，連線取自收藏自己的 scope；
+  ParentRevisionId 留空，避免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
   不設外鍵，讓移除收藏不改寫版本；舊版本依維護配額回收。
-- 收藏操作不以 CaptureId 冪等。回應不明先重讀，不盲目重送；過期更新不留下部分寫入。
+- 收藏操作不以 CaptureId 冪等，過期更新不留下部分寫入。
 
 Global 不帶連線，Server 只指定 Server，Database 兩者必填；scope 不合併父層，也不是執行連線。
 Favorites 以 FavoriteId DESC keyset，索引涵蓋 Scope／Server／DatabaseName／Id 及版本引用；

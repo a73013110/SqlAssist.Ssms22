@@ -6,13 +6,8 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 ## 分層
 
-- `Core/SqlMemory`：不可變擷取、內容位址、版本引擎、Store 契約及保留策略。
-  資料夾、命名空間與型別一律 `SqlMemory` 前綴；產品入口與文案同樣只有 SQL Memory。
-  宿主協調（`SqlMemoryRuntime`）與瀏覽器模型也在這裡，只依賴介面、時鐘、計時器與設定快照。
-- `SqlMemory.Sqlite`：`SqliteDatabase` 加各聚合的 store（擷取與歷程、收藏、維護、租約）。
-- `SqlMemory.Isolation`：net48 隔離 AppDomain、DTO 邊界與儲存自我測試。
-- `Ssms22/SqlMemory`：讀設定、建立計時器、狀態列、編輯器事件與工具窗繫結。
-- Core／Metadata 不依賴 VS、SSMS 或 SQLite。UI 不持有 store，所有 I/O 經宿主背景入口。
+分層依相依決定，各專案職責見[架構](architecture.md)；資料夾、命名空間與型別一律
+`SqlMemory` 前綴，產品入口與文案同樣只有 SQL Memory。UI 不持有 store，所有 I/O 經宿主背景入口。
 
 ## 文件、版本與執行
 
