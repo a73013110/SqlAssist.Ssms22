@@ -23,8 +23,6 @@ public static class SqlAssistMonikers
 {
     public const string NotificationEnabled = "sqlAssist.notifications.enabled";
     public const string NotificationGlass = "sqlAssist.notifications.glass";
-    public const string NotificationAnimation = "sqlAssist.notifications.animation";
-    public const string NotificationForceAnimation = "sqlAssist.notifications.forceAnimation";
     public const string NotificationExpanded = "sqlAssist.notifications.expanded";
     public const string NotificationDelay = "sqlAssist.notifications.delay";
     public const string NotificationRetention = "sqlAssist.notifications.retention";
@@ -55,6 +53,8 @@ public static class SqlAssistMonikers
     public const string BlockDebounce = "sqlAssist.blocks.debounce";
     public const string UppercaseKeywordsOnType = "sqlAssist.general.uppercaseKeywordsOnType";
     public const string AutoPairDelimiters = "sqlAssist.general.autoPairDelimiters";
+    public const string Animations = "sqlAssist.general.animations";
+    public const string IgnoreWindowsAnimationSetting = "sqlAssist.general.ignoreWindowsAnimationSetting";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
     public const string SuppressNativeMemberList = "sqlAssist.suggestions.suppressNativeMemberList";

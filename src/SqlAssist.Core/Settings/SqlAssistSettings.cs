@@ -20,8 +20,6 @@ public sealed class SqlAssistSettings
 {
     public bool NotificationEnabled { get; init; } = true;
     public bool NotificationGlass { get; init; } = true;
-    public bool NotificationAnimation { get; init; } = true;
-    public bool NotificationForceAnimation { get; init; } = true;
     public bool NotificationExpanded { get; init; } = true;
     public int NotificationDelay { get; init; } = 0;
     public int NotificationRetention { get; init; } = 2500;
@@ -76,6 +74,26 @@ public sealed class SqlAssistSettings
     /// 與「每一次按鍵都要判斷」的分隔字元不是同一個機制。
     /// </remarks>
     public bool AutoPairDelimiters { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.general.animations
+    /// </summary>
+    /// <remarks>
+    /// 全套件自製介面的動畫總開關：通知、結構預覽淡入、SQL Memory 的載入圖示與清單停駐。
+    /// 刻意是一個全域開關而不是各表面各一個：分開時只有通知有旋鈕，SQL Memory 的載入圖示
+    /// 被 Windows 動畫設定停住卻無從調整。高對比模式一律不播，與這個值無關。
+    /// </remarks>
+    public bool Animations { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.general.ignoreWindowsAnimationSetting
+    /// </summary>
+    /// <remarks>
+    /// 開著時不看 Windows「在 Windows 中顯示動畫」（<c>SystemParameters.ClientAreaAnimation</c>），
+    /// 只由 <see cref="Animations"/> 決定。遠端桌面與效能選項常把那一項關掉，而使用者未必知道
+    /// 那會連帶讓載入圖示停住、看起來像當掉。只影響 SqlAssist，不寫回 Windows。
+    /// </remarks>
+    public bool IgnoreWindowsAnimationSetting { get; init; } = true;
 
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;

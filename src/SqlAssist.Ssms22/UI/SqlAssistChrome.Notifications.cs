@@ -61,10 +61,6 @@ internal static partial class SqlAssistChrome
             position == NotificationPosition.TopRight ? marginY : Math.Max(0, viewport.Height - panel.Height - marginY));
     }
 
-    // 明確覆寫時只略過 OS 動畫偏好，不影響高對比與元件總開關。
-    internal static bool NotificationMotionEnabled(bool enabled, bool force, bool systemAnimation, bool highContrast) =>
-        enabled && !highContrast && (force || systemAnimation);
-
     internal static DoubleAnimation NotificationAnimation(double from, double to, int milliseconds) =>
         new(from, to, TimeSpan.FromMilliseconds(milliseconds))
         { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };

@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.Utilities.UnifiedSettings;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Settings;
 
@@ -239,6 +240,7 @@ internal static class SqlAssistSettingsStore
 
     private static void NotifyChanged()
     {
+        SqlAssistChrome.UseSettings(_current);
         if (Changed is not { } handlers) return;
         foreach (EventHandler handler in handlers.GetInvocationList())
             SqlAssistPlatformGuard.Run("通知設定變更", () => handler(null, EventArgs.Empty));

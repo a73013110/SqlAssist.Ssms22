@@ -33,9 +33,9 @@ internal sealed class SqlLoadingSurface : Grid
 
     private void UpdateAnimation()
     {
-        // 尊重系統減少動態效果；保留靜態忙碌圖示，不讓背景工具窗持續算繪。
+        // 動畫關閉時保留靜態忙碌圖示；不可見時停轉，不讓背景工具窗持續算繪。
         _rotation.BeginAnimation(RotateTransform.AngleProperty,
-            IsLoading && IsVisible && SystemParameters.ClientAreaAnimation && !SystemParameters.HighContrast
+            IsLoading && IsVisible && SqlAssistChrome.MotionEnabled
                 ? new DoubleAnimation(0, 360, TimeSpan.FromMilliseconds(900)) { RepeatBehavior = RepeatBehavior.Forever }
                 : null);
     }
