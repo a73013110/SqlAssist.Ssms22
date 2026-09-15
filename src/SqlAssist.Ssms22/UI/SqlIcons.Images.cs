@@ -1,0 +1,79 @@
+using System;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
+using Microsoft.VisualStudio.Imaging;
+using Microsoft.VisualStudio.Imaging.Interop;
+using Microsoft.VisualStudio.PlatformUI;
+
+namespace SqlAssist.Ssms22.UI;
+
+internal static partial class SqlIcons
+{
+    private static readonly DependencyProperty ImageBackdropProperty = DependencyProperty.RegisterAttached(
+        "ImageBackdrop", typeof(Brush), typeof(SqlIcons), new PropertyMetadata(null));
+
+    /// <summary>接上自製 UI 的原生圖示；必須在任何工具窗建立前呼叫，否則那些插槽會是空的。</summary>
+    public static void RegisterImages() => SqlIconImage.Factory = CreateImage;
+
+#pragma warning disable CS8524
+    // 刻意不寫預設分支：CS8524 只針對未命名的列舉值，留著它就得補 `_` 分支，
+    // 而那會吃掉「SqlIcon 新增成員卻漏了對照」的 CS8509 編譯錯誤。
+    public static ImageMoniker GetMoniker(SqlIcon icon) => icon switch
+    {
+        // 與 Menus.vsct 的 History／Favorites 使用完全相同的目錄識別。
+        SqlIcon.History => KnownMonikers.History,
+        SqlIcon.Favorite => KnownMonikers.Favorite,
+        SqlIcon.All => KnownMonikers.All,
+        SqlIcon.Execute => KnownMonikers.Execute,
+        SqlIcon.Edit => KnownMonikers.Edit,
+        SqlIcon.Calendar => KnownMonikers.Calendar,
+        SqlIcon.AnyTime => KnownMonikers.Infinity,
+        SqlIcon.Server => KnownMonikers.DataServer,
+        // 與補全清單的資料庫同一顆，兩邊不各自挑。
+        SqlIcon.Database => Database.Moniker,
+        SqlIcon.Global => KnownMonikers.WorldLocal,
+        SqlIcon.Connection => KnownMonikers.ConnectToDatabase,
+        SqlIcon.Search => KnownMonikers.Search,
+        SqlIcon.Clear => KnownMonikers.Cancel,
+        SqlIcon.Copy => KnownMonikers.Copy,
+        SqlIcon.Open => KnownMonikers.OpenQuery,
+        SqlIcon.Remove => KnownMonikers.Delete,
+        SqlIcon.Wrap => KnownMonikers.WordWrap,
+        SqlIcon.Refresh => KnownMonikers.Refresh,
+        SqlIcon.Settings => KnownMonikers.Settings,
+        SqlIcon.SortAscending => KnownMonikers.SortAscending,
+        SqlIcon.SortDescending => KnownMonikers.SortDescending
+    };
+#pragma warning restore CS8524
+
+    private static FrameworkElement? CreateImage(SqlIcon icon) =>
+        SqlAssistPlatformGuard.Probe<FrameworkElement?>("原生圖示", () =>
+        {
+            var image = new CrispImage { Width = 16, Height = 16, Moniker = GetMoniker(icon) };
+            // ImageThemingUtilities 會從承載 CrispImage 的表面讀背景；透明 Host
+            // 只提供這個主題上下文，不畫自己的底色或切斷膠囊。
+            var host = new Border { Background = Brushes.Transparent, Child = image };
+            // 透明幽靈按鈕要合成宿主底色；hover／高對比選取則以實際表面轉換原生配色。
+            var background = new MultiBinding { Converter = ImageBackgroundConverter.Instance };
+            background.Bindings.Add(new Binding(nameof(Border.Background))
+            { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Border), 1) });
+            host.SetResourceReference(ImageBackdropProperty, ThemeBrush.WindowBackground);
+            background.Bindings.Add(new Binding { Source = host, Path = new PropertyPath(ImageBackdropProperty) });
+            host.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, background);
+            return host;
+        }, null);
+
+    private sealed class ImageBackgroundConverter : IMultiValueConverter
+    {
+        public static readonly ImageBackgroundConverter Instance = new();
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            var backdrop = values[1] is SolidColorBrush window ? window.Color : SystemColors.WindowColor;
+            return values[0] is SolidColorBrush surface ? ThemeColorMath.Composite(surface.Color, backdrop) : backdrop;
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
+    }
+}

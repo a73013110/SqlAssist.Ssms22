@@ -19,8 +19,6 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// </summary>
 internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 {
-    static SqlMemoryBrowser() => SqlIcons.RegisterMemoryImages();
-
     private readonly SqlAssistPackage _package;
     private readonly SqlMemoryBrowserModel _model = new();
     private readonly ObservableCollection<SqlMemoryRow> _rows = new();
@@ -28,7 +26,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly SqlConnectionFilter _server = new("伺服器");
-    private readonly SqlConnectionFilter _database = new("資料庫", "Database");
+    private readonly SqlConnectionFilter _database = new("資料庫", SqlIcon.Database);
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
     private readonly SqlPillSelector _scope = Pills(SqlMemoryBrowserModel.ScopeOptions);
@@ -64,13 +62,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var header = new StackPanel();
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         foreach (var name in new[] { "History", "Favorites" })
-            _tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(name == "History" ? "History" : "Favorite", name));
+            _tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(name == "History" ? SqlIcon.History : SqlIcon.Favorite, name));
         _tabs.SelectedIndex = 0;
         _connection = SqlAssistChrome.CreateMemoryConnectionButton();
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
         header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(_tabs, _connection, Button("重新整理", Refresh),
             Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
-        var clear = SqlAssistChrome.CreateMemoryIconButton("Clear", "清除搜尋");
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
@@ -106,9 +104,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _list.RowActionRequested += action => SqlMemoryActions.Run(() =>
         {
             if (!_model.IsAvailable) return;
-            if (action == "Open") OpenSelected();
-            else if (action == "Copy") CopySelected();
-            else if (action == "Favorite") AddFavorite();
+            if (action == SqlMemoryRowAction.Open) OpenSelected();
+            else if (action == SqlMemoryRowAction.Copy) CopySelected();
+            else if (action == SqlMemoryRowAction.AddFavorite) AddFavorite();
         }, Report);
         _list.OpenRequested += (_, _) => SqlMemoryActions.Run(OpenSelected, Report);
         _list.SelectionChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Memory 選取", () =>

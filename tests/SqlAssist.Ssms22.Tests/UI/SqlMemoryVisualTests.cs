@@ -18,6 +18,12 @@ namespace SqlAssist.Ssms22.Tests.UI;
 
 public sealed class SqlMemoryVisualTests
 {
+    // 純 WPF 沒有 VS 影像服務；以與 CrispImage 同尺寸的實心方塊代替，對齊檢查才量得到圖示。
+    static SqlMemoryVisualTests() => SqlIconImage.Factory = HostImage;
+
+    private static FrameworkElement HostImage(SqlIcon icon) =>
+        new Border { Width = 16, Height = 16, Background = Brushes.Gray, Tag = icon };
+
     [Fact]
     public void SqlSummaryRowsStayVirtualizedAndRenderAcrossThemesAndDpi()
     {
@@ -31,14 +37,14 @@ public sealed class SqlMemoryVisualTests
             var header = new StackPanel();
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(label == "History" ? "History" : "Favorite", label));
+            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
             tabs.SelectedIndex = 0;
             var current = SqlAssistChrome.CreateMemoryConnectionButton();
             var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, current,
                 SqlAssistChrome.CreateButton("重新整理", metrics), SqlAssistChrome.CreateButton("設定", metrics));
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
-            header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateMemoryIconButton("Clear", "清除搜尋")));
+            header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")));
             var filters = SqlAssistChrome.CreateMemoryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()),
                 new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
             header.Children.Add(filters);
@@ -46,7 +52,7 @@ public sealed class SqlMemoryVisualTests
             header.Children.Add(scope);
             var server = new SqlConnectionFilter("伺服器");
             server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
-            var database = new SqlConnectionFilter("資料庫", "Database");
+            var database = new SqlConnectionFilter("資料庫", SqlIcon.Database);
             database.SetOptions(new[] { "Library", "Archive" }); header.Children.Add(database);
             var footer = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
             footer.Children.Add(SqlAssistChrome.CreateMetadataText("已載入 50 筆", metrics));
@@ -73,10 +79,10 @@ public sealed class SqlMemoryVisualTests
             viewer.Document = SqlScriptDocument.Build("-- 借閱明細\nSELECT LoanId, CopyNo\nFROM LoanDetail\nWHERE LoanId = 1;", resources);
             var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var previewActions = new WrapPanel();
-            foreach (var action in new[] { ("Copy", "複製全文"), ("Wrap", "顯示換行"), ("Favorite", "Add to Favorites"),
-                ("Edit", "編輯 SQL"), ("Settings", "編輯收藏資料"), ("Remove", "Remove from Favorites"), ("Open", "開新 Query") })
+            foreach (var action in new[] { (SqlIcon.Copy, "複製全文"), (SqlIcon.Wrap, "顯示換行"), (SqlIcon.Favorite, "Add to Favorites"),
+                (SqlIcon.Edit, "編輯 SQL"), (SqlIcon.Settings, "編輯收藏資料"), (SqlIcon.Remove, "Remove from Favorites"), (SqlIcon.Open, "開新 Query") })
             {
-                var button = SqlAssistChrome.CreateMemoryIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
+                var button = SqlAssistChrome.CreateIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
                 previewActions.Children.Add(button);
             }
             var previewLoading = new SqlLoadingSurface(viewer);
@@ -96,7 +102,7 @@ public sealed class SqlMemoryVisualTests
                 list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
                 summary.Content = list.SelectedItem;
                 foreach (Button action in previewActions.Children)
-                    action.Visibility = (string)action.Tag is "Copy" or "Wrap" or "Open" || ((string)action.Tag == "Favorite") != favorites
+                    action.Visibility = action.Tag is SqlIcon.Copy or SqlIcon.Wrap or SqlIcon.Open || (action.Tag is SqlIcon.Favorite) != favorites
                         ? Visibility.Visible : Visibility.Collapsed;
                 palette.Update(ThemePaletteTests.ColorsFor(mode));
                 foreach (var role in new[] { ScriptResource.Foreground, ScriptResource.Keyword, ScriptResource.Comment, ScriptResource.String, ScriptResource.Number })
@@ -130,7 +136,7 @@ public sealed class SqlMemoryVisualTests
                     rowActions.Visibility = Visibility.Visible; surface.UpdateLayout();
                     Assert.Null(rowActions.Background);
                     foreach (var button in Descendants<Button>(rowActions).Where(button => button.Visibility != Visibility.Collapsed))
-                        Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<System.Windows.Shapes.Path>(button).Single().Stroke);
+                        Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], button.Foreground);
                     Assert.Null(list.ItemContainerGenerator.ContainerFromIndex(1999));
                     Assert.True(list.ActualHeight >= 80);
                     Assert.True(detail.ActualHeight >= 100);
@@ -196,7 +202,10 @@ public sealed class SqlMemoryVisualTests
             var content = (FrameworkElement)template.LoadContent(); content.DataContext = row;
             content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
             var buttons = Descendants<Button>(content).ToArray();
-            Assert.Equal(new[] { "Copy", "Open", "Favorite" }, buttons.Select(button => button.Tag));
+            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.AddFavorite },
+                buttons.Select(button => Assert.IsType<SqlMemoryRowAction>(button.Tag)));
+            Assert.Equal(new SqlIcon?[] { SqlIcon.Copy, SqlIcon.Open, SqlIcon.Favorite },
+                buttons.Select(button => Descendants<SqlIconImage>(button).Single().Icon));
             Assert.False(buttons[2].IsEnabled);
             Assert.Contains("尚無版本", (string)buttons[2].ToolTip);
             Assert.All(buttons, button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));
@@ -228,12 +237,18 @@ public sealed class SqlMemoryVisualTests
     {
         foreach (var button in Descendants<Button>(root))
         {
-            var icon = Descendants<System.Windows.Shapes.Path>(button).FirstOrDefault();
             var label = Descendants<TextBlock>(button).FirstOrDefault(text => text.IsVisible || text.Visibility == Visibility.Visible);
-            if (icon is null || label is null || label.ActualWidth == 0) continue;
-            var iconCenter = InkCenter(icon, root); var textCenter = InkCenter(label, root);
-            Assert.True(Math.Abs(iconCenter - textCenter) <= 2,
-                $"{label.Text}: icon={iconCenter:F2}, text={textCenter:F2}, iconHeight={icon.ActualHeight}, textHeight={label.ActualHeight}");
+            if (label is null || label.ActualWidth == 0) continue;
+            var textCenter = InkCenter(label, root);
+            // 原生圖示與展開箭頭都要與文字共用中心線。
+            var glyphs = Descendants<SqlIconImage>(button).Select(slot => slot.Child).OfType<FrameworkElement>()
+                .Concat(Descendants<System.Windows.Shapes.Path>(button));
+            foreach (var glyph in glyphs)
+            {
+                var glyphCenter = InkCenter(glyph, root);
+                Assert.True(Math.Abs(glyphCenter - textCenter) <= 2,
+                    $"{label.Text}: glyph={glyphCenter:F2}, text={textCenter:F2}, glyphHeight={glyph.ActualHeight}, textHeight={label.ActualHeight}");
+            }
         }
     }
 
@@ -325,16 +340,19 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void MemoryButtonIconsAndLabelsFollowOwningControlForeground()
+    public void MemoryButtonChevronsAndLabelsFollowOwningControlForeground()
     {
         WpfTest.Run(() =>
         {
             var button = SqlAssistChrome.CreateMemoryConnectionButton();
+            var content = (Panel)button.Content;
+            content.Children.Add(SqlAssistChrome.CreateChevron());
             button.Measure(new Size(200, 40)); button.Arrange(new Rect(0, 0, 200, 40)); button.UpdateLayout();
             button.Foreground = Brushes.Lime;
             button.UpdateLayout();
             Assert.Same(Brushes.Lime, Descendants<System.Windows.Shapes.Path>(button).Single().Stroke);
             Assert.Same(Brushes.Lime, Descendants<TextBlock>(button).Single().Foreground);
+            Assert.Equal(SqlIcon.Connection, Descendants<SqlIconImage>(button).Single().Icon);
         });
     }
 
@@ -362,8 +380,8 @@ public sealed class SqlMemoryVisualTests
         {
             var palette = new ThemeResourceSet();
             var button = SqlAssistChrome.CreateMemoryConnectionButton();
-            var iconButton = SqlAssistChrome.CreateMemoryIconButton("Settings", "設定");
-            var pills = new SqlPillSelector(("草稿", "Edit"), ("執行", "Execute"));
+            var iconButton = SqlAssistChrome.CreateIconButton(SqlIcon.Settings, "設定");
+            var pills = new SqlPillSelector(("草稿", SqlIcon.Edit), ("執行", SqlIcon.Execute));
             var root = new StackPanel(); root.Resources.MergedDictionaries.Add(palette.Resources);
             // SSMS 宿主可在呈現器／文字上指定前景，不能只在沒有隱含樣式的純 WPF 樹驗證。
             var presenterStyle = new Style(typeof(ContentPresenter));
@@ -374,25 +392,21 @@ public sealed class SqlMemoryVisualTests
             root.Resources[typeof(TextBlock)] = textStyle;
             root.Children.Add(button); root.Children.Add(iconButton); root.Children.Add(pills);
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab("History", "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab("Favorite", "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.History, "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.Favorite, "Favorites"));
             tabs.SelectedIndex = 0; root.Children.Add(tabs);
-            var connection = new SqlConnectionFilter("資料庫", "Database"); root.Children.Add(connection);
+            var connection = new SqlConnectionFilter("資料庫", SqlIcon.Database); root.Children.Add(connection);
             foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
             {
                 palette.Update(ThemePaletteTests.ColorsFor(mode));
                 root.Measure(new Size(400, 160)); root.Arrange(new Rect(0, 0, 400, 160)); root.UpdateLayout();
                 foreach (var control in new Control[] { button, iconButton, (RadioButton)pills.Children[1] })
-                {
-                    Assert.All(Descendants<System.Windows.Shapes.Path>(control), icon => Assert.Same(palette.Resources[ThemeBrush.ListForeground], icon.Stroke));
                     Assert.All(Descendants<TextBlock>(control), text => Assert.Same(palette.Resources[ThemeBrush.ListForeground], text.Foreground));
-                }
                 var selected = (RadioButton)pills.Children[0];
-                Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<System.Windows.Shapes.Path>(selected).Single().Stroke);
                 Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<TextBlock>(selected).Single().Foreground);
                 foreach (var control in new DependencyObject[] { (TabItem)tabs.Items[0], connection })
                 {
-                    Assert.All(Descendants<System.Windows.Shapes.Path>(control), icon => Assert.Same(palette.Resources[ThemeBrush.ListForeground], icon.Stroke));
+                    Assert.All(Descendants<System.Windows.Shapes.Path>(control), chevron => Assert.Same(palette.Resources[ThemeBrush.ListForeground], chevron.Stroke));
                     Assert.All(Descendants<TextBlock>(control).Where(text => text.Text != "全部"),
                         text => Assert.Same(palette.Resources[ThemeBrush.ListForeground], text.Foreground));
                 }
@@ -457,24 +471,49 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void SemanticIconFactoryRebindsRecycledRowsWithoutSharingVisuals()
+    public void IconSlotsRebindRecycledRowsWithoutSharingVisuals()
     {
         WpfTest.Run(() =>
         {
-            var original = SqlMemoryIcon.NativeImageFactory;
+            var first = SqlAssistChrome.CreateIcon(SqlIcon.Database);
+            var second = SqlAssistChrome.CreateIcon(SqlIcon.Database);
+            Assert.NotSame(first.Child, second.Child);
+            Assert.Equal(SqlIcon.Database, Assert.IsType<Border>(first.Child).Tag);
+            first.Icon = SqlIcon.Server;
+            Assert.Equal(SqlIcon.Server, Assert.IsType<Border>(first.Child).Tag);
+            Assert.Equal(SqlIcon.Database, Assert.IsType<Border>(second.Child).Tag);
+            first.Icon = null;
+            Assert.Null(first.Child);
+        });
+    }
+
+    [Fact]
+    public void IconSlotKeepsItsSizeWhenHostHasNoImage()
+    {
+        WpfTest.Run(() =>
+        {
+            // 同一個類別的測試依序執行，暫時拿掉宿主影像不會影響其他測試。
+            SqlIconImage.Factory = null;
             try
             {
-                SqlMemoryIcon.NativeImageFactory = name => new TextBlock { Text = name };
-                var first = SqlAssistChrome.CreateMemoryIcon("Database");
-                var second = SqlAssistChrome.CreateMemoryIcon("Database");
-                Assert.NotSame(first.Child, second.Child);
-                Assert.Equal("Database", ((TextBlock)first.Child).Text);
-                first.IconName = "Server";
-                Assert.Equal("Server", ((TextBlock)first.Child).Text);
-                Assert.Equal("Database", ((TextBlock)second.Child).Text);
+                var slot = SqlAssistChrome.CreateIcon(SqlIcon.Search);
+                slot.Measure(new Size(100, 100)); slot.Arrange(new Rect(0, 0, 100, 100));
+                Assert.Null(slot.Child);
+                Assert.Equal(new Size(16, 16), slot.RenderSize);
             }
-            finally { SqlMemoryIcon.NativeImageFactory = original; }
+            finally { SqlIconImage.Factory = HostImage; }
         });
+    }
+
+    [Fact]
+    public void EveryMemoryOptionHasAnIcon()
+    {
+        foreach (var value in SqlMemoryBrowserModel.KindOptions.Select(option => (object)option.Value)
+            .Concat(SqlMemoryBrowserModel.PeriodOptions.Select(option => (object)option.Value))
+            .Concat(SqlMemoryBrowserModel.ScopeOptions.Select(option => (object)option.Value))
+            .Concat(SqlMemoryBrowserModel.SortOptions.Select(option => (object)option.Value)))
+            SqlAssistChrome.MemoryOptionIcon(value);
+        Assert.Throws<ArgumentOutOfRangeException>(() => SqlAssistChrome.MemoryOptionIcon("History"));
     }
 
     [Fact]

@@ -24,6 +24,7 @@
 | SQL 著色、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
+| 自製 UI 的語意圖示與 moniker 對照、原生影像插槽 | `Ssms22/UI/SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
 | 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | Debug 部署預檢、SHA-256 與 VSIX 必要檔案白名單 | `tools/SqlAssist.Deployment.psm1` |

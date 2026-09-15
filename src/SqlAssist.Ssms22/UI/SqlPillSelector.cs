@@ -14,7 +14,7 @@ internal sealed class SqlPillSelector : WrapPanel
     private int _selectedIndex = -1;
     public event EventHandler? SelectionChanged;
 
-    public SqlPillSelector(params (string Label, string Icon)[] options)
+    public SqlPillSelector(params (string Label, SqlIcon Icon)[] options)
     {
         var group = Guid.NewGuid().ToString("N");
         foreach (var (label, icon) in options)
@@ -49,7 +49,7 @@ internal sealed class SqlConnectionFilter : StackPanel
     private readonly Button _heading;
     private readonly Button _more;
     private readonly string _label;
-    private readonly string _icon;
+    private readonly SqlIcon _icon;
     private readonly List<string> _names = new();
     private readonly string _group = Guid.NewGuid().ToString("N");
     private readonly Button _sortButton;
@@ -84,7 +84,7 @@ internal sealed class SqlConnectionFilter : StackPanel
         set { _optionsHost.Visibility = value ? Visibility.Visible : Visibility.Collapsed; UpdateHeading(); }
     }
 
-    public SqlConnectionFilter(string label, string icon = "Server")
+    public SqlConnectionFilter(string label, SqlIcon icon = SqlIcon.Server)
     {
         _label = label;
         _icon = icon;
@@ -107,7 +107,7 @@ internal sealed class SqlConnectionFilter : StackPanel
         foreach (var option in SqlMemoryBrowserModel.SortOptions)
         {
             var item = new MenuItem { Header = option.Label, IsCheckable = true, Tag = option.Value,
-                Icon = SqlAssistChrome.CreateMemoryMenuIcon(SqlAssistChrome.MemoryOptionIcon(option.Value)) };
+                Icon = SqlAssistChrome.CreateIcon(SqlAssistChrome.MemoryOptionIcon(option.Value)) };
             item.Click += (_, _) => Sort = option.Value;
             SortMenu.Items.Add(item);
         }
@@ -176,7 +176,7 @@ internal sealed class SqlConnectionFilter : StackPanel
 
     private void Add(string label, string? value)
     {
-        var button = new RadioButton { Content = SqlAssistChrome.CreateMemoryLabel(value is null ? "All" : _icon, label),
+        var button = new RadioButton { Content = SqlAssistChrome.CreateMemoryLabel(value is null ? SqlIcon.All : _icon, label),
             MaxWidth = 210, GroupName = _group, Tag = value, ToolTip = label, Style = SqlAssistChrome.CreateMemoryPillStyle(), IsChecked = _value == value };
         AutomationProperties.SetName(button, _label + "：" + label);
         button.Checked += (_, _) => Value = value;
@@ -186,12 +186,9 @@ internal sealed class SqlConnectionFilter : StackPanel
     private void UpdateHeading()
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var icon = SqlAssistChrome.CreateMemoryButtonIcon("Chevron");
-        // 旋轉只改繪圖、不改量測；固定 slot 讓收合及焦點都不推動旁邊文字。
-        icon.RenderTransformOrigin = new Point(0.5, 0.5);
-        icon.RenderTransform = new System.Windows.Media.RotateTransform(IsExpanded ? 0 : -90);
-        icon.Margin = new Thickness(0, 0, 6, 0); content.Children.Add(icon);
-        var category = SqlAssistChrome.CreateMemoryButtonIcon(_icon); category.Margin = new Thickness(0, 0, 5, 0);
+        var chevron = SqlAssistChrome.CreateChevron(IsExpanded);
+        chevron.Margin = new Thickness(0, 0, 6, 0); content.Children.Add(chevron);
+        var category = SqlAssistChrome.CreateIcon(_icon); category.Margin = new Thickness(0, 0, 5, 0);
         content.Children.Add(category);
         content.Children.Add(SqlAssistChrome.CreateMemoryButtonText(_label));
         _heading.Content = content;
@@ -204,11 +201,11 @@ internal sealed class SqlConnectionFilter : StackPanel
     private void UpdateSortButton()
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal };
-        var icon = SqlAssistChrome.CreateMemoryButtonIcon(SqlAssistChrome.MemoryOptionIcon(_sort));
+        var icon = SqlAssistChrome.CreateIcon(SqlAssistChrome.MemoryOptionIcon(_sort));
         icon.Margin = new Thickness(0, 0, 5, 0); content.Children.Add(icon);
         content.Children.Add(SqlAssistChrome.CreateMemoryButtonText(
             SqlMemoryBrowserModel.SortOptions.First(option => option.Value == _sort).ShortLabel));
-        var chevron = SqlAssistChrome.CreateMemoryButtonIcon("Chevron"); chevron.Margin = new Thickness(4, 0, 0, 0);
+        var chevron = SqlAssistChrome.CreateChevron(); chevron.Margin = new Thickness(4, 0, 0, 0);
         content.Children.Add(chevron); _sortButton.Content = content;
     }
 }
