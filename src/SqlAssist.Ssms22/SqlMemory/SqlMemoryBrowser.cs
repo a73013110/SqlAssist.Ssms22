@@ -14,13 +14,17 @@ using SqlAssist.Ssms22.UI;
 namespace SqlAssist.Ssms22.SqlMemory;
 
 /// <summary>
-/// SQL Memory 工具窗的畫面與繫結。篩選轉請求、分頁世代與選取還原在 <see cref="SqlMemoryBrowserModel"/>；
-/// 這裡只把控制項的值交給模型、把回應交回模型決定要不要採用。
+/// SQL Memory 工具窗的畫面與繫結。篩選轉請求、分頁世代、頁尾狀態與選取還原在 <see cref="SqlMemoryBrowserModel"/>；
+/// 這裡只把控制項的值交給模型、把回應交回模型決定要不要採用。列操作一律交給 <see cref="SqlMemoryItemCommands"/>。
 /// </summary>
 internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 {
+    /// <summary>新列的進場旗標保留多久；比進場動畫長一點，之後捲動重用容器不會重播。</summary>
+    private static readonly TimeSpan NewRowSettle = TimeSpan.FromMilliseconds(400);
+
     private readonly SqlAssistPackage _package;
     private readonly SqlMemoryBrowserModel _model = new();
+    private readonly SqlMemoryItemCommands _commands;
     private readonly ObservableCollection<SqlMemoryRow> _rows = new();
     private readonly SqlMemoryList _list = new();
     private readonly TabControl _tabs = new();
@@ -32,13 +36,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlPillSelector _scope = Pills(SqlMemoryBrowserModel.ScopeOptions);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _hostStatus = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
-    private readonly TextBlock _count = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
-    private readonly TextBlock _pageStatus = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+    private readonly SqlMemoryPager _pager = new();
     private readonly SqlLoadingSurface _loading;
-    private readonly Button _more;
     private readonly Button _connection;
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _clockTimer;
+    private readonly DispatcherTimer _settleTimer;
     private readonly SqlMemoryPreview _detail;
     private readonly SqlMemorySplitView _splitView;
     private readonly FrameworkElement _historyFilters;
@@ -47,11 +50,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private bool _batchFilters;
     private bool _ready;
     private bool _disposed;
-    private bool _opening;
 
     public SqlMemoryBrowser(SqlAssistPackage package)
     {
         _package = package;
+        _commands = new SqlMemoryItemCommands(package);
+        _commands.Removed += row => SqlAssistPlatformGuard.Run("移除 SQL Memory 列", () => RemoveRow(row));
+        _commands.Replaced += (row, updated) => SqlAssistPlatformGuard.Run("更新 SQL Memory 列", () => ReplaceRow(row, updated));
         VsThemeBrushes.Apply(this);
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = SqlAssistChrome.DefaultMetrics.Body;
@@ -84,31 +89,20 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
 
-        var footer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
-        var pagination = new DockPanel();
-        _more = Button("載入更多", Load);
-        DockPanel.SetDock(_more, Dock.Right); pagination.Children.Add(_more); pagination.Children.Add(_count);
-        footer.Children.Add(pagination);
-        _pageStatus.TextWrapping = TextWrapping.Wrap; _pageStatus.Visibility = Visibility.Collapsed; footer.Children.Add(_pageStatus);
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
 
-        _list.SetRowsSource(_rows, footer);
+        _list.SetRowsSource(_rows, _pager);
         _list.LoadMoreRequested += (_, _) => Load();
+        _pager.LoadMoreRequested += (_, _) => SqlMemoryActions.Run(Load, Report);
         _loading = new SqlLoadingSurface(_list);
-        _detail = new SqlMemoryPreview(package, Refresh);
+        _detail = new SqlMemoryPreview(_commands, Report);
         _splitView = new SqlMemorySplitView(_loading, _detail, _detail.Summary);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
         root.Children.Add(_splitView); Content = root;
         _list.ContextMenu = CreateContextMenu();
-        _list.RowActionRequested += action => SqlMemoryActions.Run(() =>
-        {
-            if (!_model.IsAvailable) return;
-            if (action == SqlMemoryRowAction.Open) OpenSelected();
-            else if (action == SqlMemoryRowAction.Copy) CopySelected();
-            else if (action == SqlMemoryRowAction.AddFavorite) AddFavorite();
-        }, Report);
-        _list.OpenRequested += (_, _) => SqlMemoryActions.Run(OpenSelected, Report);
+        _list.RowActionRequested += action => SqlMemoryActions.Run(() => RunCommand(action), Report);
+        _list.OpenRequested += (_, _) => SqlMemoryActions.Run(() => RunCommand(SqlMemoryRowAction.Open), Report);
         _list.SelectionChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Memory 選取", () =>
         {
             UpdateActions();
@@ -123,6 +117,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         // 只刷新相對時間；宿主狀態由事件推過來，不輪詢。
         _clockTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMinutes(1) };
         _clockTimer.Tick += (_, _) => SqlAssistPlatformGuard.Run("更新 SQL Memory 時間", () => { foreach (var row in _rows) row.RefreshTime(); });
+        _settleTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = NewRowSettle };
+        _settleTimer.Tick += (_, _) => SqlAssistPlatformGuard.Run("結束 SQL Memory 進場", () =>
+        {
+            _settleTimer.Stop();
+            foreach (var row in _rows) row.IsNew = false;
+        });
         _tabs.SelectionChanged += (_, e) =>
         {
             if (!ReferenceEquals(e.Source, _tabs)) return;
@@ -169,7 +169,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         SqlMemoryHost.Runtime.StatusChanged -= OnRuntimeStatusChanged;
-        _clockTimer.Stop(); _searchTimer.Stop();
+        _clockTimer.Stop(); _searchTimer.Stop(); _settleTimer.Stop();
         _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
 
@@ -182,27 +182,37 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             if (EqualityComparer<T>.Default.Equals(options[i].Value, value)) { selector.SelectedIndex = i; return; }
     }
 
+    /// <summary>快捷選單與卡片共用同一份操作清單；不適用於目前列的項目收起，而不是停用佔位。</summary>
     private ContextMenu CreateContextMenu()
     {
         var menu = new ContextMenu();
-        foreach (var pair in new[] { ("複製 SQL", (Action)CopySelected), ("開啟至新查詢", (Action)OpenSelected),
-            ("Add to Favorites", (Action)AddFavorite) })
+        var entries = new List<(MenuItem Item, SqlMemoryRowCommand Command)>();
+        foreach (var command in SqlMemoryRowCommand.All)
         {
-            var item = new MenuItem { Header = pair.Item1 };
-            item.Click += (_, _) => SqlMemoryActions.Run(pair.Item2, Report);
-            menu.Items.Add(item);
+            if (command.IsSeparated) menu.Items.Add(new Separator());
+            var item = new MenuItem { Header = command.Label, Icon = SqlAssistChrome.CreateIcon(command.Icon) };
+            item.Click += (_, _) => SqlMemoryActions.Run(() => RunCommand(command.Action), Report);
+            menu.Items.Add(item); entries.Add((item, command));
         }
         VsThemeBrushes.Apply(menu);
         menu.Opened += (_, _) => SqlAssistPlatformGuard.Run("更新 SQL Memory 快捷選單", () =>
         {
             var row = _list.SelectedItem as SqlMemoryRow;
-            foreach (MenuItem item in menu.Items) item.IsEnabled = _model.IsAvailable && row is not null;
-            var favorite = (MenuItem)menu.Items[2];
-            favorite.IsEnabled = _model.IsAvailable && row?.CanAddFavorite == true;
-            favorite.Visibility = row?.IsFavorite == true ? Visibility.Collapsed : Visibility.Visible;
-            favorite.ToolTip = row?.AddFavoriteHint;
+            foreach (var (item, command) in entries)
+            {
+                item.Visibility = row is not null && command.AppliesTo(row.IsFavorite) ? Visibility.Visible : Visibility.Collapsed;
+                item.IsEnabled = SqlMemoryItemCommands.CanRun(command.Action, row);
+                if (command.Action == SqlMemoryRowAction.Delete) item.Header = row?.DeleteLabel ?? command.Label;
+                if (command.Action == SqlMemoryRowAction.AddFavorite) { item.ToolTip = row?.AddFavoriteHint; ToolTipService.SetShowOnDisabled(item, true); }
+            }
         });
         return menu;
+    }
+
+    private void RunCommand(SqlMemoryRowAction action)
+    {
+        if (!_model.IsAvailable || _list.SelectedItem is not SqlMemoryRow row) return;
+        _ = SqlMemoryActions.RunAsync(() => _commands.RunAsync(action, row, this, Report, _request.Token), Report);
     }
 
     /// <summary>宿主狀態可能在背景執行緒改變；排回 UI 執行緒再比對。</summary>
@@ -280,13 +290,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         }, Report);
     }
 
-    private void AddFavorite()
-    {
-        if (!_model.IsAvailable || _list.SelectedItem is not SqlMemoryRow { CanAddFavorite: true } row) return;
-        var dialog = new FavoriteMetadataWindow(_package, row, false);
-        if (dialog.ShowModal() == true) { Refresh(); Report("已加入收藏。"); }
-    }
-
     private void Changed()
     {
         if (!_ready || _disposed || _batchFilters) return;
@@ -306,10 +309,10 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private void Invalidate()
     {
-        _searchTimer.Stop();
+        _searchTimer.Stop(); _settleTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
         _model.Invalidate(DateTimeOffset.Now);
-        _pageStatus.Text = ""; _pageStatus.Visibility = Visibility.Collapsed; Report("");
+        Report("");
         _rows.Clear(); _detail.Select(null); UpdateActions();
     }
 
@@ -344,12 +347,11 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
                 accepted = !token.IsCancellationRequested && _model.Accept(load, page);
             }
             if (!accepted) return;
-            foreach (var row in rows) _rows.Add(row);
+            var motion = SqlAssistChrome.MotionEnabled;
+            foreach (var row in rows) { row.IsNew = motion; _rows.Add(row); }
+            if (motion && rows.Length > 0) { _settleTimer.Stop(); _settleTimer.Start(); }
             if (_model.ResolveSelection(_rows.Select(row => row.Id).ToArray(), _list.SelectedItem is not null) is { } index)
                 _list.SelectedIndex = index;
-            _pageStatus.Text = _model.PageMessage(_rows.Count);
-            _pageStatus.ToolTip = _pageStatus.Text;
-            _pageStatus.Visibility = _pageStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         }
         catch (Exception error)
         {
@@ -359,51 +361,58 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         finally { _model.End(load); UpdateActions(); }
     }
 
+    /// <summary>刪除成功：先讓卡片淡出，再真正移出集合；選取留在原位置（原本的下一列），鍵盤焦點跟著走。</summary>
+    private void RemoveRow(SqlMemoryRow row)
+    {
+        if (_disposed || row.IsRemoving || !_rows.Contains(row)) return;
+        row.IsRemoving = true;
+        if (!SqlAssistChrome.MotionEnabled) { CompleteRemoval(row); return; }
+        var exit = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.MemoryCardExitDuration };
+        exit.Tick += (_, _) =>
+        {
+            exit.Stop();
+            SqlAssistPlatformGuard.Run("移除 SQL Memory 列", () => CompleteRemoval(row));
+        };
+        exit.Start();
+    }
+
+    private void CompleteRemoval(SqlMemoryRow row)
+    {
+        // 淡出期間換了篩選或重新整理：這一列已經不在新清單裡，不能照舊索引刪掉別人。
+        var index = _rows.IndexOf(row);
+        if (_disposed || index < 0) return;
+        var selected = ReferenceEquals(_list.SelectedItem, row);
+        var focused = _list.IsKeyboardFocusWithin;
+        _rows.RemoveAt(index);
+        if (selected && SqlMemoryBrowserModel.SelectionAfterRemoval(index, _rows.Count) is { } next)
+        {
+            _list.SelectedIndex = next;
+            if (focused) (_list.ItemContainerGenerator.ContainerFromIndex(next) as ListBoxItem)?.Focus();
+        }
+        UpdateActions();
+    }
+
+    /// <summary>收藏更新後就地換列，保留已載入的頁與捲動位置；改到別的範圍或已不存在則移出清單。</summary>
+    private void ReplaceRow(SqlMemoryRow row, SqlMemoryRow? updated)
+    {
+        var index = _rows.IndexOf(row);
+        if (_disposed || index < 0) return;
+        if (updated?.Favorite is not { } favorite || !_model.MatchesFavoriteScope(favorite.Favorite)) { RemoveRow(row); return; }
+        var selected = ReferenceEquals(_list.SelectedItem, row);
+        _rows[index] = updated;
+        if (selected) _list.SelectedIndex = index;
+    }
+
     private void UpdatePreview() =>
         _detail.Select(_model.IsAvailable && IsVisible ? _list.SelectedItem as SqlMemoryRow : null, _splitView.IsDetailExpanded);
 
-    private void CopySelected() => ReadSelectedContent(false);
-
-    private void OpenSelected() => ReadSelectedContent(true);
-
-    private void ReadSelectedContent(bool open)
-    {
-        if (!_model.IsAvailable || _opening || _list.SelectedItem is not SqlMemoryRow row) return;
-        var token = _request.Token;
-        var host = _model.HostGeneration;
-        _opening = true;
-        _ = SqlMemoryActions.RunAsync(async () =>
-        {
-            try
-            {
-                var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.ContentId, token);
-                token.ThrowIfCancellationRequested();
-                if (_disposed || !_model.IsAvailable || host != _model.HostGeneration) return;
-                if (content is null) throw new InvalidOperationException("內容已不存在，請重新整理。");
-                if (open) SqlMemoryActions.OpenQuery(_package, content.SqlText);
-                else Clipboard.SetText(content.SqlText);
-                Report(open ? "已開啟新查詢；未執行 SQL。" : "已複製完整 SQL。");
-            }
-            catch (Exception error)
-            {
-                // 切頁後取消的全文讀取，不得再寫剪貼簿、開窗或覆蓋新頁面的訊息。
-                if (!_disposed && !token.IsCancellationRequested && _model.IsAvailable && host == _model.HostGeneration)
-                    Report(SqlMemoryTimeText.Failure(open ? "開啟" : "複製", error));
-            }
-            finally { _opening = false; }
-        }, Report);
-    }
-
     private void UpdateActions()
     {
-        _more.IsEnabled = _model.CanLoadMore;
-        _more.Visibility = _model.CanLoadMore || _model.IsLoading ? Visibility.Visible : Visibility.Collapsed;
-        _more.Content = _model.LoadMoreLabel;
-        _loading.IsLoading = _model.IsLoading;
-        // 達到搜尋預算後必須由使用者明確續搜，不能讓捲動自動耗盡整份儲存。
-        _list.CanAutoLoadMore = _model.CanLoadMore && _model.SearchProgress is null;
+        _pager.Update(_model.Footer(_rows.Count));
+        // 第一頁用表面載入圖示；續頁的進度在頁尾原地，不遮住已經載入的列。
+        _loading.IsLoading = _model.IsLoading && _rows.Count == 0;
+        _list.CanAutoLoadMore = _model.CanAutoLoadMore;
         _connection.IsEnabled = _model.IsAvailable;
-        _count.Text = $"已載入 {_rows.Count} 筆";
     }
 
     private void Report(string message)

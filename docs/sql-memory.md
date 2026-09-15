@@ -14,6 +14,9 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 `SqlDocument` 不綁連線；`SqlSession` 對應一次編輯器生命週期。同一路徑可共用 DocumentId，
 新視窗必須有新 SessionId。未存檔視窗各自建立文件身分，不以 `SQLQuery1.sql` 等標題當主鍵。
 每次擷取前重讀路徑：第一次存檔或另存後，舊 Session 以當下內容正式關閉，新 Session 掛在新路徑的文件上。
+舊 Session 從未擷取就不送關閉，避免替暫存標題造出版本。交接不等下一次輸入：存檔／另存／改名
+（`ITextDocument.FileActionOccurred`）在身分過期或尚有未記下的輸入時立刻擷取，離開視窗時去彈跳未到期也立刻擷取，
+否則此時異常終止會讓 Recovery 永遠掛在暫存標題上。連線改變不補擷取：內容未變不重寫 Recovery。
 
 `QueryContent` 精確雜湊 UTF-16LE code units，內容位址有演算法前綴；不正規化空白、大小寫、
 換行、NUL 或未配對 surrogate，不使用 delta chain。去重命中的驗證策略與全文讀取的完整性

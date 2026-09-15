@@ -57,6 +57,9 @@ internal sealed class RecordingSqlHistoryStore : ISqlHistoryStore
     public Task<SqlMemoryPage<SqlHistoryItem>> ReadHistoryAsync(SqlHistoryRequest request, CancellationToken cancellationToken) =>
         throw new NotSupportedException("測試替身不實作正式儲存層的查詢。");
 
+    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("測試替身不實作正式儲存層的刪除。");
+
     public Task<IReadOnlyList<string>> ReadConnectionFacetsAsync(SqlConnectionFacetRequest request, CancellationToken cancellationToken) =>
         throw new NotSupportedException("測試替身不實作正式儲存層的查詢。");
 

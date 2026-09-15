@@ -28,6 +28,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.cs" Link="Product\UI\SqlAssistChrome.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryList.cs" Link="Product\UI\SqlMemoryList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlLoadingSurface.cs" Link="Product\UI\SqlLoadingSurface.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryPager.cs" Link="Product\UI\SqlMemoryPager.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemorySplitView.cs" Link="Product\UI\SqlMemorySplitView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIcon.cs" Link="Product\UI\SqlIcon.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIconImage.cs" Link="Product\UI\SqlIconImage.cs" />

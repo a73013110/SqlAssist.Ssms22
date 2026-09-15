@@ -14,15 +14,9 @@ namespace SqlAssist.SqlMemory.Sqlite;
 /// </summary>
 internal sealed class SqliteMaintenanceBatch
 {
-    private const string UnprotectedRevision =
-        " AND NOT EXISTS(SELECT 1 FROM Favorites WHERE CurrentRevisionId=$revision)";
+    private const string UnprotectedRevision = SqliteContentRows.UnprotectedRevision;
 
-    private const string UnreferencedContext = @"DELETE FROM Contexts WHERE ContextId=$id
- AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Executions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM History WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Favorites WHERE ContextId=$id);";
+    private const string UnreferencedContext = SqliteContentRows.DeleteUnreferencedContext;
 
     private const int ExecutionDelete = 0, HistoryDelete = 1, RevisionDelete = 2, RecoveryDelete = 3, ContentDelete = 4,
         ContextDelete = 5;
@@ -262,12 +256,7 @@ internal sealed class SqliteMaintenanceBatch
    WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
    WHEN Reason=$favoriteEdit AND EXISTS(SELECT 1 FROM Favorites WHERE FavoriteId=Revisions.FavoriteId) THEN $favoriteQuota
    ELSE $draft END
-  OR CreatedAt<$autoQuota)" + UnprotectedRevision + @"
- AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestRevisionId=$id)
- AND NOT EXISTS(SELECT 1 FROM Sessions WHERE LatestExecutionRevisionId=$id)
- AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ParentRevisionId=$id)
- AND NOT EXISTS(SELECT 1 FROM Executions WHERE RevisionId=$id)
- AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$id);",
+  OR CreatedAt<$autoQuota)" + SqliteContentRows.UnreferencedRevision + ";",
             ("$id", key), ("$revision", key), ("$draft", _draft), ("$execution", ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)SqlRevisionReason.BeforeExecute),
             ("$favoriteEdit", (int)SqlRevisionReason.FavoriteEdit), ("$favoriteQuota", favoriteQuota));

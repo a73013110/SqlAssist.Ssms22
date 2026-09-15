@@ -42,6 +42,8 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         Run<IReadOnlyList<string>>(token => _captures.ReadConnectionFacets(request, token), cancellationToken);
     public Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Run(token => _captures.ReadContent(contentId, token), cancellationToken);
+    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
+        Run(token => _captures.DeleteHistory(item, token), cancellationToken);
 
     public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>
         Run(token => _favorites.ReadFavorite(favoriteId, token), cancellationToken);

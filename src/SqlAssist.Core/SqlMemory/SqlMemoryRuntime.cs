@@ -183,6 +183,12 @@ public sealed class SqlMemoryRuntime
     public Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.ReadContentAsync(contentId, token), cancellationToken);
 
+    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
+        UseAsync((storage, token) => storage.DeleteHistoryAsync(item, token), cancellationToken);
+
+    public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>
+        UseAsync((storage, token) => storage.ReadFavoriteAsync(favoriteId, token), cancellationToken);
+
     public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.WriteFavoriteAsync(write, token), cancellationToken);
 

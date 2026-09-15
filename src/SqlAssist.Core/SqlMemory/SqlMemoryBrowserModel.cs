@@ -45,6 +45,53 @@ public sealed class SqlMemoryPageLoad
     public string? BlockedMessage { get; }
 }
 
+public enum SqlMemoryFooterKind
+{
+    /// <summary>不可用或第一頁載入中；第一頁由表面載入圖示表達，頁尾不佔位置。</summary>
+    Hidden,
+
+    /// <summary>已載入完畢且沒有任何項目。</summary>
+    Empty,
+
+    /// <summary>還有下一頁；捲到底或按下都會續頁。</summary>
+    More,
+
+    /// <summary>搜尋用盡單頁預算；必須由使用者明確續搜。</summary>
+    ContinueSearch,
+
+    /// <summary>已有項目、正在載入下一頁；進度留在原地，不遮住已載入的清單。</summary>
+    Loading,
+
+    /// <summary>全部載入完畢。</summary>
+    End,
+}
+
+/// <summary>清單頁尾的呈現：UI 只照著畫，文案與狀態轉換都在這裡決定。</summary>
+public sealed class SqlMemoryFooter
+{
+    internal SqlMemoryFooter(SqlMemoryFooterKind kind, string summary, string? hint = null, string? actionLabel = null)
+    {
+        Kind = kind;
+        Summary = summary;
+        Hint = hint;
+        ActionLabel = actionLabel;
+    }
+
+    public SqlMemoryFooterKind Kind { get; }
+
+    /// <summary>頁尾中央的單行摘要，例如筆數。</summary>
+    public string Summary { get; }
+
+    /// <summary>摘要下方的淡色說明；沒有時為 null。</summary>
+    public string? Hint { get; }
+
+    /// <summary>頁尾按鈕文字；null 表示沒有按鈕。</summary>
+    public string? ActionLabel { get; }
+
+    /// <summary>按鈕是否可按；載入中的按鈕保留位置但停用。</summary>
+    public bool CanAct => Kind is SqlMemoryFooterKind.More or SqlMemoryFooterKind.ContinueSearch;
+}
+
 /// <summary>
 /// SQL Memory 瀏覽器的純邏輯：篩選狀態轉請求、分頁與宿主世代、搜尋進度，以及重新整理後的選取還原。
 /// </summary>
@@ -60,6 +107,7 @@ public sealed class SqlMemoryBrowserModel
     private long _serverFacetRequest;
     private long _databaseFacetRequest;
     private Guid? _restoreSelection;
+    private bool _hasPage;
 
     public static IReadOnlyList<SqlMemoryOption<SqlHistoryFilter>> KindOptions { get; } = Array.AsReadOnly(new[]
     {
@@ -126,7 +174,8 @@ public sealed class SqlMemoryBrowserModel
 
     public bool CanLoadMore => IsAvailable && !_page.Loading && _page.Cursor != null;
 
-    public string LoadMoreLabel => SearchProgress == null ? "載入更多" : "繼續搜尋";
+    /// <summary>捲到底可以自動續頁；達到搜尋預算後必須由使用者明確續搜，不能讓捲動耗盡整份儲存。</summary>
+    public bool CanAutoLoadMore => CanLoadMore && SearchProgress == null;
 
     /// <summary>記下宿主狀態。</summary>
     /// <returns>可用性或宿主世代改變：清單、facets 與預覽都屬於舊儲存，呼叫端必須作廢並重新載入。</returns>
@@ -142,6 +191,7 @@ public sealed class SqlMemoryBrowserModel
     public void Invalidate(DateTimeOffset now)
     {
         _page.Reset();
+        _hasPage = false;
         SearchProgress = null;
         var local = now.ToLocalTime();
         Since = Period switch
@@ -187,6 +237,7 @@ public sealed class SqlMemoryBrowserModel
         if (load == null) throw new ArgumentNullException(nameof(load));
         if (page == null) throw new ArgumentNullException(nameof(page));
         if (!IsCurrent(load) || !_page.Accept(load.Generation, page.NextCursor)) return false;
+        _hasPage = true;
         SearchProgress = !page.IsSearchPartial ? null
             : load.Favorites != null ? "已搜尋部分收藏"
             : page.SearchedThrough is { } through
@@ -202,11 +253,56 @@ public sealed class SqlMemoryBrowserModel
     public bool IsCurrent(SqlMemoryPageLoad load) =>
         load.Generation == _page.Generation && load.HostGeneration == HostGeneration && IsAvailable;
 
-    /// <summary>採用一頁之後的狀態訊息。搜尋提早結束不是「沒有結果」，交給使用者決定是否繼續往前找。</summary>
-    public string PageMessage(int loadedCount) =>
-        SearchProgress != null ? SearchProgress + "，繼續搜尋可再往前找。"
-        : loadedCount == 0 ? "沒有符合條件的項目。可清除搜尋或放寬期間與範圍。"
-        : "";
+    /// <summary>
+    /// 清單頁尾目前該呈現什麼。搜尋提早結束不是「沒有結果」，交給使用者決定是否繼續往前找；
+    /// 續頁中的進度留在頁尾原地，第一頁才交給表面載入圖示。
+    /// </summary>
+    /// <param name="loadedCount">目前清單的列數；刪除列之後也用它重算。</param>
+    public SqlMemoryFooter Footer(int loadedCount)
+    {
+        if (loadedCount < 0) throw new ArgumentOutOfRangeException(nameof(loadedCount));
+        // 這一輪還沒採用過任何一頁（剛換篩選、被擋下或第一頁載入中）：不能先說「沒有符合條件」。
+        if (!IsAvailable || !_hasPage) return new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "");
+        var loaded = Count(loadedCount);
+        if (_page.Loading)
+        {
+            return loadedCount == 0
+                ? new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "")
+                : new SqlMemoryFooter(SqlMemoryFooterKind.Loading, loaded, SearchProgress,
+                    SearchProgress == null ? "載入中…" : "搜尋中…");
+        }
+        if (_page.Cursor != null)
+        {
+            return SearchProgress == null
+                ? new SqlMemoryFooter(SqlMemoryFooterKind.More, loaded, null, "載入更多")
+                : new SqlMemoryFooter(SqlMemoryFooterKind.ContinueSearch, "符合 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆",
+                    SearchProgress + "，繼續搜尋可再往前找", "繼續搜尋");
+        }
+        return loadedCount == 0
+            ? new SqlMemoryFooter(SqlMemoryFooterKind.Empty, "沒有符合條件的項目", "可清除搜尋或放寬期間與範圍")
+            : new SqlMemoryFooter(SqlMemoryFooterKind.End, "已顯示全部 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆");
+    }
+
+    private static string Count(int loadedCount) => "已載入 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆";
+
+    /// <summary>移除一列後要選哪一列：留在原位置（即原本的下一列），刪掉最後一列就退到新的最後一列。</summary>
+    /// <returns>null 表示清單已空。</returns>
+    public static int? SelectionAfterRemoval(int removedIndex, int remainingCount)
+    {
+        if (removedIndex < 0) throw new ArgumentOutOfRangeException(nameof(removedIndex));
+        if (remainingCount < 0) throw new ArgumentOutOfRangeException(nameof(remainingCount));
+        return remainingCount == 0 ? null : Math.Min(removedIndex, remainingCount - 1);
+    }
+
+    /// <summary>更新後的收藏是否仍屬於目前的 scope 篩選；改了範圍就該離開這份清單，而不是留著過期的列。</summary>
+    public bool MatchesFavoriteScope(SqlFavorite favorite)
+    {
+        if (favorite == null) throw new ArgumentNullException(nameof(favorite));
+        if (!IsFavorites || favorite.Scope != Scope) return false;
+        return Scope == SqlFavoriteScope.Global ||
+            (string.Equals(Server, favorite.Connection?.Server, StringComparison.Ordinal) &&
+             (Scope != SqlFavoriteScope.Database || string.Equals(Database, favorite.Connection?.Database, StringComparison.Ordinal)));
+    }
 
     /// <summary>採用一頁之後要選取哪一列。</summary>
     /// <param name="loadedIds">目前清單全部列的識別碼，依顯示順序。</param>

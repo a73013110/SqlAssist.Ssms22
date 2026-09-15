@@ -54,9 +54,8 @@ public sealed class SqlMemoryVisualTests
             server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
             var database = new SqlConnectionFilter("資料庫", SqlIcon.Database);
             database.SetOptions(new[] { "Library", "Archive" }); header.Children.Add(database);
-            var footer = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            footer.Children.Add(SqlAssistChrome.CreateMetadataText("已載入 50 筆", metrics));
-            footer.Children.Add(SqlAssistChrome.CreateButton("載入更多", metrics));
+            var footer = new SqlMemoryPager();
+            footer.Update(Footer(cursor: "next", loaded: 50));
             var list = new SqlMemoryList
             {
                 ItemsSource = Enumerable.Range(0, 2000).Select(index => new SqlMemoryRow(new SqlHistoryItem(
@@ -102,8 +101,8 @@ public sealed class SqlMemoryVisualTests
                 list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
                 summary.Content = list.SelectedItem;
                 foreach (Button action in previewActions.Children)
-                    action.Visibility = action.Tag is SqlIcon.Copy or SqlIcon.Wrap or SqlIcon.Open || (action.Tag is SqlIcon.Favorite) != favorites
-                        ? Visibility.Visible : Visibility.Collapsed;
+                    action.Visibility = action.Tag is SqlIcon.Copy or SqlIcon.Wrap or SqlIcon.Open or SqlIcon.Remove ||
+                        (action.Tag is SqlIcon.Favorite) != favorites ? Visibility.Visible : Visibility.Collapsed;
                 palette.Update(ThemePaletteTests.ColorsFor(mode));
                 foreach (var role in new[] { ScriptResource.Foreground, ScriptResource.Keyword, ScriptResource.Comment, ScriptResource.String, ScriptResource.Number })
                     resources[role] = palette.Resources[ThemeBrush.ListForeground];
@@ -191,25 +190,133 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void CardTemplateHasThreeNamedActionsAndRecoveryCannotBeFavorited()
+    public void CardActionsComeFromTheSharedCommandListAndHideWhatDoesNotApply()
     {
         WpfTest.Run(() =>
         {
-            var row = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), null, "id", DateTimeOffset.Now,
+            var recovery = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), null, "id", DateTimeOffset.Now,
                 SqlHistoryFilter.Drafts, "借閱查詢", "SELECT * FROM Loan;", null));
+            var favorite = new SqlMemoryRow(new SqlFavoriteItem(new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(),
+                SqlFavoriteScope.Global, null), Guid.NewGuid(), "id", "SELECT * FROM Loan;"));
             var template = SqlAssistChrome.CreateSqlSummaryTemplate();
-            template.Seal();
-            var content = (FrameworkElement)template.LoadContent(); content.DataContext = row;
-            content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
-            var buttons = Descendants<Button>(content).ToArray();
-            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.AddFavorite },
-                buttons.Select(button => Assert.IsType<SqlMemoryRowAction>(button.Tag)));
-            Assert.Equal(new SqlIcon?[] { SqlIcon.Copy, SqlIcon.Open, SqlIcon.Favorite },
-                buttons.Select(button => Descendants<SqlIconImage>(button).Single().Icon));
-            Assert.False(buttons[2].IsEnabled);
-            Assert.Contains("尚無版本", (string)buttons[2].ToolTip);
-            Assert.All(buttons, button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));
+            Button[] Render(SqlMemoryRow row)
+            {
+                // 經由 ContentPresenter 套用模板，DataTrigger 才會生效；LoadContent 只建樹不跑觸發程序。
+                var content = new ContentControl { ContentTemplate = template, Content = row };
+                content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
+                return Descendants<Button>(content).ToArray();
+            }
+            SqlMemoryRowAction[] Shown(Button[] buttons) => buttons.Where(button => button.Visibility == Visibility.Visible)
+                .Select(button => Assert.IsType<SqlMemoryRowAction>(button.Tag)).ToArray();
+
+            var history = Render(recovery);
+            Assert.Equal(SqlMemoryRowCommand.All.Select(command => command.Action), history.Select(button => (SqlMemoryRowAction)button.Tag));
+            // 收起的按鈕不會套用樣板；圖示只檢查實際顯示的那些。
+            Assert.All(history.Where(button => button.Visibility == Visibility.Visible), button => Assert.Equal(
+                SqlMemoryRowCommand.For((SqlMemoryRowAction)button.Tag).Icon, Descendants<SqlIconImage>(button).Single().Icon));
+            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.AddFavorite, SqlMemoryRowAction.Delete }, Shown(history));
+            var add = history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.AddFavorite);
+            Assert.False(add.IsEnabled);
+            Assert.Contains("尚無版本", (string)add.ToolTip);
+            Assert.Equal("從 History 刪除", history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete).ToolTip);
+
+            var favorites = Render(favorite);
+            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.EditSql,
+                SqlMemoryRowAction.EditMetadata, SqlMemoryRowAction.Delete }, Shown(favorites));
+            Assert.Equal("Remove from Favorites", System.Windows.Automation.AutomationProperties.GetName(
+                favorites.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete)));
+            Assert.All(history.Concat(favorites), button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));
             Assert.Null(SqlAssistChrome.CreateSqlCardStyle().Setters.OfType<Setter>().Single(setter => setter.Property == Control.FocusVisualStyleProperty).Value);
+        });
+    }
+
+    private static SqlMemoryFooter Footer(string? cursor, int loaded, bool loading = false, DateTimeOffset? searchedThrough = null)
+    {
+        var model = new SqlMemoryBrowserModel();
+        model.ObserveHost(true, 1);
+        model.Invalidate(DateTimeOffset.Now);
+        if (searchedThrough is not null) model.Search = "Loan";
+        var load = model.BeginLoad()!;
+        model.Accept(load, searchedThrough is { } through
+            ? new SqlMemoryPage<SqlHistoryItem>(Array.Empty<SqlHistoryItem>(), cursor!, through)
+            : new SqlMemoryPage<SqlHistoryItem>(Array.Empty<SqlHistoryItem>(), cursor));
+        if (loading) model.BeginLoad();
+        return model.Footer(loaded);
+    }
+
+    [Fact]
+    public void PagerShowsProgressInPlaceAndOnlyRequestsMoreWhenItCan()
+    {
+        WpfTest.Run(() =>
+        {
+            var pager = new SqlMemoryPager();
+            var requests = 0; pager.LoadMoreRequested += (_, _) => requests++;
+            var host = new Border { Child = pager, Width = 360 }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
+            var palette = new ThemeResourceSet(); host.Resources.MergedDictionaries.Add(palette.Resources);
+            void Layout() { host.Measure(new Size(360, 140)); host.Arrange(new Rect(0, 0, 360, 140)); host.UpdateLayout(); }
+            var states = new (string Name, SqlMemoryFooter Footer, SqlMemoryFooterKind Kind, bool Clickable)[]
+            {
+                ("more", Footer("next", 50), SqlMemoryFooterKind.More, true),
+                ("loading", Footer("next", 50, loading: true), SqlMemoryFooterKind.Loading, false),
+                ("search", Footer("next", 3, searchedThrough: new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)), SqlMemoryFooterKind.ContinueSearch, true),
+                ("end", Footer(null, 73), SqlMemoryFooterKind.End, false),
+                ("empty", Footer(null, 0), SqlMemoryFooterKind.Empty, false),
+            };
+            Size? buttonSize = null;
+            foreach (var (name, footer, kind, clickable) in states)
+            {
+                pager.Update(footer); Layout();
+                Assert.Equal(kind, pager.Kind);
+                Assert.Equal(Visibility.Visible, pager.Visibility);
+                Assert.Equal(footer.Summary, pager.Summary);
+                var before = requests;
+                pager.Button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, pager.Button));
+                Assert.Equal(before + (clickable && pager.Button.IsEnabled ? 1 : 0), requests);
+                Assert.Equal(footer.ActionLabel is null ? Visibility.Collapsed : Visibility.Visible, pager.Button.Visibility);
+                // 載入中只換圖示與文字、按鈕停用，尺寸不跳。
+                if (kind is SqlMemoryFooterKind.More or SqlMemoryFooterKind.Loading)
+                {
+                    Assert.True(buttonSize is null || Math.Abs(buttonSize.Value.Height - pager.Button.ActualHeight) < 0.5);
+                    buttonSize = pager.Button.RenderSize;
+                }
+                foreach (var mode in new[] { "light", "dark", "high-contrast" })
+                {
+                    palette.Update(ThemePaletteTests.ColorsFor(mode)); Layout();
+                    SaveVisual(host, 360, 140, $"sql-memory-pager-{name}-{mode}");
+                }
+            }
+            Assert.Equal(2, requests);
+            pager.Update(new SqlMemoryBrowserModel().Footer(0));
+            Assert.Equal(Visibility.Collapsed, pager.Visibility);
+        });
+    }
+
+    [Fact]
+    public void NewAndRemovedCardsAnimateWithoutChangingLayout()
+    {
+        WpfTest.Run(() =>
+        {
+            var rows = new System.Collections.ObjectModel.ObservableCollection<SqlMemoryRow>(Enumerable.Range(0, 3).Select(index =>
+                new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
+                    SqlHistoryFilter.Executions, "Loan " + index, "SELECT * FROM Loan;", null)) { IsNew = true }));
+            var list = new SqlMemoryList { ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(motion: true) };
+            list.SetRowsSource(rows, new SqlMemoryPager());
+            using var source = new HwndSource(new HwndSourceParameters("SQL Memory motion test") { Width = 440, Height = 300, WindowStyle = 0 });
+            source.RootVisual = list;
+            list.Measure(new Size(440, 300)); list.Arrange(new Rect(0, 0, 440, 300)); list.UpdateLayout();
+            var second = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
+            var top = second.TranslatePoint(new Point(), list).Y;
+            foreach (var row in rows) row.IsNew = false;
+            rows[0].IsRemoving = true; list.UpdateLayout();
+            Assert.Equal(top, second.TranslatePoint(new Point(), list).Y);
+            var card = (UIElement)VisualTreeHelper.GetChild(list.ItemContainerGenerator.ContainerFromIndex(0), 0);
+            // 樣板裡的位移是凍結的共用值；Storyboard 必須能在複本上動畫，而不是在套用時擲出。
+            Assert.True(card.HasAnimatedProperties);
+            Assert.True(card.RenderTransform.HasAnimatedProperties);
+            // 刪除失敗可以反向：旗標回到 false，卡片從當下狀態回復，不留隱形列。
+            rows[0].IsRemoving = false; list.UpdateLayout();
+            rows.RemoveAt(0); list.UpdateLayout();
+            Assert.Equal(2, rows.Count);
         });
     }
 
@@ -323,6 +430,11 @@ public sealed class SqlMemoryVisualTests
             Assert.Equal(1, opens);
             button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, button));
             Assert.Equal(1, actions); Assert.Equal(1, opens);
+            SqlMemoryRowAction? requested = null;
+            list.RowActionRequested += action => requested = action;
+            var delete = new KeyEventArgs(keyboard, source, 0, Key.Delete) { RoutedEvent = Keyboard.PreviewKeyDownEvent, Source = row };
+            list.RaiseEvent(delete);
+            Assert.True(delete.Handled); Assert.Equal(SqlMemoryRowAction.Delete, requested); Assert.Equal(1, opens);
         });
     }
 
