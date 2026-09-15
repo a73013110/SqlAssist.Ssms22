@@ -148,6 +148,8 @@ public sealed class ThemePaletteTests
         Assert.Equal(Colors.Black, colors[ThemeBrush.SelectedForeground]);
         Assert.Equal(Colors.Black, colors[ThemeBrush.AccentBackground]);
         Assert.Equal(Colors.Black, colors[ThemeBrush.RowAlternate]);
+        Assert.Equal(colors[ThemeBrush.ListForeground], colors[ThemeBrush.ScrollThumb]);
+        Assert.True(ColorsFor("dark")[ThemeBrush.ScrollThumb].A < ColorsFor("dark")[ThemeBrush.DimForeground].A);
         Assert.Equal((byte)0, colors[ThemeBrush.BlockRange].A);
         foreach (var color in colors.Where(pair => pair.Key != ThemeBrush.BlockRange).Select(pair => pair.Value))
         {

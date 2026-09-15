@@ -54,6 +54,43 @@ public sealed class SqlAssistChromeTests
     }
 
     [Fact]
+    public void OverlayScrollOverridesNativeScrollBarStyleAndDoesNotTakeLayoutWidth()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var colors = ThemePaletteTests.ColorsFor("plum");
+            palette.Update(colors);
+            var content = new StackPanel();
+            for (var i = 0; i < 8; i++) content.Children.Add(new TextBlock { Text = "Lib_Reader" + i, Height = 20 });
+            var scroll = new ScrollViewer { Content = content, Width = 120, Height = 60 };
+            scroll.Resources.MergedDictionaries.Add(palette.Resources);
+            // 模擬 VsThemeBrushes 發布的原生隱含樣式；覆蓋式捲軸不能被它換回 17 DIP。
+            var native = new Style(typeof(ScrollBar));
+            native.Setters.Add(new Setter(FrameworkElement.WidthProperty, 17d));
+            native.Setters.Add(new Setter(FrameworkElement.MinWidthProperty, 17d));
+            scroll.Resources[typeof(ScrollBar)] = native;
+            SqlAssistChrome.ApplyOverlayScroll(scroll);
+            scroll.Measure(new Size(120, 60)); scroll.Arrange(new Rect(0, 0, 120, 60)); scroll.UpdateLayout();
+
+            Assert.Equal(ScrollBarVisibility.Disabled, scroll.HorizontalScrollBarVisibility);
+            var bar = Assert.IsType<ScrollBar>(scroll.Template.FindName("PART_VerticalScrollBar", scroll));
+            Assert.Equal(Visibility.Visible, bar.Visibility);
+            Assert.Equal(3, bar.ActualWidth);
+            Assert.Equal(120, content.ActualWidth);
+            var thumb = Assert.IsAssignableFrom<Track>(bar.Template.FindName("PART_Track", bar)).Thumb;
+            var grip = Assert.IsType<Border>(thumb.Template.FindName("grip", thumb));
+            Assert.Equal(colors[ThemeBrush.ScrollThumb], ThemeResourceSetTests.ColorOf(grip.Background));
+            Assert.True(thumb.ActualHeight >= 16);
+
+            scroll.ScrollToBottom(); scroll.UpdateLayout();
+            Assert.Equal(scroll.ScrollableHeight, bar.Value);
+            scroll.Height = 400; scroll.Measure(new Size(120, 400)); scroll.Arrange(new Rect(0, 0, 120, 400)); scroll.UpdateLayout();
+            Assert.NotEqual(Visibility.Visible, bar.Visibility);
+        });
+    }
+
+    [Fact]
     public void BrandMarkUsesLiveThemeBrushesAndVectorGeometryAtMultipleDpi()
     {
         WpfTest.Run(() =>

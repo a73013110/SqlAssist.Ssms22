@@ -120,8 +120,9 @@ internal sealed class SqlConnectionFilter : StackPanel
         _summary.Margin = new Thickness(4, 0, 4, 0); _summary.VerticalAlignment = VerticalAlignment.Center;
         header.Children.Add(_summary);
         // 先顯示條件摘要，使用時才揭露名稱；選項獨佔全寬，不讓窄窗的 Header 跨多列置中。
-        _optionsHost = new ScrollViewer { Content = _options, MaxHeight = 56, Visibility = Visibility.Collapsed,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        // 膠囊右外距 4 DIP 讓出覆蓋握把；原生捲軸在 56 DIP 高的區塊裡幾乎只剩箭頭。
+        _optionsHost = new ScrollViewer { Content = _options, MaxHeight = 56, Visibility = Visibility.Collapsed };
+        SqlAssistChrome.ApplyOverlayScroll(_optionsHost);
         Children.Add(_optionsHost);
         _more = SqlAssistChrome.CreateButton("更多名稱", SqlAssistChrome.DefaultMetrics);
         _more.Visibility = Visibility.Collapsed;
