@@ -13,9 +13,9 @@ namespace SqlAssist.Ssms22.UI;
 
 internal static partial class SqlAssistChrome
 {
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Geometry> QueryIcons = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Geometry> MemoryIconGeometries = new();
     // 語意值決定圖示，不依賴可翻譯的顯示文字；篩選、卡片與 Preview 都查同一份對應。
-    public static string QueryOptionIcon(object value) => value switch
+    public static string MemoryOptionIcon(object value) => value switch
     {
         SqlHistoryFilter.Executions => "Execute", SqlHistoryFilter.Drafts => "Edit", SqlHistoryFilter.All => "All",
         SqlHistoryPeriod.Any => "Any", SqlHistoryPeriod => "Calendar",
@@ -25,12 +25,12 @@ internal static partial class SqlAssistChrome
         _ => "History"
     };
     // 狀態不能只靠顏色，卡片仍保留文字標籤。
-    internal static ThemeBrush QueryStatusBackground(bool executed) => executed ? ThemeBrush.AccentBackground : ThemeBrush.BadgeBackground;
-    internal static ThemeBrush QueryStatusBorder(bool executed) => executed ? ThemeBrush.AccentBorder : ThemeBrush.Hairline;
+    internal static ThemeBrush MemoryStatusBackground(bool executed) => executed ? ThemeBrush.AccentBackground : ThemeBrush.BadgeBackground;
+    internal static ThemeBrush MemoryStatusBorder(bool executed) => executed ? ThemeBrush.AccentBorder : ThemeBrush.Hairline;
 
-    public static Geometry QueryIcon(string name) => QueryIcons.GetOrAdd(name, CreateQueryGeometry);
+    public static Geometry MemoryIconGeometry(string name) => MemoryIconGeometries.GetOrAdd(name, CreateMemoryIconGeometry);
 
-    private static Geometry CreateQueryGeometry(string name)
+    private static Geometry CreateMemoryIconGeometry(string name)
     {
         var geometry = Geometry.Parse(name switch
         {
@@ -67,12 +67,12 @@ internal static partial class SqlAssistChrome
         geometry.Freeze(); return geometry;
     }
 
-    public static SqlQueryIcon CreateQueryIcon(string name) => new() { IconName = name };
+    public static SqlMemoryIcon CreateMemoryIcon(string name) => new() { IconName = name };
 
-    public static Button CreateQueryIconButton(string icon, string label)
+    public static Button CreateMemoryIconButton(string icon, string label)
     {
         var button = CreateButton("", DefaultMetrics);
-        button.Content = CreateQueryButtonIcon(icon); button.ToolTip = label;
+        button.Content = CreateMemoryButtonIcon(icon); button.ToolTip = label;
         button.Padding = new Thickness(5); button.MinWidth = 26; button.MinHeight = 26;
         AutomationProperties.SetName(button, label);
         return button;
@@ -80,45 +80,45 @@ internal static partial class SqlAssistChrome
 
     // Content 的邏輯父層一定是所屬 Control；不能依賴尚未建立或重掛的樣板視覺祖先。
     // 狀態色在 Control 的共用樣板處切換，也不受宿主 ContentPresenter 隱含樣式影響。
-    private static Binding QueryButtonForeground() => new Binding
+    private static Binding MemoryButtonForeground() => new Binding
     {
         Path = new PropertyPath(Control.ForegroundProperty),
         RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Control), 1)
     };
 
-    public static SqlQueryIcon CreateQueryButtonIcon(string name)
+    public static SqlMemoryIcon CreateMemoryButtonIcon(string name)
     {
-        var icon = CreateQueryIcon(name); icon.SetBinding(TextElement.ForegroundProperty, QueryButtonForeground()); return icon;
+        var icon = CreateMemoryIcon(name); icon.SetBinding(TextElement.ForegroundProperty, MemoryButtonForeground()); return icon;
     }
 
-    public static SqlQueryIcon CreateQueryMenuIcon(string name)
+    public static SqlMemoryIcon CreateMemoryMenuIcon(string name)
     {
-        var icon = CreateQueryIcon(name);
+        var icon = CreateMemoryIcon(name);
         icon.SetBinding(TextElement.ForegroundProperty, new Binding(nameof(Control.Foreground))
         { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(MenuItem), 1) });
         return icon;
     }
 
-    public static TextBlock CreateQueryButtonText(string text)
+    public static TextBlock CreateMemoryButtonText(string text)
     {
         var label = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        label.SetBinding(TextBlock.ForegroundProperty, QueryButtonForeground()); return label;
+        label.SetBinding(TextBlock.ForegroundProperty, MemoryButtonForeground()); return label;
     }
 
-    public static DockPanel CreateQueryLabel(string icon, string text)
+    public static DockPanel CreateMemoryLabel(string icon, string text)
     {
         var content = new DockPanel { VerticalAlignment = VerticalAlignment.Center };
-        var glyph = CreateQueryButtonIcon(icon); glyph.Margin = new Thickness(0, 0, 5, 0);
+        var glyph = CreateMemoryButtonIcon(icon); glyph.Margin = new Thickness(0, 0, 5, 0);
         DockPanel.SetDock(glyph, Dock.Left); content.Children.Add(glyph);
-        content.Children.Add(CreateQueryButtonText(text));
+        content.Children.Add(CreateMemoryButtonText(text));
         return content;
     }
 
-    public static TabItem CreateQueryTab(string icon, string label)
+    public static TabItem CreateMemoryTab(string icon, string label)
     {
         var style = new Style(typeof(TabItem));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
-        var tab = new TabItem { Header = CreateQueryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style };
+        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style };
         AutomationProperties.SetName(tab, label); return tab;
     }
 
@@ -135,16 +135,16 @@ internal static partial class SqlAssistChrome
         return indicator;
     }
 
-    public static Button CreateQueryConnectionButton()
+    public static Button CreateMemoryConnectionButton()
     {
         var button = CreateButton("", DefaultMetrics);
-        button.Content = CreateQueryLabel("Connection", "目前連線");
+        button.Content = CreateMemoryLabel("Connection", "目前連線");
         button.ToolTip = "使用目前作用中 SQL 查詢視窗的伺服器與資料庫篩選；不切換連線。";
         AutomationProperties.SetName(button, "以目前連線篩選");
         return button;
     }
 
-    public static Grid CreateQueryToolbar(TabControl tabs, Button connection, Button refresh, Button settings)
+    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button refresh, Button settings)
     {
         var toolbar = new Grid { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };
         toolbar.ColumnDefinitions.Add(new ColumnDefinition());
@@ -158,7 +158,7 @@ internal static partial class SqlAssistChrome
         var connectionLabel = (TextBlock)((Panel)connection.Content).Children[1];
         foreach (var entry in new[] { (refresh, "Refresh", "重新整理"), (settings, "Settings", "設定") })
         {
-            var content = CreateQueryLabel(entry.Item2, entry.Item3);
+            var content = CreateMemoryLabel(entry.Item2, entry.Item3);
             labels.Add((TextBlock)content.Children[1]); entry.Item1.Content = content;
             entry.Item1.ToolTip = entry.Item3; AutomationProperties.SetName(entry.Item1, entry.Item3);
         }
@@ -180,7 +180,7 @@ internal static partial class SqlAssistChrome
     public static Border CreateSearchBar(TextBox input, Button clear)
     {
         var panel = new DockPanel();
-        var icon = CreateQueryIcon("Search"); icon.Margin = new Thickness(8, 0, 4, 0);
+        var icon = CreateMemoryIcon("Search"); icon.Margin = new Thickness(8, 0, 4, 0);
         DockPanel.SetDock(icon, Dock.Left); panel.Children.Add(icon);
         DockPanel.SetDock(clear, Dock.Right); panel.Children.Add(clear);
         // 保留原生編輯語意，但外框只畫一次；鍵盤焦點由整條搜尋列呈現。
@@ -200,7 +200,7 @@ internal static partial class SqlAssistChrome
         return border;
     }
 
-    public static FrameworkElement CreateQueryHistoryFilters(SqlPillSelector kind, SqlPillSelector period)
+    public static FrameworkElement CreateMemoryHistoryFilters(SqlPillSelector kind, SqlPillSelector period)
     {
         var groups = new WrapPanel();
         AutomationProperties.SetName(kind, "狀態"); AutomationProperties.SetName(period, "期間");
@@ -211,7 +211,7 @@ internal static partial class SqlAssistChrome
         groups.Children.Add(separator); return groups;
     }
 
-    public static DockPanel CreateQueryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)
+    public static DockPanel CreateMemoryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)
     {
         var root = new DockPanel();
         var toolbar = new WrapPanel();
@@ -222,21 +222,21 @@ internal static partial class SqlAssistChrome
         root.Children.Add(viewer); return root;
     }
 
-    public static ComboBox CreateQueryScopeCombo(params string[] labels)
+    public static ComboBox CreateMemoryScopeCombo(params string[] labels)
     {
         var combo = CreateComboBox(DefaultMetrics);
         foreach (var label in labels) combo.Items.Add(label);
         combo.SelectedIndex = 0; return combo;
     }
 
-    public static StackPanel CreateQueryField(string label, Control control)
+    public static StackPanel CreateMemoryField(string label, Control control)
     {
         var panel = new StackPanel(); panel.Children.Add(CreateLabel(label, DefaultMetrics));
         control.Margin = new Thickness(0, 4, 0, 0); panel.Children.Add(control);
         AutomationProperties.SetName(control, label); return panel;
     }
 
-    public static Style CreateQueryPillStyle()
+    public static Style CreateMemoryPillStyle()
     {
         var border = new FrameworkElementFactory(typeof(Border)) { Name = "pill" };
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(11));
@@ -358,7 +358,7 @@ internal static partial class SqlAssistChrome
             button.SetValue(AutomationProperties.NameProperty, pair.Item2);
             button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate()); button.SetValue(Control.PaddingProperty, new Thickness(3));
             // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
-            button.SetBinding(Control.ForegroundProperty, QueryButtonForeground());
+            button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
             button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
             if (pair.Item1 == "Favorite")
             {
@@ -367,8 +367,8 @@ internal static partial class SqlAssistChrome
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding("AddFavoriteHint"));
                 button.SetValue(ToolTipService.ShowOnDisabledProperty, true);
             }
-            var icon = new FrameworkElementFactory(typeof(SqlQueryIcon)); icon.SetValue(SqlQueryIcon.IconNameProperty, pair.Item1);
-            icon.SetBinding(TextElement.ForegroundProperty, QueryButtonForeground());
+            var icon = new FrameworkElementFactory(typeof(SqlMemoryIcon)); icon.SetValue(SqlMemoryIcon.IconNameProperty, pair.Item1);
+            icon.SetBinding(TextElement.ForegroundProperty, MemoryButtonForeground());
             button.AppendChild(icon); actions.AppendChild(button);
         }
         var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
@@ -379,8 +379,8 @@ internal static partial class SqlAssistChrome
         var noDatabase = new DataTrigger { Binding = new Binding("Database"), Value = "" };
         noDatabase.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(noDatabase);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
-        executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, QueryStatusBackground(true), "state"));
-        executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, QueryStatusBorder(true), "state")); template.Triggers.Add(executed);
+        executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
+        executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);
         foreach (var property in new[] { "IsSelected", "IsMouseOver" })
         {
             var selected = new DataTrigger { Binding = new Binding(property) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1) }, Value = true };
@@ -400,7 +400,7 @@ internal static partial class SqlAssistChrome
         text.SetBinding(TextBlock.TextProperty, new Binding(property)); text.SetBinding(FrameworkElement.ToolTipProperty, new Binding(property));
         text.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
         text.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        text.SetBinding(TextBlock.ForegroundProperty, QueryButtonForeground());
+        text.SetBinding(TextBlock.ForegroundProperty, MemoryButtonForeground());
         return text;
     }
 
@@ -413,9 +413,9 @@ internal static partial class SqlAssistChrome
         badge.SetValue(FrameworkElement.MaxWidthProperty, 180d);
         badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         var content = new FrameworkElementFactory(typeof(DockPanel));
-        var glyph = new FrameworkElementFactory(typeof(SqlQueryIcon));
-        if (iconProperty is not null) glyph.SetBinding(SqlQueryIcon.IconNameProperty, new Binding(iconProperty));
-        else glyph.SetValue(SqlQueryIcon.IconNameProperty, icon ?? "History");
+        var glyph = new FrameworkElementFactory(typeof(SqlMemoryIcon));
+        if (iconProperty is not null) glyph.SetBinding(SqlMemoryIcon.IconNameProperty, new Binding(iconProperty));
+        else glyph.SetValue(SqlMemoryIcon.IconNameProperty, icon ?? "History");
         glyph.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         glyph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         content.AppendChild(glyph);
@@ -424,7 +424,7 @@ internal static partial class SqlAssistChrome
         content.AppendChild(text); badge.AppendChild(content); return badge;
     }
 
-    public static DataTemplate CreateQueryMetadataTemplate()
+    public static DataTemplate CreateMemoryMetadataTemplate()
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
         panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
@@ -443,8 +443,8 @@ internal static partial class SqlAssistChrome
         var empty = new DataTrigger { Binding = new Binding("Database"), Value = "" };
         empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(empty);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
-        executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, QueryStatusBackground(true), "state"));
-        executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, QueryStatusBorder(true), "state")); template.Triggers.Add(executed);
+        executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
+        executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);
         return template;
     }
 }

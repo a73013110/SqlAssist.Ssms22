@@ -4,7 +4,7 @@ using Xunit;
 
 namespace SqlAssist.Core.Tests.SqlMemory;
 
-public sealed class QueryDocumentIdentityTests
+public sealed class SqlDocumentIdentityTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 14, 9, 0, 0, TimeSpan.Zero);
     private const string LoanScript = @"C:\Library\Scripts\Loan.sql";
@@ -12,8 +12,8 @@ public sealed class QueryDocumentIdentityTests
     [Fact]
     public void UnsavedWindowsAreSeparateDocumentsEvenWithTheSameTitle()
     {
-        var first = new QueryDocumentIdentity("SQLQuery1.sql", "SQLQuery1.sql", Now);
-        var second = new QueryDocumentIdentity("SQLQuery1.sql", null, Now);
+        var first = new SqlDocumentIdentity("SQLQuery1.sql", "SQLQuery1.sql", Now);
+        var second = new SqlDocumentIdentity("SQLQuery1.sql", null, Now);
 
         Assert.Null(first.Document.FilePath);
         Assert.NotEqual(first.Document.DocumentId, second.Document.DocumentId);
@@ -23,8 +23,8 @@ public sealed class QueryDocumentIdentityTests
     [Fact]
     public void TheSameFileIsTheSameDocumentAcrossWindowsButEachWindowIsANewSession()
     {
-        var first = new QueryDocumentIdentity("Loan.sql", LoanScript, Now);
-        var second = new QueryDocumentIdentity("LOAN.SQL", LoanScript.ToUpperInvariant(), Now);
+        var first = new SqlDocumentIdentity("Loan.sql", LoanScript, Now);
+        var second = new SqlDocumentIdentity("LOAN.SQL", LoanScript.ToUpperInvariant(), Now);
 
         Assert.Equal(first.Document.DocumentId, second.Document.DocumentId);
         Assert.NotEqual(first.Session.SessionId, second.Session.SessionId);
@@ -34,7 +34,7 @@ public sealed class QueryDocumentIdentityTests
     [Fact]
     public void SavingAnUnsavedQueryHandsTheOldSessionOverAndStartsOneOnTheFileDocument()
     {
-        var identity = new QueryDocumentIdentity("SQLQuery1.sql", null, Now);
+        var identity = new SqlDocumentIdentity("SQLQuery1.sql", null, Now);
         var unsaved = identity.Document;
         var session = identity.Session;
         Assert.Equal(1, identity.NextSequence());
@@ -47,7 +47,7 @@ public sealed class QueryDocumentIdentityTests
         Assert.Equal(session, handover.Session);
         Assert.Equal(3, handover.Sequence);
         Assert.Equal(("Loan.sql", LoanScript), (identity.Document.DisplayName, identity.Document.FilePath));
-        Assert.Equal(QueryDocumentIdentity.DocumentId(LoanScript), identity.Document.DocumentId);
+        Assert.Equal(SqlDocumentIdentity.DocumentId(LoanScript), identity.Document.DocumentId);
         Assert.Equal(identity.Document.DocumentId, identity.Session.DocumentId);
         Assert.NotEqual(session.SessionId, identity.Session.SessionId);
         Assert.Equal(Now.AddMinutes(5), identity.Session.StartedAt);
@@ -57,7 +57,7 @@ public sealed class QueryDocumentIdentityTests
     [Fact]
     public void SaveAsMovesToTheNewPathWhileRenamingOnlyTheTitleKeepsTheSession()
     {
-        var identity = new QueryDocumentIdentity("Loan.sql", LoanScript, Now);
+        var identity = new SqlDocumentIdentity("Loan.sql", LoanScript, Now);
         var session = identity.Session;
 
         Assert.Null(identity.Observe("Loan.sql", LoanScript, Now));
@@ -74,6 +74,6 @@ public sealed class QueryDocumentIdentityTests
     [Fact]
     public void TitlesAreNeverEmpty()
     {
-        Assert.Equal("SQL 查詢", new QueryDocumentIdentity(" ", null, Now).Document.DisplayName);
+        Assert.Equal("SQL 查詢", new SqlDocumentIdentity(" ", null, Now).Document.DisplayName);
     }
 }

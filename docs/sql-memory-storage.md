@@ -32,7 +32,7 @@ Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents tr
 
 ### 擷取路徑：不變內容不寫、去重不讀整份 BLOB
 
-`QuerySessionHead.RecoveryContentId` 帶著目前 Recovery 的 ContentId。`SqlCapturePlanner`
+`SqlSessionHead.RecoveryContentId` 帶著目前 Recovery 的 ContentId。`SqlCapturePlanner`
 在「沒有新版本、不是執行、且內容的 ContentId 跟它相同」時不產生 Content／Recovery／History
 寫入，只有 Session／Captures 兩張輕量表照常前進維持 Sequence／CAS；晚到 idle 仍受
 `capture.Sequence <= previous.LastSequence` 擋下。連續 idle 但內容不變因此不再每輪重編碼。

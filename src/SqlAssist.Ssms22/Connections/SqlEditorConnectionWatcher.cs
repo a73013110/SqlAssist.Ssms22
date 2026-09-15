@@ -182,7 +182,7 @@ internal static class SqlEditorConnectionWatcher
             // SQL Memory 要記下「這段 SQL 是對哪台伺服器、哪個資料庫跑的」。這一刻 SSMS
             // 剛更新完自己的 UI，向它要連線最便宜；擷取當下再問會把那筆延遲加在 F5 上。
             // 走 Probe：問不到就是這一次沒有連線內容，SQL 本身仍然照常擷取。
-            SqlAssistPlatformGuard.Probe("記下查詢視窗連線", () => QueryWindowConnections.Note(moniker,
+            SqlAssistPlatformGuard.Probe("記下查詢視窗連線", () => SqlWindowConnections.Note(moniker,
                 connected ? ResolveEditorService()?.GetConnectionForSpecificQueryEditor(moniker) : null));
 
             SqlMetadataService[] services;

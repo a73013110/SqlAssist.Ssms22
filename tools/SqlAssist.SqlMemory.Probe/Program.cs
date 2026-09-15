@@ -60,13 +60,13 @@ internal static class Program
         }
         if (mode == "write")
         {
-            var document = new QueryDocument(Guid.NewGuid(), "Library.sql", null);
-            var session = new QuerySession(Guid.NewGuid(), document.DocumentId, DateTimeOffset.UtcNow);
+            var document = new SqlDocument(Guid.NewGuid(), "Library.sql", null);
+            var session = new SqlSession(Guid.NewGuid(), document.DocumentId, DateTimeOffset.UtcNow);
             var policy = new SqlCapturePolicy(false, false, TimeSpan.FromMinutes(10), true, false);
             var committer = new SqlCaptureCommitter(store, new SqlCapturePlanner());
             for (var i = 1; i <= 20; i++)
                 committer.ProcessAsync(new SqlCapture(Guid.NewGuid(), document, session, i, DateTimeOffset.UtcNow,
-                    SqlCaptureKind.BeforeExecute, new QueryTextSnapshot("SELECT * FROM Lib_Reader;")), policy, CancellationToken.None).GetAwaiter().GetResult();
+                    SqlCaptureKind.BeforeExecute, new SqlTextSnapshot("SELECT * FROM Lib_Reader;")), policy, CancellationToken.None).GetAwaiter().GetResult();
             Console.WriteLine("已提交 20 次執行。");
             return 0;
         }

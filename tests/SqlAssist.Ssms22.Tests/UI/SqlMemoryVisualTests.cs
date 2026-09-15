@@ -31,18 +31,18 @@ public sealed class SqlMemoryVisualTests
             var header = new StackPanel();
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateQueryTab(label == "History" ? "History" : "Favorite", label));
+            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(label == "History" ? "History" : "Favorite", label));
             tabs.SelectedIndex = 0;
-            var current = SqlAssistChrome.CreateQueryConnectionButton();
-            var toolbar = SqlAssistChrome.CreateQueryToolbar(tabs, current,
+            var current = SqlAssistChrome.CreateMemoryConnectionButton();
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, current,
                 SqlAssistChrome.CreateButton("重新整理", metrics), SqlAssistChrome.CreateButton("設定", metrics));
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
-            header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateQueryIconButton("Clear", "清除搜尋")));
-            var filters = SqlAssistChrome.CreateQueryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()),
-                new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
+            header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateMemoryIconButton("Clear", "清除搜尋")));
+            var filters = SqlAssistChrome.CreateMemoryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()),
+                new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
             header.Children.Add(filters);
-            var scope = new SqlPillSelector(SqlMemoryBrowserModel.ScopeOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 2 };
+            var scope = new SqlPillSelector(SqlMemoryBrowserModel.ScopeOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 2 };
             header.Children.Add(scope);
             var server = new SqlConnectionFilter("伺服器");
             server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
@@ -71,16 +71,16 @@ public sealed class SqlMemoryVisualTests
                 [ScriptResource.FontFamily] = SqlAssistChrome.CodeFont, [ScriptResource.FontSize] = metrics.Body
             };
             viewer.Document = SqlScriptDocument.Build("-- 借閱明細\nSELECT LoanId, CopyNo\nFROM LoanDetail\nWHERE LoanId = 1;", resources);
-            var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var previewActions = new WrapPanel();
             foreach (var action in new[] { ("Copy", "複製全文"), ("Wrap", "顯示換行"), ("Favorite", "Add to Favorites"),
                 ("Edit", "編輯 SQL"), ("Settings", "編輯收藏資料"), ("Remove", "Remove from Favorites"), ("Open", "開新 Query") })
             {
-                var button = SqlAssistChrome.CreateQueryIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
+                var button = SqlAssistChrome.CreateMemoryIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
                 previewActions.Children.Add(button);
             }
             var previewLoading = new SqlLoadingSurface(viewer);
-            var detail = SqlAssistChrome.CreateQueryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
+            var detail = SqlAssistChrome.CreateMemoryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
             var listLoading = new SqlLoadingSurface(list);
             var split = new SqlMemorySplitView(listLoading, detail, summary);
             root.Children.Add(split);
@@ -322,11 +322,11 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void QueryButtonIconsAndLabelsFollowOwningControlForeground()
+    public void MemoryButtonIconsAndLabelsFollowOwningControlForeground()
     {
         WpfTest.Run(() =>
         {
-            var button = SqlAssistChrome.CreateQueryConnectionButton();
+            var button = SqlAssistChrome.CreateMemoryConnectionButton();
             button.Measure(new Size(200, 40)); button.Arrange(new Rect(0, 0, 200, 40)); button.UpdateLayout();
             button.Foreground = Brushes.Lime;
             button.UpdateLayout();
@@ -342,7 +342,7 @@ public sealed class SqlMemoryVisualTests
         {
             var card = (ControlTemplate)SqlAssistChrome.CreateSqlCardStyle().Setters.OfType<Setter>()
                 .Single(setter => setter.Property == Control.TemplateProperty).Value;
-            var pill = (ControlTemplate)SqlAssistChrome.CreateQueryPillStyle().Setters.OfType<Setter>()
+            var pill = (ControlTemplate)SqlAssistChrome.CreateMemoryPillStyle().Setters.OfType<Setter>()
                 .Single(setter => setter.Property == Control.TemplateProperty).Value;
             var layoutProperties = new[] { FrameworkElement.MarginProperty, Control.PaddingProperty, Border.PaddingProperty,
                 Control.BorderThicknessProperty, Border.BorderThicknessProperty, FrameworkElement.HeightProperty, FrameworkElement.WidthProperty };
@@ -353,13 +353,13 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void QueryControlsUseLiveThemeForegroundAtRestAndSelected()
+    public void MemoryControlsUseLiveThemeForegroundAtRestAndSelected()
     {
         WpfTest.Run(() =>
         {
             var palette = new ThemeResourceSet();
-            var button = SqlAssistChrome.CreateQueryConnectionButton();
-            var iconButton = SqlAssistChrome.CreateQueryIconButton("Settings", "設定");
+            var button = SqlAssistChrome.CreateMemoryConnectionButton();
+            var iconButton = SqlAssistChrome.CreateMemoryIconButton("Settings", "設定");
             var pills = new SqlPillSelector(("草稿", "Edit"), ("執行", "Execute"));
             var root = new StackPanel(); root.Resources.MergedDictionaries.Add(palette.Resources);
             // SSMS 宿主可在呈現器／文字上指定前景，不能只在沒有隱含樣式的純 WPF 樹驗證。
@@ -371,8 +371,8 @@ public sealed class SqlMemoryVisualTests
             root.Resources[typeof(TextBlock)] = textStyle;
             root.Children.Add(button); root.Children.Add(iconButton); root.Children.Add(pills);
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateQueryTab("History", "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateQueryTab("Favorite", "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab("History", "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab("Favorite", "Favorites"));
             tabs.SelectedIndex = 0; root.Children.Add(tabs);
             var connection = new SqlConnectionFilter("資料庫", "Database"); root.Children.Add(connection);
             foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
@@ -405,7 +405,7 @@ public sealed class SqlMemoryVisualTests
             var row = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
                 SqlHistoryFilter.Executions, new string('L', 100) + ".sql", "SELECT * FROM Loan;",
                 new SqlConnectionLabel("LibraryServer", "Library")));
-            var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(),
+            var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var body = new Border();
             var split = new SqlMemorySplitView(new SqlMemoryList(), body, summary);
@@ -458,19 +458,19 @@ public sealed class SqlMemoryVisualTests
     {
         WpfTest.Run(() =>
         {
-            var original = SqlQueryIcon.NativeImageFactory;
+            var original = SqlMemoryIcon.NativeImageFactory;
             try
             {
-                SqlQueryIcon.NativeImageFactory = name => new TextBlock { Text = name };
-                var first = SqlAssistChrome.CreateQueryIcon("Database");
-                var second = SqlAssistChrome.CreateQueryIcon("Database");
+                SqlMemoryIcon.NativeImageFactory = name => new TextBlock { Text = name };
+                var first = SqlAssistChrome.CreateMemoryIcon("Database");
+                var second = SqlAssistChrome.CreateMemoryIcon("Database");
                 Assert.NotSame(first.Child, second.Child);
                 Assert.Equal("Database", ((TextBlock)first.Child).Text);
                 first.IconName = "Server";
                 Assert.Equal("Server", ((TextBlock)first.Child).Text);
                 Assert.Equal("Database", ((TextBlock)second.Child).Text);
             }
-            finally { SqlQueryIcon.NativeImageFactory = original; }
+            finally { SqlMemoryIcon.NativeImageFactory = original; }
         });
     }
 

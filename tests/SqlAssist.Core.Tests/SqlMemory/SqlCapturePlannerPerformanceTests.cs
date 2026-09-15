@@ -53,7 +53,7 @@ public sealed class SqlCapturePlannerPerformanceTests
     {
         var planner = new SqlCapturePlanner();
         var baseline = new string('a', LargeTextChars);
-        QuerySessionHead? state = null;
+        SqlSessionHead? state = null;
         for (var i = 1; i <= 5; i++)
         {
             var text = baseline + i; // 每次小幅修改：內容必須真的不同，不能被跳過寫入的分支擋下。

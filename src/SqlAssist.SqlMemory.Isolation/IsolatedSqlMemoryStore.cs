@@ -63,7 +63,7 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
         }, cancellationToken);
     }
 
-    public Task<QuerySessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+    public Task<SqlSessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReadSession(operation, sessionId), cancellationToken);
     public Task<SqlHistoryCommitResult> CommitAsync(SqlCaptureCommit write, string? leaseId, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.Commit(operation, write, leaseId), cancellationToken);

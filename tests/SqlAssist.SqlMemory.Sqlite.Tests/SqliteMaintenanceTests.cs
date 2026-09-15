@@ -26,7 +26,7 @@ public sealed class SqliteMaintenanceTests
     }
 
     private static async Task<List<SqlRevision>> SeedAutoDrafts(SqliteTestStore store, SqliteTestRepository repository,
-        QuerySession? session, int count, int startSeconds)
+        SqlSession? session, int count, int startSeconds)
     {
         var drafts = new List<SqlRevision>();
         for (var index = 0; index < count; index++)
@@ -86,7 +86,7 @@ public sealed class SqliteMaintenanceTests
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        var second = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var second = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
         var first = await SeedAutoDrafts(store, repository, null, 3, 0);
         var other = await SeedAutoDrafts(store, repository, second, 2, 1800);
         var revisions = store.Scalar("SELECT count(*) FROM Revisions;");
@@ -415,7 +415,7 @@ public sealed class SqliteMaintenanceTests
         for (var sequence = 1; sequence <= 40; sequence++)
             await store.Process(repository, store.Capture(sequence,
                 selected: "SELECT CopyNo FROM Cat_BookCopy WHERE CopyNo=" + sequence + ";", seconds: sequence), Token);
-        var other = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
         await SeedAutoDrafts(store, repository, other, 12, 0);
         var policy = new SqlRetentionPolicy(SqliteTestStore.Start.AddDays(-1), SqliteTestStore.Start.AddDays(-1), 0,
             100, 50, 20, SqliteTestStore.Start.AddDays(-1));

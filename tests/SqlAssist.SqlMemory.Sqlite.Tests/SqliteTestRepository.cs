@@ -32,7 +32,7 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         SqliteSearchBudget? searchBudget = null) =>
         Task.Run(() => new SqliteTestRepository(SqliteDatabase.Open(path, cancellationToken, busyTimeoutSeconds), searchBudget), cancellationToken);
 
-    public Task<QuerySessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+    public Task<SqlSessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         Run(token => _captures.ReadSession(sessionId, token), cancellationToken);
     public Task<SqlHistoryCommitResult> CommitAsync(SqlCaptureCommit write, string? leaseId, CancellationToken cancellationToken) =>
         Run(token => _captures.Commit(write, leaseId, token), cancellationToken);

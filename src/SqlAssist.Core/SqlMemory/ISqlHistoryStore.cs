@@ -12,7 +12,7 @@ public enum SqlHistoryCommitResult { Committed, Conflict, AlreadyCommitted }
 /// </summary>
 public interface ISqlHistoryStore
 {
-    Task<QuerySessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken);
+    Task<SqlSessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken);
 
     /// <summary>
     /// 單一交易：先檢查 CaptureId 冪等，再 CAS ExpectedVersion（null 代表尚無 Session）。

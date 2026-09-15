@@ -18,7 +18,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 換不到就只是執行擷取不啟用，草稿擷取照常；一律留下紀錄，否則這是一種安靜的失效。
 /// 解析只做一次，之後熱路徑上就只有一次靜態旗標讀取與兩次整數／GUID 比對。
 /// </remarks>
-internal static class QueryExecuteCommandMap
+internal static class SqlExecuteCommandMap
 {
     /// <summary>SSMS 給執行查詢的正式名稱；與鍵盤設定頁上看到的字串相同。</summary>
     private const string CanonicalName = "Query.Execute";

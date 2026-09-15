@@ -20,7 +20,7 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     public bool IsExecuted => History?.Kind == SqlHistoryFilter.Executions;
     public string Status => Favorite is not null ? "收藏" : IsExecuted ? "執行" : "草稿";
-    public string StatusIcon => IsFavorite ? "Favorite" : SqlAssistChrome.QueryOptionIcon(History!.Kind);
+    public string StatusIcon => IsFavorite ? "Favorite" : SqlAssistChrome.MemoryOptionIcon(History!.Kind);
     public string ServerIcon => Favorite?.Favorite.Scope == SqlFavoriteScope.Global ? "Global" : "Server";
     public bool CanAddFavorite => Favorite is null && RevisionId is not null;
     public string AddFavoriteHint => Favorite is not null ? "已是收藏" : CanAddFavorite ? "Add to Favorites" : "未存檔草稿尚無版本，請先開啟為新查詢；目前不能直接收藏。";

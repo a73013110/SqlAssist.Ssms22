@@ -7,17 +7,17 @@ using System.Threading;
 namespace SqlAssist.Core.SqlMemory;
 
 /// <summary>身分改變時要先結束的舊 Session；呼叫端以它送出一筆關閉擷取，再開始新的 Session。</summary>
-public sealed class QuerySessionHandover
+public sealed class SqlSessionHandover
 {
-    internal QuerySessionHandover(QueryDocument document, QuerySession session, long sequence)
+    internal SqlSessionHandover(SqlDocument document, SqlSession session, long sequence)
     {
         Document = document;
         Session = session;
         Sequence = sequence;
     }
 
-    public QueryDocument Document { get; }
-    public QuerySession Session { get; }
+    public SqlDocument Document { get; }
+    public SqlSession Session { get; }
 
     /// <summary>關閉擷取要用的序號；接在舊 Session 最後一筆之後。</summary>
     public long Sequence { get; }
@@ -34,34 +34,34 @@ public sealed class QuerySessionHandover
 /// 而歷程要串在新路徑那份文件上。舊 Session 交由呼叫端正式關閉，它的未存檔草稿才不會掛在
 /// 一個再也不會有擷取的 Session 上，靠租約保護到程序結束。只改顯示名稱則沿用同一份文件。
 /// </remarks>
-public sealed class QueryDocumentIdentity
+public sealed class SqlDocumentIdentity
 {
     private long _sequence;
 
-    public QueryDocumentIdentity(string displayName, string? filePath, DateTimeOffset now)
+    public SqlDocumentIdentity(string displayName, string? filePath, DateTimeOffset now)
     {
         var path = SavedPath(filePath);
-        Document = new QueryDocument(DocumentId(path), Name(displayName), path);
-        Session = new QuerySession(Guid.NewGuid(), Document.DocumentId, now);
+        Document = new SqlDocument(DocumentId(path), Name(displayName), path);
+        Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, now);
     }
 
-    public QueryDocument Document { get; private set; }
+    public SqlDocument Document { get; private set; }
 
-    public QuerySession Session { get; private set; }
+    public SqlSession Session { get; private set; }
 
     public long NextSequence() => Interlocked.Increment(ref _sequence);
 
     /// <summary>以目前的名稱與路徑更新身分。</summary>
     /// <returns>路徑改變時回傳要關閉的舊 Session；其他情形為 null。</returns>
-    public QuerySessionHandover? Observe(string displayName, string? filePath, DateTimeOffset now)
+    public SqlSessionHandover? Observe(string displayName, string? filePath, DateTimeOffset now)
     {
         var path = SavedPath(filePath);
         var name = Name(displayName);
         if (!SamePath(path, Document.FilePath))
         {
-            var previous = new QuerySessionHandover(Document, Session, NextSequence());
-            Document = new QueryDocument(DocumentId(path), name, path);
-            Session = new QuerySession(Guid.NewGuid(), Document.DocumentId, now);
+            var previous = new SqlSessionHandover(Document, Session, NextSequence());
+            Document = new SqlDocument(DocumentId(path), name, path);
+            Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, now);
             Interlocked.Exchange(ref _sequence, 0);
             return previous;
         }
@@ -86,9 +86,8 @@ public sealed class QueryDocumentIdentity
         var path = SavedPath(filePath);
         if (path == null) return Guid.NewGuid();
 
-        var normalized = Path.GetFullPath(path).ToLowerInvariant();
         using var sha = SHA256.Create();
-        var hash = sha.ComputeHash(Encoding.Unicode.GetBytes(normalized));
+        var hash = sha.ComputeHash(Encoding.Unicode.GetBytes(NormalizedPath(path)));
         var bytes = new byte[16];
         Array.Copy(hash, bytes, 16);
         return new Guid(bytes);
@@ -101,8 +100,13 @@ public sealed class QueryDocumentIdentity
     private static string? SavedPath(string? filePath) =>
         string.IsNullOrWhiteSpace(filePath) || !Path.IsPathRooted(filePath) ? null : filePath;
 
+    private static string NormalizedPath(string path) => Path.GetFullPath(path).ToLowerInvariant();
+
+    // 每次擷取前都會走到；比對 DocumentId 的雜湊來源字串即可，不必各算一次 SHA-256。
     private static bool SamePath(string? left, string? right) =>
-        left == null || right == null ? left == right : DocumentId(left) == DocumentId(right);
+        left == null || right == null
+            ? left == right
+            : string.Equals(NormalizedPath(left), NormalizedPath(right), StringComparison.Ordinal);
 
     private static string Name(string displayName) => string.IsNullOrWhiteSpace(displayName) ? "SQL 查詢" : displayName;
 }

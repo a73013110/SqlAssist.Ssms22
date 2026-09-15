@@ -21,7 +21,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 只留伺服器與資料庫名稱：完整連線字串、密碼與 Token 一律不進 SQL Memory。
 /// 還沒收到任何連線事件的視窗就是沒有連線內容，擷取仍照常進行——SQL 本身才是主體。
 /// </remarks>
-internal static class QueryWindowConnections
+internal static class SqlWindowConnections
 {
     /// <summary>連線字串裡代表伺服器的鍵；<c>DbConnectionStringBuilder</c> 不會替我們正規化同義字。</summary>
     private static readonly string[] ServerKeys = { "Data Source", "Server", "Address", "Addr", "Network Address" };

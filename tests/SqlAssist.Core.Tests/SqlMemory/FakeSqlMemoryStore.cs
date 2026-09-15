@@ -18,7 +18,7 @@ internal sealed class FakeSqlMemoryStore : ISqlMemoryStore
     /// <summary>設定後，全文讀取會等到它完成；用來觀察關閉途中的讀取。</summary>
     public TaskCompletionSource<bool>? BlockReads { get; set; }
 
-    public Task<QuerySessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
+    public Task<SqlSessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken) =>
         Captures.ReadSessionAsync(sessionId, cancellationToken);
 
     public Task<SqlHistoryCommitResult> CommitAsync(SqlCaptureCommit write, string? leaseId, CancellationToken cancellationToken) =>

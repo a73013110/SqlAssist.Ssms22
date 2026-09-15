@@ -82,7 +82,7 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
         if (_operations.TryRemove(id, out var source)) source.Dispose();
     }
 
-    public QuerySessionHead? ReadSession(long operation, Guid sessionId) => Run(operation, token => Storage.Captures.ReadSession(sessionId, token));
+    public SqlSessionHead? ReadSession(long operation, Guid sessionId) => Run(operation, token => Storage.Captures.ReadSession(sessionId, token));
     public SqlHistoryCommitResult Commit(long operation, SqlCaptureCommit write, string? leaseId) =>
         Run(operation, token => Storage.Captures.Commit(write, leaseId, token));
     public SqlMemoryPage<SqlHistoryItem> ReadHistory(long operation, SqlHistoryRequest request) =>

@@ -20,17 +20,17 @@ namespace SqlAssist.Ssms22.SqlMemory;
 ///
 /// 每一個 <see cref="IWpfTextView"/> 是一個 Session；同一個檔案在不同視窗、不同次
 /// 啟動都是不同 Session，但共用同一個 DocumentId，歷程才串得起來。檔名與路徑在視窗開著時
-/// 會變（第一次存檔、另存新檔），所以每次擷取前重讀，規則在 <see cref="QueryDocumentIdentity"/>。
+/// 會變（第一次存檔、另存新檔），所以每次擷取前重讀，規則在 <see cref="SqlDocumentIdentity"/>。
 /// </remarks>
 internal sealed class SqlCaptureTracker
 {
     private readonly IWpfTextView _textView;
     private readonly IServiceProvider _serviceProvider;
-    private readonly QueryDocumentIdentity _identity;
+    private readonly SqlDocumentIdentity _identity;
     private readonly DispatcherTimer _idle;
     private int _closed;
 
-    private SqlCaptureTracker(IWpfTextView textView, IServiceProvider serviceProvider, QueryDocumentIdentity identity)
+    private SqlCaptureTracker(IWpfTextView textView, IServiceProvider serviceProvider, SqlDocumentIdentity identity)
     {
         _textView = textView;
         _serviceProvider = serviceProvider;
@@ -48,12 +48,12 @@ internal sealed class SqlCaptureTracker
 
         var buffer = textView.TextBuffer;
         var tracker = new SqlCaptureTracker(textView, serviceProvider,
-            new QueryDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), DateTimeOffset.UtcNow));
+            new SqlDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), DateTimeOffset.UtcNow));
 
         textView.Properties[typeof(SqlCaptureTracker)] = tracker;
         buffer.Changed += tracker.OnBufferChanged;
         textView.Closed += tracker.OnClosed;
-        QueryExecuteCommandMap.EnsureResolved(serviceProvider);
+        SqlExecuteCommandMap.EnsureResolved(serviceProvider);
     }
 
     /// <summary>殼層送出「執行查詢」時呼叫；擷取的是送出前的內容，與執行結果無關。</summary>
@@ -107,17 +107,17 @@ internal sealed class SqlCaptureTracker
             // 正式關閉要在同一筆交易裡保存最終版本並刪掉未存檔草稿，所以即使關掉
             // 草稿擷取也照送——版本引擎自己決定要不要留內容。
             Capture(SqlCaptureKind.EditorClosed, selection: null);
-            QueryWindowConnections.Forget(Moniker());
+            SqlWindowConnections.Forget(Moniker());
         });
     }
 
-    private void Capture(SqlCaptureKind kind, IQueryTextSnapshot? selection)
+    private void Capture(SqlCaptureKind kind, ISqlTextSnapshot? selection)
     {
         if (!Runtime.IsCapturing) return;
 
         var now = DateTimeOffset.UtcNow;
         var text = new SnapshotText(_textView.TextBuffer.CurrentSnapshot);
-        var connection = QueryWindowConnections.Get(Moniker());
+        var connection = SqlWindowConnections.Get(Moniker());
         var buffer = _textView.TextBuffer;
         if (_identity.Observe(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), now) is { } handover)
         {
@@ -134,13 +134,13 @@ internal sealed class SqlCaptureTracker
     /// 殼層實際送出的文字：每個選取範圍依文件順序、以文件自己的換行串起來。
     /// 方塊選取不能取第一個起點到最後一個終點，中間欄外的文字並沒有被執行。
     /// </summary>
-    private static IQueryTextSnapshot? SelectedText(ITextSelection selection)
+    private static ISqlTextSnapshot? SelectedText(ITextSelection selection)
     {
         if (selection is null || selection.IsEmpty) return null;
 
         var spans = selection.SelectedSpans.OrderBy(span => span.Start.Position).ToArray();
         if (spans.Length == 0) return null;
-        return QuerySelectionText.Combine(spans.Select(span => (IQueryTextSnapshot)new SpanText(span)).ToArray(),
+        return SqlSelectionText.Combine(spans.Select(span => (ISqlTextSnapshot)new SpanText(span)).ToArray(),
             SnapshotNewLine.Resolve(spans[0].Snapshot, spans[0].Start.Position));
     }
 
@@ -153,7 +153,7 @@ internal sealed class SqlCaptureTracker
             : null, fallback: null);
 
     /// <summary>整份文件的快照。不可變，背景展開全文才安全也才便宜。</summary>
-    private sealed class SnapshotText : IQueryTextSnapshot
+    private sealed class SnapshotText : ISqlTextSnapshot
     {
         private readonly ITextSnapshot _snapshot;
 
@@ -165,7 +165,7 @@ internal sealed class SqlCaptureTracker
     }
 
     /// <summary>選取範圍的快照；綁在取得當下的那一份 snapshot 上，之後的編輯不影響它。</summary>
-    private sealed class SpanText : IQueryTextSnapshot
+    private sealed class SpanText : ISqlTextSnapshot
     {
         private readonly SnapshotSpan _span;
 

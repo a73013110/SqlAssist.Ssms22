@@ -77,7 +77,7 @@ public sealed class SqliteRepositoryTests
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        var second = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var second = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
         var policy = new SqlCapturePolicy(true, false, TimeSpan.FromMinutes(10), true, true);
         await store.Process(repository, store.Capture(sql: "SELECT 1", kind: SqlCaptureKind.DraftIdle), Token, policy);
         await store.Process(repository, store.Capture(sql: "SELECT 1", kind: SqlCaptureKind.DraftIdle, session: second), Token, policy);
@@ -176,7 +176,7 @@ public sealed class SqliteRepositoryTests
         using var store = new SqliteTestStore();
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
         await Task.WhenAll(repositories.Select(repository => store.Process(repository,
-            store.Capture(session: new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start)), Token)));
+            store.Capture(session: new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start)), Token)));
         Assert.Equal(4L, store.Scalar("SELECT count(*) FROM Sessions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));

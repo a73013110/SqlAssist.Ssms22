@@ -12,32 +12,32 @@ namespace SqlAssist.Ssms22.UI;
 
 internal static partial class SqlIcons
 {
-    private static readonly DependencyProperty QueryImageBackdropProperty = DependencyProperty.RegisterAttached(
-        "QueryImageBackdrop", typeof(Brush), typeof(SqlIcons), new PropertyMetadata(null));
+    private static readonly DependencyProperty MemoryImageBackdropProperty = DependencyProperty.RegisterAttached(
+        "MemoryImageBackdrop", typeof(Brush), typeof(SqlIcons), new PropertyMetadata(null));
     // 必須在 Browser 的欄位建立前接好；每個插槽各有 CrispImage，絕不共用視覺節點。
-    public static void RegisterQueryImages() => SqlQueryIcon.NativeImageFactory = CreateQueryImage;
+    public static void RegisterMemoryImages() => SqlMemoryIcon.NativeImageFactory = CreateMemoryImage;
 
-    private static FrameworkElement? CreateQueryImage(string name)
+    private static FrameworkElement? CreateMemoryImage(string name)
     {
         if (name == "Chevron") return null;
         return SqlAssistPlatformGuard.Probe<FrameworkElement?>("SQL Memory 原生圖示", () =>
         {
-            var image = new CrispImage { Width = 16, Height = 16, Moniker = QueryMoniker(name) };
+            var image = new CrispImage { Width = 16, Height = 16, Moniker = MemoryMoniker(name) };
             // ImageThemingUtilities 會從承載 CrispImage 的表面讀背景；透明 Host
             // 只提供這個主題上下文，不畫自己的底色或切斷膠囊。
             var host = new Border { Background = Brushes.Transparent, Child = image };
             // 透明幽靈按鈕要合成宿主底色；hover／高對比選取則以實際表面轉換原生配色。
-            var background = new MultiBinding { Converter = QueryImageBackgroundConverter.Instance };
+            var background = new MultiBinding { Converter = MemoryImageBackgroundConverter.Instance };
             background.Bindings.Add(new Binding(nameof(Border.Background))
             { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Border), 1) });
-            host.SetResourceReference(QueryImageBackdropProperty, ThemeBrush.WindowBackground);
-            background.Bindings.Add(new Binding { Source = host, Path = new PropertyPath(QueryImageBackdropProperty) });
+            host.SetResourceReference(MemoryImageBackdropProperty, ThemeBrush.WindowBackground);
+            background.Bindings.Add(new Binding { Source = host, Path = new PropertyPath(MemoryImageBackdropProperty) });
             host.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, background);
             return host;
         }, null);
     }
 
-    internal static ImageMoniker QueryMoniker(string name) => name switch
+    internal static ImageMoniker MemoryMoniker(string name) => name switch
     {
         // 與 Menus.vsct 的 History／Favorites 使用完全相同的目錄識別。
         "History" => KnownMonikers.History, "Favorite" => KnownMonikers.Favorite,
@@ -53,9 +53,9 @@ internal static partial class SqlIcons
         _ => KnownMonikers.History
     };
 
-    private sealed class QueryImageBackgroundConverter : IMultiValueConverter
+    private sealed class MemoryImageBackgroundConverter : IMultiValueConverter
     {
-        public static readonly QueryImageBackgroundConverter Instance = new();
+        public static readonly MemoryImageBackgroundConverter Instance = new();
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             var backdrop = values[1] is SolidColorBrush window ? window.Color : SystemColors.WindowColor;

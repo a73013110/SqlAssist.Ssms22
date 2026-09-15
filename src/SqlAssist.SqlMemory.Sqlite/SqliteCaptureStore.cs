@@ -21,7 +21,7 @@ internal sealed class SqliteCaptureStore
         _searchBudget = searchBudget ?? SqliteSearchBudget.Default;
     }
 
-    public QuerySessionHead? ReadSession(Guid sessionId, CancellationToken cancellationToken)
+    public SqlSessionHead? ReadSession(Guid sessionId, CancellationToken cancellationToken)
     {
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: true);
@@ -241,9 +241,9 @@ JOIN Contents c ON c.ContentId=h.ContentId LEFT JOIN Contexts x ON x.ContextId=h
         return names.ToArray();
     }
 
-    private static QuerySessionHead? ReadSession(SqliteConnection connection, SqliteTransaction transaction, Guid sessionId)
+    private static SqlSessionHead? ReadSession(SqliteConnection connection, SqliteTransaction transaction, Guid sessionId)
     {
-        QuerySession session;
+        SqlSession session;
         long version, sequence;
         Guid? head, execution;
         string? recoveryContentId;
@@ -254,7 +254,7 @@ FROM Sessions s LEFT JOIN Recovery r ON r.SessionId=s.SessionId WHERE s.SessionI
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) return null;
-            session = new QuerySession(sessionId, Guid.ParseExact(reader.GetString(0), "N"), Time(reader.GetInt64(1)),
+            session = new SqlSession(sessionId, Guid.ParseExact(reader.GetString(0), "N"), Time(reader.GetInt64(1)),
                 reader.IsDBNull(2) ? null : Time(reader.GetInt64(2)));
             version = reader.GetInt64(3);
             sequence = reader.GetInt64(4);
@@ -262,7 +262,7 @@ FROM Sessions s LEFT JOIN Recovery r ON r.SessionId=s.SessionId WHERE s.SessionI
             execution = GuidOrNull(reader, 6);
             recoveryContentId = StringOrNull(reader, 7);
         }
-        return new QuerySessionHead(session, version, sequence,
+        return new SqlSessionHead(session, version, sequence,
             head.HasValue ? ReadRevision(connection, transaction, head.Value) : null,
             execution.HasValue ? ReadRevision(connection, transaction, execution.Value) : null,
             recoveryContentId);

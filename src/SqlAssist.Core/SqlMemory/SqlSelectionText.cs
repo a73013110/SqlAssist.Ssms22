@@ -13,12 +13,12 @@ namespace SqlAssist.Core.SqlMemory;
 /// 記進歷程就是在保存使用者沒有送出的 SQL。範圍之間用文件自己的換行，與殼層送出的文字一致。
 /// 和其他快照一樣只在背景展開全文，建立時只加總長度。
 /// </remarks>
-public sealed class QuerySelectionText : IQueryTextSnapshot
+public sealed class SqlSelectionText : ISqlTextSnapshot
 {
-    private readonly IQueryTextSnapshot[] _parts;
+    private readonly ISqlTextSnapshot[] _parts;
     private readonly string _separator;
 
-    private QuerySelectionText(IQueryTextSnapshot[] parts, string separator)
+    private SqlSelectionText(ISqlTextSnapshot[] parts, string separator)
     {
         _parts = parts;
         _separator = separator;
@@ -30,7 +30,7 @@ public sealed class QuerySelectionText : IQueryTextSnapshot
     /// <param name="parts">依文件順序排列的範圍；呼叫端負責排序。</param>
     /// <param name="separator">範圍之間的換行。</param>
     /// <returns>沒有範圍時為 null；只有一個範圍時直接回傳它。</returns>
-    public static IQueryTextSnapshot? Combine(IReadOnlyList<IQueryTextSnapshot> parts, string separator)
+    public static ISqlTextSnapshot? Combine(IReadOnlyList<ISqlTextSnapshot> parts, string separator)
     {
         if (parts == null) throw new ArgumentNullException(nameof(parts));
         if (separator == null) throw new ArgumentNullException(nameof(separator));
@@ -39,7 +39,7 @@ public sealed class QuerySelectionText : IQueryTextSnapshot
         {
             0 => null,
             1 => parts[0],
-            _ => new QuerySelectionText(parts.ToArray(), separator),
+            _ => new SqlSelectionText(parts.ToArray(), separator),
         };
     }
 
