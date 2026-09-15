@@ -21,6 +21,7 @@ internal enum ThemeBrush
     RowPressed,
     RowAlternate,
     SegmentTrack,
+    ScrollThumb,
     BadgeBackground,
     AccentBackground,
     AccentBorder,

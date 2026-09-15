@@ -159,7 +159,10 @@ public sealed class SqlMemoryVisualTests
         {
             var filter = new SqlConnectionFilter("伺服器") { IsExpanded = true };
             filter.SetOptions(new[] { "BranchB", "BranchA" });
-            var options = (WrapPanel)((ScrollViewer)filter.Children[1]).Content;
+            var host = (ScrollViewer)filter.Children[1];
+            var options = (WrapPanel)host.Content;
+            host.ApplyTemplate();
+            Assert.Equal(3, Assert.IsType<ScrollBar>(host.Template.FindName("PART_VerticalScrollBar", host)).Width);
             var selectedPill = (RadioButton)options.Children[1];
             selectedPill.IsChecked = true;
             Assert.Same(selectedPill, options.Children[1]);

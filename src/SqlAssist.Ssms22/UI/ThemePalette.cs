@@ -35,13 +35,14 @@ internal static class ThemePalette
             return tint;
         }
 
+        var dimForeground = highContrast || !Readable(dim, Colors.Transparent) ? foreground : dim;
         var colors = new Dictionary<ThemeBrush, Color>
         {
             [ThemeBrush.ListBackground] = background,
             [ThemeBrush.ListForeground] = foreground,
             [ThemeBrush.WindowBackground] = window.Background,
             [ThemeBrush.WindowForeground] = windowForeground,
-            [ThemeBrush.DimForeground] = highContrast || !Readable(dim, Colors.Transparent) ? foreground : dim,
+            [ThemeBrush.DimForeground] = dimForeground,
             [ThemeBrush.Border] = highContrast ? foreground : border,
             [ThemeBrush.Hairline] = highContrast ? foreground : Overlay(foreground, 0.10),
             [ThemeBrush.RowHover] = highContrast ? selection.Background : Tint(0.05),
@@ -50,6 +51,8 @@ internal static class ThemePalette
             [ThemeBrush.RowPressed] = highContrast ? selection.Background : Tint(0.18),
             [ThemeBrush.RowAlternate] = highContrast ? background : Overlay(foreground, 0.045),
             [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),
+            // 覆蓋式捲軸平時退到淡色；透明度放在色彩裡，高對比才能回到實色而不必另寫觸發器。
+            [ThemeBrush.ScrollThumb] = highContrast ? foreground : Overlay(dimForeground, 0.65),
             [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
             [ThemeBrush.AccentBackground] = highContrast ? background : Tint(0.12),
             [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,

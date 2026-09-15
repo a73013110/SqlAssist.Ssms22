@@ -171,6 +171,67 @@ internal static partial class SqlAssistChrome
         };
     }
 
+    /// <summary>
+    /// 小型限高區塊的覆蓋式捲軸：3 DIP 握把疊在內容右緣，不佔版面寬度。
+    /// </summary>
+    /// <remarks>
+    /// 只有縱向捲軸、沒有軌道點擊，命中範圍也小，所以只給高度有限的輔助區塊；
+    /// 對話框、資料格與編輯區維持 SSMS 原生捲軸。內容右緣要自留空隙，握把才不會壓字。
+    /// </remarks>
+    public static void ApplyOverlayScroll(ScrollViewer scroll)
+    {
+        scroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
+        scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+        scroll.Template = CreateOverlayScrollTemplate();
+    }
+
+    private static ControlTemplate CreateOverlayScrollTemplate()
+    {
+        var root = new FrameworkElementFactory(typeof(Grid));
+        var presenter = new FrameworkElementFactory(typeof(ScrollContentPresenter)) { Name = "PART_ScrollContentPresenter" };
+        presenter.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(ContentControl.Content)));
+        presenter.SetBinding(ContentPresenter.ContentTemplateProperty, TemplatedParent(nameof(ContentControl.ContentTemplate)));
+        presenter.SetBinding(ScrollContentPresenter.CanContentScrollProperty, TemplatedParent(nameof(ScrollViewer.CanContentScroll)));
+        root.AppendChild(presenter);
+
+        // 本地值蓋過 VsThemeBrushes 發布的原生 ScrollBar 樣式，否則寬度與樣板會被換回去。
+        var bar = new FrameworkElementFactory(typeof(ScrollBar)) { Name = "PART_VerticalScrollBar" };
+        bar.SetValue(FrameworkElement.WidthProperty, 3d);
+        bar.SetValue(FrameworkElement.MinWidthProperty, 0d);
+        bar.SetValue(FrameworkElement.MaxWidthProperty, 3d);
+        bar.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
+        bar.SetValue(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Arrow);
+        bar.SetValue(ScrollBar.OrientationProperty, Orientation.Vertical);
+        bar.SetValue(RangeBase.MinimumProperty, 0d);
+        bar.SetBinding(RangeBase.MaximumProperty, TemplatedParent(nameof(ScrollViewer.ScrollableHeight)));
+        bar.SetBinding(ScrollBar.ViewportSizeProperty, TemplatedParent(nameof(ScrollViewer.ViewportHeight)));
+        bar.SetBinding(RangeBase.ValueProperty,
+            new Binding(nameof(ScrollViewer.VerticalOffset)) { RelativeSource = RelativeSource.TemplatedParent, Mode = BindingMode.OneWay });
+        bar.SetBinding(UIElement.VisibilityProperty, TemplatedParent(nameof(ScrollViewer.ComputedVerticalScrollBarVisibility)));
+        bar.SetValue(Control.TemplateProperty, new ControlTemplate(typeof(ScrollBar))
+        {
+            VisualTree = new FrameworkElementFactory(typeof(OverlayScrollTrack)) { Name = "PART_Track" }
+        });
+        root.AppendChild(bar);
+        return new ControlTemplate(typeof(ScrollViewer)) { VisualTree = root };
+    }
+
+    /// <summary><see cref="Track.Thumb"/> 不是相依性屬性，樣板工廠設不到，只能由子類別自己放。</summary>
+    private sealed class OverlayScrollTrack : Track
+    {
+        public OverlayScrollTrack()
+        {
+            IsDirectionReversed = true;
+            var grip = new FrameworkElementFactory(typeof(Border)) { Name = "grip" };
+            grip.SetValue(Border.CornerRadiusProperty, new CornerRadius(1.5));
+            grip.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ScrollThumb);
+            var template = new ControlTemplate(typeof(Thumb)) { VisualTree = grip };
+            AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.DimForeground, "grip");
+            AddTrigger(template, Thumb.IsDraggingProperty, Border.BackgroundProperty, ThemeBrush.ListForeground, "grip");
+            Thumb = new Thumb { MinHeight = 16, Cursor = System.Windows.Input.Cursors.Hand, Template = template };
+        }
+    }
+
     /// <summary>區塊標題：靠字重而不是字級把段落分開。</summary>
     public static TextBlock CreateLabel(string text, Metrics metrics)
     {

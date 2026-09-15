@@ -21,9 +21,6 @@ namespace SqlAssist.Ssms22.UI;
 internal partial class NotificationCard : Border
 {
     private readonly Dictionary<long, NotificationRow> _rows = new();
-    internal static readonly DependencyProperty HighContrastProperty = DependencyProperty.Register(
-        nameof(HighContrast), typeof(bool), typeof(NotificationCard), new PropertyMetadata(false));
-    public bool HighContrast { get => (bool)GetValue(HighContrastProperty); set => SetValue(HighContrastProperty, value); }
     private bool _expanded;
     private bool? _glass;
     private bool _spinning;
@@ -39,6 +36,7 @@ internal partial class NotificationCard : Border
     public NotificationCard()
     {
         InitializeComponent();
+        SqlAssistChrome.ApplyOverlayScroll(DetailScroll);
         SummaryButton = SqlAssistChrome.CreateButton("通知", SqlAssistChrome.DefaultMetrics);
         SummaryButton.MinWidth = 0; SummaryButton.Padding = new Thickness(0); SummaryButton.Margin = new Thickness(0);
         SqlAssistChrome.ApplyNotificationCursor(SummaryButton);
@@ -60,7 +58,6 @@ internal partial class NotificationCard : Border
 
     internal void SetOptions(bool glass, bool highContrast)
     {
-        HighContrast = highContrast;
         glass &= !highContrast;
         if (_glass == glass) return;
         _glass = glass;

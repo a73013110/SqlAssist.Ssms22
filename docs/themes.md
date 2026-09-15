@@ -25,7 +25,8 @@ SSMS 新彩色主題使用 Fluent `ShellColors`；舊 `EnvironmentColors.ToolTip
   不把解析後的 Brush 寫死在控制項或樣板裡。
 - 每個自製視窗根節點及獨立 `ContextMenu` 呼叫 `VsThemeBrushes.Apply`。字典只包含
   資源、不保存視窗；不得改動 `Application.Resources` 或 SSMS 全域設定。
-- 捲軸、下拉清單、右鍵選單沿用 SSMS 的完整原生樣式。局部系統鍵別名涵蓋舊樣板的
+- 捲軸、下拉清單、右鍵選單沿用 SSMS 的完整原生樣式；覆蓋式捲軸例外見
+  [UI 準則](ui-guidelines.md)。局部系統鍵別名涵蓋舊樣板的
   角落填色、選取與前景；不只替外層 Border 換色。
 - 衍生筆刷每輪更新只建立一次並凍結；相同顏色保留原物件，避免多餘失效通知。
   高對比使用完整選取色及配對文字色，不沿用低透明度選取底色。
