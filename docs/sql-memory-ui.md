@@ -47,9 +47,9 @@ Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevro
 Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；互動狀態不改版面見
 [UI 準則](ui-guidelines.md)。工具列窄窗收起文字，圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
-Tabs、篩選與卡片圖示由 `SqlAssistChrome` 依語意值選取；排序按鈕與選單共用同一對應。
-`SqlIcons` 提供 SSMS 原生 `CrispImage` 與背景感知配色，History／Favorites 與工具列同源；
-純 WPF 測試及原生建立失敗時使用向量備援。文字讀所屬控制項的動態前景，避開宿主呈現器樣式干擾。
+Tabs、篩選與卡片圖示由 `SqlAssistChrome.MemoryOptionIcon` 依語意值選取 `SqlIcon`；排序按鈕與選單共用同一對應，
+History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` 識別，不拿圖示當動作。
+文字讀所屬控制項的動態前景，避開宿主呈現器樣式干擾。
 卡片快速操作使用透明底，文字與圖示跟隨卡片的 hover／selected 配對前景，不另畫不透明操作區。
 
 ## 收藏與開啟

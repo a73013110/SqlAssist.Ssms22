@@ -9,12 +9,15 @@ using System.Windows.Data;
 
 namespace SqlAssist.Ssms22.UI;
 
+/// <summary>卡片上的快速操作；按鈕以它為 Tag，不拿圖示名稱當動作識別。</summary>
+internal enum SqlMemoryRowAction { Copy, Open, AddFavorite }
+
 /// <summary>History／Favorites 共用的清單與鍵盤路徑；開啟是明確動作，不是選取副作用。</summary>
 internal sealed class SqlMemoryList : ListBox
 {
     private Size _viewportSize = Size.Empty;
     public event EventHandler? OpenRequested;
-    public event Action<string>? RowActionRequested;
+    public event Action<SqlMemoryRowAction>? RowActionRequested;
     public event EventHandler? LoadMoreRequested;
     public bool CanAutoLoadMore { get; set; }
 
@@ -46,7 +49,7 @@ internal sealed class SqlMemoryList : ListBox
         }));
         AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, e) =>
         {
-            if (e.OriginalSource is not Button { Tag: string action } button) return;
+            if (e.OriginalSource is not Button { Tag: SqlMemoryRowAction action } button) return;
             if (ContainerFromElement(this, button) is not ListBoxItem item) return;
             SelectedItem = ItemContainerGenerator.ItemFromContainer(item);
             e.Handled = true; RowActionRequested?.Invoke(action);

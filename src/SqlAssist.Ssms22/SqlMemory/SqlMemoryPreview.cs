@@ -33,15 +33,15 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     public SqlMemoryPreview(SqlAssistPackage package, Action changed)
     {
         _package = package; _changed = changed;
-        _tools.Children.Add(Button("Copy", "複製全文", () => _viewer.CopyAll()));
-        var wrap = Button("Wrap", "切換 SQL 顯示換行", () => _viewer.SetWrap(!_viewer.Wrap));
+        _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
+        var wrap = Button(SqlIcon.Wrap, "切換 SQL 顯示換行", () => _viewer.SetWrap(!_viewer.Wrap));
         _tools.Children.Add(wrap);
-        _addFavorite = Button("Favorite", "Add to Favorites", () => EditMetadata(false));
-        _edit = Button("Edit", "編輯 SQL", EditSql);
-        _metadata = Button("Settings", "編輯收藏資料", () => EditMetadata(true));
-        _removeFavorite = Button("Remove", "Remove from Favorites", RemoveFavorite);
+        _addFavorite = Button(SqlIcon.Favorite, "Add to Favorites", () => EditMetadata(false));
+        _edit = Button(SqlIcon.Edit, "編輯 SQL", EditSql);
+        _metadata = Button(SqlIcon.Settings, "編輯收藏資料", () => EditMetadata(true));
+        _removeFavorite = Button(SqlIcon.Remove, "Remove from Favorites", RemoveFavorite);
         foreach (var button in new[] { _addFavorite, _edit, _metadata, _removeFavorite }) _actions.Children.Add(button);
-        var open = Button("Open", "開啟至新 Query（不執行 SQL）", () => SqlMemoryActions.OpenQuery(_package, _viewer.Sql));
+        var open = Button(SqlIcon.Open,"開啟至新 Query（不執行 SQL）", () => SqlMemoryActions.OpenQuery(_package, _viewer.Sql));
         open.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
         _actions.Children.Add(open);
         _loading = new SqlLoadingSurface(_viewer);
@@ -145,9 +145,9 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             finally { if (!_disposed && ReferenceEquals(selected, _row)) _actions.IsEnabled = _loaded; }
         }, Report);
     }
-    private Button Button(string icon, string text, Action action)
+    private Button Button(SqlIcon icon, string text, Action action)
     {
-        var button = SqlAssistChrome.CreateMemoryIconButton(icon, text);
+        var button = SqlAssistChrome.CreateIconButton(icon, text);
         button.Click += (_, _) => SqlMemoryActions.Run(() =>
         {
             if (_loaded && SqlMemoryHost.Runtime.IsAvailable) action();
