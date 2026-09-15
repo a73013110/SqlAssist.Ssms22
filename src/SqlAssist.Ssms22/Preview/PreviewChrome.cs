@@ -35,6 +35,11 @@ internal static class PreviewChrome
     /// </remarks>
     public static void PlayAppear(UIElement element)
     {
+        if (!SqlAssistChrome.MotionEnabled)
+        {
+            return;
+        }
+
         var fade = new DoubleAnimation
         {
             From = 0,

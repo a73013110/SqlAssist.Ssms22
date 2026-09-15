@@ -326,9 +326,9 @@ public sealed class NotificationChromeTests
     [InlineData(false, true, true, false, false)]
     [InlineData(true, true, false, true, false)]
     [InlineData(true, false, true, false, true)]
-    public void 強制動畫只覆寫系統偏好(bool enabled, bool force, bool system, bool contrast, bool expected)
+    public void 不受Windows動畫設定影響只覆寫系統偏好(bool enabled, bool ignoreWindows, bool system, bool contrast, bool expected)
     {
-        Assert.Equal(expected, SqlAssistChrome.NotificationMotionEnabled(enabled, force, system, contrast));
+        Assert.Equal(expected, SqlAssistChrome.MotionPolicy(enabled, ignoreWindows, system, contrast));
     }
 
     [Fact]
@@ -356,7 +356,7 @@ public sealed class NotificationChromeTests
             root.Update(Cards(center), true, false);
             Assert.Equal(Visibility.Collapsed, root.ContextLabel.Visibility);
             Assert.Equal(Visibility.Visible, ((TextBlock)text.Children[1]).Visibility);
-            root.Transition(true, true, SqlAssistChrome.NotificationMotionEnabled(true, true, false, false), NotificationPosition.TopRight);
+            root.Transition(true, true, SqlAssistChrome.MotionPolicy(true, true, false, false), NotificationPosition.TopRight);
             Assert.True(root.HasAnimatedProperties);
             root.StopMotion();
         });

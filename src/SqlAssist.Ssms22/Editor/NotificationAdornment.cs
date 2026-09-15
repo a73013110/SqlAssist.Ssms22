@@ -72,8 +72,7 @@ internal sealed class NotificationAdornment : IDisposable, INotificationSurfaceO
     public NotificationPosition Position { get; set; } = NotificationPosition.TopRight;
     private static NotificationSurface Surface => NotificationSurface.Default;
     private bool Owns => Surface.IsOwnedBy(this);
-    private bool Motion => SqlAssistChrome.NotificationMotionEnabled(SqlAssistSettingsStore.Current.NotificationAnimation,
-        SqlAssistSettingsStore.Current.NotificationForceAnimation, SystemParameters.ClientAreaAnimation, SystemParameters.HighContrast);
+    private static bool Motion => SqlAssistChrome.MotionEnabled;
 
     public NotificationAdornment(IWpfTextView view)
     {

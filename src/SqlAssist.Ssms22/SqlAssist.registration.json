@@ -225,6 +225,23 @@
       "additionalKeywords": [ "括號", "引號", "配對", "自動關閉", "auto close", "bracket", "quote" ],
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
+    "sqlAssist.general.animations": {
+      "type": "boolean",
+      "default": true,
+      "order": 300,
+      "title": "播放介面動畫",
+      "description": "SqlAssist 自製介面的所有動畫：通知的進出、明細、狀態圖示與進度條，結構預覽的淡入，以及 SQL Memory 的載入圖示與清單停駐效果。關閉後直接切到最終狀態。高對比模式一律不播放。",
+      "additionalKeywords": [ "animation", "motion", "淡入", "淡出", "轉圈", "載入", "減少動態效果" ]
+    },
+    "sqlAssist.general.ignoreWindowsAnimationSetting": {
+      "type": "boolean",
+      "default": true,
+      "order": 310,
+      "title": "不受 Windows 動畫設定影響",
+      "description": "Windows 關閉「在 Windows 中顯示動畫」（常見於遠端桌面或效能選項）時仍照常播放。只影響 SqlAssist，不更改 Windows 設定；關閉這一項則跟隨 Windows。",
+      "additionalKeywords": [ "animation", "遠端桌面", "RDP", "效能選項", "系統動畫" ],
+      "enableWhen": "${config:sqlAssist.general.animations} == 'true'"
+    },
 
     "sqlAssist.suggestions.enabled": {
       "type": "boolean",
@@ -667,22 +684,6 @@
       "description": "使用主題色的層次邊緣；高對比一律使用不透明材質。",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
-    "sqlAssist.notifications.animation": {
-      "type": "boolean",
-      "default": true,
-      "order": 120,
-      "title": "淡入與淡出動畫",
-      "description": "控制通知進出、明細、狀態圖示及進度條動畫；預設獨立於 Windows 動畫偏好。",
-      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
-    },
-    "sqlAssist.notifications.forceAnimation": {
-      "type": "boolean",
-      "default": true,
-      "order": 125,
-      "title": "忽略 Windows 動畫設定",
-      "description": "僅強制此通知的所有動畫，不更動 Windows；高對比仍停用動畫，關閉上方動畫開關仍優先。",
-      "enableWhen": "${config:sqlAssist.notifications.animation} == 'true'"
-    },
     "sqlAssist.notifications.expanded": {
       "type": "boolean",
       "default": true,
@@ -857,8 +858,8 @@
     },
     "sqlAssist.general": {
       "title": "一般",
-      "description": "總開關與輸入時的改寫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
-      "additionalKeywords": [ "總開關", "停用", "全域" ],
+      "description": "總開關、輸入時的改寫與全套件的介面動畫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
+      "additionalKeywords": [ "總開關", "停用", "全域", "動畫" ],
       "order": 100
     },
     "sqlAssist.suggestions": {

@@ -84,6 +84,19 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static Metrics DefaultMetrics { get; } = new(SqlAssistLimits.DefaultPreviewFontSize);
 
+    private static volatile SqlAssistSettings _settings = new();
+
+    /// <summary>由設定服務每次重讀後推入；UI 層不直接認識平台的設定服務，才能單獨編進測試。</summary>
+    internal static void UseSettings(SqlAssistSettings settings) => _settings = settings;
+
+    /// <summary>自製介面現在該不該播動畫；每一個動畫表面都問這一處，不自行讀 Windows 偏好。</summary>
+    public static bool MotionEnabled => MotionPolicy(_settings.Animations, _settings.IgnoreWindowsAnimationSetting,
+        SystemParameters.ClientAreaAnimation, SystemParameters.HighContrast);
+
+    // 高對比與總開關優先；覆寫只略過 Windows 動畫偏好，不寫回 OS。
+    internal static bool MotionPolicy(bool enabled, bool ignoreWindows, bool windowsAnimation, bool highContrast) =>
+        enabled && !highContrast && (ignoreWindows || windowsAnimation);
+
     /// <summary>視窗內的產品標誌：資料庫與插入游標，保留小尺寸辨識度並跟隨 Fluent 配色。</summary>
     public static Border CreateBrandMark()
     {

@@ -262,7 +262,7 @@ internal static partial class SqlAssistChrome
         layers.AppendChild(hoverLayer); layers.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
         border.AppendChild(layers);
         var template = new ControlTemplate(typeof(ListBoxItem)) { VisualTree = border };
-        if (SystemParameters.ClientAreaAnimation && !SystemParameters.HighContrast)
+        if (MotionEnabled)
         {
             foreach (var enter in new[] { true, false })
             {

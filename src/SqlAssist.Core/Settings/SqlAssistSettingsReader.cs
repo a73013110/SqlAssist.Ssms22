@@ -41,8 +41,6 @@ public static class SqlAssistSettingsReader
             Enabled = Value(source, SqlAssistMonikers.Enabled, defaults.Enabled),
             NotificationEnabled = Value(source, SqlAssistMonikers.NotificationEnabled, defaults.NotificationEnabled),
             NotificationGlass = Value(source, SqlAssistMonikers.NotificationGlass, defaults.NotificationGlass),
-            NotificationAnimation = Value(source, SqlAssistMonikers.NotificationAnimation, defaults.NotificationAnimation),
-            NotificationForceAnimation = Value(source, SqlAssistMonikers.NotificationForceAnimation, defaults.NotificationForceAnimation),
             NotificationExpanded = Value(source, SqlAssistMonikers.NotificationExpanded, defaults.NotificationExpanded),
             NotificationDelay = SqlAssistLimits.ClampNotificationTime(Value(source, SqlAssistMonikers.NotificationDelay, defaults.NotificationDelay), 0),
             NotificationRetention = SqlAssistLimits.ClampNotificationTime(Value(source, SqlAssistMonikers.NotificationRetention, defaults.NotificationRetention), 800),
@@ -78,6 +76,11 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.AutoPairDelimiters,
                 defaults.AutoPairDelimiters),
+            Animations = Value(source, SqlAssistMonikers.Animations, defaults.Animations),
+            IgnoreWindowsAnimationSetting = Value(
+                source,
+                SqlAssistMonikers.IgnoreWindowsAnimationSetting,
+                defaults.IgnoreWindowsAnimationSetting),
 
             SuggestionsEnabled = Value(
                 source,
