@@ -45,8 +45,8 @@ public static class SqlMemoryStorageSelfTest
             if (File.Exists(database)) throw new IOException("測試資料庫已存在，拒絕覆寫。");
             var before = ProviderAssemblies();
             report.WriteLine("宿主原有 provider：" + (before.Length == 0 ? "無" : string.Join(" | ", before)));
-            var document = new QueryDocument(Guid.NewGuid(), "Library.sql", null);
-            var session = new QuerySession(Guid.NewGuid(), document.DocumentId, DateTimeOffset.UtcNow);
+            var document = new SqlDocument(Guid.NewGuid(), "Library.sql", null);
+            var session = new SqlSession(Guid.NewGuid(), document.DocumentId, DateTimeOffset.UtcNow);
             const string sql = "SELECT * FROM Lib_Reader;";
             var contentId = SqlContent.Create(sql).ContentId;
             var policy = new SqlCapturePolicy(false, false, TimeSpan.FromMinutes(10), true, false);
@@ -62,10 +62,10 @@ public static class SqlMemoryStorageSelfTest
                 var committer = new SqlCaptureCommitter(store, planner);
                 for (var i = 1; i <= 20; i++)
                     await committer.ProcessAsync(new SqlCapture(Guid.NewGuid(), document, session, i,
-                        start.AddSeconds(i), SqlCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), policy, token).ConfigureAwait(false);
+                        start.AddSeconds(i), SqlCaptureKind.BeforeExecute, new SqlTextSnapshot(sql)), policy, token).ConfigureAwait(false);
                 var state = await store.ReadSessionAsync(session.SessionId, token).ConfigureAwait(false);
                 var write = planner.Prepare(new SqlCapture(Guid.NewGuid(), document, session, 21,
-                    start.AddSeconds(21), SqlCaptureKind.BeforeExecute, new QueryTextSnapshot(sql)), state, policy)
+                    start.AddSeconds(21), SqlCaptureKind.BeforeExecute, new SqlTextSnapshot(sql)), state, policy)
                     ?? throw new InvalidOperationException("未產生測試交易。");
                 Require(await store.CommitAsync(write, null, token).ConfigureAwait(false) == SqlHistoryCommitResult.Committed, "首次提交");
                 Require(await store.CommitAsync(write, null, token).ConfigureAwait(false) == SqlHistoryCommitResult.AlreadyCommitted, "冪等重送");
@@ -239,17 +239,17 @@ public static class SqlMemoryStorageSelfTest
 
     /// <summary>寫進一份未存檔回復內容並回傳本程序的租約識別碼；下一個 store 才驗得到跨程序回收。</summary>
     private static async Task<string> VerifySessionLeaseAsync(IsolatedSqlMemoryStore store,
-        QueryDocument document, DateTimeOffset start, CancellationToken token)
+        SqlDocument document, DateTimeOffset start, CancellationToken token)
     {
         // 用另一台機器當擁有者：跨機器只認過期，同一次自我測試就能確定地走完回收那條路。
         var owner = new SqlMemoryLeaseOwner(Environment.MachineName + "-OFFLINE", Process.GetCurrentProcess().Id, start);
         var lease = await store.OpenLeaseAsync(owner, start, token).ConfigureAwait(false);
         Require(await store.RenewLeaseAsync(lease, start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
-        var session = new QuerySession(Guid.NewGuid(), document.DocumentId, start);
+        var session = new SqlSession(Guid.NewGuid(), document.DocumentId, start);
         var drafts = new SqlCapturePolicy(true, false, TimeSpan.FromMinutes(10), false, true);
         await new SqlCaptureCommitter(store, new SqlCapturePlanner(), leaseId: () => lease).ProcessAsync(
             new SqlCapture(Guid.NewGuid(), document, session, 1, start.AddSeconds(300),
-                SqlCaptureKind.DraftIdle, new QueryTextSnapshot(RecoverySql)), drafts, token).ConfigureAwait(false);
+                SqlCaptureKind.DraftIdle, new SqlTextSnapshot(RecoverySql)), drafts, token).ConfigureAwait(false);
         await DrainAsync(store, RecoveryExpired(), token).ConfigureAwait(false);
         Require(await store.ReadContentAsync(SqlContent.Create(RecoverySql).ContentId, token).ConfigureAwait(false) != null,
             "租約保護未存檔回復內容");

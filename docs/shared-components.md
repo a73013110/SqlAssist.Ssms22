@@ -50,7 +50,7 @@
 | SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
 | SQL Memory 開啟／關閉、世代、寫入器故障、心跳與維護排程 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
 | SQL Memory 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
-| 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/QueryDocumentIdentity.cs`、`QuerySelectionText.cs` |
+| 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
 | SQL Memory 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
 | SQL Favorite CRUD、SQL 編輯、版本衝突與 scope 契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
 | SQL Memory 有界維護、容量與續跑契約 | `Core/SqlMemory/ISqlMemoryMaintenanceStore.cs`（儲存與隔離層共用） |

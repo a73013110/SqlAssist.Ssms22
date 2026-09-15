@@ -6,7 +6,7 @@ namespace SqlAssist.Core.SqlMemory;
 /// <summary>無快取、無 I/O；只在背景將快照轉成可原子提交的寫入計畫。</summary>
 public sealed class SqlCapturePlanner
 {
-    public SqlCaptureCommit? Prepare(SqlCapture capture, QuerySessionHead? previous, SqlCapturePolicy policy)
+    public SqlCaptureCommit? Prepare(SqlCapture capture, SqlSessionHead? previous, SqlCapturePolicy policy)
     {
         if (capture == null) throw new ArgumentNullException(nameof(capture));
         if (policy == null) throw new ArgumentNullException(nameof(policy));
@@ -85,7 +85,7 @@ public sealed class SqlCapturePlanner
             else executionRevision = latest ?? throw new InvalidOperationException("執行缺少文件版本。");
             execution = new SqlExecution(capture.CaptureId, executionRevision.RevisionId,
                 capture.CapturedAt, capture.Connection,
-                capture.SelectedText == null ? QueryExecutionScope.Document : QueryExecutionScope.Selection);
+                capture.SelectedText == null ? SqlExecutionScope.Document : SqlExecutionScope.Selection);
             latestExecution = executionRevision;
         }
 
@@ -94,13 +94,13 @@ public sealed class SqlCapturePlanner
         if (closing) session = session with { ClosedAt = capture.CapturedAt };
         // 沒有產生新 Recovery 寫入時，沿用先前的 ContentId；關閉一律清空。
         var recoveryContentId = closing ? null : recovery?.ContentId ?? previous?.RecoveryContentId;
-        var state = new QuerySessionHead(session, checked((previous?.Version ?? 0) + 1),
+        var state = new SqlSessionHead(session, checked((previous?.Version ?? 0) + 1),
             capture.Sequence, latest, latestExecution, recoveryContentId);
         return new SqlCaptureCommit(capture, previous?.Version, state, contents, revisions,
             recovery, closing, execution);
     }
 
-    private static SqlContent Materialize(IQueryTextSnapshot snapshot)
+    private static SqlContent Materialize(ISqlTextSnapshot snapshot)
     {
         var text = snapshot.GetText();
         if (text == null || text.Length != snapshot.Length)

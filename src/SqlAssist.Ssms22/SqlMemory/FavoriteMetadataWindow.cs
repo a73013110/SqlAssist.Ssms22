@@ -17,7 +17,7 @@ internal sealed class FavoriteMetadataWindow : DialogWindow
     private readonly TextBox _description = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBox _server = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBox _database = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-    private readonly ComboBox _scope = SqlAssistChrome.CreateQueryScopeCombo("全域", "伺服器", "資料庫");
+    private readonly ComboBox _scope = SqlAssistChrome.CreateMemoryScopeCombo("全域", "伺服器", "資料庫");
     private readonly TextBlock _validation = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly Button _submit;
@@ -45,7 +45,7 @@ internal sealed class FavoriteMetadataWindow : DialogWindow
         foreach (var pair in new[] { ("名稱（1–200 字元）", (Control)_name), ("說明（最多 2000 字元）", (Control)_description),
             ("收藏範圍", (Control)_scope), ("伺服器（精確名稱）", (Control)_server), ("資料庫（精確名稱）", (Control)_database) })
         {
-            var field = SqlAssistChrome.CreateQueryField(pair.Item1, pair.Item2);
+            var field = SqlAssistChrome.CreateMemoryField(pair.Item1, pair.Item2);
             field.Margin = new Thickness(0, 0, 0, 8); fields.Children.Add(field);
         }
         fields.Children.Add(_validation);

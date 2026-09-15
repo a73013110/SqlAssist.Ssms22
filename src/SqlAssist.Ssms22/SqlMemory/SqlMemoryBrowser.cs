@@ -19,7 +19,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// </summary>
 internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 {
-    static SqlMemoryBrowser() => SqlIcons.RegisterQueryImages();
+    static SqlMemoryBrowser() => SqlIcons.RegisterMemoryImages();
 
     private readonly SqlAssistPackage _package;
     private readonly SqlMemoryBrowserModel _model = new();
@@ -64,20 +64,20 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var header = new StackPanel();
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         foreach (var name in new[] { "History", "Favorites" })
-            _tabs.Items.Add(SqlAssistChrome.CreateQueryTab(name == "History" ? "History" : "Favorite", name));
+            _tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(name == "History" ? "History" : "Favorite", name));
         _tabs.SelectedIndex = 0;
-        _connection = SqlAssistChrome.CreateQueryConnectionButton();
+        _connection = SqlAssistChrome.CreateMemoryConnectionButton();
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
-        header.Children.Add(SqlAssistChrome.CreateQueryToolbar(_tabs, _connection, Button("重新整理", Refresh),
+        header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(_tabs, _connection, Button("重新整理", Refresh),
             Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
-        var clear = SqlAssistChrome.CreateQueryIconButton("Clear", "清除搜尋");
+        var clear = SqlAssistChrome.CreateMemoryIconButton("Clear", "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
         header.Children.Add(SqlAssistChrome.CreateSearchBar(_search, clear));
         var filters = new StackPanel();
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
-        _historyFilters = SqlAssistChrome.CreateQueryHistoryFilters(_kind, _period);
+        _historyFilters = SqlAssistChrome.CreateMemoryHistoryFilters(_kind, _period);
         filters.Children.Add(_historyFilters); filters.Children.Add(_scope);
         _scope.Visibility = Visibility.Collapsed;
         header.Children.Add(filters);
@@ -176,7 +176,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     }
 
     private static SqlPillSelector Pills<T>(IReadOnlyList<SqlMemoryOption<T>> options) where T : struct =>
-        new(options.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray());
+        new(options.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
 
     private static void Select<T>(SqlPillSelector selector, IReadOnlyList<SqlMemoryOption<T>> options, T value)
     {
@@ -234,7 +234,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private void UseCurrentConnection()
     {
-        var failure = _model.UseConnection(QueryWindowConnections.ReadActive(_package));
+        var failure = _model.UseConnection(SqlWindowConnections.ReadActive(_package));
         if (failure is not null) { Report(failure); return; }
         // 一次更新兩個條件，不能在 Server 事件裡把剛指定的 Database 清掉。
         _batchFilters = true;

@@ -3,16 +3,16 @@ using System;
 namespace SqlAssist.Core.SqlMemory;
 
 /// <summary>實作必須為不可變、可跨執行緒讀取的快照；熱路徑只讀 Length，不展開全文。</summary>
-public interface IQueryTextSnapshot
+public interface ISqlTextSnapshot
 {
     int Length { get; }
     string GetText();
 }
 
-public sealed class QueryTextSnapshot : IQueryTextSnapshot
+public sealed class SqlTextSnapshot : ISqlTextSnapshot
 {
     private readonly string _text;
-    public QueryTextSnapshot(string text) => _text = text ?? throw new ArgumentNullException(nameof(text));
+    public SqlTextSnapshot(string text) => _text = text ?? throw new ArgumentNullException(nameof(text));
     public int Length => _text.Length;
     public string GetText() => _text;
 }
@@ -20,9 +20,9 @@ public sealed class QueryTextSnapshot : IQueryTextSnapshot
 /// <summary>Sequence 在同一 Session 嚴格遞增；選取執行時仍須攜帶完整文件快照。</summary>
 public sealed class SqlCapture
 {
-    public SqlCapture(Guid captureId, QueryDocument document, QuerySession session,
-        long sequence, DateTimeOffset capturedAt, SqlCaptureKind kind, IQueryTextSnapshot documentText,
-        SqlConnectionLabel? connection = null, IQueryTextSnapshot? selectedText = null)
+    public SqlCapture(Guid captureId, SqlDocument document, SqlSession session,
+        long sequence, DateTimeOffset capturedAt, SqlCaptureKind kind, ISqlTextSnapshot documentText,
+        SqlConnectionLabel? connection = null, ISqlTextSnapshot? selectedText = null)
     {
         if (captureId == Guid.Empty) throw new ArgumentException("擷取識別碼不可為空。", nameof(captureId));
         Document = document ?? throw new ArgumentNullException(nameof(document));
@@ -47,13 +47,13 @@ public sealed class SqlCapture
     }
 
     public Guid CaptureId { get; }
-    public QueryDocument Document { get; }
-    public QuerySession Session { get; }
+    public SqlDocument Document { get; }
+    public SqlSession Session { get; }
     public long Sequence { get; }
     public DateTimeOffset CapturedAt { get; }
     public SqlCaptureKind Kind { get; }
-    public IQueryTextSnapshot DocumentText { get; }
+    public ISqlTextSnapshot DocumentText { get; }
     public SqlConnectionLabel? Connection { get; }
-    public IQueryTextSnapshot? SelectedText { get; }
+    public ISqlTextSnapshot? SelectedText { get; }
     public long EstimatedTextBytes { get; }
 }

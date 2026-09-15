@@ -211,7 +211,7 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
 
         // 執行查詢只是記一筆，不認領命令：擷取完照樣往下轉給 SSMS 執行。
         // 命令識別碼由殼層的名稱對應表換出來，沒換到時這裡只剩一次靜態旗標讀取。
-        if (QueryExecuteCommandMap.Matches(pguidCmdGroup, nCmdID))
+        if (SqlExecuteCommandMap.Matches(pguidCmdGroup, nCmdID))
         {
             var view = _textView;
             SqlAssistPlatformGuard.Run("記下送出執行的查詢", () => SqlCaptureTracker.NoteExecute(view));

@@ -11,7 +11,7 @@ internal sealed class RecordingSqlHistoryStore : ISqlHistoryStore
 {
     private readonly object _gate = new();
     private readonly HashSet<Guid> _captures = new();
-    private readonly Dictionary<Guid, QuerySessionHead> _sessions = new();
+    private readonly Dictionary<Guid, SqlSessionHead> _sessions = new();
     public List<SqlCaptureCommit> Writes { get; } = new();
     public Dictionary<string, SqlContent> Contents { get; } = new();
     public Func<Task>? BeforeRead { get; set; }
@@ -22,7 +22,7 @@ internal sealed class RecordingSqlHistoryStore : ISqlHistoryStore
     public int ConflictsRemaining { get; set; }
     public int CommitAttempts { get; private set; }
 
-    public async Task<QuerySessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
+    public async Task<SqlSessionHead?> ReadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (BeforeRead != null) await BeforeRead();

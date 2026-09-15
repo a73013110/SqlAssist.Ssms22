@@ -143,7 +143,7 @@ FROM n, (SELECT * FROM History LIMIT 1) h;");
         var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
 
         // 舊設計每個操作互斥，下面兩個呼叫會排在搜尋之後；WAL 下讀取與提交都不必等長讀取。
-        var other = new QuerySession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
         var commit = new SqlCaptureCommitter(repository, new SqlCapturePlanner())
             .ProcessAsync(store.Capture(sql: "SELECT * FROM Loan;", session: other), SqliteTestStore.Policy, token);
         await Within(commit, TimeSpan.FromSeconds(10));

@@ -121,11 +121,11 @@ internal sealed class SqlMemorySplitView : Grid
     private void UpdateToggle()
     {
         var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var icon = SqlAssistChrome.CreateQueryButtonIcon("Chevron");
+        var icon = SqlAssistChrome.CreateMemoryButtonIcon("Chevron");
         icon.RenderTransformOrigin = new Point(0.5, 0.5);
         icon.RenderTransform = new System.Windows.Media.RotateTransform(IsDetailExpanded ? 0 : -90);
         icon.Margin = new Thickness(0, 0, 6, 0); panel.Children.Add(icon);
-        panel.Children.Add(SqlAssistChrome.CreateQueryButtonText("Preview")); _toggle.Content = panel;
+        panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("Preview")); _toggle.Content = panel;
         _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";
         AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合 Preview" : "展開 Preview");
     }

@@ -11,7 +11,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 ## 文件、版本與執行
 
-`QueryDocument` 不綁連線；`QuerySession` 對應一次編輯器生命週期。同一路徑可共用 DocumentId，
+`SqlDocument` 不綁連線；`SqlSession` 對應一次編輯器生命週期。同一路徑可共用 DocumentId，
 新視窗必須有新 SessionId。未存檔視窗各自建立文件身分，不以 `SQLQuery1.sql` 等標題當主鍵。
 每次擷取前重讀路徑：第一次存檔或另存後，舊 Session 以當下內容正式關閉，新 Session 掛在新路徑的文件上。
 

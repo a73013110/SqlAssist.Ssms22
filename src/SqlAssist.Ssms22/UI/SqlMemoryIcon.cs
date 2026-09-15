@@ -9,14 +9,14 @@ using System.Windows.Shapes;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>語意圖示插槽；宿主提供原生影像，純 WPF 與不可用時保留向量備援。</summary>
-internal sealed class SqlQueryIcon : Decorator
+internal sealed class SqlMemoryIcon : Decorator
 {
     private static readonly Style IconStyle = CreateIconStyle();
     internal static Func<string, FrameworkElement?>? NativeImageFactory { get; set; }
 
     public static readonly DependencyProperty IconNameProperty = DependencyProperty.Register(
-        nameof(IconName), typeof(string), typeof(SqlQueryIcon),
-        new PropertyMetadata("", (sender, _) => ((SqlQueryIcon)sender).UpdateImage()));
+        nameof(IconName), typeof(string), typeof(SqlMemoryIcon),
+        new PropertyMetadata("", (sender, _) => ((SqlMemoryIcon)sender).UpdateImage()));
 
     public string IconName
     {
@@ -24,7 +24,7 @@ internal sealed class SqlQueryIcon : Decorator
         set => SetValue(IconNameProperty, value);
     }
 
-    public SqlQueryIcon()
+    public SqlMemoryIcon()
     {
         Width = Height = 16;
         VerticalAlignment = VerticalAlignment.Center;
@@ -35,7 +35,7 @@ internal sealed class SqlQueryIcon : Decorator
 
     private static Style CreateIconStyle()
     {
-        var style = new Style(typeof(SqlQueryIcon));
+        var style = new Style(typeof(SqlMemoryIcon));
         style.Setters.Add(ThemeResourceSet.Setter(TextElement.ForegroundProperty, ThemeBrush.ListForeground));
         return style;
     }
@@ -45,7 +45,7 @@ internal sealed class SqlQueryIcon : Decorator
         if (NativeImageFactory?.Invoke(IconName) is { } image) { Child = image; return; }
         var path = new Path
         {
-            Data = SqlAssistChrome.QueryIcon(IconName), Width = 14, Height = 14,
+            Data = SqlAssistChrome.MemoryIconGeometry(IconName), Width = 14, Height = 14,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
             Stretch = Stretch.None, StrokeThickness = 1.3,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round

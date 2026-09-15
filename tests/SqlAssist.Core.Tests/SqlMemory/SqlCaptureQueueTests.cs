@@ -206,7 +206,7 @@ public sealed class SqlCaptureQueueTests
         };
     }
 
-    private sealed class ThreadCheckingSnapshot(ThreadLocal<bool> enqueuing) : IQueryTextSnapshot
+    private sealed class ThreadCheckingSnapshot(ThreadLocal<bool> enqueuing) : ISqlTextSnapshot
     {
         public bool Read { get; private set; }
         public int Length => 8;

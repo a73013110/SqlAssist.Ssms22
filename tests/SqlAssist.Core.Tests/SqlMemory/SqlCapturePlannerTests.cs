@@ -37,7 +37,7 @@ public sealed class SqlCapturePlannerTests
     [Fact]
     public void TwentyExecutionsReuseOneRevisionAndDoNotFreezeConnection()
     {
-        QuerySessionHead? state = null;
+        SqlSessionHead? state = null;
         Guid? revisionId = null;
         for (var i = 1; i <= 20; i++)
         {
@@ -74,7 +74,7 @@ public sealed class SqlCapturePlannerTests
         Assert.Single(write.Revisions);
         Assert.Single(write.Contents);
         Assert.Equal(write.State.LatestRevision?.RevisionId, write.Execution?.RevisionId);
-        Assert.Equal(QueryExecutionScope.Selection, write.Execution?.Scope);
+        Assert.Equal(SqlExecutionScope.Selection, write.Execution?.Scope);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class SqlCapturePlannerTests
     public void SessionsOfSameDocumentHaveIndependentHeads()
     {
         var first = Prepare(Capture());
-        var secondSession = new QuerySession(Guid.NewGuid(), Document.DocumentId, Start);
+        var secondSession = new SqlSession(Guid.NewGuid(), Document.DocumentId, Start);
         var second = Prepare(Capture(session: secondSession));
         Assert.NotEqual(first.State.Session.SessionId, second.State.Session.SessionId);
         Assert.Equal(first.Contents[0].ContentId, second.Contents[0].ContentId);
@@ -179,6 +179,6 @@ public sealed class SqlCapturePlannerTests
         Assert.Empty(draft.Revisions);
     }
 
-    private SqlCaptureCommit Prepare(SqlCapture capture, QuerySessionHead? previous = null) =>
+    private SqlCaptureCommit Prepare(SqlCapture capture, SqlSessionHead? previous = null) =>
         Assert.IsType<SqlCaptureCommit>(_engine.Prepare(capture, previous, Policy));
 }

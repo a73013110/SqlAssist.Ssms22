@@ -14,7 +14,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private readonly SqlAssistPackage _package;
     private readonly Action _changed;
     private readonly SqlReadOnlyViewer _viewer = new();
-    private readonly ContentControl _detail = new() { ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+    private readonly ContentControl _detail = new() { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private readonly SqlLoadingSurface _loading;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly WrapPanel _actions = new();
@@ -45,7 +45,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         open.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
         _actions.Children.Add(open);
         _loading = new SqlLoadingSurface(_viewer);
-        Content = SqlAssistChrome.CreateQueryDetailBody(_loading, _status, _tools, _actions);
+        Content = SqlAssistChrome.CreateMemoryDetailBody(_loading, _status, _tools, _actions);
         _viewer.ReportError = Report;
         _delay = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(220) };
         _delay.Tick += (_, _) => { _delay.Stop(); _ = SqlMemoryActions.RunAsync(ReadAsync, Report); };
@@ -147,7 +147,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     }
     private Button Button(string icon, string text, Action action)
     {
-        var button = SqlAssistChrome.CreateQueryIconButton(icon, text);
+        var button = SqlAssistChrome.CreateMemoryIconButton(icon, text);
         button.Click += (_, _) => SqlMemoryActions.Run(() =>
         {
             if (_loaded && SqlMemoryHost.Runtime.IsAvailable) action();

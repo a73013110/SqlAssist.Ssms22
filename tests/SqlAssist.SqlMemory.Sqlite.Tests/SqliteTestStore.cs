@@ -15,19 +15,19 @@ internal sealed class SqliteTestStore : IDisposable
     public string Path => System.IO.Path.Combine(DirectoryPath, "memory.db");
     public static readonly DateTimeOffset Start = new(2026, 9, 12, 0, 0, 0, TimeSpan.Zero);
     public static readonly SqlCapturePolicy Policy = new(true, true, TimeSpan.FromMinutes(10), true, true);
-    public QueryDocument Document { get; } = new(Guid.NewGuid(), "Library.sql", null);
-    public QuerySession Session { get; }
+    public SqlDocument Document { get; } = new(Guid.NewGuid(), "Library.sql", null);
+    public SqlSession Session { get; }
 
-    public SqliteTestStore() => Session = new QuerySession(Guid.NewGuid(), Document.DocumentId, Start);
+    public SqliteTestStore() => Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, Start);
 
     public Task<SqliteTestRepository> Open(CancellationToken cancellationToken) =>
         SqliteTestRepository.OpenAsync(Path, cancellationToken);
 
     public SqlCapture Capture(long sequence = 1, string sql = "SELECT * FROM Lib_Reader;",
         SqlCaptureKind kind = SqlCaptureKind.BeforeExecute, string? selected = null, int seconds = 0,
-        SqlConnectionLabel? context = null, QuerySession? session = null) =>
+        SqlConnectionLabel? context = null, SqlSession? session = null) =>
         new(Guid.NewGuid(), Document, session ?? Session, sequence, Start.AddSeconds(seconds), kind,
-            new QueryTextSnapshot(sql), context, selected == null ? null : new QueryTextSnapshot(selected));
+            new SqlTextSnapshot(sql), context, selected == null ? null : new SqlTextSnapshot(selected));
 
     public Task Process(SqliteTestRepository repository, SqlCapture capture, CancellationToken cancellationToken,
         SqlCapturePolicy? policy = null, string? leaseId = null) =>

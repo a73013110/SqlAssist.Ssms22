@@ -9,7 +9,7 @@ namespace SqlAssist.Core.SqlMemory;
 public sealed class SqlCaptureCommit
 {
     internal SqlCaptureCommit(SqlCapture capture, long? expectedVersion,
-        QuerySessionHead state, IEnumerable<SqlContent> contents, IEnumerable<SqlRevision> revisions,
+        SqlSessionHead state, IEnumerable<SqlContent> contents, IEnumerable<SqlRevision> revisions,
         SqlRecovery? recovery, bool deleteRecovery, SqlExecution? execution)
     {
         CaptureId = capture.CaptureId;
@@ -24,9 +24,9 @@ public sealed class SqlCaptureCommit
     }
 
     public Guid CaptureId { get; }
-    public QueryDocument Document { get; }
+    public SqlDocument Document { get; }
     public long? ExpectedVersion { get; }
-    public QuerySessionHead State { get; }
+    public SqlSessionHead State { get; }
     public IReadOnlyList<SqlContent> Contents { get; }
     public IReadOnlyList<SqlRevision> Revisions { get; }
     public SqlRecovery? Recovery { get; }
