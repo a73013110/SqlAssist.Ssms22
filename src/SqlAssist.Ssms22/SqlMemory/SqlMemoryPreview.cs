@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using SqlAssist.Core.SqlMemory;
@@ -11,18 +13,15 @@ namespace SqlAssist.Ssms22.SqlMemory;
 
 internal sealed class SqlMemoryPreview : UserControl, IDisposable
 {
-    private readonly SqlAssistPackage _package;
-    private readonly Action _changed;
+    private readonly SqlMemoryItemCommands _commands;
+    private readonly Action<string> _reportCommand;
     private readonly SqlReadOnlyViewer _viewer = new();
     private readonly ContentControl _detail = new() { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
     private readonly SqlLoadingSurface _loading;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly WrapPanel _actions = new();
     private readonly WrapPanel _tools = new();
-    private readonly Button _addFavorite;
-    private readonly Button _edit;
-    private readonly Button _metadata;
-    private readonly Button _removeFavorite;
+    private readonly List<(Button Button, SqlMemoryRowCommand Command)> _rowActions = new();
     private readonly DispatcherTimer _delay;
     private CancellationTokenSource _read = new();
     private SqlMemoryRow? _row;
@@ -30,18 +29,24 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private bool _loaded;
     public FrameworkElement Summary => _detail;
 
-    public SqlMemoryPreview(SqlAssistPackage package, Action changed)
+    /// <param name="reportCommand">列操作的結果寫到工具窗的狀態列：刪除後選取會移到下一筆，寫在 Preview 會立刻被清掉。</param>
+    public SqlMemoryPreview(SqlMemoryItemCommands commands, Action<string> reportCommand)
     {
-        _package = package; _changed = changed;
+        _commands = commands;
+        _reportCommand = reportCommand;
         _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
         var wrap = Button(SqlIcon.Wrap, "切換 SQL 顯示換行", () => _viewer.SetWrap(!_viewer.Wrap));
         _tools.Children.Add(wrap);
-        _addFavorite = Button(SqlIcon.Favorite, "Add to Favorites", () => EditMetadata(false));
-        _edit = Button(SqlIcon.Edit, "編輯 SQL", EditSql);
-        _metadata = Button(SqlIcon.Settings, "編輯收藏資料", () => EditMetadata(true));
-        _removeFavorite = Button(SqlIcon.Remove, "Remove from Favorites", RemoveFavorite);
-        foreach (var button in new[] { _addFavorite, _edit, _metadata, _removeFavorite }) _actions.Children.Add(button);
-        var open = Button(SqlIcon.Open,"開啟至新 Query（不執行 SQL）", () => SqlMemoryActions.OpenQuery(_package, _viewer.Sql));
+        // 複製與開啟已有全文專用的按鈕；其餘列操作與清單卡片、快捷選單同一份清單與實作。
+        foreach (var command in SqlMemoryRowCommand.All)
+        {
+            if (command.Action is SqlMemoryRowAction.Copy or SqlMemoryRowAction.Open) continue;
+            var action = command.Action;
+            var button = Button(command.Icon, command.Label, () => Run(action));
+            if (command.IsSeparated) button.Margin = new Thickness(6, 0, 0, 0);
+            _rowActions.Add((button, command)); _actions.Children.Add(button);
+        }
+        var open = Button(SqlIcon.Open, "開啟至新 Query（不執行 SQL）", () => Run(SqlMemoryRowAction.Open));
         open.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
         _actions.Children.Add(open);
         _loading = new SqlLoadingSurface(_viewer);
@@ -68,10 +73,19 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _detail.ToolTip = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
         _viewer.SetSql("");
-        _addFavorite.Visibility = row?.Favorite is null ? Visibility.Visible : Visibility.Collapsed;
-        _edit.Visibility = _metadata.Visibility = _removeFavorite.Visibility = row?.Favorite is not null ? Visibility.Visible : Visibility.Collapsed;
-        _addFavorite.IsEnabled = row?.RevisionId is not null;
-        _addFavorite.ToolTip = row?.RevisionId is null ? "未存檔 Recovery 尚無版本，請先開啟為新查詢；本版不能直接收藏。" : "Add to Favorites";
+        foreach (var (button, command) in _rowActions)
+        {
+            button.Visibility = row is not null && command.AppliesTo(row.IsFavorite) ? Visibility.Visible : Visibility.Collapsed;
+            var label = command.Action switch
+            {
+                SqlMemoryRowAction.AddFavorite => row?.AddFavoriteHint ?? command.Label,
+                SqlMemoryRowAction.Delete => row?.DeleteLabel ?? command.Label,
+                _ => command.Label,
+            };
+            button.ToolTip = label; AutomationProperties.SetName(button, label);
+            button.IsEnabled = command.Action != SqlMemoryRowAction.AddFavorite || row?.CanAddFavorite == true;
+            ToolTipService.SetShowOnDisabled(button, true);
+        }
         Report(row is null ? "請在清單選取 SQL。" : "");
         _loading.IsLoading = row is not null && previewEnabled;
         if (row is not null && previewEnabled) _delay.Start();
@@ -105,46 +119,19 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }
     }
 
-    private void EditSql()
+    /// <summary>Preview 已讀好全文，編輯與開啟直接沿用，不再讀一次；取消跟著目前選取的讀取生命週期。</summary>
+    private void Run(SqlMemoryRowAction action)
     {
-        if (_row?.Favorite is not { } favorite) return;
-        var dialog = new FavoriteSqlEditWindow(_package, favorite, _viewer.Sql);
-        if (dialog.ShowModal() == true) { _changed(); Report("SQL 已儲存。"); }
-    }
-    private void EditMetadata(bool existing)
-    {
-        if (_row is not { RevisionId: not null } row) return;
-        var dialog = new FavoriteMetadataWindow(_package, row, existing);
-        if (dialog.ShowModal() == true) { _changed(); Report("收藏資料已儲存。"); }
-    }
-    private void RemoveFavorite()
-    {
-        if (_row?.Favorite is not { } favorite) return;
-        var selected = _row;
-        var generation = SqlMemoryHost.Runtime.Generation;
+        if (_row is not { } row) return;
         var token = _read.Token;
-        if (!SqlAssistConfirmationWindow.Confirm(Window.GetWindow(this), "Remove from Favorites", $"刪除「{favorite.Favorite.Name}」？",
-                "只刪除此收藏，不連帶刪除歷史。", "Remove from Favorites")) return;
         _actions.IsEnabled = false;
         _ = SqlMemoryActions.RunAsync(async () =>
         {
-            try
-            {
-                var result = await SqlMemoryHost.Runtime.DeleteFavoriteAsync(favorite.Favorite.FavoriteId, favorite.Version, token);
-                if (_disposed || token.IsCancellationRequested || !ReferenceEquals(selected, _row) ||
-                    !SqlMemoryHost.Runtime.IsAvailable || generation != SqlMemoryHost.Runtime.Generation) return;
-                if (result == SqlFavoriteWriteResult.Conflict) { Report("收藏已被修改或刪除；請重新整理後再操作。"); return; }
-                Select(null); _changed(); Report("收藏已刪除；歷史未刪除。");
-            }
-            catch (Exception error)
-            {
-                // 切頁或停用後，已派送的移除可以完成，但不能蓋掉另一筆預覽。
-                if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(selected, _row) &&
-                    SqlMemoryHost.Runtime.IsAvailable && generation == SqlMemoryHost.Runtime.Generation) Report("移除收藏未確認：" + error.Message);
-            }
-            finally { if (!_disposed && ReferenceEquals(selected, _row)) _actions.IsEnabled = _loaded; }
-        }, Report);
+            try { await _commands.RunAsync(action, row, this, _reportCommand, token, _viewer.Sql); }
+            finally { if (!_disposed && ReferenceEquals(row, _row)) _actions.IsEnabled = _loaded; }
+        }, _reportCommand);
     }
+
     private Button Button(SqlIcon icon, string text, Action action)
     {
         var button = SqlAssistChrome.CreateIconButton(icon, text);
@@ -154,6 +141,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }, Report);
         return button;
     }
+
     private void Report(string message)
     {
         if (_disposed) return;

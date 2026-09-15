@@ -11,18 +11,21 @@
 - 滑鼠單擊或 ↑／↓ 選取即預覽；220 ms 去彈跳後非同步讀全文。切換立即清除舊 SQL 並顯示載入狀態，
   取消、選取識別及宿主世代共同擋住過期成功／失敗。收合、隱藏、停用與 Dispose 都取消讀取。
 - 雙擊或卡片上的 Enter 才開啟新 Query；按鈕的 Enter 只執行該按鈕，不額外開窗。
-  右鍵先選取該列；選取本身永遠不開 Query、不執行 SQL。
-- 每頁 50 筆，筆數與載入更多位於可捲動清單底部；向下捲至底端可自動續頁，保留手動按鈕。
+  卡片上的 Delete 鍵發出刪除請求。右鍵先選取該列；選取本身永遠不開 Query、不執行 SQL。
+- 每頁 50 筆；頁尾由 `SqlMemoryPager` 依 `SqlMemoryBrowserModel.Footer` 呈現：細線夾著的筆數膠囊、
+  淡色說明與膠囊按鈕，狀態為更多、繼續搜尋、續頁中、全部載入、沒有符合條件。向下捲至底端可自動續頁，保留手動按鈕。
   頁尾不參與 SQL 選取，清單保持 recycling virtualization；版面或資料增高不自行觸發續頁。
   重整可恢復仍在第一頁的選取，沒有選取時預覽第一筆，但不搶鍵盤焦點。
 - SQL card 只顯示單行摘要，名稱、狀態、時間及精簡連線 badge；完整 SQL 在 Detail，截斷資訊可用 Tooltip。
-  卡片快速操作僅複製、開新 Query、Add to Favorites；沒有另一個「開預覽」動作。
+  卡片快速操作、快捷選單與 Preview 都由 `SqlMemoryRowCommand.All` 建立、交給 `SqlMemoryItemCommands` 執行：
+  複製、開新 Query、Add to Favorites（History）、編輯 SQL／編輯收藏資料（Favorites）與刪除；不適用的操作收起。
 
 Preview 使用共用 `SqlReadOnlyViewer`／`SqlScriptDocument`，支援 SQL 著色、選取、Ctrl+C、
 全文複製及顯示換行。顯示與原文分離；換行切換不重寫原文，主題刷新不重新查庫。
 空清單、載入、空 SQL、內容已回收、停用與失敗皆有明確狀態，不留上一筆 SQL 冒充目前內容。
-清單與 Preview 共用 `SqlLoadingSurface` 表面載入圖示，不為載入文字保留頁尾；隱藏時停止動畫，
-介面動畫關閉時改用靜態圖示。Preview 摘要依狀態、名稱、伺服器、資料庫、時間排序，狀態與連線
+第一頁與 Preview 共用 `SqlLoadingSurface` 表面載入圖示；續頁進度留在頁尾按鈕原地（弧線轉動、文字換成載入中），
+尺寸不變、不遮住已載入的列。隱藏時停止動畫，介面動畫關閉時改用靜態圖示。
+新列淡入上移、刪除的列淡出後才移出集合，以列資料旗標觸發，捲動重用容器不重播；頁尾換狀態時淡入。Preview 摘要依狀態、名稱、伺服器、資料庫、時間排序，狀態與連線
 共用卡片膠囊。左側 Preview 固定，右側資訊保持單行、不顯示捲軸；資訊列上的滾輪向下往右、向上往左（即使沒有溢出也不傳給 Preview），
 聚焦後可用 ←／→、Home／End。收藏未提供時間與來源執行狀態，保留「收藏」標示而不推測。
 
@@ -55,8 +58,10 @@ History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` �
 ## 收藏與開啟
 
 已有 Revision 的 History 可 **Add to Favorites**；Recovery 尚無版本，停用並說明先開新 Query。
-收藏提供編輯名稱／說明／scope、編輯 SQL，以及 **Remove from Favorites**。
-移除必須確認，取消是預設；不連帶刪除 History。
+收藏提供編輯名稱／說明／scope、編輯 SQL，以及 **Remove from Favorites**，清單與 Preview 皆可操作。
+History 每筆可 **從 History 刪除**，語意見[儲存](sql-memory-storage.md)。刪除與移除都必須確認，取消是預設；
+移除收藏不連帶刪除 History。成功後就地移出或換列並選取原位置的下一筆，保留已載入的頁；
+收藏改到目前 scope 以外即移出清單。結果寫在工具窗狀態列。
 
 metadata 與 SQL 各用一個對話框：前者不讀全文，後者使用共用純文字 editor。
 未存 SQL 關閉前確認捨棄；提交期間不允許關閉，Conflict 或不明回應保留輸入且不盲目重送。

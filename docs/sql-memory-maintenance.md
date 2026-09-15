@@ -1,7 +1,7 @@
 # SQL Memory：維護與保護根
 
 `ISqlMemoryMaintenanceStore` 由 SQLite／Isolation 實作，宿主排程與擷取共用生命週期。
-維護不另建刪除捷徑；儲存契約見[儲存](sql-memory-storage.md)。
+維護不另建刪除捷徑；使用者刪除 History 與維護共用同一份引用清單，儲存契約見[儲存](sql-memory-storage.md)。
 
 ## 期限、配額與引用
 

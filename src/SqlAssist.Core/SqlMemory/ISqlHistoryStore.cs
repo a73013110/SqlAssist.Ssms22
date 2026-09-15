@@ -7,6 +7,8 @@ namespace SqlAssist.Core.SqlMemory;
 
 public enum SqlHistoryCommitResult { Committed, Conflict, AlreadyCommitted }
 
+public enum SqlHistoryDeleteResult { Deleted, NotFound }
+
 /// <summary>
 /// 實作須跨程序安全；方法不得依賴 UI 執行緒。不可提供載入所有歷史的捷徑。
 /// </summary>
@@ -33,6 +35,14 @@ public interface ISqlHistoryStore
     Task<SqlMemoryPage<SqlHistoryItem>> ReadHistoryAsync(SqlHistoryRequest request, CancellationToken cancellationToken);
 
     Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 單一交易移除一筆 History 及它自己的本體：執行事件、未存檔 Recovery，或不再被引用的草稿版本。
+    /// 仍受保護的版本（收藏目前版本、Session head、子版本、其他執行）與其內容保留給維護；
+    /// 不刪 Session、Document、Capture 重送紀錄或收藏。已不存在或不屬於該 Session 回 NotFound，不擲出。
+    /// 仍在編輯的 Session 之後再擷取，會照常產生新的 Recovery 或版本。
+    /// </summary>
+    Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken);
 
     /// <summary>
     /// History 或 Favorites 出現過的伺服器／資料庫名稱，不讀 SQL。最多回傳

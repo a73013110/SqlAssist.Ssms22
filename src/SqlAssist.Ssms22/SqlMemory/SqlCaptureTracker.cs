@@ -21,6 +21,10 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 每一個 <see cref="IWpfTextView"/> 是一個 Session；同一個檔案在不同視窗、不同次
 /// 啟動都是不同 Session，但共用同一個 DocumentId，歷程才串得起來。檔名與路徑在視窗開著時
 /// 會變（第一次存檔、另存新檔），所以每次擷取前重讀，規則在 <see cref="SqlDocumentIdentity"/>。
+///
+/// 交接不能只靠下一次擷取：存檔後不再打字、不執行也不關窗，SSMS 此時異常終止的話，
+/// Recovery 會永遠掛在暫存標題上。所以會讓身分過期或留下未落盤內容的時機都立刻補一次擷取：
+/// 存檔／另存／改名（<see cref="ITextDocument.FileActionOccurred"/>），以及去彈跳還沒到期就離開視窗。
 /// </remarks>
 internal sealed class SqlCaptureTracker
 {
@@ -28,13 +32,17 @@ internal sealed class SqlCaptureTracker
     private readonly IServiceProvider _serviceProvider;
     private readonly SqlDocumentIdentity _identity;
     private readonly DispatcherTimer _idle;
+    private readonly ITextDocument? _document;
     private int _closed;
+    private int _fileFlushQueued;
 
-    private SqlCaptureTracker(IWpfTextView textView, IServiceProvider serviceProvider, SqlDocumentIdentity identity)
+    private SqlCaptureTracker(IWpfTextView textView, IServiceProvider serviceProvider, SqlDocumentIdentity identity,
+        ITextDocument? document)
     {
         _textView = textView;
         _serviceProvider = serviceProvider;
         _identity = identity;
+        _document = document;
         _idle = new DispatcherTimer(DispatcherPriority.Background, textView.VisualElement.Dispatcher);
         _idle.Tick += OnIdle;
     }
@@ -48,11 +56,14 @@ internal sealed class SqlCaptureTracker
 
         var buffer = textView.TextBuffer;
         var tracker = new SqlCaptureTracker(textView, serviceProvider,
-            new SqlDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), DateTimeOffset.UtcNow));
+            new SqlDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), DateTimeOffset.UtcNow),
+            TextDocument(buffer));
 
         textView.Properties[typeof(SqlCaptureTracker)] = tracker;
         buffer.Changed += tracker.OnBufferChanged;
+        textView.LostAggregateFocus += tracker.OnLostFocus;
         textView.Closed += tracker.OnClosed;
+        if (tracker._document is { } document) document.FileActionOccurred += tracker.OnFileAction;
         SqlExecuteCommandMap.EnsureResolved(serviceProvider);
     }
 
@@ -93,10 +104,56 @@ internal sealed class SqlCaptureTracker
         Capture(SqlCaptureKind.BeforeExecute, SelectedText(_textView.Selection));
     });
 
+    /// <summary>離開視窗時去彈跳還沒到期：現在就記下，不讓切去別的程式之後的異常終止吃掉最後一段輸入。</summary>
+    private void OnLostFocus(object sender, EventArgs eventArgs)
+    {
+        if (!_idle.IsEnabled) return;
+        _idle.Stop();
+        SqlAssistPlatformGuard.Run("離開查詢視窗時記下草稿", () => Capture(SqlCaptureKind.DraftIdle, selection: null));
+    }
+
+    /// <remarks>
+    /// 另存新檔會連續發出改名與存檔兩個事件，事件也不保證在 UI 執行緒；排回編輯器的派送佇列合併成一次。
+    /// </remarks>
+    private void OnFileAction(object sender, TextDocumentFileActionEventArgs eventArgs)
+    {
+        if ((eventArgs.FileActionType & (FileActionTypes.ContentSavedToDisk | FileActionTypes.DocumentRenamed)) == 0 ||
+            !Runtime.IsCapturing || Interlocked.Exchange(ref _fileFlushQueued, 1) != 0) return;
+
+        var queued = SqlAssistPlatformGuard.Probe("排入存檔後的 SQL Memory 擷取", () =>
+        {
+            _textView.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                Interlocked.Exchange(ref _fileFlushQueued, 0);
+                SqlAssistPlatformGuard.Run("存檔後記下查詢", FlushAfterFileAction);
+            }));
+            return true;
+        }, fallback: false);
+        // 排不進去時放開旗標，下一次存檔仍可再試，不讓一次失敗永久關掉交接。
+        if (!queued) Interlocked.Exchange(ref _fileFlushQueued, 0);
+    }
+
+    /// <summary>
+    /// 身分過期（第一次存檔、另存、改名）就立刻交接；還有沒記下的輸入就一併記下。
+    /// 兩者都不是時什麼都不寫：內容與上一次擷取相同，Ctrl+S 不該每按一次就多一筆 Session 寫入。
+    /// </summary>
+    private void FlushAfterFileAction()
+    {
+        if (Volatile.Read(ref _closed) != 0 || _textView.IsClosed) return;
+        var buffer = _textView.TextBuffer;
+        var pending = _idle.IsEnabled;
+        if (!pending && !(_identity.HasCaptures && _identity.IsStale(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer))))
+            return;
+        _idle.Stop();
+        Capture(SqlCaptureKind.DraftIdle, selection: null);
+    }
+
     private void OnClosed(object sender, EventArgs eventArgs)
     {
         _textView.TextBuffer.Changed -= OnBufferChanged;
+        _textView.LostAggregateFocus -= OnLostFocus;
         _textView.Closed -= OnClosed;
+        if (_document is not null) _document.FileActionOccurred -= OnFileAction;
         _idle.Stop();
         _idle.Tick -= OnIdle;
 
@@ -148,9 +205,11 @@ internal sealed class SqlCaptureTracker
         () => SqlCompletionServices.GetMetadataService(_textView, _serviceProvider).EditorMoniker, fallback: null);
 
     private static string? FilePath(ITextBuffer buffer) => SqlAssistPlatformGuard.Probe("取得查詢檔案路徑",
-        () => buffer.Properties.TryGetProperty(typeof(ITextDocument), out ITextDocument document)
-            ? document.FilePath
-            : null, fallback: null);
+        () => TextDocument(buffer)?.FilePath, fallback: null);
+
+    private static ITextDocument? TextDocument(ITextBuffer buffer) => SqlAssistPlatformGuard.Probe("取得查詢文件",
+        () => buffer.Properties.TryGetProperty(typeof(ITextDocument), out ITextDocument document) ? document : null,
+        fallback: null);
 
     /// <summary>整份文件的快照。不可變，背景展開全文才安全也才便宜。</summary>
     private sealed class SnapshotText : ISqlTextSnapshot

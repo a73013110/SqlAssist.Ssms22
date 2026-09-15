@@ -36,3 +36,5 @@
 | SQL Memory 的 SQLite 隔離載入 | `SqlMemory.Isolation/IsolatedSqlMemoryStore.cs` |
 | SQL Memory 的設定、計時器與狀態列接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
 | SQL Memory 的宿主／封裝儲存自我測試 | `SqlMemory.Isolation/SqlMemoryStorageSelfTest.cs` |
+| SQL Memory 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
+| SQL Memory 清單頁尾 | `Ssms22/UI/SqlMemoryPager.cs`（狀態與文案在 `SqlMemoryBrowserModel.Footer`） |

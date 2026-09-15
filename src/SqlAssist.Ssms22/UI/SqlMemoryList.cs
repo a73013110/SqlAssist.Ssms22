@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -9,8 +10,60 @@ using System.Windows.Data;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>卡片上的快速操作；按鈕以它為 Tag，不拿圖示名稱當動作識別。</summary>
-internal enum SqlMemoryRowAction { Copy, Open, AddFavorite }
+/// <summary>卡片、快捷選單與 Preview 共用的列操作；按鈕以它為 Tag，不拿圖示名稱當動作識別。</summary>
+internal enum SqlMemoryRowAction { Copy, Open, AddFavorite, EditSql, EditMetadata, Delete }
+
+/// <summary>操作適用於哪一種列；卡片模板與快捷選單都依它隱藏，不用停用的灰色按鈕佔位。</summary>
+internal enum SqlMemoryRowKind { Any, History, Favorite }
+
+/// <summary>
+/// 一個列操作的外觀與適用範圍。卡片、快捷選單與 Preview 都從 <see cref="SqlMemoryRowCommand.All"/> 建立，
+/// 新增操作只加一筆，三處不會各自漏掉或順序不一。
+/// </summary>
+internal sealed class SqlMemoryRowCommand
+{
+    private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, string label, SqlMemoryRowKind kind,
+        string? labelProperty = null, string? enabledProperty = null, bool separated = false)
+    {
+        Action = action; Icon = icon; Label = label; Kind = kind;
+        LabelProperty = labelProperty; EnabledProperty = enabledProperty; IsSeparated = separated;
+    }
+
+    public static IReadOnlyList<SqlMemoryRowCommand> All { get; } = new[]
+    {
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "Add to Favorites", SqlMemoryRowKind.History,
+            labelProperty: "AddFavoriteHint", enabledProperty: "CanAddFavorite"),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.EditSql, SqlIcon.Edit, "編輯 SQL", SqlMemoryRowKind.Favorite),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.EditMetadata, SqlIcon.Settings, "編輯收藏資料", SqlMemoryRowKind.Favorite),
+        // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, "刪除", SqlMemoryRowKind.Any,
+            labelProperty: "DeleteLabel", separated: true),
+    };
+
+    public SqlMemoryRowAction Action { get; }
+    public SqlIcon Icon { get; }
+
+    /// <summary>靜態標籤；<see cref="LabelProperty"/> 存在時，繫結到列上依狀態變化的說明。</summary>
+    public string Label { get; }
+
+    public SqlMemoryRowKind Kind { get; }
+    public string? LabelProperty { get; }
+    public string? EnabledProperty { get; }
+
+    /// <summary>與前一組操作之間留分隔；快捷選單畫分隔線，卡片留較寬的間距。</summary>
+    public bool IsSeparated { get; }
+
+    public bool AppliesTo(bool favorite) =>
+        Kind == SqlMemoryRowKind.Any || (Kind == SqlMemoryRowKind.Favorite) == favorite;
+
+    public static SqlMemoryRowCommand For(SqlMemoryRowAction action)
+    {
+        foreach (var command in All) if (command.Action == action) return command;
+        throw new ArgumentOutOfRangeException(nameof(action), action, "沒有這個列操作。");
+    }
+}
 
 /// <summary>History／Favorites 共用的清單與鍵盤路徑；開啟是明確動作，不是選取副作用。</summary>
 internal sealed class SqlMemoryList : ListBox
@@ -98,6 +151,9 @@ internal sealed class SqlMemoryList : ListBox
         // ↑／↓ 保留 ListBox 原生 selection/navigation；按鈕的 Enter 由 Button 自己處理。
         if (e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
         { e.Handled = true; OpenRequested?.Invoke(this, EventArgs.Empty); }
+        // Delete 與檔案總管相同：只對聚焦的卡片發出請求，是否刪除仍由確認框決定。
+        else if (e.Key == Key.Delete && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
+        { e.Handled = true; RowActionRequested?.Invoke(SqlMemoryRowAction.Delete); }
         base.OnPreviewKeyDown(e);
     }
 

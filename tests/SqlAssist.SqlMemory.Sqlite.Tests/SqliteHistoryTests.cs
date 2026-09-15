@@ -150,6 +150,79 @@ public sealed class SqliteHistoryTests
     }
 
     [Fact]
+    public async Task DeletingAnExecutionRemovesItsEventSelectionRevisionAndUnreferencedContent()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var library = new SqlConnectionLabel("LibraryServer", "Library");
+        await store.Process(repository, store.Capture(1, selected: "SELECT CopyNo FROM Cat_BookCopy;", context: library), Token);
+        await store.Process(repository, store.Capture(2, selected: "SELECT * FROM Loan;", seconds: 1), Token);
+        var executions = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items;
+        Assert.Equal(2, executions.Count);
+        var older = executions[1];
+
+        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(older, Token));
+
+        Assert.Equal(new[] { executions[0].ItemId },
+            (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items.Select(item => item.ItemId));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE IsExecutionSelection=1;"));
+        Assert.Null(await repository.ReadContentAsync(older.ContentId, Token));
+        // 文件版本與 Recovery 仍引用同一個連線；只有真的無人引用才回收。
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts;"));
+        Assert.Equal(SqlHistoryDeleteResult.NotFound, await repository.DeleteHistoryAsync(older, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task DeletingRecoveryKeepsTheSessionAndTheNextCaptureWritesItAgain()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(1, kind: SqlCaptureKind.DraftIdle), Token);
+        var recovery = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items
+            .Single(item => item.RevisionId == null);
+
+        Assert.Equal(SqlHistoryDeleteResult.NotFound,
+            await repository.DeleteHistoryAsync(recovery with { SessionId = Guid.NewGuid() }, Token));
+        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(recovery, Token));
+
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Recovery;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Sessions;"));
+        // 自動版本仍引用同一份內容，刪除 Recovery 不得把它回收。
+        Assert.NotNull(await repository.ReadContentAsync(recovery.ContentId, Token));
+        await store.Process(repository, store.Capture(2, kind: SqlCaptureKind.DraftIdle, seconds: 1), Token);
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Recovery;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task DeletingADraftLeavesProtectedRevisionsAndFavoriteContentToMaintenance()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(1, "SELECT * FROM Lib_Reader;", SqlCaptureKind.DraftIdle), Token);
+        var first = await repository.ReadSessionAsync(store.Session.SessionId, Token);
+        var favorite = new SqlFavorite(Guid.NewGuid(), "讀者查詢", null, first!.LatestRevision!.RevisionId, SqlFavoriteScope.Global, null);
+        await repository.WriteFavoriteAsync(new SqlFavoriteWrite(favorite), Token);
+        await store.Process(repository, store.Capture(2, "SELECT * FROM Lib_Tag;", SqlCaptureKind.DraftIdle, seconds: 900), Token);
+        var drafts = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items
+            .Where(item => item.RevisionId != null).ToArray();
+        Assert.Equal(2, drafts.Length);
+
+        foreach (var draft in drafts)
+            Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(draft, Token));
+
+        Assert.DoesNotContain((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items,
+            item => item.RevisionId != null);
+        // 舊版本同時是收藏與子版本的根，新版本是 Session head；兩者都不刪，只離開清單。
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.NotNull(await repository.ReadFavoriteAsync(favorite.FavoriteId, Token));
+        foreach (var draft in drafts) Assert.NotNull(await repository.ReadContentAsync(draft.ContentId, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
     public async Task CanceledQueriesAndCommitsDoNotWriteAnything()
     {
         using var store = new SqliteTestStore();

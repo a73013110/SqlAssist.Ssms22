@@ -244,8 +244,10 @@ internal static partial class SqlAssistChrome
         return style;
     }
 
-    public static Style CreateSqlCardStyle()
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定，不受執行環境的 Windows 動畫偏好左右。</param>
+    public static Style CreateSqlCardStyle(bool? motion = null)
     {
+        var animate = motion ?? MotionEnabled;
         var border = new FrameworkElementFactory(typeof(Border)) { Name = "card" };
         border.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
         border.SetValue(Border.CornerRadiusProperty, new CornerRadius(5));
@@ -262,7 +264,7 @@ internal static partial class SqlAssistChrome
         layers.AppendChild(hoverLayer); layers.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
         border.AppendChild(layers);
         var template = new ControlTemplate(typeof(ListBoxItem)) { VisualTree = border };
-        if (MotionEnabled)
+        if (animate)
         {
             foreach (var enter in new[] { true, false })
             {
@@ -274,6 +276,7 @@ internal static partial class SqlAssistChrome
             }
         }
         else AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "card");
+        if (animate) AddMemoryCardMotion(border, template);
         AddTrigger(template, UIElement.IsMouseOverProperty, TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "card");
         AddTrigger(template, UIElement.IsMouseOverProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Border.BackgroundProperty, ThemeBrush.RowSelected, "card");
@@ -290,6 +293,86 @@ internal static partial class SqlAssistChrome
         style.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0, 0, 2, 4)));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         return style;
+    }
+
+    /// <summary>新列淡入上移、被刪除的列淡出；揭露動畫只給列本身，不改卡片量測。</summary>
+    internal static readonly System.TimeSpan MemoryCardEnterDuration = System.TimeSpan.FromMilliseconds(180);
+
+    /// <summary>刪除列淡出的時間；清單等它結束才真正移除，動畫關閉時立即移除。</summary>
+    internal static readonly System.TimeSpan MemoryCardExitDuration = System.TimeSpan.FromMilliseconds(140);
+
+    /// <remarks>
+    /// 以列資料的 <c>IsNew</c>／<c>IsRemoving</c> 觸發，而不是容器的 Loaded：清單是 recycling 虛擬化，
+    /// 捲動時重用的容器每次都會 Loaded，綁在那裡就會一路重播。位移走 RenderTransform，不推動其他列。
+    /// </remarks>
+    private static void AddMemoryCardMotion(FrameworkElementFactory card, ControlTemplate template)
+    {
+        card.SetValue(UIElement.RenderTransformProperty, new TranslateTransform());
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        ease.Freeze();
+        Storyboard Motion(double? fromOpacity, double toOpacity, double? fromY, double toY, System.TimeSpan duration, FillBehavior fill)
+        {
+            var storyboard = new Storyboard { FillBehavior = fill };
+            var fade = new DoubleAnimation { From = fromOpacity, To = toOpacity, Duration = duration, EasingFunction = ease };
+            Storyboard.SetTargetName(fade, "card"); Storyboard.SetTargetProperty(fade, new PropertyPath(UIElement.OpacityProperty));
+            var slide = new DoubleAnimation { From = fromY, To = toY, Duration = duration, EasingFunction = ease };
+            Storyboard.SetTargetName(slide, "card");
+            Storyboard.SetTargetProperty(slide, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.Y)"));
+            storyboard.Children.Add(fade); storyboard.Children.Add(slide);
+            return storyboard;
+        }
+
+        // 進場結束就回到基底值（不透明、無位移），之後的 hover／selected 不受保留值影響。
+        var enter = new DataTrigger { Binding = new Binding("IsNew"), Value = true };
+        enter.EnterActions.Add(new BeginStoryboard { Storyboard = Motion(0, 1, 6, 0, MemoryCardEnterDuration, FillBehavior.Stop) });
+        template.Triggers.Add(enter);
+        // 退場保持結束值直到列被移除；可中途反向：刪除失敗或容器被回收給別的列時，從當下值回到基底。
+        var exit = new DataTrigger { Binding = new Binding("IsRemoving"), Value = true };
+        exit.EnterActions.Add(new BeginStoryboard { Storyboard = Motion(null, 0, null, -4, MemoryCardExitDuration, FillBehavior.HoldEnd) });
+        exit.ExitActions.Add(new BeginStoryboard { Storyboard = Motion(null, 1, null, 0, MemoryCardExitDuration, FillBehavior.Stop) });
+        template.Triggers.Add(exit);
+    }
+
+    /// <summary>
+    /// 清單頁尾的膠囊按鈕：比一般幽靈按鈕多一條細框，讓「還有更多」在清單底部仍讀得出是可按的。
+    /// </summary>
+    public static Button CreateMemoryPagerButton()
+    {
+        var shell = new FrameworkElementFactory(typeof(Border)) { Name = "pill" };
+        shell.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
+        shell.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        shell.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+        shell.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
+        shell.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ListBackground);
+        shell.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        shell.AppendChild(content);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = shell };
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "pill");
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.Border, "pill");
+        AddTrigger(template, UIElement.IsMouseOverProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "pill");
+        AddTrigger(template, ButtonBase.IsPressedProperty, Border.BackgroundProperty, ThemeBrush.RowPressed, "pill");
+        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.7, "pill")); template.Triggers.Add(disabled);
+        var style = new Style(typeof(Button));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        return new Button
+        {
+            Template = template, Style = style, FontFamily = InterfaceFont, FontSize = DefaultMetrics.Caption,
+            Padding = new Thickness(14, 3, 14, 3), MinHeight = 28, MinWidth = 132, FocusVisualStyle = null,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+    }
+
+    /// <summary>頁尾兩側的細線；中央摘要把清單的結尾讀成一個段落，而不是另一張卡片。</summary>
+    public static Border CreateMemoryPagerRule()
+    {
+        var rule = new Border { Height = 1, VerticalAlignment = VerticalAlignment.Center, SnapsToDevicePixels = true, Opacity = 0.9 };
+        rule.SetResourceReference(Border.BackgroundProperty, ThemeBrush.Hairline);
+        return rule;
     }
 
     public static DataTemplate CreateSqlSummaryTemplate()
@@ -318,31 +401,38 @@ internal static partial class SqlAssistChrome
         // 動作列沿用卡片表面；透明底不會切斷 hover／selected 的底色與動畫。
         // Hidden 保留尺寸，避免懸停時 badge 跳動；鍵盤進入卡片也揭露動作。
         actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); footer.AppendChild(actions);
-        foreach (var (action, glyph, label) in new[] { (SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL"),
-            (SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）"), (SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "Add to Favorites") })
+        var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
+        var history = new DataTrigger { Binding = new Binding("IsFavorite"), Value = false };
+        foreach (var command in SqlMemoryRowCommand.All)
         {
-            var button = new FrameworkElementFactory(typeof(Button));
-            button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
-            button.SetValue(AutomationProperties.NameProperty, label);
+            var button = new FrameworkElementFactory(typeof(Button)) { Name = "action" + command.Action };
+            button.SetValue(FrameworkElement.TagProperty, command.Action); button.SetValue(FrameworkElement.ToolTipProperty, command.Label);
+            button.SetValue(AutomationProperties.NameProperty, command.Label);
             button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate()); button.SetValue(Control.PaddingProperty, new Thickness(3));
             // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
             button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
             button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
-            if (action == SqlMemoryRowAction.AddFavorite)
+            if (command.IsSeparated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
+            if (command.LabelProperty is { } labelProperty)
             {
-                button.Name = "favoriteAction";
-                button.SetBinding(UIElement.IsEnabledProperty, new Binding("CanAddFavorite"));
-                button.SetBinding(FrameworkElement.ToolTipProperty, new Binding("AddFavoriteHint"));
+                button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(labelProperty));
+                button.SetBinding(AutomationProperties.NameProperty, new Binding(labelProperty));
+            }
+            if (command.EnabledProperty is { } enabledProperty)
+            {
+                button.SetBinding(UIElement.IsEnabledProperty, new Binding(enabledProperty));
                 button.SetValue(ToolTipService.ShowOnDisabledProperty, true);
             }
-            var icon = new FrameworkElementFactory(typeof(SqlIconImage)); icon.SetValue(SqlIconImage.IconProperty, glyph);
+            // 不適用的操作直接收起，不留停用的灰色按鈕；判斷來源與快捷選單、Preview 相同。
+            if (command.Kind == SqlMemoryRowKind.History) favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
+            else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
+            var icon = new FrameworkElementFactory(typeof(SqlIconImage)); icon.SetValue(SqlIconImage.IconProperty, command.Icon);
             button.AppendChild(icon); actions.AppendChild(button);
         }
         var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
         connections.AppendChild(BoundBadge("Server", "server", iconProperty: "ServerIcon")); connections.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
         var template = new DataTemplate { VisualTree = panel };
-        var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
-        favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "favoriteAction")); template.Triggers.Add(favorite);
+        template.Triggers.Add(favorite); template.Triggers.Add(history);
         var noDatabase = new DataTrigger { Binding = new Binding("Database"), Value = "" };
         noDatabase.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(noDatabase);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };

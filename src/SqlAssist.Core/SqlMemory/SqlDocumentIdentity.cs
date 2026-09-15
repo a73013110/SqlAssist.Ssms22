@@ -51,15 +51,27 @@ public sealed class SqlDocumentIdentity
 
     public long NextSequence() => Interlocked.Increment(ref _sequence);
 
+    /// <summary>目前 Session 是否已經送出過擷取；沒有的話儲存層不會有它的任何列。</summary>
+    public bool HasCaptures => Interlocked.Read(ref _sequence) > 0;
+
+    /// <summary>以目前的名稱與路徑判斷身分是否過期；只讀、不換 Session。</summary>
+    /// <remarks>存檔、另存或改名的事件用它決定要不要立刻擷取，不必等下一次打字才交接。</remarks>
+    public bool IsStale(string displayName, string? filePath) =>
+        !SamePath(SavedPath(filePath), Document.FilePath) ||
+        !string.Equals(Name(displayName), Document.DisplayName, StringComparison.Ordinal);
+
     /// <summary>以目前的名稱與路徑更新身分。</summary>
-    /// <returns>路徑改變時回傳要關閉的舊 Session；其他情形為 null。</returns>
+    /// <returns>
+    /// 路徑改變且舊 Session 已有擷取時，回傳要關閉的舊 Session；其他情形為 null。
+    /// 舊 Session 從沒送出擷取就沒有要關的列，送一筆關閉反而會替暫存標題憑空建立版本。
+    /// </returns>
     public SqlSessionHandover? Observe(string displayName, string? filePath, DateTimeOffset now)
     {
         var path = SavedPath(filePath);
         var name = Name(displayName);
         if (!SamePath(path, Document.FilePath))
         {
-            var previous = new SqlSessionHandover(Document, Session, NextSequence());
+            var previous = HasCaptures ? new SqlSessionHandover(Document, Session, NextSequence()) : null;
             Document = new SqlDocument(DocumentId(path), name, path);
             Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, now);
             Interlocked.Exchange(ref _sequence, 0);

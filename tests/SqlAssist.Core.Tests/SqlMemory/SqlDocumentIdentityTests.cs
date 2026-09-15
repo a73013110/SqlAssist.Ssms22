@@ -59,6 +59,7 @@ public sealed class SqlDocumentIdentityTests
     {
         var identity = new SqlDocumentIdentity("Loan.sql", LoanScript, Now);
         var session = identity.Session;
+        identity.NextSequence();
 
         Assert.Null(identity.Observe("Loan.sql", LoanScript, Now));
         Assert.Null(identity.Observe("Loan.sql*", LoanScript.ToUpperInvariant(), Now));
@@ -69,6 +70,34 @@ public sealed class SqlDocumentIdentityTests
         Assert.NotNull(moved);
         Assert.Equal(session, moved!.Session);
         Assert.NotEqual(session.SessionId, identity.Session.SessionId);
+    }
+
+    /// <summary>還沒擷取過就存檔：沒有舊 Session 的列要關，直接換到檔案那份文件，不替暫存標題造出關閉版本。</summary>
+    [Fact]
+    public void SavingBeforeAnyCaptureSwitchesDocumentsWithoutAHandover()
+    {
+        var identity = new SqlDocumentIdentity("SQLQuery1.sql", null, Now);
+        var session = identity.Session;
+        Assert.False(identity.HasCaptures);
+
+        Assert.Null(identity.Observe("Loan.sql", LoanScript, Now));
+
+        Assert.Equal(LoanScript, identity.Document.FilePath);
+        Assert.NotEqual(session.SessionId, identity.Session.SessionId);
+        Assert.Equal(1, identity.NextSequence());
+        Assert.True(identity.HasCaptures);
+    }
+
+    [Fact]
+    public void StaleIdentityIsDetectedWithoutChangingTheSession()
+    {
+        var identity = new SqlDocumentIdentity("SQLQuery1.sql", null, Now);
+        var session = identity.Session;
+
+        Assert.False(identity.IsStale("SQLQuery1.sql", "SQLQuery1.sql"));
+        Assert.True(identity.IsStale("Loan.sql", LoanScript));
+        Assert.True(identity.IsStale("SQLQuery2.sql", null));
+        Assert.Equal(session, identity.Session);
     }
 
     [Fact]

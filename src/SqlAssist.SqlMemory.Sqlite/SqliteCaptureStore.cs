@@ -152,6 +152,90 @@ CapturedAt=excluded.CapturedAt, ContextId=excluded.ContextId;",
         return content;
     }
 
+    /// <remarks>
+    /// 投影鍵依種類前綴：執行 e、Recovery s（Session 識別碼）、草稿版本 r。與寫入 History 時的鍵同源，
+    /// 所以只憑列表項目就能還原，不必把儲存層的鍵放進 Core 契約。
+    /// 本體只刪自己那一列；版本改用與維護相同的引用清單，仍被引用就留給維護，不做 CASCADE。
+    /// </remarks>
+    public SqlHistoryDeleteResult DeleteHistory(SqlHistoryItem item, CancellationToken cancellationToken)
+    {
+        if (item == null) throw new ArgumentNullException(nameof(item));
+        cancellationToken.ThrowIfCancellationRequested();
+        var key = item.Kind == SqlHistoryFilter.Executions ? "e" + Id(item.ItemId)
+            : item.RevisionId == null ? "s" + Id(item.SessionId) : "r" + Id(item.ItemId);
+        using var connection = _database.Connect();
+        using var transaction = connection.BeginTransaction(deferred: false);
+        var contents = new HashSet<string>(StringComparer.Ordinal);
+        var contexts = new HashSet<string>(StringComparer.Ordinal);
+        string? revision;
+        using (var read = Command(connection, transaction,
+            "SELECT RevisionId,ContentId,ContextId FROM History WHERE EntryKey=$key AND SessionId=$session;",
+            ("$key", key), ("$session", Id(item.SessionId))))
+        using (var reader = read.ExecuteReader())
+        {
+            if (!reader.Read()) return SqlHistoryDeleteResult.NotFound;
+            revision = StringOrNull(reader, 0);
+            Release(contents, contexts, reader.GetString(1), StringOrNull(reader, 2));
+        }
+        Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$key;", ("$key", key));
+        if (key[0] == 'e')
+        {
+            DeleteReleasing(connection, transaction, contents, contexts, "Executions", "ExecutionId=$id", ("$id", Id(item.ItemId)));
+        }
+        else if (key[0] == 's')
+        {
+            // 仍開著的視窗下一次擷取會重寫 Recovery；這裡只移除使用者看到的那一份。
+            DeleteReleasing(connection, transaction, contents, contexts, "Recovery", "SessionId=$id", ("$id", Id(item.SessionId)));
+        }
+        if (revision != null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            DeleteReleasing(connection, transaction, contents, contexts, "Revisions",
+                "RevisionId=$revision" + SqliteContentRows.UnreferencedRevision, ("$revision", revision));
+        }
+        foreach (var content in contents)
+            Execute(connection, transaction, "DELETE FROM Contents WHERE ContentId=$id" + Unreferenced + ";", ("$id", content));
+        foreach (var context in contexts)
+            Execute(connection, transaction, SqliteContentRows.DeleteUnreferencedContext, ("$id", context));
+        cancellationToken.ThrowIfCancellationRequested();
+        transaction.Commit();
+        return SqlHistoryDeleteResult.Deleted;
+    }
+
+    /// <summary>先記下列引用的內容與連線再刪；條件不成立（仍被引用）時什麼都不釋出。</summary>
+    private static void DeleteReleasing(SqliteConnection connection, SqliteTransaction transaction, ISet<string> contents,
+        ISet<string> contexts, string table, string condition, params (string Name, object? Value)[] parameters)
+    {
+        string? content = null, context = null;
+        var found = false;
+        using (var read = Command(connection, transaction, "SELECT * FROM " + table + " WHERE " + condition + ";", parameters))
+        using (var reader = read.ExecuteReader())
+        {
+            if (reader.Read())
+            {
+                found = true;
+                content = Column(reader, "ContentId");
+                context = Column(reader, "ContextId");
+            }
+        }
+        if (!found) return;
+        Execute(connection, transaction, "DELETE FROM " + table + " WHERE " + condition + ";", parameters);
+        Release(contents, contexts, content, context);
+    }
+
+    private static string? Column(SqliteDataReader reader, string name)
+    {
+        for (var i = 0; i < reader.FieldCount; i++)
+            if (reader.GetName(i) == name) return StringOrNull(reader, i);
+        return null;
+    }
+
+    private static void Release(ISet<string> contents, ISet<string> contexts, string? content, string? context)
+    {
+        if (content != null) contents.Add(content);
+        if (context != null) contexts.Add(context);
+    }
+
     public SqlMemoryPage<SqlHistoryItem> ReadHistory(SqlHistoryRequest request, CancellationToken cancellationToken)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));

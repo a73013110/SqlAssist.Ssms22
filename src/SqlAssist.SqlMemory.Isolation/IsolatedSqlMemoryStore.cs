@@ -74,6 +74,8 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
 
     public Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReadContent(operation, contentId), cancellationToken);
+    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.DeleteHistory(operation, item), cancellationToken);
     public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(_ => _worker.Probe(), cancellationToken);
 
     public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>

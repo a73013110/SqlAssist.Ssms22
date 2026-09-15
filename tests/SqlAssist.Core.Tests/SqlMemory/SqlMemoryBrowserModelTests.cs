@@ -139,12 +139,68 @@ public sealed class SqlMemoryBrowserModelTests
         model.End(load);
 
         Assert.True(model.CanLoadMore);
-        Assert.Equal("繼續搜尋", model.LoadMoreLabel);
-        Assert.StartsWith("已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd"), model.PageMessage(0));
+        Assert.False(model.CanAutoLoadMore);
+        var footer = model.Footer(0);
+        Assert.Equal((SqlMemoryFooterKind.ContinueSearch, "繼續搜尋", "符合 0 筆"), (footer.Kind, footer.ActionLabel, footer.Summary));
+        Assert.StartsWith("已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd"), footer.Hint);
         model.Invalidate(Now);
         Assert.Null(model.SearchProgress);
-        Assert.Equal("載入更多", model.LoadMoreLabel);
-        Assert.Equal("沒有符合條件的項目。可清除搜尋或放寬期間與範圍。", model.PageMessage(0));
+        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(0).Kind);
+        var empty = model.BeginLoad()!;
+        Assert.True(model.Accept(empty, HistoryPage(null)));
+        Assert.Equal(("沒有符合條件的項目", "可清除搜尋或放寬期間與範圍"), (model.Footer(0).Summary, model.Footer(0).Hint));
+    }
+
+    /// <summary>頁尾狀態：第一頁交給表面載入圖示；續頁進度留在頁尾原地；載完才說「全部」。</summary>
+    [Fact]
+    public void FooterFollowsPaginationWithoutFlashingEmptyBeforeTheFirstPage()
+    {
+        var model = Ready();
+        var first = model.BeginLoad()!;
+        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(0).Kind);
+        Assert.True(model.Accept(first, HistoryPage("next")));
+        model.End(first);
+
+        var more = model.Footer(50);
+        Assert.Equal((SqlMemoryFooterKind.More, "已載入 50 筆", "載入更多", true), (more.Kind, more.Summary, more.ActionLabel, more.CanAct));
+        Assert.True(model.CanAutoLoadMore);
+
+        var second = model.BeginLoad()!;
+        var loading = model.Footer(50);
+        Assert.Equal((SqlMemoryFooterKind.Loading, "載入中…", false), (loading.Kind, loading.ActionLabel, loading.CanAct));
+        Assert.True(model.Accept(second, HistoryPage(null)));
+        model.End(second);
+
+        var end = model.Footer(73);
+        Assert.Equal((SqlMemoryFooterKind.End, "已顯示全部 73 筆", null), (end.Kind, end.Summary, end.ActionLabel));
+        Assert.True(model.ObserveHost(false, 1));
+        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(73).Kind);
+    }
+
+    [Fact]
+    public void RemovingARowKeepsThePositionOrFallsBackToTheNewLastRow()
+    {
+        Assert.Equal(2, SqlMemoryBrowserModel.SelectionAfterRemoval(2, 5));
+        Assert.Equal(3, SqlMemoryBrowserModel.SelectionAfterRemoval(4, 4));
+        Assert.Null(SqlMemoryBrowserModel.SelectionAfterRemoval(0, 0));
+    }
+
+    [Fact]
+    public void AnEditedFavoriteLeavesTheListWhenItsScopeNoLongerMatches()
+    {
+        var model = Ready();
+        model.Tab = SqlMemoryBrowserTab.Favorites;
+        model.Scope = SqlFavoriteScope.Database;
+        model.Server = "LibraryServer";
+        model.Database = "Library";
+        var library = new SqlConnectionLabel("LibraryServer", "Library");
+        var favorite = new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(), SqlFavoriteScope.Database, library);
+
+        Assert.True(model.MatchesFavoriteScope(favorite));
+        Assert.False(model.MatchesFavoriteScope(favorite with { Connection = new SqlConnectionLabel("LibraryServer", "Archive") }));
+        Assert.False(model.MatchesFavoriteScope(favorite with { Scope = SqlFavoriteScope.Global, Connection = null }));
+        model.Tab = SqlMemoryBrowserTab.History;
+        Assert.False(model.MatchesFavoriteScope(favorite));
     }
 
     [Fact]

@@ -47,6 +47,10 @@ Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadC
 
 分頁、游標、搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 
+`DeleteHistoryAsync` 在 IMMEDIATE 交易刪投影與它自己的本體：執行刪 Executions、Recovery 刪該列；
+版本只在沒有保護根與其他引用時刪除，引用清單與維護共用 `SqliteContentRows`。釋出的 Content／Context 同交易回收。
+不存在或不屬於該 Session 回 NotFound；仍開著的 Session 下一次擷取照常重寫 Recovery。
+
 ## Favorites
 
 `ISqlFavoriteStore` 由 SQLite／Isolation 實作，方法層級契約見該介面的 XML 註解。
