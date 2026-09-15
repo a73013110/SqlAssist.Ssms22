@@ -43,6 +43,8 @@ internal static partial class SqlAssistChrome
     internal static void ApplyNotificationCursor(Button button)
     {
         var style = new Style(typeof(Button));
+        // 保留 CreateButton 的動態前景與樣板；直接換 Style 會讓通知圖示在深色主題退回黑色。
+        style.BasedOn = button.Style;
         style.Setters.Add(new Setter(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand));
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Arrow));

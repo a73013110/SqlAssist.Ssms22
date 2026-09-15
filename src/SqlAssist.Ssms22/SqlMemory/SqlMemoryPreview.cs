@@ -14,7 +14,8 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private readonly SqlAssistPackage _package;
     private readonly Action _changed;
     private readonly SqlReadOnlyViewer _viewer = new();
-    private readonly TextBlock _detail = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
+    private readonly ContentControl _detail = new() { ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+    private readonly SqlLoadingSurface _loading;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly WrapPanel _actions = new();
     private readonly WrapPanel _tools = new();
@@ -27,7 +28,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private SqlMemoryRow? _row;
     private bool _disposed;
     private bool _loaded;
-    public TextBlock Summary => _detail;
+    public FrameworkElement Summary => _detail;
 
     public SqlMemoryPreview(SqlAssistPackage package, Action changed)
     {
@@ -43,7 +44,8 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         var open = Button("Open", "開啟至新 Query（不執行 SQL）", () => SqlMemoryActions.OpenQuery(_package, _viewer.Sql));
         open.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
         _actions.Children.Add(open);
-        Content = SqlAssistChrome.CreateQueryDetailBody(_viewer, _status, _tools, _actions);
+        _loading = new SqlLoadingSurface(_viewer);
+        Content = SqlAssistChrome.CreateQueryDetailBody(_loading, _status, _tools, _actions);
         _viewer.ReportError = Report;
         _delay = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(220) };
         _delay.Tick += (_, _) => { _delay.Stop(); _ = SqlMemoryActions.RunAsync(ReadAsync, Report); };
@@ -53,7 +55,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _delay.Stop(); _read.Cancel(); _read.Dispose(); _viewer.Dispose();
+        _disposed = true; _loading.IsLoading = false; _delay.Stop(); _read.Cancel(); _read.Dispose(); _viewer.Dispose();
     }
 
     public void Select(SqlMemoryRow? row, bool previewEnabled = true)
@@ -62,14 +64,16 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _delay.Stop(); _read.Cancel(); _read.Dispose(); _read = new CancellationTokenSource();
         _row = row; _loaded = false;
         _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = false;
-        _detail.Text = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
-        _detail.ToolTip = _detail.Text;
+        _detail.Content = row;
+        _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
+        _detail.ToolTip = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
         _viewer.SetSql("");
         _addFavorite.Visibility = row?.Favorite is null ? Visibility.Visible : Visibility.Collapsed;
         _edit.Visibility = _metadata.Visibility = _removeFavorite.Visibility = row?.Favorite is not null ? Visibility.Visible : Visibility.Collapsed;
         _addFavorite.IsEnabled = row?.RevisionId is not null;
         _addFavorite.ToolTip = row?.RevisionId is null ? "未存檔 Recovery 尚無版本，請先開啟為新查詢；本版不能直接收藏。" : "Add to Favorites";
-        Report(row is null || !previewEnabled ? "" : "正在取得 SQL…");
+        Report(row is null ? "請在清單選取 SQL。" : "");
+        _loading.IsLoading = row is not null && previewEnabled;
         if (row is not null && previewEnabled) _delay.Start();
     }
 
@@ -93,6 +97,11 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             // 舊讀取的錯誤與舊成功回應一樣，都不能污染目前選取。
             if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(row, _row) &&
                 SqlMemoryHost.Runtime.IsAvailable && generation == SqlMemoryHost.Runtime.Generation) Report(SqlMemoryTimeText.Failure("SQL 載入", error));
+        }
+        finally
+        {
+            // 舊請求的結束不能關掉新選取的載入效果。
+            if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(row, _row)) _loading.IsLoading = false;
         }
     }
 
@@ -145,5 +154,10 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }, Report);
         return button;
     }
-    private void Report(string message) { if (!_disposed) { _status.Text = message; _status.ToolTip = message; } }
+    private void Report(string message)
+    {
+        if (_disposed) return;
+        _status.Text = message; _status.ToolTip = message;
+        _status.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
 }

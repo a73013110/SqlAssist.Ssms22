@@ -19,6 +19,8 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// </summary>
 internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 {
+    static SqlMemoryBrowser() => SqlIcons.RegisterQueryImages();
+
     private readonly SqlAssistPackage _package;
     private readonly SqlMemoryBrowserModel _model = new();
     private readonly ObservableCollection<SqlMemoryRow> _rows = new();
@@ -26,13 +28,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly SqlConnectionFilter _server = new("伺服器");
-    private readonly SqlConnectionFilter _database = new("資料庫");
+    private readonly SqlConnectionFilter _database = new("資料庫", "Database");
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
     private readonly SqlPillSelector _scope = Pills(SqlMemoryBrowserModel.ScopeOptions);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _hostStatus = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _count = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
+    private readonly TextBlock _pageStatus = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+    private readonly SqlLoadingSurface _loading;
     private readonly Button _more;
     private readonly Button _connection;
     private readonly DispatcherTimer _searchTimer;
@@ -60,7 +64,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var header = new StackPanel();
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         foreach (var name in new[] { "History", "Favorites" })
-            _tabs.Items.Add(new TabItem { Header = name, Template = SqlAssistChrome.CreateTabItemTemplate() });
+            _tabs.Items.Add(SqlAssistChrome.CreateQueryTab(name == "History" ? "History" : "Favorite", name));
         _tabs.SelectedIndex = 0;
         _connection = SqlAssistChrome.CreateQueryConnectionButton();
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
@@ -82,17 +86,20 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
 
-        var footer = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-        DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
+        var footer = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         var pagination = new DockPanel();
         _more = Button("載入更多", Load);
         DockPanel.SetDock(_more, Dock.Right); pagination.Children.Add(_more); pagination.Children.Add(_count);
         footer.Children.Add(pagination);
-        _status.TextWrapping = TextWrapping.Wrap; footer.Children.Add(_status);
+        _pageStatus.TextWrapping = TextWrapping.Wrap; _pageStatus.Visibility = Visibility.Collapsed; footer.Children.Add(_pageStatus);
+        _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
+        DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
 
-        _list.ItemsSource = _rows;
+        _list.SetRowsSource(_rows, footer);
+        _list.LoadMoreRequested += (_, _) => Load();
+        _loading = new SqlLoadingSurface(_list);
         _detail = new SqlMemoryPreview(package, Refresh);
-        _splitView = new SqlMemorySplitView(_list, _detail, _detail.Summary);
+        _splitView = new SqlMemorySplitView(_loading, _detail, _detail.Summary);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
         root.Children.Add(_splitView); Content = root;
         _list.ContextMenu = CreateContextMenu();
@@ -168,8 +175,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
 
-    private static SqlPillSelector Pills<T>(IReadOnlyList<SqlMemoryOption<T>> options) =>
-        new(options.Select(option => option.Label).ToArray());
+    private static SqlPillSelector Pills<T>(IReadOnlyList<SqlMemoryOption<T>> options) where T : struct =>
+        new(options.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray());
 
     private static void Select<T>(SqlPillSelector selector, IReadOnlyList<SqlMemoryOption<T>> options, T value)
     {
@@ -304,6 +311,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _searchTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
         _model.Invalidate(DateTimeOffset.Now);
+        _pageStatus.Text = ""; _pageStatus.Visibility = Visibility.Collapsed; Report("");
         _rows.Clear(); _detail.Select(null); UpdateActions();
     }
 
@@ -320,7 +328,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_disposed || !IsVisible || _model.BeginLoad() is not { } load) return;
         if (load.BlockedMessage is not null) { Report(load.BlockedMessage); return; }
         var token = _request.Token;
-        Report("正在載入…"); UpdateActions();
+        Report(""); UpdateActions();
         try
         {
             SqlMemoryRow[] rows;
@@ -341,7 +349,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             foreach (var row in rows) _rows.Add(row);
             if (_model.ResolveSelection(_rows.Select(row => row.Id).ToArray(), _list.SelectedItem is not null) is { } index)
                 _list.SelectedIndex = index;
-            Report(_model.PageMessage(_rows.Count));
+            _pageStatus.Text = _model.PageMessage(_rows.Count);
+            _pageStatus.ToolTip = _pageStatus.Text;
+            _pageStatus.Visibility = _pageStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         }
         catch (Exception error)
         {
@@ -389,12 +399,21 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void UpdateActions()
     {
         _more.IsEnabled = _model.CanLoadMore;
+        _more.Visibility = _model.CanLoadMore || _model.IsLoading ? Visibility.Visible : Visibility.Collapsed;
         _more.Content = _model.LoadMoreLabel;
+        _loading.IsLoading = _model.IsLoading;
+        // 達到搜尋預算後必須由使用者明確續搜，不能讓捲動自動耗盡整份儲存。
+        _list.CanAutoLoadMore = _model.CanLoadMore && _model.SearchProgress is null;
         _connection.IsEnabled = _model.IsAvailable;
         _count.Text = $"已載入 {_rows.Count} 筆";
     }
 
-    private void Report(string message) { if (!_disposed) { _status.Text = message; _status.ToolTip = message; } }
+    private void Report(string message)
+    {
+        if (_disposed) return;
+        _status.Text = message; _status.ToolTip = message;
+        _status.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private Button Button(string label, Action action)
     {

@@ -31,7 +31,7 @@ public sealed class SqlMemoryVisualTests
             var header = new StackPanel();
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(new TabItem { Header = label, Template = SqlAssistChrome.CreateTabItemTemplate() });
+            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateQueryTab(label == "History" ? "History" : "Favorite", label));
             tabs.SelectedIndex = 0;
             var current = SqlAssistChrome.CreateQueryConnectionButton();
             var toolbar = SqlAssistChrome.CreateQueryToolbar(tabs, current,
@@ -39,18 +39,18 @@ public sealed class SqlMemoryVisualTests
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
             header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateQueryIconButton("Clear", "清除搜尋")));
-            var filters = SqlAssistChrome.CreateQueryHistoryFilters(new SqlPillSelector("全部", "執行", "草稿"),
-                new SqlPillSelector("今天", "7 天", "30 天", "不限") { SelectedIndex = 1 });
+            var filters = SqlAssistChrome.CreateQueryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()),
+                new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
             header.Children.Add(filters);
-            var scope = new SqlPillSelector("全域", "指定伺服器", "指定資料庫") { SelectedIndex = 2 };
+            var scope = new SqlPillSelector(SqlMemoryBrowserModel.ScopeOptions.Select(option => (option.Label, SqlAssistChrome.QueryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 2 };
             header.Children.Add(scope);
             var server = new SqlConnectionFilter("伺服器");
             server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
-            var database = new SqlConnectionFilter("資料庫");
+            var database = new SqlConnectionFilter("資料庫", "Database");
             database.SetOptions(new[] { "Library", "Archive" }); header.Children.Add(database);
             var footer = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-            DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
             footer.Children.Add(SqlAssistChrome.CreateMetadataText("已載入 50 筆", metrics));
+            footer.Children.Add(SqlAssistChrome.CreateButton("載入更多", metrics));
             var list = new SqlMemoryList
             {
                 ItemsSource = Enumerable.Range(0, 2000).Select(index => new SqlMemoryRow(new SqlHistoryItem(
@@ -71,7 +71,7 @@ public sealed class SqlMemoryVisualTests
                 [ScriptResource.FontFamily] = SqlAssistChrome.CodeFont, [ScriptResource.FontSize] = metrics.Body
             };
             viewer.Document = SqlScriptDocument.Build("-- 借閱明細\nSELECT LoanId, CopyNo\nFROM LoanDetail\nWHERE LoanId = 1;", resources);
-            var summary = SqlAssistChrome.CreateMetadataText("借閱查詢 · LibraryServer · Library", metrics);
+            var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var previewActions = new WrapPanel();
             foreach (var action in new[] { ("Copy", "複製全文"), ("Wrap", "顯示換行"), ("Favorite", "Add to Favorites"),
                 ("Edit", "編輯 SQL"), ("Settings", "編輯收藏資料"), ("Remove", "Remove from Favorites"), ("Open", "開新 Query") })
@@ -79,8 +79,10 @@ public sealed class SqlMemoryVisualTests
                 var button = SqlAssistChrome.CreateQueryIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
                 previewActions.Children.Add(button);
             }
-            var detail = SqlAssistChrome.CreateQueryDetailBody(viewer, SqlAssistChrome.CreateStatusText(metrics), previewActions);
-            var split = new SqlMemorySplitView(list, detail, summary);
+            var previewLoading = new SqlLoadingSurface(viewer);
+            var detail = SqlAssistChrome.CreateQueryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
+            var listLoading = new SqlLoadingSurface(list);
+            var split = new SqlMemorySplitView(listLoading, detail, summary);
             root.Children.Add(split);
             var surface = new Border { Child = root }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
             surface.Resources.MergedDictionaries.Add(palette.Resources);
@@ -91,7 +93,8 @@ public sealed class SqlMemoryVisualTests
                 tabs.SelectedIndex = favorites ? 1 : 0;
                 filters.Visibility = favorites ? Visibility.Collapsed : Visibility.Visible;
                 scope.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
-                list.ItemsSource = favorites ? favoritesRows : historyRows; list.SelectedIndex = 0;
+                list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
+                summary.Content = list.SelectedItem;
                 foreach (Button action in previewActions.Children)
                     action.Visibility = (string)action.Tag is "Copy" or "Wrap" or "Open" || ((string)action.Tag == "Favorite") != favorites
                         ? Visibility.Visible : Visibility.Collapsed;
@@ -104,6 +107,12 @@ public sealed class SqlMemoryVisualTests
                 {
                     server.IsExpanded = database.IsExpanded = expanded;
                     surface.Measure(new Size(width, 600)); surface.Arrange(new Rect(0, 0, width, 600)); surface.UpdateLayout();
+                    foreach (var pill in Descendants<RadioButton>(scope))
+                    {
+                        var expected = palette.Resources[pill.IsChecked == true || pill.IsMouseOver ? ThemeBrush.SelectedForeground : ThemeBrush.ListForeground];
+                        Assert.All(Descendants<TextBlock>(pill), text => Assert.True(ReferenceEquals(expected, text.Foreground),
+                            $"{mode}/{width}/{text.Text}: expected={expected}, actual={text.Foreground}"));
+                    }
                     var tabCenter = tabs.TranslatePoint(new Point(0, tabs.ActualHeight / 2), toolbar).Y;
                     var toolbarActions = (StackPanel)toolbar.Children[1];
                     foreach (Button button in toolbarActions.Children)
@@ -115,6 +124,13 @@ public sealed class SqlMemoryVisualTests
                     var settings = (Button)toolbarActions.Children[2];
                     Assert.InRange(Math.Abs(settings.TranslatePoint(new Point(settings.ActualWidth, 0), toolbar).X - toolbar.ActualWidth), 0, 0.5);
                     Assert.NotNull(list.ItemContainerGenerator.ContainerFromIndex(0));
+                    var firstRow = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+                    // 靜態 QA 揭露操作列，檢查沒有另畫實色底，且高對比仍使用卡片的配對前景。
+                    var rowActions = (StackPanel)VisualTreeHelper.GetParent(Descendants<Button>(firstRow).First());
+                    rowActions.Visibility = Visibility.Visible; surface.UpdateLayout();
+                    Assert.Null(rowActions.Background);
+                    foreach (var button in Descendants<Button>(rowActions).Where(button => button.Visibility != Visibility.Collapsed))
+                        Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<System.Windows.Shapes.Path>(button).Single().Stroke);
                     Assert.Null(list.ItemContainerGenerator.ContainerFromIndex(1999));
                     Assert.True(list.ActualHeight >= 80);
                     Assert.True(detail.ActualHeight >= 100);
@@ -306,14 +322,13 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Fact]
-    public void QueryButtonIconsAndLabelsFollowTemplateContrastForeground()
+    public void QueryButtonIconsAndLabelsFollowOwningControlForeground()
     {
         WpfTest.Run(() =>
         {
             var button = SqlAssistChrome.CreateQueryConnectionButton();
             button.Measure(new Size(200, 40)); button.Arrange(new Rect(0, 0, 200, 40)); button.UpdateLayout();
-            var background = (Border)button.Template.FindName("bg", button);
-            System.Windows.Documents.TextElement.SetForeground(background, Brushes.Lime);
+            button.Foreground = Brushes.Lime;
             button.UpdateLayout();
             Assert.Same(Brushes.Lime, Descendants<System.Windows.Shapes.Path>(button).Single().Stroke);
             Assert.Same(Brushes.Lime, Descendants<TextBlock>(button).Single().Foreground);
@@ -335,5 +350,207 @@ public sealed class SqlMemoryVisualTests
                 foreach (var trigger in template.Triggers.OfType<Trigger>())
                     Assert.DoesNotContain(trigger.Setters.OfType<Setter>(), setter => layoutProperties.Contains(setter.Property));
         });
+    }
+
+    [Fact]
+    public void QueryControlsUseLiveThemeForegroundAtRestAndSelected()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var button = SqlAssistChrome.CreateQueryConnectionButton();
+            var iconButton = SqlAssistChrome.CreateQueryIconButton("Settings", "設定");
+            var pills = new SqlPillSelector(("草稿", "Edit"), ("執行", "Execute"));
+            var root = new StackPanel(); root.Resources.MergedDictionaries.Add(palette.Resources);
+            // SSMS 宿主可在呈現器／文字上指定前景，不能只在沒有隱含樣式的純 WPF 樹驗證。
+            var presenterStyle = new Style(typeof(ContentPresenter));
+            presenterStyle.Setters.Add(new Setter(System.Windows.Documents.TextElement.ForegroundProperty, Brushes.Black));
+            root.Resources[typeof(ContentPresenter)] = presenterStyle;
+            var textStyle = new Style(typeof(TextBlock));
+            textStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Black));
+            root.Resources[typeof(TextBlock)] = textStyle;
+            root.Children.Add(button); root.Children.Add(iconButton); root.Children.Add(pills);
+            var tabs = new TabControl();
+            tabs.Items.Add(SqlAssistChrome.CreateQueryTab("History", "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateQueryTab("Favorite", "Favorites"));
+            tabs.SelectedIndex = 0; root.Children.Add(tabs);
+            var connection = new SqlConnectionFilter("資料庫", "Database"); root.Children.Add(connection);
+            foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(mode));
+                root.Measure(new Size(400, 160)); root.Arrange(new Rect(0, 0, 400, 160)); root.UpdateLayout();
+                foreach (var control in new Control[] { button, iconButton, (RadioButton)pills.Children[1] })
+                {
+                    Assert.All(Descendants<System.Windows.Shapes.Path>(control), icon => Assert.Same(palette.Resources[ThemeBrush.ListForeground], icon.Stroke));
+                    Assert.All(Descendants<TextBlock>(control), text => Assert.Same(palette.Resources[ThemeBrush.ListForeground], text.Foreground));
+                }
+                var selected = (RadioButton)pills.Children[0];
+                Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<System.Windows.Shapes.Path>(selected).Single().Stroke);
+                Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], Descendants<TextBlock>(selected).Single().Foreground);
+                foreach (var control in new DependencyObject[] { (TabItem)tabs.Items[0], connection })
+                {
+                    Assert.All(Descendants<System.Windows.Shapes.Path>(control), icon => Assert.Same(palette.Resources[ThemeBrush.ListForeground], icon.Stroke));
+                    Assert.All(Descendants<TextBlock>(control).Where(text => text.Text != "全部"),
+                        text => Assert.Same(palette.Resources[ThemeBrush.ListForeground], text.Foreground));
+                }
+            }
+        });
+    }
+
+    [Fact]
+    public void PreviewMetadataStaysSingleLineAndOnlyItsViewportScrolls()
+    {
+        WpfTest.Run(() =>
+        {
+            var row = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
+                SqlHistoryFilter.Executions, new string('L', 100) + ".sql", "SELECT * FROM Loan;",
+                new SqlConnectionLabel("LibraryServer", "Library")));
+            var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateQueryMetadataTemplate(),
+                HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var body = new Border();
+            var split = new SqlMemorySplitView(new SqlMemoryList(), body, summary);
+            using var source = new HwndSource(new HwndSourceParameters("Preview metadata test") { Width = 440, Height = 300, WindowStyle = 0 });
+            source.RootVisual = split;
+            split.Measure(new Size(440, 300)); split.Arrange(new Rect(0, 0, 440, 300)); split.UpdateLayout();
+            var scroll = Descendants<ScrollViewer>(split).Single(viewer => ReferenceEquals(viewer.Content, summary));
+            var toggle = Descendants<Button>(split).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "收合 Preview");
+            var togglePosition = toggle.TranslatePoint(new Point(), split);
+            var bodyPosition = body.TranslatePoint(new Point(), split);
+            Assert.Equal(ScrollBarVisibility.Hidden, scroll.HorizontalScrollBarVisibility);
+            Assert.Equal(ScrollBarVisibility.Disabled, scroll.VerticalScrollBarVisibility);
+            Assert.True(scroll.Focusable);
+            Assert.True(scroll.ScrollableWidth > 0);
+            Assert.True(summary.ActualHeight < 30);
+            var fields = Descendants<TextBlock>(summary).ToArray();
+            Assert.Equal(new[] { row.Status, row.Name, row.Server, row.Database, row.Timestamp }, fields.Select(field => field.Text));
+            Assert.InRange(fields.Max(field => field.TranslatePoint(new Point(), summary).Y) - fields.Min(field => field.TranslatePoint(new Point(), summary).Y), 0, 4);
+            var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+            summary.RaiseEvent(wheel); split.UpdateLayout();
+            Assert.True(wheel.Handled); Assert.True(scroll.HorizontalOffset > 0);
+            Assert.Equal(togglePosition, toggle.TranslatePoint(new Point(), split));
+            Assert.Equal(bodyPosition, body.TranslatePoint(new Point(), split));
+            scroll.ScrollToRightEnd(); split.UpdateLayout();
+            Assert.True(fields.Last().TranslatePoint(new Point(fields.Last().ActualWidth, 0), scroll).X <= scroll.ActualWidth + 1);
+            var left = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, 120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+            summary.RaiseEvent(left); split.UpdateLayout();
+            Assert.True(scroll.HorizontalOffset < scroll.ScrollableWidth);
+            foreach (var key in new[] { Key.Home, Key.End, Key.Left, Key.Right })
+            {
+                var keyboard = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                scroll.RaiseEvent(keyboard); split.UpdateLayout(); Assert.True(keyboard.Handled);
+                if (key == Key.Home) Assert.Equal(0, scroll.HorizontalOffset);
+                if (key == Key.End) Assert.Equal(scroll.ScrollableWidth, scroll.HorizontalOffset);
+            }
+            var outside = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+            body.RaiseEvent(outside); Assert.False(outside.Handled);
+            split.SetDetailExpanded(false); split.SetDetailExpanded(true); split.UpdateLayout();
+            Assert.Equal(togglePosition, toggle.TranslatePoint(new Point(), split));
+            split.Measure(new Size(2000, 300)); split.Arrange(new Rect(0, 0, 2000, 300)); split.UpdateLayout();
+            Assert.Equal(0, scroll.ScrollableWidth);
+            var noOverflow = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+            summary.RaiseEvent(noOverflow); Assert.True(noOverflow.Handled);
+            source.RootVisual = null;
+        });
+    }
+
+    [Fact]
+    public void SemanticIconFactoryRebindsRecycledRowsWithoutSharingVisuals()
+    {
+        WpfTest.Run(() =>
+        {
+            var original = SqlQueryIcon.NativeImageFactory;
+            try
+            {
+                SqlQueryIcon.NativeImageFactory = name => new TextBlock { Text = name };
+                var first = SqlAssistChrome.CreateQueryIcon("Database");
+                var second = SqlAssistChrome.CreateQueryIcon("Database");
+                Assert.NotSame(first.Child, second.Child);
+                Assert.Equal("Database", ((TextBlock)first.Child).Text);
+                first.IconName = "Server";
+                Assert.Equal("Server", ((TextBlock)first.Child).Text);
+                Assert.Equal("Database", ((TextBlock)second.Child).Text);
+            }
+            finally { SqlQueryIcon.NativeImageFactory = original; }
+        });
+    }
+
+    [Fact]
+    public void ScrollableFooterPreservesVirtualizationAndDoesNotSelectSql()
+    {
+        WpfTest.Run(() =>
+        {
+            var rows = new System.Collections.ObjectModel.ObservableCollection<SqlMemoryRow>(Enumerable.Range(0, 2000).Select(index =>
+                new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
+                    SqlHistoryFilter.Drafts, "Loan " + index, "SELECT * FROM Loan;", new SqlConnectionLabel("LibraryServer", "Library")))));
+            var more = SqlAssistChrome.CreateButton("載入更多", SqlAssistChrome.DefaultMetrics);
+            var footerContent = new DockPanel(); DockPanel.SetDock(more, Dock.Right); footerContent.Children.Add(more);
+            footerContent.Children.Add(SqlAssistChrome.CreateMetadataText("已載入 2000 筆", SqlAssistChrome.DefaultMetrics));
+            var list = new SqlMemoryList { CanAutoLoadMore = true };
+            list.SetRowsSource(rows, footerContent); list.SelectedIndex = 0;
+            using var source = new HwndSource(new HwndSourceParameters("SQL Memory pagination test") { Width = 440, Height = 300, WindowStyle = 0 });
+            source.RootVisual = list;
+            list.Measure(new Size(440, 300)); list.Arrange(new Rect(0, 0, 440, 300)); list.UpdateLayout();
+            Assert.Null(list.ItemContainerGenerator.ContainerFromIndex(1999));
+            var scroll = Descendants<ScrollViewer>(list).First();
+            var requests = 0; list.LoadMoreRequested += (_, _) => { requests++; list.CanAutoLoadMore = false; };
+            scroll.ScrollToEnd(); list.UpdateLayout();
+            Assert.Equal(1, requests);
+            var footer = Assert.IsType<SqlMemoryListFooter>(list.ItemContainerGenerator.ContainerFromIndex(2000));
+            Assert.Contains(more, Descendants<Button>(footer));
+            Assert.True(more.ActualHeight > 0);
+            Assert.Equal(0, list.SelectedIndex);
+            var opens = 0; list.OpenRequested += (_, _) => opens++;
+            footer.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonDownEvent });
+            Assert.Equal(0, list.SelectedIndex); Assert.Equal(0, opens);
+            var clicks = 0; more.Click += (_, _) => clicks++;
+            more.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); Assert.Equal(1, clicks);
+            list.CanAutoLoadMore = true;
+            rows.Add(rows[0]); list.UpdateLayout();
+            Assert.Equal(1, requests);
+            Assert.Null(list.ItemContainerGenerator.ContainerFromIndex(0));
+            list.Measure(new Size(440, 240)); list.Arrange(new Rect(0, 0, 440, 240)); list.UpdateLayout();
+            Assert.Equal(1, requests);
+            list.Measure(new Size(440, 300)); list.Arrange(new Rect(0, 0, 440, 300)); list.UpdateLayout();
+            Assert.Equal(1, requests);
+            list.CanAutoLoadMore = false;
+            var palette = new ThemeResourceSet(); list.Resources.MergedDictionaries.Add(palette.Resources);
+            foreach (var mode in new[] { "light", "dark", "high-contrast" })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(mode)); scroll.ScrollToEnd(); list.UpdateLayout();
+                SaveVisual(list, 440, 300, "sql-memory-pagination-" + mode);
+            }
+        });
+    }
+
+    [Fact]
+    public void SharedLoadingSurfaceDoesNotReserveSpaceAndStopsWhenHidden()
+    {
+        WpfTest.Run(() =>
+        {
+            var viewer = new Border().WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground);
+            var surface = new SqlLoadingSurface(viewer);
+            surface.Measure(new Size(320, 180)); surface.Arrange(new Rect(0, 0, 320, 180)); surface.UpdateLayout();
+            var size = viewer.RenderSize;
+            surface.IsLoading = true; surface.UpdateLayout();
+            Assert.Equal(size, viewer.RenderSize);
+            Assert.Empty(Descendants<TextBlock>(surface));
+            var rotation = Assert.IsType<RotateTransform>(Descendants<System.Windows.Shapes.Path>(surface).Single().RenderTransform);
+            var palette = new ThemeResourceSet(); surface.Resources.MergedDictionaries.Add(palette.Resources);
+            foreach (var mode in new[] { "light", "dark", "high-contrast" })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(mode)); surface.UpdateLayout();
+                SaveVisual(surface, 320, 180, "sql-memory-loading-" + mode);
+            }
+            surface.IsLoading = false;
+            Assert.False(rotation.HasAnimatedProperties);
+        });
+    }
+
+    private static void SaveVisual(Visual surface, int width, int height, string name)
+    {
+        if (ThemeVisualTests.FindOutputDirectory() is not { } directory) return;
+        var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32); bitmap.Render(surface);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var file = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(file);
     }
 }

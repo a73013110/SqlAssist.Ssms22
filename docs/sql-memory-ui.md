@@ -12,7 +12,8 @@
   取消、選取識別及宿主世代共同擋住過期成功／失敗。收合、隱藏、停用與 Dispose 都取消讀取。
 - 雙擊或卡片上的 Enter 才開啟新 Query；按鈕的 Enter 只執行該按鈕，不額外開窗。
   右鍵先選取該列；選取本身永遠不開 Query、不執行 SQL。
-- 每頁 50 筆，顯示已載入筆數，手動載入更多；清單保持 recycling virtualization。
+- 每頁 50 筆，筆數與載入更多位於可捲動清單底部；向下捲至底端可自動續頁，保留手動按鈕。
+  頁尾不參與 SQL 選取，清單保持 recycling virtualization；版面或資料增高不自行觸發續頁。
   重整可恢復仍在第一頁的選取，沒有選取時預覽第一筆，但不搶鍵盤焦點。
 - SQL card 只顯示單行摘要，名稱、狀態、時間及精簡連線 badge；完整 SQL 在 Detail，截斷資訊可用 Tooltip。
   卡片快速操作僅複製、開新 Query、Add to Favorites；沒有另一個「開預覽」動作。
@@ -20,6 +21,10 @@
 Preview 使用共用 `SqlReadOnlyViewer`／`SqlScriptDocument`，支援 SQL 著色、選取、Ctrl+C、
 全文複製及顯示換行。顯示與原文分離；換行切換不重寫原文，主題刷新不重新查庫。
 空清單、載入、空 SQL、內容已回收、停用與失敗皆有明確狀態，不留上一筆 SQL 冒充目前內容。
+清單與 Preview 共用 `SqlLoadingSurface` 表面載入圖示，不為載入文字保留頁尾；隱藏時停止動畫，
+減少動態效果時改用靜態圖示。Preview 摘要依狀態、名稱、伺服器、資料庫、時間排序，狀態與連線
+共用卡片膠囊。左側 Preview 固定，右側資訊保持單行、不顯示捲軸；資訊列上的滾輪向下往右、向上往左（即使沒有溢出也不傳給 Preview），
+聚焦後可用 ←／→、Home／End。收藏未提供時間與來源執行狀態，保留「收藏」標示而不推測。
 
 ## 篩選與工具列
 
@@ -28,7 +33,7 @@ Favorites 使用 Global／Server／Database scope，不顯示期間或執行狀�
 無關的 Server／Database section 隱藏，不用停用灰色控制項佔空間。
 
 搜尋獨佔一列，內嵌放大鏡／清除，Ctrl+F 聚焦；搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
-一頁因預算提早結束時，狀態列顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
+一頁因預算提早結束時，清單頁尾顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
 Favorites 顯示「已搜尋部分收藏」；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
 該頁即使沒有命中也不顯示「沒有符合條件」；篩選或搜尋變更時清除進度。
 目前連線一次套用 Server／Database，Favorites 同時切 Database scope；無連線保留篩選並提示。
@@ -42,6 +47,10 @@ Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevro
 Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；互動狀態不改版面見
 [UI 準則](ui-guidelines.md)。工具列窄窗收起文字，圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
+Tabs、篩選與卡片圖示由 `SqlAssistChrome` 依語意值選取；排序按鈕與選單共用同一對應。
+`SqlIcons` 提供 SSMS 原生 `CrispImage` 與背景感知配色，History／Favorites 與工具列同源；
+純 WPF 測試及原生建立失敗時使用向量備援。文字讀所屬控制項的動態前景，避開宿主呈現器樣式干擾。
+卡片快速操作使用透明底，文字與圖示跟隨卡片的 hover／selected 配對前景，不另畫不透明操作區。
 
 ## 收藏與開啟
 
