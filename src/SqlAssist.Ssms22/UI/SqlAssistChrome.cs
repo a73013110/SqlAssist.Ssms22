@@ -250,6 +250,8 @@ internal static partial class SqlAssistChrome
     private static ControlTemplate CreateButtonTemplate(bool primary)
     {
         var background = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
+        // ContentPresenter 的附加前景預設是黑色；明確承接控制項，互動 trigger 才能覆寫同一來源。
+        background.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
         if (primary)
         {
             background.SetResourceReference(Border.BackgroundProperty, ThemeBrush.AccentBackground);
@@ -277,10 +279,14 @@ internal static partial class SqlAssistChrome
 
         AddTrigger(template, UIElement.IsMouseOverProperty,
             TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+        AddTrigger(template, UIElement.IsMouseOverProperty,
+            Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
             Border.BackgroundProperty, ThemeBrush.RowSelected, "bg");
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
             TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
             Border.BorderBrushProperty, ThemeBrush.Border, "bg");
 
@@ -304,14 +310,17 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static Button CreateButton(string text, Metrics metrics, bool primary = false)
     {
+        // 預設前景不可放 local value，否則樣板的 hover／focus 配對色無法覆寫。
+        var style = new Style(typeof(Button));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         return new Button
         {
             Content = text,
             Padding = new Thickness(12, 4, 12, 5),
             FontFamily = InterfaceFont,
-            FontSize = metrics.Body,
+            FontSize = metrics.Body, Style = style,
             Template = primary ? CreatePrimaryButtonTemplate() : CreateGhostButtonTemplate()
-        }.WithTheme(Button.ForegroundProperty, ThemeBrush.ListForeground);
+        };
     }
 
     /// <summary>精簡確認內容：影響說明與單一頁尾，不重複原生標題列。</summary>
@@ -742,11 +751,14 @@ internal static partial class SqlAssistChrome
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
             TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label");
+        AddTrigger(template, UIElement.IsMouseOverProperty,
+            Control.ForegroundProperty, ThemeBrush.ListForeground);
 
         var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
         selected.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.ListBackground, "segment"));
         selected.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.Hairline, "segment"));
         selected.Setters.Add(ThemeResourceSet.Setter(TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label"));
+        selected.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         template.Triggers.Add(selected);
 
         return template;
@@ -836,7 +848,7 @@ internal static partial class SqlAssistChrome
         DependencyProperty property,
         DependencyProperty target,
         ThemeBrush targetValue,
-        string targetName)
+        string? targetName = null)
     {
         var trigger = new Trigger { Property = property, Value = true };
         trigger.Setters.Add(ThemeResourceSet.Setter(target, targetValue, targetName));

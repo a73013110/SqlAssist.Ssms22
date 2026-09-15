@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -19,6 +20,8 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
     public bool IsExecuted => History?.Kind == SqlHistoryFilter.Executions;
     public string Status => Favorite is not null ? "收藏" : IsExecuted ? "執行" : "草稿";
+    public string StatusIcon => IsFavorite ? "Favorite" : SqlAssistChrome.QueryOptionIcon(History!.Kind);
+    public string ServerIcon => Favorite?.Favorite.Scope == SqlFavoriteScope.Global ? "Global" : "Server";
     public bool CanAddFavorite => Favorite is null && RevisionId is not null;
     public string AddFavoriteHint => Favorite is not null ? "已是收藏" : CanAddFavorite ? "Add to Favorites" : "未存檔草稿尚無版本，請先開啟為新查詢；目前不能直接收藏。";
     public string Server => Favorite?.Favorite.Scope == SqlFavoriteScope.Global ? "全域" :
@@ -26,7 +29,8 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
     public string Database => Favorite is { } favorite && favorite.Favorite.Scope != SqlFavoriteScope.Database ? "" :
         (Favorite?.Favorite.Connection ?? History?.Connection)?.Database is { Length: > 0 } database ? database : "無資料庫";
     public string RelativeTime => History is { } history ? SqlMemoryTimeText.RelativeTime(history.CreatedAt, DateTimeOffset.Now) : ScopeName(Favorite!.Favorite.Scope);
-    public string Timestamp => History is { } history ? history.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss zzz") : Detail;
+    // 收藏契約未提供時間，不用 scope／連線文字冒充時間或再重複顯示。
+    public string Timestamp => History is { } history ? history.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss zzz") : "";
     public void RefreshTime() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RelativeTime)));
     public string Detail => Favorite is { } favorite
         ? $"{ScopeName(favorite.Favorite.Scope)} · {ConnectionText(favorite.Favorite.Connection)}"

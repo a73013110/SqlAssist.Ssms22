@@ -4,14 +4,25 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Collections;
+using System.Windows.Data;
 
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>History／Favorites 共用的清單與鍵盤路徑；開啟是明確動作，不是選取副作用。</summary>
 internal sealed class SqlMemoryList : ListBox
 {
+    private Size _viewportSize = Size.Empty;
     public event EventHandler? OpenRequested;
     public event Action<string>? RowActionRequested;
+    public event EventHandler? LoadMoreRequested;
+    public bool CanAutoLoadMore { get; set; }
+
+    public void SetRowsSource(IEnumerable rows, UIElement footer)
+    {
+        // 頁尾是同一個虛擬清單的最後一項，不在外面再包 ScrollViewer 破壞 recycling。
+        ItemsSource = new CompositeCollection { new CollectionContainer { Collection = rows }, new SqlMemoryListFooter(footer) };
+    }
 
     public SqlMemoryList()
     {
@@ -24,6 +35,15 @@ internal sealed class SqlMemoryList : ListBox
         VirtualizingPanel.SetIsVirtualizing(this, true);
         VirtualizingPanel.SetVirtualizationMode(this, VirtualizationMode.Recycling);
         KeyboardNavigation.SetTabNavigation(this, KeyboardNavigationMode.Once);
+        AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, e) =>
+        {
+            if (e.OriginalSource is not ScrollViewer scroll) return;
+            // 邏輯捲動的 ViewportHeight 是列數，短頁尾進場也會改變；用實際 DIP 尺寸辨識視窗縮放。
+            var size = new Size(scroll.ActualWidth, scroll.ActualHeight);
+            var sameViewport = _viewportSize == size; _viewportSize = size;
+            if (sameViewport && e.VerticalChange > 0 && e.ExtentHeightChange == 0 &&
+                scroll.ScrollableHeight - scroll.VerticalOffset <= 1) RequestMore();
+        }));
         AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, e) =>
         {
             if (e.OriginalSource is not Button { Tag: string action } button) return;
@@ -33,8 +53,31 @@ internal sealed class SqlMemoryList : ListBox
         }));
     }
 
+    protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)
+    {
+        // 已到底端時不會再有 ScrollChanged；仍接受使用者下一次向下捲動。
+        if (e.Delta < 0 && FindScrollViewer(this) is { } scroll && scroll.ScrollableHeight - scroll.VerticalOffset <= 1)
+            RequestMore();
+        base.OnPreviewMouseWheel(e);
+    }
+
+    private void RequestMore()
+    {
+        if (CanAutoLoadMore) LoadMoreRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer scroll) return scroll;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } child) return child;
+        return null;
+    }
+
     protected override void OnPreviewMouseRightButtonDown(MouseButtonEventArgs e)
     {
+        if (ContainerFromElement(this, e.OriginalSource as DependencyObject) is SqlMemoryListFooter)
+        { e.Handled = true; return; }
         if (ContainerFromElement(this, e.OriginalSource as DependencyObject) is ListBoxItem item)
             item.IsSelected = true;
         base.OnPreviewMouseRightButtonDown(e);
@@ -57,7 +100,8 @@ internal sealed class SqlMemoryList : ListBox
 
     private bool IsRowContent(object source)
     {
-        if (source is not DependencyObject element || ContainerFromElement(this, element) is not ListBoxItem) return false;
+        if (source is not DependencyObject element || ContainerFromElement(this, element) is not ListBoxItem container ||
+            container is SqlMemoryListFooter) return false;
         for (var current = element; current != null; current = current is Visual
             ? VisualTreeHelper.GetParent(current) : LogicalTreeHelper.GetParent(current))
         {
@@ -66,4 +110,18 @@ internal sealed class SqlMemoryList : ListBox
         }
         return false;
     }
+}
+
+/// <summary>頁尾保留按鈕鍵盤操作，但不參與 SQL 選取、雙擊或 Enter 開啟。</summary>
+internal sealed class SqlMemoryListFooter : ListBoxItem
+{
+    public SqlMemoryListFooter(UIElement content)
+    {
+        Content = content; Focusable = false; IsTabStop = false;
+        // 自帶容器不套卡片樣板，並讓 Content 的按鈕保持原生焦點路徑。
+        Template = new ControlTemplate(typeof(ListBoxItem)) { VisualTree = new FrameworkElementFactory(typeof(ContentPresenter)) };
+    }
+
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e) { }
+    protected override void OnMouseRightButtonDown(MouseButtonEventArgs e) { }
 }

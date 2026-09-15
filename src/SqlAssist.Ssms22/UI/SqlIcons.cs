@@ -8,7 +8,7 @@ using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.UI;
 
-internal static class SqlIcons
+internal static partial class SqlIcons
 {
     private sealed class Definition
     {

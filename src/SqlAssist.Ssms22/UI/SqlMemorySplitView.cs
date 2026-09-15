@@ -12,19 +12,20 @@ internal sealed class SqlMemorySplitView : Grid
     private readonly UIElement _detail;
     private readonly GridSplitter _splitter;
     private readonly Button _toggle;
+    private readonly Grid _divider;
     private GridLength _masterHeight = new(3, GridUnitType.Star);
     private GridLength _detailHeight = new(2, GridUnitType.Star);
     public bool IsDetailExpanded { get; private set; } = true;
     public event EventHandler? DetailExpandedChanged;
 
-    public SqlMemorySplitView(UIElement master, UIElement detail, TextBlock? summary = null)
+    public SqlMemorySplitView(UIElement master, UIElement detail, FrameworkElement? summary = null)
     {
         _detail = detail;
         RowDefinitions.Add(new RowDefinition { Height = _masterHeight, MinHeight = 80 });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = _detailHeight, MinHeight = 100 });
         Children.Add(master);
-        var divider = new Grid { Height = 30 };
+        var divider = _divider = new Grid { MinHeight = 30 };
         SetRow(divider, 1); Children.Add(divider);
         _splitter = new GridSplitter
         {
@@ -50,9 +51,40 @@ internal sealed class SqlMemorySplitView : Grid
         DockPanel.SetDock(_toggle, Dock.Left); heading.Children.Add(_toggle);
         if (summary is not null)
         {
-            summary.Margin = new Thickness(8, 6, 4, 0);
             summary.VerticalAlignment = VerticalAlignment.Center;
-            heading.Children.Add(summary);
+            // Hidden 允許水平延伸但不畫捲軸；Disabled 會限制內容寬度，無法捲動。
+            var metadata = new ScrollViewer
+            {
+                Content = summary, Margin = new Thickness(8, 6, 4, 0),
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                CanContentScroll = false, PanningMode = PanningMode.HorizontalOnly,
+                Focusable = true, Background = System.Windows.Media.Brushes.Transparent,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                ToolTip = "在資訊列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。"
+            };
+            AutomationProperties.SetName(metadata, "Preview 資訊（可水平捲動）");
+            metadata.PreviewMouseWheel += (_, args) =>
+            {
+                if (args.Delta == 0) return;
+                // 只攔截資訊列內的滾輪；向下往右、向上往左，不帶動 Preview 或 SQL 本文。
+                metadata.ScrollToHorizontalOffset(metadata.HorizontalOffset - args.Delta * 0.4);
+                args.Handled = true;
+            };
+            metadata.PreviewKeyDown += (_, args) =>
+            {
+                if (args.KeyboardDevice.Modifiers != ModifierKeys.None) return;
+                switch (args.Key)
+                {
+                    case Key.Left: metadata.LineLeft(); break;
+                    case Key.Right: metadata.LineRight(); break;
+                    case Key.Home: metadata.ScrollToLeftEnd(); break;
+                    case Key.End: metadata.ScrollToRightEnd(); break;
+                    default: return;
+                }
+                args.Handled = true;
+            };
+            heading.Children.Add(metadata);
         }
         SetRow(detail, 2); Children.Add(detail);
         UpdateToggle();
@@ -61,7 +93,9 @@ internal sealed class SqlMemorySplitView : Grid
     protected override Size MeasureOverride(Size constraint)
     {
         // 高度也可能很窄；最小值隨可用高度縮小，不讓 Preview 把清單及收合鈕推到視窗外。
-        var usable = Math.Max(0, constraint.Height - 30);
+        // 使用實際標頭高度，讓字級與 DPI 變動後仍保留清單及收合鈕的空間。
+        _divider.Measure(new Size(constraint.Width, double.PositiveInfinity));
+        var usable = Math.Max(0, constraint.Height - _divider.DesiredSize.Height);
         RowDefinitions[0].MinHeight = Math.Min(80, usable * 0.45);
         RowDefinitions[2].MinHeight = IsDetailExpanded ? Math.Min(100, usable * 0.55) : 0;
         return base.MeasureOverride(constraint);
