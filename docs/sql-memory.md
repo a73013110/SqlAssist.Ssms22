@@ -27,7 +27,8 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
   選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
   方塊選取或多重選取依文件順序、以文件換行串接各範圍，不記錄範圍之間沒有執行的文字。
 - 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。
-- Favorites metadata 與擷取獨立。`SqlFavorite` 引用不可變 Revision，不建立假 Session。
+- Favorites 與擷取獨立。`SqlFavorite` 引用擷取產生的不可變 Revision，或自己建立一份不屬於任何 Session
+  的版本；後者讓查詢視窗與未存檔草稿在擷取關著時也收得起來，且不寫 History。
   收藏本身就保護目前版本，不需要「收藏中的收藏」。
 
 `CommitAsync` 在一個交易完成內容去重、版本／執行、Session head、Recovery 及 CaptureId。

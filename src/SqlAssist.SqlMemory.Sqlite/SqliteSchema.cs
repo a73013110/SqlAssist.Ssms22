@@ -2,11 +2,12 @@ namespace SqlAssist.SqlMemory.Sqlite;
 
 internal static class SqliteSchema
 {
-    public const int Version = 2;
+    public const int Version = 3;
     public const int ApplicationId = 0x534d454d;
     public const string MaintenanceLeaseId = "maintenance";
 
     // 延後外鍵允許同一交易建立 Session 與第一個 Revision；收藏版本標記不設外鍵，刪除收藏不改寫版本。
+    // 版本要嘛屬於一次編輯器生命週期，要嘛屬於一個收藏；兩者皆空的版本沒有任何配額界線可套用。
     public const string Create = @"
 CREATE TABLE StoreInfo (StoreId TEXT NOT NULL);
 CREATE TABLE Documents (
@@ -31,10 +32,11 @@ CREATE TABLE Revisions (
     RevisionId TEXT PRIMARY KEY,
     ParentRevisionId TEXT REFERENCES Revisions(RevisionId),
     ContentId TEXT NOT NULL REFERENCES Contents(ContentId),
-    SessionId TEXT NOT NULL REFERENCES Sessions(SessionId) DEFERRABLE INITIALLY DEFERRED,
+    SessionId TEXT REFERENCES Sessions(SessionId) DEFERRABLE INITIALLY DEFERRED,
     CreatedAt INTEGER NOT NULL, Reason INTEGER NOT NULL,
     ContextId TEXT REFERENCES Contexts(ContextId), IsExecutionSelection INTEGER NOT NULL,
-    FavoriteId TEXT
+    FavoriteId TEXT,
+    CHECK(SessionId IS NOT NULL OR FavoriteId IS NOT NULL)
 );
 CREATE TABLE Executions (
     ExecutionId TEXT PRIMARY KEY, RevisionId TEXT NOT NULL REFERENCES Revisions(RevisionId),

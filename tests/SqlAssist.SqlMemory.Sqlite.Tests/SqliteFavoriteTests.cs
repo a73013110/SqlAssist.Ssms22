@@ -354,6 +354,85 @@ public sealed class SqliteFavoriteTests
         return favorite;
     }
 
+    private const string DraftSql = "SELECT CopyNo FROM Cat_BookCopy;";
+
+    [Fact]
+    public async Task CreatingFromSqlWritesContentRevisionAndFavoriteWithoutTouchingCaptures()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(), Token);
+        var query = new SqlFavorite(Guid.NewGuid(), "館藏複本", "查詢視窗直接收藏", Guid.NewGuid(), SqlFavoriteScope.Global, null);
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.CreateFavoriteFromSqlAsync(
+            new SqlFavoriteSqlCreate(query, DraftSql, SqliteTestStore.Start.AddHours(1)), Token));
+        var favorite = await (await store.Open(Token)).ReadFavoriteAsync(query.FavoriteId, Token);
+        Assert.NotNull(favorite);
+        Assert.Equal(query, favorite.Favorite);
+        Assert.Equal(DraftSql, favorite.Preview);
+        Assert.Equal(SqlContent.Create(DraftSql).ContentId, favorite.ContentId);
+        Assert.Equal(DraftSql, (await repository.ReadContentAsync(favorite.ContentId, Token))?.SqlText);
+        // 收藏自己的版本：不屬於任何 Session、不進 History、不建 Capture，head 與序號也不動。
+        Assert.Equal((long)SqlRevisionReason.Favorite,
+            store.Scalar("SELECT Reason FROM Revisions WHERE RevisionId='" + Id(query.CurrentRevisionId) + "';"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Id(query.CurrentRevisionId) +
+            "' AND SessionId IS NULL AND ParentRevisionId IS NULL AND IsExecutionSelection=0;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Sessions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Captures;"));
+        // 擷取那一筆留下的草稿與執行投影，收藏沒有再加一列。
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM History;"));
+        var state = await repository.ReadSessionAsync(store.Session.SessionId, Token);
+        Assert.NotNull(state?.LatestRevision);
+        Assert.NotEqual(query.CurrentRevisionId, state.LatestRevision.RevisionId);
+        Assert.Equal(1L, state.Version);
+        Assert.Equal(1L, state.LastSequence);
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task CreatingFromSqlWorksWithoutAnyCaptureAndRejectsExistingFavorites()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        // 擷取關著（或這個視窗還沒擷取過）也收得起來：收藏不依賴任何 Session 或文件列。
+        var scoped = new SqlFavorite(Guid.NewGuid(), "借閱明細", null, Guid.NewGuid(), SqlFavoriteScope.Database,
+            new SqlConnectionLabel("LibraryServer", "Library"));
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.CreateFavoriteFromSqlAsync(
+            new SqlFavoriteSqlCreate(scoped, DraftSql, SqliteTestStore.Start), Token));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Sessions;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Documents;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM History;"));
+        // 版本沿用收藏自己的 scope 連線，不另建 Contexts 列。
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts;"));
+        Assert.Equal(store.Scalar("SELECT ContextId FROM Favorites;"),
+            store.Scalar("SELECT ContextId FROM Revisions WHERE FavoriteId IS NOT NULL;"));
+        Assert.Single((await repository.ReadFavoritesAsync(
+            new SqlFavoriteRequest(5, SqlFavoriteScope.Database, "LibraryServer", "Library", "Cat_BookCopy"), Token)).Items);
+        // 同一個收藏重送不覆寫；名稱、scope 與版本都留原樣。
+        Assert.Equal(SqlFavoriteWriteResult.Conflict, await repository.CreateFavoriteFromSqlAsync(
+            new SqlFavoriteSqlCreate(scoped with { Name = "改名", Scope = SqlFavoriteScope.Global, Connection = null },
+                "SELECT * FROM Branch;", SqliteTestStore.Start.AddHours(1)), Token));
+        var current = await repository.ReadFavoriteAsync(scoped.FavoriteId, Token);
+        Assert.NotNull(current);
+        Assert.Equal(scoped, current.Favorite);
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public void CreatingFromSqlRejectsEmptySqlAndInvalidMetadata()
+    {
+        var query = new SqlFavorite(Guid.NewGuid(), "館藏複本", null, Guid.NewGuid(), SqlFavoriteScope.Global, null);
+        Assert.Throws<ArgumentException>(() => new SqlFavoriteSqlCreate(query, "", SqliteTestStore.Start));
+        Assert.Throws<ArgumentNullException>(() => new SqlFavoriteSqlCreate(query, null!, SqliteTestStore.Start));
+        // metadata 規則與 WriteFavorite 同一份，不隨入口分岔。
+        Assert.Throws<ArgumentException>(() => new SqlFavoriteSqlCreate(query with { Name = " " }, DraftSql, SqliteTestStore.Start));
+        Assert.Throws<ArgumentException>(() => new SqlFavoriteSqlCreate(
+            query with { Connection = new SqlConnectionLabel("LibraryServer", "") }, DraftSql, SqliteTestStore.Start));
+        Assert.Throws<ArgumentException>(() => new SqlFavoriteSqlCreate(
+            query with { CurrentRevisionId = Guid.Empty }, DraftSql, SqliteTestStore.Start));
+    }
+
     [Fact]
     public async Task EditingSqlSwapsCurrentRevisionInOneTransactionWithoutHistoryOrSession()
     {
@@ -369,7 +448,7 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(EditedSql, edited.Preview);
         Assert.NotEqual(favorite.Version, edited.Version);
         Assert.Equal(EditedSql, (await repository.ReadContentAsync(edited.ContentId, Token))?.SqlText);
-        // 舊版本與其歷史都留著；新版本不進 History、不造 Session，也不改 head 或序號。
+        // 舊版本與其歷史都留著；新版本不進 History、不屬於任何 Session，也不改 head 或序號。
         Assert.NotNull(await repository.ReadContentAsync(favorite.ContentId, Token));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Sessions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Captures;"));
@@ -379,8 +458,10 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(favorite.Favorite.CurrentRevisionId, state.LatestRevision.RevisionId);
         Assert.Equal(1L, state.Version);
         Assert.Equal(Id(edit.RevisionId), store.Scalar("SELECT RevisionId FROM Revisions WHERE FavoriteId IS NOT NULL;"));
-        Assert.Equal((long)SqlRevisionReason.FavoriteEdit,
+        Assert.Equal((long)SqlRevisionReason.Favorite,
             store.Scalar("SELECT Reason FROM Revisions WHERE RevisionId='" + Id(edit.RevisionId) + "';"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Id(edit.RevisionId) +
+            "' AND SessionId IS NULL;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE RevisionId='" + Id(edit.RevisionId) + "' AND ParentRevisionId IS NULL;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }

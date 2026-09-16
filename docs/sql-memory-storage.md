@@ -4,7 +4,7 @@
 
 ## 單一 schema
 
-功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=1`、
+功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=3`、
 `application_id=0x534d454d`。不保留開發期間的升級鏈、舊表、別名或 schema fixture。
 宿主使用 `%LOCALAPPDATA%\SqlAssist.Ssms22\SQLMemory\SQLMemory.db`，不搬移或刪除早期測試資料。
 已有不同身分／版本、外來或損壞資料庫明確拒絕，不自動刪檔；開發測試改用新資料庫路徑。
@@ -16,7 +16,7 @@
 | StoreInfo | StoreId，綁定所有分頁游標 |
 | Documents／Sessions | 文件與一次編輯器生命週期、head、CAS 版本及租約 |
 | Contents | 去重 SQL BLOB、長度及至多 240 UTF-16 code units 的列表投影 |
-| Revisions／Executions | 不可變版本與獨立執行事件 |
+| Revisions／Executions | 不可變版本與獨立執行事件；版本屬於一個 Session 或一個 Favorite，兩者皆空由 CHECK 擋下 |
 | Recovery／Captures／History | 最新未存檔內容、重送紀錄與有索引的歷史投影 |
 | Favorites | 名稱、說明、scope、目前版本引用與 GUID CAS token |
 | Leases／StorageUsage／MaintenanceState | 租約、內容計量與共用維護輪次 |
@@ -58,8 +58,11 @@ SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents；GUID CAS token �
 
 - `WriteFavoriteAsync` 的新增、更新引用與連線在同一交易；Revision 不存在由外鍵拒絕。
 - `DeleteFavoriteAsync`：token 不符或不存在回 Conflict；移除收藏不刪 History、Revision 或 Content。
-- `EditFavoriteSqlAsync` 建立的 `FavoriteEdit` Revision 沿用原版本的 Session，連線取自收藏自己的 scope；
-  ParentRevisionId 留空，避免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
+- `CreateFavoriteFromSqlAsync` 給沒有版本可引用的入口（查詢視窗、未存檔草稿）：Content、Revision 與
+  Favorite 在同一交易寫入，收藏已存在回 Conflict，不覆寫。內容照常去重。
+- 收藏自己建立的 `Favorite` Revision 不屬於任何 Session，也不建假 Session；新增與 `EditFavoriteSqlAsync`
+  形狀相同：不進 History、不建 Capture、不動任何 head 或序號，連線取自收藏自己的 scope，
+  ParentRevisionId 留空以免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
   不設外鍵，讓移除收藏不改寫版本；舊版本依維護配額回收。
 - 收藏操作不以 CaptureId 冪等，過期更新不留下部分寫入。
 

@@ -191,7 +191,10 @@ internal sealed class SqlCaptureTracker
     /// 殼層實際送出的文字：每個選取範圍依文件順序、以文件自己的換行串起來。
     /// 方塊選取不能取第一個起點到最後一個終點，中間欄外的文字並沒有被執行。
     /// </summary>
-    private static ISqlTextSnapshot? SelectedText(ITextSelection selection)
+    /// <remarks>
+    /// 擷取與「新增至收藏」共用這一份規則。分岔的話，右鍵收藏起來的 SQL 會和同一刻按 F5 送出去的不一樣。
+    /// </remarks>
+    internal static ISqlTextSnapshot? SelectedText(ITextSelection selection)
     {
         if (selection is null || selection.IsEmpty) return null;
 

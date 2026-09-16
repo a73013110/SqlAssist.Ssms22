@@ -419,11 +419,6 @@ internal static partial class SqlAssistChrome
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(labelProperty));
                 button.SetBinding(AutomationProperties.NameProperty, new Binding(labelProperty));
             }
-            if (command.EnabledProperty is { } enabledProperty)
-            {
-                button.SetBinding(UIElement.IsEnabledProperty, new Binding(enabledProperty));
-                button.SetValue(ToolTipService.ShowOnDisabledProperty, true);
-            }
             // 不適用的操作直接收起，不留停用的灰色按鈕；判斷來源與快捷選單、Preview 相同。
             if (command.Kind == SqlMemoryRowKind.History) favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));

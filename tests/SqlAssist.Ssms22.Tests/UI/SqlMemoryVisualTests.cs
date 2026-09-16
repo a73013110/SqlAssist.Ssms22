@@ -219,9 +219,10 @@ public sealed class SqlMemoryVisualTests
             Assert.All(history.Where(button => button.Visibility == Visibility.Visible), button => Assert.Equal(
                 SqlMemoryRowCommand.For((SqlMemoryRowAction)button.Tag).Icon, Descendants<SqlIconImage>(button).Single().Icon));
             Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.AddFavorite, SqlMemoryRowAction.Delete }, Shown(history));
+            // 未存檔草稿還沒有版本，仍然收得起來：收藏會以它目前的全文自己建一份。
             var add = history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.AddFavorite);
-            Assert.False(add.IsEnabled);
-            Assert.Contains("尚無版本", (string)add.ToolTip);
+            Assert.True(add.IsEnabled);
+            Assert.Equal("新增至收藏", (string)add.ToolTip);
             Assert.Equal("從 History 刪除", history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete).ToolTip);
 
             var favorites = Render(favorite);
@@ -446,13 +447,15 @@ public sealed class SqlMemoryVisualTests
     [InlineData(SqlFavoriteScope.Global, "全域", "")]
     [InlineData(SqlFavoriteScope.Server, "LibraryServer", "")]
     [InlineData(SqlFavoriteScope.Database, "LibraryServer", "Library")]
-    public void FavoriteCardsUseScopeBadgesAndCannotBeFavoriteAgain(SqlFavoriteScope scope, string server, string database)
+    public void FavoriteCardsUseScopeBadges(SqlFavoriteScope scope, string server, string database)
     {
         var query = new SqlFavorite(Guid.NewGuid(), "借閱查詢", "", Guid.NewGuid(), scope,
             scope == SqlFavoriteScope.Global ? null : new SqlConnectionLabel("LibraryServer", scope == SqlFavoriteScope.Database ? "Library" : ""));
         var row = new SqlMemoryRow(new SqlFavoriteItem(query, Guid.NewGuid(), "content", "SELECT * FROM Loan;"));
         Assert.Equal(server, row.Server); Assert.Equal(database, row.Database);
-        Assert.Equal("收藏", row.Status); Assert.False(row.CanAddFavorite);
+        Assert.Equal("收藏", row.Status); Assert.True(row.IsFavorite);
+        // 收藏不能再收藏一次：那一項整個收起來，不留停用的按鈕。
+        Assert.False(SqlMemoryRowCommand.For(SqlMemoryRowAction.AddFavorite).AppliesTo(row.IsFavorite));
     }
 
     [Fact]

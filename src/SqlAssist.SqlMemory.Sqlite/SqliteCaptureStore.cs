@@ -78,8 +78,9 @@ VALUES($id,$parent,$content,$session,$time,$reason,$context,$selection);",
                 ("$context", contextId), ("$selection", revision.IsExecutionSelection));
             // 執行版本只由 Execution 顯示，避免每次執行同時冒出一筆假 Draft。
             if (!revision.IsExecutionSelection && revision.Reason != SqlRevisionReason.BeforeExecute)
-                WriteHistory(connection, transaction, "r" + Id(revision.RevisionId), revision.SessionId, revision.RevisionId,
-                    revision.ContentId, revision.CreatedAt, SqlHistoryFilter.Drafts, revision.Connection, contextId);
+                WriteHistory(connection, transaction, "r" + Id(revision.RevisionId), state.Session.SessionId,
+                    revision.RevisionId, revision.ContentId, revision.CreatedAt, SqlHistoryFilter.Drafts,
+                    revision.Connection, contextId);
         }
         // 明列資料行並標上呼叫端傳入的租約：有租約就代表還可能在編輯，維護不得回收這個 Session 的 Recovery。
         // 租約在交易內重查：另一個程序可能在心跳之前已回收它，外鍵失敗會讓整個 writer 停擺。
@@ -359,7 +360,7 @@ r.Reason,r.IsExecutionSelection,c.Server,c.DatabaseName
 FROM Revisions r LEFT JOIN Contexts c ON c.ContextId=r.ContextId WHERE r.RevisionId=$id;", ("$id", Id(revisionId)));
         using var reader = command.ExecuteReader();
         return reader.Read() ? new SqlRevision(revisionId, GuidOrNull(reader, 0), reader.GetString(1),
-            Guid.ParseExact(reader.GetString(2), "N"), Time(reader.GetInt64(3)), (SqlRevisionReason)reader.GetInt32(4),
+            GuidOrNull(reader, 2), Time(reader.GetInt64(3)), (SqlRevisionReason)reader.GetInt32(4),
             ReadContext(reader, 6), reader.GetBoolean(5)) : null;
     }
 

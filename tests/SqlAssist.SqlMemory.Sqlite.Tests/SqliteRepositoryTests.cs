@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 
@@ -29,7 +30,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(session.LatestRevision?.RevisionId, entry.RevisionId);
         Assert.Equal("SELECT * FROM Lib_Reader;", (await reopened.ReadContentAsync(entry.ContentId, Token))?.SqlText);
         Assert.Equal("wal", store.Scalar("PRAGMA journal_mode;"));
-        Assert.Equal(2L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
@@ -194,13 +195,18 @@ public sealed class SqliteRepositoryTests
         Assert.Contains("IX_Favorites_ScopeId", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
         Assert.Contains("IX_Revisions_Favorite", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_foreign_key_list('Sessions') WHERE \"table\"='Leases' AND \"from\"='LeaseId';"));
+        // 版本要嘛屬於一個 Session，要嘛屬於一個收藏；兩者皆空的列沒有任何配額界線可套用。
+        Assert.Throws<SqliteException>(() => store.Scalar(
+            "INSERT INTO Contents VALUES('c','h',x'4100',1,'A');" +
+            "INSERT INTO Revisions VALUES('r',NULL,'c',NULL,0,0,NULL,0,NULL);"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [InlineData(3)]
+    [InlineData(2)]
+    [InlineData(4)]
     public async Task UnsupportedSchemaIsRejectedWithoutChangingContents(int version)
     {
         using var store = new SqliteTestStore();

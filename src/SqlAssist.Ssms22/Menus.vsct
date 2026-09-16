@@ -130,6 +130,15 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Strings>
+          <ButtonText>新增至收藏…</ButtonText>
+          <CanonicalName>SqlAssist.AddToFavorites</CanonicalName>
+          <LocCanonicalName>SqlAssist.新增至收藏</LocCanonicalName>
+          <ToolTipText>把目前的 SQL 加進 SQL Memory 的收藏</ToolTipText>
+        </Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
         <CommandFlag>TextChanges</CommandFlag>
@@ -377,6 +386,9 @@
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
     </CommandPlacement>
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0110">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <KeyBindings>
@@ -469,6 +481,7 @@
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />
       <IDSymbol name="cmdidPickBlockSymbolForeground" value="0x0213" />
       <IDSymbol name="cmdidPickBlockSymbolBackground" value="0x0214" />
+      <IDSymbol name="cmdidAddToFavorites" value="0x0215" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

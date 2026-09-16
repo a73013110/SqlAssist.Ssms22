@@ -84,6 +84,8 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
         Invoke(operation => _worker.ReadFavorites(operation, request), cancellationToken);
     public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.WriteFavorite(operation, write), cancellationToken);
+    public Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.CreateFavoriteFromSql(operation, create), cancellationToken);
     public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.DeleteFavorite(operation, favoriteId, expectedVersion), cancellationToken);
     public Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken) =>
