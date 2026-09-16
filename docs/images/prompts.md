@@ -28,7 +28,7 @@ for text to be added later. Flat vector, minimal, high contrast, no text, no let
 no logos.
 ```
 
-## `logo.png`
+## `SqlAssist.Icon.*`
 
 ```text
 A minimal flat app icon. The canvas must be exactly square, 512x512. The artwork is a

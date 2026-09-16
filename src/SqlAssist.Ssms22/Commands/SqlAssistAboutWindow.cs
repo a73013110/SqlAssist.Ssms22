@@ -30,6 +30,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     private readonly Func<bool> _openSettings;
     private readonly Action _openLog;
     private readonly TextBlock _statusText;
+    private readonly ImageSource? _logoSource;
 
     public SqlAssistAboutWindow(
         SqlAssistDiagnosticSnapshot snapshot,
@@ -57,8 +58,9 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         FontFamily = SqlAssistChrome.InterfaceFont;
         FontSize = Metrics.Body;
 
-        // 原生標題列保留套件圖示；內容標誌另外用可隨主題換色的向量。
-        Icon = TryLoadLogo();
+        // 原生標題列與內容標誌均使用 SqlAssist 產品圖示（高 DPI 下自動平滑渲染）。
+        _logoSource = TryLoadLogo();
+        Icon = _logoSource;
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
         Content = BuildLayout();
@@ -92,7 +94,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var mark = SqlAssistChrome.CreateBrandMark();
+        var mark = SqlAssistChrome.CreateBrandMark(_logoSource);
         Grid.SetColumn(mark, 0);
         layout.Children.Add(mark);
 
@@ -612,7 +614,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             () =>
             {
                 var directory = Path.GetDirectoryName(typeof(SqlAssistAboutWindow).Assembly.Location);
-                var path = Path.Combine(directory ?? string.Empty, "logo.png");
+                var path = Path.Combine(directory ?? string.Empty, "SqlAssist.Icon.512.png");
 
                 if (!File.Exists(path))
                 {
