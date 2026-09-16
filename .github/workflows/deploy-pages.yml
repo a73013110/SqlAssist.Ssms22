@@ -48,6 +48,7 @@ jobs:
           # 實體複製 docs 與圖片至 site 目錄，杜絕 symlink 相對層級錯誤
           cp -r docs .site/guide
           cp -r docs/images .site/public/images
+          cp docs/images/SqlAssist.ico .site/public/favicon.ico
 
           # 建立 SEO 爬蟲指引 robots.txt
           cat << 'EOF' > .site/public/robots.txt
@@ -105,8 +106,9 @@ jobs:
             },
 
             head: [
-              ['link', { rel: 'icon', href: '/images/logo.png' }],
-              ['link', { rel: 'apple-touch-icon', href: '/images/logo.png' }],
+              ['link', { rel: 'icon', type: 'image/x-icon', href: '/SqlAssist.Ssms22/favicon.ico' }],
+              ['link', { rel: 'shortcut icon', type: 'image/x-icon', href: '/SqlAssist.Ssms22/favicon.ico' }],
+              ['link', { rel: 'apple-touch-icon', href: '/SqlAssist.Ssms22/images/SqlAssist.Icon.512.png' }],
               ['link', { rel: 'canonical', href: 'https://a73013110.github.io/SqlAssist.Ssms22/' }],
               ['meta', { name: 'author', content: 'a73013110' }],
               ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22, 結構預覽, 自動補全' }],
@@ -124,7 +126,7 @@ jobs:
             ],
 
             themeConfig: {
-              logo: '/images/logo.png',
+              logo: '/images/SqlAssist.Icon.128.png',
               siteTitle: 'SqlAssist',
 
               nav: [

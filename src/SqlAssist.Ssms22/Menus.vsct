@@ -132,6 +132,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>新增至收藏…</ButtonText>
           <CanonicalName>SqlAssist.AddToFavorites</CanonicalName>
@@ -183,6 +184,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0250" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>以片段包住選取範圍</ButtonText>
           <CanonicalName>SqlAssist.SurroundWith</CanonicalName>
@@ -294,6 +296,7 @@
       <!-- 第一組：產出進剪貼簿，接下來要按的是 Ctrl+V。 -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>複製成 IN 條件</ButtonText>
           <CanonicalName>SqlAssist.ResultGridInPredicate</CanonicalName>
@@ -302,6 +305,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridMarkdown" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>複製成 Markdown 表格</ButtonText>
           <CanonicalName>SqlAssist.ResultGridMarkdown</CanonicalName>
@@ -310,6 +314,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>複製成 JSON</ButtonText>
           <CanonicalName>SqlAssist.ResultGridJson</CanonicalName>
@@ -324,6 +329,7 @@
       -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>建立 #temp 指令碼（新視窗）…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridTempTable</CanonicalName>
@@ -332,6 +338,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>欄位剖析…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridProfile</CanonicalName>
@@ -340,6 +347,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>檢視這一格完整內容…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridCell</CanonicalName>
@@ -369,6 +377,10 @@
         </Strings>
       </Button>
     </Buttons>
+
+    <Bitmaps>
+      <Bitmap guid="guidSqlAssistIcons" href="Resources\SqlAssist.Icon.16.png" usedList="bmpSqlAssistLogo" />
+    </Bitmaps>
   </Commands>
 
   <!--
@@ -501,6 +513,10 @@
     <GuidSymbol name="guidSqlWorkbenchEditorGroup" value="{33F13AC3-80BB-4ECB-85BC-225435603A5E}">
       <IDSymbol name="IDM_SQLWB_SQLSCRIPT_CONTEXT" value="0x0050" />
       <IDSymbol name="IDM_SQLWB_SQLRESGRID_CONTEXT" value="0x0070" />
+    </GuidSymbol>
+
+    <GuidSymbol name="guidSqlAssistIcons" value="{c5e638db-1ba6-455c-a5b5-b223fa8c9735}">
+      <IDSymbol name="bmpSqlAssistLogo" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

@@ -146,31 +146,46 @@ internal static partial class SqlAssistChrome
         return ease;
     }
 
-    /// <summary>視窗內的產品標誌：資料庫與插入游標，保留小尺寸辨識度並跟隨 Fluent 配色。</summary>
-    public static Border CreateBrandMark()
+    /// <summary>視窗內的產品標誌：優先呈現產品圖示，保留小尺寸辨識度並跟隨 Fluent 配色。</summary>
+    public static Border CreateBrandMark(ImageSource? imageSource = null)
     {
-        // 使用向量而非縮小發布用 PNG；沒有固定藍底、星光與點陣邊緣，換色也不必換圖。
-        var glyph = new Canvas { Width = 48, Height = 48 };
-        var database = new Path
+        UIElement content;
+        if (imageSource != null)
         {
-            Data = Geometry.Parse(
-                "M10,14 C10,9.3 28,9.3 28,14 L28,32 C28,36.7 10,36.7 10,32 Z " +
-                "M10,14 C10,18.7 28,18.7 28,14 M10,23 C10,27.7 28,27.7 28,23"),
-            StrokeThickness = 2,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round
-        }.WithTheme(Shape.StrokeProperty, ThemeBrush.ListForeground);
-        var caret = new Path
+            var image = new Image
+            {
+                Source = imageSource,
+                Stretch = Stretch.Uniform
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            content = image;
+        }
+        else
         {
-            Data = Geometry.Parse("M33,19 H38 M35.5,19 V34 M33,34 H38"),
-            StrokeThickness = 2,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round
-        }.WithTheme(Shape.StrokeProperty, ThemeBrush.AccentBorder);
-        glyph.Children.Add(database);
-        glyph.Children.Add(caret);
+            // 在未提供圖示來源時以向量路徑作為安全後備。
+            var glyph = new Canvas { Width = 48, Height = 48 };
+            var database = new Path
+            {
+                Data = Geometry.Parse(
+                    "M10,14 C10,9.3 28,9.3 28,14 L28,32 C28,36.7 10,36.7 10,32 Z " +
+                    "M10,14 C10,18.7 28,18.7 28,14 M10,23 C10,27.7 28,27.7 28,23"),
+                StrokeThickness = 2,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeLineJoin = PenLineJoin.Round
+            }.WithTheme(Shape.StrokeProperty, ThemeBrush.ListForeground);
+            var caret = new Path
+            {
+                Data = Geometry.Parse("M33,19 H38 M35.5,19 V34 M33,34 H38"),
+                StrokeThickness = 2,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeLineJoin = PenLineJoin.Round
+            }.WithTheme(Shape.StrokeProperty, ThemeBrush.AccentBorder);
+            glyph.Children.Add(database);
+            glyph.Children.Add(caret);
+            content = new Viewbox { Child = glyph, Stretch = Stretch.Uniform };
+        }
 
         return new Border
         {
@@ -180,7 +195,7 @@ internal static partial class SqlAssistChrome
             BorderThickness = new Thickness(1),
             VerticalAlignment = VerticalAlignment.Center,
             IsHitTestVisible = false,
-            Child = new Viewbox { Child = glyph, Stretch = Stretch.Uniform }
+            Child = content
         }.WithTheme(Border.BackgroundProperty, ThemeBrush.AccentBackground)
             .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
     }

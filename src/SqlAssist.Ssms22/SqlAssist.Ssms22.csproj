@@ -229,11 +229,12 @@
       同一張圖放兩份的下場一律是其中一份改了另一份沒改。
       Link 決定它在 VSIX 裡的檔名，manifest 的 Icon／PreviewImage 就是照這個名字找。
     -->
-    <Content Include="..\..\docs\images\logo.png">
-      <Link>logo.png</Link>
+    <Content Include="..\..\docs\images\SqlAssist.Icon.512.png">
+      <Link>SqlAssist.Icon.512.png</Link>
       <IncludeInVSIX>true</IncludeInVSIX>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Resource Include="Resources\SqlAssist.Icon.16.png" />
   </ItemGroup>
 
   <Target Name="ValidateSsmsReferences" BeforeTargets="ResolveReferences">

@@ -8,7 +8,8 @@
 | 語句展開示例 | `expand-star.png`、`expand-insert-into.png`、`expand-merge-into.png`、`expand-exec.png`、`expand-def-procedure.png` |
 | 功能畫面 | `structure-preview.png`、`result-grid-utility.png` |
 | GitHub 分享預覽 | `social-preview.png` |
-| VSIX 圖示 | `logo.png` |
+| VSIX 圖示與母圖 | `SqlAssist.Icon.512.png`、`SqlAssist.ico` |
+| 選單與工具列圖示 | `SqlAssist.Icon.16.png` |
 
 ## 加圖規則
 
@@ -26,9 +27,9 @@
 `social-preview.png` 不放 README；到 GitHub 的 **Settings → General → Social preview**
 上傳，供 Teams、Slack 與社群連結預覽使用。
 
-`logo.png` 同時是 VSIX manifest 的 `<Icon>` 與 `<PreviewImage>`。專案以 `Link` 放入 VSIX
+`SqlAssist.Icon.512.png` 同時是 VSIX manifest 的 `<Icon>` 與 `<PreviewImage>`。專案以 `Link` 放入 VSIX
 根目錄，殼層自行縮放，因此不要維護另一份縮圖。四角必須透明且沒有與黑底混色的暗邊，
-才能同時適用 SSMS 深淺主題。
+才能同時適用 SSMS 深淺主題。`SqlAssist.ico` 則供網站 Favicon 與 Windows 桌面應用場景共用。
 
 插畫來源與可重製提示詞見[生成提示詞](prompts.md)；`completion.png`、
 `structure-preview.png` 與結果格線圖片則是實機畫面或標註後的實機畫面。
