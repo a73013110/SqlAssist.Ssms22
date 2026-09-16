@@ -753,4 +753,26 @@ public sealed class SqliteMaintenanceTests
         Assert.Null(await repository.ReadContentAsync(SqlContent.Create(EditSql("D", 0)).ContentId, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
+
+    [Fact]
+    public async Task FavoritesCreatedFromSqlSurviveWithoutASessionAndAreReclaimedOnceRemoved()
+    {
+        const string sql = "SELECT CopyNo FROM Cat_BookCopy;";
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var query = new SqlFavorite(Guid.NewGuid(), "館藏複本", null, Guid.NewGuid(), SqlFavoriteScope.Global, null);
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.CreateFavoriteFromSqlAsync(
+            new SqlFavoriteSqlCreate(query, sql, SqliteTestStore.Start), Token));
+        // 沒有 Session 可以算配額界線，維護仍要走得完；收藏還在就一列都不刪。
+        await Drain(repository, Expired());
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE SessionId IS NULL;"));
+        Assert.NotNull(await repository.ReadContentAsync(SqlContent.Create(sql).ContentId, Token));
+        var favorite = await repository.ReadFavoriteAsync(query.FavoriteId, Token);
+        Assert.NotNull(favorite);
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.DeleteFavoriteAsync(query.FavoriteId, favorite.Version, Token));
+        await Drain(repository, Expired());
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Revisions;"));
+        Assert.Null(await repository.ReadContentAsync(SqlContent.Create(sql).ContentId, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
 }

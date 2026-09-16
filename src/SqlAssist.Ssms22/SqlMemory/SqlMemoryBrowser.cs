@@ -203,7 +203,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
                 item.Visibility = row is not null && command.AppliesTo(row.IsFavorite) ? Visibility.Visible : Visibility.Collapsed;
                 item.IsEnabled = SqlMemoryItemCommands.CanRun(command.Action, row);
                 if (command.Action == SqlMemoryRowAction.Delete) item.Header = row?.DeleteLabel ?? command.Label;
-                if (command.Action == SqlMemoryRowAction.AddFavorite) { item.ToolTip = row?.AddFavoriteHint; ToolTipService.SetShowOnDisabled(item, true); }
             }
         });
         return menu;

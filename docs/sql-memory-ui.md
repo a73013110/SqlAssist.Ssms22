@@ -60,7 +60,10 @@ History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` �
 
 ## 收藏與開啟
 
-已有 Revision 的 History 可**新增至收藏**；Recovery 尚無版本，停用並說明先開新 Query。
+History 每一筆都可**新增至收藏**：有版本就引用那一份不可變版本，Recovery 還沒有版本則以目前全文建立。
+查詢視窗的右鍵選單與工具選單也有**新增至收藏…**，有選取收選取、沒有選取收整份查詢，界線與選取執行相同；
+對話框第一列以淡色單行說明收的是哪一種與它的行數字數。此入口不寫 History、不受擷取設定影響，
+SQL Memory 沒啟用或視窗是空的就停用。
 收藏提供編輯名稱／說明／scope、編輯 SQL，以及**從收藏移除**，清單與 Preview 皆可操作。
 History 每筆可 **從 History 刪除**，語意見[儲存](sql-memory-storage.md)。刪除與移除都必須確認，取消是預設；
 移除收藏不連帶刪除 History。成功後就地移出或換列並選取原位置的下一筆，保留已載入的頁；
@@ -72,5 +75,5 @@ metadata 與 SQL 各用一個對話框：前者不讀全文，後者使用共用
 開新 Query 沿用目前 SSMS 連線，不採用歷史／收藏 scope，也不直接執行。
 只透過 `SsmsScriptWindow`／`TextViewEditCoordinator` 寫入剛建立且仍空白的編輯器；失敗仍可複製 SQL。
 
-本版不提供舊版本列表／還原、覆蓋目前 Query、批次刪除、跨 scope 合併或任意 SQL 直接新增收藏。
+本版不提供舊版本列表／還原、覆蓋目前 Query、批次刪除或跨 scope 合併。
 自動 WPF 渲染與 SSMS 實機驗收的範圍見[驗收](sql-memory-validation.md)。

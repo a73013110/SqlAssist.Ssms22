@@ -48,18 +48,25 @@ JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s
         if (ReadFavoriteVersion(connection, transaction, favorite.FavoriteId) != write.ExpectedVersion)
             return SqlFavoriteWriteResult.Conflict;
         cancellationToken.ThrowIfCancellationRequested();
-        var contextId = WriteContext(connection, transaction, favorite.Connection);
-        Execute(connection, transaction, @"INSERT INTO Favorites
-(FavoriteId,Name,Description,CurrentRevisionId,Scope,ContextId,Server,DatabaseName,Version)
-VALUES($id,$name,$description,$revision,$scope,$context,$server,$database,$version)
-ON CONFLICT(FavoriteId) DO UPDATE SET Name=excluded.Name,Description=excluded.Description,
-CurrentRevisionId=excluded.CurrentRevisionId,Scope=excluded.Scope,ContextId=excluded.ContextId,
-Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Version;",
-            ("$id", Id(favorite.FavoriteId)), ("$name", favorite.Name), ("$description", favorite.Description),
-            ("$revision", Id(favorite.CurrentRevisionId)), ("$scope", (int)favorite.Scope), ("$context", contextId),
-            ("$server", favorite.Connection?.Server),
-            ("$database", favorite.Scope == SqlFavoriteScope.Database ? favorite.Connection?.Database : null),
-            ("$version", Id(Guid.NewGuid())));
+        WriteFavoriteRow(connection, transaction, favorite);
+        cancellationToken.ThrowIfCancellationRequested();
+        transaction.Commit();
+        return SqlFavoriteWriteResult.Committed;
+    }
+
+    public SqlFavoriteWriteResult CreateFavoriteFromSql(SqlFavoriteSqlCreate create, CancellationToken cancellationToken)
+    {
+        if (create == null) throw new ArgumentNullException(nameof(create));
+        var content = SqlContent.Create(create.Sql);
+        using var connection = _database.Connect();
+        using var transaction = connection.BeginTransaction(deferred: false);
+        // 已經有這個收藏就是重送或撞號；覆寫的話會把別人的名稱、scope 與版本一起換掉。
+        if (ReadFavoriteVersion(connection, transaction, create.Favorite.FavoriteId) != null)
+            return SqlFavoriteWriteResult.Conflict;
+        cancellationToken.ThrowIfCancellationRequested();
+        WriteContent(connection, transaction, content);
+        WriteFavoriteRevision(connection, transaction, create.Favorite, content.ContentId, create.CreatedAt);
+        WriteFavoriteRow(connection, transaction, create.Favorite);
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
         return SqlFavoriteWriteResult.Committed;
@@ -72,26 +79,18 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Versi
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         string? contextId;
-        string sessionId;
-        using (var command = Command(connection, transaction, @"SELECT s.Version,s.ContextId,r.SessionId FROM Favorites s
-JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId WHERE s.FavoriteId=$id;", ("$id", Id(edit.FavoriteId))))
+        using (var command = Command(connection, transaction,
+            "SELECT Version,ContextId FROM Favorites WHERE FavoriteId=$id;", ("$id", Id(edit.FavoriteId))))
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read() || Guid.ParseExact(reader.GetString(0), "N") != edit.ExpectedVersion)
                 return SqlFavoriteWriteResult.Conflict;
             contextId = StringOrNull(reader, 1);
-            sessionId = reader.GetString(2);
         }
         cancellationToken.ThrowIfCancellationRequested();
         WriteContent(connection, transaction, content);
-        // 沿用被編輯版本的 Session，不建假 Session，也不動 head、序號或 Capture；不寫 History 列。
-        // ParentRevisionId 留空：接成版本鏈會讓每個舊版本被子版本永久保護，配額就永遠回收不到。
-        Execute(connection, transaction, @"INSERT INTO Revisions
-(RevisionId,ParentRevisionId,ContentId,SessionId,CreatedAt,Reason,ContextId,IsExecutionSelection,FavoriteId)
-VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
-            ("$id", Id(edit.RevisionId)), ("$content", content.ContentId), ("$session", sessionId),
-            ("$time", Ticks(edit.EditedAt)), ("$reason", (int)SqlRevisionReason.FavoriteEdit),
-            ("$context", contextId), ("$favorite", Id(edit.FavoriteId)));
+        WriteFavoriteRevision(connection, transaction, edit.FavoriteId, edit.RevisionId, content.ContentId,
+            contextId, edit.EditedAt);
         Execute(connection, transaction, "UPDATE Favorites SET CurrentRevisionId=$revision,Version=$version WHERE FavoriteId=$id;",
             ("$revision", Id(edit.RevisionId)), ("$version", Id(Guid.NewGuid())), ("$id", Id(edit.FavoriteId)));
         cancellationToken.ThrowIfCancellationRequested();
@@ -112,6 +111,40 @@ VALUES($id,NULL,$content,$session,$time,$reason,$context,0,$favorite);",
         transaction.Commit();
         return SqlFavoriteWriteResult.Committed;
     }
+
+    /// <summary>收藏自己的版本：新增與改 SQL 共用同一個形狀。</summary>
+    /// <remarks>
+    /// 不屬於任何 Session，也不動 head、序號或 Capture，更不寫 History 列——收藏與擷取是兩條獨立的路，
+    /// 擷取設定是關的也照樣收得起來。ParentRevisionId 留空：接成版本鏈會讓每個舊版本被子版本永久保護，
+    /// 配額就永遠回收不到。連線沿用收藏自己的 scope，不是它被收藏當下的執行連線。
+    /// </remarks>
+    private static void WriteFavoriteRevision(SqliteConnection connection, SqliteTransaction transaction,
+        Guid favoriteId, Guid revisionId, string contentId, string? contextId, DateTimeOffset createdAt) =>
+        Execute(connection, transaction, @"INSERT INTO Revisions
+(RevisionId,ParentRevisionId,ContentId,SessionId,CreatedAt,Reason,ContextId,IsExecutionSelection,FavoriteId)
+VALUES($id,NULL,$content,NULL,$time,$reason,$context,0,$favorite);",
+            ("$id", Id(revisionId)), ("$content", contentId), ("$time", Ticks(createdAt)),
+            ("$reason", (int)SqlRevisionReason.Favorite), ("$context", contextId), ("$favorite", Id(favoriteId)));
+
+    private static void WriteFavoriteRevision(SqliteConnection connection, SqliteTransaction transaction,
+        SqlFavorite favorite, string contentId, DateTimeOffset createdAt) =>
+        WriteFavoriteRevision(connection, transaction, favorite.FavoriteId, favorite.CurrentRevisionId, contentId,
+            WriteContext(connection, transaction, favorite.Connection), createdAt);
+
+    /// <summary>收藏列本身；新增與更新 metadata 共用，欄位組合由 schema 的 scope CHECK 守住。</summary>
+    private static void WriteFavoriteRow(SqliteConnection connection, SqliteTransaction transaction, SqlFavorite favorite) =>
+        Execute(connection, transaction, @"INSERT INTO Favorites
+(FavoriteId,Name,Description,CurrentRevisionId,Scope,ContextId,Server,DatabaseName,Version)
+VALUES($id,$name,$description,$revision,$scope,$context,$server,$database,$version)
+ON CONFLICT(FavoriteId) DO UPDATE SET Name=excluded.Name,Description=excluded.Description,
+CurrentRevisionId=excluded.CurrentRevisionId,Scope=excluded.Scope,ContextId=excluded.ContextId,
+Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Version;",
+            ("$id", Id(favorite.FavoriteId)), ("$name", favorite.Name), ("$description", favorite.Description),
+            ("$revision", Id(favorite.CurrentRevisionId)), ("$scope", (int)favorite.Scope),
+            ("$context", WriteContext(connection, transaction, favorite.Connection)),
+            ("$server", favorite.Connection?.Server),
+            ("$database", favorite.Scope == SqlFavoriteScope.Database ? favorite.Connection?.Database : null),
+            ("$version", Id(Guid.NewGuid())));
 
     private static Guid? ReadFavoriteVersion(SqliteConnection connection, SqliteTransaction transaction, Guid id)
     {

@@ -34,7 +34,8 @@ WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 
 ## SSMS 實機門檻
 
-命令資源版號現為 26；Install／Deploy 的選用規則與一般安裝門檻見[部署契約](debug-deployment.md)。
+命令資源版號現為 27；Install／Deploy 的選用規則與一般安裝門檻見[部署契約](debug-deployment.md)。
+schema 版號現為 3，舊的開發測試資料庫會被明確拒絕；驗收前先換路徑或刪掉它。
 
 1. 儲存工作並關閉 SSMS，建置後依[發布與安裝](release.md)安裝本版。
 2. 開啟詳細記錄，執行「SQL Memory 儲存自我測試…」兩次；確認報告的 Isolation 建置及載入路徑。
@@ -42,8 +43,10 @@ WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 4. 開啟 History／Favorites，測滑鼠與 ↑／↓ 選取、同步 Preview、Enter／雙擊只開新 Query 不執行。
 5. 明／暗／高對比切換、窄窗、不同 DPI 螢幕、splitter 拖曳／鍵盤、收合再開、篩選與焦點不位移。
 6. 收藏新增／編輯／移除、跨程序版本衝突、無連線開新 Query、停用／重新啟用與關閉工具窗。
-7. 操作補全、物件預覽、F12、物件總管、結果格線，再重啟 SSMS 重跑自我測試與基本流程。
-8. 需要驗證解除安裝時先儲存並關閉 SSMS；只照正式卸載流程，不刪除使用者設定或 SQL。
+7. 查詢視窗右鍵「新增至收藏…」：有無選取各一次，確認收到的範圍與對話框第一列相符；
+   未存檔草稿與 SQL Memory 停用時的狀態也各看一次。
+8. 操作補全、物件預覽、F12、物件總管、結果格線，再重啟 SSMS 重跑自我測試與基本流程。
+9. 需要驗證解除安裝時先儲存並關閉 SSMS；只照正式卸載流程，不刪除使用者設定或 SQL。
 
 自我測試資料各在 `%LOCALAPPDATA%\SqlAssist.Ssms22\SqlMemorySelfTest\<唯一識別碼>`，
 包含 `report.txt`／`self-test.db`，只用內建圖書館 SQL，不覆寫既有報告。

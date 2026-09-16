@@ -105,6 +105,8 @@ public static class SqlMemoryStorageSelfTest
                 Require(await reopened.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false) == null, "SQL Favorite 已刪除");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 SQL Favorite 不刪除 History 內容");
                 report.WriteLine("通過：SQL Favorite CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
+                await VerifyFavoriteFromSqlAsync(reopened, contentId, sql, start, token).ConfigureAwait(false);
+                report.WriteLine("通過：任意 SQL 新增收藏共用內容位址、不覆寫既有收藏，移除後共用內容仍在。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
                 report.WriteLine("通過：有界維護續跑、筆數配額、容量量測與無法回收時保護 Session head／Recovery。");
                 lease = await VerifySessionLeaseAsync(reopened, document, start, token).ConfigureAwait(false);
@@ -191,6 +193,22 @@ public static class SqlMemoryStorageSelfTest
     {
         using var process = Process.GetCurrentProcess();
         return process.StartTime;
+    }
+
+    /// <summary>沒有既有版本可引用的入口（查詢視窗、未存檔草稿）：收藏自己建一份不屬於任何 Session 的版本。</summary>
+    private static async Task VerifyFavoriteFromSqlAsync(IsolatedSqlMemoryStore store, string contentId, string sql,
+        DateTimeOffset start, CancellationToken token)
+    {
+        var query = new SqlFavorite(Guid.NewGuid(), "查詢視窗收藏", null, Guid.NewGuid(), SqlFavoriteScope.Global, null);
+        var create = new SqlFavoriteSqlCreate(query, sql, start.AddSeconds(300));
+        Require(await store.CreateFavoriteFromSqlAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "任意 SQL 新增收藏");
+        Require(await store.CreateFavoriteFromSqlAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "重送不覆寫既有收藏");
+        var created = await store.ReadFavoriteAsync(query.FavoriteId, token).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("任意 SQL 新增的 SQL Favorite 遺失。");
+        // 內容去重：同一份 SQL 不再寫一份 BLOB，版本仍然是收藏自己的那一份。
+        Require(created.Favorite == query && created.ContentId == contentId, "任意 SQL 新增收藏共用內容位址");
+        Require(await store.DeleteFavoriteAsync(query.FavoriteId, created.Version, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "移除任意 SQL 新增的收藏");
+        Require((await store.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "移除收藏不刪除共用內容");
     }
 
     /// <summary>回傳改 SQL 之後的版本 token；呼叫端不得沿用編輯前讀到的那一份。</summary>

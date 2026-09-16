@@ -80,6 +80,12 @@ internal sealed class SqlAssistCommands
             SurroundWith,
             SqlSnippetSurroundAction.IsAvailable);
 
+        // 右鍵選單與工具選單共用；SQL Memory 關著或沒有東西可收就變灰，不讓使用者按下去才知道。
+        AddCommand(
+            CommandIds.AddToFavorites,
+            AddToFavorites,
+            SqlMemoryFavoriteAction.IsAvailable);
+
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowSqlHistory, (_, _) => SqlMemoryToolWindow.Show(_package));
@@ -429,6 +435,50 @@ internal sealed class SqlAssistCommands
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"以片段包住選取範圍失敗：{exception}");
             SqlAssistStatusBar.Show(_package, $"以片段包住選取範圍失敗：{exception.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 把查詢視窗目前的 SQL 加進 SQL Memory 的收藏。
+    /// </summary>
+    /// <remarks>
+    /// 回饋走狀態列而不是對話框：成功與取消都已經由收藏對話框自己交代完，
+    /// 再彈一個要按確定的視窗只是多一次點擊。失敗的原因仍然看得見。
+    /// </remarks>
+    private void AddToFavorites(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        try
+        {
+            // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
+            if (!SqlAssistSettingsStore.Current.Enabled)
+            {
+                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                return;
+            }
+
+            if (!SqlMemoryHost.Runtime.IsAvailable)
+            {
+                SqlAssistStatusBar.Show(_package, "SQL Memory 尚未啟用；請到設定開啟後再收藏。");
+                return;
+            }
+
+            if (ActiveSqlEditor.Current is not { } textView)
+            {
+                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                return;
+            }
+
+            if (SqlMemoryFavoriteAction.Begin(textView, _package) is { Length: > 0 } message)
+            {
+                SqlAssistStatusBar.Show(_package, message);
+            }
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"新增至收藏失敗：{exception}");
+            SqlAssistStatusBar.Show(_package, $"新增至收藏失敗：{exception.Message}");
         }
     }
 

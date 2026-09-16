@@ -247,19 +247,19 @@ internal sealed class SqliteMaintenanceBatch
             if (!reader.Read()) return 0;
             if (reader.GetInt64(1) == (long)SqlRevisionReason.AutoCheckpoint && reader.GetInt64(2) == 0)
                 autoQuota = AutoRevisionCutoff(reader.GetString(0));
-            else if (!reader.IsDBNull(3) && reader.GetInt64(1) == (long)SqlRevisionReason.FavoriteEdit)
+            else if (!reader.IsDBNull(3) && reader.GetInt64(1) == (long)SqlRevisionReason.Favorite)
                 favoriteQuota = FavoriteRevisionCutoff(reader.GetString(3));
         }
-        // 收藏還在時，改 SQL 產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
+        // 收藏還在時，它自己產生的版本不受草稿期限影響；只有每 Favorite 版本配額能回收它。
         return DeleteReleasing("Revisions", "RevisionId=$id", @"DELETE FROM Revisions WHERE RevisionId=$id
  AND (CreatedAt < CASE
    WHEN IsExecutionSelection=1 OR Reason=$beforeExecute THEN $execution
-   WHEN Reason=$favoriteEdit AND EXISTS(SELECT 1 FROM Favorites WHERE FavoriteId=Revisions.FavoriteId) THEN $favoriteQuota
+   WHEN Reason=$favoriteReason AND EXISTS(SELECT 1 FROM Favorites WHERE FavoriteId=Revisions.FavoriteId) THEN $favoriteQuota
    ELSE $draft END
   OR CreatedAt<$autoQuota)" + SqliteContentRows.UnreferencedRevision + ";",
             ("$id", key), ("$revision", key), ("$draft", _draft), ("$execution", ExecutionCutoff), ("$autoQuota", autoQuota),
             ("$beforeExecute", (int)SqlRevisionReason.BeforeExecute),
-            ("$favoriteEdit", (int)SqlRevisionReason.FavoriteEdit), ("$favoriteQuota", favoriteQuota));
+            ("$favoriteReason", (int)SqlRevisionReason.Favorite), ("$favoriteQuota", favoriteQuota));
     }
 
     private int DeleteRecovery(string key)

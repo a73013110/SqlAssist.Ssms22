@@ -52,6 +52,9 @@ internal sealed class FakeSqlMemoryStore : ISqlMemoryStore
     public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
         Task.FromResult(SqlFavoriteWriteResult.Committed);
 
+    public Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken) =>
+        Task.FromResult(SqlFavoriteWriteResult.Committed);
+
     public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
         Task.FromResult(SqlFavoriteWriteResult.Committed);
 

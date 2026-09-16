@@ -7,7 +7,9 @@ public enum SqlRevisionReason
     AutoCheckpoint,
     EditorClosed,
     BeforeExecute,
-    FavoriteEdit,
+
+    /// <summary>屬於某個收藏自己的版本；新增收藏與改收藏的 SQL 都用它。</summary>
+    Favorite,
 }
 
 public enum SqlCaptureKind { DraftIdle, BeforeExecute, EditorClosed }
@@ -25,9 +27,14 @@ public sealed record SqlSession(Guid SessionId, Guid DocumentId, DateTimeOffset 
 [Serializable]
 public sealed record SqlConnectionLabel(string Server, string Database);
 
+/// <remarks>
+/// <paramref name="SessionId"/> 只有擷取產生的版本才有。收藏自己建立的版本不屬於任何一次編輯器
+/// 生命週期，也不該讓某個 Session 的配額決定它的去留，因此留空；儲存層以
+/// 「有 Session 或有 Favorite」的檢查擋住兩者皆空的列。
+/// </remarks>
 [Serializable]
 public sealed record SqlRevision(Guid RevisionId, Guid? ParentRevisionId, string ContentId,
-    Guid SessionId, DateTimeOffset CreatedAt, SqlRevisionReason Reason,
+    Guid? SessionId, DateTimeOffset CreatedAt, SqlRevisionReason Reason,
     SqlConnectionLabel? Connection, bool IsExecutionSelection = false);
 
 [Serializable]

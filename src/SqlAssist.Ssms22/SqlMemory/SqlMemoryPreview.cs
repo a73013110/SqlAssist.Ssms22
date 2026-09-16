@@ -76,15 +76,8 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         foreach (var (button, command) in _rowActions)
         {
             button.Visibility = row is not null && command.AppliesTo(row.IsFavorite) ? Visibility.Visible : Visibility.Collapsed;
-            var label = command.Action switch
-            {
-                SqlMemoryRowAction.AddFavorite => row?.AddFavoriteHint ?? command.Label,
-                SqlMemoryRowAction.Delete => row?.DeleteLabel ?? command.Label,
-                _ => command.Label,
-            };
+            var label = command.Action == SqlMemoryRowAction.Delete ? row?.DeleteLabel ?? command.Label : command.Label;
             button.ToolTip = label; AutomationProperties.SetName(button, label);
-            button.IsEnabled = command.Action != SqlMemoryRowAction.AddFavorite || row?.CanAddFavorite == true;
-            ToolTipService.SetShowOnDisabled(button, true);
         }
         Report(row is null ? "請在清單選取 SQL。" : "");
         _loading.IsLoading = row is not null && previewEnabled;

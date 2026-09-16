@@ -27,11 +27,10 @@ internal enum SqlMemoryRowKind { Any, History, Favorite }
 internal sealed class SqlMemoryRowCommand
 {
     private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, string label, SqlMemoryRowKind kind,
-        string? labelProperty = null, string? enabledProperty = null, bool separated = false,
-        SqlActionTone tone = SqlActionTone.Neutral)
+        string? labelProperty = null, bool separated = false, SqlActionTone tone = SqlActionTone.Neutral)
     {
         Action = action; Icon = icon; Label = label; Kind = kind;
-        LabelProperty = labelProperty; EnabledProperty = enabledProperty; IsSeparated = separated; Tone = tone;
+        LabelProperty = labelProperty; IsSeparated = separated; Tone = tone;
     }
 
     public static IReadOnlyList<SqlMemoryRowCommand> All { get; } = new[]
@@ -39,7 +38,7 @@ internal sealed class SqlMemoryRowCommand
         new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any),
         new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
         new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
-            labelProperty: "AddFavoriteHint", enabledProperty: "CanAddFavorite", tone: SqlActionTone.Favorite),
+            tone: SqlActionTone.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditSql, SqlIcon.Edit, "編輯 SQL", SqlMemoryRowKind.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditMetadata, SqlIcon.Settings, "編輯收藏資料", SqlMemoryRowKind.Favorite),
         // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
@@ -55,7 +54,6 @@ internal sealed class SqlMemoryRowCommand
 
     public SqlMemoryRowKind Kind { get; }
     public string? LabelProperty { get; }
-    public string? EnabledProperty { get; }
 
     /// <summary>與前一組操作之間留分隔；快捷選單畫分隔線，卡片留較寬的間距。</summary>
     public bool IsSeparated { get; }

@@ -17,6 +17,9 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// </remarks>
 internal sealed class SqlMemoryItemCommands
 {
+    /// <summary>收藏成功的回饋；查詢視窗那條入口也用同一句。</summary>
+    public const string AddedToFavorites = "已加入收藏；可到 Favorites 查看。";
+
     private readonly SqlAssistPackage _package;
     private int _busy;
 
@@ -31,8 +34,7 @@ internal sealed class SqlMemoryItemCommands
     public bool IsBusy => Volatile.Read(ref _busy) != 0;
 
     public static bool CanRun(SqlMemoryRowAction action, SqlMemoryRow? row) =>
-        row is not null && SqlMemoryHost.Runtime.IsAvailable && SqlMemoryRowCommand.For(action).AppliesTo(row.IsFavorite) &&
-        (action != SqlMemoryRowAction.AddFavorite || row.CanAddFavorite);
+        row is not null && SqlMemoryHost.Runtime.IsAvailable && SqlMemoryRowCommand.For(action).AppliesTo(row.IsFavorite);
 
     /// <param name="source">決定確認框與對話框的擁有者視窗。</param>
     /// <param name="report">操作結果寫到呼叫端自己的狀態列。</param>
@@ -56,7 +58,21 @@ internal sealed class SqlMemoryItemCommands
                 });
                 break;
             case SqlMemoryRowAction.AddFavorite:
-                if (new FavoriteMetadataWindow(_package, row, false).ShowModal() == true) report("已加入收藏；可到 Favorites 查看。");
+                // 有版本就引用它，不複製內容；未存檔草稿還沒有版本，改讀全文讓收藏自己建一份。
+                if (row.RevisionId is not null)
+                {
+                    if (new FavoriteMetadataWindow(_package, row, false).ShowModal() == true) report(AddedToFavorites);
+                }
+                else
+                {
+                    await WithSqlAsync(row, loadedSql, token, report, "收藏", sql =>
+                    {
+                        if (new FavoriteMetadataWindow(_package, sql, row.Name, row.History?.Connection,
+                                "收藏這筆未存檔草稿目前的內容。").ShowModal() == true)
+                            report(AddedToFavorites);
+                        return Task.CompletedTask;
+                    });
+                }
                 break;
             case SqlMemoryRowAction.EditMetadata:
                 if (new FavoriteMetadataWindow(_package, row, true).ShowModal() == true)

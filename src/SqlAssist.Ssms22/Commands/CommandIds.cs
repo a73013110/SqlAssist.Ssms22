@@ -68,6 +68,15 @@ internal static class CommandIds
     public const int PickBlockSymbolBackground = 0x0214;
 
     /// <summary>
+    /// 把查詢視窗目前的 SQL 加進 SQL Memory 的收藏；入口是查詢視窗的右鍵選單與工具選單。
+    /// </summary>
+    /// <remarks>
+    /// 刻意沒有鍵繫結：它會開一個對話框，不是編輯途中連按的動作，綁鍵只是多佔一組快捷鍵。
+    /// 有選取就收選取，與選取執行同一條界線。
+    /// </remarks>
+    public const int AddToFavorites = 0x0215;
+
+    /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
     /// </summary>
     /// <remarks>
