@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Media.Animation;
 using Microsoft.VisualStudio.Imaging;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -16,40 +14,13 @@ namespace SqlAssist.Ssms22.Preview;
 /// </summary>
 /// <remarks>
 /// 字型、字級、按鈕、分頁與資料格的樣板都在 <see cref="SqlAssistChrome"/>，
-/// 那是整個擴充共用的一套；這裡只留下別的視窗用不到的部分——出現時的動畫、
-/// 物件圖示控制項的排版，以及欄位表的旗標徽章。
+/// 那是整個擴充共用的一套；這裡只留下別的視窗用不到的部分——
+/// 物件圖示控制項的排版，以及欄位表的旗標徽章。出現時的淡入已是共用表面行為，在 <see cref="SqlAssistChrome.PlayAppear"/>。
 /// </remarks>
 internal static class PreviewChrome
 {
     /// <summary>主索引鍵徽章要換成強調色，比對的就是這個字串。</summary>
     public static readonly string PrimaryKeyFlag = SqlColumnFlag.PrimaryKey.ToDisplayName();
-
-    /// <summary>
-    /// 出現時的淡入。
-    /// </summary>
-    /// <remarks>
-    /// 只做透明度，不做縮放。承載視窗的大小是平台按內容量出來的，縮放只會讓
-    /// 內容縮進去而視窗不動，四周露出一圈承載視窗的底色——那比不做動畫還糟。
-    /// 120 毫秒、只用 ease-out、不回彈：短到不擋操作，但足以讓人看出它是
-    /// 「長出來」而不是「跳出來」。
-    /// </remarks>
-    public static void PlayAppear(UIElement element)
-    {
-        if (!SqlAssistChrome.MotionEnabled)
-        {
-            return;
-        }
-
-        var fade = new DoubleAnimation
-        {
-            From = 0,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(120),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        element.BeginAnimation(UIElement.OpacityProperty, fade);
-    }
 
     // 圖示只輔助辨識，種類文字仍保留在淡色摘要；每個預覽持有自己的控制項。
     public static CrispImage CreateObjectIcon()

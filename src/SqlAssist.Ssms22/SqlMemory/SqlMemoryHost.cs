@@ -89,6 +89,19 @@ internal static class SqlMemoryHost
             document: string.Empty);
     }
 
+    /// <summary>
+    /// 依目前設定重新開啟儲存；復原流程用，失敗直接擲給呼叫端。
+    /// </summary>
+    /// <remarks>
+    /// 不走 <see cref="Apply"/> 的 <c>Guard.Begin</c>：那是沒有人接結果的背景套用，
+    /// 而這一條是使用者按下「備份並重建」之後的下一步，開不起來要當場回到他面前。
+    /// </remarks>
+    internal static async Task ReapplyAsync()
+    {
+        var configuration = SqlMemoryConfiguration.From(SqlAssistSettingsStore.Current);
+        await Runtime.ApplyAsync(configuration).ConfigureAwait(false);
+    }
+
     private static void OnCaptureDropped(object? sender, SqlCaptureDroppedEventArgs drop)
     {
         if (drop.ShouldNotify && Volatile.Read(ref _package) is { } package)
@@ -100,7 +113,7 @@ internal static class SqlMemoryHost
             .OpenAsync(DatabasePath(), AppDomain.CurrentDomain.BaseDirectory, cancellationToken)
             .ConfigureAwait(false);
 
-    private static string DatabasePath() => Path.Combine(
+    internal static string DatabasePath() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "SqlAssist.Ssms22", "SQLMemory", "SQLMemory.db");
 

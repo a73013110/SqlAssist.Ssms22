@@ -1424,7 +1424,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IDisposable
     }
 
     /// <summary>視窗剛掛上去時淡入一次；換選取時不重播，那會變成閃爍。</summary>
-    public void PlayAppear() => PreviewChrome.PlayAppear(_root);
+    public void PlayAppear() => SqlAssistChrome.PlayAppear(_root);
 
     /// <summary>目前分頁有沒有選取的內容；決定 Ctrl+C 該不該由預覽接手。</summary>
     public bool HasSelection()

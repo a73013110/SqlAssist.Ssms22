@@ -30,10 +30,12 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlLoadingSurface.cs" Link="Product\UI\SqlLoadingSurface.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryPager.cs" Link="Product\UI\SqlMemoryPager.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemorySplitView.cs" Link="Product\UI\SqlMemorySplitView.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryRecoveryView.cs" Link="Product\UI\SqlMemoryRecoveryView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIcon.cs" Link="Product\UI\SqlIcon.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIconImage.cs" Link="Product\UI\SqlIconImage.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryDatabaseArchive.cs" Link="Product\SqlMemory\SqlMemoryDatabaseArchive.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.SqlMemory.cs" Link="Product\UI\SqlAssistChrome.SqlMemory.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextEditor.cs" Link="Product\UI\SqlTextEditor.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />
