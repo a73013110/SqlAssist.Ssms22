@@ -77,11 +77,15 @@ public sealed class SqlMemoryVisualTests
             };
             viewer.Document = SqlScriptDocument.Build("-- 借閱明細\nSELECT LoanId, CopyNo\nFROM LoanDetail\nWHERE LoanId = 1;", resources);
             var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var previewTools = new (SqlIcon Icon, string Label, SqlActionTone Tone)[]
+                { (SqlIcon.Copy, "複製全文", SqlActionTone.Neutral), (SqlIcon.Wrap, "顯示換行", SqlActionTone.Neutral) };
+            // 右側列操作與產品一樣由共用清單建立；順序或語意色調變了，視覺 QA 一起跟著變。
             var previewActions = new WrapPanel();
-            foreach (var action in new[] { (SqlIcon.Copy, "複製全文"), (SqlIcon.Wrap, "顯示換行"), (SqlIcon.Favorite, "Add to Favorites"),
-                (SqlIcon.Edit, "編輯 SQL"), (SqlIcon.Settings, "編輯收藏資料"), (SqlIcon.Remove, "Remove from Favorites"), (SqlIcon.Open, "開新 Query") })
+            foreach (var (icon, label, tone) in previewTools.Concat(SqlMemoryRowCommand.All
+                .Where(command => command.Action != SqlMemoryRowAction.Copy)
+                .Select(command => (command.Icon, command.Label, command.Tone))))
             {
-                var button = SqlAssistChrome.CreateIconButton(action.Item1, action.Item2); button.Tag = action.Item1;
+                var button = SqlAssistChrome.CreateIconButton(icon, label, tone); button.Tag = icon;
                 previewActions.Children.Add(button);
             }
             var previewLoading = new SqlLoadingSurface(viewer);
@@ -214,16 +218,16 @@ public sealed class SqlMemoryVisualTests
             // 收起的按鈕不會套用樣板；圖示只檢查實際顯示的那些。
             Assert.All(history.Where(button => button.Visibility == Visibility.Visible), button => Assert.Equal(
                 SqlMemoryRowCommand.For((SqlMemoryRowAction)button.Tag).Icon, Descendants<SqlIconImage>(button).Single().Icon));
-            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.AddFavorite, SqlMemoryRowAction.Delete }, Shown(history));
+            Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.AddFavorite, SqlMemoryRowAction.Delete }, Shown(history));
             var add = history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.AddFavorite);
             Assert.False(add.IsEnabled);
             Assert.Contains("尚無版本", (string)add.ToolTip);
             Assert.Equal("從 History 刪除", history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete).ToolTip);
 
             var favorites = Render(favorite);
-            Assert.Equal(new[] { SqlMemoryRowAction.Copy, SqlMemoryRowAction.Open, SqlMemoryRowAction.EditSql,
+            Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.EditSql,
                 SqlMemoryRowAction.EditMetadata, SqlMemoryRowAction.Delete }, Shown(favorites));
-            Assert.Equal("Remove from Favorites", System.Windows.Automation.AutomationProperties.GetName(
+            Assert.Equal("從收藏移除", System.Windows.Automation.AutomationProperties.GetName(
                 favorites.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete)));
             Assert.All(history.Concat(favorites), button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));
             Assert.Null(SqlAssistChrome.CreateSqlCardStyle().Setters.OfType<Setter>().Single(setter => setter.Property == Control.FocusVisualStyleProperty).Value);
@@ -479,7 +483,9 @@ public sealed class SqlMemoryVisualTests
                 .Single(setter => setter.Property == Control.TemplateProperty).Value;
             var layoutProperties = new[] { FrameworkElement.MarginProperty, Control.PaddingProperty, Border.PaddingProperty,
                 Control.BorderThicknessProperty, Border.BorderThicknessProperty, FrameworkElement.HeightProperty, FrameworkElement.WidthProperty };
-            foreach (var template in new[] { card, pill, SqlAssistChrome.CreateGhostButtonTemplate(), SqlAssistChrome.CreatePrimaryButtonTemplate() })
+            foreach (var template in new[] { card, pill, SqlAssistChrome.CreateGhostButtonTemplate(),
+                SqlAssistChrome.CreateGhostButtonTemplate(SqlActionTone.Danger), SqlAssistChrome.CreateGhostButtonTemplate(SqlActionTone.Favorite),
+                SqlAssistChrome.CreatePrimaryButtonTemplate() })
                 foreach (var trigger in template.Triggers.OfType<Trigger>())
                     Assert.DoesNotContain(trigger.Setters.OfType<Setter>(), setter => layoutProperties.Contains(setter.Property));
         });
@@ -542,7 +548,7 @@ public sealed class SqlMemoryVisualTests
             source.RootVisual = split;
             split.Measure(new Size(440, 300)); split.Arrange(new Rect(0, 0, 440, 300)); split.UpdateLayout();
             var scroll = Descendants<ScrollViewer>(split).Single(viewer => ReferenceEquals(viewer.Content, summary));
-            var toggle = Descendants<Button>(split).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "收合 Preview");
+            var toggle = Descendants<Button>(split).Single(button => System.Windows.Automation.AutomationProperties.GetName(button) == "收合預覽");
             var togglePosition = toggle.TranslatePoint(new Point(), split);
             var bodyPosition = body.TranslatePoint(new Point(), split);
             Assert.Equal(ScrollBarVisibility.Hidden, scroll.HorizontalScrollBarVisibility);
@@ -551,7 +557,8 @@ public sealed class SqlMemoryVisualTests
             Assert.True(scroll.ScrollableWidth > 0);
             Assert.True(summary.ActualHeight < 30);
             var fields = Descendants<TextBlock>(summary).ToArray();
-            Assert.Equal(new[] { row.Status, row.Name, row.Server, row.Database, row.Timestamp }, fields.Select(field => field.Text));
+            // 膠囊（狀態、伺服器、資料庫）集中在前，檔名與時間緊接在後。
+            Assert.Equal(new[] { row.Status, row.Server, row.Database, row.Name, row.Timestamp }, fields.Select(field => field.Text));
             Assert.InRange(fields.Max(field => field.TranslatePoint(new Point(), summary).Y) - fields.Min(field => field.TranslatePoint(new Point(), summary).Y), 0, 4);
             var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
             summary.RaiseEvent(wheel); split.UpdateLayout();

@@ -49,11 +49,12 @@ internal static partial class SqlAssistChrome
         return chevron;
     }
 
-    public static Button CreateIconButton(SqlIcon icon, string label)
+    public static Button CreateIconButton(SqlIcon icon, string label, SqlActionTone tone = SqlActionTone.Neutral)
     {
         var button = CreateButton("", DefaultMetrics);
         button.Content = CreateIcon(icon); button.ToolTip = label;
         button.Padding = new Thickness(5); button.MinWidth = 26; button.MinHeight = 26;
+        if (tone != SqlActionTone.Neutral) button.Template = CreateGhostButtonTemplate(tone);
         AutomationProperties.SetName(button, label);
         return button;
     }
@@ -408,7 +409,7 @@ internal static partial class SqlAssistChrome
             var button = new FrameworkElementFactory(typeof(Button)) { Name = "action" + command.Action };
             button.SetValue(FrameworkElement.TagProperty, command.Action); button.SetValue(FrameworkElement.ToolTipProperty, command.Label);
             button.SetValue(AutomationProperties.NameProperty, command.Label);
-            button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate()); button.SetValue(Control.PaddingProperty, new Thickness(3));
+            button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate(command.Tone)); button.SetValue(Control.PaddingProperty, new Thickness(3));
             // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
             button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
             button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
@@ -485,14 +486,15 @@ internal static partial class SqlAssistChrome
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
         panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        // 膠囊全部排在前面，檔名與時間緊接在後：文字不再被夾在兩組膠囊中間，資訊列一眼讀得完。
         panel.AppendChild(BoundBadge("Status", "state", iconProperty: "StatusIcon"));
-        var name = BoundText("Name");
-        name.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
-        name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
         panel.AppendChild(BoundBadge("Server", "server", iconProperty: "ServerIcon"));
         panel.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
+        var name = BoundText("Name");
+        name.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 8, 0));
+        name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
         var time = BoundText("Timestamp"); time.Name = "Timestamp";
-        time.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 4, 0));
+        time.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground); panel.AppendChild(time);
         var template = new DataTemplate { VisualTree = panel };
         var noTime = new DataTrigger { Binding = new Binding("Timestamp"), Value = "" };

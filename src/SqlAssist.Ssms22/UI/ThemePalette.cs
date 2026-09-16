@@ -58,15 +58,48 @@ internal static class ThemePalette
             [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,
             // 狀態只染圖形；文字仍沿用可讀的主題前景，高對比則由形狀辨識。
             [ThemeBrush.NotificationSuccess] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Color.FromRgb(38, 166, 112), background),
-            [ThemeBrush.NotificationFailure] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Color.FromRgb(225, 77, 95), background),
+            [ThemeBrush.NotificationFailure] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Danger, background),
             [ThemeBrush.NotificationRunning] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(accent, background),
             [ThemeBrush.NotificationRunningEnd] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(
                 ThemeColorMath.Composite(Overlay(foreground, 0.25), accent), background)
         };
+        // 語意色只在停駐與按下時出現；靜止仍是中性，整排按鈕才不會變成一串彩色標籤。
+        Tone(ThemeBrush.DangerBackground, ThemeBrush.DangerPressed, ThemeBrush.DangerForeground, Danger);
+        Tone(ThemeBrush.FavoriteBackground, ThemeBrush.FavoritePressed, ThemeBrush.FavoriteForeground, Favorite);
+
+        void Tone(ThemeBrush hover, ThemeBrush pressed, ThemeBrush text, Color seed)
+        {
+            if (highContrast)
+            {
+                // 高對比沿用系統選取色與配對文字；半透明色票在那裡既不合規也分不出語意。
+                colors[hover] = colors[pressed] = selection.Background;
+                colors[text] = selection.Foreground;
+                return;
+            }
+
+            var tint = Overlay(seed, 0.16);
+            var down = Overlay(seed, 0.26);
+            colors[hover] = tint;
+            colors[pressed] = down;
+            // 同一顆按鈕會落在內容與視窗兩種底色上，按下時色調又更濃；四種組合都要讓文字過 4.5:1。
+            // 同一族底色的校正方向一致，逐一收緊只會愈來愈保守，不會把前一個表面推回不合格。
+            var paired = seed;
+            foreach (var surface in new[] { background, window.Background })
+                foreach (var overlay in new[] { tint, down })
+                    paired = ThemeColorMath.EnsureTextContrast(paired, ThemeColorMath.Composite(overlay, surface));
+            colors[text] = paired;
+        }
+
         foreach (var pair in BlockPalette.Create(background, foreground, accent, null, highContrast))
             colors[pair.Key] = pair.Value;
         return colors;
     }
+
+    /// <summary>破壞性操作的種子色；與通知的失敗色同源，兩處不各自維護一份紅。</summary>
+    private static readonly Color Danger = Color.FromRgb(225, 77, 95);
+
+    /// <summary>收藏的種子色；星號圖示的暖金黃，不借用主題強調色以免與焦點混淆。</summary>
+    private static readonly Color Favorite = Color.FromRgb(220, 160, 20);
 
     private static Color Overlay(Color color, double opacity) =>
         Color.FromArgb((byte)Math.Round(color.A * opacity), color.R, color.G, color.B);

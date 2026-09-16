@@ -20,26 +20,31 @@ internal enum SqlMemoryRowKind { Any, History, Favorite }
 /// 一個列操作的外觀與適用範圍。卡片、快捷選單與 Preview 都從 <see cref="SqlMemoryRowCommand.All"/> 建立，
 /// 新增操作只加一筆，三處不會各自漏掉或順序不一。
 /// </summary>
+/// <remarks>
+/// <see cref="All"/> 的順序就是三處的呈現順序，動線固定為「主要動作 → 一般安全操作 → 收藏管理 → 破壞性操作」；
+/// 呼叫端只能整段跳過不適用的項目，不得自己重排，否則同一批按鈕在卡片與 Preview 又會對不起來。
+/// </remarks>
 internal sealed class SqlMemoryRowCommand
 {
     private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, string label, SqlMemoryRowKind kind,
-        string? labelProperty = null, string? enabledProperty = null, bool separated = false)
+        string? labelProperty = null, string? enabledProperty = null, bool separated = false,
+        SqlActionTone tone = SqlActionTone.Neutral)
     {
         Action = action; Icon = icon; Label = label; Kind = kind;
-        LabelProperty = labelProperty; EnabledProperty = enabledProperty; IsSeparated = separated;
+        LabelProperty = labelProperty; EnabledProperty = enabledProperty; IsSeparated = separated; Tone = tone;
     }
 
     public static IReadOnlyList<SqlMemoryRowCommand> All { get; } = new[]
     {
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
         new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "Add to Favorites", SqlMemoryRowKind.History,
-            labelProperty: "AddFavoriteHint", enabledProperty: "CanAddFavorite"),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
+            labelProperty: "AddFavoriteHint", enabledProperty: "CanAddFavorite", tone: SqlActionTone.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditSql, SqlIcon.Edit, "編輯 SQL", SqlMemoryRowKind.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditMetadata, SqlIcon.Settings, "編輯收藏資料", SqlMemoryRowKind.Favorite),
         // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
         new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, "刪除", SqlMemoryRowKind.Any,
-            labelProperty: "DeleteLabel", separated: true),
+            labelProperty: "DeleteLabel", separated: true, tone: SqlActionTone.Danger),
     };
 
     public SqlMemoryRowAction Action { get; }
@@ -54,6 +59,9 @@ internal sealed class SqlMemoryRowCommand
 
     /// <summary>與前一組操作之間留分隔；快捷選單畫分隔線，卡片留較寬的間距。</summary>
     public bool IsSeparated { get; }
+
+    /// <summary>停駐與按下的語意色；只有需要警示或明確歸類的操作離開中性色，其餘沿用選取色。</summary>
+    public SqlActionTone Tone { get; }
 
     public bool AppliesTo(bool favorite) =>
         Kind == SqlMemoryRowKind.Any || (Kind == SqlMemoryRowKind.Favorite) == favorite;

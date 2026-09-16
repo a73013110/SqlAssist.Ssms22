@@ -18,14 +18,17 @@
   重整可恢復仍在第一頁的選取，沒有選取時預覽第一筆，但不搶鍵盤焦點。
 - SQL card 只顯示單行摘要，名稱、狀態、時間及精簡連線 badge；完整 SQL 在 Detail，截斷資訊可用 Tooltip。
   卡片快速操作、快捷選單與 Preview 都由 `SqlMemoryRowCommand.All` 建立、交給 `SqlMemoryItemCommands` 執行：
-  複製、開新 Query、Add to Favorites（History）、編輯 SQL／編輯收藏資料（Favorites）與刪除；不適用的操作收起。
+  順序固定為開新 Query、複製、新增至收藏（History）／編輯 SQL、編輯收藏資料（Favorites），破壞性的刪除隔開排最後；
+  不適用的操作收起。Preview 右側沿用同一順序，開新 Query 是該面板的主要動作，複製全文與換行留在左側工具列。
+  停駐與按下的回饋預設中性；刪除與新增至收藏改用語意色調，底色與配對前景由 `ThemePalette` 推導並檢查對比，
+  高對比回系統選取色。語意色是稀少的警示，不是分類標籤。
 
 Preview 使用共用 `SqlReadOnlyViewer`／`SqlScriptDocument`，支援 SQL 著色、選取、Ctrl+C、
 全文複製及顯示換行。顯示與原文分離；換行切換不重寫原文，主題刷新不重新查庫。
 空清單、載入、空 SQL、內容已回收、停用與失敗皆有明確狀態，不留上一筆 SQL 冒充目前內容。
 第一頁與 Preview 共用 `SqlLoadingSurface` 表面載入圖示；續頁進度留在頁尾按鈕原地（弧線轉動、文字換成載入中），
 尺寸不變、不遮住已載入的列。隱藏時停止動畫，介面動畫關閉時改用靜態圖示。
-新列淡入上移、刪除的列淡出後才移出集合，以列資料旗標觸發，捲動重用容器不重播；頁尾換狀態時淡入。Preview 摘要依狀態、名稱、伺服器、資料庫、時間排序，狀態與連線
+新列淡入上移、刪除的列淡出後才移出集合，以列資料旗標觸發，捲動重用容器不重播；頁尾換狀態時淡入。Preview 摘要依狀態、伺服器、資料庫、名稱、時間排序，膠囊集中在前，狀態與連線
 共用卡片膠囊。左側 Preview 固定，右側資訊保持單行、不顯示捲軸；資訊列上的滾輪向下往右、向上往左（即使沒有溢出也不傳給 Preview），
 聚焦後可用 ←／→、Home／End。收藏未提供時間與來源執行狀態，保留「收藏」標示而不推測。
 
@@ -57,8 +60,8 @@ History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` �
 
 ## 收藏與開啟
 
-已有 Revision 的 History 可 **Add to Favorites**；Recovery 尚無版本，停用並說明先開新 Query。
-收藏提供編輯名稱／說明／scope、編輯 SQL，以及 **Remove from Favorites**，清單與 Preview 皆可操作。
+已有 Revision 的 History 可**新增至收藏**；Recovery 尚無版本，停用並說明先開新 Query。
+收藏提供編輯名稱／說明／scope、編輯 SQL，以及**從收藏移除**，清單與 Preview 皆可操作。
 History 每筆可 **從 History 刪除**，語意見[儲存](sql-memory-storage.md)。刪除與移除都必須確認，取消是預設；
 移除收藏不連帶刪除 History。成功後就地移出或換列並選取原位置的下一筆，保留已載入的頁；
 收藏改到目前 scope 以外即移出清單。結果寫在工具窗狀態列。
