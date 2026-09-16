@@ -20,6 +20,8 @@
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
+| SQL Memory 資料庫檔案的整組封存（`.db`／`-wal`／`-shm`） | `Ssms22/SqlMemory/SqlMemoryDatabaseArchive.cs` |
 | 獨立 SQL 唯讀預覽／純文字編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs` |
 | SQL 著色、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +45,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly DispatcherTimer _settleTimer;
     private readonly SqlMemoryPreview _detail;
     private readonly SqlMemorySplitView _splitView;
+    private readonly SqlMemoryRecoveryView _recoveryView = new();
     private readonly FrameworkElement _historyFilters;
     private CancellationTokenSource _facets = new();
     private CancellationTokenSource _request = new();
@@ -99,7 +101,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _detail = new SqlMemoryPreview(_commands, Report);
         _splitView = new SqlMemorySplitView(_loading, _detail, _detail.Summary);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
-        root.Children.Add(_splitView); Content = root;
+        _recoveryView.Visibility = Visibility.Collapsed;
+        _recoveryView.RebuildRequested += (_, _) => OnRecoveryRebuildRequested();
+        _recoveryView.OpenFolderRequested += (_, _) => OnRecoveryOpenFolderRequested();
+        var bodyContainer = new Grid();
+        bodyContainer.Children.Add(_splitView);
+        bodyContainer.Children.Add(_recoveryView);
+        root.Children.Add(bodyContainer); Content = root;
         _list.ContextMenu = CreateContextMenu();
         _list.RowActionRequested += action => SqlMemoryActions.Run(() => RunCommand(action), Report);
         _list.OpenRequested += (_, _) => SqlMemoryActions.Run(() => RunCommand(SqlMemoryRowAction.Open), Report);
@@ -225,19 +233,88 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_disposed) return;
         var runtime = SqlMemoryHost.Runtime;
         var status = runtime.Status;
-        _hostStatus.Text = status.Message;
-        _hostStatus.Visibility = string.IsNullOrEmpty(_hostStatus.Text) ? Visibility.Collapsed : Visibility.Visible;
+        var recovery = RecoveryOffer(status);
+        ShowRecovery(status, recovery);
+
         if (_model.ObserveHost(runtime.IsAvailable, status.Generation))
         {
             // 清單、facets 與預覽都屬於舊儲存；換世代就整份作廢。
             _facets.Cancel(); _server.ResetOptions(); _database.ResetOptions();
             Invalidate();
             if (_model.IsAvailable) { Load(); ReloadFacets(); }
-            else { _detail.Select(null); Report("SQL Memory 尚未就緒；可由設定啟用或重新啟用。"); }
+            else
+            {
+                _detail.Select(null);
+                // 復原卡片已經把狀況與下一步說完了，狀態列不再重講一次。
+                Report(recovery is null ? "SQL Memory 尚未就緒；可由設定啟用或重新啟用。" : "");
+            }
         }
         else if (forceReload && _model.IsAvailable && IsVisible) Refresh();
         UpdateActions();
     }
+
+    /// <summary>可以就地復原的開檔失敗；其餘狀態一律留給狀態列那一行。</summary>
+    private static (string Title, string Description)? RecoveryOffer(SqlMemoryRuntimeStatus status)
+    {
+        if (status.Phase != SqlMemoryRuntimePhase.OpenFailed || !SqlMemoryRecoveryService.CanRecover) return null;
+        return status.ErrorKind switch
+        {
+            SqlMemoryStorageErrorKind.Incompatible => ("資料庫版本不相容",
+                "現有的 SQL Memory 資料庫不是這個版本能開啟的。備份並重建之後，歷史與收藏從空白開始記錄，舊檔案留在同一個資料夾。"),
+            SqlMemoryStorageErrorKind.Corrupt => ("資料庫檔案損毀",
+                "SQL Memory 資料庫已無法開啟。備份並重建之後，歷史與收藏從空白開始記錄，損毀的檔案留在同一個資料夾。"),
+            _ => null,
+        };
+    }
+
+    private void ShowRecovery(SqlMemoryRuntimeStatus status, (string Title, string Description)? recovery)
+    {
+        if (recovery is not { } text)
+        {
+            _recoveryView.Visibility = Visibility.Collapsed;
+            _splitView.Visibility = Visibility.Visible;
+            _hostStatus.Text = status.Message;
+            _hostStatus.Visibility = _hostStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+            return;
+        }
+
+        _recoveryView.SetStatus(text.Title, text.Description);
+        _hostStatus.Visibility = Visibility.Collapsed;
+        // 同一個失敗會來好幾次狀態更新；已經在畫面上就不重播進場。
+        if (_recoveryView.Visibility == Visibility.Visible) return;
+        _splitView.Visibility = Visibility.Collapsed;
+        _recoveryView.Visibility = Visibility.Visible;
+        _recoveryView.Reveal();
+    }
+
+    private void OnRecoveryRebuildRequested()
+    {
+        var owner = Window.GetWindow(this) ?? Application.Current?.MainWindow;
+        var confirmed = SqlAssistConfirmationWindow.Confirm(owner!, "重建 SQL Memory 資料庫",
+            "備份並重新建立 SQL Memory 資料庫？",
+            "現有的資料庫檔案更名封存在同一個資料夾，不會刪除；新資料庫從空白開始記錄，" +
+            "已封存的歷史與收藏這個版本讀不回來。", "備份並重建");
+
+        if (!confirmed) return;
+
+        _ = SqlMemoryActions.RunAsync(async () =>
+        {
+            _recoveryView.SetRebuilding(true);
+            try
+            {
+                Report("正在備份並重新建立 SQL Memory 資料庫…");
+                var backupPath = await SqlMemoryRecoveryService.BackupAndRecreateAsync().ConfigureAwait(true);
+                Report(backupPath.Length == 0
+                    ? "SQL Memory 資料庫已重新建立。"
+                    : $"SQL Memory 資料庫已重新建立；舊檔案備份為 {Path.GetFileName(backupPath)}。");
+            }
+            finally { _recoveryView.SetRebuilding(false); }
+        }, Report);
+    }
+
+    // 不走 SqlAssistPlatformGuard：使用者按了按鈕卻什麼都沒開，沒有訊息只會被當成按鈕壞了。
+    private void OnRecoveryOpenFolderRequested() =>
+        SqlMemoryActions.Run(SqlMemoryRecoveryService.OpenDatabaseFolder, Report);
 
     private void UseCurrentConnection()
     {

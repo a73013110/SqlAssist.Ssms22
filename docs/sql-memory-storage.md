@@ -7,7 +7,9 @@
 功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=3`、
 `application_id=0x534d454d`。不保留開發期間的升級鏈、舊表、別名或 schema fixture。
 宿主使用 `%LOCALAPPDATA%\SqlAssist.Ssms22\SQLMemory\SQLMemory.db`，不搬移或刪除早期測試資料。
-已有不同身分／版本、外來或損壞資料庫明確拒絕，不自動刪檔；開發測試改用新資料庫路徑。
+已有不同身分／版本、外來或損壞資料庫明確拒絕，不自動刪檔；由使用者在工具窗按下重建才封存。
+封存把 `.db`、`-wal`、`-shm` 當成一組更名為同目錄的 `.bak.<時間戳>`：只搬主庫會讓新資料庫套上舊 WAL，
+主庫已不在、只剩 `-wal`／`-shm` 的殘局同樣要搬。中途失敗全部搬回原位，唯一實作在 `SqlMemoryDatabaseArchive`。
 
 主要資料表：
 

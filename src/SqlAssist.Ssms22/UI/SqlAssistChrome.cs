@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using SqlAssist.Core.Settings;
 
@@ -105,6 +106,45 @@ internal static partial class SqlAssistChrome
     // 高對比與總開關優先；覆寫只略過 Windows 動畫偏好，不寫回 OS。
     internal static bool MotionPolicy(bool enabled, bool ignoreWindows, bool windowsAnimation, bool highContrast) =>
         enabled && !highContrast && (ignoreWindows || windowsAnimation);
+
+    /// <summary>內容表面出現時的淡入長度；共用一個數字，改一處就是全部。</summary>
+    public static readonly TimeSpan AppearDuration = TimeSpan.FromMilliseconds(120);
+
+    private static readonly CubicEase AppearEase = FrozenEaseOut();
+
+    /// <summary>
+    /// 內容表面的出現：只做透明度，不縮放也不位移。
+    /// </summary>
+    /// <remarks>
+    /// 浮動預覽與 SQL Memory 的復原卡片共用這一個出現動畫。內容本身沒有狀態要說，
+    /// 放大或回彈只是在搶讀 SQL 的注意力；120 毫秒短到不擋操作，仍看得出它是長出來的。
+    ///
+    /// 結束後把屬性交還基底值（<see cref="FillBehavior.Stop"/>），關著動畫時也先清掉上一次的：
+    /// 保留結束值的動畫會壓過之後的直接指定，「關掉動畫」就會變成關不掉。
+    /// </remarks>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定，不受執行環境的 Windows 動畫偏好左右。</param>
+    public static void PlayAppear(UIElement element, bool? motion = null)
+    {
+        element.BeginAnimation(UIElement.OpacityProperty, null);
+        if (!(motion ?? MotionEnabled))
+        {
+            element.Opacity = 1;
+            return;
+        }
+
+        element.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, AppearDuration)
+        {
+            EasingFunction = AppearEase,
+            FillBehavior = FillBehavior.Stop
+        });
+    }
+
+    private static CubicEase FrozenEaseOut()
+    {
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        ease.Freeze();
+        return ease;
+    }
 
     /// <summary>視窗內的產品標誌：資料庫與插入游標，保留小尺寸辨識度並跟隨 Fluent 配色。</summary>
     public static Border CreateBrandMark()
