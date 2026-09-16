@@ -29,14 +29,14 @@ internal sealed class FavoriteMetadataWindow : DialogWindow
     public FavoriteMetadataWindow(SqlAssistPackage package, SqlMemoryRow row, bool existing)
     {
         _package = package; _row = row; _existing = existing ? row.Favorite : null;
-        SqlMemoryActions.ConfigureWindow(this, package, existing ? "編輯收藏資料" : "Add to Favorites", 580, 650);
+        SqlMemoryActions.ConfigureWindow(this, package, existing ? "編輯收藏資料" : "新增至收藏", 580, 650);
         var root = new DockPanel { Margin = new Thickness(16) };
         var footer = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
         DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
         _status.TextWrapping = TextWrapping.Wrap; footer.Children.Add(_status);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         _cancel = SqlAssistChrome.CreateButton("取消", SqlAssistChrome.DefaultMetrics); _cancel.IsCancel = true;
-        _submit = SqlAssistChrome.CreateButton(existing ? "更新收藏" : "Add to Favorites", SqlAssistChrome.DefaultMetrics, true); _submit.IsDefault = true;
+        _submit = SqlAssistChrome.CreateButton(existing ? "更新收藏" : "新增至收藏", SqlAssistChrome.DefaultMetrics, true); _submit.IsDefault = true;
         actions.Children.Add(_cancel); actions.Children.Add(_submit); footer.Children.Add(actions);
         var fields = _fields;
         _name.MaxLength = 200;

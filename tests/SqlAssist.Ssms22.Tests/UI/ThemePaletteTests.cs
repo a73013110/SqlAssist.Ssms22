@@ -78,6 +78,47 @@ public sealed class ThemePaletteTests
     }
 
     [Theory]
+    [InlineData("light")]
+    [InlineData("mango")]
+    [InlineData("cool-breeze")]
+    [InlineData("dark")]
+    [InlineData("plum")]
+    [InlineData("forest")]
+    public void 語意色調在兩種表面都保留可讀文字且與中性回饋分得開(string mode)
+    {
+        var colors = ColorsFor(mode);
+        foreach (var (hover, pressed, text) in new[]
+                 {
+                     (ThemeBrush.DangerBackground, ThemeBrush.DangerPressed, ThemeBrush.DangerForeground),
+                     (ThemeBrush.FavoriteBackground, ThemeBrush.FavoritePressed, ThemeBrush.FavoriteForeground)
+                 })
+        {
+            // 語意色只在停駐時出現，但仍要在內容與視窗兩種底色上讀得到配對文字。
+            foreach (var background in new[] { colors[ThemeBrush.ListBackground], colors[ThemeBrush.WindowBackground] })
+                foreach (var role in new[] { hover, pressed })
+                    Assert.True(ThemeColorMath.Contrast(colors[text], ThemeColorMath.Composite(colors[role], background)) >= 4.5);
+            Assert.True(colors[pressed].A > colors[hover].A);
+            Assert.NotEqual(colors[ThemeBrush.RowSelected], colors[hover]);
+        }
+
+        Assert.NotEqual(colors[ThemeBrush.DangerBackground], colors[ThemeBrush.FavoriteBackground]);
+    }
+
+    [Fact]
+    public void 高對比的語意色調回到系統選取色()
+    {
+        var colors = ColorsFor("high-contrast");
+        foreach (var role in new[] { ThemeBrush.DangerBackground, ThemeBrush.DangerPressed,
+                     ThemeBrush.FavoriteBackground, ThemeBrush.FavoritePressed })
+        {
+            Assert.Equal(colors[ThemeBrush.RowSelected], colors[role]);
+        }
+
+        foreach (var role in new[] { ThemeBrush.DangerForeground, ThemeBrush.FavoriteForeground })
+            Assert.Equal(colors[ThemeBrush.SelectedForeground], colors[role]);
+    }
+
+    [Theory]
     [InlineData("mango", "cool-breeze")]
     [InlineData("plum", "forest")]
     public void SwitchingHueWithinTheSameBrightnessChangesSurfacesAndAccents(string first, string second)

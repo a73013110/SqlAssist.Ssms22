@@ -12,6 +12,15 @@ using SqlAssist.Core.Settings;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
+/// 動作的語意色調；只換停駐與按下的配對色，靜止外觀仍是同一顆按鈕。
+/// </summary>
+/// <remarks>
+/// 語意色是稀少的警示，不是分類標籤：每顆按鈕都上色，紅色就不再讀成「小心」。
+/// 新增一種色調＝加一個列舉值、在 <see cref="ThemePalette"/> 推導一組角色，呼叫端不必自己配色。
+/// </remarks>
+internal enum SqlActionTone { Neutral, Danger, Favorite }
+
+/// <summary>
 /// 整個擴充共用的外觀。
 /// </summary>
 /// <remarks>
@@ -304,9 +313,9 @@ internal static partial class SqlAssistChrome
     /// 帶邊框的方鈕每一個都是四條線，一排三個就是十二條。
     /// 平常只留文字，需要按的時候才提示可按——與「用留白分層」是同一條原則。
     /// </remarks>
-    public static ControlTemplate CreateGhostButtonTemplate()
+    public static ControlTemplate CreateGhostButtonTemplate(SqlActionTone tone = SqlActionTone.Neutral)
     {
-        return CreateButtonTemplate(primary: false);
+        return CreateButtonTemplate(primary: false, tone);
     }
 
     /// <summary>
@@ -318,11 +327,18 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static ControlTemplate CreatePrimaryButtonTemplate()
     {
-        return CreateButtonTemplate(primary: true);
+        return CreateButtonTemplate(primary: true, SqlActionTone.Neutral);
     }
 
-    private static ControlTemplate CreateButtonTemplate(bool primary)
+    private static ControlTemplate CreateButtonTemplate(bool primary, SqlActionTone tone)
     {
+        // 色調只換互動狀態用的三個角色；中性仍走選取色，樣板結構與觸發器完全相同。
+        var (hover, pressed, paired) = tone switch
+        {
+            SqlActionTone.Danger => (ThemeBrush.DangerBackground, ThemeBrush.DangerPressed, ThemeBrush.DangerForeground),
+            SqlActionTone.Favorite => (ThemeBrush.FavoriteBackground, ThemeBrush.FavoritePressed, ThemeBrush.FavoriteForeground),
+            _ => (ThemeBrush.RowSelected, ThemeBrush.RowPressed, ThemeBrush.SelectedForeground)
+        };
         var background = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
         // ContentPresenter 的附加前景預設是黑色；明確承接控制項，互動 trigger 才能覆寫同一來源。
         background.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
@@ -349,24 +365,24 @@ internal static partial class SqlAssistChrome
 
         AddTrigger(
             template, UIElement.IsMouseOverProperty,
-            Border.BackgroundProperty, ThemeBrush.RowSelected, "bg");
+            Border.BackgroundProperty, hover, "bg");
 
         AddTrigger(template, UIElement.IsMouseOverProperty,
-            TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+            TextElement.ForegroundProperty, paired, "bg");
         AddTrigger(template, UIElement.IsMouseOverProperty,
-            Control.ForegroundProperty, ThemeBrush.SelectedForeground);
+            Control.ForegroundProperty, paired);
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
-            Border.BackgroundProperty, ThemeBrush.RowSelected, "bg");
+            Border.BackgroundProperty, hover, "bg");
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
-            TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "bg");
+            TextElement.ForegroundProperty, paired, "bg");
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
-            Control.ForegroundProperty, ThemeBrush.SelectedForeground);
+            Control.ForegroundProperty, paired);
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
             Border.BorderBrushProperty, ThemeBrush.Border, "bg");
 
         // 按下的回饋優先於焦點，否則滑鼠按下取得焦點後會把 pressed 底色蓋回去。
         AddTrigger(template, ButtonBase.IsPressedProperty,
-            Border.BackgroundProperty, ThemeBrush.RowPressed, "bg");
+            Border.BackgroundProperty, pressed, "bg");
 
         var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.4, "bg"));

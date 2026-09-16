@@ -56,7 +56,8 @@ Titlebar 回答「這是哪個工具」，內容第一列只放**新的資訊**�
   使用中性膠囊，而且狀態不能只靠顏色表達。
 - 資料格不畫格線，以 4.5% 交替底色分列，表頭只留底線。交替色須設在 DataGrid 的
   `RowBackground`／`AlternatingRowBackground`，不要用會被轉移屬性蓋掉的 Row trigger。
-- 一個視窗只有一個主要動作；放在右側並給淡底。次要動作用幽靈按鈕，停駐或按下才顯色。
+- 一個視窗只有一個主要動作；放在右側並給淡底。次要動作用幽靈按鈕，停駐或按下才顯色；
+  停駐色預設中性，語意色只給破壞性與收藏這類警示。
 - `PreviewChrome.cs` 只保留預覽專屬的淡入、圖示控制項排版與旗標徽章；SQL 圖示來源見
   [共用元件表](shared-components.md)，種類文字仍保留在摘要。共用樣板仍回到 `SqlAssistChrome`，
   不另開 ResourceDictionary。

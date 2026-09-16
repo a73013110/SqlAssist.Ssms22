@@ -63,7 +63,7 @@ internal sealed class SqlMemorySplitView : Grid
                 VerticalContentAlignment = VerticalAlignment.Center,
                 ToolTip = "在資訊列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。"
             };
-            AutomationProperties.SetName(metadata, "Preview 資訊（可水平捲動）");
+            AutomationProperties.SetName(metadata, "預覽資訊（可水平捲動）");
             metadata.PreviewMouseWheel += (_, args) =>
             {
                 if (args.Delta == 0) return;
@@ -123,8 +123,8 @@ internal sealed class SqlMemorySplitView : Grid
         var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var chevron = SqlAssistChrome.CreateChevron(IsDetailExpanded);
         chevron.Margin = new Thickness(0, 0, 6, 0); panel.Children.Add(chevron);
-        panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("Preview")); _toggle.Content = panel;
+        panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("預覽")); _toggle.Content = panel;
         _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";
-        AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合 Preview" : "展開 Preview");
+        AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合預覽" : "展開預覽");
     }
 }

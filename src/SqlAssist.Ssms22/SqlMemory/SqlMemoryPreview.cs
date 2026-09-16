@@ -34,21 +34,21 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     {
         _commands = commands;
         _reportCommand = reportCommand;
+        // 左側只放全文專用工具；右側列操作與清單卡片、快捷選單同一份清單、同一個順序與實作。
         _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
         var wrap = Button(SqlIcon.Wrap, "切換 SQL 顯示換行", () => _viewer.SetWrap(!_viewer.Wrap));
         _tools.Children.Add(wrap);
-        // 複製與開啟已有全文專用的按鈕；其餘列操作與清單卡片、快捷選單同一份清單與實作。
         foreach (var command in SqlMemoryRowCommand.All)
         {
-            if (command.Action is SqlMemoryRowAction.Copy or SqlMemoryRowAction.Open) continue;
+            // 複製已由左側的「複製全文」涵蓋，右側不再放第二顆同義按鈕。
+            if (command.Action is SqlMemoryRowAction.Copy) continue;
             var action = command.Action;
-            var button = Button(command.Icon, command.Label, () => Run(action));
+            var button = Button(command.Icon, command.Label, () => Run(action), command.Tone);
+            // 開啟是這個面板的主要動作；只換靜止底色，位置仍跟著共用順序排在最前。
+            if (action == SqlMemoryRowAction.Open) button.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
             if (command.IsSeparated) button.Margin = new Thickness(6, 0, 0, 0);
             _rowActions.Add((button, command)); _actions.Children.Add(button);
         }
-        var open = Button(SqlIcon.Open, "開啟至新 Query（不執行 SQL）", () => Run(SqlMemoryRowAction.Open));
-        open.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
-        _actions.Children.Add(open);
         _loading = new SqlLoadingSurface(_viewer);
         Content = SqlAssistChrome.CreateMemoryDetailBody(_loading, _status, _tools, _actions);
         _viewer.ReportError = Report;
@@ -132,9 +132,9 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }, _reportCommand);
     }
 
-    private Button Button(SqlIcon icon, string text, Action action)
+    private Button Button(SqlIcon icon, string text, Action action, SqlActionTone tone = SqlActionTone.Neutral)
     {
-        var button = SqlAssistChrome.CreateIconButton(icon, text);
+        var button = SqlAssistChrome.CreateIconButton(icon, text, tone);
         button.Click += (_, _) => SqlMemoryActions.Run(() =>
         {
             if (_loaded && SqlMemoryHost.Runtime.IsAvailable) action();
