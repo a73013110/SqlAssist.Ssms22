@@ -79,10 +79,19 @@ internal sealed class SqlAssistCommands
             CommandIds.SurroundWith,
             SurroundWith,
             SqlSnippetSurroundAction.IsAvailable);
+        AddCommand(
+            CommandIds.SurroundWithFromTools,
+            SurroundWith,
+            SqlSnippetSurroundAction.IsAvailable);
 
-        // 右鍵選單與工具選單共用；SQL Memory 關著或沒有東西可收就變灰，不讓使用者按下去才知道。
+        // 右鍵與工具選單使用不同的 VSCT ID 才能有不同圖示，但共用執行與狀態邏輯。
+        // SQL Memory 關著或沒有東西可收就變灰，不讓使用者按下去才知道。
         AddCommand(
             CommandIds.AddToFavorites,
+            AddToFavorites,
+            SqlMemoryFavoriteAction.IsAvailable);
+        AddCommand(
+            CommandIds.AddToFavoritesFromTools,
             AddToFavorites,
             SqlMemoryFavoriteAction.IsAvailable);
 

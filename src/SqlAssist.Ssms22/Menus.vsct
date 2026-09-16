@@ -13,7 +13,13 @@
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" priority="0x0100">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
-      <Group guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" priority="0x0200">
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" priority="0x0200">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
+      </Group>
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" priority="0x0210">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
+      </Group>
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" priority="0x0220">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" priority="0x0300">
@@ -95,7 +101,9 @@
       -->
       <Menu guid="guidSqlAssistCommandSet" id="SqlAssistMenu" priority="0x0700" type="Menu">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_TOOLS_OTHER2" />
+        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>AlwaysCreate</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>SqlAssist</ButtonText>
           <CommandName>SqlAssist</CommandName>
@@ -117,21 +125,21 @@
     -->
     <Buttons>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlHistory" priority="0x0080" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
         <Icon guid="ImageCatalogGuid" id="History" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
         <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowSqlHistory</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlHistory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
         <Icon guid="ImageCatalogGuid" id="Favorite" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
         <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>新增至收藏…</ButtonText>
@@ -159,7 +167,7 @@
       </Button>
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidGoToDefinition" priority="0x0100" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <Strings>
           <ButtonText>移至定義</ButtonText>
           <CanonicalName>SqlAssist.GoToDefinition</CanonicalName>
@@ -167,7 +175,7 @@
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0150" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <Strings>
           <ButtonText>顯示游標處物件的結構</ButtonText>
           <CanonicalName>SqlAssist.ShowObjectStructure</CanonicalName>
@@ -175,7 +183,7 @@
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidRefreshSuggestions" priority="0x0200" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <Strings>
           <ButtonText>重新整理建議</ButtonText>
           <CanonicalName>SqlAssist.RefreshSuggestions</CanonicalName>
@@ -183,7 +191,7 @@
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0250" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <Strings>
           <ButtonText>以片段包住選取範圍</ButtonText>
@@ -192,11 +200,34 @@
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidManageSnippets" priority="0x0300" type="Button">
-        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistActionsGroup" />
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <Strings>
           <ButtonText>程式碼片段…</ButtonText>
           <CanonicalName>SqlAssist.ManageSnippets</CanonicalName>
           <LocCanonicalName>SqlAssist.程式碼片段</LocCanonicalName>
+        </Strings>
+      </Button>
+
+      <!--
+        同一個 VSCT 命令的圖示會套用到所有 CommandPlacement，無法只在工具選單隱藏。
+        這兩個無圖示入口使用獨立 ID，但 C# 註冊到與右鍵命令相同的 handler 與狀態判斷，
+        只分開外觀，不分岔功能。
+      -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavoritesFromTools" priority="0x0100" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
+        <Strings>
+          <ButtonText>新增至收藏…</ButtonText>
+          <CanonicalName>SqlAssist.AddToFavoritesFromTools</CanonicalName>
+          <LocCanonicalName>SqlAssist.工具選單新增至收藏</LocCanonicalName>
+          <ToolTipText>把目前的 SQL 加進 SQL Memory 的收藏</ToolTipText>
+        </Strings>
+      </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWithFromTools" priority="0x0200" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
+        <Strings>
+          <ButtonText>以片段包住選取範圍</ButtonText>
+          <CanonicalName>SqlAssist.SurroundWithFromTools</CanonicalName>
+          <LocCanonicalName>SqlAssist.工具選單以片段包住選取範圍</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -383,23 +414,13 @@
     </Bitmaps>
   </Commands>
 
-  <!--
-    同一個命令要出現在第二個地方只能用 CommandPlacement：<Button> 的 <Parent> 只有
-    一個，再宣告一顆按鈕則是另一個命令，狀態、鍵繫結與註冊檔都得再接一次，
-    而兩份實作分岔的症狀是其中一個入口安靜地停在舊行為。
-  -->
+  <!-- 同一個外觀的命令才用 CommandPlacement；入口需要不同圖示時使用共用 handler 的別名命令。 -->
   <CommandPlacements>
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlHistory" priority="0x0100">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
     </CommandPlacement>
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0110">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0100">
-      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
-    </CommandPlacement>
-    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0110">
-      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
     </CommandPlacement>
   </CommandPlacements>
 
@@ -468,7 +489,9 @@
       <IDSymbol name="SqlAssistToolbar" value="0x1800" />
       <IDSymbol name="SqlAssistToolbarGroup" value="0x1801" />
       <IDSymbol name="SqlAssistToggleGroup" value="0x1100" />
-      <IDSymbol name="SqlAssistActionsGroup" value="0x1300" />
+      <IDSymbol name="SqlAssistMemoryGroup" value="0x1300" />
+      <IDSymbol name="SqlAssistEditorActionsGroup" value="0x1310" />
+      <IDSymbol name="SqlAssistSelectionActionsGroup" value="0x1320" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
       <IDSymbol name="SqlAssistSettingsPageGroup" value="0x1500" />
       <IDSymbol name="SqlAssistResultGridCopyGroup" value="0x1610" />
@@ -494,6 +517,8 @@
       <IDSymbol name="cmdidPickBlockSymbolForeground" value="0x0213" />
       <IDSymbol name="cmdidPickBlockSymbolBackground" value="0x0214" />
       <IDSymbol name="cmdidAddToFavorites" value="0x0215" />
+      <IDSymbol name="cmdidAddToFavoritesFromTools" value="0x0216" />
+      <IDSymbol name="cmdidSurroundWithFromTools" value="0x0217" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

@@ -37,7 +37,7 @@ internal static class CommandIds
     public const int ManageSnippets = 0x0209;
 
     /// <summary>
-    /// 以片段包住選取範圍；入口是 Ctrl+Alt+S、查詢視窗的右鍵選單與工具選單。
+    /// 以片段包住選取範圍；入口是 Ctrl+Alt+S 與查詢視窗的右鍵選單。
     /// </summary>
     /// <remarks>
     /// 鍵繫結是 Ctrl+Alt+S 而不是 Ctrl+K, Ctrl+S：後者在 SSMS 上解析得到的是它
@@ -68,13 +68,19 @@ internal static class CommandIds
     public const int PickBlockSymbolBackground = 0x0214;
 
     /// <summary>
-    /// 把查詢視窗目前的 SQL 加進 SQL Memory 的收藏；入口是查詢視窗的右鍵選單與工具選單。
+    /// 把查詢視窗目前的 SQL 加進 SQL Memory 的收藏；這個 ID 用於查詢視窗右鍵選單。
     /// </summary>
     /// <remarks>
     /// 刻意沒有鍵繫結：它會開一個對話框，不是編輯途中連按的動作，綁鍵只是多佔一組快捷鍵。
     /// 有選取就收選取，與選取執行同一條界線。
     /// </remarks>
     public const int AddToFavorites = 0x0215;
+
+    /// <summary>工具選單的無圖示入口；執行與狀態共用 <see cref="AddToFavorites"/>。</summary>
+    public const int AddToFavoritesFromTools = 0x0216;
+
+    /// <summary>工具選單的無圖示入口；執行與狀態共用 <see cref="SurroundWith"/>。</summary>
+    public const int SurroundWithFromTools = 0x0217;
 
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
