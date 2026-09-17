@@ -5,13 +5,17 @@
 
 ## 呈現與設定
 
-`Editor/NotificationHost` 決定該顯示什麼——可見度、合併、措辭與關閉狀態。卡片本身在
-`Editor/NotificationSurface`，全程只有一張；`Editor/NotificationAdornment` 每個編輯區
-一份，只負責掛上、定位與收掉：捲動與改變大小只走定位，不重算內容；非作用中的
-編輯區在事件處理常式就早退。只有提示範圍接收輸入，不搶焦點。
+`Notifications/NotificationPresenter` 決定該顯示什麼——可見度、合併、措辭與關閉狀態。卡片本身在
+`Notifications/NotificationSurface`，全程只有一張。`NotificationSurfaceController` 整個處理程序
+一份，持有唯一的計時器與通知、設定、主題、作用中編輯區的訂閱，依 `NotificationHostPriority`
+挑宿主，期限判斷在 `NotificationLifecycle`。宿主實作 `INotificationSurfaceHost`，只回報可見度、
+焦點與座標：`Editor/NotificationEditorHost` 用 adornment 層，`Notifications/NotificationWindowHost`
+用 WPF `AdornerLayer`。對話框由 `SqlAssistDialogs.Configure` 自動註冊，SQL Memory 工具窗自己包
+`AdornerDecorator` 後呼叫 `Register`。捲動與改變大小只走定位，不重算內容；沒有宿主可掛或
+宿主非作用中時，在事件處理常式就早退。只有提示範圍接收輸入，不搶焦點。
 
-換編輯區只是換掛到另一層，列的身分、展開狀態與可見期限都留著，不重播入場動畫；
-交接寬限 1200 ms 在 `Editor/NotificationHandover`，到期與關閉走 `retire` 不吃寬限。
+換宿主只是換掛到另一層，列的身分、展開狀態與可見期限都留著，不重播入場動畫；
+交接寬限 1200 ms 在 `Notifications/NotificationHandover`，到期與關閉走 `retire` 不吃寬限。
 
 版面在 `UI/NotificationCard.xaml` 與 Code-Behind，列由 `UI/NotificationRow` 建立，
 按鈕與字型仍由 `SqlAssistChrome.Notifications` 建立。卡片只認得
@@ -24,7 +28,6 @@
 主題色動態更新；執行中光環、成功勾號、失敗警告、取消叉號各有完整狀態 Tooltip 與輔助
 技術名稱。循環動畫只有抬頭那一個，各列的執行中是靜態光環。等待中時鐘已預留於視覺列舉，
 通知來源尚無排隊狀態，不虛構等待工作。降級還沒有專屬視覺與抬頭計數，暫時落在取消叉號上。
-`NotificationPosition` 預留 `TopRight`／`BottomRight`，目前不新增使用者設定。
 
 抬頭下方那一行只回答文件，且只看有文件的列：全部同一份時顯示一次，兩份以上才收掉並
 補回各列。資料庫一律留在列上，與文件以 `·` 相接。
@@ -47,7 +50,8 @@
   成功比例增減以 320 ms 從當前值接續；週期刷新不重啟相同目標。
 - 預設展開明細；已儲存的使用者選項不覆寫，新預設只套用未設定的值。
 - 滑鼠停留或鍵盤焦點在提示內時暫停期限，移出後續跑剩餘時間；不修改完成時間，記憶體上限仍有效。
-- 空閒與非作用中的編輯區不跑計時器；通知合併回 UI 執行緒。關閉編輯器與套件卸載都解除訂閱。
+- 空閒時不跑計時器，N 個宿主仍只有一個計時器；通知合併回 UI 執行緒。關閉宿主與套件卸載都
+  解除訂閱，卡片交給下一個宿主或收掉。
 - 計時器每 100 ms 問一次；內容沒變又沒有項目到期時回上一份快照，不重跑到期清理與投影。
 
 ## 驗證與限制
@@ -58,10 +62,11 @@ Core 測試涵蓋期限、快照快取與截斷、巢狀與並行工作、失敗
 中文字）；合併與統計涵蓋合併鍵、執行中不合併、失敗不併入成功、`Repeat` 計數、代表列
 身分、不受可見度影響與併入「其他」。
 WPF 測試涵蓋動態主題、材質回退、定位、列身分、抬頭去重與交接寬限、訊息、動畫策略、進度與捲動，
-另涵蓋卡片介面不出現來源型別、自訂記錄直接渲染、`×N` 徽章、柔影快取、捲動只接到定位、
-非作用中不排程刷新與關閉的全域語意；渲染輸出在 `artifacts/theme-qa/notification-qa/`，
+另涵蓋卡片介面不出現來源型別、自訂記錄直接渲染、`×N` 徽章、柔影快取、宿主優先序、延遲／
+最短可見／淡出期限、控制器唯一計時器、捲動只接到定位、非作用中不排程刷新與關閉的全域語意；渲染輸出在 `artifacts/theme-qa/notification-qa/`，
 不能代替 SSMS 實機驗收。降級與診斷紀錄見[可見度](notifications-visibility.md#降級等級與診斷)。
 
-實機需測：SQL 分頁／分割焦點切換、F12 開新查詢視窗的交接、切到非 SQL 文件、關閉工作來源、淡出途中加入工作、
+實機需測：SQL 分頁／分割焦點切換、F12 開新查詢視窗的交接、SQL 分頁與 SQL Memory 工具窗互切、
+對話框開啟中完成工作、關閉工具窗與對話框、切到非 SQL 文件、關閉工作來源、淡出途中加入工作、
 高對比、減少動態效果、鍵盤展開、長名稱、小編輯區及 100%／150%／200% DPI。
 目前不顯示假百分比，不提供取消工作按鈕或持久化歷史。

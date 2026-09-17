@@ -4,28 +4,28 @@ using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22.UI;
 
-namespace SqlAssist.Ssms22.Editor;
+namespace SqlAssist.Ssms22.Notifications;
 
 /// <summary>
-/// 決定通知卡片該顯示什麼；每個 SSMS 視窗一份。
+/// 決定通知卡片該顯示什麼；整個處理程序一份。
 /// </summary>
 /// <remarks>
-/// 可見度、合併、措辭與關閉狀態集中在這裡，<see cref="NotificationAdornment"/> 只剩宿主
-/// 與定位。分散在每個編輯區的版本要嘛每個編輯區各算一次同一份清單，要嘛把「哪些通知
+/// 可見度、合併、措辭與關閉狀態集中在這裡，<see cref="NotificationSurfaceController"/> 只管
+/// 何時顯示與掛在哪個宿主上。分散在每個宿主的版本要嘛各算一次同一份清單，要嘛把「哪些通知
 /// 已經被關掉」寫成靜態欄位——後者正是關掉一個編輯區的提示會關掉全部的原因。
 ///
-/// 狀態只在 UI 執行緒上讀寫（<see cref="Current"/> 由編輯器的刷新路徑呼叫）；
+/// 狀態只在 UI 執行緒上讀寫（<see cref="Current"/> 由控制器的刷新路徑呼叫）；
 /// 通知來源的 <see cref="NotificationCenter.Changed"/> 可能來自任何執行緒，因此這裡
 /// 只把事件轉發出去，不在事件上碰狀態。
 /// </remarks>
-internal sealed class NotificationHost
+internal sealed class NotificationPresenter
 {
     /// <summary>失敗與降級至少保留這麼久，即使成功的保留時間更短。</summary>
     private const int MinimumFailureRetention = 6000;
 
-    public static NotificationHost Default { get; } = new();
+    public static NotificationPresenter Default { get; } = new();
 
-    /// <summary>通知內容可能變了；作用中的編輯區才需要重算。</summary>
+    /// <summary>通知內容可能變了；有宿主可掛時才需要重算。</summary>
     public event EventHandler? Changed;
 
     private IReadOnlyList<NotificationItem>? _source;
@@ -36,30 +36,30 @@ internal sealed class NotificationHost
     /// 已經被關閉的最後一個通知 Id；比它新的工作仍會出現。
     /// </summary>
     /// <remarks>
-    /// 關閉刻意是全域的：提示同一時間只有一份，跟著作用中的編輯區走，使用者按下的
+    /// 關閉刻意是全域的：提示同一時間只有一份，跟著作用中的宿主走，使用者按下的
     /// 那個叉號指的是「這一批我看完了」，不是「這個分頁不要再顯示」。因此它在這裡是
-    /// 一份具名的呈現狀態，不是散在編輯區類別上的靜態可變欄位。
+    /// 一份具名的呈現狀態，不是散在宿主類別上的靜態可變欄位。
     /// </remarks>
     private long _dismissedThrough;
     private bool _defaultExpanded = true;
     private DateTimeOffset? _oldest;
 
-    /// <summary>明細展開與否；跟著提示走，切換編輯區不會忽然收合。</summary>
+    /// <summary>明細展開與否；跟著提示走，換宿主不會忽然收合。</summary>
     public bool Expanded { get; private set; } = true;
 
     private readonly NotificationCenter _center;
 
-    private NotificationHost() : this(NotificationCenter.Default) { }
+    private NotificationPresenter() : this(NotificationCenter.Default) { }
 
     /// <summary>測試用：換一個通知來源，其餘行為與正式的那一份相同。</summary>
-    internal NotificationHost(NotificationCenter center)
+    internal NotificationPresenter(NotificationCenter center)
     {
         _center = center ?? throw new ArgumentNullException(nameof(center));
         _center.Changed += OnChanged;
     }
 
-    // 不包 SqlAssistPlatformGuard：轉發本身碰不到平台，而訂閱端（adornment）就是平台邊界，
-    // 在那裡包才記得到是哪個編輯區。這一份因此只依賴 Core 與 UI，測試能直接編譯它。
+    // 不包 SqlAssistPlatformGuard：轉發本身碰不到平台，訂閱端（控制器）才是平台邊界。
+    // 這一份因此只依賴 Core 與 UI，測試能直接編譯它。
     private void OnChanged(object? sender, EventArgs args) => Changed?.Invoke(this, EventArgs.Empty);
 
     public void Toggle() => Expanded = !Expanded;

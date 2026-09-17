@@ -56,6 +56,7 @@
 | `Settings/` | Unified Settings 讀取、預覽視窗尺寸，以及推給 SSMS 的語言偏好 |
 | `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 |
 | `Commands/` | 命令識別碼、工具選單與診斷視窗 |
+| `Notifications/` | 通知卡片的呈現、表面、宿主優先序與全域控制器，以及 WPF 視窗宿主 |
 | `ResultGrid/` | 讀取選取範圍並輸出到視窗或剪貼簿 |
 | `SqlMemory/` | SQL Memory 的設定與計時器接線、編輯器擷取事件、工具窗與對話框 |
 | `UI/` | 全擴充共用外觀與佈景筆刷 |

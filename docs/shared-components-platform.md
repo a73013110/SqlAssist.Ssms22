@@ -35,6 +35,8 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |
 | 動作的語意色調（停駐／按下的底色與配對前景） | `Ssms22/UI/SqlAssistChrome.cs` 的 `SqlActionTone`、`ThemePalette.cs` |
 | 動態配色資源與合併更新通知 | `Ssms22/UI/ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
-| 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Editor/NotificationHost.cs` |
-| 通知卡片本身（整個處理程序一張，在編輯區之間搬家） | `Ssms22/Editor/NotificationSurface.cs` |
+| 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Notifications/NotificationPresenter.cs` |
+| 通知卡片本身（整個處理程序一張，在宿主之間搬家） | `Ssms22/Notifications/NotificationSurface.cs` |
+| 通知何時顯示、掛在哪個宿主（唯一計時器與訂閱） | `Ssms22/Notifications/NotificationSurfaceController.cs` |
+| 讓 SqlAssist 的 WPF 視窗接通知卡片 | `Ssms22/Notifications/NotificationWindowHost.cs`（對話框經 `SqlAssistDialogs.Configure` 自動註冊） |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |

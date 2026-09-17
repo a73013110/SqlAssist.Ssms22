@@ -11,7 +11,7 @@ using System.Windows.Threading;
 using System.Collections.Generic;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
-using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.UI;
 using Xunit;
 
@@ -30,7 +30,7 @@ public sealed class NotificationMotionTests
             using (center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info)) { }
             var settings = new SqlAssistSettings();
             IReadOnlyList<NotificationCardItem> Read() =>
-                NotificationHost.Project(center.Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue), settings).Items;
+                NotificationPresenter.Project(center.Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue), settings).Items;
             var root = new NotificationCard();
             root.Update(Read(), true, false);
             Assert.False(root.StatusShake.HasAnimatedProperties);

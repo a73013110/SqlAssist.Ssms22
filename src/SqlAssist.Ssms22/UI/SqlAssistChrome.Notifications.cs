@@ -8,9 +8,6 @@ using System.Windows.Shapes;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>提示錨在內容區的哪一角；<see cref="NotificationPosition.BottomRight"/> 尚未有使用者設定。</summary>
-internal enum NotificationPosition { TopRight, BottomRight }
-
 internal static partial class SqlAssistChrome
 {
     /// <summary>卡片本身的控制項仍在這一份建立；呼叫端從卡片的屬性取抬頭與明細，不另外接線。</summary>
@@ -52,13 +49,13 @@ internal static partial class SqlAssistChrome
         button.Style = style;
     }
 
-    // adornment 座標屬於編輯器內容區，天然避開文件分頁、工具列與主視窗控制鈕。
-    internal static Point NotificationAnchor(Size viewport, Size panel, NotificationPosition position)
+    // 錨在宿主內容區的右上：編輯器的 adornment 座標與視窗內容區都天然避開文件分頁、
+    // 工具列與主視窗控制鈕。
+    internal static Point NotificationAnchor(Size viewport, Size panel)
     {
         var marginX = Math.Min(4, Math.Max(0, (viewport.Width - panel.Width) / 2));
         var marginY = Math.Min(8, Math.Max(0, (viewport.Height - panel.Height) / 2));
-        return new Point(Math.Max(0, viewport.Width - panel.Width - marginX),
-            position == NotificationPosition.TopRight ? marginY : Math.Max(0, viewport.Height - panel.Height - marginY));
+        return new Point(Math.Max(0, viewport.Width - panel.Width - marginX), marginY);
     }
 
     internal static DoubleAnimation NotificationAnimation(double from, double to, int milliseconds) =>

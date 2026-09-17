@@ -1,16 +1,16 @@
 using System;
-using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Notifications;
 using Xunit;
 
-namespace SqlAssist.Ssms22.Tests.Editor;
+namespace SqlAssist.Ssms22.Tests.Notifications;
 
 /// <summary>
-/// 換編輯區時哪一次算「新出現」。
+/// 換宿主時哪一次算「新出現」。
 /// </summary>
 /// <remarks>
 /// 每個編輯區各一張卡片的版本，F12 開新查詢視窗會把同一份提示整個重建，於是滑入、
 /// 淡入與每一列的狀態動畫全部重播——看起來就是提示消失了又跳出來。這裡守的是那件事
-/// 的判斷本身，卡片與 adornment 層的搬移在 <c>NotificationSurface</c>。
+/// 的判斷本身，卡片在宿主之間的搬移在 <c>NotificationSurface</c>。
 /// </remarks>
 public sealed class NotificationHandoverTests
 {
@@ -23,7 +23,7 @@ public sealed class NotificationHandoverTests
     }
 
     [Fact]
-    public void 直接從別的編輯區接手不算新出現()
+    public void 直接從別的宿主接手不算新出現()
     {
         Assert.False(new NotificationHandover().Attach(attached: true, Origin));
     }

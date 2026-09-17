@@ -47,6 +47,7 @@
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |
 | SQL Memory 的 SQL、交易或索引 | `SqlMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |
+| 通知卡片掛錯或不出現 | `Ssms22/Notifications/NotificationHostPriority.cs` |
 | 建置、安裝、偵錯、發布 | `tools/` |
 | 分層規則、資料夾規則 | — |
 
@@ -56,7 +57,7 @@
 
 ## 測試
 
-`tests/` 鏡像 `src/` 的資料夾結構，所以改了 `Core/Parsing/` 就去看
+`tests/` 鏡像 `src/` 的資料夾結構，改了 `Core/Parsing/` 就看
 `tests/SqlAssist.Core.Tests/Parsing/`。`SqlAssist.SqlMemory.Sqlite.Tests` 驗真實 SQLite 與隔離層；
 `SqlAssist.Ssms22.Tests` 只連結純 WPF 控制項做渲染測試，不載入 SSMS——這正是
 「**禁止**把只看文字就能判斷的邏輯寫進 Ssms22」的原因。
