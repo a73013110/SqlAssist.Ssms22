@@ -72,19 +72,18 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         _timeline = new SqlFavoriteRevisionTimeline(favorite.Favorite.FavoriteId, favorite.ContentId, _retainedLimit);
         SqlMemoryActions.ConfigureWindow(this, package, "版本歷史 — " + favorite.Favorite.Name, 1040, 680);
 
-        var root = new DockPanel { Margin = new Thickness(16) };
+        var root = new DockPanel { Margin = SqlAssistChrome.DialogPadding };
         var retention = SqlAssistChrome.CreateMetadataText(
             "每個收藏只保留最近 " + _retainedLimit.ToString(CultureInfo.InvariantCulture) +
             " 版，更舊的版本會被回收；回溯會另存一筆新版本，不改寫或刪除任何版本。", SqlAssistChrome.DefaultMetrics);
         retention.Margin = new Thickness(0, 0, 0, 8);
         DockPanel.SetDock(retention, Dock.Top); root.Children.Add(retention);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
+        // 檢視型對話框：回溯等動作都在內容工具列，頁尾只有結束對話框的關閉，它就是主要動作。
+        var close = SqlAssistChrome.CreateButton("關閉", SqlAssistChrome.DefaultMetrics, primary: true);
+        close.IsCancel = true; close.IsDefault = true;
+        var footer = SqlAssistChrome.CreateDialogFooter(_status, close);
         DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
-        var close = SqlAssistChrome.CreateButton("關閉", SqlAssistChrome.DefaultMetrics);
-        close.IsCancel = true; close.IsDefault = true; close.MinWidth = 80;
-        DockPanel.SetDock(close, Dock.Right); footer.Children.Add(close);
-        _status.Margin = new Thickness(0, 0, 16, 0); footer.Children.Add(_status);
 
         _list.SetRowsSource(_rows, _pager);
         _list.ContextMenu = CreateContextMenu();

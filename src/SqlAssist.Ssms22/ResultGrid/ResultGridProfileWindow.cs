@@ -35,21 +35,9 @@ internal sealed class ResultGridProfileWindow : DialogWindow
 
     public ResultGridProfileWindow(ResultGridTable table, IReadOnlyList<ResultGridColumnProfile> profiles)
     {
-        VsThemeBrushes.Apply(this);
         // 每個視窗持有自己的 View，篩選與排序不影響來源結果或其他視窗。
         _profileView = new ListCollectionView(profiles.ToList());
-
-        Title = "SqlAssist — 欄位剖析";
-        Width = 1040;
-        Height = 620;
-        MinWidth = 640;
-        MinHeight = 400;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
-        FontFamily = SqlAssistChrome.InterfaceFont;
-        FontSize = Metrics.Body;
-        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
+        SqlAssistDialogs.Configure(this, "SqlAssist — 欄位剖析", 1040, 620, minWidth: 640, minHeight: 400);
 
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         Content = BuildLayout(table);
@@ -57,7 +45,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
 
     private Grid BuildLayout(ResultGridTable table)
     {
-        var root = new Grid { Margin = new Thickness(16) };
+        var root = new Grid { Margin = SqlAssistChrome.DialogPadding };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -81,11 +69,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         var surface = SqlAssistChrome.CreateSurface(body);
         Grid.SetRow(surface, 2);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-
         var copy = SqlAssistChrome.CreateButton("複製目前表格", Metrics);
-        copy.MinWidth = 78;
-        copy.Margin = new Thickness(0, 0, 12, 0);
         copy.ToolTip = "以 TSV 複製目前篩選及排序後的欄位，包含表頭。";
         copy.Click += OnCopy;
 
@@ -138,18 +122,11 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         RefreshCount();
 
         var close = SqlAssistChrome.CreateButton("關閉", Metrics, primary: true);
-        close.MinWidth = 78;
         close.IsDefault = true;
         close.IsCancel = true;
         close.Click += (_, _) => Close();
 
-        DockPanel.SetDock(copy, Dock.Left);
-        DockPanel.SetDock(close, Dock.Right);
-        footer.Children.Add(copy);
-        footer.Children.Add(close);
-        _statusText.Margin = new Thickness(0, 0, 12, 0);
-        footer.Children.Add(_statusText);
-
+        var footer = SqlAssistChrome.CreateDialogFooter(new[] { copy }, _statusText, close);
         Grid.SetRow(footer, 3);
         root.Children.Add(footer);
 

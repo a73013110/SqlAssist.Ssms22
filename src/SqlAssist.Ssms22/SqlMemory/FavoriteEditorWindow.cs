@@ -51,7 +51,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         SqlMemoryActions.ConfigureWindow(this, package, existing is null ? "新增至收藏" : "編輯收藏 — " + existing.Favorite.Name, 960, 700);
         MinWidth = 640; MinHeight = 520;
 
-        var root = new DockPanel { Margin = new Thickness(16) };
+        var root = new DockPanel { Margin = SqlAssistChrome.DialogPadding };
         var context = SqlAssistChrome.CreateMetadataText(summary, SqlAssistChrome.DefaultMetrics);
         context.ToolTip = summary; context.Margin = new Thickness(0, 0, 0, 12);
         DockPanel.SetDock(context, Dock.Top); root.Children.Add(context);
@@ -80,17 +80,13 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         Place(SqlAssistChrome.CreateMemoryField("說明（選填）", _description, _description), 4, 0, 5);
         DockPanel.SetDock(_form, Dock.Top); root.Children.Add(_form);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-        DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom };
-        DockPanel.SetDock(actions, Dock.Right); footer.Children.Add(actions);
         _cancel = SqlAssistChrome.CreateButton("取消", SqlAssistChrome.DefaultMetrics); _cancel.IsCancel = true;
         _submit = SqlAssistChrome.CreateButton(existing is null ? "新增至收藏" : "儲存", SqlAssistChrome.DefaultMetrics, true);
-        _submit.IsDefault = true; _cancel.Margin = new Thickness(0, 0, 8, 0);
+        _submit.IsDefault = true;
         _submit.ToolTip = "儲存（Ctrl+S）";
-        actions.Children.Add(_cancel); actions.Children.Add(_submit);
-        _status.TextWrapping = TextWrapping.Wrap; _status.VerticalAlignment = VerticalAlignment.Center;
-        footer.Children.Add(_status);
+        _status.TextWrapping = TextWrapping.Wrap;
+        var footer = SqlAssistChrome.CreateDialogFooter(_status, _cancel, _submit);
+        DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
 
         var sqlHeader = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
         DockPanel.SetDock(sqlHeader, Dock.Top);
