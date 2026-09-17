@@ -22,7 +22,7 @@ public sealed class SqlLinkedServerCompletionTests
         new("LibArchive", "LibArchive", "Database", "USE LibArchive", SuggestionKind.Database);
 
     private static readonly SqlSuggestion Schema =
-        new("dbo", "dbo.", "Schema", "Schema dbo", SuggestionKind.Schema, schemaName: "dbo");
+        new("dbo", "dbo", "Schema", "Schema dbo", SuggestionKind.Schema, schemaName: "dbo");
 
     private static readonly SqlSuggestion Table =
         new("Loan", "Loan", "Table", "Loan", SuggestionKind.Table, schemaName: "dbo");
@@ -58,9 +58,7 @@ public sealed class SqlLinkedServerCompletionTests
     {
         var names = Filter("SELECT * FROM |");
 
-        Assert.Contains("LibArchive", names);
-        Assert.Contains("LibMirror", names);
-        Assert.Contains("Loan", names);
+        Assert.Equal(new[] { "LibMirror", "LibArchive", "dbo", "Loan" }, names);
     }
 
     /// <remarks>
@@ -120,21 +118,20 @@ public sealed class SqlLinkedServerCompletionTests
     /// 這一格是使用者最常打的跨資料庫寫法。認不出 <c>LibArchive</c> 是資料庫的話，
     /// 右對齊會把它當成結構描述，於是整份清單一筆都比不中——而畫面上只是沒有建議。
     ///
-    /// 結構描述不在裡面，因為 <c>FROM</c> 這一類位置本來就只收資料來源
-    /// （<c>IsAllowedForTarget</c>）。跨資料庫沿用同一條而不開特例：物件清單已經
-    /// 涵蓋每一個結構描述，而提交時 <c>SqlInsertionText</c> 會補上正確的那一個。
+    /// 結構描述也在裡面：資料庫之後的下一段就是它。物件同樣列出來，提交時
+    /// <c>SqlInsertionText</c> 會補上正確的結構描述。
     /// </remarks>
     [Fact]
     public void 資料庫之後列那個資料庫的物件()
     {
-        Assert.Equal(new[] { "Loan" }, Filter("SELECT * FROM LibArchive.|", SqlQualifierSlot.Database));
+        Assert.Equal(new[] { "dbo", "Loan" }, Filter("SELECT * FROM LibArchive.|", SqlQualifierSlot.Database));
     }
 
     [Fact]
     public void 伺服器加資料庫之後列那個資料庫的物件()
     {
         Assert.Equal(
-            new[] { "Loan" },
+            new[] { "dbo", "Loan" },
             Filter("SELECT * FROM LibMirror.LibArchive.|", SqlQualifierSlot.Server));
     }
 

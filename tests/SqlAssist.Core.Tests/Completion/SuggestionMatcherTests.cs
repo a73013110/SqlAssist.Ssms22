@@ -136,8 +136,11 @@ public sealed class SuggestionMatcherTests
         Assert.Equal("Loan", ranked[0]);
     }
 
+    /// <remarks>
+    /// 結構描述是名稱的第二段，也在這個位置；預存程序與片段不在。
+    /// </remarks>
     [Fact]
-    public void FROM之後只顯示資料表與View()
+    public void FROM之後只顯示資料來源與結構描述()
     {
         var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current)
             .Concat(new[] { Table("Publisher"), Procedure("usp_Publisher") })
@@ -148,7 +151,9 @@ public sealed class SuggestionMatcherTests
             SqlCompletionContextAnalyzer.Analyze("SELECT * FROM "));
 
         Assert.NotEmpty(ranked);
-        Assert.All(ranked, item => Assert.Equal(SuggestionKind.Table, item.Suggestion.Kind));
+        Assert.All(ranked, item => Assert.Contains(
+            item.Suggestion.Kind,
+            new[] { SuggestionKind.Table, SuggestionKind.Schema }));
     }
 
     [Fact]

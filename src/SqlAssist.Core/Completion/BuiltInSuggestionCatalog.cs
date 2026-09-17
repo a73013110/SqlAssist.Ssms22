@@ -32,15 +32,18 @@ public static class BuiltInSuggestionCatalog
         // 這兩個結構描述在每一個資料庫裡都存在，是產品事實而不是誰的 schema，
         // 因此不必等中繼資料。第一層查詢刻意不收它們（那會連帶把一兩千個系統物件
         // 拉進來），少了這兩筆的話，使用者連「打 sys 再按 Tab」這條路都沒有。
+        //
+        // 提交行為與資料庫裡的結構描述相同：只寫名稱，點號由使用者自己打，打出點號
+        // 會重開清單（見 SqlInsertionText）。曾經帶著 sys. 與接續旗標，實際寫出的仍是
+        // sys（插入文字由 SqlInsertionText 重組），接著又在點號之前多開一次清單。
         foreach (var schema in SqlSystemSchemas.Names)
         {
             suggestions.Add(new SqlSuggestion(
                 schema,
-                schema + ".",
+                schema,
                 "Schema",
                 $"Schema {schema}",
                 SuggestionKind.Schema,
-                triggerFollowUp: true,
                 schemaName: schema));
         }
 
