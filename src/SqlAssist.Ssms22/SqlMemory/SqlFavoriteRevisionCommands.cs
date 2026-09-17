@@ -1,0 +1,120 @@
+using System;
+using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using SqlAssist.Core.SqlMemory;
+using SqlAssist.Ssms22.UI;
+
+namespace SqlAssist.Ssms22.SqlMemory;
+
+/// <summary>
+/// 版本操作的唯一實作：時間軸列按鈕、快捷選單、Enter／雙擊與差異面板都走這裡。
+/// </summary>
+/// <remarks>
+/// 回溯沒有專用寫入路徑：讀出舊版本全文，交給 <see cref="ISqlFavoriteStore.EditFavoriteSqlAsync"/> 另存一筆新版本。
+/// 版本是 append-only，舊版本不被改寫或刪除；版本衝突與配額回收沿用改 SQL 的既有語意。
+/// 「預覽此版本」只切換畫面，由呼叫端自己處理，不經過儲存。
+/// </remarks>
+internal sealed class SqlFavoriteRevisionCommands
+{
+    private readonly SqlAssistPackage _package;
+    private readonly SqlMemoryOperationGate _gate = new();
+
+    public SqlFavoriteRevisionCommands(SqlAssistPackage package) => _package = package;
+
+    /// <summary>收藏可能已改變（回溯已提交、版本衝突或回應不明）；訂閱者重讀收藏與時間軸。</summary>
+    public event Action? FavoriteChanged;
+
+    public bool IsBusy => _gate.IsBusy;
+
+    public static bool CanRun(SqlFavoriteRevisionAction action, SqlFavoriteRevisionRow? row) =>
+        row is not null && SqlMemoryHost.Runtime.IsAvailable && !row.ContentMissing &&
+        (action != SqlFavoriteRevisionAction.Revert || row.CanRevert);
+
+    /// <param name="favorite">回溯時的 CAS 基準；必須是開窗後最後一次讀到的收藏。</param>
+    /// <param name="retainedLimit">每個收藏保留的版本數；確認框據此說明回溯可能讓最舊的版本被回收。</param>
+    /// <param name="loadedSql">呼叫端已經讀好的此版本全文；null 時按需讀取。</param>
+    public async Task RunAsync(SqlFavoriteRevisionAction action, SqlFavoriteRevisionRow row, SqlFavoriteItem favorite,
+        int retainedLimit, DependencyObject source, Action<string> report, CancellationToken token, string? loadedSql = null)
+    {
+        if (!CanRun(action, row)) return;
+        switch (action)
+        {
+            case SqlFavoriteRevisionAction.Open:
+            case SqlFavoriteRevisionAction.Copy:
+                var open = action == SqlFavoriteRevisionAction.Open;
+                await WithSqlAsync(row, loadedSql, token, report, open ? "開啟" : "複製", sql =>
+                {
+                    if (open) SqlMemoryActions.OpenQuery(_package, sql);
+                    else Clipboard.SetText(sql);
+                    report(open ? "已用此版本開啟新查詢；未執行 SQL。" : "已複製此版本的完整 SQL。");
+                });
+                break;
+            case SqlFavoriteRevisionAction.Revert:
+                await RevertAsync(row, favorite, retainedLimit, source, report, token, loadedSql);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(action), action, "這個版本操作不經過儲存。");
+        }
+    }
+
+    private async Task RevertAsync(SqlFavoriteRevisionRow row, SqlFavoriteItem favorite, int retainedLimit,
+        DependencyObject source, Action<string> report, CancellationToken token, string? loadedSql)
+    {
+        var owner = Window.GetWindow(source) ?? Application.Current?.MainWindow;
+        var time = row.Item.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture);
+        if (!SqlAssistConfirmationWindow.Confirm(owner!, "回溯為新版本", $"以 {time} 的版本建立新的目前版本？",
+                "回溯會把這個版本的 SQL 另存成一筆新版本並設為目前版本；歷史不會倒帶，目前版本與其他舊版本都保留，之後仍可再回溯。" +
+                $"每個收藏只保留最近 {retainedLimit.ToString(CultureInfo.InvariantCulture)} 版，多出的最舊版本會在維護時回收。",
+                "回溯為新版本"))
+            return;
+
+        await _gate.RunAsync(token, report, "回溯", async () =>
+        {
+            var sql = loadedSql;
+            if (sql is null)
+            {
+                var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.Item.ContentId, token);
+                if (content is null)
+                    return () => { row.ContentMissing = true; row.CanRevert = false; report("此版本的內容已被清理，無法回溯。"); };
+                sql = content.SqlText;
+            }
+
+            var edit = new SqlFavoriteSqlEdit(favorite.Favorite.FavoriteId, favorite.Version, Guid.NewGuid(), sql, DateTimeOffset.UtcNow);
+            SqlFavoriteWriteResult result;
+            try
+            {
+                result = await SqlMemoryHost.Runtime.EditFavoriteSqlAsync(edit, token);
+            }
+            catch (Exception error) when (error is not OperationCanceledException)
+            {
+                // 回應不明時不重送非冪等的回溯；重讀清單讓使用者看得到到底有沒有多出一版。
+                return () =>
+                {
+                    report("回溯未確認：" + error.Message + " 已重新讀取版本清單確認結果；不會自動重送。");
+                    FavoriteChanged?.Invoke();
+                };
+            }
+            return () =>
+            {
+                report(result == SqlFavoriteWriteResult.Committed
+                    ? $"已回溯：以 {time} 的版本建立新的目前版本。"
+                    : "收藏已被修改或移除，未回溯；已重新讀取版本清單。");
+                FavoriteChanged?.Invoke();
+            };
+        });
+    }
+
+    private Task WithSqlAsync(SqlFavoriteRevisionRow row, string? loadedSql, CancellationToken token, Action<string> report,
+        string verb, Action<string> use)
+    {
+        if (loadedSql is not null) { use(loadedSql); return Task.CompletedTask; }
+        return _gate.RunAsync(token, report, verb, async () =>
+        {
+            var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.Item.ContentId, token);
+            if (content is null) return () => { row.ContentMissing = true; row.CanRevert = false; report("此版本的內容已被清理。"); };
+            return () => SqlMemoryActions.Run(() => use(content.SqlText), report);
+        });
+    }
+}

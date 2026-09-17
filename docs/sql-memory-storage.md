@@ -65,7 +65,7 @@ SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents；GUID CAS token �
 - 收藏自己建立的 `Favorite` Revision 不屬於任何 Session，也不建假 Session；新增與 `EditFavoriteSqlAsync`
   形狀相同：不進 History、不建 Capture、不動任何 head 或序號，連線取自收藏自己的 scope，
   ParentRevisionId 留空以免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
-  不設外鍵，讓移除收藏不改寫版本；舊版本依維護配額回收。
+  不設外鍵，讓移除收藏不改寫版本；舊版本依維護配額回收，時間軸讀取見[版本歷史](sql-memory-revisions.md)。
 - 收藏操作不以 CaptureId 冪等，過期更新不留下部分寫入。
 
 Global 不帶連線，Server 只指定 Server，Database 兩者必填；scope 不合併父層，也不是執行連線。

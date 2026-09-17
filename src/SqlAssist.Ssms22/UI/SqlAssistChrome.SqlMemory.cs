@@ -306,7 +306,8 @@ internal static partial class SqlAssistChrome
     /// 以列資料的 <c>IsNew</c>／<c>IsRemoving</c> 觸發，而不是容器的 Loaded：清單是 recycling 虛擬化，
     /// 捲動時重用的容器每次都會 Loaded，綁在那裡就會一路重播。位移走 RenderTransform，不推動其他列。
     /// </remarks>
-    private static void AddMemoryCardMotion(FrameworkElementFactory card, ControlTemplate template)
+    /// <param name="removable">列資料有 <c>IsRemoving</c> 才加退場；沒有刪除動作的清單不留一條找不到屬性的繫結。</param>
+    internal static void AddMemoryCardMotion(FrameworkElementFactory card, ControlTemplate template, bool removable = true)
     {
         card.SetValue(UIElement.RenderTransformProperty, new TranslateTransform());
         var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
@@ -327,6 +328,7 @@ internal static partial class SqlAssistChrome
         var enter = new DataTrigger { Binding = new Binding("IsNew"), Value = true };
         enter.EnterActions.Add(new BeginStoryboard { Storyboard = Motion(0, 1, 6, 0, MemoryCardEnterDuration, FillBehavior.Stop) });
         template.Triggers.Add(enter);
+        if (!removable) return;
         // 退場保持結束值直到列被移除；可中途反向：刪除失敗或容器被回收給別的列時，從當下值回到基底。
         var exit = new DataTrigger { Binding = new Binding("IsRemoving"), Value = true };
         exit.EnterActions.Add(new BeginStoryboard { Storyboard = Motion(null, 0, null, -4, MemoryCardExitDuration, FillBehavior.HoldEnd) });
@@ -406,14 +408,7 @@ internal static partial class SqlAssistChrome
         var history = new DataTrigger { Binding = new Binding("IsFavorite"), Value = false };
         foreach (var command in SqlMemoryRowCommand.All)
         {
-            var button = new FrameworkElementFactory(typeof(Button)) { Name = "action" + command.Action };
-            button.SetValue(FrameworkElement.TagProperty, command.Action); button.SetValue(FrameworkElement.ToolTipProperty, command.Label);
-            button.SetValue(AutomationProperties.NameProperty, command.Label);
-            button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate(command.Tone)); button.SetValue(Control.PaddingProperty, new Thickness(3));
-            // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
-            button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
-            button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
-            if (command.IsSeparated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
+            var button = CreateRowActionButton("action" + command.Action, command.Action, command.Icon, command.Label, command.Tone, command.IsSeparated);
             if (command.LabelProperty is { } labelProperty)
             {
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(labelProperty));
@@ -422,8 +417,7 @@ internal static partial class SqlAssistChrome
             // 不適用的操作直接收起，不留停用的灰色按鈕；判斷來源與快捷選單、Preview 相同。
             if (command.Kind == SqlMemoryRowKind.History) favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
-            var icon = new FrameworkElementFactory(typeof(SqlIconImage)); icon.SetValue(SqlIconImage.IconProperty, command.Icon);
-            button.AppendChild(icon); actions.AppendChild(button);
+            actions.AppendChild(button);
         }
         var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
         connections.AppendChild(BoundBadge("Server", "server", iconProperty: "ServerIcon")); connections.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
@@ -445,6 +439,24 @@ internal static partial class SqlAssistChrome
             hover.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "actions")); template.Triggers.Add(hover);
         }
         return template;
+    }
+
+    /// <summary>列上的幽靈操作按鈕；卡片與版本時間軸共用尺寸、色調與前景跟隨規則。</summary>
+    /// <param name="action">按鈕的 Tag；清單以它派送，不拿圖示或文字當識別。</param>
+    internal static FrameworkElementFactory CreateRowActionButton(string name, object action, SqlIcon icon, string label,
+        SqlActionTone tone, bool separated)
+    {
+        var button = new FrameworkElementFactory(typeof(Button)) { Name = name };
+        button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
+        button.SetValue(AutomationProperties.NameProperty, label);
+        button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate(tone)); button.SetValue(Control.PaddingProperty, new Thickness(3));
+        // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
+        button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
+        button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
+        if (separated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
+        var glyph = new FrameworkElementFactory(typeof(SqlIconImage)); glyph.SetValue(SqlIconImage.IconProperty, icon);
+        button.AppendChild(glyph);
+        return button;
     }
 
     private static FrameworkElementFactory BoundText(string property)

@@ -230,6 +230,14 @@ public static class SqlMemoryStorageSelfTest
             .ConfigureAwait(false)).Items.Count == 0, "SQL Favorite 編輯不進 History");
         var again = new SqlFavoriteSqlEdit(favoriteId, edited.Version, Guid.NewGuid(), second, start.AddSeconds(200));
         Require(await store.EditFavoriteSqlAsync(again, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "SQL Favorite 再次改 SQL");
+        // 版本時間軸跨 AppDomain 分頁：新到舊、只有一個目前版本，游標接得上第二頁。
+        var newest = await store.ReadFavoriteRevisionsAsync(new SqlFavoriteRevisionRequest(favoriteId, 1), token).ConfigureAwait(false);
+        Require(newest.Items.Count == 1 && newest.Items[0].RevisionId == again.RevisionId && newest.Items[0].IsCurrent &&
+            newest.NextCursor != null, "SQL Favorite 版本時間軸第一頁");
+        var older = await store.ReadFavoriteRevisionsAsync(new SqlFavoriteRevisionRequest(favoriteId, 1, newest.NextCursor), token)
+            .ConfigureAwait(false);
+        Require(older.Items.Count == 1 && older.Items[0].RevisionId == edit.RevisionId && !older.Items[0].IsCurrent,
+            "SQL Favorite 版本時間軸續頁");
         // 每個收藏的版本配額只留最新一版；目前版本與擷取產生的版本都不受影響。
         await DrainAsync(store, new SqlRetentionPolicy(null, null, null, null, null, 1), token).ConfigureAwait(false);
         Require(await store.ReadContentAsync(SqlContent.Create(first).ContentId, token).ConfigureAwait(false) == null, "配額回收舊版本");

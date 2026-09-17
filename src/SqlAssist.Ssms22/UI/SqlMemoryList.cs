@@ -11,7 +11,7 @@ using System.Windows.Data;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>卡片、快捷選單與 Preview 共用的列操作；按鈕以它為 Tag，不拿圖示名稱當動作識別。</summary>
-internal enum SqlMemoryRowAction { Copy, Open, AddFavorite, EditSql, EditMetadata, Delete }
+internal enum SqlMemoryRowAction { Copy, Open, AddFavorite, EditSql, Revisions, EditMetadata, Delete }
 
 /// <summary>操作適用於哪一種列；卡片模板與快捷選單都依它隱藏，不用停用的灰色按鈕佔位。</summary>
 internal enum SqlMemoryRowKind { Any, History, Favorite }
@@ -40,6 +40,7 @@ internal sealed class SqlMemoryRowCommand
         new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
             tone: SqlActionTone.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditSql, SqlIcon.Edit, "編輯 SQL", SqlMemoryRowKind.Favorite),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Revisions, SqlIcon.History, "版本歷史", SqlMemoryRowKind.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.EditMetadata, SqlIcon.Settings, "編輯收藏資料", SqlMemoryRowKind.Favorite),
         // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
         new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, "刪除", SqlMemoryRowKind.Any,
@@ -71,12 +72,36 @@ internal sealed class SqlMemoryRowCommand
     }
 }
 
-/// <summary>History／Favorites 共用的清單與鍵盤路徑；開啟是明確動作，不是選取副作用。</summary>
-internal sealed class SqlMemoryList : ListBox
+/// <summary>History／Favorites 共用的清單；卡片樣板與 Delete 鍵是這份清單自己的，其餘路徑在基底。</summary>
+internal sealed class SqlMemoryList : SqlMemoryListBase<SqlMemoryRowAction>
+{
+    public SqlMemoryList()
+    {
+        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle();
+        ItemTemplate = SqlAssistChrome.CreateSqlSummaryTemplate();
+    }
+
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        // Delete 與檔案總管相同：只對聚焦的卡片發出請求，是否刪除仍由確認框決定。
+        if (e.Key == Key.Delete && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
+        { e.Handled = true; RequestAction(SqlMemoryRowAction.Delete); }
+        base.OnPreviewKeyDown(e);
+    }
+}
+
+/// <summary>
+/// SQL Memory 各種清單共用的鍵盤、滑鼠與續頁路徑；開啟是明確動作，不是選取副作用。
+/// </summary>
+/// <remarks>
+/// 列上的操作按鈕以 <typeparamref name="TAction"/> 為 Tag，點下時先選取該列再發出請求；
+/// 不拿圖示或文字當識別，History 卡片與收藏版本時間軸各自的操作列舉走同一條路。
+/// </remarks>
+internal abstract class SqlMemoryListBase<TAction> : ListBox where TAction : struct, Enum
 {
     private Size _viewportSize = Size.Empty;
     public event EventHandler? OpenRequested;
-    public event Action<SqlMemoryRowAction>? RowActionRequested;
+    public event Action<TAction>? RowActionRequested;
     public event EventHandler? LoadMoreRequested;
     public bool CanAutoLoadMore { get; set; }
 
@@ -86,10 +111,8 @@ internal sealed class SqlMemoryList : ListBox
         ItemsSource = new CompositeCollection { new CollectionContainer { Collection = rows }, new SqlMemoryListFooter(footer) };
     }
 
-    public SqlMemoryList()
+    protected SqlMemoryListBase()
     {
-        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle();
-        ItemTemplate = SqlAssistChrome.CreateSqlSummaryTemplate();
         BorderThickness = new Thickness(0);
         SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
         ScrollViewer.SetHorizontalScrollBarVisibility(this, ScrollBarVisibility.Disabled);
@@ -108,12 +131,14 @@ internal sealed class SqlMemoryList : ListBox
         }));
         AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((_, e) =>
         {
-            if (e.OriginalSource is not Button { Tag: SqlMemoryRowAction action } button) return;
+            if (e.OriginalSource is not Button { Tag: TAction action } button) return;
             if (ContainerFromElement(this, button) is not ListBoxItem item) return;
             SelectedItem = ItemContainerGenerator.ItemFromContainer(item);
-            e.Handled = true; RowActionRequested?.Invoke(action);
+            e.Handled = true; RequestAction(action);
         }));
     }
+
+    protected void RequestAction(TAction action) => RowActionRequested?.Invoke(action);
 
     protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)
     {
@@ -155,15 +180,12 @@ internal sealed class SqlMemoryList : ListBox
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         // ↑／↓ 保留 ListBox 原生 selection/navigation；按鈕的 Enter 由 Button 自己處理。
-        if (e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
+        if (!e.Handled && e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
         { e.Handled = true; OpenRequested?.Invoke(this, EventArgs.Empty); }
-        // Delete 與檔案總管相同：只對聚焦的卡片發出請求，是否刪除仍由確認框決定。
-        else if (e.Key == Key.Delete && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
-        { e.Handled = true; RowActionRequested?.Invoke(SqlMemoryRowAction.Delete); }
         base.OnPreviewKeyDown(e);
     }
 
-    private bool IsRowContent(object source)
+    protected bool IsRowContent(object source)
     {
         if (source is not DependencyObject element || ContainerFromElement(this, element) is not ListBoxItem container ||
             container is SqlMemoryListFooter) return false;
