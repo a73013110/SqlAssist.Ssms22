@@ -10,7 +10,7 @@ using SqlAssist.Ssms22.UI;
 namespace SqlAssist.Ssms22.SqlMemory;
 
 /// <summary>
-/// 用量頁的接線：讀快照、執行整理動作、顯示進度與結果。畫面在 <see cref="SqlMemoryUsageView"/>，文案在 Core。
+/// 用量分頁的接線：讀快照、執行整理動作、顯示進度與結果。畫面在 <see cref="SqlMemoryUsageView"/>，文案在 Core。
 /// </summary>
 /// <remarks>
 /// 讀取以取消與宿主世代擋住晚到的結果；整理動作走 <see cref="SqlMemoryOperationGate"/>，連按只送出一次，
@@ -30,30 +30,21 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
     {
         _package = package;
         _report = report;
-        View.RefreshRequested += (_, _) => Reload();
         View.ActionRequested += (_, action) => SqlMemoryActions.Run(() => Run(action), report);
     }
 
     public SqlMemoryUsageView View { get; } = new();
 
-    public event EventHandler? BackRequested
-    {
-        add => View.BackRequested += value;
-        remove => View.BackRequested -= value;
-    }
+    /// <summary>維護或清除結束（不論成敗）：History／Favorites 已載入的列可能有被刪掉的，清單回到畫面時要重讀。</summary>
+    public event EventHandler? RecordsChanged;
 
     public void Reload()
     {
         if (_disposed) return;
         _load.Cancel(); _load.Dispose(); _load = new CancellationTokenSource();
         var token = _load.Token;
-        if (!SqlMemoryHost.Runtime.IsAvailable)
-        {
-            View.ShowUnavailable(SqlMemoryHost.Runtime.Status.Message is { Length: > 0 } message
-                ? message
-                : "SQL Memory 尚未就緒；可由設定啟用或重新啟用。");
-            return;
-        }
+        // 沒有可讀的儲存時，原因已經在工具窗的宿主狀態與狀態列，分頁本身不再重講一次。
+        if (!SqlMemoryHost.Runtime.IsAvailable) { View.Clear(); return; }
         View.BeginLoad();
         var generation = SqlMemoryHost.Runtime.Generation;
         _ = SqlMemoryActions.RunAsync(async () =>
@@ -67,12 +58,12 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
             catch (Exception error) when (error is not OperationCanceledException)
             {
                 if (SqlMemoryOperationGate.IsCurrent(generation, token) && !_disposed)
-                    View.ShowUnavailable(SqlMemoryTimeText.Failure("讀取用量", error));
+                    View.ShowFailure(SqlMemoryTimeText.Failure("讀取用量", error));
             }
         }, _report);
     }
 
-    /// <summary>離開用量頁或隱藏工具窗：停止讀取；進行中的整理不中斷，完成後照常寫回清理紀錄。</summary>
+    /// <summary>離開用量分頁或隱藏工具窗：停止讀取；進行中的整理不中斷，完成後照常寫回清理紀錄。</summary>
     public void Suspend() => _load.Cancel();
 
     public void Dispose()
@@ -88,7 +79,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         switch (action)
         {
             case SqlMemoryUsageAction.Maintain:
-                Start("維護", "正在依保留規則維護…", async progress =>
+                Start("維護", "正在依保留規則維護…", deletes: true, async progress =>
                 {
                     var result = await SqlMemoryHost.Runtime.MaintainNowAsync(progress, _operation.Token);
                     return Deleted("維護完成", result);
@@ -96,7 +87,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                 break;
             case SqlMemoryUsageAction.Cleanup:
                 if (SqlMemoryCleanupWindow.Show(_package) is not { } request) return;
-                Start("清除", "正在清除紀錄…", async progress =>
+                Start("清除", "正在清除紀錄…", deletes: true, async progress =>
                 {
                     var result = await SqlMemoryHost.Runtime.CleanupAsync(request, progress, _operation.Token);
                     return Deleted("清除完成", result);
@@ -105,7 +96,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
             case SqlMemoryUsageAction.Compact:
                 if (!SqlAssistConfirmationWindow.Confirm(Owner(), "壓縮 SQL Memory 資料庫", "重建資料庫檔案以縮小檔案？",
                     "不會刪除任何紀錄。重建期間需要與資料庫等量的暫存空間，新的擷取會等壓縮完成才寫入。", "壓縮")) return;
-                Start("壓縮", "正在壓縮資料庫；可繼續編輯…", async _ =>
+                Start("壓縮", "正在壓縮資料庫；可繼續編輯…", deletes: false, async _ =>
                 {
                     // 縮小了多少由清理紀錄記下；狀態列只說結果，不為了算差值多讀一次完整用量。
                     var after = await SqlMemoryHost.Runtime.CompactAsync(_operation.Token);
@@ -114,7 +105,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                 break;
             case SqlMemoryUsageAction.Backup:
                 if (AskBackupPath() is not { } path) return;
-                Start("備份", "正在備份資料庫…", async _ =>
+                Start("備份", "正在備份資料庫…", deletes: false, async _ =>
                 {
                     var length = await SqlMemoryHost.Runtime.BackupAsync(path, _operation.Token);
                     return "已備份到 " + path + "（" + SqlMemoryUsageSummary.Bytes(length) + "）。";
@@ -123,16 +114,14 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
             case SqlMemoryUsageAction.OpenFolder:
                 SqlMemoryRecoveryService.OpenDatabaseFolder();
                 break;
-            case SqlMemoryUsageAction.Settings:
-                SqlMemoryActions.OpenSettings(_package);
-                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(action));
         }
     }
 
+    /// <param name="deletes">會刪除紀錄；結束後通知清單重讀，壓縮與備份不動紀錄就不讓清單白讀一次。</param>
     /// <param name="work">背景部分；回傳完成後寫在狀態列的一行結果。</param>
-    private void Start(string verb, string busy, Func<IProgress<long>, Task<string>> work)
+    private void Start(string verb, string busy, bool deletes, Func<IProgress<long>, Task<string>> work)
     {
         if (_gate.IsBusy || _disposed) return;
         View.SetBusy(busy);
@@ -158,6 +147,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                 {
                     View.SetBusy(null);
                     Reload();
+                    if (deletes) RecordsChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
         }, _report);

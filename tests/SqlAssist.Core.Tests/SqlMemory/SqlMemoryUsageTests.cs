@@ -200,6 +200,18 @@ public sealed class SqlMemoryUsageTests
         Assert.All(store.Requests, request => Assert.Same(policy, request.Policy));
     }
 
+    [Fact]
+    public void CleanupEstimateTextSaysAtMostAndListsOnlyNonEmptyTargets()
+    {
+        var estimate = new SqlMemoryCleanupEstimate(1200, 0, 3, 45);
+        Assert.Equal("最多清除 1,248 筆", SqlMemoryUsageSummary.CleanupHeadline(estimate));
+        Assert.Equal("執行紀錄 1,200 · 回復內容 3 · 收藏版本 45", SqlMemoryUsageSummary.CleanupBreakdown(estimate));
+
+        var none = new SqlMemoryCleanupEstimate(0, 0, 0, 0);
+        Assert.Equal("沒有符合條件的紀錄", SqlMemoryUsageSummary.CleanupHeadline(none));
+        Assert.Equal("", SqlMemoryUsageSummary.CleanupBreakdown(none));
+    }
+
     /// <summary><see cref="Progress{T}"/> 會排到同步內容；測試要在回報的當下記錄順序。</summary>
     private sealed class SynchronousProgress : IProgress<long>
     {

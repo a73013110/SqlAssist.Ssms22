@@ -3,7 +3,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SqlAssist.Core.SqlMemory;
@@ -121,16 +120,14 @@ public sealed class SqlMemoryUsageViewTests
     }
 
     [Fact]
-    public void BusyDisablesEveryActionAndEscapeReturnsOnlyWhenIdle()
+    public void BusyDisablesEveryActionAndUnavailableHidesStaleNumbers()
     {
         WpfTest.Run(() =>
         {
             var (host, view, _) = Host();
             view.ShowSummary(Summary(10 * Megabyte), motion: false);
             Layout(host, 440);
-            var backs = 0;
-            view.BackRequested += (_, _) => backs++;
-            var requested = SqlMemoryUsageAction.Settings;
+            SqlMemoryUsageAction? requested = null;
             view.ActionRequested += (_, action) => requested = action;
 
             view.ActionButton(SqlMemoryUsageAction.Cleanup).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
@@ -139,14 +136,19 @@ public sealed class SqlMemoryUsageViewTests
             view.SetBusy("正在清除紀錄…");
             Assert.All(Enum.GetValues(typeof(SqlMemoryUsageAction)).Cast<SqlMemoryUsageAction>(),
                 action => Assert.False(view.ActionButton(action).IsEnabled));
-            Escape(host, view);
-            Assert.Equal(0, backs);
-
             view.SetBusy(null);
             Assert.All(Enum.GetValues(typeof(SqlMemoryUsageAction)).Cast<SqlMemoryUsageAction>(),
                 action => Assert.True(view.ActionButton(action).IsEnabled));
-            Escape(host, view);
-            Assert.Equal(1, backs);
+
+            // 讀取失敗保留舊畫面並說明；儲存停用則整頁收起，下一次讀取重新走第一次載入。
+            view.ShowFailure("讀取用量失敗");
+            Assert.True(Shown(Descendants<TextBlock>(view).Single(text => text.Text == "讀取用量失敗"), view));
+            Assert.True(Shown(Descendants<TextBlock>(view).Single(text => text.Text == "狀態良好"), view));
+            view.Clear();
+            Assert.False(Shown(Descendants<TextBlock>(view).Single(text => text.Text == "狀態良好"), view));
+            Assert.DoesNotContain(Descendants<TextBlock>(view), text => text.Text == "讀取用量失敗");
+            view.BeginLoad();
+            Assert.True(view.IsLoading);
         });
     }
 
@@ -157,6 +159,8 @@ public sealed class SqlMemoryUsageViewTests
         {
             var (host, view, palette) = Host();
             var directory = ThemeVisualTests.FindOutputDirectory();
+            // 沒有自己的頁首：分頁與工具列已經是抬頭，第一個元素就是內容。
+            Assert.DoesNotContain(Descendants<TextBlock>(view), text => text.Text is "用量" or "清單" or "重新整理" or "保留設定");
             foreach (var mode in new[] { "light", "dark", "high-contrast" })
             foreach (var (summary, name) in new[]
             {
@@ -167,7 +171,7 @@ public sealed class SqlMemoryUsageViewTests
             {
                 palette.Update(ThemePaletteTests.ColorsFor(mode));
                 view.ShowSummary(summary, motion: false);
-                view.SetMessage(name == "empty" ? "SQL Memory 尚未就緒；可由設定啟用或重新啟用。" : "");
+                view.SetMessage(name == "empty" ? "讀取用量失敗：資料庫忙碌中。" : "");
                 Layout(host, width);
                 // 窄窗的統計改成單欄，操作按鈕換行而不是撐出橫向捲動。
                 var stats = Descendants<UniformGrid>(view).Single();
@@ -188,14 +192,11 @@ public sealed class SqlMemoryUsageViewTests
     }
 
     [Fact]
-    public void ToolbarBadgeAppearsOnlyAboveNormalAndDescribesTheSeverity()
+    public void UsageTabBadgeAppearsOnlyAboveNormalAndDescribesTheSeverity()
     {
         WpfTest.Run(() =>
         {
-            var usage = SqlAssistChrome.CreateButton("用量", SqlAssistChrome.DefaultMetrics);
-            var tabs = new TabControl();
-            SqlAssistChrome.CreateMemoryToolbar(tabs, SqlAssistChrome.CreateMemoryConnectionButton(), usage,
-                SqlAssistChrome.CreateButton("重新整理", SqlAssistChrome.DefaultMetrics), SqlAssistChrome.CreateButton("設定", SqlAssistChrome.DefaultMetrics));
+            var usage = SqlAssistChrome.CreateMemoryUsageTab();
             var badge = SqlAssistChrome.UsageBadge(usage);
             Assert.NotNull(badge);
             Assert.Equal(Visibility.Collapsed, badge!.Visibility);
@@ -211,14 +212,45 @@ public sealed class SqlMemoryUsageViewTests
         });
     }
 
-    private static void Escape(Border host, UIElement target)
+    [Fact]
+    public void NarrowToolbarCollapsesTabLabelsInsteadOfWrappingTheTabs()
     {
-        // 隱藏的 presentation source 供 WPF 路由鍵盤事件，不開使用者可見視窗。
-        using var source = new System.Windows.Interop.HwndSource(
-            new System.Windows.Interop.HwndSourceParameters("SQL Memory usage keyboard test") { Width = 440, Height = 300, WindowStyle = 0 });
-        source.RootVisual = host;
-        target.RaiseEvent(new KeyEventArgs(new TestKeyboardDevice(), source, 0, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent });
-        source.RootVisual = null;
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var tabs = new TabControl();
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.History, "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.Favorite, "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
+            tabs.SelectedIndex = 2;
+            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, connection,
+                SqlAssistChrome.CreateButton("重新整理", SqlAssistChrome.DefaultMetrics), SqlAssistChrome.CreateButton("設定", SqlAssistChrome.DefaultMetrics));
+            var host = new Border { Child = toolbar };
+            host.Resources.MergedDictionaries.Add(palette.Resources);
+            TextBlock Label(int index) => (TextBlock)((DockPanel)((TabItem)tabs.Items[index]).Header).Children[1];
+
+            foreach (var (width, labels) in new[] { (740, true), (284, false), (740, true) })
+            {
+                Layout(host, width, 40); Layout(host, width, 40);
+                Assert.Equal(labels, Label(0).Visibility == Visibility.Visible);
+                Assert.Equal(labels, Label(2).Visibility == Visibility.Visible);
+                Assert.InRange(tabs.ActualHeight, 1, 32);
+                Assert.InRange(toolbar.Children.OfType<StackPanel>().Single().TranslatePoint(new Point(), host).X, tabs.ActualWidth, width);
+            }
+
+            // 用量分頁收起「目前連線」後按鈕列變窄，同一個寬度可以重新放回分頁文字。
+            connection.Visibility = Visibility.Collapsed;
+            Layout(host, 360, 40); Layout(host, 360, 40);
+            Assert.Equal(Visibility.Visible, Label(1).Visibility);
+        });
+    }
+
+    private static bool Shown(DependencyObject element, DependencyObject root)
+    {
+        for (var current = element; current is not null && !ReferenceEquals(current, root); current = VisualTreeHelper.GetParent(current))
+            if (current is UIElement { Visibility: not Visibility.Visible }) return false;
+        return true;
     }
 
     private static System.Collections.Generic.IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

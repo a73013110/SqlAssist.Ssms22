@@ -85,8 +85,33 @@ internal static partial class SqlAssistChrome
     {
         var style = new Style(typeof(TabItem));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
-        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style };
+        // Tooltip 是窄窗收起分頁文字之後仍讀得到名稱的地方。
+        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
         AutomationProperties.SetName(tab, label); return tab;
+    }
+
+    /// <summary>用量分頁：與 History／Favorites 同一種分頁，圖示右上角多一個容量分級點。</summary>
+    public static TabItem CreateMemoryUsageTab()
+    {
+        var tab = CreateMemoryTab(SqlIcon.Usage, "用量");
+        var label = (DockPanel)tab.Header;
+        var icon = (FrameworkElement)label.Children[0];
+        label.Children.RemoveAt(0);
+        var glyph = new Grid { Margin = icon.Margin, VerticalAlignment = VerticalAlignment.Center };
+        icon.Margin = default;
+        glyph.Children.Add(icon);
+        // 點疊在圖示右上角、不佔版面；底色描邊讓它在圖示上仍分得出邊界。
+        var badge = new Ellipse
+        {
+            Width = 7, Height = 7, StrokeThickness = 1.2, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -3, 0), IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1)
+        };
+        badge.SetResourceReference(Shape.StrokeProperty, ThemeBrush.WindowBackground);
+        glyph.Children.Add(badge);
+        DockPanel.SetDock(glyph, Dock.Left);
+        label.Children.Insert(0, glyph);
+        return tab;
     }
 
     public static FrameworkElement CreateLoadingIndicator(RotateTransform rotation)
@@ -111,7 +136,8 @@ internal static partial class SqlAssistChrome
         return button;
     }
 
-    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button usage, Button refresh, Button settings)
+    /// <param name="connection">只屬於清單分頁的操作；呼叫端在用量分頁收起它，工具列會重新決定文字要不要收。</param>
+    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button refresh, Button settings)
     {
         var toolbar = new Grid { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };
         toolbar.ColumnDefinitions.Add(new ColumnDefinition());
@@ -123,37 +149,53 @@ internal static partial class SqlAssistChrome
         Grid.SetColumn(actions, 1); toolbar.Children.Add(actions);
         var labels = new System.Collections.Generic.List<TextBlock>();
         var connectionLabel = (TextBlock)((Panel)connection.Content).Children[1];
-        foreach (var entry in new[] { (usage, SqlIcon.Usage, "用量"), (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
+        foreach (var entry in new[] { (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
         {
             var content = CreateMemoryLabel(entry.Item2, entry.Item3);
             labels.Add((TextBlock)content.Children[1]); entry.Item1.Content = content;
             entry.Item1.ToolTip = entry.Item3; AutomationProperties.SetName(entry.Item1, entry.Item3);
         }
-        AddUsageBadge(usage);
-        foreach (var button in new[] { connection, usage, refresh, settings })
+        foreach (var button in new[] { connection, refresh, settings })
         {
             button.Height = 28; button.MinWidth = 28; button.Padding = new Thickness(6, 3, 6, 3);
             button.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(button);
         }
-        // 窄窗只收起次要操作文字，不換行或改變按鈕高度，維持分頁與圖示共用中心線。
+        // 窄窗先收起次要操作文字，再收起分頁文字；不換行、不改變高度，維持分頁與圖示共用中心線。
+        // 分頁文字依實際寬度決定：分頁數與按鈕數會變，寫死門檻遲早又讓分頁列折成兩行。
         void UpdateLabels()
         {
-            foreach (var label in labels) label.Visibility = toolbar.ActualWidth >= 560 ? Visibility.Visible : Visibility.Collapsed;
-            connectionLabel.Visibility = toolbar.ActualWidth >= 380 ? Visibility.Visible : Visibility.Collapsed;
+            var width = toolbar.ActualWidth;
+            foreach (var label in labels) label.Visibility = width >= 560 ? Visibility.Visible : Visibility.Collapsed;
+            connectionLabel.Visibility = width >= 380 ? Visibility.Visible : Visibility.Collapsed;
+            SetTabLabels(tabs, Visibility.Visible);
+            tabs.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            actions.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            if (tabs.DesiredSize.Width + actions.DesiredSize.Width > width) SetTabLabels(tabs, Visibility.Collapsed);
+            // 量測只為了比寬度；交回版面系統用欄寬重新量測，不沿用無限寬的結果。
+            tabs.InvalidateMeasure(); actions.InvalidateMeasure();
         }
-        toolbar.SizeChanged += (_, _) => UpdateLabels(); UpdateLabels();
+        // 按鈕列只隨寬度門檻與連線按鈕的收起改變，分頁文字不影響它，不會互相觸發。
+        toolbar.SizeChanged += (_, _) => UpdateLabels();
+        actions.SizeChanged += (_, e) => { if (e.WidthChanged) UpdateLabels(); };
         return toolbar;
     }
 
+    private static void SetTabLabels(TabControl tabs, Visibility visibility)
+    {
+        foreach (var item in tabs.Items)
+            if (item is TabItem { Header: DockPanel { Children.Count: 2 } header } && header.Children[1] is TextBlock text)
+                text.Visibility = visibility;
+    }
+
     /// <summary>
-    /// 用量按鈕圖示右上角的分級點；容量正常時不顯示，偏高與接近上限各用語意色。
+    /// 用量分頁圖示右上角的分級點；容量正常時不顯示，偏高與接近上限各用語意色。
     /// </summary>
     /// <remarks>
     /// 點本身只是提醒，分級文字在 Tooltip 與 automation help text；窄窗收起文字時仍看得到。
     /// 出現時做一次 240 ms 的縮放，屬於狀態回饋；同一分級重複設定不重播。
     /// </remarks>
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
-    public static void SetUsageBadge(Button usage, SqlMemoryUsageSeverity severity, bool? motion = null)
+    public static void SetUsageBadge(TabItem usage, SqlMemoryUsageSeverity severity, bool? motion = null)
     {
         if (UsageBadge(usage) is not { } badge) return;
         var visible = severity != SqlMemoryUsageSeverity.Normal;
@@ -180,31 +222,10 @@ internal static partial class SqlAssistChrome
 
     public static readonly System.TimeSpan UsageBadgePop = System.TimeSpan.FromMilliseconds(240);
 
-    internal static Ellipse? UsageBadge(Button usage) =>
-        usage.Content is DockPanel { Children.Count: > 0 } content && content.Children[0] is Grid { Children.Count: 2 } glyph
+    internal static Ellipse? UsageBadge(TabItem usage) =>
+        usage.Header is DockPanel { Children.Count: > 0 } content && content.Children[0] is Grid { Children.Count: 2 } glyph
             ? glyph.Children[1] as Ellipse
             : null;
-
-    private static void AddUsageBadge(Button usage)
-    {
-        var content = (DockPanel)usage.Content;
-        var icon = (FrameworkElement)content.Children[0];
-        content.Children.RemoveAt(0);
-        var glyph = new Grid { Margin = icon.Margin, VerticalAlignment = VerticalAlignment.Center };
-        icon.Margin = default;
-        glyph.Children.Add(icon);
-        // 點疊在圖示右上角、不佔版面；底色描邊讓它在圖示上仍分得出邊界。
-        var badge = new Ellipse
-        {
-            Width = 7, Height = 7, StrokeThickness = 1.2, HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -3, 0), IsHitTestVisible = false,
-            Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1)
-        };
-        badge.SetResourceReference(Shape.StrokeProperty, ThemeBrush.WindowBackground);
-        glyph.Children.Add(badge);
-        DockPanel.SetDock(glyph, Dock.Left);
-        content.Children.Insert(0, glyph);
-    }
 
     public static Border CreateSearchBar(TextBox input, Button clear)
     {

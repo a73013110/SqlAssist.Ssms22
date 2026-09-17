@@ -18,7 +18,7 @@
 | 有界維護、容量、用量報表、手動清理與備份契約 | `Core/SqlMemory/ISqlMemoryMaintenanceStore.cs`（儲存與隔離層共用） |
 | 手動清理與立即維護的批次串接、釋出容量 | `Core/SqlMemory/SqlMemoryCleanup.cs` |
 | 容量比例、分級門檻與通知防抖 | `Core/SqlMemory/SqlMemoryCapacity.cs` |
-| 用量頁的數字、分級、健康狀態與文案 | `Core/SqlMemory/SqlMemoryUsageSummary.cs` |
+| 用量頁與清除試算的數字、分級、健康狀態與文案 | `Core/SqlMemory/SqlMemoryUsageSummary.cs` |
 | 本次工作階段的清理紀錄 | `Core/SqlMemory/SqlMemoryActivityLog.cs` |
 
 ## SQLite 與隔離層
@@ -46,4 +46,5 @@
 | 行級差異的虛擬化呈現（標記、行號、語意底色） | `Ssms22/UI/SqlTextDiffView.cs`（樣板在 `SqlAssistChrome.Revisions.cs`） |
 | 清單頁尾 | `Ssms22/UI/SqlMemoryPager.cs`（狀態與文案在 `SqlMemoryBrowserModel.Footer`） |
 | 量表（分級色、長度動畫、不確定進度） | `Ssms22/UI/SqlUsageMeter.cs` |
-| 工具列的用量警示點 | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `SetUsageBadge` |
+| 用量分頁與警示點 | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `CreateMemoryUsageTab`、`SetUsageBadge` |
+| 清除紀錄的條件、試算摘要與頁尾（試算接線在 `SqlMemory/SqlMemoryCleanupWindow.cs`） | `Ssms22/UI/SqlMemoryCleanupView.cs` |

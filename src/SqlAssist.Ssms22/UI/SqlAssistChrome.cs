@@ -399,7 +399,8 @@ internal static partial class SqlAssistChrome
         background.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
         if (primary)
         {
-            background.SetResourceReference(Border.BackgroundProperty, ThemeBrush.AccentBackground);
+            // 主要動作本身是破壞性時，靜止底色就用語意色；停駐底色與中性主要動作一樣不另外加深。
+            background.SetResourceReference(Border.BackgroundProperty, tone == SqlActionTone.Danger ? hover : ThemeBrush.AccentBackground);
         }
         else
         {
@@ -497,22 +498,12 @@ internal static partial class SqlAssistChrome
             Focusable = false
         });
 
-        var footer = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0)
-        };
         cancel = CreateButton("取消", DefaultMetrics);
         // Enter 與 Esc 都先保留草稿；只有明確移到動作按鈕後才允許破壞性操作。
         cancel.IsDefault = true;
         cancel.IsCancel = true;
-        cancel.MinWidth = 80;
         confirm = CreateButton(action, DefaultMetrics, primary: true);
-        confirm.MinWidth = 80;
-        confirm.Margin = new Thickness(8, 0, 0, 0);
-        footer.Children.Add(cancel);
-        footer.Children.Add(confirm);
+        var footer = CreateDialogFooter(null, cancel, confirm);
         Grid.SetRow(footer, 1);
         root.Children.Add(footer);
         System.Windows.Input.FocusManager.SetFocusedElement(root, cancel);

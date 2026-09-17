@@ -43,7 +43,7 @@ Favorites 只有伺服器／資料庫篩選，語意與 History 相同：未選�
 一頁因預算提早結束時，清單頁尾顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
 Favorites 的日期是最後儲存時間；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
 該頁即使沒有命中也不顯示「沒有符合條件」；篩選或搜尋變更時清除進度。
-工具列「用量」以[用量頁](sql-memory-usage.md)取代主從區並收起搜尋與篩選，按分頁或「清單」返回。
+第三個分頁「用量」以[用量頁](sql-memory-usage.md)取代主從區；工具列的重新整理作用在目前分頁。
 目前連線一次套用 Server／Database；無連線保留篩選並提示。
 此操作只篩選，不切換 SSMS 連線。
 
@@ -53,7 +53,7 @@ Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevro
 名稱有獨立的最近／最早／名稱排序與續頁。
 
 Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；互動狀態不改版面見
-[UI 準則](ui-guidelines.md)。工具列窄窗收起文字，圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
+[UI 準則](ui-guidelines.md)。工具列窄窗先收起按鈕文字，放不下時再收起分頁文字，分頁列不折成兩行；圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
 Tabs、篩選與卡片圖示由 `SqlAssistChrome.MemoryOptionIcon` 依語意值選取 `SqlIcon`；排序按鈕與選單共用同一對應，
 History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` 識別，不拿圖示當動作。

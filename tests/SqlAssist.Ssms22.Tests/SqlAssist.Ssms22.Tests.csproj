@@ -33,6 +33,8 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryRecoveryView.cs" Link="Product\UI\SqlMemoryRecoveryView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlUsageMeter.cs" Link="Product\UI\SqlUsageMeter.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryUsageView.cs" Link="Product\UI\SqlMemoryUsageView.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryCleanupView.cs" Link="Product\UI\SqlMemoryCleanupView.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Dialogs.cs" Link="Product\UI\SqlAssistChrome.Dialogs.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIcon.cs" Link="Product\UI\SqlIcon.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIconImage.cs" Link="Product\UI\SqlIconImage.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />

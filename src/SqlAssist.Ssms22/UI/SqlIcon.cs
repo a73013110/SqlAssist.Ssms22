@@ -36,5 +36,6 @@ internal enum SqlIcon
     Compact,
     Maintain,
     Backup,
-    Folder
+    Folder,
+    Warning
 }

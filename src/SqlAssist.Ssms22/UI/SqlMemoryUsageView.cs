@@ -10,13 +10,14 @@ using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
 
-internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFolder, Settings }
+internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFolder }
 
 /// <summary>
-/// SQL Memory 的用量頁：容量量表、健康狀態、配額、各類筆數、伺服器分布、整理動作與最近的整理紀錄。
+/// SQL Memory 的用量分頁：容量量表、健康狀態、配額、各類筆數、伺服器分布、整理動作與最近的整理紀錄。
 /// </summary>
 /// <remarks>
-/// 取代清單所在的主從區，不另開視窗：看用量與清理是同一件事的前後兩步，彈出視窗會擋住回清單確認結果的路。
+/// 與 History／Favorites 同一組分頁，不另開視窗也不另立頁首：分頁本身就是抬頭，重新整理與設定沿用工具列。
+/// 表面與清單卡片同一種底色、細線與圓角，段落靠留白分層。
 /// 所有數字與文案來自 Core 的 <see cref="SqlMemoryUsageSummary"/>；這裡只排版、繫結主題與播放狀態動畫。
 /// 量表控制項在重新整理之間沿用，長度才能從舊值滑到新值，看得出清理的效果。
 /// </remarks>
@@ -31,12 +32,10 @@ internal sealed class SqlMemoryUsageView : DockPanel
         (SqlMemoryUsageAction.Compact, SqlIcon.Compact, "壓縮資料庫", "重建資料庫檔案，把已刪除資料佔用的空間還給磁碟；不會刪除任何紀錄。", SqlActionTone.Neutral),
         (SqlMemoryUsageAction.Backup, SqlIcon.Backup, "備份…", "把目前的資料庫另存成一個檔案；擷取照常進行。", SqlActionTone.Neutral),
         (SqlMemoryUsageAction.OpenFolder, SqlIcon.Folder, "開啟資料夾", "在檔案總管中顯示 SQL Memory 資料庫。", SqlActionTone.Neutral),
-        (SqlMemoryUsageAction.Settings, SqlIcon.Settings, "保留設定", "調整容量上限、保留期限與筆數配額。", SqlActionTone.Neutral),
     };
 
     private readonly SqlAssistChrome.Metrics _metrics = SqlAssistChrome.DefaultMetrics;
     private readonly Dictionary<SqlMemoryUsageAction, Button> _buttons = new();
-    private readonly Button _refresh;
     private readonly Dictionary<string, SqlUsageMeter> _quotaMeters = new(StringComparer.Ordinal);
     private readonly StackPanel _content = new();
     private readonly Border _hero;
@@ -62,52 +61,24 @@ internal sealed class SqlMemoryUsageView : DockPanel
     private readonly SqlLoadingSurface _loading;
     private bool _hasSummary;
 
-    public event EventHandler? BackRequested;
-    public event EventHandler? RefreshRequested;
     public event EventHandler<SqlMemoryUsageAction>? ActionRequested;
 
     public SqlMemoryUsageView()
     {
         AutomationProperties.SetName(this, "SQL Memory 用量");
         LastChildFill = true;
-        // 切到用量頁時接住鍵盤焦點，Esc 才回得去；容器本身不畫焦點框，Tab 會進到第一顆按鈕。
-        Focusable = true;
-        FocusVisualStyle = null;
 
-        // 頁首：返回在左、標題緊接，重新整理靠右；和清單工具列同一條中心線與高度。
-        var header = new DockPanel { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };
-        SetDock(header, Dock.Top); Children.Add(header);
-        var back = SqlAssistChrome.CreateButton("", _metrics);
-        back.Content = BackLabel();
-        back.ToolTip = "回到清單（Esc）"; AutomationProperties.SetName(back, "回到清單");
-        back.Padding = new Thickness(6, 3, 8, 3); back.Height = 28;
-        back.Click += (_, _) => BackRequested?.Invoke(this, EventArgs.Empty);
-        SetDock(back, Dock.Left); header.Children.Add(back);
-        var refresh = SqlAssistChrome.CreateButton("", _metrics);
-        refresh.Content = SqlAssistChrome.CreateMemoryLabel(SqlIcon.Refresh, "重新整理");
-        refresh.ToolTip = "重新計算用量"; AutomationProperties.SetName(refresh, "重新計算用量");
-        refresh.Padding = new Thickness(6, 3, 6, 3); refresh.Height = 28;
-        refresh.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
-        _refresh = refresh;
-        SetDock(refresh, Dock.Right); header.Children.Add(refresh);
-        var title = new TextBlock
-        {
-            Text = "用量", FontFamily = SqlAssistChrome.InterfaceFont, FontSize = _metrics.Title, FontWeight = FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0)
-        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-        header.Children.Add(title);
-
-        // 長時間操作的進度貼在頁首下方；不遮內容，做完就收起。
+        // 長時間操作的進度貼在內容上方；不遮內容，做完就收起。
         _busyText = SqlAssistChrome.CreateStatusText(_metrics);
         var busyContent = new StackPanel();
         busyContent.Children.Add(_busyText);
         _busyMeter.Margin = new Thickness(0, 4, 0, 0);
         busyContent.Children.Add(_busyMeter);
-        _busy = new Border { Child = busyContent, Padding = new Thickness(2, 0, 2, 8), Visibility = Visibility.Collapsed };
+        _busy = new Border { Child = busyContent, Padding = new Thickness(0, 0, 2, 8), Visibility = Visibility.Collapsed };
         SetDock(_busy, Dock.Top); Children.Add(_busy);
 
         _message = SqlAssistChrome.CreateHint("", _metrics);
-        _message.Margin = new Thickness(2, 0, 0, 8); _message.Visibility = Visibility.Collapsed;
+        _message.Margin = new Thickness(0, 0, 0, 8); _message.Visibility = Visibility.Collapsed;
         SetDock(_message, Dock.Top); Children.Add(_message);
 
         // 主卡片：健康狀態、容量量表與磁碟。整頁唯一一塊有底色的表面，其餘段落靠留白分層。
@@ -124,44 +95,39 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _hero = BuildHero();
         _content.Children.Add(_hero);
 
-        _content.Children.Add(Section("配額", _quotas));
+        _content.Children.Add(SqlAssistChrome.CreateSection("配額", _quotas));
         _stats.Margin = new Thickness(-4, 0, -4, 0);
-        _content.Children.Add(Section("紀錄", _stats));
+        _content.Children.Add(SqlAssistChrome.CreateSection("紀錄", _stats));
         _range = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         _range.Margin = new Thickness(0, 8, 0, 0);
         _content.Children.Add(_range);
-        _content.Children.Add(Section("依伺服器", _servers));
+        _content.Children.Add(SqlAssistChrome.CreateSection("依伺服器", _servers));
         foreach (var entry in Actions)
         {
             var button = SqlAssistChrome.CreateButton("", _metrics, primary: entry.Action == SqlMemoryUsageAction.Maintain);
             if (entry.Tone != SqlActionTone.Neutral) button.Template = SqlAssistChrome.CreateGhostButtonTemplate(entry.Tone);
             button.Content = SqlAssistChrome.CreateMemoryLabel(entry.Icon, entry.Label);
             button.ToolTip = entry.ToolTip; AutomationProperties.SetName(button, entry.Label);
-            button.Padding = new Thickness(8, 4, 10, 4); button.Margin = new Thickness(0, 0, 6, 6); button.MinHeight = 30;
+            // 與工具列按鈕同一個高度與內距；換行時列距 4，和篩選膠囊的節奏一致。
+            button.Height = 28; button.Padding = new Thickness(6, 3, 8, 3); button.Margin = new Thickness(0, 0, 4, 4);
             var action = entry.Action;
             button.Click += (_, _) => ActionRequested?.Invoke(this, action);
             _buttons[action] = button;
             _actions.Children.Add(button);
         }
-        _content.Children.Add(Section("整理", _actions));
-        _content.Children.Add(Section("最近整理", _activities));
+        _content.Children.Add(SqlAssistChrome.CreateSection("整理", _actions));
+        _content.Children.Add(SqlAssistChrome.CreateSection("最近整理", _activities));
 
         var scroll = new ScrollViewer
         {
             Content = _content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, Padding = new Thickness(0, 0, 4, 8)
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, Padding = new Thickness(0, 0, 2, 8)
         };
         _loading = new SqlLoadingSurface(scroll);
         Children.Add(_loading);
         _content.Visibility = Visibility.Collapsed;
 
         SizeChanged += (_, _) => _stats.Columns = ActualWidth >= CompactWidth ? 2 : 1;
-        PreviewKeyDown += (_, e) =>
-        {
-            if (e.Key != System.Windows.Input.Key.Escape || _busy.Visibility == Visibility.Visible) return;
-            e.Handled = true;
-            BackRequested?.Invoke(this, EventArgs.Empty);
-        };
     }
 
     /// <summary>頁面內容是否仍在等第一份資料；已有畫面時重新整理不再蓋上載入圖示。</summary>
@@ -217,11 +183,20 @@ internal sealed class SqlMemoryUsageView : DockPanel
         if (first) SqlAssistChrome.PlayAppear(_content, motion);
     }
 
-    /// <summary>儲存無法讀取或已停用時的一行說明；保留已有的畫面，不以空白冒充零用量。</summary>
-    public void ShowUnavailable(string message)
+    /// <summary>讀取失敗：保留已有的畫面並說明原因，不以空白冒充零用量。</summary>
+    public void ShowFailure(string message)
     {
         _loading.IsLoading = false;
         SetMessage(message);
+    }
+
+    /// <summary>儲存已停用或換了一份：舊數字不屬於現在的資料庫，整頁收起；原因由工具窗的狀態列說明。</summary>
+    public void Clear()
+    {
+        _loading.IsLoading = false;
+        _hasSummary = false;
+        _content.Visibility = Visibility.Collapsed;
+        SetMessage("");
     }
 
     public void SetMessage(string message)
@@ -242,7 +217,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         }
         else if (!busy) _busy.Visibility = Visibility.Collapsed;
         foreach (var button in _buttons.Values) button.IsEnabled = !busy;
-        _compactHint.IsEnabled = _refresh.IsEnabled = !busy;
+        _compactHint.IsEnabled = !busy;
     }
 
     private Border BuildHero()
@@ -269,23 +244,10 @@ internal sealed class SqlMemoryUsageView : DockPanel
         stack.Children.Add(disk);
         _maintenance.Margin = new Thickness(0, 4, 0, 0);
         stack.Children.Add(_maintenance);
-        var hero = new Border
-        {
-            Child = stack, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), Padding = new Thickness(16, 14, 16, 14)
-        }.WithTheme(Border.BackgroundProperty, ThemeBrush.BadgeBackground).WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        var hero = SqlAssistChrome.CreateSurface(stack);
+        hero.Padding = new Thickness(12, 10, 12, 10);
         AutomationProperties.SetName(hero, "容量");
         return hero;
-    }
-
-    private FrameworkElement Section(string title, UIElement body)
-    {
-        var section = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
-        var label = SqlAssistChrome.CreateLabel(title, _metrics);
-        label.Margin = new Thickness(0, 0, 0, 8);
-        label.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
-        section.Children.Add(label);
-        section.Children.Add(body);
-        return section;
     }
 
     private FrameworkElement QuotaRow(SqlMemoryGauge quota, bool? motion)
@@ -357,19 +319,6 @@ internal sealed class SqlMemoryUsageView : DockPanel
         row.Children.Add(text);
         AutomationProperties.SetName(row, activity.Title + (activity.Failed ? "失敗，" : "，") + activity.Detail + "，" + activity.Time);
         return row;
-    }
-
-    private static FrameworkElement BackLabel()
-    {
-        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        // 返回箭頭是控制項外觀：沿用展開箭頭的向量，轉向左方。
-        var chevron = SqlAssistChrome.CreateChevron();
-        chevron.RenderTransform = new RotateTransform(90);
-        content.Children.Add(chevron);
-        var text = SqlAssistChrome.CreateMemoryButtonText("清單");
-        text.Margin = new Thickness(2, 0, 0, 0);
-        content.Children.Add(text);
-        return content;
     }
 
     private TextBlock Text(double size, FontWeight weight, ThemeBrush brush, string text = "", bool wrap = false) =>
