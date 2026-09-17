@@ -104,6 +104,8 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
         Run(operation, token => Storage.Favorites.DeleteFavorite(id, version, token));
     public SqlFavoriteWriteResult EditFavoriteSql(long operation, SqlFavoriteSqlEdit edit) =>
         Run(operation, token => Storage.Favorites.EditFavoriteSql(edit, token));
+    public SqlMemoryPage<SqlFavoriteRevisionItem> ReadFavoriteRevisions(long operation, SqlFavoriteRevisionRequest request) =>
+        Run(operation, token => Storage.Favorites.ReadFavoriteRevisions(request, token));
 
     public SqlMemoryUsage ReadUsage(long operation) => Run(operation, token => Storage.Maintenance.ReadUsage(token));
     public SqlMemoryMaintenanceResult Maintain(long operation, SqlMemoryMaintenanceRequest request) =>

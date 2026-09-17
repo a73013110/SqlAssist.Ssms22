@@ -18,15 +18,15 @@
 ./tools/Check-TextFiles.ps1
 ```
 
-- Core：內容精確性、版本引擎、背景佇列、分頁世代、收藏 scope／CAS 與維護策略。
-- SQLite：完整新 schema、並行初始化、交易／取消／引用保護、全文搜尋、游標及 EXPLAIN 索引。
+- Core：內容精確性、版本引擎、背景佇列、分頁世代、收藏 scope／CAS、版本時間軸、行級差異與維護策略。
+- SQLite：完整新 schema、並行初始化、交易／取消／引用保護、全文搜尋、版本時間軸、游標及 EXPLAIN 索引。
   不再保留未發行舊 schema 的 migration 測試。
-- WPF：共用卡片、清單操作、主從收合／比例、篩選及實際文字／圖示位置；
+- WPF：共用卡片、清單操作、時間軸列、差異標記與底色、主從收合／比例、篩選及實際文字／圖示位置；
   Light／Dark／High Contrast 及彩色主題、320／440／740 DIP、100%／150%／200% 渲染。
 - VSIX build 內含套件檢查；封裝 probe 解開真正 VSIX，不從 NuGet cache 補相依。
   覆蓋 net48 x64 隔離載入、外部 LoadFrom、雙程序 40 次提交、缺檔／錯誤 native 架構／夾帶 BCL。
 - `SqlMemoryStorageSelfTest` 是 SSMS 診斷命令與 probe 的唯一實作，涵蓋重送、重開、全文、
-  Favorites CRUD／SQL 編輯、配額／租約、檔案釋放及宿主 provider 汙染檢查。
+  Favorites CRUD／SQL 編輯／版本時間軸、配額／租約、檔案釋放及宿主 provider 汙染檢查。
 
 WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 不是 SSMS 宿主截圖。文件不永久保存批次提交、逐次測試總數或 handoff 順序。
@@ -45,8 +45,10 @@ schema 版號現為 3，舊的開發測試資料庫會被明確拒絕；驗收�
 6. 收藏新增／編輯／移除、跨程序版本衝突、無連線開新 Query、停用／重新啟用與關閉工具窗。
 7. 查詢視窗右鍵「新增至收藏…」：有無選取各一次，確認收到的範圍與對話框第一列相符；
    未存檔草稿與 SQL Memory 停用時的狀態也各看一次。
-8. 操作補全、物件預覽、F12、物件總管、結果格線，再重啟 SSMS 重跑自我測試與基本流程。
-9. 需要驗證解除安裝時先儲存並關閉 SSMS；只照正式卸載流程，不刪除使用者設定或 SQL。
+8. 收藏連續編輯數次後開版本歷史：切換版本看差異與全文、開新 Query、複製、回溯後新版本在最上面；
+   另測窄窗上下疊放、配額調低後的回收說明、另一個 SSMS 先改收藏時的回溯衝突。
+9. 操作補全、物件預覽、F12、物件總管、結果格線，再重啟 SSMS 重跑自我測試與基本流程。
+10. 需要驗證解除安裝時先儲存並關閉 SSMS；只照正式卸載流程，不刪除使用者設定或 SQL。
 
 自我測試資料各在 `%LOCALAPPDATA%\SqlAssist.Ssms22\SqlMemorySelfTest\<唯一識別碼>`，
 包含 `report.txt`／`self-test.db`，只用內建圖書館 SQL，不覆寫既有報告。

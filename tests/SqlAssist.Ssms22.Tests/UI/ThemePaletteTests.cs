@@ -104,6 +104,46 @@ public sealed class ThemePaletteTests
         Assert.NotEqual(colors[ThemeBrush.DangerBackground], colors[ThemeBrush.FavoriteBackground]);
     }
 
+    [Theory]
+    [InlineData("light")]
+    [InlineData("mango")]
+    [InlineData("cool-breeze")]
+    [InlineData("dark")]
+    [InlineData("plum")]
+    [InlineData("forest")]
+    public void 差異的新增與刪除底色讓SQL與標記都可讀且彼此分得開(string mode)
+    {
+        var colors = ColorsFor(mode);
+        foreach (var (tint, text) in new[]
+                 {
+                     (ThemeBrush.DiffAddedBackground, ThemeBrush.DiffAddedForeground),
+                     (ThemeBrush.DiffRemovedBackground, ThemeBrush.DiffRemovedForeground)
+                 })
+        {
+            Assert.True(colors[tint].A > 0);
+            foreach (var surface in new[] { colors[ThemeBrush.ListBackground], colors[ThemeBrush.WindowBackground] })
+            {
+                var line = ThemeColorMath.Composite(colors[tint], surface);
+                // SQL 原文直接疊在差異底色上；標記與行號用同色相的配對前景。
+                Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.ListForeground], line) >= 4.5);
+                Assert.True(ThemeColorMath.Contrast(colors[text], line) >= 4.5);
+            }
+        }
+
+        Assert.NotEqual(colors[ThemeBrush.DiffAddedBackground], colors[ThemeBrush.DiffRemovedBackground]);
+        Assert.NotEqual(colors[ThemeBrush.DiffAddedForeground], colors[ThemeBrush.DiffRemovedForeground]);
+    }
+
+    [Fact]
+    public void 高對比的差異不上底色只靠標記辨識()
+    {
+        var colors = ColorsFor("high-contrast");
+        Assert.Equal(colors[ThemeBrush.ListBackground], colors[ThemeBrush.DiffAddedBackground]);
+        Assert.Equal(colors[ThemeBrush.ListBackground], colors[ThemeBrush.DiffRemovedBackground]);
+        Assert.Equal(colors[ThemeBrush.ListForeground], colors[ThemeBrush.DiffAddedForeground]);
+        Assert.Equal(colors[ThemeBrush.ListForeground], colors[ThemeBrush.DiffRemovedForeground]);
+    }
+
     [Fact]
     public void 高對比的語意色調回到系統選取色()
     {

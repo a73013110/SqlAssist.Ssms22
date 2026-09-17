@@ -28,5 +28,8 @@ internal enum SqlIcon
     Refresh,
     Settings,
     SortAscending,
-    SortDescending
+    SortDescending,
+    Preview,
+    Compare,
+    Revert
 }

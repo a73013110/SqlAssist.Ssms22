@@ -191,6 +191,100 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Versi
         return new SqlMemoryPage<SqlFavoriteItem>(items, null);
     }
 
+    public SqlMemoryPage<SqlFavoriteRevisionItem> ReadFavoriteRevisions(SqlFavoriteRevisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        cancellationToken.ThrowIfCancellationRequested();
+        var favoriteId = Id(request.FavoriteId);
+        var prefix = "revision1|" + _database.StoreId + "|" + favoriteId + "|";
+        var after = DecodeRevisionCursor(request.Cursor, prefix);
+        using var connection = _database.Connect();
+        // 兩次查詢要看到同一份快照：否則回溯剛換掉目前版本時，時間軸會同時少一筆或多標一個目前版本。
+        using var transaction = connection.BeginTransaction(deferred: true);
+
+        SqlFavoriteRevisionItem? current;
+        using (var command = Command(connection, transaction, @"SELECT r.RevisionId,r.ContentId,r.CreatedAt,r.Reason,c.Preview,c.Length,r.FavoriteId
+FROM Favorites s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId
+WHERE s.FavoriteId=$id;", ("$id", favoriteId)))
+        using (var reader = command.ExecuteReader())
+        {
+            if (!reader.Read()) return new SqlMemoryPage<SqlFavoriteRevisionItem>(Array.Empty<SqlFavoriteRevisionItem>(), null);
+            current = ReadRevisionItem(reader, true);
+            // 收藏自己的目前版本會在索引串流裡出現；只有引用自 History 的目前版本要另外併進時間序。
+            if (StringOrNull(reader, 6) == favoriteId) current = null;
+        }
+        if (current != null && after is { } cursor && Compare(current, cursor) >= 0) current = null;
+
+        cancellationToken.ThrowIfCancellationRequested();
+        using var page = Command(connection, transaction, FavoriteRevisionPageSql(after != null),
+            ("$id", favoriteId), ("$time", after?.Ticks), ("$revision", after?.RevisionId), ("$limit", request.PageSize + 1));
+        using var rows = page.ExecuteReader();
+        var items = new List<SqlFavoriteRevisionItem>();
+        bool Add(SqlFavoriteRevisionItem item)
+        {
+            if (items.Count == request.PageSize) return false;
+            items.Add(item);
+            return true;
+        }
+        string Cursor()
+        {
+            var last = items[items.Count - 1];
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + Ticks(last.CreatedAt).ToString(CultureInfo.InvariantCulture) +
+                "|" + Id(last.RevisionId)));
+        }
+
+        while (rows.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var item = ReadRevisionItem(rows, false);
+            if (current != null && Compare(current, (Ticks(item.CreatedAt), Id(item.RevisionId))) > 0)
+            {
+                if (!Add(current)) return new SqlMemoryPage<SqlFavoriteRevisionItem>(items, Cursor());
+                current = null;
+            }
+            if (!Add(item)) return new SqlMemoryPage<SqlFavoriteRevisionItem>(items, Cursor());
+        }
+        if (current != null && !Add(current)) return new SqlMemoryPage<SqlFavoriteRevisionItem>(items, Cursor());
+        return new SqlMemoryPage<SqlFavoriteRevisionItem>(items, null);
+
+        SqlFavoriteRevisionItem ReadRevisionItem(SqliteDataReader reader, bool isCurrent) => new(
+            Guid.ParseExact(reader.GetString(0), "N"), reader.GetString(1), Time(reader.GetInt64(2)),
+            (SqlRevisionReason)reader.GetInt32(3), isCurrent || reader.GetInt32(6) != 0, reader.GetString(4), reader.GetInt32(5));
+    }
+
+    /// <summary>新到舊的時間序比較；與 keyset 的 (CreatedAt, RevisionId) DESC 同一個順序。</summary>
+    private static int Compare(SqlFavoriteRevisionItem item, (long Ticks, string RevisionId) key)
+    {
+        var ticks = Ticks(item.CreatedAt).CompareTo(key.Ticks);
+        return ticks != 0 ? ticks : string.CompareOrdinal(Id(item.RevisionId), key.RevisionId);
+    }
+
+    /// <summary>
+    /// 沿部分索引 <c>IX_Revisions_Favorite</c> 反向串流，不做暫存排序；只讀這個收藏自己的版本，由 EXPLAIN 測試守住。
+    /// </summary>
+    /// <remarks>第七欄是「是否為目前版本」；讀取器依欄位位置解讀，與目前版本那條查詢共用。</remarks>
+    internal static string FavoriteRevisionPageSql(bool after) => @"SELECT r.RevisionId,r.ContentId,r.CreatedAt,r.Reason,c.Preview,c.Length,
+ EXISTS(SELECT 1 FROM Favorites s WHERE s.FavoriteId=$id AND s.CurrentRevisionId=r.RevisionId)
+FROM Revisions r INDEXED BY IX_Revisions_Favorite JOIN Contents c ON c.ContentId=r.ContentId
+WHERE r.FavoriteId=$id AND r.FavoriteId IS NOT NULL" +
+        (after ? " AND (r.CreatedAt,r.RevisionId) < ($time,$revision)" : "") +
+        " ORDER BY r.CreatedAt DESC,r.RevisionId DESC LIMIT $limit;";
+
+    private static (long Ticks, string RevisionId)? DecodeRevisionCursor(string? cursor, string prefix)
+    {
+        if (cursor == null) return null;
+        if (cursor.Length > 512) throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本分頁游標無效。");
+        string value;
+        try { value = Encoding.UTF8.GetString(Convert.FromBase64String(cursor)); }
+        catch (FormatException) { throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本分頁游標無效。"); }
+        var parts = value.StartsWith(prefix, StringComparison.Ordinal) ? value.Substring(prefix.Length).Split('|') : Array.Empty<string>();
+        if (parts.Length != 2 || !long.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var ticks) ||
+            ticks > DateTime.MaxValue.Ticks || !Guid.TryParseExact(parts[1], "N", out var revision))
+            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本游標失效或不屬於這個收藏。");
+        return (ticks, Id(revision));
+    }
+
     /// <summary>必須沿 scope 索引串流而沒有暫存排序，搜尋預算才真的限制讀入的 BLOB；由 EXPLAIN 測試守住。</summary>
     internal static string FavoritePageSql(bool after, bool includeSql) =>
         FavoriteProjection + (includeSql ? ",c.SqlBytes" : "") + FavoriteSource + @"

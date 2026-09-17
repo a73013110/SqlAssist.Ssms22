@@ -45,7 +45,11 @@ internal static partial class SqlIcons
         SqlIcon.Refresh => KnownMonikers.Refresh,
         SqlIcon.Settings => KnownMonikers.Settings,
         SqlIcon.SortAscending => KnownMonikers.SortAscending,
-        SqlIcon.SortDescending => KnownMonikers.SortDescending
+        SqlIcon.SortDescending => KnownMonikers.SortDescending,
+        SqlIcon.Preview => KnownMonikers.ScriptPreview,
+        SqlIcon.Compare => KnownMonikers.Diff,
+        // 回溯是「以舊版本另存新版本」，借用復原的形狀；語意由標籤與確認框說清楚。
+        SqlIcon.Revert => KnownMonikers.Undo
     };
 #pragma warning restore CS8524
 

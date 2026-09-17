@@ -21,7 +21,7 @@ internal sealed class SqlMemoryItemCommands
     public const string AddedToFavorites = "已加入收藏；可到 Favorites 查看。";
 
     private readonly SqlAssistPackage _package;
-    private int _busy;
+    private readonly SqlMemoryOperationGate _gate = new();
 
     public SqlMemoryItemCommands(SqlAssistPackage package) => _package = package;
 
@@ -31,7 +31,7 @@ internal sealed class SqlMemoryItemCommands
     /// <summary>收藏已更新；第二個參數是重讀後的新列，收藏已不存在時為 null。</summary>
     public event Action<SqlMemoryRow, SqlMemoryRow?>? Replaced;
 
-    public bool IsBusy => Volatile.Read(ref _busy) != 0;
+    public bool IsBusy => _gate.IsBusy;
 
     public static bool CanRun(SqlMemoryRowAction action, SqlMemoryRow? row) =>
         row is not null && SqlMemoryHost.Runtime.IsAvailable && SqlMemoryRowCommand.For(action).AppliesTo(row.IsFavorite);
@@ -74,6 +74,10 @@ internal sealed class SqlMemoryItemCommands
                     });
                 }
                 break;
+            case SqlMemoryRowAction.Revisions:
+                if (FavoriteRevisionsWindow.Show(_package, row.Favorite!))
+                    await ReloadFavoriteAsync(row, token, report, "已回溯；收藏的目前版本已更新。");
+                break;
             case SqlMemoryRowAction.EditMetadata:
                 if (new FavoriteMetadataWindow(_package, row, true).ShowModal() == true)
                     await ReloadFavoriteAsync(row, token, report, "收藏資料已儲存。");
@@ -104,7 +108,7 @@ internal sealed class SqlMemoryItemCommands
                 "查詢視窗若仍開著，之後的編輯會再產生新紀錄。刪除後無法復原。", "刪除");
         if (!confirmed) return;
 
-        await WithStorageAsync(token, report, "刪除", async () =>
+        await _gate.RunAsync(token, report, "刪除", async () =>
         {
             if (row.Favorite is { } item)
             {
@@ -128,7 +132,7 @@ internal sealed class SqlMemoryItemCommands
     }
 
     private Task ReloadFavoriteAsync(SqlMemoryRow row, CancellationToken token, Action<string> report, string success) =>
-        WithStorageAsync(token, report, "重新讀取收藏", async () =>
+        _gate.RunAsync(token, report, "重新讀取收藏", async () =>
         {
             var current = await SqlMemoryHost.Runtime.ReadFavoriteAsync(row.Favorite!.Favorite.FavoriteId, token);
             return () =>
@@ -142,37 +146,11 @@ internal sealed class SqlMemoryItemCommands
         Func<string, Task> use)
     {
         if (loadedSql is not null) return use(loadedSql);
-        return WithStorageAsync(token, report, verb, async () =>
+        return _gate.RunAsync(token, report, verb, async () =>
         {
             var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.ContentId, token);
             if (content is null) throw new InvalidOperationException("內容已不存在，請重新整理。");
             return () => { _ = SqlMemoryActions.RunAsync(() => use(content.SqlText), report); };
         });
     }
-
-    /// <summary>
-    /// 一次等儲存的操作：拒絕重入、記下宿主世代，回來時仍屬於同一份儲存才套用結果。
-    /// </summary>
-    /// <param name="work">背景部分；回傳在 UI 執行緒套用結果的動作。</param>
-    private async Task WithStorageAsync(CancellationToken token, Action<string> report, string verb, Func<Task<Action>> work)
-    {
-        if (Interlocked.Exchange(ref _busy, 1) != 0) return;
-        var generation = SqlMemoryHost.Runtime.Generation;
-        Action? apply = null;
-        try
-        {
-            apply = await work();
-        }
-        catch (Exception error) when (error is not OperationCanceledException)
-        {
-            // 切頁或停用後才回來的失敗不能蓋掉新頁面的訊息；取消本來就不回報。
-            if (IsCurrent(generation, token)) report(SqlMemoryTimeText.Failure(verb, error));
-            return;
-        }
-        finally { Interlocked.Exchange(ref _busy, 0); }
-        if (IsCurrent(generation, token)) apply();
-    }
-
-    private static bool IsCurrent(long generation, CancellationToken token) =>
-        !token.IsCancellationRequested && SqlMemoryHost.Runtime.IsAvailable && generation == SqlMemoryHost.Runtime.Generation;
 }

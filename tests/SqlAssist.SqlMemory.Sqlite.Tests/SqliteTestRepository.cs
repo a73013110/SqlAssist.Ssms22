@@ -57,6 +57,9 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         Run(token => _favorites.DeleteFavorite(favoriteId, expectedVersion, token), cancellationToken);
     public Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken) =>
         Run(token => _favorites.EditFavoriteSql(edit, token), cancellationToken);
+    public Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
+        CancellationToken cancellationToken) =>
+        Run(token => _favorites.ReadFavoriteRevisions(request, token), cancellationToken);
 
     public Task<SqlMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
         Run(token => _maintenance.ReadUsage(token), cancellationToken);

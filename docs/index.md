@@ -20,6 +20,7 @@
 | 分層、平台邊界、Guard | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
 | 型別／資料夾 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
 | SQL Memory／History／Favorites | [產品與架構](sql-memory.md)／[儲存與收藏](sql-memory-storage.md)／[搜尋](sql-memory-search.md)／[UI 互動](sql-memory-ui.md) |
+| 收藏版本歷史、回溯、SQL 差異 | [版本歷史](sql-memory-revisions.md) |
 | SQL Memory retention／容量／部署 | [維護](sql-memory-maintenance.md)／[驗收](sql-memory-validation.md) |
 | 建議清單、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |

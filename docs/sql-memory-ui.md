@@ -18,7 +18,7 @@
   重整可恢復仍在第一頁的選取，沒有選取時預覽第一筆，但不搶鍵盤焦點。
 - SQL card 只顯示單行摘要，名稱、狀態、時間及精簡連線 badge；完整 SQL 在 Detail，截斷資訊可用 Tooltip。
   卡片快速操作、快捷選單與 Preview 都由 `SqlMemoryRowCommand.All` 建立、交給 `SqlMemoryItemCommands` 執行：
-  順序固定為開新 Query、複製、新增至收藏（History）／編輯 SQL、編輯收藏資料（Favorites），破壞性的刪除隔開排最後；
+  順序固定為開新 Query、複製、新增至收藏（History）／編輯 SQL、版本歷史、編輯收藏資料（Favorites），破壞性的刪除隔開排最後；
   不適用的操作收起。Preview 右側沿用同一順序，開新 Query 是該面板的主要動作，複製全文與換行留在左側工具列。
   停駐與按下的回饋預設中性；刪除與新增至收藏改用語意色調，底色與配對前景由 `ThemePalette` 推導並檢查對比，
   高對比回系統選取色。語意色是稀少的警示，不是分類標籤。
@@ -76,5 +76,5 @@ metadata 與 SQL 各用一個對話框：前者不讀全文，後者使用共用
 開新 Query 沿用目前 SSMS 連線，不採用歷史／收藏 scope，也不直接執行。
 只透過 `SsmsScriptWindow`／`TextViewEditCoordinator` 寫入剛建立且仍空白的編輯器；失敗仍可複製 SQL。
 
-本版不提供舊版本列表／還原、覆蓋目前 Query、批次刪除或跨 scope 合併。
+收藏的版本時間軸、差異比對與回溯見[版本歷史](sql-memory-revisions.md)。本版不提供覆蓋目前 Query、批次刪除或跨 scope 合併。
 自動 WPF 渲染與 SSMS 實機驗收的範圍見[驗收](sql-memory-validation.md)。

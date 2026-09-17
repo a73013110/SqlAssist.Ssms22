@@ -39,6 +39,44 @@ public interface ISqlFavoriteStore
     /// 版本不符或收藏不存在都回 Conflict，不留下部分寫入；重送不冪等，回應遺失後先重讀。
     /// </summary>
     Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 收藏的版本時間軸，新到舊以 (CreatedAt, RevisionId) keyset 分頁；只帶列表投影，全文另以 ContentId 讀取。
+    /// </summary>
+    /// <remarks>
+    /// 包含收藏自己建立的版本，以及目前版本——即使它是引用自 History、不屬於這個收藏的擷取版本。
+    /// 不走 ParentRevisionId：收藏版本刻意不串版本鏈。清單只剩維護配額還保留的版本，
+    /// 不代表完整編輯史；收藏不存在回空頁。回溯不另設寫入路徑，一律以舊版本全文走
+    /// <see cref="EditFavoriteSqlAsync"/> 產生新版本。
+    /// </remarks>
+    Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>版本時間軸的一列；不讀全文就能畫出清單。</summary>
+/// <param name="Reason"><see cref="SqlRevisionReason.Favorite"/> 以外表示引用自 History 的擷取版本。</param>
+/// <param name="Preview">與 <see cref="SqlFavoriteItem.Preview"/> 同一份有界單行投影。</param>
+/// <param name="Length">全文的 UTF-16 code unit 數；讓介面在讀全文前就知道要不要降級比對。</param>
+[Serializable]
+public sealed record SqlFavoriteRevisionItem(Guid RevisionId, string ContentId, DateTimeOffset CreatedAt,
+    SqlRevisionReason Reason, bool IsCurrent, string Preview, int Length);
+
+[Serializable]
+public sealed class SqlFavoriteRevisionRequest
+{
+    /// <param name="cursor">上一頁的 NextCursor；綁定儲存與收藏，換收藏沿用會被拒絕。</param>
+    public SqlFavoriteRevisionRequest(Guid favoriteId, int pageSize, string? cursor = null)
+    {
+        if (favoriteId == Guid.Empty) throw new ArgumentException("SQL Favorite 必須有識別碼。", nameof(favoriteId));
+        if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
+        FavoriteId = favoriteId;
+        PageSize = pageSize;
+        Cursor = cursor;
+    }
+
+    public Guid FavoriteId { get; }
+    public int PageSize { get; }
+    public string? Cursor { get; }
 }
 
 // 版本使用不可重用的 token，避免刪除後以相同 Id 重建，讓舊編輯器誤覆寫新資料。

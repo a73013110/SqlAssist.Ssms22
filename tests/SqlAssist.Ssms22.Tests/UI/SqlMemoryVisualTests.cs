@@ -227,7 +227,7 @@ public sealed class SqlMemoryVisualTests
 
             var favorites = Render(favorite);
             Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.EditSql,
-                SqlMemoryRowAction.EditMetadata, SqlMemoryRowAction.Delete }, Shown(favorites));
+                SqlMemoryRowAction.Revisions, SqlMemoryRowAction.EditMetadata, SqlMemoryRowAction.Delete }, Shown(favorites));
             Assert.Equal("從收藏移除", System.Windows.Automation.AutomationProperties.GetName(
                 favorites.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete)));
             Assert.All(history.Concat(favorites), button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));

@@ -35,6 +35,10 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIconImage.cs" Link="Product\UI\SqlIconImage.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlFavoriteRevisionRow.cs" Link="Product\SqlMemory\SqlFavoriteRevisionRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFavoriteRevisionList.cs" Link="Product\UI\SqlFavoriteRevisionList.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Revisions.cs" Link="Product\UI\SqlAssistChrome.Revisions.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextDiffView.cs" Link="Product\UI\SqlTextDiffView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryDatabaseArchive.cs" Link="Product\SqlMemory\SqlMemoryDatabaseArchive.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.SqlMemory.cs" Link="Product\UI\SqlAssistChrome.SqlMemory.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextEditor.cs" Link="Product\UI\SqlTextEditor.cs" />
