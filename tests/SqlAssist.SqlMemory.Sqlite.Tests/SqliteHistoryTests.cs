@@ -13,12 +13,98 @@ public sealed class SqliteHistoryTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    private static string Distinct(int sequence) => "SELECT * FROM Lib_Reader WHERE ReaderId=" + sequence + ";";
+
+    [Fact]
+    public async Task ConsecutiveIdenticalExecutionsMergeIntoOneHistoryRowButKeepEveryEvent()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        // 沒有連線也算相同連線：兩邊都是 NULL 時照樣合併。
+        for (var i = 1; i <= 3; i++) await store.Process(repository, store.Capture(i, seconds: i), Token);
+
+        var row = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(3, row.ExecutionCount);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(1), row.FirstExecutedAt);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(3), row.CreatedAt);
+        Assert.Null(row.Connection);
+        Assert.Equal(3L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(DISTINCT EntryKey) FROM Executions;"));
+        Assert.Equal("e" + row.ItemId.ToString("N"), store.Scalar("SELECT LatestExecutionEntryKey FROM Sessions;"));
+        // 草稿不帶次數與首次執行時間，schema 的 CHECK 也不允許。
+        var draft = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items;
+        Assert.All(draft, item => { Assert.Equal(1, item.ExecutionCount); Assert.Null(item.FirstExecutedAt); });
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task OnlyConsecutiveExecutionsWithTheSameContentAndConnectionInTheSameSessionMerge()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        var library = new SqlConnectionLabel("LibraryServer", "Library");
+        const string a = "SELECT * FROM Lib_Reader;", b = "SELECT * FROM Lib_Tag;";
+        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId);
+        await store.Process(repository, store.Capture(1, a, seconds: 1, context: library), Token);
+        await store.Process(repository, store.Capture(2, a, seconds: 2, context: library), Token);
+        // 連線名稱只差大小寫也是另一個連線，與篩選的精確比對一致。
+        await store.Process(repository, store.Capture(3, a, seconds: 3, context: new SqlConnectionLabel("LIBRARYSERVER", "Library")), Token);
+        await store.Process(repository, store.Capture(4, a, seconds: 4, context: new SqlConnectionLabel("LIBRARYSERVER", "Archive")), Token);
+        await store.Process(repository, store.Capture(5, b, seconds: 5, context: library), Token);
+        await store.Process(repository, store.Capture(6, a, seconds: 6, context: library), Token);
+        // 另一個視窗執行同一份 SQL 不合併；原視窗接著再執行，仍併回它自己的上一筆。
+        await store.Process(repository, store.Capture(1, a, seconds: 7, context: library, session: other), Token);
+        await store.Process(repository, store.Capture(7, a, seconds: 8, context: library), Token);
+
+        var rows = (await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions), Token)).Items;
+        Assert.Equal(new[] { 8, 7, 5, 4, 3, 2 }, rows.Select(row => (int)(row.CreatedAt - SqliteTestStore.Start).TotalSeconds));
+        Assert.Equal(new[] { 2, 1, 1, 1, 1, 2 }, rows.Select(row => row.ExecutionCount));
+        Assert.Equal(other.SessionId, rows[1].SessionId);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(6), rows[0].FirstExecutedAt);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(1), rows[5].FirstExecutedAt);
+        Assert.Equal(8L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
+    public async Task DeletingAMergedRowRemovesEveryExecutionUnderIt()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        const string copy = "SELECT CopyNo FROM Cat_BookCopy;";
+        await store.Process(repository, store.Capture(1, selected: copy, seconds: 1), Token);
+        await store.Process(repository, store.Capture(2, selected: copy, seconds: 2), Token);
+        await store.Process(repository, store.Capture(3, selected: "SELECT * FROM Loan;", seconds: 3), Token);
+        var rows = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items;
+        var merged = Assert.Single(rows, row => row.ExecutionCount == 2);
+
+        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(merged, Token));
+
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM History WHERE Kind=1;"));
+        // 底下所有執行都刪掉後，選取版本失去最後的引用，連同內容一起回收。
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE IsExecutionSelection=1;"));
+        Assert.Null(await repository.ReadContentAsync(merged.ContentId, Token));
+        Assert.Equal(SqlHistoryDeleteResult.NotFound, await repository.DeleteHistoryAsync(merged, Token));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+
+        // Session 記下的上一筆執行列被刪掉後，同一份 SQL 再執行要另起新列，不能復活舊鍵。
+        var latest = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(latest, Token));
+        await store.Process(repository, store.Capture(4, selected: "SELECT * FROM Loan;", seconds: 4), Token);
+        var again = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(1, again.ExecutionCount);
+        Assert.NotEqual(latest.ItemId, again.ItemId);
+        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
+    }
+
     [Fact]
     public async Task SameTimestampKeysetPagingHasNoMissingOrDuplicateEntries()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        for (var i = 1; i <= 23; i++) await store.Process(repository, store.Capture(i), Token);
+        // 每次內容不同：同 Session 連續執行同一份 SQL 會併成一列，這裡要的是 23 列同時間的投影。
+        for (var i = 1; i <= 23; i++) await store.Process(repository, store.Capture(i, Distinct(i)), Token);
         var ids = new HashSet<Guid>();
         string? cursor = null;
         do
@@ -136,7 +222,7 @@ public sealed class SqliteHistoryTests
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        for (var i = 1; i <= 3; i++) await store.Process(repository, store.Capture(i), Token);
+        for (var i = 1; i <= 3; i++) await store.Process(repository, store.Capture(i, Distinct(i)), Token);
         var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(1, SqlHistoryFilter.Executions), Token);
         Assert.NotNull(page.NextCursor);
         await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(

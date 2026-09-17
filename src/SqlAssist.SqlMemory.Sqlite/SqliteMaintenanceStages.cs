@@ -64,6 +64,13 @@ internal static class SqliteMaintenanceStages
  WHERE FavoriteId IS NOT NULL AND FavoriteId=$group AND CreatedAt<$cutoff AND (CreatedAt,RevisionId)>($time,$key)
  ORDER BY CreatedAt,RevisionId LIMIT $limit;";
 
+    // 合併的 History 列回收部分執行後，從剩下的執行各取最新與最早一端；只讀一個索引項，不隨合併次數成長。
+    public const string LatestEntryExecution = @"SELECT RevisionId,ExecutedAt FROM Executions INDEXED BY IX_Executions_Entry
+ WHERE EntryKey=$entry ORDER BY EntryKey DESC,ExecutedAt DESC,ExecutionId DESC LIMIT 1;";
+
+    public const string FirstEntryExecution = @"SELECT ExecutedAt FROM Executions INDEXED BY IX_Executions_Entry
+ WHERE EntryKey=$entry ORDER BY EntryKey,ExecutedAt,ExecutionId LIMIT 1";
+
     public static string ByKey(SqliteMaintenanceStage stage)
     {
         var (table, key) = stage switch
@@ -75,7 +82,7 @@ internal static class SqliteMaintenanceStages
         return "SELECT " + key + " FROM " + table + " WHERE " + key + ">$key ORDER BY " + key + " LIMIT $limit;";
     }
 
-    /// <summary>候選與分組查詢及預期命中的索引；供 EXPLAIN QUERY PLAN 回歸測試逐一確認。</summary>
+    /// <summary>候選、分組與合併列重算查詢及預期命中的索引；供 EXPLAIN QUERY PLAN 回歸測試逐一確認。</summary>
     public static IEnumerable<(string Sql, string Index)> CandidateQueries() => new[]
     {
         (Executions, "IX_Executions_Time"),
@@ -85,5 +92,7 @@ internal static class SqliteMaintenanceStages
         (FavoriteRevisionGroup, "IX_Revisions_Favorite"),
         (FavoriteRevisions, "IX_Revisions_Favorite"),
         (Recovery, "IX_Recovery_Time"),
+        (LatestEntryExecution, "IX_Executions_Entry"),
+        (FirstEntryExecution, "IX_Executions_Entry"),
     };
 }

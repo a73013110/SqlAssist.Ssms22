@@ -16,12 +16,17 @@
 - 有程序心跳租約的 Recovery。
 
 Execution 配額同時限制執行專用版本；auto revision 配額只認非選取的 AutoCheckpoint。
+
+Execution 期限與筆數配額以**執行事件**計，不以 History 列計：儲存與巡查的單位都是事件，以列計會讓一個候選
+帶出合併列底下無界的執行。[合併列](sql-memory-search.md)跟著剩下的執行走：刪一筆就把次數減一，並沿
+`IX_Executions_Entry` 各讀一個索引項重算最後時間、引用版本與 `FirstExecutedAt`；最後一筆被刪才刪投影並釋出內容。
+收藏保護的執行留下時，列時間可能退回那一次。畫面上的次數只代表仍保存的執行，列數可能少於配額。
 舊 auto revision 可先離開 History，但 ParentRevision 鏈仍保護內容；不能把清單減少當成版本已回收。
 不清空 head、不關閉外鍵、不改寫不可變版本，也不刪除 Session／Document／Capture 重送紀錄。
 
 收藏存在時，它自己建立的版本只受每 Favorite 配額處理，草稿期限不套用；目前引用另外受保護。
 移除收藏後，失去根的版本才依草稿期限回收。每 Session／Favorite 的界線一批只解析一次並快取，
-部分索引 `IX_Revisions_SessionAuto`、`IX_Revisions_Favorite` 及 `IX_Executions_Time` 避免全表排序。
+部分索引 `IX_Revisions_SessionAuto`、`IX_Revisions_Favorite` 及 `IX_Executions_Time`／`IX_Executions_Entry` 避免全表排序。
 
 ## 有界巡查
 

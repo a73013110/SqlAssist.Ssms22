@@ -180,26 +180,46 @@ internal sealed class SqliteMaintenanceBatch
         Examined++;
     }
 
+    /// <remarks>
+    /// 配額與期限以執行事件計，合併的 History 列跟著它剩下的執行走：刪到最後一筆才刪投影，
+    /// 否則依剩餘執行重算次數、首次與最後時間及引用版本。剩餘執行沿 <c>IX_Executions_Entry</c> 各取一端，
+    /// 不隨合併次數增加讀取量；一個候選仍最多刪除本體與投影兩列。
+    /// </remarks>
     private int DeleteExecution(string key)
     {
-        string revision;
-        using (var read = Command(_connection, _transaction, "SELECT RevisionId FROM Executions WHERE ExecutionId=$id;",
+        string revision, entry;
+        using (var read = Command(_connection, _transaction, "SELECT RevisionId,EntryKey FROM Executions WHERE ExecutionId=$id;",
             ("$id", key)))
+        using (var reader = read.ExecuteReader())
         {
-            if (read.ExecuteScalar() is not string value) return 0;
-            revision = value;
+            if (!reader.Read()) return 0;
+            revision = reader.GetString(0);
+            entry = reader.GetString(1);
         }
         var parameters = new (string Name, object? Value)[]
         {
-            ("$id", key), ("$revision", revision), ("$execution", ExecutionCutoff), ("$history", "e" + key),
+            ("$id", key), ("$revision", revision), ("$execution", ExecutionCutoff), ("$entry", entry),
         };
-        // 一個候選最多刪除兩列，沒有 CASCADE 或無界的子列刪除。
-        var eligible = "SELECT 1 FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision;
-        var deleted = DeleteReleasing("History", "EntryKey=$history",
-            "DELETE FROM History WHERE EntryKey=$history AND EXISTS(" + eligible + ");", parameters);
-        var executions = Delete("DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
-            UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
-        return deleted + executions;
+        var executions = Delete("DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" + UnprotectedRevision + ";",
+            parameters);
+        if (executions == 0) return 0;
+        string? latestRevision = null;
+        long latest = 0;
+        using (var read = Command(_connection, _transaction, SqliteMaintenanceStages.LatestEntryExecution, parameters))
+        using (var reader = read.ExecuteReader())
+        {
+            if (reader.Read())
+            {
+                latestRevision = reader.GetString(0);
+                latest = reader.GetInt64(1);
+            }
+        }
+        if (latestRevision == null)
+            return executions + DeleteReleasing("History", "EntryKey=$entry", "DELETE FROM History WHERE EntryKey=$entry;", parameters);
+        Execute(_connection, _transaction, @"UPDATE History SET ExecutionCount=ExecutionCount-1, CreatedAt=$latest,
+ RevisionId=$latestRevision, FirstExecutedAt=(" + SqliteMaintenanceStages.FirstEntryExecution + @")
+ WHERE EntryKey=$entry;", ("$entry", entry), ("$latest", latest), ("$latestRevision", latestRevision));
+        return executions;
     }
 
     private int DeleteDraftHistory(string key)

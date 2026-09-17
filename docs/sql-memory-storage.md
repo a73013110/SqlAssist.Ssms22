@@ -4,7 +4,7 @@
 
 ## 單一 schema
 
-功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=4`、
+功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=5`、
 `application_id=0x534d454d`。不保留開發期間的升級鏈、舊表、別名或 schema fixture。
 宿主使用 `%LOCALAPPDATA%\SqlAssist.Ssms22\SQLMemory\SQLMemory.db`，不搬移或刪除早期測試資料。
 已有不同身分／版本、外來或損壞資料庫明確拒絕，不自動刪檔；由使用者在工具窗按下重建才封存。
@@ -48,7 +48,7 @@ Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents tr
 
 分頁、游標、搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 
-`DeleteHistoryAsync` 在 IMMEDIATE 交易刪投影與它自己的本體：執行刪 Executions、Recovery 刪該列；
+`DeleteHistoryAsync` 在 IMMEDIATE 交易刪投影與它自己的本體：執行列刪併進它的全部 Executions、Recovery 刪該列；
 版本只在沒有保護根與其他引用時刪除，引用清單與維護共用 `SqliteContentRows`。釋出的 Content 同交易回收。
 不存在或不屬於該 Session 回 NotFound；仍開著的 Session 下一次擷取照常重寫 Recovery。
 

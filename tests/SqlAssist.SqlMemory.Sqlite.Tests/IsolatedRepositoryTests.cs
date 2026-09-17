@@ -114,8 +114,9 @@ public sealed class IsolatedRepositoryTests
             .ProcessAsync(store.Capture(sql: "SELECT * FROM Lib_Reader WHERE Note = '" + new string('x', 500_000) + "';"),
                 SqliteTestStore.Policy, token);
         store.Scalar(@"WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 3000)
-INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,Server,DatabaseName)
-SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.CreatedAt, h.Kind, h.Server, h.DatabaseName
+INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,Server,DatabaseName,ExecutionCount,FirstExecutedAt)
+SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.CreatedAt, h.Kind, h.Server, h.DatabaseName,
+ h.ExecutionCount, h.FirstExecutedAt
 FROM n, (SELECT * FROM History LIMIT 1) h;");
     }
 

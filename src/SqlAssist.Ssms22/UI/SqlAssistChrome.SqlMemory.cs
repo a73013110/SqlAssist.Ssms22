@@ -397,11 +397,12 @@ internal static partial class SqlAssistChrome
         var panel = new FrameworkElementFactory(typeof(StackPanel));
         var heading = new FrameworkElementFactory(typeof(DockPanel)); panel.AppendChild(heading);
         var state = BoundBadge("Status", "state", iconProperty: "StatusIcon"); state.SetValue(DockPanel.DockProperty, Dock.Left); heading.AppendChild(state);
+        var count = CountBadge(); count.SetValue(DockPanel.DockProperty, Dock.Left); heading.AppendChild(count);
         var time = BoundText("RelativeTime"); time.Name = "time"; time.SetValue(DockPanel.DockProperty, Dock.Right);
         time.SetValue(FrameworkElement.MaxWidthProperty, 136d);
         time.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
-        time.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Timestamp")); heading.AppendChild(time);
+        time.SetBinding(FrameworkElement.ToolTipProperty, new Binding("TimeSummary")); heading.AppendChild(time);
         var title = BoundText("Name"); title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
         title.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0)); heading.AppendChild(title);
         var code = new FrameworkElementFactory(typeof(Border)); code.SetResourceReference(Border.BackgroundProperty, ThemeBrush.RowAlternate);
@@ -438,6 +439,7 @@ internal static partial class SqlAssistChrome
         var template = new DataTemplate { VisualTree = panel };
         template.Triggers.Add(favorite); template.Triggers.Add(history);
         CollapseEmptyConnectionBadges(template);
+        CollapseSingleExecution(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);
@@ -498,6 +500,31 @@ internal static partial class SqlAssistChrome
         }
     }
 
+    /// <summary>
+    /// 連續相同執行的「×N」：沒有圖示的精簡中性膠囊，外框與高度沿用連線膠囊。回答的是次數，
+    /// 不借執行狀態的強調色；只有一次時收起，不在每張卡片留「×1」。
+    /// </summary>
+    private static FrameworkElementFactory CountBadge()
+    {
+        var badge = new FrameworkElementFactory(typeof(Border)) { Name = "count" };
+        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        badge.SetValue(Border.PaddingProperty, new Thickness(5, 1, 5, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
+        badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        badge.SetBinding(AutomationProperties.NameProperty, new Binding("ExecutionCountToolTip"));
+        var text = BoundText("ExecutionCountText"); text.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
+        text.SetBinding(FrameworkElement.ToolTipProperty, new Binding("ExecutionCountToolTip"));
+        text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
+        badge.AppendChild(text);
+        return badge;
+    }
+
+    private static void CollapseSingleExecution(DataTemplate template)
+    {
+        var single = new DataTrigger { Binding = new Binding("ExecutionCountText"), Value = "" };
+        single.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "count")); template.Triggers.Add(single);
+    }
+
     private static FrameworkElementFactory BoundBadge(string property, string name, SqlIcon? icon = null, string? iconProperty = null)
     {
         var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
@@ -524,17 +551,19 @@ internal static partial class SqlAssistChrome
         panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
         // 膠囊全部排在前面，檔名與時間緊接在後：文字不再被夾在兩組膠囊中間，資訊列一眼讀得完。
         panel.AppendChild(BoundBadge("Status", "state", iconProperty: "StatusIcon"));
+        panel.AppendChild(CountBadge());
         AppendConnectionBadges(panel);
         var name = BoundText("Name");
         name.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 8, 0));
         name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
-        var time = BoundText("Timestamp"); time.Name = "Timestamp";
+        var time = BoundText("TimeSummary"); time.Name = "Timestamp";
         time.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground); panel.AppendChild(time);
         var template = new DataTemplate { VisualTree = panel };
-        var noTime = new DataTrigger { Binding = new Binding("Timestamp"), Value = "" };
+        var noTime = new DataTrigger { Binding = new Binding("TimeSummary"), Value = "" };
         noTime.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "Timestamp")); template.Triggers.Add(noTime);
         CollapseEmptyConnectionBadges(template);
+        CollapseSingleExecution(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);

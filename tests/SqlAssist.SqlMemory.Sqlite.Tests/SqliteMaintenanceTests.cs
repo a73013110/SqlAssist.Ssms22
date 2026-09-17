@@ -61,6 +61,32 @@ public sealed class SqliteMaintenanceTests
     }
 
     [Fact]
+    public async Task ExecutionQuotaCountsEventsAndRecomputesTheMergedRow()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var sequence = 1; sequence <= 5; sequence++)
+            await store.Process(repository, store.Capture(sequence, selected: "SELECT CopyNo FROM Cat_BookCopy;", seconds: sequence), Token);
+        var merged = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(5, merged.ExecutionCount);
+
+        // 配額算事件：留下最新兩次，列本身還在，次數與首次時間依剩下的執行重算，最後時間不變。
+        await Drain(repository, new SqlRetentionPolicy(null, null, null, 2), budget: 1);
+        var kept = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(merged.ItemId, kept.ItemId);
+        Assert.Equal(2, kept.ExecutionCount);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(4), kept.FirstExecutedAt);
+        Assert.Equal(SqliteTestStore.Start.AddSeconds(5), kept.CreatedAt);
+        Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Executions;"));
+
+        // 最後一筆執行過期才刪投影；選取版本與內容跟著失去引用。
+        await Drain(repository, Expired());
+        Assert.Empty((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Executions;"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+    }
+
+    [Fact]
     public async Task ExecutionQuotaKeepsTiedTimestampsAndProtectedRootsAboveTheLimit()
     {
         using var store = new SqliteTestStore();

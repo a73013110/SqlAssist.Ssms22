@@ -44,6 +44,7 @@ public sealed class SqlCapturePlannerTests
             var context = new SqlConnectionLabel("LibraryServer", "Library" + i);
             var capture = Capture(i, kind: SqlCaptureKind.BeforeExecute, connection: context);
             var write = Prepare(capture, state);
+            // 每次執行仍各自是一個事件；連續相同執行併成一列 History 由儲存交易決定，引擎不預先合併。
             Assert.NotNull(write.Execution);
             Assert.Equal(capture.CaptureId, write.Execution.ExecutionId);
             // 連線跟著這一次提交寫進 History 投影；重用的版本本身不帶連線，不會被第一次執行凍結。

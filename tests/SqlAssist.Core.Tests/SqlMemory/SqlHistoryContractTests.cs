@@ -34,6 +34,17 @@ public sealed class SqlHistoryContractTests
     }
 
     [Fact]
+    public void HistoryItemDefaultsToASingleEventWithoutFirstExecution()
+    {
+        var draft = new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), null, "id", Start, SqlHistoryFilter.Drafts, "Library.sql",
+            "SELECT * FROM Loan;", null);
+        Assert.Equal(1, draft.ExecutionCount);
+        Assert.Null(draft.FirstExecutedAt);
+        var merged = draft with { Kind = SqlHistoryFilter.Executions, ExecutionCount = 3, FirstExecutedAt = Start.AddMinutes(-5) };
+        Assert.NotEqual(draft with { Kind = SqlHistoryFilter.Executions }, merged);
+    }
+
+    [Fact]
     public void CaptureRejectsInvalidIdentitySequenceAndSelection()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Capture(0));
