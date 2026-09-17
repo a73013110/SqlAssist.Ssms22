@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
@@ -28,8 +27,8 @@ internal sealed class FavoriteEditorWindow : DialogWindow
     private readonly (string Name, string Description, string Server, string Database) _initial;
     private readonly TextBox _name = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBox _description = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-    private readonly TextBox _server = CreateTagInput();
-    private readonly TextBox _database = CreateTagInput();
+    private readonly TextBox _server = SqlConnectionTagInput.CreateInput();
+    private readonly TextBox _database = SqlConnectionTagInput.CreateInput();
     private readonly SqlTextEditor _editor;
     private readonly SqlScriptTheme _theme;
     private readonly TextBlock _sqlSummary = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
@@ -147,49 +146,10 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         _form.Children.Add(element);
     }
 
-    private static TextBox CreateTagInput()
-    {
-        var input = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-        input.MaxLength = SqlFavoriteSave.MaxTagLength;
-        input.ToolTip = "精確名稱；留空表示不限。";
-        return input;
-    }
-
-    /// <summary>標註欄位：可自由輸入，下拉列出 History 與收藏出現過的名稱，減少一字之差篩不到的情形。</summary>
-    private Border TagBar(SqlIcon icon, TextBox input, string label, bool databases)
-    {
-        var dropDown = SqlAssistChrome.CreateDropDownButton("選擇出現過的" + label);
-        var menu = new ContextMenu { PlacementTarget = input, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-        VsThemeBrushes.Apply(menu);
-        dropDown.Click += (_, _) => _ = SqlMemoryActions.RunAsync(() => OpenSuggestionsAsync(menu, input, label, databases), Report);
-        return SqlAssistChrome.CreateInputBar(icon, input, dropDown);
-    }
-
-    private async Task OpenSuggestionsAsync(ContextMenu menu, TextBox input, string label, bool databases)
-    {
-        if (!SqlMemoryHost.Runtime.IsAvailable) { Report("SQL Memory 尚未就緒，無法列出名稱。"); return; }
-        var server = databases && _server.Text.Trim() is { Length: > 0 } text ? text : null;
-        var names = new List<string>();
-        // 最近使用的連線在前，只在收藏標註出現過的名稱補在後面；同名只列一次。
-        foreach (var favorites in new[] { false, true })
-            foreach (var name in await SqlMemoryHost.Runtime.ReadConnectionFacetsAsync(
-                new SqlConnectionFacetRequest(favorites, databases, server), _package.DisposalToken))
-                if (!names.Contains(name)) names.Add(name);
-
-        menu.Items.Clear();
-        var clear = new MenuItem { Header = "不限（清除" + label + "）", Icon = SqlAssistChrome.CreateIcon(SqlIcon.Clear) };
-        clear.Click += (_, _) => input.Clear();
-        menu.Items.Add(clear);
-        menu.Items.Add(new Separator());
-        if (names.Count == 0) menu.Items.Add(new MenuItem { Header = "沒有記錄過的" + label, IsEnabled = false });
-        foreach (var name in names)
-        {
-            var item = new MenuItem { Header = name, IsCheckable = true, IsChecked = string.Equals(name, input.Text.Trim(), StringComparison.Ordinal) };
-            item.Click += (_, _) => { input.Text = name; input.CaretIndex = name.Length; };
-            menu.Items.Add(item);
-        }
-        menu.IsOpen = true;
-    }
+    /// <summary>標註欄位：最近使用的 History 連線在前，只在收藏標註出現過的名稱補在後面。</summary>
+    private Border TagBar(SqlIcon icon, TextBox input, string label, bool databases) =>
+        SqlConnectionTagInput.CreateBar(_package, icon, input, label, databases,
+            () => databases && _server.Text.Trim() is { Length: > 0 } text ? text : null, includeFavorites: true, Report);
 
     private void UseCurrentConnection()
     {

@@ -53,6 +53,7 @@ internal static class SqlMemoryHost
             _package = package;
             SqlAssistSettingsStore.Changed += OnSettingsChanged;
             Runtime.CaptureDropped += OnCaptureDropped;
+            Runtime.CapacityChanged += OnCapacityChanged;
             Runtime.Start();
         }
 
@@ -68,6 +69,7 @@ internal static class SqlMemoryHost
             _initialized = false;
             SqlAssistSettingsStore.Changed -= OnSettingsChanged;
             Runtime.CaptureDropped -= OnCaptureDropped;
+            Runtime.CapacityChanged -= OnCapacityChanged;
             _package = null;
         }
 
@@ -106,6 +108,20 @@ internal static class SqlMemoryHost
     {
         if (drop.ShouldNotify && Volatile.Read(ref _package) is { } package)
             SqlAssistStatusBar.Show(package, drop.NotificationText);
+    }
+
+    /// <summary>
+    /// 容量剛進入 Critical 時提醒一次；與擷取被丟棄同一條狀態列通道，不另開卡片或對話框。
+    /// </summary>
+    /// <remarks>
+    /// 防抖在 Core 的 <see cref="SqlMemoryCapacityMonitor"/>：降到 80% 以下才重新武裝，維護逐批刪除時不會反覆跳出。
+    /// 工具列的警示點會一直留著，錯過這一行也看得到。
+    /// </remarks>
+    private static void OnCapacityChanged(object? sender, SqlMemoryCapacityChangedEventArgs change)
+    {
+        if (!change.Notify || Volatile.Read(ref _package) is not { } package) return;
+        var level = change.Ratio is { } ratio && !double.IsInfinity(ratio) ? "已用 " + SqlMemoryUsageSummary.Percent(ratio) : "已超過容量上限";
+        SqlAssistStatusBar.Show(package, "SQL Memory " + level + "；可在「工具 → SqlAssist → SQL Memory 用量」立即維護或清除舊紀錄。");
     }
 
     private static async Task<ISqlMemoryStore> OpenStorageAsync(CancellationToken cancellationToken) =>

@@ -138,6 +138,12 @@
         <CommandFlag>IconAndText</CommandFlag>
         <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlMemoryUsage" priority="0x0083" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
+        <Icon guid="ImageCatalogGuid" id="GaugeRound" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings><ButtonText>SQL Memory 用量</ButtonText><CanonicalName>SqlAssist.ShowSqlMemoryUsage</CanonicalName><LocCanonicalName>SqlAssist.SqlMemory用量</LocCanonicalName><ToolTipText>查看 SQL Memory 的容量、配額與整理紀錄，並手動清理</ToolTipText></Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
@@ -519,6 +525,7 @@
       <IDSymbol name="cmdidAddToFavorites" value="0x0215" />
       <IDSymbol name="cmdidAddToFavoritesFromTools" value="0x0216" />
       <IDSymbol name="cmdidSurroundWithFromTools" value="0x0217" />
+      <IDSymbol name="cmdidShowSqlMemoryUsage" value="0x0218" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

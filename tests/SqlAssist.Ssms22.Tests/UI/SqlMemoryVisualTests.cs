@@ -40,7 +40,7 @@ public sealed class SqlMemoryVisualTests
             foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
             tabs.SelectedIndex = 0;
             var current = SqlAssistChrome.CreateMemoryConnectionButton();
-            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, current,
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, current, SqlAssistChrome.CreateButton("用量", metrics),
                 SqlAssistChrome.CreateButton("重新整理", metrics), SqlAssistChrome.CreateButton("設定", metrics));
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
@@ -131,7 +131,7 @@ public sealed class SqlMemoryVisualTests
                         Assert.Equal(28, button.ActualHeight);
                     }
                     Assert.Equal(0, tabs.TranslatePoint(new Point(), toolbar).X);
-                    var settings = (Button)toolbarActions.Children[2];
+                    var settings = (Button)toolbarActions.Children[3];
                     Assert.InRange(Math.Abs(settings.TranslatePoint(new Point(settings.ActualWidth, 0), toolbar).X - toolbar.ActualWidth), 0, 0.5);
                     Assert.NotNull(list.ItemContainerGenerator.ContainerFromIndex(0));
                     var firstRow = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);

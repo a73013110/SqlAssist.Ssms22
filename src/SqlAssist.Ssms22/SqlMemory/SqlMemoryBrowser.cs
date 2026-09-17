@@ -46,11 +46,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemorySplitView _splitView;
     private readonly SqlMemoryRecoveryView _recoveryView = new();
     private readonly FrameworkElement _historyFilters;
+    private readonly Button _usage;
+    private readonly SqlMemoryUsagePanel _usagePanel;
+    private readonly UIElement[] _listChrome;
     private CancellationTokenSource _facets = new();
     private CancellationTokenSource _request = new();
     private bool _batchFilters;
     private bool _ready;
     private bool _disposed;
+    private bool _usageMode;
 
     public SqlMemoryBrowser(SqlAssistPackage package)
     {
@@ -72,13 +76,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _tabs.SelectedIndex = 0;
         _connection = SqlAssistChrome.CreateMemoryConnectionButton();
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
-        header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(_tabs, _connection, Button("重新整理", Refresh),
+        _usage = Button("用量", ShowUsage);
+        header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(_tabs, _connection, _usage, Button("重新整理", Refresh),
             Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
         var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
-        header.Children.Add(SqlAssistChrome.CreateSearchBar(_search, clear));
+        var searchBar = SqlAssistChrome.CreateSearchBar(_search, clear);
+        header.Children.Add(searchBar);
         var filters = new StackPanel();
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         _historyFilters = SqlAssistChrome.CreateMemoryHistoryFilters(_kind, _period);
@@ -88,6 +94,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         VsThemeBrushes.Apply(_server.SortMenu); VsThemeBrushes.Apply(_database.SortMenu);
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
+        // 用量頁取代主從區時，搜尋與篩選只屬於清單，一起收起；分頁與工具列留著當作回清單的路。
+        _listChrome = new UIElement[] { searchBar, filters, _server, _database };
 
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
@@ -102,9 +110,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _recoveryView.Visibility = Visibility.Collapsed;
         _recoveryView.RebuildRequested += (_, _) => OnRecoveryRebuildRequested();
         _recoveryView.OpenFolderRequested += (_, _) => OnRecoveryOpenFolderRequested();
+        _usagePanel = new SqlMemoryUsagePanel(package, Report);
+        _usagePanel.View.Visibility = Visibility.Collapsed;
+        _usagePanel.BackRequested += (_, _) => SqlMemoryActions.Run(ShowList, Report);
         var bodyContainer = new Grid();
         bodyContainer.Children.Add(_splitView);
         bodyContainer.Children.Add(_recoveryView);
+        bodyContainer.Children.Add(_usagePanel.View);
         root.Children.Add(bodyContainer); Content = root;
         _list.ContextMenu = CreateContextMenu();
         _list.RowActionRequested += action => SqlMemoryActions.Run(() => RunCommand(action), Report);
@@ -129,6 +141,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             _settleTimer.Stop();
             foreach (var row in _rows) row.IsNew = false;
         });
+        // 在用量頁按目前的分頁也要回清單；SelectionChanged 只在換分頁時才觸發。
+        _tabs.PreviewMouseLeftButtonUp += (_, _) => SqlMemoryActions.Run(() => { if (_usageMode) ShowList(); }, Report);
         _tabs.SelectionChanged += (_, e) =>
         {
             if (!ReferenceEquals(e.Source, _tabs)) return;
@@ -151,18 +165,55 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _database.OptionsRequested += (_, _) => LoadFacets(_database, true);
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Memory 可見度", () =>
         {
-            if (IsVisible) { _clockTimer.Start(); foreach (var row in _rows) row.RefreshTime(); ObserveHost(forceReload: !_model.IsLoading); }
-            else { _clockTimer.Stop(); _facets.Cancel(); Invalidate(); _detail.Select(null); }
+            if (IsVisible)
+            {
+                _clockTimer.Start(); foreach (var row in _rows) row.RefreshTime(); ObserveHost(forceReload: !_model.IsLoading);
+                if (_usageMode) _usagePanel.Reload();
+            }
+            else { _clockTimer.Stop(); _facets.Cancel(); Invalidate(); _detail.Select(null); _usagePanel.Suspend(); }
         });
         SqlMemoryHost.Runtime.StatusChanged += OnRuntimeStatusChanged;
+        SqlMemoryHost.Runtime.CapacityChanged += OnCapacityChanged;
+        SqlAssistChrome.SetUsageBadge(_usage, SqlMemoryHost.Runtime.CapacitySeverity, motion: false);
         _ready = true;
         ObserveHost(forceReload: false);
     }
 
-    public void ShowPage(bool favorites)
+    public void ShowPage(SqlMemoryPage page)
     {
-        _tabs.SelectedIndex = favorites ? 1 : 0;
+        if (page == SqlMemoryPage.Usage) { ShowUsage(); return; }
+        ShowList();
+        _tabs.SelectedIndex = page == SqlMemoryPage.Favorites ? 1 : 0;
         _search.Focus();
+    }
+
+    /// <summary>以用量頁取代主從區；清單的頁面與選取保留，回清單時不必重載。</summary>
+    public void ShowUsage()
+    {
+        if (_disposed || _recoveryView.Visibility == Visibility.Visible) return;
+        if (!_usageMode)
+        {
+            _usageMode = true;
+            foreach (var element in _listChrome) element.Visibility = Visibility.Collapsed;
+            _splitView.Visibility = Visibility.Collapsed;
+            _usagePanel.View.Visibility = Visibility.Visible;
+            SqlAssistChrome.PlayAppear(_usagePanel.View);
+        }
+        _usagePanel.Reload();
+        _usagePanel.View.Focus();
+    }
+
+    private void ShowList()
+    {
+        if (!_usageMode) return;
+        _usageMode = false;
+        _usagePanel.Suspend();
+        _usagePanel.View.Visibility = Visibility.Collapsed;
+        foreach (var element in _listChrome) element.Visibility = Visibility.Visible;
+        _historyFilters.Visibility = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
+        if (_recoveryView.Visibility == Visibility.Visible) return;
+        _splitView.Visibility = Visibility.Visible;
+        SqlAssistChrome.PlayAppear(_splitView);
     }
 
     public void Dispose()
@@ -170,6 +221,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_disposed) return;
         _disposed = true;
         SqlMemoryHost.Runtime.StatusChanged -= OnRuntimeStatusChanged;
+        SqlMemoryHost.Runtime.CapacityChanged -= OnCapacityChanged;
+        _usagePanel.Dispose();
         _clockTimer.Stop(); _searchTimer.Stop(); _settleTimer.Stop();
         _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
@@ -221,6 +274,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                 SqlAssistPlatformGuard.Run("更新 SQL Memory 狀態", () => ObserveHost(forceReload: false)))));
 
+    /// <summary>容量分級可能在背景維護的執行緒改變；排回 UI 執行緒更新工具列的警示點。</summary>
+    private void OnCapacityChanged(object? sender, SqlMemoryCapacityChangedEventArgs change) =>
+        SqlAssistPlatformGuard.Probe("排入 SQL Memory 容量更新", () =>
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                SqlAssistPlatformGuard.Run("更新 SQL Memory 用量警示", () =>
+                {
+                    if (!_disposed) SqlAssistChrome.SetUsageBadge(_usage, SqlMemoryHost.Runtime.CapacitySeverity);
+                }))));
+
     private void ObserveHost(bool forceReload)
     {
         if (_disposed) return;
@@ -229,8 +291,11 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var recovery = RecoveryOffer(status);
         ShowRecovery(status, recovery);
 
+        // 復原卡片優先：資料庫開不起來時用量頁沒有東西可讀。
+        if (recovery is not null) ShowList();
         if (_model.ObserveHost(runtime.IsAvailable, status.Generation))
         {
+            if (_usageMode) _usagePanel.Reload();
             // 清單、facets 與預覽都屬於舊儲存；換世代就整份作廢。
             _facets.Cancel(); _server.ResetOptions(); _database.ResetOptions();
             Invalidate();
@@ -265,7 +330,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (recovery is not { } text)
         {
             _recoveryView.Visibility = Visibility.Collapsed;
-            _splitView.Visibility = Visibility.Visible;
+            _splitView.Visibility = _usageMode ? Visibility.Collapsed : Visibility.Visible;
             _hostStatus.Text = status.Message;
             _hostStatus.Visibility = _hostStatus.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             return;

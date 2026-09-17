@@ -82,6 +82,9 @@ internal static class CommandIds
     /// <summary>工具選單的無圖示入口；執行與狀態共用 <see cref="SurroundWith"/>。</summary>
     public const int SurroundWithFromTools = 0x0217;
 
+    /// <summary>開啟 SQL Memory 工具窗的用量頁；容量接近上限的通知也導到這裡。</summary>
+    public const int ShowSqlMemoryUsage = 0x0218;
+
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
     /// </summary>
