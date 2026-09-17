@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -17,30 +18,49 @@ internal static partial class SqlAssistChrome
     /// <summary>頁尾按鈕的最小寬度；「取消」與動作按鈕等寬，不因文字長短一高一低。</summary>
     public const double DialogButtonMinWidth = 80;
 
+    /// <summary>對話框內容與視窗邊緣的距離；原生 Titlebar 之下四邊一致。</summary>
+    public static readonly Thickness DialogPadding = new(16);
+
     /// <summary>
     /// 對話框頁尾：左側摘要或狀態吃剩餘寬度，右側動作依序排列、間距 8。
     /// </summary>
     /// <param name="leading">左側內容；沒有摘要時傳 null。</param>
     /// <param name="actions">由左到右；主要動作放最後。</param>
-    public static DockPanel CreateDialogFooter(UIElement? leading, params Button[] actions)
+    public static DockPanel CreateDialogFooter(UIElement? leading, params Button[] actions) =>
+        CreateDialogFooter(Array.Empty<Button>(), leading, actions);
+
+    /// <summary>
+    /// 對話框頁尾：左側附屬動作、中間狀態、右側結束動作；三組都在同一列，只有狀態吃剩餘寬度。
+    /// </summary>
+    /// <param name="utilities">不結束對話框的附屬動作（複製、開啟位置…），一律幽靈按鈕，由左到右。</param>
+    /// <param name="leading">狀態或摘要；沒有時傳 null。</param>
+    /// <param name="actions">結束對話框的動作，由左到右；主要動作放最後。</param>
+    public static DockPanel CreateDialogFooter(IReadOnlyList<Button> utilities, UIElement? leading, params Button[] actions)
     {
         var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom };
-        for (var i = 0; i < actions.Length; i++)
-        {
-            actions[i].MinWidth = Math.Max(actions[i].MinWidth, DialogButtonMinWidth);
-            actions[i].Margin = new Thickness(i == 0 ? 0 : 8, 0, 0, 0);
-            buttons.Children.Add(actions[i]);
-        }
-        DockPanel.SetDock(buttons, Dock.Right);
-        footer.Children.Add(buttons);
+        // 視覺樹依閱讀順序加入：附屬動作 → 結束動作，Tab 才會由左到右。
+        if (utilities.Count > 0) footer.Children.Add(CreateDialogButtonRow(utilities, Dock.Left));
+        footer.Children.Add(CreateDialogButtonRow(actions, Dock.Right));
         if (leading is FrameworkElement element)
         {
-            element.Margin = new Thickness(0, 0, 16, 0);
+            element.Margin = new Thickness(utilities.Count > 0 ? 16 : 0, 0, 16, 0);
             element.VerticalAlignment = VerticalAlignment.Center;
         }
         if (leading is not null) footer.Children.Add(leading);
         return footer;
+    }
+
+    private static StackPanel CreateDialogButtonRow(IReadOnlyList<Button> buttons, Dock dock)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom };
+        for (var i = 0; i < buttons.Count; i++)
+        {
+            buttons[i].MinWidth = Math.Max(buttons[i].MinWidth, DialogButtonMinWidth);
+            buttons[i].Margin = new Thickness(i == 0 ? 0 : 8, 0, 0, 0);
+            row.Children.Add(buttons[i]);
+        }
+        DockPanel.SetDock(row, dock);
+        return row;
     }
 
     /// <summary>破壞性的主要動作：靜止就是語意色淡底，文字寫明動作與數量；不得設為預設按鈕。</summary>
@@ -64,6 +84,26 @@ internal static partial class SqlAssistChrome
         section.Children.Add(label);
         section.Children.Add(body);
         AutomationProperties.SetName(section, title);
+        return section;
+    }
+
+    /// <summary>卡片內距；主卡片與分段卡片共用，卡片內文字落在同一條左軸線。</summary>
+    public static readonly Thickness CardPadding = new(12);
+
+    /// <summary>
+    /// 分段卡片：淡色小標在卡片外、內容放進一塊表面；小標內縮到卡片內文字的左軸線。
+    /// </summary>
+    /// <remarks>
+    /// 給像儀表板那樣由多個獨立區塊組成的頁面：每塊是一張卡，不在卡片裡再套卡片。
+    /// 內容只放在單一表面上時（對話框表單）仍用 <see cref="CreateSection"/>，不為每段加框。
+    /// </remarks>
+    public static StackPanel CreateCardSection(string title, UIElement body, bool first = false)
+    {
+        var card = CreateSurface(body);
+        card.Padding = CardPadding;
+        var section = CreateSection(title, card, first);
+        // 小標與卡片內文字對齊：內距加上 1 DIP 外框。
+        ((FrameworkElement)section.Children[0]).Margin = new Thickness(CardPadding.Left + 1, 0, 0, 8);
         return section;
     }
 

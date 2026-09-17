@@ -17,7 +17,8 @@ internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFol
 /// </summary>
 /// <remarks>
 /// 與 History／Favorites 同一組分頁，不另開視窗也不另立頁首：分頁本身就是抬頭，重新整理與設定沿用工具列。
-/// 表面與清單卡片同一種底色、細線與圓角，段落靠留白分層。
+/// 每個區塊是一張與清單卡片同底色、細線與圓角的卡片，小標在卡片外；卡片內文字共用
+/// <see cref="SqlAssistChrome.CardPadding"/> 的左軸線，內容不貼著工具窗邊緣。
 /// 所有數字與文案來自 Core 的 <see cref="SqlMemoryUsageSummary"/>；這裡只排版、繫結主題與播放狀態動畫。
 /// 量表控制項在重新整理之間沿用，長度才能從舊值滑到新值，看得出清理的效果。
 /// </remarks>
@@ -81,7 +82,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _message.Margin = new Thickness(0, 0, 0, 8); _message.Visibility = Visibility.Collapsed;
         SetDock(_message, Dock.Top); Children.Add(_message);
 
-        // 主卡片：健康狀態、容量量表與磁碟。整頁唯一一塊有底色的表面，其餘段落靠留白分層。
+        // 主卡片：健康狀態、容量量表與磁碟；沒有小標，其餘區塊是帶小標的分段卡片。
         _healthTitle = Text(_metrics.Body, FontWeights.SemiBold, ThemeBrush.ListForeground);
         _capacityValue = Text(_metrics.Title, FontWeights.SemiBold, ThemeBrush.ListForeground);
         _healthDetail = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
@@ -95,13 +96,13 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _hero = BuildHero();
         _content.Children.Add(_hero);
 
-        _content.Children.Add(SqlAssistChrome.CreateSection("配額", _quotas));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection("配額", _quotas));
         _stats.Margin = new Thickness(-4, 0, -4, 0);
-        _content.Children.Add(SqlAssistChrome.CreateSection("紀錄", _stats));
         _range = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
-        _range.Margin = new Thickness(0, 8, 0, 0);
-        _content.Children.Add(_range);
-        _content.Children.Add(SqlAssistChrome.CreateSection("依伺服器", _servers));
+        var records = new StackPanel();
+        records.Children.Add(_stats); records.Children.Add(_range);
+        _content.Children.Add(SqlAssistChrome.CreateCardSection("紀錄", records));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection("依伺服器", _servers));
         foreach (var entry in Actions)
         {
             var button = SqlAssistChrome.CreateButton("", _metrics, primary: entry.Action == SqlMemoryUsageAction.Maintain);
@@ -115,8 +116,10 @@ internal sealed class SqlMemoryUsageView : DockPanel
             _buttons[action] = button;
             _actions.Children.Add(button);
         }
-        _content.Children.Add(SqlAssistChrome.CreateSection("整理", _actions));
-        _content.Children.Add(SqlAssistChrome.CreateSection("最近整理", _activities));
+        // 按鈕自帶右與下的間距；容器抵銷最後一欄與最後一列，卡片四邊內距才一致。
+        _actions.Margin = new Thickness(0, 0, -4, -4);
+        _content.Children.Add(SqlAssistChrome.CreateCardSection("整理", _actions));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection("最近整理", _activities));
 
         var scroll = new ScrollViewer
         {
@@ -164,7 +167,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         AutomationProperties.SetHelpText(_hero, summary.HealthTitle + "。" + summary.HealthDetail);
 
         _quotas.Children.Clear();
-        foreach (var quota in summary.Quotas) _quotas.Children.Add(QuotaRow(quota, motion));
+        foreach (var quota in summary.Quotas) AddRow(_quotas, QuotaRow(quota, motion), 10);
 
         _stats.Children.Clear();
         foreach (var stat in summary.Stats) _stats.Children.Add(StatTile(stat));
@@ -172,12 +175,12 @@ internal sealed class SqlMemoryUsageView : DockPanel
 
         _servers.Children.Clear();
         if (summary.Servers.Count == 0) _servers.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, "還沒有帶連線的紀錄"));
-        foreach (var share in summary.Servers) _servers.Children.Add(ShareRow(share, first ? motion : false));
+        foreach (var share in summary.Servers) AddRow(_servers, ShareRow(share, first ? motion : false), 6);
 
         _activities.Children.Clear();
         if (summary.Activities.Count == 0)
             _activities.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, "本次開啟 SSMS 後還沒有整理紀錄"));
-        foreach (var activity in summary.Activities) _activities.Children.Add(ActivityRow(activity));
+        foreach (var activity in summary.Activities) AddRow(_activities, ActivityRow(activity), 6);
 
         // 內容表面只在第一次出現時淡入；重新整理時由量表的長度變化說明狀態。
         if (first) SqlAssistChrome.PlayAppear(_content, motion);
@@ -245,14 +248,14 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _maintenance.Margin = new Thickness(0, 4, 0, 0);
         stack.Children.Add(_maintenance);
         var hero = SqlAssistChrome.CreateSurface(stack);
-        hero.Padding = new Thickness(12, 10, 12, 10);
+        hero.Padding = SqlAssistChrome.CardPadding;
         AutomationProperties.SetName(hero, "容量");
         return hero;
     }
 
     private FrameworkElement QuotaRow(SqlMemoryGauge quota, bool? motion)
     {
-        var row = new StackPanel { Margin = new Thickness(0, 0, 0, 10), ToolTip = quota.Detail };
+        var row = new StackPanel { ToolTip = quota.Detail };
         var line = new DockPanel();
         var value = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.ListForeground, quota.Value);
         SetDock(value, Dock.Right); line.Children.Add(value);
@@ -285,7 +288,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
 
     private FrameworkElement ShareRow(SqlMemoryShareBar share, bool? motion)
     {
-        var row = new Grid { Margin = new Thickness(0, 0, 0, 6), ToolTip = share.Name + "：" + share.Value + " 筆" };
+        var row = new Grid { ToolTip = share.Name + "：" + share.Value + " 筆" };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 80 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, MinWidth = 48 });
@@ -304,7 +307,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
 
     private FrameworkElement ActivityRow(SqlMemoryActivityLine activity)
     {
-        var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var row = new DockPanel();
         var time = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, activity.Time);
         time.Margin = new Thickness(8, 0, 0, 0);
         SetDock(time, Dock.Right); row.Children.Add(time);
@@ -319,6 +322,13 @@ internal sealed class SqlMemoryUsageView : DockPanel
         row.Children.Add(text);
         AutomationProperties.SetName(row, activity.Title + (activity.Failed ? "失敗，" : "，") + activity.Detail + "，" + activity.Time);
         return row;
+    }
+
+    /// <summary>列距只加在列與列之間；最後一列不帶下緣，卡片四邊內距才一致。</summary>
+    private static void AddRow(Panel panel, FrameworkElement row, double gap)
+    {
+        row.Margin = new Thickness(0, panel.Children.Count == 0 ? 0 : gap, 0, 0);
+        panel.Children.Add(row);
     }
 
     private TextBlock Text(double size, FontWeight weight, ThemeBrush brush, string text = "", bool wrap = false) =>

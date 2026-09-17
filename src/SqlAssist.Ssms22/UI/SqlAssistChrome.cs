@@ -473,7 +473,7 @@ internal static partial class SqlAssistChrome
     public static Grid CreateConfirmationContent(
         string message, string detail, string action, out Button confirm, out Button cancel)
     {
-        var root = new Grid { Margin = new Thickness(16) };
+        var root = new Grid { Margin = DialogPadding };
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 

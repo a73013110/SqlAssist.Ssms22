@@ -31,20 +31,8 @@ internal sealed class ResultGridCellWindow : DialogWindow
 
     public ResultGridCellWindow(ResultGridCellText cell)
     {
-        VsThemeBrushes.Apply(this);
         _cell = cell;
-
-        Title = "SqlAssist — 儲存格內容";
-        Width = 760;
-        Height = 520;
-        MinWidth = 420;
-        MinHeight = 260;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
-        FontFamily = SqlAssistChrome.InterfaceFont;
-        FontSize = Metrics.Body;
-        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
+        SqlAssistDialogs.Configure(this, "SqlAssist — 儲存格內容", 760, 520, minWidth: 420, minHeight: 260);
 
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         Content = BuildLayout();
@@ -52,7 +40,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
 
     private Grid BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(16) };
+        var root = new Grid { Margin = SqlAssistChrome.DialogPadding };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -103,11 +91,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
         Grid.SetRow(body, 1);
         root.Children.Add(body);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-
         var copy = SqlAssistChrome.CreateButton("複製全部", Metrics);
-        copy.MinWidth = 78;
-        copy.Margin = new Thickness(0, 0, 12, 0);
         copy.ToolTip = "複製完整原文；也可在內容中選取後按 Ctrl+C。";
 
         // NULL 沒有東西可以複製，而一顆按下去什麼都不會發生的按鈕比停用的按鈕難懂。
@@ -115,18 +99,11 @@ internal sealed class ResultGridCellWindow : DialogWindow
         copy.Click += OnCopy;
 
         var close = SqlAssistChrome.CreateButton("關閉", Metrics, primary: true);
-        close.MinWidth = 78;
         close.IsDefault = true;
         close.IsCancel = true;
         close.Click += (_, _) => Close();
 
-        DockPanel.SetDock(copy, Dock.Left);
-        DockPanel.SetDock(close, Dock.Right);
-        footer.Children.Add(copy);
-        footer.Children.Add(close);
-        _statusText.Margin = new Thickness(0, 0, 12, 0);
-        footer.Children.Add(_statusText);
-
+        var footer = SqlAssistChrome.CreateDialogFooter(new[] { copy }, _statusText, close);
         Grid.SetRow(footer, 2);
         root.Children.Add(footer);
 

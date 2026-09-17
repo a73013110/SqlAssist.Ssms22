@@ -434,20 +434,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     public SqlSnippetManagerWindow()
     {
-        VsThemeBrushes.Apply(this);
-        Title = "SqlAssist — 程式碼片段";
-        Width = 940;
-        Height = 700;
-        MinWidth = 760;
-        MinHeight = 520;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
-        FontFamily = SqlAssistChrome.InterfaceFont;
-        FontSize = Metrics.Body;
-
-        // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
-        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
+        SqlAssistDialogs.Configure(this, "SqlAssist — 程式碼片段", 940, 700, minWidth: 760, minHeight: 520);
 
         var configuration = SqlSnippetStore.Configuration;
         _isReadOnly = SqlSnippetStore.IsReadOnly;
@@ -523,7 +510,6 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _placeholderGrid = CreatePlaceholderGrid();
 
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
-        _statusText.Margin = new Thickness(0, 0, 12, 0);
 
         _editor = BuildEditor();
         _restoreSelectedButton = CreateButton("還原此預設", OnRestoreSelected);
@@ -661,7 +647,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private Grid BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(16) };
+        var root = new Grid { Margin = SqlAssistChrome.DialogPadding };
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -673,9 +659,13 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(0, 8, 0, 0)
         };
-        listButtons.Children.Add(CreateButton("新增", OnAdd));
-        listButtons.Children.Add(CreateButton("複製", OnDuplicate));
-        listButtons.Children.Add(CreateButton("刪除", OnDelete));
+        foreach (var (text, handler) in new (string, RoutedEventHandler)[] { ("新增", OnAdd), ("複製", OnDuplicate), ("刪除", OnDelete) })
+        {
+            var button = CreateButton(text, handler);
+            button.MinWidth = SqlAssistChrome.DialogButtonMinWidth;
+            button.Margin = new Thickness(listButtons.Children.Count == 0 ? 0 : 8, 0, 0, 0);
+            listButtons.Children.Add(button);
+        }
         DockPanel.SetDock(listButtons, Dock.Bottom);
         left.Children.Add(listButtons);
         left.Children.Add(SqlAssistChrome.CreateSurface(_list));
@@ -698,27 +688,18 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         Grid.SetColumn(scroll, 1);
         root.Children.Add(scroll);
 
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        actions.Children.Add(CreateButton("開啟檔案位置", OnRevealFile));
-        actions.Children.Add(_restoreSelectedButton);
-        actions.Children.Add(CreateButton("還原預設", OnRestoreDefaults));
-
-        var confirm = new StackPanel { Orientation = Orientation.Horizontal };
+        var utilities = new[]
+        {
+            CreateButton("開啟檔案位置", OnRevealFile),
+            _restoreSelectedButton,
+            CreateButton("還原預設", OnRestoreDefaults)
+        };
 
         // 整個視窗只有這一顆按鈕帶底色；主要動作只能有一個，多給一個就沒有主要。
         _saveButton.IsDefault = true;
         var cancel = CreateButton("取消", (_, _) => Close());
         cancel.IsCancel = true;
-        confirm.Children.Add(cancel);
-        _saveButton.Margin = default;
-        confirm.Children.Add(_saveButton);
-
-        DockPanel.SetDock(actions, Dock.Left);
-        DockPanel.SetDock(confirm, Dock.Right);
-        footer.Children.Add(actions);
-        footer.Children.Add(confirm);
-        footer.Children.Add(_statusText);
+        var footer = SqlAssistChrome.CreateDialogFooter(utilities, _statusText, cancel, _saveButton);
 
         Grid.SetRow(footer, 1);
         Grid.SetColumnSpan(footer, 2);
@@ -729,11 +710,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     private static Button CreateButton(string text, RoutedEventHandler handler, bool primary = false)
     {
+        // 寬度與間距由擺放的那一列決定：頁尾交給 CreateDialogFooter，清單按鈕列自己排。
         var button = SqlAssistChrome.CreateButton(text, Metrics, primary);
-
-        // 對話框底部那一排要對齊，最窄的按鈕也不能比「取消」窄。
-        button.MinWidth = 78;
-        button.Margin = new Thickness(0, 0, 6, 0);
         button.Click += handler;
         return button;
     }

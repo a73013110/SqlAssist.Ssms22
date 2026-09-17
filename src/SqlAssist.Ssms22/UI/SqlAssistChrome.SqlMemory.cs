@@ -90,10 +90,13 @@ internal static partial class SqlAssistChrome
         AutomationProperties.SetName(tab, label); return tab;
     }
 
+    /// <summary>用量分頁的名稱；與 History／Favorites 同樣用英文，分頁、Tooltip 與警示文字共用。</summary>
+    public const string UsageTabLabel = "Usage";
+
     /// <summary>用量分頁：與 History／Favorites 同一種分頁，圖示右上角多一個容量分級點。</summary>
     public static TabItem CreateMemoryUsageTab()
     {
-        var tab = CreateMemoryTab(SqlIcon.Usage, "用量");
+        var tab = CreateMemoryTab(SqlIcon.Usage, UsageTabLabel);
         var label = (DockPanel)tab.Header;
         var icon = (FrameworkElement)label.Children[0];
         label.Children.RemoveAt(0);
@@ -201,9 +204,9 @@ internal static partial class SqlAssistChrome
         var visible = severity != SqlMemoryUsageSeverity.Normal;
         var text = severity switch
         {
-            SqlMemoryUsageSeverity.Critical => "用量：容量接近或超過上限",
-            SqlMemoryUsageSeverity.Warning => "用量：容量偏高",
-            _ => "用量",
+            SqlMemoryUsageSeverity.Critical => UsageTabLabel + "：容量接近或超過上限",
+            SqlMemoryUsageSeverity.Warning => UsageTabLabel + "：容量偏高",
+            _ => UsageTabLabel,
         };
         usage.ToolTip = text; AutomationProperties.SetHelpText(usage, visible ? text : "");
         if (!visible) { badge.Visibility = Visibility.Collapsed; badge.Tag = null; return; }

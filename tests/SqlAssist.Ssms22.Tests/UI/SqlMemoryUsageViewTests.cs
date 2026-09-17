@@ -160,7 +160,7 @@ public sealed class SqlMemoryUsageViewTests
             var (host, view, palette) = Host();
             var directory = ThemeVisualTests.FindOutputDirectory();
             // 沒有自己的頁首：分頁與工具列已經是抬頭，第一個元素就是內容。
-            Assert.DoesNotContain(Descendants<TextBlock>(view), text => text.Text is "用量" or "清單" or "重新整理" or "保留設定");
+            Assert.DoesNotContain(Descendants<TextBlock>(view), text => text.Text is "Usage" or "清單" or "重新整理" or "保留設定");
             foreach (var mode in new[] { "light", "dark", "high-contrast" })
             foreach (var (summary, name) in new[]
             {
@@ -203,12 +203,12 @@ public sealed class SqlMemoryUsageViewTests
 
             SqlAssistChrome.SetUsageBadge(usage, SqlMemoryUsageSeverity.Critical, motion: false);
             Assert.Equal(Visibility.Visible, badge.Visibility);
-            Assert.Equal("用量：容量接近或超過上限", usage.ToolTip);
-            Assert.Equal("用量：容量接近或超過上限", System.Windows.Automation.AutomationProperties.GetHelpText(usage));
+            Assert.Equal("Usage：容量接近或超過上限", usage.ToolTip);
+            Assert.Equal("Usage：容量接近或超過上限", System.Windows.Automation.AutomationProperties.GetHelpText(usage));
 
             SqlAssistChrome.SetUsageBadge(usage, SqlMemoryUsageSeverity.Normal, motion: false);
             Assert.Equal(Visibility.Collapsed, badge.Visibility);
-            Assert.Equal("用量", usage.ToolTip);
+            Assert.Equal("Usage", usage.ToolTip);
         });
     }
 

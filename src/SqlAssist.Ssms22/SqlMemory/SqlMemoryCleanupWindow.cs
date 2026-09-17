@@ -38,7 +38,7 @@ internal sealed class SqlMemoryCleanupWindow : DialogWindow
             server,
             SqlConnectionTagInput.CreateBar(package, SqlIcon.Database, database, "資料庫", databases: true,
                 () => server.Text.Trim() is { Length: > 0 } text ? text : null, includeFavorites: false, Report),
-            database) { Margin = new Thickness(16) };
+            database) { Margin = SqlAssistChrome.DialogPadding };
         Content = _view;
 
         _debounce = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(250) };

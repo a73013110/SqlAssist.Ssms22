@@ -1,8 +1,8 @@
 # SQL Memory：用量與手動整理
 
-「用量」是 SQL Memory 工具窗 History／Favorites 之後的第三個分頁，SqlAssist 選單的「SQL Memory 用量」帶到同一分頁。
+用量頁是 SQL Memory 工具窗 History／Favorites 之後的第三個分頁「Usage」，SqlAssist 選單的「SQL Memory 用量」帶到同一分頁。
 沒有自己的頁首：重新整理與設定沿用工具列，搜尋、篩選與「目前連線」只屬於清單分頁，切過來時收起。
-保留規則與背景回收見[維護](sql-memory-maintenance.md)，外觀遵守 [UI 準則](ui-guidelines.md)。
+保留規則與背景回收見[維護](sql-memory-maintenance.md)，外觀遵守 [UI 準則](ui-guidelines.md)：容量主卡片之下每個區塊是 `CreateCardSection` 卡片。
 
 ## 讀取
 
@@ -43,7 +43,7 @@
   試算是上限：共用內容與版本鏈在刪除交易內才重查。
 - 對話框改條件後 250 ms 重算；頁尾左側寫「最多清除 N 筆」與分類明細（文案在 `SqlMemoryUsageSummary`），
   清除按鈕寫出筆數。取消是預設與初始焦點；清除是語意色主要動作，條件一改就停用到新試算回來，
-  所以不再疊第二層確認框。版面照 [UI 準則](ui-guidelines.md)的對話框元件。
+  所以不再疊第二層確認框。它是[對話框規範](ui-dialogs.md)的範本。
 
 ## 清理紀錄與警示
 

@@ -41,21 +41,12 @@ internal static class SqlMemoryActions
 
     public static void ConfigureWindow(Window window, SqlAssistPackage package, string title, double width, double height)
     {
-        VsThemeBrushes.Apply(window);
-        window.Title = title;
-        window.Width = width; window.Height = height;
-        window.MinWidth = 480; window.MinHeight = 320;
-        window.ShowInTaskbar = false;
-        window.FontFamily = SqlAssistChrome.InterfaceFont;
-        window.FontSize = SqlAssistChrome.DefaultMetrics.Body;
-        window.SetResourceReference(Window.BackgroundProperty, ThemeBrush.WindowBackground);
-        window.SetResourceReference(Window.ForegroundProperty, ThemeBrush.WindowForeground);
+        SqlAssistDialogs.Configure(window, title, width, height, minWidth: 480, minHeight: 320);
         if (((IServiceProvider)package).GetService(typeof(SVsUIShell)) is IVsUIShell shell)
         {
             ErrorHandler.ThrowOnFailure(shell.GetDialogOwnerHwnd(out var owner));
             new WindowInteropHelper(window).Owner = owner;
         }
-        window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
     }
 
     public static void OpenSettings(SqlAssistPackage package)

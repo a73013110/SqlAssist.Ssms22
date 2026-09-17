@@ -37,7 +37,6 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         Func<bool> openSettings,
         Action openLog)
     {
-        VsThemeBrushes.Apply(this);
         _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
         _openSettings = openSettings ?? throw new ArgumentNullException(nameof(openSettings));
         _openLog = openLog ?? throw new ArgumentNullException(nameof(openLog));
@@ -47,28 +46,18 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         _health = SqlAssistDiagnosticReport.EvaluateHealth(snapshot);
         _summary = SqlAssistDiagnosticReport.Summarize(snapshot, _health);
 
-        Title = "SqlAssist — 關於與診斷";
-        Width = 820;
-        Height = 680;
-        MinWidth = 680;
-        MinHeight = 540;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
-        FontFamily = SqlAssistChrome.InterfaceFont;
-        FontSize = Metrics.Body;
+        SqlAssistDialogs.Configure(this, "SqlAssist — 關於與診斷", 820, 680, minWidth: 680, minHeight: 540);
 
         // 原生標題列與內容標誌均使用 SqlAssist 產品圖示（高 DPI 下自動平滑渲染）。
         _logoSource = TryLoadLogo();
         Icon = _logoSource;
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
-        TextOptions.SetTextFormattingMode(this, TextFormattingMode.Ideal);
         Content = BuildLayout();
     }
 
     private Grid BuildLayout()
     {
-        var root = new Grid { Margin = new Thickness(16) };
+        var root = new Grid { Margin = SqlAssistChrome.DialogPadding };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -358,25 +347,16 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
 
     private DockPanel BuildFooter()
     {
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        actions.Children.Add(CreateButton("複製診斷資訊", OnCopyDiagnostics));
-        actions.Children.Add(CreateButton("開啟紀錄檔", OnOpenLog));
-        actions.Children.Add(CreateButton("開啟設定", OnOpenSettings));
-
+        var utilities = new[]
+        {
+            CreateButton("複製診斷資訊", OnCopyDiagnostics),
+            CreateButton("開啟紀錄檔", OnOpenLog),
+            CreateButton("開啟設定", OnOpenSettings)
+        };
         var close = CreateButton("關閉", (_, _) => Close(), primary: true);
         close.IsDefault = true;
         close.IsCancel = true;
-        close.Margin = default;
-
-        DockPanel.SetDock(actions, Dock.Left);
-        DockPanel.SetDock(close, Dock.Right);
-        footer.Children.Add(actions);
-        footer.Children.Add(close);
-
-        _statusText.Margin = new Thickness(12, 0, 12, 0);
-        footer.Children.Add(_statusText);
-        return footer;
+        return SqlAssistChrome.CreateDialogFooter(utilities, _statusText, close);
     }
 
     private void OnCopyDiagnostics(object sender, RoutedEventArgs eventArgs)

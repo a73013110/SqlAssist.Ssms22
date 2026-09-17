@@ -8,18 +8,9 @@ internal sealed class SqlAssistConfirmationWindow : DialogWindow
 {
     private SqlAssistConfirmationWindow(Window owner, string title, string message, string detail, string action)
     {
-        VsThemeBrushes.Apply(this);
         Owner = owner;
-        Title = title;
-        Width = 440;
-        SizeToContent = SizeToContent.Height;
+        SqlAssistDialogs.Configure(this, title, 440, height: null);
         ResizeMode = ResizeMode.NoResize;
-        ShowInTaskbar = false;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        FontFamily = SqlAssistChrome.InterfaceFont;
-        FontSize = SqlAssistChrome.DefaultMetrics.Body;
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
-        SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         Content = SqlAssistChrome.CreateConfirmationContent(message, detail, action, out var confirm, out var cancel);
         confirm.Click += (_, _) => SqlAssistPlatformGuard.Run("確認片段操作", () => DialogResult = true);
         // IsDefault 不等於初始焦點；明確聚焦取消，避免第一個 Enter 誤觸確認。
