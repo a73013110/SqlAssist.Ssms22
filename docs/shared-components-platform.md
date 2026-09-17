@@ -1,6 +1,7 @@
 # 平台共用元件
 
-範圍：Ssms22 接線層與工具腳本的唯一出處。純邏輯見[共用元件表](shared-components.md)。
+範圍：Ssms22 接線層與工具腳本的唯一出處。純邏輯見[共用元件表](shared-components.md)，
+SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 
 | 這件事 | 唯一出處 |
 | --- | --- |
@@ -21,7 +22,6 @@
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
-| SQL Memory 資料庫檔案的整組封存（`.db`／`-wal`／`-shm`） | `Ssms22/SqlMemory/SqlMemoryDatabaseArchive.cs` |
 | 獨立 SQL 唯讀預覽／著色編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs`（外觀由呼叫端掛 `SqlScriptTheme`） |
 | SQL 著色分類、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`（`Classify`）／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
@@ -36,15 +36,3 @@
 | 通知該顯示什麼（可見度、合併、措辭、關閉與展開狀態） | `Ssms22/Editor/NotificationHost.cs` |
 | 通知卡片本身（整個處理程序一張，在編輯區之間搬家） | `Ssms22/Editor/NotificationSurface.cs` |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |
-| SQL Memory 的 SQLite 隔離載入 | `SqlMemory.Isolation/IsolatedSqlMemoryStore.cs` |
-| History／Favorites 的連線篩選 SQL、時間 keyset 游標與分頁讀取 | `SqlMemory.Sqlite/SqliteFilters.cs` 的 `SqliteConnectionFilter`、`SqliteKeysetPage.cs` |
-| 收藏新增與編輯（資料、標註與 SQL 一次儲存） | `Ssms22/SqlMemory/FavoriteEditorWindow.cs` |
-| SQL Memory 的設定、計時器與狀態列接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
-| SQL Memory 的宿主／封裝儲存自我測試 | `SqlMemory.Isolation/SqlMemoryStorageSelfTest.cs` |
-| SQL Memory 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
-| SQL Memory 清單的鍵盤、續頁、右鍵選取與列按鈕派送 | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryListBase<TAction>` |
-| 等儲存的使用者操作：拒絕重入與宿主世代檢查 | `Ssms22/SqlMemory/SqlMemoryOperationGate.cs` |
-| 收藏版本操作清單與執行（時間軸列、快捷選單、差異面板共用） | `Ssms22/UI/SqlFavoriteRevisionList.cs` 的 `SqlFavoriteRevisionCommand`、`Ssms22/SqlMemory/SqlFavoriteRevisionCommands.cs` |
-| 列上的幽靈操作按鈕（卡片與時間軸共用） | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `CreateRowActionButton` |
-| 行級差異的虛擬化呈現（標記、行號、語意底色） | `Ssms22/UI/SqlTextDiffView.cs`（樣板在 `SqlAssistChrome.Revisions.cs`） |
-| SQL Memory 清單頁尾 | `Ssms22/UI/SqlMemoryPager.cs`（狀態與文案在 `SqlMemoryBrowserModel.Footer`） |

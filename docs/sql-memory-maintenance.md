@@ -95,3 +95,4 @@ DB／WAL 檔案大小分別觀測，非原子快照；WAL 不存在為 0，刪�
 
 背景只做 `wal_checkpoint(TRUNCATE)`，被讀取擋下時回報未截斷而不打斷對方。
 `VACUUM` 只供手動整理命令，完成後再截斷 WAL；不改 `auto_vacuum`。
+使用者主動的立即維護、清除紀錄與備份見[用量與清理](sql-memory-usage.md)。

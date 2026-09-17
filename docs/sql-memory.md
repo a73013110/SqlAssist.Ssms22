@@ -2,7 +2,7 @@
 
 SQL Memory 是同一個停駐工具窗中的 **History** 與 **Favorites**。History 保存執行與草稿，
 Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不代表執行。
-操作見 [UI](sql-memory-ui.md)，資料見[儲存](sql-memory-storage.md)，清理見[維護](sql-memory-maintenance.md)。
+操作見 [UI](sql-memory-ui.md)，資料見[儲存](sql-memory-storage.md)，清理見[維護](sql-memory-maintenance.md)與[用量](sql-memory-usage.md)。
 
 ## 分層
 
