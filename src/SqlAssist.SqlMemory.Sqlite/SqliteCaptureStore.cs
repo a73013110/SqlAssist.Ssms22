@@ -55,9 +55,12 @@ internal sealed class SqliteCaptureStore
         if (state.Version != checked((previous?.Version ?? 0) + 1) || state.LastSequence <= (previous?.LastSequence ?? 0) ||
             previous?.Session.ClosedAt != null || (previous != null && previous.Session.DocumentId != write.Document.DocumentId))
             throw new InvalidDataException("寫入計畫的 Session 狀態不一致。");
-        string? oldRecoveryContent;
+        string? oldRecoveryContent, previousExecutionEntry;
         using (var old = Command(connection, transaction, "SELECT ContentId FROM Recovery WHERE SessionId=$id;", ("$id", Id(state.Session.SessionId))))
             oldRecoveryContent = old.ExecuteScalar() as string;
+        using (var old = Command(connection, transaction, "SELECT LatestExecutionEntryKey FROM Sessions WHERE SessionId=$id;",
+            ("$id", Id(state.Session.SessionId))))
+            previousExecutionEntry = old.ExecuteScalar() as string;
         cancellationToken.ThrowIfCancellationRequested();
         Execute(connection, transaction, @"INSERT INTO Documents(DocumentId,DisplayName) VALUES($id,$name)
 ON CONFLICT(DocumentId) DO UPDATE SET DisplayName=excluded.DisplayName;",
@@ -98,12 +101,20 @@ LatestExecutionRevisionId=excluded.LatestExecutionRevisionId, LeaseId=excluded.L
         if (write.Execution != null)
         {
             var execution = write.Execution;
-            Execute(connection, transaction, "INSERT INTO Executions(ExecutionId,RevisionId,ExecutedAt) VALUES($id,$revision,$time);",
-                ("$id", Id(execution.ExecutionId)), ("$revision", Id(execution.RevisionId)), ("$time", Ticks(execution.ExecutedAt)));
             var revision = ReadRevision(connection, transaction, execution.RevisionId)
                 ?? throw new InvalidDataException("Execution 缺少 Revision。");
-            WriteHistory(connection, transaction, "e" + Id(execution.ExecutionId), state.Session.SessionId,
-                execution.RevisionId, revision.ContentId, execution.ExecutedAt, SqlHistoryFilter.Executions, write.Connection);
+            var entry = MergeExecution(connection, transaction, previousExecutionEntry, state.Session.SessionId, execution,
+                revision.ContentId, write.Connection);
+            if (entry == null)
+            {
+                entry = "e" + Id(execution.ExecutionId);
+                WriteHistory(connection, transaction, entry, state.Session.SessionId,
+                    execution.RevisionId, revision.ContentId, execution.ExecutedAt, SqlHistoryFilter.Executions, write.Connection);
+            }
+            Execute(connection, transaction, @"INSERT INTO Executions(ExecutionId,RevisionId,ExecutedAt,EntryKey) VALUES($id,$revision,$time,$entry);
+UPDATE Sessions SET LatestExecutionEntryKey=$entry WHERE SessionId=$session;",
+                ("$id", Id(execution.ExecutionId)), ("$revision", Id(execution.RevisionId)), ("$time", Ticks(execution.ExecutedAt)),
+                ("$entry", entry), ("$session", Id(state.Session.SessionId)));
         }
         if (write.DeleteRecovery)
         {
@@ -151,7 +162,8 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
     /// <remarks>
     /// 投影鍵依種類前綴：執行 e、Recovery s（Session 識別碼）、草稿版本 r。與寫入 History 時的鍵同源，
     /// 所以只憑列表項目就能還原，不必把儲存層的鍵放進 Core 契約。
-    /// 本體只刪自己那一列；版本改用與維護相同的引用清單，仍被引用就留給維護，不做 CASCADE。
+    /// 本體只刪自己那一份：執行列是併進它的全部 Executions（使用者一次刪的是畫面上那一列，數量隨執行次數而定），
+    /// 版本改用與維護相同的引用清單逐一重查，仍被引用就留給維護，不做 CASCADE。
     /// </remarks>
     public SqlHistoryDeleteResult DeleteHistory(SqlHistoryItem item, CancellationToken cancellationToken)
     {
@@ -162,28 +174,32 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         var contents = new HashSet<string>(StringComparer.Ordinal);
-        string? revision;
+        var revisions = new HashSet<string>(StringComparer.Ordinal);
         using (var read = Command(connection, transaction,
             "SELECT RevisionId,ContentId FROM History WHERE EntryKey=$key AND SessionId=$session;",
             ("$key", key), ("$session", Id(item.SessionId))))
         using (var reader = read.ExecuteReader())
         {
             if (!reader.Read()) return SqlHistoryDeleteResult.NotFound;
-            revision = StringOrNull(reader, 0);
+            if (StringOrNull(reader, 0) is { } revision) revisions.Add(revision);
             contents.Add(reader.GetString(1));
         }
-        Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$key;", ("$key", key));
         if (key[0] == 'e')
         {
+            // 合併列底下的執行可能引用不同版本（同內容的選取版本與完整版本），每一份都要重查引用。
+            using (var read = Command(connection, transaction, "SELECT RevisionId FROM Executions WHERE EntryKey=$key;", ("$key", key)))
+            using (var reader = read.ExecuteReader())
+                while (reader.Read()) revisions.Add(reader.GetString(0));
             // 執行事件只引用版本，自己沒有內容；版本另由下方的引用清單決定能不能刪。
-            Execute(connection, transaction, "DELETE FROM Executions WHERE ExecutionId=$id;", ("$id", Id(item.ItemId)));
+            Execute(connection, transaction, "DELETE FROM Executions WHERE EntryKey=$key;", ("$key", key));
         }
-        else if (key[0] == 's')
+        Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$key;", ("$key", key));
+        if (key[0] == 's')
         {
             // 仍開著的視窗下一次擷取會重寫 Recovery；這裡只移除使用者看到的那一份。
             DeleteReleasing(connection, transaction, contents, "Recovery", "SessionId=$id", ("$id", Id(item.SessionId)));
         }
-        if (revision != null)
+        foreach (var revision in revisions)
         {
             cancellationToken.ThrowIfCancellationRequested();
             DeleteReleasing(connection, transaction, contents, "Revisions",
@@ -231,10 +247,11 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         // History 只搜尋 SQL 全文；顯示名稱與連線不是搜尋目標，語意與 Favorite 的欄位清單分開。
         return SqliteKeysetPage.Read(reader, request.PageSize, search,
             row => (row.GetInt64(4), row.GetString(0)),
-            (row, scan) => scan.Matches((byte[])row.GetValue(10)),
+            (row, scan) => scan.Matches((byte[])row.GetValue(12)),
             row => new SqlHistoryItem(Guid.ParseExact(row.GetString(0).Substring(1), "N"), Guid.ParseExact(row.GetString(1), "N"),
                 GuidOrNull(row, 2), row.GetString(3), Time(row.GetInt64(4)), (SqlHistoryFilter)row.GetInt32(5),
-                row.GetString(6), row.GetString(7), ReadConnection(row, 8)),
+                row.GetString(6), row.GetString(7), ReadConnection(row, 8), row.GetInt32(10),
+                row.IsDBNull(11) ? null : Time(row.GetInt64(11))),
             (ticks, key) => SqliteTimeCursor.Encode(HistoryCursor, _database.StoreId, binding, ticks, key), cancellationToken);
     }
 
@@ -250,7 +267,7 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
     /// </summary>
     internal static string HistoryPageSql(IReadOnlyCollection<string> conditions, bool includeSql) =>
         @"SELECT h.EntryKey,h.SessionId,h.RevisionId,h.ContentId,h.CreatedAt,
-h.Kind,d.DisplayName,c.Preview,h.Server,h.DatabaseName" + (includeSql ? ",c.SqlBytes" : "") + @"
+h.Kind,d.DisplayName,c.Preview,h.Server,h.DatabaseName,h.ExecutionCount,h.FirstExecutedAt" + (includeSql ? ",c.SqlBytes" : "") + @"
 FROM History h JOIN Sessions s ON s.SessionId=h.SessionId JOIN Documents d ON d.DocumentId=s.DocumentId
 JOIN Contents c ON c.ContentId=h.ContentId" + SqliteConnectionFilter.Where(conditions) +
         " ORDER BY h.CreatedAt DESC,h.EntryKey DESC LIMIT $limit;";
@@ -322,11 +339,33 @@ Reason,IsExecutionSelection FROM Revisions WHERE RevisionId=$id;", ("$id", Id(re
     private static void WriteHistory(SqliteConnection connection, SqliteTransaction transaction, string key, Guid sessionId,
         Guid? revisionId, string contentId, DateTimeOffset time, SqlHistoryFilter kind, SqlConnectionLabel? label)
     {
-        Execute(connection, transaction, @"INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,Server,DatabaseName)
-VALUES($key,$session,$revision,$content,$time,$kind,$server,$database)
+        Execute(connection, transaction, @"INSERT INTO History
+(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,Server,DatabaseName,ExecutionCount,FirstExecutedAt)
+VALUES($key,$session,$revision,$content,$time,$kind,$server,$database,1,$first)
 ON CONFLICT(EntryKey) DO UPDATE SET ContentId=excluded.ContentId, CreatedAt=excluded.CreatedAt,
 Server=excluded.Server, DatabaseName=excluded.DatabaseName;",
             ("$key", key), ("$session", Id(sessionId)), ("$revision", Id(revisionId)), ("$content", contentId),
-            ("$time", Ticks(time)), ("$kind", (int)kind), ("$server", label?.Server), ("$database", label?.Database));
+            ("$time", Ticks(time)), ("$kind", (int)kind), ("$server", label?.Server), ("$database", label?.Database),
+            ("$first", kind == SqlHistoryFilter.Executions ? Ticks(time) : null));
+    }
+
+    /// <summary>
+    /// 同一 Session 的上一筆執行列內容與連線都相同時併進那一列，回傳它的鍵；否則回傳 null 由呼叫端新增。
+    /// </summary>
+    /// <remarks>
+    /// 只看 Session 記下的上一筆執行列，A→B→A 的第三次比對的是 B，時間軸順序不會被改寫；
+    /// 列已被使用者或維護刪掉時條件不成立，下一次執行另起新列。連線以 IS 比對：兩邊都沒有連線也算相同，
+    /// 字串走 BINARY 定序而區分大小寫，與連線篩選的語意一致。
+    /// </remarks>
+    private static string? MergeExecution(SqliteConnection connection, SqliteTransaction transaction, string? previousEntry,
+        Guid sessionId, SqlExecution execution, string contentId, SqlConnectionLabel? label)
+    {
+        if (previousEntry == null) return null;
+        Execute(connection, transaction, @"UPDATE History SET RevisionId=$revision, CreatedAt=MAX(CreatedAt,$time),
+ExecutionCount=ExecutionCount+1
+WHERE EntryKey=$key AND SessionId=$session AND Kind=1 AND ContentId=$content AND Server IS $server AND DatabaseName IS $database;",
+            ("$key", previousEntry), ("$session", Id(sessionId)), ("$revision", Id(execution.RevisionId)),
+            ("$time", Ticks(execution.ExecutedAt)), ("$content", contentId), ("$server", label?.Server), ("$database", label?.Database));
+        return Changes(connection, transaction) > 0 ? previousEntry : null;
     }
 }

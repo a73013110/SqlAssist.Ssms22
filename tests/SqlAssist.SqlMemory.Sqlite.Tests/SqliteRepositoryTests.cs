@@ -30,7 +30,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(session.LatestRevision?.RevisionId, entry.RevisionId);
         Assert.Equal("SELECT * FROM Lib_Reader;", (await reopened.ReadContentAsync(entry.ContentId, Token))?.SqlText);
         Assert.Equal("wal", store.Scalar("PRAGMA journal_mode;"));
-        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(5L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
@@ -210,8 +210,8 @@ public sealed class SqliteRepositoryTests
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [InlineData(3)]
-    [InlineData(5)]
+    [InlineData(4)]
+    [InlineData(6)]
     public async Task UnsupportedSchemaIsRejectedWithoutChangingContents(int version)
     {
         using var store = new SqliteTestStore();

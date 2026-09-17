@@ -11,6 +11,18 @@ Server／Database 精確且區分大小寫；複合索引支援時間、種類�
 游標含 StoreId、篩選指紋及位置，不接受跨庫／跨篩選重用。同一輪期間不重算「七天前」。
 Favorites 以最後儲存時間走同一種 keyset 與游標；分頁不是資料庫快照，並行編輯後須重新整理。
 
+## 連續執行合併
+
+同一 Session 的上一筆執行列與本次 ContentId、Server、DatabaseName 都相同（區分大小寫，與篩選一致；
+兩邊都沒有連線也算相同）時，提交交易更新那一列而不新增：CreatedAt 改為本次時間、`ExecutionCount` 加一，
+`FirstExecutedAt` 與列鍵不變，`RevisionId` 改指本次執行的版本。
+
+- 在寫入時合併，不在讀取時分組：分組會讓 keyset 游標、頁大小與掃描預算不再對應實際讀到的列。
+- 只併連續執行：A→B→A 是三列；其他 Session 一律不併。中間的草稿不打斷合併，合併列會移到它之上。
+- 上一筆執行列以 `Sessions.LatestExecutionEntryKey` 主鍵直查，不掃表；列已被刪除或回收就另起新列。
+- `Executions` 仍每次執行一列，以 `EntryKey` 外鍵指回投影；刪除見[儲存](sql-memory-storage.md)，
+  期限與配額見[維護](sql-memory-maintenance.md)。
+
 連線 facets 獨立分組，不限於已載入清單，不讀 SQL。依時間或名稱排序，一次 100 個名稱及一個續頁訊號，
 offset 續讀；History 讀投影、Favorites 讀標註，兩邊都不受搜尋／期間限制，Database 隨 Server 收斂。
 

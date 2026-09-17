@@ -66,7 +66,13 @@ public sealed class SqlHistoryRequest
 }
 
 // 列表只帶有界預覽；SQL 全文另以 ContentId 按需讀取。
+/// <param name="CreatedAt">執行列是最後一次執行的時間；清單依它排序。</param>
+/// <param name="ExecutionCount">
+/// 同一 Session 連續以相同內容與連線執行時併成一列的次數；草稿固定為 1。
+/// 維護回收較舊的執行後會跟著減少，只代表仍保存的執行。
+/// </param>
+/// <param name="FirstExecutedAt">仍保存的最早一次執行；草稿為 null。</param>
 [Serializable]
 public sealed record SqlHistoryItem(Guid ItemId, Guid SessionId, Guid? RevisionId,
     string ContentId, DateTimeOffset CreatedAt, SqlHistoryFilter Kind, string DisplayName,
-    string Preview, SqlConnectionLabel? Connection);
+    string Preview, SqlConnectionLabel? Connection, int ExecutionCount = 1, DateTimeOffset? FirstExecutedAt = null);

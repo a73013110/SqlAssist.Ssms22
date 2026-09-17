@@ -61,7 +61,10 @@ public sealed class SqlMemoryVisualTests
                     index % 2 == 0 ? SqlHistoryFilter.Drafts : SqlHistoryFilter.Executions,
                     index == 0 ? "借閱查詢" : "借閱明細 — " + index,
                     "SELECT LoanId, CopyNo\nFROM LoanDetail WHERE LoanId = 1;",
-                    new SqlConnectionLabel("LibraryServer", "Library")))).ToArray(), SelectedIndex = 0
+                    new SqlConnectionLabel("LibraryServer", "Library"),
+                    // 部分執行列是連續執行合併而成；三位數次數驗證窄窗下膠囊不擠掉檔名與時間。
+                    index % 4 == 1 ? (index == 1 ? 128 : 3) : 1,
+                    index % 4 == 1 ? DateTimeOffset.Now.AddMinutes(-index * 3 - 30) : null))).ToArray(), SelectedIndex = 0
             }.WithTheme(Control.BackgroundProperty, ThemeBrush.WindowBackground);
             var historyRows = list.ItemsSource;
             var favoritesRows = Enumerable.Range(0, 2000).Select(index => new SqlMemoryRow(new SqlFavoriteItem(
@@ -222,6 +225,23 @@ public sealed class SqlMemoryVisualTests
             Assert.True(add.IsEnabled);
             Assert.Equal("新增至收藏", (string)add.ToolTip);
             Assert.Equal("從 History 刪除", history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete).ToolTip);
+
+            // 連續執行合併的列才有「×N」膠囊；只執行一次或草稿收起，不留「×1」。
+            TextBlock Count(SqlMemoryRow row)
+            {
+                var content = new ContentControl { ContentTemplate = template, Content = row };
+                content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
+                var presenter = Descendants<ContentPresenter>(content).First();
+                return Assert.IsType<TextBlock>(Assert.IsType<Border>(template.FindName("count", presenter)).Child);
+            }
+            var mergedItem = new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
+                SqlHistoryFilter.Executions, "借閱查詢", "SELECT * FROM Loan;", null, 3, DateTimeOffset.Now.AddMinutes(-5));
+            var merged = Count(new SqlMemoryRow(mergedItem));
+            Assert.Equal("×3", merged.Text);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)merged.Parent).Visibility);
+            Assert.Equal("連續執行 3 次", System.Windows.Automation.AutomationProperties.GetName((FrameworkElement)merged.Parent));
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)Count(new SqlMemoryRow(mergedItem with { ExecutionCount = 1 })).Parent).Visibility);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)Count(recovery).Parent).Visibility);
 
             var favorites = Render(favorite);
             Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.Edit,
@@ -543,9 +563,10 @@ public sealed class SqlMemoryVisualTests
     {
         WpfTest.Run(() =>
         {
-            var row = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
+            var last = new DateTimeOffset(2026, 9, 17, 10, 30, 0, TimeSpan.Zero);
+            var row = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", last,
                 SqlHistoryFilter.Executions, new string('L', 100) + ".sql", "SELECT * FROM Loan;",
-                new SqlConnectionLabel("LibraryServer", "Library")));
+                new SqlConnectionLabel("LibraryServer", "Library"), 4, last.AddMinutes(-20)));
             var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var body = new Border();
@@ -563,8 +584,10 @@ public sealed class SqlMemoryVisualTests
             Assert.True(scroll.ScrollableWidth > 0);
             Assert.True(summary.ActualHeight < 30);
             var fields = Descendants<TextBlock>(summary).ToArray();
-            // 膠囊（狀態、伺服器、資料庫）集中在前，檔名與時間緊接在後。
-            Assert.Equal(new[] { row.Status, row.Server, row.Database, row.Name, row.Timestamp }, fields.Select(field => field.Text));
+            // 膠囊（狀態、次數、伺服器、資料庫）集中在前，檔名與時間緊接在後；合併列同時列出首次與最後執行。
+            Assert.Equal(new[] { row.Status, "×4", row.Server, row.Database, row.Name, row.TimeSummary }, fields.Select(field => field.Text));
+            Assert.StartsWith("首次 " + last.AddMinutes(-20).ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"), row.TimeSummary);
+            Assert.EndsWith("最後 " + last.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"), row.TimeSummary);
             Assert.InRange(fields.Max(field => field.TranslatePoint(new Point(), summary).Y) - fields.Min(field => field.TranslatePoint(new Point(), summary).Y), 0, 4);
             var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
             summary.RaiseEvent(wheel); split.UpdateLayout();

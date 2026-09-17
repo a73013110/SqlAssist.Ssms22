@@ -24,6 +24,7 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 - idle 以每 Session 一份 Recovery 保存最新全文；內容改變且跨過設定間隔才建立 auto revision。
 - 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
+  同一 Session 連續相同的執行只佔一列 History，規則見[合併](sql-memory-search.md#連續執行合併)。
   選取版本不改文件 head、不覆蓋整份 Recovery；連線取自執行當下的快取。
   方塊選取或多重選取依文件順序、以文件換行串接各範圍，不記錄範圍之間沒有執行的文字。
 - 關閉先保存最終版本，再於同一交易刪除 Recovery；晚到 idle 不得重新開啟 Session。

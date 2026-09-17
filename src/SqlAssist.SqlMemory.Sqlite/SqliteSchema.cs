@@ -2,13 +2,15 @@ namespace SqlAssist.SqlMemory.Sqlite;
 
 internal static class SqliteSchema
 {
-    public const int Version = 4;
+    public const int Version = 5;
     public const int ApplicationId = 0x534d454d;
     public const string MaintenanceLeaseId = "maintenance";
 
     // 延後外鍵允許同一交易建立 Session 與第一個 Revision；收藏版本標記不設外鍵，刪除收藏不改寫版本。
     // 版本要嘛屬於一次編輯器生命週期，要嘛屬於一個收藏；兩者皆空的版本沒有任何配額界線可套用。
     // 連線只存在使用者看得到的兩處：History 投影與收藏標註；版本、執行與 Recovery 不各留一份沒有人讀的連線。
+    // 同一 Session 連續執行同一份內容與連線時合併成一列 History；Executions 仍逐次保存並以 EntryKey 指回那一列，
+    // Sessions.LatestExecutionEntryKey 只是找「上一筆執行列」的指標，列被刪掉後自然失效，所以不設外鍵。
     public const string Create = @"
 CREATE TABLE StoreInfo (StoreId TEXT NOT NULL);
 CREATE TABLE Documents (
@@ -24,6 +26,7 @@ CREATE TABLE Sessions (
     LastSequence INTEGER NOT NULL CHECK(LastSequence > 0),
     LatestRevisionId TEXT REFERENCES Revisions(RevisionId) DEFERRABLE INITIALLY DEFERRED,
     LatestExecutionRevisionId TEXT REFERENCES Revisions(RevisionId) DEFERRABLE INITIALLY DEFERRED,
+    LatestExecutionEntryKey TEXT,
     LeaseId TEXT REFERENCES Leases(LeaseId)
 );
 CREATE TABLE Revisions (
@@ -37,7 +40,8 @@ CREATE TABLE Revisions (
 );
 CREATE TABLE Executions (
     ExecutionId TEXT PRIMARY KEY, RevisionId TEXT NOT NULL REFERENCES Revisions(RevisionId),
-    ExecutedAt INTEGER NOT NULL
+    ExecutedAt INTEGER NOT NULL,
+    EntryKey TEXT NOT NULL REFERENCES History(EntryKey) DEFERRABLE INITIALLY DEFERRED
 );
 CREATE TABLE Recovery (
     SessionId TEXT PRIMARY KEY REFERENCES Sessions(SessionId), ContentId TEXT NOT NULL REFERENCES Contents(ContentId),
@@ -51,7 +55,9 @@ CREATE TABLE History (
     EntryKey TEXT PRIMARY KEY, SessionId TEXT NOT NULL REFERENCES Sessions(SessionId) DEFERRABLE INITIALLY DEFERRED,
     RevisionId TEXT REFERENCES Revisions(RevisionId), ContentId TEXT NOT NULL REFERENCES Contents(ContentId),
     CreatedAt INTEGER NOT NULL, Kind INTEGER NOT NULL CHECK(Kind IN (1, 2)),
-    Server TEXT, DatabaseName TEXT
+    Server TEXT, DatabaseName TEXT,
+    ExecutionCount INTEGER NOT NULL CHECK(ExecutionCount > 0), FirstExecutedAt INTEGER,
+    CHECK((Kind=1) = (FirstExecutedAt IS NOT NULL) AND (Kind=1 OR ExecutionCount=1))
 );
 CREATE INDEX IX_History_Time ON History(CreatedAt DESC, EntryKey DESC);
 CREATE INDEX IX_History_KindTime ON History(Kind, CreatedAt DESC, EntryKey DESC);
@@ -93,6 +99,7 @@ CREATE INDEX IX_Revisions_Parent ON Revisions(ParentRevisionId);
 CREATE INDEX IX_Sessions_Head ON Sessions(LatestRevisionId);
 CREATE INDEX IX_Sessions_ExecutionHead ON Sessions(LatestExecutionRevisionId);
 CREATE INDEX IX_Executions_Revision ON Executions(RevisionId);
+CREATE INDEX IX_Executions_Entry ON Executions(EntryKey, ExecutedAt, ExecutionId);
 CREATE INDEX IX_History_Revision ON History(RevisionId);
 
 CREATE INDEX IX_Revisions_SessionAuto ON Revisions(SessionId, CreatedAt DESC)

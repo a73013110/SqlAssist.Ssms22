@@ -80,9 +80,12 @@ public static class SqlMemoryStorageSelfTest
             using (var reopened = await IsolatedSqlMemoryStore.OpenAsync(database, ssmsIdeDirectory, token).ConfigureAwait(false))
             {
                 var page = await reopened.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions), token).ConfigureAwait(false);
-                Require(page.Items.Count == 21 && page.NextCursor == null && page.Items.All(item => item.ContentId == contentId), "重新開啟與內容去重");
+                // 同一 Session 連續執行同一份 SQL 併成一列；次數與首末時間要原樣跨過 AppDomain 回到宿主。
+                Require(page.Items.Count == 1 && page.NextCursor == null && page.Items[0].ContentId == contentId, "重新開啟與內容去重");
+                Require(page.Items[0].ExecutionCount == 21 && page.Items[0].FirstExecutedAt == start.AddSeconds(1) &&
+                    page.Items[0].CreatedAt == start.AddSeconds(21), "連續執行合併為一列");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "全文還原");
-                report.WriteLine("通過：重新開啟、21 筆紀錄共用內容位址、全文還原。");
+                report.WriteLine("通過：重新開啟、21 次連續執行合併為一列並共用內容位址、全文還原。");
                 var favorite = await reopened.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("SQL Favorite 重新開啟後遺失。");
                 Require(favorite.ContentId == contentId, "SQL Favorite 共用內容");
@@ -254,7 +257,9 @@ public static class SqlMemoryStorageSelfTest
         Require(usage.ContentBytes == 2L * (sql.Length + FavoriteEditSql.Length) && usage.DatabaseFileBytes > 0, "邏輯容量與實體檔案量測");
         // 只給筆數配額、不給截止時間：期限內但超額的執行也要回收，head 內容仍受保護。
         await DrainAsync(store, new SqlRetentionPolicy(null, null, null, 5, 0), token).ConfigureAwait(false);
-        Require((await store.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions), token).ConfigureAwait(false)).Items.Count == 5,
+        // 配額以執行事件計：合併列留下最新 5 次，次數與首次時間跟著剩下的執行重算。
+        var executions = (await store.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.Executions), token).ConfigureAwait(false)).Items;
+        Require(executions.Count == 1 && executions[0].ExecutionCount == 5 && executions[0].FirstExecutedAt < executions[0].CreatedAt,
             "Execution 筆數配額");
         Require((await store.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "筆數配額不刪除 Session head 內容");
         var result = await DrainAsync(store, new SqlRetentionPolicy(DateTimeOffset.MaxValue, DateTimeOffset.MaxValue, 0), token).ConfigureAwait(false);
