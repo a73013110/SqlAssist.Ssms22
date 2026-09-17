@@ -205,7 +205,7 @@ public sealed class SqliteLeaseTests
 
         // 下一次心跳之前 writer 仍帶著舊識別碼；外鍵不得讓擷取失敗，也不得憑空復活租約。
         await SeedRecovery(store, owner, lease, 2);
-        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, Start);
+        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId);
         await store.Process(owner, store.Capture(kind: SqlCaptureKind.DraftIdle, session: other), Token, DraftsOnly, lease);
         Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Sessions WHERE LeaseId IS NULL;"));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Leases;"));

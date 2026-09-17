@@ -21,7 +21,6 @@ internal static partial class SqlAssistChrome
     {
         SqlHistoryFilter.Executions => SqlIcon.Execute, SqlHistoryFilter.Drafts => SqlIcon.Edit, SqlHistoryFilter.All => SqlIcon.All,
         SqlHistoryPeriod.Any => SqlIcon.AnyTime, SqlHistoryPeriod => SqlIcon.Calendar,
-        SqlFavoriteScope.Server => SqlIcon.Server, SqlFavoriteScope.Database => SqlIcon.Database, SqlFavoriteScope.Global => SqlIcon.Global,
         SqlConnectionFacetSort.Recent or SqlConnectionFacetSort.ReverseAlphabetical => SqlIcon.SortDescending,
         SqlConnectionFacetSort.Oldest or SqlConnectionFacetSort.Alphabetical => SqlIcon.SortAscending,
         _ => throw new System.ArgumentOutOfRangeException(nameof(value), value, "這個選項值沒有對應的圖示。")
@@ -147,18 +146,25 @@ internal static partial class SqlAssistChrome
 
     public static Border CreateSearchBar(TextBox input, Button clear)
     {
+        var bar = CreateInputBar(SqlIcon.Search, input, clear);
+        bar.Margin = new Thickness(0, 0, 0, 6);
+        return bar;
+    }
+
+    /// <summary>前置語意圖示、輸入欄與尾端按鈕共用一個外框；搜尋列與收藏標註欄位同一種外觀。</summary>
+    public static Border CreateInputBar(SqlIcon icon, TextBox input, Button trailing)
+    {
         var panel = new DockPanel();
-        var icon = CreateIcon(SqlIcon.Search); icon.Margin = new Thickness(8, 0, 4, 0);
-        DockPanel.SetDock(icon, Dock.Left); panel.Children.Add(icon);
-        DockPanel.SetDock(clear, Dock.Right); panel.Children.Add(clear);
+        var glyph = CreateIcon(icon); glyph.Margin = new Thickness(8, 0, 4, 0);
+        DockPanel.SetDock(glyph, Dock.Left); panel.Children.Add(glyph);
+        DockPanel.SetDock(trailing, Dock.Right); panel.Children.Add(trailing);
         // 保留原生編輯語意，但外框只畫一次；鍵盤焦點由整條搜尋列呈現。
         var host = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
         input.Template = new ControlTemplate(typeof(TextBox)) { VisualTree = host };
         input.Padding = new Thickness(4); input.BorderThickness = new Thickness(0);
         input.VerticalContentAlignment = VerticalAlignment.Center;
         panel.Children.Add(input);
-        var border = new Border { Child = panel, CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1),
-            Margin = new Thickness(0, 0, 0, 6), MinHeight = 30 };
+        var border = new Border { Child = panel, CornerRadius = new CornerRadius(6), BorderThickness = new Thickness(1), MinHeight = 30 };
         var style = new Style(typeof(Border));
         style.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.ListBackground));
         style.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.Hairline));
@@ -190,18 +196,26 @@ internal static partial class SqlAssistChrome
         root.Children.Add(viewer); return root;
     }
 
-    public static ComboBox CreateMemoryScopeCombo(params string[] labels)
+    /// <summary>標籤在上、欄位在下，間距 4；區塊之間的距離由呼叫端的版面決定。</summary>
+    /// <param name="input">真正接受輸入的控制項；外框可能包著它，自動化名稱仍要落在輸入本身。</param>
+    public static DockPanel CreateMemoryField(string label, FrameworkElement field, Control input)
     {
-        var combo = CreateComboBox(DefaultMetrics);
-        foreach (var label in labels) combo.Items.Add(label);
-        combo.SelectedIndex = 0; return combo;
+        var panel = new DockPanel();
+        var caption = CreateLabel(label, DefaultMetrics); caption.Margin = new Thickness(0, 0, 0, 4);
+        DockPanel.SetDock(caption, Dock.Top); panel.Children.Add(caption);
+        panel.Children.Add(field);
+        AutomationProperties.SetName(input, label); return panel;
     }
 
-    public static StackPanel CreateMemoryField(string label, Control control)
+    /// <summary>下拉建議的開關：沿用展開箭頭，停駐才顯色，不另畫一個 ComboBox 外框。</summary>
+    public static Button CreateDropDownButton(string label)
     {
-        var panel = new StackPanel(); panel.Children.Add(CreateLabel(label, DefaultMetrics));
-        control.Margin = new Thickness(0, 4, 0, 0); panel.Children.Add(control);
-        AutomationProperties.SetName(control, label); return panel;
+        var button = CreateButton("", DefaultMetrics);
+        button.Template = CreateGhostButtonTemplate();
+        button.Content = CreateChevron(); button.Padding = new Thickness(4);
+        button.MinWidth = 26; button.MinHeight = 26; button.Focusable = false;
+        button.ToolTip = label; AutomationProperties.SetName(button, label);
+        return button;
     }
 
     public static Style CreateMemoryPillStyle()
@@ -420,11 +434,10 @@ internal static partial class SqlAssistChrome
             actions.AppendChild(button);
         }
         var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
-        connections.AppendChild(BoundBadge("Server", "server", iconProperty: "ServerIcon")); connections.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
+        AppendConnectionBadges(connections);
         var template = new DataTemplate { VisualTree = panel };
         template.Triggers.Add(favorite); template.Triggers.Add(history);
-        var noDatabase = new DataTrigger { Binding = new Binding("Database"), Value = "" };
-        noDatabase.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(noDatabase);
+        CollapseEmptyConnectionBadges(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);
@@ -469,6 +482,22 @@ internal static partial class SqlAssistChrome
         return text;
     }
 
+    private static void AppendConnectionBadges(FrameworkElementFactory panel)
+    {
+        panel.AppendChild(BoundBadge("Server", "server", SqlIcon.Server));
+        panel.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
+    }
+
+    /// <summary>沒有標註的收藏不畫空膠囊；History 沒有連線時列上仍有「無伺服器」這類說明文字，不受影響。</summary>
+    private static void CollapseEmptyConnectionBadges(DataTemplate template)
+    {
+        foreach (var (property, name) in new[] { ("Server", "server"), ("Database", "database") })
+        {
+            var empty = new DataTrigger { Binding = new Binding(property), Value = "" };
+            empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, name)); template.Triggers.Add(empty);
+        }
+    }
+
     private static FrameworkElementFactory BoundBadge(string property, string name, SqlIcon? icon = null, string? iconProperty = null)
     {
         var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
@@ -495,8 +524,7 @@ internal static partial class SqlAssistChrome
         panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
         // 膠囊全部排在前面，檔名與時間緊接在後：文字不再被夾在兩組膠囊中間，資訊列一眼讀得完。
         panel.AppendChild(BoundBadge("Status", "state", iconProperty: "StatusIcon"));
-        panel.AppendChild(BoundBadge("Server", "server", iconProperty: "ServerIcon"));
-        panel.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
+        AppendConnectionBadges(panel);
         var name = BoundText("Name");
         name.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 8, 0));
         name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
@@ -506,8 +534,7 @@ internal static partial class SqlAssistChrome
         var template = new DataTemplate { VisualTree = panel };
         var noTime = new DataTrigger { Binding = new Binding("Timestamp"), Value = "" };
         noTime.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "Timestamp")); template.Triggers.Add(noTime);
-        var empty = new DataTrigger { Binding = new Binding("Database"), Value = "" };
-        empty.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "database")); template.Triggers.Add(empty);
+        CollapseEmptyConnectionBadges(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);

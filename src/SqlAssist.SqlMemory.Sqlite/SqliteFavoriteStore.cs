@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Text;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.SqlMemory;
@@ -10,14 +8,16 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 
 namespace SqlAssist.SqlMemory.Sqlite;
 
-/// <summary>收藏：metadata CAS、SQL 編輯版本與 scope keyset 分頁。</summary>
+/// <summary>收藏：單一儲存入口、標註篩選的時間 keyset 分頁與版本時間軸。</summary>
 internal sealed class SqliteFavoriteStore
 {
-    private const string FavoriteProjection = @"SELECT s.FavoriteId,s.Name,s.Description,s.CurrentRevisionId,
-s.Scope,x.Server,x.DatabaseName,s.Version,r.ContentId,c.Preview";
+    private const string FavoriteCursor = "favorite2";
+    private const string RevisionCursor = "revision2";
+
+    private const string FavoriteProjection = @"SELECT f.FavoriteId,f.Name,f.Description,f.CurrentRevisionId,
+f.Server,f.DatabaseName,f.UpdatedAt,f.Version,r.ContentId,c.Preview";
     private const string FavoriteSource = @"
-FROM Favorites s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId
-JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s.ContextId";
+FROM Favorites f JOIN Revisions r ON r.RevisionId=f.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId";
 
     private readonly SqliteDatabase _database;
     private readonly SqliteSearchBudget _searchBudget;
@@ -32,67 +32,46 @@ JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s
     {
         cancellationToken.ThrowIfCancellationRequested();
         using var connection = _database.Connect();
-        using var command = Command(connection, null, FavoriteProjection + FavoriteSource + " WHERE s.FavoriteId=$id;", ("$id", Id(favoriteId)));
+        using var command = Command(connection, null, FavoriteProjection + FavoriteSource + " WHERE f.FavoriteId=$id;", ("$id", Id(favoriteId)));
         using var reader = command.ExecuteReader();
         cancellationToken.ThrowIfCancellationRequested();
         return reader.Read() ? ReadFavoriteItem(reader) : null;
     }
 
-    public SqlFavoriteWriteResult WriteFavorite(SqlFavoriteWrite write, CancellationToken cancellationToken)
+    /// <remarks>
+    /// 與擷取、清理共用寫鎖及交易邊界，不能先檢查版本再另開交易寫入。收藏自己的版本不屬於任何 Session，
+    /// 也不動 head、序號或 Capture，更不寫 History 列——收藏與擷取是兩條獨立的路。ParentRevisionId 留空：
+    /// 接成版本鏈會讓每個舊版本被子版本永久保護，配額就永遠回收不到。
+    /// </remarks>
+    public SqlFavoriteWriteResult SaveFavorite(SqlFavoriteSave save, CancellationToken cancellationToken)
     {
-        if (write == null) throw new ArgumentNullException(nameof(write));
+        if (save == null) throw new ArgumentNullException(nameof(save));
+        var favorite = save.Favorite;
+        // 雜湊在取得寫鎖之前算好，大型 SQL 不拉長別的程序等鎖的時間。
+        var content = save.Sql == null ? null : SqlContent.Create(save.Sql);
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
-        var favorite = write.Favorite;
-        // 與擷取、清理共用寫鎖及交易邊界，不能先檢查引用再另開交易刪除。
-        if (ReadFavoriteVersion(connection, transaction, favorite.FavoriteId) != write.ExpectedVersion)
+        // 新增時已存在是重送或撞號，更新時不符是別人改過或已移除；一個比較涵蓋兩者，都不覆寫。
+        if (ReadFavoriteVersion(connection, transaction, favorite.FavoriteId) != save.ExpectedVersion)
             return SqlFavoriteWriteResult.Conflict;
         cancellationToken.ThrowIfCancellationRequested();
-        WriteFavoriteRow(connection, transaction, favorite);
-        cancellationToken.ThrowIfCancellationRequested();
-        transaction.Commit();
-        return SqlFavoriteWriteResult.Committed;
-    }
-
-    public SqlFavoriteWriteResult CreateFavoriteFromSql(SqlFavoriteSqlCreate create, CancellationToken cancellationToken)
-    {
-        if (create == null) throw new ArgumentNullException(nameof(create));
-        var content = SqlContent.Create(create.Sql);
-        using var connection = _database.Connect();
-        using var transaction = connection.BeginTransaction(deferred: false);
-        // 已經有這個收藏就是重送或撞號；覆寫的話會把別人的名稱、scope 與版本一起換掉。
-        if (ReadFavoriteVersion(connection, transaction, create.Favorite.FavoriteId) != null)
-            return SqlFavoriteWriteResult.Conflict;
-        cancellationToken.ThrowIfCancellationRequested();
-        WriteContent(connection, transaction, content);
-        WriteFavoriteRevision(connection, transaction, create.Favorite, content.ContentId, create.CreatedAt);
-        WriteFavoriteRow(connection, transaction, create.Favorite);
-        cancellationToken.ThrowIfCancellationRequested();
-        transaction.Commit();
-        return SqlFavoriteWriteResult.Committed;
-    }
-
-    public SqlFavoriteWriteResult EditFavoriteSql(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken)
-    {
-        if (edit == null) throw new ArgumentNullException(nameof(edit));
-        var content = SqlContent.Create(edit.Sql);
-        using var connection = _database.Connect();
-        using var transaction = connection.BeginTransaction(deferred: false);
-        string? contextId;
-        using (var command = Command(connection, transaction,
-            "SELECT Version,ContextId FROM Favorites WHERE FavoriteId=$id;", ("$id", Id(edit.FavoriteId))))
-        using (var reader = command.ExecuteReader())
+        if (content != null)
         {
-            if (!reader.Read() || Guid.ParseExact(reader.GetString(0), "N") != edit.ExpectedVersion)
-                return SqlFavoriteWriteResult.Conflict;
-            contextId = StringOrNull(reader, 1);
+            WriteContent(connection, transaction, content);
+            Execute(connection, transaction, @"INSERT INTO Revisions
+(RevisionId,ContentId,CreatedAt,Reason,IsExecutionSelection,FavoriteId) VALUES($id,$content,$time,$reason,0,$favorite);",
+                ("$id", Id(favorite.CurrentRevisionId)), ("$content", content.ContentId), ("$time", Ticks(save.SavedAt)),
+                ("$reason", (int)SqlRevisionReason.Favorite), ("$favorite", Id(favorite.FavoriteId)));
         }
-        cancellationToken.ThrowIfCancellationRequested();
-        WriteContent(connection, transaction, content);
-        WriteFavoriteRevision(connection, transaction, edit.FavoriteId, edit.RevisionId, content.ContentId,
-            contextId, edit.EditedAt);
-        Execute(connection, transaction, "UPDATE Favorites SET CurrentRevisionId=$revision,Version=$version WHERE FavoriteId=$id;",
-            ("$revision", Id(edit.RevisionId)), ("$version", Id(Guid.NewGuid())), ("$id", Id(edit.FavoriteId)));
+        Execute(connection, transaction, @"INSERT INTO Favorites
+(FavoriteId,Name,Description,CurrentRevisionId,Server,DatabaseName,UpdatedAt,Version)
+VALUES($id,$name,$description,$revision,$server,$database,$time,$version)
+ON CONFLICT(FavoriteId) DO UPDATE SET Name=excluded.Name,Description=excluded.Description,
+CurrentRevisionId=excluded.CurrentRevisionId,Server=excluded.Server,DatabaseName=excluded.DatabaseName,
+UpdatedAt=excluded.UpdatedAt,Version=excluded.Version;",
+            ("$id", Id(favorite.FavoriteId)), ("$name", favorite.Name), ("$description", favorite.Description),
+            ("$revision", Id(favorite.CurrentRevisionId)), ("$server", favorite.Server), ("$database", favorite.Database),
+            ("$time", Ticks(save.SavedAt)), ("$version", Id(Guid.NewGuid())));
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
         return SqlFavoriteWriteResult.Committed;
@@ -112,40 +91,6 @@ JOIN Contents c ON c.ContentId=r.ContentId LEFT JOIN Contexts x ON x.ContextId=s
         return SqlFavoriteWriteResult.Committed;
     }
 
-    /// <summary>收藏自己的版本：新增與改 SQL 共用同一個形狀。</summary>
-    /// <remarks>
-    /// 不屬於任何 Session，也不動 head、序號或 Capture，更不寫 History 列——收藏與擷取是兩條獨立的路，
-    /// 擷取設定是關的也照樣收得起來。ParentRevisionId 留空：接成版本鏈會讓每個舊版本被子版本永久保護，
-    /// 配額就永遠回收不到。連線沿用收藏自己的 scope，不是它被收藏當下的執行連線。
-    /// </remarks>
-    private static void WriteFavoriteRevision(SqliteConnection connection, SqliteTransaction transaction,
-        Guid favoriteId, Guid revisionId, string contentId, string? contextId, DateTimeOffset createdAt) =>
-        Execute(connection, transaction, @"INSERT INTO Revisions
-(RevisionId,ParentRevisionId,ContentId,SessionId,CreatedAt,Reason,ContextId,IsExecutionSelection,FavoriteId)
-VALUES($id,NULL,$content,NULL,$time,$reason,$context,0,$favorite);",
-            ("$id", Id(revisionId)), ("$content", contentId), ("$time", Ticks(createdAt)),
-            ("$reason", (int)SqlRevisionReason.Favorite), ("$context", contextId), ("$favorite", Id(favoriteId)));
-
-    private static void WriteFavoriteRevision(SqliteConnection connection, SqliteTransaction transaction,
-        SqlFavorite favorite, string contentId, DateTimeOffset createdAt) =>
-        WriteFavoriteRevision(connection, transaction, favorite.FavoriteId, favorite.CurrentRevisionId, contentId,
-            WriteContext(connection, transaction, favorite.Connection), createdAt);
-
-    /// <summary>收藏列本身；新增與更新 metadata 共用，欄位組合由 schema 的 scope CHECK 守住。</summary>
-    private static void WriteFavoriteRow(SqliteConnection connection, SqliteTransaction transaction, SqlFavorite favorite) =>
-        Execute(connection, transaction, @"INSERT INTO Favorites
-(FavoriteId,Name,Description,CurrentRevisionId,Scope,ContextId,Server,DatabaseName,Version)
-VALUES($id,$name,$description,$revision,$scope,$context,$server,$database,$version)
-ON CONFLICT(FavoriteId) DO UPDATE SET Name=excluded.Name,Description=excluded.Description,
-CurrentRevisionId=excluded.CurrentRevisionId,Scope=excluded.Scope,ContextId=excluded.ContextId,
-Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Version;",
-            ("$id", Id(favorite.FavoriteId)), ("$name", favorite.Name), ("$description", favorite.Description),
-            ("$revision", Id(favorite.CurrentRevisionId)), ("$scope", (int)favorite.Scope),
-            ("$context", WriteContext(connection, transaction, favorite.Connection)),
-            ("$server", favorite.Connection?.Server),
-            ("$database", favorite.Scope == SqlFavoriteScope.Database ? favorite.Connection?.Database : null),
-            ("$version", Id(Guid.NewGuid())));
-
     private static Guid? ReadFavoriteVersion(SqliteConnection connection, SqliteTransaction transaction, Guid id)
     {
         using var command = Command(connection, transaction, "SELECT Version FROM Favorites WHERE FavoriteId=$id;", ("$id", Id(id)));
@@ -154,42 +99,35 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Versi
 
     private static SqlFavoriteItem ReadFavoriteItem(SqliteDataReader reader) => new(
         new SqlFavorite(Guid.ParseExact(reader.GetString(0), "N"), reader.GetString(1), StringOrNull(reader, 2),
-            Guid.ParseExact(reader.GetString(3), "N"), (SqlFavoriteScope)reader.GetInt32(4), ReadContext(reader, 5)),
-        Guid.ParseExact(reader.GetString(7), "N"), reader.GetString(8), reader.GetString(9));
+            Guid.ParseExact(reader.GetString(3), "N"), StringOrNull(reader, 4), StringOrNull(reader, 5)),
+        Guid.ParseExact(reader.GetString(7), "N"), reader.GetString(8), reader.GetString(9), Time(reader.GetInt64(6)));
 
     public SqlMemoryPage<SqlFavoriteItem> ReadFavorites(SqlFavoriteRequest request, CancellationToken cancellationToken)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
-        // scope 專用前綴防止與 History 游標混用；指紋重用內容雜湊與長度前綴編碼。
-        var prefix = "favorite1|" + _database.StoreId + "|" + SqlContent.Create(
-            ((int)request.Scope).ToString(CultureInfo.InvariantCulture) + ";" + SqliteFilterKey.Field(request.Server) +
-            SqliteFilterKey.Field(request.Database) + SqliteFilterKey.Field(request.Search)).ContentHash + "|";
-        var after = DecodeFavoriteCursor(request.Cursor, prefix);
-        // 搜尋只是 scope keyset 之上的篩選，同樣受單頁掃描預算限制。
+        var binding = SqliteTimeCursor.Fingerprint(request.Server, request.Database, request.Search);
+        var cursor = SqliteTimeCursor.Decode(request.Cursor, FavoriteCursor, _database.StoreId, binding, SqliteTimeCursor.IsId);
+        // 搜尋只是標註篩選之上的條件，同樣受單頁掃描預算限制。
         var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
+        var conditions = new List<string>();
+        var parameters = new List<(string Name, object? Value)> { ("$limit", search?.CandidateLimit ?? request.PageSize + 1) };
+        SqliteConnectionFilter.Append(conditions, parameters, "f", request.Server, request.Database);
+        cursor?.AppendCondition(conditions, parameters, "f.UpdatedAt", "f.FavoriteId");
         using var connection = _database.Connect();
-        using var command = Command(connection, null, FavoritePageSql(after != null, search != null),
-            ("$scope", (int)request.Scope), ("$server", request.Server), ("$database", request.Database),
-            ("$after", after), ("$limit", search?.CandidateLimit ?? request.PageSize + 1));
+        using var command = Command(connection, null, FavoritePageSql(conditions, search != null), parameters.ToArray());
         using var reader = command.ExecuteReader();
-        var items = new List<SqlFavoriteItem>();
-        string? lastId = null;
-        string Cursor() => Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + lastId));
-        while (reader.Read())
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            // Favorites 沒有時間序；部分搜尋只能說「還有沒檢查的收藏」。
-            if (search?.IsExhausted == true) return new SqlMemoryPage<SqlFavoriteItem>(items, Cursor(), null);
-            var item = ReadFavoriteItem(reader);
-            var matched = search == null ||
-                search.Matches((byte[])reader.GetValue(10), item.Favorite.Name, item.Favorite.Description);
-            if (matched && items.Count == request.PageSize) return new SqlMemoryPage<SqlFavoriteItem>(items, Cursor());
-            lastId = Id(item.Favorite.FavoriteId);
-            if (matched) items.Add(item);
-        }
-        return new SqlMemoryPage<SqlFavoriteItem>(items, null);
+        return SqliteKeysetPage.Read(reader, request.PageSize, search,
+            row => (row.GetInt64(6), row.GetString(0)),
+            (row, scan) => scan.Matches((byte[])row.GetValue(10), row.GetString(1), StringOrNull(row, 2)),
+            ReadFavoriteItem,
+            (ticks, key) => SqliteTimeCursor.Encode(FavoriteCursor, _database.StoreId, binding, ticks, key), cancellationToken);
     }
+
+    /// <summary>必須沿標註時間索引串流而沒有暫存排序，搜尋預算才真的限制讀入的 BLOB；由 EXPLAIN 測試守住。</summary>
+    internal static string FavoritePageSql(IReadOnlyCollection<string> conditions, bool includeSql) =>
+        FavoriteProjection + (includeSql ? ",c.SqlBytes" : "") + FavoriteSource + SqliteConnectionFilter.Where(conditions) +
+        " ORDER BY f.UpdatedAt DESC,f.FavoriteId DESC LIMIT $limit;";
 
     public SqlMemoryPage<SqlFavoriteRevisionItem> ReadFavoriteRevisions(SqlFavoriteRevisionRequest request,
         CancellationToken cancellationToken)
@@ -197,16 +135,15 @@ Server=excluded.Server,DatabaseName=excluded.DatabaseName,Version=excluded.Versi
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
         var favoriteId = Id(request.FavoriteId);
-        var prefix = "revision1|" + _database.StoreId + "|" + favoriteId + "|";
-        var after = DecodeRevisionCursor(request.Cursor, prefix);
+        var after = SqliteTimeCursor.Decode(request.Cursor, RevisionCursor, _database.StoreId, favoriteId, SqliteTimeCursor.IsId);
         using var connection = _database.Connect();
         // 兩次查詢要看到同一份快照：否則回溯剛換掉目前版本時，時間軸會同時少一筆或多標一個目前版本。
         using var transaction = connection.BeginTransaction(deferred: true);
 
         SqlFavoriteRevisionItem? current;
         using (var command = Command(connection, transaction, @"SELECT r.RevisionId,r.ContentId,r.CreatedAt,r.Reason,c.Preview,c.Length,r.FavoriteId
-FROM Favorites s JOIN Revisions r ON r.RevisionId=s.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId
-WHERE s.FavoriteId=$id;", ("$id", favoriteId)))
+FROM Favorites f JOIN Revisions r ON r.RevisionId=f.CurrentRevisionId JOIN Contents c ON c.ContentId=r.ContentId
+WHERE f.FavoriteId=$id;", ("$id", favoriteId)))
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) return new SqlMemoryPage<SqlFavoriteRevisionItem>(Array.Empty<SqlFavoriteRevisionItem>(), null);
@@ -214,11 +151,11 @@ WHERE s.FavoriteId=$id;", ("$id", favoriteId)))
             // 收藏自己的目前版本會在索引串流裡出現；只有引用自 History 的目前版本要另外併進時間序。
             if (StringOrNull(reader, 6) == favoriteId) current = null;
         }
-        if (current != null && after is { } cursor && Compare(current, cursor) >= 0) current = null;
+        if (current != null && after != null && Compare(current, (after.Ticks, after.Key)) >= 0) current = null;
 
         cancellationToken.ThrowIfCancellationRequested();
         using var page = Command(connection, transaction, FavoriteRevisionPageSql(after != null),
-            ("$id", favoriteId), ("$time", after?.Ticks), ("$revision", after?.RevisionId), ("$limit", request.PageSize + 1));
+            ("$id", favoriteId), ("$time", after?.Ticks), ("$revision", after?.Key), ("$limit", request.PageSize + 1));
         using var rows = page.ExecuteReader();
         var items = new List<SqlFavoriteRevisionItem>();
         bool Add(SqlFavoriteRevisionItem item)
@@ -230,8 +167,7 @@ WHERE s.FavoriteId=$id;", ("$id", favoriteId)))
         string Cursor()
         {
             var last = items[items.Count - 1];
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(prefix + Ticks(last.CreatedAt).ToString(CultureInfo.InvariantCulture) +
-                "|" + Id(last.RevisionId)));
+            return SqliteTimeCursor.Encode(RevisionCursor, _database.StoreId, favoriteId, Ticks(last.CreatedAt), Id(last.RevisionId));
         }
 
         while (rows.Read())
@@ -265,42 +201,9 @@ WHERE s.FavoriteId=$id;", ("$id", favoriteId)))
     /// </summary>
     /// <remarks>第七欄是「是否為目前版本」；讀取器依欄位位置解讀，與目前版本那條查詢共用。</remarks>
     internal static string FavoriteRevisionPageSql(bool after) => @"SELECT r.RevisionId,r.ContentId,r.CreatedAt,r.Reason,c.Preview,c.Length,
- EXISTS(SELECT 1 FROM Favorites s WHERE s.FavoriteId=$id AND s.CurrentRevisionId=r.RevisionId)
+ EXISTS(SELECT 1 FROM Favorites f WHERE f.FavoriteId=$id AND f.CurrentRevisionId=r.RevisionId)
 FROM Revisions r INDEXED BY IX_Revisions_Favorite JOIN Contents c ON c.ContentId=r.ContentId
 WHERE r.FavoriteId=$id AND r.FavoriteId IS NOT NULL" +
         (after ? " AND (r.CreatedAt,r.RevisionId) < ($time,$revision)" : "") +
         " ORDER BY r.CreatedAt DESC,r.RevisionId DESC LIMIT $limit;";
-
-    private static (long Ticks, string RevisionId)? DecodeRevisionCursor(string? cursor, string prefix)
-    {
-        if (cursor == null) return null;
-        if (cursor.Length > 512) throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本分頁游標無效。");
-        string value;
-        try { value = Encoding.UTF8.GetString(Convert.FromBase64String(cursor)); }
-        catch (FormatException) { throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本分頁游標無效。"); }
-        var parts = value.StartsWith(prefix, StringComparison.Ordinal) ? value.Substring(prefix.Length).Split('|') : Array.Empty<string>();
-        if (parts.Length != 2 || !long.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var ticks) ||
-            ticks > DateTime.MaxValue.Ticks || !Guid.TryParseExact(parts[1], "N", out var revision))
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 版本游標失效或不屬於這個收藏。");
-        return (ticks, Id(revision));
-    }
-
-    /// <summary>必須沿 scope 索引串流而沒有暫存排序，搜尋預算才真的限制讀入的 BLOB；由 EXPLAIN 測試守住。</summary>
-    internal static string FavoritePageSql(bool after, bool includeSql) =>
-        FavoriteProjection + (includeSql ? ",c.SqlBytes" : "") + FavoriteSource + @"
- WHERE s.Scope=$scope AND s.Server IS $server AND s.DatabaseName IS $database" +
-        (after ? " AND s.FavoriteId < $after" : "") + " ORDER BY s.FavoriteId DESC LIMIT $limit;";
-
-    private static string? DecodeFavoriteCursor(string? cursor, string prefix)
-    {
-        if (cursor == null) return null;
-        if (cursor.Length > 512) throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 分頁游標無效。");
-        string value;
-        try { value = Encoding.UTF8.GetString(Convert.FromBase64String(cursor)); }
-        catch (FormatException) { throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 分頁游標無效。"); }
-        if (!value.StartsWith(prefix, StringComparison.Ordinal) ||
-            !Guid.TryParseExact(value.Substring(prefix.Length), "N", out var id))
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidCursor, "SQL Favorite 游標失效或不屬於目前篩選條件。");
-        return Id(id);
-    }
 }

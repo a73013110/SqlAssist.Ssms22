@@ -18,7 +18,7 @@ internal sealed class SqliteTestStore : IDisposable
     public SqlDocument Document { get; } = new(Guid.NewGuid(), "Library.sql", null);
     public SqlSession Session { get; }
 
-    public SqliteTestStore() => Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, Start);
+    public SqliteTestStore() => Session = new SqlSession(Guid.NewGuid(), Document.DocumentId);
 
     public Task<SqliteTestRepository> Open(CancellationToken cancellationToken) =>
         SqliteTestRepository.OpenAsync(Path, cancellationToken);

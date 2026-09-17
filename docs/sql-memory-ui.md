@@ -18,7 +18,7 @@
   重整可恢復仍在第一頁的選取，沒有選取時預覽第一筆，但不搶鍵盤焦點。
 - SQL card 只顯示單行摘要，名稱、狀態、時間及精簡連線 badge；完整 SQL 在 Detail，截斷資訊可用 Tooltip。
   卡片快速操作、快捷選單與 Preview 都由 `SqlMemoryRowCommand.All` 建立、交給 `SqlMemoryItemCommands` 執行：
-  順序固定為開新 Query、複製、新增至收藏（History）／編輯 SQL、版本歷史、編輯收藏資料（Favorites），破壞性的刪除隔開排最後；
+  順序固定為開新 Query、複製、新增至收藏（History）／編輯收藏、版本歷史（Favorites），破壞性的刪除隔開排最後；
   不適用的操作收起。Preview 右側沿用同一順序，開新 Query 是該面板的主要動作，複製全文與換行留在左側工具列。
   停駐與按下的回饋預設中性；刪除與新增至收藏改用語意色調，底色與配對前景由 `ThemePalette` 推導並檢查對比，
   高對比回系統選取色。語意色是稀少的警示，不是分類標籤。
@@ -36,14 +36,13 @@ Preview 使用共用 `SqlReadOnlyViewer`／`SqlScriptDocument`，支援 SQL 著�
 ## 篩選與工具列
 
 History 預設全部種類、七天、所有連線；狀態與期間是獨立群組，以淡色分隔線區分，窄窗換行。
-Favorites 使用 Global／Server／Database scope，不顯示期間或執行狀態，也不合併父層收藏。
-無關的 Server／Database section 隱藏，不用停用灰色控制項佔空間。
+Favorites 只有伺服器／資料庫篩選，語意與 History 相同：未選是全部，選了就精確比對標註，兩者可各自單選。
 
 搜尋獨佔一列，內嵌放大鏡／清除，Ctrl+F 聚焦；搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 一頁因預算提早結束時，清單頁尾顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
-Favorites 顯示「已搜尋部分收藏」；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
+Favorites 的日期是最後儲存時間；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
 該頁即使沒有命中也不顯示「沒有符合條件」；篩選或搜尋變更時清除進度。
-目前連線一次套用 Server／Database，Favorites 同時切 Database scope；無連線保留篩選並提示。
+目前連線一次套用 Server／Database；無連線保留篩選並提示。
 此操作只篩選，不切換 SSMS 連線。
 
 Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevron 有固定 slot、左右間距，
@@ -65,16 +64,18 @@ History 每一筆都可**新增至收藏**：有版本就引用那一份不可�
 查詢視窗的右鍵選單與工具選單也有**新增至收藏…**，有選取收選取、沒有選取收整份查詢，界線與選取執行相同；
 對話框第一列以淡色單行說明收的是哪一種與它的行數字數。此入口不寫 History、不受擷取設定影響，
 SQL Memory 沒啟用或視窗是空的就停用。
-收藏提供編輯名稱／說明／scope、編輯 SQL，以及**從收藏移除**，清單與 Preview 皆可操作。
+收藏提供**編輯收藏**與**從收藏移除**，清單與 Preview 皆可操作。
 History 每筆可 **從 History 刪除**，語意見[儲存](sql-memory-storage.md)。刪除與移除都必須確認，取消是預設；
 移除收藏不連帶刪除 History。成功後就地移出或換列並選取原位置的下一筆，保留已載入的頁；
-收藏改到目前 scope 以外即移出清單。結果寫在工具窗狀態列。
+編輯後的收藏移到最上面，標註改到目前篩選以外即移出清單。結果寫在工具窗狀態列。
 
-metadata 與 SQL 各用一個對話框：前者不讀全文，後者使用共用純文字 editor。
-未存 SQL 關閉前確認捨棄；提交期間不允許關閉，Conflict 或不明回應保留輸入且不盲目重送。
+新增與編輯共用 `FavoriteEditorWindow`：名稱、伺服器、資料庫、說明與著色 SQL 一次儲存。標註欄可自由輸入，
+下拉列出出現過的名稱；新增時預帶來源連線。SQL 沒改就引用既有版本，改了才建新版本。
+有未存變更時關閉需確認；提交期間不允許關閉，Conflict 或不明回應保留輸入且不盲目重送。
+版本歷史維持獨立對話框：瀏覽與回溯沒有儲存步驟，與編輯器共用頁尾會分不清按鈕作用在哪一頁。
 
-開新 Query 沿用目前 SSMS 連線，不採用歷史／收藏 scope，也不直接執行。
+開新 Query 沿用目前 SSMS 連線，不採用歷史連線或收藏標註，也不直接執行。
 只透過 `SsmsScriptWindow`／`TextViewEditCoordinator` 寫入剛建立且仍空白的編輯器；失敗仍可複製 SQL。
 
-收藏的版本時間軸、差異比對與回溯見[版本歷史](sql-memory-revisions.md)。本版不提供覆蓋目前 Query、批次刪除或跨 scope 合併。
+收藏的版本時間軸、差異比對與回溯見[版本歷史](sql-memory-revisions.md)。本版不提供覆蓋目前 Query 或批次刪除。
 自動 WPF 渲染與 SSMS 實機驗收的範圍見[驗收](sql-memory-validation.md)。

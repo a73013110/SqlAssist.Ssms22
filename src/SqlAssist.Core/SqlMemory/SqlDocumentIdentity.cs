@@ -38,11 +38,11 @@ public sealed class SqlDocumentIdentity
 {
     private long _sequence;
 
-    public SqlDocumentIdentity(string displayName, string? filePath, DateTimeOffset now)
+    public SqlDocumentIdentity(string displayName, string? filePath)
     {
         var path = SavedPath(filePath);
         Document = new SqlDocument(DocumentId(path), Name(displayName), path);
-        Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, now);
+        Session = new SqlSession(Guid.NewGuid(), Document.DocumentId);
     }
 
     public SqlDocument Document { get; private set; }
@@ -65,7 +65,7 @@ public sealed class SqlDocumentIdentity
     /// 路徑改變且舊 Session 已有擷取時，回傳要關閉的舊 Session；其他情形為 null。
     /// 舊 Session 從沒送出擷取就沒有要關的列，送一筆關閉反而會替暫存標題憑空建立版本。
     /// </returns>
-    public SqlSessionHandover? Observe(string displayName, string? filePath, DateTimeOffset now)
+    public SqlSessionHandover? Observe(string displayName, string? filePath)
     {
         var path = SavedPath(filePath);
         var name = Name(displayName);
@@ -73,7 +73,7 @@ public sealed class SqlDocumentIdentity
         {
             var previous = HasCaptures ? new SqlSessionHandover(Document, Session, NextSequence()) : null;
             Document = new SqlDocument(DocumentId(path), name, path);
-            Session = new SqlSession(Guid.NewGuid(), Document.DocumentId, now);
+            Session = new SqlSession(Guid.NewGuid(), Document.DocumentId);
             Interlocked.Exchange(ref _sequence, 0);
             return previous;
         }

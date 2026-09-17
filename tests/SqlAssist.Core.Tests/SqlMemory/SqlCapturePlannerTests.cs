@@ -18,7 +18,7 @@ public sealed class SqlCapturePlannerTests
         Assert.Empty(second.Revisions);
         Assert.NotEqual(first.Recovery?.ContentId, second.Recovery?.ContentId);
         Assert.Equal(first.State.LatestRevision, second.State.LatestRevision);
-        Assert.Equal(2, second.Recovery?.Sequence);
+        Assert.Equal(2, second.State.LastSequence);
         Assert.Equal(first.State.Version, second.ExpectedVersion);
     }
 
@@ -46,7 +46,8 @@ public sealed class SqlCapturePlannerTests
             var write = Prepare(capture, state);
             Assert.NotNull(write.Execution);
             Assert.Equal(capture.CaptureId, write.Execution.ExecutionId);
-            Assert.Equal(context, write.Execution.Connection);
+            // 連線跟著這一次提交寫進 History 投影；重用的版本本身不帶連線，不會被第一次執行凍結。
+            Assert.Equal(context, write.Connection);
             if (i == 1) revisionId = Assert.Single(write.Revisions).RevisionId;
             else Assert.Empty(write.Revisions);
             Assert.Equal(revisionId, write.Execution.RevisionId);
@@ -74,7 +75,6 @@ public sealed class SqlCapturePlannerTests
         Assert.Single(write.Revisions);
         Assert.Single(write.Contents);
         Assert.Equal(write.State.LatestRevision?.RevisionId, write.Execution?.RevisionId);
-        Assert.Equal(SqlExecutionScope.Selection, write.Execution?.Scope);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class SqlCapturePlannerTests
     public void SessionsOfSameDocumentHaveIndependentHeads()
     {
         var first = Prepare(Capture());
-        var secondSession = new SqlSession(Guid.NewGuid(), Document.DocumentId, Start);
+        var secondSession = new SqlSession(Guid.NewGuid(), Document.DocumentId);
         var second = Prepare(Capture(session: secondSession));
         Assert.NotEqual(first.State.Session.SessionId, second.State.Session.SessionId);
         Assert.Equal(first.Contents[0].ContentId, second.Contents[0].ContentId);

@@ -57,12 +57,8 @@ internal sealed class SqlConnectionFilter : StackPanel
     private readonly TextBlock _summary = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private SqlConnectionFacetSort _sort = SqlConnectionFacetSort.Recent;
     private string? _value;
-    private string _emptyLabel = "全部";
-    public string EmptyLabel
-    {
-        get => _emptyLabel;
-        set { if (_emptyLabel == value) return; _emptyLabel = value; Rebuild(); }
-    }
+    /// <summary>未指定名稱的選項；History 與 Favorites 都表示不限。</summary>
+    private const string AnyLabel = "全部";
     public event EventHandler? SelectionChanged;
     public event EventHandler? OptionsRequested;
     public ContextMenu SortMenu { get; } = new();
@@ -165,7 +161,7 @@ internal sealed class SqlConnectionFilter : StackPanel
     {
         var focused = _options.Children.OfType<RadioButton>().FirstOrDefault(button => button.IsKeyboardFocused);
         var focusedValue = focused?.Tag;
-        _options.Children.Clear(); Add(_emptyLabel, null);
+        _options.Children.Clear(); Add(AnyLabel, null);
         if (_value != null && !_names.Contains(_value)) Add(_value, _value);
         foreach (var name in _names) Add(name, name);
         if (_more != null) _options.Children.Add(_more);
@@ -193,7 +189,7 @@ internal sealed class SqlConnectionFilter : StackPanel
         content.Children.Add(SqlAssistChrome.CreateMemoryButtonText(_label));
         _heading.Content = content;
         // Header 只表達 disclosure；選取狀態交給 pills，不把 Header 偽裝成另一個篩選項。
-        _summary.Text = _value ?? _emptyLabel; _summary.ToolTip = _summary.Text;
+        _summary.Text = _value ?? AnyLabel; _summary.ToolTip = _summary.Text;
         _heading.ToolTip = (_value ?? "全部") + "；點擊展開／收合，不清除篩選。";
         AutomationProperties.SetName(_heading, (IsExpanded ? "收合" : "展開") + _label);
     }

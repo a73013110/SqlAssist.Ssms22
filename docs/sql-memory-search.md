@@ -9,10 +9,10 @@ Server／Database 精確且區分大小寫；複合索引支援時間、種類�
 執行專用 Revision 不再投影為 Draft；正式草稿與當前 Recovery 可以各有一列。
 
 游標含 StoreId、篩選指紋及位置，不接受跨庫／跨篩選重用。同一輪期間不重算「七天前」。
-分頁不是資料庫快照，並行新增或移動 scope 後須重新整理。
+Favorites 以最後儲存時間走同一種 keyset 與游標；分頁不是資料庫快照，並行編輯後須重新整理。
 
 連線 facets 獨立分組，不限於已載入清單，不讀 SQL。依時間或名稱排序，一次 100 個名稱及一個續頁訊號，
-offset 續讀；History 不受搜尋／期間限制，Favorites 限定 scope，Database 隨 Server 收斂。
+offset 續讀；History 讀投影、Favorites 讀標註，兩邊都不受搜尋／期間限制，Database 隨 Server 收斂。
 
 ## 搜尋語意
 
@@ -25,10 +25,10 @@ History 只比對 SQL；Favorites 比對名稱、說明或 SQL 的聯集。SQL �
 比對在讀取迴圈逐列進行，不放進 WHERE。每頁最多檢查 2000 列候選或 16 MiB SQL，先到者為準：
 
 - 預算用盡且還有候選：回傳已命中的列（可少於頁大小或為空），`IsSearchPartial` 為 true，
-  游標接在最後檢查過的候選之後；History 另回 `SearchedThrough`（該候選時間）。Favorites 沒有時間序，為 null。
+  游標接在最後檢查過的候選之後，並回 `SearchedThrough`（該候選的時間）。
 - 在預算內掃完就沒有游標，不留只會回空頁的續頁；湊滿一頁照常續頁。
 - 游標格式與指紋沿用一般分頁，部分搜尋與載入更多共用同一種游標。
-- 候選查詢必須沿時間或 scope 索引串流、不得有暫存排序，否則第一列出來前已讀完所有 BLOB；
+- 候選查詢必須沿時間索引串流、不得有暫存排序，否則第一列出來前已讀完所有 BLOB；
   EXPLAIN 測試逐一確認實際分頁 SQL。
 - 單列不中途切斷：超過位元組預算的單份 SQL 仍整份比對，取消在列與列之間生效。
 - 不會因預算用盡自動續搜；是否往前找由呼叫端決定。

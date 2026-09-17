@@ -6,7 +6,7 @@ namespace SqlAssist.SqlMemory.Sqlite;
 
 internal enum SqliteMaintenanceStage
 {
-    Executions, DraftHistory, SelectionRevisions, FavoriteRevisions, Recovery, Revisions, Contents, Contexts,
+    Executions, DraftHistory, SelectionRevisions, FavoriteRevisions, Recovery, Revisions, Contents,
 }
 
 /// <summary>
@@ -16,7 +16,7 @@ internal enum SqliteMaintenanceStage
 /// 排序固定：Execution 先釋出執行專用版本，版本階段才回收得到；Recovery 排在最後，
 /// 釋出的內容由本批的引用回收接手。擷取產生的文件版本不是候選——引擎一律把新版本接在
 /// 前一個 head 之後，舊文件版本不是 head 就有子版本，時間經過不會讓它變得可刪；
-/// 只有完整掃描逐鍵重查這類版本、所有內容與連線，承接任何索引路徑沒預料到的孤立資料。
+/// 只有完整掃描逐鍵重查這類版本與所有內容，承接任何索引路徑沒預料到的孤立資料。
 /// </remarks>
 internal static class SqliteMaintenanceStages
 {
@@ -30,7 +30,7 @@ internal static class SqliteMaintenanceStages
     {
         SqliteMaintenanceStage.Executions, SqliteMaintenanceStage.DraftHistory, SqliteMaintenanceStage.SelectionRevisions,
         SqliteMaintenanceStage.FavoriteRevisions, SqliteMaintenanceStage.Recovery, SqliteMaintenanceStage.Revisions,
-        SqliteMaintenanceStage.Contents, SqliteMaintenanceStage.Contexts,
+        SqliteMaintenanceStage.Contents,
     };
 
     public static SqliteMaintenanceStage[] For(SqlMemoryMaintenanceScan scan) =>
@@ -70,7 +70,6 @@ internal static class SqliteMaintenanceStages
         {
             SqliteMaintenanceStage.Revisions => ("Revisions", "RevisionId"),
             SqliteMaintenanceStage.Contents => ("Contents", "ContentId"),
-            SqliteMaintenanceStage.Contexts => ("Contexts", "ContextId"),
             _ => throw new ArgumentOutOfRangeException(nameof(stage)),
         };
         return "SELECT " + key + " FROM " + table + " WHERE " + key + ">$key ORDER BY " + key + " LIMIT $limit;";

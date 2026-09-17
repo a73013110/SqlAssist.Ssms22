@@ -22,8 +22,8 @@
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
 | SQL Memory 資料庫檔案的整組封存（`.db`／`-wal`／`-shm`） | `Ssms22/SqlMemory/SqlMemoryDatabaseArchive.cs` |
-| 獨立 SQL 唯讀預覽／純文字編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs` |
-| SQL 著色、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`／`SqlScriptTheme.cs` |
+| 獨立 SQL 唯讀預覽／著色編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs`（外觀由呼叫端掛 `SqlScriptTheme`） |
+| SQL 著色分類、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`（`Classify`）／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
 | 自製 UI 的語意圖示與 moniker 對照、原生影像插槽 | `Ssms22/UI/SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
@@ -37,6 +37,8 @@
 | 通知卡片本身（整個處理程序一張，在編輯區之間搬家） | `Ssms22/Editor/NotificationSurface.cs` |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |
 | SQL Memory 的 SQLite 隔離載入 | `SqlMemory.Isolation/IsolatedSqlMemoryStore.cs` |
+| History／Favorites 的連線篩選 SQL、時間 keyset 游標與分頁讀取 | `SqlMemory.Sqlite/SqliteFilters.cs` 的 `SqliteConnectionFilter`、`SqliteKeysetPage.cs` |
+| 收藏新增與編輯（資料、標註與 SQL 一次儲存） | `Ssms22/SqlMemory/FavoriteEditorWindow.cs` |
 | SQL Memory 的設定、計時器與狀態列接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
 | SQL Memory 的宿主／封裝儲存自我測試 | `SqlMemory.Isolation/SqlMemoryStorageSelfTest.cs` |
 | SQL Memory 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |

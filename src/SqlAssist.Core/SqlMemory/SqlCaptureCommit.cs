@@ -14,6 +14,7 @@ public sealed class SqlCaptureCommit
     {
         CaptureId = capture.CaptureId;
         Document = capture.Document;
+        Connection = capture.Connection;
         ExpectedVersion = expectedVersion;
         State = state;
         Contents = Array.AsReadOnly(contents.ToArray());
@@ -25,6 +26,9 @@ public sealed class SqlCaptureCommit
 
     public Guid CaptureId { get; }
     public SqlDocument Document { get; }
+
+    /// <summary>擷取當下的連線；只寫進 History 投影，版本、執行與 Recovery 本身不保存連線。</summary>
+    public SqlConnectionLabel? Connection { get; }
     public long? ExpectedVersion { get; }
     public SqlSessionHead State { get; }
     public IReadOnlyList<SqlContent> Contents { get; }

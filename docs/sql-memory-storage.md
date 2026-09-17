@@ -4,7 +4,7 @@
 
 ## 單一 schema
 
-功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=3`、
+功能未發行，只有 `SqliteSchema.Create` 一份完整建表 SQL；`user_version=4`、
 `application_id=0x534d454d`。不保留開發期間的升級鏈、舊表、別名或 schema fixture。
 宿主使用 `%LOCALAPPDATA%\SqlAssist.Ssms22\SQLMemory\SQLMemory.db`，不搬移或刪除早期測試資料。
 已有不同身分／版本、外來或損壞資料庫明確拒絕，不自動刪檔；由使用者在工具窗按下重建才封存。
@@ -19,8 +19,8 @@
 | Documents／Sessions | 文件與一次編輯器生命週期、head、CAS 版本及租約 |
 | Contents | 去重 SQL BLOB、長度及至多 240 UTF-16 code units 的列表投影 |
 | Revisions／Executions | 不可變版本與獨立執行事件；版本屬於一個 Session 或一個 Favorite，兩者皆空由 CHECK 擋下 |
-| Recovery／Captures／History | 最新未存檔內容、重送紀錄與有索引的歷史投影 |
-| Favorites | 名稱、說明、scope、目前版本引用與 GUID CAS token |
+| Recovery／Captures／History | 最新未存檔內容、重送紀錄與有索引的歷史投影；連線只存在投影 |
+| Favorites | 名稱、說明、伺服器／資料庫標註、目前版本引用、最後儲存時間與 GUID CAS token |
 | Leases／StorageUsage／MaintenanceState | 租約、內容計量與共用維護輪次 |
 
 新庫在 IMMEDIATE 交易一次建立全部表、索引與 triggers；取得寫鎖後重讀身分／版本，
@@ -29,7 +29,8 @@ busy timeout 預設 5 秒，可指定 1～60 秒；取消或失敗回復交易�
 失敗以 `SqlMemoryStorageException` 分類：Busy（SQLITE_BUSY／LOCKED，唯一可重試）、Io、Corrupt、
 Incompatible、InvalidArgument、InvalidCursor、Constraint、Unknown，並保留 SQLite 主要／延伸錯誤碼。
 
-SQL 以 UTF-16LE BLOB 保存，全文讀取再次驗證 hash／長度。Recovery 替換只回收被替換且無引用的
+SQL 以 UTF-16LE BLOB 保存，全文讀取重算 ContentId（即雜湊）與長度驗證。
+沒有讀取端的欄位不進 schema：版本、執行與 Recovery 不各存一份連線，文件不存路徑。Recovery 替換只回收被替換且無引用的
 Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents triggers 維護，不 SUM 全庫。
 
 ### 擷取路徑：不變內容不寫、去重不讀整份 BLOB
@@ -39,18 +40,16 @@ Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents tr
 寫入，只有 Session／Captures 兩張輕量表照常前進維持 Sequence／CAS；晚到 idle 仍受
 `capture.Sequence <= previous.LastSequence` 擋下。連續 idle 但內容不變因此不再每輪重編碼。
 
-去重命中（`ContentId` 已存在）只比對 `Contents.ContentHash` 與 `Length`，不讀回
-`SqlBytes`，也不重新編碼 UTF-16LE。SHA-256 碰撞機率遠低於這兩個欄位
-本身損毀的機率，後者仍會被擋下並丟出 `InvalidDataException`。只有 `SqlBytes` 本體單獨損毀、
-Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadContentAsync`）一定重新解碼並
-驗證雜湊，仍會擋下——完整性保證從「每次去重命中都驗」改成「下一次讀全文時驗」。
+去重命中（`ContentId` 已存在）只比對 `Length`，不讀回 `SqlBytes`，也不重新編碼 UTF-16LE；
+長度損毀丟出 `InvalidDataException`。只有 `SqlBytes` 本體單獨損毀時寫入路徑不會發現，
+下一次 `ReadContentAsync` 重算雜湊一定擋下——完整性保證是「下一次讀全文時驗」。
 
 ## History 與搜尋
 
 分頁、游標、搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 
 `DeleteHistoryAsync` 在 IMMEDIATE 交易刪投影與它自己的本體：執行刪 Executions、Recovery 刪該列；
-版本只在沒有保護根與其他引用時刪除，引用清單與維護共用 `SqliteContentRows`。釋出的 Content／Context 同交易回收。
+版本只在沒有保護根與其他引用時刪除，引用清單與維護共用 `SqliteContentRows`。釋出的 Content 同交易回收。
 不存在或不屬於該 Session 回 NotFound；仍開著的 Session 下一次擷取照常重寫 Recovery。
 
 ## Favorites
@@ -58,19 +57,18 @@ Hash／Length 仍相符時寫入路徑不會發現，但下一次讀取（`ReadC
 `ISqlFavoriteStore` 由 SQLite／Isolation 實作，方法層級契約見該介面的 XML 註解。
 SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents；GUID CAS token 刪除後重建不重用。
 
-- `WriteFavoriteAsync` 的新增、更新引用與連線在同一交易；Revision 不存在由外鍵拒絕。
+- `SaveFavoriteAsync` 是唯一寫入：新增、改資料、改 SQL 與回溯都在一個交易完成並更新 UpdatedAt。
+  沒有 SQL 就引用 `CurrentRevisionId` 指定的既有版本（不存在由外鍵拒絕）；有 SQL 才建收藏自己的版本。
+  預期版本 null 只允許新增，收藏已存在回 Conflict；否則 token 不符或不存在回 Conflict，不留部分寫入。
 - `DeleteFavoriteAsync`：token 不符或不存在回 Conflict；移除收藏不刪 History、Revision 或 Content。
-- `CreateFavoriteFromSqlAsync` 給沒有版本可引用的入口（查詢視窗、未存檔草稿）：Content、Revision 與
-  Favorite 在同一交易寫入，收藏已存在回 Conflict，不覆寫。內容照常去重。
-- 收藏自己建立的 `Favorite` Revision 不屬於任何 Session，也不建假 Session；新增與 `EditFavoriteSqlAsync`
-  形狀相同：不進 History、不建 Capture、不動任何 head 或序號，連線取自收藏自己的 scope，
-  ParentRevisionId 留空以免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬，
-  不設外鍵，讓移除收藏不改寫版本；舊版本依維護配額回收，時間軸讀取見[版本歷史](sql-memory-revisions.md)。
-- 收藏操作不以 CaptureId 冪等，過期更新不留下部分寫入。
+- 收藏自己的 `Favorite` Revision 不屬於任何 Session：不進 History、不建 Capture、不動 head 或序號，
+  ParentRevisionId 留空以免版本鏈永久保護全部舊 SQL。Revisions.FavoriteId 只標記歸屬、不設外鍵，
+  移除收藏不改寫版本；舊版本依配額回收，時間軸見[版本歷史](sql-memory-revisions.md)。
+- 收藏操作不以 CaptureId 冪等，回應遺失後先重讀。
 
-Global 不帶連線，Server 只指定 Server，Database 兩者必填；scope 不合併父層，也不是執行連線。
-Favorites 以 FavoriteId DESC keyset，索引涵蓋 Scope／Server／DatabaseName／Id 及版本引用；
-收藏不存在額外排序或保護例外。
+伺服器與資料庫是各自選填的標註，不是階層也不是執行連線；空白正規化為 NULL，schema 另擋空字串。
+清單以 (UpdatedAt, FavoriteId) DESC keyset，四個時間索引對應 History 的同一組連線篩選，
+篩選 SQL 與游標由 `SqliteConnectionFilter`／`SqliteTimeCursor` 共用。
 
 ## 隔離載入
 

@@ -189,14 +189,8 @@ public sealed class SqlMemoryRuntime
     public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.ReadFavoriteAsync(favoriteId, token), cancellationToken);
 
-    public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
-        UseAsync((storage, token) => storage.WriteFavoriteAsync(write, token), cancellationToken);
-
-    public Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken) =>
-        UseAsync((storage, token) => storage.CreateFavoriteFromSqlAsync(create, token), cancellationToken);
-
-    public Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken) =>
-        UseAsync((storage, token) => storage.EditFavoriteSqlAsync(edit, token), cancellationToken);
+    public Task<SqlFavoriteWriteResult> SaveFavoriteAsync(SqlFavoriteSave save, CancellationToken cancellationToken) =>
+        UseAsync((storage, token) => storage.SaveFavoriteAsync(save, token), cancellationToken);
 
     public Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
         CancellationToken cancellationToken) =>

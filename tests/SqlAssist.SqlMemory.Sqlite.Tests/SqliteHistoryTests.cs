@@ -168,8 +168,8 @@ public sealed class SqliteHistoryTests
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE IsExecutionSelection=1;"));
         Assert.Null(await repository.ReadContentAsync(older.ContentId, Token));
-        // 文件版本與 Recovery 仍引用同一個連線；只有真的無人引用才回收。
-        Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contexts;"));
+        // 連線只存在 History 投影：刪掉的那一筆帶走自己的連線，不留下另一張表裡的孤立列等維護回收。
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM History WHERE Server='LibraryServer';"));
         Assert.Equal(SqlHistoryDeleteResult.NotFound, await repository.DeleteHistoryAsync(older, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
@@ -203,8 +203,8 @@ public sealed class SqliteHistoryTests
         var repository = await store.Open(Token);
         await store.Process(repository, store.Capture(1, "SELECT * FROM Lib_Reader;", SqlCaptureKind.DraftIdle), Token);
         var first = await repository.ReadSessionAsync(store.Session.SessionId, Token);
-        var favorite = new SqlFavorite(Guid.NewGuid(), "讀者查詢", null, first!.LatestRevision!.RevisionId, SqlFavoriteScope.Global, null);
-        await repository.WriteFavoriteAsync(new SqlFavoriteWrite(favorite), Token);
+        var favorite = new SqlFavorite(Guid.NewGuid(), "讀者查詢", null, first!.LatestRevision!.RevisionId, null, null);
+        await repository.SaveFavoriteAsync(new SqlFavoriteSave(favorite, null, SqliteTestStore.Start), Token);
         await store.Process(repository, store.Capture(2, "SELECT * FROM Lib_Tag;", SqlCaptureKind.DraftIdle, seconds: 900), Token);
         var drafts = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items
             .Where(item => item.RevisionId != null).ToArray();

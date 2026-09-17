@@ -5,7 +5,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 
 namespace SqlAssist.SqlMemory.Sqlite;
 
-/// <summary>擷取、收藏與維護共用的 Contents／Contexts 列；只在呼叫端的交易內動作。</summary>
+/// <summary>擷取、收藏與維護共用的 Contents 列與引用清單；只在呼叫端的交易內動作。</summary>
 internal static class SqliteContentRows
 {
     /// <summary>接在 <c>DELETE FROM Contents WHERE ContentId=$id</c> 之後：沒有任何版本、Recovery 或歷程還引用它。</summary>
@@ -29,48 +29,28 @@ internal static class SqliteContentRows
  AND NOT EXISTS(SELECT 1 FROM Executions WHERE RevisionId=$revision)
  AND NOT EXISTS(SELECT 1 FROM History WHERE RevisionId=$revision)";
 
-    /// <summary>完整的連線列刪除；所有引用 Contexts 的表都在這裡。</summary>
-    public const string DeleteUnreferencedContext = @"DELETE FROM Contexts WHERE ContextId=$id
- AND NOT EXISTS(SELECT 1 FROM Revisions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Executions WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Recovery WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM History WHERE ContextId=$id)
- AND NOT EXISTS(SELECT 1 FROM Favorites WHERE ContextId=$id);";
-
     // 交易一開始就取得 IMMEDIATE 寫鎖，同一筆 ContentId 不會有並行寫入；先查再寫可以讓已存在的
-    // 內容（去重命中）完全不必重新編碼 UTF-16LE 或讀回整份 BLOB，只比對 Hash 與 Length。
-    // SHA-256 的碰撞機率遠低於磁碟或傳輸層本身出錯的機率，全位元組比對留給
-    // SqlMemoryStorageSelfTest／ReadContent 的完整讀取驗證；取捨見 docs/sql-memory-storage.md。
+    // 內容（去重命中）完全不必重新編碼 UTF-16LE 或讀回整份 BLOB。ContentId 本身就是雜湊，
+    // 命中只再比對長度；全位元組比對留給 SqlMemoryStorageSelfTest／ReadContent 的完整讀取驗證，
+    // 取捨見 docs/sql-memory-storage.md。
     public static void WriteContent(SqliteConnection connection, SqliteTransaction transaction, SqlContent content)
     {
-        using (var existing = Command(connection, transaction, "SELECT ContentHash, Length FROM Contents WHERE ContentId=$id;", ("$id", content.ContentId)))
-        using (var reader = existing.ExecuteReader())
+        using (var existing = Command(connection, transaction, "SELECT Length FROM Contents WHERE ContentId=$id;", ("$id", content.ContentId)))
         {
-            if (reader.Read())
+            if (existing.ExecuteScalar() is long length)
             {
-                if (reader.GetString(0) != content.ContentHash || reader.GetInt64(1) != content.Length)
+                if (length != content.Length)
                     throw new InvalidDataException("SQL 內容位址碰撞或資料已損壞；不會覆寫舊內容。");
                 return;
             }
         }
         var bytes = SqliteText.Encode(content.SqlText);
-        Execute(connection, transaction, @"INSERT INTO Contents VALUES($id,$hash,$sql,$length,$preview)
-ON CONFLICT(ContentId) DO NOTHING;", ("$id", content.ContentId), ("$hash", content.ContentHash), ("$sql", bytes),
+        Execute(connection, transaction, @"INSERT INTO Contents(ContentId,SqlBytes,Length,Preview) VALUES($id,$sql,$length,$preview)
+ON CONFLICT(ContentId) DO NOTHING;", ("$id", content.ContentId), ("$sql", bytes),
             ("$length", content.Length), ("$preview", SqliteText.Preview(content.SqlText)));
     }
 
-    public static string? WriteContext(SqliteConnection connection, SqliteTransaction transaction, SqlConnectionLabel? context)
-    {
-        if (context == null) return null;
-        var key = SqlContent.Create(SqliteFilterKey.Field(context.Server) + SqliteFilterKey.Field(context.Database)).ContentHash;
-        Execute(connection, transaction, "INSERT INTO Contexts VALUES($id,$server,$database) ON CONFLICT(ContextId) DO NOTHING;",
-            ("$id", key), ("$server", context.Server), ("$database", context.Database));
-        using var command = Command(connection, transaction, "SELECT Server, DatabaseName FROM Contexts WHERE ContextId=$id;", ("$id", key));
-        using var reader = command.ExecuteReader();
-        if (!reader.Read() || ReadContext(reader, 0) != context) throw new InvalidDataException("連線識別碼碰撞。");
-        return key;
-    }
-
-    public static SqlConnectionLabel? ReadContext(SqliteDataReader reader, int start) => reader.IsDBNull(start) ? null :
+    /// <summary>History 投影的 Server／DatabaseName 兩欄；兩欄同時寫入，伺服器為 NULL 就是沒有連線。</summary>
+    public static SqlConnectionLabel? ReadConnection(SqliteDataReader reader, int start) => reader.IsDBNull(start) ? null :
         new SqlConnectionLabel(reader.GetString(start), reader.GetString(start + 1));
 }

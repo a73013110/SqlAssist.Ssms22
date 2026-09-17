@@ -45,7 +45,7 @@ public sealed class SqlCapturePlanner
             if (create)
             {
                 latest = new SqlRevision(Guid.NewGuid(), latest?.RevisionId, documentContent.ContentId,
-                    capture.Session.SessionId, capture.CapturedAt, Reason(capture.Kind), capture.Connection);
+                    capture.Session.SessionId, capture.CapturedAt, Reason(capture.Kind));
                 revisions.Add(latest);
                 contents.Add(documentContent);
             }
@@ -55,8 +55,7 @@ public sealed class SqlCapturePlanner
                 var recoveryUnchanged = !executing && !create && previous?.RecoveryContentId == documentContent.ContentId;
                 if (!recoveryUnchanged)
                 {
-                    recovery = new SqlRecovery(capture.Session.SessionId, documentContent.ContentId,
-                        capture.Sequence, capture.CapturedAt, capture.Connection);
+                    recovery = new SqlRecovery(capture.Session.SessionId, documentContent.ContentId, capture.CapturedAt);
                     if (contents.Count == 0) contents.Add(documentContent);
                 }
             }
@@ -77,15 +76,13 @@ public sealed class SqlCapturePlanner
                     // 選取 SQL 是執行專用版本，絕不成為文件 head 或 recovery。
                     executionRevision = new SqlRevision(Guid.NewGuid(), latest?.RevisionId, selected.ContentId,
                         capture.Session.SessionId, capture.CapturedAt, SqlRevisionReason.BeforeExecute,
-                        capture.Connection, IsExecutionSelection: true);
+                        IsExecutionSelection: true);
                     revisions.Add(executionRevision);
                     if (documentContent?.ContentId != selected.ContentId || contents.Count == 0) contents.Add(selected);
                 }
             }
             else executionRevision = latest ?? throw new InvalidOperationException("執行缺少文件版本。");
-            execution = new SqlExecution(capture.CaptureId, executionRevision.RevisionId,
-                capture.CapturedAt, capture.Connection,
-                capture.SelectedText == null ? SqlExecutionScope.Document : SqlExecutionScope.Selection);
+            execution = new SqlExecution(capture.CaptureId, executionRevision.RevisionId, capture.CapturedAt);
             latestExecution = executionRevision;
         }
 

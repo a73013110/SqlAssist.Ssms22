@@ -42,13 +42,13 @@ internal static class SqlScriptDocument
         public int Length { get; }
     }
     private static readonly ConditionalWeakTable<Inline, SourceSpan> SourceSpans = new();
-    /// <summary>超過這個長度就不著色。</summary>
+    /// <summary>超過這個長度就不著色；可編輯的 SQL 表面沿用同一條界線。</summary>
     /// <remarks>
     /// 著色要為每一個詞法單元建立一個 <see cref="Run"/>。幾千行的預存程序會產生
     /// 上萬個內嵌物件，版面計算的時間會讓人明顯感覺到卡頓，
     /// 而那種長度的定義本來就是拿去貼到別的地方看的。
     /// </remarks>
-    private const int MaximumColorizedLength = 60_000;
+    public const int MaximumColorizedLength = 60_000;
 
     /// <summary>把指令碼排成一份可選取、可複製的流程文件。</summary>
     public static FlowDocument Build(string script, ResourceDictionary resources)
@@ -95,7 +95,7 @@ internal static class SqlScriptDocument
                 Append(paragraph, script.Substring(position, token.Start - position), ScriptResource.Foreground, position);
             }
 
-            Append(paragraph, token.Text, BrushFor(token), token.Start);
+            Append(paragraph, token.Text, Classify(token), token.Start);
             position = token.End;
         }
 
@@ -108,7 +108,8 @@ internal static class SqlScriptDocument
         return document;
     }
 
-    private static ScriptResource BrushFor(SqlToken token)
+    /// <summary>詞法單元對應的著色分類；唯讀預覽與可編輯表面共用，兩邊的顏色不會分岔。</summary>
+    public static ScriptResource Classify(SqlToken token)
     {
         return token.Kind switch
         {

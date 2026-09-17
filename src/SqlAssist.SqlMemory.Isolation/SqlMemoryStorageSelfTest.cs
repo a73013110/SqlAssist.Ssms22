@@ -46,7 +46,7 @@ public static class SqlMemoryStorageSelfTest
             var before = ProviderAssemblies();
             report.WriteLine("宿主原有 provider：" + (before.Length == 0 ? "無" : string.Join(" | ", before)));
             var document = new SqlDocument(Guid.NewGuid(), "Library.sql", null);
-            var session = new SqlSession(Guid.NewGuid(), document.DocumentId, DateTimeOffset.UtcNow);
+            var session = new SqlSession(Guid.NewGuid(), document.DocumentId);
             const string sql = "SELECT * FROM Lib_Reader;";
             var contentId = SqlContent.Create(sql).ContentId;
             var policy = new SqlCapturePolicy(false, false, TimeSpan.FromMinutes(10), true, false);
@@ -72,8 +72,8 @@ public static class SqlMemoryStorageSelfTest
                 report.WriteLine("通過：21 次執行與冪等重送。");
                 var revisionId = write.State.LatestRevision?.RevisionId
                     ?? throw new InvalidOperationException("自我測試缺少完整 SQL 版本。");
-                var favorite = new SqlFavorite(favoriteId, "讀者查詢", null, revisionId, SqlFavoriteScope.Global, null);
-                Require(await store.WriteFavoriteAsync(new SqlFavoriteWrite(favorite), token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "新增 SQL Favorite");
+                var favorite = new SqlFavorite(favoriteId, "讀者查詢", null, revisionId, null, null);
+                Require(await store.SaveFavoriteAsync(new SqlFavoriteSave(favorite, null, start.AddSeconds(22)), token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "新增 SQL Favorite");
             }
             report.WriteLine("通過：第一次卸載隔離 AppDomain。");
             token.ThrowIfCancellationRequested();
@@ -86,15 +86,15 @@ public static class SqlMemoryStorageSelfTest
                 var favorite = await reopened.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("SQL Favorite 重新開啟後遺失。");
                 Require(favorite.ContentId == contentId, "SQL Favorite 共用內容");
-                var changed = favorite.Favorite with { Name = "讀者收藏", Scope = SqlFavoriteScope.Database,
-                    Connection = new SqlConnectionLabel("LibraryServer", "Library") };
-                Require(await reopened.WriteFavoriteAsync(new SqlFavoriteWrite(changed, favorite.Version), token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "更新 SQL Favorite");
+                var changed = favorite.Favorite with { Name = "讀者收藏", Server = "LibraryServer", Database = "Library" };
+                Require(await reopened.SaveFavoriteAsync(new SqlFavoriteSave(changed, favorite.Version, start.AddSeconds(23)), token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "更新 SQL Favorite");
                 Require(await reopened.DeleteFavoriteAsync(favoriteId, favorite.Version, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "SQL Favorite 過期版本保護");
-                var favoritePage = await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(1, SqlFavoriteScope.Database, "LibraryServer", "Library"), token).ConfigureAwait(false);
-                Require(favoritePage.Items.Count == 1 && favoritePage.Items[0].Favorite == changed && favoritePage.NextCursor == null, "SQL Favorite scope 分頁");
+                // 只標資料庫的篩選也命中：伺服器與資料庫是兩個獨立的標註，不是階層。
+                var favoritePage = await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(1, database: "Library"), token).ConfigureAwait(false);
+                Require(favoritePage.Items.Count == 1 && favoritePage.Items[0].Favorite == changed && favoritePage.NextCursor == null, "SQL Favorite 標註篩選");
                 async Task<int> SearchFavoriteAsync(string search) =>
-                    (await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(5, SqlFavoriteScope.Database,
-                        "LibraryServer", "Library", search), token).ConfigureAwait(false)).Items.Count;
+                    (await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(5, "LibraryServer", "Library", search), token)
+                        .ConfigureAwait(false)).Items.Count;
                 // 說明為 null 的收藏靠 SQL 全文命中；大小寫不同的字串不得比對成功。
                 Require(await SearchFavoriteAsync("Lib_Reader").ConfigureAwait(false) == 1, "SQL Favorite SQL 全文搜尋");
                 Require(await SearchFavoriteAsync("讀者收藏").ConfigureAwait(false) == 1, "SQL Favorite 名稱搜尋");
@@ -104,7 +104,7 @@ public static class SqlMemoryStorageSelfTest
                 Require(await reopened.DeleteFavoriteAsync(favoriteId, current, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "刪除 SQL Favorite");
                 Require(await reopened.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false) == null, "SQL Favorite 已刪除");
                 Require((await reopened.ReadContentAsync(contentId, token).ConfigureAwait(false))?.SqlText == sql, "刪除 SQL Favorite 不刪除 History 內容");
-                report.WriteLine("通過：SQL Favorite CRUD、scope 分頁、搜尋、版本衝突與刪除後歷史保留。");
+                report.WriteLine("通過：SQL Favorite CRUD、標註篩選、搜尋、版本衝突與刪除後歷史保留。");
                 await VerifyFavoriteFromSqlAsync(reopened, contentId, sql, start, token).ConfigureAwait(false);
                 report.WriteLine("通過：任意 SQL 新增收藏共用內容位址、不覆寫既有收藏，移除後共用內容仍在。");
                 await VerifyMaintenanceAsync(reopened, contentId, sql, token).ConfigureAwait(false);
@@ -199,10 +199,10 @@ public static class SqlMemoryStorageSelfTest
     private static async Task VerifyFavoriteFromSqlAsync(IsolatedSqlMemoryStore store, string contentId, string sql,
         DateTimeOffset start, CancellationToken token)
     {
-        var query = new SqlFavorite(Guid.NewGuid(), "查詢視窗收藏", null, Guid.NewGuid(), SqlFavoriteScope.Global, null);
-        var create = new SqlFavoriteSqlCreate(query, sql, start.AddSeconds(300));
-        Require(await store.CreateFavoriteFromSqlAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "任意 SQL 新增收藏");
-        Require(await store.CreateFavoriteFromSqlAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "重送不覆寫既有收藏");
+        var query = new SqlFavorite(Guid.NewGuid(), "查詢視窗收藏", null, Guid.NewGuid(), null, null);
+        var create = new SqlFavoriteSave(query, null, start.AddSeconds(300), sql);
+        Require(await store.SaveFavoriteAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "任意 SQL 新增收藏");
+        Require(await store.SaveFavoriteAsync(create, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "重送不覆寫既有收藏");
         var created = await store.ReadFavoriteAsync(query.FavoriteId, token).ConfigureAwait(false)
             ?? throw new InvalidOperationException("任意 SQL 新增的 SQL Favorite 遺失。");
         // 內容去重：同一份 SQL 不再寫一份 BLOB，版本仍然是收藏自己的那一份。
@@ -219,31 +219,32 @@ public static class SqlMemoryStorageSelfTest
         const string second = FavoriteEditSql;
         var before = await store.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false)
             ?? throw new InvalidOperationException("SQL Favorite 遺失。");
-        var edit = new SqlFavoriteSqlEdit(favoriteId, before.Version, Guid.NewGuid(), first, start.AddSeconds(100));
-        Require(await store.EditFavoriteSqlAsync(edit, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "SQL Favorite 改 SQL");
-        Require(await store.EditFavoriteSqlAsync(edit, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "SQL Favorite 改 SQL 過期版本保護");
+        var edit = new SqlFavoriteSave(before.Favorite with { CurrentRevisionId = Guid.NewGuid() }, before.Version,
+            start.AddSeconds(100), first);
+        Require(await store.SaveFavoriteAsync(edit, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "SQL Favorite 改 SQL");
+        Require(await store.SaveFavoriteAsync(edit, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "SQL Favorite 改 SQL 過期版本保護");
         var edited = await store.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false)
             ?? throw new InvalidOperationException("SQL Favorite 編輯後遺失。");
-        Require(edited.Favorite.CurrentRevisionId == edit.RevisionId && edited.ContentId == SqlContent.Create(first).ContentId, "SQL Favorite 換到新版本");
-        Require(edited.Favorite with { CurrentRevisionId = before.Favorite.CurrentRevisionId } == before.Favorite, "改 SQL 不動名稱或 scope");
+        Require(edited.Favorite == edit.Favorite && edited.ContentId == SqlContent.Create(first).ContentId, "SQL Favorite 換到新版本");
         Require((await store.ReadHistoryAsync(new SqlHistoryRequest(50, SqlHistoryFilter.All, first), token)
             .ConfigureAwait(false)).Items.Count == 0, "SQL Favorite 編輯不進 History");
-        var again = new SqlFavoriteSqlEdit(favoriteId, edited.Version, Guid.NewGuid(), second, start.AddSeconds(200));
-        Require(await store.EditFavoriteSqlAsync(again, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "SQL Favorite 再次改 SQL");
+        var again = new SqlFavoriteSave(edited.Favorite with { CurrentRevisionId = Guid.NewGuid() }, edited.Version,
+            start.AddSeconds(200), second);
+        Require(await store.SaveFavoriteAsync(again, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "SQL Favorite 再次改 SQL");
         // 版本時間軸跨 AppDomain 分頁：新到舊、只有一個目前版本，游標接得上第二頁。
         var newest = await store.ReadFavoriteRevisionsAsync(new SqlFavoriteRevisionRequest(favoriteId, 1), token).ConfigureAwait(false);
-        Require(newest.Items.Count == 1 && newest.Items[0].RevisionId == again.RevisionId && newest.Items[0].IsCurrent &&
+        Require(newest.Items.Count == 1 && newest.Items[0].RevisionId == again.Favorite.CurrentRevisionId && newest.Items[0].IsCurrent &&
             newest.NextCursor != null, "SQL Favorite 版本時間軸第一頁");
         var older = await store.ReadFavoriteRevisionsAsync(new SqlFavoriteRevisionRequest(favoriteId, 1, newest.NextCursor), token)
             .ConfigureAwait(false);
-        Require(older.Items.Count == 1 && older.Items[0].RevisionId == edit.RevisionId && !older.Items[0].IsCurrent,
+        Require(older.Items.Count == 1 && older.Items[0].RevisionId == edit.Favorite.CurrentRevisionId && !older.Items[0].IsCurrent,
             "SQL Favorite 版本時間軸續頁");
         // 每個收藏的版本配額只留最新一版；目前版本與擷取產生的版本都不受影響。
         await DrainAsync(store, new SqlRetentionPolicy(null, null, null, null, null, 1), token).ConfigureAwait(false);
         Require(await store.ReadContentAsync(SqlContent.Create(first).ContentId, token).ConfigureAwait(false) == null, "配額回收舊版本");
         var kept = await store.ReadFavoriteAsync(favoriteId, token).ConfigureAwait(false)
             ?? throw new InvalidOperationException("配額後 SQL Favorite 遺失。");
-        Require(kept.Favorite.CurrentRevisionId == again.RevisionId && kept.ContentId == SqlContent.Create(second).ContentId, "配額保留目前版本");
+        Require(kept.Favorite.CurrentRevisionId == again.Favorite.CurrentRevisionId && kept.ContentId == SqlContent.Create(second).ContentId, "配額保留目前版本");
         return kept.Version;
     }
 
@@ -271,7 +272,7 @@ public static class SqlMemoryStorageSelfTest
         var owner = new SqlMemoryLeaseOwner(Environment.MachineName + "-OFFLINE", Process.GetCurrentProcess().Id, start);
         var lease = await store.OpenLeaseAsync(owner, start, token).ConfigureAwait(false);
         Require(await store.RenewLeaseAsync(lease, start.AddSeconds(1), token).ConfigureAwait(false), "續心跳");
-        var session = new SqlSession(Guid.NewGuid(), document.DocumentId, start);
+        var session = new SqlSession(Guid.NewGuid(), document.DocumentId);
         var drafts = new SqlCapturePolicy(true, false, TimeSpan.FromMinutes(10), false, true);
         await new SqlCaptureCommitter(store, new SqlCapturePlanner(), leaseId: () => lease).ProcessAsync(
             new SqlCapture(Guid.NewGuid(), document, session, 1, start.AddSeconds(300),

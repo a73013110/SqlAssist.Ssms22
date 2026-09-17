@@ -12,33 +12,21 @@ public enum SqlFavoriteWriteResult { Committed, Conflict }
 public interface ISqlFavoriteStore
 {
     Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken);
+
+    /// <summary>以 (UpdatedAt, FavoriteId) 新到舊 keyset 分頁；伺服器與資料庫標註各自精確比對，未指定表示不限。</summary>
     Task<SqlMemoryPage<SqlFavoriteItem>> ReadFavoritesAsync(SqlFavoriteRequest request, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// null 版本僅允許新增；更新須符合讀取時的版本。成功產生新版本，衝突不寫入。
-    /// 缺少 Revision 必須失敗；不刪除舊 Revision、Content 或 History。
-    /// </summary>
-    Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// 從任意 SQL 文字新增收藏：內容、版本與收藏在同一交易寫入。
-    /// </summary>
+    /// <summary>新增或更新收藏的唯一寫入入口：資料、選用的新版本與 UpdatedAt 在同一交易完成。</summary>
     /// <remarks>
-    /// 給沒有既有 Revision 可引用的入口用：查詢視窗當下的 SQL，以及還沒有版本的未存檔草稿。
-    /// 版本與 <see cref="EditFavoriteSqlAsync"/> 同一形狀——不屬於任何 Session、不進 History 投影、
-    /// 不建 Capture，也不動任何 Session 的 head 或序號；擷取設定是關的也照樣收得起來。
-    /// 收藏已存在回 Conflict，不覆寫；重送不冪等，回應遺失後先重讀。
+    /// <see cref="SqlFavoriteSave.ExpectedVersion"/> 為 null 只允許新增，收藏已存在回 Conflict；否則須符合讀取時的版本，
+    /// 不符或收藏已不存在都回 Conflict，不留下部分寫入。<see cref="SqlFavoriteSave.Sql"/> 為 null 時引用
+    /// <see cref="SqlFavorite.CurrentRevisionId"/> 指定的既有版本（不存在由外鍵拒絕）；有 SQL 時以該識別碼建立收藏自己的版本——
+    /// 不屬於任何 Session、不進 History、不建 Capture，也不動任何 head 或序號，擷取設定關著也照樣收得起來。
+    /// 不刪除舊 Revision、Content 或 History；重送不冪等，回應遺失後先重讀。
     /// </remarks>
-    Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken);
+    Task<SqlFavoriteWriteResult> SaveFavoriteAsync(SqlFavoriteSave save, CancellationToken cancellationToken);
 
     Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// 改 SQL 一律新增不可變版本，並在同一交易換 CurrentRevisionId。
-    /// 新版本不進 History 投影、不屬於任何 Session，也不改任何 Session 的 head 或序號。
-    /// 版本不符或收藏不存在都回 Conflict，不留下部分寫入；重送不冪等，回應遺失後先重讀。
-    /// </summary>
-    Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken);
 
     /// <summary>
     /// 收藏的版本時間軸，新到舊以 (CreatedAt, RevisionId) keyset 分頁；只帶列表投影，全文另以 ContentId 讀取。
@@ -47,7 +35,7 @@ public interface ISqlFavoriteStore
     /// 包含收藏自己建立的版本，以及目前版本——即使它是引用自 History、不屬於這個收藏的擷取版本。
     /// 不走 ParentRevisionId：收藏版本刻意不串版本鏈。清單只剩維護配額還保留的版本，
     /// 不代表完整編輯史；收藏不存在回空頁。回溯不另設寫入路徑，一律以舊版本全文走
-    /// <see cref="EditFavoriteSqlAsync"/> 產生新版本。
+    /// <see cref="SaveFavoriteAsync"/> 產生新版本。
     /// </remarks>
     Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
         CancellationToken cancellationToken);
@@ -80,24 +68,21 @@ public sealed class SqlFavoriteRevisionRequest
 }
 
 // 版本使用不可重用的 token，避免刪除後以相同 Id 重建，讓舊編輯器誤覆寫新資料。
+/// <param name="UpdatedAt">最後一次儲存的時間；清單依它排序。</param>
 [Serializable]
-public sealed record SqlFavoriteItem(SqlFavorite Favorite, Guid Version, string ContentId, string Preview);
+public sealed record SqlFavoriteItem(SqlFavorite Favorite, Guid Version, string ContentId, string Preview,
+    DateTimeOffset UpdatedAt);
 
+/// <summary>一次收藏儲存；新增、改資料、改 SQL 與回溯都是它。</summary>
 [Serializable]
-public sealed class SqlFavoriteWrite
+public sealed class SqlFavoriteSave
 {
-    public SqlFavoriteWrite(SqlFavorite favorite, Guid? expectedVersion = null)
-    {
-        Favorite = Validate(favorite);
-        if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));
-        ExpectedVersion = expectedVersion;
-    }
+    /// <summary>伺服器與資料庫標註的長度上限；對齊 SQL Server 名稱，擋下誤貼的整段文字。</summary>
+    public const int MaxTagLength = 256;
 
-    public SqlFavorite Favorite { get; }
-    public Guid? ExpectedVersion { get; }
-
-    /// <summary>收藏 metadata 的共同規則；每個寫入入口都要過同一份，否則限制會隨入口分岔。</summary>
-    internal static SqlFavorite Validate(SqlFavorite favorite)
+    /// <param name="expectedVersion">null 表示新增。</param>
+    /// <param name="sql">null 表示引用 <see cref="SqlFavorite.CurrentRevisionId"/> 指定的既有版本，不改 SQL。</param>
+    public SqlFavoriteSave(SqlFavorite favorite, Guid? expectedVersion, DateTimeOffset savedAt, string? sql = null)
     {
         if (favorite == null) throw new ArgumentNullException(nameof(favorite));
         if (favorite.FavoriteId == Guid.Empty || favorite.CurrentRevisionId == Guid.Empty)
@@ -106,90 +91,60 @@ public sealed class SqlFavoriteWrite
             throw new ArgumentException("SQL Favorite 名稱必須為 1～200 字元。", nameof(favorite));
         if (favorite.Description?.Length > 2000)
             throw new ArgumentException("SQL Favorite 說明不得超過 2000 字元。", nameof(favorite));
-        SqlFavoriteRequest.ValidateScope(favorite.Scope, favorite.Connection?.Server, favorite.Connection?.Database);
-        if (favorite.Scope == SqlFavoriteScope.Global && favorite.Connection != null)
-            throw new ArgumentException("全域 SQL Favorite 不綁連線。", nameof(favorite));
-        return favorite;
-    }
-}
-
-/// <summary>新增收藏並同時建立它自己的第一份版本；<see cref="SqlFavorite.CurrentRevisionId"/> 就是那份版本。</summary>
-[Serializable]
-public sealed class SqlFavoriteSqlCreate
-{
-    public SqlFavoriteSqlCreate(SqlFavorite favorite, string sql, DateTimeOffset createdAt)
-    {
-        Favorite = SqlFavoriteWrite.Validate(favorite);
+        if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));
+        if (sql?.Length == 0) throw new ArgumentException("收藏的 SQL 不可為空。", nameof(sql));
         // 只帶原文，內容位址留給儲存層在背景計算，不讓 UI 執行緒為大型 SQL 做雜湊。
-        Sql = sql ?? throw new ArgumentNullException(nameof(sql));
-        if (sql.Length == 0) throw new ArgumentException("收藏的 SQL 不可為空。", nameof(sql));
-        CreatedAt = createdAt.ToUniversalTime();
+        Favorite = favorite with
+        {
+            Description = string.IsNullOrEmpty(favorite.Description) ? null : favorite.Description,
+            Server = Tag(favorite.Server, nameof(favorite)),
+            Database = Tag(favorite.Database, nameof(favorite)),
+        };
+        ExpectedVersion = expectedVersion;
+        SavedAt = savedAt.ToUniversalTime();
+        Sql = sql;
     }
 
     public SqlFavorite Favorite { get; }
-    public string Sql { get; }
-    public DateTimeOffset CreatedAt { get; }
-}
+    public Guid? ExpectedVersion { get; }
+    public DateTimeOffset SavedAt { get; }
+    public string? Sql { get; }
 
-/// <summary>只改 SQL；名稱、說明、scope 仍走 <see cref="SqlFavoriteWrite"/>。</summary>
-[Serializable]
-public sealed class SqlFavoriteSqlEdit
-{
-    public SqlFavoriteSqlEdit(Guid favoriteId, Guid expectedVersion, Guid revisionId, string sql, DateTimeOffset editedAt)
+    /// <summary>標註與篩選共用的正規化：空白視為不限，前後空白不算名稱的一部分。</summary>
+    internal static string? Tag(string? value, string parameter)
     {
-        if (favoriteId == Guid.Empty) throw new ArgumentException("SQL Favorite 必須有識別碼。", nameof(favoriteId));
-        if (expectedVersion == Guid.Empty) throw new ArgumentException("版本不可為空。", nameof(expectedVersion));
-        if (revisionId == Guid.Empty) throw new ArgumentException("新版本必須有識別碼。", nameof(revisionId));
-        FavoriteId = favoriteId;
-        ExpectedVersion = expectedVersion;
-        RevisionId = revisionId;
-        // 只帶原文，內容位址留給儲存層在背景計算，不讓 UI 執行緒為大型 SQL 做雜湊。
-        Sql = sql ?? throw new ArgumentNullException(nameof(sql));
-        EditedAt = editedAt.ToUniversalTime();
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var tag = value!.Trim();
+        if (tag.Length > MaxTagLength)
+            throw new ArgumentException($"伺服器與資料庫標註不得超過 {MaxTagLength} 字元。", parameter);
+        return tag;
     }
-
-    public Guid FavoriteId { get; }
-    public Guid ExpectedVersion { get; }
-    public Guid RevisionId { get; }
-    public string Sql { get; }
-    public DateTimeOffset EditedAt { get; }
 }
 
 [Serializable]
 public sealed class SqlFavoriteRequest
 {
-    /// <summary>scope 精確比對，不隱含合併全域或父層。以 FavoriteId DESC 穩定分頁。</summary>
-    public SqlFavoriteRequest(int pageSize, SqlFavoriteScope scope = SqlFavoriteScope.Global,
-        string? server = null, string? database = null, string? search = null, string? cursor = null)
+    /// <param name="server">伺服器標註；null 表示不限，不隱含「未標註」。</param>
+    /// <param name="database">資料庫標註；不需要先指定伺服器。</param>
+    public SqlFavoriteRequest(int pageSize, string? server = null, string? database = null, string? search = null,
+        string? cursor = null)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
-        ValidateScope(scope, server, database);
         PageSize = pageSize;
-        Scope = scope;
-        Server = server;
-        Database = string.IsNullOrEmpty(database) ? null : database;
+        Server = SqlFavoriteSave.Tag(server, nameof(server));
+        Database = SqlFavoriteSave.Tag(database, nameof(database));
         Search = string.IsNullOrEmpty(search) ? null : search;
         Cursor = cursor;
     }
 
     public int PageSize { get; }
-    public SqlFavoriteScope Scope { get; }
     public string? Server { get; }
     public string? Database { get; }
 
     /// <summary>
     /// 區分大小寫的字面子字串，與 History 搜尋同語意；命中名稱、說明或目前版本的 SQL 全文即納入。
-    /// 它是 scope 之上的額外篩選，不放寬 scope，也不是 FTS 或萬用字元比對。
+    /// 它是標註篩選之上的額外條件，不是 FTS 或萬用字元比對。
     /// </summary>
     public string? Search { get; }
     public string? Cursor { get; }
-
-    internal static void ValidateScope(SqlFavoriteScope scope, string? server, string? database)
-    {
-        if (!Enum.IsDefined(typeof(SqlFavoriteScope), scope)) throw new ArgumentOutOfRangeException(nameof(scope));
-        if (scope == SqlFavoriteScope.Global ? server != null || database != null :
-            string.IsNullOrWhiteSpace(server) || (scope == SqlFavoriteScope.Database
-                ? string.IsNullOrWhiteSpace(database) : !string.IsNullOrEmpty(database)))
-            throw new ArgumentException("scope 與伺服器／資料庫不一致。");
-    }
 }

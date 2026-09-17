@@ -26,7 +26,7 @@ Execution 配額同時限制執行專用版本；auto revision 配額只認非�
 ## 有界巡查
 
 每批最多 1～500 個候選單位，一個 IMMEDIATE 交易，和收藏寫入序列化。先 LIMIT 候選再重查保護根；
-沒有 CASCADE。一個候選最多刪本體與投影兩列，每列再帶出一個 Content 與一個 Context。
+沒有 CASCADE。一個候選最多刪本體與投影兩列，每列再帶出一個 Content。
 
 索引巡查只讀可能過期或超額的列，以 (時間, 鍵) keyset 前進並 `INDEXED BY`：
 
@@ -39,10 +39,10 @@ Execution 配額同時限制執行專用版本；auto revision 配額只認非�
 | Recovery | 早於回復內容期限 | `IX_Recovery_Time` |
 
 分組探測算一個單位。擷取的文件版本不是候選：新版本一律接在 head 之後，舊版本必有子版本。
-本批刪除列引用的 ContentId／ContextId 在批次結束前重查引用後刪除，容量同批下降。
+本批刪除列引用的 ContentId 在批次結束前重查引用後刪除，容量同批下降。
 
-完整掃描先跑同樣階段，再逐主鍵巡 Revision、Content、Context，承接不是由刪除產生的孤立資料
-（例如收藏改 scope 留下的 Context）。每 24 輪索引巡查一次，升級分級前也先跑一次。
+完整掃描先跑同樣階段，再逐主鍵巡 Revision、Content，承接不是由刪除產生的孤立資料
+（例如收藏換掉目前版本後不再被引用的舊版本）。每 24 輪索引巡查一次，升級分級前也先跑一次。
 
 取消／錯誤回復整批，先前批次保留；鎖等待、單一 SQL 或大型 BLOB 刪除不是硬上限。
 游標綁 StoreId、政策與掃描方式，改批次大小可續讀；null 才完成一輪，`RequiresAnotherPass`

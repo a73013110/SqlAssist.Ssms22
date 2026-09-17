@@ -15,7 +15,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 手上沒有 <see cref="SqlMemoryRow"/>，也不先產生一筆擷取——擷取是設定可以關掉的背景行為，
 /// 而收藏是使用者當場按下去的動作，不該因為草稿擷取關著就收不起來，也不該順手在 History 多留一筆。
 /// 收藏因此自己建立一份不屬於任何 Session 的版本，契約見
-/// <see cref="ISqlFavoriteStore.CreateFavoriteFromSqlAsync"/>。
+/// <see cref="ISqlFavoriteStore.SaveFavoriteAsync"/>。
 /// </remarks>
 internal static class SqlMemoryFavoriteAction
 {
@@ -41,9 +41,9 @@ internal static class SqlMemoryFavoriteAction
         if (string.IsNullOrWhiteSpace(sql))
             return selection is null ? "查詢視窗沒有可以收藏的 SQL。" : "選取範圍沒有可以收藏的 SQL。";
 
-        var window = new FavoriteMetadataWindow(package, sql, ActiveSqlEditor.GetDocumentName(view.TextBuffer),
-            Connection(view, package), Summary(sql, selection is not null));
-        return window.ShowModal() == true ? SqlMemoryItemCommands.AddedToFavorites : "";
+        return FavoriteEditorWindow.Create(package, sql, ActiveSqlEditor.GetDocumentName(view.TextBuffer),
+            Connection(view, package), null, Summary(sql, selection is not null))
+            ? SqlMemoryItemCommands.AddedToFavorites : "";
     }
 
     /// <summary>收藏的是選取範圍還是整份查詢，只有使用者自己看得出來對不對，所以寫在對話框第一列。</summary>

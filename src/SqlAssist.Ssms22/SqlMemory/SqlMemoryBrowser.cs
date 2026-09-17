@@ -34,7 +34,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlConnectionFilter _database = new("資料庫", SqlIcon.Database);
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
-    private readonly SqlPillSelector _scope = Pills(SqlMemoryBrowserModel.ScopeOptions);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _hostStatus = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
     private readonly SqlMemoryPager _pager = new();
@@ -83,8 +82,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var filters = new StackPanel();
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         _historyFilters = SqlAssistChrome.CreateMemoryHistoryFilters(_kind, _period);
-        filters.Children.Add(_historyFilters); filters.Children.Add(_scope);
-        _scope.Visibility = Visibility.Collapsed;
+        filters.Children.Add(_historyFilters);
         header.Children.Add(filters);
         header.Children.Add(_server); header.Children.Add(_database);
         VsThemeBrushes.Apply(_server.SortMenu); VsThemeBrushes.Apply(_database.SortMenu);
@@ -139,11 +137,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         };
         _kind.SelectionChanged += (_, _) => { _model.Kind = SqlMemoryBrowserModel.KindOptions[_kind.SelectedIndex].Value; Changed(); };
         _period.SelectionChanged += (_, _) => { _model.Period = SqlMemoryBrowserModel.PeriodOptions[_period.SelectedIndex].Value; Changed(); };
-        _scope.SelectionChanged += (_, _) =>
-        {
-            _model.Scope = SqlMemoryBrowserModel.ScopeOptions[_scope.SelectedIndex].Value;
-            Changed(); ReloadFacets();
-        };
         _search.TextChanged += (_, _) => { clear.IsEnabled = _search.Text.Length > 0; _model.Search = _search.Text; Changed(); };
         clear.IsEnabled = false;
         _server.SelectionChanged += (_, _) =>
@@ -322,11 +315,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (failure is not null) { Report(failure); return; }
         // 一次更新兩個條件，不能在 Server 事件裡把剛指定的 Database 清掉。
         _batchFilters = true;
-        try
-        {
-            Select(_scope, SqlMemoryBrowserModel.ScopeOptions, _model.Scope);
-            _server.Value = _model.Server; _database.Value = _model.Database;
-        }
+        try { _server.Value = _model.Server; _database.Value = _model.Database; }
         finally { _batchFilters = false; }
         Changed(); ReloadFacets();
     }
@@ -371,13 +360,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (!_ready || _disposed || _batchFilters) return;
         SqlMemoryActions.Run(() =>
         {
-            _scope.Visibility = _model.IsFavorites ? Visibility.Visible : Visibility.Collapsed;
+            // 伺服器與資料庫篩選兩頁同一種語意，只有狀態與期間屬於 History。
             _historyFilters.Visibility = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
-            _server.Visibility = _model.ShowsServerFilter ? Visibility.Visible : Visibility.Collapsed;
-            _database.Visibility = _model.ShowsDatabaseFilter ? Visibility.Visible : Visibility.Collapsed;
-            _server.IsEnabled = _model.ShowsServerFilter;
-            _database.IsEnabled = _model.ShowsDatabaseFilter;
-            _server.EmptyLabel = _database.EmptyLabel = _model.EmptyConnectionLabel;
             Invalidate();
             _searchTimer.Start();
         }, Report);
@@ -403,7 +387,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private async Task LoadAsync()
     {
         if (_disposed || !IsVisible || _model.BeginLoad() is not { } load) return;
-        if (load.BlockedMessage is not null) { Report(load.BlockedMessage); return; }
         var token = _request.Token;
         Report(""); UpdateActions();
         try
@@ -468,15 +451,21 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         UpdateActions();
     }
 
-    /// <summary>收藏更新後就地換列，保留已載入的頁與捲動位置；改到別的範圍或已不存在則移出清單。</summary>
+    /// <summary>
+    /// 收藏更新後移到最上面：清單依最後儲存時間排序，剛存的那筆就是最新的。保留其他已載入的頁；
+    /// 改到目前篩選以外或已不存在則移出清單。
+    /// </summary>
     private void ReplaceRow(SqlMemoryRow row, SqlMemoryRow? updated)
     {
         var index = _rows.IndexOf(row);
         if (_disposed || index < 0) return;
-        if (updated?.Favorite is not { } favorite || !_model.MatchesFavoriteScope(favorite.Favorite)) { RemoveRow(row); return; }
+        if (updated?.Favorite is not { } favorite || !_model.MatchesFavoriteFilter(favorite.Favorite)) { RemoveRow(row); return; }
         var selected = ReferenceEquals(_list.SelectedItem, row);
-        _rows[index] = updated;
-        if (selected) _list.SelectedIndex = index;
+        _rows.RemoveAt(index);
+        _rows.Insert(0, updated);
+        if (!selected) return;
+        _list.SelectedIndex = 0;
+        _list.ScrollIntoView(updated);
     }
 
     private void UpdatePreview() =>

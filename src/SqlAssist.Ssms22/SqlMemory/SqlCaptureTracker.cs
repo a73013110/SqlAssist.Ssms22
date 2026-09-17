@@ -56,7 +56,7 @@ internal sealed class SqlCaptureTracker
 
         var buffer = textView.TextBuffer;
         var tracker = new SqlCaptureTracker(textView, serviceProvider,
-            new SqlDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), DateTimeOffset.UtcNow),
+            new SqlDocumentIdentity(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer)),
             TextDocument(buffer));
 
         textView.Properties[typeof(SqlCaptureTracker)] = tracker;
@@ -176,7 +176,7 @@ internal sealed class SqlCaptureTracker
         var text = new SnapshotText(_textView.TextBuffer.CurrentSnapshot);
         var connection = SqlWindowConnections.Get(Moniker());
         var buffer = _textView.TextBuffer;
-        if (_identity.Observe(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer), now) is { } handover)
+        if (_identity.Observe(ActiveSqlEditor.GetDocumentName(buffer), FilePath(buffer)) is { } handover)
         {
             // 存檔或另存之後換到新路徑的文件；舊 Session 以當下內容正式關閉，它的未存檔草稿跟著清掉。
             Runtime.TryEnqueue(new SqlCapture(Guid.NewGuid(), handover.Document, handover.Session,

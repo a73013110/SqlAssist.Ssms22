@@ -58,36 +58,27 @@ internal sealed class SqlMemoryItemCommands
                 });
                 break;
             case SqlMemoryRowAction.AddFavorite:
-                // 有版本就引用它，不複製內容；未存檔草稿還沒有版本，改讀全文讓收藏自己建一份。
-                if (row.RevisionId is not null)
+                // 編輯器要顯示全文；有版本時 SQL 沒改就引用那一份，未存檔草稿則讓收藏自己建一份。
+                await WithSqlAsync(row, loadedSql, token, report, "收藏", sql =>
                 {
-                    if (new FavoriteMetadataWindow(_package, row, false).ShowModal() == true) report(AddedToFavorites);
-                }
-                else
+                    var summary = row.RevisionId is null
+                        ? "收藏這筆未存檔草稿目前的內容。"
+                        : $"收藏這筆{row.Status}紀錄的 SQL；未修改就沿用同一份版本，修改後另存為收藏自己的版本。";
+                    if (FavoriteEditorWindow.Create(_package, sql, row.Name, row.History!.Connection, row.RevisionId, summary))
+                        report(AddedToFavorites);
+                    return Task.CompletedTask;
+                });
+                break;
+            case SqlMemoryRowAction.Edit:
+                await WithSqlAsync(row, loadedSql, token, report, "編輯", async sql =>
                 {
-                    await WithSqlAsync(row, loadedSql, token, report, "收藏", sql =>
-                    {
-                        if (new FavoriteMetadataWindow(_package, sql, row.Name, row.History?.Connection,
-                                "收藏這筆未存檔草稿目前的內容。").ShowModal() == true)
-                            report(AddedToFavorites);
-                        return Task.CompletedTask;
-                    });
-                }
+                    if (FavoriteEditorWindow.Edit(_package, row.Favorite!, sql))
+                        await ReloadFavoriteAsync(row, token, report, "收藏已儲存。");
+                });
                 break;
             case SqlMemoryRowAction.Revisions:
                 if (FavoriteRevisionsWindow.Show(_package, row.Favorite!))
                     await ReloadFavoriteAsync(row, token, report, "已回溯；收藏的目前版本已更新。");
-                break;
-            case SqlMemoryRowAction.EditMetadata:
-                if (new FavoriteMetadataWindow(_package, row, true).ShowModal() == true)
-                    await ReloadFavoriteAsync(row, token, report, "收藏資料已儲存。");
-                break;
-            case SqlMemoryRowAction.EditSql:
-                await WithSqlAsync(row, loadedSql, token, report, "編輯", async sql =>
-                {
-                    if (new FavoriteSqlEditWindow(_package, row.Favorite!, sql).ShowModal() == true)
-                        await ReloadFavoriteAsync(row, token, report, "SQL 已儲存。");
-                });
                 break;
             case SqlMemoryRowAction.Delete:
                 await DeleteAsync(row, source, token, report);

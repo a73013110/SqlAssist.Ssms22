@@ -18,7 +18,7 @@ public sealed class SqlMemoryBrowserModelTests
     }
 
     private static SqlMemoryPage<SqlHistoryItem> HistoryPage(string? cursor, bool partial = false, DateTimeOffset? through = null) =>
-        partial ? new(Array.Empty<SqlHistoryItem>(), cursor!, through) : new(Array.Empty<SqlHistoryItem>(), cursor);
+        partial ? new(Array.Empty<SqlHistoryItem>(), cursor!, through ?? Now) : new(Array.Empty<SqlHistoryItem>(), cursor);
 
     [Fact]
     public void OptionListsMapPositionsToValuesInsteadOfCastingIndexes()
@@ -26,7 +26,6 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.Equal(new[] { SqlHistoryFilter.All, SqlHistoryFilter.Executions, SqlHistoryFilter.Drafts },
             SqlMemoryBrowserModel.KindOptions.Select(option => option.Value));
         Assert.Equal(Enum.GetValues(typeof(SqlHistoryPeriod)).Length, SqlMemoryBrowserModel.PeriodOptions.Count);
-        Assert.Equal(Enum.GetValues(typeof(SqlFavoriteScope)).Length, SqlMemoryBrowserModel.ScopeOptions.Count);
         Assert.Equal(Enum.GetValues(typeof(SqlConnectionFacetSort)).Cast<SqlConnectionFacetSort>(),
             SqlMemoryBrowserModel.SortOptions.Select(option => option.Value));
         Assert.Equal("A–Z", SqlMemoryBrowserModel.SortOptions.Single(option => option.Value == SqlConnectionFacetSort.Alphabetical).ShortLabel);
@@ -80,31 +79,38 @@ public sealed class SqlMemoryBrowserModelTests
     }
 
     [Fact]
-    public void FavoritesNeedTheWholeScopeBeforeLoadingAndNeverCarryHistoryOnlyFilters()
+    public void FavoritesFilterTagsLikeHistoryAndNeverCarryHistoryOnlyFilters()
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
-        model.Scope = SqlFavoriteScope.Database;
-        model.Server = "LibraryServer";
-        Assert.True(model.ShowsServerFilter && model.ShowsDatabaseFilter);
-        Assert.Equal("請選擇", model.EmptyConnectionLabel);
+        model.Kind = SqlHistoryFilter.Executions;
+        model.Search = "Loan";
 
-        var blocked = model.BeginLoad()!;
-        Assert.NotNull(blocked.BlockedMessage);
-        Assert.False(model.IsLoading);
+        // 沒選任何名稱就是全部收藏，不需要先指定範圍。
+        var all = model.BeginLoad()!;
+        Assert.Null(all.History);
+        Assert.Equal((null, null, "Loan"), (all.Favorites!.Server, all.Favorites.Database, all.Favorites.Search));
+        model.End(all);
 
+        // 只選資料庫也能查：同名資料庫散在多台伺服器時一次列出。
         model.Database = "Library";
-        var load = model.BeginLoad()!;
-        var request = load.Favorites!;
-        Assert.Equal((SqlFavoriteScope.Database, "LibraryServer", "Library"), (request.Scope, request.Server, request.Database));
-
-        model.End(load);
-        model.Scope = SqlFavoriteScope.Global;
         model.Invalidate(Now);
-        Assert.False(model.ShowsServerFilter);
-        var global = model.BeginLoad()!.Favorites!;
-        Assert.Null(global.Server);
-        Assert.Null(global.Database);
+        var database = model.BeginLoad()!.Favorites!;
+        Assert.Equal((null, "Library"), (database.Server, database.Database));
+    }
+
+    [Fact]
+    public void PartialFavoriteSearchReportsHowFarItReachedLikeHistory()
+    {
+        var model = Ready();
+        model.Tab = SqlMemoryBrowserTab.Favorites;
+        model.Search = "Loan";
+        model.Invalidate(Now);
+        var load = model.BeginLoad()!;
+        var page = new SqlMemoryPage<SqlFavoriteItem>(Array.Empty<SqlFavoriteItem>(), "next", Now);
+        Assert.True(model.Accept(load, page));
+        Assert.StartsWith("已搜尋至 ", model.SearchProgress);
+        Assert.False(model.CanAutoLoadMore);
     }
 
     /// <summary>取消撤不回已派送的隔離呼叫；舊篩選或舊儲存的回應都不得寫進目前清單。</summary>
@@ -186,21 +192,23 @@ public sealed class SqlMemoryBrowserModelTests
     }
 
     [Fact]
-    public void AnEditedFavoriteLeavesTheListWhenItsScopeNoLongerMatches()
+    public void AnEditedFavoriteLeavesTheListWhenItsTagsNoLongerMatch()
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
-        model.Scope = SqlFavoriteScope.Database;
-        model.Server = "LibraryServer";
         model.Database = "Library";
-        var library = new SqlConnectionLabel("LibraryServer", "Library");
-        var favorite = new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(), SqlFavoriteScope.Database, library);
+        var favorite = new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(), "LibraryServer", "Library");
 
-        Assert.True(model.MatchesFavoriteScope(favorite));
-        Assert.False(model.MatchesFavoriteScope(favorite with { Connection = new SqlConnectionLabel("LibraryServer", "Archive") }));
-        Assert.False(model.MatchesFavoriteScope(favorite with { Scope = SqlFavoriteScope.Global, Connection = null }));
+        // 未指定伺服器篩選時不看伺服器標註。
+        Assert.True(model.MatchesFavoriteFilter(favorite));
+        Assert.True(model.MatchesFavoriteFilter(favorite with { Server = null }));
+        Assert.False(model.MatchesFavoriteFilter(favorite with { Database = "Archive" }));
+        Assert.False(model.MatchesFavoriteFilter(favorite with { Database = null }));
+        model.Server = "ArchiveServer";
+        Assert.False(model.MatchesFavoriteFilter(favorite));
         model.Tab = SqlMemoryBrowserTab.History;
-        Assert.False(model.MatchesFavoriteScope(favorite));
+        model.Server = null;
+        Assert.False(model.MatchesFavoriteFilter(favorite));
     }
 
     [Fact]
@@ -220,7 +228,7 @@ public sealed class SqlMemoryBrowserModelTests
     }
 
     [Fact]
-    public void UsingTheCurrentConnectionSetsBothFiltersAndSwitchesFavoritesToTheDatabaseScope()
+    public void UsingTheCurrentConnectionSetsBothFilters()
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
@@ -231,7 +239,7 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.Equal("ArchiveServer", model.Server);
 
         Assert.Null(model.UseConnection(new SqlConnectionLabel("LibraryServer", "Library")));
-        Assert.Equal((SqlFavoriteScope.Database, "LibraryServer", "Library"), (model.Scope, model.Server, model.Database));
+        Assert.Equal(("LibraryServer", "Library"), (model.Server, model.Database));
     }
 
     [Fact]

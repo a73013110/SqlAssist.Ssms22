@@ -12,7 +12,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 版本操作的唯一實作：時間軸列按鈕、快捷選單、Enter／雙擊與差異面板都走這裡。
 /// </summary>
 /// <remarks>
-/// 回溯沒有專用寫入路徑：讀出舊版本全文，交給 <see cref="ISqlFavoriteStore.EditFavoriteSqlAsync"/> 另存一筆新版本。
+/// 回溯沒有專用寫入路徑：讀出舊版本全文，交給 <see cref="ISqlFavoriteStore.SaveFavoriteAsync"/> 另存一筆新版本。
 /// 版本是 append-only，舊版本不被改寫或刪除；版本衝突與配額回收沿用改 SQL 的既有語意。
 /// 「預覽此版本」只切換畫面，由呼叫端自己處理，不經過儲存。
 /// </remarks>
@@ -81,11 +81,13 @@ internal sealed class SqlFavoriteRevisionCommands
                 sql = content.SqlText;
             }
 
-            var edit = new SqlFavoriteSqlEdit(favorite.Favorite.FavoriteId, favorite.Version, Guid.NewGuid(), sql, DateTimeOffset.UtcNow);
+            // 名稱與標註照舊，只換目前版本；版本衝突由同一個 CAS 擋下。
+            var save = new SqlFavoriteSave(favorite.Favorite with { CurrentRevisionId = Guid.NewGuid() }, favorite.Version,
+                DateTimeOffset.UtcNow, sql);
             SqlFavoriteWriteResult result;
             try
             {
-                result = await SqlMemoryHost.Runtime.EditFavoriteSqlAsync(edit, token);
+                result = await SqlMemoryHost.Runtime.SaveFavoriteAsync(save, token);
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {

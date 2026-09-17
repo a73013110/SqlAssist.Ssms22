@@ -14,13 +14,14 @@ internal sealed class SqlScriptTheme : IDisposable
 {
     private static readonly FontFamily FallbackFont = new("Consolas");
     private IWpfTextView? _view;
-    private readonly RichTextBox _host;
+    private readonly Control _host;
     private IClassificationFormatMap? _formatMap;
     private volatile bool _dirty = true;
     private volatile bool _disposed;
     private readonly ThemeRefreshQueue _refreshQueue;
 
-    public SqlScriptTheme(IWpfTextView? view, RichTextBox host)
+    /// <param name="host">承載指令碼的控制項；資源掛在它身上，底色與前景跟著它。</param>
+    public SqlScriptTheme(IWpfTextView? view, Control host)
     {
         _view = view;
         _host = host;
@@ -52,6 +53,9 @@ internal sealed class SqlScriptTheme : IDisposable
     }
 
     public ResourceDictionary Resources { get; } = new();
+
+    /// <summary>資源已換成新的外觀；自己繪製文字的表面據此重畫，文件式的呈現靠動態資源即可。</summary>
+    public event EventHandler? Updated;
 
     public void EnsureCurrent()
     {
@@ -141,6 +145,7 @@ internal sealed class SqlScriptTheme : IDisposable
         SetBrush(ScriptResource.Comment, comment);
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
+        Updated?.Invoke(this, EventArgs.Empty);
     }
 
     private static Brush Resolve(

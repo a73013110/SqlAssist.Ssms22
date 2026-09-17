@@ -1,5 +1,5 @@
 using System;
-using System.Globalization;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace SqlAssist.SqlMemory.Sqlite;
@@ -105,9 +105,17 @@ internal sealed class SqliteSearchScan
     }
 }
 
-/// <summary>游標指紋共用的欄位編碼；長度前綴避免分隔符出現在使用者文字時，讓不同 filter 得到同一指紋。</summary>
-internal static class SqliteFilterKey
+/// <summary>History 與 Favorites 共用的伺服器／資料庫條件；兩張表同名欄位，時間索引也是同一組形狀。</summary>
+internal static class SqliteConnectionFilter
 {
-    public static string Field(string? value) =>
-        value == null ? "-1:" : value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
+    /// <param name="alias">資料表別名；只來自呼叫端常數。</param>
+    public static void Append(ICollection<string> conditions, ICollection<(string Name, object? Value)> parameters,
+        string alias, string? server, string? database)
+    {
+        if (server != null) { conditions.Add(alias + ".Server=$server"); parameters.Add(("$server", server)); }
+        if (database != null) { conditions.Add(alias + ".DatabaseName=$database"); parameters.Add(("$database", database)); }
+    }
+
+    public static string Where(IReadOnlyCollection<string> conditions) =>
+        conditions.Count == 0 ? "" : " WHERE " + string.Join(" AND ", conditions);
 }
