@@ -17,7 +17,6 @@ internal enum SqlIcon
     AnyTime,
     Server,
     Database,
-    Global,
     Connection,
     Search,
     Clear,

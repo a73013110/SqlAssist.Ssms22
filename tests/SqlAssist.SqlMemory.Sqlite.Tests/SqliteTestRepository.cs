@@ -49,14 +49,10 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         Run(token => _favorites.ReadFavorite(favoriteId, token), cancellationToken);
     public Task<SqlMemoryPage<SqlFavoriteItem>> ReadFavoritesAsync(SqlFavoriteRequest request, CancellationToken cancellationToken) =>
         Run(token => _favorites.ReadFavorites(request, token), cancellationToken);
-    public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
-        Run(token => _favorites.WriteFavorite(write, token), cancellationToken);
-    public Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken) =>
-        Run(token => _favorites.CreateFavoriteFromSql(create, token), cancellationToken);
+    public Task<SqlFavoriteWriteResult> SaveFavoriteAsync(SqlFavoriteSave save, CancellationToken cancellationToken) =>
+        Run(token => _favorites.SaveFavorite(save, token), cancellationToken);
     public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
         Run(token => _favorites.DeleteFavorite(favoriteId, expectedVersion, token), cancellationToken);
-    public Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken) =>
-        Run(token => _favorites.EditFavoriteSql(edit, token), cancellationToken);
     public Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
         CancellationToken cancellationToken) =>
         Run(token => _favorites.ReadFavoriteRevisions(request, token), cancellationToken);

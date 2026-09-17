@@ -52,7 +52,7 @@
 | SQL Memory 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
 | 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
 | SQL Memory 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
-| SQL Favorite CRUD、SQL 編輯、版本時間軸、版本衝突與 scope 契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
+| SQL Favorite 儲存、標註正規化、版本時間軸與版本衝突契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
 | 收藏版本時間軸的分頁世代、比較對象、能否回溯與保留說明 | `Core/SqlMemory/SqlFavoriteRevisionTimeline.cs` |
 | 兩份文字的行級差異（上限與整段取代降級） | `Core/SqlMemory/SqlTextDiff.cs` |
 | SQL Memory 有界維護、容量與續跑契約 | `Core/SqlMemory/ISqlMemoryMaintenanceStore.cs`（儲存與隔離層共用） |

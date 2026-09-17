@@ -49,16 +49,10 @@ internal sealed class FakeSqlMemoryStore : ISqlMemoryStore
     public Task<SqlMemoryPage<SqlFavoriteItem>> ReadFavoritesAsync(SqlFavoriteRequest request, CancellationToken cancellationToken) =>
         Task.FromResult(new SqlMemoryPage<SqlFavoriteItem>(Array.Empty<SqlFavoriteItem>(), null));
 
-    public Task<SqlFavoriteWriteResult> WriteFavoriteAsync(SqlFavoriteWrite write, CancellationToken cancellationToken) =>
-        Task.FromResult(SqlFavoriteWriteResult.Committed);
-
-    public Task<SqlFavoriteWriteResult> CreateFavoriteFromSqlAsync(SqlFavoriteSqlCreate create, CancellationToken cancellationToken) =>
+    public Task<SqlFavoriteWriteResult> SaveFavoriteAsync(SqlFavoriteSave save, CancellationToken cancellationToken) =>
         Task.FromResult(SqlFavoriteWriteResult.Committed);
 
     public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
-        Task.FromResult(SqlFavoriteWriteResult.Committed);
-
-    public Task<SqlFavoriteWriteResult> EditFavoriteSqlAsync(SqlFavoriteSqlEdit edit, CancellationToken cancellationToken) =>
         Task.FromResult(SqlFavoriteWriteResult.Committed);
 
     public Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,

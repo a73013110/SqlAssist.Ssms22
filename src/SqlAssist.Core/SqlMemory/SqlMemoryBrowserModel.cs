@@ -26,23 +26,18 @@ public sealed class SqlMemoryOption<T>
 /// <summary>一次清單載入：屬於哪個篩選世代與宿主世代，以及要送出的請求。</summary>
 public sealed class SqlMemoryPageLoad
 {
-    internal SqlMemoryPageLoad(long generation, long hostGeneration, SqlHistoryRequest? history,
-        SqlFavoriteRequest? favorites, string? blockedMessage)
+    internal SqlMemoryPageLoad(long generation, long hostGeneration, SqlHistoryRequest? history, SqlFavoriteRequest? favorites)
     {
         Generation = generation;
         HostGeneration = hostGeneration;
         History = history;
         Favorites = favorites;
-        BlockedMessage = blockedMessage;
     }
 
     public long Generation { get; }
     public long HostGeneration { get; }
     public SqlHistoryRequest? History { get; }
     public SqlFavoriteRequest? Favorites { get; }
-
-    /// <summary>篩選條件還不足以查詢（例如收藏範圍缺伺服器）；這時沒有請求，也不算載入中。</summary>
-    public string? BlockedMessage { get; }
 }
 
 public enum SqlMemoryFooterKind
@@ -124,13 +119,6 @@ public sealed class SqlMemoryBrowserModel
         new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.Any, "不限"),
     });
 
-    public static IReadOnlyList<SqlMemoryOption<SqlFavoriteScope>> ScopeOptions { get; } = Array.AsReadOnly(new[]
-    {
-        new SqlMemoryOption<SqlFavoriteScope>(SqlFavoriteScope.Global, "全域"),
-        new SqlMemoryOption<SqlFavoriteScope>(SqlFavoriteScope.Server, "指定伺服器"),
-        new SqlMemoryOption<SqlFavoriteScope>(SqlFavoriteScope.Database, "指定資料庫"),
-    });
-
     public static IReadOnlyList<SqlMemoryOption<SqlConnectionFacetSort>> SortOptions { get; } = Array.AsReadOnly(new[]
     {
         new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Recent, "最近使用優先", "最近"),
@@ -148,17 +136,7 @@ public sealed class SqlMemoryBrowserModel
     /// <summary>History 預設七天：足夠找回這週的工作，又不讓第一頁掃過整個資料庫。</summary>
     public SqlHistoryPeriod Period { get; set; } = SqlHistoryPeriod.SevenDays;
 
-    public SqlFavoriteScope Scope { get; set; } = SqlFavoriteScope.Global;
-
     public bool IsFavorites => Tab == SqlMemoryBrowserTab.Favorites;
-
-    /// <summary>無關的伺服器／資料庫區塊直接隱藏，不用停用的灰色控制項佔空間。</summary>
-    public bool ShowsServerFilter => !IsFavorites || Scope != SqlFavoriteScope.Global;
-
-    public bool ShowsDatabaseFilter => !IsFavorites || Scope == SqlFavoriteScope.Database;
-
-    /// <summary>收藏的 scope 必須精確指定，沒有「全部」可選。</summary>
-    public string EmptyConnectionLabel => IsFavorites ? "請選擇" : "全部";
 
     /// <summary>最近一次 <see cref="Invalidate"/> 算出的期間起點；同一次分頁的每一頁都用它，游標指紋才對得上。</summary>
     public DateTimeOffset? Since { get; private set; }
@@ -206,29 +184,18 @@ public sealed class SqlMemoryBrowserModel
     /// <summary>重新整理前記下目前選取；新的第一頁載入後若還在，就選回它。</summary>
     public void RememberSelection(Guid? id) => _restoreSelection = id;
 
-    /// <returns>null 表示不需要載入（不可用或已在載入）；有 <see cref="SqlMemoryPageLoad.BlockedMessage"/> 時只顯示訊息。</returns>
+    /// <returns>null 表示不需要載入（不可用或已在載入）。</returns>
+    /// <remarks>History 與 Favorites 的伺服器／資料庫篩選同一種語意：未指定表示不限，指定就精確比對。</remarks>
     public SqlMemoryPageLoad? BeginLoad()
     {
         if (!IsAvailable || _page.Loading) return null;
         var generation = _page.Generation;
-        if (IsFavorites)
-        {
-            if (Scope != SqlFavoriteScope.Global && (Server == null || (Scope == SqlFavoriteScope.Database && Database == null)))
-            {
-                return new SqlMemoryPageLoad(generation, HostGeneration, null, null, Scope == SqlFavoriteScope.Server
-                    ? "請選擇收藏的伺服器。"
-                    : "請選擇收藏的伺服器與資料庫，或使用目前連線。");
-            }
-
-            if (!_page.Begin(generation)) return null;
-            return new SqlMemoryPageLoad(generation, HostGeneration, null, new SqlFavoriteRequest(PageSize, Scope,
-                Scope == SqlFavoriteScope.Global ? null : Server, Scope == SqlFavoriteScope.Database ? Database : null,
-                Search, _page.Cursor), null);
-        }
-
         if (!_page.Begin(generation)) return null;
-        return new SqlMemoryPageLoad(generation, HostGeneration,
-            new SqlHistoryRequest(PageSize, Kind, Search, Server, Database, Since, cursor: _page.Cursor), null, null);
+        return IsFavorites
+            ? new SqlMemoryPageLoad(generation, HostGeneration, null,
+                new SqlFavoriteRequest(PageSize, Server, Database, Search, _page.Cursor))
+            : new SqlMemoryPageLoad(generation, HostGeneration,
+                new SqlHistoryRequest(PageSize, Kind, Search, Server, Database, Since, cursor: _page.Cursor), null);
     }
 
     /// <summary>回應是否仍屬於目前的篩選與宿主世代；是的話推進游標與搜尋進度。</summary>
@@ -238,11 +205,10 @@ public sealed class SqlMemoryBrowserModel
         if (page == null) throw new ArgumentNullException(nameof(page));
         if (!IsCurrent(load) || !_page.Accept(load.Generation, page.NextCursor)) return false;
         _hasPage = true;
-        SearchProgress = !page.IsSearchPartial ? null
-            : load.Favorites != null ? "已搜尋部分收藏"
-            : page.SearchedThrough is { } through
-                ? "已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)
-                : "已搜尋部分紀錄";
+        // History 以建立時間、Favorites 以最後儲存時間排序；兩者都說得出搜尋到哪一天。
+        SearchProgress = page.SearchedThrough is { } through
+            ? "已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)
+            : null;
         return true;
     }
 
@@ -294,14 +260,13 @@ public sealed class SqlMemoryBrowserModel
         return remainingCount == 0 ? null : Math.Min(removedIndex, remainingCount - 1);
     }
 
-    /// <summary>更新後的收藏是否仍屬於目前的 scope 篩選；改了範圍就該離開這份清單，而不是留著過期的列。</summary>
-    public bool MatchesFavoriteScope(SqlFavorite favorite)
+    /// <summary>更新後的收藏是否仍符合目前的標註篩選；改了標註就該離開這份清單，而不是留著過期的列。</summary>
+    public bool MatchesFavoriteFilter(SqlFavorite favorite)
     {
         if (favorite == null) throw new ArgumentNullException(nameof(favorite));
-        if (!IsFavorites || favorite.Scope != Scope) return false;
-        return Scope == SqlFavoriteScope.Global ||
-            (string.Equals(Server, favorite.Connection?.Server, StringComparison.Ordinal) &&
-             (Scope != SqlFavoriteScope.Database || string.Equals(Database, favorite.Connection?.Database, StringComparison.Ordinal)));
+        return IsFavorites &&
+            (Server == null || string.Equals(Server, favorite.Server, StringComparison.Ordinal)) &&
+            (Database == null || string.Equals(Database, favorite.Database, StringComparison.Ordinal));
     }
 
     /// <summary>採用一頁之後要選取哪一列。</summary>
@@ -321,13 +286,12 @@ public sealed class SqlMemoryBrowserModel
         return !hasSelection && loadedIds.Count > 0 ? 0 : null;
     }
 
-    /// <summary>套用目前查詢視窗的連線：一次更新兩個條件，收藏同時切到資料庫範圍。</summary>
+    /// <summary>套用目前查詢視窗的連線：一次更新兩個條件。</summary>
     /// <returns>無法套用時的訊息；原篩選不變。</returns>
     public string? UseConnection(SqlConnectionLabel? connection)
     {
         if (connection is null || string.IsNullOrEmpty(connection.Server) || string.IsNullOrEmpty(connection.Database))
             return "目前沒有已連線的 SQL 查詢視窗；請先選取查詢視窗。原篩選未變更。";
-        if (IsFavorites) Scope = SqlFavoriteScope.Database;
         Server = connection.Server;
         Database = connection.Database;
         return null;
@@ -337,7 +301,7 @@ public sealed class SqlMemoryBrowserModel
     public long BeginFacet(bool databases) => databases ? ++_databaseFacetRequest : ++_serverFacetRequest;
 
     public SqlConnectionFacetRequest FacetRequest(bool databases, SqlConnectionFacetSort sort, int offset) =>
-        new(IsFavorites, Scope, databases, databases ? Server : null, sort, offset);
+        new(IsFavorites, databases, databases ? Server : null, sort, offset);
 
     public bool IsCurrentFacet(bool databases, long request, long hostGeneration) =>
         IsAvailable && hostGeneration == HostGeneration &&

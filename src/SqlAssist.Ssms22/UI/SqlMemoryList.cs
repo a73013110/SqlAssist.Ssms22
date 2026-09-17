@@ -11,7 +11,7 @@ using System.Windows.Data;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>卡片、快捷選單與 Preview 共用的列操作；按鈕以它為 Tag，不拿圖示名稱當動作識別。</summary>
-internal enum SqlMemoryRowAction { Copy, Open, AddFavorite, EditSql, Revisions, EditMetadata, Delete }
+internal enum SqlMemoryRowAction { Copy, Open, AddFavorite, Edit, Revisions, Delete }
 
 /// <summary>操作適用於哪一種列；卡片模板與快捷選單都依它隱藏，不用停用的灰色按鈕佔位。</summary>
 internal enum SqlMemoryRowKind { Any, History, Favorite }
@@ -39,9 +39,9 @@ internal sealed class SqlMemoryRowCommand
         new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
         new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
             tone: SqlActionTone.Favorite),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.EditSql, SqlIcon.Edit, "編輯 SQL", SqlMemoryRowKind.Favorite),
+        // 名稱、標註與 SQL 在同一個編輯器一次儲存，不拆成兩個各自做版本檢查的對話框。
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Edit, SqlIcon.Edit, "編輯收藏", SqlMemoryRowKind.Favorite),
         new SqlMemoryRowCommand(SqlMemoryRowAction.Revisions, SqlIcon.History, "版本歷史", SqlMemoryRowKind.Favorite),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.EditMetadata, SqlIcon.Settings, "編輯收藏資料", SqlMemoryRowKind.Favorite),
         // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
         new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, "刪除", SqlMemoryRowKind.Any,
             labelProperty: "DeleteLabel", separated: true, tone: SqlActionTone.Danger),

@@ -30,7 +30,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(session.LatestRevision?.RevisionId, entry.RevisionId);
         Assert.Equal("SELECT * FROM Lib_Reader;", (await reopened.ReadContentAsync(entry.ContentId, Token))?.SqlText);
         Assert.Equal("wal", store.Scalar("PRAGMA journal_mode;"));
-        Assert.Equal(3L, store.Scalar("PRAGMA user_version;"));
+        Assert.Equal(4L, store.Scalar("PRAGMA user_version;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
@@ -78,7 +78,7 @@ public sealed class SqliteRepositoryTests
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
-        var second = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var second = new SqlSession(Guid.NewGuid(), store.Document.DocumentId);
         var policy = new SqlCapturePolicy(true, false, TimeSpan.FromMinutes(10), true, true);
         await store.Process(repository, store.Capture(sql: "SELECT 1", kind: SqlCaptureKind.DraftIdle), Token, policy);
         await store.Process(repository, store.Capture(sql: "SELECT 1", kind: SqlCaptureKind.DraftIdle, session: second), Token, policy);
@@ -130,7 +130,7 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions;"));
         Assert.Equal(1L, store.Scalar("SELECT Version FROM Sessions;"));
-        Assert.Equal(1L, store.Scalar("SELECT Sequence FROM Recovery;"));
+        Assert.Equal(SqliteTestStore.Start.UtcTicks, store.Scalar("SELECT CapturedAt FROM Recovery;"));
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public sealed class SqliteRepositoryTests
         var id = SqlContent.Create("SELECT 1").ContentId;
         store.Scalar("UPDATE Contents SET SqlBytes=zeroblob(Length*2);");
         await Assert.ThrowsAsync<InvalidDataException>(() => repository.ReadContentAsync(id, Token));
-        // 去重命中只比對 ContentHash／Length（見 docs/sql-memory-storage.md 的取捨），不再讀回整份
+        // 去重命中只比對 Length（ContentId 本身就是雜湊，見 docs/sql-memory-storage.md 的取捨），不再讀回整份
         // BLOB 比對；只有 SqlBytes 本體損壞、中繼資料仍相符時，寫入路徑不會擋下，留給下一次讀取抓到。
         await store.Process(repository, store.Capture(2, "SELECT 1"), Token);
         Assert.Equal(2L, store.Scalar("SELECT count(*) FROM Executions;"));
@@ -155,8 +155,8 @@ public sealed class SqliteRepositoryTests
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
         await store.Process(repository, store.Capture(sql: "SELECT 1"), Token);
-        // ContentHash 欄位本身損壞（和主鍵 ContentId 嵌的雜湊對不上）仍在寫入路徑的快速比對內被擋下。
-        store.Scalar("UPDATE Contents SET ContentHash='" + new string('0', 64) + "';");
+        // 長度與本體一起錯位（仍滿足長度 CHECK）時，寫入路徑的快速比對照樣擋下，不把新擷取掛到壞內容上。
+        store.Scalar("UPDATE Contents SET Length=Length+1, SqlBytes=zeroblob(2 * (Length+1));");
         await Assert.ThrowsAsync<InvalidDataException>(() => store.Process(repository, store.Capture(2, "SELECT 1"), Token));
     }
 
@@ -177,7 +177,7 @@ public sealed class SqliteRepositoryTests
         using var store = new SqliteTestStore();
         var repositories = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => store.Open(Token)));
         await Task.WhenAll(repositories.Select(repository => store.Process(repository,
-            store.Capture(session: new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start)), Token)));
+            store.Capture(session: new SqlSession(Guid.NewGuid(), store.Document.DocumentId)), Token)));
         Assert.Equal(4L, store.Scalar("SELECT count(*) FROM Sessions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Contents;"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
@@ -192,21 +192,26 @@ public sealed class SqliteRepositoryTests
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM StoreInfo;"));
         Assert.Equal(0L, store.Scalar("SELECT ContentBytes FROM StorageUsage;"));
         Assert.Contains("Favorites", store.Query("SELECT name FROM sqlite_master WHERE type='table';"));
-        Assert.Contains("IX_Favorites_ScopeId", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
+        foreach (var index in new[] { "IX_Favorites_Time", "IX_Favorites_ServerTime", "IX_Favorites_ServerDatabaseTime", "IX_Favorites_DatabaseTime" })
+            Assert.Contains(index, store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
+        // 連線只留在 History 投影與收藏標註；不再有沒人讀的連線表或只寫不讀的欄位。
+        Assert.DoesNotContain("Contexts", store.Query("SELECT name FROM sqlite_master WHERE type='table';"));
+        Assert.Equal(0L, store.Scalar(@"SELECT (SELECT count(*) FROM pragma_table_info('Contents') WHERE name='ContentHash')
+ + (SELECT count(*) FROM pragma_table_info('Documents') WHERE name='FilePath');"));
         Assert.Contains("IX_Revisions_Favorite", store.Query("SELECT name FROM sqlite_master WHERE type='index';"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM pragma_foreign_key_list('Sessions') WHERE \"table\"='Leases' AND \"from\"='LeaseId';"));
         // 版本要嘛屬於一個 Session，要嘛屬於一個收藏；兩者皆空的列沒有任何配額界線可套用。
         Assert.Throws<SqliteException>(() => store.Scalar(
-            "INSERT INTO Contents VALUES('c','h',x'4100',1,'A');" +
-            "INSERT INTO Revisions VALUES('r',NULL,'c',NULL,0,0,NULL,0,NULL);"));
+            "INSERT INTO Contents VALUES('c',x'4100',1,'A');" +
+            "INSERT INTO Revisions VALUES('r',NULL,'c',NULL,0,0,0,NULL);"));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
     [Theory]
     [InlineData(-1)]
     [InlineData(0)]
-    [InlineData(2)]
-    [InlineData(4)]
+    [InlineData(3)]
+    [InlineData(5)]
     public async Task UnsupportedSchemaIsRejectedWithoutChangingContents(int version)
     {
         using var store = new SqliteTestStore();

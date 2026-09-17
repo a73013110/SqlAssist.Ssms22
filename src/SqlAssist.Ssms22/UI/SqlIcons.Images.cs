@@ -34,7 +34,6 @@ internal static partial class SqlIcons
         SqlIcon.Server => KnownMonikers.DataServer,
         // 與補全清單的資料庫同一顆，兩邊不各自挑。
         SqlIcon.Database => Database.Moniker,
-        SqlIcon.Global => KnownMonikers.WorldLocal,
         SqlIcon.Connection => KnownMonikers.ConnectToDatabase,
         SqlIcon.Search => KnownMonikers.Search,
         SqlIcon.Clear => KnownMonikers.Cancel,

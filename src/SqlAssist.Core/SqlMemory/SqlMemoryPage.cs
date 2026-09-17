@@ -16,7 +16,7 @@ public sealed class SqlMemoryPage<T>
     }
 
     /// <summary>搜尋用盡單頁掃描預算而提早結束的頁；游標接在最後檢查過的候選之後，不是最後一筆結果之後。</summary>
-    public SqlMemoryPage(IEnumerable<T> items, string nextCursor, DateTimeOffset? searchedThrough)
+    public SqlMemoryPage(IEnumerable<T> items, string nextCursor, DateTimeOffset searchedThrough)
         : this(items, nextCursor ?? throw new ArgumentNullException(nameof(nextCursor)))
     {
         IsSearchPartial = true;
@@ -31,7 +31,7 @@ public sealed class SqlMemoryPage<T>
     /// </summary>
     public bool IsSearchPartial { get; }
 
-    /// <summary>部分搜尋時最後檢查過的候選時間（含）；沒有時間序的清單（Favorites）為 null。</summary>
+    /// <summary>部分搜尋時最後檢查過的候選時間（含）；不是部分搜尋時為 null。</summary>
     public DateTimeOffset? SearchedThrough { get; }
 }
 

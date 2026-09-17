@@ -16,10 +16,7 @@ internal sealed class SqliteMaintenanceBatch
 {
     private const string UnprotectedRevision = SqliteContentRows.UnprotectedRevision;
 
-    private const string UnreferencedContext = SqliteContentRows.DeleteUnreferencedContext;
-
-    private const int ExecutionDelete = 0, HistoryDelete = 1, RevisionDelete = 2, RecoveryDelete = 3, ContentDelete = 4,
-        ContextDelete = 5;
+    private const int ExecutionDelete = 0, HistoryDelete = 1, RevisionDelete = 2, RecoveryDelete = 3, ContentDelete = 4;
 
     private readonly SqliteConnection _connection;
     private readonly SqliteTransaction _transaction;
@@ -29,9 +26,8 @@ internal sealed class SqliteMaintenanceBatch
     private readonly Dictionary<string, long?> _sessions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long?> _favorites = new(StringComparer.Ordinal);
 
-    // 本批刪除列所引用的內容與連線；批次結束前逐一重查引用，不為了孤立資料掃全表。
+    // 本批刪除列所引用的內容；批次結束前逐一重查引用，不為了孤立資料掃全表。
     private readonly HashSet<string> _releasedContents = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _releasedContexts = new(StringComparer.Ordinal);
 
     public SqliteMaintenanceBatch(SqliteConnection connection, SqliteTransaction transaction,
         SqlRetentionPolicy policy, CancellationToken token)
@@ -74,22 +70,16 @@ internal sealed class SqliteMaintenanceBatch
             _policy.RecoveryBefore.HasValue ? Ticks(_policy.RecoveryBefore.Value) : null, cursor, remaining, RecoveryDelete),
         SqliteMaintenanceStage.Revisions => ByKey(stage, cursor, remaining, RevisionDelete),
         SqliteMaintenanceStage.Contents => ByKey(stage, cursor, remaining, ContentDelete),
-        SqliteMaintenanceStage.Contexts => ByKey(stage, cursor, remaining, ContextDelete),
         _ => throw new ArgumentOutOfRangeException(nameof(stage)),
     };
 
-    /// <summary>本批結束前重查被釋出的內容與連線；每個被刪的列最多各帶出一個。</summary>
+    /// <summary>本批結束前重查被釋出的內容；每個被刪的列最多帶出一個。</summary>
     public void CollectReleasedReferences()
     {
         foreach (var content in _releasedContents)
         {
             _token.ThrowIfCancellationRequested();
             Deleted += Delete("DELETE FROM Contents WHERE ContentId=$id" + SqliteContentRows.Unreferenced + ";", ("$id", content));
-        }
-        foreach (var context in _releasedContexts)
-        {
-            _token.ThrowIfCancellationRequested();
-            Deleted += Delete(UnreferencedContext, ("$id", context));
         }
     }
 
@@ -185,7 +175,7 @@ internal sealed class SqliteMaintenanceBatch
             RevisionDelete => DeleteRevision(key),
             RecoveryDelete => DeleteRecovery(key),
             ContentDelete => Delete("DELETE FROM Contents WHERE ContentId=$id" + SqliteContentRows.Unreferenced + ";", ("$id", key)),
-            _ => Delete(UnreferencedContext, ("$id", key)),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         Examined++;
     }
@@ -193,14 +183,11 @@ internal sealed class SqliteMaintenanceBatch
     private int DeleteExecution(string key)
     {
         string revision;
-        string? context;
-        using (var read = Command(_connection, _transaction, "SELECT RevisionId,ContextId FROM Executions WHERE ExecutionId=$id;",
+        using (var read = Command(_connection, _transaction, "SELECT RevisionId FROM Executions WHERE ExecutionId=$id;",
             ("$id", key)))
-        using (var reader = read.ExecuteReader())
         {
-            if (!reader.Read()) return 0;
-            revision = reader.GetString(0);
-            context = StringOrNull(reader, 1);
+            if (read.ExecuteScalar() is not string value) return 0;
+            revision = value;
         }
         var parameters = new (string Name, object? Value)[]
         {
@@ -212,7 +199,6 @@ internal sealed class SqliteMaintenanceBatch
             "DELETE FROM History WHERE EntryKey=$history AND EXISTS(" + eligible + ");", parameters);
         var executions = Delete("DELETE FROM Executions WHERE ExecutionId=$id AND ExecutedAt<$execution" +
             UnprotectedRevision + " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$history);", parameters);
-        if (executions > 0) Release(null, context);
         return deleted + executions;
     }
 
@@ -280,27 +266,16 @@ internal sealed class SqliteMaintenanceBatch
             " AND NOT EXISTS(SELECT 1 FROM History WHERE EntryKey=$recoveryHistory);", parameters);
     }
 
-    /// <summary>先記下這一列引用的內容與連線再刪；真的刪掉才交給本批的引用回收。</summary>
+    /// <summary>先記下這一列引用的內容再刪；真的刪掉才交給本批的引用回收。</summary>
     private int DeleteReleasing(string table, string row, string sql, params (string Name, object? Value)[] parameters)
     {
-        string? content = null, context = null;
-        using (var read = Command(_connection, _transaction, "SELECT ContentId,ContextId FROM " + table + " WHERE " + row + ";",
-            parameters))
-        using (var reader = read.ExecuteReader())
-        {
-            if (!reader.Read()) return 0;
-            content = StringOrNull(reader, 0);
-            context = StringOrNull(reader, 1);
-        }
+        string? content;
+        using (var read = Command(_connection, _transaction, "SELECT ContentId FROM " + table + " WHERE " + row + ";", parameters))
+            content = read.ExecuteScalar() as string;
+        if (content == null) return 0;
         var deleted = Delete(sql, parameters);
-        if (deleted > 0) Release(content, context);
+        if (deleted > 0) _releasedContents.Add(content);
         return deleted;
-    }
-
-    private void Release(string? content, string? context)
-    {
-        if (content != null) _releasedContents.Add(content);
-        if (context != null) _releasedContexts.Add(context);
     }
 
     private int Delete(string sql, params (string Name, object? Value)[] parameters)

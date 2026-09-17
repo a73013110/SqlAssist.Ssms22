@@ -15,23 +15,28 @@ public sealed class SqliteFavoriteRevisionTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static SqlFavorite NewFavorite() =>
-        new(Guid.NewGuid(), "館藏複本", null, Guid.NewGuid(), SqlFavoriteScope.Global, null);
+        new(Guid.NewGuid(), "館藏複本", null, Guid.NewGuid(), null, null);
 
     /// <summary>建立收藏並依序改 SQL；回傳新到舊的版本識別碼。</summary>
     private static async Task<List<Guid>> CreateWithEdits(SqliteTestRepository repository, SqlFavorite favorite, params string[] edits)
     {
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.CreateFavoriteFromSqlAsync(
-            new SqlFavoriteSqlCreate(favorite, "SELECT CopyNo FROM Cat_BookCopy;", SqliteTestStore.Start), Token));
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.SaveFavoriteAsync(
+            new SqlFavoriteSave(favorite, null, SqliteTestStore.Start, "SELECT CopyNo FROM Cat_BookCopy;"), Token));
         var revisions = new List<Guid> { favorite.CurrentRevisionId };
         for (var i = 0; i < edits.Length; i++)
-        {
-            var item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-            Assert.NotNull(item);
-            var edit = new SqlFavoriteSqlEdit(favorite.FavoriteId, item.Version, Guid.NewGuid(), edits[i], SqliteTestStore.Start.AddMinutes(i + 1));
-            Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.EditFavoriteSqlAsync(edit, Token));
-            revisions.Insert(0, edit.RevisionId);
-        }
+            revisions.Insert(0, await EditSql(repository, favorite.FavoriteId, edits[i], SqliteTestStore.Start.AddMinutes(i + 1)));
         return revisions;
+    }
+
+    /// <summary>以最新讀到的版本改 SQL；回傳新版本識別碼。</summary>
+    private static async Task<Guid> EditSql(SqliteTestRepository repository, Guid favoriteId, string sql, DateTimeOffset at)
+    {
+        var item = await repository.ReadFavoriteAsync(favoriteId, Token);
+        Assert.NotNull(item);
+        var revision = Guid.NewGuid();
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.SaveFavoriteAsync(
+            new SqlFavoriteSave(item.Favorite with { CurrentRevisionId = revision }, item.Version, at, sql), Token));
+        return revision;
     }
 
     private static async Task<List<SqlFavoriteRevisionItem>> ReadAll(SqliteTestRepository repository, Guid favoriteId, int pageSize)
@@ -81,11 +86,7 @@ public sealed class SqliteFavoriteRevisionTests
         var favorite = NewFavorite();
         await CreateWithEdits(repository, favorite);
         for (var i = 0; i < 4; i++)
-        {
-            var item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-            await repository.EditFavoriteSqlAsync(new SqlFavoriteSqlEdit(favorite.FavoriteId, item!.Version, Guid.NewGuid(),
-                "SELECT " + i + " FROM Copy;", SqliteTestStore.Start), Token);
-        }
+            await EditSql(repository, favorite.FavoriteId, "SELECT " + i + " FROM Copy;", SqliteTestStore.Start);
         var whole = await ReadAll(repository, favorite.FavoriteId, 50);
         var paged = await ReadAll(repository, favorite.FavoriteId, 1);
         Assert.Equal(5, whole.Count);
@@ -104,27 +105,24 @@ public sealed class SqliteFavoriteRevisionTests
         var head = await repository.ReadSessionAsync(store.Session.SessionId, Token);
         Assert.NotNull(head?.LatestRevision);
         var favorite = NewFavorite() with { CurrentRevisionId = head.LatestRevision.RevisionId };
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.WriteFavoriteAsync(new SqlFavoriteWrite(favorite), Token));
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.SaveFavoriteAsync(
+            new SqlFavoriteSave(favorite, null, SqliteTestStore.Start), Token));
 
         var referenced = Assert.Single(await ReadAll(repository, favorite.FavoriteId, 50));
         Assert.True(referenced.IsCurrent);
         Assert.Equal(SqlRevisionReason.BeforeExecute, referenced.Reason);
 
         // 收藏自己的版本比目前引用的版本早也晚：目前版本要夾在中間，而且每種頁大小都不重複、不遺漏。
+        var early = await EditSql(repository, favorite.FavoriteId, "SELECT 1 FROM Branch;", SqliteTestStore.Start);
+        var late = await EditSql(repository, favorite.FavoriteId, "SELECT 2 FROM Branch;", SqliteTestStore.Start.AddMinutes(5));
         var item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-        var early = new SqlFavoriteSqlEdit(favorite.FavoriteId, item!.Version, Guid.NewGuid(), "SELECT 1 FROM Branch;", SqliteTestStore.Start);
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.EditFavoriteSqlAsync(early, Token));
-        item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-        var late = new SqlFavoriteSqlEdit(favorite.FavoriteId, item!.Version, Guid.NewGuid(), "SELECT 2 FROM Branch;", SqliteTestStore.Start.AddMinutes(5));
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.EditFavoriteSqlAsync(late, Token));
-        item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.WriteFavoriteAsync(
-            new SqlFavoriteWrite(item!.Favorite with { CurrentRevisionId = referenced.RevisionId }, item.Version), Token));
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.SaveFavoriteAsync(new SqlFavoriteSave(
+            item!.Favorite with { CurrentRevisionId = referenced.RevisionId }, item.Version, SqliteTestStore.Start.AddMinutes(6)), Token));
 
         foreach (var pageSize in new[] { 1, 2, 3 })
         {
             var items = await ReadAll(repository, favorite.FavoriteId, pageSize);
-            Assert.Equal(new[] { late.RevisionId, referenced.RevisionId, early.RevisionId }, items.Select(i => i.RevisionId));
+            Assert.Equal(new[] { late, referenced.RevisionId, early }, items.Select(i => i.RevisionId));
             Assert.Equal(new[] { false, true, false }, items.Select(i => i.IsCurrent));
         }
     }
@@ -141,7 +139,7 @@ public sealed class SqliteFavoriteRevisionTests
 
         var other = NewFavorite();
         await CreateWithEdits(repository, other);
-        foreach (var cursor in new[] { first.NextCursor, "!invalid!", Convert.ToBase64String(Encoding.UTF8.GetBytes("revision1|x|y|1|z")) })
+        foreach (var cursor in new[] { first.NextCursor, "!invalid!", Convert.ToBase64String(Encoding.UTF8.GetBytes("revision2|x|y|1|z")) })
         {
             var error = await Assert.ThrowsAsync<SqlMemoryStorageException>(() =>
                 repository.ReadFavoriteRevisionsAsync(new SqlFavoriteRevisionRequest(other.FavoriteId, 1, cursor), Token));
@@ -169,22 +167,23 @@ public sealed class SqliteFavoriteRevisionTests
         var oldest = (await ReadAll(repository, favorite.FavoriteId, 50)).Last();
         var content = await repository.ReadContentAsync(oldest.ContentId, Token);
         var item = await repository.ReadFavoriteAsync(favorite.FavoriteId, Token);
-        var revert = new SqlFavoriteSqlEdit(favorite.FavoriteId, item!.Version, Guid.NewGuid(), content!.SqlText, SqliteTestStore.Start.AddHours(1));
-        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.EditFavoriteSqlAsync(revert, Token));
+        var revert = new SqlFavoriteSave(item!.Favorite with { CurrentRevisionId = Guid.NewGuid() }, item.Version,
+            SqliteTestStore.Start.AddHours(1), content!.SqlText);
+        Assert.Equal(SqlFavoriteWriteResult.Committed, await repository.SaveFavoriteAsync(revert, Token));
 
         var items = await ReadAll(repository, favorite.FavoriteId, 50);
         Assert.Equal(4, items.Count);
-        Assert.Equal(revert.RevisionId, items[0].RevisionId);
+        Assert.Equal(revert.Favorite.CurrentRevisionId, items[0].RevisionId);
         Assert.True(items[0].IsCurrent);
         // 回溯是新增，不是改寫：舊版本的識別碼與內容位址都還在，內容照常去重。
         Assert.Equal(oldest, items[3]);
         Assert.Equal(oldest.ContentId, items[0].ContentId);
         // 過期 token 的回溯與一般編輯同樣被拒絕。
-        Assert.Equal(SqlFavoriteWriteResult.Conflict, await repository.EditFavoriteSqlAsync(revert, Token));
+        Assert.Equal(SqlFavoriteWriteResult.Conflict, await repository.SaveFavoriteAsync(revert, Token));
 
         await SqliteTestStore.Drain(repository, new SqlRetentionPolicy(null, null, null, maxRevisionsPerFavorite: 2));
         var trimmed = await ReadAll(repository, favorite.FavoriteId, 50);
-        Assert.Equal(new[] { revert.RevisionId, items[1].RevisionId }, trimmed.Select(i => i.RevisionId));
+        Assert.Equal(new[] { revert.Favorite.CurrentRevisionId, items[1].RevisionId }, trimmed.Select(i => i.RevisionId));
     }
 
     [Fact]

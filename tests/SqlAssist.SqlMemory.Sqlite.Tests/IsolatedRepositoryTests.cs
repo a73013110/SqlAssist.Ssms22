@@ -114,8 +114,8 @@ public sealed class IsolatedRepositoryTests
             .ProcessAsync(store.Capture(sql: "SELECT * FROM Lib_Reader WHERE Note = '" + new string('x', 500_000) + "';"),
                 SqliteTestStore.Policy, token);
         store.Scalar(@"WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 3000)
-INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,ContextId,Server,DatabaseName)
-SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.CreatedAt, h.Kind, h.ContextId, h.Server, h.DatabaseName
+INSERT INTO History(EntryKey,SessionId,RevisionId,ContentId,CreatedAt,Kind,Server,DatabaseName)
+SELECT 'x' || printf('%032d', i), h.SessionId, h.RevisionId, h.ContentId, h.CreatedAt, h.Kind, h.Server, h.DatabaseName
 FROM n, (SELECT * FROM History LIMIT 1) h;");
     }
 
@@ -143,7 +143,7 @@ FROM n, (SELECT * FROM History LIMIT 1) h;");
         var search = await StartInFlight(() => repository.ReadHistoryAsync(SlowSearch, cancellation.Token), token);
 
         // 舊設計每個操作互斥，下面兩個呼叫會排在搜尋之後；WAL 下讀取與提交都不必等長讀取。
-        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId, SqliteTestStore.Start);
+        var other = new SqlSession(Guid.NewGuid(), store.Document.DocumentId);
         var commit = new SqlCaptureCommitter(repository, new SqlCapturePlanner())
             .ProcessAsync(store.Capture(sql: "SELECT * FROM Loan;", session: other), SqliteTestStore.Policy, token);
         await Within(commit, TimeSpan.FromSeconds(10));

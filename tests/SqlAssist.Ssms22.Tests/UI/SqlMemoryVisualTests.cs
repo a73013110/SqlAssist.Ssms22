@@ -48,8 +48,6 @@ public sealed class SqlMemoryVisualTests
             var filters = SqlAssistChrome.CreateMemoryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()),
                 new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
             header.Children.Add(filters);
-            var scope = new SqlPillSelector(SqlMemoryBrowserModel.ScopeOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 2 };
-            header.Children.Add(scope);
             var server = new SqlConnectionFilter("伺服器");
             server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
             var database = new SqlConnectionFilter("資料庫", SqlIcon.Database);
@@ -67,9 +65,9 @@ public sealed class SqlMemoryVisualTests
             }.WithTheme(Control.BackgroundProperty, ThemeBrush.WindowBackground);
             var historyRows = list.ItemsSource;
             var favoritesRows = Enumerable.Range(0, 2000).Select(index => new SqlMemoryRow(new SqlFavoriteItem(
-                new SqlFavorite(Guid.NewGuid(), "借閱查詢 — " + index, "收藏說明", Guid.NewGuid(), SqlFavoriteScope.Database,
-                    new SqlConnectionLabel("LibraryServer", "Library")), Guid.NewGuid(), "content",
-                "SELECT LoanId, CopyNo\nFROM LoanDetail WHERE LoanId = 1;"))).ToArray();
+                new SqlFavorite(Guid.NewGuid(), "借閱查詢 — " + index, "收藏說明", Guid.NewGuid(),
+                    index % 3 == 0 ? null : "LibraryServer", index % 2 == 0 ? "Library" : null), Guid.NewGuid(), "content",
+                "SELECT LoanId, CopyNo\nFROM LoanDetail WHERE LoanId = 1;", DateTimeOffset.Now.AddMinutes(-index)))).ToArray();
             var viewer = SqlAssistChrome.CreateCodeViewer(metrics);
             var resources = new ResourceDictionary
             {
@@ -101,7 +99,6 @@ public sealed class SqlMemoryVisualTests
             {
                 tabs.SelectedIndex = favorites ? 1 : 0;
                 filters.Visibility = favorites ? Visibility.Collapsed : Visibility.Visible;
-                scope.Visibility = favorites ? Visibility.Visible : Visibility.Collapsed;
                 list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
                 summary.Content = list.SelectedItem;
                 foreach (Button action in previewActions.Children)
@@ -116,7 +113,8 @@ public sealed class SqlMemoryVisualTests
                 {
                     server.IsExpanded = database.IsExpanded = expanded;
                     surface.Measure(new Size(width, 600)); surface.Arrange(new Rect(0, 0, width, 600)); surface.UpdateLayout();
-                    foreach (var pill in Descendants<RadioButton>(scope))
+                    // 膠囊只屬於 History 的狀態與期間；Favorites 與 History 共用伺服器／資料庫篩選，沒有自己的膠囊列。
+                    foreach (var pill in favorites ? Enumerable.Empty<RadioButton>() : Descendants<RadioButton>(filters))
                     {
                         var expected = palette.Resources[pill.IsChecked == true || pill.IsMouseOver ? ThemeBrush.SelectedForeground : ThemeBrush.ListForeground];
                         Assert.All(Descendants<TextBlock>(pill), text => Assert.True(ReferenceEquals(expected, text.Foreground),
@@ -201,7 +199,7 @@ public sealed class SqlMemoryVisualTests
             var recovery = new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), null, "id", DateTimeOffset.Now,
                 SqlHistoryFilter.Drafts, "借閱查詢", "SELECT * FROM Loan;", null));
             var favorite = new SqlMemoryRow(new SqlFavoriteItem(new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(),
-                SqlFavoriteScope.Global, null), Guid.NewGuid(), "id", "SELECT * FROM Loan;"));
+                null, null), Guid.NewGuid(), "id", "SELECT * FROM Loan;", DateTimeOffset.Now));
             var template = SqlAssistChrome.CreateSqlSummaryTemplate();
             Button[] Render(SqlMemoryRow row)
             {
@@ -226,8 +224,8 @@ public sealed class SqlMemoryVisualTests
             Assert.Equal("從 History 刪除", history.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete).ToolTip);
 
             var favorites = Render(favorite);
-            Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.EditSql,
-                SqlMemoryRowAction.Revisions, SqlMemoryRowAction.EditMetadata, SqlMemoryRowAction.Delete }, Shown(favorites));
+            Assert.Equal(new[] { SqlMemoryRowAction.Open, SqlMemoryRowAction.Copy, SqlMemoryRowAction.Edit,
+                SqlMemoryRowAction.Revisions, SqlMemoryRowAction.Delete }, Shown(favorites));
             Assert.Equal("從收藏移除", System.Windows.Automation.AutomationProperties.GetName(
                 favorites.Single(button => (SqlMemoryRowAction)button.Tag == SqlMemoryRowAction.Delete)));
             Assert.All(history.Concat(favorites), button => Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button))));
@@ -444,18 +442,23 @@ public sealed class SqlMemoryVisualTests
     }
 
     [Theory]
-    [InlineData(SqlFavoriteScope.Global, "全域", "")]
-    [InlineData(SqlFavoriteScope.Server, "LibraryServer", "")]
-    [InlineData(SqlFavoriteScope.Database, "LibraryServer", "Library")]
-    public void FavoriteCardsUseScopeBadges(SqlFavoriteScope scope, string server, string database)
+    [InlineData(null, null, "", "")]
+    [InlineData("LibraryServer", null, "LibraryServer", "")]
+    [InlineData(null, "Library", "", "Library")]
+    [InlineData("LibraryServer", "Library", "LibraryServer", "Library")]
+    public void FavoriteCardsShowOnlyTheTagsTheyHave(string? server, string? database, string serverBadge, string databaseBadge)
     {
-        var query = new SqlFavorite(Guid.NewGuid(), "借閱查詢", "", Guid.NewGuid(), scope,
-            scope == SqlFavoriteScope.Global ? null : new SqlConnectionLabel("LibraryServer", scope == SqlFavoriteScope.Database ? "Library" : ""));
-        var row = new SqlMemoryRow(new SqlFavoriteItem(query, Guid.NewGuid(), "content", "SELECT * FROM Loan;"));
-        Assert.Equal(server, row.Server); Assert.Equal(database, row.Database);
+        var updated = new DateTimeOffset(2026, 9, 17, 8, 0, 0, TimeSpan.Zero);
+        var query = new SqlFavorite(Guid.NewGuid(), "借閱查詢", "", Guid.NewGuid(), server, database);
+        var row = new SqlMemoryRow(new SqlFavoriteItem(query, Guid.NewGuid(), "content", "SELECT * FROM Loan;", updated));
+        // 空字串讓樣板收起膠囊；收藏沒有「全域」這種假名稱。
+        Assert.Equal(serverBadge, row.Server); Assert.Equal(databaseBadge, row.Database);
         Assert.Equal("收藏", row.Status); Assert.True(row.IsFavorite);
+        Assert.Equal(updated, row.Time);
+        Assert.NotEqual("", row.Timestamp);
         // 收藏不能再收藏一次：那一項整個收起來，不留停用的按鈕。
         Assert.False(SqlMemoryRowCommand.For(SqlMemoryRowAction.AddFavorite).AppliesTo(row.IsFavorite));
+        Assert.True(SqlMemoryRowCommand.For(SqlMemoryRowAction.Edit).AppliesTo(row.IsFavorite));
     }
 
     [Fact]
@@ -632,7 +635,6 @@ public sealed class SqlMemoryVisualTests
     {
         foreach (var value in SqlMemoryBrowserModel.KindOptions.Select(option => (object)option.Value)
             .Concat(SqlMemoryBrowserModel.PeriodOptions.Select(option => (object)option.Value))
-            .Concat(SqlMemoryBrowserModel.ScopeOptions.Select(option => (object)option.Value))
             .Concat(SqlMemoryBrowserModel.SortOptions.Select(option => (object)option.Value)))
             SqlAssistChrome.MemoryOptionIcon(value);
         Assert.Throws<ArgumentOutOfRangeException>(() => SqlAssistChrome.MemoryOptionIcon("History"));
