@@ -34,11 +34,12 @@ public sealed class SqlAssistChromeTests
             var scroll = Assert.IsType<ScrollViewer>(content.Children[0]);
             var body = Assert.IsType<StackPanel>(scroll.Content);
             var text = Assert.IsType<TextBlock>(body.Children[0]);
-            var footer = Assert.IsType<StackPanel>(content.Children[1]);
+            var footer = Assert.IsType<DockPanel>(content.Children[1]);
+            var actions = Assert.IsType<StackPanel>(footer.Children[0]);
             Assert.Equal(message, text.Text);
             Assert.Equal(TextWrapping.Wrap, text.TextWrapping);
-            Assert.Same(cancel, footer.Children[0]);
-            Assert.Same(confirm, footer.Children[1]);
+            Assert.Same(cancel, actions.Children[0]);
+            Assert.Same(confirm, actions.Children[1]);
             Assert.Equal(1, Grid.GetRow(footer));
 
             content.Measure(new Size(408, double.PositiveInfinity));

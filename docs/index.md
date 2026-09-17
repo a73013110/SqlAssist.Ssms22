@@ -49,7 +49,7 @@
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
 | QuickInfo、預覽、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[宣告](script-declared-objects.md) |
 | 預覽視窗、定位、焦點、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
-| Chrome、配色、高對比 | [UI 準則](ui-guidelines.md)／[主題連動](themes.md) |
+| Chrome、配色、高對比、對話框頁尾 | [UI 準則](ui-guidelines.md)／[主題連動](themes.md)／[對話框](ui-dialogs.md) |
 | 通知生命週期與呈現 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md) |
 | 通知可見度、分級、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
 | 指令碼風格、降級註解、健檢 | [指令碼產生](script-generation.md)／[結構健檢](schema-analysis.md) |

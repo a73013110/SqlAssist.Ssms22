@@ -116,6 +116,19 @@ public sealed class SqlMemoryUsageSummary
             snapshot.Activities.Select(activity => Line(activity, now)).ToArray());
     }
 
+    /// <summary>清除試算的標題；試算是上限，所以說「最多」。</summary>
+    public static string CleanupHeadline(SqlMemoryCleanupEstimate estimate) =>
+        estimate.Total == 0 ? "沒有符合條件的紀錄" : "最多清除 " + Count(estimate.Total) + " 筆";
+
+    /// <summary>清除試算的分類明細；沒有列數的分類不列。</summary>
+    public static string CleanupBreakdown(SqlMemoryCleanupEstimate estimate) => string.Join(" · ", new[]
+        {
+            ("執行紀錄", estimate.ExecutionEntries), ("草稿", estimate.Drafts),
+            ("回復內容", estimate.RecoveryItems), ("收藏版本", estimate.FavoriteRevisions),
+        }
+        .Where(part => part.Item2 > 0)
+        .Select(part => part.Item1 + " " + Count(part.Item2)));
+
     public static string Bytes(long bytes) => SqlAssistDiagnosticReport.FormatBytes(bytes);
 
     public static string Count(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
