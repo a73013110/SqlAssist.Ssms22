@@ -70,6 +70,9 @@ internal sealed class SqlMemoryUsageView : DockPanel
     {
         AutomationProperties.SetName(this, "SQL Memory 用量");
         LastChildFill = true;
+        // 切到用量頁時接住鍵盤焦點，Esc 才回得去；容器本身不畫焦點框，Tab 會進到第一顆按鈕。
+        Focusable = true;
+        FocusVisualStyle = null;
 
         // 頁首：返回在左、標題緊接，重新整理靠右；和清單工具列同一條中心線與高度。
         var header = new DockPanel { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };

@@ -3,7 +3,7 @@
 範圍：新增或改動共用邏輯前查找唯一出處，避免再造一份。返回 [索引](index.md)。
 
 本頁是 Core 與 Metadata 的純邏輯；Ssms22 接線層與工具腳本見
-[平台共用元件](shared-components-platform.md)。直接重用下列實作，不在功能目錄重寫，
+[平台共用元件](shared-components-platform.md)，SQL Memory 見[專屬表](shared-components-sql-memory.md)。直接重用下列實作，不在功能目錄重寫，
 以免行為分岔。
 
 | 這件事 | 唯一出處 |
@@ -47,13 +47,4 @@
 | 通知可見度規則（三軸、詳細度門檻、獨立通道） | `Core/Notifications/NotificationVisibility.cs` |
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
-| SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
-| SQL Memory 開啟／關閉、世代、寫入器故障、心跳與維護排程 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
-| SQL Memory 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
-| 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
-| SQL Memory 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
-| SQL Favorite 儲存、標註正規化、版本時間軸與版本衝突契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
-| 收藏版本時間軸的分頁世代、比較對象、能否回溯與保留說明 | `Core/SqlMemory/SqlFavoriteRevisionTimeline.cs` |
-| 兩份文字的行級差異（上限與整段取代降級） | `Core/SqlMemory/SqlTextDiff.cs` |
-| SQL Memory 有界維護、容量與續跑契約 | `Core/SqlMemory/ISqlMemoryMaintenanceStore.cs`（儲存與隔離層共用） |
 | 區塊色彩 | [唯一實作](block-colors.md) |
