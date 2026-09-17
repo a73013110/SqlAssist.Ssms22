@@ -61,7 +61,11 @@ internal static class ThemePalette
             [ThemeBrush.NotificationFailure] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Danger, background),
             [ThemeBrush.NotificationRunning] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(accent, background),
             [ThemeBrush.NotificationRunningEnd] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(
-                ThemeColorMath.Composite(Overlay(foreground, 0.25), accent), background)
+                ThemeColorMath.Composite(Overlay(foreground, 0.25), accent), background),
+            // 量表只是圖形，分級另有文字與百分比；高對比全用前景色，靠長度與文字辨識。
+            [ThemeBrush.MeterNormal] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(accent, background),
+            [ThemeBrush.MeterWarning] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Favorite, background),
+            [ThemeBrush.MeterCritical] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Danger, background)
         };
         // 語意色只在停駐與按下時出現；靜止仍是中性，整排按鈕才不會變成一串彩色標籤。
         Tone(ThemeBrush.DangerBackground, ThemeBrush.DangerPressed, ThemeBrush.DangerForeground, Danger);

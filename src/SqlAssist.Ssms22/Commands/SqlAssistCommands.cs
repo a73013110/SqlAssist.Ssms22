@@ -98,7 +98,8 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ManageSnippets, ManageSnippets);
         AddCommand(CommandIds.OpenSettings, OpenSettings);
         AddCommand(CommandIds.ShowSqlHistory, (_, _) => SqlMemoryToolWindow.Show(_package));
-        AddCommand(CommandIds.ShowSqlFavorites, (_, _) => SqlMemoryToolWindow.Show(_package, favorites: true));
+        AddCommand(CommandIds.ShowSqlFavorites, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Favorites));
+        AddCommand(CommandIds.ShowSqlMemoryUsage, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Usage));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
         AddCommand(CommandIds.SqlMemorySelfTest, (_, _) => SqlAssistSqlMemorySelfTestCommand.Execute(_package),
             () => !SqlAssistSqlMemorySelfTestCommand.IsRunning,

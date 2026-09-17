@@ -7,6 +7,9 @@ using Microsoft.VisualStudio.Shell.Interop;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
+/// <summary>工具窗開啟時要顯示的頁面；命令與通知共用。</summary>
+internal enum SqlMemoryPage { History, Favorites, Usage }
+
 [Guid("0b670847-3f0c-4523-b5ce-e987833ade19")]
 public sealed class SqlMemoryToolWindow : ToolWindowPane
 {
@@ -20,7 +23,7 @@ public sealed class SqlMemoryToolWindow : ToolWindowPane
             _host.Content = new SqlMemoryBrowser((SqlAssistPackage)Package));
     }
 
-    internal static void Show(SqlAssistPackage package, bool favorites = false)
+    internal static void Show(SqlAssistPackage package, SqlMemoryPage page = SqlMemoryPage.History)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         // 主動命令失敗必須可見，不交給 Guard 吞掉。
@@ -31,7 +34,7 @@ public sealed class SqlMemoryToolWindow : ToolWindowPane
                 throw new InvalidOperationException("SSMS 未建立 SQL Memory 工具窗。");
             ErrorHandler.ThrowOnFailure(frame.Show());
             if (pane is SqlMemoryToolWindow window && window._host.Content is SqlMemoryBrowser browser)
-                browser.ShowPage(favorites);
+                browser.ShowPage(page);
         }
         catch (Exception error)
         {

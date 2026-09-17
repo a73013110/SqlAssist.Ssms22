@@ -48,7 +48,15 @@ internal static partial class SqlIcons
         SqlIcon.Preview => KnownMonikers.ScriptPreview,
         SqlIcon.Compare => KnownMonikers.Diff,
         // 回溯是「以舊版本另存新版本」，借用復原的形狀；語意由標籤與確認框說清楚。
-        SqlIcon.Revert => KnownMonikers.Undo
+        SqlIcon.Revert => KnownMonikers.Undo,
+        // 用量是「量表」而不是圖表：看的是離上限多遠，不是趨勢。
+        SqlIcon.Usage => KnownMonikers.GaugeRound,
+        SqlIcon.Cleanup => KnownMonikers.CleanData,
+        // 壓縮只把檔案縮小，不刪任何資料；借收合的形狀，不用垃圾桶以免讀成刪除。
+        SqlIcon.Compact => KnownMonikers.CollapseAll,
+        SqlIcon.Maintain => KnownMonikers.Run,
+        SqlIcon.Backup => KnownMonikers.SaveAs,
+        SqlIcon.Folder => KnownMonikers.FolderOpened
     };
 #pragma warning restore CS8524
 

@@ -30,5 +30,11 @@ internal enum SqlIcon
     SortDescending,
     Preview,
     Compare,
-    Revert
+    Revert,
+    Usage,
+    Cleanup,
+    Compact,
+    Maintain,
+    Backup,
+    Folder
 }

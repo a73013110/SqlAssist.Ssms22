@@ -111,7 +111,7 @@ internal static partial class SqlAssistChrome
         return button;
     }
 
-    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button refresh, Button settings)
+    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button usage, Button refresh, Button settings)
     {
         var toolbar = new Grid { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };
         toolbar.ColumnDefinitions.Add(new ColumnDefinition());
@@ -123,13 +123,14 @@ internal static partial class SqlAssistChrome
         Grid.SetColumn(actions, 1); toolbar.Children.Add(actions);
         var labels = new System.Collections.Generic.List<TextBlock>();
         var connectionLabel = (TextBlock)((Panel)connection.Content).Children[1];
-        foreach (var entry in new[] { (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
+        foreach (var entry in new[] { (usage, SqlIcon.Usage, "用量"), (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
         {
             var content = CreateMemoryLabel(entry.Item2, entry.Item3);
             labels.Add((TextBlock)content.Children[1]); entry.Item1.Content = content;
             entry.Item1.ToolTip = entry.Item3; AutomationProperties.SetName(entry.Item1, entry.Item3);
         }
-        foreach (var button in new[] { connection, refresh, settings })
+        AddUsageBadge(usage);
+        foreach (var button in new[] { connection, usage, refresh, settings })
         {
             button.Height = 28; button.MinWidth = 28; button.Padding = new Thickness(6, 3, 6, 3);
             button.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(button);
@@ -137,11 +138,72 @@ internal static partial class SqlAssistChrome
         // 窄窗只收起次要操作文字，不換行或改變按鈕高度，維持分頁與圖示共用中心線。
         void UpdateLabels()
         {
-            foreach (var label in labels) label.Visibility = toolbar.ActualWidth >= 520 ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var label in labels) label.Visibility = toolbar.ActualWidth >= 560 ? Visibility.Visible : Visibility.Collapsed;
             connectionLabel.Visibility = toolbar.ActualWidth >= 380 ? Visibility.Visible : Visibility.Collapsed;
         }
         toolbar.SizeChanged += (_, _) => UpdateLabels(); UpdateLabels();
         return toolbar;
+    }
+
+    /// <summary>
+    /// 用量按鈕圖示右上角的分級點；容量正常時不顯示，偏高與接近上限各用語意色。
+    /// </summary>
+    /// <remarks>
+    /// 點本身只是提醒，分級文字在 Tooltip 與 automation help text；窄窗收起文字時仍看得到。
+    /// 出現時做一次 240 ms 的縮放，屬於狀態回饋；同一分級重複設定不重播。
+    /// </remarks>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public static void SetUsageBadge(Button usage, SqlMemoryUsageSeverity severity, bool? motion = null)
+    {
+        if (UsageBadge(usage) is not { } badge) return;
+        var visible = severity != SqlMemoryUsageSeverity.Normal;
+        var text = severity switch
+        {
+            SqlMemoryUsageSeverity.Critical => "用量：容量接近或超過上限",
+            SqlMemoryUsageSeverity.Warning => "用量：容量偏高",
+            _ => "用量",
+        };
+        usage.ToolTip = text; AutomationProperties.SetHelpText(usage, visible ? text : "");
+        if (!visible) { badge.Visibility = Visibility.Collapsed; badge.Tag = null; return; }
+        badge.SetResourceReference(Shape.FillProperty, SqlUsageMeter.Brush(severity));
+        var changed = !Equals(badge.Tag, severity);
+        badge.Tag = severity; badge.Visibility = Visibility.Visible;
+        var scale = (ScaleTransform)badge.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null); scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        if (!changed || !(motion ?? MotionEnabled)) return;
+        var pop = new DoubleAnimationUsingKeyFrames { Duration = UsageBadgePop, FillBehavior = FillBehavior.Stop };
+        pop.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromPercent(0)));
+        pop.KeyFrames.Add(new EasingDoubleKeyFrame(1.3, KeyTime.FromPercent(0.6), new CubicEase { EasingMode = EasingMode.EaseOut }));
+        pop.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromPercent(1), new CubicEase { EasingMode = EasingMode.EaseInOut }));
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop); scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+    }
+
+    public static readonly System.TimeSpan UsageBadgePop = System.TimeSpan.FromMilliseconds(240);
+
+    internal static Ellipse? UsageBadge(Button usage) =>
+        usage.Content is DockPanel { Children.Count: > 0 } content && content.Children[0] is Grid { Children.Count: 2 } glyph
+            ? glyph.Children[1] as Ellipse
+            : null;
+
+    private static void AddUsageBadge(Button usage)
+    {
+        var content = (DockPanel)usage.Content;
+        var icon = (FrameworkElement)content.Children[0];
+        content.Children.RemoveAt(0);
+        var glyph = new Grid { Margin = icon.Margin, VerticalAlignment = VerticalAlignment.Center };
+        icon.Margin = default;
+        glyph.Children.Add(icon);
+        // 點疊在圖示右上角、不佔版面；底色描邊讓它在圖示上仍分得出邊界。
+        var badge = new Ellipse
+        {
+            Width = 7, Height = 7, StrokeThickness = 1.2, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, -2, -3, 0), IsHitTestVisible = false,
+            Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1)
+        };
+        badge.SetResourceReference(Shape.StrokeProperty, ThemeBrush.WindowBackground);
+        glyph.Children.Add(badge);
+        DockPanel.SetDock(glyph, Dock.Left);
+        content.Children.Insert(0, glyph);
     }
 
     public static Border CreateSearchBar(TextBox input, Button clear)
