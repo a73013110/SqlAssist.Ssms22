@@ -62,6 +62,11 @@
 資料庫裡都存在，是產品事實而不是誰的 schema。少了這兩筆的話，使用者連「打 `sys`
 再按 Tab」這條路都沒有。
 
+這兩筆只出現在接得到系統物件的位置（`SqlCompletionContext.WantsSystemSchemas`）：
+運算式、資料來源、`APPLY` 與 `EXEC`。`ALTER`／`DROP` 的函式、檢視、預存程序與序列
+不列，理由同上：系統物件改不動也刪不掉。提交只寫名稱，與資料庫裡的結構描述相同，
+見[限定名稱](qualified-names.md#右對齊猜錯時整條往左挪)。
+
 `DROP` 家族與它們對稱：`DROP PROCEDURE`、`DROP FUNCTION`、`DROP VIEW` 之後同樣
 只列那一類，但意圖是 `Reference`——那個位置要的只是一個名稱，把整份定義放進去
 反而讓語句不合法。少寫哪一條都沒有徵兆，只是使用者在那個位置沒有清單。

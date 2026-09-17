@@ -1,5 +1,6 @@
 using System.Linq;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Settings;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -46,11 +47,12 @@ public sealed class SqlSystemObjectTests
     }
 
     /// <summary>
-    /// 兩個系統結構描述不必等中繼資料。
+    /// 兩個系統結構描述不必等中繼資料，提交行為與資料庫裡的結構描述相同。
     /// </summary>
     /// <remarks>
     /// 第一層查詢刻意不收它們（那會連帶把一兩千個系統物件拉進來），
     /// 少了這兩筆的話，使用者連「打 sys 再按 Tab」這條路都沒有。
+    /// 提交只寫名稱、不接續：點號由使用者自己打，打出點號才重開清單。
     /// </remarks>
     [Theory]
     [InlineData("sys")]
@@ -60,12 +62,13 @@ public sealed class SqlSystemObjectTests
         var builtIn = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
         var item = builtIn.Single(entry =>
             entry.Kind == SuggestionKind.Schema && entry.DisplayText == schema);
+        var context = SqlCompletionContextAnalyzer.Analyze("SELECT * FROM ");
 
-        Assert.Equal(schema + ".", item.InsertionText);
-        Assert.True(item.TriggerFollowUp);
+        Assert.Equal(schema, SqlInsertionText.Build(item, context, new SqlAssistSettings { UseSquareBrackets = false }));
+        Assert.False(item.TriggerFollowUp);
     }
 
-    /// <summary>打 <c>sys</c> 就找得到，而且提交之後接著列出它底下的東西。</summary>
+    /// <summary>打 <c>sys</c> 就找得到。</summary>
     [Fact]
     public void 打出前綴就找得到系統結構描述()
     {

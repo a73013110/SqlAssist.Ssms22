@@ -94,7 +94,7 @@ public sealed class SqlInsertionTextTests
     [Fact]
     public void 路徑的中間段只寫名稱本身()
     {
-        var schema = new SqlSuggestion("dbo", "dbo.", "Schema", "dbo", SuggestionKind.Schema, schemaName: "dbo");
+        var schema = new SqlSuggestion("dbo", "dbo", "Schema", "dbo", SuggestionKind.Schema, schemaName: "dbo");
         var database = new SqlSuggestion("LibArchive", "LibArchive", "Database", "LibArchive", SuggestionKind.Database);
         var server = new SqlSuggestion("LibMirror", "LibMirror", "Linked server", "LibMirror", SuggestionKind.LinkedServer);
 

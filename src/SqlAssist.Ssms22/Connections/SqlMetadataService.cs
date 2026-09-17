@@ -1472,15 +1472,18 @@ internal sealed class SqlMetadataService : IDisposable
         SqlDatabaseSnapshot snapshot,
         bool includeLinkedServers = false)
     {
+        // 結構描述讀擁有物件的那一份：與角色同名的空結構描述選了也接不到任何東西。
+        // 完整名單留給 SqlQualifierResolver 認限定字。
+        var schemas = snapshot.SchemasWithObjects;
         var suggestions = new List<SqlSuggestion>(
-            snapshot.Objects.Count + snapshot.Schemas.Count + snapshot.Databases.Count);
+            snapshot.Objects.Count + schemas.Count + snapshot.Databases.Count);
 
         AddObjects(suggestions, snapshot.Objects);
 
         // 名稱的中間段一律只寫名稱本身：點號由使用者自己打，而打出點號會讓上下文
         // 整個換掉，重開清單那條路本來就會接手。連點號一起寫進去等於替使用者決定
         // 「你還要繼續往下走」，想直接用這個名稱的人得先退掉一個他沒要求的字元。
-        foreach (var schema in snapshot.Schemas)
+        foreach (var schema in schemas)
         {
             suggestions.Add(new SqlSuggestion(
                 schema,

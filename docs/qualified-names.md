@@ -40,12 +40,17 @@
 
 | 限定字 | `QualifierEnd` | 清單 | 插入文字補結構描述 |
 |---|---|---|---|
-| （無） | — | 本地物件與關鍵字；接得住物件的位置另加資料庫與連結伺服器 | 看 `QualifyObjectNames` |
+| （無） | — | 本地物件與關鍵字；接得住物件的位置另加結構描述、資料庫與連結伺服器 | 看 `QualifyObjectNames` |
 | `dbo.` | 結構描述 | 該結構描述的物件 | 否，已經寫了 |
 | `LibArchive..` | 結構描述（空格） | 該資料庫全部物件 | 否，補了會變四段式 |
-| `LibArchive.` | 資料庫 | 該資料庫全部物件 | **是，且不看設定** |
+| `LibArchive.` | 資料庫 | 該資料庫的結構描述與全部物件 | **是，且不看設定** |
 | `LibMirror.` | 伺服器 | 該伺服器的資料庫 | — |
-| `LibMirror.LibArchive.` | 資料庫 | 該資料庫全部物件 | **是，且不看設定** |
+| `LibMirror.LibArchive.` | 資料庫 | 該資料庫的結構描述與全部物件 | **是，且不看設定** |
+
+「接得住物件的位置」由 `SuggestionMatcher.IsQualifiedNameStart` 一處決定，名稱的
+三種開頭共用；`USE` 只收資料庫。清單裡的結構描述讀 `SqlDatabaseSnapshot.SchemasWithObjects`，
+底下沒有物件的（`guest`、`db_denydatareader` 這類角色同名的）不列；認限定字仍讀完整的
+`Schemas`，否則空結構描述與資料庫同名時會被改認成資料庫。
 
 最後一欄那兩個「不看設定」是語法必需，不是偏好：`LibArchive.Loan` 是兩段式，會被讀成
 「結構描述 `LibArchive`」，而那個結構描述並不存在。理由與 `QuoteIfNeeded` 那條一樣

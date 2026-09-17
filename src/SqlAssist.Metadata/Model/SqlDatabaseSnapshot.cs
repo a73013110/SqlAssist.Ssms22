@@ -20,6 +20,9 @@ public sealed class SqlDatabaseSnapshot
     /// <summary>系統物件的索引；那一份還沒載入時是空的。</summary>
     private readonly Dictionary<string, IReadOnlyList<SqlObjectInfo>> _systemIndex;
 
+    /// <summary><see cref="SchemasWithObjects"/> 的結果；第一次被問到才算。</summary>
+    private IReadOnlyList<string>? _schemasWithObjects;
+
     public SqlDatabaseSnapshot(
         string databaseName,
         IReadOnlyList<SqlObjectInfo> objects,
@@ -100,7 +103,26 @@ public sealed class SqlDatabaseSnapshot
     /// </remarks>
     public IReadOnlyList<SqlObjectInfo> Objects { get; }
 
+    /// <summary>這個資料庫的每一個結構描述，包括底下沒有任何物件的。</summary>
+    /// <remarks>
+    /// 認限定字要用這一份完整名單（<see cref="SqlQualifierResolver"/>）：空的結構描述
+    /// 少掉的話，它與某個資料庫或連結伺服器同名時會被改認成那一個，清單換成另一個
+    /// 地方的內容。列給使用者挑的是 <see cref="SchemasWithObjects"/>。
+    /// </remarks>
     public IReadOnlyList<string> Schemas { get; }
+
+    /// <summary>底下至少有一個第一層物件的結構描述，順序與 <see cref="Schemas"/> 相同。</summary>
+    /// <remarks>
+    /// 建議清單讀這一份。每個資料庫都帶著一批與固定角色同名、裡面什麼都沒有的結構描述
+    /// （<c>db_denydatareader</c>、<c>guest</c>…），全列出來的話，<c>FROM d</c> 的前幾名
+    /// 就被選了也接不到任何東西的名稱佔掉。
+    ///
+    /// 快照不可變，所以只算一次；在第一次被問到時才算，是因為只拿快照認名稱的路
+    /// （滑鼠停留、F12）用不到它。多執行緒同時第一次問時可能各算一次，結果相同，
+    /// 不必上鎖。
+    /// </remarks>
+    public IReadOnlyList<string> SchemasWithObjects =>
+        _schemasWithObjects ??= FilterSchemasWithObjects(Schemas, Objects);
 
     /// <summary>
     /// 這一台伺服器上的資料庫，供 <c>USE</c> 之後的建議使用。
@@ -231,6 +253,35 @@ public sealed class SqlDatabaseSnapshot
         }
 
         return index;
+    }
+
+    private static IReadOnlyList<string> FilterSchemasWithObjects(
+        IReadOnlyList<string> schemas,
+        IReadOnlyList<SqlObjectInfo> objects)
+    {
+        if (schemas.Count == 0)
+        {
+            return schemas;
+        }
+
+        var owners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var info in objects)
+        {
+            owners.Add(info.SchemaName);
+        }
+
+        var result = new List<string>(Math.Min(schemas.Count, owners.Count));
+
+        foreach (var schema in schemas)
+        {
+            if (owners.Contains(schema))
+            {
+                result.Add(schema);
+            }
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<SqlObjectInfo> SortByName(IReadOnlyList<SqlObjectInfo>? objects)

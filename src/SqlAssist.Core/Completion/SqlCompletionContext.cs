@@ -154,6 +154,27 @@ public sealed class SqlCompletionContext
         SqlSystemSchemas.IsSystem(Qualifier);
 
     /// <summary>
+    /// 這個位置要不要把 <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 兩個結構描述列進清單。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="WantsSystemObjects"/> 是兩個問題：那一個問「要不要花一輪查詢把
+    /// 一兩千個系統物件拉進來」，這一個只問兩筆名稱該不該出現，好讓使用者打
+    /// <c>FROM info</c> 就選得到 <c>INFORMATION_SCHEMA</c>，再打點號才去拉那一份。
+    ///
+    /// 列的是<b>接得到</b>系統物件的位置：資料來源、<c>APPLY</c>
+    /// （<c>sys.dm_exec_sql_text</c>）、<c>EXEC</c> 與運算式。<c>ALTER</c>／<c>DROP</c>
+    /// 的函式、檢視、預存程序不算，理由與 <see cref="WantsSystemObjects"/> 排除
+    /// <c>ALTER PROCEDURE</c> 相同：系統物件改不動也刪不掉。序列也不算，
+    /// 那兩個結構描述底下沒有序列。
+    /// </remarks>
+    public bool WantsSystemSchemas => Target switch
+    {
+        CompletionTarget.Any or CompletionTarget.DataSource or CompletionTarget.TableFunction => true,
+        CompletionTarget.Procedure => Intent == CompletionIntent.ExecuteCall,
+        _ => false
+    };
+
+    /// <summary>
     /// 決定 <see cref="Target"/> 的關鍵字在原文中的起點，例如 <c>ALTER PROCEDURE</c> 的
     /// <c>ALTER</c>。<see cref="Target"/> 為 <see cref="CompletionTarget.Any"/> 時為 -1。
     /// 提交時要替換整個語句（而不只是游標前的字）就靠這個位置。

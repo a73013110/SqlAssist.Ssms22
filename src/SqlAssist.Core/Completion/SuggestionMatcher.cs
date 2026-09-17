@@ -90,9 +90,7 @@ public static class SuggestionMatcher
 
         foreach (var suggestion in suggestions)
         {
-            if (!IsAllowedForTarget(suggestion.Kind, context.Target) ||
-                !IsAllowedForPosition(suggestion, context) ||
-                !IsAllowedForSchema(suggestion, context))
+            if (!IsAllowed(suggestion, context))
             {
                 continue;
             }
@@ -155,9 +153,7 @@ public static class SuggestionMatcher
 
         foreach (var suggestion in suggestions)
         {
-            if (IsAllowedForTarget(suggestion.Kind, context.Target) &&
-                IsAllowedForPosition(suggestion, context) &&
-                IsAllowedForSchema(suggestion, context))
+            if (IsAllowed(suggestion, context))
             {
                 results.Add(suggestion);
             }
@@ -298,13 +294,42 @@ public static class SuggestionMatcher
         };
     }
 
+    /// <summary>上下文過濾；<see cref="Rank"/> 與 <see cref="Filter"/> 共用這一份。</summary>
+    private static bool IsAllowed(SqlSuggestion suggestion, SqlCompletionContext context)
+    {
+        return IsAllowedForTarget(suggestion.Kind, context.Target) &&
+               IsAllowedForPosition(suggestion, context) &&
+               IsAllowedForSchema(suggestion, context) &&
+               IsAllowedSystemSchema(suggestion, context);
+    }
+
+    /// <summary>
+    /// <c>sys</c> 與 <c>INFORMATION_SCHEMA</c> 只出現在拿得到系統物件的位置。
+    /// </summary>
+    /// <remarks>
+    /// 哪些位置算數是上下文的判斷（<see cref="SqlCompletionContext.WantsSystemSchemas"/>），
+    /// 這裡只負責套用。認的是名稱而不是來源：第一層查詢不收這兩個結構描述，
+    /// 但哪天收了，同一條規則照樣成立。
+    /// </remarks>
+    private static bool IsAllowedSystemSchema(SqlSuggestion suggestion, SqlCompletionContext context)
+    {
+        return suggestion.Kind != SuggestionKind.Schema ||
+               context.WantsSystemSchemas ||
+               !SqlSystemSchemas.IsSystem(suggestion.DisplayText);
+    }
+
     private static bool IsAllowedForTarget(SuggestionKind kind, CompletionTarget target)
     {
         // 資料庫與連結伺服器是多段式名稱的第一段，不是某一種物件。凡是寫得出
         // 多段式名稱的位置就該有它們，而那是由「這個位置接不接得住一個物件」
         // 決定的，不是由目標的名字決定的——逐個目標補的話，漏掉的那一個
         // 沒有徵兆：使用者只會看到「這裡沒有建議」，而語法明明合法。
-        if (kind is SuggestionKind.Database or SuggestionKind.LinkedServer)
+        //
+        // 結構描述是同一種東西的第二段，規則相同。曾經只補了前兩類，於是
+        // FROM／EXEC／APPLY 之後列得出 LibArchive 卻列不出 dbo 與 INFORMATION_SCHEMA。
+        if (kind is SuggestionKind.Database
+            or SuggestionKind.LinkedServer
+            or SuggestionKind.Schema)
         {
             return IsQualifiedNameStart(kind, target);
         }
@@ -317,15 +342,13 @@ public static class SuggestionMatcher
             // 資料表值函式也在這裡：FROM dbo.fn_LoansByReader(1) 是合法的資料來源，
             // 而中繼資料層的 SqlObjectKinds.IsDataSource 早就這樣認了。
             // 連結伺服器與資料庫也在這裡：四段式名稱是合法的資料來源，而它的
-            // 第一、二段就長這樣。它們能不能出現在游標<b>這一格</b>是另一個問題，
-            // 由 IsAllowedForSchema 依限定字停在哪一格決定——這裡只說
-            // 「這個目標接不接得住這個類別」。
+            // 第一、二段在上面的 IsQualifiedNameStart 就已經放行；它們能不能出現在
+            // 游標<b>這一格</b>是另一個問題，由 IsAllowedForSchema 依限定字停在哪一格
+            // 決定——這裡只說「這個目標接不接得住這個類別」。
             CompletionTarget.DataSource => kind is SuggestionKind.Table
                 or SuggestionKind.View
                 or SuggestionKind.TableFunction
-                or SuggestionKind.ScriptDataSource
-                or SuggestionKind.LinkedServer
-                or SuggestionKind.Database,
+                or SuggestionKind.ScriptDataSource,
             CompletionTarget.Procedure => kind == SuggestionKind.Procedure,
 
             // ALTER／DROP FUNCTION 兩種函式都改得動也刪得掉。
@@ -448,7 +471,8 @@ public static class SuggestionMatcher
     /// 一份一定比不中的名單。
     ///
     /// <c>USE</c> 是唯一的特例：那裡的資料庫名稱是整句的<b>終點</b>而不是名稱的
-    /// 第一段，而連結伺服器在那裡根本接不上（<c>USE</c> 換不了伺服器）。
+    /// 第一段，連結伺服器與結構描述在那裡根本接不上（<c>USE</c> 換不了伺服器，
+    /// 也不接結構描述）。
     /// </remarks>
     private static bool IsQualifiedNameStart(SuggestionKind kind, CompletionTarget target)
     {

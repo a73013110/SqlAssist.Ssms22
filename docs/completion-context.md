@@ -81,6 +81,9 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 | `LibArchive.dbo.`、`LibArchive..` | 那個資料庫的物件 | 插入名稱 |
 | `[192.0.2.10].[LibArchive].[dbo].` | — | 認得出來，但不給建議 |
 
+表中「只顯示」之外，寫得出名稱開頭的列（`USE`、`COLLATE` 與限定字那幾列除外）
+另列結構描述、資料庫與連結伺服器，見[限定名稱](qualified-names.md#右對齊猜錯時整條往左挪)。
+
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
