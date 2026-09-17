@@ -71,6 +71,19 @@ internal sealed class FakeSqlMemoryStore : ISqlMemoryStore
 
     public Task<SqlMemoryUsage> CompactAsync(CancellationToken cancellationToken) => Maintenance.CompactAsync(cancellationToken);
 
+    public Task<SqlMemoryUsageReport> ReadUsageReportAsync(CancellationToken cancellationToken) =>
+        Maintenance.ReadUsageReportAsync(cancellationToken);
+
+    public Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken) =>
+        Maintenance.EstimateCleanupAsync(request, cancellationToken);
+
+    public Task<SqlMemoryCleanupBatch> CleanupHistoryAsync(SqlMemoryCleanupRequest request, string? cursor, int limit,
+        CancellationToken cancellationToken) =>
+        Maintenance.CleanupHistoryAsync(request, cursor, limit, cancellationToken);
+
+    public Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken) =>
+        Maintenance.BackupAsync(destinationPath, cancellationToken);
+
     public Task<string> OpenLeaseAsync(SqlMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
         Maintenance.OpenLeaseAsync(owner, now, cancellationToken);
 

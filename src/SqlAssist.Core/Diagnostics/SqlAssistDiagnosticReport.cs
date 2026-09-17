@@ -321,7 +321,12 @@ public static class SqlAssistDiagnosticReport
             return $"{bytes / 1024d:0.#} KB";
         }
 
-        return $"{bytes / (1024d * 1024d):0.#} MB";
+        if (bytes < 1024L * 1024 * 1024)
+        {
+            return $"{bytes / (1024d * 1024d):0.#} MB";
+        }
+
+        return $"{bytes / (1024d * 1024d * 1024d):0.##} GB";
     }
 
     private static SqlAssistHealthCheck MemberListHealth(SqlAssistDiagnosticSnapshot snapshot)

@@ -18,6 +18,22 @@ public interface ISqlMemoryMaintenanceStore
 
     /// <summary>重建整個資料庫，時間隨資料量成長；只供設定頁的手動命令，不進排程。</summary>
     Task<SqlMemoryUsage> CompactAsync(CancellationToken cancellationToken);
+
+    /// <summary>用量頁的完整快照；計數會掃描索引，只在使用者開啟或重新整理用量頁時讀，不進排程。</summary>
+    Task<SqlMemoryUsageReport> ReadUsageReportAsync(CancellationToken cancellationToken);
+
+    /// <summary>手動清理送出前的符合列數；唯讀，不取得寫鎖。</summary>
+    Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 手動清理 History 類對象的一批：一個 IMMEDIATE 交易、最多 <paramref name="limit"/> 列，依 (時間, 鍵) 續讀。
+    /// 刪除語意與逐筆刪除 History 相同；收藏版本不在這裡處理。
+    /// </summary>
+    Task<SqlMemoryCleanupBatch> CleanupHistoryAsync(SqlMemoryCleanupRequest request, string? cursor, int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>以線上備份寫出一份完整的資料庫到不存在的檔案；讀取與擷取照常，不改動原資料庫。</summary>
+    Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken);
 }
 
 /// <summary>UTC 半開截止時間；null 停用該類保留清理，容量上限不授權刪除期限內資料。</summary>

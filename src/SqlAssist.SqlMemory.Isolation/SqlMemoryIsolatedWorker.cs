@@ -110,6 +110,12 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
         Run(operation, token => Storage.Maintenance.ReadMaintenanceState(token));
     public SqlMemoryCheckpointResult Checkpoint(long operation) => Run(operation, token => Storage.Maintenance.Checkpoint(token));
     public SqlMemoryUsage Compact(long operation) => Run(operation, token => Storage.Maintenance.Compact(token));
+    public SqlMemoryUsageReport ReadUsageReport(long operation) => Run(operation, token => Storage.Usage.ReadReport(token));
+    public SqlMemoryCleanupEstimate EstimateCleanup(long operation, SqlMemoryCleanupRequest request) =>
+        Run(operation, token => Storage.Usage.Estimate(request, token));
+    public SqlMemoryCleanupBatch CleanupHistory(long operation, SqlMemoryCleanupRequest request, string? cursor, int limit) =>
+        Run(operation, token => Storage.Usage.CleanupHistory(request, cursor, limit, token));
+    public long Backup(long operation, string destinationPath) => Run(operation, token => Storage.Usage.Backup(destinationPath, token));
 
     public string OpenLease(long operation, SqlMemoryLeaseOwner owner, DateTimeOffset now) =>
         Run(operation, token => Storage.Leases.OpenLease(owner, now, token));
@@ -163,7 +169,7 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
         }
     }
 
-    /// <summary>同一個資料庫檔案上的四個聚合；一起建立、一起隨 AppDomain 卸載。</summary>
+    /// <summary>同一個資料庫檔案上的各個聚合；一起建立、一起隨 AppDomain 卸載。</summary>
     private sealed class Stores
     {
         public Stores(SqliteDatabase database, SqliteSearchBudget budget)
@@ -172,6 +178,7 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
             Captures = new SqliteCaptureStore(database, budget);
             Favorites = new SqliteFavoriteStore(database, budget);
             Maintenance = new SqliteMaintenanceStore(database);
+            Usage = new SqliteUsageStore(database);
             Leases = new SqliteLeaseStore(database);
         }
 
@@ -179,6 +186,7 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
         public SqliteCaptureStore Captures { get; }
         public SqliteFavoriteStore Favorites { get; }
         public SqliteMaintenanceStore Maintenance { get; }
+        public SqliteUsageStore Usage { get; }
         public SqliteLeaseStore Leases { get; }
     }
 }

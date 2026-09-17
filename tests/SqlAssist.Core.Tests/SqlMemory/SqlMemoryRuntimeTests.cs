@@ -285,4 +285,53 @@ public sealed class SqlMemoryRuntimeTests
         for (var attempt = 0; attempt < 200 && !condition(); attempt++) await Task.Delay(10, Token);
         Assert.True(condition());
     }
+    [Fact]
+    public async Task ClosedRecoveryCleanupWaitsForTheHeartbeatAndEveryOutcomeIsRecorded()
+    {
+        var harness = new Harness();
+        await harness.Runtime.ApplyAsync(Enabled);
+        var request = new SqlMemoryCleanupRequest(SqlMemoryCleanupTargets.ClosedRecovery);
+
+        // 沒有租約時分不出自己開著的視窗，必須拒絕，而且不能碰儲存。
+        var error = await Assert.ThrowsAsync<SqlMemoryStorageException>(() => harness.Runtime.CleanupAsync(request, null, Token));
+        Assert.Equal(SqlMemoryStorageErrorKind.Unavailable, error.Kind);
+        Assert.Empty(harness.Store.Maintenance.CleanupRequests);
+
+        await harness.Timers.Beat();
+        Assert.True(harness.Runtime.MaintenanceOverview.HeartbeatActive);
+        await harness.Runtime.CleanupAsync(request, null, Token);
+        Assert.Single(harness.Store.Maintenance.CleanupRequests);
+
+        var activities = (await harness.Runtime.ReadUsageSnapshotAsync(Token)).Activities;
+        Assert.Equal(new[] { true, false }, activities.Select(activity => activity.Succeeded));
+        Assert.All(activities, activity => Assert.Equal(SqlMemoryActivityKind.Cleanup, activity.Kind));
+    }
+
+    [Fact]
+    public async Task ScheduledMaintenanceUpdatesTheOverviewAndRaisesCapacityChanges()
+    {
+        var harness = new Harness();
+        var changes = new List<SqlMemoryCapacityChangedEventArgs>();
+        harness.Runtime.CapacityChanged += (_, change) => changes.Add(change);
+        await harness.Runtime.ApplyAsync(SqlMemoryConfiguration.From(new SqlAssistSettings
+        {
+            SqlMemoryEnabled = true, SqlMemoryStorage = SqlMemoryStorageLimit.Megabytes256,
+        }));
+        harness.Store.Maintenance.Enqueue(new SqlMemoryMaintenanceResult(10, 7, null, false,
+            new SqlMemoryUsage(250L * 1024 * 1024, 0, 0), SqlMemoryCapacityStatus.MoreWorkRequired));
+
+        await harness.Timers.Maintain();
+
+        Assert.Equal(Start, harness.Runtime.MaintenanceOverview.LastMaintainedAt);
+        Assert.Equal(SqlMemoryUsageSeverity.Critical, harness.Runtime.CapacitySeverity);
+        var change = Assert.Single(changes);
+        Assert.True(change.Notify);
+        var activity = Assert.Single((await harness.Runtime.ReadUsageSnapshotAsync(Token)).Activities);
+        Assert.Equal((SqlMemoryActivityKind.ScheduledMaintenance, 7L), (activity.Kind, activity.DeletedRows));
+
+        // 停用換掉儲存：分級回到 Normal，舊資料庫的警示不留在畫面上。
+        await harness.Runtime.ApplyAsync(SqlMemoryConfiguration.Disabled);
+        Assert.Equal(SqlMemoryUsageSeverity.Normal, harness.Runtime.CapacitySeverity);
+        Assert.Equal(SqlMemoryUsageSeverity.Normal, changes.Last().Severity);
+    }
 }

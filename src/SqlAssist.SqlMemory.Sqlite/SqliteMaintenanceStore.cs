@@ -21,10 +21,14 @@ internal sealed class SqliteMaintenanceStore
         return ReadUsage(connection, null);
     }
 
-    private SqlMemoryUsage ReadUsage(SqliteConnection connection, SqliteTransaction? transaction)
+    private SqlMemoryUsage ReadUsage(SqliteConnection connection, SqliteTransaction? transaction) =>
+        ReadUsage(_database, connection, transaction);
+
+    /// <summary>內容計量讀交易內的值；檔案大小只是觀測，與交易快照無關。</summary>
+    internal static SqlMemoryUsage ReadUsage(SqliteDatabase database, SqliteConnection connection, SqliteTransaction? transaction)
     {
         var bytes = ScalarLong(connection, transaction, "SELECT ContentBytes FROM StorageUsage WHERE Id=1;");
-        var path = _database.FilePath;
+        var path = database.FilePath;
         return new SqlMemoryUsage(bytes, FileLength(path), FileLength(path + "-wal"));
     }
 

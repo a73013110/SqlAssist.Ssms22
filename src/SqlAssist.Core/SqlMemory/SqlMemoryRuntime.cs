@@ -79,6 +79,8 @@ public sealed class SqlMemoryRuntime
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _sync = new();
+    private readonly SqlMemoryActivityLog _activity = new();
+    private readonly SqlMemoryCapacityMonitor _capacity = new();
 
     private SqlMemoryConfiguration _configuration = SqlMemoryConfiguration.Disabled;
     private SqlMemoryRuntimeStatus _status = SqlMemoryRuntimeStatus.Initial;
@@ -90,6 +92,7 @@ public sealed class SqlMemoryRuntime
     private long _lastEditTicks;
     private int _maintaining;
     private int _beating;
+    private long _lastMaintainedTicks;
 
     /// <param name="openStorage">開啟一份儲存；取消代表宿主正在卸載。失敗以 <see cref="SqlMemoryStorageException"/> 分類為佳。</param>
     /// <param name="owner">本程序的租約擁有者；開啟儲存時才取得，探測失敗會走開啟失敗的路徑。</param>
@@ -113,6 +116,9 @@ public sealed class SqlMemoryRuntime
     /// <summary>一筆擷取沒有保存時觸發，可能在 UI 或背景寫入器的執行緒上。</summary>
     public event EventHandler<SqlCaptureDroppedEventArgs>? CaptureDropped;
 
+    /// <summary>容量分級改變，或剛進入 Critical 需要通知；可能在任何執行緒，處理常式不得擲出。</summary>
+    public event EventHandler<SqlMemoryCapacityChangedEventArgs>? CapacityChanged;
+
     public SqlMemoryRuntimeStatus Status => Volatile.Read(ref _status);
 
     public long Generation => Status.Generation;
@@ -124,6 +130,21 @@ public sealed class SqlMemoryRuntime
     public bool IsAvailable => IsCapturing && Volatile.Read(ref _configuration).Enabled;
 
     public TimeSpan IdleDebounce => Volatile.Read(ref _configuration).IdleDebounce;
+
+    /// <summary>最近一次觀測到的容量分級；來源是維護批次、用量頁與手動清理，沒有觀測過是 Normal。</summary>
+    public SqlMemoryUsageSeverity CapacitySeverity => _capacity.Severity;
+
+    /// <summary>本程序的維護排程觀測；儲存沒有開啟時只剩最後一次維護的時間。</summary>
+    public SqlMemoryMaintenanceOverview MaintenanceOverview
+    {
+        get
+        {
+            var state = Volatile.Read(ref _state);
+            var last = Interlocked.Read(ref _lastMaintainedTicks);
+            return new SqlMemoryMaintenanceOverview(state?.Runner.NextDueAt, last == 0 ? null : new DateTimeOffset(last, TimeSpan.Zero),
+                state?.Runner.Level ?? 0, state?.Runner.PendingWork ?? false, state?.Heartbeat.LeaseId != null);
+        }
+    }
 
     /// <summary>建立心跳與維護計時器；重複呼叫只有第一次有效，卸載後不再啟動。</summary>
     public void Start()
@@ -199,6 +220,54 @@ public sealed class SqlMemoryRuntime
     public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.DeleteFavoriteAsync(favoriteId, expectedVersion, token), cancellationToken);
 
+    /// <summary>用量頁的完整快照：報表與共用維護狀態讀自儲存，保留計畫、排程與清理紀錄讀自本程序。</summary>
+    public async Task<SqlMemoryUsageSnapshot> ReadUsageSnapshotAsync(CancellationToken cancellationToken)
+    {
+        var plan = Volatile.Read(ref _configuration).Plan;
+        var (report, maintenance) = await UseAsync(async (storage, token) =>
+            (await storage.ReadUsageReportAsync(token).ConfigureAwait(false),
+                await storage.ReadMaintenanceStateAsync(token).ConfigureAwait(false)), cancellationToken).ConfigureAwait(false);
+        ObserveCapacity(report.Usage, plan.MaxContentBytes, maintenance?.CapacityStatus);
+        return new SqlMemoryUsageSnapshot(report, maintenance, plan, MaintenanceOverview, _activity.Snapshot());
+    }
+
+    public Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken) =>
+        UseAsync((storage, token) => storage.EstimateCleanupAsync(request, token), cancellationToken);
+
+    /// <summary>使用者確認後的手動清理；保護根與逐筆刪除相同，回復內容只在本程序續著心跳時才能清。</summary>
+    public Task<SqlMemoryCleanupResult> CleanupAsync(SqlMemoryCleanupRequest request, IProgress<long>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        return RecordAsync(SqlMemoryActivityKind.Cleanup, (state, token) =>
+        {
+            // 本程序沒有租約時，自己開著的視窗在儲存層看起來也「沒有租約」，會被當成已關閉而清掉。
+            if (request.Includes(SqlMemoryCleanupTargets.ClosedRecovery) && state.Heartbeat.LeaseId == null)
+                throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable,
+                    "SQL Memory 還在建立工作階段租約，暫時無法分辨哪些回復內容屬於已關閉的視窗；請一分鐘後再試。");
+            return SqlMemoryCleanup.RunAsync(state.Storage, request, progress, token);
+        }, result => (result.DeletedRows, result.ReleasedContentBytes, result.Usage), cancellationToken);
+    }
+
+    /// <summary>不等排程，以日常保留規則立即巡完一輪；不升級分級、不寫共用輪次。</summary>
+    public Task<SqlMemoryCleanupResult> MaintainNowAsync(IProgress<long>? progress, CancellationToken cancellationToken)
+    {
+        var plan = Volatile.Read(ref _configuration).Plan;
+        return RecordAsync(SqlMemoryActivityKind.ManualMaintenance, async (state, token) =>
+        {
+            var now = _clock();
+            var result = await SqlMemoryCleanup.MaintainAsync(state.Storage,
+                plan.BuildLadder(now, state.Heartbeat.LeaseId != null)[0], progress, token).ConfigureAwait(false);
+            Interlocked.Exchange(ref _lastMaintainedTicks, now.UtcTicks);
+            return result;
+        }, result => (result.DeletedRows, result.ReleasedContentBytes, result.Usage), cancellationToken);
+    }
+
+    /// <summary>寫出一份完整備份到不存在的檔案；回傳備份檔大小。</summary>
+    public Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken) =>
+        RecordAsync(SqlMemoryActivityKind.Backup, (state, token) => state.Storage.BackupAsync(destinationPath, token),
+            length => (0L, length, (SqlMemoryUsage?)null), cancellationToken);
+
     /// <summary>設定頁的手動整理；重建整個資料庫，時間隨資料量成長，不進背景排程。</summary>
     /// <remarks>
     /// 先等本程序的 writer 排空，已接受的擷取不必在整理期間擱在記憶體裡。整理期間 writer 不停止：
@@ -209,8 +278,12 @@ public sealed class SqlMemoryRuntime
     {
         if (Volatile.Read(ref _state) is { } state)
             await state.Writer.WaitForIdleAsync(cancellationToken).ConfigureAwait(false);
-
-        return await UseAsync((storage, token) => storage.CompactAsync(token), cancellationToken).ConfigureAwait(false);
+        var before = 0L;
+        return await RecordAsync(SqlMemoryActivityKind.Compact, async (current, token) =>
+        {
+            before = (await current.Storage.ReadUsageAsync(token).ConfigureAwait(false)).DatabaseFileBytes;
+            return await current.Storage.CompactAsync(token).ConfigureAwait(false);
+        }, after => (0L, Math.Max(0, before - after.DatabaseFileBytes), (SqlMemoryUsage?)after), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>宿主卸載：停止計時器、排空背景寫入器、交回維護租約，再釋放儲存；總時間受 <paramref name="timeout"/> 限制。</summary>
@@ -255,6 +328,10 @@ public sealed class SqlMemoryRuntime
 
             if (tick.Outcome == SqlMemoryMaintenanceOutcome.Maintained && tick.Result is { } result)
             {
+                Interlocked.Exchange(ref _lastMaintainedTicks, now.UtcTicks);
+                if (result.DeletedRows > 0)
+                    _activity.Record(new SqlMemoryActivity(now, SqlMemoryActivityKind.ScheduledMaintenance, result.DeletedRows, 0));
+                ObserveCapacity(result.Usage, Volatile.Read(ref _configuration).Plan.MaxContentBytes, result.CapacityStatus);
                 _log.Detail(
                     $"SQL Memory 維護：{tick.Scan} 分級 {tick.Level} 檢查 {result.ExaminedCandidates} 刪除 {result.DeletedRows} " +
                     $"容量 {result.CapacityStatus} 續巡 {result.Cursor != null} 釋放租約 {tick.ReleasedLeases} 截斷 {tick.Checkpointed}");
@@ -292,9 +369,43 @@ public sealed class SqlMemoryRuntime
         finally { Interlocked.Exchange(ref _beating, 0); }
     }
 
+    private Task<T> UseAsync<T>(Func<ISqlMemoryStore, CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken) =>
+        UseStateAsync((state, token) => operation(state.Storage, token), cancellationToken);
+
+    /// <summary>
+    /// 使用者主動的整理：成功與失敗都進清理紀錄，結果的容量交給容量分級。取消不記錄——使用者自己停下來的不是失敗。
+    /// </summary>
+    /// <param name="describe">從結果取出刪除列數、位元組與清理後容量；容量為 null 表示這個操作不改變內容量。</param>
+    private async Task<T> RecordAsync<T>(SqlMemoryActivityKind kind, Func<State, CancellationToken, Task<T>> operation,
+        Func<T, (long Rows, long Bytes, SqlMemoryUsage? Usage)> describe, CancellationToken cancellationToken)
+    {
+        T result;
+        try
+        {
+            result = await UseStateAsync(operation, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            _activity.Record(new SqlMemoryActivity(_clock(), kind, 0, 0, error.Message));
+            throw;
+        }
+        var (rows, bytes, usage) = describe(result);
+        _activity.Record(new SqlMemoryActivity(_clock(), kind, rows, bytes));
+        if (usage != null) ObserveCapacity(usage, Volatile.Read(ref _configuration).Plan.MaxContentBytes, null);
+        return result;
+    }
+
+    private void ObserveCapacity(SqlMemoryUsage usage, long? limit, SqlMemoryCapacityStatus? status)
+    {
+        var (changed, notify) = _capacity.Observe(usage, limit, status);
+        if (changed || notify)
+            CapacityChanged?.Invoke(this, new SqlMemoryCapacityChangedEventArgs(_capacity.Severity, _capacity.Ratio, notify));
+    }
+
     // 不經過閘門：儲存自己保證釋放會等進行中的呼叫。關閉時取消這份狀態的生命週期，
     // 長時間的全文搜尋才不會拖住卸載。
-    private async Task<T> UseAsync<T>(Func<ISqlMemoryStore, CancellationToken, Task<T>> operation,
+    private async Task<T> UseStateAsync<T>(Func<State, CancellationToken, Task<T>> operation,
         CancellationToken cancellationToken)
     {
         if (!Volatile.Read(ref _configuration).Enabled || Volatile.Read(ref _state) is not { } state)
@@ -303,7 +414,7 @@ public sealed class SqlMemoryRuntime
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, state.Lifetime.Token);
         try
         {
-            return await operation(state.Storage, linked.Token).ConfigureAwait(false);
+            return await operation(state, linked.Token).ConfigureAwait(false);
         }
         catch (Exception error) when ((error is OperationCanceledException or ObjectDisposedException) &&
             !cancellationToken.IsCancellationRequested && state.Lifetime.IsCancellationRequested)
@@ -411,6 +522,9 @@ public sealed class SqlMemoryRuntime
         Volatile.Write(ref _state, null);
         Publish(status => status.With(failed is null ? SqlMemoryRuntimePhase.Disabled : SqlMemoryRuntimePhase.WriterFailed,
             nextGeneration: true));
+        // 容量分級屬於這份儲存；重開或換檔案之後的警示點要等新的觀測。
+        if (_capacity.Reset())
+            CapacityChanged?.Invoke(this, new SqlMemoryCapacityChangedEventArgs(SqlMemoryUsageSeverity.Normal, null, false));
 
         // 讀取、心跳與維護不必做完；取消後儲存只剩 writer 已接受的擷取與提交中的交易要等。
         state.Lifetime.Cancel();

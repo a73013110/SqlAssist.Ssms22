@@ -18,6 +18,7 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
     private readonly SqliteCaptureStore _captures;
     private readonly SqliteFavoriteStore _favorites;
     private readonly SqliteMaintenanceStore _maintenance;
+    private readonly SqliteUsageStore _usage;
     private readonly SqliteLeaseStore _leases;
 
     private SqliteTestRepository(SqliteDatabase database, SqliteSearchBudget? searchBudget)
@@ -25,6 +26,7 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         _captures = new SqliteCaptureStore(database, searchBudget);
         _favorites = new SqliteFavoriteStore(database, searchBudget);
         _maintenance = new SqliteMaintenanceStore(database);
+        _usage = new SqliteUsageStore(database);
         _leases = new SqliteLeaseStore(database);
     }
 
@@ -67,6 +69,15 @@ internal sealed class SqliteTestRepository : ISqlMemoryStore
         Run(token => _maintenance.Checkpoint(token), cancellationToken);
     public Task<SqlMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
         Run(token => _maintenance.Compact(token), cancellationToken);
+    public Task<SqlMemoryUsageReport> ReadUsageReportAsync(CancellationToken cancellationToken) =>
+        Run(token => _usage.ReadReport(token), cancellationToken);
+    public Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken) =>
+        Run(token => _usage.Estimate(request, token), cancellationToken);
+    public Task<SqlMemoryCleanupBatch> CleanupHistoryAsync(SqlMemoryCleanupRequest request, string? cursor, int limit,
+        CancellationToken cancellationToken) =>
+        Run(token => _usage.CleanupHistory(request, cursor, limit, token), cancellationToken);
+    public Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken) =>
+        Run(token => _usage.Backup(destinationPath, token), cancellationToken);
 
     public Task<string> OpenLeaseAsync(SqlMemoryLeaseOwner owner, DateTimeOffset now, CancellationToken cancellationToken) =>
         Run(token => _leases.OpenLease(owner, now, token), cancellationToken);
