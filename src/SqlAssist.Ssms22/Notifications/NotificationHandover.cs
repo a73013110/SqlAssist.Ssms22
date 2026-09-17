@@ -1,17 +1,17 @@
 using System;
 
-namespace SqlAssist.Ssms22.Editor;
+namespace SqlAssist.Ssms22.Notifications;
 
 /// <summary>
-/// 通知卡片換編輯區時，這一次到底算不算「新出現在畫面上」。
+/// 通知卡片換宿主時，這一次到底算不算「新出現在畫面上」。
 /// </summary>
 /// <remarks>
-/// 只有新出現的那一次播入場動畫並重新起算最短可見時間。舊編輯區先把卡片拔下來、
+/// 只有新出現的那一次播入場動畫並重新起算最短可見時間。舊宿主先把卡片拔下來、
 /// 接手的那一個下一輪才掛上，中間隔的是一次派送——把那一段當成新出現，就是 F12 開新
 /// 查詢視窗時提示消失又跳出來的那個閃爍。
 ///
-/// 與 <see cref="NotificationSurface"/> 分開是為了測得到：那一份的 API 上有編輯器的
-/// adornment 層，而這一段只有時間與旗標。
+/// 與 <see cref="NotificationSurface"/> 分開是為了測得到：那一份要真的把卡片掛進 WPF
+/// 圖層，而這一段只有時間與旗標。
 /// </remarks>
 internal sealed class NotificationHandover
 {
@@ -27,7 +27,7 @@ internal sealed class NotificationHandover
     private DateTimeOffset _detachedAt;
     private bool _pending;
 
-    /// <summary>從編輯區拔下來。</summary>
+    /// <summary>從宿主拔下來。</summary>
     /// <param name="retire">這一批結束了（到期、關閉、停用），不是交接。</param>
     public void Detach(DateTimeOffset now, bool retire)
     {
@@ -35,8 +35,8 @@ internal sealed class NotificationHandover
         _pending = !retire;
     }
 
-    /// <summary>掛到編輯區上。</summary>
-    /// <param name="attached">掛上去之前卡片還在別的編輯區上，是直接接手。</param>
+    /// <summary>掛到宿主上。</summary>
+    /// <param name="attached">掛上去之前卡片還在別的宿主上，是直接接手。</param>
     /// <returns>這一次是不是新出現在畫面上。</returns>
     public bool Attach(bool attached, DateTimeOffset now)
     {

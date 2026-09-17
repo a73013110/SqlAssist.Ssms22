@@ -75,8 +75,8 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 ## 卡片與呈現端分開
 
 卡片認得通知來源的型別時，第二個回饋來源（片段還原、設定重載）就得先變成一則通知才畫得出來。
-改成卡片只認得 `UI/NotificationCardItem`，呈現端 `Editor/NotificationHost` 負責可見度、
-合併與措辭；`NotificationAdornment` 只剩宿主與定位，卡片本身在 `NotificationSurface`。抽通用通知框架則相反——只有一個來源時
+改成卡片只認得 `UI/NotificationCardItem`，呈現端 `Notifications/NotificationPresenter` 負責可見度、
+合併與措辭；卡片本身在 `NotificationSurface`。抽通用通知框架則相反——只有一個來源時
 抽出來的抽象會照著那個來源長，等第二個來源出現時還是要重寫。
 
 ## 卡片在編輯區之間搬家
@@ -85,6 +85,18 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 滑入、淡入與每一列的狀態動畫全部重播，看起來是提示消失了又跳出來。卡片改成全程一張，
 換編輯區只是換掛到另一層。舊的先拔、接手的下一輪才掛，中間隔的是一次派送，因此
 `NotificationHandover` 給一段寬限——沒有寬限就等於交接一定重播。
+
+## 卡片宿主抽象
+
+卡片原本只認得編輯器的 adornment 層，SQL Memory 工具窗與對話框開著時完成的工作看不到。
+表面改認 `INotificationSurfaceHost`：宿主只回答掛上／移除、座標、可見度、焦點與變化事件，
+編輯區與 WPF 視窗各實作一份。狀態機、計時器與全域訂閱原本每個編輯區一份，N 個編輯區
+就是 N 個計時器，還要各自維護早退旗標；搬進 `NotificationSurfaceController` 後只有一份。
+
+最後用過的編輯區幾乎總是看得見，排在視窗前面的話工具窗永遠搶不到卡片，所以它是第三級。
+不做主視窗疊層：結果格線是 WinForms／HWND，會蓋住 WPF 圖層。不做 Popup 或獨立視窗：
+置頂、最小化、DPI 與搶焦點都要自己處理。`NotificationPosition.BottomRight` 從未有使用者
+設定，一併刪除。
 
 ## 抬頭只回答文件
 

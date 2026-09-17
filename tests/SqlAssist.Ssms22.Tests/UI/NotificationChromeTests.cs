@@ -11,7 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
-using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.UI;
 using Xunit;
 
@@ -19,15 +19,11 @@ namespace SqlAssist.Ssms22.Tests.UI;
 
 public sealed class NotificationChromeTests
 {
-    [Theory]
-    [InlineData(0, 746, 8)]
-    [InlineData(1, 746, 452)]
-    public void 定位使用內容區安全邊距(int value, double x, double y)
+    [Fact]
+    public void 定位使用內容區安全邊距()
     {
-        var position = (NotificationPosition)value;
-        Assert.Equal(new Point(x, y), SqlAssistChrome.NotificationAnchor(new Size(1000, 700), new Size(250, 240), position));
-        var small = SqlAssistChrome.NotificationAnchor(new Size(100, 80), new Size(100, 80), position);
-        Assert.Equal(new Point(0, 0), small);
+        Assert.Equal(new Point(746, 8), SqlAssistChrome.NotificationAnchor(new Size(1000, 700), new Size(250, 240)));
+        Assert.Equal(new Point(0, 0), SqlAssistChrome.NotificationAnchor(new Size(100, 80), new Size(100, 80)));
     }
 
     [Fact]
@@ -59,8 +55,8 @@ public sealed class NotificationChromeTests
             Assert.Null(root.Effect);
             Assert.Null(root.Body.Effect);
             Assert.Equal(Visibility.Collapsed, root.Sheen.Visibility);
-            root.Transition(false, false, true, NotificationPosition.TopRight);
-            root.Transition(true, false, true, NotificationPosition.TopRight);
+            root.Transition(false, false, true);
+            root.Transition(true, false, true);
             root.StopMotion();
             Assert.False(root.HasAnimatedProperties);
             Assert.Equal(1, root.Opacity);
@@ -356,7 +352,7 @@ public sealed class NotificationChromeTests
             root.Update(Cards(center), true, false);
             Assert.Equal(Visibility.Collapsed, root.ContextLabel.Visibility);
             Assert.Equal(Visibility.Visible, ((TextBlock)text.Children[1]).Visibility);
-            root.Transition(true, true, SqlAssistChrome.MotionPolicy(true, true, false, false), NotificationPosition.TopRight);
+            root.Transition(true, true, SqlAssistChrome.MotionPolicy(true, true, false, false));
             Assert.True(root.HasAnimatedProperties);
             root.StopMotion();
         });
@@ -398,7 +394,7 @@ public sealed class NotificationChromeTests
     }
 
     internal static IReadOnlyList<NotificationCardItem> Cards(NotificationCenter center, SqlAssistSettings? settings = null) =>
-        NotificationHost.Project(center.Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue), settings ?? new SqlAssistSettings()).Items;
+        NotificationPresenter.Project(center.Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue), settings ?? new SqlAssistSettings()).Items;
 
     internal static System.Windows.Shapes.Path Icon(NotificationRow row) =>
         (System.Windows.Shapes.Path)((Grid)row.Child).Children[0];

@@ -51,8 +51,11 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\IsExternalInit.cs" Link="Product\IsExternalInit.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCardItem.cs" Link="Product\UI\NotificationCardItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationRow.cs" Link="Product\UI\NotificationRow.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\Editor\NotificationHost.cs" Link="Product\Editor\NotificationHost.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\Editor\NotificationHandover.cs" Link="Product\Editor\NotificationHandover.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationPresenter.cs" Link="Product\Notifications\NotificationPresenter.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationHandover.cs" Link="Product\Notifications\NotificationHandover.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\INotificationSurfaceHost.cs" Link="Product\Notifications\INotificationSurfaceHost.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationHostPriority.cs" Link="Product\Notifications\NotificationHostPriority.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationLifecycle.cs" Link="Product\Notifications\NotificationLifecycle.cs" />
     <Page Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCard.xaml" Link="UI\NotificationCard.xaml" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCard.xaml.cs" Link="UI\NotificationCard.xaml.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlDataGridText.cs" Link="Product\UI\SqlDataGridText.cs" />

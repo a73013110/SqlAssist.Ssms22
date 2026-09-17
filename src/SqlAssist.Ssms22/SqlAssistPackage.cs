@@ -10,6 +10,7 @@ using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
@@ -113,7 +114,7 @@ public sealed class SqlAssistPackage : AsyncPackage
             SqlAssistPlatformGuard.Run("解除 SSMS 連線變更事件", SqlEditorConnectionWatcher.Shutdown);
             // 排空背景寫入器並放開 SQLite 檔案；排在設定與診斷收尾之前。
             SqlAssistPlatformGuard.Run("停止 SQL Memory", SqlMemoryHost.Shutdown);
-            SqlAssistPlatformGuard.Run("釋放通知提示", NotificationAdornmentProvider.Shutdown);
+            SqlAssistPlatformGuard.Run("釋放通知提示", NotificationSurfaceController.Default.Shutdown);
             SqlAssistSettingsStore.Shutdown();
             VsThemeBrushes.Shutdown();
             // 診斷是批次寫檔的，最後一批還在佇列裡；卸載時要倒完才輪得到殼層關閉。

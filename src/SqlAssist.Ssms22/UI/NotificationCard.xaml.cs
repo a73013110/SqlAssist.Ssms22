@@ -232,9 +232,10 @@ internal partial class NotificationCard : Border
         return common;
     }
 
-    internal void Transition(bool show, bool fresh, bool motion, NotificationPosition position)
+    internal void Transition(bool show, bool fresh, bool motion)
     {
-        if (fresh) { Opacity = 0; SurfaceSlide.Y = position == NotificationPosition.TopRight ? -20 : 20; }
+        // 錨在右上，入場從上方滑入。
+        if (fresh) { Opacity = 0; SurfaceSlide.Y = -20; }
         var duration = motion ? (show ? 300 : 220) : 0;
         // 從目前有效值反轉淡出，新工作不先跳回起點或閃現。
         BeginAnimation(OpacityProperty, SqlAssistChrome.NotificationAnimation(Opacity, show ? 1 : 0, duration));

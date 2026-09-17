@@ -6,7 +6,7 @@ internal enum NotificationVisualStatus { Pending, Running, Completed, Failed, Ca
 /// <summary>通知卡片要畫的一列。</summary>
 /// <remarks>
 /// 卡片只認得這個型別，不認得 <c>Core/Notifications</c>：措辭、可見度、合併與期限都在
-/// 呈現端（<c>Editor/NotificationHost</c>）決定完才交過來，卡片只負責版面、狀態圖示與動畫。
+/// 呈現端（<c>Notifications/NotificationPresenter</c>）決定完才交過來，卡片只負責版面、狀態圖示與動畫。
 ///
 /// 這樣第二個通知來源（例如設定或片段的一次性回饋）只要能產生同一個記錄就接得上，
 /// 不必先有一套通用的通知框架——只有一個來源時抽出來的抽象會照著那個來源長。
