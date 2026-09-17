@@ -47,7 +47,7 @@ internal sealed class FakeSqlMemoryMaintenance : ISqlMemoryMaintenanceStore, ISq
         _results.Enqueue(_ => throw new SqlMemoryStorageException(kind, "測試：" + kind));
 
     public Task<SqlMemoryUsage> ReadUsageAsync(CancellationToken cancellationToken) =>
-        Task.FromResult(new SqlMemoryUsage(0, 0, 0));
+        Task.FromResult(Usages.Count > 0 ? Usages.Dequeue() : new SqlMemoryUsage(0, 0, 0));
 
     public Task<SqlMemoryMaintenanceResult> MaintainAsync(SqlMemoryMaintenanceRequest request,
         CancellationToken cancellationToken)
@@ -78,6 +78,29 @@ internal sealed class FakeSqlMemoryMaintenance : ISqlMemoryMaintenanceStore, ISq
 
     public Task<SqlMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
         Task.FromResult(new SqlMemoryUsage(0, 0, 0));
+
+    /// <summary>用量讀取依序回傳；空了就回零。清理前後各讀一次，測試用它驗證釋出容量。</summary>
+    public Queue<SqlMemoryUsage> Usages { get; } = new();
+
+    public List<(SqlMemoryCleanupRequest Request, string? Cursor, int Limit)> CleanupRequests { get; } = new();
+
+    public Queue<SqlMemoryCleanupBatch> CleanupBatches { get; } = new();
+
+    public Task<SqlMemoryUsageReport> ReadUsageReportAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(new SqlMemoryUsageReport(new SqlMemoryUsage(0, 0, 0), 0,
+            new SqlMemoryUsageCounts(0, 0, 0, 0, 0, 0, 0, 0, 0, 0), Array.Empty<SqlMemoryUsageShare>(), null, null));
+
+    public Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken) =>
+        Task.FromResult(new SqlMemoryCleanupEstimate(0, 0, 0, 0));
+
+    public Task<SqlMemoryCleanupBatch> CleanupHistoryAsync(SqlMemoryCleanupRequest request, string? cursor, int limit,
+        CancellationToken cancellationToken)
+    {
+        CleanupRequests.Add((request, cursor, limit));
+        return Task.FromResult(CleanupBatches.Count > 0 ? CleanupBatches.Dequeue() : new SqlMemoryCleanupBatch(0, 0, 0, null));
+    }
+
+    public Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken) => Task.FromResult(0L);
 
     public Task<string> OpenLeaseAsync(SqlMemoryLeaseOwner owner, DateTimeOffset now,
         CancellationToken cancellationToken)

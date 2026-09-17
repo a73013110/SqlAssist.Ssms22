@@ -114,6 +114,15 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
         Invoke(operation => _worker.Checkpoint(operation), cancellationToken);
     public Task<SqlMemoryUsage> CompactAsync(CancellationToken cancellationToken) =>
         Invoke(operation => _worker.Compact(operation), cancellationToken);
+    public Task<SqlMemoryUsageReport> ReadUsageReportAsync(CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.ReadUsageReport(operation), cancellationToken);
+    public Task<SqlMemoryCleanupEstimate> EstimateCleanupAsync(SqlMemoryCleanupRequest request, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.EstimateCleanup(operation, request), cancellationToken);
+    public Task<SqlMemoryCleanupBatch> CleanupHistoryAsync(SqlMemoryCleanupRequest request, string? cursor, int limit,
+        CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.CleanupHistory(operation, request, cursor, limit), cancellationToken);
+    public Task<long> BackupAsync(string destinationPath, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.Backup(operation, destinationPath), cancellationToken);
 
     private async Task<T> Invoke<T>(Func<long, T> operation, CancellationToken cancellationToken)
     {

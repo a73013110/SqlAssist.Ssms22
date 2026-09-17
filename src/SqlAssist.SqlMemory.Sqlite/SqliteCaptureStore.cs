@@ -174,54 +174,12 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         var contents = new HashSet<string>(StringComparer.Ordinal);
-        var revisions = new HashSet<string>(StringComparer.Ordinal);
-        using (var read = Command(connection, transaction,
-            "SELECT RevisionId,ContentId FROM History WHERE EntryKey=$key AND SessionId=$session;",
-            ("$key", key), ("$session", Id(item.SessionId))))
-        using (var reader = read.ExecuteReader())
-        {
-            if (!reader.Read()) return SqlHistoryDeleteResult.NotFound;
-            if (StringOrNull(reader, 0) is { } revision) revisions.Add(revision);
-            contents.Add(reader.GetString(1));
-        }
-        if (key[0] == 'e')
-        {
-            // 合併列底下的執行可能引用不同版本（同內容的選取版本與完整版本），每一份都要重查引用。
-            using (var read = Command(connection, transaction, "SELECT RevisionId FROM Executions WHERE EntryKey=$key;", ("$key", key)))
-            using (var reader = read.ExecuteReader())
-                while (reader.Read()) revisions.Add(reader.GetString(0));
-            // 執行事件只引用版本，自己沒有內容；版本另由下方的引用清單決定能不能刪。
-            Execute(connection, transaction, "DELETE FROM Executions WHERE EntryKey=$key;", ("$key", key));
-        }
-        Execute(connection, transaction, "DELETE FROM History WHERE EntryKey=$key;", ("$key", key));
-        if (key[0] == 's')
-        {
-            // 仍開著的視窗下一次擷取會重寫 Recovery；這裡只移除使用者看到的那一份。
-            DeleteReleasing(connection, transaction, contents, "Recovery", "SessionId=$id", ("$id", Id(item.SessionId)));
-        }
-        foreach (var revision in revisions)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            DeleteReleasing(connection, transaction, contents, "Revisions",
-                "RevisionId=$revision" + SqliteContentRows.UnreferencedRevision, ("$revision", revision));
-        }
-        foreach (var content in contents)
-            Execute(connection, transaction, "DELETE FROM Contents WHERE ContentId=$id" + Unreferenced + ";", ("$id", content));
+        if (SqliteHistoryRows.Delete(connection, transaction, key, Id(item.SessionId), contents, cancellationToken) == 0)
+            return SqlHistoryDeleteResult.NotFound;
+        SqliteHistoryRows.CollectContents(connection, transaction, contents, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
         return SqlHistoryDeleteResult.Deleted;
-    }
-
-    /// <summary>先記下列引用的內容再刪；條件不成立（仍被引用）時什麼都不釋出。</summary>
-    private static void DeleteReleasing(SqliteConnection connection, SqliteTransaction transaction, ISet<string> contents,
-        string table, string condition, params (string Name, object? Value)[] parameters)
-    {
-        string? content;
-        using (var read = Command(connection, transaction, "SELECT ContentId FROM " + table + " WHERE " + condition + ";", parameters))
-            content = read.ExecuteScalar() as string;
-        if (content == null) return;
-        Execute(connection, transaction, "DELETE FROM " + table + " WHERE " + condition + ";", parameters);
-        contents.Add(content);
     }
 
     public SqlMemoryPage<SqlHistoryItem> ReadHistory(SqlHistoryRequest request, CancellationToken cancellationToken)
@@ -231,7 +189,7 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         var binding = SqliteTimeCursor.Fingerprint(((int)request.Kind).ToString(CultureInfo.InvariantCulture), request.Search,
             request.Server, request.Database, request.Since?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture),
             request.Until?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture));
-        var cursor = SqliteTimeCursor.Decode(request.Cursor, HistoryCursor, _database.StoreId, binding, IsHistoryKey);
+        var cursor = SqliteTimeCursor.Decode(request.Cursor, HistoryCursor, _database.StoreId, binding, SqliteHistoryRows.IsKey);
         var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
         var conditions = new List<string>();
         var parameters = new List<(string Name, object? Value)> { ("$limit", search?.CandidateLimit ?? request.PageSize + 1) };
@@ -256,10 +214,6 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
     }
 
     private const string HistoryCursor = "history2";
-
-    /// <summary>投影鍵：一碼種類前綴（e／r／s）加上 32 位十六進位識別碼。</summary>
-    private static bool IsHistoryKey(string key) =>
-        key.Length == 33 && "ers".IndexOf(key[0]) >= 0 && SqliteTimeCursor.IsId(key.Substring(1));
 
     /// <summary>
     /// 投影只拿 Preview；搜尋時多帶 SqlBytes 給讀取端比對，但不將全部 SQL 載入列表或應用程式快取。
