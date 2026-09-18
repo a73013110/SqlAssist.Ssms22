@@ -17,6 +17,8 @@ public enum NotificationKind
     Snippets,
     Settings,
     Package,
+    /// <summary>SQL Memory 的啟用、整理、清除、備份與擷取。</summary>
+    SqlMemory,
     /// <summary>還沒分類的工作。預設顯示，否則新工作會靜默漏掉。</summary>
     Unclassified,
 }

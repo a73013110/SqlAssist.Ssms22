@@ -72,6 +72,35 @@ public sealed class NotificationCenter
         NotificationLevel level, string subject = "", string document = "", string source = "") =>
         Create(title, kind, origin, level, subject, document, source, _current.Value, ambient: false);
 
+    /// <summary>送出一件當下已經發生、沒有執行期間的事。</summary>
+    /// <remarks>
+    /// 給「擷取被丟棄」「容量超過警戒」這種事件用。以 <see cref="Begin"/> 開了立刻關，
+    /// 會先冒出一列執行中、改寫環境父工作，而且同一刻發生的巢狀查詢會併進這一列。
+    /// 這裡不寫 <c>_current</c>，也就不會被 <c>joinParent</c> 接手；完成後的帳與
+    /// <see cref="NotificationScope"/> 釋放時走同一條：上限、版本、統計、最近失敗與詳細診斷。
+    ///
+    /// 三軸與 <paramref name="status"/> 都沒有預設值，理由同 <see cref="Begin"/>。
+    /// <paramref name="status"/> 只收已完成的結果，<see cref="NotificationStatus.Running"/>
+    /// 會擲例外：沒有範圍可以釋放，那一列會永遠停在執行中。
+    /// </remarks>
+    public void Post(string title, NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
+        NotificationStatus status, string subject = "", string document = "", string source = "", string message = "")
+    {
+        if (Rank(status) == 0)
+            throw new ArgumentOutOfRangeException(nameof(status), status, "事件型通知只能送出已完成的結果。");
+
+        NotificationItem item;
+        lock (_gate)
+        {
+            var now = _clock();
+            item = new NotificationItem(++_nextId, title, subject, document, source, now, status, now,
+                Clip(message), kind, origin, level);
+            _items.Add(item);
+            Settle(item, newlyFinished: true);
+        }
+        Announce(item);
+    }
+
     private NotificationScope Create(string title, NotificationKind kind, NotificationOrigin origin,
         NotificationLevel level, string subject, string document, string source,
         NotificationScope? parent, bool ambient)
@@ -192,20 +221,38 @@ public sealed class NotificationCenter
             if (Rank(old.Status) > Rank(status)) status = old.Status;
             item = old.With(status, _clock(), old.Message);
             _items[index] = item;
-            if (old.Finished is null) _finished++;
-            _version++;
-            if (status == NotificationStatus.Failed)
-            {
-                _failures.Enqueue(item);
-                while (_failures.Count > FailureLimit) _failures.Dequeue();
-            }
-            Trim();
+            Settle(item, newlyFinished: old.Finished is null);
         }
-        // 診斷與統計在鎖外接收最終快照，通知篩選不影響紀錄，也不把寫檔成本放進活動鎖。
+        Announce(item);
+    }
+
+    /// <summary>項目剛進入完成狀態時鎖內要記的帳；呼叫端須持有 <c>_gate</c>。</summary>
+    private void Settle(NotificationItem item, bool newlyFinished)
+    {
+        if (newlyFinished) _finished++;
+        _version++;
+        if (item.Status == NotificationStatus.Failed)
+        {
+            _failures.Enqueue(item);
+            while (_failures.Count > FailureLimit) _failures.Dequeue();
+        }
+        Trim();
+    }
+
+    /// <summary>
+    /// 診斷與統計在鎖外接收最終快照，通知篩選不影響紀錄，也不把寫檔成本放進活動鎖。
+    /// </summary>
+    private void Announce(NotificationItem item)
+    {
         Digest.Record(item);
         Completed?.Invoke(item);
         Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>限制常駐記憶體；沒有超過上限時原樣回傳，不配置新字串。</summary>
+    internal static string Clip(string? message) =>
+        message is null ? "" :
+        message.Length > MessageLimit ? message.Substring(0, MessageLimit) : message;
 
     internal void Report(long id, string message)
     {

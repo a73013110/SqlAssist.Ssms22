@@ -80,6 +80,20 @@ public static class NotificationCatalog
     public const string ReloadingSettings = "重新載入設定";
     public const string RebuildingThemeBrushes = "重建主題筆刷";
 
+    // ── SQL Memory ────────────────────────────────────────────────────────
+    public const string EnablingSqlMemory = "啟用 SQL Memory";
+    public const string DisablingSqlMemory = "停用 SQL Memory";
+    public const string CompactingSqlMemory = "整理 SQL Memory";
+    public const string ClearingSqlMemoryHistory = "清除 SQL Memory 紀錄";
+    public const string BackingUpSqlMemory = "備份 SQL Memory";
+    public const string RestoringFavoriteRevision = "回溯收藏版本";
+
+    /// <summary>擷取佇列滿了而沒有寫進紀錄的那一筆；事件，以 <see cref="NotificationCenter.Post"/> 送出。</summary>
+    public const string DroppingSqlCapture = "丟棄 SQL 擷取";
+
+    /// <summary>容量剛越過警戒；事件，成功時讀作「已超過 SQL Memory 容量警戒」。</summary>
+    public const string ExceedingSqlMemoryCapacity = "超過 SQL Memory 容量警戒";
+
     /// <summary>
     /// 畫面上那一列的主要文字：完成後轉過去式並視情況附上耗時。
     /// </summary>

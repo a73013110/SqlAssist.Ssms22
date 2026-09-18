@@ -10,6 +10,10 @@ namespace SqlAssist.Core.Notifications;
 /// 「讀不到任何設定時回退為預設值」就永遠失敗。遮罩是值，相等比較自然成立。
 ///
 /// 新增一個種類只動 <see cref="NotificationKindToggle.All"/>，這裡不必跟著改。
+///
+/// 位元取列舉的序數，在中間插入種類會讓後面的位元位移；這不影響使用者設定，因為遮罩
+/// 從不落地：存下來的是每一類自己的 moniker，每次讀設定都依表重組一份。
+/// 哪一天要把遮罩本身寫進任何存放區，位元就得先改成與序數脫鉤。
 /// </remarks>
 public readonly struct NotificationKindSwitches : IEquatable<NotificationKindSwitches>
 {

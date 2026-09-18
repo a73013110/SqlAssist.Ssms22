@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
+using SqlAssist.Core.Tests.Settings;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Notifications;
@@ -19,6 +20,7 @@ public sealed class NotificationVisibilityTests
     [InlineData(NotificationKind.Snippets, true)]
     [InlineData(NotificationKind.Settings, true)]
     [InlineData(NotificationKind.Package, false)]
+    [InlineData(NotificationKind.SqlMemory, true)]
     [InlineData(NotificationKind.Unclassified, true)]
     public void 預設按種類降噪且漏分類看得見(NotificationKind kind, bool visible)
     {
@@ -83,7 +85,7 @@ public sealed class NotificationVisibilityTests
     [Fact]
     public void 每一個種類都關得掉()
     {
-        // 十一格核取方塊每一格都要管得住自己那一類，不分誰觸發。
+        // 每一格核取方塊每一格都要管得住自己那一類，不分誰觸發。
         foreach (var toggle in NotificationKindToggle.All)
         {
             Assert.NotEmpty(toggle.Moniker);
@@ -91,6 +93,41 @@ public sealed class NotificationVisibilityTests
             foreach (NotificationOrigin origin in Enum.GetValues(typeof(NotificationOrigin)))
                 Assert.False(NotificationVisibility.Includes(Item(toggle.Kind, origin, NotificationLevel.Notice), off));
         }
+    }
+
+    [Fact]
+    public void 每一格開關只關得掉自己那一類()
+    {
+        foreach (var toggle in NotificationKindToggle.All)
+        {
+            var off = NotificationKindSwitches.Defaults.With(toggle.Kind, false);
+            foreach (var other in NotificationKindToggle.All)
+                Assert.Equal(other.Kind != toggle.Kind && other.EnabledByDefault, off[other.Kind]);
+        }
+
+        Assert.Equal(NotificationKindToggle.All.Count,
+            NotificationKindToggle.All.Select(x => x.Moniker).Distinct().Count());
+        Assert.Equal("sqlAssist.notifications.sqlMemory", NotificationKindToggle.For(NotificationKind.SqlMemory).Moniker);
+    }
+
+    /// <summary>
+    /// 新增種類讓後面的位元位移，但既有使用者的設定不能跟著錯位。
+    /// </summary>
+    /// <remarks>
+    /// 存下來的是每一類自己的 moniker，遮罩每次讀設定時重組。這裡模擬新增種類之前就存好的設定：
+    /// 舊種類全部與預設相反、新種類沒有值，讀回來舊的逐一照舊、新的是預設。
+    /// </remarks>
+    [Fact]
+    public void 既有種類的設定在新增種類後不錯位()
+    {
+        var stored = NotificationKindToggle.All
+            .Where(x => x.Kind != NotificationKind.SqlMemory)
+            .ToDictionary(x => x.Moniker, x => (object)!x.EnabledByDefault);
+        var kinds = SqlAssistSettingsReader.Read(new FakeSettingValueSource(stored)).NotificationKinds;
+
+        foreach (var toggle in NotificationKindToggle.All)
+            Assert.Equal(toggle.Kind == NotificationKind.SqlMemory ? toggle.EnabledByDefault : !toggle.EnabledByDefault,
+                kinds[toggle.Kind]);
     }
 
     [Fact]
@@ -189,10 +226,10 @@ public sealed class NotificationVisibilityTests
         Assert.Equal(1, logged);
     }
 
-    /// <summary>十一個種類全部關掉。</summary>
+    /// <summary>每一個種類全部關掉。</summary>
     private static NotificationKindSwitches AllOff => Every(false);
 
-    /// <summary>十一個種類全部打開；預設關著的高頻種類也算進來。</summary>
+    /// <summary>每一個種類全部打開；預設關著的高頻種類也算進來。</summary>
     private static NotificationKindSwitches AllOn => Every(true);
 
     private static NotificationKindSwitches Every(bool enabled)
