@@ -88,6 +88,15 @@ public static class NotificationCatalog
     public const string BackingUpSqlMemory = "備份 SQL Memory";
     public const string RestoringFavoriteRevision = "回溯收藏版本";
 
+    /// <summary>依保留規則回收；背景排程與用量頁的「立即維護」是同一件事，共用這一個標題。</summary>
+    public const string MaintainingSqlMemory = "維護 SQL Memory";
+
+    /// <summary>版本不相容或損毀時，封存舊檔並建立空資料庫。</summary>
+    public const string RebuildingSqlMemory = "重建 SQL Memory 資料庫";
+
+    /// <summary>診斷命令；報告本身仍用訊息框，這一則只回答「還在跑」與成敗。</summary>
+    public const string TestingSqlMemoryStorage = "測試 SQL Memory 儲存";
+
     /// <summary>擷取佇列滿了而沒有寫進紀錄的那一筆；事件，以 <see cref="NotificationCenter.Post"/> 送出。</summary>
     public const string DroppingSqlCapture = "丟棄 SQL 擷取";
 

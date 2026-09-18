@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -379,14 +380,26 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
         _ = SqlMemoryActions.RunAsync(async () =>
         {
+            // 重建要開檔、封存與建立新 schema，使用者可能中途切回編輯器；「正在重建」交給卡片，
+            // 兩顆按鈕停用已經說了這一區動不了。備份檔名只有這裡放得下：通知文案不放路徑與檔名。
+            using var notification = NotificationCenter.Default.Begin(NotificationCatalog.RebuildingSqlMemory,
+                NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info);
             _recoveryView.SetRebuilding(true);
             try
             {
-                Report("正在備份並重新建立 SQL Memory 資料庫…");
                 var backupPath = await SqlMemoryRecoveryService.BackupAndRecreateAsync().ConfigureAwait(true);
-                Report(backupPath.Length == 0
-                    ? "SQL Memory 資料庫已重新建立。"
-                    : $"SQL Memory 資料庫已重新建立；舊檔案備份為 {Path.GetFileName(backupPath)}。");
+                if (backupPath.Length != 0) Report($"舊檔案備份為 {Path.GetFileName(backupPath)}。");
+            }
+            catch (OperationCanceledException)
+            {
+                notification.Cancel();
+                throw;
+            }
+            catch (Exception)
+            {
+                // 重建失敗要讀完才知道下一步，除了卡片也留在復原卡片的狀態列：這是使用者按下去的修復。
+                notification.Fail();
+                throw;
             }
             finally { _recoveryView.SetRebuilding(false); }
         }, Report);

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.SqlMemory;
 
@@ -18,8 +19,9 @@ namespace SqlAssist.Ssms22.Commands;
 /// 整理前先排空本程序已接受的擷取；整理期間擷取照常排隊，等整理結束才寫入，
 /// 佇列滿時照一般規則拒收並提示。文案只能承諾這些，不能說「期間寫入不受影響」。
 ///
-/// 使用者主動觸發的命令自己顯示成敗，不交給 <see cref="SqlAssistPlatformGuard"/>
-/// 靜默吞掉——按了沒反應與按了失敗是兩件不同的事。
+/// 進度與成功走通知卡片：整理可能跑很久，而使用者多半已經回去編輯 SQL，
+/// 這時彈出訊息框只是打斷他。失敗仍用訊息框——那一句要讀完才知道下一步是稍後再試
+/// 還是先處理占用資料庫的程序，而卡片會自己消失。
 /// </remarks>
 internal static class SqlAssistSqlMemoryCompactCommand
 {
@@ -36,39 +38,20 @@ internal static class SqlAssistSqlMemoryCompactCommand
 
     private static async Task ExecuteAsync(SqlAssistPackage package)
     {
-        string message;
-        var icon = OLEMSGICON.OLEMSGICON_INFO;
-
         try
         {
-            SqlAssistStatusBar.Show(package, "正在整理 SQL Memory 的資料庫檔案；可繼續編輯，新的紀錄會在整理完成後寫入。");
-            var usage = await SqlMemoryHost.Runtime.CompactAsync(package.DisposalToken).ConfigureAwait(false);
-            message = "SQL Memory 的資料庫已整理完成。\n" +
-                $"資料庫檔案：{Megabytes(usage.DatabaseFileBytes)}\n" +
-                $"查詢內容：{Megabytes(usage.ContentBytes)}\n" +
-                "整理只回收已刪除資料佔用的空間，不會刪掉任何還留著的查詢。";
-        }
-        catch (OperationCanceledException) when (package.DisposalToken.IsCancellationRequested)
-        {
-            Interlocked.Exchange(ref _running, 0);
-            return;
-        }
-        catch (Exception error)
-        {
-            SqlAssistDiagnostics.WriteAlways($"SQL Memory 手動整理失敗：{error}");
-            message = (error is SqlMemoryStorageException { IsTransient: true }
-                ? "SQL Memory 的資料庫正被其他作業使用，這次沒有整理；請稍後再試。\n"
-                : "無法整理 SQL Memory 的資料庫：\n") + error.Message;
-            icon = OLEMSGICON.OLEMSGICON_WARNING;
-        }
+            string? failure;
+            using (var notification = NotificationCenter.Default.Begin(NotificationCatalog.CompactingSqlMemory,
+                       NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info))
+            {
+                failure = await CompactAsync(package, notification).ConfigureAwait(false);
+            }
 
-        try
-        {
+            // 成功不跳訊息框：卡片已經寫了「已整理 SQL Memory」與整理後的檔案大小。
+            if (failure is null) return;
+
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
-            SqlAssistStatusBar.Show(package, icon == OLEMSGICON.OLEMSGICON_INFO
-                ? "SQL Memory 的資料庫已整理完成。"
-                : "SQL Memory 的資料庫整理失敗。");
-            VsShellUtilities.ShowMessageBox(package, message, "SqlAssist — SQL Memory", icon,
+            VsShellUtilities.ShowMessageBox(package, failure, "SqlAssist — SQL Memory", OLEMSGICON.OLEMSGICON_WARNING,
                 OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
         catch (OperationCanceledException) when (package.DisposalToken.IsCancellationRequested) { }
@@ -80,5 +63,28 @@ internal static class SqlAssistSqlMemoryCompactCommand
         finally { Interlocked.Exchange(ref _running, 0); }
     }
 
-    private static string Megabytes(long bytes) => $"{bytes / 1024d / 1024d:0.0} MB";
+    /// <returns>要顯示在訊息框裡的失敗說明；成功與取消為 null。</returns>
+    private static async Task<string?> CompactAsync(SqlAssistPackage package, NotificationScope notification)
+    {
+        try
+        {
+            var usage = await SqlMemoryHost.Runtime.CompactAsync(package.DisposalToken).ConfigureAwait(false);
+            notification.Report("資料庫檔案 " + SqlMemoryUsageSummary.Bytes(usage.DatabaseFileBytes) +
+                " · 查詢內容 " + SqlMemoryUsageSummary.Bytes(usage.ContentBytes));
+            return null;
+        }
+        catch (OperationCanceledException) when (package.DisposalToken.IsCancellationRequested)
+        {
+            notification.Cancel();
+            return null;
+        }
+        catch (Exception error)
+        {
+            notification.Fail();
+            SqlAssistDiagnostics.WriteAlways($"SQL Memory 手動整理失敗：{error}");
+            return (error is SqlMemoryStorageException { IsTransient: true }
+                ? "SQL Memory 的資料庫正被其他作業使用，這次沒有整理；請稍後再試。\n"
+                : "無法整理 SQL Memory 的資料庫：\n") + error.Message;
+        }
+    }
 }

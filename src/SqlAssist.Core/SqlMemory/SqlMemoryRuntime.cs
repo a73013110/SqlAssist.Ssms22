@@ -119,6 +119,15 @@ public sealed class SqlMemoryRuntime
     /// <summary>容量分級改變，或剛進入 Critical 需要通知；可能在任何執行緒，處理常式不得擲出。</summary>
     public event EventHandler<SqlMemoryCapacityChangedEventArgs>? CapacityChanged;
 
+    /// <summary>
+    /// 背景保留清理失敗的原因短語；擷取照常運作，下一輪重跑同一個游標。
+    /// </summary>
+    /// <remarks>
+    /// 紀錄檔本來就有這一行，但使用者不會去翻紀錄檔；宿主拿它決定要不要讓失敗看得見。
+    /// 關閉途中的取消不算失敗，不會觸發。
+    /// </remarks>
+    public event Action<string>? MaintenanceFailed;
+
     public SqlMemoryRuntimeStatus Status => Volatile.Read(ref _status);
 
     public long Generation => Status.Generation;
@@ -342,6 +351,7 @@ public sealed class SqlMemoryRuntime
         {
             // 維護失敗不讓擷取跟著停：下一輪重跑同一個游標即可。
             _log.Important($"SQL Memory 維護失敗：{error.Message}");
+            MaintenanceFailed?.Invoke(error.Message);
         }
         finally { Interlocked.Exchange(ref _maintaining, 0); }
     }

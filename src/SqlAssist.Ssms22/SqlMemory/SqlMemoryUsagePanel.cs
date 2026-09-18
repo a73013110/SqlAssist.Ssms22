@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -15,7 +16,10 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// <remarks>
 /// 讀取以取消與宿主世代擋住晚到的結果；整理動作走 <see cref="SqlMemoryOperationGate"/>，連按只送出一次，
 /// 停用或換了儲存之後才回來的結果不回報。整理結束一律重讀快照，量表從舊值滑到新值。
-/// 使用者按了卻失敗必須看得見，所以錯誤回到工具窗狀態列，不交給 Guard。
+///
+/// 回饋分兩條：分頁內的不確定進度說「現在動不了」，通知卡片說「這件事怎麼了」。維護與清除可能跑上幾分鐘，
+/// 使用者多半已經切回編輯器，所以成敗都走卡片（卡片跟著作用中的宿主走）；分頁狀態列只留卡片放不下的東西，
+/// 例如備份檔的位置——通知文案不放路徑。
 /// </remarks>
 internal sealed class SqlMemoryUsagePanel : IDisposable
 {
@@ -79,36 +83,37 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         switch (action)
         {
             case SqlMemoryUsageAction.Maintain:
-                Start("維護", "正在依保留規則維護…", deletes: true, async progress =>
+                Start(NotificationCatalog.MaintainingSqlMemory, "維護", "正在依保留規則維護…", deletes: true, async progress =>
                 {
                     var result = await SqlMemoryHost.Runtime.MaintainNowAsync(progress, _operation.Token);
-                    return Deleted("維護完成", result);
+                    return (Deleted(result), null);
                 });
                 break;
             case SqlMemoryUsageAction.Cleanup:
                 if (SqlMemoryCleanupWindow.Show(_package) is not { } request) return;
-                Start("清除", "正在清除紀錄…", deletes: true, async progress =>
+                Start(NotificationCatalog.ClearingSqlMemoryHistory, "清除", "正在清除紀錄…", deletes: true, async progress =>
                 {
                     var result = await SqlMemoryHost.Runtime.CleanupAsync(request, progress, _operation.Token);
-                    return Deleted("清除完成", result);
+                    return (Deleted(result), null);
                 });
                 break;
             case SqlMemoryUsageAction.Compact:
                 if (!SqlAssistConfirmationWindow.Confirm(Owner(), "壓縮 SQL Memory 資料庫", "重建資料庫檔案以縮小檔案？",
                     "不會刪除任何紀錄。重建期間需要與資料庫等量的暫存空間，新的擷取會等壓縮完成才寫入。", "壓縮")) return;
-                Start("壓縮", "正在壓縮資料庫；可繼續編輯…", deletes: false, async _ =>
+                Start(NotificationCatalog.CompactingSqlMemory, "壓縮", "正在壓縮資料庫；可繼續編輯…", deletes: false, async _ =>
                 {
-                    // 縮小了多少由清理紀錄記下；狀態列只說結果，不為了算差值多讀一次完整用量。
+                    // 縮小了多少由清理紀錄記下；這裡只說結果，不為了算差值多讀一次完整用量。
                     var after = await SqlMemoryHost.Runtime.CompactAsync(_operation.Token);
-                    return "壓縮完成：資料庫檔案現在是 " + SqlMemoryUsageSummary.Bytes(after.DatabaseFileBytes) + "。";
+                    return ("資料庫檔案現在是 " + SqlMemoryUsageSummary.Bytes(after.DatabaseFileBytes) + "。", null);
                 });
                 break;
             case SqlMemoryUsageAction.Backup:
                 if (AskBackupPath() is not { } path) return;
-                Start("備份", "正在備份資料庫…", deletes: false, async _ =>
+                Start(NotificationCatalog.BackingUpSqlMemory, "備份", "正在備份資料庫…", deletes: false, async _ =>
                 {
+                    // 位置只寫在分頁狀態列：通知文案不放路徑，而使用者要知道檔案落在哪裡。
                     var length = await SqlMemoryHost.Runtime.BackupAsync(path, _operation.Token);
-                    return "已備份到 " + path + "（" + SqlMemoryUsageSummary.Bytes(length) + "）。";
+                    return ("備份檔 " + SqlMemoryUsageSummary.Bytes(length), "已備份到 " + path + "。");
                 });
                 break;
             case SqlMemoryUsageAction.OpenFolder:
@@ -119,9 +124,12 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         }
     }
 
+    /// <param name="title"><see cref="NotificationCatalog"/> 的常數標題；成敗都由卡片回報。</param>
+    /// <param name="verb">失敗訊息的動作名稱。</param>
     /// <param name="deletes">會刪除紀錄；結束後通知清單重讀，壓縮與備份不動紀錄就不讓清單白讀一次。</param>
-    /// <param name="work">背景部分；回傳完成後寫在狀態列的一行結果。</param>
-    private void Start(string verb, string busy, bool deletes, Func<IProgress<long>, Task<string>> work)
+    /// <param name="work">背景部分；回傳卡片上的結果短語，以及只有分頁狀態列放得下的那一句（多半沒有）。</param>
+    private void Start(string title, string verb, string busy, bool deletes,
+        Func<IProgress<long>, Task<(string Note, string? Status)>> work)
     {
         if (_gate.IsBusy || _disposed) return;
         View.SetBusy(busy);
@@ -133,13 +141,26 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         });
         _ = SqlMemoryActions.RunAsync(async () =>
         {
+            // 卡片跟著作用中的宿主走：整理途中關掉工具窗，結果會出現在編輯區或下一個 SqlAssist 視窗上。
+            using var notification = NotificationCenter.Default.Begin(title,
+                NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info);
             try
             {
-                await _gate.RunAsync(_operation.Token, _report, verb, async () =>
+                await _gate.RunAsync(_operation.Token, Failed, verb, async () =>
                 {
-                    var message = await work(progress);
-                    return () => _report(message);
+                    var (note, status) = await work(progress);
+                    return () =>
+                    {
+                        notification.Report(note);
+                        if (status is not null) _report(status);
+                    };
                 });
+            }
+            catch (OperationCanceledException)
+            {
+                // 關掉工具窗或換了儲存：卡片不能停在「已完成」，那一件事並沒有做完。
+                notification.Cancel();
+                throw;
             }
             finally
             {
@@ -150,12 +171,18 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                     if (deletes) RecordsChanged?.Invoke(this, EventArgs.Empty);
                 }
             }
+
+            void Failed(string message)
+            {
+                notification.Report(message);
+                notification.Fail();
+            }
         }, _report);
     }
 
-    private static string Deleted(string title, SqlMemoryCleanupResult result) => result.DeletedRows == 0
-        ? title + "：沒有需要回收的資料。"
-        : title + "：刪除 " + SqlMemoryUsageSummary.Count(result.DeletedRows) + " 列" +
+    private static string Deleted(SqlMemoryCleanupResult result) => result.DeletedRows == 0
+        ? "沒有需要回收的資料。"
+        : "刪除 " + SqlMemoryUsageSummary.Count(result.DeletedRows) + " 列" +
           (result.ReleasedContentBytes > 0 ? "，釋出 " + SqlMemoryUsageSummary.Bytes(result.ReleasedContentBytes) : "") +
           "。檔案要壓縮後才會變小。";
 

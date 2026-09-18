@@ -37,7 +37,7 @@
 | 資料庫檔案的整組封存（`.db`／`-wal`／`-shm`） | `Ssms22/SqlMemory/SqlMemoryDatabaseArchive.cs` |
 | 收藏新增與編輯（資料、標註與 SQL 一次儲存） | `Ssms22/SqlMemory/FavoriteEditorWindow.cs` |
 | 伺服器／資料庫標註輸入與出現過的名稱 | `Ssms22/SqlMemory/SqlConnectionTagInput.cs` |
-| 設定、計時器、狀態列與容量提醒接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
+| 設定、計時器與事件型通知接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
 | 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
 | 清單的鍵盤、續頁、右鍵選取與列按鈕派送 | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryListBase<TAction>` |
 | 等儲存的使用者操作：拒絕重入與宿主世代檢查 | `Ssms22/SqlMemory/SqlMemoryOperationGate.cs` |

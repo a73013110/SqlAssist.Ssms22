@@ -113,27 +113,30 @@
 
 | 標題 | 形式 | 來源 | 等級 |
 |---|---|---|---|
-| 啟用 SQL Memory | 範圍 | Ambient | Info |
-| 停用 SQL Memory | 範圍 | Ambient | Info |
-| 整理 SQL Memory | 範圍 | — | — |
-| 清除 SQL Memory 紀錄 | 範圍 | — | — |
-| 備份 SQL Memory | 範圍 | — | — |
-| 回溯收藏版本 | 範圍 | — | — |
-| 丟棄 SQL 擷取 | 事件 | — | — |
-| 超過 SQL Memory 容量警戒 | 事件 | — | — |
+| 啟用／停用 SQL Memory | 範圍 | Ambient | Info |
+| 測試 SQL Memory 儲存 | 範圍 | User | Info |
+| 整理 SQL Memory | 範圍 | User | Info |
+| 維護 SQL Memory | 範圍／事件 | User／Ambient | Info／Debug |
+| 清除 SQL Memory 紀錄 | 範圍 | User | Info |
+| 備份 SQL Memory | 範圍 | User | Info |
+| 重建 SQL Memory 資料庫 | 範圍 | User | Info |
+| 回溯收藏版本 | 範圍 | User | Info |
+| 丟棄 SQL 擷取 | 事件 | Ambient | Notice |
+| 超過 SQL Memory 容量警戒 | 事件 | Ambient | Notice |
 
-啟用與停用由 `SqlMemoryHost.Apply` 經 `SqlAssistPlatformGuard.Begin` 開，其餘尚未接線。
-事件沒有執行期間，走 `NotificationCenter.Post`。擷取被丟棄與容量警戒原本想寫成
-「未保存 SQL 擷取」「SQL Memory 容量警示」，但兩者都不是動詞開頭，成功時轉過去式會讀成
-「已未保存…」；改成動詞開頭後分別讀作「已丟棄 SQL 擷取」「已超過 SQL Memory 容量警戒」。
-狀態列那一句完整敘述（`SqlCaptureDroppedEventArgs.NotificationText`）仍在，接上通知時再收掉。
+全部已接線，逐處見[用量](sql-memory-usage.md)與 [UI](sql-memory-ui.md)；背景維護批次失敗也沿用
+「維護」標題。當場完成的動作留在視窗裡，只有會等儲存的長操作才開通知；路徑與檔名不進通知。
+
+事件走 `NotificationCenter.Post`；標題動詞開頭，才不會轉成「已未保存…」。丟棄是**失敗**——那一段
+SQL 完全沒有記錄，值得進「通知失敗」回看；容量是**降級**——資料都還在，進失敗清單會洗掉真正的
+錯誤。原因短語由 Core 給（`SqlCaptureDroppedEventArgs.Reason` 是常數，擷取在熱路徑上）。
 
 ## 已知缺口
 
 接線時補齊的四項：開發者措辭的標題、建議清單與 QuickInfo 自身沒有 `Begin`、
 跨資料庫與連結伺服器沒有專屬回報，以及熱路徑上的內插字串標題。
 
-還沒補上的：SQL Memory 只接上啟用與停用；等待共享閘期間工作由別人擁有（`SqlMetadataCatalog` 的 `_snapshotGate`
+還沒補上的：等待共享閘期間工作由別人擁有（`SqlMetadataCatalog` 的 `_snapshotGate`
 仍然沒有排隊狀態，畫面上也沒有等待中的視覺）；結果格線、片段存放與掃描指令碼宣告
 三處尚未接線；工作階段統計是第 4 步，`Trace` 的快取命中目前只進紀錄與記憶體歷史，
 還沒有依 `(Kind, Title, Subject)` 累計的報表。

@@ -97,4 +97,15 @@ public sealed class SqlMemoryCapacityChangedEventArgs : EventArgs
     public SqlMemoryUsageSeverity Severity { get; }
     public double? Ratio { get; }
     public bool Notify { get; }
+
+    /// <summary>
+    /// 通知上的原因短語；容量事件的措辭只有這一份。
+    /// </summary>
+    /// <remarks>
+    /// 沒有比例可言時只剩一種情形：容量不限，卻因為保留規則清不下來而升到 Critical。
+    /// 只在 <see cref="Notify"/> 為 true 的那一次取用，不在每一批維護上配置字串。
+    /// </remarks>
+    public string Reason => Ratio is not { } ratio
+        ? "目前的保留規則清不下來"
+        : double.IsInfinity(ratio) ? "內容已超過容量上限" : "內容已用 " + SqlMemoryUsageSummary.Percent(ratio);
 }
