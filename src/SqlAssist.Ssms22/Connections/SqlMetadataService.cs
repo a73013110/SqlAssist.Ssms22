@@ -108,6 +108,16 @@ internal sealed class SqlMetadataService : IDisposable
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
+    /// <summary>
+    /// 這個查詢視窗目前那條連線的目錄；還沒解析出來時為 null，並在背景補上。
+    /// </summary>
+    /// <remarks>
+    /// 給不在按鍵路徑上、等得起下一輪的呼叫端用（搜尋工具窗）。交出的是<b>目錄</b>不是連線來源：
+    /// <c>ISqlConnectionSource</c> 的所有權在 <see cref="SqlMetadataCatalogRegistry"/>，
+    /// 呼叫端要換資料庫時從 <c>catalog.ConnectionSource</c> 當場取，不留自己那一份。
+    /// </remarks>
+    public SqlMetadataCatalog? PeekCurrentCatalog() => PeekCatalog();
+
     /// <summary>清空所有資料庫的快取，並讓每個編輯器重新確認自己連到哪裡。</summary>
     public static void InvalidateAll()
     {

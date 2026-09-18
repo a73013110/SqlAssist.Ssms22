@@ -17,6 +17,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
+using SqlAssist.Ssms22.Search;
 using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.ResultGrid;
 using SqlAssist.Ssms22.Settings;
@@ -100,6 +101,9 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ShowSqlHistory, (_, _) => SqlMemoryToolWindow.Show(_package));
         AddCommand(CommandIds.ShowSqlFavorites, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Favorites));
         AddCommand(CommandIds.ShowSqlMemoryUsage, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Usage));
+        // 永遠可用：沒有查詢視窗時工具窗自己說「尚未連線」，做成灰的會讓人以為功能壞了。
+        // Show 內部不走 Guard，開不起來會跳訊息方塊——使用者是自己點選單的。
+        AddCommand(CommandIds.ShowSqlSearch, (_, _) => SqlSearchToolWindow.Show(_package));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
         // 問一次要幾秒，連按只送出一次；結論走通知卡片，所以不必等視窗。
         AddCommand(CommandIds.CheckForUpdates,
