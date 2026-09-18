@@ -346,7 +346,11 @@ internal static partial class SqlAssistChrome
     }
 
     /// <param name="motion">null 讀全域動畫設定；測試明確指定，不受執行環境的 Windows 動畫偏好左右。</param>
-    public static Style CreateSqlCardStyle(bool? motion = null)
+    /// <param name="removable">
+    /// 列資料有 <c>IsRemoving</c> 才加退場。沒有刪除動作的清單（搜尋結果）傳 false：
+    /// 留著那條繫結只會在每一列上找一個不存在的屬性，而那是靜默失敗。
+    /// </param>
+    public static Style CreateSqlCardStyle(bool? motion = null, bool removable = true)
     {
         var animate = motion ?? MotionEnabled;
         var border = new FrameworkElementFactory(typeof(Border)) { Name = "card" };
@@ -377,7 +381,7 @@ internal static partial class SqlAssistChrome
             }
         }
         else AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "card");
-        if (animate) AddMemoryCardMotion(border, template);
+        if (animate) AddMemoryCardMotion(border, template, removable);
         AddTrigger(template, UIElement.IsMouseOverProperty, TextElement.ForegroundProperty, ThemeBrush.SelectedForeground, "card");
         AddTrigger(template, UIElement.IsMouseOverProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Border.BackgroundProperty, ThemeBrush.RowSelected, "card");

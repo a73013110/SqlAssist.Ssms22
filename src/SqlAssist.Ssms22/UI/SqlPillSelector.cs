@@ -15,12 +15,33 @@ internal sealed class SqlPillSelector : WrapPanel
     public event EventHandler? SelectionChanged;
 
     public SqlPillSelector(params (string Label, SqlIcon Icon)[] options)
+        : this(Array.ConvertAll(options, option => (option.Label, (SqlIcon?)option.Icon)))
+    {
+    }
+
+    /// <summary>
+    /// 只有文字的膠囊。
+    /// </summary>
+    /// <remarks>
+    /// 給選項由資料決定、沒有固定語意圖示的過濾列用（搜尋的分類 pill 由 provider 宣告的分類產生）。
+    /// 硬挑一顆看似合理的圖示套給每一個分類，會讓不同意思的選項共用同一個形狀，
+    /// 而辨識本來就該同時靠形狀與文字——兩者只剩文字時，至少沒有一個錯的形狀。
+    /// </remarks>
+    public SqlPillSelector(params string[] labels)
+        : this(Array.ConvertAll(labels, label => (label, (SqlIcon?)null)))
+    {
+    }
+
+    private SqlPillSelector((string Label, SqlIcon? Icon)[] options)
     {
         var group = Guid.NewGuid().ToString("N");
         foreach (var (label, icon) in options)
         {
             var index = _buttons.Count;
-            var button = new RadioButton { Content = SqlAssistChrome.CreateMemoryLabel(icon, label), GroupName = group, Style = SqlAssistChrome.CreateMemoryPillStyle() };
+            var content = icon is { } glyph
+                ? (object)SqlAssistChrome.CreateMemoryLabel(glyph, label)
+                : SqlAssistChrome.CreateMemoryButtonText(label);
+            var button = new RadioButton { Content = content, GroupName = group, Style = SqlAssistChrome.CreateMemoryPillStyle() };
             AutomationProperties.SetName(button, label);
             button.Checked += (_, _) => SelectedIndex = index;
             _buttons.Add(button); Children.Add(button);

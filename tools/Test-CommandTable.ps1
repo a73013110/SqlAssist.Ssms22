@@ -210,11 +210,24 @@ foreach ($name in $vsctCommandIds.Keys) {
     }
 }
 
+# 每一個命令都要有處理常式。宣告了命令卻沒有人 AddCommand 的症狀是那一項在選單上
+# 永遠是灰的（沒有目標認領的命令就是停用的），而命令表、pkgdef 與 CommandIds 三邊
+# 都對得上，從程式碼上看完全正確。註冊的形式有三種（AddCommand、AddToggleCommand、
+# AddColorCommand），所以只比對「這個常數有沒有在註冊檔案裡被提到」。
+$commandsText = Get-Content -LiteralPath $CommandsPath -Raw -Encoding UTF8
+$registeredCommandNames = @(
+    [regex]::Matches($commandsText, 'CommandIds\.(\w+)') | ForEach-Object { $_.Groups[1].Value })
+
+foreach ($name in $vsctCommandIds.Keys) {
+    if ($name -notin $registeredCommandNames) {
+        $problems.Add("命令表宣告了 cmdid$name，但 SqlAssistCommands.cs 沒有註冊它的處理常式，選單上那一項會永遠是灰的。")
+    }
+}
+
 # 會自己隱藏的命令必須在命令表標上 DynamicVisibility。殼層只有看到那個旗標時才
 # 理會 QueryStatus 回報的「隱藏」，否則 BeforeQueryStatus 把 Visible 設成 false
 # 也沒有用，項目照樣出現在選單上——沒有例外、沒有紀錄，而且從程式碼上看完全正確。
 # DefaultInvisible 管的是套件還沒載入的那一段，殼層那時候照命令表的預設值畫。
-$commandsText = Get-Content -LiteralPath $CommandsPath -Raw -Encoding UTF8
 $buttonFlags = @{}
 
 foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {

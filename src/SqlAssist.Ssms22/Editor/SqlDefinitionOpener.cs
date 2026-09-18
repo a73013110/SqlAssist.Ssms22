@@ -191,14 +191,7 @@ internal sealed class SqlDefinitionOpener
         // 目的地是 SSMS 剛開的空白查詢視窗，那份文件一行都還沒有——
         // SnapshotNewLine 在空白緩衝區上算出來的就是這個值。先在背景組好，
         // 才不必為了一份幾萬行的定義讓 UI 執行緒等一次字串處理。
-        SqlObjectScriptText script;
-
-        using (NotificationCenter.Default.Begin(NotificationCatalog.GeneratingDefinitionScript,
-                   NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Info,
-                   objectInfo.QualifiedName, ActiveSqlEditor.GetDocumentName(_textView)))
-        {
-            script = SqlObjectScript.BuildEditable(structure, SqlScriptPreferences.CreateForExecution(Environment.NewLine, structure.Object));
-        }
+        var script = SqlDefinitionScript.Build(structure, ActiveSqlEditor.GetDocumentName(_textView));
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         return Write(script, objectInfo);
@@ -216,32 +209,10 @@ internal sealed class SqlDefinitionOpener
             return null;
         }
 
-        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.OpeningQueryWindow,
-            NotificationKind.Navigation, NotificationOrigin.User, NotificationLevel.Debug,
-            objectInfo.QualifiedName, ActiveSqlEditor.GetDocumentName(_textView));
-        var view = SsmsScriptWindow.TryCreateBlankQuery(_serviceProvider, out var failure);
-
-        if (view is null)
-        {
-            notification.Fail();
-            return failure;
-        }
-
-        var replacement = new TextReplacement(
-            script.Text,
-            SqlAssistActivityKind.DefinitionOpened,
-            $"已在新查詢視窗開啟 {objectInfo.QualifiedName} 的定義",
-            script.CaretOffset);
-
-        // 空白查詢視窗的樣板是一個 0 位元組的檔案，所以這一道守門平常永遠成立。
-        // 它擋的是「拿到的不是剛開的那個視窗」——那一次會把指令碼蓋到使用者
-        // 正在編輯的查詢上，而那是無法復原的損失。
-        if (new TextViewEditCoordinator(view).InsertIntoBlank(replacement))
-        {
-            return null;
-        }
-
-        notification.Fail();
-        return "新查詢視窗不是空的，已取消寫入定義。";
+        return SqlDefinitionScript.WriteToNewWindow(
+            _serviceProvider,
+            script,
+            objectInfo,
+            ActiveSqlEditor.GetDocumentName(_textView));
     }
 }

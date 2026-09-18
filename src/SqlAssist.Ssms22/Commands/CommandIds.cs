@@ -90,6 +90,18 @@ internal static class CommandIds
     /// <remarks>執行與狀態共用 <see cref="ShowSqlMemoryUsage"/>；整理、壓縮與備份都在那個分頁上。</remarks>
     public const int ShowSqlMemoryUsageFromSettings = 0x021A;
 
+    /// <summary>開啟 SQL Search 工具窗。</summary>
+    /// <remarks>
+    /// 刻意沒有鍵繫結。命令表的鍵繫結只能用全域範圍（理由見 <see cref="GoToDefinition"/>），
+    /// 而全域繫結一定註冊得上、也一定蓋過 SSMS 自己那一組；這個命令又必須永遠可用
+    /// ——沒有查詢視窗時工具窗自己會說「尚未連線」，做成灰的反而讓人以為功能壞了。
+    /// 兩件事加起來，選錯一組鍵的代價是在整個殼層安靜地搶走那個按鍵，而
+    /// <c>docs/shell-commands.md</c> 判斷有沒有衝突的辦法要在實機上按一次看紀錄檔，
+    /// 靜態驗不出來。使用者要綁鍵走「選項 → 環境 → 鍵盤」，命令名稱是
+    /// <c>SqlAssist.ShowSqlSearch</c>。
+    /// </remarks>
+    public const int ShowSqlSearch = 0x021B;
+
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。
     /// </summary>

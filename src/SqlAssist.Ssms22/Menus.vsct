@@ -16,6 +16,14 @@
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" priority="0x0200">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
+      <!--
+        SQL Search 自己一個群組而不是併進 SqlAssistMemoryGroup：兩者都是工具窗，
+        但一個找的是自己寫過的 SQL，一個找的是伺服器上的物件。優先序夾在
+        SQL Memory 與編輯動作之間，所以位置就在 SQL Memory 那幾項的下面一格。
+      -->
+      <Group guid="guidSqlAssistCommandSet" id="SqlAssistSearchGroup" priority="0x0205">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
+      </Group>
       <Group guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" priority="0x0210">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMenu" />
       </Group>
@@ -145,6 +153,14 @@
         <Icon guid="ImageCatalogGuid" id="GaugeRound" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <Strings><ButtonText>SQL Memory 用量</ButtonText><CanonicalName>SqlAssist.ShowSqlMemoryUsage</CanonicalName><LocCanonicalName>SqlAssist.SqlMemory用量</LocCanonicalName><ToolTipText>查看 SQL Memory 的容量、配額與整理紀錄，並手動清理</ToolTipText></Strings>
+      </Button>
+      <!-- 沒有鍵繫結，理由見 CommandIds.ShowSqlSearch；CanonicalName 因此更重要，要綁鍵的人靠它搜得到。 -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlSearch" priority="0x0084" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSearchGroup" />
+        <Icon guid="ImageCatalogGuid" id="Search" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>IconAndText</CommandFlag>
+        <Strings><ButtonText>SQL Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.SQLSearch</LocCanonicalName><ToolTipText>搜尋目前連線的資料庫物件、資料行與定義本文</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
@@ -501,6 +517,7 @@
       <IDSymbol name="SqlAssistToolbarGroup" value="0x1801" />
       <IDSymbol name="SqlAssistToggleGroup" value="0x1100" />
       <IDSymbol name="SqlAssistMemoryGroup" value="0x1300" />
+      <IDSymbol name="SqlAssistSearchGroup" value="0x1305" />
       <IDSymbol name="SqlAssistEditorActionsGroup" value="0x1310" />
       <IDSymbol name="SqlAssistSelectionActionsGroup" value="0x1320" />
       <IDSymbol name="SqlAssistSupportGroup" value="0x1400" />
@@ -531,6 +548,7 @@
       <IDSymbol name="cmdidShowSqlMemoryUsage" value="0x0218" />
       <IDSymbol name="cmdidCheckForUpdates" value="0x0219" />
       <IDSymbol name="cmdidShowSqlMemoryUsageFromSettings" value="0x021A" />
+      <IDSymbol name="cmdidShowSqlSearch" value="0x021B" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />
