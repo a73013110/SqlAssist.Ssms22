@@ -20,6 +20,7 @@ internal sealed class BlockAnalysis
     private bool _disposed;
     private bool _enabled;
     private int _delay;
+    /// <summary>配對所屬的文字；可能比 <c>_buffer.CurrentSnapshot</c> 舊，讀取者用 <see cref="BlockProjection"/> 平移座標。</summary>
     public ITextSnapshot? Snapshot { get; private set; }
     public BlockMatcher? Matcher { get; private set; }
     public event EventHandler? Updated;
@@ -83,10 +84,17 @@ internal sealed class BlockAnalysis
         if (_disposed) return;
         _pending?.Cancel();
         _pending = null;
-        Snapshot = null;
-        Matcher = null;
+        if (!_enabled)
+        {
+            // 只有真的關掉功能才丟棄配對；文字變更沿用舊索引，理由見 BlockProjection。
+            if (Snapshot is null && Matcher is null) return;
+            Snapshot = null;
+            Matcher = null;
+            Updated?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+        // 舊配對留著，呈現層自己把座標平移到目前文字，等新解析回來再原子替換。
         Updated?.Invoke(this, EventArgs.Empty);
-        if (!_enabled) return;
         var snapshot = _buffer.CurrentSnapshot;
         var pending = new CancellationTokenSource();
         _pending = pending;

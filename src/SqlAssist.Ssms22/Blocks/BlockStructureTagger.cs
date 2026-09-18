@@ -62,28 +62,44 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
     public IEnumerable<ITagSpan<IStructureTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
         var cache = _cache;
-        if (cache is null || spans.Count == 0 || spans[0].Snapshot != cache.Snapshot) yield break;
+        if (cache is null || spans.Count == 0 || spans[0].Snapshot.TextBuffer != cache.Snapshot.TextBuffer) yield break;
+        var target = spans[0].Snapshot;
+        // 版本不符時平移查詢範圍而不是丟棄：打字期間沿用上一份索引，導引線不會每個按鍵斷一次。
+        var stale = target.Version != cache.Snapshot.Version;
         var seen = new HashSet<BlockPair>();
         foreach (var requested in spans)
-            foreach (var pair in cache.Matcher.GetIntersectingBlocks(requested.Start.Position, requested.Length))
+        {
+            var query = stale ? requested.TranslateTo(cache.Snapshot, SpanTrackingMode.EdgeInclusive) : requested;
+            foreach (var pair in cache.Matcher.GetIntersectingBlocks(query.Start.Position, query.Length))
             {
                 if (!seen.Add(pair) || !BlockDisplayRules.IsKindEnabled(pair.Kind, cache.Settings)) continue;
                 var first = cache.Snapshot.GetLineFromPosition(pair.Span.Start);
                 var last = cache.Snapshot.GetLineFromPosition(pair.Span.End - 1);
                 if (first.LineNumber == last.LineNumber) continue;
-                yield return cache.Tags.GetOrAdd(pair, p => CreateTag(cache.Snapshot, p, first, cache.Settings.BlockOutlining));
+                if (!stale)
+                {
+                    yield return cache.Tags.GetOrAdd(pair, p => CreateTag(cache.Snapshot, p.Kind,
+                        new Span(p.Span.Start, p.Span.Length), first, cache.Settings.BlockOutlining));
+                    continue;
+                }
+                // stale 只有一個 debounce 週期，且範圍是平台要求的可見區；不寫回 Cache 以免留下舊版本的 Tag。
+                var moved = BlockProjection.Project(cache.Snapshot, pair.Span, target);
+                if (moved.IsEmpty) continue;
+                var header = moved.Start.GetContainingLine();
+                if (header.LineNumber == (moved.End - 1).GetContainingLine().LineNumber) continue;
+                yield return CreateTag(target, pair.Kind, moved.Span, header, cache.Settings.BlockOutlining);
             }
+        }
     }
 
-    private static ITagSpan<IStructureTag> CreateTag(ITextSnapshot snapshot, BlockPair pair, ITextSnapshotLine header, bool outlining)
+    private static ITagSpan<IStructureTag> CreateTag(ITextSnapshot snapshot, BlockKind kind, Span span, ITextSnapshotLine header, bool outlining)
     {
-        var span = new Span(pair.Span.Start, pair.Span.Length);
         var summary = BlockContextText.Summarize(snapshot.GetText(header.Start.Position,
             Math.Min(header.Length, BlockContextText.MaximumSummaryLength + 1)));
         var tag = new StructureTag(snapshot,
             outliningSpan: Span.FromBounds(header.End.Position, span.End),
             headerSpan: header.Extent.Span, guideLineSpan: span, guideLineHorizontalAnchor: span.Start,
-            type: pair.Kind == BlockKind.Case || BlockDisplayRules.IsSymbol(pair.Kind)
+            type: kind == BlockKind.Case || BlockDisplayRules.IsSymbol(kind)
                 ? PredefinedStructureTagTypes.Expression : PredefinedStructureTagTypes.Statement,
             isCollapsible: outlining, isDefaultCollapsed: false, isImplementation: false,
             collapsedForm: "…", collapsedHintForm: $"{summary}（第 {header.LineNumber + 1} 行）");

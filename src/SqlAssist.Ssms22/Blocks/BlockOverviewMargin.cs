@@ -89,11 +89,11 @@ internal sealed class BlockOverviewMargin : IWpfTextViewMargin
         if (_view.InLayout) return; // 下一次 LayoutChanged 再排程，避免版面未完成時忙碌重排。
         _canvas.Visibility = Enabled ? Visibility.Visible : Visibility.Collapsed;
         var pair = _state.RangePair ?? _state.ContextPair;
-        var snapshot = _state.Snapshot;
-        var visible = Enabled && pair is not null && snapshot is not null && snapshot == _view.TextSnapshot;
+        var source = _state.Snapshot;
+        var visible = Enabled && pair is not null && source is not null;
         _range.Visibility = _opening.Visibility = _closing.Visibility = visible ? Visibility.Visible : Visibility.Hidden;
-        if (!visible || pair is null || snapshot is null) { _shownPair = null; _shownSnapshot = null; return; }
-        if (_shownPair != pair || _shownSnapshot != snapshot)
+        if (!visible || pair is null || source is null) { _shownPair = null; _shownSnapshot = null; return; }
+        if (_shownPair != pair || _shownSnapshot != source)
         {
             var role = SqlAssistChrome.BlockBrush(pair.Kind);
             _range.SetResourceReference(Border.BackgroundProperty, role);
@@ -101,19 +101,20 @@ internal sealed class BlockOverviewMargin : IWpfTextViewMargin
             _closing.SetResourceReference(Border.BackgroundProperty, role);
             AutomationProperties.SetName(_canvas, $"{BlockContextText.KindName(pair.Kind)} 區塊範圍");
             _shownPair = pair;
-            _shownSnapshot = snapshot;
+            _shownSnapshot = source;
         }
-        var start = Coordinate(snapshot, pair.Span.Start);
-        var end = Coordinate(snapshot, pair.Closing[0].Start);
+        // 兩端沿版本鏈平移到目前 snapshot；scroll map 只接受目前文字的位置。
+        var current = _view.TextSnapshot;
+        var start = Coordinate(BlockProjection.Project(source, pair.Span.Start, current));
+        var end = Coordinate(BlockProjection.Project(source, pair.Closing[0].Start, current));
         Canvas.SetTop(_opening, start);
         Canvas.SetTop(_closing, end);
         Canvas.SetTop(_range, Math.Min(start, end));
         _range.Height = Math.Abs(end - start) + _opening.Height;
     }
 
-    private double Coordinate(ITextSnapshot snapshot, int position)
+    private double Coordinate(SnapshotPoint point)
     {
-        var point = new SnapshotPoint(snapshot, position);
         var height = Math.Max(0, _canvas.ActualHeight - _opening.Height);
         var y = _scrollBar?.GetYCoordinateOfBufferPosition(point) ?? _map.GetFractionAtBufferPosition(point) * height;
         if (_scrollBar is IWpfTextViewMargin native && native.VisualElement.IsLoaded && _canvas.IsLoaded)
