@@ -21,7 +21,7 @@ namespace SqlAssist.Ssms22;
 // 版號一變，殼層下次載入就重建命令表快取。新增命令、選單項目或鍵繫結時**一定**要
 // 加一：不加的話換掉 DLL 也沒有用，殼層仍在用舊的命令表——症狀是新的選單項目不出現、
 // 新綁的鍵沒反應，而且沒有任何錯誤。與 MEF 快取是同一類的坑。
-[ProvideMenuResource("Menus.ctmenu", 29)]
+[ProvideMenuResource("Menus.ctmenu", 30)]
 [ProvideAutoLoad(NoSolutionUiContextGuid, PackageAutoLoadFlags.BackgroundLoad)]
 // 設定全部由 Unified Settings 提供：這個屬性在 pkgdef 寫下 SettingsManifests 項目，
 // 殼層啟動時就會讀進註冊檔，不必等套件載入。
@@ -62,6 +62,7 @@ public sealed class SqlAssistPackage : AsyncPackage
             // 命令的勾選狀態要靠設定回答，所以設定必須先接上。
             SqlAssistSettingsStore.Initialize(this);
             PreviewWindowState.Initialize(this);
+            SqlAssistState.Initialize(this);
 
             var commandService = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
 
@@ -76,6 +77,8 @@ public sealed class SqlAssistPackage : AsyncPackage
             // 設定接上之後才接 SQL Memory：它整組由設定驅動，預設是關的。
             SqlMemoryHost.Initialize();
             SqlAssistRuntimeState.MarkPackageReady();
+            // 每天最多一次，而且只有真的有新版才出現卡片；背景進行，不擋載入。
+            SqlAssistUpdateCheckCommand.ScheduleStartupCheck(this);
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage {PackageVersion} 已載入，工具選單已註冊");
         }
         catch (Exception exception)

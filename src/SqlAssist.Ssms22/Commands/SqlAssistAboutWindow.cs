@@ -29,17 +29,20 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     private readonly SqlAssistHealthSummary _summary;
     private readonly Func<bool> _openSettings;
     private readonly Action _openLog;
+    private readonly Action _checkForUpdates;
     private readonly TextBlock _statusText;
     private readonly ImageSource? _logoSource;
 
     public SqlAssistAboutWindow(
         SqlAssistDiagnosticSnapshot snapshot,
         Func<bool> openSettings,
-        Action openLog)
+        Action openLog,
+        Action checkForUpdates)
     {
         _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
         _openSettings = openSettings ?? throw new ArgumentNullException(nameof(openSettings));
         _openLog = openLog ?? throw new ArgumentNullException(nameof(openLog));
+        _checkForUpdates = checkForUpdates ?? throw new ArgumentNullException(nameof(checkForUpdates));
 
         // 健康檢查在整個視窗裡只評估這一次：抬頭徽章、概覽的結論與「診斷」分頁
         // 讀的都是同一份，否則三處各評估一次還可能各說各話。
@@ -166,6 +169,9 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         projectActions.Children.Add(CreateButton(
             "回報問題",
             (_, _) => OpenExternal(_snapshot.IssuesUrl, "開啟問題回報頁")));
+        // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論走通知卡片，
+        // 而這個視窗本身就是卡片的宿主，按完不必切回編輯器才看得到。
+        projectActions.Children.Add(CreateButton("檢查更新", (_, _) => CheckForUpdates()));
 
         content.Children.Add(CreateSection(
             "專案與支援",
@@ -400,6 +406,19 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         catch (Exception exception)
         {
             ReportActionFailure("開啟設定", exception);
+        }
+    }
+
+    private void CheckForUpdates()
+    {
+        try
+        {
+            _checkForUpdates();
+            _statusText.Text = "正在檢查更新；結果會出現在通知卡片上。";
+        }
+        catch (Exception exception)
+        {
+            ReportActionFailure("檢查更新", exception);
         }
     }
 

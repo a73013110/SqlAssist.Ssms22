@@ -225,6 +225,14 @@
       "additionalKeywords": [ "括號", "引號", "配對", "自動關閉", "auto close", "bracket", "quote" ],
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
+    "sqlAssist.general.checkForUpdates": {
+      "type": "boolean",
+      "default": true,
+      "order": 250,
+      "title": "啟動時檢查有沒有新版本",
+      "description": "每天最多問一次 GitHub 的發行頁，有新版才顯示通知；不下載也不安裝。關閉之後仍可用「工具 → SqlAssist → 檢查更新…」自己問。",
+      "additionalKeywords": [ "更新", "版本", "update", "release", "GitHub" ]
+    },
     "sqlAssist.general.animations": {
       "type": "boolean",
       "default": true,
@@ -520,22 +528,23 @@
       "additionalKeywords": [ "header", "檔頭", "來源", "產生時間", "版本" ]
     },
 
-    // SQL Memory。整頁預設關閉：擷取的是使用者輸入的 SQL，自我測試通過不等於
-    // 可以自己打開。保留分級（容量壓力下逐級收緊的期限與配額）只有日常那一級在這裡，
+    // SQL Memory。標題用前綴分群（擷取／草稿／保留／上限／儲存），設定頁的縮排本來就照
+    // enableWhen 排，前綴讓層次讀得出來。key 是使用者資料的鍵，改了等於所有人回到預設，
+    // 所以只改標題與說明。保留分級（容量壓力下逐級收緊的期限與配額）只有日常那一級在這裡，
     // 收緊倍率固定寫在 Core 的 SqlRetentionSettings——有序的多級資料放不進
     // Unified Settings，而拆成「第二級幾天」的純量設定是在問一個使用者沒有依據的問題。
     "sqlAssist.sqlMemory.enabled": {
       "type": "boolean",
-      "default": false,
-      "title": "記住查詢歷程",
-      "description": "把查詢視窗的 SQL 存進本機資料庫，供之後查閱與還原。關閉時完全不擷取，也不執行背景整理。需要「一般」頁的「啟用 SqlAssist」也開著。",
+      "default": true,
+      "title": "啟用 SQL Memory",
+      "description": "這一頁整組功能的開關：查詢歷程、草稿、當機還原、收藏與背景維護。SQL 只存進這台電腦上的資料庫，不上傳。關閉時完全不擷取，也不執行背景整理。需要「一般」頁的「啟用 SqlAssist」也開著。",
       "order": 100,
-      "additionalKeywords": [ "history", "歷史", "查詢歷程", "recovery", "還原", "隱私" ]
+      "additionalKeywords": [ "history", "歷史", "查詢歷程", "recovery", "還原", "收藏", "隱私", "總開關" ]
     },
     "sqlAssist.sqlMemory.captureExecuted": {
       "type": "boolean",
       "default": true,
-      "title": "記錄執行過的查詢",
+      "title": "擷取：執行過的查詢",
       "description": "按下執行時保存當下的 SQL 與連線的伺服器、資料庫名稱；不保存密碼或連線字串。",
       "order": 110,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -544,7 +553,7 @@
     "sqlAssist.sqlMemory.captureDrafts": {
       "type": "boolean",
       "default": true,
-      "title": "記錄尚未執行的草稿",
+      "title": "擷取：尚未執行的草稿",
       "description": "停止輸入一段時間後保存目前內容。關閉之後只有執行過的 SQL 留得下來。",
       "order": 120,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -553,7 +562,7 @@
     "sqlAssist.sqlMemory.captureRecovery": {
       "type": "boolean",
       "default": true,
-      "title": "保留未存檔草稿以便當機後還原",
+      "title": "擷取：未存檔內容（當機還原）",
       "description": "每個查詢視窗各留一份最新內容，正常關閉時移除。關閉之後 SSMS 意外結束的未存檔內容救不回來。",
       "order": 130,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
@@ -564,7 +573,7 @@
       "default": 5,
       "minimum": 1,
       "maximum": 120,
-      "title": "停止輸入幾秒後記下草稿",
+      "title": "草稿：停止輸入幾秒後記下",
       "description": "越短越不容易漏掉剛打的內容，代價是背景寫入變頻繁。",
       "order": 140,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
@@ -575,7 +584,7 @@
       "default": 10,
       "minimum": 1,
       "maximum": 480,
-      "title": "同一份查詢最密幾分鐘留一個版本",
+      "title": "草稿：最密幾分鐘留一個版本",
       "description": "內容有變才留；這個間隔內的多次修改併成同一個版本。執行與手動快照不受限制。",
       "order": 150,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
@@ -586,7 +595,7 @@
       "default": 30,
       "minimum": 1,
       "maximum": 3650,
-      "title": "草稿保留天數",
+      "title": "保留：草稿天數",
       "description": "超過就從歷程清單移除。收藏、釘選與手動快照不受期限影響。",
       "order": 200,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -597,7 +606,7 @@
       "default": 180,
       "minimum": 1,
       "maximum": 3650,
-      "title": "執行紀錄保留天數",
+      "title": "保留：執行紀錄天數",
       "description": "執行事件與草稿分開計算；查「上個月那一段跑過什麼」靠的是這一項。",
       "order": 210,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -608,7 +617,7 @@
       "default": 7,
       "minimum": 1,
       "maximum": 365,
-      "title": "無人使用的未存檔草稿保留天數",
+      "title": "保留：無人使用的未存檔內容天數",
       "description": "只算沒有任何 SSMS 還開著它的那些；還開著的查詢視窗不論多久都保留。",
       "order": 220,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureRecovery} == 'true'",
@@ -619,7 +628,7 @@
       "default": 10000,
       "minimum": 100,
       "maximum": 1000000,
-      "title": "最多保留幾筆執行紀錄",
+      "title": "上限：執行紀錄筆數",
       "description": "與保留天數取聯集：期限內但超過筆數的舊紀錄也會移除。",
       "order": 230,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -630,7 +639,7 @@
       "default": 50,
       "minimum": 5,
       "maximum": 5000,
-      "title": "每個查詢視窗最多保留幾個自動版本",
+      "title": "上限：每個查詢視窗的自動版本數",
       "description": "只算自動留下的版本；執行、關閉與手動快照不算在內。",
       "order": 240,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
@@ -641,7 +650,7 @@
       "default": 20,
       "minimum": 1,
       "maximum": 1000,
-      "title": "每個收藏最多保留幾個編輯版本",
+      "title": "上限：每個收藏的編輯版本數",
       "description": "收藏的 SQL 每編輯一次留一個版本；目前這一個永遠保留。",
       "order": 250,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -652,7 +661,7 @@
       "default": "mb512",
       "enum": [ "mb256", "mb512", "gb1", "unlimited" ],
       "enumItemLabels": [ "256 MB", "512 MB", "1 GB", "不限" ],
-      "title": "查詢內容的儲存上限",
+      "title": "儲存：容量上限",
       "description": "超過之後背景整理會逐級縮短上面幾項保留，直到回到上限內。這不是硬性磁碟配額：收藏、釘選與還開著的查詢視窗永遠不會為了空間被刪。",
       "order": 300,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -663,7 +672,7 @@
       "default": 60,
       "minimum": 5,
       "maximum": 1440,
-      "title": "多久整理一次",
+      "title": "儲存：背景整理間隔",
       "description": "背景清理的間隔。SSMS 閒置時可能提前，一次只處理有限筆數，不會卡住編輯。",
       "order": 310,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
@@ -817,6 +826,15 @@
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Memory", "查詢紀錄", "收藏" ]
     },
+    "sqlAssist.notifications.update": {
+      "type": "boolean",
+      "default": true,
+      "order": 305,
+      "title": "更新檢查",
+      "description": "問 GitHub 有沒有新版本的結果。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "更新", "版本", "update", "release" ]
+    },
     "sqlAssist.notifications.unclassified": {
       "type": "boolean",
       "default": true,
@@ -867,8 +885,8 @@
     },
     "sqlAssist.general": {
       "title": "一般",
-      "description": "總開關、輸入時的改寫與全套件的介面動畫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
-      "additionalKeywords": [ "總開關", "停用", "全域", "動畫" ],
+      "description": "總開關、輸入時的改寫、更新檢查與全套件的介面動畫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
+      "additionalKeywords": [ "總開關", "停用", "全域", "動畫", "更新" ],
       "order": 100
     },
     "sqlAssist.suggestions": {
@@ -902,15 +920,15 @@
     },
     "sqlAssist.sqlMemory": {
       "title": "SQL Memory",
-      "description": "把查詢視窗的 SQL 留在本機資料庫，供之後查閱、還原與收藏。整頁預設關閉。總開關在「一般」頁。",
+      "description": "把查詢視窗的 SQL 留在這台電腦的資料庫，供之後查閱、還原與收藏。第一次開始擷取時會出現一則通知。總開關在「一般」頁。",
       "additionalKeywords": [ "history", "歷史", "查詢歷程", "草稿", "還原", "收藏", "隱私" ],
       "order": 460,
       "commands": [
         {
           "vsct": {
-            "text": "立即整理資料庫檔案…",
+            "text": "開啟 SQL Memory 用量…",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
-            "id": 525
+            "id": 538
           }
         }
       ]

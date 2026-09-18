@@ -6,7 +6,7 @@
 三軸都由呼叫端明寫，不比對顯示名稱；合併的巢狀查詢沿用父工作的三軸。
 
 - `NotificationKind` 是子系統：Metadata、Completion、Analysis、Preview、Editing、
-  Navigation、Results、Snippets、Settings、Package、SqlMemory、Unclassified，各有一格開關。
+  Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Unclassified，各有一格開關。
 - `NotificationOrigin` 是觸發來源：User、Typing、Ambient、Startup。
 - `NotificationLevel` 是詳細度：Trace、Debug、Info、Notice。
 
@@ -26,15 +26,17 @@
 | Snippets | 展開程式碼片段 | `User` | `Debug` |
 | Settings | 重新載入設定、重建主題筆刷 | `Ambient` | 設定 `Debug`、主題 `Trace` |
 | Package | 初始化 SqlAssist、建立中繼資料連線、重新確認連線 | 初始化 `Startup`，其餘 `Ambient` | 初始化與建立連線 `Info`、重新確認 `Debug` |
-| SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；擷取被丟棄與容量警戒兩則事件 | 套用設定與兩則事件 `Ambient`，其餘 `User` | `Info`；兩則事件 `Notice`、背景維護失敗 `Debug` |
+| SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；擷取被丟棄、容量警戒與首次擷取三則事件 | 套用設定與三則事件 `Ambient`，其餘 `User` | `Info`；三則事件 `Notice`、背景維護失敗 `Debug` |
+| Update | 檢查更新 | 手動 `User`，啟動時的自動檢查 `Ambient` | 手動 `Info`，自動 `Notice` |
 | Results | 尚未接線 | — | — |
 
 依序判斷：總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
 該種類的開關關著就隱藏 → `Trace` 在詳細度不是「全部」時隱藏 → `Origin` 為 `User` 顯示
 → `Notice` 顯示 → 其餘看詳細度門檻。
 
-預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘八個預設開，
-`Unclassified` 也在其中，漏分類的新工作不會靜默消失。種類開關排在觸發來源**之前**：
+預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘九個預設開，
+`Unclassified` 也在其中，漏分類的新工作不會靜默消失；`Update` 一年只出現幾次，
+關掉它等於關掉「有新版」唯一的出口。種類開關排在觸發來源**之前**：
 關掉「程式碼片段」就是連自己按下去的展開提示也不想看，排在後面的話那幾格永遠按不動。
 來源與詳細度只決定跨不跨得過降噪門檻，不覆寫種類開關。
 

@@ -57,7 +57,8 @@ internal static partial class SqlIcons
         SqlIcon.Maintain => KnownMonikers.Run,
         SqlIcon.Backup => KnownMonikers.SaveAs,
         SqlIcon.Folder => KnownMonikers.FolderOpened,
-        SqlIcon.Warning => KnownMonikers.StatusWarning
+        SqlIcon.Warning => KnownMonikers.StatusWarning,
+        SqlIcon.SelfTest => KnownMonikers.Test
     };
 #pragma warning restore CS8524
 

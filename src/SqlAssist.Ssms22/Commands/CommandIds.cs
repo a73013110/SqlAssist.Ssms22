@@ -5,7 +5,7 @@ namespace SqlAssist.Ssms22.Commands;
 /// <remarks>
 /// 這些數值是使用者自訂鍵盤快速鍵的定址方式，不要為了整齊而重新編號——
 /// 換掉一個 ID 等於安靜地解除他綁在上面的快速鍵。
-/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205、0x0207、0x0306）刻意不回收。
+/// 移除命令留下的空號（0x0101–0x0104、0x0203–0x0205、0x0207、0x020C、0x020D、0x0306）刻意不回收。
 ///
 /// 同一組數值也寫在 <c>Menus.vsct</c> 的 IDSymbol 與 <c>SqlAssist.registration.json</c>
 /// 的按鈕（十進位）裡。三者分歧不會編譯失敗，按鈕就只是按不到，
@@ -47,17 +47,9 @@ internal static class CommandIds
     /// </remarks>
     public const int SurroundWith = 0x020B;
 
-    /// <summary>只用內建資料驗證真正宿主內的 SQLite 載入；不擷取使用者 SQL。</summary>
-    public const int SqlMemorySelfTest = 0x020C;
-
     /// <summary>設定頁上的按鈕，不出現在選單（註冊檔寫成十進位的 520）。</summary>
     public const int OpenDiagnosticsLog = 0x0208;
 
-    /// <summary>
-    /// SQL Memory 的手動整理，掛在設定頁的「SQL Memory」分類上（註冊檔寫成十進位的 525）。
-    /// </summary>
-    /// <remarks>完整 VACUUM 只由使用者按；背景排程只做 WAL 截斷。</remarks>
-    public const int CompactSqlMemory = 0x020D;
     public const int ShowSqlHistory = 0x020E;
     public const int ShowSqlFavorites = 0x020F;
 
@@ -84,6 +76,19 @@ internal static class CommandIds
 
     /// <summary>開啟 SQL Memory 工具窗的用量頁；容量接近上限的通知也導到這裡。</summary>
     public const int ShowSqlMemoryUsage = 0x0218;
+
+    /// <summary>
+    /// 問 GitHub 的最新發行版本；工具選單與「關於與診斷」的按鈕共用同一份實作。
+    /// </summary>
+    /// <remarks>只比對版本並把使用者送到 Release 頁，不下載也不安裝 VSIX——安裝前要關掉所有
+    /// SSMS，擴充在自己的宿主裡做不完這件事。</remarks>
+    public const int CheckForUpdates = 0x0219;
+
+    /// <summary>
+    /// 設定頁「SQL Memory」分類上的唯一按鈕，不出現在選單（註冊檔寫成十進位的 538）。
+    /// </summary>
+    /// <remarks>執行與狀態共用 <see cref="ShowSqlMemoryUsage"/>；整理、壓縮與備份都在那個分頁上。</remarks>
+    public const int ShowSqlMemoryUsageFromSettings = 0x021A;
 
     /// <summary>
     /// 結果格線的內部探測，只在「詳細記錄」打開時出現。

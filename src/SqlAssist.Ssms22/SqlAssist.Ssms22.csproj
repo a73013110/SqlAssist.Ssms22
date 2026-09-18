@@ -180,6 +180,8 @@
     </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Design" />
+    <!-- 檢查更新只問一個 HTTPS 端點；net48 自帶這一份，不從 NuGet 帶副本進 VSIX。 -->
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 
   <ItemGroup>

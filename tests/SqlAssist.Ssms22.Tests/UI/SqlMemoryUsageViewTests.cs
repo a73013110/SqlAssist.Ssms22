@@ -33,10 +33,10 @@ public sealed class SqlMemoryUsageViewTests
             new SqlMemoryMaintenanceOverview(Now.AddMinutes(20), Now.AddMinutes(-40), 0, false, true), activities), Now);
     }
 
-    private static (Border Host, SqlMemoryUsageView View, ThemeResourceSet Palette) Host()
+    private static (Border Host, SqlMemoryUsageView View, ThemeResourceSet Palette) Host(bool diagnostics = true)
     {
         var palette = new ThemeResourceSet();
-        var view = new SqlMemoryUsageView();
+        var view = new SqlMemoryUsageView(diagnostics);
         var host = new Border { Child = view, Padding = new Thickness(8) };
         host.Resources.MergedDictionaries.Add(palette.Resources);
         host.SetResourceReference(Border.BackgroundProperty, ThemeBrush.WindowBackground);
@@ -133,12 +133,11 @@ public sealed class SqlMemoryUsageViewTests
             view.ActionButton(SqlMemoryUsageAction.Cleanup).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             Assert.Equal(SqlMemoryUsageAction.Cleanup, requested);
 
+            // 自我測試也要停用：它與維護、清除搶同一份儲存，不能同時跑。
             view.SetBusy("正在清除紀錄…");
-            Assert.All(Enum.GetValues(typeof(SqlMemoryUsageAction)).Cast<SqlMemoryUsageAction>(),
-                action => Assert.False(view.ActionButton(action).IsEnabled));
+            Assert.All(Actions(view), action => Assert.False(view.ActionButton(action).IsEnabled));
             view.SetBusy(null);
-            Assert.All(Enum.GetValues(typeof(SqlMemoryUsageAction)).Cast<SqlMemoryUsageAction>(),
-                action => Assert.True(view.ActionButton(action).IsEnabled));
+            Assert.All(Actions(view), action => Assert.True(view.ActionButton(action).IsEnabled));
 
             // 讀取失敗保留舊畫面並說明；儲存停用則整頁收起，下一次讀取重新走第一次載入。
             view.ShowFailure("讀取用量失敗");
@@ -149,6 +148,36 @@ public sealed class SqlMemoryUsageViewTests
             Assert.DoesNotContain(Descendants<TextBlock>(view), text => text.Text == "讀取用量失敗");
             view.BeginLoad();
             Assert.True(view.IsLoading);
+        });
+    }
+
+    /// <summary>
+    /// 自我測試在自己的「診斷」卡片上，而且只有詳細紀錄打開時才建立。
+    /// </summary>
+    /// <remarks>
+    /// 併進「整理」那一排會讓人以為它會刪資料或改檔案大小；它兩者都不做。
+    /// </remarks>
+    [Fact]
+    public void SelfTestLivesInItsOwnDiagnosticsCardAndOnlyWithVerboseLogging()
+    {
+        WpfTest.Run(() =>
+        {
+            var (host, view, _) = Host();
+            view.ShowSummary(Summary(10 * Megabyte), motion: false);
+            Layout(host, 740);
+            Assert.True(view.HasAction(SqlMemoryUsageAction.SelfTest));
+            Assert.Contains("診斷", Descendants<TextBlock>(view).Select(text => text.Text));
+
+            SqlMemoryUsageAction? requested = null;
+            view.ActionRequested += (_, action) => requested = action;
+            view.ActionButton(SqlMemoryUsageAction.SelfTest).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(SqlMemoryUsageAction.SelfTest, requested);
+
+            var (quiet, quietView, _) = Host(diagnostics: false);
+            quietView.ShowSummary(Summary(10 * Megabyte), motion: false);
+            Layout(quiet, 740);
+            Assert.False(quietView.HasAction(SqlMemoryUsageAction.SelfTest));
+            Assert.DoesNotContain("診斷", Descendants<TextBlock>(quietView).Select(text => text.Text));
         });
     }
 
@@ -245,6 +274,10 @@ public sealed class SqlMemoryUsageViewTests
             Assert.Equal(Visibility.Visible, Label(1).Visibility);
         });
     }
+
+    /// <summary>這個畫面上真的有按鈕的動作；詳細紀錄關著時不含自我測試。</summary>
+    private static System.Collections.Generic.IEnumerable<SqlMemoryUsageAction> Actions(SqlMemoryUsageView view) =>
+        Enum.GetValues(typeof(SqlMemoryUsageAction)).Cast<SqlMemoryUsageAction>().Where(view.HasAction);
 
     private static bool Shown(DependencyObject element, DependencyObject root)
     {

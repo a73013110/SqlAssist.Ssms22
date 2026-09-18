@@ -98,12 +98,14 @@
         原本掛在 IDM_VS_MENU_TOOLS 底下不會有任何編譯或執行期錯誤，
         pkgdef 與命令處理器也都正常註冊，但「工具 → SqlAssist」整個不會出現。
         IDG_VS_TOOLS_OTHER2 是 Tools 選單內既有的一般用途群組。
+
+        也沒有 <Icon>：VSCT 編譯器把 <Menu> 上的圖示整個丟掉（實測見
+        docs/shell-commands.md），加了只是留一行永遠不生效的宣告。純文字與
+        VS 內建子選單一致；品牌識別在工具列、右鍵選單與關於視窗上。
       -->
       <Menu guid="guidSqlAssistCommandSet" id="SqlAssistMenu" priority="0x0700" type="Menu">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_TOOLS_OTHER2" />
-        <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>AlwaysCreate</CommandFlag>
-        <CommandFlag>IconAndText</CommandFlag>
         <Strings>
           <ButtonText>SqlAssist</ButtonText>
           <CommandName>SqlAssist</CommandName>
@@ -245,14 +247,13 @@
           <LocCanonicalName>SqlAssist.設定</LocCanonicalName>
         </Strings>
       </Button>
-      <Button guid="guidSqlAssistCommandSet" id="cmdidSqlMemorySelfTest" priority="0x0300" type="Button">
+      <Button guid="guidSqlAssistCommandSet" id="cmdidCheckForUpdates" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
-        <CommandFlag>DefaultInvisible</CommandFlag>
-        <CommandFlag>DynamicVisibility</CommandFlag>
         <Strings>
-          <ButtonText>SQL Memory 儲存自我測試…</ButtonText>
-          <CanonicalName>SqlAssist.SqlMemorySelfTest</CanonicalName>
-          <LocCanonicalName>SqlAssist.SqlMemory儲存自我測試</LocCanonicalName>
+          <ButtonText>檢查更新…</ButtonText>
+          <CanonicalName>SqlAssist.CheckForUpdates</CanonicalName>
+          <LocCanonicalName>SqlAssist.檢查更新</LocCanonicalName>
+          <ToolTipText>問 GitHub 有沒有比目前這一版新的發行版本</ToolTipText>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
@@ -274,13 +275,17 @@
         </Strings>
       </Button>
 
-      <Button guid="guidSqlAssistCommandSet" id="cmdidCompactSqlMemory" priority="0x0210" type="Button">
+      <!--
+        設定頁的 SQL Memory 分類只留一個出口：整理、壓縮與備份都在用量分頁，
+        那裡有確認框與試算，設定頁不再放第二條沒有確認的捷徑。
+      -->
+      <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlMemoryUsageFromSettings" priority="0x0210" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
         <Strings>
-          <ButtonText>整理 SqlAssist SQL Memory 的資料庫檔案</ButtonText>
-          <CanonicalName>SqlAssist.CompactSqlMemory</CanonicalName>
-          <LocCanonicalName>SqlAssist.整理SqlMemory資料庫</LocCanonicalName>
+          <ButtonText>開啟 SqlAssist SQL Memory 用量</ButtonText>
+          <CanonicalName>SqlAssist.ShowSqlMemoryUsageFromSettings</CanonicalName>
+          <LocCanonicalName>SqlAssist.設定頁開啟SqlMemory用量</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -504,7 +509,7 @@
       <IDSymbol name="SqlAssistResultGridActionsGroup" value="0x1620" />
       <IDSymbol name="SqlAssistResultGridDiagnosticsGroup" value="0x1630" />
       <IDSymbol name="SqlAssistEditorContextGroup" value="0x1700" />
-      <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207、0x0306 是已移除的命令，不回收。 -->
+      <!-- 空號 0x0101–0x0104、0x0203–0x0205、0x0207、0x020C、0x020D、0x0306 是已移除的命令，不回收。 -->
       <IDSymbol name="cmdidToggleEnabled" value="0x0100" />
       <IDSymbol name="cmdidToggleSuggestions" value="0x0105" />
       <IDSymbol name="cmdidShowDiagnostics" value="0x0200" />
@@ -515,8 +520,6 @@
       <IDSymbol name="cmdidManageSnippets" value="0x0209" />
       <IDSymbol name="cmdidGoToDefinition" value="0x020A" />
       <IDSymbol name="cmdidSurroundWith" value="0x020B" />
-      <IDSymbol name="cmdidSqlMemorySelfTest" value="0x020C" />
-      <IDSymbol name="cmdidCompactSqlMemory" value="0x020D" />
       <IDSymbol name="cmdidPickBlockAccent" value="0x0210" />
       <IDSymbol name="cmdidPickBlockKeywordForeground" value="0x0211" />
       <IDSymbol name="cmdidPickBlockKeywordBackground" value="0x0212" />
@@ -526,6 +529,8 @@
       <IDSymbol name="cmdidAddToFavoritesFromTools" value="0x0216" />
       <IDSymbol name="cmdidSurroundWithFromTools" value="0x0217" />
       <IDSymbol name="cmdidShowSqlMemoryUsage" value="0x0218" />
+      <IDSymbol name="cmdidCheckForUpdates" value="0x0219" />
+      <IDSymbol name="cmdidShowSqlMemoryUsageFromSettings" value="0x021A" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

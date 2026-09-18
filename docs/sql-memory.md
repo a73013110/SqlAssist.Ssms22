@@ -37,8 +37,9 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 
 ## 擷取與生命週期
 
-`sqlAssist.sqlMemory.enabled` 與 SqlAssist 總開關都開啟才運作；SQL Memory 預設關閉。
-停用時不開資料庫、不讀舊資料、不擷取也不維護。設定項與預設值見[設定](settings.md)。
+`sqlAssist.sqlMemory.enabled` 與 SqlAssist 總開關都開啟才運作；兩者預設都是開的，
+第一次真正接上儲存時送一則通知說明資料在哪裡、怎麼關掉。停用時不開資料庫、不讀舊資料、
+不擷取也不維護。設定項與預設值見[設定](settings.md)。
 
 `SqlMemoryRuntime` 管理儲存、writer、租約心跳及背景維護排程，狀態改變以事件通知工具窗：
 

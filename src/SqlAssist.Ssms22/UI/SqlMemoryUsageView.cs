@@ -10,10 +10,10 @@ using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
 
-internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFolder }
+internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFolder, SelfTest }
 
 /// <summary>
-/// SQL Memory 的用量分頁：容量量表、健康狀態、配額、各類筆數、伺服器分布、整理動作與最近的整理紀錄。
+/// SQL Memory 的用量分頁：容量量表、健康狀態、配額、各類筆數、伺服器分布、整理動作、儲存診斷與最近的整理紀錄。
 /// </summary>
 /// <remarks>
 /// 與 History／Favorites 同一組分頁，不另開視窗也不另立頁首：分頁本身就是抬頭，重新整理與設定沿用工具列。
@@ -64,7 +64,11 @@ internal sealed class SqlMemoryUsageView : DockPanel
 
     public event EventHandler<SqlMemoryUsageAction>? ActionRequested;
 
-    public SqlMemoryUsageView()
+    /// <param name="diagnostics">
+    /// 顯示「診斷」卡片；跟著「寫入詳細診斷紀錄」走，平常不佔使用者的畫面。
+    /// 由呼叫端讀設定傳進來，這個檔案也編進元件測試，那裡沒有設定服務。
+    /// </param>
+    public SqlMemoryUsageView(bool diagnostics = false)
     {
         AutomationProperties.SetName(this, "SQL Memory 用量");
         LastChildFill = true;
@@ -104,21 +108,19 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _content.Children.Add(SqlAssistChrome.CreateCardSection("紀錄", records));
         _content.Children.Add(SqlAssistChrome.CreateCardSection("依伺服器", _servers));
         foreach (var entry in Actions)
-        {
-            var button = SqlAssistChrome.CreateButton("", _metrics, primary: entry.Action == SqlMemoryUsageAction.Maintain);
-            if (entry.Tone != SqlActionTone.Neutral) button.Template = SqlAssistChrome.CreateGhostButtonTemplate(entry.Tone);
-            button.Content = SqlAssistChrome.CreateMemoryLabel(entry.Icon, entry.Label);
-            button.ToolTip = entry.ToolTip; AutomationProperties.SetName(button, entry.Label);
-            // 與工具列按鈕同一個高度與內距；換行時列距 4，和篩選膠囊的節奏一致。
-            button.Height = 28; button.Padding = new Thickness(6, 3, 8, 3); button.Margin = new Thickness(0, 0, 4, 4);
-            var action = entry.Action;
-            button.Click += (_, _) => ActionRequested?.Invoke(this, action);
-            _buttons[action] = button;
-            _actions.Children.Add(button);
-        }
+            _actions.Children.Add(CreateAction(entry.Action, entry.Icon, entry.Label, entry.ToolTip, entry.Tone));
         // 按鈕自帶右與下的間距；容器抵銷最後一欄與最後一列，卡片四邊內距才一致。
         _actions.Margin = new Thickness(0, 0, -4, -4);
         _content.Children.Add(SqlAssistChrome.CreateCardSection("整理", _actions));
+        // 自我測試不刪資料、也不改檔案大小，併進「整理」那一排會讓人以為它會動到資料。
+        if (diagnostics)
+        {
+            var tools = new WrapPanel { Margin = new Thickness(0, 0, -4, -4) };
+            tools.Children.Add(CreateAction(SqlMemoryUsageAction.SelfTest, SqlIcon.SelfTest, "儲存自我測試",
+                "以內建資料驗證寫入、重送、重新開啟與隔離層卸載；不讀也不動你的 SQL。", SqlActionTone.Neutral));
+            _content.Children.Add(SqlAssistChrome.CreateCardSection("診斷", tools));
+        }
+
         _content.Children.Add(SqlAssistChrome.CreateCardSection("最近整理", _activities));
 
         var scroll = new ScrollViewer
@@ -136,7 +138,11 @@ internal sealed class SqlMemoryUsageView : DockPanel
     /// <summary>頁面內容是否仍在等第一份資料；已有畫面時重新整理不再蓋上載入圖示。</summary>
     public bool IsLoading => _loading.IsLoading;
 
+    /// <summary>這個動作的按鈕；「診斷」卡片沒有建立時不含自我測試。</summary>
     public Button ActionButton(SqlMemoryUsageAction action) => _buttons[action];
+
+    /// <summary>目前畫得出來的動作；詳細紀錄關著時不含自我測試。</summary>
+    public bool HasAction(SqlMemoryUsageAction action) => _buttons.ContainsKey(action);
 
     /// <summary>第一次載入顯示表面載入圖示；已有資料時保留舊畫面，量表在新資料到時直接滑到新值。</summary>
     public void BeginLoad()
@@ -221,6 +227,19 @@ internal sealed class SqlMemoryUsageView : DockPanel
         else if (!busy) _busy.Visibility = Visibility.Collapsed;
         foreach (var button in _buttons.Values) button.IsEnabled = !busy;
         _compactHint.IsEnabled = !busy;
+    }
+
+    private Button CreateAction(SqlMemoryUsageAction action, SqlIcon icon, string label, string toolTip, SqlActionTone tone)
+    {
+        var button = SqlAssistChrome.CreateButton("", _metrics, primary: action == SqlMemoryUsageAction.Maintain);
+        if (tone != SqlActionTone.Neutral) button.Template = SqlAssistChrome.CreateGhostButtonTemplate(tone);
+        button.Content = SqlAssistChrome.CreateMemoryLabel(icon, label);
+        button.ToolTip = toolTip; AutomationProperties.SetName(button, label);
+        // 與工具列按鈕同一個高度與內距；換行時列距 4，和篩選膠囊的節奏一致。
+        button.Height = 28; button.Padding = new Thickness(6, 3, 8, 3); button.Margin = new Thickness(0, 0, 4, 4);
+        button.Click += (_, _) => ActionRequested?.Invoke(this, action);
+        _buttons[action] = button;
+        return button;
     }
 
     private Border BuildHero()

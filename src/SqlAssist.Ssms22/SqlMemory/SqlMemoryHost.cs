@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.SqlMemory.Isolation;
@@ -29,6 +30,7 @@ internal static class SqlMemoryHost
 
     private static readonly object SyncRoot = new();
     private static bool _initialized;
+    private static int _captureNoticeScheduled;
 
     /// <summary>
     /// 程序內唯一的宿主；在套件載入前就存在，編輯器接線可以先問它「有沒有在擷取」，答案是否。
@@ -48,6 +50,7 @@ internal static class SqlMemoryHost
             if (_initialized) return;
             _initialized = true;
             SqlAssistSettingsStore.Changed += OnSettingsChanged;
+            Runtime.StatusChanged += OnStatusChanged;
             Runtime.CaptureDropped += OnCaptureDropped;
             Runtime.CapacityChanged += OnCapacityChanged;
             Runtime.MaintenanceFailed += OnMaintenanceFailed;
@@ -65,6 +68,7 @@ internal static class SqlMemoryHost
             if (!_initialized) return;
             _initialized = false;
             SqlAssistSettingsStore.Changed -= OnSettingsChanged;
+            Runtime.StatusChanged -= OnStatusChanged;
             Runtime.CaptureDropped -= OnCaptureDropped;
             Runtime.CapacityChanged -= OnCapacityChanged;
             Runtime.MaintenanceFailed -= OnMaintenanceFailed;
@@ -100,6 +104,34 @@ internal static class SqlMemoryHost
     {
         var configuration = SqlMemoryConfiguration.From(SqlAssistSettingsStore.Current);
         await Runtime.ApplyAsync(configuration).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 第一次真正開始擷取時說一次：資料留在哪裡、怎麼關掉。
+    /// </summary>
+    /// <remarks>
+    /// 總開關預設是開的，所以不能安靜地開始記錄使用者的 SQL。說過就記在狀態存放區裡，
+    /// 每台電腦只出現一次；<see cref="NotificationLevel.Notice"/> 讓它跨過降噪門檻，
+    /// 而不是靠提高種類等級。路徑不進通知，位置由用量分頁的「開啟資料夾」回答。
+    ///
+    /// 狀態可能在任何執行緒上發出，而狀態存放區只在 UI 執行緒讀寫，所以要排回去。
+    /// 用 <c>BeginProbe</c> 只是因為沒有人接這個工作的結果：它一個工作階段最多跑一次，
+    /// 不是會連續失敗的探測。
+    /// </remarks>
+    private static void OnStatusChanged(object? sender, SqlMemoryRuntimeStatus status)
+    {
+        if (status.Phase != SqlMemoryRuntimePhase.Ready) return;
+        if (Interlocked.Exchange(ref _captureNoticeScheduled, 1) != 0) return;
+
+        SqlAssistPlatformGuard.BeginProbe("SQL Memory 首次擷取說明", async () =>
+        {
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (SqlAssistState.SqlMemoryCaptureNoticeShown) return;
+            SqlAssistState.SqlMemoryCaptureNoticeShown = true;
+            NotificationCenter.Default.Post(NotificationCatalog.StartingSqlMemoryCapture,
+                NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice,
+                NotificationStatus.Succeeded, message: NotificationCatalog.SqlMemoryFirstCaptureNotice);
+        });
     }
 
     /// <summary>

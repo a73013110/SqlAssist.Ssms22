@@ -22,7 +22,7 @@ public sealed class SqlMemoryConfiguration
         IdleDebounce = idleDebounce;
     }
 
-    /// <summary>尚未讀到設定時的狀態；預設是關的——擷取的是使用者輸入的 SQL，沒有明確打開就不該存。</summary>
+    /// <summary>尚未讀到設定時的狀態；還沒問到設定之前不擷取，讀到之後才照使用者的值收斂。</summary>
     public static SqlMemoryConfiguration Disabled { get; } = From(new SqlAssistSettings { SqlMemoryEnabled = false });
 
     /// <summary>SqlAssist 總開關與 SQL Memory 開關都開著才啟用；關掉時連背景整理都不跑，那也是在動使用者的資料。</summary>
