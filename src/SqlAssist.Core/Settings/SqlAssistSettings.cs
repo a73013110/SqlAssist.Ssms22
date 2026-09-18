@@ -76,6 +76,15 @@ public sealed class SqlAssistSettings
     public bool AutoPairDelimiters { get; init; } = true;
 
     /// <summary>
+    /// sqlAssist.general.checkForUpdates
+    /// </summary>
+    /// <remarks>
+    /// 只管啟動時的自動檢查；工具選單與「關於與診斷」上的手動檢查一律可用。
+    /// 上一次檢查的時間戳不是設定：那是狀態，使用者沒有要調的東西。
+    /// </remarks>
+    public bool CheckForUpdates { get; init; } = true;
+
+    /// <summary>
     /// sqlAssist.general.animations
     /// </summary>
     /// <remarks>
@@ -338,10 +347,11 @@ public sealed class SqlAssistSettings
 
     /// <summary>sqlAssist.sqlMemory.enabled</summary>
     /// <remarks>
-    /// 預設關閉，而且只由使用者打開。這一項管的是「要不要把使用者輸入的 SQL 留在磁碟上」，
-    /// 儲存自我測試通過只證明存得起來，不構成替他決定的理由。
+    /// 這一項管的是整組功能：歷程、草稿、當機還原、收藏與背景維護，其餘十二項都參照它。
+    /// 預設開啟——空的 SQL Memory 沒有人會去打開它，功能的價值在它已經有資料。
+    /// 代價是不能安靜地開始記錄，所以第一次真正擷取時會送一則通知說明存在哪裡、怎麼關。
     /// </remarks>
-    public bool SqlMemoryEnabled { get; init; }
+    public bool SqlMemoryEnabled { get; init; } = true;
 
     /// <summary>sqlAssist.sqlMemory.captureExecuted</summary>
     public bool SqlMemoryCaptureExecuted { get; init; } = true;

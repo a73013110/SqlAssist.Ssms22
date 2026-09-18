@@ -101,16 +101,16 @@ internal sealed class SqlAssistCommands
         AddCommand(CommandIds.ShowSqlFavorites, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Favorites));
         AddCommand(CommandIds.ShowSqlMemoryUsage, (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Usage));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
-        AddCommand(CommandIds.SqlMemorySelfTest, (_, _) => SqlAssistSqlMemorySelfTestCommand.Execute(_package),
-            () => !SqlAssistSqlMemorySelfTestCommand.IsRunning,
-            isVisible: () => SqlAssistSettingsStore.Current.VerboseLogging);
+        // 問一次要幾秒，連按只送出一次；結論走通知卡片，所以不必等視窗。
+        AddCommand(CommandIds.CheckForUpdates,
+            (_, _) => SqlAssistUpdateCheckCommand.Execute(_package),
+            () => !SqlAssistUpdateCheckCommand.IsRunning);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
-        // SQL Memory 沒有啟用時沒有資料庫可整理，按鈕變灰而不是按下去才說失敗。
-        AddCommand(CommandIds.CompactSqlMemory,
-            (_, _) => SqlAssistSqlMemoryCompactCommand.Execute(_package),
-            () => SqlMemoryHost.Runtime.IsCapturing && !SqlAssistSqlMemoryCompactCommand.IsRunning);
+        // 設定頁的 SQL Memory 分類只有這一個出口；整理、壓縮與備份都在用量分頁上。
+        AddCommand(CommandIds.ShowSqlMemoryUsageFromSettings,
+            (_, _) => SqlMemoryToolWindow.Show(_package, SqlMemoryPage.Usage));
         AddColorCommand(CommandIds.PickBlockAccent, SqlAssistMonikers.BlockAccentColor, s => s.BlockAccentColor, ThemeBrush.AccentBorder);
         AddColorCommand(CommandIds.PickBlockKeywordForeground, SqlAssistMonikers.BlockKeywordForeground, s => s.BlockKeywordForeground, ThemeBrush.BlockKeywordForeground);
         AddColorCommand(CommandIds.PickBlockKeywordBackground, SqlAssistMonikers.BlockKeywordBackground, s => s.BlockKeywordBackground, ThemeBrush.BlockKeywordBackground);
@@ -554,7 +554,8 @@ internal sealed class SqlAssistCommands
         try
         {
             var snapshot = SqlAssistDiagnosticSnapshotFactory.Create();
-            new SqlAssistAboutWindow(snapshot, TryOpenSettings, OpenDiagnosticsLogCore).ShowModal();
+            new SqlAssistAboutWindow(snapshot, TryOpenSettings, OpenDiagnosticsLogCore,
+                () => SqlAssistUpdateCheckCommand.Execute(_package)).ShowModal();
         }
         catch (Exception exception)
         {

@@ -49,6 +49,8 @@ public sealed class NotificationKindToggle
         new NotificationKindToggle(NotificationKind.Snippets, "sqlAssist.notifications.snippets", true, "程式碼片段"),
         new NotificationKindToggle(NotificationKind.Settings, "sqlAssist.notifications.settings", true, "設定"),
         new NotificationKindToggle(NotificationKind.SqlMemory, "sqlAssist.notifications.sqlMemory", true, "SQL Memory"),
+        // 預設開著：一年只出現幾次，而關掉它就等於關掉「有新版」唯一的出口。
+        new NotificationKindToggle(NotificationKind.Update, "sqlAssist.notifications.update", true, "更新檢查"),
         // 漏分類要看得見，不能沿用預設隱藏的種類。
         new NotificationKindToggle(NotificationKind.Unclassified, "sqlAssist.notifications.unclassified", true, "未分類"),
     };

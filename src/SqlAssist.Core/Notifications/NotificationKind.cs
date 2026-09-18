@@ -19,6 +19,8 @@ public enum NotificationKind
     Package,
     /// <summary>SQL Memory 的啟用、整理、清除、備份與擷取。</summary>
     SqlMemory,
+    /// <summary>問 GitHub 有沒有新版本。</summary>
+    Update,
     /// <summary>還沒分類的工作。預設顯示，否則新工作會靜默漏掉。</summary>
     Unclassified,
 }

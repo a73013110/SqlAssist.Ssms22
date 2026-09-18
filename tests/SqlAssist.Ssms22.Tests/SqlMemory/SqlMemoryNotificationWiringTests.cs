@@ -14,8 +14,6 @@ namespace SqlAssist.Ssms22.Tests.SqlMemory;
 /// </remarks>
 public sealed class SqlMemoryNotificationWiringTests
 {
-    private const string CompactCommand = "Commands/SqlAssistSqlMemoryCompactCommand.cs";
-    private const string SelfTestCommand = "Commands/SqlAssistSqlMemorySelfTestCommand.cs";
     private const string Host = "SqlMemory/SqlMemoryHost.cs";
     private const string UsagePanel = "SqlMemory/SqlMemoryUsagePanel.cs";
     private const string Browser = "SqlMemory/SqlMemoryBrowser.cs";
@@ -25,35 +23,33 @@ public sealed class SqlMemoryNotificationWiringTests
     private const string Dialogs = "UI/SqlAssistDialogs.cs";
 
     /// <summary>
-    /// 整理成功只留在卡片上，失敗才跳訊息框。
+    /// 整理、壓縮與自我測試都只剩用量分頁一個入口，沒有第二條沒有確認框的捷徑。
     /// </summary>
     /// <remarks>
-    /// 成功也跳訊息框的版本會在使用者早就回去編輯 SQL 之後搶走焦點，而那句話沒有任何
-    /// 要決定的事；失敗相反，要讀完才知道是稍後再試還是先處理占用資料庫的程序。
+    /// 設定頁那顆「立即整理資料庫檔案…」借了維護的名字做壓縮的事，而且按下去直接開跑；
+    /// 同一個操作兩個入口、兩種安全等級，移掉的是入口不是功能。自我測試同理搬進分頁，
+    /// 成敗因此與其他動作一樣走卡片，不再留訊息框。
     /// </remarks>
     [Fact]
-    public void 整理成功不跳訊息框失敗才跳()
+    public void 整理與自我測試只剩用量分頁一個入口()
     {
-        var source = ReadProductSource(CompactCommand);
-        Assert.Contains("NotificationCatalog.CompactingSqlMemory", source, StringComparison.Ordinal);
-        Assert.Contains("NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info", source, StringComparison.Ordinal);
+        foreach (var removed in new[]
+                 {
+                     "Commands/SqlAssistSqlMemoryCompactCommand.cs",
+                     "Commands/SqlAssistSqlMemorySelfTestCommand.cs",
+                 })
+            Assert.False(File.Exists(Path.Combine(ProductRoot(), removed.Replace('/', Path.DirectorySeparatorChar))), removed);
 
-        // 失敗說明是唯一送進訊息框的內容；成功那一條路上沒有訊息框。
-        Assert.Single(Occurrences(source, "ShowMessageBox"));
-        var show = Section(source, "if (failure is null) return;", "catch (OperationCanceledException)");
-        Assert.Contains("OLEMSGICON_WARNING", show, StringComparison.Ordinal);
-        Assert.Contains("notification.Fail();", Section(source, "catch (Exception error)", "return (error is"), StringComparison.Ordinal);
-    }
+        var usage = ReadProductSource(UsagePanel);
+        Assert.Contains("NotificationCatalog.TestingSqlMemoryStorage", usage, StringComparison.Ordinal);
+        Assert.Contains("SqlMemoryStorageSelfTest.RunAsync(", usage, StringComparison.Ordinal);
 
-    /// <summary>自我測試的報告是要讀的東西，成敗都留在訊息框；只有「還在跑」交給卡片。</summary>
-    [Fact]
-    public void 自我測試保留報告訊息框並以通知追蹤()
-    {
-        var source = ReadProductSource(SelfTestCommand);
-        Assert.Contains("NotificationCatalog.TestingSqlMemoryStorage", source, StringComparison.Ordinal);
-        Assert.Contains("notification.Fail();", source, StringComparison.Ordinal);
-        Assert.Contains("notification.Cancel();", source, StringComparison.Ordinal);
-        Assert.Single(Occurrences(source, "ShowMessageBox"));
+        // 動作的成敗都在卡片上；唯一剩下的訊息框是「工具窗開不起來」，那時候沒有宿主掛卡片。
+        foreach (var file in ProductSources().Where(file => file.Contains(Path.DirectorySeparatorChar + "SqlMemory" + Path.DirectorySeparatorChar)))
+        {
+            if (file.EndsWith(ToolWindow.Replace('/', Path.DirectorySeparatorChar), StringComparison.Ordinal)) continue;
+            Assert.DoesNotContain("ShowMessageBox", File.ReadAllText(file), StringComparison.Ordinal);
+        }
     }
 
     /// <summary>
@@ -92,7 +88,7 @@ public sealed class SqlMemoryNotificationWiringTests
     [Fact]
     public void SqlMemory不再使用狀態列()
     {
-        foreach (var file in new[] { CompactCommand, SelfTestCommand, Host, UsagePanel, Browser, RevisionCommands })
+        foreach (var file in new[] { Host, UsagePanel, Browser, RevisionCommands })
             Assert.DoesNotContain("SqlAssistStatusBar", ReadProductSource(file), StringComparison.Ordinal);
 
         foreach (var file in ProductSources().Where(file => file.Contains(Path.DirectorySeparatorChar + "SqlMemory" + Path.DirectorySeparatorChar)))
@@ -114,6 +110,7 @@ public sealed class SqlMemoryNotificationWiringTests
                  {
                      "NotificationCatalog.MaintainingSqlMemory", "NotificationCatalog.ClearingSqlMemoryHistory",
                      "NotificationCatalog.CompactingSqlMemory", "NotificationCatalog.BackingUpSqlMemory",
+                     "NotificationCatalog.TestingSqlMemoryStorage",
                  })
             Assert.Contains(title, usage, StringComparison.Ordinal);
 
@@ -174,15 +171,6 @@ public sealed class SqlMemoryNotificationWiringTests
         var to = source.IndexOf(end, from + start.Length, StringComparison.Ordinal);
         Assert.InRange(to, from, int.MaxValue);
         return source.Substring(from, to - from);
-    }
-
-    private static int[] Occurrences(string source, string value)
-    {
-        var found = new System.Collections.Generic.List<int>();
-        for (var at = source.IndexOf(value, StringComparison.Ordinal); at >= 0;
-             at = source.IndexOf(value, at + value.Length, StringComparison.Ordinal))
-            found.Add(at);
-        return found.ToArray();
     }
 
     private static string ReadProductSource(string relativePath) =>

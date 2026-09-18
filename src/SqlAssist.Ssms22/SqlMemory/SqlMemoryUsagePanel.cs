@@ -6,6 +6,8 @@ using System.Windows;
 using Microsoft.Win32;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.SqlMemory.Isolation;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
@@ -19,7 +21,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 ///
 /// 回饋分兩條：分頁內的不確定進度說「現在動不了」，通知卡片說「這件事怎麼了」。維護與清除可能跑上幾分鐘，
 /// 使用者多半已經切回編輯器，所以成敗都走卡片（卡片跟著作用中的宿主走）；分頁狀態列只留卡片放不下的東西，
-/// 例如備份檔的位置——通知文案不放路徑。
+/// 例如備份檔與自我測試報告的位置——通知文案不放路徑。
 /// </remarks>
 internal sealed class SqlMemoryUsagePanel : IDisposable
 {
@@ -34,10 +36,12 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
     {
         _package = package;
         _report = report;
+        // 診斷卡片跟著「寫入詳細診斷紀錄」走；工具窗建立時決定一次，不隨設定即時增刪卡片。
+        View = new SqlMemoryUsageView(SqlAssistSettingsStore.Current.VerboseLogging);
         View.ActionRequested += (_, action) => SqlMemoryActions.Run(() => Run(action), report);
     }
 
-    public SqlMemoryUsageView View { get; } = new();
+    public SqlMemoryUsageView View { get; }
 
     /// <summary>維護或清除結束（不論成敗）：History／Favorites 已載入的列可能有被刪掉的，清單回到畫面時要重讀。</summary>
     public event EventHandler? RecordsChanged;
@@ -119,6 +123,20 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
             case SqlMemoryUsageAction.OpenFolder:
                 SqlMemoryRecoveryService.OpenDatabaseFolder();
                 break;
+            case SqlMemoryUsageAction.SelfTest:
+                // 與維護、清除互斥：自我測試自己開一份隔離儲存，跟維護搶同一組原生資源。
+                Start(NotificationCatalog.TestingSqlMemoryStorage, "自我測試", "正在測試儲存；可繼續編輯…", deletes: false, async _ =>
+                {
+                    var directory = SelfTestDirectory();
+                    SqlAssistDiagnostics.WriteAlways(
+                        $"SQL Memory 自我測試開始；版本 {SqlAssistPackage.PackageVersion}；目錄：{directory}");
+                    // 宿主的 ApplicationBase 是目前 SSMS IDE 目錄，不寫死安裝版號或路徑。
+                    await SqlMemoryStorageSelfTest.RunAsync(directory, AppDomain.CurrentDomain.BaseDirectory, _operation.Token);
+                    // 報告是要讀的檔案，位置只有狀態列放得下；卡片只說通過了什麼。
+                    return ("已驗證寫入、重送、重新開啟與隔離層卸載。",
+                        "報告：" + Path.Combine(directory, SqlMemoryStorageSelfTest.ReportFileName));
+                });
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(action));
         }
@@ -179,6 +197,11 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
             }
         }, _report);
     }
+
+    /// <summary>每一次跑各自一個資料夾：失敗那一份要留著給診斷，不能被下一次覆寫。</summary>
+    private static string SelfTestDirectory() => Path.Combine(
+        Path.GetDirectoryName(SqlAssistDiagnostics.LogPath) ?? string.Empty,
+        "SqlMemorySelfTest", Guid.NewGuid().ToString("N"));
 
     private static string Deleted(SqlMemoryCleanupResult result) => result.DeletedRows == 0
         ? "沒有需要回收的資料。"

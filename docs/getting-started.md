@@ -48,16 +48,16 @@ SSMS 若安裝在自訂位置，請把 `$installer` 改成該安裝目錄下的
 
 ## 確認是否載入
 
-啟動 SSMS 後應看得到 **工具 → SqlAssist**，內含啟用、建議、定義、結構、重新整理、
-片段、設定與診斷入口。若整個選單不存在，先確認安裝目標與 SSMS 版本，再依本頁的
+啟動 SSMS 後應看得到 **工具 → SqlAssist**，內含啟用、建議、定義、結構、重新整理、片段、
+設定、檢查更新與診斷入口。若整個選單不存在，先確認安裝目標與 SSMS 版本，再依本頁的
 [問題排查](#問題排查)處理。
 
 ## 第一次使用
 
-1. **保留 SSMS 的 T-SQL IntelliSense 總開關。** SqlAssist 預設只關閉會打架的內建自動
-   建議清單；SSMS 的紅色錯誤波浪線、大綱與參數提示仍會運作。
-2. 在查詢視窗連線到資料庫後開始輸入。SqlAssist 會在背景讀取必要的中繼資料；第一次
-   尚未命中快取時，下一次觸發建議就會顯示資料庫物件。
+1. **保留 SSMS 的 T-SQL IntelliSense 總開關。** 預設只關掉會打架的內建自動建議清單；
+   紅色錯誤波浪線、大綱與參數提示仍會運作。
+2. 在查詢視窗連線到資料庫後開始輸入。中繼資料在背景讀取，第一次還沒命中快取時，
+   下一次觸發建議就會列出資料庫物件。
 3. 按 `Ctrl+,` 開啟設定，搜尋 `SqlAssist`；也可使用 **工具 → SqlAssist → 設定…**。
 
 建議先試這些操作：
@@ -90,8 +90,10 @@ Tab／Shift+Tab 在欄位之間移動；完整捷徑表見[程式碼片段](snip
 
 ## 更新
 
-下載新版 VSIX 後，關閉所有 SSMS 視窗並再次開啟安裝檔即可覆蓋更新。版本與相容性說明
-以該次 [Release](https://github.com/a73013110/SqlAssist.Ssms22/releases) 為準。
+**工具 → SqlAssist → 檢查更新…** 會問 GitHub 有沒有新版並帶你到 Release 頁；啟動時也每天問
+一次，只在有新版時提示，可在設定的「一般」頁關掉。下載新版 VSIX 後，關閉所有 SSMS 視窗並再次
+開啟安裝檔即可覆蓋更新。相容性說明以該次
+[Release](https://github.com/a73013110/SqlAssist.Ssms22/releases) 為準。
 
 ## 解除安裝
 
@@ -103,8 +105,8 @@ $installer = Join-Path $env:ProgramFiles 'Microsoft SQL Server Management Studio
 & $installer '/uninstall:SqlAssist.Ssms22.7f693af0-846a-4ee8-ab70-a174a3e31f65'
 ```
 
-解除安裝會保留 `%LOCALAPPDATA%\SqlAssist.Ssms22` 內的設定與診斷紀錄。SSMS 若安裝在
-自訂位置，請依安裝步驟的說明調整 `$installer`。
+解除安裝會保留 `%LOCALAPPDATA%\SqlAssist.Ssms22` 內的設定與診斷紀錄。SSMS 裝在自訂位置時
+請依安裝步驟調整 `$installer`。
 
 ## 問題排查
 
