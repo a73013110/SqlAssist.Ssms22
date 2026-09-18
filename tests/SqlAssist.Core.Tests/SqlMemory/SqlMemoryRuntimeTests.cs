@@ -167,6 +167,8 @@ public sealed class SqlMemoryRuntimeTests
         Assert.Equal(SqlCaptureDrop.SnapshotTooLarge, harness.Runtime.Status.LastDrop);
         Assert.Equal("這份 SQL 太大，本次未記錄。", harness.Runtime.Status.Message);
         Assert.Equal(new[] { true, true }, harness.Drops.Select(drop => drop.ShouldNotify));
+        // 工具窗那一行完整狀態與通知上的原因短語是兩份文案，各自回答不同的問題。
+        Assert.Equal(new[] { "這份 SQL 太大", "這份 SQL 太大" }, harness.Drops.Select(drop => drop.Reason));
         // 換設定之後重新回到乾淨的狀態列。
         await harness.Runtime.ApplyAsync(Enabled);
         Assert.Null(harness.Runtime.Status.LastDrop);
@@ -333,5 +335,27 @@ public sealed class SqlMemoryRuntimeTests
         await harness.Runtime.ApplyAsync(SqlMemoryConfiguration.Disabled);
         Assert.Equal(SqlMemoryUsageSeverity.Normal, harness.Runtime.CapacitySeverity);
         Assert.Equal(SqlMemoryUsageSeverity.Normal, changes.Last().Severity);
+    }
+
+    /// <summary>背景保留清理失敗要讓宿主看得見；擷取照常，下一輪重跑同一個游標。</summary>
+    [Fact]
+    public async Task ScheduledMaintenanceFailuresAreReportedToTheHostWithoutStoppingCapture()
+    {
+        var harness = new Harness();
+        var failures = new List<string>();
+        harness.Runtime.MaintenanceFailed += failures.Add;
+        await harness.Runtime.ApplyAsync(Enabled);
+        harness.Store.Maintenance.EnqueueFailure(SqlMemoryStorageErrorKind.Busy);
+
+        await harness.Timers.Maintain();
+
+        Assert.Contains("測試：Busy", Assert.Single(failures));
+        Assert.True(harness.Runtime.IsCapturing);
+        Assert.Equal(SqlCaptureEnqueueResult.Accepted, harness.Runtime.TryEnqueue(Capture()));
+
+        // 關閉途中的取消不是失敗，不再送一次。
+        await harness.Runtime.ApplyAsync(SqlMemoryConfiguration.Disabled);
+        await harness.Timers.Maintain();
+        Assert.Single(failures);
     }
 }

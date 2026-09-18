@@ -74,7 +74,7 @@ public sealed class SqlAssistPackage : AsyncPackage
 
             SqlAssistCommands.Register(this, commandService);
             // 設定接上之後才接 SQL Memory：它整組由設定驅動，預設是關的。
-            SqlMemoryHost.Initialize(this);
+            SqlMemoryHost.Initialize();
             SqlAssistRuntimeState.MarkPackageReady();
             SqlAssistDiagnostics.WriteAlways($"AsyncPackage {PackageVersion} 已載入，工具選單已註冊");
         }

@@ -71,6 +71,18 @@ public sealed class SqlMemoryUsageTests
         Assert.False(monitor.Reset());
     }
 
+    /// <summary>容量通知上的原因短語只有這一份；宿主不自己拼一句。</summary>
+    [Fact]
+    public void TheCapacityEventCarriesTheReasonPhrase()
+    {
+        Assert.Equal("內容已用 92%", new SqlMemoryCapacityChangedEventArgs(SqlMemoryUsageSeverity.Critical, 0.92, true).Reason);
+        Assert.Equal("內容已超過容量上限",
+            new SqlMemoryCapacityChangedEventArgs(SqlMemoryUsageSeverity.Critical, double.PositiveInfinity, true).Reason);
+        // 沒有比例可言時只剩一種情形：容量不限，卻因為保留規則清不下來而升到 Critical。
+        Assert.Equal("目前的保留規則清不下來",
+            new SqlMemoryCapacityChangedEventArgs(SqlMemoryUsageSeverity.Critical, null, true).Reason);
+    }
+
     [Fact]
     public void ActivityLogMergesConsecutiveScheduledMaintenanceAndKeepsTheNewestFirst()
     {

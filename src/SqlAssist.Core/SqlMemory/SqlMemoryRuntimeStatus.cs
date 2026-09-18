@@ -100,7 +100,7 @@ public sealed class SqlMemoryRuntimeStatus : IEquatable<SqlMemoryRuntimeStatus>
     public override int GetHashCode() => ((int)Phase * 397) ^ Generation.GetHashCode();
 }
 
-/// <summary>一筆擷取沒有保存；<see cref="ShouldNotify"/> 決定宿主要不要打斷使用者（狀態列）。</summary>
+/// <summary>一筆擷取沒有保存；<see cref="ShouldNotify"/> 決定宿主要不要讓使用者看見。</summary>
 public sealed class SqlCaptureDroppedEventArgs : EventArgs
 {
     public SqlCaptureDroppedEventArgs(SqlCaptureDrop drop, bool shouldNotify)
@@ -116,10 +116,18 @@ public sealed class SqlCaptureDroppedEventArgs : EventArgs
     /// </summary>
     public bool ShouldNotify { get; }
 
-    public string NotificationText => Drop switch
+    /// <summary>
+    /// 沒有保存的原因短語；通知的標題已經說了是哪一件事，這裡只補「為什麼」。
+    /// </summary>
+    /// <remarks>
+    /// 常數而不是內插字串：擷取被拒是熱路徑上的事件，而措辭只有這一份，
+    /// 宿主不自己拼一句完整敘述。工具窗那一行完整狀態在
+    /// <see cref="SqlMemoryRuntimeStatus.Message"/>，兩者各自回答不同的問題。
+    /// </remarks>
+    public string Reason => Drop switch
     {
-        SqlCaptureDrop.StorageBusy => "SQL Memory 資料庫正忙，這一次沒有記錄；稍後的擷取會繼續保存。",
-        SqlCaptureDrop.QueueFull => "SQL Memory 正在忙，這一次的草稿沒有記錄。",
-        _ => "這份 SQL 太大，SQL Memory 這一次沒有記錄。",
+        SqlCaptureDrop.StorageBusy => "資料庫忙碌",
+        SqlCaptureDrop.QueueFull => "佇列已滿",
+        _ => "這份 SQL 太大",
     };
 }

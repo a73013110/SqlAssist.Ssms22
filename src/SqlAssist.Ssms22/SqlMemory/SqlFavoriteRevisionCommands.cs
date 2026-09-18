@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -70,14 +71,35 @@ internal sealed class SqlFavoriteRevisionCommands
                 "回溯為新版本"))
             return;
 
-        await _gate.RunAsync(token, report, "回溯", async () =>
+        // 回溯要讀舊全文、另存新版本並重讀時間軸，使用者可能已經切走；成功走卡片，
+        // 衝突與「不確定有沒有成功」留在視窗裡——那兩句要當場讀完才知道下一步。
+        using var notification = NotificationCenter.Default.Begin(NotificationCatalog.RestoringFavoriteRevision,
+            NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info);
+        try
+        {
+            await RevertCoreAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // 視窗關了或換了儲存：卡片不能停在「已回溯」。
+            notification.Cancel();
+            throw;
+        }
+
+        Task RevertCoreAsync() => _gate.RunAsync(token, Failed, "回溯", async () =>
         {
             var sql = loadedSql;
             if (sql is null)
             {
                 var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.Item.ContentId, token);
                 if (content is null)
-                    return () => { row.ContentMissing = true; row.CanRevert = false; report("此版本的內容已被清理，無法回溯。"); };
+                    return () =>
+                    {
+                        row.ContentMissing = true; row.CanRevert = false;
+                        // 卡片不能停在「已回溯」：這一次什麼都沒寫進去。
+                        Failed("此版本的內容已被清理");
+                        report("此版本的內容已被清理，無法回溯。");
+                    };
                 sql = content.SqlText;
             }
 
@@ -94,18 +116,30 @@ internal sealed class SqlFavoriteRevisionCommands
                 // 回應不明時不重送非冪等的回溯；重讀清單讓使用者看得到到底有沒有多出一版。
                 return () =>
                 {
+                    Failed("回溯未確認：" + error.Message);
                     report("回溯未確認：" + error.Message + " 已重新讀取版本清單確認結果；不會自動重送。");
                     FavoriteChanged?.Invoke();
                 };
             }
             return () =>
             {
-                report(result == SqlFavoriteWriteResult.Committed
-                    ? $"已回溯：以 {time} 的版本建立新的目前版本。"
-                    : "收藏已被修改或移除，未回溯；已重新讀取版本清單。");
+                if (result == SqlFavoriteWriteResult.Committed) notification.Report(time);
+                else
+                {
+                    // 沒有回溯不是失敗：收藏在別處被改過，使用者看清單就知道現在是哪一版。
+                    notification.Report("收藏已被修改或移除，未回溯");
+                    report("收藏已被修改或移除，未回溯；已重新讀取版本清單。");
+                }
+
                 FavoriteChanged?.Invoke();
             };
         });
+
+        void Failed(string message)
+        {
+            notification.Report(message);
+            notification.Fail();
+        }
     }
 
     private Task WithSqlAsync(SqlFavoriteRevisionRow row, string? loadedSql, CancellationToken token, Action<string> report,

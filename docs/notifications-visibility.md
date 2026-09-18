@@ -26,7 +26,7 @@
 | Snippets | 展開程式碼片段 | `User` | `Debug` |
 | Settings | 重新載入設定、重建主題筆刷 | `Ambient` | 設定 `Debug`、主題 `Trace` |
 | Package | 初始化 SqlAssist、建立中繼資料連線、重新確認連線 | 初始化 `Startup`，其餘 `Ambient` | 初始化與建立連線 `Info`、重新確認 `Debug` |
-| SqlMemory | 套用設定時啟用或停用 SQL Memory；其餘標題尚未接線 | `Ambient` | `Info` |
+| SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；擷取被丟棄與容量警戒兩則事件 | 套用設定與兩則事件 `Ambient`，其餘 `User` | `Info`；兩則事件 `Notice`、背景維護失敗 `Debug` |
 | Results | 尚未接線 | — | — |
 
 依序判斷：總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
