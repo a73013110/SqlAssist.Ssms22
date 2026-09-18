@@ -58,14 +58,19 @@ internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
     {
         // 此路徑只讀一段背景，絕不取全文或啟動同步解析；端點分類由共用狀態另行提供。
         var tags = _tags;
+        if (spans.Count == 0) yield break;
         if (!_reportedTags && tags.Length > 0)
         {
             _reportedTags = true;
             SqlAssistDiagnostics.Write($"區塊背景 GetTags 首次提供 {tags.Length} 段範圍；要求範圍 {spans.Count}");
         }
         foreach (var tag in tags)
-            if (spans.Count > 0 && tag.Span.Snapshot == spans[0].Snapshot && spans.IntersectsWith(tag.Span))
-                yield return tag;
+        {
+            // 平台可能在 LayoutChanged 之前就以新 snapshot 取 Tag；就地平移才不會缺一格畫面。
+            var span = BlockProjection.Project(tag.Span, spans[0].Snapshot);
+            if (span.IsEmpty || !spans.IntersectsWith(span)) continue;
+            yield return span == tag.Span ? tag : new TagSpan<TextMarkerTag>(span, Range);
+        }
     }
 
     private void OnUpdated(object? sender, BlockChangedEventArgs args) =>
@@ -79,15 +84,18 @@ internal sealed class BlockHighlightTagger : ITagger<TextMarkerTag>, IDisposable
         if (_disposed || _view.IsClosed) return;
         var snapshot = _view.TextSnapshot;
         var settings = _state.Settings;
-        var pair = _state.Snapshot == snapshot ? _state.RangePair : null;
+        var source = _state.Snapshot;
+        var pair = source is null ? null : _state.RangePair;
 
         var nextTags = new List<ITagSpan<TextMarkerTag>>(1);
         if (pair is not null)
         {
-            var sameLine = snapshot.GetLineNumberFromPosition(pair.Span.Start) ==
-                snapshot.GetLineNumberFromPosition(pair.Span.End - 1);
-            if (BlockDisplayRules.ShowRange(settings, sameLine, SystemParameters.HighContrast))
-                nextTags.Add(new TagSpan<TextMarkerTag>(new SnapshotSpan(snapshot, pair.Span.Start, pair.Span.Length), Range));
+            var span = BlockProjection.Project(source!, pair.Span, snapshot);
+            // 同行判定沿用解析當時的 snapshot，打字期間不會因為換行而改變這一輪的塗色範圍。
+            var sameLine = source!.GetLineNumberFromPosition(pair.Span.Start) ==
+                source.GetLineNumberFromPosition(pair.Span.End - 1);
+            if (!span.IsEmpty && BlockDisplayRules.ShowRange(settings, sameLine, SystemParameters.HighContrast))
+                nextTags.Add(new TagSpan<TextMarkerTag>(span, Range));
         }
         var next = nextTags.ToArray();
         var previous = _tags;

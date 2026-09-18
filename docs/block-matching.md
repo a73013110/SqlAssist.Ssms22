@@ -20,6 +20,9 @@
 分割檢視共用解析但各自選擇高亮；停止輸入 150 ms 後在背景取全文與重算。
 同一 buffer 最多一份 ScriptDom 解析進行中，過期結果不得發布。官方 tokenizer
 沒有取消 API，因此已進入其中的呼叫要等它返回，但不會阻塞 UI。
+文字變更不清空上一份配對，改標記 stale 並由 `BlockProjection` 沿 `ITextVersion` 平移座標，
+新解析回來才原子替換；否則每個按鍵都會先呈現「沒有配對」，閃爍週期等於 debounce 設定。
+代價是編輯真的破壞配對時，高亮多撐一個 debounce 週期才消失。
 `BlockAnalysisWorker` 負責有界排程；`BlockViewState` 合併游標與設定通知。
 最後一個檢視／buffer tagger 釋放時取消工作、移除設定與 buffer 事件；`GetTags` 不解析文字。
 結構 Tag 使用 `GetIntersectingBlocks` 查詢要求範圍，約 O(log n + 命中數)，不逐頁掃全文。

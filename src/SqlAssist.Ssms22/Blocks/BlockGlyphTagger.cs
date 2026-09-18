@@ -87,8 +87,10 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
     public IEnumerable<ITagSpan<BlockGlyphTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
         var selection = _selection;
-        if (selection is null || spans.Count == 0 || spans[0].Snapshot != selection.Range.Snapshot) yield break;
-        var range = selection.Range;
+        if (selection is null || spans.Count == 0) yield break;
+        // 平台可能在 LayoutChanged 之前就以新 snapshot 取 Tag；就地平移才不會缺一格畫面。
+        var range = BlockProjection.Project(selection.Range, spans[0].Snapshot);
+        if (range.IsEmpty) yield break;
         var tag = selection.Tag;
         var seen = new HashSet<int>();
         foreach (var requested in spans)
@@ -118,11 +120,16 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
         var previous = _selection?.Range;
         SnapshotSpan? next = null;
         var pair = _state.RangePair ?? _state.ContextPair;
-        if (_state.Settings.BlockGlyphs && pair is not null && _state.Snapshot is { } snapshot)
+        if (_state.Settings.BlockGlyphs && pair is not null && _state.Snapshot is { } source)
         {
-            var first = snapshot.GetLineFromPosition(pair.Span.Start);
-            var last = snapshot.GetLineFromPosition(pair.Span.End - 1);
-            next = new SnapshotSpan(snapshot, Span.FromBounds(first.Start.Position, last.EndIncludingLineBreak.Position));
+            var span = BlockProjection.Project(source, pair.Span, _view.TextSnapshot);
+            if (!span.IsEmpty)
+            {
+                var first = span.Start.GetContainingLine();
+                var last = (span.End - 1).GetContainingLine();
+                next = new SnapshotSpan(span.Snapshot,
+                    Span.FromBounds(first.Start.Position, last.EndIncludingLineBreak.Position));
+            }
         }
         if (previous == next && (pair is null || _selection?.Tag.Kind == pair.Kind)) return;
         _selection = next is { } range && pair is not null ? new Selection(range, new BlockGlyphTag(pair.Kind,

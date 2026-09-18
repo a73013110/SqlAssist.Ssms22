@@ -64,9 +64,14 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
     public IEnumerable<ITagSpan<ClassificationTag>> GetTags(NormalizedSnapshotSpanCollection spans)
     {
         // GetTags 至多檢查四個端點；沒有 SQL 解析、取色或平台服務查詢。
+        if (spans.Count == 0) yield break;
         foreach (var tag in _tags)
-            if (spans.Count > 0 && spans[0].Snapshot == tag.Span.Snapshot && spans.IntersectsWith(tag.Span))
-                yield return tag;
+        {
+            // 平台可能在 LayoutChanged 之前就以新 snapshot 取 Tag；就地平移才不會缺一格畫面。
+            var span = BlockProjection.Project(tag.Span, spans[0].Snapshot);
+            if (span.IsEmpty || !spans.IntersectsWith(span)) continue;
+            yield return span == tag.Span ? tag : new TagSpan<ClassificationTag>(span, tag.Tag);
+        }
     }
 
     /// <summary>
@@ -115,12 +120,15 @@ internal sealed class BlockEndpointTagger : ITagger<ClassificationTag>, IDisposa
     {
         if (_disposed || _view.IsClosed) return;
         var snapshot = _view.TextSnapshot;
-        var pair = _state.Settings.BlockKeywordHighlight && _state.Snapshot == snapshot ? _state.SelectedPair : null;
+        var source = _state.Snapshot;
+        var pair = _state.Settings.BlockKeywordHighlight && source is not null ? _state.SelectedPair : null;
         var keyword = _keyword;
         var symbol = _symbol;
-        var next = pair is null || keyword is null || symbol is null ? Array.Empty<ITagSpan<ClassificationTag>>() :
-            pair.Opening.Concat(pair.Closing).Select(span => (ITagSpan<ClassificationTag>)new TagSpan<ClassificationTag>(
-                new SnapshotSpan(snapshot, span.Start, span.Length), BlockDisplayRules.IsSymbol(pair.Kind) ? symbol : keyword)).ToArray();
+        var next = pair is null || source is null || keyword is null || symbol is null ? Array.Empty<ITagSpan<ClassificationTag>>() :
+            pair.Opening.Concat(pair.Closing).Select(span => BlockProjection.Project(source, span, snapshot))
+                .Where(span => !span.IsEmpty)
+                .Select(span => (ITagSpan<ClassificationTag>)new TagSpan<ClassificationTag>(
+                    span, BlockDisplayRules.IsSymbol(pair.Kind) ? symbol : keyword)).ToArray();
         if (_tags.Length == next.Length && _tags.Select(t => (t.Span, t.Tag)).SequenceEqual(next.Select(t => (t.Span, t.Tag)))) return;
         var old = _tags;
         _tags = next;

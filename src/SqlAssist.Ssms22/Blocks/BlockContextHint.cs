@@ -45,6 +45,7 @@ internal sealed class BlockContextHint : IDisposable
     private bool _disposed;
     private BlockPair? _shownPair;
     private ITextSnapshot? _shownSnapshot;
+    private int _shownLine = -1;
 
     public BlockContextHint(IWpfTextView view, IOutliningManagerService? outlining)
     {
@@ -69,12 +70,14 @@ internal sealed class BlockContextHint : IDisposable
     {
         if (_disposed || _view.IsClosed) return;
         var pair = _state.ContextPair;
-        var snapshot = _state.Snapshot;
-        if (!_state.Settings.BlockContextHint || pair is null || snapshot is null || snapshot != _view.TextSnapshot ||
+        var source = _state.Snapshot;
+        if (!_state.Settings.BlockContextHint || pair is null || source is null ||
             _view.InLayout || _view.TextViewLines is null || _view.TextViewLines.Count == 0)
         { Hide(); return; }
+        // 起始行取平移後的位置，打字期間摘要與行號才跟著目前文字走。
+        var snapshot = _view.TextSnapshot;
         var firstVisible = _view.TextViewLines.FirstVisibleLine.Start.GetContainingLine().LineNumber;
-        var opening = snapshot.GetLineFromPosition(pair.Span.Start);
+        var opening = BlockProjection.Project(source, pair.Span.Start, snapshot).GetContainingLine();
         if (opening.LineNumber >= firstVisible) { Hide(); return; }
         _layer ??= _view.GetAdornmentLayer(LayerName);
         if (_surface is null)
@@ -84,13 +87,14 @@ internal sealed class BlockContextHint : IDisposable
             VsThemeBrushes.Apply(_surface);
             EditorBlockTheme.Get(_view).Apply(_surface);
         }
-        if (_shownPair != pair || _shownSnapshot != snapshot)
+        if (_shownPair != pair || _shownSnapshot != source || _shownLine != opening.LineNumber)
         {
             _text!.Text = BlockContextText.Format(pair.Kind, opening.LineNumber + 1, ReadLine(snapshot, opening));
             AutomationProperties.SetName(_surface, "返回區塊起始行：" + _text.Text);
             _surface.ToolTip = _text.Text + "\n點擊返回起始行";
             _shownPair = pair;
-            _shownSnapshot = snapshot;
+            _shownSnapshot = source;
+            _shownLine = opening.LineNumber;
         }
         // 提示必須是不透明表面，不能讓底下 SQL 穿透而降低文字對比。
         _surface.Opacity = 1;
@@ -112,14 +116,14 @@ internal sealed class BlockContextHint : IDisposable
         // 主動點擊的失敗必須可見，不能以平台 Guard 靜默吞掉導覽錯誤。
         try
         {
-            // 文字若已改動，舊提示不得把游標送到另一段 SQL；等最新分析再允許跳轉。
             if (_disposed || _view.IsClosed) return;
-            if (_shownSnapshot != _view.TextSnapshot || _shownPair is not { } pair)
+            // 起始行沿版本鏈平移，舊提示才不會把游標送到另一段 SQL；提示已收起時才拒絕跳轉。
+            if (_shownSnapshot is not { } source || _shownPair is not { } pair)
             {
                 SqlAssistStatusBar.Show(ServiceProvider.GlobalProvider, "區塊已變更，請等待最新提示後再返回起始行。");
                 return;
             }
-            var point = new SnapshotPoint(_view.TextSnapshot, pair.Span.Start);
+            var point = BlockProjection.Project(source, pair.Span.Start, _view.TextSnapshot);
             // 按需展開包含目的地的原生摺疊，不掃描或展開整份查詢。
             _outlining?.GetOutliningManager(_view)?.ExpandAll(new SnapshotSpan(point, 0), _ => true);
             _view.Caret.MoveTo(point);
@@ -141,6 +145,7 @@ internal sealed class BlockContextHint : IDisposable
         _attached = false;
         _shownPair = null;
         _shownSnapshot = null;
+        _shownLine = -1;
     }
 
     private void OnClosed(object sender, EventArgs args) => SqlAssistPlatformGuard.Run("關閉跨頁區塊提示", Dispose);

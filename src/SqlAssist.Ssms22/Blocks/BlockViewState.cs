@@ -25,6 +25,9 @@ internal sealed class BlockViewState : IDisposable
     public SqlAssistSettings Settings { get; private set; } = SqlAssistSettingsStore.Current;
     public ITextSnapshot? Snapshot { get; private set; }
     public BlockMatcher? Matcher { get; private set; }
+
+    /// <summary>配對來自比目前文字舊的 snapshot；呈現層要平移座標而不是當成沒有配對。</summary>
+    public bool IsStale { get; private set; }
     public BlockPair? SelectedPair { get; private set; }
     public BlockPair? ContextPair { get; private set; }
     public BlockPair? RangePair { get; private set; }
@@ -65,17 +68,21 @@ internal sealed class BlockViewState : IDisposable
         var oldContext = ContextPair;
         var oldRange = RangePair;
         var oldSnapshot = Snapshot;
+        var oldStale = IsStale;
         var oldSettings = Settings;
         Settings = SqlAssistSettingsStore.Current;
-        Snapshot = _analysis.Snapshot?.Version == _view.TextSnapshot.Version ? _analysis.Snapshot : null;
+        // 版本不符不再判成無效：保留上一份索引並標記 stale，游標位置換算回它的座標系。
+        Snapshot = _analysis.Snapshot;
         Matcher = Snapshot is null ? null : _analysis.Matcher;
+        IsStale = Snapshot is not null && Snapshot.Version != _view.TextSnapshot.Version;
         var position = _view.Caret.Position.BufferPosition;
-        var valid = Snapshot == position.Snapshot && Settings.Enabled && Settings.BlockMatchingEnabled;
-        SelectedPair = valid ? Matcher?.FindPairAt(position.Position) : null;
+        var valid = Snapshot is not null && Settings.Enabled && Settings.BlockMatchingEnabled;
+        var lookup = valid ? BlockProjection.ToSource(position, Snapshot!) : 0;
+        SelectedPair = valid ? Matcher?.FindPairAt(lookup) : null;
         if (SelectedPair is { } selected && !BlockDisplayRules.IsKindEnabled(selected.Kind, Settings)) SelectedPair = null;
         ContextPair = valid && Matcher is { } matcher &&
             (Settings.BlockContextHint || Settings.BlockGlyphs || Settings.BlockOverview || Settings.BlockRangeBackground)
-            ? SelectedPair ?? BlockDisplayRules.FindContext(matcher, position.Position, Settings) : null;
+            ? SelectedPair ?? BlockDisplayRules.FindContext(matcher, lookup, Settings) : null;
         RangePair = null;
         if (valid && Matcher is { } rangeMatcher && Settings.BlockRangeBackground)
         {
@@ -83,13 +90,13 @@ internal sealed class BlockViewState : IDisposable
                 Snapshot!.GetLineNumberFromPosition(pair.Span.Start) != Snapshot.GetLineNumberFromPosition(pair.Span.End - 1);
             // 最近「符合背景設定」的一層：同行括號關閉時仍保留外層 BEGIN 的背景。
             RangePair = Settings.BlockRangeInside
-                ? ContextPair is { } context && Accepts(context) ? context : BlockDisplayRules.FindContext(rangeMatcher, position.Position, Settings, Accepts)
+                ? ContextPair is { } context && Accepts(context) ? context : BlockDisplayRules.FindContext(rangeMatcher, lookup, Settings, Accepts)
                 : SelectedPair is { } endpoint && Accepts(endpoint) ? endpoint : null;
         }
 
         // 同一端點內移動或同區塊內打量文字，不讓六個呈現層重建相同內容。
         if (change == BlockChange.Caret && oldSelected == SelectedPair && oldContext == ContextPair &&
-            oldRange == RangePair &&
+            oldRange == RangePair && oldStale == IsStale &&
             oldSnapshot == Snapshot && ReferenceEquals(oldSettings, Settings)) return;
 
         if (Changed is not { } handlers) return;
@@ -111,6 +118,7 @@ internal sealed class BlockViewState : IDisposable
         Changed = null;
         Matcher = null;
         Snapshot = null;
+        IsStale = false;
         SelectedPair = null;
         ContextPair = null;
         RangePair = null;
