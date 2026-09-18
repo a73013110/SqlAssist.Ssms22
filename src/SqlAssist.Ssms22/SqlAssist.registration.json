@@ -808,10 +808,19 @@
       "description": "重新讀取設定與套用到編輯器的結果回饋。",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
-    "sqlAssist.notifications.unclassified": {
+    "sqlAssist.notifications.sqlMemory": {
       "type": "boolean",
       "default": true,
       "order": 300,
+      "title": "SQL Memory",
+      "description": "啟用、整理、清除與備份 SQL Memory，以及擷取被略過與容量警戒這類事件。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "SQL Memory", "查詢紀錄", "收藏" ]
+    },
+    "sqlAssist.notifications.unclassified": {
+      "type": "boolean",
+      "default": true,
+      "order": 310,
       "title": "未分類",
       "description": "還沒歸類的工作。預設顯示，關掉之後新加入的工作可能整批安靜消失。",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",

@@ -14,6 +14,10 @@ SqlAssist 視窗（SQL Memory 工具窗與對話框）、最後用過的 SQL 編
 - `SqlAssistPlatformGuard.Begin` 追蹤一般背景工作，三軸由呼叫端明寫；初始化與 F12 在原有
   錯誤處理內接線。`BeginProbe` 不整批追蹤，避免週期性連線探測與無工作的預載呼叫反覆閃現
   提示——「重新確認連線」那一則由該處自己開，不改 `BeginProbe` 的行為。
+- 當下已經發生、沒有執行期間的事（擷取被丟棄、容量越過警戒）走 `NotificationCenter.Post`：
+  直接以完成狀態入列，不經過 Running，不成為環境父工作，也不被 `joinParent` 接手。上限、
+  合併、統計、最近失敗與詳細診斷和範圍釋放時同一條路徑。`Status` 只收已完成的結果，
+  傳 `Running` 擲例外；三軸與 `Status` 都沒有預設值。
 - 標題與完成後的敘述只有 `Core/Notifications/NotificationCatalog` 一份出處：標題是常數短語，
   物件限定名稱放 `Subject`，發起的文件放 `Document`，資料庫放 `Source`，呼叫端不組字串
   也不自己寫措辭。

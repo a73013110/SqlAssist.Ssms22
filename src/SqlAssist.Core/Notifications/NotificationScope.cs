@@ -33,12 +33,9 @@ public sealed class NotificationScope : IDisposable
     /// <summary>回報簡短進度訊息；呼叫端不得放入 SQL、路徑、認證或例外內容。</summary>
     public void Report(string message)
     {
-        // 限制常駐記憶體；已結束或合併的子工作不覆寫主要工作的訊息。
-        message ??= "";
+        // 已結束或合併的子工作不覆寫主要工作的訊息。
         if (!IsDisposed && _ownsItem)
-            _owner.Report(Id, message.Length > NotificationCenter.MessageLimit
-                ? message.Substring(0, NotificationCenter.MessageLimit)
-                : message);
+            _owner.Report(Id, NotificationCenter.Clip(message));
     }
 
     /// <summary>

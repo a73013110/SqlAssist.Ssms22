@@ -85,9 +85,10 @@ internal static class SqlMemoryHost
 
         // 走 Begin 而不是 BeginProbe：開不起來就是使用者打開了設定卻什麼都沒記到，
         // 那要看得見，不是可有可無的探測。開檔與建立 AppDomain 都在這條背景路徑上。
-        SqlAssistPlatformGuard.Begin(configuration.Enabled ? "啟用 SQL Memory" : "停用 SQL Memory",
+        SqlAssistPlatformGuard.Begin(
+            configuration.Enabled ? NotificationCatalog.EnablingSqlMemory : NotificationCatalog.DisablingSqlMemory,
             () => Runtime.ApplyAsync(configuration),
-            NotificationKind.Package, NotificationOrigin.Ambient, NotificationLevel.Info,
+            NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Info,
             document: string.Empty);
     }
 

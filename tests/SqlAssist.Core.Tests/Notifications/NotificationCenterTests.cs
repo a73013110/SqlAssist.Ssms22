@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SqlAssist.Core.Notifications;
+using SqlAssist.Core.Settings;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Notifications;
@@ -343,6 +344,116 @@ public sealed class NotificationCenterTests
         Assert.Equal(101, items.Count);
         Assert.Single(items, x => x.Status == NotificationStatus.Running);
         Assert.Equal("40", items[1].Subject);
+    }
+
+    [Fact]
+    public void 事件直接完成且不經過執行中()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var center = new NotificationCenter(() => now);
+        var changed = 0;
+        var completed = new List<NotificationItem>();
+        center.Changed += (_, _) => changed++;
+        center.Completed += completed.Add;
+        center.Post(NotificationCatalog.DroppingSqlCapture, NotificationKind.SqlMemory, NotificationOrigin.Ambient,
+            NotificationLevel.Notice, NotificationStatus.Degraded, subject: "dbo.Loan", document: "Loan.sql",
+            source: "LibArchive", message: new string('長', 600));
+
+        var item = Assert.Single(Read(center));
+        Assert.Equal(NotificationStatus.Degraded, item.Status);
+        Assert.Equal(now, item.Started);
+        Assert.Equal(now, item.Finished);
+        Assert.Equal("dbo.Loan", item.Subject);
+        Assert.Equal("Loan.sql", item.Document);
+        Assert.Equal("LibArchive", item.Source);
+        Assert.Equal(512, item.Message.Length);
+        Assert.Equal(1, changed);
+        Assert.Same(item, Assert.Single(completed));
+    }
+
+    [Fact]
+    public void 事件不寫環境父工作也不被巢狀查詢接手()
+    {
+        var center = new NotificationCenter();
+        using (Begin(center, NotificationCatalog.LoadingObjects))
+        {
+            center.Post(NotificationCatalog.ExceedingSqlMemoryCapacity, NotificationKind.SqlMemory,
+                NotificationOrigin.Ambient, NotificationLevel.Notice, NotificationStatus.Succeeded);
+            // 巢狀查詢仍然併進真正的父工作；事件那一列不因此降級。
+            using (var nested = Begin(center, NotificationCatalog.LoadingDatabases, joinParent: true)) nested.Fail();
+            Assert.Single(Read(center), x => x.Status == NotificationStatus.Running);
+        }
+
+        // 父工作結束後沒有殘留的環境工作：下一個 joinParent 自己開一列。
+        using (Begin(center, NotificationCatalog.LoadingColumns, joinParent: true)) { }
+        var items = Read(center);
+        Assert.Equal(3, items.Count);
+        Assert.Equal(NotificationStatus.Succeeded,
+            Assert.Single(items, x => x.Title == NotificationCatalog.ExceedingSqlMemoryCapacity).Status);
+        Assert.Equal(NotificationStatus.Degraded,
+            Assert.Single(items, x => x.Title == NotificationCatalog.LoadingObjects).Status);
+    }
+
+    [Fact]
+    public void 事件進統計且失敗進最近失敗()
+    {
+        var center = new NotificationCenter();
+        for (var i = 0; i < 3; i++)
+            center.Post(NotificationCatalog.BackingUpSqlMemory, NotificationKind.SqlMemory, NotificationOrigin.User,
+                NotificationLevel.Info, NotificationStatus.Failed);
+        center.Post(NotificationCatalog.DroppingSqlCapture, NotificationKind.SqlMemory, NotificationOrigin.Ambient,
+            NotificationLevel.Notice, NotificationStatus.Degraded);
+
+        var backup = Assert.Single(center.Digest.Snapshot(), x => x.Title == NotificationCatalog.BackingUpSqlMemory);
+        Assert.Equal(3, backup.Count);
+        Assert.Equal(3, backup.Failed);
+        Assert.Equal(1,
+            Assert.Single(center.Digest.Snapshot(), x => x.Title == NotificationCatalog.DroppingSqlCapture).Degraded);
+        Assert.Equal(3, center.RecentFailures.Count);
+        Assert.All(center.RecentFailures, x => Assert.Equal(NotificationCatalog.BackingUpSqlMemory, x.Title));
+    }
+
+    [Fact]
+    public void 重複事件合併成一列且與範圍共用上限()
+    {
+        var center = new NotificationCenter();
+        using var running = Begin(center, NotificationCatalog.LoadingObjects);
+        for (var i = 0; i < 140; i++)
+            center.Post(NotificationCatalog.DroppingSqlCapture, NotificationKind.SqlMemory, NotificationOrigin.Ambient,
+                NotificationLevel.Notice, NotificationStatus.Degraded, document: "Loan.sql");
+
+        var items = center.Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue);
+        Assert.Equal(101, items.Count);
+        var merged = NotificationMerge.Collapse(items);
+        Assert.Equal(2, merged.Count);
+        Assert.Equal(100, Assert.Single(merged, x => x.Title == NotificationCatalog.DroppingSqlCapture).Repeat);
+    }
+
+    [Fact]
+    public void 事件受種類開關控制()
+    {
+        var center = new NotificationCenter();
+        center.Post(NotificationCatalog.CompactingSqlMemory, NotificationKind.SqlMemory, NotificationOrigin.User,
+            NotificationLevel.Notice, NotificationStatus.Succeeded);
+        var item = Assert.Single(Read(center));
+        Assert.True(NotificationVisibility.Includes(item, new SqlAssistSettings()));
+        var off = new SqlAssistSettings
+        {
+            NotificationKinds = NotificationKindSwitches.Defaults.With(NotificationKind.SqlMemory, false),
+        };
+        Assert.False(NotificationVisibility.Includes(item, off));
+    }
+
+    [Theory]
+    [InlineData(NotificationStatus.Running)]
+    [InlineData((NotificationStatus)99)]
+    public void 事件拒絕未完成的狀態(NotificationStatus status)
+    {
+        var center = new NotificationCenter();
+        Assert.Throws<ArgumentOutOfRangeException>(() => center.Post(NotificationCatalog.DroppingSqlCapture,
+            NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice, status));
+        Assert.Empty(Read(center));
+        Assert.Empty(center.Digest.Snapshot());
     }
 
     /// <summary>

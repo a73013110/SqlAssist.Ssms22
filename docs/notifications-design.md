@@ -18,7 +18,7 @@
 
 | 軸 | 值 | 用途 |
 |---|---|---|
-| `NotificationKind` | Metadata、Completion、Analysis、Preview、Editing、Navigation、Results、Snippets、Settings、Package、Unclassified | 子系統；十一類各有一格開關 |
+| `NotificationKind` | Metadata、Completion、Analysis、Preview、Editing、Navigation、Results、Snippets、Settings、Package、SqlMemory、Unclassified | 子系統；十二類各有一格開關 |
 | `NotificationOrigin` | User、Typing、Ambient、Startup | 觸發來源；決定跨不跨得過降噪門檻 |
 | `NotificationLevel` | Trace、Debug、Info、Notice | 詳細度門檻 |
 
@@ -38,11 +38,11 @@
 `Kind` 排在 `Origin` 之前是第二次改的結果。原本 `User` 先放行，於是 Editing、
 Navigation、Results、Snippets、Settings 這幾類的開關按了不會怎樣——它們的通知全由使用者
 觸發。當時的結論是那幾類乾脆不給旋鈕，但只給一半更糟：使用者分不出「這裡沒有開關」與
-「開關失效」。改成種類先問，十一格就都管得住自己那一類，`Origin` 與 `Level` 退回只管
+「開關失效」。改成種類先問，每一格就都管得住自己那一類，`Origin` 與 `Level` 退回只管
 降噪門檻。
 
 Kind 開關以 `(Kind, moniker, 預設值, 標題)` 集中成 `NotificationKindToggle.All` 一張表，
-十一類都有 moniker，新增一類只動註冊檔與該表：`SqlAssistSettings` 存
+每一類都有 moniker，新增一類只動註冊檔與該表：`SqlAssistSettings` 存
 `NotificationKindSwitches` 位元遮罩、
 `SqlAssistMonikers.All` 把表上的 moniker 併進來，兩邊都不逐項寫。逐項屬性的版本要同時動
 POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有編譯錯誤。
@@ -66,6 +66,21 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 診斷**統計**不受可見度影響：`Trace`、快取命中與被隱藏的一樣計入，依
 `(Kind, Title, Subject)` 累計次數、總耗時、平均、最大、失敗與降級數，有上限並併入
 「其他」。只開詳細度而不做統計答不出「哪些動作在重複」——畫面只會一片閃爍。
+
+## 事件不借用範圍
+
+「擷取被丟棄」「容量超過警戒」在通知之前就發生完了。用 `Begin` 開了立刻關有三個症狀：
+先冒出一列執行中再改寫，`Changed` 發兩次；`Begin` 寫入環境父工作，同一刻 `joinParent`
+的巢狀查詢會併進這一列，查詢失敗還把事件標成降級；耗時永遠是雜訊。`BeginDetached` 解掉
+第二項，前後兩項還在。
+
+`Post` 直接建立已完成的項目，完成後的帳（計數、版本、最近失敗、上限）與鎖外的統計、
+診斷、變更事件抽成 `Settle`／`Announce` 兩個私有方法，`Finish` 與 `Post` 共用。
+各寫一份的話，下次在完成路徑上加一項紀錄時，事件那一份會安靜地漏掉。
+
+`Status` 不給預設值：事件的結果就是它要說的事，與三軸同理。`Running` 擋下是因為沒有範圍
+可以釋放，那一列會永遠停在執行中。種類遮罩取列舉序數，在中間插入 `SqlMemory` 讓
+`Unclassified` 的位元位移；遮罩從不落地，存下來的是每一類自己的 moniker，所以不必搬遷。
 
 ## 命名對照
 
