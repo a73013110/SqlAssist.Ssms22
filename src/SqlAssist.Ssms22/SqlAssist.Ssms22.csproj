@@ -178,6 +178,17 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.RegSvrEnum.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!--
+      物件總管的節點交出來的連線是 SqlOlapConnectionInfoBase／SqlConnectionInfo，
+      兩個型別在這個組件裡。SQL Search 的伺服器下拉靠它把 SSMS 已經連好的那組認證
+      （含 SQL 驗證的密碼與 Entra 的 access token）變成一條全新的 IDbConnection。
+      不必跟著參考 Microsoft.Data.SqlClient：CreateConnectionObject() 宣告的是
+      IDbConnection，現有的 System.Data 就夠。
+    -->
+    <Reference Include="Microsoft.SqlServer.ConnectionInfo">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.ConnectionInfo.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="System.Data" />
     <Reference Include="System.Design" />
     <!-- 檢查更新只問一個 HTTPS 端點；net48 自帶這一份，不從 NuGet 帶副本進 VSIX。 -->
@@ -247,5 +258,6 @@
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Editor.dll')" Text="找不到 Microsoft.VisualStudio.Editor，無法取得 SSMS 文字緩衝區介面。請確認 SsmsInstallDir 指向 SSMS 22。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\SqlWorkbench.Interfaces.dll')" Text="找不到 SqlWorkbench.Interfaces，取不到 SSMS 的連線與查詢視窗服務。請確認 SsmsInstallDir 指向 SSMS 22。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.RegSvrEnum.dll')" Text="找不到 Microsoft.SqlServer.RegSvrEnum，F12 另開查詢視窗無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />
+    <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\Microsoft.SqlServer.ConnectionInfo.dll')" Text="找不到 Microsoft.SqlServer.ConnectionInfo，取不到物件總管的連線資訊。請確認 SsmsInstallDir 指向 SSMS 22。" />
   </Target>
 </Project>

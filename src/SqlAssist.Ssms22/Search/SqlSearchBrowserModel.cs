@@ -98,6 +98,7 @@ internal sealed class SqlSearchFilterChip
 internal enum SqlSearchFilterKind
 {
     Category,
+    Server,
     Database,
     MatchCasing,
     WholeWord
@@ -157,6 +158,14 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>沒有指名資料庫時，按鈕上顯示的字。</summary>
     public const string CurrentConnectionLabel = "目前連線";
 
+    /// <summary>沒有指名伺服器時，伺服器按鈕上顯示的字。</summary>
+    /// <remarks>
+    /// 與 <see cref="CurrentConnectionLabel"/> 分開：資料庫那一顆說的是「跟著這條連線的
+    /// 資料庫」，伺服器這一顆說的是「跟著作用中的那個查詢視窗」——切換分頁會換一台，
+    /// 而兩句話寫成同一句的話，使用者分不出哪一顆在跟著誰走。
+    /// </remarks>
+    public const string ActiveEditorServerLabel = "查詢視窗";
+
     /// <summary>
     /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
     /// </summary>
@@ -207,6 +216,18 @@ internal sealed class SqlSearchBrowserModel
 
     /// <summary>目前有沒有可以搜的連線；沒有時整輪不開始，畫面走「尚未連線」的空狀態。</summary>
     public bool HasConnection { get; set; }
+
+    /// <summary>
+    /// 指名的伺服器顯示名稱；null 表示跟著作用中的查詢視窗。
+    /// </summary>
+    /// <remarks>
+    /// 只存<b>名稱</b>，不存伺服器物件也不存連線：這一層是純邏輯，連線由
+    /// <c>SqlSearchCatalogs</c> 負責，而名稱是摘要、chip 與空狀態唯一要用到的東西。
+    /// 指名的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格是給連結伺服器
+    /// （四段式名稱）的，而換一台物件總管上的伺服器換的是整份目錄。混用的症狀是
+    /// provider 看到指名的伺服器就整輪不回結果。
+    /// </remarks>
+    public string? Server { get; set; }
 
     /// <summary>目前勾選的分類；空表示不過濾。</summary>
     public IReadOnlyCollection<string> CategoryIds => _categoryIds;
@@ -327,6 +348,9 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
     public string CategorySummary() => Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel());
 
+    /// <summary>伺服器按鈕上的摘要；沒有指名時說的是「跟著查詢視窗」。</summary>
+    public string ServerSummary() => Server ?? ActiveEditorServerLabel;
+
     /// <summary>資料庫按鈕上的摘要。</summary>
     public string DatabaseSummary() =>
         Summarize(_databases.Count, CurrentConnectionLabel, _databases.Count == 1 ? _databases[0] : null);
@@ -341,6 +365,14 @@ internal sealed class SqlSearchBrowserModel
     public IReadOnlyList<SqlSearchFilterChip> Chips()
     {
         var chips = new List<SqlSearchFilterChip>();
+
+        // 伺服器排在最前面，而且只在指名時出現：它是範圍最外面那一圈，換掉之後清單上
+        // 每一筆的來源都變了。沒有這一顆的話，使用者切到別的查詢視窗會以為自己還在搜
+        // 原本那一台——而兩台上同名的物件看起來一模一樣。
+        if (Server is { Length: > 0 } server)
+        {
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Server, server, "伺服器: " + server));
+        }
 
         // 依分類清單的宣告順序輸出，不依使用者勾選的先後：勾選順序會讓同一組條件每次
         // 排出不同的 chip 順序，而那看起來像是條件自己變了。
@@ -371,6 +403,12 @@ internal sealed class SqlSearchBrowserModel
         {
             case SqlSearchFilterKind.Category:
                 return chip.Value is { } category && SetCategorySelected(category, selected: false);
+            case SqlSearchFilterKind.Server:
+                // 只清名稱；真的換回查詢視窗那一台是 SqlSearchCatalogs 的事，
+                // 由呼叫端在收到 true 之後一起做。
+                if (Server is null) return false;
+                Server = null;
+                return true;
             case SqlSearchFilterKind.Database:
                 return chip.Value is { } database && SetDatabaseSelected(database, selected: false);
             case SqlSearchFilterKind.MatchCasing:
@@ -546,7 +584,15 @@ internal sealed class SqlSearchBrowserModel
     public string EmptyState(int rowCount)
     {
         if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
-        if (!HasConnection) return "尚未連線。在 SQL 查詢視窗連上資料庫之後，這裡才有東西可以搜。";
+        // 指名了伺服器卻沒有目錄，是那一台連不上，不是「還沒連線」；叫使用者去開查詢視窗
+        // 只會讓他做一件解決不了的事。
+        if (!HasConnection)
+        {
+            return Server is { Length: > 0 } server
+                ? $"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。"
+                : "尚未連線。在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。";
+        }
+
         if (rowCount > 0 || IsRunning) return "";
         if (Text.Length == 0) return "輸入關鍵字，搜尋這個資料庫的物件名稱、資料行與定義本文。";
         return _hasResult && !_pending ? "沒有相符項目。" : "";

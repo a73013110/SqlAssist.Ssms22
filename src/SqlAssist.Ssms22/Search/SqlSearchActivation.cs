@@ -6,7 +6,6 @@ using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Search;
-using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 
 namespace SqlAssist.Ssms22.Search;
@@ -21,8 +20,9 @@ namespace SqlAssist.Ssms22.Search;
 /// 任何一處 UI 自己向下轉型 <see cref="SearchHit.ActivatePayload"/> 都會把這個代價
 /// 從「多一個分支」變回「改整份樣板」。
 ///
-/// 目錄物件接的是 F12 那一條既有路徑，不另建第二條：
-/// <see cref="SqlMetadataService.GetStructureAsync"/> 取結構，
+/// 目錄物件接的是 F12 那一條既有路徑，不另建第二條：目錄向
+/// <see cref="SqlSearchCatalogs"/> 要（與清單、預覽同一份），
+/// <c>SqlMetadataCatalog.GetStructureAsync</c> 取結構，
 /// <see cref="SqlDefinitionScript"/> 組指令碼並開進新的查詢視窗。
 ///
 /// <b>沒有接上結構預覽。</b>浮動結構預覽掛在編輯器自己的空間保留管理員上，
@@ -69,10 +69,12 @@ internal static class SqlSearchActivation
     /// <see cref="SqlCatalogSearchTarget.DatabaseName"/>，<c>object_id</c> 只在那個資料庫裡
     /// 唯一，所以先組出帶資料庫的 <see cref="SqlObjectInfo"/>，再讓中繼資料層換目錄。
     /// </remarks>
-    public static async Task<string?> ActivateAsync(SearchHit hit, IServiceProvider services)
+    public static async Task<string?> ActivateAsync(
+        SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
     {
         if (hit is null) throw new ArgumentNullException(nameof(hit));
         if (services is null) throw new ArgumentNullException(nameof(services));
+        if (catalogs is null) throw new ArgumentNullException(nameof(catalogs));
 
         if (hit.ActivatePayload is not SqlCatalogSearchTarget target)
         {
@@ -81,8 +83,16 @@ internal static class SqlSearchActivation
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-        // 中繼資料服務是每個查詢視窗一份，連線也在那裡；沒有查詢視窗就沒有連線可沿用，
-        // 而 SSMS 的新查詢視窗一定要帶著一組連線資訊才開得起來。
+        // 新視窗沿用的是查詢視窗那一條連線。指名了別台伺服器時，那份定義會落在一個連著
+        // 另一台伺服器的視窗裡——使用者在那裡按 F5 就是對錯的伺服器執行。
+        // 這一步<b>不</b>悄悄照做：右邊的預覽已經讀得到完整定義，而開錯視窗看不出差別。
+        if (!catalogs.FollowsActiveEditor)
+        {
+            return $"這一筆在 {catalogs.Server?.DisplayName} 上。新查詢視窗只沿用得到目前查詢視窗那條連線，" +
+                "請先把查詢視窗連到那一台，或直接看右邊的定義預覽。";
+        }
+
+        // 沒有查詢視窗就沒有連線可沿用，而 SSMS 的新查詢視窗一定要帶著一組連線資訊才開得起來。
         var view = ActiveSqlEditor.Current;
 
         if (view is null)
@@ -90,7 +100,6 @@ internal static class SqlSearchActivation
             return "請先開啟一個已連線的 SQL 查詢視窗，新視窗才有連線可以沿用。";
         }
 
-        var metadataService = SqlCompletionServices.GetMetadataService(view, services);
         var objectInfo = new SqlObjectInfo(
             target.ObjectId,
             target.SchemaName,
@@ -98,6 +107,13 @@ internal static class SqlSearchActivation
             target.Kind,
             target.DatabaseName);
         var documentName = ActiveSqlEditor.GetDocumentName(view);
+
+        // 取結構與預覽走同一份目錄（同一個 SqlSearchCatalogs），不另問中繼資料服務：
+        // 兩邊各問一次的症狀是預覽與新視窗的內容來自不同的地方。
+        if (catalogs.ResolveFor(objectInfo) is not { } catalog)
+        {
+            return $"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。";
+        }
 
         using var notification = NotificationCenter.Default.Begin(
             NotificationCatalog.GoingToDefinition,
@@ -110,7 +126,7 @@ internal static class SqlSearchActivation
         // Task.Run 而不是直接 await：GetStructureAsync 在第一個 await 之前是同步跑的，
         // 留在 UI 執行緒上就是第四層查詢的準備工作卡住畫面。
         var structure = await Task
-            .Run(() => metadataService.GetStructureAsync(objectInfo, CancellationToken.None, NotificationOrigin.User))
+            .Run(() => catalog.GetStructureAsync(objectInfo, CancellationToken.None, NotificationOrigin.User))
             .ConfigureAwait(false);
 
         if (structure is null)

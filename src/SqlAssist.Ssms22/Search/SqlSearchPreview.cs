@@ -48,9 +48,9 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private CancellationTokenSource _read = new();
     private bool _disposed;
 
-    public SqlSearchPreview(IServiceProvider services)
+    public SqlSearchPreview(SqlSearchCatalogs catalogs)
     {
-        _loader = new SqlSearchDefinitionLoader(services);
+        _loader = new SqlSearchDefinitionLoader(catalogs);
 
         _copyName = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製限定名稱");
         _copyName.Click += (_, _) => CopyRequested?.Invoke(this, EventArgs.Empty);

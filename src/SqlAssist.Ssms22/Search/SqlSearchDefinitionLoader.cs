@@ -8,9 +8,6 @@ using SqlAssist.Core.Notifications;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Search;
-using SqlAssist.Ssms22.Completion;
-using SqlAssist.Ssms22.Connections;
-using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Search;
@@ -20,21 +17,23 @@ namespace SqlAssist.Ssms22.Search;
 /// </summary>
 /// <remarks>
 /// 與 <see cref="SqlSearchActivation"/> 同一條路徑、同一組出處：
-/// <see cref="SqlMetadataService.GetStructureAsync"/> 取第三／四層，
+/// <c>SqlMetadataCatalog.GetStructureAsync</c> 取第三／四層，
 /// <see cref="SqlObjectScript"/> 組指令碼（排版仍只有 <see cref="TSqlScriptRenderer"/> 一份）。
 /// 差別只在選項——這裡是唯讀的閱讀表面，用預覽那一組；F12 那一條要拿去執行，多蓋三項。
 ///
 /// <b>禁止</b>持有 <c>ISqlConnectionSource</c>：所有權在 <c>SqlMetadataCatalogRegistry</c>，
-/// 換資料庫由 <see cref="SqlMetadataService"/> 照 <see cref="SqlObjectInfo.DatabaseName"/> 換目錄。
+/// 目錄一律向 <see cref="SqlSearchCatalogs"/> 要——清單搜哪一台，這裡就讀哪一台。
+/// 自己去問作用中查詢視窗的症狀是：使用者指名了別台伺服器，清單來自那一台，
+/// 預覽卻畫著查詢視窗那台同號的物件，而兩份看起來都很正常。
 /// 查不到就說查不到，<b>禁止</b>退回拿目前連線裡同名的物件回答。
 /// </remarks>
 internal sealed class SqlSearchDefinitionLoader
 {
-    private readonly IServiceProvider _services;
+    private readonly SqlSearchCatalogs _catalogs;
     private readonly SqlSearchDefinitionCache _cache = new();
 
-    internal SqlSearchDefinitionLoader(IServiceProvider services) =>
-        _services = services ?? throw new ArgumentNullException(nameof(services));
+    internal SqlSearchDefinitionLoader(SqlSearchCatalogs catalogs) =>
+        _catalogs = catalogs ?? throw new ArgumentNullException(nameof(catalogs));
 
     internal void Clear() => _cache.Clear();
 
@@ -53,23 +52,23 @@ internal sealed class SqlSearchDefinitionLoader
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         // object_id 只在它自己那個資料庫裡唯一；快取鍵少了資料庫名，跨資料庫的兩個物件
-        // 剛好同號時會互相冒充，而那份定義看起來完全正常。
-        var key = target.DatabaseName + "\u0001" +
+        // 剛好同號時會互相冒充，而那份定義看起來完全正常。伺服器同理，而且更嚴重——
+        // 跨伺服器的同一個編號毫無關係，少了它，換過伺服器之後上一台那份會原封冒充。
+        var key = _catalogs.Server?.RootUrn + "\u0001" + target.DatabaseName + "\u0001" +
             target.ObjectId.ToString(CultureInfo.InvariantCulture);
 
         if (_cache.TryGet(key, out var cached)) return new SqlSearchDefinitionText(cached, null);
 
-        // 中繼資料服務是每個查詢視窗一份，連線也在那裡；沒有查詢視窗就沒有連線可以問。
-        var view = ActiveSqlEditor.Current;
-
-        if (view is null)
-        {
-            return new SqlSearchDefinitionText("", "請先開啟一個已連線的 SQL 查詢視窗，才讀得到物件定義。");
-        }
-
-        var metadataService = SqlCompletionServices.GetMetadataService(view, _services);
         var objectInfo = new SqlObjectInfo(
             target.ObjectId, target.SchemaName, target.Name, target.Kind, target.DatabaseName);
+
+        // 清單搜哪一台，這裡就讀哪一台；換資料庫的規則與查詢視窗那條路徑共用同一份。
+        if (_catalogs.ResolveFor(objectInfo) is not { } catalog)
+        {
+            return new SqlSearchDefinitionText("", _catalogs.FollowsActiveEditor
+                ? "請先開啟一個已連線的 SQL 查詢視窗，才讀得到物件定義。"
+                : $"連不上 {_catalogs.Server?.DisplayName}，物件總管上那一台可能已經中斷。");
+        }
 
         SqlObjectStructure? structure;
 
@@ -79,7 +78,7 @@ internal sealed class SqlSearchDefinitionLoader
             // 留在 UI 執行緒上就是第四層查詢的準備工作卡住畫面。
             structure = await Task
                 .Run(
-                    () => metadataService.GetStructureAsync(
+                    () => catalog.GetStructureAsync(
                         objectInfo, cancellationToken, NotificationOrigin.Typing),
                     cancellationToken)
                 .ConfigureAwait(false);
