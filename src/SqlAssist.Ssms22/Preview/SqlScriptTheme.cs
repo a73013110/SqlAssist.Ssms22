@@ -145,7 +145,33 @@ internal sealed class SqlScriptTheme : IDisposable
         SetBrush(ScriptResource.Comment, comment);
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
+        SetBrush(ScriptResource.Highlight, Highlight(comment, background));
         Updated?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>命中底色：由主題強調色推導，對著<b>這一份指令碼</b>的底色與最淡的前景校正。</summary>
+    /// <remarks>
+    /// 不直接用 <see cref="ThemeBrush.AccentBackground"/>：那一份是對著工具窗的底色算的，
+    /// 而指令碼的底色借自 SSMS 編輯器，兩者在深色主題下不一定相同——拿錯基準的症狀是
+    /// 高亮幾乎看不見，而使用者會以為命中位置根本沒有標出來。
+    ///
+    /// 傳進去的前景是註解色，那是這幾種著色裡最淡的一個：它在高亮上讀得到，其餘就都讀得到。
+    /// 高對比不必另外判斷——強調色在那時候已經等於前景色，校正過的結果本來就是實色反白。
+    /// </remarks>
+    private static Brush Highlight(Brush foreground, Brush background)
+    {
+        var accent = VsThemeBrushes.Get(ThemeBrush.AccentBorder);
+
+        if (accent is not SolidColorBrush tint || foreground is not SolidColorBrush text ||
+            background is not SolidColorBrush surface)
+        {
+            return accent;
+        }
+
+        // 先鋪一層半透明的強調色，再讓校正決定要往黑還是往白走；直接給實色會蓋掉語法著色。
+        var candidate = Color.FromArgb(0x59, tint.Color.R, tint.Color.G, tint.Color.B);
+        return new SolidColorBrush(
+            ThemeColorMath.EnsureBackgroundForText(candidate, text.Color, surface.Color));
     }
 
     private static Brush Resolve(

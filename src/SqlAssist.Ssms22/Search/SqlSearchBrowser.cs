@@ -57,7 +57,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly Dictionary<string, string> _categoryLabels = new(StringComparer.Ordinal);
     private readonly IReadOnlyList<SqlSearchCategoryOption> _categoryOptions;
     private readonly SqlSearchList _list = new();
-    private readonly SqlSearchPreview _preview = new();
+    private readonly SqlSearchPreview _preview;
     private readonly SqlMemorySplitView _splitView;
     private readonly SqlLoadingSurface _loading;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
@@ -96,6 +96,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     public SqlSearchBrowser(IServiceProvider services)
     {
         _services = services;
+        // 預覽要自己向中繼資料服務要定義，所以拿得到服務容器才建得起來；欄位初始設定式跑在
+        // 建構式本體之前，那時候 _services 還是 null。
+        _preview = new SqlSearchPreview(services);
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Categories);
         _model.UseCategories(_categoryOptions);
@@ -182,6 +185,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _settleTimer.Stop();
         _request.Cancel();
         _request.Dispose();
+        _preview.Dispose();
     }
 
     /// <summary>
@@ -224,7 +228,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         ConfigureServer();
         ConfigureSort();
 
-        _refresh.Click += (_, _) => Run(() => { _providers.Invalidate(); Changed(immediate: true); });
+        _refresh.Click += (_, _) => Run(() =>
+        {
+            _providers.Invalidate();
+            // 索引與定義一起丟：只丟索引的話，改過的預存程序在清單上換了位置，
+            // 預覽卻還畫著改之前那一份，而畫面上看不出那個差別。
+            _preview.InvalidateDefinitions();
+            Changed(immediate: true);
+        });
 
         // 排序與重新整理排在分段開關右邊：兩顆都是圖示鈕，窄窗跟著分段開關一起換到第二列。
         return new SqlSearchToolbar(bar, _segments, new[] { _server, _databases, _kinds }, _sort, _refresh);
@@ -438,6 +449,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _model.HasConnection = catalog is not null;
         _server.IsEnabled = catalog is not null;
         _databases.IsEnabled = catalog is not null;
+
+        // 換過查詢視窗就可能換了伺服器；上一台的定義留著會冒充這一台同號的物件。
+        if (reload) _preview.InvalidateDefinitions();
 
         if (reload && IsVisible) Changed(immediate: true);
         else UpdateChrome();
