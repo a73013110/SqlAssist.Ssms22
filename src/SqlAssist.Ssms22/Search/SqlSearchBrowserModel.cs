@@ -214,6 +214,55 @@ internal sealed class SqlSearchBrowserModel
     /// </remarks>
     public SearchTargets Targets { get; set; } = SearchTargets.All;
 
+    /// <summary>
+    /// 「怎麼比對」那三項收成一個字串，交給狀態存放區跨工作階段記住。
+    /// </summary>
+    /// <remarks>
+    /// 一個字串而不是三個狀態項：三項各記一次的話，只有其中一項寫成功的那一次會半套還原，
+    /// 而畫面上分不出是記壞了還是使用者上次真的這樣設。格式是
+    /// <c>比對位置|大小寫|全字</c>，三段都是十進位整數。
+    ///
+    /// 記住的只有這三項。伺服器與資料庫綁在一條連線上，種類是一次調查裡的收斂，
+    /// 兩者都不記——理由見 docs/search.md。
+    /// </remarks>
+    public string MatchStateToken =>
+        ((int)Targets).ToString(CultureInfo.InvariantCulture) + "|" +
+        (MatchCasing ? "1" : "0") + "|" + (WholeWord ? "1" : "0");
+
+    /// <summary>
+    /// 套回上一次記住的那三項。
+    /// </summary>
+    /// <returns>true 表示真的套用了，呼叫端要把控制項同步過去。</returns>
+    /// <remarks>
+    /// 認不得時<b>整組</b>維持預設，不逐項盡量還原：半套的狀態與「使用者上次真的這樣設」
+    /// 在畫面上一模一樣，而預設值至少是一個說得出來的起點。
+    /// 一個部位都不掃的比對位置也算認不得——那一輪找不到任何東西，
+    /// 而畫面上與「這個字串不存在」相同。
+    /// </remarks>
+    public bool RestoreMatchState(string? token)
+    {
+        if (token is null) return false;
+
+        var parts = token.Split('|');
+        if (parts.Length != 3) return false;
+
+        if (!int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var targets)) return false;
+        if (targets == 0 || (targets & ~(int)SearchTargets.All) != 0) return false;
+        if (!TryReadFlag(parts[1], out var casing) || !TryReadFlag(parts[2], out var wholeWord)) return false;
+
+        Targets = (SearchTargets)targets;
+        MatchCasing = casing;
+        WholeWord = wholeWord;
+        return true;
+    }
+
+    /// <remarks>「不是 1 就當成 false」會把記壞的字串讀成一個看起來正常的狀態。</remarks>
+    private static bool TryReadFlag(string value, out bool flag)
+    {
+        flag = string.Equals(value, "1", StringComparison.Ordinal);
+        return flag || string.Equals(value, "0", StringComparison.Ordinal);
+    }
+
     /// <summary>結果清單的排序；取代原本的上下分組。</summary>
     public SqlSearchSort Sort { get; set; } = SqlSearchSort.Relevance;
 

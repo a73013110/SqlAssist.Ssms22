@@ -15,6 +15,7 @@
 | `Pairing/` | 輸入分隔字元時要不要補上另一半 |
 | `Parsing/` | 詞法分析、註解與括號、範圍與欄位來源解析、識別字括號化 |
 | `Preview/` | 浮動預覽的定位、避障、方向遲滯與縮放 |
+| `Search/` | 搜尋契約、聚合與排名、預算與世代 |
 | `Snippets/` | 片段模型、展開、佔位符與序列化 |
 | `Statements/` | INSERT／MERGE／EXEC／函式展開與預留值 |
 | `Wildcards/` | `SELECT *` 的判斷與展開後的排版 |
@@ -34,6 +35,7 @@
 | `Formatting/` | 型別、欄位呈現，以及重建物件定義的排版與批次樣板 |
 | `Analysis/` | 結構健檢的規則與分析器 |
 | `ResultGrid/` | 格線模型、值轉字面值、`#temp` 與 `IN` |
+| `Search/` | 目錄物件與 Agent 作業的搜尋來源、搜尋索引與它的快取 |
 
 ## SQL Memory 儲存
 
@@ -58,5 +60,6 @@
 | `Commands/` | 命令識別碼、工具選單與診斷視窗 |
 | `Notifications/` | 通知卡片的呈現、表面、宿主優先序與全域控制器，以及 WPF 視窗宿主 |
 | `ResultGrid/` | 讀取選取範圍並輸出到視窗或剪貼簿 |
+| `Search/` | SQL Search 工具窗：篩選與排序、結果導航與定義預覽 |
 | `SqlMemory/` | SQL Memory 的設定與計時器接線、編輯器擷取事件、工具窗與對話框 |
 | `UI/` | 全擴充共用外觀與佈景筆刷 |

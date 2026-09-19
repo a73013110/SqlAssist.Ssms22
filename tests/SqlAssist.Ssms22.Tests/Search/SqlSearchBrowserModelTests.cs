@@ -546,6 +546,45 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Null(model.ResolveSelection(keys, hasSelection: true));
     }
 
+    [Fact]
+    public void 比對方式收成一個字串並原樣還原()
+    {
+        var saved = new SqlSearchBrowserModel
+        {
+            Targets = SearchTargets.Name | SearchTargets.Column,
+            MatchCasing = true,
+        };
+
+        var restored = new SqlSearchBrowserModel();
+        Assert.True(restored.RestoreMatchState(saved.MatchStateToken));
+        Assert.Equal(SearchTargets.Name | SearchTargets.Column, restored.Targets);
+        Assert.True(restored.MatchCasing);
+        Assert.False(restored.WholeWord);
+    }
+
+    [Theory]
+    // 沒有記錄、段數不對、不是數字、認不得的位元，以及一個部位都不掃的比對位置。
+    [InlineData("")]
+    [InlineData("7|1")]
+    [InlineData("7|1|0|0")]
+    [InlineData("x|1|0")]
+    [InlineData("-1|1|0")]
+    [InlineData("8|1|0")]
+    [InlineData("0|1|0")]
+    [InlineData("7|2|0")]
+    [InlineData("7|1|")]
+    public void 認不得的比對方式整組維持預設(string token)
+    {
+        var model = new SqlSearchBrowserModel { MatchCasing = false, WholeWord = false };
+
+        Assert.False(model.RestoreMatchState(token));
+
+        // 半套還原與「使用者上次真的這樣設」在畫面上一模一樣，所以一項都不能動。
+        Assert.Equal(SearchTargets.All, model.Targets);
+        Assert.False(model.MatchCasing);
+        Assert.False(model.WholeWord);
+    }
+
     /// <summary>跑完一輪。走 Task.Run 離開測試執行器的同步內容，不在其上同步等待。</summary>
     private static SearchResults Search(SearchAggregator aggregator, SearchQuery query) =>
         Task.Run(() => aggregator.SearchAsync(query, CancellationToken.None)).GetAwaiter().GetResult();
