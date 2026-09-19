@@ -148,7 +148,10 @@ public sealed class SearchAggregator
         for (var index = 0; index < sinks.Length; index++)
         {
             progress[index] = sinks[index].Drain(collected);
-            isPartial |= progress[index].IsTruncated;
+
+            // 讀不到也算部分：這一輪確實少了東西，而「少了一個來源」與「掃到一半停了」
+            // 的差別由呼叫端讀 IsUnavailable 分開，不是靠這個布林。
+            isPartial |= progress[index].IsTruncated || progress[index].IsUnavailable;
         }
 
         var ranked = Deduplicate(collected.OrderBy(hit => hit, Ranking));
@@ -268,6 +271,7 @@ public sealed class SearchAggregator
         private int _examined;
         private bool _truncated;
         private string? _checkpoint;
+        private string? _unavailableReason;
 
         internal BudgetedSink(SearchAggregator owner, string providerId, SearchQuery query, TimeSpan started)
         {
@@ -322,6 +326,21 @@ public sealed class SearchAggregator
             }
         }
 
+        public void ReportUnavailable(string reason)
+        {
+            SearchArgument.Reason(reason, nameof(reason));
+
+            lock (_gate)
+            {
+                // 第一句留著。同一個 provider 可以把目標拆成幾條執行緒（目錄那一邊正是
+                // 每個資料庫一條），後到的覆蓋先到的話，交出去的句子由賽跑決定。
+                _unavailableReason ??= reason;
+            }
+
+            // 刻意不碰 _truncated，也不讓 IsExhausted 變真：讀不到的是其中一個目標，
+            // 而這個 provider 還有別的目標要掃。整輪算不算部分結果由 Combine 決定。
+        }
+
         internal void MarkTruncated()
         {
             lock (_gate) _truncated = true;
@@ -333,7 +352,8 @@ public sealed class SearchAggregator
             lock (_gate)
             {
                 destination.AddRange(_hits);
-                return new SearchProviderProgress(_providerId, _examined, _hits.Count, _truncated, _checkpoint);
+                return new SearchProviderProgress(
+                    _providerId, _examined, _hits.Count, _truncated, _checkpoint, _unavailableReason);
             }
         }
 

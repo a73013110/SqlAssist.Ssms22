@@ -25,6 +25,7 @@ internal sealed class RecordingSearchSink : ISearchSink
     private int _examineCalls;
     private bool _truncated;
     private string? _checkpoint;
+    private string? _unavailableReason;
 
     /// <param name="acceptLimit">收下幾筆之後開始回 false。</param>
     internal RecordingSearchSink(int acceptLimit = int.MaxValue)
@@ -83,6 +84,23 @@ internal sealed class RecordingSearchSink : ISearchSink
         }
     }
 
+    /// <summary>有沒有收到「這一輪讀不到」；與 <see cref="IsTruncated"/> 是兩件事。</summary>
+    internal bool IsUnavailable
+    {
+        get
+        {
+            lock (_gate) return _unavailableReason is not null;
+        }
+    }
+
+    internal string? UnavailableReason
+    {
+        get
+        {
+            lock (_gate) return _unavailableReason;
+        }
+    }
+
     public bool IsExhausted
     {
         get
@@ -119,6 +137,18 @@ internal sealed class RecordingSearchSink : ISearchSink
         {
             _truncated = true;
             _checkpoint = checkpoint;
+        }
+    }
+
+    /// <remarks>
+    /// 留第一句，與 <c>SearchAggregator</c> 的 sink 同一條規則：後到的覆蓋先到的話，
+    /// 多資料庫那幾條測試的期望值會由賽跑決定。
+    /// </remarks>
+    public void ReportUnavailable(string reason)
+    {
+        lock (_gate)
+        {
+            _unavailableReason ??= reason;
         }
     }
 }

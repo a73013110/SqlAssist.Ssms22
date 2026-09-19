@@ -49,4 +49,32 @@ public interface ISearchSink
     /// 是否往前找由呼叫端決定。
     /// </param>
     void ReportTruncated(string? checkpoint = null);
+
+    /// <summary>
+    /// 這一輪有東西根本沒開始掃，因為讀不到。
+    /// </summary>
+    /// <param name="reason">
+    /// 給人看的一句話，由 provider 自己寫；Core 不解讀、不翻譯，也不加框。
+    /// 呼叫端只會把它原樣貼在狀態列上，所以要說得出「少了什麼」與「多半是為什麼」。
+    /// 空字串會擲出：說不出原因的「讀不到」與泛用的「部分結果」在畫面上一模一樣，
+    /// 而那正是這個方法存在的理由。
+    /// </param>
+    /// <remarks>
+    /// 與 <see cref="ReportTruncated(string?)"/> 是兩件事，而且畫面上要說的話完全相反：
+    /// 「沒掃完」叫使用者縮小範圍或加長關鍵字，「讀不到」叫他去看權限。混成一件的症狀是
+    /// 使用者先照前一句試三次——而那一句對他的情況完全沒有用。
+    ///
+    /// 與「provider 擲例外」也是兩件事。例外走
+    /// <see cref="SearchProviderFailure"/>，呼叫端會把它當成錯誤報出來；對一個本來就
+    /// 多半讀不到的來源（多數登入對 <c>msdb</c> 沒有 <c>SELECT</c>），那等於每一次搜尋
+    /// 都在報錯。
+    ///
+    /// 這個回報<b>不</b>讓 sink 進入 <see cref="IsExhausted"/>，也不算截斷：一個 provider
+    /// 可以同時跨好幾個目標（目錄那一邊是每個資料庫一條執行緒），其中一個讀不到不該
+    /// 讓其他幾個停下來。整輪仍然算部分結果——這一輪確實少了東西。
+    ///
+    /// 同一輪說第二次時留著第一句；後到的覆蓋先到的話，交出去的句子由賽跑決定，
+    /// 同一組輸入每次說的話不一樣。要合併好幾個目標時由 provider 自己先組成一句。
+    /// </remarks>
+    void ReportUnavailable(string reason);
 }

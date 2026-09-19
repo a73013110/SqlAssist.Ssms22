@@ -479,7 +479,14 @@ public sealed class SqlCatalogSearchProviderTests
 
         var hit = Assert.Single(sink.Hits);
         Assert.Equal("Library", hit.Path!.DatabaseName);
-        Assert.True(sink.IsTruncated);
+
+        // 連不上的那一個是「讀不到」，不是「沒掃完」：掃得完的那一個掃完了，
+        // 而叫使用者縮小範圍對一條斷掉的連線一次都幫不上忙。
+        Assert.False(sink.IsTruncated);
+        Assert.True(sink.IsUnavailable);
+
+        // 名稱一定要寫出來，否則使用者不知道該去看哪一個資料庫。
+        Assert.Contains("LibArchive", sink.UnavailableReason);
 
         // 失敗不進快取：第二輪仍然重試那一個，成功的那一個則是快取命中。
         Assert.False(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
@@ -538,7 +545,37 @@ public sealed class SqlCatalogSearchProviderTests
             new SearchQuery("Loan", scope: new SearchScope(null, new[] { "LibArchive" })));
 
         Assert.Empty(sink.Hits);
-        Assert.True(sink.IsTruncated);
+        Assert.False(sink.IsTruncated);
+        Assert.True(sink.IsUnavailable);
+        Assert.Contains("LibArchive", sink.UnavailableReason);
+    }
+
+    /// <summary>
+    /// 幾個資料庫同時讀不到時只說一句，而且句子裡的名稱由勾選順序決定。
+    /// </summary>
+    /// <remarks>
+    /// 幾個資料庫是平行掃的，照誰先回來寫的話同一組輸入每次說的話不一樣，
+    /// 而使用者看到的症狀是狀態列每按一次重新整理就換一個資料庫名。
+    /// </remarks>
+    [Fact]
+    public async Task 多個資料庫讀不到時只說一句而且順序可重現()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var query = new SearchQuery(
+            "Loan", scope: new SearchScope(null, new[] { "LibArchive", "LibMirror", "Library" }));
+
+        for (var round = 0; round < 10; round++)
+        {
+            var sink = await RunAsync(server, query);
+
+            Assert.Single(sink.Hits);
+            Assert.True(sink.IsUnavailable);
+            Assert.Equal(
+                "「LibArchive」等 2 個資料庫這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。",
+                sink.UnavailableReason);
+        }
     }
 
     [Fact]

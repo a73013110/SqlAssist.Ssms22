@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
-using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.Search;
 using Xunit;
 
@@ -246,8 +245,7 @@ public sealed class SqlSearchBrowserModelTests
             new StubProvider("catalog", "catalog.table", "Table", "Loan"),
             new StubProvider("agent-job", "agent-job.job", "作業")
             {
-                Truncate = true,
-                Checkpoint = SqlAgentJobSearchProvider.UnavailableCheckpoint,
+                Unavailable = "作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
             },
         });
         var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
@@ -256,7 +254,8 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.Equal("找到 1 項。SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
+        // 那一句話原樣來自 provider；這一層一個字都不加，也不認得任何一個 provider 的常數。
+        Assert.Equal("找到 1 項。作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
             model.Status());
 
         // 讀不到不是失敗：頁尾不該變成紅字，對一個多半讀不到的來源那等於每次搜尋都在報錯。
@@ -274,8 +273,7 @@ public sealed class SqlSearchBrowserModelTests
         {
             new StubProvider("agent-job", "agent-job.job", "作業")
             {
-                Truncate = true,
-                Checkpoint = SqlAgentJobSearchProvider.UnavailableCheckpoint,
+                Unavailable = "作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
             },
         });
         var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
@@ -284,8 +282,61 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.StartsWith("SQL Agent 作業這一輪讀不到", model.Status());
+        Assert.StartsWith("作業這一輪讀不到", model.Status());
         Assert.Equal("沒有相符項目。", model.EmptyState(0));
+    }
+
+    /// <summary>
+    /// 幾個來源同時讀不到時仍然是一行，而且第一句原樣留著。
+    /// </summary>
+    /// <remarks>
+    /// 這一層與 provider 無關，所以「下一個權限常常不足的來源」不必在這裡加任何東西；
+    /// 加得到的那一版，漏掉的那一個只會安靜地退回泛用的「部分結果」。
+    /// </remarks>
+    [Fact]
+    public void 兩個來源讀不到時只貼第一句其餘用數字帶過()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("agent-job", "agent-job.job", "作業") { Unavailable = "作業讀不到。" },
+            new StubProvider("replication", "replication.article", "發行項")
+            {
+                Unavailable = "複寫讀不到。",
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        Assert.Equal("作業讀不到。（另有 1 個來源這一輪也讀不到）", model.Status());
+        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+    }
+
+    /// <summary>
+    /// 沒掃完與讀不到同時發生時，讀不到那一句優先。
+    /// </summary>
+    /// <remarks>
+    /// 泛用的「縮小範圍或加長關鍵字」對一個讀不到的來源完全沒有用，而兩句都貼上去的話，
+    /// 使用者會先照第一句試三次。
+    /// </remarks>
+    [Fact]
+    public void 同時沒掃完與讀不到時由讀不到那一句說明()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("catalog", "catalog.table", "Table", "Loan") { Truncate = true },
+            new StubProvider("agent-job", "agent-job.job", "作業") { Unavailable = "作業讀不到。" },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        Assert.Equal("找到 1 項。作業讀不到。", model.Status());
+        Assert.DoesNotContain("縮小範圍", model.Status());
     }
 
     [Fact]
@@ -515,10 +566,13 @@ public sealed class SqlSearchBrowserModelTests
 
         internal bool Truncate { get; set; }
 
-        /// <summary>截斷時交出去的續掃位置；作業來源拿它說「這個來源這一輪讀不到」。</summary>
+        /// <summary>截斷時交出去的續掃位置。</summary>
         internal string Checkpoint { get; set; } = "last";
 
         internal bool Throw { get; set; }
+
+        /// <summary>不為 null 時走「這一輪讀不到」，帶著這一句話。</summary>
+        internal string? Unavailable { get; set; }
 
         public string Id { get; }
 
@@ -540,6 +594,7 @@ public sealed class SqlSearchBrowserModelTests
 
             sink.ReportExamined(_names.Length);
             if (Truncate) sink.ReportTruncated(Checkpoint);
+            if (Unavailable is not null) sink.ReportUnavailable(Unavailable);
             return Task.CompletedTask;
         }
     }

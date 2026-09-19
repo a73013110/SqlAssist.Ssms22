@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Search;
-using SqlAssist.Metadata.Search;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -696,33 +695,32 @@ internal sealed class SqlSearchBrowserModel
     /// 有沒有哪一個來源這一輪整個讀不到；有的話回傳要補的那一句。
     /// </summary>
     /// <remarks>
-    /// 這是這一層<b>唯一</b>提到某一個 provider 的地方，而它認的是那個 provider 的續掃位置
-    /// 常數，不是自己抄一份字串——抄的那一份不會報錯，只會在常數改過之後安靜地退回
-    /// 泛用的「部分結果」。
+    /// 這一層與 provider 無關：那一句話是 provider 自己寫的，這裡只挑第一句貼上去。
+    /// 認得某一個 provider 的常數的那一版，每多一個「權限常常不足」的來源
+    /// （複寫、Extended Events、Always On）就要在這裡多一個 <c>if</c>，而漏掉的那一個
+    /// 只會安靜地退回泛用的「部分結果」——畫面上看不出是漏了還是真的沒掃完。
     ///
-    /// 認得一個 provider 的常數與「向下轉型 <c>ActivatePayload</c>」是兩件事：後者會讓
-    /// 清單、圖示與預覽只畫得出一種來源（所以整層禁止），這裡只是頁尾多一句話，
-    /// 而少了這句話，「msdb 讀不到」與「這台伺服器上沒有這個作業」在畫面上一模一樣。
-    ///
-    /// 契約上真正缺的是一句「這個來源這一輪沒有資料，原因是這個」：
-    /// <see cref="ISearchSink"/> 只說得出「沒掃完、掃到這裡」。
+    /// 只貼第一句，其餘用數字帶過：狀態列是一行，而把三句話串起來會把它撐爆，
+    /// 重點（有來源沒搜到、去看權限）第一句已經說完。
     /// </remarks>
     private static string DescribeUnavailable(IReadOnlyList<SearchProviderProgress> progress)
     {
+        string? first = null;
+        var count = 0;
+
         foreach (var entry in progress)
         {
-            if (!string.Equals(
-                    entry.Checkpoint,
-                    SqlAgentJobSearchProvider.UnavailableCheckpoint,
-                    StringComparison.Ordinal))
-            {
-                continue;
-            }
+            if (entry.UnavailableReason is not { Length: > 0 } reason) continue;
 
-            return "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。";
+            count++;
+            first ??= reason;
         }
 
-        return "";
+        if (first is null) return "";
+
+        return count == 1
+            ? first
+            : first + "（另有 " + (count - 1).ToString(CultureInfo.InvariantCulture) + " 個來源這一輪也讀不到）";
     }
 
     private static string Describe(IReadOnlyList<SearchProviderFailure> failures)
