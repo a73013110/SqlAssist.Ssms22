@@ -62,14 +62,52 @@ internal static class SqlDefinitionScript
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
+        if (objectInfo is null)
+        {
+            throw new ArgumentNullException(nameof(objectInfo));
+        }
+
+        return WriteToNewWindow(
+            serviceProvider,
+            script,
+            objectInfo.QualifiedName,
+            $"已在新查詢視窗開啟 {objectInfo.QualifiedName} 的定義",
+            documentName);
+    }
+
+    /// <summary>
+    /// 開一個沿用目前連線的空白查詢視窗，並把指令碼寫進去。
+    /// </summary>
+    /// <param name="subject">
+    /// 這一份指令碼講的是什麼；通知與復原描述用得到。<b>只是一句給人看的字</b>——
+    /// 不是每一個送進查詢視窗的東西都有 <see cref="SqlObjectInfo"/>，SQL Search 的
+    /// SQL Agent 作業就沒有。為那條路徑另寫一份開窗與寫入的症狀是其中一份忘了
+    /// 「緩衝區必須還是空的」那道守門，而那一次會把指令碼蓋到使用者正在編輯的查詢上。
+    /// </param>
+    /// <param name="activityDescription">復原堆疊與診斷紀錄上的那一句。</param>
+    /// <returns>成功時為 null，否則是要顯示給使用者的那一句。</returns>
+    public static string? WriteToNewWindow(
+        IServiceProvider serviceProvider,
+        SqlObjectScriptText script,
+        string subject,
+        string activityDescription,
+        string documentName)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
         if (serviceProvider is null)
         {
             throw new ArgumentNullException(nameof(serviceProvider));
         }
 
-        if (objectInfo is null)
+        if (subject is null)
         {
-            throw new ArgumentNullException(nameof(objectInfo));
+            throw new ArgumentNullException(nameof(subject));
+        }
+
+        if (activityDescription is null)
+        {
+            throw new ArgumentNullException(nameof(activityDescription));
         }
 
         using var notification = NotificationCenter.Default.Begin(
@@ -77,7 +115,7 @@ internal static class SqlDefinitionScript
             NotificationKind.Navigation,
             NotificationOrigin.User,
             NotificationLevel.Debug,
-            objectInfo.QualifiedName,
+            subject,
             documentName);
         var view = SsmsScriptWindow.TryCreateBlankQuery(serviceProvider, out var failure);
 
@@ -90,7 +128,7 @@ internal static class SqlDefinitionScript
         var replacement = new TextReplacement(
             script.Text,
             SqlAssistActivityKind.DefinitionOpened,
-            $"已在新查詢視窗開啟 {objectInfo.QualifiedName} 的定義",
+            activityDescription,
             script.CaretOffset);
 
         // 空白查詢視窗的樣板是一個 0 位元組的檔案，所以這一道守門平常永遠成立。

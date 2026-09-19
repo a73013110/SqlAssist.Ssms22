@@ -51,6 +51,12 @@ internal static partial class SqlIcons
             if (!map.ContainsKey(id)) map[id] = CategoryDefinition(kind).Moniker;
         }
 
+        // SQL Agent 作業不是目錄物件，沒有 SqlObjectKind 可以反推，所以它的兩顆
+        // 單獨接在這裡。不接的代價只是那幾列的圖示插槽留空（樣板本來就容許），
+        // 但一排空插槽夾在有圖示的列中間，看起來像是那幾列還沒載入完。
+        map[SqlAgentJobSearchCategories.JobCategoryId] = KnownMonikers.Calendar;
+        map[SqlAgentJobSearchCategories.StepCategoryId] = KnownMonikers.Run;
+
         return map;
     }
 

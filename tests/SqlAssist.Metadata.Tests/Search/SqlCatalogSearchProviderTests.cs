@@ -14,6 +14,7 @@ namespace SqlAssist.Metadata.Tests.Search;
 /// <remarks>
 /// 一律不連資料庫，走 <see cref="FakeCatalogServer"/>。
 /// </remarks>
+[Collection(MetadataFailureCollection.Name)]
 public sealed class SqlCatalogSearchProviderTests
 {
     [Fact]

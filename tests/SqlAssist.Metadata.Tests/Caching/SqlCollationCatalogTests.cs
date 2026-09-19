@@ -19,6 +19,7 @@ namespace SqlAssist.Metadata.Tests.Caching;
 /// 跟著每一份目錄各存一次的話，使用者每打出一個跨資料庫的限定字就多五千多個
 /// 字串，而且對同一台伺服器多送一輪查詢。
 /// </remarks>
+[Collection(MetadataFailureCollection.Name)]
 public sealed class SqlCollationCatalogTests
 {
     [Fact]
