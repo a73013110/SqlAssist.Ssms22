@@ -776,7 +776,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         if (!SqlSearchActivation.CanActivate(row.Hit))
         {
-            Report("這一筆沒有可以開啟的定義。");
+            Report("這一筆沒有可以開啟的東西。");
             return;
         }
 
@@ -787,10 +787,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         try
         {
-            // 先說一句，否則雙擊之後畫面完全沒有動靜。
-            Report("正在取得 " + row.Title + " 的定義…", "activating");
+            // 先說一句，否則雙擊之後畫面完全沒有動靜。開出來的東西叫什麼由
+            // SqlSearchActivation 說——這裡寫死「定義」的話，作業那幾列會說出一個
+            // 它們沒有的東西，而辨識型別不准發生在這一層。
+            var noun = SqlSearchActivation.SubjectNoun(row.Hit);
+            Report("正在取得 " + row.Title + " 的" + noun + "…", "activating");
             var failure = await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
-            Report(failure ?? "已在新查詢視窗開啟 " + row.Title + " 的定義。", failure is null ? "activated" : "");
+            Report(
+                failure ?? "已在新查詢視窗開啟 " + row.Title + " 的" + noun + "。",
+                failure is null ? "activated" : "");
         }
         finally
         {

@@ -35,13 +35,6 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// <summary>跨版本穩定的識別字；分類 Id 與使用者偏好都以它為前綴。</summary>
     public const string ProviderId = "catalog";
 
-    /// <summary>每檢查幾個候選回報一次。</summary>
-    /// <remarks>
-    /// 逐筆呼叫太吵——一個資料庫的候選是以萬計的，而 sink 每一次都要做一次預算判斷。
-    /// 攢一批再報，代價是最多超掃這麼多個候選才發現預算用盡。
-    /// </remarks>
-    private const int ExamineBatch = 64;
-
     private readonly ISqlConnectionSource _connectionSource;
     private readonly SqlCatalogSearchIndexCache _indexCache;
 
@@ -150,7 +143,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         cancellationToken.ThrowIfCancellationRequested();
 
         // 每個資料庫自己一份計數器：共用一份要為它上一把鎖，而那把鎖會落在最熱的迴圈裡。
-        var counter = new ExamineCounter(sink);
+        var counter = new SearchExamineCounter(sink);
 
         try
         {
@@ -218,7 +211,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         SqlCatalogSearchIndex index,
         SearchQuery query,
         ISearchSink sink,
-        ExamineCounter counter,
+        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
@@ -282,7 +275,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         SqlCatalogSearchIndex index,
         SearchQuery query,
         ISearchSink sink,
-        ExamineCounter counter,
+        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
@@ -337,7 +330,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         SqlCatalogSearchIndex index,
         SearchQuery query,
         ISearchSink sink,
-        ExamineCounter counter,
+        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
@@ -505,47 +498,5 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         internal bool Truncated { get; set; }
 
         internal string? Checkpoint { get; set; }
-    }
-
-    /// <summary>
-    /// 攢一批候選再回報一次，並記住掃到哪裡。
-    /// </summary>
-    /// <remarks>
-    /// 續掃位置是不透明字串，Core 不解讀也不會自動續搜——沿用 SQL Memory 搜尋的作法，
-    /// 是否往前找由呼叫端決定。
-    ///
-    /// 不上鎖：每一個資料庫各有一份，而一個資料庫只由一條執行緒掃。共用一份的話，
-    /// 這把鎖會落在整個 provider 最熱的迴圈裡。
-    /// </remarks>
-    private sealed class ExamineCounter
-    {
-        private readonly ISearchSink _sink;
-        private int _pending;
-
-        internal ExamineCounter(ISearchSink sink) => _sink = sink;
-
-        /// <summary>最後一個檢查過的候選；截斷時當續掃位置交出去。</summary>
-        internal string? Checkpoint { get; private set; }
-
-        internal void Note(string candidateKey)
-        {
-            Checkpoint = candidateKey;
-
-            if (++_pending >= ExamineBatch)
-            {
-                Flush();
-            }
-        }
-
-        internal void Flush()
-        {
-            if (_pending == 0)
-            {
-                return;
-            }
-
-            _sink.ReportExamined(_pending);
-            _pending = 0;
-        }
     }
 }

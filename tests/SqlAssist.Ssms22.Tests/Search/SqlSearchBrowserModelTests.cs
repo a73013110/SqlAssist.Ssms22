@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
+using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.Search;
 using Xunit;
 
@@ -228,6 +229,63 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, results));
         Assert.Single(results.Hits);
         Assert.Contains("memory", model.Status());
+    }
+
+    /// <summary>
+    /// 「有一個來源讀不到」與「掃到一半停了」是兩句話。
+    /// </summary>
+    /// <remarks>
+    /// 兩者都讓 IsPartial 為真，但泛用那一句叫使用者縮小範圍或加長關鍵字，
+    /// 而那對「msdb 沒有權限」完全沒有用——他會先照那一句試三次。
+    /// </remarks>
+    [Fact]
+    public void 讀不到的來源有自己的說法而不是泛用的部分結果()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("catalog", "catalog.table", "Table", "Loan"),
+            new StubProvider("agent-job", "agent-job.job", "作業")
+            {
+                Truncate = true,
+                Checkpoint = SqlAgentJobSearchProvider.UnavailableCheckpoint,
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        Assert.Equal("找到 1 項。SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
+            model.Status());
+
+        // 讀不到不是失敗：頁尾不該變成紅字，對一個多半讀不到的來源那等於每次搜尋都在報錯。
+        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+    }
+
+    /// <summary>一筆都沒有時，「讀不到」那一句仍然要說。</summary>
+    /// <remarks>
+    /// 不說的話，畫面上與「這台伺服器上真的沒有這個作業」一模一樣。
+    /// </remarks>
+    [Fact]
+    public void 一筆都沒有時仍然說得出哪一個來源讀不到()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("agent-job", "agent-job.job", "作業")
+            {
+                Truncate = true,
+                Checkpoint = SqlAgentJobSearchProvider.UnavailableCheckpoint,
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        Assert.StartsWith("SQL Agent 作業這一輪讀不到", model.Status());
+        Assert.Equal("沒有相符項目。", model.EmptyState(0));
     }
 
     [Fact]
@@ -457,6 +515,9 @@ public sealed class SqlSearchBrowserModelTests
 
         internal bool Truncate { get; set; }
 
+        /// <summary>截斷時交出去的續掃位置；作業來源拿它說「這個來源這一輪讀不到」。</summary>
+        internal string Checkpoint { get; set; } = "last";
+
         internal bool Throw { get; set; }
 
         public string Id { get; }
@@ -478,7 +539,7 @@ public sealed class SqlSearchBrowserModelTests
             }
 
             sink.ReportExamined(_names.Length);
-            if (Truncate) sink.ReportTruncated("last");
+            if (Truncate) sink.ReportTruncated(Checkpoint);
             return Task.CompletedTask;
         }
     }

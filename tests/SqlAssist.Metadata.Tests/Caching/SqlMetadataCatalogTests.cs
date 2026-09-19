@@ -20,6 +20,7 @@ namespace SqlAssist.Metadata.Tests.Caching;
 /// <c>SqlAssistPlatformGuard</c> 會把每一次都記成一份完整堆疊，而連線斷掉時
 /// 使用者每開一次建議清單就失敗一次，紀錄檔灌滿之後真正的程式錯誤就找不到了。
 /// </remarks>
+[Collection(MetadataFailureCollection.Name)]
 public sealed class SqlMetadataCatalogTests
 {
     private static readonly SqlObjectInfo AnyObject =

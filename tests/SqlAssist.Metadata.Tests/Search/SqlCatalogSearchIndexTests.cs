@@ -12,6 +12,7 @@ namespace SqlAssist.Metadata.Tests.Search;
 /// <summary>
 /// 一個資料庫的全量索引：兩段各自撈回來的東西、版本戳、增量重新整理，以及資料庫說不行時的降級。
 /// </summary>
+[Collection(MetadataFailureCollection.Name)]
 public sealed class SqlCatalogSearchIndexTests
 {
     private static readonly DateTime Earlier = new(2025, 3, 1, 8, 0, 0, DateTimeKind.Utc);

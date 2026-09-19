@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Search;
+using SqlAssist.Metadata.Search;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -179,6 +180,9 @@ internal sealed class SqlSearchBrowserModel
 
     private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
     private readonly List<string> _databases = new();
+    /// <summary>有來源這一輪整個讀不到時要補的那一句；沒有時是空字串。</summary>
+    private string _unavailable = "";
+
     private IReadOnlyList<SqlSearchCategoryOption> _categories = Array.Empty<SqlSearchCategoryOption>();
     private Dictionary<string, int> _categoryOrder = new(StringComparer.Ordinal);
 
@@ -486,6 +490,7 @@ internal sealed class SqlSearchBrowserModel
         _isPartial = results.IsPartial;
         _hitCount = results.Hits.Count;
         _failure = Describe(results.Failures);
+        _unavailable = DescribeUnavailable(results.Progress);
         return true;
     }
 
@@ -536,6 +541,9 @@ internal sealed class SqlSearchBrowserModel
         _isPartial = true;
         _hitCount = 0;
         _failure = message ?? "";
+
+        // 整輪都失敗了，個別來源讀不到那一句已經沒有意義，留著只會讓頁尾說兩件事。
+        _unavailable = "";
     }
 
     /// <summary>這一輪結束（成功、失敗或放棄）；只放開同一世代的旗標。</summary>
@@ -554,18 +562,34 @@ internal sealed class SqlSearchBrowserModel
         get
         {
             if (_failure.Length != 0) return SqlSearchStatusTone.Failure;
-            if (!HasConnection || !_hasResult || _hitCount == 0) return SqlSearchStatusTone.None;
+            if (!HasConnection || !_hasResult) return SqlSearchStatusTone.None;
+
+            // 讀不到某一個來源不是失敗（那會讓頁尾整行變成紅字，而對一個本來就多半
+            // 讀不到的來源，等於每一次搜尋都在報錯），但它確實表示這一份不完整。
+            if (_unavailable.Length != 0) return SqlSearchStatusTone.Partial;
+            if (_hitCount == 0) return SqlSearchStatusTone.None;
             return _isPartial ? SqlSearchStatusTone.Partial : SqlSearchStatusTone.Result;
         }
     }
 
-    /// <summary>頁尾那一行；平時留空，只回報結果數、部分結果與失敗。</summary>
+    /// <summary>頁尾那一行；平時留空，只回報結果數、部分結果、讀不到的來源與失敗。</summary>
+    /// <remarks>
+    /// 「有一個來源讀不到」與「掃到一半停了」都會讓 <see cref="SearchResults.IsPartial"/>
+    /// 為真，但要說的話不一樣：後者叫使用者縮小範圍或加長關鍵字，前者叫他去看權限。
+    /// 兩句都貼上去的話，使用者會先照第一句試三次——而那一句對他的情況完全沒有用。
+    /// 所以有讀不到的來源時就由它說明這一輪為什麼不完整，泛用的那一句讓位。
+    /// </remarks>
     public string Status()
     {
         if (_failure.Length != 0) return _failure;
-        if (!HasConnection || !_hasResult || _hitCount == 0) return "";
+        if (!HasConnection || !_hasResult) return "";
+
+        // 一筆都沒有時，「沒有相符項目」由空狀態說；頁尾只剩下讀不到的來源那一句。
+        if (_hitCount == 0) return _unavailable;
 
         var count = _hitCount.ToString(CultureInfo.InvariantCulture);
+
+        if (_unavailable.Length != 0) return "找到 " + count + " 項。" + _unavailable;
 
         // 部分結果一定要說：與「這個字串在這個資料庫裡不存在」在畫面上一模一樣。
         return _isPartial
@@ -667,6 +691,39 @@ internal sealed class SqlSearchBrowserModel
     /// </remarks>
     private SearchScope BuildScope() =>
         _databases.Count == 0 ? SearchScope.All : new SearchScope(null, _databases.ToArray());
+
+    /// <summary>
+    /// 有沒有哪一個來源這一輪整個讀不到；有的話回傳要補的那一句。
+    /// </summary>
+    /// <remarks>
+    /// 這是這一層<b>唯一</b>提到某一個 provider 的地方，而它認的是那個 provider 的續掃位置
+    /// 常數，不是自己抄一份字串——抄的那一份不會報錯，只會在常數改過之後安靜地退回
+    /// 泛用的「部分結果」。
+    ///
+    /// 認得一個 provider 的常數與「向下轉型 <c>ActivatePayload</c>」是兩件事：後者會讓
+    /// 清單、圖示與預覽只畫得出一種來源（所以整層禁止），這裡只是頁尾多一句話，
+    /// 而少了這句話，「msdb 讀不到」與「這台伺服器上沒有這個作業」在畫面上一模一樣。
+    ///
+    /// 契約上真正缺的是一句「這個來源這一輪沒有資料，原因是這個」：
+    /// <see cref="ISearchSink"/> 只說得出「沒掃完、掃到這裡」。
+    /// </remarks>
+    private static string DescribeUnavailable(IReadOnlyList<SearchProviderProgress> progress)
+    {
+        foreach (var entry in progress)
+        {
+            if (!string.Equals(
+                    entry.Checkpoint,
+                    SqlAgentJobSearchProvider.UnavailableCheckpoint,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。";
+        }
+
+        return "";
+    }
 
     private static string Describe(IReadOnlyList<SearchProviderFailure> failures)
     {

@@ -26,11 +26,17 @@ namespace SqlAssist.Ssms22.Search;
 internal sealed class SqlSearchProviders
 {
     private readonly SqlCatalogSearchIndexCache _indexCache = new();
+    private readonly SqlAgentJobSearchSnapshotCache _jobCache = new();
     private SqlMetadataCatalog? _catalog;
 
+    /// <remarks>
+    /// 順序就是分類 pill 的順序（聚合器照 provider 串接）：先資料庫物件，再伺服器層級的
+    /// 作業。反過來的話，最常用的資料表與程序會被擠到過濾清單的第二段。
+    /// </remarks>
     public SqlSearchProviders()
     {
-        Aggregator = new SearchAggregator(new ISearchProvider[] { new CatalogSource(this) });
+        Aggregator = new SearchAggregator(
+            new ISearchProvider[] { new CatalogSource(this), new AgentJobSource(this) });
     }
 
     /// <summary>視窗握著的那一個；分類 pill 也由它的 <see cref="SearchAggregator.Categories"/> 產生。</summary>
@@ -84,7 +90,14 @@ internal sealed class SqlSearchProviders
     /// 不整批丟掉：丟掉之後下一輪要重掃整個資料庫的定義本文，而使用者通常只是改了一個
     /// 預存程序。標記過期之後，下一輪沿著 <c>MAX(modify_date)</c> 只重撈變更過的那幾個。
     /// </remarks>
-    public void Invalidate() => _indexCache.Invalidate();
+    public void Invalidate()
+    {
+        _indexCache.Invalidate();
+
+        // 作業那一份整批丟掉而不是標記過期：它本來就整份重撈（兩條查詢），
+        // 多一種狀態只是多一個要解釋的東西。理由見 SqlAgentJobSearchSnapshotCache。
+        _jobCache.Clear();
+    }
 
     /// <summary>
     /// 目錄物件來源：每一輪現組一個 <see cref="SqlCatalogSearchProvider"/>，共用同一份索引快取。
@@ -117,6 +130,46 @@ internal sealed class SqlSearchProviders
             if (catalog is null) return Task.CompletedTask;
 
             return new SqlCatalogSearchProvider(catalog.ConnectionSource, _owner._indexCache)
+                .SearchAsync(query, sink, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// SQL Agent 作業來源：每一輪現組一個 <see cref="SqlAgentJobSearchProvider"/>，
+    /// 共用同一份快照快取。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="CatalogSource"/> 同一個形狀，而那正是重點——加一個來源在這一支是
+    /// 多一個十幾行的巢狀類別，<see cref="SearchAggregator"/>、分類 pill、清單樣板與
+    /// 預覽一個字都不必改。
+    ///
+    /// 快取鍵的差別藏在 <see cref="SqlAgentJobSearchSnapshotCache"/> 裡：那一份以
+    /// <c>ServerCacheKey</c> 分，不是 <c>CacheKey</c>——作業與目前連在哪一個資料庫無關。
+    /// </remarks>
+    private sealed class AgentJobSource : ISearchProvider
+    {
+        private readonly SqlSearchProviders _owner;
+
+        internal AgentJobSource(SqlSearchProviders owner)
+        {
+            _owner = owner;
+            Categories = SqlAgentJobSearchCategories.Create(SqlAgentJobSearchProvider.ProviderId);
+        }
+
+        public string Id => SqlAgentJobSearchProvider.ProviderId;
+
+        public string DisplayName => "SQL Agent 作業";
+
+        public IReadOnlyList<SearchCategory> Categories { get; }
+
+        public Task SearchAsync(SearchQuery query, ISearchSink sink, CancellationToken cancellationToken)
+        {
+            var catalog = Volatile.Read(ref _owner._catalog);
+
+            // 沒有連線不是失敗：畫面上已經有「尚未連線」那一句。
+            if (catalog is null) return Task.CompletedTask;
+
+            return new SqlAgentJobSearchProvider(catalog.ConnectionSource, _owner._jobCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
     }
