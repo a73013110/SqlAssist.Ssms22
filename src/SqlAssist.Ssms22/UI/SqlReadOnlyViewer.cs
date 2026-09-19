@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
+using SqlAssist.Core.Matching;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 
@@ -40,13 +43,29 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         _viewer.ContextMenu = menu;
     }
 
-    public void SetSql(string sql)
+    public void SetSql(string sql) => SetSql(sql, null);
+
+    /// <param name="highlights">
+    /// 要標出來並捲到可見的區段，索引落在 <paramref name="sql"/> 上；null 或空的就整份從頭顯示。
+    /// 位置對不上時<b>傳空的</b>，不要塞一組猜的——畫錯位置的高亮看起來像是比對錯了。
+    /// </param>
+    public void SetSql(string sql, IReadOnlyList<MatchSpan>? highlights)
     {
         Sql = sql;
         _theme.EnsureCurrent();
-        _viewer.Document = SqlScriptDocument.Build(sql, _theme.Resources);
+        var document = SqlScriptDocument.Build(sql, _theme.Resources, highlights, out var anchor);
+        _viewer.Document = document;
         SetWrap(Wrap);
         _viewer.ScrollToHome();
+        if (anchor is null) return;
+
+        // 版面還沒算完就捲動會落在錯的位置；排到這一輪版面之後再捲，並確認文件還是剛才那一份
+        // ——使用者可能在這中間又換了一列。
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            SqlAssistPlatformGuard.Run("捲到 SQL 命中位置", () =>
+            {
+                if (ReferenceEquals(_viewer.Document, document)) anchor.BringIntoView();
+            })));
     }
     public void SetWrap(bool wrap)
     {

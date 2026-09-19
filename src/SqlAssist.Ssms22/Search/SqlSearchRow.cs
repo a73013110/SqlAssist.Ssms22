@@ -147,6 +147,9 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     ///
     /// 對不上就整組放棄，不猜：畫錯位置的高亮看起來像是比對錯了，比不畫更難解釋。
     /// 本文命中不做這件事——它的片段來自定義本文，與標題沒有關係。
+    ///
+    /// 換算本身走 <see cref="MatchProjection"/>，與預覽把命中對到完整定義上是同一份：
+    /// 兩邊各寫一次的症狀是其中一邊的邊界條件改了，而同一筆結果在清單與預覽高亮在不同的字上。
     /// </remarks>
     private static IReadOnlyList<MatchSpan> ProjectOntoTitle(SearchHit hit)
     {
@@ -155,18 +158,10 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
             return Array.Empty<MatchSpan>();
         }
 
-        var offset = hit.Title.LastIndexOf(hit.Snippet, StringComparison.Ordinal);
-        if (offset < 0) return Array.Empty<MatchSpan>();
-
-        var spans = new List<MatchSpan>(hit.SnippetSpans.Count);
-
-        foreach (var span in hit.SnippetSpans)
-        {
-            if (span.End > hit.Snippet.Length) return Array.Empty<MatchSpan>();
-            spans.Add(new MatchSpan(span.Start + offset, span.Length));
-        }
-
-        return spans;
+        var offset = MatchProjection.Find(hit.Title, hit.Snippet, 0, MatchProjectionMode.FromEnd);
+        return offset < 0
+            ? Array.Empty<MatchSpan>()
+            : MatchProjection.Shift(hit.SnippetSpans, offset, hit.Snippet.Length, hit.Title.Length);
     }
 
     /// <summary>
