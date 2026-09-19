@@ -24,13 +24,8 @@ namespace SqlAssist.Metadata.Search;
 /// <see cref="SearchProviderFailure"/>，而工具窗的頁尾會被一句紅字佔住——
 /// 對一個「本來就多半讀不到」的來源，那等於每一次搜尋都在報錯。
 /// 空白（什麼都不說）更糟：與「這台伺服器上真的沒有叫這個名字的作業」一模一樣。
-/// 走的是中間那條：<see cref="ISearchSink.ReportTruncated(string?)"/> 帶上
-/// <see cref="UnavailableCheckpoint"/>，整輪標記成部分結果，而呼叫端從
-/// <see cref="SearchProviderProgress.Checkpoint"/> 認得出是這一種，說得出那一句話。
-///
-/// 續掃位置被拿來當「為什麼沒掃」的載體，是契約上唯一一處勉強的地方：
-/// <see cref="ISearchSink"/> 只說得出「沒掃完、掃到這裡」，說不出「沒開始掃，因為讀不到」。
-/// 兩者在這個來源上是完全不同的兩句話，而目前只有一個欄位裝得下。
+/// 走的是中間那條：<see cref="ISearchSink.ReportUnavailable(string)"/> 帶上這個來源
+/// 自己寫的那一句話，整輪標記成部分結果，而呼叫端原樣把它貼在狀態列上。
 /// </remarks>
 public sealed class SqlAgentJobSearchProvider : ISearchProvider
 {
@@ -38,15 +33,18 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     public const string ProviderId = "agent-job";
 
     /// <summary>
-    /// 「這一輪讀不到這個來源」的續掃位置。
+    /// 讀不到 <c>msdb</c> 時交給呼叫端貼在狀態列上的那一句話。
     /// </summary>
     /// <remarks>
-    /// Core 不解讀它（契約說得很明白），認得它的是呈現那一層——工具窗靠它把
-    /// 「沒掃完」與「讀不到 <c>msdb</c>」分成兩句話。是常數而不是讓每一端各打一次字：
-    /// 打錯的那一次不會報錯，只會安靜地退回泛用的「部分結果」，
-    /// 而畫面上看不出是打錯還是真的沒掃完。
+    /// 由這個來源自己寫，不是呈現那一層照 provider Id 查一張表：查表的那一版每多一個
+    /// 「權限常常不足」的來源就要在同一處多一個 <c>if</c>，而寫得出這一句的只有
+    /// 知道自己去讀了 <c>msdb</c> 的這裡。
+    ///
+    /// 括號裡寫的是最可能的原因而不是斷言：連不上與逾時也走同一條降級路徑，
+    /// 而斷言權限的話，使用者會去查一個好好的權限設定。
     /// </remarks>
-    public const string UnavailableCheckpoint = "agent-job:unavailable";
+    private const string UnavailableReason =
+        "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。";
 
     /// <summary>去重鍵的前綴；與其他 provider 的鍵不會互相碰撞。</summary>
     private const string DedupePrefix = "agent-job|";
@@ -136,8 +134,9 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
             if (snapshot is null)
             {
                 // 讀不到 msdb。這不是失敗（失敗會把頁尾整行佔住），也不是空白
-                // （空白與「這台伺服器上沒有這個作業」一模一樣）。
-                sink.ReportTruncated(UnavailableCheckpoint);
+                // （空白與「這台伺服器上沒有這個作業」一模一樣），更不是「沒掃完」
+                // ——後者叫使用者縮小範圍，而那對沒有權限完全沒有用。
+                sink.ReportUnavailable(UnavailableReason);
                 return;
             }
 

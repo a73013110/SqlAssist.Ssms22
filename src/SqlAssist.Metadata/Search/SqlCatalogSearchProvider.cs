@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Matching;
@@ -27,7 +28,9 @@ namespace SqlAssist.Metadata.Search;
 /// 每按一次鍵一份的完整堆疊）。
 ///
 /// 多個資料庫<b>平行</b>掃，而且各自獨立：一個連不上、逾時或權限不足只會讓那一個沒有結果
-/// 並標記這一輪沒掃完，其他幾個照常回來。排成一列掃的症狀是使用者勾了五個資料庫之後，
+/// 並走 <see cref="ISearchSink.ReportUnavailable(string)"/> 說出是哪一個，其他幾個照常回來
+/// （<b>不是</b>「沒掃完」——那一句叫使用者縮小範圍，而那對一個連不上的資料庫一次都幫不上
+/// 忙）。排成一列掃的症狀是使用者勾了五個資料庫之後，
 /// 第五個要等前四個都掃完全表才開始，而它們用的是各自的連線。
 /// </remarks>
 public sealed class SqlCatalogSearchProvider : ISearchProvider
@@ -87,7 +90,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         for (var index = 0; index < sources.Count; index++)
         {
             var source = sources[index];
-            var round = new DatabaseRound();
+            var round = new DatabaseRound(source.DatabaseName);
             rounds[index] = round;
             runs[index] = Task.Run(
                 () => SearchDatabase(source, query, sink, round, _indexCache, cancellationToken), cancellationToken);
@@ -109,14 +112,22 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// <remarks>
     /// 續掃位置取<b>第一個沒掃完的資料庫</b>的，不是最後一個回來的：後者由賽跑決定，
     /// 同一組輸入每次交出去的字串會不一樣，而呼叫端可能拿它決定要不要往下找。
+    /// 讀不到的資料庫名稱同理照 <paramref name="rounds"/> 的順序（＝使用者勾的順序）收，
+    /// 不照誰先回來。
+    ///
+    /// 「讀不到」與「沒掃完」分開回報，而且可以同時發生：五個資料庫裡一個連不上、
+    /// 另一個掃到預算用盡是一輪裡的兩件事，而它們要說的話不一樣。
     /// </remarks>
     private static void Summarize(DatabaseRound[] rounds, ISearchSink sink)
     {
         var truncated = false;
         string? checkpoint = null;
+        var unavailable = new List<string>();
 
         foreach (var round in rounds)
         {
+            if (round.Unavailable) unavailable.Add(round.DatabaseName);
+
             if (!round.Truncated) continue;
 
             truncated = true;
@@ -124,6 +135,33 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         }
 
         if (truncated) sink.ReportTruncated(checkpoint);
+        if (unavailable.Count > 0) sink.ReportUnavailable(UnavailableReason(unavailable));
+    }
+
+    /// <summary>
+    /// 讀不到的資料庫交給呼叫端貼在狀態列上的那一句話。
+    /// </summary>
+    /// <remarks>
+    /// 名稱一定要寫出來。泛用的「部分結果；縮小範圍或加長關鍵字可以掃得更完整」對
+    /// 「LibArchive 連不上」完全沒有用——使用者會照那一句改三次關鍵字，而那個資料庫
+    /// 一次都沒有被搜到。
+    ///
+    /// 不逐一列名，只寫第一個加上還有幾個：狀態列是一行，而勾了十個資料庫、斷了八個的
+    /// 那一輪會把它撐爆，重點（有東西沒搜到、去看那幾個資料庫）第一句已經說完。
+    ///
+    /// 括號裡寫的是幾個可能而不是斷言：連不上、逾時與權限不足在
+    /// <see cref="SqlCatalogSearchIndexCache.GetOrBuild"/> 那一層降級成同一件事，
+    /// 這裡分不出是哪一個，而斷言錯的那一次會讓使用者去查一個好好的權限設定。
+    /// </remarks>
+    private static string UnavailableReason(IReadOnlyList<string> databaseNames)
+    {
+        var first = databaseNames[0];
+
+        var subject = databaseNames.Count > 1
+            ? "「" + first + "」等 " + databaseNames.Count.ToString(CultureInfo.InvariantCulture) + " 個資料庫"
+            : first.Length > 0 ? "「" + first + "」" : "有一個資料庫";
+
+        return subject + "這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。";
     }
 
     /// <summary>掃一個資料庫；失敗與截斷都只記在自己那一份 <paramref name="round"/> 上。</summary>
@@ -163,7 +201,10 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             {
                 // 這一輪沒有這個資料庫的資料。其他資料庫照掃——一個連不上的目標
                 // 讓整份結果消失，比少一個來源糟得多。
-                round.Truncated = true;
+                //
+                // 這不是「沒掃完」：一個字都沒掃到，而叫使用者縮小範圍或加長關鍵字
+                // 對一個連不上的資料庫一次都幫不上忙。名稱由 Summarize 寫進那一句話裡。
+                round.Unavailable = true;
                 return;
             }
 
@@ -495,7 +536,18 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// <summary>一個資料庫這一輪掃到哪裡；只有那一條執行緒讀寫它。</summary>
     private sealed class DatabaseRound
     {
+        internal DatabaseRound(string databaseName)
+        {
+            DatabaseName = databaseName;
+        }
+
+        /// <summary>讀不到時要寫進那一句話裡的名稱；沒有它的話使用者不知道該去看哪一個。</summary>
+        internal string DatabaseName { get; }
+
         internal bool Truncated { get; set; }
+
+        /// <summary>這個資料庫這一輪整個讀不到；與 <see cref="Truncated"/> 是兩句話。</summary>
+        internal bool Unavailable { get; set; }
 
         internal string? Checkpoint { get; set; }
     }

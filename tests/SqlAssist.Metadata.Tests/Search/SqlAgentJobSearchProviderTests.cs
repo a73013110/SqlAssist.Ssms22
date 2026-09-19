@@ -259,10 +259,17 @@ public sealed class SqlAgentJobSearchProviderTests
         var sink = await RunAsync(server, new SearchQuery("Loan"), cache: cache);
 
         Assert.Empty(sink.Hits);
-        Assert.True(sink.IsTruncated);
 
-        // 續掃位置是呼叫端唯一分得出「讀不到」與「沒掃完」的線索。
-        Assert.Equal(SqlAgentJobSearchProvider.UnavailableCheckpoint, sink.Checkpoint);
+        // 「讀不到」不是「沒掃完」：後者叫使用者縮小範圍，而那對沒有權限完全沒有用。
+        Assert.False(sink.IsTruncated);
+        Assert.Null(sink.Checkpoint);
+
+        Assert.True(sink.IsUnavailable);
+
+        // 那一句話由這個來源自己寫，呼叫端原樣貼上去——它指得出少了哪一個來源，
+        // 也指得出該去看什麼。
+        Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
+        Assert.Contains("msdb", sink.UnavailableReason);
 
         // 失敗不進快取：否則權限恢復之後仍然拿到「沒有資料」。
         Assert.False(cache.IsFresh(server.SourceFor().ServerCacheKey));
@@ -445,7 +452,8 @@ public sealed class SqlAgentJobSearchProviderTests
 
         Assert.Contains(reported, line => line.Contains("開啟 SQL Agent 作業連線"));
         Assert.Empty(sink!.Hits);
-        Assert.Equal(SqlAgentJobSearchProvider.UnavailableCheckpoint, sink.Checkpoint);
+        Assert.True(sink.IsUnavailable);
+        Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
     }
 
     /// <summary>這個來源宣告自己的兩顆 pill，不借用目錄那一組。</summary>

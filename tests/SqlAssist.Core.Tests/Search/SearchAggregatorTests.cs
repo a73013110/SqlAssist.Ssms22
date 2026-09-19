@@ -372,6 +372,134 @@ public sealed class SearchAggregatorTests
         Assert.False(tablesOnly.IsPartial);
     }
 
+    /// <summary>
+    /// 「讀不到」是第一類訊號，不是續掃位置上的一個約定字串。
+    /// </summary>
+    /// <remarks>
+    /// 呈現那一層要說的兩句話完全相反：「沒掃完」叫使用者縮小範圍或加長關鍵字，
+    /// 「讀不到」叫他去看權限。分不出來的症狀是他先照前一句試三次。
+    /// </remarks>
+    [Fact]
+    public async Task 讀不到的來源帶著自己的那一句話出去()
+    {
+        var aggregator = Aggregate(
+            new FakeSearchProvider("catalog", Hit("catalog", "Loan", 90)),
+            new FakeSearchProvider("agent-job", (query, sink, cancellationToken) =>
+            {
+                sink.ReportUnavailable("SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限）。");
+                return Task.CompletedTask;
+            }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        var unavailable = Assert.Single(results.Progress, entry => entry.IsUnavailable);
+        Assert.Equal("agent-job", unavailable.ProviderId);
+        Assert.Contains("msdb", unavailable.UnavailableReason);
+
+        // 讀不到的來源沒有「掃到哪裡」可言；把它記成截斷的話，兩句話又混回同一件事。
+        Assert.False(unavailable.IsTruncated);
+        Assert.Null(unavailable.Checkpoint);
+
+        // 這一輪確實少了一個來源，所以是部分的——而另一個來源的結果照樣回得來。
+        Assert.True(results.IsPartial);
+        Assert.Equal("Loan", Assert.Single(results.Hits).Title);
+    }
+
+    /// <summary>
+    /// 讀不到與擲例外是兩件事，而且不得互相冒充。
+    /// </summary>
+    /// <remarks>
+    /// 例外走 <see cref="SearchProviderFailure"/>，工具窗的頁尾會變成紅字；對一個本來就
+    /// 多半讀不到的來源，那等於每一次搜尋都在報錯。反過來把真的例外降級成「讀不到」，
+    /// 則會讓程式錯誤安靜地變成一句「多半是權限不足」。
+    /// </remarks>
+    [Fact]
+    public async Task 讀不到不算失敗而失敗不算讀不到()
+    {
+        var aggregator = Aggregate(
+            new FakeSearchProvider("agent-job", (query, sink, cancellationToken) =>
+            {
+                sink.ReportUnavailable("msdb 讀不到。");
+                return Task.CompletedTask;
+            }),
+            new FakeSearchProvider("broken", (query, sink, cancellationToken) =>
+                throw new InvalidOperationException("連線已關閉")));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        Assert.Equal("broken", Assert.Single(results.Failures).ProviderId);
+
+        var byProvider = results.Progress.ToDictionary(entry => entry.ProviderId, StringComparer.Ordinal);
+
+        Assert.True(byProvider["agent-job"].IsUnavailable);
+        Assert.False(byProvider["agent-job"].IsTruncated);
+
+        // 擲出例外的那一個沒掃完，但沒有人說得出它「讀不到什麼」。
+        Assert.False(byProvider["broken"].IsUnavailable);
+        Assert.Null(byProvider["broken"].UnavailableReason);
+        Assert.True(byProvider["broken"].IsTruncated);
+    }
+
+    /// <summary>
+    /// 一個目標讀不到不讓這個來源停下來。
+    /// </summary>
+    /// <remarks>
+    /// 目錄那一邊是每個資料庫一條執行緒；讓 sink 因此進入用盡狀態的症狀是使用者勾了
+    /// 五個資料庫、斷了第一個，剩下四個連掃都沒掃。
+    /// </remarks>
+    [Fact]
+    public async Task 讀不到之後這個來源照樣推得進結果()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("「LibArchive」這一輪讀不到。");
+
+            Assert.False(sink.IsExhausted);
+            Assert.True(sink.TryReport(Hit("catalog", "Loan", 90)));
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        Assert.Equal("Loan", Assert.Single(results.Hits).Title);
+        Assert.True(Assert.Single(results.Progress).IsUnavailable);
+        Assert.True(results.IsPartial);
+    }
+
+    /// <summary>同一輪說第二次時留著第一句；後到的覆蓋先到的話，那句話由賽跑決定。</summary>
+    [Fact]
+    public async Task 同一個來源說第二次時留著第一句()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("先說的那一句。");
+            sink.ReportUnavailable("後說的那一句。");
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        Assert.Equal("先說的那一句。", Assert.Single(results.Progress).UnavailableReason);
+    }
+
+    /// <summary>說不出原因的「讀不到」與泛用的「部分結果」在畫面上一模一樣，所以不准。</summary>
+    [Fact]
+    public async Task 沒有原因的讀不到是程式錯誤()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("");
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        // 參數違約照樣被聚合器隔離成一次來源失敗（那是所有例外的路徑），但它是失敗，
+        // 不是安靜地記成一次沒有原因的「讀不到」。
+        Assert.IsType<ArgumentException>(Assert.Single(results.Failures).Exception);
+        Assert.False(Assert.Single(results.Progress).IsUnavailable);
+    }
+
     [Fact]
     public async Task 沒有來源時回傳空的完整結果()
     {
