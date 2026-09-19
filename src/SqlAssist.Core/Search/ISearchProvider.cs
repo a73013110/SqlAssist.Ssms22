@@ -32,6 +32,10 @@ public interface ISearchProvider
     /// 取消同理。回報的 <see cref="SearchHit.CategoryId"/> 必須出自
     /// <see cref="Categories"/>，而且應該自己先套用 <see cref="SearchQuery.Categories"/> 過濾
     /// ——聚合器那一道只是最後防線，靠它過濾等於把不要的候選也算進預算。
+    ///
+    /// <see cref="SearchQuery.Targets"/> 要在<b>取資料之前</b>問，不是取回來再濾：
+    /// 這個旗標存在的唯一理由就是讓不要的那一段真的不必付代價，而聚合器沒有辦法
+    /// 替 provider 省掉一次全表掃描。
     /// </remarks>
     Task SearchAsync(SearchQuery query, ISearchSink sink, CancellationToken cancellationToken);
 }

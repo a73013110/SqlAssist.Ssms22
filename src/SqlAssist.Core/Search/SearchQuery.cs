@@ -26,20 +26,32 @@ public sealed class SearchQuery
     /// <param name="categories">
     /// 要保留的 <see cref="SearchCategory.Id"/>；null 或空表示不過濾。
     /// </param>
+    /// <param name="targets">
+    /// 這一輪要掃哪幾個部位。provider 必須真的據此跳過掃描，不是掃回來再丟。
+    /// </param>
     public SearchQuery(
         string text,
         long generation = 0,
         SearchOptions options = SearchOptions.None,
         IEnumerable<string>? categories = null,
-        SearchScope? scope = null)
+        SearchScope? scope = null,
+        SearchTargets targets = SearchTargets.All)
     {
         if (text is null) throw new ArgumentNullException(nameof(text));
         if (generation < 0) throw new ArgumentOutOfRangeException(nameof(generation));
+
+        // 一個部位都不掃的查詢一定是呼叫端算錯了：它不會找到任何東西，而畫面上與
+        // 「這個字串不存在」一模一樣。認不得的位元同理——多出來的那一位沒有人會去掃。
+        if (targets == SearchTargets.None || (targets & ~SearchTargets.All) != 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targets));
+        }
 
         Text = text;
         Generation = generation;
         Options = options;
         Scope = scope ?? SearchScope.All;
+        Targets = targets;
         NormalizedPattern = FuzzyMatcher.NormalizePattern(text);
         _categories = Copy(categories);
     }
@@ -64,6 +76,16 @@ public sealed class SearchQuery
 
     public SearchScope Scope { get; }
 
+    /// <summary>
+    /// 這一輪要掃哪幾個部位。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Categories"/> 是兩條獨立的軸：前者說「掃它的哪裡」，後者說「留哪一種東西」。
+    /// 目錄物件 provider 的第一次搜尋最貴的一段正是定義本文——不含
+    /// <see cref="SearchTargets.Text"/> 的那一輪連撈都不撈，也不佔記憶體。
+    /// </remarks>
+    public SearchTargets Targets { get; }
+
     /// <summary>要保留的分類 Id；空表示不過濾。</summary>
     public IReadOnlyCollection<string> Categories => _categories;
 
@@ -85,6 +107,9 @@ public sealed class SearchQuery
         if (categoryId is null) throw new ArgumentNullException(nameof(categoryId));
         return _categories.Count == 0 || _categories.Contains(categoryId);
     }
+
+    /// <summary>這個部位這一輪要不要掃。</summary>
+    public bool IncludesTarget(SearchMatchTarget target) => (Targets & target.ToFlag()) != 0;
 
     private static HashSet<string> Copy(IEnumerable<string>? categories)
     {

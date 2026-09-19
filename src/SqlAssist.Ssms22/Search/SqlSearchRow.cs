@@ -30,7 +30,11 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     public SearchHit Hit { get; }
 
     /// <summary>與聚合器去重時同一把鍵；重新整理後靠它選回原來那一列。</summary>
-    public string Key => Hit.HitClass + " " + Hit.DedupeKey;
+    /// <remarks>
+    /// 直接就是 <see cref="SearchHit.DedupeKey"/>：聚合器已經把同一個東西的幾種命中併成一列，
+    /// 再接一段命中部位上去的話，重新整理之後那一列換成另一種部位命中就選不回來了。
+    /// </remarks>
+    public string Key => Hit.DedupeKey;
 
     public string Title => Hit.Title;
 
@@ -48,10 +52,16 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// <summary>pill 上那個分類的顯示字；找不到宣告時退回分類 Id，不留空白。</summary>
     public string CategoryLabel { get; }
 
-    public SearchHitClass HitClass => Hit.HitClass;
+    public SearchMatchTarget MatchTarget => Hit.MatchTarget;
 
-    /// <summary>分組標頭的字；名稱與本文兩組的意義完全不同，混在一起排會讓表名被註解壓下去。</summary>
-    public string GroupLabel => HitClass == SearchHitClass.Name ? "名稱" : "定義本文";
+    /// <summary>分組標頭的字；三組的意義完全不同，混在一起排會讓表名被註解壓下去。</summary>
+    public string GroupLabel =>
+        MatchTarget switch
+        {
+            SearchMatchTarget.Name => "名稱",
+            SearchMatchTarget.Column => "資料行",
+            _ => "定義本文"
+        };
 
     /// <summary>剛加入清單；卡片以它播一次進場動畫，清單稍後清掉，捲動重用容器時才不會重播。</summary>
     public bool IsNew
@@ -81,7 +91,7 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// </remarks>
     private static IReadOnlyList<MatchSpan> ProjectOntoTitle(SearchHit hit)
     {
-        if (hit.HitClass != SearchHitClass.Name || hit.Snippet.Length == 0 || hit.SnippetSpans.Count == 0)
+        if (hit.MatchTarget == SearchMatchTarget.Text || hit.Snippet.Length == 0 || hit.SnippetSpans.Count == 0)
         {
             return Array.Empty<MatchSpan>();
         }

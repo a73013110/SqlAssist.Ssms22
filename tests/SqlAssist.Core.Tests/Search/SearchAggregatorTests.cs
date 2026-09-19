@@ -23,7 +23,7 @@ public sealed class SearchAggregatorTests
             var aggregator = Aggregate(
                 new FakeSearchProvider("catalog", Hit("catalog", "Loan", 90), Hit("catalog", "LoanDetail", 70)),
                 new FakeSearchProvider("memory", Hit("memory", "Copy", 90), Hit("memory", "Branch", 70)),
-                new FakeSearchProvider("tabs", Hit("tabs", "Lib_Reader", 90, SearchHitClass.Body)));
+                new FakeSearchProvider("tabs", Hit("tabs", "Lib_Reader", 90, SearchMatchTarget.Text)));
 
             var results = await aggregator.SearchAsync(new SearchQuery("lo", round), CancellationToken.None);
             var order = results.Hits.Select(hit => hit.DedupeKey).ToArray();
@@ -39,14 +39,14 @@ public sealed class SearchAggregatorTests
     public async Task 名稱命中一律排在本文命中之前()
     {
         var aggregator = Aggregate(
-            new FakeSearchProvider("body", Hit("body", "Loan", 10000, SearchHitClass.Body)),
+            new FakeSearchProvider("body", Hit("body", "Loan", 10000, SearchMatchTarget.Text)),
             new FakeSearchProvider("name", Hit("name", "LoanDetail", 1)));
 
         var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
 
         Assert.Equal(
-            new[] { SearchHitClass.Name, SearchHitClass.Body },
-            results.Hits.Select(hit => hit.HitClass));
+            new[] { SearchMatchTarget.Name, SearchMatchTarget.Text },
+            results.Hits.Select(hit => hit.MatchTarget));
         Assert.False(results.IsPartial);
         Assert.Empty(results.Failures);
     }
@@ -102,20 +102,64 @@ public sealed class SearchAggregatorTests
         Assert.Equal(90, hit.Score);
     }
 
+    /// <summary>
+    /// 同一個物件被兩種部位命中時併成一列，留下排名較高的那一份。
+    /// </summary>
+    /// <remarks>
+    /// 兩列指向同一個地方、點下去做同一件事，而使用者看到的是清單上重複的兩行。
+    /// 留下的是名稱那一份：比較器先比部位再比分數。
+    /// </remarks>
     [Fact]
-    public async Task 名稱與本文命中不互相去重()
+    public async Task 同一個物件的兩種命中合併成一列()
     {
-        // 同一個物件被名稱命中也被定義本文命中是正常的，UI 分兩組顯示。
         var aggregator = Aggregate(
             new FakeSearchProvider("catalog",
                 Hit("catalog", "Loan", 90, dedupeKey: "dbo.Loan"),
-                Hit("catalog", "Loan", 20, SearchHitClass.Body, dedupeKey: "dbo.Loan")));
+                Hit("catalog", "Loan", 20, SearchMatchTarget.Text, dedupeKey: "dbo.Loan")));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
+
+        var hit = Assert.Single(results.Hits);
+        Assert.Equal(SearchMatchTarget.Name, hit.MatchTarget);
+        Assert.Equal(90, hit.Score);
+    }
+
+    /// <summary>資料行命中不會被它所屬物件的命中吃掉：去重鍵多一段資料行名稱。</summary>
+    [Fact]
+    public async Task 資料行命中不與物件命中合併()
+    {
+        var aggregator = Aggregate(
+            new FakeSearchProvider("catalog",
+                Hit("catalog", "Loan", 90, dedupeKey: "dbo.Loan"),
+                Hit("catalog", "Loan", 80, SearchMatchTarget.Column, dedupeKey: "dbo.Loan.CopyNo")));
 
         var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
 
         Assert.Equal(
-            new[] { SearchHitClass.Name, SearchHitClass.Body },
-            results.Hits.Select(hit => hit.HitClass));
+            new[] { SearchMatchTarget.Name, SearchMatchTarget.Column },
+            results.Hits.Select(hit => hit.MatchTarget));
+    }
+
+    /// <summary>
+    /// 分組順序是名稱、資料行、定義本文，而且分數不跨組比較。
+    /// </summary>
+    /// <remarks>
+    /// 照列舉值排的話本文命中會插在名稱與資料行中間，而使用者打 <c>CopyNo</c> 要的是
+    /// 「叫這個名字的資料行在哪幾張表」。
+    /// </remarks>
+    [Fact]
+    public async Task 部位的分組順序是名稱資料行本文()
+    {
+        var aggregator = Aggregate(
+            new FakeSearchProvider("body", Hit("body", "Loan", 10000, SearchMatchTarget.Text)),
+            new FakeSearchProvider("column", Hit("column", "CopyNo", 1, SearchMatchTarget.Column)),
+            new FakeSearchProvider("name", Hit("name", "LoanDetail", 1)));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
+
+        Assert.Equal(
+            new[] { SearchMatchTarget.Name, SearchMatchTarget.Column, SearchMatchTarget.Text },
+            results.Hits.Select(hit => hit.MatchTarget));
     }
 
     [Fact]
@@ -373,7 +417,7 @@ public sealed class SearchAggregatorTests
         string providerId,
         string name,
         int score,
-        SearchHitClass hitClass = SearchHitClass.Name,
+        SearchMatchTarget matchTarget = SearchMatchTarget.Name,
         string? dedupeKey = null,
         string? categoryId = null)
     {
@@ -382,9 +426,9 @@ public sealed class SearchAggregatorTests
         return new SearchHit(
             providerId,
             categoryId ?? providerId + ".default",
-            hitClass,
+            matchTarget,
             name,
-            dedupeKey ?? providerId + ":" + name + ":" + hitClass,
+            dedupeKey ?? providerId + ":" + name,
             score,
             path,
             snippet: name,

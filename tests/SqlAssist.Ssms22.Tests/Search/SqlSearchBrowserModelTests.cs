@@ -294,7 +294,7 @@ public sealed class SqlSearchBrowserModelTests
             {
                 if (!name.StartsWith(query.Text, StringComparison.OrdinalIgnoreCase)) continue;
 
-                sink.TryReport(new SearchHit(Id, _categoryId, SearchHitClass.Name, name, name, name.Length,
+                sink.TryReport(new SearchHit(Id, _categoryId, SearchMatchTarget.Name, name, name, name.Length,
                     snippet: name, snippetSpans: new[] { new MatchSpan(0, query.Text.Length) }));
             }
 

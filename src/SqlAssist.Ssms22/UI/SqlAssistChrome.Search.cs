@@ -81,7 +81,7 @@ internal static partial class SqlAssistChrome
 
         var template = new DataTemplate { VisualTree = panel };
 
-        var body = new DataTrigger { Binding = new Binding("HitClass"), Value = SearchHitClass.Body };
+        var body = new DataTrigger { Binding = new Binding("MatchTarget"), Value = SearchMatchTarget.Text };
         body.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "code"));
         body.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "path"));
         template.Triggers.Add(body);

@@ -63,7 +63,7 @@ internal sealed class SqlSearchProviders
 
         var source = catalog.ConnectionSource;
 
-        if (scope.Databases.Count == 0) return _indexCache.TryGet(source.CacheKey, out _);
+        if (scope.Databases.Count == 0) return _indexCache.IsFresh(source.CacheKey);
 
         foreach (var database in scope.Databases)
         {
@@ -71,14 +71,20 @@ internal sealed class SqlSearchProviders
                 ? source.CacheKey
                 : SqlConnectionCacheKey.Compose(source.ServerCacheKey, database);
 
-            if (!_indexCache.TryGet(key, out _)) return false;
+            if (!_indexCache.IsFresh(key)) return false;
         }
 
         return true;
     }
 
-    /// <summary>整批丟掉索引；使用者按重新整理時就是在說「我知道它舊了」。</summary>
-    public void Invalidate() => _indexCache.Clear();
+    /// <summary>
+    /// 標記索引舊了；使用者按重新整理時就是在說這句話。
+    /// </summary>
+    /// <remarks>
+    /// 不整批丟掉：丟掉之後下一輪要重掃整個資料庫的定義本文，而使用者通常只是改了一個
+    /// 預存程序。標記過期之後，下一輪沿著 <c>MAX(modify_date)</c> 只重撈變更過的那幾個。
+    /// </remarks>
+    public void Invalidate() => _indexCache.Invalidate();
 
     /// <summary>
     /// 目錄物件來源：每一輪現組一個 <see cref="SqlCatalogSearchProvider"/>，共用同一份索引快取。

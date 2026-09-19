@@ -15,35 +15,47 @@ namespace SqlAssist.Core.Search;
 /// </remarks>
 public sealed class SearchHit
 {
+    private static readonly SearchBadge[] NoBadges = Array.Empty<SearchBadge>();
+
+    /// <param name="matchTarget">
+    /// 命中打在名稱、資料行還是定義本文上；與 <paramref name="categoryId"/> 是兩條獨立的軸。
+    /// </param>
     /// <param name="dedupeKey">
     /// 跨 provider 穩定的去重鍵。同一個東西被兩個 provider 找到時要寫出同一個字串
-    /// （例如限定名稱），否則清單上會出現兩列一模一樣的結果。
+    /// （例如限定名稱），否則清單上會出現兩列一模一樣的結果。同一個東西被同一個 provider
+    /// 以不同部位命中時也是同一個鍵——那仍然是同一列，見
+    /// <see cref="SearchAggregator"/> 的合併規則。
     /// </param>
     /// <param name="score">provider 給的原始分數，越大越前面；跨 provider 可比是 provider 的責任。</param>
     /// <param name="path">限定名稱；provider 沒有路徑概念（片段、設定）時為 null。</param>
     /// <param name="snippetSpans"><paramref name="snippet"/> 裡要高亮的區段。</param>
+    /// <param name="badges">
+    /// 顯示膠囊；沒有脈絡要說時留空。Core 不解讀也不比較，只原樣帶到 UI。
+    /// </param>
     public SearchHit(
         string providerId,
         string categoryId,
-        SearchHitClass hitClass,
+        SearchMatchTarget matchTarget,
         string title,
         string dedupeKey,
         int score,
         SqlObjectPath? path = null,
         string snippet = "",
         IReadOnlyList<MatchSpan>? snippetSpans = null,
-        object? activatePayload = null)
+        object? activatePayload = null,
+        IReadOnlyList<SearchBadge>? badges = null)
     {
         ProviderId = SearchArgument.Identifier(providerId, nameof(providerId));
         CategoryId = SearchArgument.Identifier(categoryId, nameof(categoryId));
         Title = SearchArgument.Identifier(title, nameof(title));
         DedupeKey = SearchArgument.Identifier(dedupeKey, nameof(dedupeKey));
-        HitClass = hitClass;
+        MatchTarget = matchTarget;
         Score = score;
         Path = path;
         Snippet = snippet ?? throw new ArgumentNullException(nameof(snippet));
         SnippetSpans = snippetSpans ?? Array.Empty<MatchSpan>();
         ActivatePayload = activatePayload;
+        Badges = badges ?? NoBadges;
 
         // 排序鍵在這裡算一次：同分的比較會在排序過程中被呼叫 O(n log n) 次，
         // 而 SqlObjectPath.ToString 每次都重組整條名稱。
@@ -52,10 +64,11 @@ public sealed class SearchHit
 
     public string ProviderId { get; }
 
-    /// <summary>對應 <see cref="SearchCategory.Id"/>。</summary>
+    /// <summary>對應 <see cref="SearchCategory.Id"/>；講的是「這是哪一種東西」。</summary>
     public string CategoryId { get; }
 
-    public SearchHitClass HitClass { get; }
+    /// <summary>命中打在哪一個部位上；講的是「對上的是它的哪裡」。</summary>
+    public SearchMatchTarget MatchTarget { get; }
 
     /// <summary>清單上那一列的字。</summary>
     public string Title { get; }
@@ -74,6 +87,9 @@ public sealed class SearchHit
     /// <summary>UI 啟動這一筆結果要用的東西；Core 不解讀也不比較。</summary>
     public object? ActivatePayload { get; }
 
+    /// <summary>provider 掛的顯示膠囊；沒有時是空的。</summary>
+    public IReadOnlyList<SearchBadge> Badges { get; }
+
     /// <summary>跨 provider 穩定的去重鍵。</summary>
     public string DedupeKey { get; }
 
@@ -87,5 +103,5 @@ public sealed class SearchHit
     /// </remarks>
     public string SortKey { get; }
 
-    public override string ToString() => $"{ProviderId}:{CategoryId}:{HitClass}:{SortKey}({Score})";
+    public override string ToString() => $"{ProviderId}:{CategoryId}:{MatchTarget}:{SortKey}({Score})";
 }
