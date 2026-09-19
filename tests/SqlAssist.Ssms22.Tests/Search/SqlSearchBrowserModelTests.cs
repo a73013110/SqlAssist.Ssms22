@@ -13,7 +13,7 @@ namespace SqlAssist.Ssms22.Tests.Search;
 public sealed class SqlSearchBrowserModelTests
 {
     [Fact]
-    public void 分類pill由聚合器宣告的分類產生並去重()
+    public void 過濾選項由聚合器宣告的分類產生並去重()
     {
         var aggregator = new SearchAggregator(new ISearchProvider[]
         {
@@ -24,14 +24,13 @@ public sealed class SqlSearchBrowserModelTests
 
         var options = SqlSearchBrowserModel.CategoryOptions(aggregator.Categories);
 
-        Assert.Equal(new[] { SqlSearchBrowserModel.AllCategoriesLabel, "Table", "Favorite" },
-            options.Select(option => option.Label).ToArray());
-        Assert.Null(options[0].Id);
-        Assert.Equal(new[] { "catalog.table", "memory.favorite" }, options.Skip(1).Select(option => option.Id).ToArray());
+        // 沒有「全部」這一項：多選的空集合就是全部，多一顆互斥的「全部」等於兩種語意放在同一份清單。
+        Assert.Equal(new[] { "Table", "Favorite" }, options.Select(option => option.Label).ToArray());
+        Assert.Equal(new[] { "catalog.table", "memory.favorite" }, options.Select(option => option.Id).ToArray());
     }
 
     [Fact]
-    public void 相同分類Id只產生一顆pill()
+    public void 相同分類Id只產生一個選項()
     {
         var options = SqlSearchBrowserModel.CategoryOptions(new[]
         {
@@ -39,8 +38,8 @@ public sealed class SqlSearchBrowserModelTests
             new SearchCategory("memory", "catalog.table", "資料表"),
         });
 
-        Assert.Equal(2, options.Count);
-        Assert.Equal("Table", options[1].Label);
+        Assert.Single(options);
+        Assert.Equal("Table", options[0].Label);
     }
 
     [Fact]
@@ -220,7 +219,7 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 選項與範圍原樣寫進查詢()
+    public void 選項比對位置與範圍原樣寫進查詢()
     {
         var model = new SqlSearchBrowserModel
         {
@@ -228,18 +227,149 @@ public sealed class SqlSearchBrowserModelTests
             Text = "PUBL_CODE",
             MatchCasing = true,
             WholeWord = true,
-            Database = "LibArchive",
-            CategoryId = "catalog.column",
+            Targets = SearchTargets.Name | SearchTargets.Column,
         };
+        model.UseCategories(Categories());
+        Assert.True(model.SetDatabaseSelected("LibArchive", selected: true));
+        Assert.True(model.SetCategorySelected("catalog.table", selected: true));
 
         var round = model.Begin(indexed: true)!;
 
         Assert.Equal(SearchOptions.MatchCasing | SearchOptions.WholeWord, round.Query.Options);
         Assert.Equal(new[] { "LibArchive" }, round.Query.Scope.Databases.ToArray());
         Assert.Empty(round.Query.Scope.Servers);
-        Assert.Equal(new[] { "catalog.column" }, round.Query.Categories.ToArray());
+        Assert.Equal(new[] { "catalog.table" }, round.Query.Categories.ToArray());
         Assert.Equal("PUBL_CODE", round.Query.Text);
+
+        // 少掉 Text 的那一輪必須真的傳下去；掃回來再丟的話，第一次搜尋最貴的那一段一毫秒都沒省到。
+        Assert.Equal(SearchTargets.Name | SearchTargets.Column, round.Query.Targets);
+        Assert.False(round.Query.IncludesTarget(SearchMatchTarget.Text));
     }
+
+    [Fact]
+    public void 篩選摘要一個寫名字多個寫數字()
+    {
+        var model = new SqlSearchBrowserModel();
+        model.UseCategories(Categories());
+
+        Assert.Equal(SqlSearchBrowserModel.AllCategoriesLabel, model.CategorySummary());
+        Assert.Equal(SqlSearchBrowserModel.CurrentConnectionLabel, model.DatabaseSummary());
+
+        model.SetCategorySelected("catalog.table", selected: true);
+        Assert.Equal("Table", model.CategorySummary());
+
+        model.SetCategorySelected("catalog.view", selected: true);
+        model.SetCategorySelected("catalog.procedure", selected: true);
+        // 三個名字串起來會把按鈕撐到吃掉搜尋框；完整名單留在 chip 列與 Tooltip。
+        Assert.Equal("3", model.CategorySummary());
+
+        model.SetDatabaseSelected("LibArchive", selected: true);
+        Assert.Equal("LibArchive", model.DatabaseSummary());
+        model.SetDatabaseSelected("LibReporting", selected: true);
+        Assert.Equal("2", model.DatabaseSummary());
+    }
+
+    [Fact]
+    public void 預設狀態沒有任何chip而清掉一顆只清那一個條件()
+    {
+        var model = new SqlSearchBrowserModel { MatchCasing = true };
+        model.UseCategories(Categories());
+        model.SetCategorySelected("catalog.view", selected: true);
+        model.SetCategorySelected("catalog.table", selected: true);
+        model.SetDatabaseSelected("LibArchive", selected: true);
+
+        // 順序照分類的宣告順序，不照使用者勾選的先後：勾選順序會讓同一組條件每次排出不同的 chip。
+        Assert.Equal(
+            new[] { "種類: Table", "種類: View", "資料庫: LibArchive", "大小寫" },
+            model.Chips().Select(chip => chip.Label).ToArray());
+
+        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "種類: Table")));
+        Assert.Equal(
+            new[] { "種類: View", "資料庫: LibArchive", "大小寫" },
+            model.Chips().Select(chip => chip.Label).ToArray());
+
+        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "大小寫")));
+        Assert.False(model.MatchCasing);
+
+        model.ClearCategories();
+        model.ClearDatabases();
+        // 沒篩選就不佔那一列：空的 chip 列整列收起。
+        Assert.Empty(model.Chips());
+    }
+
+    [Fact]
+    public void 分類清單換掉時勾在上面而已經不存在的那幾個要一起走()
+    {
+        var model = new SqlSearchBrowserModel();
+        model.UseCategories(Categories());
+        model.SetCategorySelected("catalog.view", selected: true);
+
+        model.UseCategories(new[] { new SqlSearchCategoryOption("catalog.table", "Table") });
+
+        // 留著的話，每一輪都以一個沒有 provider 認領的 Id 過濾，結果永遠是空的而畫面上看不出為什麼。
+        Assert.Empty(model.CategoryIds);
+    }
+
+    [Fact]
+    public void 排序只換順序相關度原樣交回聚合器排好的那一份()
+    {
+        var model = new SqlSearchBrowserModel();
+        model.UseCategories(Categories());
+
+        var hits = new[]
+        {
+            Hit("catalog.view", "[dbo].[vLoan]", 90),
+            Hit("catalog.table", "[dbo].[Loan]", 50),
+            Hit("catalog.table", "[dbo].[Branch]", 70),
+        };
+
+        Assert.Same(hits, model.Arrange(hits));
+
+        model.Sort = SqlSearchSort.Name;
+        Assert.Equal(
+            new[] { "[dbo].[Branch]", "[dbo].[Loan]", "[dbo].[vLoan]" },
+            model.Arrange(hits).Select(hit => hit.SortKey).ToArray());
+
+        // 種類的先後是分類的宣告順序，不是 Id 的字母序；種類內再依限定名稱。
+        model.Sort = SqlSearchSort.Kind;
+        Assert.Equal(
+            new[] { "[dbo].[Branch]", "[dbo].[Loan]", "[dbo].[vLoan]" },
+            model.Arrange(hits).Select(hit => hit.SortKey).ToArray());
+        Assert.Equal(
+            new[] { "catalog.table", "catalog.table", "catalog.view" },
+            model.Arrange(hits).Select(hit => hit.CategoryId).ToArray());
+    }
+
+    [Fact]
+    public void 系統資料庫與使用者資料庫分成兩段()
+    {
+        Assert.True(SqlSearchBrowserModel.IsSystemDatabase("master"));
+        Assert.True(SqlSearchBrowserModel.IsSystemDatabase("TempDB"));
+        Assert.False(SqlSearchBrowserModel.IsSystemDatabase("LibArchive"));
+    }
+
+    [Fact]
+    public void 資料庫名稱以不分大小寫比對()
+    {
+        var model = new SqlSearchBrowserModel();
+
+        Assert.True(model.SetDatabaseSelected("LibArchive", selected: true));
+        // 同一台上 LibArchive 與 libarchive 是同一個；兩份都留著等於把它索引兩次。
+        Assert.False(model.SetDatabaseSelected("libarchive", selected: true));
+        Assert.True(model.IsDatabaseSelected("LIBARCHIVE"));
+        Assert.True(model.SetDatabaseSelected("libarchive", selected: false));
+        Assert.Empty(model.Databases);
+    }
+
+    private static IReadOnlyList<SqlSearchCategoryOption> Categories() => new[]
+    {
+        new SqlSearchCategoryOption("catalog.table", "Table"),
+        new SqlSearchCategoryOption("catalog.view", "View"),
+        new SqlSearchCategoryOption("catalog.procedure", "Procedure"),
+    };
+
+    private static SearchHit Hit(string categoryId, string title, int score) =>
+        new("catalog", categoryId, SearchMatchTarget.Name, title, categoryId + title, score);
 
     [Fact]
     public void 重新整理之後選回原來那一列否則預覽第一筆()

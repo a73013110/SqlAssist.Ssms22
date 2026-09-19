@@ -95,8 +95,8 @@ internal sealed class SqlSearchPreview : UserControl
         _body.Visibility = Visibility.Visible;
         _title.SourceText = row.Title;
         _title.Spans = row.TitleSpans;
-        // 分類與命中種類是兩件事：同一個物件可以同時出現在名稱與定義本文兩組裡。
-        _metadata.Text = row.CategoryLabel + " · " + row.GroupLabel + (row.Path.Length == 0 ? "" : " · " + row.Path);
+        // 分類與命中部位是兩件事：同一個物件可以同時被名稱與定義本文命中。
+        _metadata.Text = row.Description;
         _snippetSurface.Visibility = row.Snippet.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         _snippet.SourceText = row.Snippet;
         _snippet.Spans = row.SnippetSpans;

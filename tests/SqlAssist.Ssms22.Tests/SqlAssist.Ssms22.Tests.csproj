@@ -40,6 +40,9 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlHighlightText.cs" Link="Product\UI\SqlHighlightText.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchList.cs" Link="Product\UI\SqlSearchList.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchTargets.cs" Link="Product\UI\SqlSearchTargets.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchFilters.cs" Link="Product\UI\SqlSearchFilters.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchToolbar.cs" Link="Product\UI\SqlSearchToolbar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Search.cs" Link="Product\UI\SqlAssistChrome.Search.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchRow.cs" Link="Product\Search\SqlSearchRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchPreview.cs" Link="Product\Search\SqlSearchPreview.cs" />

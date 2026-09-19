@@ -3,8 +3,38 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
+
+/// <summary>
+/// 結果列右下角的一顆脈絡膠囊，由 provider 掛在命中上。
+/// </summary>
+/// <remarks>
+/// 只把 <see cref="SearchBadge.IconToken"/> 那個中性代號換成自製 UI 的語意圖示；認不得的代號
+/// 不畫圖示，膠囊上的字照常出現。對照寫在這裡而不是 Core，理由與分層一樣——
+/// Core 是 netstandard2.0，認識 <c>SqlIcon</c> 底下那顆 <c>ImageMoniker</c> 等於把 VS 組件
+/// 拉進那一層。
+/// </remarks>
+internal sealed class SqlSearchBadge
+{
+    internal SqlSearchBadge(SearchBadge badge)
+    {
+        if (badge is null) throw new ArgumentNullException(nameof(badge));
+        Text = badge.Text;
+        Icon = badge.IconToken switch
+        {
+            SearchBadge.ServerIcon => SqlIcon.Server,
+            SearchBadge.DatabaseIcon => SqlIcon.Database,
+            _ => null
+        };
+    }
+
+    public string Text { get; }
+
+    /// <summary>沒有對應圖示時 null；插槽留空，膠囊的字不受影響。</summary>
+    public SqlIcon? Icon { get; }
+}
 
 /// <summary>
 /// 清單上的一列，只從 <see cref="SearchHit"/> 取值。
@@ -25,6 +55,7 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
         Snippet = Flatten(hit.Snippet, hit.SnippetSpans, out var spans);
         SnippetSpans = spans;
         TitleSpans = ProjectOntoTitle(hit);
+        Badges = Project(hit.Badges);
     }
 
     public SearchHit Hit { get; }
@@ -49,19 +80,38 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// <summary>標題上要高亮的區段；對不上時是空的，標題就照原樣畫。</summary>
     public IReadOnlyList<MatchSpan> TitleSpans { get; }
 
-    /// <summary>pill 上那個分類的顯示字；找不到宣告時退回分類 Id，不留空白。</summary>
+    /// <summary>分類的顯示字；找不到宣告時退回分類 Id，不留空白。</summary>
     public string CategoryLabel { get; }
+
+    /// <summary>物件種類圖示要查的分類識別字；與補全、QuickInfo 與預覽同一顆原生目錄圖示。</summary>
+    /// <remarks>
+    /// 交出去的是 <see cref="SearchHit.CategoryId"/> 這個字串，不是酬載。清單只認得分類，
+    /// 所以加一個 provider 時這一列與樣板一個字都不必改。
+    /// </remarks>
+    public string CategoryId => Hit.CategoryId;
+
+    /// <summary>provider 掛的脈絡膠囊（伺服器、資料庫）；沒有時是空的，那一段收起。</summary>
+    public IReadOnlyList<SqlSearchBadge> Badges { get; }
 
     public SearchMatchTarget MatchTarget => Hit.MatchTarget;
 
-    /// <summary>分組標頭的字；三組的意義完全不同，混在一起排會讓表名被註解壓下去。</summary>
-    public string GroupLabel =>
-        MatchTarget switch
-        {
-            SearchMatchTarget.Name => "名稱",
-            SearchMatchTarget.Column => "資料行",
-            _ => "定義本文"
-        };
+    /// <summary>
+    /// 命中部位徽章的字；對應工具列上那三段開關。
+    /// </summary>
+    /// <remarks>
+    /// 取代原本的上下分組。分組把同一批結果切成兩疊，使用者要找的那一筆可能在第二疊的底下；
+    /// 每一列掛一顆徽章一樣分得出來，而且排序可以換成他真正要的那一種。
+    /// 用字與分段開關完全相同——兩邊各叫各的，使用者會以為它們是兩件事。
+    /// </remarks>
+    public string TargetLabel => SqlSearchTargets.LabelFor(MatchTarget);
+
+    /// <summary>整列唸出來是什麼；螢幕閱讀器與預覽的摘要共用同一句。</summary>
+    /// <remarks>
+    /// 圖示取代了列上的種類文字，所以種類必須在別的地方讀得到：列的自動化名稱、圖示的
+    /// Tooltip 與預覽的摘要。少了這一句，只用鍵盤與螢幕閱讀器的人聽到的只有一個名字。
+    /// </remarks>
+    public string Description =>
+        CategoryLabel + " · " + TargetLabel + (Path.Length == 0 ? "" : " · " + Path);
 
     /// <summary>剛加入清單；卡片以它播一次進場動畫，清單稍後清掉，捲動重用容器時才不會重播。</summary>
     public bool IsNew
@@ -76,6 +126,15 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private static IReadOnlyList<SqlSearchBadge> Project(IReadOnlyList<SearchBadge> badges)
+    {
+        if (badges.Count == 0) return Array.Empty<SqlSearchBadge>();
+
+        var projected = new SqlSearchBadge[badges.Count];
+        for (var index = 0; index < badges.Count; index++) projected[index] = new SqlSearchBadge(badges[index]);
+        return projected;
+    }
 
     /// <summary>
     /// 把名稱命中的高亮換算到限定名稱上。
