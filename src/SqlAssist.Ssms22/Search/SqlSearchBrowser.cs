@@ -14,6 +14,7 @@ using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
@@ -175,6 +176,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         });
         ActiveSqlEditor.Changed += OnEditorChanged;
 
+        // 記住的只有「怎麼比對」那三項；伺服器、資料庫與種類刻意不記，理由見 docs/search.md。
+        if (_model.RestoreMatchState(SqlAssistState.SearchMatchState))
+        {
+            _segments.Value = _model.Targets;
+            UpdateFilterChrome();
+        }
+
         _ready = true;
         ObserveConnection(reload: false);
     }
@@ -226,6 +234,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _segments.ValueChanged += (_, _) => Run(() =>
         {
             _model.Targets = _segments.Value;
+            RememberMatchState();
             Changed();
         });
 
@@ -252,8 +261,20 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_syncing) return;
         apply();
+        RememberMatchState();
         FiltersChanged();
     });
+
+    /// <summary>把比對方式交給狀態存放區。</summary>
+    /// <remarks>
+    /// 一改就記，不等關閉：SSMS 直接結束的那一次沒有人來得及收尾，而那正是最常見的關法。
+    /// 還沒 <see cref="_ready"/> 表示這一次是還原本身，不必原樣寫回去。
+    /// </remarks>
+    private void RememberMatchState()
+    {
+        if (!_ready) return;
+        SqlAssistState.SearchMatchState = _model.MatchStateToken;
+    }
 
     /// <remarks>
     /// 排序只是同一份答案的另一種看法，所以選單換的是 <see cref="Reorder"/> 而不是重搜一輪。

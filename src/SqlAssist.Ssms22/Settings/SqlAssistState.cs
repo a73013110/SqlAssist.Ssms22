@@ -6,7 +6,8 @@ using Microsoft.VisualStudio.Shell.Settings;
 namespace SqlAssist.Ssms22.Settings;
 
 /// <summary>
-/// 跨工作階段記住的內部狀態：上次檢查更新的時間與 ETag、首次擷取的通知說過了沒有。
+/// 跨工作階段記住的內部狀態：上次檢查更新的時間與 ETag、首次擷取的通知說過了沒有、
+/// SQL Search 上次用的比對方式。
 /// </summary>
 /// <remarks>
 /// 刻意不放進 Unified Settings。那份是使用者刻意調整、會漫遊同步、也會出現在設定頁上的
@@ -23,6 +24,7 @@ internal static class SqlAssistState
     private const string UpdateETagProperty = "UpdateETag";
     private const string UpdateTagProperty = "UpdateTag";
     private const string SqlMemoryCaptureNoticeProperty = "SqlMemoryCaptureNotice";
+    private const string SearchMatchStateProperty = "SearchMatchState";
 
     private static WritableSettingsStore? _store;
     private static bool _resolved;
@@ -73,6 +75,19 @@ internal static class SqlAssistState
     {
         get => Read(SqlMemoryCaptureNoticeProperty) == "1";
         set => Write(SqlMemoryCaptureNoticeProperty, value ? "1" : "0");
+    }
+
+    /// <summary>SQL Search 上次用的比對方式；沒有記錄時是空字串。</summary>
+    /// <remarks>
+    /// 格式由 <c>SqlSearchBrowserModel.MatchStateToken</c> 決定，這一層只存字串——
+    /// 拆成三個屬性的話，只有其中一個寫成功的那一次會半套還原。
+    /// 它不進 Unified Settings：工具列上隨手切的狀態不是設定頁上的偏好，
+    /// 每按一下就提交一次設定變更並廣播通知，理由與 <see cref="PreviewWindowState"/> 相同。
+    /// </remarks>
+    public static string SearchMatchState
+    {
+        get => Read(SearchMatchStateProperty);
+        set => Write(SearchMatchStateProperty, value);
     }
 
     private static string Read(string property)
