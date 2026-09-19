@@ -85,8 +85,20 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.Null(model.Begin(indexed: true));
         Assert.False(model.IsRunning);
-        Assert.Equal("尚未連線。在 SQL 查詢視窗連上資料庫之後，這裡才有東西可以搜。", model.EmptyState(0));
+        Assert.Equal(
+            "尚未連線。在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。",
+            model.EmptyState(0));
         Assert.Equal("", model.Status());
+    }
+
+    [Fact]
+    public void 指名的伺服器連不上時說的是那一台而不是叫人去開查詢視窗()
+    {
+        // 指名了伺服器卻沒有目錄，是那一台斷了；叫使用者去開查詢視窗只會讓他做一件
+        // 解決不了的事，而他真正要做的是換一台或回到查詢視窗。
+        var model = new SqlSearchBrowserModel { Text = "Loan", Server = "LIBSQL01" };
+
+        Assert.Equal("連不上 LIBSQL01。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。", model.EmptyState(0));
     }
 
     [Fact]
@@ -267,6 +279,43 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal("LibArchive", model.DatabaseSummary());
         model.SetDatabaseSelected("LibReporting", selected: true);
         Assert.Equal("2", model.DatabaseSummary());
+
+        // 伺服器單選，所以摘要永遠是一個名字；沒指名時說的是「跟著查詢視窗」而不是
+        // 資料庫那一顆的「目前連線」——兩句話講的是不同的東西。
+        Assert.Equal(SqlSearchBrowserModel.ActiveEditorServerLabel, model.ServerSummary());
+        model.Server = "LIBSQL01";
+        Assert.Equal("LIBSQL01", model.ServerSummary());
+    }
+
+    [Fact]
+    public void 指名伺服器會多一顆排在最前面的chip且清掉它就回到查詢視窗()
+    {
+        var model = new SqlSearchBrowserModel { Server = "LIBSQL01" };
+        model.UseCategories(Categories());
+        model.SetCategorySelected("catalog.table", selected: true);
+        model.SetDatabaseSelected("LibArchive", selected: true);
+
+        // 伺服器是範圍最外面那一圈，排在最前面：換掉它，清單上每一筆的來源都變了。
+        Assert.Equal(
+            new[] { "伺服器: LIBSQL01", "種類: Table", "資料庫: LibArchive" },
+            model.Chips().Select(chip => chip.Label).ToArray());
+
+        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "伺服器: LIBSQL01")));
+        Assert.Null(model.Server);
+        Assert.Equal(SqlSearchBrowserModel.ActiveEditorServerLabel, model.ServerSummary());
+    }
+
+    [Fact]
+    public void 指名的伺服器不進查詢範圍()
+    {
+        // SearchScope.Servers 是給連結伺服器（四段式名稱）的，provider 看到它就整輪不回結果。
+        // 換一台物件總管上的伺服器換的是整份目錄，兩者混用的症狀是搜什麼都沒有。
+        var model = new SqlSearchBrowserModel { Text = "Loan", HasConnection = true, Server = "LIBSQL01" };
+
+        var round = model.Begin(indexed: true);
+
+        Assert.NotNull(round);
+        Assert.Empty(round!.Query.Scope.Servers);
     }
 
     [Fact]

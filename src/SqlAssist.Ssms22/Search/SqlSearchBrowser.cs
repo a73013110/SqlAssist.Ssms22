@@ -10,11 +10,9 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Search;
-using SqlAssist.Metadata.Caching;
-using SqlAssist.Ssms22.Completion;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.UI;
 
@@ -51,6 +49,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private const double SideBySideWidth = 520;
 
     private readonly IServiceProvider _services;
+    private readonly SqlSearchCatalogs _catalogs;
     private readonly SqlSearchBrowserModel _model = new();
     private readonly SqlSearchProviders _providers = new();
     private readonly ObservableCollection<SqlSearchRow> _rows = new();
@@ -96,9 +95,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     public SqlSearchBrowser(IServiceProvider services)
     {
         _services = services;
-        // 預覽要自己向中繼資料服務要定義，所以拿得到服務容器才建得起來；欄位初始設定式跑在
-        // 建構式本體之前，那時候 _services 還是 null。
-        _preview = new SqlSearchPreview(services);
+        // 清單、預覽與移至定義共用同一份目錄出處；三條路徑各問各的，症狀是指名了別台伺服器
+        // 之後其中一條還在答查詢視窗那一台，而兩份看起來都很正常。欄位初始設定式跑在建構式
+        // 本體之前，那時候 _services 還是 null，所以這兩個不能寫成欄位初始值。
+        _catalogs = new SqlSearchCatalogs(services);
+        _preview = new SqlSearchPreview(_catalogs);
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Categories);
         _model.UseCategories(_categoryOptions);
@@ -119,7 +120,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         header.Children.Add(CreateToolbar());
         _chips.RemoveRequested += chip => Run(() =>
         {
-            if (chip is SqlSearchFilterChip filter && _model.Remove(filter)) FiltersChanged();
+            if (chip is not SqlSearchFilterChip filter) return;
+
+            // 伺服器不只是一個名稱：拿掉它要把整份目錄換回查詢視窗那一台，
+            // 只清模型的話清單還會從上一台回答。
+            if (filter.Kind == SqlSearchFilterKind.Server) SelectServer(null);
+            else if (_model.Remove(filter)) FiltersChanged();
         });
         header.Children.Add(_chips);
 
@@ -395,59 +401,133 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     }
 
     /// <summary>
-    /// 伺服器只能單選，而且來源只有目前這條連線。
+    /// 伺服器單選：跟著查詢視窗，或指名物件總管上已連線的其中一台。
     /// </summary>
     /// <remarks>
-    /// 照現有能力呈現，不做成看起來可以挑很多台的樣子：v1 沒有連結伺服器的索引，
-    /// 指名別的伺服器等於整輪不回結果。按鈕仍在，因為使用者要看得出範圍是哪一台。
+    /// 單選而不是多選：換一台換的是整份目錄，同時搜好幾台要的是每台一個 provider、
+    /// 一道硬性期限與一份說得出「哪幾台沒回來」的文案，那些都還沒有。做成看起來可以
+    /// 複選的樣子，使用者勾了兩台卻只有一台的結果，而畫面上看不出少了哪一台。
+    ///
+    /// 清單只在使用者打開下拉那一刻重問（沒有 I/O，見 <see cref="SsmsObjectExplorerServers"/>）。
+    /// <b>禁止</b>改成輪詢：物件總管服務第一次取用會把那個工具視窗叫出來，
+    /// 使用者把它關掉之後，輪詢會在他沒有要求的時候替他開回去。
     /// </remarks>
     private void ConfigureServer()
     {
         VsThemeBrushes.Apply(_server.PopupSurface);
         _server.OptionsRequested += (_, _) => Run(FillServer);
+        // 單選沒有「全選」可言；兩顆都只是重畫一次清單，不留按了沒有作用的開關。
         _server.SelectAllRequested += (_, _) => Run(FillServer);
-        _server.ClearRequested += (_, _) => Run(FillServer);
+        _server.ClearRequested += (_, _) => Run(() => SelectServer(null));
     }
 
+    /// <summary>
+    /// 伺服器下拉的兩段：跟著查詢視窗，與物件總管上已連線的伺服器。
+    /// </summary>
     /// <remarks>
-    /// 中繼資料層只交得出連線的<b>快取鍵</b>（正規化過的連線字串），沒有可以顯示的伺服器名稱，
-    /// 所以這裡寫「目前連線」而不是猜一個名字出來。猜出來的名字在連結伺服器或具名執行個體上會是錯的，
-    /// 而錯的名字比沒有名字更難發現。
+    /// 物件總管上那一台若就是查詢視窗連的那一台，就不另外列一次：同一台列兩行，
+    /// 使用者會以為那是兩個不同的範圍。比對走連線字串裡的伺服器名稱（
+    /// <see cref="SqlSearchCatalogs.ActiveEditorServerName"/>），不是快取鍵——快取鍵是
+    /// 整串正規化過的連線字串，同一台伺服器的兩條連線幾乎不會相等。
+    ///
+    /// 問不到物件總管時<b>明說</b>，不假裝這就是全部：少列一台而使用者看不出差別，
+    /// 比只列一台更糟。
     /// </remarks>
     private void FillServer()
     {
-        var options = new List<SqlSearchFilterOption>();
+        var servers = _catalogs.ListServers();
 
-        if (_model.HasConnection)
+        // 指名的那一台已經從物件總管上消失了（使用者中斷了連線）：換回查詢視窗並重搜，
+        // 而不是留著一個連不上的範圍讓每一輪都空手而回。
+        if (_catalogs.DropMissingServer(servers))
         {
-            options.Add(new SqlSearchFilterOption(
-                SqlSearchBrowserModel.CurrentConnectionLabel,
-                "範圍固定在目前查詢視窗那台伺服器；連結伺服器要的是四段式名稱那一條路，這一版還沒有索引。",
-                isSelected: true,
-                // 目前只有這一台可以搜，所以勾不掉；直接把它按回去，不留一個關得掉卻沒有作用的開關。
-                selected: _ => Run(FillServer)));
+            _model.Server = null;
+            ObserveConnection(reload: true);
         }
 
-        _server.SetOptions(new[] { new SqlSearchFilterGroup("", options) });
+        var editorServer = _catalogs.ActiveEditorServerName();
+        var options = new List<SqlSearchFilterOption>
+        {
+            new(
+                SqlSearchBrowserModel.ActiveEditorServerLabel + (editorServer is null ? "" : "（" + editorServer + "）"),
+                "跟著作用中的查詢視窗；切到連著別台的分頁就跟著換。",
+                _catalogs.FollowsActiveEditor,
+                // 單選：勾掉等於沒有範圍可搜，所以勾與不勾都是「選這一個」。
+                _ => Run(() => SelectServer(null)))
+        };
+
+        var explorer = new List<SqlSearchFilterOption>();
+
+        foreach (var server in servers ?? Array.Empty<SsmsObjectExplorerServer>())
+        {
+            // 同一台不列兩次；查詢視窗那一行已經涵蓋它，而且那一行還會跟著分頁換。
+            if (editorServer is not null &&
+                string.Equals(server.ServerName, editorServer, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var selected = _catalogs.Server is { } current &&
+                string.Equals(current.RootUrn, server.RootUrn, StringComparison.Ordinal);
+
+            explorer.Add(new SqlSearchFilterOption(
+                server.DisplayName,
+                "改用物件總管上這一台的連線搜尋；清單、預覽與定義都跟著換過去。",
+                selected,
+                value => Run(() => SelectServer(value ? server : null))));
+        }
+
+        // 問不到物件總管時，那一句掛在第一段的標題上而不是第二段：空的段落整段不畫，
+        // 掛在那裡的話使用者只會看到一份看起來就是全部的清單。
+        _server.SetOptions(new[]
+        {
+            new SqlSearchFilterGroup(servers is null ? "問不到物件總管，只列得出這一台" : "", options),
+            new SqlSearchFilterGroup("物件總管", explorer)
+        });
+    }
+
+    /// <summary>
+    /// 換一台伺服器；<paramref name="server"/> 為 null 表示回到作用中的查詢視窗。
+    /// </summary>
+    /// <remarks>
+    /// 資料庫的勾選一併清掉：名稱是每台伺服器自己的，留著的症狀是換台之後整輪指名一個
+    /// 那裡不存在的資料庫，而畫面上只看得到「沒有相符項目」。定義快取同理——
+    /// <c>object_id</c> 跨伺服器毫無關係。索引<b>不</b>丟：它照連線的快取鍵存，
+    /// 換回來時原本那一份還在。
+    /// </remarks>
+    private void SelectServer(SsmsObjectExplorerServer? server)
+    {
+        if (!_catalogs.Select(server))
+        {
+            // 勾掉目前這一個不是一個範圍；把勾選寫回去，不留一個什麼都沒選的選單。
+            FillServer();
+            return;
+        }
+
+        _model.Server = server?.DisplayName;
+        _model.ClearDatabases();
+        _preview.InvalidateDefinitions();
+        FillServer();
+        ObserveConnection(reload: true);
     }
 
     private IReadOnlyList<string> CachedDatabases() =>
-        (_providers.HasConnection ? ResolveCatalog()?.CachedSnapshot?.Databases : null) ?? Array.Empty<string>();
+        (_providers.HasConnection ? _catalogs.Resolve()?.CachedSnapshot?.Databases : null) ?? Array.Empty<string>();
 
     private void OnEditorChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排入 SQL Search 連線更新", () =>
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
                 SqlAssistPlatformGuard.Run("更新 SQL Search 連線", () => ObserveConnection(reload: true)))));
 
-    /// <summary>重讀目前查詢視窗的連線；換過連線就把這一輪作廢重搜。</summary>
+    /// <summary>重讀這一輪要用的目錄；換過連線就把這一輪作廢重搜。</summary>
     private void ObserveConnection(bool reload)
     {
         if (_disposed) return;
 
-        var catalog = ResolveCatalog();
+        var catalog = _catalogs.Resolve();
         _providers.UseCatalog(catalog);
         _model.HasConnection = catalog is not null;
-        _server.IsEnabled = catalog is not null;
+        // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
         _databases.IsEnabled = catalog is not null;
 
         // 換過查詢視窗就可能換了伺服器；上一台的定義留著會冒充這一台同號的物件。
@@ -456,24 +536,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (reload && IsVisible) Changed(immediate: true);
         else UpdateChrome();
     }
-
-    /// <summary>
-    /// 目前查詢視窗那條連線的目錄。
-    /// </summary>
-    /// <remarks>
-    /// 只在 UI 執行緒解析（<c>ActiveSqlEditor.Current</c> 有 UI 相依性），而且只交出<b>目錄</b>——
-    /// 底下那個 <c>ISqlConnectionSource</c> 的所有權在註冊表，留一份的症狀是換過資料庫之後
-    /// 每一輪都以 ObjectDisposedException 收場，而那不是 DbException，降級接不住。
-    /// </remarks>
-    private SqlMetadataCatalog? ResolveCatalog() => SqlAssistPlatformGuard.Probe<SqlMetadataCatalog?>(
-        "取得 SQL Search 的目錄",
-        () =>
-        {
-            ThreadHelper.ThrowIfNotOnUIThread();
-            var view = ActiveSqlEditor.Current;
-            return view is null ? null : SqlCompletionServices.GetMetadataService(view, _services).PeekCurrentCatalog();
-        },
-        fallback: null);
 
     /// <summary>篩選改變：更新 chip 列與摘要，然後重跑一輪。</summary>
     private void FiltersChanged()
@@ -498,7 +560,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         _kinds.UpdateSummary(_model.CategorySummary(), Join(_model.CategoryIds.Select(Label)));
         _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Databases));
-        _server.UpdateSummary(SqlSearchBrowserModel.CurrentConnectionLabel, "");
+        _server.UpdateSummary(_model.ServerSummary(), "");
 
         // chip 只在條件真的變了才重建。每一批結果都重建一次的話，正在用 Tab 走過 chip 列的人
         // 會在結果載入到一半時失去鍵盤焦點。
@@ -581,7 +643,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>只更新目錄，不重跑這一輪；使用者可能在去彈跳期間換過查詢視窗。</summary>
     private void ObserveCatalogOnly()
     {
-        var catalog = ResolveCatalog();
+        var catalog = _catalogs.Resolve();
         _providers.UseCatalog(catalog);
         _model.HasConnection = catalog is not null;
     }
@@ -727,7 +789,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         {
             // 先說一句，否則雙擊之後畫面完全沒有動靜。
             Report("正在取得 " + row.Title + " 的定義…", "activating");
-            var failure = await SqlSearchActivation.ActivateAsync(row.Hit, _services);
+            var failure = await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
             Report(failure ?? "已在新查詢視窗開啟 " + row.Title + " 的定義。", failure is null ? "activated" : "");
         }
         finally

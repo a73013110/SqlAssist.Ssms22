@@ -1155,56 +1155,21 @@ internal sealed class SqlMetadataService : IDisposable
     /// 把目錄換成這個物件自己記下的來源。
     /// </summary>
     /// <remarks>
-    /// 每一條路徑都問物件，而不是各自從物件身上拆出資料庫與伺服器再傳進來：
-    /// 拆的地方有六處，漏掉一處的症狀是那一條安靜地拿本機同號的物件回答，
-    /// 而 <c>object_id</c> 撞號在跨資料庫是常態、跨伺服器更是毫無關係。
-    ///
-    /// 指令碼自己宣告的名稱在這裡一律沒有目錄可換。它們不在任何一個
-    /// <c>sys.objects</c> 裡，<c>object_id</c> 也一律是 0——而第二、三層快取正是
-    /// 照編號存的，放行的症狀是兩個不同的暫存資料表互相蓋掉對方的欄位，
-    /// 外加每一次都白跑一趟查不到東西的查詢。它們的明細由
+    /// 實作在 <see cref="SqlMetadataCatalogRegistry.ScopeTo(SqlMetadataCatalog?, SqlObjectInfo?)"/>，
+    /// 這裡只是轉呼叫：指名別台伺服器的 SQL Search 手上只有一份目錄、沒有中繼資料服務，
+    /// 兩邊各寫一份換目錄的規則，症狀是其中一份忘了換而答案看起來完全正常。
+    /// 指令碼自己宣告的名稱在那裡一律換不到目錄，它們的明細由
     /// <see cref="SqlObjectLookup"/> 直接讀出來，本來就不必經過這一層。
     /// </remarks>
-    private SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectInfo? objectInfo)
-    {
-        if (objectInfo is null)
-        {
-            return catalog;
-        }
-
-        return objectInfo.Kind.IsScriptDeclared()
-            ? null
-            : ScopeTo(catalog, objectInfo.DatabaseName, objectInfo.ServerName);
-    }
+    private static SqlMetadataCatalog? ScopeTo(SqlMetadataCatalog? catalog, SqlObjectInfo? objectInfo) =>
+        SqlMetadataCatalogRegistry.Default.ScopeTo(catalog, objectInfo);
 
     /// <summary>把目錄換成指定的伺服器與資料庫；兩者都沒指定時原樣回傳。</summary>
-    private SqlMetadataCatalog? ScopeTo(
+    private static SqlMetadataCatalog? ScopeTo(
         SqlMetadataCatalog? catalog,
         string? databaseName,
-        string? serverName = null)
-    {
-        if (catalog is null || (string.IsNullOrEmpty(databaseName) && string.IsNullOrEmpty(serverName)))
-        {
-            return catalog;
-        }
-
-        // 連線來源一律從手上這份目錄取，不另外留一份：所有權在註冊表，
-        // 交出去的那一份可能已經被當成重複的釋放掉，理由見
-        // SqlMetadataCatalog.ConnectionSource。
-        var source = catalog.ConnectionSource;
-
-        if (!string.IsNullOrEmpty(serverName))
-        {
-            return SqlMetadataCatalogRegistry.Default.GetOrCreateFor(source, serverName!, databaseName);
-        }
-
-        // 與查詢視窗自己那個資料庫同名時就是同一份目錄。這一條讓 SqlObjectInfo
-        // 可以無條件記下自己的資料庫，而不必分「本地」與「跨庫」兩種寫法——
-        // 分兩種的症狀是某一條路徑忘了標，於是拿本地同號的物件回答。
-        return string.Equals(source.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase)
-            ? catalog
-            : SqlMetadataCatalogRegistry.Default.GetOrCreateFor(source, databaseName!);
-    }
+        string? serverName = null) =>
+        SqlMetadataCatalogRegistry.Default.ScopeTo(catalog, databaseName, serverName);
 
     /// <summary>
     /// 取得目前連線對應的目錄。使用者切換資料庫或重新連線時，快取鍵會改變，
