@@ -42,7 +42,9 @@ public sealed class SearchResults
     /// <summary>這份結果屬於哪一輪輸入。</summary>
     public long Generation { get; }
 
-    /// <summary>排名後的命中；Name 類全部在 Body 類之前。</summary>
+    /// <summary>
+    /// 排名後的命中；依 <see cref="SearchMatchTargets.GroupOrder"/> 分組，同一個東西只有一列。
+    /// </summary>
     public IReadOnlyList<SearchHit> Hits { get; }
 
     /// <summary>

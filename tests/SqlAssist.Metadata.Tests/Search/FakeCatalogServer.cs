@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using SqlAssist.Metadata.Querying;
+using SqlAssist.Metadata.Search;
 
 namespace SqlAssist.Metadata.Tests.Search;
 
@@ -15,6 +17,11 @@ namespace SqlAssist.Metadata.Tests.Search;
 /// <see cref="SqlDatabaseScopedConnectionSource"/> 的 <c>ChangeDatabase</c>。
 /// 因此假的那一份也要有「換目錄」這件事，否則跨資料庫那幾條測試量到的
 /// 是假物件自己的行為，不是產品的。
+///
+/// 增量重新整理同理：這一份會真的照
+/// <see cref="SqlCatalogSearchQueries.ModifiedAfterParameterName"/> 過濾，
+/// 而且參數沒有綁值時當場失敗。回傳全部的話，「重新整理只撈變更的物件」永遠會通過，
+/// 而產品其實整份重撈了。
 /// </remarks>
 internal sealed class FakeCatalogServer
 {
@@ -33,9 +40,9 @@ internal sealed class FakeCatalogServer
     /// <summary>每一次執行的命令原文，順序照執行的先後。</summary>
     internal List<string> Commands { get; } = new();
 
-    internal FakeCatalogDatabase Add(string databaseName)
+    internal FakeCatalogDatabase Add(string databaseName, bool isSystem = false)
     {
-        var database = new FakeCatalogDatabase(databaseName);
+        var database = new FakeCatalogDatabase(databaseName) { IsSystem = isSystem };
         _databases[databaseName] = database;
         return database;
     }
@@ -66,7 +73,22 @@ internal sealed class FakeCatalogServer
             ? database
             : throw new UnreachableServerException();
 
+    internal IEnumerable<FakeCatalogDatabase> All() => _databases.Values;
+
     internal void Record(string commandText) => Commands.Add(commandText);
+
+    /// <summary>某一條查詢被執行過幾次；「第二段有沒有被送出去」靠它。</summary>
+    internal int CountCommands(string fragment)
+    {
+        var count = 0;
+
+        foreach (var command in Commands)
+        {
+            if (command.IndexOf(fragment, StringComparison.Ordinal) >= 0) count++;
+        }
+
+        return count;
+    }
 }
 
 /// <summary>一個假的資料庫的內容。</summary>
@@ -78,6 +100,8 @@ internal sealed class FakeCatalogDatabase
     }
 
     internal string Name { get; }
+
+    internal bool IsSystem { get; set; }
 
     internal List<FakeCatalogObject> Objects { get; } = new();
 
@@ -114,6 +138,62 @@ internal sealed class FakeCatalogDatabase
     {
         Schemas.Add(schemaName);
         return this;
+    }
+
+    /// <summary>改掉一個物件的定義與時間戳；增量重新整理測得出來靠的是這一支。</summary>
+    internal FakeCatalogDatabase Touch(int objectId, string? definition, DateTime modifiedAt)
+    {
+        var index = IndexOf(objectId);
+        var previous = Objects[index];
+        Objects[index] = new FakeCatalogObject(
+            previous.ObjectId, previous.SchemaName, previous.Name, previous.Type,
+            definition ?? previous.Definition, modifiedAt);
+        return this;
+    }
+
+    /// <summary>
+    /// 改掉定義本文但<b>不動</b>時間戳。
+    /// </summary>
+    /// <remarks>
+    /// 真實伺服器上做不到，而這正是重點：增量重新整理只撈時間戳變新的那幾個，所以這一份
+    /// 改動<b>不應該</b>出現在重新整理後的索引裡。整份重撈的實作會把它撈回來，而那是唯一
+    /// 分得出「真的增量」與「號稱增量」的證據——結果筆數兩邊一模一樣。
+    /// </remarks>
+    internal FakeCatalogDatabase Rewrite(int objectId, string definition)
+    {
+        var index = IndexOf(objectId);
+        var previous = Objects[index];
+        Objects[index] = new FakeCatalogObject(
+            previous.ObjectId, previous.SchemaName, previous.Name, previous.Type, definition, previous.ModifiedAt);
+        return this;
+    }
+
+    /// <summary>卸除一個物件；重新整理看不看得出來靠它。</summary>
+    internal FakeCatalogDatabase Drop(int objectId)
+    {
+        Objects.RemoveAt(IndexOf(objectId));
+        Columns.RemoveAll(column => column.Key == objectId);
+        return this;
+    }
+
+    private int IndexOf(int objectId)
+    {
+        for (var index = 0; index < Objects.Count; index++)
+        {
+            if (Objects[index].ObjectId == objectId) return index;
+        }
+
+        throw new InvalidOperationException($"{Name} 裡沒有 object_id {objectId}。");
+    }
+
+    internal DateTime? ModifiedAtOf(int objectId)
+    {
+        foreach (var entry in Objects)
+        {
+            if (entry.ObjectId == objectId) return entry.ModifiedAt;
+        }
+
+        return null;
     }
 }
 
@@ -229,6 +309,7 @@ internal sealed class FakeCatalogCommand : IDbCommand
 {
     private readonly FakeCatalogServer _server;
     private readonly FakeCatalogDatabase _database;
+    private readonly FakeParameterCollection _parameters = new();
 
     internal FakeCatalogCommand(FakeCatalogServer server, FakeCatalogDatabase database)
     {
@@ -248,9 +329,9 @@ internal sealed class FakeCatalogCommand : IDbCommand
 
     public UpdateRowSource UpdatedRowSource { get; set; }
 
-    public IDataParameterCollection Parameters => throw new NotSupportedException();
+    public IDataParameterCollection Parameters => _parameters;
 
-    public IDbDataParameter CreateParameter() => throw new NotSupportedException();
+    public IDbDataParameter CreateParameter() => new FakeParameter();
 
     public void Dispose()
     {
@@ -269,13 +350,15 @@ internal sealed class FakeCatalogCommand : IDbCommand
     public IDataReader ExecuteReader(CommandBehavior behavior) => ExecuteReader();
 
     /// <remarks>
-    /// 認哪一條查詢靠的是各自獨有的片段：物件那一條是唯一提到 <c>sys.sql_modules</c> 的，
-    /// 資料行那一條是唯一 <c>FROM sys.columns</c> 的，剩下的就是結構描述。
-    /// 照「有沒有提到 sys.schemas」認會把物件那一條也收進來——它 JOIN 了結構描述。
+    /// 認哪一條查詢靠的是各自獨有的片段，而且順序有意義：定義本文那一條是唯一提到
+    /// <c>sys.sql_modules</c> 的，資料行那一條是唯一 <c>FROM sys.columns</c> 的
+    /// （它也 JOIN 了 <c>sys.objects</c>），物件那一條是剩下唯一 <c>FROM sys.objects AS o</c>
+    /// 開頭的，最後才是結構描述。照「有沒有提到 sys.objects」認會把三條混在一起。
     /// </remarks>
     public IDataReader ExecuteReader()
     {
         _server.Record(CommandText);
+        RejectUnboundParameters();
 
         if (_database.FailsOnQueryContaining is { } fragment &&
             CommandText.IndexOf(fragment, StringComparison.Ordinal) >= 0)
@@ -285,35 +368,21 @@ internal sealed class FakeCatalogCommand : IDbCommand
 
         using var table = new DataTable();
 
-        if (CommandText.IndexOf("sys.sql_modules", StringComparison.Ordinal) >= 0)
+        if (Mentions("FROM sys.databases"))
         {
-            table.Columns.Add("object_id", typeof(int));
-            table.Columns.Add("schema_name", typeof(string));
-            table.Columns.Add("object_name", typeof(string));
-            table.Columns.Add("type", typeof(string));
-            table.Columns.Add("modify_date", typeof(DateTime));
-            table.Columns.Add("definition", typeof(string));
-
-            foreach (var entry in _database.Objects)
-            {
-                table.Rows.Add(
-                    entry.ObjectId,
-                    entry.SchemaName,
-                    entry.Name,
-                    entry.Type,
-                    entry.ModifiedAt is { } modifiedAt ? modifiedAt : (object)DBNull.Value,
-                    entry.Definition ?? (object)DBNull.Value);
-            }
+            ReadDatabases(table);
         }
-        else if (CommandText.IndexOf("FROM sys.columns", StringComparison.Ordinal) >= 0)
+        else if (Mentions("sys.sql_modules"))
         {
-            table.Columns.Add("object_id", typeof(int));
-            table.Columns.Add("column_name", typeof(string));
-
-            foreach (var column in _database.Columns)
-            {
-                table.Rows.Add(column.Key, column.Value);
-            }
+            ReadDefinitions(table);
+        }
+        else if (Mentions("FROM sys.columns"))
+        {
+            ReadColumns(table);
+        }
+        else if (Mentions("FROM sys.objects AS o"))
+        {
+            ReadObjects(table);
         }
         else
         {
@@ -327,6 +396,190 @@ internal sealed class FakeCatalogCommand : IDbCommand
 
         return table.CreateDataReader();
     }
+
+    private bool Mentions(string fragment) => CommandText.IndexOf(fragment, StringComparison.Ordinal) >= 0;
+
+    /// <remarks>
+    /// 漏綁值在真實伺服器上是「必須宣告純量變數」，而那是 <see cref="DbException"/>，
+    /// 會被降級成「這一輪沒有資料」——搜尋對那個資料庫安靜地空掉。這裡照同一個形狀失敗，
+    /// 讓每一條跑過查詢的測試都順便守住這件事。
+    /// </remarks>
+    private void RejectUnboundParameters()
+    {
+        if (!Mentions(SqlCatalogSearchQueries.ModifiedAfterParameterName)) return;
+        if (_parameters.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName)) return;
+
+        throw new UnreachableServerException();
+    }
+
+    /// <summary>增量界線；沒有綁或綁 NULL 時是 null，表示整份重撈。</summary>
+    private DateTime? ModifiedAfter()
+    {
+        if (!_parameters.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName)) return null;
+
+        var value = ((IDataParameter)_parameters[SqlCatalogSearchQueries.ModifiedAfterParameterName]).Value;
+        return value is DateTime modifiedAfter ? modifiedAfter : null;
+    }
+
+    private static bool Keeps(DateTime? modifiedAfter, DateTime? modifiedAt) =>
+        modifiedAfter is not { } boundary || (modifiedAt is { } at && at >= boundary);
+
+    private void ReadObjects(DataTable table)
+    {
+        table.Columns.Add("object_id", typeof(int));
+        table.Columns.Add("schema_name", typeof(string));
+        table.Columns.Add("object_name", typeof(string));
+        table.Columns.Add("type", typeof(string));
+        table.Columns.Add("modify_date", typeof(DateTime));
+
+        foreach (var entry in _database.Objects)
+        {
+            table.Rows.Add(
+                entry.ObjectId,
+                entry.SchemaName,
+                entry.Name,
+                entry.Type,
+                entry.ModifiedAt is { } modifiedAt ? modifiedAt : (object)DBNull.Value);
+        }
+    }
+
+    private void ReadDefinitions(DataTable table)
+    {
+        table.Columns.Add("object_id", typeof(int));
+        table.Columns.Add("definition", typeof(string));
+
+        var modifiedAfter = ModifiedAfter();
+
+        foreach (var entry in _database.Objects)
+        {
+            if (entry.Definition is null || !Keeps(modifiedAfter, entry.ModifiedAt)) continue;
+
+            table.Rows.Add(entry.ObjectId, entry.Definition);
+        }
+    }
+
+    private void ReadColumns(DataTable table)
+    {
+        table.Columns.Add("object_id", typeof(int));
+        table.Columns.Add("column_name", typeof(string));
+
+        var modifiedAfter = ModifiedAfter();
+
+        foreach (var column in _database.Columns)
+        {
+            if (!Keeps(modifiedAfter, _database.ModifiedAtOf(column.Key))) continue;
+
+            table.Rows.Add(column.Key, column.Value);
+        }
+    }
+
+    private void ReadDatabases(DataTable table)
+    {
+        table.Columns.Add("name", typeof(string));
+        table.Columns.Add("is_system", typeof(int));
+
+        foreach (var database in _server.All())
+        {
+            table.Rows.Add(database.Name, database.IsSystem ? 1 : 0);
+        }
+    }
+}
+
+internal sealed class FakeParameter : IDbDataParameter
+{
+    public byte Precision { get; set; }
+
+    public byte Scale { get; set; }
+
+    public int Size { get; set; }
+
+    public DbType DbType { get; set; }
+
+    public ParameterDirection Direction { get; set; } = ParameterDirection.Input;
+
+    public bool IsNullable => true;
+
+    [AllowNull] public string ParameterName { get; set; } = string.Empty;
+
+    [AllowNull] public string SourceColumn { get; set; } = string.Empty;
+
+    public DataRowVersion SourceVersion { get; set; }
+
+    public object? Value { get; set; }
+}
+
+/// <summary>
+/// 只夠這幾條查詢用的參數集合。
+/// </summary>
+/// <remarks>
+/// <see cref="IDataParameterCollection"/> 帶著整個 <see cref="IList"/>，但索引那一層只會
+/// <c>Add</c>；其餘成員留成 <see cref="NotSupportedException"/>，多寫的那幾行沒有人會執行到，
+/// 而它們一旦被叫到就表示產品換了用法，那時候要當場知道。
+/// </remarks>
+internal sealed class FakeParameterCollection : IDataParameterCollection
+{
+    private readonly List<IDbDataParameter> _parameters = new();
+
+    public object this[string parameterName]
+    {
+        get => _parameters[IndexOf(parameterName)];
+        set => throw new NotSupportedException();
+    }
+
+    public object? this[int index]
+    {
+        get => _parameters[index];
+        set => throw new NotSupportedException();
+    }
+
+    public bool IsFixedSize => false;
+
+    public bool IsReadOnly => false;
+
+    public int Count => _parameters.Count;
+
+    public bool IsSynchronized => false;
+
+    public object SyncRoot => _parameters;
+
+    public int Add(object? value)
+    {
+        _parameters.Add((IDbDataParameter)(value ?? throw new ArgumentNullException(nameof(value))));
+        return _parameters.Count - 1;
+    }
+
+    public bool Contains(string parameterName) => IndexOf(parameterName) >= 0;
+
+    public bool Contains(object? value) => value is IDbDataParameter parameter && _parameters.Contains(parameter);
+
+    public void Clear() => _parameters.Clear();
+
+    public int IndexOf(string parameterName)
+    {
+        for (var index = 0; index < _parameters.Count; index++)
+        {
+            if (string.Equals(_parameters[index].ParameterName, parameterName, StringComparison.Ordinal))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    public int IndexOf(object? value) => value is IDbDataParameter parameter ? _parameters.IndexOf(parameter) : -1;
+
+    public void Insert(int index, object? value) => throw new NotSupportedException();
+
+    public void Remove(object? value) => throw new NotSupportedException();
+
+    public void RemoveAt(string parameterName) => throw new NotSupportedException();
+
+    public void RemoveAt(int index) => _parameters.RemoveAt(index);
+
+    public void CopyTo(Array array, int index) => throw new NotSupportedException();
+
+    public IEnumerator GetEnumerator() => _parameters.GetEnumerator();
 }
 
 /// <summary><see cref="DbException"/> 是抽象的，測試要自己給一個具體型別。</summary>

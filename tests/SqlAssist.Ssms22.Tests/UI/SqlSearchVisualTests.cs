@@ -39,7 +39,7 @@ public sealed class SqlSearchVisualTests
                 surface.Arrange(new Rect(0, 0, 440, 400));
                 surface.UpdateLayout();
 
-                // 名稱與本文兩組各自成一組，順序就是 SearchHitClass 的順序。
+                // 名稱與本文兩組各自成一組，順序就是 SearchMatchTargets.GroupOrder 的順序。
                 var headers = Descendants<TextBlock>(list)
                     .Where(text => text.Text is "名稱" or "定義本文").ToArray();
                 Assert.Equal(new[] { "名稱", "定義本文" }, headers.Select(text => text.Text).ToArray());
@@ -145,15 +145,15 @@ public sealed class SqlSearchVisualTests
     [Fact]
     public void 名稱命中的高亮平移到限定名稱上而資料行取最後一段()
     {
-        var table = new SqlSearchRow(Hit(SearchHitClass.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table");
+        var table = new SqlSearchRow(Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table");
         Assert.Equal(new[] { new MatchSpan(7, 4) }, table.TitleSpans.ToArray());
 
         var column = new SqlSearchRow(
-            Hit(SearchHitClass.Name, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)), "Column");
+            Hit(SearchMatchTarget.Name, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)), "Column");
         Assert.Equal(new[] { new MatchSpan(22, 6) }, column.TitleSpans.ToArray());
 
         // 本文命中的片段來自定義本文，與標題沒有關係。
-        var body = new SqlSearchRow(Hit(SearchHitClass.Body, "[dbo].[Loan]", "  JOIN Loan l", new MatchSpan(7, 4)), "Table");
+        var body = new SqlSearchRow(Hit(SearchMatchTarget.Text, "[dbo].[Loan]", "  JOIN Loan l", new MatchSpan(7, 4)), "Table");
         Assert.Empty(body.TitleSpans);
         Assert.Equal("JOIN Loan l", body.Snippet);
         Assert.Equal(new[] { new MatchSpan(5, 4) }, body.SnippetSpans.ToArray());
@@ -166,17 +166,17 @@ public sealed class SqlSearchVisualTests
     {
         return new ObservableCollection<SqlSearchRow>
         {
-            new(Hit(SearchHitClass.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"),
-            new(Hit(SearchHitClass.Name, "[dbo].[LoanDetail]", "LoanDetail", new MatchSpan(0, 4)), "Table"),
-            new(Hit(SearchHitClass.Body, "[dbo].[Cat_BookCopy]", "    JOIN Loan l ON l.CopyNo = c.CopyNo", new MatchSpan(9, 4)), "Procedure"),
+            new(Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"),
+            new(Hit(SearchMatchTarget.Name, "[dbo].[LoanDetail]", "LoanDetail", new MatchSpan(0, 4)), "Table"),
+            new(Hit(SearchMatchTarget.Text, "[dbo].[Cat_BookCopy]", "    JOIN Loan l ON l.CopyNo = c.CopyNo", new MatchSpan(9, 4)), "Procedure"),
         };
     }
 
-    private static SearchHit Hit(SearchHitClass hitClass, string title, string snippet, MatchSpan span)
+    private static SearchHit Hit(SearchMatchTarget matchTarget, string title, string snippet, MatchSpan span)
     {
         var parts = title.Split('.').Select(part => part.Trim('[', ']')).ToArray();
         SqlObjectPath.TryParseName(parts, out var path);
-        return new SearchHit("catalog", "catalog.table", hitClass, title, title + hitClass, 10,
+        return new SearchHit("catalog", "catalog.table", matchTarget, title, title + matchTarget, 10,
             path, snippet, new[] { span });
     }
 

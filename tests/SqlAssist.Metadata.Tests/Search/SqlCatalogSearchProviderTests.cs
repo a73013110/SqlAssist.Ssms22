@@ -9,7 +9,7 @@ using Xunit;
 namespace SqlAssist.Metadata.Tests.Search;
 
 /// <summary>
-/// 目錄物件搜尋：比對、片段、過濾、預算與失敗降級。
+/// 目錄物件搜尋：比對、片段、兩條軸的過濾、預算與失敗降級。
 /// </summary>
 /// <remarks>
 /// 一律不連資料庫，走 <see cref="FakeCatalogServer"/>。
@@ -33,7 +33,7 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal("Cat_BookCopy", scattered.Snippet);
         Assert.Equal(8, span.Start);
         Assert.Equal(4, span.Length);
-        Assert.Equal(SearchHitClass.Name, scattered.HitClass);
+        Assert.Equal(SearchMatchTarget.Name, scattered.MatchTarget);
         Assert.Equal("catalog.table", scattered.CategoryId);
     }
 
@@ -54,8 +54,15 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.True(exact.Score > scattered.Score, $"{exact.Score} 應大於 {scattered.Score}");
     }
 
+    /// <summary>
+    /// 資料行命中掛在<b>它所屬物件</b>的分類上，差別在命中部位。
+    /// </summary>
+    /// <remarks>
+    /// 做成自己一種分類的症狀是勾「只看資料表」時，資料表上的資料行命中整組消失——
+    /// 而那一勾要的正是它。
+    /// </remarks>
     [Fact]
-    public async Task 資料行命中掛在資料行分類上並指回所屬物件()
+    public async Task 資料行命中掛在所屬物件的分類上()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
@@ -64,8 +71,9 @@ public sealed class SqlCatalogSearchProviderTests
 
         var sink = await RunAsync(server, new SearchQuery("PUBL_CODE"));
 
-        var hit = Assert.Single(sink.Hits, h => h.CategoryId == SqlCatalogSearchCategories.ColumnCategoryId);
+        var hit = Assert.Single(sink.Hits, h => h.MatchTarget == SearchMatchTarget.Column);
 
+        Assert.Equal("catalog.table", hit.CategoryId);
         Assert.Equal("[dbo].[PUBLISHER].[PUBL_CODE]", hit.Title);
         Assert.Equal("PUBL_CODE", hit.Snippet);
 
@@ -79,6 +87,43 @@ public sealed class SqlCatalogSearchProviderTests
         // 會讓下游把資料庫名讀成伺服器名。
         Assert.Equal("Library", hit.Path!.DatabaseName);
         Assert.Equal("PUBLISHER", hit.Path.Name);
+    }
+
+    /// <summary>勾「只看資料表」時，資料表上的資料行命中留著。</summary>
+    [Fact]
+    public async Task 只看資料表時資料行命中仍然在()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "PUBLISHER", "U")
+            .WithObject(2, "dbo", "Lib_Tag", "V")
+            .WithColumn(1, "PUBL_CODE")
+            .WithColumn(2, "PUBL_CODE");
+
+        var sink = await RunAsync(
+            server, new SearchQuery("PUBL_CODE", categories: new[] { "catalog.table" }));
+
+        var hit = Assert.Single(sink.Hits);
+        Assert.Equal(SearchMatchTarget.Column, hit.MatchTarget);
+        Assert.Equal("[dbo].[PUBLISHER].[PUBL_CODE]", hit.Title);
+    }
+
+    /// <summary>每一筆結果帶著「這是哪一個資料庫的」膠囊。</summary>
+    /// <remarks>
+    /// 膠囊由 provider 給，字串是中性代號，不是 SSMS 的圖示型別——Core 認識那個型別
+    /// 等於把 VS 組件拉進 netstandard2.0 那一層。
+    /// </remarks>
+    [Fact]
+    public async Task 命中帶著資料庫膠囊()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var sink = await RunAsync(server, new SearchQuery("Loan"));
+
+        var badge = Assert.Single(Assert.Single(sink.Hits).Badges);
+        Assert.Equal("Library", badge.Text);
+        Assert.Equal(SearchBadge.DatabaseIcon, badge.IconToken);
     }
 
     /// <summary>去重鍵與路徑都帶得到資料庫名稱。</summary>
@@ -118,6 +163,27 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal("[Library].[dbo].[Loan].[CopyNo]", hit.DedupeKey);
     }
 
+    /// <summary>
+    /// 同一個物件的名稱與本文命中寫出<b>同一個</b>去重鍵。
+    /// </summary>
+    /// <remarks>
+    /// 聚合器靠這個鍵把兩筆併成一列；兩邊寫出不同的鍵，清單上就是重複的兩行，
+    /// 而它們指向同一個地方、點下去做同一件事。
+    /// </remarks>
+    [Fact]
+    public async Task 同一個物件的兩種命中共用去重鍵()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "V", "SELECT 1 FROM dbo.Loan;");
+
+        var sink = await RunAsync(server, new SearchQuery("Loan"));
+
+        Assert.Equal(
+            new[] { SearchMatchTarget.Name, SearchMatchTarget.Text },
+            sink.Hits.Select(hit => hit.MatchTarget));
+        Assert.Single(sink.Hits.Select(hit => hit.DedupeKey).Distinct(StringComparer.Ordinal));
+    }
+
     [Fact]
     public async Task 本文命中裁出命中所在的那一行()
     {
@@ -131,7 +197,7 @@ public sealed class SqlCatalogSearchProviderTests
 
         // 分數是「提到幾次」；與名稱那一組不同尺度沒關係，兩組分開排。
         Assert.Equal(2, hit.Score);
-        Assert.Equal(SearchHitClass.Body, hit.HitClass);
+        Assert.Equal(SearchMatchTarget.Text, hit.MatchTarget);
     }
 
     /// <summary>命中在整份本文的第一個字元：往回找換行的那一步不能越界。</summary>
@@ -178,6 +244,44 @@ public sealed class SqlCatalogSearchProviderTests
         AssertSpansPointAtMatches(hit, "CopyNo");
     }
 
+    /// <summary>
+    /// 條件約束的運算式也搜得到。
+    /// </summary>
+    /// <remarks>
+    /// 使用者問的是「哪一條規則提到這個欄位」，而那句話只寫在
+    /// <c>sys.check_constraints.definition</c> 上，不在 <c>sys.sql_modules</c> 裡。
+    /// </remarks>
+    [Fact]
+    public async Task 條件約束的運算式搜得到()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Loan", "U")
+            .WithObject(11, "dbo", "CK_Loan_CopyNo", "C", "([CopyNo]>(0))");
+
+        var sink = await RunAsync(server, new SearchQuery("CopyNo"));
+
+        var hit = Assert.Single(sink.Hits, h => h.MatchTarget == SearchMatchTarget.Text);
+        Assert.Equal(SqlCatalogSearchCategories.ConstraintCategoryId, hit.CategoryId);
+        Assert.Equal("[dbo].[CK_Loan_CopyNo]", hit.Title);
+    }
+
+    /// <summary>序列、同義字與資料表型別都掛在收納桶上。</summary>
+    [Fact]
+    public async Task 收納桶收得到序列同義字與資料表型別()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Loan_Seq", "SO")
+            .WithObject(2, "dbo", "Loan_Syn", "SN")
+            .WithObject(3, "dbo", "Loan_Type", "TT");
+
+        var sink = await RunAsync(server, new SearchQuery("Loan"));
+
+        Assert.Equal(3, sink.Hits.Count);
+        Assert.All(sink.Hits, hit => Assert.Equal(SqlCatalogSearchCategories.OtherCategoryId, hit.CategoryId));
+    }
+
     [Fact]
     public async Task 區分大小寫時本文只收逐字相同的命中()
     {
@@ -191,7 +295,7 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     /// <remarks>
-    /// 名稱走模糊比對，而模糊比對本身不分大小寫——v1 刻意如此：識別字在多數定序下
+    /// 名稱走模糊比對，而模糊比對本身不分大小寫——刻意如此：識別字在多數定序下
     /// 本來就不分大小寫，逐字比對會讓 PUBLISHER 打成 publisher 就一筆都不剩。
     /// </remarks>
     [Fact]
@@ -232,6 +336,60 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     /// <summary>
+    /// 不搜定義本文的那一輪，第二段查詢<b>連送都不送</b>。
+    /// </summary>
+    /// <remarks>
+    /// 撈回來再丟掉的話，第一次搜尋最貴的那一段一毫秒都沒有省到，而使用者以為自己
+    /// 關掉了它。分得出兩者的只有「那一條查詢有沒有被執行」，不是結果筆數。
+    /// </remarks>
+    [Fact]
+    public async Task 不搜本文的那一輪不撈定義本文()
+    {
+        var server = NewBodyServer("SELECT CopyNo FROM dbo.Loan");
+
+        var sink = await RunAsync(
+            server,
+            new SearchQuery("CopyNo", targets: SearchTargets.Name | SearchTargets.Column));
+
+        Assert.Empty(sink.Hits);
+        Assert.Equal(0, server.CountCommands("sys.sql_modules"));
+    }
+
+    /// <summary>只搜名稱時連資料行都不比對。</summary>
+    [Fact]
+    public async Task 只搜名稱時不比對資料行()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "PUBLISHER", "U")
+            .WithColumn(1, "PUBL_CODE");
+
+        var sink = await RunAsync(server, new SearchQuery("PUBL_CODE", targets: SearchTargets.Name));
+
+        Assert.Empty(sink.Hits);
+
+        // 名稱那一段仍然掃過，只是沒有一個物件叫這個名字。
+        Assert.Equal(1, sink.Examined);
+    }
+
+    /// <summary>之後才勾上定義本文時只補第二段，第一段不重掃。</summary>
+    [Fact]
+    public async Task 補搜本文時只補第二段()
+    {
+        var server = NewBodyServer("SELECT CopyNo FROM dbo.Loan");
+        var cache = new SqlCatalogSearchIndexCache();
+
+        await RunAsync(server, new SearchQuery("CopyNo", targets: SearchTargets.Name), cache: cache);
+        server.Commands.Clear();
+
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", 1), cache: cache);
+
+        Assert.Single(sink.Hits);
+        Assert.Equal(1, server.CountCommands("sys.sql_modules"));
+        Assert.Single(server.Commands);
+    }
+
+    /// <summary>
     /// 分類過濾在這一層就生效，被過濾掉的候選連算都不算。
     /// </summary>
     /// <remarks>
@@ -253,7 +411,7 @@ public sealed class SqlCatalogSearchProviderTests
         var hit = Assert.Single(sink.Hits);
         Assert.Equal("catalog.view", hit.CategoryId);
 
-        // 只有那一個檢視被檢查過：資料表與資料行整組跳過。
+        // 只有那一個檢視被檢查過：資料表與它的資料行整組跳過。
         Assert.Equal(1, sink.Examined);
     }
 
@@ -312,8 +470,9 @@ public sealed class SqlCatalogSearchProviderTests
         var reported = SqlCatalogSearchIndexTests.Capture(() =>
             RunAsync(server, query, cache: cache).GetAwaiter().GetResult());
 
-        // 這一段是為了在同一個 Capture 範圍內量到回報；結果由下面幾行檢查。
-        Assert.NotEmpty(reported);
+        // 失敗回報指得出是哪一個資料庫，而且只有那一個。
+        var line = Assert.Single(reported);
+        Assert.Contains("LibArchive", line);
 
         var sink = await RunAsync(server, query, cache: cache);
 
@@ -325,6 +484,39 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.False(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
         Assert.True(cache.TryGet(server.SourceFor("Library").CacheKey, out _));
         Assert.Equal(3, cache.Builds);
+    }
+
+    /// <summary>幾個資料庫的結果併在同一輪裡回來，各自帶著自己的資料庫膠囊。</summary>
+    [Fact]
+    public async Task 多個資料庫的結果都回得來()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+        server.Add("LibArchive").WithObject(1, "dbo", "LoanDetail", "U");
+
+        var sink = await RunAsync(
+            server,
+            new SearchQuery("Loan", scope: new SearchScope(null, new[] { "Library", "LibArchive" })));
+
+        Assert.Equal(
+            new[] { "[LibArchive].[dbo].[LoanDetail]", "[Library].[dbo].[Loan]" },
+            sink.Hits.Select(hit => hit.DedupeKey).OrderBy(key => key, StringComparer.Ordinal));
+        Assert.False(sink.IsTruncated);
+    }
+
+    /// <summary>同一個名稱指名兩次只掃一次；去重是聚合器那一端付的錢。</summary>
+    [Fact]
+    public async Task 指名重複的資料庫只掃一次()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var sink = await RunAsync(
+            server,
+            new SearchQuery("Loan", scope: new SearchScope(null, new[] { "Library", "library" })));
+
+        Assert.Single(sink.Hits);
+        Assert.Equal(1, server.Opened);
     }
 
     /// <summary>
@@ -364,7 +556,7 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     /// <summary>
-    /// v1 沒有連結伺服器的索引，指名伺服器時整輪不回結果，也不開連線。
+    /// 沒有連結伺服器的索引，指名伺服器時整輪不回結果，也不開連線。
     /// </summary>
     /// <remarks>
     /// 拿本機的東西當成對面那台的答案，正是跨伺服器那一條明文禁止的退回。
@@ -409,7 +601,7 @@ public sealed class SqlCatalogSearchProviderTests
 
     /// <summary>空輸入是「列一份預設清單」，不是把整個資料庫倒出來。</summary>
     [Fact]
-    public async Task 空輸入只列物件不列資料行()
+    public async Task 空輸入只列物件不列資料行也不建第二段()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
@@ -419,9 +611,12 @@ public sealed class SqlCatalogSearchProviderTests
         var sink = await RunAsync(server, new SearchQuery(string.Empty));
 
         var hit = Assert.Single(sink.Hits);
-        Assert.Equal(SearchHitClass.Name, hit.HitClass);
+        Assert.Equal(SearchMatchTarget.Name, hit.MatchTarget);
         Assert.Equal("[dbo].[Loan]", hit.Title);
         Assert.False(sink.IsTruncated);
+
+        // 使用者只是打開了視窗，還沒說要搜什麼；本文那一段連撈都不必撈。
+        Assert.Equal(0, server.CountCommands("sys.sql_modules"));
     }
 
     /// <summary>同一個資料庫只建一次索引；鍵走 <c>SqlConnectionCacheKey</c>。</summary>
@@ -475,7 +670,7 @@ public sealed class SqlCatalogSearchProviderTests
     {
         var sink = await RunAsync(NewBodyServer(definition), new SearchQuery(text, options: options));
 
-        return Assert.Single(sink.Hits, hit => hit.HitClass == SearchHitClass.Body);
+        return Assert.Single(sink.Hits, hit => hit.MatchTarget == SearchMatchTarget.Text);
     }
 
     /// <summary>只有一個檢視、名稱不會被搜到，命中一定來自定義本文。</summary>

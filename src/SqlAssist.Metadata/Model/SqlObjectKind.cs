@@ -26,7 +26,22 @@ public enum SqlObjectKind
     TableVariable,
 
     /// <summary><c>WITH c AS ( … )</c> 宣告的通用資料表運算式。</summary>
-    CommonTableExpression
+    CommonTableExpression,
+
+    /// <summary>
+    /// 條件約束：<c>CHECK</c>、<c>DEFAULT</c>、主索引鍵／唯一鍵與外來鍵。
+    /// </summary>
+    /// <remarks>
+    /// 接在列舉<b>最後</b>而不是排進目錄物件那一段：值只要位移，
+    /// 任何以數字記下種類的地方都會靜靜地指到另一種東西。
+    ///
+    /// 它不是資料來源、沒有資料行、也寫不出可以單獨執行的
+    /// <c>CREATE</c>（<see cref="SqlObjectKinds.HasExecutableScript"/> 為 false），
+    /// 所以四條述詞一條都不收它。目前只有搜尋索引在用——使用者問的是
+    /// 「<c>PUBL_CODE</c> 這個欄位被哪一條 CHECK 提到」，而那一條的名稱與運算式
+    /// 都在目錄檢視上。
+    /// </remarks>
+    Constraint
 }
 
 public static class SqlObjectKinds
@@ -49,6 +64,12 @@ public static class SqlObjectKinds
             // TT 不是 sys.objects 的型別代碼，是查詢把 sys.table_types
             // UNION 進來時自己貼的標籤，與同義字的 SN 同一個做法。
             "TT" => SqlObjectKind.TableType,
+
+            // 條件約束四種共用一個種類：使用者問的是「這條規則寫了什麼」，
+            // 而 CHECK 與 DEFAULT 的運算式、主索引鍵與外來鍵的參照都在同一個層級上。
+            // 分成四種的話，過濾列上會多出三顆幾乎沒有人會單獨勾的 pill。
+            // 第一層的物件查詢沒有把這幾個代碼放進 IN 清單，所以那一條路徑不受影響。
+            "C" or "D" or "PK" or "UQ" or "F" => SqlObjectKind.Constraint,
             _ => SqlObjectKind.Unknown
         };
     }
@@ -248,6 +269,7 @@ public static class SqlObjectKinds
             SqlObjectKind.Trigger => "Trigger",
             SqlObjectKind.Sequence => "Sequence",
             SqlObjectKind.TableType => "Table type",
+            SqlObjectKind.Constraint => "Constraint",
             SqlObjectKind.TemporaryTable => "Temp table",
             SqlObjectKind.TableVariable => "Table variable",
             SqlObjectKind.CommonTableExpression => "CTE",

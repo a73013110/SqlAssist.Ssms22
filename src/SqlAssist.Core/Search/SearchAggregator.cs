@@ -171,15 +171,23 @@ public sealed class SearchAggregator
     }
 
     /// <summary>
-    /// 依 <see cref="SearchHit.DedupeKey"/> 去重，保留分數高的那一份。
+    /// 依 <see cref="SearchHit.DedupeKey"/> 去重，保留排在前面的那一份。
     /// </summary>
     /// <remarks>
     /// 在排好序的序列上走一遍就是「保留分數高的那一份」，而且平手時留下的是排序決定的那一份，
     /// 不是先到的那一份——先到是賽跑的結果，會讓同一組輸入留下不同的那一筆。
     ///
-    /// 去重鍵含 <see cref="SearchHitClass"/>：同一個物件既被名稱命中也被定義本文命中是正常的，
-    /// UI 也分兩組顯示。只用 <see cref="SearchHit.DedupeKey"/> 的話，
-    /// 名稱那一組會把本文那一組吃掉，症狀是搜尋一個表名時，那個表自己的定義本文命中永遠不出現。
+    /// 去重鍵<b>只有</b> <see cref="SearchHit.DedupeKey"/>，不含
+    /// <see cref="SearchHit.MatchTarget"/>。同一個物件同時被名稱與定義本文命中時，那仍然是
+    /// 同一張表：兩列指向同一個地方、點下去做同一件事，而使用者看到的是清單上重複的兩行。
+    /// 留下來的是排名較高的那一份——<see cref="SearchHitComparer"/> 先比部位再比分數，
+    /// 所以名稱那一份在前。
+    ///
+    /// 刻意<b>不</b>拿兩邊的分數取最大值：名稱那邊是
+    /// <see cref="SqlAssist.Core.Matching.FuzzyMatcher"/> 的詞首加成，本文那邊是出現次數，
+    /// 兩個尺度湊出來的「最大值」排出的順序沒有意義。
+    ///
+    /// 資料行命中不會被它所屬物件的命中吃掉：它的去重鍵多一段資料行名稱，本來就是另一個鍵。
     /// </remarks>
     private static List<SearchHit> Deduplicate(IEnumerable<SearchHit> ordered)
     {
@@ -188,7 +196,7 @@ public sealed class SearchAggregator
 
         foreach (var hit in ordered)
         {
-            if (seen.Add(hit.HitClass + " " + hit.DedupeKey)) kept.Add(hit);
+            if (seen.Add(hit.DedupeKey)) kept.Add(hit);
         }
 
         return kept;
@@ -210,6 +218,10 @@ public sealed class SearchAggregator
     /// 排名比較：先分組，再分數，最後才是打破平手的一串 ordinal 鍵。
     /// </summary>
     /// <remarks>
+    /// 分組走 <see cref="SearchMatchTargets.GroupOrder"/> 而不是列舉值：
+    /// <see cref="SearchMatchTarget.Column"/> 是後來從物件種類那條軸搬過來的，接在列舉最後
+    /// 才不會改掉既有的值，但它在畫面上屬於名稱那一族。
+    ///
     /// 平手鍵一路比到 <see cref="SearchHit.DedupeKey"/>，是因為只比到限定名稱時，
     /// 同一個名稱底下的兩筆（不同 provider、不同分類）順序仍然由賽跑決定。
     /// </remarks>
@@ -221,8 +233,8 @@ public sealed class SearchAggregator
             if (left is null) return 1;
             if (right is null) return -1;
 
-            var byClass = ((int)left.HitClass).CompareTo((int)right.HitClass);
-            if (byClass != 0) return byClass;
+            var byTarget = left.MatchTarget.GroupOrder().CompareTo(right.MatchTarget.GroupOrder());
+            if (byTarget != 0) return byTarget;
 
             var byScore = right.Score.CompareTo(left.Score);
             if (byScore != 0) return byScore;

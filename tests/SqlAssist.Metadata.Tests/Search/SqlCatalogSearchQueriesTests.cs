@@ -29,6 +29,22 @@ public sealed class SqlCatalogSearchQueriesTests
         @"|COLUMNPROPERTY|INDEXPROPERTY|INDEX_COL|SCHEMA_NAME|SCHEMA_ID|DB_NAME|DB_ID)\s*\(",
         RegexOptions.IgnoreCase);
 
+    /// <summary>查詢裡出現的參數。</summary>
+    private static readonly Regex Parameter = new(@"@\w+");
+
+    /// <summary>
+    /// 有人綁值的參數；其餘一律視為漏掉的。
+    /// </summary>
+    /// <remarks>
+    /// 名單而不是「一個都不准有」：增量重新整理非要一個界線值不可，而把時間直接寫進 SQL
+    /// 字面值會踩到 <c>datetime</c> 與 <c>datetime2</c> 的精確度與地區設定。真正要擋的是
+    /// <b>沒有人綁值</b>的參數——那在執行期是「必須宣告純量變數」，而那是 DbException，
+    /// 會被降級成「這一輪沒有資料」，搜尋對那個資料庫安靜地空掉。
+    /// 綁沒綁由 <see cref="FakeCatalogCommand"/> 在每一次執行時當場檢查。
+    /// </remarks>
+    private static readonly HashSet<string> BoundParameters =
+        new() { SqlCatalogSearchQueries.ModifiedAfterParameterName };
+
     public static TheoryData<string, string> AllQueries()
     {
         var data = new TheoryData<string, string>();
@@ -41,10 +57,15 @@ public sealed class SqlCatalogSearchQueriesTests
         return data;
     }
 
+    /// <remarks>
+    /// 以「內容含 SELECT」認查詢，而不是把每一個公開字串欄位都當成查詢：這個型別上還有
+    /// 參數名稱那種常數，拿它去比對本機函式與參數規則只會得到兩條沒有意義的斷言。
+    /// </remarks>
     private static IEnumerable<FieldInfo> Fields() =>
         typeof(SqlCatalogSearchQueries)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(field => field.FieldType == typeof(string));
+            .Where(field => field.FieldType == typeof(string))
+            .Where(field => ((string)field.GetValue(null)!).Contains("SELECT"));
 
     [Theory]
     [MemberData(nameof(AllQueries))]
@@ -57,37 +78,102 @@ public sealed class SqlCatalogSearchQueriesTests
             $"{name} 用了加不了限定字的 {found.Value}；改走目錄檢視。");
     }
 
-    /// <remarks>
-    /// v1 是整份重建，一條參數都不吃。留著參數名稱而沒有人綁值的症狀是執行期的
-    /// 「必須宣告純量變數」，而那是 <c>DbException</c>，會被降級成「這一輪沒有資料」
-    /// ——搜尋對那個資料庫安靜地空掉。
-    /// </remarks>
     [Theory]
     [MemberData(nameof(AllQueries))]
-    public void 沒有留下沒有人綁值的參數(string name, string query)
+    public void 每一個參數都有人綁值(string name, string query)
     {
-        Assert.False(query.Contains('@'), $"{name} 留下了沒有人綁值的參數。");
+        foreach (Match match in Parameter.Matches(query))
+        {
+            Assert.True(
+                BoundParameters.Contains(match.Value),
+                $"{name} 留下了沒有人綁值的參數 {match.Value}。");
+        }
     }
 
-    /// <summary>掃全庫的兩條查詢一定要限制在使用者物件上。</summary>
+    /// <summary>掃全庫的查詢一定要限制在使用者物件上。</summary>
     /// <remarks>
     /// 漏掉 <c>is_ms_shipped = 0</c> 的症狀不是錯誤而是噪音：每一個資料庫多出一兩千個
     /// 系統物件的名稱與定義本文，索引大小翻倍，而搜尋結果第一頁全是使用者沒寫過的東西。
     /// </remarks>
-    [Fact]
-    public void 物件查詢只收使用者物件()
+    [Theory]
+    [InlineData(nameof(SqlCatalogSearchQueries.Objects))]
+    [InlineData(nameof(SqlCatalogSearchQueries.Definitions))]
+    [InlineData(nameof(SqlCatalogSearchQueries.Columns))]
+    public void 只收使用者物件(string name)
     {
-        Assert.Contains("is_ms_shipped = 0", SqlCatalogSearchQueries.ObjectsWithDefinitions);
-        Assert.Contains("tt.is_user_defined = 1", SqlCatalogSearchQueries.ObjectsWithDefinitions);
+        var query = (string)typeof(SqlCatalogSearchQueries).GetField(name)!.GetValue(null)!;
+
+        Assert.Contains("is_ms_shipped = 0", query);
     }
 
-    /// <summary>定義本文與物件同一次來回；逐物件問一次是明文禁止的。</summary>
+    [Fact]
+    public void 物件查詢也擋掉系統定義的資料表型別()
+    {
+        Assert.Contains("tt.is_user_defined = 1", SqlCatalogSearchQueries.Objects);
+    }
+
+    /// <summary>
+    /// 定義本文<b>不</b>跟物件同一條查詢。
+    /// </summary>
     /// <remarks>
-    /// 幾千個物件就是幾千次來回，而使用者按的只是一次搜尋。
+    /// 併成一條 <c>LEFT JOIN sys.sql_modules</c> 的話，不搜本文的那一輪省不掉任何東西：
+    /// 伺服器仍然要讀、網路仍然要傳，而那一份會在讀取端被丟掉。分兩段之後，
+    /// <c>Targets</c> 少掉 <c>Text</c> 的那一輪連送都不送。
     /// </remarks>
     [Fact]
-    public void 定義本文與物件同一次來回()
+    public void 定義本文自成一條查詢()
     {
-        Assert.Contains("LEFT JOIN sys.sql_modules", SqlCatalogSearchQueries.ObjectsWithDefinitions);
+        Assert.DoesNotContain("sys.sql_modules", SqlCatalogSearchQueries.Objects);
+        Assert.Contains("sys.sql_modules", SqlCatalogSearchQueries.Definitions);
+    }
+
+    /// <summary>
+    /// 條件約束四種一次 UNION 回來，而且結構描述接的是父物件的。
+    /// </summary>
+    /// <remarks>
+    /// <c>sys.objects</c> 上的條件約束沒有自己的 <c>schema_id</c>（它跟著父物件走），
+    /// 照物件那條 JOIN 會接到錯的結構描述，而畫面上那個結構描述看起來完全正常。
+    /// </remarks>
+    [Theory]
+    [InlineData("sys.check_constraints")]
+    [InlineData("sys.default_constraints")]
+    [InlineData("sys.key_constraints")]
+    [InlineData("sys.foreign_keys")]
+    public void 條件約束四種都在物件查詢裡(string view)
+    {
+        Assert.Contains(view, SqlCatalogSearchQueries.Objects);
+    }
+
+    [Fact]
+    public void 條件約束接父物件的結構描述()
+    {
+        Assert.Contains("parent_object_id", SqlCatalogSearchQueries.Objects);
+    }
+
+    /// <summary>
+    /// 只有貴的那兩條走增量；物件那一條整份重撈。
+    /// </summary>
+    /// <remarks>
+    /// 物件那一條是唯一看得出「哪一個被卸除了」的一條，而卸除不會留下時間戳。
+    /// 它也走增量的話，被砍掉的那一張表會永遠留在索引上。
+    /// </remarks>
+    [Fact]
+    public void 增量界線只加在資料行與定義本文上()
+    {
+        Assert.DoesNotContain(SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.Objects);
+        Assert.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.Definitions);
+        Assert.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.Columns);
+    }
+
+    /// <summary>資料庫清單只列進得去而且上線的。</summary>
+    /// <remarks>
+    /// 離線或進不去的資料庫列出來，只會讓使用者勾一個必然失敗的目標，而失敗在畫面上
+    /// 與「這裡面沒有東西」長得一樣。
+    /// </remarks>
+    [Fact]
+    public void 資料庫清單只列進得去而且上線的()
+    {
+        Assert.Contains("d.state = 0", SqlCatalogSearchQueries.Databases);
+        Assert.Contains("HAS_DBACCESS", SqlCatalogSearchQueries.Databases);
     }
 }
