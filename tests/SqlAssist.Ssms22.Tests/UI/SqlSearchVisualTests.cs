@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -19,14 +20,14 @@ namespace SqlAssist.Ssms22.Tests.UI;
 public sealed class SqlSearchVisualTests
 {
     [Fact]
-    public void 結果列與分組標頭在每一種主題都讀所屬控制項的動態筆刷()
+    public void 結果列在每一種主題都讀所屬控制項的動態筆刷()
     {
         WpfTest.Run(() =>
         {
             var palette = new ThemeResourceSet();
             var rows = Rows();
             var list = new SqlSearchList();
-            list.SetRowsSource(rows, nameof(SqlSearchRow.GroupLabel));
+            list.SetRowsSource(rows);
             list.SelectedIndex = 0;
 
             var surface = new Border { Child = list }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
@@ -39,11 +40,11 @@ public sealed class SqlSearchVisualTests
                 surface.Arrange(new Rect(0, 0, 440, 400));
                 surface.UpdateLayout();
 
-                // 名稱與本文兩組各自成一組，順序就是 SearchMatchTargets.GroupOrder 的順序。
-                var headers = Descendants<TextBlock>(list)
-                    .Where(text => text.Text is "名稱" or "定義本文").ToArray();
-                Assert.Equal(new[] { "名稱", "定義本文" }, headers.Select(text => text.Text).ToArray());
-                Assert.All(headers, text => Assert.Same(palette.Resources[ThemeBrush.DimForeground], text.Foreground));
+                // 取消了上下分組：命中部位由每一列自己的徽章表達，三種列在同一疊裡。
+                var targets = Descendants<TextBlock>(list)
+                    .Where(text => text.Text is "名稱" or "內容" or "欄位").ToArray();
+                Assert.Equal(new[] { "名稱", "名稱", "內容" }, targets.Select(text => text.Text).ToArray());
+                Assert.All(targets, text => Assert.Same(palette.Resources[ThemeBrush.ListForeground], text.Foreground));
 
                 var selected = (ListBoxItem)list.ItemContainerGenerator.ContainerFromItem(rows[0]);
                 Assert.NotNull(selected);
@@ -60,7 +61,179 @@ public sealed class SqlSearchVisualTests
     }
 
     [Fact]
-    public void 結果卡片與搜尋選項的互動狀態只換筆刷不改版面尺寸()
+    public void 結果列的脈絡膠囊來自命中而不是酬載()
+    {
+        WpfTest.Run(() =>
+        {
+            var rows = Rows();
+            var list = new SqlSearchList();
+            list.SetRowsSource(rows);
+
+            var host = new Border { Child = list };
+            host.Measure(new Size(520, 400));
+            host.Arrange(new Rect(0, 0, 520, 400));
+            host.UpdateLayout();
+
+            var badges = Descendants<TextBlock>(list).Select(text => text.Text).ToArray();
+            Assert.Contains("LIBSRV", badges);
+            Assert.Contains("LibArchive", badges);
+
+            // 圖示插槽讀的是分類 Id 這個字串；認不得的分類留空插槽，那一列仍有標題與路徑。
+            var icons = Descendants<SqlIconImage>(list).Where(icon => icon.CategoryId is { Length: > 0 }).ToArray();
+            Assert.NotEmpty(icons);
+            Assert.All(icons, icon => Assert.StartsWith("catalog.", icon.CategoryId));
+        });
+    }
+
+    [Fact]
+    public void 分段開關至少留一段且對應旗標()
+    {
+        WpfTest.Run(() =>
+        {
+            var segments = new SqlSearchSegments();
+            var changes = 0;
+            segments.ValueChanged += (_, _) => changes++;
+
+            var toggles = Descendants<ToggleButton>(segments).ToArray();
+            Assert.Equal(3, toggles.Length);
+            Assert.Equal(SearchTargets.All, segments.Value);
+            Assert.All(toggles, toggle => Assert.True(toggle.IsChecked));
+
+            toggles[1].IsChecked = false;
+            Assert.Equal(SearchTargets.Name | SearchTargets.Column, segments.Value);
+            Assert.Equal(1, changes);
+
+            toggles[2].IsChecked = false;
+            Assert.Equal(SearchTargets.Name, segments.Value);
+            Assert.Equal(2, changes);
+
+            // 最後一段關不掉：一個部位都不掃的查詢找不到任何東西，而畫面上與「這個字串不存在」一樣。
+            toggles[0].IsChecked = false;
+            Assert.Equal(SearchTargets.Name, segments.Value);
+            Assert.True(toggles[0].IsChecked);
+            Assert.Equal(2, changes);
+        });
+    }
+
+    [Fact]
+    public void 工具列窄窗先收字再收行()
+    {
+        WpfTest.Run(() =>
+        {
+            var search = SqlAssistChrome.CreateSearchBar(
+                SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
+            var segments = new SqlSearchSegments();
+            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
+            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, filterable: true);
+            var toolbar = new SqlSearchToolbar(search, segments, new[] { databases, kinds });
+
+            var host = new Border { Child = toolbar };
+
+            Size Layout(double width)
+            {
+                host.Measure(new Size(width, double.PositiveInfinity));
+                host.Arrange(new Rect(0, 0, width, host.DesiredSize.Height));
+                host.UpdateLayout();
+                return host.DesiredSize;
+            }
+
+            var full = Layout(SqlSearchToolbar.CompactWidth + 40);
+            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.False(kinds.IsCompact);
+
+            var compact = Layout(SqlSearchToolbar.CompactWidth - 40);
+            Assert.Equal(SqlSearchToolbarMode.Compact, toolbar.Mode);
+            Assert.True(kinds.IsCompact);
+            // 收字不換行：高度不變，搜尋框只是變窄。
+            Assert.Equal(full.Height, compact.Height);
+
+            var stacked = Layout(SqlSearchToolbar.StackedWidth - 40);
+            Assert.Equal(SqlSearchToolbarMode.Stacked, toolbar.Mode);
+            // 分段開關是常駐可見的，收掉字就等於收掉它；放不下時換到第二列。
+            Assert.True(stacked.Height > compact.Height);
+
+            // 拉回去要回到完整版，不停在窄版上。
+            Layout(SqlSearchToolbar.CompactWidth + 40);
+            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.False(kinds.IsCompact);
+        });
+    }
+
+    [Fact]
+    public void 主從區寬到門檻才轉成左右而預設維持上下()
+    {
+        WpfTest.Run(() =>
+        {
+            var master = new Border { MinHeight = 40 };
+            var detail = new Border { MinHeight = 40 };
+            var responsive = new SqlMemorySplitView(master, detail, sideBySideWidth: 520);
+            var host = new Border { Child = responsive };
+
+            void Layout(double width)
+            {
+                host.Measure(new Size(width, 400));
+                host.Arrange(new Rect(0, 0, width, 400));
+                host.UpdateLayout();
+            }
+
+            Layout(360);
+            Assert.False(responsive.IsSideBySide);
+
+            Layout(600);
+            Assert.True(responsive.IsSideBySide);
+            Assert.Equal(3, responsive.ColumnDefinitions.Count);
+            Assert.Equal(0, Grid.GetColumn(master));
+            Assert.Equal(2, Grid.GetColumn(detail));
+
+            Layout(360);
+            Assert.False(responsive.IsSideBySide);
+            Assert.Equal(3, responsive.RowDefinitions.Count);
+            Assert.Equal(0, Grid.GetRow(master));
+            Assert.Equal(2, Grid.GetRow(detail));
+
+            // 不傳門檻就完全維持原行為；SQL Memory 的上下分割不由這一次順手改掉。
+            var fixedSplit = new SqlMemorySplitView(new Border(), new Border());
+            var fixedHost = new Border { Child = fixedSplit };
+            fixedHost.Measure(new Size(1200, 400));
+            fixedHost.Arrange(new Rect(0, 0, 1200, 400));
+            fixedHost.UpdateLayout();
+            Assert.False(fixedSplit.IsSideBySide);
+        });
+    }
+
+    [Fact]
+    public void 已選條件列只在非預設時出現()
+    {
+        WpfTest.Run(() =>
+        {
+            var chips = new SqlSearchChipBar();
+            Assert.Equal(Visibility.Collapsed, chips.Visibility);
+
+            var removed = new List<string>();
+            chips.RemoveRequested += chip => removed.Add((string)chip);
+            chips.SetChips(new[] { "種類: Table", "資料庫: LibArchive" }, chip => chip);
+            Assert.Equal(Visibility.Visible, chips.Visibility);
+            Assert.Equal(2, chips.Items.Count);
+
+            var host = new Border { Child = chips };
+            host.Measure(new Size(400, 100));
+            host.Arrange(new Rect(0, 0, 400, 100));
+            host.UpdateLayout();
+
+            var buttons = Descendants<Button>(chips).ToArray();
+            Assert.Equal(2, buttons.Length);
+            buttons[0].RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "種類: Table" }, removed.ToArray());
+
+            chips.SetChips(Array.Empty<string>(), chip => chip);
+            // 沒篩選就不佔那一列；Collapsed 才真的不參與量測。
+            Assert.Equal(Visibility.Collapsed, chips.Visibility);
+        });
+    }
+
+    [Fact]
+    public void 結果卡片分段開關與篩選chip的互動狀態只換筆刷不改版面尺寸()
     {
         WpfTest.Run(() =>
         {
@@ -74,8 +247,10 @@ public sealed class SqlSearchVisualTests
             var card = (ControlTemplate)SqlAssistChrome.CreateSqlCardStyle(motion: false, removable: false).Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
             var option = SqlAssistChrome.CreateSearchOption("大小寫", "只取大小寫完全相同的本文命中。").Template;
+            var segment = (ControlTemplate)SqlAssistChrome.CreateSegmentToggleStyle().Setters
+                .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
 
-            foreach (var template in new[] { card, option })
+            foreach (var template in new[] { card, option, segment })
             foreach (var trigger in template.Triggers.OfType<Trigger>())
             {
                 Assert.DoesNotContain(trigger.Setters.OfType<Setter>(), setter => layoutProperties.Contains(setter.Property));
@@ -84,6 +259,14 @@ public sealed class SqlSearchVisualTests
             // 結果沒有刪除動作；留著 IsRemoving 的繫結只會在每一列上找一個不存在的屬性。
             Assert.DoesNotContain(card.Triggers.OfType<DataTrigger>(),
                 trigger => (trigger.Binding as Binding)?.Path.Path == "IsRemoving");
+
+            // 停駐才出現的動作列用 Hidden 保留尺寸；Collapsed 會讓列在停駐的瞬間重新排版。
+            var reveal = SqlAssistChrome.CreateSearchHitTemplate().Triggers.OfType<DataTrigger>()
+                .Where(trigger => trigger.Setters.OfType<Setter>().Any(setter => setter.TargetName == "actions"))
+                .ToArray();
+            Assert.Equal(2, reveal.Length);
+            Assert.All(reveal, trigger => Assert.Equal(
+                Visibility.Visible, trigger.Setters.OfType<Setter>().Single().Value));
         });
     }
 
@@ -149,7 +332,7 @@ public sealed class SqlSearchVisualTests
         Assert.Equal(new[] { new MatchSpan(7, 4) }, table.TitleSpans.ToArray());
 
         var column = new SqlSearchRow(
-            Hit(SearchMatchTarget.Name, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)), "Column");
+            Hit(SearchMatchTarget.Column, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)), "Column");
         Assert.Equal(new[] { new MatchSpan(22, 6) }, column.TitleSpans.ToArray());
 
         // 本文命中的片段來自定義本文，與標題沒有關係。
@@ -157,6 +340,15 @@ public sealed class SqlSearchVisualTests
         Assert.Empty(body.TitleSpans);
         Assert.Equal("JOIN Loan l", body.Snippet);
         Assert.Equal(new[] { new MatchSpan(5, 4) }, body.SnippetSpans.ToArray());
+    }
+
+    [Fact]
+    public void 命中部位的用字在開關與列上完全相同()
+    {
+        // 兩邊各叫各的，使用者會以為它們是兩件事。
+        var row = new SqlSearchRow(Hit(SearchMatchTarget.Text, "[dbo].[Loan]", "JOIN Loan l", new MatchSpan(5, 4)), "Table");
+        Assert.Equal(SqlSearchTargets.LabelFor(SearchMatchTarget.Text), row.TargetLabel);
+        Assert.Equal("Table · 內容 · " + row.Path, row.Description);
     }
 
     private static string Rendered(SqlHighlightText text) =>
@@ -177,7 +369,11 @@ public sealed class SqlSearchVisualTests
         var parts = title.Split('.').Select(part => part.Trim('[', ']')).ToArray();
         SqlObjectPath.TryParseName(parts, out var path);
         return new SearchHit("catalog", "catalog.table", matchTarget, title, title + matchTarget, 10,
-            path, snippet, new[] { span });
+            path, snippet, new[] { span }, badges: new[]
+            {
+                new SearchBadge("LIBSRV", SearchBadge.ServerIcon),
+                new SearchBadge("LibArchive", SearchBadge.DatabaseIcon)
+            });
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

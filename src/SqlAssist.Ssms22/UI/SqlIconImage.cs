@@ -15,14 +15,35 @@ internal sealed class SqlIconImage : Decorator
     /// <summary>套件初始化時接上原生 <c>CrispImage</c>；回傳的元素不得在插槽之間共用。</summary>
     internal static Func<SqlIcon, FrameworkElement?>? Factory { get; set; }
 
+    /// <summary>
+    /// 依搜尋分類識別字取原生目錄圖示。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Factory"/> 分開，是因為兩邊的鍵是不同的東西：一個是自製 UI 自己那組
+    /// 語意圖示的列舉，一個是 provider 宣告的分類字串，而分類清單是資料、不是列舉。
+    /// 走同一支工廠就得先把字串硬塞成 <see cref="SqlIcon"/>，而那份對照每加一個 provider 就要改。
+    /// </remarks>
+    internal static Func<string, FrameworkElement?>? CategoryFactory { get; set; }
+
     public static readonly DependencyProperty IconProperty = DependencyProperty.Register(
         nameof(Icon), typeof(SqlIcon?), typeof(SqlIconImage),
+        new PropertyMetadata(null, (sender, _) => ((SqlIconImage)sender).UpdateImage()));
+
+    public static readonly DependencyProperty CategoryIdProperty = DependencyProperty.Register(
+        nameof(CategoryId), typeof(string), typeof(SqlIconImage),
         new PropertyMetadata(null, (sender, _) => ((SqlIconImage)sender).UpdateImage()));
 
     public SqlIcon? Icon
     {
         get => (SqlIcon?)GetValue(IconProperty);
         set => SetValue(IconProperty, value);
+    }
+
+    /// <summary>分類識別字；非空時優先於 <see cref="Icon"/>，同一個插槽不會同時畫兩顆。</summary>
+    public string? CategoryId
+    {
+        get => (string?)GetValue(CategoryIdProperty);
+        set => SetValue(CategoryIdProperty, value);
     }
 
     public SqlIconImage()
@@ -32,5 +53,8 @@ internal sealed class SqlIconImage : Decorator
         IsHitTestVisible = false;
     }
 
-    private void UpdateImage() => Child = Icon is { } icon ? Factory?.Invoke(icon) : null;
+    private void UpdateImage() =>
+        Child = CategoryId is { Length: > 0 } category
+            ? CategoryFactory?.Invoke(category)
+            : Icon is { } icon ? Factory?.Invoke(icon) : null;
 }

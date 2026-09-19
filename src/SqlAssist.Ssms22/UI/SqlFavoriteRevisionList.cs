@@ -52,7 +52,7 @@ internal sealed class SqlFavoriteRevisionCommand
 }
 
 /// <summary>收藏版本時間軸；鍵盤、續頁與按鈕派送與 History 清單共用基底。</summary>
-internal sealed class SqlFavoriteRevisionList : SqlMemoryListBase<SqlFavoriteRevisionAction>
+internal sealed class SqlFavoriteRevisionList : SqlCardListBase<SqlFavoriteRevisionAction>
 {
     public SqlFavoriteRevisionList(bool? motion = null)
     {

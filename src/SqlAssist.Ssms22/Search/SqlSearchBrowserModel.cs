@@ -5,23 +5,102 @@ using SqlAssist.Core.Search;
 
 namespace SqlAssist.Ssms22.Search;
 
-/// <summary>過濾列上的一顆分類 pill；「全部」的 <see cref="Id"/> 是 null。</summary>
+/// <summary>過濾下拉裡的一種物件種類。</summary>
 /// <remarks>
 /// 清單由 <see cref="SearchAggregator.Categories"/> 產生，不在 UI 寫死任何 <c>catalog.*</c> 字串：
-/// 寫死的症狀是之後加一個 provider，它宣告的分類在過濾列上一顆都沒有，而結果照樣出現在清單裡。
+/// 寫死的症狀是之後加一個 provider，它宣告的分類在過濾清單上一項都沒有，而結果照樣出現在清單裡。
+///
+/// 沒有「全部」這一項：多選的空集合<b>就是</b>全部，而多一顆與其他選項互斥的「全部」等於
+/// 在同一份清單裡放兩種語意，使用者勾了第二種之後看不出第一種還算不算數。
 /// </remarks>
 internal sealed class SqlSearchCategoryOption
 {
-    internal SqlSearchCategoryOption(string? id, string label)
+    internal SqlSearchCategoryOption(string id, string label)
     {
         Id = id;
         Label = label;
     }
 
-    /// <summary>對應 <see cref="SearchCategory.Id"/>；null 表示不過濾。</summary>
-    public string? Id { get; }
+    /// <summary>對應 <see cref="SearchCategory.Id"/>。</summary>
+    public string Id { get; }
 
     public string Label { get; }
+}
+
+/// <summary>結果清單的排序鍵。</summary>
+/// <remarks>
+/// 取代原本的上下分組。分組把「名稱命中」與「定義本文命中」切成兩疊，使用者要找的那一筆
+/// 可能在第二疊的底下；每一列掛一個命中部位徽章就分得出來，而排序才是他真正要換的東西。
+/// </remarks>
+internal enum SqlSearchSort
+{
+    /// <summary>聚合器排好的順序：命中部位的分組先後，再依分數。</summary>
+    Relevance,
+
+    /// <summary>限定名稱 A–Z。</summary>
+    Name,
+
+    /// <summary>物件種類，種類內再依限定名稱。</summary>
+    Kind
+}
+
+/// <summary>排序選項的顯示字；按鈕與選單共用同一份，兩邊不會各自寫一次。</summary>
+internal sealed class SqlSearchSortOption
+{
+    private SqlSearchSortOption(SqlSearchSort value, string label, string shortLabel)
+    {
+        Value = value;
+        Label = label;
+        ShortLabel = shortLabel;
+    }
+
+    public static IReadOnlyList<SqlSearchSortOption> All { get; } = new[]
+    {
+        new SqlSearchSortOption(SqlSearchSort.Relevance, "相關度", "相關度"),
+        new SqlSearchSortOption(SqlSearchSort.Name, "名稱 A–Z", "名稱"),
+        new SqlSearchSortOption(SqlSearchSort.Kind, "物件種類", "種類")
+    };
+
+    public SqlSearchSort Value { get; }
+
+    public string Label { get; }
+
+    /// <summary>按鈕上的字；工具列放不下完整說明。</summary>
+    public string ShortLabel { get; }
+
+    public static SqlSearchSortOption For(SqlSearchSort value)
+    {
+        foreach (var option in All) if (option.Value == value) return option;
+        throw new ArgumentOutOfRangeException(nameof(value), value, "沒有這個排序。");
+    }
+}
+
+/// <summary>已選條件那一列上的一顆 chip；按下十字就清掉它代表的那一個條件。</summary>
+internal sealed class SqlSearchFilterChip
+{
+    internal SqlSearchFilterChip(SqlSearchFilterKind kind, string? value, string label)
+    {
+        Kind = kind;
+        Value = value;
+        Label = label;
+    }
+
+    public SqlSearchFilterKind Kind { get; }
+
+    /// <summary>要清掉的那一個值；選項類（大小寫、全字）沒有值。</summary>
+    public string? Value { get; }
+
+    /// <summary>chip 上的字。</summary>
+    public string Label { get; }
+}
+
+/// <summary>chip 代表哪一種條件；清掉時據此決定動哪一份集合。</summary>
+internal enum SqlSearchFilterKind
+{
+    Category,
+    Database,
+    MatchCasing,
+    WholeWord
 }
 
 /// <summary>頁尾那一行現在在說哪一件事；動畫用它判斷「同一狀態不重播」。</summary>
@@ -59,7 +138,8 @@ internal sealed class SqlSearchRound
 }
 
 /// <summary>
-/// SQL Search 工具窗的純邏輯：輸入轉查詢、世代作廢、狀態與空狀態文字，以及重新整理後的選取還原。
+/// SQL Search 工具窗的純邏輯：輸入轉查詢、世代作廢、篩選摘要、排序、狀態與空狀態文字，
+/// 以及重新整理後的選取還原。
 /// </summary>
 /// <remarks>
 /// 只在 UI 執行緒使用，不做 I/O，也刻意不碰 WPF 型別——它與 <see cref="SqlSearchBrowser"/> 的分工
@@ -71,8 +151,27 @@ internal sealed class SqlSearchRound
 /// </remarks>
 internal sealed class SqlSearchBrowserModel
 {
-    /// <summary>「全部」pill 的顯示字；它不是任何一個 provider 宣告的分類。</summary>
+    /// <summary>沒有勾任何一個分類時，按鈕上顯示的字。</summary>
     public const string AllCategoriesLabel = "全部";
+
+    /// <summary>沒有指名資料庫時，按鈕上顯示的字。</summary>
+    public const string CurrentConnectionLabel = "目前連線";
+
+    /// <summary>
+    /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
+    /// </summary>
+    /// <remarks>
+    /// 名單寫在 UI 這一層而不是向伺服器問 <c>database_id &lt;= 4</c>：為了替一個下拉分段
+    /// 而多送一輪查詢，等於在使用者沒有要求的時候連資料庫。這四個名稱在每一版 SQL Server
+    /// 上都相同，分錯的代價也只是一個名字排在另一段裡。
+    /// </remarks>
+    private static readonly HashSet<string> SystemDatabaseNames =
+        new(new[] { "master", "model", "msdb", "tempdb" }, StringComparer.OrdinalIgnoreCase);
+
+    private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
+    private readonly List<string> _databases = new();
+    private IReadOnlyList<SqlSearchCategoryOption> _categories = Array.Empty<SqlSearchCategoryOption>();
+    private Dictionary<string, int> _categoryOrder = new(StringComparer.Ordinal);
 
     private long _generation;
 
@@ -93,18 +192,33 @@ internal sealed class SqlSearchBrowserModel
 
     public bool WholeWord { get; set; }
 
-    /// <summary>指名的資料庫；null 表示跟著目前查詢視窗那一個。</summary>
+    /// <summary>
+    /// 這一輪要比對物件的哪幾個部位。
+    /// </summary>
     /// <remarks>
-    /// 預設 null 而不是列出所有進得去的資料庫：每指名一個就是一次含定義本文的全表掃描，
-    /// 預先索引全部是明文禁止的。
+    /// 這是使用者切換最頻繁的一項，所以在工具列上是常駐的分段控制器而不是下拉：藏進下拉
+    /// 會讓每一次切換多兩次點擊。值一路傳到 provider 的最內層迴圈——少掉
+    /// <see cref="SearchTargets.Text"/> 的那一輪是<b>真的不去撈定義本文</b>，不是掃回來再丟。
     /// </remarks>
-    public string? Database { get; set; }
+    public SearchTargets Targets { get; set; } = SearchTargets.All;
 
-    /// <summary>目前選的分類；null 表示不過濾。</summary>
-    public string? CategoryId { get; set; }
+    /// <summary>結果清單的排序；取代原本的上下分組。</summary>
+    public SqlSearchSort Sort { get; set; } = SqlSearchSort.Relevance;
 
     /// <summary>目前有沒有可以搜的連線；沒有時整輪不開始，畫面走「尚未連線」的空狀態。</summary>
     public bool HasConnection { get; set; }
+
+    /// <summary>目前勾選的分類；空表示不過濾。</summary>
+    public IReadOnlyCollection<string> CategoryIds => _categoryIds;
+
+    /// <summary>
+    /// 指名的資料庫；空表示跟著目前查詢視窗那一個。
+    /// </summary>
+    /// <remarks>
+    /// 預設空而不是列出所有進得去的資料庫：每指名一個就是一次含定義本文的全表掃描，
+    /// 預先索引全部是明文禁止的。
+    /// </remarks>
+    public IReadOnlyList<string> Databases => _databases;
 
     /// <summary>這一輪要搜的範圍；呼叫端用它先問「索引建好了沒」，再決定要不要顯示載入表面。</summary>
     public SearchScope Scope => BuildScope();
@@ -121,15 +235,15 @@ internal sealed class SqlSearchBrowserModel
     public bool IsIndexing { get; private set; }
 
     /// <summary>
-    /// 過濾列要畫哪幾顆 pill。
+    /// 過濾下拉要列哪幾個分類。
     /// </summary>
     /// <remarks>
-    /// 依 provider 宣告順序串接並以 Id 去重：兩個 provider 各自宣告同一個 Id 時，畫兩顆一模一樣的 pill
-    /// 只會讓使用者以為它們是兩種東西。顯示字取先出現的那一份。
+    /// 依 provider 宣告順序串接並以 Id 去重：兩個 provider 各自宣告同一個 Id 時，列兩項一模一樣的
+    /// 選項只會讓使用者以為它們是兩種東西。顯示字取先出現的那一份。
     /// </remarks>
     public static IReadOnlyList<SqlSearchCategoryOption> CategoryOptions(IEnumerable<SearchCategory>? categories)
     {
-        var options = new List<SqlSearchCategoryOption> { new(null, AllCategoriesLabel) };
+        var options = new List<SqlSearchCategoryOption>();
 
         if (categories is null) return options;
 
@@ -142,6 +256,134 @@ internal sealed class SqlSearchBrowserModel
         }
 
         return options;
+    }
+
+    /// <summary>接上這一份分類清單；摘要文字、chip 標籤與「依種類排序」的先後都由它決定。</summary>
+    public void UseCategories(IReadOnlyList<SqlSearchCategoryOption> categories)
+    {
+        _categories = categories ?? throw new ArgumentNullException(nameof(categories));
+        _categoryOrder = new Dictionary<string, int>(categories.Count, StringComparer.Ordinal);
+        for (var index = 0; index < categories.Count; index++) _categoryOrder[categories[index].Id] = index;
+
+        // 分類清單換掉時，勾在上面而現在已經不存在的那幾個要一起走：留著的話，
+        // 每一輪都以一個沒有 provider 認領的 Id 過濾，結果永遠是空的而畫面上看不出為什麼。
+        _categoryIds.RemoveWhere(id => !_categoryOrder.ContainsKey(id));
+    }
+
+    /// <summary>這個分類現在勾著沒有。</summary>
+    public bool IsCategorySelected(string categoryId) => _categoryIds.Contains(categoryId);
+
+    /// <returns>true 表示勾選集合真的變了，呼叫端才重跑一輪。</returns>
+    public bool SetCategorySelected(string categoryId, bool selected)
+    {
+        if (categoryId is null) throw new ArgumentNullException(nameof(categoryId));
+        return selected ? _categoryIds.Add(categoryId) : _categoryIds.Remove(categoryId);
+    }
+
+    public bool ClearCategories()
+    {
+        if (_categoryIds.Count == 0) return false;
+        _categoryIds.Clear();
+        return true;
+    }
+
+    public bool IsDatabaseSelected(string database) =>
+        _databases.FindIndex(name => string.Equals(name, database, StringComparison.OrdinalIgnoreCase)) >= 0;
+
+    /// <returns>true 表示指名的資料庫真的變了。</returns>
+    /// <remarks>
+    /// 名稱以不分大小寫比對：資料庫名稱的大小寫規則由執行個體的定序決定，而同一台上
+    /// <c>LibArchive</c> 與 <c>libarchive</c> 指的是同一個。兩份都留著的症狀是同一個資料庫
+    /// 被索引兩次，而 chip 列上出現兩顆看起來重複的條件。
+    /// </remarks>
+    public bool SetDatabaseSelected(string database, bool selected)
+    {
+        if (string.IsNullOrEmpty(database)) throw new ArgumentException("資料庫名稱不可為空。", nameof(database));
+
+        var index = _databases.FindIndex(name => string.Equals(name, database, StringComparison.OrdinalIgnoreCase));
+
+        if (selected)
+        {
+            if (index >= 0) return false;
+            _databases.Add(database);
+            return true;
+        }
+
+        if (index < 0) return false;
+        _databases.RemoveAt(index);
+        return true;
+    }
+
+    public bool ClearDatabases()
+    {
+        if (_databases.Count == 0) return false;
+        _databases.Clear();
+        return true;
+    }
+
+    /// <summary>這個名稱屬於系統資料庫那一段。</summary>
+    public static bool IsSystemDatabase(string database) => SystemDatabaseNames.Contains(database);
+
+    /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
+    public string CategorySummary() => Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel());
+
+    /// <summary>資料庫按鈕上的摘要。</summary>
+    public string DatabaseSummary() =>
+        Summarize(_databases.Count, CurrentConnectionLabel, _databases.Count == 1 ? _databases[0] : null);
+
+    /// <summary>
+    /// 已選條件那一列要畫哪幾顆 chip；空表示整列收起。
+    /// </summary>
+    /// <remarks>
+    /// 預設狀態不佔那一列，是這個版面空間極大化的關鍵。比對位置不在這裡——它在工具列上
+    /// 常駐可見，再畫一顆 chip 等於同一件事說兩次。
+    /// </remarks>
+    public IReadOnlyList<SqlSearchFilterChip> Chips()
+    {
+        var chips = new List<SqlSearchFilterChip>();
+
+        // 依分類清單的宣告順序輸出，不依使用者勾選的先後：勾選順序會讓同一組條件每次
+        // 排出不同的 chip 順序，而那看起來像是條件自己變了。
+        foreach (var category in _categories)
+        {
+            if (!_categoryIds.Contains(category.Id)) continue;
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Category, category.Id, "種類: " + category.Label));
+        }
+
+        foreach (var database in _databases)
+        {
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Database, database, "資料庫: " + database));
+        }
+
+        if (MatchCasing) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.MatchCasing, null, "大小寫"));
+        if (WholeWord) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.WholeWord, null, "全字"));
+
+        return chips;
+    }
+
+    /// <summary>清掉一顆 chip 代表的條件。</summary>
+    /// <returns>true 表示條件真的變了。</returns>
+    public bool Remove(SqlSearchFilterChip chip)
+    {
+        if (chip is null) throw new ArgumentNullException(nameof(chip));
+
+        switch (chip.Kind)
+        {
+            case SqlSearchFilterKind.Category:
+                return chip.Value is { } category && SetCategorySelected(category, selected: false);
+            case SqlSearchFilterKind.Database:
+                return chip.Value is { } database && SetDatabaseSelected(database, selected: false);
+            case SqlSearchFilterKind.MatchCasing:
+                if (!MatchCasing) return false;
+                MatchCasing = false;
+                return true;
+            case SqlSearchFilterKind.WholeWord:
+                if (!WholeWord) return false;
+                WholeWord = false;
+                return true;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(chip));
+        }
     }
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
@@ -179,7 +421,7 @@ internal sealed class SqlSearchBrowserModel
 
         return new SqlSearchRound(
             generation,
-            new SearchQuery(Text, generation, BuildOptions(), BuildCategories(), BuildScope()),
+            new SearchQuery(Text, generation, BuildOptions(), BuildCategories(), BuildScope(), Targets),
             !indexed);
     }
 
@@ -207,6 +449,43 @@ internal sealed class SqlSearchBrowserModel
         _hitCount = results.Hits.Count;
         _failure = Describe(results.Failures);
         return true;
+    }
+
+    /// <summary>
+    /// 依目前的排序把這一輪的結果排好。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SqlSearchSort.Relevance"/> 原樣交回聚合器排好的那一份，不重排一次：
+    /// 跨 provider 的分數可比是 provider 的責任，這一層再排一次只會把它們的約定弄丟。
+    ///
+    /// 另外兩種一律以 <see cref="SearchHit.SortKey"/> 打破平手。沒有這一道的話，同一組輸入
+    /// 在不同次執行會排出不同順序（provider 是併發的），使用者看到的症狀是清單會自己跳。
+    /// </remarks>
+    public IReadOnlyList<SearchHit> Arrange(IReadOnlyList<SearchHit> hits)
+    {
+        if (hits is null) throw new ArgumentNullException(nameof(hits));
+        if (Sort == SqlSearchSort.Relevance || hits.Count < 2) return hits;
+
+        var ordered = new List<SearchHit>(hits);
+
+        ordered.Sort((left, right) =>
+        {
+            if (Sort == SqlSearchSort.Kind)
+            {
+                var kind = CategoryRank(left.CategoryId).CompareTo(CategoryRank(right.CategoryId));
+                if (kind != 0) return kind;
+            }
+
+            var name = string.Compare(left.SortKey, right.SortKey, StringComparison.OrdinalIgnoreCase);
+            if (name != 0) return name;
+
+            // 只差大小寫的兩個名稱在不分大小寫的比較下同分；不再比一次的話，它們的先後
+            // 仍然取決於 provider 誰先回來。
+            var exact = string.CompareOrdinal(left.SortKey, right.SortKey);
+            return exact != 0 ? exact : string.CompareOrdinal(left.DedupeKey, right.DedupeKey);
+        });
+
+        return ordered;
     }
 
     /// <summary>這一輪整個失敗了（例外冒到聚合器外面）；舊查詢的失敗不得蓋掉新的狀態。</summary>
@@ -305,6 +584,26 @@ internal sealed class SqlSearchBrowserModel
         return !hasSelection && keys.Count > 0 ? 0 : null;
     }
 
+    private string? SingleCategoryLabel()
+    {
+        if (_categoryIds.Count != 1) return null;
+        foreach (var category in _categories) if (_categoryIds.Contains(category.Id)) return category.Label;
+        return null;
+    }
+
+    /// <remarks>
+    /// 一個就寫名字，多個就寫數字。三個名字串起來會把按鈕撐到吃掉搜尋框的空間，
+    /// 而工具列上真正要一直看得見的是搜尋框與比對位置。完整名單在 chip 列與 Tooltip 上。
+    /// </remarks>
+    private static string Summarize(int count, string allLabel, string? single) =>
+        count == 0 ? allLabel
+            : single is { Length: > 0 } name ? name
+            : count.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>沒有宣告的分類排在最後；不認得的 Id 不該插在認得的中間。</summary>
+    private int CategoryRank(string categoryId) =>
+        _categoryOrder.TryGetValue(categoryId, out var rank) ? rank : int.MaxValue;
+
     private SearchOptions BuildOptions()
     {
         var options = SearchOptions.None;
@@ -314,14 +613,14 @@ internal sealed class SqlSearchBrowserModel
     }
 
     private IEnumerable<string>? BuildCategories() =>
-        CategoryId is { Length: > 0 } category ? new[] { category } : null;
+        _categoryIds.Count == 0 ? null : new List<string>(_categoryIds);
 
     /// <remarks>
     /// 伺服器那一份永遠是空的：v1 沒有連結伺服器的索引，指名伺服器等於整輪不回結果。
     /// 範圍的伺服器由目前這條連線決定，UI 只把它顯示出來。
     /// </remarks>
     private SearchScope BuildScope() =>
-        Database is { Length: > 0 } database ? new SearchScope(null, new[] { database }) : SearchScope.All;
+        _databases.Count == 0 ? SearchScope.All : new SearchScope(null, _databases.ToArray());
 
     private static string Describe(IReadOnlyList<SearchProviderFailure> failures)
     {

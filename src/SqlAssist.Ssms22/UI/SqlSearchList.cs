@@ -1,90 +1,95 @@
 using System;
 using System.Collections;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
+using System.Collections.Generic;
 using System.Windows.Input;
 
 namespace SqlAssist.Ssms22.UI;
 
+/// <summary>結果列上的操作；按鈕以它為 Tag，不拿圖示或文字當識別。</summary>
+internal enum SqlSearchRowAction
+{
+    /// <summary>把這一筆的定義開進新的查詢視窗。</summary>
+    Activate,
+
+    Copy,
+
+    /// <summary>展開預覽並顯示這一筆；預覽收著的時候，停駐時這顆是唯一看得到它內容的路。</summary>
+    Preview
+}
+
 /// <summary>
-/// 搜尋結果清單：名稱命中與本文命中分兩組，容器仍然虛擬化。
+/// 一個結果列操作的外觀。卡片與快捷選單都從 <see cref="All"/> 建立，兩處不會漏掉或順序不一。
 /// </summary>
 /// <remarks>
-/// 分組走 <see cref="CollectionViewSource"/> 而不是在集合裡塞標頭列：塞標頭的話，每一列都要
-/// 先問「你是不是標頭」，而選取、鍵盤導覽與樣板選擇三處都會各漏一次。代價是必須明確打開
-/// <see cref="VirtualizingPanel.IsVirtualizingWhenGroupingProperty"/>——預設是關的，
-/// 分組之後整份清單會一次具體化，而這裡一輪可以有兩百列。
+/// 順序就是兩處的呈現順序：主要動作（移至定義）在前，其餘照使用頻率。
+/// 與 SQL Memory 的 <c>SqlMemoryRowCommand</c> 分開兩份，是因為兩邊能做的事不一樣——
+/// 併成一份就得在每一個操作上多掛一個「這一種列適不適用」，而那是同一件事做兩次。
+/// </remarks>
+internal sealed class SqlSearchRowCommand
+{
+    private SqlSearchRowCommand(SqlSearchRowAction action, SqlIcon icon, string label)
+    {
+        Action = action;
+        Icon = icon;
+        Label = label;
+    }
+
+    public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
+    {
+        new SqlSearchRowCommand(SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義"),
+        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱"),
+        new SqlSearchRowCommand(SqlSearchRowAction.Preview, SqlIcon.Preview, "在預覽中顯示")
+    };
+
+    public SqlSearchRowAction Action { get; }
+
+    public SqlIcon Icon { get; }
+
+    public string Label { get; }
+
+    public static SqlSearchRowCommand For(SqlSearchRowAction action)
+    {
+        foreach (var command in All) if (command.Action == action) return command;
+        throw new ArgumentOutOfRangeException(nameof(action), action, "沒有這個結果列操作。");
+    }
+}
+
+/// <summary>
+/// 搜尋結果清單：一疊平的列，命中部位由每一列自己的徽章表達。
+/// </summary>
+/// <remarks>
+/// 不再分組。分組把同一批結果切成「名稱」「欄位」「定義本文」三疊，而使用者要找的那一筆
+/// 可能在第三疊的底下——在停靠面板裡那等於看不到。改成每一列掛一顆徽章，並把排序交給使用者
+/// （相關度／名稱／種類）；少了 <c>CollectionViewSource</c> 的分組，虛擬化也不再需要
+/// <c>IsVirtualizingWhenGrouping</c> 這種容易漏掉的開關。
 ///
 /// 開啟是明確動作（雙擊或 Enter），不是選取的副作用；選取只換預覽。與 SQL Memory 的清單
 /// 同一條規則，理由也相同：選取會被方向鍵連續觸發。
 /// </remarks>
-internal sealed class SqlSearchList : ListBox
+internal sealed class SqlSearchList : SqlCardListBase<SqlSearchRowAction>
 {
-    private readonly CollectionViewSource _view = new();
-
     public SqlSearchList()
     {
-        BorderThickness = new Thickness(0);
-        SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
+        // 結果沒有刪除動作；留著 IsRemoving 的繫結只會在每一列上找一個不存在的屬性。
         ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(removable: false);
         ItemTemplate = SqlAssistChrome.CreateSearchHitTemplate();
-        GroupStyle.Add(SqlAssistChrome.CreateSearchGroupStyle());
-        ScrollViewer.SetHorizontalScrollBarVisibility(this, ScrollBarVisibility.Disabled);
-        ScrollViewer.SetCanContentScroll(this, true);
-        VirtualizingPanel.SetIsVirtualizing(this, true);
-        VirtualizingPanel.SetVirtualizationMode(this, VirtualizationMode.Recycling);
-        VirtualizingPanel.SetIsVirtualizingWhenGrouping(this, true);
-        KeyboardNavigation.SetTabNavigation(this, KeyboardNavigationMode.Once);
     }
 
-    /// <summary>雙擊或卡片上的 Enter；選取本身不觸發。</summary>
-    public event EventHandler? OpenRequested;
-
-    /// <summary>
-    /// 綁上結果集合，並依 <paramref name="groupBy"/> 分組。
-    /// </summary>
+    /// <summary>綁上結果集合。</summary>
     /// <remarks>
-    /// 只做一次：之後改的是集合內容，不是繫結。每次結果都重建一個
-    /// <see cref="CollectionViewSource"/> 的話，捲動位置與選取會跟著整份換掉。
+    /// 只做一次：之後改的是集合內容，不是繫結。每次結果都重綁的話，捲動位置與選取會跟著整份換掉。
     /// </remarks>
-    public void SetRowsSource(IEnumerable rows, string groupBy)
-    {
-        _view.Source = rows ?? throw new ArgumentNullException(nameof(rows));
-        _view.GroupDescriptions.Clear();
-        _view.GroupDescriptions.Add(new PropertyGroupDescription(groupBy));
-        ItemsSource = _view.View;
-    }
-
-    protected override void OnMouseDoubleClick(MouseButtonEventArgs e)
-    {
-        base.OnMouseDoubleClick(e);
-        if (e.ChangedButton == MouseButton.Left && IsRowContent(e.OriginalSource))
-        {
-            e.Handled = true;
-            OpenRequested?.Invoke(this, EventArgs.Empty);
-        }
-    }
+    public void SetRowsSource(IEnumerable rows) => ItemsSource = rows ?? throw new ArgumentNullException(nameof(rows));
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
-        // ↑／↓ 保留 ListBox 原生的選取與導覽；只有 Enter 是「開啟」。
-        if (!e.Handled && e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None &&
-            IsRowContent(e.OriginalSource))
+        // Ctrl+C 在清單上就是複製這一筆的限定名稱；使用者不必先展開預覽再去按那顆按鈕。
+        if (!e.Handled && e.Key == Key.C && e.KeyboardDevice.Modifiers == ModifierKeys.Control && IsRowContent(e.OriginalSource))
         {
             e.Handled = true;
-            OpenRequested?.Invoke(this, EventArgs.Empty);
+            RequestAction(SqlSearchRowAction.Copy);
         }
 
         base.OnPreviewKeyDown(e);
     }
-
-    protected override void OnPreviewMouseRightButtonDown(MouseButtonEventArgs e)
-    {
-        if (ContainerFromElement(this, e.OriginalSource as DependencyObject) is ListBoxItem item) item.IsSelected = true;
-        base.OnPreviewMouseRightButtonDown(e);
-    }
-
-    private bool IsRowContent(object source) =>
-        source is DependencyObject element && ContainerFromElement(this, element) is ListBoxItem;
 }

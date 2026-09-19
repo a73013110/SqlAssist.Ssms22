@@ -73,7 +73,7 @@ internal sealed class SqlMemoryRowCommand
 }
 
 /// <summary>History／Favorites 共用的清單；卡片樣板與 Delete 鍵是這份清單自己的，其餘路徑在基底。</summary>
-internal sealed class SqlMemoryList : SqlMemoryListBase<SqlMemoryRowAction>
+internal sealed class SqlMemoryList : SqlCardListBase<SqlMemoryRowAction>
 {
     public SqlMemoryList()
     {
@@ -91,13 +91,13 @@ internal sealed class SqlMemoryList : SqlMemoryListBase<SqlMemoryRowAction>
 }
 
 /// <summary>
-/// SQL Memory 各種清單共用的鍵盤、滑鼠與續頁路徑；開啟是明確動作，不是選取副作用。
+/// 卡片清單共用的鍵盤、滑鼠與續頁路徑；開啟是明確動作，不是選取副作用。
 /// </summary>
 /// <remarks>
 /// 列上的操作按鈕以 <typeparamref name="TAction"/> 為 Tag，點下時先選取該列再發出請求；
 /// 不拿圖示或文字當識別，History 卡片與收藏版本時間軸各自的操作列舉走同一條路。
 /// </remarks>
-internal abstract class SqlMemoryListBase<TAction> : ListBox where TAction : struct, Enum
+internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struct, Enum
 {
     private Size _viewportSize = Size.Empty;
     public event EventHandler? OpenRequested;
@@ -111,7 +111,7 @@ internal abstract class SqlMemoryListBase<TAction> : ListBox where TAction : str
         ItemsSource = new CompositeCollection { new CollectionContainer { Collection = rows }, new SqlMemoryListFooter(footer) };
     }
 
-    protected SqlMemoryListBase()
+    protected SqlCardListBase()
     {
         BorderThickness = new Thickness(0);
         SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);

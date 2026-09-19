@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Shell;
@@ -26,6 +27,10 @@ namespace SqlAssist.Ssms22.Search;
 /// 與 SQL Memory 的瀏覽器同一種分工：輸入、範圍與選項的值交給 <see cref="SqlSearchBrowserModel"/>，
 /// 回應也交回它決定要不要採用；這裡只做版面、繫結與派送。來源清單在
 /// <see cref="SqlSearchProviders"/>，啟動在 <see cref="SqlSearchActivation"/>，三者都不互相知道細節。
+///
+/// 版面只有三塊：工具列一列（搜尋框吃滿剩餘空間，比對位置是常駐的分段開關）、
+/// 只在非預設時出現的已選條件列，以及主從區。那一列 chip 不佔預設版面，是這個工具窗在
+/// 停靠面板裡多看得到幾筆結果的關鍵。
 /// </remarks>
 internal sealed class SqlSearchBrowser : UserControl, IDisposable
 {
@@ -35,8 +40,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>新列的進場旗標保留多久；比進場動畫長一點，之後捲動重用容器不會重播。</summary>
     private static readonly TimeSpan NewRowSettle = TimeSpan.FromMilliseconds(400);
 
-    /// <summary>一次套用幾列；兩百列一次塞進集合會讓分組檢視重算一整份版面。</summary>
+    /// <summary>一次套用幾列；兩百列一次塞進集合會讓清單重算一整份版面。</summary>
     private const int RowBatch = 40;
+
+    /// <summary>主從區寬到這裡就轉成左右分割；工具窗停在下方時就是這一種。</summary>
+    /// <remarks>
+    /// 門檻取兩塊各 220 DIP 加上分隔線與外距。再低的話，轉向之後兩邊都窄到讀不完一個限定名稱，
+    /// 而使用者只是把面板拉寬了一點。
+    /// </remarks>
+    private const double SideBySideWidth = 520;
 
     private readonly IServiceProvider _services;
     private readonly SqlSearchBrowserModel _model = new();
@@ -49,20 +61,34 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlMemorySplitView _splitView;
     private readonly SqlLoadingSurface _loading;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-    private readonly TextBlock _scope = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _empty = SqlAssistChrome.CreateSearchEmptyState();
-    private readonly CheckBox _matchCasing = SqlAssistChrome.CreateSearchOption("大小寫", "只取大小寫完全相同的本文命中；名稱一律不分大小寫。");
-    private readonly CheckBox _wholeWord = SqlAssistChrome.CreateSearchOption("全字", "本文命中前後都必須是詞界。");
-    private readonly Button _database;
-    private readonly ContextMenu _databases = new();
-    private readonly SqlPillSelector _categories;
+    private readonly ToggleButton _matchCasing = SqlAssistChrome.CreateSearchToggle(
+        SqlIcon.MatchCase, "大小寫", "只取大小寫完全相同的本文命中；名稱一律不分大小寫。");
+    private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
+        SqlIcon.WholeWord, "全字", "本文命中前後都必須是詞界。");
+    private readonly SqlSearchSegments _segments = new();
+    private readonly SqlSearchFilterButton _server = new("伺服器", SqlIcon.Server);
+    private readonly SqlSearchFilterButton _databases = new("資料庫", SqlIcon.Database, filterable: true);
+    private readonly SqlSearchFilterButton _kinds = new("種類", SqlIcon.Filter);
+    private readonly SqlSearchChipBar _chips = new();
+    private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
+    private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
+        SqlIcon.Refresh, "重新整理：丟掉已建立的索引並重新搜尋；改過結構之後用它。");
+    private readonly ContextMenu _sortMenu = new();
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _settleTimer;
     private CancellationTokenSource _request = new();
     private IReadOnlyList<SearchHit> _applying = Array.Empty<SearchHit>();
     private int _applied;
     private string _statusTone = "";
+
+    /// <summary>目前畫在 chip 列上的那一組條件；相同就不重建，正在走 Tab 的人不會失去焦點。</summary>
+    private string _chipSignature = "";
+    private SqlSearchRound? _round;
+
+    /// <summary>正在把模型的值寫回控制項；寫回去觸發的事件不是使用者的操作，不重跑一輪。</summary>
+    private bool _syncing;
     private bool _activating;
     private bool _ready;
     private bool _disposed;
@@ -72,7 +98,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _services = services;
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Categories);
-        _categories = new SqlPillSelector(_categoryOptions.Select(option => option.Label).ToArray());
+        _model.UseCategories(_categoryOptions);
 
         VsThemeBrushes.Apply(this);
         FontFamily = SqlAssistChrome.InterfaceFont;
@@ -87,53 +113,29 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
-        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
-        clear.IsEnabled = false;
-        clear.Click += (_, _) => Run(() => { _search.Clear(); _search.Focus(); });
-        _search.ToolTip = "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，本文是字面比對。";
-        AutomationProperties.SetName(_search, "搜尋資料庫物件");
-        header.Children.Add(SqlAssistChrome.CreateSearchBar(_search, clear));
-
-        _database = SqlAssistChrome.CreateButton("資料庫", SqlAssistChrome.DefaultMetrics);
-        _database.Padding = new Thickness(6, 2, 6, 2);
-        _database.ToolTip = "選擇要搜尋的資料庫；只索引指名的那一個，不預先索引整台伺服器。";
-        AutomationProperties.SetName(_database, "搜尋範圍的資料庫");
-        _database.Click += (_, _) => Run(OpenDatabaseMenu);
-        VsThemeBrushes.Apply(_databases);
-
-        var refresh = SqlAssistChrome.CreateButton("重新整理", SqlAssistChrome.DefaultMetrics);
-        refresh.Padding = new Thickness(6, 2, 6, 2);
-        refresh.ToolTip = "丟掉已建立的索引並重新搜尋；改過結構之後用它。";
-        refresh.Click += (_, _) => Run(() => { _providers.Invalidate(); Changed(immediate: true); });
-
-        _scope.Margin = new Thickness(6, 0, 8, 0);
-        _scope.VerticalAlignment = VerticalAlignment.Center;
-        var options = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-        options.Children.Add(_database);
-        options.Children.Add(_scope);
-        options.Children.Add(_matchCasing);
-        options.Children.Add(_wholeWord);
-        options.Children.Add(refresh);
-        header.Children.Add(options);
-
-        AutomationProperties.SetName(_categories, "結果分類");
-        header.Children.Add(_categories);
+        header.Children.Add(CreateToolbar());
+        _chips.RemoveRequested += chip => Run(() =>
+        {
+            if (chip is SqlSearchFilterChip filter && _model.Remove(filter)) FiltersChanged();
+        });
+        header.Children.Add(_chips);
 
         _status.TextWrapping = TextWrapping.Wrap;
         _status.Visibility = Visibility.Collapsed;
         DockPanel.SetDock(_status, Dock.Bottom);
         root.Children.Add(_status);
 
-        _list.SetRowsSource(_rows, nameof(SqlSearchRow.GroupLabel));
+        _list.SetRowsSource(_rows);
         _list.SelectionChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 選取", UpdatePreview);
         _list.OpenRequested += (_, _) => _ = RunAsync(ActivateAsync);
+        _list.RowActionRequested += action => Run(() => RunRowAction(action));
         _list.ContextMenu = CreateRowMenu();
         // 空狀態與載入圖示疊在同一塊內容上：兩種「現在沒東西可看」不各占一塊版面。
         var content = new Grid();
         content.Children.Add(_list);
         content.Children.Add(_empty);
         _loading = new SqlLoadingSurface(content);
-        _splitView = new SqlMemorySplitView(_loading, _preview, _preview.Summary);
+        _splitView = new SqlMemorySplitView(_loading, _preview, _preview.Summary, SideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 預覽", UpdatePreview);
         // 剪貼簿可能被別的程序占用；失敗要看得見，否則使用者以為下一次貼上是這個名稱。
         _preview.CopyRequested += (_, _) => Run(() => CopyName(_preview.Current));
@@ -147,22 +149,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         {
             _settleTimer.Stop();
             foreach (var row in _rows) row.IsNew = false;
-        });
-
-        _search.TextChanged += (_, _) => Run(() =>
-        {
-            clear.IsEnabled = _search.Text.Length > 0;
-            _model.Text = _search.Text;
-            Changed();
-        });
-        _matchCasing.Checked += (_, _) => Run(() => { _model.MatchCasing = true; Changed(); });
-        _matchCasing.Unchecked += (_, _) => Run(() => { _model.MatchCasing = false; Changed(); });
-        _wholeWord.Checked += (_, _) => Run(() => { _model.WholeWord = true; Changed(); });
-        _wholeWord.Unchecked += (_, _) => Run(() => { _model.WholeWord = false; Changed(); });
-        _categories.SelectionChanged += (_, _) => Run(() =>
-        {
-            _model.CategoryId = _categoryOptions[_categories.SelectedIndex].Id;
-            Changed();
         });
 
         PreviewKeyDown += (_, e) => Run(() =>
@@ -198,6 +184,245 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _request.Dispose();
     }
 
+    /// <summary>
+    /// 工具列：搜尋框吃滿剩餘空間，右邊依序是伺服器、資料庫、種類與比對位置。
+    /// </summary>
+    /// <remarks>
+    /// 比對位置是常駐的分段開關而不是下拉：它是切換最頻繁的一項，藏進下拉會多兩次點擊。
+    /// 種類與資料庫反過來——十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果，
+    /// 所以只在按鈕上留摘要。
+    /// </remarks>
+    private FrameworkElement CreateToolbar()
+    {
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
+        clear.IsEnabled = false;
+        clear.Click += (_, _) => Run(() => { _search.Clear(); _search.Focus(); });
+        _search.ToolTip = "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，本文是字面比對。";
+        AutomationProperties.SetName(_search, "搜尋資料庫物件");
+        _search.TextChanged += (_, _) => Run(() =>
+        {
+            clear.IsEnabled = _search.Text.Length > 0;
+            _model.Text = _search.Text;
+            Changed();
+        });
+
+        // 大小寫與全字修飾的是「這個字串怎麼比」，不是搜哪裡，所以留在搜尋框裡而不是工具列上。
+        var bar = SqlAssistChrome.CreateSearchBar(_search, clear, _matchCasing, _wholeWord);
+        _matchCasing.Checked += (_, _) => Option(() => _model.MatchCasing = true);
+        _matchCasing.Unchecked += (_, _) => Option(() => _model.MatchCasing = false);
+        _wholeWord.Checked += (_, _) => Option(() => _model.WholeWord = true);
+        _wholeWord.Unchecked += (_, _) => Option(() => _model.WholeWord = false);
+
+        _segments.ValueChanged += (_, _) => Run(() =>
+        {
+            _model.Targets = _segments.Value;
+            Changed();
+        });
+
+        ConfigureKinds();
+        ConfigureDatabases();
+        ConfigureServer();
+        ConfigureSort();
+
+        _refresh.Click += (_, _) => Run(() => { _providers.Invalidate(); Changed(immediate: true); });
+
+        // 排序與重新整理排在分段開關右邊：兩顆都是圖示鈕，窄窗跟著分段開關一起換到第二列。
+        return new SqlSearchToolbar(bar, _segments, new[] { _server, _databases, _kinds }, _sort, _refresh);
+    }
+
+    /// <summary>搜尋框裡的選項開關；寫回控制項時不重跑一輪。</summary>
+    private void Option(Action apply) => Run(() =>
+    {
+        if (_syncing) return;
+        apply();
+        FiltersChanged();
+    });
+
+    /// <remarks>
+    /// 排序只是同一份答案的另一種看法，所以選單換的是 <see cref="Reorder"/> 而不是重搜一輪。
+    /// 按鈕的圖示跟著目前的排序走，收起文字之後它仍分得出現在排的是哪一種。
+    /// </remarks>
+    private void ConfigureSort()
+    {
+        foreach (var option in SqlSearchSortOption.All)
+        {
+            var item = new MenuItem
+            {
+                Header = option.Label,
+                IsCheckable = true,
+                Tag = option.Value,
+                Icon = SqlAssistChrome.CreateIcon(SortIcon(option.Value))
+            };
+            item.Click += (_, _) => Run(() =>
+            {
+                if (_model.Sort == option.Value) return;
+                _model.Sort = option.Value;
+                UpdateSortButton();
+                Reorder();
+            });
+            _sortMenu.Items.Add(item);
+        }
+
+        VsThemeBrushes.Apply(_sortMenu);
+
+        _sort.Click += (_, _) => Run(() =>
+        {
+            foreach (MenuItem item in _sortMenu.Items) item.IsChecked = Equals(item.Tag, _model.Sort);
+            _sortMenu.PlacementTarget = _sort;
+            _sortMenu.IsOpen = true;
+        });
+
+        UpdateSortButton();
+    }
+
+    private static SqlIcon SortIcon(SqlSearchSort sort) => sort switch
+    {
+        // 相關度是「分數由高到低」；那正是降冪。
+        SqlSearchSort.Relevance => SqlIcon.SortDescending,
+        SqlSearchSort.Name => SqlIcon.SortAscending,
+        SqlSearchSort.Kind => SqlIcon.SortByKind,
+        _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, "沒有這個排序的圖示。")
+    };
+
+    private void UpdateSortButton()
+    {
+        var option = SqlSearchSortOption.For(_model.Sort);
+        _sort.Content = SqlAssistChrome.CreateIcon(SortIcon(_model.Sort));
+        _sort.ToolTip = "排序：" + option.Label;
+        AutomationProperties.SetName(_sort, "排序：" + option.Label);
+    }
+
+    private void ConfigureKinds()
+    {
+        VsThemeBrushes.Apply(_kinds.PopupSurface);
+        _kinds.OptionsRequested += (_, _) => Run(FillKinds);
+        _kinds.SelectAllRequested += (_, _) => Run(() =>
+        {
+            var changed = false;
+            foreach (var option in _categoryOptions) changed |= _model.SetCategorySelected(option.Id, selected: true);
+            if (changed) { FillKinds(); FiltersChanged(); }
+        });
+        _kinds.ClearRequested += (_, _) => Run(() =>
+        {
+            if (!_model.ClearCategories()) return;
+            FillKinds();
+            FiltersChanged();
+        });
+    }
+
+    private void FillKinds()
+    {
+        var options = new List<SqlSearchFilterOption>(_categoryOptions.Count);
+
+        foreach (var option in _categoryOptions)
+        {
+            var id = option.Id;
+            options.Add(new SqlSearchFilterOption(option.Label, "", _model.IsCategorySelected(id), selected => Run(() =>
+            {
+                if (!_model.SetCategorySelected(id, selected)) return;
+                FiltersChanged();
+            })));
+        }
+
+        _kinds.SetOptions(new[] { new SqlSearchFilterGroup("", options) });
+    }
+
+    private void ConfigureDatabases()
+    {
+        VsThemeBrushes.Apply(_databases.PopupSurface);
+        _databases.OptionsRequested += (_, _) => Run(FillDatabases);
+        _databases.SelectAllRequested += (_, _) => Run(() =>
+        {
+            var changed = false;
+            foreach (var database in CachedDatabases()) changed |= _model.SetDatabaseSelected(database, selected: true);
+            if (changed) { FillDatabases(); FiltersChanged(); }
+        });
+        _databases.ClearRequested += (_, _) => Run(() =>
+        {
+            if (!_model.ClearDatabases()) return;
+            FillDatabases();
+            FiltersChanged();
+        });
+    }
+
+    /// <summary>
+    /// 資料庫下拉的兩段：使用者資料庫與系統資料庫。
+    /// </summary>
+    /// <remarks>
+    /// 只列已經在快取裡的名稱：為了填一個下拉而去查一輪，等於在使用者沒有要求的時候連資料庫。
+    /// 已經勾起來但這一輪不在快取裡的名稱仍要列出來，否則使用者取消不掉自己剛選的條件。
+    /// </remarks>
+    private void FillDatabases()
+    {
+        var user = new List<SqlSearchFilterOption>();
+        var system = new List<SqlSearchFilterOption>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(string database)
+        {
+            if (!seen.Add(database)) return;
+            var option = new SqlSearchFilterOption(
+                database,
+                "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
+                _model.IsDatabaseSelected(database),
+                selected => Run(() =>
+                {
+                    if (!_model.SetDatabaseSelected(database, selected)) return;
+                    FiltersChanged();
+                }));
+            (SqlSearchBrowserModel.IsSystemDatabase(database) ? system : user).Add(option);
+        }
+
+        foreach (var database in _model.Databases) Add(database);
+        foreach (var database in CachedDatabases()) Add(database);
+
+        _databases.SetOptions(new[]
+        {
+            new SqlSearchFilterGroup("使用者資料庫", user),
+            new SqlSearchFilterGroup("系統資料庫", system)
+        });
+    }
+
+    /// <summary>
+    /// 伺服器只能單選，而且來源只有目前這條連線。
+    /// </summary>
+    /// <remarks>
+    /// 照現有能力呈現，不做成看起來可以挑很多台的樣子：v1 沒有連結伺服器的索引，
+    /// 指名別的伺服器等於整輪不回結果。按鈕仍在，因為使用者要看得出範圍是哪一台。
+    /// </remarks>
+    private void ConfigureServer()
+    {
+        VsThemeBrushes.Apply(_server.PopupSurface);
+        _server.OptionsRequested += (_, _) => Run(FillServer);
+        _server.SelectAllRequested += (_, _) => Run(FillServer);
+        _server.ClearRequested += (_, _) => Run(FillServer);
+    }
+
+    /// <remarks>
+    /// 中繼資料層只交得出連線的<b>快取鍵</b>（正規化過的連線字串），沒有可以顯示的伺服器名稱，
+    /// 所以這裡寫「目前連線」而不是猜一個名字出來。猜出來的名字在連結伺服器或具名執行個體上會是錯的，
+    /// 而錯的名字比沒有名字更難發現。
+    /// </remarks>
+    private void FillServer()
+    {
+        var options = new List<SqlSearchFilterOption>();
+
+        if (_model.HasConnection)
+        {
+            options.Add(new SqlSearchFilterOption(
+                SqlSearchBrowserModel.CurrentConnectionLabel,
+                "範圍固定在目前查詢視窗那台伺服器；連結伺服器要的是四段式名稱那一條路，這一版還沒有索引。",
+                isSelected: true,
+                // 目前只有這一台可以搜，所以勾不掉；直接把它按回去，不留一個關得掉卻沒有作用的開關。
+                selected: _ => Run(FillServer)));
+        }
+
+        _server.SetOptions(new[] { new SqlSearchFilterGroup("", options) });
+    }
+
+    private IReadOnlyList<string> CachedDatabases() =>
+        (_providers.HasConnection ? ResolveCatalog()?.CachedSnapshot?.Databases : null) ?? Array.Empty<string>();
+
     private void OnEditorChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排入 SQL Search 連線更新", () =>
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
@@ -211,13 +436,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var catalog = ResolveCatalog();
         _providers.UseCatalog(catalog);
         _model.HasConnection = catalog is not null;
-        _database.IsEnabled = catalog is not null;
-        _scope.Text = catalog is null
-            ? ""
-            : "伺服器：目前連線 · 資料庫：" + (_model.Database ?? catalog.ConnectionSource.DatabaseName);
-        _scope.ToolTip = catalog is null
-            ? ""
-            : "範圍固定在目前查詢視窗那台伺服器；連結伺服器要的是四段式名稱那一條路，這一版還沒有索引。";
+        _server.IsEnabled = catalog is not null;
+        _databases.IsEnabled = catalog is not null;
 
         if (reload && IsVisible) Changed(immediate: true);
         else UpdateChrome();
@@ -240,6 +460,45 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             return view is null ? null : SqlCompletionServices.GetMetadataService(view, _services).PeekCurrentCatalog();
         },
         fallback: null);
+
+    /// <summary>篩選改變：更新 chip 列與摘要，然後重跑一輪。</summary>
+    private void FiltersChanged()
+    {
+        UpdateFilterChrome();
+        Changed();
+    }
+
+    private void UpdateFilterChrome()
+    {
+        // 寫回勾選狀態會觸發 Checked／Unchecked；沒有這道旗標就會再跑一輪，而那一輪又會寫回來。
+        _syncing = true;
+        try
+        {
+            _matchCasing.IsChecked = _model.MatchCasing;
+            _wholeWord.IsChecked = _model.WholeWord;
+        }
+        finally
+        {
+            _syncing = false;
+        }
+
+        _kinds.UpdateSummary(_model.CategorySummary(), Join(_model.CategoryIds.Select(Label)));
+        _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Databases));
+        _server.UpdateSummary(SqlSearchBrowserModel.CurrentConnectionLabel, "");
+
+        // chip 只在條件真的變了才重建。每一批結果都重建一次的話，正在用 Tab 走過 chip 列的人
+        // 會在結果載入到一半時失去鍵盤焦點。
+        var chips = _model.Chips();
+        var signature = string.Join("\n", chips.Select(chip => chip.Label));
+        if (string.Equals(signature, _chipSignature, StringComparison.Ordinal)) return;
+        _chipSignature = signature;
+        _chips.SetChips(chips, chip => chip.Label);
+    }
+
+    private string Label(string categoryId) =>
+        _categoryLabels.TryGetValue(categoryId, out var label) ? label : categoryId;
+
+    private static string Join(IEnumerable<string> values) => string.Join("、", values);
 
     /// <summary>輸入、範圍或選項改變：作廢這一輪，但<b>不清空清單</b>，等新結果回來才換。</summary>
     private void Changed(bool immediate = false)
@@ -287,7 +546,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             // 背景執行緒跑整輪；UI 執行緒不同步等待，第一次建索引可能要數秒。
             var results = await Task.Run(() => _providers.Aggregator.SearchAsync(round.Query, token), token);
             if (token.IsCancellationRequested || !_model.Accept(round, results)) return;
-            Apply(round, results.Hits);
+            Apply(round, _model.Arrange(results.Hits));
         }
         catch (OperationCanceledException)
         {
@@ -318,32 +577,65 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </summary>
     /// <remarks>
     /// 到這裡才清空：先清再等結果的話，每打一個字清單都會閃一次空白，而上一份其實還讀得懂。
-    /// 之後分批附加，一次幾十列，讓分組檢視與虛擬化面板有機會分攤版面重算。
+    /// 之後分批附加，一次幾十列，讓虛擬化面板有機會分攤版面重算。
     /// </remarks>
     private void Apply(SqlSearchRound round, IReadOnlyList<SearchHit> hits)
     {
         _model.RememberSelection((_list.SelectedItem as SqlSearchRow)?.Key);
         _settleTimer.Stop();
         _rows.Clear();
+        _round = round;
         _applying = hits;
         _applied = 0;
         AppendBatch(round);
     }
 
+    /// <summary>
+    /// 換一種排序：手上的結果重排，<b>不重跑一輪</b>。
+    /// </summary>
+    /// <remarks>
+    /// 排序只是同一份答案的另一種看法。重搜一次的代價是再掃一遍資料庫，而使用者只是想
+    /// 先看名稱 A–Z；沒有結果可以重排時什麼都不做，不假裝按了有反應。
+    /// </remarks>
+    private void Reorder()
+    {
+        if (_round is not { } round || _applying.Count == 0) return;
+        _model.RememberSelection((_list.SelectedItem as SqlSearchRow)?.Key);
+        var ordered = _model.Arrange(_applying);
+        _settleTimer.Stop();
+        _rows.Clear();
+        _applying = ordered;
+        _applied = 0;
+        // 重排不播進場動畫：那是「這幾列是新的」的訊號，而這一批列與上一秒的是同一份。
+        AppendBatch(round, motion: false);
+    }
+
     private void ClearRows()
     {
         _settleTimer.Stop();
+        _round = null;
         _applying = Array.Empty<SearchHit>();
         _applied = 0;
         if (_rows.Count != 0) _rows.Clear();
         _preview.Select(null);
     }
 
-    private void AppendBatch(SqlSearchRound round)
+    private void AppendBatch(SqlSearchRound round, bool? motion = null)
     {
         if (_disposed || !_model.IsCurrent(round)) return;
 
-        var motion = SqlAssistChrome.MotionEnabled;
+        var animate = motion ?? SqlAssistChrome.MotionEnabled;
+
+        if (!AppendRows(animate))
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                SqlAssistPlatformGuard.Run("附加 SQL Search 結果", () => AppendBatch(round, animate))));
+        }
+    }
+
+    /// <returns>true 表示這一份已經全部套完。</returns>
+    private bool AppendRows(bool motion)
+    {
         var end = Math.Min(_applied + RowBatch, _applying.Count);
 
         for (; _applied < end; _applied++)
@@ -353,12 +645,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             _rows.Add(new SqlSearchRow(hit, label) { IsNew = motion });
         }
 
-        if (_applied < _applying.Count)
-        {
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                SqlAssistPlatformGuard.Run("附加 SQL Search 結果", () => AppendBatch(round))));
-            return;
-        }
+        if (_applied < _applying.Count) return false;
 
         if (motion && _rows.Count > 0) _settleTimer.Start();
         if (_model.ResolveSelection(_rows.Select(row => row.Key).ToArray(), _list.SelectedItem is not null) is { } index)
@@ -367,39 +654,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         }
 
         UpdateChrome();
-    }
-
-    private void OpenDatabaseMenu()
-    {
-        _databases.Items.Clear();
-        _databases.Items.Add(DatabaseItem(null, "目前連線的資料庫"));
-
-        var snapshot = _providers.HasConnection ? ResolveCatalog()?.CachedSnapshot : null;
-
-        // 只列已經在快取裡的名稱：為了填一個下拉而去查一輪，等於在使用者沒有要求的時候連資料庫。
-        if (snapshot is not null)
-        {
-            foreach (var database in snapshot.Databases) _databases.Items.Add(DatabaseItem(database, database));
-        }
-
-        _databases.PlacementTarget = _database;
-        _databases.IsOpen = true;
-    }
-
-    private MenuItem DatabaseItem(string? database, string label)
-    {
-        var item = new MenuItem
-        {
-            Header = label,
-            IsCheckable = true,
-            IsChecked = string.Equals(_model.Database, database, StringComparison.Ordinal)
-        };
-        item.Click += (_, _) => Run(() =>
-        {
-            _model.Database = database;
-            ObserveConnection(reload: true);
-        });
-        return item;
+        return true;
     }
 
     private void CopyName(SqlSearchRow? row)
@@ -407,6 +662,25 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (row is null) return;
         Clipboard.SetText(row.Path.Length == 0 ? row.Title : row.Path);
         Report("已複製名稱。");
+    }
+
+    private void RunRowAction(SqlSearchRowAction action)
+    {
+        switch (action)
+        {
+            case SqlSearchRowAction.Activate:
+                _ = RunAsync(ActivateAsync);
+                return;
+            case SqlSearchRowAction.Copy:
+                CopyName(_list.SelectedItem as SqlSearchRow);
+                return;
+            case SqlSearchRowAction.Preview:
+                _splitView.SetDetailExpanded(true);
+                UpdatePreview();
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(action), action, "沒有這個結果列操作。");
+        }
     }
 
     private void UpdatePreview()
@@ -452,31 +726,42 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 結果列的右鍵選單。
     /// </summary>
     /// <remarks>
-    /// 只有兩項，而且都對得上某一條既有路徑：移至定義走 F12 那一條，複製限定名稱走
-    /// 預覽那顆按鈕同一份實作。結構預覽<b>不</b>在這裡——它要的是編輯器文字裡的一段錨點，
-    /// 工具窗的一列結果沒有那個東西，理由見 <see cref="SqlSearchActivation"/>。
+    /// 與列上停駐才出現的動作列同一份 <see cref="SqlSearchRowCommand.All"/>，順序也相同：
+    /// 兩處各寫一次的下場是同一批操作在卡片與快捷選單對不起來。結構預覽<b>不</b>在裡面——
+    /// 它要的是編輯器文字裡的一段錨點，工具窗的一列結果沒有那個東西，理由見
+    /// <see cref="SqlSearchActivation"/>。
     /// </remarks>
     private ContextMenu CreateRowMenu()
     {
         var menu = new ContextMenu();
-        var open = new MenuItem { Header = "移至定義", Icon = SqlAssistChrome.CreateIcon(SqlIcon.Open) };
-        open.Click += (_, _) => _ = RunAsync(ActivateAsync);
-        var copy = new MenuItem { Header = "複製限定名稱", Icon = SqlAssistChrome.CreateIcon(SqlIcon.Copy) };
-        // 預覽收起時 _preview.Current 是空的，所以這裡取清單的選取，不是預覽顯示的那一筆。
-        copy.Click += (_, _) => Run(() => CopyName(_list.SelectedItem as SqlSearchRow));
-        menu.Items.Add(open);
-        menu.Items.Add(copy);
+        var items = new List<(SqlSearchRowAction Action, MenuItem Item)>();
+
+        foreach (var command in SqlSearchRowCommand.All)
+        {
+            var item = new MenuItem { Header = command.Label, Icon = SqlAssistChrome.CreateIcon(command.Icon) };
+            var action = command.Action;
+            item.Click += (_, _) => Run(() => RunRowAction(action));
+            items.Add((action, item));
+            menu.Items.Add(item);
+        }
+
         VsThemeBrushes.Apply(menu);
 
         menu.Opened += (_, _) => SqlAssistPlatformGuard.Run("更新 SQL Search 快捷選單", () =>
         {
             var row = _list.SelectedItem as SqlSearchRow;
-            open.IsEnabled = row is not null && SqlSearchActivation.CanActivate(row.Hit);
-            // 空字串會畫成一個空的提示框；沒有描述就整個不掛。
-            open.ToolTip = row is not null && SqlSearchActivation.Describe(row.Hit) is { Length: > 0 } description
-                ? description
-                : null;
-            copy.IsEnabled = row is not null;
+
+            foreach (var (action, item) in items)
+            {
+                item.IsEnabled = row is not null &&
+                    (action != SqlSearchRowAction.Activate || SqlSearchActivation.CanActivate(row.Hit));
+
+                // 空字串會畫成一個空的提示框；沒有描述就整個不掛。
+                item.ToolTip = action == SqlSearchRowAction.Activate && row is not null &&
+                    SqlSearchActivation.Describe(row.Hit) is { Length: > 0 } description
+                    ? description
+                    : null;
+            }
         });
 
         return menu;
@@ -489,6 +774,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var empty = _model.EmptyState(_rows.Count);
         _empty.Text = empty;
         _empty.Visibility = empty.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        UpdateFilterChrome();
         Report(_model.Status(), _model.Tone.ToString());
     }
 
