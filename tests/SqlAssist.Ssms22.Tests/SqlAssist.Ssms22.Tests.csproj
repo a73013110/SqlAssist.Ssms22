@@ -26,8 +26,10 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\EditorFormatChanges.cs" Link="Product\UI\EditorFormatChanges.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeRefreshQueue.cs" Link="Product\UI\ThemeRefreshQueue.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.cs" Link="Product\UI\SqlAssistChrome.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Delays.cs" Link="Product\UI\SqlAssistChrome.Delays.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryList.cs" Link="Product\UI\SqlMemoryList.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlLoadingSurface.cs" Link="Product\UI\SqlLoadingSurface.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSurfaceState.cs" Link="Product\UI\SqlSurfaceState.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlStateSurface.cs" Link="Product\UI\SqlStateSurface.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryPager.cs" Link="Product\UI\SqlMemoryPager.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\MasterDetailView.cs" Link="Product\UI\MasterDetailView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryRecoveryView.cs" Link="Product\UI\SqlMemoryRecoveryView.cs" />
@@ -49,6 +51,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchDefinition.cs" Link="Product\Search\SqlSearchDefinition.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchBrowserModel.cs" Link="Product\Search\SqlSearchBrowserModel.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemorySurfaceState.cs" Link="Product\SqlMemory\SqlMemorySurfaceState.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlFavoriteRevisionRow.cs" Link="Product\SqlMemory\SqlFavoriteRevisionRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFavoriteRevisionList.cs" Link="Product\UI\SqlFavoriteRevisionList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Revisions.cs" Link="Product\UI\SqlAssistChrome.Revisions.cs" />

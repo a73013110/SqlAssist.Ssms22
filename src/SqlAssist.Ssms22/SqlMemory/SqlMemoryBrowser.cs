@@ -38,7 +38,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _hostStatus = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
     private readonly SqlMemoryPager _pager = new();
-    private readonly SqlLoadingSurface _loading;
+    private readonly SqlStateSurface _surface;
     private readonly Button _connection;
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _clockTimer;
@@ -56,6 +56,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private bool _ready;
     private bool _disposed;
     private bool _listStale;
+    /// <summary>這一輪讀清單失敗了；一列都沒有時由狀態表面說，還有列時留在狀態列。</summary>
+    private string _loadFailure = "";
 
     public SqlMemoryBrowser(SqlAssistPackage package)
     {
@@ -104,9 +106,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _list.SetRowsSource(_rows, _pager);
         _list.LoadMoreRequested += (_, _) => Load();
         _pager.LoadMoreRequested += (_, _) => SqlMemoryActions.Run(Load, Report);
-        _loading = new SqlLoadingSurface(_list);
+        _surface = new SqlStateSurface(_list);
         _detail = new SqlMemoryPreview(_commands, Report);
-        _splitView = new MasterDetailView(_loading, _detail, _detail.Summary, MasterDetailView.DefaultSideBySideWidth);
+        _splitView = new MasterDetailView(_surface, _detail, _detail.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
         _recoveryView.Visibility = Visibility.Collapsed;
         _recoveryView.RebuildRequested += (_, _) => OnRecoveryRebuildRequested();
@@ -137,7 +139,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             if (e.Key != Key.F || e.KeyboardDevice.Modifiers != ModifierKeys.Control || IsUsageSelected) return;
             _search.Focus(); e.Handled = true;
         }, Report);
-        _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(300) };
+        _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.MemorySearch };
         _searchTimer.Tick += (_, _) => { _searchTimer.Stop(); Load(); };
         // 只刷新相對時間；宿主狀態由事件推過來，不輪詢。
         _clockTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMinutes(1) };
@@ -472,6 +474,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _searchTimer.Stop(); _settleTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
         _model.Invalidate(DateTimeOffset.Now);
+        _loadFailure = "";
         Report("");
         _rows.Clear(); _detail.Select(null); UpdateActions();
     }
@@ -497,7 +500,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         if (_disposed || !IsVisible || _model.BeginLoad() is not { } load) return;
         var token = _request.Token;
-        Report(""); UpdateActions();
+        _loadFailure = ""; Report(""); UpdateActions();
         try
         {
             SqlMemoryRow[] rows;
@@ -524,7 +527,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         catch (Exception error)
         {
             // 回應失敗只更新同一世代；舊查詢不得蓋掉新的狀態訊息。
-            if (!token.IsCancellationRequested && _model.IsCurrent(load)) Report(SqlMemoryTimeText.Failure("載入", error));
+            if (!token.IsCancellationRequested && _model.IsCurrent(load))
+            {
+                _loadFailure = SqlMemoryTimeText.Failure("載入", error);
+                // 清單上還留著前幾頁時失敗留在狀態列：蓋住讀得到的那幾十筆沒有道理。
+                if (_rows.Count != 0) Report(_loadFailure);
+            }
         }
         finally { _model.End(load); UpdateActions(); }
     }
@@ -582,9 +590,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private void UpdateActions()
     {
-        _pager.Update(_model.Footer(_rows.Count));
-        // 第一頁用表面載入圖示；續頁的進度在頁尾原地，不遮住已經載入的列。
-        _loading.IsLoading = _model.IsLoading && _rows.Count == 0;
+        var footer = _model.Footer(_rows.Count);
+        // 空狀態搬到主內容區：頁尾那顆膠囊貼在一整片空白的下緣，而使用者的視線在中間。
+        // 兩邊各說一次的話，「沒有符合條件」看起來像發生了兩件事。
+        var empty = footer.Kind == SqlMemoryFooterKind.Empty;
+        _pager.Update(empty ? SqlMemoryFooter.Hidden : footer);
+        _surface.State = SqlMemorySurfaceState.For(footer, _model.IsLoading, _rows.Count, _loadFailure);
         _list.CanAutoLoadMore = _model.CanAutoLoadMore;
         _connection.IsEnabled = _model.IsAvailable;
     }

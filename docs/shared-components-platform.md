@@ -25,6 +25,8 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 圖示加標籤的分頁（SQL Memory、SQL Search 與之後的工具窗） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾彈出面板的選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Search.cs` 的 `CreateSearchOptionList` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
+| 載入、空、讀不到與權限不足四種狀態（SQL Memory 與 SQL Search 共用） | `Ssms22/UI/SqlStateSurface.cs`，狀態與文案在 `SqlSurfaceState.cs` |
+| 打字與選取的去彈跳長度（搜尋、預覽、估算） | `Ssms22/UI/SqlAssistChrome.Delays.cs` 的 `Debounce` |
 | 對話框的資訊列、分段、分段卡片、選項列、頁尾與破壞性主要動作 | `Ssms22/UI/SqlAssistChrome.Dialogs.cs` |
 | 對話框殼層（標題、尺寸、主題、字型、置中） | `Ssms22/UI/SqlAssistDialogs.cs` |
 | 獨立 SQL 唯讀預覽／著色編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs`（外觀由呼叫端掛 `SqlScriptTheme`） |

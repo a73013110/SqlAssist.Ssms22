@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Search;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -621,19 +622,24 @@ internal sealed class SqlSearchBrowserModel
     }
 
     /// <summary>頁尾那一行；平時留空，只回報結果數、部分結果、讀不到的來源與失敗。</summary>
+    /// <param name="rowCount">目前清單的列數。</param>
     /// <remarks>
     /// 「有一個來源讀不到」與「掃到一半停了」都會讓 <see cref="SearchResults.IsPartial"/>
     /// 為真，但要說的話不一樣：後者叫使用者縮小範圍或加長關鍵字，前者叫他去看權限。
     /// 兩句都貼上去的話，使用者會先照第一句試三次——而那一句對他的情況完全沒有用。
     /// 所以有讀不到的來源時就由它說明這一輪為什麼不完整，泛用的那一句讓位。
+    ///
+    /// 一列都沒有時整行讓給狀態表面（見 <see cref="Surface(int)"/>）：同一句話在畫面中央
+    /// 與頁尾各出現一次，讀起來像發生了兩件事。清單上還留著上一輪的列時失敗仍要說，
+    /// 否則使用者會拿過期的那一份當成這一次的答案。
     /// </remarks>
-    public string Status()
+    public string Status(int rowCount)
     {
-        if (_failure.Length != 0) return _failure;
+        if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
+        if (_failure.Length != 0) return rowCount == 0 ? "" : _failure;
         if (!HasConnection || !_hasResult) return "";
 
-        // 一筆都沒有時，「沒有相符項目」由空狀態說；頁尾只剩下讀不到的來源那一句。
-        if (_hitCount == 0) return _unavailable;
+        if (_hitCount == 0) return "";
 
         var count = _hitCount.ToString(CultureInfo.InvariantCulture);
 
@@ -646,35 +652,46 @@ internal sealed class SqlSearchBrowserModel
     }
 
     /// <summary>
-    /// 主內容區的空狀態；沒有東西可說時回空字串。
+    /// 主內容區的狀態表面：載入、空、讀不到與權限不足四選一。
     /// </summary>
     /// <param name="rowCount">目前清單的列數。</param>
     /// <remarks>
+    /// 四種狀態互斥，所以這裡只回一種：原本載入圖示與空狀態各自判斷，兩邊同時成立時
+    /// 轉圈的圖示會壓在「尚未連線」那一句上面。
+    ///
     /// 沒有連線是明確的一句話，不是空白也不是錯誤：使用者要知道下一步是去連線，而不是換關鍵字。
-    /// 正在跑的那一輪交給載入表面，這裡留空，否則會同時出現兩種「等一下」。
+    /// 指名了伺服器卻沒有目錄則是那一台連不上，屬於「這一輪讀不到」；叫使用者去開查詢視窗
+    /// 只會讓他做一件解決不了的事。
+    ///
+    /// 有列可看時一律讓開：讀不到的來源與部分結果那幾句由頁尾說，蓋在清單上等於把讀得到的
+    /// 那幾筆遮起來。
     /// </remarks>
-    public string EmptyState(int rowCount)
+    public SqlSurfaceState Surface(int rowCount)
     {
         if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
-        // 指名了伺服器卻沒有目錄，是那一台連不上，不是「還沒連線」；叫使用者去開查詢視窗
-        // 只會讓他做一件解決不了的事。
+
         if (!HasConnection)
         {
             return Server is { Length: > 0 } server
-                ? $"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。"
-                : "尚未連線。在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。";
+                ? SqlSurfaceState.Unreadable($"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。")
+                : SqlSurfaceState.Empty("尚未連線",
+                    "在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。");
         }
 
-        if (rowCount > 0 || IsRunning) return "";
-        if (Text.Length == 0) return "輸入關鍵字，搜尋這個資料庫的物件名稱、資料行與定義本文。";
-        return _hasResult && !_pending ? "沒有相符項目。" : "";
-    }
+        // 第一次建索引時整輪都沒有列可看；之後的每一輪只在還沒有任何一列時遮住清單。
+        if (IsRunning && (IsIndexing || rowCount == 0)) return SqlSurfaceState.Loading;
+        if (rowCount > 0) return SqlSurfaceState.None;
+        if (Text.Length == 0)
+        {
+            return SqlSurfaceState.Empty("輸入關鍵字", "搜尋這個資料庫的物件名稱、資料行與定義本文。");
+        }
 
-    /// <summary>載入表面要不要出現：第一次建索引，或這一輪還沒有任何一列可看。</summary>
-    public bool ShowLoading(int rowCount)
-    {
-        if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
-        return IsRunning && (IsIndexing || rowCount == 0);
+        if (_failure.Length != 0) return SqlSurfaceState.Unreadable(_failure);
+        // 還沒有任何一輪的答案（剛換條件、去彈跳還沒到期）：不能先說「沒有相符項目」。
+        if (!_hasResult || _pending) return SqlSurfaceState.None;
+        // 一筆都沒有而且有來源讀不到：那一句才是原因，泛用的「沒有相符項目」會讓使用者去改關鍵字。
+        if (_unavailable.Length != 0) return SqlSurfaceState.Denied(_unavailable);
+        return SqlSurfaceState.Empty("沒有相符項目", "換個關鍵字，或放寬分類與資料庫範圍。");
     }
 
     /// <summary>重新整理前記下目前選取；新結果載入後若還在，就選回它。</summary>

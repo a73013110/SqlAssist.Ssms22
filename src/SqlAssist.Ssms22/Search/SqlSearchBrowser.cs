@@ -33,9 +33,6 @@ namespace SqlAssist.Ssms22.Search;
 /// </remarks>
 internal sealed class SqlSearchBrowser : UserControl, IDisposable
 {
-    /// <summary>去彈跳長度：短到打完一個詞就出結果，長到中間幾個字不各送一輪。</summary>
-    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(200);
-
     /// <summary>新列的進場旗標保留多久；比進場動畫長一點，之後捲動重用容器不會重播。</summary>
     private static readonly TimeSpan NewRowSettle = TimeSpan.FromMilliseconds(400);
 
@@ -52,10 +49,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlSearchList _list = new();
     private readonly SqlSearchPreview _preview;
     private readonly MasterDetailView _splitView;
-    private readonly SqlLoadingSurface _loading;
+    private readonly SqlStateSurface _surface;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
-    private readonly TextBlock _empty = SqlAssistChrome.CreateSearchEmptyState();
     private readonly ToggleButton _matchCasing = SqlAssistChrome.CreateSearchToggle(
         SqlIcon.MatchCase, "大小寫", "只取大小寫完全相同的本文命中；名稱一律不分大小寫。");
     private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
@@ -133,19 +129,16 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _list.OpenRequested += (_, _) => _ = RunAsync(ActivateAsync);
         _list.RowActionRequested += action => Run(() => RunRowAction(action));
         _list.ContextMenu = CreateRowMenu();
-        // 空狀態與載入圖示疊在同一塊內容上：兩種「現在沒東西可看」不各占一塊版面。
-        var content = new Grid();
-        content.Children.Add(_list);
-        content.Children.Add(_empty);
-        _loading = new SqlLoadingSurface(content);
-        _splitView = new MasterDetailView(_loading, _preview, _preview.Summary, MasterDetailView.DefaultSideBySideWidth);
+        // 載入、空、讀不到與權限不足疊在同一塊內容上：四種「現在沒東西可看」不各占一塊版面。
+        _surface = new SqlStateSurface(_list);
+        _splitView = new MasterDetailView(_surface, _preview, _preview.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 預覽", UpdatePreview);
         // 剪貼簿可能被別的程序占用；失敗要看得見，否則使用者以為下一次貼上是這個名稱。
         _preview.CopyRequested += (_, _) => Run(() => CopyName(_preview.Current));
         root.Children.Add(_splitView);
         Content = root;
 
-        _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SearchDelay };
+        _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.Search };
         _searchTimer.Tick += (_, _) => { _searchTimer.Stop(); Search(); };
         _settleTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = NewRowSettle };
         _settleTimer.Tick += (_, _) => SqlAssistPlatformGuard.Run("結束 SQL Search 進場", () =>
@@ -865,12 +858,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private void UpdateChrome()
     {
         if (_disposed) return;
-        _loading.IsLoading = _model.ShowLoading(_rows.Count);
-        var empty = _model.EmptyState(_rows.Count);
-        _empty.Text = empty;
-        _empty.Visibility = empty.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        _surface.State = _model.Surface(_rows.Count);
         UpdateFilterChrome();
-        Report(_model.Status(), _model.Tone.ToString());
+        Report(_model.Status(_rows.Count), _model.Tone.ToString());
     }
 
     /// <param name="tone">

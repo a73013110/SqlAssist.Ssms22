@@ -72,6 +72,9 @@ public sealed class SqlMemoryFooter
         ActionLabel = actionLabel;
     }
 
+    /// <summary>不佔位置的那一份；呼叫端把某一種狀態交給別的表面時用它蓋掉頁尾。</summary>
+    public static SqlMemoryFooter Hidden { get; } = new(SqlMemoryFooterKind.Hidden, "");
+
     public SqlMemoryFooterKind Kind { get; }
 
     /// <summary>頁尾中央的單行摘要，例如筆數。</summary>
