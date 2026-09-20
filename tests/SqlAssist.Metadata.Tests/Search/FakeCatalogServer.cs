@@ -50,6 +50,15 @@ internal sealed class FakeCatalogServer
     internal ISqlConnectionSource SourceFor(string databaseName) =>
         new FakeCatalogConnectionSource(this, databaseName);
 
+    /// <summary>
+    /// 連線字串上沒有初始目錄的那一種來源：<c>DatabaseName</c> 是空的，開起來才知道是哪一個。
+    /// </summary>
+    /// <remarks>
+    /// 物件總管上那一條就是這樣，而它是 SQL Search 指名伺服器時唯一的來源。
+    /// </remarks>
+    internal ISqlConnectionSource SourceWithoutInitialCatalog(string opensAs) =>
+        new FakeCatalogConnectionSource(this, "", opensAs);
+
     internal IDbConnection Open(string databaseName)
     {
         Opened++;
@@ -249,10 +258,13 @@ internal sealed class FakeCatalogConnectionSource : ISqlConnectionSource
 {
     private readonly FakeCatalogServer _server;
 
-    internal FakeCatalogConnectionSource(FakeCatalogServer server, string databaseName)
+    private readonly string _opensAs;
+
+    internal FakeCatalogConnectionSource(FakeCatalogServer server, string databaseName, string? opensAs = null)
     {
         _server = server;
         DatabaseName = databaseName;
+        _opensAs = opensAs ?? databaseName;
         CacheKey = SqlConnectionCacheKey.Compose(server.ServerKey, databaseName);
     }
 
@@ -262,7 +274,7 @@ internal sealed class FakeCatalogConnectionSource : ISqlConnectionSource
 
     public string DatabaseName { get; }
 
-    public IDbConnection OpenConnection() => _server.Open(DatabaseName);
+    public IDbConnection OpenConnection() => _server.Open(_opensAs);
 }
 
 internal sealed class FakeCatalogConnection : IDbConnection

@@ -51,7 +51,8 @@ internal sealed class FakeSearchProvider : ISearchProvider
 
     public string Id { get; }
 
-    public string DisplayName { get; }
+    /// <summary>說給人聽的名稱；預設與 <see cref="Id"/> 相同，要分辨兩者的測試自己換掉它。</summary>
+    public string DisplayName { get; init; }
 
     public IReadOnlyList<SearchCategory> Categories { get; }
 

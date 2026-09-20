@@ -132,7 +132,7 @@ public sealed class SearchAggregator
         catch (Exception exception)
         {
             sink.MarkTruncated();
-            return new SearchProviderFailure(provider.Id, exception);
+            return new SearchProviderFailure(provider.Id, provider.DisplayName, exception);
         }
     }
 

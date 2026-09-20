@@ -276,14 +276,22 @@ internal static partial class SqlAssistChrome
         return border;
     }
 
-    /// <summary>狀態與期間是兩群，中間走共用的<see cref="CreateFilterGroupDivider">篩選群組分隔線</see>。</summary>
-    public static FrameworkElement CreateMemoryHistoryFilters(SqlPillSelector kind, SqlPillSelector period)
+    /// <summary>
+    /// SQL Memory 第二層那一列篩選：狀態、期間與連線各一群，走共用的 <see cref="SqlFilterBar"/>。
+    /// </summary>
+    /// <remarks>
+    /// 連線那兩顆與狀態／期間併在同一列，不另起一列：停靠面板裡多一列等於永久少看一筆 SQL，
+    /// 而放不下的時候那一層本來就會整群換行。切到 Favorites 時狀態與期間整群收起，
+    /// 列首那一條分隔線由 <see cref="SqlFilterBar"/> 跟著收，不留一條孤線。
+    /// </remarks>
+    public static SqlFilterBar CreateMemoryFilterRow(
+        SqlPillSelector kind, SqlPillSelector period, FrameworkElement server, FrameworkElement database)
     {
-        var groups = new WrapPanel();
         AutomationProperties.SetName(kind, "狀態"); AutomationProperties.SetName(period, "期間");
-        groups.Children.Add(kind);
-        groups.Children.Add(CreateFilterGroup(period));
-        return groups;
+        return new SqlFilterBar(
+            new FrameworkElement[] { kind },
+            new FrameworkElement[] { period },
+            new[] { server, database });
     }
 
     public static DockPanel CreateMemoryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)

@@ -8,6 +8,16 @@ namespace SqlAssist.Ssms22.Tests;
 
 public sealed class KeyboardDeviceUsageTests
 {
+    /// <summary>
+    /// 唯一的例外：滑鼠事件上沒有隨事件帶的鍵盤裝置。
+    /// </summary>
+    /// <remarks>
+    /// <c>MouseWheelEventArgs</c> 帶的是滑鼠裝置，所以 Shift＋滾輪只問得到目前的鍵盤狀態。
+    /// 這條規則防的是<b>合成的按鍵</b>混進實體鍵盤狀態，而滾輪不會被合成。例外只有這一個
+    /// 名字，要再加第二個得連同這一段一起說得出理由。
+    /// </remarks>
+    private const string ShiftHeldException = "ShiftHeld";
+
     [Fact]
     public void 產品碼判斷按鍵狀態只讀事件帶的鍵盤裝置()
     {
@@ -18,7 +28,7 @@ public sealed class KeyboardDeviceUsageTests
         var offenders = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
             .SelectMany(path => File.ReadAllLines(path)
                 .Select((line, index) => (path, line, number: index + 1)))
-            .Where(entry => pattern.IsMatch(entry.line))
+            .Where(entry => pattern.IsMatch(entry.line) && !entry.line.Contains(ShiftHeldException))
             .Select(entry => $"{entry.path.Substring(root.Length + 1)}:{entry.number}: {entry.line.Trim()}")
             .ToArray();
 

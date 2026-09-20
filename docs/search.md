@@ -53,6 +53,10 @@ provider 得自己守四條，每一條都是「少做一次就看不出來」�
 例外）與 `Progress` 上的 `IsUnavailable`。「沒掃完」叫使用者縮小範圍，「讀不到」叫他去看權限
 ——混成一句的症狀是使用者照前一句改三次關鍵字，而那個資料庫一次都沒被搜到。
 
+provider 擲例外那一條（`Failures`）寫到畫面上時用的是 `ISearchProvider.DisplayName`，不是 `Id`：
+Id 跨版本不得更名，而它不在介面上任何地方出現過——「『catalog』這一輪失敗」對使用者來說指不到
+自己勾的哪一個範圍。診斷仍然記 Id。
+
 回報分兩件東西：`UnavailableReason` 是一句給人看的話，Core 不解讀；`SearchUnavailableKind`
 只有 `Unknown` 與 `Denied`。不細分是因為呈現那一層要的答案只有一個——下一步是「重試或換
 條件」還是「去要權限」，而連不上、逾時與離線的下一步一樣。
