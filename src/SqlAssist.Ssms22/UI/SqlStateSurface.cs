@@ -16,6 +16,10 @@ namespace SqlAssist.Ssms22.UI;
 ///
 /// 錯誤與無權限只差抬頭那一句，走同一條呈現路徑；動畫沿用
 /// <see cref="SqlAssistChrome.PlayAppear"/>，不可見時停轉，不讓背景工具窗持續算繪。
+///
+/// 狀態帶得動一個下一步（<see cref="SqlSurfaceState.ActionLabel"/>）：這一塊本來就蓋在內容上，
+/// 把那顆按鈕放在別處等於讓使用者在一句「尚未連線」旁邊自己去找它。做什麼由宿主接
+/// <see cref="ActionRequested"/> 決定，這裡不知道也不該知道。
 /// </remarks>
 internal sealed class SqlStateSurface : Grid
 {
@@ -27,12 +31,14 @@ internal sealed class SqlStateSurface : Grid
         VerticalAlignment = VerticalAlignment.Center,
         MaxWidth = 320,
         Margin = new Thickness(24, 0, 24, 0),
+        // 沒有動作時整塊讓開；蓋在清單上的文字不該吃掉列的點擊與停駐。
         IsHitTestVisible = false,
         Visibility = Visibility.Collapsed
     };
     private readonly SqlIconImage _icon = new() { Margin = new Thickness(0, 0, 0, 6), HorizontalAlignment = HorizontalAlignment.Center };
     private readonly TextBlock _title;
     private readonly TextBlock _detail;
+    private readonly Button _action = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
     private SqlSurfaceState _state;
 
     public SqlStateSurface(UIElement content)
@@ -49,9 +55,14 @@ internal sealed class SqlStateSurface : Grid
         _title.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
         _detail = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
         _detail.TextAlignment = TextAlignment.Center;
+        _action.HorizontalAlignment = HorizontalAlignment.Center;
+        _action.Margin = new Thickness(0, 8, 0, 0);
+        _action.Visibility = Visibility.Collapsed;
+        _action.Click += (_, _) => ActionRequested?.Invoke(this, EventArgs.Empty);
         _message.Children.Add(_icon);
         _message.Children.Add(_title);
         _message.Children.Add(_detail);
+        _message.Children.Add(_action);
         Children.Add(_message);
 
         _indicator = SqlAssistChrome.CreateLoadingIndicator(_rotation);
@@ -62,6 +73,15 @@ internal sealed class SqlStateSurface : Grid
         Unloaded += (_, _) => _rotation.BeginAnimation(RotateTransform.AngleProperty, null);
         Apply(motion: false);
     }
+
+    /// <summary>
+    /// 按下狀態上那顆按鈕；只有帶動作的狀態畫得出它。
+    /// </summary>
+    /// <remarks>
+    /// 宿主自己決定那一步是什麼：同一塊表面在 SQL Search 是「從物件總管挑一台」，
+    /// 在別的工具窗會是別的事，而這裡認得的只有「有沒有一個下一步」。
+    /// </remarks>
+    public event EventHandler? ActionRequested;
 
     /// <summary>
     /// 目前這一塊在說哪一件事。
@@ -102,6 +122,12 @@ internal sealed class SqlStateSurface : Grid
         // 讀不到與無權限共用同一顆警示圖示；空狀態不掛圖示，那一句本來就不是警告。
         _icon.Icon = _state.IsUnavailable ? SqlIcon.Warning : null;
         _icon.Visibility = _state.IsUnavailable ? Visibility.Visible : Visibility.Collapsed;
+
+        _action.Content = _state.ActionLabel;
+        _action.Visibility = _state.HasAction ? Visibility.Visible : Visibility.Collapsed;
+        AutomationProperties.SetName(_action, _state.ActionLabel);
+        // 只有帶動作的狀態才接點擊：整塊永遠可命中的話，沒有話要說的時候它仍然壓在清單上。
+        _message.IsHitTestVisible = _state.HasAction;
 
         // 載入中那一句由忙碌圖示自己帶著；這裡再掛一次會讓朗讀器念兩遍。
         AutomationProperties.SetName(this, !hasMessage ? ""

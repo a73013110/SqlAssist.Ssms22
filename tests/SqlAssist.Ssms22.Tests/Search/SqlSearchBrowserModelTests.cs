@@ -124,7 +124,9 @@ public sealed class SqlSearchBrowserModelTests
         var surface = model.Surface(0);
         Assert.Equal(SqlSurfaceKind.Empty, surface.Kind);
         Assert.Equal("尚未連線", surface.Title);
-        Assert.Equal("在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。", surface.Detail);
+        Assert.Equal("在 SQL 查詢視窗連上資料庫，或直接用物件總管上已經連好的那一台。", surface.Detail);
+        // 死路要有出口：物件總管上往往已經連好一台，而那一句話說不出「按這裡就好」。
+        Assert.Equal(SqlSearchBrowserModel.PickServerAction, surface.ActionLabel);
         Assert.Equal("", model.Status(0));
     }
 
@@ -139,6 +141,8 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal(SqlSurfaceKind.Unreadable, surface.Kind);
         Assert.Equal(SqlSurfaceState.UnreadableTitle, surface.Title);
         Assert.Equal("連不上 LIBSQL01。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。", surface.Detail);
+        // 這一種的下一步不是去挑一台，而是放掉這一台；兩種狀態互斥，所以按鈕只有一顆。
+        Assert.Equal(SqlSearchBrowserModel.FollowEditorAction, surface.ActionLabel);
     }
 
     [Fact]
@@ -530,6 +534,11 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal(SqlSearchBrowserModel.AllCategoriesLabel, model.CategorySummary());
         Assert.Equal(SqlSearchBrowserModel.CurrentConnectionLabel, model.DatabaseSummary());
 
+        // 「目前連線」單獨出現時說不出範圍有多大：物件總管那條連線常常只是 master，
+        // 而使用者以為自己在搜整台。
+        model.CurrentDatabase = "master";
+        Assert.Equal("目前連線（master）", model.DatabaseSummary());
+
         model.SetCategorySelected("catalog.table", selected: true);
         Assert.Equal("Table", model.CategorySummary());
 
@@ -544,8 +553,12 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal("2", model.DatabaseSummary());
 
         // 伺服器單選，所以摘要永遠是一個名字；沒指名時說的是「跟著查詢視窗」而不是
-        // 資料庫那一顆的「目前連線」——兩句話講的是不同的東西。
-        Assert.Equal(SqlSearchBrowserModel.ActiveEditorServerLabel, model.ServerSummary());
+        // 資料庫那一顆的「目前連線」——兩句話講的是不同的東西。括號裡是跟著的那一台，
+        // 沒有連線時直接說「未連線」，否則畫面上分不出是範圍選錯了還是真的沒連。
+        Assert.Equal("查詢視窗（未連線）", model.ServerSummary());
+        model.ActiveEditorServer = "LIBSQL02";
+        Assert.Equal("查詢視窗（LIBSQL02）", model.ServerSummary());
+
         model.Server = "LIBSQL01";
         Assert.Equal("LIBSQL01", model.ServerSummary());
     }
@@ -565,7 +578,7 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "伺服器: LIBSQL01")));
         Assert.Null(model.Server);
-        Assert.Equal(SqlSearchBrowserModel.ActiveEditorServerLabel, model.ServerSummary());
+        Assert.Equal("查詢視窗（未連線）", model.ServerSummary());
     }
 
     [Fact]

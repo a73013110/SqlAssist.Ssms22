@@ -174,6 +174,23 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>沒有指名資料庫時，按鈕上顯示的字。</summary>
     public const string CurrentConnectionLabel = "目前連線";
 
+    /// <summary>跟著查詢視窗，而那個視窗沒有連線時括號裡的字。</summary>
+    /// <remarks>
+    /// 摘要一定說得出跟著的是哪一台，或根本沒連上。只寫「查詢視窗」的症狀是使用者盯著一顆
+    /// 看起來正常的按鈕，而下面那一句是「尚未連線」——他分不出是這個範圍選錯了還是真的沒連。
+    /// </remarks>
+    public const string NoConnectionLabel = "未連線";
+
+    /// <summary>沒有連線時，狀態表面上那顆按鈕的字。</summary>
+    /// <remarks>
+    /// 死路要有出口：工具窗開得起來而查詢視窗沒有連線時，物件總管上往往已經連好了一台。
+    /// 開窗時<b>不</b>自動退回那一台，理由在 <c>SqlSearchBrowser.PickServerFromExplorer</c>。
+    /// </remarks>
+    public const string PickServerAction = "從物件總管挑一台";
+
+    /// <summary>指名的伺服器連不上時，狀態表面上那顆按鈕的字。</summary>
+    public const string FollowEditorAction = "回到查詢視窗";
+
     /// <summary>沒有指名伺服器時，伺服器按鈕上顯示的字。</summary>
     /// <remarks>
     /// 與 <see cref="CurrentConnectionLabel"/> 分開：資料庫那一顆說的是「跟著這條連線的
@@ -186,9 +203,10 @@ internal sealed class SqlSearchBrowserModel
     /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
     /// </summary>
     /// <remarks>
-    /// 名單寫在 UI 這一層而不是向伺服器問 <c>database_id &lt;= 4</c>：為了替一個下拉分段
-    /// 而多送一輪查詢，等於在使用者沒有要求的時候連資料庫。這四個名稱在每一版 SQL Server
-    /// 上都相同，分錯的代價也只是一個名字排在另一段裡。
+    /// 這是<b>後備</b>：下拉的清單由伺服器自己說哪幾個是系統資料庫（見
+    /// <c>SqlCatalogSearchDatabase.IsSystem</c>），這份名單只用在還沒問到清單、
+    /// 而某個名稱已經被勾起來的那一刻。四個名稱在每一版 SQL Server 上都相同，
+    /// 分錯的代價也只是一個名字暫時排在另一段裡。
     /// </remarks>
     private static readonly HashSet<string> SystemDatabaseNames =
         new(new[] { "master", "model", "msdb", "tempdb" }, StringComparer.OrdinalIgnoreCase);
@@ -299,6 +317,15 @@ internal sealed class SqlSearchBrowserModel
     /// provider 看到指名的伺服器就整輪不回結果。
     /// </remarks>
     public string? Server { get; set; }
+
+    /// <summary>作用中查詢視窗連到哪一台；null 表示沒有視窗或那個視窗沒有連線。</summary>
+    /// <remarks>
+    /// 只給摘要用，不進查詢範圍：這一層是純邏輯，取名稱是 <c>SqlSearchCatalogs</c> 的事。
+    /// </remarks>
+    public string? ActiveEditorServer { get; set; }
+
+    /// <summary>沒有指名資料庫時，這一輪實際搜的那一個；null 表示沒有連線。</summary>
+    public string? CurrentDatabase { get; set; }
 
     /// <summary>目前勾選的分類；空表示不過濾。</summary>
     public IReadOnlyCollection<string> CategoryIds => _categoryIds;
@@ -522,12 +549,32 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
     public string CategorySummary() => Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel());
 
-    /// <summary>伺服器按鈕上的摘要；沒有指名時說的是「跟著查詢視窗」。</summary>
-    public string ServerSummary() => Server ?? ActiveEditorServerLabel;
+    /// <summary>
+    /// 伺服器按鈕上的摘要；沒有指名時說的是「跟著查詢視窗」，括號裡是那個視窗連到哪一台。
+    /// </summary>
+    /// <remarks>
+    /// 括號不是裝飾：跟著走的那一顆說不出目標的話，使用者要打開下拉才知道自己在搜哪一台，
+    /// 而沒連線時他連「要去連線」都看不出來。
+    /// </remarks>
+    public string ServerSummary() => Server ?? ActiveEditorLabel(ActiveEditorServer);
 
-    /// <summary>資料庫按鈕上的摘要。</summary>
+    /// <summary>「跟著查詢視窗」那一項的字；摘要與下拉那一列共用一份，兩處不會說得不一樣。</summary>
+    public static string ActiveEditorLabel(string? server) =>
+        ActiveEditorServerLabel + "（" + (server is { Length: > 0 } name ? name : NoConnectionLabel) + "）";
+
+    /// <summary>資料庫按鈕上的摘要；沒有指名時括號裡是這一輪真正搜的那一個。</summary>
+    /// <remarks>
+    /// 「目前連線」單獨出現時說不出範圍有多大。物件總管那條連線的預設資料庫通常是
+    /// <c>master</c>，而使用者以為自己在搜整台——症狀是他確定存在的物件搜不到，
+    /// 而畫面上每一句話都正常。
+    /// </remarks>
     public string DatabaseSummary() =>
-        Summarize(_databases.Count, CurrentConnectionLabel, _databases.Count == 1 ? _databases[0] : null);
+        Summarize(
+            _databases.Count,
+            CurrentDatabase is { Length: > 0 } database
+                ? CurrentConnectionLabel + "（" + database + "）"
+                : CurrentConnectionLabel,
+            _databases.Count == 1 ? _databases[0] : null);
 
     /// <summary>
     /// 已選條件那一列要畫哪幾顆 chip；空表示整列收起。
@@ -784,7 +831,8 @@ internal sealed class SqlSearchBrowserModel
     ///
     /// 沒有連線是明確的一句話，不是空白也不是錯誤：使用者要知道下一步是去連線，而不是換關鍵字。
     /// 指名了伺服器卻沒有目錄則是那一台連不上，屬於「這一輪讀不到」；叫使用者去開查詢視窗
-    /// 只會讓他做一件解決不了的事。
+    /// 只會讓他做一件解決不了的事。兩種狀態各帶一個做得到的下一步——只說一句話而把出口
+    /// 留在別的選單裡，等於要他先猜出是範圍的問題。
     ///
     /// 有列可看時一律讓開：讀不到的來源與部分結果那幾句由頁尾說，蓋在清單上等於把讀得到的
     /// 那幾筆遮起來。
@@ -796,9 +844,12 @@ internal sealed class SqlSearchBrowserModel
         if (!HasConnection)
         {
             return Server is { Length: > 0 } server
-                ? SqlSurfaceState.Unreadable($"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。")
+                ? SqlSurfaceState.Unreadable(
+                    $"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。",
+                    FollowEditorAction)
                 : SqlSurfaceState.Empty("尚未連線",
-                    "在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。");
+                    "在 SQL 查詢視窗連上資料庫，或直接用物件總管上已經連好的那一台。",
+                    PickServerAction);
         }
 
         // 第一次建索引時整輪都沒有列可看；之後的每一輪只在還沒有任何一列時遮住清單。

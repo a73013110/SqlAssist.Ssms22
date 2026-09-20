@@ -62,6 +62,50 @@ public sealed class SqlStateSurfaceTests
     }
 
     /// <summary>
+    /// 帶得動下一步的狀態多一顆按鈕；沒有下一步的那幾種整塊讓開。
+    /// </summary>
+    /// <remarks>
+    /// 把出口留在別的選單裡等於要使用者先猜出問題出在範圍上。整塊永遠可命中的反面症狀更隱形：
+    /// 沒有話要說的時候，一塊看不見的面板壓在清單上，列的停駐與點擊全部失效。
+    /// </remarks>
+    [Fact]
+    public void 帶動作的狀態畫出按鈕而且只有這時候才吃點擊()
+    {
+        WpfTest.Run(() =>
+        {
+            var (surface, _) = Host();
+            var pressed = 0;
+            surface.ActionRequested += (_, _) => pressed++;
+
+            surface.State = SqlSurfaceState.Empty("沒有相符項目", "換個關鍵字。");
+            Layout(surface);
+            Assert.Empty(Visible<Button>(surface));
+            Assert.False(Assert.Single(Visible<StackPanel>(surface)).IsHitTestVisible);
+
+            surface.State = SqlSurfaceState.Empty("尚未連線", "在查詢視窗連上資料庫。", "從物件總管挑一台");
+            Layout(surface);
+            var action = Assert.Single(Visible<Button>(surface));
+            Assert.Equal("從物件總管挑一台", action.Content);
+            Assert.True(Assert.Single(Visible<StackPanel>(surface)).IsHitTestVisible);
+
+            action.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.Equal(1, pressed);
+
+            // 只有標籤進得了狀態：同一種狀態改文字不重播淡入，帶委派的話每一次新建都不相等。
+            Assert.Equal(
+                SqlSurfaceState.Empty("尚未連線", "在查詢視窗連上資料庫。", "從物件總管挑一台"),
+                surface.State);
+            Assert.NotEqual(
+                SqlSurfaceState.Empty("尚未連線", "在查詢視窗連上資料庫。"),
+                surface.State);
+
+            surface.State = SqlSurfaceState.Loading;
+            Layout(surface);
+            Assert.Empty(Visible<Button>(surface));
+        });
+    }
+
+    /// <summary>
     /// 讀不到與權限不足走同一個出口，只有抬頭那一句不同。
     /// </summary>
     /// <remarks>

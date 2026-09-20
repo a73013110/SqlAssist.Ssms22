@@ -663,6 +663,58 @@ public sealed class SqlSearchVisualTests
         });
     }
 
+    /// <summary>
+    /// 清單還在路上時面板說一句，而不是先給一份空的。
+    /// </summary>
+    /// <remarks>
+    /// 空面板與「這台伺服器上一個都沒有」在畫面上一模一樣，使用者會關掉它去別的地方找。
+    /// 轉圈只在忙碌時跑：停靠面板裡的下拉關掉之後仍留在視覺樹上，少了那一道就是一個看不見的
+    /// 圈永遠佔著算繪。
+    /// </remarks>
+    [Fact]
+    public void 面板在等清單時先說一句而且只有這時候才轉()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
+            var surface = databases.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+
+            void Layout()
+            {
+                surface.Measure(new Size(320, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.UpdateLayout();
+            }
+
+            databases.SetOptions(Array.Empty<SqlSearchFilterGroup>());
+            Layout();
+            var notice = Assert.Single(Descendants<SqlBusyNotice>(surface));
+            Assert.Equal(Visibility.Collapsed, notice.Visibility);
+
+            databases.SetNotice("正在讀取資料庫清單…", busy: true);
+            Layout();
+            Assert.Equal(Visibility.Visible, notice.Visibility);
+            Assert.Contains(Descendants<TextBlock>(surface), text => text.Text == "正在讀取資料庫清單…");
+            var arc = Assert.Single(Descendants<System.Windows.Shapes.Path>(notice));
+            Assert.Equal(Visibility.Visible, arc.Visibility);
+            var rotation = Assert.IsType<RotateTransform>(arc.RenderTransform);
+
+            // 問不到是一句答案而不是一個等待：字留著，圈收起來。
+            databases.SetNotice("問不到資料庫清單；仍搜得到目前連線的那一個。");
+            Layout();
+            Assert.Equal(Visibility.Collapsed, arc.Visibility);
+            Assert.False(rotation.HasAnimatedProperties);
+
+            databases.SetNotice("");
+            Layout();
+            Assert.Equal(Visibility.Collapsed, notice.Visibility);
+        });
+    }
+
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
