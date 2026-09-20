@@ -435,17 +435,4 @@ internal static partial class SqlAssistChrome
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
     }
-
-    /// <summary>清單的空狀態：置中的單行說明，與載入圖示疊在同一塊內容上，不另開一個表面。</summary>
-    public static TextBlock CreateSearchEmptyState()
-    {
-        var text = CreateHint("", DefaultMetrics);
-        text.TextAlignment = TextAlignment.Center;
-        text.HorizontalAlignment = HorizontalAlignment.Center;
-        text.VerticalAlignment = VerticalAlignment.Center;
-        text.Margin = new Thickness(24, 0, 24, 0);
-        text.MaxWidth = 320;
-        text.IsHitTestVisible = false;
-        return text;
-    }
 }

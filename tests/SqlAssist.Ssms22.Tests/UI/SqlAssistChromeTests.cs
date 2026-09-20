@@ -220,4 +220,24 @@ public sealed class SqlAssistChromeTests
             Assert.Equal(text.Text, text.ToolTip);
         });
     }
+
+    /// <summary>
+    /// 去彈跳只有一張表，而且相對關係固定。
+    /// </summary>
+    /// <remarks>
+    /// 打字驅動的搜尋最短，選取驅動的預覽次之，每一次都要查一輪的估算與比對 SQL 全文的
+    /// Memory 搜尋最寬。散在四個檔時沒有人比得出這個順序，改壞了也看不出來。
+    /// </remarks>
+    [Fact]
+    public void 去彈跳常數維持由短到長的順序()
+    {
+        Assert.Equal(200, SqlAssistChrome.Debounce.Search.TotalMilliseconds);
+        Assert.Equal(220, SqlAssistChrome.Debounce.Preview.TotalMilliseconds);
+        Assert.Equal(250, SqlAssistChrome.Debounce.CleanupEstimate.TotalMilliseconds);
+        Assert.Equal(300, SqlAssistChrome.Debounce.MemorySearch.TotalMilliseconds);
+
+        Assert.True(SqlAssistChrome.Debounce.Search < SqlAssistChrome.Debounce.Preview);
+        Assert.True(SqlAssistChrome.Debounce.Preview < SqlAssistChrome.Debounce.CleanupEstimate);
+        Assert.True(SqlAssistChrome.Debounce.CleanupEstimate < SqlAssistChrome.Debounce.MemorySearch);
+    }
 }

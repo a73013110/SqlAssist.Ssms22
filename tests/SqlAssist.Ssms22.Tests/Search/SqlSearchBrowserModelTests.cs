@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.Search;
+using SqlAssist.Ssms22.UI;
 using Xunit;
 
 namespace SqlAssist.Ssms22.Tests.Search;
@@ -85,10 +86,11 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.Null(model.Begin(indexed: true));
         Assert.False(model.IsRunning);
-        Assert.Equal(
-            "尚未連線。在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。",
-            model.EmptyState(0));
-        Assert.Equal("", model.Status());
+        var surface = model.Surface(0);
+        Assert.Equal(SqlSurfaceKind.Empty, surface.Kind);
+        Assert.Equal("尚未連線", surface.Title);
+        Assert.Equal("在 SQL 查詢視窗連上資料庫，或在物件總管連上伺服器之後，這裡才有東西可以搜。", surface.Detail);
+        Assert.Equal("", model.Status(0));
     }
 
     [Fact]
@@ -98,7 +100,10 @@ public sealed class SqlSearchBrowserModelTests
         // 解決不了的事，而他真正要做的是換一台或回到查詢視窗。
         var model = new SqlSearchBrowserModel { Text = "Loan", Server = "LIBSQL01" };
 
-        Assert.Equal("連不上 LIBSQL01。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。", model.EmptyState(0));
+        var surface = model.Surface(0);
+        Assert.Equal(SqlSurfaceKind.Unreadable, surface.Kind);
+        Assert.Equal(SqlSurfaceState.UnreadableTitle, surface.Title);
+        Assert.Equal("連不上 LIBSQL01。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。", surface.Detail);
     }
 
     [Fact]
@@ -111,7 +116,7 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.IsPending);
         Assert.False(model.IsRunning);
         // 還沒有結果就不能先說「沒有相符項目」。
-        Assert.Equal("", model.EmptyState(0));
+        Assert.Equal(SqlSurfaceKind.None, model.Surface(0).Kind);
 
         var round = model.Begin(indexed: true)!;
         Assert.False(model.IsPending);
@@ -127,15 +132,15 @@ public sealed class SqlSearchBrowserModelTests
 
         var indexing = model.Begin(indexed: false)!;
         Assert.True(model.IsIndexing);
-        Assert.True(model.ShowLoading(12));
+        Assert.Equal(SqlSurfaceKind.Loading, model.Surface(12).Kind);
         model.End(indexing);
 
         var indexed = model.Begin(indexed: true)!;
         Assert.False(model.IsIndexing);
-        Assert.False(model.ShowLoading(12));
-        Assert.True(model.ShowLoading(0));
+        Assert.Equal(SqlSurfaceKind.None, model.Surface(12).Kind);
+        Assert.Equal(SqlSurfaceKind.Loading, model.Surface(0).Kind);
         model.End(indexed);
-        Assert.False(model.ShowLoading(0));
+        Assert.NotEqual(SqlSurfaceKind.Loading, model.Surface(0).Kind);
     }
 
     [Fact]
@@ -150,8 +155,8 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, results));
         model.End(round);
 
-        Assert.Equal("找到 2 項", model.Status());
-        Assert.Equal("", model.EmptyState(2));
+        Assert.Equal("找到 2 項", model.Status(2));
+        Assert.Equal(SqlSurfaceKind.None, model.Surface(2).Kind);
     }
 
     [Fact]
@@ -164,7 +169,7 @@ public sealed class SqlSearchBrowserModelTests
         var partial = model.Begin(indexed: true)!;
         Assert.True(model.Accept(partial, Search(aggregator, partial.Query)));
         model.End(partial);
-        Assert.Contains("部分結果", model.Status());
+        Assert.Contains("部分結果", model.Status(1));
 
         var empty = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
         var none = new SearchAggregator(new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table") });
@@ -172,8 +177,10 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(empty.Accept(round, Search(none, round.Query)));
         empty.End(round);
 
-        Assert.Equal("", empty.Status());
-        Assert.Equal("沒有相符項目。", empty.EmptyState(0));
+        Assert.Equal("", empty.Status(0));
+        var blank = empty.Surface(0);
+        Assert.Equal(SqlSurfaceKind.Empty, blank.Kind);
+        Assert.Equal("沒有相符項目", blank.Title);
     }
 
     [Fact]
@@ -184,8 +191,10 @@ public sealed class SqlSearchBrowserModelTests
         // 空輸入開一輪的代價是把整個資料庫（含定義本文）索引一次，而使用者只是打開了視窗。
         Assert.Null(model.Begin(indexed: false));
         Assert.False(model.IsRunning);
-        Assert.False(model.ShowLoading(0));
-        Assert.Equal("輸入關鍵字，搜尋這個資料庫的物件名稱、資料行與定義本文。", model.EmptyState(0));
+        var prompt = model.Surface(0);
+        Assert.Equal(SqlSurfaceKind.Empty, prompt.Kind);
+        Assert.Equal("輸入關鍵字", prompt.Title);
+        Assert.Equal("搜尋這個資料庫的物件名稱、資料行與定義本文。", prompt.Detail);
     }
 
     [Fact]
@@ -227,7 +236,7 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.True(model.Accept(round, results));
         Assert.Single(results.Hits);
-        Assert.Contains("memory", model.Status());
+        Assert.Contains("memory", model.Status(1));
     }
 
     /// <summary>
@@ -256,7 +265,7 @@ public sealed class SqlSearchBrowserModelTests
 
         // 那一句話原樣來自 provider；這一層一個字都不加，也不認得任何一個 provider 的常數。
         Assert.Equal("找到 1 項。作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
-            model.Status());
+            model.Status(1));
 
         // 讀不到不是失敗：頁尾不該變成紅字，對一個多半讀不到的來源那等於每次搜尋都在報錯。
         Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
@@ -282,8 +291,12 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.StartsWith("作業這一輪讀不到", model.Status());
-        Assert.Equal("沒有相符項目。", model.EmptyState(0));
+        // 一列都沒有：那一句搬到畫面中央，頁尾讓開，兩處各說一次會讀成兩件事。
+        Assert.Equal("", model.Status(0));
+        var denied = model.Surface(0);
+        Assert.Equal(SqlSurfaceKind.Denied, denied.Kind);
+        Assert.Equal(SqlSurfaceState.DeniedTitle, denied.Title);
+        Assert.StartsWith("作業這一輪讀不到", denied.Detail);
     }
 
     /// <summary>
@@ -310,7 +323,8 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.Equal("作業讀不到。（另有 1 個來源這一輪也讀不到）", model.Status());
+        Assert.Equal("作業讀不到。（另有 1 個來源這一輪也讀不到）", model.Surface(0).Detail);
+        Assert.Equal(SqlSurfaceKind.Denied, model.Surface(0).Kind);
         Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
     }
 
@@ -335,8 +349,8 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.Equal("找到 1 項。作業讀不到。", model.Status());
-        Assert.DoesNotContain("縮小範圍", model.Status());
+        Assert.Equal("找到 1 項。作業讀不到。", model.Status(1));
+        Assert.DoesNotContain("縮小範圍", model.Status(1));
     }
 
     [Fact]

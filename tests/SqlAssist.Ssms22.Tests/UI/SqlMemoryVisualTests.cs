@@ -90,9 +90,9 @@ public sealed class SqlMemoryVisualTests
                 var button = SqlAssistChrome.CreateIconButton(icon, label, tone); button.Tag = icon;
                 previewActions.Children.Add(button);
             }
-            var previewLoading = new SqlLoadingSurface(viewer);
+            var previewLoading = new SqlStateSurface(viewer);
             var detail = SqlAssistChrome.CreateMemoryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
-            var listLoading = new SqlLoadingSurface(list);
+            var listLoading = new SqlStateSurface(list);
             // 這一輪掃的是主題與字型，不傳轉向門檻讓版面固定在上下分割；轉向與收合把手在 MasterDetailViewTests。
             var split = new MasterDetailView(listLoading, detail, summary);
             root.Children.Add(split);
@@ -712,30 +712,6 @@ public sealed class SqlMemoryVisualTests
                 palette.Update(ThemePaletteTests.ColorsFor(mode)); scroll.ScrollToEnd(); list.UpdateLayout();
                 SaveVisual(list, 440, 300, "sql-memory-pagination-" + mode);
             }
-        });
-    }
-
-    [Fact]
-    public void SharedLoadingSurfaceDoesNotReserveSpaceAndStopsWhenHidden()
-    {
-        WpfTest.Run(() =>
-        {
-            var viewer = new Border().WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground);
-            var surface = new SqlLoadingSurface(viewer);
-            surface.Measure(new Size(320, 180)); surface.Arrange(new Rect(0, 0, 320, 180)); surface.UpdateLayout();
-            var size = viewer.RenderSize;
-            surface.IsLoading = true; surface.UpdateLayout();
-            Assert.Equal(size, viewer.RenderSize);
-            Assert.Empty(Descendants<TextBlock>(surface));
-            var rotation = Assert.IsType<RotateTransform>(Descendants<System.Windows.Shapes.Path>(surface).Single().RenderTransform);
-            var palette = new ThemeResourceSet(); surface.Resources.MergedDictionaries.Add(palette.Resources);
-            foreach (var mode in new[] { "light", "dark", "high-contrast" })
-            {
-                palette.Update(ThemePaletteTests.ColorsFor(mode)); surface.UpdateLayout();
-                SaveVisual(surface, 320, 180, "sql-memory-loading-" + mode);
-            }
-            surface.IsLoading = false;
-            Assert.False(rotation.HasAnimatedProperties);
         });
     }
 

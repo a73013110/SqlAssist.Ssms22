@@ -59,7 +59,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
     private readonly TextBlock _busyText;
     private readonly SqlUsageMeter _busyMeter = new(3) { IsIndeterminate = true };
     private readonly TextBlock _message;
-    private readonly SqlLoadingSurface _loading;
+    private readonly SqlStateSurface _loading;
     private bool _hasSummary;
 
     public event EventHandler<SqlMemoryUsageAction>? ActionRequested;
@@ -128,7 +128,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
             Content = _content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, Padding = new Thickness(0, 0, 2, 8)
         };
-        _loading = new SqlLoadingSurface(scroll);
+        _loading = new SqlStateSurface(scroll);
         Children.Add(_loading);
         _content.Visibility = Visibility.Collapsed;
 

@@ -36,10 +36,10 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
     private readonly ObservableCollection<SqlFavoriteRevisionRow> _rows = new();
     private readonly SqlFavoriteRevisionList _list = new();
     private readonly SqlMemoryPager _pager = new();
-    private readonly SqlLoadingSurface _timelineLoading;
+    private readonly SqlStateSurface _timelineLoading;
     private readonly SqlTextDiffView _diff = new();
     private readonly SqlReadOnlyViewer _viewer = new();
-    private readonly SqlLoadingSurface _contentLoading;
+    private readonly SqlStateSurface _contentLoading;
     private readonly SqlPillSelector _mode = new(("差異", SqlIcon.Compare), ("全文", SqlIcon.Preview));
     private readonly TextBlock _comparison = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _notice = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
@@ -88,10 +88,10 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         _list.SetRowsSource(_rows, _pager);
         _list.ContextMenu = CreateContextMenu();
         AutomationProperties.SetName(_list, "版本時間軸");
-        _timelineLoading = new SqlLoadingSurface(_list);
+        _timelineLoading = new SqlStateSurface(_list);
         _timelinePane = _timelineLoading;
 
-        _contentLoading = new SqlLoadingSurface(CreateContent());
+        _contentLoading = new SqlStateSurface(CreateContent());
         _detailPane = CreateDetailPane(_contentLoading);
         _body.Children.Add(_timelinePane); _body.Children.Add(_detailPane);
         root.Children.Add(_body);

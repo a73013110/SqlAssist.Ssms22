@@ -41,7 +41,7 @@ internal sealed class SqlMemoryCleanupWindow : DialogWindow
             database) { Margin = SqlAssistChrome.DialogPadding };
         Content = _view;
 
-        _debounce = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(250) };
+        _debounce = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.CleanupEstimate };
         _debounce.Tick += (_, _) => { _debounce.Stop(); _ = SqlMemoryActions.RunAsync(EstimateAsync, Report); };
         _view.Changed += (_, _) => SqlMemoryActions.Run(Changed, Report);
         _view.Submit.Click += (_, _) => SqlMemoryActions.Run(Submit, Report);
