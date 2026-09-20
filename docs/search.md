@@ -53,10 +53,23 @@ provider 得自己守四條，每一條都是「少做一次就看不出來」�
 例外）與 `Progress` 上的 `IsUnavailable`。「沒掃完」叫使用者縮小範圍，「讀不到」叫他去看權限
 ——混成一句的症狀是使用者照前一句改三次關鍵字，而那個資料庫一次都沒被搜到。
 
-`UnavailableReason` 只是一句給人看的話：連不上、逾時與權限不足在 provider 那一層就降級成
-同一件事。因此狀態表面的抬頭一律是「這一輪讀不到」，不是「權限不足」——後者是斷言，而斷錯的
-那一次會叫使用者去查一個好好的權限設定。要顯示「權限不足」得先有 provider 回報得出結構化的
-原因（例如分得出 `SqlException` 的權限錯誤碼），在那之前這一層不猜。
+回報分兩件東西：`UnavailableReason` 是一句給人看的話，Core 不解讀；`SearchUnavailableKind`
+只有 `Unknown` 與 `Denied`。不細分是因為呈現那一層要的答案只有一個——下一步是「重試或換
+條件」還是「去要權限」，而連不上、逾時與離線的下一步一樣。
+
+`Denied` 是斷言，三道關卡都「說得準才說」：provider 要伺服器給了權限錯誤碼；`BudgetedSink`
+在同一個來源說了兩種時退回 `Unknown`（句子留第一句，留哪一句都說得通，而留第一個種類等於
+斷言由賽跑決定）；`SqlSearchBrowserModel.Surface` 只在**每一個**讀不到的來源都是 `Denied`
+時才回 `SqlSurfaceState.Denied`。其中之一就換抬頭的話，使用者去要了權限，那個連不上的來源
+下一輪還是讀不到，而畫面上看不出他要錯了東西。代價不對稱：斷言不足只是少說一句話。
+
+錯誤碼由 `SqlServerErrorCodes` 認（229／230／262／297／300／916／4060）。18456 **不在**
+名單裡：登入失敗是認證不是授權，下一步是去看帳號密碼或 Entra 權杖。
+
+它靠**反射**讀 `Number`。兩個理由缺一都還是要反射：Metadata 只依賴 `System.Data`，而
+netstandard2.0 的 `DbException` 上沒有錯誤碼；執行期丟出來的又是
+`Microsoft.Data.SqlClient.SqlException`，與 `System.Data.SqlClient` 那一份是兩個型別，參照了
+也一次都不會成立，症狀是安靜地永遠回 `Unknown`。代價只在失敗的那一次付。
 
 ## 索引策略
 

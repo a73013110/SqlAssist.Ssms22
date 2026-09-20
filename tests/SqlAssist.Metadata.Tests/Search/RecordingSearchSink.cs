@@ -26,6 +26,7 @@ internal sealed class RecordingSearchSink : ISearchSink
     private bool _truncated;
     private string? _checkpoint;
     private string? _unavailableReason;
+    private SearchUnavailableKind _unavailableKind;
 
     /// <param name="acceptLimit">收下幾筆之後開始回 false。</param>
     internal RecordingSearchSink(int acceptLimit = int.MaxValue)
@@ -101,6 +102,15 @@ internal sealed class RecordingSearchSink : ISearchSink
         }
     }
 
+    /// <summary>provider 回報的結構化原因；「權限不足」這個抬頭的唯一來源。</summary>
+    internal SearchUnavailableKind UnavailableKind
+    {
+        get
+        {
+            lock (_gate) return _unavailableKind;
+        }
+    }
+
     public bool IsExhausted
     {
         get
@@ -141,14 +151,24 @@ internal sealed class RecordingSearchSink : ISearchSink
     }
 
     /// <remarks>
-    /// 留第一句，與 <c>SearchAggregator</c> 的 sink 同一條規則：後到的覆蓋先到的話，
-    /// 多資料庫那幾條測試的期望值會由賽跑決定。
+    /// 留第一句而種類在不同時退回 <see cref="SearchUnavailableKind.Unknown"/>，
+    /// 與 <c>SearchAggregator</c> 的 sink 同一條規則：句子後到的覆蓋先到的話，
+    /// 多資料庫那幾條測試的期望值會由賽跑決定；種類留第一個說的話，
+    /// 「一個沒權限、一個連不上」會被斷言成權限。
     /// </remarks>
-    public void ReportUnavailable(string reason)
+    public void ReportUnavailable(string reason, SearchUnavailableKind kind = SearchUnavailableKind.Unknown)
     {
         lock (_gate)
         {
-            _unavailableReason ??= reason;
+            if (_unavailableReason is null)
+            {
+                _unavailableReason = reason;
+                _unavailableKind = kind;
+            }
+            else if (_unavailableKind != kind)
+            {
+                _unavailableKind = SearchUnavailableKind.Unknown;
+            }
         }
     }
 }

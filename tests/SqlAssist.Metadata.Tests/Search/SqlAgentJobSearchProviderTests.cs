@@ -254,7 +254,7 @@ public sealed class SqlAgentJobSearchProviderTests
 
         // 失敗帶著「哪一條查詢」與伺服器說的那句話走 SqlMetadataFailure，不冒出去。
         // Reporter 是行程共用的靜態接線，同時跑的其他測試也會寫進來，所以只找自己那一行。
-        Assert.Contains(reported, line => line.Contains("SQL Agent 作業清單") && line.Contains("連不上伺服器。"));
+        Assert.Contains(reported, line => line.Contains("SQL Agent 作業清單") && line.Contains("msdb"));
 
         var sink = await RunAsync(server, new SearchQuery("Loan"), cache: cache);
 
@@ -270,6 +270,11 @@ public sealed class SqlAgentJobSearchProviderTests
         // 也指得出該去看什麼。
         Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
         Assert.Contains("msdb", sink.UnavailableReason);
+
+        // 伺服器給了權限錯誤碼，所以這一句是斷言而不是「多半」——而呈現那一層要換掉
+        // 抬頭，靠的是種類不是這一句話。
+        Assert.Equal(SearchUnavailableKind.Denied, sink.UnavailableKind);
+        Assert.DoesNotContain("多半", sink.UnavailableReason);
 
         // 失敗不進快取：否則權限恢復之後仍然拿到「沒有資料」。
         Assert.False(cache.IsFresh(server.SourceFor().ServerCacheKey));
@@ -404,7 +409,7 @@ public sealed class SqlAgentJobSearchProviderTests
             .WithStep(2, "第二段", new string('B', 64));
 
         var snapshot = SqlAgentJobSearchSnapshot.TryLoad(
-            server.SourceFor(), includeCommands: true, CancellationToken.None, maxCommandCharacters: 64);
+            server.SourceFor(), includeCommands: true, CancellationToken.None, out _, maxCommandCharacters: 64);
 
         Assert.NotNull(snapshot);
         Assert.False(snapshot!.CommandsComplete);
@@ -454,6 +459,11 @@ public sealed class SqlAgentJobSearchProviderTests
         Assert.Empty(sink!.Hits);
         Assert.True(sink.IsUnavailable);
         Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
+
+        // 連不上沒有權限錯誤碼，所以種類說不出來，而那一句話回到列幾個可能。
+        // 斷言成權限的那一版會叫使用者去查一個好好的權限設定。
+        Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
+        Assert.Contains("多半", sink.UnavailableReason);
     }
 
     /// <summary>這個來源宣告自己的兩顆 pill，不借用目錄那一組。</summary>

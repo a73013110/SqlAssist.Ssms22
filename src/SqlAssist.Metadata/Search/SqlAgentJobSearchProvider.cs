@@ -41,10 +41,15 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     /// 知道自己去讀了 <c>msdb</c> 的這裡。
     ///
     /// 括號裡寫的是最可能的原因而不是斷言：連不上與逾時也走同一條降級路徑，
-    /// 而斷言權限的話，使用者會去查一個好好的權限設定。
+    /// 而斷言權限的話，使用者會去查一個好好的權限設定。伺服器真的給了權限錯誤碼時
+    /// 才換成 <see cref="DeniedReason"/>——那一句斷言得起。
     /// </remarks>
     private const string UnavailableReason =
         "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。";
+
+    /// <summary>伺服器明說是權限時的那一句；「多半」換成斷言。</summary>
+    private const string DeniedReason =
+        "SQL Agent 作業這一輪讀不到（這個登入對 msdb 沒有權限），這個來源沒有結果。";
 
     /// <summary>去重鍵的前綴；與其他 provider 的鍵不會互相碰撞。</summary>
     private const string DedupePrefix = "agent-job|";
@@ -129,14 +134,16 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 return;
             }
 
-            var snapshot = _snapshotCache.GetOrLoad(_connectionSource, wantsText, cancellationToken);
+            var snapshot = _snapshotCache.GetOrLoad(
+                _connectionSource, wantsText, cancellationToken, out var unavailableKind);
 
             if (snapshot is null)
             {
                 // 讀不到 msdb。這不是失敗（失敗會把頁尾整行佔住），也不是空白
                 // （空白與「這台伺服器上沒有這個作業」一模一樣），更不是「沒掃完」
                 // ——後者叫使用者縮小範圍，而那對沒有權限完全沒有用。
-                sink.ReportUnavailable(UnavailableReason);
+                var denied = unavailableKind == SearchUnavailableKind.Denied;
+                sink.ReportUnavailable(denied ? DeniedReason : UnavailableReason, unavailableKind);
                 return;
             }
 

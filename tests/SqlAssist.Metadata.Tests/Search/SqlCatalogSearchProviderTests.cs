@@ -488,10 +488,82 @@ public sealed class SqlCatalogSearchProviderTests
         // 名稱一定要寫出來，否則使用者不知道該去看哪一個資料庫。
         Assert.Contains("LibArchive", sink.UnavailableReason);
 
+        // 連不上沒有權限錯誤碼，所以種類說不出來，句子也回到列幾個可能。
+        Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
+        Assert.Contains("連不上、逾時", sink.UnavailableReason);
+
         // 失敗不進快取：第二輪仍然重試那一個，成功的那一個則是快取命中。
         Assert.False(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
         Assert.True(cache.TryGet(server.SourceFor("Library").CacheKey, out _));
         Assert.Equal(3, cache.Builds);
+    }
+
+    /// <summary>
+    /// 伺服器給了權限錯誤碼時，種類與句子一起換成斷言。
+    /// </summary>
+    /// <remarks>
+    /// 沒有這一條的話，「權限不足」那個抬頭永遠沒有生產者——狀態表面上那一支
+    /// <c>SqlSurfaceState.Denied</c> 寫了也走不到。
+    /// </remarks>
+    [Fact]
+    public async Task 權限錯誤碼讓這一輪說得出就是權限()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var archive = server.Add("LibArchive");
+        archive.FailsOnOpen = true;
+        archive.DeniesAccess = true;
+
+        var query = new SearchQuery("Loan", scope: new SearchScope(null, new[] { "Library", "LibArchive" }));
+
+        RecordingSearchSink? sink = null;
+        SqlCatalogSearchIndexTests.Capture(() => sink = RunAsync(server, query).GetAwaiter().GetResult());
+
+        Assert.True(sink!.IsUnavailable);
+        Assert.Equal(SearchUnavailableKind.Denied, sink.UnavailableKind);
+
+        // 句子跟著換：伺服器明說了，就不必再列「連不上、逾時」那幾個可能。
+        Assert.Equal(
+            "「LibArchive」這一輪讀不到（這個登入對它沒有權限），這一輪少了它的結果。",
+            sink.UnavailableReason);
+
+        // 讀得到的那一個照樣回得來。
+        Assert.Single(sink.Hits);
+    }
+
+    /// <summary>
+    /// 一個沒權限、另一個連不上：整組退回「說不出是哪一種」。
+    /// </summary>
+    /// <remarks>
+    /// 留第一個說的那一版，交出去的斷言由賽跑決定（幾個資料庫是平行掃的）。而斷成
+    /// 「權限不足」的那一次，使用者去要了權限，連不上的那個下一輪還是讀不到，
+    /// 畫面上看不出他要錯了東西。
+    /// </remarks>
+    [Fact]
+    public async Task 兩種原因混在一輪時不猜()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var archive = server.Add("LibArchive");
+        archive.FailsOnOpen = true;
+        archive.DeniesAccess = true;
+
+        server.Add("LibMirror").FailsOnOpen = true;
+
+        var query = new SearchQuery(
+            "Loan", scope: new SearchScope(null, new[] { "Library", "LibArchive", "LibMirror" }));
+
+        for (var round = 0; round < 10; round++)
+        {
+            RecordingSearchSink? sink = null;
+            SqlCatalogSearchIndexTests.Capture(() => sink = RunAsync(server, query).GetAwaiter().GetResult());
+
+            Assert.True(sink!.IsUnavailable);
+            Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
+            Assert.Contains("連不上、逾時", sink.UnavailableReason);
+        }
     }
 
     /// <summary>幾個資料庫的結果併在同一輪裡回來，各自帶著自己的資料庫膠囊。</summary>

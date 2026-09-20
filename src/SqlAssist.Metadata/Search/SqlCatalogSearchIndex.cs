@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
+using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
@@ -190,14 +191,27 @@ public sealed class SqlCatalogSearchIndex
     /// 要不要撈第二段。false 時<b>不送</b>那一條查詢，也不佔記憶體——這就是
     /// <see cref="Core.Search.SearchTargets"/> 少掉 <c>Text</c> 會省下的東西。
     /// </param>
+    /// <param name="unavailableKind">
+    /// 回傳 null 時是哪一種讀不到；回傳非 null 時無意義（固定
+    /// <see cref="SearchUnavailableKind.Unknown"/>）。沒有它的話，「這個登入對它沒有權限」
+    /// 與「這台伺服器斷了」在呼叫端手上長得一模一樣，而畫面上要說的話不同。
+    /// </param>
     public static SqlCatalogSearchIndex? TryBuild(
         ISqlConnectionSource connectionSource,
         bool includeDefinitions,
         CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
         int commandTimeoutSeconds = DefaultCommandTimeoutSeconds) =>
-        Load(connectionSource, previous: null, includeDefinitions, cancellationToken, maxDefinitionBytes,
-            commandTimeoutSeconds);
+        Load(connectionSource, previous: null, includeDefinitions, cancellationToken, out unavailableKind,
+            maxDefinitionBytes, commandTimeoutSeconds);
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public static SqlCatalogSearchIndex? TryBuild(
+        ISqlConnectionSource connectionSource,
+        bool includeDefinitions,
+        CancellationToken cancellationToken) =>
+        TryBuild(connectionSource, includeDefinitions, cancellationToken, out _);
 
     /// <summary>
     /// 只補第二段：第一段原樣沿用，回傳一份新的索引。
@@ -208,12 +222,16 @@ public sealed class SqlCatalogSearchIndex
     ///
     /// 不就地改寫自己：同一份索引會被好幾條搜尋執行緒同時讀。
     /// </remarks>
+    /// <param name="unavailableKind">意義與 <see cref="TryBuild"/> 那一個相同。</param>
     public SqlCatalogSearchIndex? TryAddDefinitions(
         ISqlConnectionSource connectionSource,
         CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
         int commandTimeoutSeconds = DefaultCommandTimeoutSeconds)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (connectionSource is null)
         {
             throw new ArgumentNullException(nameof(connectionSource));
@@ -241,9 +259,16 @@ public sealed class SqlCatalogSearchIndex
         catch (DbException exception)
         {
             SqlMetadataFailure.Report(operation + "：" + DatabaseName, exception);
+            unavailableKind = SqlServerErrorCodes.Classify(exception);
             return null;
         }
     }
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public SqlCatalogSearchIndex? TryAddDefinitions(
+        ISqlConnectionSource connectionSource,
+        CancellationToken cancellationToken) =>
+        TryAddDefinitions(connectionSource, cancellationToken, out _);
 
     /// <summary>
     /// 沿著版本戳重新整理：只撈變更過的物件，其餘沿用上一份。
@@ -257,31 +282,46 @@ public sealed class SqlCatalogSearchIndex
     /// 界線還舊的物件，就整份重撈：增量查詢撈不到那幾個，而沿用上一份等於它們的資料行與
     /// 定義本文永遠不出現，畫面上看不出少了什麼。寧可多付一次。
     /// </remarks>
+    /// <param name="unavailableKind">意義與 <see cref="TryBuild"/> 那一個相同。</param>
     public static SqlCatalogSearchIndex? TryRefresh(
         SqlCatalogSearchIndex previous,
         ISqlConnectionSource connectionSource,
         bool includeDefinitions,
         CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
         int commandTimeoutSeconds = DefaultCommandTimeoutSeconds)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (previous is null)
         {
             throw new ArgumentNullException(nameof(previous));
         }
 
-        return Load(connectionSource, previous, includeDefinitions, cancellationToken, maxDefinitionBytes,
-            commandTimeoutSeconds);
+        return Load(connectionSource, previous, includeDefinitions, cancellationToken, out unavailableKind,
+            maxDefinitionBytes, commandTimeoutSeconds);
     }
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public static SqlCatalogSearchIndex? TryRefresh(
+        SqlCatalogSearchIndex previous,
+        ISqlConnectionSource connectionSource,
+        bool includeDefinitions,
+        CancellationToken cancellationToken) =>
+        TryRefresh(previous, connectionSource, includeDefinitions, cancellationToken, out _);
 
     private static SqlCatalogSearchIndex? Load(
         ISqlConnectionSource connectionSource,
         SqlCatalogSearchIndex? previous,
         bool includeDefinitions,
         CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes,
         int commandTimeoutSeconds)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (connectionSource is null)
         {
             throw new ArgumentNullException(nameof(connectionSource));
@@ -352,6 +392,7 @@ public sealed class SqlCatalogSearchIndex
         catch (DbException exception)
         {
             SqlMetadataFailure.Report(operation + "：" + databaseName, exception);
+            unavailableKind = SqlServerErrorCodes.Classify(exception);
             return null;
         }
     }

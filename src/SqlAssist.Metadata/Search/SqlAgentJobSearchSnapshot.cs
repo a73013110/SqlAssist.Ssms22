@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Threading;
 using SqlAssist.Metadata.Caching;
+using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Querying;
 
 namespace SqlAssist.Metadata.Search;
@@ -169,13 +170,21 @@ public sealed class SqlAgentJobSearchSnapshot
     /// 取消<b>不</b>被當成資料庫失敗吞掉：<see cref="OperationCanceledException"/> 不是
     /// <see cref="DbException"/>，它會照常往外走，由聚合器當成正常流程處理。
     /// </remarks>
+    /// <param name="unavailableKind">
+    /// 回傳 null 時是哪一種讀不到；拿到快照時無意義（固定
+    /// <see cref="SearchUnavailableKind.Unknown"/>）。<c>msdb</c> 讀不到多半真的是權限，
+    /// 但「多半」不是斷言的理由——伺服器給了權限錯誤碼才是。
+    /// </param>
     public static SqlAgentJobSearchSnapshot? TryLoad(
         ISqlConnectionSource connectionSource,
         bool includeCommands,
         CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind,
         int commandTimeoutSeconds = SqlCatalogSearchIndex.DefaultCommandTimeoutSeconds,
         int maxCommandCharacters = DefaultMaxCommandCharacters)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (connectionSource is null)
         {
             throw new ArgumentNullException(nameof(connectionSource));
@@ -213,9 +222,17 @@ public sealed class SqlAgentJobSearchSnapshot
         catch (DbException exception)
         {
             SqlMetadataFailure.Report(operation, exception);
+            unavailableKind = SqlServerErrorCodes.Classify(exception);
             return null;
         }
     }
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public static SqlAgentJobSearchSnapshot? TryLoad(
+        ISqlConnectionSource connectionSource,
+        bool includeCommands,
+        CancellationToken cancellationToken) =>
+        TryLoad(connectionSource, includeCommands, cancellationToken, out _);
 
     private static readonly Dictionary<StepKey, string> EmptyCommands = new();
 
@@ -506,9 +523,18 @@ public sealed class SqlAgentJobSearchSnapshotCache
     /// 手上那一份沒有命令本文而這一輪要時，<b>整份重撈</b>：作業的資料量小，
     /// 兩條查詢比「只補第二段」那套合併邏輯便宜，也少一份會分岔的判斷。
     /// </remarks>
+    /// <param name="unavailableKind">
+    /// 回傳 null 時是哪一種讀不到；意義與
+    /// <see cref="SqlAgentJobSearchSnapshot.TryLoad"/> 那一個相同。
+    /// </param>
     public SqlAgentJobSearchSnapshot? GetOrLoad(
-        ISqlConnectionSource connectionSource, bool includeCommands, CancellationToken cancellationToken)
+        ISqlConnectionSource connectionSource,
+        bool includeCommands,
+        CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (connectionSource is null)
         {
             throw new ArgumentNullException(nameof(connectionSource));
@@ -533,9 +559,14 @@ public sealed class SqlAgentJobSearchSnapshotCache
             }
 
             return Store(key, SqlAgentJobSearchSnapshot.TryLoad(
-                connectionSource, includeCommands, cancellationToken));
+                connectionSource, includeCommands, cancellationToken, out unavailableKind));
         }
     }
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public SqlAgentJobSearchSnapshot? GetOrLoad(
+        ISqlConnectionSource connectionSource, bool includeCommands, CancellationToken cancellationToken) =>
+        GetOrLoad(connectionSource, includeCommands, cancellationToken, out _);
 
     /// <summary>
     /// 整批丟掉；使用者按重新整理，或換了一條連線。

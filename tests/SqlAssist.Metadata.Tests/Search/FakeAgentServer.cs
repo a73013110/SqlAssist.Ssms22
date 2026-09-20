@@ -34,7 +34,7 @@ internal sealed class FakeAgentServer
     /// <summary><c>SERVERPROPERTY('ServerName')</c> 的答案；null 表示伺服器說不出來。</summary>
     internal string? ServerName { get; set; }
 
-    /// <summary>這個登入對 <c>msdb</c> 沒有權限；每一條查詢都失敗。</summary>
+    /// <summary>這個登入對 <c>msdb</c> 沒有權限；每一條查詢都失敗，而且伺服器說得出是權限。</summary>
     internal bool MsdbDenied { get; set; }
 
     /// <summary>連線本身開不起來。</summary>
@@ -259,7 +259,9 @@ internal sealed class FakeAgentCommand : IDbCommand
     {
         _server.Record(CommandText);
 
-        if (_server.MsdbDenied) throw new UnreachableServerException();
+        // 這裡刻意用只有 Number、沒有錯誤清單的那一種：目錄那一邊量的是有清單的路徑，
+        // 兩條路各自都要有東西量得到。
+        if (_server.MsdbDenied) throw new NumberOnlyDeniedException("msdb");
 
         using var table = new DataTable();
 

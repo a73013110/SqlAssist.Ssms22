@@ -198,6 +198,9 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>有來源這一輪整個讀不到時要補的那一句；沒有時是空字串。</summary>
     private string _unavailable = "";
 
+    /// <summary>讀不到的來源<b>每一個</b>都說得出「就是權限」；抬頭換成「權限不足」的唯一門檻。</summary>
+    private bool _unavailableDenied;
+
     private IReadOnlyList<SqlSearchCategoryOption> _categories = Array.Empty<SqlSearchCategoryOption>();
     private Dictionary<string, int> _categoryOrder = new(StringComparer.Ordinal);
 
@@ -658,6 +661,7 @@ internal sealed class SqlSearchBrowserModel
         _hitCount = results.Hits.Count;
         _failure = Describe(results.Failures);
         _unavailable = DescribeUnavailable(results.Progress);
+        _unavailableDenied = AllDenied(results.Progress);
         return true;
     }
 
@@ -711,6 +715,7 @@ internal sealed class SqlSearchBrowserModel
 
         // 整輪都失敗了，個別來源讀不到那一句已經沒有意義，留著只會讓頁尾說兩件事。
         _unavailable = "";
+        _unavailableDenied = false;
     }
 
     /// <summary>這一輪結束（成功、失敗或放棄）；只放開同一世代的旗標。</summary>
@@ -807,12 +812,18 @@ internal sealed class SqlSearchBrowserModel
         if (_failure.Length != 0) return SqlSurfaceState.Unreadable(_failure);
         // 還沒有任何一輪的答案（剛換條件、去彈跳還沒到期）：不能先說「沒有相符項目」。
         if (!_hasResult || _pending) return SqlSurfaceState.None;
+
         // 一筆都沒有而且有來源讀不到：那一句才是原因，泛用的「沒有相符項目」會讓使用者去改關鍵字。
-        // 抬頭是「這一輪讀不到」而不是「權限不足」：ReportUnavailable 交出來的只有一句給人看的話，
-        // 而連不上、逾時與權限不足在 provider 那一層就降級成同一件事。斷言權限的那一版會在
-        // 伺服器斷線的那一次叫使用者去查一個好好的權限設定，而他怎麼查都查不出問題。
-        // 要顯示 SqlSurfaceState.Denied，得先有 provider 明確回報「就是權限」的結構化原因。
-        if (_unavailable.Length != 0) return SqlSurfaceState.Unreadable(_unavailable);
+        if (_unavailable.Length != 0)
+        {
+            // 抬頭分兩句，門檻是「每一個讀不到的來源都說得出就是權限」。
+            // 一個說權限、另一個連不上時抬頭仍是「這一輪讀不到」：使用者照「權限不足」
+            // 去要了權限，那個連不上的來源下一輪還是讀不到，而畫面上看不出他要錯了東西。
+            return _unavailableDenied
+                ? SqlSurfaceState.Denied(_unavailable)
+                : SqlSurfaceState.Unreadable(_unavailable);
+        }
+
         return SqlSurfaceState.Empty("沒有相符項目", "換個關鍵字，或放寬分類與資料庫範圍。");
     }
 
@@ -909,6 +920,31 @@ internal sealed class SqlSearchBrowserModel
         return count == 1
             ? first
             : first + "（另有 " + (count - 1).ToString(CultureInfo.InvariantCulture) + " 個來源這一輪也讀不到）";
+    }
+
+    /// <summary>
+    /// 讀不到的來源是不是<b>每一個</b>都說得出「就是權限」。
+    /// </summary>
+    /// <remarks>
+    /// 全部都要，不是其中之一。「權限不足」是一句斷言，而斷言只在它對每一個讀不到的來源
+    /// 都成立時才說得出口：一個沒權限、另一個連不上的那一輪，使用者照抬頭去要了權限，
+    /// 連不上的那個下一輪還是讀不到，而畫面上看不出他要錯了東西。
+    ///
+    /// 一個來源都沒有讀不到時回 false：那一輪根本不該走到這兩個抬頭。
+    /// </remarks>
+    private static bool AllDenied(IReadOnlyList<SearchProviderProgress> progress)
+    {
+        var any = false;
+
+        foreach (var entry in progress)
+        {
+            if (entry.UnavailableReason is not { Length: > 0 }) continue;
+
+            if (!entry.IsDenied) return false;
+            any = true;
+        }
+
+        return any;
     }
 
     private static string Describe(IReadOnlyList<SearchProviderFailure> failures)

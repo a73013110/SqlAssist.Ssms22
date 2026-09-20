@@ -57,7 +57,7 @@ internal sealed class FakeCatalogServer
 
         if (database.FailsOnOpen)
         {
-            throw new UnreachableServerException();
+            throw database.OpenFailure();
         }
 
         return new FakeCatalogConnection(this, database);
@@ -112,6 +112,20 @@ internal sealed class FakeCatalogDatabase
 
     /// <summary>開連線就失敗；模擬連不上或沒有權限。</summary>
     internal bool FailsOnOpen { get; set; }
+
+    /// <summary>
+    /// 失敗時伺服器給的是權限錯誤碼；<see cref="FailsOnOpen"/> 為 false 時無意義。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="FailsOnOpen"/> 分成兩個旗標而不是一個列舉：既有的每一條測試講的都是
+    /// 「這個資料庫讀不到」，而它們不在乎是哪一種。合成一個列舉等於每一條都要選一個值，
+    /// 而其中大半選什麼都一樣。
+    /// </remarks>
+    internal bool DeniesAccess { get; set; }
+
+    /// <summary>這個資料庫說不行時丟的那一個。</summary>
+    internal DbException OpenFailure() =>
+        DeniesAccess ? new PermissionDeniedException(Name) : new UnreachableServerException();
 
     /// <summary>命令原文含這一段時失敗；模擬單一條查詢在舊版伺服器上不成立。</summary>
     internal string? FailsOnQueryContaining { get; set; }
@@ -282,7 +296,7 @@ internal sealed class FakeCatalogConnection : IDbConnection
 
         if (target.FailsOnOpen)
         {
-            throw new UnreachableServerException();
+            throw target.OpenFailure();
         }
 
         _database = target;
@@ -583,10 +597,69 @@ internal sealed class FakeParameterCollection : IDataParameterCollection
 }
 
 /// <summary><see cref="DbException"/> 是抽象的，測試要自己給一個具體型別。</summary>
+/// <remarks>
+/// 刻意<b>不</b>帶錯誤碼：連不上與逾時在真實驅動程式上給的是網路層那一族，
+/// 而產品那一層應該把它們判成「說不出是哪一種」。帶了碼就量不到那條路。
+/// </remarks>
 internal sealed class UnreachableServerException : DbException
 {
     internal UnreachableServerException()
         : base("連不上伺服器。")
     {
     }
+}
+
+/// <summary>
+/// 伺服器明說「權限不足」的那一種失敗。
+/// </summary>
+/// <remarks>
+/// 形狀照 <c>SqlException</c>：<see cref="Number"/> 是第一個錯誤的編號，
+/// <see cref="Errors"/> 是整批。產品那一層靠反射讀它們（Metadata 不參照任何
+/// SqlClient，而且執行期真正丟出來的是 <c>Microsoft.Data.SqlClient</c> 那一份），
+/// 所以這裡與那邊一樣是 <c>public</c> 型別上的 <c>public</c> 屬性——
+/// 反射讀得到才量得到東西。
+///
+/// 916 是「這個登入進不了那個資料庫」，正是跨資料庫搜尋最常撞到的那一個。
+/// </remarks>
+public sealed class PermissionDeniedException : DbException
+{
+    public PermissionDeniedException(string databaseName)
+        : base("伺服器主體無法在目前的安全性內容下存取資料庫 " + databaseName + "。")
+    {
+        Errors = new[] { new FakeSqlError(916) };
+    }
+
+    public int Number => 916;
+
+    /// <summary>整批錯誤；真實的 <c>SqlException</c> 在權限被拒時常常不只一列。</summary>
+    public IReadOnlyList<FakeSqlError> Errors { get; }
+}
+
+/// <summary>
+/// 只有 <c>Number</c>、沒有錯誤清單的那一種。
+/// </summary>
+/// <remarks>
+/// 產品那一層先問 <c>Errors</c>、問不到才問頂層的 <c>Number</c>，而兩條路各自都要有東西
+/// 量得到。全部的假例外都帶清單的話，後面那一條寫錯了也不會有任何一條測試變紅。
+/// </remarks>
+public sealed class NumberOnlyDeniedException : DbException
+{
+    public NumberOnlyDeniedException(string subject)
+        : base("使用者沒有執行這個動作的權限：" + subject + "。")
+    {
+    }
+
+    /// <summary>229 是「物件上的 SELECT 權限被拒」。</summary>
+    public int Number => 229;
+}
+
+/// <summary><c>SqlError</c> 的形狀：反射只讀得到 <c>Number</c>，其餘不必有。</summary>
+public sealed class FakeSqlError
+{
+    public FakeSqlError(int number)
+    {
+        Number = number;
+    }
+
+    public int Number { get; }
 }
