@@ -792,6 +792,63 @@ internal static partial class SqlAssistChrome
         return template;
     }
 
+    /// <summary>
+    /// 單選鈕：與核取方塊同一個尺寸與色階，只有形狀是圓的。
+    /// </summary>
+    /// <remarks>
+    /// 形狀本身就是語意：圓的是「只能選一個」，方的是「可以選好幾個」。兩者外觀共用，
+    /// 呼叫端換的只有這一份樣板；自己在功能目錄畫一顆的症狀是同一個面板裡兩種選項的
+    /// 尺寸與對齊差一兩個 DIP，而那正好是看得出來卻說不出哪裡怪的差距。
+    ///
+    /// 內建的單選鈕與核取方塊同樣跟 Windows 佈景主題走，深色主題裡會露出白底。
+    /// </remarks>
+    public static ControlTemplate CreateRadioTemplate()
+    {
+        var layout = new FrameworkElementFactory(typeof(StackPanel));
+        layout.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        layout.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
+
+        var ring = new FrameworkElementFactory(typeof(Border)) { Name = "ring" };
+        ring.SetValue(FrameworkElement.WidthProperty, 14.0);
+        ring.SetValue(FrameworkElement.HeightProperty, 14.0);
+        ring.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
+        ring.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
+        ring.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        ring.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        ring.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        ring.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        ring.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+
+        var dot = new FrameworkElementFactory(typeof(Ellipse)) { Name = "dot" };
+        dot.SetValue(FrameworkElement.WidthProperty, 6.0);
+        dot.SetValue(FrameworkElement.HeightProperty, 6.0);
+        dot.SetResourceReference(Shape.FillProperty, ThemeBrush.ListForeground);
+        dot.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        dot.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        dot.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        ring.AppendChild(dot);
+
+        var label = new FrameworkElementFactory(typeof(ContentPresenter));
+        label.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+        layout.AppendChild(ring);
+        layout.AppendChild(label);
+
+        var template = new ControlTemplate(typeof(RadioButton)) { VisualTree = layout };
+
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.Border, "ring");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty,
+            Border.BorderBrushProperty, ThemeBrush.AccentBorder, "ring");
+
+        var isChecked = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
+        isChecked.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "dot"));
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "ring"));
+        isChecked.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "ring"));
+        template.Triggers.Add(isChecked);
+
+        return template;
+    }
+
     /// <summary>清單的一列：與分段控制器同一種圓角，選取靠底色而不是外框。</summary>
     public static Style CreateListItemStyle(Metrics metrics)
     {

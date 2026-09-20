@@ -6,6 +6,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using SqlAssist.Core.Search;
 
 namespace SqlAssist.Ssms22.UI;
@@ -109,13 +110,34 @@ internal sealed class SqlSearchSegments : Border
     }
 }
 
+/// <summary>過濾面板的三種形狀；差別只有互斥與否，以及面板上還有沒有別的東西。</summary>
+internal enum SqlSearchFilterMode
+{
+    /// <summary>單選：選項畫成 radio，選完就關，沒有全選與清除。</summary>
+    Single,
+
+    /// <summary>複選：選項畫成核取方塊，面板留著讓人連勾好幾個，附全選與清除。</summary>
+    Multiple,
+
+    /// <summary>複選再加一個搜尋框；名稱可能上百個的清單才需要。</summary>
+    SearchableMultiple
+}
+
 /// <summary>
-/// 工具列上的多選過濾按鈕：按鈕顯示摘要，選項在彈出面板裡。
+/// 工具列上的過濾按鈕：按鈕顯示摘要，選項在彈出面板裡。
 /// </summary>
 /// <remarks>
 /// 十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果；摘要留在按鈕上，
 /// 完整名單留在面板與 chip 列。用 <see cref="Popup"/> 而不是 <see cref="ContextMenu"/>，
 /// 是因為資料庫那一份面板裡有搜尋框與兩顆命令鈕——快捷選單裡的輸入欄拿不到鍵盤焦點。
+///
+/// 單選與複選<b>是同一個控制項的兩種模式</b>，不是兩個類別：外觀、面板、摘要與 chip 都一樣，
+/// 只有互斥語意不同。分成兩個的症狀是其中一邊漏掉主題套用或 Esc 關閉，而那種漏只在
+/// 深色主題或鍵盤操作時才看得出來。
+///
+/// 單選<b>不顯示</b>全選與清除：全選對互斥的選項沒有意義，而清除等於「一個範圍都不選」，
+/// 那不是使用者做得到的狀態。單選選完就關面板——它一次只改得了一項，留著面板等於要他
+/// 再按一次外面。
 ///
 /// <see cref="PopupSurface"/> 要由宿主接上動態資源。Popup 的內容不在宿主的視覺樹上，
 /// 沒有這一道就會在深色主題露出白底；這裡不自己做，是為了讓這個控制項留在純 WPF，
@@ -125,7 +147,7 @@ internal sealed class SqlSearchFilterButton : Button
 {
     private readonly TextBlock _label = SqlAssistChrome.CreateMemoryButtonText("");
     private readonly TextBlock _summary = SqlAssistChrome.CreateMemoryButtonText("");
-    private readonly ItemsControl _options = SqlAssistChrome.CreateSearchOptionList(OptionsHeight);
+    private readonly ItemsControl _options;
     private readonly TextBox? _filter;
     private IReadOnlyList<SqlSearchFilterGroup> _groups = Array.Empty<SqlSearchFilterGroup>();
     private readonly Popup _popup;
@@ -135,10 +157,13 @@ internal sealed class SqlSearchFilterButton : Button
     /// <summary>選項區的高度上限；捲的是選項本身，搜尋框與兩顆命令鈕要一直看得見。</summary>
     private const double OptionsHeight = 280;
 
-    /// <param name="filterable">面板上要不要有搜尋框；名稱可能上百個的清單才需要。</param>
-    public SqlSearchFilterButton(string name, SqlIcon icon, bool filterable = false)
+    /// <param name="mode">單選、複選，或複選加搜尋框。</param>
+    public SqlSearchFilterButton(string name, SqlIcon icon, SqlSearchFilterMode mode = SqlSearchFilterMode.Multiple)
     {
         _name = name;
+        Mode = mode;
+        var single = mode == SqlSearchFilterMode.Single;
+        _options = SqlAssistChrome.CreateSearchOptionList(OptionsHeight, single);
         Style = SqlAssistChrome.CreateFilterButtonStyle();
         Template = SqlAssistChrome.CreateGhostButtonTemplate();
         Padding = new Thickness(6, 2, 6, 2);
@@ -157,7 +182,7 @@ internal sealed class SqlSearchFilterButton : Button
 
         var panel = new StackPanel();
 
-        if (filterable)
+        if (mode == SqlSearchFilterMode.SearchableMultiple)
         {
             _filter = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
             var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除" + name + "篩選字");
@@ -169,10 +194,13 @@ internal sealed class SqlSearchFilterButton : Button
             _filter.TextChanged += (_, _) => ApplyFilter();
         }
 
-        var commands = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-        commands.Children.Add(CreateCommand(SqlIcon.SelectAll, "全選", () => SelectAllRequested?.Invoke(this, EventArgs.Empty)));
-        commands.Children.Add(CreateCommand(SqlIcon.Clear, "清除", () => ClearRequested?.Invoke(this, EventArgs.Empty)));
-        panel.Children.Add(commands);
+        if (!single)
+        {
+            var commands = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+            commands.Children.Add(CreateCommand(SqlIcon.SelectAll, "全選", () => SelectAllRequested?.Invoke(this, EventArgs.Empty)));
+            commands.Children.Add(CreateCommand(SqlIcon.Clear, "清除", () => ClearRequested?.Invoke(this, EventArgs.Empty)));
+            panel.Children.Add(commands);
+        }
 
         panel.Children.Add(_options);
 
@@ -214,14 +242,28 @@ internal sealed class SqlSearchFilterButton : Button
     /// <summary>彈出面板的根節點；宿主必須對它套一次主題資源，Popup 不在宿主的視覺樹上。</summary>
     public FrameworkElement PopupSurface { get; }
 
+    /// <summary>單選、複選，或複選加搜尋框。</summary>
+    public SqlSearchFilterMode Mode { get; }
+
+    /// <summary>面板開著沒有；單選選完自動關閉由它驗。</summary>
+    public bool IsOpen => _popup.IsOpen;
+
     /// <summary>面板要開了；宿主在這時候才去填選項，不為了一個下拉先連一次資料庫。</summary>
     public event EventHandler? OptionsRequested;
 
+    /// <summary>全選；單選面板上沒有這顆鈕，也不會發這個事件。</summary>
     public event EventHandler? SelectAllRequested;
 
+    /// <summary>清除；單選面板上沒有這顆鈕，也不會發這個事件。</summary>
     public event EventHandler? ClearRequested;
 
     /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip 與 chip 列。</summary>
+    /// <remarks>
+    /// 收字之後主動把這顆按鈕整條路徑標成待量測。改 <see cref="UIElement.Visibility"/> 只把那兩個
+    /// <see cref="TextBlock"/> 標成 dirty，中間的版面容器仍然有效——平常由版面管理員在下一回合
+    /// 往上傳播，但工具列是在<b>同一個</b>量測回合裡立刻問寬度的，少了這一道會拿到收字前的那一份，
+    /// 而症狀是窄窗明明收了字卻還是換行。
+    /// </remarks>
     public bool IsCompact
     {
         get => _compact;
@@ -232,6 +274,13 @@ internal sealed class SqlSearchFilterButton : Button
             var visibility = value ? Visibility.Collapsed : Visibility.Visible;
             _label.Visibility = visibility;
             _summary.Visibility = visibility;
+
+            InvalidateMeasure();
+            for (DependencyObject? node = _label; node is not null; node = VisualTreeHelper.GetParent(node))
+            {
+                if (node is UIElement element) element.InvalidateMeasure();
+                if (ReferenceEquals(node, this)) break;
+            }
         }
     }
 
@@ -256,6 +305,21 @@ internal sealed class SqlSearchFilterButton : Button
     {
         OptionsRequested?.Invoke(this, EventArgs.Empty);
         _popup.IsOpen = true;
+    }
+
+    /// <summary>
+    /// 單選選完就關；宿主換完範圍之後才關，不搶在它前面。
+    /// </summary>
+    /// <remarks>
+    /// 只有「選上」才關。選項已經是選上的那一個時再按一次，radio 不會發出取消，
+    /// 而宿主重填選項時走的是繫結而不是這條路；真的收到 false 時那是宿主寫回來的，
+    /// 關掉面板等於替使用者關掉他還在看的清單。
+    /// </remarks>
+    private void CloseAfterPick(bool selected)
+    {
+        if (!selected) return;
+        _popup.IsOpen = false;
+        Focus();
     }
 
     private Button CreateCommand(SqlIcon icon, string label, Action run)
@@ -289,7 +353,7 @@ internal sealed class SqlSearchFilterButton : Button
             foreach (var item in group.Items)
             {
                 if (pattern.Length != 0 && item.Label.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) < 0) continue;
-                rows.Add(SqlSearchFilterRow.Option(item));
+                rows.Add(SqlSearchFilterRow.Option(item, Mode == SqlSearchFilterMode.Single ? CloseAfterPick : null));
             }
 
             if (rows.Count == start) continue;
@@ -325,9 +389,17 @@ internal sealed class SqlSearchFilterGroup
 internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
 {
     private readonly Action<bool>? _selected;
+    private readonly Action<bool>? _picked;
     private bool _isSelected;
 
-    private SqlSearchFilterRow(string label, string toolTip, Thickness margin, bool isCaption, bool isSelected, Action<bool>? selected)
+    private SqlSearchFilterRow(
+        string label,
+        string toolTip,
+        Thickness margin,
+        bool isCaption,
+        bool isSelected,
+        Action<bool>? selected,
+        Action<bool>? picked)
     {
         Label = label;
         ToolTip = toolTip;
@@ -335,14 +407,24 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
         IsCaption = isCaption;
         _isSelected = isSelected;
         _selected = selected;
+        _picked = picked;
     }
 
     /// <param name="first">整份清單的第一列不留上緣間距，否則面板頂端會多出一條空白。</param>
     public static SqlSearchFilterRow Caption(string title, bool first) =>
-        new(title, "", new Thickness(0, first ? 0 : 8, 0, 4), isCaption: true, isSelected: false, selected: null);
+        new(title, "", new Thickness(0, first ? 0 : 8, 0, 4), isCaption: true, isSelected: false, selected: null, picked: null);
 
-    public static SqlSearchFilterRow Option(SqlSearchFilterOption option) =>
-        new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected, option.Selected);
+    /// <param name="picked">選完之後要做的事（單選是關面板）；複選傳 null。</param>
+    public static SqlSearchFilterRow Option(SqlSearchFilterOption option, Action<bool>? picked = null) =>
+        new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected, option.Selected, picked);
+
+    /// <summary>
+    /// 單選鈕的群組名；每一列各一個，等於不讓 WPF 自動互斥。
+    /// </summary>
+    /// <remarks>
+    /// 互斥由模型負責，理由見 <c>SqlAssistChrome.CreateSearchOptionRow</c>。複選的列不讀它。
+    /// </remarks>
+    public string GroupName { get; } = Guid.NewGuid().ToString("N");
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -364,6 +446,7 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
             _isSelected = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
             _selected?.Invoke(value);
+            _picked?.Invoke(value);
         }
     }
 }

@@ -44,6 +44,41 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
+    public void 過濾選項照provider宣告的群與排序()
+    {
+        var options = SqlSearchBrowserModel.CategoryOptions(new[]
+        {
+            // 收納桶排在最後，而它在宣告清單裡的位置由當初加進去的時間決定；照 SortOrder 走才排得對。
+            new SearchCategory("catalog", "catalog.other", "Other", 1000, "catalog.other"),
+            new SearchCategory("catalog", "catalog.view", "View", 1, "catalog.objects"),
+            new SearchCategory("catalog", "catalog.table", "Table", 0, "catalog.objects"),
+            new SearchCategory("agent-job", "agent-job.job", "作業", 0, "agent-job"),
+        });
+
+        // 同一個 provider 的幾群連在一起，群內與群間都照 SortOrder；收納桶因此落在自己來源的最後，
+        // 而不是因為宣告得早就排到物件種類前面。
+        Assert.Equal(
+            new[] { "catalog.table", "catalog.view", "catalog.other", "agent-job.job" },
+            options.Select(option => option.Id).ToArray());
+        Assert.Equal(
+            new[] { "catalog.objects", "catalog.objects", "catalog.other", "agent-job" },
+            options.Select(option => option.GroupId).ToArray());
+    }
+
+    [Fact]
+    public void 段落標題取自provider的顯示字()
+    {
+        var options = SqlSearchBrowserModel.CategoryOptions(new ISearchProvider[]
+        {
+            new StubProvider("catalog", "catalog.table", "Table"),
+            new StubProvider("agent-job", "agent-job.job", "作業"),
+        });
+
+        // 標題是 provider 的名字，不是群的 Id：群是 provider 自己切的，使用者要分的是來源這一層。
+        Assert.Equal(new[] { "catalog", "agent-job" }, options.Select(option => option.GroupLabel).ToArray());
+    }
+
+    [Fact]
     public void 每一輪世代遞增且落後的結果整份丟棄()
     {
         var aggregator = new SearchAggregator(new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table", "Loan") });

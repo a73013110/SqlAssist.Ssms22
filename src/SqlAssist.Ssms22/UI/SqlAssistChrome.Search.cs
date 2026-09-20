@@ -301,9 +301,16 @@ internal static partial class SqlAssistChrome
     /// <c>IsVirtualizingWhenGrouping</c> 才虛擬化得了，而那是一個很容易漏掉的開關。
     /// </remarks>
     /// <param name="maxHeight">面板限高；捲的是選項本身，搜尋框與命令鈕要一直看得見。</param>
-    public static ItemsControl CreateSearchOptionList(double maxHeight)
+    /// <param name="single">
+    /// 單選：選項畫成 radio。形狀就是語意，勾選框排成一列而只有一個能生效，
+    /// 使用者會勾第二個然後發現第一個自己不見了。
+    /// </param>
+    public static ItemsControl CreateSearchOptionList(double maxHeight, bool single = false)
     {
-        var rows = new SearchOptionRowSelector(CreateSearchCaptionRow(), CreateSearchOptionRow(CreateCheckBoxTemplate()));
+        var option = single
+            ? CreateSearchOptionRow<RadioButton>(CreateRadioTemplate())
+            : CreateSearchOptionRow<CheckBox>(CreateCheckBoxTemplate());
+        var rows = new SearchOptionRowSelector(CreateSearchCaptionRow(), option);
         var list = new ItemsControl
         {
             MaxHeight = maxHeight,
@@ -349,15 +356,25 @@ internal static partial class SqlAssistChrome
         return template;
     }
 
-    /// <summary>選項列；與對話框的核取方塊同一個外觀，狀態由繫結帶。</summary>
+    /// <summary>選項列；與對話框的核取方塊（或單選鈕）同一個外觀，狀態由繫結帶。</summary>
     /// <remarks>
     /// <see cref="ToggleButton.IsCheckedProperty"/> 走雙向繫結而不是 <c>Checked</c>／<c>Unchecked</c>：
     /// 回收的容器換 DataContext 時繫結會把新值推進來，那不是使用者的動作，掛事件等於替他按一次。
+    ///
+    /// 單選那一份把 <see cref="RadioButton.GroupNameProperty"/> 繫到列自己的一個唯一字串，
+    /// 等於<b>關掉</b> WPF 依父容器自動互斥的那一套。互斥由模型負責：自動互斥會在使用者選了新的
+    /// 那一個之後才去取消舊的，而取消觸發的是同一組雙向繫結，症狀是剛選好的範圍被上一個
+    /// 選項的回呼清掉。虛擬化又讓它更難看——沒有實體化的那幾列根本不在群組裡。
     /// </remarks>
-    private static DataTemplate CreateSearchOptionRow(ControlTemplate box)
+    private static DataTemplate CreateSearchOptionRow<T>(ControlTemplate box) where T : ToggleButton
     {
-        var option = new FrameworkElementFactory(typeof(CheckBox));
+        var option = new FrameworkElementFactory(typeof(T));
         option.SetValue(Control.TemplateProperty, box);
+        if (typeof(T) == typeof(RadioButton))
+        {
+            option.SetBinding(RadioButton.GroupNameProperty, new Binding(nameof(SqlSearchFilterRow.GroupName)));
+        }
+
         option.SetValue(Control.FontFamilyProperty, InterfaceFont);
         option.SetValue(Control.FontSizeProperty, DefaultMetrics.Caption);
         option.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
