@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Analysis;
@@ -25,6 +26,61 @@ public sealed class TSqlScriptRendererTests
 
     private static string Render(SqlScriptOptions options, string? databaseCollation = null) =>
         TSqlScriptRenderer.Default.Render(LoanTableFixture.Create(), Context(options, databaseCollation));
+
+    // ── 版面 ──────────────────────────────────────────────────────────
+
+    /// <remarks>
+    /// 三組風格括號裡的每一行都縮排；頂格的話資料行會與 <c>CREATE TABLE</c> 齊頭，
+    /// 括號裡與括號外看起來同一層。SSMS 那一組用 Tab，其餘用空格。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlScriptStyle.Fidelity, "    ")]
+    [InlineData(SqlScriptStyle.SsmsNative, "\t")]
+    [InlineData(SqlScriptStyle.Minimal, "    ")]
+    public void 括號裡的資料行依風格縮排(SqlScriptStyle style, string indent)
+    {
+        var body = Body(Render(SqlScriptOptions.ForStyle(style)));
+
+        Assert.NotEmpty(body);
+        Assert.All(body, line => Assert.StartsWith(indent, line, StringComparison.Ordinal));
+    }
+
+    /// <remarks>
+    /// 內嵌的條件約束與資料行同一層。縮排由各自組字串處自己補的時候，漏掉的那一種
+    /// 會單獨頂格——看起來像跑出了括號，而快照只說得出「整份變了」。
+    /// </remarks>
+    [Fact]
+    public void 內嵌的條件約束與資料行同一層()
+    {
+        var body = Body(Render(SqlScriptOptions.Fidelity with
+        {
+            PrimaryKeyPlacement = SqlConstraintPlacement.Inline
+        }));
+
+        Assert.Contains(body, line => line.StartsWith("    CONSTRAINT [PK_Loan] ", StringComparison.Ordinal));
+    }
+
+    /// <remarks>縮排是選項，設成空字串仍要頂格，才有辦法回到舊版的排版。</remarks>
+    [Fact]
+    public void 縮排設成空字串時資料行頂格()
+    {
+        var body = Body(Render(SqlScriptOptions.Fidelity with { Indent = string.Empty }));
+
+        Assert.All(body, line => Assert.StartsWith("[", line, StringComparison.Ordinal));
+    }
+
+    /// <summary><c>CREATE TABLE</c> 括號裡的那幾行，不含開括號與收括號那一行。</summary>
+    /// <remarks>
+    /// 認的是「以開括號結尾」而不是「整行只有開括號」：SsmsNative 的開括號接在
+    /// 物件名稱後面（<c>BracePlacement.SameLine</c>），只認獨立一行的話那一組會
+    /// 取到空清單，而空清單通過任何 <c>Assert.All</c>。
+    /// </remarks>
+    private static string[] Body(string script) =>
+        script.Split('\n')
+            .SkipWhile(line => !line.EndsWith("(", StringComparison.Ordinal))
+            .Skip(1)
+            .TakeWhile(line => !line.StartsWith(")", StringComparison.Ordinal))
+            .ToArray();
 
     // ── 資料行 ────────────────────────────────────────────────────────
 
