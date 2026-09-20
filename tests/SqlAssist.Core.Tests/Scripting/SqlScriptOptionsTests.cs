@@ -26,6 +26,7 @@ public sealed class SqlScriptOptionsTests
         Assert.True(options.OmitAscendingKeyword);
         Assert.Equal(SqlSetOptionOutput.None, options.SetOptions);
         Assert.Equal(SqlCollationOutput.Always, options.Collation);
+        Assert.Equal("    ", options.Indent);
     }
 
     [Fact]
@@ -48,6 +49,19 @@ public sealed class SqlScriptOptionsTests
         Assert.False(options.IncludeFilegroup);
         Assert.False(options.QuoteDataTypes);
         Assert.Equal(SqlBatchSeparation.None, options.BatchSeparation);
+    }
+
+    /// <remarks>
+    /// 只有 SsmsNative 用 Tab，因為它要與內建「編寫指令碼為」逐字相同；其餘用空格，
+    /// 那份文字會被貼到各種 Tab 寬度的編輯器裡。頂格不是任何一組的預設值。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlScriptStyle.Fidelity, "    ")]
+    [InlineData(SqlScriptStyle.SsmsNative, "\t")]
+    [InlineData(SqlScriptStyle.Minimal, "    ")]
+    public void 三組風格都有縮排(SqlScriptStyle style, string indent)
+    {
+        Assert.Equal(indent, SqlScriptOptions.ForStyle(style).Indent);
     }
 
     [Fact]

@@ -69,8 +69,20 @@ public sealed record SqlScriptOptions
 
     // ── 版面 ──────────────────────────────────────────────────────────
 
-    /// <summary>資料行定義前面的縮排。Fidelity 風格頂格，因此預設是空字串。</summary>
-    public string Indent { get; init; } = string.Empty;
+    /// <summary>資料行定義與括號內條件約束前面的縮排。</summary>
+    /// <remarks>
+    /// 預設是四個空格，不是空字串：頂格寫的話資料行會與 <c>CREATE TABLE</c> 那一行
+    /// 齊頭，括號裡與括號外看起來同一層，讀的人得自己找邊界在哪裡。
+    ///
+    /// 空格而不是 Tab：那份文字會被貼到各種 Tab 寬度的編輯器裡，用 Tab 的話
+    /// 同一份指令碼在別人的視窗上是另一個樣子。<c>SsmsNative</c> 是例外，它要的
+    /// 正是與內建「編寫指令碼為」逐字相同。
+    ///
+    /// 套用的地方只有 <c>AppendColumns</c> 一處，括號裡的每一行都從那裡出去；
+    /// 由各自的組字串處自己加的症狀是新增一種括號內內容時忘了加，而那一行會
+    /// 單獨頂格。
+    /// </remarks>
+    public string Indent { get; init; } = "    ";
 
     public SqlBracePlacement BracePlacement { get; init; } = SqlBracePlacement.NewLine;
 

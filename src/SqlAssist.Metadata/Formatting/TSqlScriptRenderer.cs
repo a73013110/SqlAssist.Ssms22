@@ -178,6 +178,15 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             return;
         }
 
+        // 條件約束在健檢之前接走：健檢看的是一整張資料表（哪一個資料行沒有索引、
+        // 哪一條規則擋不住什麼），而這一份結構上一個資料行都沒有——跑出來的發現
+        // 會掛在一個不是它的物件上。
+        if (structure.Object.Kind == SqlObjectKind.Constraint)
+        {
+            AppendConstraint(statements, structure, context);
+            return;
+        }
+
         AppendAnalyzerComments(statements, structure, context);
 
         // SET 選項在這裡加，不在下面三支各加一次：漏掉其中一支的症狀是同一份
@@ -309,6 +318,84 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
                 .Append(" ON ").Append(tableName);
             statements.Add(new Statement(Terminate(disable, options).ToString(), batched: true));
         }
+    }
+
+    /// <summary>
+    /// 單獨一個條件約束：父物件上的那一句 <c>ALTER TABLE … ADD CONSTRAINT</c>。
+    /// </summary>
+    /// <remarks>
+    /// 四種寫法一個字都不另外組，全部走資料表那條路徑上既有的那幾支——同一個
+    /// 外來鍵在「整張表的指令碼」與「只要這一條」兩個表面上必須一模一樣，
+    /// 而另組一份的症狀是其中一邊漏掉 <c>ON DELETE</c> 或索引選項。
+    ///
+    /// <c>SET</c> 選項照樣寫，而且取<b>父物件</b>的那一份：<c>CHECK</c> 的運算式與
+    /// 計算資料行一樣受那兩個選項影響，建立當時的值只有父物件的儲存資訊說得出來。
+    ///
+    /// 名稱一律寫出來（<see cref="SqlConstraintNaming.Always"/>），即使風格說要省略
+    /// 系統配的名稱：使用者要的就是這一個名字的定義，省掉它之後交出去的是一段
+    /// 「某個沒有名字的條件約束」，而那一段貼上去會由引擎再配一個新名字。
+    /// </remarks>
+    private static void AppendConstraint(
+        List<Statement> statements,
+        SqlObjectStructure structure,
+        SqlScriptContext context)
+    {
+        // 這兩道由 SqlObjectStructure.CheckAvailability 保證：父物件在、名稱找得到，
+        // 不然上面的 TryBuildUnavailableScript 已經整段換成註解了。
+        var parent = structure.Parent!;
+        var match = parent.FindConstraint(structure.Object.Name);
+        var named = context.WithOptions(context.Options with { ConstraintNaming = SqlConstraintNaming.Always });
+        var options = named.Options;
+        var tableName = QualifiedName(parent.Object, options);
+
+        AppendSetOptions(statements, options, parent.Storage);
+
+        switch (match.Form)
+        {
+            case SqlConstraintForm.Check:
+                AppendCheckConstraint(statements, match.Check!, tableName, named);
+                return;
+
+            case SqlConstraintForm.Key:
+                statements.Add(new Statement(BuildConstraint(match.Index!, tableName, named), batched: true));
+                return;
+
+            case SqlConstraintForm.ForeignKey:
+                statements.Add(new Statement(BuildForeignKey(match.ForeignKey!, tableName, named), batched: true));
+                return;
+
+            default:
+                statements.Add(new Statement(BuildDefaultConstraint(match.Column!, tableName, named), batched: true));
+                return;
+        }
+    }
+
+    /// <summary>
+    /// 一個 <c>DEFAULT</c> 條件約束，寫成獨立的 <c>ALTER TABLE</c>。
+    /// </summary>
+    /// <remarks>
+    /// 資料表那條路徑把它寫在資料行定義的尾巴（<see cref="AppendDefault"/>），
+    /// 而單獨一個條件約束沒有資料行可以掛，只能走 <c>FOR 資料行</c> 這個寫法。
+    /// 兩支的共同部分（要不要寫名稱、運算式從哪裡來）仍然共用同一組欄位與同一份
+    /// <see cref="AppendConstraintName"/>。
+    /// </remarks>
+    private static string BuildDefaultConstraint(
+        SqlColumnInfo column,
+        string tableName,
+        SqlScriptContext context)
+    {
+        var options = context.Options;
+        var builder = new StringBuilder();
+        builder.Append("ALTER TABLE ").Append(tableName).Append(" ADD ");
+        AppendConstraintName(builder, column.Script.DefaultConstraintName, column.Script.DefaultIsSystemNamed, options);
+        builder.Append("DEFAULT ").Append(column.DefaultDefinition)
+            .Append(" FOR ").Append(Identifier(column.Name, options));
+
+        var statement = Terminate(builder, options).ToString();
+
+        return GuardsEnabled(options)
+            ? Guard(statement, ConstraintMissing(column.Script.DefaultConstraintName!, tableName, options), context)
+            : statement;
     }
 
     /// <summary>
@@ -677,7 +764,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         if (structure.PrimaryKey is { } primaryKey)
         {
-            constraints.Add(options.Indent + "PRIMARY KEY " + primaryKey.TypeDescription +
+            constraints.Add("PRIMARY KEY " + primaryKey.TypeDescription +
                             " (" + KeyColumns(primaryKey, options) + ")");
         }
 
@@ -718,7 +805,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         if (options.PrimaryKeyPlacement == SqlConstraintPlacement.Inline &&
             structure.PrimaryKey is { } primaryKey)
         {
-            constraints.Add(options.Indent + InlineConstraintBody(primaryKey, options));
+            constraints.Add(InlineConstraintBody(primaryKey, options));
         }
 
         if (options.IncludeIndexes && options.UniqueConstraintPlacement == SqlConstraintPlacement.Inline)
@@ -727,7 +814,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             {
                 if (index.IsUniqueConstraint)
                 {
-                    constraints.Add(options.Indent + InlineConstraintBody(index, options));
+                    constraints.Add(InlineConstraintBody(index, options));
                 }
             }
         }
@@ -749,6 +836,10 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
     /// <remarks>
     /// 最後一個資料行後面要不要逗號，看的是它後面還有沒有條件約束那幾行。
+    ///
+    /// 縮排在這裡一次套到括號裡的每一行，<paramref name="trailing"/> 進來時是
+    /// 頂格的。由組字串的那幾處各自補的症狀是新增一種括號內內容時漏掉一處，
+    /// 而那一行會單獨頂格——看起來像跑出了括號。
     /// </remarks>
     private static void AppendColumns(
         StringBuilder builder,
@@ -773,7 +864,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         for (var index = 0; index < trailing.Count; index++)
         {
-            builder.Append(trailing[index]);
+            builder.Append(context.Options.Indent).Append(trailing[index]);
 
             if (index < trailing.Count - 1)
             {
