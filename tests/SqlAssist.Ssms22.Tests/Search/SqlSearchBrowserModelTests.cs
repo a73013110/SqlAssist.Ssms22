@@ -582,9 +582,6 @@ public sealed class SqlSearchBrowserModelTests
             new[] { "伺服器: LIBSQL01", "資料庫: LibArchive", "種類: Table" },
             model.Chips().Select(chip => chip.Label).ToArray());
 
-        // 只有自己有面板的維度，chip 本體才按得下去；大小寫與全字是搜尋框裡常駐的開關。
-        Assert.All(model.Chips(), chip => Assert.True(chip.HasPanel));
-
         Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "伺服器: LIBSQL01")));
         Assert.Null(model.Server);
         Assert.Equal("查詢視窗（未連線）", model.ServerSummary());
@@ -606,7 +603,7 @@ public sealed class SqlSearchBrowserModelTests
     [Fact]
     public void 預設狀態沒有任何chip而一個維度只有一顆且清掉它就清掉整個維度()
     {
-        var model = new SqlSearchBrowserModel { MatchCasing = true, HasConnection = true };
+        var model = new SqlSearchBrowserModel { MatchCasing = true, WholeWord = true, HasConnection = true };
         model.UseCategories(Categories());
         model.SetCategorySelected("catalog.view", selected: true);
         model.SetCategorySelected("catalog.table", selected: true);
@@ -615,20 +612,16 @@ public sealed class SqlSearchBrowserModelTests
 
         // 一維度一顆：勾了八個資料庫就畫八顆的那一版會長到三列，而那三列換算成少看六筆結果。
         // 數量與按鈕摘要是同一份字，兩處不會說得不一樣。
+        // 大小寫與全字開著也不上這一列：它們是搜尋框裡常駐可見的開關，不是清得掉的條件。
         Assert.Equal(
-            new[] { "資料庫: 2 個", "種類: 2 種", "大小寫" },
+            new[] { "資料庫: 2 個", "種類: 2 種" },
             model.Chips().Select(chip => chip.Label).ToArray());
 
         // 十字清掉的是整個維度；「是哪幾個」要調整的話，chip 本體開的是那個維度自己的面板。
         Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "種類: 2 種")));
         Assert.Empty(model.CategoryIds);
-        Assert.Equal(
-            new[] { "資料庫: 2 個", "大小寫" },
-            model.Chips().Select(chip => chip.Label).ToArray());
-
-        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "大小寫")));
-        Assert.False(model.MatchCasing);
-        Assert.True(model.Chips().Single().HasPanel);
+        Assert.True(model.MatchCasing);
+        Assert.True(model.WholeWord);
 
         // 一個的時候寫名字，數量沒有意義。
         model.SetDatabaseSelected("LibReporting", selected: false);

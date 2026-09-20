@@ -86,6 +86,9 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
     {
         switch (action)
         {
+            case SqlMemoryUsageAction.Refresh:
+                Reload();
+                break;
             case SqlMemoryUsageAction.Maintain:
                 Start(NotificationCatalog.MaintainingSqlMemory, "維護", "正在依保留規則維護…", deletes: true, async progress =>
                 {

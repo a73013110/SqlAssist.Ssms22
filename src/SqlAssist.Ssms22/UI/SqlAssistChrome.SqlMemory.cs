@@ -136,17 +136,32 @@ internal static partial class SqlAssistChrome
         return indicator;
     }
 
+    /// <summary>
+    /// 「目前連線」：與排序、重新整理同一種圖示鈕，坐在搜尋列右緣。
+    /// </summary>
+    /// <remarks>
+    /// 圖示鈕而不是帶文字的按鈕：它與重新整理是同一類——作用在<b>這一份清單</b>，而那一列
+    /// 的寬度要留給搜尋框。帶著文字的那一版在 300 DIP 的停靠面板裡吃掉三分之一個搜尋框，
+    /// 而它本來就不是主要動作；字留在 Tooltip 與自動化名稱裡。
+    /// </remarks>
     public static Button CreateMemoryConnectionButton()
     {
-        var button = CreateButton("", DefaultMetrics);
-        button.Content = CreateIconLabel(SqlIcon.Connection, "目前連線");
-        button.ToolTip = "使用目前作用中 SQL 查詢視窗的伺服器與資料庫篩選；不切換連線。";
+        var button = CreateIconButton(
+            SqlIcon.Connection, "目前連線：使用目前作用中 SQL 查詢視窗的伺服器與資料庫篩選；不切換連線。");
         AutomationProperties.SetName(button, "以目前連線篩選");
         return button;
     }
 
-    /// <param name="connection">只屬於清單分頁的操作；呼叫端在用量分頁收起它，工具列會重新決定文字要不要收。</param>
-    public static Grid CreateMemoryToolbar(TabControl tabs, Button connection, Button refresh, Button settings)
+    /// <summary>
+    /// SQL Memory 的第一列：左邊是分頁，右邊只有設定。
+    /// </summary>
+    /// <remarks>
+    /// 作用在<b>目前這一份</b>的操作（目前連線、重新整理）不在這裡，它們跟著搜尋列走
+    /// （見 <see cref="SqlInputRow"/>）：分頁列回答的是「在看哪一種東西」，而設定是跨分頁的
+    /// 共通設定，兩者都不隨分頁換意思。混在一起的那一版讓使用者在切到用量分頁之後，
+    /// 還得先看懂那顆重新整理現在是在整理什麼。
+    /// </remarks>
+    public static Grid CreateMemoryToolbar(TabControl tabs, Button settings)
     {
         var toolbar = new Grid { MinHeight = 32, Margin = new Thickness(0, 0, 0, 6) };
         toolbar.ColumnDefinitions.Add(new ColumnDefinition());
@@ -156,26 +171,17 @@ internal static partial class SqlAssistChrome
         toolbar.Children.Add(tabs);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(actions, 1); toolbar.Children.Add(actions);
-        var labels = new System.Collections.Generic.List<TextBlock>();
-        var connectionLabel = (TextBlock)((Panel)connection.Content).Children[1];
-        foreach (var entry in new[] { (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
-        {
-            var content = CreateIconLabel(entry.Item2, entry.Item3);
-            labels.Add((TextBlock)content.Children[1]); entry.Item1.Content = content;
-            entry.Item1.ToolTip = entry.Item3; AutomationProperties.SetName(entry.Item1, entry.Item3);
-        }
-        foreach (var button in new[] { connection, refresh, settings })
-        {
-            button.Height = 28; button.MinWidth = 28; button.Padding = new Thickness(6, 3, 6, 3);
-            button.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(button);
-        }
-        // 窄窗先收起次要操作文字，再收起分頁文字；不換行、不改變高度，維持分頁與圖示共用中心線。
-        // 分頁文字依實際寬度決定：分頁數與按鈕數會變，寫死門檻遲早又讓分頁列折成兩行。
+        var content = CreateIconLabel(SqlIcon.Settings, "設定");
+        var label = (TextBlock)content.Children[1];
+        settings.Content = content; settings.ToolTip = "設定"; AutomationProperties.SetName(settings, "設定");
+        settings.Height = 28; settings.MinWidth = 28; settings.Padding = new Thickness(6, 3, 6, 3);
+        settings.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(settings);
+        // 窄窗先收起設定的文字，再收起分頁文字；不換行、不改變高度，維持分頁與圖示共用中心線。
+        // 分頁文字依實際寬度決定：分頁數會變，寫死門檻遲早又讓分頁列折成兩行。
         void UpdateLabels()
         {
             var width = toolbar.ActualWidth;
-            foreach (var label in labels) label.Visibility = width >= 560 ? Visibility.Visible : Visibility.Collapsed;
-            connectionLabel.Visibility = width >= 380 ? Visibility.Visible : Visibility.Collapsed;
+            label.Visibility = width >= MemoryActionLabelWidth ? Visibility.Visible : Visibility.Collapsed;
             SetTabLabels(tabs, Visibility.Visible);
             tabs.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             actions.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
@@ -183,11 +189,14 @@ internal static partial class SqlAssistChrome
             // 量測只為了比寬度；交回版面系統用欄寬重新量測，不沿用無限寬的結果。
             tabs.InvalidateMeasure(); actions.InvalidateMeasure();
         }
-        // 按鈕列只隨寬度門檻與連線按鈕的收起改變，分頁文字不影響它，不會互相觸發。
+        // 按鈕列只隨寬度門檻改變，分頁文字不影響它，不會互相觸發。
         toolbar.SizeChanged += (_, _) => UpdateLabels();
         actions.SizeChanged += (_, e) => { if (e.WidthChanged) UpdateLabels(); };
         return toolbar;
     }
+
+    /// <summary>窄到這裡以下設定只留圖示；分頁文字再窄一階才收，兩者不同時消失。</summary>
+    private const double MemoryActionLabelWidth = 420d;
 
     private static void SetTabLabels(TabControl tabs, Visibility visibility)
     {
@@ -235,14 +244,6 @@ internal static partial class SqlAssistChrome
         usage.Header is DockPanel { Children.Count: > 0 } content && content.Children[0] is Grid { Children.Count: 2 } glyph
             ? glyph.Children[1] as Ellipse
             : null;
-
-    /// <param name="trailing">清除鈕之外還要放進搜尋列的控制項，由右往左排在它前面。</param>
-    public static Border CreateSearchBar(TextBox input, Button clear, params FrameworkElement[] trailing)
-    {
-        var bar = CreateInputBar(SqlIcon.Search, input, clear, trailing);
-        bar.Margin = new Thickness(0, 0, 0, 6);
-        return bar;
-    }
 
     /// <summary>前置語意圖示、輸入欄與尾端按鈕共用一個外框；搜尋列與收藏標註欄位同一種外觀。</summary>
     /// <param name="extra">

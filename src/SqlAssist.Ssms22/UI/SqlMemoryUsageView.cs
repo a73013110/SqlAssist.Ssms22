@@ -10,7 +10,7 @@ using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
 
-internal enum SqlMemoryUsageAction { Maintain, Cleanup, Compact, Backup, OpenFolder, SelfTest }
+internal enum SqlMemoryUsageAction { Refresh, Maintain, Cleanup, Compact, Backup, OpenFolder, SelfTest }
 
 /// <summary>
 /// SQL Memory 的用量分頁：容量量表、健康狀態、配額、各類筆數、伺服器分布、整理動作、儲存診斷與最近的整理紀錄。
@@ -43,6 +43,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
     private readonly Ellipse _healthDot = new() { Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center };
     private readonly TextBlock _healthTitle;
     private readonly TextBlock _capacityValue;
+    private readonly Button _refresh;
     private readonly TextBlock _healthDetail;
     private readonly SqlUsageMeter _capacity = new(8);
     private readonly TextBlock _capacityDetail;
@@ -97,6 +98,11 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _compactHint.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Compact, "壓縮以縮小檔案");
         _compactHint.Padding = new Thickness(6, 2, 6, 2);
         _compactHint.Click += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Compact);
+        // 重新整理跟著它整理的那一份走：用量的數字全在這張卡片上，接在容量後面就是它的右緣。
+        // 分頁列上那一顆的問題是它得先問「現在是哪一個分頁」，而使用者看到的只是一顆通用按鈕。
+        _refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理：重讀用量。");
+        _refresh.Click += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Refresh);
+        _buttons[SqlMemoryUsageAction.Refresh] = _refresh;
         _hero = BuildHero();
         _content.Children.Add(_hero);
 
@@ -129,6 +135,8 @@ internal sealed class SqlMemoryUsageView : DockPanel
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false, Padding = new Thickness(0, 0, 2, 8)
         };
         _loading = new SqlStateSurface(scroll);
+        // 表面上那一步與卡片上那一顆是同一件事；做什麼由宿主決定，這裡只轉發。
+        _loading.ActionRequested += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Refresh);
         Children.Add(_loading);
         _content.Visibility = Visibility.Collapsed;
 
@@ -148,14 +156,14 @@ internal sealed class SqlMemoryUsageView : DockPanel
     public void BeginLoad()
     {
         SetMessage("");
-        _loading.IsLoading = !_hasSummary;
+        _loading.State = _hasSummary ? SqlSurfaceState.None : SqlSurfaceState.Loading;
     }
 
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
     public void ShowSummary(SqlMemoryUsageSummary summary, bool? motion = null)
     {
         if (summary == null) throw new ArgumentNullException(nameof(summary));
-        _loading.IsLoading = false;
+        _loading.State = SqlSurfaceState.None;
         var first = !_hasSummary;
         _hasSummary = true;
         _content.Visibility = Visibility.Visible;
@@ -192,17 +200,31 @@ internal sealed class SqlMemoryUsageView : DockPanel
         if (first) SqlAssistChrome.PlayAppear(_content, motion);
     }
 
-    /// <summary>讀取失敗：保留已有的畫面並說明原因，不以空白冒充零用量。</summary>
+    /// <summary>
+    /// 讀取失敗：保留已有的畫面並說明原因，不以空白冒充零用量。
+    /// </summary>
+    /// <remarks>
+    /// 還沒有任何一份數字時換成狀態表面，而且帶著「重新整理」那一步：重新整理在這一頁是
+    /// 狀態卡片上的一顆按鈕，而那張卡片在第一次就失敗時根本還沒畫出來——只留一行淡色的
+    /// 原因等於把使用者留在一個沒有出口的畫面上。
+    /// </remarks>
     public void ShowFailure(string message)
     {
-        _loading.IsLoading = false;
-        SetMessage(message);
+        if (_hasSummary)
+        {
+            _loading.State = SqlSurfaceState.None;
+            SetMessage(message);
+            return;
+        }
+
+        SetMessage("");
+        _loading.State = SqlSurfaceState.Unreadable(message, "重新整理");
     }
 
     /// <summary>儲存已停用或換了一份：舊數字不屬於現在的資料庫，整頁收起；原因由工具窗的狀態列說明。</summary>
     public void Clear()
     {
-        _loading.IsLoading = false;
+        _loading.State = SqlSurfaceState.None;
         _hasSummary = false;
         _content.Visibility = Visibility.Collapsed;
         SetMessage("");
@@ -246,6 +268,9 @@ internal sealed class SqlMemoryUsageView : DockPanel
     {
         var stack = new StackPanel();
         var top = new DockPanel();
+        // 先停靠的吃到最右邊：重新整理在容量數字的右側，兩者與健康狀態共用同一條中心線。
+        _refresh.VerticalAlignment = VerticalAlignment.Center; _refresh.Margin = new Thickness(8, 0, -4, 0);
+        SetDock(_refresh, Dock.Right); top.Children.Add(_refresh);
         _capacityValue.VerticalAlignment = VerticalAlignment.Center;
         SetDock(_capacityValue, Dock.Right); top.Children.Add(_capacityValue);
         _healthDot.Margin = new Thickness(0, 0, 8, 0);

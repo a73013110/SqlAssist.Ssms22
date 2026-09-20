@@ -252,14 +252,14 @@ public sealed class SqlMemoryUsageViewTests
             tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 2;
-            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
-            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, connection,
-                SqlAssistChrome.CreateButton("重新整理", SqlAssistChrome.DefaultMetrics), SqlAssistChrome.CreateButton("設定", SqlAssistChrome.DefaultMetrics));
+            var settings = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, settings);
             var host = new Border { Child = toolbar };
             host.Resources.MergedDictionaries.Add(palette.Resources);
             TextBlock Label(int index) => (TextBlock)((DockPanel)((TabItem)tabs.Items[index]).Header).Children[1];
+            var settingsLabel = (TextBlock)((Panel)settings.Content).Children[1];
 
-            foreach (var (width, labels) in new[] { (740, true), (284, false), (740, true) })
+            foreach (var (width, labels) in new[] { (740, true), (220, false), (740, true) })
             {
                 Layout(host, width, 40); Layout(host, width, 40);
                 Assert.Equal(labels, Label(0).Visibility == Visibility.Visible);
@@ -268,9 +268,9 @@ public sealed class SqlMemoryUsageViewTests
                 Assert.InRange(toolbar.Children.OfType<StackPanel>().Single().TranslatePoint(new Point(), host).X, tabs.ActualWidth, width);
             }
 
-            // 用量分頁收起「目前連線」後按鈕列變窄，同一個寬度可以重新放回分頁文字。
-            connection.Visibility = Visibility.Collapsed;
+            // 先收設定的文字，再收分頁文字；兩者不同時消失，窄窗仍看得出現在在哪一個分頁。
             Layout(host, 360, 40); Layout(host, 360, 40);
+            Assert.Equal(Visibility.Collapsed, settingsLabel.Visibility);
             Assert.Equal(Visibility.Visible, Label(1).Visibility);
         });
     }

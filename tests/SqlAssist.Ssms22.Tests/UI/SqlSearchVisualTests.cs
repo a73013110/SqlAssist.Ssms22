@@ -116,6 +116,110 @@ public sealed class SqlSearchVisualTests
         });
     }
 
+    /// <summary>
+    /// 那一列的規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份結果的操作。
+    /// </summary>
+    /// <remarks>
+    /// 輸入框吃剩餘寬度而不是平分：讓得起的只有它，右邊那幾顆是固定寬的。收起的那一顆
+    /// 連它前面那一段間距一起讓開，否則 SQL Memory 切到用量分頁時右邊會留一塊空白。
+    /// </remarks>
+    [Fact]
+    public void 輸入列讓輸入框吃剩餘寬度而收起的操作連間距一起讓開()
+    {
+        WpfTest.Run(() =>
+        {
+            var input = SqlAssistChrome.CreateInputBar(
+                SqlIcon.Search,
+                SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
+            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
+            var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
+            var row = new SqlInputRow(input, connection, refresh);
+            var host = new Border { Child = row };
+
+            void Layout(double width)
+            {
+                host.Measure(new Size(width, double.PositiveInfinity));
+                host.Arrange(new Rect(0, 0, width, host.DesiredSize.Height));
+                host.UpdateLayout();
+            }
+
+            Layout(400);
+            var tail = connection.ActualWidth + refresh.ActualWidth;
+            Assert.InRange(input.ActualWidth, 400 - tail - 20, 400 - tail - 8);
+            // 每一顆都在輸入框右邊，而且排得進這一列。
+            Assert.InRange(connection.TranslatePoint(new Point(), host).X, input.ActualWidth, 400);
+            Assert.InRange(refresh.TranslatePoint(new Point(refresh.ActualWidth, 0), host).X, 0, 400.5);
+            // 同一條視覺中心線；高度不同的控制項不各自貼著上緣。
+            Assert.Equal(
+                input.TranslatePoint(new Point(0, input.ActualHeight / 2), host).Y,
+                refresh.TranslatePoint(new Point(0, refresh.ActualHeight / 2), host).Y,
+                1);
+
+            var narrowInput = input.ActualWidth;
+            var refreshEdge = refresh.TranslatePoint(new Point(), host).X;
+            var hidden = connection.ActualWidth;
+            connection.Visibility = Visibility.Collapsed;
+            row.InvalidateMeasure();
+            Layout(400);
+            // 收起的那一顆連它前面那一段間距一起還給輸入框；只跳過元素的話這裡會少 4 DIP，
+            // 而右緣那一顆仍然貼著同一個位置。
+            Assert.Equal(narrowInput + hidden + 4, input.ActualWidth, 1);
+            Assert.Equal(refreshEdge, refresh.TranslatePoint(new Point(), host).X, 1);
+
+            // 再窄也保留打得下字的欄位；右邊那幾顆不被擠掉。
+            Layout(160);
+            Assert.InRange(input.ActualWidth, SqlInputRow.MinInputWidth, 160);
+        });
+    }
+
+    /// <summary>
+    /// 搜尋框裡那兩顆開關「開著」時看得出來：強調底與強調框，不是與底色同色的一圈外框。
+    /// </summary>
+    /// <remarks>
+    /// 它們不上已選條件列，所以這一顆本身就是唯一的呈現；關著與開著只差一條髮絲線的那一版
+    /// 等於沒有狀態。
+    /// </remarks>
+    [Fact]
+    public void 搜尋框裡的開關開著時用強調色而不是與搜尋框同底的外框()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var toggle = SqlAssistChrome.CreateSearchToggle(SqlIcon.MatchCase, "大小寫", "只取大小寫完全相同的本文命中。");
+            var bar = SqlAssistChrome.CreateInputBar(
+                SqlIcon.Search, SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"), toggle);
+            var host = new Border { Child = bar };
+            host.Resources.MergedDictionaries.Add(palette.Resources);
+
+            foreach (var mode in new[] { "light", "dark", "high-contrast" })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(mode));
+                host.Measure(new Size(300, 60)); host.Arrange(new Rect(0, 0, 300, 60)); host.UpdateLayout();
+
+                var box = (Border)toggle.Template.FindName("toggle", toggle);
+                Assert.Same(Brushes.Transparent, box.Background);
+
+                toggle.IsChecked = true;
+                host.UpdateLayout();
+                Assert.Same(palette.Resources[ThemeBrush.AccentBackground], box.Background);
+                Assert.Same(palette.Resources[ThemeBrush.AccentBorder], box.BorderBrush);
+                // 底色與搜尋框自己的底不是同一個，否則開著與關著在畫面上讀不出差別；
+                // 高對比沒有底色可分，改由強調框負責，而它上面已經驗過了。
+                if (mode != "high-contrast")
+                {
+                    Assert.NotEqual(
+                        ((SolidColorBrush)bar.Background).Color, ((SolidColorBrush)box.Background).Color);
+                }
+
+                toggle.IsChecked = false;
+                host.UpdateLayout();
+                Assert.Same(Brushes.Transparent, box.Background);
+            }
+        });
+    }
+
     [Fact]
     public void 工具列兩層且窄窗先收字再依群組換行()
     {
@@ -243,11 +347,8 @@ public sealed class SqlSearchVisualTests
             var opened = new List<string>();
             chips.RemoveRequested += chip => removed.Add((string)chip);
             chips.OpenRequested += chip => opened.Add((string)chip);
-            // 第三顆沒有面板（大小寫是搜尋框裡常駐的開關），本體按不下去，只有十字。
-            chips.SetChips(
-                new[] { "資料庫: 8 個", "種類: 2 種", "大小寫" },
-                chip => chip,
-                chip => chip != "大小寫");
+            // 上這一列的都是清得掉、也開得了面板的維度；大小寫與全字是搜尋框裡常駐的開關，不上來。
+            chips.SetChips(new[] { "伺服器: LIBSQL01", "資料庫: 8 個", "種類: 2 種" }, chip => chip);
             Assert.Equal(Visibility.Visible, chips.Visibility);
 
             var host = new Border { Child = chips };
@@ -255,9 +356,9 @@ public sealed class SqlSearchVisualTests
             host.Arrange(new Rect(0, 0, 400, 100));
             host.UpdateLayout();
 
-            // 兩顆可開的 chip 各有本體與十字，第三顆只有十字。
+            // 每一顆都有本體與十字。
             var buttons = Descendants<Button>(chips).ToArray();
-            Assert.Equal(5, buttons.Length);
+            Assert.Equal(6, buttons.Length);
 
             // 十字清掉整個維度；本體開的是那個維度自己的面板。
             buttons.Single(button => (string)button.ToolTip == "清除條件：資料庫: 8 個")
@@ -271,9 +372,8 @@ public sealed class SqlSearchVisualTests
             var strip = Descendants<StackPanel>(chips).First(panel => panel.Orientation == Orientation.Horizontal);
             var single = strip.DesiredSize.Height;
             chips.SetChips(
-                new[] { "伺服器: LIBSQL01", "資料庫: 12 個", "種類: 6 種", "大小寫", "全字" },
-                chip => chip,
-                chip => chip != "大小寫" && chip != "全字");
+                new[] { "伺服器: LIBSQL01.分公司.內部網路", "資料庫: 12 個", "種類: 6 種" },
+                chip => chip);
             host.Measure(new Size(200, 100));
             host.Arrange(new Rect(0, 0, 200, 100));
             host.UpdateLayout();
@@ -303,8 +403,10 @@ public sealed class SqlSearchVisualTests
             var option = SqlAssistChrome.CreateCheckBoxTemplate();
             var segment = (ControlTemplate)SqlAssistChrome.CreateSegmentToggleStyle().Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
+            var toggle = (ControlTemplate)SqlAssistChrome.CreateInputToggleStyle().Setters
+                .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
 
-            foreach (var template in new[] { card, option, segment })
+            foreach (var template in new[] { card, option, segment, toggle })
             foreach (var trigger in template.Triggers.OfType<Trigger>())
             {
                 Assert.DoesNotContain(trigger.Setters.OfType<Setter>(), setter => layoutProperties.Contains(setter.Property));

@@ -29,11 +29,11 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 清單列的寬度模式與窄版門檻（宿主量一次，可繼承） | `Ssms22/UI/SqlRowLayout.cs` |
 | 圖示加標籤的分頁 | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾面板（單／複選、第一列的預設、續頁、排序） | `Ssms22/UI/SqlFilterFlyout.cs` |
-| 篩選的兩級分隔線 | `Ssms22/UI/SqlAssistChrome.Filters.cs` 的 `CreateFilterGroupDivider`／`CreateFilterItemDivider` |
+| 篩選的兩級分隔線、過濾面板的按鈕樣式與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 工具列那一列篩選（分群、換行） | `Ssms22/UI/SqlFilterBar.cs` |
+| 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕、框裡開關開著的外觀 | `Ssms22/UI/SqlInputRow.cs`、`SqlAssistChrome.Search.cs` 的 `CreateInputToggleStyle` |
 | 展開／收合箭頭與它的轉向（下拉、排序選單、預覽把手） | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `CreateChevron`／`SetChevronExpanded` |
 | 列操作的揭露條件與揭露動畫（滑鼠與鍵盤兩條路同一份） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `RevealRowActions` |
-| 過濾面板的按鈕樣式與選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
 | 載入、空、讀不到與權限不足四種狀態 | `Ssms22/UI/SqlStateSurface.cs`，狀態與文案在 `SqlSurfaceState.cs` |
 | 面板裡的一行狀態（正在讀取或讀不到，含轉圈停轉規則） | `Ssms22/UI/SqlBusyNotice.cs` |

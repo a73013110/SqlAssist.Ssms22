@@ -289,10 +289,8 @@ internal static partial class SqlAssistChrome
     /// 後者沒有停駐回饋、進不了 Tab 順序，也唸不出自動化名稱，而這一列在條件很多時正是
     /// 使用者唯一的入口。
     /// </remarks>
-    /// <param name="openHint">
-    /// 本體按下去會做什麼（接在 chip 的字後面唸）；null 表示本體不可按，<paramref name="open"/> 為 null。
-    /// </param>
-    public static Border CreateFilterChip(string text, out Button remove, out Button? open, string? openHint = null)
+    /// <param name="openHint">本體按下去會做什麼（接在 chip 的字後面唸）。</param>
+    public static Border CreateFilterChip(string text, string openHint, out Button remove, out Button open)
     {
         var content = new DockPanel { VerticalAlignment = VerticalAlignment.Center };
 
@@ -318,22 +316,14 @@ internal static partial class SqlAssistChrome
             ToolTip = text
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
 
-        if (openHint is null)
-        {
-            open = null;
-            content.Children.Add(label);
-        }
-        else
-        {
-            open = CreateButton("", DefaultMetrics);
-            open.Content = label;
-            open.Template = CreateGhostButtonTemplate();
-            open.Padding = new Thickness(2, 0, 2, 0);
-            open.MinHeight = 18;
-            open.ToolTip = text + openHint;
-            AutomationProperties.SetName(open, text + openHint);
-            content.Children.Add(open);
-        }
+        open = CreateButton("", DefaultMetrics);
+        open.Content = label;
+        open.Template = CreateGhostButtonTemplate();
+        open.Padding = new Thickness(2, 0, 2, 0);
+        open.MinHeight = 18;
+        open.ToolTip = text + openHint;
+        AutomationProperties.SetName(open, text + openHint);
+        content.Children.Add(open);
 
         return new Border
         {
@@ -349,17 +339,23 @@ internal static partial class SqlAssistChrome
     }
 
 
-    /// <summary>搜尋框裡的選項開關（大小寫、全字）；切換鈕沿用分段開關那一段的外觀。</summary>
+    /// <summary>
+    /// 搜尋框裡的選項開關（大小寫、全字）。
+    /// </summary>
     /// <remarks>
     /// 放在搜尋框裡而不是工具列上，是因為它們修飾的是<b>這個字串怎麼比</b>，不是搜哪裡；
-    /// 而且工具列已經被真正的篩選佔滿，多兩顆就換不到一列。
+    /// 而且工具列已經被真正的篩選佔滿，多兩顆就換不到一列。常駐可見就是它們的完整呈現，
+    /// 下面的已選條件列不再替它們畫一顆 chip——那等於同一件事說兩次，而且它<b>不是</b>
+    /// 一顆按十字就清得掉的條件，使用者清掉之後回頭找不到自己剛剛關掉的是哪一個開關。
+    ///
+    /// 因此「開著」必須在這一顆上看得出來，走 <see cref="CreateInputToggleStyle"/>。
     /// </remarks>
     public static ToggleButton CreateSearchToggle(SqlIcon icon, string label, string toolTip)
     {
         var toggle = new ToggleButton
         {
             Content = CreateIcon(icon),
-            Style = CreateSegmentToggleStyle(),
+            Style = CreateInputToggleStyle(),
             Padding = new Thickness(4),
             Margin = new Thickness(0, 0, 2, 0),
             MinWidth = 24,
@@ -367,6 +363,62 @@ internal static partial class SqlAssistChrome
         };
         AutomationProperties.SetName(toggle, label);
         return toggle;
+    }
+
+    /// <summary>
+    /// 搜尋框<b>裡面</b>那種開關的外觀：開著時用強調底與強調框，與核取方塊的「打勾」同一組色。
+    /// </summary>
+    /// <remarks>
+    /// 不沿用分段開關那一份：那一份的選取是「底槽裡浮起來的一段」，底色刻意與
+    /// <see cref="ThemeBrush.ListBackground"/> 相同，而搜尋框的底色<b>正是</b>它——
+    /// 疊上去之後開著與關著的差別只剩一圈髮絲線，看起來像一個沒對齊的外框而不是一個狀態。
+    ///
+    /// 開著與停駐的順序不能反：兩個條件同時成立時，後宣告的那一個才是使用者要看的，
+    /// 而滑鼠掃過一顆開著的開關時不該讓它看起來像關掉了。
+    ///
+    /// 狀態不只靠顏色：圖示本身說的是哪一種比對，開關的按下狀態另由
+    /// <see cref="System.Windows.Automation.TogglePattern"/> 唸得出來。
+    /// </remarks>
+    public static Style CreateInputToggleStyle()
+    {
+        var box = new FrameworkElementFactory(typeof(Border)) { Name = "toggle" };
+        box.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        box.SetValue(Border.BorderBrushProperty, Brushes.Transparent);
+        box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
+        box.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+
+        var label = new FrameworkElementFactory(typeof(ContentPresenter)) { Name = "label" };
+        label.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        label.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        box.AppendChild(label);
+
+        var template = new ControlTemplate(typeof(ToggleButton)) { VisualTree = box };
+
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "toggle");
+
+        var on = new Trigger { Property = ToggleButton.IsCheckedProperty, Value = true };
+        on.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "toggle"));
+        on.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "toggle"));
+        template.Triggers.Add(on);
+
+        AddTrigger(template, ButtonBase.IsPressedProperty, Border.BackgroundProperty, ThemeBrush.RowPressed, "toggle");
+        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "toggle");
+
+        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
+        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.45));
+        template.Triggers.Add(disabled);
+
+        var style = new Style(typeof(ToggleButton));
+        style.Setters.Add(new Setter(Control.TemplateProperty, template));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(4)));
+        style.Setters.Add(new Setter(Control.FontFamilyProperty, InterfaceFont));
+        style.Setters.Add(new Setter(Control.FontSizeProperty, DefaultMetrics.Caption));
+        style.Setters.Add(new Setter(Control.FocusVisualStyleProperty, null));
+        style.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 22d));
+        style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        return style;
     }
 
     /// <summary>狀態回饋的單次縮放長度；狀態回饋這一級的上限是 400 ms。</summary>

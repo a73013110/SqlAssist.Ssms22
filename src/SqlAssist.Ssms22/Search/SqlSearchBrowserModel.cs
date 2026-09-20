@@ -96,11 +96,12 @@ internal sealed class SqlSearchSortOption
 /// </summary>
 /// <remarks>
 /// 一值一顆的症狀是勾了八個資料庫就有八顆 chip，而那八個名字按鈕摘要與面板都已經說過；
-/// 停靠面板裡那兩列換算成少看四筆結果。維度固定五個（伺服器、種類、資料庫、大小寫、全字），
+/// 停靠面板裡那兩列換算成少看四筆結果。維度固定三個（伺服器、資料庫、種類），
 /// 所以這一列的高度與條件多寡無關。
 ///
 /// 按下十字清掉整個維度，按 chip 本體打開它的面板——「要看看勾了哪幾個」與「不要這一組了」
-/// 是兩件事，而前者的答案本來就在面板裡。
+/// 是兩件事，而前者的答案本來就在面板裡。因此這一列上的每一顆都有自己的面板：
+/// 大小寫與全字是搜尋框裡常駐可見的開關，不是清得掉的條件，它們不上這一列。
 /// </remarks>
 internal sealed class SqlSearchFilterChip
 {
@@ -114,19 +115,14 @@ internal sealed class SqlSearchFilterChip
 
     /// <summary>chip 上的字。</summary>
     public string Label { get; }
-
-    /// <summary>這個維度有自己的過濾面板；大小寫與全字是工具列上的開關，沒有面板可開。</summary>
-    public bool HasPanel => Kind is SqlSearchFilterKind.Server or SqlSearchFilterKind.Category or SqlSearchFilterKind.Database;
 }
 
-/// <summary>chip 代表哪一種條件；清掉時據此決定動哪一份集合。</summary>
+/// <summary>chip 代表哪一種條件；清掉時據此決定動哪一份集合，本體開的也是它自己的面板。</summary>
 internal enum SqlSearchFilterKind
 {
     Category,
     Server,
-    Database,
-    MatchCasing,
-    WholeWord
+    Database
 }
 
 /// <summary>頁尾那一行現在在說哪一件事；動畫用它判斷「同一狀態不重播」。</summary>
@@ -612,8 +608,8 @@ internal sealed class SqlSearchBrowserModel
     /// </summary>
     /// <remarks>
     /// 預設狀態不佔那一列，是這個版面空間極大化的關鍵；一維度一顆讓它在條件再多時也只有
-    /// 一列（見 <see cref="SqlSearchFilterChip"/>）。比對位置不在這裡——它在工具列上常駐可見，
-    /// 再畫一顆 chip 等於同一件事說兩次。
+    /// 一列（見 <see cref="SqlSearchFilterChip"/>）。比對位置、大小寫與全字不在這裡——
+    /// 它們在工具列與搜尋框裡常駐可見，再畫一顆 chip 等於同一件事說兩次。
     ///
     /// 順序固定由外而內：伺服器換掉的是整份目錄，資料庫縮的是那一台裡的範圍，種類縮的是
     /// 結果的形狀。依使用者勾選的先後排的話，同一組條件每次排出不同的順序，看起來像條件自己變了。
@@ -640,9 +636,6 @@ internal sealed class SqlSearchBrowserModel
             chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Category, "種類: " + CategorySummary()));
         }
 
-        if (MatchCasing) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.MatchCasing, "大小寫"));
-        if (WholeWord) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.WholeWord, "全字"));
-
         return chips;
     }
 
@@ -664,14 +657,6 @@ internal sealed class SqlSearchBrowserModel
                 return true;
             case SqlSearchFilterKind.Database:
                 return ClearDatabases();
-            case SqlSearchFilterKind.MatchCasing:
-                if (!MatchCasing) return false;
-                MatchCasing = false;
-                return true;
-            case SqlSearchFilterKind.WholeWord:
-                if (!WholeWord) return false;
-                WholeWord = false;
-                return true;
             default:
                 throw new ArgumentOutOfRangeException(nameof(chip));
         }
