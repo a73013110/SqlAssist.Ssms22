@@ -150,7 +150,7 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
     protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)
     {
         // 已到底端時不會再有 ScrollChanged；仍接受使用者下一次向下捲動。
-        if (e.Delta < 0 && FindScrollViewer(this) is { } scroll && scroll.ScrollableHeight - scroll.VerticalOffset <= 1)
+        if (e.Delta < 0 && SqlAssistChrome.FindScrollViewer(this) is { } scroll && scroll.ScrollableHeight - scroll.VerticalOffset <= 1)
             RequestMore();
         base.OnPreviewMouseWheel(e);
     }
@@ -158,14 +158,6 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
     private void RequestMore()
     {
         if (CanAutoLoadMore) LoadMoreRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private static ScrollViewer? FindScrollViewer(DependencyObject root)
-    {
-        if (root is ScrollViewer scroll) return scroll;
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-            if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } child) return child;
-        return null;
     }
 
     protected override void OnPreviewMouseRightButtonDown(MouseButtonEventArgs e)

@@ -592,14 +592,16 @@ public sealed class SqlSearchVisualTests
     }
 
     /// <summary>
-    /// 工具列第二層依<b>問題</b>分群，群與群之間有一條共用的分隔線。
+    /// 工具列第二層每一顆之間都有分隔線，群間那一條比群內的高一截、寬一截。
     /// </summary>
     /// <remarks>
-    /// 沒有這條線時，伺服器、資料庫與種類看起來是同一組可以互相取代的選項。
-    /// 分段開關換到第三列時，它前面那一條會變成第三列開頭的一條孤線，所以整條收起。
+    /// 全部畫成同一種的話，伺服器、資料庫與種類看起來是同一組可以互相取代的選項；
+    /// 一條都不畫的話，窄窗收完字之後每一顆只剩一個圖示，界線更分不出來。
+    /// 分段開關換到第三列時，它前面那一條會變成第三列開頭的一條孤線，所以整條收起；
+    /// 列首（伺服器前面）那一條同理，一開始就不畫。
     /// </remarks>
     [Fact]
-    public void 篩選群組之間有分隔線而分段開關換行時那一條收起()
+    public void 篩選之間都有分隔線而列首與換行的那一條收起()
     {
         WpfTest.Run(() =>
         {
@@ -625,22 +627,29 @@ public sealed class SqlSearchVisualTests
             Layout(900);
             Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
 
-            // 兩條：搜哪裡｜搜什麼｜比對哪裡。伺服器與資料庫是同一群，中間沒有線。
-            var dividers = toolbar.Children.OfType<Border>()
+            // 三條看得見：伺服器｜資料庫（群內）、資料庫｜種類、種類｜分段開關（群間）。
+            // 列首那一條（伺服器前面）一開始就收起，不然第二列會從一條孤線開始。
+            Border[] Dividers() => Descendants<Border>(toolbar)
                 .Where(child => child.Width == 1)
                 .OrderBy(child => child.TranslatePoint(new Point(), toolbar).X)
                 .ToArray();
-            Assert.Equal(2, dividers.Length);
+
+            var all = Dividers();
+            Assert.Equal(4, all.Length);
+            Assert.Equal(Visibility.Collapsed, all[0].Visibility);
+            var dividers = all.Skip(1).ToArray();
             Assert.All(dividers, divider => Assert.Equal(Visibility.Visible, divider.Visibility));
 
             double Left(FrameworkElement element) => element.TranslatePoint(new Point(), toolbar).X;
-            Assert.True(Left(server) < Left(databases));
-            Assert.True(Left(databases) < Left(dividers[0]));
-            Assert.True(Left(dividers[0]) < Left(kinds));
-            Assert.True(Left(kinds) < Left(dividers[1]));
-            Assert.True(Left(dividers[1]) < Left(segments));
+            Assert.True(Left(server) < Left(dividers[0]));
+            Assert.True(Left(dividers[0]) < Left(databases));
+            Assert.True(Left(databases) < Left(dividers[1]));
+            Assert.True(Left(dividers[1]) < Left(kinds));
+            Assert.True(Left(kinds) < Left(dividers[2]));
+            Assert.True(Left(dividers[2]) < Left(segments));
 
-            // 群內比群間窄：兩個數字的差就是「這是兩群」。
+            // 群內那一條矮一截、間距也窄一截：兩個數字的差就是「這是兩群」。
+            Assert.True(dividers[0].Height < dividers[1].Height);
             var inside = Left(databases) - (Left(server) + server.ActualWidth);
             var between = Left(kinds) - (Left(databases) + databases.ActualWidth);
             Assert.True(between > inside, "群間距要大於群內距");
@@ -650,11 +659,12 @@ public sealed class SqlSearchVisualTests
                 element.TranslatePoint(new Point(0, element.ActualHeight / 2), toolbar).Y;
             Assert.All(dividers, divider => Assert.InRange(Math.Abs(Middle(divider) - Middle(kinds)), 0, 1));
 
-            // 窄到分段開關換行時，它前面那一條收起；群與群之間那一條留著。
+            // 窄到分段開關換行時，它前面那一條收起；前面兩條留著。
             Layout(server.DesiredSize.Width + databases.DesiredSize.Width + kinds.DesiredSize.Width);
             Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
             Assert.Equal(Visibility.Visible, dividers[0].Visibility);
-            Assert.Equal(Visibility.Collapsed, dividers[1].Visibility);
+            Assert.Equal(Visibility.Visible, dividers[1].Visibility);
+            Assert.Equal(Visibility.Collapsed, dividers[2].Visibility);
 
             Layout(900);
             Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);

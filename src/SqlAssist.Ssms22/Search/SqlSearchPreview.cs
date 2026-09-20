@@ -36,6 +36,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly DockPanel _content;
     private readonly Button _copyName;
     private readonly Button _wrap;
+    private readonly WrapPanel _toolbar = new();
     private readonly DispatcherTimer _delay;
     private CancellationTokenSource _read = new();
     private bool _disposed;
@@ -68,17 +69,16 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _body.Children.Add(_surface);
         _body.Children.Add(_snippetSurface);
 
-        var toolbar = new WrapPanel();
-        toolbar.Children.Add(_copyName);
-        toolbar.Children.Add(_wrap);
+        _toolbar.Children.Add(_copyName);
+        _toolbar.Children.Add(_wrap);
 
         _status.TextWrapping = TextWrapping.Wrap;
 
         // 內容第一列直接是工具列：這一筆是什麼，全部交給主從區抬頭上那一列膠囊，
         // 內容裡不再放一份只換了排列順序的同樣文字。
         _content = new DockPanel();
-        DockPanel.SetDock(toolbar, Dock.Top);
-        _content.Children.Add(toolbar);
+        DockPanel.SetDock(_toolbar, Dock.Top);
+        _content.Children.Add(_toolbar);
         DockPanel.SetDock(_status, Dock.Bottom);
         _content.Children.Add(_status);
         _content.Children.Add(_body);
@@ -107,7 +107,10 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     {
         ContentTemplate = SqlAssistChrome.CreateSearchMetadataTemplate(),
         Focusable = false,
-        VerticalAlignment = VerticalAlignment.Center
+        VerticalAlignment = VerticalAlignment.Center,
+        // 還沒選時整列收起來：樣板照樣會把膠囊的底畫出來，而綁不到值的那一顆就是抬頭上
+        // 那一塊沒有字的灰色方塊——看起來像是有一筆結果，只是它的名稱沒載進來。
+        Visibility = Visibility.Collapsed
     };
 
     /// <summary>複製限定名稱；實際寫剪貼簿的失敗要看得見，所以交給宿主處理。</summary>
@@ -141,6 +144,10 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _read = new CancellationTokenSource();
 
         Current = row;
+        // 沒有選取就沒有東西可以複製或換行：停用的兩顆圖示浮在一塊空白上方，說不出
+        // 「這裡本來會有什麼」，而那一句已經由狀態表面說了。不適用的操作一律收起。
+        _toolbar.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
+        Summary.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _copyName.IsEnabled = row is not null;
         _wrap.IsEnabled = false;
         _viewer.SetSql("");

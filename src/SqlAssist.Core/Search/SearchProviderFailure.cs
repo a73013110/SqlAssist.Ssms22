@@ -12,13 +12,27 @@ namespace SqlAssist.Core.Search;
 /// </remarks>
 public sealed class SearchProviderFailure
 {
-    public SearchProviderFailure(string providerId, Exception exception)
+    /// <param name="displayName">
+    /// 這個來源在畫面上叫什麼；空的就退回 <paramref name="providerId"/>。
+    /// </param>
+    public SearchProviderFailure(string providerId, string? displayName, Exception exception)
     {
         ProviderId = SearchArgument.Identifier(providerId, nameof(providerId));
+        DisplayName = string.IsNullOrWhiteSpace(displayName) ? ProviderId : displayName!;
         Exception = exception ?? throw new ArgumentNullException(nameof(exception));
     }
 
     public string ProviderId { get; }
+
+    /// <summary>
+    /// 說給人聽的來源名稱。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="ProviderId"/> 分開：Id 是跨版本不得更名的識別字，寫進畫面的話使用者
+    /// 讀到的是「『catalog』這一輪失敗」——那個字不在介面上任何地方出現過，他無從對應到
+    /// 自己勾的哪一個範圍。診斷仍然記 Id。
+    /// </remarks>
+    public string DisplayName { get; }
 
     public Exception Exception { get; }
 

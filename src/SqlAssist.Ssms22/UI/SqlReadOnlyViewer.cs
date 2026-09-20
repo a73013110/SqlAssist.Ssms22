@@ -23,6 +23,8 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
     {
         _theme = new SqlScriptTheme(ActiveSqlEditor.Current, _viewer);
         Content = _viewer;
+        // 不換行時這裡會有水平捲軸，而拖那條軌道是停靠面板裡唯一的左右捲動方式。
+        SqlAssistChrome.ApplyShiftWheelPan(_viewer);
         ActiveSqlEditor.Changed += OnEditorChanged;
         _viewer.PreviewKeyDown += (_, e) =>
         {

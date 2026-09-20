@@ -33,7 +33,8 @@ public sealed class SqlMemoryVisualTests
     /// <summary>照 SQL Memory 的形狀組一顆連線篩選：單選、第一列是「全部」、面板裡有排序。</summary>
     private static SqlFilterFlyout MemoryFacet(string name, SqlIcon icon, params string[] names)
     {
-        var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.Single) { Margin = new Thickness(0, 0, 4, 0) };
+        // 間距由共用的篩選列決定，不由每一顆自己帶：兩邊各留一份的話，群內會寬出一個間距。
+        var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.Single);
         panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
         panel.UpdateSummary("全部", "");
         panel.SetEmptyOption(new SqlFilterOption("全部", "", true, _ => { }));
@@ -66,14 +67,14 @@ public sealed class SqlMemoryVisualTests
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
             header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")));
-            var filters = SqlAssistChrome.CreateMemoryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()),
-                new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
-            header.Children.Add(filters);
-            var connections = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
             var server = MemoryFacet("伺服器", SqlIcon.Server, "LibraryServer", "ArchiveServer", "BranchServer");
             var database = MemoryFacet("資料庫", SqlIcon.Database, "Library", "Archive");
-            connections.Children.Add(server); connections.Children.Add(database);
-            header.Children.Add(connections);
+            // 狀態、期間與連線三群併成同一列；分隔線與換行都由共用的篩選列負責。
+            var kind = new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
+            var period = new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 };
+            var filters = SqlAssistChrome.CreateMemoryFilterRow(kind, period, server, database);
+            filters.Margin = new Thickness(0, 4, 0, 0);
+            header.Children.Add(filters);
             var footer = new SqlMemoryPager();
             footer.Update(Footer(cursor: "next", loaded: 50));
             var list = new SqlMemoryList
@@ -124,7 +125,8 @@ public sealed class SqlMemoryVisualTests
             foreach (var favorites in new[] { false, true })
             {
                 tabs.SelectedIndex = favorites ? 1 : 0;
-                filters.Visibility = favorites ? Visibility.Collapsed : Visibility.Visible;
+                // 只有狀態與期間屬於 History；伺服器／資料庫兩頁共用，留在同一列上。
+                kind.Visibility = period.Visibility = favorites ? Visibility.Collapsed : Visibility.Visible;
                 list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
                 summary.Content = list.SelectedItem;
                 foreach (Button action in previewActions.Children)
@@ -135,11 +137,11 @@ public sealed class SqlMemoryVisualTests
                     resources[role] = palette.Resources[ThemeBrush.ListForeground];
                 resources[ScriptResource.Background] = palette.Resources[ThemeBrush.ListBackground];
                 foreach (var width in new[] { 320, 440, 740 })
-                // 窄版降級：連線篩選收掉名稱與摘要，只留圖示與箭頭，字回到 Tooltip。
-                foreach (var compact in new[] { false, true })
                 {
-                    server.IsCompact = database.IsCompact = compact;
                     surface.Measure(new Size(width, 600)); surface.Arrange(new Rect(0, 0, width, 600)); surface.UpdateLayout();
+                    // 窄版降級：連線篩選收掉名稱與摘要，只留圖示與箭頭，字回到 Tooltip。
+                    // 降不降級由篩選列量出來，不由測試指定：手動指定的那一版驗的是自己寫進去的值。
+                    var compact = server.IsCompact;
                     // 膠囊只屬於 History 的狀態與期間；Favorites 與 History 共用伺服器／資料庫篩選，沒有自己的膠囊列。
                     foreach (var pill in favorites ? Enumerable.Empty<RadioButton>() : Descendants<RadioButton>(filters))
                     {
@@ -182,8 +184,9 @@ public sealed class SqlMemoryVisualTests
                     }
                     AssertInkCenters(toolbarActions);
                     // 兩顆下拉並排一列；窄版收完字仍留在同一列，不把工具列撐成兩列。
-                    Assert.InRange(Math.Abs(server.TranslatePoint(new Point(), connections).Y
-                        - database.TranslatePoint(new Point(), connections).Y), 0, 0.5);
+                    Assert.Equal(server.IsCompact, database.IsCompact);
+                    Assert.InRange(Math.Abs(server.TranslatePoint(new Point(), filters).Y
+                        - database.TranslatePoint(new Point(), filters).Y), 0, 0.5);
                     foreach (var facet in new[] { server, database })
                     {
                         AssertInkCenters(facet);

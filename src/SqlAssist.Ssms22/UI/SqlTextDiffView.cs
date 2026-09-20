@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Media;
 using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
@@ -34,6 +33,8 @@ internal sealed class SqlTextDiffView : UserControl
         VirtualizingPanel.SetIsVirtualizing(_lines, true);
         VirtualizingPanel.SetVirtualizationMode(_lines, VirtualizationMode.Recycling);
         AutomationProperties.SetName(_lines, "SQL 差異");
+        // 長的一行會橫向溢出，而差異就落在那一行的後半段。
+        SqlAssistChrome.ApplyShiftWheelPan(_lines);
         Content = _lines;
     }
 
@@ -67,18 +68,10 @@ internal sealed class SqlTextDiffView : UserControl
     private void ApplyPendingScroll()
     {
         if (_pendingOffset is not { } offset || !_lines.IsVisible) return;
-        if (FindScrollViewer(_lines) is not { } scroll || (scroll.ExtentHeight <= 0 && Result?.Lines.Count > 0)) return;
+        if (SqlAssistChrome.FindScrollViewer(_lines) is not { } scroll || (scroll.ExtentHeight <= 0 && Result?.Lines.Count > 0)) return;
         _pendingOffset = null;
         _lines.LayoutUpdated -= OnLayoutUpdated;
         scroll.ScrollToHorizontalOffset(0);
         scroll.ScrollToVerticalOffset(offset);
-    }
-
-    private static ScrollViewer? FindScrollViewer(DependencyObject root)
-    {
-        if (root is ScrollViewer scroll) return scroll;
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-            if (FindScrollViewer(VisualTreeHelper.GetChild(root, i)) is { } child) return child;
-        return null;
     }
 }

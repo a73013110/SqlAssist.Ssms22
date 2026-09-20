@@ -342,6 +342,17 @@ public sealed class SqlCatalogSearchIndex
         {
             using var connection = connectionSource.OpenConnection();
 
+            // 名稱由開啟後的連線說了算（與資料庫清單同一條規矩）：物件總管那一條連線上沒有
+            // 初始目錄，來源交出來的是空字串，而這一份索引的建構子不收空名稱。那個
+            // ArgumentException 不是 DbException，下面的降級接不住，使用者看到的是
+            // 「『catalog』這一輪失敗：資料庫名稱不可為空。參數名稱: databaseName」——
+            // 一句他完全無從下手的話，而實際搜的就是這條連線的預設資料庫（通常是 master）。
+            if (databaseName.Length == 0) databaseName = connection.Database ?? "";
+
+            // 連開起來的連線都說不出自己在哪一個資料庫：一筆結果都組不出來（命中要帶著資料庫
+            // 名稱走），所以走既有的「這一輪讀不到」，不是讓建構子擲出接不住的例外。
+            if (databaseName.Length == 0) return null;
+
             operation = LoadingObjects;
             var rows = ReadObjects(
                 connection, databaseName, commandTimeoutSeconds, cancellationToken, out var modifiedThrough);

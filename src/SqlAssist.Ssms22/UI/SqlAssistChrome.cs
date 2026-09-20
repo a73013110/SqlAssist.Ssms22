@@ -298,7 +298,7 @@ internal static partial class SqlAssistChrome
         strip.PreviewMouseWheel += (_, args) =>
         {
             if (args.Delta == 0) return;
-            strip.ScrollToHorizontalOffset(strip.HorizontalOffset - args.Delta * 0.4);
+            PanHorizontally(strip, args.Delta);
             args.Handled = true;
         };
 
@@ -318,6 +318,69 @@ internal static partial class SqlAssistChrome
         };
 
         return strip;
+    }
+
+    /// <summary>一格滾輪換多少水平位移；資訊列與 Shift＋滾輪共用同一個手感。</summary>
+    private const double WheelPanFactor = 0.4;
+
+    /// <summary>
+    /// 讓一塊有水平捲軸的內容支援 Shift＋滾輪左右捲動。
+    /// </summary>
+    /// <remarks>
+    /// WPF 的 <see cref="ScrollViewer"/> 原生只認垂直滾輪，Shift＋滾輪什麼都不做；而有水平
+    /// 捲軸的地方（不換行的 SQL 預覽、差異比對）唯一的左右捲動方式就只剩拖曳那條捲軸，
+    /// 在停靠面板裡那是一條十幾 DIP 的軌道。
+    ///
+    /// 掛在 <see cref="UIElement.PreviewMouseWheelEvent"/> 上而不是等它冒泡：RichTextBox 這類
+    /// 自己有捲動區的控制項會先把滾輪吃掉，接冒泡的那一版一次都不會被呼叫。
+    ///
+    /// 捲不動（沒有水平捲軸）時<b>不</b>攔下來：那一刻使用者要的是原本的垂直捲動，
+    /// 攔掉等於按著 Shift 就整個捲不動。
+    /// </remarks>
+    public static void ApplyShiftWheelPan(FrameworkElement content)
+    {
+        content.PreviewMouseWheel += (_, args) =>
+        {
+            if (args.Delta == 0 || !ShiftHeld) return;
+            if (FindScrollViewer(content) is not { } scroll || scroll.ScrollableWidth <= 0) return;
+
+            PanHorizontally(scroll, args.Delta);
+            args.Handled = true;
+        };
+    }
+
+    /// <summary>
+    /// 現在按著 Shift 沒有。
+    /// </summary>
+    /// <remarks>
+    /// 產品碼其餘地方一律讀事件帶的 <see cref="KeyboardDevice"/>，而滑鼠事件上沒有那一個
+    /// ——<see cref="MouseWheelEventArgs"/> 帶的是滑鼠裝置。那條規則防的是<b>合成的按鍵</b>
+    /// 混進實體鍵盤狀態，而滾輪不會被合成，所以這裡問目前的鍵盤狀態是安全的。
+    /// 只留這一個出處，其他地方仍然不得直接讀靜態的鍵盤。
+    /// </remarks>
+    private static bool ShiftHeld => (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
+
+    /// <summary>向下往右、向上往左；兩處的手感由 <see cref="WheelPanFactor"/> 保持一致。</summary>
+    private static void PanHorizontally(ScrollViewer scroll, double delta) =>
+        scroll.ScrollToHorizontalOffset(scroll.HorizontalOffset - delta * WheelPanFactor);
+
+    /// <summary>
+    /// 樹裡第一個 <see cref="ScrollViewer"/>；控制項樣板套用之前回 null。
+    /// </summary>
+    /// <remarks>
+    /// 清單續頁、差異比對的捲動與 Shift＋滾輪共用這一份：各寫一份的症狀是其中一份忘了
+    /// 處理「樣板還沒套上」的那一刻，而那是視窗剛開啟的第一個版面回合。
+    /// </remarks>
+    public static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        if (root is ScrollViewer scroll) return scroll;
+
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            if (FindScrollViewer(VisualTreeHelper.GetChild(root, index)) is { } child) return child;
+        }
+
+        return null;
     }
 
     private static ControlTemplate CreateOverlayScrollTemplate()

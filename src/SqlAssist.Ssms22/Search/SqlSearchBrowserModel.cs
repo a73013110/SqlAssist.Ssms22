@@ -1040,9 +1040,10 @@ internal sealed class SqlSearchBrowserModel
         // 只寫第一個來源的訊息加上還有幾個：一行狀態塞不下三段堆疊，而第一句已經說得出是哪一類失敗。
         var first = failures[0];
 
+        // 寫的是來源的顯示名稱，不是 Id：使用者在介面上沒有見過 catalog 這個字。
         return failures.Count == 1
-            ? "「" + first.ProviderId + "」這一輪失敗：" + first.Message
-            : "「" + first.ProviderId + "」等 " + failures.Count.ToString(CultureInfo.InvariantCulture) +
+            ? "「" + first.DisplayName + "」這一輪失敗：" + first.Message
+            : "「" + first.DisplayName + "」等 " + failures.Count.ToString(CultureInfo.InvariantCulture) +
               " 個來源這一輪失敗：" + first.Message;
     }
 }

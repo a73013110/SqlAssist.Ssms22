@@ -6,7 +6,7 @@
 ## 主從瀏覽
 
 - 共用一份 Browser、`SqlMemoryList`、卡片模板、搜尋、連線 facets 與選取流程；頁籤只決定查詢及可用操作。
-- 預設上下 3:2、左右 2:3（Preview 較寬）；門檻、hysteresis 與收合把手見[視窗骨架](ui-windows.md)。
+- 預設比例、門檻、hysteresis 與收合把手見[視窗骨架](ui-windows.md)。
   splitter 可拖曳，聚焦後方向鍵每次調整 16 DIP。收合保留目前選取及各方向比例，清單取得空間；展開讀取當前選取。
 - 滑鼠單擊或 ↑／↓ 選取即預覽；220 ms 去彈跳後非同步讀全文。切換立即清除舊 SQL 並顯示載入狀態，
   取消、選取識別及宿主世代共同擋住過期成功／失敗。收合、隱藏、停用與 Dispose 都取消讀取。
@@ -37,8 +37,10 @@ Preview 使用共用 `SqlReadOnlyViewer`／`SqlScriptDocument`，支援 SQL 著�
 
 ## 篩選與工具列
 
-History 預設全部種類、七天、所有連線；狀態與期間是獨立群組，以共用的淡色分隔線區分，窄窗換行。
-Favorites 只有伺服器／資料庫篩選，語意與 History 相同：未選是全部，選了就精確比對標註，兩者可各自單選。
+History 預設全部種類、七天、所有連線；狀態、期間與連線是第二層的三群，**併在同一列**
+（[`SqlFilterBar`](ui-filters.md#分隔線與換行)）：連線另起一列等於永久少看一筆 SQL。
+Favorites 只有伺服器／資料庫篩選，語意與 History 相同：選了就精確比對標註，兩者可各自單選；
+狀態與期間整群收起。
 
 搜尋獨佔一列，內嵌放大鏡／清除，Ctrl+F 聚焦；搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 一頁因預算提早結束時，清單頁尾顯示「已搜尋至 yyyy/MM/dd（本機日期），繼續搜尋可再往前找」，
@@ -47,12 +49,12 @@ Favorites 的日期是最後儲存時間；「載入更多」改名「繼續搜�
 第三個分頁「用量」以[用量頁](sql-memory-usage.md)取代主從區；工具列的重新整理作用在目前分頁。
 目前連線一次套用 Server／Database，只篩選不切換 SSMS 連線；無連線保留篩選並提示。
 
-Server／Database 是共用的 [Filter Flyout](ui-windows.md#元件邊界)：兩顆下拉並排在第二層，摘要在
-按鈕上，名單在面板裡。未選是「全部」，第一列與摘要同一份字。名單只在打開面板時才問；面板裡有
-最近／最早／名稱 A–Z／Z–A 排序與「更多名稱」續頁，換排序重問第一頁，已選的那一個留著並一律
-列得出來，讀不到時那一句留在面板裡。窄窗只留圖示與箭頭。
+Server／Database 是共用的 [Filter Flyout](ui-filters.md#過濾面板)：第二層的最後一群，摘要在
+按鈕上，名單在面板裡，未選是「全部」。名單只在打開面板時才問；面板裡有最近／最早／名稱
+A–Z／Z–A 排序與「更多名稱」續頁，換排序重問第一頁，已選的那一個留著並一律列得出來，
+讀不到時那一句留在面板裡。
 
-Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱。工具列窄窗先收起按鈕文字，放不下時再收起分頁文字，分頁列不折成兩行；圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
+Pills、badge、toolbar 的 icon／文字同一視覺中心線，垂直 padding 對稱。工具列窄窗先收按鈕文字，再收分頁文字，分頁列不折成兩行；圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
 Tabs、篩選與卡片圖示由 `SqlAssistChrome.MemoryOptionIcon` 依語意值選取 `SqlIcon`；排序按鈕與選單共用同一對應，
 History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` 識別，不拿圖示當動作。

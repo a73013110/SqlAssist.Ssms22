@@ -451,6 +451,28 @@ public sealed class SqlCatalogSearchIndexTests
         return reported;
     }
 
+    /// <summary>
+    /// 連線字串上沒有初始目錄時，資料庫名稱由開啟後的連線說了算。
+    /// </summary>
+    /// <remarks>
+    /// 物件總管上那一條連線沒有初始目錄，來源交出來的 <c>DatabaseName</c> 是空字串，而索引的
+    /// 建構子不收空名稱。照來源那一份走的版本會擲 <see cref="ArgumentException"/>，而它不是
+    /// <see cref="System.Data.Common.DbException"/>，這一層的降級接不住——使用者看到的是
+    /// 「『catalog』這一輪失敗：資料庫名稱不可為空。參數名稱: databaseName」。
+    /// </remarks>
+    [Fact]
+    public void 連線沒有初始目錄時索引記的是開起來那一個資料庫()
+    {
+        var server = NewServer();
+
+        var index = SqlCatalogSearchIndex.TryBuild(
+            server.SourceWithoutInitialCatalog("Library"), includeDefinitions: true, CancellationToken.None);
+
+        Assert.NotNull(index);
+        Assert.Equal("Library", index!.DatabaseName);
+        Assert.Equal(new[] { "Lib_Reader", "Loan", "Lib_Tag" }, index.Objects.Select(info => info.Name));
+    }
+
     private static SqlCatalogSearchIndex? Build(FakeCatalogServer server, bool includeDefinitions) =>
         SqlCatalogSearchIndex.TryBuild(server.SourceFor("Library"), includeDefinitions, CancellationToken.None);
 

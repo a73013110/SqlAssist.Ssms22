@@ -423,11 +423,14 @@ public sealed class SearchAggregatorTests
                 return Task.CompletedTask;
             }),
             new FakeSearchProvider("broken", (query, sink, cancellationToken) =>
-                throw new InvalidOperationException("連線已關閉")));
+                throw new InvalidOperationException("連線已關閉")) { DisplayName = "資料庫物件" });
 
         var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
 
-        Assert.Equal("broken", Assert.Single(results.Failures).ProviderId);
+        var failure = Assert.Single(results.Failures);
+        Assert.Equal("broken", failure.ProviderId);
+        // 畫面上寫的是顯示名稱：Id 是跨版本不得更名的識別字，使用者沒有在介面上見過它。
+        Assert.Equal("資料庫物件", failure.DisplayName);
 
         var byProvider = results.Progress.ToDictionary(entry => entry.ProviderId, StringComparer.Ordinal);
 

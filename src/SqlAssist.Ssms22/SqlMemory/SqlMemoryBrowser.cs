@@ -51,7 +51,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryPreview _detail;
     private readonly MasterDetailView _splitView;
     private readonly SqlMemoryRecoveryView _recoveryView = new();
-    private readonly FrameworkElement _historyFilters;
     private readonly TabItem _usageTab = SqlAssistChrome.CreateMemoryUsageTab();
     private readonly SqlMemoryUsagePanel _usagePanel;
     private readonly UIElement[] _listChrome;
@@ -92,19 +91,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
         var searchBar = SqlAssistChrome.CreateSearchBar(_search, clear);
         header.Children.Add(searchBar);
-        var filters = new StackPanel();
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
-        _historyFilters = SqlAssistChrome.CreateMemoryHistoryFilters(_kind, _period);
-        filters.Children.Add(_historyFilters);
-        // 連線篩選與狀態／期間同屬第二層工具列：兩顆下拉並排一列，放不下才換行。
-        var connections = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+        // 狀態、期間與連線是第二層的三群，併在同一列：各佔一列的那一版在停靠面板裡等於
+        // 永久少看一筆 SQL，而放不下的時候那一層本來就會整群換行。
         _connectionFacets = new[] { _serverFacet, _databaseFacet };
-        foreach (var facet in _connectionFacets)
-        {
-            facet.Panel.Margin = new Thickness(0, 0, 4, 0);
-            connections.Children.Add(facet.Panel);
-        }
-        filters.Children.Add(connections);
+        var filters = SqlAssistChrome.CreateMemoryFilterRow(
+            _kind, _period, _serverFacet.Panel, _databaseFacet.Panel);
+        filters.Margin = new Thickness(0, 4, 0, 0);
         header.Children.Add(filters);
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
@@ -239,7 +232,14 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             InvalidateFacets(); Changed();
         }
         else if (_listStale && _model.IsAvailable) RefreshList();
-        _historyFilters.Visibility = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
+        UpdateHistoryFilters();
+    }
+
+    /// <summary>狀態與期間只屬於 History；收起來之後列首那一條分隔線由篩選列跟著收。</summary>
+    private void UpdateHistoryFilters()
+    {
+        var visible = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
+        _kind.Visibility = _period.Visibility = visible;
     }
 
     public void Dispose()
@@ -624,7 +624,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SqlMemoryActions.Run(() =>
         {
             // 伺服器與資料庫篩選兩頁同一種語意，只有狀態與期間屬於 History。
-            _historyFilters.Visibility = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
+            UpdateHistoryFilters();
             Invalidate();
             _searchTimer.Start();
         }, Report);
