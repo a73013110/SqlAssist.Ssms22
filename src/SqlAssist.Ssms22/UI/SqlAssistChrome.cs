@@ -964,7 +964,7 @@ internal static partial class SqlAssistChrome
         var style = new Style(typeof(TabItem));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
         // Tooltip 是窄窗收起分頁文字之後仍讀得到名稱的地方。
-        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
+        var tab = new TabItem { Header = CreateIconLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
         AutomationProperties.SetName(tab, label); return tab;
     }
 

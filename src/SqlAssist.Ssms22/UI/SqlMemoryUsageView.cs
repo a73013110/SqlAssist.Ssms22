@@ -94,7 +94,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _disk = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         _maintenance = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         _compactHint = SqlAssistChrome.CreateButton("", _metrics);
-        _compactHint.Content = SqlAssistChrome.CreateMemoryLabel(SqlIcon.Compact, "壓縮以縮小檔案");
+        _compactHint.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Compact, "壓縮以縮小檔案");
         _compactHint.Padding = new Thickness(6, 2, 6, 2);
         _compactHint.Click += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Compact);
         _hero = BuildHero();
@@ -233,7 +233,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
     {
         var button = SqlAssistChrome.CreateButton("", _metrics, primary: action == SqlMemoryUsageAction.Maintain);
         if (tone != SqlActionTone.Neutral) button.Template = SqlAssistChrome.CreateGhostButtonTemplate(tone);
-        button.Content = SqlAssistChrome.CreateMemoryLabel(icon, label);
+        button.Content = SqlAssistChrome.CreateIconLabel(icon, label);
         button.ToolTip = toolTip; AutomationProperties.SetName(button, label);
         // 與工具列按鈕同一個高度與內距；換行時列距 4，和篩選膠囊的節奏一致。
         button.Height = 28; button.Padding = new Thickness(6, 3, 8, 3); button.Margin = new Thickness(0, 0, 4, 4);

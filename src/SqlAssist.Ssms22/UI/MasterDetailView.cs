@@ -202,9 +202,9 @@ internal sealed class MasterDetailView : Grid
 
     private void ApplySideBySide()
     {
-        // 展開時抬頭移到兩塊內容上方並橫跨整列。留在中間那一欄的話，收合鈕與資訊列會被擠進
-        // 一條 5 DIP 寬的分隔欄裡；它們是整個主從區的抬頭，本來就不屬於分隔線。
-        // 收合時第一列沒有內容，抬頭退化成貼在清單右緣的把手欄。
+        // 抬頭只屬於右邊那一欄。橫跨整列的話，開關會落在清單左上角——使用者在清單上方看到一顆
+        // 管右邊那一塊的按鈕。也不能放進中間那一欄：那裡只有 5 DIP 寬。
+        // 收合時右欄縮成 Auto，抬頭就是貼在清單右緣的單列把手。
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition
@@ -219,14 +219,12 @@ internal sealed class MasterDetailView : Grid
             MinWidth = IsDetailExpanded ? MinPaneWidth : 0
         });
 
-        SetRow(_divider, IsDetailExpanded ? 0 : 1);
-        SetColumn(_divider, IsDetailExpanded ? 0 : 2);
-        SetColumnSpan(_divider, IsDetailExpanded ? 3 : 1);
-        // 收合後那一欄有整個主從區的高度，把手自己仍只有一列，貼著清單上緣。
-        _divider.VerticalAlignment = IsDetailExpanded ? VerticalAlignment.Stretch : VerticalAlignment.Top;
-        SetRow(_master, 1); SetColumn(_master, 0); SetColumnSpan(_master, 1);
-        SetRow(_splitter, 1); SetColumn(_splitter, 1); SetColumnSpan(_splitter, 1);
-        SetRow(_detail, 1); SetColumn(_detail, 2); SetColumnSpan(_detail, 1);
+        SetRow(_divider, 0); SetColumn(_divider, 2); SetColumnSpan(_divider, 1);
+        // 抬頭那一列是 Auto，兩態都只有一列高；清單與分隔線跨過它，左邊不留一條空白。
+        _divider.VerticalAlignment = VerticalAlignment.Top;
+        SetRow(_master, 0); SetColumn(_master, 0); SetColumnSpan(_master, 1); SetRowSpan(_master, 2);
+        SetRow(_splitter, 0); SetColumn(_splitter, 1); SetColumnSpan(_splitter, 1); SetRowSpan(_splitter, 2);
+        SetRow(_detail, 1); SetColumn(_detail, 2); SetColumnSpan(_detail, 1); SetRowSpan(_detail, 1);
 
         _splitter.Height = double.NaN;
         _splitter.Width = SplitterThickness;
@@ -252,11 +250,11 @@ internal sealed class MasterDetailView : Grid
         });
         ColumnDefinitions.Add(new ColumnDefinition());
 
-        SetRow(_master, 0); SetColumn(_master, 0); SetColumnSpan(_master, 1);
+        SetRow(_master, 0); SetColumn(_master, 0); SetColumnSpan(_master, 1); SetRowSpan(_master, 1);
         SetRow(_divider, 1); SetColumn(_divider, 0); SetColumnSpan(_divider, 1);
         _divider.VerticalAlignment = VerticalAlignment.Stretch;
-        SetRow(_splitter, 1); SetColumn(_splitter, 0); SetColumnSpan(_splitter, 1);
-        SetRow(_detail, 2); SetColumn(_detail, 0); SetColumnSpan(_detail, 1);
+        SetRow(_splitter, 1); SetColumn(_splitter, 0); SetColumnSpan(_splitter, 1); SetRowSpan(_splitter, 1);
+        SetRow(_detail, 2); SetColumn(_detail, 0); SetColumnSpan(_detail, 1); SetRowSpan(_detail, 1);
 
         _splitter.Width = double.NaN;
         _splitter.Height = SplitterThickness;
@@ -297,7 +295,7 @@ internal sealed class MasterDetailView : Grid
         var chevron = SqlAssistChrome.CreateChevron(IsDetailExpanded);
         if (!iconOnly) chevron.Margin = new Thickness(0, 0, 6, 0);
         panel.Children.Add(chevron);
-        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("預覽"));
+        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText("預覽"));
         _toggle.Content = panel;
         _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";
         AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合預覽" : "展開預覽");

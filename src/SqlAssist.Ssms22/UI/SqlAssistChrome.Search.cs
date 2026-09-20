@@ -38,28 +38,23 @@ internal static partial class SqlAssistChrome
 
         // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫 → 操作。
         // 名稱固定最左，要掃的那一欄每一列才從同一個位置開始；圖示排在它前面就不是。
-        var heading = new FrameworkElementFactory(typeof(DockPanel));
-        heading.SetValue(DockPanel.LastChildFillProperty, false);
+        var heading = CreateRowLine();
         lines.AppendChild(heading);
 
+        // 身分組最後才 append：DockPanel 依宣告順序量測，名稱先量的話，一個長名稱會把連線膠囊
+        // 與操作整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
         var identity = RowIdentityGroup();
-        heading.AppendChild(identity);
 
-        var target = BoundTextBadge("TargetLabel", "target");
+        var target = CreateTextBadge("TargetLabel", "target");
         target.SetValue(DockPanel.DockProperty, Dock.Right);
         target.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
         identity.AppendChild(target);
 
-        var kind = new FrameworkElementFactory(typeof(Border)) { Name = "kind" };
+        // 物件類型是看得見的 icon＋文字膠囊。同一顆原生圖示會落在好幾種目錄物件上，而
+        // 「這是資料表還是檢視」正是掃這一列時要回答的問題；只留 Tooltip 等於要停駐才讀得到。
+        var kind = CreateBadge("CategoryLabel", "kind", categoryProperty: "CategoryId");
         kind.SetValue(DockPanel.DockProperty, Dock.Right);
-        kind.SetValue(Border.BackgroundProperty, Brushes.Transparent);
         kind.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
-        kind.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        // 形狀之外還要讀得到種類文字：列上已經沒有那幾個字，Tooltip 是它唯一的去處。
-        kind.SetBinding(FrameworkElement.ToolTipProperty, new Binding("CategoryLabel"));
-        var glyph = new FrameworkElementFactory(typeof(SqlIconImage));
-        glyph.SetBinding(SqlIconImage.CategoryIdProperty, new Binding("CategoryId"));
-        kind.AppendChild(glyph);
         identity.AppendChild(kind);
 
         // 名稱最後才量，剩多少吃多少並 ellipsis；全文在 Tooltip 與 Preview。
@@ -79,12 +74,19 @@ internal static partial class SqlAssistChrome
         actions.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
         // Hidden 保留尺寸：Collapsed 會讓列在停駐的瞬間重新排版，而互動狀態不得改變版面尺寸。
         actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden);
+        // 窄版：連線膠囊降成 icon-only，次要操作收進 overflow；名稱與物件類型一直看得見。
+        var narrow = NarrowRowTrigger();
         foreach (var command in SqlSearchRowCommand.All)
         {
-            actions.AppendChild(CreateRowActionButton(
+            var button = CreateRowActionButton(
                 "action" + command.Action, command.Action, command.Icon, command.Label,
-                SqlActionTone.Neutral, separated: false));
+                SqlActionTone.Neutral, separated: false);
+            if (!command.IsPrimary)
+                narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
+            actions.AppendChild(button);
         }
+        var overflow = CreateRowOverflowButton(); actions.AppendChild(overflow);
+        narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
         heading.AppendChild(actions);
 
         // 連線膠囊靠右並固定在自己的寬度上；與名稱之間的彈性空白由 DockPanel 留著。
@@ -98,6 +100,7 @@ internal static partial class SqlAssistChrome
         badges.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchBadgeTemplate());
         badges.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("Badges"));
         heading.AppendChild(badges);
+        heading.AppendChild(identity);
 
         // 內容列只剩限定名稱；窄窗先省略的是名稱中段。
         var path = new FrameworkElementFactory(typeof(TextBlock)) { Name = "path" };
@@ -131,6 +134,7 @@ internal static partial class SqlAssistChrome
         lines.AppendChild(code);
 
         var template = new DataTemplate { VisualTree = lines };
+        template.Triggers.Add(narrow);
 
         // 本文命中才多一行片段；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
         var body = new DataTrigger { Binding = new Binding("MatchTarget"), Value = SearchMatchTarget.Text };
@@ -175,9 +179,16 @@ internal static partial class SqlAssistChrome
         return template;
     }
 
-    /// <summary>結果列右下角的脈絡膠囊；資料來自 <c>SearchHit.Badges</c>，與 SQL Memory 的連線膠囊同一份外觀。</summary>
-    public static DataTemplate CreateSearchBadgeTemplate() =>
-        new() { VisualTree = BoundBadge("Text", "badge", iconProperty: "Icon") };
+    /// <summary>結果列的脈絡膠囊；資料來自 <c>SearchHit.Badges</c>，與 SQL Memory 的連線膠囊同一份外觀。</summary>
+    /// <remarks>窄版一起降成 icon-only：降級條件讀的是列自己的寬度模式，膠囊在哪一層容器裡都一樣。</remarks>
+    public static DataTemplate CreateSearchBadgeTemplate()
+    {
+        var template = new DataTemplate { VisualTree = CreateBadge("Text", "badge", iconProperty: "Icon") };
+        var narrow = NarrowRowTrigger();
+        IconOnlyInNarrow(narrow, "badge");
+        template.Triggers.Add(narrow);
+        return template;
+    }
 
     /// <summary>
     /// 分段開關裡的一段。

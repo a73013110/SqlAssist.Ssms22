@@ -27,16 +27,17 @@ internal enum SqlSearchRowAction
 /// </remarks>
 internal sealed class SqlSearchRowCommand
 {
-    private SqlSearchRowCommand(SqlSearchRowAction action, SqlIcon icon, string label)
+    private SqlSearchRowCommand(SqlSearchRowAction action, SqlIcon icon, string label, bool primary = false)
     {
         Action = action;
         Icon = icon;
         Label = label;
+        IsPrimary = primary;
     }
 
     public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
     {
-        new SqlSearchRowCommand(SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義"),
+        new SqlSearchRowCommand(SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義", primary: true),
         new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱"),
         new SqlSearchRowCommand(SqlSearchRowAction.Preview, SqlIcon.Preview, "在預覽中顯示")
     };
@@ -46,6 +47,9 @@ internal sealed class SqlSearchRowCommand
     public SqlIcon Icon { get; }
 
     public string Label { get; }
+
+    /// <summary>這一列的主要動作；窄版只留它，其餘收進 overflow。</summary>
+    public bool IsPrimary { get; }
 
     public static SqlSearchRowCommand For(SqlSearchRowAction action)
     {

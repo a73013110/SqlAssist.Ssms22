@@ -27,15 +27,17 @@ internal enum SqlMemoryRowKind { Any, History, Favorite }
 internal sealed class SqlMemoryRowCommand
 {
     private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, string label, SqlMemoryRowKind kind,
-        string? labelProperty = null, bool separated = false, SqlActionTone tone = SqlActionTone.Neutral)
+        string? labelProperty = null, bool separated = false, SqlActionTone tone = SqlActionTone.Neutral,
+        bool primary = false)
     {
         Action = action; Icon = icon; Label = label; Kind = kind;
-        LabelProperty = labelProperty; IsSeparated = separated; Tone = tone;
+        LabelProperty = labelProperty; IsSeparated = separated; Tone = tone; IsPrimary = primary;
     }
 
     public static IReadOnlyList<SqlMemoryRowCommand> All { get; } = new[]
     {
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any,
+            primary: true),
         new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
         new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
             tone: SqlActionTone.Favorite),
@@ -61,6 +63,9 @@ internal sealed class SqlMemoryRowCommand
 
     /// <summary>停駐與按下的語意色；只有需要警示或明確歸類的操作離開中性色，其餘沿用選取色。</summary>
     public SqlActionTone Tone { get; }
+
+    /// <summary>這一列的主要動作；窄版只留它，其餘收進 overflow。只有一個，與 Preview 的主要動作同一個。</summary>
+    public bool IsPrimary { get; }
 
     public bool AppliesTo(bool favorite) =>
         Kind == SqlMemoryRowKind.Any || (Kind == SqlMemoryRowKind.Favorite) == favorite;
@@ -120,6 +125,8 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
         VirtualizingPanel.SetIsVirtualizing(this, true);
         VirtualizingPanel.SetVirtualizationMode(this, VirtualizationMode.Recycling);
         KeyboardNavigation.SetTabNavigation(this, KeyboardNavigationMode.Once);
+        // 列的可用寬度就是清單的寬度：量一次，底下每一列跟著換寬度模式。
+        SqlRowLayout.Track(this);
         AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler((_, e) =>
         {
             if (e.OriginalSource is not ScrollViewer scroll) return;

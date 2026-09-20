@@ -22,6 +22,8 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 停駐工具窗的主從區（轉向門檻、收合把手與兩個方向的比例） | `Ssms22/UI/MasterDetailView.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 清單列的共用元件（膠囊、身分組、名稱上限、列操作與 overflow、圖示標籤） | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
+| 清單列的寬度模式與窄版門檻（宿主量一次，可繼承） | `Ssms22/UI/SqlRowLayout.cs` |
 | 圖示加標籤的分頁（SQL Memory、SQL Search 與之後的工具窗） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾彈出面板的選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Search.cs` 的 `CreateSearchOptionList` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |

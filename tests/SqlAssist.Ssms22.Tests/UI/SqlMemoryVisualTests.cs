@@ -213,7 +213,8 @@ public sealed class SqlMemoryVisualTests
                 // 經由 ContentPresenter 套用模板，DataTrigger 才會生效；LoadContent 只建樹不跑觸發程序。
                 var content = new ContentControl { ContentTemplate = template, Content = row };
                 content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
-                return Descendants<Button>(content).ToArray();
+                // overflow 沒有 Tag，也不屬於命令清單：它只是窄版的入口，命令仍由快捷選單送。
+                return Descendants<Button>(content).Where(button => button.Tag is SqlMemoryRowAction).ToArray();
             }
             SqlMemoryRowAction[] Shown(Button[] buttons) => buttons.Where(button => button.Visibility == Visibility.Visible)
                 .Select(button => Assert.IsType<SqlMemoryRowAction>(button.Tag)).ToArray();
@@ -268,20 +269,24 @@ public sealed class SqlMemoryVisualTests
         {
             // 樣板在 STA 執行緒上建立；先建好再交給另一條執行緒套用會在 Seal 擋下來。
             var template = SqlAssistChrome.CreateSqlSummaryTemplate();
-            // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間。
+            // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間 → 操作。
             var wide = Render(template, History("借閱查詢", new SqlConnectionLabel("LibraryServer", "Library")), 740);
-            var order = new[] { "name", "state", "count", "server", "database", "time" };
+            var order = new[] { "name", "state", "count", "server", "database", "time", "actions" };
             var lefts = order.Select(part => Left(wide, part)).ToArray();
             for (var index = 1; index < order.Length; index++)
                 Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
             Assert.All(order, part => Assert.True(Part(wide, part).ActualWidth > 0, part));
-            // 名稱固定最左，膠囊不得排在它前面；整列不換行。
+            // 名稱固定最左，膠囊不得排在它前面；整列不換行，操作也在同一列而不是自己占一列。
             Assert.Equal(0, Left(wide, "name"), 1);
             var center = Center(wide, "name");
             Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
             // 兩組之間是彈性空白：連線與時間靠右，狀態與次數留在名稱旁邊。
             Assert.True(Right(wide, "count") + 8 < Left(wide, "server"));
-            Assert.InRange(740 - Right(wide, "time"), 0, 8);
+            Assert.InRange(740 - Right(wide, "actions"), 0, 8);
+            // 動作區維持 Hidden 預留寬度，停駐才揭露且不跳版面；一般寬度不出現 overflow。
+            Assert.Equal(Visibility.Hidden, Part(wide, "actions").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(wide, "overflow").Visibility);
+            Assert.Equal(Visibility.Visible, Part(wide, "serverText").Visibility);
 
             // 工具窗停在右側時整列約 300 DIP；長檔名先省略中段，但仍從最左讀得到。
             var narrow = Render(template, History(new string('借', 40), new SqlConnectionLabel("LibraryServer", "Library")), 300);
@@ -292,6 +297,17 @@ public sealed class SqlMemoryVisualTests
             // 名稱吃掉上限之後，狀態膠囊仍整顆留在這一列上。
             Assert.True(Part(narrow, "state").ActualWidth > 0);
             Assert.InRange(Right(narrow, "state"), 0, 300);
+            // 窄版降級：連線膠囊只剩圖示（字進 Tooltip），次要操作收進 overflow，主要動作留著。
+            Assert.Equal(Visibility.Collapsed, Part(narrow, "serverText").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(narrow, "databaseText").Visibility);
+            Assert.True(Part(narrow, "serverIcon").ActualWidth > 0);
+            Assert.Equal("LibraryServer", (string)Part(narrow, "server").ToolTip);
+            Assert.Equal(Visibility.Visible, Part(narrow, "overflow").Visibility);
+            Assert.Equal(Visibility.Visible, Part(narrow, "action" + SqlMemoryRowAction.Open).Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(narrow, "action" + SqlMemoryRowAction.Copy).Visibility);
+            // 每一組都仍在這一列的範圍內，沒有被推出去。
+            foreach (var part in new[] { "name", "state", "server", "database", "time", "actions" })
+                Assert.InRange(Right(narrow, part), 0, 300);
 
             // 缺值直接 collapse 不留空槽：沒有標註連線的收藏不畫膠囊（History 沒有連線是明講的文字）。
             var untagged = Render(template, new SqlMemoryRow(new SqlFavoriteItem(
@@ -313,6 +329,8 @@ public sealed class SqlMemoryVisualTests
             ContentTemplate = template, Content = row, Width = width,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
+        // 寬度模式由宿主量：與清單走同一條路徑，測試才驗得到真正的門檻而不是自己設的旗標。
+        SqlRowLayout.Track(host);
         host.Measure(new Size(width, 400)); host.Arrange(new Rect(0, 0, width, 400)); host.UpdateLayout();
         return host;
     }
@@ -669,8 +687,8 @@ public sealed class SqlMemoryVisualTests
             Assert.True(scroll.ScrollableWidth > 0);
             Assert.True(summary.ActualHeight < 30);
             var fields = Descendants<TextBlock>(summary).ToArray();
-            // 膠囊（狀態、次數、伺服器、資料庫）集中在前，檔名與時間緊接在後；合併列同時列出首次與最後執行。
-            Assert.Equal(new[] { row.Status, "×4", row.Server, row.Database, row.Name, row.TimeSummary }, fields.Select(field => field.Text));
+            // 與清單列同一個順序：檔名 → 狀態 → 次數 → 伺服器 → 資料庫 → 時間；合併列同時列出首次與最後執行。
+            Assert.Equal(new[] { row.Name, row.Status, "×4", row.Server, row.Database, row.TimeSummary }, fields.Select(field => field.Text));
             Assert.StartsWith("首次 " + last.AddMinutes(-20).ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"), row.TimeSummary);
             Assert.EndsWith("最後 " + last.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"), row.TimeSummary);
             Assert.InRange(fields.Max(field => field.TranslatePoint(new Point(), summary).Y) - fields.Min(field => field.TranslatePoint(new Point(), summary).Y), 0, 4);

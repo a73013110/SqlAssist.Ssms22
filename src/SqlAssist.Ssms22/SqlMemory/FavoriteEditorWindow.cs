@@ -69,7 +69,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         Place(SqlAssistChrome.CreateMemoryField("資料庫", TagBar(SqlIcon.Database, _database, "資料庫", databases: true), _database), 2, 2);
         var connection = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         connection.Template = SqlAssistChrome.CreateGhostButtonTemplate();
-        connection.Content = SqlAssistChrome.CreateMemoryLabel(SqlIcon.Connection, "使用目前連線");
+        connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "使用目前連線");
         connection.ToolTip = "以目前作用中查詢視窗的伺服器與資料庫填入標註；不切換連線。";
         connection.MinHeight = 30; connection.VerticalAlignment = VerticalAlignment.Bottom;
         connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
