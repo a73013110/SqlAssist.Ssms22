@@ -351,6 +351,88 @@ public sealed class SqlSearchVisualTests
         Assert.Equal("Table · 內容 · " + row.Path, row.Description);
     }
 
+    [Fact]
+    public void 結果列第一列以名稱開頭而片段只在本文命中時出現()
+    {
+        WpfTest.Run(() =>
+        {
+            // 樣板在 STA 執行緒上建立；先建好再交給另一條執行緒套用會在 Seal 擋下來。
+            var template = SqlAssistChrome.CreateSearchHitTemplate();
+            // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫 → 操作。
+            var wide = Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
+            var order = new[] { "name", "kind", "target", "badges", "actions" };
+            var lefts = order.Select(part => Left(wide, part)).ToArray();
+            for (var index = 1; index < order.Length; index++)
+                Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
+            // 名稱固定最左：圖示排在它前面，每一列要掃的那一欄就從不同的位置開始。
+            Assert.Equal(0, Left(wide, "name"), 1);
+            var center = Center(wide, "name");
+            Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
+            Assert.True(Right(wide, "target") + 8 < Left(wide, "badges"));
+            // 兩顆連線膠囊在第一列上，不再自己占一行的右半。
+            Assert.Equal(2, Descendants<SqlIconImage>(Part(wide, "badges")).Count());
+            Assert.Equal(Visibility.Hidden, Part(wide, "actions").Visibility);
+
+            // 片段列只在本文命中時出現：名稱命中的片段就是名稱本體，不壓成固定兩列。
+            Assert.Equal(Visibility.Collapsed, Part(wide, "code").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Column, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)),
+                "Column"), 740), "code").Visibility);
+            Assert.Equal(Visibility.Visible, Part(Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Text, "[dbo].[Cat_BookCopy]", "    JOIN Loan l", new MatchSpan(9, 4)),
+                "Procedure"), 740), "code").Visibility);
+
+            // 工具窗停在右側時整列約 300 DIP；長名稱先省略中段，但仍從最左讀得到。
+            var narrow = Render(template, new SqlSearchRow(Hit(SearchMatchTarget.Name,
+                "[dbo].[" + new string('L', 60) + "]", "Loan", new MatchSpan(0, 4)), "Table"), 300);
+            var name = Part(narrow, "name");
+            Assert.Equal(0, Left(narrow, "name"), 1);
+            Assert.InRange(name.ActualWidth, 1, SqlAssistChrome.RowNameMaxWidth);
+            Assert.Equal(TextTrimming.CharacterEllipsis, ((TextBlock)name).TextTrimming);
+            Assert.InRange(Right(narrow, "target"), 0, 300);
+
+            // 沒有路徑概念的來源不留一條空白列。
+            var pathless = Render(template, new SqlSearchRow(new SearchHit("snippets", "snippets.snippet",
+                SearchMatchTarget.Name, "SelectTemplate", "SelectTemplate", 10, null, "", new[] { new MatchSpan(0, 6) }),
+                "Snippet"), 740);
+            Assert.Equal(Visibility.Collapsed, Part(pathless, "path").Visibility);
+        });
+    }
+
+    /// <summary>把樣板套在固定寬度上；ContentControl 預設只給內容自己的寬度，量不到靠右那一組。</summary>
+    private static ContentControl Render(DataTemplate template, object row, double width)
+    {
+        var host = new ContentControl
+        {
+            ContentTemplate = template, Content = row, Width = width,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
+        };
+        host.Measure(new Size(width, 400)); host.Arrange(new Rect(0, 0, width, 400)); host.UpdateLayout();
+        return host;
+    }
+
+    private static FrameworkElement Part(ContentControl host, string name)
+    {
+        var presenter = Descendants<ContentPresenter>(host).First();
+        return Assert.IsAssignableFrom<FrameworkElement>(presenter.ContentTemplate.FindName(name, presenter));
+    }
+
+    private static double Left(ContentControl host, string name) =>
+        Part(host, name).TranslatePoint(new Point(), host).X;
+
+    private static double Right(ContentControl host, string name)
+    {
+        var part = Part(host, name);
+        return part.TranslatePoint(new Point(part.ActualWidth, 0), host).X;
+    }
+
+    private static double Center(ContentControl host, string name)
+    {
+        var part = Part(host, name);
+        return part.TranslatePoint(new Point(0, part.ActualHeight / 2), host).Y;
+    }
+
     private static string Rendered(SqlHighlightText text) =>
         string.Concat(text.Inlines.OfType<Run>().Select(run => run.Text));
 

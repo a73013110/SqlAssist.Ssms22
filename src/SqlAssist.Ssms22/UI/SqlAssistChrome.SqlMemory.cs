@@ -486,16 +486,25 @@ internal static partial class SqlAssistChrome
     public static DataTemplate CreateSqlSummaryTemplate()
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
-        var heading = new FrameworkElementFactory(typeof(DockPanel)); panel.AppendChild(heading);
-        var state = BoundBadge("Status", "state", iconProperty: "StatusIcon"); state.SetValue(DockPanel.DockProperty, Dock.Left); heading.AppendChild(state);
-        var count = CountBadge(); count.SetValue(DockPanel.DockProperty, Dock.Left); heading.AppendChild(count);
-        var time = BoundText("RelativeTime"); time.Name = "time"; time.SetValue(DockPanel.DockProperty, Dock.Right);
+        // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間。左右兩組各自靠邊，
+        // 中間留給彈性空白；LastChildFill 會把最後一個子項拉滿而吃掉那一段。
+        var heading = new FrameworkElementFactory(typeof(DockPanel));
+        heading.SetValue(DockPanel.LastChildFillProperty, false); panel.AppendChild(heading);
+        var identity = RowIdentityGroup(); heading.AppendChild(identity);
+        var count = CountBadge(); count.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(count);
+        var state = BoundBadge("Status", "state", iconProperty: "StatusIcon"); state.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(state);
+        var title = BoundText("Name"); title.Name = "name"; title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        title.SetValue(FrameworkElement.MaxWidthProperty, RowNameMaxWidth);
+        title.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0)); identity.AppendChild(title);
+        var connections = new FrameworkElementFactory(typeof(DockPanel)); connections.SetValue(DockPanel.DockProperty, Dock.Right);
+        // 整組靠右，組內一律靠左排，順序才是「伺服器 → 資料庫 → 時間」；宣告順序同時是窄窗下縮的順序。
+        connections.SetValue(DockPanel.LastChildFillProperty, false); heading.AppendChild(connections);
+        AppendConnectionBadges(connections);
+        var time = BoundText("RelativeTime"); time.Name = "time";
         time.SetValue(FrameworkElement.MaxWidthProperty, 136d);
         time.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
-        time.SetBinding(FrameworkElement.ToolTipProperty, new Binding("TimeSummary")); heading.AppendChild(time);
-        var title = BoundText("Name"); title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-        title.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0)); heading.AppendChild(title);
+        time.SetBinding(FrameworkElement.ToolTipProperty, new Binding("TimeSummary")); connections.AppendChild(time);
         var code = new FrameworkElementFactory(typeof(Border)); code.SetResourceReference(Border.BackgroundProperty, ThemeBrush.RowAlternate);
         code.SetValue(Border.CornerRadiusProperty, new CornerRadius(4)); code.SetValue(Border.PaddingProperty, new Thickness(6, 2, 6, 2));
         code.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 3, 0, 3));
@@ -504,12 +513,14 @@ internal static partial class SqlAssistChrome
         sql.SetValue(TextBlock.TextWrappingProperty, TextWrapping.NoWrap); sql.SetValue(TextBlock.LineHeightProperty, 16d);
         sql.SetValue(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight);
         sql.SetValue(FrameworkElement.MaxHeightProperty, 16d); code.AppendChild(sql); panel.AppendChild(code);
-        var footer = new FrameworkElementFactory(typeof(DockPanel)); panel.AppendChild(footer);
+        // 動作列自己一列並靠右：擠進第一列，工具窗的寬度下就換成名稱與連線膠囊被推掉；
+        // 放進內容列則換成 SQL 摘要被擠掉，而那一行才是這張卡片的內容。
         var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
-        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal); actions.SetValue(DockPanel.DockProperty, Dock.Right);
+        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        actions.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
         // 動作列沿用卡片表面；透明底不會切斷 hover／selected 的底色與動畫。
         // Hidden 保留尺寸，避免懸停時 badge 跳動；鍵盤進入卡片也揭露動作。
-        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); footer.AppendChild(actions);
+        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); panel.AppendChild(actions);
         var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
         var history = new DataTrigger { Binding = new Binding("IsFavorite"), Value = false };
         foreach (var command in SqlMemoryRowCommand.All)
@@ -525,8 +536,6 @@ internal static partial class SqlAssistChrome
             else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             actions.AppendChild(button);
         }
-        var connections = new FrameworkElementFactory(typeof(WrapPanel)); footer.AppendChild(connections);
-        AppendConnectionBadges(connections);
         var template = new DataTemplate { VisualTree = panel };
         template.Triggers.Add(favorite); template.Triggers.Add(history);
         CollapseEmptyConnectionBadges(template);
@@ -563,6 +572,28 @@ internal static partial class SqlAssistChrome
         var glyph = new FrameworkElementFactory(typeof(SqlIconImage)); glyph.SetValue(SqlIconImage.IconProperty, icon);
         button.AppendChild(glyph);
         return button;
+    }
+
+    /// <summary>
+    /// 主要名稱的寬度上限。
+    /// </summary>
+    /// <remarks>
+    /// 工具窗停在右側時整列只有約 300 DIP，而名稱那一組先量。不設上限的話，一個長名稱就會把
+    /// 伺服器、資料庫與時間整組擠出這一列；被省略的中段仍讀得到，在 Tooltip 與 Preview。
+    /// </remarks>
+    internal const double RowNameMaxWidth = 180d;
+
+    /// <summary>清單列第一列的左半：主要名稱固定最左，狀態／類型與次要標記緊跟在它右邊。</summary>
+    /// <remarks>
+    /// 靠左對齊才只量自己的寬度；拉滿的話後面那幾顆膠囊會被推到右半那一組旁邊，讀起來像同一組，
+    /// 中間也不再有彈性空白。名稱是最後一個子項（fill），剩多少吃多少並 ellipsis。
+    /// </remarks>
+    private static FrameworkElementFactory RowIdentityGroup()
+    {
+        var group = new FrameworkElementFactory(typeof(DockPanel));
+        group.SetValue(DockPanel.DockProperty, Dock.Left);
+        group.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
+        return group;
     }
 
     private static FrameworkElementFactory BoundText(string property)
