@@ -453,6 +453,31 @@ WHERE tr.parent_id = @objectId
 ORDER BY tr.name;";
 
     /// <summary>
+    /// 條件約束所屬的那個物件（第三層）。
+    /// </summary>
+    /// <remarks>
+    /// 條件約束的定義不在它自己身上：<c>DEFAULT</c> 的運算式、<c>CHECK</c> 的條件、
+    /// 主索引鍵與外來鍵的資料行，全部都寫在<b>父物件</b>的第四層裡。所以這一條只問
+    /// 「父物件是誰」，剩下的交給既有的那一份結構載入——條件約束因此不需要第二份
+    /// 目錄查詢，也不會與 <c>CREATE TABLE</c> 那條路徑給出不一樣的寫法。
+    ///
+    /// 前四欄的順序與 <see cref="SqlMetadataReader.ReadObject"/> 一致，直接共用同一份對應。
+    /// <c>sys.objects</c> 上的條件約束沒有自己的 <c>schema_id</c>（它跟著父物件走），
+    /// 所以結構描述要從父物件那一列取；接到條件約束自己那一列的話，
+    /// 拿到的會是一個看起來完全正常、卻不是它所在的結構描述。
+    /// </remarks>
+    public const string ConstraintParent = @"
+SELECT
+    p.object_id,
+    s.name AS schema_name,
+    p.name AS object_name,
+    p.type
+FROM sys.objects AS c
+INNER JOIN sys.objects AS p ON p.object_id = c.parent_object_id
+INNER JOIN sys.schemas AS s ON s.schema_id = p.schema_id
+WHERE c.object_id = @objectId;";
+
+    /// <summary>
     /// 第四層：單一資料表上的 <c>CHECK</c> 條件約束。
     /// </summary>
     /// <remarks>
