@@ -22,6 +22,12 @@ Favorites 是使用者明確收藏的 SQL；收藏不等於檔案儲存，也不
 換行、NUL 或未配對 surrogate，不使用 delta chain。去重命中的驗證策略與全文讀取的完整性
 保證見[儲存](sql-memory-storage.md)。
 
+- **空白的 SQL 一列都不留。** 內容是空的或全部都是空白字元時不建立版本、不寫 Recovery，
+  也不記執行事件；第一次擷取就空白的 Session 連一列都不產生（新增查詢視窗又關掉是最常見的一條）。
+  已經有內容的 Session 仍然關得掉：關閉照樣保存最終版本並刪掉 Recovery，只是不為空白建版本。
+  對著空白視窗按下執行也不沿用上一個版本——那會把一段已經刪掉的 SQL 記成剛剛執行過。
+  判斷只有 `SqlContent.IsBlank` 一份，「新增至收藏」與預覽的空狀態問的是同一支；
+  清掉升級前留下來的空白列見[用量與清理](sql-memory-usage.md#清除紀錄)。
 - idle 以每 Session 一份 Recovery 保存最新全文；內容改變且跨過設定間隔才建立 auto revision。
 - 執行事件獨立於 Revision；重複完整 SQL 或連續相同選取 SQL 可重用版本。
   同一 Session 連續相同的執行只佔一列 History，規則見[合併](sql-memory-search.md#連續執行合併)。

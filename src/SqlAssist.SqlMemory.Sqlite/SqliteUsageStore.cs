@@ -116,7 +116,8 @@ internal sealed class SqliteUsageStore
         if (!request.TouchesHistory) return new SqlMemoryCleanupBatch(0, 0, 0, null);
         cancellationToken.ThrowIfCancellationRequested();
         var binding = SqliteTimeCursor.Fingerprint(((int)request.Targets).ToString(CultureInfo.InvariantCulture),
-            request.Before?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture), request.Server, request.Database);
+            request.Before?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture), request.Server, request.Database,
+            request.OnlyBlank ? "blank" : null);
         var position = SqliteTimeCursor.Decode(cursor, CleanupCursor, _database.StoreId, binding, SqliteHistoryRows.IsKey);
         var (conditions, parameters) = HistoryConditions(request);
         position?.AppendCondition(conditions, parameters, "h.CreatedAt", "h.EntryKey");
@@ -184,6 +185,8 @@ internal sealed class SqliteUsageStore
                 " WHERE s.SessionId=h.SessionId AND s.LeaseId IS NOT NULL))");
         var conditions = new List<string> { "(" + string.Join(" OR ", kinds) + ")" };
         var parameters = new List<(string Name, object? Value)>();
+        // 與勾選的對象是且的關係：空白的草稿仍然是一筆草稿，沒有勾草稿就不該被帶走。
+        if (request.OnlyBlank) conditions.Add(SqliteHistoryRows.Blank("h"));
         if (request.Before.HasValue)
         {
             conditions.Add("h.CreatedAt<$before");

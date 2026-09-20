@@ -32,7 +32,7 @@ public enum SqlMemoryCleanupTargets
 public sealed class SqlMemoryCleanupRequest
 {
     public SqlMemoryCleanupRequest(SqlMemoryCleanupTargets targets, DateTimeOffset? before = null, string? server = null,
-        string? database = null, int keepFavoriteRevisions = 10)
+        string? database = null, int keepFavoriteRevisions = 10, bool onlyBlank = false)
     {
         const SqlMemoryCleanupTargets all = SqlMemoryCleanupTargets.Executions | SqlMemoryCleanupTargets.Drafts |
             SqlMemoryCleanupTargets.ClosedRecovery | SqlMemoryCleanupTargets.FavoriteRevisions;
@@ -44,6 +44,7 @@ public sealed class SqlMemoryCleanupRequest
         Server = Normalize(server);
         Database = Normalize(database);
         KeepFavoriteRevisions = keepFavoriteRevisions;
+        OnlyBlank = onlyBlank;
     }
 
     public SqlMemoryCleanupTargets Targets { get; }
@@ -57,6 +58,19 @@ public sealed class SqlMemoryCleanupRequest
     public string? Database { get; }
 
     public int KeepFavoriteRevisions { get; }
+
+    /// <summary>
+    /// 只清空白的 SQL：內容是空的或全部都是空白字元。收藏版本不看這個值。
+    /// </summary>
+    /// <remarks>
+    /// 與勾選的對象是<b>且</b>的關係，不是第五種對象：空白的草稿同時也是一筆草稿，
+    /// 做成對象的話它會在兩處各算一次，而試算的總數就不是實際要刪的筆數。
+    ///
+    /// 留這個開關是因為擷取端已經不再產生空白列（<see cref="SqlContent.IsBlank"/>），
+    /// 但在那之前留下來的還在清單上——而「清掉草稿」會連有內容的草稿一起帶走，
+    /// 那不是使用者要的。
+    /// </remarks>
+    public bool OnlyBlank { get; }
 
     public bool Includes(SqlMemoryCleanupTargets target) => (Targets & target) == target;
 

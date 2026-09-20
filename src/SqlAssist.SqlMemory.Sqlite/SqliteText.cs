@@ -25,9 +25,12 @@ internal static class SqliteText
         return new string(chars);
     }
 
+    /// <summary>預覽欄位保留的字元數；空白列的清理條件靠它判斷整份內容都在預覽裡。</summary>
+    public const int PreviewLength = 240;
+
     public static string Preview(string text)
     {
-        var length = Math.Min(text.Length, 240);
+        var length = Math.Min(text.Length, PreviewLength);
         if (length > 0 && char.IsHighSurrogate(text[length - 1])) length--;
         return text.Substring(0, length).Replace('\0', ' ');
     }

@@ -21,6 +21,24 @@ public sealed class SqlContent
     public string SqlText { get; }
     public int Length => SqlText.Length;
 
+    /// <summary>
+    /// 這份 SQL 沒有內容：空字串，或全部都是空白字元。
+    /// </summary>
+    /// <remarks>
+    /// 「什麼不值得記下來」只有這一份判斷：擷取（<see cref="SqlCapturePlanner"/>）、
+    /// 「新增至收藏」與預覽的空狀態都問它。各寫一份的症狀是清單上留得下來的東西，
+    /// 打開之後預覽說「這份 SQL 是空白內容」。
+    ///
+    /// 空白不正規化、也不參與去重——<see cref="Create"/> 仍然精確保留每一個 code unit。
+    /// 這裡回答的只是「要不要記」，不是「這兩份算不算同一份」。
+    ///
+    /// 清理既有資料的那一份判斷寫在儲存層的 SQL 裡（<c>SqliteHistoryRows.Blank</c>），
+    /// 兩邊不可能共用同一段程式碼；它只涵蓋 ASCII 空白與全形空白，而這一支照
+    /// <see cref="char.IsWhiteSpace(char)"/> 走。代價是某些罕見空白字元的舊列要手動刪，
+    /// 而新的擷取從一開始就不會產生。
+    /// </remarks>
+    public static bool IsBlank(string? sqlText) => string.IsNullOrWhiteSpace(sqlText);
+
     public static SqlContent Create(string sqlText)
     {
         if (sqlText == null) throw new ArgumentNullException(nameof(sqlText));

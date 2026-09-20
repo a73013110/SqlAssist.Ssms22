@@ -180,6 +180,49 @@ public sealed class SqlCapturePlannerTests
         Assert.Empty(draft.Revisions);
     }
 
+    /// <remarks>
+    /// 新增查詢視窗、什麼都沒打就關掉，是最容易大量產生空白列的一條路：
+    /// 開窗與關窗各一次擷取，而兩次的內容都是空的。
+    /// </remarks>
+    [Theory]
+    [InlineData("")]
+    [InlineData("   \r\n\t  ")]
+    public void 空白內容不建立Session也不留下任何一列(string text)
+    {
+        Assert.Null(_engine.Prepare(Capture(text: text), null, Policy));
+        Assert.Null(_engine.Prepare(Capture(text: text, kind: SqlCaptureKind.EditorClosed), null, Policy));
+        Assert.Null(_engine.Prepare(Capture(text: text, kind: SqlCaptureKind.BeforeExecute), null, Policy));
+    }
+
+    /// <remarks>
+    /// 沿用上一個版本的話，一段已經被刪掉的 SQL 會被記成「剛剛執行過」。
+    /// </remarks>
+    [Fact]
+    public void 對著空白視窗執行不沿用上一個版本()
+    {
+        var first = Prepare(Capture());
+        Assert.Null(_engine.Prepare(Capture(2, "", SqlCaptureKind.BeforeExecute, seconds: 5), first.State, Policy));
+        Assert.Null(_engine.Prepare(
+            Capture(3, kind: SqlCaptureKind.BeforeExecute, seconds: 10, selection: "  "), first.State, Policy));
+    }
+
+    /// <remarks>
+    /// 已經有內容的 Session 仍然要關得掉：關閉那一筆同時刪 Recovery，
+    /// 擋掉它會讓未存檔草稿永遠留在清單上。
+    /// </remarks>
+    [Fact]
+    public void 內容被刪光之後關閉仍然結束Session但不為空白建版本()
+    {
+        var first = Prepare(Capture());
+        var close = Prepare(Capture(2, "", SqlCaptureKind.EditorClosed, seconds: 5), first.State);
+
+        Assert.Empty(close.Revisions);
+        Assert.Empty(close.Contents);
+        Assert.True(close.DeleteRecovery);
+        Assert.NotNull(close.State.Session.ClosedAt);
+        Assert.Equal(first.State.LatestRevision?.RevisionId, close.State.LatestRevision?.RevisionId);
+    }
+
     private SqlCaptureCommit Prepare(SqlCapture capture, SqlSessionHead? previous = null) =>
         Assert.IsType<SqlCaptureCommit>(_engine.Prepare(capture, previous, Policy));
 }

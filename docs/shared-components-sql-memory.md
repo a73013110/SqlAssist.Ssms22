@@ -8,6 +8,7 @@
 | 這件事 | 唯一出處 |
 | --- | --- |
 | SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
+| 「這份 SQL 沒有內容」（擷取、新增至收藏與預覽空狀態共用） | `Core/SqlMemory/SqlContent.cs` 的 `IsBlank`（清理既有資料那一份是 SQL，在 `SqliteHistoryRows.Blank`） |
 | 開啟／關閉、世代、寫入器故障、心跳、維護排程與使用者主動整理 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
 | 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
 | 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |

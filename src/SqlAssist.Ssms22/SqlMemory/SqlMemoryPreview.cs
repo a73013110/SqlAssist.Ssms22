@@ -109,7 +109,9 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             _loaded = true; _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = true;
             // 空白內容也是一種「沒有東西可讀」，跟其他三種走同一塊表面；寫在狀態列的話，
             // 使用者看到的是一塊空的唯讀檢視配一行小字。
-            _surface.State = content.Length == 0
+            // 新的擷取不再留下空白列（SqlContent.IsBlank），但清理之前的舊資料仍在，
+            // 所以這塊表面留著——而且比對的是同一份判斷，不是只看長度為零。
+            _surface.State = SqlContent.IsBlank(content.SqlText)
                 ? SqlSurfaceState.Empty("這份 SQL 是空白內容", "仍然可以開啟或刪除它。")
                 : SqlSurfaceState.None;
         }

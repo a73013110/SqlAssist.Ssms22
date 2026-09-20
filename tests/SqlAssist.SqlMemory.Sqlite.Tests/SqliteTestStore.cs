@@ -67,6 +67,16 @@ internal sealed class SqliteTestStore : IDisposable
         return command.ExecuteScalar();
     }
 
+    /// <summary>直接跑一句 SQL；只給「造出舊版本才寫得出來的資料」這種前置用。</summary>
+    public void Execute(string sql)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path, Pooling = false }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.ExecuteNonQuery();
+    }
+
     public IEnumerable<string> Query(string sql)
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = Path, Pooling = false }.ToString());
