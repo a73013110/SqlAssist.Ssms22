@@ -228,6 +228,84 @@ public sealed class SqlAssistChromeTests
     /// 打字驅動的搜尋最短，選取驅動的預覽次之，每一次都要查一輪的估算與比對 SQL 全文的
     /// Memory 搜尋最寬。散在四個檔時沒有人比得出這個順序，改壞了也看不出來。
     /// </remarks>
+    /// <summary>
+    /// 下拉的箭頭是一個<b>狀態</b>：收合朝右、展開朝下，而且轉過去而不是跳過去。
+    /// </summary>
+    /// <remarks>
+    /// 兩處各寫一次角度的下場是其中一邊轉錯邊；只在按下時轉的那一版，面板被「按到外面」
+    /// 關掉之後箭頭仍朝下，指著一個已經不在畫面上的面板。
+    /// </remarks>
+    [Fact]
+    public void 箭頭收合朝右展開朝下且動畫關掉時直接寫角度()
+    {
+        WpfTest.Run(() =>
+        {
+            var chevron = SqlAssistChrome.CreateChevron(expanded: false);
+            var rotation = Assert.IsType<RotateTransform>(chevron.RenderTransform);
+            Assert.Equal(-90, rotation.Angle);
+            Assert.Equal(new Point(0.5, 0.5), chevron.RenderTransformOrigin);
+
+            SqlAssistChrome.SetChevronExpanded(chevron, expanded: true, motion: false);
+            Assert.Equal(0, rotation.Angle);
+            Assert.False(rotation.HasAnimatedProperties);
+
+            SqlAssistChrome.SetChevronExpanded(chevron, expanded: false, motion: false);
+            Assert.Equal(-90, rotation.Angle);
+
+            // 開著動畫時走動畫；不寫 From，所以連按兩下是從轉到一半的位置反向。
+            SqlAssistChrome.SetChevronExpanded(chevron, expanded: true, motion: true);
+            Assert.True(rotation.HasAnimatedProperties);
+
+            // 關掉動畫是真的關掉：先把跑著的那一份清掉，再寫最終角度。
+            SqlAssistChrome.SetChevronExpanded(chevron, expanded: false, motion: false);
+            Assert.False(rotation.HasAnimatedProperties);
+            Assert.Equal(-90, rotation.Angle);
+
+            // 揭露這一級短到可以中途反向。
+            Assert.InRange(SqlAssistChrome.ChevronTurnDuration, System.TimeSpan.Zero, System.TimeSpan.FromMilliseconds(300));
+        });
+    }
+
+    /// <summary>
+    /// 篩選群組的分隔線只有一份，SQL Memory 與 SQL Search 都從它來。
+    /// </summary>
+    [Fact]
+    public void 篩選群組分隔線是同一份而且群距大於群內距()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var divider = SqlAssistChrome.CreateFilterGroupDivider();
+            var host = new Border { Child = divider };
+            host.Resources.MergedDictionaries.Add(palette.Resources);
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+            host.Measure(new Size(200, 60));
+            host.Arrange(new Rect(0, 0, 200, 60));
+            host.UpdateLayout();
+
+            Assert.Equal(1, divider.Width);
+            Assert.True(divider.SnapsToDevicePixels);
+            Assert.False(divider.IsHitTestVisible);
+            // 不表達狀態，所以用髮絲線而不是任何語意色。
+            Assert.Same(palette.Resources[ThemeBrush.Hairline], divider.Background);
+            // 左右對稱，而且比群內的 4 DIP 寬：兩個數字的差就是「這是兩群」。
+            Assert.Equal(divider.Margin.Left, divider.Margin.Right);
+            Assert.True(divider.Margin.Left > 4);
+            // 比按鈕矮一截，讀起來是一條界線不是一個邊框。
+            Assert.InRange(divider.Height, 12, 24);
+
+            // SQL Memory 的狀態與期間是兩群，走的是同一份。
+            var filters = SqlAssistChrome.CreateMemoryHistoryFilters(
+                new SqlPillSelector("執行", "草稿"), new SqlPillSelector("七天", "全部"));
+            var panel = Assert.IsType<WrapPanel>(filters);
+            Assert.Equal(2, panel.Children.Count);
+            var period = Assert.IsType<StackPanel>(panel.Children[1]);
+            var rule = Assert.IsType<Border>(period.Children[0]);
+            Assert.Equal(1, rule.Width);
+            Assert.Equal(divider.Margin, rule.Margin);
+        });
+    }
+
     [Fact]
     public void 去彈跳常數維持由短到長的順序()
     {

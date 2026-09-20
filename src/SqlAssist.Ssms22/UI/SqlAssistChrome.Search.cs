@@ -31,7 +31,8 @@ internal static partial class SqlAssistChrome
     /// 取消了原本的上下分組：分組把同一批結果切成兩疊，要找的那一筆可能在第二疊的底下。
     /// 每一列掛一顆命中部位徽章一樣分得出來，而排序可以換成使用者真正要的那一種。
     /// </remarks>
-    public static DataTemplate CreateSearchHitTemplate()
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public static DataTemplate CreateSearchHitTemplate(bool? motion = null)
     {
         var lines = new FrameworkElementFactory(typeof(StackPanel));
         lines.SetBinding(AutomationProperties.NameProperty, new Binding("Description"));
@@ -163,20 +164,8 @@ internal static partial class SqlAssistChrome
         // 操作層的底色跟著列走；在揭露的 trigger 之前宣告，順序與卡片樣板那一組相同。
         MirrorRowStateOnActions(template);
 
-        // 鍵盤走到這一列也揭露動作；只鍵盤操作的人不該看不到它們。
-        foreach (var property in new[] { "IsMouseOver", "IsKeyboardFocusWithin" })
-        {
-            var hover = new DataTrigger
-            {
-                Binding = new Binding(property)
-                {
-                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1)
-                },
-                Value = true
-            };
-            hover.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "actions"));
-            template.Triggers.Add(hover);
-        }
+        // 滑鼠或鍵盤走到這一列就揭露動作；條件與揭露動畫是同一份，與 SQL Memory 的卡片共用。
+        RevealRowActions(template, motion: motion);
 
         return template;
     }

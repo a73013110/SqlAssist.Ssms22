@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -70,16 +71,21 @@ internal sealed class SqlFilterFlyout : Button
     private object? _sort;
     private SqlFilterRow? _empty;
     private readonly Popup _popup;
+    private readonly Path _chevron;
+    private Path? _sortChevron;
     private readonly string _name;
+    private readonly bool? _motion;
     private bool _compact;
 
     /// <summary>選項區的高度上限；捲的是選項本身，搜尋框、命令鈕與續頁鈕要一直看得見。</summary>
     private const double OptionsHeight = 280;
 
     /// <param name="mode">單選、複選，或複選加搜尋框。</param>
-    public SqlFilterFlyout(string name, SqlIcon icon, SqlFilterMode mode = SqlFilterMode.Multiple)
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public SqlFilterFlyout(string name, SqlIcon icon, SqlFilterMode mode = SqlFilterMode.Multiple, bool? motion = null)
     {
         _name = name;
+        _motion = motion;
         Mode = mode;
         var single = mode == SqlFilterMode.Single;
         _options = SqlAssistChrome.CreateFilterOptionList(OptionsHeight, single);
@@ -94,9 +100,9 @@ internal sealed class SqlFilterFlyout : Button
         content.Children.Add(glyph);
         content.Children.Add(_label);
         content.Children.Add(_summary);
-        var chevron = SqlAssistChrome.CreateChevron(expanded: false);
-        chevron.Margin = new Thickness(3, 0, 0, 0);
-        content.Children.Add(chevron);
+        _chevron = SqlAssistChrome.CreateChevron(expanded: false);
+        _chevron.Margin = new Thickness(3, 0, 0, 0);
+        content.Children.Add(_chevron);
         Content = content;
 
         var panel = new StackPanel();
@@ -172,15 +178,27 @@ internal sealed class SqlFilterFlyout : Button
 
         // 排序選單是自己的一個 popup：它開起來時這個面板會被當成「按到外面」而關掉，
         // 而使用者按排序正是為了看重排之後的這一份清單。開選單的期間先不讓它自己關。
-        SortMenu.Opened += (_, _) => _popup.StaysOpen = true;
-        SortMenu.Closed += (_, _) => _popup.StaysOpen = false;
+        SortMenu.Opened += (_, _) =>
+        {
+            _popup.StaysOpen = true;
+            if (_sortChevron is { } glyph) SqlAssistChrome.SetChevronExpanded(glyph, expanded: true, _motion);
+        };
+        SortMenu.Closed += (_, _) =>
+        {
+            _popup.StaysOpen = false;
+            if (_sortChevron is { } glyph) SqlAssistChrome.SetChevronExpanded(glyph, expanded: false, _motion);
+        };
 
         Click += (_, _) => Open();
+        // 箭頭轉向與面板開合同一個事實。綁在 Click 上的那一版在「按到外面自己關掉」時不會轉回來，
+        // 而按鈕上就一直畫著一顆朝下的箭頭，指著一個已經不在畫面上的面板。
         _popup.Opened += (_, _) =>
         {
+            SqlAssistChrome.SetChevronExpanded(_chevron, expanded: true, _motion);
             SqlAssistChrome.PlayAppear(surface);
             _filter?.Focus();
         };
+        _popup.Closed += (_, _) => SqlAssistChrome.SetChevronExpanded(_chevron, expanded: false, _motion);
         // Esc 關面板並把焦點還給按鈕；面板還開著時按 Esc 不該收掉整個工具窗的搜尋。
         _popup.PreviewKeyDown += (_, args) =>
         {
@@ -367,9 +385,11 @@ internal sealed class SqlFilterFlyout : Button
         icon.Margin = new Thickness(0, 0, 5, 0);
         content.Children.Add(icon);
         content.Children.Add(SqlAssistChrome.CreateButtonText(current.ShortLabel));
-        var chevron = SqlAssistChrome.CreateChevron();
-        chevron.Margin = new Thickness(4, 0, 0, 0);
-        content.Children.Add(chevron);
+        // 與過濾按鈕同一顆箭頭：收起時朝右，選單開著時朝下。內容重建時把新的那一顆記下來，
+        // 記著舊的那一版會讓排序換過一次之後箭頭再也不轉。
+        _sortChevron = SqlAssistChrome.CreateChevron(expanded: SortMenu.IsOpen);
+        _sortChevron.Margin = new Thickness(4, 0, 0, 0);
+        content.Children.Add(_sortChevron);
         _sortButton.Content = content;
         _sortButton.ToolTip = _name + "排序：" + current.Label;
         _sortButton.Visibility = Visibility.Visible;

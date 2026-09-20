@@ -60,7 +60,9 @@ internal sealed class SqlScriptTheme : IDisposable
     public void EnsureCurrent()
     {
         _host.Dispatcher.VerifyAccess();
-        if (_disposed || (!_dirty && (_formatMap is not null || _view is null)))
+        // 還沒要到外觀就每次再試一次：殼層的 MEF 容器可能比第一次呼叫晚一步才備妥，
+        // 而「一直沒有編輯器」不再是放棄的理由——沒有檢視時也問得到分類。
+        if (_disposed || (!_dirty && _formatMap is not null))
         {
             return;
         }
@@ -82,9 +84,15 @@ internal sealed class SqlScriptTheme : IDisposable
 
         SqlAssistPlatformGuard.Probe("解析 SQL 編輯器外觀", () =>
         {
-            var services = SqlPreviewServices.Current;
+            // 向殼層要，而不是只看編輯器登記過的那一份：只連了資料庫、一個查詢視窗都沒開時，
+            // 登記那條路一次都沒有走過，而這裡仍要問得出著色分類。
+            var services = SqlPreviewServices.Resolve();
             var view = _view is { IsClosed: false } ? _view : null;
-            var map = view is null ? null : services?.TryGetTextFormatMap(view);
+            // 有編輯器就跟著那一個（它可能套了自己的外觀類別）；沒有就問「Text Editor」類別本身。
+            // 兩條路要到的是同一份設定，所以使用者之後打開查詢視窗時顏色不會換一套。
+            var map = services is null ? null
+                : view is null ? services.TryGetDefaultTextFormatMap()
+                : services.TryGetTextFormatMap(view);
             if (!ReferenceEquals(map, _formatMap))
             {
                 if (_formatMap is not null)
@@ -99,42 +107,52 @@ internal sealed class SqlScriptTheme : IDisposable
                 }
             }
 
-            if (map is null || services is null || view is null)
+            if (map is null || services is null)
             {
                 return;
             }
 
             var defaults = map.DefaultTextProperties;
-            if (!defaults.TypefaceEmpty)
-            {
-                font = defaults.Typeface.FontFamily;
-            }
 
-            if (!defaults.FontRenderingEmSizeEmpty && defaults.FontRenderingEmSize > 0)
+            // 字型與字級只跟著真的存在的那個編輯器走：那是為了讓指令碼分頁與查詢視窗並排比得起來。
+            // 沒有編輯器時留著 Cascadia Mono，不拿一個沒有人看得到的檢視的字級來撐工具窗。
+            if (view is not null)
             {
-                fontSize = defaults.FontRenderingEmSize;
-            }
-
-            if (!SystemParameters.HighContrast)
-            {
-                // 分類色必須搭配同一個編輯器的底色，不能把 SQL 前景放到 Tooltip 底色上。
-                if (!defaults.ForegroundBrushEmpty &&
-                    defaults.ForegroundBrush is SolidColorBrush editorForeground &&
-                    view.Background is SolidColorBrush editorBackground &&
-                    ThemeColorMath.Contrast(editorForeground.Color, editorBackground.Color) >= 4.5)
+                if (!defaults.TypefaceEmpty)
                 {
-                    background = editorBackground;
-                    foreground = editorForeground;
+                    font = defaults.Typeface.FontFamily;
                 }
 
-                // 殼層與分類映射的更新順序不固定；中途取不到某個分類時仍保留成對的備援。
-                keyword = comment = text = number = foreground;
-                var registry = services.ClassificationRegistry;
-                keyword = Resolve(map, registry, PredefinedClassificationTypeNames.Keyword, foreground, background);
-                comment = Resolve(map, registry, PredefinedClassificationTypeNames.Comment, foreground, background);
-                text = Resolve(map, registry, PredefinedClassificationTypeNames.String, foreground, background);
-                number = Resolve(map, registry, PredefinedClassificationTypeNames.Number, foreground, background);
+                if (!defaults.FontRenderingEmSizeEmpty && defaults.FontRenderingEmSize > 0)
+                {
+                    fontSize = defaults.FontRenderingEmSize;
+                }
             }
+
+            if (SystemParameters.HighContrast)
+            {
+                return;
+            }
+
+            // 分類色必須搭配同一個編輯器的底色，不能把 SQL 前景放到 Tooltip 底色上。
+            // 沒有編輯器可借底色時就留著工具窗自己那一組，分類色照樣對它校正對比。
+            if (view is not null &&
+                !defaults.ForegroundBrushEmpty &&
+                defaults.ForegroundBrush is SolidColorBrush editorForeground &&
+                view.Background is SolidColorBrush editorBackground &&
+                ThemeColorMath.Contrast(editorForeground.Color, editorBackground.Color) >= 4.5)
+            {
+                background = editorBackground;
+                foreground = editorForeground;
+            }
+
+            // 殼層與分類映射的更新順序不固定；中途取不到某個分類時仍保留成對的備援。
+            keyword = comment = text = number = foreground;
+            var registry = services.ClassificationRegistry;
+            keyword = Resolve(map, registry, PredefinedClassificationTypeNames.Keyword, foreground, background);
+            comment = Resolve(map, registry, PredefinedClassificationTypeNames.Comment, foreground, background);
+            text = Resolve(map, registry, PredefinedClassificationTypeNames.String, foreground, background);
+            number = Resolve(map, registry, PredefinedClassificationTypeNames.Number, foreground, background);
         });
 
         SetResource(ScriptResource.FontFamily, font);

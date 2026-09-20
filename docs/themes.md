@@ -35,9 +35,23 @@ SSMS 新彩色主題使用 Fluent `ShellColors`；舊 `EnvironmentColors.ToolTip
 
 ## SQL 指令碼
 
-`Preview/SqlScriptTheme` 於第一次開啟指令碼分頁時才建立，使用目前查詢視窗的
-`IClassificationFormatMap` 及 `IWpfTextView.Background`，不是通用 `"text"` 分類。
+`Preview/SqlScriptTheme` 於第一次開啟指令碼分頁時才建立。**有查詢視窗時**使用那一個視窗的
+`IClassificationFormatMap` 及 `IWpfTextView.Background`，不是通用 `"text"` 分類——同一份設定在
+不同檢視上可以套不同的外觀類別，拿通用那一份會讓預覽與旁邊的查詢視窗顏色對不上，
+字型與字級也只在這時候跟著編輯器走。
 分類配色、編輯器底色及主題通知皆會使外觀失效；分頁不可見時延後到顯示前更新。
+
+**一個查詢視窗都沒有**（只連了資料庫）時退回 `"text"` 這個外觀類別，底色與前景留在工具窗自己
+那一組，字型維持 Cascadia Mono。不退回的那一版讓 `keyword`／`comment`／`string`／`number`
+全部等於前景色，症狀是 SQL Memory 與 SQL Search 的預覽整份同一個顏色，而使用者會以為高亮壞了。
+兩條路要到的是同一份 Fonts and Colors 設定，所以之後打開查詢視窗不會換一套顏色。
+
+服務也要跟著換一條路拿。`SqlPreviewServices.Current` 是由**編輯器建立接聽器**登記的，
+沒有開過查詢視窗時它從頭到尾是 null；`SqlPreviewServices.Resolve()` 改向殼層的 MEF 容器
+（`SComponentModel`）要同一組服務並登記起來。要的是**那一個**容器裡的服務，不是自己 new 一份
+MEF host——後者拿到的是對不上編輯器設定的第二份外觀。取不到就回 null，呼叫端退回自己的前景色；
+著色讀不到還畫得出 SQL，整個預覽開不起來就不行。這條路每次呼叫都會重試，所以包在 `Probe` 裡，
+連續失敗不會灌爆紀錄檔。
 
 `SqlScriptDocument` 的每個 Run 保存分類資源鍵。換主題只替換筆刷與字型資源，
 不重新詞法分析、不重建 FlowDocument、不重查資料庫，既有文字選取及捲動狀態得以保留。

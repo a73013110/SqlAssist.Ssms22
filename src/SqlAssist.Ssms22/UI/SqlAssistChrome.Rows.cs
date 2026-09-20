@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -161,18 +162,30 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>操作層左緣那一段淡出的寬度；蓋住的那顆膠囊要淡掉，不是被一條直邊切掉。</summary>
-    private const double RowActionFade = 20d;
+    private const double RowActionFade = 24d;
 
     /// <summary>操作層的淡出遮罩；只做一次並凍結，每一列共用同一份。</summary>
     private static readonly Brush RowActionFadeMask = CreateRowActionFadeMask();
 
+    /// <summary>
+    /// 只有<b>左緣那 <see cref="RowActionFade"/> DIP</b> 淡出，其餘整片不透明。
+    /// </summary>
+    /// <remarks>
+    /// 一定要用 <see cref="BrushMappingMode.Absolute"/>。相對座標的那一版兩個停駐點落在 0 與 1，
+    /// 也就是整個操作層由左到右從全透明線性升到不透明——整排圖示是半透明的，底下的連線膠囊
+    /// 一路透出來疊在上面，而那正是「停駐時功能與後面的東西糊在一起」的樣子。
+    /// 絕對座標讓漸層在 <see cref="RowActionFade"/> DIP 處就結束，之後由
+    /// <see cref="GradientSpreadMethod.Pad"/> 補成實心，所以只有交界那一小段是軟的。
+    /// 遮罩是固定的灰階，不隨主題也不隨列寬變，做一次凍結共用。
+    /// </remarks>
     private static Brush CreateRowActionFadeMask()
     {
         var mask = new LinearGradientBrush
         {
             StartPoint = new Point(0, 0),
-            EndPoint = new Point(1, 0),
-            MappingMode = BrushMappingMode.RelativeToBoundingBox
+            EndPoint = new Point(RowActionFade, 0),
+            MappingMode = BrushMappingMode.Absolute,
+            SpreadMethod = GradientSpreadMethod.Pad
         };
         mask.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
         mask.GradientStops.Add(new GradientStop(Colors.Black, 1));
@@ -207,6 +220,9 @@ internal static partial class SqlAssistChrome
         // Collapsed 而不是 Hidden：層不佔寬度，收起來也不會在右邊留一塊空白。
         layer.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
 
+        // 揭露時從右緣滑進來；位移走 RenderTransform，層本身又不參與量測，版面兩次都不動。
+        layer.SetValue(UIElement.RenderTransformProperty, new TranslateTransform());
+
         var tint = new FrameworkElementFactory(typeof(Border)) { Name = name + "Tint" };
         tint.SetValue(Border.BackgroundProperty, Brushes.Transparent);
         layer.AppendChild(tint);
@@ -215,6 +231,63 @@ internal static partial class SqlAssistChrome
         actions.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         tint.AppendChild(actions);
         return layer;
+    }
+
+    /// <summary>操作層揭露的長度；揭露動畫這一級與內容表面出現同一個數字。</summary>
+    internal static readonly System.TimeSpan RowActionRevealDuration = System.TimeSpan.FromMilliseconds(120);
+
+    /// <summary>
+    /// 停駐或鍵盤走到這一列就揭露操作層。
+    /// </summary>
+    /// <remarks>
+    /// 兩份清單共用這一份，而不是各自寫一次同樣的 trigger 迴圈：揭露條件（滑鼠<b>或</b>鍵盤焦點）
+    /// 與動畫是同一件事的兩半，分開寫的下場是其中一邊加了動畫、另一邊沒有，
+    /// 而只用鍵盤的人看到的是一整片直接閃出來的圖示。
+    ///
+    /// 動畫只做淡入與 6 DIP 的水平位移，不縮放：層蓋住的是連線膠囊，讓它<b>從右緣滑進來</b>
+    /// 才說得出「這是浮在上面的一塊東西」，而不是那幾顆膠囊突然變成了圖示。
+    /// <see cref="FillBehavior.Stop"/> 讓它結束就回到基底值，收起之後下一次仍從頭播。
+    /// </remarks>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    internal static void RevealRowActions(DataTemplate template, string name = "actions", bool? motion = null)
+    {
+        var animate = motion ?? MotionEnabled;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        ease.Freeze();
+
+        foreach (var property in new[] { nameof(UIElement.IsMouseOver), nameof(UIElement.IsKeyboardFocusWithin) })
+        {
+            var reveal = new DataTrigger
+            {
+                Binding = new Binding(property)
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1)
+                },
+                Value = true
+            };
+            reveal.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, name));
+            if (animate)
+            {
+                var storyboard = new Storyboard { FillBehavior = FillBehavior.Stop };
+                var fade = new DoubleAnimation
+                {
+                    From = 0, To = 1, Duration = RowActionRevealDuration, EasingFunction = ease
+                };
+                Storyboard.SetTargetName(fade, name);
+                Storyboard.SetTargetProperty(fade, new PropertyPath(UIElement.OpacityProperty));
+                var slide = new DoubleAnimation
+                {
+                    From = 6, To = 0, Duration = RowActionRevealDuration, EasingFunction = ease
+                };
+                Storyboard.SetTargetName(slide, name);
+                Storyboard.SetTargetProperty(slide, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.X)"));
+                storyboard.Children.Add(fade);
+                storyboard.Children.Add(slide);
+                reveal.EnterActions.Add(new BeginStoryboard { Storyboard = storyboard });
+            }
+
+            template.Triggers.Add(reveal);
+        }
     }
 
     /// <summary>

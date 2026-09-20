@@ -264,7 +264,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         // 排序與重新整理接在搜尋框右邊：兩顆作用在「這一份結果」，不是「要搜什麼」，
         // 跟第二層那些縮小範圍的篩選不是同一件事。
-        return new SqlSearchToolbar(bar, _segments, new[] { _server, _databases, _kinds }, _sort, _refresh);
+        // 第二層分三群，中間由工具列補上共用的分隔線：伺服器與資料庫回答「搜哪裡」，種類回答
+        // 「搜什麼」，分段開關回答「比對哪裡」。攤成一排的話，使用者會以為種類是第三個範圍。
+        return new SqlSearchToolbar(
+            bar, _segments,
+            new[] { new[] { _server, _databases }, new[] { _kinds } },
+            _sort, _refresh);
     }
 
     /// <summary>搜尋框裡的選項開關；寫回控制項時不重跑一輪。</summary>
