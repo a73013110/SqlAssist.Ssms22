@@ -449,6 +449,17 @@
     <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0110">
       <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
     </CommandPlacement>
+    <!--
+      Search 排在 History／Favorites 後面：三顆都是工具窗入口，而前兩顆找的是自己
+      寫過的 SQL，這一顆找的是伺服器上的物件。選單那邊已經照同一個理由分成兩個
+      群組（見 SqlAssistSearchGroup），工具列只有一個群組，順序就是那條界線。
+
+      走 CommandPlacement 而不是第二顆按鈕：外觀與選單上那一顆完全相同
+      （IconIsMoniker ＋ IconAndText），別名命令是留給需要換圖示的入口。
+    -->
+    <CommandPlacement guid="guidSqlAssistCommandSet" id="cmdidShowSqlSearch" priority="0x0120">
+      <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToolbarGroup" />
+    </CommandPlacement>
   </CommandPlacements>
 
   <KeyBindings>

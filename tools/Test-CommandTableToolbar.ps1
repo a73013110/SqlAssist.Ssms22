@@ -17,14 +17,21 @@ New-Item -ItemType Directory -Path $directory -Force | Out-Null
 [xml]$commands = Get-Content -LiteralPath $source -Raw -Encoding utf8
 $namespaces = [System.Xml.XmlNamespaceManager]::new($commands.NameTable)
 $namespaces.AddNamespace('ct', 'http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable')
-foreach ($entry in @(@('cmdidShowSqlHistory', 'History'), @('cmdidShowSqlFavorites', 'Favorites'))) {
+# 工具列上的三顆工具窗入口。每一顆都要有名稱、主題圖示與工具列位置——缺哪一樣都不會
+# 有編譯錯誤，症狀是工具列上少一顆按鈕，或多一顆只有圖示認不出來的按鈕。
+$toolbarEntries = @(
+    @('cmdidShowSqlHistory', 'History'),
+    @('cmdidShowSqlFavorites', 'Favorites'),
+    @('cmdidShowSqlSearch', 'SQL Search')
+)
+foreach ($entry in $toolbarEntries) {
     $button = $commands.SelectSingleNode('//ct:Button[@id="' + $entry[0] + '"]', $namespaces)
     if ($button.Strings.ButtonText -ne $entry[1] -or $null -eq $button.Icon -or
         'IconIsMoniker' -notin $button.CommandFlag -or 'IconAndText' -notin $button.CommandFlag) {
-        throw "SQL Memory 入口缺少名稱或主題圖示：$($entry[0])"
+        throw "工具列入口缺少名稱或主題圖示：$($entry[0])"
     }
     if ($null -eq $commands.SelectSingleNode('//ct:CommandPlacement[@id="' + $entry[0] + '"]/ct:Parent[@id="SqlAssistToolbarGroup"]', $namespaces)) {
-        throw "SQL Memory 入口未放入工具列：$($entry[0])"
+        throw "工具列入口未放入工具列：$($entry[0])"
     }
 }
 
@@ -66,4 +73,4 @@ Assert-Rejected 'sql-history-missing-localized-name' {
     [void]$strings.RemoveChild($strings.SelectSingleNode('ct:LocCanonicalName', $ns))
 } 'cmdidShowSqlHistory 沒有 LocCanonicalName'
 
-Write-Host 'Toolbar 命令表 fixture 通過：1 個正向、3 個負向；一般選單護欄未放寬。'
+Write-Host "Toolbar 命令表 fixture 通過：$($toolbarEntries.Count) 個入口、3 個負向；一般選單護欄未放寬。"
