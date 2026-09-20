@@ -647,6 +647,15 @@ public sealed class SqlMetadataCatalog
             return null;
         }
 
+        // 條件約束身上沒有自己的定義，它要的是父物件那一份結構；接上去之後
+        // 指令碼與預覽都走既有的那條路，這一層不另組任何一段 T-SQL。
+        if (objectInfo.Kind == SqlObjectKind.Constraint)
+        {
+            return Cache(objectInfo, new SqlObjectStructure(
+                detail,
+                parent: await LoadConstraintParentAsync(objectInfo, cancellationToken, origin).ConfigureAwait(false)));
+        }
+
         // 索引與外來鍵只有本身就是一張資料表的那幾類查得出東西。資料表值函式
         // 這一輪也有資料行了，但它的指令碼來自定義本文，索引寫不進
         // CREATE FUNCTION——為它多跑一次第四層查詢，換不到任何顯示得出來的分頁。
@@ -675,6 +684,55 @@ public sealed class SqlMetadataCatalog
         return structure is null
             ? new SqlObjectStructure(detail, structureUnavailable: true)
             : Cache(objectInfo, structure);
+    }
+
+    /// <summary>
+    /// 條件約束所屬的那張資料表的結構；問不到時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 兩步：一條只取識別欄位的查詢問出父物件是誰，然後走<b>同一個</b>
+    /// <see cref="GetStructureAsync"/> 把它的第四層載回來。自己再寫一組
+    /// 「條件約束專用」的目錄查詢就是第二份索引、外來鍵與 CHECK 的讀法，
+    /// 而兩份遲早會在其中一邊改了之後給出不同的答案。
+    ///
+    /// 父物件的結構本身有快取，所以同一張表上的第二個條件約束不再問伺服器；
+    /// 反過來，使用者接著打開那張表時也直接命中這一次載入的結果。
+    ///
+    /// 失敗一律降級成 null：呼叫端拿到的是一份沒有父物件的結構，而它會被
+    /// <see cref="SqlObjectStructure.CanBuildExecutableScript"/> 擋下並說明原因。
+    /// </remarks>
+    private async Task<SqlObjectStructure?> LoadConstraintParentAsync(
+        SqlObjectInfo constraint,
+        CancellationToken cancellationToken,
+        NotificationOrigin origin)
+    {
+        var rows = await Task
+            .Run(
+                () => TryLoad(
+                    NotificationCatalog.LoadingIndexes,
+                    origin,
+                    () => LoadConstraintParent(constraint, cancellationToken),
+                    constraint.QualifiedName),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return rows is { Count: > 0 }
+            ? await GetStructureAsync(rows[0], cancellationToken, origin).ConfigureAwait(false)
+            : null;
+    }
+
+    private List<SqlObjectInfo> LoadConstraintParent(SqlObjectInfo constraint, CancellationToken cancellationToken)
+    {
+        using var connection = _connectionSource.OpenConnection();
+
+        // 父物件與條件約束一定在同一個資料庫、同一台伺服器上；帶著同一組座標，
+        // 下游才換得到正確的那一份目錄（object_id 只在它自己那個資料庫裡唯一）。
+        return ReadList(
+            connection,
+            SqlMetadataQueries.ConstraintParent,
+            record => SqlMetadataReader.ReadObject(record, constraint.DatabaseName, constraint.ServerName),
+            cancellationToken,
+            constraint.ObjectId);
     }
 
     private SqlObjectStructure Cache(SqlObjectInfo objectInfo, SqlObjectStructure structure)

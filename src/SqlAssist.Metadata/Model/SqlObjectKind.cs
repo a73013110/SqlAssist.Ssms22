@@ -35,11 +35,14 @@ public enum SqlObjectKind
     /// 接在列舉<b>最後</b>而不是排進目錄物件那一段：值只要位移，
     /// 任何以數字記下種類的地方都會靜靜地指到另一種東西。
     ///
-    /// 它不是資料來源、沒有資料行、也寫不出可以單獨執行的
-    /// <c>CREATE</c>（<see cref="SqlObjectKinds.HasExecutableScript"/> 為 false），
-    /// 所以四條述詞一條都不收它。目前只有搜尋索引在用——使用者問的是
-    /// 「<c>PUBL_CODE</c> 這個欄位被哪一條 CHECK 提到」，而那一條的名稱與運算式
-    /// 都在目錄檢視上。
+    /// 它不是資料來源、也沒有資料行，所以那四條述詞一條都不收它。但它<b>寫得出</b>
+    /// 可以執行的指令碼（<see cref="SqlObjectKinds.HasExecutableScript"/> 為 true）：
+    /// 寫的不是 <c>CREATE</c> 而是父物件上的 <c>ALTER TABLE … ADD CONSTRAINT</c>，
+    /// 材料則整份取自 <see cref="SqlObjectStructure.Parent"/>。
+    ///
+    /// 搜尋索引是它的入口——使用者問的是「<c>PUBL_CODE</c> 這個欄位被哪一條 CHECK
+    /// 提到」，而那一條的名稱與運算式都在目錄檢視上；點進去之後要看得到、也貼得走
+    /// 那一條的定義。
     /// </remarks>
     Constraint
 }
@@ -216,7 +219,8 @@ public static class SqlObjectKinds
     /// </summary>
     /// <remarks>
     /// 模組、同義字與序列給定義本文，資料表重建 <c>CREATE TABLE</c>，
-    /// 資料表型別重建 <c>CREATE TYPE ... AS TABLE</c>。
+    /// 資料表型別重建 <c>CREATE TYPE ... AS TABLE</c>，條件約束寫成父物件上的
+    /// <c>ALTER TABLE … ADD CONSTRAINT</c>。
     /// 只剩認不出來的種類寫不出東西——那時 F12 把它整段註解掉。
     ///
     /// 這一條刻意由浮動預覽的指令碼分頁與 F12 共用。兩邊各留一份判斷的症狀
@@ -226,7 +230,7 @@ public static class SqlObjectKinds
     public static bool HasExecutableScript(this SqlObjectKind kind)
     {
         return kind.ScriptsFromDefinition() ||
-            kind is SqlObjectKind.Table or SqlObjectKind.TableType;
+            kind is SqlObjectKind.Table or SqlObjectKind.TableType or SqlObjectKind.Constraint;
     }
 
     /// <summary>是否為要寫成 <c>名稱(引數…)</c> 才呼叫得動的函式。</summary>

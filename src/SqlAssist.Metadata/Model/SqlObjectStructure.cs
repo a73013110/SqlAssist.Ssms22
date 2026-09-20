@@ -31,7 +31,8 @@ public sealed class SqlObjectStructure
         SqlTableStorage? storage = null,
         IReadOnlyList<SqlTriggerInfo>? triggers = null,
         bool structureUnavailable = false,
-        bool structurePending = false)
+        bool structurePending = false,
+        SqlObjectStructure? parent = null)
     {
         Detail = detail ?? throw new ArgumentNullException(nameof(detail));
         Indexes = indexes ?? NoIndexes;
@@ -42,6 +43,7 @@ public sealed class SqlObjectStructure
         Triggers = triggers ?? NoTriggers;
         IsStructureUnavailable = structureUnavailable;
         IsStructurePending = structurePending;
+        Parent = parent;
     }
 
     public SqlObjectDetail Detail { get; }
@@ -89,6 +91,73 @@ public sealed class SqlObjectStructure
 
     /// <summary>只有第二層、第四層仍在載入；不能讓「複製全部」把部分結構當成完整 DDL。</summary>
     public bool IsStructurePending { get; }
+
+    /// <summary>
+    /// 條件約束所屬的那張資料表的結構；其餘種類一律為 null。
+    /// </summary>
+    /// <remarks>
+    /// 條件約束身上沒有自己的定義——<c>DEFAULT</c> 的運算式在資料行上，<c>CHECK</c>
+    /// 的條件、鍵的資料行與外來鍵的參照都在父物件的第四層裡。接一份父物件的結構
+    /// 而不是為條件約束另外寫一組目錄查詢，換到的是兩件事：那些欄位只有一份查詢與
+    /// 一份排版，而使用者開了同一張表上的第二個條件約束時不必再問一次伺服器
+    /// （父物件的結構本來就有快取）。
+    /// </remarks>
+    public SqlObjectStructure? Parent { get; }
+
+    /// <summary>
+    /// 在這一份結構上找出名為 <paramref name="name"/> 的條件約束。
+    /// </summary>
+    /// <remarks>
+    /// 名稱以不分大小寫比對：條件約束的名稱在資料庫裡是識別碼，而識別碼的比對
+    /// 由定序決定，預設不分大小寫。分大小寫的症狀是使用者從清單點進來的那一個
+    /// 突然「在這張表上找不到」。
+    ///
+    /// 四種依成本排序：<c>CHECK</c> 與索引通常是個位數，資料行則可能上百個。
+    /// </remarks>
+    public SqlConstraintMatch FindConstraint(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return SqlConstraintMatch.None;
+        }
+
+        foreach (var check in CheckConstraints)
+        {
+            if (Matches(check.Name, name))
+            {
+                return SqlConstraintMatch.ForCheck(check);
+            }
+        }
+
+        foreach (var index in Indexes)
+        {
+            if ((index.IsPrimaryKey || index.IsUniqueConstraint) && Matches(index.Name, name))
+            {
+                return SqlConstraintMatch.ForKey(index);
+            }
+        }
+
+        foreach (var foreignKey in ForeignKeys)
+        {
+            if (Matches(foreignKey.Name, name))
+            {
+                return SqlConstraintMatch.ForForeignKey(foreignKey);
+            }
+        }
+
+        foreach (var column in Columns)
+        {
+            if (Matches(column.Script.DefaultConstraintName, name))
+            {
+                return SqlConstraintMatch.ForDefault(column);
+            }
+        }
+
+        return SqlConstraintMatch.None;
+    }
+
+    private static bool Matches(string? candidate, string name) =>
+        !string.IsNullOrEmpty(candidate) && string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>主索引鍵；沒有時為 null。</summary>
     public SqlIndexInfo? PrimaryKey
@@ -185,6 +254,27 @@ public sealed class SqlObjectStructure
                         "或是目前的登入沒有它的 VIEW DEFINITION 權限。");
                 return true;
 
+            // 條件約束寫的是 ALTER TABLE，而那句話裡的每一個字都來自父物件：
+            // 父物件讀不到時猜不出資料表名稱，猜出來的那一句還貼得上去。
+            case ScriptAvailability.MissingConstraintParent:
+                script = BuildUnavailableScript(
+                    "所屬資料表結構",
+                    "條件約束的定義寫在它所屬的資料表上——DEFAULT 的運算式在資料行上，CHECK 的條件、",
+                    "鍵的資料行與外來鍵的參照都在那張表的索引與條件約束裡。那張表這一輪沒有讀齊：",
+                    "它可能在這份清單被快取之後卸除、這個登入對它的權限被收回，或是索引與條件約束",
+                    "那一次查詢失敗了。");
+                return true;
+
+            // 父物件讀得到、上面卻沒有這個名字：名稱是使用者從清單點進來的，
+            // 說「沒有指令碼」會讓他去查權限，而這裡要查的是它還在不在。
+            case ScriptAvailability.ConstraintNotFound:
+                script = BuildUnavailableScript(
+                    "定義",
+                    "所屬的資料表讀到了，上面卻沒有這個名稱的條件約束——多半是它在這份清單",
+                    "被快取之後卸除或改名了。重新整理之後仍然看得到的話，它可能是本擴充還沒有",
+                    "讀到的那一種條件約束。");
+                return true;
+
             // 一個欄位都沒有時組出來的是一對空括號，而那仍然是一段貼得上去的
             // CREATE TABLE：執行下去建出一張沒有欄位的資料表，比什麼都不做糟。
             case ScriptAvailability.MissingColumns:
@@ -234,6 +324,17 @@ public sealed class SqlObjectStructure
         if (!Object.Kind.HasExecutableScript())
         {
             return ScriptAvailability.UnscriptableKind;
+        }
+
+        // 條件約束的每一個欄位都住在父物件的第四層裡，所以「資料夠不夠」問的是那一份：
+        // 父物件的結構不齊時照樣寫出 ALTER TABLE，指的會是一張與來源不同的資料表。
+        if (Object.Kind == SqlObjectKind.Constraint)
+        {
+            return Parent is not { } parent || parent.CheckAvailability() != ScriptAvailability.Ready
+                ? ScriptAvailability.MissingConstraintParent
+                : parent.FindConstraint(Object.Name).Found
+                    ? ScriptAvailability.Ready
+                    : ScriptAvailability.ConstraintNotFound;
         }
 
         // 以定義為指令碼的那一族必須整個接走，不能只在「拿得到定義」時接：
@@ -288,6 +389,8 @@ public sealed class SqlObjectStructure
         UnscriptableKind,
         MissingDefinition,
         MissingColumns,
+        MissingConstraintParent,
+        ConstraintNotFound,
         IncompleteStructure,
         MissingExpressions,
         StructurePending

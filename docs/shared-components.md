@@ -33,6 +33,7 @@
 | 浮動預覽的落點、避障與方向遲滯 | `Core/Preview/PreviewPlacementEngine.cs` |
 | 浮動預覽的雙側縮放 | `Core/Preview/PreviewResizeEngine.cs` |
 | 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
+| 單獨一個條件約束是哪一種、在父物件上的哪一列 | `Metadata/Model/SqlConstraintMatch.cs`、`SqlObjectStructure.FindConstraint` |
 | 指令碼的所有開關與三組具名風格 | `Core/Scripting/SqlScriptOptions.cs` |
 | 擴充屬性的 `sp_addextendedproperty` 八個引數 | `Metadata/Formatting/SqlExtendedPropertyScript.cs` |
 | 說明收成單行與截斷（提示、說明面板與預覽共用） | `Metadata/Formatting/SqlDescriptionText.cs` |
