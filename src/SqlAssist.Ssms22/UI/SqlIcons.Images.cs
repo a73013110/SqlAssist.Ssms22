@@ -68,6 +68,8 @@ internal static partial class SqlIcons
         SqlIcon.Backup => KnownMonikers.SaveAs,
         SqlIcon.Folder => KnownMonikers.FolderOpened,
         SqlIcon.Warning => KnownMonikers.StatusWarning,
+        // 窄版收起來的那幾個操作；用省略符號，不借任何一個操作自己的形狀。
+        SqlIcon.Overflow => KnownMonikers.Ellipsis,
         SqlIcon.SelfTest => KnownMonikers.Test
     };
 #pragma warning restore CS8524

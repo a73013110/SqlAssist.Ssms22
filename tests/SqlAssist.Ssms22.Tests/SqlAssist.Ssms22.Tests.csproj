@@ -57,6 +57,8 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Revisions.cs" Link="Product\UI\SqlAssistChrome.Revisions.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextDiffView.cs" Link="Product\UI\SqlTextDiffView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryDatabaseArchive.cs" Link="Product\SqlMemory\SqlMemoryDatabaseArchive.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Rows.cs" Link="Product\UI\SqlAssistChrome.Rows.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlRowLayout.cs" Link="Product\UI\SqlRowLayout.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.SqlMemory.cs" Link="Product\UI\SqlAssistChrome.SqlMemory.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextEditor.cs" Link="Product\UI\SqlTextEditor.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />

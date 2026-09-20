@@ -44,7 +44,7 @@ internal static partial class SqlAssistChrome
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
             RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform(expanded ? 0 : -90)
         };
-        chevron.SetBinding(Shape.StrokeProperty, MemoryButtonForeground());
+        chevron.SetBinding(Shape.StrokeProperty, OwnerForeground());
         return chevron;
     }
 
@@ -56,29 +56,6 @@ internal static partial class SqlAssistChrome
         if (tone != SqlActionTone.Neutral) button.Template = CreateGhostButtonTemplate(tone);
         AutomationProperties.SetName(button, label);
         return button;
-    }
-
-    // Content 的邏輯父層一定是所屬 Control；不能依賴尚未建立或重掛的樣板視覺祖先。
-    // 狀態色在 Control 的共用樣板處切換，也不受宿主 ContentPresenter 隱含樣式影響。
-    private static Binding MemoryButtonForeground() => new Binding
-    {
-        Path = new PropertyPath(Control.ForegroundProperty),
-        RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(Control), 1)
-    };
-
-    public static TextBlock CreateMemoryButtonText(string text)
-    {
-        var label = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-        label.SetBinding(TextBlock.ForegroundProperty, MemoryButtonForeground()); return label;
-    }
-
-    public static DockPanel CreateMemoryLabel(SqlIcon icon, string text)
-    {
-        var content = new DockPanel { VerticalAlignment = VerticalAlignment.Center };
-        var glyph = CreateIcon(icon); glyph.Margin = new Thickness(0, 0, 5, 0);
-        DockPanel.SetDock(glyph, Dock.Left); content.Children.Add(glyph);
-        content.Children.Add(CreateMemoryButtonText(text));
-        return content;
     }
 
     /// <summary>用量分頁的名稱；與 History／Favorites 同樣用英文，分頁、Tooltip 與警示文字共用。</summary>
@@ -124,7 +101,7 @@ internal static partial class SqlAssistChrome
     public static Button CreateMemoryConnectionButton()
     {
         var button = CreateButton("", DefaultMetrics);
-        button.Content = CreateMemoryLabel(SqlIcon.Connection, "目前連線");
+        button.Content = CreateIconLabel(SqlIcon.Connection, "目前連線");
         button.ToolTip = "使用目前作用中 SQL 查詢視窗的伺服器與資料庫篩選；不切換連線。";
         AutomationProperties.SetName(button, "以目前連線篩選");
         return button;
@@ -145,7 +122,7 @@ internal static partial class SqlAssistChrome
         var connectionLabel = (TextBlock)((Panel)connection.Content).Children[1];
         foreach (var entry in new[] { (refresh, SqlIcon.Refresh, "重新整理"), (settings, SqlIcon.Settings, "設定") })
         {
-            var content = CreateMemoryLabel(entry.Item2, entry.Item3);
+            var content = CreateIconLabel(entry.Item2, entry.Item3);
             labels.Add((TextBlock)content.Children[1]); entry.Item1.Content = content;
             entry.Item1.ToolTip = entry.Item3; AutomationProperties.SetName(entry.Item1, entry.Item3);
         }
@@ -486,16 +463,20 @@ internal static partial class SqlAssistChrome
     public static DataTemplate CreateSqlSummaryTemplate()
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
-        // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間。左右兩組各自靠邊，
+        // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間 → 操作。左右兩組各自靠邊，
         // 中間留給彈性空白；LastChildFill 會把最後一個子項拉滿而吃掉那一段。
-        var heading = new FrameworkElementFactory(typeof(DockPanel));
-        heading.SetValue(DockPanel.LastChildFillProperty, false); panel.AppendChild(heading);
-        var identity = RowIdentityGroup(); heading.AppendChild(identity);
-        var count = CountBadge(); count.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(count);
-        var state = BoundBadge("Status", "state", iconProperty: "StatusIcon"); state.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(state);
-        var title = BoundText("Name"); title.Name = "name"; title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-        title.SetValue(FrameworkElement.MaxWidthProperty, RowNameMaxWidth);
-        title.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0)); identity.AppendChild(title);
+        var heading = CreateRowLine(); panel.AppendChild(heading);
+        // 靠右那幾組先 append：DockPanel 依宣告順序量測，名稱那一組先量的話，一個長檔名會把
+        // 連線、時間與操作整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
+        // 最右是操作，接著往左是時間、資料庫、伺服器；身分組最後 append，剩多少吃多少。
+        var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
+        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        actions.SetValue(DockPanel.DockProperty, Dock.Right);
+        actions.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
+        actions.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        // 動作區沿用卡片表面；透明底不會切斷 hover／selected 的底色與動畫。
+        // Hidden 保留寬度，避免懸停時整列重排；鍵盤進入卡片也揭露動作。
+        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); heading.AppendChild(actions);
         var connections = new FrameworkElementFactory(typeof(DockPanel)); connections.SetValue(DockPanel.DockProperty, Dock.Right);
         // 整組靠右，組內一律靠左排，順序才是「伺服器 → 資料庫 → 時間」；宣告順序同時是窄窗下縮的順序。
         connections.SetValue(DockPanel.LastChildFillProperty, false); heading.AppendChild(connections);
@@ -505,6 +486,12 @@ internal static partial class SqlAssistChrome
         time.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
         time.SetBinding(FrameworkElement.ToolTipProperty, new Binding("TimeSummary")); connections.AppendChild(time);
+        var identity = RowIdentityGroup(); heading.AppendChild(identity);
+        var count = CountBadge(); count.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(count);
+        var state = CreateBadge("Status", "state", iconProperty: "StatusIcon"); state.SetValue(DockPanel.DockProperty, Dock.Right); identity.AppendChild(state);
+        var title = BoundText("Name"); title.Name = "name"; title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        title.SetValue(FrameworkElement.MaxWidthProperty, RowNameMaxWidth);
+        title.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0)); identity.AppendChild(title);
         var code = new FrameworkElementFactory(typeof(Border)); code.SetResourceReference(Border.BackgroundProperty, ThemeBrush.RowAlternate);
         code.SetValue(Border.CornerRadiusProperty, new CornerRadius(4)); code.SetValue(Border.PaddingProperty, new Thickness(6, 2, 6, 2));
         code.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 3, 0, 3));
@@ -513,16 +500,11 @@ internal static partial class SqlAssistChrome
         sql.SetValue(TextBlock.TextWrappingProperty, TextWrapping.NoWrap); sql.SetValue(TextBlock.LineHeightProperty, 16d);
         sql.SetValue(TextBlock.LineStackingStrategyProperty, LineStackingStrategy.BlockLineHeight);
         sql.SetValue(FrameworkElement.MaxHeightProperty, 16d); code.AppendChild(sql); panel.AppendChild(code);
-        // 動作列自己一列並靠右：擠進第一列，工具窗的寬度下就換成名稱與連線膠囊被推掉；
-        // 放進內容列則換成 SQL 摘要被擠掉，而那一行才是這張卡片的內容。
-        var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
-        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        actions.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
-        // 動作列沿用卡片表面；透明底不會切斷 hover／selected 的底色與動畫。
-        // Hidden 保留尺寸，避免懸停時 badge 跳動；鍵盤進入卡片也揭露動作。
-        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); panel.AppendChild(actions);
         var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
         var history = new DataTrigger { Binding = new Binding("IsFavorite"), Value = false };
+        // 窄版：連線膠囊降成 icon-only，次要操作收進 overflow；主要動作與名稱一直看得見。
+        var narrow = NarrowRowTrigger();
+        IconOnlyInNarrow(narrow, "server"); IconOnlyInNarrow(narrow, "database");
         foreach (var command in SqlMemoryRowCommand.All)
         {
             var button = CreateRowActionButton("action" + command.Action, command.Action, command.Icon, command.Label, command.Tone, command.IsSeparated);
@@ -534,10 +516,14 @@ internal static partial class SqlAssistChrome
             // 不適用的操作直接收起，不留停用的灰色按鈕；判斷來源與快捷選單、Preview 相同。
             if (command.Kind == SqlMemoryRowKind.History) favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
+            if (!command.IsPrimary)
+                narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             actions.AppendChild(button);
         }
+        var overflow = CreateRowOverflowButton(); actions.AppendChild(overflow);
+        narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
         var template = new DataTemplate { VisualTree = panel };
-        template.Triggers.Add(favorite); template.Triggers.Add(history);
+        template.Triggers.Add(favorite); template.Triggers.Add(history); template.Triggers.Add(narrow);
         CollapseEmptyConnectionBadges(template);
         CollapseSingleExecution(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
@@ -556,60 +542,10 @@ internal static partial class SqlAssistChrome
         return template;
     }
 
-    /// <summary>列上的幽靈操作按鈕；卡片與版本時間軸共用尺寸、色調與前景跟隨規則。</summary>
-    /// <param name="action">按鈕的 Tag；清單以它派送，不拿圖示或文字當識別。</param>
-    internal static FrameworkElementFactory CreateRowActionButton(string name, object action, SqlIcon icon, string label,
-        SqlActionTone tone, bool separated)
-    {
-        var button = new FrameworkElementFactory(typeof(Button)) { Name = name };
-        button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
-        button.SetValue(AutomationProperties.NameProperty, label);
-        button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate(tone)); button.SetValue(Control.PaddingProperty, new Thickness(3));
-        // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
-        button.SetBinding(Control.ForegroundProperty, MemoryButtonForeground());
-        button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
-        if (separated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
-        var glyph = new FrameworkElementFactory(typeof(SqlIconImage)); glyph.SetValue(SqlIconImage.IconProperty, icon);
-        button.AppendChild(glyph);
-        return button;
-    }
-
-    /// <summary>
-    /// 主要名稱的寬度上限。
-    /// </summary>
-    /// <remarks>
-    /// 工具窗停在右側時整列只有約 300 DIP，而名稱那一組先量。不設上限的話，一個長名稱就會把
-    /// 伺服器、資料庫與時間整組擠出這一列；被省略的中段仍讀得到，在 Tooltip 與 Preview。
-    /// </remarks>
-    internal const double RowNameMaxWidth = 180d;
-
-    /// <summary>清單列第一列的左半：主要名稱固定最左，狀態／類型與次要標記緊跟在它右邊。</summary>
-    /// <remarks>
-    /// 靠左對齊才只量自己的寬度；拉滿的話後面那幾顆膠囊會被推到右半那一組旁邊，讀起來像同一組，
-    /// 中間也不再有彈性空白。名稱是最後一個子項（fill），剩多少吃多少並 ellipsis。
-    /// </remarks>
-    private static FrameworkElementFactory RowIdentityGroup()
-    {
-        var group = new FrameworkElementFactory(typeof(DockPanel));
-        group.SetValue(DockPanel.DockProperty, Dock.Left);
-        group.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
-        return group;
-    }
-
-    private static FrameworkElementFactory BoundText(string property)
-    {
-        var text = new FrameworkElementFactory(typeof(TextBlock));
-        text.SetBinding(TextBlock.TextProperty, new Binding(property)); text.SetBinding(FrameworkElement.ToolTipProperty, new Binding(property));
-        text.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-        text.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        text.SetBinding(TextBlock.ForegroundProperty, MemoryButtonForeground());
-        return text;
-    }
-
     private static void AppendConnectionBadges(FrameworkElementFactory panel)
     {
-        panel.AppendChild(BoundBadge("Server", "server", SqlIcon.Server));
-        panel.AppendChild(BoundBadge("Database", "database", SqlIcon.Database));
+        panel.AppendChild(CreateBadge("Server", "server", SqlIcon.Server));
+        panel.AppendChild(CreateBadge("Database", "database", SqlIcon.Database));
     }
 
     /// <summary>沒有標註的收藏不畫空膠囊；History 沒有連線時列上仍有「無伺服器」這類說明文字，不受影響。</summary>
@@ -627,30 +563,7 @@ internal static partial class SqlAssistChrome
     /// 不借執行狀態的強調色；只有一次時收起，不在每張卡片留「×1」。
     /// </summary>
     private static FrameworkElementFactory CountBadge() =>
-        BoundTextBadge("ExecutionCountText", "count", "ExecutionCountToolTip");
-
-    /// <summary>
-    /// 沒有圖示的精簡中性膠囊：執行次數與搜尋結果的命中部位共用。
-    /// </summary>
-    /// <remarks>
-    /// 不借用 <see cref="BoundBadge"/>：那一份一定留一個 16 DIP 的圖示插槽，而沒有圖示的膠囊
-    /// 會因此在字的左邊空出一整格，一列擠三顆就看得出來。外框、圓角與高度兩者相同。
-    /// </remarks>
-    /// <param name="toolTipProperty">Tooltip 與自動化名稱讀的屬性；null 表示沿用膠囊上的字。</param>
-    private static FrameworkElementFactory BoundTextBadge(string property, string name, string? toolTipProperty = null)
-    {
-        var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
-        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        badge.SetValue(Border.PaddingProperty, new Thickness(5, 1, 5, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
-        badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
-        badge.SetBinding(AutomationProperties.NameProperty, new Binding(toolTipProperty ?? property));
-        var text = BoundText(property); text.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
-        text.SetBinding(FrameworkElement.ToolTipProperty, new Binding(toolTipProperty ?? property));
-        text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-        badge.AppendChild(text);
-        return badge;
-    }
+        CreateTextBadge("ExecutionCountText", "count", "ExecutionCountToolTip");
 
     private static void CollapseSingleExecution(DataTemplate template)
     {
@@ -658,37 +571,18 @@ internal static partial class SqlAssistChrome
         single.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "count")); template.Triggers.Add(single);
     }
 
-    private static FrameworkElementFactory BoundBadge(string property, string name, SqlIcon? icon = null, string? iconProperty = null)
-    {
-        var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
-        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        badge.SetValue(Border.PaddingProperty, new Thickness(6, 1, 6, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
-        badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        badge.SetValue(FrameworkElement.MaxWidthProperty, 180d);
-        badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
-        var content = new FrameworkElementFactory(typeof(DockPanel));
-        var glyph = new FrameworkElementFactory(typeof(SqlIconImage));
-        if (iconProperty is not null) glyph.SetBinding(SqlIconImage.IconProperty, new Binding(iconProperty));
-        else glyph.SetValue(SqlIconImage.IconProperty, icon);
-        glyph.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
-        glyph.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        content.AppendChild(glyph);
-        var text = BoundText(property); text.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
-        text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-        content.AppendChild(text); badge.AppendChild(content); return badge;
-    }
-
     public static DataTemplate CreateMemoryMetadataTemplate()
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
         panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        // 膠囊全部排在前面，檔名與時間緊接在後：文字不再被夾在兩組膠囊中間，資訊列一眼讀得完。
-        panel.AppendChild(BoundBadge("Status", "state", iconProperty: "StatusIcon"));
+        // 與清單列同一個順序：檔名 → 狀態 → 次數 → 伺服器 → 資料庫 → 時間。兩個表面各排各的話，
+        // 使用者在清單上選一筆、眼睛移到資訊列，同一組事實卻換了位置，等於每一次都要重讀一遍。
+        var name = BoundText("Name"); name.Name = "name";
+        name.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
+        panel.AppendChild(CreateBadge("Status", "state", iconProperty: "StatusIcon"));
         panel.AppendChild(CountBadge());
         AppendConnectionBadges(panel);
-        var name = BoundText("Name");
-        name.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 8, 0));
-        name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground); panel.AppendChild(name);
         var time = BoundText("TimeSummary"); time.Name = "Timestamp";
         time.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         time.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground); panel.AppendChild(time);

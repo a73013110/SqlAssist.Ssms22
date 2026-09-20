@@ -93,6 +93,37 @@ public sealed class MasterDetailViewTests
     }
 
     [Fact]
+    public void 左右分割展開時預覽開關屬於右邊那一欄()
+    {
+        WpfTest.Run(() =>
+        {
+            var view = Build(out var master, out var detail);
+            Layout(view, Threshold + 80);
+            Assert.True(view.IsSideBySide);
+            Assert.True(view.IsDetailExpanded);
+
+            var toggle = Toggle(view, "收合預覽");
+            var left = toggle.TranslatePoint(new Point(), view).X;
+            // 開關管的是右邊那一塊，就不能出現在清單上方：橫跨整列又靠左，等於把它擺在清單左上角。
+            Assert.True(left >= master.TranslatePoint(new Point(master.ActualWidth, 0), view).X - 0.1,
+                "預覽開關不得落在清單上方");
+            Assert.InRange(left - detail.TranslatePoint(new Point(), view).X, -0.1, 12);
+            // 抬頭在 Preview 上緣，清單則從最上面開始：左邊不留一條屬於別人的空白。
+            Assert.True(toggle.TranslatePoint(new Point(), view).Y <= detail.TranslatePoint(new Point(), view).Y + 0.1);
+            Assert.InRange(master.TranslatePoint(new Point(), view).Y, 0, 0.1);
+            Assert.True(master.ActualHeight >= detail.ActualHeight);
+
+            // 上下分割時抬頭仍然橫跨整列並貼在 Preview 上緣；那裡它本來就在清單與 Preview 之間。
+            Layout(view, Threshold - 40);
+            Assert.False(view.IsSideBySide);
+            var stacked = Toggle(view, "收合預覽");
+            Assert.InRange(stacked.TranslatePoint(new Point(), view).X, 0, 12);
+            Assert.True(stacked.TranslatePoint(new Point(), view).Y >=
+                master.TranslatePoint(new Point(0, master.ActualHeight), view).Y - 0.1);
+        });
+    }
+
+    [Fact]
     public void 左右分割收合後把手留在清單右緣而且展得開()
     {
         WpfTest.Run(() =>

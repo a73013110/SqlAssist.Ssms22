@@ -328,10 +328,12 @@ public sealed class SqlSearchBrowserModelTests
 
         // 一列都沒有：那一句搬到畫面中央，頁尾讓開，兩處各說一次會讀成兩件事。
         Assert.Equal("", model.Status(0));
-        var denied = model.Surface(0);
-        Assert.Equal(SqlSurfaceKind.Denied, denied.Kind);
-        Assert.Equal(SqlSurfaceState.DeniedTitle, denied.Title);
-        Assert.StartsWith("作業這一輪讀不到", denied.Detail);
+        var unavailable = model.Surface(0);
+        // 抬頭是「這一輪讀不到」：provider 交出來的只有一句話，連不上、逾時與權限不足在它那一層
+        // 已經降級成同一件事。斷言權限的那一版會在伺服器斷線的那一次叫使用者去查權限設定。
+        Assert.Equal(SqlSurfaceKind.Unreadable, unavailable.Kind);
+        Assert.Equal(SqlSurfaceState.UnreadableTitle, unavailable.Title);
+        Assert.StartsWith("作業這一輪讀不到", unavailable.Detail);
     }
 
     /// <summary>
@@ -359,7 +361,7 @@ public sealed class SqlSearchBrowserModelTests
         model.End(round);
 
         Assert.Equal("作業讀不到。（另有 1 個來源這一輪也讀不到）", model.Surface(0).Detail);
-        Assert.Equal(SqlSurfaceKind.Denied, model.Surface(0).Kind);
+        Assert.Equal(SqlSurfaceKind.Unreadable, model.Surface(0).Kind);
         Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
     }
 

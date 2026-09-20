@@ -808,7 +808,11 @@ internal sealed class SqlSearchBrowserModel
         // 還沒有任何一輪的答案（剛換條件、去彈跳還沒到期）：不能先說「沒有相符項目」。
         if (!_hasResult || _pending) return SqlSurfaceState.None;
         // 一筆都沒有而且有來源讀不到：那一句才是原因，泛用的「沒有相符項目」會讓使用者去改關鍵字。
-        if (_unavailable.Length != 0) return SqlSurfaceState.Denied(_unavailable);
+        // 抬頭是「這一輪讀不到」而不是「權限不足」：ReportUnavailable 交出來的只有一句給人看的話，
+        // 而連不上、逾時與權限不足在 provider 那一層就降級成同一件事。斷言權限的那一版會在
+        // 伺服器斷線的那一次叫使用者去查一個好好的權限設定，而他怎麼查都查不出問題。
+        // 要顯示 SqlSurfaceState.Denied，得先有 provider 明確回報「就是權限」的結構化原因。
+        if (_unavailable.Length != 0) return SqlSurfaceState.Unreadable(_unavailable);
         return SqlSurfaceState.Empty("沒有相符項目", "換個關鍵字，或放寬分類與資料庫範圍。");
     }
 

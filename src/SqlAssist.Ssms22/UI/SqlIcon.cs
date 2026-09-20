@@ -43,5 +43,6 @@ internal enum SqlIcon
     Backup,
     Folder,
     Warning,
+    Overflow,
     SelfTest
 }

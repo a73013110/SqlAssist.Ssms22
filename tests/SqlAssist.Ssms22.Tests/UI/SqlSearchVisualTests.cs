@@ -398,6 +398,11 @@ public sealed class SqlSearchVisualTests
             // 兩顆連線膠囊在第一列上，不再自己占一行的右半。
             Assert.Equal(2, Descendants<SqlIconImage>(Part(wide, "badges")).Count());
             Assert.Equal(Visibility.Hidden, Part(wide, "actions").Visibility);
+            // 物件類型是看得見的 icon＋文字，不是只有形狀加 Tooltip。
+            var kind = Part(wide, "kind");
+            Assert.Equal("Table", Descendants<TextBlock>(kind).Single().Text);
+            Assert.Equal("Table", (string)kind.ToolTip);
+            Assert.Equal(Visibility.Collapsed, Part(wide, "overflow").Visibility);
 
             // 片段列只在本文命中時出現：名稱命中的片段就是名稱本體，不壓成固定兩列。
             Assert.Equal(Visibility.Collapsed, Part(wide, "code").Visibility);
@@ -416,6 +421,16 @@ public sealed class SqlSearchVisualTests
             Assert.InRange(name.ActualWidth, 1, SqlAssistChrome.RowNameMaxWidth);
             Assert.Equal(TextTrimming.CharacterEllipsis, ((TextBlock)name).TextTrimming);
             Assert.InRange(Right(narrow, "target"), 0, 300);
+            // 窄版降級：連線膠囊只剩圖示，次要操作收進 overflow；物件類型是高優先，文字留著。
+            Assert.Equal(Visibility.Visible, Part(narrow, "kindText").Visibility);
+            Assert.Equal(Visibility.Visible, Part(narrow, "overflow").Visibility);
+            Assert.Equal(Visibility.Visible, Part(narrow, "action" + SqlSearchRowAction.Activate).Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(narrow, "action" + SqlSearchRowAction.Copy).Visibility);
+            Assert.All(Descendants<TextBlock>(Part(narrow, "badges")),
+                text => Assert.Equal(Visibility.Collapsed, text.Visibility));
+            // 每一組都仍在這一列的範圍內，沒有被推出去。
+            foreach (var part in new[] { "name", "kind", "target", "badges", "actions" })
+                Assert.InRange(Right(narrow, part), 0, 300);
 
             // 沒有路徑概念的來源不留一條空白列。
             var pathless = Render(template, new SqlSearchRow(new SearchHit("snippets", "snippets.snippet",
@@ -433,6 +448,8 @@ public sealed class SqlSearchVisualTests
             ContentTemplate = template, Content = row, Width = width,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
+        // 寬度模式由宿主量：與清單走同一條路徑，測試才驗得到真正的門檻而不是自己設的旗標。
+        SqlRowLayout.Track(host);
         host.Measure(new Size(width, 400)); host.Arrange(new Rect(0, 0, width, 400)); host.UpdateLayout();
         return host;
     }

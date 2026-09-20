@@ -41,7 +41,7 @@ internal sealed class SqlSearchSegments : Border
             var label = SqlSearchTargets.LabelFor(target);
             var segment = new ToggleButton
             {
-                Content = SqlAssistChrome.CreateMemoryButtonText(label),
+                Content = SqlAssistChrome.CreateButtonText(label),
                 Style = SqlAssistChrome.CreateSegmentToggleStyle(),
                 IsChecked = true,
                 ToolTip = label + "：" + SqlSearchTargets.DescriptionFor(target)
@@ -145,8 +145,8 @@ internal enum SqlSearchFilterMode
 /// </remarks>
 internal sealed class SqlSearchFilterButton : Button
 {
-    private readonly TextBlock _label = SqlAssistChrome.CreateMemoryButtonText("");
-    private readonly TextBlock _summary = SqlAssistChrome.CreateMemoryButtonText("");
+    private readonly TextBlock _label = SqlAssistChrome.CreateButtonText("");
+    private readonly TextBlock _summary = SqlAssistChrome.CreateButtonText("");
     private readonly ItemsControl _options;
     private readonly TextBox? _filter;
     private IReadOnlyList<SqlSearchFilterGroup> _groups = Array.Empty<SqlSearchFilterGroup>();
@@ -325,7 +325,7 @@ internal sealed class SqlSearchFilterButton : Button
     private Button CreateCommand(SqlIcon icon, string label, Action run)
     {
         var button = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
-        button.Content = SqlAssistChrome.CreateMemoryLabel(icon, label);
+        button.Content = SqlAssistChrome.CreateIconLabel(icon, label);
         button.Padding = new Thickness(6, 2, 6, 2);
         button.Margin = new Thickness(0, 0, 4, 0);
         button.Click += (_, _) => run();

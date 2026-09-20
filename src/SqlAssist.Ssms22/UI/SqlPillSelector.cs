@@ -39,8 +39,8 @@ internal sealed class SqlPillSelector : WrapPanel
         {
             var index = _buttons.Count;
             var content = icon is { } glyph
-                ? (object)SqlAssistChrome.CreateMemoryLabel(glyph, label)
-                : SqlAssistChrome.CreateMemoryButtonText(label);
+                ? (object)SqlAssistChrome.CreateIconLabel(glyph, label)
+                : SqlAssistChrome.CreateButtonText(label);
             var button = new RadioButton { Content = content, GroupName = group, Style = SqlAssistChrome.CreateMemoryPillStyle() };
             AutomationProperties.SetName(button, label);
             button.Checked += (_, _) => SelectedIndex = index;
@@ -193,7 +193,7 @@ internal sealed class SqlConnectionFilter : StackPanel
 
     private void Add(string label, string? value)
     {
-        var button = new RadioButton { Content = SqlAssistChrome.CreateMemoryLabel(value is null ? SqlIcon.All : _icon, label),
+        var button = new RadioButton { Content = SqlAssistChrome.CreateIconLabel(value is null ? SqlIcon.All : _icon, label),
             MaxWidth = 210, GroupName = _group, Tag = value, ToolTip = label, Style = SqlAssistChrome.CreateMemoryPillStyle(), IsChecked = _value == value };
         AutomationProperties.SetName(button, _label + "：" + label);
         button.Checked += (_, _) => Value = value;
@@ -207,7 +207,7 @@ internal sealed class SqlConnectionFilter : StackPanel
         chevron.Margin = new Thickness(0, 0, 6, 0); content.Children.Add(chevron);
         var category = SqlAssistChrome.CreateIcon(_icon); category.Margin = new Thickness(0, 0, 5, 0);
         content.Children.Add(category);
-        content.Children.Add(SqlAssistChrome.CreateMemoryButtonText(_label));
+        content.Children.Add(SqlAssistChrome.CreateButtonText(_label));
         _heading.Content = content;
         // Header 只表達 disclosure；選取狀態交給 pills，不把 Header 偽裝成另一個篩選項。
         _summary.Text = _value ?? AnyLabel; _summary.ToolTip = _summary.Text;
@@ -220,7 +220,7 @@ internal sealed class SqlConnectionFilter : StackPanel
         var content = new StackPanel { Orientation = Orientation.Horizontal };
         var icon = SqlAssistChrome.CreateIcon(SqlAssistChrome.MemoryOptionIcon(_sort));
         icon.Margin = new Thickness(0, 0, 5, 0); content.Children.Add(icon);
-        content.Children.Add(SqlAssistChrome.CreateMemoryButtonText(
+        content.Children.Add(SqlAssistChrome.CreateButtonText(
             SqlMemoryBrowserModel.SortOptions.First(option => option.Value == _sort).ShortLabel));
         var chevron = SqlAssistChrome.CreateChevron(); chevron.Margin = new Thickness(4, 0, 0, 0);
         content.Children.Add(chevron); _sortButton.Content = content;
