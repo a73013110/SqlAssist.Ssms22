@@ -21,7 +21,7 @@ namespace SqlAssist.Ssms22.UI;
 internal static partial class SqlAssistChrome
 {
     /// <summary>
-    /// 結果列：圖示、名稱與命中部位一行，限定名稱與脈絡膠囊一行，本文命中再加一行片段。
+    /// 結果列：名稱、物件類型、命中部位與連線一行，限定名稱一行，本文命中再加一行片段。
     /// </summary>
     /// <remarks>
     /// 只讀 <c>SearchHit</c> 攤出來的欄位（標題、分類 Id、路徑、片段、高亮區段、膠囊、命中部位），
@@ -33,27 +33,45 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static DataTemplate CreateSearchHitTemplate()
     {
-        var root = new FrameworkElementFactory(typeof(DockPanel));
-        root.SetBinding(AutomationProperties.NameProperty, new Binding("Description"));
+        var lines = new FrameworkElementFactory(typeof(StackPanel));
+        lines.SetBinding(AutomationProperties.NameProperty, new Binding("Description"));
 
-        // 圖示佔左欄並貼齊首行；第二、三行縮排在它右邊，一列讀下來只有一條左緣軸線。
+        // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫 → 操作。
+        // 名稱固定最左，要掃的那一欄每一列才從同一個位置開始；圖示排在它前面就不是。
+        var heading = new FrameworkElementFactory(typeof(DockPanel));
+        heading.SetValue(DockPanel.LastChildFillProperty, false);
+        lines.AppendChild(heading);
+
+        var identity = RowIdentityGroup();
+        heading.AppendChild(identity);
+
+        var target = BoundTextBadge("TargetLabel", "target");
+        target.SetValue(DockPanel.DockProperty, Dock.Right);
+        target.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        identity.AppendChild(target);
+
         var kind = new FrameworkElementFactory(typeof(Border)) { Name = "kind" };
-        kind.SetValue(DockPanel.DockProperty, Dock.Left);
+        kind.SetValue(DockPanel.DockProperty, Dock.Right);
         kind.SetValue(Border.BackgroundProperty, Brushes.Transparent);
-        kind.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 6, 0));
-        kind.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Top);
+        kind.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        kind.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         // 形狀之外還要讀得到種類文字：列上已經沒有那幾個字，Tooltip 是它唯一的去處。
         kind.SetBinding(FrameworkElement.ToolTipProperty, new Binding("CategoryLabel"));
         var glyph = new FrameworkElementFactory(typeof(SqlIconImage));
         glyph.SetBinding(SqlIconImage.CategoryIdProperty, new Binding("CategoryId"));
         kind.AppendChild(glyph);
-        root.AppendChild(kind);
+        identity.AppendChild(kind);
 
-        var lines = new FrameworkElementFactory(typeof(StackPanel));
-        root.AppendChild(lines);
-
-        var heading = new FrameworkElementFactory(typeof(DockPanel));
-        lines.AppendChild(heading);
+        // 名稱最後才量，剩多少吃多少並 ellipsis；全文在 Tooltip 與 Preview。
+        var title = new FrameworkElementFactory(typeof(SqlHighlightText)) { Name = "name" };
+        title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        title.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        title.SetValue(FrameworkElement.MaxWidthProperty, RowNameMaxWidth);
+        title.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        title.SetBinding(SqlHighlightText.SourceTextProperty, new Binding("Title"));
+        title.SetBinding(SqlHighlightText.SpansProperty, new Binding("TitleSpans"));
+        title.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Title"));
+        identity.AppendChild(title);
 
         var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
         actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
@@ -69,35 +87,21 @@ internal static partial class SqlAssistChrome
         }
         heading.AppendChild(actions);
 
-        var target = BoundTextBadge("TargetLabel", "target");
-        target.SetValue(DockPanel.DockProperty, Dock.Right);
-        target.SetValue(FrameworkElement.MarginProperty, new Thickness(8, 0, 0, 0));
-        heading.AppendChild(target);
-
-        var title = new FrameworkElementFactory(typeof(SqlHighlightText));
-        title.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-        title.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        title.SetBinding(SqlHighlightText.SourceTextProperty, new Binding("Title"));
-        title.SetBinding(SqlHighlightText.SpansProperty, new Binding("TitleSpans"));
-        title.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Title"));
-        heading.AppendChild(title);
-
-        var context = new FrameworkElementFactory(typeof(DockPanel)) { Name = "context" };
-        context.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 2, 0, 0));
-        lines.AppendChild(context);
-
-        // 膠囊靠右並固定在它自己的寬度上；限定名稱吃剩下的空間，窄窗先省略的是名稱中段。
+        // 連線膠囊靠右並固定在自己的寬度上；與名稱之間的彈性空白由 DockPanel 留著。
         var badges = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "badges" };
         badges.SetValue(DockPanel.DockProperty, Dock.Right);
         badges.SetValue(FrameworkElement.MarginProperty, new Thickness(8, 0, 0, 0));
+        badges.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         var badgePanel = new FrameworkElementFactory(typeof(StackPanel));
         badgePanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
         badges.SetValue(ItemsControl.ItemsPanelProperty, new ItemsPanelTemplate(badgePanel));
         badges.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchBadgeTemplate());
         badges.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("Badges"));
-        context.AppendChild(badges);
+        heading.AppendChild(badges);
 
+        // 內容列只剩限定名稱；窄窗先省略的是名稱中段。
         var path = new FrameworkElementFactory(typeof(TextBlock)) { Name = "path" };
+        path.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 2, 0, 0));
         path.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
         path.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
         path.SetValue(TextBlock.TextWrappingProperty, TextWrapping.NoWrap);
@@ -105,7 +109,7 @@ internal static partial class SqlAssistChrome
         path.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
         path.SetBinding(TextBlock.TextProperty, new Binding("Path"));
         path.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Path"));
-        context.AppendChild(path);
+        lines.AppendChild(path);
 
         var code = new FrameworkElementFactory(typeof(Border)) { Name = "code" };
         code.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
@@ -126,14 +130,14 @@ internal static partial class SqlAssistChrome
         code.AppendChild(snippet);
         lines.AppendChild(code);
 
-        var template = new DataTemplate { VisualTree = root };
+        var template = new DataTemplate { VisualTree = lines };
 
         // 本文命中才多一行片段；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
         var body = new DataTrigger { Binding = new Binding("MatchTarget"), Value = SearchMatchTarget.Text };
         body.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "code"));
         template.Triggers.Add(body);
 
-        // 沒有路徑概念的來源（片段、設定）不留一條空白列；膠囊仍留在原處。
+        // 沒有路徑概念的來源（片段、設定）不留一條空白列。
         var noPath = new DataTrigger { Binding = new Binding("Path"), Value = "" };
         noPath.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "path"));
         template.Triggers.Add(noPath);

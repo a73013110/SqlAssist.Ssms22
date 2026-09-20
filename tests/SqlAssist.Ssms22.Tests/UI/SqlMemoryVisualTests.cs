@@ -257,6 +257,87 @@ public sealed class SqlMemoryVisualTests
         });
     }
 
+    [Fact]
+    public void SummaryRowLeadsWithTheNameAndKeepsItReadableInADockedWindow()
+    {
+        SqlMemoryRow History(string name, SqlConnectionLabel? connection) => new(new SqlHistoryItem(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now, SqlHistoryFilter.Executions,
+            name, "SELECT LoanId FROM LoanDetail;", connection, 3, DateTimeOffset.Now.AddMinutes(-5)));
+
+        WpfTest.Run(() =>
+        {
+            // 樣板在 STA 執行緒上建立；先建好再交給另一條執行緒套用會在 Seal 擋下來。
+            var template = SqlAssistChrome.CreateSqlSummaryTemplate();
+            // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間。
+            var wide = Render(template, History("借閱查詢", new SqlConnectionLabel("LibraryServer", "Library")), 740);
+            var order = new[] { "name", "state", "count", "server", "database", "time" };
+            var lefts = order.Select(part => Left(wide, part)).ToArray();
+            for (var index = 1; index < order.Length; index++)
+                Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
+            Assert.All(order, part => Assert.True(Part(wide, part).ActualWidth > 0, part));
+            // 名稱固定最左，膠囊不得排在它前面；整列不換行。
+            Assert.Equal(0, Left(wide, "name"), 1);
+            var center = Center(wide, "name");
+            Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
+            // 兩組之間是彈性空白：連線與時間靠右，狀態與次數留在名稱旁邊。
+            Assert.True(Right(wide, "count") + 8 < Left(wide, "server"));
+            Assert.InRange(740 - Right(wide, "time"), 0, 8);
+
+            // 工具窗停在右側時整列約 300 DIP；長檔名先省略中段，但仍從最左讀得到。
+            var narrow = Render(template, History(new string('借', 40), new SqlConnectionLabel("LibraryServer", "Library")), 300);
+            var name = Part(narrow, "name");
+            Assert.Equal(0, Left(narrow, "name"), 1);
+            Assert.InRange(name.ActualWidth, 1, SqlAssistChrome.RowNameMaxWidth);
+            Assert.Equal(TextTrimming.CharacterEllipsis, ((TextBlock)name).TextTrimming);
+            // 名稱吃掉上限之後，狀態膠囊仍整顆留在這一列上。
+            Assert.True(Part(narrow, "state").ActualWidth > 0);
+            Assert.InRange(Right(narrow, "state"), 0, 300);
+
+            // 缺值直接 collapse 不留空槽：沒有標註連線的收藏不畫膠囊（History 沒有連線是明講的文字）。
+            var untagged = Render(template, new SqlMemoryRow(new SqlFavoriteItem(
+                new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(), null, null), Guid.NewGuid(), "id",
+                "SELECT LoanId FROM LoanDetail;", DateTimeOffset.Now)), 740);
+            Assert.Equal(Visibility.Collapsed, Part(untagged, "server").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(untagged, "database").Visibility);
+            // 只執行一次不留「×1」；動作區維持 Hidden，停駐才揭露且不跳版面。
+            Assert.Equal(Visibility.Collapsed, Part(untagged, "count").Visibility);
+            Assert.Equal(Visibility.Hidden, Part(untagged, "actions").Visibility);
+        });
+    }
+
+    /// <summary>把樣板套在固定寬度上；ContentControl 預設只給內容自己的寬度，量不到靠右那一組。</summary>
+    private static ContentControl Render(DataTemplate template, object row, double width)
+    {
+        var host = new ContentControl
+        {
+            ContentTemplate = template, Content = row, Width = width,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
+        };
+        host.Measure(new Size(width, 400)); host.Arrange(new Rect(0, 0, width, 400)); host.UpdateLayout();
+        return host;
+    }
+
+    private static FrameworkElement Part(ContentControl host, string name)
+    {
+        var presenter = Descendants<ContentPresenter>(host).First();
+        return Assert.IsAssignableFrom<FrameworkElement>(presenter.ContentTemplate.FindName(name, presenter));
+    }
+
+    private static double Left(ContentControl host, string name) =>
+        Part(host, name).TranslatePoint(new Point(), host).X;
+
+    private static double Right(ContentControl host, string name)
+    {
+        var part = Part(host, name);
+        return part.TranslatePoint(new Point(part.ActualWidth, 0), host).X;
+    }
+
+    private static double Center(ContentControl host, string name)
+    {
+        var part = Part(host, name);
+        return part.TranslatePoint(new Point(0, part.ActualHeight / 2), host).Y;
+    }
+
     private static SqlMemoryFooter Footer(string? cursor, int loaded, bool loading = false, DateTimeOffset? searchedThrough = null)
     {
         var model = new SqlMemoryBrowserModel();
