@@ -59,6 +59,13 @@ public interface ISearchSink
     /// 空字串會擲出：說不出原因的「讀不到」與泛用的「部分結果」在畫面上一模一樣，
     /// 而那正是這個方法存在的理由。
     /// </param>
+    /// <param name="kind">
+    /// 結構化的原因，給呈現那一層決定抬頭用；<paramref name="reason"/> 是給人看的那一句，
+    /// 兩者都要。只有 provider 真的分得出「就是權限」時才給
+    /// <see cref="SearchUnavailableKind.Denied"/>——猜錯的那一次會叫使用者去查一個
+    /// 好好的權限設定。分不出來時留 <see cref="SearchUnavailableKind.Unknown"/>，
+    /// 那只是少說一句話。
+    /// </param>
     /// <remarks>
     /// 與 <see cref="ReportTruncated(string?)"/> 是兩件事，而且畫面上要說的話完全相反：
     /// 「沒掃完」叫使用者縮小範圍或加長關鍵字，「讀不到」叫他去看權限。混成一件的症狀是
@@ -75,6 +82,10 @@ public interface ISearchSink
     ///
     /// 同一輪說第二次時留著第一句；後到的覆蓋先到的話，交出去的句子由賽跑決定，
     /// 同一組輸入每次說的話不一樣。要合併好幾個目標時由 provider 自己先組成一句。
+    /// <paramref name="kind"/> 則相反：第二次說的種類不同時整個退回
+    /// <see cref="SearchUnavailableKind.Unknown"/>。一個 provider 跨好幾個目標時，
+    /// 「一個沒權限、一個連不上」的下一步不是「去要權限」，而留第一個說的那一版，
+    /// 交出去的斷言由賽跑決定。
     /// </remarks>
-    void ReportUnavailable(string reason);
+    void ReportUnavailable(string reason, SearchUnavailableKind kind = SearchUnavailableKind.Unknown);
 }

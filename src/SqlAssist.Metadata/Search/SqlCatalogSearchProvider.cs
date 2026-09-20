@@ -123,10 +123,19 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         var truncated = false;
         string? checkpoint = null;
         var unavailable = new List<string>();
+        var allDenied = true;
 
         foreach (var round in rounds)
         {
-            if (round.Unavailable) unavailable.Add(round.DatabaseName);
+            if (round.Unavailable)
+            {
+                unavailable.Add(round.DatabaseName);
+
+                // 五個資料庫裡一個沒權限、另一個連不上：整組退回「說不出是哪一種」。
+                // 只要有一個不是權限問題，「權限不足」就是錯的斷言，而使用者會去查一個
+                // 好好的權限設定。
+                allDenied &= round.UnavailableKind == SearchUnavailableKind.Denied;
+            }
 
             if (!round.Truncated) continue;
 
@@ -135,7 +144,12 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         }
 
         if (truncated) sink.ReportTruncated(checkpoint);
-        if (unavailable.Count > 0) sink.ReportUnavailable(UnavailableReason(unavailable));
+
+        if (unavailable.Count > 0)
+        {
+            var kind = allDenied ? SearchUnavailableKind.Denied : SearchUnavailableKind.Unknown;
+            sink.ReportUnavailable(UnavailableReason(unavailable, kind), kind);
+        }
     }
 
     /// <summary>
@@ -149,11 +163,13 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// 不逐一列名，只寫第一個加上還有幾個：狀態列是一行，而勾了十個資料庫、斷了八個的
     /// 那一輪會把它撐爆，重點（有東西沒搜到、去看那幾個資料庫）第一句已經說完。
     ///
-    /// 括號裡寫的是幾個可能而不是斷言：連不上、逾時與權限不足在
-    /// <see cref="SqlCatalogSearchIndexCache.GetOrBuild"/> 那一層降級成同一件事，
-    /// 這裡分不出是哪一個，而斷言錯的那一次會讓使用者去查一個好好的權限設定。
+    /// 括號裡寫的是幾個可能還是一句斷言，由
+    /// <see cref="SqlCatalogSearchIndexCache.GetOrBuild"/> 交出來的
+    /// <see cref="SearchUnavailableKind"/> 決定。伺服器給了權限錯誤碼才斷言權限；
+    /// 說不出來時照舊列出幾個可能——斷言錯的那一次會讓使用者去查一個好好的權限設定，
+    /// 而他怎麼查都查不出問題。
     /// </remarks>
-    private static string UnavailableReason(IReadOnlyList<string> databaseNames)
+    private static string UnavailableReason(IReadOnlyList<string> databaseNames, SearchUnavailableKind kind)
     {
         var first = databaseNames[0];
 
@@ -161,7 +177,9 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             ? "「" + first + "」等 " + databaseNames.Count.ToString(CultureInfo.InvariantCulture) + " 個資料庫"
             : first.Length > 0 ? "「" + first + "」" : "有一個資料庫";
 
-        return subject + "這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。";
+        return kind == SearchUnavailableKind.Denied
+            ? subject + "這一輪讀不到（這個登入對它沒有權限），這一輪少了它的結果。"
+            : subject + "這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。";
     }
 
     /// <summary>掃一個資料庫；失敗與截斷都只記在自己那一份 <paramref name="round"/> 上。</summary>
@@ -195,7 +213,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             // 空輸入是「列一份預設清單」，不是「把整個資料庫倒出來」，所以連本文那一段的
             // 索引都不必建——本文比對對空樣式沒有意義（每一個位置都命中）。
             var needsText = !query.IsEmpty && query.IncludesTarget(SearchMatchTarget.Text);
-            var index = indexCache.GetOrBuild(source, needsText, cancellationToken);
+            var index = indexCache.GetOrBuild(source, needsText, cancellationToken, out var unavailableKind);
 
             if (index is null)
             {
@@ -205,6 +223,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 // 這不是「沒掃完」：一個字都沒掃到，而叫使用者縮小範圍或加長關鍵字
                 // 對一個連不上的資料庫一次都幫不上忙。名稱由 Summarize 寫進那一句話裡。
                 round.Unavailable = true;
+                round.UnavailableKind = unavailableKind;
                 return;
             }
 
@@ -548,6 +567,15 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
         /// <summary>這個資料庫這一輪整個讀不到；與 <see cref="Truncated"/> 是兩句話。</summary>
         internal bool Unavailable { get; set; }
+
+        /// <summary>
+        /// 讀不到的結構化原因；<see cref="Unavailable"/> 為 false 時無意義。
+        /// </summary>
+        /// <remarks>
+        /// 一個資料庫一份，不是整個 provider 一份：勾了五個資料庫時，
+        /// 「其中一個沒權限」與「五個都沒權限」要說的話不一樣，而合成一份就分不出來了。
+        /// </remarks>
+        internal SearchUnavailableKind UnavailableKind { get; set; }
 
         internal string? Checkpoint { get; set; }
     }

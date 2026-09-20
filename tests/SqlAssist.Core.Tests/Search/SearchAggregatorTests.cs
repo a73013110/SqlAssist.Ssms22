@@ -482,6 +482,93 @@ public sealed class SearchAggregatorTests
         Assert.Equal("先說的那一句。", Assert.Single(results.Progress).UnavailableReason);
     }
 
+    /// <summary>
+    /// 種類跟著那一句話一起出去；「權限不足」那個抬頭的唯一依據。
+    /// </summary>
+    /// <remarks>
+    /// 只有一句給人看的話的那一版，呈現那一層要嘛一律說「這一輪讀不到」（權限問題永遠
+    /// 說不出口），要嘛去比對字串（每多一個來源就多一條 <c>if</c>，漏掉的那一個安靜地
+    /// 退回泛用那一句）。
+    /// </remarks>
+    [Fact]
+    public async Task 讀不到的種類跟著那一句話一起出去()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("「LibArchive」這一輪讀不到（這個登入對它沒有權限）。",
+                SearchUnavailableKind.Denied);
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+        var progress = Assert.Single(results.Progress);
+
+        Assert.True(progress.IsUnavailable);
+        Assert.Equal(SearchUnavailableKind.Denied, progress.UnavailableKind);
+        Assert.True(progress.IsDenied);
+    }
+
+    /// <summary>不說種類的 provider 拿到 <c>Unknown</c>，不是「沒有讀不到」。</summary>
+    [Fact]
+    public async Task 不說種類時是說不出來而不是沒有讀不到()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("「LibArchive」這一輪讀不到。");
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+        var progress = Assert.Single(results.Progress);
+
+        Assert.True(progress.IsUnavailable);
+        Assert.Equal(SearchUnavailableKind.Unknown, progress.UnavailableKind);
+
+        // 兩個屬性同值而意思不同，所以要問得出差別：讀不到但說不出是哪一種。
+        Assert.False(progress.IsDenied);
+    }
+
+    /// <summary>
+    /// 同一個 provider 說了兩次而種類不同時退回 <c>Unknown</c>，不猜。
+    /// </summary>
+    /// <remarks>
+    /// 句子留第一句而種類退回，兩條規則刻意相反：句子是給人看的，留哪一句都說得通；
+    /// 種類是一句斷言，而「一個沒權限、一個連不上」的下一步不是「去要權限」。
+    /// 留第一個說的那一版，交出去的斷言由賽跑決定。
+    /// </remarks>
+    [Fact]
+    public async Task 同一個來源說了兩種原因時退回說不出來()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("先說的那一句。", SearchUnavailableKind.Denied);
+            sink.ReportUnavailable("後說的那一句。", SearchUnavailableKind.Unknown);
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+        var progress = Assert.Single(results.Progress);
+
+        Assert.Equal("先說的那一句。", progress.UnavailableReason);
+        Assert.Equal(SearchUnavailableKind.Unknown, progress.UnavailableKind);
+    }
+
+    /// <summary>兩次說的種類一樣就留著；退回只在說法真的分岔時發生。</summary>
+    [Fact]
+    public async Task 兩次說的種類一樣時留著()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", (query, sink, cancellationToken) =>
+        {
+            sink.ReportUnavailable("「LibArchive」沒有權限。", SearchUnavailableKind.Denied);
+            sink.ReportUnavailable("「LibMirror」沒有權限。", SearchUnavailableKind.Denied);
+            return Task.CompletedTask;
+        }));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("Loan"), CancellationToken.None);
+
+        Assert.Equal(SearchUnavailableKind.Denied, Assert.Single(results.Progress).UnavailableKind);
+    }
+
     /// <summary>說不出原因的「讀不到」與泛用的「部分結果」在畫面上一模一樣，所以不准。</summary>
     [Fact]
     public async Task 沒有原因的讀不到是程式錯誤()

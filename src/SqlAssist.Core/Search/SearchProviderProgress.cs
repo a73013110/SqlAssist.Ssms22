@@ -18,7 +18,8 @@ public sealed class SearchProviderProgress
         int reported,
         bool isTruncated,
         string? checkpoint,
-        string? unavailableReason = null)
+        string? unavailableReason = null,
+        SearchUnavailableKind unavailableKind = SearchUnavailableKind.Unknown)
     {
         ProviderId = providerId;
         Examined = examined;
@@ -26,6 +27,7 @@ public sealed class SearchProviderProgress
         IsTruncated = isTruncated;
         Checkpoint = checkpoint;
         UnavailableReason = unavailableReason;
+        UnavailableKind = unavailableKind;
     }
 
     public string ProviderId { get; }
@@ -61,6 +63,24 @@ public sealed class SearchProviderProgress
     /// </remarks>
     public string? UnavailableReason { get; }
 
+    /// <summary>
+    /// 讀不到的結構化原因；沒有讀不到的東西時是
+    /// <see cref="SearchUnavailableKind.Unknown"/>，與「讀不到但說不出是哪一種」同值。
+    /// </summary>
+    /// <remarks>
+    /// 兩者同值是刻意的：問這個屬性之前本來就要先問 <see cref="IsUnavailable"/>，
+    /// 而多一個「沒有讀不到」的值會讓每一個呼叫端都要處理三種情形，其中一種永遠走不到。
+    /// 直接要答案的走 <see cref="IsDenied"/>。
+    ///
+    /// <see cref="UnavailableReason"/> 留第一句而這個值在種類不同時退回
+    /// <see cref="SearchUnavailableKind.Unknown"/>，理由見
+    /// <see cref="ISearchSink.ReportUnavailable(string, SearchUnavailableKind)"/>。
+    /// </remarks>
+    public SearchUnavailableKind UnavailableKind { get; }
+
+    /// <summary>這個來源讀不到，而且它說得出「就是權限」。</summary>
+    public bool IsDenied => IsUnavailable && UnavailableKind == SearchUnavailableKind.Denied;
+
     public override string ToString() =>
-        $"{ProviderId}: {Reported}/{Examined}{(IsTruncated ? " (部分)" : "")}{(IsUnavailable ? " (讀不到)" : "")}";
+        $"{ProviderId}: {Reported}/{Examined}{(IsTruncated ? " (部分)" : "")}{(IsUnavailable ? IsDenied ? " (權限不足)" : " (讀不到)" : "")}";
 }

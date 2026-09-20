@@ -272,6 +272,7 @@ public sealed class SearchAggregator
         private bool _truncated;
         private string? _checkpoint;
         private string? _unavailableReason;
+        private SearchUnavailableKind _unavailableKind;
 
         internal BudgetedSink(SearchAggregator owner, string providerId, SearchQuery query, TimeSpan started)
         {
@@ -326,15 +327,28 @@ public sealed class SearchAggregator
             }
         }
 
-        public void ReportUnavailable(string reason)
+        public void ReportUnavailable(string reason, SearchUnavailableKind kind = SearchUnavailableKind.Unknown)
         {
             SearchArgument.Reason(reason, nameof(reason));
 
             lock (_gate)
             {
-                // 第一句留著。同一個 provider 可以把目標拆成幾條執行緒（目錄那一邊正是
-                // 每個資料庫一條），後到的覆蓋先到的話，交出去的句子由賽跑決定。
-                _unavailableReason ??= reason;
+                if (_unavailableReason is null)
+                {
+                    _unavailableReason = reason;
+                    _unavailableKind = kind;
+                }
+                else if (_unavailableKind != kind)
+                {
+                    // 同一個 provider 說了兩次而種類不同（一個目標沒權限、另一個連不上）：
+                    // 退回 Unknown，不猜。留第一個說的那一版等於斷言由賽跑決定，而斷成
+                    // 「權限不足」的那一次會叫使用者去查一個好好的權限設定。
+                    _unavailableKind = SearchUnavailableKind.Unknown;
+                }
+
+                // 句子與種類的合併規則相反：第一句留著（同一個 provider 可以把目標拆成
+                // 幾條執行緒，目錄那一邊正是每個資料庫一條，後到的覆蓋先到的話交出去的
+                // 句子由賽跑決定），而種類退到說得準的那一級。
             }
 
             // 刻意不碰 _truncated，也不讓 IsExhausted 變真：讀不到的是其中一個目標，
@@ -353,7 +367,8 @@ public sealed class SearchAggregator
             {
                 destination.AddRange(_hits);
                 return new SearchProviderProgress(
-                    _providerId, _examined, _hits.Count, _truncated, _checkpoint, _unavailableReason);
+                    _providerId, _examined, _hits.Count, _truncated, _checkpoint, _unavailableReason,
+                    _unavailableKind);
             }
         }
 

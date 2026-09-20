@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Querying;
 
 namespace SqlAssist.Metadata.Search;
@@ -123,9 +124,19 @@ public sealed class SqlCatalogSearchIndexCache
     /// <b>失敗不進快取。</b>否則連線恢復之後仍然拿到空的，而空的索引與
     /// 「這個資料庫真的沒有東西」在畫面上長得一模一樣。
     /// </remarks>
+    /// <param name="unavailableKind">
+    /// 回傳 null 時是哪一種讀不到；拿到索引時無意義（固定
+    /// <see cref="SearchUnavailableKind.Unknown"/>）。連不上、逾時與權限不足在這一層
+    /// 都降級成 null，而呼叫端要說的話不同——分得出來的唯一線索由這裡帶出去。
+    /// </param>
     public SqlCatalogSearchIndex? GetOrBuild(
-        ISqlConnectionSource connectionSource, bool includeDefinitions, CancellationToken cancellationToken)
+        ISqlConnectionSource connectionSource,
+        bool includeDefinitions,
+        CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind)
     {
+        unavailableKind = SearchUnavailableKind.Unknown;
+
         if (connectionSource is null)
         {
             throw new ArgumentNullException(nameof(connectionSource));
@@ -156,11 +167,17 @@ public sealed class SqlCatalogSearchIndexCache
                 _builds++;
             }
 
-            var index = Build(connectionSource, existing, stale, includeDefinitions, cancellationToken);
+            var index = Build(
+                connectionSource, existing, stale, includeDefinitions, cancellationToken, out unavailableKind);
 
             return Store(key, index);
         }
     }
+
+    /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
+    public SqlCatalogSearchIndex? GetOrBuild(
+        ISqlConnectionSource connectionSource, bool includeDefinitions, CancellationToken cancellationToken) =>
+        GetOrBuild(connectionSource, includeDefinitions, cancellationToken, out _);
 
     /// <summary>
     /// 手上這一份要走哪一條：從頭建、只補第二段，還是沿著版本戳重新整理。
@@ -174,24 +191,26 @@ public sealed class SqlCatalogSearchIndexCache
         SqlCatalogSearchIndex? existing,
         bool stale,
         bool includeDefinitions,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        out SearchUnavailableKind unavailableKind)
     {
         if (existing is null)
         {
             return SqlCatalogSearchIndex.TryBuild(
-                connectionSource, includeDefinitions, cancellationToken, _maxDefinitionBytes);
+                connectionSource, includeDefinitions, cancellationToken, out unavailableKind, _maxDefinitionBytes);
         }
 
         if (!stale)
         {
-            return existing.TryAddDefinitions(connectionSource, cancellationToken, _maxDefinitionBytes);
+            return existing.TryAddDefinitions(
+                connectionSource, cancellationToken, out unavailableKind, _maxDefinitionBytes);
         }
 
         // 手上已經有第二段時，重新整理照樣把它帶著走：這一輪雖然只問名稱，下一輪要本文時
         // 才不會因為剛剛丟掉而重撈一次。
         return SqlCatalogSearchIndex.TryRefresh(
             existing, connectionSource, includeDefinitions || existing.Definitions is not null,
-            cancellationToken, _maxDefinitionBytes);
+            cancellationToken, out unavailableKind, _maxDefinitionBytes);
     }
 
     /// <summary>

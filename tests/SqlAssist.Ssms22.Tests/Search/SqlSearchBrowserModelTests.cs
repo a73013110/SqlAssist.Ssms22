@@ -329,11 +329,114 @@ public sealed class SqlSearchBrowserModelTests
         // 一列都沒有：那一句搬到畫面中央，頁尾讓開，兩處各說一次會讀成兩件事。
         Assert.Equal("", model.Status(0));
         var unavailable = model.Surface(0);
-        // 抬頭是「這一輪讀不到」：provider 交出來的只有一句話，連不上、逾時與權限不足在它那一層
-        // 已經降級成同一件事。斷言權限的那一版會在伺服器斷線的那一次叫使用者去查權限設定。
+        // 抬頭是「這一輪讀不到」：provider 沒有說得出「就是權限」。斷言權限的那一版會在
+        // 伺服器斷線的那一次叫使用者去查一個好好的權限設定。
         Assert.Equal(SqlSurfaceKind.Unreadable, unavailable.Kind);
         Assert.Equal(SqlSurfaceState.UnreadableTitle, unavailable.Title);
         Assert.StartsWith("作業這一輪讀不到", unavailable.Detail);
+    }
+
+    /// <summary>
+    /// provider 說得出「就是權限」時抬頭換成「權限不足」。
+    /// </summary>
+    /// <remarks>
+    /// 兩個抬頭的下一步完全不同：一個是重試或換條件，一個是去要權限。全部都說權限的
+    /// 那一版會在伺服器斷線時叫使用者去查一個好好的設定，而全部都說讀不到的那一版
+    /// （這個表面原本的樣子）會讓真的缺權限的人一直重試。
+    /// </remarks>
+    [Fact]
+    public void 來源明確回報權限時抬頭換成權限不足()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("agent-job", "agent-job.job", "作業")
+            {
+                Unavailable = "SQL Agent 作業這一輪讀不到（這個登入對 msdb 沒有權限），這個來源沒有結果。",
+                UnavailableKind = SearchUnavailableKind.Denied,
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        var denied = model.Surface(0);
+
+        Assert.Equal(SqlSurfaceKind.Denied, denied.Kind);
+        Assert.Equal(SqlSurfaceState.DeniedTitle, denied.Title);
+
+        // 說明仍然原樣來自 provider：抬頭換了，這一層照樣不寫文案。
+        Assert.StartsWith("SQL Agent 作業這一輪讀不到", denied.Detail);
+
+        // 抬頭換了不代表它變成失敗；頁尾的語氣仍然是部分結果。
+        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+    }
+
+    /// <summary>
+    /// 一個來源說權限、另一個說不出來時，抬頭退回「這一輪讀不到」。
+    /// </summary>
+    /// <remarks>
+    /// 門檻是「每一個讀不到的來源都說得出就是權限」，不是「其中之一」。使用者照
+    /// 「權限不足」去要了權限之後，那個連不上的來源下一輪還是讀不到，而畫面上看不出
+    /// 他要錯了東西。
+    /// </remarks>
+    [Fact]
+    public void 只有一部分來源說得出權限時抬頭不換()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("agent-job", "agent-job.job", "作業")
+            {
+                Unavailable = "作業讀不到（沒有權限）。",
+                UnavailableKind = SearchUnavailableKind.Denied,
+            },
+            new StubProvider("replication", "replication.article", "發行項")
+            {
+                Unavailable = "複寫讀不到。",
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
+
+        var round = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(round, Search(aggregator, round.Query)));
+        model.End(round);
+
+        Assert.Equal(SqlSurfaceKind.Unreadable, model.Surface(0).Kind);
+        Assert.Equal(SqlSurfaceState.UnreadableTitle, model.Surface(0).Title);
+    }
+
+    /// <summary>整輪失敗時抬頭是「這一輪讀不到」，即使上一輪說過權限。</summary>
+    /// <remarks>
+    /// 失敗把個別來源那一句清掉（頁尾不能說兩件事），而抬頭得跟著清——留著的話，
+    /// 一次連線中斷會被說成權限不足。
+    /// </remarks>
+    [Fact]
+    public void 整輪失敗之後不再說權限不足()
+    {
+        var aggregator = new SearchAggregator(new ISearchProvider[]
+        {
+            new StubProvider("agent-job", "agent-job.job", "作業")
+            {
+                Unavailable = "作業讀不到（沒有權限）。",
+                UnavailableKind = SearchUnavailableKind.Denied,
+            },
+        });
+        var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
+
+        var first = model.Begin(indexed: true)!;
+        Assert.True(model.Accept(first, Search(aggregator, first.Query)));
+        model.End(first);
+        Assert.Equal(SqlSurfaceKind.Denied, model.Surface(0).Kind);
+
+        var second = model.Begin(indexed: true)!;
+        model.Fail(second, "「catalog」這一輪失敗：連線已關閉");
+        model.End(second);
+
+        var surface = model.Surface(0);
+
+        Assert.Equal(SqlSurfaceKind.Unreadable, surface.Kind);
+        Assert.Equal(SqlSurfaceState.UnreadableTitle, surface.Title);
     }
 
     /// <summary>
@@ -664,6 +767,9 @@ public sealed class SqlSearchBrowserModelTests
         /// <summary>不為 null 時走「這一輪讀不到」，帶著這一句話。</summary>
         internal string? Unavailable { get; set; }
 
+        /// <summary>讀不到的結構化原因；只有 <see cref="SearchUnavailableKind.Denied"/> 換得了抬頭。</summary>
+        internal SearchUnavailableKind UnavailableKind { get; set; }
+
         public string Id { get; }
 
         public string DisplayName => Id;
@@ -684,7 +790,7 @@ public sealed class SqlSearchBrowserModelTests
 
             sink.ReportExamined(_names.Length);
             if (Truncate) sink.ReportTruncated(Checkpoint);
-            if (Unavailable is not null) sink.ReportUnavailable(Unavailable);
+            if (Unavailable is not null) sink.ReportUnavailable(Unavailable, UnavailableKind);
             return Task.CompletedTask;
         }
     }

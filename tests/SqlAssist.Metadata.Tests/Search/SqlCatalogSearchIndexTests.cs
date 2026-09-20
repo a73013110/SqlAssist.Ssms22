@@ -209,7 +209,8 @@ public sealed class SqlCatalogSearchIndexTests
             .WithObject(2, "dbo", "Lib_Tag", "V", second);
 
         var index = SqlCatalogSearchIndex.TryBuild(
-            server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None, maxDefinitionBytes: 40);
+            server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None, out _,
+            maxDefinitionBytes: 40);
 
         Assert.False(index!.Definitions!.IsComplete);
         Assert.Equal(first, index.Definitions.For(1));
