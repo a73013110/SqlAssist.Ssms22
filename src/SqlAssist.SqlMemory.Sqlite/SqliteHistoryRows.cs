@@ -10,6 +10,26 @@ namespace SqlAssist.SqlMemory.Sqlite;
 /// </summary>
 internal static class SqliteHistoryRows
 {
+    /// <summary>空白字元集合：ASCII 那幾個，加上不分行空白與全形空白。</summary>
+    private const string BlankCharacters =
+        "char(32)||char(9)||char(10)||char(13)||char(11)||char(12)||char(160)||char(12288)";
+
+    /// <summary>
+    /// 內容是空白的：空的，或整份都是空白字元。
+    /// </summary>
+    /// <remarks>
+    /// 與擷取端的 <c>SqlContent.IsBlank</c> 是同一條規則的兩種寫法——一邊在 C# 裡問，
+    /// 一邊必須是 SQL 才篩得動整張表，兩者不可能共用同一段程式碼。
+    ///
+    /// 只認長度在預覽之內的那些：本體是 UTF-16LE 的 BLOB，在 SQL 裡拆不開，而
+    /// <c>Preview</c> 只留前 <see cref="SqliteText.PreviewLength"/> 個字元。比那還長、
+    /// 卻整份都是空白的內容因此漏掉——那是刪太少，不是刪錯，而新的擷取從一開始就不會產生。
+    /// </remarks>
+    /// <param name="alias">有 <c>ContentId</c> 欄位的資料表別名；只來自呼叫端常數。</param>
+    public static string Blank(string alias) =>
+        "EXISTS(SELECT 1 FROM Contents c WHERE c.ContentId=" + alias + ".ContentId AND (c.Length=0 OR (c.Length<=" +
+        SqliteText.PreviewLength + " AND trim(c.Preview," + BlankCharacters + ")='')))";
+
     /// <summary>投影鍵：一碼種類前綴（e 執行／r 草稿版本／s 回復內容）加上 32 位十六進位識別碼。</summary>
     public static bool IsKey(string key) =>
         key.Length == 33 && "ers".IndexOf(key[0]) >= 0 && SqliteTimeCursor.IsId(key.Substring(1));

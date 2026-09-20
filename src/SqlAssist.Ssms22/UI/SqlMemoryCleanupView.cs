@@ -28,6 +28,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
     private readonly CheckBox _drafts = new();
     private readonly CheckBox _recovery = new();
     private readonly CheckBox _favorites = new();
+    private readonly CheckBox _blank = new();
     private readonly ComboBox _keep = SqlAssistChrome.CreateComboBox(SqlAssistChrome.DefaultMetrics);
     private readonly FrameworkElement _keepRow;
     private readonly SqlPillSelector _period;
@@ -96,6 +97,12 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         AutomationProperties.SetName(_period, "期間");
         var scope = new StackPanel();
         scope.Children.Add(_period);
+        // 期間、連線與這一顆都是「哪些列算數」，所以放在同一節而不是變成第五種對象：
+        // 空白的草稿同時也是一筆草稿，做成對象的話兩處各算一次，總數就不是要刪的筆數。
+        var blankRow = SqlAssistChrome.CreateOptionGroup(SqlAssistChrome.CreateOptionRow(
+            _blank, "只清空白 SQL", "內容是空的或只有空白字元的列；有內容的列一律不動"));
+        blankRow.Margin = new Thickness(0, 12, 0, 0);
+        scope.Children.Add(blankRow);
         var connection = new Grid { Margin = new Thickness(0, 12, 0, 0) };
         connection.ColumnDefinitions.Add(new ColumnDefinition());
         connection.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
@@ -115,7 +122,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false
         });
 
-        foreach (var box in new[] { _executions, _drafts, _recovery, _favorites })
+        foreach (var box in new[] { _executions, _drafts, _recovery, _favorites, _blank })
         {
             box.Checked += (_, _) => OnChanged();
             box.Unchecked += (_, _) => OnChanged();
@@ -143,7 +150,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         if (targets == SqlMemoryCleanupTargets.None) return null;
         var days = Periods[Math.Max(0, _period.SelectedIndex)].Days;
         return new SqlMemoryCleanupRequest(targets, days is { } value ? now.AddDays(-value) : null,
-            _server.Text, _database.Text, KeepOptions[Math.Max(0, _keep.SelectedIndex)]);
+            _server.Text, _database.Text, KeepOptions[Math.Max(0, _keep.SelectedIndex)], _blank.IsChecked == true);
     }
 
     /// <summary>條件變了、試算還沒回來：清除停用，按鈕不留舊筆數。</summary>

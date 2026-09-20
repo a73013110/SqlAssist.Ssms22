@@ -34,9 +34,25 @@ public sealed class SqlCapturePlanner
 
         // 關閉 draft 擷取後，選取執行不能偷偷保存未執行的整份文件。
         var includeDocument = policy.CaptureUnexecutedDrafts || (executing && capture.SelectedText == null);
-        if (includeDocument)
+        var documentText = includeDocument ? Text(capture.DocumentText) : null;
+        var selectedText = capture.SelectedText is { } selection ? Text(selection) : null;
+
+        // 空白的 SQL 一列都不留。新開一個查詢視窗又關掉、把整份刪光、對著空白的視窗
+        // 按下執行，三種都會走到這裡；記下來的那一列打開是空的，而清單被這種列塞滿之後，
+        // 真的要找的那一份反而翻不出來。判斷只有 SqlContent.IsBlank 一份。
+        var documentBlank = includeDocument && SqlContent.IsBlank(documentText);
+
+        // 選取了卻全是空白，或整份文件是空白又沒有選取：這一次執行沒有送出任何 SQL。
+        // 後者尤其不能沿用上一個版本——那會把一段使用者已經刪掉的 SQL 記成剛剛執行過。
+        if (executing && (selectedText != null ? SqlContent.IsBlank(selectedText) : documentBlank)) return null;
+
+        // 空白文件的第一次擷取：這個 Session 連一列都不該出現在清單上。已經有內容的
+        // Session 則照常往下走——關閉仍要保存最終版本並刪掉 Recovery，只是不為空白建版本。
+        if (documentBlank && previous == null) return null;
+
+        if (includeDocument && !documentBlank)
         {
-            documentContent = Materialize(capture.DocumentText);
+            documentContent = SqlContent.Create(documentText!);
             var changed = latest?.ContentId != documentContent.ContentId;
             var baseline = latest?.CreatedAt;
             var autoDue = policy.AutoRevisionEnabled &&
@@ -64,9 +80,9 @@ public sealed class SqlCapturePlanner
         if (executing)
         {
             SqlRevision executionRevision;
-            if (capture.SelectedText != null)
+            if (selectedText != null)
             {
-                var selected = Materialize(capture.SelectedText);
+                var selected = SqlContent.Create(selectedText);
                 if (latest != null && latest.ContentId == selected.ContentId)
                     executionRevision = latest;
                 else if (latestExecution != null && latestExecution.ContentId == selected.ContentId)
@@ -97,12 +113,16 @@ public sealed class SqlCapturePlanner
             recovery, closing, execution);
     }
 
-    private static SqlContent Materialize(ISqlTextSnapshot snapshot)
+    /// <remarks>
+    /// 展開全文只在這裡做一次：空白判斷與內容雜湊吃的是同一份字串，各取一次等於
+    /// 在背景把一份動輒數 MB 的查詢複製兩遍。
+    /// </remarks>
+    private static string Text(ISqlTextSnapshot snapshot)
     {
         var text = snapshot.GetText();
         if (text == null || text.Length != snapshot.Length)
             throw new InvalidOperationException("快照文字與宣告長度不一致。");
-        return SqlContent.Create(text);
+        return text;
     }
 
     private static SqlRevisionReason Reason(SqlCaptureKind kind) => kind switch

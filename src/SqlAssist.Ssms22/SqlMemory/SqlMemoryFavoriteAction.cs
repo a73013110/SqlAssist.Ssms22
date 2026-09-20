@@ -38,7 +38,8 @@ internal static class SqlMemoryFavoriteAction
         // 有選取就收選取，與選取執行同一條界線；沒有選取才是整份文件。
         var selection = SqlCaptureTracker.SelectedText(view.Selection);
         var sql = selection is { } selected ? selected.GetText() : view.TextBuffer.CurrentSnapshot.GetText();
-        if (string.IsNullOrWhiteSpace(sql))
+        // 與擷取同一份判斷：收得起來的與記得下來的，不該是兩套標準。
+        if (SqlContent.IsBlank(sql))
             return selection is null ? "查詢視窗沒有可以收藏的 SQL。" : "選取範圍沒有可以收藏的 SQL。";
 
         return FavoriteEditorWindow.Create(package, sql, ActiveSqlEditor.GetDocumentName(view.TextBuffer),

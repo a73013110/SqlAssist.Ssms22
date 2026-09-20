@@ -123,6 +123,51 @@ public sealed class SqliteUsageTests
             (await repository.ReadUsageAsync(Token)).ContentBytes);
     }
 
+    /// <summary>
+    /// 只清空白 SQL：舊版本留下來的空白列清得掉，有內容的同一種列一列都不動。
+    /// </summary>
+    /// <remarks>
+    /// 現在的擷取不再產生空白列（<c>SqlContent.IsBlank</c>），所以這裡的前置直接寫進
+    /// 資料庫——那正是使用者升級之前累積下來的形狀。
+    /// </remarks>
+    [Fact]
+    public async Task BlankOnlyCleanupRemovesEmptyRowsAndKeepsTheRest()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await SeedExecutions(store, repository);
+
+        // 一列全空、一列只有空白字元（UTF-16LE 的兩個半形空白）。
+        store.Execute("INSERT INTO Contents(ContentId,SqlBytes,Length,Preview) VALUES('blank:empty',x'',0,'');");
+        store.Execute("INSERT INTO Contents(ContentId,SqlBytes,Length,Preview) VALUES('blank:spaces',x'20002000',2,'  ');");
+        store.Execute("UPDATE History SET ContentId='blank:empty' WHERE EntryKey=(SELECT EntryKey FROM History WHERE Kind=1 ORDER BY CreatedAt LIMIT 1);");
+        store.Execute("UPDATE History SET ContentId='blank:spaces' WHERE EntryKey=" +
+            "(SELECT EntryKey FROM History WHERE Kind=1 ORDER BY CreatedAt DESC LIMIT 1);");
+
+        var request = new SqlMemoryCleanupRequest(SqlMemoryCleanupTargets.Executions, onlyBlank: true);
+        Assert.Equal(new SqlMemoryCleanupEstimate(2, 0, 0, 0), await repository.EstimateCleanupAsync(request, Token));
+
+        long deleted = 0;
+        string? cursor = null;
+        do
+        {
+            var batch = await repository.CleanupHistoryAsync(request, cursor, 1, Token);
+            deleted += batch.DeletedEntries;
+            cursor = batch.Cursor;
+        }
+        while (cursor != null);
+
+        Assert.Equal(2L, deleted);
+        Assert.Equal(4L, store.Scalar("SELECT count(*) FROM History WHERE Kind=1;"));
+        Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Contents WHERE ContentId LIKE 'blank:%';"));
+        Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
+
+        // 同樣的對象不加這個條件時，剩下的四列一列都不是空白的。
+        Assert.Equal(new SqlMemoryCleanupEstimate(4, 0, 0, 0),
+            await repository.EstimateCleanupAsync(new SqlMemoryCleanupRequest(SqlMemoryCleanupTargets.Executions), Token));
+        Assert.Equal(new SqlMemoryCleanupEstimate(0, 0, 0, 0), await repository.EstimateCleanupAsync(request, Token));
+    }
+
     [Fact]
     public async Task CursorBelongsToTheRequestThatCreatedIt()
     {
