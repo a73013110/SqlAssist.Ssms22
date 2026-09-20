@@ -29,7 +29,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryList.cs" Link="Product\UI\SqlMemoryList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlLoadingSurface.cs" Link="Product\UI\SqlLoadingSurface.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryPager.cs" Link="Product\UI\SqlMemoryPager.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemorySplitView.cs" Link="Product\UI\SqlMemorySplitView.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\MasterDetailView.cs" Link="Product\UI\MasterDetailView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryRecoveryView.cs" Link="Product\UI\SqlMemoryRecoveryView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlUsageMeter.cs" Link="Product\UI\SqlUsageMeter.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryUsageView.cs" Link="Product\UI\SqlMemoryUsageView.cs" />

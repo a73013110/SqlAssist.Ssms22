@@ -93,7 +93,8 @@ public sealed class SqlMemoryVisualTests
             var previewLoading = new SqlLoadingSurface(viewer);
             var detail = SqlAssistChrome.CreateMemoryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
             var listLoading = new SqlLoadingSurface(list);
-            var split = new SqlMemorySplitView(listLoading, detail, summary);
+            // 這一輪掃的是主題與字型，不傳轉向門檻讓版面固定在上下分割；轉向與收合把手在 MasterDetailViewTests。
+            var split = new MasterDetailView(listLoading, detail, summary);
             root.Children.Add(split);
             var surface = new Border { Child = root }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
             surface.Resources.MergedDictionaries.Add(palette.Resources);
@@ -401,7 +402,7 @@ public sealed class SqlMemoryVisualTests
         {
             var list = new SqlMemoryList(); list.Items.Add("SQL"); list.SelectedIndex = 0;
             var detail = new Border();
-            var split = new SqlMemorySplitView(list, detail);
+            var split = new MasterDetailView(list, detail);
             var changes = 0; split.DetailExpandedChanged += (_, _) => changes++;
             split.RowDefinitions[0].Height = new GridLength(5, GridUnitType.Star);
             split.RowDefinitions[2].Height = new GridLength(3, GridUnitType.Star);
@@ -573,7 +574,7 @@ public sealed class SqlMemoryVisualTests
             var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(),
                 HorizontalContentAlignment = HorizontalAlignment.Stretch };
             var body = new Border();
-            var split = new SqlMemorySplitView(new SqlMemoryList(), body, summary);
+            var split = new MasterDetailView(new SqlMemoryList(), body, summary);
             using var source = new HwndSource(new HwndSourceParameters("Preview metadata test") { Width = 440, Height = 300, WindowStyle = 0 });
             source.RootVisual = split;
             split.Measure(new Size(440, 300)); split.Arrange(new Rect(0, 0, 440, 300)); split.UpdateLayout();
