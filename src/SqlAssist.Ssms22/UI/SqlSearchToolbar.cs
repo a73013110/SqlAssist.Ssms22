@@ -47,7 +47,7 @@ internal sealed class SqlSearchToolbar : Panel
 
     private readonly FrameworkElement _search;
     private readonly SqlSearchSegments _segments;
-    private readonly IReadOnlyList<SqlSearchFilterButton> _filters;
+    private readonly IReadOnlyList<SqlFilterFlyout> _filters;
     private readonly IReadOnlyList<FrameworkElement> _trailing;
     private double _searchWidth = MinSearchWidth;
     private double _searchRow;
@@ -58,7 +58,7 @@ internal sealed class SqlSearchToolbar : Panel
     public SqlSearchToolbar(
         FrameworkElement search,
         SqlSearchSegments segments,
-        IReadOnlyList<SqlSearchFilterButton> filters,
+        IReadOnlyList<SqlFilterFlyout> filters,
         params FrameworkElement[] trailing)
     {
         _search = search ?? throw new ArgumentNullException(nameof(search));

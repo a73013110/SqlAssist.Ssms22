@@ -27,7 +27,8 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 單列、可水平捲動的資訊列（Preview 摘要、已選條件列） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateHorizontalStrip` |
 | 清單列的寬度模式與窄版門檻（宿主量一次，可繼承） | `Ssms22/UI/SqlRowLayout.cs` |
 | 圖示加標籤的分頁（SQL Memory、SQL Search 與之後的工具窗） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
-| 過濾彈出面板的選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Search.cs` 的 `CreateSearchOptionList` |
+| 過濾面板（單／複選、第一列的預設、續頁、排序；SQL Memory 與 SQL Search 共用） | `Ssms22/UI/SqlFilterFlyout.cs` |
+| 過濾面板的按鈕樣式與選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
 | 載入、空、讀不到與權限不足四種狀態（SQL Memory 與 SQL Search 共用） | `Ssms22/UI/SqlStateSurface.cs`，狀態與文案在 `SqlSurfaceState.cs` |
 | 面板裡的一行狀態（正在讀取或讀不到，含轉圈停轉規則） | `Ssms22/UI/SqlBusyNotice.cs` |
