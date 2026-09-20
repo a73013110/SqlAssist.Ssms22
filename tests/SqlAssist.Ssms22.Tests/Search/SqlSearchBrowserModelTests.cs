@@ -526,31 +526,37 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 篩選摘要一個寫名字多個寫數字()
+    public void 篩選摘要一個寫名字多個寫數量()
     {
         var model = new SqlSearchBrowserModel();
         model.UseCategories(Categories());
 
         Assert.Equal(SqlSearchBrowserModel.AllCategoriesLabel, model.CategorySummary());
-        Assert.Equal(SqlSearchBrowserModel.CurrentConnectionLabel, model.DatabaseSummary());
+        // 沒有連線時說「未連線」而不是「連線預設」：後者是一句斷言，而那一刻沒有連線可以預設。
+        Assert.Equal("未連線", model.DatabaseSummary());
 
-        // 「目前連線」單獨出現時說不出範圍有多大：物件總管那條連線常常只是 master，
-        // 而使用者以為自己在搜整台。
+        model.HasConnection = true;
+        Assert.Equal(SqlSearchBrowserModel.ConnectionDefaultLabel, model.DatabaseSummary());
+
+        // 「連線預設」單獨出現時說不出範圍有多大：物件總管那條連線常常只是 master，
+        // 而使用者以為自己在搜整台。面板第一列與按鈕摘要共用這一份字。
         model.CurrentDatabase = "master";
-        Assert.Equal("目前連線（master）", model.DatabaseSummary());
+        Assert.Equal("連線預設（master）", model.DatabaseSummary());
+        Assert.Equal("連線預設（master）", model.ConnectionDefaultSummary());
 
         model.SetCategorySelected("catalog.table", selected: true);
         Assert.Equal("Table", model.CategorySummary());
 
         model.SetCategorySelected("catalog.view", selected: true);
         model.SetCategorySelected("catalog.procedure", selected: true);
-        // 三個名字串起來會把按鈕撐到吃掉搜尋框；完整名單留在 chip 列與 Tooltip。
-        Assert.Equal("3", model.CategorySummary());
+        // 三個名字串起來會把按鈕撐到吃掉搜尋框；完整名單留在面板與 Tooltip。
+        // 量詞不能省：只剩一個數字時，使用者分不出那是幾種還是幾個。
+        Assert.Equal("3 種", model.CategorySummary());
 
         model.SetDatabaseSelected("LibArchive", selected: true);
         Assert.Equal("LibArchive", model.DatabaseSummary());
         model.SetDatabaseSelected("LibReporting", selected: true);
-        Assert.Equal("2", model.DatabaseSummary());
+        Assert.Equal("2 個", model.DatabaseSummary());
 
         // 伺服器單選，所以摘要永遠是一個名字；沒指名時說的是「跟著查詢視窗」而不是
         // 資料庫那一顆的「目前連線」——兩句話講的是不同的東西。括號裡是跟著的那一台，
@@ -571,10 +577,13 @@ public sealed class SqlSearchBrowserModelTests
         model.SetCategorySelected("catalog.table", selected: true);
         model.SetDatabaseSelected("LibArchive", selected: true);
 
-        // 伺服器是範圍最外面那一圈，排在最前面：換掉它，清單上每一筆的來源都變了。
+        // 順序由外而內：伺服器換的是整份目錄，資料庫縮的是那一台裡的範圍，種類縮的是結果的形狀。
         Assert.Equal(
-            new[] { "伺服器: LIBSQL01", "種類: Table", "資料庫: LibArchive" },
+            new[] { "伺服器: LIBSQL01", "資料庫: LibArchive", "種類: Table" },
             model.Chips().Select(chip => chip.Label).ToArray());
+
+        // 只有自己有面板的維度，chip 本體才按得下去；大小寫與全字是搜尋框裡常駐的開關。
+        Assert.All(model.Chips(), chip => Assert.True(chip.HasPanel));
 
         Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "伺服器: LIBSQL01")));
         Assert.Null(model.Server);
@@ -595,29 +604,37 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 預設狀態沒有任何chip而清掉一顆只清那一個條件()
+    public void 預設狀態沒有任何chip而一個維度只有一顆且清掉它就清掉整個維度()
     {
-        var model = new SqlSearchBrowserModel { MatchCasing = true };
+        var model = new SqlSearchBrowserModel { MatchCasing = true, HasConnection = true };
         model.UseCategories(Categories());
         model.SetCategorySelected("catalog.view", selected: true);
         model.SetCategorySelected("catalog.table", selected: true);
         model.SetDatabaseSelected("LibArchive", selected: true);
+        model.SetDatabaseSelected("LibReporting", selected: true);
 
-        // 順序照分類的宣告順序，不照使用者勾選的先後：勾選順序會讓同一組條件每次排出不同的 chip。
+        // 一維度一顆：勾了八個資料庫就畫八顆的那一版會長到三列，而那三列換算成少看六筆結果。
+        // 數量與按鈕摘要是同一份字，兩處不會說得不一樣。
         Assert.Equal(
-            new[] { "種類: Table", "種類: View", "資料庫: LibArchive", "大小寫" },
+            new[] { "資料庫: 2 個", "種類: 2 種", "大小寫" },
             model.Chips().Select(chip => chip.Label).ToArray());
 
-        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "種類: Table")));
+        // 十字清掉的是整個維度；「是哪幾個」要調整的話，chip 本體開的是那個維度自己的面板。
+        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "種類: 2 種")));
+        Assert.Empty(model.CategoryIds);
         Assert.Equal(
-            new[] { "種類: View", "資料庫: LibArchive", "大小寫" },
+            new[] { "資料庫: 2 個", "大小寫" },
             model.Chips().Select(chip => chip.Label).ToArray());
 
         Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "大小寫")));
         Assert.False(model.MatchCasing);
+        Assert.True(model.Chips().Single().HasPanel);
 
-        model.ClearCategories();
-        model.ClearDatabases();
+        // 一個的時候寫名字，數量沒有意義。
+        model.SetDatabaseSelected("LibReporting", selected: false);
+        Assert.Equal("資料庫: LibArchive", model.Chips().Single().Label);
+
+        Assert.True(model.Remove(model.Chips().Single()));
         // 沒篩選就不佔那一列：空的 chip 列整列收起。
         Assert.Empty(model.Chips());
     }

@@ -66,6 +66,15 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     public bool IsLoading => _loading is not null;
 
     /// <summary>
+    /// 沒有指名資料庫時，這一輪實際會搜的那一個；還沒問到清單時是空字串。
+    /// </summary>
+    /// <remarks>
+    /// 由伺服器說了算，不從連線字串推：物件總管那條連線上沒有初始目錄，而範圍摘要一定要
+    /// 說得出目標，理由見 docs/search-scope.md。
+    /// </remarks>
+    public string CurrentName { get; private set; } = "";
+
+    /// <summary>
     /// 把手上這一份標成舊的，下一次展開重問。
     /// </summary>
     /// <remarks>
@@ -85,6 +94,29 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     {
         Invalidate();
         _items = Array.Empty<SqlCatalogSearchDatabase>();
+        CurrentName = "";
+    }
+
+    /// <summary>
+    /// 這一份清單屬於哪一條連線；換了就整份丟掉。
+    /// </summary>
+    /// <remarks>
+    /// 比對獨立成一支、而且由<b>連線觀測</b>呼叫，不留在 <see cref="EnsureAsync"/> 裡：宿主在
+    /// 面板展開時會先畫手上這一份（已經勾起來的條件必須看得見），只有在它需要重問時才走
+    /// <see cref="EnsureAsync"/>。比對藏在後面的症狀是換一台伺服器之後 <see cref="IsLoaded"/>
+    /// 仍是上一台的 true，宿主據此提早收工，下拉從此畫著上一台的資料庫，而且不會自己好。
+    /// </remarks>
+    public void SyncTo(SqlMetadataCatalog? catalog)
+    {
+        // 沒有目錄不算換連線：切到沒有連線的查詢視窗時清掉清單，回來還要再付一條查詢，
+        // 而它本來就是對的。與 <see cref="EnsureAsync"/> 同一條規則。
+        if (_disposed || catalog is null) return;
+
+        var key = catalog.CacheKey;
+        if (string.Equals(key, _key, StringComparison.Ordinal)) return;
+
+        _key = key;
+        Reset();
     }
 
     /// <summary>
@@ -101,14 +133,10 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     {
         if (_disposed || catalog is null) return _items;
 
-        var key = catalog.CacheKey;
-
-        // 換了連線：上一台的名稱一個都不適用，而正在飛的那一輪答的也是上一台。
-        if (!string.Equals(key, _key, StringComparison.Ordinal))
-        {
-            _key = key;
-            Reset();
-        }
+        // 換了連線：上一台的名稱一個都不適用，而正在飛的那一輪答的也是上一台。宿主在連線
+        // 觀測時已經同步過，這一道是給沒有經過那條路的呼叫端（測試、直接展開）收尾的。
+        SyncTo(catalog);
+        var key = _key;
 
         if (_loaded) return _items;
 
@@ -135,6 +163,13 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
         {
             _items = databases;
             _loaded = true;
+            CurrentName = "";
+            foreach (var database in databases)
+            {
+                if (!database.IsCurrent) continue;
+                CurrentName = database.Name;
+                break;
+            }
         }
 
         return _items;

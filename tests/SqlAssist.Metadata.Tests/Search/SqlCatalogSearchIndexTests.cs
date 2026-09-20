@@ -416,6 +416,8 @@ public sealed class SqlCatalogSearchIndexTests
         Assert.NotNull(databases);
         Assert.Equal(new[] { "Library", "msdb" }, databases!.Select(database => database.Name));
         Assert.Equal(new[] { false, true }, databases.Select(database => database.IsSystem));
+        // 沒有指名資料庫時搜的就是這一個；範圍摘要要說得出名字，而連線字串上不一定有。
+        Assert.Equal(new[] { true, false }, databases.Select(database => database.IsCurrent));
 
         // 只問了清單那一條，一個物件都沒有掃。
         Assert.Single(server.Commands);

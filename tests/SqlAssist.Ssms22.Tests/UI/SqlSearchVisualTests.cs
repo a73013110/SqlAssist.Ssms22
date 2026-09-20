@@ -228,7 +228,7 @@ public sealed class SqlSearchVisualTests
     }
 
     [Fact]
-    public void 已選條件列只在非預設時出現()
+    public void 已選條件列只在非預設時出現而且永遠只有一列()
     {
         WpfTest.Run(() =>
         {
@@ -236,20 +236,45 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(Visibility.Collapsed, chips.Visibility);
 
             var removed = new List<string>();
+            var opened = new List<string>();
             chips.RemoveRequested += chip => removed.Add((string)chip);
-            chips.SetChips(new[] { "種類: Table", "資料庫: LibArchive" }, chip => chip);
+            chips.OpenRequested += chip => opened.Add((string)chip);
+            // 第三顆沒有面板（大小寫是搜尋框裡常駐的開關），本體按不下去，只有十字。
+            chips.SetChips(
+                new[] { "資料庫: 8 個", "種類: 2 種", "大小寫" },
+                chip => chip,
+                chip => chip != "大小寫");
             Assert.Equal(Visibility.Visible, chips.Visibility);
-            Assert.Equal(2, chips.Items.Count);
 
             var host = new Border { Child = chips };
             host.Measure(new Size(400, 100));
             host.Arrange(new Rect(0, 0, 400, 100));
             host.UpdateLayout();
 
+            // 兩顆可開的 chip 各有本體與十字，第三顆只有十字。
             var buttons = Descendants<Button>(chips).ToArray();
-            Assert.Equal(2, buttons.Length);
-            buttons[0].RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-            Assert.Equal(new[] { "種類: Table" }, removed.ToArray());
+            Assert.Equal(5, buttons.Length);
+
+            // 十字清掉整個維度；本體開的是那個維度自己的面板。
+            buttons.Single(button => (string)button.ToolTip == "清除條件：資料庫: 8 個")
+                .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "資料庫: 8 個" }, removed.ToArray());
+            buttons.Single(button => (string)button.ToolTip == "種類: 2 種：開啟面板調整")
+                .RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "種類: 2 種" }, opened.ToArray());
+
+            // 條件再多也只有一列：放不下時橫向捲動，不換行。
+            var strip = Descendants<StackPanel>(chips).First(panel => panel.Orientation == Orientation.Horizontal);
+            var single = strip.DesiredSize.Height;
+            chips.SetChips(
+                new[] { "伺服器: LIBSQL01", "資料庫: 12 個", "種類: 6 種", "大小寫", "全字" },
+                chip => chip,
+                chip => chip != "大小寫" && chip != "全字");
+            host.Measure(new Size(200, 100));
+            host.Arrange(new Rect(0, 0, 200, 100));
+            host.UpdateLayout();
+            Assert.Equal(single, strip.DesiredSize.Height, 1);
+            Assert.InRange(chips.DesiredSize.Height, 0, single + 12);
 
             chips.SetChips(Array.Empty<string>(), chip => chip);
             // 沒篩選就不佔那一列；Collapsed 才真的不參與量測。
@@ -285,13 +310,21 @@ public sealed class SqlSearchVisualTests
             Assert.DoesNotContain(card.Triggers.OfType<DataTrigger>(),
                 trigger => (trigger.Binding as Binding)?.Path.Path == "IsRemoving");
 
-            // 停駐才出現的動作列用 Hidden 保留尺寸；Collapsed 會讓列在停駐的瞬間重新排版。
-            var reveal = SqlAssistChrome.CreateSearchHitTemplate().Triggers.OfType<DataTrigger>()
+            // 停駐才出現的操作層浮在列的右緣，不參與量測，所以收起來是 Collapsed 而不是
+            // 佔著寬度的 Hidden；揭露與收起都不動版面。
+            var hit = SqlAssistChrome.CreateSearchHitTemplate();
+            var reveal = hit.Triggers.OfType<DataTrigger>()
                 .Where(trigger => trigger.Setters.OfType<Setter>().Any(setter => setter.TargetName == "actions"))
                 .ToArray();
             Assert.Equal(2, reveal.Length);
             Assert.All(reveal, trigger => Assert.Equal(
                 Visibility.Visible, trigger.Setters.OfType<Setter>().Single().Value));
+
+            // 操作層的底色跟著列的停駐與選取走；不跟著的話右邊會浮出一塊沒有染色的方塊。
+            var tint = hit.Triggers.OfType<DataTrigger>()
+                .Where(trigger => trigger.Setters.OfType<Setter>().Any(setter => setter.TargetName == "actionsTint"))
+                .ToArray();
+            Assert.Equal(2, tint.Length);
         });
     }
 
@@ -383,10 +416,10 @@ public sealed class SqlSearchVisualTests
         {
             // 樣板在 STA 執行緒上建立；先建好再交給另一條執行緒套用會在 Seal 擋下來。
             var template = SqlAssistChrome.CreateSearchHitTemplate();
-            // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫 → 操作。
+            // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫，操作浮在右緣。
             var wide = Render(template, new SqlSearchRow(
                 Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
-            var order = new[] { "name", "kind", "target", "badges", "actions" };
+            var order = new[] { "name", "kind", "target", "badges" };
             var lefts = order.Select(part => Left(wide, part)).ToArray();
             for (var index = 1; index < order.Length; index++)
                 Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
@@ -395,9 +428,10 @@ public sealed class SqlSearchVisualTests
             var center = Center(wide, "name");
             Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
             Assert.True(Right(wide, "target") + 8 < Left(wide, "badges"));
-            // 兩顆連線膠囊在第一列上，不再自己占一行的右半。
+            // 兩顆連線膠囊在第一列上，不再自己占一行的右半；操作層不佔寬度，所以它們排到最右。
             Assert.Equal(2, Descendants<SqlIconImage>(Part(wide, "badges")).Count());
-            Assert.Equal(Visibility.Hidden, Part(wide, "actions").Visibility);
+            Assert.InRange(740 - Right(wide, "badges"), 0, 8);
+            Assert.Equal(Visibility.Collapsed, Part(wide, "actions").Visibility);
             // 物件類型是看得見的 icon＋文字，不是只有形狀加 Tooltip。
             var kind = Part(wide, "kind");
             Assert.Equal("Table", Descendants<TextBlock>(kind).Single().Text);
@@ -429,10 +463,43 @@ public sealed class SqlSearchVisualTests
             Assert.All(Descendants<TextBlock>(Part(narrow, "badges")),
                 text => Assert.Equal(Visibility.Collapsed, text.Visibility));
             // 每一組都仍在這一列的範圍內，沒有被推出去。
-            foreach (var part in new[] { "name", "kind", "target", "badges", "actions" })
+            foreach (var part in new[] { "name", "kind", "target", "badges" })
                 Assert.InRange(Right(narrow, part), 0, 300);
 
             // 沒有路徑概念的來源不留一條空白列。
+            var pathless = Render(template, new SqlSearchRow(new SearchHit("snippets", "snippets.snippet",
+                SearchMatchTarget.Name, "SelectTemplate", "SelectTemplate", 10, null, "", new[] { new MatchSpan(0, 6) }),
+                "Snippet"), 740);
+            Assert.Equal(Visibility.Collapsed, Part(pathless, "path").Visibility);
+        });
+    }
+
+    /// <summary>
+    /// 預覽資訊列與結果列第一列是同一個順序。
+    /// </summary>
+    /// <remarks>
+    /// 兩個表面各排各的話，使用者在清單上選一筆、眼睛移到資訊列，同一組事實卻換了位置，
+    /// 等於每一次都要重讀一遍。限定名稱排在最後，那是它比清單第一列多出來的東西。
+    /// </remarks>
+    [Fact]
+    public void 預覽資訊列與結果列同一個順序而且缺值直接收起()
+    {
+        WpfTest.Run(() =>
+        {
+            var template = SqlAssistChrome.CreateSearchMetadataTemplate();
+            var row = Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
+
+            var order = new[] { "name", "kind", "target", "badges", "path" };
+            var lefts = order.Select(part => Left(row, part)).ToArray();
+            for (var index = 1; index < order.Length; index++)
+                Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
+            Assert.All(order, part => Assert.True(Part(row, part).ActualWidth > 0, part));
+
+            // 種類與命中部位在這裡只各出現一次；預覽內容裡不再放第二份同樣的字。
+            Assert.Equal("Table", Descendants<TextBlock>(Part(row, "kind")).Single().Text);
+            Assert.Equal("名稱", Descendants<TextBlock>(Part(row, "target")).Single().Text);
+
             var pathless = Render(template, new SqlSearchRow(new SearchHit("snippets", "snippets.snippet",
                 SearchMatchTarget.Name, "SelectTemplate", "SelectTemplate", 10, null, "", new[] { new MatchSpan(0, 6) }),
                 "Snippet"), 740);
@@ -644,9 +711,11 @@ public sealed class SqlSearchVisualTests
             var boxes = Descendants<CheckBox>(surface).ToArray();
             Assert.Equal(names, boxes.Select(box => (string)box.Content).ToArray());
 
+            // 種類面板沒有命令鈕：「全部」是第一列那個預設，而全選會送出一份結果相同、
+            // chip 卻完全不同的條件。
             var labels = Descendants<TextBlock>(surface).Select(text => text.Text).ToArray();
-            Assert.Contains("全選", labels);
-            Assert.Contains("清除", labels);
+            Assert.DoesNotContain("全選", labels);
+            Assert.DoesNotContain("清除", labels);
 
             kinds.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
             Assert.True(kinds.IsOpen);
@@ -660,6 +729,63 @@ public sealed class SqlSearchVisualTests
             boxes[0].IsChecked = false;
             Assert.Equal(new[] { "Procedure" }, selected.ToArray());
             Assert.True(kinds.IsOpen);
+        });
+    }
+
+    /// <summary>
+    /// 「沒有勾任何一個」是一個實際的預設，所以面板第一列就是它。
+    /// </summary>
+    /// <remarks>
+    /// 摘要寫著「全部」而清單上一個勾都沒有時，使用者會以為自己把條件弄丟了，
+    /// 或以為這個下拉壞了。取消勾它不是一個狀態，所以它按得上去、取消不掉。
+    /// </remarks>
+    [Fact]
+    public void 過濾面板第一列是沒有指名時的那個預設()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
+            var cleared = 0;
+            kinds.SetEmptyOption(new SqlSearchFilterOption("全部", "不限物件種類。", true, on =>
+            {
+                if (on) cleared++;
+            }));
+            kinds.SetOptions(new[]
+            {
+                new SqlSearchFilterGroup("", new[]
+                {
+                    new SqlSearchFilterOption("Table", "", false, _ => { })
+                })
+            });
+
+            var surface = kinds.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            surface.Measure(new Size(320, double.PositiveInfinity));
+            surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+            surface.UpdateLayout();
+
+            var boxes = Descendants<CheckBox>(surface).ToArray();
+            Assert.Equal(new[] { "全部", "Table" }, boxes.Select(box => (string)box.Content).ToArray());
+            Assert.True(boxes[0].IsChecked);
+
+            // 取消勾「全部」不是使用者做得到的狀態：勾選框彈起來了，要把它按回去，
+            // 否則畫面上這個維度看起來沒有條件，而實際上也真的沒有。
+            boxes[0].IsChecked = false;
+            surface.UpdateLayout();
+            Assert.True(boxes[0].IsChecked);
+            Assert.Equal(0, cleared);
+
+            // 別的選項變動之後由宿主改這一列，不重建整份清單：使用者可能正在連勾好幾個。
+            kinds.SyncEmptyOption(false);
+            surface.UpdateLayout();
+            Assert.False(boxes[0].IsChecked);
+            Assert.Equal(0, cleared);
+
+            boxes[0].IsChecked = true;
+            Assert.Equal(1, cleared);
         });
     }
 

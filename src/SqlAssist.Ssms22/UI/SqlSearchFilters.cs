@@ -113,13 +113,13 @@ internal sealed class SqlSearchSegments : Border
 /// <summary>過濾面板的三種形狀；差別只有互斥與否，以及面板上還有沒有別的東西。</summary>
 internal enum SqlSearchFilterMode
 {
-    /// <summary>單選：選項畫成 radio，選完就關，沒有全選與清除。</summary>
+    /// <summary>單選：選項畫成 radio，選完就關，沒有命令鈕。</summary>
     Single,
 
-    /// <summary>複選：選項畫成核取方塊，面板留著讓人連勾好幾個，附全選與清除。</summary>
+    /// <summary>複選：選項畫成核取方塊，面板留著讓人連勾好幾個，沒有命令鈕。</summary>
     Multiple,
 
-    /// <summary>複選再加一個搜尋框；名稱可能上百個的清單才需要。</summary>
+    /// <summary>複選再加一個搜尋框與全選；名稱可能上百個的清單才需要。</summary>
     SearchableMultiple
 }
 
@@ -129,15 +129,20 @@ internal enum SqlSearchFilterMode
 /// <remarks>
 /// 十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果；摘要留在按鈕上，
 /// 完整名單留在面板與 chip 列。用 <see cref="Popup"/> 而不是 <see cref="ContextMenu"/>，
-/// 是因為資料庫那一份面板裡有搜尋框與兩顆命令鈕——快捷選單裡的輸入欄拿不到鍵盤焦點。
+/// 是因為資料庫那一份面板裡有搜尋框與一顆命令鈕——快捷選單裡的輸入欄拿不到鍵盤焦點。
 ///
 /// 單選與複選<b>是同一個控制項的兩種模式</b>，不是兩個類別：外觀、面板、摘要與 chip 都一樣，
 /// 只有互斥語意不同。分成兩個的症狀是其中一邊漏掉主題套用或 Esc 關閉，而那種漏只在
 /// 深色主題或鍵盤操作時才看得出來。
 ///
-/// 單選<b>不顯示</b>全選與清除：全選對互斥的選項沒有意義，而清除等於「一個範圍都不選」，
-/// 那不是使用者做得到的狀態。單選選完就關面板——它一次只改得了一項，留著面板等於要他
-/// 再按一次外面。
+/// 「沒有勾任何一個」在這幾個面板上都是一個<b>實際的預設</b>（全部種類、連線預設的資料庫），
+/// 所以它由 <see cref="SetEmptyOption"/> 畫成面板第一列，而不是靠一片空白表達：
+/// 摘要寫著「全部」而清單上一個勾都沒有時，使用者會以為自己把條件弄丟了。
+///
+/// 面板上的命令鈕只剩<b>全選</b>，而且只有可搜尋的那一種有：清單長到不值得一個一個勾才需要它。
+/// 「清除」不畫——它與第一列那個預設是同一件事，兩個入口的下場是其中一邊漏掉狀態同步。
+/// 單選連全選都沒有：全選對互斥的選項沒有意義。單選選完就關面板——它一次只改得了一項，
+/// 留著面板等於要他再按一次外面。
 ///
 /// <see cref="PopupSurface"/> 要由宿主接上動態資源。Popup 的內容不在宿主的視覺樹上，
 /// 沒有這一道就會在深色主題露出白底；這裡不自己做，是為了讓這個控制項留在純 WPF，
@@ -151,11 +156,12 @@ internal sealed class SqlSearchFilterButton : Button
     private readonly SqlBusyNotice _notice = new();
     private readonly TextBox? _filter;
     private IReadOnlyList<SqlSearchFilterGroup> _groups = Array.Empty<SqlSearchFilterGroup>();
+    private SqlSearchFilterRow? _empty;
     private readonly Popup _popup;
     private readonly string _name;
     private bool _compact;
 
-    /// <summary>選項區的高度上限；捲的是選項本身，搜尋框與兩顆命令鈕要一直看得見。</summary>
+    /// <summary>選項區的高度上限；捲的是選項本身，搜尋框與命令鈕要一直看得見。</summary>
     private const double OptionsHeight = 280;
 
     /// <param name="mode">單選、複選，或複選加搜尋框。</param>
@@ -195,11 +201,12 @@ internal sealed class SqlSearchFilterButton : Button
             _filter.TextChanged += (_, _) => ApplyFilter();
         }
 
-        if (!single)
+        // 全選只給可搜尋的那一份：清單長到需要搜尋框，才值得一顆「整台都要」。種類只有十幾項，
+        // 而它的「全部」是第一列那個預設，再放一顆全選等於同一件事有兩個入口、兩種 chip。
+        if (mode == SqlSearchFilterMode.SearchableMultiple)
         {
             var commands = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
             commands.Children.Add(CreateCommand(SqlIcon.SelectAll, "全選", () => SelectAllRequested?.Invoke(this, EventArgs.Empty)));
-            commands.Children.Add(CreateCommand(SqlIcon.Clear, "清除", () => ClearRequested?.Invoke(this, EventArgs.Empty)));
             panel.Children.Add(commands);
         }
 
@@ -261,11 +268,8 @@ internal sealed class SqlSearchFilterButton : Button
     /// </remarks>
     public event EventHandler? OptionsRequested;
 
-    /// <summary>全選；單選面板上沒有這顆鈕，也不會發這個事件。</summary>
+    /// <summary>全選；只有可搜尋的多選面板有這顆鈕，其餘不會發這個事件。</summary>
     public event EventHandler? SelectAllRequested;
-
-    /// <summary>清除；單選面板上沒有這顆鈕，也不會發這個事件。</summary>
-    public event EventHandler? ClearRequested;
 
     /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip 與 chip 列。</summary>
     /// <remarks>
@@ -310,6 +314,31 @@ internal sealed class SqlSearchFilterButton : Button
         _groups = groups ?? throw new ArgumentNullException(nameof(groups));
         ApplyFilter();
     }
+
+    /// <summary>
+    /// 面板第一列那個「沒有指名＝用這個」的預設；null 表示這個面板沒有預設可回。
+    /// </summary>
+    /// <remarks>
+    /// 它<b>不受搜尋框過濾</b>：打了字之後一個都不相符時，那一列仍要留著，否則使用者在
+    /// 過濾字還在的情況下回不到預設。選它等於清空這個維度，所以面板上不另畫「清除」。
+    /// 字由宿主給，與按鈕摘要共用同一份（例如「連線預設（master）」），兩處不會說得不一樣。
+    /// </remarks>
+    public void SetEmptyOption(SqlSearchFilterOption? option)
+    {
+        _empty = option is null
+            ? null
+            : SqlSearchFilterRow.Empty(option, Mode == SqlSearchFilterMode.Single ? CloseAfterPick : null);
+        ApplyFilter();
+    }
+
+    /// <summary>
+    /// 別的選項勾掉或取消之後，把預設那一列的勾改過來。
+    /// </summary>
+    /// <remarks>
+    /// 只改那一列，不重建整份清單：使用者連勾三個資料庫時，重建會把捲動位置與鍵盤焦點
+    /// 一起丟掉，而他正在往下走。寫進去不回呼宿主——這是把模型的結果畫出來，不是一次選取。
+    /// </remarks>
+    public void SyncEmptyOption(bool selected) => _empty?.Sync(selected);
 
     /// <summary>
     /// 清單上方那一行狀態：正在讀取，或這一份為什麼不完整。
@@ -375,6 +404,9 @@ internal sealed class SqlSearchFilterButton : Button
         var pattern = _filter?.Text ?? "";
         var rows = new List<SqlSearchFilterRow>();
 
+        // 預設那一列永遠第一個，而且不過濾：它是這個面板的出口，不是選項之一。
+        if (_empty is { } empty) rows.Add(empty);
+
         foreach (var group in _groups)
         {
             var start = rows.Count;
@@ -419,6 +451,7 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
 {
     private readonly Action<bool>? _selected;
     private readonly Action<bool>? _picked;
+    private readonly bool _sticky;
     private bool _isSelected;
 
     private SqlSearchFilterRow(
@@ -428,7 +461,8 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
         bool isCaption,
         bool isSelected,
         Action<bool>? selected,
-        Action<bool>? picked)
+        Action<bool>? picked,
+        bool sticky = false)
     {
         Label = label;
         ToolTip = toolTip;
@@ -437,6 +471,7 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
         _isSelected = isSelected;
         _selected = selected;
         _picked = picked;
+        _sticky = sticky;
     }
 
     /// <param name="first">整份清單的第一列不留上緣間距，否則面板頂端會多出一條空白。</param>
@@ -446,6 +481,15 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
     /// <param name="picked">選完之後要做的事（單選是關面板）；複選傳 null。</param>
     public static SqlSearchFilterRow Option(SqlSearchFilterOption option, Action<bool>? picked = null) =>
         new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected, option.Selected, picked);
+
+    /// <summary>面板第一列那個預設；勾得上去，取消不掉。</summary>
+    /// <remarks>
+    /// 取消勾它不是使用者做得到的狀態——「一個都不選」就是它自己。不擋的症狀與分段開關
+    /// 最後一段相同：勾選框彈起來了，而條件其實一點都沒變。
+    /// </remarks>
+    public static SqlSearchFilterRow Empty(SqlSearchFilterOption option, Action<bool>? picked = null) =>
+        new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected,
+            option.Selected, picked, sticky: true);
 
     /// <summary>
     /// 單選鈕的群組名；每一列各一個，等於不讓 WPF 自動互斥。
@@ -465,6 +509,20 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
 
     public bool IsCaption { get; }
 
+    /// <summary>
+    /// 把模型的結果畫出來，不當成一次選取。
+    /// </summary>
+    /// <remarks>
+    /// 走這一支而不是 <see cref="IsSelected"/>：後者會回呼宿主，而宿主正是呼叫這一支的人——
+    /// 那條路繞回去會把使用者剛改的條件再改一次。
+    /// </remarks>
+    public void Sync(bool selected)
+    {
+        if (_isSelected == selected) return;
+        _isSelected = selected;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+    }
+
     /// <summary>勾或取消勾；寫進來的只會是使用者的動作，宿主換選項是換掉整份列清單。</summary>
     public bool IsSelected
     {
@@ -472,6 +530,15 @@ internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
         set
         {
             if (_isSelected == value) return;
+
+            // 勾選框已經彈起來了，所以要把它按回去：不還原的話，畫面上「全部」是沒勾的，
+            // 而實際上這個維度仍然一個條件都沒有。
+            if (_sticky && !value)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+                return;
+            }
+
             _isSelected = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
             _selected?.Invoke(value);
@@ -508,34 +575,48 @@ internal sealed class SqlSearchFilterOption
 /// 這是這個版面空間極大化的關鍵，作法沿用 SQL Memory 的篩選收合：沒有條件就不留空白列。
 /// 收起用 <see cref="Visibility.Collapsed"/> 而不是把高度設成 0——後者仍會參與量測，
 /// 而清單少掉的正是那幾個 DIP。
+///
+/// <b>永遠只有一列</b>：chip 一維度一顆（見 <c>SqlSearchFilterChip</c>），而放不下時橫向捲動，
+/// 不換行。換行的那一版在停靠面板裡會長到三列，而那三列換算成少看六筆結果；
+/// 捲動的規矩與預覽資訊列同一份 <see cref="SqlAssistChrome.CreateHorizontalStrip"/>。
 /// </remarks>
-internal sealed class SqlSearchChipBar : ItemsControl
+internal sealed class SqlSearchChipBar : ContentControl
 {
+    private readonly StackPanel _strip = new() { Orientation = Orientation.Horizontal };
+
     public SqlSearchChipBar()
     {
-        ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(WrapPanel)));
         Visibility = Visibility.Collapsed;
         Margin = new Thickness(0, 4, 0, 0);
+        Focusable = false;
+        Content = SqlAssistChrome.CreateHorizontalStrip(_strip, "已選條件（可水平捲動）");
         AutomationProperties.SetName(this, "已選條件");
     }
 
-    /// <summary>按下某一顆 chip 的十字；宿主據此清掉它代表的那一個條件。</summary>
+    /// <summary>按下某一顆 chip 的十字；宿主據此清掉它代表的整個維度。</summary>
     public event Action<object>? RemoveRequested;
 
+    /// <summary>按下 chip 本體；宿主據此打開那個維度的過濾面板。</summary>
+    public event Action<object>? OpenRequested;
+
     /// <summary>換一整列 chip；空的就整列收起。</summary>
-    public void SetChips<T>(IReadOnlyList<T> chips, Func<T, string> label) where T : class
+    /// <param name="canOpen">這顆 chip 的本體按得下去（有自己的面板）；null 表示都不能按。</param>
+    public void SetChips<T>(IReadOnlyList<T> chips, Func<T, string> label, Func<T, bool>? canOpen = null) where T : class
     {
         if (chips is null) throw new ArgumentNullException(nameof(chips));
         if (label is null) throw new ArgumentNullException(nameof(label));
 
-        Items.Clear();
+        _strip.Children.Clear();
 
         foreach (var chip in chips)
         {
             var text = label(chip);
-            var element = SqlAssistChrome.CreateFilterChip(text, out var remove);
+            var open = canOpen?.Invoke(chip) == true;
+            var element = SqlAssistChrome.CreateFilterChip(
+                text, out var remove, out var openButton, open ? "：開啟面板調整" : null);
             remove.Click += (_, _) => RemoveRequested?.Invoke(chip);
-            Items.Add(element);
+            if (openButton is not null) openButton.Click += (_, _) => OpenRequested?.Invoke(chip);
+            _strip.Children.Add(element);
         }
 
         Visibility = chips.Count == 0 ? Visibility.Collapsed : Visibility.Visible;

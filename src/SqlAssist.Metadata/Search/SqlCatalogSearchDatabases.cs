@@ -17,7 +17,7 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public sealed class SqlCatalogSearchDatabase
 {
-    public SqlCatalogSearchDatabase(string name, bool isSystem)
+    public SqlCatalogSearchDatabase(string name, bool isSystem, bool isCurrent = false)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -26,9 +26,23 @@ public sealed class SqlCatalogSearchDatabase
 
         Name = name;
         IsSystem = isSystem;
+        IsCurrent = isCurrent;
     }
 
     public string Name { get; }
+
+    /// <summary>
+    /// 沒有指名任何資料庫時，這一輪實際會搜的那一個。
+    /// </summary>
+    /// <remarks>
+    /// 由<b>開啟後的連線</b>說了算（<c>IDbConnection.Database</c>），不由連線字串推算：
+    /// 物件總管那條連線的連線物件上沒有初始目錄，而範圍摘要一定要說得出目標。少了這一欄的
+    /// 症狀是使用者看到一句「連線預設」卻不知道那是哪一個，而它通常是 <c>master</c>。
+    ///
+    /// 不寫成查詢裡的 <c>DB_ID()</c>：那一類函式加不了限定字，而這個檔案裡的查詢共用同一條
+    /// 規矩（見 <c>SqlCatalogSearchQueriesTests</c>）。
+    /// </remarks>
+    public bool IsCurrent { get; }
 
     /// <summary>
     /// master／tempdb／model／msdb 四個。
@@ -81,6 +95,9 @@ public static class SqlCatalogSearchDatabases
             command.CommandTimeout = commandTimeoutSeconds;
 
             var databases = new List<SqlCatalogSearchDatabase>();
+            // 開啟之後才問得到真正的那一個：未開啟的連線物件上只有連線字串裡的初始目錄，
+            // 而物件總管那一條沒有。
+            var current = connection.Database ?? "";
 
             using var reader = command.ExecuteReader();
 
@@ -91,7 +108,9 @@ public static class SqlCatalogSearchDatabases
                 // is_system 是查詢自己用 CASE 算出來的 int，不是目錄檢視上的 bit 欄位；
                 // 用 GetBoolean 讀會拿到 InvalidCastException，而那不是 DbException，
                 // 降級接不住。
-                databases.Add(new SqlCatalogSearchDatabase(reader.GetString(0), reader.GetInt32(1) != 0));
+                var name = reader.GetString(0);
+                databases.Add(new SqlCatalogSearchDatabase(
+                    name, reader.GetInt32(1) != 0, string.Equals(name, current, StringComparison.OrdinalIgnoreCase)));
             }
 
             return databases;

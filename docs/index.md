@@ -8,7 +8,7 @@
 |`CLAUDE.md`、`AGENTS.md`、README、`docs/`、AI 工具|[文件](rules-docs.md)|
 |Settings、registration、設定頁|[設定](rules-settings.md)|
 |Ssms22 事件、命令、MEF、連線、部署|[平台](rules-platform.md)|
-|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)＋[視窗骨架](ui-windows.md)|
+|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)＋[視窗骨架](ui-windows.md)／[清單列](ui-rows.md)|
 |Metadata|[中繼資料](rules-metadata.md)|
 |Snippets、Parsing、Wildcards、上下文、SQL 掃描|[片段與解析](rules-parsing.md)|
 |跨功能共用邏輯|上述護欄＋[唯一實作](shared-components.md)／[平台](shared-components-platform.md)|
@@ -51,19 +51,18 @@
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
 | QuickInfo、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[宣告](script-declared-objects.md) |
 | 定位、焦點、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
-| Chrome、配色、高對比、頁尾 | [UI 準則](ui-guidelines.md)／[視窗骨架](ui-windows.md)／[主題連動](themes.md)／[對話框](ui-dialogs.md) |
-| 通知生命週期與呈現 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md) |
-| 通知可見度、分級、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
+| Chrome、配色、高對比、清單列 | [UI 準則](ui-guidelines.md)／[骨架](ui-windows.md)／[清單列](ui-rows.md)／[主題](themes.md)／[對話框](ui-dialogs.md) |
+| 通知生命週期、可見度、分級、文案 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md)／[可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
 | 指令碼風格、降級註解 | [指令碼產生](script-generation.md)／[結構健檢](schema-analysis.md) |
 | 失敗註解、新查詢 | [F12 指令碼](definition-scripts.md)／[移至定義](go-to-definition.md) |
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |
-| ResultGrid 命令、JSON、欄位剖析、字面值、輸出效能 | [結果格線](result-grid.md)／[格線輸出](result-grid-generation.md) |
+| ResultGrid 命令、JSON、欄位剖析、字面值 | [結果格線](result-grid.md)／[格線輸出](result-grid-generation.md) |
 | enableWhen、enum 相容 | [設定](settings.md)／[入口](settings-entries.md)／[設定結構](settings-schema.md) |
 | 分層載入 | [中繼資料](metadata.md)／[跨資料庫](metadata-cross-db.md) |
-| USE、連結伺服器、OPENQUERY、舊版 SQL、權限 | [連線](metadata-connection.md)／[遠端](metadata-remote.md)／[相容](metadata-compatibility.md) |
+| USE、連結伺服器、OPENQUERY、舊版、權限 | [連線](metadata-connection.md)／[遠端](metadata-remote.md)／[相容](metadata-compatibility.md) |
 | 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 安裝／移除、VSIX 偵錯、MEF 快取 | [發布](release.md)／[偵錯](debugging.md) |
-| Debug 部署、必要／可選檔案、Deploy／Install | [部署契約](debug-deployment.md) |
+| Debug 部署、必要／可選檔案、Deploy | [部署契約](debug-deployment.md) |
 | AI、README 圖片 | [AI](ai-workflow.md)／[RTK](ai-rtk.md)／[圖片](images/README.md)／[提示詞](images/prompts.md) |
 
 只使用產品時讀[開始使用](getting-started.md)。

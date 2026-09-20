@@ -213,6 +213,11 @@ public sealed class SqlMemoryVisualTests
                 // 經由 ContentPresenter 套用模板，DataTrigger 才會生效；LoadContent 只建樹不跑觸發程序。
                 var content = new ContentControl { ContentTemplate = template, Content = row };
                 content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
+                // 操作層平時 Collapsed，連帶按鈕的樣板都還沒套用（圖示是 Content，套樣板才實體化）。
+                // 揭露一次再量一次，量到的才是使用者停駐時看到的那一份。
+                var presenter = Descendants<ContentPresenter>(content).First();
+                ((UIElement)template.FindName("actions", presenter)).Visibility = Visibility.Visible;
+                content.Measure(new Size(400, 300)); content.Arrange(new Rect(0, 0, 400, 300)); content.UpdateLayout();
                 // overflow 沒有 Tag，也不屬於命令清單：它只是窄版的入口，命令仍由快捷選單送。
                 return Descendants<Button>(content).Where(button => button.Tag is SqlMemoryRowAction).ToArray();
             }
@@ -269,9 +274,9 @@ public sealed class SqlMemoryVisualTests
         {
             // 樣板在 STA 執行緒上建立；先建好再交給另一條執行緒套用會在 Seal 擋下來。
             var template = SqlAssistChrome.CreateSqlSummaryTemplate();
-            // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間 → 操作。
+            // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間，操作浮在右緣。
             var wide = Render(template, History("借閱查詢", new SqlConnectionLabel("LibraryServer", "Library")), 740);
-            var order = new[] { "name", "state", "count", "server", "database", "time", "actions" };
+            var order = new[] { "name", "state", "count", "server", "database", "time" };
             var lefts = order.Select(part => Left(wide, part)).ToArray();
             for (var index = 1; index < order.Length; index++)
                 Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
@@ -282,9 +287,11 @@ public sealed class SqlMemoryVisualTests
             Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
             // 兩組之間是彈性空白：連線與時間靠右，狀態與次數留在名稱旁邊。
             Assert.True(Right(wide, "count") + 8 < Left(wide, "server"));
-            Assert.InRange(740 - Right(wide, "actions"), 0, 8);
-            // 動作區維持 Hidden 預留寬度，停駐才揭露且不跳版面；一般寬度不出現 overflow。
-            Assert.Equal(Visibility.Hidden, Part(wide, "actions").Visibility);
+            // 操作層浮在列的右緣、不佔寬度，所以時間本身就排到最右：預留寬度的那一版在這裡
+            // 會空出近百 DIP，而那一塊在停靠面板裡等於名稱少掉三分之一。
+            Assert.InRange(740 - Right(wide, "time"), 0, 8);
+            // 收起是 Collapsed 而不是佔著寬度的 Hidden；一般寬度不出現 overflow。
+            Assert.Equal(Visibility.Collapsed, Part(wide, "actions").Visibility);
             Assert.Equal(Visibility.Collapsed, Part(wide, "overflow").Visibility);
             Assert.Equal(Visibility.Visible, Part(wide, "serverText").Visibility);
 
@@ -306,7 +313,7 @@ public sealed class SqlMemoryVisualTests
             Assert.Equal(Visibility.Visible, Part(narrow, "action" + SqlMemoryRowAction.Open).Visibility);
             Assert.Equal(Visibility.Collapsed, Part(narrow, "action" + SqlMemoryRowAction.Copy).Visibility);
             // 每一組都仍在這一列的範圍內，沒有被推出去。
-            foreach (var part in new[] { "name", "state", "server", "database", "time", "actions" })
+            foreach (var part in new[] { "name", "state", "server", "database", "time" })
                 Assert.InRange(Right(narrow, part), 0, 300);
 
             // 缺值直接 collapse 不留空槽：沒有標註連線的收藏不畫膠囊（History 沒有連線是明講的文字）。
@@ -315,9 +322,9 @@ public sealed class SqlMemoryVisualTests
                 "SELECT LoanId FROM LoanDetail;", DateTimeOffset.Now)), 740);
             Assert.Equal(Visibility.Collapsed, Part(untagged, "server").Visibility);
             Assert.Equal(Visibility.Collapsed, Part(untagged, "database").Visibility);
-            // 只執行一次不留「×1」；動作區維持 Hidden，停駐才揭露且不跳版面。
+            // 只執行一次不留「×1」；操作層收起是 Collapsed，停駐才揭露且不跳版面。
             Assert.Equal(Visibility.Collapsed, Part(untagged, "count").Visibility);
-            Assert.Equal(Visibility.Hidden, Part(untagged, "actions").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(untagged, "actions").Visibility);
         });
     }
 
