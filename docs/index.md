@@ -8,7 +8,7 @@
 |`CLAUDE.md`、`AGENTS.md`、README、`docs/`、AI 工具|[文件](rules-docs.md)|
 |Settings、registration、設定頁|[設定](rules-settings.md)|
 |Ssms22 事件、命令、MEF、連線、部署|[平台](rules-platform.md)|
-|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)|
+|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)＋[視窗骨架](ui-windows.md)|
 |Metadata|[中繼資料](rules-metadata.md)|
 |Snippets、Parsing、Wildcards、上下文、SQL 掃描|[片段與解析](rules-parsing.md)|
 |跨功能共用邏輯|上述護欄＋[唯一實作](shared-components.md)／[平台](shared-components-platform.md)|
@@ -50,7 +50,7 @@
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
 | QuickInfo、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[宣告](script-declared-objects.md) |
 | 定位、焦點、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
-| Chrome、配色、高對比、頁尾 | [UI 準則](ui-guidelines.md)／[主題連動](themes.md)／[對話框](ui-dialogs.md) |
+| Chrome、配色、高對比、頁尾 | [UI 準則](ui-guidelines.md)／[視窗骨架](ui-windows.md)／[主題連動](themes.md)／[對話框](ui-dialogs.md) |
 | 通知生命週期與呈現 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md) |
 | 通知可見度、分級、文案 | [可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
 | 指令碼風格、降級註解 | [指令碼產生](script-generation.md)／[結構健檢](schema-analysis.md) |
