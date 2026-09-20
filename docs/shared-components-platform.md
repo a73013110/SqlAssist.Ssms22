@@ -20,6 +20,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 重開建議清單的三個步驟 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 擋掉 SSMS 內建的自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
+| 停駐工具窗的主從區（轉向門檻、收合把手與兩個方向的比例） | `Ssms22/UI/MasterDetailView.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 圖示加標籤的分頁（SQL Memory、SQL Search 與之後的工具窗） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾彈出面板的選項清單（虛擬化、標題與選項兩種列） | `Ssms22/UI/SqlAssistChrome.Search.cs` 的 `CreateSearchOptionList` |

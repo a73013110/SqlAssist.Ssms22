@@ -44,7 +44,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _settleTimer;
     private readonly SqlMemoryPreview _detail;
-    private readonly SqlMemorySplitView _splitView;
+    private readonly MasterDetailView _splitView;
     private readonly SqlMemoryRecoveryView _recoveryView = new();
     private readonly FrameworkElement _historyFilters;
     private readonly TabItem _usageTab = SqlAssistChrome.CreateMemoryUsageTab();
@@ -106,7 +106,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _pager.LoadMoreRequested += (_, _) => SqlMemoryActions.Run(Load, Report);
         _loading = new SqlLoadingSurface(_list);
         _detail = new SqlMemoryPreview(_commands, Report);
-        _splitView = new SqlMemorySplitView(_loading, _detail, _detail.Summary);
+        _splitView = new MasterDetailView(_loading, _detail, _detail.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL 預覽", UpdatePreview);
         _recoveryView.Visibility = Visibility.Collapsed;
         _recoveryView.RebuildRequested += (_, _) => OnRecoveryRebuildRequested();

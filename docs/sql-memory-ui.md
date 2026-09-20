@@ -6,8 +6,8 @@
 ## 主從瀏覽
 
 - 共用一份 Browser、`SqlMemoryList`、卡片模板、搜尋、連線 facets 與選取流程；頁籤只決定查詢及可用操作。
-- 上方清單、下方 Preview，預設 3:2。水平 splitter 可拖曳，聚焦後 ↑／↓ 每次調整 16 DIP。
-  收合保留目前選取及調整比例，清單取得空間；展開讀取當前選取。不因視窗變窄突然交換閱讀方向。
+- 預設上下分割 3:2，寬到門檻才轉左右；轉向門檻、hysteresis 與收合把手見[視窗骨架](ui-windows.md)。
+  splitter 可拖曳，聚焦後方向鍵每次調整 16 DIP。收合保留目前選取及各方向比例，清單取得空間；展開讀取當前選取。
 - 滑鼠單擊或 ↑／↓ 選取即預覽；220 ms 去彈跳後非同步讀全文。切換立即清除舊 SQL 並顯示載入狀態，
   取消、選取識別及宿主世代共同擋住過期成功／失敗。收合、隱藏、停用與 Dispose 都取消讀取。
 - 雙擊或卡片上的 Enter 才開啟新 Query；按鈕的 Enter 只執行該按鈕，不額外開窗。
@@ -44,16 +44,14 @@ Favorites 只有伺服器／資料庫篩選，語意與 History 相同：未選�
 Favorites 的日期是最後儲存時間；「載入更多」改名「繼續搜尋」，由使用者按下才續搜。
 該頁即使沒有命中也不顯示「沒有符合條件」；篩選或搜尋變更時清除進度。
 第三個分頁「用量」以[用量頁](sql-memory-usage.md)取代主從區；工具列的重新整理作用在目前分頁。
-目前連線一次套用 Server／Database；無連線保留篩選並提示。
-此操作只篩選，不切換 SSMS 連線。
+目前連線一次套用 Server／Database，只篩選不切換 SSMS 連線；無連線保留篩選並提示。
 
 Server／Database Header 只負責 disclosure，不畫成已選取 pill。Chevron 有固定 slot、左右間距，
 收合只旋轉繪圖不改量測；預設收合，已選條件以同列摘要顯示並保留 Tooltip。
 展開後名稱 pills 獨佔全寬、最多兩列高度，避免窄窗 Header 對齊到多列選項的中間。
 名稱有獨立的最近／最早／名稱排序與續頁。
 
-Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱；互動狀態不改版面見
-[UI 準則](ui-guidelines.md)。工具列窄窗先收起按鈕文字，放不下時再收起分頁文字，分頁列不折成兩行；圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
+Pills、badge、toolbar 的 icon／文字使用同一視覺中心線，內外垂直 padding 對稱。工具列窄窗先收起按鈕文字，放不下時再收起分頁文字，分頁列不折成兩行；圖示仍有 Tooltip 與 automation name；連線篩選不是主要動作。
 高對比保留配對選取文字，不只替背景換色。
 Tabs、篩選與卡片圖示由 `SqlAssistChrome.MemoryOptionIcon` 依語意值選取 `SqlIcon`；排序按鈕與選單共用同一對應，
 History／Favorites 與工具列同源。卡片動作以 `SqlMemoryRowAction` 識別，不拿圖示當動作。

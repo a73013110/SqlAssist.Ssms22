@@ -6,20 +6,25 @@ using System.Windows.Input;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>停駐工具窗的主從區；收合保留拖曳比例，不建立第二個預覽視窗。</summary>
+/// <summary>停駐工具窗的主從區；轉向、收合與兩個方向的拖曳比例都在這裡，不建立第二個預覽視窗。</summary>
 /// <remarks>
-/// 預設是上下分割。工具窗停在右側時窄、停在下方時寬，而寬版面下上下分割會讓清單只剩幾列高，
-/// 旁邊卻空著一半；<see cref="SqlMemorySplitView(UIElement, UIElement, FrameworkElement?, double?)"/>
-/// 的 <c>sideBySideWidth</c> 開啟自動轉向，<b>不傳就完全維持原行為</b>——SQL Memory 的
-/// 上下分割是既有驗收過的版面，不由這一次的搜尋版面順手改掉。
+/// 工具窗停在右側時窄、停在下方時寬；寬版面下上下分割會讓清單只剩幾列高，旁邊卻空著一半，
+/// 所以寬到門檻就轉成左右。轉向在 <see cref="MeasureOverride"/> 決定，等到排版才換會閃一次舊版面。
 /// </remarks>
-internal sealed class SqlMemorySplitView : Grid
+internal sealed class MasterDetailView : Grid
 {
+    /// <summary>轉成左右分割的預設門檻；兩塊各 <see cref="MinPaneWidth"/> 加上分隔線與外距。</summary>
+    /// <remarks>
+    /// 再低的話，轉向之後兩邊都窄到讀不完一個限定名稱，而使用者只是把面板拉寬了一點。
+    /// </remarks>
+    public const double DefaultSideBySideWidth = 520;
+
     private readonly UIElement _master;
     private readonly UIElement _detail;
     private readonly GridSplitter _splitter;
     private readonly Button _toggle;
     private readonly Grid _divider;
+    private readonly FrameworkElement? _summaryHost;
     private readonly double? _sideBySideWidth;
 
     /// <summary>分隔線的厚度；兩個方向共用同一個數字，握把不因轉向變粗變細。</summary>
@@ -27,6 +32,13 @@ internal sealed class SqlMemorySplitView : Grid
 
     /// <summary>左右分割時任一邊的最小寬度；比這窄的清單一列都讀不完。</summary>
     private const double MinPaneWidth = 220;
+
+    /// <summary>轉回上下要比轉去左右再窄這麼多 DIP。</summary>
+    /// <remarks>
+    /// 只有單一門檻的話，臨界寬度每量測一次就翻一次版面：使用者拖視窗邊框時清單與 Preview
+    /// 反覆對調，選取與捲動看起來像在跳。留一段只進不出的區間，拖回來要真的窄回去才換。
+    /// </remarks>
+    private const double OrientationHysteresis = 32;
 
     /// <summary>上下分割時的兩段比例；轉向後換回來仍是使用者拖過的那一份。</summary>
     private GridLength _masterHeight = new(3, GridUnitType.Star);
@@ -46,9 +58,9 @@ internal sealed class SqlMemorySplitView : Grid
     public event EventHandler? OrientationChanged;
 
     /// <param name="sideBySideWidth">
-    /// 寬到這個 DIP 就自動轉成左右分割；null 表示永遠上下分割（SQL Memory 的既有行為）。
+    /// 寬到這個 DIP 就自動轉成左右分割；null 表示永遠上下分割。
     /// </param>
-    public SqlMemorySplitView(UIElement master, UIElement detail, FrameworkElement? summary = null,
+    public MasterDetailView(UIElement master, UIElement detail, FrameworkElement? summary = null,
         double? sideBySideWidth = null)
     {
         if (sideBySideWidth is <= 0) throw new ArgumentOutOfRangeException(nameof(sideBySideWidth));
@@ -56,13 +68,9 @@ internal sealed class SqlMemorySplitView : Grid
         _master = master;
         _detail = detail;
         _sideBySideWidth = sideBySideWidth;
-        RowDefinitions.Add(new RowDefinition { Height = _masterHeight, MinHeight = 80 });
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = _detailHeight, MinHeight = 100 });
-        ColumnDefinitions.Add(new ColumnDefinition());
         Children.Add(master);
         var divider = _divider = new Grid { MinHeight = 30 };
-        SetRow(divider, 1); Children.Add(divider);
+        Children.Add(divider);
         _splitter = new GridSplitter
         {
             Height = SplitterThickness, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Top,
@@ -71,7 +79,7 @@ internal sealed class SqlMemorySplitView : Grid
             ToolTip = "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。"
         };
         // Splitter 必須是主 Grid 的直接子層，PreviousAndNext 才會調整主從兩列。
-        SetRow(_splitter, 1); Children.Add(_splitter);
+        Children.Add(_splitter);
         var splitterStyle = new Style(typeof(GridSplitter));
         splitterStyle.Setters.Add(ThemeResourceSet.Setter(BackgroundProperty, ThemeBrush.Hairline));
         var focus = new Trigger { Property = IsKeyboardFocusWithinProperty, Value = true };
@@ -121,9 +129,10 @@ internal sealed class SqlMemorySplitView : Grid
                 args.Handled = true;
             };
             heading.Children.Add(metadata);
+            _summaryHost = metadata;
         }
-        SetRow(detail, 2); Children.Add(detail);
-        UpdateToggle();
+        Children.Add(detail);
+        ApplyLayout();
     }
 
     protected override Size MeasureOverride(Size constraint)
@@ -131,14 +140,17 @@ internal sealed class SqlMemorySplitView : Grid
         // 轉向要在量測時決定：等到排版才換，這一輪已經照舊方向量過一次，畫面會閃一下舊版面。
         if (_sideBySideWidth is { } threshold && !double.IsInfinity(constraint.Width))
         {
-            SetSideBySide(constraint.Width >= threshold);
+            // 轉去左右看門檻，轉回上下要再窄一段 hysteresis；臨界寬度上只換一次，不隨量測反覆跳。
+            var pivot = IsSideBySide ? threshold - OrientationHysteresis : threshold;
+            SetSideBySide(constraint.Width >= pivot);
         }
 
         if (IsSideBySide)
         {
             // 與上下分割同一條規則，只是換成寬度：最小值隨可用寬度縮小，不讓 Preview 把清單推到視窗外。
+            // 收合後清單獨占整列，最小寬度讓給右緣把手，否則窄窗會把把手推出視窗。
             var usableWidth = Math.Max(0, constraint.Width - SplitterThickness);
-            ColumnDefinitions[0].MinWidth = Math.Min(MinPaneWidth, usableWidth * 0.45);
+            ColumnDefinitions[0].MinWidth = IsDetailExpanded ? Math.Min(MinPaneWidth, usableWidth * 0.45) : 0;
             ColumnDefinitions[2].MinWidth = IsDetailExpanded ? Math.Min(MinPaneWidth, usableWidth * 0.55) : 0;
             return base.MeasureOverride(constraint);
         }
@@ -157,9 +169,8 @@ internal sealed class SqlMemorySplitView : Grid
         if (expanded == IsDetailExpanded) return;
         if (!expanded) RememberProportions();
         IsDetailExpanded = expanded;
-        ApplyProportions();
         _detail.Visibility = _splitter.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-        UpdateToggle();
+        ApplyLayout();
         DetailExpandedChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -173,59 +184,88 @@ internal sealed class SqlMemorySplitView : Grid
 
         RememberProportions();
         IsSideBySide = sideBySide;
+        ApplyLayout();
+        OrientationChanged?.Invoke(this, EventArgs.Empty);
+    }
 
+    /// <summary>照目前方向與收合狀態重排格線；兩者都會換掉抬頭的位置，不是只換比例。</summary>
+    private void ApplyLayout()
+    {
         RowDefinitions.Clear();
         ColumnDefinitions.Clear();
 
-        if (sideBySide)
+        if (IsSideBySide) ApplySideBySide();
+        else ApplyStacked();
+
+        UpdateHeading();
+    }
+
+    private void ApplySideBySide()
+    {
+        // 展開時抬頭移到兩塊內容上方並橫跨整列。留在中間那一欄的話，收合鈕與資訊列會被擠進
+        // 一條 5 DIP 寬的分隔欄裡；它們是整個主從區的抬頭，本來就不屬於分隔線。
+        // 收合時第一列沒有內容，抬頭退化成貼在清單右緣的把手欄。
+        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        ColumnDefinitions.Add(new ColumnDefinition
         {
-            // 抬頭移到兩塊內容上方並橫跨整列。留在中間那一欄的話，收合鈕與資訊列會被擠進
-            // 一條 5 DIP 寬的分隔欄裡；它們是整個主從區的抬頭，本來就不屬於分隔線。
-            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = _masterWidth, MinWidth = MinPaneWidth });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = _detailWidth, MinWidth = MinPaneWidth });
-
-            SetRow(_divider, 0); SetColumn(_divider, 0); SetColumnSpan(_divider, 3);
-            SetRow(_master, 1); SetColumn(_master, 0); SetColumnSpan(_master, 1);
-            SetRow(_splitter, 1); SetColumn(_splitter, 1); SetColumnSpan(_splitter, 1);
-            SetRow(_detail, 1); SetColumn(_detail, 2); SetColumnSpan(_detail, 1);
-
-            _splitter.Height = double.NaN;
-            _splitter.Width = SplitterThickness;
-            _splitter.HorizontalAlignment = HorizontalAlignment.Center;
-            _splitter.VerticalAlignment = VerticalAlignment.Stretch;
-            _splitter.ResizeDirection = GridResizeDirection.Columns;
-            _splitter.Cursor = Cursors.SizeWE;
-            _splitter.ToolTip = "拖曳調整預覽寬度；聚焦後使用 ← / →。";
-            AutomationProperties.SetName(_splitter, "調整 SQL 預覽寬度");
-        }
-        else
+            Width = IsDetailExpanded ? _masterWidth : new GridLength(1, GridUnitType.Star),
+            MinWidth = IsDetailExpanded ? MinPaneWidth : 0
+        });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        ColumnDefinitions.Add(new ColumnDefinition
         {
-            RowDefinitions.Add(new RowDefinition { Height = _masterHeight, MinHeight = 80 });
-            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            RowDefinitions.Add(new RowDefinition { Height = _detailHeight, MinHeight = 100 });
-            ColumnDefinitions.Add(new ColumnDefinition());
+            Width = IsDetailExpanded ? _detailWidth : GridLength.Auto,
+            MinWidth = IsDetailExpanded ? MinPaneWidth : 0
+        });
 
-            SetRow(_master, 0); SetColumn(_master, 0); SetColumnSpan(_master, 1);
-            SetRow(_divider, 1); SetColumn(_divider, 0); SetColumnSpan(_divider, 1);
-            SetRow(_splitter, 1); SetColumn(_splitter, 0); SetColumnSpan(_splitter, 1);
-            SetRow(_detail, 2); SetColumn(_detail, 0); SetColumnSpan(_detail, 1);
+        SetRow(_divider, IsDetailExpanded ? 0 : 1);
+        SetColumn(_divider, IsDetailExpanded ? 0 : 2);
+        SetColumnSpan(_divider, IsDetailExpanded ? 3 : 1);
+        // 收合後那一欄有整個主從區的高度，把手自己仍只有一列，貼著清單上緣。
+        _divider.VerticalAlignment = IsDetailExpanded ? VerticalAlignment.Stretch : VerticalAlignment.Top;
+        SetRow(_master, 1); SetColumn(_master, 0); SetColumnSpan(_master, 1);
+        SetRow(_splitter, 1); SetColumn(_splitter, 1); SetColumnSpan(_splitter, 1);
+        SetRow(_detail, 1); SetColumn(_detail, 2); SetColumnSpan(_detail, 1);
 
-            _splitter.Width = double.NaN;
-            _splitter.Height = SplitterThickness;
-            _splitter.HorizontalAlignment = HorizontalAlignment.Stretch;
-            _splitter.VerticalAlignment = VerticalAlignment.Top;
-            _splitter.ResizeDirection = GridResizeDirection.Rows;
-            _splitter.Cursor = Cursors.SizeNS;
-            _splitter.ToolTip = "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。";
-            AutomationProperties.SetName(_splitter, "調整 SQL 預覽高度");
-        }
+        _splitter.Height = double.NaN;
+        _splitter.Width = SplitterThickness;
+        _splitter.HorizontalAlignment = HorizontalAlignment.Center;
+        _splitter.VerticalAlignment = VerticalAlignment.Stretch;
+        _splitter.ResizeDirection = GridResizeDirection.Columns;
+        _splitter.Cursor = Cursors.SizeWE;
+        _splitter.ToolTip = "拖曳調整預覽寬度；聚焦後使用 ← / →。";
+        AutomationProperties.SetName(_splitter, "調整 SQL 預覽寬度");
+    }
 
-        ApplyProportions();
-        UpdateToggle();
-        OrientationChanged?.Invoke(this, EventArgs.Empty);
+    private void ApplyStacked()
+    {
+        // 收合時 Preview 那一列歸零，抬頭就是貼在清單下緣的把手列。
+        RowDefinitions.Add(new RowDefinition
+        {
+            Height = IsDetailExpanded ? _masterHeight : new GridLength(1, GridUnitType.Star), MinHeight = 80
+        });
+        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        RowDefinitions.Add(new RowDefinition
+        {
+            Height = IsDetailExpanded ? _detailHeight : new GridLength(0), MinHeight = IsDetailExpanded ? 100 : 0
+        });
+        ColumnDefinitions.Add(new ColumnDefinition());
+
+        SetRow(_master, 0); SetColumn(_master, 0); SetColumnSpan(_master, 1);
+        SetRow(_divider, 1); SetColumn(_divider, 0); SetColumnSpan(_divider, 1);
+        _divider.VerticalAlignment = VerticalAlignment.Stretch;
+        SetRow(_splitter, 1); SetColumn(_splitter, 0); SetColumnSpan(_splitter, 1);
+        SetRow(_detail, 2); SetColumn(_detail, 0); SetColumnSpan(_detail, 1);
+
+        _splitter.Width = double.NaN;
+        _splitter.Height = SplitterThickness;
+        _splitter.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _splitter.VerticalAlignment = VerticalAlignment.Top;
+        _splitter.ResizeDirection = GridResizeDirection.Rows;
+        _splitter.Cursor = Cursors.SizeNS;
+        _splitter.ToolTip = "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。";
+        AutomationProperties.SetName(_splitter, "調整 SQL 預覽高度");
     }
 
     private void RememberProportions()
@@ -243,27 +283,22 @@ internal sealed class SqlMemorySplitView : Grid
         _detailHeight = RowDefinitions[2].Height;
     }
 
-    private void ApplyProportions()
+    /// <summary>
+    /// 收合後抬頭退化成單列把手：摘要講的是 Preview 的內容，跟著 Preview 一起收；開關必須留下來，
+    /// 一起收掉就再也展不開。右緣那一條只有一欄寬，文字放不進去，只留 chevron 與它的 ToolTip。
+    /// </summary>
+    private void UpdateHeading()
     {
-        if (IsSideBySide)
-        {
-            ColumnDefinitions[0].Width = IsDetailExpanded ? _masterWidth : new GridLength(1, GridUnitType.Star);
-            ColumnDefinitions[2].MinWidth = IsDetailExpanded ? MinPaneWidth : 0;
-            ColumnDefinitions[2].Width = IsDetailExpanded ? _detailWidth : new GridLength(0);
-            return;
-        }
+        if (_summaryHost is not null)
+            _summaryHost.Visibility = IsDetailExpanded ? Visibility.Visible : Visibility.Collapsed;
 
-        RowDefinitions[0].Height = IsDetailExpanded ? _masterHeight : new GridLength(1, GridUnitType.Star);
-        RowDefinitions[2].MinHeight = IsDetailExpanded ? 100 : 0;
-        RowDefinitions[2].Height = IsDetailExpanded ? _detailHeight : new GridLength(0);
-    }
-
-    private void UpdateToggle()
-    {
+        var iconOnly = !IsDetailExpanded && IsSideBySide;
         var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var chevron = SqlAssistChrome.CreateChevron(IsDetailExpanded);
-        chevron.Margin = new Thickness(0, 0, 6, 0); panel.Children.Add(chevron);
-        panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("預覽")); _toggle.Content = panel;
+        if (!iconOnly) chevron.Margin = new Thickness(0, 0, 6, 0);
+        panel.Children.Add(chevron);
+        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateMemoryButtonText("預覽"));
+        _toggle.Content = panel;
         _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";
         AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合預覽" : "展開預覽");
     }

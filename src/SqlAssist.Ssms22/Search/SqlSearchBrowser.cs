@@ -42,13 +42,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>一次套用幾列；兩百列一次塞進集合會讓清單重算一整份版面。</summary>
     private const int RowBatch = 40;
 
-    /// <summary>主從區寬到這裡就轉成左右分割；工具窗停在下方時就是這一種。</summary>
-    /// <remarks>
-    /// 門檻取兩塊各 220 DIP 加上分隔線與外距。再低的話，轉向之後兩邊都窄到讀不完一個限定名稱，
-    /// 而使用者只是把面板拉寬了一點。
-    /// </remarks>
-    private const double SideBySideWidth = 520;
-
     private readonly IServiceProvider _services;
     private readonly SqlSearchCatalogs _catalogs;
     private readonly SqlSearchBrowserModel _model = new();
@@ -58,7 +51,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly IReadOnlyList<SqlSearchCategoryOption> _categoryOptions;
     private readonly SqlSearchList _list = new();
     private readonly SqlSearchPreview _preview;
-    private readonly SqlMemorySplitView _splitView;
+    private readonly MasterDetailView _splitView;
     private readonly SqlLoadingSurface _loading;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
@@ -145,7 +138,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         content.Children.Add(_list);
         content.Children.Add(_empty);
         _loading = new SqlLoadingSurface(content);
-        _splitView = new SqlMemorySplitView(_loading, _preview, _preview.Summary, SideBySideWidth);
+        _splitView = new MasterDetailView(_loading, _preview, _preview.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 預覽", UpdatePreview);
         // 剪貼簿可能被別的程序占用；失敗要看得見，否則使用者以為下一次貼上是這個名稱。
         _preview.CopyRequested += (_, _) => Run(() => CopyName(_preview.Current));

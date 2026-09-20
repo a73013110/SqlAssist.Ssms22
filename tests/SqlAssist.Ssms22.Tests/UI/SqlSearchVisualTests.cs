@@ -161,13 +161,13 @@ public sealed class SqlSearchVisualTests
     }
 
     [Fact]
-    public void 主從區寬到門檻才轉成左右而預設維持上下()
+    public void 主從區寬到門檻才轉成左右()
     {
         WpfTest.Run(() =>
         {
             var master = new Border { MinHeight = 40 };
             var detail = new Border { MinHeight = 40 };
-            var responsive = new SqlMemorySplitView(master, detail, sideBySideWidth: 520);
+            var responsive = new MasterDetailView(master, detail, sideBySideWidth: 520);
             var host = new Border { Child = responsive };
 
             void Layout(double width)
@@ -192,8 +192,8 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(0, Grid.GetRow(master));
             Assert.Equal(2, Grid.GetRow(detail));
 
-            // 不傳門檻就完全維持原行為；SQL Memory 的上下分割不由這一次順手改掉。
-            var fixedSplit = new SqlMemorySplitView(new Border(), new Border());
+            // 不傳門檻的主從區永遠上下分割；SQL Memory 跟 SQL Search 一樣會傳門檻，這裡只驗「沒傳就不轉向」。
+            var fixedSplit = new MasterDetailView(new Border(), new Border());
             var fixedHost = new Border { Child = fixedSplit };
             fixedHost.Measure(new Size(1200, 400));
             fixedHost.Arrange(new Rect(0, 0, 1200, 400));
