@@ -103,6 +103,15 @@
       <EmbedInteropTypes>false</EmbedInteropTypes>
       <Private>false</Private>
     </Reference>
+    <!--
+      殼層的 MEF 容器。沒有開過查詢視窗時，編輯器建立接聽器一次都沒有跑過，
+      SqlAssist 自己那份 MEF 部件也就沒有被組出來；工具窗的 SQL 預覽仍要問得到
+      編輯器的著色分類，所以改由這裡向殼層要同一組服務。
+    -->
+    <Reference Include="Microsoft.VisualStudio.ComponentModelHost">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Platform\MefHosting\Microsoft.VisualStudio.ComponentModelHost.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualStudio.Utilities">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Utilities.dll</HintPath>
       <Private>false</Private>

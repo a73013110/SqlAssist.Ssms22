@@ -23,6 +23,9 @@
 門檻留 24–40 DIP hysteresis，臨界寬度不得反覆跳。兩個方向的拖曳比例分開記，換向再換回來
 仍是使用者拖過的那一份。Resize 不重查資料、不重建結果集合，不改選取與捲動位置。
 
+兩個方向的**預設**相反：上下是清單 3：Preview 2，左右是 2:3。清單列的寬度有上界（名稱截在
+`RowNameMaxWidth`，其餘固定寬或可省略），再寬只是右邊空著；SQL 沒有，窄一點就是每一行都折。
+
 Preview 標頭（開關與摘要）分兩態：
 
 - 展開時標頭屬於 Preview，貼在它上緣：上下分割橫跨整列（那裡本來就在清單與 Preview 之間），
@@ -59,6 +62,8 @@ Preview 標頭（開關與摘要）分兩態：
 | 內容表面出現 | `PlayAppear` | 120 ms 淡入 |
 | 列的揭露 | `MemoryCardEnterDuration`／`MemoryCardExitDuration` | 180／140 ms |
 | 狀態回饋 | `UsageBadgePop`、`SearchStatusPop` | 240 ms |
+| 列操作的揭露 | `RowActionRevealDuration` | 120 ms 淡入＋6 DIP 滑入 |
+| 展開／收合箭頭轉向 | `ChevronTurnDuration` | 140 ms 轉到位，可中途反向 |
 | 主從區轉向 | 無，也不要加 | 轉向在 `MeasureOverride`，加動畫會抖 |
 
 三級都受[全域動畫設定](settings.md)控制。debounce 走同一張共用常數表：Search 搜尋 200、
@@ -68,6 +73,15 @@ Preview 標頭（開關與摘要）分兩態：
 
 - Badge、可移除 Chip、按鈕型 Chip 是不同 primitive，共用尺寸、圓角、spacing、狀態色與
   icon slot，不共用互動語意。
+- **篩選群組分隔線**（`CreateFilterGroupDivider`）唯一一份。規則一條：回答**同一個問題**的控制項
+  是一群，群間畫 1 DIP 髮絲線（高 18、左右各 6 DIP），群內只留 4。Memory 是「狀態｜期間」，
+  Search 第二層是「搜哪裡｜搜什麼｜比對哪裡」。沒有線時一排按鈕看起來可以互相取代；只加大
+  間距的那一版在窄窗收完字之後就分不出來。線不表達狀態，用 `Hairline`。換行面板用
+  `CreateFilterGroup` 把線綁在它後面那一群上，否則列首會留一條孤線；自己排版的宿主改為
+  在那一群換列時收起它。
+- **展開／收合箭頭**（`CreateChevron`／`SetChevronExpanded`）也只有一份：收合朝右、展開朝下，
+  轉過去而不是跳過去，而且綁的是 `Popup` 的開／關——綁 Click 的那一版在面板被按到外面關掉
+  之後箭頭仍朝下，指著一個不在畫面上的面板。
 - Filter Flyout（`SqlFilterFlyout`）是**唯一一份**過濾面板：Search 的伺服器／資料庫／種類與
   Memory 的伺服器／資料庫都是它。支援 `Single`／`Multiple`／`SearchableMultiple`；單選用 radio、
   選完自動關閉；分類保留 provider group 與 sort order。「沒有勾任何一個」是一個**實際的預設**，
@@ -88,6 +102,7 @@ Preview 標頭（開關與摘要）分兩態：
 保留取消／generation guard、背景工作、每批 40 筆與 recycling virtualization。禁用每列陰影、
 模糊與複雜動畫；主題／DPI 切換後不殘留舊 brush 或裁切 icon。測試涵蓋寬窄切換與 hysteresis
 臨界穩定、收合態仍展得開、第一列順序、缺值 collapse、片段列只在本文命中出現、單／多選
-filter、面板第一列的預設與續頁／排序、選取與捲動保存、四種狀態表面（「這一輪讀不到」與
+filter、面板第一列的預設與續頁／排序、分隔線（群距大於群內距、換行時孤線收起）、箭頭兩個方向
+與動畫關掉時直接寫角度、操作層只有左緣淡出、選取與捲動保存、四種狀態表面（「這一輪讀不到」與
 「權限不足」兩種抬頭各一條，含只有一部分來源說得出權限時抬頭不換）、Light／Dark／Blue 與 100／150／200% DPI。展開態的
 Preview 開關屬於右欄、300 DIP 下每一組都還在列內、窄版降級與 overflow 也要測。

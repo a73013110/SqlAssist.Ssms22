@@ -42,10 +42,48 @@ internal static partial class SqlAssistChrome
             Data = ChevronGeometry, Width = 16, Height = 16, Stretch = Stretch.None,
             VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false, StrokeThickness = 1.3,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
-            RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform(expanded ? 0 : -90)
+            RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new RotateTransform(ChevronAngle(expanded))
         };
         chevron.SetBinding(Shape.StrokeProperty, OwnerForeground());
         return chevron;
+    }
+
+    /// <summary>收合是朝右（−90°），展開是朝下（0°）；兩處各寫一次角度的話會轉錯邊。</summary>
+    private static double ChevronAngle(bool expanded) => expanded ? 0 : -90;
+
+    /// <summary>箭頭轉向的長度；揭露動畫這一級，短到可以在使用者連按兩下時中途反向。</summary>
+    internal static readonly System.TimeSpan ChevronTurnDuration = System.TimeSpan.FromMilliseconds(140);
+
+    /// <summary>
+    /// 把一顆已經在畫面上的箭頭轉到展開或收合的方向。
+    /// </summary>
+    /// <remarks>
+    /// 面板、下拉與預覽把手共用這一份：每個呼叫端自己寫一次角度與動畫的下場是其中一邊
+    /// 是瞬間跳的，而使用者看得出那兩顆箭頭不是同一種東西。
+    ///
+    /// 從<b>目前角度</b>轉過去（不指定 <c>From</c>），所以連按兩下時是從轉到一半的位置反向，
+    /// 不是先跳回起點再轉。<see cref="FillBehavior.HoldEnd"/> 保持結束值——這是一個狀態，
+    /// 不是一次回饋，動畫停了箭頭仍要指著現在的方向。動畫關閉時直接寫角度。
+    /// </remarks>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public static void SetChevronExpanded(Path chevron, bool expanded, bool? motion = null)
+    {
+        if (chevron.RenderTransform is not RotateTransform rotation) return;
+
+        var angle = ChevronAngle(expanded);
+        if (!(motion ?? MotionEnabled))
+        {
+            rotation.BeginAnimation(RotateTransform.AngleProperty, null);
+            rotation.Angle = angle;
+            return;
+        }
+
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        ease.Freeze();
+        rotation.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation
+        {
+            To = angle, Duration = ChevronTurnDuration, EasingFunction = ease, FillBehavior = FillBehavior.HoldEnd
+        });
     }
 
     public static Button CreateIconButton(SqlIcon icon, string label, SqlActionTone tone = SqlActionTone.Neutral)
@@ -238,15 +276,14 @@ internal static partial class SqlAssistChrome
         return border;
     }
 
+    /// <summary>狀態與期間是兩群，中間走共用的<see cref="CreateFilterGroupDivider">篩選群組分隔線</see>。</summary>
     public static FrameworkElement CreateMemoryHistoryFilters(SqlPillSelector kind, SqlPillSelector period)
     {
         var groups = new WrapPanel();
         AutomationProperties.SetName(kind, "狀態"); AutomationProperties.SetName(period, "期間");
         groups.Children.Add(kind);
-        var separator = new Border { Child = period, BorderThickness = new Thickness(1, 0, 0, 0),
-            Padding = new Thickness(8, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0) };
-        separator.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
-        groups.Children.Add(separator); return groups;
+        groups.Children.Add(CreateFilterGroup(period));
+        return groups;
     }
 
     public static DockPanel CreateMemoryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)
@@ -460,7 +497,8 @@ internal static partial class SqlAssistChrome
         return rule;
     }
 
-    public static DataTemplate CreateSqlSummaryTemplate()
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public static DataTemplate CreateSqlSummaryTemplate(bool? motion = null)
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
         // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間，操作浮在右緣。
@@ -533,11 +571,8 @@ internal static partial class SqlAssistChrome
             var selected = new DataTrigger { Binding = new Binding(property) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1) }, Value = true };
             selected.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.SelectedForeground, "time")); template.Triggers.Add(selected);
         }
-        foreach (var property in new[] { "IsMouseOver", "IsKeyboardFocusWithin" })
-        {
-            var hover = new DataTrigger { Binding = new Binding(property) { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1) }, Value = true };
-            hover.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "actions")); template.Triggers.Add(hover);
-        }
+        // 滑鼠或鍵盤走到這一列就揭露動作；條件與揭露動畫是同一份，與 SQL Search 的結果列共用。
+        RevealRowActions(template, motion: motion);
         return template;
     }
 

@@ -1,6 +1,8 @@
 using System;
 using System.ComponentModel.Composition;
 using System.Threading;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Ssms22;
@@ -28,6 +30,59 @@ internal sealed class SqlPreviewServices
 
     /// <summary>已登記的服務；MEF 尚未組合出任何 SQL 編輯器時為 null。</summary>
     public static SqlPreviewServices? Current => Volatile.Read(ref _current);
+
+    /// <summary>
+    /// 已登記的那一份，或直接向殼層的 MEF 容器要一份。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Current"/> 是由<b>編輯器建立接聽器</b>登記的，所以「只連了資料庫、一個查詢視窗
+    /// 都沒開」時它從頭到尾是 null——而工具窗的 SQL 預覽正是在那個時候還要問得出著色分類。
+    /// 少了這條路的症狀是預覽裡整份 SQL 同一個顏色，而使用者會以為是高亮壞了。
+    ///
+    /// 要到的是<b>同一個</b>殼層容器裡的那兩個服務，不是另一份：容器只有一個，
+    /// 自己 new 一個 MEF host 才會拿到對不上編輯器設定的第二份外觀。要到之後就登記起來，
+    /// 之後開的查詢視窗再登記一次也沒有副作用。
+    ///
+    /// 只在 UI 執行緒上要：<c>GetGlobalService</c> 有執行緒相依性。取不到就回 null，
+    /// 呼叫端退回自己的前景色，不是擲出——著色讀不到還畫得出 SQL，整個預覽開不起來就不行。
+    /// </remarks>
+    public static SqlPreviewServices? Resolve()
+    {
+        if (Current is { } registered) return registered;
+
+        var resolved = SqlAssistPlatformGuard.Probe<SqlPreviewServices?>(
+            "向殼層要編輯器著色服務",
+            () =>
+            {
+                if (Package.GetGlobalService(typeof(SComponentModel)) is not IComponentModel components) return null;
+
+                var formatMaps = components.GetService<IClassificationFormatMapService>();
+                var registry = components.GetService<IClassificationTypeRegistryService>();
+                if (formatMaps is null || registry is null) return null;
+
+                return new SqlPreviewServices { FormatMapService = formatMaps, ClassificationRegistry = registry };
+            },
+            fallback: null);
+
+        if (resolved is not null) Register(resolved);
+        return resolved;
+    }
+
+    /// <summary>
+    /// 沒有編輯器時的文字外觀；取的是查詢視窗那一份「Text Editor」外觀類別。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="TryGetTextFormatMap(ITextView)"/> 是同一份設定的兩種入口：後者跟著某一個
+    /// 檢視（它可能套了自己的外觀類別），這一份問的是類別本身。名稱不得改成別的——
+    /// 打錯字不會擲出，只會安靜地回一份什麼分類都沒有的空外觀。
+    /// </remarks>
+    public IClassificationFormatMap? TryGetDefaultTextFormatMap()
+    {
+        return SqlAssistPlatformGuard.Probe<IClassificationFormatMap?>(
+            "解析預設文字外觀",
+            () => FormatMapService.GetClassificationFormatMap("text"),
+            fallback: null);
+    }
 
     /// <summary>由編輯器建立接聽器呼叫；重複呼叫沒有副作用。</summary>
     public static void Register(SqlPreviewServices services)

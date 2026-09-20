@@ -26,6 +26,10 @@ internal sealed class MasterDetailView : Grid
     private readonly Grid _divider;
     private readonly FrameworkElement? _summaryHost;
     private readonly double? _sideBySideWidth;
+    private readonly bool? _motion;
+
+    /// <summary>抬頭上那一顆箭頭；跨兩次 <see cref="UpdateHeading"/> 留著同一顆才轉得動。</summary>
+    private readonly System.Windows.Shapes.Path _chevron;
 
     /// <summary>分隔線的厚度；兩個方向共用同一個數字，握把不因轉向變粗變細。</summary>
     private const double SplitterThickness = 5;
@@ -41,12 +45,21 @@ internal sealed class MasterDetailView : Grid
     private const double OrientationHysteresis = 32;
 
     /// <summary>上下分割時的兩段比例；轉向後換回來仍是使用者拖過的那一份。</summary>
+    /// <remarks>清單多分一點：上下分割時 Preview 吃的是整個寬度，矮一點仍讀得完一行 SQL。</remarks>
     private GridLength _masterHeight = new(3, GridUnitType.Star);
     private GridLength _detailHeight = new(2, GridUnitType.Star);
 
-    /// <summary>左右分割時的兩段比例；與上下那一份分開記，換向不會把另一邊的拖曳結果洗掉。</summary>
-    private GridLength _masterWidth = new(3, GridUnitType.Star);
-    private GridLength _detailWidth = new(2, GridUnitType.Star);
+    /// <summary>
+    /// 左右分割時的兩段比例；與上下那一份分開記，換向不會把另一邊的拖曳結果洗掉。
+    /// </summary>
+    /// <remarks>
+    /// 與上下那一份<b>相反</b>，Preview 分得比較多。清單列的寬度有上界——名稱截在
+    /// <see cref="SqlAssistChrome.RowNameMaxWidth"/>，膠囊與限定名稱都是固定寬或可省略的，
+    /// 再寬只是右邊一直空著；而 Preview 裡的 SQL 沒有上界，窄一點就是每一行都折或都要橫捲。
+    /// 兩邊都給 <c>3:2</c> 的那一版在左右分割下把多出來的空間全給了不需要它的那一欄。
+    /// </remarks>
+    private GridLength _masterWidth = new(2, GridUnitType.Star);
+    private GridLength _detailWidth = new(3, GridUnitType.Star);
 
     public bool IsDetailExpanded { get; private set; } = true;
     public event EventHandler? DetailExpandedChanged;
@@ -60,14 +73,17 @@ internal sealed class MasterDetailView : Grid
     /// <param name="sideBySideWidth">
     /// 寬到這個 DIP 就自動轉成左右分割；null 表示永遠上下分割。
     /// </param>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
     public MasterDetailView(UIElement master, UIElement detail, FrameworkElement? summary = null,
-        double? sideBySideWidth = null)
+        double? sideBySideWidth = null, bool? motion = null)
     {
         if (sideBySideWidth is <= 0) throw new ArgumentOutOfRangeException(nameof(sideBySideWidth));
 
         _master = master;
         _detail = detail;
         _sideBySideWidth = sideBySideWidth;
+        _motion = motion;
+        _chevron = SqlAssistChrome.CreateChevron(IsDetailExpanded);
         Children.Add(master);
         var divider = _divider = new Grid { MinHeight = 30 };
         Children.Add(divider);
@@ -262,9 +278,12 @@ internal sealed class MasterDetailView : Grid
 
         var iconOnly = !IsDetailExpanded && IsSideBySide;
         var panel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        var chevron = SqlAssistChrome.CreateChevron(IsDetailExpanded);
-        if (!iconOnly) chevron.Margin = new Thickness(0, 0, 6, 0);
-        panel.Children.Add(chevron);
+        // 同一顆箭頭搬到新的抬頭裡再轉：每次重建一顆新的話，它一出場就已經指著最終方向，
+        // 而收合與展開這個狀態轉換就再也看不出是同一件事。
+        if (_chevron.Parent is StackPanel previous) previous.Children.Remove(_chevron);
+        _chevron.Margin = iconOnly ? default : new Thickness(0, 0, 6, 0);
+        panel.Children.Add(_chevron);
+        SqlAssistChrome.SetChevronExpanded(_chevron, IsDetailExpanded, _motion);
         if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText("預覽"));
         _toggle.Content = panel;
         _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";

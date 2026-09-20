@@ -170,9 +170,10 @@ public sealed class MasterDetailViewTests
 
             Layout(view, Threshold + 80);
             Assert.True(view.IsSideBySide);
-            // 左右那一份仍是預設值，沒有被上下的拖曳結果蓋掉。
-            Assert.Equal(new GridLength(3, GridUnitType.Star), view.ColumnDefinitions[0].Width);
-            Assert.Equal(new GridLength(2, GridUnitType.Star), view.ColumnDefinitions[2].Width);
+            // 左右那一份仍是預設值，沒有被上下的拖曳結果蓋掉；而它的預設與上下相反——
+            // 清單的寬度有上界，SQL 沒有，所以左右分割時 Preview 分得比較多。
+            Assert.Equal(new GridLength(2, GridUnitType.Star), view.ColumnDefinitions[0].Width);
+            Assert.Equal(new GridLength(3, GridUnitType.Star), view.ColumnDefinitions[2].Width);
 
             view.ColumnDefinitions[0].Width = new GridLength(7, GridUnitType.Star);
             view.ColumnDefinitions[2].Width = new GridLength(2, GridUnitType.Star);

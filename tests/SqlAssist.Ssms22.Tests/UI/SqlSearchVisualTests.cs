@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Search;
@@ -129,7 +130,8 @@ public sealed class SqlSearchVisualTests
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
             var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
-            var toolbar = new SqlSearchToolbar(search, segments, new[] { databases, kinds }, sort, refresh);
+            var toolbar = new SqlSearchToolbar(
+                search, segments, new[] { new[] { databases }, new[] { kinds } }, sort, refresh);
 
             var host = new Border { Child = toolbar };
 
@@ -161,7 +163,9 @@ public sealed class SqlSearchVisualTests
             // 門檻是量出來的內容寬度：差一個 DIP 就該換一級，不必寫死一個數字。
             // 用 DesiredSize 而不是 ActualWidth：工具列量的是含外距的那一份，兩者差幾個 DIP
             // 就足以讓門檻算在錯的一級上。
-            var second = databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + 8;
+            // 群距由共用的分隔線決定（它自己帶左右間距），不是寫死的兩個 ItemGap。
+            var gap = Measured(SqlAssistChrome.CreateFilterGroupDivider()).Width * 2;
+            var second = databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + gap;
             var compact = Layout(second - 1);
             Assert.Equal(SqlSearchToolbarMode.Compact, toolbar.Mode);
             Assert.True(kinds.IsCompact);
@@ -170,7 +174,7 @@ public sealed class SqlSearchVisualTests
 
             // 再窄就整群換行：分段開關是常駐可見的，而它與過濾按鈕不會拆成一半一半。
             var wrapped = Layout(
-                databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + 7);
+                databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + gap - 1);
             Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
             Assert.True(wrapped.Height > compact.Height);
             Assert.True(Middle(segments) > Middle(databases) + databases.ActualHeight / 2);
@@ -507,14 +511,174 @@ public sealed class SqlSearchVisualTests
         });
     }
 
+    /// <summary>
+    /// 停駐時的操作層要<b>蓋得住</b>底下那幾顆膠囊。
+    /// </summary>
+    /// <remarks>
+    /// 遮罩用相對座標的那一版兩個停駐點落在 0 與 1，整片操作層由左到右從全透明升到不透明，
+    /// 結果是整排圖示都半透明、連線膠囊一路透出來疊在上面——畫面上就是「功能與後面的東西糊在一起」。
+    /// 絕對座標讓漸層只發生在左緣那一小段，其餘由 Pad 補成實心。
+    /// </remarks>
+    [Fact]
+    public void 列操作層只有左緣淡出其餘不透明()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var rendered = Render(SqlAssistChrome.CreateSearchHitTemplate(motion: false), new SqlSearchRow(
+                Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740, palette);
+            var layer = Assert.IsType<Border>(Part(rendered, "actions"));
+
+            var mask = Assert.IsType<LinearGradientBrush>(layer.OpacityMask);
+            Assert.Equal(BrushMappingMode.Absolute, mask.MappingMode);
+            Assert.Equal(new Point(0, 0), mask.StartPoint);
+            // 淡出只發生在左緣那一小段；相對座標的那一版終點落在 x = 1，整片都是半透明的。
+            Assert.InRange(mask.EndPoint.X, 8, 40);
+            Assert.Equal(GradientSpreadMethod.Pad, mask.SpreadMethod);
+            Assert.Equal(Colors.Transparent, mask.GradientStops[0].Color);
+            Assert.Equal(Colors.Black, mask.GradientStops[mask.GradientStops.Count - 1].Color);
+            Assert.True(mask.IsFrozen);
+
+            // 遮罩補成實心也要有底色可蓋；透明的層等於沒有遮罩，底下的膠囊照樣透出來。
+            foreach (var mode in new[] { "light", "dark", "high-contrast" })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(mode));
+                var fill = Assert.IsType<SolidColorBrush>(layer.Background);
+                Assert.Equal(byte.MaxValue, fill.Color.A);
+            }
+        });
+    }
+
+    [Fact]
+    public void 列操作揭露有淡入與滑入而動畫關掉時直接顯示()
+    {
+        WpfTest.Run(() =>
+        {
+            static DataTrigger[] Reveal(DataTemplate template) => template.Triggers.OfType<DataTrigger>()
+                .Where(trigger => trigger.Setters.OfType<Setter>().Any(setter => setter.TargetName == "actions"))
+                .ToArray();
+
+            var animated = SqlAssistChrome.CreateSearchHitTemplate(motion: true);
+            var reveal = Reveal(animated);
+            // 滑鼠與鍵盤焦點兩條路都揭露，而且兩條都有動畫：只加一邊的話，只用鍵盤的人
+            // 看到的是一整片直接閃出來的圖示。
+            Assert.Equal(2, reveal.Length);
+            Assert.All(reveal, trigger =>
+            {
+                var begin = Assert.IsType<BeginStoryboard>(Assert.Single(trigger.EnterActions));
+                Assert.Equal(2, begin.Storyboard.Children.Count);
+                Assert.Equal(FillBehavior.Stop, begin.Storyboard.FillBehavior);
+                Assert.All(begin.Storyboard.Children,
+                    animation => Assert.Equal(SqlAssistChrome.RowActionRevealDuration, animation.Duration.TimeSpan));
+            });
+
+            // 揭露動畫這一級不超過內容表面出現的長度。
+            Assert.InRange(SqlAssistChrome.RowActionRevealDuration, TimeSpan.Zero, TimeSpan.FromMilliseconds(200));
+
+            // 關掉動畫是真的關掉：仍然揭露，只是不播。
+            var still = Reveal(SqlAssistChrome.CreateSearchHitTemplate(motion: false));
+            Assert.Equal(2, still.Length);
+            Assert.All(still, trigger =>
+            {
+                Assert.Empty(trigger.EnterActions);
+                Assert.Equal(Visibility.Visible, trigger.Setters.OfType<Setter>().Single().Value);
+            });
+
+            // SQL Memory 的卡片走同一份，不各寫一次。
+            Assert.Equal(2, SqlAssistChrome.CreateSqlSummaryTemplate(motion: true).Triggers.OfType<DataTrigger>()
+                .Count(trigger => trigger.EnterActions.Count == 1 &&
+                                  trigger.Setters.OfType<Setter>().Any(setter => setter.TargetName == "actions")));
+        });
+    }
+
+    /// <summary>
+    /// 工具列第二層依<b>問題</b>分群，群與群之間有一條共用的分隔線。
+    /// </summary>
+    /// <remarks>
+    /// 沒有這條線時，伺服器、資料庫與種類看起來是同一組可以互相取代的選項。
+    /// 分段開關換到第三列時，它前面那一條會變成第三列開頭的一條孤線，所以整條收起。
+    /// </remarks>
+    [Fact]
+    public void 篩選群組之間有分隔線而分段開關換行時那一條收起()
+    {
+        WpfTest.Run(() =>
+        {
+            var search = SqlAssistChrome.CreateInputBar(
+                SqlIcon.Search,
+                SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
+            var segments = new SqlSearchSegments();
+            var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
+            var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+            var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
+            var toolbar = new SqlSearchToolbar(
+                search, segments, new[] { new[] { server, databases }, new[] { kinds } });
+            var host = new Border { Child = toolbar };
+
+            void Layout(double width)
+            {
+                host.Measure(new Size(width, double.PositiveInfinity));
+                host.Arrange(new Rect(0, 0, width, host.DesiredSize.Height));
+                host.UpdateLayout();
+            }
+
+            Layout(900);
+            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+
+            // 兩條：搜哪裡｜搜什麼｜比對哪裡。伺服器與資料庫是同一群，中間沒有線。
+            var dividers = toolbar.Children.OfType<Border>()
+                .Where(child => child.Width == 1)
+                .OrderBy(child => child.TranslatePoint(new Point(), toolbar).X)
+                .ToArray();
+            Assert.Equal(2, dividers.Length);
+            Assert.All(dividers, divider => Assert.Equal(Visibility.Visible, divider.Visibility));
+
+            double Left(FrameworkElement element) => element.TranslatePoint(new Point(), toolbar).X;
+            Assert.True(Left(server) < Left(databases));
+            Assert.True(Left(databases) < Left(dividers[0]));
+            Assert.True(Left(dividers[0]) < Left(kinds));
+            Assert.True(Left(kinds) < Left(dividers[1]));
+            Assert.True(Left(dividers[1]) < Left(segments));
+
+            // 群內比群間窄：兩個數字的差就是「這是兩群」。
+            var inside = Left(databases) - (Left(server) + server.ActualWidth);
+            var between = Left(kinds) - (Left(databases) + databases.ActualWidth);
+            Assert.True(between > inside, "群間距要大於群內距");
+
+            // 分隔線與按鈕同一條視覺中心線。
+            double Middle(FrameworkElement element) =>
+                element.TranslatePoint(new Point(0, element.ActualHeight / 2), toolbar).Y;
+            Assert.All(dividers, divider => Assert.InRange(Math.Abs(Middle(divider) - Middle(kinds)), 0, 1));
+
+            // 窄到分段開關換行時，它前面那一條收起；群與群之間那一條留著。
+            Layout(server.DesiredSize.Width + databases.DesiredSize.Width + kinds.DesiredSize.Width);
+            Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
+            Assert.Equal(Visibility.Visible, dividers[0].Visibility);
+            Assert.Equal(Visibility.Collapsed, dividers[1].Visibility);
+
+            Layout(900);
+            Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
+            Assert.All(dividers, divider => Assert.Equal(Visibility.Visible, divider.Visibility));
+        });
+    }
+
+    /// <summary>量一個還沒進版面的元素；分隔線的寬度含它自己的左右間距。</summary>
+    private static Size Measured(FrameworkElement element)
+    {
+        element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        return element.DesiredSize;
+    }
+
     /// <summary>把樣板套在固定寬度上；ContentControl 預設只給內容自己的寬度，量不到靠右那一組。</summary>
-    private static ContentControl Render(DataTemplate template, object row, double width)
+    /// <param name="palette">要驗動態筆刷時掛上的那一份；null 表示這一輪只看版面。</param>
+    private static ContentControl Render(DataTemplate template, object row, double width, ThemeResourceSet? palette = null)
     {
         var host = new ContentControl
         {
             ContentTemplate = template, Content = row, Width = width,
             HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
+        if (palette is not null) host.Resources.MergedDictionaries.Add(palette.Resources);
         // 寬度模式由宿主量：與清單走同一條路徑，測試才驗得到真正的門檻而不是自己設的旗標。
         SqlRowLayout.Track(host);
         host.Measure(new Size(width, 400)); host.Arrange(new Rect(0, 0, width, 400)); host.UpdateLayout();
