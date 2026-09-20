@@ -125,8 +125,8 @@ public sealed class SqlSearchVisualTests
                 SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
             var segments = new SqlSearchSegments();
-            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
-            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
+            var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
+            var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
             var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
             var toolbar = new SqlSearchToolbar(search, segments, new[] { databases, kinds }, sort, refresh);
@@ -575,17 +575,17 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
+            var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var selected = new List<(string Name, bool On)>();
             var names = Enumerable.Range(1, 400).Select(index => "Lib_Reader" + index).ToArray();
 
             databases.SetOptions(new[]
             {
-                new SqlSearchFilterGroup("使用者資料庫", names
-                    .Select(name => new SqlSearchFilterOption(name, "", name == "Lib_Reader7", on => selected.Add((name, on))))
+                new SqlFilterGroup("使用者資料庫", names
+                    .Select(name => new SqlFilterOption(name, "", name == "Lib_Reader7", on => selected.Add((name, on))))
                     .ToArray()),
                 // 一個都不相符的段落不畫標題；空標題掛在那裡會看起來像有內容卻少了幾列。
-                new SqlSearchFilterGroup("系統資料庫", Array.Empty<SqlSearchFilterOption>())
+                new SqlFilterGroup("系統資料庫", Array.Empty<SqlFilterOption>())
             });
 
             // 面板的內容不在宿主的視覺樹上，主題資源由宿主套一次；量測也得自己來。
@@ -616,8 +616,8 @@ public sealed class SqlSearchVisualTests
 
             databases.SetOptions(new[]
             {
-                new SqlSearchFilterGroup("使用者資料庫", names
-                    .Select(name => new SqlSearchFilterOption(name, "", name is "Lib_Reader1" or "Lib_Reader7", _ => { }))
+                new SqlFilterGroup("使用者資料庫", names
+                    .Select(name => new SqlFilterOption(name, "", name is "Lib_Reader1" or "Lib_Reader7", _ => { }))
                     .ToArray())
             });
             surface.UpdateLayout();
@@ -634,14 +634,14 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var server = new SqlSearchFilterButton("伺服器", SqlIcon.Server, SqlSearchFilterMode.Single);
+            var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
             var picked = new List<(string Name, bool On)>();
             var names = new[] { "跟著查詢視窗", "LIBSRV", "LIBARCHIVE" };
 
             void Fill(string selected) => server.SetOptions(new[]
             {
-                new SqlSearchFilterGroup("", names
-                    .Select(name => new SqlSearchFilterOption(name, "", name == selected, on => picked.Add((name, on))))
+                new SqlFilterGroup("", names
+                    .Select(name => new SqlFilterOption(name, "", name == selected, on => picked.Add((name, on))))
                     .ToArray())
             });
 
@@ -686,14 +686,14 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
+            var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
             var selected = new HashSet<string>(StringComparer.Ordinal);
             var names = new[] { "Table", "View", "Procedure" };
 
             kinds.SetOptions(new[]
             {
-                new SqlSearchFilterGroup("", names
-                    .Select(name => new SqlSearchFilterOption(name, "", selected.Contains(name), on =>
+                new SqlFilterGroup("", names
+                    .Select(name => new SqlFilterOption(name, "", selected.Contains(name), on =>
                     {
                         if (on) selected.Add(name);
                         else selected.Remove(name);
@@ -747,17 +747,17 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
+            var kinds = new SqlFilterFlyout("種類", SqlIcon.Filter);
             var cleared = 0;
-            kinds.SetEmptyOption(new SqlSearchFilterOption("全部", "不限物件種類。", true, on =>
+            kinds.SetEmptyOption(new SqlFilterOption("全部", "不限物件種類。", true, on =>
             {
                 if (on) cleared++;
             }));
             kinds.SetOptions(new[]
             {
-                new SqlSearchFilterGroup("", new[]
+                new SqlFilterGroup("", new[]
                 {
-                    new SqlSearchFilterOption("Table", "", false, _ => { })
+                    new SqlFilterOption("Table", "", false, _ => { })
                 })
             });
 
@@ -805,7 +805,7 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
+            var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var surface = databases.PopupSurface;
             surface.Resources.MergedDictionaries.Add(palette.Resources);
 
@@ -816,7 +816,7 @@ public sealed class SqlSearchVisualTests
                 surface.UpdateLayout();
             }
 
-            databases.SetOptions(Array.Empty<SqlSearchFilterGroup>());
+            databases.SetOptions(Array.Empty<SqlFilterGroup>());
             Layout();
             var notice = Assert.Single(Descendants<SqlBusyNotice>(surface));
             Assert.Equal(Visibility.Collapsed, notice.Visibility);
@@ -838,6 +838,147 @@ public sealed class SqlSearchVisualTests
             databases.SetNotice("");
             Layout();
             Assert.Equal(Visibility.Collapsed, notice.Visibility);
+        });
+    }
+
+    /// <summary>
+    /// 續頁鈕在清單外面，按下去只問下一頁，不從第一頁重來。
+    /// </summary>
+    /// <remarks>
+    /// 面板第一列那個預設與已經勾好的條件都在清單裡；把續頁併進
+    /// <c>OptionsRequested</c> 的那一版會讓按下更多之後整份重建，使用者剛捲到的位置與
+    /// 正在走的鍵盤焦點一起沒了。字與「還有沒有下一頁」都由宿主給：一頁幾筆是儲存層的契約，
+    /// 面板不認得它。
+    /// </remarks>
+    [Fact]
+    public void 續頁鈕浮在清單外面而且只問下一頁()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var names = new SqlFilterFlyout("名稱", SqlIcon.Server, SqlFilterMode.Single);
+            var refilled = 0;
+            var more = 0;
+            names.OptionsRequested += (_, _) => refilled++;
+            names.MoreRequested += (_, _) => more++;
+
+            void Fill(int count) => names.SetOptions(new[]
+            {
+                new SqlFilterGroup("", Enumerable.Range(1, count)
+                    .Select(index => new SqlFilterOption("Node" + index, "", false, _ => { }))
+                    .ToArray())
+            });
+
+            Fill(2);
+
+            var surface = names.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            void Layout()
+            {
+                surface.Measure(new Size(320, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.UpdateLayout();
+            }
+            Layout();
+
+            // 沒有人說還有下一頁時整顆收起；空面板底下不留一條沒有作用的字。
+            Assert.DoesNotContain(Descendants<TextBlock>(surface), text => text.Text == "更多名稱");
+
+            names.SetMore("更多名稱");
+            Layout();
+            var button = Descendants<Button>(surface).Single(
+                candidate => System.Windows.Automation.AutomationProperties.GetName(candidate) == "更多名稱");
+
+            // 在清單外面：清單捲到底才看得到的那一版，正好在使用者需要它的時候看不見。
+            var list = Descendants<ItemsControl>(surface).Single(candidate => candidate.ItemsSource is not null);
+            Assert.Null(Descendants<Button>(list).FirstOrDefault(
+                candidate => ReferenceEquals(candidate, button)));
+
+            button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(1, more);
+            // 續頁不是「這份清單從頭來」：宿主接在後面，面板不重問整份。
+            Assert.Equal(0, refilled);
+
+            Fill(4);
+            names.SetMore(null);
+            Layout();
+            Assert.Equal(4, Descendants<RadioButton>(surface).Count());
+            Assert.Equal(Visibility.Collapsed, button.Visibility);
+        });
+    }
+
+    /// <summary>
+    /// 排序入口在面板裡，按鈕與選單讀同一份選項，而且不就地改狀態。
+    /// </summary>
+    /// <remarks>
+    /// 面板先亮起新的排序、宿主那一輪卻失敗或被新的一輪取代時，使用者看不出是哪一邊錯了。
+    /// 選單是自己的一個 popup，它開起來時這個面板會被當成「按到外面」——不擋的症狀是
+    /// 按下排序的那一刻清單就不見了，而使用者按它正是為了看重排之後的那一份。
+    /// </remarks>
+    [Fact]
+    public void 排序入口在面板裡而且換排序要由宿主寫回來()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var sorts = new[]
+            {
+                new SqlFilterSortOption("recent", "最近使用優先", "最近", SqlIcon.SortDescending),
+                new SqlFilterSortOption("name", "名稱 A–Z", "A–Z", SqlIcon.SortAscending)
+            };
+            var asked = new List<object>();
+            var names = new SqlFilterFlyout("名稱", SqlIcon.Server, SqlFilterMode.Single);
+            names.SortRequested += value => asked.Add(value);
+
+            var surface = names.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            void Layout()
+            {
+                surface.Measure(new Size(320, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.UpdateLayout();
+            }
+            Layout();
+
+            var button = Descendants<Button>(surface).Single(
+                candidate => System.Windows.Automation.AutomationProperties.GetName(candidate) == "名稱排序");
+            // 沒有人給排序的面板不長出那一列；種類與資料庫那兩份不需要它。
+            Assert.Equal(Visibility.Collapsed, button.Visibility);
+
+            names.SetSortOptions(sorts, "recent");
+            Layout();
+            Assert.Equal(Visibility.Visible, button.Visibility);
+            Assert.Contains(Descendants<TextBlock>(button), text => text.Text == "最近");
+            Assert.Equal(sorts.Select(sort => sort.Label), names.SortMenu.Items.Cast<MenuItem>().Select(item => (string)item.Header));
+
+            // 同一份選項只建一次選單：每次換排序都重建的話，正開著的那一份會被抽掉。
+            var items = names.SortMenu.Items.Cast<MenuItem>().ToArray();
+            names.SetSortOptions(sorts, "name");
+            Layout();
+            Assert.Equal(items, names.SortMenu.Items.Cast<MenuItem>().ToArray());
+            Assert.Contains(Descendants<TextBlock>(button), text => text.Text == "A–Z");
+
+            // 選單開著的期間面板不自己關；選單是另一個 popup，滑鼠按下去就落在這個面板外面。
+            names.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.True(names.IsOpen);
+            button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.True(names.SortMenu.IsOpen);
+            Assert.True(names.IsOpen);
+            Assert.Equal(new[] { false, true }, items.Select(item => item.IsChecked));
+
+            items[0].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            // 只問出去，不就地改：按鈕仍是宿主上一次寫回來的那一個。
+            Assert.Equal(new object[] { "recent" }, asked);
+            Assert.Contains(Descendants<TextBlock>(button), text => text.Text == "A–Z");
+
+            names.SortMenu.IsOpen = false;
+            names.SetSortOptions(sorts, "recent");
+            Layout();
+            Assert.Contains(Descendants<TextBlock>(button), text => text.Text == "最近");
         });
     }
 

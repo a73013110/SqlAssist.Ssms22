@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -23,6 +24,25 @@ public sealed class SqlMemoryVisualTests
 
     private static FrameworkElement HostImage(SqlIcon icon) =>
         new Border { Width = 16, Height = 16, Background = Brushes.Gray, Tag = icon };
+
+    /// <summary>連線篩選的排序選項；與 <c>SqlMemoryBrowser</c> 同一份對照，圖示不另挑一次。</summary>
+    private static readonly IReadOnlyList<SqlFilterSortOption> MemorySorts = Array.AsReadOnly(
+        SqlMemoryBrowserModel.SortOptions.Select(option => new SqlFilterSortOption(
+            option.Value, option.Label, option.ShortLabel, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
+
+    /// <summary>照 SQL Memory 的形狀組一顆連線篩選：單選、第一列是「全部」、面板裡有排序。</summary>
+    private static SqlFilterFlyout MemoryFacet(string name, SqlIcon icon, params string[] names)
+    {
+        var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.Single) { Margin = new Thickness(0, 0, 4, 0) };
+        panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
+        panel.UpdateSummary("全部", "");
+        panel.SetEmptyOption(new SqlFilterOption("全部", "", true, _ => { }));
+        panel.SetOptions(new[]
+        {
+            new SqlFilterGroup("", names.Select(value => new SqlFilterOption(value, "", false, _ => { })).ToArray())
+        });
+        return panel;
+    }
 
     [Fact]
     public void SqlSummaryRowsStayVirtualizedAndRenderAcrossThemesAndDpi()
@@ -49,10 +69,11 @@ public sealed class SqlMemoryVisualTests
             var filters = SqlAssistChrome.CreateMemoryHistoryFilters(new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()),
                 new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 });
             header.Children.Add(filters);
-            var server = new SqlConnectionFilter("伺服器");
-            server.SetOptions(new[] { "LibraryServer", "ArchiveServer", "BranchServer" }); header.Children.Add(server);
-            var database = new SqlConnectionFilter("資料庫", SqlIcon.Database);
-            database.SetOptions(new[] { "Library", "Archive" }); header.Children.Add(database);
+            var connections = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            var server = MemoryFacet("伺服器", SqlIcon.Server, "LibraryServer", "ArchiveServer", "BranchServer");
+            var database = MemoryFacet("資料庫", SqlIcon.Database, "Library", "Archive");
+            connections.Children.Add(server); connections.Children.Add(database);
+            header.Children.Add(connections);
             var footer = new SqlMemoryPager();
             footer.Update(Footer(cursor: "next", loaded: 50));
             var list = new SqlMemoryList
@@ -114,9 +135,10 @@ public sealed class SqlMemoryVisualTests
                     resources[role] = palette.Resources[ThemeBrush.ListForeground];
                 resources[ScriptResource.Background] = palette.Resources[ThemeBrush.ListBackground];
                 foreach (var width in new[] { 320, 440, 740 })
-                foreach (var expanded in new[] { false, true })
+                // 窄版降級：連線篩選收掉名稱與摘要，只留圖示與箭頭，字回到 Tooltip。
+                foreach (var compact in new[] { false, true })
                 {
-                    server.IsExpanded = database.IsExpanded = expanded;
+                    server.IsCompact = database.IsCompact = compact;
                     surface.Measure(new Size(width, 600)); surface.Arrange(new Rect(0, 0, width, 600)); surface.UpdateLayout();
                     // 膠囊只屬於 History 的狀態與期間；Favorites 與 History 共用伺服器／資料庫篩選，沒有自己的膠囊列。
                     foreach (var pill in favorites ? Enumerable.Empty<RadioButton>() : Descendants<RadioButton>(filters))
@@ -155,46 +177,109 @@ public sealed class SqlMemoryVisualTests
                         bitmap.Render(surface);
                         if (directory is null) continue;
                         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                        using var file = File.Create(Path.Combine(directory, $"sql-memory-{(favorites ? "favorites" : "history")}-{mode}-{width}-{dpi}-{(expanded ? "filters" : "compact")}.png"));
+                        using var file = File.Create(Path.Combine(directory, $"sql-memory-{(favorites ? "favorites" : "history")}-{mode}-{width}-{dpi}-{(compact ? "compact" : "filters")}.png"));
                         encoder.Save(file);
                     }
                     AssertInkCenters(toolbarActions);
-                    AssertDisclosureCenters(server);
-                    AssertDisclosureCenters(database);
+                    // 兩顆下拉並排一列；窄版收完字仍留在同一列，不把工具列撐成兩列。
+                    Assert.InRange(Math.Abs(server.TranslatePoint(new Point(), connections).Y
+                        - database.TranslatePoint(new Point(), connections).Y), 0, 0.5);
+                    foreach (var facet in new[] { server, database })
+                    {
+                        AssertInkCenters(facet);
+                        // 純 WPF 的樹沒有接上呈現來源，IsVisible 一律是 false；看的是 Visibility。
+                        var texts = Descendants<TextBlock>(facet).ToArray();
+                        Assert.NotEmpty(texts);
+                        Assert.Equal(compact, texts.All(text => text.Visibility != Visibility.Visible));
+                    }
                 }
             }
         });
     }
 
+    /// <summary>
+    /// SQL Memory 餵給共用過濾面板的那一份內容：第一列的「全部」、續頁鈕與排序選項。
+    /// </summary>
+    /// <remarks>
+    /// 面板本身的行為（單選選完關閉、第一列取消不掉、虛擬化、忙碌列）在
+    /// <c>SqlSearchVisualTests</c> 驗一次就夠；兩邊各驗一次同一個控制項，改了一邊就會留下
+    /// 一份說著舊行為卻仍然綠的測試。這裡只驗 SQL Memory 這一端說的話：未選是「全部」而不是
+    /// 「連線預設」，續頁的字是名稱，排序是連線 facet 那四種。
+    /// </remarks>
     [Fact]
-    public void PillSelectionAndConnectionCollapsePreserveValuesAndSortIndependently()
+    public void ConnectionFilterOffersAllAsFirstRowWithPagingAndSort()
     {
         WpfTest.Run(() =>
         {
-            var filter = new SqlConnectionFilter("伺服器") { IsExpanded = true };
-            filter.SetOptions(new[] { "BranchB", "BranchA" });
-            var host = (ScrollViewer)filter.Children[1];
-            var options = (WrapPanel)host.Content;
-            host.ApplyTemplate();
-            Assert.Equal(3, Assert.IsType<ScrollBar>(host.Template.FindName("PART_VerticalScrollBar", host)).Width);
-            var selectedPill = (RadioButton)options.Children[1];
-            selectedPill.IsChecked = true;
-            Assert.Same(selectedPill, options.Children[1]);
-            Assert.Equal("BranchB", filter.Value);
-            var heading = (Button)((DockPanel)filter.Children[0]).Children[0];
-            heading.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-            Assert.False(filter.IsExpanded);
-            Assert.Equal("BranchB", filter.Value);
-            var requested = 0;
-            filter.OptionsRequested += (_, _) => requested++;
-            filter.Sort = SqlConnectionFacetSort.Alphabetical;
-            Assert.Equal(1, requested); Assert.Equal(0, filter.Offset); Assert.Equal("BranchB", filter.Value);
-            filter.SetOptions(new[] { "BranchA", "BranchB" });
-            heading.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-            Assert.True(filter.IsExpanded);
-            Assert.True(((RadioButton)options.Children[2]).IsChecked);
-            ((RadioButton)options.Children[0]).IsChecked = true;
-            Assert.Null(filter.Value);
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var picked = new List<string?>();
+            var more = 0;
+            var sorted = new List<SqlConnectionFacetSort>();
+            var panel = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
+            panel.MoreRequested += (_, _) => more++;
+            panel.SortRequested += value => sorted.Add((SqlConnectionFacetSort)value);
+            panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
+            // 未選是「全部」：SQL Memory 是對已存的列篩選，不是「這一輪搜哪裡」。
+            panel.UpdateSummary("全部", "不限伺服器；每一台上的紀錄都列。");
+            panel.SetEmptyOption(new SqlFilterOption("全部", "不限伺服器；每一台上的紀錄都列。", true,
+                selected => { if (selected) picked.Add(null); }));
+            panel.SetOptions(new[]
+            {
+                new SqlFilterGroup("", new[] { "LibraryServer", "ArchiveServer" }
+                    .Select(name => new SqlFilterOption(name, "伺服器：" + name, false,
+                        selected => { if (selected) picked.Add(name); }))
+                    .ToArray())
+            });
+            panel.SetMore("更多伺服器");
+
+            var surface = panel.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            void Layout()
+            {
+                surface.Measure(new Size(320, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.UpdateLayout();
+            }
+            Layout();
+
+            var radios = Descendants<RadioButton>(surface).ToArray();
+            Assert.Equal(new object[] { "全部", "LibraryServer", "ArchiveServer" }, radios.Select(radio => radio.Content).ToArray());
+            Assert.True(radios[0].IsChecked);
+            // 按鈕摘要與第一列共用同一份字；兩處說得不一樣時使用者會以為條件弄丟了。
+            Assert.Equal("伺服器: 全部", System.Windows.Automation.AutomationProperties.GetName(panel));
+
+            radios[1].IsChecked = true;
+            Assert.Equal(new[] { "LibraryServer" }, picked);
+
+            // 續頁鈕在清單外面，字由宿主給；沒有下一頁就整顆收起。
+            var moreButton = Descendants<Button>(surface).Single(
+                button => System.Windows.Automation.AutomationProperties.GetName(button) == "更多伺服器");
+            Assert.Equal(Visibility.Visible, moreButton.Visibility);
+            moreButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(1, more);
+            panel.SetMore(null); Layout();
+            Assert.Equal(Visibility.Collapsed, moreButton.Visibility);
+
+            // 排序是面板裡的入口，選單與按鈕讀同一份選項，圖示走 MemoryOptionIcon。
+            var sortButton = Descendants<Button>(surface).Single(
+                button => System.Windows.Automation.AutomationProperties.GetName(button) == "伺服器排序");
+            Assert.Equal(Visibility.Visible, sortButton.Visibility);
+            Assert.Equal(SqlMemoryBrowserModel.SortOptions.Select(option => option.Label),
+                panel.SortMenu.Items.Cast<MenuItem>().Select(item => (string)item.Header));
+            Assert.Equal(
+                SqlMemoryBrowserModel.SortOptions.Select(option => (SqlIcon?)SqlAssistChrome.MemoryOptionIcon(option.Value)).ToArray(),
+                panel.SortMenu.Items.Cast<MenuItem>().Select(item => ((SqlIconImage)item.Icon).Icon).ToArray());
+            Assert.Contains(Descendants<TextBlock>(sortButton), text => text.Text == "最近");
+
+            // 換排序不就地改狀態：宿主換完再寫回來，按鈕才跟著換。
+            panel.SortMenu.Items.Cast<MenuItem>().Single(item => Equals(item.Tag, SqlConnectionFacetSort.Alphabetical))
+                .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Equal(new[] { SqlConnectionFacetSort.Alphabetical }, sorted);
+            Assert.Contains(Descendants<TextBlock>(sortButton), text => text.Text == "最近");
+            panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Alphabetical); Layout();
+            Assert.Contains(Descendants<TextBlock>(sortButton), text => text.Text == "A–Z");
         });
     }
 
@@ -492,15 +577,6 @@ public sealed class SqlMemoryVisualTests
         }
     }
 
-    private static void AssertDisclosureCenters(SqlConnectionFilter filter)
-    {
-        AssertInkCenters(filter);
-        var heading = (Button)((DockPanel)filter.Children[0]).Children[0];
-        var label = Descendants<TextBlock>(heading).Single();
-        var summary = (TextBlock)((DockPanel)filter.Children[0]).Children[2];
-        Assert.InRange(Math.Abs(InkCenter(label, filter) - InkCenter(summary, filter)), 0, 2);
-    }
-
     [Fact]
     public void SplitCollapsePreservesSelectionAndUserResizeWithoutOverflow()
     {
@@ -649,7 +725,8 @@ public sealed class SqlMemoryVisualTests
             tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
             tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
             tabs.SelectedIndex = 0; root.Children.Add(tabs);
-            var connection = new SqlConnectionFilter("資料庫", SqlIcon.Database); root.Children.Add(connection);
+            var connection = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.Single);
+            connection.UpdateSummary("全部", ""); root.Children.Add(connection);
             foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
             {
                 palette.Update(ThemePaletteTests.ColorsFor(mode));

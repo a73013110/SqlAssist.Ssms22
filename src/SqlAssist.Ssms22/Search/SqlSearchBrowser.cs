@@ -59,9 +59,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
         SqlIcon.WholeWord, "全字", "本文命中前後都必須是詞界。");
     private readonly SqlSearchSegments _segments = new();
-    private readonly SqlSearchFilterButton _server = new("伺服器", SqlIcon.Server, SqlSearchFilterMode.Single);
-    private readonly SqlSearchFilterButton _databases = new("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
-    private readonly SqlSearchFilterButton _kinds = new("種類", SqlIcon.Filter);
+    private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
+    private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+    private readonly SqlFilterFlyout _kinds = new("種類", SqlIcon.Filter);
     private readonly SqlSearchChipBar _chips = new();
     private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
@@ -360,8 +360,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private void FillKinds()
     {
-        var groups = new List<SqlSearchFilterGroup>();
-        var options = new List<SqlSearchFilterOption>();
+        var groups = new List<SqlFilterGroup>();
+        var options = new List<SqlFilterOption>();
         var group = "";
         var caption = "";
         var titled = new HashSet<string>(StringComparer.Ordinal);
@@ -369,7 +369,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         void Flush()
         {
             if (options.Count == 0) return;
-            groups.Add(new SqlSearchFilterGroup(caption, options.ToArray()));
+            groups.Add(new SqlFilterGroup(caption, options.ToArray()));
             options.Clear();
         }
 
@@ -384,7 +384,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             }
 
             var id = option.Id;
-            options.Add(new SqlSearchFilterOption(option.Label, "", _model.IsCategorySelected(id), selected => Run(() =>
+            options.Add(new SqlFilterOption(option.Label, "", _model.IsCategorySelected(id), selected => Run(() =>
             {
                 if (!_model.SetCategorySelected(id, selected)) return;
                 // 第一列那個「全部」跟著變，但不重建整份清單：使用者正在連勾好幾個。
@@ -396,11 +396,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         Flush();
 
         // 只有一段時不掛標題；那一條字底下就是整份清單，說不出任何新資訊。
-        if (groups.Count == 1) groups[0] = new SqlSearchFilterGroup("", groups[0].Items);
+        if (groups.Count == 1) groups[0] = new SqlFilterGroup("", groups[0].Items);
 
         // 第一列是「全部」，與按鈕摘要共用同一份字：摘要寫著「全部」而清單上一個勾都沒有時，
         // 使用者會以為自己把條件弄丟了，或以為這個下拉壞了。
-        _kinds.SetEmptyOption(new SqlSearchFilterOption(
+        _kinds.SetEmptyOption(new SqlFilterOption(
             SqlSearchBrowserModel.AllCategoriesLabel,
             "不限物件種類；每一個 provider 宣告的種類都搜。",
             _model.CategoryIds.Count == 0,
@@ -418,7 +418,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <remarks>
     /// 大小寫與全字沒有面板——它們是搜尋框裡的開關，常駐可見，chip 本體因此按不下去。
     /// </remarks>
-    private SqlSearchFilterButton? PanelFor(SqlSearchFilterKind kind) => kind switch
+    private SqlFilterFlyout? PanelFor(SqlSearchFilterKind kind) => kind switch
     {
         SqlSearchFilterKind.Server => _server,
         SqlSearchFilterKind.Database => _databases,
@@ -481,14 +481,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             UpdateFilterChrome();
         }
 
-        var user = new List<SqlSearchFilterOption>();
-        var system = new List<SqlSearchFilterOption>();
+        var user = new List<SqlFilterOption>();
+        var system = new List<SqlFilterOption>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         void Add(string database, bool isSystem)
         {
             if (!seen.Add(database)) return;
-            var option = new SqlSearchFilterOption(
+            var option = new SqlFilterOption(
                 database,
                 "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
                 _model.IsDatabaseSelected(database),
@@ -506,7 +506,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         // 第一列是「沒有指名」那個預設，與按鈕摘要共用同一份字；選它等於清掉整個維度，
         // 所以面板上不另畫一顆「清除」。
-        _databases.SetEmptyOption(new SqlSearchFilterOption(
+        _databases.SetEmptyOption(new SqlFilterOption(
             _model.ConnectionDefaultSummary(),
             "不指名資料庫；只搜這條連線預設的那一個，不建任何額外索引。",
             _model.Databases.Count == 0,
@@ -522,8 +522,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         _databases.SetOptions(new[]
         {
-            new SqlSearchFilterGroup("使用者資料庫", user),
-            new SqlSearchFilterGroup("系統資料庫", system)
+            new SqlFilterGroup("使用者資料庫", user),
+            new SqlFilterGroup("系統資料庫", system)
         });
         _databases.SetNotice(DatabaseNotice(seen.Count));
     }
@@ -628,7 +628,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         }
 
         var editorServer = _catalogs.ActiveEditorServerName();
-        var options = new List<SqlSearchFilterOption>
+        var options = new List<SqlFilterOption>
         {
             new(
                 SqlSearchBrowserModel.ActiveEditorLabel(editorServer),
@@ -638,7 +638,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
                 _ => Run(() => SelectServer(null)))
         };
 
-        var explorer = new List<SqlSearchFilterOption>();
+        var explorer = new List<SqlFilterOption>();
 
         foreach (var server in servers ?? Array.Empty<SsmsObjectExplorerServer>())
         {
@@ -652,7 +652,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             var selected = _catalogs.Server is { } current &&
                 string.Equals(current.RootUrn, server.RootUrn, StringComparison.Ordinal);
 
-            explorer.Add(new SqlSearchFilterOption(
+            explorer.Add(new SqlFilterOption(
                 server.DisplayName,
                 "改用物件總管上這一台的連線搜尋；清單、預覽與定義都跟著換過去。",
                 selected,
@@ -663,8 +663,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 掛在那裡的話使用者只會看到一份看起來就是全部的清單。
         _server.SetOptions(new[]
         {
-            new SqlSearchFilterGroup(servers is null ? "問不到物件總管，只列得出這一台" : "", options),
-            new SqlSearchFilterGroup("物件總管", explorer)
+            new SqlFilterGroup(servers is null ? "問不到物件總管，只列得出這一台" : "", options),
+            new SqlFilterGroup("物件總管", explorer)
         });
     }
 

@@ -31,8 +31,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryList _list = new();
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-    private readonly SqlConnectionFilter _server = new("伺服器");
-    private readonly SqlConnectionFilter _database = new("資料庫", SqlIcon.Database);
+    private readonly ConnectionFacet _serverFacet =
+        new(new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single), databases: false, "伺服器",
+            "不限伺服器；每一台上的紀錄都列。", "更多伺服器");
+    private readonly ConnectionFacet _databaseFacet =
+        new(new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.Single), databases: true, "資料庫",
+            "不限資料庫；目前條件下的每一個都列。", "更多資料庫");
+    private readonly ConnectionFacet[] _connectionFacets;
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
@@ -52,7 +57,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly UIElement[] _listChrome;
     private CancellationTokenSource _facets = new();
     private CancellationTokenSource _request = new();
-    private bool _batchFilters;
     private bool _ready;
     private bool _disposed;
     private bool _listStale;
@@ -92,13 +96,20 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         _historyFilters = SqlAssistChrome.CreateMemoryHistoryFilters(_kind, _period);
         filters.Children.Add(_historyFilters);
+        // 連線篩選與狀態／期間同屬第二層工具列：兩顆下拉並排一列，放不下才換行。
+        var connections = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+        _connectionFacets = new[] { _serverFacet, _databaseFacet };
+        foreach (var facet in _connectionFacets)
+        {
+            facet.Panel.Margin = new Thickness(0, 0, 4, 0);
+            connections.Children.Add(facet.Panel);
+        }
+        filters.Children.Add(connections);
         header.Children.Add(filters);
-        header.Children.Add(_server); header.Children.Add(_database);
-        VsThemeBrushes.Apply(_server.SortMenu); VsThemeBrushes.Apply(_database.SortMenu);
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
         // 搜尋、篩選與「目前連線」只屬於清單分頁；切到用量分頁一起收起。
-        _listChrome = new UIElement[] { _connection, searchBar, filters, _server, _database };
+        _listChrome = new UIElement[] { _connection, searchBar, filters };
 
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
@@ -158,16 +169,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _period.SelectionChanged += (_, _) => { _model.Period = SqlMemoryBrowserModel.PeriodOptions[_period.SelectedIndex].Value; Changed(); };
         _search.TextChanged += (_, _) => { clear.IsEnabled = _search.Text.Length > 0; _model.Search = _search.Text; Changed(); };
         clear.IsEnabled = false;
-        _server.SelectionChanged += (_, _) =>
-        {
-            if (_batchFilters) return;
-            _model.Server = _server.Value;
-            _model.Database = null; _database.Value = null;
-            ReloadFacets(false); Changed();
-        };
-        _database.SelectionChanged += (_, _) => { if (_batchFilters) return; _model.Database = _database.Value; Changed(); };
-        _server.OptionsRequested += (_, _) => LoadFacets(_server, false);
-        _database.OptionsRequested += (_, _) => LoadFacets(_database, true);
+        foreach (var facet in _connectionFacets) ConfigureFacet(facet);
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Memory 可見度", () =>
         {
             if (IsVisible)
@@ -234,7 +236,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         {
             _listStale = false;
             _model.Tab = tab;
-            Changed(); ReloadFacets();
+            InvalidateFacets(); Changed();
         }
         else if (_listStale && _model.IsAvailable) RefreshList();
         _historyFilters.Visibility = _model.IsFavorites ? Visibility.Collapsed : Visibility.Visible;
@@ -319,9 +321,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         {
             if (IsUsageSelected) _usagePanel.Reload();
             // 清單、facets 與預覽都屬於舊儲存；換世代就整份作廢。
-            _facets.Cancel(); _server.ResetOptions(); _database.ResetOptions();
+            InvalidateFacets();
             Invalidate();
-            if (_model.IsAvailable) { Load(); ReloadFacets(); }
+            if (_model.IsAvailable) Load();
             else
             {
                 _detail.Select(null);
@@ -415,51 +417,210 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         var failure = _model.UseConnection(SqlWindowConnections.ReadActive(_package));
         if (failure is not null) { Report(failure); return; }
-        // 一次更新兩個條件，不能在 Server 事件裡把剛指定的 Database 清掉。
-        _batchFilters = true;
-        try { _server.Value = _model.Server; _database.Value = _model.Database; }
-        finally { _batchFilters = false; }
-        Changed(); ReloadFacets();
+        // 一次更新兩個條件，不能在指定伺服器的路徑上把剛指定的資料庫清掉。
+        _serverFacet.Value = _model.Server;
+        _databaseFacet.Value = _model.Database;
+        foreach (var facet in _connectionFacets) { UpdateFacetSummary(facet); facet.Reset(); FillFacet(facet); }
+        Changed();
     }
 
-    private void ReloadFacets(bool servers = true)
+    /// <summary>
+    /// 兩顆連線面板共用的排序選項。
+    /// </summary>
+    /// <remarks>
+    /// 圖示走與工具列同一份 <see cref="SqlAssistChrome.MemoryOptionIcon"/> 對照，而面板上的按鈕
+    /// 與它的選單又讀同一份這個清單：三處各挑一次圖示的下場是同一個排序在三個地方長得不一樣。
+    /// 共用同一個執行個體也讓每個面板只建一次選單（見 <see cref="SqlFilterFlyout.SetSortOptions"/>）。
+    /// </remarks>
+    private static readonly IReadOnlyList<SqlFilterSortOption> FacetSorts = Array.AsReadOnly(
+        SqlMemoryBrowserModel.SortOptions.Select(option => new SqlFilterSortOption(
+            option.Value, option.Label, option.ShortLabel, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
+
+    /// <summary>未指定名稱那一列的字；面板第一列與按鈕摘要共用同一份。</summary>
+    private const string AnyFacetLabel = "全部";
+
+    private void ConfigureFacet(ConnectionFacet facet)
     {
-        if (!_ready || _disposed || _batchFilters) return;
-        if (servers)
+        var panel = facet.Panel;
+        // 面板與排序選單都不在這棵視覺樹上，各要套一次主題，否則深色主題露出白底。
+        VsThemeBrushes.Apply(panel.PopupSurface); VsThemeBrushes.Apply(panel.SortMenu);
+        panel.SetSortOptions(FacetSorts, facet.Sort);
+        UpdateFacetSummary(facet);
+        FillFacet(facet);
+        panel.OptionsRequested += (_, _) => SqlMemoryActions.Run(() => ShowFacet(facet), Report);
+        panel.MoreRequested += (_, _) => SqlMemoryActions.Run(() => LoadFacet(facet), Report);
+        panel.SortRequested += value => SqlMemoryActions.Run(() =>
         {
-            _facets.Cancel(); _facets.Dispose(); _facets = new CancellationTokenSource();
-            _server.ResetOptions(); LoadFacets(_server, false);
-        }
-        _database.ResetOptions(); LoadFacets(_database, true);
+            if (value is not SqlConnectionFacetSort sort || facet.Sort == sort) return;
+            facet.Sort = sort;
+            panel.SetSortOptions(FacetSorts, sort);
+            // 排序換的是同一份名單的先後，不是條件：已選的那一個留著，名單從第一頁重問。
+            facet.Reset(); FillFacet(facet); LoadFacet(facet);
+        }, Report);
     }
 
-    private void LoadFacets(SqlConnectionFilter filter, bool databases)
+    /// <summary>
+    /// 面板打開了：先畫手上有的，沒有名單才去問。
+    /// </summary>
+    /// <remarks>
+    /// 展開下拉<b>就是</b>使用者在要求這份名單，所以這裡去問儲存層是對的；禁止的是沒有人打開它
+    /// 的時候先問一輪。已經選起來的那一個一定要先畫得出來，否則他在等名單的期間換不回去。
+    /// </remarks>
+    private void ShowFacet(ConnectionFacet facet)
+    {
+        FillFacet(facet);
+        if (!facet.IsLoaded) LoadFacet(facet);
+    }
+
+    /// <summary>問下一頁名稱；第一頁與續頁走同一條路，差別只有位移。</summary>
+    private void LoadFacet(ConnectionFacet facet)
     {
         if (!_model.IsAvailable || _disposed || !IsVisible) return;
-        var requestId = _model.BeginFacet(databases);
+        var requestId = _model.BeginFacet(facet.Databases);
         var host = _model.HostGeneration;
         var token = _facets.Token;
-        var request = _model.FacetRequest(databases, filter.Sort, filter.Offset);
+        var request = _model.FacetRequest(facet.Databases, facet.Sort, facet.Offset);
+        facet.Panel.SetNotice("正在讀取" + facet.Name + "清單…", busy: true);
         _ = SqlMemoryActions.RunAsync(async () =>
         {
             try
             {
                 var names = await SqlMemoryHost.Runtime.ReadConnectionFacetsAsync(request, token);
-                if (!_disposed && !token.IsCancellationRequested && _model.IsCurrentFacet(databases, requestId, host))
-                    filter.SetOptions(names);
+                // 名稱載入同樣有世代檢查，舊範圍的回應不能蓋掉新頁面。
+                if (_disposed || token.IsCancellationRequested || !_model.IsCurrentFacet(facet.Databases, requestId, host)) return;
+                facet.Append(names);
+                facet.Panel.SetNotice("");
+                FillFacet(facet);
             }
             catch (Exception error)
             {
-                // 名稱載入同樣有世代檢查，舊範圍的失敗不能蓋掉新頁面。
-                if (!_disposed && !token.IsCancellationRequested && _model.IsCurrentFacet(databases, requestId, host))
-                    Report(SqlMemoryTimeText.Failure("連線篩選載入", error));
+                if (_disposed || token.IsCancellationRequested || !_model.IsCurrentFacet(facet.Databases, requestId, host)) return;
+                // 這一句留在面板裡而不是狀態列：使用者正盯著那份空清單等答案，而狀態列說的是清單那一輪。
+                facet.Panel.SetNotice(SqlMemoryTimeText.Failure(facet.Name + "清單載入", error));
             }
         }, Report);
     }
 
+    /// <summary>
+    /// 把手上的名稱畫成面板的選項；第一列是「全部」。
+    /// </summary>
+    /// <remarks>
+    /// 已選的那一個可能不在手上這幾頁裡（換過排序，或還沒續到那一頁）：列在最前面且一律列出，
+    /// 否則使用者在面板上取消不掉自己剛選的條件。
+    /// </remarks>
+    private void FillFacet(ConnectionFacet facet)
+    {
+        var options = new List<SqlFilterOption>();
+
+        void Add(string name) => options.Add(new SqlFilterOption(
+            name, facet.Name + "：" + name, string.Equals(facet.Value, name, StringComparison.Ordinal),
+            selected => SqlMemoryActions.Run(() => { if (selected) SelectFacet(facet, name); }, Report)));
+
+        if (facet.Value is { } value && !facet.Names.Contains(value)) Add(value);
+        foreach (var name in facet.Names) Add(name);
+
+        facet.Panel.SetEmptyOption(new SqlFilterOption(AnyFacetLabel, facet.EmptyHint, facet.Value is null,
+            selected => SqlMemoryActions.Run(() => { if (selected) SelectFacet(facet, null); }, Report)));
+        facet.Panel.SetOptions(new[] { new SqlFilterGroup("", options) });
+        facet.Panel.SetMore(facet.HasMore ? facet.MoreLabel : null);
+    }
+
+    /// <summary>選了一個名稱，或回到「全部」；語意是對已存的列篩選，不是切換 SSMS 連線。</summary>
+    private void SelectFacet(ConnectionFacet facet, string? name)
+    {
+        if (string.Equals(facet.Value, name, StringComparison.Ordinal)) return;
+        facet.Value = name;
+        UpdateFacetSummary(facet);
+        if (facet.Databases) _model.Database = name;
+        else
+        {
+            _model.Server = name;
+            // 資料庫名稱是每台伺服器自己的；換台之後留著會篩成一列都沒有，而畫面上只看得到
+            // 「沒有符合條件」，看不出是上一台的條件還掛著。
+            _model.Database = null;
+            _databaseFacet.Value = null;
+            UpdateFacetSummary(_databaseFacet);
+            _databaseFacet.Reset(); FillFacet(_databaseFacet);
+        }
+
+        // 單選換了一個，舊的那一顆 radio 要跟著清掉；面板的繫結還在回寫，等這一輪走完再換整份清單。
+        Defer(() => FillFacet(facet));
+        Changed();
+    }
+
+    /// <summary>按鈕上的摘要；未選就是「全部」，與面板第一列共用同一份字。</summary>
+    private static void UpdateFacetSummary(ConnectionFacet facet) =>
+        facet.Panel.UpdateSummary(facet.Value ?? AnyFacetLabel, facet.Value is null ? facet.EmptyHint : "");
+
+    /// <summary>手上的名單作廢；下次打開面板才重問，沒有人在看的時候不去問儲存層。</summary>
+    private void InvalidateFacets()
+    {
+        _facets.Cancel(); _facets.Dispose(); _facets = new CancellationTokenSource();
+        foreach (var facet in _connectionFacets) { facet.Reset(); FillFacet(facet); }
+    }
+
+    /// <summary>等這一輪事件走完再做；面板重建會回收正在回寫勾選狀態的那一顆選項。</summary>
+    private void Defer(Action action) =>
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!_disposed) SqlMemoryActions.Run(action, Report);
+        }));
+
+    /// <summary>一顆連線篩選面板的狀態：累積到的名稱、下一頁位移與排序。</summary>
+    /// <remarks>
+    /// 位移與「還有沒有下一頁」留在宿主而不是面板：一頁幾筆、以及多回一筆代表還有下一頁，
+    /// 都是 <see cref="SqlConnectionFacetRequest"/> 這一層自己的契約，共用的面板不該認得它。
+    /// </remarks>
+    private sealed class ConnectionFacet
+    {
+        private readonly List<string> _names = new();
+
+        public ConnectionFacet(SqlFilterFlyout panel, bool databases, string name, string emptyHint, string moreLabel)
+        {
+            Panel = panel; Databases = databases; Name = name; EmptyHint = emptyHint; MoreLabel = moreLabel;
+        }
+
+        public SqlFilterFlyout Panel { get; }
+
+        public bool Databases { get; }
+
+        public string Name { get; }
+
+        /// <summary>未選時面板第一列與按鈕 Tooltip 的說明。</summary>
+        public string EmptyHint { get; }
+
+        public string MoreLabel { get; }
+
+        public SqlConnectionFacetSort Sort { get; set; } = SqlConnectionFacetSort.Recent;
+
+        /// <summary>選中的名稱；null 是「全部」。</summary>
+        public string? Value { get; set; }
+
+        public int Offset { get; private set; }
+
+        public bool HasMore { get; private set; }
+
+        /// <summary>已經問過至少一頁；沒問過的面板打開時才去問。</summary>
+        public bool IsLoaded { get; private set; }
+
+        public IReadOnlyList<string> Names => _names;
+
+        public void Reset() { _names.Clear(); Offset = 0; HasMore = false; IsLoaded = false; }
+
+        /// <param name="names">儲存層多回一筆代表還有下一頁；多出的那一筆不顯示。</param>
+        public void Append(IReadOnlyList<string> names)
+        {
+            var count = Math.Min(names.Count, SqlConnectionFacetRequest.PageSize);
+            for (var i = 0; i < count; i++) if (!_names.Contains(names[i])) _names.Add(names[i]);
+            Offset += count;
+            HasMore = names.Count > SqlConnectionFacetRequest.PageSize;
+            IsLoaded = true;
+        }
+    }
+
     private void Changed()
     {
-        if (!_ready || _disposed || _batchFilters) return;
+        if (!_ready || _disposed) return;
         SqlMemoryActions.Run(() =>
         {
             // 伺服器與資料庫篩選兩頁同一種語意，只有狀態與期間屬於 History。
@@ -491,7 +652,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         _listStale = false;
         _model.RememberSelection((_list.SelectedItem as SqlMemoryRow)?.Id);
-        Invalidate(); Load(); ReloadFacets();
+        InvalidateFacets(); Invalidate(); Load();
     }
 
     private void Load() => _ = SqlMemoryActions.RunAsync(LoadAsync, Report);

@@ -68,15 +68,18 @@ Preview 標頭（開關與摘要）分兩態：
 
 - Badge、可移除 Chip、按鈕型 Chip 是不同 primitive，共用尺寸、圓角、spacing、狀態色與
   icon slot，不共用互動語意。
-- Filter Flyout 支援 `Single`／`Multiple`／`SearchableMultiple`；伺服器單選用 radio、自動
-  關閉；分類保留 provider group 與 sort order。「沒有勾任何一個」是一個**實際的預設**
-  （全部種類、連線預設的資料庫），所以它是面板第一列（`SetEmptyOption`）而不是一片空白——
-  摘要寫著「全部」而清單上一個勾都沒有時，使用者會以為條件弄丟了。那一列勾得上去、取消不掉，
-  字與按鈕摘要共用一份。命令鈕只剩**全選**，且只有可搜尋的那一種有；「清除」與第一列是同一件事，
+- Filter Flyout（`SqlFilterFlyout`）是**唯一一份**過濾面板：Search 的伺服器／資料庫／種類與
+  Memory 的伺服器／資料庫都是它。支援 `Single`／`Multiple`／`SearchableMultiple`；單選用 radio、
+  選完自動關閉；分類保留 provider group 與 sort order。「沒有勾任何一個」是一個**實際的預設**，
+  所以它是面板第一列（`SetEmptyOption`）而不是一片空白——摘要寫著「全部」而清單上一個勾都沒有時，
+  使用者會以為條件弄丟了。那一列勾得上去、取消不掉，字與按鈕摘要共用一份，而且**由宿主給**：
+  Search 的未選是「連線預設」（這一輪搜哪裡），Memory 的未選是「全部」（對已存的列不設限），
+  控制項不替它們挑一句。命令鈕只剩**全選**，且只有可搜尋的那一種有；「清除」與第一列是同一件事，
   不畫第二個入口。別的選項變動時只改那一列（`SyncEmptyOption`）：重建整份清單會把捲動位置與
-  鍵盤焦點一起丟掉，而使用者可能正在連勾好幾個。SQL Memory 的 `SqlPillSelector` 還沒有那一列，
-  之後補齊。選項清單是虛擬化
-  `ItemsControl`，不用 `ScrollViewer + StackPanel` 承載大量選項；快取 Style／ControlTemplate，
+  鍵盤焦點一起丟掉，而使用者可能正在連勾好幾個。續頁（`SetMore`／`MoreRequested`）與排序
+  （`SetSortOptions`／`SortRequested`）是**面板等級的一般能力**，不綁任何一個功能的值：兩顆鈕都在
+  捲動區外面一直看得見，位移與頁大小留在宿主，換排序只問出去、宿主寫回來才換按鈕。選項清單是
+  虛擬化 `ItemsControl`，不用 `ScrollViewer + StackPanel` 承載大量選項；快取 Style／ControlTemplate，
   不快取有 parent 的 `UIElement`。
 - 兩個 Browser 不合成通用元件：外觀共用，領域語意與 command 留在各 feature。
 
@@ -85,6 +88,6 @@ Preview 標頭（開關與摘要）分兩態：
 保留取消／generation guard、背景工作、每批 40 筆與 recycling virtualization。禁用每列陰影、
 模糊與複雜動畫；主題／DPI 切換後不殘留舊 brush 或裁切 icon。測試涵蓋寬窄切換與 hysteresis
 臨界穩定、收合態仍展得開、第一列順序、缺值 collapse、片段列只在本文命中出現、單／多選
-filter、選取與捲動保存、四種狀態表面（「這一輪讀不到」與「權限不足」兩種抬頭各一條，
-含只有一部分來源說得出權限時抬頭不換）、Light／Dark／Blue 與 100／150／200% DPI。展開態的
+filter、面板第一列的預設與續頁／排序、選取與捲動保存、四種狀態表面（「這一輪讀不到」與
+「權限不足」兩種抬頭各一條，含只有一部分來源說得出權限時抬頭不換）、Light／Dark／Blue 與 100／150／200% DPI。展開態的
 Preview 開關屬於右欄、300 DIP 下每一組都還在列內、窄版降級與 overflow 也要測。
