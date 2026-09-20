@@ -116,17 +116,20 @@ public sealed class SqlSearchVisualTests
     }
 
     [Fact]
-    public void 工具列窄窗先收字再收行()
+    public void 工具列兩層且窄窗先收字再依群組換行()
     {
         WpfTest.Run(() =>
         {
-            var search = SqlAssistChrome.CreateSearchBar(
+            var search = SqlAssistChrome.CreateInputBar(
+                SqlIcon.Search,
                 SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
             var segments = new SqlSearchSegments();
             var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
-            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, filterable: true);
-            var toolbar = new SqlSearchToolbar(search, segments, new[] { databases, kinds });
+            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
+            var sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
+            var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
+            var toolbar = new SqlSearchToolbar(search, segments, new[] { databases, kinds }, sort, refresh);
 
             var host = new Border { Child = toolbar };
 
@@ -138,25 +141,47 @@ public sealed class SqlSearchVisualTests
                 return host.DesiredSize;
             }
 
-            var full = Layout(SqlSearchToolbar.CompactWidth + 40);
+            // 同一列的控制項高度不同（圖示鈕比搜尋框矮），比的是視覺中心線而不是上緣。
+            double Middle(FrameworkElement element) =>
+                element.TranslatePoint(new Point(0, element.ActualHeight / 2), toolbar).Y;
+
+            var wide = Layout(720);
             Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
             Assert.False(kinds.IsCompact);
 
-            var compact = Layout(SqlSearchToolbar.CompactWidth - 40);
+            // 第一層是搜尋框與排序／重新整理；filters 與分段開關在第二層。
+            Assert.InRange(Math.Abs(Middle(sort) - Middle(search)), 0, 1);
+            Assert.InRange(Math.Abs(Middle(refresh) - Middle(search)), 0, 1);
+            Assert.True(Middle(databases) > Middle(search) + search.ActualHeight / 2);
+            Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
+            // 搜尋框吃滿第一層剩下的寬度：右邊只留那兩顆圖示鈕。
+            Assert.True(search.ActualWidth > 720 - sort.DesiredSize.Width - refresh.DesiredSize.Width - 40);
+
+            // 第二層放不下帶字的過濾按鈕就先收字；不換行，所以高度不變。
+            // 門檻是量出來的內容寬度：差一個 DIP 就該換一級，不必寫死一個數字。
+            // 用 DesiredSize 而不是 ActualWidth：工具列量的是含外距的那一份，兩者差幾個 DIP
+            // 就足以讓門檻算在錯的一級上。
+            var second = databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + 8;
+            var compact = Layout(second - 1);
             Assert.Equal(SqlSearchToolbarMode.Compact, toolbar.Mode);
             Assert.True(kinds.IsCompact);
-            // 收字不換行：高度不變，搜尋框只是變窄。
-            Assert.Equal(full.Height, compact.Height);
+            Assert.Equal(wide.Height, compact.Height);
+            Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
 
-            var stacked = Layout(SqlSearchToolbar.StackedWidth - 40);
-            Assert.Equal(SqlSearchToolbarMode.Stacked, toolbar.Mode);
-            // 分段開關是常駐可見的，收掉字就等於收掉它；放不下時換到第二列。
-            Assert.True(stacked.Height > compact.Height);
+            // 再窄就整群換行：分段開關是常駐可見的，而它與過濾按鈕不會拆成一半一半。
+            var wrapped = Layout(
+                databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + 7);
+            Assert.Equal(SqlSearchToolbarMode.Wrapped, toolbar.Mode);
+            Assert.True(wrapped.Height > compact.Height);
+            Assert.True(Middle(segments) > Middle(databases) + databases.ActualHeight / 2);
+            // 換行的單位是群：兩顆過濾按鈕仍在同一列，不會掉一顆下去。
+            Assert.InRange(Math.Abs(Middle(kinds) - Middle(databases)), 0, 1);
 
             // 拉回去要回到完整版，不停在窄版上。
-            Layout(SqlSearchToolbar.CompactWidth + 40);
+            Layout(720);
             Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
             Assert.False(kinds.IsCompact);
+            Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
         });
     }
 
@@ -466,7 +491,7 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
 
-            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, filterable: true);
+            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
             var selected = new List<(string Name, bool On)>();
             var names = Enumerable.Range(1, 400).Select(index => "Lib_Reader" + index).ToArray();
 
@@ -514,6 +539,110 @@ public sealed class SqlSearchVisualTests
             surface.UpdateLayout();
             Assert.Single(selected);
             Assert.True(Descendants<CheckBox>(surface).Single(box => Equals(box.Content, "Lib_Reader1")).IsChecked);
+        });
+    }
+
+    [Fact]
+    public void 單選面板用radio選完關閉且不顯示全選與清除()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var server = new SqlSearchFilterButton("伺服器", SqlIcon.Server, SqlSearchFilterMode.Single);
+            var picked = new List<(string Name, bool On)>();
+            var names = new[] { "跟著查詢視窗", "LIBSRV", "LIBARCHIVE" };
+
+            void Fill(string selected) => server.SetOptions(new[]
+            {
+                new SqlSearchFilterGroup("", names
+                    .Select(name => new SqlSearchFilterOption(name, "", name == selected, on => picked.Add((name, on))))
+                    .ToArray())
+            });
+
+            Fill("跟著查詢視窗");
+
+            var surface = server.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            surface.Measure(new Size(320, double.PositiveInfinity));
+            surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+            surface.UpdateLayout();
+
+            // 形狀就是語意：單選畫 radio，不畫勾選框。
+            Assert.Empty(Descendants<CheckBox>(surface));
+            var radios = Descendants<RadioButton>(surface).ToArray();
+            Assert.Equal(names, radios.Select(radio => (string)radio.Content).ToArray());
+            Assert.True(radios[0].IsChecked);
+
+            // 全選對互斥的選項沒有意義，清除等於一個範圍都不選；兩顆都不畫。
+            var labels = Descendants<TextBlock>(surface).Select(text => text.Text).ToArray();
+            Assert.DoesNotContain("全選", labels);
+            Assert.DoesNotContain("清除", labels);
+
+            // 每一列各自一個群組名：互斥交給模型，WPF 不自動去取消上一個。
+            Assert.Equal(radios.Length, radios.Select(radio => radio.GroupName).Distinct().Count());
+
+            server.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.True(server.IsOpen);
+
+            radios[1].IsChecked = true;
+            // 只回報使用者選上的那一個；自動互斥會多送一筆上一個選項的取消，而那會把剛換好的範圍清掉。
+            Assert.Equal(new[] { ("LIBSRV", true) }, picked);
+            // 單選一次只改得了一項：選完就關，不要使用者再按一次外面。
+            Assert.False(server.IsOpen);
+        });
+    }
+
+    [Fact]
+    public void 複選面板選完不關且勾得起好幾個()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var kinds = new SqlSearchFilterButton("種類", SqlIcon.Filter);
+            var selected = new HashSet<string>(StringComparer.Ordinal);
+            var names = new[] { "Table", "View", "Procedure" };
+
+            kinds.SetOptions(new[]
+            {
+                new SqlSearchFilterGroup("", names
+                    .Select(name => new SqlSearchFilterOption(name, "", selected.Contains(name), on =>
+                    {
+                        if (on) selected.Add(name);
+                        else selected.Remove(name);
+                    }))
+                    .ToArray())
+            });
+
+            var surface = kinds.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            surface.Measure(new Size(320, double.PositiveInfinity));
+            surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+            surface.UpdateLayout();
+
+            Assert.Empty(Descendants<RadioButton>(surface));
+            var boxes = Descendants<CheckBox>(surface).ToArray();
+            Assert.Equal(names, boxes.Select(box => (string)box.Content).ToArray());
+
+            var labels = Descendants<TextBlock>(surface).Select(text => text.Text).ToArray();
+            Assert.Contains("全選", labels);
+            Assert.Contains("清除", labels);
+
+            kinds.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.True(kinds.IsOpen);
+
+            boxes[0].IsChecked = true;
+            boxes[2].IsChecked = true;
+            // 複選是「連勾好幾個」，面板關掉的話每一個條件都要重開一次。
+            Assert.True(kinds.IsOpen);
+            Assert.Equal(new[] { "Procedure", "Table" }, selected.OrderBy(name => name, StringComparer.Ordinal).ToArray());
+
+            boxes[0].IsChecked = false;
+            Assert.Equal(new[] { "Procedure" }, selected.ToArray());
+            Assert.True(kinds.IsOpen);
         });
     }
 

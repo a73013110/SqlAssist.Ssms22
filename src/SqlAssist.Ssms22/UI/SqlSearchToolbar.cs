@@ -5,38 +5,39 @@ using System.Windows.Controls;
 
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>工具列現在收到第幾級；窄窗先收字，再收行。</summary>
+/// <summary>工具列現在收到第幾級；窄窗先收字，再依群組換行。</summary>
 internal enum SqlSearchToolbarMode
 {
-    /// <summary>一列，過濾按鈕帶名稱與摘要。</summary>
+    /// <summary>兩列：搜尋列在上，過濾按鈕與分段開關併在第二列，按鈕帶名稱與摘要。</summary>
     Full,
 
-    /// <summary>一列，過濾按鈕只留圖示與箭頭；名稱與摘要留在 Tooltip 與 chip 列。</summary>
+    /// <summary>兩列：過濾按鈕只留圖示與箭頭；名稱與摘要留在 Tooltip 與 chip 列。</summary>
     Compact,
 
-    /// <summary>兩列，分段開關自己一列；它是常駐可見的，收掉字就等於收掉它。</summary>
-    Stacked
+    /// <summary>三列：第二列容不下兩群，分段開關整群換到第三列。</summary>
+    Wrapped
 }
 
 /// <summary>
-/// SQL Search 的工具列：搜尋框吃滿剩餘空間，過濾按鈕與分段開關靠右排。
+/// SQL Search 的工具列：第一層是搜尋框與排序／重新整理，第二層是 filters 與分段開關。
 /// </summary>
 /// <remarks>
-/// 自己量測而不是用 <see cref="WrapPanel"/>，理由是收縮的先後有優先級：搜尋框與分段開關
-/// 一定要看得見，先讓的是過濾按鈕上的字（Tooltip 與 chip 列仍讀得到），再不夠才讓分段開關
-/// 換到第二列。交給換行面板的話，先掉下去的會是排在最後的分段開關，而那正是切換最頻繁的一項。
+/// 分兩層而不是擠成一列：搜尋框要吃滿剩餘寬度才打得下一段字串，而停靠在右側時可用寬度
+/// 只有 300 DIP 上下——三顆過濾按鈕加三段開關排在同一列，搜尋框會被壓到只剩十來個字元。
+/// 排序與重新整理留在第一層，它們作用在「這一份結果」而不是「要搜什麼」。
 ///
-/// 兩道門檻都是<b>版面寬度</b>而不是字數：同一組按鈕在 200% DPI 下佔的 DIP 一樣，
-/// 但實際像素是兩倍，而使用者的停靠面板寬度是以像素決定的。
+/// 自己量測而不是用 <see cref="WrapPanel"/>，理由是換行的單位是<b>群</b>不是控制項：
+/// 過濾按鈕與分段開關各自成群，一群要嘛整群在同一列，要嘛整群換到下一列。交給換行面板的話
+/// 三顆過濾按鈕會有一顆單獨掉到下一列，而那一列看起來就只是一顆沒有來由的按鈕。
+///
+/// 先收字再換行：收掉過濾按鈕上的字還讀得到 Tooltip 與 chip 列，多一列卻是永久少看一筆結果。
+/// 換行之後過濾按鈕獨佔一整列，字放得下就放回去——那一段沒有回授，不會在同一個寬度上反覆跳。
+///
+/// 門檻是量出來的內容寬度而不是寫死的數字：同一組按鈕在不同字級與 DPI 下佔的 DIP 不同，
+/// 而使用者的停靠面板寬度是以像素決定的。
 /// </remarks>
 internal sealed class SqlSearchToolbar : Panel
 {
-    /// <summary>窄於這個寬度就收起過濾按鈕上的名稱與摘要。</summary>
-    public const double CompactWidth = 520;
-
-    /// <summary>窄於這個寬度就讓分段開關換到第二列。</summary>
-    public const double StackedWidth = 400;
-
     /// <summary>搜尋框無論如何保留的寬度；再窄下去它就不是一個可以打字的欄位了。</summary>
     private const double MinSearchWidth = 96;
 
@@ -49,10 +50,11 @@ internal sealed class SqlSearchToolbar : Panel
     private readonly IReadOnlyList<SqlSearchFilterButton> _filters;
     private readonly IReadOnlyList<FrameworkElement> _trailing;
     private double _searchWidth = MinSearchWidth;
-    private double _firstRow;
-    private double _secondRow;
+    private double _searchRow;
+    private double _filterRow;
+    private double _segmentRow;
 
-    /// <param name="trailing">分段開關右邊的圖示鈕（排序、重新整理）；換到第二列時跟著它走。</param>
+    /// <param name="trailing">搜尋框右邊的圖示鈕（排序、重新整理）；它們跟搜尋框同一列。</param>
     public SqlSearchToolbar(
         FrameworkElement search,
         SqlSearchSegments segments,
@@ -65,9 +67,9 @@ internal sealed class SqlSearchToolbar : Panel
         _trailing = trailing ?? throw new ArgumentNullException(nameof(trailing));
 
         Children.Add(search);
+        foreach (var element in _trailing) Children.Add(element);
         foreach (var filter in _filters) Children.Add(filter);
         Children.Add(segments);
-        foreach (var element in _trailing) Children.Add(element);
     }
 
     /// <summary>目前收到第幾級；版面回歸測試以它驗門檻。</summary>
@@ -76,71 +78,81 @@ internal sealed class SqlSearchToolbar : Panel
     protected override Size MeasureOverride(Size constraint)
     {
         var available = double.IsInfinity(constraint.Width) || constraint.Width <= 0 ? 0 : constraint.Width;
+        var unbounded = new Size(double.PositiveInfinity, double.PositiveInfinity);
+
+        _segments.Measure(unbounded);
+        var segments = _segments.DesiredSize.Width;
+
+        // 兩種狀態各量一次：要先知道帶字的那一份放不放得下，才決定收不收字。
+        var full = MeasureFilters(compact: false, unbounded);
+        var compact = MeasureFilters(compact: true, unbounded);
 
         // 寬度還沒決定（量測在無限寬度下）時一律照完整版算；收起來的按鈕量出來的寬度
         // 會讓第一次排版就停在窄版上，而視窗其實很寬。
-        Mode = available <= 0 ? SqlSearchToolbarMode.Full
-            : available < StackedWidth ? SqlSearchToolbarMode.Stacked
-            : available < CompactWidth ? SqlSearchToolbarMode.Compact
-            : SqlSearchToolbarMode.Full;
+        Mode = available <= 0 || full + ItemGap + segments <= available ? SqlSearchToolbarMode.Full
+            : compact + ItemGap + segments <= available ? SqlSearchToolbarMode.Compact
+            : SqlSearchToolbarMode.Wrapped;
 
-        foreach (var filter in _filters) filter.IsCompact = Mode != SqlSearchToolbarMode.Full;
-
-        var unbounded = new Size(double.PositiveInfinity, double.PositiveInfinity);
-        _segments.Measure(unbounded);
-
-        var trailing = 0d;
-        foreach (var filter in _filters)
-        {
-            filter.Measure(unbounded);
-            trailing += filter.DesiredSize.Width + ItemGap;
-        }
+        // 換行之後過濾按鈕獨佔一整列；那一列放得下字就放回去。
+        var wrapped = Mode == SqlSearchToolbarMode.Wrapped;
+        var filters = MeasureFilters(
+            compact: Mode == SqlSearchToolbarMode.Compact || (wrapped && full > available),
+            unbounded);
 
         var tail = 0d;
         foreach (var element in _trailing)
         {
             element.Measure(unbounded);
-            tail += element.DesiredSize.Width + ItemGap;
+            tail += ItemGap + element.DesiredSize.Width;
         }
 
-        var stacked = Mode == SqlSearchToolbarMode.Stacked;
-        var inlineSegments = stacked ? 0 : _segments.DesiredSize.Width + ItemGap + tail;
-
-        _searchWidth = available <= 0
-            ? MinSearchWidth
-            : Math.Max(MinSearchWidth, available - SearchGap - trailing - inlineSegments);
-
+        _searchWidth = available <= 0 ? MinSearchWidth : Math.Max(MinSearchWidth, available - SearchGap - tail);
         _search.Measure(new Size(_searchWidth, double.PositiveInfinity));
 
-        _firstRow = _search.DesiredSize.Height;
-        foreach (var filter in _filters) _firstRow = Math.Max(_firstRow, filter.DesiredSize.Height);
+        _searchRow = _search.DesiredSize.Height;
+        foreach (var element in _trailing) _searchRow = Math.Max(_searchRow, element.DesiredSize.Height);
 
-        var tailHeight = _segments.DesiredSize.Height;
-        foreach (var element in _trailing) tailHeight = Math.Max(tailHeight, element.DesiredSize.Height);
+        _filterRow = 0;
+        foreach (var filter in _filters) _filterRow = Math.Max(_filterRow, filter.DesiredSize.Height);
 
-        if (stacked) _secondRow = tailHeight;
-        else { _firstRow = Math.Max(_firstRow, tailHeight); _secondRow = 0; }
+        if (wrapped) _segmentRow = _segments.DesiredSize.Height;
+        else { _filterRow = Math.Max(_filterRow, _segments.DesiredSize.Height); _segmentRow = 0; }
 
-        var width = available > 0 ? available : _searchWidth + SearchGap + trailing + inlineSegments;
-        var height = _firstRow + (stacked ? RowGap + _secondRow : 0);
+        var width = available > 0
+            ? available
+            : Math.Max(_searchWidth + SearchGap + tail, filters + ItemGap + segments);
+        var height = _searchRow + RowGap + _filterRow + (wrapped ? RowGap + _segmentRow : 0);
         return new Size(width, height);
     }
 
     protected override Size ArrangeOverride(Size size)
     {
-        var x = PlaceAt(_search, 0, 0, _firstRow, _searchWidth) + (SearchGap - ItemGap);
-        foreach (var filter in _filters) x = PlaceAt(filter, x, 0, _firstRow);
+        var x = PlaceAt(_search, 0, 0, _searchRow, _searchWidth) + (SearchGap - ItemGap);
+        foreach (var element in _trailing) x = PlaceAt(element, x, 0, _searchRow);
 
-        if (Mode == SqlSearchToolbarMode.Stacked)
+        var second = _searchRow + RowGap;
+        x = 0;
+        foreach (var filter in _filters) x = PlaceAt(filter, x, second, _filterRow);
+
+        if (Mode == SqlSearchToolbarMode.Wrapped) PlaceAt(_segments, 0, second + _filterRow + RowGap, _segmentRow);
+        else PlaceAt(_segments, x, second, _filterRow);
+
+        return size;
+    }
+
+    /// <summary>量一次過濾按鈕那一群，回傳整群的寬度（含群內間距，不含群後的間距）。</summary>
+    private double MeasureFilters(bool compact, Size unbounded)
+    {
+        var width = 0d;
+
+        foreach (var filter in _filters)
         {
-            var second = PlaceAt(_segments, 0, _firstRow + RowGap, _secondRow);
-            foreach (var element in _trailing) second = PlaceAt(element, second, _firstRow + RowGap, _secondRow);
-            return size;
+            filter.IsCompact = compact;
+            filter.Measure(unbounded);
+            width += filter.DesiredSize.Width + ItemGap;
         }
 
-        x = PlaceAt(_segments, x, 0, _firstRow);
-        foreach (var element in _trailing) x = PlaceAt(element, x, 0, _firstRow);
-        return size;
+        return width == 0 ? 0 : width - ItemGap;
     }
 
     /// <summary>把一個控制項擺進某一列，並回傳下一個控制項的起點（含間距）。</summary>

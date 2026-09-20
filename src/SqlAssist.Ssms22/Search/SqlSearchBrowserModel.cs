@@ -16,16 +16,31 @@ namespace SqlAssist.Ssms22.Search;
 /// </remarks>
 internal sealed class SqlSearchCategoryOption
 {
-    internal SqlSearchCategoryOption(string id, string label)
+    internal SqlSearchCategoryOption(string id, string label, string groupId = "", string groupLabel = "")
     {
         Id = id;
         Label = label;
+        GroupId = groupId;
+        GroupLabel = groupLabel;
     }
 
     /// <summary>對應 <see cref="SearchCategory.Id"/>。</summary>
     public string Id { get; }
 
     public string Label { get; }
+
+    /// <summary>對應 <see cref="SearchCategory.GroupId"/>；過濾面板照它分段。</summary>
+    public string GroupId { get; }
+
+    /// <summary>
+    /// 這一段在面板上叫什麼；宣告這個分類的 provider 的顯示字。
+    /// </summary>
+    /// <remarks>
+    /// 取 provider 的名字而不是替每一群另外想一個：群是 provider 自己切的（目錄物件把收納桶
+    /// 切成第二群），而使用者要分的是「資料庫物件」與「SQL Agent 作業」這一層。
+    /// 同一個 provider 的幾群連在一起，只在第一群掛一次標題。
+    /// </remarks>
+    public string GroupLabel { get; }
 }
 
 /// <summary>結果清單的排序鍵。</summary>
@@ -314,22 +329,125 @@ internal sealed class SqlSearchBrowserModel
     /// <remarks>
     /// 依 provider 宣告順序串接並以 Id 去重：兩個 provider 各自宣告同一個 Id 時，列兩項一模一樣的
     /// 選項只會讓使用者以為它們是兩種東西。顯示字取先出現的那一份。
+    ///
+    /// 群與群內順序都照 provider 宣告的那一份：<see cref="SearchCategory.GroupId"/> 相同的幾個
+    /// 連在一起（群的先後是第一次出現的先後），群內依 <see cref="SearchCategory.SortOrder"/>。
+    /// 兩者都尊重的理由在 <see cref="SearchCategory.SortOrder"/> 的註解裡——「其他」這種收納桶
+    /// 要排在最後，而它在宣告清單裡的位置是當初加進去的時間決定的。這份順序同時是過濾面板的
+    /// 段落順序與「依種類排序」的先後，兩處看到的排法因此一致。
     /// </remarks>
-    public static IReadOnlyList<SqlSearchCategoryOption> CategoryOptions(IEnumerable<SearchCategory>? categories)
+    public static IReadOnlyList<SqlSearchCategoryOption> CategoryOptions(IEnumerable<SearchCategory>? categories) =>
+        CategoryOptions(categories, providerNames: null);
+
+    /// <summary>同上，但段落標題取自 provider 的顯示字。</summary>
+    public static IReadOnlyList<SqlSearchCategoryOption> CategoryOptions(IEnumerable<ISearchProvider>? providers)
     {
-        var options = new List<SqlSearchCategoryOption>();
+        if (providers is null) return Array.Empty<SqlSearchCategoryOption>();
 
-        if (categories is null) return options;
+        var categories = new List<SearchCategory>();
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
 
+        foreach (var provider in providers)
+        {
+            if (provider?.Categories is null) continue;
+            names[provider.Id] = provider.DisplayName;
+            categories.AddRange(provider.Categories);
+        }
+
+        return CategoryOptions(categories, names);
+    }
+
+    private static IReadOnlyList<SqlSearchCategoryOption> CategoryOptions(
+        IEnumerable<SearchCategory>? categories,
+        IReadOnlyDictionary<string, string>? providerNames)
+    {
+        if (categories is null) return Array.Empty<SqlSearchCategoryOption>();
+
+        var groups = new List<CategoryGroup>();
+        var slots = new Dictionary<string, int>(StringComparer.Ordinal);
+        var providers = new Dictionary<string, int>(StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var category in categories)
         {
             if (category is null) continue;
-            if (seen.Add(category.Id)) options.Add(new SqlSearchCategoryOption(category.Id, category.DisplayName));
+            if (!seen.Add(category.Id)) continue;
+
+            if (!providers.TryGetValue(category.ProviderId, out var provider))
+            {
+                provider = providers.Count;
+                providers[category.ProviderId] = provider;
+            }
+
+            if (!slots.TryGetValue(category.GroupId, out var slot))
+            {
+                slot = groups.Count;
+                slots[category.GroupId] = slot;
+                groups.Add(new CategoryGroup(provider, slot));
+            }
+
+            groups[slot].Add(category);
+        }
+
+        // 群的先後：先照 provider 第一次出現的順序（同一個來源的幾群連在一起，段落標題才掛得上），
+        // 再照群內最小的 SortOrder（收納桶因此落在自己來源的最後），最後才是宣告順序。
+        groups.Sort((left, right) => left.Provider != right.Provider ? left.Provider.CompareTo(right.Provider)
+            : left.SortOrder != right.SortOrder ? left.SortOrder.CompareTo(right.SortOrder)
+            : left.Declared.CompareTo(right.Declared));
+
+        var options = new List<SqlSearchCategoryOption>();
+
+        foreach (var group in groups)
+        {
+            foreach (var category in group.Ordered())
+            {
+                var label = providerNames is not null && providerNames.TryGetValue(category.ProviderId, out var name)
+                    ? name
+                    : "";
+                options.Add(new SqlSearchCategoryOption(category.Id, category.DisplayName, category.GroupId, label));
+            }
         }
 
         return options;
+    }
+
+    /// <summary>過濾面板的一段；只在排序期間活著，不外流。</summary>
+    private sealed class CategoryGroup
+    {
+        private readonly List<SearchCategory> _categories = new();
+
+        internal CategoryGroup(int provider, int declared)
+        {
+            Provider = provider;
+            Declared = declared;
+        }
+
+        /// <summary>宣告這一群的 provider 第一次出現的序號。</summary>
+        internal int Provider { get; }
+
+        /// <summary>這一群第一次出現的序號；排序鍵一路相同時照它，排法才是穩定的。</summary>
+        internal int Declared { get; }
+
+        /// <summary>群內最小的 <see cref="SearchCategory.SortOrder"/>。</summary>
+        internal int SortOrder { get; private set; } = int.MaxValue;
+
+        internal void Add(SearchCategory category)
+        {
+            _categories.Add(category);
+            if (category.SortOrder < SortOrder) SortOrder = category.SortOrder;
+        }
+
+        /// <summary>群內依 <see cref="SearchCategory.SortOrder"/>，同值時留宣告順序。</summary>
+        internal IEnumerable<SearchCategory> Ordered()
+        {
+            var ordered = new List<(SearchCategory Category, int Declared)>(_categories.Count);
+            for (var index = 0; index < _categories.Count; index++) ordered.Add((_categories[index], index));
+            ordered.Sort((left, right) => left.Category.SortOrder != right.Category.SortOrder
+                ? left.Category.SortOrder.CompareTo(right.Category.SortOrder)
+                : left.Declared.CompareTo(right.Declared));
+
+            foreach (var (category, _) in ordered) yield return category;
+        }
     }
 
     /// <summary>接上這一份分類清單；摘要文字、chip 標籤與「依種類排序」的先後都由它決定。</summary>

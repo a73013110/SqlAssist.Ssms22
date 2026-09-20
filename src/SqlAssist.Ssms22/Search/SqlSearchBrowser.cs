@@ -27,7 +27,7 @@ namespace SqlAssist.Ssms22.Search;
 /// 回應也交回它決定要不要採用；這裡只做版面、繫結與派送。來源清單在
 /// <see cref="SqlSearchProviders"/>，啟動在 <see cref="SqlSearchActivation"/>，三者都不互相知道細節。
 ///
-/// 版面只有三塊：工具列一列（搜尋框吃滿剩餘空間，比對位置是常駐的分段開關）、
+/// 版面只有三塊：工具列兩層（第一層搜尋框與排序／重新整理，第二層 filters 與常駐的分段開關）、
 /// 只在非預設時出現的已選條件列，以及主從區。那一列 chip 不佔預設版面，是這個工具窗在
 /// 停靠面板裡多看得到幾筆結果的關鍵。
 /// </remarks>
@@ -57,8 +57,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
         SqlIcon.WholeWord, "全字", "本文命中前後都必須是詞界。");
     private readonly SqlSearchSegments _segments = new();
-    private readonly SqlSearchFilterButton _server = new("伺服器", SqlIcon.Server);
-    private readonly SqlSearchFilterButton _databases = new("資料庫", SqlIcon.Database, filterable: true);
+    private readonly SqlSearchFilterButton _server = new("伺服器", SqlIcon.Server, SqlSearchFilterMode.Single);
+    private readonly SqlSearchFilterButton _databases = new("資料庫", SqlIcon.Database, SqlSearchFilterMode.SearchableMultiple);
     private readonly SqlSearchFilterButton _kinds = new("種類", SqlIcon.Filter);
     private readonly SqlSearchChipBar _chips = new();
     private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
@@ -91,7 +91,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _catalogs = new SqlSearchCatalogs(services);
         _preview = new SqlSearchPreview(_catalogs);
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
-        _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Categories);
+        _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Providers);
         _model.UseCategories(_categoryOptions);
 
         VsThemeBrushes.Apply(this);
@@ -189,12 +189,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     }
 
     /// <summary>
-    /// 工具列：搜尋框吃滿剩餘空間，右邊依序是伺服器、資料庫、種類與比對位置。
+    /// 工具列兩層：第一層搜尋框吃滿剩餘空間並接排序與重新整理，第二層依序是伺服器、
+    /// 資料庫、種類與比對位置。
     /// </summary>
     /// <remarks>
     /// 比對位置是常駐的分段開關而不是下拉：它是切換最頻繁的一項，藏進下拉會多兩次點擊。
     /// 種類與資料庫反過來——十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果，
     /// 所以只在按鈕上留摘要。
+    ///
+    /// 伺服器是單選：換一台換的是整份目錄，理由見 <see cref="ConfigureServer"/>。
     /// </remarks>
     private FrameworkElement CreateToolbar()
     {
@@ -211,7 +214,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         });
 
         // 大小寫與全字修飾的是「這個字串怎麼比」，不是搜哪裡，所以留在搜尋框裡而不是工具列上。
-        var bar = SqlAssistChrome.CreateSearchBar(_search, clear, _matchCasing, _wholeWord);
+        // 用 CreateInputBar 而不是 CreateSearchBar：後者自帶下緣外距（SQL Memory 那邊直接疊在清單上），
+        // 而這裡的列距由工具列決定，兩處各留一份的症狀是第一層與第二層之間多出半列空白。
+        var bar = SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear, _matchCasing, _wholeWord);
         _matchCasing.Checked += (_, _) => Option(() => _model.MatchCasing = true);
         _matchCasing.Unchecked += (_, _) => Option(() => _model.MatchCasing = false);
         _wholeWord.Checked += (_, _) => Option(() => _model.WholeWord = true);
@@ -238,7 +243,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             Changed(immediate: true);
         });
 
-        // 排序與重新整理排在分段開關右邊：兩顆都是圖示鈕，窄窗跟著分段開關一起換到第二列。
+        // 排序與重新整理接在搜尋框右邊：兩顆作用在「這一份結果」，不是「要搜什麼」，
+        // 跟第二層那些縮小範圍的篩選不是同一件事。
         return new SqlSearchToolbar(bar, _segments, new[] { _server, _databases, _kinds }, _sort, _refresh);
     }
 
@@ -334,12 +340,40 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         });
     }
 
+    /// <summary>
+    /// 種類下拉：照 provider 宣告的群與順序分段。
+    /// </summary>
+    /// <remarks>
+    /// 分段的字取自 provider 的顯示字，一個 provider 只掛一次：目錄物件把收納桶切成第二群，
+    /// 但使用者要分的是「資料庫物件」與「SQL Agent 作業」這一層，同一個名字連掛兩次
+    /// 只會看起來像清單重複了。只有一個 provider 有分類時整份不分段——一條標題底下就是全部，
+    /// 那一列只是白佔一列。
+    /// </remarks>
     private void FillKinds()
     {
-        var options = new List<SqlSearchFilterOption>(_categoryOptions.Count);
+        var groups = new List<SqlSearchFilterGroup>();
+        var options = new List<SqlSearchFilterOption>();
+        var group = "";
+        var caption = "";
+        var titled = new HashSet<string>(StringComparer.Ordinal);
+
+        void Flush()
+        {
+            if (options.Count == 0) return;
+            groups.Add(new SqlSearchFilterGroup(caption, options.ToArray()));
+            options.Clear();
+        }
 
         foreach (var option in _categoryOptions)
         {
+            if (options.Count != 0 && !string.Equals(option.GroupId, group, StringComparison.Ordinal)) Flush();
+
+            if (options.Count == 0)
+            {
+                group = option.GroupId;
+                caption = titled.Add(option.GroupLabel) ? option.GroupLabel : "";
+            }
+
             var id = option.Id;
             options.Add(new SqlSearchFilterOption(option.Label, "", _model.IsCategorySelected(id), selected => Run(() =>
             {
@@ -348,7 +382,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             })));
         }
 
-        _kinds.SetOptions(new[] { new SqlSearchFilterGroup("", options) });
+        Flush();
+
+        // 只有一段時不掛標題；那一條字底下就是整份清單，說不出任何新資訊。
+        if (groups.Count == 1) groups[0] = new SqlSearchFilterGroup("", groups[0].Items);
+
+        _kinds.SetOptions(groups);
     }
 
     private void ConfigureDatabases()
@@ -423,9 +462,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         VsThemeBrushes.Apply(_server.PopupSurface);
         _server.OptionsRequested += (_, _) => Run(FillServer);
-        // 單選沒有「全選」可言；兩顆都只是重畫一次清單，不留按了沒有作用的開關。
-        _server.SelectAllRequested += (_, _) => Run(FillServer);
-        _server.ClearRequested += (_, _) => Run(() => SelectServer(null));
     }
 
     /// <summary>
