@@ -284,22 +284,105 @@ internal static partial class SqlAssistChrome
             .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
     }
 
-    /// <summary>工具列上的搜尋選項；與對話框的核取方塊同一個外觀，只是排成一列。</summary>
-    public static CheckBox CreateSearchOption(string label, string toolTip)
+    /// <summary>
+    /// 過濾面板的選項清單：recycling 虛擬化的 <see cref="ItemsControl"/>，捲軸沿用覆蓋式。
+    /// </summary>
+    /// <remarks>
+    /// 不用 <c>ScrollViewer</c> 疊 <c>StackPanel</c>：那個形狀在面板展開的那一刻，就把每一個
+    /// 資料庫、每一個分類都建成一顆 <see cref="CheckBox"/>，而面板一次只看得到十來列。
+    /// 樣板在這裡建一次給所有列共用，回收的容器換的只有 <c>DataContext</c>；快取的是
+    /// <see cref="ControlTemplate"/> 與 <see cref="DataTemplate"/>，不是已經有 parent 的元素。
+    ///
+    /// 標題與選項攤成同一份平的清單，不做巢狀分組：分組要另外開
+    /// <c>IsVirtualizingWhenGrouping</c> 才虛擬化得了，而那是一個很容易漏掉的開關。
+    /// </remarks>
+    /// <param name="maxHeight">面板限高；捲的是選項本身，搜尋框與命令鈕要一直看得見。</param>
+    public static ItemsControl CreateSearchOptionList(double maxHeight)
     {
-        var box = new CheckBox
+        var rows = new SearchOptionRowSelector(CreateSearchCaptionRow(), CreateSearchOptionRow(CreateCheckBoxTemplate()));
+        var list = new ItemsControl
         {
-            Content = label,
-            Template = CreateCheckBoxTemplate(),
-            FontFamily = InterfaceFont,
-            FontSize = DefaultMetrics.Caption,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 2, 10, 2),
-            ToolTip = toolTip
+            MaxHeight = maxHeight,
+            Focusable = false,
+            ItemTemplateSelector = rows,
+            ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(VirtualizingStackPanel))),
+            Template = CreateSearchOptionListTemplate()
         };
-        box.SetResourceReference(Control.ForegroundProperty, ThemeBrush.ListForeground);
-        AutomationProperties.SetName(box, label);
-        return box;
+        VirtualizingPanel.SetIsVirtualizing(list, true);
+        VirtualizingPanel.SetVirtualizationMode(list, VirtualizationMode.Recycling);
+        return list;
+    }
+
+    /// <summary>清單殼層：覆蓋式捲軸加 <see cref="ItemsPresenter"/>。</summary>
+    /// <remarks>
+    /// <c>CanContentScroll</c> 設在這裡而不是外面：它不是可繼承的屬性，虛擬化面板要當上
+    /// <c>IScrollInfo</c> 就得由這一層的 <see cref="ScrollViewer"/> 自己開。
+    /// </remarks>
+    private static ControlTemplate CreateSearchOptionListTemplate()
+    {
+        var scroll = new FrameworkElementFactory(typeof(ScrollViewer));
+        scroll.SetValue(ScrollViewer.CanContentScrollProperty, true);
+        scroll.SetValue(ScrollViewer.HorizontalScrollBarVisibilityProperty, ScrollBarVisibility.Disabled);
+        scroll.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Auto);
+        scroll.SetValue(UIElement.FocusableProperty, false);
+        scroll.SetValue(Control.TemplateProperty, CreateOverlayScrollTemplate());
+        scroll.AppendChild(new FrameworkElementFactory(typeof(ItemsPresenter)));
+        return new ControlTemplate(typeof(ItemsControl)) { VisualTree = scroll };
+    }
+
+    /// <summary>段落標題列；與 <see cref="CreateLabel"/> 同一種字重與色階，上緣間距由列自己帶。</summary>
+    private static DataTemplate CreateSearchCaptionRow()
+    {
+        var caption = new FrameworkElementFactory(typeof(TextBlock));
+        caption.SetBinding(TextBlock.TextProperty, new Binding(nameof(SqlSearchFilterRow.Label)));
+        caption.SetBinding(FrameworkElement.MarginProperty, new Binding(nameof(SqlSearchFilterRow.Margin)));
+        caption.SetValue(TextBlock.FontFamilyProperty, InterfaceFont);
+        caption.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
+        caption.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        caption.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
+        var template = new DataTemplate(typeof(SqlSearchFilterRow)) { VisualTree = caption };
+        template.Seal();
+        return template;
+    }
+
+    /// <summary>選項列；與對話框的核取方塊同一個外觀，狀態由繫結帶。</summary>
+    /// <remarks>
+    /// <see cref="ToggleButton.IsCheckedProperty"/> 走雙向繫結而不是 <c>Checked</c>／<c>Unchecked</c>：
+    /// 回收的容器換 DataContext 時繫結會把新值推進來，那不是使用者的動作，掛事件等於替他按一次。
+    /// </remarks>
+    private static DataTemplate CreateSearchOptionRow(ControlTemplate box)
+    {
+        var option = new FrameworkElementFactory(typeof(CheckBox));
+        option.SetValue(Control.TemplateProperty, box);
+        option.SetValue(Control.FontFamilyProperty, InterfaceFont);
+        option.SetValue(Control.FontSizeProperty, DefaultMetrics.Caption);
+        option.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        option.SetBinding(FrameworkElement.MarginProperty, new Binding(nameof(SqlSearchFilterRow.Margin)));
+        option.SetBinding(ContentControl.ContentProperty, new Binding(nameof(SqlSearchFilterRow.Label)));
+        option.SetBinding(FrameworkElement.ToolTipProperty, new Binding(nameof(SqlSearchFilterRow.ToolTip)));
+        option.SetBinding(AutomationProperties.NameProperty, new Binding(nameof(SqlSearchFilterRow.Label)));
+        option.SetBinding(ToggleButton.IsCheckedProperty,
+            new Binding(nameof(SqlSearchFilterRow.IsSelected)) { Mode = BindingMode.TwoWay });
+        option.SetResourceReference(Control.ForegroundProperty, ThemeBrush.ListForeground);
+        var template = new DataTemplate(typeof(SqlSearchFilterRow)) { VisualTree = option };
+        template.Seal();
+        return template;
+    }
+
+    /// <summary>兩種列共用一份平清單；回收的容器換 DataContext 時會重挑樣板。</summary>
+    private sealed class SearchOptionRowSelector : DataTemplateSelector
+    {
+        private readonly DataTemplate _caption;
+        private readonly DataTemplate _option;
+
+        public SearchOptionRowSelector(DataTemplate caption, DataTemplate option)
+        {
+            _caption = caption;
+            _option = option;
+        }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container) =>
+            item is SqlSearchFilterRow { IsCaption: true } ? _caption : _option;
     }
 
     /// <summary>搜尋框裡的選項開關（大小寫、全字）；切換鈕沿用分段開關那一段的外觀。</summary>

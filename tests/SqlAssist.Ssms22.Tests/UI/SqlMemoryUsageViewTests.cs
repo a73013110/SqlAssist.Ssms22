@@ -248,8 +248,8 @@ public sealed class SqlMemoryUsageViewTests
         {
             var palette = new ThemeResourceSet();
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.History, "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.Favorite, "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 2;
             var connection = SqlAssistChrome.CreateMemoryConnectionButton();

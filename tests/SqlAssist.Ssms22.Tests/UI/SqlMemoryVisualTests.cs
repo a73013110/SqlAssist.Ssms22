@@ -37,7 +37,7 @@ public sealed class SqlMemoryVisualTests
             var header = new StackPanel();
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
+            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateIconTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 0;
             var current = SqlAssistChrome.CreateMemoryConnectionButton();
@@ -539,8 +539,8 @@ public sealed class SqlMemoryVisualTests
             root.Resources[typeof(TextBlock)] = textStyle;
             root.Children.Add(button); root.Children.Add(iconButton); root.Children.Add(pills);
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.History, "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.Favorite, "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
             tabs.SelectedIndex = 0; root.Children.Add(tabs);
             var connection = new SqlConnectionFilter("資料庫", SqlIcon.Database); root.Children.Add(connection);
             foreach (var mode in new[] { "light", "dark", "high-contrast", "light-again" })
