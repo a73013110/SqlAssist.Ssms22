@@ -45,6 +45,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryPager _pager = new();
     private readonly SqlStateSurface _surface;
     private readonly Button _connection;
+    private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
+        SqlIcon.Refresh, "重新整理：重讀這一份清單。");
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _settleTimer;
@@ -83,14 +85,21 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _tabs.SelectedIndex = HistoryTab;
         _connection = SqlAssistChrome.CreateMemoryConnectionButton();
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
-        header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(_tabs, _connection, Button("重新整理", RefreshCurrentTab),
-            Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
+        header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(
+            _tabs, Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
         var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
-        var searchBar = SqlAssistChrome.CreateSearchBar(_search, clear);
-        header.Children.Add(searchBar);
+        _refresh.Click += (_, _) => SqlMemoryActions.Run(RefreshList, Report);
+        // 與 SQL Search 同一列規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份
+        // 清單的操作。History／Favorites 沒有排序（清單本來就依時間），所以那一格是目前連線。
+        var searchRow = new SqlInputRow(
+            SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _connection, _refresh)
+        {
+            Margin = new Thickness(0, 0, 0, 6)
+        };
+        header.Children.Add(searchRow);
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         // 狀態、期間與連線是第二層的三群，併在同一列：各佔一列的那一版在停靠面板裡等於
         // 永久少看一筆 SQL，而放不下的時候那一層本來就會整群換行。
@@ -101,8 +110,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         header.Children.Add(filters);
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         header.Children.Add(_hostStatus);
-        // 搜尋、篩選與「目前連線」只屬於清單分頁；切到用量分頁一起收起。
-        _listChrome = new UIElement[] { _connection, searchBar, filters };
+        // 搜尋、篩選與那一列右緣的操作只屬於清單分頁；切到用量分頁整列一起收起，
+        // 用量自己的重新整理在它的狀態卡片上。
+        _listChrome = new UIElement[] { searchRow, filters };
 
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
@@ -638,13 +648,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _loadFailure = "";
         Report("");
         _rows.Clear(); _detail.Select(null); UpdateActions();
-    }
-
-    /// <summary>工具列的重新整理作用在目前的分頁。</summary>
-    private void RefreshCurrentTab()
-    {
-        if (IsUsageSelected) _usagePanel.Reload();
-        else RefreshList();
     }
 
     /// <summary>重讀清單並保留選取；用量分頁期間也照常讀，回到清單時已是最新。</summary>

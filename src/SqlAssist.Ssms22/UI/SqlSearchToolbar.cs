@@ -19,12 +19,13 @@ internal enum SqlSearchToolbarMode
 }
 
 /// <summary>
-/// SQL Search 的工具列：第一層是搜尋框與排序／重新整理，第二層起是 filters 與分段開關。
+/// SQL Search 的工具列：第一層是共用的 <see cref="SqlInputRow"/>，第二層起是 filters 與分段開關。
 /// </summary>
 /// <remarks>
 /// 分兩層而不是擠成一列：搜尋框要吃滿剩餘寬度才打得下一段字串，而停靠在右側時可用寬度
 /// 只有 300 DIP 上下——三顆過濾按鈕加三段開關排在同一列，搜尋框會被壓到只剩十來個字元。
-/// 排序與重新整理留在第一層，它們作用在「這一份結果」而不是「要搜什麼」。
+/// 第一層的分工（框內是直接控制、框外右緣是作用在這一份結果的操作）由 <see cref="SqlInputRow"/>
+/// 定義，SQL Memory 用的是同一份。
 ///
 /// 第二層本身交給共用的 <see cref="SqlFilterBar"/>：分群、兩級分隔線、先收字再依群換行
 /// 與列首孤線都在那裡，SQL Memory 用的是同一份。分段開關是「比對哪裡」那一群，
@@ -32,18 +33,10 @@ internal enum SqlSearchToolbarMode
 /// </remarks>
 internal sealed class SqlSearchToolbar : Panel
 {
-    /// <summary>搜尋框無論如何保留的寬度；再窄下去它就不是一個可以打字的欄位了。</summary>
-    private const double MinSearchWidth = 96;
-
-    private const double ItemGap = 4;
-    private const double SearchGap = 8;
     private const double RowGap = 4;
 
-    private readonly FrameworkElement _search;
+    private readonly SqlInputRow _row;
     private readonly SqlFilterBar _filters;
-    private readonly IReadOnlyList<FrameworkElement> _trailing;
-    private double _searchWidth = MinSearchWidth;
-    private double _searchRow;
 
     /// <param name="filterGroups">
     /// 依<b>問題</b>分好的幾群過濾按鈕：搜哪裡（伺服器、資料庫）、搜什麼（種類）。
@@ -55,19 +48,17 @@ internal sealed class SqlSearchToolbar : Panel
         IReadOnlyList<IReadOnlyList<SqlFilterFlyout>> filterGroups,
         params FrameworkElement[] trailing)
     {
-        _search = search ?? throw new ArgumentNullException(nameof(search));
         if (segments is null) throw new ArgumentNullException(nameof(segments));
         if (filterGroups is null) throw new ArgumentNullException(nameof(filterGroups));
-        _trailing = trailing ?? throw new ArgumentNullException(nameof(trailing));
 
         var groups = new List<IReadOnlyList<FrameworkElement>>(filterGroups.Count + 1);
         foreach (var group in filterGroups) groups.Add(new List<FrameworkElement>(group));
         groups.Add(new FrameworkElement[] { segments });
 
+        _row = new SqlInputRow(search, trailing);
         _filters = new SqlFilterBar(groups.ToArray());
 
-        Children.Add(search);
-        foreach (var element in _trailing) Children.Add(element);
+        Children.Add(_row);
         Children.Add(_filters);
     }
 
@@ -79,49 +70,27 @@ internal sealed class SqlSearchToolbar : Panel
 
     protected override Size MeasureOverride(Size constraint)
     {
-        var available = double.IsInfinity(constraint.Width) || constraint.Width <= 0 ? 0 : constraint.Width;
-        var unbounded = new Size(double.PositiveInfinity, double.PositiveInfinity);
+        var available = double.IsInfinity(constraint.Width) || constraint.Width <= 0
+            ? double.PositiveInfinity
+            : constraint.Width;
 
-        var tail = 0d;
-        foreach (var element in _trailing)
-        {
-            element.Measure(unbounded);
-            tail += ItemGap + element.DesiredSize.Width;
-        }
+        _row.Measure(new Size(available, double.PositiveInfinity));
+        _filters.Measure(new Size(available, double.PositiveInfinity));
 
-        _searchWidth = available <= 0 ? MinSearchWidth : Math.Max(MinSearchWidth, available - SearchGap - tail);
-        _search.Measure(new Size(_searchWidth, double.PositiveInfinity));
-
-        _searchRow = _search.DesiredSize.Height;
-        foreach (var element in _trailing) _searchRow = Math.Max(_searchRow, element.DesiredSize.Height);
-
-        _filters.Measure(new Size(available <= 0 ? double.PositiveInfinity : available, double.PositiveInfinity));
-
-        var width = available > 0 ? available : Math.Max(_searchWidth + SearchGap + tail, _filters.DesiredSize.Width);
-        return new Size(width, _searchRow + RowGap + _filters.DesiredSize.Height);
+        var width = double.IsInfinity(available)
+            ? Math.Max(_row.DesiredSize.Width, _filters.DesiredSize.Width)
+            : available;
+        return new Size(width, _row.DesiredSize.Height + RowGap + _filters.DesiredSize.Height);
     }
 
     protected override Size ArrangeOverride(Size size)
     {
-        var x = PlaceAt(_search, 0, 0, _searchRow, _searchWidth) + SearchGap;
-        foreach (var element in _trailing) x = PlaceAt(element, x, 0, _searchRow) + ItemGap;
+        var width = Math.Max(size.Width, 0);
+        var first = _row.DesiredSize.Height;
+        _row.Arrange(new Rect(0, 0, width, first));
 
-        var second = _searchRow + RowGap;
-        _filters.Arrange(new Rect(0, second, Math.Max(size.Width, 0), Math.Max(size.Height - second, 0)));
+        var second = first + RowGap;
+        _filters.Arrange(new Rect(0, second, width, Math.Max(size.Height - second, 0)));
         return size;
-    }
-
-    /// <summary>把一個控制項擺進某一列，並回傳它的右緣。</summary>
-    /// <remarks>
-    /// 同一條視覺中心線：高度不同的控制項在列裡垂直置中，不是各自貼著上緣。
-    /// 置中用排版位置而不是每個控制項自己的 <c>VerticalAlignment</c>，
-    /// 否則字級或 DPI 一變就要回頭調每一個外距。
-    /// </remarks>
-    private static double PlaceAt(FrameworkElement element, double x, double top, double rowHeight, double? width = null)
-    {
-        var used = width ?? element.DesiredSize.Width;
-        var height = Math.Min(element.DesiredSize.Height, rowHeight);
-        element.Arrange(new Rect(x, top + (rowHeight - height) / 2, used, height));
-        return x + used;
     }
 }

@@ -1,6 +1,8 @@
 # 篩選列與過濾面板
 
 工具列上那一列篩選、它的分隔線、過濾面板與展開箭頭；SQL Memory 與 SQL Search 共用同一份。
+這一層只放**縮小搜尋範圍**的條件；修飾字串怎麼比的直接控制與作用在這一份結果的操作都在
+第一列，界線見[視窗骨架](ui-windows.md#第一列輸入列)。
 骨架與狀態表面見[視窗骨架](ui-windows.md)，視覺語言見 [UI 準則](ui-guidelines.md)，
 元件的唯一出處見[平台共用元件](shared-components-platform.md)，驗收項目在[視窗骨架](ui-windows.md#驗收)那一份裡。
 

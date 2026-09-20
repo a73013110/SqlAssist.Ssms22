@@ -124,7 +124,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _chips.OpenRequested += chip => Run(() =>
         {
             if (chip is not SqlSearchFilterChip filter) return;
-            PanelFor(filter.Kind)?.Open();
+            PanelFor(filter.Kind).Open();
         });
         header.Children.Add(_chips);
 
@@ -230,9 +230,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             Changed();
         });
 
-        // 大小寫與全字修飾的是「這個字串怎麼比」，不是搜哪裡，所以留在搜尋框裡而不是工具列上。
-        // 用 CreateInputBar 而不是 CreateSearchBar：後者自帶下緣外距（SQL Memory 那邊直接疊在清單上），
-        // 而這裡的列距由工具列決定，兩處各留一份的症狀是第一層與第二層之間多出半列空白。
+        // 大小寫與全字修飾的是「這個字串怎麼比」，不是搜哪裡，所以留在搜尋框裡而不是工具列上；
+        // 它們常駐可見，所以下面的已選條件列不再替它們畫一顆 chip。列距由工具列決定，
+        // 搜尋列自己不帶外距——兩處各留一份的症狀是第一層與第二層之間多出半列空白。
         var bar = SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear, _matchCasing, _wholeWord);
         _matchCasing.Checked += (_, _) => Option(() => _model.MatchCasing = true);
         _matchCasing.Unchecked += (_, _) => Option(() => _model.MatchCasing = false);
@@ -421,14 +421,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     /// <summary>這一種條件歸哪一顆按鈕管；chip 本體與空狀態的出口都走這裡。</summary>
     /// <remarks>
-    /// 大小寫與全字沒有面板——它們是搜尋框裡的開關，常駐可見，chip 本體因此按不下去。
+    /// 每一個維度都有面板，所以這裡沒有「找不到」那一種回答：上 chip 列的條件就是這三個。
+    /// 大小寫與全字是搜尋框裡常駐可見的開關，不是清得掉的條件，它們不上那一列。
     /// </remarks>
-    private SqlFilterFlyout? PanelFor(SqlSearchFilterKind kind) => kind switch
+    private SqlFilterFlyout PanelFor(SqlSearchFilterKind kind) => kind switch
     {
         SqlSearchFilterKind.Server => _server,
         SqlSearchFilterKind.Database => _databases,
         SqlSearchFilterKind.Category => _kinds,
-        _ => null
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "沒有這個維度的過濾面板。")
     };
 
     private void ConfigureDatabases()
@@ -768,7 +769,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var signature = string.Join("\n", chips.Select(chip => chip.Label));
         if (string.Equals(signature, _chipSignature, StringComparison.Ordinal)) return;
         _chipSignature = signature;
-        _chips.SetChips(chips, chip => chip.Label, chip => chip.HasPanel);
+        _chips.SetChips(chips, chip => chip.Label);
     }
 
     private string Label(string categoryId) =>

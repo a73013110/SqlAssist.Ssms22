@@ -138,9 +138,14 @@ internal sealed class SqlSearchChipBar : ContentControl
     /// <summary>按下 chip 本體；宿主據此打開那個維度的過濾面板。</summary>
     public event Action<object>? OpenRequested;
 
-    /// <summary>換一整列 chip；空的就整列收起。</summary>
-    /// <param name="canOpen">這顆 chip 的本體按得下去（有自己的面板）；null 表示都不能按。</param>
-    public void SetChips<T>(IReadOnlyList<T> chips, Func<T, string> label, Func<T, bool>? canOpen = null) where T : class
+    /// <summary>
+    /// 換一整列 chip；空的就整列收起。
+    /// </summary>
+    /// <remarks>
+    /// 每一顆都開得了自己的面板，所以沒有「這一顆按不下去」那個分支：上這一列的條件就是
+    /// 有面板、清得掉的那幾個維度，常駐可見的開關（大小寫、全字）本來就不該再畫一顆。
+    /// </remarks>
+    public void SetChips<T>(IReadOnlyList<T> chips, Func<T, string> label) where T : class
     {
         if (chips is null) throw new ArgumentNullException(nameof(chips));
         if (label is null) throw new ArgumentNullException(nameof(label));
@@ -149,12 +154,10 @@ internal sealed class SqlSearchChipBar : ContentControl
 
         foreach (var chip in chips)
         {
-            var text = label(chip);
-            var open = canOpen?.Invoke(chip) == true;
             var element = SqlAssistChrome.CreateFilterChip(
-                text, out var remove, out var openButton, open ? "：開啟面板調整" : null);
+                label(chip), "：開啟面板調整", out var remove, out var open);
             remove.Click += (_, _) => RemoveRequested?.Invoke(chip);
-            if (openButton is not null) openButton.Click += (_, _) => OpenRequested?.Invoke(chip);
+            open.Click += (_, _) => OpenRequested?.Invoke(chip);
             _strip.Children.Add(element);
         }
 

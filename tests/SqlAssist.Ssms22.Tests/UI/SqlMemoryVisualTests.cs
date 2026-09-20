@@ -61,12 +61,16 @@ public sealed class SqlMemoryVisualTests
             foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateIconTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 0;
-            var current = SqlAssistChrome.CreateMemoryConnectionButton();
-            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, current,
-                SqlAssistChrome.CreateButton("重新整理", metrics), SqlAssistChrome.CreateButton("設定", metrics));
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, SqlAssistChrome.CreateButton("設定", metrics));
             header.Children.Add(toolbar);
             var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
-            header.Children.Add(SqlAssistChrome.CreateSearchBar(search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")));
+            // 搜尋列右緣接目前連線與重新整理，與 SQL Search 的排序／重新整理同一種排法。
+            var searchRow = new SqlInputRow(
+                SqlAssistChrome.CreateInputBar(SqlIcon.Search, search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")),
+                SqlAssistChrome.CreateMemoryConnectionButton(),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理"))
+            { Margin = new Thickness(0, 0, 0, 6) };
+            header.Children.Add(searchRow);
             var server = MemoryFacet("伺服器", SqlIcon.Server, "LibraryServer", "ArchiveServer", "BranchServer");
             var database = MemoryFacet("資料庫", SqlIcon.Database, "Library", "Archive");
             // 狀態、期間與連線三群併成同一列；分隔線與換行都由共用的篩選列負責。
@@ -157,7 +161,8 @@ public sealed class SqlMemoryVisualTests
                         Assert.Equal(28, button.ActualHeight);
                     }
                     Assert.Equal(0, tabs.TranslatePoint(new Point(), toolbar).X);
-                    var settings = (Button)toolbarActions.Children[2];
+                    // 分頁列右邊只剩設定；目前連線與重新整理跟著搜尋列走。
+                    var settings = (Button)toolbarActions.Children[0];
                     // 三個分頁加上工具列按鈕在最窄的工具窗也維持單列：放不下就收起分頁文字，不折成兩行。
                     Assert.InRange(tabs.ActualHeight, 1, 32);
                     Assert.InRange(Math.Abs(settings.TranslatePoint(new Point(settings.ActualWidth, 0), toolbar).X - toolbar.ActualWidth), 0, 0.5);
@@ -675,15 +680,31 @@ public sealed class SqlMemoryVisualTests
     {
         WpfTest.Run(() =>
         {
-            var button = SqlAssistChrome.CreateMemoryConnectionButton();
+            // 設定的圖示與文字由工具列掛上；目前連線只有圖示，字留在 Tooltip 與自動化名稱。
+            var settings = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
+            var tabs = new TabControl();
+            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
+            tabs.SelectedIndex = 0;
+            var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, settings);
+            var button = settings;
             var content = (Panel)button.Content;
             content.Children.Add(SqlAssistChrome.CreateChevron());
-            button.Measure(new Size(200, 40)); button.Arrange(new Rect(0, 0, 200, 40)); button.UpdateLayout();
+            // 量兩次：工具列在 SizeChanged 裡重算文字收放並重新 invalidate，第一次之後樹還沒排完。
+            for (var pass = 0; pass < 2; pass++)
+            {
+                toolbar.Measure(new Size(600, 40)); toolbar.Arrange(new Rect(0, 0, 600, 40)); toolbar.UpdateLayout();
+            }
             button.Foreground = Brushes.Lime;
             button.UpdateLayout();
             Assert.Same(Brushes.Lime, Descendants<System.Windows.Shapes.Path>(button).Single().Stroke);
             Assert.Same(Brushes.Lime, Descendants<TextBlock>(button).Single().Foreground);
-            Assert.Equal(SqlIcon.Connection, Descendants<SqlIconImage>(button).Single().Icon);
+            Assert.Equal(SqlIcon.Settings, Descendants<SqlIconImage>(button).Single().Icon);
+
+            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
+            connection.Measure(new Size(200, 40)); connection.Arrange(new Rect(0, 0, 200, 40)); connection.UpdateLayout();
+            Assert.Equal(SqlIcon.Connection, Descendants<SqlIconImage>(connection).Single().Icon);
+            Assert.Empty(Descendants<TextBlock>(connection));
+            Assert.Equal("以目前連線篩選", System.Windows.Automation.AutomationProperties.GetName(connection));
         });
     }
 
@@ -712,8 +733,9 @@ public sealed class SqlMemoryVisualTests
         WpfTest.Run(() =>
         {
             var palette = new ThemeResourceSet();
-            var button = SqlAssistChrome.CreateMemoryConnectionButton();
-            var iconButton = SqlAssistChrome.CreateIconButton(SqlIcon.Settings, "設定");
+            var button = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
+            button.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "目前連線");
+            var iconButton = SqlAssistChrome.CreateMemoryConnectionButton();
             var pills = new SqlPillSelector(("草稿", SqlIcon.Edit), ("執行", SqlIcon.Execute));
             var root = new StackPanel(); root.Resources.MergedDictionaries.Add(palette.Resources);
             // SSMS 宿主可在呈現器／文字上指定前景，不能只在沒有隱含樣式的純 WPF 樹驗證。
