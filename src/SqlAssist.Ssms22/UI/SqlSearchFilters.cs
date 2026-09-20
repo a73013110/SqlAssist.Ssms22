@@ -148,6 +148,7 @@ internal sealed class SqlSearchFilterButton : Button
     private readonly TextBlock _label = SqlAssistChrome.CreateButtonText("");
     private readonly TextBlock _summary = SqlAssistChrome.CreateButtonText("");
     private readonly ItemsControl _options;
+    private readonly SqlBusyNotice _notice = new();
     private readonly TextBox? _filter;
     private IReadOnlyList<SqlSearchFilterGroup> _groups = Array.Empty<SqlSearchFilterGroup>();
     private readonly Popup _popup;
@@ -202,6 +203,8 @@ internal sealed class SqlSearchFilterButton : Button
             panel.Children.Add(commands);
         }
 
+        // 提示在清單上方：清單本身可能是空的，而空清單底下的一行字要滑到底才看得到。
+        panel.Children.Add(_notice);
         panel.Children.Add(_options);
 
         var surface = SqlAssistChrome.CreateSurface(panel);
@@ -248,7 +251,14 @@ internal sealed class SqlSearchFilterButton : Button
     /// <summary>面板開著沒有；單選選完自動關閉由它驗。</summary>
     public bool IsOpen => _popup.IsOpen;
 
-    /// <summary>面板要開了；宿主在這時候才去填選項，不為了一個下拉先連一次資料庫。</summary>
+    /// <summary>
+    /// 面板要開了；宿主在這時候才去填選項。
+    /// </summary>
+    /// <remarks>
+    /// 開下拉<b>就是</b>使用者在要求這份清單，所以宿主可以在這裡去問資料庫；不可以的是
+    /// 在沒有人打開它的時候先問一輪。慢的那一份走 <see cref="SetNotice"/> 先說一句，
+    /// 面板不會為了等它而空著。
+    /// </remarks>
     public event EventHandler? OptionsRequested;
 
     /// <summary>全選；單選面板上沒有這顆鈕，也不會發這個事件。</summary>
@@ -301,7 +311,26 @@ internal sealed class SqlSearchFilterButton : Button
         ApplyFilter();
     }
 
-    private void Open()
+    /// <summary>
+    /// 清單上方那一行狀態：正在讀取，或這一份為什麼不完整。
+    /// </summary>
+    /// <param name="message">空字串收起整列。</param>
+    /// <param name="busy">還在等清單；轉圈只在這時候跑。</param>
+    /// <remarks>
+    /// 面板不因為清單還沒到就空著：空面板與「這台伺服器上一個都沒有」在畫面上一模一樣，
+    /// 而使用者會關掉它去別的地方找。
+    /// </remarks>
+    public void SetNotice(string message, bool busy = false) => _notice.Show(message, busy);
+
+    /// <summary>
+    /// 打開面板，與使用者自己按下這顆按鈕走同一條路。
+    /// </summary>
+    /// <remarks>
+    /// 宿主在別處（空狀態那顆按鈕）要讓使用者挑同一份清單時用它，不另外做一份選單：
+    /// 兩份清單的下場是其中一邊漏掉分段、主題或選完關閉，而那種漏只在深色主題或
+    /// 鍵盤操作時才看得出來。
+    /// </remarks>
+    public void Open()
     {
         OptionsRequested?.Invoke(this, EventArgs.Empty);
         _popup.IsOpen = true;

@@ -44,29 +44,34 @@ internal readonly struct SqlSurfaceState : IEquatable<SqlSurfaceState>
 
     private readonly string? _title;
     private readonly string? _detail;
+    private readonly string? _action;
 
-    private SqlSurfaceState(SqlSurfaceKind kind, string? title, string? detail)
+    private SqlSurfaceState(SqlSurfaceKind kind, string? title, string? detail, string? action)
     {
         Kind = kind;
         _title = title;
         _detail = detail;
+        _action = action;
     }
 
     /// <summary>預設值就是「沒有東西要說」；沒有設定過的表面不會蓋住內容。</summary>
     public static SqlSurfaceState None => default;
 
-    public static SqlSurfaceState Loading => new(SqlSurfaceKind.Loading, null, null);
+    public static SqlSurfaceState Loading => new(SqlSurfaceKind.Loading, null, null, null);
 
     /// <param name="title">例如「沒有相符項目」；空字串等於沒有東西要說。</param>
     /// <param name="detail">下一步的提示，例如放寬期間或清除搜尋。</param>
-    public static SqlSurfaceState Empty(string title, string detail = "") =>
-        string.IsNullOrEmpty(title) ? None : new SqlSurfaceState(SqlSurfaceKind.Empty, title, detail);
+    /// <param name="action">下一步做得到的話，那顆按鈕上的字；空字串表示這一句只是說明。</param>
+    public static SqlSurfaceState Empty(string title, string detail = "", string action = "") =>
+        string.IsNullOrEmpty(title) ? None : new SqlSurfaceState(SqlSurfaceKind.Empty, title, detail, action);
 
-    public static SqlSurfaceState Unreadable(string detail) =>
-        new(SqlSurfaceKind.Unreadable, UnreadableTitle, detail);
+    /// <param name="action">見 <see cref="Empty"/>；連不上指名的那一台時，那一步是回到別的範圍。</param>
+    public static SqlSurfaceState Unreadable(string detail, string action = "") =>
+        new(SqlSurfaceKind.Unreadable, UnreadableTitle, detail, action);
 
+    /// <remarks>權限不足沒有動作：擴充功能給不了權限，唯一的下一步在這個視窗外面。</remarks>
     public static SqlSurfaceState Denied(string detail) =>
-        new(SqlSurfaceKind.Denied, DeniedTitle, detail);
+        new(SqlSurfaceKind.Denied, DeniedTitle, detail, null);
 
     public SqlSurfaceKind Kind { get; }
 
@@ -76,18 +81,32 @@ internal readonly struct SqlSurfaceState : IEquatable<SqlSurfaceState>
     /// <summary>抬頭下方的淡色說明；沒有時為空字串。</summary>
     public string Detail => _detail ?? "";
 
+    /// <summary>
+    /// 表面上那顆按鈕的字；空字串表示這一種狀態沒有做得到的下一步。
+    /// </summary>
+    /// <remarks>
+    /// 只帶標籤不帶委派：這是值型別，呈現層拿它比對「換了一種狀態沒有」才決定要不要重播淡入，
+    /// 而每次新建的 lambda 一律不相等——帶著它的症狀是每一批結果都讓那塊字閃一下。
+    /// 按下去要做什麼由宿主接 <c>ActionRequested</c> 決定；狀態本身仍然只描述要說的話。
+    /// </remarks>
+    public string ActionLabel => _action ?? "";
+
+    /// <summary>這一種狀態帶著一個做得到的下一步。</summary>
+    public bool HasAction => ActionLabel.Length != 0;
+
     /// <summary>讀不到與無權限共用同一個出口；呈現只分抬頭，不分版面。</summary>
     public bool IsUnavailable => Kind is SqlSurfaceKind.Unreadable or SqlSurfaceKind.Denied;
 
     public bool Equals(SqlSurfaceState other) =>
         Kind == other.Kind &&
         string.Equals(Title, other.Title, StringComparison.Ordinal) &&
-        string.Equals(Detail, other.Detail, StringComparison.Ordinal);
+        string.Equals(Detail, other.Detail, StringComparison.Ordinal) &&
+        string.Equals(ActionLabel, other.ActionLabel, StringComparison.Ordinal);
 
     public override bool Equals(object? obj) => obj is SqlSurfaceState other && Equals(other);
 
     public override int GetHashCode() =>
-        ((int)Kind * 397) ^ (Title.GetHashCode() * 31) ^ Detail.GetHashCode();
+        ((int)Kind * 397) ^ (Title.GetHashCode() * 31) ^ (Detail.GetHashCode() * 17) ^ ActionLabel.GetHashCode();
 
     public static bool operator ==(SqlSurfaceState left, SqlSurfaceState right) => left.Equals(right);
 
