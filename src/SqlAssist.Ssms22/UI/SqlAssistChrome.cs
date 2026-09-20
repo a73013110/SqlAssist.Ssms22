@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
@@ -898,6 +899,16 @@ internal static partial class SqlAssistChrome
         template.Triggers.Add(selected);
 
         return template;
+    }
+
+    /// <summary>圖示加標籤的一個分頁；分頁本身沒有領域語意，哪個工具窗都用同一顆。</summary>
+    public static TabItem CreateIconTab(SqlIcon icon, string label)
+    {
+        var style = new Style(typeof(TabItem));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
+        // Tooltip 是窄窗收起分頁文字之後仍讀得到名稱的地方。
+        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
+        AutomationProperties.SetName(tab, label); return tab;
     }
 
     /// <summary>欄位標題：一條細線把它跟資料分開，字比資料更小也更淡。</summary>

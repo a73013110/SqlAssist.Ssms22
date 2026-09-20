@@ -81,22 +81,13 @@ internal static partial class SqlAssistChrome
         return content;
     }
 
-    public static TabItem CreateMemoryTab(SqlIcon icon, string label)
-    {
-        var style = new Style(typeof(TabItem));
-        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
-        // Tooltip 是窄窗收起分頁文字之後仍讀得到名稱的地方。
-        var tab = new TabItem { Header = CreateMemoryLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
-        AutomationProperties.SetName(tab, label); return tab;
-    }
-
     /// <summary>用量分頁的名稱；與 History／Favorites 同樣用英文，分頁、Tooltip 與警示文字共用。</summary>
     public const string UsageTabLabel = "Usage";
 
     /// <summary>用量分頁：與 History／Favorites 同一種分頁，圖示右上角多一個容量分級點。</summary>
     public static TabItem CreateMemoryUsageTab()
     {
-        var tab = CreateMemoryTab(SqlIcon.Usage, UsageTabLabel);
+        var tab = CreateIconTab(SqlIcon.Usage, UsageTabLabel);
         var label = (DockPanel)tab.Header;
         var icon = (FrameworkElement)label.Children[0];
         label.Children.RemoveAt(0);

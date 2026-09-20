@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -124,11 +125,15 @@ internal sealed class SqlSearchFilterButton : Button
 {
     private readonly TextBlock _label = SqlAssistChrome.CreateMemoryButtonText("");
     private readonly TextBlock _summary = SqlAssistChrome.CreateMemoryButtonText("");
-    private readonly StackPanel _options = new();
+    private readonly ItemsControl _options = SqlAssistChrome.CreateSearchOptionList(OptionsHeight);
     private readonly TextBox? _filter;
+    private IReadOnlyList<SqlSearchFilterGroup> _groups = Array.Empty<SqlSearchFilterGroup>();
     private readonly Popup _popup;
     private readonly string _name;
     private bool _compact;
+
+    /// <summary>選項區的高度上限；捲的是選項本身，搜尋框與兩顆命令鈕要一直看得見。</summary>
+    private const double OptionsHeight = 280;
 
     /// <param name="filterable">面板上要不要有搜尋框；名稱可能上百個的清單才需要。</param>
     public SqlSearchFilterButton(string name, SqlIcon icon, bool filterable = false)
@@ -169,10 +174,7 @@ internal sealed class SqlSearchFilterButton : Button
         commands.Children.Add(CreateCommand(SqlIcon.Clear, "清除", () => ClearRequested?.Invoke(this, EventArgs.Empty)));
         panel.Children.Add(commands);
 
-        // 面板限高，捲的是選項本身而不是整個彈出面板；搜尋框與兩顆命令鈕要一直看得見。
-        var host = new ScrollViewer { Content = _options, MaxHeight = 280 };
-        SqlAssistChrome.ApplyOverlayScroll(host);
-        panel.Children.Add(host);
+        panel.Children.Add(_options);
 
         var surface = SqlAssistChrome.CreateSurface(panel);
         surface.Padding = new Thickness(8);
@@ -246,34 +248,7 @@ internal sealed class SqlSearchFilterButton : Button
     /// <param name="groups">每一段的標題與內容；標題空字串表示不分段。</param>
     public void SetOptions(IReadOnlyList<SqlSearchFilterGroup> groups)
     {
-        if (groups is null) throw new ArgumentNullException(nameof(groups));
-
-        _options.Children.Clear();
-
-        foreach (var group in groups)
-        {
-            if (group.Items.Count == 0) continue;
-
-            if (group.Title.Length != 0)
-            {
-                var caption = SqlAssistChrome.CreateLabel(group.Title, SqlAssistChrome.DefaultMetrics);
-                caption.Margin = new Thickness(0, _options.Children.Count == 0 ? 0 : 8, 0, 4);
-                _options.Children.Add(caption);
-            }
-
-            foreach (var item in group.Items)
-            {
-                var box = SqlAssistChrome.CreateSearchOption(item.Label, item.ToolTip);
-                box.Margin = new Thickness(0, 2, 0, 2);
-                box.IsChecked = item.IsSelected;
-                box.Tag = item.Label;
-                var selected = item.Selected;
-                box.Checked += (_, _) => selected(true);
-                box.Unchecked += (_, _) => selected(false);
-                _options.Children.Add(box);
-            }
-        }
-
+        _groups = groups ?? throw new ArgumentNullException(nameof(groups));
         ApplyFilter();
     }
 
@@ -294,19 +269,34 @@ internal sealed class SqlSearchFilterButton : Button
         return button;
     }
 
-    /// <summary>搜尋框只收起不相符的選項，不重建它們：重建會把正握著鍵盤焦點的那一個換掉。</summary>
+    /// <summary>
+    /// 依搜尋字重排列清單；一段裡一個都不相符時，連那一段的標題也不畫。
+    /// </summary>
+    /// <remarks>
+    /// 虛擬化之後不能再靠 <see cref="Visibility"/> 收起不相符的選項——收起來的那幾列仍然要
+    /// 先建出來，而那正是這個面板要避開的事。換清單不會搶走鍵盤焦點：會走到這裡的只有搜尋框的
+    /// <c>TextChanged</c> 與宿主重填選項，兩者發生時焦點都不在選項上。
+    /// </remarks>
     private void ApplyFilter()
     {
         var pattern = _filter?.Text ?? "";
+        var rows = new List<SqlSearchFilterRow>();
 
-        foreach (var child in _options.Children)
+        foreach (var group in _groups)
         {
-            if (child is not CheckBox box) continue;
-            box.Visibility = pattern.Length == 0 || box.Tag is string label &&
-                label.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+            var start = rows.Count;
+
+            foreach (var item in group.Items)
+            {
+                if (pattern.Length != 0 && item.Label.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                rows.Add(SqlSearchFilterRow.Option(item));
+            }
+
+            if (rows.Count == start) continue;
+            if (group.Title.Length != 0) rows.Insert(start, SqlSearchFilterRow.Caption(group.Title, first: start == 0));
         }
+
+        _options.ItemsSource = rows;
     }
 }
 
@@ -322,6 +312,60 @@ internal sealed class SqlSearchFilterGroup
     public string Title { get; }
 
     public IReadOnlyList<SqlSearchFilterOption> Items { get; }
+}
+
+/// <summary>
+/// 攤平後的一列：一段的標題，或一個勾選項。
+/// </summary>
+/// <remarks>
+/// 虛擬化要的是一份平的清單，所以標題與選項同型。狀態留在這裡而不是留在
+/// <see cref="SqlSearchFilterOption"/>：後者是宿主每次重填時新建的一份契約，
+/// 這一列才是繫結寫得回去的那一端。
+/// </remarks>
+internal sealed class SqlSearchFilterRow : INotifyPropertyChanged
+{
+    private readonly Action<bool>? _selected;
+    private bool _isSelected;
+
+    private SqlSearchFilterRow(string label, string toolTip, Thickness margin, bool isCaption, bool isSelected, Action<bool>? selected)
+    {
+        Label = label;
+        ToolTip = toolTip;
+        Margin = margin;
+        IsCaption = isCaption;
+        _isSelected = isSelected;
+        _selected = selected;
+    }
+
+    /// <param name="first">整份清單的第一列不留上緣間距，否則面板頂端會多出一條空白。</param>
+    public static SqlSearchFilterRow Caption(string title, bool first) =>
+        new(title, "", new Thickness(0, first ? 0 : 8, 0, 4), isCaption: true, isSelected: false, selected: null);
+
+    public static SqlSearchFilterRow Option(SqlSearchFilterOption option) =>
+        new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected, option.Selected);
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Label { get; }
+
+    public string ToolTip { get; }
+
+    public Thickness Margin { get; }
+
+    public bool IsCaption { get; }
+
+    /// <summary>勾或取消勾；寫進來的只會是使用者的動作，宿主換選項是換掉整份列清單。</summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            _selected?.Invoke(value);
+        }
+    }
 }
 
 /// <summary>過濾面板裡的一個勾選項。</summary>

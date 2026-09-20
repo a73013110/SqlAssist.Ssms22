@@ -72,8 +72,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var root = new DockPanel { Margin = new Thickness(8) };
         var header = new StackPanel();
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
-        _tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.History, "History"));
-        _tabs.Items.Add(SqlAssistChrome.CreateMemoryTab(SqlIcon.Favorite, "Favorites"));
+        _tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
+        _tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
         _tabs.Items.Add(_usageTab);
         _tabs.SelectedIndex = HistoryTab;
         _connection = SqlAssistChrome.CreateMemoryConnectionButton();

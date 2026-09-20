@@ -246,7 +246,7 @@ public sealed class SqlSearchVisualTests
 
             var card = (ControlTemplate)SqlAssistChrome.CreateSqlCardStyle(motion: false, removable: false).Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
-            var option = SqlAssistChrome.CreateSearchOption("大小寫", "只取大小寫完全相同的本文命中。").Template;
+            var option = SqlAssistChrome.CreateCheckBoxTemplate();
             var segment = (ControlTemplate)SqlAssistChrome.CreateSegmentToggleStyle().Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
 
@@ -374,6 +374,65 @@ public sealed class SqlSearchVisualTests
                 new SearchBadge("LIBSRV", SearchBadge.ServerIcon),
                 new SearchBadge("LibArchive", SearchBadge.DatabaseIcon)
             });
+    }
+
+    [Fact]
+    public void 過濾面板只建看得到的選項並保住已勾的條件()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var databases = new SqlSearchFilterButton("資料庫", SqlIcon.Database, filterable: true);
+            var selected = new List<(string Name, bool On)>();
+            var names = Enumerable.Range(1, 400).Select(index => "Lib_Reader" + index).ToArray();
+
+            databases.SetOptions(new[]
+            {
+                new SqlSearchFilterGroup("使用者資料庫", names
+                    .Select(name => new SqlSearchFilterOption(name, "", name == "Lib_Reader7", on => selected.Add((name, on))))
+                    .ToArray()),
+                // 一個都不相符的段落不畫標題；空標題掛在那裡會看起來像有內容卻少了幾列。
+                new SqlSearchFilterGroup("系統資料庫", Array.Empty<SqlSearchFilterOption>())
+            });
+
+            // 面板的內容不在宿主的視覺樹上，主題資源由宿主套一次；量測也得自己來。
+            var surface = databases.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            surface.Measure(new Size(320, double.PositiveInfinity));
+            surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+            surface.UpdateLayout();
+
+            var boxes = Descendants<CheckBox>(surface).ToArray();
+            // 400 個名稱只建得出面板裝得下的那十幾顆；捲軸與已勾的狀態都還在。
+            Assert.InRange(boxes.Length, 1, 40);
+            Assert.Contains(boxes, box => Equals(box.Content, "Lib_Reader1"));
+            Assert.DoesNotContain(boxes, box => Equals(box.Content, "Lib_Reader400"));
+            Assert.Single(Descendants<TextBlock>(surface), text => text.Text == "使用者資料庫");
+            Assert.DoesNotContain(Descendants<TextBlock>(surface), text => text.Text == "系統資料庫");
+
+            var seven = boxes.Single(box => Equals(box.Content, "Lib_Reader7"));
+            Assert.True(seven.IsChecked);
+            Assert.Empty(selected);
+
+            // 面板不在宿主的視覺樹上，晚一步才建出來的列仍要讀得到宿主套上的那一份筆刷。
+            Assert.All(boxes, box => Assert.Same(palette.Resources[ThemeBrush.ListForeground], box.Foreground));
+
+            // 勾一顆就是一次使用者動作；回收容器換 DataContext 不算，所以下面重填不該再記一筆。
+            boxes.Single(box => Equals(box.Content, "Lib_Reader1")).IsChecked = true;
+            Assert.Equal(new[] { ("Lib_Reader1", true) }, selected);
+
+            databases.SetOptions(new[]
+            {
+                new SqlSearchFilterGroup("使用者資料庫", names
+                    .Select(name => new SqlSearchFilterOption(name, "", name is "Lib_Reader1" or "Lib_Reader7", _ => { }))
+                    .ToArray())
+            });
+            surface.UpdateLayout();
+            Assert.Single(selected);
+            Assert.True(Descendants<CheckBox>(surface).Single(box => Equals(box.Content, "Lib_Reader1")).IsChecked);
+        });
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
