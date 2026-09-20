@@ -119,6 +119,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             if (filter.Kind == SqlSearchFilterKind.Server) SelectServer(null);
             else if (_model.Remove(filter)) FiltersChanged();
         });
+        // chip 本體開的是那個維度自己的面板：一顆 chip 說的是「勾了三個」，而「是哪三個」
+        // 的答案本來就在面板裡，再畫三顆 chip 等於把面板抄到工具列下面。
+        _chips.OpenRequested += chip => Run(() =>
+        {
+            if (chip is not SqlSearchFilterChip filter) return;
+            PanelFor(filter.Kind)?.Open();
+        });
         header.Children.Add(_chips);
 
         _status.TextWrapping = TextWrapping.Wrap;
@@ -337,19 +344,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private void ConfigureKinds()
     {
         VsThemeBrushes.Apply(_kinds.PopupSurface);
+        // 種類沒有全選也沒有清除：全部就是第一列那個預設，而全選會送出一份與它結果相同、
+        // chip 卻完全不同的條件——使用者分不出自己現在是哪一種。
         _kinds.OptionsRequested += (_, _) => Run(FillKinds);
-        _kinds.SelectAllRequested += (_, _) => Run(() =>
-        {
-            var changed = false;
-            foreach (var option in _categoryOptions) changed |= _model.SetCategorySelected(option.Id, selected: true);
-            if (changed) { FillKinds(); FiltersChanged(); }
-        });
-        _kinds.ClearRequested += (_, _) => Run(() =>
-        {
-            if (!_model.ClearCategories()) return;
-            FillKinds();
-            FiltersChanged();
-        });
     }
 
     /// <summary>
@@ -390,6 +387,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             options.Add(new SqlSearchFilterOption(option.Label, "", _model.IsCategorySelected(id), selected => Run(() =>
             {
                 if (!_model.SetCategorySelected(id, selected)) return;
+                // 第一列那個「全部」跟著變，但不重建整份清單：使用者正在連勾好幾個。
+                _kinds.SyncEmptyOption(_model.CategoryIds.Count == 0);
                 FiltersChanged();
             })));
         }
@@ -399,8 +398,33 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 只有一段時不掛標題；那一條字底下就是整份清單，說不出任何新資訊。
         if (groups.Count == 1) groups[0] = new SqlSearchFilterGroup("", groups[0].Items);
 
+        // 第一列是「全部」，與按鈕摘要共用同一份字：摘要寫著「全部」而清單上一個勾都沒有時，
+        // 使用者會以為自己把條件弄丟了，或以為這個下拉壞了。
+        _kinds.SetEmptyOption(new SqlSearchFilterOption(
+            SqlSearchBrowserModel.AllCategoriesLabel,
+            "不限物件種類；每一個 provider 宣告的種類都搜。",
+            _model.CategoryIds.Count == 0,
+            selected => Run(() =>
+            {
+                if (!selected || !_model.ClearCategories()) return;
+                FiltersChanged();
+                Defer(FillKinds);
+            })));
+
         _kinds.SetOptions(groups);
     }
+
+    /// <summary>這一種條件歸哪一顆按鈕管；chip 本體與空狀態的出口都走這裡。</summary>
+    /// <remarks>
+    /// 大小寫與全字沒有面板——它們是搜尋框裡的開關，常駐可見，chip 本體因此按不下去。
+    /// </remarks>
+    private SqlSearchFilterButton? PanelFor(SqlSearchFilterKind kind) => kind switch
+    {
+        SqlSearchFilterKind.Server => _server,
+        SqlSearchFilterKind.Database => _databases,
+        SqlSearchFilterKind.Category => _kinds,
+        _ => null
+    };
 
     private void ConfigureDatabases()
     {
@@ -415,12 +439,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             foreach (var database in databases) changed |= _model.SetDatabaseSelected(database.Name, selected: true);
             FillDatabases(databases);
             if (changed) FiltersChanged();
-        });
-        _databases.ClearRequested += (_, _) => Run(() =>
-        {
-            if (!_model.ClearDatabases()) return;
-            FillDatabases(_scopeDatabases.Items);
-            FiltersChanged();
         });
     }
 
@@ -455,6 +473,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private void FillDatabases(IReadOnlyList<SqlCatalogSearchDatabase> databases)
     {
+        // 清單回來的那一刻才知道連線預設是哪一個：物件總管那條連線的連線物件上沒有初始目錄，
+        // 而摘要與面板第一列都要說得出名字。
+        if (string.IsNullOrEmpty(_model.CurrentDatabase) && _scopeDatabases.CurrentName is { Length: > 0 } current)
+        {
+            _model.CurrentDatabase = current;
+            UpdateFilterChrome();
+        }
+
         var user = new List<SqlSearchFilterOption>();
         var system = new List<SqlSearchFilterOption>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -469,6 +495,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
                 selected => Run(() =>
                 {
                     if (!_model.SetDatabaseSelected(database, selected)) return;
+                    _databases.SyncEmptyOption(_model.Databases.Count == 0);
                     FiltersChanged();
                 }));
             (isSystem ? system : user).Add(option);
@@ -476,6 +503,22 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         foreach (var database in _model.Databases) Add(database, SqlSearchBrowserModel.IsSystemDatabase(database));
         foreach (var database in databases) Add(database.Name, database.IsSystem);
+
+        // 第一列是「沒有指名」那個預設，與按鈕摘要共用同一份字；選它等於清掉整個維度，
+        // 所以面板上不另畫一顆「清除」。
+        _databases.SetEmptyOption(new SqlSearchFilterOption(
+            _model.ConnectionDefaultSummary(),
+            "不指名資料庫；只搜這條連線預設的那一個，不建任何額外索引。",
+            _model.Databases.Count == 0,
+            selected => Run(() =>
+            {
+                // 取消勾它不是一個範圍；面板那一列自己會彈回去，這裡只忽略。
+                if (!selected || !_model.ClearDatabases()) return;
+                FiltersChanged();
+                // 其餘幾列的勾要一起清掉，但重建整份清單得等這一次的繫結回寫結束：
+                // 在回寫途中換掉 ItemsSource 等於把正在發事件的那一顆核取方塊回收掉。
+                Defer(() => FillDatabases(_scopeDatabases.Items));
+            })));
 
         _databases.SetOptions(new[]
         {
@@ -648,6 +691,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _preview.InvalidateDefinitions();
         FillServer();
         ObserveConnection(reload: true);
+
+        // 指名一台之後直接把資料庫面板打開：物件總管那條連線的預設資料庫通常是 master，
+        // 而「搜整台的 master」幾乎不會是使用者要的範圍。下一步擺在眼前比讓他自己發現
+        // 範圍不對便宜得多，而那一次展開同時也問到了連線預設是哪一個。
+        // 換回查詢視窗時不開：那一條連線的資料庫就是他正在看的那一個。
+        if (server is not null && IsVisible) Defer(_databases.Open);
     }
 
     private void OnEditorChanged(object? sender, EventArgs args) =>
@@ -663,9 +712,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var catalog = _catalogs.Resolve();
         _providers.UseCatalog(catalog);
         _model.HasConnection = catalog is not null;
-        // 兩顆按鈕的摘要都要說得出跟著誰、搜的是哪一個；「查詢視窗」與「目前連線」單獨出現時
-        // 分不出是沒連線，還是只搜得到 master。
-        _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName;
+        // 清單快取跟著連線走，而且在這裡就同步：展開下拉時才比對的話，換一台之後
+        // IsLoaded 仍是上一台的 true，下拉會一直畫著上一台的資料庫。
+        _scopeDatabases.SyncTo(catalog);
+        // 兩顆按鈕的摘要都要說得出跟著誰、搜的是哪一個；「查詢視窗」與「連線預設」單獨出現時
+        // 分不出是沒連線，還是只搜得到 master。物件總管那條連線上沒有初始目錄，名稱要等
+        // 資料庫清單回來才補得上（見 FillDatabases）。
+        _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName is { Length: > 0 } name
+            ? name
+            : _scopeDatabases.CurrentName;
         _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _catalogs.ActiveEditorServerName() : null;
         // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
         _databases.IsEnabled = catalog is not null;
@@ -708,7 +763,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var signature = string.Join("\n", chips.Select(chip => chip.Label));
         if (string.Equals(signature, _chipSignature, StringComparison.Ordinal)) return;
         _chipSignature = signature;
-        _chips.SetChips(chips, chip => chip.Label);
+        _chips.SetChips(chips, chip => chip.Label, chip => chip.HasPanel);
     }
 
     private string Label(string categoryId) =>
@@ -1015,6 +1070,18 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     // 使用者主動觸發的失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是回到狀態列。
     private void Run(Action action) => _ = RunAsync(() => { action(); return Task.CompletedTask; });
+
+    /// <summary>等這一輪事件走完再做；失敗仍然回到狀態列。</summary>
+    /// <remarks>
+    /// 用在「要換掉正在發事件的那個控制項」的場合：面板重建會回收核取方塊，而它的
+    /// <c>IsChecked</c> 回寫還在堆疊上。收掉的視窗不補做——那時候畫面已經沒有人在看。
+    /// </remarks>
+    private void Defer(Action action) =>
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (_disposed) return;
+            Run(action);
+        }));
 
     private async Task RunAsync(Func<Task> action)
     {

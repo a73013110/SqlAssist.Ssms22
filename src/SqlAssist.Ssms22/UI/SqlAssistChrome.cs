@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
@@ -261,6 +262,62 @@ internal static partial class SqlAssistChrome
         scroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
         scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         scroll.Template = CreateOverlayScrollTemplate();
+    }
+
+    /// <summary>
+    /// 單列、放不下就橫向捲動的資訊列：預覽摘要與已選條件列共用同一份。
+    /// </summary>
+    /// <remarks>
+    /// 不畫捲軸（<see cref="ScrollBarVisibility.Hidden"/> 允許延伸但不留軌道），也不換行：
+    /// 這一列的高度必須與內容多寡無關，換行的那一版在停靠面板裡會長成三列，
+    /// 而那三列換算成少看好幾筆結果。
+    ///
+    /// 滾輪在這一列上<b>不</b>傳給底下的內容：向下往右、向上往左，沒有溢出時也一樣攔下來——
+    /// 傳下去的症狀是使用者以為自己在捲這一列，實際上捲走的是預覽裡的 SQL。
+    /// 聚焦後可用 ←／→、Home／End，鍵盤才走得到捲出去的那幾顆。
+    /// </remarks>
+    /// <param name="automationName">整列唸出來是什麼；要說得出它可以水平捲動。</param>
+    public static ScrollViewer CreateHorizontalStrip(FrameworkElement content, string automationName)
+    {
+        content.VerticalAlignment = VerticalAlignment.Center;
+
+        var strip = new ScrollViewer
+        {
+            Content = content,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            CanContentScroll = false,
+            PanningMode = PanningMode.HorizontalOnly,
+            Focusable = true,
+            Background = Brushes.Transparent,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            ToolTip = "在這一列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。"
+        };
+        AutomationProperties.SetName(strip, automationName);
+
+        strip.PreviewMouseWheel += (_, args) =>
+        {
+            if (args.Delta == 0) return;
+            strip.ScrollToHorizontalOffset(strip.HorizontalOffset - args.Delta * 0.4);
+            args.Handled = true;
+        };
+
+        strip.PreviewKeyDown += (_, args) =>
+        {
+            if (args.KeyboardDevice.Modifiers != ModifierKeys.None) return;
+            switch (args.Key)
+            {
+                case Key.Left: strip.LineLeft(); break;
+                case Key.Right: strip.LineRight(); break;
+                case Key.Home: strip.ScrollToLeftEnd(); break;
+                case Key.End: strip.ScrollToRightEnd(); break;
+                default: return;
+            }
+
+            args.Handled = true;
+        };
+
+        return strip;
     }
 
     private static ControlTemplate CreateOverlayScrollTemplate()

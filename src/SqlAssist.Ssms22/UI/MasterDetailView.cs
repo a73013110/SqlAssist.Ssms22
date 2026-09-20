@@ -95,39 +95,9 @@ internal sealed class MasterDetailView : Grid
         DockPanel.SetDock(_toggle, Dock.Left); heading.Children.Add(_toggle);
         if (summary is not null)
         {
-            summary.VerticalAlignment = VerticalAlignment.Center;
-            // Hidden 允許水平延伸但不畫捲軸；Disabled 會限制內容寬度，無法捲動。
-            var metadata = new ScrollViewer
-            {
-                Content = summary, Margin = new Thickness(8, 6, 4, 0),
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Hidden,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                CanContentScroll = false, PanningMode = PanningMode.HorizontalOnly,
-                Focusable = true, Background = System.Windows.Media.Brushes.Transparent,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "在資訊列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。"
-            };
-            AutomationProperties.SetName(metadata, "預覽資訊（可水平捲動）");
-            metadata.PreviewMouseWheel += (_, args) =>
-            {
-                if (args.Delta == 0) return;
-                // 只攔截資訊列內的滾輪；向下往右、向上往左，不帶動 Preview 或 SQL 本文。
-                metadata.ScrollToHorizontalOffset(metadata.HorizontalOffset - args.Delta * 0.4);
-                args.Handled = true;
-            };
-            metadata.PreviewKeyDown += (_, args) =>
-            {
-                if (args.KeyboardDevice.Modifiers != ModifierKeys.None) return;
-                switch (args.Key)
-                {
-                    case Key.Left: metadata.LineLeft(); break;
-                    case Key.Right: metadata.LineRight(); break;
-                    case Key.Home: metadata.ScrollToLeftEnd(); break;
-                    case Key.End: metadata.ScrollToRightEnd(); break;
-                    default: return;
-                }
-                args.Handled = true;
-            };
+            // 捲動、滾輪方向與鍵盤都走共用的單列資訊列；已選條件列用的是同一份。
+            var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, "預覽資訊（可水平捲動）");
+            metadata.Margin = new Thickness(8, 6, 4, 0);
             heading.Children.Add(metadata);
             _summaryHost = metadata;
         }

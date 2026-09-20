@@ -36,10 +36,13 @@ internal static partial class SqlAssistChrome
         var lines = new FrameworkElementFactory(typeof(StackPanel));
         lines.SetBinding(AutomationProperties.NameProperty, new Binding("Description"));
 
-        // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫 → 操作。
+        // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫，操作浮在右緣。
         // 名稱固定最左，要掃的那一欄每一列才從同一個位置開始；圖示排在它前面就不是。
         var heading = CreateRowLine();
-        lines.AppendChild(heading);
+        // 內容與操作層疊在同一列上：層不參與量測，所以膠囊一直排到滿，揭露也不動版面。
+        var headingLayers = new FrameworkElementFactory(typeof(Grid));
+        headingLayers.AppendChild(heading);
+        lines.AppendChild(headingLayers);
 
         // 身分組最後才 append：DockPanel 依宣告順序量測，名稱先量的話，一個長名稱會把連線膠囊
         // 與操作整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
@@ -68,12 +71,8 @@ internal static partial class SqlAssistChrome
         title.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Title"));
         identity.AppendChild(title);
 
-        var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
+        var actions = new FrameworkElementFactory(typeof(StackPanel));
         actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        actions.SetValue(DockPanel.DockProperty, Dock.Right);
-        actions.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
-        // Hidden 保留尺寸：Collapsed 會讓列在停駐的瞬間重新排版，而互動狀態不得改變版面尺寸。
-        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden);
         // 窄版：連線膠囊降成 icon-only，次要操作收進 overflow；名稱與物件類型一直看得見。
         var narrow = NarrowRowTrigger();
         foreach (var command in SqlSearchRowCommand.All)
@@ -87,7 +86,7 @@ internal static partial class SqlAssistChrome
         }
         var overflow = CreateRowOverflowButton(); actions.AppendChild(overflow);
         narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
-        heading.AppendChild(actions);
+        headingLayers.AppendChild(CreateRowActionLayer(actions));
 
         // 連線膠囊靠右並固定在自己的寬度上；與名稱之間的彈性空白由 DockPanel 留著。
         var badges = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "badges" };
@@ -161,6 +160,9 @@ internal static partial class SqlAssistChrome
             template.Triggers.Add(selected);
         }
 
+        // 操作層的底色跟著列走；在揭露的 trigger 之前宣告，順序與卡片樣板那一組相同。
+        MirrorRowStateOnActions(template);
+
         // 鍵盤走到這一列也揭露動作；只鍵盤操作的人不該看不到它們。
         foreach (var property in new[] { "IsMouseOver", "IsKeyboardFocusWithin" })
         {
@@ -176,6 +178,54 @@ internal static partial class SqlAssistChrome
             template.Triggers.Add(hover);
         }
 
+        return template;
+    }
+
+    /// <summary>
+    /// 預覽那一列資訊：與結果列第一列<b>同一個順序</b>的膠囊，放在主從區的抬頭上。
+    /// </summary>
+    /// <remarks>
+    /// 順序相同不是美感問題：使用者在清單上選一筆、眼睛移到資訊列，同一組事實卻換了位置的話，
+    /// 等於每一次都要重讀一遍。限定名稱排在最後，因為它是這一列唯一比清單多出來的東西
+    /// （清單上它在第二列）。
+    ///
+    /// 預覽內容裡<b>不</b>再放第二份同樣的字：兩條灰色的字各說一次種類與命中部位，
+    /// 是「一個視窗只有一個抬頭」那條規矩的反例，而它也把第一列的位置讓給了沒有新資訊的東西。
+    /// </remarks>
+    public static DataTemplate CreateSearchMetadataTemplate()
+    {
+        var panel = new FrameworkElementFactory(typeof(StackPanel));
+        panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+        var name = BoundText("Title"); name.Name = "name";
+        name.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        name.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        name.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
+        panel.AppendChild(name);
+
+        panel.AppendChild(CreateBadge("CategoryLabel", "kind", categoryProperty: "CategoryId"));
+        panel.AppendChild(CreateTextBadge("TargetLabel", "target"));
+
+        var badges = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "badges" };
+        var badgePanel = new FrameworkElementFactory(typeof(StackPanel));
+        badgePanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        badges.SetValue(ItemsControl.ItemsPanelProperty, new ItemsPanelTemplate(badgePanel));
+        badges.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchBadgeTemplate());
+        badges.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        badges.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("Badges"));
+        panel.AppendChild(badges);
+
+        var path = BoundText("Path"); path.Name = "path";
+        path.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
+        path.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
+        path.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
+        panel.AppendChild(path);
+
+        var template = new DataTemplate { VisualTree = panel };
+        // 沒有路徑概念的來源不留一個空的插槽；缺值直接收起是清單列與資訊列同一條規矩。
+        var noPath = new DataTrigger { Binding = new Binding("Path"), Value = "" };
+        noPath.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "path"));
+        template.Triggers.Add(noPath);
         return template;
     }
 
@@ -253,13 +303,20 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 已選條件列上的一顆 chip：中性膠囊加一個清除鈕。
+    /// 已選條件列上的一顆 chip：中性膠囊加一個清除鈕，本體可選地是一顆按鈕。
     /// </summary>
     /// <remarks>
     /// 用中性色而不是強調色：chip 說的是「現在有這個條件」，不是警示，也不是一種分類。
     /// 清除鈕是幽靈按鈕，停駐才顯色——它與 chip 本身是同一顆可按的東西，畫兩個邊框只會多一圈線。
+    ///
+    /// 本體要能按時做成真的 <see cref="Button"/>，不是在 <see cref="Border"/> 上掛滑鼠事件：
+    /// 後者沒有停駐回饋、進不了 Tab 順序，也唸不出自動化名稱，而這一列在條件很多時正是
+    /// 使用者唯一的入口。
     /// </remarks>
-    public static Border CreateFilterChip(string text, out Button remove)
+    /// <param name="openHint">
+    /// 本體按下去會做什麼（接在 chip 的字後面唸）；null 表示本體不可按，<paramref name="open"/> 為 null。
+    /// </param>
+    public static Border CreateFilterChip(string text, out Button remove, out Button? open, string? openHint = null)
     {
         var content = new DockPanel { VerticalAlignment = VerticalAlignment.Center };
 
@@ -284,14 +341,30 @@ internal static partial class SqlAssistChrome
             TextTrimming = TextTrimming.CharacterEllipsis,
             ToolTip = text
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-        content.Children.Add(label);
+
+        if (openHint is null)
+        {
+            open = null;
+            content.Children.Add(label);
+        }
+        else
+        {
+            open = CreateButton("", DefaultMetrics);
+            open.Content = label;
+            open.Template = CreateGhostButtonTemplate();
+            open.Padding = new Thickness(2, 0, 2, 0);
+            open.MinHeight = 18;
+            open.ToolTip = text + openHint;
+            AutomationProperties.SetName(open, text + openHint);
+            content.Children.Add(open);
+        }
 
         return new Border
         {
             Child = content,
             CornerRadius = new CornerRadius(9),
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(8, 1, 4, 1),
+            Padding = new Thickness(6, 1, 4, 1),
             Margin = new Thickness(0, 0, 4, 0),
             MaxWidth = 220,
             VerticalAlignment = VerticalAlignment.Center

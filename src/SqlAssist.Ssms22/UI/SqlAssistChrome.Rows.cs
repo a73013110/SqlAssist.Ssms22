@@ -160,6 +160,92 @@ internal static partial class SqlAssistChrome
         return button;
     }
 
+    /// <summary>操作層左緣那一段淡出的寬度；蓋住的那顆膠囊要淡掉，不是被一條直邊切掉。</summary>
+    private const double RowActionFade = 20d;
+
+    /// <summary>操作層的淡出遮罩；只做一次並凍結，每一列共用同一份。</summary>
+    private static readonly Brush RowActionFadeMask = CreateRowActionFadeMask();
+
+    private static Brush CreateRowActionFadeMask()
+    {
+        var mask = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 0),
+            MappingMode = BrushMappingMode.RelativeToBoundingBox
+        };
+        mask.GradientStops.Add(new GradientStop(Colors.Transparent, 0));
+        mask.GradientStops.Add(new GradientStop(Colors.Black, 1));
+        mask.Freeze();
+        return mask;
+    }
+
+    /// <summary>
+    /// 列上停駐才出現的操作層：浮在第一列右緣，<b>不佔</b>版面寬度。
+    /// </summary>
+    /// <remarks>
+    /// 早期版本讓動作區留在第一列裡並用 <see cref="Visibility.Hidden"/> 預留寬度，理由是
+    /// 停駐不得改變版面尺寸——那條規矩仍然成立，但代價是每一列右邊永遠空著一塊近百 DIP 的
+    /// 空白，而它在停靠面板裡等於名稱少掉三分之一。浮在上層兩件事都要得到：層本身不參與
+    /// 量測，所以揭露與收起都不動版面；底下那一列則一直排到滿。
+    ///
+    /// 層是不透明的（<see cref="ThemeBrush.ListBackground"/> 加一層跟著列狀態走的染色，
+    /// 見 <see cref="MirrorRowStateOnActions"/>），否則被蓋住的膠囊會透出來疊在圖示上。
+    /// 左緣用 <see cref="UIElement.OpacityMask"/> 淡出而不是硬邊：被蓋住的膠囊多半只被切掉半個字，
+    /// 而一條直邊看起來像畫壞了。遮罩是固定的灰階，不隨主題變，所以做一次凍結共用。
+    /// </remarks>
+    /// <param name="actions">這一列的動作那一排；宿主自己決定放哪幾顆與窄版收哪幾顆。</param>
+    /// <param name="name">層的名字；揭露的 trigger 指的就是它，兩份清單共用同一個預設值。</param>
+    internal static FrameworkElementFactory CreateRowActionLayer(
+        FrameworkElementFactory actions, string name = "actions")
+    {
+        var layer = new FrameworkElementFactory(typeof(Border)) { Name = name };
+        layer.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Right);
+        layer.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Stretch);
+        layer.SetValue(UIElement.OpacityMaskProperty, RowActionFadeMask);
+        layer.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ListBackground);
+        // Collapsed 而不是 Hidden：層不佔寬度，收起來也不會在右邊留一塊空白。
+        layer.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+
+        var tint = new FrameworkElementFactory(typeof(Border)) { Name = name + "Tint" };
+        tint.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        layer.AppendChild(tint);
+
+        actions.SetValue(FrameworkElement.MarginProperty, new Thickness(RowActionFade, 0, 0, 0));
+        actions.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        tint.AppendChild(actions);
+        return layer;
+    }
+
+    /// <summary>
+    /// 操作層的底色跟著列的停駐與選取走。
+    /// </summary>
+    /// <remarks>
+    /// 不跟著的症狀是停駐時右邊浮出一塊沒有染色的方塊，而那正是使用者眼睛看的地方。
+    /// 選取寫在停駐之後：兩個條件同時成立時，後宣告的那一個才是列自己畫的那一種。
+    /// 順序與 <c>CreateSqlCardStyle</c> 的那一組相同，兩邊不一致就會差一階。
+    /// </remarks>
+    internal static void MirrorRowStateOnActions(DataTemplate template, string name = "actions")
+    {
+        foreach (var (property, brush) in new[]
+                 {
+                     (nameof(UIElement.IsMouseOver), ThemeBrush.RowHover),
+                     (nameof(ListBoxItem.IsSelected), ThemeBrush.RowSelected)
+                 })
+        {
+            var trigger = new DataTrigger
+            {
+                Binding = new Binding(property)
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1)
+                },
+                Value = true
+            };
+            trigger.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, brush, name + "Tint"));
+            template.Triggers.Add(trigger);
+        }
+    }
+
     /// <summary>窄版的 overflow：打開這一列本來就有的快捷選單，不另建第二份命令清單。</summary>
     /// <remarks>
     /// 沒有 Tag，清單的派送不認得它；命令由選單自己送，與右鍵走同一條路，

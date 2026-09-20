@@ -463,20 +463,16 @@ internal static partial class SqlAssistChrome
     public static DataTemplate CreateSqlSummaryTemplate()
     {
         var panel = new FrameworkElementFactory(typeof(StackPanel));
-        // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間 → 操作。左右兩組各自靠邊，
-        // 中間留給彈性空白；LastChildFill 會把最後一個子項拉滿而吃掉那一段。
-        var heading = CreateRowLine(); panel.AppendChild(heading);
+        // 第一列：檔名 → 狀態 → 次數 → 彈性空白 → 伺服器 → 資料庫 → 時間，操作浮在右緣。
+        // 左右兩組各自靠邊，中間留給彈性空白；LastChildFill 會把最後一個子項拉滿而吃掉那一段。
+        var heading = CreateRowLine();
+        // 內容與操作層疊在同一列上：層不參與量測，所以時間與膠囊一直排到滿，揭露也不動版面。
+        var headingLayers = new FrameworkElementFactory(typeof(Grid));
+        headingLayers.AppendChild(heading); panel.AppendChild(headingLayers);
         // 靠右那幾組先 append：DockPanel 依宣告順序量測，名稱那一組先量的話，一個長檔名會把
-        // 連線、時間與操作整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
-        // 最右是操作，接著往左是時間、資料庫、伺服器；身分組最後 append，剩多少吃多少。
-        var actions = new FrameworkElementFactory(typeof(StackPanel)) { Name = "actions" };
+        // 連線與時間整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
+        var actions = new FrameworkElementFactory(typeof(StackPanel));
         actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        actions.SetValue(DockPanel.DockProperty, Dock.Right);
-        actions.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
-        actions.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        // 動作區沿用卡片表面；透明底不會切斷 hover／selected 的底色與動畫。
-        // Hidden 保留寬度，避免懸停時整列重排；鍵盤進入卡片也揭露動作。
-        actions.SetValue(UIElement.VisibilityProperty, Visibility.Hidden); heading.AppendChild(actions);
         var connections = new FrameworkElementFactory(typeof(DockPanel)); connections.SetValue(DockPanel.DockProperty, Dock.Right);
         // 整組靠右，組內一律靠左排，順序才是「伺服器 → 資料庫 → 時間」；宣告順序同時是窄窗下縮的順序。
         connections.SetValue(DockPanel.LastChildFillProperty, false); heading.AppendChild(connections);
@@ -522,8 +518,11 @@ internal static partial class SqlAssistChrome
         }
         var overflow = CreateRowOverflowButton(); actions.AppendChild(overflow);
         narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
+        headingLayers.AppendChild(CreateRowActionLayer(actions));
         var template = new DataTemplate { VisualTree = panel };
         template.Triggers.Add(favorite); template.Triggers.Add(history); template.Triggers.Add(narrow);
+        // 操作層的底色跟著列走；不跟著的話，停駐時右邊會浮出一塊沒有染色的方塊。
+        MirrorRowStateOnActions(template);
         CollapseEmptyConnectionBadges(template);
         CollapseSingleExecution(template);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };

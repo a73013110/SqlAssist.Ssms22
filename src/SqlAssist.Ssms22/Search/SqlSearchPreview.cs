@@ -29,7 +29,6 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly SqlSearchDefinitionLoader _loader;
     private readonly SqlReadOnlyViewer _viewer = new();
     private readonly SqlStateSurface _surface;
-    private readonly TextBlock _metadata = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private readonly SqlHighlightText _snippet = new();
     private readonly Border _snippetSurface;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
@@ -73,16 +72,13 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         toolbar.Children.Add(_copyName);
         toolbar.Children.Add(_wrap);
 
-        _metadata.TextWrapping = TextWrapping.NoWrap;
-        _metadata.TextTrimming = TextTrimming.CharacterEllipsis;
-        _metadata.Margin = new Thickness(0, 0, 0, 8);
         _status.TextWrapping = TextWrapping.Wrap;
 
+        // 內容第一列直接是工具列：這一筆是什麼，全部交給主從區抬頭上那一列膠囊，
+        // 內容裡不再放一份只換了排列順序的同樣文字。
         _content = new DockPanel();
         DockPanel.SetDock(toolbar, Dock.Top);
         _content.Children.Add(toolbar);
-        DockPanel.SetDock(_metadata, Dock.Top);
-        _content.Children.Add(_metadata);
         DockPanel.SetDock(_status, Dock.Bottom);
         _content.Children.Add(_status);
         _content.Children.Add(_body);
@@ -99,9 +95,20 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         Select(null);
     }
 
-    /// <summary>主從區抬頭那一行；由分割檢視放在收合鈕旁邊，與 SQL Memory 同一個位置。</summary>
-    public FrameworkElement Summary { get; } =
-        SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
+    /// <summary>
+    /// 主從區抬頭那一列；由分割檢視放在收合鈕旁邊，與 SQL Memory 同一個位置與同一種膠囊。
+    /// </summary>
+    /// <remarks>
+    /// 交出去的是一個吃 <see cref="SqlSearchRow"/> 的 <see cref="ContentControl"/>，不是一段字：
+    /// 樣板只有 <c>SqlAssistChrome.CreateSearchMetadataTemplate</c> 一份，與清單列同一個順序，
+    /// 兩邊各排各的話，使用者在清單上選一筆、眼睛移到這一列，同一組事實卻換了位置。
+    /// </remarks>
+    public FrameworkElement Summary { get; } = new ContentControl
+    {
+        ContentTemplate = SqlAssistChrome.CreateSearchMetadataTemplate(),
+        Focusable = false,
+        VerticalAlignment = VerticalAlignment.Center
+    };
 
     /// <summary>複製限定名稱；實際寫剪貼簿的失敗要看得見，所以交給宿主處理。</summary>
     public event EventHandler? CopyRequested;
@@ -141,22 +148,17 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _snippetSurface.Visibility = Visibility.Collapsed;
         Report("");
 
+        // 抬頭那一列直接吃這一筆；分類與命中部位是兩件事，同一個物件可以同時被名稱與本文命中，
+        // 所以兩顆膠囊各自出現，不併成一句話。
+        ((ContentControl)Summary).Content = row;
+
         if (row is null)
         {
-            _metadata.Text = "";
-            _metadata.Visibility = Visibility.Collapsed;
             // 收起唯讀檢視本身，狀態表面留著：空的檢視在說明文字後面會露出一塊編輯區底色。
             _viewer.Visibility = Visibility.Collapsed;
             _surface.State = SqlSurfaceState.Empty("尚未選取", "選一筆結果看它的完整定義與命中位置。");
-            ((TextBlock)Summary).Text = "";
             return;
         }
-
-        // 分類與命中部位是兩件事：同一個物件可以同時被名稱與定義本文命中。
-        _metadata.Text = row.Description;
-        _metadata.ToolTip = row.Description;
-        _metadata.Visibility = Visibility.Visible;
-        ((TextBlock)Summary).Text = row.Title + " · " + row.CategoryLabel + " · " + row.TargetLabel;
 
         if (row.Hit.ActivatePayload is not SqlCatalogSearchTarget)
         {

@@ -91,23 +91,32 @@ internal sealed class SqlSearchSortOption
     }
 }
 
-/// <summary>已選條件那一列上的一顆 chip；按下十字就清掉它代表的那一個條件。</summary>
+/// <summary>
+/// 已選條件那一列上的一顆 chip：一個<b>維度</b>一顆，不是一個值一顆。
+/// </summary>
+/// <remarks>
+/// 一值一顆的症狀是勾了八個資料庫就有八顆 chip，而那八個名字按鈕摘要與面板都已經說過；
+/// 停靠面板裡那兩列換算成少看四筆結果。維度固定五個（伺服器、種類、資料庫、大小寫、全字），
+/// 所以這一列的高度與條件多寡無關。
+///
+/// 按下十字清掉整個維度，按 chip 本體打開它的面板——「要看看勾了哪幾個」與「不要這一組了」
+/// 是兩件事，而前者的答案本來就在面板裡。
+/// </remarks>
 internal sealed class SqlSearchFilterChip
 {
-    internal SqlSearchFilterChip(SqlSearchFilterKind kind, string? value, string label)
+    internal SqlSearchFilterChip(SqlSearchFilterKind kind, string label)
     {
         Kind = kind;
-        Value = value;
         Label = label;
     }
 
     public SqlSearchFilterKind Kind { get; }
 
-    /// <summary>要清掉的那一個值；選項類（大小寫、全字）沒有值。</summary>
-    public string? Value { get; }
-
     /// <summary>chip 上的字。</summary>
     public string Label { get; }
+
+    /// <summary>這個維度有自己的過濾面板；大小寫與全字是工具列上的開關，沒有面板可開。</summary>
+    public bool HasPanel => Kind is SqlSearchFilterKind.Server or SqlSearchFilterKind.Category or SqlSearchFilterKind.Database;
 }
 
 /// <summary>chip 代表哪一種條件；清掉時據此決定動哪一份集合。</summary>
@@ -168,11 +177,23 @@ internal sealed class SqlSearchRound
 /// </remarks>
 internal sealed class SqlSearchBrowserModel
 {
-    /// <summary>沒有勾任何一個分類時，按鈕上顯示的字。</summary>
+    /// <summary>沒有勾任何一個分類時，按鈕與面板第一列上顯示的字。</summary>
     public const string AllCategoriesLabel = "全部";
 
-    /// <summary>沒有指名資料庫時，按鈕上顯示的字。</summary>
-    public const string CurrentConnectionLabel = "目前連線";
+    /// <summary>
+    /// 沒有指名資料庫時，按鈕與面板第一列上顯示的字。
+    /// </summary>
+    /// <remarks>
+    /// 說「連線預設」而不是「目前連線」：指名物件總管上一台伺服器時，那條連線的預設資料庫
+    /// 通常是 <c>master</c>，而「目前連線」聽起來像使用者現在看著的那個查詢視窗。括號裡的
+    /// 名稱由伺服器自己說（<c>SqlSearchScopeDatabases.CurrentName</c>）。
+    /// </remarks>
+    public const string ConnectionDefaultLabel = "連線預設";
+
+    /// <summary>種類與資料庫的數量摘要各自的量詞；按鈕上只剩數字時分不出那是幾種還是幾個。</summary>
+    private const string CategoryUnit = " 種";
+
+    private const string DatabaseUnit = " 個";
 
     /// <summary>跟著查詢視窗，而那個視窗沒有連線時括號裡的字。</summary>
     /// <remarks>
@@ -193,7 +214,7 @@ internal sealed class SqlSearchBrowserModel
 
     /// <summary>沒有指名伺服器時，伺服器按鈕上顯示的字。</summary>
     /// <remarks>
-    /// 與 <see cref="CurrentConnectionLabel"/> 分開：資料庫那一顆說的是「跟著這條連線的
+    /// 與 <see cref="ConnectionDefaultLabel"/> 分開：資料庫那一顆說的是「跟著這條連線的
     /// 資料庫」，伺服器這一顆說的是「跟著作用中的那個查詢視窗」——切換分頁會換一台，
     /// 而兩句話寫成同一句的話，使用者分不出哪一顆在跟著誰走。
     /// </remarks>
@@ -547,7 +568,8 @@ internal sealed class SqlSearchBrowserModel
     public static bool IsSystemDatabase(string database) => SystemDatabaseNames.Contains(database);
 
     /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
-    public string CategorySummary() => Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel());
+    public string CategorySummary() =>
+        Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel(), CategoryUnit);
 
     /// <summary>
     /// 伺服器按鈕上的摘要；沒有指名時說的是「跟著查詢視窗」，括號裡是那個視窗連到哪一台。
@@ -562,59 +584,69 @@ internal sealed class SqlSearchBrowserModel
     public static string ActiveEditorLabel(string? server) =>
         ActiveEditorServerLabel + "（" + (server is { Length: > 0 } name ? name : NoConnectionLabel) + "）";
 
-    /// <summary>資料庫按鈕上的摘要；沒有指名時括號裡是這一輪真正搜的那一個。</summary>
+    /// <summary>資料庫按鈕上的摘要；沒有指名時是這一輪真正搜的那一個。</summary>
     /// <remarks>
-    /// 「目前連線」單獨出現時說不出範圍有多大。物件總管那條連線的預設資料庫通常是
-    /// <c>master</c>，而使用者以為自己在搜整台——症狀是他確定存在的物件搜不到，
-    /// 而畫面上每一句話都正常。
+    /// 沒有連線時說「未連線」而不是「連線預設」：後者是一句斷言，而那一刻根本沒有連線可以
+    /// 預設。兩句混成一句的症狀是使用者看著一顆停用的按鈕，讀到的卻是一個他其實搜不到的範圍。
     /// </remarks>
     public string DatabaseSummary() =>
-        Summarize(
-            _databases.Count,
-            CurrentDatabase is { Length: > 0 } database
-                ? CurrentConnectionLabel + "（" + database + "）"
-                : CurrentConnectionLabel,
-            _databases.Count == 1 ? _databases[0] : null);
+        _databases.Count == 0 && !HasConnection
+            ? NoConnectionLabel
+            : Summarize(_databases.Count, ConnectionDefaultSummary(), SingleDatabaseLabel(), DatabaseUnit);
+
+    /// <summary>
+    /// 沒有指名資料庫時那一列與那顆按鈕共用的字：連線預設，括號裡是實際的那一個。
+    /// </summary>
+    /// <remarks>
+    /// 摘要與面板第一列共用一份，兩處不會說得不一樣，理由與
+    /// <see cref="ActiveEditorLabel"/> 相同。名稱還沒問到時只說「連線預設」——寧可少說一句，
+    /// 不猜一個名字。
+    /// </remarks>
+    public string ConnectionDefaultSummary() =>
+        CurrentDatabase is { Length: > 0 } database
+            ? ConnectionDefaultLabel + "（" + database + "）"
+            : ConnectionDefaultLabel;
 
     /// <summary>
     /// 已選條件那一列要畫哪幾顆 chip；空表示整列收起。
     /// </summary>
     /// <remarks>
-    /// 預設狀態不佔那一列，是這個版面空間極大化的關鍵。比對位置不在這裡——它在工具列上
-    /// 常駐可見，再畫一顆 chip 等於同一件事說兩次。
+    /// 預設狀態不佔那一列，是這個版面空間極大化的關鍵；一維度一顆讓它在條件再多時也只有
+    /// 一列（見 <see cref="SqlSearchFilterChip"/>）。比對位置不在這裡——它在工具列上常駐可見，
+    /// 再畫一顆 chip 等於同一件事說兩次。
+    ///
+    /// 順序固定由外而內：伺服器換掉的是整份目錄，資料庫縮的是那一台裡的範圍，種類縮的是
+    /// 結果的形狀。依使用者勾選的先後排的話，同一組條件每次排出不同的順序，看起來像條件自己變了。
     /// </remarks>
     public IReadOnlyList<SqlSearchFilterChip> Chips()
     {
         var chips = new List<SqlSearchFilterChip>();
 
-        // 伺服器排在最前面，而且只在指名時出現：它是範圍最外面那一圈，換掉之後清單上
-        // 每一筆的來源都變了。沒有這一顆的話，使用者切到別的查詢視窗會以為自己還在搜
-        // 原本那一台——而兩台上同名的物件看起來一模一樣。
+        // 伺服器只在指名時出現：它是範圍最外面那一圈，換掉之後清單上每一筆的來源都變了。
+        // 沒有這一顆的話，使用者切到別的查詢視窗會以為自己還在搜原本那一台——
+        // 而兩台上同名的物件看起來一模一樣。
         if (Server is { Length: > 0 } server)
         {
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Server, server, "伺服器: " + server));
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Server, "伺服器: " + server));
         }
 
-        // 依分類清單的宣告順序輸出，不依使用者勾選的先後：勾選順序會讓同一組條件每次
-        // 排出不同的 chip 順序，而那看起來像是條件自己變了。
-        foreach (var category in _categories)
+        if (_databases.Count != 0)
         {
-            if (!_categoryIds.Contains(category.Id)) continue;
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Category, category.Id, "種類: " + category.Label));
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Database, "資料庫: " + DatabaseSummary()));
         }
 
-        foreach (var database in _databases)
+        if (_categoryIds.Count != 0)
         {
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Database, database, "資料庫: " + database));
+            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Category, "種類: " + CategorySummary()));
         }
 
-        if (MatchCasing) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.MatchCasing, null, "大小寫"));
-        if (WholeWord) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.WholeWord, null, "全字"));
+        if (MatchCasing) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.MatchCasing, "大小寫"));
+        if (WholeWord) chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.WholeWord, "全字"));
 
         return chips;
     }
 
-    /// <summary>清掉一顆 chip 代表的條件。</summary>
+    /// <summary>清掉一顆 chip 代表的<b>整個</b>維度。</summary>
     /// <returns>true 表示條件真的變了。</returns>
     public bool Remove(SqlSearchFilterChip chip)
     {
@@ -623,7 +655,7 @@ internal sealed class SqlSearchBrowserModel
         switch (chip.Kind)
         {
             case SqlSearchFilterKind.Category:
-                return chip.Value is { } category && SetCategorySelected(category, selected: false);
+                return ClearCategories();
             case SqlSearchFilterKind.Server:
                 // 只清名稱；真的換回查詢視窗那一台是 SqlSearchCatalogs 的事，
                 // 由呼叫端在收到 true 之後一起做。
@@ -631,7 +663,7 @@ internal sealed class SqlSearchBrowserModel
                 Server = null;
                 return true;
             case SqlSearchFilterKind.Database:
-                return chip.Value is { } database && SetDatabaseSelected(database, selected: false);
+                return ClearDatabases();
             case SqlSearchFilterKind.MatchCasing:
                 if (!MatchCasing) return false;
                 MatchCasing = false;
@@ -910,14 +942,17 @@ internal sealed class SqlSearchBrowserModel
         return null;
     }
 
+    private string? SingleDatabaseLabel() => _databases.Count == 1 ? _databases[0] : null;
+
     /// <remarks>
-    /// 一個就寫名字，多個就寫數字。三個名字串起來會把按鈕撐到吃掉搜尋框的空間，
-    /// 而工具列上真正要一直看得見的是搜尋框與比對位置。完整名單在 chip 列與 Tooltip 上。
+    /// 一個就寫名字，多個就寫數量。三個名字串起來會把按鈕撐到吃掉搜尋框的空間，
+    /// 而工具列上真正要一直看得見的是搜尋框與比對位置。完整名單在面板與 Tooltip 上。
     /// </remarks>
-    private static string Summarize(int count, string allLabel, string? single) =>
+    /// <param name="unit">數量後面的量詞；只剩一個數字時，使用者分不出那是幾種還是幾個。</param>
+    private static string Summarize(int count, string allLabel, string? single, string unit) =>
         count == 0 ? allLabel
             : single is { Length: > 0 } name ? name
-            : count.ToString(CultureInfo.InvariantCulture);
+            : count.ToString(CultureInfo.InvariantCulture) + unit;
 
     /// <summary>沒有宣告的分類排在最後；不認得的 Id 不該插在認得的中間。</summary>
     private int CategoryRank(string categoryId) =>

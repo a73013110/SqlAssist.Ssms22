@@ -83,6 +83,52 @@ public sealed class SqlSearchScopeDatabasesTests
         Assert.Empty(databases);
     }
 
+    /// <summary>
+    /// 換一台之後，<b>還沒問</b>之前手上那一份就已經不算數。
+    /// </summary>
+    /// <remarks>
+    /// 宿主在面板展開時會先畫手上這一份（已經勾起來的條件必須看得見），只有在
+    /// <see cref="SqlSearchScopeDatabases.IsLoaded"/> 是 false 時才去重問。比對只寫在
+    /// <c>EnsureAsync</c> 裡的那一版，換一台之後 IsLoaded 仍是上一台的 true，
+    /// 宿主據此提早收工——下拉從此畫著上一台的資料庫，而且不會自己好。
+    /// </remarks>
+    [Fact]
+    public async Task 換一台之後手上那一份當場作廢而不是等到重問才換()
+    {
+        using var scope = new SqlSearchScopeDatabases((_, _) => List("Library"));
+
+        await scope.EnsureAsync(Catalog("Library"));
+        Assert.True(scope.IsLoaded);
+
+        scope.SyncTo(Catalog("LibReporting", server: "LIBSQL02"));
+        Assert.False(scope.IsLoaded);
+        Assert.Empty(scope.Items);
+        Assert.Equal("", scope.CurrentName);
+
+        // 沒有連線不算換一台：切到沒有連線的查詢視窗時清掉清單，回來還要再付一條查詢。
+        await scope.EnsureAsync(Catalog("LibReporting", server: "LIBSQL02"));
+        scope.SyncTo(null);
+        Assert.True(scope.IsLoaded);
+    }
+
+    /// <remarks>
+    /// 名稱由開啟後的連線說了算：物件總管那條連線的連線物件上沒有初始目錄，
+    /// 而範圍摘要一定要說得出目標。
+    /// </remarks>
+    [Fact]
+    public async Task 清單回來時記下沒有指名時搜的是哪一個()
+    {
+        using var scope = new SqlSearchScopeDatabases((_, _) => new[]
+        {
+            new SqlCatalogSearchDatabase("Library", isSystem: false),
+            new SqlCatalogSearchDatabase("master", isSystem: true, isCurrent: true)
+        });
+
+        Assert.Equal("", scope.CurrentName);
+        await scope.EnsureAsync(Catalog("Library"));
+        Assert.Equal("master", scope.CurrentName);
+    }
+
     [Fact]
     public async Task 問不到時留住上一份並且下一次展開再試()
     {
