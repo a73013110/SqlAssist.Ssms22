@@ -36,6 +36,24 @@ internal static class VsThemeBrushes
         }
     }
 
+    /// <summary>
+    /// 過濾面板的兩塊 popup 一起套：面板本體與它的排序選單。
+    /// </summary>
+    /// <remarks>
+    /// 兩塊都不在宿主的視覺樹上，所以都要各自接一次動態資源，而<b>「有兩塊」這件事只寫在這裡</b>。
+    /// 宿主自己寫 <c>Apply(panel.PopupSurface)</c> 的那一版漏掉排序選單不會有任何徵兆——
+    /// 目前 SQL Search 的三個面板都沒有叫 <c>SetSortOptions</c>，選單是空的，哪天它要排序了，
+    /// 深色主題下就是一張白底選單，而淺色主題怎麼測都是對的。
+    ///
+    /// 套在控制項自己的建構式裡才是最不會漏的，但 <see cref="SqlFilterFlyout"/> 刻意留在純 WPF：
+    /// 它一碰 <c>Microsoft.VisualStudio.*</c>，主題回歸測試就編不進去了。
+    /// </remarks>
+    public static void Apply(SqlFilterFlyout flyout)
+    {
+        Apply(flyout.PopupSurface);
+        Apply(flyout.SortMenu);
+    }
+
     public static void Initialize()
     {
         if (_dispatcher is not null)

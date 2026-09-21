@@ -28,6 +28,10 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeRefreshQueue.cs" Link="Product\UI\ThemeRefreshQueue.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.cs" Link="Product\UI\SqlAssistChrome.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Delays.cs" Link="Product\UI\SqlAssistChrome.Delays.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Buttons.cs" Link="Product\UI\SqlAssistChrome.Buttons.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Cards.cs" Link="Product\UI\SqlAssistChrome.Cards.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlCardList.cs" Link="Product\UI\SqlCardList.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSelectionLoader.cs" Link="Product\UI\SqlSelectionLoader.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMemoryList.cs" Link="Product\UI\SqlMemoryList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSurfaceState.cs" Link="Product\UI\SqlSurfaceState.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlStateSurface.cs" Link="Product\UI\SqlStateSurface.cs" />
@@ -45,6 +49,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchList.cs" Link="Product\UI\SqlSearchList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchTargets.cs" Link="Product\UI\SqlSearchTargets.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchFilters.cs" Link="Product\UI\SqlSearchFilters.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterChipBar.cs" Link="Product\UI\SqlFilterChipBar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterFlyout.cs" Link="Product\UI\SqlFilterFlyout.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterSummary.cs" Link="Product\UI\SqlFilterSummary.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Filters.cs" Link="Product\UI\SqlAssistChrome.Filters.cs" />

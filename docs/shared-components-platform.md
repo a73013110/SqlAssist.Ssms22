@@ -23,9 +23,10 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 停駐工具窗的主從區（轉向門檻、收合把手與兩個方向的比例） | `Ssms22/UI/MasterDetailView.cs` |
 | 字型、按鈕、輸入欄位、資料格樣板、覆蓋式捲軸 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 清單列的共用元件（膠囊、身分組、名稱上限、列操作與 overflow、圖示標籤） | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
-| 停駐才出現的列操作層（浮在右緣、不佔寬度、底色跟著列走） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `CreateRowActionLayer` |
+| 清單列第一列的骨架（疊層、宣告順序、操作層、窄版降級） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `BeginRowHeading`／`SqlRowHeading` |
+| 列操作層與它的揭露（浮在右緣不佔寬度、滑鼠與鍵盤同一條路） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `CreateRowActionLayer`／`RevealRowActions` |
 | 單列、可水平捲動的資訊列（Preview 摘要、已選條件列） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateHorizontalStrip` |
-| Shift＋滾輪、樹裡第一個 `ScrollViewer` | `Ssms22/UI/SqlAssistChrome.cs` 的 `ApplyShiftWheelPan`／`FindScrollViewer`（`CreateDataGrid`、`SqlTextEditor`、`SqlReadOnlyViewer`、`SqlTextDiffView` 與儲存格視窗都已接上） |
+| Shift＋滾輪、樹裡第一個 `ScrollViewer` | `Ssms22/UI/SqlAssistChrome.cs` 的 `ApplyShiftWheelPan`／`FindScrollViewer` |
 | 清單列的寬度模式與窄版門檻（宿主量一次，可繼承） | `Ssms22/UI/SqlRowLayout.cs` |
 | 圖示加標籤的分頁 | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾面板（單／複選、第一列的預設、續頁、排序、整批命令） | `Ssms22/UI/SqlFilterFlyout.cs` |
@@ -33,9 +34,13 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 篩選的兩級分隔線、過濾面板的按鈕樣式與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 工具列那一列篩選（分群、換行） | `Ssms22/UI/SqlFilterBar.cs` |
 | 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕、框裡開關開著的外觀 | `Ssms22/UI/SqlInputRow.cs`、`SqlAssistChrome.Search.cs` 的 `CreateInputToggleStyle` |
-| 展開／收合箭頭與它的轉向（下拉、排序選單、預覽把手） | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `CreateChevron`／`SetChevronExpanded` |
-| 列操作的揭露條件與揭露動畫（滑鼠與鍵盤兩條路同一份） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `RevealRowActions` |
+| 展開／收合箭頭與它的轉向（下拉、排序選單、預覽把手） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateChevron`／`SetChevronExpanded` |
+| 工具列與預覽的圖示鈕 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateIconButton` |
+| 清單列的卡片容器樣式與進場／退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
+| 卡片清單的鍵盤、滑鼠、續頁與頁尾容器 | `Ssms22/UI/SqlCardList.cs` 的 `SqlCardListBase<TAction>` |
+| 已選條件的 chip 列（一維度一顆、橫向捲動） | `Ssms22/UI/SqlFilterChipBar.cs` |
 | 內容表面出現時的淡入（浮動預覽、SQL Memory 復原卡片） | `Ssms22/UI/SqlAssistChrome.cs` 的 `PlayAppear` |
+| 選取驅動的讀取（去彈跳、取消上一輪、回來時的 stale guard） | `Ssms22/UI/SqlSelectionLoader.cs` |
 | 載入、空、讀不到與權限不足四種狀態 | `Ssms22/UI/SqlStateSurface.cs`，狀態與文案在 `SqlSurfaceState.cs` |
 | 面板裡的一行狀態（正在讀取或讀不到，含轉圈停轉規則） | `Ssms22/UI/SqlBusyNotice.cs` |
 | 打字與選取的去彈跳長度（搜尋、預覽、估算） | `Ssms22/UI/SqlAssistChrome.Delays.cs` 的 `Debounce` |
@@ -46,7 +51,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
 | 自製 UI 的語意圖示與 moniker 對照、原生影像插槽 | `Ssms22/UI/SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
-| 佈景主題筆刷 | `Ssms22/UI/VsThemeBrushes.cs` |
+| 佈景主題筆刷；過濾面板的面板與排序選單不在宿主視覺樹上，要一起套 | `Ssms22/UI/VsThemeBrushes.cs` 的 `Apply` |
 | 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | Debug 部署預檢、SHA-256 與 VSIX 必要檔案白名單 | `tools/SqlAssist.Deployment.psm1` |
 | 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |

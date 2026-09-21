@@ -75,6 +75,29 @@ internal static partial class SqlAssistChrome
         return group;
     }
 
+    /// <summary>
+    /// 開一列清單列的第一列骨架：疊層、左右兩組、浮在右緣的操作層與窄版降級。
+    /// </summary>
+    /// <remarks>
+    /// 欄位與順序仍由各功能自己決定，這裡只固定四條一寫錯就回歸、而且<b>只在特定情況才看得出來</b>
+    /// 的規則（見 <see cref="SqlRowHeading"/>）。兩份樣板各寫一次的那一版，差異是慢慢長出來的：
+    /// 同一段骨架抄兩份之後，下一個人只會改他手上那一份。
+    ///
+    /// 做成組裝步驟而不是「欄位由 descriptor 決定」的通用 builder：那等於再發明一次
+    /// <see cref="DataTemplate"/>，而兩邊的欄位本來就不是同一種東西——搜尋的名稱是帶高亮區段的
+    /// <see cref="SqlHighlightText"/>，SQL Memory 的是純文字。
+    /// </remarks>
+    /// <param name="lines">這一列的內容堆疊；第一列會 append 進去，內容列由呼叫端接著加。</param>
+    internal static SqlRowHeading BeginRowHeading(FrameworkElementFactory lines)
+    {
+        var heading = CreateRowLine();
+        // 內容與操作層疊在同一列上：層不參與量測，所以底下那一列一直排到滿，揭露也不動版面。
+        var layers = new FrameworkElementFactory(typeof(Grid));
+        layers.AppendChild(heading);
+        lines.AppendChild(layers);
+        return new SqlRowHeading(heading, layers, RowIdentityGroup(), NarrowRowTrigger());
+    }
+
     private static FrameworkElementFactory BoundText(string property)
     {
         var text = new FrameworkElementFactory(typeof(TextBlock));
@@ -389,5 +412,72 @@ internal static partial class SqlAssistChrome
     {
         narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, badge + "Text"));
         narrow.Setters.Add(new Setter(FrameworkElement.MarginProperty, default(Thickness), badge + "Icon"));
+    }
+}
+
+/// <summary>
+/// 組裝中的清單列第一列；由 <see cref="SqlAssistChrome.BeginRowHeading"/> 建立，
+/// 填完欄位之後用 <see cref="Complete"/> 收尾。
+/// </summary>
+/// <remarks>
+/// 它擔保的是四條規則，每一條寫錯都只在特定情況下才看得出來：
+///
+/// <list type="number">
+/// <item>靠右那幾組<b>先</b>宣告。<see cref="DockPanel"/> 依宣告順序量測，名稱先量的話，一個長名稱
+/// 會把連線膠囊與時間整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
+/// 所以 <see cref="Identity"/> 由 <see cref="Complete"/> 最後才掛上 <see cref="Heading"/>。</item>
+/// <item>操作是浮在第一列右緣的<b>疊層</b>，不自己占一列，也不用 <see cref="Visibility.Hidden"/>
+/// 預留寬度。</item>
+/// <item>overflow 那一顆在窄版才出現，而它開的是這一列本來就有的快捷選單。</item>
+/// <item>底色鏡射（<see cref="SqlAssistChrome.MirrorRowStateOnActions"/>）宣告在揭露
+/// （<see cref="SqlAssistChrome.RevealRowActions"/>）<b>之前</b>。</item>
+/// </list>
+///
+/// 窄版那一條 trigger 由 <see cref="Complete"/> 最後才加進樣板，所以它排在功能自己那幾條後面：
+/// 兩條 trigger 同時成立而且碰同一個屬性時，後宣告的贏——窄到要降級了還被別的條件蓋回去，
+/// 症狀是那一列在 300 DIP 下仍然排著三顆按鈕。
+/// </remarks>
+internal sealed class SqlRowHeading
+{
+    private readonly FrameworkElementFactory _layers;
+
+    internal SqlRowHeading(FrameworkElementFactory heading, FrameworkElementFactory layers,
+        FrameworkElementFactory identity, DataTrigger narrow)
+    {
+        Heading = heading;
+        _layers = layers;
+        Identity = identity;
+        Narrow = narrow;
+        Actions = new FrameworkElementFactory(typeof(StackPanel));
+        Actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+    }
+
+    /// <summary>第一列本身；<b>只</b>把靠右那幾組 append 進來，左半走 <see cref="Identity"/>。</summary>
+    public FrameworkElementFactory Heading { get; }
+
+    /// <summary>左半：主要名稱與緊跟著它的狀態、類型與次要標記。</summary>
+    public FrameworkElementFactory Identity { get; }
+
+    /// <summary>操作那一排；overflow 不必自己加，<see cref="Complete"/> 會接在最後。</summary>
+    public FrameworkElementFactory Actions { get; }
+
+    /// <summary>窄版降級的 trigger；降哪幾樣由呼叫端依自己那一列的優先序決定。</summary>
+    public DataTrigger Narrow { get; }
+
+    /// <summary>收尾：掛上左半、補 overflow、把操作疊上去，並接上鏡射與揭露。</summary>
+    /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
+    public void Complete(DataTemplate template, bool? motion = null)
+    {
+        Heading.AppendChild(Identity);
+
+        var overflow = SqlAssistChrome.CreateRowOverflowButton();
+        Actions.AppendChild(overflow);
+        Narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
+
+        _layers.AppendChild(SqlAssistChrome.CreateRowActionLayer(Actions));
+        template.Triggers.Add(Narrow);
+
+        SqlAssistChrome.MirrorRowStateOnActions(template);
+        SqlAssistChrome.RevealRowActions(template, motion: motion);
     }
 }

@@ -82,7 +82,7 @@ internal static partial class SqlAssistChrome
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "surface");
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "surface");
-        if (motion ?? MotionEnabled) AddMemoryCardMotion(root, template, removable: false);
+        if (motion ?? MotionEnabled) AddCardMotion(root, template, removable: false);
 
         var style = new Style(typeof(ListBoxItem));
         style.Setters.Add(new Setter(Control.TemplateProperty, template));

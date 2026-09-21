@@ -84,7 +84,7 @@ Preview 標頭（開關與摘要）分兩態：
 | 分級 | 資產 | 長度 |
 |---|---|---|
 | 內容表面出現 | `PlayAppear` | 120 ms 淡入 |
-| 列的揭露 | `MemoryCardEnterDuration`／`MemoryCardExitDuration` | 180／140 ms |
+| 列的揭露 | `CardEnterDuration`／`CardExitDuration` | 180／140 ms |
 | 狀態回饋 | `UsageBadgePop`、`SearchStatusPop` | 240 ms |
 | 列操作的揭露 | `RowActionRevealDuration` | 120 ms 淡入＋6 DIP 滑入 |
 | 展開／收合箭頭轉向 | `ChevronTurnDuration` | 140 ms 轉到位，可中途反向 |

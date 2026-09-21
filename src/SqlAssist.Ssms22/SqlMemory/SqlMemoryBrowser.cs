@@ -453,8 +453,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void ConfigureFacet(ConnectionFacet facet)
     {
         var panel = facet.Panel;
-        // 面板與排序選單都不在這棵視覺樹上，各要套一次主題，否則深色主題露出白底。
-        VsThemeBrushes.Apply(panel.PopupSurface); VsThemeBrushes.Apply(panel.SortMenu);
+        VsThemeBrushes.Apply(panel);
         panel.SetSortOptions(FacetSorts, facet.Sort);
         UpdateFacetSummary(facet);
         FillFacet(facet);
@@ -751,7 +750,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_disposed || row.IsRemoving || !_rows.Contains(row)) return;
         row.IsRemoving = true;
         if (!SqlAssistChrome.MotionEnabled) { CompleteRemoval(row); return; }
-        var exit = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.MemoryCardExitDuration };
+        var exit = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.CardExitDuration };
         exit.Tick += (_, _) =>
         {
             exit.Stop();

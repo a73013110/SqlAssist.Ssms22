@@ -340,7 +340,7 @@ public sealed class SqlSearchVisualTests
     {
         WpfTest.Run(() =>
         {
-            var chips = new SqlSearchChipBar();
+            var chips = new SqlFilterChipBar();
             Assert.Equal(Visibility.Collapsed, chips.Visibility);
 
             var removed = new List<string>();
