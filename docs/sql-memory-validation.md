@@ -1,7 +1,8 @@
 # SQL Memory：驗證與部署
 
+本頁包含 SQL Memory 的自動驗證入口、證據邊界與 SSMS 實機門檻。核心、儲存與 UI 契約
+由[索引](index.md)進入，一般安裝門檻見[部署契約](debug-deployment.md)。
 自動測試、元件渲染、封裝 probe 與 SSMS 實機是不同證據，不互相替代。
-核心／儲存／UI 契約見[索引](index.md)，一般安裝門檻見[部署契約](debug-deployment.md)。
 
 ## 自動流程
 

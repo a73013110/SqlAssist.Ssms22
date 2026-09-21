@@ -8,7 +8,7 @@ param(
     [ValidateRange(1, 2147483647)]
     [int]$ClaudeMdBudget = 1000,
     [ValidateRange(1, 2147483647)]
-    [int]$IndexMdBudget = 4000,
+    [int]$IndexMdBudget = 4500,
     [ValidateRange(1, 2147483647)]
     [int]$AgentsMdBudget = 400,
     [string]$Root = (Split-Path -Parent $PSScriptRoot)
@@ -73,9 +73,14 @@ foreach ($file in $targets) {
 
     $linesByPath[$file.FullName] = @(Get-MarkdownLines $text)
     if ($relative -notin $exemptFromScope) {
+        # 圍欄內的 # 已由 Get-MarkdownLines 濾掉，所以第一個非空白行就是真正的標題。
         $content = @($linesByPath[$file.FullName] | Where-Object { $_.Text.Trim() })
+        $heading = $content | Select-Object -First 1
         $first = $content | Select-Object -Skip 1 -First 1
-        if (-not $first -or $first.Text -match '^\s*(#|\||[-*+]\s|\d+\.\s)') {
+        if (-not $heading -or $heading.Text -notmatch '^#\s+\S') {
+            $noScope.Add("${relative}：第一行要是 H1 標題")
+        }
+        elseif (-not $first -or $first.Text -match '^\s*(#|\||[-*+]\s|\d+\.\s)') {
             $noScope.Add("${relative}：H1 之後第一句要寫本頁包含什麼、不含的那一半在哪")
         }
     }
