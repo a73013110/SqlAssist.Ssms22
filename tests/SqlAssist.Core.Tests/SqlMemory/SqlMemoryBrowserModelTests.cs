@@ -37,16 +37,18 @@ public sealed class SqlMemoryBrowserModelTests
         var model = Ready();
         model.Kind = SqlHistoryFilter.Drafts;
         model.Search = "Loan";
-        model.Server = "LibraryServer";
-        model.Database = "Library";
+        model.SetServerSelected("LibraryServer", true);
+        model.SetDatabaseSelected("Library", true);
         model.Period = SqlHistoryPeriod.ThirtyDays;
         model.Invalidate(Now);
 
         var first = model.BeginLoad()!;
         Assert.Null(first.Favorites);
         var request = first.History!;
-        Assert.Equal((SqlMemoryBrowserModel.PageSize, SqlHistoryFilter.Drafts, "Loan", "LibraryServer", "Library"),
-            (request.PageSize, request.Kind, request.Search, request.Server, request.Database));
+        Assert.Equal((SqlMemoryBrowserModel.PageSize, SqlHistoryFilter.Drafts, "Loan"),
+            (request.PageSize, request.Kind, request.Search));
+        Assert.Equal(new[] { "LibraryServer" }, request.Servers);
+        Assert.Equal(new[] { "Library" }, request.Databases);
         Assert.Equal(Now.AddDays(-30), request.Since);
         Assert.Null(model.BeginLoad());
         Assert.True(model.Accept(first, HistoryPage("next")));
@@ -89,14 +91,18 @@ public sealed class SqlMemoryBrowserModelTests
         // 沒選任何名稱就是全部收藏，不需要先指定範圍。
         var all = model.BeginLoad()!;
         Assert.Null(all.History);
-        Assert.Equal((null, null, "Loan"), (all.Favorites!.Server, all.Favorites.Database, all.Favorites.Search));
+        Assert.Equal("Loan", all.Favorites!.Search);
+        Assert.Empty(all.Favorites.Servers);
+        Assert.Empty(all.Favorites.Databases);
         model.End(all);
 
-        // 只選資料庫也能查：同名資料庫散在多台伺服器時一次列出。
-        model.Database = "Library";
+        // 只選資料庫也能查，而且可以一次勾好幾個：同名資料庫散在多台伺服器時一次列出。
+        model.SetDatabaseSelected("Library", true);
+        model.SetDatabaseSelected("Archive", true);
         model.Invalidate(Now);
         var database = model.BeginLoad()!.Favorites!;
-        Assert.Equal((null, "Library"), (database.Server, database.Database));
+        Assert.Empty(database.Servers);
+        Assert.Equal(new[] { "Archive", "Library" }, database.Databases);
     }
 
     [Fact]
@@ -196,7 +202,7 @@ public sealed class SqlMemoryBrowserModelTests
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
-        model.Database = "Library";
+        model.SetDatabaseSelected("Library", true);
         var favorite = new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(), "LibraryServer", "Library");
 
         // 未指定伺服器篩選時不看伺服器標註。
@@ -204,10 +210,18 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.True(model.MatchesFavoriteFilter(favorite with { Server = null }));
         Assert.False(model.MatchesFavoriteFilter(favorite with { Database = "Archive" }));
         Assert.False(model.MatchesFavoriteFilter(favorite with { Database = null }));
-        model.Server = "ArchiveServer";
+
+        // 勾兩個資料庫時兩邊都算數；勾選的是聯集，不是最後勾的那一個。
+        model.SetDatabaseSelected("Archive", true);
+        Assert.True(model.MatchesFavoriteFilter(favorite));
+        Assert.True(model.MatchesFavoriteFilter(favorite with { Database = "Archive" }));
+
+        // 換伺服器會把資料庫一起清掉，所以這裡重新指名。
+        model.SetServerSelected("ArchiveServer", true);
+        model.SetDatabaseSelected("Library", true);
         Assert.False(model.MatchesFavoriteFilter(favorite));
         model.Tab = SqlMemoryBrowserTab.History;
-        model.Server = null;
+        model.ClearServers();
         Assert.False(model.MatchesFavoriteFilter(favorite));
     }
 
@@ -232,21 +246,67 @@ public sealed class SqlMemoryBrowserModelTests
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
-        model.Server = "ArchiveServer";
+        model.SetServerSelected("ArchiveServer", true);
 
         Assert.NotNull(model.UseConnection(null));
         Assert.NotNull(model.UseConnection(new SqlConnectionLabel("LibraryServer", "")));
-        Assert.Equal("ArchiveServer", model.Server);
+        Assert.Equal(new[] { "ArchiveServer" }, model.Servers);
 
+        // 取代而不是加進去：這顆按鈕說的是「只看我現在連的那一個」。
         Assert.Null(model.UseConnection(new SqlConnectionLabel("LibraryServer", "Library")));
-        Assert.Equal(("LibraryServer", "Library"), (model.Server, model.Database));
+        Assert.Equal(new[] { "LibraryServer" }, model.Servers);
+        Assert.Equal(new[] { "Library" }, model.Databases);
+    }
+
+    /// <summary>
+    /// 伺服器與資料庫都是多選；換過伺服器就把資料庫一起清掉。
+    /// </summary>
+    /// <remarks>
+    /// 資料庫名稱是每台伺服器自己的：留著上一輪的名單會篩成一列都沒有，
+    /// 而畫面上只看得到「沒有符合條件」，看不出是上一台的條件還掛著。
+    /// </remarks>
+    [Fact]
+    public void ConnectionFiltersAreMultiSelectAndDatabasesFollowTheServers()
+    {
+        var model = Ready();
+
+        Assert.True(model.SetServerSelected("LibraryServer", true));
+        Assert.True(model.SetServerSelected("ArchiveServer", true));
+        // 勾第二次不是一次變更；呼叫端據此決定要不要重跑一輪。
+        Assert.False(model.SetServerSelected("ArchiveServer", true));
+        Assert.Equal(new[] { "LibraryServer", "ArchiveServer" }, model.Servers);
+        Assert.True(model.IsServerSelected("ArchiveServer"));
+        Assert.False(model.IsServerSelected("archiveserver"));
+
+        Assert.True(model.SetDatabaseSelected("Library", true));
+        Assert.True(model.SetDatabaseSelected("Archive", true));
+        Assert.Equal(new[] { "Library", "Archive" }, model.Databases);
+
+        // 動到伺服器就把資料庫清掉，取消勾也一樣。
+        Assert.True(model.SetServerSelected("ArchiveServer", false));
+        Assert.Equal(new[] { "LibraryServer" }, model.Servers);
+        Assert.Empty(model.Databases);
+
+        Assert.True(model.SetDatabaseSelected("Library", true));
+        Assert.True(model.ClearDatabases());
+        Assert.False(model.ClearDatabases());
+        Assert.Equal(new[] { "LibraryServer" }, model.Servers);
+
+        Assert.True(model.SetDatabaseSelected("Library", true));
+        Assert.True(model.ClearServers());
+        Assert.Empty(model.Servers);
+        Assert.Empty(model.Databases);
+        Assert.False(model.ClearServers());
+
+        Assert.Throws<ArgumentException>(() => model.SetServerSelected("", true));
+        Assert.Throws<ArgumentException>(() => model.SetDatabaseSelected("", true));
     }
 
     [Fact]
     public void OnlyTheLatestFacetRequestOfEachKindIsAccepted()
     {
         var model = Ready();
-        model.Server = "LibraryServer";
+        model.SetServerSelected("LibraryServer", true);
         var servers = model.BeginFacet(false);
         var oldDatabases = model.BeginFacet(true);
         var databases = model.BeginFacet(true);
@@ -257,8 +317,10 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.False(model.IsCurrentFacet(true, databases, 2));
 
         var request = model.FacetRequest(true, SqlConnectionFacetSort.Oldest, 100);
-        Assert.Equal(("LibraryServer", SqlConnectionFacetSort.Oldest, 100, false), (request.Server, request.Sort, request.Offset, request.IsFavorites));
-        Assert.Null(model.FacetRequest(false, SqlConnectionFacetSort.Recent, 0).Server);
+        Assert.Equal((SqlConnectionFacetSort.Oldest, 100, false), (request.Sort, request.Offset, request.IsFavorites));
+        Assert.Equal(new[] { "LibraryServer" }, request.Servers);
+        // 讀伺服器名單時不帶自己的選取，否則勾了一台之後名單上就只剩那一台。
+        Assert.Empty(model.FacetRequest(false, SqlConnectionFacetSort.Recent, 0).Servers);
     }
 
     [Fact]

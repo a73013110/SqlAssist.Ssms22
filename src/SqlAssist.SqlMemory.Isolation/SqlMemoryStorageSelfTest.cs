@@ -93,10 +93,10 @@ public static class SqlMemoryStorageSelfTest
                 Require(await reopened.SaveFavoriteAsync(new SqlFavoriteSave(changed, favorite.Version, start.AddSeconds(23)), token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "更新 SQL Favorite");
                 Require(await reopened.DeleteFavoriteAsync(favoriteId, favorite.Version, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Conflict, "SQL Favorite 過期版本保護");
                 // 只標資料庫的篩選也命中：伺服器與資料庫是兩個獨立的標註，不是階層。
-                var favoritePage = await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(1, database: "Library"), token).ConfigureAwait(false);
+                var favoritePage = await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(1, databases: new[] { "Library" }), token).ConfigureAwait(false);
                 Require(favoritePage.Items.Count == 1 && favoritePage.Items[0].Favorite == changed && favoritePage.NextCursor == null, "SQL Favorite 標註篩選");
                 async Task<int> SearchFavoriteAsync(string search) =>
-                    (await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(5, "LibraryServer", "Library", search), token)
+                    (await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(5, new[] { "LibraryServer" }, new[] { "Library" }, search), token)
                         .ConfigureAwait(false)).Items.Count;
                 // 說明為 null 的收藏靠 SQL 全文命中；大小寫不同的字串不得比對成功。
                 Require(await SearchFavoriteAsync("Lib_Reader").ConfigureAwait(false) == 1, "SQL Favorite SQL 全文搜尋");

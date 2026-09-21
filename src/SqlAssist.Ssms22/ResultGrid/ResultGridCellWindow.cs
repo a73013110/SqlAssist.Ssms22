@@ -70,6 +70,9 @@ internal sealed class ResultGridCellWindow : DialogWindow
         content.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         content.Padding = new Thickness(12);
         AutomationProperties.SetName(content, "儲存格完整內容（唯讀）");
+        // 不換行時一行 XML 可以長到幾千字元；WPF 原生不認 Shift＋滾輪，少了這一道只剩拖捲軸。
+        // 切成自動換行之後沒有水平捲軸，那一刻它不攔滾輪，垂直捲動照舊。
+        SqlAssistChrome.ApplyShiftWheelPan(content);
 
         // 只切換排版，不重設 Text，保留原文與既有選取。
         wrap.Checked += (_, _) => content.TextWrapping = TextWrapping.Wrap;

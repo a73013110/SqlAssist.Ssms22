@@ -30,11 +30,11 @@ public sealed class SqlMemoryVisualTests
         SqlMemoryBrowserModel.SortOptions.Select(option => new SqlFilterSortOption(
             option.Value, option.Label, option.ShortLabel, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
 
-    /// <summary>照 SQL Memory 的形狀組一顆連線篩選：單選、第一列是「全部」、面板裡有排序。</summary>
+    /// <summary>照 SQL Memory 的形狀組一顆連線篩選：多選、第一列是「全部」、面板裡有排序。</summary>
     private static SqlFilterFlyout MemoryFacet(string name, SqlIcon icon, params string[] names)
     {
         // 間距由共用的篩選列決定，不由每一顆自己帶：兩邊各留一份的話，群內會寬出一個間距。
-        var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.Single);
+        var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.SearchableMultiple);
         panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
         panel.UpdateSummary("全部", "");
         panel.SetEmptyOption(new SqlFilterOption("全部", "", true, _ => { }));
@@ -211,8 +211,9 @@ public sealed class SqlMemoryVisualTests
     /// <remarks>
     /// 面板本身的行為（單選選完關閉、第一列取消不掉、虛擬化、忙碌列）在
     /// <c>SqlSearchVisualTests</c> 驗一次就夠；兩邊各驗一次同一個控制項，改了一邊就會留下
-    /// 一份說著舊行為卻仍然綠的測試。這裡只驗 SQL Memory 這一端說的話：未選是「全部」而不是
-    /// 「連線預設」，續頁的字是名稱，排序是連線 facet 那四種。
+    /// 一份說著舊行為卻仍然綠的測試。這裡只驗 SQL Memory 這一端說的話：伺服器與資料庫是<b>多選</b>，
+    /// 未選是「全部」而不是「連線預設」，沒有全選（它與第一列是同一件事），續頁的字是名稱，
+    /// 排序是連線 facet 那四種。
     /// </remarks>
     [Fact]
     public void ConnectionFilterOffersAllAsFirstRowWithPagingAndSort()
@@ -225,7 +226,7 @@ public sealed class SqlMemoryVisualTests
             var picked = new List<string?>();
             var more = 0;
             var sorted = new List<SqlConnectionFacetSort>();
-            var panel = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
+            var panel = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.SearchableMultiple);
             panel.MoreRequested += (_, _) => more++;
             panel.SortRequested += value => sorted.Add((SqlConnectionFacetSort)value);
             panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
@@ -252,14 +253,20 @@ public sealed class SqlMemoryVisualTests
             }
             Layout();
 
-            var radios = Descendants<RadioButton>(surface).ToArray();
-            Assert.Equal(new object[] { "全部", "LibraryServer", "ArchiveServer" }, radios.Select(radio => radio.Content).ToArray());
-            Assert.True(radios[0].IsChecked);
+            // 多選：畫成核取方塊，連勾好幾台不會把上一台取消掉。
+            Assert.Empty(Descendants<RadioButton>(surface));
+            var options = Descendants<CheckBox>(surface).ToArray();
+            Assert.Equal(new object[] { "全部", "LibraryServer", "ArchiveServer" }, options.Select(option => option.Content).ToArray());
+            Assert.True(options[0].IsChecked);
             // 按鈕摘要與第一列共用同一份字；兩處說得不一樣時使用者會以為條件弄丟了。
             Assert.Equal("伺服器: 全部", System.Windows.Automation.AutomationProperties.GetName(panel));
 
-            radios[1].IsChecked = true;
-            Assert.Equal(new[] { "LibraryServer" }, picked);
+            options[1].IsChecked = true;
+            options[2].IsChecked = true;
+            Assert.Equal(new[] { "LibraryServer", "ArchiveServer" }, picked);
+
+            // 全選不畫：一台都沒勾就是全部，那一顆與第一列是同一件事。
+            Assert.DoesNotContain(Descendants<TextBlock>(surface), text => text.Text == "全選");
 
             // 續頁鈕在清單外面，字由宿主給；沒有下一頁就整顆收起。
             var moreButton = Descendants<Button>(surface).Single(

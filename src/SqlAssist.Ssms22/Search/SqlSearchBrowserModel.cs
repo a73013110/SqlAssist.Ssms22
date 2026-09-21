@@ -934,10 +934,9 @@ internal sealed class SqlSearchBrowserModel
     /// 而工具列上真正要一直看得見的是搜尋框與比對位置。完整名單在面板與 Tooltip 上。
     /// </remarks>
     /// <param name="unit">數量後面的量詞；只剩一個數字時，使用者分不出那是幾種還是幾個。</param>
+    /// <summary>過濾按鈕的摘要只有一份寫法，見 <see cref="SqlFilterSummary"/>。</summary>
     private static string Summarize(int count, string allLabel, string? single, string unit) =>
-        count == 0 ? allLabel
-            : single is { Length: > 0 } name ? name
-            : count.ToString(CultureInfo.InvariantCulture) + unit;
+        SqlFilterSummary.Of(count, allLabel, single, unit);
 
     /// <summary>沒有宣告的分類排在最後；不認得的 Id 不該插在認得的中間。</summary>
     private int CategoryRank(string categoryId) =>

@@ -187,7 +187,8 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
         var binding = SqliteTimeCursor.Fingerprint(((int)request.Kind).ToString(CultureInfo.InvariantCulture), request.Search,
-            request.Server, request.Database, request.Since?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture),
+            SqlConnectionNames.Fingerprint(request.Servers), SqlConnectionNames.Fingerprint(request.Databases),
+            request.Since?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture),
             request.Until?.UtcDateTime.Ticks.ToString(CultureInfo.InvariantCulture));
         var cursor = SqliteTimeCursor.Decode(request.Cursor, HistoryCursor, _database.StoreId, binding, SqliteHistoryRows.IsKey);
         var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
@@ -195,7 +196,7 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
         var parameters = new List<(string Name, object? Value)> { ("$limit", search?.CandidateLimit ?? request.PageSize + 1) };
         if (request.Kind == SqlHistoryFilter.Executions || request.Kind == SqlHistoryFilter.Drafts)
         { conditions.Add("h.Kind=$kind"); parameters.Add(("$kind", (int)request.Kind)); }
-        SqliteConnectionFilter.Append(conditions, parameters, "h", request.Server, request.Database);
+        SqliteConnectionFilter.Append(conditions, parameters, "h", request.Servers, request.Databases);
         if (request.Since.HasValue) { conditions.Add("h.CreatedAt >= $since"); parameters.Add(("$since", Ticks(request.Since.Value))); }
         if (request.Until.HasValue) { conditions.Add("h.CreatedAt < $until"); parameters.Add(("$until", Ticks(request.Until.Value))); }
         cursor?.AppendCondition(conditions, parameters, "h.CreatedAt", "h.EntryKey");
@@ -241,13 +242,23 @@ JOIN Contents c ON c.ContentId=h.ContentId" + SqliteConnectionFilter.Where(condi
             SqlConnectionFacetSort.ReverseAlphabetical => "Name COLLATE NOCASE DESC, Name DESC",
             _ => "MAX(" + time + ") DESC, Name ASC"
         };
+        // 資料庫名單只在指名了伺服器時才縮範圍；讀伺服器名單時這幾個條件一律不加。
+        var conditions = new List<string>();
+        var parameters = new List<(string Name, object? Value)>
+        {
+            ("$limit", SqlConnectionFacetRequest.PageSize + 1), ("$offset", request.Offset)
+        };
+        if (request.Databases)
+        {
+            SqliteConnectionFilter.Append(conditions, parameters, "h", request.Servers, Array.Empty<string>());
+        }
+
         // 識別字與排序僅來自上述封閉集合；所有使用者值仍以參數傳入。
         using var command = Command(connection, null, "SELECT " + column + " AS Name FROM " + source +
             " WHERE " + column + " IS NOT NULL AND " + column + " <> ''" +
-            (request.Databases && request.Server != null ? " AND h.Server=$server" : "") +
+            (conditions.Count == 0 ? "" : " AND " + string.Join(" AND ", conditions)) +
             " GROUP BY " + column + " ORDER BY " + order + " LIMIT $limit OFFSET $offset;",
-            ("$server", request.Server),
-            ("$limit", SqlConnectionFacetRequest.PageSize + 1), ("$offset", request.Offset));
+            parameters.ToArray());
         using var reader = command.ExecuteReader();
         var names = new List<string>();
         while (reader.Read()) { cancellationToken.ThrowIfCancellationRequested(); names.Add(reader.GetString(0)); }

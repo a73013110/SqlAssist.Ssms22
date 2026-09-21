@@ -106,13 +106,14 @@ UpdatedAt=excluded.UpdatedAt,Version=excluded.Version;",
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
-        var binding = SqliteTimeCursor.Fingerprint(request.Server, request.Database, request.Search);
+        var binding = SqliteTimeCursor.Fingerprint(
+            SqlConnectionNames.Fingerprint(request.Servers), SqlConnectionNames.Fingerprint(request.Databases), request.Search);
         var cursor = SqliteTimeCursor.Decode(request.Cursor, FavoriteCursor, _database.StoreId, binding, SqliteTimeCursor.IsId);
         // 搜尋只是標註篩選之上的條件，同樣受單頁掃描預算限制。
         var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
         var conditions = new List<string>();
         var parameters = new List<(string Name, object? Value)> { ("$limit", search?.CandidateLimit ?? request.PageSize + 1) };
-        SqliteConnectionFilter.Append(conditions, parameters, "f", request.Server, request.Database);
+        SqliteConnectionFilter.Append(conditions, parameters, "f", request.Servers, request.Databases);
         cursor?.AppendCondition(conditions, parameters, "f.UpdatedAt", "f.FavoriteId");
         using var connection = _database.Connect();
         using var command = Command(connection, null, FavoritePageSql(conditions, search != null), parameters.ToArray());

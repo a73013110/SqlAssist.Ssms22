@@ -26,6 +26,7 @@
 | 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
 | 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
+| 篩選名單的去空白、去重、排序與游標指紋（伺服器／資料庫三份請求共用） | `Core/SqlMemory/SqlConnectionNames.cs` |
 | 一輪搜尋的排名、去重、預算與世代作廢 | `Core/Search/SearchAggregator.cs` |
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs`（與 `SqlMetadataCatalog` 分開，不合併） |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（先問指令碼再問快照；語法可重用，資料每次重新比對） |

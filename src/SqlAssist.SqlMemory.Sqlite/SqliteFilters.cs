@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 
 namespace SqlAssist.SqlMemory.Sqlite;
@@ -112,9 +113,55 @@ internal static class SqliteConnectionFilter
     public static void Append(ICollection<string> conditions, ICollection<(string Name, object? Value)> parameters,
         string alias, string? server, string? database)
     {
-        if (server != null) { conditions.Add(alias + ".Server=$server"); parameters.Add(("$server", server)); }
-        if (database != null) { conditions.Add(alias + ".DatabaseName=$database"); parameters.Add(("$database", database)); }
+        Append(conditions, parameters, alias, Names(server), Names(database));
     }
+
+    /// <param name="alias">資料表別名；只來自呼叫端常數。</param>
+    /// <param name="servers">空名單表示不限。</param>
+    /// <param name="databases">空名單表示不限。</param>
+    public static void Append(ICollection<string> conditions, ICollection<(string Name, object? Value)> parameters,
+        string alias, IReadOnlyList<string> servers, IReadOnlyList<string> databases)
+    {
+        AppendColumn(conditions, parameters, alias + ".Server", "$server", servers);
+        AppendColumn(conditions, parameters, alias + ".DatabaseName", "$database", databases);
+    }
+
+    /// <summary>
+    /// 一個欄位的條件：一個名稱用 <c>=</c>，多個用 <c>IN</c>。
+    /// </summary>
+    /// <remarks>
+    /// 多值走 <c>IN</c> 而不是把索引封死：SQLite 仍然可以為它挑
+    /// <c>IX_History_ServerTime</c> 這類索引，但那時 <c>ORDER BY</c> 落在索引後段的欄位上，
+    /// 它會為排序建一棵暫存 b-tree——而整份分頁的前提正是沿時間索引串流，
+    /// 搜尋預算才真的限制得了讀進來的 BLOB。所以多值那一支在名稱前加上一元 <c>+</c>，
+    /// 讓這個條件不能當成索引限制，查詢回到時間索引上邊走邊濾；
+    /// 只勾一個的常見情形仍然吃得到複合索引。EXPLAIN 測試同時守住這兩種形狀。
+    /// </remarks>
+    private static void AppendColumn(ICollection<string> conditions,
+        ICollection<(string Name, object? Value)> parameters, string column, string prefix, IReadOnlyList<string> names)
+    {
+        if (names is null) throw new ArgumentNullException(nameof(names));
+        if (names.Count == 0) return;
+
+        if (names.Count == 1)
+        {
+            conditions.Add(column + "=" + prefix);
+            parameters.Add((prefix, names[0]));
+            return;
+        }
+
+        var placeholders = new string[names.Count];
+        for (var index = 0; index < names.Count; index++)
+        {
+            placeholders[index] = prefix + index.ToString(CultureInfo.InvariantCulture);
+            parameters.Add((placeholders[index], names[index]));
+        }
+
+        conditions.Add("+" + column + " IN (" + string.Join(",", placeholders) + ")");
+    }
+
+    private static IReadOnlyList<string> Names(string? value) =>
+        value is null ? Array.Empty<string>() : new[] { value };
 
     public static string Where(IReadOnlyCollection<string> conditions) =>
         conditions.Count == 0 ? "" : " WHERE " + string.Join(" AND ", conditions);

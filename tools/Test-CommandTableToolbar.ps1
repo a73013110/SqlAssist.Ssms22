@@ -22,7 +22,7 @@ $namespaces.AddNamespace('ct', 'http://schemas.microsoft.com/VisualStudio/2005-1
 $toolbarEntries = @(
     @('cmdidShowSqlHistory', 'History'),
     @('cmdidShowSqlFavorites', 'Favorites'),
-    @('cmdidShowSqlSearch', 'SQL Search')
+    @('cmdidShowSqlSearch', 'Search')
 )
 foreach ($entry in $toolbarEntries) {
     $button = $commands.SelectSingleNode('//ct:Button[@id="' + $entry[0] + '"]', $namespaces)

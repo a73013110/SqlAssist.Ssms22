@@ -4,6 +4,9 @@
 聚合，Metadata 放來源，Ssms22 只接線。
 
 入口有兩個：**SqlAssist 工具列**的第三顆按鈕，以及**工具 → SqlAssist → SQL Search**。
+工具列那一顆的字是 **Search** 而不是 SQL Search：那一列是 `History｜Favorites｜Search`，
+三顆都帶圖示與字，多出來的「SQL」在三顆都屬於 SqlAssist 的工具列上說不出新資訊，卻實際
+佔掉工具列寬度；完整名稱留在 Tooltip 與選單上那一顆。
 工具列那一顆走 `CommandPlacement` 而不是第二顆按鈕，外觀與選單上那一顆完全相同；
 順序排在 History／Favorites 後面，理由與選單分成兩個群組相同——前兩顆找的是自己寫過的
 SQL，這一顆找的是伺服器上的物件。沒有鍵繫結，理由見 `CommandIds.ShowSqlSearch`。

@@ -27,8 +27,10 @@ public sealed class SqlHistoryContractTests
         Assert.True(partial.IsSearchPartial);
         Assert.Equal(Start, partial.SearchedThrough);
         Assert.Throws<ArgumentNullException>(() => new SqlMemoryPage<int>(items, null!, Start));
-        var request = new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "Loan", "LibraryServer", "Library", Start, Start.AddDays(1), "opaque");
-        Assert.Equal("Library", request.Database);
+        var request = new SqlHistoryRequest(50, SqlHistoryFilter.Executions, "Loan",
+            new[] { "LibraryServer" }, new[] { "Library", "Archive" }, Start, Start.AddDays(1), "opaque");
+        // 名單排序後去重，指紋才與使用者勾選的先後無關。
+        Assert.Equal(new[] { "Archive", "Library" }, request.Databases);
         Assert.Equal("opaque", request.Cursor);
         Assert.Throws<ArgumentException>(() => new SqlHistoryRequest(50, since: Start.AddDays(1), until: Start));
     }

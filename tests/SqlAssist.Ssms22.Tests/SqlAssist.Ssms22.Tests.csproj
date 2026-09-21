@@ -46,6 +46,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchTargets.cs" Link="Product\UI\SqlSearchTargets.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchFilters.cs" Link="Product\UI\SqlSearchFilters.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterFlyout.cs" Link="Product\UI\SqlFilterFlyout.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterSummary.cs" Link="Product\UI\SqlFilterSummary.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Filters.cs" Link="Product\UI\SqlAssistChrome.Filters.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlBusyNotice.cs" Link="Product\UI\SqlBusyNotice.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlFilterBar.cs" Link="Product\UI\SqlFilterBar.cs" />

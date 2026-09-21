@@ -26,9 +26,9 @@ public sealed class SqliteConnectionFacetTests
         Assert.Equal(new[] { "BranchB", "BranchA" }, await Servers(SqlConnectionFacetSort.Oldest));
         Assert.Equal(new[] { "BranchA", "BranchB" }, await Servers(SqlConnectionFacetSort.Alphabetical));
         Assert.Equal(new[] { "BranchB", "BranchA" }, await Servers(SqlConnectionFacetSort.ReverseAlphabetical));
-        Assert.Equal(new[] { "Main" }, await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, "BranchA"), Token));
-        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, "brancha"), Token));
-        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, "' OR 1=1--"), Token));
+        Assert.Equal(new[] { "Main" }, await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, new[] { "BranchA" }), Token));
+        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, new[] { "brancha" }), Token));
+        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(false, true, new[] { "' OR 1=1--" }), Token));
     }
 
     [Fact]
@@ -64,9 +64,9 @@ public sealed class SqliteConnectionFacetTests
         Assert.Equal(new[] { "Library" }, await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(true, false), Token));
         Assert.Equal(new[] { "Archive", "Main" }, await repository.ReadConnectionFacetsAsync(
             new SqlConnectionFacetRequest(true, true, sort: SqlConnectionFacetSort.Alphabetical), Token));
-        Assert.Equal(new[] { "Main" }, await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(true, true, "Library"), Token));
-        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(true, true, "HistoryOnly"), Token));
-        var page = await repository.ReadFavoritesAsync(new SqlFavoriteRequest(10, database: "Archive"), Token);
+        Assert.Equal(new[] { "Main" }, await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(true, true, new[] { "Library" }), Token));
+        Assert.Empty(await repository.ReadConnectionFacetsAsync(new SqlConnectionFacetRequest(true, true, new[] { "HistoryOnly" }), Token));
+        var page = await repository.ReadFavoritesAsync(new SqlFavoriteRequest(10, databases: new[] { "Archive" }), Token);
         Assert.Equal((null, "Archive"), (Assert.Single(page.Items).Favorite.Server, page.Items[0].Favorite.Database));
     }
 }

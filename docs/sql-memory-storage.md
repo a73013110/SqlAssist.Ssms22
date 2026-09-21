@@ -67,6 +67,14 @@ SQL 不放 metadata，而由 `CurrentRevisionId` 找 Contents；GUID CAS token �
 - 收藏操作不以 CaptureId 冪等，回應遺失後先重讀。
 
 伺服器與資料庫是各自選填的標註，不是階層也不是執行連線；空白正規化為 NULL，schema 另擋空字串。
+
+篩選帶的是**一組名稱**（`SqlConnectionNames`：去空白、去重、排序，空名單表示不限），History、
+Favorites 與連線名稱面板三份請求共用同一份正規化——游標指紋照名單組，沒有排序去重的話同一組
+條件會因為勾選先後算出兩個指紋，而續頁那一刻會被當成換過條件。SQL 只有一個名稱時用 `=`，
+多個時用 `+欄位 IN (…)`：一元 `+` 讓這個條件不能當成索引限制，查詢回到時間索引上邊走邊濾。
+不加的話 SQLite 會挑 `IX_History_ServerTime` 這類索引，而 `ORDER BY` 落在索引後段的欄位上，
+它改為建一棵暫存 b-tree 排序整份結果——單頁掃描預算限制得了讀進來的 BLOB，限制不了那一次排序。
+兩種形狀都由 `SqliteHistoryTests` 的 EXPLAIN 測試守住。
 清單以 (UpdatedAt, FavoriteId) DESC keyset，四個時間索引對應 History 的同一組連線篩選，
 篩選 SQL 與游標由 `SqliteConnectionFilter`／`SqliteTimeCursor` 共用。
 
