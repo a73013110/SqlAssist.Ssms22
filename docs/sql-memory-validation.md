@@ -18,15 +18,9 @@
 ./tools/Check-TextFiles.ps1
 ```
 
-- Core：內容精確性、版本引擎、背景佇列、分頁世代、收藏標註／CAS、版本時間軸、行級差異、維護策略、容量分級與清理串接。
-- SQLite：完整新 schema、並行初始化、交易／取消／引用保護、全文搜尋、連續執行合併、版本時間軸、用量計數、試算與清除、備份、游標及 EXPLAIN 索引。
-  不再保留未發行舊 schema 的 migration 測試。
-- WPF：共用卡片、清單操作、時間軸列、差異標記與底色、主從收合／比例、篩選、用量頁與量表及實際文字／圖示位置；
-  Light／Dark／High Contrast 及彩色主題、320／440／740 DIP、100%／150%／200% 渲染。
-- VSIX build 內含套件檢查；封裝 probe 解開真正 VSIX，不從 NuGet cache 補相依。
-  覆蓋 net48 x64 隔離載入、外部 LoadFrom、雙程序 40 次提交、缺檔／錯誤 native 架構／夾帶 BCL。
-- `SqlMemoryStorageSelfTest` 是 SSMS 診斷命令與 probe 的唯一實作，涵蓋重送、重開、執行合併跨 AppDomain、全文、
-  Favorites CRUD／SQL 編輯／版本時間軸、配額／租約、檔案釋放及宿主 provider 汙染檢查。
+涵蓋範圍看 `tests/` 底下的四個測試專案本身，不在文件重列一份會過時的清單。兩條只有這裡說得出來的約束：VSIX 封裝 probe 解開真正的 VSIX、
+不從 NuGet cache 補相依；`SqlMemoryStorageSelfTest` 是 SSMS 診斷命令與 probe 的唯一實作，
+兩邊不得各寫一份。
 
 WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 不是 SSMS 宿主截圖。文件不永久保存批次提交、逐次測試總數或 handoff 順序。
@@ -34,8 +28,8 @@ WPF PNG 在 `artifacts/theme-qa/`，是忽略的驗證產物，
 
 ## SSMS 實機門檻
 
-命令資源版號現為 30；Install／Deploy 的選用規則與一般安裝門檻見[部署契約](debug-deployment.md)。
-schema 版號現為 5，舊的開發測試資料庫會被明確拒絕，由工具窗的重建引導封存後重建。
+Install／Deploy 的選用規則與一般安裝門檻見[部署契約](debug-deployment.md)。命令資源版號與
+schema 版號以程式碼為準；schema 升版後舊的開發測試資料庫會被明確拒絕，由工具窗的重建引導封存後重建。
 
 1. 儲存工作並關閉 SSMS，建置後依[發布與安裝](release.md)安裝本版。
 2. 開啟詳細記錄，在用量分頁的「診斷」卡片執行「儲存自我測試」兩次；確認報告的 Isolation 建置及載入路徑。

@@ -1,5 +1,8 @@
 # 函式與系統物件的補全範圍
 
+本頁包含建議清單收哪些函式與系統物件、資料表值函式與純量函式為什麼分開。
+清單怎麼排名與觸發見[補全](completion.md)。
+
 ## 資料表值函式與純量函式分開
 
 `SuggestionKind.TableFunction` 與 `SuggestionKind.Function` 是兩類：前者是內嵌

@@ -8,12 +8,14 @@
 |`CLAUDE.md`、`AGENTS.md`、README、`docs/`、AI 工具|[文件](rules-docs.md)|
 |Settings、registration、設定頁|[設定](rules-settings.md)|
 |Ssms22 事件、命令、MEF、連線、部署|[平台](rules-platform.md)|
-|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)＋[視窗骨架](ui-windows.md)／[清單列](ui-rows.md)／[篩選](ui-filters.md)|
+|自製 UI|[平台](rules-platform.md)＋[UI 準則](ui-guidelines.md)；碰到才讀[骨架](ui-windows.md)／[清單列](ui-rows.md)／[篩選](ui-filters.md)|
 |Metadata|[中繼資料](rules-metadata.md)|
 |Snippets、Parsing、Wildcards、上下文、SQL 掃描|[片段與解析](rules-parsing.md)|
 |跨功能共用邏輯|上述護欄＋[唯一實作](shared-components.md)／[平台](shared-components-platform.md)|
 
 ## 主題
+
+一列有多份時，**第一份是入口**，其餘碰到那一塊才讀。
 
 | 關鍵字／症狀 | 文件 |
 |---|---|
@@ -37,13 +39,13 @@
 | INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
 | 自訂函式括號、引數預留值 | [函式呼叫](function-call-insertion.md) |
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
-| 子句回溯、換行邊界 | [關鍵字邊界](completion-keyword-context.md)／[不開清單](completion-no-list.md) |
+| 子句回溯、換行邊界、不開清單 | [子句邊界](completion-boundaries.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
-| 用途、範例、style、datepart | [內建說明](builtin-help.md)／[辨識](builtin-help-recognition.md) |
+| 用途、範例、style、datepart、名稱辨識 | [內建說明](builtin-help.md) |
 | 函式簽章、目前第幾個引數 | [參數提示](parameter-hint.md) |
 | 全域變數、模組參數 | [變數](completion-variables.md) |
 | 內容與接續建議 | [片段](snippets.md) |
-| Tab Stop、Tab／Enter | [片段導航](snippet-navigation.md)／[欄位建議](snippet-field-list.md) |
+| Tab Stop、Tab／Enter、欄位建議 | [片段導航](snippet-navigation.md) |
 | 包住選取範圍、`$surround$` | [片段包夾](snippet-surround.md)／[按鍵](snippet-surround-keys.md) |
 | 使用者 override、合併、存檔 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
