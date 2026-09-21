@@ -79,6 +79,42 @@ internal static partial class SqlAssistChrome
         return divider;
     }
 
+    /// <summary>過濾面板裡那條橫線；把第一列那個預設與底下的複選區切開。</summary>
+    /// <remarks>
+    /// 與篩選列上那兩條是不同的東西：那兩條是直的，分的是工具列上一顆顆篩選按鈕
+    /// （見 <see cref="CreateFilterGroupDivider"/>）；這一條是橫的，分的是面板裡「預設值」與
+    /// 「自己挑這些」兩區。沒有它的那一版，第一列畫成 radio 會讓人以為整份清單只能選一個。
+    /// 淡度沿用群內那一級：它分的是同一個面板裡的兩區，不是兩個問題。
+    /// </remarks>
+    public static Border CreateFilterPanelDivider()
+    {
+        var divider = new Border
+        {
+            Height = 1,
+            Margin = new Thickness(0, 4, 0, 4),
+            Opacity = FilterItemDividerOpacity,
+            SnapsToDevicePixels = true,
+            IsHitTestVisible = false,
+            Focusable = false
+        };
+        divider.SetResourceReference(Border.BackgroundProperty, ThemeBrush.Hairline);
+        return divider;
+    }
+
+    /// <summary>面板第一列那個預設；一律畫成 radio，內容由呼叫端塞一個 <see cref="SqlFilterRow"/>。</summary>
+    /// <remarks>
+    /// 它與底下每一個選項<b>互斥</b>——勾任何一個名稱它就退勾，選它就把整個維度清空——所以形狀
+    /// 要是 radio。核取方塊的合約是可勾可取消，而這一列取消不掉（「一個都不選」就是它自己），
+    /// 畫成核取方塊讀起來像壞掉。複選面板也用 radio，理由同上；互斥仍由模型負責，
+    /// <see cref="SqlFilterRow.GroupName"/> 每一列各一個，WPF 的自動互斥照樣關著。
+    ///
+    /// 它不進 <see cref="CreateFilterOptionList"/> 那份虛擬化清單：它是這個維度的預設值與
+    /// 目前狀態，捲得走的那一版在名稱上百個時把狀態藏起來，而它又是回得去的那一條路。
+    /// 留在清單外面也讓它天生不受搜尋框過濾，不必再特判一次。
+    /// </remarks>
+    public static ContentPresenter CreateFilterDefaultRow() =>
+        new() { ContentTemplate = CreateFilterOptionRow<RadioButton>(CreateRadioTemplate()) };
+
     /// <summary>工具列上的過濾下拉按鈕；與其他工具列按鈕同高，不另立一種外觀。</summary>
     public static Style CreateFilterButtonStyle()
     {

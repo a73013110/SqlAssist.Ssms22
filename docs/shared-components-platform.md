@@ -31,7 +31,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 圖示加標籤的分頁 | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾面板（單／複選、第一列的預設、續頁、排序、整批命令） | `Ssms22/UI/SqlFilterFlyout.cs` |
 | 過濾按鈕上那一句摘要（沒勾／勾一個／勾很多）與 Tooltip 的完整名單 | `Ssms22/UI/SqlFilterSummary.cs` |
-| 篩選的兩級分隔線、過濾面板的按鈕樣式與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
+| 篩選的兩級分隔線與面板裡那條橫線、過濾面板的按鈕樣式、第一列那個預設與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 工具列那一列篩選（分群、換行） | `Ssms22/UI/SqlFilterBar.cs` |
 | 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕、框裡開關開著的外觀 | `Ssms22/UI/SqlInputRow.cs`、`SqlAssistChrome.Search.cs` 的 `CreateInputToggleStyle` |
 | 展開／收合箭頭與它的轉向（下拉、排序選單、預覽把手） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateChevron`／`SetChevronExpanded` |

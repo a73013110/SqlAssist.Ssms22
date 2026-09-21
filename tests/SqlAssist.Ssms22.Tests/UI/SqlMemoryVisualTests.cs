@@ -259,16 +259,18 @@ public sealed class SqlMemoryVisualTests
             }
             Layout();
 
-            // 多選：畫成核取方塊，連勾好幾台不會把上一台取消掉。
-            Assert.Empty(Descendants<RadioButton>(surface));
+            // 多選：名稱畫成核取方塊，連勾好幾台不會把上一台取消掉。
             var options = Descendants<CheckBox>(surface).ToArray();
-            Assert.Equal(new object[] { "全部", "LibraryServer", "ArchiveServer" }, options.Select(option => option.Content).ToArray());
-            Assert.True(options[0].IsChecked);
+            Assert.Equal(new object[] { "LibraryServer", "ArchiveServer" }, options.Select(option => option.Content).ToArray());
+            // 第一列那個「全部」與底下每一台互斥，所以是 radio，而且在捲動區外面。
+            var all = Descendants<RadioButton>(surface).Single();
+            Assert.Equal("全部", all.Content);
+            Assert.True(all.IsChecked);
             // 按鈕摘要與第一列共用同一份字；兩處說得不一樣時使用者會以為條件弄丟了。
             Assert.Equal("伺服器: 全部", System.Windows.Automation.AutomationProperties.GetName(panel));
 
+            options[0].IsChecked = true;
             options[1].IsChecked = true;
-            options[2].IsChecked = true;
             Assert.Equal(new[] { "LibraryServer", "ArchiveServer" }, picked);
 
             // 全選與全不選兩顆並排：全選作用在搜尋框篩出來的那一份，所以它在 SQL Memory 也是一個動作；
@@ -283,6 +285,12 @@ public sealed class SqlMemoryVisualTests
             clearAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             Assert.Equal(new[] { "Library" }, askedAll);
             Assert.Equal(1, clearedAll);
+
+            // 名稱是分頁問回來的，全選只勾得到已載入的那幾頁；界線由宿主用自己的話掛在那一顆上。
+            panel.SetSelectAllHint("只勾得到已經載入的名稱。");
+            Assert.Equal("全選伺服器" + Environment.NewLine + "只勾得到已經載入的名稱。", selectAll.ToolTip);
+            panel.SetSelectAllHint(null);
+            Assert.Equal("全選伺服器", selectAll.ToolTip);
 
             // 續頁鈕在清單外面，字由宿主給；沒有下一頁就整顆收起。
             var moreButton = Descendants<Button>(surface).Single(

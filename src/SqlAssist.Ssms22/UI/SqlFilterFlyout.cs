@@ -67,8 +67,11 @@ internal enum SqlFilterBulkCommands
 /// 「這一輪用連線預設」，兩句話不一樣，控制項不替它們挑一句。
 ///
 /// 面板上的整批命令是<b>兩顆並排、一直亮著</b>的全選與全不選（<see cref="SetBulkCommands"/>），
-/// 要不要由宿主決定。它們在捲動區外面，而第一列那個預設是虛擬化清單的第 0 列：名稱上百個時
-/// 捲下去就看不到了，清除的出口不能只有那一列。
+/// 要不要由宿主決定；判準是<b>有沒有搜尋框</b>，不是是不是複選——沒有搜尋框時「列出來的那一份」
+/// 恆等於整份，全選就與「一個都沒勾」同義，那一列只剩一顆按不出差別的鈕。
+/// 全不選與第一列那個預設做的是同一件事，但兩個都要有：第一列是一個<b>值</b>，回答「沒指名時
+/// 用哪一個」，而命令列上是一個<b>動作</b>，回答「把我剛勾的這幾個拿掉」。勾了一部分是最常見的
+/// 狀態，那時使用者要的是後者。
 /// 全選只作用在<b>目前列出來的那一份</b>（套用搜尋字之後，見 <see cref="Matches"/>）：打了字就是
 /// 「把篩出來的這幾個都勾起來」，沒打字才是整份。全不選相反，清的是整個維度——它走的就是
 /// 第一列那個預設的清除路徑，不另寫一次狀態同步，兩份的下場是其中一邊忘了同步第一列的勾。
@@ -96,6 +99,8 @@ internal sealed class SqlFilterFlyout : Button
     private readonly Button _selectAll;
     private readonly Button _clearAll;
     private readonly Button _more;
+    private readonly ContentPresenter _defaultRow;
+    private readonly Border _defaultDivider;
     private IReadOnlyList<SqlFilterGroup> _groups = Array.Empty<SqlFilterGroup>();
     private IReadOnlyList<SqlFilterSortOption> _sorts = Array.Empty<SqlFilterSortOption>();
     private object? _sort;
@@ -177,6 +182,14 @@ internal sealed class SqlFilterFlyout : Button
 
         // 提示在清單上方：清單本身可能是空的，而空清單底下的一行字要滑到底才看得到。
         panel.Children.Add(_notice);
+
+        // 第一列那個預設與它底下那條橫線都在捲動區外面，理由見 SqlAssistChrome.CreateFilterDefaultRow。
+        _defaultRow = SqlAssistChrome.CreateFilterDefaultRow();
+        _defaultDivider = SqlAssistChrome.CreateFilterPanelDivider();
+        _defaultRow.Visibility = Visibility.Collapsed;
+        _defaultDivider.Visibility = Visibility.Collapsed;
+        panel.Children.Add(_defaultRow);
+        panel.Children.Add(_defaultDivider);
         panel.Children.Add(_options);
 
         // 續頁鈕在清單外面：它要一直看得見。捲進清單裡的那一版得先滑到底才按得到，
@@ -354,17 +367,20 @@ internal sealed class SqlFilterFlyout : Button
     /// 面板第一列那個「沒有指名＝用這個」的預設；null 表示這個面板沒有預設可回。
     /// </summary>
     /// <remarks>
-    /// 它<b>不受搜尋框過濾</b>：打了字之後一個都不相符時，那一列仍要留著，否則使用者在
-    /// 過濾字還在的情況下回不到預設。選它等於清空這個維度，所以面板上不另畫「清除」。
-    /// 字由宿主給，與按鈕摘要共用同一份（例如「連線預設（master）」或「全部」），
-    /// 兩處不會說得不一樣，控制項也不替任何一個功能挑一句。
+    /// 它畫成 radio 且在捲動區外面（<see cref="SqlAssistChrome.CreateFilterDefaultRow"/>），所以
+    /// 既不受搜尋框過濾，也不會隨清單捲出畫面——打了字之後一個都不相符、或名稱有上百個時，
+    /// 使用者都還回得到預設。字由宿主給，與按鈕摘要共用同一份（例如「連線預設（master）」或
+    /// 「全部」），兩處不會說得不一樣，控制項也不替任何一個功能挑一句。
     /// </remarks>
     public void SetEmptyOption(SqlFilterOption? option)
     {
         _empty = option is null
             ? null
             : SqlFilterRow.Empty(option, Mode == SqlFilterMode.Single ? CloseAfterPick : null);
-        ApplyFilter();
+        _defaultRow.Content = _empty;
+        var visibility = _empty is null ? Visibility.Collapsed : Visibility.Visible;
+        _defaultRow.Visibility = visibility;
+        _defaultDivider.Visibility = visibility;
     }
 
     /// <summary>
@@ -397,6 +413,25 @@ internal sealed class SqlFilterFlyout : Button
         _commands.Visibility = show || _sortButton.Visibility == Visibility.Visible
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// 全選那一顆的範圍註腳；null 或空字串只留基本的名稱。
+    /// </summary>
+    /// <remarks>
+    /// 全選作用在「面板列出來的那一份」，而那一份有沒有到齊只有宿主知道：SQL Memory 的名稱是
+    /// 分頁問回來的，按下去只勾得到已載入的那幾頁；SQL Search 會先把整台問回來，沒有這個界線。
+    /// 話由宿主說，控制項不替任何一個功能挑一句。
+    ///
+    /// 掛在 Tooltip 與 <see cref="AutomationProperties.HelpTextProperty"/>，不佔清單上方那一行：
+    /// 那一行同時要報「正在讀取」與載入失敗，兩件事輪流蓋掉彼此之後都說不清楚，而這一句是
+    /// 按鈕的範圍註腳，不是面板的狀態。
+    /// </remarks>
+    public void SetSelectAllHint(string? hint)
+    {
+        var tip = "全選" + _name;
+        _selectAll.ToolTip = string.IsNullOrEmpty(hint) ? tip : tip + Environment.NewLine + hint;
+        AutomationProperties.SetHelpText(_selectAll, hint ?? "");
     }
 
     /// <summary>
@@ -590,9 +625,6 @@ internal sealed class SqlFilterFlyout : Button
         var pattern = _filter?.Text ?? "";
         var rows = new List<SqlFilterRow>();
 
-        // 預設那一列永遠第一個，而且不過濾：它是這個面板的出口，不是選項之一。
-        if (_empty is { } empty) rows.Add(empty);
-
         foreach (var group in _groups)
         {
             var start = rows.Count;
@@ -689,10 +721,11 @@ internal sealed class SqlFilterRow : INotifyPropertyChanged
     public static SqlFilterRow Option(SqlFilterOption option, Action<bool>? picked = null) =>
         new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected, option.Selected, picked);
 
-    /// <summary>面板第一列那個預設；勾得上去，取消不掉。</summary>
+    /// <summary>面板第一列那個預設；選得上去，取消不掉，所以畫成 radio。</summary>
     /// <remarks>
-    /// 取消勾它不是使用者做得到的狀態——「一個都不選」就是它自己。不擋的症狀與分段開關
-    /// 最後一段相同：勾選框彈起來了，而條件其實一點都沒變。
+    /// 取消它不是使用者做得到的狀態——「一個都不選」就是它自己。不擋的症狀與分段開關
+    /// 最後一段相同：控制項彈起來了，而條件其實一點都沒變。形狀的理由見
+    /// <see cref="SqlAssistChrome.CreateFilterDefaultRow"/>。
     /// </remarks>
     public static SqlFilterRow Empty(SqlFilterOption option, Action<bool>? picked = null) =>
         new(option.Label, option.ToolTip, new Thickness(0, 2, 0, 2), isCaption: false, option.IsSelected,
