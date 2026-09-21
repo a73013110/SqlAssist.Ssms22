@@ -437,20 +437,27 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         VsThemeBrushes.Apply(_databases);
         _databases.OptionsRequested += (_, _) => _ = RunAsync(ShowDatabasesAsync);
         // 全選等清單到齊才動手：只全選手上那一份的症狀是使用者在清單還在路上時按了它，
-        // 而勾起來的是幾個名稱而不是整台。
-        _databases.SelectAllRequested += (_, _) => _ = RunAsync(async () =>
+        // 而勾起來的是幾個名稱而不是整台。面板上打了字就只勾篩出來的那幾個，而且照面板
+        // 同一條比對規則再篩一次——這裡自己寫一份的下場是看到五個、勾起來七個。
+        _databases.SelectAllRequested += pattern => _ = RunAsync(async () =>
         {
             var databases = await _scopeDatabases.EnsureAsync(_catalogs.Resolve());
             var changed = false;
-            foreach (var database in databases) changed |= _model.SetDatabaseSelected(database.Name, selected: true);
+            foreach (var database in databases)
+            {
+                if (!SqlFilterFlyout.Matches(database.Name, pattern)) continue;
+                changed |= _model.SetDatabaseSelected(database.Name, selected: true);
+            }
+
             FillDatabases(databases);
             if (changed) FiltersChanged();
         });
-        // 取消全選與第一列那個「連線預設」是同一件事，所以走同一條清除路徑，不另寫一份狀態同步。
+        // 全不選與第一列那個「連線預設」是同一件事，所以走同一條清除路徑，不另寫一份狀態同步。
         _databases.ClearAllRequested += (_, _) => Run(ClearDatabases);
+        _databases.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
     }
 
-    /// <summary>清掉整個資料庫維度；第一列那個預設、chip 的十字與取消全選共用這一份。</summary>
+    /// <summary>清掉整個資料庫維度；第一列那個預設、chip 的十字與全不選共用這一份。</summary>
     private void ClearDatabases()
     {
         if (!_model.ClearDatabases()) return;
@@ -537,11 +544,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             new SqlFilterGroup("系統資料庫", system)
         });
         _databases.SetNotice(DatabaseNotice(seen.Count));
-        // 名單還沒到齊時一律寫著「全選」：那一顆按下去本來就會先把整份問回來，
-        // 而此刻手上這幾個名稱全勾起來並不代表整台都選了。
-        _databases.SetBulkSelection(_scopeDatabases.IsLoaded && seen.Count != 0 && _model.Databases.Count == seen.Count
-            ? SqlFilterBulkSelection.ClearAll
-            : SqlFilterBulkSelection.SelectAll);
     }
 
     /// <summary>

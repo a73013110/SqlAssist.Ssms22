@@ -36,6 +36,7 @@ public sealed class SqlMemoryVisualTests
         // 間距由共用的篩選列決定，不由每一顆自己帶：兩邊各留一份的話，群內會寬出一個間距。
         var panel = new SqlFilterFlyout(name, icon, SqlFilterMode.SearchableMultiple);
         panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
+        panel.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
         panel.UpdateSummary("全部", "");
         panel.SetEmptyOption(new SqlFilterOption("全部", "", true, _ => { }));
         panel.SetOptions(new[]
@@ -212,7 +213,7 @@ public sealed class SqlMemoryVisualTests
     /// 面板本身的行為（單選選完關閉、第一列取消不掉、虛擬化、忙碌列）在
     /// <c>SqlSearchVisualTests</c> 驗一次就夠；兩邊各驗一次同一個控制項，改了一邊就會留下
     /// 一份說著舊行為卻仍然綠的測試。這裡只驗 SQL Memory 這一端說的話：伺服器與資料庫是<b>多選</b>，
-    /// 未選是「全部」而不是「連線預設」，沒有全選（它與第一列是同一件事），續頁的字是名稱，
+    /// 未選是「全部」而不是「連線預設」，全選與全不選兩顆並排，續頁的字是名稱，
     /// 排序是連線 facet 那四種。
     /// </remarks>
     [Fact]
@@ -230,6 +231,11 @@ public sealed class SqlMemoryVisualTests
             panel.MoreRequested += (_, _) => more++;
             panel.SortRequested += value => sorted.Add((SqlConnectionFacetSort)value);
             panel.SetSortOptions(MemorySorts, SqlConnectionFacetSort.Recent);
+            var askedAll = new List<string>();
+            var clearedAll = 0;
+            panel.SelectAllRequested += pattern => askedAll.Add(pattern);
+            panel.ClearAllRequested += (_, _) => clearedAll++;
+            panel.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
             // 未選是「全部」：SQL Memory 是對已存的列篩選，不是「這一輪搜哪裡」。
             panel.UpdateSummary("全部", "不限伺服器；每一台上的紀錄都列。");
             panel.SetEmptyOption(new SqlFilterOption("全部", "不限伺服器；每一台上的紀錄都列。", true,
@@ -265,8 +271,18 @@ public sealed class SqlMemoryVisualTests
             options[2].IsChecked = true;
             Assert.Equal(new[] { "LibraryServer", "ArchiveServer" }, picked);
 
-            // 全選不畫：一台都沒勾就是全部，那一顆與第一列是同一件事。
-            Assert.DoesNotContain(Descendants<TextBlock>(surface), text => text.Text == "全選");
+            // 全選與全不選兩顆並排：全選作用在搜尋框篩出來的那一份，所以它在 SQL Memory 也是一個動作；
+            // 全不選是清除的第二個出口，第一列那個「全部」會隨清單捲出畫面，而命令列在捲動區外面。
+            Button Command(string label) => Descendants<Button>(surface).Single(
+                button => Descendants<TextBlock>(button).Any(text => text.Text == label));
+            var selectAll = Command("全選");
+            var clearAll = Command("全不選");
+            Descendants<TextBox>(surface).Single().Text = "Library";
+            Layout();
+            selectAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            clearAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "Library" }, askedAll);
+            Assert.Equal(1, clearedAll);
 
             // 續頁鈕在清單外面，字由宿主給；沒有下一頁就整顆收起。
             var moreButton = Descendants<Button>(surface).Single(
