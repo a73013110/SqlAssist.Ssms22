@@ -490,14 +490,18 @@ public sealed class SqlSearchVisualTests
     }
 
     [Fact]
-    public void 名稱命中的高亮平移到限定名稱上而資料行取最後一段()
+    public void 名稱命中的高亮平移到限定名稱上而資料行改標在欄位那一列()
     {
         var table = new SqlSearchRow(Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table");
         Assert.Equal(new[] { new MatchSpan(7, 4) }, table.TitleSpans.ToArray());
 
+        // 資料行命中的標題已經是物件本身（聚合器要把同一張表的幾行併成一列），
+        // 所以標題上沒有東西可標；命中的是哪幾行由資料行那一列自己說。
         var column = new SqlSearchRow(
-            Hit(SearchMatchTarget.Column, "[dbo].[Cat_BookCopy].[CopyNo]", "CopyNo", new MatchSpan(0, 6)), "Column");
-        Assert.Equal(new[] { new MatchSpan(22, 6) }, column.TitleSpans.ToArray());
+            Hit(SearchMatchTarget.Column, "[dbo].[Cat_BookCopy]", "CopyNo", new MatchSpan(0, 6)), "Column");
+        Assert.Empty(column.TitleSpans);
+        Assert.Equal("CopyNo", column.Columns);
+        Assert.Equal(new[] { new MatchSpan(0, 6) }, column.ColumnSpans.ToArray());
 
         // 本文命中的片段來自定義本文，與標題沒有關係。
         var body = new SqlSearchRow(Hit(SearchMatchTarget.Text, "[dbo].[Loan]", "  JOIN Loan l", new MatchSpan(7, 4)), "Table");
@@ -506,12 +510,57 @@ public sealed class SqlSearchVisualTests
         Assert.Equal(new[] { new MatchSpan(5, 4) }, body.SnippetSpans.ToArray());
     }
 
+    /// <summary>
+    /// 併成一列之後，列上說得出對了幾種部位、幾處，以及是哪幾個資料行。
+    /// </summary>
+    /// <remarks>
+    /// 只留代表那一筆的部位等於說「它是靠名稱進來的」，而使用者勾掉名稱那一段之後這一列還在；
+    /// 資料行那一列更是唯一說得出「是哪幾行」的地方——標題已經收回物件本身。
+    /// </remarks>
+    [Fact]
+    public void 併過的列說得出幾種部位幾處與哪幾個資料行()
+    {
+        var row = new SqlSearchRow(
+            Hit(SearchMatchTarget.Column, "[dbo].[LoanDetail]", "LoanDate", new MatchSpan(0, 4)).WithMerged(new[]
+            {
+                Hit(SearchMatchTarget.Column, "[dbo].[LoanDetail]", "LoanDay", new MatchSpan(0, 4)),
+                Hit(SearchMatchTarget.Text, "[dbo].[LoanDetail]", "    JOIN Loan l", new MatchSpan(9, 4))
+            }),
+            "Table");
+
+        Assert.Equal(3, row.MatchCount);
+        Assert.Equal("×3", row.MatchCountLabel);
+        Assert.Equal(new[] { "欄位", "內容" }, row.TargetLabels);
+
+        // 資料行名稱串成一行，高亮跟著平移到各自的位置上。
+        Assert.Equal("LoanDate、LoanDay", row.Columns);
+        Assert.Equal(new[] { new MatchSpan(0, 4), new MatchSpan(9, 4) }, row.ColumnSpans.ToArray());
+
+        // 片段那一列讀的是本文命中那一筆，而它不是這一列的代表。
+        Assert.Equal("JOIN Loan l", row.Snippet);
+        Assert.Equal(new[] { new MatchSpan(5, 4) }, row.SnippetSpans.ToArray());
+
+        Assert.Equal("Table · 欄位、內容 · 3 處命中 · LoanDate、LoanDay · " + row.Path, row.Description);
+    }
+
+    /// <summary>只有一處時不畫那顆次數膠囊：整份清單上多一欄 ×1 是沒有資訊的字。</summary>
+    [Fact]
+    public void 只有一處命中時不掛次數膠囊()
+    {
+        var row = new SqlSearchRow(Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table");
+
+        Assert.Equal(1, row.MatchCount);
+        Assert.Equal("", row.MatchCountLabel);
+        Assert.Equal("", row.Columns);
+        Assert.Equal(new[] { "名稱" }, row.TargetLabels);
+    }
+
     [Fact]
     public void 命中部位的用字在開關與列上完全相同()
     {
         // 兩邊各叫各的，使用者會以為它們是兩件事。
         var row = new SqlSearchRow(Hit(SearchMatchTarget.Text, "[dbo].[Loan]", "JOIN Loan l", new MatchSpan(5, 4)), "Table");
-        Assert.Equal(SqlSearchTargets.LabelFor(SearchMatchTarget.Text), row.TargetLabel);
+        Assert.Equal(new[] { SqlSearchTargets.LabelFor(SearchMatchTarget.Text) }, row.TargetLabels);
         Assert.Equal("Table · 內容 · " + row.Path, row.Description);
     }
 
@@ -525,7 +574,7 @@ public sealed class SqlSearchVisualTests
             // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫，操作浮在右緣。
             var wide = Render(template, new SqlSearchRow(
                 Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
-            var order = new[] { "name", "kind", "target", "badges" };
+            var order = new[] { "name", "kind", "targets", "badges" };
             var lefts = order.Select(part => Left(wide, part)).ToArray();
             for (var index = 1; index < order.Length; index++)
                 Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
@@ -533,7 +582,7 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(0, Left(wide, "name"), 1);
             var center = Center(wide, "name");
             Assert.All(order, part => Assert.InRange(Center(wide, part) - center, -0.6, 0.6));
-            Assert.True(Right(wide, "target") + 8 < Left(wide, "badges"));
+            Assert.True(Right(wide, "targets") + 8 < Left(wide, "badges"));
             // 兩顆連線膠囊在第一列上，不再自己占一行的右半；操作層不佔寬度，所以它們排到最右。
             Assert.Equal(2, Descendants<SqlIconImage>(Part(wide, "badges")).Count());
             Assert.InRange(740 - Right(wide, "badges"), 0, 8);
@@ -560,7 +609,7 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(0, Left(narrow, "name"), 1);
             Assert.InRange(name.ActualWidth, 1, SqlAssistChrome.RowNameMaxWidth);
             Assert.Equal(TextTrimming.CharacterEllipsis, ((TextBlock)name).TextTrimming);
-            Assert.InRange(Right(narrow, "target"), 0, 300);
+            Assert.InRange(Right(narrow, "targets"), 0, 300);
             // 窄版降級：連線膠囊只剩圖示，次要操作收進 overflow；物件類型是高優先，文字留著。
             Assert.Equal(Visibility.Visible, Part(narrow, "kindText").Visibility);
             Assert.Equal(Visibility.Visible, Part(narrow, "overflow").Visibility);
@@ -569,7 +618,7 @@ public sealed class SqlSearchVisualTests
             Assert.All(Descendants<TextBlock>(Part(narrow, "badges")),
                 text => Assert.Equal(Visibility.Collapsed, text.Visibility));
             // 每一組都仍在這一列的範圍內，沒有被推出去。
-            foreach (var part in new[] { "name", "kind", "target", "badges" })
+            foreach (var part in new[] { "name", "kind", "targets", "badges" })
                 Assert.InRange(Right(narrow, part), 0, 300);
 
             // 沒有路徑概念的來源不留一條空白列。
@@ -577,6 +626,53 @@ public sealed class SqlSearchVisualTests
                 SearchMatchTarget.Name, "SelectTemplate", "SelectTemplate", 10, null, "", new[] { new MatchSpan(0, 6) }),
                 "Snippet"), 740);
             Assert.Equal(Visibility.Collapsed, Part(pathless, "path").Visibility);
+        });
+    }
+
+    /// <summary>
+    /// 併過的一列畫得出好幾顆部位膠囊、一顆次數膠囊，以及命中的那幾個資料行。
+    /// </summary>
+    /// <remarks>
+    /// 這正是同一張表被好幾個資料行命中時，清單上從五列收成一列之後還說得出原因的地方。
+    /// 少了資料行那一列，使用者只看得到一個表名，而他要找的是某一行。
+    /// </remarks>
+    [Fact]
+    public void 併過的列畫出多顆部位膠囊次數與資料行()
+    {
+        WpfTest.Run(() =>
+        {
+            var template = SqlAssistChrome.CreateSearchHitTemplate();
+            var rendered = Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Column, "[dbo].[LoanDetail]", "LoanDate", new MatchSpan(0, 4)).WithMerged(new[]
+                {
+                    Hit(SearchMatchTarget.Column, "[dbo].[LoanDetail]", "LoanDay", new MatchSpan(0, 4)),
+                    Hit(SearchMatchTarget.Text, "[dbo].[LoanDetail]", "    JOIN Loan l", new MatchSpan(9, 4))
+                }),
+                "Table"), 740);
+
+            // 兩種部位各一顆膠囊；同一種不重複，而它們的順序照分組先後固定。
+            Assert.Equal(
+                new[] { "欄位", "內容" },
+                Descendants<TextBlock>(Part(rendered, "targets")).Select(text => text.Text));
+
+            var count = Part(rendered, "count");
+            Assert.Equal(Visibility.Visible, count.Visibility);
+            Assert.Equal("×3", Descendants<TextBlock>(count).Single().Text);
+
+            // 資料行那一列帶高亮；標題上沒有，因為標題已經是物件本身。
+            var columns = Assert.IsType<SqlHighlightText>(Part(rendered, "columns"));
+            Assert.Equal(Visibility.Visible, columns.Visibility);
+            Assert.Equal("LoanDate、LoanDay", Rendered(columns));
+            Assert.Equal(2, columns.Inlines.OfType<Run>().Count(run => run.FontWeight == FontWeights.SemiBold));
+
+            // 被併進來的本文命中仍然畫得出片段列，即使代表那一筆是資料行命中。
+            Assert.Equal(Visibility.Visible, Part(rendered, "code").Visibility);
+
+            // 沒有資料行命中時那一列整個收起，不留一條空白。
+            var named = Render(template, new SqlSearchRow(
+                Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
+            Assert.Equal(Visibility.Collapsed, Part(named, "columns").Visibility);
+            Assert.Equal(Visibility.Collapsed, Part(named, "count").Visibility);
         });
     }
 
@@ -596,7 +692,7 @@ public sealed class SqlSearchVisualTests
             var row = Render(template, new SqlSearchRow(
                 Hit(SearchMatchTarget.Name, "[dbo].[Loan]", "Loan", new MatchSpan(0, 4)), "Table"), 740);
 
-            var order = new[] { "name", "kind", "target", "badges", "path" };
+            var order = new[] { "name", "kind", "targets", "badges", "path" };
             var lefts = order.Select(part => Left(row, part)).ToArray();
             for (var index = 1; index < order.Length; index++)
                 Assert.True(lefts[index] > lefts[index - 1], order[index] + " 應該排在 " + order[index - 1] + " 右邊");
@@ -604,7 +700,7 @@ public sealed class SqlSearchVisualTests
 
             // 種類與命中部位在這裡只各出現一次；預覽內容裡不再放第二份同樣的字。
             Assert.Equal("Table", Descendants<TextBlock>(Part(row, "kind")).Single().Text);
-            Assert.Equal("名稱", Descendants<TextBlock>(Part(row, "target")).Single().Text);
+            Assert.Equal("名稱", Descendants<TextBlock>(Part(row, "targets")).Single().Text);
 
             var pathless = Render(template, new SqlSearchRow(new SearchHit("snippets", "snippets.snippet",
                 SearchMatchTarget.Name, "SelectTemplate", "SelectTemplate", 10, null, "", new[] { new MatchSpan(0, 6) }),

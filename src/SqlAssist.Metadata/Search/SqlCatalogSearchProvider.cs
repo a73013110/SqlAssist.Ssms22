@@ -351,8 +351,9 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 continue;
             }
 
-            var key = DedupeKeyFor(owner, column.Name);
-            counter.Note(key);
+            // 續掃位置要認得是哪一行，去重鍵不能：前者是「掃到哪裡」，後者是「這是哪一個東西」，
+            // 而一張表的三個資料行命中講的是同一張表。
+            counter.Note(DedupeKeyFor(owner, column.Name));
 
             var match = FuzzyMatcher.MatchNormalized(query.NormalizedPattern, column.Name);
 
@@ -365,8 +366,11 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 ProviderId,
                 categoryId,
                 SearchMatchTarget.Column,
-                owner.QualifiedName + "." + SqlIdentifier.Quote(column.Name),
-                key,
+                // 標題是<b>物件</b>的限定名稱，不接資料行那一段：聚合器會把同一張表的幾個
+                // 資料行命中併成一列，而那一列的抬頭不該是其中隨便一行的名字。命中的是哪幾行
+                // 由片段（資料行名稱）回答，呈現那一層把它們列在第二列上。
+                owner.QualifiedName,
+                DedupeKeyFor(owner, null),
                 match.Score,
                 // 路徑指向<b>物件</b>，不是資料行：四段式名稱的第一段是連結伺服器，
                 // 把資料行接成第四段會讓下游把資料庫名讀成伺服器名。
@@ -514,7 +518,10 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// 其中一列會被去重吃掉，而使用者看不出少了哪一個。
     ///
     /// 不含命中部位：同一個物件被名稱與定義本文同時命中時，聚合器要把它們併成一列，
-    /// 靠的就是兩邊寫出同一個鍵。
+    /// 靠的就是兩邊寫出同一個鍵。<b>資料行命中也走物件那一份鍵</b>（<paramref name="columnName"/>
+    /// 傳 null）——一張表有三個資料行對上時，使用者要的是一列 <c>Cat_BookCopy</c> 加上
+    /// 「命中了這三行」，不是三列同一張表。接了資料行的那一份只剩一個用途：
+    /// <see cref="SearchExamineCounter"/> 的續掃位置，那裡問的是「掃到哪一行」。
     ///
     /// 刻意不轉小寫：定序可以是區分大小寫的，那時 <c>Loan</c> 與 <c>LOAN</c> 是兩個
     /// 不同的資料表，折成同一個鍵會讓其中一個永遠不出現。

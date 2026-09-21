@@ -149,7 +149,12 @@ internal sealed class SqlScriptTheme : IDisposable
         SetBrush(ScriptResource.Comment, comment);
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
-        SetBrush(ScriptResource.Highlight, Highlight(comment, surface.Background));
+        var highlight = Highlight(comment, surface.Background);
+        SetBrush(ScriptResource.Highlight, highlight);
+        var current = CurrentHighlight(surface.Background);
+        SetBrush(ScriptResource.HighlightCurrent, current);
+        SetBrush(ScriptResource.HighlightCurrentForeground,
+            ThemeColorMath.EnsureTextContrast(surface.Foreground, current));
         Updated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -188,13 +193,39 @@ internal sealed class SqlScriptTheme : IDisposable
     ///
     /// 傳進去的前景是註解色，那是這幾種著色裡最淡的一個：它在高亮上讀得到，其餘就都讀得到。
     /// 高對比不必另外判斷——強調色在那時候已經等於前景色，校正過的結果本來就是實色反白。
+    ///
+    /// 覆蓋率是 <see cref="HighlightCoverage"/>：更低的那一版在彩色深色主題上退成一層看不出
+    /// 邊界的薄色，而「有沒有標出來」正是使用者唯一要從這裡讀到的事。
     /// </remarks>
     private static Color Highlight(Color foreground, Color background)
     {
         var accent = ColorOf(ThemeBrush.AccentBorder, foreground);
         // 先鋪一層半透明的強調色，再讓校正決定要往黑還是往白走；直接給實色會蓋掉語法著色。
-        var candidate = Color.FromArgb(0x59, accent.R, accent.G, accent.B);
+        var candidate = Color.FromArgb(HighlightCoverage, accent.R, accent.G, accent.B);
         return ThemeColorMath.EnsureBackgroundForText(candidate, foreground, background);
+    }
+
+    /// <summary>一般命中的底色覆蓋率；夠深到有邊界，又留得住底下的語法著色。</summary>
+    private const byte HighlightCoverage = 0x8C;
+
+    /// <summary>
+    /// 目前停在那一處命中的底色：<b>實色</b>強調色，字色另外校正。
+    /// </summary>
+    /// <remarks>
+    /// 與一般命中的差別刻意做成「半透明 vs 實色」而不是兩種深淺的同一個顏色：深淺差一階的
+    /// 那一版在 150% DPI 的深色主題上分不出來，而分不出來等於沒有「目前」這個概念——
+    /// 按了「下一個命中」之後使用者還是要自己找剛才跳到哪裡。
+    ///
+    /// 實色會蓋掉語法著色，所以字色由 <see cref="ThemeColorMath.EnsureTextContrast"/>
+    /// 對著它重算一次；只有這一處這樣做，其餘命中仍然讀得出關鍵字與註解的顏色。
+    ///
+    /// 對著指令碼自己的底色做圖形對比校正，理由與 <see cref="Highlight"/> 相同：
+    /// 強調色在某些佈景上本來就接近編輯器底色，不校正的那一版整塊看不見。
+    /// </remarks>
+    private static Color CurrentHighlight(Color background)
+    {
+        var accent = ColorOf(ThemeBrush.AccentBorder, background);
+        return ThemeColorMath.EnsureGraphicContrast(Color.FromRgb(accent.R, accent.G, accent.B), background);
     }
 
     private static Color Resolve(

@@ -4,13 +4,15 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
+using SqlAssist.Core.Matching;
 using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
 
 /// <summary>
-/// 選取那一筆的完整定義，命中位置捲到可見並高亮。
+/// 選取那一筆的完整定義，每一處命中都高亮，並可以一處一處走過去。
 /// </summary>
 /// <remarks>
 /// 只讀 <c>SearchHit</c> 攤出來的欄位加上酬載指向的那個物件；指令碼本身走
@@ -35,6 +37,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly DockPanel _content;
     private readonly Button _copyName;
     private readonly Button _wrap;
+    private readonly SqlMatchNavigator _navigator = new();
     private readonly WrapPanel _toolbar = new();
     private readonly SqlSelectionLoader<SqlSearchRow> _selection;
     private bool _disposed;
@@ -67,6 +70,10 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _body.Children.Add(_surface);
         _body.Children.Add(_snippetSurface);
 
+        // 導覽排在最前面：這一列上它是唯一會被連按好幾次的東西，而複製與換行是各按一次的。
+        _navigator.CurrentChanged += (_, _) =>
+            SqlAssistPlatformGuard.Run("移到下一處命中", () => _viewer.ShowMatch(_navigator.Matches.Index));
+        _toolbar.Children.Add(_navigator);
         _toolbar.Children.Add(_copyName);
         _toolbar.Children.Add(_wrap);
 
@@ -113,6 +120,14 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     /// <summary>目前顯示的那一筆；沒有選取時 null。</summary>
     public SqlSearchRow? Current => _selection.Current;
 
+    /// <summary>接住 F3／Shift+F3 走到上／下一處命中；已經處理掉就回 true。</summary>
+    /// <remarks>
+    /// 由工具窗轉進來而不是自己接鍵：焦點可能還在搜尋框或清單上，而使用者按 F3 要的是
+    /// 「下一處命中」不是「焦點在哪裡就做什麼」。攔截範圍仍然只有這個工具窗，
+    /// 查詢視窗的尋找列不受影響。
+    /// </remarks>
+    public bool HandleKey(Key key, ModifierKeys modifiers) => _navigator.HandleKey(key, modifiers);
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -137,6 +152,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         Summary.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _copyName.IsEnabled = row is not null;
         _wrap.IsEnabled = false;
+        _navigator.Clear();
         _viewer.SetSql("");
         _surface.State = SqlSurfaceState.None;
         _snippetSurface.Visibility = Visibility.Collapsed;
@@ -194,17 +210,20 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
                 return;
             }
 
-            var highlights = SqlSearchDefinitionHighlight.Locate(row.Hit, definition.Script);
+            var highlights = SqlSearchDefinitionHighlight.Locate(row.Hit, definition.Script, out var truncated);
             _viewer.SetSql(definition.Script, highlights);
+            _navigator.SetCursor(new MatchCursor(highlights));
             _wrap.IsEnabled = true;
+
+            // 第一處自動捲到可見，之後一律由導覽接手：一份幾百行的定義從頭顯示而命中在底下時，
+            // 使用者看不出自己選的這一筆為什麼在清單上。換一列以外的捲動都是他自己按的。
+            if (highlights.Count != 0) _viewer.ShowMatch(0);
 
             // 對不上時不高亮也不捲動，但要說一句：整份定義從頭顯示而沒有任何標記時，
             // 使用者會以為是面板壞了，而不是這一筆的位置對不起來。
             // 比對的是命中原本那幾段，不是清單攤平之後留下來的：攤平會丟掉被切掉的區段，
             // 拿它判斷會在「片段太長」時誤報成對不上。
-            Report(highlights.Count != 0 || row.Hit.SnippetSpans.Count == 0
-                ? ""
-                : "命中位置對不上這一份定義，已顯示完整定義。");
+            Report(MatchNotice(highlights.Count, truncated, row));
             SqlAssistChrome.PlayAppear(_body);
         }
         finally
@@ -212,6 +231,21 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
             // 舊請求的結束不能關掉新選取的載入效果，也不能蓋掉這一輪剛寫上去的讀不到。
             if (_selection.IsCurrent(row, token) && _surface.IsLoading) _surface.State = SqlSurfaceState.None;
         }
+    }
+
+    /// <summary>
+    /// 高亮這件事現在要說的那一句；沒有話要說時是空字串。
+    /// </summary>
+    /// <remarks>
+    /// 三種情形的下一步不同，所以不併成一句：對不上是「這一筆的位置對不起來」，
+    /// 太多是「還有沒標出來的」，其餘不必說話。少標了幾處卻不說的症狀最糟——
+    /// 使用者按到最後一處就以為看完了。
+    /// </remarks>
+    private static string MatchNotice(int located, bool truncated, SqlSearchRow row)
+    {
+        if (truncated) return $"命中太多，只標出前 {SqlSearchDefinitionHighlight.Maximum} 處。";
+        if (located != 0 || row.Hit.SnippetSpans.Count == 0) return "";
+        return "命中位置對不上這一份定義，已顯示完整定義。";
     }
 
     private void Report(string message)

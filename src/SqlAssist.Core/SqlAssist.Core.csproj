@@ -6,6 +6,11 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
+    <!-- SearchHit.WithMerged 只給聚合器用；測試要組出併過的命中，又不該為此把它開成 public。 -->
+    <InternalsVisibleTo Include="SqlAssist.Core.Tests" />
+    <InternalsVisibleTo Include="SqlAssist.Ssms22.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <EmbeddedResource Include="Snippets\DefaultSnippets.json" />
     <EmbeddedResource Include="Keywords\BuiltInDocs.json" />

@@ -27,7 +27,9 @@
 | 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | 篩選名單的去空白、去重、排序與游標指紋（伺服器／資料庫三份請求共用） | `Core/SqlMemory/SqlConnectionNames.cs` |
-| 一輪搜尋的排名、去重、預算與世代作廢 | `Core/Search/SearchAggregator.cs` |
+| 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs`（被併掉的那幾筆在 `SearchHit.Merged`） |
+| 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
+| 片段在整份文字裡的每一次出現 | `Core/Matching/MatchProjection.cs` 的 `FindAll` |
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs`（與 `SqlMetadataCatalog` 分開，不合併） |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（先問指令碼再問快照；語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |

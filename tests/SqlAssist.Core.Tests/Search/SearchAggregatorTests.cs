@@ -124,20 +124,68 @@ public sealed class SearchAggregatorTests
         Assert.Equal(90, hit.Score);
     }
 
-    /// <summary>資料行命中不會被它所屬物件的命中吃掉：去重鍵多一段資料行名稱。</summary>
+    /// <summary>
+    /// 被併掉的那幾筆掛在代表身上，依排名排好，而且自己不再帶著別人。
+    /// </summary>
+    /// <remarks>
+    /// 丟掉它們的那一版，一張只靠三個資料行命中的表在畫面上說不出是哪三行，
+    /// 而那正是使用者搜這個字串要找的東西。攤平是為了讓呈現那一層不必遞迴。
+    /// </remarks>
     [Fact]
-    public async Task 資料行命中不與物件命中合併()
+    public async Task 併掉的命中掛在代表身上並攤平()
     {
         var aggregator = Aggregate(
             new FakeSearchProvider("catalog",
+                Hit("catalog", "Loan", 20, SearchMatchTarget.Text, dedupeKey: "dbo.Loan"),
                 Hit("catalog", "Loan", 90, dedupeKey: "dbo.Loan"),
-                Hit("catalog", "Loan", 80, SearchMatchTarget.Column, dedupeKey: "dbo.Loan.CopyNo")));
+                Hit("catalog", "Loan", 70, SearchMatchTarget.Column, dedupeKey: "dbo.Loan")));
 
         var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
 
+        var hit = Assert.Single(results.Hits);
+        Assert.Equal(SearchMatchTarget.Name, hit.MatchTarget);
         Assert.Equal(
-            new[] { SearchMatchTarget.Name, SearchMatchTarget.Column },
-            results.Hits.Select(hit => hit.MatchTarget));
+            new[] { SearchMatchTarget.Column, SearchMatchTarget.Text },
+            hit.Merged.Select(merged => merged.MatchTarget));
+        Assert.All(hit.Merged, merged => Assert.Empty(merged.Merged));
+
+        // 代表自己排第一；呈現那一層讀的是這一份，漏掉它的症狀是只被名稱命中的物件顯示成沒有命中。
+        Assert.Equal(
+            new[] { SearchMatchTarget.Name, SearchMatchTarget.Column, SearchMatchTarget.Text },
+            hit.Matches.Select(match => match.MatchTarget));
+    }
+
+    /// <summary>沒有被併的那一列不帶任何東西，但仍然算一處命中。</summary>
+    [Fact]
+    public async Task 沒有被併的命中自己就是全部()
+    {
+        var aggregator = Aggregate(new FakeSearchProvider("catalog", Hit("catalog", "Loan", 90, dedupeKey: "dbo.Loan")));
+
+        var hit = Assert.Single((await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None)).Hits);
+
+        Assert.Empty(hit.Merged);
+        Assert.Same(hit, Assert.Single(hit.Matches));
+    }
+
+    /// <summary>
+    /// 去重鍵不同就不合併，即使名稱一模一樣。
+    /// </summary>
+    /// <remarks>
+    /// 兩個資料庫裡各有一張 <c>Loan</c> 是常態；併成一列的話其中一個永遠不出現，
+    /// 而使用者看不出少了哪一個。
+    /// </remarks>
+    [Fact]
+    public async Task 去重鍵不同就不合併()
+    {
+        var aggregator = Aggregate(
+            new FakeSearchProvider("catalog",
+                Hit("catalog", "Loan", 90, dedupeKey: "Library.dbo.Loan"),
+                Hit("catalog", "Loan", 80, dedupeKey: "Archive.dbo.Loan")));
+
+        var results = await aggregator.SearchAsync(new SearchQuery("loan"), CancellationToken.None);
+
+        Assert.Equal(2, results.Hits.Count);
+        Assert.All(results.Hits, hit => Assert.Empty(hit.Merged));
     }
 
     /// <summary>

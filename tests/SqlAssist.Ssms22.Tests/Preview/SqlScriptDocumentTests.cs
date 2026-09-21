@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Windows;
+using SqlAssist.Core.Matching;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -98,6 +99,64 @@ public sealed class SqlScriptDocumentTests
         });
     }
 
+    /// <summary>
+    /// 每一處命中交出自己那幾個 Run，而且一處可能跨好幾個。
+    /// </summary>
+    /// <remarks>
+    /// 高亮切的是原文位移，著色切的是詞法單元，兩條界線不會對齊。只交一個錨點的那一版，
+    /// 換成「目前」的樣子時只有半個字會變色。
+    /// </remarks>
+    [Fact]
+    public void 高亮交出每一處命中的那幾個Run()
+    {
+        WpfTest.Run(() =>
+        {
+            const string sql = "SELECT [Loan] FROM Loan;";
+            SqlScriptDocument.Build(sql, CreateResources(),
+                new[] { new MatchSpan(7, 6), new MatchSpan(19, 4) }, out var matches);
+
+            Assert.Equal(2, matches.Count);
+            // [Loan] 橫跨方括號與識別字兩個詞法單元，所以那一處不只一個 Run。
+            Assert.Equal("[Loan]", string.Concat(matches[0].Select(run => run.Text)));
+            Assert.Equal("Loan", string.Concat(matches[1].Select(run => run.Text)));
+            Assert.All(matches, runs => Assert.All(runs, run => Assert.Equal(FontWeights.SemiBold, run.FontWeight)));
+        });
+    }
+
+    /// <summary>
+    /// 換成「目前」的樣子只改那一處，換回來時字色回到原本的著色分類。
+    /// </summary>
+    /// <remarks>
+    /// 換的是資源鍵而不是筆刷：保存一次性筆刷的那一版在換佈景之後會留著上一個主題的顏色，
+    /// 而文件不會重建。字色只在「目前」那一處蓋掉，一般命中仍要看得出語法著色。
+    /// </remarks>
+    [Fact]
+    public void 目前那一處換色其餘不動而且換得回來()
+    {
+        WpfTest.Run(() =>
+        {
+            var resources = CreateResources();
+            resources[ScriptResource.Highlight] = Brushes.LightYellow;
+            resources[ScriptResource.HighlightCurrent] = Brushes.Orange;
+            resources[ScriptResource.HighlightCurrentForeground] = Brushes.White;
+
+            SqlScriptDocument.Build("SELECT Loan FROM Loan;", resources,
+                new[] { new MatchSpan(7, 4), new MatchSpan(17, 4) }, out var matches);
+
+            SqlScriptDocument.SetCurrentMatch(matches[1], current: true);
+
+            Assert.Equal(Colors.Orange, ThemeResourceSetTests.ColorOf(matches[1][0].Background));
+            Assert.Equal(Colors.White, ThemeResourceSetTests.ColorOf(matches[1][0].Foreground));
+            Assert.Equal(Colors.LightYellow, ThemeResourceSetTests.ColorOf(matches[0][0].Background));
+
+            SqlScriptDocument.SetCurrentMatch(matches[1], current: false);
+
+            Assert.Equal(Colors.LightYellow, ThemeResourceSetTests.ColorOf(matches[1][0].Background));
+            // 回到原本的著色分類，不是回到「某一種前景色」——這一段是識別字，走 Foreground。
+            Assert.Equal(Colors.Black, ThemeResourceSetTests.ColorOf(matches[1][0].Foreground));
+        });
+    }
+
     private static ResourceDictionary CreateResources() => new()
     {
         [ScriptResource.FontFamily] = new FontFamily("Consolas"),
@@ -107,6 +166,9 @@ public sealed class SqlScriptDocumentTests
         [ScriptResource.Keyword] = Brushes.Blue,
         [ScriptResource.Comment] = Brushes.Green,
         [ScriptResource.String] = Brushes.Maroon,
-        [ScriptResource.Number] = Brushes.Black
+        [ScriptResource.Number] = Brushes.Black,
+        [ScriptResource.Highlight] = Brushes.LightYellow,
+        [ScriptResource.HighlightCurrent] = Brushes.Orange,
+        [ScriptResource.HighlightCurrentForeground] = Brushes.White
     };
 }

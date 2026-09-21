@@ -44,5 +44,12 @@ internal enum SqlIcon
     Folder,
     Warning,
     Overflow,
+
+    /// <summary>往回一個命中；與 <see cref="NextMatch"/> 是一對。</summary>
+    PreviousMatch,
+
+    /// <summary>往後一個命中。</summary>
+    NextMatch,
+
     SelfTest
 }

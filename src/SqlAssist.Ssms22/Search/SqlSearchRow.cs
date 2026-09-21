@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Text;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.UI;
@@ -52,10 +53,22 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     {
         Hit = hit ?? throw new ArgumentNullException(nameof(hit));
         CategoryLabel = categoryLabel ?? throw new ArgumentNullException(nameof(categoryLabel));
-        Snippet = Flatten(hit.Snippet, hit.SnippetSpans, out var spans);
+
+        var matches = hit.Matches;
+        var body = FirstOf(matches, SearchMatchTarget.Text);
+        IReadOnlyList<MatchSpan> spans = Array.Empty<MatchSpan>();
+
+        // 片段那一列要的是本文命中的那一行，而它不一定是這一列的代表：一張資料表可能先被
+        // 三個資料行命中（排名在前），定義本文那一筆才是唯一有程式碼可看的。讀代表那一筆的
+        // 症狀是片段列上出現一個資料行名稱，用等寬字排成一行看起來像一段截斷的 SQL。
+        Snippet = body is null ? "" : Flatten(body.Snippet, body.SnippetSpans, out spans);
         SnippetSpans = spans;
         TitleSpans = ProjectOntoTitle(hit);
         Badges = Project(hit.Badges);
+        TargetLabels = ProjectTargets(matches);
+        MatchCount = matches.Count;
+        Columns = JoinColumns(matches, out var columnSpans);
+        ColumnSpans = columnSpans;
     }
 
     public SearchHit Hit { get; }
@@ -95,15 +108,43 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
 
     public SearchMatchTarget MatchTarget => Hit.MatchTarget;
 
+    /// <summary>這一列代表幾處命中；併成一列之前的筆數。</summary>
+    public int MatchCount { get; }
+
     /// <summary>
-    /// 命中部位徽章的字；對應工具列上那三段開關。
+    /// 命中次數的膠囊字（<c>×7</c>）；只有一處時是空字串，樣板收起那一顆。
+    /// </summary>
+    /// <remarks>
+    /// 每一列都掛一顆 <c>×1</c> 的那一版等於在整份清單上加一欄沒有資訊的字。
+    /// 中性膠囊而不是狀態色：它是一個數量，不是一種狀態，與通知那邊的 <c>×N</c> 同一個語言。
+    /// </remarks>
+    public string MatchCountLabel => MatchCount > 1 ? "×" + MatchCount : "";
+
+    /// <summary>
+    /// 這一列對上的幾種部位，依分組先後；同一種只出現一次。
     /// </summary>
     /// <remarks>
     /// 取代原本的上下分組。分組把同一批結果切成兩疊，使用者要找的那一筆可能在第二疊的底下；
-    /// 每一列掛一顆徽章一樣分得出來，而且排序可以換成他真正要的那一種。
-    /// 用字與分段開關完全相同——兩邊各叫各的，使用者會以為它們是兩件事。
+    /// 每一列掛徽章一樣分得出來，而且排序可以換成他真正要的那一種。用字與分段開關完全相同
+    /// （同走 <see cref="SqlSearchTargets.LabelFor"/>）——兩邊各叫各的，使用者會以為它們是兩件事。
+    ///
+    /// 併成一列之後「命中部位」不再是一個值：一張表可以同時被名稱、三個資料行與定義本文
+    /// 命中，而那正是使用者要從這一列讀到的事。只留代表那一筆的部位等於說
+    /// 「它是靠名稱進來的」，而他勾掉名稱那一段之後這一列還在。
     /// </remarks>
-    public string TargetLabel => SqlSearchTargets.LabelFor(MatchTarget);
+    public IReadOnlyList<string> TargetLabels { get; }
+
+    /// <summary>
+    /// 命中的資料行名稱，以頓號串起來；沒有資料行命中時是空字串，樣板收起那一列。
+    /// </summary>
+    /// <remarks>
+    /// 併成一列之後，「是哪幾行」的答案只剩這裡說得出來——標題已經收回物件本身。
+    /// 在停靠面板裡放不下時由省略號收尾，全文在 Tooltip 與預覽。
+    /// </remarks>
+    public string Columns { get; }
+
+    /// <summary>資料行那一列要高亮的區段，索引落在 <see cref="Columns"/> 上。</summary>
+    public IReadOnlyList<MatchSpan> ColumnSpans { get; }
 
     /// <summary>整列唸出來是什麼；螢幕閱讀器與預覽的摘要共用同一句。</summary>
     /// <remarks>
@@ -111,7 +152,10 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// Tooltip 與預覽的摘要。少了這一句，只用鍵盤與螢幕閱讀器的人聽到的只有一個名字。
     /// </remarks>
     public string Description =>
-        CategoryLabel + " · " + TargetLabel + (Path.Length == 0 ? "" : " · " + Path);
+        CategoryLabel + " · " + string.Join("、", TargetLabels) +
+        (MatchCount > 1 ? " · " + MatchCount + " 處命中" : "") +
+        (Columns.Length == 0 ? "" : " · " + Columns) +
+        (Path.Length == 0 ? "" : " · " + Path);
 
     /// <summary>剛加入清單；卡片以它播一次進場動畫，清單稍後清掉，捲動重用容器時才不會重播。</summary>
     public bool IsNew
@@ -126,6 +170,76 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>第一筆打在這個部位上的命中；沒有就是 null。</summary>
+    private static SearchHit? FirstOf(IReadOnlyList<SearchHit> matches, SearchMatchTarget target)
+    {
+        foreach (var match in matches)
+        {
+            if (match.MatchTarget == target) return match;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 幾種部位的顯示字，依 <see cref="SearchMatchTargets.GroupOrder"/>，同一種只留一次。
+    /// </summary>
+    /// <remarks>
+    /// 排序照分組先後而不是命中順序：同一組結果在不同次搜尋裡的膠囊順序要一樣，
+    /// 否則使用者掃過去的時候每一列的第二顆膠囊都在換位置。
+    /// </remarks>
+    private static IReadOnlyList<string> ProjectTargets(IReadOnlyList<SearchHit> matches)
+    {
+        var seen = new List<SearchMatchTarget>(3);
+
+        foreach (var match in matches)
+        {
+            if (!seen.Contains(match.MatchTarget)) seen.Add(match.MatchTarget);
+        }
+
+        seen.Sort(static (left, right) => left.GroupOrder().CompareTo(right.GroupOrder()));
+
+        var labels = new string[seen.Count];
+        for (var index = 0; index < seen.Count; index++) labels[index] = SqlSearchTargets.LabelFor(seen[index]);
+        return labels;
+    }
+
+    /// <summary>
+    /// 資料行命中的名稱串成一行，高亮區段跟著平移。
+    /// </summary>
+    /// <remarks>
+    /// 名稱取自每一筆的<b>片段</b>而不是酬載：片段本來就是「區段索引落在它上面」的那一段文字，
+    /// 而向下轉型酬載來畫畫面是這一層明文禁止的——那一刻起清單就只畫得出目錄物件。
+    ///
+    /// 重複的名稱去掉：同一個資料行不會被回報兩次，但兩個 provider 各報一次是做得到的，
+    /// 而畫面上同一行出現兩次看起來像是這張表真的有兩個同名欄位。
+    /// </remarks>
+    private static string JoinColumns(IReadOnlyList<SearchHit> matches, out IReadOnlyList<MatchSpan> spans)
+    {
+        const string Separator = "、";
+        var text = new StringBuilder();
+        var kept = new List<MatchSpan>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var match in matches)
+        {
+            if (match.MatchTarget != SearchMatchTarget.Column || match.Snippet.Length == 0) continue;
+            if (!seen.Add(match.Snippet)) continue;
+
+            if (text.Length != 0) text.Append(Separator);
+            var offset = text.Length;
+            text.Append(match.Snippet);
+
+            foreach (var span in match.SnippetSpans)
+            {
+                if (span.End <= match.Snippet.Length) kept.Add(new MatchSpan(span.Start + offset, span.Length));
+            }
+        }
+
+        spans = kept;
+        return text.ToString();
+    }
 
     private static IReadOnlyList<SqlSearchBadge> Project(IReadOnlyList<SearchBadge> badges)
     {
@@ -142,14 +256,17 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// <remarks>
     /// 名稱命中的片段就是名稱本體（<c>Loan</c>），而列上顯示的是限定名稱（<c>[dbo].[Loan]</c>）；
     /// 高亮區段的索引落在片段上，直接拿去畫會落在結構描述那幾個字上。這裡找片段在標題裡
-    /// <b>最後</b>一次出現的位置再平移——資料行命中的標題是
-    /// <c>[dbo].[Loan].[CopyNo]</c>，而使用者要看的是最後那一段。
+    /// <b>最後</b>一次出現的位置再平移：結構描述與物件同名（<c>[Loan].[Loan]</c>）時，
+    /// 使用者要看的是最後那一段。
     ///
     /// 對不上就整組放棄，不猜：畫錯位置的高亮看起來像是比對錯了，比不畫更難解釋。
     /// 本文命中不做這件事——它的片段來自定義本文，與標題沒有關係。
     ///
     /// 換算本身走 <see cref="MatchProjection"/>，與預覽把命中對到完整定義上是同一份：
     /// 兩邊各寫一次的症狀是其中一邊的邊界條件改了，而同一筆結果在清單與預覽高亮在不同的字上。
+    ///
+    /// 資料行命中的標題已經是<b>物件</b>的限定名稱（聚合器要把同一張表的幾個資料行命中併成
+    /// 一列），所以那一種對不上是常態，不是異常——命中的是哪幾行由資料行那一列自己說。
     /// </remarks>
     private static IReadOnlyList<MatchSpan> ProjectOntoTitle(SearchHit hit)
     {

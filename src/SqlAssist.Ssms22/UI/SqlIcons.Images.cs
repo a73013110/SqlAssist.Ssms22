@@ -70,6 +70,9 @@ internal static partial class SqlIcons
         SqlIcon.Warning => KnownMonikers.StatusWarning,
         // 窄版收起來的那幾個操作；用省略符號，不借任何一個操作自己的形狀。
         SqlIcon.Overflow => KnownMonikers.Ellipsis,
+        // 與尋找列的「找上一個／下一個」同一對形狀：使用者已經知道它們往哪裡走。
+        SqlIcon.PreviousMatch => KnownMonikers.FindPrevious,
+        SqlIcon.NextMatch => KnownMonikers.FindNext,
         SqlIcon.SelfTest => KnownMonikers.Test
     };
 #pragma warning restore CS8524
