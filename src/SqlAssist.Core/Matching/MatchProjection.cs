@@ -66,6 +66,43 @@ public static class MatchProjection
         return last;
     }
 
+    /// <summary>片段在整份文字裡的<b>每一次</b>出現，由前到後；找不到時是空的。</summary>
+    /// <remarks>
+    /// 與 <see cref="Find"/> 同一套詞界與大小寫規則，差別只在它不在第一次就停。
+    /// <see cref="MatchProjectionMode.FromEnd"/> 在這裡沒有意義——全部都回，取最後一次
+    /// 只是取清單的最後一個，所以那個位元被忽略。
+    ///
+    /// 重疊的出現照收：前進一個字元而不是整段，理由與 <see cref="Find"/> 相同，
+    /// 而且要不要去掉重疊是呼叫端的事——它才知道兩段重疊的高亮要併成一段還是各算一個。
+    /// </remarks>
+    public static IReadOnlyList<int> FindAll(string text, string fragment, int start, MatchProjectionMode mode)
+    {
+        if (text is null) throw new ArgumentNullException(nameof(text));
+        if (fragment is null) throw new ArgumentNullException(nameof(fragment));
+        if (fragment.Length == 0 || start < 0 || start > text.Length - fragment.Length)
+        {
+            return Array.Empty<int>();
+        }
+
+        var comparison = (mode & MatchProjectionMode.IgnoreCase) != 0
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var wholeWord = (mode & MatchProjectionMode.WholeWord) != 0;
+        var found = new List<int>();
+        var at = start;
+
+        while (at <= text.Length - fragment.Length)
+        {
+            var index = text.IndexOf(fragment, at, comparison);
+            if (index < 0) break;
+
+            if (!wholeWord || IsWholeWord(text, index, fragment.Length)) found.Add(index);
+            at = index + 1;
+        }
+
+        return found;
+    }
+
     /// <summary>
     /// 把區段整組平移 <paramref name="offset"/>；任何一段落在範圍外就整組放棄。
     /// </summary>

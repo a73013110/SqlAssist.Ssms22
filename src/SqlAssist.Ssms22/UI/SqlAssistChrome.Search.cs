@@ -21,7 +21,8 @@ namespace SqlAssist.Ssms22.UI;
 internal static partial class SqlAssistChrome
 {
     /// <summary>
-    /// 結果列：名稱、物件類型、命中部位與連線一行，限定名稱一行，本文命中再加一行片段。
+    /// 結果列：名稱、物件類型、命中部位與連線一行，限定名稱與命中的資料行各一行，
+    /// 本文命中再加一行片段。
     /// </summary>
     /// <remarks>
     /// 只讀 <c>SearchHit</c> 攤出來的欄位（標題、分類 Id、路徑、片段、高亮區段、膠囊、命中部位），
@@ -43,10 +44,24 @@ internal static partial class SqlAssistChrome
         var row = BeginRowHeading(lines);
         var identity = row.Identity;
 
-        var target = CreateTextBadge("TargetLabel", "target");
-        target.SetValue(DockPanel.DockProperty, Dock.Right);
-        target.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
-        identity.AppendChild(target);
+        // 命中次數排在最右：它是這一列裡最不必每次都讀的一個數字，而且只有併過的列才有。
+        var count = CreateTextBadge("MatchCountLabel", "count");
+        count.SetValue(DockPanel.DockProperty, Dock.Right);
+        count.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        identity.AppendChild(count);
+
+        // 命中部位<b>可以有好幾顆</b>：同一個物件被名稱、資料行與定義本文一起命中時，
+        // 那是使用者要從這一列讀到的事，而聚合器已經把它們併成一列了。
+        var targets = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "targets" };
+        targets.SetValue(DockPanel.DockProperty, Dock.Right);
+        targets.SetValue(FrameworkElement.MarginProperty, new Thickness(4, 0, 0, 0));
+        targets.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        var targetPanel = new FrameworkElementFactory(typeof(StackPanel));
+        targetPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        targets.SetValue(ItemsControl.ItemsPanelProperty, new ItemsPanelTemplate(targetPanel));
+        targets.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchTargetTemplate());
+        targets.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("TargetLabels"));
+        identity.AppendChild(targets);
 
         // 物件類型是看得見的 icon＋文字膠囊。同一顆原生圖示會落在好幾種目錄物件上，而
         // 「這是資料表還是檢視」正是掃這一列時要回答的問題；只留 Tooltip 等於要停駐才讀得到。
@@ -102,11 +117,22 @@ internal static partial class SqlAssistChrome
         path.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Path"));
         lines.AppendChild(path);
 
+        // 命中的資料行自己一列：標題已經收回物件本身（一張表的三個資料行命中是同一列），
+        // 「是哪幾行」的答案只剩這裡說得出來，而那正是使用者搜這個字串要找的東西。
+        var columns = new FrameworkElementFactory(typeof(SqlHighlightText)) { Name = "columns" };
+        columns.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 2, 0, 0));
+        columns.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
+        columns.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        columns.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.DimForeground);
+        columns.SetBinding(SqlHighlightText.SourceTextProperty, new Binding("Columns"));
+        columns.SetBinding(SqlHighlightText.SpansProperty, new Binding("ColumnSpans"));
+        columns.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Columns"));
+        lines.AppendChild(columns);
+
         var code = new FrameworkElementFactory(typeof(Border)) { Name = "code" };
         code.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
         code.SetValue(Border.PaddingProperty, new Thickness(6, 2, 6, 2));
         code.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 3, 0, 1));
-        code.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
         code.SetResourceReference(Border.BackgroundProperty, ThemeBrush.RowAlternate);
 
         var snippet = new FrameworkElementFactory(typeof(SqlHighlightText));
@@ -123,15 +149,26 @@ internal static partial class SqlAssistChrome
 
         var template = new DataTemplate { VisualTree = lines };
 
-        // 本文命中才多一行片段；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
-        var body = new DataTrigger { Binding = new Binding("MatchTarget"), Value = SearchMatchTarget.Text };
-        body.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, "code"));
+        // 有本文片段才多一行；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
+        // 條件讀的是片段本身而不是代表那一筆的命中部位：併過的一列可能由資料行命中當代表，
+        // 而唯一有程式碼可看的是被併進來的那一筆本文命中。
+        var body = new DataTrigger { Binding = new Binding("Snippet"), Value = "" };
+        body.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "code"));
         template.Triggers.Add(body);
 
         // 沒有路徑概念的來源（片段、設定）不留一條空白列。
         var noPath = new DataTrigger { Binding = new Binding("Path"), Value = "" };
         noPath.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "path"));
         template.Triggers.Add(noPath);
+
+        // 沒有資料行命中時整列收起，不留一條空白；只有一處命中時也不畫那顆次數膠囊。
+        var noColumns = new DataTrigger { Binding = new Binding("Columns"), Value = "" };
+        noColumns.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "columns"));
+        template.Triggers.Add(noColumns);
+
+        var single = new DataTrigger { Binding = new Binding("MatchCountLabel"), Value = "" };
+        single.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "count"));
+        template.Triggers.Add(single);
 
         // 停駐與選取時淡色那一行跟著卡片的配對前景，否則深色選取底上那一行會掉到讀不出來。
         foreach (var property in new[] { "IsSelected", "IsMouseOver" })
@@ -145,6 +182,7 @@ internal static partial class SqlAssistChrome
                 Value = true
             };
             selected.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.SelectedForeground, "path"));
+            selected.Setters.Add(ThemeResourceSet.Setter(TextBlock.ForegroundProperty, ThemeBrush.SelectedForeground, "columns"));
             template.Triggers.Add(selected);
         }
 
@@ -177,7 +215,20 @@ internal static partial class SqlAssistChrome
         panel.AppendChild(name);
 
         panel.AppendChild(CreateBadge("CategoryLabel", "kind", categoryProperty: "CategoryId"));
-        panel.AppendChild(CreateTextBadge("TargetLabel", "target"));
+
+        // 與結果列同一份樣板、同一個順序：兩邊各排各的話，使用者在清單上選一筆、
+        // 眼睛移到這一列，同一組膠囊卻換了位置。
+        var targets = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "targets" };
+        var targetPanel = new FrameworkElementFactory(typeof(StackPanel));
+        targetPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        targets.SetValue(ItemsControl.ItemsPanelProperty, new ItemsPanelTemplate(targetPanel));
+        targets.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchTargetTemplate());
+        targets.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        targets.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("TargetLabels"));
+        panel.AppendChild(targets);
+
+        var count = CreateTextBadge("MatchCountLabel", "count");
+        panel.AppendChild(count);
 
         var badges = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "badges" };
         var badgePanel = new FrameworkElementFactory(typeof(StackPanel));
@@ -199,8 +250,22 @@ internal static partial class SqlAssistChrome
         var noPath = new DataTrigger { Binding = new Binding("Path"), Value = "" };
         noPath.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "path"));
         template.Triggers.Add(noPath);
+
+        var single = new DataTrigger { Binding = new Binding("MatchCountLabel"), Value = "" };
+        single.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "count"));
+        template.Triggers.Add(single);
         return template;
     }
+
+    /// <summary>
+    /// 命中部位那一顆膠囊；清單列與預覽資訊列共用，資料只是一個字串。
+    /// </summary>
+    /// <remarks>
+    /// 綁的是項目自己（<c>.</c>）而不是某個屬性：一列可以有好幾顆，而它們是一份字串清單，
+    /// 不是三個各自具名的欄位——做成三個欄位的那一版，加第四種命中部位要改樣板。
+    /// </remarks>
+    public static DataTemplate CreateSearchTargetTemplate() =>
+        new() { VisualTree = CreateTextBadge(".", "target") };
 
     /// <summary>結果列的脈絡膠囊；資料來自 <c>SearchHit.Badges</c>，與 SQL Memory 的連線膠囊同一份外觀。</summary>
     /// <remarks>窄版一起降成 icon-only：降級條件讀的是列自己的寬度模式，膠囊在哪一層容器裡都一樣。</remarks>

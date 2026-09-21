@@ -75,7 +75,10 @@ public sealed class SqlCatalogSearchProviderTests
         var hit = Assert.Single(sink.Hits, h => h.MatchTarget == SearchMatchTarget.Column);
 
         Assert.Equal("catalog.table", hit.CategoryId);
-        Assert.Equal("[dbo].[PUBLISHER].[PUBL_CODE]", hit.Title);
+
+        // 標題是物件的限定名稱，不接資料行那一段：聚合器會把同一張表的幾個資料行命中
+        // 併成一列，而那一列的抬頭不該是其中隨便一行的名字。命中的是哪幾行由片段回答。
+        Assert.Equal("[dbo].[PUBLISHER]", hit.Title);
         Assert.Equal("PUBL_CODE", hit.Snippet);
 
         var target = Assert.IsType<SqlCatalogSearchTarget>(hit.ActivatePayload);
@@ -106,7 +109,8 @@ public sealed class SqlCatalogSearchProviderTests
 
         var hit = Assert.Single(sink.Hits);
         Assert.Equal(SearchMatchTarget.Column, hit.MatchTarget);
-        Assert.Equal("[dbo].[PUBLISHER].[PUBL_CODE]", hit.Title);
+        Assert.Equal("[dbo].[PUBLISHER]", hit.Title);
+        Assert.Equal("PUBL_CODE", hit.Snippet);
     }
 
     /// <summary>每一筆結果帶著「這是哪一個資料庫的」膠囊。</summary>
@@ -151,17 +155,20 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     [Fact]
-    public async Task 資料行的去重鍵含資料行名稱()
+    public async Task 資料行的去重鍵是它所屬物件那一份()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
             .WithObject(1, "dbo", "Loan", "U")
-            .WithColumn(1, "CopyNo");
+            .WithColumn(1, "CopyNo")
+            .WithColumn(1, "CopyNote");
 
         var sink = await RunAsync(server, new SearchQuery("CopyNo"));
 
-        var hit = Assert.Single(sink.Hits);
-        Assert.Equal("[Library].[dbo].[Loan].[CopyNo]", hit.DedupeKey);
+        // 兩個資料行命中的是同一張表；鍵相同，聚合器才併得起來。接了資料行名稱的那一版
+        // 讓同一張表在清單上出現兩列，而兩列點下去做同一件事。
+        Assert.Equal(2, sink.Hits.Count);
+        Assert.All(sink.Hits, hit => Assert.Equal("[Library].[dbo].[Loan]", hit.DedupeKey));
     }
 
     /// <summary>

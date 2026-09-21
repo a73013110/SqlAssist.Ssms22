@@ -165,9 +165,17 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         PreviewKeyDown += (_, e) => Run(() =>
         {
-            if (e.Key != Key.F || e.KeyboardDevice.Modifiers != ModifierKeys.Control) return;
-            _search.Focus();
-            e.Handled = true;
+            if (e.Key == Key.F && e.KeyboardDevice.Modifiers == ModifierKeys.Control)
+            {
+                _search.Focus();
+                e.Handled = true;
+                return;
+            }
+
+            // F3 在這個工具窗裡是「下一處命中」。攔在工具窗上而不是預覽的唯讀檢視上：
+            // 使用者打完字之後焦點還在搜尋框，而他按 F3 要的是跳到定義裡的下一處。
+            // 工具窗外的查詢視窗照樣是 SSMS 自己的「找下一個」。
+            if (_preview.HandleKey(e.Key, e.KeyboardDevice.Modifiers)) e.Handled = true;
         });
 
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 可見度", () =>

@@ -22,7 +22,20 @@ internal enum ScriptResource
     Number,
 
     /// <summary>命中那幾個字的底色；著色分類仍由上面那幾個決定，高亮只鋪在底下。</summary>
-    Highlight
+    Highlight,
+
+    /// <summary>
+    /// <b>目前</b>停在的那一處命中的底色；比 <see cref="Highlight"/> 更重，蓋過語法著色。
+    /// </summary>
+    /// <remarks>
+    /// 兩級而不是一級，是因為「哪幾處對上了」與「我現在在第幾處」是兩個問題。只有一級的
+    /// 症狀是按了「下一個命中」之後畫面捲了，而使用者要在七塊一模一樣的底色裡自己找出
+    /// 剛才跳到的是哪一塊。
+    /// </remarks>
+    HighlightCurrent,
+
+    /// <summary>目前那一處命中的字色；實色底蓋掉語法著色之後，字要自己顧對比。</summary>
+    HighlightCurrentForeground
 }
 
 /// <summary>
@@ -47,6 +60,47 @@ internal static class SqlScriptDocument
         public int Length { get; }
     }
     private static readonly ConditionalWeakTable<Inline, SourceSpan> SourceSpans = new();
+
+    /// <summary>每個命中 Run 原本的著色分類；換回一般樣子時要放回去的就是它。</summary>
+    private sealed class Classification
+    {
+        internal Classification(ScriptResource value) => Value = value;
+
+        internal ScriptResource Value { get; }
+    }
+
+    private static readonly ConditionalWeakTable<Run, Classification> Classifications = new();
+
+    /// <summary>
+    /// 把一處命中換成「目前」的樣子，或換回一般的樣子。
+    /// </summary>
+    /// <remarks>
+    /// 換的是<b>資源鍵</b>而不是筆刷：切換主題時 <c>SqlScriptTheme</c> 只更新資源而不重建文件，
+    /// 保存一次性筆刷的那一版會留著上一個主題的顏色。
+    ///
+    /// 字色只在「目前」那一處蓋掉：一般命中要看得出語法著色（那正是它還讀得懂的原因），
+    /// 而目前那一處是實色底，原本的分類色在上面不保證有對比。
+    /// </remarks>
+    public static void SetCurrentMatch(IReadOnlyList<Run> runs, bool current)
+    {
+        if (runs is null) throw new ArgumentNullException(nameof(runs));
+
+        foreach (var run in runs)
+        {
+            run.SetResourceReference(
+                TextElement.BackgroundProperty,
+                current ? ScriptResource.HighlightCurrent : ScriptResource.Highlight);
+
+            if (current)
+            {
+                run.SetResourceReference(TextElement.ForegroundProperty, ScriptResource.HighlightCurrentForeground);
+            }
+            else if (Classifications.TryGetValue(run, out var classification))
+            {
+                run.SetResourceReference(TextElement.ForegroundProperty, classification.Value);
+            }
+        }
+    }
     /// <summary>超過這個長度就不著色；可編輯的 SQL 表面沿用同一條界線。</summary>
     /// <remarks>
     /// 著色要為每一個詞法單元建立一個 <see cref="Run"/>。幾千行的預存程序會產生
@@ -60,26 +114,32 @@ internal static class SqlScriptDocument
         Build(script, resources, null, out _);
 
     /// <summary>
-    /// 同上，另外把幾段文字換底色，並交出第一段所在的 <see cref="Inline"/>。
+    /// 同上，另外把幾段文字換底色，並交出每一處命中實際切出來的那幾個 <see cref="Run"/>。
     /// </summary>
     /// <param name="highlights">
     /// 要標出來的區段，索引落在 <paramref name="script"/> 上，且必須由小到大不重疊；
     /// 交出來的位置對不上就傳 null，<b>不要</b>塞一組猜的——畫錯位置的高亮看起來像比對錯了。
     /// </param>
-    /// <param name="anchor">
-    /// 第一段高亮所在的 <see cref="Inline"/>；呼叫端用它把命中捲到可見。沒有高亮時為 null。
+    /// <param name="matches">
+    /// 與 <paramref name="highlights"/> 同樣順序、同樣長度的一份清單，每一項是那一處命中
+    /// 切出來的 <see cref="Run"/>。呼叫端用它把某一處換成「目前」的樣子並捲到可見。
     /// </param>
     /// <remarks>
+    /// 一處命中可能跨好幾個 <see cref="Run"/>：高亮切的是原文位移，著色切的是詞法單元，
+    /// 兩條界線不會對齊。交出去的是清單的清單而不是一個錨點，少了這一層的症狀是換成
+    /// 「目前」的樣子時只有半個字變色。
+    ///
     /// 高亮在<b>組文件的時候</b>就切進去，而不是事後對 <c>TextRange</c> 套屬性：套屬性會把
     /// <see cref="Run"/> 拆成新的物件，而原文位移是掛在 Run 上的（<see cref="SourceSpans"/>），
     /// 拆過之後複製選取會取到錯的一段原文。
     /// </remarks>
     public static FlowDocument Build(
-        string script, ResourceDictionary resources, IReadOnlyList<MatchSpan>? highlights, out Inline? anchor)
+        string script, ResourceDictionary resources, IReadOnlyList<MatchSpan>? highlights,
+        out IReadOnlyList<IReadOnlyList<Run>> matches)
     {
         var writer = new Writer(highlights);
         var document = BuildCore(script, resources, writer);
-        anchor = writer.Anchor;
+        matches = writer.Matches;
         return document;
     }
 
@@ -176,12 +236,40 @@ internal static class SqlScriptDocument
     /// </remarks>
     private sealed class Writer
     {
+        private static readonly IReadOnlyList<Run>[] NoMatches = Array.Empty<IReadOnlyList<Run>>();
+
         private readonly IReadOnlyList<MatchSpan>? _highlights;
+        private readonly List<Run>?[] _matches;
 
-        internal Writer(IReadOnlyList<MatchSpan>? highlights) => _highlights = highlights;
+        internal Writer(IReadOnlyList<MatchSpan>? highlights)
+        {
+            _highlights = highlights;
+            _matches = highlights is null || highlights.Count == 0
+                ? Array.Empty<List<Run>?>()
+                : new List<Run>?[highlights.Count];
+        }
 
-        /// <summary>第一段高亮所在的 Inline；沒有高亮時為 null。</summary>
-        internal Inline? Anchor { get; private set; }
+        /// <summary>每一處命中切出來的 Run，順序與傳進來的區段相同；沒有高亮時是空的。</summary>
+        /// <remarks>
+        /// 落在文字範圍外的區段一個 Run 都切不出來，那代表兩邊對不起來。這種時候那一項補成
+        /// 空清單而不是整份少一項：索引要與呼叫端手上那份區段對得起來，少一項的症狀是
+        /// 「第 5 處」從此指到第 6 段文字。
+        /// </remarks>
+        internal IReadOnlyList<IReadOnlyList<Run>> Matches
+        {
+            get
+            {
+                if (_matches.Length == 0) return NoMatches;
+
+                var all = new IReadOnlyList<Run>[_matches.Length];
+                for (var index = 0; index < _matches.Length; index++)
+                {
+                    all[index] = (IReadOnlyList<Run>?)_matches[index] ?? Array.Empty<Run>();
+                }
+
+                return all;
+            }
+        }
 
         /// <summary>
         /// 加入一段文字，換行改用 <see cref="LineBreak"/>。
@@ -234,46 +322,50 @@ internal static class SqlScriptDocument
         {
             if (_highlights is null || _highlights.Count == 0)
             {
-                Emit(paragraph, text, brush, sourceStart, highlighted: false);
+                Emit(paragraph, text, brush, sourceStart, match: -1);
                 return;
             }
 
             var at = 0;
 
-            foreach (var span in _highlights)
+            for (var index = 0; index < _highlights.Count; index++)
             {
+                var span = _highlights[index];
                 var start = Math.Max(span.Start - sourceStart, at);
                 var end = Math.Min(span.End - sourceStart, text.Length);
                 if (end <= start) continue;
 
                 if (start > at)
                 {
-                    Emit(paragraph, text.Substring(at, start - at), brush, sourceStart + at, highlighted: false);
+                    Emit(paragraph, text.Substring(at, start - at), brush, sourceStart + at, match: -1);
                 }
 
-                Emit(paragraph, text.Substring(start, end - start), brush, sourceStart + start, highlighted: true);
+                Emit(paragraph, text.Substring(start, end - start), brush, sourceStart + start, match: index);
                 at = end;
             }
 
             if (at < text.Length)
             {
-                Emit(paragraph, text.Substring(at), brush, sourceStart + at, highlighted: false);
+                Emit(paragraph, text.Substring(at), brush, sourceStart + at, match: -1);
             }
         }
 
-        private void Emit(Paragraph paragraph, string text, ScriptResource brush, int sourceStart, bool highlighted)
+        /// <param name="match">這一段屬於第幾處命中；不是命中時是 -1。</param>
+        private void Emit(Paragraph paragraph, string text, ScriptResource brush, int sourceStart, int match)
         {
             var run = new Run(text);
             SourceSpans.Add(run, new SourceSpan(sourceStart, text.Length));
             // Run 只記住分類，不保存 Brush；切換主題不改變文字、選取與捲動位置。
             run.SetResourceReference(TextElement.ForegroundProperty, brush);
 
-            if (highlighted)
+            if (match >= 0)
             {
                 run.SetResourceReference(TextElement.BackgroundProperty, ScriptResource.Highlight);
                 // 底色在高對比之下會退成背景色；字重是那時候唯一還看得出來的訊號。
                 run.FontWeight = FontWeights.SemiBold;
-                Anchor ??= run;
+                // 換成「目前」的樣子會蓋掉字色，而 Run 上讀不出原本是哪一個分類。
+                Classifications.Add(run, new Classification(brush));
+                (_matches[match] ??= new List<Run>()).Add(run);
             }
 
             paragraph.Inlines.Add(run);

@@ -123,4 +123,40 @@ public sealed class MatchProjectionTests
         Assert.Equal(7, offset);
         Assert.Equal(new[] { new MatchSpan(7, 2) }, MatchProjection.Shift(spans, offset, 4, title.Length));
     }
+
+    /// <summary>
+    /// 每一次出現都回，順序由前到後。
+    /// </summary>
+    /// <remarks>
+    /// 預覽那一端靠它走「上一個／下一個命中」：一個資料行名稱在 <c>CREATE TABLE</c> 裡出現
+    /// 一次，在擴充屬性那一串裡還會再出現一次，只回第一次的話第二處走不過去。
+    /// </remarks>
+    [Fact]
+    public void 找出全部出現()
+    {
+        const string script = "[FinishDate] datetime, -- FinishDate\nEXEC sp(N'FinishDate')";
+
+        Assert.Equal(
+            new[] { 1, 26, 47 },
+            MatchProjection.FindAll(script, "FinishDate", 0, MatchProjectionMode.WholeWord | MatchProjectionMode.IgnoreCase));
+    }
+
+    /// <summary>詞界與大小寫的規則與 <c>Find</c> 同一份；方括號算邊界，整個字才算。</summary>
+    [Fact]
+    public void 全部出現照樣認詞界()
+    {
+        const string script = "CopyNo, [CopyNo], CopyNoted";
+
+        Assert.Equal(
+            new[] { 0, 9 },
+            MatchProjection.FindAll(script, "copyno", 0, MatchProjectionMode.WholeWord | MatchProjectionMode.IgnoreCase));
+    }
+
+    [Fact]
+    public void 找不到或越界時回空的()
+    {
+        Assert.Empty(MatchProjection.FindAll("SELECT 1", "Loan", 0, MatchProjectionMode.None));
+        Assert.Empty(MatchProjection.FindAll("SELECT 1", "", 0, MatchProjectionMode.None));
+        Assert.Empty(MatchProjection.FindAll("SELECT", "SELECT 1", 0, MatchProjectionMode.None));
+    }
 }

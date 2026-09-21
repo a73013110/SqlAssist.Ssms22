@@ -115,6 +115,79 @@ public sealed class SqlSearchDefinitionHighlightTests
         Assert.Equal("Loan", script.Substring(span.Start, span.Length));
     }
 
+    /// <summary>
+    /// 同一個名稱在定義裡出現幾次就標幾次。
+    /// </summary>
+    /// <remarks>
+    /// 資料行名稱在 <c>CREATE TABLE</c> 裡出現一次，在後面那一串 <c>sp_addextendedproperty</c>
+    /// 裡還會再出現一次；只標第一次的話「下一個命中」走不到第二處。
+    /// </remarks>
+    [Fact]
+    public void 同一個名稱的每一次出現都標出來()
+    {
+        var script = TableScript + "EXEC sp_addextendedproperty N'MS_Description', N'複本編號', 'COLUMN', N'CopyNo';\r\n";
+        var hit = Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6));
+
+        var spans = SqlSearchDefinitionHighlight.Locate(hit, script);
+
+        Assert.Equal(2, spans.Count);
+        Assert.All(spans, span => Assert.Equal("CopyNo", script.Substring(span.Start, span.Length)));
+        Assert.True(spans[0].Start < spans[1].Start);
+    }
+
+    /// <summary>併進同一列的那幾筆命中全部算進來，由前到後排好。</summary>
+    /// <remarks>
+    /// 只讀代表那一筆的症狀是一張靠三個資料行命中的表只標得出其中一行，
+    /// 而使用者要找的可能正是另外兩行。
+    /// </remarks>
+    [Fact]
+    public void 併進來的命中一起標()
+    {
+        var hit = Hit(SearchMatchTarget.Column, "LoanId", new MatchSpan(0, 4))
+            .WithMerged(new[] { Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)) });
+
+        var spans = SqlSearchDefinitionHighlight.Locate(hit, TableScript);
+
+        Assert.Equal(
+            new[] { "Loan", "CopyNo" },
+            spans.Select(span => TableScript.Substring(span.Start, span.Length)));
+    }
+
+    /// <summary>兩筆命中指向同一塊文字時併成一段，不切兩次。</summary>
+    /// <remarks>
+    /// 重疊的區段會讓文件那一層把同一段文字切兩次，而第二次的起點已經落在前一段裡面，
+    /// 畫出來是一段錯位的底色。
+    /// </remarks>
+    [Fact]
+    public void 重疊的命中併成一段()
+    {
+        var hit = Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 4))
+            .WithMerged(new[] { Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)) });
+
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript));
+
+        Assert.Equal("CopyNo", TableScript.Substring(span.Start, span.Length));
+    }
+
+    /// <summary>超過上限只標前面那幾處，而且說得出口。</summary>
+    /// <remarks>
+    /// 少標了幾處卻不說的症狀最糟：使用者按到最後一處就以為看完了。
+    /// </remarks>
+    [Fact]
+    public void 超過上限時截斷並回報()
+    {
+        var builder = new System.Text.StringBuilder("CREATE TABLE [dbo].[Loan] (\r\n");
+        for (var index = 0; index <= SqlSearchDefinitionHighlight.Maximum; index++)
+            builder.Append("    [CopyNo] int, -- ").Append(index).Append("\r\n");
+        var script = builder.Append(");\r\n").ToString();
+
+        var spans = SqlSearchDefinitionHighlight.Locate(
+            Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)), script, out var truncated);
+
+        Assert.True(truncated);
+        Assert.Equal(SqlSearchDefinitionHighlight.Maximum, spans.Count);
+    }
+
     private static SearchHit Hit(SearchMatchTarget target, string snippet, params MatchSpan[] spans) =>
         new("catalog", "catalog.table", target, "[dbo].[Loan]", "key", 100, null, snippet, spans);
 

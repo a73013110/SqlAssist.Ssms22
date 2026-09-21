@@ -174,32 +174,53 @@ public sealed class SearchAggregator
     }
 
     /// <summary>
-    /// 依 <see cref="SearchHit.DedupeKey"/> 去重，保留排在前面的那一份。
+    /// 依 <see cref="SearchHit.DedupeKey"/> 把同一個東西的幾種命中併成一列。
     /// </summary>
     /// <remarks>
-    /// 在排好序的序列上走一遍就是「保留分數高的那一份」，而且平手時留下的是排序決定的那一份，
-    /// 不是先到的那一份——先到是賽跑的結果，會讓同一組輸入留下不同的那一筆。
+    /// 在排好序的序列上走一遍，第一個看到的那一份當代表，其餘掛到它的
+    /// <see cref="SearchHit.Merged"/> 上——也就是「代表的是排名最高的那一份」，
+    /// 而且平手時由排序決定，不是先到的那一份（先到是賽跑的結果，會讓同一組輸入留下不同的代表）。
     ///
     /// 去重鍵<b>只有</b> <see cref="SearchHit.DedupeKey"/>，不含
-    /// <see cref="SearchHit.MatchTarget"/>。同一個物件同時被名稱與定義本文命中時，那仍然是
-    /// 同一張表：兩列指向同一個地方、點下去做同一件事，而使用者看到的是清單上重複的兩行。
-    /// 留下來的是排名較高的那一份——<see cref="SearchHitComparer"/> 先比部位再比分數，
-    /// 所以名稱那一份在前。
+    /// <see cref="SearchHit.MatchTarget"/>，也不含資料行名稱：同一張資料表被名稱、三個資料行與
+    /// 定義本文命中時，那仍然是同一張表——五列指向同一個地方、點下去做同一件事，
+    /// 而使用者看到的是清單上重複的五行。代表由 <see cref="SearchHitComparer"/> 決定，
+    /// 它先比部位再比分數，所以名稱那一份在前。
     ///
-    /// 刻意<b>不</b>拿兩邊的分數取最大值：名稱那邊是
+    /// 被併掉的那幾筆<b>不丟</b>：一張只靠資料行命中的表，丟掉之後畫面上說不出它是靠哪幾行
+    /// 進來的，而那正是使用者要找的東西。呈現與預覽讀的是
+    /// <see cref="SearchHit.Matches"/>，Core 不決定要畫幾顆膠囊。
+    ///
+    /// 刻意<b>不</b>拿幾邊的分數取最大值或相加：名稱那邊是
     /// <see cref="SqlAssist.Core.Matching.FuzzyMatcher"/> 的詞首加成，本文那邊是出現次數，
-    /// 兩個尺度湊出來的「最大值」排出的順序沒有意義。
+    /// 兩個尺度湊出來的數字排出的順序沒有意義。代表那一份的分數就是這一列的分數。
     ///
-    /// 資料行命中不會被它所屬物件的命中吃掉：它的去重鍵多一段資料行名稱，本來就是另一個鍵。
+    /// 併進來的清單一定是攤平的：候選本身的 <see cref="SearchHit.Merged"/> 在這一步之前
+    /// 都是空的（provider 填不了它），所以不必遞迴。
     /// </remarks>
     private static List<SearchHit> Deduplicate(IEnumerable<SearchHit> ordered)
     {
         var kept = new List<SearchHit>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var merged = new List<List<SearchHit>?>();
+        var at = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var hit in ordered)
         {
-            if (seen.Add(hit.DedupeKey)) kept.Add(hit);
+            if (at.TryGetValue(hit.DedupeKey, out var index))
+            {
+                // 併進來的那幾筆已經是排好序的，照順序 Add 就維持了排名先後。
+                (merged[index] ??= new List<SearchHit>()).Add(hit);
+                continue;
+            }
+
+            at.Add(hit.DedupeKey, kept.Count);
+            kept.Add(hit);
+            merged.Add(null);
+        }
+
+        for (var index = 0; index < kept.Count; index++)
+        {
+            if (merged[index] is { } group) kept[index] = kept[index].WithMerged(group);
         }
 
         return kept;
