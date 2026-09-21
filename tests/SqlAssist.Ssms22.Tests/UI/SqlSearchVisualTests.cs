@@ -268,7 +268,7 @@ public sealed class SqlSearchVisualTests
             // 用 DesiredSize 而不是 ActualWidth：工具列量的是含外距的那一份，兩者差幾個 DIP
             // 就足以讓門檻算在錯的一級上。
             // 群距由共用的分隔線決定（它自己帶左右間距），不是寫死的兩個 ItemGap。
-            var gap = Measured(SqlAssistChrome.CreateFilterGroupDivider()).Width * 2;
+            var gap = Measured(SqlAssistChrome.CreateGroupDivider()).Width * 2;
             var second = databases.DesiredSize.Width + kinds.DesiredSize.Width + segments.DesiredSize.Width + gap;
             var compact = Layout(second - 1);
             Assert.Equal(SqlSearchToolbarMode.Compact, toolbar.Mode);
@@ -403,7 +403,7 @@ public sealed class SqlSearchVisualTests
             var option = SqlAssistChrome.CreateCheckBoxTemplate();
             var segment = (ControlTemplate)SqlAssistChrome.CreateSegmentToggleStyle().Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
-            var toggle = (ControlTemplate)SqlAssistChrome.CreateInputToggleStyle().Setters
+            var toggle = (ControlTemplate)SqlAssistChrome.CreateToggleStyle().Setters
                 .OfType<Setter>().Single(setter => setter.Property == Control.TemplateProperty).Value;
 
             foreach (var template in new[] { card, option, segment, toggle })

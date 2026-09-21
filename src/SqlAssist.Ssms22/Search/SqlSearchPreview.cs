@@ -4,7 +4,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Input;
+using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using SqlAssist.Core.Matching;
 using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.UI;
@@ -35,8 +36,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly Grid _body = new();
     private readonly DockPanel _content;
-    private readonly Button _copyName;
-    private readonly Button _wrap;
+    private readonly Button _copyScript;
+    private readonly ToggleButton _wrap;
     private readonly SqlMatchNavigator _navigator = new();
     private readonly WrapPanel _toolbar = new();
     private readonly SqlSelectionLoader<SqlSearchRow> _selection;
@@ -46,12 +47,16 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     {
         _loader = new SqlSearchDefinitionLoader(catalogs);
 
-        _copyName = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製限定名稱");
-        _copyName.Click += (_, _) => CopyRequested?.Invoke(this, EventArgs.Empty);
-        // 複製定義本身不另放一顆同圖示的按鈕；唯讀檢視的右鍵選單已經有「複製全文」與
-        // 「複製選取」，兩顆 Copy 並排只會讓人先猜哪一顆是哪一個。
-        _wrap = SqlAssistChrome.CreateIconButton(SqlIcon.Wrap, "切換 SQL 顯示換行");
-        _wrap.Click += (_, _) => Guarded(() => _viewer.SetWrap(!_viewer.Wrap));
+        // 這一顆複製的是畫面上這一份定義，不是名稱：使用者按預覽裡的複製，要的是
+        // 他正在看的那段結構描述；名稱在清單的右鍵選單上（「複製名稱」），那裡才是
+        // 「這一列是什麼」的位置。與 SQL Memory 預覽的「複製全文」同一顆、同一個位置。
+        _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製定義");
+        _copyScript.Click += (_, _) => Guarded(() => _viewer.CopyAll());
+        // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
+        // 現在是開著的，理由見 CreateIconToggle。
+        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "SQL 顯示換行");
+        _wrap.Checked += (_, _) => Guarded(() => _viewer.SetWrap(true));
+        _wrap.Unchecked += (_, _) => Guarded(() => _viewer.SetWrap(false));
 
         _snippet.FontFamily = SqlAssistChrome.CodeFont;
         _snippet.TextWrapping = TextWrapping.Wrap;
@@ -74,7 +79,13 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _navigator.CurrentChanged += (_, _) =>
             SqlAssistPlatformGuard.Run("移到下一處命中", () => _viewer.ShowMatch(_navigator.Matches.Index));
         _toolbar.Children.Add(_navigator);
-        _toolbar.Children.Add(_copyName);
+        // 導覽與命令是兩群（「走到哪一處」與「拿這一份定義做什麼」），所以中間是工具列上
+        // 那一條共用的群界線。沒有命中時導覽整組收起，這一條跟著收——綁 Visibility 而不是
+        // 在每一個換命中的路徑上各設一次，漏掉其中一條的症狀是工具列從一條孤線開始。
+        var divider = SqlAssistChrome.CreateGroupDivider();
+        divider.SetBinding(VisibilityProperty, new Binding(nameof(Visibility)) { Source = _navigator });
+        _toolbar.Children.Add(divider);
+        _toolbar.Children.Add(_copyScript);
         _toolbar.Children.Add(_wrap);
 
         _status.TextWrapping = TextWrapping.Wrap;
@@ -114,19 +125,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         Visibility = Visibility.Collapsed
     };
 
-    /// <summary>複製限定名稱；實際寫剪貼簿的失敗要看得見，所以交給宿主處理。</summary>
-    public event EventHandler? CopyRequested;
-
     /// <summary>目前顯示的那一筆；沒有選取時 null。</summary>
     public SqlSearchRow? Current => _selection.Current;
-
-    /// <summary>接住 F3／Shift+F3 走到上／下一處命中；已經處理掉就回 true。</summary>
-    /// <remarks>
-    /// 由工具窗轉進來而不是自己接鍵：焦點可能還在搜尋框或清單上，而使用者按 F3 要的是
-    /// 「下一處命中」不是「焦點在哪裡就做什麼」。攔截範圍仍然只有這個工具窗，
-    /// 查詢視窗的尋找列不受影響。
-    /// </remarks>
-    public bool HandleKey(Key key, ModifierKeys modifiers) => _navigator.HandleKey(key, modifiers);
 
     public void Dispose()
     {
@@ -150,7 +150,9 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         // 「這裡本來會有什麼」，而那一句已經由狀態表面說了。不適用的操作一律收起。
         _toolbar.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         Summary.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
-        _copyName.IsEnabled = row is not null;
+        // 兩顆都跟著「有沒有一份定義在畫面上」：只提供片段的來源複製不出結構描述，
+        // 而一顆複製得到半句話的按鈕比沒有那一顆更難解釋。定義載進來才開。
+        _copyScript.IsEnabled = false;
         _wrap.IsEnabled = false;
         _navigator.Clear();
         _viewer.SetSql("");
@@ -213,7 +215,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
             var highlights = SqlSearchDefinitionHighlight.Locate(row.Hit, definition.Script, out var truncated);
             _viewer.SetSql(definition.Script, highlights);
             _navigator.SetCursor(new MatchCursor(highlights));
-            _wrap.IsEnabled = true;
+            _copyScript.IsEnabled = _wrap.IsEnabled = true;
 
             // 第一處自動捲到可見，之後一律由導覽接手：一份幾百行的定義從頭顯示而命中在底下時，
             // 使用者看不出自己選的這一筆為什麼在清單上。換一列以外的捲動都是他自己按的。

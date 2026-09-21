@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -33,8 +34,9 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _reportCommand = reportCommand;
         // 左側只放全文專用工具；右側列操作與清單卡片、快捷選單同一份清單、同一個順序與實作。
         _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
-        var wrap = Button(SqlIcon.Wrap, "切換 SQL 顯示換行", () => _viewer.SetWrap(!_viewer.Wrap));
-        _tools.Children.Add(wrap);
+        // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關：
+        // 按完之後工具列上看得出現在是開著的，理由見 SqlAssistChrome.CreateIconToggle。
+        _tools.Children.Add(Toggle(SqlIcon.Wrap, "SQL 顯示換行", _viewer.SetWrap));
         foreach (var command in SqlMemoryRowCommand.All)
         {
             // 複製已由左側的「複製全文」涵蓋，右側不再放第二顆同義按鈕。
@@ -137,6 +139,20 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             try { await _commands.RunAsync(action, row, this, _reportCommand, token, _viewer.Sql); }
             finally { if (_loader.IsCurrent(row, token)) _actions.IsEnabled = _loaded; }
         }, _reportCommand);
+    }
+
+    /// <summary>維持著的狀態用開關。</summary>
+    /// <remarks>
+    /// 不走 <see cref="Button"/> 那道「沒載進來就不動作」的守門：那是給碰得到執行階段的動作用的，
+    /// 而換行只改顯示。吃掉那一次的症狀是按鈕留在開著的樣子，內容卻沒有換行——一個開關說謊
+    /// 比一顆按了沒事的按鈕更難發現。按不按得動由 <c>_tools.IsEnabled</c> 決定，與其餘工具相同。
+    /// </remarks>
+    private ToggleButton Toggle(SqlIcon icon, string text, Action<bool> apply)
+    {
+        var toggle = SqlAssistChrome.CreateIconToggle(icon, text);
+        toggle.Checked += (_, _) => SqlMemoryActions.Run(() => apply(true), Report);
+        toggle.Unchecked += (_, _) => SqlMemoryActions.Run(() => apply(false), Report);
+        return toggle;
     }
 
     private Button Button(SqlIcon icon, string text, Action action, SqlActionTone tone = SqlActionTone.Neutral)

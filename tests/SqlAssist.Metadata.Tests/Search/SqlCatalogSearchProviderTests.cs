@@ -303,18 +303,111 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     /// <remarks>
-    /// 名稱走模糊比對，而模糊比對本身不分大小寫——刻意如此：識別字在多數定序下
-    /// 本來就不分大小寫，逐字比對會讓 PUBLISHER 打成 publisher 就一筆都不剩。
+    /// 一個修飾都沒開才走模糊比對：識別字在多數定序下本來就不分大小寫，
+    /// 而打字找東西的人不會先想好大小寫。
     /// </remarks>
     [Fact]
-    public async Task 區分大小寫不影響名稱命中()
+    public async Task 沒開修飾時名稱不分大小寫()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "PUBLISHER", "U");
+
+        var sink = await RunAsync(server, new SearchQuery("publisher"));
+
+        Assert.Single(sink.Hits);
+    }
+
+    /// <summary>勾了大小寫之後，名稱與本文同一條規則：逐字相同才收。</summary>
+    [Fact]
+    public async Task 區分大小寫時名稱只收逐字相同的命中()
     {
         var server = new FakeCatalogServer();
         server.Add("Library").WithObject(1, "dbo", "PUBLISHER", "U");
 
         var sink = await RunAsync(server, new SearchQuery("publisher", options: SearchOptions.MatchCasing));
 
-        Assert.Single(sink.Hits);
+        Assert.Empty(sink.Hits);
+    }
+
+    /// <summary>資料行與物件名稱同一條規則；只改其中一處的症狀是同一個字串在兩個部位上收的筆數不一樣。</summary>
+    [Fact]
+    public async Task 只取整個字時資料行也照同一條規則()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Loan", "U")
+            .WithColumn(1, "CopyNote");
+
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+
+        Assert.Empty(sink.Hits);
+    }
+
+    /// <summary>
+    /// 兩顆修飾都開著時，名稱不再收「字母湊得出來」的那一種命中。
+    /// </summary>
+    /// <remarks>
+    /// 模糊比對允許字母散在候選各處，<c>DF_Lib_Reader_NoticeIsShown</c> 確實湊得出
+    /// <c>finish</c> 的每一個字母。使用者把兩顆都開著、範圍也縮到只剩條件約束，卻仍然
+    /// 看到這一筆——他關掉的東西一個都沒關掉。
+    /// </remarks>
+    [Fact]
+    public async Task 開了修飾的名稱不再收散開的模糊命中()
+    {
+        var fuzzy = await RunAsync(NewConstraintServer(), new SearchQuery("finish"));
+        Assert.Single(fuzzy.Hits);
+
+        var strict = await RunAsync(
+            NewConstraintServer(),
+            new SearchQuery("finish", options: SearchOptions.MatchCasing | SearchOptions.WholeWord));
+
+        Assert.Empty(strict.Hits);
+    }
+
+    private static FakeCatalogServer NewConstraintServer()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "DF_Lib_Reader_NoticeIsShown", "D");
+        return server;
+    }
+
+    /// <summary>
+    /// 字面比對找的是「出現在名稱裡」，不是「整個名稱就是它」；<b>詞界</b>才是那個更嚴的條件。
+    /// </summary>
+    /// <remarks>
+    /// 底線算識別字的一部分（與定義本文那一邊同一條規則），所以 <c>DF_Loan_CopyNo</c> 在
+    /// 只勾大小寫時收得到、再勾整個字就收不到——與編輯器「全字」的慣例相同。
+    /// </remarks>
+    [Fact]
+    public async Task 名稱的字面命中可以落在名稱中間()
+    {
+        var casing = await RunAsync(
+            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.MatchCasing));
+
+        var hit = Assert.Single(casing.Hits);
+        var span = Assert.Single(hit.SnippetSpans);
+
+        // 高亮標的是他打的那個字整段，不是湊得出那個字的幾個字母。
+        Assert.Equal("DF_Loan_CopyNo", hit.Snippet);
+        Assert.Equal(8, span.Start);
+        Assert.Equal(6, span.Length);
+
+        var wholeWord = await RunAsync(
+            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+
+        Assert.Empty(wholeWord.Hits);
+
+        var exact = await RunAsync(
+            NewNamedServer("CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+
+        Assert.Single(exact.Hits);
+    }
+
+    private static FakeCatalogServer NewNamedServer(string name)
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", name, "U");
+        return server;
     }
 
     [Fact]

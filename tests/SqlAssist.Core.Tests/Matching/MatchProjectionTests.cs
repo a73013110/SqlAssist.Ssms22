@@ -159,4 +159,14 @@ public sealed class MatchProjectionTests
         Assert.Empty(MatchProjection.FindAll("SELECT 1", "", 0, MatchProjectionMode.None));
         Assert.Empty(MatchProjection.FindAll("SELECT", "SELECT 1", 0, MatchProjectionMode.None));
     }
+
+    /// <summary>上限湊滿就不再往下掃：一份幾千行的定義本文裡同一個字出現幾百次是常態。</summary>
+    [Fact]
+    public void 湊滿上限就停下來()
+    {
+        var found = MatchProjection.FindAll("Loan Loan Loan Loan", "Loan", 0, MatchProjectionMode.None, limit: 2);
+
+        Assert.Equal(new[] { 0, 5 }, found);
+        Assert.Empty(MatchProjection.FindAll("Loan", "Loan", 0, MatchProjectionMode.None, limit: 0));
+    }
 }

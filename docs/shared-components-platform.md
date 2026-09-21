@@ -31,11 +31,13 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 圖示加標籤的分頁 | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
 | 過濾面板（單／複選、第一列的預設、續頁、排序、整批命令） | `Ssms22/UI/SqlFilterFlyout.cs` |
 | 過濾按鈕上那一句摘要（沒勾／勾一個／勾很多）與 Tooltip 的完整名單 | `Ssms22/UI/SqlFilterSummary.cs` |
-| 篩選的兩級分隔線與面板裡那條橫線、過濾面板的按鈕樣式、第一列那個預設與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
+| 面板裡那條橫線、過濾面板的按鈕樣式、第一列那個預設與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 工具列那一列篩選（分群、換行） | `Ssms22/UI/SqlFilterBar.cs` |
-| 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕、框裡開關開著的外觀 | `Ssms22/UI/SqlInputRow.cs`、`SqlAssistChrome.Search.cs` 的 `CreateInputToggleStyle` |
+| 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕 | `Ssms22/UI/SqlInputRow.cs` |
+| 開關「開著」的外觀（搜尋框裡那兩顆與工具列上的圖示開關共用） | `Ssms22/UI/SqlAssistChrome.Search.cs` 的 `CreateToggleStyle` |
 | 展開／收合箭頭與它的轉向（下拉、排序選單、預覽把手） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateChevron`／`SetChevronExpanded` |
-| 工具列與預覽的圖示鈕 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateIconButton` |
+| 工具列與預覽的圖示鈕（一次動作）與圖示開關（維持著的狀態，如顯示換行） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateIconButton`／`CreateIconToggle` |
+| 工具列上兩級的分隔線（篩選列的分群、預覽工具列的導覽與命令） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateGroupDivider`／`CreateItemDivider` |
 | 清單列的卡片容器樣式與進場／退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
 | 卡片清單的鍵盤、滑鼠、續頁與頁尾容器 | `Ssms22/UI/SqlCardList.cs` 的 `SqlCardListBase<TAction>` |
 | 已選條件的 chip 列（一維度一顆、橫向捲動） | `Ssms22/UI/SqlFilterChipBar.cs` |
@@ -47,7 +49,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 對話框的資訊列、分段、分段卡片、選項列、頁尾與破壞性主要動作 | `Ssms22/UI/SqlAssistChrome.Dialogs.cs` |
 | 對話框殼層（標題、尺寸、主題、字型、置中） | `Ssms22/UI/SqlAssistDialogs.cs` |
 | 獨立 SQL 唯讀預覽／著色編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs`（外觀由呼叫端掛 `SqlScriptTheme`） |
-| 「上一處／第幾處／下一處」的按鈕、讀數與 F3 鍵盤路徑 | `Ssms22/UI/SqlMatchNavigator.cs`（狀態在 `Core/Matching/MatchCursor.cs`，捲動由呼叫端做） |
+| 「上一處／第幾處／下一處」的按鈕與讀數（沒有鍵盤捷徑，理由見[命中導覽](search-highlight.md)） | `Ssms22/UI/SqlMatchNavigator.cs`（狀態在 `Core/Matching/MatchCursor.cs`，捲動由呼叫端做） |
 | SQL 著色分類、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`（`Classify`）／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |

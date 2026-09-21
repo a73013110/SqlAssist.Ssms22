@@ -2,7 +2,6 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Input;
 using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Ssms22.UI;
@@ -18,6 +17,11 @@ namespace SqlAssist.Ssms22.UI;
 /// 自動捲動<b>不</b>由它負責，它只說位置變了。兩件事併在一起的症狀是重設內容那一次也被
 /// 當成一次導覽，而使用者還沒按任何按鈕，畫面已經自己跳了一下。
 ///
+/// 沒有鍵盤捷徑：F3 在 SSMS 上是查詢視窗的「找下一個」，而宿主在 WPF 看到按鍵<b>之前</b>
+/// 就把它吃掉了（命令路由的 pretranslate），工具窗上的 <c>PreviewKeyDown</c> 一次都不會跑到。
+/// 接得住的那一版要去註冊宿主的命令與鍵繫結，而那是另一件事；留著一組按不動的提示，
+/// 症狀是使用者照 Tooltip 按了沒反應，以為整個導覽壞了。
+///
 /// 位置的字是「3 / 7」而不是「第 3 個，共 7 個」：它每按一次就會變，貼在兩顆按鈕中間，
 /// 而那個位置容不下一句話。完整的句子留在自動化名稱與 Tooltip 上，螢幕閱讀器唸得到。
 /// </remarks>
@@ -28,8 +32,8 @@ internal sealed class SqlMatchNavigator : StackPanel
     private readonly TextBlock _position = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private MatchCursor _cursor = MatchCursor.Empty;
 
-    internal const string PreviousLabel = "上一個命中 (Shift+F3)";
-    internal const string NextLabel = "下一個命中 (F3)";
+    internal const string PreviousLabel = "上一個命中";
+    internal const string NextLabel = "下一個命中";
 
     public SqlMatchNavigator()
     {
@@ -78,27 +82,12 @@ internal sealed class SqlMatchNavigator : StackPanel
     public void Clear() => SetCursor(MatchCursor.Empty);
 
     /// <summary>往前或往後一個；位置真的變了才回 true，呼叫端據此決定要不要捲。</summary>
-    /// <remarks>鍵盤路徑（F3／Shift+F3）與那兩顆按鈕走的是同一個入口，行為不會分岔。</remarks>
     public bool Move(bool forward)
     {
         if (!(forward ? _cursor.MoveNext() : _cursor.MovePrevious())) return false;
 
         Update();
         CurrentChanged?.Invoke(this, EventArgs.Empty);
-        return true;
-    }
-
-    /// <summary>接住 F3／Shift+F3；已經處理掉就回 true。</summary>
-    /// <remarks>
-    /// 只認這一組，而且只在焦點已經落在用它的那個表面裡才會被呼叫到：F3 在 SSMS 上是
-    /// 查詢視窗的「找下一個」，在工具窗外面攔它等於把使用者的尋找列搶走。
-    /// </remarks>
-    public bool HandleKey(Key key, ModifierKeys modifiers)
-    {
-        if (key != Key.F3 || _cursor.IsEmpty) return false;
-        if (modifiers != ModifierKeys.None && modifiers != ModifierKeys.Shift) return false;
-
-        Move(forward: modifiers != ModifierKeys.Shift);
         return true;
     }
 

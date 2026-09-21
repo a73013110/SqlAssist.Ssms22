@@ -397,14 +397,14 @@ internal static partial class SqlAssistChrome
     /// 下面的已選條件列不再替它們畫一顆 chip——那等於同一件事說兩次，而且它<b>不是</b>
     /// 一顆按十字就清得掉的條件，使用者清掉之後回頭找不到自己剛剛關掉的是哪一個開關。
     ///
-    /// 因此「開著」必須在這一顆上看得出來，走 <see cref="CreateInputToggleStyle"/>。
+    /// 因此「開著」必須在這一顆上看得出來，走 <see cref="CreateToggleStyle"/>。
     /// </remarks>
     public static ToggleButton CreateSearchToggle(SqlIcon icon, string label, string toolTip)
     {
         var toggle = new ToggleButton
         {
             Content = CreateIcon(icon),
-            Style = CreateInputToggleStyle(),
+            Style = CreateToggleStyle(),
             Padding = new Thickness(4),
             Margin = new Thickness(0, 0, 2, 0),
             MinWidth = 24,
@@ -415,9 +415,12 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 搜尋框<b>裡面</b>那種開關的外觀：開著時用強調底與強調框，與核取方塊的「打勾」同一組色。
+    /// 開關的外觀：開著時用強調底與強調框，與核取方塊的「打勾」同一組色。
     /// </summary>
     /// <remarks>
+    /// 搜尋框裡那兩顆與工具列上的圖示開關（<see cref="CreateIconToggle"/>）共用它：兩處的
+    /// 「開著」畫成不同的樣子，使用者要學兩次同一件事。
+    ///
     /// 不沿用分段開關那一份：那一份的選取是「底槽裡浮起來的一段」，底色刻意與
     /// <see cref="ThemeBrush.ListBackground"/> 相同，而搜尋框的底色<b>正是</b>它——
     /// 疊上去之後開著與關著的差別只剩一圈髮絲線，看起來像一個沒對齊的外框而不是一個狀態。
@@ -428,7 +431,7 @@ internal static partial class SqlAssistChrome
     /// 狀態不只靠顏色：圖示本身說的是哪一種比對，開關的按下狀態另由
     /// <see cref="System.Windows.Automation.TogglePattern"/> 唸得出來。
     /// </remarks>
-    public static Style CreateInputToggleStyle()
+    public static Style CreateToggleStyle()
     {
         var box = new FrameworkElementFactory(typeof(Border)) { Name = "toggle" };
         box.SetValue(Border.BackgroundProperty, Brushes.Transparent);

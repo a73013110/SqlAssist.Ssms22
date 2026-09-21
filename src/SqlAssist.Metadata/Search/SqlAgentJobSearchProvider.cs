@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Querying;
 
@@ -194,9 +193,8 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 var key = JobKey(snapshot.ServerName, job);
                 counter.Note(key);
 
-                // 名稱走模糊比對，大小寫一律不分：MatchCasing 只作用在本文那一段，
-                // 與目錄那一邊一致——作業名稱是人取的，逐字比對會讓大小寫打錯就一筆都不剩。
-                var match = FuzzyMatcher.MatchNormalized(query.NormalizedPattern, job.Name);
+                // 名稱怎麼比與目錄那一邊同一份：沒開修飾是模糊比對，開了就是字面比對。
+                var match = SearchIdentifierMatch.Match(query, job.Name);
 
                 if (match.IsMatch)
                 {
@@ -230,10 +228,10 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 counter.Note(key);
 
                 // 沒有取名的步驟不比對名稱：空字串對任何樣式都不會命中，而
-                // FuzzyMatcher 對空候選的行為不該由這裡假設。
+                // 比對器對空候選的行為不該由這裡假設。
                 if (step.Name.Length == 0) continue;
 
-                var match = FuzzyMatcher.MatchNormalized(query.NormalizedPattern, step.Name);
+                var match = SearchIdentifierMatch.Match(query, step.Name);
 
                 if (!match.IsMatch) continue;
 
