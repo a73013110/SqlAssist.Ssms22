@@ -31,12 +31,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryList _list = new();
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
+    // 兩顆都是多選：History 與 Favorites 的列早就存在，這一層只是縮小已存的那一份，而使用者要比的
+    // 往往就是「這幾台上的同一段 SQL」。名單一頁一百個且可續頁，所以帶搜尋框；全選不放，
+    // 它與第一列那個「全部」是同一件事。
     private readonly ConnectionFacet _serverFacet =
-        new(new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single), databases: false, "伺服器",
-            "不限伺服器；每一台上的紀錄都列。", "更多伺服器");
+        new(new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.SearchableMultiple), databases: false, "伺服器",
+            "不限伺服器；每一台上的紀錄都列。", "更多伺服器", " 台");
     private readonly ConnectionFacet _databaseFacet =
-        new(new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.Single), databases: true, "資料庫",
-            "不限資料庫；目前條件下的每一個都列。", "更多資料庫");
+        new(new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple), databases: true, "資料庫",
+            "不限資料庫；目前條件下的每一個都列。", "更多資料庫", " 個");
     private readonly ConnectionFacet[] _connectionFacets;
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
@@ -427,9 +430,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         var failure = _model.UseConnection(SqlWindowConnections.ReadActive(_package));
         if (failure is not null) { Report(failure); return; }
-        // 一次更新兩個條件，不能在指定伺服器的路徑上把剛指定的資料庫清掉。
-        _serverFacet.Value = _model.Server;
-        _databaseFacet.Value = _model.Database;
+        // 模型一次換掉兩份名單，不能在指定伺服器的路徑上把剛指定的資料庫清掉。
         foreach (var facet in _connectionFacets) { UpdateFacetSummary(facet); facet.Reset(); FillFacet(facet); }
         Changed();
     }
@@ -521,46 +522,88 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void FillFacet(ConnectionFacet facet)
     {
         var options = new List<SqlFilterOption>();
+        var selected = Selection(facet);
 
         void Add(string name) => options.Add(new SqlFilterOption(
-            name, facet.Name + "：" + name, string.Equals(facet.Value, name, StringComparison.Ordinal),
-            selected => SqlMemoryActions.Run(() => { if (selected) SelectFacet(facet, name); }, Report)));
+            name, facet.Name + "：" + name, IsFacetSelected(facet, name),
+            on => SqlMemoryActions.Run(() => ToggleFacet(facet, name, on), Report)));
 
-        if (facet.Value is { } value && !facet.Names.Contains(value)) Add(value);
+        // 已經勾起來的名稱可能不在手上這幾頁裡（換過排序，或還沒續到那一頁）：排在最前面且一律列出，
+        // 否則使用者在面板上取消不掉自己剛勾的條件。
+        foreach (var name in selected) if (!facet.Names.Contains(name)) Add(name);
         foreach (var name in facet.Names) Add(name);
 
-        facet.Panel.SetEmptyOption(new SqlFilterOption(AnyFacetLabel, facet.EmptyHint, facet.Value is null,
-            selected => SqlMemoryActions.Run(() => { if (selected) SelectFacet(facet, null); }, Report)));
+        facet.Panel.SetEmptyOption(new SqlFilterOption(AnyFacetLabel, facet.EmptyHint, selected.Count == 0,
+            on => SqlMemoryActions.Run(() => { if (on) ClearFacet(facet); }, Report)));
         facet.Panel.SetOptions(new[] { new SqlFilterGroup("", options) });
         facet.Panel.SetMore(facet.HasMore ? facet.MoreLabel : null);
     }
 
-    /// <summary>選了一個名稱，或回到「全部」；語意是對已存的列篩選，不是切換 SSMS 連線。</summary>
-    private void SelectFacet(ConnectionFacet facet, string? name)
+    /// <summary>這一顆面板目前勾起來的名稱；模型是唯一的出處，面板與按鈕都只是把它畫出來。</summary>
+    private IReadOnlyList<string> Selection(ConnectionFacet facet) =>
+        facet.Databases ? _model.Databases : _model.Servers;
+
+    private bool IsFacetSelected(ConnectionFacet facet, string name) =>
+        facet.Databases ? _model.IsDatabaseSelected(name) : _model.IsServerSelected(name);
+
+    /// <summary>勾或取消勾一個名稱；語意是對已存的列篩選，不是切換 SSMS 連線。</summary>
+    private void ToggleFacet(ConnectionFacet facet, string name, bool selected)
     {
-        if (string.Equals(facet.Value, name, StringComparison.Ordinal)) return;
-        facet.Value = name;
+        var changed = facet.Databases
+            ? _model.SetDatabaseSelected(name, selected)
+            : _model.SetServerSelected(name, selected);
+        if (!changed) return;
+        // 只把第一列那個「全部」的勾改過來，不重建整份清單：使用者正在連勾好幾個，
+        // 重建會把捲動位置與鍵盤焦點一起丟掉，而他還在往下走。
+        facet.Panel.SyncEmptyOption(Selection(facet).Count == 0);
+        AfterFacetChanged(facet, refill: false);
+    }
+
+    /// <summary>回到「全部」；面板第一列是這個維度唯一的清除入口，所以不另畫一顆取消全選。</summary>
+    private void ClearFacet(ConnectionFacet facet)
+    {
+        var changed = facet.Databases ? _model.ClearDatabases() : _model.ClearServers();
+        // 其餘幾列的勾要一起清掉，所以這一支非重建不可。
+        if (changed) AfterFacetChanged(facet, refill: true);
+    }
+
+    /// <summary>
+    /// 條件真的變了之後共用的收尾。
+    /// </summary>
+    /// <remarks>
+    /// 動過伺服器就連資料庫那一顆一起重畫：資料庫名單是照選中的伺服器問回來的，
+    /// 而模型已經把上一輪的資料庫清掉了（見 <see cref="SqlMemoryBrowserModel.SetServerSelected"/>）。
+    /// 重建等這一輪事件走完再做——面板的繫結還在回寫，就地換掉 <c>ItemsSource</c> 等於回收
+    /// 正在發事件的那一顆核取方塊。
+    /// </remarks>
+    private void AfterFacetChanged(ConnectionFacet facet, bool refill)
+    {
         UpdateFacetSummary(facet);
-        if (facet.Databases) _model.Database = name;
-        else
+        if (!facet.Databases)
         {
-            _model.Server = name;
-            // 資料庫名稱是每台伺服器自己的；換台之後留著會篩成一列都沒有，而畫面上只看得到
-            // 「沒有符合條件」，看不出是上一台的條件還掛著。
-            _model.Database = null;
-            _databaseFacet.Value = null;
             UpdateFacetSummary(_databaseFacet);
-            _databaseFacet.Reset(); FillFacet(_databaseFacet);
+            _databaseFacet.Reset();
+            Defer(() => FillFacet(_databaseFacet));
         }
 
-        // 單選換了一個，舊的那一顆 radio 要跟著清掉；面板的繫結還在回寫，等這一輪走完再換整份清單。
-        Defer(() => FillFacet(facet));
+        if (refill) Defer(() => FillFacet(facet));
         Changed();
     }
 
-    /// <summary>按鈕上的摘要；未選就是「全部」，與面板第一列共用同一份字。</summary>
-    private static void UpdateFacetSummary(ConnectionFacet facet) =>
-        facet.Panel.UpdateSummary(facet.Value ?? AnyFacetLabel, facet.Value is null ? facet.EmptyHint : "");
+    /// <summary>
+    /// 按鈕上的摘要；一個都沒勾就是「全部」，與面板第一列共用同一份字。
+    /// </summary>
+    /// <remarks>
+    /// 勾了好幾個時按鈕上只剩數量，完整名單留在 Tooltip 與面板裡：名字全攤在按鈕上會把那一列撐到換行，
+    /// 而在停靠面板裡換行的代價就是少看幾筆結果。
+    /// </remarks>
+    private void UpdateFacetSummary(ConnectionFacet facet)
+    {
+        var selected = Selection(facet);
+        facet.Panel.UpdateSummary(
+            SqlFilterSummary.Of(selected.Count, AnyFacetLabel, selected.Count == 1 ? selected[0] : null, facet.Unit),
+            selected.Count == 0 ? facet.EmptyHint : SqlFilterSummary.Detail(selected));
+    }
 
     /// <summary>手上的名單作廢；下次打開面板才重問，沒有人在看的時候不去問儲存層。</summary>
     private void InvalidateFacets()
@@ -585,9 +628,10 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         private readonly List<string> _names = new();
 
-        public ConnectionFacet(SqlFilterFlyout panel, bool databases, string name, string emptyHint, string moreLabel)
+        public ConnectionFacet(SqlFilterFlyout panel, bool databases, string name, string emptyHint, string moreLabel,
+            string unit)
         {
-            Panel = panel; Databases = databases; Name = name; EmptyHint = emptyHint; MoreLabel = moreLabel;
+            Panel = panel; Databases = databases; Name = name; EmptyHint = emptyHint; MoreLabel = moreLabel; Unit = unit;
         }
 
         public SqlFilterFlyout Panel { get; }
@@ -601,10 +645,10 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
         public string MoreLabel { get; }
 
-        public SqlConnectionFacetSort Sort { get; set; } = SqlConnectionFacetSort.Recent;
+        /// <summary>摘要只剩數量時的量詞；「3 個」與「3 台」讀起來不是同一件事。</summary>
+        public string Unit { get; }
 
-        /// <summary>選中的名稱；null 是「全部」。</summary>
-        public string? Value { get; set; }
+        public SqlConnectionFacetSort Sort { get; set; } = SqlConnectionFacetSort.Recent;
 
         public int Offset { get; private set; }
 

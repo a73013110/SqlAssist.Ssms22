@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -12,18 +13,22 @@ public sealed class SqlConnectionFacetRequest
     public const int PageSize = 100;
 
     /// <param name="favorites">讀收藏標註；否則讀 History 的連線。</param>
-    /// <param name="server">只列這台伺服器底下的資料庫；null 表示所有伺服器。</param>
-    public SqlConnectionFacetRequest(bool favorites, bool databases, string? server = null,
+    /// <param name="servers">只列這幾台伺服器底下的資料庫；空名單表示所有伺服器。</param>
+    public SqlConnectionFacetRequest(bool favorites, bool databases, IEnumerable<string>? servers = null,
         SqlConnectionFacetSort sort = SqlConnectionFacetSort.Recent, int offset = 0)
     {
         if (!Enum.IsDefined(typeof(SqlConnectionFacetSort), sort)) throw new ArgumentOutOfRangeException(nameof(sort));
         if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-        IsFavorites = favorites; Databases = databases; Server = server; Sort = sort; Offset = offset;
+        IsFavorites = favorites; Databases = databases; Sort = sort; Offset = offset;
+        Servers = SqlConnectionNames.Normalize(servers);
     }
 
     public bool IsFavorites { get; }
     public bool Databases { get; }
-    public string? Server { get; }
+
+    /// <summary>資料庫名單的伺服器範圍；空名單表示不限，讀伺服器名單時一律忽略。</summary>
+    public IReadOnlyList<string> Servers { get; }
+
     public SqlConnectionFacetSort Sort { get; }
     public int Offset { get; }
 }

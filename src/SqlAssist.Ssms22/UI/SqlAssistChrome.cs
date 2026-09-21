@@ -691,6 +691,9 @@ internal static partial class SqlAssistChrome
                     .WithTheme(DataGrid.RowBackgroundProperty, ThemeBrush.ListBackground);
         }
 
+        // 欄位多到放不下時資料格本來就會長出水平捲軸，而 WPF 原生只認垂直滾輪：少了這一道，
+        // 左右捲動只剩拖那條軌道。捲不動時它不攔滾輪，直欄的資料格不受影響。
+        ApplyShiftWheelPan(grid);
         return grid;
     }
 

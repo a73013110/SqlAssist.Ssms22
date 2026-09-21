@@ -127,10 +127,10 @@ public sealed class SqliteHistoryTests
         await store.Process(repository, store.Capture(3, seconds: 2, context: new SqlConnectionLabel("LibraryServer", "Library")), Token);
         await store.Process(repository, store.Capture(4, seconds: 3, context: new SqlConnectionLabel("OtherServer", "Library")), Token);
         var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions,
-            server: "LibraryServer", database: "Library", since: SqliteTestStore.Start, until: SqliteTestStore.Start.AddSeconds(2)), Token);
+            servers: new[] { "LibraryServer" }, databases: new[] { "Library" }, since: SqliteTestStore.Start, until: SqliteTestStore.Start.AddSeconds(2)), Token);
         Assert.Single(page.Items);
         Assert.Equal(SqliteTestStore.Start, page.Items[0].CreatedAt);
-        Assert.Equal(3, (await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions, database: "Library"), Token)).Items.Count);
+        Assert.Equal(3, (await repository.ReadHistoryAsync(new SqlHistoryRequest(20, SqlHistoryFilter.Executions, databases: new[] { "Library" }), Token)).Items.Count);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public sealed class SqliteHistoryTests
         var page = await repository.ReadHistoryAsync(new SqlHistoryRequest(1, SqlHistoryFilter.Executions), Token);
         Assert.NotNull(page.NextCursor);
         await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(
-            new SqlHistoryRequest(1, SqlHistoryFilter.Executions, server: "LibraryServer", cursor: page.NextCursor), Token));
+            new SqlHistoryRequest(1, SqlHistoryFilter.Executions, servers: new[] { "LibraryServer" }, cursor: page.NextCursor), Token));
         await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(new SqlHistoryRequest(1, cursor: "!invalid!"), Token));
         using var other = new SqliteTestStore();
         var otherRepository = await other.Open(Token);
@@ -353,18 +353,42 @@ AND (CreatedAt,EntryKey) < (100,'e00000000000000000000000000000000') ORDER BY Cr
             Assert.DoesNotContain(plans, plan => plan.Contains("TEMP B-TREE"));
         }
         // 實際分頁查詢（含搜尋時帶出的 SqlBytes）在各種篩選組合下都要沿時間索引串流，搜尋預算才限制得了讀入的 BLOB。
-        var filters = new[] { "h.Kind=1", "h.Server='LibraryServer'", "h.DatabaseName='Library'", "h.CreatedAt >= 1", "h.CreatedAt < 100",
-            "(h.CreatedAt, h.EntryKey) < (100, 'e00000000000000000000000000000000')" };
-        for (var mask = 0; mask < 1 << filters.Length; mask++)
+        // 單選與多選兩種形狀都要走這一輪：多選那一支若讓 SQLite 拿伺服器索引去查，ORDER BY 就落在索引後段，
+        // 它會改為建一棵暫存 b-tree 排序整份結果，而預算只限制得了讀進來的位元組，限制不了那一次排序。
+        foreach (var (server, database) in new[]
         {
-            var conditions = filters.Where((_, index) => (mask & (1 << index)) != 0).ToArray();
-            command.CommandText = "EXPLAIN QUERY PLAN " + SqliteCaptureStore.HistoryPageSql(conditions, includeSql: true);
-            command.Parameters.Clear();
-            command.Parameters.AddWithValue("$limit", 2001);
-            using var reader = command.ExecuteReader();
-            var plans = new List<string>();
-            while (reader.Read()) plans.Add(reader.GetString(3));
-            Assert.DoesNotContain(plans, plan => plan.Contains("TEMP B-TREE"));
+            ("h.Server='LibraryServer'", "h.DatabaseName='Library'"),
+            ("+h.Server IN ('LibraryServer','ArchiveServer')", "+h.DatabaseName IN ('Library','Archive')")
+        })
+        {
+            var filters = new[] { "h.Kind=1", server, database, "h.CreatedAt >= 1", "h.CreatedAt < 100",
+                "(h.CreatedAt, h.EntryKey) < (100, 'e00000000000000000000000000000000')" };
+            for (var mask = 0; mask < 1 << filters.Length; mask++)
+            {
+                var conditions = filters.Where((_, index) => (mask & (1 << index)) != 0).ToArray();
+                command.CommandText = "EXPLAIN QUERY PLAN " + SqliteCaptureStore.HistoryPageSql(conditions, includeSql: true);
+                command.Parameters.Clear();
+                command.Parameters.AddWithValue("$limit", 2001);
+                using var reader = command.ExecuteReader();
+                var plans = new List<string>();
+                while (reader.Read()) plans.Add(reader.GetString(3));
+                Assert.DoesNotContain(plans, plan => plan.Contains("TEMP B-TREE"));
+            }
         }
+    }
+
+    /// <summary>多選的條件由 <c>SqliteConnectionFilter</c> 組出來；SQL 的形狀與上面那一輪守住的必須是同一個。</summary>
+    [Fact]
+    public void MultipleConnectionNamesKeepTheTimeIndexStreaming()
+    {
+        var conditions = new List<string>();
+        var parameters = new List<(string Name, object? Value)>();
+        SqliteConnectionFilter.Append(conditions, parameters, "h",
+            new[] { "LibraryServer", "ArchiveServer" }, new[] { "Library" });
+
+        Assert.Equal(new[] { "+h.Server IN ($server0,$server1)", "h.DatabaseName=$database" }, conditions);
+        Assert.Equal(new[] { "$server0", "$server1", "$database" }, parameters.Select(parameter => parameter.Name).ToArray());
+        Assert.Equal(new object?[] { "LibraryServer", "ArchiveServer", "Library" },
+            parameters.Select(parameter => parameter.Value).ToArray());
     }
 }

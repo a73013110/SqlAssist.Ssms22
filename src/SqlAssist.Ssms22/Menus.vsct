@@ -160,7 +160,7 @@
         <Icon guid="ImageCatalogGuid" id="Search" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
-        <Strings><ButtonText>SQL Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.SQLSearch</LocCanonicalName><ToolTipText>搜尋目前連線的資料庫物件、資料行與定義本文</ToolTipText></Strings>
+        <Strings><ButtonText>Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.SQLSearch</LocCanonicalName><ToolTipText>SQL Search：搜尋目前連線的資料庫物件、資料行與定義本文</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />

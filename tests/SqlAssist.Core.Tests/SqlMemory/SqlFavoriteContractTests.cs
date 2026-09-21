@@ -44,10 +44,11 @@ public sealed class SqlFavoriteContractTests
         Assert.Null(save.Favorite.Database);
         Assert.Null(save.Favorite.Description);
 
-        // 篩選與標註同一份正規化：只標資料庫也是合法的，不需要先有伺服器。
-        var request = new SqlFavoriteRequest(10, " ", " Library ");
-        Assert.Null(request.Server);
-        Assert.Equal("Library", request.Database);
+        // 篩選與標註同一份正規化：只標資料庫也是合法的，不需要先有伺服器；
+        // 全是空白的名單等於沒有指定，重複的名稱只留一個。
+        var request = new SqlFavoriteRequest(10, new[] { " ", "" }, new[] { " Library ", "Library" });
+        Assert.Empty(request.Servers);
+        Assert.Equal(new[] { "Library" }, request.Databases);
     }
 
     [Fact]
@@ -57,9 +58,9 @@ public sealed class SqlFavoriteContractTests
         Assert.Null(new SqlFavoriteRequest(10, search: "").Search);
         // 空白是合法的字面搜尋；只有 null 與空字串代表不篩選。
         Assert.Equal(" ", new SqlFavoriteRequest(10, search: " ").Search);
-        var request = new SqlFavoriteRequest(10, "LibraryServer", search: "Lib_Reader");
+        var request = new SqlFavoriteRequest(10, new[] { "LibraryServer" }, search: "Lib_Reader");
         Assert.Equal("Lib_Reader", request.Search);
-        Assert.Equal("LibraryServer", request.Server);
-        Assert.Null(request.Database);
+        Assert.Equal(new[] { "LibraryServer" }, request.Servers);
+        Assert.Empty(request.Databases);
     }
 }

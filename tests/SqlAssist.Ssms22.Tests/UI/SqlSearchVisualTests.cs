@@ -1258,6 +1258,73 @@ public sealed class SqlSearchVisualTests
         });
     }
 
+    /// <summary>
+    /// 命令鈕只有一顆，全勾之後換成取消全選；取消全選走的是第一列那個預設的清除路徑。
+    /// </summary>
+    /// <remarks>
+    /// 全選之後只想留兩個的人，在沒有這一顆的那一版要自己取消掉幾十個勾，而唯一的出口是
+    /// 第一列那個寫著「連線預設」的預設——它看起來不像取消全選。並排兩顆的那一版則總有一顆是灰的。
+    /// </remarks>
+    [Fact]
+    public void 整批命令只有一顆而且字跟著狀態換()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            palette.Update(ThemePaletteTests.ColorsFor("dark"));
+
+            var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+            var surface = databases.PopupSurface;
+            surface.Resources.MergedDictionaries.Add(palette.Resources);
+            var all = 0;
+            var cleared = 0;
+            databases.SelectAllRequested += (_, _) => all++;
+            databases.ClearAllRequested += (_, _) => cleared++;
+
+            void Layout()
+            {
+                surface.Measure(new Size(320, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.UpdateLayout();
+            }
+
+            Button? Command(string label) => Descendants<Button>(surface)
+                .FirstOrDefault(button => Descendants<TextBlock>(button).Any(text => text.Text == label));
+
+            // 沒有人要的面板不留那一列；種類那一顆就是這樣。
+            Layout();
+            Assert.Null(Command("全選"));
+            Assert.Null(Command("取消全選"));
+
+            databases.SetBulkSelection(SqlFilterBulkSelection.SelectAll);
+            Layout();
+            var bulk = Command("全選");
+            Assert.NotNull(bulk);
+            bulk!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal((1, 0), (all, cleared));
+
+            // 換狀態只換字，不重建按鈕：重建的那一版會在使用者按下去的那一刻把按鈕抽掉。
+            databases.SetBulkSelection(SqlFilterBulkSelection.ClearAll);
+            Layout();
+            Assert.Same(bulk, Command("取消全選"));
+            Assert.Null(Command("全選"));
+            bulk.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal((1, 1), (all, cleared));
+
+            databases.SetBulkSelection(SqlFilterBulkSelection.None);
+            Layout();
+            Assert.Equal(Visibility.Collapsed, bulk.Visibility);
+
+            // 單選不畫這一顆：全選對互斥的選項沒有意義。
+            var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
+            server.PopupSurface.Resources.MergedDictionaries.Add(palette.Resources);
+            server.SetBulkSelection(SqlFilterBulkSelection.SelectAll);
+            server.PopupSurface.Measure(new Size(320, double.PositiveInfinity));
+            server.PopupSurface.Arrange(new Rect(0, 0, 320, server.PopupSurface.DesiredSize.Height));
+            Assert.DoesNotContain(Descendants<TextBlock>(server.PopupSurface), text => text.Text == "全選");
+        });
+    }
+
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)

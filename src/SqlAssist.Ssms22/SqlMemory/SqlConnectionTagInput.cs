@@ -43,7 +43,7 @@ internal static class SqlConnectionTagInput
         // 最近使用的連線在前，只在收藏標註出現過的名稱補在後面；同名只列一次。
         foreach (var favorites in includeFavorites ? new[] { false, true } : new[] { false })
             foreach (var name in await SqlMemoryHost.Runtime.ReadConnectionFacetsAsync(
-                new SqlConnectionFacetRequest(favorites, databases, server), package.DisposalToken))
+                new SqlConnectionFacetRequest(favorites, databases, SqlConnectionNames.One(server)), package.DisposalToken))
                 if (!names.Contains(name)) names.Add(name);
 
         menu.Items.Clear();

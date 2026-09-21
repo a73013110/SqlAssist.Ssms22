@@ -196,7 +196,7 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(expected, actual);
 
         async Task<Guid[]> Find(string? serverName, string? databaseName) =>
-            (await repository.ReadFavoritesAsync(new SqlFavoriteRequest(20, serverName, databaseName), Token))
+            (await repository.ReadFavoritesAsync(new SqlFavoriteRequest(20, SqlConnectionNames.One(serverName), SqlConnectionNames.One(databaseName)), Token))
             .Items.Select(item => item.Favorite.FavoriteId).OrderBy(Id, StringComparer.Ordinal).ToArray();
         Guid[] Sorted(params SqlFavorite[] items) => items.Select(item => item.FavoriteId).OrderBy(Id, StringComparer.Ordinal).ToArray();
         // 未指定的一邊不限，但不代表「未標註」；名稱精確、區分大小寫。
@@ -224,7 +224,7 @@ public sealed class SqliteFavoriteTests
         await Save(repository, tagged, seconds: 3);
 
         async Task<Guid[]> Find(string? search, string? server = null) =>
-            (await repository.ReadFavoritesAsync(new SqlFavoriteRequest(20, server, search: search), Token))
+            (await repository.ReadFavoritesAsync(new SqlFavoriteRequest(20, SqlConnectionNames.One(server), search: search), Token))
             .Items.Select(item => item.Favorite.FavoriteId).ToArray();
 
         Assert.Equal(new[] { tagged.FavoriteId, reader.FavoriteId }, await Find("圖書館範例"));
@@ -299,8 +299,8 @@ public sealed class SqliteFavoriteTests
         using var second = new SqliteTestStore();
         var other = await second.Open(Token);
         await Assert.ThrowsAsync<SqlMemoryStorageException>(() => other.ReadFavoritesAsync(new SqlFavoriteRequest(1, cursor: page.NextCursor), Token));
-        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadFavoritesAsync(new SqlFavoriteRequest(1, "LibraryServer", cursor: page.NextCursor), Token));
-        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadFavoritesAsync(new SqlFavoriteRequest(1, database: "LibraryServer", cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadFavoritesAsync(new SqlFavoriteRequest(1, new[] { "LibraryServer" }, cursor: page.NextCursor), Token));
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadFavoritesAsync(new SqlFavoriteRequest(1, databases: new[] { "LibraryServer" }, cursor: page.NextCursor), Token));
         await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(new SqlHistoryRequest(1, cursor: page.NextCursor), Token));
         var history = await repository.ReadHistoryAsync(new SqlHistoryRequest(1), Token);
         Assert.NotNull(history.NextCursor);
@@ -440,7 +440,7 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Sessions;"));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Documents;"));
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM History;"));
-        Assert.Single((await repository.ReadFavoritesAsync(new SqlFavoriteRequest(5, "LibraryServer", "Library", "Cat_BookCopy"), Token)).Items);
+        Assert.Single((await repository.ReadFavoritesAsync(new SqlFavoriteRequest(5, new[] { "LibraryServer" }, new[] { "Library" }, "Cat_BookCopy"), Token)).Items);
         // 同一個收藏重送不覆寫；名稱、標註與版本都留原樣，敗方的版本與內容也不留下。
         Assert.Equal(SqlFavoriteWriteResult.Conflict, await Save(repository,
             tagged with { Name = "改名", Server = null, CurrentRevisionId = Guid.NewGuid() }, seconds: 1, sql: "SELECT * FROM Branch;"));
@@ -479,7 +479,7 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(1L, state.Version);
         Assert.Equal(Id(edited.CurrentRevisionId), store.Scalar("SELECT RevisionId FROM Revisions WHERE FavoriteId IS NOT NULL;"));
         Assert.Empty((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.All, "TagId=1"), Token)).Items);
-        Assert.Single((await repository.ReadFavoritesAsync(new SqlFavoriteRequest(5, "LibraryServer", search: "TagId=1"), Token)).Items);
+        Assert.Single((await repository.ReadFavoritesAsync(new SqlFavoriteRequest(5, new[] { "LibraryServer" }, search: "TagId=1"), Token)).Items);
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 

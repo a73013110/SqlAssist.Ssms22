@@ -446,6 +446,18 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             FillDatabases(databases);
             if (changed) FiltersChanged();
         });
+        // 取消全選與第一列那個「連線預設」是同一件事，所以走同一條清除路徑，不另寫一份狀態同步。
+        _databases.ClearAllRequested += (_, _) => Run(ClearDatabases);
+    }
+
+    /// <summary>清掉整個資料庫維度；第一列那個預設、chip 的十字與取消全選共用這一份。</summary>
+    private void ClearDatabases()
+    {
+        if (!_model.ClearDatabases()) return;
+        FiltersChanged();
+        // 其餘幾列的勾要一起清掉，但重建整份清單得等這一次的繫結回寫結束：
+        // 在回寫途中換掉 ItemsSource 等於把正在發事件的那一顆核取方塊回收掉。
+        Defer(() => FillDatabases(_scopeDatabases.Items));
     }
 
     /// <summary>
@@ -516,15 +528,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             _model.ConnectionDefaultSummary(),
             "不指名資料庫；只搜這條連線預設的那一個，不建任何額外索引。",
             _model.Databases.Count == 0,
-            selected => Run(() =>
-            {
-                // 取消勾它不是一個範圍；面板那一列自己會彈回去，這裡只忽略。
-                if (!selected || !_model.ClearDatabases()) return;
-                FiltersChanged();
-                // 其餘幾列的勾要一起清掉，但重建整份清單得等這一次的繫結回寫結束：
-                // 在回寫途中換掉 ItemsSource 等於把正在發事件的那一顆核取方塊回收掉。
-                Defer(() => FillDatabases(_scopeDatabases.Items));
-            })));
+            // 取消勾它不是一個範圍；面板那一列自己會彈回去，這裡只忽略。
+            selected => Run(() => { if (selected) ClearDatabases(); })));
 
         _databases.SetOptions(new[]
         {
@@ -532,6 +537,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             new SqlFilterGroup("系統資料庫", system)
         });
         _databases.SetNotice(DatabaseNotice(seen.Count));
+        // 名單還沒到齊時一律寫著「全選」：那一顆按下去本來就會先把整份問回來，
+        // 而此刻手上這幾個名稱全勾起來並不代表整台都選了。
+        _databases.SetBulkSelection(_scopeDatabases.IsLoaded && seen.Count != 0 && _model.Databases.Count == seen.Count
+            ? SqlFilterBulkSelection.ClearAll
+            : SqlFilterBulkSelection.SelectAll);
     }
 
     /// <summary>

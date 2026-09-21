@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -17,11 +18,34 @@ internal enum SqlFilterMode
     /// <summary>單選：選項畫成 radio，選完就關，沒有全選。</summary>
     Single,
 
-    /// <summary>複選：選項畫成核取方塊，面板留著讓人連勾好幾個，沒有全選。</summary>
+    /// <summary>複選：選項畫成核取方塊，面板留著讓人連勾好幾個。</summary>
     Multiple,
 
-    /// <summary>複選再加一個搜尋框與全選；名稱可能上百個的清單才需要。</summary>
+    /// <summary>複選再加一個搜尋框；名稱可能上百個的清單才需要。</summary>
     SearchableMultiple
+}
+
+/// <summary>
+/// 面板上那一顆整批命令的狀態。
+/// </summary>
+/// <remarks>
+/// 一顆鈕兩個動作而不是兩顆：全選與取消全選是同一個開關的兩端，並排的那一版總有一顆是灰的，
+/// 而那一列本來就只有命令鈕與排序兩樣東西。字跟著狀態換，按下去做的就是按鈕上寫的那一件事。
+///
+/// 有沒有這一顆由<b>宿主</b>決定，不由模式決定：全選只有在它與「一個都沒勾」不同時才是一個動作。
+/// SQL Search 的資料庫沒指名時只搜連線預設那一個，全選＝指名整台，兩者不同；而 SQL Memory 的
+/// 伺服器與種類沒指名時就是「全部」，全選等於同一件事，放上去只是讓使用者按一顆什麼都沒改的鈕。
+/// </remarks>
+internal enum SqlFilterBulkSelection
+{
+    /// <summary>沒有整批命令。</summary>
+    None,
+
+    /// <summary>還沒全部勾起來：按下去全選。</summary>
+    SelectAll,
+
+    /// <summary>已經全部勾起來：按下去取消全選。</summary>
+    ClearAll
 }
 
 /// <summary>
@@ -44,9 +68,11 @@ internal enum SqlFilterMode
 /// 那一列的字<b>由宿主給</b>——SQL Memory 的未選是「對已存的列不設限」，SQL Search 的未選是
 /// 「這一輪用連線預設」，兩句話不一樣，控制項不替它們挑一句。
 ///
-/// 面板上的命令鈕只剩<b>全選</b>，而且只有可搜尋的那一種有：清單長到不值得一個一個勾才需要它。
-/// 「清除」不畫——它與第一列那個預設是同一件事，兩個入口的下場是其中一邊漏掉狀態同步。
-/// 單選連全選都沒有：全選對互斥的選項沒有意義。單選選完就關面板——它一次只改得了一項，
+/// 面板上的命令鈕只有<b>一顆</b>（<see cref="SetBulkSelection"/>），而且由宿主決定要不要：全都勾起來
+/// 之前寫著全選，全勾之後換成取消全選。全選之後只想留兩個的人在那一版要自己取消掉幾十個勾，
+/// 而唯一的出口是第一列那個預設，它寫著「全部」或「連線預設」，看起來不像取消全選。
+/// 兩個動作仍然只有一份狀態：取消全選走的就是第一列那個預設的清除路徑，不另寫一次同步。
+/// 單選沒有這一顆：全選對互斥的選項沒有意義。單選選完就關面板——它一次只改得了一項，
 /// 留著面板等於要他再按一次外面。
 ///
 /// 排序（<see cref="SetSortOptions"/>）與續頁（<see cref="SetMore"/>）是<b>面板等級的一般能力</b>，
@@ -65,7 +91,9 @@ internal sealed class SqlFilterFlyout : Button
     private readonly TextBox? _filter;
     private readonly DockPanel _commands = new() { Margin = new Thickness(0, 0, 0, 4) };
     private readonly Button _sortButton;
+    private readonly Button _bulk;
     private readonly Button _more;
+    private SqlFilterBulkSelection _bulkState;
     private IReadOnlyList<SqlFilterGroup> _groups = Array.Empty<SqlFilterGroup>();
     private IReadOnlyList<SqlFilterSortOption> _sorts = Array.Empty<SqlFilterSortOption>();
     private object? _sort;
@@ -129,19 +157,15 @@ internal sealed class SqlFilterFlyout : Button
         DockPanel.SetDock(_sortButton, Dock.Right);
         _commands.Children.Add(_sortButton);
 
-        // 全選只給可搜尋的那一份：清單長到需要搜尋框，才值得一顆「整台都要」。種類只有十幾項，
-        // 而它的「全部」是第一列那個預設，再放一顆全選等於同一件事有兩個入口、兩種 chip。
-        if (mode == SqlFilterMode.SearchableMultiple)
-        {
-            var all = CreateCommand(SqlIcon.SelectAll, "全選", () => SelectAllRequested?.Invoke(this, EventArgs.Empty));
-            DockPanel.SetDock(all, Dock.Left);
-            _commands.Children.Add(all);
-        }
-        else
-        {
-            // 命令列只有排序時整列先收起；沒有人叫 SetSortOptions 的面板不留一條空白。
-            _commands.Visibility = Visibility.Collapsed;
-        }
+        // 整批命令那一顆先建起來但收著：換狀態只換字與圖示，重建的那一版會在使用者按下去的
+        // 那一刻把按鈕自己抽掉，而 Click 事件已經在路上。單選永遠沒有這一顆。
+        _bulk = CreateCommand(SqlIcon.SelectAll, "全選", RunBulk);
+        _bulk.Visibility = Visibility.Collapsed;
+        DockPanel.SetDock(_bulk, Dock.Left);
+        _commands.Children.Add(_bulk);
+
+        // 命令列上兩顆都還沒有人要時整列先收起；沒有人叫 SetSortOptions 或 SetBulkSelection 的面板不留一條空白。
+        _commands.Visibility = Visibility.Collapsed;
 
         panel.Children.Add(_commands);
 
@@ -185,7 +209,7 @@ internal sealed class SqlFilterFlyout : Button
         };
         SortMenu.Closed += (_, _) =>
         {
-            _popup.StaysOpen = false;
+            RestoreAutoClose();
             if (_sortChevron is { } glyph) SqlAssistChrome.SetChevronExpanded(glyph, expanded: false, _motion);
         };
 
@@ -198,7 +222,13 @@ internal sealed class SqlFilterFlyout : Button
             SqlAssistChrome.PlayAppear(surface);
             _filter?.Focus();
         };
-        _popup.Closed += (_, _) => SqlAssistChrome.SetChevronExpanded(_chevron, expanded: false, _motion);
+        _popup.Closed += (_, _) =>
+        {
+            // 面板是在排序選單還開著的時候被收掉的：留著 StaysOpen 的話，下一次打開就是一張
+            // 再也不會因為按到外面而收合的面板。關著時寫它不影響捕捉，下一次打開才重新取得。
+            _popup.StaysOpen = false;
+            SqlAssistChrome.SetChevronExpanded(_chevron, expanded: false, _motion);
+        };
         // Esc 關面板並把焦點還給按鈕；面板還開著時按 Esc 不該收掉整個工具窗的搜尋。
         _popup.PreviewKeyDown += (_, args) =>
         {
@@ -233,8 +263,17 @@ internal sealed class SqlFilterFlyout : Button
     /// </remarks>
     public event EventHandler? OptionsRequested;
 
-    /// <summary>全選；只有可搜尋的多選面板有這顆鈕，其餘不會發這個事件。</summary>
+    /// <summary>全選；只有宿主叫過 <see cref="SetBulkSelection"/> 的面板發得出這個事件。</summary>
     public event EventHandler? SelectAllRequested;
+
+    /// <summary>
+    /// 取消全選。
+    /// </summary>
+    /// <remarks>
+    /// 宿主接到它要走與第一列那個預設<b>同一條</b>清除路徑，不另寫一份：兩份的下場是其中一邊
+    /// 忘了同步第一列的勾，而畫面上「全部」沒勾、條件卻已經清光。
+    /// </remarks>
+    public event EventHandler? ClearAllRequested;
 
     /// <summary>
     /// 按下續頁鈕；宿主據此去問下一頁，並把新名稱接在現有清單後面。
@@ -322,6 +361,34 @@ internal sealed class SqlFilterFlyout : Button
     /// 一起丟掉，而他正在往下走。寫進去不回呼宿主——這是把模型的結果畫出來，不是一次選取。
     /// </remarks>
     public void SyncEmptyOption(bool selected) => _empty?.Sync(selected);
+
+    /// <summary>
+    /// 面板上那一顆整批命令；<see cref="SqlFilterBulkSelection.None"/>（預設）收起它。
+    /// </summary>
+    /// <remarks>
+    /// 宿主每次改完選項都再叫一次，字才跟得上狀態：全勾之後仍寫著「全選」的那一顆按下去什麼都不會變，
+    /// 而使用者會以為是這個面板壞了。單選不畫這一顆，傳什麼進來都一樣。
+    /// </remarks>
+    public void SetBulkSelection(SqlFilterBulkSelection state)
+    {
+        if (!Enum.IsDefined(typeof(SqlFilterBulkSelection), state)) throw new ArgumentOutOfRangeException(nameof(state));
+        if (Mode == SqlFilterMode.Single) state = SqlFilterBulkSelection.None;
+        if (_bulkState == state) return;
+        _bulkState = state;
+
+        if (state == SqlFilterBulkSelection.None)
+        {
+            _bulk.Visibility = Visibility.Collapsed;
+            // 排序還在的話整列留著；兩顆都沒有才收掉，面板頂端不留一條空白。
+            if (_sortButton.Visibility != Visibility.Visible) _commands.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var clear = state == SqlFilterBulkSelection.ClearAll;
+        Label(_bulk, clear ? SqlIcon.Clear : SqlIcon.SelectAll, clear ? "取消全選" : "全選");
+        _bulk.Visibility = Visibility.Visible;
+        _commands.Visibility = Visibility.Visible;
+    }
 
     /// <summary>
     /// 面板底部的續頁鈕；null 或空字串收起它。
@@ -439,6 +506,24 @@ internal sealed class SqlFilterFlyout : Button
     }
 
     /// <summary>
+    /// 排序選單收掉之後，把「按到外面就關」還給這個面板。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Popup.StaysOpen"/> 轉回 false 時，Popup 會去把滑鼠捕捉拿回來，而那一步只在
+    /// <b>沒有人正握著捕捉</b>時成立。選單關閉事件發出的那一刻捕捉還在選單自己手上，就地還原
+    /// 等於整步跳過：這個面板從此不再因為按到外面而收合——使用者接著去開旁邊那一顆資料庫下拉，
+    /// 伺服器這一份仍然開著，兩張面板疊在畫面上，而唯一收得掉它的方法是挑掉其中一個選項。
+    /// 排到這一輪輸入之後再還原，捕捉已經放開，Popup 才拿得回來。
+    ///
+    /// 期間使用者可能已經關掉面板或又打開了選單，所以還原前重新確認一次狀態。
+    /// </remarks>
+    private void RestoreAutoClose() => Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+    {
+        if (!_popup.IsOpen || SortMenu.IsOpen) return;
+        _popup.StaysOpen = false;
+    }));
+
+    /// <summary>
     /// 單選選完就關；宿主換完範圍之後才關，不搶在它前面。
     /// </summary>
     /// <remarks>
@@ -456,12 +541,25 @@ internal sealed class SqlFilterFlyout : Button
     private Button CreateCommand(SqlIcon icon, string label, Action run)
     {
         var button = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
-        button.Content = SqlAssistChrome.CreateIconLabel(icon, label);
         button.Padding = new Thickness(6, 2, 6, 2);
         button.Margin = new Thickness(0, 0, 4, 0);
         button.Click += (_, _) => run();
-        AutomationProperties.SetName(button, label + _name);
+        Label(button, icon, label);
         return button;
+    }
+
+    private void Label(Button button, SqlIcon icon, string label)
+    {
+        button.Content = SqlAssistChrome.CreateIconLabel(icon, label);
+        button.ToolTip = label + _name;
+        AutomationProperties.SetName(button, label + _name);
+    }
+
+    /// <summary>按下整批命令；做哪一件事由按鈕上寫的那一個決定，不另外再問一次模型。</summary>
+    private void RunBulk()
+    {
+        if (_bulkState == SqlFilterBulkSelection.ClearAll) ClearAllRequested?.Invoke(this, EventArgs.Empty);
+        else if (_bulkState == SqlFilterBulkSelection.SelectAll) SelectAllRequested?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>

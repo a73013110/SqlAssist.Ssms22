@@ -25,10 +25,11 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 清單列的共用元件（膠囊、身分組、名稱上限、列操作與 overflow、圖示標籤） | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
 | 停駐才出現的列操作層（浮在右緣、不佔寬度、底色跟著列走） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `CreateRowActionLayer` |
 | 單列、可水平捲動的資訊列（Preview 摘要、已選條件列） | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateHorizontalStrip` |
-| Shift＋滾輪、樹裡第一個 `ScrollViewer` | `Ssms22/UI/SqlAssistChrome.cs` 的 `ApplyShiftWheelPan`／`FindScrollViewer` |
+| Shift＋滾輪、樹裡第一個 `ScrollViewer` | `Ssms22/UI/SqlAssistChrome.cs` 的 `ApplyShiftWheelPan`／`FindScrollViewer`（`CreateDataGrid`、`SqlTextEditor`、`SqlReadOnlyViewer`、`SqlTextDiffView` 與儲存格視窗都已接上） |
 | 清單列的寬度模式與窄版門檻（宿主量一次，可繼承） | `Ssms22/UI/SqlRowLayout.cs` |
 | 圖示加標籤的分頁 | `Ssms22/UI/SqlAssistChrome.cs` 的 `CreateIconTab` |
-| 過濾面板（單／複選、第一列的預設、續頁、排序） | `Ssms22/UI/SqlFilterFlyout.cs` |
+| 過濾面板（單／複選、第一列的預設、續頁、排序、整批命令） | `Ssms22/UI/SqlFilterFlyout.cs` |
+| 過濾按鈕上那一句摘要（沒勾／勾一個／勾很多）與 Tooltip 的完整名單 | `Ssms22/UI/SqlFilterSummary.cs` |
 | 篩選的兩級分隔線、過濾面板的按鈕樣式與選項清單（虛擬化、兩種列） | `Ssms22/UI/SqlAssistChrome.Filters.cs` |
 | 工具列那一列篩選（分群、換行） | `Ssms22/UI/SqlFilterBar.cs` |
 | 工具列第一列：輸入框吃剩餘寬度、右緣圖示鈕、框裡開關開著的外觀 | `Ssms22/UI/SqlInputRow.cs`、`SqlAssistChrome.Search.cs` 的 `CreateInputToggleStyle` |

@@ -38,8 +38,10 @@ public sealed class SqlMemoryPage<T>
 [Serializable]
 public sealed class SqlHistoryRequest
 {
+    /// <param name="servers">要列的伺服器；空名單表示不限。</param>
+    /// <param name="databases">要列的資料庫；不需要先指定伺服器。</param>
     public SqlHistoryRequest(int pageSize, SqlHistoryFilter kind = SqlHistoryFilter.All,
-        string? search = null, string? server = null, string? database = null,
+        string? search = null, IEnumerable<string>? servers = null, IEnumerable<string>? databases = null,
         DateTimeOffset? since = null, DateTimeOffset? until = null, string? cursor = null)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
@@ -48,8 +50,8 @@ public sealed class SqlHistoryRequest
         PageSize = pageSize;
         Kind = kind;
         Search = search;
-        Server = server;
-        Database = database;
+        Servers = SqlConnectionNames.Normalize(servers);
+        Databases = SqlConnectionNames.Normalize(databases);
         Since = since?.ToUniversalTime();
         Until = until?.ToUniversalTime();
         Cursor = cursor;
@@ -58,8 +60,13 @@ public sealed class SqlHistoryRequest
     public int PageSize { get; }
     public SqlHistoryFilter Kind { get; }
     public string? Search { get; }
-    public string? Server { get; }
-    public string? Database { get; }
+
+    /// <summary>要列的伺服器；空名單表示不限，不隱含「未標註」。</summary>
+    public IReadOnlyList<string> Servers { get; }
+
+    /// <summary>要列的資料庫；空名單表示不限。</summary>
+    public IReadOnlyList<string> Databases { get; }
+
     public DateTimeOffset? Since { get; }
     public DateTimeOffset? Until { get; }
     public string? Cursor { get; }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -124,22 +125,27 @@ public sealed class SqlFavoriteSave
 [Serializable]
 public sealed class SqlFavoriteRequest
 {
-    /// <param name="server">伺服器標註；null 表示不限，不隱含「未標註」。</param>
-    /// <param name="database">資料庫標註；不需要先指定伺服器。</param>
-    public SqlFavoriteRequest(int pageSize, string? server = null, string? database = null, string? search = null,
-        string? cursor = null)
+    /// <param name="servers">伺服器標註；空名單表示不限，不隱含「未標註」。</param>
+    /// <param name="databases">資料庫標註；不需要先指定伺服器。</param>
+    public SqlFavoriteRequest(int pageSize, IEnumerable<string>? servers = null, IEnumerable<string>? databases = null,
+        string? search = null, string? cursor = null)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
         PageSize = pageSize;
-        Server = SqlFavoriteSave.Tag(server, nameof(server));
-        Database = SqlFavoriteSave.Tag(database, nameof(database));
+        // 標註的長度上限與儲存時同一份；篩選放行更長的字只會永遠篩不到，而畫面上看不出是為什麼。
+        Servers = SqlConnectionNames.Normalize(servers, name => SqlFavoriteSave.Tag(name, nameof(servers)));
+        Databases = SqlConnectionNames.Normalize(databases, name => SqlFavoriteSave.Tag(name, nameof(databases)));
         Search = string.IsNullOrEmpty(search) ? null : search;
         Cursor = cursor;
     }
 
     public int PageSize { get; }
-    public string? Server { get; }
-    public string? Database { get; }
+
+    /// <summary>伺服器標註；空名單表示不限。</summary>
+    public IReadOnlyList<string> Servers { get; }
+
+    /// <summary>資料庫標註；空名單表示不限。</summary>
+    public IReadOnlyList<string> Databases { get; }
 
     /// <summary>
     /// 區分大小寫的字面子字串，與 History 搜尋同語意；命中名稱、說明或目前版本的 SQL 全文即納入。
