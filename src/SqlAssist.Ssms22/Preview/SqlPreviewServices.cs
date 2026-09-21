@@ -28,6 +28,9 @@ internal sealed class SqlPreviewServices
     [Import]
     internal IClassificationTypeRegistryService ClassificationRegistry { get; set; } = null!;
 
+    [Import]
+    internal IEditorFormatMapService EditorFormatMapService { get; set; } = null!;
+
     /// <summary>已登記的服務；MEF 尚未組合出任何 SQL 編輯器時為 null。</summary>
     public static SqlPreviewServices? Current => Volatile.Read(ref _current);
 
@@ -58,9 +61,15 @@ internal sealed class SqlPreviewServices
 
                 var formatMaps = components.GetService<IClassificationFormatMapService>();
                 var registry = components.GetService<IClassificationTypeRegistryService>();
-                if (formatMaps is null || registry is null) return null;
+                var editorFormats = components.GetService<IEditorFormatMapService>();
+                if (formatMaps is null || registry is null || editorFormats is null) return null;
 
-                return new SqlPreviewServices { FormatMapService = formatMaps, ClassificationRegistry = registry };
+                return new SqlPreviewServices
+                {
+                    FormatMapService = formatMaps,
+                    ClassificationRegistry = registry,
+                    EditorFormatMapService = editorFormats
+                };
             },
             fallback: null);
 
@@ -91,6 +100,22 @@ internal sealed class SqlPreviewServices
         {
             Volatile.Write(ref _current, services);
         }
+    }
+
+    /// <summary>
+    /// 編輯器的格式對應；「Plain Text」那一格帶著編輯器真正的底色。
+    /// </summary>
+    /// <remarks>
+    /// 底色不寫在分類外觀裡——它畫在檢視上，所以 <c>DefaultTextProperties.BackgroundBrush</c>
+    /// 通常是空的。一個查詢視窗都沒開時借不到檢視，這一格就是唯一問得到編輯器底色的地方；
+    /// 少了它，分類色只好畫在工具窗的底色上，對比一不過就整份退成同一個顏色。
+    /// </remarks>
+    public IEditorFormatMap? TryGetEditorFormatMap()
+    {
+        return SqlAssistPlatformGuard.Probe<IEditorFormatMap?>(
+            "解析編輯器格式對應",
+            () => EditorFormatMapService.GetEditorFormatMap("text"),
+            fallback: null);
     }
 
     /// <summary>編輯器目前佈景主題的文字外觀；取不到時回傳 null，由呼叫端退回預設值。</summary>

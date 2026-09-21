@@ -5,6 +5,7 @@ using System.Windows.Media;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.Text.Formatting;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
@@ -16,6 +17,7 @@ internal sealed class SqlScriptTheme : IDisposable
     private IWpfTextView? _view;
     private readonly Control _host;
     private IClassificationFormatMap? _formatMap;
+    private IEditorFormatMap? _editorFormats;
     private volatile bool _dirty = true;
     private volatile bool _disposed;
     private readonly ThemeRefreshQueue _refreshQueue;
@@ -75,12 +77,14 @@ internal sealed class SqlScriptTheme : IDisposable
     {
         var font = _view is null ? SqlAssistChrome.CodeFont : FallbackFont;
         var fontSize = 12.5;
-        var background = VsThemeBrushes.Get(ThemeBrush.ListBackground);
-        var foreground = VsThemeBrushes.Get(ThemeBrush.ListForeground);
-        var comment = VsThemeBrushes.Get(ThemeBrush.DimForeground);
-        var keyword = foreground;
-        var text = foreground;
-        var number = foreground;
+        var shell = (
+            Background: ColorOf(ThemeBrush.ListBackground, Colors.Black),
+            Foreground: ColorOf(ThemeBrush.ListForeground, Colors.White));
+        var surface = shell;
+        var comment = ColorOf(ThemeBrush.DimForeground, shell.Foreground);
+        var keyword = surface.Foreground;
+        var text = surface.Foreground;
+        var number = surface.Foreground;
 
         SqlAssistPlatformGuard.Probe("解析 SQL 編輯器外觀", () =>
         {
@@ -93,19 +97,9 @@ internal sealed class SqlScriptTheme : IDisposable
             var map = services is null ? null
                 : view is null ? services.TryGetDefaultTextFormatMap()
                 : services.TryGetTextFormatMap(view);
-            if (!ReferenceEquals(map, _formatMap))
-            {
-                if (_formatMap is not null)
-                {
-                    _formatMap.ClassificationFormatMappingChanged -= OnAppearanceChanged;
-                }
-
-                _formatMap = map;
-                if (map is not null)
-                {
-                    map.ClassificationFormatMappingChanged += OnAppearanceChanged;
-                }
-            }
+            TrackFormatMap(map);
+            var formats = services?.TryGetEditorFormatMap();
+            TrackEditorFormats(formats);
 
             if (map is null || services is null)
             {
@@ -134,37 +128,56 @@ internal sealed class SqlScriptTheme : IDisposable
                 return;
             }
 
-            // 分類色必須搭配同一個編輯器的底色，不能把 SQL 前景放到 Tooltip 底色上。
-            // 沒有編輯器可借底色時就留著工具窗自己那一組，分類色照樣對它校正對比。
-            if (view is not null &&
-                !defaults.ForegroundBrushEmpty &&
-                defaults.ForegroundBrush is SolidColorBrush editorForeground &&
-                view.Background is SolidColorBrush editorBackground &&
-                ThemeColorMath.Contrast(editorForeground.Color, editorBackground.Color) >= 4.5)
-            {
-                background = editorBackground;
-                foreground = editorForeground;
-            }
+            // 分類色必須搭配同一份 Fonts and Colors 的底色，不能把 SQL 前景放到 Tooltip 底色上；
+            // 沒有查詢視窗時那組底色改由「Plain Text」那一格問出來，見 <see cref="EditorSurface"/>。
+            surface = ScriptPalette.Surface(EditorSurface(view, defaults, formats), shell);
 
             // 殼層與分類映射的更新順序不固定；中途取不到某個分類時仍保留成對的備援。
-            keyword = comment = text = number = foreground;
+            keyword = comment = text = number = surface.Foreground;
             var registry = services.ClassificationRegistry;
-            keyword = Resolve(map, registry, PredefinedClassificationTypeNames.Keyword, foreground, background);
-            comment = Resolve(map, registry, PredefinedClassificationTypeNames.Comment, foreground, background);
-            text = Resolve(map, registry, PredefinedClassificationTypeNames.String, foreground, background);
-            number = Resolve(map, registry, PredefinedClassificationTypeNames.Number, foreground, background);
+            keyword = Resolve(map, registry, PredefinedClassificationTypeNames.Keyword, surface);
+            comment = Resolve(map, registry, PredefinedClassificationTypeNames.Comment, surface);
+            text = Resolve(map, registry, PredefinedClassificationTypeNames.String, surface);
+            number = Resolve(map, registry, PredefinedClassificationTypeNames.Number, surface);
         });
 
         SetResource(ScriptResource.FontFamily, font);
         SetResource(ScriptResource.FontSize, fontSize);
-        SetBrush(ScriptResource.Background, background);
-        SetBrush(ScriptResource.Foreground, foreground);
+        SetBrush(ScriptResource.Background, surface.Background);
+        SetBrush(ScriptResource.Foreground, surface.Foreground);
         SetBrush(ScriptResource.Keyword, keyword);
         SetBrush(ScriptResource.Comment, comment);
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
-        SetBrush(ScriptResource.Highlight, Highlight(comment, background));
+        SetBrush(ScriptResource.Highlight, Highlight(comment, surface.Background));
         Updated?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 編輯器 Fonts and Colors 的底色與前景；缺任一個就回 null，不與工具窗那一組混用。
+    /// </summary>
+    /// <remarks>
+    /// 底色有三個來源，依「離使用者看到的那個編輯器多近」排序：借得到檢視就用它的底色（它可能自己
+    /// 覆寫過），否則用分類外觀的背景，再否則問「Plain Text」那一格。<b>第三條路不是備胎</b>：
+    /// 編輯器的底色畫在檢視上而不在文字上，所以沒有查詢視窗時前兩條都是空的，而那正是這個問題發生
+    /// 的時機——「比對佈景主題」加上彩色深色主題（月光、神秘森林、辣紅）時，工具窗的底色與編輯器
+    /// 的底色不同深淺，分類色配上去對比不過關。
+    /// </remarks>
+    private static (Color Background, Color Foreground)? EditorSurface(
+        IWpfTextView? view, TextFormattingRunProperties defaults, IEditorFormatMap? formats)
+    {
+        var plain = formats is null ? null : SqlAssistPlatformGuard.Probe<ResourceDictionary?>(
+            "讀取編輯器純文字格式", () => formats.GetProperties(EditorFormatChanges.PlainText), fallback: null);
+
+        var background = (view?.Background as SolidColorBrush)?.Color
+            ?? (defaults.BackgroundBrushEmpty ? null : (defaults.BackgroundBrush as SolidColorBrush)?.Color)
+            ?? plain?[EditorFormatDefinition.BackgroundColorId] as Color?
+            ?? (plain?[EditorFormatDefinition.BackgroundBrushId] as SolidColorBrush)?.Color;
+        var foreground = (defaults.ForegroundBrushEmpty ? null : (defaults.ForegroundBrush as SolidColorBrush)?.Color)
+            ?? plain?[EditorFormatDefinition.ForegroundColorId] as Color?
+            ?? (plain?[EditorFormatDefinition.ForegroundBrushId] as SolidColorBrush)?.Color;
+
+        return background is { } surface && foreground is { } written ? (surface, written) : null;
     }
 
     /// <summary>命中底色：由主題強調色推導，對著<b>這一份指令碼</b>的底色與最淡的前景校正。</summary>
@@ -176,60 +189,65 @@ internal sealed class SqlScriptTheme : IDisposable
     /// 傳進去的前景是註解色，那是這幾種著色裡最淡的一個：它在高亮上讀得到，其餘就都讀得到。
     /// 高對比不必另外判斷——強調色在那時候已經等於前景色，校正過的結果本來就是實色反白。
     /// </remarks>
-    private static Brush Highlight(Brush foreground, Brush background)
+    private static Color Highlight(Color foreground, Color background)
     {
-        var accent = VsThemeBrushes.Get(ThemeBrush.AccentBorder);
-
-        if (accent is not SolidColorBrush tint || foreground is not SolidColorBrush text ||
-            background is not SolidColorBrush surface)
-        {
-            return accent;
-        }
-
+        var accent = ColorOf(ThemeBrush.AccentBorder, foreground);
         // 先鋪一層半透明的強調色，再讓校正決定要往黑還是往白走；直接給實色會蓋掉語法著色。
-        var candidate = Color.FromArgb(0x59, tint.Color.R, tint.Color.G, tint.Color.B);
-        return new SolidColorBrush(
-            ThemeColorMath.EnsureBackgroundForText(candidate, text.Color, surface.Color));
+        var candidate = Color.FromArgb(0x59, accent.R, accent.G, accent.B);
+        return ThemeColorMath.EnsureBackgroundForText(candidate, foreground, background);
     }
 
-    private static Brush Resolve(
+    private static Color Resolve(
         IClassificationFormatMap map, IClassificationTypeRegistryService registry,
-        string name, Brush fallback, Brush background)
+        string name, (Color Background, Color Foreground) surface)
     {
         var classification = registry.GetClassificationType(name);
-        if (classification is null)
-        {
-            return fallback;
-        }
-
-        var properties = map.GetTextProperties(classification);
-        if (properties.ForegroundBrushEmpty)
-        {
-            return fallback;
-        }
-
-        var brush = properties.ForegroundBrush;
-        return brush is SolidColorBrush color && background is SolidColorBrush surface &&
-               ThemeColorMath.Contrast(color.Color, surface.Color) >= 4.5
-            ? brush : fallback;
+        var properties = classification is null ? null : map.GetTextProperties(classification);
+        var color = properties is { ForegroundBrushEmpty: false }
+            ? (properties.ForegroundBrush as SolidColorBrush)?.Color
+            : null;
+        return ScriptPalette.Classification(color, surface.Foreground, surface.Background);
     }
 
-    private void SetBrush(ScriptResource key, Brush value)
+    private static Color ColorOf(ThemeBrush key, Color fallback) =>
+        VsThemeBrushes.Get(key) is SolidColorBrush brush ? brush.Color : fallback;
+
+    private void TrackFormatMap(IClassificationFormatMap? map)
     {
-        if (value is SolidColorBrush color && Resources[key] is SolidColorBrush existing &&
-            color.Color == existing.Color)
+        if (ReferenceEquals(map, _formatMap)) return;
+        if (_formatMap is not null) _formatMap.ClassificationFormatMappingChanged -= OnAppearanceChanged;
+        _formatMap = map;
+        if (map is not null) map.ClassificationFormatMappingChanged += OnAppearanceChanged;
+    }
+
+    private void TrackEditorFormats(IEditorFormatMap? formats)
+    {
+        if (ReferenceEquals(formats, _editorFormats)) return;
+        if (_editorFormats is not null) _editorFormats.FormatMappingChanged -= OnFormatsChanged;
+        _editorFormats = formats;
+        if (formats is not null) formats.FormatMappingChanged += OnFormatsChanged;
+    }
+
+    /// <summary>只有純文字那一格會換掉指令碼的底色；本擴充自己回寫的 marker 不是配色輸入。</summary>
+    private void OnFormatsChanged(object sender, FormatItemsEventArgs args)
+    {
+        if (EditorFormatChanges.Affects(args.ChangedItems, EditorFormatChanges.PlainText))
+        {
+            OnAppearanceChanged(sender, args);
+        }
+    }
+
+    /// <summary>不保存編輯器借出的筆刷：自己建一支凍結的，免得干擾 SSMS 的外觀更新。</summary>
+    private void SetBrush(ScriptResource key, Color value)
+    {
+        if (Resources[key] is SolidColorBrush existing && existing.Color == value)
         {
             return;
         }
 
-        // 不凍結或修改編輯器借出的筆刷，避免干擾 SSMS 自己的外觀更新。
-        var copy = value.CloneCurrentValue();
-        if (copy.CanFreeze)
-        {
-            copy.Freeze();
-        }
-
-        Resources[key] = copy;
+        var brush = new SolidColorBrush(value);
+        brush.Freeze();
+        Resources[key] = brush;
     }
 
     private void SetResource(ScriptResource key, object value)
@@ -270,6 +288,12 @@ internal sealed class SqlScriptTheme : IDisposable
         {
             _formatMap.ClassificationFormatMappingChanged -= OnAppearanceChanged;
             _formatMap = null;
+        }
+
+        if (_editorFormats is not null)
+        {
+            _editorFormats.FormatMappingChanged -= OnFormatsChanged;
+            _editorFormats = null;
         }
     }
 }

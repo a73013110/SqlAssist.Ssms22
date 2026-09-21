@@ -58,7 +58,7 @@ internal sealed class EditorBlockTheme : IDisposable
         if (_disposed || _view.IsClosed) return;
         var background = (_view.Background as SolidColorBrush ??
             (SolidColorBrush)VsThemeBrushes.Get(ThemeBrush.ListBackground)).Color;
-        var plain = _formats?.GetProperties("Plain Text");
+        var plain = _formats?.GetProperties(EditorFormatChanges.PlainText);
         var foreground = plain?[EditorFormatDefinition.ForegroundColorId] as Color? ??
             (plain?[EditorFormatDefinition.ForegroundBrushId] as SolidColorBrush ??
                 (SolidColorBrush)VsThemeBrushes.Get(ThemeBrush.ListForeground)).Color;
@@ -83,7 +83,7 @@ internal sealed class EditorBlockTheme : IDisposable
     private void OnFormatChanged(object? sender, FormatItemsEventArgs args)
     {
         // 本擴充回寫的端點／背景格式不是配色輸入，不能再引發整輪色票重算。
-        if (EditorFormatChanges.Affects(args.ChangedItems, "Plain Text")) _queue.Request();
+        if (EditorFormatChanges.Affects(args.ChangedItems, EditorFormatChanges.PlainText)) _queue.Request();
     }
     private void OnSettings(object? sender, EventArgs args)
     {
