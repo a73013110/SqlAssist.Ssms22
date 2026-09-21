@@ -8,7 +8,8 @@
 
 ## 分隔線與換行
 
-- **分隔線分兩級**（`CreateFilterGroupDivider`／`CreateFilterItemDivider`），每一顆之間都有線：
+- **分隔線分兩級**（`CreateGroupDivider`／`CreateItemDivider`，住在中性的 `SqlAssistChrome.Buttons.cs`——
+  預覽工具列上導覽與命令那兩群用的是同一條），每一顆之間都有線：
   群間高 18、左右各 6，群內矮一截淡一階（高 10、左右各 4、0.55）。分群規則一條：回答**同一個
   問題**的是一群——Memory 是「狀態｜期間｜連線」，Search 是「搜哪裡｜搜什麼｜比對哪裡」。兩級
   畫成同一種等於取消分群，使用者會把「種類」讀成第三個範圍。線不表達狀態，用 `Hairline`。

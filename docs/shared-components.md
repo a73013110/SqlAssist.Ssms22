@@ -29,7 +29,9 @@
 | 篩選名單的去空白、去重、排序與游標指紋（伺服器／資料庫三份請求共用） | `Core/SqlMemory/SqlConnectionNames.cs` |
 | 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs`（被併掉的那幾筆在 `SearchHit.Merged`） |
 | 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
-| 片段在整份文字裡的每一次出現 | `Core/Matching/MatchProjection.cs` 的 `FindAll` |
+| 片段在整份文字裡的每一次出現（詞界、大小寫、重疊與上限；名稱與定義本文都走它） | `Core/Matching/MatchProjection.cs` 的 `FindAll` |
+| 名稱與資料行的命中怎麼比（沒開修飾走模糊，開了大小寫或全字走字面） | `Core/Search/SearchIdentifierMatch.cs` |
+| 大小寫與全字換算成比對規則 | `Core/Search/SearchOptions.cs` 的 `ToProjectionMode`（名稱與本文共用一份） |
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs`（與 `SqlMetadataCatalog` 分開，不合併） |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（先問指令碼再問快照；語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |

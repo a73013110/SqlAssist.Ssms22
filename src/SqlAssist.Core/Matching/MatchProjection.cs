@@ -75,11 +75,18 @@ public static class MatchProjection
     /// 重疊的出現照收：前進一個字元而不是整段，理由與 <see cref="Find"/> 相同，
     /// 而且要不要去掉重疊是呼叫端的事——它才知道兩段重疊的高亮要併成一段還是各算一個。
     /// </remarks>
-    public static IReadOnlyList<int> FindAll(string text, string fragment, int start, MatchProjectionMode mode)
+    /// <param name="limit">
+    /// 最多回幾個，湊滿就<b>不再往下掃</b>。上限落在這裡而不是呼叫端收到之後才截斷：
+    /// 一份幾千行的定義本文裡同一個字出現幾百次是常態，而掃完再丟等於把那幾百個位置
+    /// 先配置出來。預設沒有上限——名稱那一種候選本來就只有幾十個字元。
+    /// </param>
+    public static IReadOnlyList<int> FindAll(
+        string text, string fragment, int start, MatchProjectionMode mode, int limit = int.MaxValue)
     {
         if (text is null) throw new ArgumentNullException(nameof(text));
         if (fragment is null) throw new ArgumentNullException(nameof(fragment));
-        if (fragment.Length == 0 || start < 0 || start > text.Length - fragment.Length)
+        if (limit < 0) throw new ArgumentOutOfRangeException(nameof(limit));
+        if (limit == 0 || fragment.Length == 0 || start < 0 || start > text.Length - fragment.Length)
         {
             return Array.Empty<int>();
         }
@@ -96,7 +103,12 @@ public static class MatchProjection
             var index = text.IndexOf(fragment, at, comparison);
             if (index < 0) break;
 
-            if (!wholeWord || IsWholeWord(text, index, fragment.Length)) found.Add(index);
+            if (!wholeWord || IsWholeWord(text, index, fragment.Length))
+            {
+                found.Add(index);
+                if (found.Count == limit) break;
+            }
+
             at = index + 1;
         }
 

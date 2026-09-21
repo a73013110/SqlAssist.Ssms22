@@ -1,4 +1,6 @@
+using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
@@ -267,6 +269,32 @@ public sealed class SqlAssistChromeTests
     }
 
     /// <summary>
+    /// 維持著的狀態畫成開關而不是按鈕：換行按下去之後，工具列上要看得出現在是開著的。
+    /// </summary>
+    [Fact]
+    public void 圖示開關開著時看得出來而且與搜尋框那兩顆同一份外觀()
+    {
+        WpfTest.Run(() =>
+        {
+            var toggle = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "SQL 顯示換行");
+            var button = SqlAssistChrome.CreateIconButton(SqlIcon.Wrap, "SQL 顯示換行");
+
+            // 與一般圖示鈕同尺寸：同一列上的兩顆不該一高一矮。
+            Assert.Equal(button.MinWidth, toggle.MinWidth);
+            Assert.Equal(button.MinHeight, toggle.MinHeight);
+            Assert.Equal("SQL 顯示換行", AutomationProperties.GetName(toggle));
+
+            var template = (ControlTemplate)toggle.Style.Setters.OfType<Setter>()
+                .Single(setter => setter.Property == Control.TemplateProperty).Value;
+
+            // 「開著」不是只有 Tooltip 說得出來：模板上有 IsChecked 那一條，而且換的是強調底。
+            var on = Assert.Single(template.Triggers.OfType<Trigger>(),
+                trigger => trigger.Property == ToggleButton.IsCheckedProperty && Equals(trigger.Value, true));
+            Assert.Contains(on.Setters.OfType<Setter>(), setter => setter.Property == Border.BackgroundProperty);
+        });
+    }
+
+    /// <summary>
     /// 篩選的分隔線只有兩級，SQL Memory 與 SQL Search 都從它來。
     /// </summary>
     [Fact]
@@ -275,7 +303,7 @@ public sealed class SqlAssistChromeTests
         WpfTest.Run(() =>
         {
             var palette = new ThemeResourceSet();
-            var divider = SqlAssistChrome.CreateFilterGroupDivider();
+            var divider = SqlAssistChrome.CreateGroupDivider();
             var host = new Border { Child = divider };
             host.Resources.MergedDictionaries.Add(palette.Resources);
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
@@ -295,7 +323,7 @@ public sealed class SqlAssistChromeTests
             Assert.InRange(divider.Height, 12, 24);
 
             // 群內那一條矮一截、淡一階、間距也窄一截：每一顆之間都看得到線，而分群仍讀得出來。
-            var item = SqlAssistChrome.CreateFilterItemDivider();
+            var item = SqlAssistChrome.CreateItemDivider();
             var itemHost = new Border { Child = item };
             itemHost.Resources.MergedDictionaries.Add(palette.Resources);
             itemHost.Measure(new Size(200, 60));

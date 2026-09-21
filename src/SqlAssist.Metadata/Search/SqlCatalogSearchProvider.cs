@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Model;
@@ -291,10 +290,9 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             var key = DedupeKeyFor(info, null);
             counter.Note(key);
 
-            // 名稱走模糊比對，大小寫一律不分：FuzzyMatcher 是為識別字設計的，
-            // 而 MatchCasing 只作用在本文那一段——刻意如此，識別字在多數定序下
-            // 本來就不分大小寫，逐字比對會讓 PUBLISHER 打成 publisher 就一筆都不剩。
-            var match = FuzzyMatcher.MatchNormalized(query.NormalizedPattern, info.Name);
+            // 一個修飾都沒開才走模糊比對；開了大小寫或全字就是字面比對，規則與本文那一段
+            // 同一份，見 SearchIdentifierMatch。
+            var match = SearchIdentifierMatch.Match(query, info.Name);
 
             if (!match.IsMatch)
             {
@@ -355,7 +353,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             // 而一張表的三個資料行命中講的是同一張表。
             counter.Note(DedupeKeyFor(owner, column.Name));
 
-            var match = FuzzyMatcher.MatchNormalized(query.NormalizedPattern, column.Name);
+            var match = SearchIdentifierMatch.Match(query, column.Name);
 
             if (!match.IsMatch)
             {

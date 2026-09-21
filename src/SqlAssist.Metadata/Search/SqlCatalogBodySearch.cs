@@ -12,7 +12,8 @@ namespace SqlAssist.Metadata.Search;
 /// 本文命中<b>不走</b> <see cref="FuzzyMatcher"/>：模糊比對是為識別字設計的，
 /// 它允許字母散在整個候選裡，而一份幾千行的定義本文對任何三個字母的樣式都會命中，
 /// 分數還很高。使用者在本文上要的是「這幾個字連在一起出現在哪裡」，
-/// 所以這裡是 ordinal 子字串——與 SQL Memory 搜尋的字面子字串同一種語意。
+/// 所以這裡是字面子字串——與 SQL Memory 搜尋的那一種語意相同，也與名稱在使用者打開
+/// 大小寫或全字之後的比對方式相同（見 <see cref="SearchIdentifierMatch"/>）。
 /// </remarks>
 internal static class SqlCatalogBodySearch
 {
@@ -38,47 +39,18 @@ internal static class SqlCatalogBodySearch
     /// </summary>
     /// <param name="options">
     /// <see cref="SearchOptions.MatchCasing"/> 決定區不區分大小寫，
-    /// <see cref="SearchOptions.WholeWord"/> 決定要不要檢查詞界。
+    /// <see cref="SearchOptions.WholeWord"/> 決定要不要檢查詞界；換算與名稱那一邊共用
+    /// <see cref="SearchOptionsExtensions.ToProjectionMode"/>，兩處不會對同一個旗標各讀一種意思。
     /// </param>
     /// <remarks>
-    /// 下一次搜尋從命中處的<b>下一個字元</b>開始，不是命中的結尾：重疊的出現
-    /// （在 <c>aaa</c> 裡找 <c>aa</c>）也是出現，而使用者算的是「提到幾次」。
+    /// 掃描本身在 <see cref="MatchProjection.FindAll"/>：詞界、重疊命中與大小寫那三條規則
+    /// 本文與名稱都要用，各寫一份的症狀是其中一份把 <c>#</c> 算成識別字的一部分，
+    /// 而使用者搜 <c>Loan</c> 時 <c>#Loan</c> 在名稱上收得到、在本文上收不到。
+    ///
+    /// 重疊的出現照收（在 <c>aaa</c> 裡找 <c>aa</c>）：使用者算的是「提到幾次」。
     /// </remarks>
-    internal static List<int> FindAll(string body, string text, SearchOptions options)
-    {
-        var found = new List<int>();
-
-        if (body.Length == 0 || text.Length == 0 || text.Length > body.Length)
-        {
-            return found;
-        }
-
-        var comparison = (options & SearchOptions.MatchCasing) != 0
-            ? StringComparison.Ordinal
-            : StringComparison.OrdinalIgnoreCase;
-        var wholeWord = (options & SearchOptions.WholeWord) != 0;
-
-        var from = 0;
-
-        while (from <= body.Length - text.Length && found.Count < MaximumMatches)
-        {
-            var at = body.IndexOf(text, from, comparison);
-
-            if (at < 0)
-            {
-                break;
-            }
-
-            if (!wholeWord || IsWholeWord(body, at, text.Length))
-            {
-                found.Add(at);
-            }
-
-            from = at + 1;
-        }
-
-        return found;
-    }
+    internal static IReadOnlyList<int> FindAll(string body, string text, SearchOptions options) =>
+        MatchProjection.FindAll(body, text, 0, options.ToProjectionMode(), MaximumMatches);
 
     /// <summary>
     /// 裁出第一個命中所在的那一行，並把落在裁切範圍內的命中換算成高亮區段。
@@ -145,25 +117,4 @@ internal static class SqlCatalogBodySearch
         spans = found.ToArray();
         return body.Substring(start, end - start);
     }
-
-    /// <summary>
-    /// 前後都不是識別字字元才算整個字。
-    /// </summary>
-    /// <remarks>
-    /// 詞界照 SQL 識別字的形狀認：字母、數字與底線是字的一部分，其餘都是邊界。
-    /// <c>@</c> 與 <c>#</c> 刻意算成邊界——使用者搜 <c>Loan</c> 時，
-    /// <c>#Loan</c> 與 <c>@Loan</c> 正是他要找的那張暫存表與那個變數。
-    /// </remarks>
-    private static bool IsWholeWord(string body, int start, int length)
-    {
-        if (start > 0 && IsWordCharacter(body[start - 1]))
-        {
-            return false;
-        }
-
-        var after = start + length;
-        return after >= body.Length || !IsWordCharacter(body[after]);
-    }
-
-    private static bool IsWordCharacter(char value) => char.IsLetterOrDigit(value) || value == '_';
 }

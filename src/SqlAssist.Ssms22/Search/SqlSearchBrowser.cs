@@ -54,10 +54,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+    // 兩句話都說「勾起來會少掉什麼」，不說詞界、ordinal 這些只有寫程式的人讀得懂的字：
+    // 使用者要判斷的是「我現在找不到那張表，是不是被這一顆擋掉了」。
     private readonly ToggleButton _matchCasing = SqlAssistChrome.CreateSearchToggle(
-        SqlIcon.MatchCase, "大小寫", "只取大小寫完全相同的本文命中；名稱一律不分大小寫。");
+        SqlIcon.MatchCase, "大小寫相同", "大小寫要完全一樣：搜 finish 就不會找到 Finish。");
     private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
-        SqlIcon.WholeWord, "全字", "本文命中前後都必須是詞界。");
+        SqlIcon.WholeWord, "整個字", "只找完整的字：搜 Copy 就不會找到 CopyNo 裡的那一段。");
     private readonly SqlSearchSegments _segments = new();
     private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
     private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
@@ -149,8 +151,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         });
         _splitView = new MasterDetailView(_surface, _preview, _preview.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 預覽", UpdatePreview);
-        // 剪貼簿可能被別的程序占用；失敗要看得見，否則使用者以為下一次貼上是這個名稱。
-        _preview.CopyRequested += (_, _) => Run(() => CopyName(_preview.Current));
         root.Children.Add(_splitView);
         Content = root;
 
@@ -163,19 +163,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             foreach (var row in _rows) row.IsNew = false;
         });
 
+        // 只攔 Ctrl+F。上一處／下一處沒有鍵盤捷徑：F3 被宿主在 WPF 看到之前就吃掉了
+        // （命令路由的 pretranslate），這裡接不到，理由見 SqlMatchNavigator。
         PreviewKeyDown += (_, e) => Run(() =>
         {
-            if (e.Key == Key.F && e.KeyboardDevice.Modifiers == ModifierKeys.Control)
-            {
-                _search.Focus();
-                e.Handled = true;
-                return;
-            }
+            if (e.Key != Key.F || e.KeyboardDevice.Modifiers != ModifierKeys.Control) return;
 
-            // F3 在這個工具窗裡是「下一處命中」。攔在工具窗上而不是預覽的唯讀檢視上：
-            // 使用者打完字之後焦點還在搜尋框，而他按 F3 要的是跳到定義裡的下一處。
-            // 工具窗外的查詢視窗照樣是 SSMS 自己的「找下一個」。
-            if (_preview.HandleKey(e.Key, e.KeyboardDevice.Modifiers)) e.Handled = true;
+            _search.Focus();
+            e.Handled = true;
         });
 
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 可見度", () =>
@@ -229,7 +224,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.IsEnabled = false;
         clear.Click += (_, _) => Run(() => { _search.Clear(); _search.Focus(); });
-        _search.ToolTip = "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，本文是字面比對。";
+        _search.ToolTip = "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，" +
+            "本文是字面比對，勾了右邊任一顆之後名稱也改成字面比對。";
         AutomationProperties.SetName(_search, "搜尋資料庫物件");
         _search.TextChanged += (_, _) => Run(() =>
         {
