@@ -935,10 +935,12 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(names, radios.Select(radio => (string)radio.Content).ToArray());
             Assert.True(radios[0].IsChecked);
 
-            // 全選對互斥的選項沒有意義，清除等於一個範圍都不選；兩顆都不畫。
+            // 整批命令對互斥的選項沒有意義：單選傳什麼進去都不畫那一列。
+            server.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
+            surface.UpdateLayout();
             var labels = Descendants<TextBlock>(surface).Select(text => text.Text).ToArray();
             Assert.DoesNotContain("全選", labels);
-            Assert.DoesNotContain("清除", labels);
+            Assert.DoesNotContain("全不選", labels);
 
             // 每一列各自一個群組名：互斥交給模型，WPF 不自動去取消上一個。
             Assert.Equal(radios.Length, radios.Select(radio => radio.GroupName).Distinct().Count());
@@ -987,11 +989,11 @@ public sealed class SqlSearchVisualTests
             var boxes = Descendants<CheckBox>(surface).ToArray();
             Assert.Equal(names, boxes.Select(box => (string)box.Content).ToArray());
 
-            // 種類面板沒有命令鈕：「全部」是第一列那個預設，而全選會送出一份結果相同、
-            // chip 卻完全不同的條件。
+            // 種類面板沒有命令鈕：判準是有沒有搜尋框，而它沒有——「列出來的那一份」恆等於整份，
+            // 全選就與第一列那個「全部」同義，那一列只剩一顆按不出差別的鈕。
             var labels = Descendants<TextBlock>(surface).Select(text => text.Text).ToArray();
             Assert.DoesNotContain("全選", labels);
-            Assert.DoesNotContain("清除", labels);
+            Assert.DoesNotContain("全不選", labels);
 
             kinds.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
             Assert.True(kinds.IsOpen);
@@ -1013,7 +1015,8 @@ public sealed class SqlSearchVisualTests
     /// </summary>
     /// <remarks>
     /// 摘要寫著「全部」而清單上一個勾都沒有時，使用者會以為自己把條件弄丟了，
-    /// 或以為這個下拉壞了。取消勾它不是一個狀態，所以它按得上去、取消不掉。
+    /// 或以為這個下拉壞了。取消它不是一個狀態，所以它按得上去、取消不掉——因此畫成 radio
+    /// 而不是核取方塊，並且留在捲動區外面。
     /// </remarks>
     [Fact]
     public void 過濾面板第一列是沒有指名時的那個預設()
@@ -1044,23 +1047,35 @@ public sealed class SqlSearchVisualTests
             surface.UpdateLayout();
 
             var boxes = Descendants<CheckBox>(surface).ToArray();
-            Assert.Equal(new[] { "全部", "Table" }, boxes.Select(box => (string)box.Content).ToArray());
-            Assert.True(boxes[0].IsChecked);
+            Assert.Equal(new[] { "Table" }, boxes.Select(box => (string)box.Content).ToArray());
 
-            // 取消勾「全部」不是使用者做得到的狀態：勾選框彈起來了，要把它按回去，
+            // 形狀就是語意：這一列與底下每一個選項互斥，所以是 radio；核取方塊的合約是
+            // 可勾可取消，而它取消不掉，畫成核取方塊讀起來像壞掉。
+            var all = Descendants<RadioButton>(surface).Single();
+            Assert.Equal("全部", all.Content);
+            Assert.True(all.IsChecked);
+
+            // 它在捲動區外面，不是虛擬化清單的第 0 列：名稱上百個時捲下去仍看得到，
+            // 打了搜尋字一個都不相符時也還回得去。
+            var list = Descendants<ItemsControl>(surface).Single();
+            Assert.DoesNotContain(all, Descendants<RadioButton>(list));
+            // 底下那條橫線把「預設值」與「自己挑這些」切開；少了它，radio 會讓人以為整份只能選一個。
+            Assert.Contains(Descendants<Border>(surface), border => border.Height == 1);
+
+            // 取消「全部」不是使用者做得到的狀態：控制項彈起來了，要把它按回去，
             // 否則畫面上這個維度看起來沒有條件，而實際上也真的沒有。
-            boxes[0].IsChecked = false;
+            all.IsChecked = false;
             surface.UpdateLayout();
-            Assert.True(boxes[0].IsChecked);
+            Assert.True(all.IsChecked);
             Assert.Equal(0, cleared);
 
             // 別的選項變動之後由宿主改這一列，不重建整份清單：使用者可能正在連勾好幾個。
             kinds.SyncEmptyOption(false);
             surface.UpdateLayout();
-            Assert.False(boxes[0].IsChecked);
+            Assert.False(all.IsChecked);
             Assert.Equal(0, cleared);
 
-            boxes[0].IsChecked = true;
+            all.IsChecked = true;
             Assert.Equal(1, cleared);
         });
     }

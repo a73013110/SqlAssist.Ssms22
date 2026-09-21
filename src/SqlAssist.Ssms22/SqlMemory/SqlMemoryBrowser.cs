@@ -540,6 +540,11 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             on => SqlMemoryActions.Run(() => { if (on) ClearFacet(facet); }, Report)));
         facet.Panel.SetOptions(new[] { new SqlFilterGroup("", options) });
         facet.Panel.SetMore(facet.HasMore ? facet.MoreLabel : null);
+        // 名稱是分頁問回來的，全選只勾得到已經載入的那幾頁；還有下一頁時把這個界線說出來，
+        // 否則使用者按完全選會以為整份都勾了，而漏掉的那幾個他根本沒看到。
+        facet.Panel.SetSelectAllHint(facet.HasMore
+            ? "只勾得到已經載入的名稱；還有下一頁，要全部先按「" + facet.MoreLabel + "」。"
+            : null);
     }
 
     /// <summary>這一顆面板目前勾起來的名稱；模型是唯一的出處，面板與按鈕都只是把它畫出來。</summary>
