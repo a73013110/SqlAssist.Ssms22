@@ -26,26 +26,24 @@ internal enum SqlFilterMode
 }
 
 /// <summary>
-/// 面板上那一顆整批命令的狀態。
+/// 面板上那一列整批命令。
 /// </summary>
 /// <remarks>
-/// 一顆鈕兩個動作而不是兩顆：全選與取消全選是同一個開關的兩端，並排的那一版總有一顆是灰的，
-/// 而那一列本來就只有命令鈕與排序兩樣東西。字跟著狀態換，按下去做的就是按鈕上寫的那一件事。
+/// 兩顆並排而且一直亮著，不隨狀態收起也不停用。收起的那一版在剩下那一顆滑進它的位置時
+/// 讓同一個像素換了意思——按完全選、手沒移開再按一次就全清掉；停用的那一版則永遠有一顆是灰的。
+/// 代價是全勾時按全選、全空時按全不選各是一次 no-op，而 no-op 毀不掉任何東西，
+/// 比會動、會換意思的按鈕便宜。
 ///
-/// 有沒有這一顆由<b>宿主</b>決定，不由模式決定：全選只有在它與「一個都沒勾」不同時才是一個動作。
-/// SQL Search 的資料庫沒指名時只搜連線預設那一個，全選＝指名整台，兩者不同；而 SQL Memory 的
-/// 伺服器與種類沒指名時就是「全部」，全選等於同一件事，放上去只是讓使用者按一顆什麼都沒改的鈕。
+/// 有沒有這一列由<b>宿主</b>決定，不由模式決定，而且只在接線時講一次：兩顆的字不跟狀態跑，
+/// 宿主不必每次重填選項都回來同步一次。要再加一種整批命令（例如反向選擇）就多一個列舉值。
 /// </remarks>
-internal enum SqlFilterBulkSelection
+internal enum SqlFilterBulkCommands
 {
     /// <summary>沒有整批命令。</summary>
     None,
 
-    /// <summary>還沒全部勾起來：按下去全選。</summary>
-    SelectAll,
-
-    /// <summary>已經全部勾起來：按下去取消全選。</summary>
-    ClearAll
+    /// <summary>全選與全不選並排。</summary>
+    SelectAndClear
 }
 
 /// <summary>
@@ -68,11 +66,13 @@ internal enum SqlFilterBulkSelection
 /// 那一列的字<b>由宿主給</b>——SQL Memory 的未選是「對已存的列不設限」，SQL Search 的未選是
 /// 「這一輪用連線預設」，兩句話不一樣，控制項不替它們挑一句。
 ///
-/// 面板上的命令鈕只有<b>一顆</b>（<see cref="SetBulkSelection"/>），而且由宿主決定要不要：全都勾起來
-/// 之前寫著全選，全勾之後換成取消全選。全選之後只想留兩個的人在那一版要自己取消掉幾十個勾，
-/// 而唯一的出口是第一列那個預設，它寫著「全部」或「連線預設」，看起來不像取消全選。
-/// 兩個動作仍然只有一份狀態：取消全選走的就是第一列那個預設的清除路徑，不另寫一次同步。
-/// 單選沒有這一顆：全選對互斥的選項沒有意義。單選選完就關面板——它一次只改得了一項，
+/// 面板上的整批命令是<b>兩顆並排、一直亮著</b>的全選與全不選（<see cref="SetBulkCommands"/>），
+/// 要不要由宿主決定。它們在捲動區外面，而第一列那個預設是虛擬化清單的第 0 列：名稱上百個時
+/// 捲下去就看不到了，清除的出口不能只有那一列。
+/// 全選只作用在<b>目前列出來的那一份</b>（套用搜尋字之後，見 <see cref="Matches"/>）：打了字就是
+/// 「把篩出來的這幾個都勾起來」，沒打字才是整份。全不選相反，清的是整個維度——它走的就是
+/// 第一列那個預設的清除路徑，不另寫一次狀態同步，兩份的下場是其中一邊忘了同步第一列的勾。
+/// 單選沒有這一列：全選對互斥的選項沒有意義。單選選完就關面板——它一次只改得了一項，
 /// 留著面板等於要他再按一次外面。
 ///
 /// 排序（<see cref="SetSortOptions"/>）與續頁（<see cref="SetMore"/>）是<b>面板等級的一般能力</b>，
@@ -89,11 +89,13 @@ internal sealed class SqlFilterFlyout : Button
     private readonly ItemsControl _options;
     private readonly SqlBusyNotice _notice = new();
     private readonly TextBox? _filter;
-    private readonly DockPanel _commands = new() { Margin = new Thickness(0, 0, 0, 4) };
+    // LastChildFill 要關掉：開著的話最後加進去的那一顆會吃掉排序左邊的整段空白，
+    // 命令鈕就從一顆貼著文字的鈕變成一條橫跨面板的色塊。
+    private readonly DockPanel _commands = new() { Margin = new Thickness(0, 0, 0, 4), LastChildFill = false };
     private readonly Button _sortButton;
-    private readonly Button _bulk;
+    private readonly Button _selectAll;
+    private readonly Button _clearAll;
     private readonly Button _more;
-    private SqlFilterBulkSelection _bulkState;
     private IReadOnlyList<SqlFilterGroup> _groups = Array.Empty<SqlFilterGroup>();
     private IReadOnlyList<SqlFilterSortOption> _sorts = Array.Empty<SqlFilterSortOption>();
     private object? _sort;
@@ -147,8 +149,8 @@ internal sealed class SqlFilterFlyout : Button
             _filter.TextChanged += (_, _) => ApplyFilter();
         }
 
-        // 排序靠右、全選靠左：兩者都是這個面板的命令，但排序改的是「哪一頁先到」，
-        // 全選改的是條件本身；分在同一列的兩端才看得出不是同一種東西。
+        // 排序靠右、整批命令靠左：兩者都是這個面板的命令，但排序改的是「哪一頁先到」，
+        // 全選與全不選改的是條件本身；分在同一列的兩端才看得出不是同一種東西。
         _sortButton = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         _sortButton.Padding = new Thickness(6, 2, 6, 2);
         _sortButton.Visibility = Visibility.Collapsed;
@@ -157,14 +159,18 @@ internal sealed class SqlFilterFlyout : Button
         DockPanel.SetDock(_sortButton, Dock.Right);
         _commands.Children.Add(_sortButton);
 
-        // 整批命令那一顆先建起來但收著：換狀態只換字與圖示，重建的那一版會在使用者按下去的
-        // 那一刻把按鈕自己抽掉，而 Click 事件已經在路上。單選永遠沒有這一顆。
-        _bulk = CreateCommand(SqlIcon.SelectAll, "全選", RunBulk);
-        _bulk.Visibility = Visibility.Collapsed;
-        DockPanel.SetDock(_bulk, Dock.Left);
-        _commands.Children.Add(_bulk);
+        // 兩顆整批命令先建起來但整列收著；建好之後字就不再動。全選排在前面：它是那一列的
+        // 主要動作，全不選是退路。
+        _selectAll = CreateCommand(SqlIcon.SelectAll, "全選", RunSelectAll);
+        _clearAll = CreateCommand(SqlIcon.Clear, "全不選", RunClearAll);
+        foreach (var command in new[] { _selectAll, _clearAll })
+        {
+            command.Visibility = Visibility.Collapsed;
+            DockPanel.SetDock(command, Dock.Left);
+            _commands.Children.Add(command);
+        }
 
-        // 命令列上兩顆都還沒有人要時整列先收起；沒有人叫 SetSortOptions 或 SetBulkSelection 的面板不留一條空白。
+        // 命令列上兩邊都還沒有人要時整列先收起；沒有人叫 SetSortOptions 或 SetBulkCommands 的面板不留一條空白。
         _commands.Visibility = Visibility.Collapsed;
 
         panel.Children.Add(_commands);
@@ -263,15 +269,23 @@ internal sealed class SqlFilterFlyout : Button
     /// </remarks>
     public event EventHandler? OptionsRequested;
 
-    /// <summary>全選；只有宿主叫過 <see cref="SetBulkSelection"/> 的面板發得出這個事件。</summary>
-    public event EventHandler? SelectAllRequested;
-
     /// <summary>
-    /// 取消全選。
+    /// 全選目前列出來的那一份；字串是面板搜尋框裡的過濾字，空字串表示沒打字。
     /// </summary>
     /// <remarks>
-    /// 宿主接到它要走與第一列那個預設<b>同一條</b>清除路徑，不另寫一份：兩份的下場是其中一邊
-    /// 忘了同步第一列的勾，而畫面上「全部」沒勾、條件卻已經清光。
+    /// 交出去的是過濾字而不是面板上那幾列：清單分頁或還在路上時，面板列得出來的不等於宿主
+    /// 要勾的那一份（SQL Search 按下去會先把整台的資料庫問回來）。兩邊用 <see cref="Matches"/>
+    /// 同一條比對規則，才不會出現面板上看到五個、勾起來卻是七個。
+    /// 只有宿主叫過 <see cref="SetBulkCommands"/> 的面板發得出這個事件。
+    /// </remarks>
+    public event Action<string>? SelectAllRequested;
+
+    /// <summary>
+    /// 全不選。
+    /// </summary>
+    /// <remarks>
+    /// 清的是整個維度，不是篩出來的那一份：宿主接到它要走與第一列那個預設<b>同一條</b>清除路徑，
+    /// 不另寫一份：兩份的下場是其中一邊忘了同步第一列的勾，而畫面上「全部」沒勾、條件卻已經清光。
     /// </remarks>
     public event EventHandler? ClearAllRequested;
 
@@ -363,31 +377,26 @@ internal sealed class SqlFilterFlyout : Button
     public void SyncEmptyOption(bool selected) => _empty?.Sync(selected);
 
     /// <summary>
-    /// 面板上那一顆整批命令；<see cref="SqlFilterBulkSelection.None"/>（預設）收起它。
+    /// 面板上那一列整批命令；<see cref="SqlFilterBulkCommands.None"/>（預設）收起它。
     /// </summary>
     /// <remarks>
-    /// 宿主每次改完選項都再叫一次，字才跟得上狀態：全勾之後仍寫著「全選」的那一顆按下去什麼都不會變，
-    /// 而使用者會以為是這個面板壞了。單選不畫這一顆，傳什麼進來都一樣。
+    /// 接線時講一次就夠：兩顆一直亮著，字不跟狀態跑，宿主重填選項時不必回來同步。
+    /// 單選不畫這一列，傳什麼進來都一樣。
     /// </remarks>
-    public void SetBulkSelection(SqlFilterBulkSelection state)
+    public void SetBulkCommands(SqlFilterBulkCommands commands)
     {
-        if (!Enum.IsDefined(typeof(SqlFilterBulkSelection), state)) throw new ArgumentOutOfRangeException(nameof(state));
-        if (Mode == SqlFilterMode.Single) state = SqlFilterBulkSelection.None;
-        if (_bulkState == state) return;
-        _bulkState = state;
+        if (!Enum.IsDefined(typeof(SqlFilterBulkCommands), commands)) throw new ArgumentOutOfRangeException(nameof(commands));
+        if (Mode == SqlFilterMode.Single) commands = SqlFilterBulkCommands.None;
+        var show = commands != SqlFilterBulkCommands.None;
+        if (show == (_selectAll.Visibility == Visibility.Visible)) return;
 
-        if (state == SqlFilterBulkSelection.None)
-        {
-            _bulk.Visibility = Visibility.Collapsed;
-            // 排序還在的話整列留著；兩顆都沒有才收掉，面板頂端不留一條空白。
-            if (_sortButton.Visibility != Visibility.Visible) _commands.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        var clear = state == SqlFilterBulkSelection.ClearAll;
-        Label(_bulk, clear ? SqlIcon.Clear : SqlIcon.SelectAll, clear ? "取消全選" : "全選");
-        _bulk.Visibility = Visibility.Visible;
-        _commands.Visibility = Visibility.Visible;
+        var visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        _selectAll.Visibility = visibility;
+        _clearAll.Visibility = visibility;
+        // 排序還在的話整列留著；兩邊都沒有才收掉，面板頂端不留一條空白。
+        _commands.Visibility = show || _sortButton.Visibility == Visibility.Visible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     /// <summary>
@@ -555,12 +564,18 @@ internal sealed class SqlFilterFlyout : Button
         AutomationProperties.SetName(button, label + _name);
     }
 
-    /// <summary>按下整批命令；做哪一件事由按鈕上寫的那一個決定，不另外再問一次模型。</summary>
-    private void RunBulk()
-    {
-        if (_bulkState == SqlFilterBulkSelection.ClearAll) ClearAllRequested?.Invoke(this, EventArgs.Empty);
-        else if (_bulkState == SqlFilterBulkSelection.SelectAll) SelectAllRequested?.Invoke(this, EventArgs.Empty);
-    }
+    /// <summary>全選：把目前的過濾字一起交出去，宿主才知道「列出來的那一份」是哪幾個。</summary>
+    private void RunSelectAll() => SelectAllRequested?.Invoke(_filter?.Text ?? "");
+
+    private void RunClearAll() => ClearAllRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>搜尋框的比對規則：名稱裡有這一段就算中，不分大小寫；空字串全中。</summary>
+    /// <remarks>
+    /// 公開出來是因為全選要在宿主那一端照同一份規則再篩一次（見 <see cref="SelectAllRequested"/>）；
+    /// 兩邊各寫一次的症狀是面板上看到五個、按下去勾起來的卻是七個。
+    /// </remarks>
+    public static bool Matches(string label, string pattern) =>
+        pattern.Length == 0 || label.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0;
 
     /// <summary>
     /// 依搜尋字重排列清單；一段裡一個都不相符時，連那一段的標題也不畫。
@@ -584,7 +599,7 @@ internal sealed class SqlFilterFlyout : Button
 
             foreach (var item in group.Items)
             {
-                if (pattern.Length != 0 && item.Label.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (!Matches(item.Label, pattern)) continue;
                 rows.Add(SqlFilterRow.Option(item, Mode == SqlFilterMode.Single ? CloseAfterPick : null));
             }
 

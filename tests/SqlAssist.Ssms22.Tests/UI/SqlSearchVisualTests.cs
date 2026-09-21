@@ -1259,14 +1259,15 @@ public sealed class SqlSearchVisualTests
     }
 
     /// <summary>
-    /// 命令鈕只有一顆，全勾之後換成取消全選；取消全選走的是第一列那個預設的清除路徑。
+    /// 整批命令是兩顆並排、一直亮著的全選與全不選；全選帶著搜尋框的過濾字出去。
     /// </summary>
     /// <remarks>
-    /// 全選之後只想留兩個的人，在沒有這一顆的那一版要自己取消掉幾十個勾，而唯一的出口是
-    /// 第一列那個寫著「連線預設」的預設——它看起來不像取消全選。並排兩顆的那一版則總有一顆是灰的。
+    /// 收起其中一顆的那一版會讓剩下那一顆滑進它的位置，於是同一個像素換了意思——按完全選、
+    /// 手沒移開再按一次就全清掉；停用的那一版則永遠有一顆是灰的。兩顆帶字帶圖示並排之後
+    /// 那一列會不會在最窄的面板上擠出去，只有量得出來，所以這裡連寬度一起釘住。
     /// </remarks>
     [Fact]
-    public void 整批命令只有一顆而且字跟著狀態換()
+    public void 整批命令兩顆並排而且一直亮著()
     {
         WpfTest.Run(() =>
         {
@@ -1276,15 +1277,15 @@ public sealed class SqlSearchVisualTests
             var databases = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
             var surface = databases.PopupSurface;
             surface.Resources.MergedDictionaries.Add(palette.Resources);
-            var all = 0;
+            var asked = new List<string>();
             var cleared = 0;
-            databases.SelectAllRequested += (_, _) => all++;
+            databases.SelectAllRequested += pattern => asked.Add(pattern);
             databases.ClearAllRequested += (_, _) => cleared++;
 
-            void Layout()
+            void Layout(double width)
             {
-                surface.Measure(new Size(320, double.PositiveInfinity));
-                surface.Arrange(new Rect(0, 0, 320, surface.DesiredSize.Height));
+                surface.Measure(new Size(width, double.PositiveInfinity));
+                surface.Arrange(new Rect(0, 0, width, surface.DesiredSize.Height));
                 surface.UpdateLayout();
             }
 
@@ -1292,33 +1293,58 @@ public sealed class SqlSearchVisualTests
                 .FirstOrDefault(button => Descendants<TextBlock>(button).Any(text => text.Text == label));
 
             // 沒有人要的面板不留那一列；種類那一顆就是這樣。
-            Layout();
+            Layout(320);
             Assert.Null(Command("全選"));
-            Assert.Null(Command("取消全選"));
+            Assert.Null(Command("全不選"));
 
-            databases.SetBulkSelection(SqlFilterBulkSelection.SelectAll);
-            Layout();
-            var bulk = Command("全選");
-            Assert.NotNull(bulk);
-            bulk!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-            Assert.Equal((1, 0), (all, cleared));
+            databases.SetSortOptions(
+                new[] { new SqlFilterSortOption("name", "名稱 A–Z", "A–Z", SqlIcon.SortAscending) }, "name");
+            databases.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
+            Layout(320);
+            var selectAll = Command("全選");
+            var clearAll = Command("全不選");
+            Assert.NotNull(selectAll);
+            Assert.NotNull(clearAll);
 
-            // 換狀態只換字，不重建按鈕：重建的那一版會在使用者按下去的那一刻把按鈕抽掉。
-            databases.SetBulkSelection(SqlFilterBulkSelection.ClearAll);
-            Layout();
-            Assert.Same(bulk, Command("取消全選"));
-            Assert.Null(Command("全選"));
-            bulk.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
-            Assert.Equal((1, 1), (all, cleared));
+            // 沒打字就是整份：過濾字是空字串。
+            selectAll!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "" }, asked);
 
-            databases.SetBulkSelection(SqlFilterBulkSelection.None);
-            Layout();
-            Assert.Equal(Visibility.Collapsed, bulk.Visibility);
+            // 按完之後兩顆都還在原位，字也沒換：同一個像素不會變成另一件事。
+            Layout(320);
+            Assert.Same(selectAll, Command("全選"));
+            Assert.Same(clearAll, Command("全不選"));
+            Assert.Equal(Visibility.Visible, selectAll.Visibility);
+            Assert.Equal(Visibility.Visible, clearAll!.Visibility);
+            Assert.True(selectAll.IsEnabled && clearAll.IsEnabled);
 
-            // 單選不畫這一顆：全選對互斥的選項沒有意義。
+            // 打了字之後全選只作用在篩出來的那一份，所以過濾字要跟著出去。
+            var filter = Descendants<TextBox>(surface).Single();
+            filter.Text = "lib";
+            Layout(320);
+            selectAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(new[] { "", "lib" }, asked);
+
+            clearAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            Assert.Equal(1, cleared);
+
+            // 最窄的面板上三顆也要排得下：DockPanel 不換行，擠不下就是直接裁掉。
+            var border = (Border)surface;
+            Layout(border.MinWidth);
+            var commands = Descendants<DockPanel>(surface).Single(panel => panel.Children.Contains(selectAll));
+            var room = border.MinWidth - border.Padding.Left - border.Padding.Right;
+            Assert.True(commands.DesiredSize.Width <= room,
+                $"命令列要 {commands.DesiredSize.Width} DIP，面板最窄時只有 {room} DIP。");
+
+            databases.SetBulkCommands(SqlFilterBulkCommands.None);
+            Layout(320);
+            Assert.Equal(Visibility.Collapsed, selectAll.Visibility);
+            Assert.Equal(Visibility.Collapsed, clearAll.Visibility);
+
+            // 單選不畫這一列：全選對互斥的選項沒有意義。
             var server = new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.Single);
             server.PopupSurface.Resources.MergedDictionaries.Add(palette.Resources);
-            server.SetBulkSelection(SqlFilterBulkSelection.SelectAll);
+            server.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
             server.PopupSurface.Measure(new Size(320, double.PositiveInfinity));
             server.PopupSurface.Arrange(new Rect(0, 0, 320, server.PopupSurface.DesiredSize.Height));
             Assert.DoesNotContain(Descendants<TextBlock>(server.PopupSurface), text => text.Text == "全選");
