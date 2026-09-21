@@ -13,7 +13,6 @@ namespace SqlAssist.Ssms22.Preview;
 /// <summary>指令碼外觀的生命週期與查詢視窗一致；文件只消費動態資源。</summary>
 internal sealed class SqlScriptTheme : IDisposable
 {
-    private static readonly FontFamily FallbackFont = new("Consolas");
     private IWpfTextView? _view;
     private readonly Control _host;
     private IClassificationFormatMap? _formatMap;
@@ -75,8 +74,10 @@ internal sealed class SqlScriptTheme : IDisposable
 
     private void Refresh()
     {
-        var font = _view is null ? SqlAssistChrome.CodeFont : FallbackFont;
-        var fontSize = 12.5;
+        // 問不到編輯器時才用這一組；CodeFont 自己就帶著 Cascadia Mono → Consolas → Courier New 的
+        // 退路，字級沿用自製介面的內文字級，不另寫一個只有這裡看得到的數字。
+        var font = SqlAssistChrome.CodeFont;
+        var fontSize = SqlAssistChrome.DefaultMetrics.Body;
         var shell = (
             Background: ColorOf(ThemeBrush.ListBackground, Colors.Black),
             Foreground: ColorOf(ThemeBrush.ListForeground, Colors.White));
@@ -108,19 +109,18 @@ internal sealed class SqlScriptTheme : IDisposable
 
             var defaults = map.DefaultTextProperties;
 
-            // 字型與字級只跟著真的存在的那個編輯器走：那是為了讓指令碼分頁與查詢視窗並排比得起來。
-            // 沒有編輯器時留著 Cascadia Mono，不拿一個沒有人看得到的檢視的字級來撐工具窗。
-            if (view is not null)
+            // 字型與字級跟著同一份 Fonts and Colors，與底色、分類色同源：有檢視時它可能套了自己的
+            // 外觀類別，沒有時問的是「Text Editor」類別本身，兩邊都是使用者替編輯器設的那個字型與字級。
+            // 以「有沒有檢視」當條件的那一版在沒有查詢視窗時改用自己的字級，症狀是同一份 SQL
+            // 在開查詢視窗前後大小會變。
+            if (!defaults.TypefaceEmpty)
             {
-                if (!defaults.TypefaceEmpty)
-                {
-                    font = defaults.Typeface.FontFamily;
-                }
+                font = defaults.Typeface.FontFamily;
+            }
 
-                if (!defaults.FontRenderingEmSizeEmpty && defaults.FontRenderingEmSize > 0)
-                {
-                    fontSize = defaults.FontRenderingEmSize;
-                }
+            if (!defaults.FontRenderingEmSizeEmpty && defaults.FontRenderingEmSize > 0)
+            {
+                fontSize = defaults.FontRenderingEmSize;
             }
 
             if (SystemParameters.HighContrast)

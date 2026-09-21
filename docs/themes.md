@@ -37,16 +37,20 @@ SSMS 新彩色主題使用 Fluent `ShellColors`；舊 `EnvironmentColors.ToolTip
 
 `Preview/SqlScriptTheme` 於第一次開啟指令碼分頁時才建立。**有查詢視窗時**使用那一個視窗的
 `IClassificationFormatMap` 及 `IWpfTextView.Background`，不是通用 `"text"` 分類——同一份設定在
-不同檢視上可以套不同的外觀類別，拿通用那一份會讓預覽與旁邊的查詢視窗顏色對不上，
-字型與字級也只在這時候跟著編輯器走。
+不同檢視上可以套不同的外觀類別，拿通用那一份會讓預覽與旁邊的查詢視窗顏色對不上。
 分類配色、編輯器底色及主題通知皆會使外觀失效；分頁不可見時延後到顯示前更新。
 
-**一個查詢視窗都沒有**（只連了資料庫）時退回 `"text"` 這個外觀類別，字型維持 Cascadia Mono。
-兩條路要到的是同一份 Fonts and Colors 設定，所以之後打開查詢視窗不會換一套顏色。
+**一個查詢視窗都沒有**（只連了資料庫）時退回 `"text"` 這個外觀類別。兩條路要到的是同一份
+Fonts and Colors 設定，所以之後打開查詢視窗不會換一套顏色。
 
-底色同樣跟著那一份設定走，缺檢視時改問 `IEditorFormatMap` 的 **Plain Text** 那一格——編輯器的底色
-畫在檢視上而不在文字上，`DefaultTextProperties.BackgroundBrush` 沒有檢視時是空的。底色與前景
-**成對**採用（`UI/ScriptPalette.Surface`），缺一個或它自己就讀不到時整組退回工具窗那一組，不混用兩邊。
+字型、字級、底色與前景全部跟著那一份設定，**不以「有沒有檢視」當條件**。以檢視存在與否分岔的
+那一版在沒有查詢視窗時改用自己的字級，症狀是同一份 SQL 在開查詢視窗前後大小會變。
+問不到時才退回 `SqlAssistChrome.CodeFont` 與 `DefaultMetrics.Body`——同一組值也是唯讀檢視
+建立時套的那一組，因此文件建好前後不會跳動；不另寫只有這裡看得到的字級常數。
+
+底色缺檢視時改問 `IEditorFormatMap` 的 **Plain Text** 那一格——編輯器的底色畫在檢視上而不在文字上，
+`DefaultTextProperties.BackgroundBrush` 沒有檢視時是空的。底色與前景**成對**採用
+（`UI/ScriptPalette.Surface`），缺一個或它自己就讀不到時整組退回工具窗那一組，不混用兩邊。
 
 分類色對比不足時**朝可讀的方向調整、保留色相**（`UI/ScriptPalette.Classification`），只有真的問不到
 顏色才退回前景色。換成前景色的那一版讓 `keyword`／`comment`／`string`／`number` 全部相同，
@@ -89,8 +93,10 @@ SSMS 手動驗收：
 4. 更改 SQL 字型、字級及分類色；保留選取與捲動、確認沒有額外中繼資料查詢。
    另在**連了資料庫但一個查詢視窗都沒開**時，把「編輯器外觀」在比對佈景主題與明確配色之間切換，
    確認預覽當場換色且四種分類分得開——這一段只有在沒有查詢視窗時才走得到。
-5. 高對比、100%／150%／200% DPI、最小尺寸、長字串與鍵盤焦點均需驗證。
-6. 多個查詢視窗連續切換主題再關閉，確認沒有延後更新錯誤或事件造成的視窗滯留。
+5. 同樣在沒有查詢視窗時看一次 SQL Memory 與 SQL Search 的預覽，再開一個查詢視窗：字型、字級與
+   底色都不應該在那一刻改變。
+6. 高對比、100%／150%／200% DPI、最小尺寸、長字串與鍵盤焦點均需驗證。
+7. 多個查詢視窗連續切換主題再關閉，確認沒有延後更新錯誤或事件造成的視窗滯留。
 
 平台依據：[VS 色彩服務](https://learn.microsoft.com/en-us/visualstudio/extensibility/ux-guidelines/colors-and-styling-for-visual-studio?view=vs-2022)、
 [Fluent 主題遷移](https://learn.microsoft.com/en-us/visualstudio/extensibility/migration/modernize-theme-colors?view=visualstudio)、
