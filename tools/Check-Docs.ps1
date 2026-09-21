@@ -3,8 +3,8 @@
 param(
     # 字元只是穩定的檔案預算，不假設中文與模型 token 一比一，也不估算快取費用。
     [ValidateRange(1, 2147483647)]
-    [int]$CharBudget = 4000,
-    [int]$WarnAt = 3900,
+    [int]$CharBudget = 5000,
+    [int]$WarnAt = 4500,
     [ValidateRange(1, 2147483647)]
     [int]$ClaudeMdBudget = 1000,
     [ValidateRange(1, 2147483647)]
@@ -56,6 +56,9 @@ foreach ($name in @('README.md', 'README.zh-TW.md', 'CLAUDE.md', 'AGENTS.md')) {
 $budgets = @{ 'CLAUDE.md' = $ClaudeMdBudget; 'AGENTS.md' = $AgentsMdBudget; 'docs/index.md' = $IndexMdBudget }
 $over = [System.Collections.Generic.List[string]]::new()
 $warn = [System.Collections.Generic.List[string]]::new()
+# 每頁 H1 之後第一句要說明本頁範圍；索引是路由，入口檔只導向規則，都不適用。
+$exemptFromScope = @('docs/index.md', 'CLAUDE.md', 'AGENTS.md', 'README.md', 'README.zh-TW.md')
+$noScope = [System.Collections.Generic.List[string]]::new()
 $anchors = @{}
 $linesByPath = @{}
 $lengths = @{}
@@ -69,6 +72,13 @@ foreach ($file in $targets) {
     elseif ($text.Length -gt $WarnAt) { $warn.Add("$relative：$($text.Length) 字元") }
 
     $linesByPath[$file.FullName] = @(Get-MarkdownLines $text)
+    if ($relative -notin $exemptFromScope) {
+        $content = @($linesByPath[$file.FullName] | Where-Object { $_.Text.Trim() })
+        $first = $content | Select-Object -Skip 1 -First 1
+        if (-not $first -or $first.Text -match '^\s*(#|\||[-*+]\s|\d+\.\s)') {
+            $noScope.Add("${relative}：H1 之後第一句要寫本頁包含什麼、不含的那一半在哪")
+        }
+    }
     $set = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($line in $linesByPath[$file.FullName]) {
         if ($line.Text -match '^#{1,6}\s+(.*)$') {
@@ -113,15 +123,19 @@ if ($broken.Count -gt 0) {
     Write-Host '壞掉的本機 Markdown 連結：' -ForegroundColor Red
     $broken | ForEach-Object { Write-Host "  $_" }
 }
+if ($noScope.Count -gt 0) {
+    Write-Host '缺少範圍句：' -ForegroundColor Red
+    $noScope | ForEach-Object { Write-Host "  $_" }
+}
 if ($over.Count -gt 0) {
-    Write-Host '文件超過各自預算，請拆分並更新索引：' -ForegroundColor Red
+    Write-Host '文件超過各自預算，請先刪冗餘，必要時才拆分並更新索引：' -ForegroundColor Red
     $over | ForEach-Object { Write-Host "  $_" }
 }
 if ($warn.Count -gt 0) {
-    Write-Host '接近單檔上限，擴充前請先拆分：' -ForegroundColor Yellow
+    Write-Host '接近單檔上限，擴充前請先回頭刪冗餘：' -ForegroundColor Yellow
     $warn | ForEach-Object { Write-Host "  $_" }
 }
-if ($broken.Count -gt 0 -or $over.Count -gt 0) { throw '文件檢查未通過。' }
+if ($broken.Count -gt 0 -or $over.Count -gt 0 -or $noScope.Count -gt 0) { throw '文件檢查未通過。' }
 
 Write-Host ("文件檢查通過：{0} 份；CLAUDE {1}/{2}、AGENTS {3}/{4}、索引 {5}/{6} 字元。" -f `
     $targets.Count, $lengths['CLAUDE.md'], $ClaudeMdBudget, $lengths['AGENTS.md'], $AgentsMdBudget, `

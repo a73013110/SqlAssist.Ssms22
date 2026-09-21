@@ -1,7 +1,7 @@
 # 關鍵字目錄與位置分層
 
 本頁只處理 T-SQL 關鍵字的產生、位置旗標與資料庫物件過濾；子句回溯的邊界另見
-[關鍵字上下文](completion-keyword-context.md)。
+[子句邊界與不開清單](completion-boundaries.md)。
 
 ## 產生與維護
 

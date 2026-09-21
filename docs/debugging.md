@@ -1,5 +1,8 @@
 # SSMS 開發偵錯與診斷
 
+本頁包含開發偵錯流程、SSMS 的三份快取與詳細記錄診斷。
+安裝與版本見[發布](release.md)，部署清單見[部署契約](debug-deployment.md)。
+
 ## 開發偵錯
 
 Visual Studio 的 `SqlAssist.Ssms22` Debug Profile 會以 Managed Debugger 直接啟動 SSMS。

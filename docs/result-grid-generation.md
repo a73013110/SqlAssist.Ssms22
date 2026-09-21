@@ -1,5 +1,8 @@
 # 結果格線的值與輸出
 
+本頁包含結果格線把值變成字面值的規則、長度上限、整段拒絕的條件與兩套欄索引。
+命令與入口見[結果格線](result-grid.md)。
+
 ## 值怎麼變成字面值
 
 `Metadata/ResultGrid/SqlValueLiteral.cs` 是**唯一出處**，`#temp`、`IN` 條件與之後的

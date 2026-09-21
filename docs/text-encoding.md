@@ -1,5 +1,8 @@
 # 文字檔格式與輸出編碼
 
+本頁包含 PowerShell 的輸出編碼，以及文字檔一律 UTF-8 無 BOM、LF 的規則。
+檢查器怎麼跑見[開發](development.md)。
+
 ## PowerShell 輸出編碼
 
 工具一律使用 **PowerShell 7+**。檔案是 UTF-8，不代表子程序的輸出也會是 UTF-8；
