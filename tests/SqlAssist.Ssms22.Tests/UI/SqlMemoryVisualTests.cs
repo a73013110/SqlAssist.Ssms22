@@ -903,7 +903,7 @@ public sealed class SqlMemoryVisualTests
             var requests = 0; list.LoadMoreRequested += (_, _) => { requests++; list.CanAutoLoadMore = false; };
             scroll.ScrollToEnd(); list.UpdateLayout();
             Assert.Equal(1, requests);
-            var footer = Assert.IsType<SqlMemoryListFooter>(list.ItemContainerGenerator.ContainerFromIndex(2000));
+            var footer = Assert.IsType<SqlCardListFooter>(list.ItemContainerGenerator.ContainerFromIndex(2000));
             Assert.Contains(more, Descendants<Button>(footer));
             Assert.True(more.ActualHeight > 0);
             Assert.Equal(0, list.SelectedIndex);

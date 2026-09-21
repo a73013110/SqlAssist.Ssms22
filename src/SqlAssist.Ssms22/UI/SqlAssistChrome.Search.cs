@@ -39,15 +39,9 @@ internal static partial class SqlAssistChrome
 
         // 第一列：物件名稱 → 物件類型 → 命中部位 → 彈性空白 → 伺服器 → 資料庫，操作浮在右緣。
         // 名稱固定最左，要掃的那一欄每一列才從同一個位置開始；圖示排在它前面就不是。
-        var heading = CreateRowLine();
-        // 內容與操作層疊在同一列上：層不參與量測，所以膠囊一直排到滿，揭露也不動版面。
-        var headingLayers = new FrameworkElementFactory(typeof(Grid));
-        headingLayers.AppendChild(heading);
-        lines.AppendChild(headingLayers);
-
-        // 身分組最後才 append：DockPanel 依宣告順序量測，名稱先量的話，一個長名稱會把連線膠囊
-        // 與操作整組擠出這一列——而它們是固定寬的，讓得起的只有可以 ellipsis 的名稱。
-        var identity = RowIdentityGroup();
+        // 疊層、宣告順序、操作層與窄版降級由 SqlRowHeading 擔保，這裡只填欄位。
+        var row = BeginRowHeading(lines);
+        var identity = row.Identity;
 
         var target = CreateTextBadge("TargetLabel", "target");
         target.SetValue(DockPanel.DockProperty, Dock.Right);
@@ -72,10 +66,8 @@ internal static partial class SqlAssistChrome
         title.SetBinding(FrameworkElement.ToolTipProperty, new Binding("Title"));
         identity.AppendChild(title);
 
-        var actions = new FrameworkElementFactory(typeof(StackPanel));
-        actions.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
         // 窄版：連線膠囊降成 icon-only，次要操作收進 overflow；名稱與物件類型一直看得見。
-        var narrow = NarrowRowTrigger();
+        var narrow = row.Narrow;
         foreach (var command in SqlSearchRowCommand.All)
         {
             var button = CreateRowActionButton(
@@ -83,11 +75,8 @@ internal static partial class SqlAssistChrome
                 SqlActionTone.Neutral, separated: false);
             if (!command.IsPrimary)
                 narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
-            actions.AppendChild(button);
+            row.Actions.AppendChild(button);
         }
-        var overflow = CreateRowOverflowButton(); actions.AppendChild(overflow);
-        narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Visible, overflow.Name));
-        headingLayers.AppendChild(CreateRowActionLayer(actions));
 
         // 連線膠囊靠右並固定在自己的寬度上；與名稱之間的彈性空白由 DockPanel 留著。
         var badges = new FrameworkElementFactory(typeof(ItemsControl)) { Name = "badges" };
@@ -99,8 +88,7 @@ internal static partial class SqlAssistChrome
         badges.SetValue(ItemsControl.ItemsPanelProperty, new ItemsPanelTemplate(badgePanel));
         badges.SetValue(ItemsControl.ItemTemplateProperty, CreateSearchBadgeTemplate());
         badges.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("Badges"));
-        heading.AppendChild(badges);
-        heading.AppendChild(identity);
+        row.Heading.AppendChild(badges);
 
         // 內容列只剩限定名稱；窄窗先省略的是名稱中段。
         var path = new FrameworkElementFactory(typeof(TextBlock)) { Name = "path" };
@@ -134,7 +122,6 @@ internal static partial class SqlAssistChrome
         lines.AppendChild(code);
 
         var template = new DataTemplate { VisualTree = lines };
-        template.Triggers.Add(narrow);
 
         // 本文命中才多一行片段；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
         var body = new DataTrigger { Binding = new Binding("MatchTarget"), Value = SearchMatchTarget.Text };
@@ -161,11 +148,8 @@ internal static partial class SqlAssistChrome
             template.Triggers.Add(selected);
         }
 
-        // 操作層的底色跟著列走；在揭露的 trigger 之前宣告，順序與卡片樣板那一組相同。
-        MirrorRowStateOnActions(template);
-
-        // 滑鼠或鍵盤走到這一列就揭露動作；條件與揭露動畫是同一份，與 SQL Memory 的卡片共用。
-        RevealRowActions(template, motion: motion);
+        // 掛上左半、補 overflow、疊上操作層，並接上底色鏡射與揭露；與 SQL Memory 的卡片同一份。
+        row.Complete(template, motion);
 
         return template;
     }

@@ -62,7 +62,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
     private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
     private readonly SqlFilterFlyout _kinds = new("種類", SqlIcon.Filter);
-    private readonly SqlSearchChipBar _chips = new();
+    private readonly SqlFilterChipBar _chips = new();
     private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
         SqlIcon.Refresh, "重新整理：丟掉已建立的索引並重新搜尋；改過結構之後用它。");
@@ -348,7 +348,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     private void ConfigureKinds()
     {
-        VsThemeBrushes.Apply(_kinds.PopupSurface);
+        VsThemeBrushes.Apply(_kinds);
         // 種類沒有全選也沒有清除：全部就是第一列那個預設，而全選會送出一份與它結果相同、
         // chip 卻完全不同的條件——使用者分不出自己現在是哪一種。
         _kinds.OptionsRequested += (_, _) => Run(FillKinds);
@@ -434,7 +434,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     private void ConfigureDatabases()
     {
-        VsThemeBrushes.Apply(_databases.PopupSurface);
+        VsThemeBrushes.Apply(_databases);
         _databases.OptionsRequested += (_, _) => _ = RunAsync(ShowDatabasesAsync);
         // 全選等清單到齊才動手：只全選手上那一份的症狀是使用者在清單還在路上時按了它，
         // 而勾起來的是幾個名稱而不是整台。
@@ -615,7 +615,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private void ConfigureServer()
     {
-        VsThemeBrushes.Apply(_server.PopupSurface);
+        VsThemeBrushes.Apply(_server);
         _server.OptionsRequested += (_, _) => Run(FillServer);
     }
 
@@ -935,7 +935,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         if (_applied < _applying.Count) return false;
 
-        if (motion && _rows.Count > 0) _settleTimer.Start();
+        // 每一批都重新計時：直接 Start 對已經在跑的計時器不重新計時，第二批之後的新列會在
+        // 第一批那一輪到期時被一起清掉 IsNew，進場動畫播到一半停住。
+        if (motion && _rows.Count > 0) { _settleTimer.Stop(); _settleTimer.Start(); }
         if (_model.ResolveSelection(_rows.Select(row => row.Key).ToArray(), _list.SelectedItem is not null) is { } index)
         {
             _list.SelectedIndex = index;

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.UI;
 
@@ -37,8 +36,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly Button _copyName;
     private readonly Button _wrap;
     private readonly WrapPanel _toolbar = new();
-    private readonly DispatcherTimer _delay;
-    private CancellationTokenSource _read = new();
+    private readonly SqlSelectionLoader<SqlSearchRow> _selection;
     private bool _disposed;
 
     public SqlSearchPreview(SqlSearchCatalogs catalogs)
@@ -84,12 +82,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _content.Children.Add(_body);
         Content = _content;
 
-        _delay = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.Preview };
-        _delay.Tick += (_, _) => SqlAssistPlatformGuard.Run("載入 SQL Search 預覽", () =>
-        {
-            _delay.Stop();
-            _ = RunAsync(LoadAsync);
-        });
+        _selection = new SqlSelectionLoader<SqlSearchRow>(Dispatcher, SqlAssistChrome.Debounce.Preview,
+            (row, token) => SqlAssistPlatformGuard.Run("載入 SQL Search 預覽", () => _ = RunAsync(() => LoadAsync(row, token))));
 
         AutomationProperties.SetName(this, "搜尋結果預覽");
         Select(null);
@@ -117,16 +111,14 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     public event EventHandler? CopyRequested;
 
     /// <summary>目前顯示的那一筆；沒有選取時 null。</summary>
-    public SqlSearchRow? Current { get; private set; }
+    public SqlSearchRow? Current => _selection.Current;
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _delay.Stop();
         _surface.State = SqlSurfaceState.None;
-        _read.Cancel();
-        _read.Dispose();
+        _selection.Dispose();
         _viewer.Dispose();
     }
 
@@ -138,12 +130,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         if (_disposed) return;
 
         // 上一輪的結果不能污染這一次的選取，所以先取消再換狀態。
-        _delay.Stop();
-        _read.Cancel();
-        _read.Dispose();
-        _read = new CancellationTokenSource();
-
-        Current = row;
+        _selection.Select(row);
         // 沒有選取就沒有東西可以複製或換行：停用的兩顆圖示浮在一塊空白上方，說不出
         // 「這裡本來會有什麼」，而那一句已經由狀態表面說了。不適用的操作一律收起。
         _toolbar.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
@@ -184,22 +171,19 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
         _viewer.Visibility = Visibility.Visible;
         _surface.State = SqlSurfaceState.Loading;
-        _delay.Start();
+        _selection.Load();
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(SqlSearchRow row, CancellationToken token)
     {
-        var row = Current;
-        var token = _read.Token;
-
-        if (_disposed || row is null || row.Hit.ActivatePayload is not SqlCatalogSearchTarget target) return;
+        if (!_selection.IsCurrent(row, token) || row.Hit.ActivatePayload is not SqlCatalogSearchTarget target) return;
 
         try
         {
             var definition = await _loader.LoadAsync(target, token);
 
             // 舊請求的成功回應與舊請求的失敗一樣，都不能蓋掉目前這一列。
-            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(row, Current)) return;
+            if (!_selection.IsCurrent(row, token)) return;
 
             if (definition.Failure is { } failure)
             {
@@ -226,7 +210,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         finally
         {
             // 舊請求的結束不能關掉新選取的載入效果，也不能蓋掉這一輪剛寫上去的讀不到。
-            if (!_disposed && ReferenceEquals(row, Current) && _surface.IsLoading) _surface.State = SqlSurfaceState.None;
+            if (_selection.IsCurrent(row, token) && _surface.IsLoading) _surface.State = SqlSurfaceState.None;
         }
     }
 

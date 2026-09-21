@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -22,9 +21,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private readonly WrapPanel _actions = new();
     private readonly WrapPanel _tools = new();
     private readonly List<(Button Button, SqlMemoryRowCommand Command)> _rowActions = new();
-    private readonly DispatcherTimer _delay;
-    private CancellationTokenSource _read = new();
-    private SqlMemoryRow? _row;
+    private readonly SqlSelectionLoader<SqlMemoryRow> _loader;
     private bool _disposed;
     private bool _loaded;
     public FrameworkElement Summary => _detail;
@@ -52,22 +49,21 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _surface = new SqlStateSurface(_viewer);
         Content = SqlAssistChrome.CreateMemoryDetailBody(_surface, _status, _tools, _actions);
         _viewer.ReportError = Report;
-        _delay = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.Preview };
-        _delay.Tick += (_, _) => { _delay.Stop(); _ = SqlMemoryActions.RunAsync(ReadAsync, Report); };
+        _loader = new SqlSelectionLoader<SqlMemoryRow>(Dispatcher, SqlAssistChrome.Debounce.Preview,
+            (row, token) => _ = SqlMemoryActions.RunAsync(() => ReadAsync(row, token), Report));
         Select(null);
     }
 
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true; _surface.State = SqlSurfaceState.None; _delay.Stop(); _read.Cancel(); _read.Dispose(); _viewer.Dispose();
+        _disposed = true; _surface.State = SqlSurfaceState.None; _loader.Dispose(); _viewer.Dispose();
     }
 
     public void Select(SqlMemoryRow? row, bool previewEnabled = true)
     {
         if (_disposed) return;
-        _delay.Stop(); _read.Cancel(); _read.Dispose(); _read = new CancellationTokenSource();
-        _row = row; _loaded = false;
+        _loader.Select(row); _loaded = false;
         _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = false;
         _detail.Content = row;
         _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
@@ -86,18 +82,16 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _surface.State = row is null
             ? SqlSurfaceState.Empty("尚未選取", "在清單選一筆 SQL 看它的全文。")
             : previewEnabled ? SqlSurfaceState.Loading : SqlSurfaceState.None;
-        if (row is not null && previewEnabled) _delay.Start();
+        if (previewEnabled) _loader.Load();
     }
 
-    private async Task ReadAsync()
+    private async Task ReadAsync(SqlMemoryRow row, CancellationToken token)
     {
-        var row = _row; var token = _read.Token;
         var generation = SqlMemoryHost.Runtime.Generation;
-        if (row is null) return;
         try
         {
             var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.ContentId, token);
-            if (_disposed || token.IsCancellationRequested || !ReferenceEquals(row, _row) ||
+            if (!_loader.IsCurrent(row, token) ||
                 !SqlMemoryHost.Runtime.IsAvailable || generation != SqlMemoryHost.Runtime.Generation) return;
             if (content is null)
             {
@@ -118,7 +112,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         catch (Exception error)
         {
             // 舊讀取的錯誤與舊成功回應一樣，都不能污染目前選取。
-            if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(row, _row) &&
+            if (_loader.IsCurrent(row, token) &&
                 SqlMemoryHost.Runtime.IsAvailable && generation == SqlMemoryHost.Runtime.Generation)
             {
                 _viewer.Visibility = Visibility.Collapsed;
@@ -128,21 +122,20 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         finally
         {
             // 舊請求的結束不能關掉新選取的載入效果，也不能蓋掉這一輪剛寫上去的讀不到。
-            if (!_disposed && !token.IsCancellationRequested && ReferenceEquals(row, _row) && _surface.IsLoading)
-                _surface.State = SqlSurfaceState.None;
+            if (_loader.IsCurrent(row, token) && _surface.IsLoading) _surface.State = SqlSurfaceState.None;
         }
     }
 
     /// <summary>Preview 已讀好全文，編輯與開啟直接沿用，不再讀一次；取消跟著目前選取的讀取生命週期。</summary>
     private void Run(SqlMemoryRowAction action)
     {
-        if (_row is not { } row) return;
-        var token = _read.Token;
+        if (_loader.Current is not { } row) return;
+        var token = _loader.Token;
         _actions.IsEnabled = false;
         _ = SqlMemoryActions.RunAsync(async () =>
         {
             try { await _commands.RunAsync(action, row, this, _reportCommand, token, _viewer.Sql); }
-            finally { if (!_disposed && ReferenceEquals(row, _row)) _actions.IsEnabled = _loaded; }
+            finally { if (_loader.IsCurrent(row, token)) _actions.IsEnabled = _loaded; }
         }, _reportCommand);
     }
 

@@ -101,7 +101,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         _delay.Tick += (_, _) => { _delay.Stop(); _ = SqlMemoryActions.RunAsync(ReadSelectionAsync, Report); };
         _settle = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
         {
-            Interval = SqlAssistChrome.MemoryCardEnterDuration + TimeSpan.FromMilliseconds(60)
+            Interval = SqlAssistChrome.CardEnterDuration + TimeSpan.FromMilliseconds(60)
         };
         _settle.Tick += (_, _) => SqlMemoryActions.Run(() =>
         {
