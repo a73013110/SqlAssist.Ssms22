@@ -62,6 +62,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchToolbar.cs" Link="Product\UI\SqlSearchToolbar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Search.cs" Link="Product\UI\SqlAssistChrome.Search.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchRow.cs" Link="Product\Search\SqlSearchRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchActivation.Targets.cs" Link="Product\Search\SqlSearchActivation.Targets.cs" />
     <!-- SqlSearchPreview 現在要 SSMS 的中繼資料服務與唯讀檢視，不再是純 WPF；可測的部分在 SqlSearchDefinition。 -->
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchDefinition.cs" Link="Product\Search\SqlSearchDefinition.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchBrowserModel.cs" Link="Product\Search\SqlSearchBrowserModel.cs" />

@@ -83,6 +83,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>正在把模型的值寫回控制項；寫回去觸發的事件不是使用者的操作，不重跑一輪。</summary>
     private bool _syncing;
     private bool _activating;
+
+    /// <summary>正在等物件總管展開節點；與開窗那一條分開記，兩件事可以同時在跑。</summary>
+    private bool _selecting;
     private bool _ready;
     private bool _disposed;
 
@@ -620,7 +623,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 一道硬性期限與一份說得出「哪幾台沒回來」的文案，那些都還沒有。做成看起來可以
     /// 複選的樣子，使用者勾了兩台卻只有一台的結果，而畫面上看不出少了哪一台。
     ///
-    /// 清單只在使用者打開下拉那一刻重問（沒有 I/O，見 <see cref="SsmsObjectExplorerServers"/>）。
+    /// 清單只在使用者打開下拉那一刻重問（沒有 I/O，見 <see cref="SsmsObjectExplorer"/>）。
     /// <b>禁止</b>改成輪詢：物件總管服務第一次取用會把那個工具視窗叫出來，
     /// 使用者把它關掉之後，輪詢會在他沒有要求的時候替他開回去。
     /// </remarks>
@@ -670,11 +673,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         foreach (var server in servers ?? Array.Empty<SsmsObjectExplorerServer>())
         {
             // 同一台不列兩次；查詢視窗那一行已經涵蓋它，而且那一行還會跟著分頁換。
-            if (editorServer is not null &&
-                string.Equals(server.ServerName, editorServer, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
+            if (SqlSearchCatalogs.IsSameServer(server, editorServer)) continue;
 
             var selected = _catalogs.Server is { } current &&
                 string.Equals(current.RootUrn, server.RootUrn, StringComparison.Ordinal);
@@ -972,6 +971,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             case SqlSearchRowAction.Activate:
                 _ = RunAsync(ActivateAsync);
                 return;
+            case SqlSearchRowAction.SelectInExplorer:
+                _ = RunAsync(SelectInExplorerAsync);
+                return;
             case SqlSearchRowAction.Copy:
                 CopyName(_list.SelectedItem as SqlSearchRow);
                 return;
@@ -999,7 +1001,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_list.SelectedItem is not SqlSearchRow row) return;
 
-        if (!SqlSearchActivation.CanActivate(row.Hit))
+        if (!row.CanActivate)
         {
             Report("這一筆沒有可以開啟的東西。");
             return;
@@ -1025,6 +1027,39 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         finally
         {
             _activating = false;
+        }
+    }
+
+    /// <summary>右鍵選單或列上那一顆的「在物件總管中選取」。</summary>
+    /// <remarks>
+    /// 與 <see cref="ActivateAsync"/> 各寫一支而不是共用一個帶參數的版本：可用判斷、
+    /// 進行中那句話與每一種失敗都不一樣，合起來就是一連串 if，而那正是加第三個動作時
+    /// 最難改的形狀。辨識酬載與導航都在 <see cref="SqlSearchActivation"/>。
+    /// </remarks>
+    private async Task SelectInExplorerAsync()
+    {
+        if (_list.SelectedItem is not SqlSearchRow row) return;
+
+        if (!row.CanSelectInExplorer)
+        {
+            Report("這一筆在物件總管上沒有自己的節點。");
+            return;
+        }
+
+        if (_selecting) return;
+        _selecting = true;
+
+        try
+        {
+            // 展開節點要向伺服器問資料，大的資料庫上是好幾秒；先說一句，否則按下去毫無動靜，
+            // 而物件總管的視窗還要再過一會兒才跳出來。
+            Report("正在物件總管中選取 " + row.Title + "…", "selecting");
+            var failure = await SqlSearchActivation.SelectInExplorerAsync(row.Hit, _services, _catalogs);
+            Report(failure ?? "已在物件總管中選取 " + row.Title + "。", failure is null ? "selected" : "");
+        }
+        finally
+        {
+            _selecting = false;
         }
     }
 
@@ -1059,12 +1094,10 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
             foreach (var (action, item) in items)
             {
-                item.IsEnabled = row is not null &&
-                    (action != SqlSearchRowAction.Activate || SqlSearchActivation.CanActivate(row.Hit));
+                item.IsEnabled = row is not null && IsAvailable(action, row);
 
                 // 空字串會畫成一個空的提示框；沒有描述就整個不掛。
-                item.ToolTip = action == SqlSearchRowAction.Activate && row is not null &&
-                    SqlSearchActivation.Describe(row.Hit) is { Length: > 0 } description
+                item.ToolTip = row is not null && DescribeAction(action, row) is { Length: > 0 } description
                     ? description
                     : null;
             }
@@ -1072,6 +1105,27 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         return menu;
     }
+
+    /// <summary>這一列做不做得到這個操作；做不到的不讓它亮著。</summary>
+    /// <remarks>
+    /// 答案在 <see cref="SqlSearchRow"/> 上算過一次，這裡只把操作對到屬性：列上那顆按鈕
+    /// 讀的是同一個值（繫結走 <c>SqlSearchRowCommand.AvailabilityPath</c>），
+    /// 兩處各算一次的症狀是選單變灰而停駐時的同一顆按得下去。
+    /// </remarks>
+    private static bool IsAvailable(SqlSearchRowAction action, SqlSearchRow row) => action switch
+    {
+        SqlSearchRowAction.Activate => row.CanActivate,
+        SqlSearchRowAction.SelectInExplorer => row.CanSelectInExplorer,
+        _ => true
+    };
+
+    /// <summary>這個操作會做什麼；沒有話可說時是空字串，呼叫端據此不掛提示框。</summary>
+    private static string DescribeAction(SqlSearchRowAction action, SqlSearchRow row) => action switch
+    {
+        SqlSearchRowAction.Activate => SqlSearchActivation.Describe(row.Hit),
+        SqlSearchRowAction.SelectInExplorer => SqlSearchActivation.DescribeSelectInExplorer(row.Hit),
+        _ => ""
+    };
 
     private void UpdateChrome()
     {

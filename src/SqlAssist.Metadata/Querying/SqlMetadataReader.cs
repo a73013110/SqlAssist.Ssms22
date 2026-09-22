@@ -41,6 +41,27 @@ public static class SqlMetadataReader
             serverName);
     }
 
+    /// <summary>父物件那一列；前四欄與 <see cref="ReadObject"/> 是同一份對應。</summary>
+    /// <remarks>
+    /// 後兩欄用序號讀，與這個檔案其餘的讀法一致；接在既有四欄後面，
+    /// 所以只讀前四欄的呼叫端不受影響。
+    /// </remarks>
+    public static SqlObjectParent ReadObjectParent(
+        IDataRecord record,
+        string? databaseName = null,
+        string? serverName = null)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        return new SqlObjectParent(
+            ReadObject(record, databaseName, serverName),
+            record.IsDBNull(4) ? "" : record.GetString(4),
+            record.IsDBNull(5) ? null : record.GetString(5));
+    }
+
     public static SqlColumnInfo ReadColumn(IDataRecord record)
     {
         if (record is null)

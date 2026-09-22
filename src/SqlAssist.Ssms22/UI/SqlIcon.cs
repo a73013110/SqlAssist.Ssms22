@@ -26,6 +26,10 @@ internal enum SqlIcon
     SelectAll,
     Copy,
     Open,
+
+    /// <summary>在別處的樹上把某一個節點指出來（物件總管）。</summary>
+    Locate,
+
     Remove,
     Wrap,
     Refresh,

@@ -73,6 +73,9 @@ public static class NotificationCatalog
     public const string GeneratingDefinitionScript = "產生定義指令碼";
     public const string OpeningQueryWindow = "開啟新查詢視窗";
 
+    /// <summary>把物件總管展開到某一個節點；主體是那個物件，出處是樹上那一台伺服器。</summary>
+    public const string SelectingInObjectExplorer = "在物件總管中選取";
+
     // ── 初始化、連線與設定 ────────────────────────────────────────────────
     public const string InitializingPackage = "初始化 SqlAssist";
     public const string CreatingMetadataConnection = "建立中繼資料連線";

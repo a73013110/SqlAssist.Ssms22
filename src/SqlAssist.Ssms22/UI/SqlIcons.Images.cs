@@ -47,6 +47,10 @@ internal static partial class SqlIcons
         SqlIcon.SelectAll => KnownMonikers.SelectAll,
         SqlIcon.Copy => KnownMonikers.Copy,
         SqlIcon.Open => KnownMonikers.OpenQuery,
+        // Visual Studio 的「與方案總管同步」用的就是這一顆：樹加上定位的形狀。
+        // 借 GoToDefinition 那一族的症狀是它與「移至定義」那一顆長得幾乎一樣，
+        // 而兩顆就排在同一列上。
+        SqlIcon.Locate => KnownMonikers.HierarchyTracking,
         SqlIcon.Remove => KnownMonikers.Delete,
         SqlIcon.Wrap => KnownMonikers.WordWrap,
         SqlIcon.Refresh => KnownMonikers.Refresh,

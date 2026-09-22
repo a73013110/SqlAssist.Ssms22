@@ -10,6 +10,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 背景結果寫回編輯器（替換既有文字與寫進空白緩衝區） | `Ssms22/Editor/TextViewEditCoordinator.cs` |
 | 目前的 SQL 編輯器，以及取回剛建立的那一個 | `Ssms22/Editor/ActiveSqlEditor.cs` |
 | F12 與預覽要用哪一組指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
+| 物件總管的伺服器、連線與導航 | `Ssms22/Connections/SsmsObjectExplorer.cs` |
 | 進度與失敗顯示在 SSMS 狀態列 | `Ssms22/SqlAssistStatusBar.cs` |
 | 寫回去的多行文字用哪一種換行 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 排到「這一輪命令結束之後」再做 | `Ssms22/Editor/TextViewDispatch.cs` |
@@ -55,7 +56,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |
 | SQL 圖示（補全、結構預覽與 QuickInfo 的原生圖示及快取） | `Ssms22/UI/SqlIcons.cs` |
 | 自製 UI 的語意圖示與 moniker 對照、原生影像插槽 | `Ssms22/UI/SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
-| 佈景主題筆刷；過濾面板的面板與排序選單不在宿主視覺樹上，要一起套 | `Ssms22/UI/VsThemeBrushes.cs` 的 `Apply` |
+| 佈景主題筆刷；過濾面板與排序選單不在宿主視覺樹上，要一起套 | `Ssms22/UI/VsThemeBrushes.cs` 的 `Apply` |
 | 腳本的 UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | Debug 部署預檢、SHA-256 與 VSIX 必要檔案白名單 | `tools/SqlAssist.Deployment.psm1` |
 | 主題色階推導與雙表面對比 | `Ssms22/UI/ThemePalette.cs`、`ThemeColorMath.cs` |

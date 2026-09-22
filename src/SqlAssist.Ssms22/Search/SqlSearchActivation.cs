@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,12 +9,13 @@ using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Search;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 
 namespace SqlAssist.Ssms22.Search;
 
 /// <summary>
-/// 啟動一筆結果（移至定義）——唯一可以辨識酬載型別的地方。
+/// 一筆結果做得到的兩件事（移至定義、在物件總管中選取）——唯一可以辨識酬載型別的地方。
 /// </summary>
 /// <remarks>
 /// 清單、預覽與狀態列一律只讀 <see cref="SearchHit"/> 的欄位；只有這一步需要知道那一筆
@@ -33,30 +35,8 @@ namespace SqlAssist.Ssms22.Search;
 /// 那會把預覽畫在一個與這一筆結果無關的位置上。右鍵選單因此提供「複製限定名稱」，
 /// 讓使用者自己把名稱貼回查詢視窗，再用既有的 Ctrl+F12。
 /// </remarks>
-internal static class SqlSearchActivation
+internal static partial class SqlSearchActivation
 {
-    /// <summary>
-    /// 這一筆有沒有東西可以啟動；沒有的話 UI 收起啟動入口，而不是留一顆按了沒反應的按鈕。
-    /// </summary>
-    public static bool CanActivate(SearchHit? hit) =>
-        hit?.ActivatePayload is SqlCatalogSearchTarget or SqlAgentJobSearchTarget;
-
-    /// <summary>
-    /// 描述啟動之後會發生什麼；給 Tooltip、右鍵選單與自動化名稱用。
-    /// </summary>
-    public static string Describe(SearchHit? hit)
-    {
-        if (hit?.ActivatePayload is SqlAgentJobSearchTarget job) return DescribeJob(job);
-
-        if (hit?.ActivatePayload is not SqlCatalogSearchTarget target) return "";
-
-        // 資料行命中只是「這個物件的哪一行對上了」，導航目標仍然是那個物件本身；
-        // 寫成「捲到資料行」會承諾一件這條路徑沒有做的事。
-        return target.ColumnName is { Length: > 0 } column
-            ? "在新查詢視窗開啟 " + target.DatabaseName + " 的 " + target.Name + " 定義（命中資料行 " + column + "）"
-            : "在新查詢視窗開啟 " + target.DatabaseName + " 的 " + target.Name + " 定義";
-    }
-
     /// <summary>
     /// 啟動一筆結果：把它的定義開進一個沿用目前連線的新查詢視窗。
     /// </summary>
@@ -112,12 +92,7 @@ internal static class SqlSearchActivation
             return "請先開啟一個已連線的 SQL 查詢視窗，新視窗才有連線可以沿用。";
         }
 
-        var objectInfo = new SqlObjectInfo(
-            target.ObjectId,
-            target.SchemaName,
-            target.Name,
-            target.Kind,
-            target.DatabaseName);
+        var objectInfo = ToObjectInfo(target);
         var documentName = ActiveSqlEditor.GetDocumentName(view);
 
         // 取結構與預覽走同一份目錄（同一個 SqlSearchCatalogs），不另問中繼資料服務：
@@ -160,22 +135,121 @@ internal static class SqlSearchActivation
     }
 
     /// <summary>
-    /// 這一筆開出來的東西叫什麼；工具窗的進行中與完成訊息共用同一個詞。
+    /// 把物件總管展開到這一筆指的節點並選取它。
+    /// </summary>
+    /// <returns>成功時為 null，否則是要顯示在工具窗頁尾的那一句。</returns>
+    /// <remarks>
+    /// 這一條與<see cref="ActivateAsync">移至定義</see>互補，所以<b>沒有</b>那一道
+    /// 「只沿用得到查詢視窗那條連線」的守門：伺服器由樹上那一台決定，指名別台時正好是
+    /// 這一顆還能用。兩顆都擋掉的話，指名伺服器之後一列結果什麼都做不了。
+    ///
+    /// 候選由 <see cref="SqlObjectExplorerUrn"/> 排好，這裡<b>依序</b>試到第一個指得到的為止，
+    /// 並且說出停在哪一層。試到第二個就默默當成成功的話，使用者會以為自己正看著那個條件約束，
+    /// 而選取的其實是它所屬的資料表。
+    /// </remarks>
+    public static async Task<string?> SelectInExplorerAsync(
+        SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
+    {
+        if (hit is null) throw new ArgumentNullException(nameof(hit));
+        if (services is null) throw new ArgumentNullException(nameof(services));
+        if (catalogs is null) throw new ArgumentNullException(nameof(catalogs));
+
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+        if (catalogs.ResolveExplorerServer() is not { } server)
+        {
+            // 兩句的下一步不同：一句是「去物件總管連上那台」，另一句是「先連上查詢視窗」。
+            return catalogs.ActiveEditorServerName() is { Length: > 0 } name
+                ? $"物件總管上沒有連到 {name} 的連線；在那裡連上這一台之後再按一次。"
+                : "目前的查詢視窗沒有連線，說不出要在物件總管的哪一台上找。";
+        }
+
+        var nodes = await ResolveNodesAsync(hit, server.RootUrn, catalogs).ConfigureAwait(false);
+
+        if (nodes.Count == 0)
+        {
+            return hit.ActivatePayload is SqlCatalogSearchTarget missing &&
+                SqlObjectExplorerUrn.RequiresParent(missing.Kind)
+                ? $"問不到 {missing.Name} 掛在哪一個物件上，可能是連線已中斷或它已經卸除。"
+                : "這一筆在物件總管上指不到節點。";
+        }
+
+        using var notification = NotificationCenter.Default.Begin(
+            NotificationCatalog.SelectingInObjectExplorer,
+            NotificationKind.Navigation,
+            NotificationOrigin.User,
+            NotificationLevel.Info,
+            hit.Title,
+            // 出處是樹上那一台伺服器，不是一份文件：這條路徑沒有開任何查詢視窗。
+            source: server.DisplayName);
+
+        for (var index = 0; index < nodes.Count; index++)
+        {
+            // 不給取消權杖：使用者按的是「帶我過去」，中途放掉等於按了沒反應。
+            if (!await SsmsObjectExplorer.TryNavigateAsync(services, nodes[index].Urn, CancellationToken.None))
+            {
+                continue;
+            }
+
+            return index == 0
+                ? null
+                : $"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[index])}。";
+        }
+
+        notification.Fail();
+
+        // 連最寬鬆的那一個都指不到：兩種來源的下一步完全不同。
+        return hit.ActivatePayload is SqlAgentJobSearchTarget job
+            ? $"物件總管上找不到作業 {job.JobName}：它可能已經刪除，或這個登入看不到 SQL Server Agent。"
+            : $"物件總管上找不到 {hit.Title}：它可能已經卸除，或被物件總管的篩選器擋掉了；" +
+                "重新整理那個資料夾之後再試一次。";
+    }
+
+    /// <summary>
+    /// 這一筆在樹上的候選節點，由精確到寬鬆。
     /// </summary>
     /// <remarks>
-    /// 交出一個名詞而不是整句，是為了讓辨識酬載型別仍然只發生在這一支：工具窗要組
-    /// 「正在取得 X 的○○…」與「已在新查詢視窗開啟 X 的○○。」兩句，自己 <c>is</c>
-    /// 一次型別就破了那條紅線。寫死成「定義」的症狀是作業那幾列說「已開啟…的定義」，
-    /// 而作業根本沒有定義。
+    /// 三條路：作業自己一條；觸發程序與條件約束要先問一趟目錄，因為它們畫在父物件底下，
+    /// 而一筆結果身上只有自己的 <c>object_id</c>；其餘照資料行命中與否分。
+    ///
+    /// 問父物件走的是<b>一條查詢</b>（<c>GetParentAsync</c>），不載入父物件的結構：
+    /// 跳到一個條件約束不需要知道那張表的索引與外來鍵長什麼樣子。
     /// </remarks>
-    public static string SubjectNoun(SearchHit? hit) =>
-        hit?.ActivatePayload is SqlAgentJobSearchTarget ? "命令" : "定義";
+    private static async Task<IReadOnlyList<SqlExplorerNode>> ResolveNodesAsync(
+        SearchHit hit, string rootUrn, SqlSearchCatalogs catalogs)
+    {
+        // 這是唯一可以辨識酬載型別的地方，與啟動那一支同一條紅線。
+        if (hit.ActivatePayload is SqlAgentJobSearchTarget job)
+        {
+            return SqlObjectExplorerUrn.ForJob(rootUrn, job.JobName);
+        }
 
-    /// <summary>作業沒有「定義」可開；主要動作是把步驟命令開進新查詢視窗。</summary>
-    private static string DescribeJob(SqlAgentJobSearchTarget job) =>
-        job.StepId is { } step
-            ? $"在新查詢視窗開啟 {job.ServerName} 上 {job.JobName} 第 {step} 步的命令"
-            : $"在新查詢視窗開啟 {job.ServerName} 上 {job.JobName} 的所有步驟命令";
+        if (hit.ActivatePayload is not SqlCatalogSearchTarget target) return Array.Empty<SqlExplorerNode>();
+
+        if (SqlObjectExplorerUrn.RequiresParent(target.Kind))
+        {
+            var child = ToObjectInfo(target);
+
+            if (catalogs.ResolveFor(child) is not { } catalog) return Array.Empty<SqlExplorerNode>();
+
+            var parent = await catalog
+                .GetParentAsync(child, CancellationToken.None, NotificationOrigin.User)
+                .ConfigureAwait(false);
+
+            // 回到 UI 執行緒再交還：呼叫端接著要呼叫導覽服務，而它有 UI 相依性。
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            return parent is null
+                ? Array.Empty<SqlExplorerNode>()
+                : SqlObjectExplorerUrn.ForChild(rootUrn, parent, target.Name);
+        }
+
+        return target.ColumnName is { Length: > 0 } column
+            ? SqlObjectExplorerUrn.ForColumn(
+                rootUrn, target.DatabaseName, target.SchemaName, target.Name, target.Kind, column)
+            : SqlObjectExplorerUrn.ForObject(
+                rootUrn, target.DatabaseName, target.SchemaName, target.Name, target.Kind);
+    }
 
     /// <summary>
     /// 啟動一筆作業結果：把它的步驟命令開進一個沿用目前連線的新查詢視窗。

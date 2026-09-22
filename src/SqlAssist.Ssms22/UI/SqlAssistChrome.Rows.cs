@@ -168,8 +168,12 @@ internal static partial class SqlAssistChrome
 
     /// <summary>列上的幽靈操作按鈕；卡片與版本時間軸共用尺寸、色調與前景跟隨規則。</summary>
     /// <param name="action">按鈕的 Tag；清單以它派送，不拿圖示或文字當識別。</param>
+    /// <param name="availabilityPath">
+    /// 這一列的哪一個屬性說得出「做不做得到這個操作」；null 表示一律可用。
+    /// 變灰而不是收起來：收起來會讓同一列的圖示位置隨內容變，而使用者是照位置按的。
+    /// </param>
     internal static FrameworkElementFactory CreateRowActionButton(string name, object action, SqlIcon icon, string label,
-        SqlActionTone tone, bool separated)
+        SqlActionTone tone, bool separated, string? availabilityPath = null)
     {
         var button = new FrameworkElementFactory(typeof(Button)) { Name = name };
         button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
@@ -179,6 +183,11 @@ internal static partial class SqlAssistChrome
         button.SetBinding(Control.ForegroundProperty, OwnerForeground());
         button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
         if (separated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
+        if (availabilityPath is { Length: > 0 })
+        {
+            button.SetBinding(UIElement.IsEnabledProperty, new Binding(availabilityPath));
+        }
+
         var glyph = new FrameworkElementFactory(typeof(SqlIconImage)); glyph.SetValue(SqlIconImage.IconProperty, icon);
         button.AppendChild(glyph);
         return button;

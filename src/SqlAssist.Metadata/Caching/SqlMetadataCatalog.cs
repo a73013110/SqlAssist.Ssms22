@@ -706,33 +706,59 @@ public sealed class SqlMetadataCatalog
         CancellationToken cancellationToken,
         NotificationOrigin origin)
     {
+        var parent = await GetParentAsync(constraint, cancellationToken, origin).ConfigureAwait(false);
+
+        return parent is null
+            ? null
+            : await GetStructureAsync(parent.Object, cancellationToken, origin).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 這個物件掛在誰身上，以及它自己是哪一種；問不到時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 只有條件約束與觸發程序答得出東西，其餘種類在 <c>sys.objects</c> 上沒有
+    /// <c>parent_object_id</c>，這一趟回空。
+    ///
+    /// <b>一條查詢，不載入第四層</b>：問「它掛在哪一張表上」與問「那張表長什麼樣子」
+    /// 是兩件事，而物件總管的導航只要前者。走結構那條路的話，跳到一個條件約束要先把
+    /// 整張表的索引、外來鍵與擴充屬性都載回來，而那一份一個欄位都用不到。
+    ///
+    /// 不進快取：使用者一次只會按一次導航，而快取一份會讓改過名的節點指到舊名稱。
+    /// 失敗一律降級成 null，呼叫端自己說那一句。
+    /// </remarks>
+    public async Task<SqlObjectParent?> GetParentAsync(
+        SqlObjectInfo child,
+        CancellationToken cancellationToken,
+        NotificationOrigin origin = NotificationOrigin.Ambient)
+    {
+        if (child is null) throw new ArgumentNullException(nameof(child));
+
         var rows = await Task
             .Run(
                 () => TryLoad(
-                    NotificationCatalog.LoadingIndexes,
+                    NotificationCatalog.LoadingObjects,
                     origin,
-                    () => LoadConstraintParent(constraint, cancellationToken),
-                    constraint.QualifiedName),
+                    () => LoadParent(child, cancellationToken),
+                    child.QualifiedName),
                 cancellationToken)
             .ConfigureAwait(false);
 
-        return rows is { Count: > 0 }
-            ? await GetStructureAsync(rows[0], cancellationToken, origin).ConfigureAwait(false)
-            : null;
+        return rows is { Count: > 0 } ? rows[0] : null;
     }
 
-    private List<SqlObjectInfo> LoadConstraintParent(SqlObjectInfo constraint, CancellationToken cancellationToken)
+    private List<SqlObjectParent> LoadParent(SqlObjectInfo child, CancellationToken cancellationToken)
     {
         using var connection = _connectionSource.OpenConnection();
 
-        // 父物件與條件約束一定在同一個資料庫、同一台伺服器上；帶著同一組座標，
+        // 父物件與子物件一定在同一個資料庫、同一台伺服器上；帶著同一組座標，
         // 下游才換得到正確的那一份目錄（object_id 只在它自己那個資料庫裡唯一）。
         return ReadList(
             connection,
-            SqlMetadataQueries.ConstraintParent,
-            record => SqlMetadataReader.ReadObject(record, constraint.DatabaseName, constraint.ServerName),
+            SqlMetadataQueries.ObjectParent,
+            record => SqlMetadataReader.ReadObjectParent(record, child.DatabaseName, child.ServerName),
             cancellationToken,
-            constraint.ObjectId);
+            child.ObjectId);
     }
 
     private SqlObjectStructure Cache(SqlObjectInfo objectInfo, SqlObjectStructure structure)

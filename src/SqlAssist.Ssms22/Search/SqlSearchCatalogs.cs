@@ -88,7 +88,7 @@ internal sealed class SqlSearchCatalogs
     public IReadOnlyList<SsmsObjectExplorerServer>? ListServers()
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        return SsmsObjectExplorerServers.TryList(_services);
+        return SsmsObjectExplorer.TryList(_services);
     }
 
     /// <summary>
@@ -129,6 +129,45 @@ internal sealed class SqlSearchCatalogs
     }
 
     /// <summary>
+    /// 物件總管樹上這一台，就是那個查詢視窗連著的伺服器。
+    /// </summary>
+    /// <remarks>
+    /// 比對走連線字串裡的伺服器名稱，不是快取鍵——快取鍵是整串正規化過的連線字串，
+    /// 同一台伺服器的兩條連線幾乎不會相等。下拉「同一台不列兩次」與導航「樹上是哪一台」
+    /// 共用這一份；兩處各寫一次的症狀是下拉少列一台，導航卻說物件總管上沒有它。
+    /// </remarks>
+    public static bool IsSameServer(SsmsObjectExplorerServer server, string? editorServerName) =>
+        editorServerName is { Length: > 0 } &&
+        string.Equals(server.ServerName, editorServerName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 這一輪的結果落在物件總管的哪一台上；樹上沒有那一台時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 指名了伺服器就是那一台——它本來就是從樹上挑的。跟著查詢視窗時要反過來找，
+    /// 而那條連線不一定在物件總管上（使用者可以只開查詢視窗）。找不到時<b>禁止</b>
+    /// 拿樹上任何一台頂替：頂替的症狀是導航跳到另一台伺服器上同名的物件，
+    /// 而畫面上看起來完全正常。
+    ///
+    /// 只在使用者按下導航那一刻呼叫：列伺服器會取用物件總管服務，而那一步會把它的視窗
+    /// 叫出來，理由見 <see cref="SsmsObjectExplorer"/>。
+    /// </remarks>
+    public SsmsObjectExplorerServer? ResolveExplorerServer()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (_server is not null) return _server;
+        if (ActiveEditorServerName() is not { } editorServer) return null;
+
+        foreach (var server in ListServers() ?? Array.Empty<SsmsObjectExplorerServer>())
+        {
+            if (IsSameServer(server, editorServer)) return server;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// 這一輪的目錄；沒有連線時為 null。
     /// </summary>
     /// <remarks>
@@ -142,7 +181,7 @@ internal sealed class SqlSearchCatalogs
         if (_server is not { } server) return ActiveEditorCatalog();
         if (_selected is { } cached) return cached;
 
-        var source = SsmsObjectExplorerServers.TryCreateConnectionSource(_services, server);
+        var source = SsmsObjectExplorer.TryCreateConnectionSource(_services, server);
         if (source is null) return null;
 
         // 交出去之後就不再持有來源，只留目錄；註冊表已經有同一個快取鍵的目錄時，

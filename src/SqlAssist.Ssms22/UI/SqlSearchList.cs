@@ -11,6 +11,9 @@ internal enum SqlSearchRowAction
     /// <summary>把這一筆的定義開進新的查詢視窗。</summary>
     Activate,
 
+    /// <summary>在物件總管上展開到這一筆並選取它。</summary>
+    SelectInExplorer,
+
     Copy,
 
     /// <summary>展開預覽並顯示這一筆；預覽收著的時候，停駐時這顆是唯一看得到它內容的路。</summary>
@@ -27,17 +30,31 @@ internal enum SqlSearchRowAction
 /// </remarks>
 internal sealed class SqlSearchRowCommand
 {
-    private SqlSearchRowCommand(SqlSearchRowAction action, SqlIcon icon, string label, bool primary = false)
+    /// <param name="availabilityPath">
+    /// 列上那顆按鈕的 <c>IsEnabled</c> 要讀這一列的哪一個屬性；一律可用的操作傳 null。
+    /// </param>
+    private SqlSearchRowCommand(
+        SqlSearchRowAction action,
+        SqlIcon icon,
+        string label,
+        bool primary = false,
+        string? availabilityPath = null)
     {
         Action = action;
         Icon = icon;
         Label = label;
         IsPrimary = primary;
+        AvailabilityPath = availabilityPath;
     }
 
     public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
     {
-        new SqlSearchRowCommand(SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義", primary: true),
+        new SqlSearchRowCommand(
+            SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義", primary: true,
+            availabilityPath: nameof(Search.SqlSearchRow.CanActivate)),
+        new SqlSearchRowCommand(
+            SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, "在物件總管中選取",
+            availabilityPath: nameof(Search.SqlSearchRow.CanSelectInExplorer)),
         new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱"),
         new SqlSearchRowCommand(SqlSearchRowAction.Preview, SqlIcon.Preview, "在預覽中顯示")
     };
@@ -50,6 +67,16 @@ internal sealed class SqlSearchRowCommand
 
     /// <summary>這一列的主要動作；窄版只留它，其餘收進 overflow。</summary>
     public bool IsPrimary { get; }
+
+    /// <summary>
+    /// 停駐時那顆按鈕的可用性讀哪一個屬性；null 表示一律可用。
+    /// </summary>
+    /// <remarks>
+    /// 做成繫結路徑而不是在樣板裡判斷：樣板是每一列共用的一份，而「做不做得到」是每一列
+    /// 自己的事。少了它的症狀正是右鍵選單上那一項已經變灰，停駐時的同一顆卻按得下去，
+    /// 按了只得到一句「這一筆沒有…」。
+    /// </remarks>
+    public string? AvailabilityPath { get; }
 
     public static SqlSearchRowCommand For(SqlSearchRowAction action)
     {

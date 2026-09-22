@@ -87,7 +87,7 @@ internal static partial class SqlAssistChrome
         {
             var button = CreateRowActionButton(
                 "action" + command.Action, command.Action, command.Icon, command.Label,
-                SqlActionTone.Neutral, separated: false);
+                SqlActionTone.Neutral, separated: false, availabilityPath: command.AvailabilityPath);
             if (!command.IsPrimary)
                 narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             row.Actions.AppendChild(button);

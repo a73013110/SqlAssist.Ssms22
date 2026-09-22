@@ -453,28 +453,38 @@ WHERE tr.parent_id = @objectId
 ORDER BY tr.name;";
 
     /// <summary>
-    /// 條件約束所屬的那個物件（第三層）。
+    /// 一個掛在別人身上的物件（條件約束、觸發程序）的父物件與它自己的種類（第三層）。
     /// </summary>
     /// <remarks>
-    /// 條件約束的定義不在它自己身上：<c>DEFAULT</c> 的運算式、<c>CHECK</c> 的條件、
-    /// 主索引鍵與外來鍵的資料行，全部都寫在<b>父物件</b>的第四層裡。所以這一條只問
-    /// 「父物件是誰」，剩下的交給既有的那一份結構載入——條件約束因此不需要第二份
-    /// 目錄查詢，也不會與 <c>CREATE TABLE</c> 那條路徑給出不一樣的寫法。
+    /// 兩條路徑要它，問的卻是同一件事，所以只有一份查詢：條件約束的定義不在它自己身上
+    /// （<c>DEFAULT</c> 的運算式、<c>CHECK</c> 的條件、主索引鍵與外來鍵的資料行都寫在
+    /// 父物件的第四層裡），而物件總管把條件約束與觸發程序畫在父物件底下的資料夾裡。
     ///
     /// 前四欄的順序與 <see cref="SqlMetadataReader.ReadObject"/> 一致，直接共用同一份對應。
     /// <c>sys.objects</c> 上的條件約束沒有自己的 <c>schema_id</c>（它跟著父物件走），
     /// 所以結構描述要從父物件那一列取；接到條件約束自己那一列的話，
     /// 拿到的會是一個看起來完全正常、卻不是它所在的結構描述。
+    ///
+    /// 第五欄是<b>子物件自己</b>的型別代碼：四種條件約束共用一個
+    /// <see cref="SqlObjectKind.Constraint"/>，而它們在物件總管上是四個不同的資料夾。
+    /// 第六欄只有 <c>DEFAULT</c> 答得出來——它掛在資料行底下，不在資料表底下，
+    /// 少了這個名稱就指不到那個節點。<c>LEFT JOIN</c> 因此是必要的：
+    /// 其餘種類在那兩張表上接不到列，欄位是 NULL，正好是要的結果。
     /// </remarks>
-    public const string ConstraintParent = @"
+    public const string ObjectParent = @"
 SELECT
     p.object_id,
     s.name AS schema_name,
     p.name AS object_name,
-    p.type
+    p.type,
+    c.type AS child_type,
+    col.name AS column_name
 FROM sys.objects AS c
 INNER JOIN sys.objects AS p ON p.object_id = c.parent_object_id
 INNER JOIN sys.schemas AS s ON s.schema_id = p.schema_id
+LEFT JOIN sys.default_constraints AS dc ON dc.object_id = c.object_id
+LEFT JOIN sys.columns AS col
+    ON col.object_id = dc.parent_object_id AND col.column_id = dc.parent_column_id
 WHERE c.object_id = @objectId;";
 
     /// <summary>

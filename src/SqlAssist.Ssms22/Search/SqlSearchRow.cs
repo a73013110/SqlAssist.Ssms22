@@ -53,6 +53,8 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     {
         Hit = hit ?? throw new ArgumentNullException(nameof(hit));
         CategoryLabel = categoryLabel ?? throw new ArgumentNullException(nameof(categoryLabel));
+        CanActivate = SqlSearchActivation.CanActivate(hit);
+        CanSelectInExplorer = SqlSearchActivation.CanSelectInExplorer(hit);
 
         var matches = hit.Matches;
         var body = FirstOf(matches, SearchMatchTarget.Text);
@@ -72,6 +74,20 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     }
 
     public SearchHit Hit { get; }
+
+    /// <summary>這一列開得出定義嗎。</summary>
+    /// <remarks>
+    /// 問 <see cref="SqlSearchActivation"/> 而不是自己看 <see cref="SearchHit.ActivatePayload"/>：
+    /// 辨識酬載型別只允許發生在那一支，而清單、列上那顆按鈕與右鍵選單要的是<b>同一個</b>答案。
+    /// 三處各問各的症狀是停駐時那顆是亮的，按下去卻說這一筆沒有東西可開。
+    ///
+    /// 建構時算一次：<see cref="SearchHit"/> 不可變，而這兩個值每一次停駐與每一次開選單
+    /// 都會被讀到。
+    /// </remarks>
+    public bool CanActivate { get; }
+
+    /// <summary>這一列在物件總管上指得到節點嗎；與 <see cref="CanActivate"/> 是兩個問題。</summary>
+    public bool CanSelectInExplorer { get; }
 
     /// <summary>與聚合器去重時同一把鍵；重新整理後靠它選回原來那一列。</summary>
     /// <remarks>

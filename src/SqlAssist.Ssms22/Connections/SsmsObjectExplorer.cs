@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 using Microsoft.VisualStudio.Shell;
@@ -33,7 +35,8 @@ internal sealed class SsmsObjectExplorerServer
 }
 
 /// <summary>
-/// 向 SSMS 的物件總管要「目前連著哪幾台伺服器」，以及其中一台的連線。
+/// 向 SSMS 的物件總管要東西的唯一入口：目前連著哪幾台伺服器、其中一台的連線，
+/// 以及把樹展開到某一個節點上。
 /// </summary>
 /// <remarks>
 /// 走的是 SSMS 22 的 <c>IObjectExplorerNavigationService</c>（服務型別
@@ -51,7 +54,7 @@ internal sealed class SsmsObjectExplorerServer
 /// <c>ObjectExplorerService.Tree</c> 第一次取用會以 <c>FTW_fForceCreate</c> 取得視窗框架
 /// 並呼叫 <c>Show()</c>，使用者把物件總管關掉時，輪詢會替他把那個視窗重新叫出來。
 /// </remarks>
-internal static class SsmsObjectExplorerServers
+internal static class SsmsObjectExplorer
 {
     /// <summary>
     /// 物件總管上已連線的 SQL Server；取不到服務時回傳 null。
@@ -128,6 +131,36 @@ internal static class SsmsObjectExplorerServers
         // 這裡不吞例外：建不出連線與「這一台不在了」要分得開，呼叫端才說得出哪一句。
         // 失敗時 SsmsConnectionSource.TryCreate 自己會記一行並回 null。
         return SsmsConnectionSource.TryCreate(connectionInfo.CreateConnectionObject());
+    }
+
+    /// <summary>
+    /// 把物件總管展開到這個 URN 指到的節點並選取它；樹上沒有那個節點時回傳 false。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="TryList"/> 同一個導覽服務。自己去碰 <c>ObjectExplorerControl</c> 或那棵樹
+    /// 一律禁止，理由見這個類別的說明。
+    ///
+    /// <b>不</b>吞例外：使用者是自己按出這一步的，安靜地什麼都不做等於故障，呼叫端要把
+    /// 每一種失敗寫到看得見的地方。取不到服務是唯一的例外——物件總管套件按需載入，
+    /// 那一步照舊走 Probe 並回 false。
+    ///
+    /// 這一趟會把物件總管的視窗叫出來、搶走焦點，展開節點還要向伺服器問資料，大的資料庫上
+    /// 是好幾秒。兩件事都只准在使用者自己要求時發生，所以這一支<b>禁止</b>掛在選取變更或
+    /// 任何輪詢上。
+    ///
+    /// 只能從 UI 執行緒起呼叫；<c>ConfigureAwait(true)</c> 讓後續留在同一條執行緒上，
+    /// 呼叫端拿到結果之後可以直接寫畫面。
+    /// </remarks>
+    public static async Task<bool> TryNavigateAsync(
+        IServiceProvider services, string urn, CancellationToken cancellationToken)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        if (string.IsNullOrEmpty(urn)) throw new ArgumentException("節點 URN 不可為空。", nameof(urn));
+
+        if (ResolveNavigation(services) is not { } navigation) return false;
+
+        return await navigation.NavigateToUrnAsync(urn, cancellationToken).ConfigureAwait(true);
     }
 
     /// <remarks>

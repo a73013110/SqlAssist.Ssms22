@@ -25,6 +25,7 @@
 | 收藏、回溯、SQL 差異 | [版本歷史](sql-memory-revisions.md) |
 | SQL Memory 保留、清理、部署 | [維護](sql-memory-maintenance.md)／[用量](sql-memory-usage.md)／[驗收](sql-memory-validation.md) |
 | SQL Search、搜尋來源、索引 | [SQL Search](search.md) |
+| 移至定義、在物件總管中選取、節點 URN | [結果導航](search-navigation.md) |
 | 命中高亮、目前那一處、上一個／下一個命中 | [命中高亮與導覽](search-highlight.md) |
 | 文字標記底色、命中與區塊端點的配色 | [文字標記](text-marks.md) |
 | 搜尋範圍、伺服器、資料庫清單 | [範圍](search-scope.md) |
