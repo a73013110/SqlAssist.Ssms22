@@ -151,9 +151,13 @@ public static class SqlObjectExplorerUrn
     /// <b>資料行</b>底下（<c>Column/Default</c>），所以位址要多一段，而那個資料行名稱
     /// 只有目錄答得出來。
     ///
-    /// <c>DEFAULT</c> 的候選有三層：節點本身、它掛的資料行、父物件。中間那一層不是湊數——
-    /// 一個資料行只有一個 <c>DEFAULT</c>，SMO 的 <c>Default</c> 因此不帶名稱鍵，
-    /// 而那一段在不同版本上不一定指得到。
+    /// <c>DEFAULT</c> 那一段<b>帶名稱鍵</b>（<c>Default[@Name='…']</c>），儘管一個資料行只有
+    /// 一個。位址是列舉器給的，而 <c>DefaultConstrain.xml</c> 接的是 <c>inc_constraint.xml</c>
+    /// → <c>inc_urn.xml</c>，那一份對所有具名物件一律組成 <c>父位址/型別[@Name='…']</c>。
+    /// 照「單一子物件不帶鍵」的直覺寫成 <c>…/Default</c> 的症狀很安靜：候選第一個永遠對不上，
+    /// 於是每一次都退到第二個，畫面上選到的是那個<b>資料行</b>，而它看起來就像功能只做到一半。
+    ///
+    /// <c>DEFAULT</c> 的候選仍然有三層：節點本身、它掛的資料行、父物件。
     /// </remarks>
     public static IReadOnlyList<SqlExplorerNode> ForChild(
         string rootUrn, SqlObjectParent parent, string childName)
@@ -187,7 +191,7 @@ public static class SqlObjectExplorerUrn
             return new[]
             {
                 new SqlExplorerNode(
-                    SqlExplorerNodeKind.Constraint, childName, column + "/Default", ownerUrn),
+                    SqlExplorerNodeKind.Constraint, childName, Child(column, "Default", childName), ownerUrn),
                 new SqlExplorerNode(SqlExplorerNodeKind.Column, defaultColumn, column, ownerUrn),
                 fallback
             };

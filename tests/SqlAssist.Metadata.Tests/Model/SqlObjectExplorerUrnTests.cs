@@ -151,7 +151,11 @@ public sealed class SqlObjectExplorerUrnTests
             nodes.Select(item => item.Urn));
     }
 
-    /// <remarks>DEFAULT 掛在資料行底下；中間那一層是「指不到 Default 就停在那一行」。</remarks>
+    /// <remarks>
+    /// DEFAULT 掛在資料行底下，而且<b>帶名稱鍵</b>——列舉器對所有具名物件一律組成
+    /// <c>父位址/型別[@Name='…']</c>。少了那一段的症狀是每一次都退到第二個候選，
+    /// 畫面上選到的是那個資料行。中間那一層是「指不到 Default 就停在那一行」。
+    /// </remarks>
     [Fact]
     public void 預設值約束走資料行底下那一段()
     {
@@ -161,7 +165,7 @@ public sealed class SqlObjectExplorerUrnTests
         Assert.Equal(
             new[]
             {
-                Table + "/Column[@Name='DueDate']/Default",
+                Table + "/Column[@Name='DueDate']/Default[@Name='DF_Cat_BookCopy_DueDate']",
                 Table + "/Column[@Name='DueDate']",
                 Table
             },
