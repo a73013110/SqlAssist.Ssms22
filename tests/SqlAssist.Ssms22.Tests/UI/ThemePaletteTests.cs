@@ -97,16 +97,15 @@ public sealed class ThemePaletteTests
         Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.MatchForeground], match) >= 4.5);
         Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.MatchCurrentForeground], current) >= 4.5);
 
-        // 目前那一處走圖形對比校正，與清單底保證分得開；一般命中以留住底下的著色為先，
-        // 不保證 3:1，但仍要看得出邊界——退到分不出來就等於沒有標記。
-        Assert.True(ThemeColorMath.Contrast(current, background) >= 3);
-        Assert.True(ThemeColorMath.Contrast(match, background) >= 1.5);
+        // 門檻與推導的規範值在 MatchPaletteTests；這裡只驗工具窗這一份確實照它填出來。
+        Assert.True(ThemeColorMath.Contrast(current, background) >= 4.5);
+        Assert.True(ThemeColorMath.Contrast(match, background) >= 1.8);
 
         // 兩級必須是兩個看得出差別的東西。非高對比的差別是同一個色相的半透明與實色，讀的是
         // 亮度；高對比換成兩個系統色，白與黃的亮度本來就接近，分得出來靠的是色相——對比比值
         // 在那裡判不出來，所以只要求兩者不同。
         Assert.NotEqual(match, current);
-        if (mode != "high-contrast") Assert.True(ThemeColorMath.Contrast(current, match) >= 1.5);
+        if (mode != "high-contrast") Assert.True(ThemeColorMath.Contrast(current, match) >= 1.8);
 
         // 命中不借強調底：那一份同時是開關「開著」與核取方塊打勾的底。
         Assert.NotEqual(colors[ThemeBrush.AccentBackground], colors[ThemeBrush.MatchBackground]);

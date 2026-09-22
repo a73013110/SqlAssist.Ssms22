@@ -149,12 +149,15 @@ internal sealed class SqlScriptTheme : IDisposable
         SetBrush(ScriptResource.Comment, comment);
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
-        var highlight = Highlight(comment, surface.Background);
-        SetBrush(ScriptResource.Highlight, highlight);
-        var current = CurrentHighlight(surface.Background);
-        SetBrush(ScriptResource.HighlightCurrent, current);
-        SetBrush(ScriptResource.HighlightCurrentForeground,
-            ThemeColorMath.EnsureTextContrast(surface.Foreground, current));
+        // 基準是這一份指令碼自己的底色，不是工具窗那一份：指令碼借的是 SSMS 編輯器底色，
+        // 兩者在深色主題下不一定相同，拿錯基準的症狀是高亮整塊看不見。推導在 MatchPalette。
+        var matches = MatchPalette.Create(
+            ColorOf(ThemeBrush.AccentBorder, surface.Foreground), surface.Background, surface.Foreground,
+            SystemParameters.HighContrast, (SystemColors.HighlightColor, SystemColors.HighlightTextColor));
+        SetBrush(ScriptResource.Highlight, matches.Background);
+        SetBrush(ScriptResource.HighlightForeground, matches.Foreground);
+        SetBrush(ScriptResource.HighlightCurrent, matches.CurrentBackground);
+        SetBrush(ScriptResource.HighlightCurrentForeground, matches.CurrentForeground);
         Updated?.Invoke(this, EventArgs.Empty);
     }
 
@@ -184,21 +187,6 @@ internal sealed class SqlScriptTheme : IDisposable
 
         return background is { } surface && foreground is { } written ? (surface, written) : null;
     }
-
-    /// <summary>
-    /// 命中底色；推導與理由在 <see cref="ThemeColorMath.MatchBackground"/>，這裡只負責把
-    /// <b>這一份指令碼自己的</b>底色與最淡的前景（註解色）當基準交出去。
-    /// </summary>
-    /// <remarks>
-    /// 基準不能借工具窗那一份：指令碼的底色來自 SSMS 編輯器，兩者在深色主題下不一定相同。
-    /// 高對比不必另外判斷——強調色在那時候已經等於前景色，校正過的結果本來就是實色反白。
-    /// </remarks>
-    private static Color Highlight(Color foreground, Color background) =>
-        ThemeColorMath.MatchBackground(ColorOf(ThemeBrush.AccentBorder, foreground), foreground, background);
-
-    /// <summary>目前那一處命中的底色；基準同樣是指令碼自己的底色。</summary>
-    private static Color CurrentHighlight(Color background) =>
-        ThemeColorMath.CurrentMatchBackground(ColorOf(ThemeBrush.AccentBorder, background), background);
 
     private static Color Resolve(
         IClassificationFormatMap map, IClassificationTypeRegistryService registry,

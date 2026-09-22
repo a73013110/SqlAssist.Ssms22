@@ -21,6 +21,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\Preview\SqlPreviewSubject.cs" Link="Product\Preview\SqlPreviewSubject.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeResourceSet.cs" Link="Product\UI\ThemeResourceSet.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemeColorMath.cs" Link="Product\UI\ThemeColorMath.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\MatchPalette.cs" Link="Product\UI\MatchPalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemePalette.cs" Link="Product\UI\ThemePalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ScriptPalette.cs" Link="Product\UI\ScriptPalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\BlockPalette.cs" Link="Product\UI\BlockPalette.cs" />

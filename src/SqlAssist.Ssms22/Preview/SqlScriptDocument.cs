@@ -21,20 +21,23 @@ internal enum ScriptResource
     String,
     Number,
 
-    /// <summary>命中那幾個字的底色；著色分類仍由上面那幾個決定，高亮只鋪在底下。</summary>
+    /// <summary>命中那幾個字的底色；實色，蓋過底下的語法著色。</summary>
     Highlight,
 
+    /// <summary>命中那幾個字的字色；實色底蓋掉分類色之後，字要自己顧對比。</summary>
+    HighlightForeground,
+
     /// <summary>
-    /// <b>目前</b>停在的那一處命中的底色；比 <see cref="Highlight"/> 更重，蓋過語法著色。
+    /// <b>目前</b>停在的那一處命中的底色；比 <see cref="Highlight"/> 更重。
     /// </summary>
     /// <remarks>
     /// 兩級而不是一級，是因為「哪幾處對上了」與「我現在在第幾處」是兩個問題。只有一級的
     /// 症狀是按了「下一個命中」之後畫面捲了，而使用者要在七塊一模一樣的底色裡自己找出
-    /// 剛才跳到的是哪一塊。
+    /// 剛才跳到的是哪一塊。兩級的差距由 <see cref="UI.MatchPalette"/> 保證。
     /// </remarks>
     HighlightCurrent,
 
-    /// <summary>目前那一處命中的字色；實色底蓋掉語法著色之後，字要自己顧對比。</summary>
+    /// <summary>目前那一處命中的字色。</summary>
     HighlightCurrentForeground
 }
 
@@ -61,16 +64,6 @@ internal static class SqlScriptDocument
     }
     private static readonly ConditionalWeakTable<Inline, SourceSpan> SourceSpans = new();
 
-    /// <summary>每個命中 Run 原本的著色分類；換回一般樣子時要放回去的就是它。</summary>
-    private sealed class Classification
-    {
-        internal Classification(ScriptResource value) => Value = value;
-
-        internal ScriptResource Value { get; }
-    }
-
-    private static readonly ConditionalWeakTable<Run, Classification> Classifications = new();
-
     /// <summary>
     /// 把一處命中換成「目前」的樣子，或換回一般的樣子。
     /// </summary>
@@ -78,8 +71,8 @@ internal static class SqlScriptDocument
     /// 換的是<b>資源鍵</b>而不是筆刷：切換主題時 <c>SqlScriptTheme</c> 只更新資源而不重建文件，
     /// 保存一次性筆刷的那一版會留著上一個主題的顏色。
     ///
-    /// 字色只在「目前」那一處蓋掉：一般命中要看得出語法著色（那正是它還讀得懂的原因），
-    /// 而目前那一處是實色底，原本的分類色在上面不保證有對比。
+    /// 兩級都蓋掉分類色：留住著色與一眼看得出來互斥，理由見 <see cref="UI.MatchPalette"/>。
+    /// 字重再分一級，狀態就不是只靠顏色表達——高對比與色覺差異都還讀得出「我在第幾處」。
     /// </remarks>
     public static void SetCurrentMatch(IReadOnlyList<Run> runs, bool current)
     {
@@ -90,15 +83,10 @@ internal static class SqlScriptDocument
             run.SetResourceReference(
                 TextElement.BackgroundProperty,
                 current ? ScriptResource.HighlightCurrent : ScriptResource.Highlight);
-
-            if (current)
-            {
-                run.SetResourceReference(TextElement.ForegroundProperty, ScriptResource.HighlightCurrentForeground);
-            }
-            else if (Classifications.TryGetValue(run, out var classification))
-            {
-                run.SetResourceReference(TextElement.ForegroundProperty, classification.Value);
-            }
+            run.SetResourceReference(
+                TextElement.ForegroundProperty,
+                current ? ScriptResource.HighlightCurrentForeground : ScriptResource.HighlightForeground);
+            run.FontWeight = current ? FontWeights.Bold : FontWeights.SemiBold;
         }
     }
     /// <summary>超過這個長度就不著色；可編輯的 SQL 表面沿用同一條界線。</summary>
@@ -361,10 +349,9 @@ internal static class SqlScriptDocument
             if (match >= 0)
             {
                 run.SetResourceReference(TextElement.BackgroundProperty, ScriptResource.Highlight);
-                // 底色在高對比之下會退成背景色；字重是那時候唯一還看得出來的訊號。
+                run.SetResourceReference(TextElement.ForegroundProperty, ScriptResource.HighlightForeground);
+                // 字重是第二個維度：顏色之外還有一級，而目前那一處再加一級。
                 run.FontWeight = FontWeights.SemiBold;
-                // 換成「目前」的樣子會蓋掉字色，而 Run 上讀不出原本是哪一個分類。
-                Classifications.Add(run, new Classification(brush));
                 (_matches[match] ??= new List<Run>()).Add(run);
             }
 
