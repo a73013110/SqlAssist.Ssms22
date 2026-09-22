@@ -84,6 +84,51 @@ public sealed class SqlObjectExplorerUrnTests
         Assert.Equal(
             new[] { SqlExplorerNodeKind.Column, SqlExplorerNodeKind.Object },
             nodes.Select(node => node.Kind));
+        Assert.Equal(new[] { Table, "" }, nodes.Select(node => node.OwnerUrn));
+    }
+
+    /// <summary>
+    /// 畫在別人底下的節點都帶著父物件的位址，物件本身與作業則是空的。
+    /// </summary>
+    /// <remarks>
+    /// 接線層靠這個欄位分兩條路：有值的先到父物件再往下找一層資料夾，空的直接指。
+    /// 漏掉一種的症狀是那一種在物件總管上永遠停在資料表，而它的兄弟節點好好的。
+    /// </remarks>
+    [Theory]
+    [InlineData("C")]
+    [InlineData("F")]
+    [InlineData("PK")]
+    [InlineData("UQ")]
+    [InlineData("TR")]
+    public void 掛在父物件底下的節點帶著父物件位址(string childType)
+    {
+        var nodes = SqlObjectExplorerUrn.ForChild(Root, Parent(childType), "CK_Cat_BookCopy");
+
+        Assert.Equal(new[] { Table, "" }, nodes.Select(node => node.OwnerUrn));
+    }
+
+    /// <remarks>
+    /// DEFAULT 的位址多一段資料行，畫它的卻是資料表的「條件約束」資料夾；
+    /// 父物件寫成那個資料行的話，往下找的那一步會去一個沒有子節點的資料行底下翻。
+    /// </remarks>
+    [Fact]
+    public void 預設值約束的父物件是資料表不是資料行()
+    {
+        var nodes = SqlObjectExplorerUrn.ForChild(
+            Root, Parent("D", "DueDate"), "DF_Cat_BookCopy_DueDate");
+
+        Assert.Equal(new[] { Table, Table, "" }, nodes.Select(node => node.OwnerUrn));
+    }
+
+    /// <remarks>自己就有位址的那幾種不必先繞父物件。</remarks>
+    [Fact]
+    public void 物件與作業沒有父物件位址()
+    {
+        Assert.Equal(
+            "",
+            SqlObjectExplorerUrn.ForObject(Root, "Lib", "dbo", "Cat_BookCopy", SqlObjectKind.Table)
+                .Single().OwnerUrn);
+        Assert.Equal("", SqlObjectExplorerUrn.ForJob(Root, "Loan 夜間回收").Single().OwnerUrn);
     }
 
     /// <remarks>

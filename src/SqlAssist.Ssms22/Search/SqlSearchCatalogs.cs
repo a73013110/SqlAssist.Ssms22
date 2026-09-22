@@ -55,7 +55,35 @@ internal sealed class SqlSearchCatalogs
     public SsmsObjectExplorerServer? Server => _server;
 
     /// <summary>範圍跟著作用中的查詢視窗走，也就是沒有指名伺服器。</summary>
+    /// <remarks>
+    /// 這是<b>範圍的狀態</b>：下拉裡哪一列打勾、按鈕上的摘要說跟著誰，讀的都是它。
+    /// 「新視窗沿用得到的那條連線對不對」是另一個問題，走
+    /// <see cref="SharesActiveEditorServer"/>。
+    /// </remarks>
     public bool FollowsActiveEditor => _server is null;
+
+    /// <summary>
+    /// 這一輪的結果與作用中的查詢視窗落在同一台伺服器上。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="FollowsActiveEditor"/> 是<b>兩個</b>問題，而且常常答案不同：使用者
+    /// 從物件總管指名的，十之八九正是查詢視窗已經連著的那一台。拿「有沒有指名」代答的
+    /// 症狀就是那個情形——兩邊明明同一台，移至定義卻回一句「請先把查詢視窗連到那一台」，
+    /// 而使用者看著自己剛連好的視窗，沒有任何辦法讓它閉嘴。
+    ///
+    /// 比對沿用 <see cref="IsSameServer"/>，與下拉「同一台不列兩次」及
+    /// <see cref="ResolveExplorerServer"/> 同一份規則：伺服器名稱的寫法只有一份，
+    /// 在這裡另寫一套的症狀是下拉說同一台、這一支說不同台。
+    ///
+    /// <b>只問伺服器，不問資料庫。</b>新視窗沿用的是連線，而一份結果清單本來就跨資料庫；
+    /// 指令碼自己帶著它該去的那一個。要求連同資料庫一致等於把跨資料庫的結果整批擋掉。
+    /// </remarks>
+    public bool SharesActiveEditorServer()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+
+        return _server is not { } server || IsSameServer(server, ActiveEditorServerName());
+    }
 
     /// <summary>
     /// 換一台伺服器；<paramref name="server"/> 為 null 表示回到作用中的查詢視窗。

@@ -27,7 +27,10 @@ public enum SqlExplorerNodeKind
 /// </remarks>
 public readonly struct SqlExplorerNode
 {
-    public SqlExplorerNode(SqlExplorerNodeKind kind, string name, string urn)
+    /// <param name="ownerUrn">
+    /// 這個節點畫在哪一個物件的節點底下；它自己就是那個物件（或作業）時留空。
+    /// </param>
+    public SqlExplorerNode(SqlExplorerNodeKind kind, string name, string urn, string ownerUrn = "")
     {
         if (string.IsNullOrEmpty(name)) throw new ArgumentException("節點名稱不可為空。", nameof(name));
         if (string.IsNullOrEmpty(urn)) throw new ArgumentException("節點 URN 不可為空。", nameof(urn));
@@ -35,6 +38,7 @@ public readonly struct SqlExplorerNode
         Kind = kind;
         Name = name;
         Urn = urn;
+        OwnerUrn = ownerUrn ?? "";
     }
 
     public SqlExplorerNodeKind Kind { get; }
@@ -43,6 +47,18 @@ public readonly struct SqlExplorerNode
     public string Name { get; }
 
     public string Urn { get; }
+
+    /// <summary>這個節點畫在哪一個物件的節點底下；它自己就是那個物件時為空字串。</summary>
+    /// <remarks>
+    /// 資料行、條件約束與觸發程序畫在父物件底下的<b>資料夾</b>裡，而那些資料夾在樹上
+    /// <b>沒有自己的位址</b>——它們的 URN 就是父物件的。「用一個 URN 從樹根指到節點」
+    /// 這件事因此對它們不成立，只能先到父物件，再從它底下把資料夾走一遍。
+    ///
+    /// 帶著它，接線層就照這一個欄位分兩條路，不必自己維護一張「哪一種東西畫在哪一格」的
+    /// 對應表——那張表已經在 <see cref="SqlObjectExplorerUrn"/> 裡了，抄第二份的症狀是
+    /// 加一種節點時只改了一邊。
+    /// </remarks>
+    public string OwnerUrn { get; }
 
     public override string ToString() => Kind + ":" + Name;
 }
@@ -118,7 +134,8 @@ public static class SqlObjectExplorerUrn
 
         return new[]
         {
-            new SqlExplorerNode(SqlExplorerNodeKind.Column, columnName, Child(owner, "Column", columnName)),
+            new SqlExplorerNode(
+                SqlExplorerNodeKind.Column, columnName, Child(owner, "Column", columnName), owner),
             new SqlExplorerNode(SqlExplorerNodeKind.Object, Qualify(schemaName, name), owner)
         };
     }
@@ -164,10 +181,14 @@ public static class SqlObjectExplorerUrn
 
             var column = Child(ownerUrn, "Column", defaultColumn);
 
+            // 兩個都掛在父物件底下，不是掛在資料行底下：DEFAULT 的位址多一段資料行，
+            // 但畫它的是資料表的「條件約束」資料夾。寫成 column 的話，往下找的那一步會去
+            // 一個沒有子節點的資料行底下翻。
             return new[]
             {
-                new SqlExplorerNode(SqlExplorerNodeKind.Constraint, childName, column + "/Default"),
-                new SqlExplorerNode(SqlExplorerNodeKind.Column, defaultColumn, column),
+                new SqlExplorerNode(
+                    SqlExplorerNodeKind.Constraint, childName, column + "/Default", ownerUrn),
+                new SqlExplorerNode(SqlExplorerNodeKind.Column, defaultColumn, column, ownerUrn),
                 fallback
             };
         }
@@ -176,7 +197,11 @@ public static class SqlObjectExplorerUrn
 
         if (node is null) return new[] { fallback };
 
-        return new[] { new SqlExplorerNode(kind, childName, Child(ownerUrn, node, childName)), fallback };
+        return new[]
+        {
+            new SqlExplorerNode(kind, childName, Child(ownerUrn, node, childName), ownerUrn),
+            fallback
+        };
     }
 
     /// <summary>一個 SQL Server Agent 作業的節點。</summary>

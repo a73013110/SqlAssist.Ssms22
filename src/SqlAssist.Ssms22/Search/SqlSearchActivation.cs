@@ -81,10 +81,12 @@ internal static partial class SqlSearchActivation
             return "這一筆沒有可以開啟的定義。";
         }
 
-        // 新視窗沿用的是查詢視窗那一條連線。指名了別台伺服器時，那份定義會落在一個連著
+        // 新視窗沿用的是查詢視窗那一條連線。這一筆來自別台伺服器時，那份定義會落在一個連著
         // 另一台伺服器的視窗裡——使用者在那裡按 F5 就是對錯的伺服器執行。
         // 這一步<b>不</b>悄悄照做：右邊的預覽已經讀得到完整定義，而開錯視窗看不出差別。
-        if (!catalogs.FollowsActiveEditor)
+        // 問的是「是不是同一台」而不是「有沒有指名」：指名的那一台常常正是查詢視窗連著的
+        // 那一台，用後者代答就是把使用者擋在他自己已經連好的伺服器外面。
+        if (!catalogs.SharesActiveEditorServer())
         {
             return $"這一筆在 {catalogs.Server?.DisplayName} 上。新查詢視窗只沿用得到目前查詢視窗那條連線，" +
                 "請先把查詢視窗連到那一台，或直接看右邊的定義預覽。";
@@ -200,7 +202,13 @@ internal static partial class SqlSearchActivation
         for (var index = 0; index < nodes.Count; index++)
         {
             // 不給取消權杖：使用者按的是「帶我過去」，中途放掉等於按了沒反應。
-            if (!await SsmsObjectExplorer.TryNavigateAsync(services, nodes[index].Urn, CancellationToken.None))
+            // 帶上 OwnerUrn，導航才知道這一個是不是畫在別人底下的——那幾種指不到樹根，
+            // 要先到父物件再往下找。哪一種畫在誰底下只有 SqlObjectExplorerUrn 知道，
+            // 這一層照欄位走，不自己判斷種類。
+            var node = nodes[index];
+
+            if (!await SsmsObjectExplorer.TryNavigateAsync(
+                    services, node.Urn, node.OwnerUrn, CancellationToken.None))
             {
                 continue;
             }
@@ -296,10 +304,10 @@ internal static partial class SqlSearchActivation
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-        // 與目錄那一條同一道守門：新視窗沿用的是查詢視窗那條連線。指名了別台伺服器時，
-        // 那份步驟命令會落在一個連著另一台伺服器的視窗裡，而使用者在那裡按 F5
-        // 就是對錯的伺服器執行——一段作業步驟通常正是會改資料的那種 SQL。
-        if (!catalogs.FollowsActiveEditor)
+        // 與目錄那一條同一道守門，連判斷都同一支：這一筆來自別台伺服器時，那份步驟命令會
+        // 落在一個連著另一台伺服器的視窗裡，而使用者在那裡按 F5 就是對錯的伺服器執行——
+        // 一段作業步驟通常正是會改資料的那種 SQL。
+        if (!catalogs.SharesActiveEditorServer())
         {
             return $"這一筆在 {job.ServerName} 上。新查詢視窗只沿用得到目前查詢視窗那條連線，" +
                 "請先把查詢視窗連到那一台，或直接看右邊的命令片段。";
