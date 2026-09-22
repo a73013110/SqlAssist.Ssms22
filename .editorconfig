@@ -10,3 +10,28 @@ insert_final_newline = true
 # 而且 VS 會自己補回 BOM。這是唯一允許 BOM 的檔案類型。
 [*.sln]
 charset = utf-8-bom
+
+# Microsoft.VisualStudio.Threading.Analyzers 只加在 net48 的接線層（Core 與 Metadata
+# 沒有 UI 執行緒可言）。留著的重點是 VSTHRD109：非同步方法裡用
+# ThrowIfNotOnUIThread 而不自己切執行緒，正是「呼叫端一個 ConfigureAwait(false)
+# 就丟 must be called on the UI thread」那一類錯的來源，見 docs/rules-platform.md。
+# 以下三條與本專案刻意的寫法衝突，關掉而不是逐處抑制。
+[src/SqlAssist.Ssms22/**.cs]
+
+# 分析器認定「被呼叫的方法裡有 UI 相依成員」就要求呼叫端也先 assert，而且不看
+# ConfigureAwait，也不分那些成員是不是包在延後執行的 lambda 裡。實測 263 筆全部是
+# 同步的 UI 路徑（WPF 建構式、事件處理常式、ICommandHandler、MEF 監聽器）或製造
+# 委派的方法，沒有一筆指到真的會落到背景執行緒的呼叫；反過來，真正發生過的那一次
+# 它一聲都沒出（那一筆是 VSTHRD109 抓到的）。開著等於要在純 UI 程式碼裡補 263 行
+# assert，訊噪比是零。
+dotnet_diagnostic.VSTHRD010.severity = none
+
+# 27 筆全部是 Dispatcher.BeginInvoke／InvokeAsync，而且都指定了優先權。分析器建議的
+# SwitchToMainThreadAsync 表達不了優先權，Editor/TextViewDispatch.cs 明文要求用
+# Background 排到「這一輪命令之後」，重開建議清單也禁止在原地做（見 rules-platform.md）。
+dotnet_diagnostic.VSTHRD001.severity = none
+
+# 22 筆全部是上面那些 BeginInvoke 回傳的 DispatcherOperation，沒有一筆是真的沒人接的
+# Task：本專案沒有人接結果的背景工作一律走 SqlAssistPlatformGuard 的 Begin／BeginProbe，
+# 而那兩支回傳 void，這條規則本來就照不到。
+dotnet_diagnostic.VSTHRD110.severity = none

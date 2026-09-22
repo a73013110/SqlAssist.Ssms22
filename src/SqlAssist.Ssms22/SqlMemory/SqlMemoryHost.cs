@@ -75,7 +75,13 @@ internal static class SqlMemoryHost
         }
 
         // 等待有上限，逾時只記錄診斷，不讓 SSMS 卡在關閉。
+        // 卸載這一步沒有非同步的出口（殼層等的是同步的 Dispose），所以只能同步等。
+        // 不會卡死的理由要寫在這裡：SqlMemoryRuntime 在 Core，整條關閉路徑全程
+        // ConfigureAwait(false)，續程不需要回到 UI 執行緒。哪天它改成碰 UI，這裡要
+        // 一起改成 JoinableTaskFactory.Run，而不是把抑制範圍擴大。
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits
         Runtime.ShutdownAsync(ShutdownTimeout).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
     }
 
     private static void OnSettingsChanged(object? sender, EventArgs eventArgs) => Apply();

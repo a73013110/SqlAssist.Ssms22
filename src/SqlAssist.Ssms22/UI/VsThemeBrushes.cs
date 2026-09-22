@@ -56,14 +56,13 @@ internal static class VsThemeBrushes
 
     public static void Initialize()
     {
-        if (_dispatcher is not null)
-        {
-            _dispatcher.VerifyAccess();
-            return;
-        }
-
-        var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
+        // 先取到要比對的那一個 Dispatcher 再無條件 VerifyAccess：第二次以後比對的還是
+        // 記下來的那一個，行為與分開寫時相同，但「一定驗」不再藏在分支裡（VSTHRD108）。
+        var dispatcher = _dispatcher ?? Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         dispatcher.VerifyAccess();
+
+        if (_dispatcher is not null) return;
+
         _dispatcher = dispatcher;
         Refresh();
         _refreshQueue = new ThemeRefreshQueue(dispatcher,

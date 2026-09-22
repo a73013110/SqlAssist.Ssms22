@@ -28,6 +28,10 @@
     <ProjectReference Include="..\SqlAssist.SqlMemory.Isolation\SqlAssist.SqlMemory.Isolation.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="18.5.40034" PrivateAssets="all" />
+    <!-- UI 親和呼叫落到背景執行緒這一類錯誤只在「中間真的 await 過」的路徑上發作，
+         測不出來也看不出來（見 docs/rules-platform.md）。分析器只在這一層加，因為
+         Core 與 Metadata 沒有 UI 執行緒可言。哪幾條開、哪幾條關與理由寫在 .editorconfig。 -->
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15" PrivateAssets="all" />
     <!-- 取 NuGet 的契約版本（組件版本 10.0.0.0），與 SSMS 編輯器組件自己引用的版本一致，
          並以 ExcludeAssets="runtime" 讓它不進 VSIX；執行期一律用 SSMS 已載入的那份。
          **禁止**改抓 PublicAssemblies 的 DLL：那會把建置機當下的修補版本（例如 10.0.0.10）

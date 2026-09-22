@@ -28,6 +28,8 @@
   `ConfigureAwait(false)` 就把那個保證作廢，而且只在中間真的 await 過的那幾條路上發作。
   同步方法切不了執行緒，維持 `ThrowIfNotOnUIThread`。自保的那幾支**禁止**用
   `JoinableTaskFactory.Run` 同步等待。完整推導見[結果導航](search-navigation.md)的執行緒分工。
+  這一條現在由 `VSTHRD109` 在編譯期擋著：非同步方法裡寫 `ThrowIfNotOnUIThread` 直接是
+  error。分析器開了哪幾條、關了哪幾條與理由見 `.editorconfig`。
 
 - 要把續程留在 UI 執行緒時**明寫 `ConfigureAwait(true)`**：這個專案滿是
   `ConfigureAwait(false)`，留空的那一個看起來像漏掉的。

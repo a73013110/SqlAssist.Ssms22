@@ -60,6 +60,9 @@ UTF-8／LF 規則與 PowerShell 子程序編碼見[文字檔與編碼](text-enco
 與 `Geometry.Empty` 在空間管理員眼裡是兩件事，跟著改型別是行為變更而不是修警告。
 **不要**用 `!` 把可為 NULL 的值硬塞進不可為 NULL 的位置，那只是把 NRE 推到執行期。
 
+Ssms22 另外掛了 `Microsoft.VisualStudio.Threading.Analyzers`，只開真的有訊號的那幾條；
+關掉的三條與每一條的理由寫在 `.editorconfig` 的那一節，動它之前先讀那裡。
+
 也不要用 `dotnet build` 建置本方案：它不會帶 `SsmsInstallDir`，還會覆寫 `obj` 裡的
 解析結果，症狀與 SSMS 更新一模一樣。一律走 `tools\Build-Extension.ps1`。
 
