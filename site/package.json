@@ -1,0 +1,11 @@
+{
+  "name": "sqlassist-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node prepare.mjs && vitepress build .build",
+    "preview": "vitepress preview .build"
+  },
+  "devDependencies": { "vitepress": "1.6.4" },
+  "overrides": { "vite": "6.4.3" }
+}

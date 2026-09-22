@@ -1,0 +1,68 @@
+#stage .code-scroll {
+  position: absolute;
+  inset: 0;
+  padding: 20px 24px 26px 67px;
+  overflow-y: auto;
+  background: linear-gradient(90deg, #fafafa 48px, #e9e9e9 49px, white 50px);
+  scrollbar-color: #aaa89d #f4f3ef;
+  scrollbar-width: thin;
+}
+#stage .code-scroll .line {
+  font-size: 19px;
+  line-height: 27px;
+  min-height: 27px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#stage .code-scroll .line::before { width: 36px; white-space: nowrap; text-align: right; top: 0; }
+#stage .selected-sql { background: #c9ddf0; }
+#stage .field-selection { background: #bed8f1; outline: 1px solid #7aa3c6; }
+#stage .context-menu {
+  position: absolute;
+  width: 365px;
+  padding: 6px;
+  border: 1px solid #d4cec0;
+  background: #fbfaf6;
+  box-shadow: 2px 4px 12px #0002;
+  border-radius: 5px;
+  z-index: 5;
+  font-size: 16px;
+}
+#stage .context-item { padding: 9px 12px; border-radius: 3px; }
+#stage .context-item.active { background: #e7e2d1; outline: 1px solid #b4a46e; }
+#stage .context-item small { float: right; color: #6d6c66; }
+#stage .context-menu hr { border: 0; border-top: 1px solid #dedbd1; margin: 5px 8px; }
+#stage .surround-picker {
+  position: absolute;
+  inset: 63px 23px 15px 65px;
+  padding: 15px;
+  background: #fff;
+  border: 1px solid #dfdcd2;
+  border-radius: 7px;
+  box-shadow: 0 3px 12px #00000012;
+}
+#stage .surround-picker .selection-summary { color: #66645e; font-size: 14px; margin-bottom: 9px; }
+#stage .surround-picker .searchbox { border-color: #867031; height: 37px; }
+#stage .surround-picker .count { margin: 7px 0; font-size: 13px; color: #77746c; }
+#stage .surround-columns { display: grid; grid-template-columns: 293px 1fr; gap: 18px; height: 244px; }
+#stage .snippet-list { overflow-y: auto; border-right: 5px solid #eee; padding-right: 8px; }
+#stage .snippet-item { padding: 8px 9px; border-radius: 5px; margin-bottom: 4px; font-size: 15px; }
+#stage .snippet-item.active { background: #eeebe2; }
+#stage .snippet-item .pill { margin-right: 8px; border-radius: 5px; }
+#stage .snippet-description { font-size: 13px; color: #6c6c64; margin-top: 7px; }
+#stage .surround-preview { border: 1px solid #eeece6; border-radius: 5px; margin-top: 7px; height: 217px; padding: 13px; font: 17px/26px Consolas, monospace; white-space: pre-wrap; color: #777; }
+#stage .surround-original { background: #eeede8; color: #242424; }
+#stage .picker-footer { display: flex; align-items: center; font-size: 13px; color: #666; height: 36px; margin-top: 7px; }
+#stage .picker-footer .apply { background: #ece8df; border-radius: 5px; padding: 7px 14px; margin-left: 18px; color: #222; }
+#stage .insert-editor .line { font-size: 21px; line-height: 31px; min-height: 31px; }
+#stage .insert-popup { left: 272px; top: 65px; }
+#stage .grid-editor { height: 190px; bottom: auto; }
+#stage .grid-panel { position: absolute; inset: 190px 0 0; background: #fff; border-top: 4px solid #dddcd6; }
+#stage .grid-tabs { height: 33px; display: flex; gap: 16px; padding: 5px 15px; border-bottom: 1px solid #d8d8d5; background: #fafaf7; font-size: 15px; }
+#stage .grid-table { border-collapse: collapse; margin: 10px 15px; width: 620px; font: 18px/27px Consolas, monospace; }
+#stage .grid-table td, #stage .grid-table th { border: 1px solid #cccfd4; padding: 5px 15px; text-align: left; font-weight: normal; }
+#stage .grid-table th { background: #f0f0ed; font-size: 16px; }
+#stage .grid-table .row-number { width: 43px; color: #666; background: #f6f6f3; }
+#stage .grid-table .chosen { background: #ccdef0; outline: 1px solid #7d9fbf; }
+#stage .grid-menu { left: 256px; top: 128px; width: 348px; }
+#stage .paste-editor .line { font-size: 20px; line-height: 31px; }

@@ -68,6 +68,8 @@
 | 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 安裝／移除、VSIX 偵錯、MEF 快取 | [發布](release.md)／[偵錯](debugging.md) |
 | Debug 部署、必要／可選檔案、Deploy | [部署契約](debug-deployment.md) |
-| AI、README 圖片、提示詞 | [AI](ai-workflow.md)／[RTK](ai-rtk.md)／[圖片](images/README.md) |
+| AI 工作流程、RTK | [AI](ai-workflow.md)／[RTK](ai-rtk.md) |
+| README 圖片／GIF、靜態品牌圖提示詞 | [圖片](images/README.md)／[提示詞](images/prompts.md) |
+| VitePress、Pages、網站上線 | [網站發布](website.md) |
 
 只使用產品時讀[開始使用](getting-started.md)。

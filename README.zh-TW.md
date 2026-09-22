@@ -1,6 +1,6 @@
 # SqlAssist for SSMS 22
 
-**在 SSMS 22 原生 T-SQL 編輯器中，提供理解目前資料庫的即時建議、SQL 展開與物件預覽。**
+**在 SSMS 22 中補全與展開 SQL、預覽物件結構、搜尋資料庫物件，並找回與收藏查詢。**
 
 [繁體中文](README.zh-TW.md) · [English](README.md)
 
@@ -20,19 +20,29 @@ SqlAssist 是安裝於 **SQL Server Management Studio 22** 的 VSIX，不是另�
 
 ## 功能展示
 
+以下動畫以虛構的 `LibraryDB` 重建介面，並非錄影或效能依據；每段均附文字與靜態圖。
+[操作播放器：播放、暫停與重播](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html)。
+
 ### 依資料庫與語句位置補全
 
-建議會依 `SELECT`、`FROM`、`JOIN`、`EXEC` 等位置收斂；支援詞首／CamelHump 模糊比對、
-別名欄位、指令碼變數、暫存表、即時欄位資訊與關鍵字大小寫。
+輸入 `libr` → 按 **→** 預覽欄位 → 按 **Tab** 提交 `Lib_Reader`。建議會依語句位置收斂，
+並支援模糊比對、別名、指令碼變數、暫存表與即時欄位資訊。
 
-<p align="center"><img src="docs/images/completion.png" width="820" alt="SSMS 22 中依語句位置顯示物件候選、比對字元與即時欄位資訊"></p>
+<p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="預覽 Lib_Reader 欄位後按 Tab 提交補全"></p>
+
+[查看靜態圖](docs/images/completion-preview-demo.png)
 
 ### 按 Tab 展開重複 SQL
 
-在 `*` 後按 Tab，即可換成排版完成的明確欄位。提交 `INSERT`、`EXEC`、`MERGE` 或
-`ALTER` 目標時，也能依中繼資料產生可直接修改的 SQL。
+在 `*` 後按 **Tab** 即可展開明確欄位，也能依中繼資料產生 `INSERT`、`EXEC`、`MERGE`
+或 `ALTER` SQL；本例使用「永遠每欄一行」設定。
 
-<p align="center"><img src="docs/images/expand-star.png" width="820" alt="前後對照：在 SELECT 星號後按 Tab，展開成格式化的明確欄位清單"></p>
+<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="按 Tab 將 SELECT 星號展開為 Lib_Reader 明確欄位"></p>
+
+[查看靜態圖](docs/images/expand-star-demo.png)
+
+[觀看 INSERT 動畫](docs/images/insert-template-demo.gif)：按 Tab 產生欄位與型別預留值，並略過 IDENTITY。
+[查看靜態圖](docs/images/insert-template-demo.png)
 
 | `INSERT` | `EXEC` |
 |:---:|:---:|
@@ -42,19 +52,54 @@ SqlAssist 是安裝於 **SQL Server Management Studio 22** 的 VSIX，不是另�
 
 ### 不離開查詢視窗即可看懂物件
 
-直接預覽欄位、索引、鍵值、參數與可複製的 DDL；按 F12 會沿用目前連線，在新查詢視窗
-開啟完整定義。
+輸入 `libr` 並選中 `Lib_Reader`，按 **→** 展開下方結構預覽，再切到「指令碼」頁籤；
+不必離開目前查詢視窗，即可查看欄位、索引、鍵值、參數與完整 DDL。
 
-<p align="center"><img src="docs/images/structure-preview.png" width="820" alt="浮動物件預覽顯示欄位、索引、鍵值與可複製的資料表 DDL"></p>
+<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="從建議清單展開 Lib_Reader 結構預覽並切換到指令碼頁籤"></p>
+
+[查看靜態圖](docs/images/structure-preview-demo.png)
+
+也可以在 `Loan` 按 **F12**，沿用目前連線開啟完整定義，但不執行 SQL。
+
+<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="F12 開啟 Loan 的鍵值、索引與物件說明"></p>
+
+[查看 F12 靜態圖](docs/images/f12-definition-demo.png)
+
+### 搜尋物件名稱、定義與欄位
+
+在 **Search** 輸入 `CopyNo`，選取結果後以 **›** 切換定義命中；可依連線、種類與位置篩選，
+但不搜尋資料列內容。
+
+<p align="center"><img src="docs/images/sql-search-demo.gif" width="820" alt="SQL Search 找到 CopyNo 並切換定義命中"></p>
+
+[查看靜態圖](docs/images/sql-search-demo.png)
+
+### 找回 SQL，收藏後再次使用
+
+在 **History** 找到 `Loan`，按 **☆** 收藏，再到 **Favorites** 雙擊開啟；
+新查詢沿用目前連線，但不執行 SQL。
+
+<p align="center"><img src="docs/images/sql-memory-demo.gif" width="820" alt="從 History 收藏查詢後在 Favorites 重新開啟"></p>
+
+[查看靜態圖](docs/images/sql-memory-demo.png)
 
 ### 立即重用查詢結果
 
-從結果格線選單產生 `#temp` 指令碼或 `IN` 條件、複製 Markdown 或 JSON、剖析欄位，並查看
-被 SSMS 格線截斷的單格完整內容。
+選取格線，右鍵複製成 `IN` 條件，再貼到 `WHERE` 後。選單也能產生 `#temp`、Markdown、
+JSON、欄位剖析與完整儲存格內容。
 
-<p align="center"><img src="docs/images/result-grid-utility.png" width="820" alt="SSMS 結果格線選單提供暫存表、IN、Markdown、JSON、欄位剖析與完整內容功能"></p>
+<p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="將所選 CopyNo 去重並複製成 IN 條件"></p>
 
-此外還有具備 Tab Stop 導航的內建 T-SQL 片段、括號與引號自動配對，以及可個別調整的功能開關。
+[查看靜態圖](docs/images/result-in-demo.png)
+
+### 用片段包住既有 SQL
+
+選取 SQL，從「以片段包住選取範圍」搜尋並套用 `ifb`，再填寫條件並按 **Tab**；
+套用不會執行 SQL。
+
+<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="將所選 SQL 包成可編輯的 IF 片段"></p>
+
+[查看靜態圖](docs/images/surround-snippet-demo.png)。另有括號與引號自動配對，以及可個別調整的功能開關。
 
 ## 安裝
 

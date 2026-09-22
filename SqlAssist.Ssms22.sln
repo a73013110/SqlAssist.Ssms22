@@ -143,19 +143,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{FC52F393
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "images", "images", "{F15806DE-7900-4301-9DA0-70A3D4EDA7C6}"
 	ProjectSection(SolutionItems) = preProject
-		docs\images\completion.png = docs\images\completion.png
 		docs\images\expand-def-procedure.png = docs\images\expand-def-procedure.png
 		docs\images\expand-exec.png = docs\images\expand-exec.png
 		docs\images\expand-insert-into.png = docs\images\expand-insert-into.png
 		docs\images\expand-merge-into.png = docs\images\expand-merge-into.png
-		docs\images\expand-star.png = docs\images\expand-star.png
 		docs\images\hero.png = docs\images\hero.png
 		docs\images\SqlAssist.ico = docs\images\SqlAssist.ico
 		docs\images\SqlAssist.Icon.512.png = docs\images\SqlAssist.Icon.512.png
 		docs\images\README.md = docs\images\README.md
-		docs\images\result-grid-utility.png = docs\images\result-grid-utility.png
 		docs\images\social-preview.png = docs\images\social-preview.png
-		docs\images\structure-preview.png = docs\images\structure-preview.png
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlAssist.Ssms22.Tests", "tests\SqlAssist.Ssms22.Tests\SqlAssist.Ssms22.Tests.csproj", "{8839E984-F130-4737-9033-1E2EA1E13BD4}"

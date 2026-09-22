@@ -5,6 +5,8 @@
 *.suo
 TestResults/
 artifacts/
+site/node_modules/
+site/.build/
 
 # 客戶端的本機 MCP 登記可能含機器路徑；換設備照文件設定，不同步這兩份。
 /.codex/config.toml

@@ -1,60 +1,102 @@
 # SqlAssist for SSMS 22
 
-**Database-aware completion, SQL expansion, and previews inside the SSMS 22 T-SQL editor.**
+**Complete SQL, inspect objects, and save queries in SSMS 22.**
 
-[English](README.md) · [繁體中文](README.zh-TW.md)
+[繁體中文](README.zh-TW.md)
 
 [![Release](https://img.shields.io/github/v/release/a73013110/SqlAssist.Ssms22?sort=semver)](https://github.com/a73013110/SqlAssist.Ssms22/releases)
 [![License](https://img.shields.io/github/license/a73013110/SqlAssist.Ssms22)](LICENSE)
 ![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-<p align="center"><img src="docs/images/hero.png" width="900" alt="SqlAssist completion and schema details in the SSMS 22 query editor"></p>
+<p align="center"><img src="docs/images/hero.png" width="900" alt="SqlAssist for SSMS 22"></p>
 
-SqlAssist is an **SSMS 22** VSIX, not a separate editor. Suggestions run locally; metadata comes only
-from your connected SQL Server, with no cloud service or AI model involved.
+An **SSMS 22** extension with local suggestions and metadata—no cloud or AI.
 
-[Download](https://github.com/a73013110/SqlAssist.Ssms22/releases) ·
-[Get started](docs/getting-started.md) · [Docs](docs/index.md) ·
-[Report an Issue](https://github.com/a73013110/SqlAssist.Ssms22/issues)
+[Start](docs/getting-started.md) · [Docs](docs/index.md) ·
+[Issues](https://github.com/a73013110/SqlAssist.Ssms22/issues)
 
 ## Feature tour
 
-### Complete SQL with database context
+Demos use fictional data; they are illustrations, not recordings or benchmarks.
+[Player](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html).
 
-Suggestions adapt to each SQL clause, with acronym/CamelHump matching, aliases, script variables,
-temporary tables, live column details, and keyword casing.
+### Complete SQL
 
-<p align="center"><img src="docs/images/completion.png" width="820" alt="Context-aware object completion and live column metadata in SSMS 22"></p>
+Type `libr` → **Right Arrow** previews columns → **Tab** inserts `Lib_Reader`.
+Also supports clause context, fuzzy matches, aliases, and temp tables.
 
-### Expand boilerplate with Tab
+<p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="Complete Lib_Reader after previewing its columns"></p>
 
-Tab expands `*` into explicit columns. Committing an `INSERT`, `EXEC`, `MERGE`, or `ALTER` target
-generates metadata-aware SQL ready to edit.
+[PNG](docs/images/completion-preview-demo.png)
 
-<p align="center"><img src="docs/images/expand-star.png" width="820" alt="Tab expands SELECT star into a formatted explicit column list"></p>
+### Expand SQL with Tab
+
+After `*`, press **Tab** to expand columns. Tab also generates `INSERT`, `EXEC`, `MERGE`, and
+`ALTER` SQL; this demo uses one column per line.
+
+<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="Tab expands SELECT star into Lib_Reader columns"></p>
+
+[PNG](docs/images/expand-star-demo.png)
+
+[INSERT demo](docs/images/insert-template-demo.gif): columns and typed placeholders. [PNG](docs/images/insert-template-demo.png)
 
 | `INSERT` | `EXEC` |
 |:---:|:---:|
-| <img src="docs/images/expand-insert-into.png" width="400" alt="INSERT completion generates columns and typed VALUES placeholders"> | <img src="docs/images/expand-exec.png" width="400" alt="EXEC completion generates named parameters"> |
+| <img src="docs/images/expand-insert-into.png" width="400" alt="INSERT columns and VALUES"> | <img src="docs/images/expand-exec.png" width="400" alt="EXEC named parameters"> |
 | **`MERGE`** | **`ALTER PROCEDURE / FUNCTION`** |
-| <img src="docs/images/expand-merge-into.png" width="400" alt="MERGE completion generates an editable statement skeleton"> | <img src="docs/images/expand-def-procedure.png" width="400" alt="ALTER completion loads the object definition"> |
+| <img src="docs/images/expand-merge-into.png" width="400" alt="MERGE skeleton"> | <img src="docs/images/expand-def-procedure.png" width="400" alt="ALTER object definition"> |
 
-### Inspect objects without leaving the query
+### Preview object structure inline
 
-Preview columns, keys, indexes, parameters, and DDL in place. F12 opens the complete definition in a new
-query window using the current connection.
+Type `libr`, select `Lib_Reader`, and press **Right Arrow** to open the structure preview below the
+suggestions. Switch to **Script** to inspect columns, indexes, keys, parameters, and the full DDL
+without leaving the current query window.
 
-<p align="center"><img src="docs/images/structure-preview.png" width="820" alt="Object preview with columns, indexes, keys, and copyable DDL"></p>
+<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="Open the Lib_Reader structure preview from suggestions and switch to Script"></p>
 
-### Turn result rows into useful output
+[PNG](docs/images/structure-preview-demo.png)
 
-Create a `#temp` script or `IN` list, copy Markdown or JSON, profile columns, and inspect cells truncated
-by the SSMS grid.
+On `Loan`, **F12** opens its definition on the current connection without execution.
 
-<p align="center"><img src="docs/images/result-grid-utility.png" width="820" alt="Result-grid menu for export, profiling, and full cell content"></p>
+<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="Open Loan DDL with keys and indexes using F12"></p>
 
-Also included: T-SQL snippets with Tab Stops and surround-with, bracket/quote pairing, and toggles.
+[F12 PNG](docs/images/f12-definition-demo.png)
+
+### Search database objects
+
+Find `CopyNo` in **Search**, then use **›** for the next definition match. Filter by connection or type;
+row data is not searched.
+
+<p align="center"><img src="docs/images/sql-search-demo.gif" width="820" alt="Find CopyNo and step through definition matches"></p>
+
+[PNG](docs/images/sql-search-demo.png)
+
+### History and Favorites
+
+Find `Loan` in **History**, save it with **☆**, then open it from **Favorites** on the current
+connection without execution.
+
+<p align="center"><img src="docs/images/sql-memory-demo.gif" width="820" alt="Save a History query to Favorites and reopen it"></p>
+
+[PNG](docs/images/sql-memory-demo.png)
+
+### Reuse query results
+
+Copy selected cells as an `IN` predicate and paste after `WHERE`. The grid menu also supports
+`#temp`, Markdown, JSON, profiling, and full cell content.
+
+<p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="Turn selected CopyNo cells into an IN predicate"></p>
+
+[PNG](docs/images/result-in-demo.png)
+
+### Wrap SQL with snippets
+
+Select SQL, choose **Surround with snippet**, apply `ifb`, edit its condition, then press **Tab**.
+
+<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="Wrap selected SQL in an editable IF snippet"></p>
+
+[PNG](docs/images/surround-snippet-demo.png)
 
 ## Install
 
@@ -73,6 +115,4 @@ Requires **Windows x64** and **SSMS 22.9.x**.
 
 ## Learn more
 
-[Getting Started](docs/getting-started.md) covers setup and updates; [documentation](docs/index.md#主題)
-covers features, settings, and development. Contributors begin with [CLAUDE.md](CLAUDE.md).
-[Apache License 2.0](LICENSE).
+[Docs](docs/index.md) · [Contributing](CLAUDE.md) · [Apache License 2.0](LICENSE)

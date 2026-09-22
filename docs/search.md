@@ -1,144 +1,84 @@
 # SQL Search
 
-跨來源找「這個名字或這段文字在哪裡」的工具窗。它是一個框架而不是單一功能：Core 定契約與
-聚合，Metadata 放來源，Ssms22 只接線。
+本頁定義跨來源搜尋的 provider、排序／合併、部分結果與索引；命中標示與啟用結果分別見
+[命中高亮](search-highlight.md)及[結果導航](search-navigation.md)。
 
-入口有兩個：**SqlAssist 工具列**的第三顆按鈕，以及**工具 → SqlAssist → SQL Search**。
-工具列那一顆的字是 **Search**：那一列是 `History｜Favorites｜Search`，三顆都屬於 SqlAssist，
-多出來的「SQL」說不出新資訊卻佔掉寬度，完整名稱留在 Tooltip 與選單上那一顆。它走
-`CommandPlacement` 而不是第二顆按鈕，外觀與選單上那一顆相同，排在 History／Favorites 後面
-——前兩顆找的是自己寫過的 SQL，這一顆找的是伺服器上的物件。沒有鍵繫結，理由見
-`CommandIds.ShowSqlSearch`。
+入口是 SqlAssist 工具列的 **Search**（位於 History／Favorites 後）與
+**工具 → SqlAssist → SQL Search**；完整名稱留在 Tooltip 與選單，沒有鍵盤捷徑。
 
 ## provider 契約
 
-一個來源實作 `Core/Search/ISearchProvider`：宣告自己的分類、把命中推進 `ISearchSink`，
-其餘交給 `SearchAggregator`。走 sink 而不是回傳清單是這個框架唯一的效能接縫——名稱命中
-在使用者還在打字時就要上畫面，定義本文慢慢補；收集完才回傳的話，整輪延遲等於最慢那一個來源。
+來源實作 `Core/Search/ISearchProvider`，宣告分類並把命中推進 `ISearchSink`；
+`SearchAggregator` 負責聚合。串流 sink 讓快速的名稱命中先顯示，不必等最慢來源完成。
 
 ### 加一個新來源
 
-1. 實作 `ISearchProvider`；`Id` 跨版本不得更名。
-2. 自己一份分類表（照 `SqlAgentJobSearchCategories`）。分類 `Id` 會寫進使用者偏好，同樣不得更名。
-3. 自己一型導航酬載，掛在 `SearchHit.ActivatePayload` 上；Core 不解讀它。
-4. 在 `Ssms22/Search/SqlSearchProviders` 加一個巢狀來源類別。
-5. 在 `SqlSearchActivation` 加一個 `is` 分支。
+1. 實作 `ISearchProvider`；跨版本不得更名 `Id`。
+2. 提供分類表；分類 `Id` 會寫入偏好，同樣不得更名。
+3. 提供自己的導航酬載，掛在 `SearchHit.ActivatePayload`；Core 不解讀。
+4. 在 `Ssms22/Search/SqlSearchProviders` 加入來源類別。
+5. 在 `SqlSearchActivation` 加入對應分支。
 
-Core、聚合器、種類下拉、清單樣板與預覽一個字都不必改。這就是 `SqlAgentJobSearchProvider`
-加進來時付的全部代價，而它跨的是伺服器不是資料庫、資料在 `msdb`、權限不足還是常態。
-
-provider 得自己守四條，每一條都是「少做一次就看不出來」：`SearchQuery.Targets` 與分類過濾
-在**取資料之前**問（掃回來再丟等於使用者關掉的那一段一毫秒都沒省到，而且不要的候選還算進
-預算）；`TryReport` 回 false 立刻停；`DbException` 一律降級不外擲。
+provider 必須在取資料前套用 `SearchQuery.Targets` 與分類；`TryReport` 回 false 立即停止；
+`DbException` 降級為來源失敗，不外擲。種類下拉、清單與預覽不因新來源改動。
 
 ## 兩條篩選軸
 
-**物件種類**（`SearchCategory`）問「這是哪一種東西」，**比對位置**（`SearchMatchTarget`）問
-「對上的是它的哪裡」。分開的理由是資料行：`CopyNo` 命中講的是「`Cat_BookCopy` 上有一行叫
-這個名字」，而使用者勾「只看資料表」時要的正是它。把資料行做成一種物件種類，那一勾會讓它整組消失。
-
-種類清單刻意不寫在 Core：`SqlObjectKind` 住在 Metadata，而相依方向是 Metadata → Core。
-每個 provider 自己宣告，目錄那一份的對應表在 `SqlCatalogSearchCategories`。
+`SearchCategory` 是物件種類，`SearchMatchTarget` 是命中位置。資料行命中仍歸屬資料表，
+否則「只看資料表」會錯誤排除資料行命中的表。種類由各 provider 宣告；Core 不依賴
+Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories`。
 
 ## 排名、合併與名稱／本文
 
-名稱與資料行怎麼比由**輸入框右邊那兩顆修飾**決定，規則一條：一顆都沒開才走模糊比對
-（`FuzzyMatcher`：詞首加成、不分大小寫，`libr` 找得到 `Lib_Reader`）；開了任一顆
-就換成字面比對，與定義本文同一套，實作在 `SearchIdentifierMatch`。本文一律是字面子字串，
-分數是「提到幾次」：走模糊的話，幾千行的定義對任何三個字母都命中，分數還很高。
+名稱與資料行在未開修飾時用 `FuzzyMatcher`；大小寫或全字任一開啟後改走
+`SearchIdentifierMatch` 的字面比對。定義本文一律用字面子字串，分數是出現次數；
+模糊搜尋本文會讓長定義以零散字母取得不合理高分。字面命中仍向 `FuzzyMatcher` 取分，
+避免同一批結果出現第二套排序。旗標換算與掃描共用規則見[唯一實作](shared-components.md)。
 
-修飾套不到模糊比對上——命中的字母本來就散著，「前後是不是詞界」對它沒有答案。只套在本文的那一版，症狀是兩顆都開著、種類也只剩條件約束，清單上仍然有
-`DF_Lib_Reader_NoticeIsShown`：`finish` 的六個字母剛好湊得出來，而「下一個命中」一個一個指得出
-它們。代價是 `publisher` 在勾了大小寫時找不到 `PUBLISHER`。
+`SearchMatchTargets.GroupOrder` 先依名稱、資料行、本文分組，再於組內比分數；不同尺度不互比。
+同一物件只有一列，去重鍵不含命中位置或資料行名稱。代表取排名最高者，其餘攤平放入
+`SearchHit.Merged`；呈現讀 `SearchHit.Matches`，才能保留所有命中原因。
 
-字面命中的分數仍向 `FuzzyMatcher` 要：另記一套會讓剩下那幾筆的相對順序也變。旗標換算與
-掃描兩處共用一份，見[唯一實作](shared-components.md)。
-
-兩種尺度不互相比較。`SearchMatchTargets.GroupOrder` 先把名稱、資料行、本文分成三段，分數
-只在段內比；照列舉值排的話本文會插在名稱與資料行中間。
-
-**一個物件只有一列。** 去重鍵不含比對位置，**也不含資料行名稱**：`Cat_BookCopy` 同時被
-名稱、三個資料行與定義本文命中時，那仍然是同一張表——五列指向同一個地方、點下去做同一件事。
-代表是排名最高的那一份（先比部位再比分數，名稱在前），不是先到的那一份。
-
-被併掉的那幾筆**不丟**，依排名掛在代表的 `SearchHit.Merged` 上，攤平且不遞迴；呈現與預覽讀
-的是 `SearchHit.Matches`（代表自己排第一）。丟掉的症狀是一張只靠三個資料行命中的表說不出是
-哪三行，而那正是使用者要找的東西。分數不取最大值也不相加：兩個尺度湊出來的數字沒有意義。
-
-代價落在 provider 身上：資料行命中要寫出**它所屬物件**那一份鍵，標題也是物件的限定名稱，
-不接資料行那一段。接了資料行的那一份鍵只剩
-`SearchExamineCounter` 的續掃位置一個用途，那裡問的是「掃到哪一行」不是「這是哪一個東西」。
-
-## 命中與導航
-
-命中怎麼標、怎麼一處一處走過去見[命中高亮](search-highlight.md)；
-點下去做什麼見[結果導航](search-navigation.md)。
+資料行命中的標題與去重鍵都必須指向所屬物件，不接資料行名稱。
+含資料行的鍵只供 `SearchExamineCounter` 表示掃描位置。
 
 ## 掃描預算與部分結果
 
-沿用 [SQL Memory 搜尋](sql-memory-search.md#掃描預算)那一套：上限落在讀取迴圈上不落在查詢
-條件裡，用盡就回傳已命中的部分並標記 `IsPartial`，不回空的也不悄悄截斷。筆數上限拆成
-「每個 provider」與「排名後的總數」，才不會由誰先排到執行緒決定誰被砍。
+沿用 [SQL Memory 搜尋](sql-memory-search.md#掃描預算)：限制放在讀取迴圈，耗盡時回傳既有命中並標記
+`IsPartial`。每個 provider 與排名後總數各有限額，避免由執行先後決定保留來源。
 
-`IsPartial` 是一個布林，而畫面上要說的話有三句，所以另外要問兩處：`Failures`（provider 擲了
-例外）與 `Progress` 上的 `IsUnavailable`。「沒掃完」叫使用者縮小範圍，「讀不到」叫他去看權限
-——混成一句的症狀是他照前一句改三次關鍵字，而那個資料庫一次都沒被搜到。
+畫面需分清三種狀態：`IsPartial` 是沒掃完；`Failures` 是 provider 失敗；`Progress.IsUnavailable`
+是來源讀不到。失敗訊息使用 `ISearchProvider.DisplayName`，診斷才用穩定但不面向使用者的 `Id`。
 
-provider 擲例外那一條（`Failures`）寫到畫面上時用的是 `ISearchProvider.DisplayName`，不是 `Id`：
-Id 跨版本不得更名，而它不在介面上任何地方出現過——「『catalog』這一輪失敗」對使用者來說指不到
-自己勾的哪一個範圍。診斷仍然記 Id。
+`UnavailableReason` 是顯示文字；`SearchUnavailableKind` 只分 `Unknown` 與 `Denied`。
+只有 provider 收到明確權限錯誤、同一來源未混入其他種類，且所有不可用來源都是 `Denied` 時，
+`SqlSearchBrowserModel.Surface` 才顯示權限不足；其餘都用可重試的未知失敗。
 
-回報分兩件東西：`UnavailableReason` 是一句給人看的話，Core 不解讀；`SearchUnavailableKind`
-只有 `Unknown` 與 `Denied`。不細分是因為呈現那一層要的答案只有一個——下一步是「重試或換
-條件」還是「去要權限」，而連不上、逾時與離線的下一步一樣。
-
-`Denied` 是斷言，三道關卡都「說得準才說」：provider 要伺服器給了權限錯誤碼；`BudgetedSink`
-在同一個來源說了兩種時退回 `Unknown`（句子留第一句，留哪一句都說得通，而留第一個種類等於
-斷言由賽跑決定）；`SqlSearchBrowserModel.Surface` 只在**每一個**讀不到的來源都是 `Denied`
-時才回 `SqlSurfaceState.Denied`。其中之一就換抬頭的話，使用者去要了權限，那個連不上的來源
-下一輪還是讀不到，而畫面上看不出他要錯了東西。代價不對稱：斷言不足只是少說一句話。
-
-錯誤碼由 `SqlServerErrorCodes` 認（229／230／262／297／300／916／4060）。18456 **不在**
-名單裡：登入失敗是認證不是授權，下一步是去看帳號密碼或 Entra 權杖。
-
-它靠**反射**讀 `Number`，兩個理由缺一都還是要反射：Metadata 只依賴 `System.Data`，而
-netstandard2.0 的 `DbException` 上沒有錯誤碼；執行期丟的又是
-`Microsoft.Data.SqlClient.SqlException`，參照 `System.Data.SqlClient` 那一份一次都不會成立，
-症狀是安靜地永遠回 `Unknown`。代價只在失敗的那一次付。
+`SqlServerErrorCodes` 將 229、230、262、297、300、916、4060 視為權限錯誤；18456 是認證失敗。
+錯誤碼以反射讀取，因 Metadata 只依賴 `System.Data`、netstandard2.0 的 `DbException` 沒有 Number，
+執行期例外則來自 `Microsoft.Data.SqlClient`。
 
 ## 索引策略
 
-`SqlCatalogSearchIndex` 與 `SqlMetadataCatalog` 是分開的兩份，刻意不重用。那四層是**按需**
-載入的，搜尋要的正好相反：一次要全部。併在一起的話失效策略互相打架——搜尋一次就把整個資料庫
-的定義本文灌進按鍵路徑上的常駐快取，而建議清單的快取被自己的資料擠掉。連線與快取鍵則
-**必須**共用，自己拼一份鍵的症狀是同一個資料庫拿到兩份索引。
+`SqlCatalogSearchIndex` 不與按需載入的 `SqlMetadataCatalog` 共用資料，但必須共用連線與快取鍵。
+搜尋一次需要整批資料，若灌入補全的常駐快取，兩邊的載入與淘汰策略會互相干擾。
 
-索引分兩段。物件、資料行與結構描述便宜且必備；定義本文沒有上界，是第一次搜尋最貴的一段，
-不搜本文時連那條查詢都不送，改主意再走 `TryAddDefinitions` 補上，第一段不重掃。
+索引分兩段：物件、資料行、結構描述先載入；只有搜尋本文才以 `TryAddDefinitions` 補定義，
+不重掃第一段。版本戳同時使用 `MAX(modify_date)` 與物件數，才能辨識刪除最後修改物件。
+重新整理呼叫 `Invalidate`，保留可增量更新的資料；換連線才 `Clear`。
 
-版本戳是 `MAX(modify_date)` 加物件數兩個維度：只看時間分不出「什麼都沒變」與「剛好卸除了
-最後改過的那一個」。按「重新整理」走 `Invalidate` 而不是 `Clear`——使用者說的是「我知道它舊了」，
-改一個預存程序再按一次，付的是一條物件查詢加那一個程序的本文。`Clear` 留給換連線。
-
-記憶體上限以**位元組**計：單一索引 64 MiB 定義本文，整份快取 256 MiB。照份數算的症狀是四個
-大庫把行程撐爆，而四個小庫又白丟明明留得住的東西。滿了淘汰最久沒用到的，但永遠留一份——
-一份比預算還大的索引仍然要能用。超出上限只留名稱並標記不完整；安靜地少一半結果最糟，
-使用者會以為那個字串不存在。只索引使用者明確指名的資料庫，預先索引全部是明文禁止的。
+單一索引最多 64 MiB 定義本文，整體快取 256 MiB，依最久未使用淘汰但至少保留一份。
+單份超限時只留名稱並標記不完整，不得靜默漏結果。只索引使用者明確指定的資料庫，
+禁止預先索引所有資料庫。
 
 ## 關掉重開記得什麼
 
-只記「怎麼比對」那三項（比對位置、大小寫、全字），走 `SqlAssistState` 的狀態存放區，
-不是 Unified Settings——它們是工具列上隨手切的狀態，進了設定頁等於每按一下就提交一次設定
-變更並廣播通知，理由與[預覽視窗](preview-window.md)的尺寸相同。三項收成一個字串，
-認不得就整組回預設，不半套還原。
-
-伺服器、資料庫與物件種類**不記**，理由與那兩顆按鈕的其餘規則見[搜尋範圍](search-scope.md)。
+只將比對位置、大小寫、全字存進 `SqlAssistState`；未知格式整組回預設。
+伺服器、資料庫與物件種類不保存，見[搜尋範圍](search-scope.md)。
 
 ## 不支援
 
-- **連結伺服器**：沒有四段式名稱的索引。指名伺服器時整輪不回結果，而不是拿本機同名的物件
-  充當對面那台的答案。那條路要的是 `SqlCatalogQualifier` 與 `OPENQUERY`，不是換個資料庫。
-- **指令碼自己宣告的東西**（`#Loan`、資料表變數、CTE）：一列都不在 `sys.objects` 上。
-- **資料列內容**：搜的是名稱與定義，不是資料。
-- **regex 與 facet 語法**：`SearchOptions` 留了位元，目前只有大小寫與全字。
-- **持久化索引**：索引只活在行程裡，關掉 SSMS 就沒了。
+- 連結伺服器與四段式名稱。
+- 指令碼內宣告的暫存表、資料表變數與 CTE。
+- 資料列內容；只搜尋名稱、結構與定義。
+- regex、facet 語法與持久化索引。
