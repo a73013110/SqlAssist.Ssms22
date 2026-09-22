@@ -72,3 +72,32 @@
 它也**不**走 `SqlAssistPlatformGuard` 的收斂：使用者是自己按的，安靜地什麼都不做等於故障。
 每一種失敗都寫進工具窗頁尾，而且各寫各的——樹上沒有這一台、問不到父物件、節點全都指不到，
 三句的下一步完全不同。
+
+## 執行緒分工
+
+這一條路徑要等一次目錄查詢，再回頭呼叫一個只在 UI 執行緒上成立的宿主服務。
+
+| 階段 | 執行緒 | 做什麼 |
+|---|---|---|
+| 1 | UI | 挑物件總管上那一台、解析目錄（`SqlSearchCatalogs` 的解析都是 UI 親和的） |
+| 2 | 背景 | 問父物件是誰（只有觸發程序與條件約束走得到） |
+| 3 | UI | 依序導航，把結果寫進頁尾 |
+
+第 2 段由 `SqlMetadataCatalog.GetParentAsync` 自己讓出執行緒（它內部就是 `Task.Run`），
+接線層**不**再包一次：多包一層只是多排一次工作，UI 執行緒一樣沒有停在查詢上。
+
+**UI 親和性由被呼叫的那一端自保，不靠上游交還。** `SsmsObjectExplorer.TryNavigateAsync`
+進場就 `SwitchToMainThreadAsync`，因此呼叫端在哪一條執行緒上都成立。反過來寫——
+被呼叫端在回傳前切回 UI 執行緒——是**擋不住**的：續程落在哪裡由呼叫端的 `await` 決定，
+一個 `ConfigureAwait(false)` 就把它作廢（UI 執行緒上有 Dispatcher 的同步內容，
+續程不准內聯，只能排回執行緒集區）。這種錯又**只在中間真的 await 過的路徑上發作**：
+資料表與檢視同步算完候選、續程原地跑，看起來完全正常，只有條件約束與觸發程序
+丟 `TryNavigateAsync must be called on the UI thread`。
+
+已經在 UI 執行緒上時那一步是同步完成的，不排訊息也不讓出執行緒，所以自保不花錢。
+代價只有一個，要記在呼叫端：**禁止**用 `JoinableTaskFactory.Run` 之類的方式同步等它，
+UI 執行緒被擋住時切回去的那一步永遠等不到。同步的 `TryList` 與
+`TryCreateConnectionSource` 套不上這一招——同步方法切不了執行緒，那兩支維持 assert。
+
+需要把續程留在 UI 執行緒時**明寫 `ConfigureAwait(true)`**，不要留空：這個專案滿是
+`ConfigureAwait(false)`，留空的那一個看起來像漏掉的，下一個人會順手補上 `false`。

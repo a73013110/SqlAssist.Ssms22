@@ -61,19 +61,25 @@ internal static partial class SqlSearchActivation
         if (services is null) throw new ArgumentNullException(nameof(services));
         if (catalogs is null) throw new ArgumentNullException(nameof(catalogs));
 
+        // 進場就切，而不是在每個分支裡各補一次：這一支答應「回來時在 UI 執行緒上」，
+        // 而已經在上面時 SwitchToMainThreadAsync 是同步完成的，不排訊息也不讓出執行緒。
+        // 分支裡各切一次的症狀是加第三個來源時漏掉那一行，而漏掉只在它自己那條路上發作。
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
         // 這是<b>唯一</b>可以辨識酬載型別的地方，而加一個來源的代價就是這裡多一個分支：
         // 清單樣板、圖示、預覽與命令一個字都沒有跟著改。
         if (hit.ActivatePayload is SqlAgentJobSearchTarget job)
         {
-            return await ActivateJobAsync(job, services, catalogs).ConfigureAwait(false);
+            // 明寫 true 而不是留空：這一支答應回來時在 UI 執行緒上，而整個專案滿是
+            // ConfigureAwait(false)，不寫的那一個看起來像漏掉的。已經在 UI 執行緒上時
+            // 續程原地跑，不多一次派送。
+            return await ActivateJobAsync(job, services, catalogs).ConfigureAwait(true);
         }
 
         if (hit.ActivatePayload is not SqlCatalogSearchTarget target)
         {
             return "這一筆沒有可以開啟的定義。";
         }
-
-        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
         // 新視窗沿用的是查詢視窗那一條連線。指名了別台伺服器時，那份定義會落在一個連著
         // 另一台伺服器的視窗裡——使用者在那裡按 F5 就是對錯的伺服器執行。
@@ -137,8 +143,13 @@ internal static partial class SqlSearchActivation
     /// <summary>
     /// 把物件總管展開到這一筆指的節點並選取它。
     /// </summary>
-    /// <returns>成功時為 null，否則是要顯示在工具窗頁尾的那一句。</returns>
+    /// <returns>
+    /// 成功時為 null，否則是要顯示在工具窗頁尾的那一句；<b>一律在 UI 執行緒上完成</b>。
+    /// </returns>
     /// <remarks>
+    /// 執行緒分三段：UI 執行緒挑伺服器與目錄，背景問父物件是誰，回到 UI 執行緒逐一導航。
+    /// 中間那一段由 <c>GetParentAsync</c> 自己讓出執行緒，這一層不再包一次 <c>Task.Run</c>。
+    ///
     /// 這一條與<see cref="ActivateAsync">移至定義</see>互補，所以<b>沒有</b>那一道
     /// 「只沿用得到查詢視窗那條連線」的守門：伺服器由樹上那一台決定，指名別台時正好是
     /// 這一顆還能用。兩顆都擋掉的話，指名伺服器之後一列結果什麼都做不了。
@@ -164,7 +175,10 @@ internal static partial class SqlSearchActivation
                 : "目前的查詢視窗沒有連線，說不出要在物件總管的哪一台上找。";
         }
 
-        var nodes = await ResolveNodesAsync(hit, server.RootUrn, catalogs).ConfigureAwait(false);
+        // 接下來每一步都碰 UI（導覽服務、頁尾那幾句），所以 true。這裡曾經是 false，
+        // 而症狀只在條件約束與觸發程序上出現——也只有那兩種真的 await 過一趟查詢，
+        // 其餘種類同步完成、續程原地跑，看起來完全正常。
+        var nodes = await ResolveNodesAsync(hit, server.RootUrn, catalogs).ConfigureAwait(true);
 
         if (nodes.Count == 0)
         {
@@ -213,11 +227,23 @@ internal static partial class SqlSearchActivation
     /// 而一筆結果身上只有自己的 <c>object_id</c>；其餘照資料行命中與否分。
     ///
     /// 問父物件走的是<b>一條查詢</b>（<c>GetParentAsync</c>），不載入父物件的結構：
-    /// 跳到一個條件約束不需要知道那張表的索引與外來鍵長什麼樣子。
+    /// 跳到一個條件約束不需要知道那張表的索引與外來鍵長什麼樣子。那一趟自己在背景跑
+    /// （<c>GetParentAsync</c> 內部就是 <c>Task.Run</c>），所以這裡直接 await：
+    /// 再包一層只是多排一次工作，UI 執行緒一樣不會停在查詢上。
+    ///
+    /// 組位址是純字串，留在哪一條執行緒上都不影響畫面；回來時在哪一條由呼叫端的
+    /// <c>await</c> 決定，這一支<b>不</b>替呼叫端切回去。恢復執行緒是階段邊界的事，
+    /// 不是資料解析函式的事——寫在這裡的話，呼叫端一個 <c>ConfigureAwait(false)</c>
+    /// 就能把它作廢，而看起來像是這一支失了信。真正擋住那一種錯的是
+    /// <c>SsmsObjectExplorer.TryNavigateAsync</c> 自己切。
     /// </remarks>
     private static async Task<IReadOnlyList<SqlExplorerNode>> ResolveNodesAsync(
         SearchHit hit, string rootUrn, SqlSearchCatalogs catalogs)
     {
+        // 目錄要在 UI 執行緒上問（SqlSearchCatalogs 的解析都有 assert）。呼叫端已經切過，
+        // 這一步就是同步完成；自己切一次是為了讓這一支從任何地方叫都成立。
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
         // 這是唯一可以辨識酬載型別的地方，與啟動那一支同一條紅線。
         if (hit.ActivatePayload is SqlAgentJobSearchTarget job)
         {
@@ -235,9 +261,6 @@ internal static partial class SqlSearchActivation
             var parent = await catalog
                 .GetParentAsync(child, CancellationToken.None, NotificationOrigin.User)
                 .ConfigureAwait(false);
-
-            // 回到 UI 執行緒再交還：呼叫端接著要呼叫導覽服務，而它有 UI 相依性。
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             return parent is null
                 ? Array.Empty<SqlExplorerNode>()

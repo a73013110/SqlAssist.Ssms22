@@ -50,9 +50,11 @@ internal sealed class SsmsObjectExplorerServer
 /// <c>IObjectExplorerService.FindNode(RootUrn)</c> 拿到節點自己的
 /// <see cref="SqlOlapConnectionInfoBase"/>，那一份是 SSMS 建樹時就帶著認證的。
 ///
-/// 兩支都<b>只能在 UI 執行緒上</b>呼叫，而且<b>只在使用者主動要求時</b>呼叫：
-/// <c>ObjectExplorerService.Tree</c> 第一次取用會以 <c>FTW_fForceCreate</c> 取得視窗框架
-/// 並呼叫 <c>Show()</c>，使用者把物件總管關掉時，輪詢會替他把那個視窗重新叫出來。
+/// 同步的那兩支<b>只能在 UI 執行緒上</b>呼叫（同步方法切不了執行緒，所以維持 assert）；
+/// 非同步的 <see cref="TryNavigateAsync"/> 自己切，呼叫端不必先切也不必負責交還。
+/// 三支都<b>只在使用者主動要求時</b>呼叫：<c>ObjectExplorerService.Tree</c> 第一次取用會以
+/// <c>FTW_fForceCreate</c> 取得視窗框架並呼叫 <c>Show()</c>，使用者把物件總管關掉時，
+/// 輪詢會替他把那個視窗重新叫出來。
 /// </remarks>
 internal static class SsmsObjectExplorer
 {
@@ -148,15 +150,28 @@ internal static class SsmsObjectExplorer
     /// 是好幾秒。兩件事都只准在使用者自己要求時發生，所以這一支<b>禁止</b>掛在選取變更或
     /// 任何輪詢上。
     ///
-    /// 只能從 UI 執行緒起呼叫；<c>ConfigureAwait(true)</c> 讓後續留在同一條執行緒上，
-    /// 呼叫端拿到結果之後可以直接寫畫面。
+    /// <b>UI 親和性由這一支自保</b>，不靠呼叫端交還。續程落在哪一條執行緒是呼叫端的
+    /// <c>await</c> 選項決定的——被呼叫端就算在回傳前切回 UI 執行緒，呼叫端一個
+    /// <c>ConfigureAwait(false)</c> 就會把續程丟回執行緒集區（UI 執行緒上有
+    /// Dispatcher 的同步內容，續程不准內聯），而那只有在中間真的 await 過的路徑上才發作：
+    /// 症狀是同一顆按鈕在資料表上好好的，在條件約束上丟
+    /// <c>must be called on the UI thread</c>。已經在 UI 執行緒時這一步是同步完成的
+    /// （<c>SwitchToMainThreadAsync</c> 當場回 <c>IsCompleted</c>），不排訊息也不讓出執行緒，
+    /// 所以擺在這裡不花錢。
+    ///
+    /// 同一個理由套不到 <see cref="TryList"/> 與 <see cref="TryCreateConnectionSource"/>：
+    /// 同步方法切不了執行緒，那兩支維持 assert。
+    ///
+    /// 可以從任何執行緒起呼叫，但<b>禁止</b>用 <c>JoinableTaskFactory.Run</c> 之類的方式
+    /// 同步等它：UI 執行緒被擋住時，切回去的那一步永遠等不到，而畫面上看起來就是整個
+    /// SSMS 凍住。呼叫端一律讓它跑在非同步路徑上。
     /// </remarks>
     public static async Task<bool> TryNavigateAsync(
         IServiceProvider services, string urn, CancellationToken cancellationToken)
     {
-        ThreadHelper.ThrowIfNotOnUIThread();
-
         if (string.IsNullOrEmpty(urn)) throw new ArgumentException("節點 URN 不可為空。", nameof(urn));
+
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         if (ResolveNavigation(services) is not { } navigation) return false;
 

@@ -22,6 +22,16 @@
 
 - **禁止**在 QuickInfo 路徑向 SSMS 詢問目前連線——那個呼叫有 UI 執行緒相依性。
 
+- **UI 親和性由被呼叫的那一端自保。**包裝宿主服務的非同步方法進場就
+  `SwitchToMainThreadAsync`（已經在上面時同步完成，不花錢），**禁止**改成「在回傳前切回去
+  讓呼叫端接手」：續程落在哪一條執行緒是呼叫端的 `await` 決定的，一個
+  `ConfigureAwait(false)` 就把那個保證作廢，而且只在中間真的 await 過的那幾條路上發作。
+  同步方法切不了執行緒，維持 `ThrowIfNotOnUIThread`。自保的那幾支**禁止**用
+  `JoinableTaskFactory.Run` 同步等待。完整推導見[結果導航](search-navigation.md)的執行緒分工。
+
+- 要把續程留在 UI 執行緒時**明寫 `ConfigureAwait(true)`**：這個專案滿是
+  `ConfigureAwait(false)`，留空的那一個看起來像漏掉的。
+
 - **禁止**依賴 `CommitBehavior.Retrigger`：SSMS 22 的編輯器組件沒有任何一處讀它。
 - **禁止**用 `DismissAllSessions` 搶 session。重開清單一律走 `SqlCompletionReopen`
   的三步驟（Dismiss → TriggerCompletion → OpenOrUpdate），一步都不能少。
