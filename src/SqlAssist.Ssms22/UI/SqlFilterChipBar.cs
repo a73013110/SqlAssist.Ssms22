@@ -30,7 +30,6 @@ internal sealed class SqlFilterChipBar : ContentControl
     public SqlFilterChipBar()
     {
         Visibility = Visibility.Collapsed;
-        Margin = new Thickness(0, 4, 0, 0);
         Focusable = false;
         Content = SqlAssistChrome.CreateHorizontalStrip(_strip, "已選條件（可水平捲動）");
         AutomationProperties.SetName(this, "已選條件");

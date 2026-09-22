@@ -36,6 +36,14 @@ internal static class ThemePalette
         }
 
         var dimForeground = highContrast || !Readable(dim, Colors.Transparent) ? foreground : dim;
+        // 命中自成一組色票，不借 AccentBackground：那一份同時是開關「開著」與核取方塊打勾的底，
+        // 共用的話一邊為了對比調整、另一邊跟著變；而且它是 Tint(0.12)，對比不足時還會把 alpha
+        // 逐次折半，退到幾乎看不見——「有沒有標出來」正是使用者唯一要從命中讀到的事。
+        // 高對比沒有半透明可用，兩級改用「反白」與「系統選取色」兩種實色，一樣分得出來。
+        var match = highContrast ? foreground : ThemeColorMath.MatchBackground(accent, dimForeground, background);
+        var matchCurrent = highContrast
+            ? selection.Background
+            : ThemeColorMath.CurrentMatchBackground(accent, background);
         var colors = new Dictionary<ThemeBrush, Color>
         {
             [ThemeBrush.ListBackground] = background,
@@ -56,6 +64,14 @@ internal static class ThemePalette
             [ThemeBrush.BadgeBackground] = highContrast ? background : badge,
             [ThemeBrush.AccentBackground] = highContrast ? background : Tint(0.12),
             [ThemeBrush.AccentBorder] = highContrast ? foreground : accent,
+            [ThemeBrush.MatchBackground] = match,
+            // 清單列沒有語法著色可留，所以這一級也配一個前景；只換底色而讓字色留在原地的那一版，
+            // 底色一深就讀不到，而字重撐不住——SemiBold 在介面字型上差得太少。
+            [ThemeBrush.MatchForeground] = highContrast ? background : ThemeColorMath.EnsureTextContrast(foreground, match),
+            [ThemeBrush.MatchCurrentBackground] = matchCurrent,
+            [ThemeBrush.MatchCurrentForeground] = highContrast
+                ? selection.Foreground
+                : ThemeColorMath.EnsureTextContrast(foreground, matchCurrent),
             // 狀態只染圖形；文字仍沿用可讀的主題前景，高對比則由形狀辨識。
             [ThemeBrush.NotificationSuccess] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Added, background),
             [ThemeBrush.NotificationFailure] = highContrast ? foreground : ThemeColorMath.EnsureGraphicContrast(Danger, background),

@@ -104,7 +104,7 @@ internal sealed class MasterDetailView : Grid
         AutomationProperties.SetName(_splitter, "調整 SQL 預覽高度");
         _toggle = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         _toggle.Padding = new Thickness(6, 0, 6, 0);
-        _toggle.Margin = new Thickness(0, 6, 0, 0);
+        _toggle.Margin = new Thickness(0, SqlAssistChrome.Spacing.Tight, 0, 0);
         _toggle.HorizontalAlignment = HorizontalAlignment.Left;
         _toggle.Click += (_, _) => SetDetailExpanded(!IsDetailExpanded);
         var heading = new DockPanel(); divider.Children.Add(heading);
@@ -113,7 +113,9 @@ internal sealed class MasterDetailView : Grid
         {
             // 捲動、滾輪方向與鍵盤都走共用的單列資訊列；已選條件列用的是同一份。
             var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, "預覽資訊（可水平捲動）");
-            metadata.Margin = new Thickness(8, 6, 4, 0);
+            metadata.Margin = new Thickness(
+                SqlAssistChrome.Spacing.Group, SqlAssistChrome.Spacing.Tight,
+                SqlAssistChrome.Spacing.Tight, 0);
             heading.Children.Add(metadata);
             _summaryHost = metadata;
         }

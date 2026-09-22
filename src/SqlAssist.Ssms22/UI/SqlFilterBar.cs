@@ -28,7 +28,7 @@ namespace SqlAssist.Ssms22.UI;
 /// </remarks>
 internal sealed class SqlFilterBar : Panel
 {
-    private const double RowGap = 4;
+    private const double RowGap = SqlAssistChrome.Spacing.Tight;
 
     private readonly IReadOnlyList<Group> _groups;
     private readonly List<Line> _lines = new();

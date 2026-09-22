@@ -105,9 +105,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         MinWidth = 300;
 
-        var root = new DockPanel { Margin = new Thickness(8) };
+        var root = new DockPanel { Margin = new Thickness(SqlAssistChrome.Spacing.Group) };
         // 工具窗沒有原生 Titlebar，第一列直接是工具列；不另做一條看起來像第二條標題列的粗體區塊。
-        var header = new StackPanel();
+        // 工具列與已選條件列之間、以及整塊與清單之間的間距都由這一層給，子元素不自己帶 margin。
+        var header = new SqlStack(SqlAssistChrome.Spacing.Tight)
+        {
+            Margin = new Thickness(0, 0, 0, SqlAssistChrome.Spacing.Group)
+        };
         DockPanel.SetDock(header, Dock.Top);
         root.Children.Add(header);
 
@@ -132,6 +136,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         _status.TextWrapping = TextWrapping.Wrap;
         _status.Visibility = Visibility.Collapsed;
+        _status.Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0);
         DockPanel.SetDock(_status, Dock.Bottom);
         root.Children.Add(_status);
 

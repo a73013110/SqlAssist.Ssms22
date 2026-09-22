@@ -25,7 +25,7 @@
 | 收藏、回溯、SQL 差異 | [版本歷史](sql-memory-revisions.md) |
 | SQL Memory 保留、清理、部署 | [維護](sql-memory-maintenance.md)／[用量](sql-memory-usage.md)／[驗收](sql-memory-validation.md) |
 | SQL Search、搜尋來源、索引 | [SQL Search](search.md) |
-| 命中高亮、上一個／下一個命中 | [命中導覽](search-highlight.md) |
+| 命中高亮、目前那一處、上一個／下一個命中 | [命中高亮與導覽](search-highlight.md) |
 | 搜尋範圍、伺服器、資料庫清單 | [範圍](search-scope.md) |
 | 建議清單、排名、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |

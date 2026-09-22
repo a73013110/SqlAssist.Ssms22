@@ -79,8 +79,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
         SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         MinWidth = 300;
-        var root = new DockPanel { Margin = new Thickness(8) };
-        var header = new StackPanel();
+        var root = new DockPanel { Margin = new Thickness(SqlAssistChrome.Spacing.Group) };
+        // 分頁列、搜尋列、篩選列與主機訊息之間的間距由這一層給，整塊與清單之間也是；
+        // 子元素不自己帶 margin，否則整組收起（切到用量分頁）之後會留下半格空白。
+        var header = new SqlStack(SqlAssistChrome.Spacing.Tight)
+        {
+            Margin = new Thickness(0, 0, 0, SqlAssistChrome.Spacing.Group)
+        };
         DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
         _tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
         _tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
@@ -98,10 +103,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         // 與 SQL Search 同一列規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份
         // 清單的操作。History／Favorites 沒有排序（清單本來就依時間），所以那一格是目前連線。
         var searchRow = new SqlInputRow(
-            SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _connection, _refresh)
-        {
-            Margin = new Thickness(0, 0, 0, 6)
-        };
+            SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _connection, _refresh);
         header.Children.Add(searchRow);
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         // 狀態、期間與連線是第二層的三群，併在同一列：各佔一列的那一版在停靠面板裡等於
@@ -109,15 +111,17 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _connectionFacets = new[] { _serverFacet, _databaseFacet };
         var filters = SqlAssistChrome.CreateMemoryFilterRow(
             _kind, _period, _serverFacet.Panel, _databaseFacet.Panel);
-        filters.Margin = new Thickness(0, 4, 0, 0);
         header.Children.Add(filters);
         _hostStatus.TextWrapping = TextWrapping.Wrap;
+        // 沒有訊息時整塊讓開，連同它前面那一段間距；空字串的 TextBlock 仍有行高。
+        _hostStatus.Visibility = Visibility.Collapsed;
         header.Children.Add(_hostStatus);
         // 搜尋、篩選與那一列右緣的操作只屬於清單分頁；切到用量分頁整列一起收起，
         // 用量自己的重新整理在它的狀態卡片上。
         _listChrome = new UIElement[] { searchRow, filters };
 
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
+        _status.Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0);
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
 
         _list.SetRowsSource(_rows, _pager);

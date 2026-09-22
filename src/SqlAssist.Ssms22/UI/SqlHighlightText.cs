@@ -14,7 +14,10 @@ namespace SqlAssist.Ssms22.UI;
 /// 容器會被換給另一列，而 <see cref="Inline"/> 只能掛在一棵視覺樹上。以相依屬性繫結，
 /// 換列時重建 Run，換主題時只換資源，兩件事都不必重建控制項。
 ///
-/// 高亮只換底色與字重，不改字級與邊界：改了尺寸的話，同一列在命中與不命中之間會跳動。
+/// 高亮換的是底色、字色與字重，不改字級與邊界：改了尺寸的話，同一列在命中與不命中之間會跳動。
+/// 色票是命中自己那一組（<see cref="ThemeBrush.MatchBackground"/>），不是強調底——理由見
+/// <c>docs/search-highlight.md</c> 的視覺契約。這一列沒有「第幾處」那個狀態，所以只有第一級：
+/// 導覽走的是定義全文的位置，與名稱、資料行這幾段不是同一組座標。
 /// </remarks>
 internal sealed class SqlHighlightText : TextBlock
 {
@@ -72,7 +75,9 @@ internal sealed class SqlHighlightText : TextBlock
             if (span.Start > at) Inlines.Add(new Run(text.Substring(at, span.Start - at)));
 
             var hit = new Run(text.Substring(span.Start, span.Length)) { FontWeight = FontWeights.SemiBold };
-            hit.SetResourceReference(TextElement.BackgroundProperty, ThemeBrush.AccentBackground);
+            hit.SetResourceReference(TextElement.BackgroundProperty, ThemeBrush.MatchBackground);
+            // 底色換了就配前景：只換底的那一版在深色主題上字會沉進去，而字重撐不住這個差別。
+            hit.SetResourceReference(TextElement.ForegroundProperty, ThemeBrush.MatchForeground);
             Inlines.Add(hit);
             at = span.End;
         }

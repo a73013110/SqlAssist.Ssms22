@@ -33,7 +33,7 @@ internal enum SqlSearchToolbarMode
 /// </remarks>
 internal sealed class SqlSearchToolbar : Panel
 {
-    private const double RowGap = 4;
+    private const double RowGap = SqlAssistChrome.Spacing.Tight;
 
     private readonly SqlInputRow _row;
     private readonly SqlFilterBar _filters;

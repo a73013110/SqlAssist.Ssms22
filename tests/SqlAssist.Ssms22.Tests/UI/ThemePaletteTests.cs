@@ -84,6 +84,42 @@ public sealed class ThemePaletteTests
     [InlineData("dark")]
     [InlineData("plum")]
     [InlineData("forest")]
+    [InlineData("high-contrast")]
+    public void 命中兩級分得開且各自配得出讀得到的前景(string mode)
+    {
+        var colors = ColorsFor(mode);
+        var background = colors[ThemeBrush.ListBackground];
+
+        var match = ThemeColorMath.Composite(colors[ThemeBrush.MatchBackground], background);
+        var current = ThemeColorMath.Composite(colors[ThemeBrush.MatchCurrentBackground], background);
+
+        // 兩級都要配得出讀得到的字色；只換底色的那一版在深色主題上字會沉進去。
+        Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.MatchForeground], match) >= 4.5);
+        Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.MatchCurrentForeground], current) >= 4.5);
+
+        // 目前那一處走圖形對比校正，與清單底保證分得開；一般命中以留住底下的著色為先，
+        // 不保證 3:1，但仍要看得出邊界——退到分不出來就等於沒有標記。
+        Assert.True(ThemeColorMath.Contrast(current, background) >= 3);
+        Assert.True(ThemeColorMath.Contrast(match, background) >= 1.5);
+
+        // 兩級必須是兩個看得出差別的東西。非高對比的差別是同一個色相的半透明與實色，讀的是
+        // 亮度；高對比換成兩個系統色，白與黃的亮度本來就接近，分得出來靠的是色相——對比比值
+        // 在那裡判不出來，所以只要求兩者不同。
+        Assert.NotEqual(match, current);
+        if (mode != "high-contrast") Assert.True(ThemeColorMath.Contrast(current, match) >= 1.5);
+
+        // 命中不借強調底：那一份同時是開關「開著」與核取方塊打勾的底。
+        Assert.NotEqual(colors[ThemeBrush.AccentBackground], colors[ThemeBrush.MatchBackground]);
+        Assert.NotEqual(colors[ThemeBrush.RowSelected], colors[ThemeBrush.MatchBackground]);
+    }
+
+    [Theory]
+    [InlineData("light")]
+    [InlineData("mango")]
+    [InlineData("cool-breeze")]
+    [InlineData("dark")]
+    [InlineData("plum")]
+    [InlineData("forest")]
     public void 語意色調在兩種表面都保留可讀文字且與中性回饋分得開(string mode)
     {
         var colors = ColorsFor(mode);

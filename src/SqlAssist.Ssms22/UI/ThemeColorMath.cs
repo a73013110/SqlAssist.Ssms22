@@ -33,6 +33,35 @@ internal static class ThemeColorMath
         return readable ?? (Contrast(foreground, Colors.Black) >= Contrast(foreground, Colors.White) ? Colors.Black : Colors.White);
     }
 
+    /// <summary>一般命中的底色覆蓋率；夠深到有邊界，又留得住底下的著色。</summary>
+    /// <remarks>
+    /// 更低的那一版在彩色深色主題上退成一層看不出邊界的薄色，而「有沒有標出來」正是使用者
+    /// 唯一要從命中高亮讀到的事。
+    /// </remarks>
+    public const byte MatchCoverage = 0x8C;
+
+    /// <summary>
+    /// 一般命中的底色：半透明強調色鋪上去，再對<b>這個表面自己的</b>底色與最淡的前景校正。
+    /// </summary>
+    /// <remarks>
+    /// 校正的是底色而不是字色，所以底下的語法著色整組留得住；傳進來的前景要挑最淡的那一個
+    /// （指令碼是註解色），它在高亮上讀得到，其餘就都讀得到。
+    ///
+    /// 底色的基準由呼叫端給——工具窗是清單底色，指令碼借的是 SSMS 編輯器底色，兩者在深色
+    /// 主題下不一定同深淺。拿錯基準的症狀是高亮整塊看不見，而使用者會以為命中根本沒有標出來。
+    /// </remarks>
+    public static Color MatchBackground(Color accent, Color foreground, Color background) =>
+        EnsureBackgroundForText(Color.FromArgb(MatchCoverage, accent.R, accent.G, accent.B), foreground, background);
+
+    /// <summary>目前停在那一處命中的底色：<b>實色</b>強調色。</summary>
+    /// <remarks>
+    /// 與一般命中的差別刻意做成「半透明 vs 實色」而不是兩種深淺的同一個顏色：深淺差一階的
+    /// 那一版在 150% DPI 的深色主題上分不出來，而分不出來等於沒有「目前」這個概念。
+    /// 實色會蓋掉底下的著色，所以字色要另外對著它重算。
+    /// </remarks>
+    public static Color CurrentMatchBackground(Color accent, Color background) =>
+        EnsureGraphicContrast(Color.FromRgb(accent.R, accent.G, accent.B), background);
+
     private static Color EnsureMinimumContrast(Color candidate, Color background, double minimum)
     {
         candidate = Composite(candidate, background);

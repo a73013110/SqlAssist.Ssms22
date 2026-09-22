@@ -96,6 +96,28 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static Metrics DefaultMetrics { get; } = new(SqlAssistLimits.DefaultPreviewFontSize);
 
+    /// <summary>
+    /// 版面節奏；哪一階用在哪裡與「誰宣告間距」見 <c>docs/ui-guidelines.md</c>。
+    /// </summary>
+    /// <remarks>
+    /// 節奏只寫在文件裡而每一個呼叫端各填一個數字的那一版，落地的是 4／6／8／12／16 五階，
+    /// 多出來的兩階沒有人說得出它們代表哪一級，而調整其中一處也改不到並排的另一處。
+    /// </remarks>
+    public static class Spacing
+    {
+        /// <summary>同一塊裡的兩列之間，以及標籤到欄位。</summary>
+        public const double Tight = 4;
+
+        /// <summary>區塊之間，以及停靠工具窗的外距。</summary>
+        public const double Group = 8;
+
+        /// <summary>對話框的區塊與頁尾之間，以及視窗外距。</summary>
+        public const double Block = 16;
+
+        /// <summary>雙欄之間。</summary>
+        public const double Columns = 18;
+    }
+
     private static volatile SqlAssistSettings _settings = new();
 
     /// <summary>由設定服務每次重讀後推入；UI 層不直接認識平台的設定服務，才能單獨編進測試。</summary>
