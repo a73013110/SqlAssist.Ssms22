@@ -49,6 +49,7 @@ SQL Memory 見[專屬表](shared-components-sql-memory.md)。
 | 對話框的資訊列、分段、分段卡片、選項列、頁尾與破壞性主要動作 | `Ssms22/UI/SqlAssistChrome.Dialogs.cs` |
 | 對話框殼層（標題、尺寸、主題、字型、置中） | `Ssms22/UI/SqlAssistDialogs.cs` |
 | 獨立 SQL 唯讀預覽／著色編輯 | `Ssms22/UI/SqlReadOnlyViewer.cs`／`SqlTextEditor.cs`（外觀由呼叫端掛 `SqlScriptTheme`） |
+| 文字標記的底色與字色（命中兩級、區塊端點的預設）；大面積分類色不走它，見[文字標記](text-marks.md) | `Ssms22/UI/TextMarkColors.cs`（命中那一組在 `MatchPalette.cs`） |
 | 「上一處／第幾處／下一處」的按鈕與讀數（沒有鍵盤捷徑，理由見[命中高亮](search-highlight.md)） | `Ssms22/UI/SqlMatchNavigator.cs`（狀態在 `Core/Matching/MatchCursor.cs`，捲動由呼叫端做） |
 | SQL 著色分類、原文選取映射與編輯器主題適配 | `Ssms22/Preview/SqlScriptDocument.cs`（`Classify`）／`SqlScriptTheme.cs` |
 | WPF 資料格的選取匯出、顯示順序與空欄讀值 | `Ssms22/UI/SqlDataGridText.cs` |

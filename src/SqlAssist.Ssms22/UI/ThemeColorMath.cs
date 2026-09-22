@@ -88,7 +88,8 @@ internal static class ThemeColorMath
             (byte)Math.Round(foreground.B * alpha + background.B * (1 - alpha)));
     }
 
-    private static double Luminance(Color color) =>
+    /// <summary>WCAG 相對亮度；狀態底色要落在哪一條亮度帶由它判定。</summary>
+    public static double Luminance(Color color) =>
         0.2126 * Linear(color.R) + 0.7152 * Linear(color.G) + 0.0722 * Linear(color.B);
 
     private static double Linear(byte value)

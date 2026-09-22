@@ -29,11 +29,23 @@ internal static class BlockPalette
         {
             // 端點面積小，採實色高亮而非區間淡底；分類標籤才能改字色，marker 前景其實是框線。
             if (highContrast) return (background, text);
-            var fill = ThemeColorMath.EnsureGraphicContrast(ReadColor(backgroundPreference, defaultBackground ?? accent), background);
+
+            var seed = ReadColor(backgroundPreference, defaultBackground ?? accent);
+
+            // 一個顏色都沒自訂時，端點與搜尋命中是同一類東西（小面積實色標記），走同一層推導：
+            // 底色定在深的那一側、字色走最淺的那一端。各算各的那一版在深色佈景上會變成亮底灰字，
+            // 因為佈景強調色的明度跟著佈景翻轉，而字色只推到剛好 4.5 就停。
+            if (explicitInk is null && seed == accent)
+            {
+                var marked = TextMarkColors.Fill(seed, background, TextMarkColors.Strong);
+                return (TextMarkColors.Ink(marked, text), marked);
+            }
+
+            // 使用者指定過顏色就以他指定的為準，只做對比校正；套標記層的亮度帶等於把他挑的顏色改掉。
+            var fill = ThemeColorMath.EnsureGraphicContrast(seed, background);
             if (explicitInk is { } requested)
                 return (requested, ThemeColorMath.EnsureBackgroundForText(fill, requested, background));
-            var ink = ThemeColorMath.EnsureTextContrast(foreground, fill);
-            return (ink, fill);
+            return (ThemeColorMath.EnsureTextContrast(text, fill), fill);
         }
         return new Dictionary<ThemeBrush, Color>
         {
