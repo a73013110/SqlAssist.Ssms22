@@ -70,6 +70,12 @@ window.featureDemoData = {
   ],
   "insert": "INSERT INTO dbo.Lib_Tag\n(\n    TagName,\n    CreatedAt,\n    Description\n)\nVALUES\n(\n    N\u0027\u0027,     -- TagName - nvarchar(80)\n    DEFAULT, -- CreatedAt - datetime2\n    NULL     -- Description - nvarchar(200)\n)",
   "insertCaret": 85,
+  "execute": "DECLARE @LoanCount int;\nEXEC dbo.usp_Loan_Count @ReaderId = 0,                 -- int\n                        @MinLoanId = 0,                -- int\uFF0C\u9078\u64C7\u6027\n                        @LoanCount = @LoanCount OUTPUT -- int",
+  "executeCaret": 60,
+  "merge": "MERGE INTO dbo.Cat_BookCopy AS target\nUSING dbo.SourceTable AS source\n    ON target.CopyNo = source.CopyNo\nWHEN MATCHED AND 1 = 0 THEN\n    UPDATE SET\n        target.BranchId = source.BranchId\nWHEN NOT MATCHED BY TARGET AND 1 = 0 THEN\n    INSERT\n    (\n        CopyNo,\n        BranchId\n    )\n    VALUES\n    (\n        source.CopyNo,\n        source.BranchId\n    );",
+  "mergeCaret": 44,
+  "alterProcedure": "ALTER PROCEDURE dbo.usp_Loan_Count\n    @ReaderId int,\n    @MinLoanId int = 0,\n    @LoanCount int OUTPUT\nAS\nBEGIN\n    SET NOCOUNT ON;\n    SELECT @LoanCount = COUNT(*)\n    FROM dbo.Loan\n    WHERE ReaderId = @ReaderId AND LoanId \u003E= @MinLoanId;\nEND",
+  "alterFunction": "ALTER FUNCTION dbo.fn_LoanCount(@ReaderId int)\nRETURNS int\nAS\nBEGIN\n    DECLARE @LoanCount int;\n    SELECT @LoanCount = COUNT(*)\n    FROM dbo.Loan\n    WHERE ReaderId = @ReaderId;\n    RETURN @LoanCount;\nEND",
   "gridValues": [
     "B001",
     "B002",

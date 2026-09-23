@@ -22,7 +22,8 @@
 場景的單一真相來源是 `docs/demos/feature-demos.html` 及同目錄的資料、JS、CSS；不要在本頁重列
 每段操作。瀏覽器版可播放、暫停與重播。GIF 無法暫停，因此 README 需保留文字步驟與同名 PNG 連結。
 
-F12、包夾、INSERT、IN 的 SQL 由[產生器](../../tools/Generate-FeatureDemoData.cs)呼叫產品純邏輯，
+F12、包夾、INSERT、EXEC、MERGE、ALTER PROCEDURE／FUNCTION、IN 的 SQL
+由[產生器](../../tools/Generate-FeatureDemoData.cs)呼叫產品純邏輯，
 輸出 `docs/demos/feature-demo-data.js`；該檔不可手改，也不連資料庫。產生結果不能取代 SSMS
 右鍵選單與 COM 整合的實機驗收。
 

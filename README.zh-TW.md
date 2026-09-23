@@ -23,47 +23,73 @@ SqlAssist 是安裝於 **SQL Server Management Studio 22** 的 VSIX，不是另�
 以下動畫以虛構的 `LibraryDB` 重建介面，並非錄影或效能依據；每段均附文字與靜態圖。
 [操作播放器：播放、暫停與重播](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html)。
 
-### 依資料庫與語句位置補全
+### 補全 SQL，直接查看物件
 
 輸入 `libr` → 按 **→** 預覽欄位 → 按 **Tab** 提交 `Lib_Reader`。建議會依語句位置收斂，
-並支援模糊比對、別名、指令碼變數、暫存表與即時欄位資訊。
+並支援模糊比對、別名與暫存表。
 
 <p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="預覽 Lib_Reader 欄位後按 Tab 提交補全"></p>
 
 [查看靜態圖](docs/images/completion-preview-demo.png)
 
-### 按 Tab 展開重複 SQL
+從同一份建議清單按 **→** 展開結構預覽，再切到「指令碼」查看完整 DDL，無須離開查詢視窗。
 
-在 `*` 後按 **Tab** 即可展開明確欄位，也能依中繼資料產生 `INSERT`、`EXEC`、`MERGE`
-或 `ALTER` SQL；本例使用「永遠每欄一行」設定。
+<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="展開 Lib_Reader 結構預覽並切換到指令碼頁籤"></p>
+
+[查看靜態圖](docs/images/structure-preview-demo.png)
+
+在 `Loan` 按 **F12**，沿用目前連線開啟完整定義，不執行 SQL。
+
+<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="F12 開啟 Loan 的鍵值、索引與物件說明"></p>
+
+[查看靜態圖](docs/images/f12-definition-demo.png)
+
+### 按 Tab 展開 SQL
+
+**`SELECT *`**：在星號後按 **Tab**，展開成明確欄位；本例採每欄一行設定。
 
 <p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="按 Tab 將 SELECT 星號展開為 Lib_Reader 明確欄位"></p>
 
 [查看靜態圖](docs/images/expand-star-demo.png)
 
-[觀看 INSERT 動畫](docs/images/insert-template-demo.gif)：按 Tab 產生欄位與型別預留值，並略過 IDENTITY。
+**`INSERT`**：選取 `Lib_Tag`，產生欄位與依型別填入的值，略過識別欄位。
+
+<p align="center"><img src="docs/images/insert-template-demo.gif" width="820" alt="為 Lib_Tag 產生 INSERT 欄位與型別預留值"></p>
+
 [查看靜態圖](docs/images/insert-template-demo.png)
 
-| `INSERT` | `EXEC` |
-|:---:|:---:|
-| <img src="docs/images/expand-insert-into.png" width="400" alt="前後對照：提交 INSERT 目標後產生欄位與依型別填入的 VALUES 預留值"> | <img src="docs/images/expand-exec.png" width="400" alt="前後對照：提交 EXEC 目標後產生具名參數清單"> |
-| **`MERGE`** | **`ALTER PROCEDURE / FUNCTION`** |
-| <img src="docs/images/expand-merge-into.png" width="400" alt="前後對照：提交 MERGE 目標後產生安全且可編輯的 MERGE 骨架"> | <img src="docs/images/expand-def-procedure.png" width="400" alt="前後對照：提交 ALTER 目標後載入完整物件定義"> |
+**`EXEC`**：選取 `usp_Loan_Count`，產生具名參數、選擇性註解與 `OUTPUT` 變數宣告。
 
-### 不離開查詢視窗即可看懂物件
+<p align="center"><img src="docs/images/execute-template-demo.gif" width="820" alt="為 usp_Loan_Count 產生具名參數與 OUTPUT 變數宣告"></p>
 
-輸入 `libr` 並選中 `Lib_Reader`，按 **→** 展開下方結構預覽，再切到「指令碼」頁籤；
-不必離開目前查詢視窗，即可查看欄位、索引、鍵值、參數與完整 DDL。
+[查看靜態圖](docs/images/execute-template-demo.png)
 
-<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="從建議清單展開 Lib_Reader 結構預覽並切換到指令碼頁籤"></p>
+**`MERGE`**：選取 `Cat_BookCopy`，產生主鍵比對、更新與新增子句；兩個動作都以
+`AND 1 = 0` 暫停；使用前須替換 `dbo.SourceTable` 並檢查條件。
 
-[查看靜態圖](docs/images/structure-preview-demo.png)
+<p align="center"><img src="docs/images/merge-template-demo.gif" width="820" alt="產生有主鍵比對與安全閘門的 MERGE 更新及新增子句"></p>
 
-也可以在 `Loan` 按 **F12**，沿用目前連線開啟完整定義，但不執行 SQL。
+[查看靜態圖](docs/images/merge-template-demo.png)
 
-<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="F12 開啟 Loan 的鍵值、索引與物件說明"></p>
+**`ALTER PROCEDURE`**：選取 `usp_Loan_Count`，載入可編輯的完整程序定義，不執行 SQL。
 
-[查看 F12 靜態圖](docs/images/f12-definition-demo.png)
+<p align="center"><img src="docs/images/alter-procedure-demo.gif" width="820" alt="載入 usp_Loan_Count 的完整 ALTER PROCEDURE 定義"></p>
+
+[查看靜態圖](docs/images/alter-procedure-demo.png)
+
+**`ALTER FUNCTION`**：選取 `fn_LoanCount`，載入可編輯的完整函式定義，不執行 SQL。
+
+<p align="center"><img src="docs/images/alter-function-demo.gif" width="820" alt="載入 fn_LoanCount 的完整 ALTER FUNCTION 定義"></p>
+
+[查看靜態圖](docs/images/alter-function-demo.png)
+
+### 用片段包住既有 SQL
+
+選取 SQL → 右鍵選「以片段包住選取範圍」→ 套用 `ifb` → 填寫條件 → 按 **Tab**。
+
+<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="將所選 SQL 包成可編輯的 IF 片段"></p>
+
+[查看靜態圖](docs/images/surround-snippet-demo.png)
 
 ### 搜尋物件名稱、定義與欄位
 
@@ -91,15 +117,6 @@ JSON、欄位剖析與完整儲存格內容。
 <p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="將所選 CopyNo 去重並複製成 IN 條件"></p>
 
 [查看靜態圖](docs/images/result-in-demo.png)
-
-### 用片段包住既有 SQL
-
-選取 SQL，從「以片段包住選取範圍」搜尋並套用 `ifb`，再填寫條件並按 **Tab**；
-套用不會執行 SQL。
-
-<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="將所選 SQL 包成可編輯的 IF 片段"></p>
-
-[查看靜態圖](docs/images/surround-snippet-demo.png)。另有括號與引號自動配對，以及可個別調整的功能開關。
 
 ## 安裝
 

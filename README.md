@@ -18,50 +18,79 @@ An **SSMS 22** extension with local suggestions and metadata—no cloud or AI.
 
 ## Feature tour
 
-Demos use fictional data; they are illustrations, not recordings or benchmarks.
-[Player](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html).
+Demos use fictional data; they are illustrations, not recordings.
+[Play, pause, and replay every demo](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html).
 
-### Complete SQL
+### Complete SQL and inspect objects
 
-Type `libr` → **Right Arrow** previews columns → **Tab** inserts `Lib_Reader`.
-Also supports clause context, fuzzy matches, aliases, and temp tables.
+Type `libr` → **Right Arrow** previews columns → **Tab** inserts `Lib_Reader`. Suggestions also
+understand clauses, fuzzy matches, aliases, and temp tables.
 
 <p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="Complete Lib_Reader after previewing its columns"></p>
 
 [PNG](docs/images/completion-preview-demo.png)
 
-### Expand SQL with Tab
+From the same list, press **Right Arrow** and open **Script** to inspect the selected object's
+columns and DDL without leaving the query window.
 
-After `*`, press **Tab** to expand columns. Tab also generates `INSERT`, `EXEC`, `MERGE`, and
-`ALTER` SQL; this demo uses one column per line.
-
-<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="Tab expands SELECT star into Lib_Reader columns"></p>
-
-[PNG](docs/images/expand-star-demo.png)
-
-[INSERT demo](docs/images/insert-template-demo.gif): columns and typed placeholders. [PNG](docs/images/insert-template-demo.png)
-
-| `INSERT` | `EXEC` |
-|:---:|:---:|
-| <img src="docs/images/expand-insert-into.png" width="400" alt="INSERT columns and VALUES"> | <img src="docs/images/expand-exec.png" width="400" alt="EXEC named parameters"> |
-| **`MERGE`** | **`ALTER PROCEDURE / FUNCTION`** |
-| <img src="docs/images/expand-merge-into.png" width="400" alt="MERGE skeleton"> | <img src="docs/images/expand-def-procedure.png" width="400" alt="ALTER object definition"> |
-
-### Preview object structure inline
-
-Type `libr`, select `Lib_Reader`, and press **Right Arrow** to open the structure preview below the
-suggestions. Switch to **Script** to inspect columns, indexes, keys, parameters, and the full DDL
-without leaving the current query window.
-
-<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="Open the Lib_Reader structure preview from suggestions and switch to Script"></p>
+<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="Open the Lib_Reader structure preview and switch to its DDL script"></p>
 
 [PNG](docs/images/structure-preview-demo.png)
 
-On `Loan`, **F12** opens its definition on the current connection without execution.
+On `Loan`, **F12** opens its full definition on the current connection without executing it.
 
-<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="Open Loan DDL with keys and indexes using F12"></p>
+<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="Open the Loan DDL with keys and indexes using F12"></p>
 
-[F12 PNG](docs/images/f12-definition-demo.png)
+[PNG](docs/images/f12-definition-demo.png)
+
+### Expand SQL with Tab
+
+**`SELECT *`** → press **Tab** to replace the star with explicit columns. This example uses one
+column per line.
+
+<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="Expand SELECT star into Lib_Reader columns with Tab"></p>
+
+[PNG](docs/images/expand-star-demo.png)
+
+**`INSERT`** → select `Lib_Tag` to generate columns and typed values, skipping its identity column.
+
+<p align="center"><img src="docs/images/insert-template-demo.gif" width="820" alt="Generate INSERT columns and typed values for Lib_Tag"></p>
+
+[PNG](docs/images/insert-template-demo.png)
+
+**`EXEC`** → select `usp_Loan_Count` to insert named arguments, mark the optional argument, and
+declare the `OUTPUT` variable.
+
+<p align="center"><img src="docs/images/execute-template-demo.gif" width="820" alt="Generate named EXEC arguments and an OUTPUT declaration for usp_Loan_Count"></p>
+
+[PNG](docs/images/execute-template-demo.png)
+
+**`MERGE`** → select `Cat_BookCopy` to generate key matching, `UPDATE`, and `INSERT` clauses.
+Replace `dbo.SourceTable` and review both `AND 1 = 0` guards before use.
+
+<p align="center"><img src="docs/images/merge-template-demo.gif" width="820" alt="Generate a MERGE statement with key matching and guarded update and insert clauses"></p>
+
+[PNG](docs/images/merge-template-demo.png)
+
+**`ALTER PROCEDURE`** → select `usp_Loan_Count` to load its editable definition without running it.
+
+<p align="center"><img src="docs/images/alter-procedure-demo.gif" width="820" alt="Load the full ALTER PROCEDURE definition of usp_Loan_Count"></p>
+
+[PNG](docs/images/alter-procedure-demo.png)
+
+**`ALTER FUNCTION`** → select `fn_LoanCount` to load its editable definition without running it.
+
+<p align="center"><img src="docs/images/alter-function-demo.gif" width="820" alt="Load the full ALTER FUNCTION definition of fn_LoanCount"></p>
+
+[PNG](docs/images/alter-function-demo.png)
+
+### Wrap existing SQL with snippets
+
+Select SQL → **Surround with snippet** → apply `ifb` → edit the condition → **Tab**.
+
+<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="Wrap selected SQL in an editable IF snippet"></p>
+
+[PNG](docs/images/surround-snippet-demo.png)
 
 ### Search database objects
 
@@ -89,14 +118,6 @@ Copy selected cells as an `IN` predicate and paste after `WHERE`. The grid menu 
 <p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="Turn selected CopyNo cells into an IN predicate"></p>
 
 [PNG](docs/images/result-in-demo.png)
-
-### Wrap SQL with snippets
-
-Select SQL, choose **Surround with snippet**, apply `ifb`, edit its condition, then press **Tab**.
-
-<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="Wrap selected SQL in an editable IF snippet"></p>
-
-[PNG](docs/images/surround-snippet-demo.png)
 
 ## Install
 

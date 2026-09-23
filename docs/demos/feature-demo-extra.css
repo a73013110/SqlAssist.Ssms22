@@ -56,6 +56,15 @@
 #stage .picker-footer .apply { background: #ece8df; border-radius: 5px; padding: 7px 14px; margin-left: 18px; color: #222; }
 #stage .insert-editor .line { font-size: 21px; line-height: 31px; min-height: 31px; }
 #stage .insert-popup { left: 272px; top: 65px; }
+#stage .statement-popup { left: 360px; top: 65px; width: 405px; }
+#stage .statement-popup .suggest { white-space: nowrap; }
+#stage .expansion-code { overflow-x: hidden; }
+#stage .expansion-code .line {
+  font-size: 18px;
+  line-height: 24px;
+  min-height: 24px;
+  white-space: pre;
+}
 #stage .grid-editor { height: 190px; bottom: auto; }
 #stage .grid-panel { position: absolute; inset: 190px 0 0; background: #fff; border-top: 4px solid #dddcd6; }
 #stage .grid-tabs { height: 33px; display: flex; gap: 16px; padding: 5px 15px; border-bottom: 1px solid #d8d8d5; background: #fafaf7; font-size: 15px; }

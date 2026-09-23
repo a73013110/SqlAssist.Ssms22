@@ -43,4 +43,4 @@ GitHub Settings → Pages 的來源設為 **GitHub Actions**。PR 只建置；�
 圖示的 `20`、`24`、`32`、`40`、`48`、`64`、`96`、`256`、`1024` 尺寸 PNG 未被程式或
 網站引用，可視為候選；保留 SVG 母圖、512（VSIX）、128（網站）、16（選單來源）及 ICO。
 `social-preview.png` 用於 GitHub 外部設定，不能只因沒有程式引用就刪除。
-`*-demo.png` 是動畫的靜態替代；INSERT／EXEC／MERGE／ALTER 對照圖仍在 README 使用。
+`*-demo.png` 是動畫的靜態替代；README 的操作圖片以展示頁產出的同名 GIF／PNG 為準。

@@ -24,7 +24,7 @@ try {
     for (let i = 0; i < demo.frames.length; i++) {
       await page.evaluate(([name, index]) => window.renderDemoFrame(name, index), [id, i]);
       // 檢查會承載完整 SQL 的區塊；清單摘要則依產品行為允許省略。
-      const clipped = await page.locator('.codebox, .preview, .dialog, .filters, .surround-picker').evaluateAll(nodes => nodes.filter(n => n.scrollWidth > n.clientWidth + 2 || n.scrollHeight > n.clientHeight + 2).map(n => n.className));
+      const clipped = await page.locator('.codebox, .preview, .dialog, .filters, .surround-picker, .expansion-code').evaluateAll(nodes => nodes.filter(n => n.scrollWidth > n.clientWidth + 2 || n.scrollHeight > n.clientHeight + 2).map(n => n.className));
       if (clipped.length) failures.push(`${id}:${i} 溢位：${clipped.join(', ')}`);
       await page.locator('#stage').screenshot({ path: resolve(folder, `${String(i).padStart(3, '0')}.png`) });
     }

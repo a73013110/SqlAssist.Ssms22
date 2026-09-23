@@ -6,7 +6,7 @@ function generatedSql(text) {
   if (comment >= 0) {
     return generatedSql(text.slice(0, comment)) + `<span class="comment">${esc(text.slice(comment))}</span>`;
   }
-  return sql(text).replace(/(?<![\w>])(SET|ON|ALTER|ADD|PRIMARY|CLUSTERED|NONCLUSTERED|INDEX|FOREIGN|REFERENCES|EXEC|IF|BEGIN|END|INSERT|INTO|VALUES|IN|EXISTS)(?![\w<])/g,
+  return sql(text).replace(/(?<![\w>])(SET|ON|ALTER|ADD|PRIMARY|CLUSTERED|NONCLUSTERED|INDEX|FOREIGN|REFERENCES|EXEC|IF|BEGIN|END|INSERT|INTO|VALUES|IN|EXISTS|DECLARE|OUTPUT|MERGE|USING|WHEN|MATCHED|TARGET|THEN|UPDATE|AND|PROCEDURE|FUNCTION|RETURNS|RETURN|COUNT)(?![\w<])/g,
     '<span class="kw">$1</span>');
 }
 
@@ -81,6 +81,33 @@ function insertDemo(s) {
   if (s.typed) body += `<div class="completion insert-popup"><div class="suggest selected">${ico('table')}Lib_Tag<small>Table · dbo</small></div><div class="suggest-foot">${ico('table')}</div></div>`;
   return shell('Lib_Tag.sql', body, { key: s.key });
 }
+
+const moduleIcon = kind => `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M7 8h10M7 12h10M7 16h6"/>${kind === 'function' ? '<path d="M15 16h3"/>' : ''}</svg>`;
+
+function statementDemo(s, { tab, prefix, name, kind, result }) {
+  if (s.expanded) {
+    const body = `<div class="code-scroll expansion-code" data-scroll="${s.scroll || 0}">${generatedLines(demoData[result])}</div>`;
+    return shell(tab, body, { key: s.key });
+  }
+  const body = `<div class="editor"><div class="line" data-n="1">${generatedSql(prefix + (s.typed || ''))}<span class="caret"></span></div></div>
+    ${s.typed ? `<div class="completion statement-popup"><div class="suggest selected">${kind === 'table' ? ico('table') : moduleIcon(kind)}<span>${name}</span><small>${kind === 'table' ? 'Table' : kind === 'function' ? 'Function' : 'Procedure'} · dbo</small></div><div class="suggest-foot">${kind === 'table' ? ico('table') : moduleIcon(kind)}</div></div>` : ''}`;
+  return shell(tab, body, { key: s.key });
+}
+
+const executeDemo = s => statementDemo(s, {
+  tab: 'Loan.sql', prefix: 'EXEC dbo.', name: 'usp_Loan_Count', kind: 'procedure', result: 'execute'
+});
+const mergeDemo = s => statementDemo(s, {
+  tab: 'Cat_BookCopy.sql', prefix: 'MERGE INTO dbo.', name: 'Cat_BookCopy', kind: 'table', result: 'merge'
+});
+const alterProcedureDemo = s => statementDemo(s, {
+  tab: 'usp_Loan_Count.sql', prefix: 'ALTER PROCEDURE dbo.', name: 'usp_Loan_Count',
+  kind: 'procedure', result: 'alterProcedure'
+});
+const alterFunctionDemo = s => statementDemo(s, {
+  tab: 'fn_LoanCount.sql', prefix: 'ALTER FUNCTION dbo.', name: 'fn_LoanCount',
+  kind: 'function', result: 'alterFunction'
+});
 
 function gridDemo(s) {
   if (s.pasteView) {
@@ -158,6 +185,46 @@ Object.assign(demos, {
       scene(650, { typed: 'libt', key: 'Tab' }),
       scene(900, { expanded: true, key: 'Tab' }), scene(3000, { expanded: true }),
       scene(2500, { expanded: true, filled: true })
+    ]
+  },
+  'execute-template': {
+    title: 'EXEC 具名參數與 OUTPUT',
+    caption: '在 EXEC dbo. 後選擇 usp_Loan_Count → 按 Tab 產生具名參數、選擇性參數註解與 OUTPUT 變數宣告；不執行程序。',
+    draw: executeDemo, poster: 5,
+    frames: [
+      scene(1200, {}), scene(350, { typed: 'usp_' }),
+      scene(1400, { typed: 'usp_Loan' }), scene(650, { typed: 'usp_Loan', key: 'Tab' }),
+      scene(1000, { expanded: true, key: 'Tab' }), scene(3700, { expanded: true })
+    ]
+  },
+  'merge-template': {
+    title: 'MERGE 安全骨架',
+    caption: '在 MERGE INTO dbo. 後選擇 Cat_BookCopy → 按 Tab 產生主鍵比對、UPDATE 與 INSERT；使用前須替換 dbo.SourceTable，並檢查兩個 AND 1 = 0 安全條件。',
+    draw: mergeDemo, poster: 5,
+    frames: [
+      scene(1200, {}), scene(350, { typed: 'Cat_' }),
+      scene(1400, { typed: 'Cat_Book' }), scene(650, { typed: 'Cat_Book', key: 'Tab' }),
+      scene(1000, { expanded: true, key: 'Tab' }), scene(4200, { expanded: true })
+    ]
+  },
+  'alter-procedure': {
+    title: 'ALTER PROCEDURE 完整定義',
+    caption: '在 ALTER PROCEDURE dbo. 後選擇 usp_Loan_Count → 按 Tab 載入可編輯的完整程序定義；不執行 ALTER。',
+    draw: alterProcedureDemo, poster: 5,
+    frames: [
+      scene(1200, {}), scene(350, { typed: 'usp_' }),
+      scene(1400, { typed: 'usp_Loan' }), scene(650, { typed: 'usp_Loan', key: 'Tab' }),
+      scene(1000, { expanded: true, key: 'Tab' }), scene(3700, { expanded: true })
+    ]
+  },
+  'alter-function': {
+    title: 'ALTER FUNCTION 完整定義',
+    caption: '在 ALTER FUNCTION dbo. 後選擇 fn_LoanCount → 按 Tab 載入可編輯的完整函式定義；不執行 ALTER。',
+    draw: alterFunctionDemo, poster: 5,
+    frames: [
+      scene(1200, {}), scene(350, { typed: 'fn_' }),
+      scene(1400, { typed: 'fn_Loan' }), scene(650, { typed: 'fn_Loan', key: 'Tab' }),
+      scene(1000, { expanded: true, key: 'Tab' }), scene(3700, { expanded: true })
     ]
   },
   'result-in': {

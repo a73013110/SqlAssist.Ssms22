@@ -6,6 +6,9 @@ param(
     [int]$CharBudget = 5000,
     [int]$WarnAt = 4500,
     [ValidateRange(1, 2147483647)]
+    [int]$ReadmeMdBudget = 6000,
+    [int]$ReadmeMdWarnAt = 5500,
+    [ValidateRange(1, 2147483647)]
     [int]$ClaudeMdBudget = 1000,
     [ValidateRange(1, 2147483647)]
     [int]$IndexMdBudget = 4500,
@@ -53,7 +56,7 @@ $targets = @(Get-ChildItem -LiteralPath (Join-Path $rootPath 'docs') -Filter '*.
 foreach ($name in @('README.md', 'README.zh-TW.md', 'CLAUDE.md', 'AGENTS.md')) {
     $targets += Get-Item -LiteralPath (Join-Path $rootPath $name)
 }
-$budgets = @{ 'CLAUDE.md' = $ClaudeMdBudget; 'AGENTS.md' = $AgentsMdBudget; 'docs/index.md' = $IndexMdBudget }
+$budgets = @{ 'CLAUDE.md' = $ClaudeMdBudget; 'AGENTS.md' = $AgentsMdBudget; 'docs/index.md' = $IndexMdBudget; 'README.md' = $ReadmeMdBudget }
 $over = [System.Collections.Generic.List[string]]::new()
 $warn = [System.Collections.Generic.List[string]]::new()
 # 每頁 H1 之後第一句要說明本頁範圍；索引是路由，入口檔只導向規則，都不適用。
@@ -69,7 +72,9 @@ foreach ($file in $targets) {
     $lengths[$relative] = $text.Length
     $budget = if ($budgets.ContainsKey($relative)) { $budgets[$relative] } else { $CharBudget }
     if ($text.Length -gt $budget) { $over.Add("$relative：$($text.Length)/$budget 字元") }
-    elseif ($text.Length -gt $WarnAt) { $warn.Add("$relative：$($text.Length) 字元") }
+    elseif ($text.Length -gt $(if ($relative -eq 'README.md') { $ReadmeMdWarnAt } else { $WarnAt })) {
+        $warn.Add("$relative：$($text.Length) 字元")
+    }
 
     $linesByPath[$file.FullName] = @(Get-MarkdownLines $text)
     if ($relative -notin $exemptFromScope) {
