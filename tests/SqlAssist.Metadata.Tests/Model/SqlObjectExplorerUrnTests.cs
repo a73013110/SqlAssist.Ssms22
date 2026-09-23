@@ -137,6 +137,37 @@ public sealed class SqlObjectExplorerUrnTests
         Assert.Equal(new[] { Table, Table, "" }, nodes.Select(node => node.OwnerUrn));
     }
 
+    /// <remarks>
+    /// 資料夾名稱只決定先翻哪一個；寫錯的症狀不是找不到，而是每一次都照樹的順序
+    /// 多翻幾個沒建過的資料夾，每一個都是一趟伺服器查詢。
+    /// </remarks>
+    [Theory]
+    [InlineData("C", "Constraints")]
+    [InlineData("F", "Keys")]
+    [InlineData("PK", "Keys")]
+    [InlineData("UQ", "Keys")]
+    [InlineData("TR", "Triggers")]
+    public void 掛在父物件底下的節點帶著畫它的資料夾(string childType, string folder)
+    {
+        var nodes = SqlObjectExplorerUrn.ForChild(Root, Parent(childType), "CK_Cat_BookCopy");
+
+        Assert.Equal(new[] { folder, "" }, nodes.Select(node => node.Folder));
+    }
+
+    /// <remarks>DEFAULT 的位址掛在資料行底下，畫它的卻是「條件約束」資料夾。</remarks>
+    [Fact]
+    public void 預設值約束與資料行各自帶著自己的資料夾()
+    {
+        Assert.Equal(
+            new[] { "Constraints", "Columns", "" },
+            SqlObjectExplorerUrn.ForChild(Root, Parent("D", "DueDate"), "DF_Cat_BookCopy_DueDate")
+                .Select(node => node.Folder));
+        Assert.Equal(
+            new[] { "Columns", "" },
+            SqlObjectExplorerUrn.ForColumn(Root, "Lib", "dbo", "Cat_BookCopy", SqlObjectKind.Table, "CopyNo")
+                .Select(node => node.Folder));
+    }
+
     /// <remarks>自己就有位址的那幾種不必先繞父物件。</remarks>
     [Fact]
     public void 物件與作業沒有父物件位址()

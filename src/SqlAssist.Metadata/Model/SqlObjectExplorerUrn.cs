@@ -30,7 +30,9 @@ public readonly struct SqlExplorerNode
     /// <param name="ownerUrn">
     /// 這個節點畫在哪一個物件的節點底下；它自己就是那個物件（或作業）時留空。
     /// </param>
-    public SqlExplorerNode(SqlExplorerNodeKind kind, string name, string urn, string ownerUrn = "")
+    /// <param name="folder">畫它的那個資料夾的不變名稱；不知道時留空。</param>
+    public SqlExplorerNode(
+        SqlExplorerNodeKind kind, string name, string urn, string ownerUrn = "", string folder = "")
     {
         if (string.IsNullOrEmpty(name)) throw new ArgumentException("節點名稱不可為空。", nameof(name));
         if (string.IsNullOrEmpty(urn)) throw new ArgumentException("節點 URN 不可為空。", nameof(urn));
@@ -39,6 +41,7 @@ public readonly struct SqlExplorerNode
         Name = name;
         Urn = urn;
         OwnerUrn = ownerUrn ?? "";
+        Folder = folder ?? "";
     }
 
     public SqlExplorerNodeKind Kind { get; }
@@ -59,6 +62,20 @@ public readonly struct SqlExplorerNode
     /// 加一種節點時只改了一邊。
     /// </remarks>
     public string OwnerUrn { get; }
+
+    /// <summary>
+    /// 畫這個節點的資料夾在樹上的不變名稱（<c>Columns</c>、<c>Keys</c>…）；不知道時為空字串。
+    /// </summary>
+    /// <remarks>
+    /// 取自 <c>sqlexplorerhier.xml</c> 資料夾的 <c>UniqueName</c>，樹上以
+    /// <c>INodeInformation.InvariantName</c> 交出來，SSMS 自己的導覽服務也拿它比對
+    /// <c>UserTables</c> 那幾層。顯示文字是在地化的，<b>禁止</b>拿來比。
+    ///
+    /// <b>只決定先翻哪一個資料夾，不決定翻不翻。</b>每翻開一個沒建過的資料夾就是向伺服器查一次，
+    /// 照樹的順序找觸發程序要先付資料行、索引鍵與條件約束三趟。名稱對不上（新版本改了、
+    /// 別種節點的資料夾）時只是退回樹的順序，拿它過濾的話就變成找不到。
+    /// </remarks>
+    public string Folder { get; }
 
     public override string ToString() => Kind + ":" + Name;
 }
@@ -86,6 +103,13 @@ public readonly struct SqlExplorerNode
 public static class SqlObjectExplorerUrn
 {
     private static readonly SqlExplorerNode[] None = Array.Empty<SqlExplorerNode>();
+
+    // 資料夾的 UniqueName：資料表、檢視、資料表型別與各版本的變體共用這幾個，
+    // 見 SqlExplorerNode.Folder。
+    private const string ColumnsFolder = "Columns";
+    private const string KeysFolder = "Keys";
+    private const string ConstraintsFolder = "Constraints";
+    private const string TriggersFolder = "Triggers";
 
     /// <summary>這一種物件在資料庫底下有沒有自己的節點。</summary>
     /// <remarks>
@@ -135,7 +159,7 @@ public static class SqlObjectExplorerUrn
         return new[]
         {
             new SqlExplorerNode(
-                SqlExplorerNodeKind.Column, columnName, Child(owner, "Column", columnName), owner),
+                SqlExplorerNodeKind.Column, columnName, Child(owner, "Column", columnName), owner, ColumnsFolder),
             new SqlExplorerNode(SqlExplorerNodeKind.Object, Qualify(schemaName, name), owner)
         };
     }
@@ -191,19 +215,20 @@ public static class SqlObjectExplorerUrn
             return new[]
             {
                 new SqlExplorerNode(
-                    SqlExplorerNodeKind.Constraint, childName, Child(column, "Default", childName), ownerUrn),
-                new SqlExplorerNode(SqlExplorerNodeKind.Column, defaultColumn, column, ownerUrn),
+                    SqlExplorerNodeKind.Constraint, childName, Child(column, "Default", childName), ownerUrn,
+                    ConstraintsFolder),
+                new SqlExplorerNode(SqlExplorerNodeKind.Column, defaultColumn, column, ownerUrn, ColumnsFolder),
                 fallback
             };
         }
 
-        var (node, kind) = ChildNode(parent.ChildType);
+        var (node, kind, folder) = ChildNode(parent.ChildType);
 
         if (node is null) return new[] { fallback };
 
         return new[]
         {
-            new SqlExplorerNode(kind, childName, Child(ownerUrn, node, childName), ownerUrn),
+            new SqlExplorerNode(kind, childName, Child(ownerUrn, node, childName), ownerUrn, folder),
             fallback
         };
     }
@@ -246,16 +271,17 @@ public static class SqlObjectExplorerUrn
 
     /// <remarks>
     /// 代碼照 <c>sys.objects.type</c>。主索引鍵與唯一鍵在樹上是<b>索引</b>而不是條件約束，
-    /// 寫成別的名字的話，樹上一個節點都對不上。
+    /// 寫成別的名字的話，樹上一個節點都對不上。它們在「索引鍵」與「索引」兩個資料夾裡
+    /// 各畫一次，同一個位址；前者在樹上排得比較前面，也是使用者認它的地方。
     /// </remarks>
-    private static (string? Node, SqlExplorerNodeKind Kind) ChildNode(string childType) =>
+    private static (string? Node, SqlExplorerNodeKind Kind, string Folder) ChildNode(string childType) =>
         (childType ?? "").Trim().ToUpperInvariant() switch
         {
-            "TR" or "TA" => ("Trigger", SqlExplorerNodeKind.Trigger),
-            "C" => ("Check", SqlExplorerNodeKind.Constraint),
-            "F" => ("ForeignKey", SqlExplorerNodeKind.Constraint),
-            "PK" or "UQ" => ("Index", SqlExplorerNodeKind.Constraint),
-            _ => (null, SqlExplorerNodeKind.Object)
+            "TR" or "TA" => ("Trigger", SqlExplorerNodeKind.Trigger, TriggersFolder),
+            "C" => ("Check", SqlExplorerNodeKind.Constraint, ConstraintsFolder),
+            "F" => ("ForeignKey", SqlExplorerNodeKind.Constraint, KeysFolder),
+            "PK" or "UQ" => ("Index", SqlExplorerNodeKind.Constraint, KeysFolder),
+            _ => (null, SqlExplorerNodeKind.Object, "")
         };
 
     private static bool IsDefaultConstraint(string childType) =>
