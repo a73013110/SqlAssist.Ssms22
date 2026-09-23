@@ -122,14 +122,15 @@ internal sealed class SqlSearchDefinitionCache
 /// </remarks>
 internal static class SqlSearchDefinitionHighlight
 {
-    /// <summary>這一列所有命中在 <paramref name="script"/> 上的區段，由前到後、不重疊；對不上時是空的。</summary>
-    /// <param name="truncated">超過 <see cref="MatchHighlights.Maximum"/> 而少標了幾處；呼叫端要說出來。</param>
-    internal static IReadOnlyList<MatchSpan> Locate(SearchHit hit, string script, out bool truncated)
+    /// <summary>這一列所有命中在 <paramref name="script"/> 上的標記；對不上時是空的。</summary>
+    /// <remarks>
+    /// 這裡只決定「拿哪幾段去找」；併段、上限與少標的那一句在 <see cref="MatchHighlights"/>，
+    /// 與 SQL Memory 預覽同一份。
+    /// </remarks>
+    internal static MatchHighlightSet Locate(SearchHit hit, string script)
     {
         if (hit is null) throw new ArgumentNullException(nameof(hit));
-
-        truncated = false;
-        if (script.Length == 0) return Array.Empty<MatchSpan>();
+        if (script.Length == 0) return MatchHighlightSet.Empty;
 
         var found = new List<MatchSpan>();
 
@@ -139,20 +140,10 @@ internal static class SqlSearchDefinitionHighlight
             Collect(match, script, found);
         }
 
-        if (found.Count == 0) return Array.Empty<MatchSpan>();
-
-        var ordered = Flatten(found);
-
-        // 上限與 SQL Memory 預覽同一個數，理由在 MatchHighlights.Maximum。
-        if (ordered.Count <= MatchHighlights.Maximum) return ordered;
-
-        truncated = true;
-        ordered.RemoveRange(MatchHighlights.Maximum, ordered.Count - MatchHighlights.Maximum);
-        return ordered;
+        // 重疊會發生在兩個命中指向同一塊文字的時候（打 Due，而這張表上同時有 Due 與 DueDate 兩行）；
+        // 併成一段而不是丟掉其中一個：那塊文字確實被標出來了，算一處。
+        return MatchHighlights.Merge(found);
     }
-
-    /// <summary>這一列所有命中的區段；不在意有沒有被裁掉時用這一個。</summary>
-    internal static IReadOnlyList<MatchSpan> Locate(SearchHit hit, string script) => Locate(hit, script, out _);
 
     private static void Collect(SearchHit hit, string script, List<MatchSpan> found)
     {
@@ -177,41 +168,5 @@ internal static class SqlSearchDefinitionHighlight
         {
             found.AddRange(MatchProjection.Shift(hit.SnippetSpans, offset, hit.Snippet.Length, script.Length));
         }
-    }
-
-    /// <summary>
-    /// 排序、去重並把重疊的併成一段。
-    /// </summary>
-    /// <remarks>
-    /// 文件那一層要的是由小到大且不重疊的區段——重疊的話同一段文字會被切兩次，
-    /// 而第二次切出來的起點已經落在前一段裡面，畫出來是一段錯位的底色。
-    ///
-    /// 重疊會發生在兩個命中指向同一塊文字的時候（打 <c>Due</c>，而這張表上同時有
-    /// <c>Due</c> 與 <c>DueDate</c> 兩行）。併成一段而不是丟掉其中一個：
-    /// 那塊文字確實被標出來了，算一處。
-    /// </remarks>
-    private static List<MatchSpan> Flatten(List<MatchSpan> found)
-    {
-        found.Sort(static (left, right) =>
-            left.Start != right.Start ? left.Start.CompareTo(right.Start) : left.Length.CompareTo(right.Length));
-
-        var merged = new List<MatchSpan>(found.Count);
-
-        foreach (var span in found)
-        {
-            if (merged.Count != 0)
-            {
-                var last = merged[merged.Count - 1];
-                if (span.Start <= last.End)
-                {
-                    if (span.End > last.End) merged[merged.Count - 1] = new MatchSpan(last.Start, span.End - last.Start);
-                    continue;
-                }
-            }
-
-            merged.Add(span);
-        }
-
-        return merged;
     }
 }

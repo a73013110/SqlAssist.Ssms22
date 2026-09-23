@@ -6,7 +6,6 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
@@ -23,7 +22,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly WrapPanel _actions = new();
     private readonly WrapPanel _tools = new();
-    private readonly SqlMatchNavigator _navigator = new();
+    private readonly SqlMatchNavigation _matches;
     private readonly List<(Button Button, SqlMemoryRowCommand Command)> _rowActions = new();
     private readonly SqlSelectionLoader<SqlMemoryRow> _loader;
     private bool _disposed;
@@ -37,14 +36,9 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _commands = commands;
         _reportCommand = reportCommand;
         // 左側只放全文專用工具；右側列操作與清單卡片、快捷選單同一份清單、同一個順序與實作。
-        // 命中導覽排在最前面、後面接一條群界線，與 SQL Search 預覽同一個排法：它是這一列上唯一會被
-        // 連按好幾次的東西。沒有搜尋字或一處都沒有時整組收起，界線綁著它一起收。
-        _navigator.CurrentChanged += (_, _) =>
-            SqlAssistPlatformGuard.Run("移到下一處命中", () => _viewer.ShowMatch(_navigator.Matches.Index));
-        _tools.Children.Add(_navigator);
-        var divider = SqlAssistChrome.CreateGroupDivider();
-        divider.SetBinding(VisibilityProperty, new Binding(nameof(Visibility)) { Source = _navigator });
-        _tools.Children.Add(divider);
+        // 命中導覽與界線排在最前面，與 SQL Search 預覽同一份（SqlMatchNavigation）。
+        _matches = new SqlMatchNavigation(_viewer);
+        foreach (var item in _matches.ToolbarItems) _tools.Children.Add(item);
         _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
         // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關：
         // 按完之後工具列上看得出現在是開著的，理由見 SqlAssistChrome.CreateIconToggle。
@@ -83,12 +77,11 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         if (_disposed) return;
         _loader.Select(row); _loaded = false;
         _matcher = row is null ? null : matcher;
-        _navigator.Clear();
         _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = false;
         _detail.Content = row;
         _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _detail.ToolTip = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
-        _viewer.SetSql("");
+        _matches.Clear();
         foreach (var (button, command) in _rowActions)
         {
             button.Visibility = row is not null && command.AppliesTo(row.IsFavorite) ? Visibility.Visible : Visibility.Collapsed;
@@ -146,18 +139,19 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }
     }
 
-    /// <summary>把讀回來的全文放上檢視，標出這一輪搜尋字的每一處並停在第一處。</summary>
+    /// <summary>收藏只靠名稱或說明命中時的那一句；少標了的那一句在 <see cref="MatchHighlightSet.Notice"/>，兩個預覽共用。</summary>
     /// <remarks>
-    /// 標在哪裡與要說什麼在 <see cref="SqlMemoryPreviewMatches"/>；第一處自動捲到可見，之後由導覽接手，
-    /// 理由見 docs/search-highlight.md。
+    /// 收藏比對的是名稱、說明與 SQL 的聯集，這一筆的 SQL 上一處都沒有；不說的話，一份沒有任何標記的
+    /// 全文看起來像是高亮壞了。History 只比對 SQL，不會用到這一句。
     /// </remarks>
+    private const string OutsideSql = "SQL 內文沒有命中；這一筆是名稱或說明符合。";
+
+    /// <summary>把讀回來的全文放上檢視，用清單那一輪的比對器標出每一處。</summary>
     private void Show(string sql, bool favorite)
     {
-        var matches = SqlMemoryPreviewMatches.Locate(_matcher, sql, favorite);
-        _viewer.SetSql(sql, matches.Spans);
-        _navigator.SetCursor(new MatchCursor(matches.Spans));
-        if (matches.Spans.Count != 0) _viewer.ShowMatch(0);
-        Report(matches.Notice);
+        var highlights = MatchHighlights.Locate(_matcher, sql);
+        _matches.Show(sql, highlights);
+        Report(highlights.Notice(favorite && _matcher is not null ? OutsideSql : null));
     }
 
     /// <summary>Preview 已讀好全文，編輯與開啟直接沿用，不再讀一次；取消跟著目前選取的讀取生命週期。</summary>

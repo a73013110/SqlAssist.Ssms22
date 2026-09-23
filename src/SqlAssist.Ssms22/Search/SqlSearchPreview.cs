@@ -5,7 +5,6 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using SqlAssist.Core.Matching;
 using SqlAssist.Ssms22.UI;
 
@@ -37,7 +36,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly DockPanel _content;
     private readonly Button _copyScript;
     private readonly ToggleButton _wrap;
-    private readonly SqlMatchNavigator _navigator = new();
+    private readonly SqlMatchNavigation _matches;
     private readonly WrapPanel _toolbar = new();
     private readonly SqlSelectionLoader<SqlSearchRow> _selection;
     private bool _disposed;
@@ -67,6 +66,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _snippetSurface.Visibility = Visibility.Collapsed;
 
         _viewer.ReportError = Report;
+        _matches = new SqlMatchNavigation(_viewer);
         _surface = new SqlStateSurface(_viewer);
 
         // 「現在沒有完整定義可看」全部疊在同一塊內容上：載入中、沒有定義的來源、
@@ -74,16 +74,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _body.Children.Add(_surface);
         _body.Children.Add(_snippetSurface);
 
-        // 導覽排在最前面：這一列上它是唯一會被連按好幾次的東西，而複製與換行是各按一次的。
-        _navigator.CurrentChanged += (_, _) =>
-            SqlAssistPlatformGuard.Run("移到下一處命中", () => _viewer.ShowMatch(_navigator.Matches.Index));
-        _toolbar.Children.Add(_navigator);
-        // 導覽與命令是兩群（「走到哪一處」與「拿這一份定義做什麼」），所以中間是工具列上
-        // 那一條共用的群界線。沒有命中時導覽整組收起，這一條跟著收——綁 Visibility 而不是
-        // 在每一個換命中的路徑上各設一次，漏掉其中一條的症狀是工具列從一條孤線開始。
-        var divider = SqlAssistChrome.CreateGroupDivider();
-        divider.SetBinding(VisibilityProperty, new Binding(nameof(Visibility)) { Source = _navigator });
-        _toolbar.Children.Add(divider);
+        // 導覽與界線排在最前面，排法與 SQL Memory 預覽同一份（SqlMatchNavigation）。
+        foreach (var item in _matches.ToolbarItems) _toolbar.Children.Add(item);
         _toolbar.Children.Add(_copyScript);
         _toolbar.Children.Add(_wrap);
 
@@ -157,8 +149,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         // 而一顆複製得到半句話的按鈕比沒有那一顆更難解釋。定義載進來才開。
         _copyScript.IsEnabled = false;
         _wrap.IsEnabled = false;
-        _navigator.Clear();
-        _viewer.SetSql("");
+        _matches.Clear();
         _surface.State = SqlSurfaceState.None;
         _snippetSurface.Visibility = Visibility.Collapsed;
         Report("");
@@ -215,20 +206,15 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
                 return;
             }
 
-            var highlights = SqlSearchDefinitionHighlight.Locate(row.Hit, definition.Script, out var truncated);
-            _viewer.SetSql(definition.Script, highlights);
-            _navigator.SetCursor(new MatchCursor(highlights));
+            var highlights = SqlSearchDefinitionHighlight.Locate(row.Hit, definition.Script);
+            _matches.Show(definition.Script, highlights);
             _copyScript.IsEnabled = _wrap.IsEnabled = true;
-
-            // 第一處自動捲到可見，之後一律由導覽接手：一份幾百行的定義從頭顯示而命中在底下時，
-            // 使用者看不出自己選的這一筆為什麼在清單上。換一列以外的捲動都是他自己按的。
-            if (highlights.Count != 0) _viewer.ShowMatch(0);
 
             // 對不上時不高亮也不捲動，但要說一句：整份定義從頭顯示而沒有任何標記時，
             // 使用者會以為是面板壞了，而不是這一筆的位置對不起來。
             // 比對的是命中原本那幾段，不是清單攤平之後留下來的：攤平會丟掉被切掉的區段，
             // 拿它判斷會在「片段太長」時誤報成對不上。
-            Report(MatchNotice(highlights.Count, truncated, row));
+            Report(highlights.Notice(row.Hit.SnippetSpans.Count == 0 ? null : Unmatched));
             SqlAssistChrome.PlayAppear(_body);
         }
         finally
@@ -238,20 +224,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         }
     }
 
-    /// <summary>
-    /// 高亮這件事現在要說的那一句；沒有話要說時是空字串。
-    /// </summary>
-    /// <remarks>
-    /// 三種情形的下一步不同，所以不併成一句：對不上是「這一筆的位置對不起來」，
-    /// 太多是「還有沒標出來的」，其餘不必說話。少標了幾處卻不說的症狀最糟——
-    /// 使用者按到最後一處就以為看完了。
-    /// </remarks>
-    private static string MatchNotice(int located, bool truncated, SqlSearchRow row)
-    {
-        if (truncated) return MatchHighlights.TruncatedNotice;
-        if (located != 0 || row.Hit.SnippetSpans.Count == 0) return "";
-        return "命中位置對不上這一份定義，已顯示完整定義。";
-    }
+    /// <summary>命中位置對不上這一份定義時的那一句；少標了的那一句在 <see cref="MatchHighlightSet.Notice"/>，兩個預覽共用。</summary>
+    private const string Unmatched = "命中位置對不上這一份定義，已顯示完整定義。";
 
     private void Report(string message)
     {

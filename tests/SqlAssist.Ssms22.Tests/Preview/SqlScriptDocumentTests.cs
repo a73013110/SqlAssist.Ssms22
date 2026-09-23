@@ -163,7 +163,7 @@ public sealed class SqlScriptDocumentTests
     /// </summary>
     /// <remarks>
     /// 預覽本身接著 SSMS 編輯器，進不了這個測試專案；這裡驗的是它交給文件的那一段，
-    /// 也就是 <c>SqlMemoryPreview.Show</c> 走的同一條路。
+    /// 也就是 <c>SqlMatchNavigation.Show</c> 走的同一條路（SQL Search 預覽也是）。
     /// </remarks>
     [Fact]
     public void SqlMemory預覽的命中每一處都成組而且導覽只換目前那一處()
@@ -176,7 +176,7 @@ public sealed class SqlScriptDocumentTests
                 Search = "CopyNo",
                 MatchOptions = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord
             };
-            var spans = SqlMemoryPreviewMatches.Locate(model.Query().Matcher, sql, favorite: false).Spans;
+            var spans = MatchHighlights.Locate(model.Query().Matcher, sql).Spans;
 
             SqlScriptDocument.Build(sql, CreateResources(), spans, out var matches);
 
@@ -202,7 +202,7 @@ public sealed class SqlScriptDocumentTests
         WpfTest.Run(() =>
         {
             const string sql = "SELECT CopyNo FROM Cat_BookCopy;";
-            var spans = SqlMemoryPreviewMatches.Locate(new SqlMemoryBrowserModel().Query().Matcher, sql, favorite: false).Spans;
+            var spans = MatchHighlights.Locate(new SqlMemoryBrowserModel().Query().Matcher, sql).Spans;
 
             var document = SqlScriptDocument.Build(sql, CreateResources(), spans, out var matches);
 

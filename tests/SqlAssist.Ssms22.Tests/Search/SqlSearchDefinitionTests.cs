@@ -23,7 +23,7 @@ public sealed class SqlSearchDefinitionHighlightTests
     {
         var hit = Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6));
 
-        var spans = SqlSearchDefinitionHighlight.Locate(hit, TableScript);
+        var spans = SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans;
 
         var span = Assert.Single(spans);
         Assert.Equal("CopyNo", TableScript.Substring(span.Start, span.Length));
@@ -39,7 +39,7 @@ public sealed class SqlSearchDefinitionHighlightTests
     {
         var hit = Hit(SearchMatchTarget.Name, "Loan", new MatchSpan(0, 4));
 
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans);
 
         Assert.StartsWith("CREATE TABLE", LineAt(TableScript, span.Start), StringComparison.Ordinal);
     }
@@ -49,7 +49,7 @@ public sealed class SqlSearchDefinitionHighlightTests
     {
         var hit = Hit(SearchMatchTarget.Name, "Loan", new MatchSpan(0, 2));
 
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans);
 
         Assert.Equal("Lo", TableScript.Substring(span.Start, span.Length));
     }
@@ -64,7 +64,7 @@ public sealed class SqlSearchDefinitionHighlightTests
             "    SELECT CopyNo FROM dbo.Loan WHERE LoanId = @LoanId;\r\n";
         var hit = Hit(SearchMatchTarget.Text, "    SELECT CopyNo FROM dbo.Loan WHERE LoanId = @LoanId;", new MatchSpan(11, 6));
 
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script).Spans);
 
         Assert.Equal("CopyNo", script.Substring(span.Start, span.Length));
     }
@@ -78,7 +78,7 @@ public sealed class SqlSearchDefinitionHighlightTests
         const string script = "-- 借閱明細：Loan\r\nALTER VIEW [dbo].[v_Loan]\r\n";
         var hit = Hit(SearchMatchTarget.Text, "-- 借閱明細：Loan", new MatchSpan(8, 4));
 
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script).Spans);
 
         Assert.Equal("Loan", script.Substring(span.Start, span.Length));
     }
@@ -88,14 +88,14 @@ public sealed class SqlSearchDefinitionHighlightTests
     {
         var hit = Hit(SearchMatchTarget.Text, "SELECT * FROM dbo.Branch;", new MatchSpan(18, 6));
 
-        Assert.Empty(SqlSearchDefinitionHighlight.Locate(hit, TableScript));
+        Assert.Empty(SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans);
     }
 
     [Fact]
     public void 沒有命中區段或沒有指令碼時不標()
     {
-        Assert.Empty(SqlSearchDefinitionHighlight.Locate(Hit(SearchMatchTarget.Name, "Loan"), TableScript));
-        Assert.Empty(SqlSearchDefinitionHighlight.Locate(Hit(SearchMatchTarget.Name, "Loan", new MatchSpan(0, 4)), ""));
+        Assert.Empty(SqlSearchDefinitionHighlight.Locate(Hit(SearchMatchTarget.Name, "Loan"), TableScript).Spans);
+        Assert.Empty(SqlSearchDefinitionHighlight.Locate(Hit(SearchMatchTarget.Name, "Loan", new MatchSpan(0, 4)), "").Spans);
     }
 
     /// <remarks>
@@ -110,7 +110,7 @@ public sealed class SqlSearchDefinitionHighlightTests
         var hit = Hit(SearchMatchTarget.Name, "Loan", new MatchSpan(0, 4));
 
         // 跳過檔頭之後整份都是註解，所以第二輪從頭再找一次，標在註解裡那個名稱上。
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, script).Spans);
 
         Assert.Equal("Loan", script.Substring(span.Start, span.Length));
     }
@@ -128,7 +128,7 @@ public sealed class SqlSearchDefinitionHighlightTests
         var script = TableScript + "EXEC sp_addextendedproperty N'MS_Description', N'複本編號', 'COLUMN', N'CopyNo';\r\n";
         var hit = Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6));
 
-        var spans = SqlSearchDefinitionHighlight.Locate(hit, script);
+        var spans = SqlSearchDefinitionHighlight.Locate(hit, script).Spans;
 
         Assert.Equal(2, spans.Count);
         Assert.All(spans, span => Assert.Equal("CopyNo", script.Substring(span.Start, span.Length)));
@@ -146,7 +146,7 @@ public sealed class SqlSearchDefinitionHighlightTests
         var hit = Hit(SearchMatchTarget.Column, "LoanId", new MatchSpan(0, 4))
             .WithMerged(new[] { Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)) });
 
-        var spans = SqlSearchDefinitionHighlight.Locate(hit, TableScript);
+        var spans = SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans;
 
         Assert.Equal(
             new[] { "Loan", "CopyNo" },
@@ -164,7 +164,7 @@ public sealed class SqlSearchDefinitionHighlightTests
         var hit = Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 4))
             .WithMerged(new[] { Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)) });
 
-        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript));
+        var span = Assert.Single(SqlSearchDefinitionHighlight.Locate(hit, TableScript).Spans);
 
         Assert.Equal("CopyNo", TableScript.Substring(span.Start, span.Length));
     }
@@ -181,11 +181,11 @@ public sealed class SqlSearchDefinitionHighlightTests
             builder.Append("    [CopyNo] int, -- ").Append(index).Append("\r\n");
         var script = builder.Append(");\r\n").ToString();
 
-        var spans = SqlSearchDefinitionHighlight.Locate(
-            Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)), script, out var truncated);
+        var highlights = SqlSearchDefinitionHighlight.Locate(
+            Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)), script);
 
-        Assert.True(truncated);
-        Assert.Equal(MatchHighlights.Maximum, spans.Count);
+        Assert.True(highlights.IsTruncated);
+        Assert.Equal(MatchHighlights.Maximum, highlights.Count);
     }
 
     private static SearchHit Hit(SearchMatchTarget target, string snippet, params MatchSpan[] spans) =>

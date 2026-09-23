@@ -4,22 +4,26 @@
 算位置與狀態各一份。產品與 provider 契約見 [SQL Search](search.md)，其餘視覺語言見
 [UI 準則](ui-guidelines.md)。
 
-## 三份職責
+## 四份職責
 
-- **算位置**：`Ssms22/Search/SqlSearchDefinition.cs` 的 `SqlSearchDefinitionHighlight`。
-  它走 `SearchHit.Matches`——併進來的那幾筆全部算——並對每一筆用
-  `TextMatcher.FindAll` 找出片段在定義裡的**每一次**出現。只找第一次的那一版走不到
-  第二處，而一個資料行名稱在 `CREATE TABLE` 裡出現一次，在後面那一串
-  `sp_addextendedproperty` 裡還會再出現一次。重疊的區段併成一段（打 `Due` 而表上同時有
-  `Due` 與 `DueDate` 兩行），文件那一層要的是由小到大且不重疊的區段。
-  SQL Memory 預覽是 `Core/SqlMemory/SqlMemoryPreviewMatches.cs`，用清單那一輪的比對器
+每一個顯示命中的表面都走同一條路，各功能只決定**拿什麼去找**；併段、上限、提示與接線各只有一份，
+改一處兩個工具窗一起變。
+
+- **找**（各功能）：SQL Search 是 `Ssms22/Search/SqlSearchDefinition.cs` 的
+  `SqlSearchDefinitionHighlight`，走 `SearchHit.Matches`——併進來的那幾筆全部算——並用
+  `TextMatcher.FindAll` 找出片段在定義裡的**每一次**出現：一個資料行名稱在 `CREATE TABLE` 裡出現
+  一次，在 `sp_addextendedproperty` 裡還會再出現一次。SQL Memory 用清單那一輪的比對器
   （`SqlMemoryQuery.Matcher`）找 SQL 全文，不另寫比對：清單認得的那一列，預覽就標得出來。
-  上限 `MatchHighlights.Maximum` 兩邊共用，落在**標記**上不落在比對上（重疊或緊貼的出現算一處），
-  超過時截斷並由狀態列說 `TruncatedNotice`——少標了幾處卻不說，使用者按到最後一處就以為看完了。
+- **併與截**：`Core/Matching/MatchHighlights.cs`。重疊或緊貼的區段併成一段（打 `Due` 而表上同時有
+  `Due` 與 `DueDate`），文件那一層要由小到大且不重疊。上限 `Maximum` 落在**標記**上不落在比對上，
+  超過時截斷；`MatchHighlightSet.Notice` 決定狀態列那一句，少標了永遠先說——少標了卻不說，
+  使用者按到最後一處就以為看完了。一處都沒有時說什麼由功能給（Search 是位置對不上定義，
+  Memory 是收藏只靠名稱或說明命中）。
 - **狀態**：`Core/Matching/MatchCursor.cs`。有幾處、現在第幾處、上下一處與環繞收在一份純邏輯裡；
   散到每一個表面各寫一次的症狀是其中一個按到最後一處就不動了，而另一個會捲回文件開頭。
 - **呈現**：指令碼是 `SqlScriptDocument` 的兩級資源（`ScriptResource.Highlight` 與
-  `HighlightCurrent`），清單列是 `SqlHighlightText`；`SqlMatchNavigator` 畫那兩顆按鈕與「3 / 7」。
+  `HighlightCurrent`），清單列是 `SqlHighlightText`；`SqlMatchNavigator` 畫那兩顆按鈕與「3 / 7」，
+  `SqlMatchNavigation` 把它接到預覽的 SQL 檢視、放上工具列並決定第一處的捲動。
 
 ## 視覺契約
 

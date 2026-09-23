@@ -31,7 +31,7 @@
 | 物件總管節點的 URN（節點路徑、候選順序與跳脫） | `Metadata/Model/SqlObjectExplorerUrn.cs` |
 | 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs`（被併掉的那幾筆在 `SearchHit.Merged`） |
 | 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
-| 字面命中要標的區段、標記上限與少標時那一句（Search 與 Memory 預覽共用） | `Core/Matching/MatchHighlights.cs` |
+| 命中的併段、標記上限與狀態列那一句（Search 與 Memory 預覽共用；各功能只決定拿什麼找） | `Core/Matching/MatchHighlights.cs` |
 | 字面比對（大小寫、全字、重疊與上限；字串與 UTF-16LE 位元組同一套規則；Search 與 Memory 都走它） | `Core/Matching/TextMatcher.cs`，選項是 `TextMatchOptions` |
 | 比對選項的驗證與記住的字串格式 | `Core/Matching/TextMatchState.cs` |
 | 片段上的高亮區段平移到整份文字 | `Core/Matching/MatchProjection.cs` 的 `Shift` |
