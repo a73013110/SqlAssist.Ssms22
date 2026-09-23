@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -5,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -103,6 +105,29 @@ internal static partial class SqlAssistChrome
         };
         AutomationProperties.SetName(toggle, label);
         return toggle;
+    }
+
+    /// <summary>
+    /// 範圍列最左邊那一顆：把範圍換成查詢視窗的連線。SQL Search 與 SQL Memory 共用。
+    /// </summary>
+    /// <param name="target">
+    /// 按下去會套到哪一條連線；Tooltip 打開那一刻才問一次，沒有連線時回 null。
+    /// 呼叫端負責包平台防護，這一層只畫。
+    /// </param>
+    /// <remarks>
+    /// 圖示鈕而不是帶文字的按鈕：範圍列在停靠面板裡本來就擠，字留在 Tooltip 與自動化名稱裡。
+    /// Tooltip 不訂閱換分頁或換連線的事件：只有使用者停在這一顆上的那一刻需要答案，
+    /// 一直跟著更新等於為一句沒有人在看的字接兩條事件。
+    ///
+    /// 按下去做什麼由宿主決定，兩邊不同但結果一致——範圍就是查詢視窗那條連線：
+    /// SQL Memory 把當下的伺服器與資料庫寫進篩選；SQL Search 改回跟著查詢視窗，並清掉指名的資料庫。
+    /// </remarks>
+    public static Button CreateEditorConnectionButton(Func<SqlConnectionLabel?> target)
+    {
+        if (target is null) throw new ArgumentNullException(nameof(target));
+        var button = CreateIconButton(SqlIcon.Connection, SqlEditorConnectionText.ApplyAction);
+        button.ToolTipOpening += (_, _) => button.ToolTip = SqlEditorConnectionText.ApplyToolTip(target());
+        return button;
     }
 
     public static Button CreateIconButton(SqlIcon icon, string label, SqlActionTone tone = SqlActionTone.Neutral)

@@ -8,7 +8,6 @@ using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
-using SqlAssist.Ssms22.SqlMemory;
 
 namespace SqlAssist.Ssms22.Search;
 

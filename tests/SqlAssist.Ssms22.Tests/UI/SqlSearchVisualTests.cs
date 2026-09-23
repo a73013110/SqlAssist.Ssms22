@@ -138,7 +138,7 @@ public sealed class SqlSearchVisualTests
                 SqlIcon.Search,
                 SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋"));
-            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
+            var connection = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
             var refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理");
             var row = new SqlInputRow(input, connection, refresh);
             var host = new Border { Child = row };

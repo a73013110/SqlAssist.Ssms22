@@ -535,13 +535,20 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal("未連線", model.DatabaseSummary());
 
         model.HasConnection = true;
-        Assert.Equal(SqlSearchBrowserModel.ConnectionDefaultLabel, model.DatabaseSummary());
+        // 跟著查詢視窗時，沒指名資料庫搜的就是查詢視窗連著的那一個；與伺服器那一顆同一句話。
+        Assert.Equal("查詢視窗", model.DatabaseSummary());
+        model.CurrentDatabase = "LibArchive";
+        Assert.Equal("查詢視窗（LibArchive）", model.DatabaseSummary());
 
-        // 「連線預設」單獨出現時說不出範圍有多大：物件總管那條連線常常只是 master，
+        // 指名了物件總管上一台才說「連線預設」，而且一定帶名字：那條連線常常只是 master，
         // 而使用者以為自己在搜整台。面板第一列與按鈕摘要共用這一份字。
+        model.Server = "LIBSQL01";
+        model.CurrentDatabase = null;
+        Assert.Equal(SqlSearchBrowserModel.ConnectionDefaultLabel, model.DatabaseSummary());
         model.CurrentDatabase = "master";
         Assert.Equal("連線預設（master）", model.DatabaseSummary());
         Assert.Equal("連線預設（master）", model.ConnectionDefaultSummary());
+        model.Server = null;
 
         model.SetCategorySelected("catalog.table", selected: true);
         Assert.Equal("Table", model.CategorySummary());
@@ -557,8 +564,7 @@ public sealed class SqlSearchBrowserModelTests
         model.SetDatabaseSelected("LibReporting", selected: true);
         Assert.Equal("2 個", model.DatabaseSummary());
 
-        // 伺服器單選，所以摘要永遠是一個名字；沒指名時說的是「跟著查詢視窗」而不是
-        // 資料庫那一顆的「目前連線」——兩句話講的是不同的東西。括號裡是跟著的那一台，
+        // 伺服器單選，所以摘要永遠是一個名字；沒指名時說的是「跟著查詢視窗」。括號裡是跟著的那一台，
         // 沒有連線時直接說「未連線」，否則畫面上分不出是範圍選錯了還是真的沒連。
         Assert.Equal("查詢視窗（未連線）", model.ServerSummary());
         model.ActiveEditorServer = "LIBSQL02";

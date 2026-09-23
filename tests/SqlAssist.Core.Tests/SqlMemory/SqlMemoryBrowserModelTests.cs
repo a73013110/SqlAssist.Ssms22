@@ -245,18 +245,18 @@ public sealed class SqlMemoryBrowserModelTests
     }
 
     [Fact]
-    public void UsingTheCurrentConnectionSetsBothFilters()
+    public void UsingTheEditorConnectionSetsBothFilters()
     {
         var model = Ready();
         model.Tab = SqlMemoryBrowserTab.Favorites;
         model.SetServerSelected("ArchiveServer", true);
 
-        Assert.NotNull(model.UseConnection(null));
-        Assert.NotNull(model.UseConnection(new SqlConnectionLabel("LibraryServer", "")));
+        Assert.False(model.UseEditorConnection(null));
+        Assert.False(model.UseEditorConnection(new SqlConnectionLabel("LibraryServer", "")));
         Assert.Equal(new[] { "ArchiveServer" }, model.Servers);
 
         // 取代而不是加進去：這顆按鈕說的是「只看我現在連的那一個」。
-        Assert.Null(model.UseConnection(new SqlConnectionLabel("LibraryServer", "Library")));
+        Assert.True(model.UseEditorConnection(new SqlConnectionLabel("LibraryServer", "Library")));
         Assert.Equal(new[] { "LibraryServer" }, model.Servers);
         Assert.Equal(new[] { "Library" }, model.Databases);
     }

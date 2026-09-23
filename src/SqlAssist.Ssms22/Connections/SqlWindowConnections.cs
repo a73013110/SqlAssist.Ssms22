@@ -8,7 +8,7 @@ using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 
-namespace SqlAssist.Ssms22.SqlMemory;
+namespace SqlAssist.Ssms22.Connections;
 
 /// <summary>
 /// 每個查詢視窗最後一次已知的伺服器與資料庫。
@@ -54,7 +54,7 @@ internal static class SqlWindowConnections
         }
     }
 
-    /// <summary>僅供使用者按下「目前連線」；直接詢問指定查詢視窗，不做資料庫 I/O。</summary>
+    /// <summary>僅供使用者的手動動作（套用查詢視窗的連線、打開範圍面板）；直接詢問指定查詢視窗，不做資料庫 I/O。</summary>
     public static SqlConnectionLabel? ReadActive(IServiceProvider services)
     {
         ThreadHelper.ThrowIfNotOnUIThread();

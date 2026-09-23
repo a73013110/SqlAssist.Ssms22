@@ -425,19 +425,19 @@ public sealed class SqlMemoryBrowserModel
         return !hasSelection && loadedIds.Count > 0 ? 0 : null;
     }
 
-    /// <summary>套用目前查詢視窗的連線：一次更新兩個條件。</summary>
-    /// <returns>無法套用時的訊息；原篩選不變。</returns>
+    /// <summary>套用查詢視窗的連線：一次更新兩個條件。</summary>
+    /// <returns>false 表示查詢視窗沒有完整的連線，原篩選不變；說明的字由宿主給，與 SQL Search 同一句。</returns>
     /// <remarks>
     /// 取代而不是加進去：這顆按鈕說的是「只看我現在連的那一個」，
     /// 加上去的那一版按幾次之後名單愈來愈長，而使用者以為自己每次都縮小了範圍。
     /// </remarks>
-    public string? UseConnection(SqlConnectionLabel? connection)
+    public bool UseEditorConnection(SqlConnectionLabel? connection)
     {
         if (connection is null || string.IsNullOrEmpty(connection.Server) || string.IsNullOrEmpty(connection.Database))
-            return "目前沒有已連線的 SQL 查詢視窗；請先選取查詢視窗。原篩選未變更。";
-        _servers.Clear(); _servers.Add(connection.Server!);
-        _databases.Clear(); _databases.Add(connection.Database!);
-        return null;
+            return false;
+        _servers.Clear(); _servers.Add(connection.Server);
+        _databases.Clear(); _databases.Add(connection.Database);
+        return true;
     }
 
     /// <summary>開始一次連線名稱載入；同一種名稱只有最後一次請求的回應會被採用。</summary>

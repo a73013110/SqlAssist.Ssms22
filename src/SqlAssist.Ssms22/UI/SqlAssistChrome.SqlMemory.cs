@@ -68,27 +68,11 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 「目前連線」：與排序、重新整理同一種圖示鈕，坐在搜尋列右緣。
-    /// </summary>
-    /// <remarks>
-    /// 圖示鈕而不是帶文字的按鈕：它與重新整理是同一類——作用在<b>這一份清單</b>，而那一列
-    /// 的寬度要留給搜尋框。帶著文字的那一版在 300 DIP 的停靠面板裡吃掉三分之一個搜尋框，
-    /// 而它本來就不是主要動作；字留在 Tooltip 與自動化名稱裡。
-    /// </remarks>
-    public static Button CreateMemoryConnectionButton()
-    {
-        var button = CreateIconButton(
-            SqlIcon.Connection, "目前連線：使用目前作用中 SQL 查詢視窗的伺服器與資料庫篩選；不切換連線。");
-        AutomationProperties.SetName(button, "以目前連線篩選");
-        return button;
-    }
-
-    /// <summary>
     /// SQL Memory 的第一列：左邊是分頁，右邊只有設定。
     /// </summary>
     /// <remarks>
     /// 作用在<b>目前這一份</b>的操作不在這裡：重新整理跟著搜尋列走（見 <see cref="SqlInputRow"/>），
-    /// 目前連線跟著伺服器篩選走（見 <see cref="CreateMemoryFilterRow"/>）。分頁列回答的是「在看哪一種東西」，而設定是跨分頁的
+    /// 套用查詢視窗連線的那一顆跟著伺服器篩選走（見 <see cref="CreateMemoryFilterRow"/>）。分頁列回答的是「在看哪一種東西」，而設定是跨分頁的
     /// 共通設定，兩者都不隨分頁換意思。混在一起的那一版讓使用者在切到用量分頁之後，
     /// 還得先看懂那顆重新整理現在是在整理什麼。
     /// </remarks>
@@ -212,8 +196,8 @@ internal static partial class SqlAssistChrome
     /// SQL Memory 的範圍列：連線、狀態與期間各一群，走共用的 <see cref="SqlFilterBar"/>，排在搜尋列上面。
     /// </summary>
     /// <remarks>
-    /// 連線那一群排第一，「目前連線」在伺服器左邊：它一次換掉伺服器與資料庫兩個條件，
-    /// 是這兩顆的捷徑，放在搜尋框右緣的那一版讓人以為它作用在搜尋字串上。
+    /// 連線那一群排第一，套用查詢視窗連線的那一顆在伺服器左邊（與 SQL Search 同一個位置）：
+    /// 它一次換掉伺服器與資料庫兩個條件，是這兩顆的捷徑，放在搜尋框右緣的那一版讓人以為它作用在搜尋字串上。
     /// 連線與狀態／期間併在同一列，不另起一列：停靠面板裡多一列等於永久少看一筆 SQL，
     /// 而放不下的時候那一層本來就會整群換行。切到 Favorites 時狀態與期間整群收起，
     /// 它們前面那一條分隔線由 <see cref="SqlFilterBar"/> 跟著收，不留一條孤線。

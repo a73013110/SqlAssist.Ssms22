@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Search;
+using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Tabular;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Search;
@@ -56,6 +57,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly SqlMatchToggles _matchToggles = new();
+    private readonly Button _connection;
     private readonly SqlSearchSegments _segments = new();
     private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
     private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
@@ -98,6 +100,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 之後其中一條還在答查詢視窗那一台，而兩份看起來都很正常。欄位初始設定式跑在建構式
         // 本體之前，那時候 _services 還是 null，所以這兩個不能寫成欄位初始值。
         _catalogs = new SqlSearchCatalogs(services);
+        _connection = SqlAssistChrome.CreateEditorConnectionButton(ReadEditorConnection);
+        _connection.Click += (_, _) => Run(UseEditorConnection);
         _preview = new SqlSearchPreview(_catalogs);
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Providers);
@@ -287,7 +291,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         return new SqlSearchToolbar(
             searchSlot, _segments,
-            new[] { new[] { _server, _databases }, new[] { _kinds } });
+            new[] { new FrameworkElement[] { _connection, _server, _databases }, new FrameworkElement[] { _kinds } });
     }
 
     /// <summary>把比對方式交給狀態存放區。</summary>
@@ -645,7 +649,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         var options = new List<SqlFilterOption>
         {
             new(
-                SqlSearchBrowserModel.ActiveEditorLabel(editorServer),
+                SqlEditorConnectionText.Label(editorServer),
                 "跟著作用中的查詢視窗；切到連著別台的分頁就跟著換。",
                 _catalogs.FollowsActiveEditor,
                 // 單選：勾掉等於沒有範圍可搜，所以勾與不勾都是「選這一個」。
@@ -676,6 +680,31 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             new SqlFilterGroup(servers is null ? "問不到物件總管，只列得出這一台" : "", options),
             new SqlFilterGroup("物件總管", explorer)
         });
+    }
+
+    /// <summary>查詢視窗現在的連線；沒有視窗或沒有連線時為 null。</summary>
+    private SqlConnectionLabel? ReadEditorConnection() =>
+        SqlAssistPlatformGuard.Probe("取得查詢視窗連線", () => SqlWindowConnections.ReadActive(_services), null);
+
+    /// <summary>
+    /// 範圍換回查詢視窗那條連線：跟著查詢視窗，資料庫回到它連著的那一個。
+    /// </summary>
+    /// <remarks>
+    /// 與 SQL Memory 那一顆結果一致、做法不同：這裡本來就有「跟著查詢視窗」這個狀態，
+    /// 所以是改回那個狀態，之後換分頁仍會跟著走；不是把當下的名稱寫死成指名一台。
+    /// 查詢視窗沒有連線時<b>不動</b>範圍：換回去的結果是一個搜不到任何東西的範圍，
+    /// 而使用者按下去是為了搜那條連線。已經是那個範圍時什麼都不做，按了不會有損失。
+    /// </remarks>
+    private void UseEditorConnection()
+    {
+        if (ReadEditorConnection() is not { Server.Length: > 0 })
+        {
+            Report(SqlEditorConnectionText.NotConnectedReport);
+            return;
+        }
+
+        if (!_catalogs.FollowsActiveEditor) SelectServer(null);
+        ClearDatabases();
     }
 
     /// <summary>

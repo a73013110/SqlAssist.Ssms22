@@ -66,10 +66,10 @@ public sealed class SqlMemoryVisualTests
             header.Children.Add(toolbar);
             var server = MemoryFacet("伺服器", SqlIcon.Server, "LibraryServer", "ArchiveServer", "BranchServer");
             var database = MemoryFacet("資料庫", SqlIcon.Database, "Library", "Archive");
-            // 範圍列在上：目前連線在伺服器左邊，連線、狀態、期間三群併成同一列；分隔線與換行由共用的篩選列負責。
+            // 範圍列在上：套用查詢視窗連線的那一顆在伺服器左邊，連線、狀態、期間三群併成同一列；分隔線與換行由共用的篩選列負責。
             var kind = new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
             var period = new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 };
-            var connectionButton = SqlAssistChrome.CreateMemoryConnectionButton();
+            var connectionButton = SqlAssistChrome.CreateEditorConnectionButton(() => null);
             var filters = SqlAssistChrome.CreateMemoryFilterRow(connectionButton, server, database, kind, period);
             filters.Margin = new Thickness(0, 4, 0, 0);
             header.Children.Add(filters);
@@ -734,11 +734,11 @@ public sealed class SqlMemoryVisualTests
             Assert.Same(Brushes.Lime, Descendants<TextBlock>(button).Single().Foreground);
             Assert.Equal(SqlIcon.Settings, Descendants<SqlIconImage>(button).Single().Icon);
 
-            var connection = SqlAssistChrome.CreateMemoryConnectionButton();
+            var connection = SqlAssistChrome.CreateEditorConnectionButton(() => null);
             connection.Measure(new Size(200, 40)); connection.Arrange(new Rect(0, 0, 200, 40)); connection.UpdateLayout();
             Assert.Equal(SqlIcon.Connection, Descendants<SqlIconImage>(connection).Single().Icon);
             Assert.Empty(Descendants<TextBlock>(connection));
-            Assert.Equal("以目前連線篩選", System.Windows.Automation.AutomationProperties.GetName(connection));
+            Assert.Equal(SqlEditorConnectionText.ApplyAction, System.Windows.Automation.AutomationProperties.GetName(connection));
         });
     }
 
@@ -768,8 +768,8 @@ public sealed class SqlMemoryVisualTests
         {
             var palette = new ThemeResourceSet();
             var button = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
-            button.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "目前連線");
-            var iconButton = SqlAssistChrome.CreateMemoryConnectionButton();
+            button.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "使用查詢視窗的連線");
+            var iconButton = SqlAssistChrome.CreateEditorConnectionButton(() => null);
             var pills = new SqlPillSelector(("草稿", SqlIcon.Edit), ("執行", SqlIcon.Execute));
             var root = new StackPanel(); root.Resources.MergedDictionaries.Add(palette.Resources);
             // SSMS 宿主可在呈現器／文字上指定前景，不能只在沒有隱含樣式的純 WPF 樹驗證。

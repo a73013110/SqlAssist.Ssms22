@@ -14,7 +14,6 @@ using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
-using SqlAssist.Ssms22.SqlMemory;
 
 namespace SqlAssist.Ssms22.Connections;
 

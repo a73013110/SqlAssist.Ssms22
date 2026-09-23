@@ -66,6 +66,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchToolbar.cs" Link="Product\UI\SqlSearchToolbar.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Search.cs" Link="Product\UI\SqlAssistChrome.Search.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlMatchToggles.cs" Link="Product\UI\SqlMatchToggles.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlEditorConnectionText.cs" Link="Product\UI\SqlEditorConnectionText.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchRow.cs" Link="Product\Search\SqlSearchRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchActivation.Targets.cs" Link="Product\Search\SqlSearchActivation.Targets.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchCatalogs.Servers.cs" Link="Product\Search\SqlSearchCatalogs.Servers.cs" />

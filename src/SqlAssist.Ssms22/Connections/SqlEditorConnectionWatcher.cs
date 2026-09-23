@@ -5,7 +5,6 @@ using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Editor;
-using SqlAssist.Ssms22.SqlMemory;
 
 namespace SqlAssist.Ssms22.Connections;
 

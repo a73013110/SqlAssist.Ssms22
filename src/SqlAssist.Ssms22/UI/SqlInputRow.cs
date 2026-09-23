@@ -11,7 +11,7 @@ namespace SqlAssist.Ssms22.UI;
 /// <remarks>
 /// 這一列的分工只有一條界線，SQL Search 與 SQL Memory 共用：修飾<b>這個字串怎麼比</b>的
 /// 直接控制（大小寫、全字、清除）進<see cref="SqlAssistChrome.CreateInputBar"/>的框裡，
-/// 作用在<b>這一份結果</b>的（排序、重新整理、目前連線）留在框外的右緣。縮小搜尋範圍的
+/// 作用在<b>這一份結果</b>的（排序、重新整理）留在框外的右緣。縮小搜尋範圍的
 /// 篩選則不在這一列上，它們在下一層的 <see cref="SqlFilterBar"/>。
 ///
 /// 三種東西混排在同一個地方的症狀是使用者分不出哪一顆會改變「找到什麼」、哪一顆只改變

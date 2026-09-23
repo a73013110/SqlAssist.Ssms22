@@ -43,13 +43,13 @@ internal sealed class SqlSearchToolbar : Panel
     private readonly SqlFilterBar _filters;
 
     /// <param name="filterGroups">
-    /// 依<b>問題</b>分好的幾群過濾按鈕：搜哪裡（伺服器、資料庫）、搜什麼（種類）。
+    /// 依<b>問題</b>分好的幾群範圍控制：搜哪裡（查詢視窗、伺服器、資料庫）、搜什麼（種類）。
     /// </param>
     /// <param name="searchRow">下層那一格：搜尋列，或疊著選取工具列的那一格。</param>
     public SqlSearchToolbar(
         FrameworkElement searchRow,
         SqlSearchSegments segments,
-        IReadOnlyList<IReadOnlyList<SqlFilterFlyout>> filterGroups)
+        IReadOnlyList<IReadOnlyList<FrameworkElement>> filterGroups)
     {
         _row = searchRow ?? throw new ArgumentNullException(nameof(searchRow));
         if (segments is null) throw new ArgumentNullException(nameof(segments));

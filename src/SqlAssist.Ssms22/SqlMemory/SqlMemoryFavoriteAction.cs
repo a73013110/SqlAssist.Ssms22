@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;

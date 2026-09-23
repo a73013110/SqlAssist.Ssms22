@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.UI;
@@ -56,7 +57,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         context.ToolTip = summary; context.Margin = new Thickness(0, 0, 0, 12);
         DockPanel.SetDock(context, Dock.Top); root.Children.Add(context);
 
-        // 兩欄等寬、欄距 18、列距 12：名稱與說明佔滿，標註並排，「使用目前連線」貼在標註列尾端。
+        // 兩欄等寬、欄距 18、列距 12：名稱與說明佔滿，標註並排，「使用查詢視窗的連線」貼在標註列尾端。
         _form.Margin = new Thickness(0, 0, 0, 16);
         foreach (var width in new[] { new GridLength(1, GridUnitType.Star), new GridLength(18), new GridLength(1, GridUnitType.Star),
             new GridLength(8), GridLength.Auto })
@@ -69,10 +70,10 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         Place(SqlAssistChrome.CreateMemoryField("資料庫", TagBar(SqlIcon.Database, _database, "資料庫", databases: true), _database), 2, 2);
         var connection = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         connection.Template = SqlAssistChrome.CreateGhostButtonTemplate();
-        connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "使用目前連線");
-        connection.ToolTip = "以目前作用中查詢視窗的伺服器與資料庫填入標註；不切換連線。";
+        connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "使用查詢視窗的連線");
+        connection.ToolTip = "以查詢視窗的伺服器與資料庫填入標註；不切換連線。";
         connection.MinHeight = 30; connection.VerticalAlignment = VerticalAlignment.Bottom;
-        connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
+        connection.Click += (_, _) => SqlMemoryActions.Run(UseEditorConnection, Report);
         Place(connection, 2, 4);
         _description.MaxLength = 2000; _description.AcceptsReturn = true; _description.TextWrapping = TextWrapping.Wrap;
         _description.MinHeight = 52; _description.MaxHeight = 88;
@@ -147,11 +148,11 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         SqlConnectionTagInput.CreateBar(_package, icon, input, label, databases,
             () => databases && _server.Text.Trim() is { Length: > 0 } text ? text : null, includeFavorites: true, Report);
 
-    private void UseCurrentConnection()
+    private void UseEditorConnection()
     {
         if (SqlWindowConnections.ReadActive(_package) is not { } connection || string.IsNullOrEmpty(connection.Server))
         {
-            Report("目前沒有已連線的 SQL 查詢視窗；標註未變更。");
+            Report("查詢視窗目前沒有連線；標註保持不變。");
             return;
         }
         _server.Text = connection.Server;

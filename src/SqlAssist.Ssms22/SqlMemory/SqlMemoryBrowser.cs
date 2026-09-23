@@ -13,6 +13,7 @@ using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Tabular;
+using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
@@ -105,8 +106,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
         _tabs.Items.Add(_usageTab);
         _tabs.SelectedIndex = HistoryTab;
-        _connection = SqlAssistChrome.CreateMemoryConnectionButton();
-        _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
+        _connection = SqlAssistChrome.CreateEditorConnectionButton(ReadEditorConnection);
+        _connection.Click += (_, _) => SqlMemoryActions.Run(UseEditorConnection, Report);
         header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(
             _tabs, Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
         _hostStatus.TextWrapping = TextWrapping.Wrap;
@@ -470,10 +471,14 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void OnRecoveryOpenFolderRequested() =>
         SqlMemoryActions.Run(SqlMemoryRecoveryService.OpenDatabaseFolder, Report);
 
-    private void UseCurrentConnection()
+    /// <summary>查詢視窗現在的連線；沒有視窗或沒有連線時為 null。</summary>
+    private SqlConnectionLabel? ReadEditorConnection() =>
+        SqlAssistPlatformGuard.Probe("取得查詢視窗連線", () => SqlWindowConnections.ReadActive(_package), null);
+
+    /// <summary>篩選換成查詢視窗那條連線；只改篩選，不切換 SSMS 的連線。</summary>
+    private void UseEditorConnection()
     {
-        var failure = _model.UseConnection(SqlWindowConnections.ReadActive(_package));
-        if (failure is not null) { Report(failure); return; }
+        if (!_model.UseEditorConnection(ReadEditorConnection())) { Report(SqlEditorConnectionText.NotConnectedReport); return; }
         // 模型一次換掉兩份名單，不能在指定伺服器的路徑上把剛指定的資料庫清掉。
         foreach (var facet in _connectionFacets) { UpdateFacetSummary(facet); facet.Reset(); FillFacet(facet); }
         Changed();
@@ -526,6 +531,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     /// </remarks>
     private void ShowFacet(ConnectionFacet facet)
     {
+        // 查詢視窗的連線在打開那一刻問一次：重畫發生在開窗、續頁與每次勾選之後，
+        // 每次都問一次 SSMS 是為了一個沒有人在看的面板付代價。
+        facet.Editor = ReadEditorConnection();
         FillFacet(facet);
         if (!facet.IsLoaded) LoadFacet(facet);
     }
@@ -568,27 +576,55 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     /// </remarks>
     private void FillFacet(ConnectionFacet facet)
     {
+        var editor = new List<SqlFilterOption>();
         var options = new List<SqlFilterOption>();
         var selected = Selection(facet);
+        var pinned = EditorFacetName(facet, selected);
 
-        void Add(string name) => options.Add(new SqlFilterOption(
+        SqlFilterOption Option(string name) => new(
             name, facet.Name + "：" + name, IsFacetSelected(facet, name),
-            on => SqlMemoryActions.Run(() => ToggleFacet(facet, name, on), Report)));
+            on => SqlMemoryActions.Run(() => ToggleFacet(facet, name, on), Report));
 
+        if (pinned is not null) editor.Add(Option(pinned));
         // 已經勾起來的名稱可能不在手上這幾頁裡（換過排序，或還沒續到那一頁）：排在最前面且一律列出，
         // 否則使用者在面板上取消不掉自己剛勾的條件。
-        foreach (var name in selected) if (!facet.Names.Contains(name)) Add(name);
-        foreach (var name in facet.Names) Add(name);
+        foreach (var name in selected) if (name != pinned && !facet.Names.Contains(name)) options.Add(Option(name));
+        foreach (var name in facet.Names) if (name != pinned) options.Add(Option(name));
 
         facet.Panel.SetEmptyOption(new SqlFilterOption(AnyFacetLabel, facet.EmptyHint, selected.Count == 0,
             on => SqlMemoryActions.Run(() => { if (on) ClearFacet(facet); }, Report)));
-        facet.Panel.SetOptions(new[] { new SqlFilterGroup("", options) });
+        facet.Panel.SetOptions(new[]
+        {
+            new SqlFilterGroup(SqlEditorConnectionText.Name, editor),
+            new SqlFilterGroup(editor.Count == 0 ? "" : "其他", options)
+        });
         facet.Panel.SetMore(facet.HasMore ? facet.MoreLabel : null);
         // 名稱是分頁問回來的，全選只勾得到已經載入的那幾頁；還有下一頁時把這個界線說出來，
         // 否則使用者按完全選會以為整份都勾了，而漏掉的那幾個他根本沒看到。
         facet.Panel.SetSelectAllHint(facet.HasMore
             ? "只勾得到已經載入的名稱；還有下一頁，要全部先按「" + facet.MoreLabel + "」。"
             : null);
+    }
+
+    /// <summary>
+    /// 查詢視窗連著的那一個名稱要不要釘在面板最上面；不釘時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 與 SQL Search 的伺服器面板同一個習慣：查詢視窗那一條排第一、段名就叫「查詢視窗」、
+    /// 下面不再列一次。選項的字仍是名稱本身，段名才說它是查詢視窗：面板的搜尋框與「全選」
+    /// 都照名稱比，字寫成「查詢視窗（名稱）」的話打「查詢」篩得出它、全選卻勾不到它。
+    ///
+    /// 只釘紀錄裡有的（或已經勾了的）：紀錄裡沒有的名稱勾下去一定是空清單，
+    /// 而全選只勾得到載入的名稱，釘一個不在名單上的會讓面板上看到的與全選勾到的不一樣。
+    /// 資料庫那一顆只在伺服器沒勾、或勾了查詢視窗那一台時才釘：資料庫名單跟著勾選的伺服器，
+    /// 別台的資料庫名稱釘上去讀起來像是那一台上也有。
+    /// </remarks>
+    private string? EditorFacetName(ConnectionFacet facet, IReadOnlyList<string> selected)
+    {
+        if (facet.Editor is not { Server.Length: > 0 } connection) return null;
+        if (facet.Databases && _model.Servers.Count != 0 && !_model.IsServerSelected(connection.Server)) return null;
+        var name = facet.Databases ? connection.Database : connection.Server;
+        return name.Length > 0 && (facet.Names.Contains(name) || selected.Contains(name)) ? name : null;
     }
 
     /// <summary>這一顆面板目前勾起來的名稱；模型是唯一的出處，面板與按鈕都只是把它畫出來。</summary>
@@ -735,6 +771,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         public bool IsLoaded { get; private set; }
 
         public IReadOnlyList<string> Names => _names;
+
+        /// <summary>面板上一次打開時查詢視窗的連線；只在打開那一刻問，重畫沿用。</summary>
+        public SqlConnectionLabel? Editor { get; set; }
 
         public void Reset() { _names.Clear(); Offset = 0; HasMore = false; IsLoaded = false; }
 

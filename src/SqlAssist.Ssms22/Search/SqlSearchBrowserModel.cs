@@ -144,11 +144,11 @@ internal sealed class SqlSearchBrowserModel
     public const string AllCategoriesLabel = "全部";
 
     /// <summary>
-    /// 沒有指名資料庫時，按鈕與面板第一列上顯示的字。
+    /// 指名了物件總管上一台伺服器、又沒有指名資料庫時，按鈕與面板第一列上顯示的字。
     /// </summary>
     /// <remarks>
-    /// 說「連線預設」而不是「目前連線」：指名物件總管上一台伺服器時，那條連線的預設資料庫
-    /// 通常是 <c>master</c>，而「目前連線」聽起來像使用者現在看著的那個查詢視窗。括號裡的
+    /// 那條連線的預設資料庫通常是 <c>master</c>，說「查詢視窗」會讓人以為在搜他正看著的那個；
+    /// 跟著查詢視窗時說的就是查詢視窗（見 <see cref="ConnectionDefaultSummary"/>）。括號裡的
     /// 名稱由伺服器自己說（<c>SqlSearchScopeDatabases.CurrentName</c>）。
     /// </remarks>
     public const string ConnectionDefaultLabel = "連線預設";
@@ -157,13 +157,6 @@ internal sealed class SqlSearchBrowserModel
     private const string CategoryUnit = " 種";
 
     private const string DatabaseUnit = " 個";
-
-    /// <summary>跟著查詢視窗，而那個視窗沒有連線時括號裡的字。</summary>
-    /// <remarks>
-    /// 摘要一定說得出跟著的是哪一台，或根本沒連上。只寫「查詢視窗」的症狀是使用者盯著一顆
-    /// 看起來正常的按鈕，而下面那一句是「尚未連線」——他分不出是這個範圍選錯了還是真的沒連。
-    /// </remarks>
-    public const string NoConnectionLabel = "未連線";
 
     /// <summary>沒有連線時，狀態表面上那顆按鈕的字。</summary>
     /// <remarks>
@@ -174,14 +167,6 @@ internal sealed class SqlSearchBrowserModel
 
     /// <summary>指名的伺服器連不上時，狀態表面上那顆按鈕的字。</summary>
     public const string FollowEditorAction = "回到查詢視窗";
-
-    /// <summary>沒有指名伺服器時，伺服器按鈕上顯示的字。</summary>
-    /// <remarks>
-    /// 與 <see cref="ConnectionDefaultLabel"/> 分開：資料庫那一顆說的是「跟著這條連線的
-    /// 資料庫」，伺服器這一顆說的是「跟著作用中的那個查詢視窗」——切換分頁會換一台，
-    /// 而兩句話寫成同一句的話，使用者分不出哪一顆在跟著誰走。
-    /// </remarks>
-    public const string ActiveEditorServerLabel = "查詢視窗";
 
     /// <summary>
     /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
@@ -556,11 +541,7 @@ internal sealed class SqlSearchBrowserModel
     /// 括號不是裝飾：跟著走的那一顆說不出目標的話，使用者要打開下拉才知道自己在搜哪一台，
     /// 而沒連線時他連「要去連線」都看不出來。
     /// </remarks>
-    public string ServerSummary() => Server ?? ActiveEditorLabel(ActiveEditorServer);
-
-    /// <summary>「跟著查詢視窗」那一項的字；摘要與下拉那一列共用一份，兩處不會說得不一樣。</summary>
-    public static string ActiveEditorLabel(string? server) =>
-        ActiveEditorServerLabel + "（" + (server is { Length: > 0 } name ? name : NoConnectionLabel) + "）";
+    public string ServerSummary() => Server ?? SqlEditorConnectionText.Label(ActiveEditorServer);
 
     /// <summary>資料庫按鈕上的摘要；沒有指名時是這一輪真正搜的那一個。</summary>
     /// <remarks>
@@ -569,21 +550,23 @@ internal sealed class SqlSearchBrowserModel
     /// </remarks>
     public string DatabaseSummary() =>
         _databases.Count == 0 && !HasConnection
-            ? NoConnectionLabel
+            ? SqlEditorConnectionText.NotConnected
             : Summarize(_databases.Count, ConnectionDefaultSummary(), SingleDatabaseLabel(), DatabaseUnit);
 
     /// <summary>
-    /// 沒有指名資料庫時那一列與那顆按鈕共用的字：連線預設，括號裡是實際的那一個。
+    /// 沒有指名資料庫時那一列與那顆按鈕共用的字，括號裡是實際的那一個。
     /// </summary>
     /// <remarks>
-    /// 摘要與面板第一列共用一份，兩處不會說得不一樣，理由與
-    /// <see cref="ActiveEditorLabel"/> 相同。名稱還沒問到時只說「連線預設」——寧可少說一句，
-    /// 不猜一個名字。
+    /// 跟著查詢視窗時說「查詢視窗」，與伺服器那一顆、SQL Memory 的查詢視窗那一列同一句話：
+    /// 這時搜的就是查詢視窗連著的資料庫，換分頁也跟著換。指名了別台時才說「連線預設」。
+    /// 摘要與面板第一列共用一份，兩處不會說得不一樣。名稱還沒問到時不帶括號——寧可少說一句，
+    /// 不猜一個名字，也不說成「未連線」。
     /// </remarks>
-    public string ConnectionDefaultSummary() =>
-        CurrentDatabase is { Length: > 0 } database
-            ? ConnectionDefaultLabel + "（" + database + "）"
-            : ConnectionDefaultLabel;
+    public string ConnectionDefaultSummary()
+    {
+        var label = Server is null ? SqlEditorConnectionText.Name : ConnectionDefaultLabel;
+        return CurrentDatabase is { Length: > 0 } database ? label + "（" + database + "）" : label;
+    }
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
     public void Invalidate()
