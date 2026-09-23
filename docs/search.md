@@ -18,7 +18,8 @@
 3. 提供自己的導航酬載，掛在 `SearchHit.ActivatePayload`；Core 不解讀。伺服器上的東西實作
    `ISqlSearchTarget`，帶著 provider 建構時收到的 `SqlSearchOrigin`，見[結果導航](search-navigation.md#伺服器跟著那一筆走)。
 4. 在 `Ssms22/Search/SqlSearchProviders` 加入來源類別。
-5. 在 `SqlSearchActivation` 加入對應分支。
+5. 在 `SqlSearchActivation` 加入對應分支。辨識酬載型別**只准**發生在那裡，清單樣板、圖示與
+   預覽只讀 `SearchHit` 的欄位；預覽要不要讀定義也問它（`DefinitionOf`）。
 
 provider 必須在取資料前套用 `SearchQuery.Targets` 與分類；`TryReport` 回 false 立即停止；
 `DbException` 降級為來源失敗，不外擲。種類下拉、清單與預覽不因新來源改動。

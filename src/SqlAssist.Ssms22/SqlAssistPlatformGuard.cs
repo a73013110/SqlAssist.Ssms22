@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Notifications;
@@ -216,6 +217,25 @@ internal static class SqlAssistPlatformGuard
         BeginProbe(operation, () => Task.Run(work));
     }
 
+    /// <summary>
+    /// 接手一個已經在跑、呼叫端逾時或取消而放掉等待的工作，替它接住之後才出的錯。
+    /// </summary>
+    /// <remarks>
+    /// 不 <c>await</c> 它：等一個不是自己起的工作正是 VSTHRD003 要擋的，而呼叫端包成
+    /// <c>() =&gt; running</c> 或這裡直接等都會踩到。這裡只在執行緒集區上掛一個續程接它的錯，
+    /// 沒有人等它，也就沒有那條規則防的互鎖。取消是放掉等待那一方造成的，不記。
+    /// </remarks>
+    public static void BeginProbe(string operation, Task running)
+    {
+        if (running is null) throw new ArgumentNullException(nameof(running));
+
+        _ = running.ContinueWith(
+            task => Report(operation, task.Exception!.GetBaseException(), expected: true),
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
     private static async Task AwaitAsync(string operation, Func<Task> work, bool expected, string document = "",
         NotificationKind kind = NotificationKind.Unclassified,
         NotificationOrigin origin = NotificationOrigin.Ambient,
@@ -238,13 +258,14 @@ internal static class SqlAssistPlatformGuard
         catch (Exception exception)
         {
             notification?.Fail();
-            if (expected)
-            {
-                SqlAssistDiagnostics.Write($"{operation}失敗：{exception.Message}");
-                return;
-            }
-
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Report(operation, exception, expected);
         }
+    }
+
+    /// <summary>沒有人接的背景工作失敗時記一筆；預期會連續失敗的只在詳細診斷記訊息。</summary>
+    private static void Report(string operation, Exception exception, bool expected)
+    {
+        if (expected) SqlAssistDiagnostics.Write($"{operation}失敗：{exception.Message}");
+        else SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
     }
 }

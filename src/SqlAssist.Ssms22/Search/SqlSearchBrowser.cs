@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Search;
+using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
@@ -196,7 +197,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             // 看不見的工具窗不該還佔著連線；取消之後上一份結果留在畫面上，回來時重搜。
             else CancelRequest();
         });
-        ActiveSqlEditor.Changed += OnEditorChanged;
+        ActiveSqlEditor.Changed += OnConnectionContextChanged;
+        SqlEditorConnectionWatcher.Changed += OnConnectionContextChanged;
 
         // 記住的只有「怎麼比對」那三項；伺服器、資料庫與種類刻意不記，理由見 docs/search.md。
         if (_model.RestoreMatchState(SqlAssistState.SearchMatchState))
@@ -216,7 +218,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        ActiveSqlEditor.Changed -= OnEditorChanged;
+        ActiveSqlEditor.Changed -= OnConnectionContextChanged;
+        SqlEditorConnectionWatcher.Changed -= OnConnectionContextChanged;
         _searchTimer.Stop();
         _settleTimer.Stop();
         _request.Cancel();
@@ -723,7 +726,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         _model.Server = server?.DisplayName;
         _model.ClearDatabases();
-        _preview.InvalidateDefinitions();
         FillServer();
         ObserveConnection(reload: true);
 
@@ -734,20 +736,48 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (server is not null && IsVisible) Defer(_databases.Open);
     }
 
-    private void OnEditorChanged(object? sender, EventArgs args) =>
+    /// <remarks>
+    /// 兩個出處：切換分頁（<see cref="ActiveSqlEditor.Changed"/>），以及同一個分頁裡換連線、
+    /// 換資料庫或中斷（<see cref="SqlEditorConnectionWatcher.Changed"/>）。只接前者的症狀是
+    /// 在原分頁改連別台之後，列上「會不會開未連線的視窗」與範圍摘要都停在上一台。
+    /// 後者每批 F5 都會發一次，所以不強制重搜：範圍真的換了才重搜。
+    /// </remarks>
+    private void OnConnectionContextChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排入 SQL Search 連線更新", () =>
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                SqlAssistPlatformGuard.Run("更新 SQL Search 連線", () => ObserveConnection(reload: true)))));
+                SqlAssistPlatformGuard.Run("更新 SQL Search 連線", () => ObserveConnection(reload: false)))));
 
-    /// <summary>重讀這一輪要用的目錄；換過連線就把這一輪作廢重搜。</summary>
+    /// <summary>重讀範圍與作用中的查詢視窗；範圍換過或 <paramref name="reload"/> 時把這一輪作廢重搜。</summary>
     private void ObserveConnection(bool reload)
     {
         if (_disposed) return;
 
-        var catalog = _catalogs.Resolve();
+        var moved = ObserveCatalog(out var catalog);
+        _activeEditorServer = _catalogs.ActiveEditorServerName();
+        _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _activeEditorServer : null;
+        // 移至定義會不會開未連線的視窗跟著查詢視窗走；清單上既有的列在這裡重算，不在每次繪製時問。
+        foreach (var row in _rows) row.ObserveActiveEditor(_activeEditorServer);
+        // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
+        _databases.IsEnabled = catalog is not null;
+
+        if ((reload || moved) && IsVisible) Changed(immediate: true);
+        else UpdateChrome();
+    }
+
+    /// <summary>
+    /// 把範圍的目錄與伺服器交給 provider，並同步跟著它走的狀態。
+    /// </summary>
+    /// <remarks>
+    /// 連線觀測與每一輪搜尋前都走這一支；各寫一份的症狀是兩邊對「目前資料庫」的說法不同
+    /// （物件總管那條連線沒有初始目錄，只有一邊記得退回清單上的名稱）。
+    /// </remarks>
+    /// <returns>範圍換到另一個目錄或另一台時為 true。</returns>
+    private bool ObserveCatalog(out SqlMetadataCatalog? catalog)
+    {
+        catalog = _catalogs.Resolve();
         // 伺服器與目錄在同一次 UI 工作裡連著問，命中帶的才是這份目錄那一台；說不出是哪一台
         // 就不搜，見 SqlSearchCatalogs.ResolveOrigin。
-        _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
+        var moved = _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
         _model.HasConnection = _providers.HasConnection;
         // 清單快取跟著連線走，而且在這裡就同步：展開下拉時才比對的話，換一台之後
         // IsLoaded 仍是上一台的 true，下拉會一直畫著上一台的資料庫。
@@ -758,18 +788,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName is { Length: > 0 } name
             ? name
             : _scopeDatabases.CurrentName;
-        _activeEditorServer = _catalogs.ActiveEditorServerName();
-        _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _activeEditorServer : null;
-        // 移至定義會不會開未連線的視窗跟著查詢視窗走；清單上既有的列在這裡重算，不在每次繪製時問。
-        foreach (var row in _rows) row.ObserveActiveEditor(_activeEditorServer);
-        // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
-        _databases.IsEnabled = catalog is not null;
-
-        // 換過查詢視窗就可能換了伺服器；上一台的定義留著會冒充這一台同號的物件。
-        if (reload) _preview.InvalidateDefinitions();
-
-        if (reload && IsVisible) Changed(immediate: true);
-        else UpdateChrome();
+        return moved;
     }
 
     /// <summary>篩選改變：更新 chip 列與摘要，然後重跑一輪。</summary>
@@ -839,7 +858,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed || !IsVisible) return;
 
-        ObserveCatalogOnly();
+        // 只更新目錄，不重跑這一輪；使用者可能在去彈跳期間換過查詢視窗。
+        ObserveCatalog(out _);
         if (_model.Begin(_providers.IsIndexed(_model.Scope)) is not { } round)
         {
             // 這一輪不會有新結果來換掉舊的（清空了搜尋框或斷了線）；留著上一份等於拿過期的
@@ -873,17 +893,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             _model.End(round);
             UpdateChrome();
         }
-    }
-
-    /// <summary>只更新目錄，不重跑這一輪；使用者可能在去彈跳期間換過查詢視窗。</summary>
-    private void ObserveCatalogOnly()
-    {
-        var catalog = _catalogs.Resolve();
-        // 伺服器與目錄在同一次 UI 工作裡連著問，命中帶的才是這份目錄那一台；說不出是哪一台
-        // 就不搜，見 SqlSearchCatalogs.ResolveOrigin。
-        _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
-        _model.HasConnection = _providers.HasConnection;
-        _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName;
     }
 
     /// <summary>

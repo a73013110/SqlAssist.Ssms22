@@ -258,7 +258,7 @@ internal static class SsmsObjectExplorer
     /// 還在翻下一個資料夾時逾時，選資料行比退回整張表更接近。
     ///
     /// 放掉的那一趟還在跑，它之後才失敗的話沒有人接，所以交給
-    /// <see cref="SqlAssistPlatformGuard.BeginProbe(string, Func{Task})"/>：它只是把節點建出來，
+    /// <see cref="SqlAssistPlatformGuard.BeginProbe(string, Task)"/>：它只是把節點建出來，
     /// 失敗代表下一次按要自己付那一趟，跟預先載入同一個層級。
     /// </remarks>
     private static async Task<int?> TrySelectUnderOwnerAsync(
@@ -287,11 +287,7 @@ internal static class SsmsObjectExplorer
         }
         catch (OperationCanceledException)
         {
-            // VSTHRD003 防的是等一個要回 UI 執行緒的工作而互鎖；walk 是 Task.Run 起的，從頭到尾
-            // 不碰 UI 執行緒。交出去只為了有人接它之後才出的錯，沒有人同步等它。
-#pragma warning disable VSTHRD003
-            SqlAssistPlatformGuard.BeginProbe("在物件總管中往下找子節點（已放掉等待）", () => walk);
-#pragma warning restore VSTHRD003
+            SqlAssistPlatformGuard.BeginProbe("在物件總管中往下找子節點（已放掉等待）", walk);
 
             if (cancellationToken.IsCancellationRequested) throw;
 

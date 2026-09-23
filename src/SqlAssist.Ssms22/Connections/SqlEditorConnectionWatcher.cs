@@ -35,6 +35,13 @@ internal static class SqlEditorConnectionWatcher
     private static bool _subscribed;
     private static bool _shutdown;
 
+    /// <summary>任一個查詢視窗換了連線、換了資料庫或中斷之後發出，在 UI 執行緒上。</summary>
+    /// <remarks>
+    /// 給不綁在單一視窗上的畫面（SQL Search）用；它們要的是「作用中那一個可能換了」，
+    /// 自己再問一次，所以不帶是哪一個視窗。每批 F5 都會發一次，收到的一端不得在這裡查資料庫。
+    /// </remarks>
+    public static event EventHandler? Changed;
+
     /// <summary>
     /// 讓一個查詢視窗的中繼資料服務收得到連線事件。
     /// </summary>
@@ -198,6 +205,8 @@ internal static class SqlEditorConnectionWatcher
             {
                 service.NoteConnectionChanged(moniker);
             }
+
+            Changed?.Invoke(null, EventArgs.Empty);
         });
     }
 

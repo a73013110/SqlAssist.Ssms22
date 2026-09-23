@@ -7,7 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using SqlAssist.Core.Matching;
-using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
@@ -137,7 +136,11 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _viewer.Dispose();
     }
 
-    /// <summary>連線換了或使用者按了重新整理；記著的定義可能已經不是現在這台伺服器的。</summary>
+    /// <summary>使用者按了重新整理；記著的定義可能已經改過。</summary>
+    /// <remarks>
+    /// 換範圍<b>不</b>清：快取鍵是那一筆自己的伺服器、資料庫與編號（見
+    /// <see cref="SqlSearchDefinitionLoader"/>），別台同號的物件本來就對不上同一個鍵。
+    /// </remarks>
     public void InvalidateDefinitions() => _loader.Clear();
 
     public void Select(SqlSearchRow? row)
@@ -172,7 +175,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
             return;
         }
 
-        if (row.Hit.ActivatePayload is not SqlCatalogSearchTarget)
+        if (SqlSearchActivation.DefinitionOf(row.Hit) is null)
         {
             // 沒有目錄物件可以問的來源（之後的片段、SQL Memory）只剩片段可看；
             // 留一塊空白等於讓使用者以為載入卡住了。
@@ -194,7 +197,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
     private async Task LoadAsync(SqlSearchRow row, CancellationToken token)
     {
-        if (!_selection.IsCurrent(row, token) || row.Hit.ActivatePayload is not SqlCatalogSearchTarget target) return;
+        if (!_selection.IsCurrent(row, token) || SqlSearchActivation.DefinitionOf(row.Hit) is not { } target) return;
 
         try
         {

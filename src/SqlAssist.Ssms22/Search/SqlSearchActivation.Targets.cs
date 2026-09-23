@@ -34,6 +34,12 @@ internal static partial class SqlSearchActivation
         hit?.ActivatePayload is ISqlSearchTarget target ? target.Origin : null;
 
     /// <summary>
+    /// 預覽讀得到完整定義的那個目錄物件；只提供片段的來源（作業、之後的 SQL Memory）為 null。
+    /// </summary>
+    public static SqlCatalogSearchTarget? DefinitionOf(SearchHit? hit) =>
+        hit?.ActivatePayload as SqlCatalogSearchTarget;
+
+    /// <summary>
     /// 啟動這一筆會開出<b>沒有連線</b>的查詢視窗：它不在作用中查詢視窗那一台上。
     /// </summary>
     /// <param name="activeEditorServer">作用中查詢視窗連著的伺服器；沒有視窗或沒有連線時為 null。</param>

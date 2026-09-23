@@ -53,9 +53,16 @@ internal sealed class SqlSearchProviders
     ///
     /// 兩者裝在<b>同一個</b>欄位裡一次換掉：分兩個欄位的話，背景那一輪可能讀到新的目錄配上
     /// 舊的伺服器，而那一輪每一筆命中都帶著錯的那一台。任何一個是 null 就等於沒有連線。
+    ///
+    /// 「換了沒有」也由這裡回答，因為上一份只有這裡握著：呼叫端自己再記一份的話，
+    /// 每輪搜尋前那一次重讀先把新值記下，連線事件那一次就看不出換過，舊結果與預覽都留著。
     /// </remarks>
-    public void UseCatalog(SqlMetadataCatalog? catalog, SqlSearchOrigin? origin) =>
-        Volatile.Write(ref _connection, catalog is null || origin is null ? null : new Connection(catalog, origin));
+    /// <returns>換到另一個目錄或另一台時為 true；同一份重設一次為 false。</returns>
+    public bool UseCatalog(SqlMetadataCatalog? catalog, SqlSearchOrigin? origin)
+    {
+        var next = catalog is null || origin is null ? null : new Connection(catalog, origin);
+        return !Connection.SameScope(Interlocked.Exchange(ref _connection, next), next);
+    }
 
     /// <summary>
     /// 這一輪的目標資料庫已經有索引了嗎；false 表示可能要先掃一次全表（含定義本文）。
@@ -187,5 +194,14 @@ internal sealed class SqlSearchProviders
         internal SqlMetadataCatalog Catalog { get; }
 
         internal SqlSearchOrigin Origin { get; }
+
+        /// <remarks>
+        /// 比快取鍵而不比參考：註冊表可能為同一個鍵換過一份目錄，而那不是換範圍。
+        /// </remarks>
+        internal static bool SameScope(Connection? left, Connection? right) =>
+            left is null || right is null
+                ? left is null && right is null
+                : string.Equals(left.Catalog.CacheKey, right.Catalog.CacheKey, StringComparison.Ordinal)
+                  && string.Equals(left.Origin.ServerName, right.Origin.ServerName, StringComparison.Ordinal);
     }
 }

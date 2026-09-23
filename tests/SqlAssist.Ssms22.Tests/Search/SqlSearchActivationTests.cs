@@ -33,6 +33,18 @@ public sealed class SqlSearchActivationTests
         Assert.Same(Origin, SqlSearchActivation.OriginOf(hit));
     }
 
+    /// <summary>預覽只對目錄物件讀定義；作業與沒有酬載的來源只剩片段。</summary>
+    [Fact]
+    public void 只有目錄物件有定義可以預覽()
+    {
+        var catalog = CatalogHit();
+
+        Assert.Same(catalog.ActivatePayload, SqlSearchActivation.DefinitionOf(catalog));
+        Assert.Null(SqlSearchActivation.DefinitionOf(JobHit(step: 1)));
+        Assert.Null(SqlSearchActivation.DefinitionOf(Hit("片段")));
+        Assert.Null(SqlSearchActivation.DefinitionOf(null));
+    }
+
     /// <summary>不是伺服器上的東西就沒有伺服器，不回一個猜的。</summary>
     [Fact]
     public void 不是伺服器上的東西沒有伺服器()
