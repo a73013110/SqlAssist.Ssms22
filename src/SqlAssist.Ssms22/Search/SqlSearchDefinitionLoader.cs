@@ -53,8 +53,9 @@ internal sealed class SqlSearchDefinitionLoader
 
         // object_id 只在它自己那個資料庫裡唯一；快取鍵少了資料庫名，跨資料庫的兩個物件
         // 剛好同號時會互相冒充，而那份定義看起來完全正常。伺服器同理，而且更嚴重——
-        // 跨伺服器的同一個編號毫無關係，少了它，換過伺服器之後上一台那份會原封冒充。
-        var key = _catalogs.Server?.RootUrn + "\u0001" + target.DatabaseName + "\u0001" +
+        // 跨伺服器的同一個編號毫無關係。伺服器取<b>這一筆</b>的，不取現在範圍的：跟著查詢視窗時
+        // 範圍沒有自己的名字，換過視窗之後上一台那份會原封冒充。
+        var key = target.Origin.ServerName + "\u0001" + target.DatabaseName + "\u0001" +
             target.ObjectId.ToString(CultureInfo.InvariantCulture);
 
         if (_cache.TryGet(key, out var cached)) return new SqlSearchDefinitionText(cached, null);
@@ -62,8 +63,13 @@ internal sealed class SqlSearchDefinitionLoader
         var objectInfo = new SqlObjectInfo(
             target.ObjectId, target.SchemaName, target.Name, target.Kind, target.DatabaseName);
 
-        // 清單搜哪一台，這裡就讀哪一台；換資料庫的規則與查詢視窗那條路徑共用同一份。
-        if (_catalogs.ResolveFor(objectInfo) is not { } catalog)
+        // 這一筆在哪一台，這裡就讀哪一台；範圍已經換到別台時照實說，不拿那一台同號的物件代答。
+        // 換資料庫的規則與查詢視窗那條路徑共用同一份。
+        var resolved = _catalogs.ResolveFor(objectInfo, target.Origin, out var elsewhere);
+
+        if (elsewhere) return new SqlSearchDefinitionText("", SqlSearchCatalogs.ElsewhereNotice(target.Origin));
+
+        if (resolved is not { } catalog)
         {
             return new SqlSearchDefinitionText("", _catalogs.FollowsActiveEditor
                 ? "請先開啟一個已連線的 SQL 查詢視窗，才讀得到物件定義。"

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Model;
+using SqlAssist.Metadata.Search;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
@@ -29,8 +30,14 @@ namespace SqlAssist.Ssms22.Search;
 /// 這裡留的是<b>目錄</b>，與 <see cref="SqlSearchProviders"/> 同一個規矩。
 ///
 /// 全部方法都只能在 UI 執行緒上呼叫：作用中編輯器與物件總管的服務都有 UI 相依性。
+///
+/// <b>一筆結果點下去時，伺服器照那一筆的 <see cref="SqlSearchOrigin"/>，不照現在的範圍。</b>
+/// 清單比範圍活得久：換了查詢視窗或指名別台之後，舊的那幾列仍然指向上一台，而現在的
+/// 範圍答的是換過之後那一台。所以導航、沿用連線與目錄查詢三條路都把那一筆的伺服器帶進來問，
+/// 範圍不在那一台時照實拒絕，不拿現在這一台同名、同號的東西代答。
+/// 純判斷那一半（比對規則、在樹上挑哪一台）在 <c>SqlSearchCatalogs.Servers.cs</c>，零 VS 相依。
 /// </remarks>
-internal sealed class SqlSearchCatalogs
+internal sealed partial class SqlSearchCatalogs
 {
     private readonly IServiceProvider _services;
 
@@ -63,7 +70,7 @@ internal sealed class SqlSearchCatalogs
     public bool FollowsActiveEditor => _server is null;
 
     /// <summary>
-    /// 這一輪的結果與作用中的查詢視窗落在同一台伺服器上。
+    /// 這一筆結果與作用中的查詢視窗落在同一台伺服器上。
     /// </summary>
     /// <remarks>
     /// 與 <see cref="FollowsActiveEditor"/> 是<b>兩個</b>問題，而且常常答案不同：使用者
@@ -71,18 +78,22 @@ internal sealed class SqlSearchCatalogs
     /// 症狀就是那個情形——兩邊明明同一台，移至定義卻回一句「請先把查詢視窗連到那一台」，
     /// 而使用者看著自己剛連好的視窗，沒有任何辦法讓它閉嘴。
     ///
-    /// 比對沿用 <see cref="IsSameServer"/>，與下拉「同一台不列兩次」及
+    /// 問的是<b>那一筆</b>的伺服器，不是這一輪範圍的：範圍跟著查詢視窗時，換過視窗之後
+    /// 「範圍與視窗同一台」恆真，而清單上的舊列來自上一台。
+    ///
+    /// 比對沿用 <see cref="IsSameServer(string?, string?)"/>，與下拉「同一台不列兩次」及
     /// <see cref="ResolveExplorerServer"/> 同一份規則：伺服器名稱的寫法只有一份，
     /// 在這裡另寫一套的症狀是下拉說同一台、這一支說不同台。
     ///
     /// <b>只問伺服器，不問資料庫。</b>新視窗沿用的是連線，而一份結果清單本來就跨資料庫；
     /// 指令碼自己帶著它該去的那一個。要求連同資料庫一致等於把跨資料庫的結果整批擋掉。
     /// </remarks>
-    public bool SharesActiveEditorServer()
+    public bool SharesActiveEditorServer(SqlSearchOrigin origin)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
+        if (origin is null) throw new ArgumentNullException(nameof(origin));
 
-        return _server is not { } server || IsSameServer(server, ActiveEditorServerName());
+        return IsSameServer(origin.ServerName, ActiveEditorServerName());
     }
 
     /// <summary>
@@ -157,42 +168,36 @@ internal sealed class SqlSearchCatalogs
     }
 
     /// <summary>
-    /// 物件總管樹上這一台，就是那個查詢視窗連著的伺服器。
+    /// 這一筆結果在物件總管的哪一台上；樹上沒有那一台時回傳 null。
     /// </summary>
     /// <remarks>
-    /// 比對走連線字串裡的伺服器名稱，不是快取鍵——快取鍵是整串正規化過的連線字串，
-    /// 同一台伺服器的兩條連線幾乎不會相等。下拉「同一台不列兩次」與導航「樹上是哪一台」
-    /// 共用這一份；兩處各寫一次的症狀是下拉少列一台，導航卻說物件總管上沒有它。
-    /// </remarks>
-    public static bool IsSameServer(SsmsObjectExplorerServer server, string? editorServerName) =>
-        editorServerName is { Length: > 0 } &&
-        string.Equals(server.ServerName, editorServerName, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// 這一輪的結果落在物件總管的哪一台上；樹上沒有那一台時回傳 null。
-    /// </summary>
-    /// <remarks>
-    /// 指名了伺服器就是那一台——它本來就是從樹上挑的。跟著查詢視窗時要反過來找，
-    /// 而那條連線不一定在物件總管上（使用者可以只開查詢視窗）。找不到時<b>禁止</b>
-    /// 拿樹上任何一台頂替：頂替的症狀是導航跳到另一台伺服器上同名的物件，
-    /// 而畫面上看起來完全正常。
+    /// 照那一筆的伺服器找，不照現在的範圍：範圍換過之後，舊列的伺服器仍然是上一台。
+    /// 找不到時<b>禁止</b>拿樹上任何一台頂替（包括指名的那一台）：頂替的症狀是導航跳到
+    /// 另一台伺服器上同名的物件，而畫面上看起來完全正常。挑法見 <see cref="FindOnTree"/>。
     ///
     /// 只在使用者按下導航那一刻呼叫：列伺服器會取用物件總管服務，而那一步會把它的視窗
     /// 叫出來，理由見 <see cref="SsmsObjectExplorer"/>。
     /// </remarks>
-    public SsmsObjectExplorerServer? ResolveExplorerServer()
+    public SsmsObjectExplorerServer? ResolveExplorerServer(SqlSearchOrigin origin)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
+        if (origin is null) throw new ArgumentNullException(nameof(origin));
 
-        if (_server is not null) return _server;
-        if (ActiveEditorServerName() is not { } editorServer) return null;
+        return FindOnTree(_server, ListServers(), origin);
+    }
 
-        foreach (var server in ListServers() ?? Array.Empty<SsmsObjectExplorerServer>())
-        {
-            if (IsSameServer(server, editorServer)) return server;
-        }
-
-        return null;
+    /// <summary>
+    /// 這一輪範圍連著的伺服器；說不出來時為 null。provider 把它交給每一筆命中。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Resolve"/> 在同一次 UI 執行緒的工作裡連著問，兩者才是同一台：
+    /// 分兩次問的話，中間換過查詢視窗，命中就會帶著另一台的名字。說不出伺服器時
+    /// 這一輪不搜——沒有伺服器的命中，下游只剩「照目前範圍猜」這條退路。
+    /// </remarks>
+    public SqlSearchOrigin? ResolveOrigin()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        return ScopeServerName() is { Length: > 0 } name ? new SqlSearchOrigin(name) : null;
     }
 
     /// <summary>
@@ -219,20 +224,43 @@ internal sealed class SqlSearchCatalogs
     }
 
     /// <summary>
-    /// 這一筆結果指向的那個物件要用哪一份目錄。
+    /// 在 <paramref name="origin"/> 那一台上的目錄；範圍已經不在那一台時回傳 null，
+    /// 並以 <paramref name="elsewhere"/> 說出是這個原因。
     /// </summary>
     /// <remarks>
-    /// 換目錄的規則只有 <see cref="SqlMetadataCatalogRegistry.ScopeTo(SqlMetadataCatalog?, SqlObjectInfo?)"/>
+    /// 目錄只有範圍那一份，所以這一支<b>拒絕</b>而不去別處找：拿範圍那一台的目錄回答另一台
+    /// 的 <c>object_id</c>，問到的是剛好同號的另一個物件（或它的父物件），而那份答案看起來
+    /// 完全正常。<paramref name="elsewhere"/> 與「連不上」分開說，兩句的下一步不同：
+    /// 一句是重新搜尋，另一句是去看連線。
+    /// </remarks>
+    public SqlMetadataCatalog? ResolveOn(SqlSearchOrigin origin, out bool elsewhere)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        if (origin is null) throw new ArgumentNullException(nameof(origin));
+
+        elsewhere = !IsSameServer(origin.ServerName, ScopeServerName());
+        return elsewhere ? null : Resolve();
+    }
+
+    /// <summary>
+    /// 這一筆結果指向的那個物件要用哪一份目錄；範圍已經不在它那一台時回傳 null。
+    /// </summary>
+    /// <remarks>
+    /// 伺服器先照 <see cref="ResolveOn"/> 確認，再換資料庫。換目錄的規則只有
+    /// <see cref="SqlMetadataCatalogRegistry.ScopeTo(SqlMetadataCatalog?, SqlObjectInfo?)"/>
     /// 一份，與查詢視窗那條路徑共用：一份結果清單本來就跨資料庫，而
     /// <c>object_id</c> 只在它自己那個資料庫裡唯一。
     /// </remarks>
-    public SqlMetadataCatalog? ResolveFor(SqlObjectInfo objectInfo)
+    public SqlMetadataCatalog? ResolveFor(SqlObjectInfo objectInfo, SqlSearchOrigin origin, out bool elsewhere)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         if (objectInfo is null) throw new ArgumentNullException(nameof(objectInfo));
 
-        return SqlMetadataCatalogRegistry.Default.ScopeTo(Resolve(), objectInfo);
+        return SqlMetadataCatalogRegistry.Default.ScopeTo(ResolveOn(origin, out elsewhere), objectInfo);
     }
+
+    /// <summary>範圍現在連著的伺服器名稱；指名的那一台或作用中查詢視窗那一條。</summary>
+    private string? ScopeServerName() => _server is { } server ? server.ServerName : ActiveEditorServerName();
 
     /// <remarks>
     /// 中繼資料服務是每個查詢視窗一份，連線也在那裡；沒有查詢視窗就沒有目錄可問，

@@ -63,7 +63,7 @@ public sealed class SqlAgentJobScriptTests
 
         var script = Build(
             server,
-            new SqlAgentJobSearchTarget("LIBSQL01", disabled.JobId, disabled.Name, isEnabled: false))!;
+            new SqlAgentJobSearchTarget(Origin, "LIBSQL01", disabled.JobId, disabled.Name, isEnabled: false))!;
 
         Assert.Contains("-- 這個作業目前是停用的。", script);
     }
@@ -85,7 +85,7 @@ public sealed class SqlAgentJobScriptTests
         var script = Build(
             server,
             new SqlAgentJobSearchTarget(
-                "LIBSQL01", job.JobId, job.Name, isEnabled: false, stepId: 2, subsystem: "CmdExec"))!;
+                Origin, "LIBSQL01", job.JobId, job.Name, isEnabled: false, stepId: 2, subsystem: "CmdExec"))!;
 
         Assert.Contains("子系統不是 TSQL", script);
 
@@ -159,20 +159,22 @@ public sealed class SqlAgentJobScriptTests
             () => SqlAgentJobScript.TryBuild(server.SourceFor(), null!, NewLine, CancellationToken.None));
     }
 
+    private static readonly SqlSearchOrigin Origin = new("LIBSQL01");
+
     private static string? Build(FakeAgentServer server, SqlAgentJobSearchTarget target) =>
         SqlAgentJobScript.TryBuild(server.SourceFor(), target, NewLine, CancellationToken.None);
 
     private static SqlAgentJobSearchTarget JobTarget(FakeAgentServer server)
     {
         var job = server.Jobs[0];
-        return new SqlAgentJobSearchTarget("LIBSQL01", job.JobId, job.Name, job.Enabled);
+        return new SqlAgentJobSearchTarget(Origin, "LIBSQL01", job.JobId, job.Name, job.Enabled);
     }
 
     private static SqlAgentJobSearchTarget StepTarget(FakeAgentServer server, int stepId)
     {
         var job = server.Jobs[0];
         return new SqlAgentJobSearchTarget(
-            "LIBSQL01", job.JobId, job.Name, job.Enabled, stepId, subsystem: "TSQL", databaseName: "Library");
+            Origin, "LIBSQL01", job.JobId, job.Name, job.Enabled, stepId, subsystem: "TSQL", databaseName: "Library");
     }
 
     private static FakeAgentServer NewServer()

@@ -736,8 +736,10 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (_disposed) return;
 
         var catalog = _catalogs.Resolve();
-        _providers.UseCatalog(catalog);
-        _model.HasConnection = catalog is not null;
+        // 伺服器與目錄在同一次 UI 工作裡連著問，命中帶的才是這份目錄那一台；說不出是哪一台
+        // 就不搜，見 SqlSearchCatalogs.ResolveOrigin。
+        _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
+        _model.HasConnection = _providers.HasConnection;
         // 清單快取跟著連線走，而且在這裡就同步：展開下拉時才比對的話，換一台之後
         // IsLoaded 仍是上一台的 true，下拉會一直畫著上一台的資料庫。
         _scopeDatabases.SyncTo(catalog);
@@ -865,8 +867,10 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private void ObserveCatalogOnly()
     {
         var catalog = _catalogs.Resolve();
-        _providers.UseCatalog(catalog);
-        _model.HasConnection = catalog is not null;
+        // 伺服器與目錄在同一次 UI 工作裡連著問，命中帶的才是這份目錄那一台；說不出是哪一台
+        // 就不搜，見 SqlSearchCatalogs.ResolveOrigin。
+        _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
+        _model.HasConnection = _providers.HasConnection;
         _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName;
     }
 

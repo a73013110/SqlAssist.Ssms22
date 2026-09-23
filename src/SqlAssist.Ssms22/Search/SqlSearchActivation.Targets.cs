@@ -24,6 +24,16 @@ internal static partial class SqlSearchActivation
         hit?.ActivatePayload is SqlCatalogSearchTarget or SqlAgentJobSearchTarget;
 
     /// <summary>
+    /// 這一筆是在哪一台伺服器上搜到的；不是伺服器上的東西時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 認的是 <see cref="ISqlSearchTarget"/> 而不是逐一列出目錄物件與作業：新來源的酬載只要
+    /// 實作它，「在樹上找哪一台」「能不能沿用查詢視窗」「目錄是不是同一台」三道判斷就一起套上。
+    /// </remarks>
+    public static SqlSearchOrigin? OriginOf(SearchHit? hit) =>
+        hit?.ActivatePayload is ISqlSearchTarget target ? target.Origin : null;
+
+    /// <summary>
     /// 描述啟動之後會發生什麼；給 Tooltip、右鍵選單與自動化名稱用。
     /// </summary>
     public static string Describe(SearchHit? hit)

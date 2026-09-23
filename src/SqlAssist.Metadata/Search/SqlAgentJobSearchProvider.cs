@@ -54,17 +54,24 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     private const string DedupePrefix = "agent-job|";
 
     private readonly ISqlConnectionSource _connectionSource;
+    private readonly SqlSearchOrigin _origin;
     private readonly SqlAgentJobSearchSnapshotCache _snapshotCache;
 
+    /// <param name="origin">
+    /// <paramref name="connectionSource"/> 連著哪一台；每一筆命中都帶著它。快照裡的
+    /// <c>ServerName</c> 是伺服器自報的名字，只給人看，理由見 <see cref="SqlAgentJobSearchTarget"/>。
+    /// </param>
     /// <param name="snapshotCache">
     /// 作業快照的快取；不給時自己建一份。同一個工具窗的多個 provider 實例要共用同一份時
     /// 由呼叫端傳進來——各自持有一份的症狀是每一輪搜尋都向 <c>msdb</c> 撈一次。
     /// </param>
     public SqlAgentJobSearchProvider(
         ISqlConnectionSource connectionSource,
+        SqlSearchOrigin origin,
         SqlAgentJobSearchSnapshotCache? snapshotCache = null)
     {
         _connectionSource = connectionSource ?? throw new ArgumentNullException(nameof(connectionSource));
+        _origin = origin ?? throw new ArgumentNullException(nameof(origin));
         _snapshotCache = snapshotCache ?? new SqlAgentJobSearchSnapshotCache();
         Categories = SqlAgentJobSearchCategories.Create(ProviderId);
     }
@@ -150,13 +157,13 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
             // 「這個字串在這台伺服器的作業裡不存在」一模一樣。
             if (wantsText && !snapshot.CommandsComplete) truncated = true;
 
-            if (wantsName && !ScanNames(snapshot, query, sink, counter, wantsJobs, wantsSteps, cancellationToken))
+            if (wantsName && !ScanNames(snapshot, _origin, query, sink, counter, wantsJobs, wantsSteps, cancellationToken))
             {
                 truncated = true;
                 return;
             }
 
-            if (wantsText && !ScanCommands(snapshot, query, sink, counter, cancellationToken))
+            if (wantsText && !ScanCommands(snapshot, _origin, query, sink, counter, cancellationToken))
             {
                 truncated = true;
             }
@@ -175,6 +182,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     /// </remarks>
     private static bool ScanNames(
         SqlAgentJobSearchSnapshot snapshot,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         SearchExamineCounter counter,
@@ -211,7 +219,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                         // 片段就是名稱本體：高亮區段的索引落在它上面。
                         job.Name,
                         match.Spans,
-                        new SqlAgentJobSearchTarget(snapshot.ServerName, job.JobId, job.Name, job.IsEnabled),
+                        new SqlAgentJobSearchTarget(origin, snapshot.ServerName, job.JobId, job.Name, job.IsEnabled),
                         jobBadges);
 
                     if (!sink.TryReport(hit)) return false;
@@ -245,7 +253,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                     path: null,
                     step.Name,
                     match.Spans,
-                    TargetFor(snapshot.ServerName, job, step),
+                    TargetFor(origin, snapshot.ServerName, job, step),
                     BadgesFor(snapshot.ServerName, job, step));
 
                 if (!sink.TryReport(hit)) return false;
@@ -262,6 +270,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     /// </remarks>
     private static bool ScanCommands(
         SqlAgentJobSearchSnapshot snapshot,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         SearchExamineCounter counter,
@@ -301,7 +310,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                     path: null,
                     snippet,
                     spans,
-                    TargetFor(snapshot.ServerName, job, step),
+                    TargetFor(origin, snapshot.ServerName, job, step),
                     BadgesFor(snapshot.ServerName, job, step));
 
                 if (!sink.TryReport(hit)) return false;
@@ -326,8 +335,9 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
             : job.Name + " › 第 " + order + " 步 " + step.Name;
     }
 
-    private static SqlAgentJobSearchTarget TargetFor(string serverName, SqlAgentJob job, SqlAgentJobStep step) =>
-        new(serverName, job.JobId, job.Name, job.IsEnabled,
+    private static SqlAgentJobSearchTarget TargetFor(
+        SqlSearchOrigin origin, string serverName, SqlAgentJob job, SqlAgentJobStep step) =>
+        new(origin, serverName, job.JobId, job.Name, job.IsEnabled,
             step.StepId, step.Name, step.Subsystem, step.DatabaseName);
 
     /// <summary>

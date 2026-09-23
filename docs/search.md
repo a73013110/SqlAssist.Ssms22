@@ -15,7 +15,8 @@
 
 1. 實作 `ISearchProvider`；跨版本不得更名 `Id`。
 2. 提供分類表；分類 `Id` 會寫入偏好，同樣不得更名。
-3. 提供自己的導航酬載，掛在 `SearchHit.ActivatePayload`；Core 不解讀。
+3. 提供自己的導航酬載，掛在 `SearchHit.ActivatePayload`；Core 不解讀。伺服器上的東西實作
+   `ISqlSearchTarget`，帶著 provider 建構時收到的 `SqlSearchOrigin`，見[結果導航](search-navigation.md#伺服器跟著那一筆走)。
 4. 在 `Ssms22/Search/SqlSearchProviders` 加入來源類別。
 5. 在 `SqlSearchActivation` 加入對應分支。
 

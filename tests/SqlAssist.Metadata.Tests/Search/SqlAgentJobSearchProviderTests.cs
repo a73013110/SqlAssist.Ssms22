@@ -225,7 +225,7 @@ public sealed class SqlAgentJobSearchProviderTests
     [Fact]
     public async Task 取消時擲出取消例外()
     {
-        var provider = new SqlAgentJobSearchProvider(NewServer().SourceFor());
+        var provider = new SqlAgentJobSearchProvider(NewServer().SourceFor(), Origin);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -394,6 +394,34 @@ public sealed class SqlAgentJobSearchProviderTests
         var target = Assert.IsType<SqlAgentJobSearchTarget>(hit.ActivatePayload);
 
         Assert.Equal(SqlAgentJobSearchSnapshot.UnknownServerName, target.ServerName);
+
+        // 伺服器說不出自己的名字不影響導航：那一步照的是連線那一台，不是自報的名字。
+        Assert.Same(Origin, target.Origin);
+    }
+
+    /// <summary>
+    /// 每一筆命中帶的是連線那一台，不是伺服器自報的名字。
+    /// </summary>
+    /// <remarks>
+    /// 兩個名字在具名執行個體與別名連線上不同，而物件總管與查詢視窗認的都是連線字串那一種；
+    /// 拿自報的名字去樹上找，一台都找不到。自報的那一個仍然留著給人看。
+    /// </remarks>
+    [Fact]
+    public async Task 命中帶著連線那一台而不是伺服器自報的名字()
+    {
+        var origin = new SqlSearchOrigin("LIBSQL02");
+        var provider = new SqlAgentJobSearchProvider(NewServer().SourceFor("Library"), origin);
+        var sink = new RecordingSearchSink();
+
+        await provider.SearchAsync(new SearchQuery("Lib"), sink, CancellationToken.None);
+
+        Assert.NotEmpty(sink.Hits);
+        Assert.All(sink.Hits, hit =>
+        {
+            var target = Assert.IsType<SqlAgentJobSearchTarget>(hit.ActivatePayload);
+            Assert.Same(origin, target.Origin);
+            Assert.Equal("LIBSQL01", target.ServerName);
+        });
     }
 
     /// <summary>命令本文只收到一半也是「沒掃完」。</summary>
@@ -439,7 +467,8 @@ public sealed class SqlAgentJobSearchProviderTests
     [Fact]
     public void 參數違約仍然擲出例外()
     {
-        Assert.Throws<ArgumentNullException>(() => new SqlAgentJobSearchProvider(null!));
+        Assert.Throws<ArgumentNullException>(() => new SqlAgentJobSearchProvider(null!, Origin));
+        Assert.Throws<ArgumentNullException>(() => new SqlAgentJobSearchProvider(NewServer().SourceFor(), null!));
         Assert.Throws<ArgumentNullException>(
             () => SqlAgentJobSearchSnapshot.TryLoad(null!, includeCommands: true, CancellationToken.None));
     }
@@ -470,7 +499,7 @@ public sealed class SqlAgentJobSearchProviderTests
     [Fact]
     public void 宣告自己的分類()
     {
-        var provider = new SqlAgentJobSearchProvider(NewServer().SourceFor());
+        var provider = new SqlAgentJobSearchProvider(NewServer().SourceFor(), Origin);
 
         Assert.Equal("agent-job", provider.Id);
         Assert.Equal(
@@ -487,6 +516,8 @@ public sealed class SqlAgentJobSearchProviderTests
     /// <summary>命中的那幾段字；高亮畫錯位置看起來像是比對錯了。</summary>
     private static string Flatten(SearchHit hit) =>
         string.Concat(hit.SnippetSpans.Select(span => hit.Snippet.Substring(span.Start, span.Length)));
+
+    private static readonly SqlSearchOrigin Origin = new("LIBSQL01");
 
     private static FakeAgentServer NewServer()
     {
@@ -510,7 +541,7 @@ public sealed class SqlAgentJobSearchProviderTests
         SqlAgentJobSearchSnapshotCache? cache = null,
         string databaseName = "Library")
     {
-        var provider = new SqlAgentJobSearchProvider(server.SourceFor(databaseName), cache);
+        var provider = new SqlAgentJobSearchProvider(server.SourceFor(databaseName), Origin, cache);
         var sink = new RecordingSearchSink(acceptLimit);
 
         await provider.SearchAsync(query, sink, CancellationToken.None);

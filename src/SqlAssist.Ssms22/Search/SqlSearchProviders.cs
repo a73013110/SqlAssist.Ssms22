@@ -27,7 +27,7 @@ internal sealed class SqlSearchProviders
 {
     private readonly SqlCatalogSearchIndexCache _indexCache = new();
     private readonly SqlAgentJobSearchSnapshotCache _jobCache = new();
-    private SqlMetadataCatalog? _catalog;
+    private Connection? _connection;
 
     /// <remarks>
     /// 順序就是分類 pill 的順序（聚合器照 provider 串接）：先資料庫物件，再伺服器層級的
@@ -42,16 +42,20 @@ internal sealed class SqlSearchProviders
     /// <summary>視窗握著的那一個；分類 pill 也由它的 <see cref="SearchAggregator.Categories"/> 產生。</summary>
     public SearchAggregator Aggregator { get; }
 
-    public bool HasConnection => Volatile.Read(ref _catalog) is not null;
+    public bool HasConnection => Volatile.Read(ref _connection) is not null;
 
     /// <summary>
-    /// 換上目前查詢視窗那條連線的目錄。
+    /// 換上這一輪範圍的目錄，以及它連著哪一台。
     /// </summary>
     /// <remarks>
     /// 由 UI 執行緒在每一輪搜尋之前呼叫；背景的 provider 只讀。目錄本身是註冊表共用的，
     /// 留一份參考沒有所有權問題——不能留的是它底下那個連線來源。
+    ///
+    /// 兩者裝在<b>同一個</b>欄位裡一次換掉：分兩個欄位的話，背景那一輪可能讀到新的目錄配上
+    /// 舊的伺服器，而那一輪每一筆命中都帶著錯的那一台。任何一個是 null 就等於沒有連線。
     /// </remarks>
-    public void UseCatalog(SqlMetadataCatalog? catalog) => Volatile.Write(ref _catalog, catalog);
+    public void UseCatalog(SqlMetadataCatalog? catalog, SqlSearchOrigin? origin) =>
+        Volatile.Write(ref _connection, catalog is null || origin is null ? null : new Connection(catalog, origin));
 
     /// <summary>
     /// 這一輪的目標資料庫已經有索引了嗎；false 表示可能要先掃一次全表（含定義本文）。
@@ -64,10 +68,9 @@ internal sealed class SqlSearchProviders
     {
         if (scope is null) throw new ArgumentNullException(nameof(scope));
 
-        var catalog = Volatile.Read(ref _catalog);
-        if (catalog is null) return true;
+        if (Volatile.Read(ref _connection) is not { } connection) return true;
 
-        var source = catalog.ConnectionSource;
+        var source = connection.Catalog.ConnectionSource;
 
         if (scope.Databases.Count == 0) return _indexCache.IsFresh(source.CacheKey);
 
@@ -124,12 +127,11 @@ internal sealed class SqlSearchProviders
 
         public Task SearchAsync(SearchQuery query, ISearchSink sink, CancellationToken cancellationToken)
         {
-            var catalog = Volatile.Read(ref _owner._catalog);
-
             // 沒有連線不是失敗：畫面上已經有「尚未連線」那一句，再記一筆例外只會蓋掉真正的錯誤。
-            if (catalog is null) return Task.CompletedTask;
+            if (Volatile.Read(ref _owner._connection) is not { } connection) return Task.CompletedTask;
 
-            return new SqlCatalogSearchProvider(catalog.ConnectionSource, _owner._indexCache)
+            return new SqlCatalogSearchProvider(
+                    connection.Catalog.ConnectionSource, connection.Origin, _owner._indexCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
     }
@@ -164,13 +166,26 @@ internal sealed class SqlSearchProviders
 
         public Task SearchAsync(SearchQuery query, ISearchSink sink, CancellationToken cancellationToken)
         {
-            var catalog = Volatile.Read(ref _owner._catalog);
-
             // 沒有連線不是失敗：畫面上已經有「尚未連線」那一句。
-            if (catalog is null) return Task.CompletedTask;
+            if (Volatile.Read(ref _owner._connection) is not { } connection) return Task.CompletedTask;
 
-            return new SqlAgentJobSearchProvider(catalog.ConnectionSource, _owner._jobCache)
+            return new SqlAgentJobSearchProvider(
+                    connection.Catalog.ConnectionSource, connection.Origin, _owner._jobCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
+    }
+
+    /// <summary>這一輪的目錄與它連著的那一台；一起換、一起讀。</summary>
+    private sealed class Connection
+    {
+        internal Connection(SqlMetadataCatalog catalog, SqlSearchOrigin origin)
+        {
+            Catalog = catalog;
+            Origin = origin;
+        }
+
+        internal SqlMetadataCatalog Catalog { get; }
+
+        internal SqlSearchOrigin Origin { get; }
     }
 }

@@ -38,17 +38,24 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     public const string ProviderId = "catalog";
 
     private readonly ISqlConnectionSource _connectionSource;
+    private readonly SqlSearchOrigin _origin;
     private readonly SqlCatalogSearchIndexCache _indexCache;
 
+    /// <param name="origin">
+    /// <paramref name="connectionSource"/> 連著哪一台；每一筆命中都帶著它。由呼叫端給而不是
+    /// 從連線推：連線來源只說得出快取鍵，而伺服器名稱的寫法只有接線層那一份。
+    /// </param>
     /// <param name="indexCache">
     /// 索引快取；不給時自己建一份。同一個查詢視窗的多個 provider 實例要共用同一份時
     /// 由呼叫端傳進來——各自持有一份的症狀是同一個資料庫被掃好幾次全表。
     /// </param>
     public SqlCatalogSearchProvider(
         ISqlConnectionSource connectionSource,
+        SqlSearchOrigin origin,
         SqlCatalogSearchIndexCache? indexCache = null)
     {
         _connectionSource = connectionSource ?? throw new ArgumentNullException(nameof(connectionSource));
+        _origin = origin ?? throw new ArgumentNullException(nameof(origin));
         _indexCache = indexCache ?? new SqlCatalogSearchIndexCache();
         Categories = SqlCatalogSearchCategories.Create(ProviderId);
     }
@@ -92,7 +99,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             var round = new DatabaseRound(source.DatabaseName);
             rounds[index] = round;
             runs[index] = Task.Run(
-                () => SearchDatabase(source, query, sink, round, _indexCache, cancellationToken), cancellationToken);
+                () => SearchDatabase(source, _origin, query, sink, round, _indexCache, cancellationToken), cancellationToken);
         }
 
         try
@@ -189,6 +196,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// </remarks>
     private static void SearchDatabase(
         ISqlConnectionSource source,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         DatabaseRound round,
@@ -236,7 +244,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             var badges = new[] { new SearchBadge(index.DatabaseName, SearchBadge.DatabaseIcon) };
 
             if (query.IncludesTarget(SearchMatchTarget.Name) &&
-                !SearchObjectNames(index, query, sink, counter, badges, cancellationToken))
+                !SearchObjectNames(index, origin, query, sink, counter, badges, cancellationToken))
             {
                 round.Truncated = true;
                 return;
@@ -248,13 +256,13 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             }
 
             if (query.IncludesTarget(SearchMatchTarget.Column) &&
-                !SearchColumnNames(index, query, sink, counter, badges, cancellationToken))
+                !SearchColumnNames(index, origin, query, sink, counter, badges, cancellationToken))
             {
                 round.Truncated = true;
                 return;
             }
 
-            if (needsText && !SearchDefinitions(index, query, sink, counter, badges, cancellationToken))
+            if (needsText && !SearchDefinitions(index, origin, query, sink, counter, badges, cancellationToken))
             {
                 round.Truncated = true;
             }
@@ -268,6 +276,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
     private static bool SearchObjectNames(
         SqlCatalogSearchIndex index,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         SearchExamineCounter counter,
@@ -312,7 +321,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 info.Name,
                 match.Spans,
                 new SqlCatalogSearchTarget(
-                    index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
+                    origin, index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
                 badges);
 
             if (!sink.TryReport(hit))
@@ -331,6 +340,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// </remarks>
     private static bool SearchColumnNames(
         SqlCatalogSearchIndex index,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         SearchExamineCounter counter,
@@ -376,7 +386,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 column.Name,
                 match.Spans,
                 new SqlCatalogSearchTarget(
-                    index.DatabaseName, owner.SchemaName, owner.Name, owner.Kind, owner.ObjectId, column.Name),
+                    origin, index.DatabaseName, owner.SchemaName, owner.Name, owner.Kind, owner.ObjectId, column.Name),
                 badges);
 
             if (!sink.TryReport(hit))
@@ -390,6 +400,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
     private static bool SearchDefinitions(
         SqlCatalogSearchIndex index,
+        SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
         SearchExamineCounter counter,
@@ -444,7 +455,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 snippet,
                 spans,
                 new SqlCatalogSearchTarget(
-                    index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
+                    origin, index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
                 badges);
 
             if (!sink.TryReport(hit))

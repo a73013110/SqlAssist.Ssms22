@@ -543,11 +543,49 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal("[Library].[dbo].[Loan01]", sink.Checkpoint);
     }
 
+    /// <summary>
+    /// 名稱、資料行與本文三種命中都帶著搜到它的那一台。
+    /// </summary>
+    /// <remarks>
+    /// 清單比範圍活得久：換了查詢視窗之後，舊列點下去要找的仍是這一台。少帶一種的症狀
+    /// 只在那一種命中上發作，而導航會拿換過之後那一台的同名物件回答。
+    /// </remarks>
+    [Fact]
+    public async Task 三種命中都帶著搜到它的那一台()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Loan", "U")
+            .WithColumn(1, "LoanNo")
+            .WithObject(2, "dbo", "Lib_Tag", "V", "SELECT LoanNo FROM dbo.Loan;");
+        var origin = new SqlSearchOrigin("LIBSQL02");
+        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"), origin);
+        var sink = new RecordingSearchSink();
+
+        await provider.SearchAsync(new SearchQuery("Loan"), sink, CancellationToken.None);
+
+        Assert.Contains(sink.Hits, hit => hit.MatchTarget == SearchMatchTarget.Name);
+        Assert.Contains(sink.Hits, hit => hit.MatchTarget == SearchMatchTarget.Column);
+        Assert.Contains(sink.Hits, hit => hit.MatchTarget == SearchMatchTarget.Text);
+        Assert.All(
+            sink.Hits,
+            hit => Assert.Same(origin, Assert.IsType<SqlCatalogSearchTarget>(hit.ActivatePayload).Origin));
+    }
+
+    [Fact]
+    public void 沒有伺服器就不建立來源()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library");
+
+        Assert.Throws<ArgumentNullException>(() => new SqlCatalogSearchProvider(server.SourceFor("Library"), null!));
+    }
+
     [Fact]
     public async Task 取消時擲出取消例外()
     {
         var server = SqlCatalogSearchIndexTests.NewServer();
-        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"));
+        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"), Origin);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -848,7 +886,7 @@ public sealed class SqlCatalogSearchProviderTests
     public async Task 回報的分類出自自己宣告的清單()
     {
         var server = SqlCatalogSearchIndexTests.NewServer();
-        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"));
+        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"), Origin);
         var sink = new RecordingSearchSink();
 
         await provider.SearchAsync(new SearchQuery("o"), sink, CancellationToken.None);
@@ -891,6 +929,8 @@ public sealed class SqlCatalogSearchProviderTests
         return server;
     }
 
+    private static readonly SqlSearchOrigin Origin = new("LIBSQL01");
+
     private static async Task<RecordingSearchSink> RunAsync(
         FakeCatalogServer server,
         SearchQuery query,
@@ -898,7 +938,7 @@ public sealed class SqlCatalogSearchProviderTests
         SqlCatalogSearchIndexCache? cache = null,
         string databaseName = "Library")
     {
-        var provider = new SqlCatalogSearchProvider(server.SourceFor(databaseName), cache);
+        var provider = new SqlCatalogSearchProvider(server.SourceFor(databaseName), Origin, cache);
         var sink = new RecordingSearchSink(acceptLimit);
 
         await provider.SearchAsync(query, sink, CancellationToken.None);

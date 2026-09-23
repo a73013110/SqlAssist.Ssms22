@@ -15,13 +15,17 @@ namespace SqlAssist.Metadata.Search;
 /// 另一份目錄會拿到剛好同號的另一個物件的欄位，而那份欄位清單看起來完全正常。
 /// 下游一定要先換到這個資料庫的目錄，再用編號。
 ///
+/// <see cref="Origin"/> 同樣必填，而且比資料庫更要緊：跨伺服器的同一個編號毫無關係，
+/// 而搜尋範圍換過之後，清單上的舊列仍然指向上一台。理由見 <see cref="SqlSearchOrigin"/>。
+///
 /// 不可變：同一筆結果會同時被清單、預覽與導航讀到，其中任何一邊改到它，
 /// 另外兩邊指向的就不是使用者點的那一個。
 /// </remarks>
-public sealed class SqlCatalogSearchTarget
+public sealed class SqlCatalogSearchTarget : ISqlSearchTarget
 {
     /// <param name="columnName">資料行命中時的資料行名稱；物件命中時為 null。</param>
     public SqlCatalogSearchTarget(
+        SqlSearchOrigin origin,
         string databaseName,
         string schemaName,
         string name,
@@ -39,6 +43,7 @@ public sealed class SqlCatalogSearchTarget
             throw new ArgumentException("物件名稱不可為空。", nameof(name));
         }
 
+        Origin = origin ?? throw new ArgumentNullException(nameof(origin));
         DatabaseName = databaseName;
         SchemaName = schemaName ?? throw new ArgumentNullException(nameof(schemaName));
         Name = name;
@@ -46,6 +51,9 @@ public sealed class SqlCatalogSearchTarget
         ObjectId = objectId;
         ColumnName = columnName;
     }
+
+    /// <summary>這一筆是在哪一台伺服器上搜到的。</summary>
+    public SqlSearchOrigin Origin { get; }
 
     /// <summary>這個物件所屬的資料庫；換目錄用。</summary>
     public string DatabaseName { get; }
