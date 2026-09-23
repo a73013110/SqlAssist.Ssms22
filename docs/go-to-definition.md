@@ -85,6 +85,21 @@ factory.CreateNewBlankScript(ScriptType.Sql, active.UIConnectionInfo, null);
 執行緒相依性，忙的時候會直接變成打字延遲。這裡可以，因為它是使用者主動按的，
 而且一輪只問一次。
 
+### 未連線的視窗
+
+SQL Search 的結果不在查詢視窗那一台時（見[結果導航](search-navigation.md)），走
+`SsmsScriptWindow.TryCreateUnconnectedQuery`。**只傳 null 連線不夠**：空的連線資訊只是不蓋
+連線戳記，編輯器工廠另外看 `IScriptFactory.OpenFileMode`——預設的 `Connected` 把作用中視窗
+那條連線設給新視窗並自動連上，`Prompt` 一開窗就跳連線對話框。只有 `Disconnected` 不連也不問，
+與 SSMS 自己的「開啟檔案（不連線）」同一招。那是工廠上的共用狀態，只在呼叫期間改，結束後
+還原成**原本那個值**：SSMS 的「新增查詢」設成 `Prompt` 之後不還原，寫回固定值等於改掉它。
+
+寫入與底下那道守門和沿用連線的視窗是同一條路徑，只有開窗那一步不同。
+
+**不**改成連到物件總管那一台：SSMS 沒有公開的 `SqlConnectionInfo` → `UIConnectionInfo`
+轉換（只有反向的 `UIConnectionInfoUtil`），手組的那一份在 Entra／MFA 上撐不住。日後有公開
+轉換再從這一支換掉。
+
 ### 怎麼拿到新視窗的編輯器
 
 `CreateNewBlankScript` 回傳的是 SSMS 自己的文件檢視型別，從它身上拿不到
@@ -106,7 +121,7 @@ factory.CreateNewBlankScript(ScriptType.Sql, active.UIConnectionInfo, null);
 | `Ssms22/Menus.vsct` | 全域 F12 鍵繫結與工具選單項目——F12 實際走的就是這一條 |
 | `Ssms22/Editor/SqlShellCommandFilter.cs` | 命令鏈最前面的濾鏡：接 `Edit.GoToDefinition`，也是「按了沒反應」時唯一看得到命令的地方 |
 | `Ssms22/Editor/SqlDefinitionOpener.cs` | 五個步驟的串接與執行緒分工 |
-| `Ssms22/Connections/SsmsScriptWindow.cs` | 向 `IScriptFactory` 要一個沿用連線的空白查詢視窗 |
+| `Ssms22/Connections/SsmsScriptWindow.cs` | 向 `IScriptFactory` 要一個沿用連線或未連線的空白查詢視窗 |
 | `Ssms22/Editor/ActiveSqlEditor.cs` | `CaptureCreated`：取回這一次建立的編輯器 |
 | `Ssms22/Editor/TextViewEditCoordinator.cs` | `InsertIntoBlank`：寫進空白緩衝區 |
 | `Ssms22/SqlAssistStatusBar.cs` | 進度與失敗的唯一回饋管道 |

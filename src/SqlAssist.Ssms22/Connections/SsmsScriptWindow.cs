@@ -1,4 +1,5 @@
 using System;
+using Microsoft.SqlServer.Management.Smo.RegSvrEnum;
 using Microsoft.SqlServer.Management.UI.VSIntegration.Editors;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
@@ -7,7 +8,7 @@ using SqlAssist.Ssms22.Editor;
 namespace SqlAssist.Ssms22.Connections;
 
 /// <summary>
-/// 請 SSMS 開一個沿用目前連線的空白查詢視窗。
+/// 請 SSMS 開一個空白查詢視窗：沿用目前連線的，或完全沒有連線的。
 /// </summary>
 /// <remarks>
 /// 這是本擴充唯一一處建立文件視窗的地方。編輯器的公開 API 開不出「SSMS 的查詢
@@ -25,7 +26,7 @@ namespace SqlAssist.Ssms22.Connections;
 internal static class SsmsScriptWindow
 {
     /// <summary>
-    /// 開一個空白查詢視窗並取回它的編輯器。
+    /// 開一個沿用目前連線的空白查詢視窗並取回它的編輯器。
     /// </summary>
     /// <param name="failure">失敗時要顯示給使用者看的那一句；成功時為空字串。</param>
     /// <returns>新視窗的編輯器；任何一步沒成功時為 null。</returns>
@@ -51,23 +52,73 @@ internal static class SsmsScriptWindow
             return null;
         }
 
+        // 分成兩支與 SSMS 自己的「新增查詢（沿用目前連線）」逐字一致：
+        // 多重伺服器連線的視窗要帶整組過去，只帶第一個會安靜地少連幾台。
+        //
+        // 第三個參數是「直接沿用這條實際連線」。一律傳 null，讓新視窗用同一組
+        // 認證另開一條——共用同一條連線代表兩個視窗共用一個 SPID，
+        // 一邊執行長查詢另一邊就卡住。
+        //
+        // ScriptType 寫死 Sql 而不是沿用 active.ScriptType：這份指令碼是 T-SQL，
+        // 跟著一個 MDX 視窗開出 MDX 編輯器只會得到一個貼不進去的視窗。
+        return Capture(() => group is { Count: > 0 }
+            ? factory.CreateNewBlankScript(ScriptType.Sql, group, null)
+            : factory.CreateNewBlankScript(ScriptType.Sql, single, null), out failure);
+    }
+
+    /// <summary>
+    /// 開一個<b>沒有連線</b>的空白查詢視窗並取回它的編輯器；第一次執行時由 SSMS 要求連線。
+    /// </summary>
+    /// <param name="failure">失敗時要顯示給使用者看的那一句；成功時為空字串。</param>
+    /// <returns>新視窗的編輯器；任何一步沒成功時為 null。</returns>
+    /// <remarks>
+    /// 給「這份東西不在查詢視窗那一台上」用：沿用連線等於在錯的伺服器上按 F5，而 SSMS 沒有
+    /// 公開的方法把物件總管那條連線換成查詢視窗要的 <c>UIConnectionInfo</c>。
+    ///
+    /// <b>只傳 null 連線不夠。</b>空的連線資訊只是不蓋連線戳記；編輯器工廠建立視窗時另外看
+    /// <see cref="IScriptFactory.OpenFileMode"/>，預設的 <c>Connected</c> 會把作用中視窗那條
+    /// 連線設給新視窗並自動連上——正是要避開的那一台，而且畫面上看不出來。<c>Prompt</c> 則是
+    /// 一開窗就跳連線對話框。只有 <c>Disconnected</c> 讓它不連也不問，與 SSMS 自己
+    /// 「開啟檔案（不連線）」同一招。
+    ///
+    /// 那是工廠上的共用狀態，所以只在這一次呼叫期間改，結束後<b>還原成原本那一個值</b>，
+    /// 不寫回 <c>Connected</c>：SSMS 的「新增查詢」會把它設成 <c>Prompt</c> 之後不還原，
+    /// 寫回固定值等於替使用者改掉他剛留下的狀態。
+    /// </remarks>
+    public static IWpfTextView? TryCreateUnconnectedQuery(IServiceProvider serviceProvider, out string failure)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        failure = string.Empty;
+
+        if (ResolveFactory(serviceProvider) is not { } factory)
+        {
+            failure = "取不到 SSMS 的查詢視窗服務，無法開啟新視窗。";
+            return null;
+        }
+
+        return Capture(() =>
+        {
+            var previous = factory.OpenFileMode;
+            factory.OpenFileMode = OpenFileModeEnum.Disconnected;
+
+            try
+            {
+                return factory.CreateNewBlankScript(ScriptType.Sql, (UIConnectionInfo?)null, null);
+            }
+            finally
+            {
+                factory.OpenFileMode = previous;
+            }
+        }, out failure);
+    }
+
+    /// <summary>建立視窗並只取回這一次建立的那一個編輯器；兩種視窗共用。</summary>
+    private static IWpfTextView? Capture(Func<object?> create, out string failure)
+    {
+        failure = string.Empty;
         object? document = null;
 
-        var created = ActiveSqlEditor.CaptureCreated(() =>
-        {
-            // 分成兩支與 SSMS 自己的「新增查詢（沿用目前連線）」逐字一致：
-            // 多重伺服器連線的視窗要帶整組過去，只帶第一個會安靜地少連幾台。
-            //
-            // 第三個參數是「直接沿用這條實際連線」。一律傳 null，讓新視窗用同一組
-            // 認證另開一條——共用同一條連線代表兩個視窗共用一個 SPID，
-            // 一邊執行長查詢另一邊就卡住。
-            //
-            // ScriptType 寫死 Sql 而不是沿用 active.ScriptType：這份指令碼是 T-SQL，
-            // 跟著一個 MDX 視窗開出 MDX 編輯器只會得到一個貼不進去的視窗。
-            document = group is { Count: > 0 }
-                ? factory.CreateNewBlankScript(ScriptType.Sql, group, null)
-                : factory.CreateNewBlankScript(ScriptType.Sql, single, null);
-        });
+        var created = ActiveSqlEditor.CaptureCreated(() => document = create());
 
         if (created is not null)
         {

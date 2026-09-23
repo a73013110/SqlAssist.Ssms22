@@ -37,7 +37,7 @@
 | 結果格線右鍵選單的命令、產出的 SQL 不對 | `Metadata/ResultGrid/`、`Ssms22/ResultGrid/` |
 | 新增選單項目或鍵繫結後沒生效 | `Menus.vsct` ＋ `ProvideMenuResource` 版號，且必須重新安裝 |
 | F12 開出來的指令碼內容不對 | `Metadata/Formatting/SqlObjectScript.cs` |
-| 新查詢視窗沒有沿用連線 | `Ssms22/Connections/SsmsScriptWindow.cs` |
+| 新查詢視窗沒有沿用連線 | `Ssms22/Connections/SsmsScriptWindow.cs`；SQL Search 別台的結果刻意不連，判斷在 `Search/SqlSearchActivation.cs` |
 | 換了資料庫，清單還是舊資料庫的物件 | `Ssms22/Connections/SqlMetadataService.cs`、`SqlEditorConnectionWatcher.cs` |
 | 新增一個設定 | 註冊 JSON、POCO、moniker、reader 四處 |
 | 查詢的 SQL 或載入分層 | `Metadata/Querying/SqlMetadataQueries.cs` |

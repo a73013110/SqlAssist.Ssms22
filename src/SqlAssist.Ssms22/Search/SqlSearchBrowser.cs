@@ -84,6 +84,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private bool _syncing;
     private bool _activating;
 
+    /// <summary>
+    /// 作用中查詢視窗連著哪一台；每一列「會不會開未連線的視窗」照它算。
+    /// </summary>
+    /// <remarks>
+    /// 在範圍或查詢視窗換過的那一刻（<see cref="ObserveConnection"/>）問一次，新列建立時直接拿來用。
+    /// 每一列、每畫一次各問一次宿主的話，一批一百列就是一百次連線查詢。
+    /// </remarks>
+    private string? _activeEditorServer;
+
     /// <summary>正在等物件總管展開節點；與開窗那一條分開記，兩件事可以同時在跑。</summary>
     private bool _selecting;
     private bool _ready;
@@ -749,7 +758,10 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName is { Length: > 0 } name
             ? name
             : _scopeDatabases.CurrentName;
-        _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _catalogs.ActiveEditorServerName() : null;
+        _activeEditorServer = _catalogs.ActiveEditorServerName();
+        _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _activeEditorServer : null;
+        // 移至定義會不會開未連線的視窗跟著查詢視窗走；清單上既有的列在這裡重算，不在每次繪製時問。
+        foreach (var row in _rows) row.ObserveActiveEditor(_activeEditorServer);
         // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
         _databases.IsEnabled = catalog is not null;
 
@@ -944,7 +956,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         {
             var hit = _applying[_applied];
             var label = _categoryLabels.TryGetValue(hit.CategoryId, out var text) ? text : hit.CategoryId;
-            _rows.Add(new SqlSearchRow(hit, label) { IsNew = motion });
+            _rows.Add(new SqlSearchRow(hit, label, _activeEditorServer) { IsNew = motion });
         }
 
         if (_applied < _applying.Count) return false;
@@ -1023,9 +1035,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             // 它們沒有的東西，而辨識型別不准發生在這一層。
             var noun = SqlSearchActivation.SubjectNoun(row.Hit);
             Report("正在取得 " + row.Title + " 的" + noun + "…", "activating");
-            var failure = await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
+            var (failure, unconnected) = await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
+            // 成功那一句也由 SqlSearchActivation 說：開出來的視窗有沒有連線是按下去那一刻才定案的，
+            // 而沒有連線的那一種要先講，使用者按 F5 時跳出連線對話框才不會以為壞了。
             Report(
-                failure ?? "已在新查詢視窗開啟 " + row.Title + " 的" + noun + "。",
+                failure ?? SqlSearchActivation.DescribeOpened(row.Hit, unconnected),
                 failure is null ? "activated" : "");
         }
         finally
@@ -1099,6 +1113,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             foreach (var (action, item) in items)
             {
                 item.IsEnabled = row is not null && IsAvailable(action, row);
+                item.Header = row is not null && LabelOf(action, row) is { } label
+                    ? label
+                    : SqlSearchRowCommand.For(action).Label;
 
                 // 空字串會畫成一個空的提示框；沒有描述就整個不掛。
                 item.ToolTip = row is not null && DescribeAction(action, row) is { Length: > 0 } description
@@ -1123,10 +1140,18 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _ => true
     };
 
+    /// <summary>名稱隨列而變的操作在這一列叫什麼；固定名稱的操作為 null。</summary>
+    /// <remarks>讀的是列上算好的那一個值，與停駐那一顆的繫結（<c>SqlSearchRowCommand.LabelPath</c>）同一份。</remarks>
+    private static string? LabelOf(SqlSearchRowAction action, SqlSearchRow row) => action switch
+    {
+        SqlSearchRowAction.Activate => row.ActivateLabel,
+        _ => null
+    };
+
     /// <summary>這個操作會做什麼；沒有話可說時是空字串，呼叫端據此不掛提示框。</summary>
     private static string DescribeAction(SqlSearchRowAction action, SqlSearchRow row) => action switch
     {
-        SqlSearchRowAction.Activate => SqlSearchActivation.Describe(row.Hit),
+        SqlSearchRowAction.Activate => row.ActivateDescription,
         SqlSearchRowAction.SelectInExplorer => SqlSearchActivation.DescribeSelectInExplorer(row.Hit),
         _ => ""
     };

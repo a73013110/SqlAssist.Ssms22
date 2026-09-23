@@ -33,25 +33,33 @@ internal sealed class SqlSearchRowCommand
     /// <param name="availabilityPath">
     /// 列上那顆按鈕的 <c>IsEnabled</c> 要讀這一列的哪一個屬性；一律可用的操作傳 null。
     /// </param>
+    /// <param name="labelPath">名稱隨列而變時讀哪一個屬性；固定用 <paramref name="label"/> 時傳 null。</param>
+    /// <param name="toolTipPath">停駐那一顆的提示隨列而變時讀哪一個屬性；null 表示提示就是名稱。</param>
     private SqlSearchRowCommand(
         SqlSearchRowAction action,
         SqlIcon icon,
         string label,
         bool primary = false,
-        string? availabilityPath = null)
+        string? availabilityPath = null,
+        string? labelPath = null,
+        string? toolTipPath = null)
     {
         Action = action;
         Icon = icon;
         Label = label;
         IsPrimary = primary;
         AvailabilityPath = availabilityPath;
+        LabelPath = labelPath;
+        ToolTipPath = toolTipPath;
     }
 
     public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
     {
         new SqlSearchRowCommand(
             SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義", primary: true,
-            availabilityPath: nameof(Search.SqlSearchRow.CanActivate)),
+            availabilityPath: nameof(Search.SqlSearchRow.CanActivate),
+            labelPath: nameof(Search.SqlSearchRow.ActivateLabel),
+            toolTipPath: nameof(Search.SqlSearchRow.ActivateToolTip)),
         new SqlSearchRowCommand(
             SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, "在物件總管中選取",
             availabilityPath: nameof(Search.SqlSearchRow.CanSelectInExplorer)),
@@ -77,6 +85,19 @@ internal sealed class SqlSearchRowCommand
     /// 按了只得到一句「這一筆沒有…」。
     /// </remarks>
     public string? AvailabilityPath { get; }
+
+    /// <summary>
+    /// 名稱隨列而變時讀這一列的哪一個屬性；null 表示一律是 <see cref="Label"/>。
+    /// </summary>
+    /// <remarks>
+    /// 「移至定義」在結果不在查詢視窗那一台時會開未連線的視窗，名稱上要先說。與
+    /// <see cref="AvailabilityPath"/> 同一個道理做成繫結路徑：快捷選單與停駐那一顆讀同一個值，
+    /// 各寫一次的症狀是選單說未連線、停駐那一顆的提示卻沒說。
+    /// </remarks>
+    public string? LabelPath { get; }
+
+    /// <summary>停駐那一顆的提示讀這一列的哪一個屬性；null 表示提示就是名稱。</summary>
+    public string? ToolTipPath { get; }
 
     public static SqlSearchRowCommand For(SqlSearchRowAction action)
     {

@@ -48,13 +48,18 @@ internal sealed class SqlSearchBadge
 internal sealed class SqlSearchRow : INotifyPropertyChanged
 {
     private bool _isNew;
+    private bool _opensUnconnected;
 
-    public SqlSearchRow(SearchHit hit, string categoryLabel)
+    /// <param name="activeEditorServer">
+    /// 作用中查詢視窗連著的伺服器；沒有視窗或沒有連線時為 null，見 <see cref="ObserveActiveEditor"/>。
+    /// </param>
+    public SqlSearchRow(SearchHit hit, string categoryLabel, string? activeEditorServer = null)
     {
         Hit = hit ?? throw new ArgumentNullException(nameof(hit));
         CategoryLabel = categoryLabel ?? throw new ArgumentNullException(nameof(categoryLabel));
         CanActivate = SqlSearchActivation.CanActivate(hit);
         CanSelectInExplorer = SqlSearchActivation.CanSelectInExplorer(hit);
+        _opensUnconnected = SqlSearchActivation.OpensUnconnected(hit, activeEditorServer);
 
         var matches = hit.Matches;
         var body = FirstOf(matches, SearchMatchTarget.Text);
@@ -88,6 +93,42 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
 
     /// <summary>這一列在物件總管上指得到節點嗎；與 <see cref="CanActivate"/> 是兩個問題。</summary>
     public bool CanSelectInExplorer { get; }
+
+    /// <summary>移至定義會開出<b>沒有連線</b>的查詢視窗：這一筆不在作用中查詢視窗那一台。</summary>
+    /// <remarks>
+    /// 與 <see cref="CanActivate"/> 不同，它不是這一筆自己的性質：答案跟著查詢視窗走，
+    /// 換一個分頁或換一台就變。所以不在建構時算死，而是由工具窗在範圍或查詢視窗換過的那一刻
+    /// 重算整份清單（<see cref="ObserveActiveEditor"/>）——每畫一次就問一次宿主的話，
+    /// 捲動整份清單就是幾百次跨執行緒的連線查詢。
+    ///
+    /// 仍然是<b>一個</b>值：右鍵選單與停駐時那一顆都讀它，說法才不會一邊說未連線、
+    /// 另一邊說沿用連線。做得到就不變灰——它只是換一種視窗，變灰是留給真的做不到的。
+    /// </remarks>
+    public bool OpensUnconnected => _opensUnconnected;
+
+    /// <summary>移至定義的名稱；未連線時名稱上就說，不等使用者去讀提示。</summary>
+    public string ActivateLabel => SqlSearchActivation.ActivateLabel(_opensUnconnected);
+
+    /// <summary>移至定義會做什麼；右鍵選單的提示框用，未連線時說得出來自哪一台。</summary>
+    public string ActivateDescription => SqlSearchActivation.Describe(Hit, _opensUnconnected);
+
+    /// <summary>停駐時那一顆的提示：平常只有名稱，未連線時連同來自哪一台一起說。</summary>
+    public string ActivateToolTip => _opensUnconnected ? ActivateDescription : ActivateLabel;
+
+    /// <summary>作用中查詢視窗或範圍換過之後重算「會不會開未連線的視窗」。</summary>
+    /// <param name="activeEditorServer">作用中查詢視窗連著的伺服器；沒有時為 null。</param>
+    public void ObserveActiveEditor(string? activeEditorServer)
+    {
+        var unconnected = SqlSearchActivation.OpensUnconnected(Hit, activeEditorServer);
+
+        if (unconnected == _opensUnconnected) return;
+
+        _opensUnconnected = unconnected;
+        Notify(nameof(OpensUnconnected));
+        Notify(nameof(ActivateLabel));
+        Notify(nameof(ActivateDescription));
+        Notify(nameof(ActivateToolTip));
+    }
 
     /// <summary>與聚合器去重時同一把鍵；重新整理後靠它選回原來那一列。</summary>
     /// <remarks>
@@ -181,11 +222,13 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
         {
             if (_isNew == value) return;
             _isNew = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsNew)));
+            Notify(nameof(IsNew));
         }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Notify(string property) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
 
     /// <summary>第一筆打在這個部位上的命中；沒有就是 null。</summary>
     private static SearchHit? FirstOf(IReadOnlyList<SearchHit> matches, SearchMatchTarget target)

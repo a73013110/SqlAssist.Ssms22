@@ -88,6 +88,10 @@ internal static partial class SqlAssistChrome
             var button = CreateRowActionButton(
                 "action" + command.Action, command.Action, command.Icon, command.Label,
                 SqlActionTone.Neutral, separated: false, availabilityPath: command.AvailabilityPath);
+            if (command.LabelPath is { } labelPath)
+                button.SetBinding(AutomationProperties.NameProperty, new Binding(labelPath));
+            if (command.ToolTipPath is { } toolTipPath)
+                button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(toolTipPath));
             if (!command.IsPrimary)
                 narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             row.Actions.AppendChild(button);

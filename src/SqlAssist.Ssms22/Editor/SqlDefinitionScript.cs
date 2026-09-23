@@ -58,7 +58,8 @@ internal static class SqlDefinitionScript
         IServiceProvider serviceProvider,
         SqlObjectScriptText script,
         SqlObjectInfo objectInfo,
-        string documentName)
+        string documentName,
+        bool unconnected = false)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -72,7 +73,8 @@ internal static class SqlDefinitionScript
             script,
             objectInfo.QualifiedName,
             $"已在新查詢視窗開啟 {objectInfo.QualifiedName} 的定義",
-            documentName);
+            documentName,
+            unconnected);
     }
 
     /// <summary>
@@ -85,13 +87,19 @@ internal static class SqlDefinitionScript
     /// 「緩衝區必須還是空的」那道守門，而那一次會把指令碼蓋到使用者正在編輯的查詢上。
     /// </param>
     /// <param name="activityDescription">復原堆疊與診斷紀錄上的那一句。</param>
+    /// <param name="unconnected">
+    /// 開一個沒有連線的視窗，而不是沿用目前那一條（見
+    /// <see cref="SsmsScriptWindow.TryCreateUnconnectedQuery"/>）。只有開窗那一步不同，
+    /// 寫入與「緩衝區必須還是空的」那道守門是同一份：未連線的視窗一樣可能拿錯。
+    /// </param>
     /// <returns>成功時為 null，否則是要顯示給使用者的那一句。</returns>
     public static string? WriteToNewWindow(
         IServiceProvider serviceProvider,
         SqlObjectScriptText script,
         string subject,
         string activityDescription,
-        string documentName)
+        string documentName,
+        bool unconnected = false)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -117,7 +125,9 @@ internal static class SqlDefinitionScript
             NotificationLevel.Debug,
             subject,
             documentName);
-        var view = SsmsScriptWindow.TryCreateBlankQuery(serviceProvider, out var failure);
+        var view = unconnected
+            ? SsmsScriptWindow.TryCreateUnconnectedQuery(serviceProvider, out var failure)
+            : SsmsScriptWindow.TryCreateBlankQuery(serviceProvider, out failure);
 
         if (view is null)
         {

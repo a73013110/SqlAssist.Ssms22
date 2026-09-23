@@ -70,6 +70,9 @@ public static class NotificationCatalog
     public const string ExpandingStatement = "展開語句樣板";
     public const string ExpandingSnippet = "展開程式碼片段";
     public const string GoingToDefinition = "移至定義";
+
+    /// <summary>SQL Search 的結果不在查詢視窗那一台：定義開進沒有連線的新視窗，出處是來源那一台。</summary>
+    public const string GoingToDefinitionUnconnected = "開啟未連線的定義視窗";
     public const string GeneratingDefinitionScript = "產生定義指令碼";
     public const string OpeningQueryWindow = "開啟新查詢視窗";
 
