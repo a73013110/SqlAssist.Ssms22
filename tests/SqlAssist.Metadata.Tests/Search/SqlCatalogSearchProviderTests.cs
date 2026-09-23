@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Search;
 using Xunit;
@@ -295,7 +296,7 @@ public sealed class SqlCatalogSearchProviderTests
     {
         var server = NewBodyServer("SELECT CopyNo FROM dbo.Loan");
 
-        var sensitive = await RunAsync(server, new SearchQuery("copyno", options: SearchOptions.MatchCasing));
+        var sensitive = await RunAsync(server, new SearchQuery("copyno", options: TextMatchOptions.MatchCasing));
         Assert.Empty(sensitive.Hits);
 
         var insensitive = await RunAsync(NewBodyServer("SELECT CopyNo FROM dbo.Loan"), new SearchQuery("copyno"));
@@ -324,7 +325,7 @@ public sealed class SqlCatalogSearchProviderTests
         var server = new FakeCatalogServer();
         server.Add("Library").WithObject(1, "dbo", "PUBLISHER", "U");
 
-        var sink = await RunAsync(server, new SearchQuery("publisher", options: SearchOptions.MatchCasing));
+        var sink = await RunAsync(server, new SearchQuery("publisher", options: TextMatchOptions.MatchCasing));
 
         Assert.Empty(sink.Hits);
     }
@@ -338,7 +339,7 @@ public sealed class SqlCatalogSearchProviderTests
             .WithObject(1, "dbo", "Loan", "U")
             .WithColumn(1, "CopyNote");
 
-        var sink = await RunAsync(server, new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord));
 
         Assert.Empty(sink.Hits);
     }
@@ -359,7 +360,7 @@ public sealed class SqlCatalogSearchProviderTests
 
         var strict = await RunAsync(
             NewConstraintServer(),
-            new SearchQuery("finish", options: SearchOptions.MatchCasing | SearchOptions.WholeWord));
+            new SearchQuery("finish", options: TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord));
 
         Assert.Empty(strict.Hits);
     }
@@ -382,7 +383,7 @@ public sealed class SqlCatalogSearchProviderTests
     public async Task 名稱的字面命中可以落在名稱中間()
     {
         var casing = await RunAsync(
-            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.MatchCasing));
+            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: TextMatchOptions.MatchCasing));
 
         var hit = Assert.Single(casing.Hits);
         var span = Assert.Single(hit.SnippetSpans);
@@ -393,12 +394,12 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal(6, span.Length);
 
         var wholeWord = await RunAsync(
-            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+            NewNamedServer("DF_Loan_CopyNo"), new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord));
 
         Assert.Empty(wholeWord.Hits);
 
         var exact = await RunAsync(
-            NewNamedServer("CopyNo"), new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+            NewNamedServer("CopyNo"), new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord));
 
         Assert.Single(exact.Hits);
     }
@@ -415,7 +416,7 @@ public sealed class SqlCatalogSearchProviderTests
     {
         var wholeWord = await RunAsync(
             NewBodyServer("SELECT CopyNoTotal FROM dbo.Loan"),
-            new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+            new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord));
 
         Assert.Empty(wholeWord.Hits);
 
@@ -431,7 +432,7 @@ public sealed class SqlCatalogSearchProviderTests
     {
         var sink = await RunAsync(
             NewBodyServer("INSERT INTO #CopyNo SELECT 1;"),
-            new SearchQuery("CopyNo", options: SearchOptions.WholeWord));
+            new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord));
 
         Assert.Single(sink.Hits);
     }
@@ -914,7 +915,7 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     private static async Task<SearchHit> SingleBodyHitAsync(
-        string definition, string text, SearchOptions options = SearchOptions.None)
+        string definition, string text, TextMatchOptions options = TextMatchOptions.None)
     {
         var sink = await RunAsync(NewBodyServer(definition), new SearchQuery(text, options: options));
 

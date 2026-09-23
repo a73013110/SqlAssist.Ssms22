@@ -12,8 +12,8 @@ namespace SqlAssist.Core.Search;
 /// <list type="bullet">
 /// <item>都沒開：<see cref="FuzzyMatcher"/>，詞首加成、不分大小寫、字母可以散在候選各處。
 /// 這是打字找東西時要的——<c>libr</c> 要找得到 <c>Lib_Reader</c>。</item>
-/// <item>開了大小寫或全字：字面比對，樣式要整段連續出現在名稱裡，再照
-/// <see cref="SearchOptionsExtensions.ToProjectionMode"/> 檢查大小寫與詞界。</item>
+/// <item>開了大小寫或全字：字面比對，樣式要整段連續出現在名稱裡，大小寫與詞界照
+/// <see cref="SearchQuery.Matcher"/>。</item>
 /// </list>
 ///
 /// 兩顆修飾不能套在模糊比對上面：模糊命中的字母本來就是散開的，「前後是不是詞界」對一個
@@ -33,7 +33,7 @@ public static class SearchIdentifierMatch
     /// 比對一個識別字；沒命中時回 <see cref="FuzzyMatchResult.NoMatch"/>。
     /// </summary>
     /// <remarks>
-    /// 字面那一條先問 <see cref="MatchProjection.FindAll"/> 再算分：<c>IndexOf</c> 比 DP 便宜得多，
+    /// 字面那一條先問 <see cref="TextMatcher.FindAll"/> 再算分：<c>IndexOf</c> 比 DP 便宜得多，
     /// 而開著修飾的那一輪多數候選會在這一步就出局，整輪反而比不開修飾快。
     /// </remarks>
     public static FuzzyMatchResult Match(SearchQuery query, string candidate)
@@ -42,12 +42,12 @@ public static class SearchIdentifierMatch
         if (candidate is null) throw new ArgumentNullException(nameof(candidate));
 
         // 沒有輸入的那一輪是「列出全部」，不是「每一個都字面命中空字串」。
-        if (query.Options == SearchOptions.None || query.IsEmpty)
+        if (query.Options == TextMatchOptions.None || query.IsEmpty)
         {
             return FuzzyMatcher.MatchNormalized(query.NormalizedPattern, candidate);
         }
 
-        var offsets = MatchProjection.FindAll(candidate, query.Text, 0, query.MatchMode);
+        var offsets = query.Matcher.FindAll(candidate);
 
         if (offsets.Count == 0) return FuzzyMatchResult.NoMatch;
 

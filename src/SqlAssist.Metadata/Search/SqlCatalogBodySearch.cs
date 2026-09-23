@@ -37,20 +37,15 @@ internal static class SqlCatalogBodySearch
     /// <summary>
     /// 找出所有命中位置；一個都沒有時回傳空清單。
     /// </summary>
-    /// <param name="options">
-    /// <see cref="SearchOptions.MatchCasing"/> 決定區不區分大小寫，
-    /// <see cref="SearchOptions.WholeWord"/> 決定要不要檢查詞界；換算與名稱那一邊共用
-    /// <see cref="SearchOptionsExtensions.ToProjectionMode"/>，兩處不會對同一個旗標各讀一種意思。
-    /// </param>
     /// <remarks>
-    /// 掃描本身在 <see cref="MatchProjection.FindAll"/>：詞界、重疊命中與大小寫那三條規則
-    /// 本文與名稱都要用，各寫一份的症狀是其中一份把 <c>#</c> 算成識別字的一部分，
-    /// 而使用者搜 <c>Loan</c> 時 <c>#Loan</c> 在名稱上收得到、在本文上收不到。
+    /// 掃描本身在 <see cref="TextMatcher"/>，與名稱那一邊是同一個實例（<see cref="SearchQuery.Matcher"/>）：
+    /// 詞界、重疊命中與大小寫那三條規則本文與名稱都要用，各寫一份的症狀是其中一份把 <c>#</c>
+    /// 算成識別字的一部分，而使用者搜 <c>Loan</c> 時 <c>#Loan</c> 在名稱上收得到、在本文上收不到。
     ///
     /// 重疊的出現照收（在 <c>aaa</c> 裡找 <c>aa</c>）：使用者算的是「提到幾次」。
     /// </remarks>
-    internal static IReadOnlyList<int> FindAll(string body, string text, SearchOptions options) =>
-        MatchProjection.FindAll(body, text, 0, options.ToProjectionMode(), MaximumMatches);
+    internal static IReadOnlyList<int> FindAll(string body, TextMatcher matcher) =>
+        matcher.FindAll(body, 0, MaximumMatches);
 
     /// <summary>
     /// 裁出第一個命中所在的那一行，並把落在裁切範圍內的命中換算成高亮區段。

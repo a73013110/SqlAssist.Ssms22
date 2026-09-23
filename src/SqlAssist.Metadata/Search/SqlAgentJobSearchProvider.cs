@@ -292,7 +292,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 // 本文比的是使用者打進去的原文，不是正規化後的樣式：後者一律小寫，
                 // 拿它做區分大小寫的比對永遠比不中任何大寫的字。裁片段與找位置只有
                 // SqlCatalogBodySearch 一份——步驟命令與模組定義在這件事上沒有差別。
-                var matches = SqlCatalogBodySearch.FindAll(command, query.Text, query.Options);
+                var matches = SqlCatalogBodySearch.FindAll(command, query.Matcher);
 
                 if (matches.Count == 0) continue;
 

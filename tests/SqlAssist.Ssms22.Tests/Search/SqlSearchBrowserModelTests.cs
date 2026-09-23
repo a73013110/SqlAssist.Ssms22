@@ -514,7 +514,7 @@ public sealed class SqlSearchBrowserModelTests
 
         var round = model.Begin(indexed: true)!;
 
-        Assert.Equal(SearchOptions.MatchCasing | SearchOptions.WholeWord, round.Query.Options);
+        Assert.Equal(TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord, round.Query.Options);
         Assert.Equal(new[] { "LibArchive" }, round.Query.Scope.Databases.ToArray());
         Assert.Empty(round.Query.Scope.Servers);
         Assert.Equal(new[] { "catalog.table" }, round.Query.Categories.ToArray());

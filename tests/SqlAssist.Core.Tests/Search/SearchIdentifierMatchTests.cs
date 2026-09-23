@@ -24,7 +24,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 開了修飾就不收湊得出來的那一種命中()
     {
-        var query = new SearchQuery("finish", options: SearchOptions.MatchCasing | SearchOptions.WholeWord);
+        var query = new SearchQuery("finish", options: TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord);
 
         Assert.False(SearchIdentifierMatch.Match(query, "DF_Lib_Reader_NoticeIsShown").IsMatch);
         Assert.True(SearchIdentifierMatch.Match(new SearchQuery("finish"), "DF_Lib_Reader_NoticeIsShown").IsMatch);
@@ -33,7 +33,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 區分大小寫時逐字相同才收()
     {
-        var query = new SearchQuery("publisher", options: SearchOptions.MatchCasing);
+        var query = new SearchQuery("publisher", options: TextMatchOptions.MatchCasing);
 
         Assert.False(SearchIdentifierMatch.Match(query, "PUBLISHER").IsMatch);
         Assert.True(SearchIdentifierMatch.Match(query, "Cat_publisher").IsMatch);
@@ -43,7 +43,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 只取整個字時底線黏著的那一段不算整個字()
     {
-        var query = new SearchQuery("CopyNo", options: SearchOptions.WholeWord);
+        var query = new SearchQuery("CopyNo", options: TextMatchOptions.WholeWord);
 
         Assert.False(SearchIdentifierMatch.Match(query, "DF_Loan_CopyNo").IsMatch);
         Assert.True(SearchIdentifierMatch.Match(query, "CopyNo").IsMatch);
@@ -54,7 +54,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 字面命中的區段是連續的一整段()
     {
-        var query = new SearchQuery("CopyNo", options: SearchOptions.MatchCasing);
+        var query = new SearchQuery("CopyNo", options: TextMatchOptions.MatchCasing);
 
         var span = Assert.Single(SearchIdentifierMatch.Match(query, "DF_Loan_CopyNo").Spans);
 
@@ -66,7 +66,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 重疊的字面命中併成一段()
     {
-        var query = new SearchQuery("aa", options: SearchOptions.MatchCasing);
+        var query = new SearchQuery("aa", options: TextMatchOptions.MatchCasing);
 
         var span = Assert.Single(SearchIdentifierMatch.Match(query, "aaa").Spans);
 
@@ -78,7 +78,7 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 沒有輸入時開著修飾也照樣列得出候選()
     {
-        var query = new SearchQuery("", options: SearchOptions.MatchCasing | SearchOptions.WholeWord);
+        var query = new SearchQuery("", options: TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord);
 
         Assert.True(SearchIdentifierMatch.Match(query, "Lib_Reader").IsMatch);
     }
@@ -87,24 +87,11 @@ public sealed class SearchIdentifierMatchTests
     [Fact]
     public void 詞首命中的分數仍高於詞中命中()
     {
-        var query = new SearchQuery("Copy", options: SearchOptions.MatchCasing);
+        var query = new SearchQuery("Copy", options: TextMatchOptions.MatchCasing);
 
         var head = SearchIdentifierMatch.Match(query, "Copy");
         var middle = SearchIdentifierMatch.Match(query, "Cat_BookCopy");
 
         Assert.True(head.Score > middle.Score, $"{head.Score} 應大於 {middle.Score}");
-    }
-
-    [Fact]
-    public void 旗標換算出來的規則兩邊共用一份()
-    {
-        Assert.Equal(MatchProjectionMode.IgnoreCase, SearchOptions.None.ToProjectionMode());
-        Assert.Equal(MatchProjectionMode.None, SearchOptions.MatchCasing.ToProjectionMode());
-        Assert.Equal(
-            MatchProjectionMode.WholeWord | MatchProjectionMode.IgnoreCase,
-            SearchOptions.WholeWord.ToProjectionMode());
-        Assert.Equal(
-            (SearchOptions.MatchCasing | SearchOptions.WholeWord).ToProjectionMode(),
-            new SearchQuery("x", options: SearchOptions.MatchCasing | SearchOptions.WholeWord).MatchMode);
     }
 }

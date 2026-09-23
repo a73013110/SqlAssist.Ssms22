@@ -379,7 +379,7 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
             return Array.Empty<MatchSpan>();
         }
 
-        var offset = MatchProjection.Find(hit.Title, hit.Snippet, 0, MatchProjectionMode.FromEnd);
+        var offset = new TextMatcher(hit.Snippet, TextMatchOptions.MatchCasing).LastIndexOf(hit.Title);
         return offset < 0
             ? Array.Empty<MatchSpan>()
             : MatchProjection.Shift(hit.SnippetSpans, offset, hit.Snippet.Length, hit.Title.Length);

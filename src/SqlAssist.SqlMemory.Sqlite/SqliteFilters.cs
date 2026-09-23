@@ -2,40 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.SqlMemory.Sqlite;
-
-/// <summary>字面、區分大小寫的 KMP 搜尋；每次查詢只編譯一次，不為每列建立完整 SQL 字串。</summary>
-internal sealed class SqliteTextMatcher
-{
-    private readonly string _needle;
-    private readonly int[] _prefix;
-
-    public SqliteTextMatcher(string needle)
-    {
-        _needle = needle;
-        _prefix = new int[needle.Length];
-        for (int i = 1, j = 0; i < needle.Length; i++)
-        {
-            while (j > 0 && needle[i] != needle[j]) j = _prefix[j - 1];
-            if (needle[i] == needle[j]) j++;
-            _prefix[i] = j;
-        }
-    }
-
-    public bool Matches(byte[] bytes)
-    {
-        if (_needle.Length == 0) return true;
-        for (int i = 0, j = 0; i + 1 < bytes.Length; i += 2)
-        {
-            var value = (char)(bytes[i] | (bytes[i + 1] << 8));
-            while (j > 0 && value != _needle[j]) j = _prefix[j - 1];
-            if (value == _needle[j]) j++;
-            if (j == _needle.Length) return true;
-        }
-        return false;
-    }
-}
 
 /// <summary>單頁搜尋最多檢查的候選列數與 SQL BLOB 位元組數；兩者先到者為準。</summary>
 internal sealed class SqliteSearchBudget
@@ -66,24 +35,23 @@ internal sealed class SqliteSearchBudget
 /// </remarks>
 internal sealed class SqliteSearchScan
 {
-    private readonly SqliteTextMatcher _matcher;
+    private readonly TextMatcher _matcher;
     private readonly SqliteSearchBudget _budget;
     private readonly CancellationToken _cancellationToken;
     private int _candidates;
     private long _bytes;
 
-    private SqliteSearchScan(string term, SqliteSearchBudget budget, CancellationToken cancellationToken)
+    private SqliteSearchScan(TextMatcher matcher, SqliteSearchBudget budget, CancellationToken cancellationToken)
     {
-        Term = term;
-        _matcher = new SqliteTextMatcher(term);
+        _matcher = matcher;
         _budget = budget;
         _cancellationToken = cancellationToken;
     }
 
     public static SqliteSearchScan? Create(string? search, SqliteSearchBudget budget, CancellationToken cancellationToken) =>
-        string.IsNullOrEmpty(search) ? null : new SqliteSearchScan(search!, budget, cancellationToken);
-
-    public string Term { get; }
+        string.IsNullOrEmpty(search)
+            ? null
+            : new SqliteSearchScan(new TextMatcher(search!, TextMatchOptions.MatchCasing), budget, cancellationToken);
 
     /// <summary>候選查詢的 LIMIT：多一列用來分辨「預算用盡但還有候選」與「剛好掃完」。</summary>
     public int CandidateLimit => _budget.Candidates + 1;
@@ -91,8 +59,8 @@ internal sealed class SqliteSearchScan
     public bool IsExhausted => _candidates >= _budget.Candidates || _bytes >= _budget.Bytes;
 
     /// <summary>
-    /// 文字欄位在 C# 以 ordinal 比對，與 BLOB 的 UTF-16 code unit 語意一致；
-    /// SQLite 的 instr 會先把參數轉 UTF-8，未配對 surrogate 會變成 U+FFFD 而誤判命中。
+    /// 文字欄位與 SQL BLOB 走同一個 <see cref="TextMatcher"/>，都是 UTF-16 code unit 語意；
+    /// 不交給 SQLite 的 instr：它會先把參數轉 UTF-8，未配對 surrogate 會變成 U+FFFD 而誤判命中。
     /// </summary>
     public bool Matches(byte[] sql, params string?[] texts)
     {
@@ -101,8 +69,8 @@ internal sealed class SqliteSearchScan
         // SQLite 產生結果列時已讀入整份 BLOB，就算文字先命中也算進位元組預算。
         _bytes += sql.Length;
         foreach (var text in texts)
-            if (text != null && text.IndexOf(Term, StringComparison.Ordinal) >= 0) return true;
-        return _matcher.Matches(sql);
+            if (_matcher.IsMatch(text)) return true;
+        return _matcher.IsMatchUtf16(sql);
     }
 }
 

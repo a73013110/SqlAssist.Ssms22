@@ -8,7 +8,7 @@
 
 - **算位置**：`Ssms22/Search/SqlSearchDefinition.cs` 的 `SqlSearchDefinitionHighlight`。
   它走 `SearchHit.Matches`——併進來的那幾筆全部算——並對每一筆用
-  `MatchProjection.FindAll` 找出片段在定義裡的**每一次**出現。只找第一次的那一版走不到
+  `TextMatcher.FindAll` 找出片段在定義裡的**每一次**出現。只找第一次的那一版走不到
   第二處，而一個資料行名稱在 `CREATE TABLE` 裡出現一次，在後面那一串
   `sp_addextendedproperty` 裡還會再出現一次。重疊的區段併成一段（打 `Due` 而表上同時有
   `Due` 與 `DueDate` 兩行），文件那一層要的是由小到大且不重疊的區段。

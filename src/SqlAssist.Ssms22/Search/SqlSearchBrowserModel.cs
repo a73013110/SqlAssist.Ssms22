@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.UI;
 
@@ -874,11 +875,11 @@ internal sealed class SqlSearchBrowserModel
     private int CategoryRank(string categoryId) =>
         _categoryOrder.TryGetValue(categoryId, out var rank) ? rank : int.MaxValue;
 
-    private SearchOptions BuildOptions()
+    private TextMatchOptions BuildOptions()
     {
-        var options = SearchOptions.None;
-        if (MatchCasing) options |= SearchOptions.MatchCasing;
-        if (WholeWord) options |= SearchOptions.WholeWord;
+        var options = TextMatchOptions.None;
+        if (MatchCasing) options |= TextMatchOptions.MatchCasing;
+        if (WholeWord) options |= TextMatchOptions.WholeWord;
         return options;
     }
 

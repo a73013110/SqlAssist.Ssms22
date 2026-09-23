@@ -32,7 +32,7 @@ public sealed class SearchQuery
     public SearchQuery(
         string text,
         long generation = 0,
-        SearchOptions options = SearchOptions.None,
+        TextMatchOptions options = TextMatchOptions.None,
         IEnumerable<string>? categories = null,
         SearchScope? scope = null,
         SearchTargets targets = SearchTargets.All)
@@ -50,7 +50,7 @@ public sealed class SearchQuery
         Text = text;
         Generation = generation;
         Options = options;
-        MatchMode = options.ToProjectionMode();
+        Matcher = new TextMatcher(text, options);
         Scope = scope ?? SearchScope.All;
         Targets = targets;
         NormalizedPattern = FuzzyMatcher.NormalizePattern(text);
@@ -73,17 +73,18 @@ public sealed class SearchQuery
     /// <summary>第幾輪輸入；只增不減。</summary>
     public long Generation { get; }
 
-    public SearchOptions Options { get; }
+    /// <summary>使用者開著的比對修飾；每一個部位都照同一份，不各自解讀。</summary>
+    public TextMatchOptions Options { get; }
 
     /// <summary>
-    /// 這一輪的字面比對規則；建立查詢時換算一次。
+    /// 這一輪的字面比對器；建立查詢時建一次。
     /// </summary>
     /// <remarks>
     /// 快取在這裡的理由與 <see cref="NormalizedPattern"/> 相同：目錄物件 provider 一輪要比對
-    /// 上萬個候選，每個候選前都把旗標換算一次等於在最熱的迴圈裡重做同一件事。
-    /// 名稱與資料行走 <see cref="SearchIdentifierMatch"/>，定義本文自己讀它。
+    /// 上萬個候選，每個候選前都重建一次等於在最熱的迴圈裡重做同一件事。
+    /// 名稱與資料行走 <see cref="SearchIdentifierMatch"/>，定義本文直接用它。
     /// </remarks>
-    public MatchProjectionMode MatchMode { get; }
+    public TextMatcher Matcher { get; }
 
     public SearchScope Scope { get; }
 

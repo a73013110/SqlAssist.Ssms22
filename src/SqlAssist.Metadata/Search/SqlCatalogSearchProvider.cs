@@ -433,7 +433,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
             // 本文比的是使用者打進去的原文，不是正規化後的樣式：後者一律小寫，
             // 拿它做區分大小寫的比對永遠比不中任何大寫的字。
-            var matches = SqlCatalogBodySearch.FindAll(definition, query.Text, query.Options);
+            var matches = SqlCatalogBodySearch.FindAll(definition, query.Matcher);
 
             if (matches.Count == 0)
             {

@@ -172,17 +172,16 @@ internal static class SqlSearchDefinitionHighlight
 
         // 識別字不分大小寫（provider 那一端也是），而且要整個字：搜 No 不該高亮 CopyNo
         // 裡面那兩個字。方括號算詞界，所以同一段程式碼認得 [CopyNo] 與 CopyNo 兩種寫法。
-        var mode = identifier
-            ? MatchProjectionMode.WholeWord | MatchProjectionMode.IgnoreCase
-            : MatchProjectionMode.None;
+        var matcher = new TextMatcher(
+            hit.Snippet, identifier ? TextMatchOptions.WholeWord : TextMatchOptions.MatchCasing);
 
         // 檔頭註解裡也有物件名稱，而使用者要看的是 CREATE 那一行；先跳過開頭的註解再找。
         // 本文命中不跳：模組的定義本身就可能以註解開頭，跳過去會連命中那一行一起錯過。
         var start = identifier ? SqlTrivia.Skip(script, 0, script.Length) : 0;
-        var offsets = MatchProjection.FindAll(script, hit.Snippet, start, mode);
+        var offsets = matcher.FindAll(script, start);
 
         // 跳過檔頭之後一處都沒有，就整份再找一次：資料行也可能只出現在檔頭的摘要裡。
-        if (offsets.Count == 0 && start > 0) offsets = MatchProjection.FindAll(script, hit.Snippet, 0, mode);
+        if (offsets.Count == 0 && start > 0) offsets = matcher.FindAll(script);
 
         foreach (var offset in offsets)
         {

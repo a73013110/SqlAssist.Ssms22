@@ -50,7 +50,7 @@ public sealed class SearchContractTests
         Assert.True(query.IsEmpty);
         Assert.Empty(query.NormalizedPattern);
         Assert.True(query.Scope.IsUnbounded);
-        Assert.Equal(SearchOptions.None, query.Options);
+        Assert.Equal(TextMatchOptions.None, query.Options);
         Assert.Equal(SearchTargets.All, query.Targets);
     }
 
@@ -64,13 +64,13 @@ public sealed class SearchContractTests
     public void 範圍原樣保留不解讀()
     {
         var scope = new SearchScope(new[] { "[192.0.2.10]" }, new[] { "LibArchive", "libarchive" });
-        var query = new SearchQuery("loan", scope: scope, options: SearchOptions.MatchCasing | SearchOptions.WholeWord);
+        var query = new SearchQuery("loan", scope: scope, options: TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord);
 
         Assert.Equal(new[] { "[192.0.2.10]" }, query.Scope.Servers);
         Assert.Equal(new[] { "LibArchive", "libarchive" }, query.Scope.Databases);
         Assert.False(query.Scope.IsUnbounded);
-        Assert.True(query.Options.HasFlag(SearchOptions.MatchCasing));
-        Assert.True(query.Options.HasFlag(SearchOptions.WholeWord));
+        Assert.True(query.Options.HasFlag(TextMatchOptions.MatchCasing));
+        Assert.True(query.Options.HasFlag(TextMatchOptions.WholeWord));
     }
 
     /// <summary>
