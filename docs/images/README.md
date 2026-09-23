@@ -47,3 +47,9 @@ python tools/Encode-FeatureDemos.py
 `SqlAssist.Icon.512.png` 同時供 VSIX manifest 的 `<Icon>` 與 `<PreviewImage>` 使用；專案以 `Link`
 放入 VSIX 根目錄，由殼層縮放，不另維護縮圖。四角必須透明且無暗邊，以適用 SSMS 深淺主題。
 `SqlAssist.ico` 供網站 Favicon 與 Windows 桌面場景共用。
+
+圖示的單一來源是手繪向量 `SqlAssist.Icon.svg`（坐在資料庫上的貓），不經影像模型生成。
+改圖只改 SVG，再執行 `node tools/Render-AppIcon.mjs`（需 Playwright／Chromium）轉出四個成品：
+`SqlAssist.Icon.512.png`、網站 Logo 用的 `SqlAssist.Icon.128.png`、含 16–256 px 圖層的
+`SqlAssist.ico`，以及選單用的 `src/SqlAssist.Ssms22/Resources/SqlAssist.Icon.16.png`。
+沒有被引用的尺寸不進版控；16 px 須逐像素目視確認仍看得出貓耳與圓柱。

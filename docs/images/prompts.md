@@ -1,6 +1,6 @@
 # 靜態品牌圖生成提示詞
 
-本頁只保存 `hero.png`、`social-preview.png` 與 `SqlAssist.Icon.*` 的可重製模型輸入；
+本頁只保存 `hero.png`、`social-preview.png` 的可重製模型輸入；
 尺寸、壓縮、替代文字與發布規則見[圖片護欄](README.md)。提示詞保留英文以提高影像模型理解度；
 文案不得生成在圖內，應留在 HTML／Markdown。
 
@@ -39,16 +39,4 @@ left, connected by a thin cyan line to a floating autocomplete list card on the 
 with four rows of abstract highlighted bars. Wide empty margins at the top and bottom
 for text to be added later. Flat vector, minimal, high contrast, no text, no letters,
 no logos.
-```
-
-## `SqlAssist.Icon.*`
-
-```text
-A minimal flat app icon. The canvas must be exactly square, 512x512. The artwork is a
-rounded square tile with a deep indigo to blue gradient, with clear empty padding
-between the tile edge and the mark. Centred on the tile: a simple database cylinder
-outlined in white with even, sharp, uniform strokes, and a small bright cyan
-text-cursor bar standing beside it. Crisp vector edges with no glow, no blur, no drop
-shadow and no bloom. Nothing is cropped by the canvas edge. Flat vector, no text, no
-letters, still clearly legible when scaled down to 32 pixels.
 ```
