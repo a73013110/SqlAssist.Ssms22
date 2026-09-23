@@ -23,6 +23,7 @@ internal static class SqlAssistState
     private const string UpdateCheckedAtProperty = "UpdateCheckedAt";
     private const string UpdateETagProperty = "UpdateETag";
     private const string UpdateTagProperty = "UpdateTag";
+    private const string SkippedUpdateTagProperty = "SkippedUpdateTag";
     private const string SqlMemoryCaptureNoticeProperty = "SqlMemoryCaptureNotice";
     private const string SearchMatchStateProperty = "SearchMatchState";
     private const string SqlMemoryMatchStateProperty = "SqlMemoryMatchState";
@@ -69,6 +70,16 @@ internal static class SqlAssistState
     {
         get => Read(UpdateTagProperty);
         set => Write(UpdateTagProperty, value);
+    }
+
+    /// <summary>
+    /// 使用者按了「略過此版本」的那一版；自動檢查不再為它跳出提醒，手動檢查不理會。
+    /// </summary>
+    /// <remarks>只記一版：更新的版本出來時比對不相等，照常提醒。</remarks>
+    public static string SkippedUpdateTag
+    {
+        get => Read(SkippedUpdateTagProperty);
+        set => Write(SkippedUpdateTagProperty, value);
     }
 
     /// <summary>「SQL Memory 開始擷取」那一則說過了沒有；每台電腦只說一次。</summary>

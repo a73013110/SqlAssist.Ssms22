@@ -81,7 +81,7 @@ internal static partial class SqlIcons
         SqlIcon.PreviousMatch => KnownMonikers.FindPrevious,
         SqlIcon.NextMatch => KnownMonikers.FindNext,
         SqlIcon.SelfTest => KnownMonikers.Test,
-        // 與通知卡片的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。
+        // 與通知的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。
         SqlIcon.Done => KnownMonikers.StatusOK
     };
 #pragma warning restore CS8524

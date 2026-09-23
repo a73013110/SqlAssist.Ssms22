@@ -65,6 +65,19 @@ public sealed class NotificationPromptTests
         Assert.NotNull(Update(new NotificationCenter(), "1.5.0"));
     }
 
+    /// <summary>使用者自己按「檢查更新」得到的答案，不能因為稍早按過叉號就安靜地消失。</summary>
+    [Fact]
+    public void 使用者觸發的提醒不理會稍後並解除它()
+    {
+        var center = new NotificationCenter();
+        Assert.True(center.Resolve(Update(center, "1.4.0")!.Id, null));
+        Assert.Null(Update(center, "1.4.0"));
+        Assert.NotNull(center.Prompt(NotificationCatalog.UpdateAvailablePrompt("1.4.0", Url), NotificationKind.Update,
+            NotificationOrigin.User, NotificationLevel.Info));
+        // 解除之後，同鍵的自動提醒也照常出現。
+        Assert.NotNull(Update(center, "1.5.0"));
+    }
+
     [Fact]
     public void 提醒不套用保留期限且活動照常到期()
     {
@@ -163,6 +176,9 @@ public sealed class NotificationPromptTests
         Assert.Throws<ArgumentException>(() => new NotificationAction("", "甲", NotificationActionRole.Primary));
 
         var update = NotificationCatalog.UpdateAvailablePrompt("1.4.0", Url);
+        Assert.Equal("update", update.Key);
+        Assert.Equal(new[] { "略過此版本", "前往下載" }, update.Actions.Select(x => x.Label));
+        Assert.Equal("1.4.0", update.Actions.Single(x => x.Id == NotificationActionIds.UpdateSkip).Argument);
         Assert.Equal(1, update.Actions.Count(x => x.Role == NotificationActionRole.Primary));
         Assert.Equal(Url, update.Actions.Single(x => x.Id == NotificationActionIds.UpdateDownload).Argument);
         Assert.False(new NotificationCenter().Snapshot(TimeSpan.MaxValue, TimeSpan.MaxValue).Any());

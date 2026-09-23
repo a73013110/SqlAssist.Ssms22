@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using SqlAssist.Ssms22.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -34,7 +33,5 @@ internal static class SqlAssistDialogs
         window.SetResourceReference(Control.ForegroundProperty, ThemeBrush.WindowForeground);
         // 字距交給排版而不是像素對齊，小字級下才不會忽寬忽窄。
         TextOptions.SetTextFormattingMode(window, TextFormattingMode.Ideal);
-        // 對話框開著時完成的工作也要看得到；關閉時自動放手，卡片交給下一個宿主。
-        NotificationWindowHost.Register(window);
     }
 }

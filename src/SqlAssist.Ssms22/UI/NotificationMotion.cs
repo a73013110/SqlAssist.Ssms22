@@ -5,11 +5,11 @@ using System.Windows.Media.Animation;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
-/// 通知表面的時長、緩動與狀態回饋；舊卡片與通知島共用這一份。
+/// 通知島的時長、緩動與狀態回饋；島嶼、列與 Chrome 共用這一份。
 /// </summary>
 /// <remarks>
-/// 散在卡片、列與 Chrome 三處各寫一次的版本，改一個數字要找三個地方，而漏掉的那一處
-/// 只有在兩個表面並排時才看得出節奏不一樣。尺寸變形（通知島的寬、高與圓角）走
+/// 散在表面、列與 Chrome 三處各寫一次的版本，改一個數字要找三個地方，而漏掉的那一處
+/// 只有在兩處並排時才看得出節奏不一樣。尺寸變形（通知島的寬、高與圓角）走
 /// <see cref="SpringMotion"/>，不在這裡：那是可中斷的揭露動畫，不是固定長度的補間。
 /// </remarks>
 internal static class NotificationMotion

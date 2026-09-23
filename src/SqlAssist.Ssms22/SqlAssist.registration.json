@@ -230,7 +230,7 @@
       "default": true,
       "order": 250,
       "title": "啟動時檢查有沒有新版本",
-      "description": "每天最多問一次 GitHub 的發行頁，有新版才顯示通知；不下載也不安裝。關閉之後仍可用「工具 → SqlAssist → 檢查更新…」自己問。",
+      "description": "每天最多問一次 GitHub 的發行頁，有新版才跳出提醒，略過的版本不再提醒；不下載也不安裝。關閉之後仍可用「工具 → SqlAssist → 檢查更新…」自己問。",
       "additionalKeywords": [ "更新", "版本", "update", "release", "GitHub" ]
     },
     "sqlAssist.general.animations": {
@@ -683,7 +683,7 @@
       "default": true,
       "order": 100,
       "title": "顯示通知提示",
-      "description": "在目前 SQL 編輯區右上角顯示執行中與近期完成的工作。"
+      "description": "在作用中查詢視窗所在視窗的右下角顯示執行中與近期完成的工作，以及需要你決定的提醒。"
     },
     "sqlAssist.notifications.glass": {
       "type": "boolean",
@@ -691,14 +691,6 @@
       "order": 110,
       "title": "玻璃材質",
       "description": "使用主題色的層次邊緣；高對比一律使用不透明材質。",
-      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
-    },
-    "sqlAssist.notifications.expanded": {
-      "type": "boolean",
-      "default": true,
-      "order": 130,
-      "title": "預設展開明細",
-      "description": "顯示每一項的標題、對象與成功、部分成功、失敗、取消狀態。",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.delay": {
@@ -826,15 +818,6 @@
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Memory", "查詢紀錄", "收藏" ]
     },
-    "sqlAssist.notifications.update": {
-      "type": "boolean",
-      "default": true,
-      "order": 305,
-      "title": "更新檢查",
-      "description": "問 GitHub 有沒有新版本的結果。",
-      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
-      "additionalKeywords": [ "更新", "版本", "update", "release" ]
-    },
     "sqlAssist.notifications.unclassified": {
       "type": "boolean",
       "default": true,
@@ -874,7 +857,7 @@
   "categories": {
     "sqlAssist.notifications": {
       "title": "通知與背景工作",
-      "description": "提示跟隨目前 SQL 編輯區，顯示全套件正在做與剛做完的事。",
+      "description": "右下角的通知島，顯示全套件正在做、剛做完與需要你決定的事。",
       "additionalKeywords": [ "背景", "背景工作", "提示", "notification", "進度" ],
       "order": 475
     },

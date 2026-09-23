@@ -71,7 +71,7 @@ internal sealed class SqlFavoriteRevisionCommands
                 "回溯為新版本"))
             return;
 
-        // 回溯要讀舊全文、另存新版本並重讀時間軸，使用者可能已經切走；成功走卡片，
+        // 回溯要讀舊全文、另存新版本並重讀時間軸，使用者可能已經切走；成功走通知，
         // 衝突與「不確定有沒有成功」留在視窗裡——那兩句要當場讀完才知道下一步。
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.RestoringFavoriteRevision,
             NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info);

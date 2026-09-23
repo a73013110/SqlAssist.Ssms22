@@ -113,12 +113,12 @@ internal static class SqlMemoryHost
     }
 
     /// <summary>
-    /// 第一次真正開始擷取時說一次：資料留在哪裡、怎麼關掉。
+    /// 第一次真正開始擷取時提醒一次：資料留在哪裡、怎麼關掉，按鈕直接開 SQL Memory。
     /// </summary>
     /// <remarks>
     /// 總開關預設是開的，所以不能安靜地開始記錄使用者的 SQL。說過就記在狀態存放區裡，
-    /// 每台電腦只出現一次；<see cref="NotificationLevel.Notice"/> 讓它跨過降噪門檻，
-    /// 而不是靠提高種類等級。路徑不進通知，位置由用量分頁的「開啟資料夾」回答。
+    /// 每台電腦只出現一次；提醒不逾時，使用者沒看到之前不會自己消失。
+    /// 路徑不進通知，位置由用量分頁的「開啟資料夾」回答。
     ///
     /// 狀態可能在任何執行緒上發出，而狀態存放區只在 UI 執行緒讀寫，所以要排回去。
     /// 用 <c>BeginProbe</c> 只是因為沒有人接這個工作的結果：它一個工作階段最多跑一次，
@@ -134,9 +134,8 @@ internal static class SqlMemoryHost
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
             if (SqlAssistState.SqlMemoryCaptureNoticeShown) return;
             SqlAssistState.SqlMemoryCaptureNoticeShown = true;
-            NotificationCenter.Default.Post(NotificationCatalog.StartingSqlMemoryCapture,
-                NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice,
-                NotificationStatus.Succeeded, message: NotificationCatalog.SqlMemoryFirstCaptureNotice);
+            NotificationCenter.Default.Prompt(NotificationCatalog.SqlMemoryFirstCapturePrompt(),
+                NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice);
         });
     }
 
@@ -157,19 +156,18 @@ internal static class SqlMemoryHost
     }
 
     /// <summary>
-    /// 容量剛進入 Critical 時提醒一次；同樣是事件，沒有執行期間。
+    /// 容量剛進入 Critical 時提醒一次，按鈕直接開維護分頁。
     /// </summary>
     /// <remarks>
-    /// 降級而不是失敗：資料都還在，是需要使用者處理的警示，不該進「通知失敗」清單。
-    /// 防抖在 Core 的 <see cref="SqlMemoryCapacityMonitor"/>：降到 80% 以下才重新武裝，維護逐批刪除時不會反覆跳出。
-    /// 卡片會跟著作用中的宿主走，可能都不可見；工具列的警示點一直留著，錯過這一則也看得到。
+    /// 提醒而不是事件：資料都還在，要使用者決定清哪些，不該進「通知失敗」清單，也不該到期就消失。
+    /// 防抖在 Core 的 <see cref="SqlMemoryCapacityMonitor"/>：降到 80% 以下才重新武裝，維護逐批刪除時不會反覆跳出；
+    /// 同鍵的新提醒取代舊的那一則。按了「稍後」之後這次工作階段不再出現，工具列的警示點一直留著。
     /// </remarks>
     private static void OnCapacityChanged(object? sender, SqlMemoryCapacityChangedEventArgs change)
     {
         if (!change.Notify) return;
-        NotificationCenter.Default.Post(NotificationCatalog.ExceedingSqlMemoryCapacity,
-            NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice,
-            NotificationStatus.Degraded, message: change.Reason);
+        NotificationCenter.Default.Prompt(NotificationCatalog.SqlMemoryCapacityPrompt(change.Reason),
+            NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice);
     }
 
     /// <summary>

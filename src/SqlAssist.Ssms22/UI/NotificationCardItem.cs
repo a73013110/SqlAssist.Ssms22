@@ -1,12 +1,12 @@
 namespace SqlAssist.Ssms22.UI;
 
-/// <summary>卡片認得的狀態；與通知來源的結果分開，等待中與降級不一定各有一個圖示。</summary>
+/// <summary>島嶼認得的狀態；與通知來源的結果分開，等待中與降級不一定各有一個圖示。</summary>
 internal enum NotificationVisualStatus { Pending, Running, Completed, Failed, Canceled }
 
-/// <summary>通知卡片要畫的一列。</summary>
+/// <summary>通知島活動清單上的一列。</summary>
 /// <remarks>
-/// 卡片只認得這個型別，不認得 <c>Core/Notifications</c>：措辭、可見度、合併與期限都在
-/// 呈現端（<c>Notifications/NotificationPresenter</c>）決定完才交過來，卡片只負責版面、狀態圖示與動畫。
+/// 島嶼只認得這個型別，不認得 <c>Core/Notifications</c>：措辭、可見度、合併與期限都在
+/// 呈現端（<c>Notifications/NotificationPresenter</c>）決定完才交過來，島嶼只負責版面、狀態圖示與動畫。
 ///
 /// 這樣第二個通知來源（例如設定或片段的一次性回饋）只要能產生同一個記錄就接得上，
 /// 不必先有一套通用的通知框架——只有一個來源時抽出來的抽象會照著那個來源長。

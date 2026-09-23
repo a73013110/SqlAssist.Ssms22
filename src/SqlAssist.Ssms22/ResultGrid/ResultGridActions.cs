@@ -104,7 +104,7 @@ internal static class ResultGridActions
             // 剪貼簿被別的程序鎖住時會擲例外。這一句一定要說出來——
             // 使用者接下來要按的是 Ctrl+V，而那時候貼出來的是舊的東西。
             SqlAssistDiagnostics.WriteAlways($"複製{what}失敗：{exception}");
-            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗；剪貼簿可能正被其他程式使用，請再試一次。");
         }
     }
 

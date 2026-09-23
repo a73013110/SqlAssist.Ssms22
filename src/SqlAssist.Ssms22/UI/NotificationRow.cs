@@ -183,7 +183,7 @@ internal sealed class NotificationRow : Border
         BeginAnimation(MaxHeightProperty, reveal);
     }
 
-    /// <summary>停掉動畫並記住不要再播；卡片離開畫面時整份清單一起靜音。</summary>
+    /// <summary>停掉動畫並記住不要再播；島嶼離開畫面時整份清單一起靜音。</summary>
     internal void SuspendMotion()
     {
         _motion = false;

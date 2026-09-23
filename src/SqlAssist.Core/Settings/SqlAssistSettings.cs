@@ -20,7 +20,6 @@ public sealed class SqlAssistSettings
 {
     public bool NotificationEnabled { get; init; } = true;
     public bool NotificationGlass { get; init; } = true;
-    public bool NotificationExpanded { get; init; } = true;
     public int NotificationDelay { get; init; } = 0;
     public int NotificationRetention { get; init; } = 2500;
     public NotificationVerbosity NotificationVerbosity { get; init; } = NotificationVerbosity.Normal;

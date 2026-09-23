@@ -114,7 +114,7 @@ public sealed class NotificationIslandTests
             var content = Content(prompts: new[] { Update(7, 1, 1) });
             island.Update(content, State(content), motion: false);
             var view = island.ActivePrompt;
-            Assert.Equal(new[] { "略過這一版", "下載" }, view.ActionButtons.Select(x => (string)x.Content));
+            Assert.Equal(new[] { "略過此版本", "前往下載" }, view.ActionButtons.Select(x => (string)x.Content));
             Assert.Equal(NotificationCatalog.PromptLater, view.LaterButton.ToolTip);
             Assert.Equal(AutomationLiveSetting.Assertive, AutomationProperties.GetLiveSetting(view));
 
@@ -318,11 +318,11 @@ public sealed class NotificationIslandTests
         new(id, "載入欄位與定義", "dbo.Loan", "Loan.sql", "", "", status, "執行中", 1);
 
     private static NotificationPromptItem Update(long id, int position, int count) =>
-        new(id, "SqlAssist 有新版", "1.4.0 已經發行，可以到 GitHub 的發行頁下載。", NotificationPromptSeverity.Info,
+        new(id, "SqlAssist 有新版", "1.4.0 已經發行；安裝前要先關掉所有 SSMS。", NotificationPromptSeverity.Info,
             new[]
             {
-                new NotificationPromptAction(NotificationActionIds.UpdateDownload, "下載", true),
-                new NotificationPromptAction(NotificationActionIds.UpdateSkip, "略過這一版", false),
+                new NotificationPromptAction(NotificationActionIds.UpdateDownload, "前往下載", true),
+                new NotificationPromptAction(NotificationActionIds.UpdateSkip, "略過此版本", false),
             }, position, count);
 
     private static IEnumerable<Control> Focusables(DependencyObject root) =>

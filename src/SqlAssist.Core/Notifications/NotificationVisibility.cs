@@ -19,13 +19,13 @@ public static class NotificationVisibility
         if (!settings.Enabled || !settings.NotificationEnabled) return false;
         // 提醒是要使用者決定的事，不是降噪的對象：詳細度、來源與失敗／降級通道都不管它，
         // 否則「安靜」詳細度就會安靜地吃掉「有新版」這種一年幾次的決定。種類開關仍然有效。
-        if (item.IsPrompt) return settings.NotificationKinds[item.Kind];
+        if (item.IsPrompt) return KindEnabled(item.Kind, settings);
         // 失敗與降級是獨立通道；即使高頻種類隱藏，它們仍可被看見。
         if (item.Status == NotificationStatus.Failed) return settings.NotificationFailures;
         if (item.Status == NotificationStatus.Degraded) return settings.NotificationDegraded;
         // 種類開關排在來源之前：關掉「程式碼片段」就是不想再看到展開片段的提示，
         // 而那件事永遠由使用者觸發。放在 User 之後的話那幾格永遠按不動。
-        if (!settings.NotificationKinds[item.Kind]) return false;
+        if (!KindEnabled(item.Kind, settings)) return false;
         // Trace 是診斷統計用的量，量大到會把畫面洗掉；只有明選「全部」才放行，
         // 連使用者剛觸發的也一樣，否則「全部」與「詳細」就沒有分別。
         if (item.Level == NotificationLevel.Trace && settings.NotificationVerbosity != NotificationVerbosity.All) return false;
@@ -35,4 +35,8 @@ public static class NotificationVisibility
         if (item.Level == NotificationLevel.Notice) return true;
         return item.Level >= Threshold(settings.NotificationVerbosity);
     }
+
+    /// <summary>沒有開關的種類（<see cref="NotificationKind.Update"/>）不在這一步被擋。</summary>
+    private static bool KindEnabled(NotificationKind kind, SqlAssistSettings settings) =>
+        !NotificationKindToggle.Governs(kind) || settings.NotificationKinds[kind];
 }

@@ -169,7 +169,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         projectActions.Children.Add(CreateButton(
             "回報問題",
             (_, _) => OpenExternal(_snapshot.IssuesUrl, "開啟問題回報頁")));
-        // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論走通知卡片，
+        // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論走通知，
         // 而這個視窗本身就是卡片的宿主，按完不必切回編輯器才看得到。
         projectActions.Children.Add(CreateButton("檢查更新", (_, _) => CheckForUpdates()));
 
@@ -286,7 +286,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             foreach (var entry in entries)
             {
                 rows.Children.Add(CreateInfoRow(
-                    entry.IsOther ? "其他" : NotificationKindToggle.For(entry.Kind).Title,
+                    entry.IsOther ? "其他" : NotificationKindToggle.Label(entry.Kind),
                     DescribeDigestEntry(entry)));
             }
         }
@@ -414,7 +414,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         try
         {
             _checkForUpdates();
-            _statusText.Text = "正在檢查更新；結果會出現在通知卡片上。";
+            _statusText.Text = "正在檢查更新；結果會出現在右下角的通知上。";
         }
         catch (Exception exception)
         {

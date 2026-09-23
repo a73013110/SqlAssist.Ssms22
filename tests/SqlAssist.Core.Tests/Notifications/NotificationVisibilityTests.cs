@@ -76,7 +76,8 @@ public sealed class NotificationVisibilityTests
         foreach (NotificationKind kind in Enum.GetValues(typeof(NotificationKind)))
         {
             Assert.True(NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quiet));
-            Assert.False(NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quietAndOff));
+            // 更新沒有種類開關：使用者自己按的「檢查更新」一律看得到。
+            Assert.Equal(kind == NotificationKind.Update, NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quietAndOff));
             // 換成自動觸發就回到門檻管轄；Info 在精簡模式下一律讓位。
             Assert.False(NotificationVisibility.Includes(Item(kind, NotificationOrigin.Typing), quiet));
         }
@@ -192,6 +193,9 @@ public sealed class NotificationVisibilityTests
         var defaults = new SqlAssistSettings();
         foreach (NotificationKind kind in Enum.GetValues(typeof(NotificationKind)))
         {
+            Assert.NotEmpty(NotificationKindToggle.Label(kind));
+            // 更新沒有種類開關：自動檢查由「啟動時檢查更新」管，手動檢查一律顯示。
+            if (kind == NotificationKind.Update) { Assert.False(NotificationKindToggle.Governs(kind)); continue; }
             var toggle = NotificationKindToggle.For(kind);
             Assert.Equal(kind, toggle.Kind);
             Assert.NotEmpty(toggle.Title);
@@ -200,8 +204,25 @@ public sealed class NotificationVisibilityTests
         }
         // 遮罩是 32 位元的；種類多到滿出來時位元會安靜地互相覆蓋。
         Assert.True(Enum.GetValues(typeof(NotificationKind)).Length <= 31);
-        Assert.Equal(Enum.GetValues(typeof(NotificationKind)).Length, NotificationKindToggle.All.Count);
+        Assert.Equal(Enum.GetValues(typeof(NotificationKind)).Length - 1, NotificationKindToggle.All.Count);
         Assert.All(NotificationKindToggle.All, x => Assert.Contains(x.Moniker, SqlAssistMonikers.All));
+    }
+
+    [Fact]
+    public void 更新沒有種類開關而使用者觸發的一律顯示()
+    {
+        var everythingOff = new SqlAssistSettings
+        {
+            NotificationKinds = NotificationKindToggle.All.Aggregate(NotificationKindSwitches.Defaults,
+                (switches, toggle) => switches.With(toggle.Kind, false)),
+            NotificationVerbosity = NotificationVerbosity.Quiet,
+        };
+        Assert.True(NotificationVisibility.Includes(Item(NotificationKind.Update, NotificationOrigin.User, NotificationLevel.Info), everythingOff));
+        var center = new NotificationCenter();
+        var prompt = center.Prompt(NotificationCatalog.UpdateAvailablePrompt("1.4.0", "https://example.invalid"),
+            NotificationKind.Update, NotificationOrigin.Ambient, NotificationLevel.Notice)!;
+        Assert.True(NotificationVisibility.Includes(prompt, everythingOff));
+        Assert.False(NotificationVisibility.Includes(prompt, new SqlAssistSettings { NotificationEnabled = false }));
     }
 
     [Fact]

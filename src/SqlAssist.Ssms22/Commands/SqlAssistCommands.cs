@@ -16,6 +16,7 @@ using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
+using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Search;
 using SqlAssist.Ssms22.SqlMemory;
@@ -105,10 +106,11 @@ internal sealed class SqlAssistCommands
         // Show 內部不走 Guard，開不起來會跳訊息方塊——使用者是自己點選單的。
         AddCommand(CommandIds.ShowSqlSearch, (_, _) => SqlSearchToolWindow.Show(_package));
         AddCommand(CommandIds.ShowDiagnostics, ShowAboutAndDiagnostics);
-        // 問一次要幾秒，連按只送出一次；結論走通知卡片，所以不必等視窗。
+        // 問一次要幾秒，連按只送出一次；結論走通知，所以不必等視窗。
         AddCommand(CommandIds.CheckForUpdates,
             (_, _) => SqlAssistUpdateCheckCommand.Execute(_package),
             () => !SqlAssistUpdateCheckCommand.IsRunning);
+        AddCommand(CommandIds.FocusNotifications, FocusNotifications);
 
         // 只出現在 Unified Settings 的設定頁上，不在任何選單裡。
         AddCommand(CommandIds.OpenDiagnosticsLog, OpenDiagnosticsLog);
@@ -282,7 +284,7 @@ internal sealed class SqlAssistCommands
         {
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"開啟物件定義失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, $"開啟物件定義失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(_package, "開啟物件定義失敗；原因已寫入診斷紀錄檔。");
         }
     }
 
@@ -406,7 +408,7 @@ internal sealed class SqlAssistCommands
         {
             // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
             SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, $"開啟物件結構失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(_package, "開啟物件結構失敗；原因已寫入診斷紀錄檔。");
         }
     }
 
@@ -448,7 +450,7 @@ internal sealed class SqlAssistCommands
         {
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"以片段包住選取範圍失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, $"以片段包住選取範圍失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(_package, "以片段包住選取範圍失敗；原因已寫入診斷紀錄檔。");
         }
     }
 
@@ -492,8 +494,16 @@ internal sealed class SqlAssistCommands
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"新增至收藏失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, $"新增至收藏失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(_package, "新增至收藏失敗；原因已寫入診斷紀錄檔。");
         }
+    }
+
+    /// <summary>「聚焦通知」：沒有東西可以聚焦時在狀態列說一聲，不是按了沒反應。</summary>
+    private void FocusNotifications(object? sender, EventArgs eventArgs)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        if (!NotificationIslandController.Default.Focus())
+            SqlAssistStatusBar.Show(_package, "目前沒有通知。");
     }
 
     /// <summary>
@@ -693,7 +703,7 @@ internal sealed class SqlAssistCommands
         {
             // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
             SqlAssistDiagnostics.WriteAlways($"重新整理建議失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, $"重新整理建議失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(_package, "重新整理建議失敗；原因已寫入診斷紀錄檔。");
         }
     }
 }

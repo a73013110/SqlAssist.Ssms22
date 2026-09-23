@@ -263,6 +263,15 @@
           <LocCanonicalName>SqlAssist.設定</LocCanonicalName>
         </Strings>
       </Button>
+      <Button guid="guidSqlAssistCommandSet" id="cmdidFocusNotifications" priority="0x0140" type="Button">
+        <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <Strings>
+          <ButtonText>聚焦通知</ButtonText>
+          <CanonicalName>SqlAssist.FocusNotifications</CanonicalName>
+          <LocCanonicalName>SqlAssist.聚焦通知</LocCanonicalName>
+          <ToolTipText>把鍵盤焦點移到右下角的通知島；Tab 切換按鈕，Esc 收起</ToolTipText>
+        </Strings>
+      </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidCheckForUpdates" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <Strings>
@@ -560,6 +569,7 @@
       <IDSymbol name="cmdidCheckForUpdates" value="0x0219" />
       <IDSymbol name="cmdidShowSqlMemoryUsageFromSettings" value="0x021A" />
       <IDSymbol name="cmdidShowSqlSearch" value="0x021B" />
+      <IDSymbol name="cmdidFocusNotifications" value="0x021C" />
       <IDSymbol name="cmdidProbeResultGrid" value="0x0300" />
       <IDSymbol name="cmdidResultGridTempTable" value="0x0301" />
       <IDSymbol name="cmdidResultGridInPredicate" value="0x0302" />

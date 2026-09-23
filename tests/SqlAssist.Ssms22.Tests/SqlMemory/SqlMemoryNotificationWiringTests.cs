@@ -6,7 +6,7 @@ using Xunit;
 namespace SqlAssist.Ssms22.Tests.SqlMemory;
 
 /// <summary>
-/// SQL Memory 的回饋通道接線：哪些事走通知卡片、哪些留在視窗、哪些仍要訊息框。
+/// SQL Memory 的回饋通道接線：哪些事走通知、哪些留在視窗、哪些仍要訊息框。
 /// </summary>
 /// <remarks>
 /// 這幾個檔案要 SSMS 的殼層服務（<c>VsShellUtilities</c>、狀態列、工具窗框架）才跑得起來，
@@ -19,8 +19,6 @@ public sealed class SqlMemoryNotificationWiringTests
     private const string Browser = "SqlMemory/SqlMemoryBrowser.cs";
     private const string RevisionCommands = "SqlMemory/SqlFavoriteRevisionCommands.cs";
     private const string ToolWindow = "SqlMemory/SqlMemoryToolWindow.cs";
-    private const string Actions = "SqlMemory/SqlMemoryActions.cs";
-    private const string Dialogs = "UI/SqlAssistDialogs.cs";
 
     /// <summary>
     /// 整理、壓縮與自我測試都只剩用量分頁一個入口，沒有第二條沒有確認框的捷徑。
@@ -28,7 +26,7 @@ public sealed class SqlMemoryNotificationWiringTests
     /// <remarks>
     /// 設定頁那顆「立即整理資料庫檔案…」借了維護的名字做壓縮的事，而且按下去直接開跑；
     /// 同一個操作兩個入口、兩種安全等級，移掉的是入口不是功能。自我測試同理搬進分頁，
-    /// 成敗因此與其他動作一樣走卡片，不再留訊息框。
+    /// 成敗因此與其他動作一樣走通知，不再留訊息框。
     /// </remarks>
     [Fact]
     public void 整理與自我測試只剩用量分頁一個入口()
@@ -44,7 +42,7 @@ public sealed class SqlMemoryNotificationWiringTests
         Assert.Contains("NotificationCatalog.TestingSqlMemoryStorage", usage, StringComparison.Ordinal);
         Assert.Contains("SqlMemoryStorageSelfTest.RunAsync(", usage, StringComparison.Ordinal);
 
-        // 動作的成敗都在卡片上；唯一剩下的訊息框是「工具窗開不起來」，那時候沒有宿主掛卡片。
+        // 動作的成敗都在通知上；唯一剩下的訊息框是「工具窗開不起來」，那是使用者按了之後的直接回應。
         foreach (var file in ProductSources().Where(file => file.Contains(Path.DirectorySeparatorChar + "SqlMemory" + Path.DirectorySeparatorChar)))
         {
             if (file.EndsWith(ToolWindow.Replace('/', Path.DirectorySeparatorChar), StringComparison.Ordinal)) continue;
@@ -53,11 +51,11 @@ public sealed class SqlMemoryNotificationWiringTests
     }
 
     /// <summary>
-    /// 擷取被丟棄與容量警戒是事件：沒有執行期間，走 <c>Post</c>，三軸與狀態都明寫。
+    /// 擷取被丟棄是事件，走 <c>Post</c>；容量警戒與首次擷取要使用者決定，走 <c>Prompt</c>。
     /// </summary>
     /// <remarks>
-    /// 丟棄是失敗——那一段 SQL 完全沒有記錄，值得進「通知失敗」回看；容量是降級——
-    /// 資料都還在，只是要使用者處理，不該讓警示洗掉真正的失敗紀錄。
+    /// 丟棄是失敗——那一段 SQL 完全沒有記錄，值得進「通知失敗」回看，而使用者沒有可做的決定；
+    /// 容量警戒資料都還在，要使用者去清理，到期就消失的事件會讓那個決定沒被看到。
     /// </remarks>
     [Fact]
     public void 事件型通知帶著正確的三軸與狀態()
@@ -71,9 +69,11 @@ public sealed class SqlMemoryNotificationWiringTests
 
         var capacity = Section(source, "private static void OnCapacityChanged", "private static void OnMaintenanceFailed");
         Assert.Contains("if (!change.Notify) return;", capacity, StringComparison.Ordinal);
-        Assert.Contains("NotificationCenter.Default.Post(NotificationCatalog.ExceedingSqlMemoryCapacity,", capacity, StringComparison.Ordinal);
-        Assert.Contains("NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice,", capacity, StringComparison.Ordinal);
-        Assert.Contains("NotificationStatus.Degraded, message: change.Reason);", capacity, StringComparison.Ordinal);
+        Assert.Contains("NotificationCenter.Default.Prompt(NotificationCatalog.SqlMemoryCapacityPrompt(change.Reason),", capacity, StringComparison.Ordinal);
+        Assert.Contains("NotificationKind.SqlMemory, NotificationOrigin.Ambient, NotificationLevel.Notice);", capacity, StringComparison.Ordinal);
+
+        var firstCapture = Section(source, "private static void OnStatusChanged", "private static void OnCaptureDropped");
+        Assert.Contains("NotificationCenter.Default.Prompt(NotificationCatalog.SqlMemoryFirstCapturePrompt(),", firstCapture, StringComparison.Ordinal);
 
         var maintenance = Section(source, "private static void OnMaintenanceFailed", "private static async Task<ISqlMemoryStore>");
         Assert.Contains("NotificationCatalog.MaintainingSqlMemory", maintenance, StringComparison.Ordinal);
@@ -99,7 +99,7 @@ public sealed class SqlMemoryNotificationWiringTests
     /// 等儲存的長操作一律以 <c>Begin</c> 追蹤，成功不再重寫一次視窗狀態列。
     /// </summary>
     /// <remarks>
-    /// 卡片跟著作用中的宿主走：維護跑到一半切回編輯器或關掉工具窗，結果仍然看得到，
+    /// 通知島不屬於任何一個視窗：維護跑到一半切回編輯器或關掉工具窗，結果仍然看得到，
     /// 而視窗裡再寫一次「已完成」只是同一件事報兩遍。
     /// </remarks>
     [Fact]
@@ -117,7 +117,7 @@ public sealed class SqlMemoryNotificationWiringTests
         var start = Section(usage, "private void Start(string title", "private static string Deleted");
         Assert.Contains("NotificationCenter.Default.Begin(title,", start, StringComparison.Ordinal);
         Assert.Contains("NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info);", start, StringComparison.Ordinal);
-        // 失敗走卡片，不再經過 _report；狀態列只留備份位置這種卡片放不下的資訊。
+        // 失敗走通知，不再經過 _report；狀態列只留備份位置這種通知放不下的資訊。
         Assert.Contains("await _gate.RunAsync(_operation.Token, Failed, verb,", start, StringComparison.Ordinal);
         Assert.Contains("notification.Fail();", start, StringComparison.Ordinal);
 
@@ -131,37 +131,6 @@ public sealed class SqlMemoryNotificationWiringTests
         // 衝突與「不確定有沒有成功」要當場讀完，留在視窗裡。
         Assert.Contains("report(\"收藏已被修改或移除，未回溯；已重新讀取版本清單。\");", revert, StringComparison.Ordinal);
         Assert.Contains("report(\"回溯未確認：\"", revert, StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// SQL Memory 的視窗都註冊成卡片宿主，而且只在兩個地方註冊。
-    /// </summary>
-    /// <remarks>
-    /// 每個視窗各寫一次的版本，新增一個對話框就會忘記，而症狀是「卡片有時候不出現」——
-    /// 沒有例外也沒有紀錄。工具窗要自己包 <c>AdornerDecorator</c>，否則卡片會掛到殼層主視窗。
-    /// </remarks>
-    [Fact]
-    public void SqlMemory視窗集中註冊成通知宿主()
-    {
-        Assert.Contains("NotificationWindowHost.Register(window);", ReadProductSource(Dialogs), StringComparison.Ordinal);
-        Assert.Contains("SqlAssistDialogs.Configure(window, title, width, height", ReadProductSource(Actions), StringComparison.Ordinal);
-
-        var toolWindow = ReadProductSource(ToolWindow);
-        Assert.Contains("new AdornerDecorator { Child = _host }", toolWindow, StringComparison.Ordinal);
-        Assert.Contains("_notifications = NotificationWindowHost.Register(_host);", toolWindow, StringComparison.Ordinal);
-        Assert.Contains("_notifications?.Dispose();", toolWindow, StringComparison.Ordinal);
-
-        // 每個 SQL Memory 視窗都走集中的殼層設定，沒有人自己註冊一次。
-        foreach (var window in new[]
-                 {
-                     "SqlMemory/FavoriteEditorWindow.cs", "SqlMemory/FavoriteRevisionsWindow.cs",
-                     "SqlMemory/SqlMemoryCleanupWindow.cs",
-                 })
-        {
-            var source = ReadProductSource(window);
-            Assert.Contains("SqlMemoryActions.ConfigureWindow(this,", source, StringComparison.Ordinal);
-            Assert.DoesNotContain("NotificationWindowHost", source, StringComparison.Ordinal);
-        }
     }
 
     private static string Section(string source, string start, string end)

@@ -65,7 +65,7 @@
 - `SqlMemoryActivityLog` 只在記憶體保留最新 20 筆：手動操作的成功與失敗，以及有刪除的背景維護（30 分鐘內合併）。
 - `SqlMemoryCapacityMonitor` 觀測維護批次、用量頁與手動整理回報的容量；分級改變觸發 `CapacityChanged`，
   用量分頁圖示的警示點在 Warning／Critical 顯示，出現時單次縮放 240 ms。
-- 剛進入 Critical 時送一則事件型通知（`NotificationCenter.Post`，`SqlMemory`／`Ambient`／`Notice`，狀態為降級，原因短語來自 `SqlMemoryCapacityChangedEventArgs.Reason`），降到 80% 以下才重新武裝；停用或換儲存時分級歸零。降級走獨立通道，關掉 SQL Memory 種類開關仍會出現，要完全靜默得關掉「顯示部分成功」；卡片沒有宿主時看不見，分頁圖示的警示點就是那個不會錯過的出口。
+- 剛進入 Critical 時送一則提醒（`NotificationCenter.Prompt`，`SqlMemory`／`Ambient`／`Notice`，按鈕「開啟維護」，說明來自 `SqlMemoryCapacityChangedEventArgs.Reason`），降到 80% 以下才重新武裝；停用或換儲存時分級歸零。提醒不逾時，只受總開關與 SQL Memory 種類開關管；按了「稍後」這次工作階段不再出現，分頁圖示的警示點一直留著。
 
 ## 動畫與配色
 

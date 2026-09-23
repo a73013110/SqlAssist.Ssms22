@@ -43,6 +43,16 @@ internal sealed class NotificationIsland : Grid
     /// <summary>疊起來的提醒，後面每一層往上露出多少。</summary>
     public const double StackPeek = 5;
 
+    /// <summary>
+    /// 島嶼最大的外框（含衛星與疊層，不含柔影）。
+    /// </summary>
+    /// <remarks>
+    /// 浮層視窗依它固定大小：變形途中改視窗大小，每一影格都是一次 SetWindowPos 加上整個分層視窗重新合成。
+    /// 高度的上限是展開清單：外距 14、抬頭 24、文件列 19、漸層條 2、明細上距 8 與 <see cref="DetailMaxHeight"/>，
+    /// 共 307，取整到 320；三行訊息的提醒加上兩層疊層不到 150。
+    /// </remarks>
+    public static readonly Size MaxExtent = new(PanelWidth + SatelliteGap + SatelliteSize, 320);
+
     private const string Cross = "M1,1 L11,11 M11,1 L1,11";
     private const string Running = "M8,1 A7,7 0 1 1 1,8";
     private const string Check = "M3,8 L6.5,11.5 L13,4.5";
@@ -188,6 +198,9 @@ internal sealed class NotificationIsland : Grid
     /// <summary>活動清單的叉號：這一批看完了，不取消工作。</summary>
     public event EventHandler? DismissRequested;
 
+    /// <summary>收場播完、整個收起來了；浮層在這時才隱藏視窗，否則收場動畫會被一起藏掉。</summary>
+    public event EventHandler? Vanished;
+
     /// <summary>這一輪的形態；由狀態機給。</summary>
     public NotificationIslandShape Shape { get; private set; } = NotificationIslandShape.Hidden;
 
@@ -201,6 +214,9 @@ internal sealed class NotificationIsland : Grid
     internal Border Surface => _surface;
     internal IReadOnlyList<Border> StackLayers => _layers;
     internal ScrollViewer Details => _details;
+    internal StackPanel Rows => _rows;
+    internal TextBlock DocumentLabel => _listDocument;
+    internal ScaleTransform Progress => _progress;
     internal bool IsSpinning => _capsuleSpinning || _listSpinning;
     internal (SpringMotion Width, SpringMotion Height, SpringMotion Radius) Springs => (_width, _height, _radius);
 
@@ -341,6 +357,21 @@ internal sealed class NotificationIsland : Grid
         if (!_shown) Visibility = Visibility.Collapsed;
     }
 
+    /// <summary>
+    /// 立刻收起、不播收場，也不發 <see cref="Vanished"/>；下一次 <see cref="Update"/> 從圓點重新長出來。
+    /// </summary>
+    /// <remarks>換擁有者時用：浮層先隱藏再換位置，舊位置上的收場沒有人看得到。</remarks>
+    public void Reset()
+    {
+        _shown = false; _hiding = false;
+        SetSpin(_capsuleSpin, ref _capsuleSpinning, false);
+        SetSpin(_listSpin, ref _listSpinning, false);
+        _satellite.Visibility = Visibility.Collapsed;
+        TargetSize = new Size(DotSize, DotSize);
+        StopMotion();
+        Visibility = Visibility.Collapsed;
+    }
+
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {
         base.OnDpiChanged(oldDpi, newDpi);
@@ -360,6 +391,7 @@ internal sealed class NotificationIsland : Grid
         {
             StopMotion();
             Visibility = Visibility.Collapsed;
+            Vanished?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -382,6 +414,7 @@ internal sealed class NotificationIsland : Grid
             if (_shown) return;
             Visibility = Visibility.Collapsed;
             _island.BeginAnimation(OpacityProperty, null); _island.Opacity = 1;
+            Vanished?.Invoke(this, EventArgs.Empty);
         };
         _island.BeginAnimation(OpacityProperty, fade);
     }

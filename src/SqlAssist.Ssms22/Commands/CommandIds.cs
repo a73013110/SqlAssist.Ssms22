@@ -85,6 +85,12 @@ internal static class CommandIds
     public const int CheckForUpdates = 0x0219;
 
     /// <summary>
+    /// 把鍵盤焦點移到通知島上；Tab 切換按鈕，Esc 收起並把焦點還回去。
+    /// </summary>
+    /// <remarks>通知島的浮層不接受啟用，滑鼠點得到、鍵盤進不去；這是鍵盤唯一的入口。</remarks>
+    public const int FocusNotifications = 0x021C;
+
+    /// <summary>
     /// 設定頁「SQL Memory」分類上的唯一按鈕，不出現在選單（註冊檔寫成十進位的 538）。
     /// </summary>
     /// <remarks>執行與狀態共用 <see cref="ShowSqlMemoryUsage"/>；整理、壓縮與備份都在那個分頁上。</remarks>

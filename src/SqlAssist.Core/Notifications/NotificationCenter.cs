@@ -132,6 +132,9 @@ public sealed class NotificationCenter
     ///
     /// 提醒不經過完成路徑：不進工作階段統計、最近失敗與逐次的詳細診斷，因為它不是一件
     /// 做完的工作；也不套用保留期限，另有 <see cref="PromptLimit"/> 則的上限，超過時丟掉最舊的。
+    ///
+    /// <paramref name="origin"/> 為 <see cref="NotificationOrigin.User"/> 時不理會「稍後」並解除它：
+    /// 使用者自己按了「檢查更新」，得到的答案不能因為稍早按過叉號就安靜地消失。
     /// </remarks>
     public NotificationItem? Prompt(NotificationPrompt prompt, NotificationKind kind, NotificationOrigin origin,
         NotificationLevel level, string subject = "", string document = "", string source = "")
@@ -140,7 +143,8 @@ public sealed class NotificationCenter
         NotificationItem item;
         lock (_gate)
         {
-            if (_snoozed.Contains((kind, prompt.Key))) return null;
+            if (origin == NotificationOrigin.User) _snoozed.Remove((kind, prompt.Key));
+            else if (_snoozed.Contains((kind, prompt.Key))) return null;
             _prompts.RemoveAll(x => x.Kind == kind && string.Equals(x.Key, prompt.Key, StringComparison.Ordinal));
             var now = _clock();
             item = new NotificationItem(++_nextId, prompt.Title, subject, document, source, now,
@@ -161,15 +165,20 @@ public sealed class NotificationCenter
     /// 依按鈕識別字保存，這裡不記。
     /// </remarks>
     /// <returns>找得到這一則並收掉時為 true；已經被處理、取代或擠掉時為 false。</returns>
-    public bool Resolve(long itemId, string? actionId)
+    public bool Resolve(long itemId, string? actionId) => TryResolve(itemId, actionId, out _);
+
+    /// <summary>同 <see cref="Resolve"/>，另外交出按下的那顆按鈕，讓呼叫端依識別字與參數派送。</summary>
+    /// <param name="action">按下的按鈕；叉號或找不到這一則時是 null。</param>
+    public bool TryResolve(long itemId, string? actionId, out NotificationAction? action)
     {
+        action = null;
         NotificationItem item;
         lock (_gate)
         {
             var index = _prompts.FindIndex(x => x.Id == itemId);
             if (index < 0) return false;
             item = _prompts[index];
-            if (actionId is not null && !HasAction(item, actionId))
+            if (actionId is not null && (action = Find(item, actionId)) is null)
                 throw new ArgumentException("這則提醒沒有這顆按鈕：" + actionId, nameof(actionId));
             _prompts.RemoveAt(index);
             if (actionId is null) _snoozed.Add((item.Kind, item.Key));
@@ -180,11 +189,11 @@ public sealed class NotificationCenter
         return true;
     }
 
-    private static bool HasAction(NotificationItem item, string actionId)
+    private static NotificationAction? Find(NotificationItem item, string actionId)
     {
         foreach (var action in item.Actions)
-            if (string.Equals(action.Id, actionId, StringComparison.Ordinal)) return true;
-        return false;
+            if (string.Equals(action.Id, actionId, StringComparison.Ordinal)) return action;
+        return null;
     }
 
     private NotificationScope Create(string title, NotificationKind kind, NotificationOrigin origin,

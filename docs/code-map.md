@@ -51,7 +51,8 @@
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |
 | SQL Memory 的 SQL、交易或索引 | `SqlMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |
-| 通知卡片掛錯或不出現 | `Ssms22/Notifications/NotificationHostPriority.cs` |
+| 通知島錨錯視窗、位置不對或不出現 | `Ssms22/Notifications/NotificationIslandController.cs`、`NotificationOverlay.cs` |
+| 提醒按鈕按了沒反應 | `Ssms22/Notifications/NotificationActionRouter.cs` |
 | 建置、安裝、偵錯、發布 | `tools/` |
 | 分層規則、資料夾規則 | — |
 

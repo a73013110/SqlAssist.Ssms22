@@ -122,7 +122,7 @@ internal sealed class SqlDefinitionOpener
             // 措辭與下面回報那一行刻意不同：這一行留的是完整堆疊，那一行留的是
             // 使用者實際看到的話。寫成同一句的話紀錄檔會出現兩行只差長度的訊息。
             SqlAssistDiagnostics.WriteAlways($"開啟{OperationName}時發生例外：{exception}");
-            failure = $"開啟{OperationName}失敗：{exception.Message}";
+            failure = $"開啟{OperationName}失敗；原因已寫入診斷紀錄檔。";
         }
         finally
         {

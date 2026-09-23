@@ -19,8 +19,8 @@ namespace SqlAssist.Ssms22.SqlMemory;
 /// 讀取以取消與宿主世代擋住晚到的結果；整理動作走 <see cref="SqlMemoryOperationGate"/>，連按只送出一次，
 /// 停用或換了儲存之後才回來的結果不回報。整理結束一律重讀快照，量表從舊值滑到新值。
 ///
-/// 回饋分兩條：分頁內的不確定進度說「現在動不了」，通知卡片說「這件事怎麼了」。維護與清除可能跑上幾分鐘，
-/// 使用者多半已經切回編輯器，所以成敗都走卡片（卡片跟著作用中的宿主走）；分頁狀態列只留卡片放不下的東西，
+/// 回饋分兩條：分頁內的不確定進度說「現在動不了」，通知說「這件事怎麼了」。維護與清除可能跑上幾分鐘，
+/// 使用者多半已經切回編輯器，所以成敗都走通知（通知島不屬於任何一個視窗）；分頁狀態列只留通知放不下的東西，
 /// 例如備份檔與自我測試報告的位置——通知文案不放路徑。
 /// </remarks>
 internal sealed class SqlMemoryUsagePanel : IDisposable
@@ -148,7 +148,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
     /// <param name="title"><see cref="NotificationCatalog"/> 的常數標題；成敗都由卡片回報。</param>
     /// <param name="verb">失敗訊息的動作名稱。</param>
     /// <param name="deletes">會刪除紀錄；結束後通知清單重讀，壓縮與備份不動紀錄就不讓清單白讀一次。</param>
-    /// <param name="work">背景部分；回傳卡片上的結果短語，以及只有分頁狀態列放得下的那一句（多半沒有）。</param>
+    /// <param name="work">背景部分；回傳通知上的結果短語，以及只有分頁狀態列放得下的那一句（多半沒有）。</param>
     private void Start(string title, string verb, string busy, bool deletes,
         Func<IProgress<long>, Task<(string Note, string? Status)>> work)
     {

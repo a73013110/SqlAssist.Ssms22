@@ -377,7 +377,7 @@ public sealed class NotificationCenterTests
         var center = new NotificationCenter();
         using (Begin(center, NotificationCatalog.LoadingObjects))
         {
-            center.Post(NotificationCatalog.ExceedingSqlMemoryCapacity, NotificationKind.SqlMemory,
+            center.Post(NotificationCatalog.DroppingSqlCapture, NotificationKind.SqlMemory,
                 NotificationOrigin.Ambient, NotificationLevel.Notice, NotificationStatus.Succeeded);
             // 巢狀查詢仍然併進真正的父工作；事件那一列不因此降級。
             using (var nested = Begin(center, NotificationCatalog.LoadingDatabases, joinParent: true)) nested.Fail();
@@ -389,7 +389,7 @@ public sealed class NotificationCenterTests
         var items = Read(center);
         Assert.Equal(3, items.Count);
         Assert.Equal(NotificationStatus.Succeeded,
-            Assert.Single(items, x => x.Title == NotificationCatalog.ExceedingSqlMemoryCapacity).Status);
+            Assert.Single(items, x => x.Title == NotificationCatalog.DroppingSqlCapture).Status);
         Assert.Equal(NotificationStatus.Degraded,
             Assert.Single(items, x => x.Title == NotificationCatalog.LoadingObjects).Status);
     }

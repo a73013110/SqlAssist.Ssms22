@@ -7,14 +7,14 @@ using SqlAssist.Ssms22.UI;
 namespace SqlAssist.Ssms22.Notifications;
 
 /// <summary>
-/// 決定通知卡片該顯示什麼；整個處理程序一份。
+/// 決定通知島該顯示什麼；整個處理程序一份。
 /// </summary>
 /// <remarks>
-/// 可見度、合併、措辭與關閉狀態集中在這裡，<see cref="NotificationSurfaceController"/> 只管
-/// 何時顯示與掛在哪個宿主上。分散在每個宿主的版本要嘛各算一次同一份清單，要嘛把「哪些通知
-/// 已經被關掉」寫成靜態欄位——後者正是關掉一個編輯區的提示會關掉全部的原因。
+/// 可見度、合併、措辭與關閉狀態集中在這裡，<see cref="NotificationIslandController"/> 只管
+/// 何時顯示與浮層錨在哪個視窗上。「哪些活動已經被關掉」是這裡的一份具名狀態，不是散在
+/// 視窗類別上的靜態欄位。
 ///
-/// 狀態只在 UI 執行緒上讀寫（<see cref="Current"/> 由控制器的刷新路徑呼叫）；
+/// 狀態只在 UI 執行緒上讀寫（<see cref="Island"/> 由控制器的刷新路徑呼叫）；
 /// 通知來源的 <see cref="NotificationCenter.Changed"/> 可能來自任何執行緒，因此這裡
 /// 只把事件轉發出去，不在事件上碰狀態。
 /// </remarks>
@@ -25,12 +25,9 @@ internal sealed class NotificationPresenter
 
     public static NotificationPresenter Default { get; } = new();
 
-    /// <summary>通知內容可能變了；有宿主可掛時才需要重算。</summary>
+    /// <summary>通知內容可能變了。</summary>
     public event EventHandler? Changed;
 
-    private IReadOnlyList<NotificationItem>? _source;
-    private IReadOnlyList<NotificationCardItem> _items = Array.Empty<NotificationCardItem>();
-    private SqlAssistSettings? _settings;
     private IReadOnlyList<NotificationItem>? _islandSource;
     private SqlAssistSettings? _islandSettings;
     private NotificationIslandContent _island = NotificationIslandContent.Empty;
@@ -39,16 +36,10 @@ internal sealed class NotificationPresenter
     /// 已經被關閉的最後一個通知 Id；比它新的工作仍會出現。
     /// </summary>
     /// <remarks>
-    /// 關閉刻意是全域的：提示同一時間只有一份，跟著作用中的宿主走，使用者按下的
-    /// 那個叉號指的是「這一批我看完了」，不是「這個分頁不要再顯示」。因此它在這裡是
-    /// 一份具名的呈現狀態，不是散在宿主類別上的靜態可變欄位。
+    /// 叉號指的是「這一批我看完了」，不是取消工作，也不影響提醒。
     /// </remarks>
     private long _dismissedThrough;
-    private bool _defaultExpanded = true;
     private DateTimeOffset? _oldest;
-
-    /// <summary>明細展開與否；跟著提示走，換宿主不會忽然收合。</summary>
-    public bool Expanded { get; private set; } = true;
 
     private readonly NotificationCenter _center;
 
@@ -65,8 +56,6 @@ internal sealed class NotificationPresenter
     // 這一份因此只依賴 Core 與 UI，測試能直接編譯它。
     private void OnChanged(object? sender, EventArgs args) => Changed?.Invoke(this, EventArgs.Empty);
 
-    public void Toggle() => Expanded = !Expanded;
-
     /// <summary>關閉目前這一批活動；不取消工作，之後的新工作仍會通知。提醒不受影響。</summary>
     public void Dismiss(SqlAssistSettings settings)
     {
@@ -77,32 +66,15 @@ internal sealed class NotificationPresenter
     }
 
     /// <summary>使用者按了提醒上的按鈕或叉號（<paramref name="actionId"/> 為 null）。</summary>
-    public bool Resolve(long promptId, string? actionId) => _center.Resolve(promptId, actionId);
+    /// <param name="action">按下的那顆按鈕，帶著參數交給派送；叉號時是 null。</param>
+    public bool TryResolve(long promptId, string? actionId, out NotificationAction? action) =>
+        _center.TryResolve(promptId, actionId, out action);
 
     /// <summary>離開提示後把暫停的期限續跑，不留下永遠不到期的結果。</summary>
     public void Release(SqlAssistSettings settings) => Snapshot(settings, retain: false);
 
     /// <summary>這一批是不是都還在延遲顯示的時間內。</summary>
     public bool WithinDelay(TimeSpan delay, DateTimeOffset now) => _oldest is { } oldest && now - oldest < delay;
-
-    /// <summary>
-    /// 目前該畫的那幾列；來源與設定都沒變時回傳上一次那一份。
-    /// </summary>
-    /// <param name="retain">滑鼠或鍵盤焦點還在提示內，期限暫停。</param>
-    public IReadOnlyList<NotificationCardItem> Current(SqlAssistSettings settings, bool retain)
-    {
-        if (settings is null) throw new ArgumentNullException(nameof(settings));
-        // 使用者改了「預設展開明細」才跟著改；自己按過的展開狀態不被週期刷新蓋回去。
-        if (_defaultExpanded != settings.NotificationExpanded)
-        { _defaultExpanded = settings.NotificationExpanded; Expanded = _defaultExpanded; }
-        var source = Snapshot(settings, retain);
-        // 來源沒變就是同一個陣列；每 100 ms 重跑一次篩選、合併與投影只是把沒發生的事重算。
-        if (ReferenceEquals(source, _source) && ReferenceEquals(settings, _settings)) return _items;
-        _source = source; _settings = settings;
-        var projection = Project(source, settings, _dismissedThrough);
-        _items = projection.Items; _oldest = projection.Oldest;
-        return _items;
-    }
 
     /// <summary>
     /// 通知島這一輪的內容：活動列、膠囊摘要與排好的提醒；來源與設定都沒變時回傳上一次那一份。
@@ -119,8 +91,8 @@ internal sealed class NotificationPresenter
         return _island;
     }
 
-    /// <summary>下一次 <see cref="Current"/> 與 <see cref="Island"/> 重新投影，即使來源與設定的參考都沒變。</summary>
-    private void Invalidate() { _source = null; _islandSource = null; }
+    /// <summary>下一次 <see cref="Island"/> 重新投影，即使來源與設定的參考都沒變。</summary>
+    private void Invalidate() => _islandSource = null;
 
     private IReadOnlyList<NotificationItem> Snapshot(SqlAssistSettings settings, bool retain) =>
         _center.Snapshot(
@@ -128,34 +100,9 @@ internal sealed class NotificationPresenter
             TimeSpan.FromMilliseconds(Math.Max(MinimumFailureRetention, settings.NotificationRetention)),
             retain);
 
-    /// <summary>篩掉看不見的、合併重複的，再翻成卡片認得的記錄。</summary>
+    /// <summary>通知島的投影：活動先篩後併，提醒另外排序。</summary>
     /// <remarks>
     /// 先篩後併：合併鍵不含可見度，隱藏的工作併進來會讓 ×N 大於畫面上真正發生過的次數。
-    /// </remarks>
-    internal static NotificationProjection Project(
-        IReadOnlyList<NotificationItem> items, SqlAssistSettings settings, long dismissedThrough = 0)
-    {
-        if (items is null) throw new ArgumentNullException(nameof(items));
-        if (settings is null) throw new ArgumentNullException(nameof(settings));
-        var visible = new List<NotificationItem>(items.Count);
-        DateTimeOffset? oldest = null;
-        for (var index = 0; index < items.Count; index++)
-        {
-            var item = items[index];
-            // 舊卡片沒有按鈕可按，提醒只在通知島上出現。
-            if (item.IsPrompt || item.Id <= dismissedThrough || !NotificationVisibility.Includes(item, settings)) continue;
-            visible.Add(item);
-            if (oldest is null || item.Started < oldest) oldest = item.Started;
-        }
-
-        var merged = NotificationMerge.Collapse(visible);
-        var cards = new NotificationCardItem[merged.Count];
-        for (var index = 0; index < merged.Count; index++) cards[index] = ToCardItem(merged[index]);
-        return new NotificationProjection(cards, oldest);
-    }
-
-    /// <summary>通知島的投影：活動照舊卡片的規則，提醒另外排序。</summary>
-    /// <remarks>
     /// 活動的關閉（<paramref name="dismissedThrough"/>）不影響提醒：叉號在活動上是「這一批看完了」，
     /// 提醒要各自處理。提醒依嚴重度、再依時間新到舊排序，最該先處理的那一則在最上面。
     /// </remarks>
@@ -236,15 +183,4 @@ internal sealed class NotificationPresenter
         },
         NotificationCatalog.StatusText(item.Status),
         item.Repeat);
-}
-
-/// <summary>一輪投影的結果：畫面上的那幾列，以及其中最早啟動的時間。</summary>
-/// <remarks>延遲顯示要看的是看得見的那些工作，隱藏的與已關閉的不算在內。</remarks>
-internal readonly struct NotificationProjection
-{
-    public NotificationProjection(IReadOnlyList<NotificationCardItem> items, DateTimeOffset? oldest)
-    { Items = items; Oldest = oldest; }
-
-    public IReadOnlyList<NotificationCardItem> Items { get; }
-    public DateTimeOffset? Oldest { get; }
 }

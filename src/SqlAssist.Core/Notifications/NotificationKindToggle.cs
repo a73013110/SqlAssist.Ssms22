@@ -49,8 +49,6 @@ public sealed class NotificationKindToggle
         new NotificationKindToggle(NotificationKind.Snippets, "sqlAssist.notifications.snippets", true, "程式碼片段"),
         new NotificationKindToggle(NotificationKind.Settings, "sqlAssist.notifications.settings", true, "設定"),
         new NotificationKindToggle(NotificationKind.SqlMemory, "sqlAssist.notifications.sqlMemory", true, "SQL Memory"),
-        // 預設開著：一年只出現幾次，而關掉它就等於關掉「有新版」唯一的出口。
-        new NotificationKindToggle(NotificationKind.Update, "sqlAssist.notifications.update", true, "更新檢查"),
         // 漏分類要看得見，不能沿用預設隱藏的種類。
         new NotificationKindToggle(NotificationKind.Unclassified, "sqlAssist.notifications.unclassified", true, "未分類"),
     };
@@ -58,5 +56,21 @@ public sealed class NotificationKindToggle
     private static readonly Dictionary<NotificationKind, NotificationKindToggle> ByKind =
         All.ToDictionary(toggle => toggle.Kind);
 
+    /// <summary>
+    /// 這一類有沒有自己的開關。
+    /// </summary>
+    /// <remarks>
+    /// 只有 <see cref="NotificationKind.Update"/> 沒有：自動檢查由「啟動時檢查有沒有新版本」管，
+    /// 手動檢查是使用者自己按的，答案一律要看得到。兩個旋鈕管同一件事時，關掉其中一個的人
+    /// 分不出「沒有新版」與「被自己關掉了」。
+    /// </remarks>
+    public static bool Governs(NotificationKind kind) => ByKind.ContainsKey(kind);
+
     public static NotificationKindToggle For(NotificationKind kind) => ByKind[kind];
+
+    /// <summary>診斷畫面上的種類名稱；沒有開關的種類也有名字。</summary>
+    public static string Label(NotificationKind kind) =>
+        ByKind.TryGetValue(kind, out var toggle) ? toggle.Title
+        : kind == NotificationKind.Update ? "更新檢查"
+        : kind.ToString();
 }

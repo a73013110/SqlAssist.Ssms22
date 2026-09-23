@@ -11,16 +11,6 @@ namespace SqlAssist.Ssms22.UI;
 
 internal static partial class SqlAssistChrome
 {
-    /// <summary>卡片本身的控制項仍在這一份建立；呼叫端從卡片的屬性取抬頭與明細，不另外接線。</summary>
-    public static NotificationCard CreateNotificationCard() => new();
-
-    public static void SetNotificationSummary(Button summary, string text)
-    {
-        if (summary.Content is TextBlock heading) heading.Text = text;
-        summary.ToolTip = text + "\n展開或收合通知明細";
-        AutomationProperties.SetName(summary, text);
-    }
-
     internal static Button CreateNotificationButton(string name, string geometry)
     {
         var button = CreateButton(name, DefaultMetrics);
@@ -48,15 +38,6 @@ internal static partial class SqlAssistChrome
         disabled.Setters.Add(new Setter(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Arrow));
         style.Triggers.Add(disabled);
         button.Style = style;
-    }
-
-    // 錨在宿主內容區的右上：編輯器的 adornment 座標與視窗內容區都天然避開文件分頁、
-    // 工具列與主視窗控制鈕。
-    internal static Point NotificationAnchor(Size viewport, Size panel)
-    {
-        var marginX = Math.Min(4, Math.Max(0, (viewport.Width - panel.Width) / 2));
-        var marginY = Math.Min(8, Math.Max(0, (viewport.Height - panel.Height) / 2));
-        return new Point(Math.Max(0, viewport.Width - panel.Width - marginX), marginY);
     }
 
     // 固定 16 單位畫布縮至 12 DIP，不能依各形狀的 Bounds 拉伸，否則勾號會偏心。

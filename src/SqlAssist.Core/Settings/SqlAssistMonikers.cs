@@ -23,7 +23,6 @@ public static class SqlAssistMonikers
 {
     public const string NotificationEnabled = "sqlAssist.notifications.enabled";
     public const string NotificationGlass = "sqlAssist.notifications.glass";
-    public const string NotificationExpanded = "sqlAssist.notifications.expanded";
     public const string NotificationDelay = "sqlAssist.notifications.delay";
     public const string NotificationRetention = "sqlAssist.notifications.retention";
     public const string NotificationVerbosity = "sqlAssist.notifications.verbosity";

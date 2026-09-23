@@ -14,18 +14,17 @@ using SqlAssist.Ssms22.Settings;
 namespace SqlAssist.Ssms22.Commands;
 
 /// <summary>
-/// 「檢查更新…」：問 GitHub 的最新發行版本，結論走通知卡片。
+/// 「檢查更新…」：問 GitHub 的最新發行版本；有新版跳出提醒，其餘結論是一列活動。
 /// </summary>
 /// <remarks>
 /// 兩個入口（工具選單與「關於與診斷」的按鈕）與啟動時的自動檢查共用這一份實作；
-/// 解析與比對在 Core 的 <see cref="SqlAssistUpdateCheck"/>，這裡只負責 HTTP、ETag 快取、
-/// 卡片與開瀏覽器。
+/// 解析與比對在 Core 的 <see cref="SqlAssistUpdateCheck"/>，這裡只負責 HTTP、ETag 快取與通知。
 ///
 /// <b>不下載也不安裝 VSIX。</b>安裝前要關掉所有 SSMS，擴充在自己的宿主裡做不完這件事；
-/// 有新版時最多把使用者送到 Release 頁。
+/// 提醒的「前往下載」只把使用者送到那一版的發行頁，而且要使用者自己按。
 ///
-/// 手動與自動的差別只有兩點：自動的每天最多一次，而且只有「有新版」才出現卡片——
-/// 每次開 SSMS 都告訴使用者「已是最新版」是純粹的噪音。
+/// 手動與自動的差別：自動的每天最多連網一次、只在有新版時出聲，並尊重「略過此版本」；
+/// 手動的三種結論都回報，也不理會略過與「稍後」——使用者是自己按的。
 /// </remarks>
 internal static class SqlAssistUpdateCheckCommand
 {
@@ -38,7 +37,7 @@ internal static class SqlAssistUpdateCheckCommand
 
     public static bool IsRunning => Volatile.Read(ref _running) != 0;
 
-    /// <summary>使用者自己按的：三種結論都給卡片，有新版就順手開 Release 頁。</summary>
+    /// <summary>使用者自己按的：進度與「已是最新／查不到」是一列活動，有新版跳出提醒。</summary>
     public static void Execute(SqlAssistPackage package)
     {
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0) return;
@@ -46,16 +45,25 @@ internal static class SqlAssistUpdateCheckCommand
     }
 
     /// <summary>
-    /// 套件載入後的自動檢查；關掉設定、今天問過或還在跑都直接跳過。
+    /// 套件載入後的自動檢查；關掉設定或還在跑都直接跳過。
     /// </summary>
     /// <remarks>
-    /// 走 <see cref="SqlAssistPlatformGuard.BeginProbe"/>：離線時它會每次啟動都失敗一次，
+    /// 今天問過了就不連網，直接拿快取的 tag 比對：比現在新、又不是被略過的那一版，照樣提醒。
+    /// 只在「今天第一次啟動」提醒的版本，使用者當天重開 SSMS 就再也看不到。
+    ///
+    /// 連網那一條走 <see cref="SqlAssistPlatformGuard.BeginProbe"/>：離線時它會每次啟動都失敗一次，
     /// 那是連續失敗的探測，用 <c>Run</c> 記錄只會灌滿紀錄檔蓋掉真正的錯誤。
     /// </remarks>
     public static void ScheduleStartupCheck(SqlAssistPackage package)
     {
+        ThreadHelper.ThrowIfNotOnUIThread();
         if (!SqlAssistSettingsStore.Current.CheckForUpdates) return;
-        if (DateTimeOffset.UtcNow - SqlAssistState.UpdateCheckedAt < SqlAssistUpdateCheck.AutomaticInterval) return;
+        if (DateTimeOffset.UtcNow - SqlAssistState.UpdateCheckedAt < SqlAssistUpdateCheck.AutomaticInterval)
+        {
+            AnnounceAutomatic(SqlAssistUpdateCheck.Compare(SqlAssistPackage.PackageVersion, SqlAssistState.UpdateTag));
+            return;
+        }
+
         if (Interlocked.CompareExchange(ref _running, 1, 0) != 0) return;
 
         SqlAssistPlatformGuard.BeginProbe("啟動時檢查更新", async () =>
@@ -64,17 +72,42 @@ internal static class SqlAssistUpdateCheckCommand
             {
                 var (result, etag) = await CheckAsync(package.DisposalToken).ConfigureAwait(false);
                 await RememberAsync(result, etag, package.DisposalToken);
-
-                // 已是最新與查不到都不出現：使用者沒有按任何東西，沒有結果就沒有話要說。
-                if (!result.ShouldAnnounce) return;
-
-                NotificationCenter.Default.Post(NotificationCatalog.CheckingForUpdates,
-                    NotificationKind.Update, NotificationOrigin.Ambient, NotificationLevel.Notice,
-                    NotificationStatus.Succeeded, message: result.Message);
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
+                AnnounceAutomatic(result);
             }
             finally { Interlocked.Exchange(ref _running, 0); }
         });
     }
+
+    /// <summary>「略過此版本」：記下那一版，自動檢查不再為它提醒。</summary>
+    public static void SkipVersion(string version)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        SqlAssistState.SkippedUpdateTag = SqlAssistUpdateCheck.ParseTag(version);
+    }
+
+    /// <summary>「前往下載」：開那一版的發行頁；參數不是 GitHub 的 https 網址時改開最新版的發行頁。</summary>
+    public static void OpenReleasePage(string url)
+    {
+        var target = Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps &&
+                     uri.Host == "github.com"
+            ? uri.AbsoluteUri
+            : SqlAssistUpdateCheck.LatestReleasePageUrl;
+        Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+    }
+
+    /// <summary>自動檢查的結論：只有新版、而且不是被略過的那一版才提醒；已是最新與查不到都不出聲。</summary>
+    private static void AnnounceAutomatic(SqlAssistUpdateResult result)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        if (!result.ShouldAnnounce || result.LatestVersion == SqlAssistState.SkippedUpdateTag) return;
+        Prompt(result, NotificationOrigin.Ambient, NotificationLevel.Notice);
+    }
+
+    private static void Prompt(SqlAssistUpdateResult result, NotificationOrigin origin, NotificationLevel level) =>
+        NotificationCenter.Default.Prompt(
+            NotificationCatalog.UpdateAvailablePrompt(result.LatestVersion, SqlAssistUpdateCheck.ReleasePageUrl(result.LatestVersion)),
+            NotificationKind.Update, origin, level);
 
     private static async Task ExecuteAsync(SqlAssistPackage package)
     {
@@ -90,7 +123,9 @@ internal static class SqlAssistUpdateCheckCommand
                     var (checkResult, etag) = await CheckAsync(package.DisposalToken).ConfigureAwait(false);
                     result = checkResult;
                     await RememberAsync(result, etag, package.DisposalToken);
-                    notification.Report(result.Message);
+
+                    // 有新版時結論在提醒上，這一列只收尾，不再說一次同一句話。
+                    if (!result.ShouldAnnounce) notification.Report(result.Message);
 
                     // 查不到不是成功：使用者按了之後要知道這一次沒有答案，而不是以為自己是最新版。
                     if (result.Status == SqlAssistUpdateStatus.Unknown) notification.Fail();
@@ -109,8 +144,8 @@ internal static class SqlAssistUpdateCheckCommand
                 }
             }
 
-            // 使用者是自己按「檢查更新…」的，有新版時下一步只有一個，不再多一次點擊。
-            if (result.Status == SqlAssistUpdateStatus.UpdateAvailable) OpenReleasePage();
+            // 使用者自己按的：不理會略過的版本，也不理會稍早按過的「稍後」。
+            if (result.ShouldAnnounce) Prompt(result, NotificationOrigin.User, NotificationLevel.Info);
         }
         finally { Interlocked.Exchange(ref _running, 0); }
     }
@@ -163,9 +198,6 @@ internal static class SqlAssistUpdateCheckCommand
         return (SqlAssistUpdateCheck.FromReleaseJson(SqlAssistPackage.PackageVersion, body),
             response.Headers.ETag?.ToString() ?? string.Empty);
     }
-
-    private static void OpenReleasePage() => SqlAssistPlatformGuard.Run("開啟發行頁", () =>
-        Process.Start(new ProcessStartInfo(SqlAssistUpdateCheck.LatestReleasePageUrl) { UseShellExecute = true }));
 
     private static HttpClient CreateClient()
     {

@@ -29,10 +29,10 @@ public sealed class SqlAssistUpdateResult
     /// <summary>發行頁上的版本，例如 <c>0.16.3</c>；問不到時是空字串。</summary>
     public string LatestVersion { get; }
 
-    /// <summary>通知卡片上的那一句；呼叫端不自己組字串。</summary>
+    /// <summary>通知上的那一句；呼叫端不自己組字串。</summary>
     public string Message { get; }
 
-    /// <summary>有新版才值得打斷使用者；啟動時的自動檢查只在這一種情況顯示卡片。</summary>
+    /// <summary>有新版才值得打斷使用者；手動與自動都在這一種情況跳出提醒。</summary>
     public bool ShouldAnnounce => Status == SqlAssistUpdateStatus.UpdateAvailable;
 }
 
@@ -40,7 +40,7 @@ public sealed class SqlAssistUpdateResult
 /// 比對 GitHub 的最新發行版本與目前這一版。
 /// </summary>
 /// <remarks>
-/// 只做解析與比對：HTTP、ETag 快取、通知卡片與開瀏覽器都在 Ssms22 那一層。
+/// 只做解析與比對：HTTP、ETag 快取、通知與開瀏覽器都在 Ssms22 那一層。
 /// 分開的理由是這裡的每一種結論都要測得到，而那些都需要網路與殼層。
 ///
 /// 版本字串不正規化：<c>tools/Publish-Release.ps1</c> 打的 tag 是
@@ -57,6 +57,10 @@ public static class SqlAssistUpdateCheck
     /// <summary>使用者要去的地方；擴充自己不下載也不安裝 VSIX。</summary>
     public const string LatestReleasePageUrl =
         "https://github.com/a73013110/SqlAssist.Ssms22/releases/latest";
+
+    /// <summary>那一版的發行頁；提醒的「前往下載」帶著它，不是永遠指向最新那一版。</summary>
+    public static string ReleasePageUrl(string version) =>
+        "https://github.com/a73013110/SqlAssist.Ssms22/releases/tag/v" + ParseTag(version);
 
     /// <summary>兩次自動檢查之間至少隔這麼久；手動檢查不受限制。</summary>
     public static readonly TimeSpan AutomaticInterval = TimeSpan.FromDays(1);

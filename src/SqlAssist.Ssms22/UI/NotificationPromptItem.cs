@@ -30,7 +30,7 @@ internal sealed record NotificationPromptItem(
     int Count);
 
 /// <summary>通知島一輪要畫的全部內容。</summary>
-/// <param name="Activities">活動列，已經篩選、合併並翻成卡片記錄；順序同舊卡片，完成不重排。</param>
+/// <param name="Activities">活動列，已經篩選、合併並翻成 <see cref="NotificationCardItem"/>；依啟動順序，完成不重排。</param>
 /// <param name="Summary">膠囊上的那一行。</param>
 /// <param name="Prompts">依嚴重度、再依時間新到舊排好的提醒。</param>
 internal sealed record NotificationIslandContent(

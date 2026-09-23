@@ -1,11 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using SqlAssist.Ssms22.Notifications;
 
 namespace SqlAssist.Ssms22.Search;
 
@@ -13,23 +11,18 @@ namespace SqlAssist.Ssms22.Search;
 public sealed class SqlSearchToolWindow : ToolWindowPane
 {
     private readonly ContentControl _host = new();
-    private IDisposable? _notifications;
 
-    // 自己包一層 AdornerDecorator：沒有的話通知卡片會掛到殼層主視窗的圖層，不受工具窗邊界裁切。
     public SqlSearchToolWindow() : base(null)
     {
         Caption = "SQL Search";
-        Content = new AdornerDecorator { Child = _host };
+        Content = _host;
     }
 
     public override void OnToolWindowCreated()
     {
         base.OnToolWindowCreated();
         SqlAssistPlatformGuard.Run("建立 SQL Search 工具窗", () =>
-        {
-            _host.Content = new SqlSearchBrowser((SqlAssistPackage)Package);
-            _notifications = NotificationWindowHost.Register(_host);
-        });
+            _host.Content = new SqlSearchBrowser((SqlAssistPackage)Package));
     }
 
     internal static void Show(SqlAssistPackage package)
@@ -54,11 +47,7 @@ public sealed class SqlSearchToolWindow : ToolWindowPane
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            _notifications?.Dispose();
-            if (_host.Content is SqlSearchBrowser browser) browser.Dispose();
-        }
+        if (disposing && _host.Content is SqlSearchBrowser browser) browser.Dispose();
         base.Dispose(disposing);
     }
 }

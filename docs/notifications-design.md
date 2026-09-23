@@ -18,7 +18,7 @@
 
 | 軸 | 值 | 用途 |
 |---|---|---|
-| `NotificationKind` | Metadata、Completion、Analysis、Preview、Editing、Navigation、Results、Snippets、Settings、Package、SqlMemory、Unclassified | 子系統；十二類各有一格開關 |
+| `NotificationKind` | Metadata、Completion、Analysis、Preview、Editing、Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Unclassified | 子系統；Update 以外各有一格開關 |
 | `NotificationOrigin` | User、Typing、Ambient、Startup | 觸發來源；決定跨不跨得過降噪門檻 |
 | `NotificationLevel` | Trace、Debug、Info、Notice | 詳細度門檻 |
 
@@ -99,31 +99,41 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 `Activity` 一詞已從通知這條路徑上清掉，只有「最近活動」（`SqlAssistActivity`，記錄使用者
 最後做了什麼）保留原意，與通知無關。
 
-## 卡片與呈現端分開
+## 島嶼與呈現端分開
 
-卡片認得通知來源的型別時，第二個回饋來源（片段還原、設定重載）就得先變成一則通知才畫得出來。
-改成卡片只認得 `UI/NotificationCardItem`，呈現端 `Notifications/NotificationPresenter` 負責可見度、
-合併與措辭；卡片本身在 `NotificationSurface`。抽通用通知框架則相反——只有一個來源時
-抽出來的抽象會照著那個來源長，等第二個來源出現時還是要重寫。
+表面認得通知來源的型別時，第二個回饋來源（片段還原、設定重載）就得先變成一則通知才畫得出來。
+所以島嶼只認得 `UI/NotificationCardItem` 與 `UI/NotificationPromptItem`，可見度、合併與措辭在
+`Notifications/NotificationPresenter`。抽通用通知框架則相反——只有一個來源時抽出來的抽象會照著
+那個來源長，等第二個來源出現時還是要重寫。
 
-## 卡片在編輯區之間搬家
+## 從宿主抽象改成右下浮層
 
-每個編輯區各一張卡片時，F12 開新查詢視窗或切分頁會讓同一份提示整個重建：列的身分沒了，
-滑入、淡入與每一列的狀態動畫全部重播，看起來是提示消失了又跳出來。卡片改成全程一張，
-換編輯區只是換掛到另一層。舊的先拔、接手的下一輪才掛，中間隔的是一次派送，因此
-`NotificationHandover` 給一段寬限——沒有寬限就等於交接一定重播。
+卡片原本掛在「宿主」上：SQL 編輯區的 adornment 層、SQL Memory 工具窗與對話框的 `AdornerLayer`，
+由優先序挑一個，換宿主時靠 1200 ms 的交接寬限避免重播。這條路有三個洞：沒有宿主時（還沒開查詢
+視窗、焦點在物件總管）通知被吃掉，啟動時檢查到的新版本就是這樣不見的；每個新視窗都要記得註冊，
+忘了的症狀是「有時候不出現」；卡片錨在右上，蓋住的是 SQL 的第一行。
 
-## 卡片宿主抽象
+改成一個錨在作用中文件所在頂層視窗右下角的透明附屬視窗，宿主抽象、優先序、交接與各視窗的註冊
+整組刪除。當初反對獨立視窗的理由逐條化解：
 
-卡片原本只認得編輯器的 adornment 層，SQL Memory 工具窗與對話框開著時完成的工作看不到。
-表面改認 `INotificationSurfaceHost`：宿主只回答掛上／移除、座標、可見度、焦點與變化事件，
-編輯區與 WPF 視窗各實作一份。狀態機、計時器與全域訂閱原本每個編輯區一份，N 個編輯區
-就是 N 個計時器，還要各自維護早退旗標；搬進 `NotificationSurfaceController` 後只有一份。
+| 當初的顧慮 | 現在的做法 |
+|---|---|
+| 置頂會蓋在別的應用程式上 | 不置頂，設 `Owner`：附屬視窗永遠在擁有者上方、跟著擁有者被別的程式蓋住，Alt+Tab 也只有擁有者 |
+| 最小化要自己處理 | 附屬視窗跟著擁有者最小化；另外聽 `StateChanged` 明確隱藏與重新長出 |
+| 搶焦點 | `ShowActivated=false` 加 `WS_EX_NOACTIVATE`；按鈕要焦點時在 Preview 階段擋下，鍵盤只能經「聚焦通知」進來 |
+| 透明視窗會吃掉底下的點擊 | 透明像素本來就穿透；柔影那一圈由 `WM_NCHITTEST` 回 `HTTRANSPARENT` |
+| DPI 要自己換算 | SSMS 是 Per-Monitor v2；位置以裝置像素交給 `SetWindowPos`，邊距依擁有者 DPI 換算，擁有者換 DPI 時重新定位 |
+| 結果格線是 HWND，會蓋住 WPF 圖層 | 獨立的頂層視窗不在任何人的圖層裡，格線蓋不到它 |
 
-最後用過的編輯區幾乎總是看得見，排在視窗前面的話工具窗永遠搶不到卡片，所以它是第三級。
-不做主視窗疊層：結果格線是 WinForms／HWND，會蓋住 WPF 圖層。不做 Popup 或獨立視窗：
-置頂、最小化、DPI 與搶焦點都要自己處理。`NotificationPosition.BottomRight` 從未有使用者
-設定，一併刪除。
+錨點不選 SqlAssist 的對話框：右下角是「確定／取消」。擁有者換了就重播出現動畫——在舊位置收場、
+新位置接著變形，看起來是島嶼飛過去。「預設展開明細」一併刪除：島嶼預設就是膠囊，停駐或鍵盤才展開。
+
+## Update 沒有種類開關
+
+「更新檢查」那一格與「一般」頁的「啟動時檢查有沒有新版本」管的是同一件事。兩個都開著才看得到
+新版，關掉其中一個的人分不出「沒有新版」與「被自己關掉了」；手動檢查是使用者自己按的，關掉開關
+之後按了沒反應更糟。所以自動檢查只歸「啟動時檢查」管，手動一律顯示，略過哪一版由提醒按鈕決定。
+產品未公開發行，刪掉的 moniker 不寫搬遷。
 
 ## 抬頭只回答文件
 
@@ -134,7 +144,7 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 ## 落地順序
 
 五步都已完成：Core 模型與改名、設定改名與詳細度下拉、訊息目錄與全系統接線、
-合併與工作階段統計、卡片解耦與效能。
+合併與工作階段統計、卡片解耦與效能；之後以通知島取代卡片與宿主。
 
 相容多載已經移除：`Begin` 的三軸都沒有預設值，漏寫的接線點編譯不過。
 `SqlAssistPlatformGuard.Begin` 同樣要求三軸；`BeginProbe` 維持不整批追蹤。
