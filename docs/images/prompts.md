@@ -7,15 +7,27 @@
 ## `hero.png`
 
 ```text
-A wide modern developer-tool hero banner, 1200x400. Dark charcoal background with a
-subtle diagonal gradient toward deep indigo. On the left, an abstract stylized code
-editor panel: soft-focus rows of monospaced code in muted grey-blue, deliberately
-unreadable. On the right, a crisp floating autocomplete card with rounded corners, a
-thin light border and five list rows; each row has a small coloured glyph on the left
-and a horizontal bar standing in for a name, with the first few characters of each bar
-highlighted in bright cyan to suggest matched letters. A soft cyan glow links the
-editor to the card. Flat vector illustration, clean, high contrast, generous negative
-space. No logos, no people, no legible words or letters anywhere.
+Use case: ui-mockup
+Asset type: README hero image for SqlAssist, a SQL Server Management Studio 22 extension.
+Primary request: Create a polished, ultra-wide 3:1 developer-tool hero illustration
+showing the real core interaction: a dark SQL editor with an autocomplete popup, and a
+larger object-structure preview opening beneath it, both visually connected to the cursor.
+Scene/backdrop: SSMS-like charcoal interface, understated window chrome, query editor
+occupying the left and center. In the editor, a few restrained lines of syntax-colored
+SQL-shaped marks. The selected suggestion resembles a database table row. The preview
+presents a small table/schema grid and a short DDL code block. These should look like
+plausible technical UI, not a generic chatbot or AI dashboard.
+Style/medium: precise, high-end interface illustration, clean edges, subtle depth,
+restrained highlights.
+Composition/framing: panoramic 1200x400 proportion, all important panels within safe
+margins, balanced visual weight across the width; legible hierarchy when displayed 900px wide.
+Lighting/mood: focused, calm, professional; a subtle blue-cyan accent at the selected
+completion row and cursor, muted violet outline accents.
+Color palette: dark charcoal #252529, slate #34343a, blue-cyan #69bfe8, restrained
+violet #9489cc, white-grey text bars.
+Constraints: no actual readable text or letters anywhere, no fake labels, no people,
+no logos, no extra windows or unrelated UI. Show completion and schema preview clearly.
+A continuous full-bleed banner, not a graphic floating in empty space.
 ```
 
 ## `social-preview.png`

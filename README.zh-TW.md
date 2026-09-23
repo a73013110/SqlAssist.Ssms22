@@ -9,7 +9,7 @@
 ![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-<p align="center"><img src="docs/images/hero.png" width="900" alt="SSMS 22 查詢編輯器中的 SqlAssist 建議清單與物件結構資訊"></p>
+<p align="center"><img src="docs/images/hero.png" width="900" alt="SSMS 深色編輯器中的補全清單與物件結構預覽示意圖"></p>
 
 SqlAssist 是安裝於 **SQL Server Management Studio 22** 的 VSIX，不是另一套編輯器。
 建議完全在本機計算；結構資訊只向目前連線的 SQL Server 查詢，不經雲端，也沒有 AI 模型參與。

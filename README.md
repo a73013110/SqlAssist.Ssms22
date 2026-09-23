@@ -9,7 +9,7 @@
 ![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-<p align="center"><img src="docs/images/hero.png" width="900" alt="SqlAssist for SSMS 22"></p>
+<p align="center"><img src="docs/images/hero.png" width="900" alt="Dark SQL editor with completion and object structure preview"></p>
 
 An **SSMS 22** extension with local suggestions and metadata—no cloud or AI.
 
