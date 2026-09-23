@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.Common;
 using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Threading;
+using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.Connections;
 
@@ -51,7 +53,7 @@ internal sealed class SsmsObjectExplorerServer
 /// <see cref="SqlOlapConnectionInfoBase"/>，那一份是 SSMS 建樹時就帶著認證的。
 ///
 /// 同步的那兩支<b>只能在 UI 執行緒上</b>呼叫（同步方法切不了執行緒，所以維持 assert）；
-/// 非同步的 <see cref="TryNavigateAsync"/> 自己切，呼叫端不必先切也不必負責交還。
+/// 非同步的 <see cref="TrySelectFirstAsync"/> 自己切，呼叫端不必先切也不必負責交還。
 /// 三支都<b>只在使用者主動要求時</b>呼叫：<c>ObjectExplorerService.Tree</c> 第一次取用會以
 /// <c>FTW_fForceCreate</c> 取得視窗框架並呼叫 <c>Show()</c>，使用者把物件總管關掉時，
 /// 輪詢會替他把那個視窗重新叫出來。
@@ -142,13 +144,18 @@ internal static class SsmsObjectExplorer
     }
 
     /// <summary>
-    /// 把物件總管展開到這個 URN 指到的節點並選取它；樹上沒有那個節點時回傳 false。
+    /// 依序試一串由精確到寬鬆的候選，選取第一個指得到的節點；回傳它的索引，
+    /// 一個都指不到時回傳 -1。
     /// </summary>
     /// <remarks>
-    /// 與 <see cref="TryList"/> 同一個導覽服務。<paramref name="ownerUrn"/> 不是空的時候多走
-    /// 一段 <see cref="TrySelectUnderOwnerAsync"/>：導覽服務下不到資料表底下那幾層，
+    /// 與 <see cref="TryList"/> 同一個導覽服務。<see cref="SqlExplorerNode.OwnerUrn"/> 不是空的
+    /// 候選多走一段 <see cref="TrySelectUnderOwnerAsync"/>：導覽服務下不到資料表底下那幾層，
     /// 而那正是資料行、條件約束與觸發程序所在的地方。自己去碰 <c>ObjectExplorerControl</c>
     /// 或那棵樹一律禁止，理由見這個類別的說明。
+    ///
+    /// <b>同一個父物件只展開、只往下找一次。</b>掛在同一個物件底下的候選（<c>DEFAULT</c> 與
+    /// 它的資料行）一趟一起找，找到幾個就選最精確的那一個。一個一個試的症狀是第一個
+    /// 對不上時同一張表再展開、再翻一遍資料夾，而每一趟都各有一次逾時可以等。
     ///
     /// <b>不</b>吞例外：使用者是自己按出這一步的，安靜地什麼都不做等於故障，呼叫端要把
     /// 每一種失敗寫到看得見的地方。取不到服務是唯一的例外——物件總管套件按需載入，
@@ -174,30 +181,71 @@ internal static class SsmsObjectExplorer
     /// 同步等它：UI 執行緒被擋住時，切回去的那一步永遠等不到，而畫面上看起來就是整個
     /// SSMS 凍住。呼叫端一律讓它跑在非同步路徑上。
     /// </remarks>
-    public static async Task<bool> TryNavigateAsync(
-        IServiceProvider services, string urn, string ownerUrn, CancellationToken cancellationToken)
+    public static async Task<int> TrySelectFirstAsync(
+        IServiceProvider services, IReadOnlyList<SqlExplorerNode> candidates, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(urn)) throw new ArgumentException("節點 URN 不可為空。", nameof(urn));
+        if (candidates is null) throw new ArgumentNullException(nameof(candidates));
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-        if (ResolveNavigation(services) is not { } navigation) return false;
+        if (ResolveNavigation(services) is not { } navigation) return -1;
 
-        // 自己就有位址的那幾種（物件本身、作業）：導覽服務從樹根指得到。
-        if (string.IsNullOrEmpty(ownerUrn) || string.Equals(ownerUrn, urn, StringComparison.Ordinal))
+        var searchedOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < candidates.Count; index++)
         {
-            return await navigation.NavigateToUrnAsync(urn, cancellationToken).ConfigureAwait(true);
+            var candidate = candidates[index];
+
+            // 自己就有位址的那幾種（物件本身、作業）：導覽服務從樹根指得到。
+            if (!IsUnderOwner(candidate))
+            {
+                if (await navigation.NavigateToUrnAsync(candidate.Urn, cancellationToken).ConfigureAwait(true))
+                {
+                    return index;
+                }
+
+                continue;
+            }
+
+            // 這個父物件底下的候選已經一起找過了：找到的話早就回傳，這裡只剩沒找到。
+            if (!searchedOwners.Add(candidate.OwnerUrn)) continue;
+
+            // 畫在父物件底下的那幾種：先讓導覽服務把樹展開到父物件，這一段它做得到，
+            // 而且展開的正好是接下來要找的那一層。
+            if (!await navigation.NavigateToUrnAsync(candidate.OwnerUrn, cancellationToken).ConfigureAwait(true))
+            {
+                continue;
+            }
+
+            var siblings = new List<int>();
+
+            for (var next = index; next < candidates.Count; next++)
+            {
+                if (IsUnderOwner(candidates[next]) &&
+                    string.Equals(candidates[next].OwnerUrn, candidate.OwnerUrn, StringComparison.OrdinalIgnoreCase))
+                {
+                    siblings.Add(next);
+                }
+            }
+
+            var urns = siblings.ConvertAll(sibling => candidates[sibling].Urn);
+
+            if (await TrySelectUnderOwnerAsync(services, candidate.OwnerUrn, urns, cancellationToken)
+                    .ConfigureAwait(true) is { } rank)
+            {
+                return siblings[rank];
+            }
         }
 
-        // 畫在父物件底下的那幾種：先讓導覽服務把樹展開到父物件，這一段它做得到，
-        // 而且展開的正好是接下來要找的那一層。
-        if (!await navigation.NavigateToUrnAsync(ownerUrn, cancellationToken).ConfigureAwait(true)) return false;
-
-        return await TrySelectUnderOwnerAsync(services, ownerUrn, urn, cancellationToken).ConfigureAwait(true);
+        return -1;
     }
 
+    private static bool IsUnderOwner(SqlExplorerNode node) =>
+        node.OwnerUrn.Length > 0 && !string.Equals(node.OwnerUrn, node.Urn, StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
-    /// 在父物件的節點底下找出這個節點並選取它；找不到或逾時回傳 false。
+    /// 在父物件的節點底下找出 <paramref name="urns"/> 裡最前面的那一個並選取它；
+    /// 回傳它在 <paramref name="urns"/> 裡的位置，一個都找不到時回傳 null。
     /// </summary>
     /// <remarks>
     /// <b>為什麼不能只靠導覽服務。</b>SSMS 22 的 <c>NavigateToUrnAsync</c> 只認得四種中間
@@ -223,50 +271,60 @@ internal static class SsmsObjectExplorer
     /// 而伺服器忙起來時 <c>GetChildren</c> 會停在物件總管自己那一輪建構上，沒有上限。
     /// 逾時就當成找不到，呼叫端接著試下一個候選（父物件），頁尾照實說「已改為選取…」。
     /// 放掉的那個工作不必收——它只是把節點建出來，下一次按就是現成的。
+    ///
+    /// 逾時靠 <c>WithCancellation</c> 放掉<b>等待</b>，不靠 <c>Task.Run</c> 的權杖：後者只擋
+    /// 還沒開始的工作，<c>GetChildren</c> 一旦開跑，<c>await</c> 就一路等到它回來，上限形同
+    /// 虛設，而 <c>_selecting</c> 那一關讓按鈕在那段時間裡按不動。逾時前已經找到的候選照樣算數：
+    /// 資料行先找到、條件約束還在翻下一個資料夾時逾時，選資料行比退回整張表更接近。
     /// </remarks>
-    private static async Task<bool> TrySelectUnderOwnerAsync(
-        IServiceProvider services, string ownerUrn, string urn, CancellationToken cancellationToken)
+    private static async Task<int?> TrySelectUnderOwnerAsync(
+        IServiceProvider services, string ownerUrn, IReadOnlyList<string> urns, CancellationToken cancellationToken)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-        if (ResolveExplorer(services) is not { } explorer) return false;
+        if (ResolveExplorer(services) is not { } explorer) return null;
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(ChildSearchTimeoutMilliseconds);
 
-        INodeInformation? node;
+        var search = new ChildSearch(urns, deadline.Token);
 
         try
         {
             // 連 FindNode(父物件) 都放進來：它應該是字典查詢，而「應該」不值得拿 UI 執行緒賭。
             // 那一支找不到時會退回全樹搜尋，擺在這裡的話最壞情形也只是逾時。
-            node = await Task
+            await Task
                 .Run(
-                    () => explorer.FindNode(ownerUrn)?.GetService(typeof(INavigableItem)) is INavigableItem item
-                        ? FindUnder(item, urn, ChildSearchDepth)
-                        : null,
+                    () =>
+                    {
+                        if (explorer.FindNode(ownerUrn)?.GetService(typeof(INavigableItem)) is INavigableItem item)
+                        {
+                            search.Under(item, ChildSearchDepth);
+                        }
+                    },
                     deadline.Token)
+                .WithCancellation(deadline.Token)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            node = null;
+            SqlAssistDiagnostics.WriteAlways($"在 {ownerUrn} 底下找子節點逾時，改用已找到的最接近候選");
         }
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
-        if (node is null) return false;
+        if (search.Best() is not { } best) return null;
 
-        explorer.SynchronizeTree(node);
+        explorer.SynchronizeTree(best.Node);
 
-        return true;
+        return best.Rank;
     }
 
     /// <summary>
-    /// 從一個節點往下找出位址是 <paramref name="urn"/> 的那一個；沒有就回 null。
+    /// 從一個節點往下找候選位址；記住找到的最精確那一個，找到第一名就停。
     /// </summary>
     /// <remarks>
-    /// 只認兩種子節點：位址就是要找的那一個，以及<b>資料夾</b>——樹上的資料夾沒有自己的位址，
+    /// 只認兩種子節點：位址是候選之一，以及<b>資料夾</b>——樹上的資料夾沒有自己的位址，
     /// 它的 <c>Context</c> 就是父節點的，而別的東西一律有自己的。靠這一條遞迴，搜尋範圍
     /// 天生就關在這個物件底下。
     ///
@@ -276,26 +334,76 @@ internal static class SsmsObjectExplorer
     ///
     /// 比對大小寫不敏感，與物件總管自己的 <c>NotifyHandler.FindItem</c> 同一條規則：
     /// 位址是我們照目錄組的，而樹上那一份來自 SMO，兩邊的大小寫沒有人保證一致。
+    ///
+    /// 背景執行緒寫、UI 執行緒在逾時後讀，所以結果放在鎖後面；逾時之後背景那一趟還在跑，
+    /// 它每翻一個子節點就看一次權杖，不會在放掉之後繼續建整張表的資料夾。
     /// </remarks>
-    private static INodeInformation? FindUnder(INavigableItem item, string urn, int depth)
+    private sealed class ChildSearch
     {
-        var ownerContext = item.Context?.Context;
+        private readonly IReadOnlyList<string> _urns;
+        private readonly CancellationToken _cancellationToken;
+        private readonly object _gate = new();
+        private INodeInformation? _node;
+        private int _rank = int.MaxValue;
 
-        foreach (var child in item.GetChildren(ItemScope.Any) ?? Array.Empty<INavigableItem>())
+        public ChildSearch(IReadOnlyList<string> urns, CancellationToken cancellationToken)
         {
-            if (child?.Context?.Context is not { Length: > 0 } context) continue;
-
-            if (string.Equals(context, urn, StringComparison.OrdinalIgnoreCase)) return child.Context;
-
-            if (depth <= 1 || !string.Equals(context, ownerContext, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (FindUnder(child, urn, depth - 1) is { } found) return found;
+            _urns = urns;
+            _cancellationToken = cancellationToken;
         }
 
-        return null;
+        public (INodeInformation Node, int Rank)? Best()
+        {
+            lock (_gate) return _node is null ? null : (_node, _rank);
+        }
+
+        /// <returns>找到第一名（不必再找）時為 true。</returns>
+        public bool Under(INavigableItem item, int depth)
+        {
+            var ownerContext = item.Context?.Context;
+
+            foreach (var child in item.GetChildren(ItemScope.Any) ?? Array.Empty<INavigableItem>())
+            {
+                _cancellationToken.ThrowIfCancellationRequested();
+
+                if (child?.Context?.Context is not { Length: > 0 } context) continue;
+
+                if (Rank(context) is { } rank && Offer(child.Context, rank)) return true;
+
+                if (depth <= 1 || !string.Equals(context, ownerContext, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (Under(child, depth - 1)) return true;
+            }
+
+            return false;
+        }
+
+        private int? Rank(string context)
+        {
+            for (var index = 0; index < _urns.Count; index++)
+            {
+                if (string.Equals(context, _urns[index], StringComparison.OrdinalIgnoreCase)) return index;
+            }
+
+            return null;
+        }
+
+        private bool Offer(INodeInformation node, int rank)
+        {
+            lock (_gate)
+            {
+                if (rank < _rank)
+                {
+                    _node = node;
+                    _rank = rank;
+                }
+
+                return _rank == 0;
+            }
+        }
     }
 
     /// <remarks>

@@ -87,6 +87,23 @@ public sealed class SqlObjectExplorerUrnTests
         Assert.Equal(new[] { Table, "" }, nodes.Select(node => node.OwnerUrn));
     }
 
+    /// <remarks>
+    /// 資料表型別上的主索引鍵畫在型別節點底下；父物件名稱必須是型別名，不是
+    /// <c>sys.objects</c> 上那個 <c>TT_…</c> 內部名稱（那一段由目錄查詢負責）。
+    /// </remarks>
+    [Fact]
+    public void 資料表型別上的條件約束掛在型別節點底下()
+    {
+        var owner = Root + "/Database[@Name='Lib']/UserDefinedTableType[@Name='Lib_TagList' and @Schema='dbo']";
+        var parent = new SqlObjectParent(
+            new SqlObjectInfo(7, "dbo", "Lib_TagList", SqlObjectKind.TableType, "Lib"), "PK", null);
+
+        var nodes = SqlObjectExplorerUrn.ForChild(Root, parent, "PK_Lib_TagList");
+
+        Assert.Equal(new[] { owner + "/Index[@Name='PK_Lib_TagList']", owner }, nodes.Select(node => node.Urn));
+        Assert.Equal(new[] { owner, "" }, nodes.Select(node => node.OwnerUrn));
+    }
+
     /// <summary>
     /// 畫在別人底下的節點都帶著父物件的位址，物件本身與作業則是空的。
     /// </summary>

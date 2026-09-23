@@ -199,23 +199,18 @@ internal static partial class SqlSearchActivation
             // 出處是樹上那一台伺服器，不是一份文件：這條路徑沒有開任何查詢視窗。
             source: server.DisplayName);
 
-        for (var index = 0; index < nodes.Count; index++)
+        // 不給取消權杖：使用者按的是「帶我過去」，中途放掉等於按了沒反應。
+        // 整串候選交給導航一次試完：哪一種畫在誰底下只有 SqlObjectExplorerUrn 知道（OwnerUrn），
+        // 同一個父物件底下的幾個候選要一趟一起找，這一層一個一個遞進去就做不到。
+        var selected = await SsmsObjectExplorer
+            .TrySelectFirstAsync(services, nodes, CancellationToken.None)
+            .ConfigureAwait(true);
+
+        if (selected == 0) return null;
+
+        if (selected > 0)
         {
-            // 不給取消權杖：使用者按的是「帶我過去」，中途放掉等於按了沒反應。
-            // 帶上 OwnerUrn，導航才知道這一個是不是畫在別人底下的——那幾種指不到樹根，
-            // 要先到父物件再往下找。哪一種畫在誰底下只有 SqlObjectExplorerUrn 知道，
-            // 這一層照欄位走，不自己判斷種類。
-            var node = nodes[index];
-
-            if (!await SsmsObjectExplorer.TryNavigateAsync(
-                    services, node.Urn, node.OwnerUrn, CancellationToken.None))
-            {
-                continue;
-            }
-
-            return index == 0
-                ? null
-                : $"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[index])}。";
+            return $"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[selected])}。";
         }
 
         notification.Fail();
@@ -243,7 +238,7 @@ internal static partial class SqlSearchActivation
     /// <c>await</c> 決定，這一支<b>不</b>替呼叫端切回去。恢復執行緒是階段邊界的事，
     /// 不是資料解析函式的事——寫在這裡的話，呼叫端一個 <c>ConfigureAwait(false)</c>
     /// 就能把它作廢，而看起來像是這一支失了信。真正擋住那一種錯的是
-    /// <c>SsmsObjectExplorer.TryNavigateAsync</c> 自己切。
+    /// <c>SsmsObjectExplorer.TrySelectFirstAsync</c> 自己切。
     /// </remarks>
     private static async Task<IReadOnlyList<SqlExplorerNode>> ResolveNodesAsync(
         SearchHit hit, string rootUrn, SqlSearchCatalogs catalogs)

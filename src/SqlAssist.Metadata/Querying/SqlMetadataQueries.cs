@@ -470,18 +470,24 @@ ORDER BY tr.name;";
     /// 第六欄只有 <c>DEFAULT</c> 答得出來——它掛在資料行底下，不在資料表底下，
     /// 少了這個名稱就指不到那個節點。<c>LEFT JOIN</c> 因此是必要的：
     /// 其餘種類在那兩張表上接不到列，欄位是 NULL，正好是要的結果。
+    ///
+    /// 父物件是<b>資料表型別</b>時，<c>sys.objects</c> 上那一列是內部物件，名稱是
+    /// <c>TT_型別名_雜湊</c>；名稱與結構描述要改從 <c>sys.table_types</c> 取，與搜尋索引
+    /// 收錄資料表型別的那一段同一個來源。照 <c>sys.objects</c> 取的症狀是資料表型別上的
+    /// 主索引鍵與 <c>CHECK</c> 在物件總管上一律找不到，連退回父物件都退不到。
     /// </remarks>
     public const string ObjectParent = @"
 SELECT
     p.object_id,
     s.name AS schema_name,
-    p.name AS object_name,
+    COALESCE(tt.name, p.name) AS object_name,
     p.type,
     c.type AS child_type,
     col.name AS column_name
 FROM sys.objects AS c
 INNER JOIN sys.objects AS p ON p.object_id = c.parent_object_id
-INNER JOIN sys.schemas AS s ON s.schema_id = p.schema_id
+LEFT JOIN sys.table_types AS tt ON tt.type_table_object_id = p.object_id
+INNER JOIN sys.schemas AS s ON s.schema_id = COALESCE(tt.schema_id, p.schema_id)
 LEFT JOIN sys.default_constraints AS dc ON dc.object_id = c.object_id
 LEFT JOIN sys.columns AS col
     ON col.object_id = dc.parent_object_id AND col.column_id = dc.parent_column_id

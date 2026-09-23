@@ -45,6 +45,8 @@
 觸發程序與條件約束在樹上**有**自己的節點，只是畫在父物件底下。一筆結果身上只有自己的
 `object_id`，所以位址要先問一趟目錄（`SqlMetadataCatalog.GetParentAsync`）。那是**一條查詢**，
 不載入父物件的結構：跳到一個條件約束不需要知道那張表的索引與外來鍵長什麼樣子。
+父物件是資料表型別時，名稱與結構描述從 `sys.table_types` 取：`sys.objects` 上那一列是
+`TT_…` 內部名稱，樹上對不上，連退回父物件都退不到。
 
 | 這一筆是 | 樹上的那一段 |
 |---|---|
@@ -78,7 +80,7 @@ SSMS 的 `IObjectExplorerNavigationService.NavigateToUrnAsync` 只認得四種�
 根本原因是**資料夾在樹上沒有自己的位址**：它的 URN 就是父物件的。「用一個 URN 從樹根指到
 節點」這件事因此對掛在資料夾裡的那幾種不成立，導覽服務的三支公開方法都改變不了這一點。
 
-所以 `TryNavigateAsync` 依節點的 `OwnerUrn` 分兩段：空的由導覽服務直接指（物件本身、作業），
+所以 `TrySelectFirstAsync` 依節點的 `OwnerUrn` 分兩段：空的由導覽服務直接指（物件本身、作業），
 有值的先 `NavigateToUrnAsync(OwnerUrn)` 展開到父物件，再從那個節點往下找。第二段只做外科
 手術式的那一小塊：拿父物件的 `INavigableItem` 往下走兩層（物件→資料夾→節點），資料夾靠
 「`Context` 與父節點相同」認出來，而這一條同時把搜尋**關在這個物件底下**。找到就
@@ -91,8 +93,12 @@ SSMS 的 `IObjectExplorerNavigationService.NavigateToUrnAsync` 只認得四種�
 「在物件總管中選取」停不下來**，而 `_selecting` 這一關讓按鈕從此按不動。
 
 往下找那一段會查詢，所以它在背景執行緒上跑，**深度與時間都要有上限**（兩層、15 秒），
-`SynchronizeTree` 才回 UI 執行緒。逾時當成找不到，呼叫端接著試下一個候選（父物件），頁尾
-照實說「已改為選取…」；放掉的工作不必收，它只是把節點建出來，下一次按就是現成的。
+`SynchronizeTree` 才回 UI 執行緒。逾時放掉的是**等待**（`WithCancellation`）：`Task.Run`
+的權杖只擋還沒開始的工作，靠它的上限形同虛設。逾時前找到的候選照樣算數，都沒有才試
+下一個候選，頁尾照實說「已改為選取…」。
+
+**同一個父物件只展開、只往下找一次**：`DEFAULT` 與它的資料行一趟一起找，選最精確的那一個。
+一個一個試的症狀是同一張表的資料夾翻兩遍，逾時也等兩次。
 
 ## 候選由精確到寬鬆
 
@@ -125,13 +131,13 @@ SSMS 的 `IObjectExplorerNavigationService.NavigateToUrnAsync` 只認得四種�
 第 2 段由 `SqlMetadataCatalog.GetParentAsync` 自己讓出執行緒（它內部就是 `Task.Run`），
 接線層**不**再包一次：多包一層只是多排一次工作，UI 執行緒一樣沒有停在查詢上。
 
-**UI 親和性由被呼叫的那一端自保，不靠上游交還。** `SsmsObjectExplorer.TryNavigateAsync`
+**UI 親和性由被呼叫的那一端自保，不靠上游交還。** `SsmsObjectExplorer.TrySelectFirstAsync`
 進場就 `SwitchToMainThreadAsync`，因此呼叫端在哪一條執行緒上都成立。反過來寫——
 被呼叫端在回傳前切回 UI 執行緒——是**擋不住**的：續程落在哪裡由呼叫端的 `await` 決定，
 一個 `ConfigureAwait(false)` 就把它作廢（UI 執行緒上有 Dispatcher 的同步內容，
 續程不准內聯，只能排回執行緒集區）。這種錯又**只在中間真的 await 過的路徑上發作**：
 資料表與檢視同步算完候選、續程原地跑，看起來完全正常，只有條件約束與觸發程序
-丟 `TryNavigateAsync must be called on the UI thread`。
+丟 `must be called on the UI thread`。
 
 已經在 UI 執行緒上時那一步是同步完成的，不排訊息也不讓出執行緒，所以自保不花錢。
 代價只有一個，要記在呼叫端：**禁止**用 `JoinableTaskFactory.Run` 之類的方式同步等它，
