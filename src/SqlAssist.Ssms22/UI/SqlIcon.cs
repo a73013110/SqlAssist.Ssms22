@@ -55,5 +55,8 @@ internal enum SqlIcon
     /// <summary>往後一個命中。</summary>
     NextMatch,
 
-    SelfTest
+    SelfTest,
+
+    /// <summary>動作完成的短暫回饋（複製成功時動作按鈕的圖示換成它）。</summary>
+    Done
 }

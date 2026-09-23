@@ -9,14 +9,24 @@ namespace SqlAssist.Ssms22.Tests;
 public sealed class KeyboardDeviceUsageTests
 {
     /// <summary>
-    /// 唯一的例外：滑鼠事件上沒有隨事件帶的鍵盤裝置。
+    /// 例外一：滑鼠事件上沒有隨事件帶的鍵盤裝置。
     /// </summary>
     /// <remarks>
     /// <c>MouseWheelEventArgs</c> 帶的是滑鼠裝置，所以 Shift＋滾輪只問得到目前的鍵盤狀態。
-    /// 這條規則防的是<b>合成的按鍵</b>混進實體鍵盤狀態，而滾輪不會被合成。例外只有這一個
-    /// 名字，要再加第二個得連同這一段一起說得出理由。
+    /// 這條規則防的是<b>合成的按鍵</b>混進實體鍵盤狀態，而滾輪不會被合成。例外只有這兩個
+    /// 名字，要再加第三個得連同這一段一起說得出理由。
     /// </remarks>
     private const string ShiftHeldException = "ShiftHeld";
+
+    /// <summary>
+    /// 例外二：清單多選的 Ctrl／Shift+點擊（<c>SqlCardListBase.ModifierSource</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 與滾輪同一個理由：<c>MouseButtonEventArgs</c> 也只帶滑鼠裝置。它另外做成可替換的屬性，
+    /// 測試換掉它，所以合成的點擊不會讀到實體鍵盤——這正是這條規則要的。按鍵路徑（空白鍵、
+    /// Ctrl+A、Ctrl+C）仍然只讀 <c>KeyEventArgs.KeyboardDevice</c>。
+    /// </remarks>
+    private const string ModifierSourceException = "ModifierSource";
 
     [Fact]
     public void 產品碼判斷按鍵狀態只讀事件帶的鍵盤裝置()
@@ -28,7 +38,8 @@ public sealed class KeyboardDeviceUsageTests
         var offenders = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
             .SelectMany(path => File.ReadAllLines(path)
                 .Select((line, index) => (path, line, number: index + 1)))
-            .Where(entry => pattern.IsMatch(entry.line) && !entry.line.Contains(ShiftHeldException))
+            .Where(entry => pattern.IsMatch(entry.line) && !entry.line.Contains(ShiftHeldException) &&
+                !entry.line.Contains(ModifierSourceException))
             .Select(entry => $"{entry.path.Substring(root.Length + 1)}:{entry.number}: {entry.line.Trim()}")
             .ToArray();
 

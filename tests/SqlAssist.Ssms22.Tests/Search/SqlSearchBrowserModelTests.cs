@@ -570,24 +570,6 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 指名伺服器會多一顆排在最前面的chip且清掉它就回到查詢視窗()
-    {
-        var model = new SqlSearchBrowserModel { Server = "LIBSQL01" };
-        model.UseCategories(Categories());
-        model.SetCategorySelected("catalog.table", selected: true);
-        model.SetDatabaseSelected("LibArchive", selected: true);
-
-        // 順序由外而內：伺服器換的是整份目錄，資料庫縮的是那一台裡的範圍，種類縮的是結果的形狀。
-        Assert.Equal(
-            new[] { "伺服器: LIBSQL01", "資料庫: LibArchive", "種類: Table" },
-            model.Chips().Select(chip => chip.Label).ToArray());
-
-        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "伺服器: LIBSQL01")));
-        Assert.Null(model.Server);
-        Assert.Equal("查詢視窗（未連線）", model.ServerSummary());
-    }
-
-    [Fact]
     public void 指名的伺服器不進查詢範圍()
     {
         // SearchScope.Servers 是給連結伺服器（四段式名稱）的，provider 看到它就整輪不回結果。
@@ -598,38 +580,6 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.NotNull(round);
         Assert.Empty(round!.Query.Scope.Servers);
-    }
-
-    [Fact]
-    public void 預設狀態沒有任何chip而一個維度只有一顆且清掉它就清掉整個維度()
-    {
-        var model = new SqlSearchBrowserModel { MatchCasing = true, WholeWord = true, HasConnection = true };
-        model.UseCategories(Categories());
-        model.SetCategorySelected("catalog.view", selected: true);
-        model.SetCategorySelected("catalog.table", selected: true);
-        model.SetDatabaseSelected("LibArchive", selected: true);
-        model.SetDatabaseSelected("LibReporting", selected: true);
-
-        // 一維度一顆：勾了八個資料庫就畫八顆的那一版會長到三列，而那三列換算成少看六筆結果。
-        // 數量與按鈕摘要是同一份字，兩處不會說得不一樣。
-        // 大小寫與全字開著也不上這一列：它們是搜尋框裡常駐可見的開關，不是清得掉的條件。
-        Assert.Equal(
-            new[] { "資料庫: 2 個", "種類: 2 種" },
-            model.Chips().Select(chip => chip.Label).ToArray());
-
-        // 十字清掉的是整個維度；「是哪幾個」要調整的話，chip 本體開的是那個維度自己的面板。
-        Assert.True(model.Remove(model.Chips().Single(chip => chip.Label == "種類: 2 種")));
-        Assert.Empty(model.CategoryIds);
-        Assert.True(model.MatchCasing);
-        Assert.True(model.WholeWord);
-
-        // 一個的時候寫名字，數量沒有意義。
-        model.SetDatabaseSelected("LibReporting", selected: false);
-        Assert.Equal("資料庫: LibArchive", model.Chips().Single().Label);
-
-        Assert.True(model.Remove(model.Chips().Single()));
-        // 沒篩選就不佔那一列：空的 chip 列整列收起。
-        Assert.Empty(model.Chips());
     }
 
     /// <summary>

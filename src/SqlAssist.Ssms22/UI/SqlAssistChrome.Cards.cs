@@ -21,7 +21,10 @@ internal static partial class SqlAssistChrome
     /// 列資料有 <c>IsRemoving</c> 才加退場。沒有刪除動作的清單（搜尋結果）傳 false：
     /// 留著那條繫結只會在每一列上找一個不存在的屬性，而那是靜默失敗。
     /// </param>
-    public static Style CreateSqlCardStyle(bool? motion = null, bool removable = true)
+    /// <param name="checkable">
+    /// 列資料實作 <see cref="ISqlCheckableRow"/> 才加「已勾選」的外框；理由同 <paramref name="removable"/>。
+    /// </param>
+    public static Style CreateSqlCardStyle(bool? motion = null, bool removable = true, bool checkable = false)
     {
         var animate = motion ?? MotionEnabled;
         var border = new FrameworkElementFactory(typeof(Border)) { Name = "card" };
@@ -60,6 +63,7 @@ internal static partial class SqlAssistChrome
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
         AddTrigger(template, ListBoxItem.IsSelectedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "card");
         AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "card");
+        if (checkable) AddCheckedCardTrigger(template);
         var style = new Style(typeof(ListBoxItem));
         style.Setters.Add(new Setter(Control.TemplateProperty, template));
         style.Setters.Add(new Setter(Control.FocusVisualStyleProperty, null));

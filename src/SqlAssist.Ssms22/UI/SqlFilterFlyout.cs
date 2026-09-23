@@ -51,10 +51,10 @@ internal enum SqlFilterBulkCommands
 /// </summary>
 /// <remarks>
 /// 十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果；摘要留在按鈕上，
-/// 完整名單留在面板與 chip 列。用 <see cref="Popup"/> 而不是 <see cref="ContextMenu"/>，
+/// 完整名單留在面板與 Tooltip。用 <see cref="Popup"/> 而不是 <see cref="ContextMenu"/>，
 /// 是因為資料庫那一份面板裡有搜尋框與命令鈕——快捷選單裡的輸入欄拿不到鍵盤焦點。
 ///
-/// 單選與複選<b>是同一個控制項的兩種模式</b>，不是兩個類別：外觀、面板、摘要與 chip 都一樣，
+/// 單選與複選<b>是同一個控制項的兩種模式</b>，不是兩個類別：外觀、面板與摘要都一樣，
 /// 只有互斥語意不同。分成兩個的症狀是其中一邊漏掉主題套用或 Esc 關閉，而那種漏只在
 /// 深色主題或鍵盤操作時才看得出來。同樣的理由，<b>整個擴充只有這一份過濾面板</b>：
 /// SQL Memory 的連線篩選曾經是另一個 inline 控制項，兩份各自有一套主題套用、鍵盤路徑與
@@ -125,7 +125,7 @@ internal sealed class SqlFilterFlyout : Button
         var single = mode == SqlFilterMode.Single;
         _options = SqlAssistChrome.CreateFilterOptionList(OptionsHeight, single);
         Style = SqlAssistChrome.CreateFilterButtonStyle();
-        Template = SqlAssistChrome.CreateGhostButtonTemplate();
+        Template = SqlAssistChrome.CreateFilterButtonTemplate();
         Padding = new Thickness(6, 2, 6, 2);
         _label.Text = name + ": ";
 
@@ -319,7 +319,7 @@ internal sealed class SqlFilterFlyout : Button
     /// </remarks>
     public event Action<object>? SortRequested;
 
-    /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip 與 chip 列。</summary>
+    /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip，有沒有條件看 <see cref="IsNarrowed"/>。</summary>
     /// <remarks>
     /// 收字之後主動把這顆按鈕整條路徑標成待量測。改 <see cref="UIElement.Visibility"/> 只把那兩個
     /// <see cref="TextBlock"/> 標成 dirty，中間的版面容器仍然有效——平常由版面管理員在下一回合
@@ -344,6 +344,23 @@ internal sealed class SqlFilterFlyout : Button
                 if (ReferenceEquals(node, this)) break;
             }
         }
+    }
+
+    /// <summary>
+    /// 這個維度不是預設值（有勾選、或指名了一台）；按鈕換成強調底加強調框。
+    /// </summary>
+    /// <remarks>
+    /// 與搜尋框裡的開關「開著」同一組色：兩者說的都是「這一顆正在縮小結果」。按鈕本身就是
+    /// 條件的出口，所以不在工具列下面另外列一排已選條件——那一排與按鈕摘要說的是同一件事，
+    /// 卻要多佔一列。窄窗收掉摘要之後，靠的就是這個底框。預設值由宿主判斷，控制項不猜。
+    /// </remarks>
+    public static readonly DependencyProperty IsNarrowedProperty = DependencyProperty.Register(
+        nameof(IsNarrowed), typeof(bool), typeof(SqlFilterFlyout), new PropertyMetadata(false));
+
+    public bool IsNarrowed
+    {
+        get => (bool)GetValue(IsNarrowedProperty);
+        set => SetValue(IsNarrowedProperty, value);
     }
 
     /// <summary>按鈕上的摘要與完整的 Tooltip。</summary>

@@ -40,6 +40,45 @@ public sealed class SqlMemoryPageLoad
     public SqlFavoriteRequest? Favorites { get; }
 }
 
+/// <summary>
+/// 某一輪清單的條件快照：可以換頁大小與游標，條件本身固定。
+/// </summary>
+/// <remarks>
+/// 「全部符合」的複製在背景逐頁讀，期間使用者可能已經改了篩選；請求若每頁都從模型現讀，
+/// 後面幾頁的條件就與游標的指紋對不上。快照也帶著世代，讀完之後拿它問模型還算不算數。
+/// </remarks>
+public sealed class SqlMemoryQuery
+{
+    private readonly SqlHistoryFilter _kind;
+    private readonly string _search;
+    private readonly string[] _servers;
+    private readonly string[] _databases;
+    private readonly DateTimeOffset? _since;
+
+    internal SqlMemoryQuery(long generation, long hostGeneration, bool favorites, SqlHistoryFilter kind, string search,
+        IEnumerable<string> servers, IEnumerable<string> databases, DateTimeOffset? since)
+    {
+        Generation = generation;
+        HostGeneration = hostGeneration;
+        IsFavorites = favorites;
+        _kind = kind;
+        _search = search;
+        _servers = new List<string>(servers).ToArray();
+        _databases = new List<string>(databases).ToArray();
+        _since = since;
+    }
+
+    public long Generation { get; }
+    public long HostGeneration { get; }
+    public bool IsFavorites { get; }
+
+    public SqlHistoryRequest HistoryRequest(int pageSize, string? cursor) =>
+        new(pageSize, _kind, _search, _servers, _databases, _since, cursor: cursor);
+
+    public SqlFavoriteRequest FavoriteRequest(int pageSize, string? cursor) =>
+        new(pageSize, _servers, _databases, _search, cursor);
+}
+
 public enum SqlMemoryFooterKind
 {
     /// <summary>不可用或第一頁載入中；第一頁由表面載入圖示表達，頁尾不佔位置。</summary>
@@ -211,12 +250,25 @@ public sealed class SqlMemoryBrowserModel
         if (!IsAvailable || _page.Loading) return null;
         var generation = _page.Generation;
         if (!_page.Begin(generation)) return null;
+        var query = Query();
         return IsFavorites
-            ? new SqlMemoryPageLoad(generation, HostGeneration, null,
-                new SqlFavoriteRequest(PageSize, _servers, _databases, Search, _page.Cursor))
-            : new SqlMemoryPageLoad(generation, HostGeneration,
-                new SqlHistoryRequest(PageSize, Kind, Search, _servers, _databases, Since, cursor: _page.Cursor), null);
+            ? new SqlMemoryPageLoad(generation, HostGeneration, null, query.FavoriteRequest(PageSize, _page.Cursor))
+            : new SqlMemoryPageLoad(generation, HostGeneration, query.HistoryRequest(PageSize, _page.Cursor), null);
     }
+
+    /// <summary>目前這一輪清單的條件；清單的每一頁與「全部符合」的複製都從它組請求，兩邊不會各組一份。</summary>
+    public SqlMemoryQuery Query() =>
+        new(_page.Generation, HostGeneration, IsFavorites, Kind, Search, _servers, _databases, Since);
+
+    /// <summary>快照是否仍屬於目前的篩選與宿主世代；背景讀完之後才寫剪貼簿，換過條件就不算數。</summary>
+    public bool IsCurrent(SqlMemoryQuery query)
+    {
+        if (query == null) throw new ArgumentNullException(nameof(query));
+        return query.Generation == _page.Generation && query.HostGeneration == HostGeneration && IsAvailable;
+    }
+
+    /// <summary>還有沒載入的下一頁（含搜尋預算用盡、等使用者續搜的那一種）。</summary>
+    public bool HasMore => IsAvailable && _page.Cursor != null;
 
     /// <summary>這台伺服器勾起來了沒。</summary>
     public bool IsServerSelected(string server) => Contains(_servers, server);

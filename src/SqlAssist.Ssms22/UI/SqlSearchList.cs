@@ -123,7 +123,7 @@ internal sealed class SqlSearchList : SqlCardListBase<SqlSearchRowAction>
     public SqlSearchList()
     {
         // 結果沒有刪除動作；留著 IsRemoving 的繫結只會在每一列上找一個不存在的屬性。
-        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(removable: false);
+        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(removable: false, checkable: true);
         ItemTemplate = SqlAssistChrome.CreateSearchHitTemplate();
     }
 
@@ -136,7 +136,9 @@ internal sealed class SqlSearchList : SqlCardListBase<SqlSearchRowAction>
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         // Ctrl+C 在清單上就是複製這一筆的限定名稱；使用者不必先展開預覽再去按那顆按鈕。
-        if (!e.Handled && e.Key == Key.C && e.KeyboardDevice.Modifiers == ModifierKeys.Control && IsRowContent(e.OriginalSource))
+        // 多選模式中讓給選取的複製動作（由基底的快捷鍵派送），複製的是勾起來的那幾筆。
+        if (!e.Handled && e.Key == Key.C && e.KeyboardDevice.Modifiers == ModifierKeys.Control &&
+            Selection is not { IsActive: true } && IsRowContent(e.OriginalSource))
         {
             e.Handled = true;
             RequestAction(SqlSearchRowAction.Copy);

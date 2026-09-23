@@ -16,7 +16,8 @@ namespace SqlAssist.Ssms22.UI;
 /// 換行的單位是<b>群</b>：一群要嘛整群在同一列，要嘛整群換到下一列。落在列首的那一群
 /// 收起它前面那一條，否則列首會留一條孤線。
 ///
-/// 先收字再換行：收掉按鈕上的字還讀得到 Tooltip 與 chip 列，多一列卻是永久少看一筆結果。
+/// 先收字再換行：收掉按鈕上的字還讀得到 Tooltip，有條件的那幾顆也還看得出強調底框
+/// （<see cref="SqlFilterFlyout.IsNarrowed"/>），多一列卻是永久少看一筆結果。
 /// 收字只對 <see cref="SqlFilterFlyout"/> 有意義（它自己有 <see cref="SqlFilterFlyout.IsCompact"/>），
 /// 分段開關與 pill 這類常駐控制項不降級。
 ///

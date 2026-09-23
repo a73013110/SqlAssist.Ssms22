@@ -91,40 +91,6 @@ internal sealed class SqlSearchSortOption
     }
 }
 
-/// <summary>
-/// 已選條件那一列上的一顆 chip：一個<b>維度</b>一顆，不是一個值一顆。
-/// </summary>
-/// <remarks>
-/// 一值一顆的症狀是勾了八個資料庫就有八顆 chip，而那八個名字按鈕摘要與面板都已經說過；
-/// 停靠面板裡那兩列換算成少看四筆結果。維度固定三個（伺服器、資料庫、種類），
-/// 所以這一列的高度與條件多寡無關。
-///
-/// 按下十字清掉整個維度，按 chip 本體打開它的面板——「要看看勾了哪幾個」與「不要這一組了」
-/// 是兩件事，而前者的答案本來就在面板裡。因此這一列上的每一顆都有自己的面板：
-/// 大小寫與全字是搜尋框裡常駐可見的開關，不是清得掉的條件，它們不上這一列。
-/// </remarks>
-internal sealed class SqlSearchFilterChip
-{
-    internal SqlSearchFilterChip(SqlSearchFilterKind kind, string label)
-    {
-        Kind = kind;
-        Label = label;
-    }
-
-    public SqlSearchFilterKind Kind { get; }
-
-    /// <summary>chip 上的字。</summary>
-    public string Label { get; }
-}
-
-/// <summary>chip 代表哪一種條件；清掉時據此決定動哪一份集合，本體開的也是它自己的面板。</summary>
-internal enum SqlSearchFilterKind
-{
-    Category,
-    Server,
-    Database
-}
-
 /// <summary>頁尾那一行現在在說哪一件事；動畫用它判斷「同一狀態不重播」。</summary>
 internal enum SqlSearchStatusTone
 {
@@ -331,7 +297,7 @@ internal sealed class SqlSearchBrowserModel
     /// </summary>
     /// <remarks>
     /// 只存<b>名稱</b>，不存伺服器物件也不存連線：這一層是純邏輯，連線由
-    /// <c>SqlSearchCatalogs</c> 負責，而名稱是摘要、chip 與空狀態唯一要用到的東西。
+    /// <c>SqlSearchCatalogs</c> 負責，而名稱是摘要與空狀態唯一要用到的東西。
     /// 指名的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格是給連結伺服器
     /// （四段式名稱）的，而換一台物件總管上的伺服器換的是整份目錄。混用的症狀是
     /// provider 看到指名的伺服器就整輪不回結果。
@@ -500,7 +466,7 @@ internal sealed class SqlSearchBrowserModel
         }
     }
 
-    /// <summary>接上這一份分類清單；摘要文字、chip 標籤與「依種類排序」的先後都由它決定。</summary>
+    /// <summary>接上這一份分類清單；摘要文字與「依種類排序」的先後都由它決定。</summary>
     public void UseCategories(IReadOnlyList<SqlSearchCategoryOption> categories)
     {
         _categories = categories ?? throw new ArgumentNullException(nameof(categories));
@@ -536,7 +502,7 @@ internal sealed class SqlSearchBrowserModel
     /// <remarks>
     /// 名稱以不分大小寫比對：資料庫名稱的大小寫規則由執行個體的定序決定，而同一台上
     /// <c>LibArchive</c> 與 <c>libarchive</c> 指的是同一個。兩份都留著的症狀是同一個資料庫
-    /// 被索引兩次，而 chip 列上出現兩顆看起來重複的條件。
+    /// 被索引兩次，而摘要上的個數多算一個。
     /// </remarks>
     public bool SetDatabaseSelected(string database, bool selected)
     {
@@ -627,65 +593,6 @@ internal sealed class SqlSearchBrowserModel
         CurrentDatabase is { Length: > 0 } database
             ? ConnectionDefaultLabel + "（" + database + "）"
             : ConnectionDefaultLabel;
-
-    /// <summary>
-    /// 已選條件那一列要畫哪幾顆 chip；空表示整列收起。
-    /// </summary>
-    /// <remarks>
-    /// 預設狀態不佔那一列，是這個版面空間極大化的關鍵；一維度一顆讓它在條件再多時也只有
-    /// 一列（見 <see cref="SqlSearchFilterChip"/>）。比對位置、大小寫與全字不在這裡——
-    /// 它們在工具列與搜尋框裡常駐可見，再畫一顆 chip 等於同一件事說兩次。
-    ///
-    /// 順序固定由外而內：伺服器換掉的是整份目錄，資料庫縮的是那一台裡的範圍，種類縮的是
-    /// 結果的形狀。依使用者勾選的先後排的話，同一組條件每次排出不同的順序，看起來像條件自己變了。
-    /// </remarks>
-    public IReadOnlyList<SqlSearchFilterChip> Chips()
-    {
-        var chips = new List<SqlSearchFilterChip>();
-
-        // 伺服器只在指名時出現：它是範圍最外面那一圈，換掉之後清單上每一筆的來源都變了。
-        // 沒有這一顆的話，使用者切到別的查詢視窗會以為自己還在搜原本那一台——
-        // 而兩台上同名的物件看起來一模一樣。
-        if (Server is { Length: > 0 } server)
-        {
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Server, "伺服器: " + server));
-        }
-
-        if (_databases.Count != 0)
-        {
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Database, "資料庫: " + DatabaseSummary()));
-        }
-
-        if (_categoryIds.Count != 0)
-        {
-            chips.Add(new SqlSearchFilterChip(SqlSearchFilterKind.Category, "種類: " + CategorySummary()));
-        }
-
-        return chips;
-    }
-
-    /// <summary>清掉一顆 chip 代表的<b>整個</b>維度。</summary>
-    /// <returns>true 表示條件真的變了。</returns>
-    public bool Remove(SqlSearchFilterChip chip)
-    {
-        if (chip is null) throw new ArgumentNullException(nameof(chip));
-
-        switch (chip.Kind)
-        {
-            case SqlSearchFilterKind.Category:
-                return ClearCategories();
-            case SqlSearchFilterKind.Server:
-                // 只清名稱；真的換回查詢視窗那一台是 SqlSearchCatalogs 的事，
-                // 由呼叫端在收到 true 之後一起做。
-                if (Server is null) return false;
-                Server = null;
-                return true;
-            case SqlSearchFilterKind.Database:
-                return ClearDatabases();
-            default:
-                throw new ArgumentOutOfRangeException(nameof(chip));
-        }
-    }
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
     public void Invalidate()

@@ -77,7 +77,9 @@ internal static partial class SqlIcons
         // 與尋找列的「找上一個／下一個」同一對形狀：使用者已經知道它們往哪裡走。
         SqlIcon.PreviousMatch => KnownMonikers.FindPrevious,
         SqlIcon.NextMatch => KnownMonikers.FindNext,
-        SqlIcon.SelfTest => KnownMonikers.Test
+        SqlIcon.SelfTest => KnownMonikers.Test,
+        // 與通知卡片的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。
+        SqlIcon.Done => KnownMonikers.StatusOK
     };
 #pragma warning restore CS8524
 

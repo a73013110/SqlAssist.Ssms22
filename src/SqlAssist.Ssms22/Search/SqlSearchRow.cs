@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Text;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
+using SqlAssist.Core.Tabular;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
@@ -45,9 +46,10 @@ internal sealed class SqlSearchBadge
 /// 清單就只畫得出目錄物件，而加一個 provider 的代價從「多一支啟動器」變成「改整份樣板」。
 /// 辨識酬載型別只允許發生在啟動那一步，見 <see cref="SqlSearchActivation"/>。
 /// </remarks>
-internal sealed class SqlSearchRow : INotifyPropertyChanged
+internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
 {
     private bool _isNew;
+    private bool _isChecked;
     private bool _opensUnconnected;
 
     /// <param name="activeEditorServer">
@@ -142,6 +144,9 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
     /// <summary>限定名稱；沒有路徑概念的來源是空字串，樣板收起那一段。</summary>
     public string Path => Hit.Path?.ToString() ?? "";
 
+    /// <summary>複製用的名稱：有限定名稱就用它，沒有路徑概念的來源退回標題。</summary>
+    public string QualifiedName => Path.Length == 0 ? Title : Path;
+
     /// <summary>攤平成單行、去掉縮排的片段；高亮區段的索引已經跟著換算。</summary>
     public string Snippet { get; }
 
@@ -226,7 +231,47 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged
         }
     }
 
+    /// <summary>多選勾起來了；由清單的選取控制器依 <see cref="Key"/> 設定，容器重用時樣板只讀這一份。</summary>
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set
+        {
+            if (_isChecked == value) return;
+            _isChecked = value;
+            Notify(nameof(IsChecked));
+        }
+    }
+
+    /// <summary>
+    /// 批次複製的欄位：名稱、種類、伺服器、資料庫、命中部位與命中的資料行。
+    /// </summary>
+    /// <remarks>
+    /// 只讀列上已經算好的值，不讀定義本文，也不觸發預覽讀取。伺服器與資料庫取 provider 掛的
+    /// 脈絡膠囊（照圖示代號認，不向下轉型酬載），沒有的來源留空格——貼到試算表裡，
+    /// 空格比一句「無」更不會被當成一個名字。
+    /// </remarks>
+    public static IReadOnlyList<SqlTabularColumn<SqlSearchRow>> CopyColumns { get; } = Array.AsReadOnly(new[]
+    {
+        new SqlTabularColumn<SqlSearchRow>("名稱", row => row.QualifiedName),
+        new SqlTabularColumn<SqlSearchRow>("種類", row => row.CategoryLabel),
+        new SqlTabularColumn<SqlSearchRow>("伺服器", row => row.BadgeText(SearchBadge.ServerIcon)),
+        new SqlTabularColumn<SqlSearchRow>("資料庫", row => row.BadgeText(SearchBadge.DatabaseIcon)),
+        new SqlTabularColumn<SqlSearchRow>("命中部位", row => string.Join("、", row.TargetLabels)),
+        new SqlTabularColumn<SqlSearchRow>("命中資料行", row => row.Columns),
+    });
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private string? BadgeText(string iconToken)
+    {
+        foreach (var badge in Hit.Badges)
+        {
+            if (badge.IconToken == iconToken) return badge.Text;
+        }
+
+        return null;
+    }
 
     private void Notify(string property) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
 

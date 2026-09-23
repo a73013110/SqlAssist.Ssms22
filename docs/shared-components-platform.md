@@ -32,7 +32,10 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | Chevron、圖示按鈕／開關與兩級分隔線 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` |
 | 卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
 | 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs` |
-| 已選條件 chip 列 | `Ssms22/UI/SqlFilterChipBar.cs` |
+| 清單多選：以 Id 為鍵的勾選、錨點、全部符合與動作派送 | `Ssms22/UI/SqlCardSelection.cs`（清單端是 `SqlCardListBase.EnableSelection`） |
+| 多選模式的勾選欄、可繼承的多選狀態與勾選外觀 | `Ssms22/UI/SqlRowCheck.cs`、`SqlAssistChrome.Selection.cs` |
+| 蓋在輸入列上的選取工具列（筆數、全選、動作、進度與取消） | `Ssms22/UI/SqlSelectionBar.cs` |
+| 剪貼簿同時放 TSV 與 HTML、被鎖住時重試、複製結果的回報字 | `Ssms22/UI/SqlClipboard.cs` |
 | 選取驅動的去彈跳、取消與 stale guard | `Ssms22/UI/SqlSelectionLoader.cs` |
 | 載入、空、失敗、權限不足與行內忙碌狀態 | `Ssms22/UI/SqlStateSurface.cs`、`SqlSurfaceState.cs`、`SqlBusyNotice.cs` |
 | 搜尋、預覽與估算的去彈跳長度 | `Ssms22/UI/SqlAssistChrome.Delays.cs` |
@@ -40,10 +43,14 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | SQL 唯讀／著色編輯、分類、選取映射與主題 | `Ssms22/UI/SqlReadOnlyViewer.cs`、`SqlTextEditor.cs`、`Ssms22/Preview/SqlScriptDocument.cs`、`SqlScriptTheme.cs` |
 | 命中與區塊端點配色 | `Ssms22/UI/TextMarkColors.cs`、`MatchPalette.cs`；大面積分類色見[文字標記](text-marks.md) |
 | 上一處／下一處命中與讀數 | `Ssms22/UI/SqlMatchNavigator.cs`、`Core/Matching/MatchCursor.cs` |
-| WPF 資料格匯出、顯示順序與空欄 | `Ssms22/UI/SqlDataGridText.cs` |
+| WPF 資料格匯出、顯示順序與空欄 | `Ssms22/UI/SqlDataGridText.cs`（加引號規則在 `SqlTabularText`） |
 | SQL 原生圖示、語意圖示與影像插槽 | `Ssms22/UI/SqlIcons.cs`、`SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 宿主筆刷、主題色階、動作對比與動態資源刷新 | `Ssms22/UI/VsThemeBrushes.cs`、`ThemePalette.cs`、`ThemeColorMath.cs`、`ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
 | 通知內容、單一卡片、生命週期與視窗宿主 | `Ssms22/Notifications/NotificationPresenter.cs`、`NotificationSurface.cs`、`NotificationSurfaceController.cs`、`NotificationWindowHost.cs` |
 | UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | 部署預檢、SHA-256 與 VSIX 白名單 | `tools/SqlAssist.Deployment.psm1` |
 | 診斷紀錄的排隊、批次寫檔與倒出 | `Ssms22/SqlAssistDiagnostics.cs` |
+
+新清單接上多選照 SQL Memory 與 SQL Search 的做法：列實作 `ISqlCheckableRow`，樣板以
+`WrapWithRowCheck` 包起來並呼叫 `RevealRowCheck`，卡片樣式開 `checkable`，宿主建一份
+`SqlCardSelection` 交給清單與 `SqlSelectionBar`，再加自己的 `SqlSelectionAction`。

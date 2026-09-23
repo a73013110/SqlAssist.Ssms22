@@ -53,6 +53,24 @@ internal static partial class SqlAssistChrome
     public static ContentPresenter CreateFilterDefaultRow() =>
         new() { ContentTemplate = CreateFilterOptionRow<RadioButton>(CreateRadioTemplate()) };
 
+    /// <summary>
+    /// 過濾下拉按鈕的樣板：幽靈按鈕，有條件時（<see cref="SqlFilterFlyout.IsNarrowed"/>）換成強調底加強調框。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="CreateToggleStyle"/> 的「開著」同一組色。宣告在停駐、焦點與按下<b>前面</b>：
+    /// 這是一顆會開面板的按鈕，停駐與按下的回饋要照常出現，而停駐只換底色，強調框仍留著，
+    /// 滑鼠掃過時看得出條件還在。只換筆刷，外框本來就預留 1 DIP。
+    /// </remarks>
+    public static ControlTemplate CreateFilterButtonTemplate()
+    {
+        var template = CreateGhostButtonTemplate();
+        var narrowed = new Trigger { Property = SqlFilterFlyout.IsNarrowedProperty, Value = true };
+        narrowed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.AccentBackground, "bg"));
+        narrowed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg"));
+        template.Triggers.Insert(0, narrowed);
+        return template;
+    }
+
     /// <summary>工具列上的過濾下拉按鈕；與其他工具列按鈕同高，不另立一種外觀。</summary>
     public static Style CreateFilterButtonStyle()
     {

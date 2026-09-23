@@ -1,6 +1,6 @@
 # SQL Search
 
-本頁定義跨來源搜尋的 provider、排序／合併、部分結果與索引；命中標示與啟用結果分別見
+本頁定義跨來源搜尋的 provider、排序／合併、部分結果、索引與清單的批次複製；命中標示與啟用結果分別見
 [命中高亮](search-highlight.md)及[結果導航](search-navigation.md)。
 
 入口是 SqlAssist 工具列的 **Search**（位於 History／Favorites 後）與
@@ -72,6 +72,16 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 單一索引最多 64 MiB 定義本文，整體快取 256 MiB，依最久未使用淘汰但至少保留一份。
 單份超限時只留名稱並標記不完整，不得靜默漏結果。只索引使用者明確指定的資料庫，
 禁止預先索引所有資料庫。
+
+## 多選與批次複製
+
+多選互動與 SQL Memory 同一份，見[清單列](ui-rows.md#多選)。一輪的答案整份在手上（分批套上只為了
+分攤版面），所以沒有背景讀取：全選時還沒套上的那幾批先補完再複製。勾選以 `DedupeKey` 為鍵，
+重新整理與重排照鍵保留。
+
+欄位是名稱（限定名稱，沒有路徑概念的來源用標題）、種類、伺服器、資料庫、命中部位與命中資料行
+（`SqlSearchRow.CopyColumns`）；伺服器與資料庫取 provider 的脈絡膠囊，沒有就留空，不含定義本文。
+平常的 Ctrl+C 仍是複製焦點列的限定名稱。
 
 ## 關掉重開記得什麼
 

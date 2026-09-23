@@ -76,7 +76,7 @@ internal sealed class SqlMemoryList : SqlCardListBase<SqlMemoryRowAction>
 {
     public SqlMemoryList()
     {
-        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle();
+        ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(checkable: true);
         ItemTemplate = SqlAssistChrome.CreateSqlSummaryTemplate();
     }
 

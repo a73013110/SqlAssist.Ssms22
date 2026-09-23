@@ -883,7 +883,12 @@ internal static partial class SqlAssistChrome
     /// 內建的核取方塊跟的是 Windows 佈景主題而不是 SSMS 的，
     /// 深色主題裡會出現一個白底的方框浮在暗色面板上。
     /// </remarks>
-    public static ControlTemplate CreateCheckBoxTemplate()
+    /// <param name="compact">沒有文字的勾選框：拿掉方塊右邊留給文字的間距，整顆就是 14 DIP。</param>
+    /// <param name="round">
+    /// 清單列的多選勾選：圓形，與設定裡那種方形核取方塊分得開——勾的是「這一筆」，不是一個選項。
+    /// 色階與打勾同一份，只換形狀。
+    /// </param>
+    public static ControlTemplate CreateCheckBoxTemplate(bool compact = false, bool round = false)
     {
         var layout = new FrameworkElementFactory(typeof(StackPanel));
         layout.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
@@ -892,12 +897,12 @@ internal static partial class SqlAssistChrome
         var box = new FrameworkElementFactory(typeof(Border)) { Name = "box" };
         box.SetValue(FrameworkElement.WidthProperty, 14.0);
         box.SetValue(FrameworkElement.HeightProperty, 14.0);
-        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        box.SetValue(Border.CornerRadiusProperty, new CornerRadius(round ? 7 : 4));
         box.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
         box.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
         box.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         box.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        box.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        box.SetValue(FrameworkElement.MarginProperty, compact ? default : new Thickness(0, 0, 8, 0));
         box.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
 
         var check = new FrameworkElementFactory(typeof(Path)) { Name = "check" };

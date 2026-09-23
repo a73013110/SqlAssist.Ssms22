@@ -23,10 +23,55 @@ namespace SqlAssist.Ssms22.UI;
 internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struct, Enum
 {
     private Size _viewportSize = Size.Empty;
+    private ISqlCardSelection? _selection;
     public event EventHandler? OpenRequested;
     public event Action<TAction>? RowActionRequested;
     public event EventHandler? LoadMoreRequested;
     public bool CanAutoLoadMore { get; set; }
+
+    /// <summary>多選狀態；沒有呼叫 <see cref="EnableSelection"/> 的清單是 null，行為與沒有多選時完全相同。</summary>
+    public ISqlCardSelection? Selection => _selection;
+
+    /// <summary>
+    /// 滑鼠點擊時讀修飾鍵的來源。
+    /// </summary>
+    /// <remarks>
+    /// 按鍵事件讀 <see cref="KeyEventArgs.KeyboardDevice"/>，滑鼠事件沒有這一份，只能問鍵盤；
+    /// 測試換掉它，Shift／Ctrl+點擊才不受實體鍵盤的狀態左右。
+    /// </remarks>
+    internal Func<ModifierKeys> ModifierSource { get; set; } = () => Keyboard.Modifiers;
+
+    /// <summary>
+    /// 開啟多選：勾選框、Ctrl／Shift+點擊、空白鍵、Ctrl+A、Esc 與動作快捷鍵。
+    /// </summary>
+    /// <remarks>
+    /// 做成可選能力而不是另一個子類別：SQL Memory 與 SQL Search 走同一條輸入路徑，差別只在
+    /// 列有沒有實作 <see cref="ISqlCheckableRow"/> 與樣板有沒有勾選欄。
+    /// 勾選與 <see cref="Selector.SelectedItem"/> 分開：後者仍只代表焦點與預覽。
+    /// </remarks>
+    public void EnableSelection(ISqlCardSelection selection)
+    {
+        if (_selection is not null) throw new InvalidOperationException("這份清單已經開了多選。");
+        _selection = selection ?? throw new ArgumentNullException(nameof(selection));
+        SqlRowCheck.SetIsAvailable(this, true);
+        selection.Changed += (_, _) => SqlRowCheck.SetIsActive(this, selection.IsActive);
+        AddHandler(SqlRowCheckBox.ToggleRequestedEvent, new RoutedEventHandler((_, e) =>
+        {
+            e.Handled = true;
+            if (ContainerFromElement(this, e.OriginalSource as DependencyObject) is not ListBoxItem container ||
+                container is SqlCardListFooter) return;
+            var item = ItemContainerGenerator.ItemFromContainer(container);
+            if (ModifierSource() == ModifierKeys.Shift) selection.SelectRange(item, SelectedItem);
+            else selection.Toggle(item);
+        }));
+    }
+
+    /// <summary>把鍵盤焦點放回目前的焦點列；選取工具列收起時焦點不能掉到沒有人接的地方。</summary>
+    public void FocusCurrentRow()
+    {
+        if (SelectedItem is { } item && ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem container) container.Focus();
+        else Focus();
+    }
 
     public void SetRowsSource(IEnumerable rows, UIElement footer)
     {
@@ -78,6 +123,36 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
         if (CanAutoLoadMore) LoadMoreRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// 多選的滑鼠路徑：Ctrl+點擊切換、Shift+點擊選一段；多選模式中單擊就是切換。
+    /// </summary>
+    /// <remarks>
+    /// 自己處理而不交給 <see cref="ListBox"/>：單選模式下 Ctrl+點擊已選取的那一列會把它取消選取，
+    /// 焦點與預覽就跟著清空。這裡改成先把焦點列換到按下去的那一列（預覽跟著走），再改勾選。
+    /// 雙擊的第二下不再切換，第一下已經切過了；雙擊本身照樣開新 Query。
+    /// </remarks>
+    protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        if (_selection is { } selection && e.ClickCount <= 1 && IsRowContent(e.OriginalSource) &&
+            ContainerFromElement(this, (DependencyObject)e.OriginalSource) is ListBoxItem container)
+        {
+            var modifiers = ModifierSource();
+            var toggle = modifiers == ModifierKeys.Control || (modifiers == ModifierKeys.None && selection.IsActive);
+            if (toggle || modifiers == ModifierKeys.Shift)
+            {
+                e.Handled = true;
+                var item = ItemContainerGenerator.ItemFromContainer(container);
+                var anchor = SelectedItem;
+                SelectedItem = item;
+                container.Focus();
+                if (toggle) selection.Toggle(item);
+                else selection.SelectRange(item, anchor);
+            }
+        }
+
+        base.OnPreviewMouseLeftButtonDown(e);
+    }
+
     protected override void OnPreviewMouseRightButtonDown(MouseButtonEventArgs e)
     {
         if (ContainerFromElement(this, e.OriginalSource as DependencyObject) is SqlCardListFooter)
@@ -96,10 +171,42 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
+        if (!e.Handled && _selection is { } selection && HandleSelectionKey(selection, e)) e.Handled = true;
         // ↑／↓ 保留 ListBox 原生 selection/navigation；按鈕的 Enter 由 Button 自己處理。
         if (!e.Handled && e.Key == Key.Enter && e.KeyboardDevice.Modifiers == ModifierKeys.None && IsRowContent(e.OriginalSource))
         { e.Handled = true; OpenRequested?.Invoke(this, EventArgs.Empty); }
         base.OnPreviewKeyDown(e);
+    }
+
+    /// <summary>
+    /// 多選的鍵盤路徑。
+    /// </summary>
+    /// <remarks>
+    /// 空白鍵作用在焦點列（Shift 選到焦點列為止）；Ctrl+A 與工具列的全選同一件事；Esc 離開多選模式。
+    /// 動作的快捷鍵只在多選模式中接，所以 Ctrl+C 平常仍是原本那一條路。
+    /// ↑／↓ 不碰：多選模式中方向鍵仍只移動焦點，預覽跟著焦點走。
+    /// </remarks>
+    private bool HandleSelectionKey(ISqlCardSelection selection, KeyEventArgs e)
+    {
+        var modifiers = e.KeyboardDevice.Modifiers;
+        switch (e.Key)
+        {
+            case Key.Space when modifiers is ModifierKeys.None or ModifierKeys.Shift && IsRowContent(e.OriginalSource) &&
+                                ContainerFromElement(this, (DependencyObject)e.OriginalSource) is ListBoxItem container:
+                var item = ItemContainerGenerator.ItemFromContainer(container);
+                if (modifiers == ModifierKeys.Shift) selection.SelectRange(item, SelectedItem);
+                else selection.Toggle(item);
+                return true;
+            case Key.A when modifiers == ModifierKeys.Control:
+                if (selection.LoadedCount == 0) return false;
+                selection.SelectAll();
+                return true;
+            case Key.Escape when modifiers == ModifierKeys.None && selection.IsActive:
+                selection.Clear();
+                return true;
+            default:
+                return selection.TryInvokeShortcut(e.Key, modifiers);
+        }
     }
 
     protected bool IsRowContent(object source)

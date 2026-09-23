@@ -44,6 +44,8 @@
 | 連不上資料庫時的行為 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | SQL Memory 開不起來、停用後還在擷取、心跳或維護沒跑 | `Core/SqlMemory/SqlMemoryRuntime.cs`（`Ssms22/SqlMemory/SqlMemoryHost.cs` 只接線） |
 | SQL Memory 清單篩選、分頁、晚到回應或選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 多選勾不起來、勾錯列、選取工具列不出現 | `Ssms22/UI/SqlCardSelection.cs`、`SqlCardList.cs`、`SqlSelectionBar.cs` |
+| 批次複製的欄位、順序或「全部符合」讀不完 | `Core/SqlMemory/SqlMemoryCopy.cs`、`Core/Tabular/SqlTabularText.cs`、`Ssms22/SqlMemory/SqlMemoryBrowser.cs`；Search 的欄位在 `Search/SqlSearchRow.cs` |
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |
 | SQL Memory 的 SQL、交易或索引 | `SqlMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |

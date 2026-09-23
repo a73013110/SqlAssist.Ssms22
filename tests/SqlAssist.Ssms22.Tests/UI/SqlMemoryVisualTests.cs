@@ -64,22 +64,22 @@ public sealed class SqlMemoryVisualTests
             tabs.SelectedIndex = 0;
             var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, SqlAssistChrome.CreateButton("設定", metrics));
             header.Children.Add(toolbar);
-            var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
-            // 搜尋列右緣接目前連線與重新整理，與 SQL Search 的排序／重新整理同一種排法。
-            var searchRow = new SqlInputRow(
-                SqlAssistChrome.CreateInputBar(SqlIcon.Search, search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")),
-                SqlAssistChrome.CreateMemoryConnectionButton(),
-                SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理"))
-            { Margin = new Thickness(0, 0, 0, 6) };
-            header.Children.Add(searchRow);
             var server = MemoryFacet("伺服器", SqlIcon.Server, "LibraryServer", "ArchiveServer", "BranchServer");
             var database = MemoryFacet("資料庫", SqlIcon.Database, "Library", "Archive");
-            // 狀態、期間與連線三群併成同一列；分隔線與換行都由共用的篩選列負責。
+            // 範圍列在上：目前連線在伺服器左邊，連線、狀態、期間三群併成同一列；分隔線與換行由共用的篩選列負責。
             var kind = new SqlPillSelector(SqlMemoryBrowserModel.KindOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
             var period = new SqlPillSelector(SqlMemoryBrowserModel.PeriodOptions.Select(option => (option.Label, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray()) { SelectedIndex = 1 };
-            var filters = SqlAssistChrome.CreateMemoryFilterRow(kind, period, server, database);
+            var connectionButton = SqlAssistChrome.CreateMemoryConnectionButton();
+            var filters = SqlAssistChrome.CreateMemoryFilterRow(connectionButton, server, database, kind, period);
             filters.Margin = new Thickness(0, 4, 0, 0);
             header.Children.Add(filters);
+            var search = SqlAssistChrome.CreateTextBox(metrics); search.Text = "Loan";
+            // 搜尋列貼著清單，右緣只剩重新整理，與 SQL Search 的排序／重新整理同一種排法。
+            var searchRow = new SqlInputRow(
+                SqlAssistChrome.CreateInputBar(SqlIcon.Search, search, SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋")),
+                SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理"))
+            { Margin = new Thickness(0, 4, 0, 6) };
+            header.Children.Add(searchRow);
             var footer = new SqlMemoryPager();
             footer.Update(Footer(cursor: "next", loaded: 50));
             var list = new SqlMemoryList
@@ -162,7 +162,7 @@ public sealed class SqlMemoryVisualTests
                         Assert.Equal(28, button.ActualHeight);
                     }
                     Assert.Equal(0, tabs.TranslatePoint(new Point(), toolbar).X);
-                    // 分頁列右邊只剩設定；目前連線與重新整理跟著搜尋列走。
+                    // 分頁列右邊只剩設定；目前連線跟著伺服器篩選，重新整理跟著搜尋列。
                     var settings = (Button)toolbarActions.Children[0];
                     // 三個分頁加上工具列按鈕在最窄的工具窗也維持單列：放不下就收起分頁文字，不折成兩行。
                     Assert.InRange(tabs.ActualHeight, 1, 32);
@@ -193,6 +193,9 @@ public sealed class SqlMemoryVisualTests
                     Assert.Equal(server.IsCompact, database.IsCompact);
                     Assert.InRange(Math.Abs(server.TranslatePoint(new Point(), filters).Y
                         - database.TranslatePoint(new Point(), filters).Y), 0, 0.5);
+                    // 範圍列在搜尋列上面，目前連線在伺服器左邊；搜尋列貼著清單。
+                    Assert.True(connectionButton.TranslatePoint(new Point(), filters).X < server.TranslatePoint(new Point(), filters).X);
+                    Assert.True(filters.TranslatePoint(new Point(), header).Y < searchRow.TranslatePoint(new Point(), header).Y);
                     foreach (var facet in new[] { server, database })
                     {
                         AssertInkCenters(facet);

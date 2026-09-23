@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Core.Tabular;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
@@ -29,6 +30,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryItemCommands _commands;
     private readonly ObservableCollection<SqlMemoryRow> _rows = new();
     private readonly SqlMemoryList _list = new();
+    private readonly SqlCardSelection<SqlMemoryRow, Guid> _selection;
+    private readonly SqlSelectionBar _selectionBar;
+    /// <summary>「全部符合」的背景讀取；換條件、取消勾選或離開時取消。</summary>
+    private CancellationTokenSource? _bulkCopy;
+    /// <summary>重新整理的第一頁回來之後，勾選只留下仍在清單上的那幾筆。</summary>
+    private bool _pruneAfterRefresh;
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     // 兩顆都是多選：History 與 Favorites 的列早就存在，這一層只是縮小已存的那一份，而使用者要比的
@@ -79,6 +86,10 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
         SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         MinWidth = 300;
+        // 勾選以列識別為鍵，與 ListBox 的焦點／預覽分開；動作只有複製，之後的批次動作加在這裡。
+        _selection = new SqlCardSelection<SqlMemoryRow, Guid>(_rows, row => row.Id);
+        _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, "複製", CopySelectionAsync,
+            shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
         var root = new DockPanel { Margin = new Thickness(SqlAssistChrome.Spacing.Group) };
         // 分頁列、搜尋列、篩選列與主機訊息之間的間距由這一層給，整塊與清單之間也是；
         // 子元素不自己帶 margin，否則整組收起（切到用量分頁）之後會留下半格空白。
@@ -95,36 +106,43 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseCurrentConnection, Report);
         header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(
             _tabs, Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
+        _hostStatus.TextWrapping = TextWrapping.Wrap;
+        // 主機訊息說的是整個工具窗，緊跟分頁列而不是插在搜尋列與清單之間；沒有訊息時整塊讓開，
+        // 連同它前面那一段間距；空字串的 TextBlock 仍有行高。
+        _hostStatus.Visibility = Visibility.Collapsed;
+        header.Children.Add(_hostStatus);
         var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
         _refresh.Click += (_, _) => SqlMemoryActions.Run(RefreshList, Report);
-        // 與 SQL Search 同一列規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份
-        // 清單的操作。History／Favorites 沒有排序（清單本來就依時間），所以那一格是目前連線。
-        var searchRow = new SqlInputRow(
-            SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _connection, _refresh);
-        header.Children.Add(searchRow);
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
-        // 狀態、期間與連線是第二層的三群，併在同一列：各佔一列的那一版在停靠面板裡等於
-        // 永久少看一筆 SQL，而放不下的時候那一層本來就會整群換行。
+        // 範圍列在上、搜尋列貼著清單（見 docs/ui-windows.md）：連線、狀態與期間三群併在同一列，
+        // 各佔一列的那一版在停靠面板裡等於永久少看一筆 SQL，放不下時那一層本來就會整群換行。
         _connectionFacets = new[] { _serverFacet, _databaseFacet };
         var filters = SqlAssistChrome.CreateMemoryFilterRow(
-            _kind, _period, _serverFacet.Panel, _databaseFacet.Panel);
+            _connection, _serverFacet.Panel, _databaseFacet.Panel, _kind, _period);
         header.Children.Add(filters);
-        _hostStatus.TextWrapping = TextWrapping.Wrap;
-        // 沒有訊息時整塊讓開，連同它前面那一段間距；空字串的 TextBlock 仍有行高。
-        _hostStatus.Visibility = Visibility.Collapsed;
-        header.Children.Add(_hostStatus);
+        // 與 SQL Search 同一列規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份清單的操作。
+        var searchRow = new SqlInputRow(SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _refresh);
+        // 多選時選取工具列蓋在搜尋列同一格上，正好在清單上面。
+        _selectionBar = new SqlSelectionBar(_selection, searchRow) { ReturnFocus = _list.FocusCurrentRow };
+        header.Children.Add(_selectionBar.Slot);
         // 搜尋、篩選與那一列右緣的操作只屬於清單分頁；切到用量分頁整列一起收起，
         // 用量自己的重新整理在它的狀態卡片上。
-        _listChrome = new UIElement[] { searchRow, filters };
+        _listChrome = new UIElement[] { filters, _selectionBar.Slot };
 
         _status.TextWrapping = TextWrapping.Wrap; _status.Visibility = Visibility.Collapsed;
         _status.Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0);
         DockPanel.SetDock(_status, Dock.Bottom); root.Children.Add(_status);
 
         _list.SetRowsSource(_rows, _pager);
+        _list.EnableSelection(_selection);
+        _selection.Changed += (_, _) =>
+        {
+            // 取消勾選或取消任何一列（不再是全部符合）就是不要那一份了；背景讀取跟著停。
+            if (!_selection.IsActive || !_selection.IsAllMatching) CancelBulkCopy(null);
+        };
         _list.LoadMoreRequested += (_, _) => Load();
         _pager.LoadMoreRequested += (_, _) => SqlMemoryActions.Run(Load, Report);
         _surface = new SqlStateSurface(_list);
@@ -220,6 +238,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void OnTabChanged()
     {
         if (_disposed) return;
+        // 勾選屬於那一個分頁的那一份清單；換分頁（含用量）就清空。
+        _selection.Clear();
         if (IsUsageSelected)
         {
             foreach (var element in _listChrome) element.Visibility = Visibility.Collapsed;
@@ -267,6 +287,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SqlMemoryHost.Runtime.CapacityChanged -= OnCapacityChanged;
         _usagePanel.Dispose();
         _clockTimer.Stop(); _searchTimer.Stop(); _settleTimer.Stop();
+        CancelBulkCopy(null);
         _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
 
@@ -337,7 +358,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (_model.ObserveHost(runtime.IsAvailable, status.Generation))
         {
             if (IsUsageSelected) _usagePanel.Reload();
-            // 清單、facets 與預覽都屬於舊儲存；換世代就整份作廢。
+            // 清單、facets、勾選與預覽都屬於舊儲存；換世代就整份作廢。
+            _selection.Clear();
             InvalidateFacets();
             Invalidate();
             if (_model.IsAvailable) Load();
@@ -639,6 +661,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         facet.Panel.UpdateSummary(
             SqlFilterSummary.Of(selected.Count, AnyFacetLabel, selected.Count == 1 ? selected[0] : null, facet.Unit),
             selected.Count == 0 ? facet.EmptyHint : SqlFilterSummary.Detail(selected));
+        facet.Panel.IsNarrowed = selected.Count != 0;
     }
 
     /// <summary>手上的名單作廢；下次打開面板才重問，沒有人在看的時候不去問儲存層。</summary>
@@ -715,6 +738,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         {
             // 伺服器與資料庫篩選兩頁同一種語意，只有狀態與期間屬於 History。
             UpdateHistoryFilters();
+            // 搜尋或篩選換了，勾起來的那幾筆可能已經不在新的結果裡；清空比留著看不到的勾好。
+            _selection.Clear();
             Invalidate();
             _searchTimer.Start();
         }, Report);
@@ -725,6 +750,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _searchTimer.Stop(); _settleTimer.Stop();
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
         _model.Invalidate(DateTimeOffset.Now);
+        // 世代換了，背景讀到一半的「全部符合」不再屬於這一份清單。
+        CancelBulkCopy(null);
+        _pruneAfterRefresh = false;
         _loadFailure = "";
         Report("");
         _rows.Clear(); _detail.Select(null); UpdateActions();
@@ -735,7 +763,10 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         _listStale = false;
         _model.RememberSelection((_list.SelectedItem as SqlMemoryRow)?.Id);
-        InvalidateFacets(); Invalidate(); Load();
+        InvalidateFacets(); Invalidate();
+        // 勾選保留；第一頁回來後去掉已經不在清單上的那幾筆（見 SqlCardSelection.RetainLoaded）。
+        _pruneAfterRefresh = true;
+        Load();
     }
 
     private void Load() => _ = SqlMemoryActions.RunAsync(LoadAsync, Report);
@@ -764,6 +795,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             if (!accepted) return;
             var motion = SqlAssistChrome.MotionEnabled;
             foreach (var row in rows) { row.IsNew = motion; _rows.Add(row); }
+            if (_pruneAfterRefresh) { _pruneAfterRefresh = false; _selection.RetainLoaded(); }
             if (motion && rows.Length > 0) { _settleTimer.Stop(); _settleTimer.Start(); }
             if (_model.ResolveSelection(_rows.Select(row => row.Id).ToArray(), _list.SelectedItem is not null) is { } index)
                 _list.SelectedIndex = index;
@@ -786,6 +818,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         if (_disposed || row.IsRemoving || !_rows.Contains(row)) return;
         row.IsRemoving = true;
+        // 已經不在儲存裡（或移出了這份篩選）：不能還算在勾選裡被複製出去。
+        _selection.Remove(row.Id);
         if (!SqlAssistChrome.MotionEnabled) { CompleteRemoval(row); return; }
         var exit = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.CardExitDuration };
         exit.Tick += (_, _) =>
@@ -841,7 +875,111 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _pager.Update(empty ? SqlMemoryFooter.Hidden : footer);
         _surface.State = SqlMemorySurfaceState.For(footer, _model.IsLoading, _rows.Count, _loadFailure);
         _list.CanAutoLoadMore = _model.CanAutoLoadMore;
+        _selection.HasMore = _model.HasMore;
         _connection.IsEnabled = _model.IsAvailable;
+    }
+
+    /// <summary>
+    /// 選取工具列的「複製」（多選模式中的 Ctrl+C 也是它）：TSV 與 HTML 同時放上剪貼簿，順序照清單。
+    /// </summary>
+    /// <remarks>
+    /// 結果只寫在工具窗的狀態列：這是結果已在眼前的動作，不走通知。失敗由
+    /// <see cref="SqlMemoryActions.RunAsync"/> 回報，所以這一支不擲出例外——工具列的點擊接不住它。
+    /// </remarks>
+    private async Task<bool> CopySelectionAsync()
+    {
+        var succeeded = false;
+        await SqlMemoryActions.RunAsync(async () =>
+        {
+            // 全部都已載入時照畫面上的列複製，不必再向儲存讀一次。
+            succeeded = _selection.IsAllMatching && _selection.HasMore
+                ? await CopyAllMatchingAsync().ConfigureAwait(true)
+                : await WriteClipboardAsync(SqlMemoryRow.CopyContent(_selection.CheckedRows(), _model.IsFavorites), null)
+                    .ConfigureAwait(true);
+        }, Report).ConfigureAwait(true);
+        return succeeded;
+    }
+
+    /// <summary>
+    /// 「全部符合」：照目前的條件以 keyset 分頁在背景讀到底，全部讀完才寫剪貼簿。
+    /// </summary>
+    /// <remarks>
+    /// 每一頁都從同一份 <see cref="SqlMemoryQuery"/> 快照組請求，讀完再問模型那一輪還算不算數：
+    /// 期間換了篩選的話，讀回來的是舊條件的結果，寫進剪貼簿只會貼出一份與畫面上不同的清單。
+    /// </remarks>
+    private async Task<bool> CopyAllMatchingAsync()
+    {
+        CancelBulkCopy(null);
+        var cancel = new CancellationTokenSource();
+        _bulkCopy = cancel;
+        var token = cancel.Token;
+        var query = _model.Query();
+        Action stop = () => CancelBulkCopy("已取消複製；剪貼簿未變更。");
+        _selectionBar.ShowProgress(ReadingAll, stop);
+        var progress = new Progress<int>(count =>
+        {
+            if (ReferenceEquals(_bulkCopy, cancel)) _selectionBar.ShowProgress("正在讀取，已讀 " + Count(count) + " 筆…", stop);
+        });
+        try
+        {
+            SqlTabularContent content;
+            bool truncated;
+            if (query.IsFavorites)
+            {
+                var batch = await SqlMemoryCopy.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadFavoritesAsync(
+                    query.FavoriteRequest(SqlMemoryCopy.PageSize, cursor), t), SqlMemoryCopy.Limit, progress, token).ConfigureAwait(true);
+                content = SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, batch.Items);
+                truncated = batch.IsTruncated;
+            }
+            else
+            {
+                var batch = await SqlMemoryCopy.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadHistoryAsync(
+                    query.HistoryRequest(SqlMemoryCopy.PageSize, cursor), t), SqlMemoryCopy.Limit, progress, token).ConfigureAwait(true);
+                content = SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, batch.Items);
+                truncated = batch.IsTruncated;
+            }
+
+            if (_disposed || token.IsCancellationRequested || !_model.IsCurrent(query)) return false;
+            var limit = Count(SqlMemoryCopy.Limit);
+            return await WriteClipboardAsync(content, truncated
+                ? $"符合的項目超過 {limit} 筆，只複製了前 {limit} 筆；可縮小篩選後分批複製。"
+                : null).ConfigureAwait(true);
+        }
+        finally
+        {
+            if (ReferenceEquals(_bulkCopy, cancel))
+            {
+                _bulkCopy = null;
+                if (!_disposed) _selectionBar.ClearProgress();
+            }
+
+            cancel.Dispose();
+        }
+    }
+
+    /// <summary>筆數那一格換成的進度；停靠面板只有 300 DIP 上下，短到放得進「✕」與「取消」之間。</summary>
+    private const string ReadingAll = "正在讀取…";
+
+    private static string Count(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+
+    /// <param name="success">成功時的訊息；null 用預設的「已複製 N 筆」。</param>
+    private async Task<bool> WriteClipboardAsync(SqlTabularContent content, string? success)
+    {
+        if (content.RowCount == 0) { Report(SqlClipboard.EmptyMessage); return false; }
+        var failure = await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
+        Report(failure ?? success ?? SqlClipboard.CopiedMessage(content.RowCount));
+        return failure is null;
+    }
+
+    /// <summary>停掉「全部符合」的背景讀取；<paramref name="message"/> 非 null 表示是使用者按了取消。</summary>
+    private void CancelBulkCopy(string? message)
+    {
+        if (_bulkCopy is not { } running) return;
+        _bulkCopy = null;
+        running.Cancel();
+        if (_disposed) return;
+        _selectionBar.ClearProgress();
+        if (message is not null) Report(message);
     }
 
     private void Report(string message)

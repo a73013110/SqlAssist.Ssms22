@@ -10,7 +10,8 @@
 | SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
 | 「這份 SQL 沒有內容」（擷取、新增至收藏與預覽空狀態共用） | `Core/SqlMemory/SqlContent.cs` 的 `IsBlank`（清理既有資料那一份是 SQL，在 `SqliteHistoryRows.Blank`） |
 | 開啟／關閉、世代、寫入器故障、心跳、維護排程與使用者主動整理 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
-| 清單的篩選轉請求、分頁世代與選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 清單的篩選轉請求、分頁世代與選取還原（含條件快照 `SqlMemoryQuery`） | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 批次複製的欄位、上限與「全部符合」逐頁讀取 | `Core/SqlMemory/SqlMemoryCopy.cs` |
 | 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
 | 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
 | 收藏儲存、標註正規化、版本時間軸與版本衝突契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
@@ -40,7 +41,7 @@
 | 伺服器／資料庫標註輸入與出現過的名稱 | `Ssms22/SqlMemory/SqlConnectionTagInput.cs` |
 | 設定、計時器與事件型通知接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
 | 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
-| 清單的鍵盤、續頁、右鍵選取與列按鈕派送 | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryListBase<TAction>` |
+| 清單的鍵盤、續頁、右鍵選取與列按鈕派送 | `Ssms22/UI/SqlCardList.cs` 的 `SqlCardListBase<TAction>`（Delete 鍵在 `SqlMemoryList`） |
 | 等儲存的使用者操作：拒絕重入與宿主世代檢查 | `Ssms22/SqlMemory/SqlMemoryOperationGate.cs` |
 | 收藏版本操作清單與執行（時間軸列、快捷選單、差異面板共用） | `Ssms22/UI/SqlFavoriteRevisionList.cs` 的 `SqlFavoriteRevisionCommand`、`Ssms22/SqlMemory/SqlFavoriteRevisionCommands.cs` |
 | 列上的幽靈操作按鈕（卡片與時間軸共用） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `CreateRowActionButton` |

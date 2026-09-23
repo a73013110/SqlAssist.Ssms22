@@ -5,7 +5,7 @@ namespace SqlAssist.Ssms22.Connections;
 /// </summary>
 /// <remarks>
 /// 只留識別用的字串，<b>不留連線也不留任何祕密</b>：要開連線時再回頭問物件總管。
-/// 這個值會進 UI 的下拉選項與已選條件 chip，留著連線等於把密碼綁在一個畫面物件上。
+/// 這個值會進 UI 的下拉選項與按鈕摘要，留著連線等於把密碼綁在一個畫面物件上。
 /// </remarks>
 internal sealed class SsmsObjectExplorerServer
 {

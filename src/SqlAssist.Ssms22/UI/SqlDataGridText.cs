@@ -2,18 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using SqlAssist.Core.Tabular;
 
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>資料格的純文字讀取與匯出，不依賴鍵盤焦點或已實體化的儲存格。</summary>
 internal static class SqlDataGridText
 {
-    private static readonly char[] QuotedCharacters = { '\t', '\r', '\n', '"' };
-
     public static string Build(DataGrid grid, bool selectedOnly)
     {
         // DataGridCellInfo 還比對內部擁有者，不能拿新建的儲存格資訊比對 SelectedCells。
@@ -57,9 +55,18 @@ internal static class SqlDataGridText
         // 欄拖曳與列排序都以畫面為準，不用原始 ItemsSource 或選取發生的順序。
         columns.Sort((left, right) => left.DisplayIndex.CompareTo(right.DisplayIndex));
         var reader = new ValueReader();
-        var builder = new StringBuilder();
-        var hasRows = false;
-        AppendLine(builder, columns, column => column.Header?.ToString() ?? string.Empty);
+        var tabular = new SqlTabularColumn<object>[columns.Count];
+        for (var index = 0; index < columns.Count; index++)
+        {
+            var column = columns[index];
+            // 不連續選取的洞保留空格，不把交叉位置上未選的內容一起複製出去。
+            tabular[index] = new SqlTabularColumn<object>(column.Header?.ToString() ?? string.Empty, row =>
+                !selectedOnly || selected.Contains((row, column))
+                    ? reader.Read(column, row) ?? string.Empty
+                    : string.Empty);
+        }
+
+        var rows = new List<object>();
         foreach (var row in grid.Items)
         {
             if (row == CollectionView.NewItemPlaceholder || (selectedOnly && !selectedRows.Contains(row)))
@@ -67,15 +74,11 @@ internal static class SqlDataGridText
                 continue;
             }
 
-            hasRows = true;
-            // 不連續選取的洞保留空格，不把交叉位置上未選的內容一起複製出去。
-            AppendLine(builder, columns, column =>
-                !selectedOnly || selected.Contains((row, column))
-                    ? reader.Read(column, row) ?? string.Empty
-                    : string.Empty);
+            rows.Add(row);
         }
 
-        return hasRows ? builder.ToString() : string.Empty;
+        // 加引號規則與清單的批次複製同一份實作；沒有資料列時不輸出孤立的表頭。
+        return rows.Count == 0 ? string.Empty : SqlTabularText.ToTsv(tabular, rows);
     }
 
     /// <summary>無法解析的欄一律保留，避免把實際有值的欄藏起來。</summary>
@@ -120,32 +123,5 @@ internal static class SqlDataGridText
             // 快取限定在這次操作，避免每格反射，也不把資料列或欄留在靜態快取裡。
             return property is null ? null : property.GetValue(row)?.ToString() ?? string.Empty;
         }
-    }
-
-    private static void AppendLine(
-        StringBuilder builder,
-        IReadOnlyList<DataGridColumn> columns,
-        Func<DataGridColumn, string> select)
-    {
-        for (var index = 0; index < columns.Count; index++)
-        {
-            if (index > 0)
-            {
-                builder.Append('\t');
-            }
-
-            var value = select(columns[index]);
-            // 說明與 SQL 運算式可含換行或定位字元；TSV 引號保護原有儲存格邊界。
-            if (value.IndexOfAny(QuotedCharacters) >= 0)
-            {
-                builder.Append('"').Append(value.Replace("\"", "\"\"")).Append('"');
-            }
-            else
-            {
-                builder.Append(value);
-            }
-        }
-
-        builder.AppendLine();
     }
 }

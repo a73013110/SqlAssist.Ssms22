@@ -334,4 +334,54 @@ public sealed class SqlMemoryBrowserModelTests
             new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable, "已停用")));
         Assert.Equal("開啟失敗：內容已不存在", SqlMemoryTimeText.Failure("開啟", new InvalidOperationException("內容已不存在")));
     }
+
+    [Fact]
+    public void QuerySnapshotKeepsTheRoundsConditionsAndGoesStaleWhenTheyChange()
+    {
+        var model = Ready();
+        model.Kind = SqlHistoryFilter.Executions;
+        model.Search = "Loan";
+        model.SetServerSelected("LibraryServer", true);
+        model.Invalidate(Now);
+        var query = model.Query();
+
+        // 背景逐頁讀的期間換了條件：快照照舊組請求，游標指紋才對得上；但模型說它已經不算數。
+        model.Search = "Branch";
+        model.SetServerSelected("Other", true);
+        var request = query.HistoryRequest(SqlMemoryCopy.PageSize, "cursor");
+        Assert.Equal((SqlMemoryCopy.PageSize, SqlHistoryFilter.Executions, "Loan", "cursor"),
+            (request.PageSize, request.Kind, request.Search, request.Cursor));
+        Assert.Equal(new[] { "LibraryServer" }, request.Servers);
+        Assert.Equal(Now.AddDays(-7), request.Since);
+        Assert.True(model.IsCurrent(query));
+        model.Invalidate(Now);
+        Assert.False(model.IsCurrent(query));
+
+        var fresh = model.Query();
+        Assert.True(model.IsCurrent(fresh));
+        Assert.True(model.ObserveHost(true, 2));
+        Assert.False(model.IsCurrent(fresh));
+    }
+
+    [Fact]
+    public void FavoriteQueryAndHasMoreFollowTheCursor()
+    {
+        var model = Ready();
+        model.Tab = SqlMemoryBrowserTab.Favorites;
+        model.Search = "Reader";
+        model.Invalidate(Now);
+        var query = model.Query();
+        Assert.True(query.IsFavorites);
+        var request = query.FavoriteRequest(SqlMemoryCopy.PageSize, null);
+        Assert.Equal(("Reader", SqlMemoryCopy.PageSize), (request.Search, request.PageSize));
+
+        Assert.False(model.HasMore);
+        var load = model.BeginLoad()!;
+        Assert.True(model.Accept(load, new SqlMemoryPage<SqlFavoriteItem>(Array.Empty<SqlFavoriteItem>(), "next")));
+        model.End(load);
+        Assert.True(model.HasMore);
+        var last = model.BeginLoad()!;
+        Assert.True(model.Accept(last, new SqlMemoryPage<SqlFavoriteItem>(Array.Empty<SqlFavoriteItem>(), null)));
+        Assert.False(model.HasMore);
+    }
 }

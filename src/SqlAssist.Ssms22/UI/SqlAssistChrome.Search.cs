@@ -151,7 +151,8 @@ internal static partial class SqlAssistChrome
         code.AppendChild(snippet);
         lines.AppendChild(code);
 
-        var template = new DataTemplate { VisualTree = lines };
+        // 多選模式才出現的勾選欄在整列左邊，跨過所有內容列；平常收起，版面與沒有多選時相同。
+        var template = new DataTemplate { VisualTree = WrapWithRowCheck(lines, "Title") };
 
         // 有本文片段才多一行；名稱與資料行命中的片段就是名稱本體，再畫一次是同一句話說兩遍。
         // 條件讀的是片段本身而不是代表那一筆的命中部位：併過的一列可能由資料行命中當代表，
@@ -192,6 +193,7 @@ internal static partial class SqlAssistChrome
 
         // 掛上左半、補 overflow、疊上操作層，並接上底色鏡射與揭露；與 SQL Memory 的卡片同一份。
         row.Complete(template, motion);
+        RevealRowCheck(template);
 
         return template;
     }
@@ -332,76 +334,12 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
-    /// 已選條件列上的一顆 chip：中性膠囊加一個清除鈕，本體可選地是一顆按鈕。
-    /// </summary>
-    /// <remarks>
-    /// 用中性色而不是強調色：chip 說的是「現在有這個條件」，不是警示，也不是一種分類。
-    /// 清除鈕是幽靈按鈕，停駐才顯色——它與 chip 本身是同一顆可按的東西，畫兩個邊框只會多一圈線。
-    ///
-    /// 本體要能按時做成真的 <see cref="Button"/>，不是在 <see cref="Border"/> 上掛滑鼠事件：
-    /// 後者沒有停駐回饋、進不了 Tab 順序，也唸不出自動化名稱，而這一列在條件很多時正是
-    /// 使用者唯一的入口。
-    /// </remarks>
-    /// <param name="openHint">本體按下去會做什麼（接在 chip 的字後面唸）。</param>
-    public static Border CreateFilterChip(string text, string openHint, out Button remove, out Button open)
-    {
-        var content = new DockPanel { VerticalAlignment = VerticalAlignment.Center };
-
-        remove = CreateButton("", DefaultMetrics);
-        remove.Content = CreateIcon(SqlIcon.Clear);
-        remove.Template = CreateGhostButtonTemplate();
-        remove.Padding = new Thickness(1);
-        remove.Margin = new Thickness(4, 0, 0, 0);
-        remove.MinWidth = 18;
-        remove.MinHeight = 18;
-        remove.ToolTip = "清除條件：" + text;
-        AutomationProperties.SetName(remove, "清除條件：" + text);
-        DockPanel.SetDock(remove, Dock.Right);
-        content.Children.Add(remove);
-
-        var label = new TextBlock
-        {
-            Text = text,
-            FontFamily = InterfaceFont,
-            FontSize = DefaultMetrics.Caption,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            ToolTip = text
-        }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
-
-        open = CreateButton("", DefaultMetrics);
-        open.Content = label;
-        open.Template = CreateGhostButtonTemplate();
-        open.Padding = new Thickness(2, 0, 2, 0);
-        open.MinHeight = 18;
-        open.ToolTip = text + openHint;
-        AutomationProperties.SetName(open, text + openHint);
-        content.Children.Add(open);
-
-        return new Border
-        {
-            Child = content,
-            CornerRadius = new CornerRadius(9),
-            BorderThickness = new Thickness(1),
-            Padding = new Thickness(6, 1, 4, 1),
-            Margin = new Thickness(0, 0, 4, 0),
-            MaxWidth = 220,
-            VerticalAlignment = VerticalAlignment.Center
-        }.WithTheme(Border.BackgroundProperty, ThemeBrush.BadgeBackground)
-            .WithTheme(Border.BorderBrushProperty, ThemeBrush.Hairline);
-    }
-
-
-    /// <summary>
     /// 搜尋框裡的選項開關（大小寫、全字）。
     /// </summary>
     /// <remarks>
     /// 放在搜尋框裡而不是工具列上，是因為它們修飾的是<b>這個字串怎麼比</b>，不是搜哪裡；
     /// 而且工具列已經被真正的篩選佔滿，多兩顆就換不到一列。常駐可見就是它們的完整呈現，
-    /// 下面的已選條件列不再替它們畫一顆 chip——那等於同一件事說兩次，而且它<b>不是</b>
-    /// 一顆按十字就清得掉的條件，使用者清掉之後回頭找不到自己剛剛關掉的是哪一個開關。
-    ///
-    /// 因此「開著」必須在這一顆上看得出來，走 <see cref="CreateToggleStyle"/>。
+    /// 所以「開著」必須在這一顆上看得出來，走 <see cref="CreateToggleStyle"/>。
     /// </remarks>
     public static ToggleButton CreateSearchToggle(SqlIcon icon, string label, string toolTip)
     {

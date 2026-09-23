@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Core.Tabular;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
-internal sealed class SqlMemoryRow : INotifyPropertyChanged
+internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
 {
     public SqlMemoryRow(SqlHistoryItem history) { History = history; }
     public SqlMemoryRow(SqlFavoriteItem favorite) { Favorite = favorite; }
@@ -20,7 +23,7 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
     public string Preview => (Favorite?.Preview ?? History!.Preview).Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
     public event PropertyChangedEventHandler? PropertyChanged;
     public bool IsExecuted => History?.Kind == SqlHistoryFilter.Executions;
-    public string Status => Favorite is not null ? "收藏" : IsExecuted ? "執行" : "草稿";
+    public string Status => Favorite is not null ? "收藏" : SqlMemoryCopy.HistoryStatus(History!);
     public SqlIcon StatusIcon => IsFavorite ? SqlIcon.Favorite : SqlAssistChrome.MemoryOptionIcon(History!.Kind);
     public string DeleteLabel => IsFavorite ? "從收藏移除" : "從 History 刪除";
 
@@ -29,6 +32,14 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
 
     private bool _isNew;
     private bool _isRemoving;
+    private bool _isChecked;
+
+    /// <summary>多選勾起來了；由清單的選取控制器依 <see cref="Id"/> 設定，容器重用時樣板只讀這一份。</summary>
+    public bool IsChecked
+    {
+        get => _isChecked;
+        set { if (_isChecked == value) return; _isChecked = value; Changed(nameof(IsChecked)); }
+    }
 
     /// <summary>剛加入清單；卡片以它播一次進場動畫，清單稍後清掉，捲動重用容器時才不會重播。</summary>
     public bool IsNew
@@ -73,4 +84,12 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged
     private static string TagText(SqlFavorite favorite) => favorite.Server is null && favorite.Database is null
         ? "未標註伺服器與資料庫"
         : $"{favorite.Server ?? "任何伺服器"} · {favorite.Database ?? "任何資料庫"}";
+
+    /// <summary>
+    /// 多選複製的內容：依傳進來的順序（清單的顯示順序），欄位是 History 或 Favorites 那一份。
+    /// </summary>
+    /// <remarks>只讀列上已有的資料，不讀 SQL 全文，也不觸發預覽讀取。</remarks>
+    public static SqlTabularContent CopyContent(IEnumerable<SqlMemoryRow> rows, bool favorites) => favorites
+        ? SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, rows.Where(row => row.Favorite is not null).Select(row => row.Favorite!))
+        : SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, rows.Where(row => row.History is not null).Select(row => row.History!));
 }
