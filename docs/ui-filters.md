@@ -27,8 +27,8 @@
   Memory 的伺服器／資料庫都是它。支援 `Single`／`Multiple`／`SearchableMultiple`；單選用 radio、
   選完自動關閉；分類保留 provider group 與 sort order。「沒有勾任何一個」是一個**實際的預設**，
   所以它是面板第一列（`SetEmptyOption`）而不是一片空白——摘要寫著「全部」而一個勾都沒有時，
-  使用者會以為條件弄丟了。字與按鈕摘要共用一份且**由宿主給**：Search 的未選是「連線預設」，
-  Memory 的未選是「全部」，控制項不替它們挑一句。那一列**畫成 radio**（`CreateFilterDefaultRow`），
+  使用者會以為條件弄丟了。字與按鈕摘要共用一份且**由宿主給**，控制項不替它們挑一句；
+  伺服器與資料庫兩邊的未選都是「全部」（Search 的伺服器單選、必選，沒有這一列）。那一列**畫成 radio**（`CreateFilterDefaultRow`），
   並用一條橫線（`CreateFilterPanelDivider`）與底下的複選區隔開：它與每一個選項互斥，選得上去、
   取消不掉，而核取方塊的合約是可勾可取消，畫成核取方塊讀起來像壞掉；少了那條橫線，radio 又會
   讓人以為整份清單只能選一個。它也**不進虛擬化清單**，留在捲動區外面：它是這個維度的預設值與

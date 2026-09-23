@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.UI;
@@ -143,30 +144,22 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>沒有勾任何一個分類時，按鈕與面板第一列上顯示的字。</summary>
     public const string AllCategoriesLabel = "全部";
 
-    /// <summary>
-    /// 指名了物件總管上一台伺服器、又沒有指名資料庫時，按鈕與面板第一列上顯示的字。
-    /// </summary>
-    /// <remarks>
-    /// 那條連線的預設資料庫通常是 <c>master</c>，說「查詢視窗」會讓人以為在搜他正看著的那個；
-    /// 跟著查詢視窗時說的就是查詢視窗（見 <see cref="ConnectionDefaultSummary"/>）。括號裡的
-    /// 名稱由伺服器自己說（<c>SqlSearchScopeDatabases.CurrentName</c>）。
-    /// </remarks>
-    public const string ConnectionDefaultLabel = "連線預設";
+    /// <summary>沒有勾任何一個資料庫時，按鈕與面板第一列上顯示的字：這台伺服器上進得去的每一個。</summary>
+    public const string AllDatabasesLabel = "全部";
+
+    /// <summary>還沒選伺服器時伺服器按鈕上的字。</summary>
+    public const string NoServerLabel = "未選擇";
 
     /// <summary>種類與資料庫的數量摘要各自的量詞；按鈕上只剩數字時分不出那是幾種還是幾個。</summary>
     private const string CategoryUnit = " 種";
 
     private const string DatabaseUnit = " 個";
 
-    /// <summary>沒有連線時，狀態表面上那顆按鈕的字。</summary>
+    /// <summary>沒有可搜的連線（還沒選伺服器，或選的那一台連不上）時，狀態表面上那顆按鈕的字。</summary>
     /// <remarks>
-    /// 死路要有出口：工具窗開得起來而查詢視窗沒有連線時，物件總管上往往已經連好了一台。
-    /// 開窗時<b>不</b>自動退回那一台，理由在 <c>SqlSearchBrowser.PickServerFromExplorer</c>。
+    /// 死路要有出口：兩種情形的下一步都是換一台，所以只有這一顆，按下去打開伺服器面板。
     /// </remarks>
-    public const string PickServerAction = "從物件總管挑一台";
-
-    /// <summary>指名的伺服器連不上時，狀態表面上那顆按鈕的字。</summary>
-    public const string FollowEditorAction = "回到查詢視窗";
+    public const string ChooseServerAction = "選擇伺服器";
 
     /// <summary>
     /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
@@ -181,10 +174,7 @@ internal sealed class SqlSearchBrowserModel
         new(new[] { "master", "model", "msdb", "tempdb" }, StringComparer.OrdinalIgnoreCase);
 
     private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
-    private readonly List<string> _databases = new();
 
-    /// <summary>勾選的資料庫屬於哪一台；還沒連過任何一台時為 null。</summary>
-    private string? _scopeServer;
     /// <summary>有來源這一輪整個讀不到時要補的那一句；沒有時是空字串。</summary>
     private string _unavailable = "";
 
@@ -269,40 +259,26 @@ internal sealed class SqlSearchBrowserModel
     public bool HasConnection { get; set; }
 
     /// <summary>
-    /// 指名的伺服器顯示名稱；null 表示跟著作用中的查詢視窗。
+    /// 伺服器與資料庫兩個篩選；與 SQL Memory 同一份規則，差別只在伺服器是單選。
     /// </summary>
     /// <remarks>
-    /// 只存<b>名稱</b>，不存伺服器物件也不存連線：這一層是純邏輯，連線由
-    /// <c>SqlSearchCatalogs</c> 負責，而名稱是摘要與空狀態唯一要用到的東西。
-    /// 指名的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格是給連結伺服器
-    /// （四段式名稱）的，而換一台物件總管上的伺服器換的是整份目錄。混用的症狀是
-    /// provider 看到指名的伺服器就整輪不回結果。
+    /// 伺服器單選：換一台換的是整份目錄，同時搜好幾台要的是每台一個 provider、一道硬性期限與
+    /// 一份說得出「哪幾台沒回來」的文案，那些都還沒有。這一層只存<b>名稱</b>，連線由
+    /// <c>SqlSearchCatalogs</c> 負責；選的伺服器<b>不</b>進 <see cref="SearchScope.Servers"/>——那一格
+    /// 是給連結伺服器（四段式名稱）的，混用的症狀是 provider 看到它就整輪不回結果。
+    ///
+    /// 資料庫沒有勾就是「全部」：這台上進得去的每一個，第一輪要把每一個都索引一遍。
+    /// 名稱不分大小寫：資料庫名稱的大小寫規則由執行個體的定序決定，而同一台上
+    /// <c>LibArchive</c> 與 <c>libarchive</c> 指的是同一個；兩份都留著的症狀是同一個資料庫
+    /// 被索引兩次，而摘要上的個數多算一個。
     /// </remarks>
-    public string? Server { get; set; }
-
-    /// <summary>作用中查詢視窗連到哪一台；null 表示沒有視窗或那個視窗沒有連線。</summary>
-    /// <remarks>
-    /// 只給摘要用，不進查詢範圍：這一層是純邏輯，取名稱是 <c>SqlSearchCatalogs</c> 的事。
-    /// </remarks>
-    public string? ActiveEditorServer { get; set; }
-
-    /// <summary>沒有指名資料庫時，這一輪實際搜的那一個；null 表示沒有連線。</summary>
-    public string? CurrentDatabase { get; set; }
+    public SqlConnectionScope Scope { get; } = new(multipleServers: false, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>目前勾選的分類；空表示不過濾。</summary>
     public IReadOnlyCollection<string> CategoryIds => _categoryIds;
 
-    /// <summary>
-    /// 指名的資料庫；空表示跟著目前查詢視窗那一個。
-    /// </summary>
-    /// <remarks>
-    /// 預設空而不是列出所有進得去的資料庫：每指名一個就是一次含定義本文的全表掃描，
-    /// 預先索引全部是明文禁止的。
-    /// </remarks>
-    public IReadOnlyList<string> Databases => _databases;
-
     /// <summary>這一輪要搜的範圍；呼叫端用它先問「索引建好了沒」，再決定要不要顯示載入表面。</summary>
-    public SearchScope Scope => BuildScope();
+    public SearchScope ToSearchScope() => BuildScope();
 
     /// <summary>目前這一輪的世代；每一次新輸入加一。</summary>
     public long Generation => _generation;
@@ -471,62 +447,6 @@ internal sealed class SqlSearchBrowserModel
         return true;
     }
 
-    public bool IsDatabaseSelected(string database) =>
-        _databases.FindIndex(name => string.Equals(name, database, StringComparison.OrdinalIgnoreCase)) >= 0;
-
-    /// <returns>true 表示指名的資料庫真的變了。</returns>
-    /// <remarks>
-    /// 名稱以不分大小寫比對：資料庫名稱的大小寫規則由執行個體的定序決定，而同一台上
-    /// <c>LibArchive</c> 與 <c>libarchive</c> 指的是同一個。兩份都留著的症狀是同一個資料庫
-    /// 被索引兩次，而摘要上的個數多算一個。
-    /// </remarks>
-    public bool SetDatabaseSelected(string database, bool selected)
-    {
-        if (string.IsNullOrEmpty(database)) throw new ArgumentException("資料庫名稱不可為空。", nameof(database));
-
-        var index = _databases.FindIndex(name => string.Equals(name, database, StringComparison.OrdinalIgnoreCase));
-
-        if (selected)
-        {
-            if (index >= 0) return false;
-            _databases.Add(database);
-            return true;
-        }
-
-        if (index < 0) return false;
-        _databases.RemoveAt(index);
-        return true;
-    }
-
-    public bool ClearDatabases()
-    {
-        if (_databases.Count == 0) return false;
-        _databases.Clear();
-        return true;
-    }
-
-    /// <summary>
-    /// 範圍現在連著哪一台；換到另一台就清掉勾選的資料庫。
-    /// </summary>
-    /// <returns>從一台換到另一台時為 true，呼叫端據此收掉上一台的清單。</returns>
-    /// <remarks>
-    /// 資料庫名稱是每台伺服器自己的，所以規則掛在「範圍換了台」這件事上，不掛在某一個操作上：
-    /// 只在指名伺服器那條路清的話，跟著查詢視窗換台、指名的那一台消失而退回查詢視窗，
-    /// 這兩條路都會帶著上一台的名稱搜下一台，每個資料庫都回「不存在」。
-    /// 說不出是哪一台（斷線）時不動：斷線後連回同一台，勾選還在。
-    /// </remarks>
-    public bool ObserveServer(string? server)
-    {
-        if (string.IsNullOrEmpty(server)) return false;
-
-        var previous = _scopeServer;
-        _scopeServer = server;
-        if (previous is null || SqlSearchCatalogs.IsSameServer(previous, server)) return false;
-
-        _databases.Clear();
-        return true;
-    }
-
     /// <summary>這個名稱屬於系統資料庫那一段。</summary>
     public static bool IsSystemDatabase(string database) => SystemDatabaseNames.Contains(database);
 
@@ -534,39 +454,12 @@ internal sealed class SqlSearchBrowserModel
     public string CategorySummary() =>
         Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel(), CategoryUnit);
 
-    /// <summary>
-    /// 伺服器按鈕上的摘要；沒有指名時說的是「跟著查詢視窗」，括號裡是那個視窗連到哪一台。
-    /// </summary>
-    /// <remarks>
-    /// 括號不是裝飾：跟著走的那一顆說不出目標的話，使用者要打開下拉才知道自己在搜哪一台，
-    /// 而沒連線時他連「要去連線」都看不出來。
-    /// </remarks>
-    public string ServerSummary() => Server ?? SqlEditorConnectionText.Label(ActiveEditorServer);
+    /// <summary>伺服器按鈕上的摘要：選定的那一台，還沒選時說「未選擇」。</summary>
+    public string ServerSummary() => Scope.Servers.Count == 0 ? NoServerLabel : Scope.Servers[0];
 
-    /// <summary>資料庫按鈕上的摘要；沒有指名時是這一輪真正搜的那一個。</summary>
-    /// <remarks>
-    /// 沒有連線時說「未連線」而不是「連線預設」：後者是一句斷言，而那一刻根本沒有連線可以
-    /// 預設。兩句混成一句的症狀是使用者看著一顆停用的按鈕，讀到的卻是一個他其實搜不到的範圍。
-    /// </remarks>
+    /// <summary>資料庫按鈕上的摘要；一個都沒勾就是「全部」，與面板第一列共用同一份字。</summary>
     public string DatabaseSummary() =>
-        _databases.Count == 0 && !HasConnection
-            ? SqlEditorConnectionText.NotConnected
-            : Summarize(_databases.Count, ConnectionDefaultSummary(), SingleDatabaseLabel(), DatabaseUnit);
-
-    /// <summary>
-    /// 沒有指名資料庫時那一列與那顆按鈕共用的字，括號裡是實際的那一個。
-    /// </summary>
-    /// <remarks>
-    /// 跟著查詢視窗時說「查詢視窗」，與伺服器那一顆、SQL Memory 的查詢視窗那一列同一句話：
-    /// 這時搜的就是查詢視窗連著的資料庫，換分頁也跟著換。指名了別台時才說「連線預設」。
-    /// 摘要與面板第一列共用一份，兩處不會說得不一樣。名稱還沒問到時不帶括號——寧可少說一句，
-    /// 不猜一個名字，也不說成「未連線」。
-    /// </remarks>
-    public string ConnectionDefaultSummary()
-    {
-        var label = Server is null ? SqlEditorConnectionText.Name : ConnectionDefaultLabel;
-        return CurrentDatabase is { Length: > 0 } database ? label + "（" + database + "）" : label;
-    }
+        Summarize(Scope.Databases.Count, AllDatabasesLabel, Scope.Databases.Count == 1 ? Scope.Databases[0] : null, DatabaseUnit);
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
     public void Invalidate()
@@ -766,13 +659,13 @@ internal sealed class SqlSearchBrowserModel
 
         if (!HasConnection)
         {
-            return Server is { Length: > 0 } server
+            return Scope.Servers.Count != 0
                 ? SqlSurfaceState.Unreadable(
-                    $"連不上 {server}。物件總管上那一台可能已經中斷，換一台或回到查詢視窗。",
-                    FollowEditorAction)
-                : SqlSurfaceState.Empty("尚未連線",
-                    "在 SQL 查詢視窗連上資料庫，或直接用物件總管上已經連好的那一台。",
-                    PickServerAction);
+                    $"連不上 {Scope.Servers[0]}。那一台可能已經中斷，換一台再搜。",
+                    ChooseServerAction)
+                : SqlSurfaceState.Empty("尚未選擇伺服器",
+                    "按左邊的「" + SqlEditorConnectionText.ApplyAction + "」，或從伺服器清單挑一台。",
+                    ChooseServerAction);
         }
 
         // 第一次建索引時整輪都沒有列可看；之後的每一輪只在還沒有任何一列時遮住清單。
@@ -833,8 +726,6 @@ internal sealed class SqlSearchBrowserModel
         return null;
     }
 
-    private string? SingleDatabaseLabel() => _databases.Count == 1 ? _databases[0] : null;
-
     /// <remarks>
     /// 一個就寫名字，多個就寫數量。三個名字串起來會把按鈕撐到吃掉搜尋框的空間，
     /// 而工具列上真正要一直看得見的是搜尋框與比對位置。完整名單在面板與 Tooltip 上。
@@ -853,10 +744,11 @@ internal sealed class SqlSearchBrowserModel
 
     /// <remarks>
     /// 伺服器那一份永遠是空的：v1 沒有連結伺服器的索引，指名伺服器等於整輪不回結果。
-    /// 範圍的伺服器由目前這條連線決定，UI 只把它顯示出來。
+    /// 範圍的伺服器由目前這條連線決定，UI 只把它顯示出來。資料庫空名單就是「全部」，
+    /// 與 <see cref="SearchScope"/> 的「空表示不限制」同一個意思。
     /// </remarks>
     private SearchScope BuildScope() =>
-        _databases.Count == 0 ? SearchScope.All : new SearchScope(null, _databases.ToArray());
+        Scope.Databases.Count == 0 ? SearchScope.All : new SearchScope(null, Scope.Databases);
 
     /// <summary>
     /// 有沒有哪一個來源這一輪整個讀不到；有的話回傳要補的那一句。

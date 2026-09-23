@@ -481,10 +481,11 @@ public sealed class SqlCatalogSearchProviderTests
         var server = NewBodyServer("SELECT CopyNo FROM dbo.Loan");
         var cache = new SqlCatalogSearchIndexCache();
 
-        await RunAsync(server, new SearchQuery("CopyNo", targets: SearchTargets.Name), cache: cache);
+        // 指名那一個資料庫：「全部」每一輪會多問一次清單，這裡量的是索引那幾條。
+        await RunAsync(server, new SearchQuery("CopyNo", targets: SearchTargets.Name, scope: LibraryOnly), cache: cache);
         server.Commands.Clear();
 
-        var sink = await RunAsync(server, new SearchQuery("CopyNo", 1), cache: cache);
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", 1, scope: LibraryOnly), cache: cache);
 
         Assert.Single(sink.Hits);
         Assert.Equal(1, server.CountCommands("sys.sql_modules"));
@@ -705,6 +706,44 @@ public sealed class SqlCatalogSearchProviderTests
         }
     }
 
+    /// <summary>
+    /// 沒有指名資料庫就是「全部」：這台上進得去的每一個都搜，不是只搜連線那一個。
+    /// </summary>
+    [Fact]
+    public async Task 沒有指名資料庫時搜這台伺服器上的每一個()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+        server.Add("LibArchive").WithObject(1, "dbo", "LoanDetail", "U");
+        server.Add("master", isSystem: true);
+
+        var sink = await RunAsync(server, new SearchQuery("Loan"), databaseName: "master");
+
+        Assert.Equal(
+            new[] { "[LibArchive].[dbo].[LoanDetail]", "[Library].[dbo].[Loan]" },
+            sink.Hits.Select(hit => hit.DedupeKey).OrderBy(key => key, StringComparer.Ordinal));
+        Assert.False(sink.IsUnavailable);
+    }
+
+    /// <summary>
+    /// 「全部」而清單問不到：照實說這一輪沒搜，不退回只搜連線那一個——那一份答案看起來完全正常，
+    /// 只是少了使用者以為有搜的其他資料庫。
+    /// </summary>
+    [Fact]
+    public async Task 全部而問不到資料庫清單時照實說而不退回連線那一個()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+
+        var provider = new SqlCatalogSearchProvider(server.SourceFor("Library"), Origin, listDatabases: (_, _) => null);
+        var sink = new RecordingSearchSink();
+        await provider.SearchAsync(new SearchQuery("Loan"), sink, CancellationToken.None);
+
+        Assert.Empty(sink.Hits);
+        Assert.True(sink.IsUnavailable);
+        Assert.Contains("資料庫清單", sink.UnavailableReason);
+    }
+
     /// <summary>幾個資料庫的結果併在同一輪裡回來，各自帶著自己的資料庫膠囊。</summary>
     [Fact]
     public async Task 多個資料庫的結果都回得來()
@@ -875,8 +914,9 @@ public sealed class SqlCatalogSearchProviderTests
         var server = SqlCatalogSearchIndexTests.NewServer();
         var cache = new SqlCatalogSearchIndexCache();
 
-        await RunAsync(server, new SearchQuery("Loan"), cache: cache);
-        await RunAsync(server, new SearchQuery("Lib"), cache: cache);
+        // 指名那一個資料庫：「全部」每一輪會多開一條連線問清單，這裡量的是索引。
+        await RunAsync(server, new SearchQuery("Loan", scope: LibraryOnly), cache: cache);
+        await RunAsync(server, new SearchQuery("Lib", scope: LibraryOnly), cache: cache);
 
         Assert.Equal(1, cache.Builds);
         Assert.Equal(1, server.Opened);
@@ -931,6 +971,8 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     private static readonly SqlSearchOrigin Origin = new("LIBSQL01");
+
+    private static readonly SearchScope LibraryOnly = new(null, new[] { "Library" });
 
     private static async Task<RecordingSearchSink> RunAsync(
         FakeCatalogServer server,

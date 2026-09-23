@@ -21,9 +21,6 @@ public sealed record SqlDocument(Guid DocumentId, string DisplayName, string? Fi
 [Serializable]
 public sealed record SqlSession(Guid SessionId, Guid DocumentId, DateTimeOffset? ClosedAt = null);
 
-[Serializable]
-public sealed record SqlConnectionLabel(string Server, string Database);
-
 /// <remarks>
 /// 版本不帶連線：連線只屬於使用者看得到的 History 投影，收藏另有自己的標註。
 /// <paramref name="SessionId"/> 只有擷取產生的版本才有。收藏自己建立的版本不屬於任何一次編輯器

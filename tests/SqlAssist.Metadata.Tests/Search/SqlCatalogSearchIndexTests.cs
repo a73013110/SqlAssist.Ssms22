@@ -402,7 +402,7 @@ public sealed class SqlCatalogSearchIndexTests
 
     /// <summary>資料庫清單帶著「是不是系統資料庫」，而且不建任何索引。</summary>
     /// <remarks>
-    /// 預先索引所有進得去的資料庫是明文禁止的。這一條只回答「有哪些可以選」。
+    /// 打開下拉就先索引所有進得去的資料庫是禁止的。這一條只回答「有哪些可以選」。
     /// </remarks>
     [Fact]
     public void 資料庫清單帶著系統旗標而且不建索引()
@@ -416,8 +416,6 @@ public sealed class SqlCatalogSearchIndexTests
         Assert.NotNull(databases);
         Assert.Equal(new[] { "Library", "msdb" }, databases!.Select(database => database.Name));
         Assert.Equal(new[] { false, true }, databases.Select(database => database.IsSystem));
-        // 沒有指名資料庫時搜的就是這一個；範圍摘要要說得出名字，而連線字串上不一定有。
-        Assert.Equal(new[] { true, false }, databases.Select(database => database.IsCurrent));
 
         // 只問了清單那一條，一個物件都沒有掃。
         Assert.Single(server.Commands);

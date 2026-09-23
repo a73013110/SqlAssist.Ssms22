@@ -71,9 +71,9 @@ internal sealed class SqlSearchDefinitionLoader
 
         if (resolved is not { } catalog)
         {
-            return new SqlSearchDefinitionText("", _catalogs.FollowsActiveEditor
-                ? "請先開啟一個已連線的 SQL 查詢視窗，才讀得到物件定義。"
-                : $"連不上 {_catalogs.Server?.DisplayName}，物件總管上那一台可能已經中斷。");
+            return new SqlSearchDefinitionText("", _catalogs.ServerName is { } server
+                ? $"連不上 {server}，那一台可能已經中斷。"
+                : "還沒選要搜尋的伺服器，讀不到物件定義。");
         }
 
         SqlObjectStructure? structure;

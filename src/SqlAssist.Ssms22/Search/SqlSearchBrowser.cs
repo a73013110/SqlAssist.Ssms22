@@ -9,6 +9,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Search;
 using SqlAssist.Core.SqlMemory;
@@ -83,8 +84,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 作用中查詢視窗連著哪一台；每一列「會不會開未連線的視窗」照它算。
     /// </summary>
     /// <remarks>
-    /// 在範圍或查詢視窗換過的那一刻（<see cref="ObserveConnection"/>）問一次，新列建立時直接拿來用。
-    /// 每一列、每畫一次各問一次宿主的話，一批一百列就是一百次連線查詢。
+    /// 在查詢視窗換過的那一刻（<see cref="ObserveActiveEditor"/>）問一次，新列建立時直接拿來用。
+    /// 每一列、每畫一次各問一次宿主的話，一批一百列就是一百次連線查詢。它只管移至定義，不動範圍。
     /// </remarks>
     private string? _activeEditorServer;
 
@@ -101,7 +102,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 本體之前，那時候 _services 還是 null，所以這兩個不能寫成欄位初始值。
         _catalogs = new SqlSearchCatalogs(services);
         _connection = SqlAssistChrome.CreateEditorConnectionButton(ReadEditorConnection);
-        _connection.Click += (_, _) => Run(UseEditorConnection);
+        _connection.Click += (_, _) => _ = RunAsync(() => ApplyEditorConnectionAsync(automatic: false));
         _preview = new SqlSearchPreview(_catalogs);
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Providers);
@@ -146,13 +147,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _list.ContextMenu = CreateRowMenu();
         // 載入、空、讀不到與權限不足疊在同一塊內容上：四種「現在沒東西可看」不各占一塊版面。
         _surface = new SqlStateSurface(_list);
-        // 兩種沒有連線的狀態互斥，所以按鈕只有一顆：指名的那一台連不上就回到查詢視窗，
-        // 否則去物件總管挑一台。判斷條件與 SqlSearchBrowserModel.Surface 的那一條相同。
-        _surface.ActionRequested += (_, _) => Run(() =>
-        {
-            if (_model.Server is { Length: > 0 }) SelectServer(null);
-            else PickServerFromExplorer();
-        });
+        // 還沒選伺服器與選的那一台連不上，下一步都是換一台，所以按鈕只有一顆：打開伺服器面板。
+        // 開窗時不替使用者打開：物件總管服務第一次取用會把那個工具視窗叫出來，這一步由他發動。
+        _surface.ActionRequested += (_, _) => Run(_server.Open);
         _splitView = new MasterDetailView(_surface, _preview, _preview.Summary, MasterDetailView.DefaultSideBySideWidth);
         _splitView.DetailExpandedChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 預覽", UpdatePreview);
         root.Children.Add(_splitView);
@@ -179,12 +176,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 可見度", () =>
         {
-            if (IsVisible) ObserveConnection(reload: true);
+            if (IsVisible) OnShown();
             // 看不見的工具窗不該還佔著連線；取消之後上一份結果留在畫面上，回來時重搜。
             else CancelRequest();
         });
-        ActiveSqlEditor.Changed += OnConnectionContextChanged;
-        SqlEditorConnectionWatcher.Changed += OnConnectionContextChanged;
+        ActiveSqlEditor.Changed += OnActiveEditorChanged;
+        SqlEditorConnectionWatcher.Changed += OnActiveEditorChanged;
 
         // 記住的只有「怎麼比對」那三項；伺服器、資料庫與種類刻意不記，理由見 docs/search.md。
         if (_model.RestoreMatchState(SqlAssistState.SearchMatchState))
@@ -194,7 +191,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         }
 
         _ready = true;
-        ObserveConnection(reload: false);
+        ObserveActiveEditor();
+        ObserveCatalog(out _);
+        UpdateChrome();
     }
 
     /// <summary>把焦點放到搜尋框；命令帶使用者過來時就是為了打字。</summary>
@@ -204,8 +203,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        ActiveSqlEditor.Changed -= OnConnectionContextChanged;
-        SqlEditorConnectionWatcher.Changed -= OnConnectionContextChanged;
+        ActiveSqlEditor.Changed -= OnActiveEditorChanged;
+        SqlEditorConnectionWatcher.Changed -= OnActiveEditorChanged;
         _searchTimer.Stop();
         _settleTimer.Stop();
         _request.Cancel();
@@ -273,7 +272,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 上層分三群，中間由工具列補上共用的分隔線：伺服器與資料庫回答「搜哪裡」，種類回答
     /// 「搜什麼」，分段開關回答「比對哪裡」。攤成一排的話，使用者會以為種類是第三個範圍。
     ///
-    /// 伺服器是單選：換一台換的是整份目錄，理由見 <see cref="ConfigureServer"/>。
+    /// 伺服器是單選：換一台換的是整份目錄，理由見 <see cref="SqlSearchBrowserModel.Scope"/>。
     /// </remarks>
     /// <param name="searchSlot">搜尋列與蓋在它上面的選取工具列那一格。</param>
     private FrameworkElement CreateToolbar(FrameworkElement searchSlot)
@@ -446,13 +445,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             foreach (var database in databases)
             {
                 if (!SqlFilterFlyout.Matches(database.Name, pattern)) continue;
-                changed |= _model.SetDatabaseSelected(database.Name, selected: true);
+                changed |= _model.Scope.SetDatabaseSelected(database.Name, selected: true);
             }
 
             FillDatabases(databases);
             if (changed) FiltersChanged();
         });
-        // 全不選與第一列那個「連線預設」是同一件事，所以走同一條清除路徑，不另寫一份狀態同步。
+        // 全不選與第一列那個「全部」是同一件事，所以走同一條清除路徑，不另寫一份狀態同步。
         _databases.ClearAllRequested += (_, _) => Run(ClearDatabases);
         _databases.SetBulkCommands(SqlFilterBulkCommands.SelectAndClear);
     }
@@ -460,7 +459,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>清掉整個資料庫維度；第一列那個預設與全不選共用這一份。</summary>
     private void ClearDatabases()
     {
-        if (!_model.ClearDatabases()) return;
+        if (!_model.Scope.ClearDatabases()) return;
         FiltersChanged();
         // 其餘幾列的勾要一起清掉，但重建整份清單得等這一次的繫結回寫結束：
         // 在回寫途中換掉 ItemsSource 等於把正在發事件的那一顆核取方塊回收掉。
@@ -498,14 +497,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private void FillDatabases(IReadOnlyList<SqlCatalogSearchDatabase> databases)
     {
-        // 清單回來的那一刻才知道連線預設是哪一個：物件總管那條連線的連線物件上沒有初始目錄，
-        // 而摘要與面板第一列都要說得出名字。
-        if (string.IsNullOrEmpty(_model.CurrentDatabase) && _scopeDatabases.CurrentName is { Length: > 0 } current)
-        {
-            _model.CurrentDatabase = current;
-            UpdateFilterChrome();
-        }
-
         var user = new List<SqlFilterOption>();
         var system = new List<SqlFilterOption>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -516,25 +507,25 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             var option = new SqlFilterOption(
                 database,
                 "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
-                _model.IsDatabaseSelected(database),
+                _model.Scope.IsDatabaseSelected(database),
                 selected => Run(() =>
                 {
-                    if (!_model.SetDatabaseSelected(database, selected)) return;
-                    _databases.SyncEmptyOption(_model.Databases.Count == 0);
+                    if (!_model.Scope.SetDatabaseSelected(database, selected)) return;
+                    _databases.SyncEmptyOption(_model.Scope.Databases.Count == 0);
                     FiltersChanged();
                 }));
             (isSystem ? system : user).Add(option);
         }
 
-        foreach (var database in _model.Databases) Add(database, SqlSearchBrowserModel.IsSystemDatabase(database));
+        foreach (var database in _model.Scope.Databases) Add(database, SqlSearchBrowserModel.IsSystemDatabase(database));
         foreach (var database in databases) Add(database.Name, database.IsSystem);
 
-        // 第一列是「沒有指名」那個預設，與按鈕摘要共用同一份字；選它等於清掉整個維度，
+        // 第一列是「全部」，與按鈕摘要共用同一份字；選它等於清掉整個維度，
         // 所以面板上不另畫一顆「清除」。
         _databases.SetEmptyOption(new SqlFilterOption(
-            _model.ConnectionDefaultSummary(),
-            "不指名資料庫；只搜這條連線預設的那一個，不建任何額外索引。",
-            _model.Databases.Count == 0,
+            SqlSearchBrowserModel.AllDatabasesLabel,
+            "搜這台伺服器上進得去的每一個資料庫；第一次要逐一建立索引。",
+            _model.Scope.Databases.Count == 0,
             // 取消勾它不是一個範圍；面板那一列自己會彈回去，這裡只忽略。
             selected => Run(() => { if (selected) ClearDatabases(); })));
 
@@ -558,7 +549,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (_scopeDatabases.IsUnavailable)
         {
             return listed == 0
-                ? "問不到資料庫清單；仍搜得到目前連線的那一個，或去看這個登入的權限。"
+                ? "問不到資料庫清單；去看這個登入的權限，或按重新整理再試一次。"
                 : "問不到最新的資料庫清單，這一份可能是舊的。";
         }
 
@@ -567,50 +558,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     }
 
     /// <summary>
-    /// 空狀態那顆按鈕：去物件總管找一台。
+    /// 伺服器單選：目前連得上的每一台——物件總管上已連線的，加上查詢視窗連著的那一台。
     /// </summary>
     /// <remarks>
-    /// 開窗時<b>不</b>自動退回物件總管，這一步一定由使用者發動：物件總管服務第一次取用會把
-    /// 那個工具視窗叫出來（見 <see cref="ConfigureServer"/>），而使用者可能正是把它關掉的人。
-    ///
-    /// 只有一台時直接用它——那不是替他猜，清單上只有那一個答案；好幾台就打開同一份伺服器面板
-    /// 讓他挑，不自己選一台，理由與 <see cref="SqlSearchCatalogs.DropMissingServer"/> 相同：
-    /// 默默換掉使用者的範圍比留著更糟。
-    /// </remarks>
-    private void PickServerFromExplorer()
-    {
-        var servers = _catalogs.ListServers();
-
-        if (servers is null)
-        {
-            Report("問不到物件總管；請在 SQL 查詢視窗連上資料庫。");
-            return;
-        }
-
-        if (servers.Count == 0)
-        {
-            Report("物件總管上還沒有連上的 SQL Server。");
-            return;
-        }
-
-        if (servers.Count == 1)
-        {
-            SelectServer(servers[0]);
-            Report("已改用 " + servers[0].DisplayName + "。");
-            return;
-        }
-
-        _server.Open();
-    }
-
-    /// <summary>
-    /// 伺服器單選：跟著查詢視窗，或指名物件總管上已連線的其中一台。
-    /// </summary>
-    /// <remarks>
-    /// 單選而不是多選：換一台換的是整份目錄，同時搜好幾台要的是每台一個 provider、
-    /// 一道硬性期限與一份說得出「哪幾台沒回來」的文案，那些都還沒有。做成看起來可以
-    /// 複選的樣子，使用者勾了兩台卻只有一台的結果，而畫面上看不出少了哪一台。
-    ///
     /// 清單只在使用者打開下拉那一刻重問（沒有 I/O，見 <see cref="SsmsObjectExplorer"/>）。
     /// <b>禁止</b>改成輪詢：物件總管服務第一次取用會把那個工具視窗叫出來，
     /// 使用者把它關掉之後，輪詢會在他沒有要求的時候替他開回去。
@@ -622,13 +572,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     }
 
     /// <summary>
-    /// 伺服器下拉的兩段：跟著查詢視窗，與物件總管上已連線的伺服器。
+    /// 伺服器下拉：一台一行，沒有「查詢視窗」這種會跟著分頁變的選項。
     /// </summary>
     /// <remarks>
-    /// 物件總管上那一台若就是查詢視窗連的那一台，就不另外列一次：同一台列兩行，
-    /// 使用者會以為那是兩個不同的範圍。比對走連線字串裡的伺服器名稱（
-    /// <see cref="SqlSearchCatalogs.ActiveEditorServerName"/>），不是快取鍵——快取鍵是
-    /// 整串正規化過的連線字串，同一台伺服器的兩條連線幾乎不會相等。
+    /// 查詢視窗連著的那一台不在物件總管上時也列出來：套用按鈕套得到的，面板上就要選得到。
+    /// 同一台不列兩次，比對走連線字串裡的伺服器名稱（<see cref="SqlSearchCatalogs.IsSameServer(string?, string?)"/>），
+    /// 不是快取鍵——快取鍵是整串正規化過的連線字串，同一台伺服器的兩條連線幾乎不會相等。
+    /// 目前選的那一台（從查詢視窗套用、而那個分頁已經換掉）兩處都沒有時照樣列出來，
+    /// 否則面板上看不出現在搜的是哪一台。
     ///
     /// 問不到物件總管時<b>明說</b>，不假裝這就是全部：少列一台而使用者看不出差別，
     /// 比只列一台更糟。
@@ -637,148 +588,174 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         var servers = _catalogs.ListServers();
 
-        // 指名的那一台已經從物件總管上消失了（使用者中斷了連線）：換回查詢視窗並重搜，
+        // 選的那一台已經從物件總管上消失了（使用者中斷了連線）：回到還沒選，
         // 而不是留著一個連不上的範圍讓每一輪都空手而回。
-        if (_catalogs.DropMissingServer(servers))
-        {
-            _model.Server = null;
-            ObserveConnection(reload: true);
-        }
+        if (_catalogs.DropMissingServer(servers)) ServerChanged();
 
         var editorServer = _catalogs.ActiveEditorServerName();
-        var options = new List<SqlFilterOption>
-        {
-            new(
-                SqlEditorConnectionText.Label(editorServer),
-                "跟著作用中的查詢視窗；切到連著別台的分頁就跟著換。",
-                _catalogs.FollowsActiveEditor,
-                // 單選：勾掉等於沒有範圍可搜，所以勾與不勾都是「選這一個」。
-                _ => Run(() => SelectServer(null)))
-        };
+        var listed = new List<string?>();
+        var options = new List<SqlFilterOption>();
 
-        var explorer = new List<SqlFilterOption>();
+        void Add(string label, string? serverName, Func<bool> isSelected, string hint, Action select)
+        {
+            listed.Add(serverName);
+            // 單選：勾掉等於沒有範圍可搜，所以只理會「選這一個」。
+            options.Add(new SqlFilterOption(label, hint, isSelected(),
+                value => Run(() => { if (value && !isSelected()) select(); })));
+        }
 
         foreach (var server in servers ?? Array.Empty<SsmsObjectExplorerServer>())
         {
-            // 同一台不列兩次；查詢視窗那一行已經涵蓋它，而且那一行還會跟著分頁換。
-            if (SqlSearchCatalogs.IsSameServer(server, editorServer)) continue;
-
-            var selected = _catalogs.Server is { } current &&
-                string.Equals(current.RootUrn, server.RootUrn, StringComparison.Ordinal);
-
-            explorer.Add(new SqlFilterOption(
-                server.DisplayName,
-                "改用物件總管上這一台的連線搜尋；清單、預覽與定義都跟著換過去。",
-                selected,
-                value => Run(() => SelectServer(value ? server : null))));
+            Add(server.DisplayName, server.ServerName, () => _catalogs.IsSelected(server),
+                "搜尋物件總管上這一台。", () => SelectServer(server));
         }
 
-        // 問不到物件總管時，那一句掛在第一段的標題上而不是第二段：空的段落整段不畫，
-        // 掛在那裡的話使用者只會看到一份看起來就是全部的清單。
-        _server.SetOptions(new[]
+        if (editorServer is not null && !listed.Exists(name => SqlSearchCatalogs.IsSameServer(name, editorServer)))
         {
-            new SqlFilterGroup(servers is null ? "問不到物件總管，只列得出這一台" : "", options),
-            new SqlFilterGroup("物件總管", explorer)
-        });
+            Add(editorServer, editorServer, () => _catalogs.IsSelected(editorServer),
+                "搜尋查詢視窗連著的這一台；用查詢視窗那條連線。", () => _ = RunAsync(SelectEditorServerAsync));
+        }
+
+        if (_catalogs.ServerName is { } current && !listed.Exists(_catalogs.IsSelected))
+        {
+            Add(current, current, () => true, "目前搜尋的這一台。", () => { });
+        }
+
+        _server.SetOptions(new[] { new SqlFilterGroup("", options) });
+        _server.SetNotice(servers is null ? "問不到物件總管，只列得出查詢視窗連著的那一台。" : "");
     }
 
-    /// <summary>查詢視窗現在的連線；沒有視窗或沒有連線時為 null。</summary>
+    /// <summary>查詢視窗現在的連線；沒有視窗或沒有連線時為 null。只給套用按鈕的 Tooltip 用。</summary>
     private SqlConnectionLabel? ReadEditorConnection() =>
         SqlAssistPlatformGuard.Probe("取得查詢視窗連線", () => SqlWindowConnections.ReadActive(_services), null);
 
     /// <summary>
-    /// 範圍換回查詢視窗那條連線：跟著查詢視窗，資料庫回到它連著的那一個。
+    /// 套用查詢視窗的連線：伺服器換成它連著的那一台，資料庫換成它連著的那一個。
     /// </summary>
+    /// <param name="automatic">
+    /// 還沒選伺服器時自動補的那一次：查詢視窗沒有連線就安靜地什麼都不做，而且等的途中使用者
+    /// 自己挑了一台就不蓋掉他。
+    /// </param>
     /// <remarks>
-    /// 與 SQL Memory 那一顆結果一致、做法不同：這裡本來就有「跟著查詢視窗」這個狀態，
-    /// 所以是改回那個狀態，之後換分頁仍會跟著走；不是把當下的名稱寫死成指名一台。
-    /// 查詢視窗沒有連線時<b>不動</b>範圍：換回去的結果是一個搜不到任何東西的範圍，
-    /// 而使用者按下去是為了搜那條連線。已經是那個範圍時什麼都不做，按了不會有損失。
+    /// 與 SQL Memory 那一顆同一條規則（<see cref="SqlConnectionScope.Apply"/>）：取代而不是加進去，
+    /// 之後切分頁、換連線都不再跟著走。用的是查詢視窗<b>那條連線</b>（<see cref="SqlSearchCatalogs.ReadActiveEditorAsync"/>），
+    /// 所以物件總管上沒有的那一台也搜得到。查詢視窗沒有連線時<b>不動</b>範圍。
     /// </remarks>
-    private void UseEditorConnection()
+    private async Task ApplyEditorConnectionAsync(bool automatic)
     {
-        if (ReadEditorConnection() is not { Server.Length: > 0 })
+        var connection = await _catalogs.ReadActiveEditorAsync().ConfigureAwait(true);
+        if (_disposed || (automatic && _catalogs.ServerName is not null)) return;
+
+        var label = connection is null
+            ? null
+            : new SqlConnectionLabel(connection.Origin.ServerName, connection.Catalog.ConnectionSource.DatabaseName);
+
+        if (connection is null || !_model.Scope.Apply(label))
+        {
+            if (!automatic) Report(SqlEditorConnectionText.NotConnectedReport);
+            return;
+        }
+
+        _catalogs.Select(connection);
+        ScopeChanged();
+    }
+
+    /// <summary>從伺服器下拉選查詢視窗連著的那一台（它不在物件總管上）；資料庫回到「全部」。</summary>
+    private async Task SelectEditorServerAsync()
+    {
+        if (await _catalogs.ReadActiveEditorAsync().ConfigureAwait(true) is not { } connection)
         {
             Report(SqlEditorConnectionText.NotConnectedReport);
             return;
         }
 
-        if (!_catalogs.FollowsActiveEditor) SelectServer(null);
-        ClearDatabases();
+        if (!_disposed && _catalogs.Select(connection)) ServerChanged();
+    }
+
+    /// <summary>選物件總管上的一台；資料庫回到「全部」。</summary>
+    /// <remarks>
+    /// 索引<b>不</b>丟：它照連線的快取鍵存，換回來時原本那一份還在。
+    /// </remarks>
+    private void SelectServer(SsmsObjectExplorerServer server)
+    {
+        if (_catalogs.Select(server)) ServerChanged();
     }
 
     /// <summary>
-    /// 換一台伺服器；<paramref name="server"/> 為 null 表示回到作用中的查詢視窗。
+    /// 選定的伺服器換了（或放掉了）：模型那一份跟著換，資料庫的勾選由它一起清掉，再重搜。
     /// </summary>
     /// <remarks>
-    /// 資料庫的勾選在觀測到換台時由 <see cref="SqlSearchBrowserModel.ObserveServer"/> 清掉，
-    /// 不在這裡清：跟著查詢視窗換台是同一條規則。索引<b>不</b>丟：它照連線的快取鍵存，
-    /// 換回來時原本那一份還在。
+    /// 名稱照 <see cref="SqlSearchCatalogs.ServerName"/> 寫回模型：兩份各自決定的話，摘要說的
+    /// 與實際搜的會是兩台。
     /// </remarks>
-    private void SelectServer(SsmsObjectExplorerServer? server)
+    private void ServerChanged()
     {
-        if (!_catalogs.Select(server))
-        {
-            // 勾掉目前這一個不是一個範圍；把勾選寫回去，不留一個什麼都沒選的選單。
-            FillServer();
-            return;
-        }
+        if (_catalogs.ServerName is { } name) _model.Scope.SetServerSelected(name, selected: true);
+        else _model.Scope.ClearServers();
 
-        _model.Server = server?.DisplayName;
-        FillServer();
-        ObserveConnection(reload: true);
-
-        // 指名一台之後直接把資料庫面板打開：物件總管那條連線的預設資料庫通常是 master，
-        // 而「搜整台的 master」幾乎不會是使用者要的範圍。下一步擺在眼前比讓他自己發現
-        // 範圍不對便宜得多，而那一次展開同時也問到了連線預設是哪一個。
-        // 換回查詢視窗時不開：那一條連線的資料庫就是他正在看的那一個。
-        if (server is not null && IsVisible) Defer(_databases.Open);
+        ScopeChanged();
+        // 選的那一台放掉了（從物件總管中斷）：與開窗時同一條規則，還沒選就自動套用查詢視窗那一條。
+        if (_catalogs.ServerName is null) _ = RunAsync(() => ApplyEditorConnectionAsync(automatic: true));
     }
 
-    /// <remarks>
-    /// 兩個出處：切換分頁（<see cref="ActiveSqlEditor.Changed"/>），以及同一個分頁裡換連線、
-    /// 換資料庫或中斷（<see cref="SqlEditorConnectionWatcher.Changed"/>）。只接前者的症狀是
-    /// 在原分頁改連別台之後，列上「會不會開未連線的視窗」與範圍摘要都停在上一台。
-    /// 後者每批 F5 都會發一次，所以不強制重搜：範圍真的換了才重搜。
-    ///
-    /// 先等中繼資料服務確認再讀：事件當下服務手上的目錄還是上一台的，那時讀等於「沒換」，
-    /// 而確認完之後不會再有任何事件叫這裡重讀。
-    /// </remarks>
-    private void OnConnectionContextChanged(object? sender, EventArgs args) =>
-        SqlAssistPlatformGuard.Probe("排入 SQL Search 連線更新", () =>
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                _ = SqlAssistPlatformGuard.RunAsync("更新 SQL Search 連線", ObserveConfirmedConnectionAsync, fallback: false))));
-
-    private async Task<bool> ObserveConfirmedConnectionAsync()
-    {
-        await _catalogs.ConfirmAsync().ConfigureAwait(true);
-        ObserveConnection(reload: false);
-        return true;
-    }
-
-    /// <summary>重讀範圍與作用中的查詢視窗；範圍換過或 <paramref name="reload"/> 時把這一輪作廢重搜。</summary>
-    private void ObserveConnection(bool reload)
+    /// <summary>範圍換了：新的目錄交給 provider，上一台的清單與資料庫面板一起換掉，再重搜一輪。</summary>
+    private void ScopeChanged()
     {
         if (_disposed) return;
 
-        var moved = ObserveCatalog(out var catalog);
-        _activeEditorServer = _catalogs.ActiveEditorServerName();
-        _model.ActiveEditorServer = _catalogs.FollowsActiveEditor ? _activeEditorServer : null;
-        // 移至定義會不會開未連線的視窗跟著查詢視窗走；清單上既有的列在這裡重算，不在每次繪製時問。
-        foreach (var row in _rows) row.ObserveActiveEditor(_activeEditorServer);
-        // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
-        _databases.IsEnabled = catalog is not null;
-
-        if ((reload || moved) && IsVisible) Changed(immediate: true, keepChecks: !moved);
-        else UpdateChrome();
+        // 上一台的清單不代表這一台了。留到新結果回來才換的話，這一台還在建索引的那幾秒，
+        // 摘要寫著這一台，下面列的卻是上一台的物件。
+        if (ObserveCatalog(out _)) ClearRows();
+        // 勾選的重建要等這一輪事件走完：面板的繫結可能還在回寫。伺服器面板只在開著時重畫——
+        // 列伺服器會取用物件總管服務，沒有人在看的時候不去叫它。
+        Defer(() => FillDatabases(_scopeDatabases.Items));
+        if (_server.IsOpen) Defer(FillServer);
+        Changed(immediate: true);
     }
 
     /// <summary>
-    /// 把範圍的目錄與伺服器交給 provider，並同步跟著它走的狀態。
+    /// 作用中的查詢視窗換了（切分頁，或同一個分頁裡換連線、換資料庫、中斷）。
     /// </summary>
     /// <remarks>
-    /// 連線觀測與每一輪搜尋前都走這一支；各寫一份的症狀是兩邊對「目前資料庫」的說法不同
-    /// （物件總管那條連線沒有初始目錄，只有一邊記得退回清單上的名稱）。
+    /// <b>不動範圍</b>：伺服器與資料庫是使用者明確選的，只有套用按鈕會換成查詢視窗那一條。
+    /// 這裡只做兩件事——每一列「移至定義會不會開未連線的視窗」重算，以及還沒選伺服器時自動套用一次。
+    /// </remarks>
+    private void OnActiveEditorChanged(object? sender, EventArgs args) =>
+        SqlAssistPlatformGuard.Probe("排入 SQL Search 查詢視窗更新", () =>
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                _ = SqlAssistPlatformGuard.RunAsync("更新 SQL Search 查詢視窗", ObserveActiveEditorAsync, fallback: false))));
+
+    private async Task<bool> ObserveActiveEditorAsync()
+    {
+        if (_disposed) return false;
+
+        ObserveActiveEditor();
+        if (IsVisible && _catalogs.ServerName is null) await ApplyEditorConnectionAsync(automatic: true).ConfigureAwait(true);
+        return true;
+    }
+
+    /// <summary>重讀作用中查詢視窗連著哪一台，並讓清單上既有的列照它重算。</summary>
+    private void ObserveActiveEditor()
+    {
+        _activeEditorServer = _catalogs.ActiveEditorServerName();
+        foreach (var row in _rows) row.ObserveActiveEditor(_activeEditorServer);
+    }
+
+    /// <summary>工具窗重新出現：同一組條件重搜；還沒選伺服器就先自動套用查詢視窗那一條。</summary>
+    private void OnShown()
+    {
+        ObserveActiveEditor();
+        ObserveCatalog(out _);
+        Changed(immediate: true, keepChecks: true);
+        if (_catalogs.ServerName is null) _ = RunAsync(() => ApplyEditorConnectionAsync(automatic: true));
+    }
+
+    /// <summary>
+    /// 把選定那一台的目錄交給 provider，並同步跟著它走的狀態。
+    /// </summary>
+    /// <remarks>
+    /// 換範圍與每一輪搜尋前都走這一支：物件總管那一台的目錄在第一次解析時才建，連不上的那一次
+    /// 下一輪會再試。
     /// </remarks>
     /// <returns>範圍換到另一個目錄或另一台時為 true。</returns>
     private bool ObserveCatalog(out SqlMetadataCatalog? catalog)
@@ -788,24 +765,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         catalog = connection?.Catalog;
         var moved = _providers.UseConnection(connection);
         _model.HasConnection = _providers.HasConnection;
-
-        if (_model.ObserveServer(connection?.Origin.ServerName))
-        {
-            // 上一台的清單與勾選都不代表這一台了。清單留到新結果回來才換的話，這一台還在建索引的
-            // 那幾秒，摘要寫著這一台，下面列的卻是上一台的物件。勾選的重建要等這一輪事件走完。
-            ClearRows();
-            Defer(() => FillDatabases(_scopeDatabases.Items));
-        }
-
         // 清單快取跟著連線走，而且在這裡就同步：展開下拉時才比對的話，換一台之後
         // IsLoaded 仍是上一台的 true，下拉會一直畫著上一台的資料庫。
         _scopeDatabases.SyncTo(catalog);
-        // 兩顆按鈕的摘要都要說得出跟著誰、搜的是哪一個；「查詢視窗」與「連線預設」單獨出現時
-        // 分不出是沒連線，還是只搜得到 master。物件總管那條連線上沒有初始目錄，名稱要等
-        // 資料庫清單回來才補得上（見 FillDatabases）。
-        _model.CurrentDatabase = catalog?.ConnectionSource.DatabaseName is { Length: > 0 } name
-            ? name
-            : _scopeDatabases.CurrentName;
+        // 伺服器下拉一律可按：連不上目前這一台時，換一台正是使用者要做的事。
+        _databases.IsEnabled = catalog is not null;
         return moved;
     }
 
@@ -822,13 +786,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _matchToggles.Options = _model.MatchOptions;
 
         _kinds.UpdateSummary(_model.CategorySummary(), Join(_model.CategoryIds.Select(Label)));
-        _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Databases));
+        _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Scope.Databases));
         _server.UpdateSummary(_model.ServerSummary(), "");
 
         // 有條件的維度換強調底框；窄窗收掉摘要之後，看得出哪幾顆在縮小結果靠的就是它。
+        // 伺服器不算：它是必選的那一台，不是縮小結果的條件。
         _kinds.IsNarrowed = _model.CategoryIds.Count != 0;
-        _databases.IsNarrowed = _model.Databases.Count != 0;
-        _server.IsNarrowed = _model.Server is { Length: > 0 };
+        _databases.IsNarrowed = _model.Scope.Databases.Count != 0;
     }
 
     private string Label(string categoryId) =>
@@ -869,15 +833,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed || !IsVisible) return;
 
-        // 換過連線之後服務手上的目錄可能還是上一台的；搜尋等得起，先確認。等的途中又有新的一輪
-        // 就讓給它。
         var token = _request.Token;
-        await _catalogs.ConfirmAsync().ConfigureAwait(true);
-        if (_disposed || !IsVisible || token.IsCancellationRequested) return;
 
-        // 只更新目錄，不重跑這一輪；使用者可能在去彈跳期間換過查詢視窗。
+        // 只更新目錄，不重跑這一輪：物件總管那一台上一次連不上的話，這一輪再試一次。
         ObserveCatalog(out _);
-        if (_model.Begin(_providers.IsIndexed(_model.Scope)) is not { } round)
+        var known = _scopeDatabases.Items.Select(database => database.Name).ToArray();
+        if (_model.Begin(_providers.IsIndexed(_model.ToSearchScope(), known)) is not { } round)
         {
             // 這一輪不會有新結果來換掉舊的（清空了搜尋框或斷了線）；留著上一份等於拿過期的
             // 清單冒充目前條件的答案。

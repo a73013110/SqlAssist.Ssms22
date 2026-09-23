@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 

@@ -67,18 +67,22 @@ internal sealed class SqlSearchProviders
     /// <remarks>
     /// 只用來決定載入表面要不要出現，答錯的代價是多轉一圈或少轉一圈的載入圖示，不影響結果。
     /// 指名多個資料庫時只要有一個沒索引就算沒有：使用者要等的是最慢那一個。
+    /// 範圍是「全部」時照手上那份資料庫清單算；還不知道有哪幾個就當成沒有，第一輪多半要掃。
     /// </remarks>
-    public bool IsIndexed(SearchScope scope)
+    /// <param name="knownDatabases">這台伺服器上已知的資料庫；範圍是「全部」時才用到。</param>
+    public bool IsIndexed(SearchScope scope, IReadOnlyList<string> knownDatabases)
     {
         if (scope is null) throw new ArgumentNullException(nameof(scope));
+        if (knownDatabases is null) throw new ArgumentNullException(nameof(knownDatabases));
 
         if (Volatile.Read(ref _connection) is not { } connection) return true;
 
         var source = connection.Catalog.ConnectionSource;
+        var databases = scope.Databases.Count != 0 ? scope.Databases : knownDatabases;
 
-        if (scope.Databases.Count == 0) return _indexCache.IsFresh(source.CacheKey);
+        if (databases.Count == 0) return false;
 
-        foreach (var database in scope.Databases)
+        foreach (var database in databases)
         {
             var key = string.Equals(database, source.DatabaseName, StringComparison.OrdinalIgnoreCase)
                 ? source.CacheKey

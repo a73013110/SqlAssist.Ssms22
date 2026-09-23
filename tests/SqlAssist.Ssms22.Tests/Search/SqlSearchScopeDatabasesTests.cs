@@ -101,30 +101,11 @@ public sealed class SqlSearchScopeDatabasesTests
         scope.SyncTo(Catalog("LibReporting", server: "LIBSQL02"));
         Assert.False(scope.IsLoaded);
         Assert.Empty(scope.Items);
-        Assert.Equal("", scope.CurrentName);
 
         // 沒有連線不算換一台：切到沒有連線的查詢視窗時清掉清單，回來還要再付一條查詢。
         await scope.EnsureAsync(Catalog("LibReporting", server: "LIBSQL02"));
         scope.SyncTo(null);
         Assert.True(scope.IsLoaded);
-    }
-
-    /// <remarks>
-    /// 名稱由開啟後的連線說了算：物件總管那條連線的連線物件上沒有初始目錄，
-    /// 而範圍摘要一定要說得出目標。
-    /// </remarks>
-    [Fact]
-    public async Task 清單回來時記下沒有指名時搜的是哪一個()
-    {
-        using var scope = new SqlSearchScopeDatabases((_, _) => new[]
-        {
-            new SqlCatalogSearchDatabase("Library", isSystem: false),
-            new SqlCatalogSearchDatabase("master", isSystem: true, isCurrent: true)
-        });
-
-        Assert.Equal("", scope.CurrentName);
-        await scope.EnsureAsync(Catalog("Library"));
-        Assert.Equal("master", scope.CurrentName);
     }
 
     [Fact]

@@ -17,7 +17,7 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public sealed class SqlCatalogSearchDatabase
 {
-    public SqlCatalogSearchDatabase(string name, bool isSystem, bool isCurrent = false)
+    public SqlCatalogSearchDatabase(string name, bool isSystem)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -26,23 +26,9 @@ public sealed class SqlCatalogSearchDatabase
 
         Name = name;
         IsSystem = isSystem;
-        IsCurrent = isCurrent;
     }
 
     public string Name { get; }
-
-    /// <summary>
-    /// 沒有指名任何資料庫時，這一輪實際會搜的那一個。
-    /// </summary>
-    /// <remarks>
-    /// 由<b>開啟後的連線</b>說了算（<c>IDbConnection.Database</c>），不由連線字串推算：
-    /// 物件總管那條連線的連線物件上沒有初始目錄，而範圍摘要一定要說得出目標。少了這一欄的
-    /// 症狀是使用者看到一句「連線預設」卻不知道那是哪一個，而它通常是 <c>master</c>。
-    ///
-    /// 不寫成查詢裡的 <c>DB_ID()</c>：那一類函式加不了限定字，而這個檔案裡的查詢共用同一條
-    /// 規矩（見 <c>SqlCatalogSearchQueriesTests</c>）。
-    /// </remarks>
-    public bool IsCurrent { get; }
 
     /// <summary>
     /// master／tempdb／model／msdb 四個。
@@ -60,9 +46,9 @@ public sealed class SqlCatalogSearchDatabase
 /// 向一台伺服器要它的資料庫清單。
 /// </summary>
 /// <remarks>
-/// <b>這一支不建任何索引。</b>它只回答「有哪些可以選」；建索引仍然只發生在使用者真的
-/// 勾了某一個之後——把每一個進得去的資料庫都先索引一遍是明文禁止的，共用主機上等於
-/// 幾十次全表掃描，而其中九成九不會有人搜。
+/// <b>這一支不建任何索引。</b>它只回答「有哪些可以選」，也是範圍選「全部」時那一輪要搜的名單；
+/// 建索引只發生在真的要搜某一個的時候。打開下拉就先把每一個都索引一遍是禁止的：共用主機上
+/// 等於幾十次全表掃描，而使用者可能只是來挑一個。
 /// </remarks>
 public static class SqlCatalogSearchDatabases
 {
@@ -95,10 +81,6 @@ public static class SqlCatalogSearchDatabases
             command.CommandTimeout = commandTimeoutSeconds;
 
             var databases = new List<SqlCatalogSearchDatabase>();
-            // 開啟之後才問得到真正的那一個：未開啟的連線物件上只有連線字串裡的初始目錄，
-            // 而物件總管那一條沒有。
-            var current = connection.Database ?? "";
-
             using var reader = command.ExecuteReader();
 
             while (reader.Read())
@@ -108,9 +90,7 @@ public static class SqlCatalogSearchDatabases
                 // is_system 是查詢自己用 CASE 算出來的 int，不是目錄檢視上的 bit 欄位；
                 // 用 GetBoolean 讀會拿到 InvalidCastException，而那不是 DbException，
                 // 降級接不住。
-                var name = reader.GetString(0);
-                databases.Add(new SqlCatalogSearchDatabase(
-                    name, reader.GetInt32(1) != 0, string.Equals(name, current, StringComparison.OrdinalIgnoreCase)));
+                databases.Add(new SqlCatalogSearchDatabase(reader.GetString(0), reader.GetInt32(1) != 0));
             }
 
             return databases;

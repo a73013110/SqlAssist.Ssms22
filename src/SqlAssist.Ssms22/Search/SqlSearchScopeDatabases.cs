@@ -14,11 +14,12 @@ namespace SqlAssist.Ssms22.Search;
 /// <remarks>
 /// 清單走 <see cref="SqlCatalogSearchDatabases.TryList"/>，不讀
 /// <see cref="SqlMetadataCatalog.CachedSnapshot"/>：那一份是補全在按鍵路徑上載入的，
-/// 指名物件總管上一台伺服器時它從頭到尾是空的——症狀是使用者選了伺服器，資料庫下拉
-/// 一個選項都沒有，而那台上明明有幾十個庫，整輪只搜連線預設的那一個。
+/// 選物件總管上一台伺服器時它從頭到尾是空的——症狀是使用者選了伺服器，資料庫下拉
+/// 一個選項都沒有，而那台上明明有幾十個庫。
 ///
 /// <b>禁止</b>在沒有人打開下拉時先問：一條輕查詢仍然是一條連線，而且十個查詢視窗
-/// 各開一次等於十輪。這一支不建任何索引；索引只發生在使用者真的勾了某一個之後。
+/// 各開一次等於十輪。這一支不建任何索引；範圍是「全部」時要搜哪幾個由 provider 每一輪
+/// 自己問，不讀這一份。
 ///
 /// 只留<b>目前這條連線</b>那一份。換一台再換回來要多付一條查詢，而照鍵留好幾份的
 /// 代價是清單會過期得看不出來，以及一份永遠不會被丟掉的字典。
@@ -66,15 +67,6 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     public bool IsLoading => _loading is not null;
 
     /// <summary>
-    /// 沒有指名資料庫時，這一輪實際會搜的那一個；還沒問到清單時是空字串。
-    /// </summary>
-    /// <remarks>
-    /// 由伺服器說了算，不從連線字串推：物件總管那條連線上沒有初始目錄，而範圍摘要一定要
-    /// 說得出目標，理由見 docs/search-scope.md。
-    /// </remarks>
-    public string CurrentName { get; private set; } = "";
-
-    /// <summary>
     /// 把手上這一份標成舊的，下一次展開重問。
     /// </summary>
     /// <remarks>
@@ -94,7 +86,6 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
     {
         Invalidate();
         _items = Array.Empty<SqlCatalogSearchDatabase>();
-        CurrentName = "";
     }
 
     /// <summary>
@@ -163,13 +154,6 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
         {
             _items = databases;
             _loaded = true;
-            CurrentName = "";
-            foreach (var database in databases)
-            {
-                if (!database.IsCurrent) continue;
-                CurrentName = database.Name;
-                break;
-            }
         }
 
         return _items;

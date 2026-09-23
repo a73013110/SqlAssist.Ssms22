@@ -44,6 +44,7 @@
 | 連不上資料庫時的行為 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | SQL Memory 開不起來、停用後還在擷取、心跳或維護沒跑 | `Core/SqlMemory/SqlMemoryRuntime.cs`（`Ssms22/SqlMemory/SqlMemoryHost.cs` 只接線） |
 | SQL Memory 清單篩選、分頁、晚到回應或選取還原 | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 伺服器／資料庫篩選或套用查詢視窗的連線不對（兩個工具窗） | `Core/Connections/SqlConnectionScope.cs`；Search 的連線在 `Search/SqlSearchCatalogs.cs` |
 | 大小寫、整個字沒作用，或同一個字在兩個工具窗命中不同 | `Core/Matching/TextMatcher.cs`；開關在 `Ssms22/UI/SqlMatchToggles.cs` |
 | 多選勾不起來、勾錯列、選取工具列不出現 | `Ssms22/UI/SqlCardSelection.cs`、`SqlCardList.cs`、`SqlSelectionBar.cs` |
 | 批次複製的欄位、順序或「全部符合」讀不完 | `Core/SqlMemory/SqlMemoryCopy.cs`、`Core/Tabular/SqlTabularText.cs`、`Ssms22/SqlMemory/SqlMemoryBrowser.cs`；Search 的欄位在 `Search/SqlSearchRow.cs` |

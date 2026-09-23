@@ -1,5 +1,6 @@
 using System.IO;
 using Microsoft.Data.Sqlite;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.SqlMemory;
 using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 

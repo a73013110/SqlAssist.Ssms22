@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using Microsoft.VisualStudio.Shell;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;

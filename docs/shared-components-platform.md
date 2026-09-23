@@ -31,7 +31,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 搜尋框與工具列的開關樣式 | `Ssms22/UI/SqlAssistChrome.Search.cs` |
 | 搜尋框裡的比對開關（大小寫相同、整個字；值是 `TextMatchOptions`，寫回不發變更） | `Ssms22/UI/SqlMatchToggles.cs` |
 | 套用查詢視窗連線的那一顆（範圍列伺服器左邊，Tooltip 打開時才問目標） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateEditorConnectionButton` |
-| 「查詢視窗（…）」、未連線與無法套用時的用詞 | `Ssms22/UI/SqlEditorConnectionText.cs` |
+| 套用按鈕的名稱、Tooltip 與無法套用時的用詞 | `Ssms22/UI/SqlEditorConnectionText.cs` |
 | 查詢視窗的伺服器與資料庫、連線字串裡的伺服器名稱 | `Ssms22/Connections/SqlWindowConnections.cs` |
 | Chevron、圖示按鈕／開關與兩級分隔線 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` |
 | 卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |

@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 using static SqlAssist.Core.Tests.SqlMemory.SqlMemoryTestData;

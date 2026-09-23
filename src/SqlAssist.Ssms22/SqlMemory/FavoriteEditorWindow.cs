@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Connections;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
