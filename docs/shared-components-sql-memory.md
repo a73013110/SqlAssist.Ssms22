@@ -10,7 +10,8 @@
 | SQL 內容位址、版本取樣與交易式儲存契約（含連線 facets） | `Core/SqlMemory/SqlContent.cs`、`SqlCapturePlanner.cs`、`ISqlHistoryStore.cs` |
 | 「這份 SQL 沒有內容」（擷取、新增至收藏與預覽空狀態共用） | `Core/SqlMemory/SqlContent.cs` 的 `IsBlank`（清理既有資料那一份是 SQL，在 `SqliteHistoryRows.Blank`） |
 | 開啟／關閉、世代、寫入器故障、心跳、維護排程與使用者主動整理 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
-| 清單的篩選轉請求、分頁世代與選取還原（含條件快照 `SqlMemoryQuery`） | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 清單的篩選轉請求、分頁世代與選取還原（含條件快照 `SqlMemoryQuery` 與它的比對器） | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
+| 預覽要標的命中與狀態列那一句（收藏只靠名稱或說明命中） | `Core/SqlMemory/SqlMemoryPreviewMatches.cs` |
 | 批次複製的欄位、上限與「全部符合」逐頁讀取 | `Core/SqlMemory/SqlMemoryCopy.cs` |
 | 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
 | 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |

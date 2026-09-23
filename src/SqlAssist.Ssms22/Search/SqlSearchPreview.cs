@@ -248,7 +248,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     /// </remarks>
     private static string MatchNotice(int located, bool truncated, SqlSearchRow row)
     {
-        if (truncated) return $"命中太多，只標出前 {SqlSearchDefinitionHighlight.Maximum} 處。";
+        if (truncated) return MatchHighlights.TruncatedNotice;
         if (located != 0 || row.Hit.SnippetSpans.Count == 0) return "";
         return "命中位置對不上這一份定義，已顯示完整定義。";
     }

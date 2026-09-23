@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Windows;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.SqlMemory;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -154,6 +155,60 @@ public sealed class SqlScriptDocumentTests
             Assert.Equal(Colors.LightYellow, ThemeResourceSetTests.ColorOf(matches[1][0].Background));
             // 回到原本的著色分類，不是回到「某一種前景色」——這一段是識別字，走 Foreground。
             Assert.Equal(Colors.Black, ThemeResourceSetTests.ColorOf(matches[1][0].Foreground));
+        });
+    }
+
+    /// <summary>
+    /// SQL Memory 預覽的命中：清單那一輪的比對器算出的每一處都成一組 Run，導覽換「目前」只動那一處。
+    /// </summary>
+    /// <remarks>
+    /// 預覽本身接著 SSMS 編輯器，進不了這個測試專案；這裡驗的是它交給文件的那一段，
+    /// 也就是 <c>SqlMemoryPreview.Show</c> 走的同一條路。
+    /// </remarks>
+    [Fact]
+    public void SqlMemory預覽的命中每一處都成組而且導覽只換目前那一處()
+    {
+        WpfTest.Run(() =>
+        {
+            const string sql = "SELECT [CopyNo] FROM Cat_BookCopy WHERE CopyNo = @copyNo;";
+            var model = new SqlMemoryBrowserModel
+            {
+                Search = "CopyNo",
+                MatchOptions = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord
+            };
+            var spans = SqlMemoryPreviewMatches.Locate(model.Query().Matcher, sql, favorite: false).Spans;
+
+            SqlScriptDocument.Build(sql, CreateResources(), spans, out var matches);
+
+            // 大小寫相同與整個字：Cat_BookCopy 與 @copyNo 都不標。
+            Assert.Equal(2, matches.Count);
+            Assert.All(matches, runs => Assert.Equal("CopyNo", string.Concat(runs.Select(run => run.Text))));
+
+            var cursor = new MatchCursor(spans);
+            SqlScriptDocument.SetCurrentMatch(matches[cursor.Index], current: true);
+            Assert.True(cursor.MoveNext());
+            SqlScriptDocument.SetCurrentMatch(matches[0], current: false);
+            SqlScriptDocument.SetCurrentMatch(matches[cursor.Index], current: true);
+
+            Assert.Equal(Colors.LightYellow, ThemeResourceSetTests.ColorOf(matches[0][0].Background));
+            Assert.Equal(Colors.Orange, ThemeResourceSetTests.ColorOf(matches[1][0].Background));
+            Assert.Equal(FontWeights.Bold, matches[1][0].FontWeight);
+        });
+    }
+
+    [Fact]
+    public void SqlMemory預覽沒有搜尋字時一處都不標()
+    {
+        WpfTest.Run(() =>
+        {
+            const string sql = "SELECT CopyNo FROM Cat_BookCopy;";
+            var spans = SqlMemoryPreviewMatches.Locate(new SqlMemoryBrowserModel().Query().Matcher, sql, favorite: false).Spans;
+
+            var document = SqlScriptDocument.Build(sql, CreateResources(), spans, out var matches);
+
+            Assert.Empty(matches);
+            Assert.DoesNotContain(document.Blocks.OfType<Paragraph>().SelectMany(paragraph => paragraph.Inlines.OfType<Run>()),
+                run => run.FontWeight != FontWeights.Normal);
         });
     }
 

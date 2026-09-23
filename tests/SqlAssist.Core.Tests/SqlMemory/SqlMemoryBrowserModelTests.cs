@@ -389,4 +389,29 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.True(model.Accept(last, new SqlMemoryPage<SqlFavoriteItem>(Array.Empty<SqlFavoriteItem>(), null)));
         Assert.False(model.HasMore);
     }
+
+    /// <remarks>
+    /// 預覽標命中用的比對器與清單的請求出自同一份快照：換了搜尋字或選項就是新的一個，
+    /// 沒有搜尋字時不標。空白與儲存層一樣算內容。
+    /// </remarks>
+    [Fact]
+    public void QueryMatcherFollowsTheSameSearchAndOptionsAsTheRequest()
+    {
+        var model = Ready();
+        Assert.Null(model.Query().Matcher);
+
+        model.Search = "CopyNo";
+        model.MatchOptions = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord;
+        var matcher = model.Query().Matcher!;
+        Assert.Equal(("CopyNo", TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord), (matcher.Pattern, matcher.Options));
+
+        model.MatchOptions = TextMatchOptions.None;
+        Assert.Equal(TextMatchOptions.None, model.Query().Matcher!.Options);
+
+        model.Search = " ";
+        Assert.Equal(" ", model.Query().Matcher!.Pattern);
+
+        model.Search = "";
+        Assert.Null(model.Query().Matcher);
+    }
 }

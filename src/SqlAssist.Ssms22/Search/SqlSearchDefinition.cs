@@ -122,19 +122,8 @@ internal sealed class SqlSearchDefinitionCache
 /// </remarks>
 internal static class SqlSearchDefinitionHighlight
 {
-    /// <summary>
-    /// 一份定義上最多標幾處。
-    /// </summary>
-    /// <remarks>
-    /// 沒有上限的症狀不是慢，是整份文件被切成上萬個 <see cref="System.Windows.Documents.Run"/>：
-    /// 一張寬表上有五十個資料行都叫得出使用者打的那幾個字，而每一個又在擴充屬性裡再出現一次。
-    /// 上限落在<b>標記</b>上不落在比對上——少標幾處要說得出口，所以由呼叫端拿
-    /// <c>truncated</c> 去說那一句。
-    /// </remarks>
-    internal const int Maximum = 500;
-
     /// <summary>這一列所有命中在 <paramref name="script"/> 上的區段，由前到後、不重疊；對不上時是空的。</summary>
-    /// <param name="truncated">超過 <see cref="Maximum"/> 而少標了幾處；呼叫端要說出來。</param>
+    /// <param name="truncated">超過 <see cref="MatchHighlights.Maximum"/> 而少標了幾處；呼叫端要說出來。</param>
     internal static IReadOnlyList<MatchSpan> Locate(SearchHit hit, string script, out bool truncated)
     {
         if (hit is null) throw new ArgumentNullException(nameof(hit));
@@ -154,10 +143,11 @@ internal static class SqlSearchDefinitionHighlight
 
         var ordered = Flatten(found);
 
-        if (ordered.Count <= Maximum) return ordered;
+        // 上限與 SQL Memory 預覽同一個數，理由在 MatchHighlights.Maximum。
+        if (ordered.Count <= MatchHighlights.Maximum) return ordered;
 
         truncated = true;
-        ordered.RemoveRange(Maximum, ordered.Count - Maximum);
+        ordered.RemoveRange(MatchHighlights.Maximum, ordered.Count - MatchHighlights.Maximum);
         return ordered;
     }
 

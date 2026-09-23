@@ -921,7 +921,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     }
 
     private void UpdatePreview() =>
-        _detail.Select(_model.IsAvailable && IsVisible ? _list.SelectedItem as SqlMemoryRow : null, _splitView.IsDetailExpanded);
+        _detail.Select(_model.IsAvailable && IsVisible ? _list.SelectedItem as SqlMemoryRow : null, _splitView.IsDetailExpanded,
+            _model.Query().Matcher);
 
     private void UpdateActions()
     {

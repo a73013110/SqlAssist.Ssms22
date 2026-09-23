@@ -177,7 +177,7 @@ public sealed class SqlSearchDefinitionHighlightTests
     public void 超過上限時截斷並回報()
     {
         var builder = new System.Text.StringBuilder("CREATE TABLE [dbo].[Loan] (\r\n");
-        for (var index = 0; index <= SqlSearchDefinitionHighlight.Maximum; index++)
+        for (var index = 0; index <= MatchHighlights.Maximum; index++)
             builder.Append("    [CopyNo] int, -- ").Append(index).Append("\r\n");
         var script = builder.Append(");\r\n").ToString();
 
@@ -185,7 +185,7 @@ public sealed class SqlSearchDefinitionHighlightTests
             Hit(SearchMatchTarget.Column, "CopyNo", new MatchSpan(0, 6)), script, out var truncated);
 
         Assert.True(truncated);
-        Assert.Equal(SqlSearchDefinitionHighlight.Maximum, spans.Count);
+        Assert.Equal(MatchHighlights.Maximum, spans.Count);
     }
 
     private static SearchHit Hit(SearchMatchTarget target, string snippet, params MatchSpan[] spans) =>

@@ -69,11 +69,22 @@ public sealed class SqlMemoryQuery
         _servers = new List<string>(servers).ToArray();
         _databases = new List<string>(databases).ToArray();
         _since = since;
+        // 與儲存層同一條規則：空字串停用搜尋，空白仍是內容（見 SqliteSearchScan.Create）。
+        Matcher = search.Length == 0 ? null : new TextMatcher(search, matchOptions);
     }
 
     public long Generation { get; }
     public long HostGeneration { get; }
     public bool IsFavorites { get; }
+
+    /// <summary>
+    /// 這一輪清單的比對器；沒有搜尋字時 null。
+    /// </summary>
+    /// <remarks>
+    /// 預覽拿它標命中位置：清單與預覽從同一份快照取搜尋字與選項，換了其中一個就是新的一輪，
+    /// 不會出現清單照舊條件、預覽照框裡剛打的字標的那種錯位。
+    /// </remarks>
+    public TextMatcher? Matcher { get; }
 
     public SqlHistoryRequest HistoryRequest(int pageSize, string? cursor) =>
         new(pageSize, _kind, _search, _servers, _databases, _since, cursor: cursor, matchOptions: _matchOptions);
