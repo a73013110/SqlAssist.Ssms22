@@ -35,11 +35,8 @@ namespace SqlAssist.Ssms22.Connections;
 /// </remarks>
 internal static class SsmsObjectExplorer
 {
-    /// <summary>在父物件底下找子節點的上限；逾時當成找不到，不讓那一則通知停不下來。</summary>
+    /// <summary>從錨點往下找節點的上限；逾時當成找不到，不讓那一則通知停不下來。</summary>
     private const int ChildSearchTimeoutMilliseconds = 15000;
-
-    /// <summary>往下找幾層：物件底下一層資料夾、資料夾底下就是節點。</summary>
-    private const int ChildSearchDepth = 2;
 
     /// <summary>
     /// 物件總管上已連線的 SQL Server；取不到服務時回傳 null。
@@ -123,14 +120,16 @@ internal static class SsmsObjectExplorer
     /// 一個都指不到時回傳 -1。
     /// </summary>
     /// <remarks>
-    /// 與 <see cref="TryList"/> 同一個導覽服務。<see cref="SqlExplorerNode.OwnerUrn"/> 不是空的
-    /// 候選多走一段 <see cref="TrySelectUnderOwnerAsync"/>：導覽服務下不到資料表底下那幾層，
-    /// 而那正是資料行、條件約束與觸發程序所在的地方。自己去碰 <c>ObjectExplorerControl</c>
-    /// 或那棵樹一律禁止，理由見這個類別的說明。
+    /// 與 <see cref="TryList"/> 同一個導覽服務。<see cref="SqlExplorerNode.AnchorUrn"/> 不是空的
+    /// 候選多走一段 <see cref="TrySelectUnderAnchorAsync"/>：導覽服務只認得資料表、檢視與
+    /// 預存程序，下不到資料表底下那幾層，也到不了「程式設計」底下的函式、序列與資料表型別，
+    /// 連「系統資料庫」與「資料庫快照集」子資料夾裡的資料庫都指不到。
+    /// 自己去碰 <c>ObjectExplorerControl</c> 或那棵樹一律禁止，理由見這個類別的說明。
     ///
-    /// <b>同一個父物件只展開、只往下找一次。</b>掛在同一個物件底下的候選（<c>DEFAULT</c> 與
-    /// 它的資料行）一趟一起找，找到幾個就選最精確的那一個。一個一個試的症狀是第一個
-    /// 對不上時同一張表再展開、再翻一遍資料夾，而每一趟都各有一次逾時可以等。
+    /// <b>同一個錨點只展開、只往下找一次。</b>錨點相同的候選（<c>DEFAULT</c> 與它的資料行，
+    /// 資料表型別上的條件約束與型別本身）一趟一起找，找到幾個就選最精確的那一個。
+    /// 一個一個試的症狀是第一個對不上時同一個錨點再展開、再翻一遍資料夾，而每一趟都各有一次
+    /// 逾時可以等。
     ///
     /// <b>不</b>吞例外：使用者是自己按出這一步的，安靜地什麼都不做等於故障，呼叫端要把
     /// 每一種失敗寫到看得見的地方。取不到服務是唯一的例外——物件總管套件按需載入，
@@ -165,14 +164,15 @@ internal static class SsmsObjectExplorer
 
         if (ResolveNavigation(services) is not { } navigation) return -1;
 
-        var searchedOwners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var searchedAnchors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var reachedAnchors = new List<string>();
 
         for (var index = 0; index < candidates.Count; index++)
         {
             var candidate = candidates[index];
 
-            // 自己就有位址的那幾種（物件本身、作業）：導覽服務從樹根指得到。
-            if (!IsUnderOwner(candidate))
+            // 導覽服務自己指得到的那幾種（資料表、檢視、預存程序、作業）。
+            if (candidate.AnchorUrn.Length == 0)
             {
                 if (await navigation.NavigateToUrnAsync(candidate.Urn, cancellationToken).ConfigureAwait(true))
                 {
@@ -182,22 +182,26 @@ internal static class SsmsObjectExplorer
                 continue;
             }
 
-            // 這個父物件底下的候選已經一起找過了：找到的話早就回傳，這裡只剩沒找到。
-            if (!searchedOwners.Add(candidate.OwnerUrn)) continue;
+            if (IsCovered(candidate, reachedAnchors)) continue;
 
-            // 畫在父物件底下的那幾種：先讓導覽服務把樹展開到父物件，這一段它做得到，
-            // 而且展開的正好是接下來要找的那一層。
-            if (!await navigation.NavigateToUrnAsync(candidate.OwnerUrn, cancellationToken).ConfigureAwait(true))
+            // 這個錨點底下的候選已經一起找過了：找到的話早就回傳，這裡只剩沒找到。
+            if (!searchedAnchors.Add(candidate.AnchorUrn)) continue;
+
+            // 先讓導覽服務把樹展開到錨點（資料表、資料庫或伺服器），展開的正好是接下來要找的
+            // 那一層。到不了（系統資料庫、FileTable）就輪到同一個目標更遠的那個錨點。
+            if (!await navigation.NavigateToUrnAsync(candidate.AnchorUrn, cancellationToken).ConfigureAwait(true))
             {
                 continue;
             }
+
+            reachedAnchors.Add(candidate.AnchorUrn);
 
             var siblings = new List<int>();
 
             for (var next = index; next < candidates.Count; next++)
             {
-                if (IsUnderOwner(candidates[next]) &&
-                    string.Equals(candidates[next].OwnerUrn, candidate.OwnerUrn, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(candidates[next].AnchorUrn, candidate.AnchorUrn, StringComparison.OrdinalIgnoreCase) &&
+                    !IsCovered(candidates[next], reachedAnchors))
                 {
                     siblings.Add(next);
                 }
@@ -205,7 +209,7 @@ internal static class SsmsObjectExplorer
 
             var nodes = siblings.ConvertAll(sibling => candidates[sibling]);
 
-            if (await TrySelectUnderOwnerAsync(services, candidate.OwnerUrn, nodes, cancellationToken)
+            if (await TrySelectUnderAnchorAsync(services, candidate.AnchorUrn, nodes, cancellationToken)
                     .ConfigureAwait(true) is { } rank)
             {
                 return siblings[rank];
@@ -215,21 +219,53 @@ internal static class SsmsObjectExplorer
         return -1;
     }
 
-    private static bool IsUnderOwner(SqlExplorerNode node) =>
-        node.OwnerUrn.Length > 0 && !string.Equals(node.OwnerUrn, node.Urn, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// 這個候選在一個已經到得了、而且比它的錨點更近的錨點底下：從遠的地方再走一次只會
+    /// 經過同一段，一樣找不到。
+    /// </summary>
+    /// <remarks>
+    /// 同一個目標由近到遠有好幾條路（資料表、資料庫、伺服器根）。近的那一條<b>到得了</b>而
+    /// 找不到，代表它不在樹上（卸除了、被篩選器擋掉），遠的那一條只是把同一段重翻一遍，
+    /// 還多翻了沿路那些資料夾，各有一次逾時可以等。近的<b>到不了</b>才輪到遠的——系統資料庫
+    /// 與快照集導覽服務指不到，只能從伺服器根下去。錨點本身就是目標時（條件約束的資料表
+    /// 已經被導覽到過）也算，那個目標後面還有導覽服務直接指的那一條。
+    /// </remarks>
+    private static bool IsCovered(SqlExplorerNode candidate, IReadOnlyList<string> reachedAnchors)
+    {
+        foreach (var reached in reachedAnchors)
+        {
+            if (IsBelow(reached, candidate.AnchorUrn) &&
+                (string.Equals(candidate.Urn, reached, StringComparison.OrdinalIgnoreCase) ||
+                    IsBelow(candidate.Urn, reached)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary><paramref name="urn"/> 是 <paramref name="ancestor"/> 底下的位址（不含相等）。</summary>
+    /// <remarks>大小寫不敏感，理由與 <see cref="ChildSearch"/> 相同。</remarks>
+    private static bool IsBelow(string urn, string ancestor) =>
+        urn.Length > ancestor.Length &&
+        urn[ancestor.Length] == '/' &&
+        urn.StartsWith(ancestor, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// 在父物件的節點底下找出 <paramref name="nodes"/> 裡最前面的那一個並選取它；
+    /// 從錨點的節點往下找出 <paramref name="nodes"/> 裡最前面的那一個並選取它；
     /// 回傳它在 <paramref name="nodes"/> 裡的位置，一個都找不到時回傳 null。
     /// </summary>
     /// <remarks>
-    /// <b>為什麼不能只靠導覽服務。</b>SSMS 22 的 <c>NavigateToUrnAsync</c> 只認得四種中間
-    /// 資料夾（<c>Databases</c>、<c>UserTables</c>、<c>Views</c>、
-    /// <c>UserProgrammability/StoredProcedures</c>）。位址再深一段時它展開父節點、比對父節點的
-    /// <b>直接</b>子節點，而資料表的直接子節點全是資料夾，一個都比不中，接著查那張寫死的
-    /// 對應表，查不到就回 false。症狀是條件約束、觸發程序、索引與資料行一律停在資料表上。
+    /// <b>為什麼不能只靠導覽服務。</b>SSMS 22 的 <c>NavigateToUrnAsync</c> 從資料庫往下只認得
+    /// 三種物件：<c>SchemaObjectFolderPaths</c> 寫死 <c>UserTables</c>、<c>Views</c>、
+    /// <c>UserProgrammability/StoredProcedures</c>。其餘一段它只比對父節點的<b>直接</b>子節點，
+    /// 比不中就查那張表，查不到就回 false。所以函式、同義字、序列與資料表型別從樹根一個都
+    /// 指不到（它們隔著「程式設計」「函式」幾層資料夾），而資料表底下的條件約束、觸發程序、
+    /// 索引與資料行一律停在資料表上（資料表的直接子節點全是資料夾）。FileTable 與圖形資料表
+    /// 畫在「資料表」的子資料夾裡，系統資料庫與快照集畫在「資料庫」的子資料夾裡，同一個症狀。
     /// 同一個服務的 <c>ExpandNodeAsync</c>／<c>GetNodeChildrenAsync</c> 也替代不了：兩支都先用
-    /// URN 找節點，而資料夾的 URN 就是父物件的，問到的永遠是父物件那一層。
+    /// URN 找節點，而資料夾的 URN 就是父節點的，問到的永遠是父節點那一層。
     ///
     /// <b>為什麼不用 <c>FindNode(節點位址)</c> 代勞。</b>那一支確實下得到任何一層，代價卻是
     /// 從樹根開始的<b>全樹搜尋</b>：每一層都會把沿路資料夾的子節點建出來，而「建出來」就是
@@ -238,9 +274,9 @@ internal static class SsmsObjectExplorer
     /// Agent——大的伺服器上那是幾分鐘起跳，而畫面上只有一則停不下來的「在物件總管中選取」。
     /// 走這條路時<b>禁止</b>拿它去找還沒建出來的節點。
     ///
-    /// 所以這一支只做外科手術式的那一段：父物件剛剛才被導覽服務選到，從
-    /// <c>GetSelectedNodes</c> 拿它的 <c>INavigableItem</c>，往下只建它自己底下那幾個資料夾。
-    /// 連 <c>FindNode(父物件)</c> 都不用：它列舉的是 WinForms 控制項上的
+    /// 所以這一支只做外科手術式的那一段：錨點剛剛才被導覽服務選到，從
+    /// <c>GetSelectedNodes</c> 拿它的 <c>INavigableItem</c>，往下只建通往候選的那幾層。
+    /// 連 <c>FindNode(錨點)</c> 都不用：它列舉的是 WinForms 控制項上的
     /// <c>Hierarchies</c> 字典，不該離開 UI 執行緒，找不到時還會退回全樹搜尋。
     ///
     /// <b>往下走那一段在背景執行緒上，這是 SSMS 自己的用法。</b>樹展開節點時由
@@ -261,25 +297,27 @@ internal static class SsmsObjectExplorer
     /// <see cref="SqlAssistPlatformGuard.BeginProbe(string, Task)"/>：它只是把節點建出來，
     /// 失敗代表下一次按要自己付那一趟，跟預先載入同一個層級。
     /// </remarks>
-    private static async Task<int?> TrySelectUnderOwnerAsync(
-        IServiceProvider services, string ownerUrn, IReadOnlyList<SqlExplorerNode> nodes,
+    private static async Task<int?> TrySelectUnderAnchorAsync(
+        IServiceProvider services, string anchorUrn, IReadOnlyList<SqlExplorerNode> nodes,
         CancellationToken cancellationToken)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
         if (ResolveExplorer(services) is not { } explorer) return null;
 
-        if (SelectedItem(explorer, ownerUrn) is not { } owner)
+        if (SelectedItem(explorer, anchorUrn) is not { } anchor)
         {
-            SqlAssistDiagnostics.WriteAlways($"導覽到 {ownerUrn} 之後選取的不是它，改用下一個候選");
+            SqlAssistDiagnostics.WriteAlways($"導覽到 {anchorUrn} 之後選取的不是它，改用下一個候選");
             return null;
         }
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(ChildSearchTimeoutMilliseconds);
 
+        // 深度照最深的那一個候選：同一趟裡資料表型別本身在第四層，它的條件約束在第六層。
+        var depth = nodes.Max(node => node.Depth);
         var search = new ChildSearch(nodes, deadline.Token);
-        var walk = Task.Run(() => search.Under(owner, ChildSearchDepth), deadline.Token);
+        var walk = Task.Run(() => search.Under(anchor, depth), deadline.Token);
 
         try
         {
@@ -291,7 +329,7 @@ internal static class SsmsObjectExplorer
 
             if (cancellationToken.IsCancellationRequested) throw;
 
-            SqlAssistDiagnostics.WriteAlways($"在 {ownerUrn} 底下找子節點逾時，改用已找到的最接近候選");
+            SqlAssistDiagnostics.WriteAlways($"在 {anchorUrn} 底下找子節點逾時，改用已找到的最接近候選");
         }
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
@@ -324,23 +362,24 @@ internal static class SsmsObjectExplorer
     /// 從一個節點往下找候選位址；記住找到的最精確那一個，找到第一名就停。
     /// </summary>
     /// <remarks>
-    /// 只認兩種子節點：位址是候選之一，以及<b>資料夾</b>——樹上的資料夾沒有自己的位址，
-    /// 它的 <c>Context</c> 就是父節點的，而別的東西一律有自己的。靠這一條遞迴，搜尋範圍
-    /// 天生就關在這個物件底下。
+    /// 只往兩種子節點裡走：<b>資料夾</b>——樹上的資料夾沒有自己的位址，它的 <c>Context</c>
+    /// 就是父節點的，而別的東西一律有自己的——以及位址是某個候選<b>前綴</b>的物件
+    /// （資料表型別之於它的條件約束）。靠這兩條遞迴，搜尋範圍天生就關在通往候選的路上，
+    /// 不會翻進別的資料表或別的函式底下。資料夾不拿來比候選：它的位址與父節點相同，
+    /// 比中的話會把資料夾當成父節點選起來。
     ///
-    /// 資料夾照候選的 <see cref="SqlExplorerNode.Folder"/> 排過再翻：每翻開一個沒建過的資料夾
-    /// 就是一趟伺服器查詢，照樹的順序找觸發程序要先付資料行、索引鍵與條件約束三趟。
+    /// 照候選的 <see cref="SqlExplorerNode.Folders"/> 排過再翻：每翻開一個沒建過的資料夾
+    /// 就是一趟伺服器查詢，照樹的順序找函式要先付資料表、檢視與外部資源好幾趟。
     /// 只排序不過濾，名稱對不上的資料夾排在後面照樹的順序翻，最壞就是原本的成本。
     ///
-    /// 深度<b>要有上限</b>：這是一段會向伺服器查詢的遞迴，而樹上的資料夾巢狀多深不由我們決定。
-    /// 兩層就夠——物件底下一層資料夾、資料夾底下就是節點；<c>DEFAULT</c> 的位址雖然多一段
-    /// 資料行，畫它的仍然是資料表的那個資料夾。
+    /// 深度<b>要有上限</b>，由候選的 <see cref="SqlExplorerNode.Depth"/> 給：這是一段會向伺服器
+    /// 查詢的遞迴，而樹上的資料夾巢狀多深不由我們決定。
     ///
     /// 比對大小寫不敏感，與物件總管自己的 <c>NotifyHandler.FindItem</c> 同一條規則：
     /// 位址是我們照目錄組的，而樹上那一份來自 SMO，兩邊的大小寫沒有人保證一致。
     ///
     /// 背景執行緒寫、UI 執行緒在逾時後讀，所以結果放在鎖後面；逾時之後背景那一趟還在跑，
-    /// 它每翻一個子節點就看一次權杖，不會在放掉之後繼續建整張表的資料夾。
+    /// 它每翻一個子節點就看一次權杖，不會在放掉之後繼續往下建。
     /// </remarks>
     private sealed class ChildSearch
     {
@@ -364,8 +403,8 @@ internal static class SsmsObjectExplorer
         /// <returns>找到第一名（不必再找）時為 true。</returns>
         public bool Under(INavigableItem item, int depth)
         {
-            var ownerContext = item.Context?.Context;
-            var folders = new List<INavigableItem>();
+            var itemContext = item.Context?.Context;
+            var next = new List<(INavigableItem Item, (int Candidate, int Step) Preference)>();
 
             foreach (var child in item.GetChildren(ItemScope.Any) ?? Array.Empty<INavigableItem>())
             {
@@ -373,38 +412,58 @@ internal static class SsmsObjectExplorer
 
                 if (child?.Context?.Context is not { Length: > 0 } context) continue;
 
+                if (string.Equals(context, itemContext, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (depth > 1) next.Add((child, FolderPreference(child.Context.InvariantName)));
+
+                    continue;
+                }
+
                 if (Rank(context) is { } rank && Offer(child.Context, rank)) return true;
 
-                if (depth > 1 && string.Equals(context, ownerContext, StringComparison.OrdinalIgnoreCase))
-                {
-                    folders.Add(child);
-                }
+                if (depth > 1 && AncestorPreference(context) is { } preference) next.Add((child, preference));
             }
 
             // OrderBy 是穩定排序：沒有提示的資料夾維持樹的順序。
-            foreach (var folder in folders.OrderBy(Preference))
+            foreach (var (child, _) in next.OrderBy(entry => entry.Preference))
             {
                 _cancellationToken.ThrowIfCancellationRequested();
 
-                if (Under(folder, depth - 1)) return true;
+                if (Under(child, depth - 1)) return true;
             }
 
             return false;
         }
 
-        /// <summary>越精確的候選畫在哪個資料夾，那個資料夾就越先翻；認不得的排最後。</summary>
-        private int Preference(INavigableItem folder)
+        /// <summary>越精確的候選路上經過的資料夾越先翻，同一個候選照沿路順序；認不得的排最後。</summary>
+        private (int, int) FolderPreference(string? name)
         {
-            var name = folder.Context?.InvariantName;
-
-            if (string.IsNullOrEmpty(name)) return int.MaxValue;
-
-            for (var index = 0; index < _nodes.Count; index++)
+            if (!string.IsNullOrEmpty(name))
             {
-                if (string.Equals(_nodes[index].Folder, name, StringComparison.OrdinalIgnoreCase)) return index;
+                for (var index = 0; index < _nodes.Count; index++)
+                {
+                    var folders = _nodes[index].Folders;
+
+                    for (var step = 0; step < folders.Count; step++)
+                    {
+                        if (string.Equals(folders[step], name, StringComparison.OrdinalIgnoreCase)) return (index, step);
+                    }
+                }
             }
 
-            return int.MaxValue;
+            return (int.MaxValue, 0);
+        }
+
+        /// <summary>位址是某個候選的前綴時，那個候選越精確就越先翻；不是任何候選的前綴時回傳 null。</summary>
+        /// <remarks>排在同一個候選的資料夾前面：它確定在路上，資料夾只是名稱對得上。</remarks>
+        private (int, int)? AncestorPreference(string context)
+        {
+            for (var index = 0; index < _nodes.Count; index++)
+            {
+                if (IsBelow(_nodes[index].Urn, context)) return (index, -1);
+            }
+
+            return null;
         }
 
         private int? Rank(string context)

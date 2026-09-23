@@ -233,13 +233,18 @@ internal static partial class SqlSearchActivation
             source: server.DisplayName);
 
         // 不給取消權杖：使用者按的是「帶我過去」，中途放掉等於按了沒反應。
-        // 整串候選交給導航一次試完：哪一種畫在誰底下只有 SqlObjectExplorerUrn 知道（OwnerUrn），
-        // 同一個父物件底下的幾個候選要一趟一起找，這一層一個一個遞進去就做不到。
+        // 整串候選交給導航一次試完：從哪裡開始自己走只有 SqlObjectExplorerUrn 知道（AnchorUrn），
+        // 同一個錨點底下的幾個候選要一趟一起找，這一層一個一個遞進去就做不到。
         var selected = await SsmsObjectExplorer
             .TrySelectFirstAsync(services, nodes, CancellationToken.None)
             .ConfigureAwait(true);
 
-        if (selected == 0) return null;
+        // 比位址不比索引：資料表的第二個候選是同一個節點的另一條路（導覽服務指不到時
+        // 從資料庫往下走），選到它不是降級。
+        if (selected >= 0 && string.Equals(nodes[selected].Urn, nodes[0].Urn, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
 
         if (selected > 0)
         {
