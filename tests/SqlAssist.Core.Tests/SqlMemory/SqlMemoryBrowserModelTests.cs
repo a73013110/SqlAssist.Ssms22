@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 
@@ -87,11 +88,13 @@ public sealed class SqlMemoryBrowserModelTests
         model.Tab = SqlMemoryBrowserTab.Favorites;
         model.Kind = SqlHistoryFilter.Executions;
         model.Search = "Loan";
+        model.MatchOptions = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord;
 
         // 沒選任何名稱就是全部收藏，不需要先指定範圍。
         var all = model.BeginLoad()!;
         Assert.Null(all.History);
         Assert.Equal("Loan", all.Favorites!.Search);
+        Assert.Equal(TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord, all.Favorites.MatchOptions);
         Assert.Empty(all.Favorites.Servers);
         Assert.Empty(all.Favorites.Databases);
         model.End(all);
@@ -341,16 +344,18 @@ public sealed class SqlMemoryBrowserModelTests
         var model = Ready();
         model.Kind = SqlHistoryFilter.Executions;
         model.Search = "Loan";
+        model.MatchOptions = TextMatchOptions.WholeWord;
         model.SetServerSelected("LibraryServer", true);
         model.Invalidate(Now);
         var query = model.Query();
 
         // 背景逐頁讀的期間換了條件：快照照舊組請求，游標指紋才對得上；但模型說它已經不算數。
         model.Search = "Branch";
+        model.MatchOptions = TextMatchOptions.MatchCasing;
         model.SetServerSelected("Other", true);
         var request = query.HistoryRequest(SqlMemoryCopy.PageSize, "cursor");
-        Assert.Equal((SqlMemoryCopy.PageSize, SqlHistoryFilter.Executions, "Loan", "cursor"),
-            (request.PageSize, request.Kind, request.Search, request.Cursor));
+        Assert.Equal((SqlMemoryCopy.PageSize, SqlHistoryFilter.Executions, "Loan", "cursor", TextMatchOptions.WholeWord),
+            (request.PageSize, request.Kind, request.Search, request.Cursor, request.MatchOptions));
         Assert.Equal(new[] { "LibraryServer" }, request.Servers);
         Assert.Equal(Now.AddDays(-7), request.Since);
         Assert.True(model.IsCurrent(query));

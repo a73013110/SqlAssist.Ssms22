@@ -35,7 +35,7 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 名稱與資料行在未開修飾時用 `FuzzyMatcher`；大小寫或全字任一開啟後改走
 `SearchIdentifierMatch` 的字面比對。定義本文一律用字面子字串，分數是出現次數；
 模糊搜尋本文會讓長定義以零散字母取得不合理高分。字面命中仍向 `FuzzyMatcher` 取分，
-避免同一批結果出現第二套排序。旗標換算與掃描共用規則見[唯一實作](shared-components.md)。
+避免同一批結果出現第二套排序。名稱、本文與高亮換算共用 `SearchQuery.Matcher`，見[唯一實作](shared-components.md)。
 
 `SearchMatchTargets.GroupOrder` 先依名稱、資料行、本文分組，再於組內比分數；不同尺度不互比。
 同一物件只有一列，去重鍵不含命中位置或資料行名稱。代表取排名最高者，其餘攤平放入
@@ -85,7 +85,8 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 
 ## 關掉重開記得什麼
 
-只將比對位置、大小寫、全字存進 `SqlAssistState`；未知格式整組回預設。
+只將比對位置、大小寫、全字存進 `SqlAssistState`；後兩項的格式是 `TextMatchState`，
+與 SQL Memory 共用，未知格式整組回預設。
 伺服器、資料庫與物件種類不保存，見[搜尋範圍](search-scope.md)。
 
 ## 不支援

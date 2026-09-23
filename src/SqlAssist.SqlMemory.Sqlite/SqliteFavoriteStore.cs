@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.SqlMemory;
@@ -107,10 +108,11 @@ UpdatedAt=excluded.UpdatedAt,Version=excluded.Version;",
         if (request == null) throw new ArgumentNullException(nameof(request));
         cancellationToken.ThrowIfCancellationRequested();
         var binding = SqliteTimeCursor.Fingerprint(
-            SqlConnectionNames.Fingerprint(request.Servers), SqlConnectionNames.Fingerprint(request.Databases), request.Search);
+            SqlConnectionNames.Fingerprint(request.Servers), SqlConnectionNames.Fingerprint(request.Databases), request.Search,
+            ((int)request.MatchOptions).ToString(CultureInfo.InvariantCulture));
         var cursor = SqliteTimeCursor.Decode(request.Cursor, FavoriteCursor, _database.StoreId, binding, SqliteTimeCursor.IsId);
         // 搜尋只是標註篩選之上的條件，同樣受單頁掃描預算限制。
-        var search = SqliteSearchScan.Create(request.Search, _searchBudget, cancellationToken);
+        var search = SqliteSearchScan.Create(request.Search, request.MatchOptions, _searchBudget, cancellationToken);
         var conditions = new List<string>();
         var parameters = new List<(string Name, object? Value)> { ("$limit", search?.CandidateLimit ?? request.PageSize + 1) };
         SqliteConnectionFilter.Append(conditions, parameters, "f", request.Servers, request.Databases);

@@ -28,9 +28,12 @@ offset 續讀；History 讀投影、Favorites 讀標註，兩邊都不受搜尋�
 
 ## 搜尋語意
 
-Search 是區分大小寫的字面子字串，不是萬用字元或 FTS。null／空字串停用搜尋，空白是有效內容。
-History 只比對 SQL；Favorites 比對名稱、說明或 SQL 的聯集。SQL 以 KMP 掃完整 UTF-16LE BLOB，
-名稱與說明以 ordinal 比對；兩者都是 UTF-16 code unit 語意，未配對 surrogate 也照字面比。
+Search 是字面子字串，不是萬用字元或 FTS。null／空字串停用搜尋，空白是有效內容。
+預設不分大小寫；`MatchOptions` 的大小寫相同與整個字和 SQL Search 同一份選項與規則
+（`TextMatcher`，見[唯一實作](shared-components.md)），兩個工具窗同一個字命中同樣的列。
+History 只比對 SQL；Favorites 比對名稱、說明或 SQL 的聯集，三處同一套規則。SQL 以 KMP 掃完整
+UTF-16LE BLOB、不先解碼，名稱與說明走字串；兩者都是 UTF-16 code unit 語意，未配對 surrogate
+也照字面比。比對選項進游標指紋，換了比法的游標不能接著用。
 
 ## 掃描預算
 

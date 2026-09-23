@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 
@@ -232,8 +233,15 @@ public sealed class SqliteFavoriteTests
         Assert.Equal(3, (await Find("SELECT * FROM")).Length);
         Assert.Equal(3, (await Find(null)).Length);
         Assert.Equal(3, (await Find("")).Length);
-        foreach (var missing in new[] { "lib_reader", "讀者查詢 ", "' OR 1=1--", "Library.sql" })
+        foreach (var missing in new[] { "讀者查詢 ", "' OR 1=1--", "Library.sql" })
             Assert.Empty(await Find(missing));
+        // 預設不分大小寫；名稱、說明與 SQL 三處同一套規則，開了大小寫相同才擋掉。
+        Assert.Equal(new[] { tagged.FavoriteId, reader.FavoriteId }, await Find("lib_reader"));
+        Assert.Empty((await repository.ReadFavoritesAsync(
+            new SqlFavoriteRequest(20, search: "lib_reader", matchOptions: TextMatchOptions.MatchCasing), Token)).Items);
+        Assert.Equal(new[] { tag.FavoriteId }, (await repository.ReadFavoritesAsync(
+                new SqlFavoriteRequest(20, search: "標籤清單", matchOptions: TextMatchOptions.WholeWord), Token))
+            .Items.Select(item => item.Favorite.FavoriteId).ToArray());
         // 搜尋只在標註篩選之內；同一段 SQL 在沒標註的收藏也不會被帶進來。
         Assert.Equal(new[] { tagged.FavoriteId }, await Find("Lib_Reader", "LibraryServer"));
         Assert.Empty(await Find("Lib_Tag", "LibraryServer"));

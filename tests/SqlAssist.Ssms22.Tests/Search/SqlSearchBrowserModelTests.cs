@@ -504,8 +504,7 @@ public sealed class SqlSearchBrowserModelTests
         {
             HasConnection = true,
             Text = "PUBL_CODE",
-            MatchCasing = true,
-            WholeWord = true,
+            MatchOptions = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord,
             Targets = SearchTargets.Name | SearchTargets.Column,
         };
         model.UseCategories(Categories());
@@ -706,14 +705,13 @@ public sealed class SqlSearchBrowserModelTests
         var saved = new SqlSearchBrowserModel
         {
             Targets = SearchTargets.Name | SearchTargets.Column,
-            MatchCasing = true,
+            MatchOptions = TextMatchOptions.MatchCasing,
         };
 
         var restored = new SqlSearchBrowserModel();
         Assert.True(restored.RestoreMatchState(saved.MatchStateToken));
         Assert.Equal(SearchTargets.Name | SearchTargets.Column, restored.Targets);
-        Assert.True(restored.MatchCasing);
-        Assert.False(restored.WholeWord);
+        Assert.Equal(TextMatchOptions.MatchCasing, restored.MatchOptions);
     }
 
     [Theory]
@@ -727,16 +725,16 @@ public sealed class SqlSearchBrowserModelTests
     [InlineData("0|1|0")]
     [InlineData("7|2|0")]
     [InlineData("7|1|")]
+    [InlineData("7")]
     public void 認不得的比對方式整組維持預設(string token)
     {
-        var model = new SqlSearchBrowserModel { MatchCasing = false, WholeWord = false };
+        var model = new SqlSearchBrowserModel();
 
         Assert.False(model.RestoreMatchState(token));
 
         // 半套還原與「使用者上次真的這樣設」在畫面上一模一樣，所以一項都不能動。
         Assert.Equal(SearchTargets.All, model.Targets);
-        Assert.False(model.MatchCasing);
-        Assert.False(model.WholeWord);
+        Assert.Equal(TextMatchOptions.None, model.MatchOptions);
     }
 
     /// <summary>跑完一輪。走 Task.Run 離開測試執行器的同步內容，不在其上同步等待。</summary>

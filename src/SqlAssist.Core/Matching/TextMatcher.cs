@@ -36,13 +36,7 @@ public sealed class TextMatcher
     public TextMatcher(string pattern, TextMatchOptions options)
     {
         Pattern = pattern ?? throw new ArgumentNullException(nameof(pattern));
-        if ((options & ~(TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord)) != 0)
-        {
-            // 認不得的位元沒有人會去比；照「沒開」處理等於默默吞掉使用者的條件。
-            throw new ArgumentOutOfRangeException(nameof(options));
-        }
-
-        Options = options;
+        Options = TextMatchState.Require(options, nameof(options));
         IgnoreCase = (options & TextMatchOptions.MatchCasing) == 0;
         WholeWord = (options & TextMatchOptions.WholeWord) != 0;
         _comparison = IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Diagnostics;
@@ -56,12 +55,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
-    // 兩句話都說「勾起來會少掉什麼」，不說詞界、ordinal 這些只有寫程式的人讀得懂的字：
-    // 使用者要判斷的是「我現在找不到那張表，是不是被這一顆擋掉了」。
-    private readonly ToggleButton _matchCasing = SqlAssistChrome.CreateSearchToggle(
-        SqlIcon.MatchCase, "大小寫相同", "大小寫要完全一樣：搜 finish 就不會找到 Finish。");
-    private readonly ToggleButton _wholeWord = SqlAssistChrome.CreateSearchToggle(
-        SqlIcon.WholeWord, "整個字", "只找完整的字：搜 Copy 就不會找到 CopyNo 裡的那一段。");
+    private readonly SqlMatchToggles _matchToggles = new();
     private readonly SqlSearchSegments _segments = new();
     private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
     private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
@@ -81,8 +75,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     private SqlSearchRound? _round;
 
-    /// <summary>正在把模型的值寫回控制項；寫回去觸發的事件不是使用者的操作，不重跑一輪。</summary>
-    private bool _syncing;
     private bool _activating;
 
     /// <summary>
@@ -242,11 +234,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         // 大小寫與全字修飾的是「這個字串怎麼比」，不是搜哪裡，所以留在搜尋框裡而不是工具列上。
         // 列距由工具列決定，搜尋列自己不帶外距——兩處各留一份的症狀是兩層之間多出半列空白。
-        var bar = SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear, _matchCasing, _wholeWord);
-        _matchCasing.Checked += (_, _) => Option(() => _model.MatchCasing = true);
-        _matchCasing.Unchecked += (_, _) => Option(() => _model.MatchCasing = false);
-        _wholeWord.Checked += (_, _) => Option(() => _model.WholeWord = true);
-        _wholeWord.Unchecked += (_, _) => Option(() => _model.WholeWord = false);
+        var bar = SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear, _matchToggles.Buttons.ToArray());
+        _matchToggles.Changed += (_, _) => Run(() =>
+        {
+            _model.MatchOptions = _matchToggles.Options;
+            RememberMatchState();
+            FiltersChanged();
+        });
 
         ConfigureSort();
         _refresh.Click += (_, _) => Run(() =>
@@ -295,15 +289,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             searchSlot, _segments,
             new[] { new[] { _server, _databases }, new[] { _kinds } });
     }
-
-    /// <summary>搜尋框裡的選項開關；寫回控制項時不重跑一輪。</summary>
-    private void Option(Action apply) => Run(() =>
-    {
-        if (_syncing) return;
-        apply();
-        RememberMatchState();
-        FiltersChanged();
-    });
 
     /// <summary>把比對方式交給狀態存放區。</summary>
     /// <remarks>
@@ -804,17 +789,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     private void UpdateFilterChrome()
     {
-        // 寫回勾選狀態會觸發 Checked／Unchecked；沒有這道旗標就會再跑一輪，而那一輪又會寫回來。
-        _syncing = true;
-        try
-        {
-            _matchCasing.IsChecked = _model.MatchCasing;
-            _wholeWord.IsChecked = _model.WholeWord;
-        }
-        finally
-        {
-            _syncing = false;
-        }
+        // 寫回不發 Changed（見 SqlMatchToggles），所以不會再跑一輪、再寫回來一次。
+        _matchToggles.Options = _model.MatchOptions;
 
         _kinds.UpdateSummary(_model.CategorySummary(), Join(_model.CategoryIds.Select(Label)));
         _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Databases));

@@ -25,6 +25,7 @@ internal static class SqlAssistState
     private const string UpdateTagProperty = "UpdateTag";
     private const string SqlMemoryCaptureNoticeProperty = "SqlMemoryCaptureNotice";
     private const string SearchMatchStateProperty = "SearchMatchState";
+    private const string SqlMemoryMatchStateProperty = "SqlMemoryMatchState";
 
     private static WritableSettingsStore? _store;
     private static bool _resolved;
@@ -88,6 +89,14 @@ internal static class SqlAssistState
     {
         get => Read(SearchMatchStateProperty);
         set => Write(SearchMatchStateProperty, value);
+    }
+
+    /// <summary>SQL Memory 上次用的比對方式；格式是 <c>TextMatchState.Format</c>，沒有記錄時是空字串。</summary>
+    /// <remarks>與 <see cref="SearchMatchState"/> 分開記：兩個工具窗各自是一次不同的調查。</remarks>
+    public static string SqlMemoryMatchState
+    {
+        get => Read(SqlMemoryMatchStateProperty);
+        set => Write(SqlMemoryMatchStateProperty, value);
     }
 
     private static string Read(string property)

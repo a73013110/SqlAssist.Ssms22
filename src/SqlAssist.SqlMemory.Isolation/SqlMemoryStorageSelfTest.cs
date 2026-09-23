@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.SqlMemory.Isolation;
@@ -95,13 +96,16 @@ public static class SqlMemoryStorageSelfTest
                 // 只標資料庫的篩選也命中：伺服器與資料庫是兩個獨立的標註，不是階層。
                 var favoritePage = await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(1, databases: new[] { "Library" }), token).ConfigureAwait(false);
                 Require(favoritePage.Items.Count == 1 && favoritePage.Items[0].Favorite == changed && favoritePage.NextCursor == null, "SQL Favorite 標註篩選");
-                async Task<int> SearchFavoriteAsync(string search) =>
-                    (await reopened.ReadFavoritesAsync(new SqlFavoriteRequest(5, new[] { "LibraryServer" }, new[] { "Library" }, search), token)
+                async Task<int> SearchFavoriteAsync(string search, TextMatchOptions options = TextMatchOptions.None) =>
+                    (await reopened.ReadFavoritesAsync(
+                            new SqlFavoriteRequest(5, new[] { "LibraryServer" }, new[] { "Library" }, search, matchOptions: options), token)
                         .ConfigureAwait(false)).Items.Count;
-                // 說明為 null 的收藏靠 SQL 全文命中；大小寫不同的字串不得比對成功。
+                // 說明為 null 的收藏靠 SQL 全文命中；預設不分大小寫，開了大小寫相同才擋掉。
                 Require(await SearchFavoriteAsync("Lib_Reader").ConfigureAwait(false) == 1, "SQL Favorite SQL 全文搜尋");
                 Require(await SearchFavoriteAsync("讀者收藏").ConfigureAwait(false) == 1, "SQL Favorite 名稱搜尋");
-                Require(await SearchFavoriteAsync("lib_reader").ConfigureAwait(false) == 0, "SQL Favorite 搜尋區分大小寫");
+                Require(await SearchFavoriteAsync("lib_reader").ConfigureAwait(false) == 1, "SQL Favorite 搜尋預設不分大小寫");
+                Require(await SearchFavoriteAsync("lib_reader", TextMatchOptions.MatchCasing).ConfigureAwait(false) == 0, "SQL Favorite 搜尋大小寫相同");
+                Require(await SearchFavoriteAsync("Lib", TextMatchOptions.WholeWord).ConfigureAwait(false) == 0, "SQL Favorite 搜尋整個字");
                 var current = await VerifyFavoriteEditAsync(reopened, favoriteId, start, token).ConfigureAwait(false);
                 report.WriteLine("通過：SQL Favorite 改 SQL 建立新版本、不進 History，配額只留最新版本。");
                 Require(await reopened.DeleteFavoriteAsync(favoriteId, current, token).ConfigureAwait(false) == SqlFavoriteWriteResult.Committed, "刪除 SQL Favorite");

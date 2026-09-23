@@ -29,6 +29,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 可換行的工具列篩選 | `Ssms22/UI/SqlFilterBar.cs` |
 | 輸入框與右緣動作的第一列 | `Ssms22/UI/SqlInputRow.cs` |
 | 搜尋框與工具列的開關樣式 | `Ssms22/UI/SqlAssistChrome.Search.cs` |
+| 搜尋框裡的比對開關（大小寫相同、整個字；值是 `TextMatchOptions`，寫回不發變更） | `Ssms22/UI/SqlMatchToggles.cs` |
 | Chevron、圖示按鈕／開關與兩級分隔線 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` |
 | 卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
 | 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs` |

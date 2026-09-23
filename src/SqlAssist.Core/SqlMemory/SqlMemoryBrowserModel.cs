@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -51,18 +52,20 @@ public sealed class SqlMemoryQuery
 {
     private readonly SqlHistoryFilter _kind;
     private readonly string _search;
+    private readonly TextMatchOptions _matchOptions;
     private readonly string[] _servers;
     private readonly string[] _databases;
     private readonly DateTimeOffset? _since;
 
     internal SqlMemoryQuery(long generation, long hostGeneration, bool favorites, SqlHistoryFilter kind, string search,
-        IEnumerable<string> servers, IEnumerable<string> databases, DateTimeOffset? since)
+        TextMatchOptions matchOptions, IEnumerable<string> servers, IEnumerable<string> databases, DateTimeOffset? since)
     {
         Generation = generation;
         HostGeneration = hostGeneration;
         IsFavorites = favorites;
         _kind = kind;
         _search = search;
+        _matchOptions = matchOptions;
         _servers = new List<string>(servers).ToArray();
         _databases = new List<string>(databases).ToArray();
         _since = since;
@@ -73,10 +76,10 @@ public sealed class SqlMemoryQuery
     public bool IsFavorites { get; }
 
     public SqlHistoryRequest HistoryRequest(int pageSize, string? cursor) =>
-        new(pageSize, _kind, _search, _servers, _databases, _since, cursor: cursor);
+        new(pageSize, _kind, _search, _servers, _databases, _since, cursor: cursor, matchOptions: _matchOptions);
 
     public SqlFavoriteRequest FavoriteRequest(int pageSize, string? cursor) =>
-        new(pageSize, _servers, _databases, _search, cursor);
+        new(pageSize, _servers, _databases, _search, cursor, _matchOptions);
 }
 
 public enum SqlMemoryFooterKind
@@ -171,6 +174,10 @@ public sealed class SqlMemoryBrowserModel
 
     public SqlMemoryBrowserTab Tab { get; set; }
     public string Search { get; set; } = "";
+
+    /// <summary>搜尋框裡開著的比對修飾；與 SQL Search 同一份選項與規則。</summary>
+    public TextMatchOptions MatchOptions { get; set; }
+
     public SqlHistoryFilter Kind { get; set; } = SqlHistoryFilter.All;
 
     private readonly List<string> _servers = new();
@@ -258,7 +265,7 @@ public sealed class SqlMemoryBrowserModel
 
     /// <summary>目前這一輪清單的條件；清單的每一頁與「全部符合」的複製都從它組請求，兩邊不會各組一份。</summary>
     public SqlMemoryQuery Query() =>
-        new(_page.Generation, HostGeneration, IsFavorites, Kind, Search, _servers, _databases, Since);
+        new(_page.Generation, HostGeneration, IsFavorites, Kind, Search, MatchOptions, _servers, _databases, Since);
 
     /// <summary>快照是否仍屬於目前的篩選與宿主世代；背景讀完之後才寫剪貼簿，換過條件就不算數。</summary>
     public bool IsCurrent(SqlMemoryQuery query)

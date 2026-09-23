@@ -224,9 +224,8 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>使用者打進去的原文；空字串是「還沒開始搜尋」，不是「搜尋空字串」。</summary>
     public string Text { get; set; } = "";
 
-    public bool MatchCasing { get; set; }
-
-    public bool WholeWord { get; set; }
+    /// <summary>搜尋框裡開著的比對修飾；與 SQL Memory 同一份選項與規則。</summary>
+    public TextMatchOptions MatchOptions { get; set; }
 
     /// <summary>
     /// 這一輪要比對物件的哪幾個部位。
@@ -244,14 +243,13 @@ internal sealed class SqlSearchBrowserModel
     /// <remarks>
     /// 一個字串而不是三個狀態項：三項各記一次的話，只有其中一項寫成功的那一次會半套還原，
     /// 而畫面上分不出是記壞了還是使用者上次真的這樣設。格式是
-    /// <c>比對位置|大小寫|全字</c>，三段都是十進位整數。
+    /// <c>比對位置|</c>接 <see cref="TextMatchState.Format"/> 那一段。
     ///
     /// 記住的只有這三項。伺服器與資料庫綁在一條連線上，種類是一次調查裡的收斂，
     /// 兩者都不記——理由見 docs/search.md。
     /// </remarks>
     public string MatchStateToken =>
-        ((int)Targets).ToString(CultureInfo.InvariantCulture) + "|" +
-        (MatchCasing ? "1" : "0") + "|" + (WholeWord ? "1" : "0");
+        ((int)Targets).ToString(CultureInfo.InvariantCulture) + "|" + TextMatchState.Format(MatchOptions);
 
     /// <summary>
     /// 套回上一次記住的那三項。
@@ -267,24 +265,16 @@ internal sealed class SqlSearchBrowserModel
     {
         if (token is null) return false;
 
-        var parts = token.Split('|');
-        if (parts.Length != 3) return false;
+        var separator = token.IndexOf('|');
+        if (separator < 0) return false;
 
-        if (!int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var targets)) return false;
+        if (!int.TryParse(token.Substring(0, separator), NumberStyles.None, CultureInfo.InvariantCulture, out var targets)) return false;
         if (targets == 0 || (targets & ~(int)SearchTargets.All) != 0) return false;
-        if (!TryReadFlag(parts[1], out var casing) || !TryReadFlag(parts[2], out var wholeWord)) return false;
+        if (!TextMatchState.TryParse(token.Substring(separator + 1), out var options)) return false;
 
         Targets = (SearchTargets)targets;
-        MatchCasing = casing;
-        WholeWord = wholeWord;
+        MatchOptions = options;
         return true;
-    }
-
-    /// <remarks>「不是 1 就當成 false」會把記壞的字串讀成一個看起來正常的狀態。</remarks>
-    private static bool TryReadFlag(string value, out bool flag)
-    {
-        flag = string.Equals(value, "1", StringComparison.Ordinal);
-        return flag || string.Equals(value, "0", StringComparison.Ordinal);
     }
 
     /// <summary>結果清單的排序；取代原本的上下分組。</summary>
@@ -630,7 +620,7 @@ internal sealed class SqlSearchBrowserModel
 
         return new SqlSearchRound(
             generation,
-            new SearchQuery(Text, generation, BuildOptions(), BuildCategories(), BuildScope(), Targets),
+            new SearchQuery(Text, generation, MatchOptions, BuildCategories(), BuildScope(), Targets),
             !indexed);
     }
 
@@ -874,14 +864,6 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>沒有宣告的分類排在最後；不認得的 Id 不該插在認得的中間。</summary>
     private int CategoryRank(string categoryId) =>
         _categoryOrder.TryGetValue(categoryId, out var rank) ? rank : int.MaxValue;
-
-    private TextMatchOptions BuildOptions()
-    {
-        var options = TextMatchOptions.None;
-        if (MatchCasing) options |= TextMatchOptions.MatchCasing;
-        if (WholeWord) options |= TextMatchOptions.WholeWord;
-        return options;
-    }
 
     private IEnumerable<string>? BuildCategories() =>
         _categoryIds.Count == 0 ? null : new List<string>(_categoryIds);

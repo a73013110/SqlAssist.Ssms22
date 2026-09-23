@@ -186,6 +186,31 @@ public sealed class SqlSearchVisualTests
     /// 它們不上已選條件列，所以這一顆本身就是唯一的呈現；關著與開著只差一條髮絲線的那一版
     /// 等於沒有狀態。
     /// </remarks>
+    /// <summary>
+    /// 兩個工具窗共用的比對開關：值與按鈕一一對應，寫回去不算使用者按的。
+    /// </summary>
+    /// <remarks>寫回也發事件的那一版，宿主每還原一次就重跑一輪，再寫回來一次。</remarks>
+    [Fact]
+    public void 比對開關寫回不發變更只有使用者按的才算()
+    {
+        WpfTest.Run(() =>
+        {
+            var toggles = new SqlMatchToggles();
+            var changed = 0;
+            toggles.Changed += (_, _) => changed++;
+
+            toggles.Options = TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord;
+            Assert.Equal(0, changed);
+            Assert.Equal(TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord, toggles.Options);
+            Assert.Equal(2, toggles.Buttons.Count);
+
+            ((ToggleButton)toggles.Buttons[1]).IsChecked = false;
+            Assert.Equal(1, changed);
+            Assert.Equal(TextMatchOptions.MatchCasing, toggles.Options);
+            Assert.Equal("大小寫相同", System.Windows.Automation.AutomationProperties.GetName(toggles.Buttons[0]));
+        });
+    }
+
     [Fact]
     public void 搜尋框裡的開關開著時用強調色而不是與搜尋框同底的外框()
     {

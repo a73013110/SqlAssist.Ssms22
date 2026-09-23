@@ -48,10 +48,11 @@ internal sealed class SqliteSearchScan
         _cancellationToken = cancellationToken;
     }
 
-    public static SqliteSearchScan? Create(string? search, SqliteSearchBudget budget, CancellationToken cancellationToken) =>
+    public static SqliteSearchScan? Create(string? search, TextMatchOptions options, SqliteSearchBudget budget,
+        CancellationToken cancellationToken) =>
         string.IsNullOrEmpty(search)
             ? null
-            : new SqliteSearchScan(new TextMatcher(search!, TextMatchOptions.MatchCasing), budget, cancellationToken);
+            : new SqliteSearchScan(new TextMatcher(search!, options), budget, cancellationToken);
 
     /// <summary>候選查詢的 LIMIT：多一列用來分辨「預算用盡但還有候選」與「剛好掃完」。</summary>
     public int CandidateLimit => _budget.Candidates + 1;

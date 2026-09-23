@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -42,7 +43,8 @@ public sealed class SqlHistoryRequest
     /// <param name="databases">要列的資料庫；不需要先指定伺服器。</param>
     public SqlHistoryRequest(int pageSize, SqlHistoryFilter kind = SqlHistoryFilter.All,
         string? search = null, IEnumerable<string>? servers = null, IEnumerable<string>? databases = null,
-        DateTimeOffset? since = null, DateTimeOffset? until = null, string? cursor = null)
+        DateTimeOffset? since = null, DateTimeOffset? until = null, string? cursor = null,
+        TextMatchOptions matchOptions = TextMatchOptions.None)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
         if (!Enum.IsDefined(typeof(SqlHistoryFilter), kind)) throw new ArgumentOutOfRangeException(nameof(kind));
@@ -50,6 +52,7 @@ public sealed class SqlHistoryRequest
         PageSize = pageSize;
         Kind = kind;
         Search = search;
+        MatchOptions = TextMatchState.Require(matchOptions, nameof(matchOptions));
         Servers = SqlConnectionNames.Normalize(servers);
         Databases = SqlConnectionNames.Normalize(databases);
         Since = since?.ToUniversalTime();
@@ -59,7 +62,12 @@ public sealed class SqlHistoryRequest
 
     public int PageSize { get; }
     public SqlHistoryFilter Kind { get; }
+
+    /// <summary>字面子字串，只比對 SQL；null 或空字串停用搜尋。</summary>
     public string? Search { get; }
+
+    /// <summary><see cref="Search"/> 怎麼比；與 SQL Search 同一份選項與規則。</summary>
+    public TextMatchOptions MatchOptions { get; }
 
     /// <summary>要列的伺服器；空名單表示不限，不隱含「未標註」。</summary>
     public IReadOnlyList<string> Servers { get; }

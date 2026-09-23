@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
 
@@ -134,7 +135,7 @@ public sealed class SqliteHistoryTests
     }
 
     [Fact]
-    public async Task SearchIsLiteralCaseSensitiveAndIncludesTextBeyondPreview()
+    public async Task SearchIsLiteralAndIncludesTextBeyondPreview()
     {
         using var store = new SqliteTestStore();
         var repository = await store.Open(Token);
@@ -147,8 +148,46 @@ public sealed class SqliteHistoryTests
             Assert.InRange(page.Items[0].Preview.Length, 0, 240);
         }
         // History 的搜尋目標只有 SQL 全文；文件顯示名稱與 Favorite 的名稱欄位不在其中。
-        foreach (var search in new[] { "lib_reader", "' OR 1=1--", "DoesNotExist", "Library.sql" })
+        foreach (var search in new[] { "' OR 1=1--", "DoesNotExist", "Library.sql" })
             Assert.Empty((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions, search: search), Token)).Items);
+    }
+
+    /// <remarks>
+    /// 與 SQL Search 同一套規則：預設不分大小寫，兩顆修飾各自再縮小。整個字照識別字的形狀認，
+    /// 所以 <c>Lib</c> 不算 <c>Lib_Reader</c> 裡的一個字，而 <c>N'</c> 後面那一段仍是。
+    /// </remarks>
+    [Theory]
+    [InlineData("lib_reader", TextMatchOptions.None, true)]
+    [InlineData("lib_reader", TextMatchOptions.MatchCasing, false)]
+    [InlineData("Lib_Reader", TextMatchOptions.MatchCasing, true)]
+    [InlineData("Lib", TextMatchOptions.WholeWord, false)]
+    [InlineData("lib_reader", TextMatchOptions.WholeWord, true)]
+    [InlineData("lib_reader", TextMatchOptions.MatchCasing | TextMatchOptions.WholeWord, false)]
+    public async Task SearchHonorsMatchOptions(string search, TextMatchOptions options, bool found)
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        await store.Process(repository, store.Capture(sql: "SELECT N'Lib_Reader' FROM Loan;"), Token);
+
+        var page = await repository.ReadHistoryAsync(
+            new SqlHistoryRequest(10, SqlHistoryFilter.Executions, search: search, matchOptions: options), Token);
+
+        Assert.Equal(found ? 1 : 0, page.Items.Count);
+    }
+
+    /// <summary>換了比對方式的游標不能接著用：同一個位置在另一種比法下是另一份答案。</summary>
+    [Fact]
+    public async Task CursorIsBoundToMatchOptions()
+    {
+        using var store = new SqliteTestStore();
+        var repository = await store.Open(Token);
+        for (var i = 1; i <= 3; i++)
+            await store.Process(repository, store.Capture(i, $"SELECT {i} FROM Lib_Reader;", seconds: i), Token);
+        var first = await repository.ReadHistoryAsync(new SqlHistoryRequest(1, SqlHistoryFilter.Executions, search: "lib_reader"), Token);
+        Assert.NotNull(first.NextCursor);
+
+        await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.ReadHistoryAsync(new SqlHistoryRequest(1, SqlHistoryFilter.Executions,
+            search: "lib_reader", cursor: first.NextCursor, matchOptions: TextMatchOptions.MatchCasing), Token));
     }
 
     [Theory]

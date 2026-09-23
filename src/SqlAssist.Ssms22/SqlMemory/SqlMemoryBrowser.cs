@@ -9,9 +9,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Tabular;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
@@ -38,6 +40,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private bool _pruneAfterRefresh;
     private readonly TabControl _tabs = new();
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
+    private readonly SqlMatchToggles _matchToggles = new();
     // 兩顆都是多選：History 與 Favorites 的列早就存在，這一層只是縮小已存的那一份，而使用者要比的
     // 往往就是「這幾台上的同一段 SQL」。名單一頁一百個且可續頁，所以帶搜尋框；全選不放，
     // 它與第一列那個「全部」是同一件事。
@@ -113,7 +116,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         header.Children.Add(_hostStatus);
         var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
-        _search.ToolTip = "區分大小寫的字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。";
+        _search.ToolTip = "字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。大小寫與整個字看框裡那兩顆。";
         System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
         _refresh.Click += (_, _) => SqlMemoryActions.Run(RefreshList, Report);
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
@@ -124,7 +127,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             _connection, _serverFacet.Panel, _databaseFacet.Panel, _kind, _period);
         header.Children.Add(filters);
         // 與 SQL Search 同一列規範：框裡是修飾搜尋字串的直接控制，框外右緣是作用在這一份清單的操作。
-        var searchRow = new SqlInputRow(SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear), _refresh);
+        var searchRow = new SqlInputRow(
+            SqlAssistChrome.CreateInputBar(SqlIcon.Search, _search, clear, _matchToggles.Buttons.ToArray()), _refresh);
         // 多選時選取工具列蓋在搜尋列同一格上，正好在清單上面。
         _selectionBar = new SqlSelectionBar(_selection, searchRow) { ReturnFocus = _list.FocusCurrentRow };
         header.Children.Add(_selectionBar.Slot);
@@ -196,6 +200,20 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _kind.SelectionChanged += (_, _) => { _model.Kind = SqlMemoryBrowserModel.KindOptions[_kind.SelectedIndex].Value; Changed(); };
         _period.SelectionChanged += (_, _) => { _model.Period = SqlMemoryBrowserModel.PeriodOptions[_period.SelectedIndex].Value; Changed(); };
         _search.TextChanged += (_, _) => { clear.IsEnabled = _search.Text.Length > 0; _model.Search = _search.Text; Changed(); };
+        // 記住的只有比對方式；連線、狀態與期間每次開窗都從預設開始，理由見 docs/sql-memory-ui.md。
+        if (TextMatchState.TryParse(SqlAssistState.SqlMemoryMatchState, out var matchOptions))
+        {
+            _model.MatchOptions = matchOptions;
+            _matchToggles.Options = matchOptions;
+        }
+        _matchToggles.Changed += (_, _) => SqlMemoryActions.Run(() =>
+        {
+            _model.MatchOptions = _matchToggles.Options;
+            // 一改就記，不等關閉：SSMS 直接結束的那一次沒有人來得及收尾。
+            SqlAssistState.SqlMemoryMatchState = TextMatchState.Format(_model.MatchOptions);
+            // 沒有搜尋字時比對方式不影響結果；重讀一輪只會清掉勾選、把清單閃一次。
+            if (_model.Search.Length > 0) Changed();
+        }, Report);
         clear.IsEnabled = false;
         foreach (var facet in _connectionFacets) ConfigureFacet(facet);
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Memory 可見度", () =>

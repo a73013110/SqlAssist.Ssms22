@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -128,10 +129,11 @@ public sealed class SqlFavoriteRequest
     /// <param name="servers">伺服器標註；空名單表示不限，不隱含「未標註」。</param>
     /// <param name="databases">資料庫標註；不需要先指定伺服器。</param>
     public SqlFavoriteRequest(int pageSize, IEnumerable<string>? servers = null, IEnumerable<string>? databases = null,
-        string? search = null, string? cursor = null)
+        string? search = null, string? cursor = null, TextMatchOptions matchOptions = TextMatchOptions.None)
     {
         if (pageSize < 1 || pageSize > 200) throw new ArgumentOutOfRangeException(nameof(pageSize));
         PageSize = pageSize;
+        MatchOptions = TextMatchState.Require(matchOptions, nameof(matchOptions));
         // 標註的長度上限與儲存時同一份；篩選放行更長的字只會永遠篩不到，而畫面上看不出是為什麼。
         Servers = SqlConnectionNames.Normalize(servers, name => SqlFavoriteSave.Tag(name, nameof(servers)));
         Databases = SqlConnectionNames.Normalize(databases, name => SqlFavoriteSave.Tag(name, nameof(databases)));
@@ -148,9 +150,12 @@ public sealed class SqlFavoriteRequest
     public IReadOnlyList<string> Databases { get; }
 
     /// <summary>
-    /// 區分大小寫的字面子字串，與 History 搜尋同語意；命中名稱、說明或目前版本的 SQL 全文即納入。
+    /// 字面子字串，與 History 搜尋同語意；命中名稱、說明或目前版本的 SQL 全文即納入。
     /// 它是標註篩選之上的額外條件，不是 FTS 或萬用字元比對。
     /// </summary>
     public string? Search { get; }
+
+    /// <summary><see cref="Search"/> 怎麼比；名稱、說明與 SQL 三處同一份。</summary>
+    public TextMatchOptions MatchOptions { get; }
     public string? Cursor { get; }
 }
