@@ -1,6 +1,6 @@
 # 通知呈現與驗證
 
-卡片、動畫、設定頁版面與測試覆蓋。資料模型、合併與統計見[通知提示](notifications.md)；
+卡片、通知島、動畫、設定頁版面與測試覆蓋。資料模型、合併與統計見[通知提示](notifications.md)；
 三軸與可見度見[可見度](notifications-visibility.md)；文案見[通知訊息](notifications-messages.md)。
 
 ## 呈現與設定
@@ -44,6 +44,7 @@
 
 - 預設立即顯示、成功保留 2500 ms；失敗與降級至少保留 6000 ms。
 - 最短可見 800 ms；滑入與淡入 300 ms、淡出並縮小 220 ms，淡出時新工作會從目前狀態接續。
+  卡片與通知島的時長、緩動、勾號彈出與短震只有 `UI/NotificationMotion` 一份。
 - 每列保持身分；執行中新增列高度展開，已完成的新列只淡入，避免高度歸零遮掉勾號彈跳。
   每項與整體成功均微彈出、失敗短震動，不因別列更新重播。
 - 進度條與 Spinner 由 SSMS 強調色推導同色系漸層，邊框、微光及捲軸也跟隨主題。
@@ -54,10 +55,42 @@
   解除訂閱，卡片交給下一個宿主或收掉。
 - 計時器每 100 ms 問一次；內容沒變又沒有項目到期時回上一份快照，不重跑到期清理與投影。
 
+## 通知島
+
+取代卡片的單一表面，錨在作用中文件所在頂層視窗的右下角、狀態列上方。元件已完成、尚未接線：
+畫面上仍是上面的卡片與宿主，浮層宿主與切換在下一步。
+
+- `NotificationPresenter.Island` 投影活動列（規則同卡片）、膠囊摘要，以及依嚴重度、再依時間
+  新到舊排好的提醒；島嶼只認得 `UI/NotificationPromptItem` 裡的記錄。`Current()` 留給卡片，提醒不進去。
+- `Notifications/NotificationIslandState` 是純邏輯狀態機：
+
+  | 形態 | 何時 |
+  |---|---|
+  | Hidden／Compact／Done | 沒有內容／有工作在跑／都結束了 |
+  | Expanded | 停駐 300 ms、鍵盤焦點進來，或點衛星暫看；移開 600 ms 收回 |
+  | Prompt／PromptWithSatellite | 一則提醒；有活動時活動縮成左側衛星 |
+  | PromptStack | 兩則以上提醒，有活動時另標衛星 |
+
+  失敗不自動展開：圖示換警告，每多一個失敗短震一次。有提醒時停駐不展開活動。
+- `Notifications/NotificationPlacement` 以裝置像素算浮層：右距 16、距狀態列 12 DIP，
+  狀態列抓不到用 28 DIP；從右下角往左上長，右下角不動。
+- `UI/NotificationIsland` 是單一 Border，`UI/SpringMotion` 同時驅動寬、高與圓角（response 0.38 s、
+  阻尼 0.82，逐幀積分、保留速度、靜止即取消 `CompositionTarget.Rendering`；動畫關著直接到位）。
+  膠囊高 32、圓角 16、寬 160–320；展開與提醒寬 320、圓角 14。內容依目標尺寸排版，由圓角裁切
+  露出，變形中不重排。換內容時舊的 120 ms 淡出，新的延遲 60 ms、180 ms 淡入並從 0.96 放大；
+  出現從 12 DIP 圓點長出，消失縮回圓點再淡出。
+- 展開形態沿用 `NotificationRow`、`×N` 徽章、漸層條與「抬頭只回答文件」，明細最高 240 DIP。
+  衛星是 32 DIP 圓鈕、間隔 8，顯示靜態進度環；循環動畫只有膠囊或清單抬頭那一個。
+  疊起來的提醒後兩層各露出 5 DIP、縮放 0.96／0.92，右上角「1/3」；處理掉一則時下一則滑上來。
+- `UI/NotificationPromptView`：16 DIP 的 `SqlIcon` 語意圖示、標題字重 500、訊息最多 3 行
+  （全文在 ToolTip）、按鈕次要在左主要在最右，叉號 ToolTip「稍後提醒」。提醒 `LiveSetting=Assertive`，
+  活動 `Polite`；Tab 順序是叉號再到按鈕列。
+- 材質走 `SqlAssistChrome.ApplyNotificationMaterial`：柔影只掛在底色層並點陣快取，高對比退回實色。
+
 ## 驗證與限制
 
 自動測試涵蓋範圍看測試專案；這裡只記它們**不能**代替的事：渲染輸出在
-`artifacts/theme-qa/notification-qa/`，不是 SSMS 宿主畫面，不能拿來宣稱實機通過。
+`artifacts/theme-qa/notification-qa/`（通知島是 `island-*`），不是 SSMS 宿主畫面，不能拿來宣稱實機通過。
 降級與診斷紀錄見[可見度](notifications-visibility.md#降級等級與診斷)。
 
 實機需測：SQL 分頁／分割焦點切換、F12 開新查詢視窗的交接、SQL 分頁與 SQL Memory 工具窗互切、

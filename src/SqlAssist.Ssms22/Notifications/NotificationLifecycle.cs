@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Notifications;
 
@@ -34,8 +35,8 @@ internal static class NotificationLifecycle
     /// <summary>看得見之後至少留這麼久，免得一閃而過。</summary>
     internal static readonly TimeSpan MinimumVisible = TimeSpan.FromMilliseconds(800);
 
-    /// <summary>淡出的長度；與 <c>NotificationCard.Transition</c> 的收場一致。</summary>
-    internal static readonly TimeSpan FadeOutDuration = TimeSpan.FromMilliseconds(220);
+    /// <summary>淡出的長度；與表面的收場共用 <see cref="NotificationMotion.Exit"/>。</summary>
+    internal static readonly TimeSpan FadeOutDuration = NotificationMotion.Duration(NotificationMotion.Exit);
 
     /// <param name="items">這一輪看得見的列數。</param>
     /// <param name="attached">卡片目前掛在某個宿主上。</param>

@@ -2,8 +2,9 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 
 namespace SqlAssist.Ssms22.UI;
@@ -58,10 +59,6 @@ internal static partial class SqlAssistChrome
         return new Point(Math.Max(0, viewport.Width - panel.Width - marginX), marginY);
     }
 
-    internal static DoubleAnimation NotificationAnimation(double from, double to, int milliseconds) =>
-        new(from, to, TimeSpan.FromMilliseconds(milliseconds))
-        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
-
     // 固定 16 單位畫布縮至 12 DIP，不能依各形狀的 Bounds 拉伸，否則勾號會偏心。
     internal static Geometry NotificationGeometry(string data)
     {
@@ -71,24 +68,59 @@ internal static partial class SqlAssistChrome
         return geometry;
     }
 
-    internal static void AnimateNotificationResult(ScaleTransform scale, TranslateTransform shake, NotificationVisualStatus state)
+    /// <summary>
+    /// 通知表面的材質：玻璃底、邊緣與點陣快取的單層柔影；高對比退回實色並拿掉柔影。
+    /// </summary>
+    /// <remarks>
+    /// 柔影掛在只有底色的那一層，不掛在內容上：掛在內容上時文字也會帶著一圈模糊。
+    /// 依 DPI 給快取倍率，150%／200% 才不會糊；捲動或變形之外的影格只是搬一張圖。
+    /// </remarks>
+    internal static void ApplyNotificationMaterial(Border surface, UIElement? sheen, bool glass)
     {
-        if (state == NotificationVisualStatus.Completed)
+        if (sheen is not null) sheen.Visibility = glass ? Visibility.Visible : Visibility.Collapsed;
+        if (glass)
         {
-            var pop = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-            pop.KeyFrames.Add(new DiscreteDoubleKeyFrame(0.65, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            pop.KeyFrames.Add(new EasingDoubleKeyFrame(1.18, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)), new CubicEase { EasingMode = EasingMode.EaseOut }));
-            pop.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(380))));
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+            surface.SetResourceReference(Border.BackgroundProperty, ThemeResourceSet.NotificationGlassKey);
+            surface.SetResourceReference(Border.BorderBrushProperty, ThemeResourceSet.NotificationRimKey);
+            surface.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.14 };
         }
-        else if (state == NotificationVisualStatus.Failed)
+        else
         {
-            var animation = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-            var values = new[] { 0d, -2, 2, -1, 1, 0 };
-            for (var i = 0; i < values.Length; i++)
-                animation.KeyFrames.Add(new LinearDoubleKeyFrame(values[i], KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(i * 50))));
-            shake.BeginAnimation(TranslateTransform.XProperty, animation);
+            surface.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground);
+            surface.WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
+            surface.Effect = null;
         }
+
+        UpdateNotificationShadowCache(surface);
+    }
+
+    internal static void UpdateNotificationShadowCache(UIElement surface) =>
+        surface.CacheMode = surface.Effect is null ? null
+            : new BitmapCache { RenderAtScale = VisualTreeHelper.GetDpi(surface).DpiScaleX, SnapsToDevicePixels = true };
+
+    /// <summary>通知島旁邊的衛星：直徑 32 DIP 的圓鈕，停駐與鍵盤焦點只換邊框與底色。</summary>
+    internal static Button CreateNotificationSatellite(string name)
+    {
+        var circle = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
+        circle.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
+        circle.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        circle.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
+        circle.SetBinding(Border.BorderBrushProperty, TemplatedParent(nameof(Control.BorderBrush)));
+        var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        circle.AppendChild(content);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = circle };
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg");
+        AddTrigger(template, UIElement.IsKeyboardFocusedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg");
+        AddTrigger(template, ButtonBase.IsPressedProperty, Border.BackgroundProperty, ThemeBrush.RowPressed, "bg");
+        var button = new Button
+        {
+            Width = 32, Height = 32, Padding = new Thickness(0), Template = template, ToolTip = name,
+            FocusVisualStyle = null
+        };
+        ApplyNotificationCursor(button);
+        AutomationProperties.SetName(button, name);
+        return button;
     }
 }

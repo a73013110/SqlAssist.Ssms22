@@ -46,7 +46,12 @@ internal enum SqlIcon
     Maintain,
     Backup,
     Folder,
+
+    /// <summary>一般提醒；與 <see cref="Warning"/>、<see cref="Error"/> 是同一組狀態圖示。</summary>
+    Information,
+
     Warning,
+    Error,
     Overflow,
 
     /// <summary>往回一個命中；與 <see cref="NextMatch"/> 是一對。</summary>

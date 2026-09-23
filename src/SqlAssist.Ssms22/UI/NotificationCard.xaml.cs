@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -46,7 +47,7 @@ internal partial class NotificationCard : Border
         ContextLabel.FontFamily = title.FontFamily;
         title.Margin = new Thickness(0); title.TextTrimming = TextTrimming.CharacterEllipsis;
         SummaryButton.Content = title; SummaryHost.Content = SummaryButton;
-        CloseButton = SqlAssistChrome.CreateNotificationButton("關閉通知（不取消工作）", "M1,1 L11,11 M11,1 L1,11");
+        CloseButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.DismissActivities, "M1,1 L11,11 M11,1 L1,11");
         ToggleButton = SqlAssistChrome.CreateNotificationButton("展開或收合明細", "M1,3 L5,7 L9,3");
         // Chevron 以固定方形畫布的中心旋轉，不依扁平路徑拉伸，避免上下跳位。
         ((Path)ToggleButton.Content).Stretch = Stretch.None;
@@ -112,7 +113,7 @@ internal partial class NotificationCard : Border
                 failed > 0 ? ThemeBrush.NotificationFailure : completed > 0 ? ThemeBrush.NotificationSuccess : ThemeBrush.DimForeground);
             if (running > 0) StatusIcon.SetResourceReference(Shape.StrokeProperty, ThemeResourceSet.NotificationSpinnerKey);
             if (motion && running == 0)
-                SqlAssistChrome.AnimateNotificationResult(StatusScale, StatusShake,
+                NotificationMotion.PlayResult(StatusScale, StatusShake,
                     failed > 0 ? NotificationVisualStatus.Failed : completed > 0 ? NotificationVisualStatus.Completed : NotificationVisualStatus.Canceled);
         }
         _summaryResults.Clear();
@@ -122,9 +123,9 @@ internal partial class NotificationCard : Border
         {
             _spinning = running > 0 && motion;
             StatusRotation.BeginAnimation(RotateTransform.AngleProperty, _spinning ?
-                new DoubleAnimation(0, 360, TimeSpan.FromMilliseconds(1100)) { RepeatBehavior = RepeatBehavior.Forever } : null);
+                NotificationMotion.Spinner() : null);
         }
-        SqlAssistChrome.SetNotificationSummary(SummaryButton, $"已完成 ({completed}/{items.Count})");
+        SqlAssistChrome.SetNotificationSummary(SummaryButton, NotificationCatalog.ProgressSummary(completed, items.Count));
         // 維持成功計數語意：失敗與取消不冒充成功，細節放在提示與輔助技術名稱。
         var progress = items.Count == 0 ? 0 : (double)completed / items.Count;
         if (_progressTarget != progress || !motion)
@@ -136,7 +137,7 @@ internal partial class NotificationCard : Border
             // 增減都從目前畫面值接續，100 ms 刷新不重啟相同目標的動畫。
             if (motion && current != progress)
             {
-                var animation = SqlAssistChrome.NotificationAnimation(current, progress, 320);
+                var animation = NotificationMotion.Ease(current, progress, NotificationMotion.Progress);
                 animation.FillBehavior = FillBehavior.Stop;
                 Progress.BeginAnimation(System.Windows.Controls.Primitives.RangeBase.ValueProperty, animation);
             }
@@ -146,7 +147,7 @@ internal partial class NotificationCard : Border
         AutomationProperties.SetName(Progress, description);
         AutomationProperties.SetName(this, description);
         // 全部指向同一份文件時只在抬頭下方顯示一次；指向不同文件才保留各列的歸屬。
-        var commonDocument = CommonDocument(items);
+        var commonDocument = NotificationRow.CommonDocument(items);
         ContextLabel.Text = commonDocument; ContextLabel.ToolTip = commonDocument;
         ContextLabel.Visibility = commonDocument.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var id in _rows.Keys.Where(id => items.All(x => x.Id != id)).ToArray())
@@ -177,10 +178,10 @@ internal partial class NotificationCard : Border
             if (motion)
             {
                 _chevronRotation.BeginAnimation(RotateTransform.AngleProperty,
-                    SqlAssistChrome.NotificationAnimation(angle, expanded ? 180 : 0, 200));
+                    NotificationMotion.Ease(angle, expanded ? 180 : 0, NotificationMotion.Chevron));
                 DetailScroll.Visibility = Visibility.Visible;
                 DetailScroll.Measure(new Size(Math.Max(0, Math.Min(Width, MaxWidth) - 18), double.PositiveInfinity));
-                var reveal = SqlAssistChrome.NotificationAnimation(currentHeight, expanded ? DetailScroll.DesiredSize.Height : 0, 260);
+                var reveal = NotificationMotion.Ease(currentHeight, expanded ? DetailScroll.DesiredSize.Height : 0, NotificationMotion.Reveal);
                 // 反向點擊使舊回呼失效；只有最新轉場可以收起明細。
                 reveal.Completed += (_, _) =>
                 {
@@ -189,8 +190,8 @@ internal partial class NotificationCard : Border
                     DetailScroll.BeginAnimation(HeightProperty, null);
                 };
                 DetailScroll.BeginAnimation(HeightProperty, reveal);
-                DetailScroll.BeginAnimation(OpacityProperty, SqlAssistChrome.NotificationAnimation(
-                    expanded && currentHeight == 0 ? 0 : DetailScroll.Opacity, expanded ? 1 : 0, 220));
+                DetailScroll.BeginAnimation(OpacityProperty, NotificationMotion.Ease(
+                    expanded && currentHeight == 0 ? 0 : DetailScroll.Opacity, expanded ? 1 : 0, NotificationMotion.DetailFade));
             }
         }
         ToggleButton.ToolTip = expanded ? "收合明細" : "展開明細";
@@ -210,38 +211,16 @@ internal partial class NotificationCard : Border
         }
     }
 
-    /// <summary>
-    /// 這一批共同的文件；指向兩份以上文件時回空字串。
-    /// </summary>
-    /// <remarks>
-    /// 沒有文件的列（套件初始化、重建主題筆刷、中繼資料查詢）不參與比較。它們算進來的話，
-    /// 一列不屬於任何文件的背景工作就會把抬頭那一行整個收掉，而畫面上的其他列明明都來自
-    /// 同一份查詢——那正是檔名時有時無的成因。
-    /// </remarks>
-    private static string CommonDocument(IReadOnlyList<NotificationCardItem> items)
-    {
-        var common = "";
-        for (var index = 0; index < items.Count; index++)
-        {
-            var document = items[index].Document;
-            if (document.Length == 0) continue;
-            if (common.Length == 0) common = document;
-            else if (!string.Equals(common, document, StringComparison.Ordinal)) return "";
-        }
-
-        return common;
-    }
-
     internal void Transition(bool show, bool fresh, bool motion)
     {
         // 錨在右上，入場從上方滑入。
         if (fresh) { Opacity = 0; SurfaceSlide.Y = -20; }
-        var duration = motion ? (show ? 300 : 220) : 0;
+        var duration = motion ? (show ? NotificationMotion.Enter : NotificationMotion.Exit) : 0;
         // 從目前有效值反轉淡出，新工作不先跳回起點或閃現。
-        BeginAnimation(OpacityProperty, SqlAssistChrome.NotificationAnimation(Opacity, show ? 1 : 0, duration));
-        SurfaceSlide.BeginAnimation(TranslateTransform.YProperty, SqlAssistChrome.NotificationAnimation(SurfaceSlide.Y, 0, duration));
-        SurfaceScale.BeginAnimation(ScaleTransform.ScaleXProperty, SqlAssistChrome.NotificationAnimation(SurfaceScale.ScaleX, show ? 1 : 0.96, duration));
-        SurfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, SqlAssistChrome.NotificationAnimation(SurfaceScale.ScaleY, show ? 1 : 0.96, duration));
+        BeginAnimation(OpacityProperty, NotificationMotion.Ease(Opacity, show ? 1 : 0, duration));
+        SurfaceSlide.BeginAnimation(TranslateTransform.YProperty, NotificationMotion.Ease(SurfaceSlide.Y, 0, duration));
+        SurfaceScale.BeginAnimation(ScaleTransform.ScaleXProperty, NotificationMotion.Ease(SurfaceScale.ScaleX, show ? 1 : 0.96, duration));
+        SurfaceScale.BeginAnimation(ScaleTransform.ScaleYProperty, NotificationMotion.Ease(SurfaceScale.ScaleY, show ? 1 : 0.96, duration));
     }
 
     internal void StopMotion()

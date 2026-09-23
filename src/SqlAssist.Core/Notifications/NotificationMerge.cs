@@ -22,6 +22,8 @@ public static class NotificationMerge
     /// 代表列是群組中最早的那一項，位置與 <see cref="NotificationItem.Id"/> 都沿用它——
     /// 換成最新的那一項，每重複一次就是換一個身分，畫面又回到每次都重畫一列。
     /// 因此耗時顯示的是第一次的；逐次的總計、平均與最大值在工作階段統計。
+    ///
+    /// 提醒原樣保留、不當合併鍵：它不是完成的活動，併進同名的活動會讓按鈕跟著那一列消失。
     /// </remarks>
     public static IReadOnlyList<NotificationItem> Collapse(IReadOnlyList<NotificationItem> items)
     {
@@ -30,7 +32,7 @@ public static class NotificationMerge
         var positions = new Dictionary<(NotificationKind, string, string, string, string, NotificationStatus), int>();
         foreach (var item in items)
         {
-            if (item.Status == NotificationStatus.Running) { merged.Add(item); continue; }
+            if (item.Status == NotificationStatus.Running || item.IsPrompt) { merged.Add(item); continue; }
             var key = (item.Kind, item.Title, item.Subject, item.Document, item.Source, item.Status);
             if (positions.TryGetValue(key, out var position))
                 merged[position] = merged[position].WithRepeat(merged[position].Repeat + item.Repeat);

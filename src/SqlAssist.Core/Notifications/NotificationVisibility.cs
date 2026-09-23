@@ -17,6 +17,9 @@ public static class NotificationVisibility
     public static bool Includes(NotificationItem item, SqlAssistSettings settings)
     {
         if (!settings.Enabled || !settings.NotificationEnabled) return false;
+        // 提醒是要使用者決定的事，不是降噪的對象：詳細度、來源與失敗／降級通道都不管它，
+        // 否則「安靜」詳細度就會安靜地吃掉「有新版」這種一年幾次的決定。種類開關仍然有效。
+        if (item.IsPrompt) return settings.NotificationKinds[item.Kind];
         // 失敗與降級是獨立通道；即使高頻種類隱藏，它們仍可被看見。
         if (item.Status == NotificationStatus.Failed) return settings.NotificationFailures;
         if (item.Status == NotificationStatus.Degraded) return settings.NotificationDegraded;

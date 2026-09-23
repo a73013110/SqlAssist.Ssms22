@@ -11,6 +11,8 @@
 - 完成後的措辭由目錄依 `Status` 產生，呼叫端不自己寫。
 - 不放 SQL、路徑、認證或例外原文；`Message` 上限 512 字。
 
+- 目錄的常數欄位只放標題；提醒按鈕的識別字在 `NotificationActionIds`，其餘措辭是屬性或方法。
+
 | Status | 畫面 |
 |---|---|
 | Running | 標題＋主體 |
@@ -136,7 +138,21 @@ SQL 完全沒有記錄，值得進「通知失敗」回看；容量是**降級**
 自動檢查是事件（`Ambient`／`Notice`），只有真的有新版才出現：每次開 SSMS 都說一次「已是最新版」
 是噪音。版本號與文案由 `SqlAssistUpdateCheck` 給。
 
+## 提醒
+
+標題不守動詞開頭的契約：不轉過去式，回答「要決定什麼」。叉號 ToolTip 是「稍後提醒」；
+按鈕由次要排到主要，括號是參數。
+
+| 鍵 | 標題 | 按鈕 | 嚴重度 |
+|---|---|---|---|
+| `update.available` | SqlAssist 有新版 | 略過這一版 `update.skip`（版本號）、下載 `update.download`（發行頁） | Info |
+| `sqlmemory.capacity` | SQL Memory 超過容量警戒 | 開啟維護 `sqlmemory.open-maintenance` | Warning |
+| `sqlmemory.first-capture` | SQL Memory 已開始擷取 | 開啟 SQL Memory `sqlmemory.open` | Info |
+
+通知島的膠囊一項時是「標題 · 主體」，多項時是「N 項工作 · 成功數/總數」，由 `CapsuleSummary` 產生。
+
 ## 已知缺口
 
 等待 `SqlMetadataCatalog` 的 `_snapshotGate` 期間沒有排隊狀態，畫面上也看不出在等；
-結果格線、片段存放與掃描指令碼宣告三處尚未接線；`Trace` 的快取命中只進紀錄與記憶體歷史。
+結果格線、片段存放與掃描指令碼宣告三處尚未接線；上表三則提醒的呼叫端仍走 `Post`，
+與通知島一起換成 `Prompt`；`Trace` 的快取命中只進紀錄與記憶體歷史。

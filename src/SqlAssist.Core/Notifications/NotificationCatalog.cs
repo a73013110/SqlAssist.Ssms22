@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace SqlAssist.Core.Notifications;
@@ -126,6 +127,71 @@ public static class NotificationCatalog
     // ── 更新 ──────────────────────────────────────────────────────────────
     /// <summary>手動與啟動時的自動檢查共用；結論與版本號由 <c>SqlAssistUpdateCheck</c> 寫進敘述。</summary>
     public const string CheckingForUpdates = "檢查更新";
+
+    // ── 提醒 ──────────────────────────────────────────────────────────────
+    // 提醒的標題不受動詞開頭的契約限制：它不會轉過去式，回答的是「要決定什麼」。
+    // 按鈕識別字在 NotificationActionIds；這裡的常數欄位只放標題，其餘措辭是屬性。
+
+    /// <summary>提醒右上角叉號的 ToolTip；不是拒絕，只是這次工作階段先收起來。</summary>
+    public static string PromptLater => "稍後提醒";
+
+    /// <summary>有新版可以下載；同鍵只留最新那一版。</summary>
+    public static NotificationPrompt UpdateAvailablePrompt(string version, string releaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(version)) throw new ArgumentException("需要版本號。", nameof(version));
+        return new NotificationPrompt("update.available", "SqlAssist 有新版",
+            version + " 已經發行，可以到 GitHub 的發行頁下載。", NotificationSeverity.Info,
+            new NotificationAction(NotificationActionIds.UpdateSkip, "略過這一版", NotificationActionRole.Secondary, version),
+            new NotificationAction(NotificationActionIds.UpdateDownload, "下載", NotificationActionRole.Primary, releaseUrl ?? ""));
+    }
+
+    /// <summary>容量越過警戒；<paramref name="reason"/> 是 Core 給的用量說明。</summary>
+    public static NotificationPrompt SqlMemoryCapacityPrompt(string reason) =>
+        new("sqlmemory.capacity", "SQL Memory 超過容量警戒",
+            string.IsNullOrWhiteSpace(reason) ? "紀錄都還在；清理舊紀錄或調整保留規則可以解除警戒。" : reason,
+            NotificationSeverity.Warning,
+            new NotificationAction(NotificationActionIds.SqlMemoryOpenMaintenance, "開啟維護", NotificationActionRole.Primary));
+
+    /// <summary>第一次真正開始擷取；不能安靜地開始記錄使用者的 SQL。</summary>
+    public static NotificationPrompt SqlMemoryFirstCapturePrompt() =>
+        new("sqlmemory.first-capture", "SQL Memory 已開始擷取", SqlMemoryFirstCaptureNotice, NotificationSeverity.Info,
+            new NotificationAction(NotificationActionIds.SqlMemoryOpen, "開啟 SQL Memory", NotificationActionRole.Primary));
+
+    /// <summary>活動清單抬頭的那一行：「已完成 (成功數/總數)」；分子只算成功。</summary>
+    public static string ProgressSummary(int succeeded, int total) =>
+        "已完成 (" + succeeded.ToString(CultureInfo.CurrentCulture) + "/" + total.ToString(CultureInfo.CurrentCulture) + ")";
+
+    /// <summary>活動清單的叉號：只是這一批看完了，工作照常跑完。</summary>
+    public static string DismissActivities => "關閉通知（不取消工作）";
+
+    /// <summary>多則提醒疊在一起時右上角那一格：「1/3」。</summary>
+    public static string PromptPosition(int position, int count) =>
+        position.ToString(CultureInfo.CurrentCulture) + "/" + count.ToString(CultureInfo.CurrentCulture);
+
+    /// <summary>
+    /// 通知島收成膠囊時的那一行。
+    /// </summary>
+    /// <remarks>
+    /// 只有一項時說是哪一件事（「標題 · 主體」）；兩項以上改說規模與進度，因為膠囊寬度
+    /// 放不下兩個標題，挑其中一個又會讓使用者以為只有那一件。分子只算成功，與卡片抬頭的
+    /// 「已完成 (成功數/總數)」同一個口徑。傳入的是合併且篩選過的列。
+    /// </remarks>
+    public static string CapsuleSummary(IReadOnlyList<NotificationItem> activities)
+    {
+        if (activities is null) throw new ArgumentNullException(nameof(activities));
+        if (activities.Count == 0) return "";
+        if (activities.Count == 1)
+        {
+            var item = activities[0];
+            return item.Subject.Length > 0 ? Headline(item) + Separator + item.Subject : Headline(item);
+        }
+
+        var succeeded = 0;
+        foreach (var item in activities)
+            if (item.Status == NotificationStatus.Succeeded) succeeded++;
+        return activities.Count.ToString(CultureInfo.CurrentCulture) + " 項工作" + Separator +
+            succeeded.ToString(CultureInfo.CurrentCulture) + "/" + activities.Count.ToString(CultureInfo.CurrentCulture);
+    }
 
     /// <summary>
     /// 畫面上那一列的主要文字：完成後轉過去式並視情況附上耗時。

@@ -93,6 +93,13 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\IsExternalInit.cs" Link="Product\IsExternalInit.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCardItem.cs" Link="Product\UI\NotificationCardItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationRow.cs" Link="Product\UI\NotificationRow.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationMotion.cs" Link="Product\UI\NotificationMotion.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SpringMotion.cs" Link="Product\UI\SpringMotion.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationPromptItem.cs" Link="Product\UI\NotificationPromptItem.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationPromptView.cs" Link="Product\UI\NotificationPromptView.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationIsland.cs" Link="Product\UI\NotificationIsland.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationIslandState.cs" Link="Product\Notifications\NotificationIslandState.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationPlacement.cs" Link="Product\Notifications\NotificationPlacement.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationPresenter.cs" Link="Product\Notifications\NotificationPresenter.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\NotificationHandover.cs" Link="Product\Notifications\NotificationHandover.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Notifications\INotificationSurfaceHost.cs" Link="Product\Notifications\INotificationSurfaceHost.cs" />

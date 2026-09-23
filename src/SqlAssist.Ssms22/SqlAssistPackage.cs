@@ -51,6 +51,7 @@ public sealed class SqlAssistPackage : AsyncPackage
         IProgress<ServiceProgressData> progress)
     {
         NotificationCenter.Default.Completed += OnNotificationCompleted;
+        NotificationCenter.Default.Resolved += OnPromptResolved;
         using var notification = NotificationCenter.Default.Begin(NotificationCatalog.InitializingPackage,
             NotificationKind.Package, NotificationOrigin.Startup, NotificationLevel.Info);
         try
@@ -112,11 +113,17 @@ public sealed class SqlAssistPackage : AsyncPackage
         SqlAssistPlatformGuard.Probe("記錄通知結果", () => SqlAssistDiagnostics.Write(
             $"通知 id={item.Id} kind={item.Kind} severity={item.Severity} status={item.Status} elapsedMs={(item.Finished - item.Started)?.TotalMilliseconds:0}"));
 
+    // 只寫識別字與鍵；標題、訊息與按鈕標籤是措辭，不進紀錄。叉號記成 later。
+    private static void OnPromptResolved(NotificationItem item, string? action) =>
+        SqlAssistPlatformGuard.Probe("記錄提醒處理", () => SqlAssistDiagnostics.Write(
+            $"提醒 id={item.Id} kind={item.Kind} key={item.Key} action={action ?? "later"}"));
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             NotificationCenter.Default.Completed -= OnNotificationCompleted;
+            NotificationCenter.Default.Resolved -= OnPromptResolved;
             SqlAssistPlatformGuard.Run("解除 SSMS 連線變更事件", SqlEditorConnectionWatcher.Shutdown);
             // 排空背景寫入器並放開 SQLite 檔案；排在設定與診斷收尾之前。
             SqlAssistPlatformGuard.Run("停止 SQL Memory", SqlMemoryHost.Shutdown);

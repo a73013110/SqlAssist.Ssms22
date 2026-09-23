@@ -5,11 +5,19 @@ using System.Threading;
 namespace SqlAssist.Core.Notifications;
 
 /// <summary>全套件共用、可由多執行緒寫入的有限通知紀錄。</summary>
+/// <remarks>
+/// 三個動詞各對一種事：<see cref="Begin"/> 是有執行期間的工作，<see cref="Post"/> 是當下已經
+/// 發生的事件，<see cref="Prompt"/> 是需要使用者決定的事。前兩種是活動，依保留期限淡出；
+/// 提醒不逾時，由 <see cref="Resolve"/> 收掉。
+/// </remarks>
 public sealed class NotificationCenter
 {
     internal const int MessageLimit = 512;
     private const int HistoryLimit = 100;
     private const int FailureLimit = 30;
+
+    /// <summary>同時留著的提醒上限；與最近 100 項分開算，高頻活動擠不掉還沒處理的決定。</summary>
+    internal const int PromptLimit = 20;
 
     public static NotificationCenter Default { get; } = new();
 
@@ -18,6 +26,12 @@ public sealed class NotificationCenter
 
     public event EventHandler? Changed;
     public event Action<NotificationItem>? Completed;
+
+    /// <summary>
+    /// 提醒被處理了：第二個參數是按下的按鈕識別字，叉號（稍後）是 null。
+    /// </summary>
+    /// <remarks>詳細診斷只寫識別字與鍵，不寫標題、訊息或按鈕標籤。被同鍵新提醒取代的那一則不發這個事件。</remarks>
+    public event Action<NotificationItem, string?>? Resolved;
     private readonly object _gate = new();
     private readonly List<NotificationItem> _items = new();
     private readonly Queue<NotificationItem> _failures = new();
@@ -26,6 +40,12 @@ public sealed class NotificationCenter
     private long _nextId;
     private DateTimeOffset? _retainedAt;
     private readonly Dictionary<long, TimeSpan> _paused = new();
+
+    /// <summary>還沒處理的提醒；依送出順序，最舊的在前。</summary>
+    private readonly List<NotificationItem> _prompts = new();
+
+    /// <summary>這次工作階段按過叉號的 (種類、鍵)；同鍵的新提醒不再出現，直到下次啟動。</summary>
+    private readonly HashSet<(NotificationKind, string)> _snoozed = new();
 
     /// <summary>內容版本；每一次新增、完成或回報訊息都加一，供 <see cref="Snapshot"/> 判斷有沒有變。</summary>
     private long _version;
@@ -101,6 +121,72 @@ public sealed class NotificationCenter
         Announce(item);
     }
 
+    /// <summary>送出一則需要使用者決定的事；回傳入列的那一則，這次工作階段已經按過「稍後」時回傳 null。</summary>
+    /// <remarks>
+    /// 三軸照舊明寫，理由同 <see cref="Begin"/>；標題、訊息與按鈕只能來自
+    /// <see cref="NotificationCatalog"/> 建好的 <paramref name="prompt"/>。
+    ///
+    /// 同一個 (<paramref name="kind"/>、<see cref="NotificationPrompt.Key"/>) 取代舊的那一則，
+    /// 不疊兩則：新的一則是新的問題（新版本號、新的容量數字），拿新的身分排到最前面，
+    /// 舊的直接移除而不發 <see cref="Resolved"/>——使用者沒有處理它。
+    ///
+    /// 提醒不經過完成路徑：不進工作階段統計、最近失敗與逐次的詳細診斷，因為它不是一件
+    /// 做完的工作；也不套用保留期限，另有 <see cref="PromptLimit"/> 則的上限，超過時丟掉最舊的。
+    /// </remarks>
+    public NotificationItem? Prompt(NotificationPrompt prompt, NotificationKind kind, NotificationOrigin origin,
+        NotificationLevel level, string subject = "", string document = "", string source = "")
+    {
+        if (prompt is null) throw new ArgumentNullException(nameof(prompt));
+        NotificationItem item;
+        lock (_gate)
+        {
+            if (_snoozed.Contains((kind, prompt.Key))) return null;
+            _prompts.RemoveAll(x => x.Kind == kind && string.Equals(x.Key, prompt.Key, StringComparison.Ordinal));
+            var now = _clock();
+            item = new NotificationItem(++_nextId, prompt.Title, subject, document, source, now,
+                NotificationStatus.Succeeded, now, Clip(prompt.Message), kind, origin, level,
+                key: prompt.Key, actions: prompt.Actions, severity: prompt.Severity);
+            _prompts.Add(item);
+            while (_prompts.Count > PromptLimit) _prompts.RemoveAt(0);
+            _version++;
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+        return item;
+    }
+
+    /// <summary>使用者處理了一則提醒；<paramref name="actionId"/> 為 null 代表按了叉號。</summary>
+    /// <remarks>
+    /// 叉號的意思是「稍後」：只在這次工作階段內收起，同鍵的新提醒也不再出現；
+    /// 沒有落地，下次啟動時呼叫端照常送出。真正的決定（略過這一版、不再提醒）由呼叫端
+    /// 依按鈕識別字保存，這裡不記。
+    /// </remarks>
+    /// <returns>找得到這一則並收掉時為 true；已經被處理、取代或擠掉時為 false。</returns>
+    public bool Resolve(long itemId, string? actionId)
+    {
+        NotificationItem item;
+        lock (_gate)
+        {
+            var index = _prompts.FindIndex(x => x.Id == itemId);
+            if (index < 0) return false;
+            item = _prompts[index];
+            if (actionId is not null && !HasAction(item, actionId))
+                throw new ArgumentException("這則提醒沒有這顆按鈕：" + actionId, nameof(actionId));
+            _prompts.RemoveAt(index);
+            if (actionId is null) _snoozed.Add((item.Kind, item.Key));
+            _version++;
+        }
+        Resolved?.Invoke(item, actionId);
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    private static bool HasAction(NotificationItem item, string actionId)
+    {
+        foreach (var action in item.Actions)
+            if (string.Equals(action.Id, actionId, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
     private NotificationScope Create(string title, NotificationKind kind, NotificationOrigin origin,
         NotificationLevel level, string subject, string document, string source,
         NotificationScope? parent, bool ambient)
@@ -120,6 +206,7 @@ public sealed class NotificationCenter
     }
 
     /// <summary>目前這一批通知；內容沒變又還沒有項目到期時回傳上一次那一份。</summary>
+    /// <returns>活動依送出順序在前，還沒處理的提醒接在後面；提醒不參與期限。</returns>
     /// <remarks>
     /// 提示的計時器每 100 ms 問一次，而多數時候什麼都沒發生。每次都重跑到期清理再配置
     /// 一份新陣列，等於把「沒有工作在跑」也做成固定成本。版本號讓沒變的那幾次直接回上一份，
@@ -172,7 +259,10 @@ public sealed class NotificationCenter
                     _finished--;
                 }
 
-            _cache = _items.ToArray();
+            var cache = new NotificationItem[_items.Count + _prompts.Count];
+            _items.CopyTo(cache, 0);
+            _prompts.CopyTo(cache, _items.Count);
+            _cache = cache;
             _cacheVersion = _version;
             _cacheSuccess = successRetention;
             _cacheFailure = failureRetention;

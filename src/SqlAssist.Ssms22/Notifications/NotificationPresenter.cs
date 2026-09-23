@@ -31,6 +31,9 @@ internal sealed class NotificationPresenter
     private IReadOnlyList<NotificationItem>? _source;
     private IReadOnlyList<NotificationCardItem> _items = Array.Empty<NotificationCardItem>();
     private SqlAssistSettings? _settings;
+    private IReadOnlyList<NotificationItem>? _islandSource;
+    private SqlAssistSettings? _islandSettings;
+    private NotificationIslandContent _island = NotificationIslandContent.Empty;
 
     /// <summary>
     /// 已經被關閉的最後一個通知 Id；比它新的工作仍會出現。
@@ -64,14 +67,17 @@ internal sealed class NotificationPresenter
 
     public void Toggle() => Expanded = !Expanded;
 
-    /// <summary>關閉目前這一批；不取消工作，之後的新工作仍會通知。</summary>
+    /// <summary>關閉目前這一批活動；不取消工作，之後的新工作仍會通知。提醒不受影響。</summary>
     public void Dismiss(SqlAssistSettings settings)
     {
         var items = Snapshot(settings, retain: false);
         for (var index = 0; index < items.Count; index++)
-            if (items[index].Id > _dismissedThrough) _dismissedThrough = items[index].Id;
+            if (!items[index].IsPrompt && items[index].Id > _dismissedThrough) _dismissedThrough = items[index].Id;
         Invalidate();
     }
+
+    /// <summary>使用者按了提醒上的按鈕或叉號（<paramref name="actionId"/> 為 null）。</summary>
+    public bool Resolve(long promptId, string? actionId) => _center.Resolve(promptId, actionId);
 
     /// <summary>離開提示後把暫停的期限續跑，不留下永遠不到期的結果。</summary>
     public void Release(SqlAssistSettings settings) => Snapshot(settings, retain: false);
@@ -98,8 +104,23 @@ internal sealed class NotificationPresenter
         return _items;
     }
 
-    /// <summary>下一次 <see cref="Current"/> 重新投影，即使來源與設定的參考都沒變。</summary>
-    private void Invalidate() => _source = null;
+    /// <summary>
+    /// 通知島這一輪的內容：活動列、膠囊摘要與排好的提醒；來源與設定都沒變時回傳上一次那一份。
+    /// </summary>
+    /// <param name="retain">滑鼠或鍵盤焦點還在島嶼上，活動的期限暫停。</param>
+    public NotificationIslandContent Island(SqlAssistSettings settings, bool retain)
+    {
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        var source = Snapshot(settings, retain);
+        if (ReferenceEquals(source, _islandSource) && ReferenceEquals(settings, _islandSettings)) return _island;
+        _islandSource = source; _islandSettings = settings;
+        _island = ProjectIsland(source, settings, _dismissedThrough, out var oldest);
+        _oldest = oldest;
+        return _island;
+    }
+
+    /// <summary>下一次 <see cref="Current"/> 與 <see cref="Island"/> 重新投影，即使來源與設定的參考都沒變。</summary>
+    private void Invalidate() { _source = null; _islandSource = null; }
 
     private IReadOnlyList<NotificationItem> Snapshot(SqlAssistSettings settings, bool retain) =>
         _center.Snapshot(
@@ -121,7 +142,8 @@ internal sealed class NotificationPresenter
         for (var index = 0; index < items.Count; index++)
         {
             var item = items[index];
-            if (item.Id <= dismissedThrough || !NotificationVisibility.Includes(item, settings)) continue;
+            // 舊卡片沒有按鈕可按，提醒只在通知島上出現。
+            if (item.IsPrompt || item.Id <= dismissedThrough || !NotificationVisibility.Includes(item, settings)) continue;
             visible.Add(item);
             if (oldest is null || item.Started < oldest) oldest = item.Started;
         }
@@ -130,6 +152,71 @@ internal sealed class NotificationPresenter
         var cards = new NotificationCardItem[merged.Count];
         for (var index = 0; index < merged.Count; index++) cards[index] = ToCardItem(merged[index]);
         return new NotificationProjection(cards, oldest);
+    }
+
+    /// <summary>通知島的投影：活動照舊卡片的規則，提醒另外排序。</summary>
+    /// <remarks>
+    /// 活動的關閉（<paramref name="dismissedThrough"/>）不影響提醒：叉號在活動上是「這一批看完了」，
+    /// 提醒要各自處理。提醒依嚴重度、再依時間新到舊排序，最該先處理的那一則在最上面。
+    /// </remarks>
+    internal static NotificationIslandContent ProjectIsland(
+        IReadOnlyList<NotificationItem> items, SqlAssistSettings settings, long dismissedThrough = 0) =>
+        ProjectIsland(items, settings, dismissedThrough, out _);
+
+    /// <param name="oldest">看得見的活動裡最早啟動的時間；延遲顯示只看活動，提醒不等延遲。</param>
+    private static NotificationIslandContent ProjectIsland(IReadOnlyList<NotificationItem> items,
+        SqlAssistSettings settings, long dismissedThrough, out DateTimeOffset? oldest)
+    {
+        if (items is null) throw new ArgumentNullException(nameof(items));
+        if (settings is null) throw new ArgumentNullException(nameof(settings));
+        var activities = new List<NotificationItem>(items.Count);
+        var prompts = new List<NotificationItem>();
+        oldest = null;
+        for (var index = 0; index < items.Count; index++)
+        {
+            var item = items[index];
+            if (!NotificationVisibility.Includes(item, settings)) continue;
+            if (item.IsPrompt) prompts.Add(item);
+            else if (item.Id > dismissedThrough)
+            {
+                activities.Add(item);
+                if (oldest is null || item.Started < oldest) oldest = item.Started;
+            }
+        }
+
+        var merged = NotificationMerge.Collapse(activities);
+        var cards = new NotificationCardItem[merged.Count];
+        for (var index = 0; index < merged.Count; index++) cards[index] = ToCardItem(merged[index]);
+        prompts.Sort((left, right) =>
+        {
+            var severity = right.Severity.CompareTo(left.Severity);
+            if (severity != 0) return severity;
+            var time = right.Started.CompareTo(left.Started);
+            return time != 0 ? time : right.Id.CompareTo(left.Id);
+        });
+        var promptItems = new NotificationPromptItem[prompts.Count];
+        for (var index = 0; index < prompts.Count; index++)
+            promptItems[index] = ToPromptItem(prompts[index], index + 1, prompts.Count);
+        return new NotificationIslandContent(cards, NotificationCatalog.CapsuleSummary(merged), promptItems);
+    }
+
+    private static NotificationPromptItem ToPromptItem(NotificationItem item, int position, int count)
+    {
+        var actions = new NotificationPromptAction[item.Actions.Count];
+        for (var index = 0; index < actions.Length; index++)
+        {
+            var action = item.Actions[index];
+            actions[index] = new NotificationPromptAction(action.Id, action.Label, action.Role == NotificationActionRole.Primary);
+        }
+
+        return new NotificationPromptItem(item.Id, item.Title, item.Message,
+            item.Severity switch
+            {
+                NotificationSeverity.Error => NotificationPromptSeverity.Error,
+                NotificationSeverity.Warning => NotificationPromptSeverity.Warning,
+                _ => NotificationPromptSeverity.Info,
+            },
+            actions, position, count);
     }
 
     private static NotificationCardItem ToCardItem(NotificationItem item) => new(

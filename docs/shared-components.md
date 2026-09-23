@@ -55,7 +55,8 @@
 | 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
 | 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
-| 通知標題、完成後的敘述與狀態措辭 | `Core/Notifications/NotificationCatalog.cs` |
+| 通知標題、完成後的敘述、狀態措辭、提醒內容與膠囊摘要 | `Core/Notifications/NotificationCatalog.cs` |
+| 提醒按鈕的穩定識別字 | `Core/Notifications/NotificationActionIds.cs` |
 | 通知計數、結果保留與近期失敗 | `Core/Notifications/NotificationCenter.cs` |
 | 通知可見度規則（三軸、詳細度門檻、獨立通道） | `Core/Notifications/NotificationVisibility.cs` |
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |

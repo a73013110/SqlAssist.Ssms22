@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22.Notifications;
@@ -109,6 +110,73 @@ public sealed class NotificationPresenterTests
         Assert.True(presenter.WithinDelay(TimeSpan.FromMilliseconds(300), now));
         now += TimeSpan.FromMilliseconds(400);
         Assert.False(presenter.WithinDelay(TimeSpan.FromMilliseconds(300), now));
+    }
+
+    [Fact]
+    public void 島嶼投影分出活動與依嚴重度和時間排序的提醒()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var center = new NotificationCenter(() => now);
+        for (var index = 0; index < 2; index++)
+            using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata,
+                       NotificationOrigin.Typing, NotificationLevel.Info, "dbo.Loan", "Loan.sql")) { }
+        center.Prompt(NotificationCatalog.UpdateAvailablePrompt("1.4.0", "https://example.invalid"), NotificationKind.Update,
+            NotificationOrigin.Ambient, NotificationLevel.Notice);
+        now += TimeSpan.FromSeconds(1);
+        center.Prompt(NotificationCatalog.SqlMemoryFirstCapturePrompt(), NotificationKind.SqlMemory,
+            NotificationOrigin.Ambient, NotificationLevel.Notice);
+        center.Prompt(NotificationCatalog.SqlMemoryCapacityPrompt(""), NotificationKind.SqlMemory,
+            NotificationOrigin.Ambient, NotificationLevel.Notice);
+
+        var island = NotificationPresenter.ProjectIsland(Read(center), new SqlAssistSettings());
+        var activity = Assert.Single(island.Activities);
+        Assert.Equal(2, activity.Repeat);
+        Assert.Equal("已載入欄位與定義 · dbo.Loan", island.Summary);
+        Assert.Equal(new[] { "SQL Memory 超過容量警戒", "SQL Memory 已開始擷取", "SqlAssist 有新版" },
+            island.Prompts.Select(x => x.Title));
+        Assert.Equal(NotificationPromptSeverity.Warning, island.Prompts[0].Severity);
+        Assert.Equal(new[] { 1, 2, 3 }, island.Prompts.Select(x => x.Position));
+        Assert.All(island.Prompts, x => Assert.Equal(3, x.Count));
+        var update = island.Prompts[2];
+        Assert.Equal(new[] { (NotificationActionIds.UpdateSkip, false), (NotificationActionIds.UpdateDownload, true) },
+            update.Actions.Select(x => (x.Id, x.Primary)));
+
+        // 舊卡片沒有按鈕，提醒不進它的投影。
+        Assert.Single(NotificationPresenter.Project(Read(center), new SqlAssistSettings()).Items);
+    }
+
+    [Fact]
+    public void 關閉活動不影響提醒且提醒經由呈現端處理()
+    {
+        var center = new NotificationCenter();
+        var presenter = new NotificationPresenter(center);
+        var settings = new SqlAssistSettings();
+        var prompt = center.Prompt(NotificationCatalog.SqlMemoryFirstCapturePrompt(), NotificationKind.SqlMemory,
+            NotificationOrigin.Ambient, NotificationLevel.Notice)!;
+        using (center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing,
+                   NotificationLevel.Info)) { }
+        Assert.Single(presenter.Island(settings, retain: false).Activities);
+        presenter.Dismiss(settings);
+        var island = presenter.Island(settings, retain: false);
+        Assert.Empty(island.Activities);
+        Assert.Equal("", island.Summary);
+        Assert.Single(island.Prompts);
+        Assert.Same(island, presenter.Island(settings, retain: false));
+
+        Assert.True(presenter.Resolve(prompt.Id, NotificationActionIds.SqlMemoryOpen));
+        Assert.Empty(presenter.Island(settings, retain: false).Prompts);
+    }
+
+    [Fact]
+    public void 島嶼的提醒只看總開關與種類開關()
+    {
+        var center = new NotificationCenter();
+        center.Prompt(NotificationCatalog.SqlMemoryCapacityPrompt(""), NotificationKind.SqlMemory,
+            NotificationOrigin.Ambient, NotificationLevel.Debug);
+        var quiet = new SqlAssistSettings { NotificationVerbosity = NotificationVerbosity.Quiet, NotificationDegraded = false };
+        Assert.Single(NotificationPresenter.ProjectIsland(Read(center), quiet).Prompts);
+        var off = new SqlAssistSettings { NotificationKinds = NotificationKindSwitches.Defaults.With(NotificationKind.SqlMemory, false) };
+        Assert.Empty(NotificationPresenter.ProjectIsland(Read(center), off).Prompts);
     }
 
     private static IReadOnlyList<NotificationItem> Read(NotificationCenter center) =>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SqlAssist.Core.Notifications;
 
@@ -7,12 +8,16 @@ public sealed class NotificationItem
 {
     internal NotificationItem(long id, string title, string subject, string document, string source,
         DateTimeOffset started, NotificationStatus status, DateTimeOffset? finished, string message,
-        NotificationKind kind, NotificationOrigin origin, NotificationLevel level, int repeat = 1)
+        NotificationKind kind, NotificationOrigin origin, NotificationLevel level, int repeat = 1,
+        string key = "", IReadOnlyList<NotificationAction>? actions = null, NotificationSeverity? severity = null)
     {
         Id = id; Title = title; Subject = subject; Document = document; Source = source; Started = started;
         Status = status; Finished = finished; Message = message; Kind = kind; Origin = origin; Level = level;
-        Repeat = repeat;
+        Repeat = repeat; Key = key; Actions = actions ?? NoActions; _severity = severity;
     }
+
+    private static readonly IReadOnlyList<NotificationAction> NoActions = Array.AsReadOnly(new NotificationAction[0]);
+    private readonly NotificationSeverity? _severity;
 
     public long Id { get; }
 
@@ -40,8 +45,8 @@ public sealed class NotificationItem
     public NotificationOrigin Origin { get; }
     public NotificationLevel Level { get; }
 
-    /// <summary>取消是正常生命週期，不是警告；降級才是。</summary>
-    public NotificationSeverity Severity => Status switch
+    /// <summary>取消是正常生命週期，不是警告；降級才是。提醒的嚴重度由目錄明定。</summary>
+    public NotificationSeverity Severity => _severity ?? Status switch
     {
         NotificationStatus.Failed => NotificationSeverity.Error,
         NotificationStatus.Degraded => NotificationSeverity.Warning,
@@ -59,9 +64,27 @@ public sealed class NotificationItem
     /// </remarks>
     public int Repeat { get; }
 
+    /// <summary>提醒的鍵；同一個 (<see cref="Kind"/>、鍵) 只留最新的一則。活動是空字串。</summary>
+    public string Key { get; }
+
+    /// <summary>提醒上的按鈕；不是空的就是提醒，不另外加一軸。</summary>
+    public IReadOnlyList<NotificationAction> Actions { get; }
+
+    /// <summary>
+    /// 需要使用者決定的事：不逾時、不合併，按了按鈕或叉號才消失。
+    /// </summary>
+    /// <remarks>
+    /// 以「有沒有按鈕」判斷而不是另開一個列舉：沒有按鈕的提醒只能等叉號，那就是
+    /// 一則不會到期的事件；有按鈕卻會到期的活動則是使用者還沒看到就消失的決定。
+    /// 兩種都是錯的，所以這兩件事本來就綁在一起。
+    /// </remarks>
+    public bool IsPrompt => Actions.Count > 0;
+
     internal NotificationItem With(NotificationStatus status, DateTimeOffset? finished, string message) =>
-        new(Id, Title, Subject, Document, Source, Started, status, finished, message, Kind, Origin, Level, Repeat);
+        new(Id, Title, Subject, Document, Source, Started, status, finished, message, Kind, Origin, Level, Repeat,
+            Key, Actions, _severity);
 
     internal NotificationItem WithRepeat(int repeat) =>
-        new(Id, Title, Subject, Document, Source, Started, Status, Finished, Message, Kind, Origin, Level, repeat);
+        new(Id, Title, Subject, Document, Source, Started, Status, Finished, Message, Kind, Origin, Level, repeat,
+            Key, Actions, _severity);
 }

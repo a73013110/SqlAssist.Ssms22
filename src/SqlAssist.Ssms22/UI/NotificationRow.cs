@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
@@ -139,7 +140,7 @@ internal sealed class NotificationRow : Border
         ApplyIcon(item.Status);
         // 列上的執行中是靜態光環：每一列各掛一個 Forever 旋轉等於整份清單長期占著算繪，
         // 而「有事情在跑」由抬頭那一個轉就說得完。
-        if (motion) SqlAssistChrome.AnimateNotificationResult(_scale, _shake, item.Status);
+        if (motion) NotificationMotion.PlayResult(_scale, _shake, item.Status);
     }
 
     private void ApplyIcon(NotificationVisualStatus state)
@@ -172,13 +173,14 @@ internal sealed class NotificationRow : Border
     internal void Reveal(bool motion, double availableWidth)
     {
         if (!motion) return;
-        BeginAnimation(OpacityProperty, SqlAssistChrome.NotificationAnimation(0, 1, 240));
+        BeginAnimation(OpacityProperty, NotificationMotion.Ease(0, 1, NotificationMotion.RowFade));
         // UI 合併更新時，新列可能已完成；高度歸零會遮掉大部分狀態彈跳。
         if (Status != NotificationVisualStatus.Running) return;
         // 高度展開不縮放文字，結束後回到自然高度以容納換行與 DPI 改變。
         Measure(new Size(availableWidth, double.PositiveInfinity));
-        BeginAnimation(MaxHeightProperty, new DoubleAnimation(0, DesiredSize.Height, TimeSpan.FromMilliseconds(260))
-        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }, FillBehavior = FillBehavior.Stop });
+        var reveal = NotificationMotion.Ease(0, DesiredSize.Height, NotificationMotion.Reveal);
+        reveal.FillBehavior = FillBehavior.Stop;
+        BeginAnimation(MaxHeightProperty, reveal);
     }
 
     /// <summary>停掉動畫並記住不要再播；卡片離開畫面時整份清單一起靜音。</summary>
@@ -190,9 +192,30 @@ internal sealed class NotificationRow : Border
 
     internal void StopMotion()
     {
-        _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null); _scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        _shake.BeginAnimation(TranslateTransform.XProperty, null);
+        NotificationMotion.StopResult(_scale, _shake);
         BeginAnimation(OpacityProperty, null); BeginAnimation(MaxHeightProperty, null);
+    }
+
+    /// <summary>
+    /// 這一批共同的文件；指向兩份以上文件時回空字串。
+    /// </summary>
+    /// <remarks>
+    /// 沒有文件的列（套件初始化、重建主題筆刷、中繼資料查詢）不參與比較。它們算進來的話，
+    /// 一列不屬於任何文件的背景工作就會把抬頭那一行整個收掉，而畫面上的其他列明明都來自
+    /// 同一份查詢——那正是檔名時有時無的成因。
+    /// </remarks>
+    internal static string CommonDocument(IReadOnlyList<NotificationCardItem> items)
+    {
+        var common = "";
+        for (var index = 0; index < items.Count; index++)
+        {
+            var document = items[index].Document;
+            if (document.Length == 0) continue;
+            if (common.Length == 0) common = document;
+            else if (!string.Equals(common, document, StringComparison.Ordinal)) return "";
+        }
+
+        return common;
     }
 
     /// <summary>這一列要顯示的出處；抬頭已經寫了文件時只留資料庫。</summary>
