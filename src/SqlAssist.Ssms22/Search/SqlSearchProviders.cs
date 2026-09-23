@@ -27,7 +27,7 @@ internal sealed class SqlSearchProviders
 {
     private readonly SqlCatalogSearchIndexCache _indexCache = new();
     private readonly SqlAgentJobSearchSnapshotCache _jobCache = new();
-    private Connection? _connection;
+    private SqlSearchConnection? _connection;
 
     /// <remarks>
     /// 順序就是分類 pill 的順序（聚合器照 provider 串接）：先資料庫物件，再伺服器層級的
@@ -52,17 +52,14 @@ internal sealed class SqlSearchProviders
     /// 留一份參考沒有所有權問題——不能留的是它底下那個連線來源。
     ///
     /// 兩者裝在<b>同一個</b>欄位裡一次換掉：分兩個欄位的話，背景那一輪可能讀到新的目錄配上
-    /// 舊的伺服器，而那一輪每一筆命中都帶著錯的那一台。任何一個是 null 就等於沒有連線。
+    /// 舊的伺服器，而那一輪每一筆命中都帶著錯的那一台。null 就是沒有連線。
     ///
     /// 「換了沒有」也由這裡回答，因為上一份只有這裡握著：呼叫端自己再記一份的話，
-    /// 每輪搜尋前那一次重讀先把新值記下，連線事件那一次就看不出換過，舊結果與預覽都留著。
+    /// 每輪搜尋前那一次重讀先把新值記下，連線事件那一次就看不出換過，舊結果留著。
     /// </remarks>
     /// <returns>換到另一個目錄或另一台時為 true；同一份重設一次為 false。</returns>
-    public bool UseCatalog(SqlMetadataCatalog? catalog, SqlSearchOrigin? origin)
-    {
-        var next = catalog is null || origin is null ? null : new Connection(catalog, origin);
-        return !Connection.SameScope(Interlocked.Exchange(ref _connection, next), next);
-    }
+    public bool UseConnection(SqlSearchConnection? connection) =>
+        !SqlSearchConnection.SameScope(Interlocked.Exchange(ref _connection, connection), connection);
 
     /// <summary>
     /// 這一輪的目標資料庫已經有索引了嗎；false 表示可能要先掃一次全表（含定義本文）。
@@ -180,28 +177,5 @@ internal sealed class SqlSearchProviders
                     connection.Catalog.ConnectionSource, connection.Origin, _owner._jobCache)
                 .SearchAsync(query, sink, cancellationToken);
         }
-    }
-
-    /// <summary>這一輪的目錄與它連著的那一台；一起換、一起讀。</summary>
-    private sealed class Connection
-    {
-        internal Connection(SqlMetadataCatalog catalog, SqlSearchOrigin origin)
-        {
-            Catalog = catalog;
-            Origin = origin;
-        }
-
-        internal SqlMetadataCatalog Catalog { get; }
-
-        internal SqlSearchOrigin Origin { get; }
-
-        /// <remarks>
-        /// 比快取鍵而不比參考：註冊表可能為同一個鍵換過一份目錄，而那不是換範圍。
-        /// </remarks>
-        internal static bool SameScope(Connection? left, Connection? right) =>
-            left is null || right is null
-                ? left is null && right is null
-                : string.Equals(left.Catalog.CacheKey, right.Catalog.CacheKey, StringComparison.Ordinal)
-                  && string.Equals(left.Origin.ServerName, right.Origin.ServerName, StringComparison.Ordinal);
     }
 }

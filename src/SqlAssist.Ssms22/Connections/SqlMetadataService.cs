@@ -14,6 +14,7 @@ using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.SqlMemory;
 
 namespace SqlAssist.Ssms22.Connections;
 
@@ -34,6 +35,9 @@ internal sealed class SqlMetadataService : IDisposable
 
     /// <summary>上一次從編輯器連線算出的快取鍵，用來判斷連線或資料庫有沒有換過。</summary>
     private string? _editorCacheKey;
+
+    /// <summary><see cref="_catalog"/> 連著的伺服器；與它同一次解析、在同一把鎖下寫入。</summary>
+    private string _catalogServer = "";
 
     /// <summary>上一次真的去問 SSMS 目前連線的時間。</summary>
     private DateTimeOffset _catalogCheckedAt;
@@ -109,14 +113,27 @@ internal sealed class SqlMetadataService : IDisposable
     }
 
     /// <summary>
-    /// 這個查詢視窗目前那條連線的目錄；還沒解析出來時為 null，並在背景補上。
+    /// 這個查詢視窗目前那條連線的目錄，以及它連著的伺服器；還沒解析出來時為 null，並在背景補上。
     /// </summary>
     /// <remarks>
     /// 給不在按鍵路徑上、等得起下一輪的呼叫端用（搜尋工具窗）。交出的是<b>目錄</b>不是連線來源：
     /// <c>ISqlConnectionSource</c> 的所有權在 <see cref="SqlMetadataCatalogRegistry"/>，
     /// 呼叫端要換資料庫時從 <c>catalog.ConnectionSource</c> 當場取，不留自己那一份。
+    ///
+    /// 伺服器與目錄<b>一起</b>交出，而且是同一次解析的結果：換連線之後、背景確認之前，
+    /// 這裡的目錄仍是上一台的。伺服器另外去問 SSMS 的話，拿到的已經是新的那一台，
+    /// 用上一台的目錄搜出來的每一筆都會標成新的那一台——在樹上找不到，移至定義還會沿用錯的連線。
+    /// 要最新的那一份，先等 <see cref="ConfirmConnectionAsync"/>。
     /// </remarks>
-    public SqlMetadataCatalog? PeekCurrentCatalog() => PeekCatalog();
+    public (SqlMetadataCatalog Catalog, string Server)? PeekCurrentConnection()
+    {
+        // 鎖可重入：PeekCatalog 在同一條執行緒上再拿一次；背景確認換目錄時拿的也是這一把，
+        // 所以交出去的兩個值一定是同一次解析的。
+        lock (_syncRoot)
+        {
+            return PeekCatalog() is { } catalog ? (catalog, _catalogServer) : null;
+        }
+    }
 
     /// <summary>清空所有資料庫的快取，並讓每個編輯器重新確認自己連到哪裡。</summary>
     public static void InvalidateAll()
@@ -1420,6 +1437,8 @@ internal sealed class SqlMetadataService : IDisposable
             }
 
             _editorCacheKey = cacheKey;
+            // 快取鍵含伺服器，所以上面那條沿用舊目錄的路不必重寫它。
+            _catalogServer = SqlWindowConnections.ServerName(editorConnection.ConnectionString);
 
             // 只有真的要換一份連線來源才開這一則：快取鍵沒變的那幾千次在上面就回去了。
             // 資料庫是「資料從哪裡來」而不是這件事作用的物件；放 Subject 會與中繼資料

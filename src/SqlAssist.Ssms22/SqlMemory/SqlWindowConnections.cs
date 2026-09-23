@@ -89,7 +89,8 @@ internal static class SqlWindowConnections
             : new SqlConnectionLabel(server, database);
     }
 
-    private static string ServerName(string? connectionString)
+    /// <summary>連線字串裡的伺服器名稱；解析不了時為空字串。全專案從連線字串取伺服器只走這一支。</summary>
+    public static string ServerName(string? connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return string.Empty;
 

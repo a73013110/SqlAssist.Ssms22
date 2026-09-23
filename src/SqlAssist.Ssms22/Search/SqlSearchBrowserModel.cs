@@ -230,6 +230,9 @@ internal sealed class SqlSearchBrowserModel
 
     private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
     private readonly List<string> _databases = new();
+
+    /// <summary>勾選的資料庫屬於哪一台；還沒連過任何一台時為 null。</summary>
+    private string? _scopeServer;
     /// <summary>有來源這一輪整個讀不到時要補的那一句；沒有時是空字串。</summary>
     private string _unavailable = "";
 
@@ -556,6 +559,28 @@ internal sealed class SqlSearchBrowserModel
     public bool ClearDatabases()
     {
         if (_databases.Count == 0) return false;
+        _databases.Clear();
+        return true;
+    }
+
+    /// <summary>
+    /// 範圍現在連著哪一台；換到另一台就清掉勾選的資料庫。
+    /// </summary>
+    /// <returns>從一台換到另一台時為 true，呼叫端據此收掉上一台的清單。</returns>
+    /// <remarks>
+    /// 資料庫名稱是每台伺服器自己的，所以規則掛在「範圍換了台」這件事上，不掛在某一個操作上：
+    /// 只在指名伺服器那條路清的話，跟著查詢視窗換台、指名的那一台消失而退回查詢視窗，
+    /// 這兩條路都會帶著上一台的名稱搜下一台，每個資料庫都回「不存在」。
+    /// 說不出是哪一台（斷線）時不動：斷線後連回同一台，勾選還在。
+    /// </remarks>
+    public bool ObserveServer(string? server)
+    {
+        if (string.IsNullOrEmpty(server)) return false;
+
+        var previous = _scopeServer;
+        _scopeServer = server;
+        if (previous is null || SqlSearchCatalogs.IsSameServer(previous, server)) return false;
+
         _databases.Clear();
         return true;
     }

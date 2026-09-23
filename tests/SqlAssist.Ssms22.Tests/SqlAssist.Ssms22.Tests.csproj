@@ -70,6 +70,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchBrowserModel.cs" Link="Product\Search\SqlSearchBrowserModel.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchScopeDatabases.cs" Link="Product\Search\SqlSearchScopeDatabases.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchProviders.cs" Link="Product\Search\SqlSearchProviders.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\Search\SqlSearchConnection.cs" Link="Product\Search\SqlSearchConnection.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemoryRow.cs" Link="Product\SqlMemory\SqlMemoryRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlMemorySurfaceState.cs" Link="Product\SqlMemory\SqlMemorySurfaceState.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\SqlMemory\SqlFavoriteRevisionRow.cs" Link="Product\SqlMemory\SqlFavoriteRevisionRow.cs" />

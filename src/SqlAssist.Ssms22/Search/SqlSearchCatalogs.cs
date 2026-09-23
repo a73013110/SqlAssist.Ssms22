@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Metadata.Caching;
 using SqlAssist.Metadata.Model;
@@ -21,7 +22,8 @@ namespace SqlAssist.Ssms22.Search;
 ///
 /// 目錄有兩個來源，對上面三條路徑是同一種東西：
 /// 沒有指名伺服器時跟著作用中的查詢視窗（既有行為，走
-/// <see cref="SqlMetadataService.PeekCurrentCatalog"/>）；指名了就走物件總管那一台。
+/// <see cref="SqlMetadataService.PeekCurrentConnection"/>）；指名了就走物件總管那一台。
+/// 兩條都連同伺服器一起交出（<see cref="SqlSearchConnection"/>），不另外問一次。
 ///
 /// <b>禁止</b>持有 <c>ISqlConnectionSource</c>：所有權在
 /// <see cref="SqlMetadataCatalogRegistry"/>，同一個快取鍵重複建立時多出來的那一份會當場
@@ -187,40 +189,54 @@ internal sealed partial class SqlSearchCatalogs
     }
 
     /// <summary>
-    /// 這一輪範圍連著的伺服器；說不出來時為 null。provider 把它交給每一筆命中。
-    /// </summary>
-    /// <remarks>
-    /// 與 <see cref="Resolve"/> 在同一次 UI 執行緒的工作裡連著問，兩者才是同一台：
-    /// 分兩次問的話，中間換過查詢視窗，命中就會帶著另一台的名字。說不出伺服器時
-    /// 這一輪不搜——沒有伺服器的命中，下游只剩「照目前範圍猜」這條退路。
-    /// </remarks>
-    public SqlSearchOrigin? ResolveOrigin()
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-        return ScopeServerName() is { Length: > 0 } name ? new SqlSearchOrigin(name) : null;
-    }
-
-    /// <summary>
-    /// 這一輪的目錄；沒有連線時為 null。
+    /// 這一輪範圍的目錄與它連著的那一台；沒有連線或說不出是哪一台時為 null。
     /// </summary>
     /// <remarks>
     /// 只交出<b>目錄</b>，不交連線來源（見型別註解）。指名的伺服器連不上時回 null 而不是
     /// 退回查詢視窗那一台：退回去的答案看起來完全正常，只是來自另一台伺服器。
+    /// 說不出伺服器時這一輪不搜——沒有伺服器的命中，下游只剩「照目前範圍猜」這條退路。
+    ///
+    /// 跟著查詢視窗時交出的是中繼資料服務<b>手上</b>那一份，換連線之後可能還是上一台的
+    /// （仍然一致：目錄與伺服器同是上一台）。要最新的，先等 <see cref="ConfirmAsync"/>。
     /// </remarks>
-    public SqlMetadataCatalog? Resolve()
+    public SqlSearchConnection? ResolveConnection()
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
-        if (_server is not { } server) return ActiveEditorCatalog();
-        if (_selected is { } cached) return cached;
+        if (_server is not { } server) return ActiveEditorConnection();
+        if (server.ServerName is not { Length: > 0 } name) return null;
+        if (_selected is not { } catalog)
+        {
+            var source = SsmsObjectExplorer.TryCreateConnectionSource(_services, server);
+            if (source is null) return null;
 
-        var source = SsmsObjectExplorer.TryCreateConnectionSource(_services, server);
-        if (source is null) return null;
+            // 交出去之後就不再持有來源，只留目錄；註冊表已經有同一個快取鍵的目錄時，
+            // 這一份會被當成重複的釋放掉，留著它等於留一個已釋放的物件。
+            catalog = _selected = SqlMetadataCatalogRegistry.Default.GetOrCreate(source);
+        }
 
-        // 交出去之後就不再持有來源，只留目錄；註冊表已經有同一個快取鍵的目錄時，
-        // 這一份會被當成重複的釋放掉，留著它等於留一個已釋放的物件。
-        _selected = SqlMetadataCatalogRegistry.Default.GetOrCreate(source);
-        return _selected;
+        return new SqlSearchConnection(catalog, new SqlSearchOrigin(name));
+    }
+
+    /// <summary>這一輪的目錄；沒有連線時為 null。只要目錄的呼叫端（資料庫清單）用它。</summary>
+    public SqlMetadataCatalog? Resolve() => ResolveConnection()?.Catalog;
+
+    /// <summary>
+    /// 跟著查詢視窗時，先讓中繼資料服務確認現在連到哪裡；指名物件總管那一台時沒有要確認的。
+    /// </summary>
+    /// <remarks>
+    /// SSMS 的連線事件只在服務上立旗標，真的去問在背景（見 <c>SqlEditorConnectionWatcher</c>）。
+    /// 搜尋等得起，所以每一輪與每一次連線變更都先等這一步：不等的話，換連線之後的第一輪
+    /// 搜的是上一台，而之後沒有任何事件會再叫它重搜。剛開的查詢視窗同理——服務還沒解析出目錄，
+    /// 工具窗會一直說「尚未連線」。不必確認時不開工作，直接完成。
+    /// </remarks>
+    public async Task ConfirmAsync()
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+        if (_server is not null || ActiveSqlEditor.Current is not { } view) return;
+
+        await SqlCompletionServices.GetMetadataService(view, _services).ConfirmConnectionAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -238,8 +254,11 @@ internal sealed partial class SqlSearchCatalogs
         ThreadHelper.ThrowIfNotOnUIThread();
         if (origin is null) throw new ArgumentNullException(nameof(origin));
 
-        elsewhere = !IsSameServer(origin.ServerName, ScopeServerName());
-        return elsewhere ? null : Resolve();
+        // 比的是這份目錄自己那一台，不是另外問來的名字：兩者分開問，換連線的那一段裡
+        // 名字已經是新的那一台，目錄卻還是上一台，同號的另一個物件就會混進來。
+        var scope = ResolveConnection();
+        elsewhere = scope is not null && !IsSameServer(origin.ServerName, scope.Origin.ServerName);
+        return elsewhere ? null : scope?.Catalog;
     }
 
     /// <summary>
@@ -259,19 +278,16 @@ internal sealed partial class SqlSearchCatalogs
         return SqlMetadataCatalogRegistry.Default.ScopeTo(ResolveOn(origin, out elsewhere), objectInfo);
     }
 
-    /// <summary>範圍現在連著的伺服器名稱；指名的那一台或作用中查詢視窗那一條。</summary>
-    private string? ScopeServerName() => _server is { } server ? server.ServerName : ActiveEditorServerName();
-
     /// <remarks>
     /// 中繼資料服務是每個查詢視窗一份，連線也在那裡；沒有查詢視窗就沒有目錄可問，
     /// 而那時候使用者要看的是「去連線」而不是一份空清單。
     /// </remarks>
-    private SqlMetadataCatalog? ActiveEditorCatalog() => SqlAssistPlatformGuard.Probe<SqlMetadataCatalog?>(
+    private SqlSearchConnection? ActiveEditorConnection() => SqlAssistPlatformGuard.Probe<SqlSearchConnection?>(
         "取得 SQL Search 的目錄",
-        () =>
-        {
-            var view = ActiveSqlEditor.Current;
-            return view is null ? null : SqlCompletionServices.GetMetadataService(view, _services).PeekCurrentCatalog();
-        },
+        () => ActiveSqlEditor.Current is { } view &&
+              SqlCompletionServices.GetMetadataService(view, _services).PeekCurrentConnection() is { } current &&
+              current.Server.Length > 0
+            ? new SqlSearchConnection(current.Catalog, new SqlSearchOrigin(current.Server))
+            : null,
         fallback: null);
 }

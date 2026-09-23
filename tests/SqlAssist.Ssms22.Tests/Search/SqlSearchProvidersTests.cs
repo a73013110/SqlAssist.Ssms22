@@ -10,27 +10,24 @@ namespace SqlAssist.Ssms22.Tests.Search;
 /// </summary>
 public sealed class SqlSearchProvidersTests
 {
-    private static readonly SqlSearchOrigin First = new("LIBSQL01");
-    private static readonly SqlSearchOrigin Second = new("LIBSQL02");
-
     [Fact]
     public void 同一個目錄重設一次不算換範圍()
     {
         var providers = new SqlSearchProviders();
 
-        Assert.True(providers.UseCatalog(SqlSearchTestCatalogs.Create("Library"), First));
+        Assert.True(providers.UseConnection(Connection("Library")));
         // 註冊表為同一個鍵換過一份目錄也不算：比的是快取鍵，不是參考。
-        Assert.False(providers.UseCatalog(SqlSearchTestCatalogs.Create("Library"), new SqlSearchOrigin("LIBSQL01")));
+        Assert.False(providers.UseConnection(Connection("Library")));
     }
 
     [Fact]
     public void 換資料庫或換伺服器都算換範圍()
     {
         var providers = new SqlSearchProviders();
-        providers.UseCatalog(SqlSearchTestCatalogs.Create("Library"), First);
+        providers.UseConnection(Connection("Library"));
 
-        Assert.True(providers.UseCatalog(SqlSearchTestCatalogs.Create("LibReporting"), First));
-        Assert.True(providers.UseCatalog(SqlSearchTestCatalogs.Create("LibReporting", server: "LIBSQL02"), Second));
+        Assert.True(providers.UseConnection(Connection("LibReporting")));
+        Assert.True(providers.UseConnection(Connection("LibReporting", server: "LIBSQL02")));
     }
 
     [Fact]
@@ -38,13 +35,15 @@ public sealed class SqlSearchProvidersTests
     {
         var providers = new SqlSearchProviders();
 
-        Assert.False(providers.UseCatalog(null, null));
-        Assert.True(providers.UseCatalog(SqlSearchTestCatalogs.Create("Library"), First));
+        Assert.False(providers.UseConnection(null));
+        Assert.True(providers.UseConnection(Connection("Library")));
         Assert.True(providers.HasConnection);
 
-        // 說不出是哪一台等於沒有連線，見 SqlSearchCatalogs.ResolveOrigin。
-        Assert.True(providers.UseCatalog(SqlSearchTestCatalogs.Create("Library"), null));
+        Assert.True(providers.UseConnection(null));
         Assert.False(providers.HasConnection);
-        Assert.False(providers.UseCatalog(null, First));
+        Assert.False(providers.UseConnection(null));
     }
+
+    private static SqlSearchConnection Connection(string database, string server = "LIBSQL01") =>
+        new(SqlSearchTestCatalogs.Create(database, server), new SqlSearchOrigin(server));
 }

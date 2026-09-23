@@ -710,9 +710,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 換一台伺服器；<paramref name="server"/> 為 null 表示回到作用中的查詢視窗。
     /// </summary>
     /// <remarks>
-    /// 資料庫的勾選一併清掉：名稱是每台伺服器自己的，留著的症狀是換台之後整輪指名一個
-    /// 那裡不存在的資料庫，而畫面上只看得到「沒有相符項目」。定義快取同理——
-    /// <c>object_id</c> 跨伺服器毫無關係。索引<b>不</b>丟：它照連線的快取鍵存，
+    /// 資料庫的勾選在觀測到換台時由 <see cref="SqlSearchBrowserModel.ObserveServer"/> 清掉，
+    /// 不在這裡清：跟著查詢視窗換台是同一條規則。索引<b>不</b>丟：它照連線的快取鍵存，
     /// 換回來時原本那一份還在。
     /// </remarks>
     private void SelectServer(SsmsObjectExplorerServer? server)
@@ -725,7 +724,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         }
 
         _model.Server = server?.DisplayName;
-        _model.ClearDatabases();
         FillServer();
         ObserveConnection(reload: true);
 
@@ -741,11 +739,21 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 換資料庫或中斷（<see cref="SqlEditorConnectionWatcher.Changed"/>）。只接前者的症狀是
     /// 在原分頁改連別台之後，列上「會不會開未連線的視窗」與範圍摘要都停在上一台。
     /// 後者每批 F5 都會發一次，所以不強制重搜：範圍真的換了才重搜。
+    ///
+    /// 先等中繼資料服務確認再讀：事件當下服務手上的目錄還是上一台的，那時讀等於「沒換」，
+    /// 而確認完之後不會再有任何事件叫這裡重讀。
     /// </remarks>
     private void OnConnectionContextChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排入 SQL Search 連線更新", () =>
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
-                SqlAssistPlatformGuard.Run("更新 SQL Search 連線", () => ObserveConnection(reload: false)))));
+                _ = SqlAssistPlatformGuard.RunAsync("更新 SQL Search 連線", ObserveConfirmedConnectionAsync, fallback: false))));
+
+    private async Task<bool> ObserveConfirmedConnectionAsync()
+    {
+        await _catalogs.ConfirmAsync().ConfigureAwait(true);
+        ObserveConnection(reload: false);
+        return true;
+    }
 
     /// <summary>重讀範圍與作用中的查詢視窗；範圍換過或 <paramref name="reload"/> 時把這一輪作廢重搜。</summary>
     private void ObserveConnection(bool reload)
@@ -774,11 +782,20 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <returns>範圍換到另一個目錄或另一台時為 true。</returns>
     private bool ObserveCatalog(out SqlMetadataCatalog? catalog)
     {
-        catalog = _catalogs.Resolve();
-        // 伺服器與目錄在同一次 UI 工作裡連著問，命中帶的才是這份目錄那一台；說不出是哪一台
-        // 就不搜，見 SqlSearchCatalogs.ResolveOrigin。
-        var moved = _providers.UseCatalog(catalog, _catalogs.ResolveOrigin());
+        // 目錄與伺服器一次交出，命中帶的才是這份目錄那一台；說不出是哪一台就不搜。
+        var connection = _catalogs.ResolveConnection();
+        catalog = connection?.Catalog;
+        var moved = _providers.UseConnection(connection);
         _model.HasConnection = _providers.HasConnection;
+
+        if (_model.ObserveServer(connection?.Origin.ServerName))
+        {
+            // 上一台的清單與勾選都不代表這一台了。清單留到新結果回來才換的話，這一台還在建索引的
+            // 那幾秒，摘要寫著這一台，下面列的卻是上一台的物件。勾選的重建要等這一輪事件走完。
+            ClearRows();
+            Defer(() => FillDatabases(_scopeDatabases.Items));
+        }
+
         // 清單快取跟著連線走，而且在這裡就同步：展開下拉時才比對的話，換一台之後
         // IsLoaded 仍是上一台的 true，下拉會一直畫著上一台的資料庫。
         _scopeDatabases.SyncTo(catalog);
@@ -858,6 +875,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed || !IsVisible) return;
 
+        // 換過連線之後服務手上的目錄可能還是上一台的；搜尋等得起，先確認。等的途中又有新的一輪
+        // 就讓給它。
+        var token = _request.Token;
+        await _catalogs.ConfirmAsync().ConfigureAwait(true);
+        if (_disposed || !IsVisible || token.IsCancellationRequested) return;
+
         // 只更新目錄，不重跑這一輪；使用者可能在去彈跳期間換過查詢視窗。
         ObserveCatalog(out _);
         if (_model.Begin(_providers.IsIndexed(_model.Scope)) is not { } round)
@@ -869,7 +892,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             return;
         }
 
-        var token = _request.Token;
         UpdateChrome();
 
         try

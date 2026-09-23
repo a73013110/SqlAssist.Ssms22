@@ -632,6 +632,33 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Empty(model.Chips());
     }
 
+    /// <summary>
+    /// 資料庫名稱是每台伺服器自己的：跟著查詢視窗換台時帶著上一台的勾選，
+    /// 下一輪每個資料庫都回「不存在」。
+    /// </summary>
+    [Fact]
+    public void 範圍換到另一台時清掉勾選的資料庫()
+    {
+        var model = new SqlSearchBrowserModel();
+        Assert.False(model.ObserveServer("LIBSQL01"));
+        model.SetDatabaseSelected("LibArchive", selected: true);
+
+        // 同一台（寫法只差大小寫）與斷線都不算換台：斷線後連回同一台，勾選還在。
+        Assert.False(model.ObserveServer("libsql01"));
+        Assert.False(model.ObserveServer(null));
+        Assert.False(model.ObserveServer("LIBSQL01"));
+        Assert.Equal(new[] { "LibArchive" }, model.Databases);
+
+        Assert.True(model.ObserveServer("LIBSQL02"));
+        Assert.Empty(model.Databases);
+
+        // 斷線不會讓下一次連上的那一台被當成第一台。
+        model.SetDatabaseSelected("LibReporting", selected: true);
+        Assert.False(model.ObserveServer(null));
+        Assert.True(model.ObserveServer("LIBSQL01"));
+        Assert.Empty(model.Databases);
+    }
+
     [Fact]
     public void 分類清單換掉時勾在上面而已經不存在的那幾個要一起走()
     {
