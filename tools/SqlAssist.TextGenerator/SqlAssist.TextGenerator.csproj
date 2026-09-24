@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 分析器與產生器由編譯器載入，只能是 netstandard2.0。 -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>SqlAssist.TextGenerator</AssemblyName>
+    <RootNamespace>SqlAssist.TextGenerator</RootNamespace>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <Platforms>AnyCPU;x64</Platforms>
+    <!-- 版本追蹤是給對外發佈的分析器套件用的；這支只在本方案建置時載入。 -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SqlAssist.TextGenerator.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 4.8 對應 VS 17.8；SSMS 22 的建置機與 .NET 10 SDK 的編譯器都比它新，產生器才載得進去。 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 剖析 .resjson 與產品讀設定檔用同一支 JSON 剖析器，註解與尾隨逗號的寬容一致。 -->
+    <Compile Include="..\..\src\SqlAssist.Core\Json\JsonReader.cs" Link="Json\JsonReader.cs" />
+    <Compile Include="..\..\src\SqlAssist.Core\Json\JsonValue.cs" Link="Json\JsonValue.cs" />
+    <Compile Include="..\..\src\SqlAssist.Core\IsExternalInit.cs" Link="IsExternalInit.cs" />
+  </ItemGroup>
+</Project>

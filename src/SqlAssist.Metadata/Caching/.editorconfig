@@ -1,0 +1,4 @@
+# 在地化遷移中：以下檔案的字面中文還沒搬進 .resjson，暫時關掉 SQLTXT100。
+# 處理完一個就從清單拿掉，清空後刪除本檔；流程見 docs/localization.md。
+[{SqlMetadataCatalog.cs,SqlMetadataCatalogRegistry.cs}]
+dotnet_diagnostic.SQLTXT100.severity = none

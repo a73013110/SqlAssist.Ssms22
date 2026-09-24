@@ -2,8 +2,8 @@
   // Unified Settings 的註冊檔。結構定義見
   //   <SSMS>\Common7\IDE\UnifiedSettings\registration.schema.json
   //
-  // 標題與描述直接寫純文字，不走 "@key;{packageGuid}" 的資源查表：
-  // 這個擴充只出 zh-TW，多一層 satellite 資源只是成本。
+  // 標題與描述目前直接寫繁中純文字。設定頁只能以 "@key;{packageGuid}" 資源
+  // 跟隨 SSMS 介面語言，改寫的待辦見 docs/localization.md。
   //
   // 這一份是「有哪些設定」的權威來源，測試以它為基準反推程式碼：
   // 每一個 moniker 都必須在 SqlAssistMonikers 有對應常數、被

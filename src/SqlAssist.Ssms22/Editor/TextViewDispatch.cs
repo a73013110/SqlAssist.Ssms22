@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text.Editor;
@@ -32,7 +33,7 @@ internal static class TextViewDispatch
     /// 而那在背景執行緒上會<b>當場建一個沒有人抽的佇列</b>——工作排進去之後永遠不會執行，
     /// 而且一行紀錄都沒有。
     /// </remarks>
-    public static void AfterCurrentCommand(ITextView? textView, string operation, Action<ITextView> work)
+    public static void AfterCurrentCommand(ITextView? textView, [Localizable(false)] string operation, Action<ITextView> work)
     {
         if (textView is null)
         {

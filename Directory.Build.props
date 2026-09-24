@@ -4,6 +4,13 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+    <!--
+      介面語言清單的唯一來源：第一個是撰寫用的來源語言，決定 .resjson 的鍵與佔位符；
+      產生器依這個順序把每一句編成陣列，Core 的 SqlLanguage 也從這裡讀出語言表。
+      新增一種語言：加在這裡、每個 .resjson 補一份，再給語言設定加一個列舉值。
+      用逗號分隔：屬性經由 editorconfig 交給產生器，分號在那裡是註解起點。
+    -->
+    <SqlAssistTextLanguages>zh-Hant,en</SqlAssistTextLanguages>
   </PropertyGroup>
 
   <ItemGroup>

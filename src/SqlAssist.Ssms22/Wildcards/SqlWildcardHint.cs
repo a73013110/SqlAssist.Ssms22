@@ -24,8 +24,6 @@ namespace SqlAssist.Ssms22.Wildcards;
 /// </remarks>
 internal sealed class SqlWildcardHint
 {
-    private const string HintText = "按 Tab 展開所有欄位";
-
     private readonly IWpfTextView _textView;
     private readonly IAsyncCompletionBroker? _broker;
     private readonly IToolTipPresenterFactory _presenterFactory;
@@ -122,7 +120,7 @@ internal sealed class SqlWildcardHint
             new object[]
             {
                 new ClassifiedTextElement(
-                    new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, HintText))
+                    new ClassifiedTextRun(PredefinedClassificationTypeNames.NaturalLanguage, WildcardText.TabHint))
             });
     }
 

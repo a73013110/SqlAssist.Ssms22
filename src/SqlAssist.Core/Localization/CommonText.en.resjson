@@ -1,0 +1,19 @@
+{
+  "Cancel": "Cancel",
+  "Close": "Close",
+  "Copy": "Copy",
+  "Delete": "Delete",
+  "Clear": "Clear",
+  "All": "All",
+  "Other": "Other",
+  "Unknown": "Unknown",
+  "Name": "Name",
+  "Type": "Type",
+  "Kind": "Kind",
+  "Status": "Status",
+  "Definition": "Definition",
+  "Server": "Server",
+  "Database": "Database",
+  "Column": "Column",
+  "Settings": "Settings"
+}

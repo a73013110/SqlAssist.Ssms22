@@ -21,6 +21,7 @@
 | `Scripting/` | 指令碼選項、三組風格與它們的序列化 |
 | `Diagnostics/` | 版本、健康檢查與匿名診斷摘要 |
 | `Json/` | 最小 JSON 讀寫（Snippet 檔與註冊檔測試用） |
+| `Localization/` | 介面語言與產生的文字類別的執行期（`SqlText`、`SqlLanguage`） |
 | `Tabular/` | 表格文字：欄位定義與 TSV／HTML 剪貼簿格式 |
 | `Lists/` | 清單頁尾的狀態與分頁世代（SQL Memory 與 SQL Search 共用） |
 | `SqlMemory/` | SQL Memory 契約、版本引擎、背景寫入、維護策略、宿主協調與瀏覽器模型 |

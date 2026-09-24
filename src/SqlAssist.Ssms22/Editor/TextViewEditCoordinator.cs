@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Text;
@@ -84,7 +85,7 @@ internal sealed class TextViewEditCoordinator
     /// </param>
     public void ReplaceTracked(
         ITrackingSpan span,
-        string operationName,
+        [Localizable(false)] string operationName,
         Func<SnapshotSpan, TextReplacement?> buildReplacement,
         Action<bool>? suppressBufferChange = null)
     {

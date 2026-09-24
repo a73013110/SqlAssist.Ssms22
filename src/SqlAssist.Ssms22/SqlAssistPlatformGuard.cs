@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Diagnostics;
@@ -39,7 +40,7 @@ namespace SqlAssist.Ssms22;
 internal static class SqlAssistPlatformGuard
 {
     /// <param name="operation">寫進紀錄的操作名稱，例如「更新萬用字元提示」。</param>
-    public static void Run(string operation, Action work)
+    public static void Run([Localizable(false)] string operation, Action work)
     {
         try
         {
@@ -55,7 +56,7 @@ internal static class SqlAssistPlatformGuard
     }
 
     /// <param name="fallback">失敗時回傳的值，必須是「這一輪什麼都不做」的意思。</param>
-    public static T Run<T>(string operation, Func<T> work, T fallback)
+    public static T Run<T>([Localizable(false)] string operation, Func<T> work, T fallback)
     {
         try
         {
@@ -73,7 +74,7 @@ internal static class SqlAssistPlatformGuard
     }
 
     /// <inheritdoc cref="Run{T}(string, Func{T}, T)"/>
-    public static async Task<T> RunAsync<T>(string operation, Func<Task<T>> work, T fallback)
+    public static async Task<T> RunAsync<T>([Localizable(false)] string operation, Func<Task<T>> work, T fallback)
     {
         try
         {
@@ -102,7 +103,7 @@ internal static class SqlAssistPlatformGuard
     /// 取消狀態來判斷這一輪的結果作廢。吞掉取消再回傳替代值，
     /// 等於把一份已經過期的內容交回去當成有效答案。
     /// </remarks>
-    public static T RunPropagatingCancellation<T>(string operation, Func<T> work, Func<T> fallback)
+    public static T RunPropagatingCancellation<T>([Localizable(false)] string operation, Func<T> work, Func<T> fallback)
     {
         try
         {
@@ -120,7 +121,7 @@ internal static class SqlAssistPlatformGuard
     }
 
     /// <summary>建立失敗就不參與，回傳 null。</summary>
-    public static T? Create<T>(string operation, Func<T?> work)
+    public static T? Create<T>([Localizable(false)] string operation, Func<T?> work)
         where T : class
     {
         return Run<T?>(operation, work, fallback: null);
@@ -130,7 +131,7 @@ internal static class SqlAssistPlatformGuard
     /// 向平台問一件可有可無的事；失敗只在詳細診斷打開時記一行。
     /// </summary>
     /// <param name="fallback">問不到時的替代值，必須本身就是可用的答案。</param>
-    public static T Probe<T>(string operation, Func<T> work, T fallback)
+    public static T Probe<T>([Localizable(false)] string operation, Func<T> work, T fallback)
     {
         try
         {
@@ -150,7 +151,7 @@ internal static class SqlAssistPlatformGuard
     /// <summary>
     /// 沒有回傳值的探測：呼叫端在呼叫前就已經備妥可用的值，這裡只是試著換成更好的。
     /// </summary>
-    public static void Probe(string operation, Action work)
+    public static void Probe([Localizable(false)] string operation, Action work)
     {
         Probe(
             operation,
@@ -184,7 +185,7 @@ internal static class SqlAssistPlatformGuard
     /// 三軸都要明寫。帶預設值的版本讓「忘了分類」與「想過之後選了 Unclassified」
     /// 在程式碼上長得一樣，而漏掉的那一個會用最寬鬆的門檻一路顯示到使用者面前。
     /// </remarks>
-    public static void Begin(string operation, Func<Task> work,
+    public static void Begin([Localizable(false)] string operation, Func<Task> work,
         NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
         string document, string subject = "")
     {
@@ -192,7 +193,7 @@ internal static class SqlAssistPlatformGuard
     }
 
     /// <inheritdoc cref="Begin(string, Func{Task}, NotificationKind, NotificationOrigin, NotificationLevel, string, string)"/>
-    public static void Begin(string operation, Action work,
+    public static void Begin([Localizable(false)] string operation, Action work,
         NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
         string document, string subject = "")
     {
@@ -206,13 +207,13 @@ internal static class SqlAssistPlatformGuard
     /// 這些工作失敗只代表下一次按鍵要自己付一次成本，功能本身沒有壞。
     /// 連線斷掉時它們會連續失敗，所以紀錄層級跟 <see cref="Probe{T}"/> 一樣。
     /// </remarks>
-    public static void BeginProbe(string operation, Func<Task> work)
+    public static void BeginProbe([Localizable(false)] string operation, Func<Task> work)
     {
         _ = AwaitAsync(operation, work, expected: true);
     }
 
     /// <inheritdoc cref="BeginProbe(string, Func{Task})"/>
-    public static void BeginProbe(string operation, Action work)
+    public static void BeginProbe([Localizable(false)] string operation, Action work)
     {
         BeginProbe(operation, () => Task.Run(work));
     }
@@ -225,7 +226,7 @@ internal static class SqlAssistPlatformGuard
     /// <c>() =&gt; running</c> 或這裡直接等都會踩到。這裡只在執行緒集區上掛一個續程接它的錯，
     /// 沒有人等它，也就沒有那條規則防的互鎖。取消是放掉等待那一方造成的，不記。
     /// </remarks>
-    public static void BeginProbe(string operation, Task running)
+    public static void BeginProbe([Localizable(false)] string operation, Task running)
     {
         if (running is null) throw new ArgumentNullException(nameof(running));
 
@@ -236,7 +237,7 @@ internal static class SqlAssistPlatformGuard
             TaskScheduler.Default);
     }
 
-    private static async Task AwaitAsync(string operation, Func<Task> work, bool expected, string document = "",
+    private static async Task AwaitAsync([Localizable(false)] string operation, Func<Task> work, bool expected, string document = "",
         NotificationKind kind = NotificationKind.Unclassified,
         NotificationOrigin origin = NotificationOrigin.Ambient,
         NotificationLevel level = NotificationLevel.Info,
@@ -263,7 +264,7 @@ internal static class SqlAssistPlatformGuard
     }
 
     /// <summary>沒有人接的背景工作失敗時記一筆；預期會連續失敗的只在詳細診斷記訊息。</summary>
-    private static void Report(string operation, Exception exception, bool expected)
+    private static void Report([Localizable(false)] string operation, Exception exception, bool expected)
     {
         if (expected) SqlAssistDiagnostics.Write($"{operation}失敗：{exception.Message}");
         else SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");

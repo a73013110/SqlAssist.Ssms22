@@ -1,0 +1,5 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+  <!-- 產品專案一律經由 .resjson 產生使用者看得到的文字，見 docs/localization.md。 -->
+  <Import Project="..\tools\SqlAssist.TextGenerator\SqlAssist.Text.props" />
+</Project>

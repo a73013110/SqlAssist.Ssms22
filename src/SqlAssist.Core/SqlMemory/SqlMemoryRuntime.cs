@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,9 +20,9 @@ public interface ISqlMemoryTimerFactory
 /// <summary>診斷紀錄；<see cref="Detail"/> 只在使用者開啟詳細診斷時寫入。</summary>
 public interface ISqlMemoryRuntimeLog
 {
-    void Detail(string message);
+    void Detail([Localizable(false)] string message);
 
-    void Important(string message);
+    void Important([Localizable(false)] string message);
 }
 
 /// <summary>排程的解析度與上限；只有測試需要改。</summary>

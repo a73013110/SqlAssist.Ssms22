@@ -7,7 +7,14 @@
     <IsTestProject>true</IsTestProject>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     <Platforms>AnyCPU;x64</Platforms>
+    <!-- 測試本身滿是中文斷言；字面中文只在產品專案裡檢查。 -->
+    <SqlAssistTextCheckLiterals>false</SqlAssistTextCheckLiterals>
   </PropertyGroup>
+  <!-- 連結進來的產品原始碼會用到 Ssms22 的文字類別，產生器要看到同一批 .resjson。 -->
+  <Import Project="..\..\tools\SqlAssist.TextGenerator\SqlAssist.Text.props" />
+  <ItemGroup>
+    <AdditionalFiles Include="..\..\src\SqlAssist.Ssms22\**\*.resjson" Exclude="..\..\src\SqlAssist.Ssms22\bin\**;..\..\src\SqlAssist.Ssms22\obj\**" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />

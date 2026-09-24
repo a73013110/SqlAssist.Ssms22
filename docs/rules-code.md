@@ -38,6 +38,11 @@
 - 工具不得寫死 SSMS 路徑或擴充 Identity Id；從 `tools/SqlAssist.Tools.psm1` 取得，並支援
   `-SsmsInstallDir` 覆寫。
 
+## 介面文字
+
+使用者看得到的文字**禁止**寫成字面值，一律放進 `.resjson`；只進診斷紀錄的文字在接收端標
+`[Localizable(false)]`。`SQLTXT100` 在編譯期擋下字面中文，格式與流程見[在地化](localization.md)。
+
 ## 文字格式
 
 直接保留 LF 與 UTF-8 無 BOM，不在收尾時批次「修復」換行或重寫無關檔案。原始診斷只放

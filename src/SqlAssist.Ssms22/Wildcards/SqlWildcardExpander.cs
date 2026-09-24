@@ -210,7 +210,7 @@ internal sealed class SqlWildcardExpander
     {
         return source.Table is { } table
             ? (table.SchemaName is null ? table.ObjectName : $"{table.SchemaName}.{table.ObjectName}")
-            : "衍生資料表";
+            : WildcardText.DerivedTable;
     }
 
     /// <param name="settings">
@@ -250,7 +250,7 @@ internal sealed class SqlWildcardExpander
         return new TextReplacement(
             text,
             SqlAssistActivityKind.WildcardExpanded,
-            $"已把萬用字元展開成 {columns.Count} 個欄位",
+            WildcardText.Expanded(columns.Count),
             affectedItemCount: columns.Count);
     }
 }

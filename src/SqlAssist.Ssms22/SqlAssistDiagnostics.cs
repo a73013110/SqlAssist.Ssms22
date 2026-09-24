@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -42,7 +43,7 @@ internal static class SqlAssistDiagnostics
         "SqlAssist.Ssms22",
         "SqlAssist.log");
 
-    public static void Write(string message, ITextView? textView = null)
+    public static void Write([Localizable(false)] string message, ITextView? textView = null)
     {
         if (!SqlAssistSettingsStore.Current.VerboseLogging)
         {
@@ -69,7 +70,7 @@ internal static class SqlAssistDiagnostics
         }
     }
 
-    public static void WriteAlways(string message, ITextView? textView = null)
+    public static void WriteAlways([Localizable(false)] string message, ITextView? textView = null)
     {
         try
         {

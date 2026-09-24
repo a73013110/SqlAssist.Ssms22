@@ -1,0 +1,5 @@
+{
+  "Available": "Version {latest} is available; you have {current}. Close all SSMS windows before installing.",
+  "UpToDate": "You're on the latest version, {current}.",
+  "Unknown": "Couldn't check for the latest version. Try again later, or visit the GitHub releases page."
+}

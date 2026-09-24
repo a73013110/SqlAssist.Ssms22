@@ -69,6 +69,7 @@
 | enableWhen、enum 相容 | [設定](settings.md)／[入口](settings-entries.md)／[設定結構](settings-schema.md) |
 | 分層載入 | [中繼資料](metadata.md)／[跨資料庫](metadata-cross-db.md) |
 | USE、連結伺服器、OPENQUERY、舊版、權限 | [連線](metadata-connection.md)／[遠端](metadata-remote.md)／[相容](metadata-compatibility.md) |
+| 介面語言、翻譯、`.resjson`、SQLTXT | [在地化](localization.md)／[術語表](localization-glossary.md) |
 | 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
 | 版號、發布、安裝／移除 | [發布](release.md) |
 | F5 偵錯、Deploy、MEF 快取、診斷紀錄 | [偵錯](debugging.md) |

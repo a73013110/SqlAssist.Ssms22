@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    產品專案（src/Directory.Build.props）與連結產品原始碼的測試專案共用的接線：
+    .resjson 轉成強型別文字類別，並由 SQLTXT100 擋下程式碼裡的字面中文。
+    語言清單 SqlAssistTextLanguages 在根目錄的 Directory.Build.props。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)SqlAssist.TextGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      IncludeOutputGroupsInVSIX=""
+                      IncludeOutputGroupsInVSIXLocalOnly="" />
+    <CompilerVisibleProperty Include="SqlAssistTextLanguages" />
+    <CompilerVisibleProperty Include="SqlAssistTextCheckLiterals" />
+    <AdditionalFiles Include="**\*.resjson" Exclude="bin\**;obj\**" />
+  </ItemGroup>
+</Project>

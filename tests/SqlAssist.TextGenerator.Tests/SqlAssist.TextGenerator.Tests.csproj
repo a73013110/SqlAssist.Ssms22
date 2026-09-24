@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>SqlAssist.TextGenerator.Tests</AssemblyName>
+    <RootNamespace>SqlAssist.TextGenerator.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\SqlAssist.TextGenerator\SqlAssist.TextGenerator.csproj" />
+    <!-- 產生出來的類別要能真的編譯並執行，才驗得到語序調換與文化格式。 -->
+    <ProjectReference Include="..\..\src\SqlAssist.Core\SqlAssist.Core.csproj" />
+  </ItemGroup>
+</Project>

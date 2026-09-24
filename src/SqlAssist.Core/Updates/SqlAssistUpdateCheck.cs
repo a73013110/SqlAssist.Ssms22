@@ -100,14 +100,14 @@ public static class SqlAssistUpdateCheck
 
         return latest > current
             ? new SqlAssistUpdateResult(SqlAssistUpdateStatus.UpdateAvailable, latestText,
-                "有新版 " + latestText + "；目前是 " + currentVersion + "。安裝前要先關掉所有 SSMS。")
+                UpdateText.Available(latestText, currentVersion))
             : new SqlAssistUpdateResult(SqlAssistUpdateStatus.UpToDate, latestText,
-                "已是最新版 " + currentVersion + "。");
+                UpdateText.UpToDate(currentVersion));
     }
 
     /// <summary>問不到答案：連不上、被限流、回應看不懂，對使用者都是同一件事。</summary>
     public static SqlAssistUpdateResult Unknown() =>
-        new(SqlAssistUpdateStatus.Unknown, string.Empty, "查不到最新版本；請稍後再試，或直接到 GitHub 的發行頁看。");
+        new(SqlAssistUpdateStatus.Unknown, string.Empty, UpdateText.Unknown);
 
     /// <summary>去掉 tag 前面的 <c>v</c>；不是版本形狀就回空字串。</summary>
     public static string ParseTag(string? tag)
