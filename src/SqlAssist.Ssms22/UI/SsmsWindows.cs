@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.VisualStudio.PlatformUI;
+using Microsoft.VisualStudio.PlatformUI.Shell.Controls;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -9,8 +9,10 @@ namespace SqlAssist.Ssms22.UI;
 /// SSMS 的頂層視窗：主視窗、使用者正在操作的框架、對話框的擁有者。
 /// </summary>
 /// <remarks>
-/// 「框架」是主視窗與拆出去的文件／工具視窗框架，不含對話框（VS 與 SqlAssist 的都是
-/// <see cref="DialogWindowBase"/>）與 SqlAssist 自己的浮動視窗——那些的右下角是按鈕，或根本不是使用者的工作區。
+/// 「框架」只有主視窗與停駐系統拆出去的 <see cref="FloatingWindow"/>，用白名單認：
+/// 排除對話框的黑名單一定會漏——SSMS 的連線對話框繼承的是它自己那一套 <c>DialogWindow</c>，
+/// 不是 VS 的 <c>DialogWindowBase</c>，通知島就錨在它的「連接／取消」上面。
+/// 備份、產生指令碼這類 WinForms 對話框本來就不在 <see cref="Application.Windows"/> 裡。
 /// 不要求框架由主視窗擁有：VS 可以把浮動框架設成獨立視窗，那時 <see cref="Window.Owner"/> 是 null。
 ///
 /// 只在 UI 執行緒上使用。
@@ -65,9 +67,8 @@ internal static class SsmsWindows
         remove => _focusMoved -= value;
     }
 
-    /// <summary>主視窗或拆出去的框架；對話框與 SqlAssist 自己的視窗不算。</summary>
-    public static bool IsFrame(Window window) =>
-        window is not DialogWindowBase && window.GetType().Assembly != typeof(SsmsWindows).Assembly;
+    /// <summary>主視窗或拆出去的框架；對話框與 SqlAssist 自己的視窗都不算。</summary>
+    public static bool IsFrame(Window window) => window is FloatingWindow || ReferenceEquals(window, Main);
 
     /// <summary>看得到：已顯示而且沒有最小化。</summary>
     public static bool IsShowing(Window? window) => window is { IsVisible: true, WindowState: not WindowState.Minimized };

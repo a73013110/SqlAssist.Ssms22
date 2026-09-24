@@ -89,6 +89,11 @@ public sealed class NotificationIslandControllerTests
         Assert.Contains("NotificationAnchor.Choose(SsmsWindows.ActiveFrame, _overlay?.Anchor, SsmsWindows.Main, SsmsWindows.IsShowing)",
             Section(controller, "private void Refresh()", "private void Render("), StringComparison.Ordinal);
 
+        // 框架用白名單認：排除對話框的黑名單漏掉了 SSMS 連線對話框自己那一套 DialogWindow。
+        var windows = ReadProductSource("UI/SsmsWindows.cs");
+        Assert.Contains("public static bool IsFrame(Window window) => window is FloatingWindow || ReferenceEquals(window, Main);",
+            windows, StringComparison.Ordinal);
+
         // 對話框的擁有者只有一個出處。
         foreach (var file in ProductSources().Where(file => !file.EndsWith("SsmsWindows.cs", StringComparison.Ordinal)))
             Assert.DoesNotMatch(@"Window\.GetWindow\([^)]*\)\s*\?\?\s*Application\.Current", File.ReadAllText(file));

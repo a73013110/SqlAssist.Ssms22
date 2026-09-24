@@ -124,6 +124,14 @@
       <HintPath>$(SsmsInstallDir)\Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Shell.15.0.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!--
+      停駐系統的浮動框架型別（FloatingWindow）。通知島只錨在主視窗與浮動框架上；
+      用排除對話框的黑名單會漏掉各自衍生的 DialogWindow，例如 SSMS 的連線對話框。
+    -->
+    <Reference Include="Microsoft.VisualStudio.Shell.ViewManager">
+      <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.ViewManager.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- Fluent 主題的公開語意色；由 SSMS 提供，不把殼層組件包進 VSIX。 -->
     <Reference Include="Microsoft.VisualStudio.Shell.Styles">
       <HintPath>$(SsmsInstallDir)\Common7\IDE\Microsoft.VisualStudio.Shell.Styles.dll</HintPath>
