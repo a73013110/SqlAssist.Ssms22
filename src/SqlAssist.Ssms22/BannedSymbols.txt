@@ -1,0 +1,1 @@
+M:System.Windows.Window.GetWindow(System.Windows.DependencyObject);編輯器（HwndHost）與 Popup 裡的元素會拿到 null，改用 SsmsWindows.WindowOf

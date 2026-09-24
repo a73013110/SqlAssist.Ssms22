@@ -94,4 +94,5 @@ preferred size：定位引擎會**分兩軸**回報哪一軸被壓縮，被壓�
 WPF 的 Popup 被點時不啟用自己的程式。切到別的程式之後再點回預覽，SSMS 仍在背景，
 鍵盤焦點進不去：搜尋框點不進、指令碼拉選不起來、Esc 送到別的程式，只有分頁、資料格
 與捲軸這些純滑鼠的操作照常動。所以每一次按下都先把編輯器所在的框架帶回前景
-（`SsmsWindows.ActivateFrameOf`），再照常處理這一次按下。
+（`SsmsWindows.ActivateFrameOf`），再照常處理這一次按下。框架由 `SsmsWindows.WindowOf`
+沿 HWND 找；用 `Window.GetWindow` 的第一版對編輯器拿到 null，什麼都沒啟用，症狀跟沒修一樣。

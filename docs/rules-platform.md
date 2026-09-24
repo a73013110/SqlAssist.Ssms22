@@ -45,6 +45,11 @@
   的三步驟（Dismiss → TriggerCompletion → OpenOrUpdate），一步都不能少。
 - **禁止**在原地重開建議清單；必須排到派送佇列的 Background 優先權。
 - **禁止**在浮動預覽裡內嵌真正的編輯器，或依賴 `ApplicationCommands.Copy` 的繞送。
+- **禁止**用 `Window.GetWindow` 找元素所在的視窗，一律 `SsmsWindows.WindowOf`：編輯器在 HwndHost 裡、
+  Popup 是自己的頂層 HWND，前者都回傳 null 而且不報錯。`BannedSymbols.txt` 在編譯期擋著（RS0030）；
+  平台上其他「安靜回傳 null」的 API 也加進那份清單，不靠記憶。
+- `StaysOpen` 的 Popup 裡有要鍵盤的控制項時，按下的預覽階段**必須**先 `SsmsWindows.ActivateFrameOf`：
+  Popup 被點不啟用程式，SSMS 在背景時鍵盤焦點進不去，只剩滑鼠操作能動。
 - **禁止**在 `UI/SqlAssistChrome` 之外另立一套外觀。字型、字級推導、按鈕、輸入欄位、
   核取方塊與資料格樣板只有那一個來源；`Preview/PreviewChrome` 只放別的視窗用不到的東西。
   排版與視覺判準見[自製 UI 準則](ui-guidelines.md)。

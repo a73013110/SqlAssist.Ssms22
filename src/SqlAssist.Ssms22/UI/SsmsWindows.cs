@@ -1,6 +1,9 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
+using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI.Shell.Controls;
 
 namespace SqlAssist.Ssms22.UI;
@@ -19,6 +22,9 @@ namespace SqlAssist.Ssms22.UI;
 /// </remarks>
 internal static class SsmsWindows
 {
+    private const uint GetRoot = 2;
+    private const uint GetOwner = 4;
+
     private static EventHandler? _focusMoved;
     private static bool _focusHooked;
 
@@ -74,6 +80,36 @@ internal static class SsmsWindows
     public static bool IsShowing(Window? window) => window is { IsVisible: true, WindowState: not WindowState.Minimized };
 
     /// <summary>
+    /// <paramref name="source"/> 所在的 WPF 視窗；編輯器、編輯器上的 Popup 都找得到，取不到時為 null。
+    /// </summary>
+    /// <remarks>
+    /// 這是找「元素在哪個視窗」的唯一入口，<see cref="Window.GetWindow"/> 由 BannedSymbols.txt 擋在編譯期。
+    /// 它只走 WPF 祖先樹，跨不過 HWND 邊界：編輯器裝在 HwndHost 裡、Popup 是自己的頂層 HWND，
+    /// 兩者都拿到 null——預覽點下去不帶回前景、視窗移動不重新定位，都是這個 null 安靜吞掉的。
+    /// 所以先試祖先樹，不行就從來源的 HWND 走到頂層，對不上 <see cref="Application.Windows"/>
+    /// 再沿擁有者往上（Popup 由編輯器所在的框架擁有）。
+    /// </remarks>
+    public static Window? WindowOf(DependencyObject source)
+    {
+#pragma warning disable RS0030 // 唯一允許的呼叫點，理由見上。
+        if (Window.GetWindow(source) is { } window) return window;
+#pragma warning restore RS0030
+        if (source is not Visual visual || PresentationSource.FromVisual(visual) is not HwndSource hwndSource) return null;
+        if (Application.Current is not { } application) return null;
+
+        var handle = GetAncestor(hwndSource.Handle, GetRoot);
+        // 擁有者鏈不會長；上限只防萬一出現環。
+        for (var depth = 0; depth < 8 && handle != IntPtr.Zero; depth++)
+        {
+            foreach (Window candidate in application.Windows)
+                if (new WindowInteropHelper(candidate).Handle == handle) return candidate;
+            handle = GetRelatedWindow(handle, GetOwner);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// 把 <paramref name="source"/> 所在的框架帶回前景；已經在前景時什麼都不做。
     /// </summary>
     /// <remarks>
@@ -85,12 +121,18 @@ internal static class SsmsWindows
     /// </remarks>
     public static void ActivateFrameOf(DependencyObject source)
     {
-        if (Window.GetWindow(source) is { IsActive: false } window) window.Activate();
+        if (WindowOf(source) is { IsActive: false } window) window.Activate();
     }
 
     /// <summary>對話框的擁有者：來源所在的視窗，拿不到時是主視窗。</summary>
     public static Window OwnerOf(DependencyObject source) =>
-        Window.GetWindow(source) ?? Main ?? throw new InvalidOperationException("找不到 SSMS 主視窗，無法開啟對話框。");
+        WindowOf(source) ?? Main ?? throw new InvalidOperationException("找不到 SSMS 主視窗，無法開啟對話框。");
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr window, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindow")]
+    private static extern IntPtr GetRelatedWindow(IntPtr window, uint relation);
 
     private static void OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs args)
     {

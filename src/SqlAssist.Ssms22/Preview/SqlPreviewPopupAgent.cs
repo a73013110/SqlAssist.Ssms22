@@ -815,7 +815,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         _control.InteractionFocusGained += OnInteractionFocusGained;
         _control.InteractionFocusLost += OnInteractionFocusLost;
         _view.LostAggregateFocus += OnViewLostAggregateFocus;
-        _hostWindow = Window.GetWindow(_view.VisualElement);
+        _hostWindow = SsmsWindows.WindowOf(_view.VisualElement);
         if (_hostWindow is not null)
         {
             _hostWindow.LocationChanged += OnHostWindowLocationChanged;
