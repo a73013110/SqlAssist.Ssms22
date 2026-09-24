@@ -21,7 +21,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly WrapPanel _actions = new();
-    private readonly WrapPanel _tools = new();
+    private readonly ToggleButton _wrap;
     private readonly SqlMatchNavigation _matches;
     private readonly List<(Button Button, SqlMemoryRowCommand Command)> _rowActions = new();
     private readonly SqlSelectionLoader<SqlMemoryRow> _loader;
@@ -30,32 +30,31 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     private TextMatcher? _matcher;
     public FrameworkElement Summary => _detail;
 
-    /// <param name="reportCommand">列操作的結果寫到工具窗的狀態列：刪除後選取會移到下一筆，寫在 Preview 會立刻被清掉。</param>
+    /// <param name="reportCommand">列操作沒有接住的例外寫到工具窗的狀態列；操作的結果由列操作自己送通知。</param>
     public SqlMemoryPreview(SqlMemoryItemCommands commands, Action<string> reportCommand)
     {
         _commands = commands;
         _reportCommand = reportCommand;
-        // 左側只放全文專用工具；右側列操作與清單卡片、快捷選單同一份清單、同一個順序與實作。
-        // 命中導覽與界線排在最前面，與 SQL Search 預覽同一份（SqlMatchNavigation）。
+        // 命中導覽與界線排在最前面，與 SQL Search 預覽同一份（SqlMatchNavigation）：這一列上只有它會被連按。
+        // 接著是列操作，與清單卡片、快捷選單同一份清單、同一個順序與實作；複製就是那一顆「複製 SQL」，
+        // 讀的是這裡已經載入的全文，不另放一顆同義的「複製全文」。
         _matches = new SqlMatchNavigation(_viewer);
-        foreach (var item in _matches.ToolbarItems) _tools.Children.Add(item);
-        _tools.Children.Add(Button(SqlIcon.Copy, "複製全文", () => _viewer.CopyAll()));
-        // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關：
-        // 按完之後工具列上看得出現在是開著的，理由見 SqlAssistChrome.CreateIconToggle。
-        _tools.Children.Add(Toggle(SqlIcon.Wrap, "SQL 顯示換行", _viewer.SetWrap));
+        foreach (var item in _matches.ToolbarItems) _actions.Children.Add(item);
         foreach (var command in SqlMemoryRowCommand.All)
         {
-            // 複製已由左側的「複製全文」涵蓋，右側不再放第二顆同義按鈕。
-            if (command.Action is SqlMemoryRowAction.Copy) continue;
             var action = command.Action;
             var button = Button(command.Icon, command.Label, () => Run(action), command.Tone);
-            // 開啟是這個面板的主要動作；只換靜止底色，位置仍跟著共用順序排在最前。
-            if (action == SqlMemoryRowAction.Open) button.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
-            if (command.IsSeparated) button.Margin = new Thickness(6, 0, 0, 0);
-            _rowActions.Add((button, command)); _actions.Children.Add(button);
+            // 開啟是這個面板的主要動作；只換靜止底色，位置仍跟著共用順序排在操作的最前面。
+            if (command.IsPrimary) button.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
+            SqlAssistChrome.AddToolbarAction(_actions, button, command.IsSeparated);
+            _rowActions.Add((button, command));
         }
+        // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關、同一個位置（右緣），
+        // 理由見 SqlAssistChrome.CreatePreviewToolbar 與 CreateIconToggle。
+        _wrap = Toggle(SqlIcon.Wrap, "SQL 顯示換行", _viewer.SetWrap);
         _surface = new SqlStateSurface(_viewer);
-        Content = SqlAssistChrome.CreateMemoryDetailBody(_surface, _status, _tools, _actions);
+        Content = SqlAssistChrome.CreateMemoryDetailBody(_surface, _status,
+            SqlAssistChrome.CreatePreviewToolbar(_actions, _wrap));
         _viewer.ReportError = Report;
         _loader = new SqlSelectionLoader<SqlMemoryRow>(Dispatcher, SqlAssistChrome.Debounce.Preview,
             (row, token) => _ = SqlMemoryActions.RunAsync(() => ReadAsync(row, token), Report));
@@ -77,7 +76,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         if (_disposed) return;
         _loader.Select(row); _loaded = false;
         _matcher = row is null ? null : matcher;
-        _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = false;
+        _actions.IsEnabled = _wrap.IsEnabled = _viewer.IsEnabled = false;
         _detail.Content = row;
         _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _detail.ToolTip = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
@@ -113,7 +112,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
                 return;
             }
             Show(content.SqlText, row.IsFavorite);
-            _loaded = true; _actions.IsEnabled = _tools.IsEnabled = _viewer.IsEnabled = true;
+            _loaded = true; _actions.IsEnabled = _wrap.IsEnabled = _viewer.IsEnabled = true;
             // 空白內容也是一種「沒有東西可讀」，跟其他三種走同一塊表面；寫在狀態列的話，
             // 使用者看到的是一塊空的唯讀檢視配一行小字。
             // 新的擷取不再留下空白列（SqlContent.IsBlank），但清理之前的舊資料仍在，
@@ -162,7 +161,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _actions.IsEnabled = false;
         _ = SqlMemoryActions.RunAsync(async () =>
         {
-            try { await _commands.RunAsync(action, row, this, _reportCommand, token, _viewer.Sql); }
+            try { await _commands.RunAsync(action, row, this, token, _viewer.Sql); }
             finally { if (_loader.IsCurrent(row, token)) _actions.IsEnabled = _loaded; }
         }, _reportCommand);
     }
@@ -171,7 +170,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     /// <remarks>
     /// 不走 <see cref="Button"/> 那道「沒載進來就不動作」的守門：那是給碰得到執行階段的動作用的，
     /// 而換行只改顯示。吃掉那一次的症狀是按鈕留在開著的樣子，內容卻沒有換行——一個開關說謊
-    /// 比一顆按了沒事的按鈕更難發現。按不按得動由 <c>_tools.IsEnabled</c> 決定，與其餘工具相同。
+    /// 比一顆按了沒事的按鈕更難發現。按不按得動與列操作同時由載入狀態決定。
     /// </remarks>
     private ToggleButton Toggle(SqlIcon icon, string text, Action<bool> apply)
     {

@@ -36,8 +36,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlMemoryList _list = new();
     private readonly SqlCardSelection<SqlMemoryRow, Guid> _selection;
     private readonly SqlSelectionBar _selectionBar;
-    /// <summary>「全部符合」的背景讀取；換條件、取消勾選或離開時取消。</summary>
-    private CancellationTokenSource? _bulkCopy;
+    /// <summary>多選動作的背景工作（「全部符合」的讀取、刪除）；換條件、取消勾選、按取消或離開時取消。</summary>
+    private CancellationTokenSource? _bulk;
     /// <summary>重新整理的第一頁回來之後，勾選只留下仍在清單上的那幾筆。</summary>
     private bool _pruneAfterRefresh;
     private readonly TabControl _tabs = new();
@@ -91,10 +91,13 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SetResourceReference(BackgroundProperty, ThemeBrush.WindowBackground);
         SetResourceReference(ForegroundProperty, ThemeBrush.WindowForeground);
         MinWidth = 300;
-        // 勾選以列識別為鍵，與 ListBox 的焦點／預覽分開；動作只有複製，之後的批次動作加在這裡。
+        // 勾選以列識別為鍵，與 ListBox 的焦點／預覽分開。刪除與列上的刪除同一條規則：隔一條線、一律確認；
+        // 不給快捷鍵，Delete 在多選模式中仍只作用在焦點列，一個按鍵刪掉一整批太容易誤觸。
         _selection = new SqlCardSelection<SqlMemoryRow, Guid>(_rows, row => row.Id);
         _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, "複製", CopySelectionAsync,
             shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
+        _selection.AddAction(new SqlSelectionAction(SqlIcon.Remove, "刪除", DeleteSelectionAsync,
+            canExecute: () => _model.IsAvailable && !_commands.IsBusy, separated: true));
         var root = new DockPanel { Margin = new Thickness(SqlAssistChrome.Spacing.Group) };
         // 分頁列、搜尋列、篩選列與主機訊息之間的間距由這一層給，整塊與清單之間也是；
         // 子元素不自己帶 margin，否則整組收起（切到用量分頁）之後會留下半格空白。
@@ -147,7 +150,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _selection.Changed += (_, _) =>
         {
             // 取消勾選或取消任何一列（不再是全部符合）就是不要那一份了；背景讀取跟著停。
-            if (!_selection.IsActive || !_selection.IsAllMatching) CancelBulkCopy(null);
+            // 刪除中勾選不會變（工具列忙碌），這一條只會停在讀取階段。
+            if (!_selection.IsActive || !_selection.IsAllMatching) CancelBulk();
         };
         _list.LoadMoreRequested += (_, _) => Load();
         _pager.LoadMoreRequested += (_, _) => SqlMemoryActions.Run(Load, Report);
@@ -307,7 +311,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SqlMemoryHost.Runtime.CapacityChanged -= OnCapacityChanged;
         _usagePanel.Dispose();
         _clockTimer.Stop(); _searchTimer.Stop(); _settleTimer.Stop();
-        CancelBulkCopy(null);
+        CancelBulk();
         _request.Cancel(); _request.Dispose(); _facets.Cancel(); _facets.Dispose(); _detail.Dispose();
     }
 
@@ -349,7 +353,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void RunCommand(SqlMemoryRowAction action)
     {
         if (!_model.IsAvailable || _list.SelectedItem is not SqlMemoryRow row) return;
-        _ = SqlMemoryActions.RunAsync(() => _commands.RunAsync(action, row, this, Report, _request.Token), Report);
+        _ = SqlMemoryActions.RunAsync(() => _commands.RunAsync(action, row, this, _request.Token), Report);
     }
 
     /// <summary>宿主狀態可能在背景執行緒改變；排回 UI 執行緒再比對。</summary>
@@ -775,7 +779,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _request.Cancel(); _request.Dispose(); _request = new CancellationTokenSource();
         _model.Invalidate(DateTimeOffset.Now);
         // 世代換了，背景讀到一半的「全部符合」不再屬於這一份清單。
-        CancelBulkCopy(null);
+        CancelBulk();
         _pruneAfterRefresh = false;
         _loadFailure = "";
         Report("");
@@ -908,7 +912,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     /// 選取工具列的「複製」（多選模式中的 Ctrl+C 也是它）：TSV 與 HTML 同時放上剪貼簿，順序照清單。
     /// </summary>
     /// <remarks>
-    /// 結果只寫在工具窗的狀態列：這是結果已在眼前的動作，不走通知。失敗由
+    /// 結果走通知，與列上的複製同一條：效果在剪貼簿上，不在這個視窗裡。失敗由
     /// <see cref="SqlMemoryActions.RunAsync"/> 回報，所以這一支不擲出例外——工具列的點擊接不住它。
     /// </remarks>
     private async Task<bool> CopySelectionAsync()
@@ -917,64 +921,147 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         await SqlMemoryActions.RunAsync(async () =>
         {
             // 全部都已載入時照畫面上的列複製，不必再向儲存讀一次。
-            succeeded = _selection.IsAllMatching && _selection.HasMore
-                ? await CopyAllMatchingAsync().ConfigureAwait(true)
-                : await WriteClipboardAsync(SqlMemoryRow.CopyContent(_selection.CheckedRows(), _model.IsFavorites), null)
+            if (!NeedsReadAll)
+            {
+                succeeded = await WriteClipboardAsync(SqlMemoryRow.CopyContent(_selection.CheckedRows(), _model.IsFavorites), null)
                     .ConfigureAwait(true);
+                return;
+            }
+
+            if (await ReadAllMatchingAsync("停止讀取；剪貼簿不變。", () => SqlMemoryActions.Notify(
+                    NotificationCatalog.CopyingSqlList, NotificationStatus.Canceled, message: "剪貼簿未變更。"))
+                    .ConfigureAwait(true) is not { } all) return;
+            var content = all.Favorites is { } favorites
+                ? SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, favorites.Items)
+                : SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, all.History!.Items);
+            var limit = Count(SqlMemoryBulk.Limit);
+            succeeded = await WriteClipboardAsync(content, all.IsTruncated
+                ? $"符合的項目超過 {limit} 筆，只複製了前 {limit} 筆；可縮小篩選後分批複製。"
+                : null).ConfigureAwait(true);
         }, Report).ConfigureAwait(true);
         return succeeded;
     }
 
     /// <summary>
-    /// 「全部符合」：照目前的條件以 keyset 分頁在背景讀到底，全部讀完才寫剪貼簿。
+    /// 選取工具列的「刪除」：確認一次，照清單的勾選或「全部符合」分批刪除，結束後重讀清單。
     /// </summary>
     /// <remarks>
-    /// 每一頁都從同一份 <see cref="SqlMemoryQuery"/> 快照組請求，讀完再問模型那一輪還算不算數：
-    /// 期間換了篩選的話，讀回來的是舊條件的結果，寫進剪貼簿只會貼出一份與畫面上不同的清單。
+    /// 確認、通知與儲存呼叫與列上的刪除是同一份（<see cref="SqlMemoryItemCommands"/>）。「全部符合」先讀完再確認：
+    /// 確認框上的筆數要是這一次真的會動到的數字，而不是「全部」兩個字。刪除中的進度與取消在工具列上；
+    /// 取消停在兩批之間，已刪的不還原。結束一律重讀而不是逐列淡出：刪掉的可能散在還沒載入的頁，
+    /// 中途取消或失敗時也只有儲存層知道實際刪到哪裡。
     /// </remarks>
-    private async Task<bool> CopyAllMatchingAsync()
+    private async Task<bool> DeleteSelectionAsync()
     {
-        CancelBulkCopy(null);
-        var cancel = new CancellationTokenSource();
-        _bulkCopy = cancel;
-        var token = cancel.Token;
-        var query = _model.Query();
-        Action stop = () => CancelBulkCopy("已取消複製；剪貼簿未變更。");
-        _selectionBar.ShowProgress(ReadingAll, stop);
-        var progress = new Progress<int>(count =>
+        var succeeded = false;
+        await SqlMemoryActions.RunAsync(async () =>
         {
-            if (ReferenceEquals(_bulkCopy, cancel)) _selectionBar.ShowProgress("正在讀取，已讀 " + Count(count) + " 筆…", stop);
-        });
-        try
-        {
-            SqlTabularContent content;
-            bool truncated;
-            if (query.IsFavorites)
+            SqlMemoryDeletion deletion;
+            var truncated = false;
+            var favoritesTab = _model.IsFavorites;
+            var title = favoritesTab ? NotificationCatalog.RemovingFavorite : NotificationCatalog.DeletingSqlHistory;
+            if (NeedsReadAll)
             {
-                var batch = await SqlMemoryCopy.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadFavoritesAsync(
-                    query.FavoriteRequest(SqlMemoryCopy.PageSize, cursor), t), SqlMemoryCopy.Limit, progress, token).ConfigureAwait(true);
-                content = SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, batch.Items);
-                truncated = batch.IsTruncated;
+                if (await ReadAllMatchingAsync("停止讀取；還沒有刪除任何一筆。", () => SqlMemoryActions.Notify(
+                        title, NotificationStatus.Canceled, message: "還沒有刪除任何一筆。"))
+                        .ConfigureAwait(true) is not { } all) return;
+                deletion = all.Favorites is { } favorites ? SqlMemoryDeletion.Of(favorites.Items) : SqlMemoryDeletion.Of(all.History!.Items);
+                truncated = all.IsTruncated;
             }
             else
             {
-                var batch = await SqlMemoryCopy.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadHistoryAsync(
-                    query.HistoryRequest(SqlMemoryCopy.PageSize, cursor), t), SqlMemoryCopy.Limit, progress, token).ConfigureAwait(true);
-                content = SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, batch.Items);
-                truncated = batch.IsTruncated;
+                var rows = _selection.CheckedRows().ToArray();
+                deletion = favoritesTab
+                    ? SqlMemoryDeletion.Of(rows.Where(row => row.Favorite is not null).Select(row => row.Favorite!).ToArray())
+                    : SqlMemoryDeletion.Of(rows.Where(row => row.History is not null).Select(row => row.History!).ToArray());
             }
 
-            if (_disposed || token.IsCancellationRequested || !_model.IsCurrent(query)) return false;
-            var limit = Count(SqlMemoryCopy.Limit);
-            return await WriteClipboardAsync(content, truncated
-                ? $"符合的項目超過 {limit} 筆，只複製了前 {limit} 筆；可縮小篩選後分批複製。"
-                : null).ConfigureAwait(true);
+            // 勾起來的列都已不在：沒有動到任何東西，說明為什麼沒有反應，留在狀態列。
+            if (deletion.Count == 0) { Report("沒有可刪除的項目。"); return; }
+            if (!SqlMemoryItemCommands.ConfirmDelete(this, deletion, null, truncated)) return;
+
+            CancelBulk();
+            var stop = new CancellationTokenSource();
+            _bulk = stop;
+            const string hint = "停在目前這一批之後；已刪除的不會還原。";
+            var total = Count(deletion.Count);
+            Action cancel = () => { if (ReferenceEquals(_bulk, stop)) stop.Cancel(); };
+            _selectionBar.ShowProgress("正在刪除…", hint, cancel);
+            var progress = new Progress<int>(done =>
+            {
+                if (ReferenceEquals(_bulk, stop)) _selectionBar.ShowProgress($"正在刪除，{Count(done)}/{total} 筆…", hint, cancel);
+            });
+            try
+            {
+                var report = await _commands.DeleteAsync(deletion, null, progress, _request.Token, stop.Token).ConfigureAwait(true);
+                succeeded = report is { IsCanceled: false, Conflicts: 0 };
+            }
+            finally
+            {
+                if (ReferenceEquals(_bulk, stop)) _bulk = null;
+                stop.Dispose();
+                if (!_disposed)
+                {
+                    _selectionBar.ClearProgress();
+                    _selection.Clear();
+                    if (_model.IsAvailable) RefreshList();
+                }
+            }
+        }, Report).ConfigureAwait(true);
+        return succeeded;
+    }
+
+    /// <summary>勾的是「全部符合」而且還有沒載入的頁：動作要自己把其餘的讀進來。</summary>
+    private bool NeedsReadAll => _selection.IsAllMatching && _selection.HasMore;
+
+    /// <summary>
+    /// 「全部符合」：照目前的條件以 keyset 分頁在背景讀到底；複製與刪除共用。
+    /// </summary>
+    /// <remarks>
+    /// 每一頁都從同一份 <see cref="SqlMemoryQuery"/> 快照組請求，讀完再問模型那一輪還算不算數：
+    /// 期間換了篩選的話，讀回來的是舊條件的結果，拿去複製或刪除都會動到一份與畫面上不同的清單。
+    /// </remarks>
+    /// <param name="cancelHint">工具列「取消」的說明。</param>
+    /// <param name="canceled">使用者按了取消之後的回報；換條件或離開造成的停止不回報。</param>
+    /// <returns>讀完的那一份；取消、換了條件或視窗已關閉時是 null。</returns>
+    private async Task<(SqlMemoryBulkBatch<SqlHistoryItem>? History, SqlMemoryBulkBatch<SqlFavoriteItem>? Favorites, bool IsTruncated)?>
+        ReadAllMatchingAsync(string cancelHint, Action canceled)
+    {
+        CancelBulk();
+        var cancel = new CancellationTokenSource();
+        _bulk = cancel;
+        var token = cancel.Token;
+        var query = _model.Query();
+        Action stop = () =>
+        {
+            if (!ReferenceEquals(_bulk, cancel)) return;
+            CancelBulk();
+            canceled();
+        };
+        _selectionBar.ShowProgress(ReadingAll, cancelHint, stop);
+        var progress = new Progress<int>(count =>
+        {
+            if (ReferenceEquals(_bulk, cancel)) _selectionBar.ShowProgress("正在讀取，已讀 " + Count(count) + " 筆…", cancelHint, stop);
+        });
+        try
+        {
+            SqlMemoryBulkBatch<SqlHistoryItem>? history = null;
+            SqlMemoryBulkBatch<SqlFavoriteItem>? favorites = null;
+            if (query.IsFavorites)
+                favorites = await SqlMemoryBulk.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadFavoritesAsync(
+                    query.FavoriteRequest(SqlMemoryBulk.PageSize, cursor), t), SqlMemoryBulk.Limit, progress, token).ConfigureAwait(true);
+            else
+                history = await SqlMemoryBulk.ReadAllAsync((cursor, t) => SqlMemoryHost.Runtime.ReadHistoryAsync(
+                    query.HistoryRequest(SqlMemoryBulk.PageSize, cursor), t), SqlMemoryBulk.Limit, progress, token).ConfigureAwait(true);
+
+            if (_disposed || token.IsCancellationRequested || !_model.IsCurrent(query)) return null;
+            return (history, favorites, history?.IsTruncated ?? favorites!.IsTruncated);
         }
         finally
         {
-            if (ReferenceEquals(_bulkCopy, cancel))
+            if (ReferenceEquals(_bulk, cancel))
             {
-                _bulkCopy = null;
+                _bulk = null;
                 if (!_disposed) _selectionBar.ClearProgress();
             }
 
@@ -987,24 +1074,25 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private static string Count(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
 
-    /// <param name="success">成功時的訊息；null 用預設的「已複製 N 筆」。</param>
-    private async Task<bool> WriteClipboardAsync(SqlTabularContent content, string? success)
+    /// <param name="note">成功時通知上的說明；null 用預設的筆數與「可直接貼到 Excel」。</param>
+    private async Task<bool> WriteClipboardAsync(SqlTabularContent content, string? note)
     {
+        // 勾起來的列都已不在：沒有動到剪貼簿，說明為什麼沒有反應，留在狀態列。
         if (content.RowCount == 0) { Report(SqlClipboard.EmptyMessage); return false; }
         var failure = await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
-        Report(failure ?? success ?? SqlClipboard.CopiedMessage(content.RowCount));
+        SqlMemoryActions.Notify(NotificationCatalog.CopyingSqlList,
+            failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed,
+            message: failure ?? note ?? SqlClipboard.CopiedNote(content.RowCount));
         return failure is null;
     }
 
-    /// <summary>停掉「全部符合」的背景讀取；<paramref name="message"/> 非 null 表示是使用者按了取消。</summary>
-    private void CancelBulkCopy(string? message)
+    /// <summary>停掉多選動作的背景工作（讀取或刪除）；回報由按下取消的那一方負責。</summary>
+    private void CancelBulk()
     {
-        if (_bulkCopy is not { } running) return;
-        _bulkCopy = null;
+        if (_bulk is not { } running) return;
+        _bulk = null;
         running.Cancel();
-        if (_disposed) return;
-        _selectionBar.ClearProgress();
-        if (message is not null) Report(message);
+        if (!_disposed) _selectionBar.ClearProgress();
     }
 
     private void Report(string message)

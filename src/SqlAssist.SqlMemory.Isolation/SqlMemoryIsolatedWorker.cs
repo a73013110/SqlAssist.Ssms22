@@ -90,8 +90,8 @@ public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
     public string[] ReadConnectionFacets(long operation, SqlConnectionFacetRequest request) =>
         Run(operation, token => Storage.Captures.ReadConnectionFacets(request, token));
     public SqlContent? ReadContent(long operation, string contentId) => Run(operation, token => Storage.Captures.ReadContent(contentId, token));
-    public SqlHistoryDeleteResult DeleteHistory(long operation, SqlHistoryItem item) =>
-        Run(operation, token => Storage.Captures.DeleteHistory(item, token));
+    public int DeleteHistory(long operation, SqlHistoryItem[] items) =>
+        Run(operation, token => Storage.Captures.DeleteHistory(items, token));
 
     public SqlFavoriteItem? ReadFavorite(long operation, Guid id) => Run(operation, token => Storage.Favorites.ReadFavorite(id, token));
     public SqlMemoryPage<SqlFavoriteItem> ReadFavorites(long operation, SqlFavoriteRequest request) =>

@@ -19,6 +19,7 @@ public sealed class SqlMemoryNotificationWiringTests
     private const string Browser = "SqlMemory/SqlMemoryBrowser.cs";
     private const string RevisionCommands = "SqlMemory/SqlFavoriteRevisionCommands.cs";
     private const string ToolWindow = "SqlMemory/SqlMemoryToolWindow.cs";
+    private const string ItemCommands = "SqlMemory/SqlMemoryItemCommands.cs";
 
     /// <summary>
     /// 整理、壓縮與自我測試都只剩用量分頁一個入口，沒有第二條沒有確認框的捷徑。
@@ -131,6 +132,41 @@ public sealed class SqlMemoryNotificationWiringTests
         // 衝突與「不確定有沒有成功」要當場讀完，留在視窗裡。
         Assert.Contains("report(\"收藏已被修改或移除，未回溯；已重新讀取版本清單。\");", revert, StringComparison.Ordinal);
         Assert.Contains("report(\"回溯未確認：\"", revert, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 列操作與多選動作的結果走通知；工具窗的狀態列只留說明畫面為什麼是這樣的那幾句。
+    /// </summary>
+    /// <remarks>
+    /// 效果在工具窗外面（剪貼簿、新查詢、儲存），而刪除後選取會移到下一筆：寫在狀態列的那一句，
+    /// 使用者對不上它說的是哪一筆。單筆與多選刪除走同一份確認與通知，不各寫一套。
+    /// </remarks>
+    [Fact]
+    public void 列操作與多選動作的結果走通知()
+    {
+        var actions = ReadProductSource("SqlMemory/SqlMemoryActions.cs");
+        Assert.Contains("NotificationCenter.Default.Post(title, NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info,", actions, StringComparison.Ordinal);
+
+        var commands = ReadProductSource(ItemCommands);
+        foreach (var title in new[]
+                 {
+                     "NotificationCatalog.CopyingSql,", "NotificationCatalog.OpeningQueryWindow", "NotificationCatalog.AddingFavorite",
+                     "NotificationCatalog.SavingFavorite", "NotificationCatalog.RemovingFavorite", "NotificationCatalog.DeletingSqlHistory",
+                 })
+            Assert.Contains(title, commands, StringComparison.Ordinal);
+        Assert.DoesNotContain("Action<string> report", commands, StringComparison.Ordinal);
+        Assert.Contains("SqlMemoryHost.Runtime.DeleteAsync(deletion,", commands, StringComparison.Ordinal);
+
+        var browser = ReadProductSource(Browser);
+        Assert.Contains("NotificationCatalog.CopyingSqlList", browser, StringComparison.Ordinal);
+        Assert.DoesNotContain("SqlClipboard.CopiedMessage", browser, StringComparison.Ordinal);
+        // 多選刪除沿用列操作那一份確認與刪除，而且沒有快捷鍵。
+        Assert.Contains("SqlMemoryItemCommands.ConfirmDelete(this, deletion, null, truncated)", browser, StringComparison.Ordinal);
+        Assert.Contains("_commands.DeleteAsync(deletion, null, progress,", browser, StringComparison.Ordinal);
+        Assert.Contains("canExecute: () => _model.IsAvailable && !_commands.IsBusy, separated: true));", browser, StringComparison.Ordinal);
+
+        var favorite = ReadProductSource("SqlMemory/SqlMemoryFavoriteAction.cs");
+        Assert.Contains("SqlMemoryActions.Notify(NotificationCatalog.AddingFavorite,", favorite, StringComparison.Ordinal);
     }
 
     private static string Section(string source, string start, string end)

@@ -37,8 +37,8 @@ internal sealed class FakeSqlMemoryStore : ISqlMemoryStore
         return await Captures.ReadContentAsync(contentId, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
-        Captures.DeleteHistoryAsync(item, cancellationToken);
+    public Task<int> DeleteHistoryAsync(IReadOnlyList<SqlHistoryItem> items, CancellationToken cancellationToken) =>
+        Captures.DeleteHistoryAsync(items, cancellationToken);
 
     public Task<IReadOnlyList<string>> ReadConnectionFacetsAsync(SqlConnectionFacetRequest request, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<string>>(new[] { "LibraryServer" });

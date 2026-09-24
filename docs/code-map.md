@@ -46,7 +46,8 @@
 | 伺服器／資料庫篩選或套用查詢視窗的連線不對（兩個工具窗） | `Core/Connections/SqlConnectionScope.cs`；Search 的連線在 `Search/SqlSearchCatalogs.cs` |
 | 大小寫、整個字沒作用，或同一個字在兩個工具窗命中不同 | `Core/Matching/TextMatcher.cs`；開關在 `Ssms22/UI/SqlMatchToggles.cs` |
 | 多選勾不起來、勾錯列、選取工具列不出現 | `Ssms22/UI/SqlCardSelection.cs`、`SqlCardList.cs`、`SqlSelectionBar.cs` |
-| 批次複製的欄位、順序或「全部符合」讀不完 | `Core/SqlMemory/SqlMemoryCopy.cs`、`Core/Tabular/SqlTabularText.cs`、`Ssms22/SqlMemory/SqlMemoryBrowser.cs`；Search 的欄位在 `Search/SqlSearchRow.cs` |
+| 批次複製的欄位、順序或「全部符合」讀不完 | `Core/SqlMemory/SqlMemoryCopy.cs`、`SqlMemoryBulk.cs`、`Core/Tabular/SqlTabularText.cs`、`Ssms22/SqlMemory/SqlMemoryBrowser.cs`；Search 的欄位在 `Search/SqlSearchRow.cs` |
+| 批次刪除的分批、取消或衝突 | `Core/SqlMemory/SqlMemoryDeletion.cs`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |
 | SQL Memory 的 SQL、交易或索引 | `SqlMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |

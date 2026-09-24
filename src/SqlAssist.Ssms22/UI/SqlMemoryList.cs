@@ -52,7 +52,7 @@ internal sealed class SqlMemoryRowCommand
     public SqlMemoryRowKind Kind { get; }
     public string? LabelProperty { get; }
 
-    /// <summary>與前一組操作之間留分隔；快捷選單畫分隔線，卡片留較寬的間距。</summary>
+    /// <summary>與前一組操作之間畫分隔線；卡片、Preview 與快捷選單都畫，線跟著這一顆收起。</summary>
     public bool IsSeparated { get; }
 
     /// <summary>停駐與按下的語意色；只有需要警示或明確歸類的操作離開中性色，其餘沿用選取色。</summary>

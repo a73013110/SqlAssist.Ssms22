@@ -6,6 +6,7 @@ using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
@@ -30,13 +31,31 @@ internal static class SqlMemoryActions
     public static void Run(Action action, Action<string> report) =>
         _ = RunAsync(() => { action(); return Task.CompletedTask; }, report);
 
-    public static void OpenQuery(SqlAssistPackage package, string sql)
+    /// <summary>
+    /// 使用者動作的結果：清單、預覽與查詢視窗上按下去、效果在視窗外的那幾件事（剪貼簿、新查詢、儲存）。
+    /// </summary>
+    /// <remarks>
+    /// 種類與來源由這裡寫死：這幾件事一律是使用者在 SQL Memory 上按的。說明畫面為什麼是這樣的
+    /// （載入失敗、部分結果、停用）不走這裡，留在工具窗的狀態列，見 docs/sql-memory-ui.md。
+    /// </remarks>
+    public static void Notify(string title, NotificationStatus status, string subject = "", string message = "") =>
+        NotificationCenter.Default.Post(title, NotificationKind.SqlMemory, NotificationOrigin.User, NotificationLevel.Info,
+            status, subject, message: message);
+
+    /// <summary>把 SQL 寫進新建的空白查詢；失敗時回傳原因，不擲出。</summary>
+    public static string? TryOpenQuery(SqlAssistPackage package, string sql)
     {
         var view = SsmsScriptWindow.TryCreateBlankQuery(package, out var failure);
-        if (view is null) throw new InvalidOperationException(failure);
-        if (!new TextViewEditCoordinator(view).InsertIntoBlank(new TextReplacement(sql,
-                SqlAssistActivityKind.SqlMemoryOpened, "已從 SQL Memory 開啟 SQL；未執行。", caretOffset: 0)))
-            throw new InvalidOperationException("新查詢不是空白或已關閉；未寫入 SQL。");
+        if (view is null) return failure;
+        return new TextViewEditCoordinator(view).InsertIntoBlank(new TextReplacement(sql,
+                SqlAssistActivityKind.SqlMemoryOpened, "已從 SQL Memory 開啟 SQL；未執行。", caretOffset: 0))
+            ? null
+            : "新查詢不是空白或已關閉；未寫入 SQL。";
+    }
+
+    public static void OpenQuery(SqlAssistPackage package, string sql)
+    {
+        if (TryOpenQuery(package, sql) is { } failure) throw new InvalidOperationException(failure);
     }
 
     public static void ConfigureWindow(Window window, SqlAssistPackage package, string title, double width, double height)

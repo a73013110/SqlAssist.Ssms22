@@ -21,17 +21,20 @@ internal interface ISqlCheckableRow
 /// 選取工具列上的一個動作：圖示、文字、可用條件與執行。
 /// </summary>
 /// <remarks>
-/// 工具列只照這份描述畫按鈕，所以之後加一個「刪除」只是多一筆描述，工具列本身不動。
-/// 執行回報成功與否由動作自己負責（寫到工具窗的狀態列）；它回傳的布林只決定按鈕要不要
+/// 工具列只照這份描述畫按鈕，所以加一個動作只是多一筆描述，工具列本身不動。
+/// 執行回報成功與否由動作自己負責；它回傳的布林只決定按鈕要不要
 /// 播一次「完成」回饋，而且<b>不得擲出例外</b>：工具列的點擊沒有人接得住。
 /// </remarks>
 internal sealed class SqlSelectionAction
 {
     /// <param name="canExecute">null 表示有勾選就能做。</param>
     /// <param name="shortcutKey">多選模式中的快捷鍵；null 表示沒有。</param>
+    /// <param name="separated">破壞性動作：與前面的動作之間畫一條線，與清單列的操作同一條規則。</param>
     public SqlSelectionAction(SqlIcon icon, string label, Func<Task<bool>> executeAsync,
-        Func<bool>? canExecute = null, Key? shortcutKey = null, ModifierKeys shortcutModifiers = ModifierKeys.None)
+        Func<bool>? canExecute = null, Key? shortcutKey = null, ModifierKeys shortcutModifiers = ModifierKeys.None,
+        bool separated = false)
     {
+        IsSeparated = separated;
         Icon = icon;
         Label = label ?? throw new ArgumentNullException(nameof(label));
         ExecuteAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
@@ -47,6 +50,8 @@ internal sealed class SqlSelectionAction
     public string Label { get; }
 
     public Key? ShortcutKey { get; }
+
+    public bool IsSeparated { get; }
 
     public ModifierKeys ShortcutModifiers { get; }
 

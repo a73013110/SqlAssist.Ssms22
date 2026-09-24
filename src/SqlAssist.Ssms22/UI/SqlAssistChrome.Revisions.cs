@@ -121,7 +121,8 @@ internal static partial class SqlAssistChrome
         var template = new DataTemplate { VisualTree = panel };
         foreach (var command in SqlFavoriteRevisionCommand.All)
         {
-            var button = CreateRowActionButton("action" + command.Action, command.Action, command.Icon, command.Label, command.Tone, command.IsSeparated);
+            var button = AppendRowActionButton(actions, "action" + command.Action, command.Action, command.Icon, command.Label,
+                command.Tone, command.IsSeparated);
             if (command.LabelProperty is { } labelProperty)
             {
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(labelProperty));
@@ -135,7 +136,6 @@ internal static partial class SqlAssistChrome
                 hide.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
                 template.Triggers.Add(hide);
             }
-            actions.AppendChild(button);
         }
 
         var time = BoundText("RelativeTime"); time.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);

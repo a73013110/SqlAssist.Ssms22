@@ -54,7 +54,7 @@ internal sealed class SqlSelectionBar
         _note = SqlAssistChrome.CreateSelectionNote();
         _selectAll = SqlAssistChrome.CreateSelectionTextButton("全選", "勾選全部符合條件的項目，包括還沒載入的（Ctrl+A）");
         _selectAll.Click += (_, _) => _selection.SelectAll();
-        _cancel = SqlAssistChrome.CreateSelectionTextButton("取消", "停止讀取；剪貼簿不變");
+        _cancel = SqlAssistChrome.CreateSelectionTextButton("取消", "");
         _cancel.Visibility = Visibility.Collapsed;
         _cancel.Click += (_, _) => _progress?.Cancel();
 
@@ -67,7 +67,7 @@ internal sealed class SqlSelectionBar
             var button = SqlAssistChrome.CreateSelectionActionButton(action.Icon, action.Label, action.Description, out var glyph);
             var captured = action;
             button.Click += (_, _) => _ = _selection.InvokeAsync(captured);
-            _actions.Children.Add(button);
+            SqlAssistChrome.AddToolbarAction(_actions, button, action.IsSeparated);
             _buttons.Add((action, button, glyph));
         }
 
@@ -117,10 +117,16 @@ internal sealed class SqlSelectionBar
     /// <summary>
     /// 背景工作的進度：筆數那一格換成進度，全選與動作讓給「取消」。
     /// </summary>
-    /// <remarks>進度只留在工具窗裡：結果已在眼前的動作不走通知。</remarks>
-    public void ShowProgress(string text, Action cancel)
+    /// <remarks>
+    /// 讀取與刪除的進度都在這一格，不另起一列；結果由動作自己的通知說。
+    /// </remarks>
+    /// <param name="cancelHint">「取消」的說明：停下來之後什麼會保持原樣。</param>
+    public void ShowProgress(string text, string cancelHint, Action cancel)
     {
+        if (cancelHint == null) throw new ArgumentNullException(nameof(cancelHint));
         _progress = (text ?? throw new ArgumentNullException(nameof(text)), cancel ?? throw new ArgumentNullException(nameof(cancel)));
+        _cancel.ToolTip = cancelHint;
+        AutomationProperties.SetHelpText(_cancel, cancelHint);
         Update();
     }
 
@@ -200,7 +206,7 @@ internal sealed class SqlSelectionBar
         else if (_selection.TryInvokeShortcut(e.Key, modifiers)) e.Handled = true;
     }
 
-    /// <summary>成功的動作把自己的圖示換成打勾停一下；失敗不換，原因已經寫在狀態列。</summary>
+    /// <summary>成功的動作把自己的圖示換成打勾停一下；失敗不換，原因由動作自己回報。</summary>
     private void OnActionCompleted(SqlSelectionAction action, bool succeeded)
     {
         if (!succeeded || !_shown) return;

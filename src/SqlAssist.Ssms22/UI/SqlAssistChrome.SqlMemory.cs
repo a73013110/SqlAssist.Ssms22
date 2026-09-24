@@ -213,11 +213,10 @@ internal static partial class SqlAssistChrome
             new FrameworkElement[] { period });
     }
 
-    public static DockPanel CreateMemoryDetailBody(UIElement viewer, TextBlock status, params UIElement[] actions)
+    /// <param name="toolbar">由 <see cref="CreatePreviewToolbar"/> 建立的工具列。</param>
+    public static DockPanel CreateMemoryDetailBody(UIElement viewer, TextBlock status, UIElement toolbar)
     {
         var root = new DockPanel();
-        var toolbar = new WrapPanel();
-        foreach (var action in actions) toolbar.Children.Add(action);
         DockPanel.SetDock(toolbar, Dock.Top); root.Children.Add(toolbar);
         status.TextWrapping = TextWrapping.Wrap;
         DockPanel.SetDock(status, Dock.Bottom); root.Children.Add(status);
@@ -367,7 +366,8 @@ internal static partial class SqlAssistChrome
         IconOnlyInNarrow(narrow, "server"); IconOnlyInNarrow(narrow, "database");
         foreach (var command in SqlMemoryRowCommand.All)
         {
-            var button = CreateRowActionButton("action" + command.Action, command.Action, command.Icon, command.Label, command.Tone, command.IsSeparated);
+            var button = AppendRowActionButton(row.Actions, "action" + command.Action, command.Action, command.Icon, command.Label,
+                command.Tone, command.IsSeparated);
             if (command.LabelProperty is { } labelProperty)
             {
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(labelProperty));
@@ -378,7 +378,6 @@ internal static partial class SqlAssistChrome
             else if (command.Kind == SqlMemoryRowKind.Favorite) history.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
             if (!command.IsPrimary)
                 narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
-            row.Actions.AppendChild(button);
         }
         // 多選模式才出現的勾選欄在整列左邊，跨過兩列內容；平常收起，版面與沒有多選時相同。
         var template = new DataTemplate { VisualTree = WrapWithRowCheck(panel, "Name") };

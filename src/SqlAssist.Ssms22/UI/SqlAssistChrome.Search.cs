@@ -85,7 +85,7 @@ internal static partial class SqlAssistChrome
         var narrow = row.Narrow;
         foreach (var command in SqlSearchRowCommand.All)
         {
-            var button = CreateRowActionButton(
+            var button = AppendRowActionButton(row.Actions,
                 "action" + command.Action, command.Action, command.Icon, command.Label,
                 SqlActionTone.Neutral, separated: false, availabilityPath: command.AvailabilityPath);
             if (command.LabelPath is { } labelPath)
@@ -94,7 +94,6 @@ internal static partial class SqlAssistChrome
                 button.SetBinding(FrameworkElement.ToolTipProperty, new Binding(toolTipPath));
             if (!command.IsPrimary)
                 narrow.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, button.Name));
-            row.Actions.AppendChild(button);
         }
 
         // 連線膠囊靠右並固定在自己的寬度上；與名稱之間的彈性空白由 DockPanel 留著。

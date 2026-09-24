@@ -48,9 +48,10 @@ Content，不在每次寫入跑全庫 GC。日常 `StorageUsage` 由 Contents tr
 
 分頁、游標、搜尋語意與掃描預算見[搜尋](sql-memory-search.md)。
 
-`DeleteHistoryAsync` 在 IMMEDIATE 交易刪投影與它自己的本體：執行列刪併進它的全部 Executions、Recovery 刪該列；
+`DeleteHistoryAsync` 收一批項目，在同一個 IMMEDIATE 交易刪投影與它們自己的本體，回傳實際刪了幾筆；
+呼叫端以 `SqlMemoryDeletion.ChunkSize` 分批，免得一個交易握著寫入鎖卡住擷取。每一筆：執行列刪併進它的全部 Executions、Recovery 刪該列；
 版本只在沒有保護根與其他引用時刪除，引用清單與維護共用 `SqliteContentRows`。釋出的 Content 同交易回收。
-不存在或不屬於該 Session 回 NotFound；仍開著的 Session 下一次擷取照常重寫 Recovery。
+不存在或不屬於該 Session 的不算進筆數、不擲出；仍開著的 Session 下一次擷取照常重寫 Recovery。
 
 ## Favorites
 

@@ -21,7 +21,7 @@
 |---|---|
 | 分層、平台邊界、原生補全管線 | [架構](architecture.md) |
 | 型別 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
-| SQL Memory／History／Favorites | [產品與架構](sql-memory.md)／[儲存與收藏](sql-memory-storage.md)／[搜尋](sql-memory-search.md)／[UI](sql-memory-ui.md) |
+| SQL Memory／History／Favorites、批次刪除 | [產品與架構](sql-memory.md)／[儲存與收藏](sql-memory-storage.md)／[搜尋](sql-memory-search.md)／[UI](sql-memory-ui.md) |
 | 收藏、回溯、SQL 差異 | [版本歷史](sql-memory-revisions.md) |
 | SQL Memory 保留、清理、部署 | [維護](sql-memory-maintenance.md)／[用量](sql-memory-usage.md)／[驗收](sql-memory-validation.md) |
 | SQL Search、搜尋來源、索引、批次複製 | [SQL Search](search.md) |

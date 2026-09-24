@@ -51,7 +51,7 @@
   條件寫在 `SqliteHistoryRows.Blank`：本體是 UTF-16LE 的 BLOB，在 SQL 裡拆不開，所以比對
   `Contents.Preview`，只認長度在預覽之內的那些——比預覽還長、卻整份都是空白的內容因此漏掉，
   那是刪太少而不是刪錯。
-- History 類由 `SqliteHistoryRows` 逐列刪除，與逐筆刪除共用保護根與引用清單；
+- History 類由 `SqliteHistoryRows` 逐列刪除，與清單上的刪除共用保護根與引用清單；
   候選由新到舊沿時間索引讀，(時間, 鍵) 游標綁 StoreId 與條件。
 - 回復內容只清沒有租約的 Session。本程序還沒有心跳租約時 Runtime 直接拒絕，
   否則自己開著的視窗在儲存層也像已關閉。

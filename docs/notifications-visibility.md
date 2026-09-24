@@ -32,7 +32,7 @@
 | Snippets | 展開程式碼片段 | `User` | `Debug` |
 | Settings | 重新載入設定、重建主題筆刷 | `Ambient` | 設定 `Debug`、主題 `Trace` |
 | Package | 初始化 SqlAssist、建立中繼資料連線、重新確認連線 | 初始化 `Startup`，其餘 `Ambient` | 初始化與建立連線 `Info`、重新確認 `Debug` |
-| SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；擷取被丟棄事件；容量警戒與首次擷取兩則提醒 | 套用設定、事件與提醒 `Ambient`，其餘 `User` | `Info`；事件與提醒 `Notice`、背景維護失敗 `Debug` |
+| SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；列操作與多選動作（複製、開新 Query、收藏、刪除）；擷取被丟棄事件；容量警戒與首次擷取兩則提醒 | 套用設定、事件與提醒 `Ambient`，其餘 `User` | `Info`；事件與提醒 `Notice`、背景維護失敗 `Debug` |
 | Update | 手動檢查更新的活動；新版提醒 | 手動 `User`，啟動時的自動檢查 `Ambient` | 手動 `Info`，自動 `Notice` |
 | Diagnostics | 「關於與診斷」的[測試通知](notifications-ui.md#測試通知) | `User` | `Info` |
 | Results | 尚未接線 | — | — |

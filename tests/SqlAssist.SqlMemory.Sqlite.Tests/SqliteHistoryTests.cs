@@ -80,19 +80,19 @@ public sealed class SqliteHistoryTests
         var rows = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items;
         var merged = Assert.Single(rows, row => row.ExecutionCount == 2);
 
-        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(merged, Token));
+        Assert.Equal(1, await repository.DeleteHistoryAsync(new[] { merged }, Token));
 
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Executions;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM History WHERE Kind=1;"));
         // 底下所有執行都刪掉後，選取版本失去最後的引用，連同內容一起回收。
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Revisions WHERE IsExecutionSelection=1;"));
         Assert.Null(await repository.ReadContentAsync(merged.ContentId, Token));
-        Assert.Equal(SqlHistoryDeleteResult.NotFound, await repository.DeleteHistoryAsync(merged, Token));
+        Assert.Equal(0, await repository.DeleteHistoryAsync(new[] { merged }, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
 
         // Session 記下的上一筆執行列被刪掉後，同一份 SQL 再執行要另起新列，不能復活舊鍵。
         var latest = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
-        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(latest, Token));
+        Assert.Equal(1, await repository.DeleteHistoryAsync(new[] { latest }, Token));
         await store.Process(repository, store.Capture(4, selected: "SELECT * FROM Loan;", seconds: 4), Token);
         var again = Assert.Single((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items);
         Assert.Equal(1, again.ExecutionCount);
@@ -287,7 +287,7 @@ public sealed class SqliteHistoryTests
         Assert.Equal(2, executions.Count);
         var older = executions[1];
 
-        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(older, Token));
+        Assert.Equal(1, await repository.DeleteHistoryAsync(new[] { older }, Token));
 
         Assert.Equal(new[] { executions[0].ItemId },
             (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Executions), Token)).Items.Select(item => item.ItemId));
@@ -296,7 +296,7 @@ public sealed class SqliteHistoryTests
         Assert.Null(await repository.ReadContentAsync(older.ContentId, Token));
         // 連線只存在 History 投影：刪掉的那一筆帶走自己的連線，不留下另一張表裡的孤立列等維護回收。
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM History WHERE Server='LibraryServer';"));
-        Assert.Equal(SqlHistoryDeleteResult.NotFound, await repository.DeleteHistoryAsync(older, Token));
+        Assert.Equal(0, await repository.DeleteHistoryAsync(new[] { older }, Token));
         Assert.Null(store.Scalar("PRAGMA foreign_key_check;"));
     }
 
@@ -309,9 +309,9 @@ public sealed class SqliteHistoryTests
         var recovery = (await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items
             .Single(item => item.RevisionId == null);
 
-        Assert.Equal(SqlHistoryDeleteResult.NotFound,
-            await repository.DeleteHistoryAsync(recovery with { SessionId = Guid.NewGuid() }, Token));
-        Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(recovery, Token));
+        Assert.Equal(0,
+            await repository.DeleteHistoryAsync(new[] { recovery with { SessionId = Guid.NewGuid() } }, Token));
+        Assert.Equal(1, await repository.DeleteHistoryAsync(new[] { recovery }, Token));
 
         Assert.Equal(0L, store.Scalar("SELECT count(*) FROM Recovery;"));
         Assert.Equal(1L, store.Scalar("SELECT count(*) FROM Sessions;"));
@@ -336,8 +336,8 @@ public sealed class SqliteHistoryTests
             .Where(item => item.RevisionId != null).ToArray();
         Assert.Equal(2, drafts.Length);
 
-        foreach (var draft in drafts)
-            Assert.Equal(SqlHistoryDeleteResult.Deleted, await repository.DeleteHistoryAsync(draft, Token));
+        // 兩筆草稿同一批：同一個交易刪完，受保護的版本照樣留給維護。
+        Assert.Equal(drafts.Length, await repository.DeleteHistoryAsync(drafts, Token));
 
         Assert.DoesNotContain((await repository.ReadHistoryAsync(new SqlHistoryRequest(10, SqlHistoryFilter.Drafts), Token)).Items,
             item => item.RevisionId != null);

@@ -169,15 +169,20 @@ internal static partial class SqlAssistChrome
         return badge;
     }
 
-    /// <summary>列上的幽靈操作按鈕；卡片與版本時間軸共用尺寸、色調與前景跟隨規則。</summary>
+    /// <summary>
+    /// 在操作那一排接上一顆幽靈操作按鈕；清單卡片、SQL Search 結果列與版本時間軸共用尺寸、色調與前景跟隨規則。
+    /// </summary>
     /// <param name="action">按鈕的 Tag；清單以它派送，不拿圖示或文字當識別。</param>
+    /// <param name="separated">與前一組隔開（破壞性操作、會產生新版本的操作）；先接一條分隔線再接按鈕。</param>
     /// <param name="availabilityPath">
     /// 這一列的哪一個屬性說得出「做不做得到這個操作」；null 表示一律可用。
     /// 變灰而不是收起來：收起來會讓同一列的圖示位置隨內容變，而使用者是照位置按的。
     /// </param>
-    internal static FrameworkElementFactory CreateRowActionButton(string name, object action, SqlIcon icon, string label,
-        SqlActionTone tone, bool separated, string? availabilityPath = null)
+    /// <returns>按鈕本身；呼叫端可以再繫結 Tooltip、自動化名稱或依名稱收起。</returns>
+    internal static FrameworkElementFactory AppendRowActionButton(FrameworkElementFactory actions, string name, object action,
+        SqlIcon icon, string label, SqlActionTone tone, bool separated, string? availabilityPath = null)
     {
+        if (separated) actions.AppendChild(CreateRowActionDivider(name));
         var button = new FrameworkElementFactory(typeof(Button)) { Name = name };
         button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
         button.SetValue(AutomationProperties.NameProperty, label);
@@ -185,7 +190,6 @@ internal static partial class SqlAssistChrome
         // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
         button.SetBinding(Control.ForegroundProperty, OwnerForeground());
         button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
-        if (separated) button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
         if (availabilityPath is { Length: > 0 })
         {
             button.SetBinding(UIElement.IsEnabledProperty, new Binding(availabilityPath));
@@ -193,7 +197,38 @@ internal static partial class SqlAssistChrome
 
         var glyph = new FrameworkElementFactory(typeof(SqlIconImage)); glyph.SetValue(SqlIconImage.IconProperty, icon);
         button.AppendChild(glyph);
+        actions.AppendChild(button);
         return button;
+    }
+
+    /// <summary>操作那一排裡分隔線的高度；比按鈕（22）矮一截，讀起來是界線不是邊框。</summary>
+    internal const double RowActionDividerHeight = 14d;
+
+    /// <summary>分隔線左右各留的間距；與群內分隔線同一階。</summary>
+    internal const double RowActionDividerGap = 4d;
+
+    /// <summary>
+    /// 破壞性操作前面那一條線；跟著後面那顆按鈕的可見度走。
+    /// </summary>
+    /// <remarks>
+    /// 只留間距的那一版，一排圖示在停駐時看起來仍是同一組，刪除就在收藏旁邊一格。
+    /// 顏色跟著卡片的前景（與按鈕同一個來源）再降透明度，不用 <see cref="ThemeBrush.Hairline"/>：
+    /// 停駐與選取換了底色、高對比換成實色時，固定的髮絲線會整條消失。
+    /// 可見度繫結到後面那顆按鈕：按鈕因列種類、目前版本或窄版收起時，線不能單獨留下來。
+    /// </remarks>
+    private static FrameworkElementFactory CreateRowActionDivider(string buttonName)
+    {
+        var divider = new FrameworkElementFactory(typeof(Border)) { Name = buttonName + "Divider" };
+        divider.SetValue(FrameworkElement.WidthProperty, 1d);
+        divider.SetValue(FrameworkElement.HeightProperty, RowActionDividerHeight);
+        divider.SetValue(FrameworkElement.MarginProperty, new Thickness(RowActionDividerGap, 0, RowActionDividerGap, 0));
+        divider.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        divider.SetValue(UIElement.OpacityProperty, 0.4d);
+        divider.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
+        divider.SetValue(UIElement.IsHitTestVisibleProperty, false);
+        divider.SetBinding(Border.BackgroundProperty, OwnerForeground());
+        divider.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(UIElement.Visibility)) { ElementName = buttonName });
+        return divider;
     }
 
     /// <summary>操作層左緣那一段淡出的寬度；蓋住的那顆膠囊要淡掉，不是被一條直邊切掉。</summary>

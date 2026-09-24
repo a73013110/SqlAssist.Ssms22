@@ -95,6 +95,14 @@ public static class NotificationCatalog
     public const string BackingUpSqlMemory = "備份 SQL Memory";
     public const string RestoringFavoriteRevision = "回溯收藏版本";
 
+    // 清單與預覽上的列操作與多選動作；開新 Query 沿用 OpeningQueryWindow，種類是 SqlMemory。
+    public const string CopyingSql = "複製 SQL";
+    public const string CopyingSqlList = "複製清單";
+    public const string AddingFavorite = "加入收藏";
+    public const string SavingFavorite = "儲存收藏";
+    public const string DeletingSqlHistory = "刪除 History 紀錄";
+    public const string RemovingFavorite = "移除收藏";
+
     /// <summary>依保留規則回收；背景排程與用量頁的「立即維護」是同一件事，共用這一個標題。</summary>
     public const string MaintainingSqlMemory = "維護 SQL Memory";
 

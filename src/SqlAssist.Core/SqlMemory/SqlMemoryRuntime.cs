@@ -213,8 +213,16 @@ public sealed class SqlMemoryRuntime
     public Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.ReadContentAsync(contentId, token), cancellationToken);
 
-    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
-        UseAsync((storage, token) => storage.DeleteHistoryAsync(item, token), cancellationToken);
+    /// <summary>單筆與多選刪除共用；每一批各自確認儲存仍可用，中途停用時停在那一批。</summary>
+    public Task<SqlMemoryDeleteReport> DeleteAsync(SqlMemoryDeletion deletion, IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (deletion == null) throw new ArgumentNullException(nameof(deletion));
+        return deletion.RunAsync(
+            (items, token) => UseAsync((storage, inner) => storage.DeleteHistoryAsync(items, inner), token),
+            (item, token) => UseAsync((storage, inner) => storage.DeleteFavoriteAsync(item.Favorite.FavoriteId, item.Version, inner), token),
+            progress, cancellationToken);
+    }
 
     public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.ReadFavoriteAsync(favoriteId, token), cancellationToken);
@@ -225,9 +233,6 @@ public sealed class SqlMemoryRuntime
     public Task<SqlMemoryPage<SqlFavoriteRevisionItem>> ReadFavoriteRevisionsAsync(SqlFavoriteRevisionRequest request,
         CancellationToken cancellationToken) =>
         UseAsync((storage, token) => storage.ReadFavoriteRevisionsAsync(request, token), cancellationToken);
-
-    public Task<SqlFavoriteWriteResult> DeleteFavoriteAsync(Guid favoriteId, Guid expectedVersion, CancellationToken cancellationToken) =>
-        UseAsync((storage, token) => storage.DeleteFavoriteAsync(favoriteId, expectedVersion, token), cancellationToken);
 
     /// <summary>用量頁的完整快照：報表與共用維護狀態讀自儲存，保留計畫、排程與清理紀錄讀自本程序。</summary>
     public async Task<SqlMemoryUsageSnapshot> ReadUsageSnapshotAsync(CancellationToken cancellationToken)

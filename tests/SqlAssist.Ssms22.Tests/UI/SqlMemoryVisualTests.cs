@@ -107,19 +107,20 @@ public sealed class SqlMemoryVisualTests
             };
             viewer.Document = SqlScriptDocument.Build("-- 借閱明細\nSELECT LoanId, CopyNo\nFROM LoanDetail\nWHERE LoanId = 1;", resources);
             var summary = new ContentControl { ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate(), HorizontalContentAlignment = HorizontalAlignment.Stretch };
-            var previewTools = new (SqlIcon Icon, string Label, SqlActionTone Tone)[]
-                { (SqlIcon.Copy, "複製全文", SqlActionTone.Neutral), (SqlIcon.Wrap, "顯示換行", SqlActionTone.Neutral) };
-            // 右側列操作與產品一樣由共用清單建立；順序或語意色調變了，視覺 QA 一起跟著變。
+            // 列操作與產品一樣由共用清單與共用工具列建立；順序、分隔線或語意色調變了，視覺 QA 一起跟著變。
             var previewActions = new WrapPanel();
-            foreach (var (icon, label, tone) in previewTools.Concat(SqlMemoryRowCommand.All
-                .Where(command => command.Action != SqlMemoryRowAction.Copy)
-                .Select(command => (command.Icon, command.Label, command.Tone))))
+            var previewButtons = new List<Button>();
+            foreach (var command in SqlMemoryRowCommand.All)
             {
-                var button = SqlAssistChrome.CreateIconButton(icon, label, tone); button.Tag = icon;
-                previewActions.Children.Add(button);
+                var button = SqlAssistChrome.CreateIconButton(command.Icon, command.Label, command.Tone); button.Tag = command.Icon;
+                if (command.IsPrimary) button.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
+                SqlAssistChrome.AddToolbarAction(previewActions, button, command.IsSeparated);
+                previewButtons.Add(button);
             }
+            var previewWrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "SQL 顯示換行");
+            var previewToolbar = SqlAssistChrome.CreatePreviewToolbar(previewActions, previewWrap);
             var previewLoading = new SqlStateSurface(viewer);
-            var detail = SqlAssistChrome.CreateMemoryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewActions);
+            var detail = SqlAssistChrome.CreateMemoryDetailBody(previewLoading, new TextBlock { Visibility = Visibility.Collapsed }, previewToolbar);
             var listLoading = new SqlStateSurface(list);
             // 這一輪掃的是主題與字型，不傳轉向門檻讓版面固定在上下分割；轉向與收合把手在 MasterDetailViewTests。
             var split = new MasterDetailView(listLoading, detail, summary);
@@ -135,8 +136,8 @@ public sealed class SqlMemoryVisualTests
                 kind.Visibility = period.Visibility = favorites ? Visibility.Collapsed : Visibility.Visible;
                 list.SetRowsSource(favorites ? favoritesRows : historyRows, footer); list.SelectedIndex = 0;
                 summary.Content = list.SelectedItem;
-                foreach (Button action in previewActions.Children)
-                    action.Visibility = action.Tag is SqlIcon.Copy or SqlIcon.Wrap or SqlIcon.Open or SqlIcon.Remove ||
+                foreach (var action in previewButtons)
+                    action.Visibility = action.Tag is SqlIcon.Copy or SqlIcon.Open or SqlIcon.Remove ||
                         (action.Tag is SqlIcon.Favorite) != favorites ? Visibility.Visible : Visibility.Collapsed;
                 palette.Update(ThemePaletteTests.ColorsFor(mode));
                 foreach (var role in new[] { ScriptResource.Foreground, ScriptResource.Keyword, ScriptResource.Comment, ScriptResource.String, ScriptResource.Number })
@@ -176,6 +177,20 @@ public sealed class SqlMemoryVisualTests
                     Assert.Null(rowActions.Background);
                     foreach (var button in Descendants<Button>(rowActions).Where(button => button.Visibility != Visibility.Collapsed))
                         Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], button.Foreground);
+                    // 刪除前面那一條線（操作列裡唯一的一條）：跟著刪除鈕的可見度（窄版一起收），顏色與按鈕同一個前景來源。
+                    var rowDivider = rowActions.Children.OfType<Border>().Single();
+                    var rowDelete = (Button)rowActions.Children[rowActions.Children.IndexOf(rowDivider) + 1];
+                    Assert.Equal(rowDelete.Visibility, rowDivider.Visibility);
+                    Assert.Equal(SqlMemoryRowAction.Delete, rowDelete.Tag);
+                    if (rowDelete.Visibility == Visibility.Visible)
+                        Assert.Same(palette.Resources[ThemeBrush.SelectedForeground], rowDivider.Background);
+                    // Preview：開新 Query 是第一顆操作，刪除前一條線，換行貼著右緣。
+                    Assert.Same(previewButtons[0], previewActions.Children.OfType<Button>().First());
+                    Assert.Equal(SqlIcon.Open, previewButtons[0].Tag);
+                    var previewDivider = previewActions.Children.OfType<Border>().Single();
+                    Assert.Equal(previewActions.Children.IndexOf(previewButtons.Last()) - 1, previewActions.Children.IndexOf(previewDivider));
+                    Assert.InRange(Math.Abs(previewWrap.TranslatePoint(new Point(previewWrap.ActualWidth, 0), previewToolbar).X
+                        - previewToolbar.ActualWidth), 0, 0.5);
                     Assert.Null(list.ItemContainerGenerator.ContainerFromIndex(1999));
                     Assert.True(list.ActualHeight >= 80);
                     Assert.True(detail.ActualHeight >= 100);

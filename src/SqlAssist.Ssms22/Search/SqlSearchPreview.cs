@@ -37,7 +37,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly Button _copyScript;
     private readonly ToggleButton _wrap;
     private readonly SqlMatchNavigation _matches;
-    private readonly WrapPanel _toolbar = new();
+    private readonly WrapPanel _tools = new();
+    private readonly DockPanel _toolbar;
     private readonly SqlSelectionLoader<SqlSearchRow> _selection;
     private bool _disposed;
 
@@ -47,7 +48,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
         // 這一顆複製的是畫面上這一份定義，不是名稱：使用者按預覽裡的複製，要的是
         // 他正在看的那段結構描述；名稱在清單的右鍵選單上（「複製名稱」），那裡才是
-        // 「這一列是什麼」的位置。與 SQL Memory 預覽的「複製全文」同一顆、同一個位置。
+        // 「這一列是什麼」的位置。
         _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製定義");
         _copyScript.Click += (_, _) => Guarded(() => _viewer.CopyAll());
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
@@ -74,10 +75,10 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _body.Children.Add(_surface);
         _body.Children.Add(_snippetSurface);
 
-        // 導覽與界線排在最前面，排法與 SQL Memory 預覽同一份（SqlMatchNavigation）。
-        foreach (var item in _matches.ToolbarItems) _toolbar.Children.Add(item);
-        _toolbar.Children.Add(_copyScript);
-        _toolbar.Children.Add(_wrap);
+        // 導覽與界線排在最前面、換行在右緣，排法與 SQL Memory 預覽同一份（SqlMatchNavigation、CreatePreviewToolbar）。
+        foreach (var item in _matches.ToolbarItems) _tools.Children.Add(item);
+        _tools.Children.Add(_copyScript);
+        _toolbar = SqlAssistChrome.CreatePreviewToolbar(_tools, _wrap);
 
         _status.TextWrapping = TextWrapping.Wrap;
 

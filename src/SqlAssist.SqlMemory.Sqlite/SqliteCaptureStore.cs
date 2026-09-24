@@ -165,22 +165,31 @@ ON CONFLICT(SessionId) DO UPDATE SET ContentId=excluded.ContentId, CapturedAt=ex
     /// 所以只憑列表項目就能還原，不必把儲存層的鍵放進 Core 契約。
     /// 本體只刪自己那一份：執行列是併進它的全部 Executions（使用者一次刪的是畫面上那一列，數量隨執行次數而定），
     /// 版本改用與維護相同的引用清單逐一重查，仍被引用就留給維護，不做 CASCADE。
+    /// 一批共用一個交易，釋出的內容在最後一起回收：同一份 SQL 被這一批的好幾筆引用時只查一次。
     /// </remarks>
-    public SqlHistoryDeleteResult DeleteHistory(SqlHistoryItem item, CancellationToken cancellationToken)
+    public int DeleteHistory(IReadOnlyList<SqlHistoryItem> items, CancellationToken cancellationToken)
     {
-        if (item == null) throw new ArgumentNullException(nameof(item));
+        if (items == null) throw new ArgumentNullException(nameof(items));
         cancellationToken.ThrowIfCancellationRequested();
-        var key = item.Kind == SqlHistoryFilter.Executions ? "e" + Id(item.ItemId)
-            : item.RevisionId == null ? "s" + Id(item.SessionId) : "r" + Id(item.ItemId);
+        if (items.Count == 0) return 0;
         using var connection = _database.Connect();
         using var transaction = connection.BeginTransaction(deferred: false);
         var contents = new HashSet<string>(StringComparer.Ordinal);
-        if (SqliteHistoryRows.Delete(connection, transaction, key, Id(item.SessionId), contents, cancellationToken) == 0)
-            return SqlHistoryDeleteResult.NotFound;
+        var deleted = 0;
+        foreach (var item in items)
+        {
+            if (item == null) throw new ArgumentException("清單裡有空的項目。", nameof(items));
+            var key = item.Kind == SqlHistoryFilter.Executions ? "e" + Id(item.ItemId)
+                : item.RevisionId == null ? "s" + Id(item.SessionId) : "r" + Id(item.ItemId);
+            if (SqliteHistoryRows.Delete(connection, transaction, key, Id(item.SessionId), contents, cancellationToken) != 0)
+                deleted++;
+        }
+
+        if (deleted == 0) return 0;
         SqliteHistoryRows.CollectContents(connection, transaction, contents, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         transaction.Commit();
-        return SqlHistoryDeleteResult.Deleted;
+        return deleted;
     }
 
     public SqlMemoryPage<SqlHistoryItem> ReadHistory(SqlHistoryRequest request, CancellationToken cancellationToken)

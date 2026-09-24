@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Completion;
@@ -32,7 +33,7 @@ internal static class SqlMemoryFavoriteAction
         view is { IsClosed: false } editor && Length(editor) > 0;
 
     /// <summary>開啟收藏對話框。</summary>
-    /// <returns>要寫到狀態列的一句話；使用者取消時是空字串。</returns>
+    /// <returns>沒有開對話框的原因，寫到狀態列；開了（不論儲存或取消）是空字串。</returns>
     public static string Begin(IWpfTextView view, SqlAssistPackage package)
     {
         if (view is null || view.IsClosed) return "查詢視窗已關閉。";
@@ -44,9 +45,12 @@ internal static class SqlMemoryFavoriteAction
         if (SqlContent.IsBlank(sql))
             return selection is null ? "查詢視窗沒有可以收藏的 SQL。" : "選取範圍沒有可以收藏的 SQL。";
 
-        return FavoriteEditorWindow.Create(package, sql, ActiveSqlEditor.GetDocumentName(view.TextBuffer),
-            Connection(view, package), null, Summary(sql, selection is not null))
-            ? SqlMemoryItemCommands.AddedToFavorites : "";
+        var name = ActiveSqlEditor.GetDocumentName(view.TextBuffer);
+        // 成功與清單上的「新增至收藏」同一則通知；這裡回傳的只剩「為什麼沒開對話框」。
+        if (FavoriteEditorWindow.Create(package, sql, name, Connection(view, package), null, Summary(sql, selection is not null)))
+            SqlMemoryActions.Notify(NotificationCatalog.AddingFavorite, NotificationStatus.Succeeded, name,
+                SqlMemoryItemCommands.FavoritesHint);
+        return "";
     }
 
     /// <summary>收藏的是選取範圍還是整份查詢，只有使用者自己看得出來對不對，所以寫在對話框第一列。</summary>

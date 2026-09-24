@@ -145,10 +145,10 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
             if (command.Action == SqlFavoriteRevisionAction.Preview) continue;
             var action = command.Action;
             var button = SqlAssistChrome.CreateIconButton(command.Icon, command.Label, command.Tone);
-            if (command.IsSeparated) button.Margin = new Thickness(6, 0, 0, 0);
             ToolTipService.SetShowOnDisabled(button, true);
             button.Click += (_, _) => SqlMemoryActions.Run(() => Run(action), Report);
-            _actionButtons.Add((button, command)); _actions.Children.Add(button);
+            _actionButtons.Add((button, command));
+            SqlAssistChrome.AddToolbarAction(_actions, button, command.IsSeparated);
         }
         DockPanel.SetDock(_actions, Dock.Right); toolbar.Children.Add(_actions);
         AutomationProperties.SetName(_mode, "呈現方式");

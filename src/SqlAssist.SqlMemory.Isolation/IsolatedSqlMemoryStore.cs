@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.SqlMemory;
@@ -74,8 +75,9 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
 
     public Task<SqlContent?> ReadContentAsync(string contentId, CancellationToken cancellationToken) =>
         Invoke(operation => _worker.ReadContent(operation, contentId), cancellationToken);
-    public Task<SqlHistoryDeleteResult> DeleteHistoryAsync(SqlHistoryItem item, CancellationToken cancellationToken) =>
-        Invoke(operation => _worker.DeleteHistory(operation, item), cancellationToken);
+    // 跨 AppDomain 只傳陣列：介面後面可能是任何不可序列化的集合。
+    public Task<int> DeleteHistoryAsync(IReadOnlyList<SqlHistoryItem> items, CancellationToken cancellationToken) =>
+        Invoke(operation => _worker.DeleteHistory(operation, items.ToArray()), cancellationToken);
     public Task<string> ProbeAsync(CancellationToken cancellationToken) => Invoke(_ => _worker.Probe(), cancellationToken);
 
     public Task<SqlFavoriteItem?> ReadFavoriteAsync(Guid favoriteId, CancellationToken cancellationToken) =>

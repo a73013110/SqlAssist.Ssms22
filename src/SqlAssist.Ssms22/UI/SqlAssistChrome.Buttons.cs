@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
@@ -187,6 +188,41 @@ internal static partial class SqlAssistChrome
     /// <remarks>理由與兩級的分工見 <see cref="CreateGroupDivider"/>。</remarks>
     public static Border CreateItemDivider() =>
         CreateDivider(ItemDividerHeight, ItemDividerGap, ItemDividerOpacity);
+
+    /// <summary>
+    /// 在工具列接上一顆操作；<paramref name="separated"/> 時先接一條群界線，把破壞性操作與前面那一組隔開。
+    /// </summary>
+    /// <remarks>
+    /// 線跟著那顆按鈕的可見度走：按鈕因列種類收起時，線不能單獨留下來。清單卡片上的同一條規則在
+    /// <see cref="AppendRowActionButton"/>，預覽、對話框與選取工具列走這裡。
+    /// </remarks>
+    public static void AddToolbarAction(Panel toolbar, UIElement action, bool separated)
+    {
+        if (separated)
+        {
+            var divider = CreateGroupDivider();
+            divider.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(UIElement.Visibility)) { Source = action });
+            toolbar.Children.Add(divider);
+        }
+
+        toolbar.Children.Add(action);
+    }
+
+    /// <summary>
+    /// 預覽的工具列：命中導覽與操作靠左，顯示方式（換行）靠右。
+    /// </summary>
+    /// <remarks>
+    /// 換行只改怎麼看，不作用在這一筆上，和操作排在一起的話，刪除旁邊就是一顆會被順手按到的開關。
+    /// 左邊那一段可以換行，窄面板裡擠不下時讓的是操作列的寬度，不是把換行擠到下一列。
+    /// </remarks>
+    public static DockPanel CreatePreviewToolbar(Panel leading, UIElement trailing)
+    {
+        var toolbar = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(trailing, Dock.Right);
+        toolbar.Children.Add(trailing);
+        toolbar.Children.Add(leading);
+        return toolbar;
+    }
 
     private static Border CreateDivider(double height, double gap, double opacity)
     {

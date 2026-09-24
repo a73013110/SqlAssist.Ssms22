@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
@@ -294,7 +295,7 @@ public sealed class SqlCardSelectionTests
             var height = harness.Bar.Slot.ActualHeight;
             var cancelled = false;
 
-            harness.Bar.ShowProgress("正在讀取，已讀 200 筆…", () => cancelled = true);
+            harness.Bar.ShowProgress("正在讀取，已讀 200 筆…", "停止讀取；剪貼簿不變", () => cancelled = true);
             harness.Bar.Slot.UpdateLayout();
             Assert.Equal("正在讀取，已讀 200 筆…", harness.Bar.CountText);
             Assert.False(harness.Bar.IsSelectAllEnabled);
@@ -433,6 +434,33 @@ public sealed class SqlCardSelectionTests
             Assert.Null(search.Selection);
             Assert.False(SqlRowCheck.GetIsAvailable(search));
             Assert.Null(new SqlMemoryList().Selection);
+        });
+    }
+
+    /// <summary>破壞性動作與清單列同一條規則：前面一條線，線跟著按鈕；沒有快捷鍵就不會被 Ctrl+C 之類誤觸。</summary>
+    [Fact]
+    public void SeparatedActionGetsADividerThatFollowsTheButton()
+    {
+        WpfTest.Run(() =>
+        {
+            var rows = new ObservableCollection<SqlMemoryRow> { Row("Loan001"), Row("Loan002") };
+            var selection = new SqlCardSelection<SqlMemoryRow, Guid>(rows, row => row.Id);
+            var deletable = true;
+            selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, "複製", () => Task.FromResult(true),
+                shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
+            selection.AddAction(new SqlSelectionAction(SqlIcon.Remove, "刪除", () => Task.FromResult(true),
+                canExecute: () => deletable, separated: true));
+            var bar = new SqlSelectionBar(selection, new TextBox(), motion: false);
+            selection.Toggle(rows[0]);
+
+            var delete = Descendants<Button>(bar.Slot).Single(button => AutomationProperties.GetName(button) == "刪除");
+            var actions = (Panel)VisualTreeHelper.GetParent(delete);
+            var divider = Assert.IsType<Border>(actions.Children[actions.Children.IndexOf(delete) - 1]);
+            Assert.Equal(1, divider.Width);
+            Assert.Equal(Visibility.Visible, divider.Visibility);
+            delete.Visibility = Visibility.Collapsed;
+            Assert.Equal(Visibility.Collapsed, divider.Visibility);
+            Assert.False(selection.TryInvokeShortcut(Key.Delete, ModifierKeys.None));
         });
     }
 

@@ -292,8 +292,8 @@ public sealed class SqlMemoryBrowserModelTests
         model.Search = "Branch";
         model.MatchOptions = TextMatchOptions.MatchCasing;
         model.Scope.SetServerSelected("Other", true);
-        var request = query.HistoryRequest(SqlMemoryCopy.PageSize, "cursor");
-        Assert.Equal((SqlMemoryCopy.PageSize, SqlHistoryFilter.Executions, "Loan", "cursor", TextMatchOptions.WholeWord),
+        var request = query.HistoryRequest(SqlMemoryBulk.PageSize, "cursor");
+        Assert.Equal((SqlMemoryBulk.PageSize, SqlHistoryFilter.Executions, "Loan", "cursor", TextMatchOptions.WholeWord),
             (request.PageSize, request.Kind, request.Search, request.Cursor, request.MatchOptions));
         Assert.Equal(new[] { "LibraryServer" }, request.Servers);
         Assert.Equal(Now.AddDays(-7), request.Since);
@@ -316,8 +316,8 @@ public sealed class SqlMemoryBrowserModelTests
         model.Invalidate(Now);
         var query = model.Query();
         Assert.True(query.IsFavorites);
-        var request = query.FavoriteRequest(SqlMemoryCopy.PageSize, null);
-        Assert.Equal(("Reader", SqlMemoryCopy.PageSize), (request.Search, request.PageSize));
+        var request = query.FavoriteRequest(SqlMemoryBulk.PageSize, null);
+        Assert.Equal(("Reader", SqlMemoryBulk.PageSize), (request.Search, request.PageSize));
 
         Assert.False(model.HasMore);
         var load = model.BeginLoad()!;

@@ -11,7 +11,9 @@
 | 「這份 SQL 沒有內容」（擷取、新增至收藏與預覽空狀態共用） | `Core/SqlMemory/SqlContent.cs` 的 `IsBlank`（清理既有資料那一份是 SQL，在 `SqliteHistoryRows.Blank`） |
 | 開啟／關閉、世代、寫入器故障、心跳、維護排程與使用者主動整理 | `Core/SqlMemory/SqlMemoryRuntime.cs`（設定轉政策在 `SqlMemoryConfiguration.cs`） |
 | 清單的篩選轉請求、分頁世代與選取還原（含條件快照 `SqlMemoryQuery` 與它的比對器） | `Core/SqlMemory/SqlMemoryBrowserModel.cs` |
-| 批次複製的欄位、上限與「全部符合」逐頁讀取 | `Core/SqlMemory/SqlMemoryCopy.cs` |
+| 批次複製的欄位 | `Core/SqlMemory/SqlMemoryCopy.cs` |
+| 多選動作的上限與「全部符合」逐頁讀取（複製與刪除共用） | `Core/SqlMemory/SqlMemoryBulk.cs` |
+| 刪除的分批、取消與結果（單筆與多選共用） | `Core/SqlMemory/SqlMemoryDeletion.cs` |
 | 查詢視窗的文件／Session 身分與多重選取的執行文字 | `Core/SqlMemory/SqlDocumentIdentity.cs`、`SqlSelectionText.cs` |
 | 有界背景佇列與交易衝突重試 | `Core/SqlMemory/SqlCaptureQueue.cs`、`SqlCaptureCommitter.cs` |
 | 收藏儲存、標註正規化、版本時間軸與版本衝突契約 | `Core/SqlMemory/ISqlFavoriteStore.cs`（儲存與隔離層共用） |
@@ -29,7 +31,7 @@
 | --- | --- |
 | SQLite 隔離載入 | `SqlMemory.Isolation/IsolatedSqlMemoryStore.cs` |
 | History／Favorites 的連線篩選 SQL、時間 keyset 游標與分頁讀取 | `SqlMemory.Sqlite/SqliteFilters.cs` 的 `SqliteConnectionFilter`、`SqliteKeysetPage.cs` |
-| 刪除一列 History 的交易步驟（逐筆刪除與手動清理共用） | `SqlMemory.Sqlite/SqliteHistoryRows.cs`（引用條件在 `SqliteContentRows.cs`） |
+| 刪除一列 History 的交易步驟（清單刪除與手動清理共用） | `SqlMemory.Sqlite/SqliteHistoryRows.cs`（引用條件在 `SqliteContentRows.cs`） |
 | 宿主／封裝儲存自我測試 | `SqlMemory.Isolation/SqlMemoryStorageSelfTest.cs` |
 
 ## Ssms22
@@ -40,11 +42,12 @@
 | 收藏新增與編輯（資料、標註與 SQL 一次儲存） | `Ssms22/SqlMemory/FavoriteEditorWindow.cs` |
 | 伺服器／資料庫標註輸入與出現過的名稱 | `Ssms22/SqlMemory/SqlConnectionTagInput.cs` |
 | 設定、計時器與事件型通知接線（邏輯在 Core 的 `SqlMemoryRuntime`） | `Ssms22/SqlMemory/SqlMemoryHost.cs` |
-| 列操作清單與執行（卡片、快捷選單、Preview 共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
+| 列操作清單與執行（卡片、快捷選單、Preview、多選刪除共用） | `Ssms22/UI/SqlMemoryList.cs` 的 `SqlMemoryRowCommand`、`Ssms22/SqlMemory/SqlMemoryItemCommands.cs` |
+| 列操作與多選動作的結果通知 | `Ssms22/SqlMemory/SqlMemoryActions.cs` 的 `Notify` |
 | 清單的鍵盤、續頁、右鍵選取與列按鈕派送 | `Ssms22/UI/SqlCardList.cs` 的 `SqlCardListBase<TAction>`（Delete 鍵在 `SqlMemoryList`） |
 | 等儲存的使用者操作：拒絕重入與宿主世代檢查 | `Ssms22/SqlMemory/SqlMemoryOperationGate.cs` |
 | 收藏版本操作清單與執行（時間軸列、快捷選單、差異面板共用） | `Ssms22/UI/SqlFavoriteRevisionList.cs` 的 `SqlFavoriteRevisionCommand`、`Ssms22/SqlMemory/SqlFavoriteRevisionCommands.cs` |
-| 列上的幽靈操作按鈕（卡片與時間軸共用） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `CreateRowActionButton` |
+| 列上的幽靈操作按鈕與破壞性操作前的分隔線（卡片、Search 結果列與時間軸共用） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `AppendRowActionButton` |
 | 行級差異的虛擬化呈現（標記、行號、語意底色） | `Ssms22/UI/SqlTextDiffView.cs`（樣板在 `SqlAssistChrome.Revisions.cs`） |
 | 清單頁尾 | `Ssms22/UI/SqlMemoryPager.cs`（狀態與文案在 `SqlMemoryBrowserModel.Footer`） |
 | 量表（分級色、長度動畫、不確定進度） | `Ssms22/UI/SqlUsageMeter.cs` |
