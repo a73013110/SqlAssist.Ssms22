@@ -170,23 +170,26 @@ internal sealed class SqlMemoryItemCommands
         {
             return row.Favorite is { } favorite
                 ? SqlAssistConfirmationWindow.Confirm(owner, "從收藏移除", $"移除收藏「{favorite.Favorite.Name}」？",
-                    "只移除此收藏，不連帶刪除 History；移除後無法復原。", "從收藏移除")
+                    "只移除這個收藏，History 裡的紀錄會保留。\n移除後無法復原。", "從收藏移除")
                 : SqlAssistConfirmationWindow.Confirm(owner, "從 History 刪除", $"刪除「{row.Name}」這筆{row.Status}紀錄？",
-                    "只刪除這一筆，不影響收藏或其他紀錄；仍被收藏或其他版本使用的 SQL 會保留。" +
-                    "查詢視窗若仍開著，之後的編輯會再產生新紀錄。刪除後無法復原。", "刪除");
+                    "只刪除這一筆，收藏和其他紀錄都不受影響。\n" +
+                    "這段 SQL 若還被收藏或其他版本用到，會繼續保留。\n" +
+                    "查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n" +
+                    "刪除後無法復原。", "刪除");
         }
 
         var count = Count(deletion.Count);
         // 只讀進上限那一批時先說清楚：確認框上的筆數就是這一次會動到的筆數，不是符合條件的全部。
         var limit = truncated
-            ? $"符合的項目超過 {Count(SqlMemoryBulk.Limit)} 筆，這一次只處理前 {count} 筆；其餘留在清單上。"
+            ? $"符合條件的超過 {Count(SqlMemoryBulk.Limit)} 筆，這次只處理前 {count} 筆，其餘留在清單上。\n"
             : "";
         return deletion.IsFavorites
             ? SqlAssistConfirmationWindow.Confirm(owner, "從收藏移除", $"移除勾選的 {count} 筆收藏？",
-                limit + "只移除收藏，不連帶刪除 History；移除後無法復原。", "從收藏移除")
+                limit + "只移除收藏，History 裡的紀錄會保留。\n移除後無法復原。", "從收藏移除")
             : SqlAssistConfirmationWindow.Confirm(owner, "從 History 刪除", $"刪除勾選的 {count} 筆紀錄？",
-                limit + "不影響收藏；仍被收藏或其他版本使用的 SQL 會保留。" +
-                "查詢視窗若仍開著，之後的編輯會再產生新紀錄。刪除後無法復原。", "刪除");
+                limit + "收藏不受影響；還被收藏或其他版本用到的 SQL 會繼續保留。\n" +
+                "查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n" +
+                "刪除後無法復原。", "刪除");
     }
 
     /// <param name="title">成功時的通知標題；null 表示不另外通知（例如回溯已經有自己的那一則）。</param>

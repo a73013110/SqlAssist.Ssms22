@@ -217,7 +217,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         args.Cancel = _submitting;
         if (_submitting || _committed || !IsDirty) return;
         SqlMemoryActions.Run(() => args.Cancel = !SqlAssistConfirmationWindow.Confirm(this,
-            "捨棄變更", "尚有未儲存的變更。", "捨棄後無法回復本次編輯；收藏不會改變。", "捨棄變更"),
+            "捨棄變更", "捨棄尚未儲存的變更？", "這次編輯的內容會遺失，收藏本身不會改變。\n捨棄後無法復原。", "捨棄變更"),
             message => { args.Cancel = true; Report(message); });
     }
 

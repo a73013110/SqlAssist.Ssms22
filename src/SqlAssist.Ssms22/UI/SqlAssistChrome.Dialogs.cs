@@ -37,7 +37,8 @@ internal static partial class SqlAssistChrome
     /// <param name="actions">結束對話框的動作，由左到右；主要動作放最後。</param>
     public static DockPanel CreateDialogFooter(IReadOnlyList<Button> utilities, UIElement? leading, params Button[] actions)
     {
-        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0) };
+        // 沒有狀態時結束動作就是最後一個子項；LastChildFill 開著會把它撐滿整列，按鈕跟著跑到左邊。
+        var footer = new DockPanel { Margin = new Thickness(0, 16, 0, 0), LastChildFill = leading is not null };
         // 視覺樹依閱讀順序加入：附屬動作 → 結束動作，Tab 才會由左到右。
         if (utilities.Count > 0) footer.Children.Add(CreateDialogButtonRow(utilities, Dock.Left));
         footer.Children.Add(CreateDialogButtonRow(actions, Dock.Right));

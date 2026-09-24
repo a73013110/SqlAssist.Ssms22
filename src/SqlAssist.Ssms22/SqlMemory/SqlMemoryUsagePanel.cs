@@ -105,8 +105,8 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                 });
                 break;
             case SqlMemoryUsageAction.Compact:
-                if (!SqlAssistConfirmationWindow.Confirm(Owner(), "壓縮 SQL Memory 資料庫", "重建資料庫檔案以縮小檔案？",
-                    "不會刪除任何紀錄。重建期間需要與資料庫等量的暫存空間，新的擷取會等壓縮完成才寫入。", "壓縮")) return;
+                if (!SqlAssistConfirmationWindow.Confirm(Owner(), "壓縮 SQL Memory 資料庫", "重建資料庫檔案以縮小體積？",
+                    "不會刪除任何紀錄。\n過程中需要與資料庫大小相當的暫存空間。\n壓縮期間新的擷取會先等候，完成後才寫入。", "壓縮")) return;
                 Start(NotificationCatalog.CompactingSqlMemory, "壓縮", "正在壓縮資料庫；可繼續編輯…", deletes: false, async _ =>
                 {
                     // 縮小了多少由清理紀錄記下；這裡只說結果，不為了算差值多讀一次完整用量。

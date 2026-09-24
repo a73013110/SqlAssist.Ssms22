@@ -22,7 +22,7 @@ public sealed class SqlAssistChromeTests
         {
             var message = "要移除「Loan_" + new string('x', 2000) + "」嗎？";
             var content = SqlAssistChrome.CreateConfirmationContent(
-                message, "按「儲存」後才會寫回檔案。", action, out var confirm, out var cancel);
+                message, "這個自訂片段會從清單移除。\n按「儲存」後才會寫回檔案。", action, out var confirm, out var cancel);
             Assert.Equal(action, confirm.Content);
             Assert.False(confirm.IsDefault);
             Assert.False(confirm.IsCancel);
@@ -40,6 +40,9 @@ public sealed class SqlAssistChromeTests
             var actions = Assert.IsType<StackPanel>(footer.Children[0]);
             Assert.Equal(message, text.Text);
             Assert.Equal(TextWrapping.Wrap, text.TextWrapping);
+            // 影響說明一句一行，不擠成一段。
+            Assert.Equal(new[] { "這個自訂片段會從清單移除。", "按「儲存」後才會寫回檔案。" },
+                body.Children.OfType<TextBlock>().Skip(1).Select(line => line.Text));
             Assert.Same(cancel, actions.Children[0]);
             Assert.Same(confirm, actions.Children[1]);
             Assert.Equal(1, Grid.GetRow(footer));
@@ -53,6 +56,10 @@ public sealed class SqlAssistChromeTests
             Assert.InRange(footer.ActualWidth, 1, content.ActualWidth);
             Assert.True(confirm.ActualHeight > 0);
             Assert.Equal(confirm.ActualHeight, cancel.ActualHeight);
+            // 沒有狀態文字時結束動作仍靠右，不被 LastChildFill 撐到左邊。
+            var confirmRight = confirm.TranslatePoint(new Point(confirm.ActualWidth, 0), footer).X;
+            Assert.InRange(footer.ActualWidth - confirmRight, 0, 0.5);
+            Assert.True(cancel.TranslatePoint(new Point(), footer).X > footer.ActualWidth / 2);
         });
     }
 

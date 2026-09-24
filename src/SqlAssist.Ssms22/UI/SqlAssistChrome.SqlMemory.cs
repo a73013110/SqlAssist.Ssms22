@@ -353,6 +353,7 @@ internal static partial class SqlAssistChrome
         sql.SetValue(FrameworkElement.MaxHeightProperty, 16d); code.AppendChild(sql); panel.AppendChild(code);
         var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
         var history = new DataTrigger { Binding = new Binding("IsFavorite"), Value = false };
+        CollapseFavoriteStatus(favorite);
         // 窄版：連線膠囊降成 icon-only，次要操作收進 overflow；主要動作與名稱一直看得見。
         var narrow = row.Narrow;
         IconOnlyInNarrow(narrow, "server"); IconOnlyInNarrow(narrow, "database");
@@ -389,6 +390,10 @@ internal static partial class SqlAssistChrome
         RevealRowCheck(template);
         return template;
     }
+
+    /// <summary>收藏只出現在收藏頁籤，每一列都標「收藏」等於沒說；只有 History 的狀態分得出彼此。</summary>
+    private static void CollapseFavoriteStatus(DataTrigger favorite) =>
+        favorite.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "state"));
 
     private static void AppendConnectionBadges(FrameworkElementFactory panel)
     {
@@ -439,6 +444,8 @@ internal static partial class SqlAssistChrome
         noTime.Setters.Add(new Setter(UIElement.VisibilityProperty, Visibility.Collapsed, "Timestamp")); template.Triggers.Add(noTime);
         CollapseEmptyConnectionBadges(template);
         CollapseSingleExecution(template);
+        var favorite = new DataTrigger { Binding = new Binding("IsFavorite"), Value = true };
+        CollapseFavoriteStatus(favorite); template.Triggers.Add(favorite);
         var executed = new DataTrigger { Binding = new Binding("IsExecuted"), Value = true };
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, MemoryStatusBackground(true), "state"));
         executed.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, MemoryStatusBorder(true), "state")); template.Triggers.Add(executed);

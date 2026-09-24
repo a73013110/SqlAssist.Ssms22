@@ -870,11 +870,11 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         var action = draft.IsBuiltIn ? "停用" : "刪除";
         var confirmed = SqlAssistConfirmationWindow.Confirm(
             this,
-            $"SqlAssist — {action}片段",
-            $"要{action}「{draft.Caption}」嗎？",
+            $"{action}片段",
+            $"{action}片段「{draft.Caption}」？",
             draft.IsBuiltIn
-                ? "停用後不再出現在建議清單，可隨時重新啟用。按「儲存」後才會寫回檔案。"
-                : "此自訂片段將從清單移除。按「儲存」後才會寫回檔案。",
+                ? "停用後不會再出現在建議清單，隨時可以重新啟用。\n按「儲存」後才會寫回檔案。"
+                : "這個自訂片段會從清單移除。\n按「儲存」後才會寫回檔案。",
             action);
 
         if (!confirmed)
@@ -913,9 +913,9 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         var confirmed = SqlAssistConfirmationWindow.Confirm(
             this,
-            "SqlAssist — 還原預設片段",
-            $"要還原全部 {SqlSnippetDefaults.Current.Snippets.Count} 筆內建片段並移除自訂片段嗎？",
-            "內建片段的修改與停用狀態也會重設。按「儲存」後才會寫回檔案。",
+            "還原預設片段",
+            $"還原全部 {SqlSnippetDefaults.Current.Snippets.Count} 筆內建片段，並移除自訂片段？",
+            "內建片段的修改與停用狀態也會一併重設。\n按「儲存」後才會寫回檔案。",
             "還原預設");
 
         if (!confirmed)

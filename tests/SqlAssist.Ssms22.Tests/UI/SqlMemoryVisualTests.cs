@@ -465,6 +465,9 @@ public sealed class SqlMemoryVisualTests
                 "SELECT LoanId FROM LoanDetail;", DateTimeOffset.Now)), 740);
             Assert.Equal(Visibility.Collapsed, Part(untagged, "server").Visibility);
             Assert.Equal(Visibility.Collapsed, Part(untagged, "database").Visibility);
+            // 收藏頁籤裡每一列都是收藏，不再標「收藏」膠囊；History 的狀態膠囊照舊。
+            Assert.Equal(Visibility.Collapsed, Part(untagged, "state").Visibility);
+            Assert.Equal(Visibility.Visible, Part(wide, "state").Visibility);
             // 只執行一次不留「×1」；操作層收起是 Collapsed，停駐才揭露且不跳版面。
             Assert.Equal(Visibility.Collapsed, Part(untagged, "count").Visibility);
             Assert.Equal(Visibility.Collapsed, Part(untagged, "actions").Visibility);
@@ -818,6 +821,29 @@ public sealed class SqlMemoryVisualTests
                 }
             }
         });
+    }
+
+    [Fact]
+    public void PreviewMetadataOmitsTheFavoriteStatusBadge()
+    {
+        WpfTest.Run(() =>
+        {
+            var row = new SqlMemoryRow(new SqlFavoriteItem(new SqlFavorite(Guid.NewGuid(), "借閱查詢", null, Guid.NewGuid(),
+                "LibraryServer", "Library"), Guid.NewGuid(), "id", "SELECT * FROM Loan;", DateTimeOffset.Now));
+            var summary = new ContentControl { Content = row, ContentTemplate = SqlAssistChrome.CreateMemoryMetadataTemplate() };
+            summary.Measure(new Size(600, 40)); summary.Arrange(new Rect(0, 0, 600, 40)); summary.UpdateLayout();
+            // 收藏頁籤裡每一筆都是收藏；資訊列與清單列一樣不再標「收藏」。
+            var visible = Descendants<TextBlock>(summary).Where(text => IsShown(text, summary)).Select(text => text.Text);
+            Assert.DoesNotContain("收藏", visible);
+            Assert.Contains(row.Server, visible);
+        });
+
+        static bool IsShown(FrameworkElement element, FrameworkElement root)
+        {
+            for (var current = element; current is not null && !ReferenceEquals(current, root); current = VisualTreeHelper.GetParent(current) as FrameworkElement)
+                if (current.Visibility != Visibility.Visible) return false;
+            return true;
+        }
     }
 
     [Fact]

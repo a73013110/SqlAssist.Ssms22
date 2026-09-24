@@ -619,6 +619,7 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>精簡確認內容：影響說明與單一頁尾，不重複原生標題列。</summary>
+    /// <param name="detail">影響說明；以 <c>\n</c> 分句，每句各佔一行。</param>
     public static Grid CreateConfirmationContent(
         string message, string detail, string action, out Button confirm, out Button cancel)
     {
@@ -634,9 +635,14 @@ internal static partial class SqlAssistChrome
             FontSize = DefaultMetrics.Body,
             TextWrapping = TextWrapping.Wrap
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.WindowForeground));
-        var hint = CreateHint(detail, DefaultMetrics);
-        hint.Margin = new Thickness(0, 8, 0, 0);
-        body.Children.Add(hint);
+        // 一句一行：影響範圍、例外與「無法復原」擠成一段時，得從頭讀到尾才找得到自己在意的那一句。
+        var lines = detail.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var hint = CreateHint(lines[i], DefaultMetrics);
+            hint.Margin = new Thickness(0, i == 0 ? Spacing.Group : Spacing.Tight, 0, 0);
+            body.Children.Add(hint);
+        }
         // 長片段名稱只捲動訊息本身，避免把取消按鈕推到視窗外。
         root.Children.Add(new ScrollViewer
         {
