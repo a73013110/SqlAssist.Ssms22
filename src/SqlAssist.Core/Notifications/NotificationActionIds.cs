@@ -20,4 +20,7 @@ public static class NotificationActionIds
 
     /// <summary>打開 SQL Memory 工具窗。</summary>
     public const string SqlMemoryOpen = "sqlmemory.open";
+
+    /// <summary>收起「關於與診斷」送出的測試提醒；沒有別的作用。</summary>
+    public const string RehearsalAcknowledge = "rehearsal.acknowledge";
 }

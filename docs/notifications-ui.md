@@ -16,7 +16,7 @@
 | 提醒按鈕的派送 | `Notifications/NotificationActionRouter` |
 | 畫面本身 | `UI/NotificationIsland`、`NotificationRow`、`NotificationPromptView` |
 
-島嶼只認得 `UI/NotificationCardItem` 與 `UI/NotificationPromptItem`，不認得 `Core/Notifications`。
+島嶼只認得 `UI/NotificationActivityItem` 與 `UI/NotificationPromptItem`，不認得 `Core/Notifications`。
 
 ## 控制器
 
@@ -81,6 +81,17 @@
 （失敗、部分成功）。moniker 一律 `sqlAssist.notifications.*`，子項都以單一同分類 `enableWhen` 掛
 「顯示通知提示」。動畫由「一般」頁的全域動畫設定管。預設立即顯示、成功保留 2500 ms，失敗與降級
 至少 6000 ms，最短可見 800 ms。
+
+## 測試通知
+
+「關於與診斷 → 通知失敗」上方一排按鈕，讓使用者自己確認通知看不看得到、長什麼樣子：3 秒後成功、
+3 秒後失敗、連續 5 次成功（×N）、一則提醒、三則提醒（疊層）、提醒加活動（衛星）。情境、標籤與時長
+只在 `Core/Notifications/NotificationRehearsal`，新增一種只動那裡。
+
+- 走正式的 `NotificationCenter`，可見度、合併、統計與最近失敗都是真的；失敗那一項列進同一頁，種類是
+  「通知測試」（`NotificationKind.Diagnostics`，沒有開關）。
+- 來源一律 `User`，詳細度擋不住；總開關或失敗通道擋下時狀態列說出是哪一格，不是按了沒反應。
+- 活動用 `BeginDetached`，不成為環境父工作。提醒只有「知道了」，派送端登記空的處理常式。
 
 ## 驗證
 

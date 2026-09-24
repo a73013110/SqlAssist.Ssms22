@@ -31,7 +31,7 @@ public sealed class NotificationIslandTests
             Assert.Equal(NotificationIsland.CapsuleRadius, island.Surface.CornerRadius.TopLeft);
             Assert.InRange(island.Surface.Width, NotificationIsland.CapsuleMinWidth, NotificationIsland.CapsuleMaxWidth);
 
-            var content = new NotificationIslandContent(new[] { Card(1, NotificationVisualStatus.Running) },
+            var content = new NotificationIslandContent(new[] { Activity(1, NotificationVisualStatus.Running) },
                 new string('長', 80), Array.Empty<NotificationPromptItem>());
             island.Update(content, State(content), motion: false);
             Assert.Equal(NotificationIsland.CapsuleMaxWidth, island.Surface.Width);
@@ -310,11 +310,11 @@ public sealed class NotificationIslandTests
         return state;
     }
 
-    private static NotificationIslandContent Content(IReadOnlyList<NotificationCardItem>? activities = null,
+    private static NotificationIslandContent Content(IReadOnlyList<NotificationActivityItem>? activities = null,
         IReadOnlyList<NotificationPromptItem>? prompts = null) =>
-        new(activities ?? Array.Empty<NotificationCardItem>(), "", prompts ?? Array.Empty<NotificationPromptItem>());
+        new(activities ?? Array.Empty<NotificationActivityItem>(), "", prompts ?? Array.Empty<NotificationPromptItem>());
 
-    private static NotificationCardItem Card(long id, NotificationVisualStatus status) =>
+    private static NotificationActivityItem Activity(long id, NotificationVisualStatus status) =>
         new(id, "載入欄位與定義", "dbo.Loan", "Loan.sql", "", "", status, "執行中", 1);
 
     private static NotificationPromptItem Update(long id, int position, int count) =>

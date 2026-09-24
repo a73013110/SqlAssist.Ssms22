@@ -122,6 +122,13 @@ public static class NotificationCatalog
     /// <summary>手動與啟動時的自動檢查共用；結論與版本號由 <c>SqlAssistUpdateCheck</c> 寫進敘述。</summary>
     public const string CheckingForUpdates = "檢查更新";
 
+    // ── 通知測試 ──────────────────────────────────────────────────────────
+    /// <summary>「關於與診斷」的測試工作；成功、失敗與搭配提醒的那幾則共用。</summary>
+    public const string SimulatingWork = "模擬背景工作";
+
+    /// <summary>用來看合併 ×N 的那一組；與 <see cref="SimulatingWork"/> 分開，才不會跟別的測試併成一列。</summary>
+    public const string SimulatingRepeatedWork = "模擬重複工作";
+
     // ── 提醒 ──────────────────────────────────────────────────────────────
     // 提醒的標題不受動詞開頭的契約限制：它不會轉過去式，回答的是「要決定什麼」。
     // 按鈕識別字在 NotificationActionIds；這裡的常數欄位只放標題，其餘措辭是屬性。
@@ -151,6 +158,18 @@ public static class NotificationCatalog
         new("sqlmemory.first-capture", "SQL Memory 已開始擷取", SqlMemoryFirstCaptureNotice, NotificationSeverity.Info,
             new NotificationAction(NotificationActionIds.SqlMemoryOpen, "開啟 SQL Memory", NotificationActionRole.Primary));
 
+    /// <summary>「關於與診斷」的測試提醒；鍵依嚴重度分開，三種一起送就是疊層。</summary>
+    public static NotificationPrompt RehearsalPrompt(NotificationSeverity severity) =>
+        new("rehearsal." + severity.ToString().ToLowerInvariant(),
+            severity switch
+            {
+                NotificationSeverity.Error => "測試提醒：錯誤",
+                NotificationSeverity.Warning => "測試提醒：警告",
+                _ => "測試提醒：一般",
+            },
+            "這是一則測試；按「知道了」或叉號都只會收起它。", severity,
+            new NotificationAction(NotificationActionIds.RehearsalAcknowledge, "知道了", NotificationActionRole.Primary));
+
     /// <summary>活動清單抬頭的那一行：「已完成 (成功數/總數)」；分子只算成功。</summary>
     public static string ProgressSummary(int succeeded, int total) =>
         "已完成 (" + succeeded.ToString(CultureInfo.CurrentCulture) + "/" + total.ToString(CultureInfo.CurrentCulture) + ")";
@@ -167,7 +186,7 @@ public static class NotificationCatalog
     /// </summary>
     /// <remarks>
     /// 只有一項時說是哪一件事（「標題 · 主體」）；兩項以上改說規模與進度，因為膠囊寬度
-    /// 放不下兩個標題，挑其中一個又會讓使用者以為只有那一件。分子只算成功，與卡片抬頭的
+    /// 放不下兩個標題，挑其中一個又會讓使用者以為只有那一件。分子只算成功，與展開清單抬頭的
     /// 「已完成 (成功數/總數)」同一個口徑。傳入的是合併且篩選過的列。
     /// </remarks>
     public static string CapsuleSummary(IReadOnlyList<NotificationItem> activities)

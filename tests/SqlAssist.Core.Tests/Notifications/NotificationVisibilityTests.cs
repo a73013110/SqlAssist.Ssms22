@@ -76,8 +76,8 @@ public sealed class NotificationVisibilityTests
         foreach (NotificationKind kind in Enum.GetValues(typeof(NotificationKind)))
         {
             Assert.True(NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quiet));
-            // 更新沒有種類開關：使用者自己按的「檢查更新」一律看得到。
-            Assert.Equal(kind == NotificationKind.Update, NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quietAndOff));
+            // 更新與通知測試沒有種類開關：使用者自己按的一律看得到。
+            Assert.Equal(!NotificationKindToggle.Governs(kind), NotificationVisibility.Includes(Item(kind, NotificationOrigin.User), quietAndOff));
             // 換成自動觸發就回到門檻管轄；Info 在精簡模式下一律讓位。
             Assert.False(NotificationVisibility.Includes(Item(kind, NotificationOrigin.Typing), quiet));
         }
@@ -194,8 +194,8 @@ public sealed class NotificationVisibilityTests
         foreach (NotificationKind kind in Enum.GetValues(typeof(NotificationKind)))
         {
             Assert.NotEmpty(NotificationKindToggle.Label(kind));
-            // 更新沒有種類開關：自動檢查由「啟動時檢查更新」管，手動檢查一律顯示。
-            if (kind == NotificationKind.Update) { Assert.False(NotificationKindToggle.Governs(kind)); continue; }
+            // 沒有種類開關的只有這兩類，理由寫在 NotificationKindToggle。
+            if (kind is NotificationKind.Update or NotificationKind.Diagnostics) { Assert.False(NotificationKindToggle.Governs(kind)); continue; }
             var toggle = NotificationKindToggle.For(kind);
             Assert.Equal(kind, toggle.Kind);
             Assert.NotEmpty(toggle.Title);
@@ -204,7 +204,7 @@ public sealed class NotificationVisibilityTests
         }
         // 遮罩是 32 位元的；種類多到滿出來時位元會安靜地互相覆蓋。
         Assert.True(Enum.GetValues(typeof(NotificationKind)).Length <= 31);
-        Assert.Equal(Enum.GetValues(typeof(NotificationKind)).Length - 1, NotificationKindToggle.All.Count);
+        Assert.Equal(Enum.GetValues(typeof(NotificationKind)).Length - 2, NotificationKindToggle.All.Count);
         Assert.All(NotificationKindToggle.All, x => Assert.Contains(x.Moniker, SqlAssistMonikers.All));
     }
 

@@ -109,6 +109,8 @@ public sealed class SqlAssistPackage : AsyncPackage
         NotificationActionRouter.Register(NotificationActionIds.SqlMemoryOpenMaintenance,
             _ => SqlMemoryToolWindow.Show(this, SqlMemoryPage.Usage));
         NotificationActionRouter.Register(NotificationActionIds.SqlMemoryOpen, _ => SqlMemoryToolWindow.Show(this));
+        // 測試提醒的按鈕只要收起那一則，而派送之前已經收掉了。
+        NotificationActionRouter.Register(NotificationActionIds.RehearsalAcknowledge, _ => { });
     }
 
     private static SqlAssistBuildVersion CreateBuildVersion()

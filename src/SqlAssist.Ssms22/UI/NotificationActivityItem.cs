@@ -19,7 +19,7 @@ internal enum NotificationVisualStatus { Pending, Running, Completed, Failed, Ca
 /// <param name="Message">工作自己回報或由結果決定的那一行；空字串代表不預留列。</param>
 /// <param name="StatusText">狀態列與輔助技術唸出來的那一句。</param>
 /// <param name="Repeat">這一列代表幾次呼叫；大於 1 才顯示 ×N 徽章。</param>
-internal sealed record NotificationCardItem(
+internal sealed record NotificationActivityItem(
     long Id,
     string Title,
     string Subject,

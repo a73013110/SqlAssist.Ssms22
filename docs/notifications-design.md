@@ -102,7 +102,7 @@ POCO、moniker 常數、讀取端與可見度四處，每一處漏掉都沒有�
 ## 島嶼與呈現端分開
 
 表面認得通知來源的型別時，第二個回饋來源（片段還原、設定重載）就得先變成一則通知才畫得出來。
-所以島嶼只認得 `UI/NotificationCardItem` 與 `UI/NotificationPromptItem`，可見度、合併與措辭在
+所以島嶼只認得 `UI/NotificationActivityItem` 與 `UI/NotificationPromptItem`，可見度、合併與措辭在
 `Notifications/NotificationPresenter`。抽通用通知框架則相反——只有一個來源時抽出來的抽象會照著
 那個來源長，等第二個來源出現時還是要重寫。
 

@@ -21,6 +21,8 @@ public enum NotificationKind
     SqlMemory,
     /// <summary>問 GitHub 有沒有新版本。</summary>
     Update,
+    /// <summary>「關於與診斷」送出的測試通知；只由使用者按下去才會出現。</summary>
+    Diagnostics,
     /// <summary>還沒分類的工作。預設顯示，否則新工作會靜默漏掉。</summary>
     Unclassified,
 }

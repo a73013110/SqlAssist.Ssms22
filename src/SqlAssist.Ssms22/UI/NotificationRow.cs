@@ -33,7 +33,7 @@ internal sealed class NotificationRow : Border
     internal NotificationVisualStatus Status => _state ?? NotificationVisualStatus.Pending;
     internal string StatusText { get; private set; } = "";
 
-    public NotificationRow(NotificationCardItem item)
+    public NotificationRow(NotificationActivityItem item)
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
         // 標題獨占文字欄；來源與訊息按需出現，不再平均分配寬度而提早省略。
@@ -96,7 +96,7 @@ internal sealed class NotificationRow : Border
     /// 現在進行式換成過去式並補上耗時，所以每一輪都要重新讀，不能只在建構時寫一次。
     /// </remarks>
     /// <param name="showDocument">文件不是全部相同時才在列上重複顯示；資料庫一律留在列上。</param>
-    internal void Update(NotificationCardItem item, bool showDocument, bool motion)
+    internal void Update(NotificationActivityItem item, bool showDocument, bool motion)
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
         var headline = item.Subject.Length > 0 ? item.Title + Separator + item.Subject : item.Title;
@@ -204,7 +204,7 @@ internal sealed class NotificationRow : Border
     /// 一列不屬於任何文件的背景工作就會把抬頭那一行整個收掉，而畫面上的其他列明明都來自
     /// 同一份查詢——那正是檔名時有時無的成因。
     /// </remarks>
-    internal static string CommonDocument(IReadOnlyList<NotificationCardItem> items)
+    internal static string CommonDocument(IReadOnlyList<NotificationActivityItem> items)
     {
         var common = "";
         for (var index = 0; index < items.Count; index++)
@@ -219,7 +219,7 @@ internal sealed class NotificationRow : Border
     }
 
     /// <summary>這一列要顯示的出處；抬頭已經寫了文件時只留資料庫。</summary>
-    private static string Provenance(NotificationCardItem item, bool showDocument) =>
+    private static string Provenance(NotificationActivityItem item, bool showDocument) =>
         NotificationCatalog.Provenance(showDocument ? item.Document : "", item.Source);
 
     private static Visibility Visible(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;

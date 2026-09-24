@@ -57,13 +57,21 @@ public sealed class NotificationKindToggle
         All.ToDictionary(toggle => toggle.Kind);
 
     /// <summary>
-    /// 這一類有沒有自己的開關。
+    /// 沒有開關的種類與它們在診斷畫面上的名稱。
     /// </summary>
     /// <remarks>
-    /// 只有 <see cref="NotificationKind.Update"/> 沒有：自動檢查由「啟動時檢查有沒有新版本」管，
-    /// 手動檢查是使用者自己按的，答案一律要看得到。兩個旋鈕管同一件事時，關掉其中一個的人
-    /// 分不出「沒有新版」與「被自己關掉了」。
+    /// <see cref="NotificationKind.Update"/>：自動檢查由「啟動時檢查有沒有新版本」管，手動檢查是使用者
+    /// 自己按的，答案一律要看得到。兩個旋鈕管同一件事時，關掉其中一個的人分不出「沒有新版」與
+    /// 「被自己關掉了」。<see cref="NotificationKind.Diagnostics"/>：只有使用者在「關於與診斷」按測試才會
+    /// 出現，用途正是確認通知看不看得到；給它開關的話，關掉的人會以為通知壞了。
     /// </remarks>
+    private static readonly Dictionary<NotificationKind, string> Ungoverned = new()
+    {
+        [NotificationKind.Update] = "更新檢查",
+        [NotificationKind.Diagnostics] = "通知測試",
+    };
+
+    /// <summary>這一類有沒有自己的開關；沒有的見 <see cref="Ungoverned"/>。</summary>
     public static bool Governs(NotificationKind kind) => ByKind.ContainsKey(kind);
 
     public static NotificationKindToggle For(NotificationKind kind) => ByKind[kind];
@@ -71,6 +79,6 @@ public sealed class NotificationKindToggle
     /// <summary>診斷畫面上的種類名稱；沒有開關的種類也有名字。</summary>
     public static string Label(NotificationKind kind) =>
         ByKind.TryGetValue(kind, out var toggle) ? toggle.Title
-        : kind == NotificationKind.Update ? "更新檢查"
+        : Ungoverned.TryGetValue(kind, out var label) ? label
         : kind.ToString();
 }

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -12,6 +13,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Core.Notifications;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Commands;
@@ -169,8 +171,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         projectActions.Children.Add(CreateButton(
             "回報問題",
             (_, _) => OpenExternal(_snapshot.IssuesUrl, "開啟問題回報頁")));
-        // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論走通知，
-        // 而這個視窗本身就是卡片的宿主，按完不必切回編輯器才看得到。
+        // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論是右下角通知島上的提醒。
         projectActions.Children.Add(CreateButton("檢查更新", (_, _) => CheckForUpdates()));
 
         content.Children.Add(CreateSection(
@@ -314,15 +315,49 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     private UIElement BuildNotificationFailures()
     {
         var content = CreateTabPanel();
+        content.Children.Add(BuildNotificationRehearsal());
         content.Children.Add(SqlAssistChrome.CreateHint(
             "本次工作階段最近 30 項失敗；重新開啟此視窗可更新。不保存 SQL、連線字串或例外內容。", Metrics));
-        var failures = SqlAssist.Core.Notifications.NotificationCenter.Default.RecentFailures;
+        var failures = NotificationCenter.Default.RecentFailures;
         if (failures.Count == 0)
             content.Children.Add(SqlAssistChrome.CreateHint("目前沒有失敗紀錄。", Metrics));
         foreach (var item in failures.Reverse())
             content.Children.Add(CreateInfoRow(item.Finished?.ToLocalTime().ToString("HH:mm:ss") ?? "",
-                $"{item.Title} · {NotificationCatalog.Provenance(item)}\n{item.Kind} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
+                $"{item.Title} · {NotificationCatalog.Provenance(item)}\n{NotificationKindToggle.Label(item.Kind)} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
         return CreateScrollViewer(content);
+    }
+
+    /// <summary>「通知看不看得到、長什麼樣子」的自助測試；情境與措辭都在 <see cref="NotificationRehearsal"/>。</summary>
+    private Border BuildNotificationRehearsal()
+    {
+        var buttons = new WrapPanel();
+        foreach (var scenario in NotificationRehearsal.All)
+        {
+            var button = CreateButton(NotificationRehearsal.Label(scenario), (_, _) => Rehearse(scenario));
+            button.Margin = new Thickness(0, 0, 6, 6);
+            buttons.Children.Add(button);
+        }
+
+        return CreateSection(
+            "測試通知",
+            "照目前的通知設定送出，結果出現在右下角的通知島。失敗的那一項也會列進下方清單，種類是「通知測試」。",
+            buttons);
+    }
+
+    private void Rehearse(NotificationRehearsalScenario scenario)
+    {
+        try
+        {
+            var running = NotificationRehearsal.RunAsync(scenario, NotificationCenter.Default, Task.Delay);
+            // 活動的情境要幾秒後才完成，沒有人等它；之後才出的錯交給 Guard 記下。
+            SqlAssistPlatformGuard.BeginProbe("通知測試", running);
+            _statusText.Text = NotificationRehearsal.HiddenReason(scenario, SqlAssistSettingsStore.Current)
+                ?? $"已送出「{NotificationRehearsal.Label(scenario)}」；看右下角的通知島。";
+        }
+        catch (Exception exception)
+        {
+            ReportActionFailure("通知測試", exception);
+        }
     }
 
     /// <remarks>不重複抬頭已顯示的狀態徽章。</remarks>

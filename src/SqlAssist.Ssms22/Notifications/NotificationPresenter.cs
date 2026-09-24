@@ -132,8 +132,8 @@ internal sealed class NotificationPresenter
         }
 
         var merged = NotificationMerge.Collapse(activities);
-        var cards = new NotificationCardItem[merged.Count];
-        for (var index = 0; index < merged.Count; index++) cards[index] = ToCardItem(merged[index]);
+        var activityItems = new NotificationActivityItem[merged.Count];
+        for (var index = 0; index < merged.Count; index++) activityItems[index] = ToActivityItem(merged[index]);
         prompts.Sort((left, right) =>
         {
             var severity = right.Severity.CompareTo(left.Severity);
@@ -144,7 +144,7 @@ internal sealed class NotificationPresenter
         var promptItems = new NotificationPromptItem[prompts.Count];
         for (var index = 0; index < prompts.Count; index++)
             promptItems[index] = ToPromptItem(prompts[index], index + 1, prompts.Count);
-        return new NotificationIslandContent(cards, NotificationCatalog.CapsuleSummary(merged), promptItems);
+        return new NotificationIslandContent(activityItems, NotificationCatalog.CapsuleSummary(merged), promptItems);
     }
 
     private static NotificationPromptItem ToPromptItem(NotificationItem item, int position, int count)
@@ -166,7 +166,7 @@ internal sealed class NotificationPresenter
             actions, position, count);
     }
 
-    private static NotificationCardItem ToCardItem(NotificationItem item) => new(
+    private static NotificationActivityItem ToActivityItem(NotificationItem item) => new(
         item.Id,
         NotificationCatalog.Headline(item),
         item.Subject,

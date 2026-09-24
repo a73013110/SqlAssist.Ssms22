@@ -36,7 +36,7 @@ public static class NotificationVisibility
         return item.Level >= Threshold(settings.NotificationVerbosity);
     }
 
-    /// <summary>沒有開關的種類（<see cref="NotificationKind.Update"/>）不在這一步被擋。</summary>
+    /// <summary>沒有開關的種類（更新檢查、通知測試）不在這一步被擋。</summary>
     private static bool KindEnabled(NotificationKind kind, SqlAssistSettings settings) =>
         !NotificationKindToggle.Governs(kind) || settings.NotificationKinds[kind];
 }

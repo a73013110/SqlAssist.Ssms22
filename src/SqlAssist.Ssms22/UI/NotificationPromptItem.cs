@@ -14,7 +14,7 @@ internal sealed record NotificationPromptAction(string Id, string Label, bool Pr
 
 /// <summary>通知島要畫的一則提醒。</summary>
 /// <remarks>
-/// 與 <see cref="NotificationCardItem"/> 同一個原則：島嶼只認得這個記錄，不認得
+/// 與 <see cref="NotificationActivityItem"/> 同一個原則：島嶼只認得這個記錄，不認得
 /// <c>Core/Notifications</c>，措辭、可見度與排序都在呈現端決定完才交過來。
 /// </remarks>
 /// <param name="Id">這則提醒的身分；處理時連同按鈕識別字交回。</param>
@@ -30,16 +30,16 @@ internal sealed record NotificationPromptItem(
     int Count);
 
 /// <summary>通知島一輪要畫的全部內容。</summary>
-/// <param name="Activities">活動列，已經篩選、合併並翻成 <see cref="NotificationCardItem"/>；依啟動順序，完成不重排。</param>
+/// <param name="Activities">活動列，已經篩選、合併並翻成 <see cref="NotificationActivityItem"/>；依啟動順序，完成不重排。</param>
 /// <param name="Summary">膠囊上的那一行。</param>
 /// <param name="Prompts">依嚴重度、再依時間新到舊排好的提醒。</param>
 internal sealed record NotificationIslandContent(
-    IReadOnlyList<NotificationCardItem> Activities,
+    IReadOnlyList<NotificationActivityItem> Activities,
     string Summary,
     IReadOnlyList<NotificationPromptItem> Prompts)
 {
     public static NotificationIslandContent Empty { get; } =
-        new(Array.Empty<NotificationCardItem>(), "", Array.Empty<NotificationPromptItem>());
+        new(Array.Empty<NotificationActivityItem>(), "", Array.Empty<NotificationPromptItem>());
 
     public int Running => Count(NotificationVisualStatus.Running);
     public int Completed => Count(NotificationVisualStatus.Completed);

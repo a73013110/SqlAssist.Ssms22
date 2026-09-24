@@ -63,7 +63,7 @@ public sealed class NotificationChromeTests
         WpfTest.Run(() =>
         {
             var island = new NotificationIsland();
-            var item = new NotificationCardItem(7, "已還原預設片段", "SELECT 範本", "Loan.sql", "", "已寫回使用者資料夾",
+            var item = new NotificationActivityItem(7, "已還原預設片段", "SELECT 範本", "Loan.sql", "", "已寫回使用者資料夾",
                 NotificationVisualStatus.Completed, "已完成", 1);
             Expand(island, new NotificationIslandContent(new[] { item }, "已還原預設片段", Array.Empty<NotificationPromptItem>()), motion: false);
             var row = Assert.IsType<NotificationRow>(island.Rows.Children[0]);
@@ -143,11 +143,11 @@ public sealed class NotificationChromeTests
         WpfTest.Run(() =>
         {
             var island = new NotificationIsland();
-            var suggestions = new NotificationCardItem(1, "已準備建議清單", "資料行", "SQLQuery1.sql", "", "",
+            var suggestions = new NotificationActivityItem(1, "已準備建議清單", "資料行", "SQLQuery1.sql", "", "",
                 NotificationVisualStatus.Completed, "已完成", 1);
-            var objects = new NotificationCardItem(2, "已載入物件清單", "", "", "LibArchive", "",
+            var objects = new NotificationActivityItem(2, "已載入物件清單", "", "", "LibArchive", "",
                 NotificationVisualStatus.Completed, "已完成", 1);
-            var startup = new NotificationCardItem(3, "已初始化 SqlAssist", "", "", "", "",
+            var startup = new NotificationActivityItem(3, "已初始化 SqlAssist", "", "", "", "",
                 NotificationVisualStatus.Completed, "已完成", 1);
             Expand(island, Activities(suggestions, objects, startup), motion: false);
             Assert.Equal("SQLQuery1.sql", island.DocumentLabel.Text);
@@ -244,7 +244,7 @@ public sealed class NotificationChromeTests
     internal static System.Windows.Shapes.Path Icon(NotificationRow row) =>
         (System.Windows.Shapes.Path)((Grid)row.Child).Children[0];
 
-    private static NotificationIslandContent Activities(params NotificationCardItem[] items) =>
+    private static NotificationIslandContent Activities(params NotificationActivityItem[] items) =>
         new(items, "", Array.Empty<NotificationPromptItem>());
 
     private static Border Badge(NotificationRow row) => (Border)((Grid)row.Child).Children[2];

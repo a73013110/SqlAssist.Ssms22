@@ -91,7 +91,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Notifications.cs" Link="Product\UI\SqlAssistChrome.Notifications.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\IsExternalInit.cs" Link="Product\IsExternalInit.cs" />
-    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationCardItem.cs" Link="Product\UI\NotificationCardItem.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationActivityItem.cs" Link="Product\UI\NotificationActivityItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationRow.cs" Link="Product\UI\NotificationRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationMotion.cs" Link="Product\UI\NotificationMotion.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SpringMotion.cs" Link="Product\UI\SpringMotion.cs" />

@@ -153,7 +153,7 @@ public sealed class NotificationIslandControllerTests
             if (file.EndsWith(nameof(NotificationIslandControllerTests) + ".cs", StringComparison.Ordinal)) continue;
             var text = File.ReadAllText(file);
             foreach (var name in removed) Assert.DoesNotContain(name, text, StringComparison.Ordinal);
-            Assert.DoesNotMatch(@"\bNotificationSurface\b|\bNotificationCard\b(?!Item)", text);
+            Assert.DoesNotMatch(@"\bNotificationSurface\b|\bNotificationCard", text);
         }
 
         foreach (var window in new[] { "SqlMemory/SqlMemoryToolWindow.cs", "Search/SqlSearchToolWindow.cs" })

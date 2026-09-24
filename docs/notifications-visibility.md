@@ -6,8 +6,8 @@
 三軸都由呼叫端明寫，不比對顯示名稱；合併的巢狀查詢沿用父工作的三軸。
 
 - `NotificationKind` 是子系統：Metadata、Completion、Analysis、Preview、Editing、
-  Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Unclassified；除了 Update
-  各有一格開關，共十一格。
+  Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Diagnostics、Unclassified；
+  除了 Update 與 Diagnostics 各有一格開關，共十一格。
 - `NotificationOrigin` 是觸發來源：User、Typing、Ambient、Startup。
 - `NotificationLevel` 是詳細度：Trace、Debug、Info、Notice。
 
@@ -29,17 +29,19 @@
 | Package | 初始化 SqlAssist、建立中繼資料連線、重新確認連線 | 初始化 `Startup`，其餘 `Ambient` | 初始化與建立連線 `Info`、重新確認 `Debug` |
 | SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；擷取被丟棄事件；容量警戒與首次擷取兩則提醒 | 套用設定、事件與提醒 `Ambient`，其餘 `User` | `Info`；事件與提醒 `Notice`、背景維護失敗 `Debug` |
 | Update | 手動檢查更新的活動；新版提醒 | 手動 `User`，啟動時的自動檢查 `Ambient` | 手動 `Info`，自動 `Notice` |
+| Diagnostics | 「關於與診斷」的[測試通知](notifications-ui.md#測試通知) | `User` | `Info` |
 | Results | 尚未接線 | — | — |
 
 提醒只看總開關與種類開關，不看詳細度、來源、失敗與降級通道：它是要使用者決定的事，
-不是降噪的對象。沒有開關的 Update 在種類那一步一律通過，提醒與活動都一樣。活動依序判斷：總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
+不是降噪的對象。沒有開關的 Update 與 Diagnostics 在種類那一步一律通過，提醒與活動都一樣。活動依序判斷：總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
 該種類的開關關著就隱藏 → `Trace` 在詳細度不是「全部」時隱藏 → `Origin` 為 `User` 顯示
 → `Notice` 顯示 → 其餘看詳細度門檻。
 
 預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘七個預設開，
 `Unclassified` 也在其中，漏分類的新工作不會靜默消失。`Update` 沒有開關：自動檢查由「一般」頁的
 「啟動時檢查有沒有新版本」管，手動檢查是使用者自己按的，一律顯示；兩個旋鈕管同一件事，關掉其中
-一個的人分不出「沒有新版」與「被自己關掉了」。種類開關排在觸發來源**之前**：
+一個的人分不出「沒有新版」與「被自己關掉了」。`Diagnostics` 也沒有：只有使用者按測試才出現，
+用途就是確認通知看不看得到。種類開關排在觸發來源**之前**：
 關掉「程式碼片段」就是連自己按下去的展開提示也不想看，排在後面的話那幾格永遠按不動。
 來源與詳細度只決定跨不跨得過降噪門檻，不覆寫種類開關。
 
