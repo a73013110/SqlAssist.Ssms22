@@ -60,7 +60,7 @@ public sealed class SqlMemoryVisualTests
             var header = new StackPanel();
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateIconTab(label == "History" ? SqlIcon.History : SqlIcon.Favorite, label));
+            foreach (var label in new[] { "History", "Favorites" }) tabs.Items.Add(SqlAssistChrome.CreateTab(label, label == "History" ? SqlIcon.History : SqlIcon.Favorite));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 0;
             var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, SqlAssistChrome.CreateButton("設定", metrics));
@@ -733,7 +733,7 @@ public sealed class SqlMemoryVisualTests
             // 設定的圖示與文字由工具列掛上；目前連線只有圖示，字留在 Tooltip 與自動化名稱。
             var settings = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
+            tabs.Items.Add(SqlAssistChrome.CreateTab("History", SqlIcon.History));
             tabs.SelectedIndex = 0;
             var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, settings);
             var button = settings;
@@ -797,8 +797,8 @@ public sealed class SqlMemoryVisualTests
             root.Resources[typeof(TextBlock)] = textStyle;
             root.Children.Add(button); root.Children.Add(iconButton); root.Children.Add(pills);
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateTab("History", SqlIcon.History));
+            tabs.Items.Add(SqlAssistChrome.CreateTab("Favorites", SqlIcon.Favorite));
             tabs.SelectedIndex = 0; root.Children.Add(tabs);
             var connection = new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.Single);
             connection.UpdateSummary("全部", ""); root.Children.Add(connection);

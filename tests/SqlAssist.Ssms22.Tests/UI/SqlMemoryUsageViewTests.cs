@@ -248,22 +248,22 @@ public sealed class SqlMemoryUsageViewTests
         {
             var palette = new ThemeResourceSet();
             var tabs = new TabControl();
-            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.History, "History"));
-            tabs.Items.Add(SqlAssistChrome.CreateIconTab(SqlIcon.Favorite, "Favorites"));
+            tabs.Items.Add(SqlAssistChrome.CreateTab("History", SqlIcon.History));
+            tabs.Items.Add(SqlAssistChrome.CreateTab("Favorites", SqlIcon.Favorite));
             tabs.Items.Add(SqlAssistChrome.CreateMemoryUsageTab());
             tabs.SelectedIndex = 2;
             var settings = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
             var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, settings);
             var host = new Border { Child = toolbar };
             host.Resources.MergedDictionaries.Add(palette.Resources);
-            TextBlock Label(int index) => (TextBlock)((DockPanel)((TabItem)tabs.Items[index]).Header).Children[1];
+            bool Label(int index) => ((SqlTabHeader)((TabItem)tabs.Items[index]).Header).ShowsLabel;
             var settingsLabel = (TextBlock)((Panel)settings.Content).Children[1];
 
             foreach (var (width, labels) in new[] { (740, true), (220, false), (740, true) })
             {
                 Layout(host, width, 40); Layout(host, width, 40);
-                Assert.Equal(labels, Label(0).Visibility == Visibility.Visible);
-                Assert.Equal(labels, Label(2).Visibility == Visibility.Visible);
+                Assert.Equal(labels, Label(0));
+                Assert.Equal(labels, Label(2));
                 Assert.InRange(tabs.ActualHeight, 1, 32);
                 Assert.InRange(toolbar.Children.OfType<StackPanel>().Single().TranslatePoint(new Point(), host).X, tabs.ActualWidth, width);
             }
@@ -271,7 +271,7 @@ public sealed class SqlMemoryUsageViewTests
             // 先收設定的文字，再收分頁文字；兩者不同時消失，窄窗仍看得出現在在哪一個分頁。
             Layout(host, 360, 40); Layout(host, 360, 40);
             Assert.Equal(Visibility.Collapsed, settingsLabel.Visibility);
-            Assert.Equal(Visibility.Visible, Label(1).Visibility);
+            Assert.True(Label(1));
         });
     }
 

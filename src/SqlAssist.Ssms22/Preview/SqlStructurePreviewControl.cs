@@ -367,13 +367,14 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     {
         public GridTab(
             string header,
+            SqlIcon icon,
             DataGrid grid,
             bool requiresStructure,
             Func<SqlObjectStructure, int> count,
             Func<SqlObjectStructure, System.Collections.IEnumerable> rows)
         {
-            Header = new SqlTabHeader(header);
-            Item = new TabItem { Header = Header, Content = grid };
+            Header = new SqlTabHeader(header, icon);
+            Item = SqlAssistChrome.CreateTab(Header, grid);
             Grid = grid;
             RequiresStructure = requiresStructure;
             Count = count;
@@ -518,6 +519,15 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     /// <summary>已經建好的資料列；填入與搜尋數命中共用，換了物件就整批清掉。</summary>
     private readonly Dictionary<GridTab, System.Collections.IEnumerable> _rows = new();
+
+    /// <summary>每張資料格看得見的欄的文字；每打一個字只比對字串，換了物件就整批清掉。</summary>
+    private readonly Dictionary<DataGrid, SqlDataGridText.SearchIndex> _searchIndexes = new();
+
+    /// <summary>這一輪搜尋字在每張資料格上符合的列；列篩選與分頁數字讀同一份，不比兩次。</summary>
+    private readonly Dictionary<DataGrid, HashSet<object>> _hits = new();
+
+    /// <summary>這一輪搜尋字在指令碼上的命中；分頁數字與畫面上的高亮讀同一份。</summary>
+    private MatchHighlightSet? _scriptHits;
 
     /// <summary>整欄都空就收掉的那些欄；每次填完資料重新判斷一次。</summary>
     private readonly HashSet<DataGridColumn> _optionalColumns = new();
@@ -678,36 +688,42 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         {
             new GridTab(
                 "欄位",
+                SqlIcon.Column,
                 columns,
                 requiresStructure: false,
                 structure => structure.Columns.Count,
                 structure => Map(structure.Columns, column => new ColumnRow(column))),
             new GridTab(
                 "索引",
+                SqlIcon.Index,
                 indexes,
                 requiresStructure: true,
                 structure => structure.Indexes.Count,
                 structure => Map(structure.Indexes, index => new IndexRow(index))),
             new GridTab(
                 "外來鍵",
+                SqlIcon.ForeignKey,
                 foreignKeys,
                 requiresStructure: true,
                 structure => structure.ForeignKeys.Count,
                 structure => Map(structure.ForeignKeys, key => new ForeignKeyRow(key))),
             new GridTab(
                 "條件約束",
+                SqlIcon.CheckConstraint,
                 checks,
                 requiresStructure: true,
                 structure => structure.CheckConstraints.Count,
                 structure => Map(structure.CheckConstraints, check => new CheckRow(check))),
             new GridTab(
                 "觸發程序",
+                SqlIcon.Trigger,
                 triggers,
                 requiresStructure: true,
                 structure => structure.Triggers.Count,
                 structure => Map(structure.Triggers, trigger => new TriggerRow(trigger))),
             new GridTab(
                 "參數",
+                SqlIcon.Parameter,
                 parameters,
                 requiresStructure: false,
                 structure => structure.Parameters.Count,
@@ -719,17 +735,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _script = new SqlReadOnlyViewer(embedded: true) { ReportError = message => _status.Text = message };
         TrackContextMenu(_script.Menu);
         _scriptMatches = new SqlMatchNavigation(_script);
-        _scriptHeader = new SqlTabHeader("指令碼");
-        _scriptTab = new TabItem { Header = _scriptHeader, Content = _script };
-
-        var segment = SqlAssistChrome.CreateTabItemTemplate();
-
-        foreach (var tab in _gridTabs)
-        {
-            tab.Item.Template = segment;
-        }
-
-        _scriptTab.Template = segment;
+        _scriptHeader = new SqlTabHeader("指令碼", SqlIcon.Script);
+        _scriptTab = SqlAssistChrome.CreateTab(_scriptHeader, _script);
 
         _tabs = new TabControl
         {
@@ -1111,14 +1118,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             new GridColumn(string.Empty, nameof(ReferenceRow.Cell4), GridColumn.TextWidth));
         ApplyGridMetrics(grid, SqlAssistChrome.CreateColumnHeaderStyle(_metrics));
 
-        var header = new SqlTabHeader(string.Empty);
-        var item = new TabItem
-        {
-            Header = header,
-            Content = grid,
-            Template = SqlAssistChrome.CreateTabItemTemplate(),
-            Visibility = Visibility.Collapsed
-        };
+        var header = new SqlTabHeader(string.Empty, SqlIcon.Reference);
+        var item = SqlAssistChrome.CreateTab(header, grid);
+        item.Visibility = Visibility.Collapsed;
 
         _tabs.Items.Add(item);
         var tab = new ReferenceTab(item, header, grid);
@@ -1280,9 +1282,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             }
             else if (FindGridTab(tab) is { } grid && _structure is { } structure)
             {
-                var rows = GetRows(grid, structure);
-                grid.Grid.ItemsSource = rows;
-                UpdateOptionalColumns(grid.Grid, rows);
+                grid.Grid.ItemsSource = GetRows(grid, structure);
                 ApplyFilter(grid.Grid);
             }
         }
@@ -1299,9 +1299,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     /// <summary>指令碼連同命中一起換上；有命中就停在第一處。</summary>
     private void ShowScript()
     {
-        var script = GetScript();
-        var highlights = MatchHighlights.Locate(_matcher, script);
-        _scriptMatches.Show(script, highlights);
+        var highlights = ScriptHits();
+        _scriptMatches.Show(GetScript(), highlights);
 
         // 少標了一定要說，否則使用者按到最後一處就以為看完了。
         if (highlights.IsTruncated)
@@ -1310,12 +1309,20 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         }
     }
 
+    /// <summary>
+    /// 這一頁的資料列；第一次建出來時順便照這份資料收好空欄。
+    /// </summary>
+    /// <remarks>
+    /// 收欄跟著資料列只做一次：填入與搜尋數命中都從這裡拿列，而還沒切過去的分頁，欄的收合
+    /// 還停在上一個物件——上一張表沒有說明、這一張有的話，說明裡的命中就數不到。
+    /// </remarks>
     private System.Collections.IEnumerable GetRows(GridTab tab, SqlObjectStructure structure)
     {
         if (!_rows.TryGetValue(tab, out var rows))
         {
             rows = tab.Rows(structure);
             _rows.Add(tab, rows);
+            UpdateOptionalColumns(tab.Grid, rows);
         }
 
         return rows;
@@ -1384,6 +1391,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     {
         _populated.Clear();
         _rows.Clear();
+        _searchIndexes.Clear();
+        _hits.Clear();
+        _scriptHits = null;
         _signature.Visibility = Visibility.Collapsed;
     }
 
@@ -1498,12 +1508,18 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     private void ApplySearch()
     {
         var pattern = _search.Text.Trim();
+
+        // 只差在頭尾空白的那一次不重做：篩選、數字與高亮都會是同一份結果。
+        if (pattern == (_matcher?.Pattern ?? string.Empty))
+        {
+            return;
+        }
+
         _matcher = pattern.Length == 0 ? null : new TextMatcher(pattern, TextMatchOptions.None);
+        _hits.Clear();
+        _scriptHits = null;
 
-        // 儲存格裡的高亮讀的是繼承下去的比對器，換一個值整個視窗的格子一起重畫。
-        SqlHighlightText.SetMatcher(_tabs, _matcher);
-
-        foreach (var (_, grid, _) in SearchableGrids())
+        foreach (var grid in SearchableGrids())
         {
             if (grid.ItemsSource is not null)
             {
@@ -1511,10 +1527,19 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             }
         }
 
-        if (_populated.Contains(_scriptTab))
+        // 儲存格裡的高亮讀的是繼承下去的比對器，換一個值看得見的格子一起重畫。放在篩選之後：
+        // 篩選已經把舊的列收掉，先換比對器的話那些馬上要丟掉的格子會白白重畫一次。
+        SqlHighlightText.SetMatcher(_tabs, _matcher);
+
+        // 指令碼只在眼前時重排：整份重新著色是這條路上最貴的一步，看不到的那一份等切過去再排。
+        if (ReferenceEquals(_tabs.SelectedItem, _scriptTab) && _populated.Contains(_scriptTab))
         {
             _status.Text = string.Empty;
             ShowScript();
+        }
+        else
+        {
+            _populated.Remove(_scriptTab);
         }
 
         UpdateSearchResults();
@@ -1522,8 +1547,41 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     private void ApplyFilter(DataGrid grid)
     {
-        grid.Items.Filter = _matcher is { } matcher ? SqlDataGridText.CreateFilter(grid, matcher) : null;
+        grid.Items.Filter = grid.ItemsSource is { } rows && FindHits(grid, rows) is { } hits
+            ? new Predicate<object>(hits.Contains)
+            : null;
     }
+
+    /// <summary>
+    /// 這一輪搜尋字在一張資料格上符合的列；沒有搜尋字時 null。
+    /// </summary>
+    /// <remarks>
+    /// 索引跟著資料列與欄的收合走，一個物件建一次；比對結果跟著搜尋字走，一個字比一次，
+    /// 列篩選與分頁上的數字都從這裡拿。還沒切過去的分頁沒有綁上資料列，由呼叫端交進來。
+    /// </remarks>
+    private HashSet<object>? FindHits(DataGrid grid, System.Collections.IEnumerable rows)
+    {
+        if (_matcher is not { } matcher)
+        {
+            return null;
+        }
+
+        if (!_hits.TryGetValue(grid, out var hits))
+        {
+            if (!_searchIndexes.TryGetValue(grid, out var index))
+            {
+                index = SqlDataGridText.CreateSearchIndex(grid, rows);
+                _searchIndexes.Add(grid, index);
+            }
+
+            hits = index.Match(matcher);
+            _hits.Add(grid, hits);
+        }
+
+        return hits;
+    }
+
+    private MatchHighlightSet ScriptHits() => _scriptHits ??= MatchHighlights.Locate(_matcher, GetScript());
 
     /// <summary>
     /// 分頁上的數字：沒有搜尋時是總數，有搜尋時是命中數。
@@ -1534,7 +1592,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     /// </remarks>
     private void UpdateSearchResults()
     {
-        if (_matcher is not { } matcher)
+        if (_matcher is null)
         {
             RestoreTotals();
             return;
@@ -1544,11 +1602,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         {
             if (tab.Item.Visibility == Visibility.Visible && _structure is { } structure)
             {
-                // 還沒切過去的分頁，欄的收合還停在上一個物件；先照這一份資料收好，
-                // 否則上一張表沒有說明、這一張有，說明裡的命中就數不到。
-                var rows = GetRows(tab, structure);
-                UpdateOptionalColumns(tab.Grid, rows);
-                tab.Header.ShowHits(CountMatches(tab.Grid, rows, matcher));
+                tab.Header.ShowHits(FindHits(tab.Grid, GetRows(tab, structure))?.Count ?? 0);
             }
         }
 
@@ -1556,13 +1610,13 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         {
             if (tab.Item.Visibility == Visibility.Visible && tab.Grid.ItemsSource is { } rows)
             {
-                tab.Header.ShowHits(CountMatches(tab.Grid, rows, matcher));
+                tab.Header.ShowHits(FindHits(tab.Grid, rows)?.Count ?? 0);
             }
         }
 
         if (_scriptTab.Visibility == Visibility.Visible)
         {
-            _scriptHeader.ShowHits(MatchHighlights.Locate(matcher, GetScript()).Count);
+            _scriptHeader.ShowHits(ScriptHits().Count);
         }
     }
 
@@ -1584,32 +1638,16 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _scriptHeader.ShowTotal(null);
     }
 
-    private static int CountMatches(DataGrid grid, System.Collections.IEnumerable rows, TextMatcher matcher)
-    {
-        var filter = SqlDataGridText.CreateFilter(grid, matcher);
-        var count = 0;
-
-        foreach (var row in rows)
-        {
-            if (filter(row))
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    private IEnumerable<(TabItem Item, DataGrid Grid, SqlTabHeader Header)> SearchableGrids()
+    private IEnumerable<DataGrid> SearchableGrids()
     {
         foreach (var tab in _gridTabs)
         {
-            yield return (tab.Item, tab.Grid, tab.Header);
+            yield return tab.Grid;
         }
 
         foreach (var tab in _referenceTabs)
         {
-            yield return (tab.Item, tab.Grid, tab.Header);
+            yield return tab.Grid;
         }
     }
 
@@ -1627,7 +1665,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             column.CellTemplate = CreateCellTemplate(column.SortMemberPath, wrap ? _cellWrapped : _cellLine);
         }
 
-        foreach (var (_, grid, _) in SearchableGrids())
+        foreach (var grid in SearchableGrids())
         {
             ApplyRowHeight(grid);
         }
@@ -1907,14 +1945,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             return;
         }
 
-        if (eventArgs.Key == Key.F && modifiers == ModifierKeys.Control)
-        {
-            eventArgs.Handled = true;
-            _search.Focus();
-            _search.SelectAll();
-            return;
-        }
-
         if (eventArgs.Key == Key.C && (modifiers & ModifierKeys.Control) == ModifierKeys.Control)
         {
             eventArgs.Handled = true;
@@ -2122,7 +2152,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
         var headerStyle = SqlAssistChrome.CreateColumnHeaderStyle(_metrics);
 
-        foreach (var (_, grid, _) in SearchableGrids())
+        foreach (var grid in SearchableGrids())
         {
             ApplyGridMetrics(grid, headerStyle);
         }

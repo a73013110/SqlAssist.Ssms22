@@ -62,9 +62,9 @@ public sealed class SqlAssistChromeTests
         WpfTest.Run(() =>
         {
             var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
-            var first = new TabItem { Header = "欄位", Template = SqlAssistChrome.CreateTabItemTemplate(), Content = new Border { Height = 200 } };
+            var first = SqlAssistChrome.CreateTab(new SqlTabHeader("欄位", SqlIcon.Column), new Border { Height = 200 });
             tabs.Items.Add(first);
-            tabs.Items.Add(new TabItem { Header = "索引", Template = SqlAssistChrome.CreateTabItemTemplate() });
+            tabs.Items.Add(SqlAssistChrome.CreateTab("索引", SqlIcon.Index));
             tabs.SelectedIndex = 0;
             var tool = new Border { Width = 120, Height = 24 };
             SqlAssistChrome.SetTabStripTrailing(tabs, tool);

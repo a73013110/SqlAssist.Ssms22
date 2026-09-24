@@ -31,6 +31,25 @@ public sealed class SqlHighlightTextTests
         });
     }
 
+    [Fact]
+    public void 預設單行省略而樣式可以改成換行()
+    {
+        WpfTest.Run(() =>
+        {
+            var plain = new SqlHighlightText();
+            Assert.Equal(System.Windows.TextTrimming.CharacterEllipsis, plain.TextTrimming);
+            Assert.Equal(System.Windows.TextWrapping.NoWrap, plain.TextWrapping);
+
+            // 預覽的換行開關換的是儲存格樣式；預設值寫成本地值的話這兩個 setter 都不會生效。
+            var style = new System.Windows.Style(typeof(SqlHighlightText));
+            style.Setters.Add(new System.Windows.Setter(TextBlock.TextWrappingProperty, System.Windows.TextWrapping.Wrap));
+            style.Setters.Add(new System.Windows.Setter(TextBlock.TextTrimmingProperty, System.Windows.TextTrimming.None));
+            var wrapped = new SqlHighlightText { Style = style };
+            Assert.Equal(System.Windows.TextWrapping.Wrap, wrapped.TextWrapping);
+            Assert.Equal(System.Windows.TextTrimming.None, wrapped.TextTrimming);
+        });
+    }
+
     private static string[] Hits(SqlHighlightText text) =>
         text.Inlines.OfType<Run>().Where(run => run.ReadLocalValue(TextElement.BackgroundProperty) != System.Windows.DependencyProperty.UnsetValue)
             .Select(run => run.Text).ToArray();

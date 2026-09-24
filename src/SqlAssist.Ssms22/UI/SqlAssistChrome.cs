@@ -1112,8 +1112,29 @@ internal static partial class SqlAssistChrome
 
     public static void SetTabStripTrailing(TabControl tabs, object? value) => tabs.SetValue(TabStripTrailingProperty, value);
 
-    /// <summary>分段控制器裡的一段。</summary>
-    public static ControlTemplate CreateTabItemTemplate()
+    /// <summary>
+    /// 分段控制器的一個分頁；每一個分頁都從這裡建，標籤一律是 <see cref="SqlTabHeader"/>。
+    /// </summary>
+    /// <remarks>
+    /// 前景的明暗只有一條路：分頁自己的 <see cref="Control.Foreground"/>，平常淡一階（樣式），停駐與選中
+    /// 由樣板觸發程序提亮，標籤裡的名稱繫結它。樣式而不是本地值：本地值的優先權高過樣板觸發程序，
+    /// 分頁會永遠停在淡色。分頁的自動化名稱跟著標籤走，數字變了報讀也跟著變。
+    /// </remarks>
+    public static TabItem CreateTab(SqlTabHeader header, object? content = null)
+    {
+        var style = new Style(typeof(TabItem));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
+        var tab = new TabItem { Header = header, Content = content, Template = CreateTabItemTemplate(), Style = style };
+        tab.SetBinding(AutomationProperties.NameProperty,
+            new Binding { Source = header, Path = new PropertyPath(AutomationProperties.NameProperty) });
+        return tab;
+    }
+
+    /// <summary>只有名稱與圖示的分頁；分頁本身沒有領域語意，哪個視窗都用同一種。</summary>
+    public static TabItem CreateTab(string label, SqlIcon? icon = null) => CreateTab(new SqlTabHeader(label, icon));
+
+    /// <summary>分段控制器裡的一段；只給 <see cref="CreateTab(SqlTabHeader, object?)"/> 用，前景的約定見那裡。</summary>
+    private static ControlTemplate CreateTabItemTemplate()
     {
         var segment = new FrameworkElementFactory(typeof(Border)) { Name = "segment" };
         segment.SetValue(Border.BackgroundProperty, Brushes.Transparent);
@@ -1122,39 +1143,24 @@ internal static partial class SqlAssistChrome
         segment.SetValue(Border.CornerRadiusProperty, new CornerRadius(InnerRadius));
         segment.SetValue(Border.PaddingProperty, new Thickness(12, 3, 12, 4));
 
-        var label = new FrameworkElementFactory(typeof(ContentPresenter)) { Name = "label" };
+        var label = new FrameworkElementFactory(typeof(ContentPresenter));
         label.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(TabItem.Header)));
-        label.SetResourceReference(TextElement.ForegroundProperty, ThemeBrush.DimForeground);
         label.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         segment.AppendChild(label);
 
         var template = new ControlTemplate(typeof(TabItem)) { VisualTree = segment };
 
         // 滑鼠掃過只把字提亮，不加底色——底色是「被選中」的專屬訊號。
-        AddTrigger(
-            template, UIElement.IsMouseOverProperty,
-            TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label");
         AddTrigger(template, UIElement.IsMouseOverProperty,
             Control.ForegroundProperty, ThemeBrush.ListForeground);
 
         var selected = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
         selected.Setters.Add(ThemeResourceSet.Setter(Border.BackgroundProperty, ThemeBrush.ListBackground, "segment"));
         selected.Setters.Add(ThemeResourceSet.Setter(Border.BorderBrushProperty, ThemeBrush.Hairline, "segment"));
-        selected.Setters.Add(ThemeResourceSet.Setter(TextElement.ForegroundProperty, ThemeBrush.ListForeground, "label"));
         selected.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
         template.Triggers.Add(selected);
 
         return template;
-    }
-
-    /// <summary>圖示加標籤的一個分頁；分頁本身沒有領域語意，哪個工具窗都用同一顆。</summary>
-    public static TabItem CreateIconTab(SqlIcon icon, string label)
-    {
-        var style = new Style(typeof(TabItem));
-        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
-        // Tooltip 是窄窗收起分頁文字之後仍讀得到名稱的地方。
-        var tab = new TabItem { Header = CreateIconLabel(icon, label), Template = CreateTabItemTemplate(), Style = style, ToolTip = label };
-        AutomationProperties.SetName(tab, label); return tab;
     }
 
     /// <summary>欄位標題：一條細線把它跟資料分開，字比資料更小也更淡。</summary>

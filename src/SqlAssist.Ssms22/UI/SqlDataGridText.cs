@@ -99,14 +99,17 @@ internal static class SqlDataGridText
     }
 
     /// <summary>
-    /// 一列在看得見的欄裡有沒有 <paramref name="matcher"/>；資料格的列篩選與分頁命中數共用。
+    /// 把一份資料列在看得見的欄上的文字讀一次，之後每換一次搜尋字只比對字串。
     /// </summary>
     /// <remarks>
     /// 讀的與複製同一份（繫結路徑，或樣板欄的 <see cref="DataGridColumn.SortMemberPath"/>）：
     /// 使用者看到哪幾欄就只在那幾欄裡找，收起的空欄與看不見的屬性不會讓一列莫名其妙地留下來。
-    /// 回傳的判斷式帶著自己的反射快取，同一輪篩選重用它，不要每一列建一個。
+    /// 欄的可見性在建立當下定案，資料列或可見欄換了就要重建。
+    ///
+    /// 每一個按鍵都反射一次每一格的那一版，在一百多欄的表上每打一個字就卡一下；
+    /// 而列篩選與分頁命中數各比一次，同一份工作又做兩遍。
     /// </remarks>
-    public static Predicate<object> CreateFilter(DataGrid grid, TextMatcher matcher)
+    public static SearchIndex CreateSearchIndex(DataGrid grid, IEnumerable rows)
     {
         var columns = new List<DataGridColumn>();
         foreach (var column in grid.Columns)
@@ -118,18 +121,59 @@ internal static class SqlDataGridText
         }
 
         var reader = new ValueReader();
-        return row =>
+        var entries = new List<SearchIndex.Entry>();
+        foreach (var row in rows)
         {
-            foreach (var column in columns)
+            var cells = new string?[columns.Count];
+            for (var index = 0; index < cells.Length; index++)
             {
-                if (matcher.IsMatch(reader.Read(column, row)))
+                cells[index] = reader.Read(columns[index], row);
+            }
+
+            entries.Add(new SearchIndex.Entry(row, cells));
+        }
+
+        return new SearchIndex(entries);
+    }
+
+    /// <summary>一份資料列在看得見的欄上的文字；由 <see cref="CreateSearchIndex"/> 建立。</summary>
+    public sealed class SearchIndex
+    {
+        private readonly IReadOnlyList<Entry> _entries;
+
+        internal SearchIndex(IReadOnlyList<Entry> entries) => _entries = entries;
+
+        /// <summary>任何一格符合的列；列篩選（<c>Contains</c>）與命中數（<c>Count</c>）讀同一份結果。</summary>
+        public HashSet<object> Match(TextMatcher matcher)
+        {
+            var hits = new HashSet<object>();
+            foreach (var entry in _entries)
+            {
+                foreach (var cell in entry.Cells)
                 {
-                    return true;
+                    if (matcher.IsMatch(cell))
+                    {
+                        hits.Add(entry.Row);
+                        break;
+                    }
                 }
             }
 
-            return false;
-        };
+            return hits;
+        }
+
+        internal readonly struct Entry
+        {
+            public Entry(object row, string?[] cells)
+            {
+                Row = row;
+                Cells = cells;
+            }
+
+            public object Row { get; }
+
+            public string?[] Cells { get; }
+        }
     }
 
     private sealed class ValueReader

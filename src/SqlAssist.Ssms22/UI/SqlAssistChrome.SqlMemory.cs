@@ -33,13 +33,7 @@ internal static partial class SqlAssistChrome
     /// <summary>用量分頁：與 History／Favorites 同一種分頁，圖示右上角多一個容量分級點。</summary>
     public static TabItem CreateMemoryUsageTab()
     {
-        var tab = CreateIconTab(SqlIcon.Usage, UsageTabLabel);
-        var label = (DockPanel)tab.Header;
-        var icon = (FrameworkElement)label.Children[0];
-        label.Children.RemoveAt(0);
-        var glyph = new Grid { Margin = icon.Margin, VerticalAlignment = VerticalAlignment.Center };
-        icon.Margin = default;
-        glyph.Children.Add(icon);
+        var header = new SqlTabHeader(UsageTabLabel, SqlIcon.Usage);
         // 點疊在圖示右上角、不佔版面；底色描邊讓它在圖示上仍分得出邊界。
         var badge = new Ellipse
         {
@@ -48,10 +42,8 @@ internal static partial class SqlAssistChrome
             Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1)
         };
         badge.SetResourceReference(Shape.StrokeProperty, ThemeBrush.WindowBackground);
-        glyph.Children.Add(badge);
-        DockPanel.SetDock(glyph, Dock.Left);
-        label.Children.Insert(0, glyph);
-        return tab;
+        header.Glyph!.Children.Add(badge);
+        return CreateTab(header);
     }
 
     public static FrameworkElement CreateLoadingIndicator(RotateTransform rotation)
@@ -93,14 +85,17 @@ internal static partial class SqlAssistChrome
         settings.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(settings);
         // 窄窗先收起設定的文字，再收起分頁文字；不換行、不改變高度，維持分頁與圖示共用中心線。
         // 分頁文字依實際寬度決定：分頁數會變，寫死門檻遲早又讓分頁列折成兩行。
+        // 分頁文字會收起，Tooltip 是那時仍讀得到名稱的地方；已經有自己說明的（用量分級）不蓋掉。
+        foreach (var item in tabs.Items)
+            if (item is TabItem { Header: SqlTabHeader header } tab) tab.ToolTip ??= header.Label;
         void UpdateLabels()
         {
             var width = toolbar.ActualWidth;
             label.Visibility = width >= MemoryActionLabelWidth ? Visibility.Visible : Visibility.Collapsed;
-            SetTabLabels(tabs, Visibility.Visible);
+            SetTabLabels(tabs, true);
             tabs.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             actions.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            if (tabs.DesiredSize.Width + actions.DesiredSize.Width > width) SetTabLabels(tabs, Visibility.Collapsed);
+            if (tabs.DesiredSize.Width + actions.DesiredSize.Width > width) SetTabLabels(tabs, false);
             // 量測只為了比寬度；交回版面系統用欄寬重新量測，不沿用無限寬的結果。
             tabs.InvalidateMeasure(); actions.InvalidateMeasure();
         }
@@ -113,11 +108,10 @@ internal static partial class SqlAssistChrome
     /// <summary>窄到這裡以下設定只留圖示；分頁文字再窄一階才收，兩者不同時消失。</summary>
     private const double MemoryActionLabelWidth = 420d;
 
-    private static void SetTabLabels(TabControl tabs, Visibility visibility)
+    private static void SetTabLabels(TabControl tabs, bool visible)
     {
         foreach (var item in tabs.Items)
-            if (item is TabItem { Header: DockPanel { Children.Count: 2 } header } && header.Children[1] is TextBlock text)
-                text.Visibility = visibility;
+            if (item is TabItem { Header: SqlTabHeader header }) header.ShowsLabel = visible;
     }
 
     /// <summary>
@@ -156,9 +150,7 @@ internal static partial class SqlAssistChrome
     public static readonly System.TimeSpan UsageBadgePop = System.TimeSpan.FromMilliseconds(240);
 
     internal static Ellipse? UsageBadge(TabItem usage) =>
-        usage.Header is DockPanel { Children.Count: > 0 } content && content.Children[0] is Grid { Children.Count: 2 } glyph
-            ? glyph.Children[1] as Ellipse
-            : null;
+        usage.Header is SqlTabHeader { Glyph: { Children.Count: 2 } glyph } ? glyph.Children[1] as Ellipse : null;
 
     /// <summary>前置語意圖示、輸入欄與尾端按鈕共用一個外框；搜尋列與收藏標註欄位同一種外觀。</summary>
     /// <param name="extra">

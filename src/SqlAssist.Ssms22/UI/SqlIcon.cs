@@ -66,5 +66,17 @@ internal enum SqlIcon
     Done,
 
     /// <summary>主索引鍵由哪幾欄組成（結構預覽抬頭的那一顆膠囊）。</summary>
-    PrimaryKey
+    PrimaryKey,
+
+    // 結構預覽的分頁，一頁一種物件；與補全清單、QuickInfo 上同一種東西是同一顆圖示。
+    Column,
+    Index,
+    ForeignKey,
+    CheckConstraint,
+    Trigger,
+    Parameter,
+    Script,
+
+    /// <summary>內建名稱的對照表（例如 <c>CONVERT</c> 的 style）。</summary>
+    Reference
 }

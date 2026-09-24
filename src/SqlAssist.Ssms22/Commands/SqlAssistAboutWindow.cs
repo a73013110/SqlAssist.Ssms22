@@ -477,15 +477,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         _statusText.Text = $"{operation}失敗：{exception.Message}";
     }
 
-    private static TabItem CreateTab(string header, UIElement content)
-    {
-        return new TabItem
-        {
-            Header = header,
-            Content = SqlAssistChrome.CreateSurface(content),
-            Template = SqlAssistChrome.CreateTabItemTemplate()
-        };
-    }
+    private static TabItem CreateTab(string header, UIElement content) =>
+        SqlAssistChrome.CreateTab(new SqlTabHeader(header), SqlAssistChrome.CreateSurface(content));
 
     private static StackPanel CreateTabPanel()
     {

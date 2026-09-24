@@ -73,6 +73,21 @@ internal static class SsmsWindows
     /// <summary>看得到：已顯示而且沒有最小化。</summary>
     public static bool IsShowing(Window? window) => window is { IsVisible: true, WindowState: not WindowState.Minimized };
 
+    /// <summary>
+    /// 把 <paramref name="source"/> 所在的框架帶回前景；已經在前景時什麼都不做。
+    /// </summary>
+    /// <remarks>
+    /// 給不會自己啟用的浮動表面用（編輯器上的預覽 Popup）：WPF 的 Popup 對滑鼠回 <c>MA_NOACTIVATE</c>，
+    /// SSMS 在背景時點進去，程式不會回到前景，鍵盤焦點就進不去——搜尋框點不進、指令碼拉選不起來、
+    /// Esc 送到別的程式；只靠滑鼠的分頁、資料格與捲軸照常動，所以看起來像壞了一半。
+    /// 在按下的預覽階段先啟用框架（同一條執行緒，啟用是同步完成的），這一次按下接著照常把焦點
+    /// 搬進表面。使用者剛在這個程序上按下滑鼠，前景鎖允許這一次切換。
+    /// </remarks>
+    public static void ActivateFrameOf(DependencyObject source)
+    {
+        if (Window.GetWindow(source) is { IsActive: false } window) window.Activate();
+    }
+
     /// <summary>對話框的擁有者：來源所在的視窗，拿不到時是主視窗。</summary>
     public static Window OwnerOf(DependencyObject source) =>
         Window.GetWindow(source) ?? Main ?? throw new InvalidOperationException("找不到 SSMS 主視窗，無法開啟對話框。");

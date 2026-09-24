@@ -12,7 +12,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | F12、預覽的指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
 | 物件總管的伺服器、連線與導航 | `Ssms22/Connections/SsmsObjectExplorer.cs` |
 | SSMS 狀態列的進度與失敗 | `Ssms22/SqlAssistStatusBar.cs` |
-| 主視窗、作用中框架、焦點移動與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
+| 主視窗、作用中框架、焦點移動、非啟用浮窗點下時帶回前景與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
 | 編輯器換行判定 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 延後至本輪命令結束 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
@@ -25,7 +25,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 抑制 SSMS 內建自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 停駐工具窗主從區 | `Ssms22/UI/MasterDetailView.cs` |
 | 字型、基本控制項、水平資訊列、分頁（含分頁列右側工具 `TabStripTrailing`）、表面淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
-| 沒有資料列的表面上的膠囊、帶數字的分頁標籤 | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
+| 沒有資料列的表面上的膠囊；分頁標籤（圖示、名稱、數字，前景跟著分頁），分頁一律由 `SqlAssistChrome.CreateTab` 建 | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
 | 清單列、標頭骨架、右緣操作層與窄版降級 | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
 | 清單列寬度模式與門檻 | `Ssms22/UI/SqlRowLayout.cs` |
 | 過濾面板與摘要 | `Ssms22/UI/SqlFilterFlyout.cs`、`SqlFilterSummary.cs`、`SqlAssistChrome.Filters.cs` |

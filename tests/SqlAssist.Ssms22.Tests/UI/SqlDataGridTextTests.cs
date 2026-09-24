@@ -101,15 +101,19 @@ public sealed class SqlDataGridTextTests
             var grid = CreateGrid(reader, loan);
             var matcher = new TextMatcher("reader", TextMatchOptions.None);
 
-            var filter = SqlDataGridText.CreateFilter(grid, matcher);
-            Assert.True(filter(reader));
-            Assert.True(filter(loan));
+            var hits = SqlDataGridText.CreateSearchIndex(grid, new[] { reader, loan }).Match(matcher);
+            Assert.Contains(reader, hits);
+            Assert.Contains(loan, hits);
 
             // 收起來的欄不算：使用者看不到那一格，就不該因為它留下這一列。
             grid.Columns[1].Visibility = Visibility.Collapsed;
-            filter = SqlDataGridText.CreateFilter(grid, matcher);
-            Assert.True(filter(reader));
-            Assert.False(filter(loan));
+            var index = SqlDataGridText.CreateSearchIndex(grid, new[] { reader, loan });
+            hits = index.Match(matcher);
+            Assert.Contains(reader, hits);
+            Assert.DoesNotContain(loan, hits);
+
+            // 同一份索引換搜尋字不必重建。
+            Assert.Equal(new object[] { loan }, index.Match(new TextMatcher("loan", TextMatchOptions.None)));
         });
     }
 

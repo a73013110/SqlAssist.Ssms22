@@ -84,7 +84,17 @@ internal static partial class SqlIcons
         // 與通知的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。
         SqlIcon.Done => KnownMonikers.StatusOK,
         // 「帶鑰匙的資料行」：膠囊上列的正是組成主索引鍵的那幾欄，不是一個索引物件。
-        SqlIcon.PrimaryKey => KnownMonikers.KeyColumn
+        SqlIcon.PrimaryKey => KnownMonikers.KeyColumn,
+        // 有物件種類定義的借那一份，不再各寫一次 moniker：分頁與清單上的同一種東西不會漂成兩顆。
+        SqlIcon.Column => Column.Moniker,
+        SqlIcon.CheckConstraint => Constraint.Moniker,
+        SqlIcon.Trigger => Trigger.Moniker,
+        SqlIcon.Parameter => Parameter.Moniker,
+        // 影像目錄沒有一般的「索引」，資料庫工具用的就是叢集索引這一顆。
+        SqlIcon.Index => KnownMonikers.ClusteredIndex,
+        SqlIcon.ForeignKey => KnownMonikers.ForeignKey,
+        SqlIcon.Script => KnownMonikers.Script,
+        SqlIcon.Reference => KnownMonikers.Dictionary
     };
 #pragma warning restore CS8524
 

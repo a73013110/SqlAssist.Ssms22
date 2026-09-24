@@ -40,11 +40,11 @@ internal sealed class SqlHighlightText : TextBlock
         nameof(Spans), typeof(IReadOnlyList<MatchSpan>), typeof(SqlHighlightText),
         new PropertyMetadata(null, OnContentChanged));
 
-    public SqlHighlightText()
-    {
-        TextTrimming = TextTrimming.CharacterEllipsis;
-        TextWrapping = TextWrapping.NoWrap;
-    }
+    // 單行省略寫成這個型別的預設值而不是建構子裡的本地值：本地值的優先權高過樣式，
+    // 資料格的換行樣式會整個失效，症狀是開了換行列只變高、長字照樣被省略。
+    static SqlHighlightText() =>
+        TextTrimmingProperty.OverrideMetadata(typeof(SqlHighlightText),
+            new FrameworkPropertyMetadata(TextTrimming.CharacterEllipsis));
 
     /// <summary>要顯示的整行文字；<see cref="TextBlock.Text"/> 由這裡與 <see cref="Spans"/> 一起算出來。</summary>
     public string SourceText

@@ -12,6 +12,7 @@ using Microsoft.VisualStudio.Text.Formatting;
 using SqlAssist.Core.Preview;
 using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -99,6 +100,12 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             StaysOpen = true,
             Child = _container
         };
+
+        // 切到別的程式再點回預覽時，Popup 不會把 SSMS 帶回前景，要鍵盤的操作全部失效；
+        // 在內容處理這一次按下之前先啟用編輯器所在的框架。理由見 SsmsWindows.ActivateFrameOf。
+        _container.PreviewMouseDown += (_, _) => SqlAssistPlatformGuard.Run(
+            "點預覽時帶回前景",
+            () => SsmsWindows.ActivateFrameOf(_view.VisualElement));
     }
 
     public bool IsMouseOver => _popup.IsOpen && (_control.IsMouseOver || _control.HasOpenContextMenu);
