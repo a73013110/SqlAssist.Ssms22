@@ -10,7 +10,8 @@
 | 該顯示什麼：可見度、合併、措辭、活動的關閉 | `Notifications/NotificationPresenter.Island` |
 | 形態：膠囊、展開、提醒、附條、疊層 | `Notifications/NotificationIslandState`（純邏輯） |
 | 活動的延遲、最短可見、收場與到期 | `Notifications/NotificationLifecycle` |
-| 何時顯示、錨在哪個視窗、唯一的計時器與訂閱 | `Notifications/NotificationIslandController` |
+| 何時顯示、唯一的計時器與訂閱 | `Notifications/NotificationIslandController` |
+| 錨在哪個視窗 | `Notifications/NotificationAnchor`；框架與焦點移動在 `UI/SsmsWindows` |
 | 透明附屬視窗、定位、點擊穿透、鍵盤模式 | `Notifications/NotificationOverlay` |
 | 浮層在擁有者上的位置（裝置像素） | `Notifications/NotificationPlacement` |
 | 提醒按鈕的派送 | `Notifications/NotificationActionRouter` |
@@ -21,14 +22,13 @@
 
 ## 控制器
 
-整個處理程序一份，套件初始化時接上主視窗：通知、設定、主題、作用中編輯區各訂閱一次，計時器
-一個（100 ms）。擁有者是 `ActiveSqlEditor.Current` 所在的頂層視窗，`Window.GetWindow` 取不到時
-從原生控制代碼往上找；沒有編輯區時是 `Application.Current.MainWindow`。擁有者換了先隱藏、換
-`Owner`、重新定位，島嶼從圓點重新長出來。擁有者最小化或看不到時立刻隱藏，不問通知來源——
-一問就會跑到期清理，把還沒看到的結果收掉。平台邊界一律走 `SqlAssistPlatformGuard`。
+整個處理程序一份，套件初始化時接上主視窗：通知、設定、主題、焦點移動各訂閱一次，計時器
+一個（100 ms）。擁有者換了先隱藏、換 `Owner`、重新定位，島嶼從圓點重新長出來。沒有看得到的錨點時
+立刻隱藏，不問通知來源——一問就會跑到期清理。平台邊界一律走 `SqlAssistPlatformGuard`。只剩提醒時
+計時器停著，換框架靠焦點移動排一輪。
 
 早退：沒有東西要顯示時不跑計時器；只剩提醒、又沒有等著發生的停駐轉換時計時器也停，提醒不會
-自己到期。內容與形態都沒變時不重畫。浮層不在畫面上時，主題與作用中編輯區的事件不排程刷新；
+自己到期。內容與形態都沒變時不重畫。浮層不在畫面上時，主題與焦點移動的事件不排程刷新；
 通知與設定一律排程，新內容才出得來。
 
 活動的叉號是全域的「這一批我看完了」，只隱藏目前批次，不取消工作，也不影響提醒。滑鼠停留或
@@ -115,7 +115,8 @@
 - 沒有連線、也沒開查詢視窗就按「檢查更新」：島嶼錨在主視窗右下。
 - 啟動時自動檢查到新版：提醒出現；當天重開 SSMS 從快取再提醒一次；略過的版本不再出現。
 - F12 開新查詢視窗：同一個擁有者，島嶼不重播。
-- 把文件拆到第二台螢幕：島嶼換到那個框架右下並重新長出；關掉那個框架後回到主視窗。
+- 文件拆到第二台螢幕：島嶼跟著點進的框架走（含只剩提醒時），回主視窗操作 SQL Search 就換回；
+  那個框架最小化或關掉時回主視窗；焦點在對話框或別的程式時留在原處。
 - 最小化與還原：跟著擁有者隱藏與出現。
 - 100%／150%／200% DPI，以及拖著擁有者跨螢幕：位置、大小與柔影清晰度。
 - 高對比：實色、無柔影。減少動態效果：所有變形直接到位。

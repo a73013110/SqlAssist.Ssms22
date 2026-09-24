@@ -12,6 +12,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | F12、預覽的指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
 | 物件總管的伺服器、連線與導航 | `Ssms22/Connections/SsmsObjectExplorer.cs` |
 | SSMS 狀態列的進度與失敗 | `Ssms22/SqlAssistStatusBar.cs` |
+| 主視窗、作用中框架、焦點移動與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
 | 編輯器換行判定 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 延後至本輪命令結束 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |

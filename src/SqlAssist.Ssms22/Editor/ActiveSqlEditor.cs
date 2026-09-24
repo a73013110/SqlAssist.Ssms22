@@ -146,7 +146,7 @@ internal static class ActiveSqlEditor
                 _current = null;
             }
         }
-        SqlAssistPlatformGuard.Run("更新目前通知編輯區", () => Changed?.Invoke(null, EventArgs.Empty));
+        SqlAssistPlatformGuard.Run("更新作用中編輯區", () => Changed?.Invoke(null, EventArgs.Empty));
     }
 
     private static void Set(IWpfTextView textView)
@@ -155,6 +155,6 @@ internal static class ActiveSqlEditor
         {
             _current = textView;
         }
-        SqlAssistPlatformGuard.Run("切換通知編輯區", () => Changed?.Invoke(null, EventArgs.Empty));
+        SqlAssistPlatformGuard.Run("切換作用中編輯區", () => Changed?.Invoke(null, EventArgs.Empty));
     }
 }

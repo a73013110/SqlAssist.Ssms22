@@ -82,9 +82,6 @@ internal sealed class NotificationOverlay : Window
     /// <summary>指標或鍵盤焦點在島嶼上，活動的期限要暫停。</summary>
     public bool Retaining => Island.IsMouseOver || Island.IsKeyboardFocusWithin;
 
-    /// <summary>擁有者看不到：最小化、還沒顯示或已經關掉。</summary>
-    public bool AnchorHidden => _anchor is not { IsVisible: true } anchor || anchor.WindowState == WindowState.Minimized;
-
     /// <summary>
     /// 換到這個擁有者上。
     /// </summary>
@@ -126,7 +123,7 @@ internal sealed class NotificationOverlay : Window
     /// <summary>定位並在需要時顯示；不啟用、不搶焦點。</summary>
     public void Present()
     {
-        if (_anchor is null || AnchorHidden) return;
+        if (!SsmsWindows.IsShowing(_anchor)) return;
         // 先有控制代碼、定好位置再顯示，第一個影格才不會出現在螢幕左上角。
         new WindowInteropHelper(this).EnsureHandle();
         Place();
@@ -198,7 +195,7 @@ internal sealed class NotificationOverlay : Window
 
     private void OnAnchorState(object? sender, EventArgs args) => AnchorStateChanged?.Invoke(this, EventArgs.Empty);
 
-    // 附屬視窗會跟著擁有者一起被關掉；在 Closing 放手，控制器下一輪改錨到主視窗。
+    // 附屬視窗會跟著擁有者一起被關掉；在 Closing 放手，控制器下一輪重新選錨點。
     private void OnAnchorClosing(object? sender, System.ComponentModel.CancelEventArgs args) =>
         SqlAssistPlatformGuard.Probe("放開通知島的擁有者", () =>
         {
@@ -252,7 +249,7 @@ internal sealed class NotificationOverlay : Window
     /// </remarks>
     private static double? FindStatusBarHeight(Window window) => SqlAssistPlatformGuard.Probe<double?>("尋找狀態列", () =>
     {
-        if (!ReferenceEquals(window, Application.Current?.MainWindow) || window.Content is not FrameworkElement root) return null;
+        if (!ReferenceEquals(window, SsmsWindows.Main) || window.Content is not FrameworkElement root) return null;
         var queue = new Queue<DependencyObject>();
         queue.Enqueue(root);
         for (var visited = 0; queue.Count > 0 && visited < StatusBarSearchLimit; visited++)

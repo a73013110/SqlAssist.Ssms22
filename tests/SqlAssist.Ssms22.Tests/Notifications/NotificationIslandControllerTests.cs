@@ -35,7 +35,7 @@ public sealed class NotificationIslandControllerTests
         foreach (var subscription in new[]
                  {
                      "NotificationPresenter.Default.Changed += OnNotifications;",
-                     "ActiveSqlEditor.Changed += OnActiveEditor;",
+                     "SsmsWindows.FocusMoved += OnFocusMoved;",
                      "SqlAssistSettingsStore.Changed += OnSettings;",
                      "VsThemeBrushes.Changed += OnTheme;",
                  })
@@ -56,14 +56,14 @@ public sealed class NotificationIslandControllerTests
                     package.IndexOf("SqlAssistUpdateCheckCommand.ScheduleStartupCheck(", StringComparison.Ordinal));
     }
 
-    /// <summary>浮層沒有在畫面上時，主題與編輯區的事件不排程刷新；通知與設定一律排程，新內容才出得來。</summary>
+    /// <summary>浮層沒有在畫面上時，主題與焦點的事件不排程刷新；通知與設定一律排程，新內容才出得來。</summary>
     [Fact]
-    public void 浮層不在畫面上時主題與編輯區不排程刷新()
+    public void 浮層不在畫面上時主題與焦點不排程刷新()
     {
         var controller = ReadProductSource(Controller);
         foreach (var (start, end) in new[]
                  {
-                     ("private void OnActiveEditor", "private void OnSettings"),
+                     ("private void OnFocusMoved", "private void OnSettings"),
                      ("private void OnTheme", "private void OnTick"),
                  })
             AssertReturnsBefore(Section(controller, start, end), "if (!_engaged) return;", "_refresh");
@@ -74,6 +74,24 @@ public sealed class NotificationIslandControllerTests
         // 內容與形態都沒變時不重畫。
         Assert.Contains("if (!force && !changed && ReferenceEquals(content, _rendered)) return;",
             Section(controller, "private void Render(", "private void Retire("), StringComparison.Ordinal);
+    }
+
+    /// <summary>錨點跟著使用者正在操作的框架，不跟著最後取得焦點的 SQL 編輯區。</summary>
+    /// <remarks>
+    /// 跟著編輯區的版本：查詢視窗拆出去之後回主視窗操作 SQL Search，通知出現在拆出去的那個視窗上，
+    /// 被主視窗蓋住或在另一台螢幕時就像沒出現；那個視窗最小化時則整個停住。
+    /// </remarks>
+    [Fact]
+    public void 錨點跟著作用中框架而不是編輯區()
+    {
+        var controller = ReadProductSource(Controller);
+        Assert.DoesNotContain("ActiveSqlEditor", controller, StringComparison.Ordinal);
+        Assert.Contains("NotificationAnchor.Choose(SsmsWindows.ActiveFrame, _overlay?.Anchor, SsmsWindows.Main, SsmsWindows.IsShowing)",
+            Section(controller, "private void Refresh()", "private void Render("), StringComparison.Ordinal);
+
+        // 對話框的擁有者只有一個出處。
+        foreach (var file in ProductSources().Where(file => !file.EndsWith("SsmsWindows.cs", StringComparison.Ordinal)))
+            Assert.DoesNotMatch(@"Window\.GetWindow\([^)]*\)\s*\?\?\s*Application\.Current", File.ReadAllText(file));
     }
 
     /// <summary>

@@ -236,6 +236,5 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         return path;
     }
 
-    private Window Owner() => Window.GetWindow(View) ?? Application.Current?.MainWindow
-        ?? throw new InvalidOperationException("找不到 SSMS 主視窗，無法開啟對話框。");
+    private Window Owner() => SsmsWindows.OwnerOf(View);
 }

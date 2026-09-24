@@ -433,8 +433,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private void OnRecoveryRebuildRequested()
     {
-        var owner = Window.GetWindow(this) ?? Application.Current?.MainWindow;
-        var confirmed = SqlAssistConfirmationWindow.Confirm(owner!, "重建 SQL Memory 資料庫",
+        var owner = SsmsWindows.OwnerOf(this);
+        var confirmed = SqlAssistConfirmationWindow.Confirm(owner, "重建 SQL Memory 資料庫",
             "備份並重新建立 SQL Memory 資料庫？",
             "現有的資料庫檔案更名封存在同一個資料夾，不會刪除；新資料庫從空白開始記錄，" +
             "已封存的歷史與收藏這個版本讀不回來。", "備份並重建");

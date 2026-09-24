@@ -63,9 +63,9 @@ internal sealed class SqlFavoriteRevisionCommands
     private async Task RevertAsync(SqlFavoriteRevisionRow row, SqlFavoriteItem favorite, int retainedLimit,
         DependencyObject source, Action<string> report, CancellationToken token, string? loadedSql)
     {
-        var owner = Window.GetWindow(source) ?? Application.Current?.MainWindow;
+        var owner = SsmsWindows.OwnerOf(source);
         var time = row.Item.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture);
-        if (!SqlAssistConfirmationWindow.Confirm(owner!, "回溯為新版本", $"以 {time} 的版本建立新的目前版本？",
+        if (!SqlAssistConfirmationWindow.Confirm(owner, "回溯為新版本", $"以 {time} 的版本建立新的目前版本？",
                 "回溯會把這個版本的 SQL 另存成一筆新版本並設為目前版本；歷史不會倒帶，目前版本與其他舊版本都保留，之後仍可再回溯。" +
                 $"每個收藏只保留最近 {retainedLimit.ToString(CultureInfo.InvariantCulture)} 版，多出的最舊版本會在維護時回收。",
                 "回溯為新版本"))

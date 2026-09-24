@@ -90,11 +90,11 @@ internal sealed class SqlMemoryItemCommands
 
     private async Task DeleteAsync(SqlMemoryRow row, DependencyObject source, CancellationToken token, Action<string> report)
     {
-        var owner = Window.GetWindow(source) ?? Application.Current?.MainWindow;
+        var owner = SsmsWindows.OwnerOf(source);
         var confirmed = row.Favorite is { } favorite
-            ? SqlAssistConfirmationWindow.Confirm(owner!, "從收藏移除", $"移除收藏「{favorite.Favorite.Name}」？",
+            ? SqlAssistConfirmationWindow.Confirm(owner, "從收藏移除", $"移除收藏「{favorite.Favorite.Name}」？",
                 "只移除此收藏，不連帶刪除 History；移除後無法復原。", "從收藏移除")
-            : SqlAssistConfirmationWindow.Confirm(owner!, "從 History 刪除", $"刪除「{row.Name}」這筆{row.Status}紀錄？",
+            : SqlAssistConfirmationWindow.Confirm(owner, "從 History 刪除", $"刪除「{row.Name}」這筆{row.Status}紀錄？",
                 "只刪除這一筆，不影響收藏或其他紀錄；仍被收藏或其他版本使用的 SQL 會保留。" +
                 "查詢視窗若仍開著，之後的編輯會再產生新紀錄。刪除後無法復原。", "刪除");
         if (!confirmed) return;

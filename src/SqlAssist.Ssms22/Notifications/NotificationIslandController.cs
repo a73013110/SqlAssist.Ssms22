@@ -1,8 +1,6 @@
 using System;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Threading;
-using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
@@ -14,13 +12,13 @@ namespace SqlAssist.Ssms22.Notifications;
 /// <remarks>
 /// 「該顯示什麼」在 <see cref="NotificationPresenter"/>，形態在 <see cref="NotificationIslandState"/>，
 /// 活動的期限在 <see cref="NotificationLifecycle"/>，視窗本身在 <see cref="NotificationOverlay"/>。
-/// 計時器與通知、設定、主題、作用中編輯區的訂閱都只有這一份，套件初始化時就接上：
+/// 計時器與通知、設定、主題、焦點移動的訂閱都只有這一份，套件初始化時就接上：
 /// 等第一個編輯區出現才開始的版本，啟動時檢查到的新版本會因為還沒有地方畫而被吃掉。
 ///
-/// 擁有者是作用中編輯區所在的頂層視窗（主視窗或拆出去的文件框架），沒有編輯區時是主視窗。
-/// SqlAssist 的對話框不當錨點：右下角是「確定／取消」。
+/// 擁有者是使用者正在操作的框架（主視窗或拆出去的框架），規則在 <see cref="NotificationAnchor"/>；
+/// 對話框不當錨點：右下角是「確定／取消」。
 ///
-/// 早退：沒有東西要顯示時不跑計時器，也不重畫；浮層沒有在畫面上時，主題與編輯區的事件不排程刷新。
+/// 早退：沒有東西要顯示時不跑計時器，也不重畫；浮層沒有在畫面上時，主題與焦點的事件不排程刷新。
 /// 狀態只在 UI 執行緒上讀寫；通知與設定的事件可能來自任何執行緒，那裡只排程刷新。
 /// </remarks>
 internal sealed class NotificationIslandController
@@ -42,7 +40,7 @@ internal sealed class NotificationIslandController
     /// <summary>
     /// 浮層正在畫面上（含收場途中）。
     /// </summary>
-    /// <remarks>只在 UI 執行緒上寫入；主題與作用中編輯區的事件用它早退，不為看不見的浮層排程一輪。</remarks>
+    /// <remarks>只在 UI 執行緒上寫入；主題與焦點的事件用它早退，不為看不見的浮層排程一輪。</remarks>
     private volatile bool _engaged;
 
     private NotificationIslandController() { }
@@ -59,7 +57,7 @@ internal sealed class NotificationIslandController
         _timer.Tick += OnTick;
         _refresh = new ThemeRefreshQueue(dispatcher, () => SqlAssistPlatformGuard.Probe("更新通知島", Refresh));
         NotificationPresenter.Default.Changed += OnNotifications;
-        ActiveSqlEditor.Changed += OnActiveEditor;
+        SsmsWindows.FocusMoved += OnFocusMoved;
         SqlAssistSettingsStore.Changed += OnSettings;
         VsThemeBrushes.Changed += OnTheme;
         // 初始化之前就送出的提醒（例如更新檢查）也要畫出來。
@@ -77,7 +75,7 @@ internal sealed class NotificationIslandController
         if (_dispatcher is not null)
         {
             NotificationPresenter.Default.Changed -= OnNotifications;
-            ActiveSqlEditor.Changed -= OnActiveEditor;
+            SsmsWindows.FocusMoved -= OnFocusMoved;
             SqlAssistSettingsStore.Changed -= OnSettings;
             VsThemeBrushes.Changed -= OnTheme;
         }
@@ -141,9 +139,9 @@ internal sealed class NotificationIslandController
     private void OnNotifications(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排程通知島", () => _refresh?.Request());
 
-    private void OnActiveEditor(object? sender, EventArgs args)
+    private void OnFocusMoved(object? sender, EventArgs args)
     {
-        // 浮層不在畫面上時，下一次顯示才決定擁有者；換編輯區本身沒有東西要畫。
+        // 浮層不在畫面上時，下一次顯示才決定擁有者；只剩提醒時計時器停著，換框架要靠這裡。
         if (!_engaged) return;
         SqlAssistPlatformGuard.Probe("切換通知島擁有者", () => _refresh?.Request());
     }
@@ -171,8 +169,8 @@ internal sealed class NotificationIslandController
             return;
         }
 
-        var anchor = ResolveAnchor();
-        if (anchor is null || anchor.WindowState == WindowState.Minimized || !anchor.IsVisible)
+        var anchor = NotificationAnchor.Choose(SsmsWindows.ActiveFrame, _overlay?.Anchor, SsmsWindows.Main, SsmsWindows.IsShowing);
+        if (anchor is null)
         {
             // 暫時看不到不算結束：不問通知來源（一問就會跑到期清理），還原時重新長出來。
             _timer.Stop();
@@ -240,7 +238,7 @@ internal sealed class NotificationIslandController
         _rendered = null;
     }
 
-    /// <summary>擁有者最小化或暫時不存在：立刻隱藏，不播收場；還原時重新長出來。</summary>
+    /// <summary>沒有看得到的視窗可錨（整個 SSMS 最小化）：立刻隱藏，不播收場；還原時重新長出來。</summary>
     private void Suspend()
     {
         Release();
@@ -262,23 +260,4 @@ internal sealed class NotificationIslandController
         _retaining = false;
         NotificationPresenter.Default.Release(SqlAssistSettingsStore.Current);
     }
-
-    /// <summary>作用中編輯區所在的頂層視窗；沒有編輯區或找不到時是主視窗。</summary>
-    private static Window? ResolveAnchor()
-    {
-        var main = Application.Current?.MainWindow;
-        if (ActiveSqlEditor.Current?.VisualElement is not { } editor) return main;
-        if (Window.GetWindow(editor) is { } window && window is not NotificationOverlay) return window;
-        // 編輯器裝在 HwndHost 裡時 GetWindow 回 null；改從原生控制代碼往上找頂層視窗，再對回 WPF 視窗。
-        if (PresentationSource.FromVisual(editor) is not HwndSource source) return main;
-        var root = GetAncestor(source.Handle, RootAncestor);
-        foreach (Window candidate in Application.Current!.Windows)
-            if (candidate is not NotificationOverlay && new WindowInteropHelper(candidate).Handle == root) return candidate;
-        return main;
-    }
-
-    private const uint RootAncestor = 2;
-
-    [System.Runtime.InteropServices.DllImport("user32.dll")]
-    private static extern IntPtr GetAncestor(IntPtr window, uint flags);
 }
