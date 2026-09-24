@@ -35,7 +35,9 @@
 
 每批 200 個候選、一個 IMMEDIATE 交易，擷取與讀取插在批次之間；有刪除才截斷 WAL。
 操作走 `SqlMemoryOperationGate`：期間動作全停用、內容上方顯示不確定進度。
-每個動作以 `NotificationCenter.Begin` 追蹤（`SqlMemory`／`User`／`Info`），標題取自 `NotificationCatalog`：成敗與「刪除幾列、釋出多少、壓縮後多大」都寫在[通知卡片](notifications.md)上，分頁狀態列只留卡片放不下的東西，目前是備份檔與自我測試報告的位置。分頁內的不確定進度說的是「現在動不了」，不與卡片重講同一句。完成後重讀快照。維護與清除結束時清單已載入的列視為過期：
+每個動作以 `NotificationCenter.Begin` 追蹤（`SqlMemory`／`User`／`Info`）：成敗與「刪除幾列、釋出多少、壓縮後多大」
+寫在[通知](notifications.md)上，分頁狀態列只留通知放不下的備份檔與自我測試報告位置；分頁內的不確定進度說的是
+「現在動不了」，不與通知重講同一句。完成後重讀快照。維護與清除結束時清單已載入的列視為過期：
 還在用量分頁就等切回清單分頁才重讀，已切回則立即重讀，兩者都保留選取；壓縮與備份不動紀錄，不重讀。
 
 ## 清除紀錄
@@ -65,7 +67,8 @@
 - `SqlMemoryActivityLog` 只在記憶體保留最新 20 筆：手動操作的成功與失敗，以及有刪除的背景維護（30 分鐘內合併）。
 - `SqlMemoryCapacityMonitor` 觀測維護批次、用量頁與手動整理回報的容量；分級改變觸發 `CapacityChanged`，
   用量分頁圖示的警示點在 Warning／Critical 顯示，出現時單次縮放 240 ms。
-- 剛進入 Critical 時送一則提醒（`NotificationCenter.Prompt`，`SqlMemory`／`Ambient`／`Notice`，按鈕「開啟維護」，說明來自 `SqlMemoryCapacityChangedEventArgs.Reason`），降到 80% 以下才重新武裝；停用或換儲存時分級歸零。提醒不逾時，只受總開關與 SQL Memory 種類開關管；按了「稍後」這次工作階段不再出現，分頁圖示的警示點一直留著。
+- 剛進入 Critical 時送一則[提醒](notifications-messages.md#提醒)（說明來自 `SqlMemoryCapacityChangedEventArgs.Reason`），
+  降到 80% 以下才重新武裝；停用或換儲存時分級歸零。按了「稍後」這次工作階段不再出現，分頁圖示的警示點一直留著。
 
 ## 動畫與配色
 

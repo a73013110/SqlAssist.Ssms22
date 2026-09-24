@@ -45,6 +45,15 @@
 - 片段確認框共用 `SqlAssistConfirmationWindow`：按鈕明寫刪除／停用／還原預設，影響說明交代儲存後才寫檔。
   一般成功回饋留在狀態列，失敗沿用原生訊息框。
 
+## 檢視型：結果工具與關於
+
+- 欄位剖析（`ResultGridProfileWindow`）與儲存格完整內容（`ResultGridCellWindow`）不另放內容抬頭；
+  `欄 × 列`、範圍、欄名、型別與長度走 `CreateMetadataText`。
+- 欄位剖析固定欄名、統計數字與表頭靠右，文字靠左；篩選列在表格上方。
+- 完整內容只切換顯示換行，不重寫原文；NULL／空內容提示不混進可複製文字。
+- 關於與診斷保留精簡品牌列，各分頁只有單一內容表面；品牌標誌由 `SqlAssistChrome.CreateBrandMark`
+  呈現，原生標題列與 VSIX 套件使用 `SqlAssist.Icon.512.png`。
+
 ## 新增或改版
 
 1. 殼層與外距用上述共用項，頁尾只呼叫 `CreateDialogFooter`，缺少的元件回到 `SqlAssistChrome.Dialogs` 擴充。
