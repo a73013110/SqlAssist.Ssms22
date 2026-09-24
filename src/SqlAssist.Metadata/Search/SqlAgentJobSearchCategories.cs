@@ -8,11 +8,8 @@ namespace SqlAssist.Metadata.Search;
 /// SQL Agent 作業來源自己的搜尋分類：作業與作業步驟。
 /// </summary>
 /// <remarks>
-/// <b>刻意不併進目錄物件那幾顆 pill。</b>作業不是目錄物件——它不在 <c>sys.objects</c> 上、
-/// 沒有結構描述、沒有 <c>object_id</c>，而且跨的是伺服器不是資料庫。塞進
-/// <see cref="SqlCatalogSearchCategories.OtherCategoryId"/> 那個收納桶的症狀是使用者勾
-/// 「Other」時同時拿到同義字、序列、資料表型別與作業，而那四種之間沒有任何關係；
-/// 勾掉它則會連同義字一起消失。
+/// <b>刻意不併進目錄物件那一群。</b>作業不是目錄物件——它不在 <c>sys.objects</c> 上、
+/// 沒有結構描述、沒有 <c>object_id</c>，而且跨的是伺服器不是資料庫。
 ///
 /// 兩顆而不是一顆：作業與步驟是兩種不同的東西，而使用者要找的常常只有其中一種
 /// （「哪一個作業叫這個名字」與「哪一個步驟在跑這段 SQL」）。併成一顆之後，

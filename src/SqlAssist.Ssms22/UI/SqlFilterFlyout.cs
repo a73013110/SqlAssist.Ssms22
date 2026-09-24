@@ -319,7 +319,7 @@ internal sealed class SqlFilterFlyout : Button
     /// </remarks>
     public event Action<object>? SortRequested;
 
-    /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip，有沒有條件看 <see cref="IsNarrowed"/>。</summary>
+    /// <summary>窄窗只留圖示與箭頭；名稱與摘要留在 Tooltip，有沒有條件看 <see cref="HasSelection"/>。</summary>
     /// <remarks>
     /// 收字之後主動把這顆按鈕整條路徑標成待量測。改 <see cref="UIElement.Visibility"/> 只把那兩個
     /// <see cref="TextBlock"/> 標成 dirty，中間的版面容器仍然有效——平常由版面管理員在下一回合
@@ -347,20 +347,24 @@ internal sealed class SqlFilterFlyout : Button
     }
 
     /// <summary>
-    /// 這個維度不是預設值（有勾選、或指名了一台）；按鈕換成強調底加強調框。
+    /// 這個維度選了明確的值（有勾選、或指名了一台）；按鈕換成強調底加強調框。
     /// </summary>
     /// <remarks>
-    /// 與搜尋框裡的開關「開著」同一組色：兩者說的都是「這一顆正在縮小結果」。按鈕本身就是
+    /// 與搜尋框裡的開關「開著」同一組色：兩者說的都是「這一顆現在有作用」。按鈕本身就是
     /// 條件的出口，所以不在工具列下面另外列一排已選條件——那一排與按鈕摘要說的是同一件事，
-    /// 卻要多佔一列。窄窗收掉摘要之後，靠的就是這個底框。預設值由宿主判斷，控制項不猜。
+    /// 卻要多佔一列。窄窗收掉摘要之後，靠的就是這個底框。
+    ///
+    /// 必選的維度（SQL Search 的伺服器）選定之後也亮：它不是在縮小結果，但同樣是一個使用者
+    /// 指定的值。不亮的那一版，一排按鈕裡只有它看起來像還沒設定，而那正是每一輪都在用的那一台。
+    /// 什麼算「選了」由宿主判斷，控制項不猜。
     /// </remarks>
-    public static readonly DependencyProperty IsNarrowedProperty = DependencyProperty.Register(
-        nameof(IsNarrowed), typeof(bool), typeof(SqlFilterFlyout), new PropertyMetadata(false));
+    public static readonly DependencyProperty HasSelectionProperty = DependencyProperty.Register(
+        nameof(HasSelection), typeof(bool), typeof(SqlFilterFlyout), new PropertyMetadata(false));
 
-    public bool IsNarrowed
+    public bool HasSelection
     {
-        get => (bool)GetValue(IsNarrowedProperty);
-        set => SetValue(IsNarrowedProperty, value);
+        get => (bool)GetValue(HasSelectionProperty);
+        set => SetValue(HasSelectionProperty, value);
     }
 
     /// <summary>按鈕上的摘要與完整的 Tooltip。</summary>

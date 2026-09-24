@@ -30,22 +30,8 @@ public static class SqlCatalogSearchCategories
     /// <summary>條件約束的分類 Id；<c>CHECK</c>、<c>DEFAULT</c>、主索引鍵／唯一鍵與外來鍵共用。</summary>
     public const string ConstraintCategoryId = "catalog.constraint";
 
-    /// <summary>收納桶的分類 Id：序列、同義字與資料表型別共用。</summary>
-    /// <remarks>
-    /// 三種各自一顆 pill 的話，過濾列上會多出三顆幾乎沒有人會單獨勾的東西，而真正常用的
-    /// 資料表與程序被擠到看不見。併成一桶並排在最後（<see cref="OtherSortOrder"/>）之後，
-    /// 它們仍然搜得到、仍然過濾得掉，只是不再佔住前排。
-    /// </remarks>
-    public const string OtherCategoryId = "catalog.other";
-
     /// <summary>目錄物件那一群的 <see cref="SearchCategory.GroupId"/>。</summary>
     public const string ObjectGroupId = "catalog.objects";
-
-    /// <summary>收納桶的顯示字。</summary>
-    private const string OtherDisplayName = "Other";
-
-    /// <summary>收納桶的排序；大到之後再加幾種物件也插不到它後面。</summary>
-    private const int OtherSortOrder = 1000;
 
     /// <summary>會出現在搜尋結果裡的種類，依顯示順序。</summary>
     /// <remarks>
@@ -53,7 +39,9 @@ public static class SqlCatalogSearchCategories
     /// <c>sys.objects</c> 上，這個 provider 根本掃不到。<see cref="SqlObjectKind.Unknown"/>
     /// 同理——那是「認不得的型別代碼」，而不是一種可以列給人勾選的東西。
     ///
-    /// 收納桶那三種擺在最後，順序就是這份清單的順序；<see cref="Create"/> 會把它們併成一顆。
+    /// 同義字、序列與資料表型別曾併成一個「Other」收納桶，理由是過濾列上的 pill 太擠；
+    /// 種類早就收進下拉，那個理由已經不在，而併著的代價是勾「Other」時三種一起來、
+    /// 只要同義字的人篩不出來。現在一種一顆，順序就是這份清單的順序。
     /// </remarks>
     private static readonly SqlObjectKind[] IndexedKinds =
     {
@@ -74,9 +62,8 @@ public static class SqlCatalogSearchCategories
     /// 這個種類的分類 Id；不進索引的種類回傳 null。
     /// </summary>
     /// <remarks>
-    /// 回 null 而不是塞進 <see cref="OtherCategoryId"/>：收納桶收的是「知道是什麼、
-    /// 只是不值得單獨一顆 pill」的三種，而 null 那一族是「這條路徑不知道那是什麼」，
-    /// 點下去也沒有東西可以打開。混在一起的症狀是清單上出現一列打不開的結果。
+    /// 回 null 而不是退回某個泛用分類：null 那一族是「這條路徑不知道那是什麼」，
+    /// 點下去也沒有東西可以打開。混進清單的症狀是出現一列打不開的結果。
     /// </remarks>
     public static string? IdFor(SqlObjectKind kind)
     {
@@ -90,7 +77,9 @@ public static class SqlCatalogSearchCategories
             SqlObjectKind.TableValuedFunction => "catalog.table-valued-function",
             SqlObjectKind.Trigger => "catalog.trigger",
             SqlObjectKind.Constraint => ConstraintCategoryId,
-            SqlObjectKind.Synonym or SqlObjectKind.Sequence or SqlObjectKind.TableType => OtherCategoryId,
+            SqlObjectKind.Synonym => "catalog.synonym",
+            SqlObjectKind.Sequence => "catalog.sequence",
+            SqlObjectKind.TableType => "catalog.table-type",
             _ => null
         };
     }
@@ -103,30 +92,19 @@ public static class SqlCatalogSearchCategories
             throw new ArgumentNullException(nameof(providerId));
         }
 
-        var categories = new List<SearchCategory>(IndexedKinds.Length);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var sortOrder = 0;
+        var categories = new SearchCategory[IndexedKinds.Length];
 
-        foreach (var kind in IndexedKinds)
+        for (var index = 0; index < IndexedKinds.Length; index++)
         {
+            var kind = IndexedKinds[index];
             // IdFor 對這幾種一定答得出來；答不出來表示上面那份清單與對應表分岔了，
             // 而那要在建構 provider 的當下就炸掉，不是讓某一種物件安靜地沒有分類。
             var id = IdFor(kind) ??
                 throw new InvalidOperationException($"{kind} 沒有對應的搜尋分類 Id。");
 
-            // 收納桶的三種對到同一個 Id，只宣告一顆。
-            if (!seen.Add(id)) continue;
-
-            var isOther = string.Equals(id, OtherCategoryId, StringComparison.Ordinal);
-
-            categories.Add(new SearchCategory(
-                providerId,
-                id,
-                isOther ? OtherDisplayName : kind.ToDisplayName(),
-                isOther ? OtherSortOrder : sortOrder++,
-                isOther ? OtherCategoryId : ObjectGroupId));
+            categories[index] = new SearchCategory(providerId, id, kind.ToDisplayName(), index, ObjectGroupId);
         }
 
-        return categories.ToArray();
+        return categories;
     }
 }

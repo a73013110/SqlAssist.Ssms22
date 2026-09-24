@@ -103,6 +103,16 @@ public static class NotificationCatalog
     public const string DeletingSqlHistory = "刪除 History 紀錄";
     public const string RemovingFavorite = "移除收藏";
 
+    // ── SQL Search ────────────────────────────────────────────────────────
+    // 工具窗與預覽上按下去的結果；移至定義與在物件總管中選取沿用上面那兩個，種類是 Navigation。
+    // 批次複製沿用 CopyingSqlList：兩邊的多選工具列是同一個動作。
+    public const string SearchingDatabaseObjects = "搜尋資料庫物件";
+    public const string CopyingQualifiedName = "複製限定名稱";
+    public const string CopyingDefinition = "複製定義";
+    public const string ApplyingEditorConnection = "套用查詢視窗的連線";
+    public const string HighlightingMatches = "標示命中位置";
+    public const string RunningSearchAction = "執行 SQL Search 操作";
+
     /// <summary>依保留規則回收；背景排程與用量頁的「立即維護」是同一件事，共用這一個標題。</summary>
     public const string MaintainingSqlMemory = "維護 SQL Memory";
 

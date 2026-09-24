@@ -278,48 +278,6 @@ internal static partial class SqlAssistChrome
         return style;
     }
 
-    /// <summary>
-    /// 清單頁尾的膠囊按鈕：比一般幽靈按鈕多一條細框，讓「還有更多」在清單底部仍讀得出是可按的。
-    /// </summary>
-    public static Button CreateMemoryPagerButton()
-    {
-        var shell = new FrameworkElementFactory(typeof(Border)) { Name = "pill" };
-        shell.SetValue(Border.CornerRadiusProperty, new CornerRadius(14));
-        shell.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        shell.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
-        shell.SetBinding(TextElement.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
-        shell.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ListBackground);
-        shell.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
-        var content = new FrameworkElementFactory(typeof(ContentPresenter));
-        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-        content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        shell.AppendChild(content);
-        var template = new ControlTemplate(typeof(Button)) { VisualTree = shell };
-        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "pill");
-        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.Border, "pill");
-        AddTrigger(template, UIElement.IsMouseOverProperty, Control.ForegroundProperty, ThemeBrush.SelectedForeground);
-        AddTrigger(template, UIElement.IsKeyboardFocusWithinProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "pill");
-        AddTrigger(template, ButtonBase.IsPressedProperty, Border.BackgroundProperty, ThemeBrush.RowPressed, "pill");
-        var disabled = new Trigger { Property = UIElement.IsEnabledProperty, Value = false };
-        disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.7, "pill")); template.Triggers.Add(disabled);
-        var style = new Style(typeof(Button));
-        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
-        return new Button
-        {
-            Template = template, Style = style, FontFamily = InterfaceFont, FontSize = DefaultMetrics.Caption,
-            Padding = new Thickness(14, 3, 14, 3), MinHeight = 28, MinWidth = 132, FocusVisualStyle = null,
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-    }
-
-    /// <summary>頁尾兩側的細線；中央摘要把清單的結尾讀成一個段落，而不是另一張卡片。</summary>
-    public static Border CreateMemoryPagerRule()
-    {
-        var rule = new Border { Height = 1, VerticalAlignment = VerticalAlignment.Center, SnapsToDevicePixels = true, Opacity = 0.9 };
-        rule.SetResourceReference(Border.BackgroundProperty, ThemeBrush.Hairline);
-        return rule;
-    }
-
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
     public static DataTemplate CreateSqlSummaryTemplate(bool? motion = null)
     {

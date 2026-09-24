@@ -18,7 +18,7 @@ namespace SqlAssist.Ssms22.Search;
 /// 一筆結果做得到的兩件事（移至定義、在物件總管中選取）——唯一可以辨識酬載型別的地方。
 /// </summary>
 /// <remarks>
-/// 清單、預覽與狀態列一律只讀 <see cref="SearchHit"/> 的欄位；只有這一步需要知道那一筆
+/// 清單與預覽一律只讀 <see cref="SearchHit"/> 的欄位；只有這一步需要知道那一筆
 /// 到底是什麼東西。這是<b>刻意留下的擴充接縫</b>：之後加 SQL Memory、開啟中的查詢分頁或
 /// 片段 provider 時，只在這一支多一個 <c>is</c> 分支，清單樣板、預覽與命令都不必跟著改。
 /// 任何一處 UI 自己向下轉型 <see cref="SearchHit.ActivatePayload"/> 都會把這個代價
@@ -40,12 +40,12 @@ internal static partial class SqlSearchActivation
     /// <summary>
     /// 啟動一筆結果：把它的定義開進新查詢視窗——同一台就沿用目前連線，別台就不連線。
     /// </summary>
-    /// <returns>
-    /// <c>Failure</c> 成功時為 null，否則是要顯示在工具窗頁尾的那一句；<c>Unconnected</c>
-    /// 說開出來的是不是未連線的視窗，成功那一句要照它講（<see cref="DescribeOpened"/>）。
-    /// <b>一律在 UI 執行緒上完成</b>，呼叫端接到之後可以直接寫進畫面。
-    /// </returns>
     /// <remarks>
+    /// <b>結果一律由這裡送通知</b>，呼叫端不必再說一次：進行中、成功（未連線時附上該連哪一台，
+    /// 見 <see cref="OpenedNote"/>）與每一種失敗都在「移至定義」那一則上。還沒開始取結構就被擋下的
+    /// 那幾種（查不到目錄、範圍換到別台）也走同一個標題，使用者看到的是同一件事的結果。
+    /// <b>一律在 UI 執行緒上完成</b>。
+    ///
     /// 執行緒分工與 F12 同一套：UI 執行緒只解析服務，查詢與組指令碼在背景，
     /// 開窗與寫入回到 UI 執行緒。使用者是自己雙擊的，因此這條路徑<b>不</b>走
     /// <c>SqlAssistPlatformGuard</c> 的收斂——安靜地什麼都不做等於故障，
@@ -55,8 +55,7 @@ internal static partial class SqlSearchActivation
     /// <see cref="SqlCatalogSearchTarget.DatabaseName"/>，<c>object_id</c> 只在那個資料庫裡
     /// 唯一，所以先組出帶資料庫的 <see cref="SqlObjectInfo"/>，再讓中繼資料層換目錄。
     /// </remarks>
-    public static async Task<(string? Failure, bool Unconnected)> ActivateAsync(
-        SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
+    public static async Task ActivateAsync(SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
     {
         if (hit is null) throw new ArgumentNullException(nameof(hit));
         if (services is null) throw new ArgumentNullException(nameof(services));
@@ -74,26 +73,29 @@ internal static partial class SqlSearchActivation
             // 明寫 true 而不是留空：這一支答應回來時在 UI 執行緒上，而整個專案滿是
             // ConfigureAwait(false)，不寫的那一個看起來像漏掉的。已經在 UI 執行緒上時
             // 續程原地跑，不多一次派送。
-            return await ActivateJobAsync(hit, job, services, catalogs).ConfigureAwait(true);
+            await ActivateJobAsync(hit, job, services, catalogs).ConfigureAwait(true);
+            return;
         }
 
         if (hit.ActivatePayload is not SqlCatalogSearchTarget target)
         {
-            return ("這一筆沒有可以開啟的定義。", false);
+            Reject(NotificationCatalog.GoingToDefinition, hit.Title, "這一筆沒有可以開啟的定義。");
+            return;
         }
 
         var objectInfo = ToObjectInfo(target);
+        var missing = $"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。";
 
         // 取結構與預覽走同一份目錄（同一個 SqlSearchCatalogs），不另問中繼資料服務：
         // 兩邊各問一次的症狀是預覽與新視窗的內容來自不同的地方。先問這一步，是因為範圍已經
         // 換到別台時，下面那兩句（去開查詢視窗、去看預覽）都給錯了下一步——該做的是重新搜尋。
         var catalog = catalogs.ResolveFor(objectInfo, target.Origin, out var elsewhere);
 
-        if (elsewhere) return (SqlSearchCatalogs.ElsewhereNotice(target.Origin), false);
-
-        if (catalog is null)
+        if (elsewhere || catalog is null)
         {
-            return ($"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。", false);
+            Reject(NotificationCatalog.GoingToDefinition, objectInfo.QualifiedName,
+                elsewhere ? SqlSearchCatalogs.ElsewhereNotice(target.Origin) : missing);
+            return;
         }
 
         var (unconnected, documentName) = ChooseWindow(catalogs, target.Origin);
@@ -108,10 +110,10 @@ internal static partial class SqlSearchActivation
 
         if (structure is null)
         {
-            notification.Fail();
-            // 回到 UI 執行緒再交還：呼叫端拿這一句去寫工具窗的頁尾。
+            Fail(notification, missing);
+            // 答應過回來時在 UI 執行緒上；失敗那一條也一樣。
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            return ($"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。", false);
+            return;
         }
 
         var script = await Task.Run(() => SqlDefinitionScript.Build(structure, documentName)).ConfigureAwait(false);
@@ -120,9 +122,7 @@ internal static partial class SqlSearchActivation
         var failure = SqlDefinitionScript.WriteToNewWindow(
             services, WithHeader(script, hit, unconnected), objectInfo, documentName, unconnected);
 
-        if (failure is not null) notification.Fail();
-
-        return (failure, unconnected);
+        Finish(notification, failure, OpenedNote(hit, unconnected));
     }
 
     /// <summary>
@@ -168,6 +168,31 @@ internal static partial class SqlSearchActivation
             documentName,
             source: unconnected ? origin.ServerName : "");
 
+    /// <summary>
+    /// 還沒開始工作就被擋下的那一種：與進行中的那一則同一個標題，直接記成失敗。
+    /// </summary>
+    /// <remarks>
+    /// 借 <see cref="NotificationCenter.Begin"/> 開了立刻關會先冒出一列執行中再改寫；這一刻什麼都還沒做，
+    /// 所以用 <see cref="NotificationCenter.Post"/>。
+    /// </remarks>
+    private static void Reject(string title, string subject, string message) =>
+        NotificationCenter.Default.Post(title, NotificationKind.Navigation, NotificationOrigin.User,
+            NotificationLevel.Info, NotificationStatus.Failed, subject, message: message);
+
+    /// <summary>失敗的原因寫在那一則上：每一種的下一步都不同，只說「失敗」等於要使用者去翻診斷紀錄。</summary>
+    private static void Fail(NotificationScope notification, string message)
+    {
+        notification.Report(message);
+        notification.Fail();
+    }
+
+    /// <summary>開窗那一步的結果；成功時附上 <paramref name="note"/>（沒有話要說時是空字串）。</summary>
+    private static void Finish(NotificationScope notification, string? failure, string note)
+    {
+        if (failure is not null) Fail(notification, failure);
+        else if (note.Length != 0) notification.Report(note);
+    }
+
     /// <summary>未連線時在指令碼開頭加上來源那幾行，游標跟著往後移。</summary>
     private static SqlObjectScriptText WithHeader(SqlObjectScriptText script, SearchHit hit, bool unconnected)
     {
@@ -183,10 +208,10 @@ internal static partial class SqlSearchActivation
     /// <summary>
     /// 把物件總管展開到這一筆指的節點並選取它。
     /// </summary>
-    /// <returns>
-    /// 成功時為 null，否則是要顯示在工具窗頁尾的那一句；<b>一律在 UI 執行緒上完成</b>。
-    /// </returns>
     /// <remarks>
+    /// 結果與 <see cref="ActivateAsync"/> 一樣由這裡送通知：成功、改選上一層（降級並說出停在哪一層）
+    /// 與每一種失敗都在「在物件總管中選取」那一則上。<b>一律在 UI 執行緒上完成</b>。
+    ///
     /// 執行緒分三段：UI 執行緒挑伺服器與目錄，背景問父物件是誰，回到 UI 執行緒逐一導航。
     /// 中間那一段由 <c>GetParentAsync</c> 自己讓出執行緒，這一層不再包一次 <c>Task.Run</c>。
     ///
@@ -197,8 +222,7 @@ internal static partial class SqlSearchActivation
     /// 並且說出停在哪一層。試到第二個就默默當成成功的話，使用者會以為自己正看著那個條件約束，
     /// 而選取的其實是它所屬的資料表。
     /// </remarks>
-    public static async Task<string?> SelectInExplorerAsync(
-        SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
+    public static async Task SelectInExplorerAsync(SearchHit hit, IServiceProvider services, SqlSearchCatalogs catalogs)
     {
         if (hit is null) throw new ArgumentNullException(nameof(hit));
         if (services is null) throw new ArgumentNullException(nameof(services));
@@ -206,25 +230,35 @@ internal static partial class SqlSearchActivation
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-        if (OriginOf(hit) is not { } origin) return "這一筆在物件總管上指不到節點。";
+        const string title = NotificationCatalog.SelectingInObjectExplorer;
+
+        if (!CanSelectInExplorer(hit) || OriginOf(hit) is not { } origin)
+        {
+            Reject(title, hit.Title, "這一筆在物件總管上沒有自己的節點。");
+            return;
+        }
 
         // 照這一筆自己的伺服器找，不照現在的範圍：換過查詢視窗或指名別台之後，範圍答的是
         // 另一台，而那一台上同名的物件會被選起來，畫面上看起來完全正常。
         if (catalogs.ResolveExplorerServer(origin) is not { } server)
         {
-            return $"物件總管上沒有連到 {origin} 的連線；在那裡連上這一台之後再按一次。";
+            Reject(title, hit.Title, $"物件總管上沒有連到 {origin} 的連線；在那裡連上這一台之後再按一次。");
+            return;
         }
 
-        // 接下來每一步都碰 UI（導覽服務、頁尾那幾句），所以 true。這裡曾經是 false，
+        // 接下來每一步都碰 UI（導覽服務、通知），所以 true。這裡曾經是 false，
         // 而症狀只在條件約束與觸發程序上出現——也只有那兩種真的 await 過一趟查詢，
         // 其餘種類同步完成、續程原地跑，看起來完全正常。
         var (nodes, failure) = await ResolveNodesAsync(hit, server.RootUrn, catalogs).ConfigureAwait(true);
 
-        if (failure is not null) return failure;
-        if (nodes.Count == 0) return "這一筆在物件總管上指不到節點。";
+        if (failure is not null || nodes.Count == 0)
+        {
+            Reject(title, hit.Title, failure ?? "這一筆在物件總管上指不到節點。");
+            return;
+        }
 
         using var notification = NotificationCenter.Default.Begin(
-            NotificationCatalog.SelectingInObjectExplorer,
+            title,
             NotificationKind.Navigation,
             NotificationOrigin.User,
             NotificationLevel.Info,
@@ -243,21 +277,22 @@ internal static partial class SqlSearchActivation
         // 從資料庫往下走），選到它不是降級。
         if (selected >= 0 && string.Equals(nodes[selected].Urn, nodes[0].Urn, StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            return;
         }
 
         if (selected > 0)
         {
-            return $"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[selected])}。";
+            // 選到的是上一層：拿到了東西，但不是他要的那一個，所以是降級而不是成功。
+            notification.Report($"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[selected])}。");
+            notification.Degrade();
+            return;
         }
 
-        notification.Fail();
-
         // 連最寬鬆的那一個都指不到：兩種來源的下一步完全不同。
-        return hit.ActivatePayload is SqlAgentJobSearchTarget job
+        Fail(notification, hit.ActivatePayload is SqlAgentJobSearchTarget job
             ? $"物件總管上找不到作業 {job.JobName}：它可能已經刪除，或這個登入看不到 SQL Server Agent。"
             : $"物件總管上找不到 {hit.Title}：它可能已經卸除，或被物件總管的篩選器擋掉了；" +
-                "重新整理那個資料夾之後再試一次。";
+                "重新整理那個資料夾之後再試一次。");
     }
 
     /// <summary>
@@ -340,7 +375,7 @@ internal static partial class SqlSearchActivation
     /// 執行緒分工與目錄那一條完全相同：UI 執行緒只解析服務，查詢與組字串在背景，
     /// 開窗與寫入回到 UI 執行緒。
     /// </remarks>
-    private static async Task<(string? Failure, bool Unconnected)> ActivateJobAsync(
+    private static async Task ActivateJobAsync(
         SearchHit hit, SqlAgentJobSearchTarget job, IServiceProvider services, SqlSearchCatalogs catalogs)
     {
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -352,11 +387,12 @@ internal static partial class SqlSearchActivation
         // 查不到只是一句「取不到」，把另一台的命令開出來才是真的錯。
         var catalog = catalogs.ResolveOn(job.Origin, out var elsewhere);
 
-        if (elsewhere) return (SqlSearchCatalogs.ElsewhereNotice(job.Origin), false);
-
-        if (catalog is null)
+        if (elsewhere || catalog is null)
         {
-            return ($"取不到 {job.Origin} 的連線，請確認它還連著之後重新搜尋。", false);
+            Reject(NotificationCatalog.GoingToDefinition, job.JobName, elsewhere
+                ? SqlSearchCatalogs.ElsewhereNotice(job.Origin)
+                : $"取不到 {job.Origin} 的連線，請確認它還連著之後重新搜尋。");
+            return;
         }
 
         // 與目錄那一條同一個選擇，連判斷都同一支：這一筆來自別台伺服器時，沿用查詢視窗那條
@@ -377,12 +413,11 @@ internal static partial class SqlSearchActivation
 
         if (script is null)
         {
-            notification.Fail();
-
             // 三個原因都要寫出來：它們的下一步完全不同（去看作業還在不在、去要 msdb 權限、
             // 去看連線），而只說「取不到」的話使用者查不出該去看哪一個。
-            return ($"在 {job.ServerName} 取不到 {subject} 的步驟命令：作業可能已經刪除、" +
-                "這個登入對 msdb 沒有權限，或連線已中斷。", false);
+            Fail(notification, $"在 {job.ServerName} 取不到 {subject} 的步驟命令：作業可能已經刪除、" +
+                "這個登入對 msdb 沒有權限，或連線已中斷。");
+            return;
         }
 
         var failure = SqlDefinitionScript.WriteToNewWindow(
@@ -393,8 +428,6 @@ internal static partial class SqlSearchActivation
             documentName,
             unconnected);
 
-        if (failure is not null) notification.Fail();
-
-        return (failure, unconnected);
+        Finish(notification, failure, OpenedNote(hit, unconnected));
     }
 }

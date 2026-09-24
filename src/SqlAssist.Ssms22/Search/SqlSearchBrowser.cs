@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Search;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Tabular;
@@ -34,6 +35,9 @@ namespace SqlAssist.Ssms22.Search;
 /// 版面只有兩塊：工具列兩層（上層 filters 與常駐的分段開關，下層搜尋框與排序／重新整理，
 /// 多選時由選取工具列蓋住）與主從區。條件不另起一列 chip：過濾按鈕的摘要與強調底框已經說了
 /// 哪幾個維度有條件，在停靠面板裡多一列就是少看一筆結果。
+///
+/// 沒有狀態列：筆數與「這一份為什麼不完整」寫在清單的頁尾（與 SQL Memory 同一個
+/// <see cref="SqlListPager"/>），按下去的結果與失敗一律走通知（<see cref="Notify"/>）。
 /// </remarks>
 internal sealed class SqlSearchBrowser : UserControl, IDisposable
 {
@@ -56,7 +60,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly MasterDetailView _splitView;
     private readonly SqlStateSurface _surface;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-    private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
+    private readonly SqlListPager _footer = new();
     private readonly SqlMatchToggles _matchToggles = new();
     private readonly Button _connection;
     private readonly SqlSearchSegments _segments = new();
@@ -74,7 +78,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private CancellationTokenSource _request = new();
     private IReadOnlyList<SearchHit> _applying = Array.Empty<SearchHit>();
     private int _applied;
-    private string _statusTone = "";
+
+    /// <summary>上一次送出通知的那一句失敗；同一句每一輪都送的話，邊打字邊跳出同一則通知。</summary>
+    private string _notifiedFailure = "";
 
     private SqlSearchRound? _round;
 
@@ -103,7 +109,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _catalogs = new SqlSearchCatalogs(services);
         _connection = SqlAssistChrome.CreateEditorConnectionButton(ReadEditorConnection);
         _connection.Click += (_, _) => _ = RunAsync(() => ApplyEditorConnectionAsync(automatic: false));
-        _preview = new SqlSearchPreview(_catalogs);
+        _preview = new SqlSearchPreview(_catalogs, action => Run(() => RunRowAction(action)));
         foreach (var category in _providers.Aggregator.Categories) _categoryLabels[category.Id] = category.DisplayName;
         _categoryOptions = SqlSearchBrowserModel.CategoryOptions(_providers.Aggregator.Providers);
         _model.UseCategories(_categoryOptions);
@@ -133,13 +139,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _selectionBar = new SqlSelectionBar(_selection, CreateSearchRow()) { ReturnFocus = _list.FocusCurrentRow };
         header.Children.Add(CreateToolbar(_selectionBar.Slot));
 
-        _status.TextWrapping = TextWrapping.Wrap;
-        _status.Visibility = Visibility.Collapsed;
-        _status.Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0);
-        DockPanel.SetDock(_status, Dock.Bottom);
-        root.Children.Add(_status);
-
-        _list.SetRowsSource(_rows);
+        _list.SetRowsSource(_rows, _footer);
         _list.EnableSelection(_selection);
         _list.SelectionChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 選取", UpdatePreview);
         _list.OpenRequested += (_, _) => _ = RunAsync(ActivateAsync);
@@ -370,7 +370,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// 種類下拉：照 provider 宣告的群與順序分段。
     /// </summary>
     /// <remarks>
-    /// 分段的字取自 provider 的顯示字，一個 provider 只掛一次：目錄物件把收納桶切成第二群，
+    /// 分段的字取自 provider 的顯示字，一個 provider 只掛一次：一個來源可以切成好幾群，
     /// 但使用者要分的是「資料庫物件」與「SQL Agent 作業」這一層，同一個名字連掛兩次
     /// 只會看起來像清單重複了。只有一個 provider 有分類時整份不分段——一條標題底下就是全部，
     /// 那一列只是白佔一列。
@@ -652,7 +652,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         if (connection is null || !_model.Scope.Apply(label))
         {
-            if (!automatic) Report(SqlEditorConnectionText.NotConnectedReport);
+            if (!automatic) NotifyNotConnected();
             return;
         }
 
@@ -660,12 +660,17 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         ScopeChanged();
     }
 
+    /// <summary>按了套用、查詢視窗卻沒有連線；範圍沒動，說一句為什麼沒反應。</summary>
+    private static void NotifyNotConnected() =>
+        Notify(NotificationCatalog.ApplyingEditorConnection, NotificationStatus.Failed,
+            message: SqlEditorConnectionText.NotConnectedReport);
+
     /// <summary>從伺服器下拉選查詢視窗連著的那一台（它不在物件總管上）；資料庫回到「全部」。</summary>
     private async Task SelectEditorServerAsync()
     {
         if (await _catalogs.ReadActiveEditorAsync().ConfigureAwait(true) is not { } connection)
         {
-            Report(SqlEditorConnectionText.NotConnectedReport);
+            NotifyNotConnected();
             return;
         }
 
@@ -789,10 +794,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         _databases.UpdateSummary(_model.DatabaseSummary(), Join(_model.Scope.Databases));
         _server.UpdateSummary(_model.ServerSummary(), "");
 
-        // 有條件的維度換強調底框；窄窗收掉摘要之後，看得出哪幾顆在縮小結果靠的就是它。
-        // 伺服器不算：它是必選的那一台，不是縮小結果的條件。
-        _kinds.IsNarrowed = _model.CategoryIds.Count != 0;
-        _databases.IsNarrowed = _model.Scope.Databases.Count != 0;
+        // 選了值的維度換強調底框；窄窗收掉摘要之後，看得出哪幾顆有作用靠的就是它。
+        // 伺服器必選，選定之後一樣亮，否則一排按鈕裡只有每一輪都在用的那一台看起來像還沒設定。
+        _server.HasSelection = _model.Scope.Servers.Count != 0;
+        _kinds.HasSelection = _model.CategoryIds.Count != 0;
+        _databases.HasSelection = _model.Scope.Databases.Count != 0;
     }
 
     private string Label(string categoryId) =>
@@ -811,7 +817,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (!keepChecks) _selection.Clear();
         CancelRequest();
         _model.Invalidate();
-        Report("");
         UpdateChrome();
         _searchTimer.Stop();
         if (immediate) Search();
@@ -868,8 +873,24 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         finally
         {
             _model.End(round);
+            if (_model.IsCurrent(round)) NotifyFailure();
             UpdateChrome();
         }
+    }
+
+    /// <summary>
+    /// 這一輪有失敗（整輪或某個來源）就送一則通知；同一句只送一次，換了一句或好了才重新算。
+    /// </summary>
+    /// <remarks>
+    /// 失敗的那一句也寫在頁尾或狀態表面上（說明畫面），通知另外留一份進「通知失敗」可以回看。
+    /// 每一輪都送的話，同一個讀不到的來源會在使用者每打一個字時跳出一次。
+    /// </remarks>
+    private void NotifyFailure()
+    {
+        var failure = _model.Failure;
+        if (string.Equals(failure, _notifiedFailure, StringComparison.Ordinal)) return;
+        _notifiedFailure = failure;
+        if (failure.Length != 0) Notify(NotificationCatalog.SearchingDatabaseObjects, NotificationStatus.Failed, message: failure);
     }
 
     /// <summary>
@@ -966,11 +987,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     }
 
     /// <summary>單筆的「複製限定名稱」；剪貼簿被鎖住時與批次複製同一句回報。</summary>
-    private async Task CopyNameAsync(SqlSearchRow? row)
+    private static async Task CopyNameAsync(SqlSearchRow? row)
     {
         if (row is null) return;
         var failure = await SqlClipboard.WriteAsync(new DataObject(DataFormats.UnicodeText, row.QualifiedName)).ConfigureAwait(true);
-        Report(failure ?? "已複製名稱。");
+        Notify(NotificationCatalog.CopyingQualifiedName, failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed,
+            row.QualifiedName, failure ?? "");
     }
 
     /// <summary>
@@ -978,8 +1000,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </summary>
     /// <remarks>
     /// 這一輪的答案已經整份在手上，所以沒有 SQL Memory 那種背景讀取：全選時還沒分批套上的那幾批
-    /// 先補完再複製。只讀列上已有的資料，不讀定義本文。失敗由 <see cref="RunAsync"/> 寫到狀態列，
-    /// 所以這一支不擲出例外——工具列的點擊接不住它。
+    /// 先補完再複製。只讀列上已有的資料，不讀定義本文。結果與 SQL Memory 的批次複製同一則通知；
+    /// 例外由 <see cref="RunAsync"/> 送通知，所以這一支不擲出例外——工具列的點擊接不住它。
     /// </remarks>
     private async Task<bool> CopySelectionAsync()
     {
@@ -992,9 +1014,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             }
 
             var content = SqlTabularText.Build(SqlSearchRow.CopyColumns, _selection.CheckedRows());
-            if (content.RowCount == 0) { Report(SqlClipboard.EmptyMessage); return; }
-            var failure = await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
-            Report(failure ?? SqlClipboard.CopiedMessage(content.RowCount), failure is null ? "copied" : "");
+            var failure = content.RowCount == 0
+                ? SqlClipboard.EmptyMessage
+                : await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
+            Notify(NotificationCatalog.CopyingSqlList, failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed,
+                message: failure ?? SqlClipboard.CopiedNote(content.RowCount));
             succeeded = failure is null;
         }).ConfigureAwait(true);
         return succeeded;
@@ -1013,10 +1037,6 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             case SqlSearchRowAction.Copy:
                 _ = RunAsync(() => CopyNameAsync(_list.SelectedItem as SqlSearchRow));
                 return;
-            case SqlSearchRowAction.Preview:
-                _splitView.SetDetailExpanded(true);
-                UpdatePreview();
-                return;
             default:
                 throw new ArgumentOutOfRangeException(nameof(action), action, "沒有這個結果列操作。");
         }
@@ -1028,20 +1048,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         UpdateChrome();
     }
 
-    /// <summary>雙擊、Enter 或右鍵選單的「移至定義」：把這一筆的定義開進新的查詢視窗。</summary>
+    /// <summary>雙擊、Enter、預覽或右鍵選單的「移至定義」：把這一筆的定義開進新的查詢視窗。</summary>
     /// <remarks>
-    /// 酬載辨識與導航都在 <see cref="SqlSearchActivation"/>；這裡只負責選了哪一列與怎麼回報。
-    /// 失敗一律寫進頁尾——使用者是自己雙擊的，什麼都沒發生等於故障。
+    /// 酬載辨識、導航與結果的通知都在 <see cref="SqlSearchActivation"/>；這裡只負責選了哪一列，
+    /// 以及一次只開一個。做不到的那一種（沒有可開的東西）也由它說，雙擊之後才不會毫無動靜。
     /// </remarks>
     private async Task ActivateAsync()
     {
         if (_list.SelectedItem is not SqlSearchRow row) return;
-
-        if (!row.CanActivate)
-        {
-            Report("這一筆沒有可以開啟的東西。");
-            return;
-        }
 
         // 一次只開一個視窗。查詢加開窗要好幾秒，而那幾秒裡清單照樣可以再雙擊一次；
         // 沒有這一道就是連點兩下開出兩個查詢視窗（F12 那一條由 SqlDefinitionOpener 自己擋）。
@@ -1050,17 +1064,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         try
         {
-            // 先說一句，否則雙擊之後畫面完全沒有動靜。開出來的東西叫什麼由
-            // SqlSearchActivation 說——這裡寫死「定義」的話，作業那幾列會說出一個
-            // 它們沒有的東西，而辨識型別不准發生在這一層。
-            var noun = SqlSearchActivation.SubjectNoun(row.Hit);
-            Report("正在取得 " + row.Title + " 的" + noun + "…", "activating");
-            var (failure, unconnected) = await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
-            // 成功那一句也由 SqlSearchActivation 說：開出來的視窗有沒有連線是按下去那一刻才定案的，
-            // 而沒有連線的那一種要先講，使用者按 F5 時跳出連線對話框才不會以為壞了。
-            Report(
-                failure ?? SqlSearchActivation.DescribeOpened(row.Hit, unconnected),
-                failure is null ? "activated" : "");
+            await SqlSearchActivation.ActivateAsync(row.Hit, _services, _catalogs);
         }
         finally
         {
@@ -1078,22 +1082,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_list.SelectedItem is not SqlSearchRow row) return;
 
-        if (!row.CanSelectInExplorer)
-        {
-            Report("這一筆在物件總管上沒有自己的節點。");
-            return;
-        }
-
         if (_selecting) return;
         _selecting = true;
 
         try
         {
-            // 展開節點要向伺服器問資料，大的資料庫上是好幾秒；先說一句，否則按下去毫無動靜，
-            // 而物件總管的視窗還要再過一會兒才跳出來。
-            Report("正在物件總管中選取 " + row.Title + "…", "selecting");
-            var failure = await SqlSearchActivation.SelectInExplorerAsync(row.Hit, _services, _catalogs);
-            Report(failure ?? "已在物件總管中選取 " + row.Title + "。", failure is null ? "selected" : "");
+            // 展開節點要向伺服器問資料，大的資料庫上是好幾秒；進行中與結果由那一則通知說。
+            await SqlSearchActivation.SelectInExplorerAsync(row.Hit, _services, _catalogs);
         }
         finally
         {
@@ -1180,30 +1175,25 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         if (_disposed) return;
         _surface.State = _model.Surface(_rows.Count);
+        _footer.Update(_model.Footer(_rows.Count));
         UpdateFilterChrome();
-        Report(_model.Status(_rows.Count), _model.Tone.ToString());
     }
 
-    /// <param name="tone">
-    /// 這一句在說哪一件事。狀態回饋只在換了一種說法時播一次：拿整句話比對的話，
-    /// 每一批結果讓筆數加一，頁尾就會抖一下。
-    /// </param>
-    private void Report(string message, string tone = "")
-    {
-        if (_disposed) return;
-        _status.Text = message;
-        _status.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    /// <summary>
+    /// SQL Search 上按下去的結果；種類與來源寫死：這幾件事一律是使用者在這個工具窗上按的。
+    /// </summary>
+    /// <remarks>
+    /// 移至定義與在物件總管中選取不走這裡：它們與 F12 同一種（<see cref="NotificationKind.Navigation"/>），
+    /// 由 <see cref="SqlSearchActivation"/> 自己送。預覽的那幾件也走這一支，兩處不各寫一份三軸。
+    /// </remarks>
+    internal static void Notify(string title, NotificationStatus status, string subject = "", string message = "") =>
+        NotificationCenter.Default.Post(title, NotificationKind.Search, NotificationOrigin.User, NotificationLevel.Info,
+            status, subject, message: message);
 
-        var current = message.Length == 0 ? "" : tone.Length == 0 ? message : tone;
-        if (string.Equals(current, _statusTone, StringComparison.Ordinal)) return;
-        _statusTone = current;
-        if (message.Length != 0) SqlAssistChrome.PlayStatusPop(_status);
-    }
-
-    // 使用者主動觸發的失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是回到狀態列。
+    // 使用者主動觸發的失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是送通知。
     private void Run(Action action) => _ = RunAsync(() => { action(); return Task.CompletedTask; });
 
-    /// <summary>等這一輪事件走完再做；失敗仍然回到狀態列。</summary>
+    /// <summary>等這一輪事件走完再做；失敗仍然送通知。</summary>
     /// <remarks>
     /// 用在「要換掉正在發事件的那個控制項」的場合：面板重建會回收核取方塊，而它的
     /// <c>IsChecked</c> 回寫還在堆疊上。收掉的視窗不補做——那時候畫面已經沒有人在看。
@@ -1227,7 +1217,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         catch (Exception error)
         {
             SqlAssistDiagnostics.WriteAlways("SQL Search 操作失敗：" + error.Message);
-            Report(error.Message);
+            if (!_disposed) Notify(NotificationCatalog.RunningSearchAction, NotificationStatus.Failed, message: error.Message);
         }
     }
 }

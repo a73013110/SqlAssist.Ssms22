@@ -24,10 +24,7 @@ internal static class SqlClipboard
     /// <summary>勾起來的列都已不在（例如剛被刪除）時的訊息。</summary>
     internal const string EmptyMessage = "沒有可複製的項目。";
 
-    /// <summary>表格複製成功時狀態列的一句（SQL Search）。</summary>
-    public static string CopiedMessage(int rows) => "已複製 " + CopiedNote(rows);
-
-    /// <summary>表格複製成功的說明；SQL Memory 放在通知上（標題已經是「已複製清單」），SQL Search 接在「已複製」之後。</summary>
+    /// <summary>表格複製成功時通知上的說明（標題已經是「已複製清單」）；SQL Memory 與 SQL Search 同一句。</summary>
     public static string CopiedNote(int rows) =>
         rows.ToString("N0", CultureInfo.CurrentCulture) + " 筆（含標頭列，可直接貼到 Excel）。";
 

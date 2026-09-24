@@ -53,25 +53,21 @@ public sealed class SqlCatalogSearchCategoriesTests
             SqlCatalogSearchCategories.IdFor(SqlObjectKinds.FromSysObjectType(type)));
     }
 
-    /// <summary>序列、同義字與資料表型別進收納桶。</summary>
+    /// <summary>同義字、序列與資料表型別各自一個分類，不併成收納桶。</summary>
+    /// <remarks>併在一起的症狀是只要同義字的人篩不出來：勾那一個就三種一起來。</remarks>
     [Theory]
-    [InlineData("SN")]
-    [InlineData("SO")]
-    [InlineData("TT")]
-    public void 少見的三種進收納桶(string type)
+    [InlineData("SN", "catalog.synonym")]
+    [InlineData("SO", "catalog.sequence")]
+    [InlineData("TT", "catalog.table-type")]
+    public void 少見的三種各自一個分類(string type, string expected)
     {
-        Assert.Equal(
-            SqlCatalogSearchCategories.OtherCategoryId,
-            SqlCatalogSearchCategories.IdFor(SqlObjectKinds.FromSysObjectType(type)));
+        Assert.Equal(expected, SqlCatalogSearchCategories.IdFor(SqlObjectKinds.FromSysObjectType(type)));
     }
 
     /// <summary>
     /// 認不得的型別代碼沒有分類，呼叫端整筆跳過。
     /// </summary>
-    /// <remarks>
-    /// 丟進收納桶的話，使用者會看到一組點下去也沒有東西可以打開的結果——收納桶收的是
-    /// 「知道是什麼、只是不值得單獨一顆 pill」的三種，不是「這條路徑不知道那是什麼」。
-    /// </remarks>
+    /// <remarks>給它一個泛用分類的話，使用者會看到一組點下去也沒有東西可以打開的結果。</remarks>
     [Theory]
     [InlineData("")]
     [InlineData("ZZ")]
@@ -120,7 +116,6 @@ public sealed class SqlCatalogSearchCategoriesTests
 
         var ids = new HashSet<string>(categories.Select(category => category.Id), StringComparer.Ordinal);
         Assert.Contains(SqlCatalogSearchCategories.ConstraintCategoryId, ids);
-        Assert.Contains(SqlCatalogSearchCategories.OtherCategoryId, ids);
 
         foreach (var kind in IndexedKinds())
         {
@@ -128,31 +123,17 @@ public sealed class SqlCatalogSearchCategoriesTests
         }
     }
 
-    /// <summary>
-    /// 收納桶排在最後，而且自成一群。
-    /// </summary>
-    /// <remarks>
-    /// 只靠宣告順序的話，之後加一種新物件就會把收納桶往前推，而使用者每一次更新都要
-    /// 重新找那顆 pill 在哪裡。
-    /// </remarks>
+    /// <summary>目錄物件的分類全在同一群，順序就是宣告順序。</summary>
     [Fact]
-    public void 收納桶排在最後而且自成一群()
+    public void 目錄物件的分類同一群且依宣告排序()
     {
         var categories = SqlCatalogSearchCategories.Create(SqlCatalogSearchProvider.ProviderId);
-        var other = Assert.Single(categories, category => category.Id == SqlCatalogSearchCategories.OtherCategoryId);
 
+        Assert.All(categories, category => Assert.Equal(SqlCatalogSearchCategories.ObjectGroupId, category.GroupId));
         Assert.Equal(
-            other.SortOrder,
-            categories.Max(category => category.SortOrder));
-        Assert.Equal(SqlCatalogSearchCategories.OtherCategoryId, other.GroupId);
-
-        Assert.All(
-            categories.Where(category => category.Id != SqlCatalogSearchCategories.OtherCategoryId),
-            category =>
-            {
-                Assert.Equal(SqlCatalogSearchCategories.ObjectGroupId, category.GroupId);
-                Assert.True(category.SortOrder < other.SortOrder);
-            });
+            categories.Select(category => category.SortOrder).OrderBy(order => order),
+            categories.Select(category => category.SortOrder));
+        Assert.Equal("catalog.synonym", categories[categories.Count - 3].Id);
     }
 
     /// <summary>排序值不重複，否則兩顆 pill 的先後又回到宣告順序決定。</summary>

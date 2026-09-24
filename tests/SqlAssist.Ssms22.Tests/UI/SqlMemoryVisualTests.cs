@@ -15,6 +15,7 @@ using SqlAssist.Ssms22.UI;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.SqlMemory;
 using Xunit;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Ssms22.Tests.UI;
 
@@ -81,7 +82,7 @@ public sealed class SqlMemoryVisualTests
                 SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理"))
             { Margin = new Thickness(0, 4, 0, 6) };
             header.Children.Add(searchRow);
-            var footer = new SqlMemoryPager();
+            var footer = new SqlListPager();
             footer.Update(Footer(cursor: "next", loaded: 50));
             var list = new SqlMemoryList
             {
@@ -509,7 +510,7 @@ public sealed class SqlMemoryVisualTests
         return part.TranslatePoint(new Point(0, part.ActualHeight / 2), host).Y;
     }
 
-    private static SqlMemoryFooter Footer(string? cursor, int loaded, bool loading = false, DateTimeOffset? searchedThrough = null)
+    private static SqlListFooter Footer(string? cursor, int loaded, bool loading = false, DateTimeOffset? searchedThrough = null)
     {
         var model = new SqlMemoryBrowserModel();
         model.ObserveHost(true, 1);
@@ -528,18 +529,18 @@ public sealed class SqlMemoryVisualTests
     {
         WpfTest.Run(() =>
         {
-            var pager = new SqlMemoryPager();
+            var pager = new SqlListPager();
             var requests = 0; pager.LoadMoreRequested += (_, _) => requests++;
             var host = new Border { Child = pager, Width = 360 }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
             var palette = new ThemeResourceSet(); host.Resources.MergedDictionaries.Add(palette.Resources);
             void Layout() { host.Measure(new Size(360, 140)); host.Arrange(new Rect(0, 0, 360, 140)); host.UpdateLayout(); }
-            var states = new (string Name, SqlMemoryFooter Footer, SqlMemoryFooterKind Kind, bool Clickable)[]
+            var states = new (string Name, SqlListFooter Footer, SqlListFooterKind Kind, bool Clickable)[]
             {
-                ("more", Footer("next", 50), SqlMemoryFooterKind.More, true),
-                ("loading", Footer("next", 50, loading: true), SqlMemoryFooterKind.Loading, false),
-                ("search", Footer("next", 3, searchedThrough: new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)), SqlMemoryFooterKind.ContinueSearch, true),
-                ("end", Footer(null, 73), SqlMemoryFooterKind.End, false),
-                ("empty", Footer(null, 0), SqlMemoryFooterKind.Empty, false),
+                ("more", Footer("next", 50), SqlListFooterKind.More, true),
+                ("loading", Footer("next", 50, loading: true), SqlListFooterKind.Loading, false),
+                ("search", Footer("next", 3, searchedThrough: new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero)), SqlListFooterKind.ContinueSearch, true),
+                ("end", Footer(null, 73), SqlListFooterKind.End, false),
+                ("empty", Footer(null, 0), SqlListFooterKind.Empty, false),
             };
             Size? buttonSize = null;
             foreach (var (name, footer, kind, clickable) in states)
@@ -553,7 +554,7 @@ public sealed class SqlMemoryVisualTests
                 Assert.Equal(before + (clickable && pager.Button.IsEnabled ? 1 : 0), requests);
                 Assert.Equal(footer.ActionLabel is null ? Visibility.Collapsed : Visibility.Visible, pager.Button.Visibility);
                 // 載入中只換圖示與文字、按鈕停用，尺寸不跳。
-                if (kind is SqlMemoryFooterKind.More or SqlMemoryFooterKind.Loading)
+                if (kind is SqlListFooterKind.More or SqlListFooterKind.Loading)
                 {
                     Assert.True(buttonSize is null || Math.Abs(buttonSize.Value.Height - pager.Button.ActualHeight) < 0.5);
                     buttonSize = pager.Button.RenderSize;
@@ -579,7 +580,7 @@ public sealed class SqlMemoryVisualTests
                 new SqlMemoryRow(new SqlHistoryItem(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "id", DateTimeOffset.Now,
                     SqlHistoryFilter.Executions, "Loan " + index, "SELECT * FROM Loan;", null)) { IsNew = true }));
             var list = new SqlMemoryList { ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(motion: true) };
-            list.SetRowsSource(rows, new SqlMemoryPager());
+            list.SetRowsSource(rows, new SqlListPager());
             using var source = new HwndSource(new HwndSourceParameters("SQL Memory motion test") { Width = 440, Height = 300, WindowStyle = 0 });
             source.RootVisual = list;
             list.Measure(new Size(440, 300)); list.Arrange(new Rect(0, 0, 440, 300)); list.UpdateLayout();

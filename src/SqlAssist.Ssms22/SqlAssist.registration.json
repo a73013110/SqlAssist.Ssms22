@@ -818,6 +818,15 @@
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Memory", "查詢紀錄", "收藏" ]
     },
+    "sqlAssist.notifications.search": {
+      "type": "boolean",
+      "default": true,
+      "order": 305,
+      "title": "SQL Search",
+      "description": "SQL Search 的複製、套用查詢視窗連線、搜尋失敗與預覽標不齊命中。移至定義與在物件總管中選取歸在「移至定義」。",
+      "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
+      "additionalKeywords": [ "SQL Search", "搜尋" ]
+    },
     "sqlAssist.notifications.unclassified": {
       "type": "boolean",
       "default": true,

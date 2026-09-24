@@ -63,7 +63,7 @@
 
 moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 `sqlAssist.suggestions.triggerAfterCharacters`。「通知與背景工作」那一頁是
-`sqlAssist.notifications.*`，其中十一個種類開關不寫成 moniker 常數與屬性，改由
+`sqlAssist.notifications.*`，其中十二個種類開關不寫成 moniker 常數與屬性，改由
 `NotificationKindToggle.All` 那張表驅動，新增一個種類只動註冊檔與那張表。
 註冊檔在 [`src/SqlAssist.Ssms22/SqlAssist.registration.json`](../src/SqlAssist.Ssms22/SqlAssist.registration.json)，
 它是設定清單的唯一權威來源；四處對應與守門測試見[設定結構](settings-schema.md#新增一個設定)。

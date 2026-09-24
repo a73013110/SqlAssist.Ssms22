@@ -87,17 +87,15 @@ internal static partial class SqlSearchActivation
             : action;
     }
 
-    /// <summary>成功之後頁尾那一句；說得出視窗有沒有連線，使用者按 F5 之前就知道會跳連線對話框。</summary>
-    public static string DescribeOpened(SearchHit? hit, bool unconnected)
-    {
-        if (hit is null) return "";
-
-        var opened = "已在" + WindowNoun(unconnected) + "開啟 " + hit.Title + " 的" + SubjectNoun(hit);
-
-        return unconnected && OriginOf(hit) is { } origin
-            ? opened + "；按 F5 時請連到 " + origin + "。"
-            : opened + "。";
-    }
+    /// <summary>
+    /// 成功那一則通知上的附註：未連線時說該連哪一台；有連線時沒有話要說，是空字串。
+    /// </summary>
+    /// <remarks>
+    /// 「已開啟…」由通知標題轉過去式說，主體是那一筆的名稱，這裡只補標題說不出來的那一件事：
+    /// 使用者要在按 F5 之前就知道會跳連線對話框、該填哪一台。
+    /// </remarks>
+    public static string OpenedNote(SearchHit? hit, bool unconnected) =>
+        unconnected && OriginOf(hit) is { } origin ? "按 F5 時請連到 " + origin + "。" : "";
 
     /// <summary>
     /// 未連線視窗開頭那幾行註解：來源伺服器與資料庫；不是伺服器上的東西時為空字串。
@@ -199,16 +197,4 @@ internal static partial class SqlSearchActivation
         job.StepId is { } step
             ? $"在{WindowNoun(unconnected)}開啟 {job.ServerName} 上 {job.JobName} 第 {step} 步的命令"
             : $"在{WindowNoun(unconnected)}開啟 {job.ServerName} 上 {job.JobName} 的所有步驟命令";
-
-    /// <summary>
-    /// 這一筆開出來的東西叫什麼；工具窗的進行中與完成訊息共用同一個詞。
-    /// </summary>
-    /// <remarks>
-    /// 交出一個名詞而不是整句，是為了讓辨識酬載型別仍然只發生在這一支：工具窗要組
-    /// 「正在取得 X 的○○…」與「已在新查詢視窗開啟 X 的○○。」兩句，自己 <c>is</c>
-    /// 一次型別就破了那條紅線。寫死成「定義」的症狀是作業那幾列說「已開啟…的定義」，
-    /// 而作業根本沒有定義。
-    /// </remarks>
-    public static string SubjectNoun(SearchHit? hit) =>
-        hit?.ActivatePayload is SqlAgentJobSearchTarget ? "命令" : "定義";
 }

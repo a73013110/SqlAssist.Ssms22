@@ -3,6 +3,7 @@ using System.Linq;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Core.Tests.SqlMemory;
 
@@ -156,11 +157,11 @@ public sealed class SqlMemoryBrowserModelTests
         Assert.True(model.CanLoadMore);
         Assert.False(model.CanAutoLoadMore);
         var footer = model.Footer(0);
-        Assert.Equal((SqlMemoryFooterKind.ContinueSearch, "繼續搜尋", "符合 0 筆"), (footer.Kind, footer.ActionLabel, footer.Summary));
+        Assert.Equal((SqlListFooterKind.ContinueSearch, "繼續搜尋", "符合 0 筆"), (footer.Kind, footer.ActionLabel, footer.Summary));
         Assert.StartsWith("已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd"), footer.Hint);
         model.Invalidate(Now);
         Assert.Null(model.SearchProgress);
-        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(0).Kind);
+        Assert.Equal(SqlListFooterKind.Hidden, model.Footer(0).Kind);
         var empty = model.BeginLoad()!;
         Assert.True(model.Accept(empty, HistoryPage(null)));
         Assert.Equal(("沒有符合條件的項目", "可清除搜尋或放寬期間與範圍"), (model.Footer(0).Summary, model.Footer(0).Hint));
@@ -172,24 +173,24 @@ public sealed class SqlMemoryBrowserModelTests
     {
         var model = Ready();
         var first = model.BeginLoad()!;
-        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(0).Kind);
+        Assert.Equal(SqlListFooterKind.Hidden, model.Footer(0).Kind);
         Assert.True(model.Accept(first, HistoryPage("next")));
         model.End(first);
 
         var more = model.Footer(50);
-        Assert.Equal((SqlMemoryFooterKind.More, "已載入 50 筆", "載入更多", true), (more.Kind, more.Summary, more.ActionLabel, more.CanAct));
+        Assert.Equal((SqlListFooterKind.More, "已載入 50 筆", "載入更多", true), (more.Kind, more.Summary, more.ActionLabel, more.CanAct));
         Assert.True(model.CanAutoLoadMore);
 
         var second = model.BeginLoad()!;
         var loading = model.Footer(50);
-        Assert.Equal((SqlMemoryFooterKind.Loading, "載入中…", false), (loading.Kind, loading.ActionLabel, loading.CanAct));
+        Assert.Equal((SqlListFooterKind.Loading, "載入中…", false), (loading.Kind, loading.ActionLabel, loading.CanAct));
         Assert.True(model.Accept(second, HistoryPage(null)));
         model.End(second);
 
         var end = model.Footer(73);
-        Assert.Equal((SqlMemoryFooterKind.End, "已顯示全部 73 筆", null), (end.Kind, end.Summary, end.ActionLabel));
+        Assert.Equal((SqlListFooterKind.End, "已顯示全部 73 筆", null), (end.Kind, end.Summary, end.ActionLabel));
         Assert.True(model.ObserveHost(false, 1));
-        Assert.Equal(SqlMemoryFooterKind.Hidden, model.Footer(73).Kind);
+        Assert.Equal(SqlListFooterKind.Hidden, model.Footer(73).Kind);
     }
 
     [Fact]

@@ -28,7 +28,7 @@ public sealed class SqlSearchVisualTests
             var palette = new ThemeResourceSet();
             var rows = Rows();
             var list = new SqlSearchList();
-            list.SetRowsSource(rows);
+            list.SetRowsSource(rows, new SqlListPager());
             list.SelectedIndex = 0;
 
             var surface = new Border { Child = list }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
@@ -74,7 +74,7 @@ public sealed class SqlSearchVisualTests
         {
             var rows = Rows();
             var list = new SqlSearchList();
-            list.SetRowsSource(rows);
+            list.SetRowsSource(rows, new SqlListPager());
 
             var host = new Border { Child = list };
             host.Measure(new Size(520, 400));
@@ -392,7 +392,7 @@ public sealed class SqlSearchVisualTests
             // 前面，那兩種回饋照常出現。
             var filter = SqlAssistChrome.CreateFilterButtonTemplate();
             var narrowed = Assert.IsType<Trigger>(filter.Triggers[0]);
-            Assert.Equal(SqlFilterFlyout.IsNarrowedProperty, narrowed.Property);
+            Assert.Equal(SqlFilterFlyout.HasSelectionProperty, narrowed.Property);
 
             foreach (var template in new[] { card, option, segment, toggle, filter })
             foreach (var trigger in template.Triggers.OfType<Trigger>())

@@ -275,9 +275,9 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal("[dbo].[CK_Loan_CopyNo]", hit.Title);
     }
 
-    /// <summary>序列、同義字與資料表型別都掛在收納桶上。</summary>
+    /// <summary>序列、同義字與資料表型別各自掛在自己的分類上。</summary>
     [Fact]
-    public async Task 收納桶收得到序列同義字與資料表型別()
+    public async Task 序列同義字與資料表型別各有分類()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
@@ -287,8 +287,9 @@ public sealed class SqlCatalogSearchProviderTests
 
         var sink = await RunAsync(server, new SearchQuery("Loan"));
 
-        Assert.Equal(3, sink.Hits.Count);
-        Assert.All(sink.Hits, hit => Assert.Equal(SqlCatalogSearchCategories.OtherCategoryId, hit.CategoryId));
+        Assert.Equal(
+            new[] { "catalog.sequence", "catalog.synonym", "catalog.table-type" },
+            sink.Hits.Select(hit => hit.CategoryId).OrderBy(id => id, StringComparer.Ordinal));
     }
 
     [Fact]

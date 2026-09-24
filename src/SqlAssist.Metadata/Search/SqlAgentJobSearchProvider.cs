@@ -24,7 +24,7 @@ namespace SqlAssist.Metadata.Search;
 /// 對一個「本來就多半讀不到」的來源，那等於每一次搜尋都在報錯。
 /// 空白（什麼都不說）更糟：與「這台伺服器上真的沒有叫這個名字的作業」一模一樣。
 /// 走的是中間那條：<see cref="ISearchSink.ReportUnavailable(string)"/> 帶上這個來源
-/// 自己寫的那一句話，整輪標記成部分結果，而呼叫端原樣把它貼在狀態列上。
+/// 自己寫的那一句話，整輪標記成部分結果，而呼叫端原樣把它貼在清單頁尾上。
 /// </remarks>
 public sealed class SqlAgentJobSearchProvider : ISearchProvider
 {
@@ -32,7 +32,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     public const string ProviderId = "agent-job";
 
     /// <summary>
-    /// 讀不到 <c>msdb</c> 時交給呼叫端貼在狀態列上的那一句話。
+    /// 讀不到 <c>msdb</c> 時交給呼叫端貼在清單頁尾上的那一句話。
     /// </summary>
     /// <remarks>
     /// 由這個來源自己寫，不是呈現那一層照 provider Id 查一張表：查表的那一版每多一個

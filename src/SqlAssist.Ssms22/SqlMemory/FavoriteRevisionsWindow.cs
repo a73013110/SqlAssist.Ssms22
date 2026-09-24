@@ -35,7 +35,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
     private readonly SqlFavoriteRevisionTimeline _timeline;
     private readonly ObservableCollection<SqlFavoriteRevisionRow> _rows = new();
     private readonly SqlFavoriteRevisionList _list = new();
-    private readonly SqlMemoryPager _pager = new();
+    private readonly SqlListPager _pager = new();
     private readonly SqlStateSurface _timelineLoading;
     private readonly SqlTextDiffView _diff = new();
     private readonly SqlReadOnlyViewer _viewer = new();

@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Search;
@@ -23,6 +26,10 @@ namespace SqlAssist.Ssms22.Search;
 ///
 /// <b>選取變更一定要去彈跳加取消。</b>使用者用方向鍵在清單上捲過去時，每一列都發一輪
 /// 第三／四層查詢會把中繼資料連線打滿，而那幾十輪裡他只看了最後一列。
+///
+/// 工具列與 SQL Memory 預覽同一種排法：命中導覽 → 與清單同一份、同一個順序的列操作
+/// （<see cref="SqlSearchRowCommand.All"/>）→ 作用在畫面上這份定義的「複製定義」→ 換行靠右。
+/// 沒有狀態列：標不齊命中與複製失敗都走通知。
 /// </remarks>
 internal sealed class SqlSearchPreview : UserControl, IDisposable
 {
@@ -31,24 +38,27 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly SqlHighlightText _snippet = new();
     private readonly Border _snippetSurface;
-    private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly Grid _body = new();
     private readonly DockPanel _content;
     private readonly Button _copyScript;
     private readonly ToggleButton _wrap;
     private readonly SqlMatchNavigation _matches;
     private readonly WrapPanel _tools = new();
+    private readonly List<Button> _rowActions = new();
     private readonly DockPanel _toolbar;
     private readonly SqlSelectionLoader<SqlSearchRow> _selection;
     private bool _disposed;
 
-    public SqlSearchPreview(SqlSearchCatalogs catalogs)
+    /// <param name="runAction">
+    /// 列操作交回清單那一條路（<c>SqlSearchBrowser.RunRowAction</c>）：預覽顯示的就是清單的焦點列，
+    /// 兩邊各寫一份實作的症狀是同一顆按鈕在清單與預覽上做了不同的事。
+    /// </param>
+    public SqlSearchPreview(SqlSearchCatalogs catalogs, Action<SqlSearchRowAction> runAction)
     {
         _loader = new SqlSearchDefinitionLoader(catalogs);
 
-        // 這一顆複製的是畫面上這一份定義，不是名稱：使用者按預覽裡的複製，要的是
-        // 他正在看的那段結構描述；名稱在清單的右鍵選單上（「複製名稱」），那裡才是
-        // 「這一列是什麼」的位置。
+        // 這一顆複製的是畫面上這一份定義，不是名稱：名稱是列操作的「複製限定名稱」，
+        // 排在前面那一群；這一顆作用在畫面上的內容，所以隔一條群界線。
         _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製定義");
         _copyScript.Click += (_, _) => Guarded(() => _viewer.CopyAll());
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
@@ -66,7 +76,8 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _snippetSurface.VerticalAlignment = VerticalAlignment.Top;
         _snippetSurface.Visibility = Visibility.Collapsed;
 
-        _viewer.ReportError = Report;
+        _viewer.ReportError = message => SqlSearchBrowser.Notify(
+            NotificationCatalog.CopyingDefinition, NotificationStatus.Failed, Current?.Title ?? "", message);
         _matches = new SqlMatchNavigation(_viewer);
         _surface = new SqlStateSurface(_viewer);
 
@@ -77,18 +88,15 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
         // 導覽與界線排在最前面、換行在右緣，排法與 SQL Memory 預覽同一份（SqlMatchNavigation、CreatePreviewToolbar）。
         foreach (var item in _matches.ToolbarItems) _tools.Children.Add(item);
-        _tools.Children.Add(_copyScript);
+        foreach (var command in SqlSearchRowCommand.All) _tools.Children.Add(CreateRowAction(command, runAction));
+        SqlAssistChrome.AddToolbarAction(_tools, _copyScript, separated: true);
         _toolbar = SqlAssistChrome.CreatePreviewToolbar(_tools, _wrap);
-
-        _status.TextWrapping = TextWrapping.Wrap;
 
         // 內容第一列直接是工具列：這一筆是什麼，全部交給主從區抬頭上那一列膠囊，
         // 內容裡不再放一份只換了排列順序的同樣文字。
         _content = new DockPanel();
         DockPanel.SetDock(_toolbar, Dock.Top);
         _content.Children.Add(_toolbar);
-        DockPanel.SetDock(_status, Dock.Bottom);
-        _content.Children.Add(_status);
         _content.Children.Add(_body);
         Content = _content;
 
@@ -116,6 +124,26 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         // 那一塊沒有字的灰色方塊——看起來像是有一筆結果，只是它的名稱沒載進來。
         Visibility = Visibility.Collapsed
     };
+
+    /// <summary>
+    /// 預覽工具列上的一顆列操作：可用性、名稱與提示繫結在這一列上，與清單卡片讀同一組屬性。
+    /// </summary>
+    /// <remarks>
+    /// 在這裡判斷一次的症狀正是清單上那一顆變灰、預覽上的同一顆卻按得下去。主要動作只換靜止底色，
+    /// 位置仍照共用順序排在操作的最前面，與 SQL Memory 預覽同一條規則。
+    /// </remarks>
+    private Button CreateRowAction(SqlSearchRowCommand command, Action<SqlSearchRowAction> runAction)
+    {
+        var button = SqlAssistChrome.CreateIconButton(command.Icon, command.Label);
+        if (command.IsPrimary) button.Template = SqlAssistChrome.CreatePrimaryButtonTemplate();
+        if (command.AvailabilityPath is { } availability) button.SetBinding(IsEnabledProperty, new Binding(availability));
+        if (command.LabelPath is { } label) button.SetBinding(AutomationProperties.NameProperty, new Binding(label));
+        if (command.ToolTipPath is { } toolTip) button.SetBinding(ToolTipProperty, new Binding(toolTip));
+        var action = command.Action;
+        button.Click += (_, _) => Guarded(() => runAction(action));
+        _rowActions.Add(button);
+        return button;
+    }
 
     /// <summary>目前顯示的那一筆；沒有選取時 null。</summary>
     public SqlSearchRow? Current => _selection.Current;
@@ -153,7 +181,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _matches.Clear();
         _surface.State = SqlSurfaceState.None;
         _snippetSurface.Visibility = Visibility.Collapsed;
-        Report("");
+        foreach (var button in _rowActions) button.DataContext = row;
 
         // 抬頭那一列直接吃這一筆；分類與命中部位是兩件事，同一個物件可以同時被名稱與本文命中，
         // 所以兩顆膠囊各自出現，不併成一句話。
@@ -214,8 +242,12 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
             // 對不上時不高亮也不捲動，但要說一句：整份定義從頭顯示而沒有任何標記時，
             // 使用者會以為是面板壞了，而不是這一筆的位置對不起來。
             // 比對的是命中原本那幾段，不是清單攤平之後留下來的：攤平會丟掉被切掉的區段，
-            // 拿它判斷會在「片段太長」時誤報成對不上。
-            Report(highlights.Notice(row.Hit.SnippetSpans.Count == 0 ? null : Unmatched));
+            // 拿它判斷會在「片段太長」時誤報成對不上。拿到了定義、只是標不齊，所以是降級。
+            if (highlights.Notice(row.Hit.SnippetSpans.Count == 0 ? null : Unmatched) is { Length: > 0 } notice)
+            {
+                SqlSearchBrowser.Notify(NotificationCatalog.HighlightingMatches, NotificationStatus.Degraded, row.Title, notice);
+            }
+
             SqlAssistChrome.PlayAppear(_body);
         }
         finally
@@ -228,15 +260,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     /// <summary>命中位置對不上這一份定義時的那一句；少標了的那一句在 <see cref="MatchHighlightSet.Notice"/>，兩個預覽共用。</summary>
     private const string Unmatched = "命中位置對不上這一份定義，已顯示完整定義。";
 
-    private void Report(string message)
-    {
-        if (_disposed) return;
-        _status.Text = message;
-        _status.ToolTip = message.Length == 0 ? null : message;
-        _status.Visibility = message.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-    }
-
-    // 使用者自己按的按鈕失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是回到狀態列。
+    // 使用者自己按的按鈕失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是送通知。
     private void Guarded(Action action) => _ = RunAsync(() => { action(); return Task.CompletedTask; });
 
     private async Task RunAsync(Func<Task> action)
@@ -252,7 +276,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         catch (Exception error)
         {
             SqlAssistDiagnostics.WriteAlways("SQL Search 預覽失敗：" + error.Message);
-            Report(error.Message);
+            if (!_disposed) SqlSearchBrowser.Notify(NotificationCatalog.RunningSearchAction, NotificationStatus.Failed, message: error.Message);
         }
     }
 }

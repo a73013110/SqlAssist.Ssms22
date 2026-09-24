@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Lists;
 using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -92,56 +93,6 @@ public sealed class SqlMemoryQuery
 
     public SqlFavoriteRequest FavoriteRequest(int pageSize, string? cursor) =>
         new(pageSize, _servers, _databases, _search, cursor, _matchOptions);
-}
-
-public enum SqlMemoryFooterKind
-{
-    /// <summary>不可用或第一頁載入中；第一頁由表面載入圖示表達，頁尾不佔位置。</summary>
-    Hidden,
-
-    /// <summary>已載入完畢且沒有任何項目。</summary>
-    Empty,
-
-    /// <summary>還有下一頁；捲到底或按下都會續頁。</summary>
-    More,
-
-    /// <summary>搜尋用盡單頁預算；必須由使用者明確續搜。</summary>
-    ContinueSearch,
-
-    /// <summary>已有項目、正在載入下一頁；進度留在原地，不遮住已載入的清單。</summary>
-    Loading,
-
-    /// <summary>全部載入完畢。</summary>
-    End,
-}
-
-/// <summary>清單頁尾的呈現：UI 只照著畫，文案與狀態轉換都在這裡決定。</summary>
-public sealed class SqlMemoryFooter
-{
-    internal SqlMemoryFooter(SqlMemoryFooterKind kind, string summary, string? hint = null, string? actionLabel = null)
-    {
-        Kind = kind;
-        Summary = summary;
-        Hint = hint;
-        ActionLabel = actionLabel;
-    }
-
-    /// <summary>不佔位置的那一份；呼叫端把某一種狀態交給別的表面時用它蓋掉頁尾。</summary>
-    public static SqlMemoryFooter Hidden { get; } = new(SqlMemoryFooterKind.Hidden, "");
-
-    public SqlMemoryFooterKind Kind { get; }
-
-    /// <summary>頁尾中央的單行摘要，例如筆數。</summary>
-    public string Summary { get; }
-
-    /// <summary>摘要下方的淡色說明；沒有時為 null。</summary>
-    public string? Hint { get; }
-
-    /// <summary>頁尾按鈕文字；null 表示沒有按鈕。</summary>
-    public string? ActionLabel { get; }
-
-    /// <summary>按鈕是否可按；載入中的按鈕保留位置但停用。</summary>
-    public bool CanAct => Kind is SqlMemoryFooterKind.More or SqlMemoryFooterKind.ContinueSearch;
 }
 
 /// <summary>
@@ -310,29 +261,29 @@ public sealed class SqlMemoryBrowserModel
     /// 續頁中的進度留在頁尾原地，第一頁才交給表面載入圖示。
     /// </summary>
     /// <param name="loadedCount">目前清單的列數；刪除列之後也用它重算。</param>
-    public SqlMemoryFooter Footer(int loadedCount)
+    public SqlListFooter Footer(int loadedCount)
     {
         if (loadedCount < 0) throw new ArgumentOutOfRangeException(nameof(loadedCount));
         // 這一輪還沒採用過任何一頁（剛換篩選、被擋下或第一頁載入中）：不能先說「沒有符合條件」。
-        if (!IsAvailable || !_hasPage) return new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "");
+        if (!IsAvailable || !_hasPage) return new SqlListFooter(SqlListFooterKind.Hidden, "");
         var loaded = Count(loadedCount);
         if (_page.Loading)
         {
             return loadedCount == 0
-                ? new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "")
-                : new SqlMemoryFooter(SqlMemoryFooterKind.Loading, loaded, SearchProgress,
+                ? new SqlListFooter(SqlListFooterKind.Hidden, "")
+                : new SqlListFooter(SqlListFooterKind.Loading, loaded, SearchProgress,
                     SearchProgress == null ? "載入中…" : "搜尋中…");
         }
         if (_page.Cursor != null)
         {
             return SearchProgress == null
-                ? new SqlMemoryFooter(SqlMemoryFooterKind.More, loaded, null, "載入更多")
-                : new SqlMemoryFooter(SqlMemoryFooterKind.ContinueSearch, "符合 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆",
+                ? new SqlListFooter(SqlListFooterKind.More, loaded, null, "載入更多")
+                : new SqlListFooter(SqlListFooterKind.ContinueSearch, "符合 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆",
                     SearchProgress + "，繼續搜尋可再往前找", "繼續搜尋");
         }
         return loadedCount == 0
-            ? new SqlMemoryFooter(SqlMemoryFooterKind.Empty, "沒有符合條件的項目", "可清除搜尋或放寬期間與範圍")
-            : new SqlMemoryFooter(SqlMemoryFooterKind.End, "已顯示全部 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆");
+            ? new SqlListFooter(SqlListFooterKind.Empty, "沒有符合條件的項目", "可清除搜尋或放寬期間與範圍")
+            : new SqlListFooter(SqlListFooterKind.End, "已顯示全部 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆");
     }
 
     private static string Count(int loadedCount) => "已載入 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆";

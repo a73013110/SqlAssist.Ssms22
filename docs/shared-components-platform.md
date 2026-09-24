@@ -38,7 +38,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 查詢視窗的伺服器與資料庫、連線字串裡的伺服器名稱 | `Ssms22/Connections/SqlWindowConnections.cs` |
 | Chevron、圖示按鈕／開關、兩級分隔線、工具列操作與預覽工具列 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` |
 | 卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
-| 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs` |
+| 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs`；頁尾的呈現是 `SqlListPager.cs`（Memory、版本歷史與 Search 共用） |
 | 清單多選：以 Id 為鍵的勾選、錨點、全部符合與動作派送 | `Ssms22/UI/SqlCardSelection.cs`（清單端是 `SqlCardListBase.EnableSelection`） |
 | 多選模式的勾選欄、可繼承的多選狀態與勾選外觀 | `Ssms22/UI/SqlRowCheck.cs`、`SqlAssistChrome.Selection.cs` |
 | 蓋在輸入列上的選取工具列（筆數、全選、動作、進度與取消） | `Ssms22/UI/SqlSelectionBar.cs` |

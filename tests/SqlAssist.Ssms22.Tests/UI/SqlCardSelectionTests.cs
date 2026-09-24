@@ -483,7 +483,7 @@ public sealed class SqlCardSelectionTests
                 return Task.FromResult(true);
             }, shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
             var list = new SqlSearchList();
-            list.SetRowsSource(rows);
+            list.SetRowsSource(rows, new SqlListPager());
             list.EnableSelection(selection);
             var single = new List<SqlSearchRowAction>();
             list.RowActionRequested += single.Add;

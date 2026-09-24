@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Lists;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.Search;
@@ -127,7 +128,7 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Contains(SqlEditorConnectionText.ApplyAction, surface.Detail);
         // 死路要有出口：那一句話說不出「按這裡就好」。
         Assert.Equal(SqlSearchBrowserModel.ChooseServerAction, surface.ActionLabel);
-        Assert.Equal("", model.Status(0));
+        Assert.Equal(SqlListFooterKind.Hidden, model.Footer(0).Kind);
     }
 
     [Fact]
@@ -182,7 +183,7 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 狀態文字只回報筆數部分結果與失敗()
+    public void 頁尾回報筆數且沒有多餘的說明()
     {
         var aggregator = new SearchAggregator(
             new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table", "Loan", "LoanDetail") });
@@ -193,7 +194,11 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, results));
         model.End(round);
 
-        Assert.Equal("找到 2 項", model.Status(2));
+        var footer = model.Footer(2);
+        Assert.Equal(SqlListFooterKind.End, footer.Kind);
+        Assert.Equal("找到 2 項", footer.Summary);
+        Assert.Null(footer.Hint);
+        Assert.Null(footer.ActionLabel);
         Assert.Equal(SqlSurfaceKind.None, model.Surface(2).Kind);
     }
 
@@ -207,7 +212,7 @@ public sealed class SqlSearchBrowserModelTests
         var partial = model.Begin(indexed: true)!;
         Assert.True(model.Accept(partial, Search(aggregator, partial.Query)));
         model.End(partial);
-        Assert.Contains("部分結果", model.Status(1));
+        Assert.Equal(SqlSearchBrowserModel.PartialHint, model.Footer(1).Hint);
 
         var empty = new SqlSearchBrowserModel { HasConnection = true, Text = "Branch" };
         var none = new SearchAggregator(new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table") });
@@ -215,7 +220,7 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(empty.Accept(round, Search(none, round.Query)));
         empty.End(round);
 
-        Assert.Equal("", empty.Status(0));
+        Assert.Equal(SqlListFooterKind.Hidden, empty.Footer(0).Kind);
         var blank = empty.Surface(0);
         Assert.Equal(SqlSurfaceKind.Empty, blank.Kind);
         Assert.Equal("沒有相符項目", blank.Title);
@@ -236,31 +241,39 @@ public sealed class SqlSearchBrowserModelTests
     }
 
     [Fact]
-    public void 狀態的種類換了才算換一種說法()
+    public void 重搜中與整輪失敗時頁尾說清楚清單是哪一份()
     {
         var aggregator = new SearchAggregator(
             new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table", "Loan", "LoanDetail") });
         var model = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
-        Assert.Equal(SqlSearchStatusTone.None, model.Tone);
 
         var round = model.Begin(indexed: true)!;
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
-        Assert.Equal(SqlSearchStatusTone.Result, model.Tone);
+        Assert.Equal("", model.Failure);
 
-        var partial = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
-        var truncating = new SearchAggregator(
-            new ISearchProvider[] { new StubProvider("catalog", "catalog.table", "Table", "Loan") { Truncate = true } });
-        var next = partial.Begin(indexed: true)!;
-        Assert.True(partial.Accept(next, Search(truncating, next.Query)));
-        Assert.Equal(SqlSearchStatusTone.Partial, partial.Tone);
+        // 換了條件：清單還是上一輪的兩列，進度留在頁尾原地，不蓋住它們。
+        model.Text = "LoanDetail";
+        model.Invalidate();
+        var waiting = model.Footer(2);
+        Assert.Equal(SqlListFooterKind.Loading, waiting.Kind);
+        Assert.Equal(SqlSearchBrowserModel.SearchingLabel, waiting.ActionLabel);
 
-        partial.Fail(next, "搜尋失敗：連線中斷。");
-        Assert.Equal(SqlSearchStatusTone.Failure, partial.Tone);
+        var next = model.Begin(indexed: true)!;
+        Assert.Equal(SqlListFooterKind.Loading, model.Footer(2).Kind);
+
+        // 整輪失敗而清單還留著上一輪的列：要說那是上一輪的，否則會被當成這一次的答案。
+        model.Fail(next, "搜尋失敗：連線中斷。");
+        model.End(next);
+        var failed = model.Footer(2);
+        Assert.Equal("這一輪搜尋失敗", failed.Summary);
+        Assert.Contains("上一輪", failed.Hint);
+        Assert.Contains("連線中斷", failed.Hint);
+        Assert.Equal("搜尋失敗：連線中斷。", model.Failure);
     }
 
     [Fact]
-    public void 來源失敗寫進狀態列而不是讓清單整份消失()
+    public void 來源失敗寫進頁尾而不是讓清單整份消失()
     {
         var aggregator = new SearchAggregator(new ISearchProvider[]
         {
@@ -273,8 +286,10 @@ public sealed class SqlSearchBrowserModelTests
         var results = Search(aggregator, round.Query);
 
         Assert.True(model.Accept(round, results));
+        model.End(round);
         Assert.Single(results.Hits);
-        Assert.Contains("memory", model.Status(1));
+        Assert.Contains("memory", model.Footer(1).Hint);
+        Assert.Contains("memory", model.Failure);
     }
 
     /// <summary>
@@ -302,11 +317,12 @@ public sealed class SqlSearchBrowserModelTests
         model.End(round);
 
         // 那一句話原樣來自 provider；這一層一個字都不加，也不認得任何一個 provider 的常數。
-        Assert.Equal("找到 1 項。作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
-            model.Status(1));
+        var footer = model.Footer(1);
+        Assert.Equal("找到 1 項", footer.Summary);
+        Assert.Equal("作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。", footer.Hint);
 
-        // 讀不到不是失敗：頁尾不該變成紅字，對一個多半讀不到的來源那等於每次搜尋都在報錯。
-        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+        // 讀不到不是失敗：不送失敗通知，對一個多半讀不到的來源那等於每次搜尋都在報錯。
+        Assert.Equal("", model.Failure);
     }
 
     /// <summary>一筆都沒有時，「讀不到」那一句仍然要說。</summary>
@@ -330,7 +346,7 @@ public sealed class SqlSearchBrowserModelTests
         model.End(round);
 
         // 一列都沒有：那一句搬到畫面中央，頁尾讓開，兩處各說一次會讀成兩件事。
-        Assert.Equal("", model.Status(0));
+        Assert.Equal(SqlListFooterKind.Hidden, model.Footer(0).Kind);
         var unavailable = model.Surface(0);
         // 抬頭是「這一輪讀不到」：provider 沒有說得出「就是權限」。斷言權限的那一版會在
         // 伺服器斷線的那一次叫使用者去查一個好好的權限設定。
@@ -372,8 +388,8 @@ public sealed class SqlSearchBrowserModelTests
         // 說明仍然原樣來自 provider：抬頭換了，這一層照樣不寫文案。
         Assert.StartsWith("SQL Agent 作業這一輪讀不到", denied.Detail);
 
-        // 抬頭換了不代表它變成失敗；頁尾的語氣仍然是部分結果。
-        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+        // 抬頭換了不代表它變成失敗；不送失敗通知。
+        Assert.Equal("", model.Failure);
     }
 
     /// <summary>
@@ -468,7 +484,7 @@ public sealed class SqlSearchBrowserModelTests
 
         Assert.Equal("作業讀不到。（另有 1 個來源這一輪也讀不到）", model.Surface(0).Detail);
         Assert.Equal(SqlSurfaceKind.Unreadable, model.Surface(0).Kind);
-        Assert.Equal(SqlSearchStatusTone.Partial, model.Tone);
+        Assert.Equal("", model.Failure);
     }
 
     /// <summary>
@@ -492,8 +508,7 @@ public sealed class SqlSearchBrowserModelTests
         Assert.True(model.Accept(round, Search(aggregator, round.Query)));
         model.End(round);
 
-        Assert.Equal("找到 1 項。作業讀不到。", model.Status(1));
-        Assert.DoesNotContain("縮小範圍", model.Status(1));
+        Assert.Equal("作業讀不到。", model.Footer(1).Hint);
     }
 
     [Fact]

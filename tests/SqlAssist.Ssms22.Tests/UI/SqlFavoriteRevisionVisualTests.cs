@@ -72,7 +72,7 @@ public sealed class SqlFavoriteRevisionVisualTests
             var palette = new ThemeResourceSet();
             palette.Update(ThemePaletteTests.ColorsFor("dark"));
             list.Resources.MergedDictionaries.Add(palette.Resources);
-            list.SetRowsSource(rows, new SqlMemoryPager());
+            list.SetRowsSource(rows, new SqlListPager());
             using var source = new HwndSource(new HwndSourceParameters("SQL Memory revision test") { Width = 360, Height = 400, WindowStyle = 0 });
             source.RootVisual = list;
             list.Measure(new Size(360, 400)); list.Arrange(new Rect(0, 0, 360, 400)); list.UpdateLayout();

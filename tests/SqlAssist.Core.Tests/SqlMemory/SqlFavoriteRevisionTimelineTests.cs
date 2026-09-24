@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using SqlAssist.Core.SqlMemory;
 using Xunit;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Core.Tests.SqlMemory;
 
@@ -30,7 +31,7 @@ public sealed class SqlFavoriteRevisionTimelineTests
     public void PagesFollowTheCursorAndRejectStaleGenerations()
     {
         var timeline = new SqlFavoriteRevisionTimeline(FavoriteId, "c3", 20, pageSize: 2);
-        Assert.Equal(SqlMemoryFooterKind.Hidden, timeline.Footer().Kind);
+        Assert.Equal(SqlListFooterKind.Hidden, timeline.Footer().Kind);
         var first = timeline.BeginFirstPage(out var generation);
         Assert.Null(first.Cursor);
         Assert.Equal(2, first.PageSize);
@@ -39,16 +40,16 @@ public sealed class SqlFavoriteRevisionTimelineTests
         Assert.NotNull(initial);
         // 開窗的第一頁不播進場，否則整份清單一起跳動。
         Assert.Empty(initial);
-        Assert.Equal(SqlMemoryFooterKind.More, timeline.Footer().Kind);
+        Assert.Equal(SqlListFooterKind.More, timeline.Footer().Kind);
 
         var next = timeline.BeginNextPage(out var nextGeneration);
         Assert.Equal("p2", next?.Cursor);
-        Assert.Equal(SqlMemoryFooterKind.Loading, timeline.Footer().Kind);
+        Assert.Equal(SqlListFooterKind.Loading, timeline.Footer().Kind);
         var stale = timeline.BeginFirstPage(out var reload);
         Assert.Null(timeline.Accept(nextGeneration, Page(null, Item(1))));
         Assert.NotNull(timeline.Accept(reload, Page(null, timeline.Items.ToArray())));
         Assert.Equal(2, timeline.Items.Count);
-        Assert.Equal(SqlMemoryFooterKind.End, timeline.Footer().Kind);
+        Assert.Equal(SqlListFooterKind.End, timeline.Footer().Kind);
         Assert.Null(stale.Cursor);
     }
 
@@ -113,6 +114,6 @@ public sealed class SqlFavoriteRevisionTimelineTests
         var removed = new SqlFavoriteRevisionTimeline(FavoriteId, "c", 20);
         removed.BeginFirstPage(out generation);
         removed.Accept(generation, Page(null));
-        Assert.Equal(SqlMemoryFooterKind.Empty, removed.Footer().Kind);
+        Assert.Equal(SqlListFooterKind.Empty, removed.Footer().Kind);
     }
 }

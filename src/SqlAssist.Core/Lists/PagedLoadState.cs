@@ -1,4 +1,4 @@
-namespace SqlAssist.Core.SqlMemory;
+namespace SqlAssist.Core.Lists;
 
 /// <summary>清單只接受目前篩選世代的回應；取消無法撤回已派送的隔離呼叫。</summary>
 public sealed class PagedLoadState

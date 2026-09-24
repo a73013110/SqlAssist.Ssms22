@@ -45,10 +45,7 @@ internal static partial class SqlIcons
 
         foreach (SqlObjectKind kind in Enum.GetValues(typeof(SqlObjectKind)))
         {
-            if (SqlCatalogSearchCategories.IdFor(kind) is not { } id) continue;
-
-            // 收納桶那幾種對到同一個 Id，只取先出現的那一顆。
-            if (!map.ContainsKey(id)) map[id] = CategoryDefinition(kind).Moniker;
+            if (SqlCatalogSearchCategories.IdFor(kind) is { } id) map[id] = CategoryDefinition(kind).Moniker;
         }
 
         // SQL Agent 作業不是目錄物件，沒有 SqlObjectKind 可以反推，所以它的兩顆
@@ -63,10 +60,6 @@ internal static partial class SqlIcons
     private static Definition CategoryDefinition(SqlObjectKind kind) => kind switch
     {
         SqlObjectKind.Constraint => Constraint,
-
-        // 收納桶收的是序列、同義字與資料表型別三種。挑其中任何一顆，另外兩種看起來都像被歸錯了，
-        // 所以用「其他」本來的省略號——它回答的正是「這一顆不單獨佔一種」。
-        SqlObjectKind.Synonym or SqlObjectKind.Sequence or SqlObjectKind.TableType => Other,
         _ => GetDefinition(kind)
     };
 }

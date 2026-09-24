@@ -16,7 +16,8 @@
   （`SqlMemoryQuery.Matcher`）找 SQL 全文，不另寫比對：清單認得的那一列，預覽就標得出來。
 - **併與截**：`Core/Matching/MatchHighlights.cs`。重疊或緊貼的區段併成一段（打 `Due` 而表上同時有
   `Due` 與 `DueDate`），文件那一層要由小到大且不重疊。上限 `Maximum` 落在**標記**上不落在比對上，
-  超過時截斷；`MatchHighlightSet.Notice` 決定狀態列那一句，少標了永遠先說——少標了卻不說，
+  超過時截斷；`MatchHighlightSet.Notice` 決定要說的那一句（Search 走降級通知，Memory 在預覽狀態列），
+  少標了永遠先說——少標了卻不說，
   使用者按到最後一處就以為看完了。一處都沒有時說什麼由功能給（Search 是位置對不上定義，
   Memory 是收藏只靠名稱或說明命中）。
 - **狀態**：`Core/Matching/MatchCursor.cs`。有幾處、現在第幾處、上下一處與環繞收在一份純邏輯裡；

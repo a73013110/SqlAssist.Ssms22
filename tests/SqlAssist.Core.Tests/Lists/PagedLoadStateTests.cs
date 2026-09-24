@@ -1,7 +1,7 @@
-using SqlAssist.Core.SqlMemory;
+using SqlAssist.Core.Lists;
 using Xunit;
 
-namespace SqlAssist.Core.Tests.SqlMemory;
+namespace SqlAssist.Core.Tests.Lists;
 
 public sealed class PagedLoadStateTests
 {

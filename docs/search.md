@@ -28,7 +28,8 @@ provider 必須在取資料前套用 `SearchQuery.Targets` 與分類；`TryRepor
 
 `SearchCategory` 是物件種類，`SearchMatchTarget` 是命中位置。資料行命中仍歸屬資料表，
 否則「只看資料表」會錯誤排除資料行命中的表。種類由各 provider 宣告；Core 不依賴
-Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories`。
+Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories`。目錄物件一種一個分類，
+同義字、序列與資料表型別不併成收納桶：種類在下拉裡不佔工具列，併著的話只要同義字的人篩不出來。
 
 ## 排名、合併與名稱／本文
 
@@ -82,6 +83,17 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 欄位是名稱（限定名稱，沒有路徑概念的來源用標題）、種類、伺服器、資料庫、命中部位與命中資料行
 （`SqlSearchRow.CopyColumns`）；伺服器與資料庫取 provider 的脈絡膠囊，沒有就留空，不含定義本文。
 平常的 Ctrl+C 仍是複製焦點列的限定名稱。
+
+## 回饋與列操作
+
+沒有狀態列。筆數、部分結果、讀不到的來源與「這一輪失敗、清單是上一輪的」寫在清單頁尾
+（`SqlSearchBrowserModel.Footer`，呈現與 SQL Memory 共用）；按下去的結果與失敗走通知，種類是
+`Search`，移至定義與在物件總管中選取歸 `Navigation`、由 `SqlSearchActivation` 自己送。同一句失敗
+只送一次，否則讀不到的來源會在每打一個字時跳一次。
+
+列操作只有一份（`SqlSearchRowCommand.All`：移至定義、在物件總管中選取、複製限定名稱），卡片、
+快捷選單與預覽工具列照同一個順序建立，預覽的按下交回清單那一條路執行。沒有「在預覽中顯示」：
+左鍵點一下就是預覽。預覽另有作用在畫面上那份定義的「複製定義」，隔一條群界線排在列操作之後。
 
 ## 關掉重開記得什麼
 

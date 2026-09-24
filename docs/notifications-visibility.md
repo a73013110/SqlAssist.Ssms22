@@ -8,8 +8,8 @@
 合併的巢狀查詢沿用父工作的三軸。
 
 - `NotificationKind` 是子系統：Metadata、Completion、Analysis、Preview、Editing、
-  Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Diagnostics、Unclassified；
-  除了 Update 與 Diagnostics 各有一格開關，共十一格。
+  Navigation、Results、Snippets、Settings、Package、SqlMemory、Search、Update、Diagnostics、Unclassified；
+  除了 Update 與 Diagnostics 各有一格開關，共十二格。
 - `NotificationOrigin` 是觸發來源：User、Typing、Ambient、Startup。
 - `NotificationLevel` 是詳細度：Trace、Debug、Info、Notice。
 
@@ -33,6 +33,7 @@
 | Settings | 重新載入設定、重建主題筆刷 | `Ambient` | 設定 `Debug`、主題 `Trace` |
 | Package | 初始化 SqlAssist、建立中繼資料連線、重新確認連線 | 初始化 `Startup`，其餘 `Ambient` | 初始化與建立連線 `Info`、重新確認 `Debug` |
 | SqlMemory | 啟用／停用、自我測試、整理、維護、清除、備份、重建、回溯；列操作與多選動作（複製、開新 Query、收藏、刪除）；擷取被丟棄事件；容量警戒與首次擷取兩則提醒 | 套用設定、事件與提醒 `Ambient`，其餘 `User` | `Info`；事件與提醒 `Notice`、背景維護失敗 `Debug` |
+| Search | SQL Search 的複製（限定名稱、清單、定義）、套用查詢視窗連線、搜尋失敗、預覽標不齊命中（降級）、未接住的操作失敗；移至定義與在物件總管中選取歸 Navigation | `User` | `Info` |
 | Update | 手動檢查更新的活動；新版提醒 | 手動 `User`，啟動時的自動檢查 `Ambient` | 手動 `Info`，自動 `Notice` |
 | Diagnostics | 「關於與診斷」的[測試通知](notifications-ui.md#測試通知) | `User` | `Info` |
 | Results | 尚未接線 | — | — |
@@ -49,7 +50,7 @@
 排在後面的話那幾格永遠按不動，使用者分不出「沒有開關」與「開關失效」。來源與詳細度只決定
 跨不跨得過降噪門檻，不覆寫種類開關。
 
-預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘七個預設開，
+預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘八個預設開，
 `Unclassified` 也在其中，漏分類的新工作不會靜默消失。`Update` 沒有開關：自動檢查由「一般」頁的
 「啟動時檢查有沒有新版本」管，手動檢查是使用者自己按的，一律顯示；兩個旋鈕管同一件事，關掉其中
 一個的人分不出「沒有新版」與「被自己關掉了」。`Diagnostics` 也沒有：只有使用者按測試才出現，

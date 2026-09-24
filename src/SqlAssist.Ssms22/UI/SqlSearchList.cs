@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Windows.Input;
 
@@ -14,17 +13,16 @@ internal enum SqlSearchRowAction
     /// <summary>在物件總管上展開到這一筆並選取它。</summary>
     SelectInExplorer,
 
-    Copy,
-
-    /// <summary>展開預覽並顯示這一筆；預覽收著的時候，停駐時這顆是唯一看得到它內容的路。</summary>
-    Preview
+    /// <summary>把這一筆的限定名稱放上剪貼簿。</summary>
+    Copy
 }
 
 /// <summary>
-/// 一個結果列操作的外觀。卡片與快捷選單都從 <see cref="All"/> 建立，兩處不會漏掉或順序不一。
+/// 一個結果列操作的外觀。卡片、快捷選單與預覽工具列都從 <see cref="All"/> 建立，三處不會漏掉或順序不一。
 /// </summary>
 /// <remarks>
-/// 順序就是兩處的呈現順序：主要動作（移至定義）在前，其餘照使用頻率。
+/// 順序就是三處的呈現順序：主要動作（移至定義）在前，其餘照使用頻率。
+/// 沒有「在預覽中顯示」：左鍵點一下就是預覽，停駐時多一顆同義的按鈕只是讓其餘幾顆更難找。
 /// 與 SQL Memory 的 <c>SqlMemoryRowCommand</c> 分開兩份，是因為兩邊能做的事不一樣——
 /// 併成一份就得在每一個操作上多掛一個「這一種列適不適用」，而那是同一件事做兩次。
 /// </remarks>
@@ -63,8 +61,7 @@ internal sealed class SqlSearchRowCommand
         new SqlSearchRowCommand(
             SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, "在物件總管中選取",
             availabilityPath: nameof(Search.SqlSearchRow.CanSelectInExplorer)),
-        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱"),
-        new SqlSearchRowCommand(SqlSearchRowAction.Preview, SqlIcon.Preview, "在預覽中顯示")
+        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱")
     };
 
     public SqlSearchRowAction Action { get; }
@@ -126,12 +123,6 @@ internal sealed class SqlSearchList : SqlCardListBase<SqlSearchRowAction>
         ItemContainerStyle = SqlAssistChrome.CreateSqlCardStyle(removable: false, checkable: true);
         ItemTemplate = SqlAssistChrome.CreateSearchHitTemplate();
     }
-
-    /// <summary>綁上結果集合。</summary>
-    /// <remarks>
-    /// 只做一次：之後改的是集合內容，不是繫結。每次結果都重綁的話，捲動位置與選取會跟著整份換掉。
-    /// </remarks>
-    public void SetRowsSource(IEnumerable rows) => ItemsSource = rows ?? throw new ArgumentNullException(nameof(rows));
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {

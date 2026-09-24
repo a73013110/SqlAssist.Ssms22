@@ -1,6 +1,7 @@
 using System;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -21,7 +22,7 @@ internal static class SqlMemorySurfaceState
     /// SQL Memory 讀的是本機檔案，沒有「權限不足」那一種——磁碟權限失敗與其他 I/O 失敗
     /// 在這裡分不開，一律走讀不到那一個出口。
     /// </remarks>
-    public static SqlSurfaceState For(SqlMemoryFooter footer, bool loading, int rowCount, string failure)
+    public static SqlSurfaceState For(SqlListFooter footer, bool loading, int rowCount, string failure)
     {
         if (footer is null) throw new ArgumentNullException(nameof(footer));
         if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
@@ -30,7 +31,7 @@ internal static class SqlMemorySurfaceState
         if (!string.IsNullOrEmpty(failure)) return SqlSurfaceState.Unreadable(failure);
         if (loading) return SqlSurfaceState.Loading;
 
-        return footer.Kind == SqlMemoryFooterKind.Empty
+        return footer.Kind == SqlListFooterKind.Empty
             ? SqlSurfaceState.Empty(footer.Summary, footer.Hint ?? "")
             : SqlSurfaceState.None;
     }

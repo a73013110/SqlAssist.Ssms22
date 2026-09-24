@@ -49,7 +49,7 @@
 | 收藏版本操作清單與執行（時間軸列、快捷選單、差異面板共用） | `Ssms22/UI/SqlFavoriteRevisionList.cs` 的 `SqlFavoriteRevisionCommand`、`Ssms22/SqlMemory/SqlFavoriteRevisionCommands.cs` |
 | 列上的幽靈操作按鈕與破壞性操作前的分隔線（卡片、Search 結果列與時間軸共用） | `Ssms22/UI/SqlAssistChrome.Rows.cs` 的 `AppendRowActionButton` |
 | 行級差異的虛擬化呈現（標記、行號、語意底色） | `Ssms22/UI/SqlTextDiffView.cs`（樣板在 `SqlAssistChrome.Revisions.cs`） |
-| 清單頁尾 | `Ssms22/UI/SqlMemoryPager.cs`（狀態與文案在 `SqlMemoryBrowserModel.Footer`） |
+| 清單頁尾的文案 | `SqlMemoryBrowserModel.Footer`（呈現是共用的 `SqlListPager`） |
 | 量表（分級色、長度動畫、不確定進度） | `Ssms22/UI/SqlUsageMeter.cs` |
 | 用量分頁與警示點 | `Ssms22/UI/SqlAssistChrome.SqlMemory.cs` 的 `CreateMemoryUsageTab`、`SetUsageBadge` |
 | 清除紀錄的條件、試算摘要與頁尾（試算接線在 `SqlMemory/SqlMemoryCleanupWindow.cs`） | `Ssms22/UI/SqlMemoryCleanupView.cs` |

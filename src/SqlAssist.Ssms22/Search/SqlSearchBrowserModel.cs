@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Lists;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.UI;
@@ -38,8 +39,8 @@ internal sealed class SqlSearchCategoryOption
     /// 這一段在面板上叫什麼；宣告這個分類的 provider 的顯示字。
     /// </summary>
     /// <remarks>
-    /// 取 provider 的名字而不是替每一群另外想一個：群是 provider 自己切的（目錄物件把收納桶
-    /// 切成第二群），而使用者要分的是「資料庫物件」與「SQL Agent 作業」這一層。
+    /// 取 provider 的名字而不是替每一群另外想一個：群是 provider 自己切的（一個來源可以切成好幾群），
+    /// 而使用者要分的是「資料庫物件」與「SQL Agent 作業」這一層。
     /// 同一個 provider 的幾群連在一起，只在第一群掛一次標題。
     /// </remarks>
     public string GroupLabel { get; }
@@ -91,22 +92,6 @@ internal sealed class SqlSearchSortOption
         foreach (var option in All) if (option.Value == value) return option;
         throw new ArgumentOutOfRangeException(nameof(value), value, "沒有這個排序。");
     }
-}
-
-/// <summary>頁尾那一行現在在說哪一件事；動畫用它判斷「同一狀態不重播」。</summary>
-internal enum SqlSearchStatusTone
-{
-    /// <summary>沒有東西要說；頁尾收起。</summary>
-    None,
-
-    /// <summary>掃完了，回報筆數。</summary>
-    Result,
-
-    /// <summary>沒掃完；筆數之外還要說清楚這一份不完整。</summary>
-    Partial,
-
-    /// <summary>有來源失敗。</summary>
-    Failure,
 }
 
 /// <summary>一輪搜尋的身分證：世代、查詢，以及這一輪會不會先卡在建索引上。</summary>
@@ -300,7 +285,7 @@ internal sealed class SqlSearchBrowserModel
     ///
     /// 群與群內順序都照 provider 宣告的那一份：<see cref="SearchCategory.GroupId"/> 相同的幾個
     /// 連在一起（群的先後是第一次出現的先後），群內依 <see cref="SearchCategory.SortOrder"/>。
-    /// 兩者都尊重的理由在 <see cref="SearchCategory.SortOrder"/> 的註解裡——「其他」這種收納桶
+    /// 兩者都尊重的理由在 <see cref="SearchCategory.SortOrder"/> 的註解裡——收納桶這種群
     /// 要排在最後，而它在宣告清單裡的位置是當初加進去的時間決定的。這份順序同時是過濾面板的
     /// 段落順序與「依種類排序」的先後，兩處看到的排法因此一致。
     /// </remarks>
@@ -591,51 +576,58 @@ internal sealed class SqlSearchBrowserModel
         IsIndexing = false;
     }
 
-    /// <summary>頁尾現在在說哪一件事；換了一種說法才播一次狀態回饋。</summary>
-    public SqlSearchStatusTone Tone
-    {
-        get
-        {
-            if (_failure.Length != 0) return SqlSearchStatusTone.Failure;
-            if (!HasConnection || !_hasResult) return SqlSearchStatusTone.None;
+    /// <summary>這一輪的失敗（整輪失敗或某個來源失敗）；沒有時是空字串。宿主拿它決定要不要送通知。</summary>
+    public string Failure => _failure;
 
-            // 讀不到某一個來源不是失敗（那會讓頁尾整行變成紅字，而對一個本來就多半
-            // 讀不到的來源，等於每一次搜尋都在報錯），但它確實表示這一份不完整。
-            if (_unavailable.Length != 0) return SqlSearchStatusTone.Partial;
-            if (_hitCount == 0) return SqlSearchStatusTone.None;
-            return _isPartial ? SqlSearchStatusTone.Partial : SqlSearchStatusTone.Result;
-        }
-    }
+    /// <summary>部分結果的那一句；與「這個字串在這個資料庫裡不存在」在畫面上一模一樣，所以一定要說。</summary>
+    internal const string PartialHint = "部分結果；縮小範圍或加長關鍵字可以掃得更完整。";
 
-    /// <summary>頁尾那一行；平時留空，只回報結果數、部分結果、讀不到的來源與失敗。</summary>
+    /// <summary>頁尾說的「搜尋中」；清單仍是上一輪的那一份，進度留在原地。</summary>
+    internal const string SearchingLabel = "搜尋中…";
+
+    /// <summary>
+    /// 清單的頁尾：筆數，以及這一份為什麼不完整。與 SQL Memory 同一種頁尾（<see cref="SqlListFooter"/>）。
+    /// </summary>
     /// <param name="rowCount">目前清單的列數。</param>
     /// <remarks>
+    /// 說明這一份清單的話跟著清單走，不另起一條狀態列；效果在視窗外的動作結果才走通知。
+    ///
     /// 「有一個來源讀不到」與「掃到一半停了」都會讓 <see cref="SearchResults.IsPartial"/>
     /// 為真，但要說的話不一樣：後者叫使用者縮小範圍或加長關鍵字，前者叫他去看權限。
     /// 兩句都貼上去的話，使用者會先照第一句試三次——而那一句對他的情況完全沒有用。
     /// 所以有讀不到的來源時就由它說明這一輪為什麼不完整，泛用的那一句讓位。
     ///
-    /// 一列都沒有時整行讓給狀態表面（見 <see cref="Surface(int)"/>）：同一句話在畫面中央
-    /// 與頁尾各出現一次，讀起來像發生了兩件事。清單上還留著上一輪的列時失敗仍要說，
+    /// 一列都沒有時整份讓給狀態表面（見 <see cref="Surface(int)"/>）：同一句話在畫面中央
+    /// 與頁尾各出現一次，讀起來像發生了兩件事。清單上還留著上一輪的列而這一輪整個失敗時仍要說，
     /// 否則使用者會拿過期的那一份當成這一次的答案。
     /// </remarks>
-    public string Status(int rowCount)
+    public SqlListFooter Footer(int rowCount)
     {
         if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
-        if (_failure.Length != 0) return rowCount == 0 ? "" : _failure;
-        if (!HasConnection || !_hasResult) return "";
+        if (rowCount == 0 || !HasConnection) return SqlListFooter.Hidden;
 
-        if (_hitCount == 0) return "";
+        // 同一份清單等著被換掉（去彈跳還沒到期或這一輪還在跑）：留著筆數，進度在按鈕的位置轉。
+        if (_pending || IsRunning)
+        {
+            return new SqlListFooter(SqlListFooterKind.Loading, Found(rowCount), actionLabel: SearchingLabel);
+        }
 
-        var count = _hitCount.ToString(CultureInfo.InvariantCulture);
+        if (!_hasResult) return SqlListFooter.Hidden;
 
-        if (_unavailable.Length != 0) return "找到 " + count + " 項。" + _unavailable;
+        // 整輪失敗：清單上是上一輪的列。
+        if (_hitCount == 0 && _failure.Length != 0)
+        {
+            return new SqlListFooter(SqlListFooterKind.End, "這一輪搜尋失敗", "清單是上一輪的結果。" + _failure);
+        }
 
-        // 部分結果一定要說：與「這個字串在這個資料庫裡不存在」在畫面上一模一樣。
-        return _isPartial
-            ? "找到 " + count + " 項（部分結果；縮小範圍或加長關鍵字可以掃得更完整）"
-            : "找到 " + count + " 項";
+        var hint = _failure.Length != 0 ? _failure
+            : _unavailable.Length != 0 ? _unavailable
+            : _isPartial ? PartialHint
+            : null;
+        return new SqlListFooter(SqlListFooterKind.End, Found(_hitCount), hint);
     }
+
+    private static string Found(int count) => "找到 " + count.ToString("N0", CultureInfo.CurrentCulture) + " 項";
 
     /// <summary>
     /// 主內容區的狀態表面：載入、空、讀不到與權限不足四選一。
@@ -650,7 +642,7 @@ internal sealed class SqlSearchBrowserModel
     /// 只會讓他做一件解決不了的事。兩種狀態各帶一個做得到的下一步——只說一句話而把出口
     /// 留在別的選單裡，等於要他先猜出是範圍的問題。
     ///
-    /// 有列可看時一律讓開：讀不到的來源與部分結果那幾句由頁尾說，蓋在清單上等於把讀得到的
+    /// 有列可看時一律讓開：讀不到的來源與部分結果那幾句由清單頁尾說，蓋在清單上等於把讀得到的
     /// 那幾筆遮起來。
     /// </remarks>
     public SqlSurfaceState Surface(int rowCount)
@@ -759,7 +751,7 @@ internal sealed class SqlSearchBrowserModel
     /// （複寫、Extended Events、Always On）就要在這裡多一個 <c>if</c>，而漏掉的那一個
     /// 只會安靜地退回泛用的「部分結果」——畫面上看不出是漏了還是真的沒掃完。
     ///
-    /// 只貼第一句，其餘用數字帶過：狀態列是一行，而把三句話串起來會把它撐爆，
+    /// 只貼第一句，其餘用數字帶過：頁尾的說明只有一兩行，而把三句話串起來會把它撐爆，
     /// 重點（有來源沒搜到、去看權限）第一句已經說完。
     /// </remarks>
     private static string DescribeUnavailable(IReadOnlyList<SearchProviderProgress> progress)

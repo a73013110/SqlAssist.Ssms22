@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -117,17 +118,17 @@ public sealed class SqlFavoriteRevisionTimeline
         item != null && !item.IsCurrent && !string.Equals(item.ContentId, CurrentContentId, StringComparison.Ordinal);
 
     /// <summary>清單尾端的頁尾；結束時必須說清楚這不是完整編輯史。</summary>
-    public SqlMemoryFooter Footer()
+    public SqlListFooter Footer()
     {
-        if (!_hasPage) return new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "");
+        if (!_hasPage) return new SqlListFooter(SqlListFooterKind.Hidden, "");
         var loaded = "已載入 " + _items.Count.ToString(CultureInfo.InvariantCulture) + " 版";
         if (_page.Loading)
-            return _pendingFirst ? new SqlMemoryFooter(SqlMemoryFooterKind.Hidden, "")
-                : new SqlMemoryFooter(SqlMemoryFooterKind.Loading, loaded, null, "載入中…");
-        if (_page.Cursor != null) return new SqlMemoryFooter(SqlMemoryFooterKind.More, loaded, null, "載入更多");
+            return _pendingFirst ? new SqlListFooter(SqlListFooterKind.Hidden, "")
+                : new SqlListFooter(SqlListFooterKind.Loading, loaded, null, "載入中…");
+        if (_page.Cursor != null) return new SqlListFooter(SqlListFooterKind.More, loaded, null, "載入更多");
         return _items.Count == 0
-            ? new SqlMemoryFooter(SqlMemoryFooterKind.Empty, "沒有保留的版本", "收藏可能已被移除；請關閉後重新整理清單。")
-            : new SqlMemoryFooter(SqlMemoryFooterKind.End,
+            ? new SqlListFooter(SqlListFooterKind.Empty, "沒有保留的版本", "收藏可能已被移除；請關閉後重新整理清單。")
+            : new SqlListFooter(SqlListFooterKind.End,
                 "共保留 " + _items.Count.ToString(CultureInfo.InvariantCulture) + " 版", RetentionHint);
     }
 

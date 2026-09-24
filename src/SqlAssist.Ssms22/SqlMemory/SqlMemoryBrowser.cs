@@ -17,6 +17,7 @@ using SqlAssist.Core.Tabular;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
+using SqlAssist.Core.Lists;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -57,7 +58,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
     private readonly TextBlock _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _hostStatus = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
-    private readonly SqlMemoryPager _pager = new();
+    private readonly SqlListPager _pager = new();
     private readonly SqlStateSurface _surface;
     private readonly Button _connection;
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
@@ -689,7 +690,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         facet.Panel.UpdateSummary(
             SqlFilterSummary.Of(selected.Count, AnyFacetLabel, selected.Count == 1 ? selected[0] : null, facet.Unit),
             selected.Count == 0 ? facet.EmptyHint : SqlFilterSummary.Detail(selected));
-        facet.Panel.IsNarrowed = selected.Count != 0;
+        facet.Panel.HasSelection = selected.Count != 0;
     }
 
     /// <summary>手上的名單作廢；下次打開面板才重問，沒有人在看的時候不去問儲存層。</summary>
@@ -900,8 +901,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var footer = _model.Footer(_rows.Count);
         // 空狀態搬到主內容區：頁尾那顆膠囊貼在一整片空白的下緣，而使用者的視線在中間。
         // 兩邊各說一次的話，「沒有符合條件」看起來像發生了兩件事。
-        var empty = footer.Kind == SqlMemoryFooterKind.Empty;
-        _pager.Update(empty ? SqlMemoryFooter.Hidden : footer);
+        var empty = footer.Kind == SqlListFooterKind.Empty;
+        _pager.Update(empty ? SqlListFooter.Hidden : footer);
         _surface.State = SqlMemorySurfaceState.For(footer, _model.IsLoading, _rows.Count, _loadFailure);
         _list.CanAutoLoadMore = _model.CanAutoLoadMore;
         _selection.HasMore = _model.HasMore;

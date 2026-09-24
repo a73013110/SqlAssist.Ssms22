@@ -93,15 +93,15 @@ public sealed class SqlSearchActivationTests
             SqlSearchActivation.Describe(JobHit(step: 2), unconnected: true));
     }
 
+    /// <summary>「已開啟」由通知標題說；附註只在未連線時出現，說該連哪一台。</summary>
     [Fact]
-    public void 成功那一句說得出視窗有沒有連線()
+    public void 成功附註只在未連線時說該連哪一台()
     {
         var hit = CatalogHit();
 
-        Assert.Equal("已在新查詢視窗開啟 Cat_BookCopy 的定義。", SqlSearchActivation.DescribeOpened(hit, false));
-        Assert.Equal("已在未連線的新查詢視窗開啟 Cat_BookCopy 的定義；按 F5 時請連到 LIBSQL02。",
-            SqlSearchActivation.DescribeOpened(hit, true));
-        Assert.EndsWith("的命令；按 F5 時請連到 LIBSQL02。", SqlSearchActivation.DescribeOpened(JobHit(step: 2), true));
+        Assert.Equal("", SqlSearchActivation.OpenedNote(hit, false));
+        Assert.Equal("按 F5 時請連到 LIBSQL02。", SqlSearchActivation.OpenedNote(hit, true));
+        Assert.Equal("按 F5 時請連到 LIBSQL02。", SqlSearchActivation.OpenedNote(JobHit(step: 2), true));
     }
 
     /// <summary>檔頭整段都是註解，按 F5 不會多執行任何一句；伺服器寫的是連線對話框要填的那一個。</summary>
