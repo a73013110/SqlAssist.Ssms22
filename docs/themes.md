@@ -1,5 +1,6 @@
 # SSMS 佈景主題連動
 
+本頁包含殼層與 SQL 指令碼的取色、生命週期與驗收；視覺準則見[UI 準則](ui-guidelines.md)。
 介面跟隨 SSMS，不讀 Windows 的深淺模式或自行保存 `isDark`。Windows 系統色只用於
 高對比與最後備援。自訂編輯器配色屬於另一個範圍，不能拿 SQL 前景搭配 Tooltip 底色。
 
@@ -78,11 +79,8 @@ MEF host——後者拿到的是對不上編輯器設定的第二份外觀。取
 
 ## 驗證
 
-`SqlAssist.Ssms22.Tests` 在 net48 STA 執行產品的純 WPF 實作，不需啟動 SSMS。
-涵蓋同深淺不同色系的雙向換色、透明文字合成、雙表面對比、Run 與選取保留、
-樣板與選取配對、筆刷共用、局部系統鍵及通知合併，以及指令碼表面的成對取色與分類色調整。
-共用控制項的多 DPI 渲染輸出位於被忽略的 `artifacts/theme-qa/`；這些是測試配色，
-不是 SSMS 實機截圖，也不能取代原生 Popup 的整合驗收。
+`SqlAssist.Ssms22.Tests` 在 net48 STA 執行產品的純 WPF 實作，不需啟動 SSMS。多 DPI 渲染輸出位於
+被忽略的 `artifacts/theme-qa/`，不是 SSMS 實機截圖，也不能取代原生 Popup 的整合驗收。
 
 SSMS 手動驗收：
 

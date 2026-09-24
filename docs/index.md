@@ -19,7 +19,7 @@
 
 | 關鍵字／症狀 | 文件 |
 |---|---|
-| 分層、平台邊界 | [架構](architecture.md)／[平台 Guard](platform-guard.md) |
+| 分層、平台邊界、原生補全管線 | [架構](architecture.md) |
 | 型別 | [症狀→程式碼](code-map.md)／[資料夾](folder-map.md) |
 | SQL Memory／History／Favorites | [產品與架構](sql-memory.md)／[儲存與收藏](sql-memory-storage.md)／[搜尋](sql-memory-search.md)／[UI](sql-memory-ui.md) |
 | 收藏、回溯、SQL 差異 | [版本歷史](sql-memory-revisions.md) |
@@ -57,7 +57,9 @@
 | QuickInfo、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[宣告](script-declared-objects.md) |
 | 定位、焦點、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
 | Chrome、配色、高對比 | [UI 準則](ui-guidelines.md)／[骨架](ui-windows.md)／[主題](themes.md)／[對話框](ui-dialogs.md) |
-| 通知生命週期、可見度、分級、文案 | [通知提示](notifications.md)／[呈現與驗證](notifications-ui.md)／[可見度](notifications-visibility.md)／[設計](notifications-design.md)／[訊息](notifications-messages.md) |
+| 通知來源、提醒、合併、統計 | [通知提示](notifications.md)／[文案](notifications-messages.md) |
+| 通知島、浮層、錨點、測試通知 | [呈現與驗證](notifications-ui.md) |
+| 通知三軸、可見度、種類開關、降級 | [可見度](notifications-visibility.md) |
 | 指令碼風格、降級註解 | [指令碼產生](script-generation.md)／[結構健檢](schema-analysis.md) |
 | 失敗註解、新查詢 | [F12 指令碼](definition-scripts.md)／[移至定義](go-to-definition.md) |
 | ShellCommandFilter、命令表、鍵繫結 | [殼層命令](shell-commands.md) |
@@ -66,10 +68,10 @@
 | 分層載入 | [中繼資料](metadata.md)／[跨資料庫](metadata-cross-db.md) |
 | USE、連結伺服器、OPENQUERY、舊版、權限 | [連線](metadata-connection.md)／[遠端](metadata-remote.md)／[相容](metadata-compatibility.md) |
 | 建置／測試、UTF-8／LF／BOM | [開發](development.md)／[文字與編碼](text-encoding.md) |
-| 安裝／移除、VSIX 偵錯、MEF 快取 | [發布](release.md)／[偵錯](debugging.md) |
-| Debug 部署、必要／可選檔案、Deploy | [部署契約](debug-deployment.md) |
+| 版號、發布、安裝／移除 | [發布](release.md) |
+| F5 偵錯、Deploy、MEF 快取、診斷紀錄 | [偵錯](debugging.md) |
 | AI 工作流程、RTK | [AI](ai-workflow.md)／[RTK](ai-rtk.md) |
-| README 圖片／GIF、靜態品牌圖提示詞 | [圖片](images/README.md)／[提示詞](images/prompts.md) |
-| VitePress、Pages、網站上線 | [網站發布](website.md) |
+| README 圖片、GIF、品牌圖 | [圖片](images/README.md)／[提示詞](images/prompts.md) |
+| VitePress、Pages | [網站發布](website.md) |
 
 只使用產品時讀[開始使用](getting-started.md)。

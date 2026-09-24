@@ -1,15 +1,20 @@
 # 通知的三軸分類與可見度
 
+本頁包含三軸、可見度判斷、種類開關、降級與診斷紀錄；來源與合併見[通知提示](notifications.md)。
+
 `Core/Notifications/NotificationVisibility` 只篩選通知，不停用工作，也不影響工作階段
 統計與診斷紀錄。顯示延遲以篩選後的工作計算，抬頭計數再以合併後的列數計算，兩處都不把
-隱藏工作混入分母；合併規則見[通知提示](notifications.md)。
-三軸都由呼叫端明寫，不比對顯示名稱；合併的巢狀查詢沿用父工作的三軸。
+隱藏工作混入分母。三軸都由呼叫端明寫，不比對顯示名稱、不吃預設值，漏寫的接線點編譯不過；
+合併的巢狀查詢沿用父工作的三軸。
 
 - `NotificationKind` 是子系統：Metadata、Completion、Analysis、Preview、Editing、
   Navigation、Results、Snippets、Settings、Package、SqlMemory、Update、Diagnostics、Unclassified；
   除了 Update 與 Diagnostics 各有一格開關，共十一格。
 - `NotificationOrigin` 是觸發來源：User、Typing、Ambient、Startup。
 - `NotificationLevel` 是詳細度：Trace、Debug、Info、Notice。
+
+「做什麼」與「誰觸發的」拆成兩軸：塞在同一個 enum 時，使用者操作觸發的中繼資料查詢合併後
+變成使用者動作，「中繼資料」開關就管不到它。
 
 `Origin` 為 `User` 的一律顯示，因此只有真的由使用者按鍵或命令觸發的才標它；輸入時反覆
 觸發的標 `Typing`，預載、快取重整與重新確認標 `Ambient`，套件與工作階段啟動標 `Startup`。
@@ -32,22 +37,29 @@
 | Diagnostics | 「關於與診斷」的[測試通知](notifications-ui.md#測試通知) | `User` | `Info` |
 | Results | 尚未接線 | — | — |
 
+## 判斷順序
+
 提醒只看總開關與種類開關，不看詳細度、來源、失敗與降級通道：它是要使用者決定的事，
-不是降噪的對象。沒有開關的 Update 與 Diagnostics 在種類那一步一律通過，提醒與活動都一樣。活動依序判斷：總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
+不是降噪的對象。沒有開關的 Update 與 Diagnostics 在種類那一步一律通過。活動依序判斷：
+總開關 → `Failed` 看「顯示所有種類的失敗」→ `Degraded` 看「顯示部分成功」→
 該種類的開關關著就隱藏 → `Trace` 在詳細度不是「全部」時隱藏 → `Origin` 為 `User` 顯示
 → `Notice` 顯示 → 其餘看詳細度門檻。
+
+種類開關排在觸發來源**之前**：Editing、Navigation、Snippets 這幾類的通知全由使用者觸發，
+排在後面的話那幾格永遠按不動，使用者分不出「沒有開關」與「開關失效」。來源與詳細度只決定
+跨不跨得過降噪門檻，不覆寫種類開關。
 
 預設關著的是 Completion、Analysis、Preview、Package 這四個高頻種類，其餘七個預設開，
 `Unclassified` 也在其中，漏分類的新工作不會靜默消失。`Update` 沒有開關：自動檢查由「一般」頁的
 「啟動時檢查有沒有新版本」管，手動檢查是使用者自己按的，一律顯示；兩個旋鈕管同一件事，關掉其中
 一個的人分不出「沒有新版」與「被自己關掉了」。`Diagnostics` 也沒有：只有使用者按測試才出現，
-用途就是確認通知看不看得到。種類開關排在觸發來源**之前**：
-關掉「程式碼片段」就是連自己按下去的展開提示也不想看，排在後面的話那幾格永遠按不動。
-來源與詳細度只決定跨不跨得過降噪門檻，不覆寫種類開關。
+用途就是確認通知看不看得到。
 
 種類開關集中在 `NotificationKindToggle.All` 的 `(Kind, moniker, 預設值, 標題)`；設定存
 `NotificationKindSwitches` 遮罩、`SqlAssistMonikers.All` 併入表上的 moniker，
-新增一類只動註冊檔與這張表。表上沒有的種類由 `Governs` 回答，診斷頁的名稱走 `Label`。
+新增一類只動註冊檔與這張表——逐項屬性要同時動四處，漏掉哪一處都沒有編譯錯誤。表上沒有的種類
+由 `Governs` 回答，診斷頁的名稱走 `Label`。遮罩取列舉序數但從不落地，存下來的是每一類自己的
+moniker，列舉中間插入新種類不必搬遷。
 
 詳細度下拉四階對上 `NotificationLevel`：安靜 `Notice`、一般 `Info`、詳細 `Debug`、
 全部 `Trace`。`Trace` 量大到會洗掉畫面，只有明選「全部」才放行，使用者剛觸發的也一樣。
@@ -61,6 +73,5 @@
 
 詳細診斷開啟時，每個獨立工作完成寫一筆 `id/kind/severity/status/elapsedMs`；不寫來源、
 SQL 或訊息。紀錄進有界佇列後由背景批次寫檔，不在完成工作的那條執行緒上開檔；佇列滿了
-只記下略過幾筆，讀取紀錄與套件卸載前都會先倒完。通知隱藏不影響詳細紀錄與最近失敗；
-既有平台例外與中繼資料降級的紀錄政策不變，避免重複堆疊。「通知失敗」頁顯示相同 ID、種類、等級與耗時，可與 log 對照；記憶體歷史
-仍有原本上限。
+只記下略過幾筆，讀取紀錄與套件卸載前都會先倒完。通知隱藏不影響詳細紀錄與最近失敗。
+「通知失敗」頁顯示相同 ID、種類、等級與耗時，可與 log 對照。

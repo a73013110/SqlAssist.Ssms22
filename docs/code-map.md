@@ -1,7 +1,6 @@
 # 詳細程式碼路徑表
 
-範圍：已看過 [索引](index.md)，但還不知道該進哪個型別時才查本表。
-索引已負責文件路由，本表不重複文件欄；共用實作另見[共用元件表](shared-components.md)。
+本頁包含「症狀 → 從哪個型別進去」；文件路由在[索引](index.md)，唯一實作在[共用元件表](shared-components.md)。
 
 ## 我要改的是……
 
@@ -39,7 +38,7 @@
 | F12 開出來的指令碼內容不對 | `Metadata/Formatting/SqlObjectScript.cs` |
 | 新查詢視窗沒有沿用連線 | `Ssms22/Connections/SsmsScriptWindow.cs`；SQL Search 別台的結果刻意不連，判斷在 `Search/SqlSearchActivation.cs` |
 | 換了資料庫，清單還是舊資料庫的物件 | `Ssms22/Connections/SqlMetadataService.cs`、`SqlEditorConnectionWatcher.cs` |
-| 新增一個設定 | 註冊 JSON、POCO、moniker、reader 四處 |
+| 新增一個設定 | 見[設定護欄](rules-settings.md) |
 | 查詢的 SQL 或載入分層 | `Metadata/Querying/SqlMetadataQueries.cs` |
 | 連不上資料庫時的行為 | `Metadata/Caching/SqlMetadataCatalog.cs` |
 | SQL Memory 開不起來、停用後還在擷取、心跳或維護沒跑 | `Core/SqlMemory/SqlMemoryRuntime.cs`（`Ssms22/SqlMemory/SqlMemoryHost.cs` 只接線） |
@@ -51,20 +50,10 @@
 | 存檔後歷程掛錯文件、選取執行記錄的文字不對 | `SqlDocumentIdentity.cs`、`SqlSelectionText.cs`、`Ssms22/SqlMemory/SqlCaptureTracker.cs` |
 | SQL Memory 的 SQL、交易或索引 | `SqlMemory.Sqlite/Sqlite*Store.cs`（連線與 schema 在 `SqliteDatabase.cs`） |
 | 指令碼整段變成註解（缺定義、缺欄位） | `Metadata/Model/SqlObjectStructure.cs` 的 `CanBuildExecutableScript` |
-| 通知島錨錯視窗、位置不對或不出現 | `Ssms22/Notifications/NotificationAnchor.cs`、`NotificationIslandController.cs`、`NotificationOverlay.cs`、`Ssms22/UI/SsmsWindows.cs` |
-| 提醒按鈕按了沒反應 | `Ssms22/Notifications/NotificationActionRouter.cs` |
-| 建置、安裝、偵錯、發布 | `tools/` |
-| 分層規則、資料夾規則 | — |
-
-## 新增設定
-
-四處必改的位置、設定限制與守門測試見[設定結構](settings-schema.md#新增一個設定)。
+| 通知島錨錯視窗、不出現或提醒按鈕沒反應 | `Ssms22/Notifications/`，分工見[通知呈現](notifications-ui.md#分工) |
 
 ## 測試
 
-`tests/` 鏡像 `src/` 的資料夾結構，改了 `Core/Parsing/` 就看
-`tests/SqlAssist.Core.Tests/Parsing/`。`SqlAssist.SqlMemory.Sqlite.Tests` 驗真實 SQLite 與隔離層；
-`SqlAssist.Ssms22.Tests` 只連結純 WPF 控制項做渲染測試，不載入 SSMS——這正是
-「**禁止**把只看文字就能判斷的邏輯寫進 Ssms22」的原因。
-
+`SqlAssist.SqlMemory.Sqlite.Tests` 驗真實 SQLite 與隔離層；`SqlAssist.Ssms22.Tests` 只連結純 WPF
+控制項做渲染測試，不載入 SSMS——所以只看文字就能判斷的邏輯要放 Core 才測得到。
 游標位置的測試寫法見 `tests/SqlAssist.Core.Tests/SqlWithCaret.cs`。

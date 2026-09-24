@@ -1,17 +1,13 @@
 # 版本、發布與安裝
 
 本頁包含版本號規則、發布、安裝與解除安裝流程。
-開發期的部署與快取見[偵錯](debugging.md)／[部署契約](debug-deployment.md)。
+開發期的部署與快取見[偵錯](debugging.md)。
 
 ## 版本號
 
 版號的唯一來源是根目錄的 `version.json` 加上 git 歷史，由
 [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) 在建置時計算。
 專案檔、VSIX Manifest 與 README 都不再寫死版號。
-
-```json
-{ "version": "0.15" }
-```
 
 `version` 只寫 `major.minor`，第三段（patch）填的是 **git height**——從 HEAD 回推到
 `version.json` 的 `version` 最後一次變動之間的 commit 數。因此：
@@ -23,8 +19,7 @@
 | `AssemblyVersion` | `major.minor.0.0` | `major.minor.0.0` |
 
 第三段每個 commit 遞增，所以**每一次 commit 建出來的 VSIX 都能直接覆蓋安裝**，
-不必再手動把 Manifest 的版號 +1。這正是舊版 Manifest 一路累加到 `0.13.14`，
-而專案檔還停在 `0.13.1` 的原因。第四段由 commit id 推導、不遞增，只用來回推來源。
+不必手動把 Manifest 的版號 +1。第四段由 commit id 推導、不遞增，只用來回推來源。
 
 ### 什麼時候要改 version.json
 
@@ -52,7 +47,7 @@ Tag 不參與版號計算，加不加都不影響建置結果。
   commit——那時 height 本來就歸零，不存在倒退。
 
 `Deploy-DebugExtension.ps1` 允許 patch／revision 不同；major.minor、Manifest／pkgdef
-註冊或安裝資產變更仍須 Install。完整判定與失敗邊界見[Debug 部署契約](debug-deployment.md)。
+註冊或安裝資產變更仍須 Install。完整判定與失敗邊界見[偵錯](debugging.md#deploy-的必要與可選檔案)。
 
 ## 發布
 
@@ -64,10 +59,8 @@ Tag 不參與版號計算，加不加都不影響建置結果。
 跑測試、建 VSIX，然後以產物的 Identity 版號打 tag，在 GitHub 上建立**草稿** Release
 並附上 VSIX。
 
-**草稿是刻意的，不要改成直接發布。** VSIX 有一種只在實機才看得出來的失敗：MEF
-匯出型別的命名空間變動後，SSMS 的元件快取會安靜地讓那些部件建立失敗——沒有例外、
-沒有記錄，只有「功能整組消失」。`Test-VsixPackage.ps1` 驗得了封裝內容，驗不了這件事。
-所以最後一關必須是人：把草稿的 VSIX 裝進 SSMS 確認過，再到 GitHub 按 Publish。
+**草稿是刻意的，不要改成直接發布。** MEF 快取過期這類失敗只在實機看得出來（見[偵錯](debugging.md#ssms-的兩份快取)），
+`Test-VsixPackage.ps1` 驗不了。所以最後一關必須是人：把草稿的 VSIX 裝進 SSMS 確認過，再到 GitHub 按 Publish。
 
 同一個 commit 只發布一次。tag 已存在時腳本會擋下來——有新變更就先 commit，
 版號的 height 會自己往前。

@@ -22,14 +22,6 @@
 在 `Core/SqlMemory/SqlMemoryRuntime`，Ssms22 只讀設定、建立計時器與顯示通知。
 **放置位置由相依決定，不由現址決定。**
 
-## 導航與唯一實作
-
-- 資料夾職責與測試鏡像見[資料夾對應](folder-map.md)。
-- 已知症狀但不知道型別時才查[程式碼路徑表](code-map.md)。
-- 新增跨功能邏輯前查[共用元件表](shared-components.md)，不要再造第二份。
-- 平台例外收斂的強制規則見[平台接線護欄](rules-platform.md)，三族 API 的差異見
-  [平台 Guard](platform-guard.md)。
-
 ## 為什麼使用平台原生補全管線
 
 SSMS 的 T-SQL IntelliSense 是舊版語言服務，官方文件沒有保證新版 async completion API
@@ -38,7 +30,7 @@ SSMS 的 T-SQL IntelliSense 是舊版語言服務，官方文件沒有保證新�
 `IsCompletionSupported` 回報 `False` 只是建議來源尚未實例化的時序結果。
 
 自製 WPF 清單無法根治三件事：與內建清單同時出現、只能靠鍵盤操作、反覆
-`DismissAllSessions` 搶 session。0.13.0 起改走原生管線，分成三個 MEF 匯出：
+`DismissAllSessions` 搶 session，所以改走原生管線，分成三個 MEF 匯出：
 
 | 匯出 | 職責 |
 |---|---|
