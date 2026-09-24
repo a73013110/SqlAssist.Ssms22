@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Tabular;
 using SqlAssist.Metadata.ResultGrid;
 using SqlAssist.Ssms22.UI;
 
@@ -21,7 +22,7 @@ namespace SqlAssist.Ssms22.ResultGrid;
 /// <remarks>
 /// 用視窗而不是產指令碼：這份東西的用途是<b>看</b>，不是貼。178 欄的摘要塞進查詢
 /// 視窗變成 178 行註解，比原本捲格線還難讀；擺成一張表才排得出「整欄都是 NULL 的
-/// 那幾欄」。要帶走的人按「複製」拿 TSV，貼進哪裡都能排。
+/// 那幾欄」。要帶走的人按「複製」拿 TSV 與 HTML 表格，貼進哪裡都能排。
 ///
 /// 外觀全部走 <see cref="SqlAssistChrome"/>，一個樣式都不自己定義——
 /// 這是自製 UI 準則的「禁止在 UI/SqlAssistChrome 之外另立一套外觀」。
@@ -70,7 +71,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         Grid.SetRow(surface, 2);
 
         var copy = SqlAssistChrome.CreateButton("複製目前表格", Metrics);
-        copy.ToolTip = "以 TSV 複製目前篩選及排序後的欄位，包含表頭。";
+        copy.ToolTip = "以表格複製目前篩選及排序後的欄位，包含表頭；可直接貼到 Excel。";
         copy.Click += OnCopy;
 
         var toolbar = new DockPanel { Margin = new Thickness(0, 12, 0, 12) };
@@ -205,37 +206,37 @@ internal sealed class ResultGridProfileWindow : DialogWindow
             table.Rows.Count,
             table.IsWholeResult ? "整份結果" : "選取範圍");
 
-    /// <remarks>
-    /// 複製成以 Tab 分隔的表格，帶標題列——貼進 Excel、Markdown 表格產生器或
-    /// 另一個查詢視窗都排得開。這裡不另外做匯出格式的選項：多一種格式就多一份
-    /// 要跟著欄位改的東西，而 TSV 是唯一貼到哪裡都認得的。
-    /// </remarks>
-    private void OnCopy(object sender, RoutedEventArgs eventArgs)
+    /// <summary>複製的欄與畫面上的欄同名同序；數字不帶千分位，貼進 Excel 才是數值。</summary>
+    private static readonly SqlTabularColumn<ResultGridColumnProfile>[] CopyColumns =
     {
-        var builder = new StringBuilder();
-        builder.AppendLine("欄位\t型別\tNULL 數\t空字串數\t相異值數\t字元數範圍\t最小值\t最大值");
+        new("欄位", profile => profile.Name),
+        new("型別", profile => profile.DataType),
+        new("NULL 數", profile => profile.NullCount.ToString(CultureInfo.InvariantCulture)),
+        new("空字串數", profile => profile.EmptyTextCount.ToString(CultureInfo.InvariantCulture)),
+        new("相異值數", profile => profile.DistinctCount.ToString(CultureInfo.InvariantCulture)),
+        new("字元數範圍", profile => profile.TextLength),
+        new("最小值", profile => profile.Minimum),
+        new("最大值", profile => profile.Maximum)
+    };
 
-        var visible = _profileView.Cast<ResultGridColumnProfile>().ToArray();
-        foreach (var profile in visible)
-        {
-            builder.Append(profile.Name).Append('\t')
-                .Append(profile.DataType).Append('\t')
-                .Append(profile.NullCount.ToString(CultureInfo.InvariantCulture)).Append('\t')
-                .Append(profile.EmptyTextCount.ToString(CultureInfo.InvariantCulture)).Append('\t')
-                .Append(profile.DistinctCount.ToString(CultureInfo.InvariantCulture)).Append('\t')
-                .Append(profile.TextLength).Append('\t')
-                .Append(profile.Minimum).Append('\t')
-                .AppendLine(profile.Maximum);
-        }
+    /// <remarks>
+    /// 與清單的批次複製同一份產生器：TSV 給查詢視窗與記事本，HTML 給 Excel、Word 與郵件，
+    /// 順序照目前的篩選與排序。最小值、最大值是 T-SQL 字面值，字串裡的換行與定位字元
+    /// 照 Excel 規則包引號，不會把一欄拆成好幾列。
+    /// </remarks>
+    private void OnCopy(object sender, RoutedEventArgs eventArgs) => _ = CopyAsync();
 
+    private async Task CopyAsync()
+    {
+        // 剪貼簿被鎖住由 SqlClipboard 重試並回報；其他例外也不值得關掉視窗。
         try
         {
-            Clipboard.SetText(builder.ToString());
-            _statusText.Text = "已複製 " + visible.Length.ToString(CultureInfo.InvariantCulture) + " 欄的摘要。";
+            var content = SqlTabularText.Build(CopyColumns, _profileView.Cast<ResultGridColumnProfile>());
+            var failure = await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
+            _statusText.Text = failure ?? "已複製 " + content.RowCount.ToString(CultureInfo.InvariantCulture) + " 欄的摘要。";
         }
         catch (Exception exception)
         {
-            // 剪貼簿被別的程序鎖住時會擲例外，這不值得關掉視窗。
             SqlAssistDiagnostics.WriteAlways($"複製欄位剖析失敗：{exception.Message}");
             _statusText.Text = $"複製失敗：{exception.Message}";
         }

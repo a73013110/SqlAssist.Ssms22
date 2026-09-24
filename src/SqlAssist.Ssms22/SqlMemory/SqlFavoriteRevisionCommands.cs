@@ -45,11 +45,15 @@ internal sealed class SqlFavoriteRevisionCommands
             case SqlFavoriteRevisionAction.Open:
             case SqlFavoriteRevisionAction.Copy:
                 var open = action == SqlFavoriteRevisionAction.Open;
-                await WithSqlAsync(row, loadedSql, token, report, open ? "開啟" : "複製", sql =>
+                await WithSqlAsync(row, loadedSql, token, report, open ? "開啟" : "複製", async sql =>
                 {
-                    if (open) SqlMemoryActions.OpenQuery(_package, sql);
-                    else Clipboard.SetText(sql);
-                    report(open ? "已用此版本開啟新查詢；未執行 SQL。" : "已複製此版本的完整 SQL。");
+                    if (open)
+                    {
+                        SqlMemoryActions.OpenQuery(_package, sql);
+                        report("已用此版本開啟新查詢；未執行 SQL。");
+                        return;
+                    }
+                    report(await SqlClipboard.WriteTextAsync(sql).ConfigureAwait(true) ?? "已複製此版本的完整 SQL。");
                 });
                 break;
             case SqlFavoriteRevisionAction.Revert:
@@ -144,14 +148,14 @@ internal sealed class SqlFavoriteRevisionCommands
     }
 
     private Task WithSqlAsync(SqlFavoriteRevisionRow row, string? loadedSql, CancellationToken token, Action<string> report,
-        string verb, Action<string> use)
+        string verb, Func<string, Task> use)
     {
-        if (loadedSql is not null) { use(loadedSql); return Task.CompletedTask; }
+        if (loadedSql is not null) return use(loadedSql);
         return _gate.RunAsync(token, report, verb, async () =>
         {
             var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.Item.ContentId, token);
             if (content is null) return () => { row.ContentMissing = true; row.CanRevert = false; report("此版本的內容已被清理。"); };
-            return () => SqlMemoryActions.Run(() => use(content.SqlText), report);
+            return () => { _ = SqlMemoryActions.RunAsync(() => use(content.SqlText), report); };
         });
     }
 }

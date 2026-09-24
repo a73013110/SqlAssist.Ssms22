@@ -1,12 +1,13 @@
 using System;
 using System.Globalization;
-using System.Windows;
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
 using SqlAssist.Core.Diagnostics;
 using SqlAssist.Metadata.ResultGrid;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.ResultGrid;
 
@@ -94,17 +95,29 @@ internal static class ResultGridActions
             return;
         }
 
+        _ = CopyAsync(serviceProvider, what, table!, build);
+    }
+
+    /// <remarks>
+    /// 只放純文字，不放 TSV＋HTML：這三種都是要貼進 SQL、工單或設定檔的原文，
+    /// 多一份 HTML 會讓 Word 或郵件把 Markdown 貼成一張表，反而不是使用者要的那份字。
+    /// </remarks>
+    private static async Task CopyAsync(
+        IServiceProvider serviceProvider,
+        string what,
+        ResultGridTable table,
+        Func<ResultGridTable, string> build)
+    {
+        // 失敗一定要說出來——使用者接下來要按的是 Ctrl+V，而那時候貼出來的是舊的東西。
         try
         {
-            Clipboard.SetText(build(table!));
-            SqlAssistStatusBar.Show(serviceProvider, Describe(table!, "已複製" + what));
+            var failure = await SqlClipboard.WriteTextAsync(build(table)).ConfigureAwait(true);
+            SqlAssistStatusBar.Show(serviceProvider, failure ?? Describe(table, "已複製" + what));
         }
         catch (Exception exception)
         {
-            // 剪貼簿被別的程序鎖住時會擲例外。這一句一定要說出來——
-            // 使用者接下來要按的是 Ctrl+V，而那時候貼出來的是舊的東西。
             SqlAssistDiagnostics.WriteAlways($"複製{what}失敗：{exception}");
-            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗；剪貼簿可能正被其他程式使用，請再試一次。");
+            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗：{exception.Message}");
         }
     }
 

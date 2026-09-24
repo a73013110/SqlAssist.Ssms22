@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -113,16 +114,17 @@ internal sealed class ResultGridCellWindow : DialogWindow
         return root;
     }
 
-    private void OnCopy(object sender, RoutedEventArgs eventArgs)
+    private void OnCopy(object sender, RoutedEventArgs eventArgs) => _ = CopyAsync();
+
+    private async Task CopyAsync()
     {
+        // 剪貼簿被鎖住由 SqlClipboard 重試並回報；其他例外也不值得關掉視窗。
         try
         {
-            Clipboard.SetText(_cell.Text);
-            _statusText.Text = "已複製這一格的完整內容。";
+            _statusText.Text = await SqlClipboard.WriteTextAsync(_cell.Text).ConfigureAwait(true) ?? "已複製這一格的完整內容。";
         }
         catch (Exception exception)
         {
-            // 剪貼簿被別的程序鎖住時會擲例外，這不值得關掉視窗。
             SqlAssistDiagnostics.WriteAlways($"複製儲存格內容失敗：{exception.Message}");
             _statusText.Text = $"複製失敗：{exception.Message}";
         }

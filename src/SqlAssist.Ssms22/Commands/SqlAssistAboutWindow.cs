@@ -400,12 +400,14 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         return SqlAssistChrome.CreateDialogFooter(utilities, _statusText, close);
     }
 
-    private void OnCopyDiagnostics(object sender, RoutedEventArgs eventArgs)
+    private void OnCopyDiagnostics(object sender, RoutedEventArgs eventArgs) => _ = CopyDiagnosticsAsync();
+
+    private async Task CopyDiagnosticsAsync()
     {
         try
         {
-            Clipboard.SetText(SqlAssistDiagnosticReport.Create(_snapshot));
-            _statusText.Text = "已複製隱私安全的診斷摘要。";
+            var failure = await SqlClipboard.WriteTextAsync(SqlAssistDiagnosticReport.Create(_snapshot)).ConfigureAwait(true);
+            _statusText.Text = failure ?? "已複製隱私安全的診斷摘要。";
         }
         catch (Exception exception)
         {

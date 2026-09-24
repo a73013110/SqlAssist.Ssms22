@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -1775,19 +1776,21 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     private void Copy(string text, string successMessage)
     {
-        if (string.IsNullOrEmpty(text))
+        if (!string.IsNullOrEmpty(text))
         {
-            return;
+            _ = CopyAsync(text, successMessage);
         }
+    }
 
+    private async Task CopyAsync(string text, string successMessage)
+    {
+        // 剪貼簿被鎖住由 SqlClipboard 重試並回報；這裡只接其他例外，不值得中斷預覽。
         try
         {
-            Clipboard.SetText(text);
-            _status.Text = successMessage;
+            _status.Text = await SqlClipboard.WriteTextAsync(text).ConfigureAwait(true) ?? successMessage;
         }
         catch (Exception exception)
         {
-            // 剪貼簿被別的程序鎖住時會擲例外，這不值得中斷預覽。
             SqlAssistDiagnostics.WriteAlways($"複製預覽內容失敗：{exception.Message}");
             _status.Text = $"複製失敗：{exception.Message}";
         }
