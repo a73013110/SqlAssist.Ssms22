@@ -80,8 +80,8 @@ Tab／Shift+Tab 在欄位之間移動；完整捷徑表見[程式碼片段](snip
 |---|---|
 | 暫時停用整個擴充 | `Ctrl+Alt+Shift+S`，或 **工具 → SqlAssist → 啟用 SqlAssist** |
 | 只關閉自動建議 | **工具 → SqlAssist → 顯示即時建議** |
-| 看某個物件到底怎麼寫的 | `F12`，或 **工具 → SqlAssist → 移至定義** |
-| 查看游標處物件的完整結構 | `Ctrl+F12`，或 **工具 → SqlAssist → 顯示游標處物件的結構** |
+| 看某個物件到底怎麼寫的 | `F12`、`Ctrl+Shift`＋點擊名稱，或 **工具 → SqlAssist → 移至定義** |
+| 查看游標處物件的完整結構 | `Ctrl+F12`、`Ctrl`＋點擊名稱，或 **工具 → SqlAssist → 顯示游標處物件的結構** |
 | 資料表剛變更，想重新載入 | `Ctrl+Shift+D`，或 **工具 → SqlAssist → 重新整理建議** |
 | 找某個名稱或字串在哪些物件裡 | **SqlAssist 工具列 → Search**，或 **工具 → SqlAssist → SQL Search** |
 | 找自己寫過的 SQL | **SqlAssist 工具列 → History／Favorites** |

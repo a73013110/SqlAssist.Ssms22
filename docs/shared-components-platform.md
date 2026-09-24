@@ -10,6 +10,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | DPI、螢幕工作區 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回既有或新建的 SQL 編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs`、`ActiveSqlEditor.cs` |
 | F12、預覽的指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
+| 某個位置的物件開預覽或定義（快捷鍵、選單、Ctrl＋點擊共用） | `Ssms22/Editor/SqlObjectNavigation.cs` |
 | 物件總管的伺服器、連線與導航 | `Ssms22/Connections/SsmsObjectExplorer.cs` |
 | SSMS 狀態列的進度與失敗 | `Ssms22/SqlAssistStatusBar.cs` |
 | 主視窗、作用中框架、元素所在視窗（取代 `Window.GetWindow`）、焦點移動、非啟用浮窗點下時帶回前景與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |

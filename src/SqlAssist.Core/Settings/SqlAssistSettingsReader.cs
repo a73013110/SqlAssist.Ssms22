@@ -155,6 +155,10 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.ParameterHint,
                 defaults.ParameterHintEnabled),
+            ClickNavigationEnabled = Value(
+                source,
+                SqlAssistMonikers.ClickNavigation,
+                defaults.ClickNavigationEnabled),
             PreviewMode = ParsePreviewMode(
                 Value(source, SqlAssistMonikers.PreviewMode, string.Empty),
                 defaults.PreviewMode),

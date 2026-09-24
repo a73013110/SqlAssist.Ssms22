@@ -33,6 +33,7 @@
 | 任何自製 UI、顏色、字型或排版 | `Ssms22/UI/SqlAssistChrome.cs`（**唯一**出處） |
 | 按了某個鍵卻沒反應（F12 之類） | `Ssms22/Editor/SqlShellCommandFilter.cs` |
 | F12 抵達了卻沒開視窗 | `Ssms22/Editor/SqlDefinitionOpener.cs` |
+| Ctrl＋點擊沒有底線或點了沒反應 | `Ssms22/Editor/SqlClickNavigator.cs` |
 | 結果格線右鍵選單的命令、產出的 SQL 不對 | `Metadata/ResultGrid/`、`Ssms22/ResultGrid/` |
 | 新增選單項目或鍵繫結後沒生效 | `Menus.vsct` ＋ `ProvideMenuResource` 版號，且必須重新安裝 |
 | F12 開出來的指令碼內容不對 | `Metadata/Formatting/SqlObjectScript.cs` |

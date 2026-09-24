@@ -25,6 +25,8 @@ public sealed class KeyboardDeviceUsageTests
     /// 與滾輪同一個理由：<c>MouseButtonEventArgs</c> 也只帶滑鼠裝置。它另外做成可替換的屬性，
     /// 測試換掉它，所以合成的點擊不會讀到實體鍵盤——這正是這條規則要的。按鍵路徑（空白鍵、
     /// Ctrl+A、Ctrl+C）仍然只讀 <c>KeyEventArgs.KeyboardDevice</c>。
+    /// 編輯器的 Ctrl＋點擊（<c>SqlClickNavigator.ModifierSource</c>）是同一個例外、同一種做法：
+    /// 滑鼠移動與按下讀它，修飾鍵的按下與放開仍由按鍵事件帶進來。
     /// </remarks>
     private const string ModifierSourceException = "ModifierSource";
 

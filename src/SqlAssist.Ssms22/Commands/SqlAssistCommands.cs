@@ -1,17 +1,11 @@
 using System;
 using System.ComponentModel.Design;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Media;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.Text.Editor;
-using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Notifications;
-using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
-using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Connections;
@@ -273,12 +267,7 @@ internal sealed class SqlAssistCommands
                 return;
             }
 
-            if (!SqlCompletionServices
-                    .GetDefinitionOpener(textView, _package)
-                    .TryBegin(textView.Caret.Position.BufferPosition))
-            {
-                SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
-            }
+            SqlObjectNavigation.GoToDefinition(textView, textView.Caret.Position.BufferPosition, _package);
         }
         catch (Exception exception)
         {
@@ -300,116 +289,22 @@ internal sealed class SqlAssistCommands
     private void ShowObjectStructure(object? sender, EventArgs eventArgs)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
-        _ = ShowObjectStructureAsync();
-    }
+        SqlAssistDiagnostics.WriteAlways("顯示物件結構命令抵達 SqlAssist（命令表）");
 
-    /// <summary>
-    /// 游標停在內建函式或型別上時，用同一個視窗顯示它的完整說明。
-    /// </summary>
-    /// <remarks>
-    /// 只有真的裝得滿一個視窗才開（<see cref="SqlBuiltInDoc.DeservesWindow"/>，
-    /// 與建議清單那條入口同一條規則）。裝不滿時只剩一個標題，那還不如把「不是可辨識的
-    /// 資料庫物件」說清楚——使用者至少知道要換個字試。
-    /// </remarks>
-    private bool ShowBuiltInStructure(
-        IWpfTextView textView,
-        Microsoft.VisualStudio.Text.ITextSnapshot snapshot,
-        string text,
-        int position)
-    {
-        var reference = SqlIdentifierScanner.FindAt(text, position);
-
-        if (!SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc) || !doc.DeservesWindow)
+        // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
+        if (!SqlAssistSettingsStore.Current.Enabled)
         {
-            return false;
+            SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+            return;
         }
 
-        if (SqlStructurePreview.GetOrCreate(textView, _package) is not { } preview)
+        if (ActiveSqlEditor.Current is not { } textView)
         {
-            return false;
+            SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+            return;
         }
 
-        preview.ShowBuiltInAt(
-            snapshot.CreateTrackingSpan(
-                new Microsoft.VisualStudio.Text.Span(reference!.Start, reference.Length),
-                Microsoft.VisualStudio.Text.SpanTrackingMode.EdgeInclusive),
-            doc);
-
-        return true;
-    }
-
-    private async Task ShowObjectStructureAsync()
-    {
-        try
-        {
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            SqlAssistDiagnostics.WriteAlways("顯示物件結構命令抵達 SqlAssist（命令表）");
-
-            // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
-            if (!SqlAssistSettingsStore.Current.Enabled)
-            {
-                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
-                return;
-            }
-
-            var textView = ActiveSqlEditor.Current;
-
-            if (textView is null)
-            {
-                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
-                return;
-            }
-
-            var caret = textView.Caret.Position.BufferPosition;
-            var text = caret.Snapshot.GetText();
-            var metadataService = SqlCompletionServices.GetMetadataService(textView, _package);
-
-            // 使用者主動要求的路徑，等得起一次查詢。
-            var location = await SqlObjectLocator.LocateAsync(
-                metadataService,
-                text,
-                caret.Position,
-                CancellationToken.None,
-                NotificationOrigin.User);
-
-            if (location is null)
-            {
-                // CONVERT 與 DATEADD 不是資料庫物件，但游標停在它們上面時
-                // 使用者要問的事一模一樣：這個引數可以填什麼。同一個視窗答得出來。
-                if (!ShowBuiltInStructure(textView, caret.Snapshot, text, caret.Position))
-                {
-                    SqlAssistStatusBar.Show(_package, "游標處不是可辨識的資料庫物件。");
-                }
-
-                return;
-            }
-
-            var anchor = caret.Snapshot.CreateTrackingSpan(
-                new Microsoft.VisualStudio.Text.Span(
-                    location.Reference.Start,
-                    location.Reference.Length),
-                Microsoft.VisualStudio.Text.SpanTrackingMode.EdgeInclusive);
-
-            if (SqlStructurePreview.GetOrCreate(textView, _package) is { } preview)
-            {
-                // 暫存資料表、資料表變數與 CTE 的結構在定位那一步就讀出來了；
-                // 它們不在中繼資料裡，交給一般載入路徑只會等到一句「沒有可用的連線」。
-                preview.ShowAt(
-                    anchor,
-                    location.Object,
-                    metadataService,
-                    location.Detail is { } detail ? new SqlObjectStructure(detail) : null);
-                return;
-            }
-
-            SqlAssistStatusBar.Show(_package, "查詢視窗已關閉，無法顯示物件結構。");
-        }
-        catch (Exception exception)
-        {
-            // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
-            SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, "開啟物件結構失敗；原因已寫入診斷紀錄檔。");
-        }
+        SqlObjectNavigation.ShowStructure(textView, textView.Caret.Position.BufferPosition, _package);
     }
 
     /// <summary>

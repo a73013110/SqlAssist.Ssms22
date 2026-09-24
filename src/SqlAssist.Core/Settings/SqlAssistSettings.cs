@@ -294,6 +294,16 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public bool ParameterHintEnabled { get; init; } = true;
 
+    /// <summary>
+    /// sqlAssist.structure.clickNavigation
+    /// </summary>
+    /// <remarks>
+    /// Ctrl＋點擊開結構預覽、Ctrl+Shift＋點擊開定義，一個開關管整組手勢：分開給的話，
+    /// 關掉其中一個的人會以為另一個也該跟著關，而按下去卻還有反應。
+    /// 關掉之後 Ctrl＋點擊回到編輯器原本的「選取整個單字」。
+    /// </remarks>
+    public bool ClickNavigationEnabled { get; init; } = true;
+
     /// <summary>sqlAssist.structure.previewMode</summary>
     public SqlPreviewMode PreviewMode { get; init; } = SqlPreviewMode.Delay;
 
