@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using SqlAssist.Core.Matching;
 using SqlAssist.Core.Tabular;
 
 namespace SqlAssist.Ssms22.UI;
@@ -95,6 +96,40 @@ internal static class SqlDataGridText
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 一列在看得見的欄裡有沒有 <paramref name="matcher"/>；資料格的列篩選與分頁命中數共用。
+    /// </summary>
+    /// <remarks>
+    /// 讀的與複製同一份（繫結路徑，或樣板欄的 <see cref="DataGridColumn.SortMemberPath"/>）：
+    /// 使用者看到哪幾欄就只在那幾欄裡找，收起的空欄與看不見的屬性不會讓一列莫名其妙地留下來。
+    /// 回傳的判斷式帶著自己的反射快取，同一輪篩選重用它，不要每一列建一個。
+    /// </remarks>
+    public static Predicate<object> CreateFilter(DataGrid grid, TextMatcher matcher)
+    {
+        var columns = new List<DataGridColumn>();
+        foreach (var column in grid.Columns)
+        {
+            if (column.Visibility == Visibility.Visible)
+            {
+                columns.Add(column);
+            }
+        }
+
+        var reader = new ValueReader();
+        return row =>
+        {
+            foreach (var column in columns)
+            {
+                if (matcher.IsMatch(reader.Read(column, row)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
     }
 
     private sealed class ValueReader

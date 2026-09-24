@@ -13,16 +13,16 @@ namespace SqlAssist.Ssms22.Preview;
 /// 浮動預覽專屬的外觀。
 /// </summary>
 /// <remarks>
-/// 字型、字級、按鈕、分頁與資料格的樣板都在 <see cref="SqlAssistChrome"/>，
+/// 字型、字級、按鈕、分頁、膠囊與資料格的樣板都在 <see cref="SqlAssistChrome"/>，
 /// 那是整個擴充共用的一套；這裡只留下別的視窗用不到的部分——
-/// 物件圖示控制項的排版，以及欄位表的旗標徽章。出現時的淡入已是共用表面行為，在 <see cref="SqlAssistChrome.PlayAppear"/>。
+/// 物件種類的原生圖示，以及欄位表的旗標徽章。出現時的淡入已是共用表面行為，在 <see cref="SqlAssistChrome.PlayAppear"/>。
 /// </remarks>
 internal static class PreviewChrome
 {
     /// <summary>主索引鍵徽章要換成強調色，比對的就是這個字串。</summary>
     public static readonly string PrimaryKeyFlag = SqlColumnFlag.PrimaryKey.ToDisplayName();
 
-    // 圖示只輔助辨識，種類文字仍保留在淡色摘要；每個預覽持有自己的控制項。
+    // 種類膠囊的圖示插槽；圖示只輔助辨識，種類文字就在同一顆膠囊上。每個預覽持有自己的控制項。
     public static CrispImage CreateObjectIcon()
     {
         return new CrispImage
@@ -30,7 +30,6 @@ internal static class PreviewChrome
             Width = 16,
             Height = 16,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 10, 0),
             Moniker = SqlIcons.GetMoniker(SqlObjectKind.Unknown)
         };
     }

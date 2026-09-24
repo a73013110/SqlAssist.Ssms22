@@ -145,15 +145,15 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
     {
         if (cCmds == 1)
         {
-            // 清單開著時那些導覽鍵歸清單管；不在這裡認領，編輯器把某個命令回報成停用
+            // 自製 Popup 握著鍵盤時那些導覽鍵歸它管；不在這裡認領，編輯器把某個命令回報成停用
             // （例如沒東西可復原）時殼層就不會派送 Exec，那個鍵會安靜地消失。
-            if (SqlSnippetSurroundPicker.IsOpen)
+            if (ShellKeyCapture.IsActive)
             {
-                // ref 參數進不了 Lambda，先落成區域變數；清單沒開就連這一次複製都不做。
+                // ref 參數進不了 Lambda，先落成區域變數；沒有 Popup 握著鍵盤就連這一次複製都不做。
                 var group = pguidCmdGroup;
                 var command = prgCmds[0].cmdID;
-                if (SqlAssistPlatformGuard.Run("回報包夾清單的按鍵狀態",
-                        () => SqlSnippetSurroundPicker.TryHandleShellCommand(_textView, group, command, execute: false),
+                if (SqlAssistPlatformGuard.Run("回報 Popup 的按鍵狀態",
+                        () => ShellKeyCapture.TryHandle(_textView, group, command, execute: false),
                         fallback: false))
                 {
                     prgCmds[0].cmdf = (uint)(OLECMDF.OLECMDF_SUPPORTED | OLECMDF.OLECMDF_ENABLED);
@@ -194,15 +194,15 @@ internal sealed class SqlShellCommandFilter : IOleCommandTarget
 
     public int Exec(ref Guid pguidCmdGroup, uint nCmdID, uint nCmdexecopt, IntPtr pvaIn, IntPtr pvaOut)
     {
-        // 包夾清單開著時，殼層仍照「文字編輯器」範圍把 Tab／↑↓／Enter／Delete 解析成
-        // 編輯器命令送到這裡——與焦點在哪個視窗無關，不攔就是直接改到後面那份 SQL。
+        // 包夾清單或預覽搜尋框握著鍵盤時，殼層仍照「文字編輯器」範圍把 Tab／↑↓／Enter／
+        // Delete 解析成編輯器命令送到這裡——與焦點在哪個視窗無關，不攔就是直接改到後面那份 SQL。
         // 排在最前面，代價是每個按鍵多一次靜態欄位讀取，比兩次 GUID 比對還便宜。
-        if (SqlSnippetSurroundPicker.IsOpen)
+        if (ShellKeyCapture.IsActive)
         {
-            // ref 參數進不了 Lambda，先落成區域變數；清單沒開就連這一次複製都不做。
+            // ref 參數進不了 Lambda，先落成區域變數；沒有 Popup 握著鍵盤就連這一次複製都不做。
             var group = pguidCmdGroup;
-            if (SqlAssistPlatformGuard.Run("把按鍵交還包夾清單",
-                    () => SqlSnippetSurroundPicker.TryHandleShellCommand(_textView, group, nCmdID, execute: true),
+            if (SqlAssistPlatformGuard.Run("把按鍵交還 Popup",
+                    () => ShellKeyCapture.TryHandle(_textView, group, nCmdID, execute: true),
                     fallback: false))
             {
                 return VSConstants.S_OK;

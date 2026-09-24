@@ -96,9 +96,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
             "處理 Esc 按鍵",
             () =>
             {
-                // 包夾清單排在最前面：它開著的時候 Esc 就是「關掉它」，而且第一次按
-                // 就要關得掉——殼層不一定會把那一次變成命令送進命令鏈。
-                if (SqlSnippetSurroundPicker.TryCancel(args.TextView))
+                // 握著鍵盤的 Popup（包夾清單、預覽搜尋框）排在最前面：Esc 就是交給它，
+                // 而且第一次按就要有反應——殼層不一定會把那一次變成命令送進命令鏈。
+                if (ShellKeyCapture.TryCancel(args.TextView))
                 {
                     return true;
                 }

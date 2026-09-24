@@ -1,7 +1,7 @@
 # 以片段包住選取範圍
 
 本頁包含以片段包住選取範圍的操作與預覽、錨點、縮排、選取處理、命令入口、插入路徑與驗證。
-按鍵怎麼接見[包夾按鍵](snippet-surround-keys.md)。
+按鍵怎麼接見[包夾按鍵](popup-keys.md)。
 
 ## 操作
 
@@ -25,7 +25,7 @@
 前景色，`TextBlock` 不能選取複製。
 
 清單開著時 Tab、↑↓、Enter、Esc 為什麼會改到編輯器、以及為什麼留在 `Popup`，
-見[包夾按鍵](snippet-surround-keys.md)。
+見[包夾按鍵](popup-keys.md)。
 
 清單維持設定檔順序，預選**上一次成功套用**的片段，取消或寫入失敗不記錄。
 搜尋完整捷徑時優先選它，清除搜尋回到原預選。`SqlSnippetSurroundHistory` 以識別碼

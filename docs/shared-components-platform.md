@@ -17,13 +17,15 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 延後至本輪命令結束 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 殼層命令攔截與診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
+| 自製 Popup 握著鍵盤時把殼層命令換回按鍵交還（包夾清單、預覽搜尋框） | `Ssms22/Editor/ShellKeyCapture.cs`、`ShellKeyMap.cs` |
 | ALTER／INSERT／MERGE／EXEC／函式引數的提交後改寫 | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 抑制 SSMS 內建自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 停駐工具窗主從區 | `Ssms22/UI/MasterDetailView.cs` |
-| 字型、基本控制項、水平資訊列、分頁、表面淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 字型、基本控制項、水平資訊列、分頁（含分頁列右側工具 `TabStripTrailing`）、表面淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 沒有資料列的表面上的膠囊、帶數字的分頁標籤 | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
 | 清單列、標頭骨架、右緣操作層與窄版降級 | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
 | 清單列寬度模式與門檻 | `Ssms22/UI/SqlRowLayout.cs` |
 | 過濾面板與摘要 | `Ssms22/UI/SqlFilterFlyout.cs`、`SqlFilterSummary.cs`、`SqlAssistChrome.Filters.cs` |
@@ -49,7 +51,8 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 命中與區塊端點配色 | `Ssms22/UI/TextMarkColors.cs`、`MatchPalette.cs`；大面積分類色見[文字標記](text-marks.md) |
 | 上一處／下一處命中與讀數 | `Ssms22/UI/SqlMatchNavigator.cs`、`Core/Matching/MatchCursor.cs` |
 | 預覽上標命中、停在第一處與工具列上的導覽組（Search 與 Memory 共用） | `Ssms22/UI/SqlMatchNavigation.cs` |
-| WPF 資料格匯出、顯示順序與空欄 | `Ssms22/UI/SqlDataGridText.cs`（加引號規則在 `SqlTabularText`） |
+| WPF 資料格匯出、顯示順序、空欄與列篩選 | `Ssms22/UI/SqlDataGridText.cs`（加引號規則在 `SqlTabularText`） |
+| 一行文字上的命中高亮（自帶區段，或容器上繼承下來的比對器） | `Ssms22/UI/SqlHighlightText.cs` |
 | SQL 原生圖示、語意圖示與影像插槽 | `Ssms22/UI/SqlIcons.cs`、`SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 宿主筆刷、主題色階、動作對比與動態資源刷新 | `Ssms22/UI/VsThemeBrushes.cs`、`ThemePalette.cs`、`ThemeColorMath.cs`、`ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
 | 通知島的形態狀態機、浮層定位、表面、提醒檢視與附條 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs` |

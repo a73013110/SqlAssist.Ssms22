@@ -63,5 +63,8 @@ internal enum SqlIcon
     SelfTest,
 
     /// <summary>動作完成的短暫回饋（複製成功時動作按鈕的圖示換成它）。</summary>
-    Done
+    Done,
+
+    /// <summary>主索引鍵由哪幾欄組成（結構預覽抬頭的那一顆膠囊）。</summary>
+    PrimaryKey
 }

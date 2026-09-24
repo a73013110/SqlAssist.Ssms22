@@ -63,6 +63,7 @@ public sealed class SqlObjectStructureTests
         Assert.Equal("PK_Lib_Reader", indexes[0].Name);
         Assert.True(indexes[0].IsPrimaryKey);
         Assert.Equal("Last ASC, First DESC", indexes[1].DescribeKeyColumns());
+        Assert.Equal("Last, First", indexes[1].DescribeKeyColumnNames());
         Assert.Equal("Email", indexes[1].DescribeIncludedColumns());
     }
 

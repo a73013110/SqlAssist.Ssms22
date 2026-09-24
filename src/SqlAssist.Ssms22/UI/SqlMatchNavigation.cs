@@ -53,6 +53,9 @@ internal sealed class SqlMatchNavigation
         if (highlights.Count != 0) _viewer.ShowMatch(0);
     }
 
+    /// <summary>走到上一處或下一處；給按鈕以外的入口用（例如搜尋框裡的 Enter）。</summary>
+    public bool Move(bool forward) => _navigator.Move(forward);
+
     /// <summary>清掉內容與命中；換一列、載入中或讀不到時用。</summary>
     public void Clear()
     {

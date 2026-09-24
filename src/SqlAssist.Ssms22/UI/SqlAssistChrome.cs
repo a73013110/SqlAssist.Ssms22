@@ -1056,28 +1056,61 @@ internal static partial class SqlAssistChrome
         var layout = new FrameworkElementFactory(typeof(DockPanel));
         layout.SetValue(DockPanel.LastChildFillProperty, true);
 
+        // 分頁列是一條：左邊底槽，右邊接宿主掛上來的那一組（TabStripTrailing）。沒有掛的時候
+        // 那一格量出來是零，版面與只有底槽的時候相同。
+        var strip = new FrameworkElementFactory(typeof(DockPanel));
+        strip.SetValue(DockPanel.DockProperty, Dock.Top);
+        strip.SetValue(DockPanel.LastChildFillProperty, true);
+        strip.SetValue(FrameworkElement.MarginProperty, compact ? new Thickness(0) : new Thickness(14, 0, 14, 10));
+
+        var trailing = new FrameworkElementFactory(typeof(ContentPresenter));
+        trailing.SetValue(DockPanel.DockProperty, Dock.Right);
+        trailing.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        trailing.SetBinding(ContentPresenter.ContentProperty, new Binding
+        {
+            RelativeSource = RelativeSource.TemplatedParent,
+            Path = new PropertyPath(TabStripTrailingProperty)
+        });
+
         var track = new FrameworkElementFactory(typeof(Border));
-        track.SetValue(DockPanel.DockProperty, Dock.Top);
         track.SetResourceReference(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
         track.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
         track.SetValue(Border.PaddingProperty, new Thickness(2));
         track.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Left);
-        track.SetValue(FrameworkElement.MarginProperty, compact ? new Thickness(0) : new Thickness(14, 0, 14, 10));
+        track.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
 
         var headers = new FrameworkElementFactory(typeof(TabPanel));
         headers.SetValue(Panel.IsItemsHostProperty, true);
         track.AppendChild(headers);
+
+        strip.AppendChild(trailing);
+        strip.AppendChild(track);
 
         // ContentSource 不是相依性屬性，在這裡設不了；直接把 Content 綁到
         // 分頁控制項選到的那一份內容，效果一樣。
         var body = new FrameworkElementFactory(typeof(ContentPresenter));
         body.SetBinding(ContentPresenter.ContentProperty, TemplatedParent(nameof(TabControl.SelectedContent)));
 
-        layout.AppendChild(track);
+        layout.AppendChild(strip);
         layout.AppendChild(body);
 
         return new ControlTemplate(typeof(TabControl)) { VisualTree = layout };
     }
+
+    /// <summary>
+    /// 掛在分頁列右側的那一組，只對 <see cref="CreateTabControlTemplate"/> 有效。
+    /// </summary>
+    /// <remarks>
+    /// 作用在分頁內容上的工具（搜尋、換行、複製）與分頁同一列：另起一條工具列等於永遠少看
+    /// 一列內容，放在標題列又與「這是什麼」混在一起。做成附加屬性而不是另一種樣板參數，
+    /// 分頁控制項換內容時不必重套樣板。
+    /// </remarks>
+    public static readonly DependencyProperty TabStripTrailingProperty = DependencyProperty.RegisterAttached(
+        "TabStripTrailing", typeof(object), typeof(SqlAssistChrome), new PropertyMetadata(null));
+
+    public static object? GetTabStripTrailing(TabControl tabs) => tabs.GetValue(TabStripTrailingProperty);
+
+    public static void SetTabStripTrailing(TabControl tabs, object? value) => tabs.SetValue(TabStripTrailingProperty, value);
 
     /// <summary>分段控制器裡的一段。</summary>
     public static ControlTemplate CreateTabItemTemplate()

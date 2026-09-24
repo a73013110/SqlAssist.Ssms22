@@ -7,6 +7,7 @@ using System.Windows.Input;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.UI;
 
@@ -23,25 +24,14 @@ namespace SqlAssist.Ssms22.Snippets;
 /// <c>DialogWindow</c>，紀錄檔裡 <c>UP</c>／<c>DOWN</c>／<c>RETURN</c>／<c>CANCEL</c>
 /// 照樣抵達查詢視窗的命令鏈，而且那個視窗連焦點都拿不到（殼層在命令結束後把焦點還給
 /// 文件），連打字都掉回編輯器。因此內容留在 <c>Popup</c>：它拿得到焦點，外觀也貼著
-/// 編輯器；按鍵則由 <see cref="TryHandleShellCommand"/> 從
-/// <c>SqlShellCommandFilter</c> 接回來。
+/// 編輯器；按鍵則由 <see cref="ShellKeyCapture"/> 從 <c>SqlShellCommandFilter</c> 接回來。
 /// </remarks>
-internal sealed class SqlSnippetSurroundPicker
+internal sealed class SqlSnippetSurroundPicker : IShellKeyTarget
 {
     private static readonly object PropertyKey = new();
 
     /// <summary>清單的最小可用尺寸；再小預覽就讀不出一段 SQL 了。</summary>
     private static readonly Size MinimumSize = new(640, 380);
-
-    /// <summary>
-    /// 目前開著的清單。
-    /// </summary>
-    /// <remarks>
-    /// 命令濾鏡每一個按鍵都要問一次「清單開著嗎」，答案必須是一次靜態欄位讀取；
-    /// 查 <c>view.Properties</c> 就是在編輯器最熱的路徑上多一次字典查詢。
-    /// 只在 UI 執行緒上存取，不必同步。
-    /// </remarks>
-    private static SqlSnippetSurroundPicker? _open;
 
     /// <summary>上一次關閉時的尺寸；只記在行程記憶體，讓連續包夾維持同一個大小。</summary>
     private static Size _size = new(1040, 620);
@@ -121,118 +111,13 @@ internal sealed class SqlSnippetSurroundPicker
         }
     }
 
-    /// <summary>有沒有清單開著；命令濾鏡在轉傳前只付得起這一次靜態欄位讀取。</summary>
-    public static bool IsOpen => _open is not null;
+    ITextView IShellKeyTarget.View => _view;
 
-    /// <summary>
-    /// 把殼層解析成編輯器命令的那些按鍵接回清單。
-    /// </summary>
-    /// <remarks>
-    /// 這裡不逐個命令自己實作行為，而是換回對應的按鍵重新丟進 WPF 的輸入管線：
-    /// 修飾鍵仍是實體狀態，Shift+Tab、Shift+↑、Ctrl+← 之類就由文字方塊與清單自己
-    /// 處理，不必在這裡重寫一份鍵盤語意，日後多接一個命令也只是多一列對照。
-    ///
-    /// 認得的命令一律回 <c>true</c>，即使當下做不了（例如沒有選取還按 Ctrl+C，或是
-    /// 焦點被殼層搶回編輯器）：往下轉就是回到「改到後面那份 SQL」的原症狀，
-    /// 而少一次按鍵頂多是使用者再按一次。
-    /// </remarks>
-    /// <param name="view">濾鏡自己掛著的那個編輯器，不是目前作用中的。</param>
-    /// <param name="execute">
-    /// <c>false</c> 是 <c>QueryStatus</c> 只問「這個命令歸清單管嗎」。認領這一步不能省：
-    /// 沒有人認領的命令是停用的，而停用的命令連 <c>Exec</c> 都不會發出去——編輯器
-    /// 自己剛好把某個命令回報成停用時（例如沒東西可復原），那個鍵就會安靜地消失。
-    /// </param>
-    public static bool TryHandleShellCommand(IWpfTextView view, Guid group, uint commandId, bool execute) =>
-        For(view)?.TryDispatch(group, commandId, execute) == true;
+    UIElement IShellKeyTarget.Scope => _frame;
 
-    /// <summary>
-    /// Esc 的第二條路。
-    /// </summary>
-    /// <remarks>
-    /// 實測第一次 Esc 不一定會變成 <c>VSStd2K/CANCEL</c> 走進命令鏈——查詢視窗在那之前
-    /// 先拿它取消自己的選取，於是使用者要按兩次。現代管線的
-    /// <c>EscapeKeyCommandArgs</c> 收得到那一次，就從那裡也接一條；兩條路都呼叫
-    /// <see cref="Close"/>，重複進來由 <c>_closed</c> 擋掉。
-    /// </remarks>
-    /// <param name="view">現代管線給的是 <see cref="ITextView"/>；比的是同一個執行個體。</param>
-    public static bool TryCancel(ITextView view)
-    {
-        if (For(view) is not { } picker)
-        {
-            return false;
-        }
+    IInputElement IShellKeyTarget.FocusTarget => _panel.SearchBox;
 
-        picker.Close(restoreFocus: true);
-        return true;
-    }
-
-    /// <summary>這個編輯器目前開著的清單；命令與 Esc 兩條路共用同一個判斷。</summary>
-    private static SqlSnippetSurroundPicker? For(ITextView view) =>
-        _open is { } picker && !picker._closed && ReferenceEquals(picker._view, view) ? picker : null;
-
-    private bool TryDispatch(Guid group, uint commandId, bool execute)
-    {
-        var command = SqlSnippetSurroundKeys.MapCommand(group, commandId);
-        var key = command is null ? SqlSnippetSurroundKeys.MapKey(group, commandId) : null;
-        if (command is null && key is null)
-        {
-            return false;
-        }
-
-        if (!execute)
-        {
-            return true;
-        }
-
-        // 焦點被搶走時先要回來：不能靠 WPF 目前的焦點元素，那可能已經在編輯器裡，
-        // 再把按鍵丟進輸入管線就等於自己動手改 SQL。
-        if (!_frame.IsKeyboardFocusWithin)
-        {
-            Keyboard.Focus(_panel.SearchBox);
-        }
-
-        if (Keyboard.FocusedElement is not { } target || !_frame.IsKeyboardFocusWithin)
-        {
-            return true;
-        }
-
-        if (command is not null)
-        {
-            if (command.CanExecute(null, target))
-            {
-                command.Execute(null, target);
-            }
-
-            return true;
-        }
-
-        if (PresentationSource.FromVisual(_frame) is { } source && !Raise(source, Keyboard.PreviewKeyDownEvent, key!.Value))
-        {
-            Raise(source, Keyboard.KeyDownEvent, key.Value);
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// 補一次真正按鍵會有的通道與冒泡。
-    /// </summary>
-    /// <remarks>
-    /// <c>InputManager.ProcessInput</c> 推一個 <c>KeyEventArgs</c> 只會發<b>那一個</b>
-    /// 事件，不像真正的按鍵先通道再冒泡。只發 <c>KeyDown</c> 時，文字方塊的編輯鍵仍然
-    /// 正常（那些是 <c>KeyDown</c> 的類別處理），但清單掛在 <c>PreviewKeyDown</c> 的
-    /// ↑↓／Enter／Esc 完全收不到——症狀就是搜尋框裡按那三個鍵沒有任何反應，
-    /// 而 ↑↓ 要先點進清單才有用。因此兩個階段都補，並尊重通道階段的 <c>Handled</c>。
-    /// </remarks>
-    private static bool Raise(PresentationSource source, RoutedEvent routedEvent, Key key)
-    {
-        var args = new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key)
-        {
-            RoutedEvent = routedEvent
-        };
-        InputManager.Current.ProcessInput(args);
-        return args.Handled;
-    }
+    void IShellKeyTarget.Cancel() => Close(restoreFocus: true);
 
     private void Open(SnapshotPoint anchor)
     {
@@ -252,7 +137,7 @@ internal sealed class SqlSnippetSurroundPicker
         _popup.VerticalOffset = top;
         _popup.Closed += OnClosed;
         _view.Closed += OnViewClosed;
-        _open = this;
+        ShellKeyCapture.Begin(this);
         _popup.IsOpen = true;
         NativeScreen.SetNoTopmost(_panel);
         _panel.UpdateLayout();
@@ -427,9 +312,6 @@ internal sealed class SqlSnippetSurroundPicker
             _view.Properties.RemoveProperty(PropertyKey);
         }
 
-        if (ReferenceEquals(_open, this))
-        {
-            _open = null;
-        }
+        ShellKeyCapture.End(this);
     }
 }

@@ -53,6 +53,8 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlIconImage.cs" Link="Product\UI\SqlIconImage.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPillSelector.cs" Link="Product\UI\SqlPillSelector.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlHighlightText.cs" Link="Product\UI\SqlHighlightText.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlPill.cs" Link="Product\UI\SqlPill.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTabHeader.cs" Link="Product\UI\SqlTabHeader.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchList.cs" Link="Product\UI\SqlSearchList.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchTargets.cs" Link="Product\UI\SqlSearchTargets.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlSearchFilters.cs" Link="Product\UI\SqlSearchFilters.cs" />

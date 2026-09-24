@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -22,8 +23,22 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
     public bool Wrap { get; private set; }
     public Action<string>? ReportError { get; set; }
 
-    public SqlReadOnlyViewer()
+    /// <param name="embedded">
+    /// 嵌在浮動預覽裡：外框由視窗畫過一次，這裡不再套一層；那個視窗也拿不到鍵盤焦點，
+    /// 選取要在非作用中時照樣看得見，否則拉選起來什麼都沒有。
+    /// </param>
+    public SqlReadOnlyViewer(bool embedded = false)
     {
+        if (embedded)
+        {
+            // 共用樣板的外框是寫死的 1 DIP（它也負責聚焦時換強調色），所以換掉整個樣板，
+            // 只留捲動區與底色；改 BorderThickness 沒有用。
+            var host = new FrameworkElementFactory(typeof(ScrollViewer)) { Name = "PART_ContentHost" };
+            host.SetBinding(BackgroundProperty, new Binding(nameof(Background)) { RelativeSource = RelativeSource.TemplatedParent });
+            _viewer.Template = new ControlTemplate(typeof(RichTextBox)) { VisualTree = host };
+            _viewer.IsInactiveSelectionHighlightEnabled = true;
+        }
+
         _theme = new SqlScriptTheme(ActiveSqlEditor.Current, _viewer);
         Content = _viewer;
         // 不換行時這裡會有水平捲軸，而拖那條軌道是停靠面板裡唯一的左右捲動方式。
@@ -47,6 +62,14 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         VsThemeBrushes.Apply(menu);
         _viewer.ContextMenu = menu;
     }
+
+    /// <summary>右鍵選單；宿主若要把它算進自己的焦點範圍（浮動預覽），從這裡接事件。</summary>
+    public ContextMenu Menu => _viewer.ContextMenu;
+
+    public bool HasSelection => !_viewer.Selection.IsEmpty;
+
+    /// <summary>選取範圍對應的原文；沒有選取時是空字串。</summary>
+    public string SelectedSql => HasSelection ? SqlScriptDocument.ReadOriginalSelection(_viewer, Sql) : "";
 
     /// <summary>這一份指令碼上標了幾處命中；沒有高亮時是 0。</summary>
     public int MatchCount => _matches.Count;
@@ -110,7 +133,7 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
     public void CopyAll() => Clipboard.SetText(Sql);
     public void CopySelection()
     {
-        if (!_viewer.Selection.IsEmpty) Clipboard.SetText(SqlScriptDocument.ReadOriginalSelection(_viewer, Sql));
+        if (HasSelection) Clipboard.SetText(SelectedSql);
     }
     private void Copy(Action action)
     {

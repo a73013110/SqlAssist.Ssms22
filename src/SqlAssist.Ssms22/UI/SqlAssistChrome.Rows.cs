@@ -27,6 +27,9 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     internal const double RowNameMaxWidth = 180d;
 
+    /// <summary>膠囊的圓角；清單列的資料樣板與抬頭上的 <see cref="SqlPill"/> 同一個形狀。</summary>
+    internal const double PillRadius = 9d;
+
     // Content 的邏輯父層一定是所屬 Control；不能依賴尚未建立或重掛的樣板視覺祖先。
     // 狀態色在 Control 的共用樣板處切換，也不受宿主 ContentPresenter 隱含樣式影響。
     private static Binding OwnerForeground() => new Binding
@@ -122,7 +125,7 @@ internal static partial class SqlAssistChrome
         string? iconProperty = null, string? categoryProperty = null, string? toolTipProperty = null)
     {
         var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
-        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(PillRadius)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         badge.SetValue(Border.PaddingProperty, new Thickness(6, 1, 6, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         badge.SetValue(FrameworkElement.MaxWidthProperty, 180d);
@@ -154,7 +157,7 @@ internal static partial class SqlAssistChrome
     private static FrameworkElementFactory CreateTextBadge(string property, string name, string? toolTipProperty = null)
     {
         var badge = new FrameworkElementFactory(typeof(Border)) { Name = name };
-        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(9)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        badge.SetValue(Border.CornerRadiusProperty, new CornerRadius(PillRadius)); badge.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         badge.SetValue(Border.PaddingProperty, new Thickness(5, 1, 5, 1)); badge.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 4, 0));
         badge.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
         badge.SetResourceReference(Border.BackgroundProperty, ThemeBrush.BadgeBackground); badge.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);

@@ -23,10 +23,10 @@
 兩者互斥——鍵繫結只會解析出一個命令——所以不會執行兩次。`SqlDefinitionOpener`
 的重入防護是最後一道保險。
 
-濾鏡的第二個用途是**把按鍵還給自己的非模態視窗**。殼層照作用中的視窗框架（清單開著
+濾鏡的第二個用途是**把按鍵還給自己的 Popup**。殼層照作用中的視窗框架（Popup 開著
 時仍是查詢視窗）預先解析按鍵，Tab、↑↓、Enter、Delete 就沿著命令鏈進來，不攔就是改到
 後面那份 SQL——與焦點在哪個視窗無關，換視窗殼層修不掉。作法與規則見
-[片段包夾](snippet-surround.md)。
+[按鍵交還](popup-keys.md)。
 
 包夾命令兩條路都有：命令表把 Ctrl+Alt+S 綁在自己的命令上，濾鏡再攔
 `VSStd2K/SURROUNDWITH`，接使用者自己綁在 `Edit.SurroundWith` 上的鍵。命令表不綁
@@ -50,7 +50,7 @@ Ctrl+K, Ctrl+S——那條和絃在 SSMS 上解析得到的是內建行為，搶
 
 `QueryStatus` 在每一次按鍵、每一次閒置與每一次開選單時都會被呼叫數十次，
 `Exec` 則是每打一個字元一次。因此先比命令群組 GUID，不相符**立刻**原封轉給下一個目標，
-中間不配置物件、不取服務、不記錄。唯一的例外是讀一次靜態旗標 `SqlSnippetSurroundPicker.IsOpen`，
+中間不配置物件、不取服務、不記錄。唯一的例外是讀一次靜態旗標 `ShellKeyCapture.IsActive`，
 為 false 時連 `Guid` 複製都不做。
 
 ## 按了某個鍵卻沒反應時

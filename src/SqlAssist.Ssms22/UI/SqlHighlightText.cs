@@ -18,9 +18,20 @@ namespace SqlAssist.Ssms22.UI;
 /// 色票是命中自己那一組（<see cref="ThemeBrush.MatchBackground"/>），不是強調底——理由見
 /// <c>docs/search-highlight.md</c> 的視覺契約。這一列沒有「第幾處」那個狀態，所以只有第一級：
 /// 導覽走的是定義全文的位置，與名稱、資料行這幾段不是同一組座標。
+///
+/// 區段有兩個來源：清單列自己算好交進來（<see cref="Spans"/>），或整塊內容共用一個
+/// 比對器（<see cref="MatcherProperty"/>，設在容器上往下繼承），例如資料格的每一格。
+/// 後者讓資料列不必為了高亮多帶一份每欄的區段，換搜尋字也只是換一個值。
 /// </remarks>
 internal sealed class SqlHighlightText : TextBlock
 {
+    /// <summary>
+    /// 整塊內容共用的比對器；沒有自己的 <see cref="Spans"/> 時，每一格拿它找自己的命中。
+    /// </summary>
+    public static readonly DependencyProperty MatcherProperty = DependencyProperty.RegisterAttached(
+        "Matcher", typeof(TextMatcher), typeof(SqlHighlightText),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits, OnMatcherChanged));
+
     public static readonly DependencyProperty SourceTextProperty = DependencyProperty.Register(
         nameof(SourceText), typeof(string), typeof(SqlHighlightText),
         new PropertyMetadata("", OnContentChanged));
@@ -49,13 +60,23 @@ internal sealed class SqlHighlightText : TextBlock
         set => SetValue(SpansProperty, value);
     }
 
+    public static TextMatcher? GetMatcher(DependencyObject element) => (TextMatcher?)element.GetValue(MatcherProperty);
+
+    public static void SetMatcher(DependencyObject element, TextMatcher? value) => element.SetValue(MatcherProperty, value);
+
     private static void OnContentChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
         ((SqlHighlightText)sender).Rebuild();
+
+    // 繼承的值會通知整棵子樹的每一個元素，只有這個型別需要重畫。
+    private static void OnMatcherChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+    {
+        if (sender is SqlHighlightText text) text.Rebuild();
+    }
 
     private void Rebuild()
     {
         var text = SourceText ?? "";
-        var spans = Spans;
+        var spans = Spans ?? (GetMatcher(this) is { } matcher ? MatchHighlights.Locate(matcher, text).Spans : null);
 
         Inlines.Clear();
 

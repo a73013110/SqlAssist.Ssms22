@@ -2,20 +2,20 @@ using System;
 using System.Windows.Input;
 using Microsoft.VisualStudio;
 
-namespace SqlAssist.Ssms22.Snippets;
+namespace SqlAssist.Ssms22.Editor;
 
 /// <summary>
 /// 殼層命令換回按鍵與 WPF 命令的對照表。
 /// </summary>
 /// <remarks>
-/// 清單開著的時候，殼層仍照「文字編輯器」範圍把有繫結的鍵解析成命令送進查詢視窗的
-/// 命令鏈（見 <see cref="SqlSnippetSurroundPicker"/>）。這裡只負責「那個命令原本是
+/// 自製 Popup 握著鍵盤的時候，殼層仍照「文字編輯器」範圍把有繫結的鍵解析成命令送進查詢視窗的
+/// 命令鏈（見 <see cref="ShellKeyCapture"/>）。這裡只負責「那個命令原本是
 /// 哪一個鍵」，行為交還給 WPF：修飾鍵是實體狀態，所以 <c>*_EXT</c>（Shift 延伸選取）
 /// 與 <c>WORDPREV</c>／<c>WORDNEXT</c>（Ctrl+←／→）都對回同一個方向鍵就好。
 ///
-/// 對照不到的命令不攔——多攔一個就是讓某個鍵在清單開著時安靜地失效。
+/// 對照不到的命令不攔——多攔一個就是讓某個鍵在 Popup 握著鍵盤時安靜地失效。
 /// </remarks>
-internal static class SqlSnippetSurroundKeys
+internal static class ShellKeyMap
 {
     /// <summary>剪貼簿與復原這幾個直接對得到 WPF 命令，不必繞回按鍵。</summary>
     public static RoutedUICommand? MapCommand(Guid group, uint commandId)

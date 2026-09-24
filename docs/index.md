@@ -49,7 +49,8 @@
 | 全域變數、模組參數 | [變數](completion-variables.md) |
 | 內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、Tab／Enter、欄位建議 | [片段導航](snippet-navigation.md) |
-| 包住選取範圍、`$surround$` | [片段包夾](snippet-surround.md)／[按鍵](snippet-surround-keys.md) |
+| 包住選取範圍、`$surround$` | [片段包夾](snippet-surround.md)／[按鍵](popup-keys.md) |
+| Popup 裡按 Backspace／方向鍵改到 SQL、`ShellKeyCapture` | [按鍵交還](popup-keys.md) |
 | 使用者 override、合併、存檔 | [片段存放](snippet-storage.md) |
 | SELECT *、Wildcards、Tab 展開 | [星號展開](wildcard-expansion.md) |
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |

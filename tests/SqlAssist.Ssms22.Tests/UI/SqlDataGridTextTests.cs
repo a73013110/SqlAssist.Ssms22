@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using SqlAssist.Core.Matching;
 using SqlAssist.Ssms22.UI;
 using Xunit;
 
@@ -87,6 +88,28 @@ public sealed class SqlDataGridTextTests
             Assert.Contains("Loan\t\" \n\"\tLoan", SqlDataGridText.Build(grid, selectedOnly: false));
             template.SortMemberPath = "Missing";
             Assert.True(SqlDataGridText.HasAnyValue(template, rows));
+        });
+    }
+
+    [Fact]
+    public void 列篩選只看得見的欄且共用複製的讀法()
+    {
+        WpfTest.Run(() =>
+        {
+            var reader = new Row { Name = "Lib_Reader", Description = "讀者" };
+            var loan = new Row { Name = "Loan", Description = "借閱 Reader 的紀錄" };
+            var grid = CreateGrid(reader, loan);
+            var matcher = new TextMatcher("reader", TextMatchOptions.None);
+
+            var filter = SqlDataGridText.CreateFilter(grid, matcher);
+            Assert.True(filter(reader));
+            Assert.True(filter(loan));
+
+            // 收起來的欄不算：使用者看不到那一格，就不該因為它留下這一列。
+            grid.Columns[1].Visibility = Visibility.Collapsed;
+            filter = SqlDataGridText.CreateFilter(grid, matcher);
+            Assert.True(filter(reader));
+            Assert.False(filter(loan));
         });
     }
 

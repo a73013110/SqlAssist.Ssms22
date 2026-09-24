@@ -182,36 +182,24 @@ public sealed class SqlIndexInfo
     }
 
     /// <summary>索引鍵欄位的簡短描述，例如 <c>Id ASC, Name DESC</c>。</summary>
-    public string DescribeKeyColumns()
-    {
-        var builder = new StringBuilder();
+    public string DescribeKeyColumns() => JoinColumns(included: false, withDirection: true);
 
-        foreach (var column in Columns)
-        {
-            if (column.IsIncluded)
-            {
-                continue;
-            }
-
-            if (builder.Length > 0)
-            {
-                builder.Append(", ");
-            }
-
-            builder.Append(column.Name).Append(column.IsDescending ? " DESC" : " ASC");
-        }
-
-        return builder.ToString();
-    }
+    /// <summary>
+    /// 只有索引鍵的欄名，例如 <c>Id, Name</c>。
+    /// </summary>
+    /// <remarks>給一眼看完的總覽用（結構預覽抬頭的主索引鍵）；排序方向留給列出索引的那一頁。</remarks>
+    public string DescribeKeyColumnNames() => JoinColumns(included: false, withDirection: false);
 
     /// <summary>INCLUDE 欄位的簡短描述；沒有時回傳空字串。</summary>
-    public string DescribeIncludedColumns()
+    public string DescribeIncludedColumns() => JoinColumns(included: true, withDirection: false);
+
+    private string JoinColumns(bool included, bool withDirection)
     {
         var builder = new StringBuilder();
 
         foreach (var column in Columns)
         {
-            if (!column.IsIncluded)
+            if (column.IsIncluded != included)
             {
                 continue;
             }
@@ -222,6 +210,11 @@ public sealed class SqlIndexInfo
             }
 
             builder.Append(column.Name);
+
+            if (withDirection)
+            {
+                builder.Append(column.IsDescending ? " DESC" : " ASC");
+            }
         }
 
         return builder.ToString();

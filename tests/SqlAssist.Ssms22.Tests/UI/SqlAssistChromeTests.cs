@@ -57,6 +57,32 @@ public sealed class SqlAssistChromeTests
     }
 
     [Fact]
+    public void 分頁列右側的工具與分頁同一列且不佔內容()
+    {
+        WpfTest.Run(() =>
+        {
+            var tabs = new TabControl { Template = SqlAssistChrome.CreateTabControlTemplate() };
+            var first = new TabItem { Header = "欄位", Template = SqlAssistChrome.CreateTabItemTemplate(), Content = new Border { Height = 200 } };
+            tabs.Items.Add(first);
+            tabs.Items.Add(new TabItem { Header = "索引", Template = SqlAssistChrome.CreateTabItemTemplate() });
+            tabs.SelectedIndex = 0;
+            var tool = new Border { Width = 120, Height = 24 };
+            SqlAssistChrome.SetTabStripTrailing(tabs, tool);
+
+            tabs.Measure(new Size(600, 400));
+            tabs.Arrange(new Rect(0, 0, 600, 400));
+            tabs.UpdateLayout();
+
+            var toolAt = tool.TranslatePoint(new Point(), tabs);
+            var tabAt = first.TranslatePoint(new Point(), tabs);
+            var content = (Border)first.Content;
+            Assert.True(toolAt.X + tool.ActualWidth <= 600 - 14 + 0.5, "工具靠右，與分頁列同一條外距");
+            Assert.True(toolAt.X > tabAt.X + first.ActualWidth, "工具在分頁的右邊，不疊在上面");
+            Assert.True(content.TranslatePoint(new Point(), tabs).Y >= toolAt.Y + tool.ActualHeight, "工具不佔內容區");
+        });
+    }
+
+    [Fact]
     public void OverlayScrollOverridesNativeScrollBarStyleAndDoesNotTakeLayoutWidth()
     {
         WpfTest.Run(() =>
