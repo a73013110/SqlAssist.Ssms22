@@ -27,9 +27,9 @@ namespace SqlAssist.Ssms22.Search;
 /// <b>選取變更一定要去彈跳加取消。</b>使用者用方向鍵在清單上捲過去時，每一列都發一輪
 /// 第三／四層查詢會把中繼資料連線打滿，而那幾十輪裡他只看了最後一列。
 ///
-/// 工具列與 SQL Memory 預覽同一種排法：命中導覽 → 與清單同一份、同一個順序的列操作
-/// （<see cref="SqlSearchRowCommand.All"/>）→ 作用在畫面上這份定義的「複製定義」→ 換行靠右。
-/// 沒有狀態列：標不齊命中與複製失敗都走通知。
+/// 工具列與 SQL Memory 預覽同一種排法：命中導覽 → 與清單同一個順序的列操作
+/// （<see cref="SqlSearchRowCommand.Preview"/>）→ 作用在畫面上這份定義的「複製定義」→ 換行靠右。
+/// 沒有狀態列：標不齊命中與複製的結果都走通知。
 /// </remarks>
 internal sealed class SqlSearchPreview : UserControl, IDisposable
 {
@@ -57,10 +57,10 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     {
         _loader = new SqlSearchDefinitionLoader(catalogs);
 
-        // 這一顆複製的是畫面上這一份定義，不是名稱：名稱是列操作的「複製限定名稱」，
-        // 排在前面那一群；這一顆作用在畫面上的內容，所以隔一條群界線。
+        // 這一顆作用在畫面上的內容而不是列本身，所以隔一條群界線排在列操作之後；
+        // 「複製限定名稱」不進預覽，理由見 SqlSearchRowCommand.IsInPreview。
         _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製定義");
-        _copyScript.Click += (_, _) => Guarded(() => _viewer.CopyAll());
+        _copyScript.Click += (_, _) => _ = RunAsync(CopyDefinitionAsync);
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
         // 現在是開著的，理由見 CreateIconToggle。
         _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "SQL 顯示換行");
@@ -88,7 +88,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
         // 導覽與界線排在最前面、換行在右緣，排法與 SQL Memory 預覽同一份（SqlMatchNavigation、CreatePreviewToolbar）。
         foreach (var item in _matches.ToolbarItems) _tools.Children.Add(item);
-        foreach (var command in SqlSearchRowCommand.All) _tools.Children.Add(CreateRowAction(command, runAction));
+        foreach (var command in SqlSearchRowCommand.Preview) _tools.Children.Add(CreateRowAction(command, runAction));
         SqlAssistChrome.AddToolbarAction(_tools, _copyScript, separated: true);
         _toolbar = SqlAssistChrome.CreatePreviewToolbar(_tools, _wrap);
 
@@ -143,6 +143,21 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         button.Click += (_, _) => Guarded(() => runAction(action));
         _rowActions.Add(button);
         return button;
+    }
+
+    /// <summary>
+    /// 工具列上的「複製定義」：複製畫面上這一份，成功與失敗都送通知。
+    /// </summary>
+    /// <remarks>
+    /// 按下去畫面上沒有任何變化，不說一句就看不出有沒有複製到；與清單的「複製限定名稱」同一種回報。
+    /// Ctrl+C 與右鍵選單照編輯器慣例只報失敗，由 <see cref="SqlReadOnlyViewer.ReportError"/> 接。
+    /// </remarks>
+    private async Task CopyDefinitionAsync()
+    {
+        var subject = Current?.Title ?? "";
+        var failure = await SqlClipboard.WriteTextAsync(_viewer.Sql).ConfigureAwait(true);
+        SqlSearchBrowser.Notify(NotificationCatalog.CopyingDefinition,
+            failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed, subject, failure ?? "");
     }
 
     /// <summary>目前顯示的那一筆；沒有選取時 null。</summary>

@@ -53,7 +53,7 @@ internal sealed class SqlMemoryItemCommands
             case SqlMemoryRowAction.Copy:
                 await WithSqlAsync(row, loadedSql, token, NotificationCatalog.CopyingSql, "複製", async sql =>
                 {
-                    var failure = await SqlClipboard.WriteAsync(new DataObject(DataFormats.UnicodeText, sql)).ConfigureAwait(true);
+                    var failure = await SqlClipboard.WriteTextAsync(sql).ConfigureAwait(true);
                     SqlMemoryActions.Notify(NotificationCatalog.CopyingSql,
                         failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed, row.Name, failure ?? "");
                 }).ConfigureAwait(true);

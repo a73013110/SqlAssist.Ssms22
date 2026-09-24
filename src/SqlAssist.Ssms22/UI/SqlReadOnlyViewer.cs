@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -49,14 +50,14 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
             if (e.Key == Key.C && e.KeyboardDevice.Modifiers == ModifierKeys.Control)
             {
                 e.Handled = true;
-                Copy(CopySelection);
+                Copy(SelectedSql);
             }
         };
         var menu = new ContextMenu();
-        foreach (var entry in new[] { ("複製選取", (Action)CopySelection), ("複製全文", (Action)CopyAll) })
+        foreach (var entry in new[] { ("複製選取", (Func<string>)(() => SelectedSql)), ("複製全文", () => Sql) })
         {
             var item = new MenuItem { Header = entry.Item1 };
-            item.Click += (_, _) => Copy(entry.Item2);
+            item.Click += (_, _) => Copy(entry.Item2());
             menu.Items.Add(item);
         }
         VsThemeBrushes.Apply(menu);
@@ -130,15 +131,21 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         _viewer.Document.PageWidth = wrap ? double.NaN : 4000;
         _viewer.HorizontalScrollBarVisibility = wrap ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
     }
-    public void CopyAll() => Clipboard.SetText(Sql);
-    public void CopySelection()
+    /// <remarks>
+    /// Ctrl+C 與右鍵選單是編輯器慣例，成功不回報，只有失敗交給 <see cref="ReportError"/>；
+    /// 工具列上明確的複製按鈕由宿主自己走 <see cref="SqlClipboard"/> 並回報結果。
+    /// </remarks>
+    private void Copy(string text)
     {
-        if (HasSelection) Clipboard.SetText(SelectedSql);
+        if (text.Length > 0) _ = CopyAsync(text);
     }
-    private void Copy(Action action)
+    private async Task CopyAsync(string text)
     {
         // 剪貼簿可能被其他程序占用；必須通知使用者，避免以為下一次貼上是新 SQL。
-        try { action(); }
+        try
+        {
+            if (await SqlClipboard.WriteTextAsync(text).ConfigureAwait(true) is { } failure) ReportError?.Invoke(failure);
+        }
         catch (Exception error) { ReportError?.Invoke("複製 SQL 失敗：" + error.Message); }
     }
     private void OnEditorChanged(object? sender, EventArgs args) =>

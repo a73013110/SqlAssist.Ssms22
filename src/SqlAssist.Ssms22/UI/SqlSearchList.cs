@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Input;
 
 namespace SqlAssist.Ssms22.UI;
@@ -18,7 +19,8 @@ internal enum SqlSearchRowAction
 }
 
 /// <summary>
-/// 一個結果列操作的外觀。卡片、快捷選單與預覽工具列都從 <see cref="All"/> 建立，三處不會漏掉或順序不一。
+/// 一個結果列操作的外觀。卡片與快捷選單從 <see cref="All"/> 建立，預覽工具列從它篩出來的
+/// <see cref="Preview"/> 建立，三處不會漏掉或順序不一。
 /// </summary>
 /// <remarks>
 /// 順序就是三處的呈現順序：主要動作（移至定義）在前，其餘照使用頻率。
@@ -33,6 +35,7 @@ internal sealed class SqlSearchRowCommand
     /// </param>
     /// <param name="labelPath">名稱隨列而變時讀哪一個屬性；固定用 <paramref name="label"/> 時傳 null。</param>
     /// <param name="toolTipPath">停駐那一顆的提示隨列而變時讀哪一個屬性；null 表示提示就是名稱。</param>
+    /// <param name="inPreview">是否也排在預覽工具列上；理由見 <see cref="IsInPreview"/>。</param>
     private SqlSearchRowCommand(
         SqlSearchRowAction action,
         SqlIcon icon,
@@ -40,7 +43,8 @@ internal sealed class SqlSearchRowCommand
         bool primary = false,
         string? availabilityPath = null,
         string? labelPath = null,
-        string? toolTipPath = null)
+        string? toolTipPath = null,
+        bool inPreview = true)
     {
         Action = action;
         Icon = icon;
@@ -49,6 +53,7 @@ internal sealed class SqlSearchRowCommand
         AvailabilityPath = availabilityPath;
         LabelPath = labelPath;
         ToolTipPath = toolTipPath;
+        IsInPreview = inPreview;
     }
 
     public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
@@ -61,8 +66,11 @@ internal sealed class SqlSearchRowCommand
         new SqlSearchRowCommand(
             SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, "在物件總管中選取",
             availabilityPath: nameof(Search.SqlSearchRow.CanSelectInExplorer)),
-        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱")
+        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱", inPreview: false)
     };
+
+    /// <summary>預覽工具列上的列操作：<see cref="All"/> 裡 <see cref="IsInPreview"/> 的那幾個，順序不變。</summary>
+    public static IReadOnlyList<SqlSearchRowCommand> Preview { get; } = All.Where(command => command.IsInPreview).ToArray();
 
     public SqlSearchRowAction Action { get; }
 
@@ -95,6 +103,14 @@ internal sealed class SqlSearchRowCommand
 
     /// <summary>停駐那一顆的提示讀這一列的哪一個屬性；null 表示提示就是名稱。</summary>
     public string? ToolTipPath { get; }
+
+    /// <summary>是否也排在預覽工具列上。</summary>
+    /// <remarks>
+    /// 預覽工具列上的複製作用在畫面上那一份定義；「複製限定名稱」作用在列本身，放進去就是兩顆同一個
+    /// 圖示的複製並排，只剩提示分得出來。名稱在清單上本來就拿得到（停駐、快捷選單、Ctrl+C），
+    /// 所以預覽不放它，而不是替兩顆各找一個讀不出差別的圖示。
+    /// </remarks>
+    public bool IsInPreview { get; }
 
     public static SqlSearchRowCommand For(SqlSearchRowAction action)
     {

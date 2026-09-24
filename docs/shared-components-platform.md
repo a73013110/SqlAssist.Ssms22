@@ -43,7 +43,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一�
 | 清單多選：以 Id 為鍵的勾選、錨點、全部符合與動作派送 | `Ssms22/UI/SqlCardSelection.cs`（清單端是 `SqlCardListBase.EnableSelection`） |
 | 多選模式的勾選欄、可繼承的多選狀態與勾選外觀 | `Ssms22/UI/SqlRowCheck.cs`、`SqlAssistChrome.Selection.cs` |
 | 蓋在輸入列上的選取工具列（筆數、全選、動作、進度與取消） | `Ssms22/UI/SqlSelectionBar.cs` |
-| 剪貼簿同時放 TSV 與 HTML、被鎖住時重試、複製結果的回報字 | `Ssms22/UI/SqlClipboard.cs` |
+| 剪貼簿寫入純文字或 TSV＋HTML、被鎖住時重試、複製結果的回報字 | `Ssms22/UI/SqlClipboard.cs` |
 | 選取驅動的去彈跳、取消與 stale guard | `Ssms22/UI/SqlSelectionLoader.cs` |
 | 載入、空、失敗、權限不足與行內忙碌狀態 | `Ssms22/UI/SqlStateSurface.cs`、`SqlSurfaceState.cs`、`SqlBusyNotice.cs` |
 | 搜尋、預覽與估算的去彈跳長度 | `Ssms22/UI/SqlAssistChrome.Delays.cs` |

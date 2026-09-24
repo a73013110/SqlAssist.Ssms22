@@ -8,7 +8,8 @@ using SqlAssist.Core.Tabular;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
-/// 表格內容寫進剪貼簿：同一個 <see cref="DataObject"/> 放 UnicodeText（TSV）與 HTML 兩種格式。
+/// 使用者按下的複製一律從這裡寫進剪貼簿：純文字走 <see cref="WriteTextAsync"/>，表格在同一個
+/// <see cref="DataObject"/> 放 UnicodeText（TSV）與 HTML 兩種格式。
 /// </summary>
 internal static class SqlClipboard
 {
@@ -40,6 +41,12 @@ internal static class SqlClipboard
         data.SetData(DataFormats.Html, content.Html);
         return data;
     }
+
+    /// <summary>一段純文字（名稱、SQL）；重試與失敗訊息與 <see cref="WriteAsync"/> 同一份。</summary>
+    /// <param name="write">實際寫入；測試換掉它，不去動真正的系統剪貼簿。</param>
+    /// <returns>null 表示成功；否則是要顯示給使用者的訊息。</returns>
+    public static Task<string?> WriteTextAsync(string text, Action<IDataObject>? write = null) =>
+        WriteAsync(new DataObject(DataFormats.UnicodeText, text ?? throw new ArgumentNullException(nameof(text))), write);
 
     /// <summary>
     /// 寫進剪貼簿；被別的程式鎖住時非同步重試，仍然不行就回傳失敗訊息。

@@ -419,6 +419,12 @@ public sealed class SqlCardSelectionTests
             result = SqlClipboard.WriteAsync(data, _ => { attempts++; throw new COMException("locked"); }).GetAwaiter().GetResult();
             Assert.Equal(SqlClipboard.BusyMessage, result);
             Assert.Equal(SqlClipboard.Attempts, attempts);
+
+            // 純文字走同一條重試路徑，寫進去的是 UnicodeText。
+            IDataObject? written = null;
+            Assert.Null(SqlClipboard.WriteTextAsync("dbo.Loan", value => written = value).GetAwaiter().GetResult());
+            Assert.NotNull(written);
+            Assert.Equal("dbo.Loan", written.GetData(DataFormats.UnicodeText));
         });
     }
 

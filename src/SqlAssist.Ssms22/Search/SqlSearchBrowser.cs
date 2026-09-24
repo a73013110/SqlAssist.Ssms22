@@ -990,7 +990,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private static async Task CopyNameAsync(SqlSearchRow? row)
     {
         if (row is null) return;
-        var failure = await SqlClipboard.WriteAsync(new DataObject(DataFormats.UnicodeText, row.QualifiedName)).ConfigureAwait(true);
+        var failure = await SqlClipboard.WriteTextAsync(row.QualifiedName).ConfigureAwait(true);
         Notify(NotificationCatalog.CopyingQualifiedName, failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed,
             row.QualifiedName, failure ?? "");
     }
