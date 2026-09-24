@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/SqlAssist.Ssms22/',
   ignoreDeadLinks: false,
   sitemap: {
-    hostname: 'https://a73013110.github.io/SqlAssist.Ssms22'
+    hostname: 'https://a73013110.github.io/SqlAssist.Ssms22/'
   },
 
   markdown: {
@@ -20,6 +20,7 @@ export default defineConfig({
     ['link', { rel: 'shortcut icon', type: 'image/x-icon', href: '/SqlAssist.Ssms22/favicon.ico' }],
     ['link', { rel: 'apple-touch-icon', href: '/SqlAssist.Ssms22/images/SqlAssist.Icon.512.png' }],
     ['meta', { name: 'author', content: 'a73013110' }],
+    ['meta', { name: 'google-site-verification', content: 'NqcYLT7PkECm4jXiq6hiycAP4bKuzxlRj_sVd7de6I0' }],
     ['meta', { name: 'keywords', content: 'SSMS, SQL Server, T-SQL, IntelliSense, Auto-Completion, VSIX, SSMS 22, 結構預覽, 自動補全' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:title', content: 'SqlAssist for SSMS 22' }],
