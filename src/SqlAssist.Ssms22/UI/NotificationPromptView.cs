@@ -9,18 +9,22 @@ using SqlAssist.Core.Notifications;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
-/// 通知島上的一則提醒：語意圖示、標題、訊息、按鈕列與「稍後提醒」的叉號。
+/// 通知島上的一則提醒：語意圖示、標題、訊息、按鈕列、「稍後提醒」的叉號，以及有活動時底部的附條。
 /// </summary>
 /// <remarks>
 /// 按鈕照 UI 準則「一個視窗只有一個主要動作；放在右側並給淡底」：次要動作是幽靈按鈕
-/// 排在左邊，主要動作在最右。Tab 順序跟視覺順序：右上角的叉號在第一列，先於按鈕列。
+/// 排在左邊，主要動作在最右。Tab 順序跟視覺順序：右上角的叉號、按鈕列、最後是底部的附條。
 /// 版面只認得 <see cref="NotificationPromptItem"/>；按下去只把 (提醒 Id、按鈕 Id) 交出去，
-/// 處理與保存決定是呼叫端的事。
+/// 處理與保存決定是呼叫端的事。圖示、標題與叉號照 <see cref="NotificationLayout"/> 的基準線排，
+/// 與活動清單的抬頭同一個位置，兩種形態互換時不跳。
 /// </remarks>
 internal sealed class NotificationPromptView : Grid
 {
     /// <summary>訊息最多幾行；完整內容在 ToolTip。</summary>
     internal const int MessageLines = 3;
+
+    /// <summary>卡片的下距；附條貼到底邊時用它把自己推出去。</summary>
+    private const double Bottom = 10;
 
     private const double LineHeight = 16;
 
@@ -32,27 +36,29 @@ internal sealed class NotificationPromptView : Grid
 
     public NotificationPromptView()
     {
-        Margin = new Thickness(12, 10, 10, 10);
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16 + SqlAssistChrome.Spacing.Group) });
+        Margin = new Thickness(NotificationLayout.Left, NotificationLayout.Top, NotificationLayout.Right, Bottom);
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NotificationLayout.IconColumn) });
         ColumnDefinitions.Add(new ColumnDefinition());
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        RowDefinitions.Add(new RowDefinition { Height = new GridLength(NotificationLayout.HeaderHeight) });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         _icon = SqlAssistChrome.CreateIcon(SqlIcon.Information);
         _icon.HorizontalAlignment = HorizontalAlignment.Left;
-        _icon.VerticalAlignment = VerticalAlignment.Top;
+        _icon.VerticalAlignment = VerticalAlignment.Center;
         Children.Add(_icon);
 
+        // 與清單抬頭同一種字重：兩者都是這張卡片的標題，形態互換時不該像換了一種字。
         _title = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
-        _title.Margin = new Thickness(0); _title.FontSize = 12; _title.FontWeight = FontWeights.Medium;
+        _title.Margin = new Thickness(0); _title.FontSize = 12;
         _title.TextTrimming = TextTrimming.CharacterEllipsis; _title.TextWrapping = TextWrapping.NoWrap;
         _title.VerticalAlignment = VerticalAlignment.Center;
         SetColumn(_title, 1);
         Children.Add(_title);
 
-        var corner = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+        var corner = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         _position = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
         _position.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
         _position.FontSize = 11; _position.Margin = new Thickness(SqlAssistChrome.Spacing.Group, 0, SqlAssistChrome.Spacing.Tight, 0);
@@ -66,7 +72,8 @@ internal sealed class NotificationPromptView : Grid
 
         _message = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
         _message.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
-        _message.FontSize = 12; _message.Margin = new Thickness(0, SqlAssistChrome.Spacing.Tight, 0, 0);
+        // 標題列 24 高、字置中，本身已經在標題下方留出 4 DIP，訊息不再另加上距。
+        _message.FontSize = 12; _message.Margin = new Thickness(0);
         _message.TextWrapping = TextWrapping.Wrap; _message.TextTrimming = TextTrimming.CharacterEllipsis;
         _message.LineHeight = LineHeight; _message.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
         _message.MaxHeight = LineHeight * MessageLines;
@@ -81,6 +88,11 @@ internal sealed class NotificationPromptView : Grid
         SetRow(_buttons, 2); SetColumn(_buttons, 1); SetColumnSpan(_buttons, 2);
         Children.Add(_buttons);
 
+        ActivityStrip = new NotificationActivityStrip { Visibility = Visibility.Collapsed };
+        ActivityStrip.Place(gap: Bottom, bottom: Bottom);
+        SetRow(ActivityStrip, 3); SetColumnSpan(ActivityStrip, 3);
+        Children.Add(ActivityStrip);
+
         // 提醒要使用者決定，出現時要唸出來、打斷其他播報；活動只是 Polite。
         AutomationProperties.SetLiveSetting(this, AutomationLiveSetting.Assertive);
     }
@@ -89,6 +101,9 @@ internal sealed class NotificationPromptView : Grid
     public event Action<long, string?>? ActionInvoked;
 
     internal Button LaterButton { get; }
+
+    /// <summary>有活動時貼在卡片底部的那一條；顯示與內容由島嶼決定，這裡只負責位置。</summary>
+    internal NotificationActivityStrip ActivityStrip { get; }
 
     internal IReadOnlyList<Button> ActionButtons { get; private set; } = Array.Empty<Button>();
 

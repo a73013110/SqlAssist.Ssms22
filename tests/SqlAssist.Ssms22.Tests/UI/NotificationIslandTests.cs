@@ -146,25 +146,119 @@ public sealed class NotificationIslandTests
     }
 
     [Fact]
-    public void 有提醒時活動縮成衛星且疊層露出後兩則()
+    public void 有提醒時活動收進卡片底部的附條且疊層露出後兩則()
     {
         WpfTest.Run(() =>
         {
             var island = new NotificationIsland();
-            var clicks = 0;
-            island.SatelliteClicked += (_, _) => clicks++;
-            Render(island, Scenario.PromptWithSatellite, motion: false);
-            Assert.Equal(Visibility.Visible, island.Satellite.Visibility);
+            var peeks = 0;
+            island.PeekRequested += (_, _) => peeks++;
+            Render(island, Scenario.PromptWithActivity, motion: false);
+            var strip = island.ActivePrompt.ActivityStrip;
+            Assert.Equal(Visibility.Visible, strip.Visibility);
+            Assert.Equal(NotificationCatalog.ViewActivities, strip.Action);
+            Assert.Equal(NotificationVisualStatus.Running, strip.Icon.Status);
+            Assert.False(string.IsNullOrEmpty(strip.Summary.Text));
             Assert.True(island.StackLayers.All(x => x.Visibility == Visibility.Collapsed));
-            island.Satellite.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
-            Assert.Equal(1, clicks);
-            Assert.Equal(NotificationIsland.SatelliteSize + NotificationIsland.SatelliteGap + NotificationIsland.PanelWidth,
-                island.TargetSize.Width);
+            // 附條屬於卡片本身：島嶼不再比卡片寬。
+            Assert.Equal(NotificationIsland.PanelWidth, island.TargetSize.Width);
+            // Tab 順序跟視覺順序：叉號、按鈕列，最後是底部的附條。
+            Assert.Same(strip, Focusables(island.ActivePrompt).Last());
+            strip.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.Equal(1, peeks);
 
             Render(island, Scenario.PromptStack, motion: false);
             Assert.Equal(NotificationIslandShape.PromptStack, island.Shape);
             Assert.True(island.StackLayers.All(x => x.Visibility == Visibility.Visible));
-            Assert.Equal("1/3", Descendants(island.ActivePrompt).OfType<TextBlock>().Single(x => x.Text.Contains('/')).Text);
+            Assert.Contains(Descendants(island.ActivePrompt).OfType<TextBlock>(), x => x.Text == "1/3");
+            Assert.Equal(Visibility.Visible, island.ActivePrompt.ActivityStrip.Visibility);
+
+            Render(island, Scenario.Prompt, motion: false);
+            Assert.Equal(Visibility.Collapsed, island.ActivePrompt.ActivityStrip.Visibility);
+        });
+    }
+
+    [Fact]
+    public void 暫看活動時清單底部有回到提醒的附條()
+    {
+        WpfTest.Run(() =>
+        {
+            var island = new NotificationIsland();
+            var peeks = 0;
+            island.PeekRequested += (_, _) => peeks++;
+            var (content, state) = Build(Scenario.PromptWithActivity);
+            Assert.True(state.TogglePeek(Now));
+            island.Update(content, state, motion: false);
+            Assert.Equal(NotificationIslandShape.Expanded, island.Shape);
+            Assert.Equal(Visibility.Visible, island.ListFooter.Visibility);
+            Assert.Equal(NotificationCatalog.BackToPrompts, island.ListFooter.Action);
+            Assert.Equal(NotificationCatalog.PendingPrompts(1), island.ListFooter.Summary.Text);
+            island.ListFooter.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            Assert.Equal(1, peeks);
+
+            // 沒有提醒時的一般展開不帶附條。
+            Render(island, Scenario.Expanded, motion: false);
+            Assert.Equal(Visibility.Collapsed, island.ListFooter.Visibility);
+        });
+    }
+
+    [Fact]
+    public void 活動結束時附條先淡出收起後卡片才縮回()
+    {
+        WpfTest.Run(() =>
+        {
+            var island = new NotificationIsland();
+            var (content, state) = Build(Scenario.PromptWithActivity);
+            island.Update(content, state, motion: false);
+            var strip = island.ActivePrompt.ActivityStrip;
+            var tall = island.Springs.Height.Target;
+            // 同一則提醒，活動到期了。
+            var bare = content with { Activities = Array.Empty<NotificationActivityItem>(), Summary = "" };
+            island.Update(bare, State(bare), motion: true);
+            // 淡出途中還佔著位置，外框先不動；淡完才收起並縮回。
+            Assert.True(strip.IsLeaving);
+            Assert.Equal(tall, island.Springs.Height.Target);
+            island.StopMotion();
+            Assert.Equal(Visibility.Collapsed, strip.Visibility);
+            Assert.False(strip.IsLeaving);
+        });
+    }
+
+    /// <summary>
+    /// 抬頭、各列、提醒卡與附條共用同一條圖示中線與文字起點，右側按鈕外框收在同一條線。
+    /// </summary>
+    /// <remarks>各自決定內距的版本，圖示差 2 DIP、文字差 4 DIP，兩種形態互換時一眼就看得出參差。</remarks>
+    [Fact]
+    public void 所有內容對齊同一條圖示中線與文字起點()
+    {
+        WpfTest.Run(() =>
+        {
+            var width = NotificationIsland.PanelWidth;
+            var island = new NotificationIsland();
+            var (content, state) = Build(Scenario.PromptWithActivity);
+            state.TogglePeek(Now);
+            island.Update(content, state, motion: false);
+            Arrange(island);
+            var row = island.Rows.Children.OfType<NotificationRow>().First();
+            AssertCenter(island, island.ListIcon, NotificationLayout.IconCenter);
+            AssertCenter(island, row.Icon, NotificationLayout.IconCenter);
+            AssertCenter(island, island.ListFooter.Icon, NotificationLayout.IconCenter);
+            AssertLeft(island, island.ListSummary, NotificationLayout.TextStart);
+            AssertLeft(island, row.TitleText, NotificationLayout.TextStart);
+            AssertLeft(island, island.ListFooter.Summary, NotificationLayout.TextStart);
+            AssertRight(island, island.DismissButton, width - NotificationLayout.Right);
+
+            var prompt = new NotificationIsland();
+            Render(prompt, Scenario.PromptWithActivity, motion: false);
+            Arrange(prompt);
+            var view = prompt.ActivePrompt;
+            AssertCenter(prompt, view.Children.OfType<SqlIconImage>().Single(), NotificationLayout.IconCenter);
+            AssertCenter(prompt, view.ActivityStrip.Icon, NotificationLayout.IconCenter);
+            AssertLeft(prompt, view.ActivityStrip.Summary, NotificationLayout.TextStart);
+            AssertLeft(prompt, view.Children.OfType<TextBlock>().First(x => x.Text == view.Item!.Title), NotificationLayout.TextStart);
+            AssertRight(prompt, view.LaterButton, width - NotificationLayout.Right);
+            // 叉號在抬頭列垂直置中，與清單的叉號同一個高度。
+            Assert.Equal(Bounds(island, island.DismissButton).Top, Bounds(prompt, view.LaterButton).Top, 1);
         });
     }
 
@@ -179,7 +273,6 @@ public sealed class NotificationIslandTests
             island.SetOptions(glass: true, highContrast: true);
             Assert.Null(island.Surface.Effect);
             Assert.Null(island.Surface.CacheMode);
-            Assert.Null(island.Satellite.Effect);
         });
     }
 
@@ -245,7 +338,7 @@ public sealed class NotificationIslandTests
     }
 
     /// <summary>QA 與測試共用的幾個場景；每一個對到一種形態。</summary>
-    internal enum Scenario { Hidden, Running, Done, Failed, Expanded, Prompt, PromptWithSatellite, PromptStack }
+    internal enum Scenario { Hidden, Running, Done, Failed, Expanded, Prompt, PromptWithActivity, PromptStack }
 
     private static void Render(NotificationIsland island, Scenario scenario, bool motion)
     {
@@ -292,7 +385,7 @@ public sealed class NotificationIslandTests
             case Scenario.Failed: Activities(running: false, failed: true); break;
             case Scenario.Expanded: Activities(running: true, failed: true); break;
             case Scenario.Prompt: Prompts(1); break;
-            case Scenario.PromptWithSatellite: Activities(running: true, failed: false); Prompts(1); break;
+            case Scenario.PromptWithActivity: Activities(running: true, failed: false); Prompts(1); break;
             case Scenario.PromptStack: Activities(running: true, failed: false); Prompts(3); break;
         }
 
@@ -324,6 +417,29 @@ public sealed class NotificationIslandTests
                 new NotificationPromptAction(NotificationActionIds.UpdateDownload, "前往下載", true),
                 new NotificationPromptAction(NotificationActionIds.UpdateSkip, "略過此版本", false),
             }, position, count);
+
+    private static void Arrange(NotificationIsland island)
+    {
+        island.Measure(new Size(NotificationIsland.MaxExtent.Width, NotificationIsland.MaxExtent.Height));
+        island.Arrange(new Rect(island.DesiredSize));
+        island.UpdateLayout();
+    }
+
+    /// <summary>元素在表面座標裡的外框；表面寬度就是島嶼寬度，左緣是 0。</summary>
+    private static Rect Bounds(NotificationIsland island, FrameworkElement element) =>
+        element.TransformToVisual(island.Surface).TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+    private static void AssertCenter(NotificationIsland island, FrameworkElement element, double expected)
+    {
+        var bounds = Bounds(island, element);
+        Assert.Equal(expected, bounds.Left + bounds.Width / 2, 1);
+    }
+
+    private static void AssertLeft(NotificationIsland island, FrameworkElement element, double expected) =>
+        Assert.Equal(expected, Bounds(island, element).Left, 1);
+
+    private static void AssertRight(NotificationIsland island, FrameworkElement element, double expected) =>
+        Assert.Equal(expected, Bounds(island, element).Right, 1);
 
     private static IEnumerable<Control> Focusables(DependencyObject root) =>
         Descendants(root).OfType<Control>().Where(x => x.Focusable && x.IsTabStop && x.Visibility == Visibility.Visible);

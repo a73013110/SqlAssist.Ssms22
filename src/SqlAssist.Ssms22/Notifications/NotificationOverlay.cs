@@ -20,7 +20,7 @@ namespace SqlAssist.Ssms22.Notifications;
 /// 閒置時整個 <see cref="Window.Hide"/>，分層視窗不再參與合成。
 ///
 /// 點擊穿透有兩道：透明像素本來就不收滑鼠，柔影那一圈半透明像素則由 <c>WM_NCHITTEST</c> 回
-/// <c>HTTRANSPARENT</c>——判斷依島嶼自己的命中測試，圓角與衛星之間的空隙都算在外面。
+/// <c>HTTRANSPARENT</c>——判斷依島嶼自己的命中測試，圓角以外都算在外面。
 ///
 /// 位置一律以裝置像素交給 <c>SetWindowPos</c>，邊距依擁有者的 DPI 換算（<see cref="NotificationPlacement"/>）；
 /// 擁有者跨螢幕或換 DPI 時由它自己的事件重新定位。這一份只管視窗；何時顯示、擁有者是誰在控制器。

@@ -31,7 +31,7 @@ public sealed class NotificationChromeTests
             Assert.Equal(NotificationVisualStatus.Running, row.Status);
             // 只有清單抬頭轉；列上的執行中是靜態光環。
             Assert.True(island.IsSpinning);
-            Assert.False(((TransformGroup)Icon(row).RenderTransform).HasAnimatedProperties);
+            Assert.False(row.Icon.IsSpinning);
             task.Fail(); task.Dispose();
             Expand(island, Content(center), motion: false);
             Assert.Same(row, island.Rows.Children[0]);
@@ -63,17 +63,23 @@ public sealed class NotificationChromeTests
         WpfTest.Run(() =>
         {
             var island = new NotificationIsland();
+            var resources = new ThemeResourceSet();
+            resources.Update(ThemePaletteTests.ColorsFor("light"));
+            island.Resources.MergedDictionaries.Add(resources.Resources);
             var item = new NotificationActivityItem(7, "已還原預設片段", "SELECT 範本", "Loan.sql", "", "已寫回使用者資料夾",
                 NotificationVisualStatus.Completed, "已完成", 1);
             Expand(island, new NotificationIslandContent(new[] { item }, "已還原預設片段", Array.Empty<NotificationPromptItem>()), motion: false);
             var row = Assert.IsType<NotificationRow>(island.Rows.Children[0]);
-            var text = Assert.IsType<StackPanel>(Assert.IsType<Grid>(row.Child).Children[1]);
-            Assert.Equal("已還原預設片段 · SELECT 範本", ((TextBlock)text.Children[0]).Text);
+            Assert.Equal("已還原預設片段 · SELECT 範本", row.Headline);
             Assert.Equal("Loan.sql", island.DocumentLabel.Text);
-            Assert.Equal("已寫回使用者資料夾", ((TextBlock)text.Children[2]).Text);
+            Assert.Equal("已寫回使用者資料夾", row.MessageText.Text);
             Assert.Equal(NotificationVisualStatus.Completed, row.Status);
-            Assert.Equal(Visibility.Collapsed, Badge(row).Visibility);
+            Assert.Equal(Visibility.Collapsed, row.Badge.Visibility);
             Assert.Equal(1, island.Progress.ScaleX);
+            // 標題是正常前景、主旨淡色：同一行拆成兩段，讀出來的整句不變。
+            var runs = row.TitleText.Inlines.OfType<System.Windows.Documents.Run>().ToArray();
+            Assert.Equal(new[] { "已還原預設片段", " · SELECT 範本" }, runs.Select(run => run.Text));
+            Assert.NotEqual(((SolidColorBrush)runs[0].Foreground).Color, ((SolidColorBrush)runs[1].Foreground).Color);
         });
     }
 
@@ -92,7 +98,7 @@ public sealed class NotificationChromeTests
             Assert.Equal(3, merged.Repeat);
             Expand(island, content, motion: false);
             var row = Assert.IsType<NotificationRow>(Assert.Single(island.Rows.Children));
-            var badge = Badge(row);
+            var badge = row.Badge;
             Assert.Equal(Visibility.Visible, badge.Visibility);
             Assert.Equal("×3", ((TextBlock)badge.Child).Text);
             Assert.Contains("3 次", (string)badge.ToolTip);
@@ -121,8 +127,7 @@ public sealed class NotificationChromeTests
             first.Report("正在建立區塊結構");
             Expand(island, Content(center), motion: false);
             Assert.Same(row, island.Rows.Children[0]);
-            var text = Assert.IsType<StackPanel>(Assert.IsType<Grid>(row.Child).Children[1]);
-            Assert.Equal("正在建立區塊結構", ((TextBlock)text.Children[2]).Text);
+            Assert.Equal("正在建立區塊結構", row.MessageText.Text);
             using var third = center.Begin(NotificationCatalog.LoadingIndexes, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info, document: "Loan.sql");
             Expand(island, Content(center), motion: false);
             Assert.Equal(Visibility.Collapsed, island.DocumentLabel.Visibility);
@@ -178,6 +183,18 @@ public sealed class NotificationChromeTests
                 using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info,
                            "dbo.Loan" + i, "Loan.sql", "LibArchive")) { }
             Expand(island, Content(center), motion: false);
+            Assert.InRange(island.TargetSize.Height, 0, NotificationIsland.MaxExtent.Height);
+
+            // 暫看活動時清單底部多一條回到提醒的附條，最高的就是這一種。
+            var pending = new NotificationPromptItem(99, "SqlAssist 有新版", "1.4.0 已經發行。", NotificationPromptSeverity.Info,
+                new[] { new NotificationPromptAction("a", "前往下載", true) }, 1, 1);
+            var peeking = new NotificationIslandContent(Content(center).Activities, "", new[] { pending });
+            var peek = new NotificationIslandState();
+            peek.Update(new NotificationIslandInput(peeking.Activities.Count, peeking.Running, peeking.Failed, 1), Now);
+            peek.TogglePeek(Now);
+            island.Update(peeking, peek, motion: false);
+            Assert.Equal(NotificationIslandShape.Expanded, island.Shape);
+            Assert.Equal(Visibility.Visible, island.ListFooter.Visibility);
             Assert.InRange(island.TargetSize.Height, 0, NotificationIsland.MaxExtent.Height);
 
             var message = string.Concat(Enumerable.Repeat("SQL 只留在這台電腦。", 20));
@@ -241,19 +258,10 @@ public sealed class NotificationChromeTests
         island.UpdateLayout();
     }
 
-    internal static System.Windows.Shapes.Path Icon(NotificationRow row) =>
-        (System.Windows.Shapes.Path)((Grid)row.Child).Children[0];
-
     private static NotificationIslandContent Activities(params NotificationActivityItem[] items) =>
         new(items, "", Array.Empty<NotificationPromptItem>());
 
-    private static Border Badge(NotificationRow row) => (Border)((Grid)row.Child).Children[2];
-
     /// <summary>列上那一行出處：標題下方、訊息上方。</summary>
-    private static TextBlock SourceLine(NotificationIsland island, int index)
-    {
-        var row = Assert.IsType<NotificationRow>(island.Rows.Children[index]);
-        var text = Assert.IsType<StackPanel>(Assert.IsType<Grid>(row.Child).Children[1]);
-        return (TextBlock)text.Children[1];
-    }
+    private static TextBlock SourceLine(NotificationIsland island, int index) =>
+        Assert.IsType<NotificationRow>(island.Rows.Children[index]).SourceLine;
 }

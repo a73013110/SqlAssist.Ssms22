@@ -4,91 +4,130 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Shapes;
 using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>保留列的身分，只在狀態改變時播放圖示，不因其他任務更新重播整份清單。</summary>
-internal sealed class NotificationRow : Border
+/// <remarks>
+/// 列比文字欄寬 <see cref="NotificationLayout.Bleed"/>：停駐與失敗的底色往左右延伸，文字與圖示仍落在
+/// 島嶼共用的基準線上（圖示中線、文字起點與右側收邊），跟抬頭、文件列對齊。
+/// </remarks>
+internal sealed class NotificationRow : Grid
 {
     private const string NewLine = "\n";
     private const string Separator = " · ";
 
-    private readonly Path _icon;
-    private readonly TextBlock _title;
+    /// <summary>列的上下內距；兩行以內的列至少 28 DIP 高。</summary>
+    private const double VerticalPadding = 6;
+
+    private readonly Border _hover;
+    private readonly Border _failure;
+    private readonly Run _headline = new();
+    private readonly Run _subject = new();
     private readonly TextBlock _sourceLine;
     private readonly TextBlock _message;
     private readonly Border _badge;
     private readonly TextBlock _badgeText;
-    private readonly ScaleTransform _scale = new(1, 1);
-    private readonly TranslateTransform _shake = new();
-    private string _headline = "";
+    private readonly TranslateTransform _offset = new();
+    private string _headlineText = "";
     private string _sourceText;
     private int _repeat = 1;
     private NotificationVisualStatus? _state;
     private bool _motion;
+    private Action? _exited;
+
     internal NotificationVisualStatus Status => _state ?? NotificationVisualStatus.Pending;
     internal string StatusText { get; private set; } = "";
 
     public NotificationRow(NotificationActivityItem item)
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
-        // 標題獨占文字欄；來源與訊息按需出現，不再平均分配寬度而提早省略。
-        MinHeight = 28; Padding = new Thickness(0, 5, 8, 5); ClipToBounds = true;
+        MinHeight = 28; ClipToBounds = true;
+        // 透明底才收得到整列的停駐；列本身不能按，游標維持箭頭。
+        Background = Brushes.Transparent;
         Cursor = System.Windows.Input.Cursors.Arrow;
+        RenderTransform = _offset;
         _sourceText = Provenance(item, showDocument: true);
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var transform = new TransformGroup();
-        transform.Children.Add(_scale); transform.Children.Add(_shake);
-        _icon = new Path
+
+        _failure = Wash().WithTheme(Border.BackgroundProperty, ThemeBrush.NotificationFailure);
+        _hover = Wash().WithTheme(Border.BackgroundProperty, ThemeBrush.RowHover);
+        Children.Add(_failure);
+        Children.Add(_hover);
+
+        var content = new Grid
         {
-            Width = 12, Height = 12, Stretch = Stretch.None, StrokeThickness = 1.4,
-            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
-            StrokeLineJoin = PenLineJoin.Round, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = transform
+            Margin = new Thickness(NotificationLayout.Bleed + NotificationLayout.StatusIconInset.Left, VerticalPadding,
+                NotificationLayout.Bleed + (NotificationLayout.TextEnd - NotificationLayout.Right), VerticalPadding)
         };
-        grid.Children.Add(_icon);
-        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Top }; Grid.SetColumn(text, 1);
-        _title = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
-        _title.Margin = new Thickness(0); _title.FontSize = 12;
-        _title.TextWrapping = TextWrapping.Wrap; _title.MaxHeight = 32; _title.LineHeight = 16;
-        _title.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
-        _title.TextTrimming = TextTrimming.CharacterEllipsis;
-        text.Children.Add(_title);
-        _sourceLine = SqlAssistChrome.CreateHint(_sourceText, SqlAssistChrome.DefaultMetrics);
-        _sourceLine.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
-        _sourceLine.FontSize = 11; _sourceLine.Margin = new Thickness(0, 2, 0, 0);
+        // 狀態圖示已經往內縮了 2 DIP 對齊中線；文字欄從 TextStart 起算，所以這一欄扣掉那 2 DIP。
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NotificationLayout.IconColumn - NotificationLayout.StatusIconInset.Left) });
+        content.ColumnDefinitions.Add(new ColumnDefinition());
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Icon = new NotificationStatusIcon { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) };
+        content.Children.Add(Icon);
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Top }; SetColumn(text, 1);
+        TitleText = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
+        TitleText.Margin = new Thickness(0); TitleText.FontSize = 12; TitleText.FontWeight = FontWeights.Normal;
+        TitleText.TextWrapping = TextWrapping.Wrap; TitleText.MaxHeight = 32; TitleText.LineHeight = 16;
+        TitleText.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+        TitleText.TextTrimming = TextTrimming.CharacterEllipsis;
+        // 標題是這一列在說的事，主旨是它作用在誰身上：前者正常前景、後者淡色，掃過清單時先讀到動作。
+        _subject.SetResourceReference(TextElement.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
+        TitleText.Inlines.Add(_headline);
+        TitleText.Inlines.Add(_subject);
+        text.Children.Add(TitleText);
+        _sourceLine = Dim(SqlAssistChrome.CreateHint(_sourceText, SqlAssistChrome.DefaultMetrics));
         _sourceLine.TextWrapping = TextWrapping.NoWrap; _sourceLine.TextTrimming = TextTrimming.CharacterEllipsis;
         _sourceLine.ToolTip = _sourceText;
         _sourceLine.Visibility = Visible(_sourceText.Length > 0);
         text.Children.Add(_sourceLine);
-        _message = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
-        _message.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
-        _message.FontSize = 11; _message.Margin = new Thickness(0, 2, 0, 0);
+        _message = Dim(SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics));
         _message.TextWrapping = TextWrapping.Wrap; _message.LineHeight = 15; _message.MaxHeight = 30;
         _message.TextTrimming = TextTrimming.CharacterEllipsis; _message.Visibility = Visibility.Collapsed;
         text.Children.Add(_message);
-        grid.Children.Add(text);
+        content.Children.Add(text);
+
         // 中性膠囊而不是狀態色：×N 回答的是次數，狀態仍然只由圖示與狀態文字表達。
-        _badgeText = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
-        _badgeText.FontSize = 10; _badgeText.Margin = new Thickness(0);
-        _badgeText.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
+        // 高 16 與標題第一行同高，數字等寬，一整欄的徽章右緣與數字都對得齊。
+        _badgeText = Dim(SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics));
+        _badgeText.FontSize = 10; _badgeText.Margin = new Thickness(0); _badgeText.VerticalAlignment = VerticalAlignment.Center;
+        Typography.SetNumeralAlignment(_badgeText, FontNumeralAlignment.Tabular);
         _badge = new Border
         {
-            CornerRadius = new CornerRadius(7), Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(6, 2, 0, 0),
+            CornerRadius = new CornerRadius(8), Height = 16, Padding = new Thickness(5, 0, 5, 0),
+            Margin = new Thickness(SqlAssistChrome.Spacing.Group, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed, Child = _badgeText
-        }.WithTheme(BackgroundProperty, ThemeBrush.BadgeBackground);
-        Grid.SetColumn(_badge, 2);
-        grid.Children.Add(_badge);
-        Child = grid;
+        }.WithTheme(Border.BackgroundProperty, ThemeBrush.BadgeBackground);
+        SetColumn(_badge, 2);
+        content.Children.Add(_badge);
+        Children.Add(content);
+
+        MouseEnter += (_, _) => NotificationMotion.Fade(_hover, 1, NotificationMotion.Wash, _motion);
+        MouseLeave += (_, _) => NotificationMotion.Fade(_hover, 0, NotificationMotion.WashOut, _motion);
     }
+
+    internal NotificationStatusIcon Icon { get; }
+
+    internal TextBlock TitleText { get; }
+
+    /// <summary>標題那一行的完整文字；畫面上拆成標題與淡色主旨兩段。</summary>
+    internal string Headline => _headlineText;
+
+    internal TextBlock SourceLine => _sourceLine;
+
+    internal TextBlock MessageText => _message;
+
+    internal Border Badge => _badge;
+
+    internal UIElement FailureWash => _failure;
+
+    /// <summary>正在離場；畫面上還在，但已經不是清單的一員。</summary>
+    internal bool IsExiting => _exited is not null;
 
     /// <summary>換上這一輪的內容。</summary>
     /// <remarks>
@@ -103,7 +142,7 @@ internal sealed class NotificationRow : Border
         var provenance = Provenance(item, showDocument);
         var source = Visible(provenance.Length > 0);
         var changed = _state != item.Status;
-        if (!changed && _headline == headline && _repeat == item.Repeat && _motion == motion &&
+        if (!changed && _headlineText == headline && _repeat == item.Repeat && _motion == motion &&
             StatusText == item.StatusText && _message.Text == item.Message && _sourceLine.Visibility == source &&
             _sourceText == provenance)
             return;
@@ -113,8 +152,10 @@ internal sealed class NotificationRow : Border
             _sourceLine.Text = provenance; _sourceLine.ToolTip = provenance;
         }
 
-        _headline = headline; _repeat = item.Repeat; _motion = motion; StatusText = item.StatusText;
-        _title.Text = headline; _title.ToolTip = headline;
+        _headlineText = headline; _repeat = item.Repeat; _motion = motion; StatusText = item.StatusText;
+        _headline.Text = item.Title;
+        _subject.Text = item.Subject.Length > 0 ? Separator + item.Subject : "";
+        TitleText.ToolTip = headline;
         _sourceLine.Visibility = source;
         _message.Text = item.Message; _message.ToolTip = item.Message;
         _message.Visibility = Visible(item.Message.Length > 0);
@@ -135,52 +176,71 @@ internal sealed class NotificationRow : Border
             return;
         }
 
+        var first = _state is null;
         _state = item.Status;
-        StopMotion();
-        ApplyIcon(item.Status);
         // 列上的執行中是靜態光環：每一列各掛一個 Forever 旋轉等於整份清單長期占著算繪，
-        // 而「有事情在跑」由抬頭那一個轉就說得完。
-        if (motion) NotificationMotion.PlayResult(_scale, _shake, item.Status);
+        // 而「有事情在跑」由抬頭那一個轉就說得完。第一次出現不是狀態轉換，不播回饋。
+        Icon.SetStatus(item.Status, feedback: motion && !first);
+        NotificationMotion.Fade(_failure, item.Status == NotificationVisualStatus.Failed ? FailureOpacity : 0,
+            NotificationMotion.Wash, motion && !first);
     }
 
-    private void ApplyIcon(NotificationVisualStatus state)
-    {
-        var role = ThemeBrush.DimForeground;
-        string geometry;
-        switch (state)
-        {
-            case NotificationVisualStatus.Running:
-                role = ThemeBrush.AccentBorder;
-                geometry = "M8,1 A7,7 0 1 1 1,8"; break;
-            case NotificationVisualStatus.Completed:
-                role = ThemeBrush.NotificationSuccess;
-                geometry = "M3,8 L6.5,11.5 L13,4.5"; break;
-            case NotificationVisualStatus.Failed:
-                role = ThemeBrush.NotificationFailure;
-                geometry = "M8,1 L15,14 L1,14 Z M8,5 L8,9 M8,11 L8,12"; break;
-            case NotificationVisualStatus.Canceled:
-                geometry = "M3,3 L13,13 M13,3 L3,13"; break;
-            default:
-                geometry = "M8,1 A7,7 0 1 1 7.99,1 M8,4 L8,8 L11,10"; break;
-        }
-
-        _icon.Data = SqlAssistChrome.NotificationGeometry(geometry);
-        _icon.WithTheme(Shape.StrokeProperty, role);
-        if (state == NotificationVisualStatus.Running)
-            _icon.SetResourceReference(Shape.StrokeProperty, ThemeResourceSet.NotificationSpinnerKey);
-    }
-
-    internal void Reveal(bool motion, double availableWidth)
+    /// <summary>新列長出高度、淡入，並從上方 4 DIP 落定。</summary>
+    /// <param name="width">列會拿到的寬度；量出自然高度後從 0 長到那裡，結束後交還自然高度。</param>
+    internal void Enter(bool motion, double width)
     {
         if (!motion) return;
-        BeginAnimation(OpacityProperty, NotificationMotion.Ease(0, 1, NotificationMotion.RowFade));
-        // UI 合併更新時，新列可能已完成；高度歸零會遮掉大部分狀態彈跳。
-        if (Status != NotificationVisualStatus.Running) return;
-        // 高度展開不縮放文字，結束後回到自然高度以容納換行與 DPI 改變。
-        Measure(new Size(availableWidth, double.PositiveInfinity));
-        var reveal = NotificationMotion.Ease(0, DesiredSize.Height, NotificationMotion.Reveal);
-        reveal.FillBehavior = FillBehavior.Stop;
-        BeginAnimation(MaxHeightProperty, reveal);
+        Measure(new Size(width, double.PositiveInfinity));
+        var grow = NotificationMotion.Ease(0, DesiredSize.Height, NotificationMotion.RowEnter);
+        grow.FillBehavior = FillBehavior.Stop;
+        BeginAnimation(MaxHeightProperty, grow);
+        var fade = NotificationMotion.Ease(0, 1, NotificationMotion.RowEnter);
+        fade.FillBehavior = FillBehavior.Stop;
+        BeginAnimation(OpacityProperty, fade);
+        var settle = NotificationMotion.Ease(-NotificationMotion.RowEnterShift, 0, NotificationMotion.RowEnter);
+        settle.FillBehavior = FillBehavior.Stop;
+        _offset.BeginAnimation(TranslateTransform.YProperty, settle);
+    }
+
+    /// <summary>展開時依序進場的第 <paramref name="index"/> 列；延遲期間就停在起點，不先整份閃出來。</summary>
+    internal void Stagger(int index, bool motion)
+    {
+        if (!motion) return;
+        var delay = NotificationMotion.ContentDelay + Math.Min(index, NotificationMotion.StaggerLimit - 1) * NotificationMotion.RowStagger;
+        BeginAnimation(OpacityProperty, NotificationMotion.Delayed(0, 1, delay, NotificationMotion.RowEnter));
+        _offset.BeginAnimation(TranslateTransform.YProperty,
+            NotificationMotion.Delayed(NotificationMotion.StaggerShift, 0, delay, NotificationMotion.RowEnter));
+    }
+
+    /// <summary>
+    /// 離場：先淡出、再收起高度，播完呼叫 <paramref name="exited"/>；動畫關著時立刻呼叫。
+    /// </summary>
+    /// <remarks>分兩段是為了讓字先消失：同時收高度的話，還看得到的字會被從底下擠扁。</remarks>
+    internal void Exit(bool motion, Action exited)
+    {
+        if (exited is null) throw new ArgumentNullException(nameof(exited));
+        _exited = exited;
+        IsHitTestVisible = false;
+        if (!motion) { Finish(); return; }
+        var height = ActualHeight;
+        var fade = NotificationMotion.Ease(Opacity, 0, NotificationMotion.RowFadeOut);
+        fade.Completed += (_, _) =>
+        {
+            if (_exited != exited) return;
+            var collapse = NotificationMotion.Ease(height, 0, NotificationMotion.RowCollapse);
+            collapse.Completed += (_, _) => { if (_exited == exited) Finish(); };
+            BeginAnimation(MaxHeightProperty, collapse);
+        };
+        BeginAnimation(OpacityProperty, fade);
+    }
+
+    /// <summary>離場途中同一個身分又回來了：停在原地、恢復成一般的列。</summary>
+    internal void CancelExit()
+    {
+        if (_exited is null) return;
+        _exited = null;
+        IsHitTestVisible = true;
+        BeginAnimation(OpacityProperty, null); BeginAnimation(MaxHeightProperty, null);
     }
 
     /// <summary>停掉動畫並記住不要再播；島嶼離開畫面時整份清單一起靜音。</summary>
@@ -192,8 +252,11 @@ internal sealed class NotificationRow : Border
 
     internal void StopMotion()
     {
-        NotificationMotion.StopResult(_scale, _shake);
+        Icon.StopMotion();
+        foreach (var wash in new UIElement[] { _hover, _failure }) wash.BeginAnimation(OpacityProperty, null);
+        _offset.BeginAnimation(TranslateTransform.YProperty, null);
         BeginAnimation(OpacityProperty, null); BeginAnimation(MaxHeightProperty, null);
+        if (_exited is not null) Finish();
     }
 
     /// <summary>
@@ -216,6 +279,28 @@ internal sealed class NotificationRow : Border
         }
 
         return common;
+    }
+
+    /// <summary>失敗列的底色濃度；失敗色本身已經是圖形對比，鋪滿整列只能是一層淡淡的提示。</summary>
+    private const double FailureOpacity = 0.1;
+
+    private void Finish()
+    {
+        var exited = _exited;
+        _exited = null;
+        exited?.Invoke();
+    }
+
+    private static Border Wash() => new()
+    {
+        CornerRadius = new CornerRadius(6), Opacity = 0, IsHitTestVisible = false,
+    };
+
+    private static TextBlock Dim(TextBlock text)
+    {
+        text.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
+        text.FontSize = 11; text.Margin = new Thickness(0, 2, 0, 0);
+        return text;
     }
 
     /// <summary>這一列要顯示的出處；抬頭已經寫了文件時只留資料庫。</summary>

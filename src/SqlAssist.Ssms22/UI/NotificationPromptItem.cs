@@ -45,6 +45,17 @@ internal sealed record NotificationIslandContent(
     public int Completed => Count(NotificationVisualStatus.Completed);
     public int Failed => Count(NotificationVisualStatus.Failed);
 
+    /// <summary>
+    /// 這一批整體的狀態：還有工作在跑就是執行中，否則有失敗就是失敗，再來才是成功。
+    /// </summary>
+    /// <remarks>膠囊、清單抬頭與提醒卡的附條都畫這一個，三處對「現在怎樣了」的回答才一致。</remarks>
+    public NotificationVisualStatus Status =>
+        Running > 0 ? NotificationVisualStatus.Running
+        : Failed > 0 ? NotificationVisualStatus.Failed
+        : Completed > 0 ? NotificationVisualStatus.Completed
+        : Activities.Count > 0 ? NotificationVisualStatus.Canceled
+        : NotificationVisualStatus.Pending;
+
     private int Count(NotificationVisualStatus status)
     {
         var count = 0;

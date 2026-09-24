@@ -279,11 +279,17 @@ internal static partial class SqlAssistChrome
     /// 只有縱向捲軸、沒有軌道點擊，命中範圍也小，所以只給高度有限的輔助區塊；
     /// 對話框、資料格與編輯區維持 SSMS 原生捲軸。內容右緣要自留空隙，握把才不會壓字。
     /// </remarks>
-    public static void ApplyOverlayScroll(ScrollViewer scroll)
+    /// <param name="fadeWhenIdle">
+    /// 握把平時隱藏，停駐或捲動時淡入、靜止後淡出。給浮在內容上、平常只是看一眼的表面（通知島）；
+    /// 要讓人找得到「還能捲」的面板不要開，改由 <paramref name="fadeEdges"/> 或一直顯示。
+    /// </param>
+    /// <param name="fadeEdges">還能往哪個方向捲，內容在那一端就淡出一小段，不必看握把也知道下面還有。</param>
+    public static void ApplyOverlayScroll(ScrollViewer scroll, bool fadeWhenIdle = false, bool fadeEdges = false)
     {
         scroll.HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled;
         scroll.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         scroll.Template = CreateOverlayScrollTemplate();
+        if (fadeWhenIdle || fadeEdges) OverlayScrollCues.Attach(scroll, fadeWhenIdle, fadeEdges);
     }
 
     /// <summary>

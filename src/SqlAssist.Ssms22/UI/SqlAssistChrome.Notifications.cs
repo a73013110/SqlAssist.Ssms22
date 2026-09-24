@@ -14,9 +14,10 @@ internal static partial class SqlAssistChrome
     internal static Button CreateNotificationButton(string name, string geometry)
     {
         var button = CreateButton(name, DefaultMetrics);
-        button.Width = 16; button.Height = 16; button.MinWidth = 0;
+        // 點擊區比 10 DIP 的筆畫大一圈；筆畫置中，右緣與列上的文字收在同一條線（NotificationLayout.TextEnd）。
+        button.Width = NotificationLayout.CloseButton; button.Height = NotificationLayout.CloseButton; button.MinWidth = 0;
         ApplyNotificationCursor(button);
-        button.Padding = new Thickness(2); button.Margin = new Thickness(0);
+        button.Padding = new Thickness(0); button.Margin = new Thickness(0);
         button.ToolTip = name;
         AutomationProperties.SetName(button, name);
         button.Content = new Path
@@ -79,29 +80,35 @@ internal static partial class SqlAssistChrome
         surface.CacheMode = surface.Effect is null ? null
             : new BitmapCache { RenderAtScale = VisualTreeHelper.GetDpi(surface).DpiScaleX, SnapsToDevicePixels = true };
 
-    /// <summary>通知島旁邊的衛星：直徑 32 DIP 的圓鈕，停駐與鍵盤焦點只換邊框與底色。</summary>
-    internal static Button CreateNotificationSatellite(string name)
+    /// <summary>
+    /// 通知島的附條：貼著卡片底邊、整條可按的一列，上緣一條髮絲線。
+    /// </summary>
+    /// <remarks>
+    /// 停駐、按下與鍵盤焦點只換底色與內框，內框平時就預留 1 DIP，換狀態時字不位移。
+    /// 底色不畫圓角：附條貼在島嶼底邊，下緣的圓角由島嶼的裁切決定，自己畫的話變形途中會跟裁切錯開。
+    /// </remarks>
+    internal static void ApplyNotificationStrip(Button strip)
     {
-        var circle = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
-        circle.SetValue(Border.CornerRadiusProperty, new CornerRadius(16));
-        circle.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        circle.SetBinding(Border.BackgroundProperty, TemplatedParent(nameof(Control.Background)));
-        circle.SetBinding(Border.BorderBrushProperty, TemplatedParent(nameof(Control.BorderBrush)));
+        var divider = new FrameworkElementFactory(typeof(Border));
+        divider.SetValue(Border.BorderThicknessProperty, new Thickness(0, 1, 0, 0));
+        divider.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.Hairline);
+        var surface = new FrameworkElementFactory(typeof(Border)) { Name = "bg" };
+        surface.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        surface.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+        surface.SetValue(Border.BorderBrushProperty, Brushes.Transparent);
+        surface.SetBinding(Border.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
         var content = new FrameworkElementFactory(typeof(ContentPresenter));
-        content.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         content.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
-        circle.AppendChild(content);
-        var template = new ControlTemplate(typeof(Button)) { VisualTree = circle };
-        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg");
-        AddTrigger(template, UIElement.IsKeyboardFocusedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg");
+        surface.AppendChild(content);
+        divider.AppendChild(surface);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = divider };
+        AddTrigger(template, UIElement.IsMouseOverProperty, Border.BackgroundProperty, ThemeBrush.RowHover, "bg");
         AddTrigger(template, ButtonBase.IsPressedProperty, Border.BackgroundProperty, ThemeBrush.RowPressed, "bg");
-        var button = new Button
-        {
-            Width = 32, Height = 32, Padding = new Thickness(0), Template = template, ToolTip = name,
-            FocusVisualStyle = null
-        };
-        ApplyNotificationCursor(button);
-        AutomationProperties.SetName(button, name);
-        return button;
+        AddTrigger(template, UIElement.IsKeyboardFocusedProperty, Border.BorderBrushProperty, ThemeBrush.AccentBorder, "bg");
+        strip.Template = template;
+        strip.FocusVisualStyle = null;
+        strip.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        strip.FontFamily = InterfaceFont;
+        ApplyNotificationCursor(strip);
     }
 }

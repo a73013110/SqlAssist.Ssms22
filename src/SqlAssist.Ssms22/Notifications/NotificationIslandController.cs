@@ -103,8 +103,8 @@ internal sealed class NotificationIslandController
         island.MouseLeave += (_, _) => OnPointer(entered: false);
         island.IsKeyboardFocusWithinChanged += (_, args) => SqlAssistPlatformGuard.Run("切換通知島焦點", () =>
         { _state.FocusChanged((bool)args.NewValue, DateTimeOffset.UtcNow); Schedule(); });
-        island.SatelliteClicked += (_, _) => SqlAssistPlatformGuard.Run("切換通知島衛星", () =>
-        { _state.ToggleSatellite(DateTimeOffset.UtcNow); Schedule(); });
+        island.PeekRequested += (_, _) => SqlAssistPlatformGuard.Run("切換通知島暫看", () =>
+        { _state.TogglePeek(DateTimeOffset.UtcNow); Schedule(); });
         island.DismissRequested += (_, _) => SqlAssistPlatformGuard.Run("關閉通知", () =>
         {
             // 只隱藏目前這一批活動，不取消工作；提醒各自處理。

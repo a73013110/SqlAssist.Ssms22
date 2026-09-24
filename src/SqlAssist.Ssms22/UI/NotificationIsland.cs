@@ -7,7 +7,6 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Shapes;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Notifications;
 
@@ -18,11 +17,13 @@ namespace SqlAssist.Ssms22.UI;
 /// </summary>
 /// <remarks>
 /// 形態由 <see cref="NotificationIslandState"/> 決定，這裡只負責畫出那個形態。內容一律依目標
-/// 尺寸排版、靠右下對齊，再用動畫中的圓角裁切露出來：變形過程中量到的是固定的目標寬度，
-/// 文字不跟著每一幀重新換行。錨點是右下角，展開與提醒都往左上長。
+/// 尺寸排版、靠右上對齊，再用動畫中的圓角裁切露出來：變形過程中量到的是固定的目標寬度，
+/// 文字不跟著每一幀重新換行。表面錨在右下角往左上長，內容則貼著表面的上緣走——
+/// 高度變化時標題跟著上緣移動，底部由裁切露出或收掉，附條收起時標題不會跳。
 ///
-/// 只認得 <see cref="NotificationIslandContent"/>；按鈕、叉號與衛星都只是把事件交出去，
-/// 處理在呼叫端。循環動畫只允許膠囊或清單抬頭上的那一個進度圈，衛星與各列都是靜態的。
+/// 只認得 <see cref="NotificationIslandContent"/>；按鈕、叉號與附條都只是把事件交出去，
+/// 處理在呼叫端。循環動畫同一時間只有一個：膠囊、清單抬頭或提醒卡附條上的進度圈，各列是靜態的。
+/// 對齊基準見 <see cref="NotificationLayout"/>。
 /// </remarks>
 internal sealed class NotificationIsland : Grid
 {
@@ -36,27 +37,34 @@ internal sealed class NotificationIsland : Grid
     /// <summary>出現時從這麼大的圓點長出來，消失時縮回它再淡掉。</summary>
     public const double DotSize = 12;
 
-    public const double SatelliteSize = 32;
-    public const double SatelliteGap = 8;
     public const double DetailMaxHeight = 240;
 
     /// <summary>疊起來的提醒，後面每一層往上露出多少。</summary>
     public const double StackPeek = 5;
 
     /// <summary>
-    /// 島嶼最大的外框（含衛星與疊層，不含柔影）。
+    /// 島嶼最大的外框（含疊層，不含柔影）。
     /// </summary>
     /// <remarks>
     /// 浮層視窗依它固定大小：變形途中改視窗大小，每一影格都是一次 SetWindowPos 加上整個分層視窗重新合成。
-    /// 高度的上限是展開清單：外距 14、抬頭 24、文件列 19、漸層條 2、明細上距 8 與 <see cref="DetailMaxHeight"/>，
-    /// 共 307，取整到 320；三行訊息的提醒加上兩層疊層不到 150。
+    /// 高度的上限是暫看活動時的清單：上距 8、抬頭 24、文件列約 15、進度條上距 8 與高 3、明細上距 6 與
+    /// <see cref="DetailMaxHeight"/>、底部附條 30（貼底時吃掉 5 DIP 下距）、下距 6，共約 341，取整到 352
+    /// 留給字型行高的差異；三行訊息的提醒加上附條與兩層疊層不到 180。
     /// </remarks>
-    public static readonly Size MaxExtent = new(PanelWidth + SatelliteGap + SatelliteSize, 320);
+    public static readonly Size MaxExtent = new(PanelWidth, 352);
+
+    /// <summary>膠囊：左距、圖示與文字之間、右距。</summary>
+    private const double CapsulePadding = 12;
+    private const double CapsuleGap = 8;
+    private const double CapsuleEnd = 14;
+
+    /// <summary>清單的下距；最後一列自己還有 6 DIP 的內距。</summary>
+    private const double ListBottom = 6;
+
+    /// <summary>進度條的高度；全部結束後收成 1 DIP 的分隔線。</summary>
+    private const double TrackHeight = 3;
 
     private const string Cross = "M1,1 L11,11 M11,1 L1,11";
-    private const string Running = "M8,1 A7,7 0 1 1 1,8";
-    private const string Check = "M3,8 L6.5,11.5 L13,4.5";
-    private const string Alert = "M8,1 L15,14 L1,14 Z M8,5 L8,9 M8,11 L8,12";
 
     private readonly Grid _island = new() { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
     private readonly Border _surface;
@@ -68,28 +76,26 @@ internal sealed class NotificationIsland : Grid
     private readonly SpringMotion _height;
     private readonly SpringMotion _radius;
 
-    private readonly Button _satellite;
-    private readonly Path _satelliteRing;
-    private readonly SqlIconImage _satelliteWarning;
-    private readonly ScaleTransform _satelliteScale = new(1, 1);
-    private readonly TranslateTransform _satelliteShake = new();
-
     private readonly Grid _capsule;
-    private readonly Path _capsuleIcon;
-    private readonly TextBlock _capsuleText;
-    private readonly RotateTransform _capsuleSpin = new();
-    private readonly ScaleTransform _capsuleScale = new(1, 1);
-    private readonly TranslateTransform _capsuleShake = new();
+    private readonly NotificationStatusIcon _capsuleIcon = new() { Margin = new Thickness(CapsulePadding, 0, 0, 0) };
+    private readonly NotificationTicker _capsuleText;
 
     private readonly Grid _list;
-    private readonly Path _listIcon;
-    private readonly RotateTransform _listSpin = new();
-    private readonly TextBlock _listSummary;
+    private readonly NotificationStatusIcon _listIcon = new() { Margin = NotificationLayout.StatusIconInset };
+    private readonly NotificationTicker _listSummary;
+    private readonly Grid _failureChip;
+    private readonly TextBlock _failureText;
     private readonly TextBlock _listDocument;
+    private readonly ScaleTransform _track = new(1, 1);
+    private readonly Border _trackBase;
+    private readonly Border _progressFill;
     private readonly ScaleTransform _progress = new(0, 1);
+    private readonly Border _divider;
     private readonly ScrollViewer _details;
     private readonly StackPanel _rows = new();
     private readonly Dictionary<long, NotificationRow> _rowMap = new();
+    private readonly Dictionary<long, NotificationRow> _exiting = new();
+    private readonly NotificationActivityStrip _footer = new() { Visibility = Visibility.Collapsed };
 
     private readonly NotificationPromptView[] _prompts = new NotificationPromptView[2];
     private int _activePrompt;
@@ -97,10 +103,10 @@ internal sealed class NotificationIsland : Grid
     private FrameworkElement? _current;
     private bool _shown;
     private bool _hiding;
-    private bool _capsuleSpinning;
-    private bool _listSpinning;
+    private bool _motion;
+    private bool _stopping;
+    private bool? _settled;
     private int _lastShake;
-    private int _capsuleState = -1;
     private string _announced = "";
     private bool? _glass;
 
@@ -110,27 +116,6 @@ internal sealed class NotificationIsland : Grid
         VerticalAlignment = VerticalAlignment.Bottom;
         SnapsToDevicePixels = true; UseLayoutRounding = true;
         Visibility = Visibility.Collapsed;
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        // 衛星先加入：它在島嶼左邊，Tab 順序跟視覺順序一致。
-        _satelliteRing = new Path { StrokeThickness = 2.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
-        _satelliteRing.SetResourceReference(Path.StrokeProperty, ThemeResourceSet.NotificationSpinnerKey);
-        var track = new Ellipse { Width = 26, Height = 26, StrokeThickness = 2.5 }.WithTheme(Path.StrokeProperty, ThemeBrush.SegmentTrack);
-        _satelliteWarning = SqlAssistChrome.CreateIcon(SqlIcon.Warning);
-        _satelliteWarning.Visibility = Visibility.Collapsed;
-        var ring = new Grid { Width = SatelliteSize, Height = SatelliteSize };
-        ring.Children.Add(track); ring.Children.Add(_satelliteRing); ring.Children.Add(_satelliteWarning);
-        _satellite = SqlAssistChrome.CreateNotificationSatellite("通知");
-        _satellite.Content = ring;
-        _satellite.VerticalAlignment = VerticalAlignment.Bottom;
-        _satellite.Margin = new Thickness(0, 0, SatelliteGap, 0);
-        _satellite.Visibility = Visibility.Collapsed;
-        _satellite.RenderTransformOrigin = new Point(0.5, 0.5);
-        _satellite.RenderTransform = Group(_satelliteScale, _satelliteShake);
-        _satellite.Click += (_, _) => SatelliteClicked?.Invoke(this, EventArgs.Empty);
-        AutomationProperties.SetLiveSetting(_satellite, AutomationLiveSetting.Polite);
-        Children.Add(_satellite);
 
         for (var index = _layers.Length - 1; index >= 0; index--)
         {
@@ -158,25 +143,51 @@ internal sealed class NotificationIsland : Grid
             Clip = _clip,
         };
         _island.Children.Add(_viewport);
-        SetColumn(_island, 1);
         Children.Add(_island);
 
         DismissButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.DismissActivities, Cross);
         DismissButton.VerticalAlignment = VerticalAlignment.Center;
         DismissButton.Click += (_, _) => DismissRequested?.Invoke(this, EventArgs.Empty);
-        _capsule = CreateCapsule(out _capsuleIcon, out _capsuleText);
-        _list = CreateList(out _listIcon, out _listSummary, out _listDocument, out _details);
+        _capsuleText = new NotificationTicker(() =>
+        {
+            var text = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
+            text.FontSize = 12; text.FontWeight = FontWeights.Normal;
+            return text;
+        });
+        _listSummary = new NotificationTicker(() =>
+        {
+            var text = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
+            text.FontSize = 12;
+            return text;
+        });
+        _failureChip = CreateFailureChip(out _failureText);
+        _listDocument = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
+        _trackBase = new Border { CornerRadius = new CornerRadius(TrackHeight / 2) }.WithTheme(Border.BackgroundProperty, ThemeBrush.SegmentTrack);
+        _progressFill = new Border
+        {
+            CornerRadius = new CornerRadius(TrackHeight / 2), RenderTransformOrigin = new Point(0, 0.5), RenderTransform = _progress,
+        }.WithThemeKey(Border.BackgroundProperty, ThemeResourceSet.NotificationSpinnerKey);
+        _divider = new Border { Opacity = 0 }.WithTheme(Border.BackgroundProperty, ThemeBrush.Hairline);
+        _details = new ScrollViewer
+        {
+            Margin = new Thickness(-NotificationLayout.Bleed, 6, -NotificationLayout.Bleed, 0),
+            MaxHeight = DetailMaxHeight, Content = _rows, Focusable = false,
+        };
+        _capsule = CreateCapsule();
+        _list = CreateList();
         _viewport.Children.Add(_capsule);
         _viewport.Children.Add(_list);
+        _footer.Click += (_, _) => PeekRequested?.Invoke(this, EventArgs.Empty);
         for (var index = 0; index < _prompts.Length; index++)
         {
             var view = new NotificationPromptView
             {
-                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-                Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(1, 1),
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+                Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(1, 0),
                 RenderTransform = Group(new ScaleTransform(1, 1), new TranslateTransform()),
             };
             view.ActionInvoked += (id, action) => PromptResolved?.Invoke(id, action);
+            view.ActivityStrip.Click += (_, _) => PeekRequested?.Invoke(this, EventArgs.Empty);
             _prompts[index] = view;
             _viewport.Children.Add(view);
         }
@@ -192,8 +203,8 @@ internal sealed class NotificationIsland : Grid
     /// <summary>按了提醒上的按鈕（識別字）或叉號（null）。</summary>
     public event Action<long, string?>? PromptResolved;
 
-    /// <summary>點了衛星：呼叫端交給狀態機切去看活動或切回提醒。</summary>
-    public event EventHandler? SatelliteClicked;
+    /// <summary>按了附條：呼叫端交給狀態機切去看活動，或從活動切回提醒。</summary>
+    public event EventHandler? PeekRequested;
 
     /// <summary>活動清單的叉號：這一批看完了，不取消工作。</summary>
     public event EventHandler? DismissRequested;
@@ -204,11 +215,10 @@ internal sealed class NotificationIsland : Grid
     /// <summary>這一輪的形態；由狀態機給。</summary>
     public NotificationIslandShape Shape { get; private set; } = NotificationIslandShape.Hidden;
 
-    /// <summary>島嶼變形完之後的大小（含衛星與疊層），給浮層定位用。</summary>
+    /// <summary>島嶼變形完之後的大小（含疊層），給浮層與測試確認放得進固定外框。</summary>
     public Size TargetSize { get; private set; }
 
     internal FrameworkElement? CurrentContent => _current;
-    internal Button Satellite => _satellite;
     internal Button DismissButton { get; }
     internal NotificationPromptView ActivePrompt => _prompts[_activePrompt];
     internal Border Surface => _surface;
@@ -216,8 +226,18 @@ internal sealed class NotificationIsland : Grid
     internal ScrollViewer Details => _details;
     internal StackPanel Rows => _rows;
     internal TextBlock DocumentLabel => _listDocument;
+    internal NotificationTicker ListSummary => _listSummary;
+    internal UIElement FailureChip => _failureChip;
+    internal NotificationActivityStrip ListFooter => _footer;
+    internal NotificationStatusIcon ListIcon => _listIcon;
     internal ScaleTransform Progress => _progress;
-    internal bool IsSpinning => _capsuleSpinning || _listSpinning;
+
+    /// <summary>進度條已經收成分隔線。</summary>
+    internal bool ProgressSettled => _settled == true;
+
+    internal bool IsSpinning =>
+        _capsuleIcon.IsSpinning || _listIcon.IsSpinning || _prompts.Any(view => view.ActivityStrip.Icon.IsSpinning);
+
     internal (SpringMotion Width, SpringMotion Height, SpringMotion Radius) Springs => (_width, _height, _radius);
 
     public void SetOptions(bool glass, bool highContrast)
@@ -240,20 +260,6 @@ internal sealed class NotificationIsland : Grid
                 layer.WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
             }
         }
-
-        if (glass)
-        {
-            _satellite.SetResourceReference(Control.BackgroundProperty, ThemeResourceSet.NotificationGlassKey);
-            _satellite.SetResourceReference(Control.BorderBrushProperty, ThemeResourceSet.NotificationRimKey);
-        }
-        else
-        {
-            _satellite.WithTheme(Control.BackgroundProperty, ThemeBrush.ListBackground);
-            _satellite.WithTheme(Control.BorderBrushProperty, ThemeBrush.Border);
-        }
-
-        _satellite.Effect = _surface.Effect is null ? null : new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.14 };
-        SqlAssistChrome.UpdateNotificationShadowCache(_satellite);
     }
 
     /// <summary>畫出這一輪的形態與內容。</summary>
@@ -262,6 +268,7 @@ internal sealed class NotificationIsland : Grid
     {
         if (content is null) throw new ArgumentNullException(nameof(content));
         if (state is null) throw new ArgumentNullException(nameof(state));
+        _motion = motion;
         var previous = Shape;
         var previousPrompt = ActivePrompt.Item;
         Shape = state.Shape;
@@ -281,16 +288,17 @@ internal sealed class NotificationIsland : Grid
         FrameworkElement next;
         Size target;
         var slide = false;
+        IReadOnlyList<NotificationRow> added = Array.Empty<NotificationRow>();
         switch (Shape)
         {
             case NotificationIslandShape.Compact:
             case NotificationIslandShape.Done:
-                UpdateCapsule(content, state, motion);
-                target = new Size(CapsuleWidth(_capsuleText.Text), CapsuleHeight);
+                UpdateCapsule(content, motion);
+                target = new Size(CapsuleWidth(content.Summary), CapsuleHeight);
                 next = _capsule;
                 break;
             case NotificationIslandShape.Expanded:
-                UpdateList(content, motion);
+                added = UpdateList(content, motion);
                 target = new Size(PanelWidth, Measure(_list));
                 next = _list;
                 break;
@@ -299,6 +307,7 @@ internal sealed class NotificationIsland : Grid
                 if (ActivePrompt.Item?.Id != top.Id && ActivePrompt.Item is not null) _activePrompt = 1 - _activePrompt;
                 var view = ActivePrompt;
                 view.Update(top);
+                UpdatePromptStrips(content, state, motion);
                 target = new Size(PanelWidth, Measure(view));
                 next = view;
                 // 疊著的提醒處理掉一則：下一則從下面滑上來，而不是原地換字。
@@ -307,15 +316,12 @@ internal sealed class NotificationIsland : Grid
                 break;
         }
 
-        // 目標尺寸含內容自己的外距；排版寬高要扣掉，否則靠右下對齊時整份內容往左上多推出一圈。
-        next.Width = Math.Max(0, target.Width - next.Margin.Left - next.Margin.Right);
-        next.Height = Math.Max(0, target.Height - next.Margin.Top - next.Margin.Bottom);
+        FitTo(next, target);
         var radius = Shape is NotificationIslandShape.Compact or NotificationIslandShape.Done ? CapsuleRadius : PanelRadius;
         var layers = Shape == NotificationIslandShape.PromptStack ? Math.Min(_layers.Length, content.Prompts.Count - 1) : 0;
         for (var index = 0; index < _layers.Length; index++)
             _layers[index].Visibility = index < layers ? Visibility.Visible : Visibility.Collapsed;
 
-        UpdateSatellite(content, state, motion);
         if (appearing)
         {
             _width.Jump(motion ? DotSize : target.Width);
@@ -327,26 +333,35 @@ internal sealed class NotificationIsland : Grid
         _width.AnimateTo(target.Width, motion);
         _height.AnimateTo(target.Height, motion);
         _radius.AnimateTo(radius, motion);
+        var enteringList = ReferenceEquals(next, _list) && !ReferenceEquals(_current, _list);
         Swap(next, motion && !appearing, slide);
+        // 量完高度才開始長：先開始的話量到的是高度 0 的新列，外框會少一列。
+        if (ReferenceEquals(next, _list) && motion)
+        {
+            if (enteringList) StaggerRows();
+            else foreach (var row in added) row.Enter(motion: true, RowWidth);
+        }
+
         UpdateSpin(content, motion);
         UpdateShake(state, motion);
         UpdateAnnouncement(content, previous);
-        TargetSize = new Size(
-            target.Width + (state.Satellite ? SatelliteSize + SatelliteGap : 0),
-            Math.Max(target.Height + StackPeek * layers, state.Satellite ? SatelliteSize : 0));
+        TargetSize = new Size(target.Width, target.Height + StackPeek * layers);
     }
 
     /// <summary>停掉所有動畫並把尺寸放到目標；表面離開畫面或動畫關掉時用。</summary>
     public void StopMotion()
     {
+        _stopping = true;
         _width.Jump(_width.Target); _height.Jump(_height.Target); _radius.Jump(_radius.Target);
-        SetSpin(_capsuleSpin, ref _capsuleSpinning, false);
-        SetSpin(_listSpin, ref _listSpinning, false);
-        NotificationMotion.StopResult(_capsuleScale, _capsuleShake);
-        NotificationMotion.StopResult(_satelliteScale, _satelliteShake);
-        _satellite.BeginAnimation(OpacityProperty, null);
+        _capsuleIcon.StopMotion(); _capsuleText.StopMotion();
+        _listIcon.StopMotion(); _listSummary.StopMotion();
+        _footer.StopMotion();
+        foreach (var view in _prompts) view.ActivityStrip.StopMotion();
+        foreach (var row in _rowMap.Values.Concat(_exiting.Values).ToArray()) row.SuspendMotion();
+        _progress.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        _track.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        foreach (var part in new UIElement[] { _trackBase, _progressFill, _divider }) part.BeginAnimation(OpacityProperty, null);
         _island.BeginAnimation(OpacityProperty, null); _island.Opacity = 1;
-        foreach (var row in _rowMap.Values) row.SuspendMotion();
         foreach (FrameworkElement child in _viewport.Children)
         {
             child.BeginAnimation(OpacityProperty, null);
@@ -354,6 +369,7 @@ internal sealed class NotificationIsland : Grid
             if (!ReferenceEquals(child, _current)) child.Visibility = Visibility.Collapsed;
         }
 
+        _stopping = false;
         if (!_shown) Visibility = Visibility.Collapsed;
     }
 
@@ -364,9 +380,6 @@ internal sealed class NotificationIsland : Grid
     public void Reset()
     {
         _shown = false; _hiding = false;
-        SetSpin(_capsuleSpin, ref _capsuleSpinning, false);
-        SetSpin(_listSpin, ref _listSpinning, false);
-        _satellite.Visibility = Visibility.Collapsed;
         TargetSize = new Size(DotSize, DotSize);
         StopMotion();
         Visibility = Visibility.Collapsed;
@@ -376,16 +389,17 @@ internal sealed class NotificationIsland : Grid
     {
         base.OnDpiChanged(oldDpi, newDpi);
         SqlAssistChrome.UpdateNotificationShadowCache(_surface);
-        SqlAssistChrome.UpdateNotificationShadowCache(_satellite);
     }
+
+    /// <summary>清單列的寬度：文字欄再往左右各延伸停駐底色的量。</summary>
+    private static double RowWidth => PanelWidth - NotificationLayout.Left - NotificationLayout.Right + NotificationLayout.Bleed * 2;
 
     private void Hide(bool motion)
     {
         if (!_shown) return;
         _shown = false;
-        SetSpin(_capsuleSpin, ref _capsuleSpinning, false);
-        SetSpin(_listSpin, ref _listSpinning, false);
-        _satellite.Visibility = Visibility.Collapsed;
+        _capsuleIcon.Spin(false); _listIcon.Spin(false);
+        foreach (var view in _prompts) view.ActivityStrip.Icon.Spin(false);
         TargetSize = new Size(DotSize, DotSize);
         if (!motion)
         {
@@ -430,7 +444,7 @@ internal sealed class NotificationIsland : Grid
         var (scale, shift) = Transforms(next);
         if (ReferenceEquals(old, next))
         {
-            // 同一份內容剛被換走又換回來（例如衛星來回點）：從目前的透明度接回 1。
+            // 同一份內容剛被換走又換回來（例如附條來回點）：從目前的透明度接回 1。
             // 被換走的那一份基底值仍是 1、只有動畫在往 0 走；正在淡入的那一份基底值是 0，不去打斷它。
             if (next.Opacity < 1 && !motion) { next.BeginAnimation(OpacityProperty, null); next.Opacity = 1; }
             else if (next.Opacity < 1 && next.GetAnimationBaseValue(OpacityProperty) is double baseline && baseline >= 1)
@@ -477,39 +491,124 @@ internal sealed class NotificationIsland : Grid
         }
     }
 
+    /// <summary>
+    /// 內容量出來的高度變了（列離場播完、附條收起），但形態沒變：只把外框追過去，不換內容。
+    /// </summary>
+    private void Relayout()
+    {
+        if (_stopping || !_shown || _hiding || _current is null || ReferenceEquals(_current, _capsule)) return;
+        var height = Measure(_current);
+        FitTo(_current, new Size(PanelWidth, height));
+        _height.AnimateTo(height, _motion);
+        var layers = _layers.Count(layer => layer.Visibility == Visibility.Visible);
+        TargetSize = new Size(TargetSize.Width, height + StackPeek * layers);
+    }
+
     private static bool IsPrompt(NotificationIslandShape shape) => shape is NotificationIslandShape.Prompt
-        or NotificationIslandShape.PromptWithSatellite or NotificationIslandShape.PromptStack;
+        or NotificationIslandShape.PromptWithActivity or NotificationIslandShape.PromptStack;
 
     private static (ScaleTransform?, TranslateTransform?) Transforms(UIElement element) =>
         element.RenderTransform is TransformGroup group
             ? (group.Children.OfType<ScaleTransform>().FirstOrDefault(), group.Children.OfType<TranslateTransform>().FirstOrDefault())
             : (null, null);
 
-    private void UpdateCapsule(NotificationIslandContent content, NotificationIslandState state, bool motion)
+    private void UpdateCapsule(NotificationIslandContent content, bool motion)
     {
-        _capsuleText.Text = content.Summary; _capsuleText.ToolTip = content.Summary;
-        var running = content.Running > 0;
-        // 0 執行中、1 有失敗、2 成功、3 其餘（取消）；只在變的那一刻換圖示與播回饋。
-        var capsuleState = running ? 0 : state.Warning ? 1 : content.Completed > 0 ? 2 : 3;
-        if (capsuleState == _capsuleState) return;
-        var from = _capsuleState;
-        _capsuleState = capsuleState;
-        NotificationMotion.StopResult(_capsuleScale, _capsuleShake);
-        ApplyStatusIcon(_capsuleIcon, capsuleState);
-        // 失敗的短震由 ShakeCount 決定，這裡只補成功的微彈出。
-        if (motion && from == 0 && capsuleState == 2) NotificationMotion.PlayPop(_capsuleScale);
+        var visible = motion && ReferenceEquals(_current, _capsule);
+        var status = content.Status;
+        // 失敗的短震由 ShakeCount 決定，這裡只補「執行中 → 成功」那一刻的描勾。
+        _capsuleIcon.SetStatus(status, visible && _capsuleIcon.Status == NotificationVisualStatus.Running &&
+            status == NotificationVisualStatus.Completed);
+        _capsuleText.SetText(content.Summary, visible);
     }
 
-    private void UpdateList(NotificationIslandContent content, bool motion)
+    private IReadOnlyList<NotificationRow> UpdateList(NotificationIslandContent content, bool motion)
     {
         var items = content.Activities;
-        ApplyStatusIcon(_listIcon, content.Running > 0 ? 0 : content.Failed > 0 ? 1 : content.Completed > 0 ? 2 : 3);
-        var summary = NotificationCatalog.ProgressSummary(content.Completed, items.Count);
-        _listSummary.Text = summary; _listSummary.ToolTip = summary;
+        // 清單已經在畫面上才播換字、回饋與離場；剛要換上來的那一輪交給依序進場。
+        var visible = motion && ReferenceEquals(_current, _list);
+        _listIcon.SetStatus(content.Status, feedback: false);
+        _listSummary.SetText(NotificationCatalog.ProgressSummary(content.Completed, items.Count), visible);
+        var failure = NotificationCatalog.FailureSummary(content.Failed);
+        _failureText.Text = failure; _failureChip.ToolTip = failure;
+        AutomationProperties.SetName(_failureChip, failure);
+        _failureChip.Visibility = content.Failed > 0 ? Visibility.Visible : Visibility.Collapsed;
         var document = NotificationRow.CommonDocument(items);
         _listDocument.Text = document; _listDocument.ToolTip = document;
         _listDocument.Visibility = document.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-        var fraction = items.Count == 0 ? 0 : (double)content.Completed / items.Count;
+        UpdateProgress(items.Count == 0 ? 0 : (double)content.Completed / items.Count, motion);
+        Settle(content.Running == 0 && items.Count > 0, visible);
+
+        // 暫看活動時提醒還在等：清單底部接一條回去的路。
+        if (content.Prompts.Count > 0)
+            _footer.Update(NotificationCatalog.PendingPrompts(content.Prompts.Count), NotificationVisualStatus.Pending,
+                NotificationCatalog.BackToPrompts, feedback: false, visible);
+        else _footer.Collapse();
+
+        foreach (var id in _rowMap.Keys.Where(id => items.All(x => x.Id != id)).ToArray())
+        {
+            var row = _rowMap[id];
+            _rowMap.Remove(id);
+            if (!visible) { row.StopMotion(); _rows.Children.Remove(row); continue; }
+            _exiting[id] = row;
+            row.Exit(motion: true, () =>
+            {
+                if (_exiting.TryGetValue(id, out var leaving) && ReferenceEquals(leaving, row)) _exiting.Remove(id);
+                _rows.Children.Remove(row);
+                Relayout();
+            });
+        }
+
+        var added = new List<NotificationRow>();
+        for (var index = 0; index < items.Count; index++)
+        {
+            var item = items[index];
+            if (!_rowMap.TryGetValue(item.Id, out var row))
+            {
+                if (_exiting.TryGetValue(item.Id, out row)) { _exiting.Remove(item.Id); row.CancelExit(); }
+                else { row = new NotificationRow(item); added.Add(row); }
+                _rowMap.Add(item.Id, row);
+            }
+
+            Place(row, index);
+            row.Update(item, document.Length == 0, visible);
+        }
+
+        return added;
+    }
+
+    /// <summary>把列放到第 <paramref name="index"/> 個現役位置；離場中的列還在畫面上，但不算位置。</summary>
+    private void Place(NotificationRow row, int index)
+    {
+        var position = 0;
+        for (var live = 0; position < _rows.Children.Count; position++)
+        {
+            var child = (NotificationRow)_rows.Children[position];
+            if (child.IsExiting) continue;
+            if (live == index) break;
+            live++;
+        }
+
+        var current = _rows.Children.IndexOf(row);
+        if (current == position) return;
+        if (current >= 0)
+        {
+            _rows.Children.RemoveAt(current);
+            if (current < position) position--;
+        }
+
+        _rows.Children.Insert(Math.Min(position, _rows.Children.Count), row);
+    }
+
+    private void StaggerRows()
+    {
+        var index = 0;
+        foreach (NotificationRow row in _rows.Children)
+            if (!row.IsExiting) row.Stagger(index++, motion: true);
+    }
+
+    private void UpdateProgress(double fraction, bool motion)
+    {
         _progress.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         if (motion && Math.Abs(_progress.ScaleX - fraction) > 0.001)
         {
@@ -519,61 +618,72 @@ internal sealed class NotificationIsland : Grid
             _progress.BeginAnimation(ScaleTransform.ScaleXProperty, animation);
         }
         else _progress.ScaleX = fraction;
-
-        foreach (var id in _rowMap.Keys.Where(id => items.All(x => x.Id != id)).ToArray())
-        { _rowMap[id].StopMotion(); _rows.Children.Remove(_rowMap[id]); _rowMap.Remove(id); }
-        var index = 0;
-        var visible = Shape == NotificationIslandShape.Expanded;
-        foreach (var item in items)
-        {
-            var added = !_rowMap.TryGetValue(item.Id, out var row);
-            if (row is null) { row = new NotificationRow(item); _rowMap.Add(item.Id, row); }
-            if (_rows.Children.IndexOf(row) != index) { _rows.Children.Remove(row); _rows.Children.Insert(index, row); }
-            row.Update(item, document.Length == 0, motion && visible);
-            if (added && motion && ReferenceEquals(_current, _list)) row.Reveal(motion, PanelWidth - 24);
-            index++;
-        }
     }
 
-    private void UpdateSatellite(NotificationIslandContent content, NotificationIslandState state, bool motion)
+    /// <summary>
+    /// 全部結束之後，進度條停一下再收成 1 DIP 的分隔線；有新工作進來時長回去。
+    /// </summary>
+    /// <remarks>
+    /// 走完的進度條留在那裡沒有資訊，只是一條顏色不明的線；直接拿掉的話，抬頭與明細之間又少了界線。
+    /// 只縮 <see cref="ScaleTransform.ScaleY"/> 並交叉淡入髮絲線，不改版面高度，明細不會跟著跳。
+    /// </remarks>
+    private void Settle(bool settled, bool motion)
     {
-        var show = state.Satellite;
-        var wasShown = _satellite.Visibility == Visibility.Visible;
-        if (show)
-        {
-            var total = content.Activities.Count;
-            _satelliteRing.Data = Arc(total == 0 ? 0 : (double)content.Completed / total);
-            _satelliteWarning.Visibility = state.Warning ? Visibility.Visible : Visibility.Collapsed;
-            var name = content.Summary + "\n按一下查看工作";
-            _satellite.ToolTip = name;
-            AutomationProperties.SetName(_satellite, name);
-        }
+        if (_settled == settled) return;
+        _settled = settled;
+        var delay = settled ? NotificationMotion.ProgressSettleDelay : 0;
+        SettleTo(_track, ScaleTransform.ScaleYProperty, settled ? 1 / TrackHeight : 1, delay, motion);
+        SettleTo(_trackBase, OpacityProperty, settled ? 0 : 1, delay, motion);
+        SettleTo(_progressFill, OpacityProperty, settled ? 0 : 1, delay, motion);
+        SettleTo(_divider, OpacityProperty, settled ? 1 : 0, delay, motion);
+    }
 
-        if (show == wasShown) return;
-        _satellite.BeginAnimation(OpacityProperty, null);
-        _satelliteScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-        _satelliteScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        _satellite.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        if (!show || !motion) { _satellite.Opacity = 1; return; }
-        _satellite.BeginAnimation(OpacityProperty, NotificationMotion.Ease(0, 1, NotificationMotion.Enter));
-        var grow = NotificationMotion.Ease(0.6, 1, NotificationMotion.Enter);
-        grow.FillBehavior = FillBehavior.Stop;
-        _satelliteScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-        _satelliteScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+    /// <summary>從畫面上的目前值接到 <paramref name="to"/>；基底值先寫好，動畫停下來時就停在終點。</summary>
+    private static void SettleTo(DependencyObject target, DependencyProperty property, double to, int delay, bool motion)
+    {
+        var from = (double)target.GetValue(property);
+        target.SetValue(property, to);
+        ((IAnimatable)target).BeginAnimation(property, motion
+            ? NotificationMotion.Delayed(from, to, delay, NotificationMotion.ProgressSettle)
+            : null);
+    }
+
+    /// <summary>
+    /// 提醒卡底部的附條：只有最上面那一張、而且有活動時才顯示；沒有活動了就淡出再收起。
+    /// </summary>
+    private void UpdatePromptStrips(NotificationIslandContent content, NotificationIslandState state, bool motion)
+    {
+        foreach (var view in _prompts)
+        {
+            var strip = view.ActivityStrip;
+            var active = ReferenceEquals(view, ActivePrompt);
+            var visible = motion && ReferenceEquals(_current, view) && strip.Visibility == Visibility.Visible && !strip.IsLeaving;
+            if (!active || !state.ActivityStrip)
+            {
+                if (active && ReferenceEquals(_current, view)) strip.Leave(motion, Relayout);
+                else strip.Collapse();
+                continue;
+            }
+
+            var status = content.Status;
+            // 失敗的短震由 ShakeCount 決定；這裡只補「執行中 → 成功」那一刻的描勾。
+            var feedback = visible && strip.Icon.Status == NotificationVisualStatus.Running &&
+                status == NotificationVisualStatus.Completed;
+            strip.Update(content.Summary, status, NotificationCatalog.ViewActivities, feedback, visible);
+        }
     }
 
     private void UpdateSpin(NotificationIslandContent content, bool motion)
     {
         var running = content.Running > 0 && motion;
-        SetSpin(_capsuleSpin, ref _capsuleSpinning, running && Shape == NotificationIslandShape.Compact);
-        SetSpin(_listSpin, ref _listSpinning, running && Shape == NotificationIslandShape.Expanded);
-    }
-
-    private static void SetSpin(RotateTransform rotation, ref bool spinning, bool spin)
-    {
-        if (spinning == spin) return;
-        spinning = spin;
-        rotation.BeginAnimation(RotateTransform.AngleProperty, spin ? NotificationMotion.Spinner() : null);
+        _capsuleIcon.Spin(running && Shape == NotificationIslandShape.Compact);
+        _listIcon.Spin(running && Shape == NotificationIslandShape.Expanded);
+        foreach (var view in _prompts)
+        {
+            var strip = view.ActivityStrip;
+            strip.Icon.Spin(running && IsPrompt(Shape) && ReferenceEquals(view, ActivePrompt) &&
+                strip.Visibility == Visibility.Visible && !strip.IsLeaving);
+        }
     }
 
     private void UpdateShake(NotificationIslandState state, bool motion)
@@ -581,8 +691,8 @@ internal sealed class NotificationIsland : Grid
         if (state.ShakeCount == _lastShake) return;
         _lastShake = state.ShakeCount;
         if (!motion) return;
-        if (state.Satellite) NotificationMotion.PlayShake(_satelliteShake);
-        else if (ReferenceEquals(_current, _capsule)) NotificationMotion.PlayShake(_capsuleShake);
+        if (ReferenceEquals(_current, _capsule)) _capsuleIcon.Shake();
+        else if (ReferenceEquals(_current, ActivePrompt) && state.ActivityStrip) ActivePrompt.ActivityStrip.Icon.Shake();
     }
 
     /// <summary>提醒由自己的檢視以 Assertive 播報；活動的摘要換了才以 Polite 播報一次。</summary>
@@ -605,8 +715,8 @@ internal sealed class NotificationIsland : Grid
     {
         var probe = new TextBlock { Text = text, FontFamily = SqlAssistChrome.InterfaceFont, FontSize = 12 };
         probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        // 左 10、圖示 16、間距 8、右 14。
-        return Math.Ceiling(Math.Max(CapsuleMinWidth, Math.Min(CapsuleMaxWidth, 10 + 16 + 8 + probe.DesiredSize.Width + 14)));
+        var chrome = CapsulePadding + NotificationStatusIcon.Size + CapsuleGap + CapsuleEnd;
+        return Math.Ceiling(Math.Max(CapsuleMinWidth, Math.Min(CapsuleMaxWidth, chrome + probe.DesiredSize.Width)));
     }
 
     private static double Measure(FrameworkElement content)
@@ -616,6 +726,13 @@ internal sealed class NotificationIsland : Grid
         content.Width = double.NaN; content.Height = double.NaN;
         content.Measure(new Size(PanelWidth, double.PositiveInfinity));
         return Math.Ceiling(content.DesiredSize.Height);
+    }
+
+    /// <summary>目標尺寸含內容自己的外距；排版寬高要扣掉，否則靠右上對齊時整份內容往左下多推出一圈。</summary>
+    private static void FitTo(FrameworkElement content, Size target)
+    {
+        content.Width = Math.Max(0, target.Width - content.Margin.Left - content.Margin.Right);
+        content.Height = Math.Max(0, target.Height - content.Margin.Top - content.Margin.Bottom);
     }
 
     private void SetWidth(double value)
@@ -648,117 +765,110 @@ internal sealed class NotificationIsland : Grid
         _clip.RadiusX = radius; _clip.RadiusY = radius;
     }
 
-    private Grid CreateCapsule(out Path icon, out TextBlock text)
+    private Grid CreateCapsule()
     {
         var capsule = new Grid
         {
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-            Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(1, 1),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Visibility = Visibility.Collapsed, RenderTransformOrigin = new Point(1, 0),
             RenderTransform = Group(new ScaleTransform(1, 1), new TranslateTransform()),
         };
-        capsule.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10 + 16 + 8) });
+        capsule.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(CapsulePadding + NotificationStatusIcon.Size + CapsuleGap) });
         capsule.ColumnDefinitions.Add(new ColumnDefinition());
-        icon = StatusIcon(Group(_capsuleSpin, _capsuleScale, _capsuleShake));
-        icon.Margin = new Thickness(12, 0, 0, 0);
-        capsule.Children.Add(icon);
-        text = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
-        text.Margin = new Thickness(0, 0, 14, 0); text.FontSize = 12; text.FontWeight = FontWeights.Normal;
-        text.VerticalAlignment = VerticalAlignment.Center;
-        text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
-        SetColumn(text, 1);
-        capsule.Children.Add(text);
+        capsule.Children.Add(_capsuleIcon);
+        _capsuleText.Margin = new Thickness(0, 0, CapsuleEnd, 0);
+        _capsuleText.VerticalAlignment = VerticalAlignment.Center;
+        SetColumn(_capsuleText, 1);
+        capsule.Children.Add(_capsuleText);
         AutomationProperties.SetLiveSetting(capsule, AutomationLiveSetting.Polite);
         return capsule;
     }
 
-    private Grid CreateList(out Path icon, out TextBlock summary, out TextBlock document, out ScrollViewer details)
+    /// <summary>
+    /// 展開清單：抬頭（狀態、摘要、失敗標記、叉號）、文件列、進度條、明細與暫看時的底部附條。
+    /// </summary>
+    /// <remarks>圖示、文字與右側收邊都照 <see cref="NotificationLayout"/>，與提醒卡的標題列同一個位置。</remarks>
+    private Grid CreateList()
     {
         var list = new Grid
         {
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-            Visibility = Visibility.Collapsed, Margin = new Thickness(12, 6, 10, 8),
-            RenderTransformOrigin = new Point(1, 1),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(NotificationLayout.Left, NotificationLayout.Top, NotificationLayout.Right, ListBottom),
+            RenderTransformOrigin = new Point(1, 0),
             RenderTransform = Group(new ScaleTransform(1, 1), new TranslateTransform()),
         };
-        for (var row = 0; row < 4; row++) list.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var header = new Grid { Height = 24 };
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+        for (var row = 0; row < 5; row++) list.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var header = new Grid { Height = NotificationLayout.HeaderHeight };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NotificationLayout.IconColumn) });
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        icon = StatusIcon(_listSpin);
-        header.Children.Add(icon);
-        summary = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
-        summary.Margin = new Thickness(0); summary.FontSize = 12; summary.VerticalAlignment = VerticalAlignment.Center;
-        summary.TextTrimming = TextTrimming.CharacterEllipsis;
-        SetColumn(summary, 1);
-        header.Children.Add(summary);
-        SetColumn(DismissButton, 2);
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.Children.Add(_listIcon);
+        _listSummary.VerticalAlignment = VerticalAlignment.Center;
+        SetColumn(_listSummary, 1);
+        header.Children.Add(_listSummary);
+        SetColumn(_failureChip, 2);
+        header.Children.Add(_failureChip);
+        SetColumn(DismissButton, 3);
         header.Children.Add(DismissButton);
         list.Children.Add(header);
 
         // 抬頭下方只回答文件；資料庫留在各列上。
-        document = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
-        document.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
-        document.FontSize = 11; document.Margin = new Thickness(18, 0, 0, 4);
-        document.TextWrapping = TextWrapping.NoWrap; document.TextTrimming = TextTrimming.CharacterEllipsis;
-        document.Visibility = Visibility.Collapsed;
-        SetRow(document, 1);
-        list.Children.Add(document);
+        _listDocument.SetResourceReference(TextBlock.ForegroundProperty, ThemeResourceSet.NotificationDimKey);
+        _listDocument.FontSize = 11;
+        _listDocument.Margin = new Thickness(NotificationLayout.IconColumn, 0, NotificationLayout.TextEnd - NotificationLayout.Right, 0);
+        _listDocument.TextWrapping = TextWrapping.NoWrap; _listDocument.TextTrimming = TextTrimming.CharacterEllipsis;
+        _listDocument.Visibility = Visibility.Collapsed;
+        SetRow(_listDocument, 1);
+        list.Children.Add(_listDocument);
 
-        var track = new Grid { Height = 2, ClipToBounds = true };
-        track.Children.Add(new Border { CornerRadius = new CornerRadius(1) }.WithTheme(Border.BackgroundProperty, ThemeBrush.SegmentTrack));
-        track.Children.Add(new Border
+        var track = new Grid
         {
-            CornerRadius = new CornerRadius(1), RenderTransformOrigin = new Point(0, 0.5), RenderTransform = _progress,
-        }.WithThemeKey(Border.BackgroundProperty, ThemeResourceSet.NotificationSpinnerKey));
+            Height = TrackHeight, Margin = new Thickness(0, SqlAssistChrome.Spacing.Group, 0, 0), ClipToBounds = true,
+            RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = _track,
+        };
+        track.Children.Add(_trackBase);
+        track.Children.Add(_progressFill);
+        track.Children.Add(_divider);
         SetRow(track, 2);
         list.Children.Add(track);
 
-        details = new ScrollViewer { Margin = new Thickness(0, 8, 0, 0), MaxHeight = DetailMaxHeight, Content = _rows, Focusable = false };
-        SqlAssistChrome.ApplyOverlayScroll(details);
-        SetRow(details, 3);
-        list.Children.Add(details);
+        SqlAssistChrome.ApplyOverlayScroll(_details, fadeWhenIdle: true, fadeEdges: true);
+        SetRow(_details, 3);
+        list.Children.Add(_details);
+
+        _footer.Place(gap: 6, bottom: ListBottom);
+        SetRow(_footer, 4);
+        list.Children.Add(_footer);
         AutomationProperties.SetLiveSetting(list, AutomationLiveSetting.Polite);
         return list;
     }
 
-    private static Path StatusIcon(Transform transform) => new()
+    /// <summary>
+    /// 抬頭右側的失敗標記：失敗色的圖示與淡底，字維持一般前景。
+    /// </summary>
+    /// <remarks>失敗色只保證圖形對比（3:1），拿來寫 11 DIP 的字會低於文字的 4.5:1。</remarks>
+    private static Grid CreateFailureChip(out TextBlock text)
     {
-        Width = 12, Height = 12, Stretch = Stretch.None, StrokeThickness = 1.4,
-        StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round,
-        HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
-        RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = transform,
-    };
-
-    private static void ApplyStatusIcon(Path icon, int state)
-    {
-        icon.Data = SqlAssistChrome.NotificationGeometry(state switch { 0 => Running, 1 => Alert, 2 => Check, _ => Cross });
-        icon.WithTheme(Path.StrokeProperty, state switch
+        var chip = new Grid
         {
-            1 => ThemeBrush.NotificationFailure,
-            2 => ThemeBrush.NotificationSuccess,
-            _ => ThemeBrush.DimForeground,
-        });
-        if (state == 0) icon.SetResourceReference(Path.StrokeProperty, ThemeResourceSet.NotificationSpinnerKey);
-    }
-
-    /// <summary>衛星的進度環：從 12 點鐘方向順時針畫到完成比例。</summary>
-    private static Geometry Arc(double fraction)
-    {
-        const double center = SatelliteSize / 2, radius = 13;
-        if (fraction <= 0) return Geometry.Empty;
-        if (fraction >= 1) return new EllipseGeometry(new Point(center, center), radius, radius);
-        var angle = fraction * 2 * Math.PI;
-        var geometry = new StreamGeometry();
-        using (var context = geometry.Open())
-        {
-            context.BeginFigure(new Point(center, center - radius), isFilled: false, isClosed: false);
-            context.ArcTo(new Point(center + radius * Math.Sin(angle), center - radius * Math.Cos(angle)),
-                new Size(radius, radius), 0, fraction > 0.5, SweepDirection.Clockwise, isStroked: true, isSmoothJoin: false);
-        }
-
-        geometry.Freeze();
-        return geometry;
+            Height = 18, Margin = new Thickness(SqlAssistChrome.Spacing.Group, 0, SqlAssistChrome.Spacing.Tight, 0),
+            VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed,
+        };
+        chip.Children.Add(new Border { CornerRadius = new CornerRadius(9), Opacity = 0.12 }
+            .WithTheme(Border.BackgroundProperty, ThemeBrush.NotificationFailure));
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(5, 0, 7, 0) };
+        var icon = new NotificationStatusIcon();
+        icon.SetStatus(NotificationVisualStatus.Failed, feedback: false);
+        content.Children.Add(icon);
+        text = SqlAssistChrome.CreateLabel("", SqlAssistChrome.DefaultMetrics);
+        text.FontSize = 11; text.FontWeight = FontWeights.Normal;
+        text.Margin = new Thickness(SqlAssistChrome.Spacing.Tight, 0, 0, 0);
+        text.VerticalAlignment = VerticalAlignment.Center;
+        content.Children.Add(text);
+        chip.Children.Add(content);
+        return chip;
     }
 
     private static TransformGroup Group(params Transform[] transforms)

@@ -14,16 +14,16 @@ internal enum NotificationIslandShape
     /// <summary>工作都結束了、還在保留期限內：膠囊換成結果圖示。</summary>
     Done,
 
-    /// <summary>活動的明細清單；停駐、鍵盤焦點或點了衛星才會到這裡。</summary>
+    /// <summary>活動的明細清單；停駐、鍵盤焦點或按了提醒卡的附條才會到這裡。</summary>
     Expanded,
 
     /// <summary>一則提醒，沒有活動。</summary>
     Prompt,
 
-    /// <summary>一則提醒，活動縮成左側的衛星。</summary>
-    PromptWithSatellite,
+    /// <summary>一則提醒，活動縮成卡片底部的附條。</summary>
+    PromptWithActivity,
 
-    /// <summary>兩則以上的提醒疊在一起；有活動時 <see cref="NotificationIslandState.Satellite"/> 另外標示。</summary>
+    /// <summary>兩則以上的提醒疊在一起；有活動時最上面那一張帶附條（<see cref="NotificationIslandState.ActivityStrip"/>）。</summary>
     PromptStack,
 }
 
@@ -51,8 +51,8 @@ internal readonly struct NotificationIslandInput
 /// 失敗不自動展開：展開會蓋住使用者正在看的東西，而失敗的細節不是非看不可。改成膠囊上的
 /// 圖示換成警告，並短震一次（<see cref="ShakeCount"/> 每多一個失敗加一，檢視端看到它變了才播）。
 ///
-/// 有提醒時提醒優先，活動縮成左側的衛星；點衛星暫時切過去看活動（<see cref="Peeking"/>），
-/// 移開後照一般的收回延遲切回提醒。
+/// 有提醒時提醒優先，活動縮成提醒卡底部的附條；按附條暫時切過去看活動（<see cref="Peeking"/>），
+/// 清單底部的附條切回提醒，移開後也照一般的收回延遲切回。
 /// </remarks>
 internal sealed class NotificationIslandState
 {
@@ -69,13 +69,13 @@ internal sealed class NotificationIslandState
 
     public NotificationIslandShape Shape { get; private set; } = NotificationIslandShape.Hidden;
 
-    /// <summary>提醒佔著島嶼時，活動縮成左側那一個圓。</summary>
-    public bool Satellite { get; private set; }
+    /// <summary>提醒佔著島嶼時，活動縮成提醒卡底部的附條。</summary>
+    public bool ActivityStrip { get; private set; }
 
-    /// <summary>點了衛星、正在暫時看活動。</summary>
+    /// <summary>按了附條、正在暫時看活動。</summary>
     public bool Peeking { get; private set; }
 
-    /// <summary>活動裡有失敗：膠囊與衛星的圖示換成警告。</summary>
+    /// <summary>活動裡有失敗：膠囊與附條的圖示換成警告。</summary>
     public bool Warning => _input.Failed > 0;
 
     /// <summary>每多一個失敗加一；檢視端記住上一次的值，變了才短震，不因重畫而重播。</summary>
@@ -92,7 +92,7 @@ internal sealed class NotificationIslandState
         }
     }
 
-    /// <summary>沒有提醒時才以停駐展開活動；有提醒時展開活動要靠點衛星。</summary>
+    /// <summary>沒有提醒時才以停駐展開活動；有提醒時展開活動要靠附條。</summary>
     private bool CanExpand => _input.Activities > 0 && _input.Prompts == 0;
 
     /// <summary>換上這一輪的內容；回傳形態或旗標是否改變。</summary>
@@ -143,8 +143,8 @@ internal sealed class NotificationIslandState
         return Commit(before);
     }
 
-    /// <summary>點了衛星：暫時切去看活動；再點一次回到提醒。</summary>
-    public bool ToggleSatellite(DateTimeOffset now)
+    /// <summary>按了附條：暫時切去看活動；再按一次（清單底部那一條）回到提醒。</summary>
+    public bool TogglePeek(DateTimeOffset now)
     {
         var before = Capture();
         if (Peeking) Peeking = false;
@@ -173,7 +173,7 @@ internal sealed class NotificationIslandState
         }
 
         if (!CanExpand && _input.Prompts == 0) _expanded = false;
-        Satellite = _input.Prompts > 0 && _input.Activities > 0 && !Peeking;
+        ActivityStrip = _input.Prompts > 0 && _input.Activities > 0 && !Peeking;
         Shape = Resolve();
     }
 
@@ -184,14 +184,14 @@ internal sealed class NotificationIslandState
         {
             if (Peeking) return NotificationIslandShape.Expanded;
             if (_input.Prompts > 1) return NotificationIslandShape.PromptStack;
-            return _input.Activities > 0 ? NotificationIslandShape.PromptWithSatellite : NotificationIslandShape.Prompt;
+            return _input.Activities > 0 ? NotificationIslandShape.PromptWithActivity : NotificationIslandShape.Prompt;
         }
 
         if (_expanded) return NotificationIslandShape.Expanded;
         return _input.Running > 0 ? NotificationIslandShape.Compact : NotificationIslandShape.Done;
     }
 
-    private (NotificationIslandShape, bool, bool, int, bool) Capture() => (Shape, Satellite, Peeking, ShakeCount, Warning);
+    private (NotificationIslandShape, bool, bool, int, bool) Capture() => (Shape, ActivityStrip, Peeking, ShakeCount, Warning);
 
     private bool Commit((NotificationIslandShape, bool, bool, int, bool) before) => before != Capture();
 }

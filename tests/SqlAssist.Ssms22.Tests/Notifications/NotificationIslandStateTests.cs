@@ -87,61 +87,61 @@ public sealed class NotificationIslandStateTests
     }
 
     [Fact]
-    public void 有提醒時活動縮成衛星且停駐不展開活動()
+    public void 有提醒時活動縮成附條且停駐不展開活動()
     {
         var state = new NotificationIslandState();
         state.Update(Input(prompts: 1), Start);
         Assert.Equal(NotificationIslandShape.Prompt, state.Shape);
-        Assert.False(state.Satellite);
+        Assert.False(state.ActivityStrip);
 
         state.Update(Input(activities: 1, running: 1, prompts: 1), Start);
-        Assert.Equal(NotificationIslandShape.PromptWithSatellite, state.Shape);
-        Assert.True(state.Satellite);
+        Assert.Equal(NotificationIslandShape.PromptWithActivity, state.Shape);
+        Assert.True(state.ActivityStrip);
         state.PointerEntered(Start);
         state.Tick(Start + TimeSpan.FromSeconds(1));
-        Assert.Equal(NotificationIslandShape.PromptWithSatellite, state.Shape);
+        Assert.Equal(NotificationIslandShape.PromptWithActivity, state.Shape);
 
         state.Update(Input(activities: 1, running: 1, prompts: 3), Start);
         Assert.Equal(NotificationIslandShape.PromptStack, state.Shape);
-        Assert.True(state.Satellite);
+        Assert.True(state.ActivityStrip);
         state.Update(Input(prompts: 2), Start);
         Assert.Equal(NotificationIslandShape.PromptStack, state.Shape);
-        Assert.False(state.Satellite);
+        Assert.False(state.ActivityStrip);
     }
 
     [Fact]
-    public void 點衛星暫時看活動移開後回到提醒()
+    public void 按附條暫時看活動移開後回到提醒()
     {
         var state = new NotificationIslandState();
         state.Update(Input(activities: 2, running: 1, prompts: 1), Start);
         state.PointerEntered(Start);
-        Assert.True(state.ToggleSatellite(Start));
+        Assert.True(state.TogglePeek(Start));
         Assert.True(state.Peeking);
-        Assert.False(state.Satellite);
+        Assert.False(state.ActivityStrip);
         Assert.Equal(NotificationIslandShape.Expanded, state.Shape);
 
         state.PointerExited(Start + TimeSpan.FromSeconds(1));
         state.Tick(Start + TimeSpan.FromMilliseconds(1599));
         Assert.Equal(NotificationIslandShape.Expanded, state.Shape);
         state.Tick(Start + TimeSpan.FromMilliseconds(1600));
-        Assert.Equal(NotificationIslandShape.PromptWithSatellite, state.Shape);
+        Assert.Equal(NotificationIslandShape.PromptWithActivity, state.Shape);
 
-        // 再點一次直接切回；活動結束也收掉暫看。
-        state.ToggleSatellite(Start + TimeSpan.FromSeconds(3));
-        state.ToggleSatellite(Start + TimeSpan.FromSeconds(3));
-        Assert.Equal(NotificationIslandShape.PromptWithSatellite, state.Shape);
-        state.ToggleSatellite(Start + TimeSpan.FromSeconds(4));
+        // 再按一次直接切回；活動結束也收掉暫看。
+        state.TogglePeek(Start + TimeSpan.FromSeconds(3));
+        state.TogglePeek(Start + TimeSpan.FromSeconds(3));
+        Assert.Equal(NotificationIslandShape.PromptWithActivity, state.Shape);
+        state.TogglePeek(Start + TimeSpan.FromSeconds(4));
         state.Update(Input(prompts: 1), Start + TimeSpan.FromSeconds(4));
         Assert.False(state.Peeking);
         Assert.Equal(NotificationIslandShape.Prompt, state.Shape);
     }
 
     [Fact]
-    public void 沒有活動時點衛星不做事()
+    public void 沒有活動時按附條不做事()
     {
         var state = new NotificationIslandState();
         state.Update(Input(prompts: 1), Start);
-        Assert.False(state.ToggleSatellite(Start));
+        Assert.False(state.TogglePeek(Start));
         Assert.Equal(NotificationIslandShape.Prompt, state.Shape);
     }
 

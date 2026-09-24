@@ -202,6 +202,15 @@ public sealed class NotificationPromptTests
         Assert.Equal("2/5", NotificationCatalog.PromptPosition(2, 5));
     }
 
+    /// <summary>膠囊變形成清單時抬頭說的是同一句話，只有數字會變。</summary>
+    [Fact]
+    public void 清單抬頭與多項膠囊同一句話()
+    {
+        Assert.Equal("3 項工作 · 1/3", NotificationCatalog.ProgressSummary(1, 3));
+        Assert.Equal("2 項失敗", NotificationCatalog.FailureSummary(2));
+        Assert.Equal("1 則提醒待處理", NotificationCatalog.PendingPrompts(1));
+    }
+
     private const string Url = "https://github.com/example/releases/latest";
 
     private static NotificationItem? Update(NotificationCenter center, string version) =>

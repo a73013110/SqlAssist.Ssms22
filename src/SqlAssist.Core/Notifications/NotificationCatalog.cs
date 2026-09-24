@@ -170,9 +170,23 @@ public static class NotificationCatalog
             "這是一則測試；按「知道了」或叉號都只會收起它。", severity,
             new NotificationAction(NotificationActionIds.RehearsalAcknowledge, "知道了", NotificationActionRole.Primary));
 
-    /// <summary>活動清單抬頭的那一行：「已完成 (成功數/總數)」；分子只算成功。</summary>
+    /// <summary>活動清單抬頭與多項膠囊共用的那一行：「N 項工作 · 成功數/總數」；分子只算成功。</summary>
+    /// <remarks>兩處說法不同時，膠囊變形成清單的那一刻文字會整句換掉，讀起來像換了一件事。</remarks>
     public static string ProgressSummary(int succeeded, int total) =>
-        "已完成 (" + succeeded.ToString(CultureInfo.CurrentCulture) + "/" + total.ToString(CultureInfo.CurrentCulture) + ")";
+        total.ToString(CultureInfo.CurrentCulture) + " 項工作" + Separator +
+        succeeded.ToString(CultureInfo.CurrentCulture) + "/" + total.ToString(CultureInfo.CurrentCulture);
+
+    /// <summary>清單抬頭右側的失敗標記：「2 項失敗」；沒有失敗時不顯示。</summary>
+    public static string FailureSummary(int failed) => failed.ToString(CultureInfo.CurrentCulture) + " 項失敗";
+
+    /// <summary>暫看活動時清單底部那一條：還有幾則提醒等著決定。</summary>
+    public static string PendingPrompts(int count) => count.ToString(CultureInfo.CurrentCulture) + " 則提醒待處理";
+
+    /// <summary>提醒卡底部附條的動作：切去看活動清單。</summary>
+    public static string ViewActivities => "查看";
+
+    /// <summary>暫看活動時清單底部附條的動作：回到提醒。</summary>
+    public static string BackToPrompts => "回到提醒";
 
     /// <summary>活動清單的叉號：只是這一批看完了，工作照常跑完。</summary>
     public static string DismissActivities => "關閉通知（不取消工作）";
@@ -186,8 +200,8 @@ public static class NotificationCatalog
     /// </summary>
     /// <remarks>
     /// 只有一項時說是哪一件事（「標題 · 主體」）；兩項以上改說規模與進度，因為膠囊寬度
-    /// 放不下兩個標題，挑其中一個又會讓使用者以為只有那一件。分子只算成功，與展開清單抬頭的
-    /// 「已完成 (成功數/總數)」同一個口徑。傳入的是合併且篩選過的列。
+    /// 放不下兩個標題，挑其中一個又會讓使用者以為只有那一件。多項時就是清單抬頭那一句
+    /// （<see cref="ProgressSummary"/>）。傳入的是合併且篩選過的列。
     /// </remarks>
     public static string CapsuleSummary(IReadOnlyList<NotificationItem> activities)
     {
@@ -202,8 +216,7 @@ public static class NotificationCatalog
         var succeeded = 0;
         foreach (var item in activities)
             if (item.Status == NotificationStatus.Succeeded) succeeded++;
-        return activities.Count.ToString(CultureInfo.CurrentCulture) + " 項工作" + Separator +
-            succeeded.ToString(CultureInfo.CurrentCulture) + "/" + activities.Count.ToString(CultureInfo.CurrentCulture);
+        return ProgressSummary(succeeded, activities.Count);
     }
 
     /// <summary>

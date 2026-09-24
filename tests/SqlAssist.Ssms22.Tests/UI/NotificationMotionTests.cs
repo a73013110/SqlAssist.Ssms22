@@ -11,7 +11,6 @@ using SqlAssist.Core.Settings;
 using SqlAssist.Ssms22.Notifications;
 using SqlAssist.Ssms22.UI;
 using Xunit;
-using Path = System.Windows.Shapes.Path;
 
 namespace SqlAssist.Ssms22.Tests.UI;
 
@@ -99,7 +98,7 @@ public sealed class NotificationMotionTests
     }
 
     [Fact]
-    public void 列完成時微彈出且不因別列更新重播()
+    public void 列完成時描出勾號且不因別列更新重播()
     {
         WpfTest.Run(() =>
         {
@@ -112,19 +111,140 @@ public sealed class NotificationMotionTests
             first.Dispose();
             NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: true);
             Assert.Same(firstRow, island.Rows.Children[0]);
-            Assert.True(Scale(firstRow).HasAnimatedProperties);
+            Assert.True(firstRow.Icon.IsPlayingFeedback);
+            Assert.NotNull(firstRow.Icon.Glyph.StrokeDashArray);
             // 清掉第一列播過的回饋，下一輪有沒有重播就看得出來，不必靠計時。
-            Scale(firstRow).BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            Scale(firstRow).BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            firstRow.Icon.StopMotion();
             second.Dispose();
             NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: true);
             // 第二列完成才播第二列；第一列的狀態沒變，不跟著重播。
-            Assert.False(Scale(firstRow).HasAnimatedProperties);
-            Assert.True(Scale((NotificationRow)island.Rows.Children[1]).HasAnimatedProperties);
+            Assert.False(firstRow.Icon.IsPlayingFeedback);
+            Assert.True(((NotificationRow)island.Rows.Children[1]).Icon.IsPlayingFeedback);
             foreach (NotificationRow row in island.Rows.Children) Assert.True(double.IsPositiveInfinity(row.MaxHeight));
             island.StopMotion();
-            foreach (NotificationRow row in island.Rows.Children) Assert.False(Scale(row).HasAnimatedProperties);
+            foreach (NotificationRow row in island.Rows.Children)
+            {
+                Assert.False(row.Icon.IsPlayingFeedback);
+                // 描到一半被停下來也要拿掉虛線，否則之後重畫會少一段筆畫。
+                Assert.Null(row.Icon.Glyph.StrokeDashArray);
+            }
         });
+    }
+
+    [Fact]
+    public void 勾號的虛線長度蓋得住整條筆畫()
+    {
+        // 幾何縮到 12 DIP 畫布（0.75 倍）之後，勾號兩段合計約 10.9 DIP；算成未縮放的 14.5 的話，
+        // 前四分之一的時間什麼都畫不出來。
+        Assert.InRange(NotificationStatusIcon.CheckStrokeLength, 10.5, 11.5);
+    }
+
+    [Fact]
+    public void 展開時各列依序進場收合時一起取消()
+    {
+        WpfTest.Run(() =>
+        {
+            var center = new NotificationCenter();
+            using var running = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info);
+            for (var i = 0; i < 3; i++)
+                using (center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing,
+                           NotificationLevel.Info, "dbo.Loan" + i)) { }
+            var content = NotificationChromeTests.Content(center);
+            var island = new NotificationIsland();
+            var compact = new NotificationIslandState();
+            compact.Update(new NotificationIslandInput(content.Activities.Count, content.Running, content.Failed, 0), Now);
+            island.Update(content, compact, motion: false);
+            Assert.Equal(NotificationIslandShape.Compact, island.Shape);
+            NotificationChromeTests.Expand(island, content, motion: true);
+            var rows = island.Rows.Children.OfType<NotificationRow>().ToArray();
+            Assert.Equal(4, rows.Length);
+            Assert.All(rows, row => Assert.True(row.HasAnimatedProperties));
+            island.StopMotion();
+            Assert.All(rows, row => Assert.Equal(1, row.Opacity));
+            Assert.All(rows, row => Assert.False(row.HasAnimatedProperties));
+        });
+    }
+
+    [Fact]
+    public void 列離場先淡出收起播完才從清單拿掉()
+    {
+        WpfTest.Run(() =>
+        {
+            var center = new NotificationCenter();
+            using var keep = center.Begin(NotificationCatalog.AnalyzingBlocks, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info);
+            var leave = center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info);
+            var island = new NotificationIsland();
+            NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: false);
+            var leaving = (NotificationRow)island.Rows.Children[1];
+            leave.Dispose();
+            var content = NotificationChromeTests.Content(center);
+            var shown = content with { Activities = content.Activities.Where(item => item.Status == NotificationVisualStatus.Running).ToArray() };
+            NotificationChromeTests.Expand(island, shown, motion: true);
+            Assert.True(leaving.IsExiting);
+            Assert.Contains(leaving, island.Rows.Children.OfType<NotificationRow>());
+            island.StopMotion();
+            Assert.DoesNotContain(leaving, island.Rows.Children.OfType<NotificationRow>());
+            Assert.Single(island.Rows.Children);
+        });
+    }
+
+    [Fact]
+    public void 全部結束後進度條收成分隔線有新工作時長回來()
+    {
+        WpfTest.Run(() =>
+        {
+            var center = new NotificationCenter();
+            var scope = center.Begin(NotificationCatalog.LoadingObjects, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info);
+            var island = new NotificationIsland();
+            NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: false);
+            Assert.False(island.ProgressSettled);
+            scope.Dispose();
+            NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: false);
+            Assert.True(island.ProgressSettled);
+            using var again = center.Begin(NotificationCatalog.LoadingColumns, NotificationKind.Metadata, NotificationOrigin.Typing, NotificationLevel.Info);
+            NotificationChromeTests.Expand(island, NotificationChromeTests.Content(center), motion: false);
+            Assert.False(island.ProgressSettled);
+        });
+    }
+
+    [Fact]
+    public void 換字時舊字離開新字進來第一次出現不播()
+    {
+        WpfTest.Run(() =>
+        {
+            var ticker = new NotificationTicker(() => new TextBlock());
+            ticker.SetText("1 項工作 · 0/1", motion: true);
+            Assert.False(ticker.IsRolling);
+            ticker.SetText("1 項工作 · 1/1", motion: true);
+            Assert.True(ticker.IsRolling);
+            Assert.Equal("1 項工作 · 1/1", ticker.Text);
+            ticker.StopMotion();
+            Assert.False(ticker.IsRolling);
+            ticker.SetText("2 項工作 · 1/2", motion: false);
+            Assert.False(ticker.IsRolling);
+        });
+    }
+
+    /// <summary>依序進場的延遲期間就停在起點；只設 BeginTime 的話，輪到之前是基底值，整份清單會先閃出來。</summary>
+    [Fact]
+    public void 延遲的補間在延遲期間停在起點()
+    {
+        var animation = NotificationMotion.Delayed(0, 1, delay: 90, milliseconds: 200);
+        Assert.Equal(0, animation.KeyFrames[0].Value);
+        Assert.Equal(TimeSpan.FromMilliseconds(90), animation.KeyFrames[1].KeyTime.TimeSpan);
+        Assert.Equal(0, animation.KeyFrames[1].Value);
+        Assert.Equal(1, animation.KeyFrames[2].Value);
+    }
+
+    /// <summary>狀態回饋守 ui-guidelines 的上限：縮放不超過 400 ms、位移不超過 300 ms。</summary>
+    [Fact]
+    public void 狀態回饋的時長在準則上限內()
+    {
+        Assert.InRange(NotificationMotion.CheckDraw + NotificationMotion.CheckSettle, 0, 400);
+        Assert.InRange(NotificationMotion.Roll, 0, 300);
+        Assert.InRange(NotificationMotion.ShakeStep * 5, 0, 300);
+        Assert.InRange(NotificationMotion.ContentDelay + NotificationMotion.RowStagger * (NotificationMotion.StaggerLimit - 1) +
+            NotificationMotion.RowEnter, 0, 500);
     }
 
     [Fact]
@@ -183,10 +303,6 @@ public sealed class NotificationMotionTests
 
     private static void Feed(NotificationIslandState state, NotificationIslandContent content) =>
         state.Update(new NotificationIslandInput(content.Activities.Count, content.Running, content.Failed, content.Prompts.Count), Now);
-
-    // 列上不再有循環旋轉，縮放是變換群組的第一個。
-    private static ScaleTransform Scale(NotificationRow row) =>
-        (ScaleTransform)((TransformGroup)((Path)((Grid)row.Child).Children[0]).RenderTransform).Children[0];
 
     private static void Pump(int milliseconds)
     {

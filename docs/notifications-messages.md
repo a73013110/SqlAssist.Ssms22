@@ -148,7 +148,9 @@ SQL 完全沒有記錄，值得進「通知失敗」回看，而使用者沒有�
 | `sqlmemory.capacity` | SQL Memory 超過容量警戒 | 開啟維護 `sqlmemory.open-maintenance` | Warning |
 | `sqlmemory.first-capture` | SQL Memory 已開始擷取 | 開啟 SQL Memory `sqlmemory.open` | Info |
 
-通知島的膠囊一項時是「標題 · 主體」，多項時是「N 項工作 · 成功數/總數」，由 `CapsuleSummary` 產生。
+通知島的膠囊一項時是「標題 · 主體」，多項時是「N 項工作 · 成功數/總數」，由 `CapsuleSummary` 產生；
+多項的那一句就是清單抬頭（`ProgressSummary`），變形時只有數字會變。抬頭的失敗標記是「N 項失敗」，
+附條的動作是「查看」與「回到提醒」，暫看時的摘要是「N 則提醒待處理」。
 
 ## 已知缺口
 

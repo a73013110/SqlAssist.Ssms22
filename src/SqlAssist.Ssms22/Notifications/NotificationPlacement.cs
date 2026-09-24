@@ -26,7 +26,7 @@ internal static class NotificationPlacement
     /// <param name="owner">擁有者視窗的外框，裝置像素。</param>
     /// <param name="statusBarHeight">狀態列高度（DIP）；抓不到時傳 null。</param>
     /// <param name="dpiScale">擁有者所在螢幕的縮放（1 = 96 DPI）。</param>
-    /// <param name="island">島嶼含衛星在內的尺寸（DIP）。</param>
+    /// <param name="island">島嶼含疊層在內的尺寸（DIP）。</param>
     /// <remarks>擁有者比島嶼還小時貼齊左上角並裁掉超出的部分，不跑出擁有者之外。</remarks>
     public static Rect Place(Rect owner, double? statusBarHeight, double dpiScale, Size island)
     {
