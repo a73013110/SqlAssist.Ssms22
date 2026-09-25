@@ -246,9 +246,31 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
     private bool IsUsageSelected => _tabs.SelectedIndex == UsageTab;
 
+    /// <summary>換語言重建時帶到新的一份；捲動位置與勾選隨重新載入重來。</summary>
+    internal SqlMemoryPage Page => _tabs.SelectedIndex switch
+    {
+        FavoritesTab => SqlMemoryPage.Favorites,
+        UsageTab => SqlMemoryPage.Usage,
+        _ => SqlMemoryPage.History,
+    };
+
+    internal string SearchText => _search.Text;
+
+    /// <summary>接回重建前的分頁與搜尋字串；不搶焦點，使用者可能正在設定頁上。</summary>
+    internal void Restore(SqlMemoryPage page, string searchText)
+    {
+        _search.Text = searchText;
+        var index = TabOf(page);
+        if (index == UsageTab && !_usageTab.IsEnabled) return;
+        _tabs.SelectedIndex = index;
+    }
+
+    private static int TabOf(SqlMemoryPage page) =>
+        page switch { SqlMemoryPage.Favorites => FavoritesTab, SqlMemoryPage.Usage => UsageTab, _ => HistoryTab };
+
     public void ShowPage(SqlMemoryPage page)
     {
-        var index = page switch { SqlMemoryPage.Favorites => FavoritesTab, SqlMemoryPage.Usage => UsageTab, _ => HistoryTab };
+        var index = TabOf(page);
         // 復原卡片在畫面上時用量沒有東西可讀，命令仍帶到清單分頁看復原說明。
         if (index == UsageTab && !_usageTab.IsEnabled) index = _model.IsFavorites ? FavoritesTab : HistoryTab;
         // 已在同一個分頁不會觸發 SelectionChanged；命令的意思是「帶我去看最新的」，所以用量要重讀。

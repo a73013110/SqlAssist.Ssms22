@@ -56,7 +56,7 @@
 | `Preview/` | 浮動結構預覽內容與視窗機制 |
 | `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） |
 | `Snippets/` | 片段檔、管理員視窗與 Expansion Session |
-| `Settings/` | Unified Settings 讀取與設定頁文字資源、預覽視窗尺寸，以及推給 SSMS 的語言偏好 |
+| `Settings/` | Unified Settings 讀取與設定頁文字資源、預覽視窗尺寸、推給 SSMS 的語言偏好，以及套用介面語言 |
 | `Connections/` | 取得 SSMS 查詢視窗的連線，以及另開一個沿用連線的查詢視窗 |
 | `Commands/` | 命令識別碼、工具選單與診斷視窗 |
 | `Notifications/` | 通知島的呈現、形態狀態機、浮層與定位、全域控制器與提醒按鈕派送 |

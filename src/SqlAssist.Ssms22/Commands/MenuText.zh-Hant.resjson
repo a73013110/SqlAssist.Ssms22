@@ -1,0 +1,37 @@
+{
+  // 選單、工具列與快顯功能表上的命令名稱；鍵是 CommandIds 的常數名稱。
+  // 命令表（Menus.vsct）的 ButtonText 是套件載入前的樣子，要與這裡的繁中一致。
+  // 「自工具選單」的那幾個與編輯器快顯功能表上的同名命令共用一句。
+  "ShowSqlHistory": "History",
+  "ShowSqlFavorites": "Favorites",
+  "ShowSqlMemoryUsage": "SQL Memory 用量",
+  "ShowSqlSearch": "Search",
+  "AddToFavorites": "新增至收藏…",
+  "ToggleEnabled": "啟用 SqlAssist",
+  "ToggleSuggestions": "顯示即時建議",
+  "GoToDefinition": "移至定義",
+  "ShowObjectStructure": "顯示游標處物件的結構",
+  "RefreshSuggestions": "重新整理建議",
+  "SurroundWith": "以片段包住選取範圍",
+  "ManageSnippets": "程式碼片段…",
+  "OpenSettings": "設定…",
+  "FocusNotifications": "聚焦通知",
+  "CheckForUpdates": "檢查更新…",
+  "ShowDiagnostics": "關於與診斷…",
+  // 以下只出現在命令視窗與鍵盤設定，名稱帶 SqlAssist 才搜得到。
+  "OpenDiagnosticsLog": "開啟 SqlAssist 診斷紀錄檔",
+  "ShowSqlMemoryUsageFromSettings": "開啟 SqlAssist SQL Memory 用量",
+  "PickBlockAccent": "選取 SqlAssist 區塊共用基準色",
+  "PickBlockKeywordForeground": "選取 SqlAssist 全域高亮預設前景色",
+  "PickBlockKeywordBackground": "選取 SqlAssist 全域高亮預設背景色",
+  "PickBlockSymbolForeground": "選取 SqlAssist 符號高亮前景色",
+  "PickBlockSymbolBackground": "選取 SqlAssist 符號高亮背景色",
+  // 結果格線的快顯功能表。
+  "ResultGridInPredicate": "複製成 IN 條件",
+  "ResultGridMarkdown": "複製成 Markdown 表格",
+  "ResultGridJson": "複製成 JSON",
+  "ResultGridTempTable": "建立 #temp 指令碼（新視窗）…",
+  "ResultGridProfile": "欄位剖析…",
+  "ResultGridCell": "檢視這一格完整內容…",
+  "ProbeResultGrid": "結果診斷資訊…"
+}

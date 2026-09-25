@@ -201,6 +201,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// <summary>把焦點放到搜尋框；命令帶使用者過來時就是為了打字。</summary>
     public void FocusSearch() => _search.Focus();
 
+    /// <summary>換語言重建時帶到新的一份；設下去就照一般輸入重搜。</summary>
+    internal string SearchText
+    {
+        get => _search.Text;
+        set => _search.Text = value;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;

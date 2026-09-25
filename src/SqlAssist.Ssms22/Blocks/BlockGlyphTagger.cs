@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Text.Formatting;
 using Microsoft.VisualStudio.Text.Tagging;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Blocks;
@@ -80,6 +81,7 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
         _view = view;
         _state = BlockViewState.Get(view);
         _state.Changed += OnChanged;
+        SqlLanguageSwitch.Changed += OnLanguageChanged;
         view.Closed += OnClosed;
         Refresh();
     }
@@ -114,6 +116,8 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
     }
 
     private void OnChanged(object? sender, BlockChangedEventArgs args) => Refresh();
+    // 朗讀說明在建立 Tag 時定字；範圍沒變時 Refresh 會早退，先忘掉舊的那一份。
+    private void OnLanguageChanged(object? sender, EventArgs args) { _selection = null; Refresh(); }
     private void Refresh()
     {
         if (_disposed || _view.IsClosed) return;
@@ -146,6 +150,7 @@ internal sealed class BlockGlyphTagger : ITagger<BlockGlyphTag>, IDisposable
         _disposed = true;
         _view.Closed -= OnClosed;
         _state.Changed -= OnChanged;
+        SqlLanguageSwitch.Changed -= OnLanguageChanged;
         _selection = null;
     }
 }

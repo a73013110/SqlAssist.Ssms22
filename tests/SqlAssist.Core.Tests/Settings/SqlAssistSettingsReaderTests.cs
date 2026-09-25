@@ -141,6 +141,20 @@ public sealed class SqlAssistSettingsReaderTests
         return SqlAssistSettingsReader.Read(new FakeSettingValueSource(values));
     }
 
+    /// <summary>「跟隨 SSMS」是 null，由宿主決定；認不得的值也當成跟隨，而不是鎖在某一種語言。</summary>
+    [Theory]
+    [InlineData("auto", null)]
+    [InlineData("zhHant", "zh-Hant")]
+    [InlineData("en", "en")]
+    [InlineData("ja", null)]
+    [InlineData("zh-Hant", null)]
+    public void 語言設定解析成介面語言(string value, string? expected)
+    {
+        var actual = ReadWith(SqlAssistMonikers.Language, value).Language;
+
+        Assert.Equal(expected, actual?.Name);
+    }
+
     /// <summary>讀不到任何值時，整份快照就是屬性預設值。</summary>
     [Fact]
     public void 讀不到任何設定時回退為預設值()

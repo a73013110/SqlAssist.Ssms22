@@ -1,3 +1,4 @@
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Scripting;
@@ -102,6 +103,15 @@ public sealed class SqlAssistSettings
     /// 那會連帶讓載入圖示停住、看起來像當掉。只影響 SqlAssist，不寫回 Windows。
     /// </remarks>
     public bool IgnoreWindowsAnimationSetting { get; init; } = true;
+
+    /// <summary>
+    /// sqlAssist.general.language
+    /// </summary>
+    /// <remarks>
+    /// <c>null</c> 是「跟隨 SSMS」：由宿主依自己的介面文化以 <see cref="SqlLanguage.Match"/> 挑，
+    /// 快照本身不認識宿主，所以不在這裡解析。
+    /// </remarks>
+    public SqlLanguage? Language { get; init; }
 
     /// <summary>sqlAssist.suggestions.enabled</summary>
     public bool SuggestionsEnabled { get; init; } = true;

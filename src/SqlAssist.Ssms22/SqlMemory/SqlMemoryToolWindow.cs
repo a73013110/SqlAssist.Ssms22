@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -22,6 +23,19 @@ public sealed class SqlMemoryToolWindow : ToolWindowPane
         base.OnToolWindowCreated();
         SqlAssistPlatformGuard.Run("建立 SQL Memory 工具窗", () =>
             _host.Content = new SqlMemoryBrowser((SqlAssistPackage)Package));
+        SqlLanguageSwitch.Changed += OnLanguageChanged;
+    }
+
+    /// <summary>換語言時整份內容重建，帶著分頁與搜尋字串；理由同 SQL Search 工具窗。</summary>
+    private void OnLanguageChanged(object? sender, EventArgs args)
+    {
+        if (_host.Content is not SqlMemoryBrowser old) return;
+        var page = old.Page;
+        var searchText = old.SearchText;
+        old.Dispose();
+        var browser = new SqlMemoryBrowser((SqlAssistPackage)Package);
+        browser.Restore(page, searchText);
+        _host.Content = browser;
     }
 
     internal static void Show(SqlAssistPackage package, SqlMemoryPage page = SqlMemoryPage.History)
@@ -46,7 +60,12 @@ public sealed class SqlMemoryToolWindow : ToolWindowPane
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _host.Content is SqlMemoryBrowser browser) browser.Dispose();
+        if (disposing)
+        {
+            SqlLanguageSwitch.Changed -= OnLanguageChanged;
+            if (_host.Content is SqlMemoryBrowser browser) browser.Dispose();
+        }
+
         base.Dispose(disposing);
     }
 }

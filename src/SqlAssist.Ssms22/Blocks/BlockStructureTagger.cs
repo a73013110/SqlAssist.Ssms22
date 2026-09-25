@@ -56,6 +56,7 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
         _analysis = BlockAnalysis.Acquire(buffer, dispatcher);
         _analysis.Updated += OnChanged;
         SqlAssistSettingsStore.Changed += OnSettingsChanged;
+        SqlLanguageSwitch.Changed += OnLanguageChanged;
         Refresh();
     }
 
@@ -110,6 +111,13 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
     private void OnSettingsChanged(object? sender, EventArgs args) =>
         _dispatcher.BeginInvoke(new Action(() => SqlAssistPlatformGuard.Run("套用區塊結構設定", Refresh)));
 
+    // 摺疊提示在建立 Tag 時定字，快取留著就一直是舊語言；丟掉整份重建，而不是等下一次編輯。
+    private void OnLanguageChanged(object? sender, EventArgs args)
+    {
+        _cache = null;
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (_disposed) return;
@@ -142,6 +150,7 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
         _disposed = true;
         _analysis.Updated -= OnChanged;
         SqlAssistSettingsStore.Changed -= OnSettingsChanged;
+        SqlLanguageSwitch.Changed -= OnLanguageChanged;
         _analysis.Release();
         _cache = null;
     }

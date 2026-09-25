@@ -39,19 +39,24 @@
 - 關鍵字目錄（`SqlDataTypeCatalog` 這幾個 `.cs`）的一行說明走 `.resjson` 而不是覆蓋檔：覆蓋檔要把中文來源留成
   字面值（SQLTXT100 擋），`.resjson` 的鍵由編譯器檢查。目錄存 `() => DataTypeText.Int`，取值時才讀語言。
 - 提示視窗的截斷上限以字元計、不分語言，英文照同一個上限寫得精簡；`SqlBuiltInDocCatalogTests` 兩種語言都檢查。
+  不改成依顯示寬度截斷：同一條路徑也截使用者的擴充屬性說明，放寬會連它一起放寬。
 
 ## 什麼不翻
 
 - 診斷紀錄、平台防護的作業名稱與診斷報告：給維護者比對，固定繁中。在接收的參數或所在成員
   標 BCL 的 `[Localizable(false)]`（CA1303 同一套語意），SQLTXT100 就不檢查。
-- 使用者資料（SQL Memory、收藏、自訂片段）與 SQL Server 回傳的訊息。
+- 使用者資料（SQL Memory、收藏、自訂片段）與 SQL Server 回傳的訊息。未命名查詢視窗的預設文件名稱照擷取當下的
+  語言存進 `Documents.DisplayName`，不改存代碼：SSMS 的查詢視窗一定帶標題，這條幾乎走不到，改存代碼卻要動讀取、
+  名稱搜尋與排序。
 - 設定鍵、moniker、列舉字面值與儲存格式：那是資料。
 - 已經寫進編輯器的文字不回頭改；之後產生的指令碼註解用當下的語言。
 
 ## 目前語言
 
 - 取值走 `Core/Localization/SqlText.Current`。**不動** `Thread.CurrentUICulture`：那是 SSMS 的狀態。
-- 「跟隨 SSMS」由 `SqlLanguage.Match` 依宿主介面文化挑：zh-* 用繁中，其餘用英文。
+- 設定 `sqlAssist.general.language`（`auto`／`zhHant`／`en`，字面值是語言名稱去掉連字號）。`auto` 由
+  `SqlLanguage.Match` 依宿主介面文化挑：zh-* 用繁中，其餘用英文。宿主文化只在 UI 執行緒問得到
+  （`IUIHostLocale`），`Ssms22/Settings/SqlLanguageSwitch` 在設定接上時問一次記下來。
 - 設定生效前是來源語言，所以既有測試的中文斷言不必改。固定語言用 `SqlText.Use(...)`
   （AsyncLocal，平行測試互不干擾）；會切換全域語言的測試放進不平行的集合。
 - 隔離 AppDomain（SQL Memory 儲存）有自己一份 `SqlText.Current`，不跟著宿主切換。隔離側只回分類、原因碼與
@@ -60,40 +65,32 @@
 
 ## 即時切換
 
+設定變更時 `SqlAssistSettingsStore.Reload` 呼叫 `SqlText.SetLanguage`。`SqlText.Changed` 在呼叫端的執行緒上發出；
+介面改接 `SqlLanguageSwitch.Changed`：保證在 UI 執行緒、每個處理常式各自走 Guard，訂閱者關閉時要解除訂閱。
+
 | 表面 | 切換後 |
 |---|---|
-| 每次才產生的文字（補全、提示、通知、指令碼） | 下一次就是新語言；含譯文的快取以語言為鍵（`SqlLanguageCache`），或在 `SqlText.Changed` 時清掉 |
-| 工具窗（SQL Search、SQL Memory） | `Changed` 時重建內容，保留查詢字串這類輕量狀態 |
+| 每次才產生的文字（補全、提示、通知、指令碼） | 下一次就是新語言 |
+| 含譯文的快取與不可變物件（補全篩選鈕、圖示朗讀名稱） | 以語言為鍵各留一份（`SqlLanguageCache`）：平台以實體比對，不能每次新建 |
+| 載入時合併的資料（內建片段） | 記著合併時的語言，不同就重新合併 |
+| 工具窗（SQL Search、SQL Memory） | 整份內容重建，帶著搜尋字串與分頁；建構時取字的元件一起換 |
+| 浮動結構預覽 | 關掉並丟掉建好的視窗，下次展開重建 |
+| 區塊摺疊提示、邊欄說明、跨頁提示 | 丟掉快取重發 `TagsChanged`；跨頁提示忘掉顯示過的那一組 |
+| 已顯示的通知 | 重新投影：標題、狀態與按鈕換；各功能建立時組好的訊息留在舊語言直到到期 |
+| 選單命令 | 命令表每顆標 `TextChanges`，QueryStatus 設 `Text`；`Test-CommandTable.ps1` 核對 |
+| 字型與色彩的分類名稱（`ClassificationFormatDefinition`） | MEF 建立時定字，重新啟動 SSMS 才換 |
 | 強制回應對話框 | 開著時進不了設定，不處理 |
-| 選單命令 | 命令表標 `TextChanges`，在 QueryStatus 設 `Text` |
-| 設定頁、vsixmanifest | 只能用 `@key;{packageGuid}` 資源跟隨 SSMS 介面語言，本設定管不到 |
+| 設定頁、擴充功能清單 | 跟隨 SSMS 介面語言，本設定管不到：設定頁走 `@key;{packageGuid}` 資源，清單走 `en-US/Extension.vsixlangpack` |
 
-語言設定最後才註冊：只翻了一半的設定屬於「按了只生效一部分」，[設定護欄](rules-settings.md)禁止。
+## 新增介面文字（省 token 的做法）
 
-## 遷移一個資料夾（省 token 的做法）
+SQLTXT100 全面開著，沒有暫時豁免的資料夾；只進紀錄的文字在接收端標 `[Localizable(false)]`。
 
-1. 從該資料夾 `.editorconfig` 的清單拿掉要處理的檔名；清空就刪檔。
-2. 建置那個專案。SQLTXT100 列出的檔案、行號與前 24 字就是待辦，只讀命中行附近，不必整檔讀。
+1. 在用它的資料夾找現有的 `<類別>.zh-Hant.resjson`，沒有才新增一組。
+2. 建置那個專案。SQLTXT100 列出的檔案、行號與前 24 字就是漏網的字面值，只讀命中行附近，不必整檔讀。
    Core、Metadata、Sqlite 用 `dotnet build src/<專案> -c Release`；Ssms22 走 `tools/Build-Extension.ps1`。
 3. 文字寫進 `<類別>.zh-Hant.resjson`（鍵用 PascalCase），呼叫端改用產生的成員，拼接字串改成
    一整句具名佔位符；只進紀錄的改標 `[Localizable(false)]`。
 4. 翻譯交給 `.claude/agents/resjson-translator.md`（Haiku，規則寫在定義裡）：一個區塊只呼叫一次，
    只傳全部 zh-Hant 檔路徑；回來只審譯文。沒有這個代理的工具照術語表手動翻。
-5. 建置＋測試；每個區塊至少補一個 `SqlText.Use` 英文斷言。
-
-## 尚未確認
-
-- 選單 `TextChanges` 在 SSMS 22 是否能即時改字。
-- 通知的 `Message` 由各功能在建立時組好，換語言後已顯示的那幾列仍是舊語言；通知測試說明裡引用的設定名稱
-  要等設定頁有英文名稱後再對一次。
-- 補全與編輯器的譯文快取要在即時切換時處理：`Ssms22/Completion/SqlCompletionFilters` 的篩選鈕在型別初始化時就定了字
-  （平台以實體比對選取狀態，不能每次新建，要依語言各留一組）；`Ssms22/Blocks/BlockContextHint` 只在區塊或行號變了才重組
-  提示（清掉 `_shownPair`）；區塊符號與摺疊提示的 Tag 要等緩衝區變更才重建。
-- SQL Memory 未命名視窗的預設文件名稱照擷取當下的語言存進 `Documents.DisplayName`，暫不改存代碼：SSMS 的查詢視窗
-  一定帶標題，這條幾乎走不到；改存代碼要動讀取端、名稱搜尋與排序。其餘存進 SQLite 的文字都是使用者資料，不翻。
-- 共用 UI 元件在建立當下取字：`Ssms22/UI/SqlIcons` 的圖示朗讀名稱在型別初始化時就定了（`ImageElement` 不可變），
-  字型和色彩的分類名稱（`BlockEndpointFormat` 這幾個 `ClassificationFormatDefinition`）在 MEF 建立時定字，
-  `SqlAssistChrome.Selection` 的勾選欄朗讀格式在樣板建立時定字；前者要依語言各留一組，其餘隨工具窗重建或重新啟動才換。
-- `Ssms22/Snippets/SqlSnippetStore` 的合併結果在載入當下定了內建片段的語言，即時切換要重新合併；存檔端已不會把
-  舊語言的內建值誤寫成自訂。
-- 提示視窗截斷以字元計：中文 60 字約是英文 60 字的兩倍寬。改成依顯示寬度截斷會連使用者的擴充屬性說明一起放寬，待定。
+5. 建置＋測試；每個區塊至少補一個 `SqlText.Use` 英文斷言。建構時就取字的介面元件要照「即時切換」那張表接上。

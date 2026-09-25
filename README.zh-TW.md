@@ -124,6 +124,8 @@ JSON、欄位剖析與完整儲存格內容。
 2. 儲存查詢、關閉所有 SSMS 視窗，再執行 VSIX 安裝程式。
 3. 重啟 SSMS；看到「工具 → SqlAssist」即代表載入成功。
 
+介面語言預設跟隨 SSMS（繁體中文或英文），可在設定的 SqlAssist →「一般」→「介面語言」改成固定一種。
+
 > [!IMPORTANT]
 > 保持 SSMS 內建 T-SQL IntelliSense 開啟；SqlAssist 只抑制會互相干擾的自動建議清單。
 

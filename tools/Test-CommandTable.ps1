@@ -250,6 +250,26 @@ foreach ($match in [regex]::Matches($commandsText, 'AddCommand\(\s*CommandIds\.(
     }
 }
 
+# 選單文字跟著 SqlAssist 的介面語言走：命令表只有一種語言，其餘由 QueryStatus 設 Text。
+# 少了 TextChanges，殼層照樣收下 Text 卻不換字；MenuLabel 漏了一顆，那一顆就停在命令表的繁中。
+# 兩種都沒有錯誤訊息，只有切到英文時才看得出來。
+$menuLabelText = [regex]::Match($commandsText, '(?s)MenuLabel\(int commandId\) => commandId switch\s*\{(.*?)\};').Groups[1].Value
+
+foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
+    if ($button.guid -ne 'guidSqlAssistCommandSet') {
+        continue
+    }
+
+    if ('TextChanges' -notin $buttonFlags[$button.id]) {
+        $problems.Add("$($button.id) 沒有標 TextChanges，選單文字不會跟著語言設定換。")
+    }
+
+    $name = $button.id -replace '^cmdid', ''
+    if ($menuLabelText -notmatch "CommandIds\.$name\b") {
+        $problems.Add("$($button.id) 不在 SqlAssistCommands.MenuLabel 裡，切換語言後選單上那一項不會換字。")
+    }
+}
+
 # 「選項 → 環境 → 鍵盤」顯示的是命令表裡的正式名稱：沒有 CanonicalName 與
 # LocCanonicalName 時，殼層只照選單路徑推出「工具.移至定義」這種名字，名稱裡沒有
 # SqlAssist 字樣，使用者搜不到也就改不了鍵。而且元素名稱寫錯（例如

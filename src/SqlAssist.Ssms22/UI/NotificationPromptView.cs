@@ -109,6 +109,15 @@ internal sealed class NotificationPromptView : Grid
 
     public NotificationPromptItem? Item { get; private set; }
 
+    /// <summary>換過語言：同一則提醒下一輪也要重建按鈕，標籤是建立按鈕時寫進去的。</summary>
+    private bool _relabel;
+
+    internal void ApplyLanguage()
+    {
+        SqlAssistChrome.SetButtonName(LaterButton, NotificationCatalog.PromptLater);
+        _relabel = true;
+    }
+
     public void Update(NotificationPromptItem item)
     {
         if (item is null) throw new ArgumentNullException(nameof(item));
@@ -126,7 +135,8 @@ internal sealed class NotificationPromptView : Grid
         _position.Text = NotificationCatalog.PromptPosition(item.Position, item.Count);
         _position.Visibility = item.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         AutomationProperties.SetName(_position, _position.Text);
-        if (fresh) BuildButtons(item.Actions);
+        if (fresh || _relabel) BuildButtons(item.Actions);
+        _relabel = false;
         var name = item.Title + (item.Message.Length > 0 ? "\n" + item.Message : "");
         AutomationProperties.SetName(this, name);
         if (fresh) UIElementAutomationPeer.FromElement(this)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);

@@ -130,6 +130,7 @@ internal sealed class SqlStructurePreview
         view.ViewportWidthChanged += OnViewportGeometryChanged;
         view.ViewportHeightChanged += OnViewportGeometryChanged;
         view.ZoomLevelChanged += OnZoomLevelChanged;
+        SqlLanguageSwitch.Changed += OnLanguageChanged;
     }
 
     private static SqlPreviewPlacement Placement =>
@@ -1512,6 +1513,7 @@ internal sealed class SqlStructurePreview
         _view.ViewportWidthChanged -= OnViewportGeometryChanged;
         _view.ViewportHeightChanged -= OnViewportGeometryChanged;
         _view.ZoomLevelChanged -= OnZoomLevelChanged;
+        SqlLanguageSwitch.Changed -= OnLanguageChanged;
         _timer.Stop();
         _timer.Tick -= OnTimerTick;
         _loading?.Cancel();
@@ -1524,7 +1526,31 @@ internal sealed class SqlStructurePreview
         _declarationsSnapshot = null;
         _declarations = null;
         DetachSession();
+        ReleaseControl();
 
+        if (_manager is { } manager)
+        {
+            manager.AgentChanged -= OnAgentChanged;
+            _manager = null;
+        }
+    }
+
+    /// <summary>
+    /// 換語言時關掉預覽並丟掉建好的視窗，下一次展開用新語言重建。
+    /// </summary>
+    /// <remarks>
+    /// 分頁標題、欄名與按鈕在建立時取字；開著的那一份就地改字要每個分頁各自重畫，
+    /// 而切語言時使用者在設定頁上，預覽本來就不在眼前。
+    /// </remarks>
+    private void OnLanguageChanged(object? sender, EventArgs eventArgs)
+    {
+        if (_closed) return;
+        Hide();
+        ReleaseControl();
+    }
+
+    private void ReleaseControl()
+    {
         if (_agent is { } agent)
         {
             if (_manager is { } agentManager)
@@ -1546,12 +1572,5 @@ internal sealed class SqlStructurePreview
             control.Dispose();
             _control = null;
         }
-
-        if (_manager is { } manager)
-        {
-            manager.AgentChanged -= OnAgentChanged;
-            _manager = null;
-        }
-
     }
 }

@@ -253,6 +253,10 @@
     <VSCTCompile Include="Menus.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
+    <!-- 英文 SSMS 的擴充功能清單名稱與說明；路徑本身就是比對用的文化名稱，不能改。 -->
+    <Content Include="en-US\Extension.vsixlangpack">
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <!--
       Unified Settings 的註冊檔。pkgdef 以 $PackageFolder$ 相對路徑指向它
       （見 SqlAssistPackage 的 ProvideSettingsManifest），所以必須跟組件

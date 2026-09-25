@@ -92,7 +92,8 @@ internal sealed class NotificationPresenter
     }
 
     /// <summary>下一次 <see cref="Island"/> 重新投影，即使來源與設定的參考都沒變。</summary>
-    private void Invalidate() => _islandSource = null;
+    /// <remarks>換語言時也要：標題與按鈕文字每次取值才定語言，投影卻留著上一份。</remarks>
+    internal void Invalidate() => _islandSource = null;
 
     private IReadOnlyList<NotificationItem> Snapshot(SqlAssistSettings settings, bool retain) =>
         _center.Snapshot(

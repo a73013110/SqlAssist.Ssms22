@@ -186,8 +186,62 @@ internal sealed class SqlAssistCommands
             menuCommand.Visible = true;
         };
 
+        Add(menuCommand);
+    }
+
+    /// <summary>
+    /// 註冊命令，並在每次查詢狀態時依目前語言設定選單文字。
+    /// </summary>
+    /// <remarks>
+    /// 命令表每一顆都標了 <c>TextChanges</c>，殼層才會照 QueryStatus 回報的 <c>Text</c> 換字；
+    /// 每次都設而不是換語言時才設：殼層在開選單當下才問，沒有「現在去改已經畫好的選單」這種入口。
+    /// 命令表自己的 <c>ButtonText</c> 只在套件載入前出現。
+    /// </remarks>
+    private void Add(OleMenuCommand menuCommand)
+    {
+        var id = menuCommand.CommandID.ID;
+        menuCommand.BeforeQueryStatus += (_, _) =>
+        {
+            if (MenuLabel(id) is { } text) menuCommand.Text = text;
+        };
         _commandService.AddCommand(menuCommand);
     }
+
+    /// <summary>命令表每一顆按鈕的顯示文字；<c>tools/Test-CommandTable.ps1</c> 核對兩邊一一對應。</summary>
+    private static string? MenuLabel(int commandId) => commandId switch
+    {
+        CommandIds.ShowSqlHistory => MenuText.ShowSqlHistory,
+        CommandIds.ShowSqlFavorites => MenuText.ShowSqlFavorites,
+        CommandIds.ShowSqlMemoryUsage => MenuText.ShowSqlMemoryUsage,
+        CommandIds.ShowSqlSearch => MenuText.ShowSqlSearch,
+        CommandIds.AddToFavorites or CommandIds.AddToFavoritesFromTools => MenuText.AddToFavorites,
+        CommandIds.ToggleEnabled => MenuText.ToggleEnabled,
+        CommandIds.ToggleSuggestions => MenuText.ToggleSuggestions,
+        CommandIds.GoToDefinition => MenuText.GoToDefinition,
+        CommandIds.ShowObjectStructure => MenuText.ShowObjectStructure,
+        CommandIds.RefreshSuggestions => MenuText.RefreshSuggestions,
+        CommandIds.SurroundWith or CommandIds.SurroundWithFromTools => MenuText.SurroundWith,
+        CommandIds.ManageSnippets => MenuText.ManageSnippets,
+        CommandIds.OpenSettings => MenuText.OpenSettings,
+        CommandIds.FocusNotifications => MenuText.FocusNotifications,
+        CommandIds.CheckForUpdates => MenuText.CheckForUpdates,
+        CommandIds.ShowDiagnostics => MenuText.ShowDiagnostics,
+        CommandIds.OpenDiagnosticsLog => MenuText.OpenDiagnosticsLog,
+        CommandIds.ShowSqlMemoryUsageFromSettings => MenuText.ShowSqlMemoryUsageFromSettings,
+        CommandIds.PickBlockAccent => MenuText.PickBlockAccent,
+        CommandIds.PickBlockKeywordForeground => MenuText.PickBlockKeywordForeground,
+        CommandIds.PickBlockKeywordBackground => MenuText.PickBlockKeywordBackground,
+        CommandIds.PickBlockSymbolForeground => MenuText.PickBlockSymbolForeground,
+        CommandIds.PickBlockSymbolBackground => MenuText.PickBlockSymbolBackground,
+        CommandIds.ResultGridInPredicate => MenuText.ResultGridInPredicate,
+        CommandIds.ResultGridMarkdown => MenuText.ResultGridMarkdown,
+        CommandIds.ResultGridJson => MenuText.ResultGridJson,
+        CommandIds.ResultGridTempTable => MenuText.ResultGridTempTable,
+        CommandIds.ResultGridProfile => MenuText.ResultGridProfile,
+        CommandIds.ResultGridCell => MenuText.ResultGridCell,
+        CommandIds.ProbeResultGrid => MenuText.ProbeResultGrid,
+        _ => null,
+    };
 
     /// <param name="isEnabled">
     /// 命令什麼時候可用；省略代表永遠可用。綁了鍵的命令一定要給——殼層是先問過
@@ -234,7 +288,7 @@ internal sealed class SqlAssistCommands
             };
         }
 
-        _commandService.AddCommand(menuCommand);
+        Add(menuCommand);
     }
 
     /// <summary>

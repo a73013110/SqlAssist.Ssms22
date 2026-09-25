@@ -1,5 +1,8 @@
 
 
+using System;
+using System.Linq;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Scripting;
@@ -81,6 +84,7 @@ public static class SqlAssistSettingsReader
                 source,
                 SqlAssistMonikers.IgnoreWindowsAnimationSetting,
                 defaults.IgnoreWindowsAnimationSetting),
+            Language = ParseLanguage(Value(source, SqlAssistMonikers.Language, string.Empty), defaults.Language),
 
             SuggestionsEnabled = Value(
                 source,
@@ -253,6 +257,27 @@ public static class SqlAssistSettingsReader
         }
 
         return switches;
+    }
+
+    /// <summary>
+    /// 列舉字面值是語言名稱去掉連字號（<c>zh-Hant</c> → <c>zhHant</c>），<c>auto</c> 是跟隨 SSMS。
+    /// </summary>
+    /// <remarks>
+    /// 由語言表推導而不逐項列：新增語言只要在註冊檔加一個列舉值，
+    /// <c>SqlAssistRegistrationTests</c> 核對兩邊一一對應。
+    /// </remarks>
+    public static string LanguageLiteral(SqlLanguage language) =>
+        (language ?? throw new ArgumentNullException(nameof(language))).Name.Replace("-", string.Empty);
+
+    private static SqlLanguage? ParseLanguage(string value, SqlLanguage? fallback)
+    {
+        if (value == "auto")
+        {
+            return null;
+        }
+
+        return SqlLanguage.All.FirstOrDefault(language => string.Equals(LanguageLiteral(language), value, StringComparison.Ordinal))
+            ?? fallback;
     }
 
     private static SqlPreviewMode ParsePreviewMode(string value, SqlPreviewMode fallback)

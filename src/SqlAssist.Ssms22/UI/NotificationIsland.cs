@@ -220,6 +220,13 @@ internal sealed class NotificationIsland : Grid
 
     internal FrameworkElement? CurrentContent => _current;
     internal Button DismissButton { get; }
+
+    /// <summary>建構時就定字的按鈕換成目前語言；其餘文字跟著下一輪內容更新。</summary>
+    internal void ApplyLanguage()
+    {
+        SqlAssistChrome.SetButtonName(DismissButton, NotificationCatalog.DismissActivities);
+        foreach (var prompt in _prompts) prompt.ApplyLanguage();
+    }
     internal NotificationPromptView ActivePrompt => _prompts[_activePrompt];
     internal Border Surface => _surface;
     internal IReadOnlyList<Border> StackLayers => _layers;

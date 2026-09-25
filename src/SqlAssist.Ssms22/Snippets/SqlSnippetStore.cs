@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using SqlAssist.Core.Json;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22;
 
@@ -18,6 +19,15 @@ internal static class SqlSnippetStore
 {
     private static readonly object Gate = new();
     private static SqlSnippetConfiguration? _configuration;
+
+    /// <summary>
+    /// <see cref="_configuration"/> 是用哪一種語言合併的。
+    /// </summary>
+    /// <remarks>
+    /// 內建片段的說明與錯誤訊息在合併當下定了語言；換語言後下一次取值重新讀檔合併，
+    /// 存檔端本來就以內建值比對差異，不會把舊語言的內建說明誤寫成自訂。
+    /// </remarks>
+    private static SqlLanguage? _language;
     private static volatile bool _readOnly;
 
     public static string FilePath { get; } = Path.Combine(
@@ -36,7 +46,7 @@ internal static class SqlSnippetStore
         }
     }
 
-    /// <summary>建議清單使用的穩定參考；只有成功存檔後才會換成新實例。</summary>
+    /// <summary>建議清單使用的穩定參考；只有成功存檔或換語言後才會換成新實例。</summary>
     public static SqlSnippetLibrary Current => Configuration.Library;
 
     /// <summary>管理介面使用的完整狀態，包含停用的內建項目。</summary>
@@ -96,7 +106,8 @@ internal static class SqlSnippetStore
 
     private static void EnsureLoaded()
     {
-        if (Volatile.Read(ref _configuration) is not null)
+        if (Volatile.Read(ref _configuration) is not null &&
+            ReferenceEquals(Volatile.Read(ref _language), SqlText.Current))
         {
             return;
         }
@@ -109,9 +120,11 @@ internal static class SqlSnippetStore
 
     private static void EnsureLoadedInsideLock()
     {
-        if (_configuration is null)
+        var language = SqlText.Current;
+        if (_configuration is null || !ReferenceEquals(_language, language))
         {
             _configuration = Load();
+            _language = language;
         }
     }
 

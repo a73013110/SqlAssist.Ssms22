@@ -1,3 +1,4 @@
+using System;
 using Microsoft.VisualStudio.Core.Imaging;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Imaging.Interop;
@@ -13,31 +14,35 @@ internal static partial class SqlIcons
 {
     private sealed class Definition
     {
-        public Definition(ImageMoniker moniker, string automationName)
+        private readonly SqlLanguageCache<ImageElement> _elements;
+
+        public Definition(ImageMoniker moniker, Func<string> automationName)
         {
             // 同一個 moniker 同時供 WPF 與編輯器 adornment 使用，避免兩份對照漂移。
             Moniker = moniker;
-            Element = new ImageElement(moniker.ToImageId(), automationName);
+            // ImageElement 不可變，朗讀名稱建立時就定了，所以依語言各留一份；同一語言取到的是同一個實體，
+            // 補全篩選鈕靠實體比對也不受影響。
+            _elements = new SqlLanguageCache<ImageElement>(_ => new ImageElement(moniker.ToImageId(), automationName()));
         }
 
         public ImageMoniker Moniker { get; }
 
-        public ImageElement Element { get; }
+        public ImageElement Element => _elements.Current;
     }
 
     // 依語意快取不可變資料；CrispImage 屬於各自的視覺樹，不在這裡共用。
-    private static readonly Definition Unknown = new(KnownMonikers.UnknownMember, ChromeText.IconUnknown);
-    private static readonly Definition Keyword = new(KnownMonikers.IntellisenseKeyword, ChromeText.IconKeyword);
-    private static readonly Definition Snippet = new(KnownMonikers.Snippet, ChromeText.IconSnippet);
-    private static readonly Definition Schema = new(KnownMonikers.Schema, ChromeText.IconSchema);
-    private static readonly Definition Table = new(KnownMonikers.Table, ChromeText.IconTable);
-    private static readonly Definition View = new(KnownMonikers.View, ChromeText.IconView);
-    private static readonly Definition Procedure = new(KnownMonikers.StoredProcedure, ChromeText.IconProcedure);
-    private static readonly Definition ScalarFunction = new(KnownMonikers.ScalarFunction, ChromeText.IconScalarFunction);
-    private static readonly Definition Column = new(KnownMonikers.Column, CommonText.Column);
-    private static readonly Definition BuiltInFunction = new(KnownMonikers.Method, ChromeText.IconBuiltInFunction);
-    private static readonly Definition TableFunction = new(KnownMonikers.TableFunction, ChromeText.IconTableFunction);
-    private static readonly Definition InlineTableFunction = new(KnownMonikers.TableFunction, ChromeText.IconInlineTableFunction);
+    private static readonly Definition Unknown = new(KnownMonikers.UnknownMember, () => ChromeText.IconUnknown);
+    private static readonly Definition Keyword = new(KnownMonikers.IntellisenseKeyword, () => ChromeText.IconKeyword);
+    private static readonly Definition Snippet = new(KnownMonikers.Snippet, () => ChromeText.IconSnippet);
+    private static readonly Definition Schema = new(KnownMonikers.Schema, () => ChromeText.IconSchema);
+    private static readonly Definition Table = new(KnownMonikers.Table, () => ChromeText.IconTable);
+    private static readonly Definition View = new(KnownMonikers.View, () => ChromeText.IconView);
+    private static readonly Definition Procedure = new(KnownMonikers.StoredProcedure, () => ChromeText.IconProcedure);
+    private static readonly Definition ScalarFunction = new(KnownMonikers.ScalarFunction, () => ChromeText.IconScalarFunction);
+    private static readonly Definition Column = new(KnownMonikers.Column, () => CommonText.Column);
+    private static readonly Definition BuiltInFunction = new(KnownMonikers.Method, () => ChromeText.IconBuiltInFunction);
+    private static readonly Definition TableFunction = new(KnownMonikers.TableFunction, () => ChromeText.IconTableFunction);
+    private static readonly Definition InlineTableFunction = new(KnownMonikers.TableFunction, () => ChromeText.IconInlineTableFunction);
 
     /// <summary>指令碼自己宣告的資料來源：表格加上一份指令碼。</summary>
     /// <remarks>
@@ -46,29 +51,29 @@ internal static partial class SqlIcons
     /// 前者只活在這份文字裡，連線一斷就沒了。
     /// </remarks>
     private static readonly Definition ScriptDataSource =
-        new(KnownMonikers.TableScript, ChromeText.IconScriptDataSource);
+        new(KnownMonikers.TableScript, () => ChromeText.IconScriptDataSource);
 
-    private static readonly Definition Database = new(KnownMonikers.Database, CommonText.Database);
-    private static readonly Definition GlobalVariable = new(KnownMonikers.GlobalVariable, ChromeText.IconGlobalVariable);
-    private static readonly Definition Variable = new(KnownMonikers.LocalVariable, ChromeText.IconVariable);
-    private static readonly Definition DataType = new(KnownMonikers.Type, ChromeText.IconDataType);
-    private static readonly Definition Parameter = new(KnownMonikers.Parameter, ChromeText.IconParameter);
-    private static readonly Definition Synonym = new(KnownMonikers.Synonym, ChromeText.IconSynonym);
-    private static readonly Definition Trigger = new(KnownMonikers.Trigger, ChromeText.IconTrigger);
-    private static readonly Definition Sequence = new(KnownMonikers.Sequence, ChromeText.IconSequence);
-    private static readonly Definition TableType = new(KnownMonikers.UserDefinedTableType, ChromeText.IconTableType);
-    private static readonly Definition DatePart = new(KnownMonikers.Calendar, ChromeText.IconDatePart);
-    private static readonly Definition TableHint = new(KnownMonikers.IntellisenseKeyword, ChromeText.IconTableHint);
-    private static readonly Definition QueryHint = new(KnownMonikers.IntellisenseKeyword, ChromeText.IconQueryHint);
-    private static readonly Definition LinkedServer = new(KnownMonikers.LinkedServer, ChromeText.IconLinkedServer);
+    private static readonly Definition Database = new(KnownMonikers.Database, () => CommonText.Database);
+    private static readonly Definition GlobalVariable = new(KnownMonikers.GlobalVariable, () => ChromeText.IconGlobalVariable);
+    private static readonly Definition Variable = new(KnownMonikers.LocalVariable, () => ChromeText.IconVariable);
+    private static readonly Definition DataType = new(KnownMonikers.Type, () => ChromeText.IconDataType);
+    private static readonly Definition Parameter = new(KnownMonikers.Parameter, () => ChromeText.IconParameter);
+    private static readonly Definition Synonym = new(KnownMonikers.Synonym, () => ChromeText.IconSynonym);
+    private static readonly Definition Trigger = new(KnownMonikers.Trigger, () => ChromeText.IconTrigger);
+    private static readonly Definition Sequence = new(KnownMonikers.Sequence, () => ChromeText.IconSequence);
+    private static readonly Definition TableType = new(KnownMonikers.UserDefinedTableType, () => ChromeText.IconTableType);
+    private static readonly Definition DatePart = new(KnownMonikers.Calendar, () => ChromeText.IconDatePart);
+    private static readonly Definition TableHint = new(KnownMonikers.IntellisenseKeyword, () => ChromeText.IconTableHint);
+    private static readonly Definition QueryHint = new(KnownMonikers.IntellisenseKeyword, () => ChromeText.IconQueryHint);
+    private static readonly Definition LinkedServer = new(KnownMonikers.LinkedServer, () => ChromeText.IconLinkedServer);
 
     /// <remarks>
     /// 影像目錄裡沒有定序這一項，借字母排序那一顆：那正是定序決定的事
     /// （比較與排序的規則），而 <c>IntellisenseKeyword</c> 已經被兩種提示佔著，
     /// 再多一類就分不出誰是誰。
     /// </remarks>
-    private static readonly Definition Collation = new(KnownMonikers.SortAscending, ChromeText.IconCollation);
-    private static readonly Definition Other = new(KnownMonikers.Ellipsis, CommonText.Other);
+    private static readonly Definition Collation = new(KnownMonikers.SortAscending, () => ChromeText.IconCollation);
+    private static readonly Definition Other = new(KnownMonikers.Ellipsis, () => CommonText.Other);
 
     public static ImageElement Ellipsis => Other.Element;
 

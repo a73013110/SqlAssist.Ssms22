@@ -17,6 +17,7 @@
 | | 啟動時檢查有沒有新版本 | `true` |
 | | 播放介面動畫 | `true` |
 | | 不受 Windows 動畫設定影響 | `true` |
+| | 介面語言 | `auto` |
 | 建議清單 | 輸入時自動彈出建議清單 | `true` |
 | | 只使用 SqlAssist 的建議清單 | `true` |
 | | 輸入幾個字元後才彈出清單 | `1` |
@@ -74,6 +75,9 @@ moniker 一律是 `sqlAssist.<分類>.<設定>`，例如
 
 「播放介面動畫」管全套件自製介面（通知、預覽淡入、SQL Memory 載入與停駐），各表面只問
 `SqlAssistChrome.MotionEnabled`，不自行讀 Windows 偏好；高對比一律不播。
+
+「介面語言」管 SqlAssist 自製的一切文字，`auto` 依 SSMS 介面語言挑（中文用繁中，其餘英文），
+改了立即生效；設定頁與擴充功能清單不歸它管，固定跟隨 SSMS。各表面怎麼換見[在地化](localization.md#即時切換)。
 
 「SQL Memory」整頁由「啟用 SQL Memory」管，關掉時連背景整理都不跑。它預設開啟——空的
 SQL Memory 沒有人會去打開，功能的價值在它已經有資料；代價是不能安靜地開始記錄，所以

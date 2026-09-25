@@ -122,6 +122,8 @@ Requires **Windows x64** and **SSMS 22.9.x**.
 2. Close SSMS, run the VSIX installer, and restart SSMS.
 3. **Tools → SqlAssist** confirms that it loaded.
 
+The UI follows the SSMS language; change it in Settings → SqlAssist → General → **Interface language**.
+
 > [!IMPORTANT]
 > Keep SSMS T-SQL IntelliSense enabled; only its conflicting automatic list is suppressed.
 

@@ -10,6 +10,7 @@
 | 排名順序不對 | `Core/Matching/FuzzyMatcher.cs`、`Core/Completion/SuggestionMatcher.cs` |
 | 某個位置不該開清單／該開沒開 | `Core/Completion/SqlCompletionContextAnalyzer.cs`、`Core/Completion/SqlCompletionTriggers.cs` |
 | 打完某個字沒有重開清單 | `Ssms22/Completion/SqlCompletionReopen.cs` |
+| 換了介面語言某處沒跟著換 | `Ssms22/Settings/SqlLanguageSwitch.cs`（誰訂閱了 `Changed`）；各表面的作法見[在地化](localization.md#即時切換) |
 | SSMS 自己的清單也跟著彈出來 | `Ssms22/Settings/NativeMemberList.cs`（**不要**去關內建 IntelliSense 的總開關） |
 | 提交建議後寫進去的文字不對 | `Core/Completion/SqlInsertionText.cs`（規則）、`Ssms22/Completion/SqlAsyncCompletionCommitManager.cs`（接線） |
 | `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 展開內容不對 | `Core/Statements/`、`Ssms22/Completion/SqlCommitExpansions.cs` |

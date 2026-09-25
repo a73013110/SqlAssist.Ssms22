@@ -59,6 +59,7 @@ internal sealed class NotificationIslandController
         NotificationPresenter.Default.Changed += OnNotifications;
         SsmsWindows.FocusMoved += OnFocusMoved;
         SqlAssistSettingsStore.Changed += OnSettings;
+        SqlLanguageSwitch.Changed += OnLanguage;
         VsThemeBrushes.Changed += OnTheme;
         // 初始化之前就送出的提醒（例如更新檢查）也要畫出來。
         _refresh.Request();
@@ -77,6 +78,7 @@ internal sealed class NotificationIslandController
             NotificationPresenter.Default.Changed -= OnNotifications;
             SsmsWindows.FocusMoved -= OnFocusMoved;
             SqlAssistSettingsStore.Changed -= OnSettings;
+            SqlLanguageSwitch.Changed -= OnLanguage;
             VsThemeBrushes.Changed -= OnTheme;
         }
 
@@ -148,6 +150,20 @@ internal sealed class NotificationIslandController
 
     private void OnSettings(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Probe("排程通知島", () => _refresh?.Request());
+
+    /// <summary>
+    /// 已顯示的通知換成新語言重畫。
+    /// </summary>
+    /// <remarks>
+    /// 標題、狀態與按鈕每次取值才定語言，重新投影就換；各功能建立時組好的訊息本身不會變，
+    /// 那一行留在舊語言直到那則通知到期。
+    /// </remarks>
+    private void OnLanguage(object? sender, EventArgs args)
+    {
+        NotificationPresenter.Default.Invalidate();
+        _overlay?.Island.ApplyLanguage();
+        _refresh?.Request();
+    }
 
     private void OnTheme(object? sender, EventArgs args)
     {

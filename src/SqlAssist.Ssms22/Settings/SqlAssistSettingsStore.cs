@@ -64,6 +64,8 @@ internal static class SqlAssistSettingsStore
         // Unified Settings 缺席、整份設定回退成預設值，那份預設值仍然是
         // 「只使用 SqlAssist 的建議清單」，還是得推出去。
         NativeMemberList.Initialize(serviceProvider);
+        // 宿主介面語言只在 UI 執行緒上問得到，趁這裡記下來；之後的設定變更可能來自任何執行緒。
+        SqlLanguageSwitch.Initialize(serviceProvider);
 
         if (_reader is null)
         {
@@ -98,6 +100,9 @@ internal static class SqlAssistSettingsStore
             }
         }
 
+        // Unified Settings 缺席時也要套：預設值「跟隨 SSMS」仍然要看宿主的語言。
+        SqlLanguageSwitch.Apply(_current);
+
         // 每一次都重套，不是只有第一次：這個方法在套件載入與每一個 SQL 編輯器
         // 建立時都會走到，而那正是「有人在外面把它改回去了」最可能被發現的時機。
         // 狀態相同時 ApplyFromSettings 不會寫入。
@@ -116,6 +121,7 @@ internal static class SqlAssistSettingsStore
     public static void Shutdown()
     {
         NativeMemberList.Restore();
+        SqlLanguageSwitch.Shutdown();
 
         lock (SyncRoot)
         {
@@ -232,6 +238,8 @@ internal static class SqlAssistSettingsStore
             notification.Fail();
         }
 
+        // 語言先換：設定變更的訂閱者重建介面時，取到的就是新語言的文字。
+        SqlLanguageSwitch.Apply(_current);
         NotifyChanged();
         // 語言偏好還要推到擴充外面去。
         // 少了這一行，勾掉「只使用 SqlAssist 的建議清單」要重開 SSMS 才會生效。

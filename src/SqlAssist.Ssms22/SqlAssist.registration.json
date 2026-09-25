@@ -254,6 +254,20 @@
       "additionalKeywords": [ "animation", "遠端桌面", "RDP", "效能選項", "系統動畫" ],
       "enableWhen": "${config:sqlAssist.general.animations} == 'true'"
     },
+    "sqlAssist.general.language": {
+      "type": "string",
+      "default": "auto",
+      "order": 400,
+      "enum": [ "auto", "zhHant", "en" ],
+      "enumItemLabels": [
+        "@GeneralLanguageItemAuto;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@GeneralLanguageItemZhHant;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@GeneralLanguageItemEn;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
+      ],
+      "title": "@GeneralLanguageTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralLanguageDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "additionalKeywords": [ "語言", "中文", "英文", "繁體", "language", "English", "Chinese", "UI", "介面" ]
+    },
 
     "sqlAssist.suggestions.enabled": {
       "type": "boolean",

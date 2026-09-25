@@ -9,6 +9,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Outlining;
 using Microsoft.VisualStudio.Utilities;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Blocks;
@@ -59,12 +60,15 @@ internal sealed class BlockContextHint : IDisposable
         view.ViewportWidthChanged += OnChanged;
         view.Closed += OnClosed;
         VsThemeBrushes.Changed += OnChanged;
+        SqlLanguageSwitch.Changed += OnLanguage;
         _refresh.Request();
     }
 
     private void OnStateChanged(object? sender, BlockChangedEventArgs args) => SqlAssistPlatformGuard.Probe("更新跨頁提示", Refresh);
     private void OnLayout(object sender, TextViewLayoutChangedEventArgs args) { if (_state.Settings.BlockContextHint) _refresh.Request(); }
     private void OnChanged(object? sender, EventArgs args) { if (_state.Settings.BlockContextHint) _refresh.Request(); }
+    // 只在區塊或行號變了才重組提示；換語言時兩者都沒變，得先忘掉顯示過的那一組。
+    private void OnLanguage(object? sender, EventArgs args) { _shownPair = null; OnChanged(sender, args); }
 
     private void Refresh()
     {
@@ -159,6 +163,7 @@ internal sealed class BlockContextHint : IDisposable
         _view.ViewportWidthChanged -= OnChanged;
         _view.Closed -= OnClosed;
         VsThemeBrushes.Changed -= OnChanged;
+        SqlLanguageSwitch.Changed -= OnLanguage;
         Hide();
         if (_surface is not null) _surface.Click -= OnNavigate;
         _surface = null;

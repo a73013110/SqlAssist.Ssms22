@@ -176,6 +176,6 @@
   "RehearsalPromptStack": "Three prompts",
   "RehearsalPromptWithActivity": "Prompt with activity",
   "HiddenByEnabled": "\"Enable SqlAssist\" is turned off; test notifications will not appear.",
-  "HiddenByNotifications": "\"Show notification prompts\" is turned off; test notifications will not appear.",
-  "HiddenByFailures": "\"Show all failure types\" is turned off; failure tests will not appear."
+  "HiddenByNotifications": "\"Show notifications\" is turned off; test notifications will not appear.",
+  "HiddenByFailures": "\"Show all kinds of failures\" is turned off; failure tests will not appear."
 }

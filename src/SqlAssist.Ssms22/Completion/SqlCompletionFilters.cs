@@ -24,36 +24,6 @@ namespace SqlAssist.Ssms22.Completion;
 /// </remarks>
 internal static class SqlCompletionFilters
 {
-    private static readonly ImmutableArray<CompletionFilter> Columns =
-        One(CompletionText.FilterColumns, "c", SqlIcons.GetImageElement(SuggestionKind.Column));
-
-    private static readonly ImmutableArray<CompletionFilter> Tables =
-        One(CompletionText.FilterTables, "t", SqlIcons.GetImageElement(SuggestionKind.Table));
-
-    private static readonly ImmutableArray<CompletionFilter> Views =
-        One(CompletionText.FilterViews, "v", SqlIcons.GetImageElement(SuggestionKind.View));
-
-    private static readonly ImmutableArray<CompletionFilter> Procedures =
-        One(CompletionText.FilterProcedures, "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
-
-    private static readonly ImmutableArray<CompletionFilter> ScalarFunctions =
-        One(CompletionText.FilterScalarFunctions, "f", SqlIcons.GetImageElement(SuggestionKind.Function));
-
-    private static readonly ImmutableArray<CompletionFilter> TableFunctions =
-        One(CompletionText.FilterTableFunctions, "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
-
-    private static readonly ImmutableArray<CompletionFilter> BuiltInFunctions =
-        One(CompletionText.FilterBuiltInFunctions, "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
-
-    private static readonly ImmutableArray<CompletionFilter> Keywords =
-        One(CompletionText.FilterKeywords, "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
-
-    private static readonly ImmutableArray<CompletionFilter> Snippets =
-        One(CompletionText.FilterSnippets, "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
-
-    private static readonly ImmutableArray<CompletionFilter> Others =
-        One(CommonText.Other, "o", SqlIcons.Ellipsis);
-
     /// <summary>
     /// 篩選鈕由左到右的順序。
     /// </summary>
@@ -66,19 +36,58 @@ internal static class SqlCompletionFilters
     /// 再來是資料表，然後才是建立在資料表之上的檢視、預存程序與函式；
     /// 打字時隨手可得的關鍵字與片段放後面，沒有分類的東西收在最後。
     /// </remarks>
-    private static readonly CompletionFilter[] Order =
+    private sealed class FilterSet
     {
-        Columns[0],
-        Tables[0],
-        Views[0],
-        Procedures[0],
-        ScalarFunctions[0],
-        TableFunctions[0],
-        BuiltInFunctions[0],
-        Keywords[0],
-        Snippets[0],
-        Others[0]
-    };
+        public ImmutableArray<CompletionFilter> Columns { get; } =
+            One(CompletionText.FilterColumns, "c", SqlIcons.GetImageElement(SuggestionKind.Column));
+
+        public ImmutableArray<CompletionFilter> Tables { get; } =
+            One(CompletionText.FilterTables, "t", SqlIcons.GetImageElement(SuggestionKind.Table));
+
+        public ImmutableArray<CompletionFilter> Views { get; } =
+            One(CompletionText.FilterViews, "v", SqlIcons.GetImageElement(SuggestionKind.View));
+
+        public ImmutableArray<CompletionFilter> Procedures { get; } =
+            One(CompletionText.FilterProcedures, "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
+
+        public ImmutableArray<CompletionFilter> ScalarFunctions { get; } =
+            One(CompletionText.FilterScalarFunctions, "f", SqlIcons.GetImageElement(SuggestionKind.Function));
+
+        public ImmutableArray<CompletionFilter> TableFunctions { get; } =
+            One(CompletionText.FilterTableFunctions, "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
+
+        public ImmutableArray<CompletionFilter> BuiltInFunctions { get; } =
+            One(CompletionText.FilterBuiltInFunctions, "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
+
+        public ImmutableArray<CompletionFilter> Keywords { get; } =
+            One(CompletionText.FilterKeywords, "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
+
+        public ImmutableArray<CompletionFilter> Snippets { get; } =
+            One(CompletionText.FilterSnippets, "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
+
+        public ImmutableArray<CompletionFilter> Others { get; } =
+            One(CommonText.Other, "o", SqlIcons.Ellipsis);
+
+        public CompletionFilter[] Order { get; }
+
+        public FilterSet()
+        {
+            Order = new[]
+            {
+                Columns[0], Tables[0], Views[0], Procedures[0], ScalarFunctions[0],
+                TableFunctions[0], BuiltInFunctions[0], Keywords[0], Snippets[0], Others[0]
+            };
+        }
+    }
+
+    /// <summary>
+    /// 每種語言一組篩選鈕。
+    /// </summary>
+    /// <remarks>
+    /// 平台以實體比對選取狀態，同一種語言必須一直是同一組實體；換語言後新開的清單拿新的一組，
+    /// 已經開著的那份清單帶著舊的一組直到關掉，<see cref="Sort"/> 照它自己那一組排。
+    /// </remarks>
+    private static readonly SqlLanguageCache<FilterSet> Sets = new(_ => new FilterSet());
 
     /// <summary>
     /// 建議項所屬的分類。
@@ -97,23 +106,24 @@ internal static class SqlCompletionFilters
     /// </remarks>
     public static ImmutableArray<CompletionFilter> For(SuggestionKind kind)
     {
+        var set = Sets.Current;
         return kind switch
         {
-            SuggestionKind.Column => Columns,
+            SuggestionKind.Column => set.Columns,
 
             // CTE、暫存資料表與資料表變數歸在「資料表」：那顆按鈕問的是「這個
             // 位置我要一張表」，而它們在那個位置就是表。獨立一顆的代價不只是多
             // 按一次——按下「資料表」之後，他上一行才寫下的 #Loan 反而消失了，
             // 而那正是他最可能要選的那一個。要單獨找它們的人打前綴更快：
             // 那個名稱是他自己剛取的。
-            SuggestionKind.Table or SuggestionKind.ScriptDataSource => Tables,
-            SuggestionKind.View => Views,
-            SuggestionKind.Procedure => Procedures,
-            SuggestionKind.Function => ScalarFunctions,
-            SuggestionKind.TableFunction => TableFunctions,
-            SuggestionKind.BuiltInFunction => BuiltInFunctions,
-            SuggestionKind.Keyword => Keywords,
-            SuggestionKind.Snippet => Snippets,
+            SuggestionKind.Table or SuggestionKind.ScriptDataSource => set.Tables,
+            SuggestionKind.View => set.Views,
+            SuggestionKind.Procedure => set.Procedures,
+            SuggestionKind.Function => set.ScalarFunctions,
+            SuggestionKind.TableFunction => set.TableFunctions,
+            SuggestionKind.BuiltInFunction => set.BuiltInFunctions,
+            SuggestionKind.Keyword => set.Keywords,
+            SuggestionKind.Snippet => set.Snippets,
             SuggestionKind.Schema
                 or SuggestionKind.Database
                 or SuggestionKind.GlobalVariable
@@ -128,13 +138,13 @@ internal static class SqlCompletionFilters
                 or SuggestionKind.QueryHint
                 or SuggestionKind.LinkedServer
                 or SuggestionKind.Collation
-                or SuggestionKind.CollationInUse => Others,
-            _ => Others
+                or SuggestionKind.CollationInUse => set.Others,
+            _ => set.Others
         };
     }
 
     /// <summary>
-    /// 把篩選列排成 <see cref="Order"/> 的順序。
+    /// 把篩選列排成 <see cref="FilterSet.Order"/> 的順序。
     /// </summary>
     /// <remarks>
     /// 交給平台的 <c>FilteredCompletionModel</c> 就是畫出來的那一排，
@@ -148,9 +158,10 @@ internal static class SqlCompletionFilters
             return states;
         }
 
+        var order = OrderOf(states[0].Filter);
         var builder = ImmutableArray.CreateBuilder<CompletionFilterWithState>(states.Length);
 
-        foreach (var filter in Order)
+        foreach (var filter in order)
         {
             foreach (var state in states)
             {
@@ -165,7 +176,7 @@ internal static class SqlCompletionFilters
         // 認不得的篩選器照原順序補回去：位置不對，總比整顆從篩選列上消失好。
         foreach (var state in states)
         {
-            if (Array.IndexOf(Order, state.Filter) < 0)
+            if (Array.IndexOf(order, state.Filter) < 0)
             {
                 builder.Add(state);
             }
@@ -204,7 +215,19 @@ internal static class SqlCompletionFilters
         return false;
     }
 
-    // 僅供靜態初始化呼叫；For() 必須重用同一顆篩選器，才能保留平台的選取狀態。
+    /// <summary>這份篩選列是哪一種語言的那一組；清單開著時換了語言，仍照它自己那一組排。</summary>
+    private static CompletionFilter[] OrderOf(CompletionFilter sample)
+    {
+        foreach (var language in SqlLanguage.All)
+        {
+            var order = Sets.For(language).Order;
+            if (Array.IndexOf(order, sample) >= 0) return order;
+        }
+
+        return Sets.Current.Order;
+    }
+
+    // 僅供 FilterSet 建立時呼叫；For() 必須重用同一顆篩選器，才能保留平台的選取狀態。
     private static ImmutableArray<CompletionFilter> One(string displayText, string accessKey, ImageElement image)
     {
         return ImmutableArray.Create(new CompletionFilter(displayText, accessKey, image));

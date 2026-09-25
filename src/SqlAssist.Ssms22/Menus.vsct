@@ -139,6 +139,7 @@
         <Icon guid="ImageCatalogGuid" id="History" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowSqlHistory</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlHistory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
@@ -146,12 +147,14 @@
         <Icon guid="ImageCatalogGuid" id="Favorite" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlMemoryUsage" priority="0x0083" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
         <Icon guid="ImageCatalogGuid" id="GaugeRound" />
         <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>SQL Memory 用量</ButtonText><CanonicalName>SqlAssist.ShowSqlMemoryUsage</CanonicalName><LocCanonicalName>SqlAssist.SqlMemory用量</LocCanonicalName><ToolTipText>查看 SQL Memory 的容量、配額與整理紀錄，並手動清理</ToolTipText></Strings>
       </Button>
       <!-- 沒有鍵繫結，理由見 CommandIds.ShowSqlSearch；CanonicalName 因此更重要，要綁鍵的人靠它搜得到。 -->
@@ -160,11 +163,13 @@
         <Icon guid="ImageCatalogGuid" id="Search" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings><ButtonText>Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.SQLSearch</LocCanonicalName><ToolTipText>SQL Search：搜尋目前連線的資料庫物件、資料行與定義本文</ToolTipText></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>新增至收藏…</ButtonText>
           <CanonicalName>SqlAssist.AddToFavorites</CanonicalName>
@@ -183,6 +188,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>顯示即時建議</ButtonText>
           <CanonicalName>SqlAssist.ToggleSuggestions</CanonicalName>
@@ -192,6 +198,7 @@
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidGoToDefinition" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>移至定義</ButtonText>
           <CanonicalName>SqlAssist.GoToDefinition</CanonicalName>
@@ -200,6 +207,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>顯示游標處物件的結構</ButtonText>
           <CanonicalName>SqlAssist.ShowObjectStructure</CanonicalName>
@@ -208,6 +216,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidRefreshSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>重新整理建議</ButtonText>
           <CanonicalName>SqlAssist.RefreshSuggestions</CanonicalName>
@@ -217,6 +226,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0250" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>以片段包住選取範圍</ButtonText>
           <CanonicalName>SqlAssist.SurroundWith</CanonicalName>
@@ -225,6 +235,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidManageSnippets" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>程式碼片段…</ButtonText>
           <CanonicalName>SqlAssist.ManageSnippets</CanonicalName>
@@ -239,6 +250,7 @@
       -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavoritesFromTools" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>新增至收藏…</ButtonText>
           <CanonicalName>SqlAssist.AddToFavoritesFromTools</CanonicalName>
@@ -248,6 +260,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWithFromTools" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>以片段包住選取範圍</ButtonText>
           <CanonicalName>SqlAssist.SurroundWithFromTools</CanonicalName>
@@ -257,6 +270,7 @@
 
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenSettings" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>設定…</ButtonText>
           <CanonicalName>SqlAssist.OpenSettings</CanonicalName>
@@ -265,6 +279,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidFocusNotifications" priority="0x0140" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>聚焦通知</ButtonText>
           <CanonicalName>SqlAssist.FocusNotifications</CanonicalName>
@@ -274,6 +289,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidCheckForUpdates" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>檢查更新…</ButtonText>
           <CanonicalName>SqlAssist.CheckForUpdates</CanonicalName>
@@ -283,6 +299,7 @@
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>關於與診斷…</ButtonText>
           <CanonicalName>SqlAssist.ShowDiagnostics</CanonicalName>
@@ -293,6 +310,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidOpenDiagnosticsLog" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText>
           <CanonicalName>SqlAssist.OpenDiagnosticsLog</CanonicalName>
@@ -307,6 +325,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlMemoryUsageFromSettings" priority="0x0210" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>開啟 SqlAssist SQL Memory 用量</ButtonText>
           <CanonicalName>SqlAssist.ShowSqlMemoryUsageFromSettings</CanonicalName>
@@ -318,6 +337,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockAccent" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>選取 SqlAssist 區塊共用基準色</ButtonText>
           <CanonicalName>SqlAssist.PickBlockAccent</CanonicalName>
@@ -327,6 +347,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordForeground" priority="0x0310" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>選取 SqlAssist 全域高亮預設前景色</ButtonText>
           <CanonicalName>SqlAssist.PickBlockKeywordForeground</CanonicalName>
@@ -336,6 +357,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordBackground" priority="0x0320" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>選取 SqlAssist 全域高亮預設背景色</ButtonText>
           <CanonicalName>SqlAssist.PickBlockKeywordBackground</CanonicalName>
@@ -345,6 +367,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolForeground" priority="0x0330" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>選取 SqlAssist 符號高亮前景色</ButtonText>
           <CanonicalName>SqlAssist.PickBlockSymbolForeground</CanonicalName>
@@ -354,6 +377,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolBackground" priority="0x0340" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSettingsPageGroup" />
         <CommandFlag>CommandWellOnly</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>選取 SqlAssist 符號高亮背景色</ButtonText>
           <CanonicalName>SqlAssist.PickBlockSymbolBackground</CanonicalName>
@@ -364,6 +388,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridInPredicate" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>複製成 IN 條件</ButtonText>
           <CanonicalName>SqlAssist.ResultGridInPredicate</CanonicalName>
@@ -373,6 +398,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridMarkdown" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>複製成 Markdown 表格</ButtonText>
           <CanonicalName>SqlAssist.ResultGridMarkdown</CanonicalName>
@@ -382,6 +408,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridCopyGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>複製成 JSON</ButtonText>
           <CanonicalName>SqlAssist.ResultGridJson</CanonicalName>
@@ -397,6 +424,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridTempTable" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>建立 #temp 指令碼（新視窗）…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridTempTable</CanonicalName>
@@ -406,6 +434,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>欄位剖析…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridProfile</CanonicalName>
@@ -415,6 +444,7 @@
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridActionsGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>檢視這一格完整內容…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridCell</CanonicalName>
@@ -437,6 +467,7 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistResultGridDiagnosticsGroup" />
         <CommandFlag>DefaultInvisible</CommandFlag>
         <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>TextChanges</CommandFlag>
         <Strings>
           <ButtonText>結果診斷資訊…</ButtonText>
           <CanonicalName>SqlAssist.ProbeResultGrid</CanonicalName>

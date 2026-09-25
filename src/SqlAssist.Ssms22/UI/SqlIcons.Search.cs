@@ -14,7 +14,7 @@ internal static partial class SqlIcons
     /// 因為分類本身就把四種併成一顆 pill——分成四種圖示會讓同一顆 pill 篩出來的結果
     /// 看起來是四種不同的東西。
     /// </remarks>
-    private static readonly Definition Constraint = new(KnownMonikers.CheckConstraint, SearchControlText.ConstraintIcon);
+    private static readonly Definition Constraint = new(KnownMonikers.CheckConstraint, () => SearchControlText.ConstraintIcon);
 
     /// <summary>
     /// 搜尋分類識別字對應的原生目錄圖示。

@@ -55,6 +55,7 @@ public static class SqlAssistMonikers
     public const string CheckForUpdates = "sqlAssist.general.checkForUpdates";
     public const string Animations = "sqlAssist.general.animations";
     public const string IgnoreWindowsAnimationSetting = "sqlAssist.general.ignoreWindowsAnimationSetting";
+    public const string Language = "sqlAssist.general.language";
 
     public const string SuggestionsEnabled = "sqlAssist.suggestions.enabled";
     public const string SuppressNativeMemberList = "sqlAssist.suggestions.suppressNativeMemberList";

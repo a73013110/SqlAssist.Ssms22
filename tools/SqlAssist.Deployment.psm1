@@ -14,7 +14,8 @@ function Get-SqlAssistDeploymentFile {
     foreach ($name in @('SqlAssist.Ssms22.pkgdef', 'SqlMemory.Isolation.config',
             'ThirdPartyLicenses.txt', 'Microsoft.Data.Sqlite.dll', 'SQLitePCLRaw.core.dll',
             'SQLitePCLRaw.batteries_v2.dll', 'SQLitePCLRaw.provider.e_sqlite3.dll',
-            'e_sqlite3.dll', 'Microsoft.SqlServer.TransactSql.ScriptDom.dll', 'SqlAssist.Icon.512.png')) {
+            'e_sqlite3.dll', 'Microsoft.SqlServer.TransactSql.ScriptDom.dll', 'SqlAssist.Icon.512.png',
+            'en-US/Extension.vsixlangpack')) {
         [pscustomobject]@{ Name = $name; Policy = 'Install'; Required = $true }
     }
     [pscustomobject]@{ Name = 'extension.vsixmanifest'; Policy = 'Manifest'; Required = $true }

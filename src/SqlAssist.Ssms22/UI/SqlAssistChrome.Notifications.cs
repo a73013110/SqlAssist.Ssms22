@@ -11,6 +11,13 @@ namespace SqlAssist.Ssms22.UI;
 
 internal static partial class SqlAssistChrome
 {
+    /// <summary>只有圖示的按鈕：名稱同時是提示與朗讀名稱。</summary>
+    internal static void SetButtonName(Button button, string name)
+    {
+        button.ToolTip = name;
+        AutomationProperties.SetName(button, name);
+    }
+
     internal static Button CreateNotificationButton(string name, string geometry)
     {
         var button = CreateButton(name, DefaultMetrics);
@@ -18,8 +25,7 @@ internal static partial class SqlAssistChrome
         button.Width = NotificationLayout.CloseButton; button.Height = NotificationLayout.CloseButton; button.MinWidth = 0;
         ApplyNotificationCursor(button);
         button.Padding = new Thickness(0); button.Margin = new Thickness(0);
-        button.ToolTip = name;
-        AutomationProperties.SetName(button, name);
+        SetButtonName(button, name);
         button.Content = new Path
         {
             Data = Geometry.Parse(geometry), Width = 10, Height = 10,

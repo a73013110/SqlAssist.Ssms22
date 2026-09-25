@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Settings;
 using Xunit;
 
@@ -28,6 +29,7 @@ public sealed class SqlAssistRegistrationTests
     [InlineData("sqlAssist.structure.previewPlacement", "stacked", "beside")]
     [InlineData("sqlAssist.structure.scriptStyle", "fidelity", "ssmsNative", "minimal")]
     [InlineData("sqlAssist.sqlMemory.storageLimit", "mb256", "mb512", "gb1", "unlimited")]
+    [InlineData("sqlAssist.general.language", "auto", "zhHant", "en")]
     public void 列舉的字面值不變(string moniker, params string[] expected)
     {
         using var document = RegistrationManifest.Open();
@@ -41,6 +43,30 @@ public sealed class SqlAssistRegistrationTests
             .ToArray();
 
         Assert.Equal(expected.OrderBy(value => value, StringComparer.Ordinal), declared.OrderBy(value => value, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// 語言設定的列舉與語言表一一對應：新增語言漏了列舉值就選不到，列舉值多了則讀進來會回退。
+    /// </summary>
+    [Fact]
+    public void 語言設定涵蓋每一種介面語言()
+    {
+        using var document = RegistrationManifest.Open();
+
+        var declared = document.RootElement
+            .GetProperty("properties")
+            .GetProperty(SqlAssistMonikers.Language)
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(item => item.GetString()!)
+            .Where(value => value != "auto")
+            .OrderBy(value => value, StringComparer.Ordinal);
+
+        var expected = SqlLanguage.All
+            .Select(SqlAssistSettingsReader.LanguageLiteral)
+            .OrderBy(value => value, StringComparer.Ordinal);
+
+        Assert.Equal(expected, declared);
     }
 
     /// <summary>列舉的每一個值都要有對應的顯示文字，否則設定頁會列出空白項目。</summary>
