@@ -46,7 +46,7 @@
 | 子句回溯、換行邊界、不開清單 | [子句邊界](completion-boundaries.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
 | 用途、範例、style、datepart、名稱辨識 | [內建說明](builtin-help.md) |
-| 函式簽章、目前第幾個引數 | [參數提示](parameter-hint.md) |
+| 函式簽章、目前第幾個引數、提示消失不回來 | [參數提示](parameter-hint.md) |
 | 全域變數、模組參數 | [變數](completion-variables.md) |
 | 內容與接續建議 | [片段](snippets.md) |
 | Tab Stop、Tab／Enter、欄位建議 | [片段導航](snippet-navigation.md) |

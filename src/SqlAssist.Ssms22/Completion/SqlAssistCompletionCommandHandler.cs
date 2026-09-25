@@ -14,6 +14,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Signatures;
 using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Wildcards;
 
@@ -107,6 +108,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 {
                     return false;
                 }
+
+                // 這一次 Esc 收的可能是參數提示；記下來，同一個呼叫裡就不再請它回來。
+                SqlParameterHintKeeper.NoteEscape(args.TextView);
 
                 if (SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview &&
                     preview.Collapse())

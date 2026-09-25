@@ -19,7 +19,7 @@
 命令派送。差的只有那一次派送，所以提交後補送一次 `Edit.ParameterInfo`
 （`Ssms22/Editor/SqlShellParameterInfo`），內建函式[那一條](auto-pairing.md#建議清單提交進來的左括號)
 共用它。它一律不理的純量函式由[參數提示](parameter-hint.md)自己補上，同時請出，
-浮得出來的只會有一份。
+浮得出來的只會有一份。提示中途被收掉之後怎麼請回來見[參數提示](parameter-hint.md#提示被收掉之後請回來)。
 
 ## 括號裡要不要填預留值
 

@@ -16,15 +16,18 @@ namespace SqlAssist.Ssms22.Signatures;
 /// 在這裡查一次資料庫的話，那次等待發生在 UI 執行緒上。
 ///
 /// 沒有備好的內容時交出空清單，平台會自己把 session 收掉——別人（SSMS 自己的
-/// 參數資訊）觸發的 session 也會走到這裡，那些不歸我們管。
+/// 參數資訊）觸發的 session 也會走到這裡，那些的內容不歸我們管；但「有一份提示浮出來了」
+/// 這件事要告訴 <see cref="SqlParameterHintKeeper"/>，它據此知道請過的那一次有結果。
 /// </remarks>
 internal sealed class SqlSignatureHelpSource : ISignatureHelpSource
 {
     public void AugmentSignatureHelpSession(ISignatureHelpSession session, IList<ISignature> signatures)
     {
-        SqlAssistPlatformGuard.Run(
-            "提供函式簽章",
-            () => SqlSignatureHelp.Peek(session.TextView)?.Augment(session, signatures));
+        SqlAssistPlatformGuard.Run("提供函式簽章", () =>
+        {
+            SqlSignatureHelp.Peek(session.TextView)?.Augment(session, signatures);
+            SqlParameterHintKeeper.NoteShown(session.TextView);
+        });
     }
 
     public ISignature? GetBestMatch(ISignatureHelpSession session)

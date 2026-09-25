@@ -102,8 +102,8 @@
   "StructureHoverEnabledDescription": "停在資料表、檢視、預存程序上時顯示欄位型別、NULL、主索引鍵等資訊。總開關在「一般」頁。",
   "StructureBuiltInHelpTitle": "滑鼠停留時顯示內建名稱的說明",
   "StructureBuiltInHelpDescription": "停在 CONVERT、DATEDIFF、NVARCHAR 這類內建名稱上時顯示引數順序、用途與一段範例。不查資料庫，沒有連線也看得到。",
-  "StructureParameterHintTitle": "輸入自訂函式的引數時顯示參數提示",
-  "StructureParameterHintDescription": "游標停在純量函式的括號裡時浮出一行簽章（dbo.dtoc(@ddate smalldatetime) RETURNS varchar(10)），目前輪到的引數以粗體標示，打逗號會跟著往下走。只做純量函式：內建函式與 FROM 後面的資料表值函式由 SSMS 自己的「陳述式完成 → 參數資訊」負責。",
+  "StructureParameterHintTitle": "輸入函式引數時保持參數提示",
+  "StructureParameterHintDescription": "游標停在純量函式的括號裡時浮出一行簽章（dbo.dtoc(@ddate smalldatetime) RETURNS varchar(10)），目前輪到的引數以粗體標示，打逗號會跟著往下走。內建函式與 FROM 後面的資料表值函式由 SSMS 自己的「陳述式完成 → 參數資訊」顯示；那一份被刪字、滑鼠點擊或復原收掉時，游標還在括號裡就請它回來。在括號裡按 Esc 之後，離開那組括號之前不再請回來。",
   "StructureClickNavigationTitle": "Ctrl＋點擊物件名稱開啟結構預覽，加按 Shift 開啟定義",
   "StructureClickNavigationDescription": "按住 Ctrl 時，滑鼠下的物件名稱會加上底線、游標變成手指；點下去等於在那裡按 Ctrl+F12，加按 Shift 則等於按 F12。只接手物件名稱上的點擊，其他位置的 Ctrl＋點擊照舊選取整個單字。關閉後物件名稱上也照舊選取單字。",
   // 列舉值 delay

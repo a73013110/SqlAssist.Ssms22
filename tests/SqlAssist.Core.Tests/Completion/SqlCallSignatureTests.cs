@@ -22,6 +22,8 @@ public sealed class SqlCallSignatureTests
         Assert.Equal("SELECT dbo.".Length, site.NameStart);
         Assert.Equal("SELECT dbo.dtoc".Length, site.NameEnd);
         Assert.Equal("SELECT dbo.dtoc".Length, site.OpenParenthesis);
+        Assert.True(site.IsQualified);
+        Assert.False(Resolve("SELECT DATEDIFF(|")!.IsQualified);
     }
 
     [Fact]
@@ -75,6 +77,24 @@ public sealed class SqlCallSignatureTests
         Assert.NotNull(Resolve("SELECT dbo.Value(|"));
     }
 
+    /// <remarks>
+    /// 參數提示續接只問「游標是不是在呼叫裡」，SSMS 那一份正好涵蓋這幾個關鍵字函式；
+    /// 語法括號照樣不認。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT CONVERT(|", true)]
+    [InlineData("SELECT LEFT(|", true)]
+    [InlineData("SELECT DATEDIFF(|", true)]
+    [InlineData("INSERT INTO t VALUES (|", false)]
+    [InlineData("SELECT * FROM t WHERE a IN (|", false)]
+    public void 可以一併認得關鍵字型的內建函式(string sql, bool expected)
+    {
+        var caret = sql.IndexOf('|');
+        var site = SqlCallSignature.Resolve(sql.Remove(caret, 1), caret, includeKeywordFunctions: true);
+
+        Assert.Equal(expected, site is not null);
+    }
+
     [Fact]
     public void 括號已經收掉就不在清單裡()
     {
@@ -99,6 +119,8 @@ public sealed class SqlCallSignatureTests
     [InlineData("(1, 2, ", 2)]
     [InlineData("(dbo.g(1, 2), ", 1)]
     [InlineData("(N'a, b', ", 1)]
+    [InlineData("((1 + ", 0)]
+    [InlineData("(1, (SELECT MAX(a) FROM t WHERE b IN (", 1)]
     public void 只看引數清單那一段也數得出來(string argumentList, int expected)
     {
         Assert.Equal(expected, SqlCallSignature.TrackArgument(argumentList));
@@ -110,6 +132,16 @@ public sealed class SqlCallSignatureTests
     [InlineData("dbo.dtoc(")]
     [InlineData("(1) + 2")]
     public void 已經離開引數清單時回傳空值(string argumentList)
+    {
+        Assert.Null(SqlCallSignature.TrackArgument(argumentList));
+    }
+
+    /// <remarks>引數裡的呼叫歸內層那一份，外層的提示要讓開，否則兩份簽章疊在一起。</remarks>
+    [Theory]
+    [InlineData("(GETDATE(")]
+    [InlineData("(1, dbo.g(")]
+    [InlineData("((CONVERT(")]
+    public void 走進內層呼叫時回傳空值(string argumentList)
     {
         Assert.Null(SqlCallSignature.TrackArgument(argumentList));
     }

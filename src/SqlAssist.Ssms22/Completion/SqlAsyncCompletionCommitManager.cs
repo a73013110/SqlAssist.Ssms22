@@ -355,12 +355,11 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             //
             // 引數預留值那一種不叫：值馬上就會蓋上來，而參數資訊講的正是那幾格。
             //
-            // 純量函式那一格 SSMS 一律不給（見 SqlSignatureHelp），所以兩邊都叫：
-            // 各自認得的名稱不重疊，先把兩份都請出來，浮得出來的只會有一份。
+            // 純量函式那一格 SSMS 一律不給（見 SqlSignatureHelp），所以兩份一起請，
+            // 續接那一邊也因此知道這一輪已經請過。
             if (inserted == ')' && expansion is null)
             {
-                SqlShellParameterInfo.Request();
-                _signatureHelp?.Request();
+                SqlParameterHintKeeper.Summon(session.TextView, _signatureHelp);
             }
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.Composition;
 using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Adornments;
@@ -11,6 +12,7 @@ using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.Signatures;
 using SqlAssist.Ssms22.Snippets;
 using SqlAssist.Ssms22.Wildcards;
 
@@ -61,6 +63,15 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
     [Import(AllowDefault = true)]
     internal IToolTipPresenterFactory? ToolTipPresenterFactory { get; set; }
 
+    /// <summary>
+    /// 純量函式的簽章提示走平台的 broker；參數提示續接要請它回來時用得到。
+    /// </summary>
+    /// <remarks>
+    /// 允許缺席：拿不到就只剩 SSMS 那一份參數資訊能請，續接本身照常。
+    /// </remarks>
+    [Import(AllowDefault = true)]
+    internal ISignatureHelpBroker? SignatureHelpBroker { get; set; }
+
     /// <remarks>
     /// 這個方法由編輯器建立流程直接呼叫，丟出例外會讓整個 SQL 編輯器開不起來，
     /// 因此一律收斂：擴充功能失效總比查詢視窗打不開好。
@@ -88,6 +99,7 @@ internal sealed class SqlAssistTextViewCreationListener : IWpfTextViewCreationLi
             }
 
             SqlWildcardHint.Attach(textView, AsyncCompletionBroker, ToolTipPresenterFactory);
+            SqlParameterHintKeeper.Attach(textView, ServiceProvider, SignatureHelpBroker);
 
             // SQL Memory 的來源。一律接上，實際擷不擷取由設定當場回答——設定在編輯器
             // 開起來之後才打開時，沒有接線的那些視窗會整個工作階段都記不到東西。
