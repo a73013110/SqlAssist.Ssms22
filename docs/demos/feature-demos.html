@@ -51,7 +51,7 @@ const demos={
 <script src="feature-demo-extra.js"></script>
 <script src="feature-demo-i18n.js"></script>
 <script>
-const demoOrder=['completion-preview','structure-preview','f12-definition','expand-star','insert-template','execute-template','merge-template','alter-procedure','alter-function','surround-snippet','sql-search','sql-memory','result-in'];
+const demoOrder=['completion-preview','structure-preview','f12-definition','parameter-hint','expand-star','insert-template','execute-template','merge-template','alter-procedure','alter-function','surround-snippet','sql-search','sql-memory','result-in'];
 window.demoCatalog=Object.fromEntries(demoOrder.map(id=>[id,{title:demos[id].title,poster:demos[id].poster,frames:demos[id].frames.map(f=>f.duration)}]));
 const capture=new URLSearchParams(location.search).has('capture');
 const preference=(key,fallback)=>{try{return localStorage.getItem(key)||fallback}catch{return fallback}};

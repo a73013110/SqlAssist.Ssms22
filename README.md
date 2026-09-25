@@ -42,6 +42,15 @@ On `Loan`, **F12** opens its full definition on the current connection without e
 
 [PNG](docs/images/f12-definition-demo.png)
 
+### Keep parameter hints on screen
+
+SSMS drops the `DATEDIFF(` hint after Backspace, a click, or an inner `GETDATE()`.
+SqlAssist brings it back when you pause and adds hints for scalar UDFs.
+
+<p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF hint returns after Backspace, an inner call, and a click"></p>
+
+[PNG](docs/images/parameter-hint-demo.png)
+
 ### Expand SQL with Tab
 
 **`SELECT *`** → press **Tab** to replace the star with explicit columns.

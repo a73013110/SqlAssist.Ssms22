@@ -44,6 +44,15 @@ SqlAssist 是安裝於 **SSMS 22** 的 VSIX，不是另一套編輯器。建議�
 
 [靜態圖](docs/images/f12-definition-demo.png)
 
+### 參數提示不再消失
+
+SSMS 的 `DATEDIFF(` 參數提示，一按 Backspace、點一下滑鼠或打完內層 `GETDATE()` 就收掉；
+SqlAssist 在停手後請回，也補上自訂純量函式的提示。
+
+<p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF 參數提示在 Backspace、內層呼叫與滑鼠點擊後自動回來"></p>
+
+[靜態圖](docs/images/parameter-hint-demo.png)
+
 ### 按 Tab 展開 SQL
 
 **`SELECT *`**：在星號後按 **Tab**，展開成明確欄位。

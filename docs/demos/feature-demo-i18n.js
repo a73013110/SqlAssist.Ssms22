@@ -24,6 +24,7 @@ const demoEnglish = {
   'merge-template': ['MERGE template', 'Select Cat_BookCopy after MERGE INTO dbo. → press Tab to generate key matching, UPDATE and INSERT. Replace dbo.SourceTable and review both AND 1 = 0 safeguards before use.'],
   'alter-procedure': ['Full ALTER PROCEDURE definition', 'Select usp_Loan_Count after ALTER PROCEDURE dbo. → press Tab to load its editable definition. ALTER is not executed.'],
   'alter-function': ['Full ALTER FUNCTION definition', 'Select fn_LoanCount after ALTER FUNCTION dbo. → press Tab to load its editable definition. ALTER is not executed.'],
+  'parameter-hint': ['Parameter hints that come back', 'Type DATEDIFF( to see parameter info → fix a typo with Backspace, finish the inner GETDATE(), click back into the first argument. SSMS dismisses the hint each time; SqlAssist brings it back when you pause, with the current argument in bold.'],
   'surround-snippet': ['Surround SQL with a snippet', 'Select SQL → right-click Surround with Snippet → search for ifb → review the preview → apply → enter the IF condition → press Tab to finish.'],
   'sql-search': ['Search SQL objects', 'Open Search → enter CopyNo → preview the table definition → move to the next match. Search covers object names, definitions and columns.'],
   'sql-memory': ['History and Favorites', 'Open History → search for Loan → save it as a favorite → open Loan list from Favorites in a new query. Opening it does not execute SQL.'],

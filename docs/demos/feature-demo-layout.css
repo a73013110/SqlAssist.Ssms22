@@ -88,6 +88,8 @@ body[data-theme="dark"] #stage .kw { color: #80bfff; }
 body[data-theme="dark"] #stage .type { color: #70cfca; }
 body[data-theme="dark"] #stage .str { color: #e9a68e; }
 body[data-theme="dark"] #stage .comment { color: #9bce91; }
+body[data-theme="dark"] #stage .fn { color: #f08cf0; }
+body[data-theme="dark"] #stage .signature-hint { background: #303035; border-color: #605d68; color: #f1f1f4; }
 body[data-theme="dark"] #stage .caret { border-color: #f1f1f4; }
 body[data-theme="dark"] #stage .completion, body[data-theme="dark"] #stage .preview,
 body[data-theme="dark"] #stage .codebox, body[data-theme="dark"] #stage .card,

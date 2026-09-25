@@ -75,3 +75,17 @@
 #stage .grid-table .chosen { background: #ccdef0; outline: 1px solid #7d9fbf; }
 #stage .grid-menu { left: 256px; top: 128px; width: 348px; }
 #stage .paste-editor .line { font-size: 20px; line-height: 31px; }
+#stage .fn { color: #ff00ff; }
+#stage .signature-anchor { position: absolute; top: calc(100% + 2px); z-index: 6; }
+#stage .signature-hint {
+  position: absolute;
+  left: -8px;
+  padding: 6px 11px;
+  background: #fff;
+  border: 1px solid #ccc9bf;
+  border-radius: 4px;
+  box-shadow: 0 3px 10px #00000018;
+  font: 19px/26px Consolas, monospace;
+  white-space: nowrap;
+}
+#stage .signature-hint b { font-weight: 700; }

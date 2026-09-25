@@ -109,6 +109,28 @@ const alterFunctionDemo = s => statementDemo(s, {
   kind: 'function', result: 'alterFunction'
 });
 
+// 內建函式依 SSMS 預設配色標成洋紅；提示框錨在呼叫名稱底下，以 ch 對齊等寬字。
+const signatures = {
+  DATEDIFF: { column: 7, params: ['datepart', 'startdate', 'enddate'], returns: 'int' },
+  GETDATE: { column: 32, params: [], returns: 'datetime' }
+};
+const builtinSql = text => sql(text).replace(/\b(DATEDIFF|GETDATE)\b/g, '<span class="fn">$1</span>');
+
+function signatureHint(name, current) {
+  const { column, params, returns } = signatures[name];
+  const list = params.map((p, i) => i === current ? `<b>${p}</b>` : p).join(', ');
+  return `<span class="signature-anchor" style="left:${column}ch"><span class="signature-hint">${name}(${list}) <span class="kw">RETURNS</span> ${returns}</span></span>`;
+}
+
+function parameterHintDemo(s) {
+  const hint = s.hint === 'inner' ? signatureHint('GETDATE') : s.hint === undefined ? '' : signatureHint('DATEDIFF', s.hint);
+  const body = `<div class="editor hint-editor">
+    <div class="line" data-n="1">${sql('SELECT ReaderName,')}</div>
+    <div class="line" data-n="2">${builtinSql('       ' + s.before)}<span class="caret"></span>${builtinSql(s.after || '')}${hint}</div>
+    <div class="line" data-n="3">${sql('FROM dbo.Lib_Reader;')}</div></div>`;
+  return shell('Lib_Reader.sql', body, { key: s.key, pointer: s.pointer, click: s.click });
+}
+
 function gridDemo(s) {
   if (s.pasteView) {
     const query = 'SELECT *\nFROM dbo.Loan\nWHERE ';
@@ -156,6 +178,35 @@ Object.assign(demos, {
       scene(100, { open: true, scroll: 180, pointer: [1045, 505] }),
       scene(600, { open: true, scroll: 240, pointer: [1045, 505] }),
       scene(4000, { open: true, scroll: 300 })
+    ]
+  },
+  'parameter-hint': {
+    title: '參數提示自動請回',
+    caption: '輸入 DATEDIFF( 看到參數提示 → 打錯字按 Backspace、打完內層 GETDATE()、滑鼠點回第一個引數。SSMS 每次都把提示收掉，SqlAssist 在停手後請回，粗體跟著目前的引數。',
+    draw: parameterHintDemo, poster: 17,
+    frames: [
+      scene(900, { before: 'DATEDIFF' }),
+      scene(800, { before: 'DATEDIFF(', after: ')', hint: 0, key: '(' }),
+      scene(200, { before: 'DATEDIFF(d', after: ')', hint: 0 }),
+      scene(200, { before: 'DATEDIFF(da', after: ')', hint: 0 }),
+      scene(300, { before: 'DATEDIFF(day', after: ')', hint: 0 }),
+      scene(700, { before: 'DATEDIFF(day, ', after: ')', hint: 1, key: ',' }),
+      scene(200, { before: 'DATEDIFF(day, Cre', after: ')', hint: 1 }),
+      scene(200, { before: 'DATEDIFF(day, Create', after: ')', hint: 1 }),
+      scene(800, { before: 'DATEDIFF(day, CreatedAr', after: ')', hint: 1 }),
+      scene(450, { before: 'DATEDIFF(day, CreatedA', after: ')', key: 'Backspace' }),
+      scene(500, { before: 'DATEDIFF(day, CreatedA', after: ')' }),
+      scene(1300, { before: 'DATEDIFF(day, CreatedA', after: ')', hint: 1 }),
+      scene(250, { before: 'DATEDIFF(day, CreatedAt', after: ')', hint: 1 }),
+      scene(700, { before: 'DATEDIFF(day, CreatedAt, ', after: ')', hint: 2, key: ',' }),
+      scene(200, { before: 'DATEDIFF(day, CreatedAt, GET', after: ')', hint: 2 }),
+      scene(700, { before: 'DATEDIFF(day, CreatedAt, GETDATE(', after: '))', hint: 'inner', key: '(' }),
+      scene(400, { before: 'DATEDIFF(day, CreatedAt, GETDATE()', after: ')', key: ')' }),
+      scene(1800, { before: 'DATEDIFF(day, CreatedAt, GETDATE()', after: ')', hint: 2 }),
+      scene(700, { before: 'DATEDIFF(day, CreatedAt, GETDATE()', after: ')', hint: 2, pointer: [288, 181] }),
+      scene(350, { before: 'DATEDIFF(da', after: 'y, CreatedAt, GETDATE())', pointer: [288, 181], click: true }),
+      scene(500, { before: 'DATEDIFF(da', after: 'y, CreatedAt, GETDATE())', pointer: [288, 181] }),
+      scene(2400, { before: 'DATEDIFF(da', after: 'y, CreatedAt, GETDATE())', hint: 0, pointer: [288, 181] })
     ]
   },
   'surround-snippet': {
