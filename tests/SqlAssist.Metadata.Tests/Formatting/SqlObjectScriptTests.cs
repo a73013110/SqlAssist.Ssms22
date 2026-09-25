@@ -108,6 +108,26 @@ public sealed class SqlObjectScriptTests
     }
 
     /// <remarks>
+    /// CLR 物件與擴充預存程序根本沒有 T-SQL 本文，說成加密或權限的話使用者會去查一個
+    /// 不存在的原因。判斷看的是這一次查到的型別代碼，不是物件描述的種類。
+    /// </remarks>
+    [Theory]
+    [InlineData(SqlObjectImplementation.Extended, "擴充預存程序")]
+    [InlineData(SqlObjectImplementation.Clr, "CLR")]
+    public void 沒有T_SQL本文的模組說出真正的原因(SqlObjectImplementation implementation, string reason)
+    {
+        var structure = new SqlObjectStructure(new SqlObjectDetail(
+            new SqlObjectInfo(1, "sys", "sp_executesql", SqlObjectKind.Procedure),
+            implementation: implementation));
+
+        var script = SqlObjectScript.BuildEditable(structure, Execution("\r\n"));
+
+        Assert.StartsWith("-- 取不到 [sys].[sp_executesql] 的定義。", script.Text);
+        Assert.Contains(reason, script.Text);
+        Assert.DoesNotContain("WITH ENCRYPTION", script.Text);
+    }
+
+    /// <remarks>
     /// 欄位查得回來與否是這一輪的事，不是種類的事：資料表過得了種類那一關，
     /// 卻可能一列都沒有回來（物件被卸除、權限被收回）。BuildScript 那一端已經
     /// 換成整段註解，這裡要確認的是它原樣帶出來，沒有被當成 CREATE 改寫掉，

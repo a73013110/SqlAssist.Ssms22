@@ -119,6 +119,41 @@ public sealed class SqlSystemObjectCatalogTests
             SqlMetadataQueries.Columns.Replace("sys.columns", "sys.all_columns"));
     }
 
+    /// <summary>
+    /// 系統模組的參數與定義也不在使用者那兩個目錄檢視上。
+    /// </summary>
+    /// <remarks>
+    /// 拿 <c>sys.sql_modules</c> 去問 <c>sp_help</c> 得到 NULL，預覽便把原因說成
+    /// 加密或沒有權限；參數少了則 <c>EXEC sp_executesql</c> 展開不出任何一個。
+    /// </remarks>
+    [Theory]
+    [InlineData("dbo", false)]
+    [InlineData("sys", true)]
+    [InlineData("INFORMATION_SCHEMA", true)]
+    [InlineData(null, false)]
+    public void 系統模組的參數與定義改問all目錄檢視(string? schemaName, bool system)
+    {
+        Assert.Equal(
+            system ? SqlMetadataQueries.SystemParameters : SqlMetadataQueries.Parameters,
+            SqlMetadataQueries.ParametersFor(schemaName));
+        Assert.Equal(
+            system ? SqlMetadataQueries.SystemDefinition : SqlMetadataQueries.Definition,
+            SqlMetadataQueries.DefinitionFor(schemaName));
+    }
+
+    [Fact]
+    public void 系統模組的參數與定義查詢只差在目錄檢視()
+    {
+        Assert.Equal(
+            SqlMetadataQueries.SystemParameters,
+            SqlMetadataQueries.Parameters.Replace("sys.parameters", "sys.all_parameters"));
+        Assert.Equal(
+            SqlMetadataQueries.SystemDefinition,
+            SqlMetadataQueries.Definition
+                .Replace("sys.sql_modules", "sys.all_sql_modules")
+                .Replace("sys.objects", "sys.all_objects"));
+    }
+
     private static SqlMetadataCatalog Create(CatalogSource source) =>
         new(source, TimeSpan.FromMinutes(5), failureBackoff: TimeSpan.FromMinutes(5));
 

@@ -976,7 +976,7 @@ public sealed class SqlMetadataCatalog
 
         // sys.columns 只收使用者物件：sys.triggers、INFORMATION_SCHEMA.TABLES 這些
         // 系統檢視的資料行一列都不在上面，拿它去問的結果是「查詢成功，但沒有欄位」，
-        // 而那與權限不足看起來一模一樣。
+        // 而那與權限不足看起來一模一樣。參數與定義同理，下面各走自己那條 *For。
         var columns = objectInfo.Kind.HasCatalogColumns()
             ? ReadList(
                 connection,
@@ -1003,16 +1003,23 @@ public sealed class SqlMetadataCatalog
 
         var parameters = ReadList(
             connection,
-            SqlMetadataQueries.Parameters,
+            SqlMetadataQueries.ParametersFor(objectInfo.SchemaName),
             SqlMetadataReader.ReadParameter,
             cancellationToken,
             objectId);
 
-        using var command = CreateCommand(connection, SqlMetadataQueries.Definition, objectId);
-        var value = command.ExecuteScalar();
-        var definition = value is string text && !string.IsNullOrWhiteSpace(text) ? text : null;
+        // 一列都沒有（物件已卸除或這個登入完全看不到它）時照 T-SQL 模組解釋，
+        // 與查到那一列而本文是 NULL 的說法相同。
+        var module = ReadList(
+            connection,
+            SqlMetadataQueries.DefinitionFor(objectInfo.SchemaName),
+            SqlMetadataReader.ReadModuleDefinition,
+            cancellationToken,
+            objectId);
+        var (implementation, text) = module.Count > 0 ? module[0] : default;
+        var definition = string.IsNullOrWhiteSpace(text) ? null : text;
 
-        return new SqlObjectDetail(objectInfo, columns, parameters, definition, description);
+        return new SqlObjectDetail(objectInfo, columns, parameters, definition, description, implementation);
     }
 
     /// <remarks>

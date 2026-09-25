@@ -66,14 +66,15 @@ WHERE tt.is_user_defined = 1;";
     /// 只收這兩個結構描述：<c>sys.all_objects</c> 裡 <c>is_ms_shipped = 1</c> 的東西
     /// 還包含一堆內部物件，而使用者打得出來的就是這兩個名字。
     ///
-    /// <c>X</c> 是擴充預存程序，<c>sp_executesql</c> 就在那一類。
+    /// <c>X</c> 是擴充預存程序，<c>sp_executesql</c> 就在那一類；型別代碼原樣交出，
+    /// 種類與實作方式都由讀取端的同一份對應決定。
     /// </remarks>
     public const string SystemObjects = @"
 SELECT
     o.object_id,
     s.name AS schema_name,
     o.name AS object_name,
-    CASE WHEN o.type = 'X' THEN 'P' ELSE o.type END AS type
+    o.type
 FROM sys.all_objects AS o
 INNER JOIN sys.schemas AS s ON s.schema_id = o.schema_id
 WHERE o.is_ms_shipped = 1
@@ -435,7 +436,8 @@ ORDER BY fk.name, fkc.constraint_column_id;";
     /// 定義走 <c>sys.sql_modules</c> 的 <c>LEFT JOIN</c> 而不是 <c>OBJECT_DEFINITION</c>：
     /// 那是本機函式，加不了限定字，跨到連結伺服器時會在對方登入的預設資料庫裡
     /// 找 object_id——與模組定義那一條同一個理由。加密的觸發程序那一欄是 NULL，
-    /// 讀取端據此整個跳過。
+    /// 讀取端據此整個跳過；型別代碼一起帶回來，分得出 CLR 觸發程序（<c>TA</c>）
+    /// 是根本沒有 T-SQL 本文。
     ///
     /// <c>parent_class = 1</c> 只收掛在物件上的那些；掛在資料庫或伺服器上的
     /// DDL 觸發程序不屬於任何一張資料表。
@@ -444,7 +446,8 @@ ORDER BY fk.name, fkc.constraint_column_id;";
 SELECT
     tr.name AS trigger_name,
     m.definition,
-    tr.is_disabled
+    tr.is_disabled,
+    tr.type
 FROM sys.triggers AS tr
 LEFT JOIN sys.sql_modules AS m ON m.object_id = tr.object_id
 WHERE tr.parent_id = @objectId
@@ -578,7 +581,22 @@ FROM (
 ORDER BY level, minor_id, target_name, property_name;";
 
     /// <summary>第二層：單一模組的參數。</summary>
-    public const string Parameters = @"
+    public const string Parameters = ParametersHead + "sys.parameters" + ParametersTail;
+
+    /// <summary>第二層：系統模組的參數。</summary>
+    /// <remarks>
+    /// <c>sp_executesql</c> 這一類的參數只在 <c>sys.all_parameters</c> 上；兩條只差目錄檢視，
+    /// 分開的理由與 <see cref="SystemColumns"/> 相同。
+    /// </remarks>
+    public const string SystemParameters = ParametersHead + "sys.all_parameters" + ParametersTail;
+
+    /// <summary>某個結構描述底下的模組該問哪一條參數查詢；規則與 <see cref="ColumnsFor"/> 相同。</summary>
+    public static string ParametersFor(string? schemaName)
+    {
+        return SqlSystemSchemas.IsSystem(schemaName) ? SystemParameters : Parameters;
+    }
+
+    private const string ParametersHead = @"
 SELECT
     p.parameter_id,
     p.name AS parameter_name,
@@ -587,26 +605,53 @@ SELECT
     p.precision,
     p.scale,
     p.is_output
-FROM sys.parameters AS p
+FROM ";
+
+    private const string ParametersTail = @" AS p
 INNER JOIN sys.types AS t ON t.user_type_id = p.user_type_id
 WHERE p.object_id = @objectId
 ORDER BY p.parameter_id;";
 
-    /// <summary>第三層：模組定義本文。加密物件會回傳 NULL。</summary>
+    /// <summary>第三層：模組的型別代碼與定義本文。</summary>
     /// <remarks>
     /// 讀 <c>sys.sql_modules</c> 而不是 <c>OBJECT_DEFINITION</c>，雖然兩者讀的是
     /// 同一欄：那是本機函式，加不了限定字，跨到連結伺服器時會在<b>對方登入的
     /// 預設資料庫</b>裡找 object_id，於是拿到另一個資料庫裡剛好同號的那個物件的
     /// 定義——而畫面上看不出來。目錄檢視則跟著 <see cref="SqlCatalogQualifier"/> 走。
     ///
-    /// 行為完全一致：加密物件的那一列 <c>definition</c> 是 NULL，沒有
-    /// <c>VIEW DEFINITION</c> 權限時整列看不到，而呼叫端用 <c>ExecuteScalar</c>
-    /// 讀，兩種都得到 null。
+    /// 型別代碼一起帶回來，才分得出 <c>definition</c> 為什麼是 NULL：T-SQL 模組是加密或
+    /// 沒有 <c>VIEW DEFINITION</c> 權限，CLR 與擴充預存程序則根本沒有 T-SQL 本文
+    /// （<c>sys.sql_modules</c> 沒有那一列，所以是 <c>LEFT JOIN</c>）。問的是這一次查到的
+    /// 物件本身，不靠呼叫端手上那份 <c>SqlObjectInfo</c> 從哪條路建出來。
     /// </remarks>
-    public const string Definition = @"
-SELECT m.definition
-FROM sys.sql_modules AS m
-WHERE m.object_id = @objectId;";
+    public const string Definition = DefinitionHead + "sys.objects" + DefinitionMiddle + "sys.sql_modules" + DefinitionTail;
+
+    /// <summary>第三層：系統模組的型別代碼與定義本文。</summary>
+    /// <remarks>
+    /// 系統物件與它們的本文只在 <c>sys.all_objects</c>／<c>sys.all_sql_modules</c> 上；
+    /// 拿使用者那兩個去問 <c>sp_help</c> 一列都沒有，預覽便把原因說成加密或沒有權限。
+    /// 分開的理由與 <see cref="SystemColumns"/> 相同。
+    /// </remarks>
+    public const string SystemDefinition =
+        DefinitionHead + "sys.all_objects" + DefinitionMiddle + "sys.all_sql_modules" + DefinitionTail;
+
+    /// <summary>某個結構描述底下的模組該問哪一條定義查詢；規則與 <see cref="ColumnsFor"/> 相同。</summary>
+    public static string DefinitionFor(string? schemaName)
+    {
+        return SqlSystemSchemas.IsSystem(schemaName) ? SystemDefinition : Definition;
+    }
+
+    private const string DefinitionHead = @"
+SELECT
+    o.type,
+    m.definition
+FROM ";
+
+    private const string DefinitionMiddle = @" AS o
+LEFT JOIN ";
+
+    private const string DefinitionTail = @" AS m ON m.object_id = o.object_id
+WHERE o.object_id = @objectId;";
 
     /// <summary>
     /// 第三層：同義字指向的物件。

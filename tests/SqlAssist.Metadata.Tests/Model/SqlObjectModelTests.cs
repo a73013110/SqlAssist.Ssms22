@@ -39,11 +39,31 @@ public sealed class SqlObjectModelTests
     [InlineData("TF", SqlObjectKind.TableValuedFunction)]
     [InlineData("FT", SqlObjectKind.TableValuedFunction)]
     [InlineData("SN", SqlObjectKind.Synonym)]
-    [InlineData("X", SqlObjectKind.Unknown)]
+    [InlineData("X", SqlObjectKind.Procedure)]
+    [InlineData("TA", SqlObjectKind.Trigger)]
     [InlineData(null, SqlObjectKind.Unknown)]
     public void 對應sys_objects型別(string? type, SqlObjectKind expected)
     {
         Assert.Equal(expected, SqlObjectKinds.FromSysObjectType(type));
+    }
+
+    /// <remarks>
+    /// 種類說它怎麼用，實作方式說它的本文在哪裡：<c>sp_executesql</c>（<c>X</c>）與
+    /// CLR 物件都是能呼叫的程序或函式，卻根本沒有 T-SQL 本文。
+    /// </remarks>
+    [Theory]
+    [InlineData("X ", SqlObjectImplementation.Extended)]
+    [InlineData("PC", SqlObjectImplementation.Clr)]
+    [InlineData("FS", SqlObjectImplementation.Clr)]
+    [InlineData("FT", SqlObjectImplementation.Clr)]
+    [InlineData("TA", SqlObjectImplementation.Clr)]
+    [InlineData("P ", SqlObjectImplementation.TransactSql)]
+    [InlineData("V ", SqlObjectImplementation.TransactSql)]
+    [InlineData("TR", SqlObjectImplementation.TransactSql)]
+    [InlineData(null, SqlObjectImplementation.TransactSql)]
+    public void 由sys_objects型別判斷本文用什麼寫成(string? type, SqlObjectImplementation expected)
+    {
+        Assert.Equal(expected, SqlObjectImplementations.FromSysObjectType(type));
     }
 
     [Fact]

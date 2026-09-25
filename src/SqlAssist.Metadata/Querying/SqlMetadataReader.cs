@@ -204,6 +204,19 @@ public static class SqlMetadataReader
             ReadOptionalBoolean(record, 5, fallback: true));
     }
 
+    /// <summary>模組定義查詢的那一列：型別代碼與本文。</summary>
+    public static (SqlObjectImplementation Implementation, string? Definition) ReadModuleDefinition(IDataRecord record)
+    {
+        if (record is null)
+        {
+            throw new ArgumentNullException(nameof(record));
+        }
+
+        return (
+            SqlObjectImplementations.FromSysObjectType(record.GetString(0)),
+            record.IsDBNull(1) ? null : record.GetString(1));
+    }
+
     public static SqlTriggerInfo ReadTrigger(IDataRecord record)
     {
         if (record is null)
@@ -214,7 +227,8 @@ public static class SqlMetadataReader
         return new SqlTriggerInfo(
             record.GetString(0),
             record.IsDBNull(1) ? null : record.GetString(1),
-            record.GetBoolean(2));
+            record.GetBoolean(2),
+            SqlObjectImplementations.FromSysObjectType(record.GetString(3)));
     }
 
     public static SqlCheckConstraint ReadCheckConstraint(IDataRecord record)

@@ -6,14 +6,18 @@ namespace SqlAssist.Metadata.Model;
 /// <summary>掛在資料表上的一個觸發程序。</summary>
 /// <remarks>
 /// 定義取的是原文，不重建：觸發程序是模組，重組出來的版本一定會與作者寫的
-/// 不一樣，而那份文字是他要拿去改的。取不到定義（加密，或沒有
-/// <c>VIEW DEFINITION</c> 權限）時整個跳過——猜一個空的 <c>CREATE TRIGGER</c>
+/// 不一樣，而那份文字是他要拿去改的。取不到定義（加密、沒有
+/// <c>VIEW DEFINITION</c> 權限，或 CLR 實作）時整個跳過——猜一個空的 <c>CREATE TRIGGER</c>
 /// 骨架出來是指令碼在說謊。
 /// </remarks>
 public sealed class SqlTriggerInfo
 {
     [Localizable(false)]
-    public SqlTriggerInfo(string name, string? definition, bool isDisabled = false)
+    public SqlTriggerInfo(
+        string name,
+        string? definition,
+        bool isDisabled = false,
+        SqlObjectImplementation implementation = SqlObjectImplementation.TransactSql)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -23,6 +27,7 @@ public sealed class SqlTriggerInfo
         Name = name;
         Definition = definition;
         IsDisabled = isDisabled;
+        Implementation = implementation;
     }
 
     public string Name { get; }
@@ -38,6 +43,9 @@ public sealed class SqlTriggerInfo
     /// 那張表會開始執行一段來源上不會執行的邏輯——而那多半是當初把它停掉的原因。
     /// </remarks>
     public bool IsDisabled { get; }
+
+    /// <summary>本文用什麼寫成；決定取不到定義時該怎麼解釋。</summary>
+    public SqlObjectImplementation Implementation { get; }
 
     /// <summary>定義取不到時寫不出可以執行的指令碼。</summary>
     public bool CanScript => !string.IsNullOrWhiteSpace(Definition);

@@ -278,7 +278,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     /// 那份指令碼在 <c>CREATE TABLE</c> 之後就整段語法錯誤，而使用者看到的是
     /// 「這個工具產不出能跑的東西」。
     ///
-    /// 定義取不到的（加密、沒有 <c>VIEW DEFINITION</c> 權限）換成一行註解，
+    /// 定義取不到的（加密、沒有 <c>VIEW DEFINITION</c> 權限、CLR 實作）換成一行註解，
     /// 不是安靜地少一個：那張表在來源上有這個觸發程序，而重建出來的沒有。
     /// </remarks>
     private static void AppendTriggers(
@@ -299,8 +299,12 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             if (!trigger.CanScript)
             {
                 var unavailable = new StringBuilder();
+                var name = Identifier(trigger.Name, options);
                 SqlScriptComment.AppendLine(unavailable,
-                    ScriptText.TriggerUnavailable(Identifier(trigger.Name, options)), context.NewLine);
+                    trigger.Implementation.HasTransactSqlBody()
+                        ? ScriptText.TriggerUnavailable(name)
+                        : ScriptText.TriggerClr(name),
+                    context.NewLine);
                 statements.Add(new Statement(unavailable.ToString(), batched: false));
                 continue;
             }

@@ -19,6 +19,19 @@ public sealed class TSqlScriptRendererRegressionTests
         Assert.Equal(definition, Assert.Single(Batches(script), batch => batch.Contains("CREATE TRIGGER")));
     }
 
+    [Theory]
+    [InlineData(SqlObjectImplementation.TransactSql, "WITH ENCRYPTION")]
+    [InlineData(SqlObjectImplementation.Clr, "CLR")]
+    public void 取不到定義的觸發程序說出真正的原因(SqlObjectImplementation implementation, string reason)
+    {
+        var trigger = new SqlTriggerInfo("TR_Loan", definition: null, implementation: implementation);
+        var structure = new SqlObjectStructure(Detail(), triggers: new[] { trigger });
+        var script = structure.BuildScript(Context(SqlScriptOptions.Minimal with { IncludeTriggers = true }));
+
+        Assert.Contains(reason, script);
+        Assert.DoesNotContain("CREATE TRIGGER", script);
+    }
+
     [Fact]
     public void 第二層預覽載入期間不能複製出缺索引的DDL()
     {

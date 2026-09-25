@@ -13,6 +13,10 @@
   "ReasonDeclarationMoved": "這個名稱是這份指令碼自己宣告的，宣告的位置卻已經不在目前的文字裡了——\n多半是提示顯示之後、開啟結構之前，那幾行被改掉或刪掉了。",
   "ReasonSynthesizedDefinition": "sys.synonyms／sys.sequences 一列都沒有回來，而查詢本身沒有失敗——\n原因只有兩個：物件在建議清單被快取之後卸除，\n或是這個登入對它的權限在那之後被收回。",
   "ReasonModuleDefinition": "OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，\n或是目前的登入沒有它的 VIEW DEFINITION 權限。",
+  "ReasonClrDefinition": "它是 CLR 組件實作的物件，本文編譯在組件裡，本來就沒有 T-SQL 定義；
+與加密或權限無關。",
+  "ReasonExtendedDefinition": "它是擴充預存程序，由 SQL Server 以原生程式實作，本來就沒有 T-SQL 定義，
+參數也不在目錄檢視裡；與加密或權限無關，用法請查線上文件。",
   "ReasonConstraintParent": "條件約束的定義寫在它所屬的資料表上——DEFAULT 的運算式在資料行上，CHECK 的條件、\n鍵的資料行與外來鍵的參照都在那張表的索引與條件約束裡。那張表這一輪沒有讀齊：\n它可能在這份清單被快取之後卸除、這個登入對它的權限被收回，或是索引與條件約束\n那一次查詢失敗了。",
   "ReasonConstraintNotFound": "所屬的資料表讀到了，上面卻沒有這個名稱的條件約束——多半是它在這份清單\n被快取之後卸除或改名了。重新整理之後仍然看得到的話，它可能是本擴充還沒有\n讀到的那一種條件約束。",
   "ReasonNoColumns": "sys.columns 一列都沒有回來，而查詢本身沒有失敗——原因只有兩個：物件在\n建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。",

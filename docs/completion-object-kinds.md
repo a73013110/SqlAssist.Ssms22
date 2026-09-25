@@ -53,7 +53,9 @@
 
 欄位本身要改問 `sys.all_columns`：`sys.columns` 只收使用者物件，拿它去問系統檢視的
 結果是「查詢成功，但一個欄位都沒有」，而那與權限不足看起來一模一樣。兩條查詢由同一份
-本體組出來（`SqlMetadataQueries.ColumnsFor`），不是抄成兩份。
+本體組出來（`SqlMetadataQueries.ColumnsFor`），不是抄成兩份。模組的參數與定義同理，
+改問 `sys.all_parameters` 與 `sys.all_sql_modules`；少了後者，`sp_help` 的預覽會把
+取不到定義誤報成加密或沒有權限。
 
 `ALTER PROCEDURE ` 不算，雖然它的目標同樣是預存程序：系統程序改不動，列出來只會讓
 使用者選到一個改不了的東西，與內建函式不進 `ALTER FUNCTION` 是同一條理由。
@@ -96,5 +98,5 @@
 行為完全一致——那四種在 `SqlObjectKinds.IsModule` 裡是同一類，`OBJECT_DEFINITION`
 都拿得到定義。
 
-定義取不到只有兩個原因（物件是 `WITH ENCRYPTION` 建的，或這個登入沒有它的
-`VIEW DEFINITION` 權限），這時維持只插入名稱，並在診斷紀錄裡寫明。
+定義取不到時維持只插入名稱，並在診斷紀錄裡寫明；原因的判別見
+[相容](metadata-compatibility.md)。

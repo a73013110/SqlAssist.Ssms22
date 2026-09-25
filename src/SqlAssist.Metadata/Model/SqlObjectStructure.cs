@@ -238,6 +238,17 @@ public sealed class SqlObjectStructure
             // 缺定義的原因分兩種說法，因為兩種物件的定義根本不從同一個地方來：
             // 說錯的話使用者會去查加密與 VIEW DEFINITION 權限，而同義字的定義
             // 從來不經過那兩關。
+            // CLR 物件與擴充預存程序根本沒有 T-SQL 本文，加密與權限兩種說法對它們都是錯的。
+            // 認的是這一次查到的型別代碼，所以不論物件描述從建議清單、SQL Search 還是
+            // 父物件來，說法都一樣。
+            case ScriptAvailability.MissingDefinition when !Detail.Implementation.HasTransactSqlBody():
+                script = BuildUnavailableScript(
+                    StructureText.MissingDefinition,
+                    Detail.Implementation == SqlObjectImplementation.Extended
+                        ? StructureText.ReasonExtendedDefinition
+                        : StructureText.ReasonClrDefinition);
+                return true;
+
             case ScriptAvailability.MissingDefinition:
                 script = Object.Kind.HasSynthesizedDefinition()
                     ? BuildUnavailableScript(StructureText.MissingDefinition, StructureText.ReasonSynthesizedDefinition)
