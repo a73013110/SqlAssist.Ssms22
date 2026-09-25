@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using Microsoft.VisualStudio.Core.Imaging;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.Imaging.Interop;
@@ -77,6 +78,39 @@ internal static partial class SqlIcons
     private static readonly Definition SchemaOrDatabase =
         new(KnownMonikers.DatabaseSchema, () => CompletionText.FilterSchemasAndDatabases);
 
+    // 建議清單列尾的例外標記。兩個警示用有色的狀態形狀，其餘用單色線條，讓一眼看得出輕重；
+    // 系統物件借鎖頭，與物件總管替系統物件疊的那一顆同義。
+    private static readonly Definition DestructiveMark = new(KnownMonikers.StatusWarning, () => CompletionText.MarkDestructive);
+    private static readonly Definition DeprecatedMark = new(KnownMonikers.StrikeThrough, () => CompletionText.MarkDeprecated);
+    private static readonly Definition SystemObjectMark = new(KnownMonikers.Lock, () => CompletionText.MarkSystemObject);
+    private static readonly Definition RecentlyUsedMark = new(KnownMonikers.History, () => CompletionText.MarkRecentlyUsed);
+
+    /// <remarks>
+    /// 以旗標值當索引，每一種組合一份不可變陣列，依語言各留一份：<c>EXEC |</c> 的清單
+    /// 有上千列系統程序，逐列配置陣列就是每一次開清單多上千次配置。
+    /// </remarks>
+    private static readonly SqlLanguageCache<ImmutableArray<ImageElement>[]> MarkElements = new(_ =>
+    {
+        var combinations = new ImmutableArray<ImageElement>[(int)SuggestionMarks.All + 1];
+
+        for (var index = 0; index < combinations.Length; index++)
+        {
+            var builder = ImmutableArray.CreateBuilder<ImageElement>();
+
+            for (var bit = 1; bit <= (int)SuggestionMarks.All; bit <<= 1)
+            {
+                if ((index & bit) != 0)
+                {
+                    builder.Add(GetMarkDefinition((SuggestionMark)bit).Element);
+                }
+            }
+
+            combinations[index] = builder.ToImmutable();
+        }
+
+        return combinations;
+    });
+
     /// <summary>篩選列上分類鈕的圖示：取那一類最具代表性的種類。</summary>
     /// <remarks>
     /// 結構描述與資料庫合成一類，只畫其中一種就只說了一半；影像目錄剛好有一顆資料庫疊著
@@ -122,6 +156,21 @@ internal static partial class SqlIcons
     };
 
     public static ImageElement GetImageElement(SqlObjectKind kind) => GetDefinition(kind).Element;
+
+    /// <summary>建議清單列尾的標記圖示；沒有標記時是空陣列，平台就不畫。</summary>
+    public static ImmutableArray<ImageElement> GetImageElements(SuggestionMark marks) =>
+        marks == SuggestionMark.None
+            ? ImmutableArray<ImageElement>.Empty
+            : MarkElements.Current[(int)marks];
+
+    private static Definition GetMarkDefinition(SuggestionMark mark) => mark switch
+    {
+        SuggestionMark.Destructive => DestructiveMark,
+        SuggestionMark.Deprecated => DeprecatedMark,
+        SuggestionMark.SystemObject => SystemObjectMark,
+        SuggestionMark.RecentlyUsed => RecentlyUsedMark,
+        _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, null)
+    };
 
     private static Definition GetDefinition(SuggestionKind kind) => kind switch
     {

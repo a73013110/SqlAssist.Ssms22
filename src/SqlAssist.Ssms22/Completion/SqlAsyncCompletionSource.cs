@@ -11,7 +11,6 @@ using System.Windows.Threading;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text;
-using Microsoft.VisualStudio.Text.Adornments;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
@@ -614,7 +613,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             sortText: suggestion.DisplayText,
             filterText: suggestion.DisplayText,
             automationText: suggestion.DisplayText,
-            attributeIcons: ImmutableArray<ImageElement>.Empty);
+            attributeIcons: SqlIcons.GetImageElements(SuggestionMarks.Of(suggestion, context)));
 
         // 提交與排名都需要拿回原始建議項；PropertyCollection 是官方提供的掛載點。
         item.Properties.AddProperty(SuggestionKey, suggestion);

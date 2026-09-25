@@ -9,5 +9,9 @@
   "MergeNoKey": "no primary key, match keys left as placeholders",
   "ExecuteExpanded": "Expanded EXEC for {name} (parameters: {count})",
   "FunctionEmptyParentheses": "Added empty parentheses for {name} (no parameters)",
-  "FunctionArguments": "Added arguments for {name} (arguments: {count})"
+  "FunctionArguments": "Added arguments for {name} (arguments: {count})",
+  "MarkDestructive": "Destructive snippet: modifies or deletes data and objects",
+  "MarkDeprecated": "Deprecated type, still supported",
+  "MarkSystemObject": "System object (built into SQL Server)",
+  "MarkRecentlyUsed": "Recently used, listed first within its kind"
 }

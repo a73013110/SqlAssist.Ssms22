@@ -30,7 +30,7 @@
 | 命中高亮、目前那一處、上一個／下一個命中 | [命中高亮與導覽](search-highlight.md) |
 | 文字標記底色、命中與區塊端點的配色 | [文字標記](text-marks.md) |
 | 搜尋範圍、伺服器、資料庫清單 | [範圍](search-scope.md) |
-| 建議清單、排名、IntelliSense | [補全](completion.md) |
+| 建議清單、排名、列尾標記、IntelliSense | [補全](completion.md) |
 | CompletionContext、觸發、大小寫 | [上下文](completion-context.md) |
 | `COLLATE` 之後、定序名單、fn_helpcollations | [定序](completion-collation.md) |
 | `ON` 是資料表或述詞、MERGE 動作子句 | [ON／MERGE](completion-on-merge.md) |
