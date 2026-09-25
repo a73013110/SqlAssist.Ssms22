@@ -136,8 +136,18 @@ internal sealed class SqlStructurePreview
     private static SqlPreviewPlacement Placement =>
         SqlAssistSettingsStore.Current.PreviewPlacement;
 
-    /// <summary>預覽目前是否展開；建議清單的方向鍵處理需要知道。</summary>
+    /// <summary>
+    /// 使用者要不要看預覽：向右鍵、停夠久或獨立入口打開，收合、挑選完成或清單結束才放下。
+    /// </summary>
+    /// <remarks>
+    /// 與「視窗在不在畫面上」分開：展開狀態下選到沒有結構的項目（關鍵字、片段、讀不出
+    /// 資料行的宣告）時只收掉視窗，意圖留著，移回有結構的項目就自己出現。合成同一個狀態
+    /// 的話只剩兩種壞選擇——畫一個寫著「沒有結構」的空視窗擋在清單旁邊，或整個收合，
+    /// 讓使用者每路過一個關鍵字就得再按一次向右鍵。
+    /// </remarks>
     public bool IsExpanded { get; private set; }
+
+    private bool IsShowing => _agent is not null;
 
     /// <summary>目前是不是由建議清單驅動；沒有清單時 Esc 才該由預覽自己吃掉。</summary>
     public bool HasSession => _session is not null;
@@ -225,8 +235,6 @@ internal sealed class SqlStructurePreview
                 _selectionPending = false;
                 _expandWhenSelectionReady = false;
                 DetachInputTracking();
-                _generation++;
-                IsExpanded = false;
                 Hide(restoreEditorFocus: false);
             }
 
@@ -329,13 +337,7 @@ internal sealed class SqlStructurePreview
             _view.TextBuffer.Changed -= OnTextBufferChanged;
         }
 
-        _generation++;
-        StopPendingWork();
-        if (IsExpanded)
-        {
-            IsExpanded = false;
-            Hide(restoreEditorFocus: false);
-        }
+        Hide(restoreEditorFocus: false);
 
         if (_observedSession is { } observed)
         {
@@ -428,11 +430,9 @@ internal sealed class SqlStructurePreview
             _selectionPending = false;
             _expandWhenSelectionReady = false;
             DetachInputTracking();
-            _generation++;
 
             // 挑選結束就收起來——展開狀態不跨越 session，
             // 下一次開清單又是從乾淨的畫面開始。
-            IsExpanded = false;
             Hide(restoreEditorFocus: false);
         });
     }
@@ -487,11 +487,8 @@ internal sealed class SqlStructurePreview
         _selectedItemHasContent = subject is not null;
 
         // 平台一次換選取會通知好幾輪，多數輪次解析出來的是同一個東西。
-        // 展開狀態下解析出 null 是例外：那時畫面上可能還停在「正在取得目前建議項目…」，
-        // 得讓它走下去換成正式訊息。
         var sameContent = SqlPreviewSubject.IsSame(_subject, subject) &&
-                          ReferenceEquals(_metadataService, metadataService) &&
-                          (!IsExpanded || subject is not null);
+                          ReferenceEquals(_metadataService, metadataService);
 
         if (!sameContent)
         {
@@ -525,7 +522,7 @@ internal sealed class SqlStructurePreview
 
             if (subject is null)
             {
-                ShowNothingToShow();
+                RemoveWindow(restoreEditorFocus: false);
                 return;
             }
 
@@ -550,11 +547,17 @@ internal sealed class SqlStructurePreview
         _timer.Start();
     }
 
-    /// <summary>展開預覽；已經展開時回傳 false，讓按鍵照原本的方式往下走。</summary>
+    /// <summary>
+    /// 展開預覽；已經展開、或目前這一項沒有東西可畫時回傳 false，讓按鍵照原本的方式往下走。
+    /// </summary>
     public bool Expand()
     {
         var settings = SqlAssistSettingsStore.Current;
-        if (_closed || IsExpanded || !settings.Enabled || settings.PreviewMode == SqlPreviewMode.Off)
+        if (_closed ||
+            IsExpanded ||
+            _subject is not { } subject ||
+            !settings.Enabled ||
+            settings.PreviewMode == SqlPreviewMode.Off)
         {
             return false;
         }
@@ -566,22 +569,15 @@ internal sealed class SqlStructurePreview
             _anchor = session.ApplicableToSpan;
         }
 
-        if (_subject is { } subject)
-        {
-            ShowSubject(subject, _metadataService);
-        }
-        else
-        {
-            EnsureControl()?.ShowMessage(
-                PreviewText.Title,
-                _session is null ? PreviewText.NothingToShowSentence : PreviewText.FetchingCurrentItem);
-            ShowAgent();
-        }
-
+        ShowSubject(subject, _metadataService);
         return true;
     }
 
-    /// <summary>收合預覽；本來就沒展開時回傳 false。</summary>
+    /// <summary>收合預覽；畫面上沒有預覽時回傳 false，讓向左鍵照常移動游標。</summary>
+    /// <remarks>
+    /// 展開中但視窗因為這一項沒有結構而收著時，也照常移動游標：使用者眼前沒有東西可以收，
+    /// 吞掉這一鍵看起來就是游標卡住了。展開意圖一併放下。
+    /// </remarks>
     public bool Collapse()
     {
         if (!IsExpanded)
@@ -596,10 +592,9 @@ internal sealed class SqlStructurePreview
             return false;
         }
 
-        _expandWhenSelectionReady = false;
-        IsExpanded = false;
+        var wasShowing = IsShowing;
         Hide(restoreEditorFocus: false);
-        return true;
+        return wasShowing;
     }
 
     /// <summary>
@@ -665,32 +660,36 @@ internal sealed class SqlStructurePreview
         });
     }
 
-    /// <summary>收掉視窗；本來就沒顯示時回傳 false。</summary>
-    public bool Hide() => Hide(restoreEditorFocus: false);
-
+    /// <summary>收掉視窗並放下展開意圖；本來就沒顯示時回傳 false。</summary>
     private bool Hide(bool restoreEditorFocus)
     {
         _generation++;
         StopPendingWork();
+        IsExpanded = false;
+        _expandWhenSelectionReady = false;
+        return RemoveWindow(restoreEditorFocus);
+    }
 
+    /// <summary>只收掉視窗，展開意圖不動；本來就沒顯示時回傳 false。</summary>
+    private bool RemoveWindow(bool restoreEditorFocus)
+    {
         if (_agent is not { } agent || _manager is not { } manager)
         {
             return false;
         }
 
+        // 先放開再移除：移除會發 AgentChanged，而那個處理常式把「agent 不見了」當成外力
+        // 收掉（失焦、編輯器重排）並放下展開意圖。自己收的不能走那條，否則選到關鍵字時
+        // 暫時收起視窗，會連帶讓移回資料表時不再出現。
+        _agent = null;
+
         SqlAssistPlatformGuard.Run("收起結構預覽", () =>
         {
             var hadFocus = agent.HasFocus;
-            var removed = manager.RemoveAgent(agent);
-            if (!removed)
-            {
-                // Manager 已先移除時仍要確定關掉 HWND，不留下孤兒 Popup。
-                agent.Dispose();
-                if (ReferenceEquals(_agent, agent))
-                {
-                    _agent = null;
-                }
-            }
+            manager.RemoveAgent(agent);
+
+            // 不論 manager 是否已先移除，都要確定關掉 HWND，不留下孤兒 Popup。
+            agent.Dispose();
 
             // 焦點在預覽裡時直接移除，鍵盤會落到不明的地方；還給編輯器。
             // 只有使用者從預覽主動關閉才還焦點；Alt+Tab／session 結束不能搶回 SSMS。
@@ -807,22 +806,8 @@ internal sealed class SqlStructurePreview
         _selectedItemHasContent = false;
         _selectionPending = false;
         _expandWhenSelectionReady = false;
-        if (IsExpanded)
-        {
-            ShowNothingToShow();
-        }
+        RemoveWindow(restoreEditorFocus: false);
     }
-
-    /// <summary>
-    /// 這一項沒有東西可畫。
-    /// </summary>
-    /// <remarks>
-    /// 對帳中途與對帳落空是兩個進入點，話卻只有一句：寫成兩份的症狀是同一個情況在
-    /// 使用者眼前有兩種說法。也不能再說成「不是資料庫物件」——內建名稱現在畫得出來，
-    /// 選到 CONVERT 的人看到那句話只會以為是自己按錯了。
-    /// </remarks>
-    private void ShowNothingToShow() =>
-        EnsureControl()?.ShowMessage(PreviewText.NothingToShowTitle, PreviewText.NothingToShowMessage);
 
     /// <summary>
     /// 等平台先處理完這次鍵盤／滑鼠輸入，再從背景取得最新選取。
@@ -1071,11 +1056,17 @@ internal sealed class SqlStructurePreview
         {
             control.Populate(declared);
         }
+        else if (_session is not null)
+        {
+            // 從建議清單路過的：沒有結構就不佔位置，與關鍵字同一條規則。
+            RemoveWindow(restoreEditorFocus: false);
+            return;
+        }
         else
         {
-            // 名稱認得出來、資料行讀不出來：SELECT * INTO #Loan FROM dbo.Loan 的欄位
-            // 只有中繼資料知道，而這條路徑不等查詢。說出實情，不要畫一個空的結構
-            // 讓人以為它真的沒有欄位。
+            // 使用者指名要看的（停留提示、Ctrl+F12）：名稱認得出來、資料行讀不出來——
+            // SELECT * INTO #Loan FROM dbo.Loan 的欄位只有中繼資料知道，而這條路徑不等查詢。
+            // 說出實情，不要畫一個空的結構讓人以為它真的沒有欄位。
             control.ShowMessage(
                 objectInfo.QualifiedName,
                 PreviewText.ScriptDeclaredNoColumns);
@@ -1213,12 +1204,7 @@ internal sealed class SqlStructurePreview
 
     private void OnCloseRequested(object sender, EventArgs eventArgs)
     {
-        SqlAssistPlatformGuard.Run("關閉結構預覽", () =>
-        {
-            _expandWhenSelectionReady = false;
-            IsExpanded = false;
-            Hide(restoreEditorFocus: true);
-        });
+        SqlAssistPlatformGuard.Run("關閉結構預覽", () => Hide(restoreEditorFocus: true));
     }
 
     private void OnResizeStarted(object sender, PreviewResizeDragEventArgs eventArgs)
@@ -1545,7 +1531,7 @@ internal sealed class SqlStructurePreview
     private void OnLanguageChanged(object? sender, EventArgs eventArgs)
     {
         if (_closed) return;
-        Hide();
+        Hide(restoreEditorFocus: false);
         ReleaseControl();
     }
 

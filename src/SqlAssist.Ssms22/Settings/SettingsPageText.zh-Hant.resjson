@@ -63,7 +63,7 @@
   "SuggestionsTriggerAfterCharactersTitle": "輸入幾個字元後才彈出清單",
   "SuggestionsTriggerAfterCharactersDescription": "只影響沒有限定詞的位置。輸入 a. 這種指定別名或結構描述的位置一律立刻彈出。",
   "SuggestionsShowCategoryFiltersTitle": "在建議清單上方顯示分類篩選列",
-  "SuggestionsShowCategoryFiltersDescription": "按下欄位、資料表、檢視等按鈕只看該分類，也可以按 Alt 加上按鈕的存取鍵。不選任何一顆就是全部。清單裡只有一種分類時不會出現。",
+  "SuggestionsShowCategoryFiltersDescription": "按下欄位、資料表、檢視等按鈕只看該分類，可以多選；也可以按 Alt 加上按鈕由左至右的位置數字（Alt+1～Alt+9，第十顆是 Alt+0）。不選任何一顆就是全部。打字後沒有命中的分類會變灰。清單裡只有一種分類時不會出現。",
   "SuggestionsIncludeSnippetsTitle": "列出程式碼片段",
   "SuggestionsIncludeSnippetsDescription": "把內建與自訂的程式碼片段一起列進建議清單。內建片段共 49 筆。",
   // 設定旁的按鈕

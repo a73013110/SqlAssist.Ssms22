@@ -303,7 +303,7 @@
       "order": 130,
       "title": "@SuggestionsShowCategoryFiltersTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "description": "@SuggestionsShowCategoryFiltersDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
-      "additionalKeywords": [ "filter", "只看欄位", "只看資料表", "存取鍵", "工具列" ],
+      "additionalKeywords": [ "filter", "只看欄位", "只看資料表", "快捷鍵", "Alt+1", "工具列" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
     "sqlAssist.suggestions.includeSnippets": {

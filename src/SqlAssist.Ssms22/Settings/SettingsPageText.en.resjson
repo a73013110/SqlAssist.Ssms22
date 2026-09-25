@@ -60,7 +60,7 @@
   "SuggestionsTriggerAfterCharactersTitle": "Characters to type before the list appears",
   "SuggestionsTriggerAfterCharactersDescription": "Applies only where there's no qualifier. After an alias or schema such as a., the list always appears immediately.",
   "SuggestionsShowCategoryFiltersTitle": "Show category filter buttons above the suggestion list",
-  "SuggestionsShowCategoryFiltersDescription": "Click Columns, Tables, Views, and so on to show only that category, or press Alt with the button's access key. With nothing selected, everything is shown. Hidden when the list has only one category.",
+  "SuggestionsShowCategoryFiltersDescription": "Click Columns, Tables, Views, and so on to show only that category, or select multiple; you can also press Alt plus the button's position from left to right (Alt+1 to Alt+9; the tenth is Alt+0). With nothing selected, everything is shown. Categories with no matches for what you type are grayed out. Hidden when the list has only one category.",
   "SuggestionsIncludeSnippetsTitle": "List code snippets",
   "SuggestionsIncludeSnippetsDescription": "Lists built-in and custom code snippets in the suggestion list. There are 49 built-in snippets.",
   "SuggestionsIncludeSnippetsCommand": "Edit code snippets...",

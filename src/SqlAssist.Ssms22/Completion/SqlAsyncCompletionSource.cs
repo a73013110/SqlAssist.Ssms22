@@ -60,6 +60,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// </remarks>
     internal const string QualifierSlotKey = "SqlAssist.QualifierSlot";
 
+    /// <summary>這份清單的分類篩選列（<see cref="SqlCompletionFilterBar"/>）。</summary>
+    /// <remarks>
+    /// 與 <see cref="FieldDefaultKey"/> 同理放在 session 上：按鈕的數字照這份清單的畫面位置編，
+    /// 排名器要拿同一組實體才認得平台交回來的是哪一顆。
+    /// </remarks>
+    internal const string FilterBarKey = "SqlAssist.FilterBar";
+
     /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
     private static SqlSnippetLibrary? _builtInSnippets;
 
@@ -296,13 +303,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             return CompletionContext.Empty;
         }
 
-        // 分類是否掛得上要看整份清單，不是逐項決定的：只有一種分類時
-        // 篩選列不該出現。
-        var withFilters = settings.ShowCategoryFilters &&
-            SqlCompletionFilters.HasMultipleCategories(suggestions);
+        // 篩選列看整份清單決定，不是逐項決定的：只有一種分類時不該出現。
+        var filterBar = settings.ShowCategoryFilters
+            ? SqlCompletionFilterBar.Create(suggestions)
+            : null;
 
         var items = suggestions
-            .Select(suggestion => CreateItem(suggestion, settings, context, withFilters))
+            .Select(suggestion => CreateItem(suggestion, settings, context))
             .ToImmutableArray();
 
         // 使用者感受到的就是這個數字：從平台要清單，到清單交出去為止。
@@ -316,7 +323,14 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
         // 只有真的產出 SqlAssist items 才取得 ownership；空 context 可能仍由別的來源顯示。
         OwnPreviewSession(session);
-        return new CompletionContext(items);
+
+        if (filterBar is null)
+        {
+            return new CompletionContext(items, ImmutableArray<CompletionFilterWithState>.Empty);
+        }
+
+        session.Properties[FilterBarKey] = filterBar;
+        return new CompletionContext(items, filterBar.InitialStates);
     }
 
     /// <summary>
@@ -390,16 +404,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         {
             preview.ReconcileSelection(session, _metadataService);
 
-            // 預覽已經展開時整份讓給它：兩個視窗同時貼在清單旁邊會互相搶位置。展開狀態
-            // 下它畫得出資料庫物件、指令碼自己宣告的名稱與內建說明，只有其餘的項目才說
-            // 沒有東西可以顯示。
+            // 預覽已經展開、而且這一項畫得出東西時整份讓給它：兩個視窗同時貼在清單旁邊
+            // 會互相搶位置。畫不出東西的項目（關鍵字、片段）預覽會把視窗收起來，說明面板
+            // 就得照常畫，否則展開之後路過關鍵字時旁邊什麼都沒有。
             //
             // 還沒展開時畫面上根本沒有那個視窗，說明面板照常畫——一併吞掉的症狀是
             // 打開浮動預覽之後，選到 CONVERT 連引數順序那一行都不見了。內建說明沒有跟著
             // 物件一起讓掉，因為這一份正是「一眼看得完」的那一半，而且查表就有；
             // 看不完的對照表才是向右鍵要開的東西。物件先讓掉的理由則是成本：那一條要
             // await 一次 GetDetailAsync，而使用者多半只是按著方向鍵路過。
-            if (preview.IsExpanded || objectInfo is not null)
+            if (objectInfo is not null ||
+                preview.IsExpanded && SqlSuggestionTarget.Describe(suggestion) is not null)
             {
                 return null;
             }
@@ -580,8 +595,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     private CompletionItem CreateItem(
         SqlSuggestion suggestion,
         SqlAssistSettings settings,
-        SqlCompletionContext context,
-        bool withFilters)
+        SqlCompletionContext context)
     {
         var item = new CompletionItem(
             displayText: suggestion.DisplayText,
@@ -589,9 +603,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             // 篩選類別與圖示不是同一個問題：同義字歸入資料表那一類，圖示仍須
             // 呈現真正的物件種類，判斷整份在 SqlIcons。
             icon: SqlIcons.GetImageElement(suggestion),
-            filters: withFilters
-                ? SqlCompletionFilters.For(suggestion.Kind)
-                : ImmutableArray<CompletionFilter>.Empty,
+            // 不逐項掛篩選器：篩選列整組由 CompletionContext 交出，排名器從建議項的
+            // 種類認分類。掛在項目上的只會讓平台多推一份順序不對的按鈕。
+            filters: ImmutableArray<CompletionFilter>.Empty,
             suffix: suggestion.Description,
             insertText: SqlInsertionText.Build(suggestion, context, settings),
             sortText: suggestion.DisplayText,

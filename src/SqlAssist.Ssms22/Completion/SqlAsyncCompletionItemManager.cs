@@ -107,9 +107,7 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
     /// <summary>項目在沒有輸入前綴時的分數。</summary>
     private static int StandingScore(CompletionItem item)
     {
-        return item.Properties.TryGetProperty<SqlSuggestion>(
-            SqlAsyncCompletionSource.SuggestionKey,
-            out var suggestion) && suggestion is not null
+        return SuggestionOf(item) is { } suggestion
             ? SuggestionMatcher.ComposeStandingScore(suggestion)
             : 0;
     }
@@ -126,33 +124,46 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             SqlAssistPlatformGuard.RunPropagatingCancellation(
                 "建議清單篩選",
                 () => Filter(session, data, token),
-                fallback: () => Passthrough(data, GetSelectedFilters(data))));
+                fallback: () => Unfiltered(data)));
     }
 
+    /// <remarks>
+    /// 回傳 null 時平台會關閉 session，兩條路都只在一個都沒有時才這樣做。分類篩選照
+    /// <see cref="SuggestionCategoryFilter"/> 的規則不會把清單篩空，所以不會交出空清單——
+    /// 平台對空清單的處理是顯示「無建議」或退回上一份舊清單，兩種都是錯的畫面。
+    /// </remarks>
     private static FilteredCompletionModel? Filter(
         IAsyncCompletionSession session,
         AsyncCompletionSessionDataSnapshot data,
         CancellationToken token)
     {
-        var items = data.InitialSortedItemList;
-        var selected = GetSelectedFilters(data);
         var pattern = FuzzyMatcher.NormalizePattern(GetTypedText(session, data));
+        var filterBar = session.Properties.TryGetProperty<SqlCompletionFilterBar>(
+            SqlAsyncCompletionSource.FilterBarKey,
+            out var bar)
+            ? bar
+            : null;
 
-        if (pattern.Length == 0)
-        {
-            return Passthrough(data, selected);
-        }
+        return pattern.Length == 0
+            ? ListWithoutPrefix(data, filterBar)
+            : Rank(data, pattern, filterBar, token);
+    }
 
+    private static FilteredCompletionModel? Rank(
+        AsyncCompletionSessionDataSnapshot data,
+        string pattern,
+        SqlCompletionFilterBar? filterBar,
+        CancellationToken token)
+    {
+        var items = data.InitialSortedItemList;
         var scored = new List<ScoredItem>(items.Count);
+        var matched = SuggestionCategorySet.Empty;
 
+        // 先不看分類把每一項比對完：哪幾顆按鈕還有命中，要看全部的命中才知道。
+        // 沒按任何分類時本來就要比對每一項，這一步只多一次 OR。
         foreach (var item in items)
         {
             token.ThrowIfCancellationRequested();
-
-            if (!IsIncluded(item, selected))
-            {
-                continue;
-            }
 
             var match = FuzzyMatcher.MatchNormalized(pattern, item.DisplayText);
 
@@ -161,33 +172,34 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
                 continue;
             }
 
-            scored.Add(new ScoredItem(item, ComposeScore(item, match, pattern), match.Spans));
+            var suggestion = SuggestionOf(item);
+            var category = CategoryOf(suggestion);
+
+            if (category is { } known)
+            {
+                matched = matched.With(known);
+            }
+
+            scored.Add(new ScoredItem(item, category, ComposeScore(suggestion, match, pattern), match.Spans));
         }
 
         if (scored.Count == 0)
         {
-            // 一個都沒中時回傳 null，平台會關閉 session，
-            // 而不是留一份空清單擋在游標旁邊。
-            //
-            // 但被分類篩選器篩空時不能關：篩選列會跟著消失，
-            // 使用者連取消剛才按下的那顆都做不到。留一份空清單等他再按一次。
-            return selected.Count == 0
-                ? null
-                : new FilteredCompletionModel(
-                    ImmutableArray<CompletionItemWithHighlight>.Empty,
-                    0,
-                    SqlCompletionFilters.Sort(data.SelectedFilters));
+            return null;
         }
+
+        var (applied, filters) = ApplyFilters(data, filterBar, matched);
 
         // 同分時保留原順序（排序是穩定的），不改成字母序：交進來的清單已經是
         // 排好的——欄位是資料表定義順序，物件與關鍵字是名稱順序。
         var filtered = scored
+            .Where(entry => IsIncluded(applied, entry.Category))
             .OrderByDescending(entry => entry.Score)
             .Take(MaximumItems)
             .Select(entry => new CompletionItemWithHighlight(entry.Item, ToSpans(entry.Spans)))
             .ToImmutableArray();
 
-        return new FilteredCompletionModel(filtered, 0, SqlCompletionFilters.Sort(data.SelectedFilters));
+        return new FilteredCompletionModel(filtered, 0, filters);
     }
 
     /// <summary>
@@ -196,88 +208,83 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
     /// <remarks>
     /// 不走上面的評分路徑，是因為空前綴時所有分數相同，一排序就會被
     /// <c>ThenBy(DisplayText)</c> 重排，敘述範圍內的欄位優先這件事就沒了。
+    ///
+    /// 空前綴什麼都比得中，所以每顆按鈕都算有命中。危險片段在沒按分類時隱藏是呈現規則，
+    /// 不是比對結果：算成沒命中的話，只剩危險片段的那一類會變灰，主動按那顆也叫不出來。
     /// </remarks>
-    private static FilteredCompletionModel Passthrough(
+    private static FilteredCompletionModel? ListWithoutPrefix(
         AsyncCompletionSessionDataSnapshot data,
-        List<CompletionFilter> selected)
+        SqlCompletionFilterBar? filterBar)
     {
+        var (applied, filters) = ApplyFilters(data, filterBar, filterBar?.Present ?? SuggestionCategorySet.Empty);
         var builder = ImmutableArray.CreateBuilder<CompletionItemWithHighlight>(data.InitialSortedItemList.Count);
 
         foreach (var item in data.InitialSortedItemList)
         {
-            if (IsIncluded(item, selected) && !IsDestructiveWithoutPrefix(item, selected))
+            var suggestion = SuggestionOf(item);
+
+            if (IsIncluded(applied, CategoryOf(suggestion)) &&
+                (suggestion is null ||
+                 SuggestionMatcher.IsVisibleWithoutPrefix(suggestion, categorySelected: !applied.IsEmpty)))
             {
                 builder.Add(new CompletionItemWithHighlight(item));
             }
         }
 
-        return new FilteredCompletionModel(
-            builder.ToImmutable(),
-            0,
-            SqlCompletionFilters.Sort(data.SelectedFilters));
+        return builder.Count == 0
+            ? null
+            : new FilteredCompletionModel(builder.ToImmutable(), 0, filters);
     }
 
-    private static bool IsDestructiveWithoutPrefix(
-        CompletionItem item,
-        IReadOnlyCollection<CompletionFilter> selected)
+    /// <summary>篩選失敗時的替代值：整份清單原樣交出，按鈕狀態原封不動。</summary>
+    private static FilteredCompletionModel Unfiltered(AsyncCompletionSessionDataSnapshot data)
     {
-        // 使用者主動按了分類篩選鈕時照樣列出；只有 Ctrl+Space 的「全部」首頁隱藏。
-        return item.Properties.TryGetProperty<SqlSuggestion>(
-                   SqlAsyncCompletionSource.SuggestionKey,
-                   out var suggestion) &&
-               suggestion is not null &&
-               !SuggestionMatcher.IsVisibleWithoutPrefix(
-                   suggestion,
-                   categorySelected: selected.Count > 0);
-    }
+        var builder = ImmutableArray.CreateBuilder<CompletionItemWithHighlight>(data.InitialSortedItemList.Count);
 
-    /// <summary>使用者按下的分類篩選鈕。</summary>
-    /// <remarks>
-    /// 平台只負責畫這排按鈕與記住按下的狀態；過濾要自己做。
-    /// 清單由這個 item manager 產出，不讀這份狀態的話，按鈕會按得下去卻沒有作用。
-    /// </remarks>
-    private static List<CompletionFilter> GetSelectedFilters(AsyncCompletionSessionDataSnapshot data)
-    {
-        var selected = new List<CompletionFilter>(data.SelectedFilters.Length);
-
-        foreach (var state in data.SelectedFilters)
+        foreach (var item in data.InitialSortedItemList)
         {
-            if (state.IsSelected)
-            {
-                selected.Add(state.Filter);
-            }
+            builder.Add(new CompletionItemWithHighlight(item));
         }
 
-        return selected;
+        return new FilteredCompletionModel(builder.MoveToImmutable(), 0, data.SelectedFilters);
     }
 
     /// <summary>
-    /// 這一項通過分類篩選了嗎。
+    /// 這一輪套用的分類與要畫回去的按鈕。
     /// </summary>
     /// <remarks>
-    /// 沒按任何一顆＝全部，因此不必另外做一顆「全部」。
-    ///
-    /// 沒有分類的項目一律列出。這是防呆而不是設計：
-    /// <see cref="SqlCompletionFilters.For"/> 會把每一種建議都歸到一顆篩選鈕上
-    /// （歸不了的收在「其他」），所以掛著篩選列時走不到這條。真的走到了——
-    /// 例如日後多出一種沒對應到的項目——寧可讓它照樣出現，也不要無聲消失。
+    /// 平台只負責畫按鈕與記住按下的狀態；過濾要自己做。沒有篩選列的清單（只有一類、
+    /// 或設定關掉）照平台交來的狀態原樣交回，而那份是空的。
     /// </remarks>
-    private static bool IsIncluded(CompletionItem item, List<CompletionFilter> selected)
+    private static (SuggestionCategorySet Applied, ImmutableArray<CompletionFilterWithState> Filters) ApplyFilters(
+        AsyncCompletionSessionDataSnapshot data,
+        SqlCompletionFilterBar? filterBar,
+        SuggestionCategorySet matched)
     {
-        if (selected.Count == 0 || item.Filters.IsDefaultOrEmpty)
-        {
-            return true;
-        }
+        return filterBar is null
+            ? (SuggestionCategorySet.Empty, data.SelectedFilters)
+            : filterBar.Apply(data.SelectedFilters, matched);
+    }
 
-        foreach (var filter in item.Filters)
-        {
-            if (selected.Contains(filter))
-            {
-                return true;
-            }
-        }
+    /// <remarks>
+    /// 沒有分類的項目一律留下：不參與分類篩選的種類（見 <see cref="SuggestionCategories.Of"/>），
+    /// 以及同一個 session 裡別的來源的項目，都不該因為使用者按了我們的按鈕而無聲消失。
+    /// </remarks>
+    private static bool IsIncluded(SuggestionCategorySet applied, SuggestionCategory? category)
+    {
+        return category is not { } known || SuggestionCategoryFilter.Includes(applied, known);
+    }
 
-        return false;
+    private static SqlSuggestion? SuggestionOf(CompletionItem item)
+    {
+        return item.Properties.TryGetProperty<SqlSuggestion>(SqlAsyncCompletionSource.SuggestionKey, out var suggestion)
+            ? suggestion
+            : null;
+    }
+
+    private static SuggestionCategory? CategoryOf(SqlSuggestion? suggestion)
+    {
+        return suggestion is null ? null : SuggestionCategories.Of(suggestion.Kind);
     }
 
     /// <summary>
@@ -318,11 +325,9 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
     /// 與自製清單共用 <see cref="SuggestionMatcher.ComposeScore"/>，
     /// 讓兩種引擎的排序結果一致。
     /// </remarks>
-    private static int ComposeScore(CompletionItem item, FuzzyMatchResult match, string pattern)
+    private static int ComposeScore(SqlSuggestion? suggestion, FuzzyMatchResult match, string pattern)
     {
-        return item.Properties.TryGetProperty<SqlSuggestion>(
-            SqlAsyncCompletionSource.SuggestionKey,
-            out var suggestion) && suggestion is not null
+        return suggestion is not null
             ? SuggestionMatcher.ComposeScore(suggestion, match, pattern)
             : match.Score * 128;
     }
@@ -346,14 +351,17 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
 
     private readonly struct ScoredItem
     {
-        public ScoredItem(CompletionItem item, int score, IReadOnlyList<MatchSpan> spans)
+        public ScoredItem(CompletionItem item, SuggestionCategory? category, int score, IReadOnlyList<MatchSpan> spans)
         {
             Item = item;
+            Category = category;
             Score = score;
             Spans = spans;
         }
 
         public CompletionItem Item { get; }
+
+        public SuggestionCategory? Category { get; }
 
         public int Score { get; }
 

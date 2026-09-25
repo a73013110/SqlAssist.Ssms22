@@ -7,6 +7,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Model;
+using SqlAssist.Ssms22.Completion;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -73,9 +74,29 @@ internal static partial class SqlIcons
     /// 再多一類就分不出誰是誰。
     /// </remarks>
     private static readonly Definition Collation = new(KnownMonikers.SortAscending, () => SqlKindText.Collation);
-    private static readonly Definition Other = new(KnownMonikers.Ellipsis, () => CommonText.Other);
+    private static readonly Definition SchemaOrDatabase =
+        new(KnownMonikers.DatabaseSchema, () => CompletionText.FilterSchemasAndDatabases);
 
-    public static ImageElement Ellipsis => Other.Element;
+    /// <summary>篩選列上分類鈕的圖示：取那一類最具代表性的種類。</summary>
+    /// <remarks>
+    /// 結構描述與資料庫合成一類，只畫其中一種就只說了一半；影像目錄剛好有一顆資料庫疊著
+    /// 結構描述的圖示。
+    /// </remarks>
+    public static ImageElement GetImageElement(SuggestionCategory category) => (category switch
+    {
+        SuggestionCategory.Column => Column,
+        SuggestionCategory.Table => Table,
+        SuggestionCategory.View => View,
+        SuggestionCategory.Procedure => Procedure,
+        SuggestionCategory.ScalarFunction => ScalarFunction,
+        SuggestionCategory.TableFunction => TableFunction,
+        SuggestionCategory.Sequence => Sequence,
+        SuggestionCategory.BuiltInFunction => BuiltInFunction,
+        SuggestionCategory.Keyword => Keyword,
+        SuggestionCategory.Snippet => Snippet,
+        SuggestionCategory.SchemaOrDatabase => SchemaOrDatabase,
+        _ => throw new ArgumentOutOfRangeException(nameof(category), category, null)
+    }).Element;
 
     public static ImageMoniker GetMoniker(SuggestionKind kind) => GetDefinition(kind).Moniker;
 

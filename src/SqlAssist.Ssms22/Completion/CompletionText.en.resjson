@@ -1,5 +1,6 @@
 {
   "FilterTableFunctions": "Table-valued functions (inline and multi-statement)",
+  "FilterSchemasAndDatabases": "Schemas and databases (including linked servers)",
   "CommandHandlerName": "SqlAssist structure preview actions",
   "AlterExpanded": "Expanded full ALTER statement for {name}",
   "InsertExpanded": "Expanded INSERT for {name} with VALUES (columns: {count})",

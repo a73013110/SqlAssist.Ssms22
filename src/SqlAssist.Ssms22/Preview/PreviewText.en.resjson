@@ -1,9 +1,4 @@
 {
-  "Title": "Structure preview",
-  "FetchingCurrentItem": "Fetching current suggestion…",
-  "NothingToShowSentence": "No structure to display.",
-  "NothingToShowTitle": "No structure to display",
-  "NothingToShowMessage": "The currently selected item has nothing to display.",
   "ScriptDeclaredNoColumns": "This name was declared by the script itself but its columns cannot be read from the current text.",
   "NoConnection": "No connection available; connect to a database in the query window first.",
   "PartSeparator": "; ",

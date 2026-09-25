@@ -1,6 +1,7 @@
 {
-  // 建議清單上方的分類篩選鈕只有這一顆要補充說明；其餘直接用 SqlKindText 的複數形。
+  // 建議清單上方的分類篩選鈕只有這兩顆要補充說明；其餘直接用 SqlKindText 的複數形。
   "FilterTableFunctions": "資料表值函式（含內嵌與多敘述）",
+  "FilterSchemasAndDatabases": "結構描述與資料庫（含連結伺服器）",
   // 編輯器命令處理常式的顯示名稱（Visual Studio 在效能提示裡會列出）。
   "CommandHandlerName": "SqlAssist 結構預覽操作",
   // 提交建議後把名稱展開成整句時，通知上的結果；name 是物件的限定名稱。
