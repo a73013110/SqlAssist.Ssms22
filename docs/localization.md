@@ -16,12 +16,11 @@
 - 各語言的鍵、佔位符不一致、缺檔，或非中日韓語言的譯文含中日韓字元（漏翻），都是建置錯誤
   （SQLTXT001–011），不在執行期退回來源語言。
 - 不用 resx：衛星組件要靠 VSIX 探測路徑與隔離 AppDomain 各自載入，載不到只會安靜退回；
-  產生器把所有語言編進同一個組件，參數個數也由編譯器檢查。XML 對 diff 與 AI 也都貴。
+  產生器把所有語言編進同一個組件，參數個數也由編譯器檢查。
 - 唯一例外是設定頁：註冊檔只能寫 `@鍵;{packageGuid}`，由 SSMS 到套件組件的資源查表。文字照樣寫在
   `Ssms22/Settings/SettingsPageText.<語言>.resjson`、照同一流程翻譯；檔案標 `SqlAssistTextResourceOnly`，
   產生器照同一套 SQLTXT 規則驗證但不產生類別。`SettingsPageText.targets` 在建置時把英文編成中性資源
-  、其餘語言編成衛星組件，註冊檔引用不存在的鍵是 SQLSET006。衛星組件在
-  Deploy 白名單裡，缺了只會安靜退回英文。
+  、其餘語言編成衛星組件（在 Deploy 白名單裡，缺了只會安靜退回英文）；引用不存在的鍵是 SQLSET006。
 - 中性語言一律是英文：設定頁資源、命令表（`Menus.vsct`）與 vsixmanifest 都寫英文，繁中分別走衛星組件、
   `TextChanges` 與 `zh-Hant/Extension.vsixlangpack`。
 - 語言清單只有根目錄 `Directory.Build.props` 的 `SqlAssistTextLanguages` 一份（逗號分隔）。
@@ -41,11 +40,11 @@
   | `BuiltInDocs` 的 `tables` | `tables.<編號>` | `title`、`columns.<欄>`、`rows.<列>.<欄>` |
   | `DefaultSnippets` | `id` | `title`、`description`、`code`、`placeholders.<欄位 id>.tooltip`／`.default` |
 
-- 範例與片段樣板只翻 `--` 註解與中文字串常值，`$surround$`、`{name}` 原樣保留；`SqlTextOverlayTests` 守編號、欄位與標記。
+- 範例與片段樣板只翻 `--` 註解與中文字串常值，`$surround$`、`{name}` 原樣保留。
 - 覆蓋檔內嵌時標 `WithCulture="false"`，否則 MSBuild 把 `.en.json` 當文化資源拆進衛星組件。
 - 關鍵字目錄（`SqlDataTypeCatalog` 這幾個 `.cs`）的一行說明走 `.resjson` 而不是覆蓋檔：覆蓋檔要把中文來源留成
   字面值（SQLTXT100 擋），`.resjson` 的鍵由編譯器檢查。目錄存 `() => DataTypeText.Int`，取值時才讀語言。
-- 提示視窗的截斷上限以字元計、不分語言，英文照同一個上限寫得精簡；`SqlBuiltInDocCatalogTests` 兩種語言都檢查。
+- 提示視窗的截斷上限以字元計、不分語言，英文照同一個上限寫得精簡。
   不改成依顯示寬度截斷：同一條路徑也截使用者的擴充屬性說明，放寬會連它一起放寬。
 
 ## 什麼不翻
@@ -53,9 +52,8 @@
 - 診斷紀錄、平台防護的作業名稱與診斷報告：給維護者比對，固定繁中。在接收的參數或所在成員
   標 BCL 的 `[Localizable(false)]`（CA1303 同一套語意），SQLTXT100 就不檢查。
 - 使用者資料（SQL Memory、收藏、自訂片段）與 SQL Server 回傳的訊息。未命名查詢視窗的預設文件名稱照擷取當下的
-  語言存進 `Documents.DisplayName`，不改存代碼：SSMS 的查詢視窗一定帶標題，這條幾乎走不到，改存代碼卻要動讀取、
-  名稱搜尋與排序。
-- 設定鍵、moniker、列舉字面值與儲存格式：那是資料。
+  語言存進 `Documents.DisplayName`：查詢視窗一定帶標題，這條幾乎走不到，不值得為它改存代碼。
+- 設定鍵、moniker、列舉字面值與儲存格式。
 - 已經寫進編輯器的文字不回頭改；之後產生的指令碼註解用當下的語言。
 
 ## 目前語言
@@ -67,8 +65,7 @@
 - 設定生效前是來源語言，所以既有測試的中文斷言不必改。固定語言用 `SqlText.Use(...)`
   （AsyncLocal，平行測試互不干擾）；會切換全域語言的測試放進不平行的集合。
 - 隔離 AppDomain（SQL Memory 儲存）有自己一份 `SqlText.Current`，不跟著宿主切換。隔離側只回分類、原因碼與
-  錯誤碼，例外訊息當診斷（`SqlMemoryStorageException` 的訊息參數標了 `[Localizable(false)]`）；
-  給使用者的句子由宿主的 `SqlMemoryTimeText.Describe` 組。
+  錯誤碼，例外訊息當診斷；給使用者的句子由宿主的 `SqlMemoryTimeText.Describe` 組。
 
 ## 即時切換
 
@@ -87,17 +84,17 @@
 | 選單命令 | 命令表每顆標 `TextChanges`，QueryStatus 設 `Text`；`Test-CommandTable.ps1` 核對 |
 | 字型與色彩的分類名稱（`ClassificationFormatDefinition`） | MEF 建立時定字，重新啟動 SSMS 才換 |
 | 強制回應對話框 | 開著時進不了設定，不處理 |
-| 設定頁、擴充功能清單、鍵盤頁的命令名稱 | 跟隨 SSMS 介面語言，本設定管不到：設定頁走 `@key;{packageGuid}` 資源，清單走 `zh-Hant/Extension.vsixlangpack`，命令名稱（`LocCanonicalName`）只有英文 |
+| 設定頁、擴充功能清單、鍵盤頁的命令名稱 | 跟隨 SSMS 介面語言，本設定管不到；命令名稱（`LocCanonicalName`）只有英文 |
 
-## 新增介面文字（省 token 的做法）
+## 新增介面文字
 
-SQLTXT100 全面開著，沒有暫時豁免的資料夾；只進紀錄的文字在接收端標 `[Localizable(false)]`。
+SQLTXT100 全面開著，沒有暫時豁免的資料夾。
 
 1. 先查 `CommonText`／`SqlKindText` 有沒有同一句；沒有才在用它的資料夾找現有的 `<類別>.zh-Hant.resjson`，再沒有才新增一組。
-2. 建置那個專案。SQLTXT100 列出的檔案、行號與前 24 字就是漏網的字面值，只讀命中行附近，不必整檔讀。
+2. 建置那個專案。SQLTXT100 列出的檔案、行號與前 24 字就是漏網的字面值，只讀命中行附近。
    Core、Metadata、Sqlite 用 `dotnet build src/<專案> -c Release`；Ssms22 走 `tools/Build-Extension.ps1`。
 3. 文字寫進 `<類別>.zh-Hant.resjson`（鍵用 PascalCase），呼叫端改用產生的成員，拼接字串改成
-   一整句具名佔位符；只進紀錄的改標 `[Localizable(false)]`。
-4. 翻譯交給 `.claude/agents/resjson-translator.md`（Haiku，規則寫在定義裡）：一個區塊只呼叫一次，
+   一整句具名佔位符；只進紀錄的改標 `[Localizable(false)]`（見「什麼不翻」）。
+4. 翻譯交給 `.claude/agents/resjson-translator.md`：一個區塊只呼叫一次，
    只傳全部 zh-Hant 檔路徑；回來只審譯文。沒有這個代理的工具照術語表手動翻。
 5. 建置＋測試；每個區塊至少補一個 `SqlText.Use` 英文斷言。建構時就取字的介面元件要照「即時切換」那張表接上。

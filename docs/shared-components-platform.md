@@ -1,64 +1,55 @@
 # 平台共用元件
 
 本頁只列 Ssms22 接線層與工具腳本的唯一出處；純邏輯見[共用元件表](shared-components.md)，
-SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。同一路徑的相關能力合併列出，
-需要符號時再於該檔搜尋。
+SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 
 | 這件事 | 唯一出處 |
 |---|---|
 | 讀取 SSMS 結果格線與換算兩套欄索引 | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
 | DPI、螢幕工作區 | `Ssms22/Preview/NativeScreen.cs` |
-| 背景結果寫回既有或新建的 SQL 編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs`、`ActiveSqlEditor.cs` |
+| 背景結果寫回 SQL 編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs`、`ActiveSqlEditor.cs` |
 | F12、預覽的指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
-| 某個位置的物件開預覽或定義（快捷鍵、選單、Ctrl＋點擊共用） | `Ssms22/Editor/SqlObjectNavigation.cs` |
+| 某個位置的物件開預覽或定義 | `Ssms22/Editor/SqlObjectNavigation.cs` |
 | 物件總管的伺服器、連線與導航 | `Ssms22/Connections/SsmsObjectExplorer.cs` |
 | SSMS 狀態列的進度與失敗 | `Ssms22/SqlAssistStatusBar.cs` |
-| 主視窗、作用中框架、元素所在視窗（取代 `Window.GetWindow`）、焦點移動、非啟用浮窗點下時帶回前景與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
+| 主視窗、作用中框架、元素所在視窗（取代 `Window.GetWindow`）、焦點、非啟用浮窗帶回前景與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
 | 編輯器換行判定 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 延後至本輪命令結束 | `Ssms22/Editor/TextViewDispatch.cs` |
 | Tab／Shift+Tab／Enter 優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 殼層命令攔截與診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
-| 自製 Popup 握著鍵盤時把殼層命令換回按鍵交還（包夾清單、預覽搜尋框） | `Ssms22/Editor/ShellKeyCapture.cs`、`ShellKeyMap.cs` |
+| 自製 Popup 握著鍵盤時把殼層命令換回按鍵交還 | `Ssms22/Editor/ShellKeyCapture.cs`、`ShellKeyMap.cs` |
 | ALTER／INSERT／MERGE／EXEC／函式引數的提交後改寫 | `Ssms22/Completion/SqlCommitExpander.cs` |
 | 平台邊界例外處理 | `Ssms22/SqlAssistPlatformGuard.cs` |
 | 重開建議清單 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 抑制 SSMS 內建自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
 | 停駐工具窗主從區 | `Ssms22/UI/MasterDetailView.cs` |
-| 字型、基本控制項、水平資訊列、分頁（含分頁列右側工具 `TabStripTrailing`）、表面淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
-| 沒有資料列的表面上的膠囊；分頁標籤（圖示、名稱、數字，前景跟著分頁），分頁一律由 `SqlAssistChrome.CreateTab` 建 | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
-| 清單列、標頭骨架、右緣操作層與窄版降級 | `Ssms22/UI/SqlAssistChrome.Rows.cs` |
-| 清單列寬度模式與門檻 | `Ssms22/UI/SqlRowLayout.cs` |
-| 過濾面板與摘要 | `Ssms22/UI/SqlFilterFlyout.cs`、`SqlFilterSummary.cs`、`SqlAssistChrome.Filters.cs` |
-| 可換行的工具列篩選 | `Ssms22/UI/SqlFilterBar.cs` |
+| 字型、基本控制項、資訊列、分頁（含右側工具 `TabStripTrailing`）、淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
+| 膠囊與分頁標籤（分頁一律由 `SqlAssistChrome.CreateTab` 建） | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |
+| 清單列、標頭骨架、右緣操作層、窄版降級與寬度門檻 | `Ssms22/UI/SqlAssistChrome.Rows.cs`、`SqlRowLayout.cs` |
+| 過濾面板、摘要與可換行的工具列篩選 | `Ssms22/UI/SqlFilterFlyout.cs`、`SqlFilterSummary.cs`、`SqlAssistChrome.Filters.cs`、`SqlFilterBar.cs` |
 | 輸入框與右緣動作的第一列 | `Ssms22/UI/SqlInputRow.cs` |
-| 搜尋框與工具列的開關樣式 | `Ssms22/UI/SqlAssistChrome.Search.cs` |
-| 搜尋框裡的比對開關（大小寫相同、整個字；值是 `TextMatchOptions`，寫回不發變更） | `Ssms22/UI/SqlMatchToggles.cs` |
-| 套用查詢視窗連線的那一顆（範圍列伺服器左邊，Tooltip 打開時才問目標） | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateEditorConnectionButton` |
-| 套用按鈕的名稱、Tooltip 與無法套用時的用詞 | `Ssms22/UI/SqlEditorConnectionText.cs` |
+| 搜尋框、工具列開關樣式與比對開關（寫回 `TextMatchOptions` 不發變更） | `Ssms22/UI/SqlAssistChrome.Search.cs`、`SqlMatchToggles.cs` |
+| 套用查詢視窗連線的按鈕與用詞 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` 的 `CreateEditorConnectionButton`、`SqlEditorConnectionText.cs` |
 | 查詢視窗的伺服器與資料庫、連線字串裡的伺服器名稱 | `Ssms22/Connections/SqlWindowConnections.cs` |
-| Chevron、圖示按鈕／開關、兩級分隔線、工具列操作與預覽工具列 | `Ssms22/UI/SqlAssistChrome.Buttons.cs` |
-| 卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Cards.cs` |
-| 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs`；頁尾的呈現是 `SqlListPager.cs`（Memory、版本歷史與 Search 共用） |
-| 清單多選：以 Id 為鍵的勾選、錨點、全部符合與動作派送 | `Ssms22/UI/SqlCardSelection.cs`（清單端是 `SqlCardListBase.EnableSelection`） |
-| 多選模式的勾選欄、可繼承的多選狀態與勾選外觀 | `Ssms22/UI/SqlRowCheck.cs`、`SqlAssistChrome.Selection.cs` |
+| Chevron、圖示按鈕／開關、兩級分隔線、工具列；卡片樣式與進退場 | `Ssms22/UI/SqlAssistChrome.Buttons.cs`、`SqlAssistChrome.Cards.cs` |
+| 卡片清單的鍵盤、滑鼠、續頁與頁尾 | `Ssms22/UI/SqlCardList.cs`、頁尾 `SqlListPager.cs` |
+| 清單多選：以 Id 為鍵的勾選、錨點、全部符合、動作派送、勾選欄與外觀 | `Ssms22/UI/SqlCardSelection.cs`（清單端 `SqlCardListBase.EnableSelection`）、`SqlRowCheck.cs`、`SqlAssistChrome.Selection.cs` |
 | 蓋在輸入列上的選取工具列（筆數、全選、動作、進度與取消） | `Ssms22/UI/SqlSelectionBar.cs` |
-| 剪貼簿寫入純文字或 TSV＋HTML、被鎖住時重試、複製結果的回報字 | `Ssms22/UI/SqlClipboard.cs` |
+| 剪貼簿寫入純文字或 TSV＋HTML、鎖住時重試與回報字 | `Ssms22/UI/SqlClipboard.cs` |
 | 選取驅動的去彈跳、取消與 stale guard | `Ssms22/UI/SqlSelectionLoader.cs` |
 | 載入、空、失敗、權限不足與行內忙碌狀態 | `Ssms22/UI/SqlStateSurface.cs`、`SqlSurfaceState.cs`、`SqlBusyNotice.cs` |
 | 搜尋、預覽與估算的去彈跳長度 | `Ssms22/UI/SqlAssistChrome.Delays.cs` |
 | 對話框元件與殼層 | `Ssms22/UI/SqlAssistChrome.Dialogs.cs`、`SqlAssistDialogs.cs` |
 | SQL 唯讀／著色編輯、分類、選取映射與主題 | `Ssms22/UI/SqlReadOnlyViewer.cs`、`SqlTextEditor.cs`、`Ssms22/Preview/SqlScriptDocument.cs`、`SqlScriptTheme.cs` |
 | 命中與區塊端點配色 | `Ssms22/UI/TextMarkColors.cs`、`MatchPalette.cs`；大面積分類色見[文字標記](text-marks.md) |
-| 上一處／下一處命中與讀數 | `Ssms22/UI/SqlMatchNavigator.cs`、`Core/Matching/MatchCursor.cs` |
-| 預覽上標命中、停在第一處與工具列上的導覽組（Search 與 Memory 共用） | `Ssms22/UI/SqlMatchNavigation.cs` |
+| 上一處／下一處命中、讀數，預覽上標命中並停在第一處 | `Ssms22/UI/SqlMatchNavigator.cs`、`SqlMatchNavigation.cs` |
 | WPF 資料格匯出、顯示順序、空欄與列篩選 | `Ssms22/UI/SqlDataGridText.cs`（加引號規則在 `SqlTabularText`） |
-| 一行文字上的命中高亮（自帶區段，或容器上繼承下來的比對器） | `Ssms22/UI/SqlHighlightText.cs` |
+| 一行文字上的命中高亮 | `Ssms22/UI/SqlHighlightText.cs` |
 | SQL 原生圖示、語意圖示與影像插槽 | `Ssms22/UI/SqlIcons.cs`、`SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 宿主筆刷、主題色階、動作對比與動態資源刷新 | `Ssms22/UI/VsThemeBrushes.cs`、`ThemePalette.cs`、`ThemeColorMath.cs`、`ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
-| 通知島的形態狀態機、浮層定位、表面、提醒檢視與附條 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs` |
-| 通知島的對齊基準、狀態圖示與換字 | `Ssms22/UI/NotificationLayout.cs`、`NotificationStatusIcon.cs`、`NotificationTicker.cs` |
-| 通知表面的時長、緩動、勾號彈出與短震；可中斷的彈簧 | `Ssms22/UI/NotificationMotion.cs`、`SpringMotion.cs` |
+| 通知島的形態狀態機、浮層定位、表面、提醒檢視、附條、對齊基準、狀態圖示與換字 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs`、`NotificationLayout.cs`、`NotificationStatusIcon.cs`、`NotificationTicker.cs` |
+| 通知動畫與可中斷的彈簧 | `Ssms22/UI/NotificationMotion.cs`、`SpringMotion.cs` |
 | 通知內容、活動期限、全域控制器、右下浮層與提醒按鈕派送 | `Ssms22/Notifications/NotificationPresenter.cs`、`NotificationLifecycle.cs`、`NotificationIslandController.cs`、`NotificationOverlay.cs`、`NotificationActionRouter.cs` |
 | UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | 部署預檢、SHA-256 與 VSIX 白名單 | `tools/SqlAssist.Deployment.psm1` |

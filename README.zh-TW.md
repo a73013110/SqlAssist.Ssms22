@@ -9,38 +9,37 @@
 ![SSMS 22.9.x](https://img.shields.io/badge/SSMS-22.9.x-5c2d91)
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078d4)
 
-<p align="center"><img src="docs/images/hero.png" width="900" alt="SSMS 深色編輯器中的補全清單與物件結構預覽示意圖"></p>
+<p align="center"><img src="docs/images/hero.png" width="900" alt="補全清單與結構預覽示意圖"></p>
 
-SqlAssist 是安裝於 **SSMS 22** 的 VSIX，不是另一套編輯器。建議在本機計算，
-結構資訊只向目前連線的 SQL Server 查詢，不經雲端，也沒有 AI 模型參與。
+SqlAssist 是 **SSMS 22** 的擴充，不是另一套編輯器。建議在本機計算，
+結構資訊只查目前連線的 SQL Server，不經雲端，也不用 AI。
 
-[下載 VSIX](https://github.com/a73013110/SqlAssist.Ssms22/releases) ·
 [安裝與開始使用](docs/getting-started.md) · [文件索引](docs/index.md) ·
 [回報問題](https://github.com/a73013110/SqlAssist.Ssms22/issues)
 
 ## 功能展示
 
-以下動畫以虛構的 `LibraryDB` 重建介面，並非錄影或效能依據；每段均附文字與靜態圖。
-[操作播放器：播放、暫停與重播](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html)。
+動畫以虛構資料重建介面，不是錄影或效能依據。
+[可播放、暫停與重播的版本](https://a73013110.github.io/SqlAssist.Ssms22/demos/feature-demos.html)。
 
 ### 補全 SQL，直接查看物件
 
 輸入 `libr` → 按 **→** 預覽欄位 → 按 **Tab** 提交 `Lib_Reader`。建議依語句位置收斂，
 支援模糊比對、別名與暫存表。
 
-<p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="預覽 Lib_Reader 欄位後按 Tab 提交補全"></p>
+<p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="預覽欄位後提交補全"></p>
 
 [靜態圖](docs/images/completion-preview-demo.png)
 
-從同一份建議清單按 **→** 展開結構預覽，再切到「指令碼」查看完整 DDL。
+在預覽切到「指令碼」可看完整 DDL。
 
-<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="展開 Lib_Reader 結構預覽並切換到指令碼頁籤"></p>
+<p align="center"><img src="docs/images/structure-preview-demo.gif" width="820" alt="結構預覽切到指令碼"></p>
 
 [靜態圖](docs/images/structure-preview-demo.png)
 
 在 `Loan` 按 **F12**，沿用目前連線開啟完整定義，不執行 SQL。
 
-<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="F12 開啟 Loan 的鍵值、索引與物件說明"></p>
+<p align="center"><img src="docs/images/f12-definition-demo.gif" width="820" alt="F12 開啟 Loan 的定義"></p>
 
 [靜態圖](docs/images/f12-definition-demo.png)
 
@@ -49,7 +48,7 @@ SqlAssist 是安裝於 **SSMS 22** 的 VSIX，不是另一套編輯器。建議�
 SSMS 的 `DATEDIFF(` 參數提示，一按 Backspace、點一下滑鼠或打完內層 `GETDATE()` 就收掉；
 SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 
-<p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF 參數提示在 Backspace、內層呼叫與滑鼠點擊後自動回來"></p>
+<p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF 參數提示自動回來"></p>
 
 [靜態圖](docs/images/parameter-hint-demo.png)
 
@@ -57,19 +56,19 @@ SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 
 **`SELECT *`**：在星號後按 **Tab**，展開成明確欄位。
 
-<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="按 Tab 將 SELECT 星號展開為 Lib_Reader 明確欄位"></p>
+<p align="center"><img src="docs/images/expand-star-demo.gif" width="820" alt="SELECT 星號展開為欄位"></p>
 
 [靜態圖](docs/images/expand-star-demo.png)
 
 **`INSERT`**：選取 `Lib_Tag`，產生欄位與依型別填入的值，略過識別欄位。
 
-<p align="center"><img src="docs/images/insert-template-demo.gif" width="820" alt="為 Lib_Tag 產生 INSERT 欄位與型別預留值"></p>
+<p align="center"><img src="docs/images/insert-template-demo.gif" width="820" alt="Lib_Tag 的 INSERT 樣板"></p>
 
 [靜態圖](docs/images/insert-template-demo.png)
 
 **`EXEC`**：選取 `usp_Loan_Count`，產生具名參數與 `OUTPUT` 變數宣告。
 
-<p align="center"><img src="docs/images/execute-template-demo.gif" width="820" alt="為 usp_Loan_Count 產生具名參數與 OUTPUT 變數宣告"></p>
+<p align="center"><img src="docs/images/execute-template-demo.gif" width="820" alt="含 OUTPUT 變數的 EXEC 樣板"></p>
 
 [靜態圖](docs/images/execute-template-demo.png)
 
@@ -80,15 +79,13 @@ SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 
 [靜態圖](docs/images/merge-template-demo.png)
 
-**`ALTER PROCEDURE`**：選取 `usp_Loan_Count`，載入可編輯的完整程序定義，不執行 SQL。
+**`ALTER PROCEDURE`**／**`ALTER FUNCTION`**：選取 `usp_Loan_Count` 或 `fn_LoanCount`，載入可編輯的完整定義，不執行 SQL。
 
-<p align="center"><img src="docs/images/alter-procedure-demo.gif" width="820" alt="載入 usp_Loan_Count 的完整 ALTER PROCEDURE 定義"></p>
+<p align="center"><img src="docs/images/alter-procedure-demo.gif" width="820" alt="ALTER PROCEDURE 定義"></p>
 
 [靜態圖](docs/images/alter-procedure-demo.png)
 
-**`ALTER FUNCTION`**：選取 `fn_LoanCount`，同樣載入完整定義。
-
-<p align="center"><img src="docs/images/alter-function-demo.gif" width="820" alt="載入 fn_LoanCount 的完整 ALTER FUNCTION 定義"></p>
+<p align="center"><img src="docs/images/alter-function-demo.gif" width="820" alt="ALTER FUNCTION 定義"></p>
 
 [靜態圖](docs/images/alter-function-demo.png)
 
@@ -96,7 +93,7 @@ SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 
 選取 SQL → 右鍵選「以片段包住選取範圍」→ 套用 `ifb` → 填寫條件 → 按 **Tab**。
 
-<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="將所選 SQL 包成可編輯的 IF 片段"></p>
+<p align="center"><img src="docs/images/surround-snippet-demo.gif" width="820" alt="SQL 包進 IF 片段"></p>
 
 [靜態圖](docs/images/surround-snippet-demo.png)
 
@@ -121,7 +118,7 @@ SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 選取格線，右鍵複製成 `IN` 條件。選單也能產生 `#temp`、Markdown、
 JSON、欄位剖析與完整儲存格內容。
 
-<p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="將所選 CopyNo 去重並複製成 IN 條件"></p>
+<p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="格線複製成 IN 條件"></p>
 
 [靜態圖](docs/images/result-in-demo.png)
 
@@ -133,14 +130,13 @@ JSON、欄位剖析與完整儲存格內容。
 2. 儲存查詢、關閉所有 SSMS 視窗，再執行 VSIX 安裝程式。
 3. 重啟 SSMS；看到「工具 → SqlAssist」即代表載入成功。
 
-介面語言預設跟隨 SSMS（繁體中文或英文），可在設定的 SqlAssist →「一般」→「介面語言」改成固定一種。
+介面語言預設跟隨 SSMS，可在設定的 SqlAssist →「一般」→「介面語言」固定。
 
 > [!IMPORTANT]
 > 保持 SSMS 內建 T-SQL IntelliSense 開啟；SqlAssist 只抑制會互相干擾的自動建議清單。
 
 > [!WARNING]
-> [SSMS 目前未正式支援第三方擴充套件](https://learn.microsoft.com/en-us/ssms/faq#are-extensions-supported-in-ssms)；
-> 本專案以 SSMS 22.9.x 實機驗證。
+> [SSMS 目前未正式支援第三方擴充套件](https://learn.microsoft.com/en-us/ssms/faq#are-extensions-supported-in-ssms)。
 
 ## 深入了解
 
