@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -65,7 +64,7 @@ internal sealed class SqlMemoryItemCommands
                 }).ConfigureAwait(true);
                 break;
             case SqlMemoryRowAction.Open:
-                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.OpeningQueryWindow, SqlMemoryCommandText.OpenVerb, sql =>
+                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.OpeningQueryWindow, CommonText.Open, sql =>
                 {
                     var failure = SqlMemoryActions.TryOpenQuery(_package, sql);
                     SqlMemoryActions.Notify(NotificationCatalog.OpeningQueryWindow,
@@ -127,12 +126,12 @@ internal sealed class SqlMemoryItemCommands
         var verb = deletion.IsFavorites ? SqlMemoryCommandText.RemoveVerb : CommonText.Delete;
         using var notification = NotificationCenter.Default.Begin(title, NotificationKind.SqlMemory,
             NotificationOrigin.User, NotificationLevel.Info, row?.Name ?? "");
-        var total = Count(deletion.Count);
+        var total = SqlText.Number(deletion.Count);
         var reported = new Progress<int>(done =>
         {
             notification.Report(deletion.IsFavorites
-                ? SqlMemoryCommandText.BulkRemoved(Count(done), total)
-                : SqlMemoryCommandText.BulkDeleted(Count(done), total));
+                ? SqlMemoryCommandText.BulkRemoved(SqlText.Number(done), total)
+                : SqlMemoryCommandText.BulkDeleted(SqlText.Number(done), total));
             progress?.Report(done);
         });
         SqlMemoryDeleteReport? result = null;
@@ -177,24 +176,24 @@ internal sealed class SqlMemoryItemCommands
         if (row is not null)
         {
             return row.Favorite is { } favorite
-                ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFavoriteTitle,
+                ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFromFavorites,
                     SqlMemoryCommandText.RemoveFavoriteConfirm(favorite.Favorite.Name),
-                    SqlMemoryCommandText.RemoveFavoriteDetail, SqlMemoryCommandText.RemoveFavoriteTitle)
-                : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistoryTitle,
+                    SqlMemoryCommandText.RemoveFavoriteDetail, SqlMemoryCommandText.RemoveFromFavorites)
+                : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistory,
                     SqlMemoryCommandText.DeleteFromHistoryConfirm(row.Name, row.Status),
                     SqlMemoryCommandText.DeleteFromHistoryDetail, CommonText.Delete);
         }
 
-        var count = Count(deletion.Count);
+        var count = SqlText.Number(deletion.Count);
         // 只讀進上限那一批時先說清楚：確認框上的筆數就是這一次會動到的筆數，不是符合條件的全部。
         var limit = truncated
-            ? SqlMemoryCommandText.TruncatedLimitNote(Count(SqlMemoryBulk.Limit), count)
+            ? SqlMemoryCommandText.TruncatedLimitNote(SqlText.Number(SqlMemoryBulk.Limit), count)
             : "";
         return deletion.IsFavorites
-            ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFavoriteTitle,
+            ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFromFavorites,
                 SqlMemoryCommandText.RemoveFavoriteBulkConfirm(count),
-                limit + SqlMemoryCommandText.RemoveFavoriteBulkDetail, SqlMemoryCommandText.RemoveFavoriteTitle)
-            : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistoryTitle,
+                limit + SqlMemoryCommandText.RemoveFavoriteBulkDetail, SqlMemoryCommandText.RemoveFromFavorites)
+            : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistory,
                 SqlMemoryCommandText.DeleteFromHistoryBulkConfirm(count),
                 limit + SqlMemoryCommandText.DeleteFromHistoryBulkDetail, CommonText.Delete);
     }
@@ -232,5 +231,4 @@ internal sealed class SqlMemoryItemCommands
     private static void Fail(string title, SqlMemoryRow row, string message) =>
         SqlMemoryActions.Notify(title, NotificationStatus.Failed, row.Name, message);
 
-    private static string Count(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
 }

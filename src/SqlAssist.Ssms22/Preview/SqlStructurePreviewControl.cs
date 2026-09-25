@@ -352,7 +352,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     }
 
     /// <summary>索引、條件約束與觸發程序共用的停用字樣。</summary>
-    private static string DisabledText => PreviewText.Disabled;
+    private static string DisabledText => CommonText.Disabled;
 
     /// <summary>
     /// 一個資料格分頁的完整宣告。
@@ -641,9 +641,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
         var columns = CreateGrid(
             ("#", nameof(ColumnRow.Ordinal)),
-            (CommonText.Column, nameof(ColumnRow.Name)),
+            (SqlKindText.Column, nameof(ColumnRow.Name)),
             (CommonText.Type, nameof(ColumnRow.DataType)),
-            new GridColumn(PreviewText.HeaderDescription, nameof(ColumnRow.Description), optional: true, fill: true),
+            new GridColumn(CommonText.Description, nameof(ColumnRow.Description), optional: true, fill: true),
             new GridColumn(PreviewText.HeaderComputed, nameof(ColumnRow.Computed), GridColumn.TextWidth, optional: true),
             new GridColumn(PreviewText.HeaderDefault, nameof(ColumnRow.Default), GridColumn.TextWidth, optional: true));
 
@@ -668,18 +668,18 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             new GridColumn(PreviewText.HeaderActions, nameof(ForeignKeyRow.Actions), optional: true));
 
         var checks = CreateGrid(
-            (PreviewText.HeaderConstraint, nameof(CheckRow.Name)),
-            new GridColumn(PreviewText.HeaderConstraintColumn, nameof(CheckRow.Column), optional: true),
+            (SqlKindText.Constraint, nameof(CheckRow.Name)),
+            new GridColumn(SqlKindText.Column, nameof(CheckRow.Column), optional: true),
             new GridColumn(CommonText.Definition, nameof(CheckRow.Definition), fill: true),
             new GridColumn(CommonText.Status, nameof(CheckRow.State), optional: true));
 
         var triggers = CreateGrid(
-            (PreviewText.HeaderTrigger, nameof(TriggerRow.Name)),
+            (SqlKindText.Trigger, nameof(TriggerRow.Name)),
             new GridColumn(CommonText.Status, nameof(TriggerRow.State), optional: true));
 
         var parameters = CreateGrid(
             ("#", nameof(ParameterRow.Ordinal)),
-            (PreviewText.HeaderParameter, nameof(ParameterRow.Name)),
+            (SqlKindText.Parameter, nameof(ParameterRow.Name)),
             (CommonText.Type, nameof(ParameterRow.DataType)),
             new GridColumn(PreviewText.HeaderDirection, nameof(ParameterRow.Direction), optional: true));
 
@@ -689,7 +689,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _gridTabs = new[]
         {
             new GridTab(
-                PreviewText.TabColumns,
+                SqlKindText.Columns,
                 SqlIcon.Column,
                 columns,
                 requiresStructure: false,
@@ -710,21 +710,21 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
                 structure => structure.ForeignKeys.Count,
                 structure => Map(structure.ForeignKeys, key => new ForeignKeyRow(key))),
             new GridTab(
-                PreviewText.TabConstraints,
+                SqlKindText.Constraints,
                 SqlIcon.CheckConstraint,
                 checks,
                 requiresStructure: true,
                 structure => structure.CheckConstraints.Count,
                 structure => Map(structure.CheckConstraints, check => new CheckRow(check))),
             new GridTab(
-                PreviewText.TabTriggers,
+                SqlKindText.Triggers,
                 SqlIcon.Trigger,
                 triggers,
                 requiresStructure: true,
                 structure => structure.Triggers.Count,
                 structure => Map(structure.Triggers, trigger => new TriggerRow(trigger))),
             new GridTab(
-                PreviewText.TabParameters,
+                SqlKindText.Parameters,
                 SqlIcon.Parameter,
                 parameters,
                 requiresStructure: false,
@@ -762,7 +762,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _search.TextChanged += (_, _) => SqlAssistPlatformGuard.Run("輸入結構預覽搜尋", OnSearchTextChanged);
         _search.IsKeyboardFocusWithinChanged += (_, _) => SqlAssistPlatformGuard.Run("交接預覽搜尋的按鍵", OnSearchFocusChanged);
 
-        _clearSearch = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, PreviewText.ClearSearch);
+        _clearSearch = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, CommonText.ClearSearch);
         _clearSearch.IsEnabled = false;
         _clearSearch.Focusable = false;
         _clearSearch.Click += (_, _) => SqlAssistPlatformGuard.Run("清除結構預覽搜尋", () => ResetSearch(keepFocus: true));
@@ -949,7 +949,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         ResetContent();
         LeaveBuiltIn();
         SetTitle(objectInfo);
-        ShowPills(pending: PreviewText.Loading);
+        ShowPills(pending: CommonText.Loading);
         SetDescription(null);
         _status.Text = string.Empty;
         ClearTabs();
@@ -1055,7 +1055,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         }
 
         _scriptText = doc.Example;
-        _scriptHeader.Label = PreviewText.TabExample;
+        _scriptHeader.Label = CommonText.Example;
         _scriptTab.Visibility = Visible(doc.Example.Length > 0);
 
         for (var index = 0; index < _referenceTabs.Count || index < doc.References.Count; index++)
@@ -1793,7 +1793,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製預覽內容失敗：{exception.Message}");
-            _status.Text = PreviewText.CopyFailed(exception.Message);
+            _status.Text = CommonText.CopyFailed(exception.Message);
         }
     }
 

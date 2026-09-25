@@ -12,6 +12,5 @@
   "TargetText": "Text",
   "TargetNameDescription": "Match object name; fuzzy matching, case-insensitive.",
   "TargetTextDescription": "Match definition text; disabling this skips retrieving definitions entirely, saving the most expensive part of the first search.",
-  "TargetColumnDescription": "Match column name; results still point to the object that owns it.",
-  "ConstraintIcon": "Constraint"
+  "TargetColumnDescription": "Match column name; results still point to the object that owns it."
 }

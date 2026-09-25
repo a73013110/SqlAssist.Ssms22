@@ -1,0 +1,51 @@
+{
+  // SQL 物件與建議項目的種類名稱：圖示朗讀、篩選鈕、預覽分頁與欄名、通知主體共用同一句。
+  // 同一種類在各處的譯名要一致，所以不在各功能各翻一次；只在某處才有的說法（例如篩選鈕的補充說明）
+  // 留在那個功能的文字檔。複數形給列出一整類的地方（篩選鈕、分頁），中文與單數同字。
+  "Unknown": "未知物件",
+  "Keyword": "關鍵字",
+  "Keywords": "關鍵字",
+  "Snippet": "程式碼片段",
+  "Snippets": "程式碼片段",
+  "Server": "伺服器",
+  "LinkedServer": "連結伺服器",
+  "Database": "資料庫",
+  "Schema": "結構描述",
+  "Table": "資料表",
+  "Tables": "資料表",
+  "TableType": "使用者自訂資料表型別",
+  "View": "檢視",
+  "Views": "檢視",
+  "Procedure": "預存程序",
+  "Procedures": "預存程序",
+  "Function": "函式",
+  "ScalarFunction": "純量函式",
+  "ScalarFunctions": "純量函式",
+  "BuiltInFunction": "內建函式",
+  "BuiltInFunctions": "內建函式",
+  "TableFunction": "資料表值函式",
+  "InlineTableFunction": "內嵌資料表值函式",
+  "Trigger": "觸發程序",
+  "Triggers": "觸發程序",
+  "Synonym": "同義字",
+  "Sequence": "序列",
+  "Column": "欄位",
+  "Columns": "欄位",
+  "Constraint": "條件約束",
+  "Constraints": "條件約束",
+  "Parameter": "參數",
+  "Parameters": "參數",
+  "DataType": "資料型別",
+  // 建議清單在 FROM／JOIN 之後找的那一類：資料表、檢視、指令碼宣告的暫存表都算。
+  "DataSource": "資料來源",
+  // 指令碼自己宣告的暫存資料表、資料表變數與 CTE。
+  "ScriptDataSource": "指令碼資料來源",
+  "Variable": "變數",
+  "LocalVariable": "區域變數",
+  "GlobalVariable": "全域變數",
+  "Collation": "定序",
+  // DATEADD、DATEDIFF 等函式的第一個引數（year、month…）。
+  "DatePart": "日期部分",
+  "TableHint": "資料表提示",
+  "QueryHint": "查詢提示"
+}

@@ -1,7 +1,6 @@
 {
   "Disabled": "SqlAssist is currently disabled.",
   "PlaceCaretInQueryWindow": "Place the caret in a SQL query window first.",
-  "OpenDefinitionFailed": "Couldn't open the object definition; see the diagnostic log for details.",
   "SurroundFailed": "Couldn't surround the selection with a snippet; see the diagnostic log for details.",
   "SqlMemoryDisabledForFavorite": "SQL Memory is not enabled; enable it in Settings before adding to favorites.",
   "AddFavoriteFailed": "Couldn't add to favorites; see the diagnostic log for details.",
@@ -11,7 +10,7 @@
   "OperationOpenAbout": "Open About and Diagnostics",
   "OperationOpenSnippetManager": "Open code snippet manager",
   "OperationOpenSettings": "Open Settings",
-  "OperationOpenLog": "Open diagnostic log",
+  "OpenDiagnosticsLog": "Open diagnostic log",
   "OperationPickColor": "Pick block color",
   "ProbeCompleted": "Results grid probe completed. {summary}. The full report was written to the diagnostic log.",
   "SettingsUnavailable": "Settings window unavailable; use Tools > Options and search for SqlAssist instead.",

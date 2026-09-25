@@ -125,8 +125,9 @@
       每顆按鈕都要有 CanonicalName 與 LocCanonicalName。沒有的話「選項 → 環境 →
       鍵盤」只會照選單路徑推出名字（例如「工具.移至定義」），其餘命令名稱裡完全
       沒有 SqlAssist 字樣，使用者搜不到也就改不了鍵。名稱一律 SqlAssist. 開頭，
-      搜尋一次就列出本擴充的全部命令；命令視窗用英文那一個，鍵盤頁顯示的是
-      LocCanonicalName。
+      搜尋一次就列出本擴充的全部命令；命令視窗用 CanonicalName，鍵盤頁顯示的是
+      LocCanonicalName。兩者同為英文：命令表只有一種語言，而中性語言是英文
+      （其他介面語言都退回它），ButtonText 也照 MenuText.en 寫，繁中由 TextChanges 換上。
 
       元素名稱是 LocCanonicalName——結構描述裡就叫這個。寫成 Localized… 那個長名
       會被編譯器**靜靜丟掉**：0 錯誤 0 警告、命令表照樣產生，鍵盤頁上卻什麼都沒變。
@@ -140,7 +141,7 @@
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowSqlHistory</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlHistory</LocCanonicalName><ToolTipText>開啟 SQL Memory 歷史</ToolTipText></Strings>
+        <Strings><ButtonText>History</ButtonText><CanonicalName>SqlAssist.ShowSqlHistory</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlHistory</LocCanonicalName></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlFavorites" priority="0x0081" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
@@ -148,14 +149,14 @@
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName><ToolTipText>開啟 SQL Memory 收藏（Favorites）</ToolTipText></Strings>
+        <Strings><ButtonText>Favorites</ButtonText><CanonicalName>SqlAssist.ShowSqlFavorites</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlFavorites</LocCanonicalName></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlMemoryUsage" priority="0x0083" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistMemoryGroup" />
         <Icon guid="ImageCatalogGuid" id="GaugeRound" />
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>SQL Memory 用量</ButtonText><CanonicalName>SqlAssist.ShowSqlMemoryUsage</CanonicalName><LocCanonicalName>SqlAssist.SqlMemory用量</LocCanonicalName><ToolTipText>查看 SQL Memory 的容量、配額與整理紀錄，並手動清理</ToolTipText></Strings>
+        <Strings><ButtonText>SQL Memory Usage</ButtonText><CanonicalName>SqlAssist.ShowSqlMemoryUsage</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlMemoryUsage</LocCanonicalName></Strings>
       </Button>
       <!-- 沒有鍵繫結，理由見 CommandIds.ShowSqlSearch；CanonicalName 因此更重要，要綁鍵的人靠它搜得到。 -->
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowSqlSearch" priority="0x0084" type="Button">
@@ -164,35 +165,34 @@
         <CommandFlag>IconIsMoniker</CommandFlag>
         <CommandFlag>IconAndText</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
-        <Strings><ButtonText>Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.SQLSearch</LocCanonicalName><ToolTipText>SQL Search：搜尋目前連線的資料庫物件、資料行與定義本文</ToolTipText></Strings>
+        <Strings><ButtonText>Search</ButtonText><CanonicalName>SqlAssist.ShowSqlSearch</CanonicalName><LocCanonicalName>SqlAssist.ShowSqlSearch</LocCanonicalName></Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidAddToFavorites" priority="0x0082" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorContextGroup" />
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>新增至收藏…</ButtonText>
+          <ButtonText>Add to Favorites…</ButtonText>
           <CanonicalName>SqlAssist.AddToFavorites</CanonicalName>
-          <LocCanonicalName>SqlAssist.新增至收藏</LocCanonicalName>
-          <ToolTipText>把目前的 SQL 加進 SQL Memory 的收藏</ToolTipText>
+          <LocCanonicalName>SqlAssist.AddToFavorites</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleEnabled" priority="0x0100" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>啟用 SqlAssist</ButtonText>
+          <ButtonText>Enable SqlAssist</ButtonText>
           <CanonicalName>SqlAssist.ToggleEnabled</CanonicalName>
-          <LocCanonicalName>SqlAssist.啟用</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ToggleEnabled</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidToggleSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistToggleGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>顯示即時建議</ButtonText>
+          <ButtonText>Show Live Suggestions</ButtonText>
           <CanonicalName>SqlAssist.ToggleSuggestions</CanonicalName>
-          <LocCanonicalName>SqlAssist.顯示即時建議</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ToggleSuggestions</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -200,27 +200,27 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>移至定義</ButtonText>
+          <ButtonText>Go To Definition</ButtonText>
           <CanonicalName>SqlAssist.GoToDefinition</CanonicalName>
-          <LocCanonicalName>SqlAssist.移至定義</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.GoToDefinition</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowObjectStructure" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>顯示游標處物件的結構</ButtonText>
+          <ButtonText>Show Structure of Object at Cursor</ButtonText>
           <CanonicalName>SqlAssist.ShowObjectStructure</CanonicalName>
-          <LocCanonicalName>SqlAssist.顯示游標處物件的結構</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ShowObjectStructure</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidRefreshSuggestions" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>重新整理建議</ButtonText>
+          <ButtonText>Refresh Suggestions</ButtonText>
           <CanonicalName>SqlAssist.RefreshSuggestions</CanonicalName>
-          <LocCanonicalName>SqlAssist.重新整理建議</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.RefreshSuggestions</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWith" priority="0x0250" type="Button">
@@ -228,18 +228,18 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>以片段包住選取範圍</ButtonText>
+          <ButtonText>Surround Selection with Snippet</ButtonText>
           <CanonicalName>SqlAssist.SurroundWith</CanonicalName>
-          <LocCanonicalName>SqlAssist.以片段包住選取範圍</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.SurroundWith</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidManageSnippets" priority="0x0300" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistEditorActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>程式碼片段…</ButtonText>
+          <ButtonText>Code Snippets…</ButtonText>
           <CanonicalName>SqlAssist.ManageSnippets</CanonicalName>
-          <LocCanonicalName>SqlAssist.程式碼片段</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ManageSnippets</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -252,19 +252,18 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>新增至收藏…</ButtonText>
+          <ButtonText>Add to Favorites…</ButtonText>
           <CanonicalName>SqlAssist.AddToFavoritesFromTools</CanonicalName>
-          <LocCanonicalName>SqlAssist.工具選單新增至收藏</LocCanonicalName>
-          <ToolTipText>把目前的 SQL 加進 SQL Memory 的收藏</ToolTipText>
+          <LocCanonicalName>SqlAssist.AddToFavoritesFromTools</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidSurroundWithFromTools" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSelectionActionsGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>以片段包住選取範圍</ButtonText>
+          <ButtonText>Surround Selection with Snippet</ButtonText>
           <CanonicalName>SqlAssist.SurroundWithFromTools</CanonicalName>
-          <LocCanonicalName>SqlAssist.工具選單以片段包住選取範圍</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.SurroundWithFromTools</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -272,38 +271,36 @@
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>設定…</ButtonText>
+          <ButtonText>Settings…</ButtonText>
           <CanonicalName>SqlAssist.OpenSettings</CanonicalName>
-          <LocCanonicalName>SqlAssist.設定</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.OpenSettings</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidFocusNotifications" priority="0x0140" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>聚焦通知</ButtonText>
+          <ButtonText>Focus Notifications</ButtonText>
           <CanonicalName>SqlAssist.FocusNotifications</CanonicalName>
-          <LocCanonicalName>SqlAssist.聚焦通知</LocCanonicalName>
-          <ToolTipText>把鍵盤焦點移到右下角的通知島；Tab 切換按鈕，Esc 收起</ToolTipText>
+          <LocCanonicalName>SqlAssist.FocusNotifications</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidCheckForUpdates" priority="0x0150" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>檢查更新…</ButtonText>
+          <ButtonText>Check for Updates…</ButtonText>
           <CanonicalName>SqlAssist.CheckForUpdates</CanonicalName>
-          <LocCanonicalName>SqlAssist.檢查更新</LocCanonicalName>
-          <ToolTipText>問 GitHub 有沒有比目前這一版新的發行版本</ToolTipText>
+          <LocCanonicalName>SqlAssist.CheckForUpdates</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidShowDiagnostics" priority="0x0200" type="Button">
         <Parent guid="guidSqlAssistCommandSet" id="SqlAssistSupportGroup" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>關於與診斷…</ButtonText>
+          <ButtonText>About and Diagnostics…</ButtonText>
           <CanonicalName>SqlAssist.ShowDiagnostics</CanonicalName>
-          <LocCanonicalName>SqlAssist.關於與診斷</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ShowDiagnostics</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -312,9 +309,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>開啟 SqlAssist 診斷紀錄檔</ButtonText>
+          <ButtonText>Open SqlAssist Diagnostic Log</ButtonText>
           <CanonicalName>SqlAssist.OpenDiagnosticsLog</CanonicalName>
-          <LocCanonicalName>SqlAssist.開啟診斷紀錄檔</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.OpenDiagnosticsLog</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -327,9 +324,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>開啟 SqlAssist SQL Memory 用量</ButtonText>
+          <ButtonText>Open SqlAssist SQL Memory Usage</ButtonText>
           <CanonicalName>SqlAssist.ShowSqlMemoryUsageFromSettings</CanonicalName>
-          <LocCanonicalName>SqlAssist.設定頁開啟SqlMemory用量</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ShowSqlMemoryUsageFromSettings</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -339,9 +336,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>選取 SqlAssist 區塊共用基準色</ButtonText>
+          <ButtonText>Pick SqlAssist Shared Base Color</ButtonText>
           <CanonicalName>SqlAssist.PickBlockAccent</CanonicalName>
-          <LocCanonicalName>SqlAssist.選取區塊共用基準色</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.PickBlockAccent</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordForeground" priority="0x0310" type="Button">
@@ -349,9 +346,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>選取 SqlAssist 全域高亮預設前景色</ButtonText>
+          <ButtonText>Pick SqlAssist Default Highlight Foreground Color</ButtonText>
           <CanonicalName>SqlAssist.PickBlockKeywordForeground</CanonicalName>
-          <LocCanonicalName>SqlAssist.選取全域高亮預設前景色</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.PickBlockKeywordForeground</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockKeywordBackground" priority="0x0320" type="Button">
@@ -359,9 +356,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>選取 SqlAssist 全域高亮預設背景色</ButtonText>
+          <ButtonText>Pick SqlAssist Default Highlight Background Color</ButtonText>
           <CanonicalName>SqlAssist.PickBlockKeywordBackground</CanonicalName>
-          <LocCanonicalName>SqlAssist.選取全域高亮預設背景色</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.PickBlockKeywordBackground</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolForeground" priority="0x0330" type="Button">
@@ -369,9 +366,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>選取 SqlAssist 符號高亮前景色</ButtonText>
+          <ButtonText>Pick SqlAssist Symbol Highlight Foreground Color</ButtonText>
           <CanonicalName>SqlAssist.PickBlockSymbolForeground</CanonicalName>
-          <LocCanonicalName>SqlAssist.選取符號高亮前景色</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.PickBlockSymbolForeground</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidPickBlockSymbolBackground" priority="0x0340" type="Button">
@@ -379,9 +376,9 @@
         <CommandFlag>CommandWellOnly</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>選取 SqlAssist 符號高亮背景色</ButtonText>
+          <ButtonText>Pick SqlAssist Symbol Highlight Background Color</ButtonText>
           <CanonicalName>SqlAssist.PickBlockSymbolBackground</CanonicalName>
-          <LocCanonicalName>SqlAssist.選取符號高亮背景色</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.PickBlockSymbolBackground</LocCanonicalName>
         </Strings>
       </Button>
       <!-- 第一組：產出進剪貼簿，接下來要按的是 Ctrl+V。 -->
@@ -390,9 +387,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>複製成 IN 條件</ButtonText>
+          <ButtonText>Copy as IN Predicate</ButtonText>
           <CanonicalName>SqlAssist.ResultGridInPredicate</CanonicalName>
-          <LocCanonicalName>SqlAssist.複製成IN條件</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridInPredicate</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridMarkdown" priority="0x0200" type="Button">
@@ -400,9 +397,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>複製成 Markdown 表格</ButtonText>
+          <ButtonText>Copy as Markdown Table</ButtonText>
           <CanonicalName>SqlAssist.ResultGridMarkdown</CanonicalName>
-          <LocCanonicalName>SqlAssist.複製成Markdown表格</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridMarkdown</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridJson" priority="0x0300" type="Button">
@@ -410,9 +407,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>複製成 JSON</ButtonText>
+          <ButtonText>Copy as JSON</ButtonText>
           <CanonicalName>SqlAssist.ResultGridJson</CanonicalName>
-          <LocCanonicalName>SqlAssist.複製成JSON</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridJson</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -426,9 +423,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>建立 #temp 指令碼（新視窗）…</ButtonText>
+          <ButtonText>Create #temp Script (New Window)…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridTempTable</CanonicalName>
-          <LocCanonicalName>SqlAssist.建立temp指令碼</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridTempTable</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridProfile" priority="0x0200" type="Button">
@@ -436,9 +433,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>欄位剖析…</ButtonText>
+          <ButtonText>Column Profile…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridProfile</CanonicalName>
-          <LocCanonicalName>SqlAssist.欄位剖析</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridProfile</LocCanonicalName>
         </Strings>
       </Button>
       <Button guid="guidSqlAssistCommandSet" id="cmdidResultGridCell" priority="0x0300" type="Button">
@@ -446,9 +443,9 @@
         <Icon guid="guidSqlAssistIcons" id="bmpSqlAssistLogo" />
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>檢視這一格完整內容…</ButtonText>
+          <ButtonText>View Full Cell Content…</ButtonText>
           <CanonicalName>SqlAssist.ResultGridCell</CanonicalName>
-          <LocCanonicalName>SqlAssist.檢視這一格完整內容</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ResultGridCell</LocCanonicalName>
         </Strings>
       </Button>
 
@@ -469,9 +466,9 @@
         <CommandFlag>DynamicVisibility</CommandFlag>
         <CommandFlag>TextChanges</CommandFlag>
         <Strings>
-          <ButtonText>結果診斷資訊…</ButtonText>
+          <ButtonText>Results Diagnostics…</ButtonText>
           <CanonicalName>SqlAssist.ProbeResultGrid</CanonicalName>
-          <LocCanonicalName>SqlAssist.結果診斷資訊</LocCanonicalName>
+          <LocCanonicalName>SqlAssist.ProbeResultGrid</LocCanonicalName>
         </Strings>
       </Button>
     </Buttons>

@@ -118,7 +118,7 @@ public sealed class SqlMemoryBrowserModel
     {
         new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.All, CommonText.All),
         new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Executions, SqlMemoryText.KindExecutions),
-        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Drafts, SqlMemoryText.KindDrafts),
+        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Drafts, SqlMemoryText.Drafts),
     });
 
     public static IReadOnlyList<SqlMemoryOption<SqlHistoryPeriod>> PeriodOptions => Array.AsReadOnly(new[]
@@ -133,7 +133,7 @@ public sealed class SqlMemoryBrowserModel
     {
         new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Recent, SqlMemoryText.SortRecent, SqlMemoryText.SortRecentShort),
         new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Oldest, SqlMemoryText.SortOldest, SqlMemoryText.SortOldestShort),
-        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Alphabetical, SqlMemoryText.SortAlphabetical, "A–Z"),
+        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Alphabetical, CommonText.SortByName, "A–Z"),
         new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.ReverseAlphabetical, SqlMemoryText.SortReverseAlphabetical, "Z–A"),
     });
 
@@ -274,23 +274,22 @@ public sealed class SqlMemoryBrowserModel
             return loadedCount == 0
                 ? new SqlListFooter(SqlListFooterKind.Hidden, "")
                 : new SqlListFooter(SqlListFooterKind.Loading, loaded, SearchProgress,
-                    SearchProgress == null ? SqlMemoryText.Loading : SqlMemoryText.Searching);
+                    SearchProgress == null ? CommonText.Loading : CommonText.Searching);
         }
         if (_page.Cursor != null)
         {
             return SearchProgress == null
                 ? new SqlListFooter(SqlListFooterKind.More, loaded, null, SqlMemoryText.LoadMore)
-                : new SqlListFooter(SqlListFooterKind.ContinueSearch, SqlMemoryText.MatchedCount(Number(loadedCount)),
+                : new SqlListFooter(SqlListFooterKind.ContinueSearch, SqlMemoryText.MatchedCount(SqlText.Number(loadedCount)),
                     SqlMemoryText.ContinueSearchHint(SearchProgress), SqlMemoryText.ContinueSearch);
         }
         return loadedCount == 0
             ? new SqlListFooter(SqlListFooterKind.Empty, SqlMemoryText.NoMatches, SqlMemoryText.NoMatchesHint)
-            : new SqlListFooter(SqlListFooterKind.End, SqlMemoryText.ShownAll(Number(loadedCount)));
+            : new SqlListFooter(SqlListFooterKind.End, SqlMemoryText.ShownAll(SqlText.Number(loadedCount)));
     }
 
-    private static string Count(int loadedCount) => SqlMemoryText.LoadedCount(Number(loadedCount));
+    private static string Count(int loadedCount) => SqlMemoryText.LoadedCount(SqlText.Number(loadedCount));
 
-    private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>移除一列後要選哪一列：留在原位置（即原本的下一列），刪掉最後一列就退到新的最後一列。</summary>
     /// <returns>null 表示清單已空。</returns>

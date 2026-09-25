@@ -13,13 +13,10 @@
   // 條件約束的名稱是 SQL Server 自動產生的。
   "SystemNamed": "系統命名",
   "TriggerDefinitionUnavailable": "無法取得定義（已加密或權限不足）",
-  // 索引、條件約束與觸發程序共用的狀態字樣。
-  "Disabled": "已停用",
   "LoadFailedPill": "索引與外來鍵讀取失敗",
   // 「詳細記錄」是設定項目的名稱。
   "LoadFailedToolTip": "原因見診斷紀錄檔（需開啟詳細記錄）",
-  // 資料格欄位標題。
-  "HeaderDescription": "說明",
+  // 資料格欄位標題；種類名稱（條件約束、觸發程序、參數）用 SqlKindText。
   "HeaderComputed": "計算欄位",
   "HeaderDefault": "預設值",
   "HeaderIndex": "索引",
@@ -33,27 +30,16 @@
   "HeaderReferences": "參考",
   // 外來鍵的 ON DELETE／ON UPDATE 動作。
   "HeaderActions": "動作",
-  "HeaderConstraint": "條件約束",
-  "HeaderConstraintColumn": "資料行",
-  "HeaderTrigger": "觸發程序",
-  "HeaderParameter": "參數",
   // 參數是輸入或輸出。
   "HeaderDirection": "方向",
   // NULL、PK、IDENTITY 等徽章那一欄。
   "HeaderFlags": "旗標",
-  // 分頁標籤。
-  "TabColumns": "欄位",
+  // 分頁標籤；欄位、條件約束、觸發程序、參數用 SqlKindText 的複數形。
   "TabIndexes": "索引",
   "TabForeignKeys": "外來鍵",
-  "TabConstraints": "條件約束",
-  "TabTriggers": "觸發程序",
-  "TabParameters": "參數",
   "TabScript": "指令碼",
-  // 內建函式說明時，指令碼分頁改顯示用法範例。
-  "TabExample": "範例",
   "SearchToolTip": "在名稱、型別、說明與指令碼裡找；Enter／Shift+Enter 在指令碼裡跳到下一處／上一處",
   "SearchName": "搜尋結構",
-  "ClearSearch": "清除搜尋",
   "WrapToggle": "長文字換行顯示",
   "CopyButton": "複製選取內容；沒有選取時複製完整指令碼",
   // 調整大小把手的無障礙名稱。
@@ -63,7 +49,6 @@
   "ResizeBottomRight": "右下角調整大小",
   "ResizeToolTip": "拖曳這一側調整寬高；雙擊重設目前擺放方式的尺寸",
   "SizeReset": "已重設目前擺放方式的預覽尺寸。",
-  "Loading": "載入中…",
   "IndexesLoading": "索引與外來鍵載入中…",
   // {columns} 是主索引鍵的資料行清單。
   "PrimaryKeyToolTip": "主索引鍵：{columns}（排序方向見索引分頁）",
@@ -77,7 +62,6 @@
   "CopiedFullScript": "已複製完整指令碼到剪貼簿。",
   "CopiedStructureSummary": "已複製結構說明；完整可執行指令碼目前不可用。",
   "CopiedWholeGrid": "已複製整個表格。",
-  "CopyFailed": "複製失敗：{message}",
   // 資料格的右鍵選單。
   "MenuCopySelectedCells": "複製選取的儲存格",
   "MenuCopyWholeGrid": "複製整個表格",

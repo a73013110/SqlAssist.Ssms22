@@ -21,11 +21,19 @@ internal static class GeneratorHarness
     public static GeneratorRun Generate(params (string Name, string Json)[] files) =>
         Generate(files, "zh-Hant,en");
 
-    public static GeneratorRun Generate((string Name, string Json)[] files, string languages)
+    public static GeneratorRun Generate((string Name, string Json)[] files, string languages, bool resourceOnly = false)
     {
         var compilation = Compile(string.Empty);
         var texts = files.Select(file => (AdditionalText)new MemoryText(Root + file.Name, file.Json)).ToImmutableArray();
-        var options = new Options(new Dictionary<string, string> { ["build_property.SqlAssistTextLanguages"] = languages });
+        var fileValues = new Dictionary<string, string>();
+        if (resourceOnly)
+        {
+            fileValues["build_metadata.AdditionalFiles.SqlAssistTextResourceOnly"] = "true";
+        }
+
+        var options = new Options(
+            new Dictionary<string, string> { ["build_property.SqlAssistTextLanguages"] = languages },
+            fileValues);
         var driver = CSharpGeneratorDriver.Create(
             new[] { new SqlTextGenerator().AsSourceGenerator() },
             texts,
@@ -46,7 +54,7 @@ internal static class GeneratorHarness
         var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(new LiteralTextAnalyzer());
         var withAnalyzers = Compile(source).WithAnalyzers(
             analyzers,
-            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new Options(values)));
+            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty, new Options(values, new Dictionary<string, string>())));
         return await withAnalyzers.GetAnalyzerDiagnosticsAsync();
     }
 
@@ -80,16 +88,19 @@ internal static class GeneratorHarness
 
     private sealed class Options : AnalyzerConfigOptionsProvider
     {
-        public Options(Dictionary<string, string> values)
+        private readonly Values _file;
+
+        public Options(Dictionary<string, string> global, Dictionary<string, string> file)
         {
-            GlobalOptions = new Values(values);
+            GlobalOptions = new Values(global);
+            _file = new Values(file);
         }
 
         public override AnalyzerConfigOptions GlobalOptions { get; }
 
         public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => Values.Empty;
 
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Values.Empty;
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => _file;
     }
 
     private sealed class Values : AnalyzerConfigOptions

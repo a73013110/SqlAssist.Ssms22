@@ -338,14 +338,14 @@ public sealed class SqlSearchVisualTests
                 var search = SqlAssistChrome.CreateInputBar(
                     SqlIcon.Search,
                     SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
-                    SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlSearchText.ClearSearch));
+                    SqlAssistChrome.CreateIconButton(SqlIcon.Clear, CommonText.ClearSearch));
                 var segments = new SqlSearchSegments();
-                var server = new SqlFilterFlyout(CommonText.Server, SqlIcon.Server, SqlFilterMode.Single);
-                var databases = new SqlFilterFlyout(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+                var server = new SqlFilterFlyout(SqlKindText.Server, SqlIcon.Server, SqlFilterMode.Single);
+                var databases = new SqlFilterFlyout(SqlKindText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
                 var kinds = new SqlFilterFlyout(CommonText.Kind, SqlIcon.Filter);
                 server.UpdateSummary(SqlSearchText.NoServer, "");
-                databases.UpdateSummary("12" + SqlSearchText.DatabaseUnit, "");
-                kinds.UpdateSummary("3" + SqlSearchText.CategoryUnit, "");
+                databases.UpdateSummary(ChromeText.DatabaseCount(12), "");
+                kinds.UpdateSummary(SqlSearchText.CategoryCount(3), "");
                 var toolbar = new SqlSearchToolbar(
                     new SqlInputRow(
                         search,

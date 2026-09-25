@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
@@ -51,7 +52,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }
         // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關、同一個位置（右緣），
         // 理由見 SqlAssistChrome.CreatePreviewToolbar 與 CreateIconToggle。
-        _wrap = Toggle(SqlIcon.Wrap, SqlMemoryUiText.WrapSqlToggle, _viewer.SetWrap);
+        _wrap = Toggle(SqlIcon.Wrap, CommonText.WrapSql, _viewer.SetWrap);
         _surface = new SqlStateSurface(_viewer);
         Content = SqlAssistChrome.CreateMemoryDetailBody(_surface, _status,
             SqlAssistChrome.CreatePreviewToolbar(_actions, _wrap));
@@ -92,7 +93,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         // 那一句會被列操作的結果蓋掉，而畫面上仍是一塊空白。
         _viewer.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _surface.State = row is null
-            ? SqlSurfaceState.Empty(SqlMemoryUiText.NoSelectionTitle, SqlMemoryUiText.NoSelectionDetail)
+            ? SqlSurfaceState.Empty(CommonText.NothingSelected, SqlMemoryUiText.NoSelectionDetail)
             : previewEnabled ? SqlSurfaceState.Loading : SqlSurfaceState.None;
         if (previewEnabled) _loader.Load();
     }

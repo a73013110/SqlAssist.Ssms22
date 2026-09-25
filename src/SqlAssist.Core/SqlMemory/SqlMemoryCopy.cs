@@ -24,8 +24,8 @@ public static class SqlMemoryCopy
         new SqlTabularColumn<SqlHistoryItem>(CommonText.Status, HistoryStatus),
         new SqlTabularColumn<SqlHistoryItem>(CommonText.Name, item => item.DisplayName),
         // 沒有連線就留空格，不寫清單上那句「無伺服器」：那是給人看的說明，貼到試算表裡會被當成一台伺服器。
-        new SqlTabularColumn<SqlHistoryItem>(CommonText.Server, item => item.Connection?.Server),
-        new SqlTabularColumn<SqlHistoryItem>(CommonText.Database, item => item.Connection?.Database),
+        new SqlTabularColumn<SqlHistoryItem>(SqlKindText.Server, item => item.Connection?.Server),
+        new SqlTabularColumn<SqlHistoryItem>(SqlKindText.Database, item => item.Connection?.Database),
         new SqlTabularColumn<SqlHistoryItem>(SqlMemoryText.ColumnTime, item => Time(item.CreatedAt)),
         new SqlTabularColumn<SqlHistoryItem>(SqlMemoryText.ColumnCount, item => item.ExecutionCount.ToString(CultureInfo.InvariantCulture)),
     });
@@ -33,8 +33,8 @@ public static class SqlMemoryCopy
     public static IReadOnlyList<SqlTabularColumn<SqlFavoriteItem>> FavoriteColumns => Array.AsReadOnly(new[]
     {
         new SqlTabularColumn<SqlFavoriteItem>(CommonText.Name, item => item.Favorite.Name),
-        new SqlTabularColumn<SqlFavoriteItem>(CommonText.Server, item => item.Favorite.Server),
-        new SqlTabularColumn<SqlFavoriteItem>(CommonText.Database, item => item.Favorite.Database),
+        new SqlTabularColumn<SqlFavoriteItem>(SqlKindText.Server, item => item.Favorite.Server),
+        new SqlTabularColumn<SqlFavoriteItem>(SqlKindText.Database, item => item.Favorite.Database),
         new SqlTabularColumn<SqlFavoriteItem>(SqlMemoryText.ColumnUpdated, item => Time(item.UpdatedAt)),
     });
 
@@ -42,7 +42,7 @@ public static class SqlMemoryCopy
     public static string HistoryStatus(SqlHistoryItem item)
     {
         if (item == null) throw new ArgumentNullException(nameof(item));
-        return item.Kind == SqlHistoryFilter.Executions ? SqlMemoryText.KindExecutions : SqlMemoryText.KindDrafts;
+        return item.Kind == SqlHistoryFilter.Executions ? SqlMemoryText.KindExecutions : SqlMemoryText.Drafts;
     }
 
     /// <summary>本機時間的絕對格式。</summary>

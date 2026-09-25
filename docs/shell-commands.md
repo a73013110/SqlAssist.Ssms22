@@ -78,9 +78,10 @@ Ctrl+K, Ctrl+S——那條和絃在 SSMS 上解析得到的是內建行為，搶
 **`<Menu>` 的 `<Parent>` 必須是一個 Group（`IDG_*`），不能是 Menu（`IDM_*`）。**
 掛錯層沒有編譯錯誤也沒有執行期例外，pkgdef 與命令處理器照常註冊，整個子選單就是不出現。
 
-**命令表只有一種語言，選單文字靠 `TextChanges` 換。** 沒標這個旗標，QueryStatus 設的 `Text` 殼層照收卻不換字；
-每顆按鈕的文字都在 `SqlAssistCommands.MenuLabel`，漏一顆就停在命令表的繁中；`tools/Test-CommandTable.ps1` 擋下兩種。
-實測標了之後，工具列提示顯示的是目前的 `Text`，命令表的 `ToolTipText` 不再出現。
+**命令表只有一種語言（英文，中性語言），選單文字靠 `TextChanges` 換。** 沒標這個旗標，QueryStatus 設的 `Text`
+殼層照收卻不換字；每顆按鈕的文字都在 `SqlAssistCommands.MenuLabel`，漏一顆就停在命令表的英文；`ButtonText`
+要與 `MenuText.en` 一致，否則套件載入前後換一次字。`tools/Test-CommandTable.ps1` 擋下三種。
+實測標了之後，工具列提示顯示的是目前的 `Text`，命令表的 `ToolTipText` 不再出現，所以不寫它。
 
 **`<Menu>` 上的 `<Icon>` 會被 VSCT 編譯器整個丟掉。** 實測：把那一行刪掉、或移到
 `<Parent>` 之前，編出來的 `.cto` 與原檔 md5 完全相同；只有補上 `IconIsMoniker` 才會變，

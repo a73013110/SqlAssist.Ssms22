@@ -89,8 +89,8 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         keepRow.Children.Add(Hint(SqlMemoryViewText.KeepLatestUnit));
         _keepRow = keepRow;
         var targets = SqlAssistChrome.CreateOptionGroup(
-            SqlAssistChrome.CreateOptionRow(_executions, SqlMemoryViewText.ExecutionsTarget, SqlMemoryViewText.ExecutionsTargetDescription),
-            SqlAssistChrome.CreateOptionRow(_drafts, SqlMemoryViewText.DraftsTarget, SqlMemoryViewText.DraftsTargetDescription),
+            SqlAssistChrome.CreateOptionRow(_executions, SqlMemoryUsageText.ExecutionHistory, SqlMemoryViewText.ExecutionsTargetDescription),
+            SqlAssistChrome.CreateOptionRow(_drafts, SqlMemoryText.Drafts, SqlMemoryViewText.DraftsTargetDescription),
             SqlAssistChrome.CreateOptionRow(_recovery, SqlMemoryViewText.RecoveryTarget, SqlMemoryViewText.RecoveryTargetDescription),
             SqlAssistChrome.CreateOptionRow(_favorites, SqlMemoryViewText.FavoritesTarget, SqlMemoryViewText.FavoritesTargetDescription, keepRow));
 
@@ -109,8 +109,8 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         connection.ColumnDefinitions.Add(new ColumnDefinition());
         connection.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
         connection.ColumnDefinitions.Add(new ColumnDefinition());
-        connection.Children.Add(SqlAssistChrome.CreateMemoryField(CommonText.Server, serverBar, server));
-        var databaseField = SqlAssistChrome.CreateMemoryField(CommonText.Database, databaseBar, database);
+        connection.Children.Add(SqlAssistChrome.CreateMemoryField(SqlKindText.Server, serverBar, server));
+        var databaseField = SqlAssistChrome.CreateMemoryField(SqlKindText.Database, databaseBar, database);
         Grid.SetColumn(databaseField, 2); connection.Children.Add(databaseField);
         scope.Children.Add(connection);
 
@@ -206,7 +206,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
     private void SetSubmit(long total)
     {
         Submit.IsEnabled = total > 0;
-        Submit.Content = total > 0 ? SqlMemoryViewText.ClearWithCount(SqlMemoryUsageSummary.Count(total)) : CommonText.Clear;
+        Submit.Content = total > 0 ? SqlMemoryViewText.ClearWithCount(SqlText.Number(total)) : CommonText.Clear;
     }
 
     private static TextBlock Hint(string text)

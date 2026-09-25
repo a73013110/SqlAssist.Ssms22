@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
@@ -428,7 +429,7 @@ internal sealed class SqlMetadataService : IDisposable
 
     private static SqlSuggestion CreateCollation(string name, bool isDatabaseDefault)
     {
-        var description = isDatabaseDefault ? ConnectionText.CurrentDatabaseCollation : ConnectionText.Collation;
+        var description = isDatabaseDefault ? ConnectionText.CurrentDatabaseCollation : SqlKindText.Collation;
 
         return new SqlSuggestion(
             name,

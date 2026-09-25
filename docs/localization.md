@@ -10,17 +10,24 @@
 - `tools/SqlAssist.TextGenerator` 產生同名的 public static class，命名空間由 `src/<專案>/<資料夾>`
   推出。沒有佔位符的是屬性，有的是方法：`UpdateText.Available(latest, current)`。
 - 佔位符一律具名（`{count}`、`{size:N0}`），譯文可以調換語序；不收 `{0}`。英文單複數用句型避開，
-  避不開就拆兩個鍵，不在程式裡拼字尾。
-- 各語言的鍵、佔位符不一致或缺檔都是建置錯誤（SQLTXT001–010），不在執行期退回來源語言。
+  避不開就拆兩個鍵，不在程式裡拼字尾，也不拿數字接量詞（`{count} 個` 整句翻）。
+- 數字依介面語言格式化：句子裡的寫成佔位符格式，不在句子裡的（統計格、徽章）用 `SqlText.Number`；
+  不用 `CultureInfo.CurrentCulture`，那是 SSMS 的文化，可以與介面語言不同。
+- 各語言的鍵、佔位符不一致、缺檔，或非中日韓語言的譯文含中日韓字元（漏翻），都是建置錯誤
+  （SQLTXT001–011），不在執行期退回來源語言。
 - 不用 resx：衛星組件要靠 VSIX 探測路徑與隔離 AppDomain 各自載入，載不到只會安靜退回；
   產生器把所有語言編進同一個組件，參數個數也由編譯器檢查。XML 對 diff 與 AI 也都貴。
 - 唯一例外是設定頁：註冊檔只能寫 `@鍵;{packageGuid}`，由 SSMS 到套件組件的資源查表。文字照樣寫在
-  `Ssms22/Settings/SettingsPageText.<語言>.resjson`、照同一流程翻譯，但不產生類別；`SettingsPageText.targets`
-  在建置時把英文編成中性資源（其他介面語言都退回它）、其餘語言編成衛星組件，鍵不齊或引用不存在的鍵是
-  SQLSET001–006。衛星組件在 Deploy 白名單裡，缺了只會安靜退回英文。
+  `Ssms22/Settings/SettingsPageText.<語言>.resjson`、照同一流程翻譯；檔案標 `SqlAssistTextResourceOnly`，
+  產生器照同一套 SQLTXT 規則驗證但不產生類別。`SettingsPageText.targets` 在建置時把英文編成中性資源
+  、其餘語言編成衛星組件，註冊檔引用不存在的鍵是 SQLSET006。衛星組件在
+  Deploy 白名單裡，缺了只會安靜退回英文。
+- 中性語言一律是英文：設定頁資源、命令表（`Menus.vsct`）與 vsixmanifest 都寫英文，繁中分別走衛星組件、
+  `TextChanges` 與 `zh-Hant/Extension.vsixlangpack`。
 - 語言清單只有根目錄 `Directory.Build.props` 的 `SqlAssistTextLanguages` 一份（逗號分隔）。
   新增語言：加在那裡、每份 `.resjson` 與資料型覆蓋檔補一份、語言設定加一個列舉值。
-- 跨功能的共用詞（確定、取消、複製）放 `Core/Localization/CommonText`，不在各功能各翻一次。
+- 跨功能的共用詞（確定、取消、複製）放 `Core/Localization/CommonText`；SQL 物件與建議項目的種類名稱
+  （資料表、預存程序、資料表提示……，含複數形）放同一資料夾的 `SqlKindText`。不在各功能各翻一次。
 
 ## 資料型文字
 
@@ -80,13 +87,13 @@
 | 選單命令 | 命令表每顆標 `TextChanges`，QueryStatus 設 `Text`；`Test-CommandTable.ps1` 核對 |
 | 字型與色彩的分類名稱（`ClassificationFormatDefinition`） | MEF 建立時定字，重新啟動 SSMS 才換 |
 | 強制回應對話框 | 開著時進不了設定，不處理 |
-| 設定頁、擴充功能清單 | 跟隨 SSMS 介面語言，本設定管不到：設定頁走 `@key;{packageGuid}` 資源，清單走 `en-US/Extension.vsixlangpack` |
+| 設定頁、擴充功能清單、鍵盤頁的命令名稱 | 跟隨 SSMS 介面語言，本設定管不到：設定頁走 `@key;{packageGuid}` 資源，清單走 `zh-Hant/Extension.vsixlangpack`，命令名稱（`LocCanonicalName`）只有英文 |
 
 ## 新增介面文字（省 token 的做法）
 
 SQLTXT100 全面開著，沒有暫時豁免的資料夾；只進紀錄的文字在接收端標 `[Localizable(false)]`。
 
-1. 在用它的資料夾找現有的 `<類別>.zh-Hant.resjson`，沒有才新增一組。
+1. 先查 `CommonText`／`SqlKindText` 有沒有同一句；沒有才在用它的資料夾找現有的 `<類別>.zh-Hant.resjson`，再沒有才新增一組。
 2. 建置那個專案。SQLTXT100 列出的檔案、行號與前 24 字就是漏網的字面值，只讀命中行附近，不必整檔讀。
    Core、Metadata、Sqlite 用 `dotnet build src/<專案> -c Release`；Ssms22 走 `tools/Build-Extension.ps1`。
 3. 文字寫進 `<類別>.zh-Hant.resjson`（鍵用 PascalCase），呼叫端改用產生的成員，拼接字串改成

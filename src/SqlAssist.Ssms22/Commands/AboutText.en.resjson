@@ -4,7 +4,6 @@
   "VersionBadge": "Version {version}",
   "TabOverview": "Overview",
   "TabSettings": "Settings summary",
-  "TabDiagnostics": "Diagnostics",
   "TabSessionStats": "Session statistics",
   "TabNotificationFailures": "Notification failures",
   "AboutSection": "About SqlAssist",
@@ -56,9 +55,7 @@
   "OpenLog": "Open log file",
   "OpenSettings": "Open Settings",
   "DiagnosticsCopied": "Privacy-safe diagnostic summary copied.",
-  "OpenDiagnosticsLog": "Open diagnostic log",
   "SettingsUnavailable": "Settings unavailable; use Ctrl+, and search for SqlAssist instead.",
   "CheckingForUpdates": "Checking for updates; the result will appear in a notification at the bottom right.",
-  "OpenedInBrowser": "Opened in default browser: {operation}",
-  "ActionFailed": "{operation} failed: {reason}"
+  "OpenedInBrowser": "Opened in default browser: {operation}"
 }

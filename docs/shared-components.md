@@ -55,7 +55,8 @@
 | 同義字與序列的 `CREATE` 定義（目錄檢視組回 T-SQL） | `Metadata/Formatting/SqlCatalogScript.cs` |
 | 分隔字元自動配對的判斷，以及「這一個是我補的」 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |
 | 版本顯示、健康檢查，以及「關於與診斷」與匿名摘要共用的欄位 | `Core/Diagnostics/` |
-| 介面文字與目前語言（產生的文字類別取值、切換、固定語言的範圍） | `Core/Localization/SqlText.cs`；文字在各資料夾的 `*.resjson` |
+| 介面文字與目前語言（產生的文字類別取值、切換、固定語言的範圍、句子外的數字） | `Core/Localization/SqlText.cs`；文字在各資料夾的 `*.resjson` |
+| 跨功能共用詞與 SQL 種類名稱 | `Core/Localization/CommonText`、`SqlKindText`（`.resjson`） |
 | 內嵌 JSON 的譯文與含譯文的快取 | `Core/Localization/SqlTextOverlay.cs`、`SqlLanguageCache.cs` |
 | 通知標題、完成後的敘述、狀態措辭、提醒內容與膠囊摘要 | `Core/Notifications/NotificationCatalog.cs` |
 | 提醒按鈕的穩定識別字 | `Core/Notifications/NotificationActionIds.cs` |

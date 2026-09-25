@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Keywords;
 
@@ -52,11 +53,11 @@ public static class SqlBuiltInKinds
     /// <summary>標題底下那一行種類文字。</summary>
     public static string GetDisplayName(this SqlBuiltInKind kind) => kind switch
     {
-        SqlBuiltInKind.Function => KeywordText.KindFunction,
-        SqlBuiltInKind.TableHint => KeywordText.KindTableHint,
-        SqlBuiltInKind.QueryHint => KeywordText.KindQueryHint,
-        SqlBuiltInKind.DatePart => KeywordText.KindDatePart,
-        SqlBuiltInKind.GlobalVariable => KeywordText.KindGlobalVariable,
+        SqlBuiltInKind.Function => SqlKindText.BuiltInFunction,
+        SqlBuiltInKind.TableHint => SqlKindText.TableHint,
+        SqlBuiltInKind.QueryHint => SqlKindText.QueryHint,
+        SqlBuiltInKind.DatePart => SqlKindText.DatePart,
+        SqlBuiltInKind.GlobalVariable => SqlKindText.GlobalVariable,
         _ => KeywordText.KindDataType
     };
 

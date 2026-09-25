@@ -7,6 +7,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.UI;
@@ -63,7 +64,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _copyScript.Click += (_, _) => _ = RunAsync(CopyDefinitionAsync);
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
         // 現在是開著的，理由見 CreateIconToggle。
-        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, SqlSearchText.WrapSql);
+        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, CommonText.WrapSql);
         _wrap.Checked += (_, _) => Guarded(() => _viewer.SetWrap(true));
         _wrap.Unchecked += (_, _) => Guarded(() => _viewer.SetWrap(false));
 
@@ -206,7 +207,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         {
             // 收起唯讀檢視本身，狀態表面留著：空的檢視在說明文字後面會露出一塊編輯區底色。
             _viewer.Visibility = Visibility.Collapsed;
-            _surface.State = SqlSurfaceState.Empty(SqlSearchText.NoSelection, SqlSearchText.NoSelectionDetail);
+            _surface.State = SqlSurfaceState.Empty(CommonText.NothingSelected, SqlSearchText.NoSelectionDetail);
             return;
         }
 

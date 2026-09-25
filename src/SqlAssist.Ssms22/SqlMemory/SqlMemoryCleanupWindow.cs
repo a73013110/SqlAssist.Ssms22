@@ -35,9 +35,9 @@ internal sealed class SqlMemoryCleanupWindow : DialogWindow
         var server = SqlConnectionTagInput.CreateInput();
         var database = SqlConnectionTagInput.CreateInput();
         _view = new SqlMemoryCleanupView(
-            SqlConnectionTagInput.CreateBar(package, SqlIcon.Server, server, CommonText.Server, databases: false, () => null, includeFavorites: false, Report),
+            SqlConnectionTagInput.CreateBar(package, SqlIcon.Server, server, SqlKindText.Server, databases: false, () => null, includeFavorites: false, Report),
             server,
-            SqlConnectionTagInput.CreateBar(package, SqlIcon.Database, database, CommonText.Database, databases: true,
+            SqlConnectionTagInput.CreateBar(package, SqlIcon.Database, database, SqlKindText.Database, databases: true,
                 () => server.Text.Trim() is { Length: > 0 } text ? text : null, includeFavorites: false, Report),
             database) { Margin = SqlAssistChrome.DialogPadding };
         Content = _view;

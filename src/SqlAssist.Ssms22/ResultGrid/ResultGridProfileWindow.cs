@@ -154,7 +154,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         var cellText = SqlAssistChrome.CreateCellTextStyle();
         var numberText = SqlAssistChrome.CreateCellTextStyle(TextAlignment.Right);
 
-        Add(grid, CommonText.Column, nameof(ResultGridColumnProfile.Name), 180, cellText);
+        Add(grid, SqlKindText.Column, nameof(ResultGridColumnProfile.Name), 180, cellText);
         Add(grid, CommonText.Type, nameof(ResultGridColumnProfile.DataType), 120, cellText);
         Add(grid, ResultGridWindowText.NullCount, nameof(ResultGridColumnProfile.NullCount), 80, numberText, numeric: true);
         Add(grid, ResultGridWindowText.EmptyTextCount, nameof(ResultGridColumnProfile.EmptyTextCount), 80, numberText, numeric: true);
@@ -209,7 +209,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
     private static SqlTabularColumn<ResultGridColumnProfile>[] CopyColumns() =>
         new SqlTabularColumn<ResultGridColumnProfile>[]
         {
-            new(CommonText.Column, profile => profile.Name),
+            new(SqlKindText.Column, profile => profile.Name),
             new(CommonText.Type, profile => profile.DataType),
             new(ResultGridWindowText.NullCount, profile => profile.NullCount.ToString(CultureInfo.InvariantCulture)),
             new(ResultGridWindowText.EmptyTextCount, profile => profile.EmptyTextCount.ToString(CultureInfo.InvariantCulture)),
@@ -239,7 +239,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製欄位剖析失敗：{exception.Message}");
-            _statusText.Text = ResultGridWindowText.CopyFailed(exception.Message);
+            _statusText.Text = CommonText.CopyFailed(exception.Message);
         }
     }
 }

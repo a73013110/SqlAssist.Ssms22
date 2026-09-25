@@ -6,7 +6,6 @@
   "EditorUnavailable": "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。",
   // 以下是建議清單項目的說明。
   "CurrentDatabaseCollation": "目前資料庫的定序",
-  "Collation": "定序",
   // {parameter} 是參數宣告，例如 @BranchId int。
   "ParameterOf": "{routine} 的參數：{parameter}",
   "LinkedServer": "連結伺服器 {server}",

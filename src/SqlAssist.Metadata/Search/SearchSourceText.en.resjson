@@ -5,7 +5,6 @@
   "AgentJobStepCategory": "Job step",
   "AgentJobStepTitle": "{job} › Step {order}",
   "AgentJobNamedStepTitle": "{job} › Step {order} {step}",
-  "AgentJobDisabledBadge": "Disabled",
   "UnknownServerName": "(Unknown server)",
   "SystemDatabase": "{name} (System)",
   "AgentJobUnavailable": "SQL Agent jobs are unavailable this round (likely due to insufficient permissions on msdb for this login), so this source has no results.",

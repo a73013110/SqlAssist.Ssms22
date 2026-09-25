@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Globalization;
 using System.Linq;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Core.Tabular;
 using SqlAssist.Ssms22.UI;
@@ -26,7 +26,7 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
     public bool IsExecuted => History?.Kind == SqlHistoryFilter.Executions;
     public string Status => Favorite is not null ? SqlMemoryUiText.FavoriteStatusLabel : SqlMemoryCopy.HistoryStatus(History!);
     public SqlIcon StatusIcon => IsFavorite ? SqlIcon.Favorite : SqlAssistChrome.MemoryOptionIcon(History!.Kind);
-    public string DeleteLabel => IsFavorite ? SqlMemoryUiText.RemoveFavoriteLabel : SqlMemoryUiText.DeleteHistoryLabel;
+    public string DeleteLabel => IsFavorite ? SqlMemoryCommandText.RemoveFromFavorites : SqlMemoryCommandText.DeleteFromHistory;
 
     /// <summary>History 以建立時間、收藏以最後儲存時間排序；列上的時間與清單順序同源。</summary>
     public DateTimeOffset Time => Favorite?.UpdatedAt ?? History!.CreatedAt;
@@ -67,10 +67,10 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
     public string Timestamp => Time.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss zzz");
 
     /// <summary>連續相同執行併成一列的次數膠囊；只有一次時是空字串，卡片與 Preview 收起膠囊。</summary>
-    public string ExecutionCountText => History is { ExecutionCount: > 1 } item ? "×" + item.ExecutionCount.ToString(CultureInfo.CurrentCulture) : "";
+    public string ExecutionCountText => History is { ExecutionCount: > 1 } item ? "×" + SqlText.Number(item.ExecutionCount) : "";
 
     public string ExecutionCountToolTip => History is { ExecutionCount: > 1 } item
-        ? SqlMemoryUiText.RepeatedExecutionsTooltip(item.ExecutionCount.ToString(CultureInfo.CurrentCulture)) : "";
+        ? SqlMemoryUiText.RepeatedExecutionsTooltip(SqlText.Number(item.ExecutionCount)) : "";
 
     /// <summary>Preview 資訊列的時間；合併的執行列同時交代首次與最後一次，單次仍只顯示一個時間。</summary>
     public string TimeSummary => History is { ExecutionCount: > 1, FirstExecutedAt: { } first }
@@ -80,7 +80,7 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
     public string Detail => Favorite is { } item
         ? SqlMemoryUiText.FavoriteDetail(Time.ToLocalTime(), TagText(item.Favorite))
         : $"{TimeSummary} · {(History!.RevisionId is null ? SqlMemoryUiText.UnsavedDraftLabel : IsExecuted ? ExecutionText(History.ExecutionCount) : SqlMemoryUiText.DraftLabel)} · {ConnectionText(History.Connection)}";
-    private static string ExecutionText(int count) => count > 1 ? SqlMemoryUiText.ExecutedCount(count.ToString(CultureInfo.CurrentCulture)) : SqlMemoryUiText.ExecutedLabel;
+    private static string ExecutionText(int count) => count > 1 ? SqlMemoryUiText.ExecutedCount(SqlText.Number(count)) : SqlMemoryUiText.ExecutedLabel;
     private static string ConnectionText(SqlConnectionLabel? context) => context is null ? SqlMemoryUiText.NoConnectionInfo : $"{context.Server} · {context.Database}";
     private static string TagText(SqlFavorite favorite) => favorite.Server is null && favorite.Database is null
         ? SqlMemoryUiText.UntaggedConnection

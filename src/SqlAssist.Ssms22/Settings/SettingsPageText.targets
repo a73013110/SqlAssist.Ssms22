@@ -4,6 +4,7 @@
     從套件組件的資源解析 "@鍵;{packageGuid}"。所以這一區不走文字產生器，而是在建置時把
     SettingsPageText.<語言>.resjson 轉成 .resources：英文編進主組件當中性資源（SSMS 是其他
     語言時退回英文），其餘語言編成衛星組件。翻譯流程與其他區相同，來源仍是 zh-Hant。
+    各語言的鍵、佔位符與漏翻由文字產生器驗證（SQLTXT），這裡只管轉檔與註冊檔引用的鍵。
 
     殼層掃套件組件裡的每一份 .resources 找鍵（Menus.ctmenu 放在 _EmptyResource 也載得到），
     LogicalName 只求不撞名。
@@ -16,8 +17,8 @@
 
   <ItemGroup>
     <SqlAssistSettingsPageText Include="$(MSBuildThisFileDirectory)SettingsPageText.*.resjson" />
-    <!-- 產生器會把它當成一般文字類別；設定頁用不到強型別成員，只要資源。 -->
-    <AdditionalFiles Remove="@(SqlAssistSettingsPageText)" />
+    <!-- 設定頁用不到強型別成員，只要資源；產生器仍讀它，驗證規則只有那一份。 -->
+    <AdditionalFiles Update="@(SqlAssistSettingsPageText)" SqlAssistTextResourceOnly="true" />
   </ItemGroup>
 
   <UsingTask TaskName="SqlAssistResJsonToResources"
@@ -47,7 +48,6 @@ public sealed class SqlAssistResJsonToResources : Task
     {
         var languages = Languages.Split(',').Select(language => language.Trim()).Where(language => language.Length > 0).ToArray();
         var tables = new Dictionary<string, List<KeyValuePair<string, string>>>(StringComparer.Ordinal);
-        var paths = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var source in Sources)
         {
@@ -56,14 +56,13 @@ public sealed class SqlAssistResJsonToResources : Task
             var language = stem.Substring(stem.LastIndexOf('.') + 1);
             if (!languages.Contains(language))
             {
-                Log.LogError(null, "SQLSET001", null, path, 0, 0, 0, 0, "語言 {0} 不在 SqlAssistTextLanguages（{1}）裡。", language, Languages);
+                // 產生器報 SQLTXT002。
                 continue;
             }
 
             try
             {
                 tables[language] = Parse(File.ReadAllText(path, Encoding.UTF8));
-                paths[language] = path;
             }
             catch (FormatException error)
             {
@@ -71,6 +70,7 @@ public sealed class SqlAssistResJsonToResources : Task
             }
         }
 
+        // 每種語言都要寫出一份資源，缺檔在這裡就得停：嵌入資源指向不存在的檔案只會得到看不懂的錯誤。
         foreach (var language in languages.Where(language => !tables.ContainsKey(language)))
         {
             Log.LogError(null, "SQLSET003", null, Registration, 0, 0, 0, 0, "缺少設定頁的 {0} 文字：SettingsPageText.{0}.resjson。", language);
@@ -81,21 +81,7 @@ public sealed class SqlAssistResJsonToResources : Task
             return false;
         }
 
-        // 來源語言（清單第一個）決定有哪些鍵；其餘語言多一個、少一個都是錯。
         var sourceKeys = tables[languages[0]].Select(pair => pair.Key).ToList();
-        foreach (var language in languages.Skip(1))
-        {
-            var keys = tables[language].Select(pair => pair.Key).ToList();
-            foreach (var key in sourceKeys.Except(keys))
-            {
-                Log.LogError(null, "SQLSET004", null, paths[language], 0, 0, 0, 0, "缺少鍵 {0}。", key);
-            }
-
-            foreach (var key in keys.Except(sourceKeys))
-            {
-                Log.LogError(null, "SQLSET005", null, paths[language], 0, 0, 0, 0, "來源語言沒有鍵 {0}。", key);
-            }
-        }
 
         // 註冊檔引用了不存在的鍵，設定頁會把 "@鍵;{guid}" 原樣畫出來，不會有任何錯誤。
         var registration = File.ReadAllText(Registration, Encoding.UTF8);

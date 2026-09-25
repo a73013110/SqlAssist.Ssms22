@@ -15,8 +15,6 @@
   "Loading": "明細載入中…",
   // 停在欄位上時的第二行；owner 是所屬物件的限定名稱。
   "ColumnOf": "欄位 · {owner}",
-  // 內建函式說明裡範例程式碼前面的標籤。
-  "Example": "範例",
   "MoreHidden": "另有 {count} 項未顯示",
   "NoColumnDetails": "沒有可顯示的欄位明細"
 }

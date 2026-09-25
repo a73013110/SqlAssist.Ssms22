@@ -514,7 +514,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         _editor = BuildEditor();
         _restoreSelectedButton = CreateButton(SnippetWindowText.RestoreSelectedButton, OnRestoreSelected);
-        _saveButton = CreateButton(SnippetWindowText.SaveButton, OnSave, primary: true);
+        _saveButton = CreateButton(CommonText.Save, OnSave, primary: true);
         Content = BuildLayout();
 
         if (_drafts.Count > 0)
@@ -574,7 +574,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = SnippetWindowText.DescriptionLabel,
+            Header = CommonText.Description,
             Binding = new System.Windows.Data.Binding(nameof(PlaceholderDraft.ToolTip)),
             ElementStyle = cellText,
             EditingElementStyle = cellEditor,
@@ -593,7 +593,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         panel.Children.Add(SqlAssistChrome.CreateHint(
             SnippetWindowText.ShortcutHint, Metrics));
 
-        panel.Children.Add(SqlAssistChrome.CreateLabel(SnippetWindowText.DescriptionLabel, Metrics));
+        panel.Children.Add(SqlAssistChrome.CreateLabel(CommonText.Description, Metrics));
         panel.Children.Add(_descriptionBox);
 
         var choices = CreateFieldPair(

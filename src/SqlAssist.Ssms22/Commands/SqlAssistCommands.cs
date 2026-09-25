@@ -328,7 +328,7 @@ internal sealed class SqlAssistCommands
         {
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"開啟物件定義失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, CommandText.OpenDefinitionFailed);
+            SqlAssistStatusBar.Show(_package, EditorText.DefinitionFailed);
         }
     }
 
@@ -594,7 +594,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            Report(CommandText.OperationOpenLog, exception);
+            Report(CommandText.OpenDiagnosticsLog, exception);
         }
     }
 

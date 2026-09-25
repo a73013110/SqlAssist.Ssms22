@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Settings;
 using SqlAssist.Core.Tests.Settings;
@@ -129,6 +130,21 @@ public sealed class NotificationVisibilityTests
         foreach (var toggle in NotificationKindToggle.All)
             Assert.Equal(toggle.Kind == NotificationKind.SqlMemory ? toggle.EnabledByDefault : !toggle.EnabledByDefault,
                 kinds[toggle.Kind]);
+    }
+
+    /// <summary>「關於與診斷」上的種類名稱與設定頁的開關標題是同一件事，兩邊各翻一次就會各自漂移。</summary>
+    /// <remarks>設定頁只能走 SSMS 讀的資源、通知走產生的文字類別，文字沒辦法只寫一份，由這裡守一致。</remarks>
+    [Fact]
+    public void 種類名稱與設定頁的開關標題一致()
+    {
+        foreach (var language in SqlLanguage.All)
+        {
+            using (SqlText.Use(language))
+            {
+                foreach (var toggle in NotificationKindToggle.All)
+                    Assert.Equal(RegistrationManifest.Text(toggle.Moniker, "title", language.Name), toggle.Title);
+            }
+        }
     }
 
     [Fact]

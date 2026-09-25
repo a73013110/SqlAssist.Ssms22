@@ -14,7 +14,6 @@
   "ClickCellFirst": "Click a cell in the results grid, then run this command again.",
   "CellOutOfRange": "The clicked position is outside the data.",
   "ColumnsReordered": "Columns in this results grid were reordered. SqlAssist reads values only in the original order; restore the column order (or run the query again) and try again.",
-  "CopyFailed": "Couldn't copy: {message}",
   "CellWindowTitle": "SqlAssist — Cell content",
   "WordWrap": "Word wrap",
   "WordWrapTip": "Changes only the display; copying keeps the original line breaks and whitespace.",

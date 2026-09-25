@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
@@ -159,7 +159,7 @@ internal sealed class NotificationRow : Grid
         _sourceLine.Visibility = source;
         _message.Text = item.Message; _message.ToolTip = item.Message;
         _message.Visibility = Visible(item.Message.Length > 0);
-        _badgeText.Text = "×" + item.Repeat.ToString(CultureInfo.CurrentCulture);
+        _badgeText.Text = "×" + SqlText.Number(item.Repeat);
         _badge.ToolTip = NotificationCatalog.RepeatBadge(item.Repeat);
         _badge.Visibility = Visible(item.Repeat > 1);
         AutomationProperties.SetName(_badge, (string)_badge.ToolTip);

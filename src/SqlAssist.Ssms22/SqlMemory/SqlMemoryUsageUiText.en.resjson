@@ -14,7 +14,6 @@
   "CompactedSummary": "Database file is now {size}.",
   "BackupVerb": "Back up",
   "BackupBusy": "Backing up database…",
-  "BackupNote": "Backup file: {size}",
   "BackupStatus": "Backed up to {path}.",
   "BackupDialogTitle": "Back up SQL Memory database",
   "BackupDialogFilter": "SQLite database (*.db)|*.db|All files (*.*)|*.*",

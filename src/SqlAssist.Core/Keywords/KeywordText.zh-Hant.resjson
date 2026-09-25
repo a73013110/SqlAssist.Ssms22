@@ -2,15 +2,8 @@
   // COLLATE 之後兩個不必問伺服器的名稱的一行說明。
   "CollationDatabaseDefault": "使用目前資料庫的定序",
   "CollationCatalogDefault": "使用全文檢索目錄的定序；只在全文檢索述詞裡合法",
-  // 內建名稱說明標題底下那一行種類文字。
-  "KindFunction": "內建函式",
-  "KindTableHint": "資料表提示",
-  "KindQueryHint": "查詢提示",
-  "KindDatePart": "日期部分",
-  "KindGlobalVariable": "全域變數",
+  // 內建名稱說明標題底下那一行種類文字；資料型別要點明「內建」，其餘種類用 SqlKindText。
   "KindDataType": "內建型別",
-  // 內建說明浮動視窗裡 datepart 對照表的分頁標題與兩個欄名；datepart 是 T-SQL 參數名，不翻。
-  "DatePartTableTitle": "datepart 名稱",
-  "DatePartTableName": "名稱",
-  "DatePartTableDescription": "說明"
+  // 內建說明浮動視窗裡 datepart 對照表的分頁標題；datepart 是 T-SQL 參數名，不翻。
+  "DatePartTableTitle": "datepart 名稱"
 }

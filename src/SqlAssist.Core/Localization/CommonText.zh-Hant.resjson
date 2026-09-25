@@ -1,6 +1,7 @@
 {
   // 跨功能共用的短詞。新增時加在最後面（平行作業時比較不會衝突）；
   // 只有「在每個出現處意思都一樣」的詞才放這裡，語境不同的各自放功能資料夾。
+  // SQL 物件與建議項目的種類名稱在 SqlKindText。
   "Cancel": "取消",
   "Close": "關閉",
   "Copy": "複製",
@@ -8,16 +9,30 @@
   "Clear": "清除",
   "All": "全部",
   "Other": "其他",
-  "Unknown": "未知",
   "Name": "名稱",
   "Type": "型別",
   "Kind": "種類",
   "Status": "狀態",
   "Definition": "定義",
-  "Server": "伺服器",
-  "Database": "資料庫",
-  "Column": "欄位",
   "Settings": "設定",
   // 列舉幾項時項目之間的分隔。
-  "ListSeparator": "、"
+  "ListSeparator": "、",
+  "Description": "說明",
+  "Example": "範例",
+  "Save": "儲存",
+  "Open": "開啟",
+  "Loading": "載入中…",
+  "Searching": "搜尋中…",
+  "ClearSearch": "清除搜尋",
+  "Disabled": "已停用",
+  "Diagnostics": "診斷",
+  // 詳細窗格還沒有選取任何一列時的標題。
+  "NothingSelected": "尚未選取",
+  "WrapSql": "SQL 顯示換行",
+  // 排序選項：依名稱遞增。
+  "SortByName": "名稱 A–Z",
+  "CopyFailed": "複製失敗：{message}",
+  "QueryWindowClosed": "查詢視窗已關閉。",
+  // 狀態面板的標題與說明合成一句給螢幕報讀器。
+  "TitleAndDetail": "{title}。{detail}"
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Querying;
 
@@ -371,7 +372,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     {
         var badges = new List<SearchBadge>(3) { new(serverName, SearchBadge.ServerIcon) };
 
-        if (!job.IsEnabled) badges.Add(new SearchBadge(SearchSourceText.AgentJobDisabledBadge));
+        if (!job.IsEnabled) badges.Add(new SearchBadge(CommonText.Disabled));
 
         // database_name 只有 TSQL 子系統填得出來；空的時候不掛，掛一顆空膠囊
         // 會讓使用者以為那個步驟跑在一個沒有名字的資料庫上。

@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Globalization;
 using SqlAssist.Core.SqlMemory;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -32,7 +33,7 @@ internal sealed class SqlFavoriteRevisionRow : INotifyPropertyChanged
         : FavoriteText.DetailLength(Origin, Item.Length);
 
     public string RevertLabel => IsCurrent ? FavoriteText.RevertLabelCurrent
-        : CanRevert ? FavoriteText.RevertToNewRevision
+        : CanRevert ? SqlMemoryViewText.RevertToNewRevision
         : ContentMissing ? FavoriteText.RevertLabelCleaned : FavoriteText.RevertLabelUnchanged;
 
     /// <summary>剛出現在時間軸（續頁或回溯之後）；播一次進場後由時間軸清掉，捲動重用容器不重播。</summary>

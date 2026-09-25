@@ -42,9 +42,7 @@
   "KeepLatestPrefix": "保留最新",
   // 接在版本數下拉選單後面的量詞。
   "KeepLatestUnit": "個",
-  "ExecutionsTarget": "執行紀錄",
   "ExecutionsTargetDescription": "History 上的執行列，以及逐次保存的執行事件",
-  "DraftsTarget": "草稿",
   "DraftsTargetDescription": "已有版本的草稿；每個工作階段的最新版本會保留",
   "RecoveryTarget": "已關閉視窗的回復內容",
   "RecoveryTargetDescription": "仍開著的查詢視窗有工作階段租約，一律不清",
@@ -74,7 +72,6 @@
   "MaintainNowToolTip": "不等排程，依目前的保留規則巡完一輪並截斷 WAL。",
   "CleanupEllipsis": "清除紀錄…",
   "CleanupToolTip": "依期間、連線與種類清除 History、回復內容或收藏舊版本；送出前會試算。",
-  "CompactDatabase": "壓縮資料庫",
   "CompactToolTip": "重建資料庫檔案，把已刪除資料佔用的空間還給磁碟；不會刪除任何紀錄。",
   "BackupEllipsis": "備份…",
   "BackupToolTip": "把目前的資料庫另存成一個檔案；擷取照常進行。",
@@ -88,10 +85,7 @@
   "MaintenanceSection": "整理",
   "SelfTestLabel": "儲存自我測試",
   "SelfTestToolTip": "以內建資料驗證寫入、重送、重新開啟與隔離層卸載；不讀也不動你的 SQL。",
-  "DiagnosticsSection": "診斷",
   "RecentMaintenanceSection": "最近整理",
-  // {title}、{detail} 是健康狀態標題與說明，組成主卡片的 automation help text。
-  "HeroHelpText": "{title}。{detail}",
   "NoServerRecords": "還沒有帶連線的紀錄",
   "NoRecentMaintenance": "本次開啟 SSMS 後還沒有整理紀錄",
   "Refresh": "重新整理",

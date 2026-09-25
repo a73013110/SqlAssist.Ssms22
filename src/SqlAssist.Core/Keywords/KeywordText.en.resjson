@@ -1,13 +1,6 @@
 {
   "CollationDatabaseDefault": "Use current database collation",
   "CollationCatalogDefault": "Use full-text catalog collation; full-text predicates only",
-  "KindFunction": "Built-in function",
-  "KindTableHint": "Table hint",
-  "KindQueryHint": "Query hint",
-  "KindDatePart": "Date part",
-  "KindGlobalVariable": "Global variable",
   "KindDataType": "Built-in data type",
-  "DatePartTableTitle": "datepart names",
-  "DatePartTableName": "Name",
-  "DatePartTableDescription": "Description"
+  "DatePartTableTitle": "datepart names"
 }

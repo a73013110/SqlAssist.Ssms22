@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -96,24 +97,24 @@ public sealed class SqlMemoryUsageSummary
 
         var stats = new[]
         {
-            new SqlMemoryStat(SqlMemoryUsageText.StatExecutions, Count(counts.ExecutionEntries),
-                SqlMemoryUsageText.StatExecutionsDetail(Count(counts.ExecutionEvents))),
-            new SqlMemoryStat(SqlMemoryUsageText.StatDrafts, Count(counts.Drafts), SqlMemoryUsageText.StatDraftsDetail(Count(counts.Sessions))),
-            new SqlMemoryStat(SqlMemoryUsageText.StatFavorites, Count(counts.Favorites),
-                SqlMemoryUsageText.StatFavoritesDetail(Count(counts.FavoriteRevisions))),
-            new SqlMemoryStat(SqlMemoryUsageText.StatRecovery, Count(counts.RecoveryItems),
+            new SqlMemoryStat(SqlMemoryUsageText.ExecutionHistory, SqlText.Number(counts.ExecutionEntries),
+                SqlMemoryUsageText.StatExecutionsDetail(SqlText.Number(counts.ExecutionEvents))),
+            new SqlMemoryStat(SqlMemoryText.Drafts, SqlText.Number(counts.Drafts), SqlMemoryUsageText.StatDraftsDetail(SqlText.Number(counts.Sessions))),
+            new SqlMemoryStat(SqlMemoryUsageText.StatFavorites, SqlText.Number(counts.Favorites),
+                SqlMemoryUsageText.StatFavoritesDetail(SqlText.Number(counts.FavoriteRevisions))),
+            new SqlMemoryStat(SqlMemoryUsageText.StatRecovery, SqlText.Number(counts.RecoveryItems),
                 counts.OpenRecoveryItems > 0
-                    ? SqlMemoryUsageText.StatRecoveryOpen(Count(counts.OpenRecoveryItems))
+                    ? SqlMemoryUsageText.StatRecoveryOpen(SqlText.Number(counts.OpenRecoveryItems))
                     : SqlMemoryUsageText.StatRecoveryNoneOpen),
         };
 
         var top = report.Servers.Length == 0 ? 0 : report.Servers.Max(share => share.Count);
         var servers = report.Servers
-            .Select(share => new SqlMemoryShareBar(share.Name, Count(share.Count), top == 0 ? 0 : (double)share.Count / top))
+            .Select(share => new SqlMemoryShareBar(share.Name, SqlText.Number(share.Count), top == 0 ? 0 : (double)share.Count / top))
             .ToArray();
 
         var range = report.OldestAt is { } oldest && report.NewestAt is { } newest
-            ? SqlMemoryUsageText.Range(Date(oldest), Date(newest), Count(counts.Contents))
+            ? SqlMemoryUsageText.Range(Date(oldest), Date(newest), SqlText.Number(counts.Contents))
             : SqlMemoryUsageText.RangeEmpty;
 
         return new SqlMemoryUsageSummary(capacity, disk, report.FreeBytes >= CompactWorthwhileBytes || usage.WalFileBytes >= CompactWorthwhileBytes,
@@ -123,7 +124,7 @@ public sealed class SqlMemoryUsageSummary
 
     /// <summary>清除試算的標題；試算是上限，所以說「最多」。</summary>
     public static string CleanupHeadline(SqlMemoryCleanupEstimate estimate) =>
-        estimate.Total == 0 ? SqlMemoryUsageText.CleanupNone : SqlMemoryUsageText.CleanupAtMost(Count(estimate.Total));
+        estimate.Total == 0 ? SqlMemoryUsageText.CleanupNone : SqlMemoryUsageText.CleanupAtMost(SqlText.Number(estimate.Total));
 
     /// <summary>清除試算的分類明細；沒有列數的分類不列。</summary>
     public static string CleanupBreakdown(SqlMemoryCleanupEstimate estimate) => string.Join(" · ", new (Func<object?, string> Format, long Rows)[]
@@ -134,11 +135,10 @@ public sealed class SqlMemoryUsageSummary
             (SqlMemoryUsageText.CleanupFavoriteRevisions, estimate.FavoriteRevisions),
         }
         .Where(part => part.Rows > 0)
-        .Select(part => part.Format(Count(part.Rows))));
+        .Select(part => part.Format(SqlText.Number(part.Rows))));
 
     public static string Bytes(long bytes) => SqlAssistDiagnosticReport.FormatBytes(bytes);
 
-    public static string Count(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
     public static string Percent(double ratio) =>
         double.IsInfinity(ratio) ? SqlMemoryUsageText.OverLimit : (ratio * 100).ToString(ratio < 0.1 ? "0.#" : "0", CultureInfo.InvariantCulture) + "%";
@@ -163,7 +163,7 @@ public sealed class SqlMemoryUsageSummary
     private static SqlMemoryGauge Quota(string label, long used, int? quota, string detail)
     {
         var ratio = quota is { } value ? SqlMemoryCapacity.Ratio(used, value) : null;
-        return new SqlMemoryGauge(label, quota is { } limit ? Count(used) + " / " + Count(limit) : SqlMemoryUsageText.Unlimited(Count(used)),
+        return new SqlMemoryGauge(label, quota is { } limit ? SqlText.Number(used) + " / " + SqlText.Number(limit) : SqlMemoryUsageText.Unlimited(SqlText.Number(used)),
             ratio, SqlMemoryCapacity.Severity(ratio), detail);
     }
 
@@ -198,7 +198,7 @@ public sealed class SqlMemoryUsageSummary
             SqlMemoryActivityKind.ScheduledMaintenance => SqlMemoryUsageText.ActivityScheduled,
             SqlMemoryActivityKind.ManualMaintenance => SqlMemoryUsageText.ActivityManual,
             SqlMemoryActivityKind.Cleanup => SqlMemoryUsageText.ActivityCleanup,
-            SqlMemoryActivityKind.Compact => SqlMemoryUsageText.ActivityCompact,
+            SqlMemoryActivityKind.Compact => SqlMemoryUsageText.CompactDatabase,
             SqlMemoryActivityKind.Backup => SqlMemoryUsageText.ActivityBackup,
             _ => SqlMemoryUsageText.ActivityMaintenance,
         };
@@ -209,8 +209,8 @@ public sealed class SqlMemoryUsageSummary
                 : SqlMemoryUsageText.CompactNothing,
             SqlMemoryActivityKind.Backup => SqlMemoryUsageText.BackupFile(Bytes(activity.Bytes)),
             _ => activity.DeletedRows <= 0 ? SqlMemoryUsageText.NothingToReclaim
-                : activity.Bytes > 0 ? SqlMemoryUsageText.DeletedRowsReleased(Count(activity.DeletedRows), Bytes(activity.Bytes))
-                : SqlMemoryUsageText.DeletedRows(Count(activity.DeletedRows)),
+                : activity.Bytes > 0 ? SqlMemoryUsageText.DeletedRowsReleased(SqlText.Number(activity.DeletedRows), Bytes(activity.Bytes))
+                : SqlMemoryUsageText.DeletedRows(SqlText.Number(activity.DeletedRows)),
         };
         return new SqlMemoryActivityLine(title, detail, SqlMemoryTimeText.RelativeTime(activity.At, now), !activity.Succeeded);
     }

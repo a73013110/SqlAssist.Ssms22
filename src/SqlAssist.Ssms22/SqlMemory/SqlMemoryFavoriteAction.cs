@@ -1,6 +1,7 @@
 using System;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Connections;
@@ -35,7 +36,7 @@ internal static class SqlMemoryFavoriteAction
     /// <returns>沒有開對話框的原因，寫到狀態列；開了（不論儲存或取消）是空字串。</returns>
     public static string Begin(IWpfTextView view, SqlAssistPackage package)
     {
-        if (view is null || view.IsClosed) return SqlMemoryCommandText.EditorClosed;
+        if (view is null || view.IsClosed) return CommonText.QueryWindowClosed;
 
         // 有選取就收選取，與選取執行同一條界線；沒有選取才是整份文件。
         var selection = SqlCaptureTracker.SelectedText(view.Selection);

@@ -12,7 +12,6 @@
   "DefinitionUnavailable": "Definition unavailable (it may be encrypted, or permissions are insufficient)",
   "Loading": "Loading details…",
   "ColumnOf": "Column · {owner}",
-  "Example": "Example",
   "MoreHidden": "Not shown: {count}",
   "NoColumnDetails": "No column details to display"
 }

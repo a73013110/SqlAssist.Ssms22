@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -211,7 +212,7 @@ internal static class SqlQuickInfoContentBuilder
 
         if (doc.Example.Length > 0)
         {
-            var runs = new List<ClassifiedTextRun> { Comment(QuickInfoText.Example + "  ") };
+            var runs = new List<ClassifiedTextRun> { Comment(CommonText.Example + "  ") };
             runs.AddRange(BuildCodeRuns(doc.Example));
             body.Add(new ClassifiedTextElement(runs));
         }

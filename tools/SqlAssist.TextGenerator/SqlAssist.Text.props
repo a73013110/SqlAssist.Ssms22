@@ -13,6 +13,8 @@
                       IncludeOutputGroupsInVSIXLocalOnly="" />
     <CompilerVisibleProperty Include="SqlAssistTextLanguages" />
     <CompilerVisibleProperty Include="SqlAssistTextCheckLiterals" />
+    <!-- 標 true 的 .resjson 只驗證、不產生類別（設定頁文字，見 SettingsPageText.targets）。 -->
+    <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="SqlAssistTextResourceOnly" />
     <AdditionalFiles Include="**\*.resjson" Exclude="bin\**;obj\**" />
   </ItemGroup>
 </Project>

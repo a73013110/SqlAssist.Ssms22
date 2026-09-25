@@ -1,30 +1,6 @@
 {
-  // 建議清單在找哪一類名稱；通知上的主體。
-  "TargetDataSource": "資料來源",
-  "TargetProcedure": "預存程序",
-  "TargetFunction": "函式",
-  "TargetTableFunction": "資料表值函式",
-  "TargetColumn": "資料行",
-  "TargetGlobalVariable": "全域變數",
-  "TargetVariable": "變數",
-  "TargetDataType": "資料型別",
-  "TargetView": "檢視",
-  "TargetTrigger": "觸發程序",
-  "TargetSequence": "序列",
-  "TargetDatePart": "日期部分",
-  "TargetTableHint": "資料表提示",
-  "TargetQueryHint": "查詢提示",
-  "TargetCollation": "定序",
-  // 建議清單上方的分類篩選鈕（滑鼠停留時顯示）。
-  "FilterColumns": "欄位",
-  "FilterTables": "資料表",
-  "FilterViews": "檢視",
-  "FilterProcedures": "預存程序",
-  "FilterScalarFunctions": "純量函式",
+  // 建議清單上方的分類篩選鈕只有這一顆要補充說明；其餘直接用 SqlKindText 的複數形。
   "FilterTableFunctions": "資料表值函式（含內嵌與多敘述）",
-  "FilterBuiltInFunctions": "內建函式",
-  "FilterKeywords": "關鍵字",
-  "FilterSnippets": "程式碼片段",
   // 編輯器命令處理常式的顯示名稱（Visual Studio 在效能提示裡會列出）。
   "CommandHandlerName": "SqlAssist 結構預覽操作",
   // 提交建議後把名稱展開成整句時，通知上的結果；name 是物件的限定名稱。

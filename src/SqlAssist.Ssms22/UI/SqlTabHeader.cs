@@ -1,7 +1,7 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -89,7 +89,7 @@ internal sealed class SqlTabHeader : StackPanel
 
         var (chip, text) = EnsureChip();
         chip.Visibility = count is null ? Visibility.Collapsed : Visibility.Visible;
-        text.Text = count?.ToString(CultureInfo.CurrentCulture) ?? string.Empty;
+        text.Text = count is { } value ? SqlText.Number(value) : string.Empty;
 
         if (hits && count > 0)
         {

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
@@ -30,7 +31,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
     {
         (SqlMemoryUsageAction.Maintain, SqlIcon.Maintain, () => SqlMemoryViewText.MaintainNow, () => SqlMemoryViewText.MaintainNowToolTip, SqlActionTone.Neutral),
         (SqlMemoryUsageAction.Cleanup, SqlIcon.Cleanup, () => SqlMemoryViewText.CleanupEllipsis, () => SqlMemoryViewText.CleanupToolTip, SqlActionTone.Danger),
-        (SqlMemoryUsageAction.Compact, SqlIcon.Compact, () => SqlMemoryViewText.CompactDatabase, () => SqlMemoryViewText.CompactToolTip, SqlActionTone.Neutral),
+        (SqlMemoryUsageAction.Compact, SqlIcon.Compact, () => SqlMemoryUsageText.CompactDatabase, () => SqlMemoryViewText.CompactToolTip, SqlActionTone.Neutral),
         (SqlMemoryUsageAction.Backup, SqlIcon.Backup, () => SqlMemoryViewText.BackupEllipsis, () => SqlMemoryViewText.BackupToolTip, SqlActionTone.Neutral),
         (SqlMemoryUsageAction.OpenFolder, SqlIcon.Folder, () => SqlMemoryViewText.OpenFolder, () => SqlMemoryViewText.OpenFolderToolTip, SqlActionTone.Neutral),
     };
@@ -124,7 +125,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
             var tools = new WrapPanel { Margin = new Thickness(0, 0, -4, -4) };
             tools.Children.Add(CreateAction(SqlMemoryUsageAction.SelfTest, SqlIcon.SelfTest, SqlMemoryViewText.SelfTestLabel,
                 SqlMemoryViewText.SelfTestToolTip, SqlActionTone.Neutral));
-            _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.DiagnosticsSection, tools));
+            _content.Children.Add(SqlAssistChrome.CreateCardSection(CommonText.Diagnostics, tools));
         }
 
         _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.RecentMaintenanceSection, _activities));
@@ -178,7 +179,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _disk.Text = summary.Disk;
         _maintenance.Text = summary.Maintenance;
         _compactHint.Visibility = summary.CompactRecommended ? Visibility.Visible : Visibility.Collapsed;
-        AutomationProperties.SetHelpText(_hero, SqlMemoryViewText.HeroHelpText(summary.HealthTitle, summary.HealthDetail));
+        AutomationProperties.SetHelpText(_hero, CommonText.TitleAndDetail(summary.HealthTitle, summary.HealthDetail));
 
         _quotas.Children.Clear();
         foreach (var quota in summary.Quotas) AddRow(_quotas, QuotaRow(quota, motion), 10);

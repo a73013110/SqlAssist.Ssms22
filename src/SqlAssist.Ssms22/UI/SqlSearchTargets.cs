@@ -29,7 +29,7 @@ internal static class SqlSearchTargets
     {
         SearchMatchTarget.Name => CommonText.Name,
         SearchMatchTarget.Text => SearchControlText.TargetText,
-        SearchMatchTarget.Column => CommonText.Column,
+        SearchMatchTarget.Column => SqlKindText.Column,
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, "沒有這個比對位置的顯示字。")
     };
 

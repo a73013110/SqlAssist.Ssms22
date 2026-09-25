@@ -51,7 +51,7 @@ internal sealed class SqlFavoriteRevisionCommands
             case SqlFavoriteRevisionAction.Open:
             case SqlFavoriteRevisionAction.Copy:
                 var open = action == SqlFavoriteRevisionAction.Open;
-                await WithSqlAsync(row, loadedSql, token, report, open ? FavoriteText.OpenVerb : CommonText.Copy, async sql =>
+                await WithSqlAsync(row, loadedSql, token, report, open ? CommonText.Open : CommonText.Copy, async sql =>
                 {
                     if (open)
                     {
@@ -75,9 +75,9 @@ internal sealed class SqlFavoriteRevisionCommands
     {
         var owner = SsmsWindows.OwnerOf(source);
         var time = row.Item.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture);
-        if (!SqlAssistConfirmationWindow.Confirm(owner, FavoriteText.RevertToNewRevision, FavoriteText.RevertConfirm(time),
+        if (!SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryViewText.RevertToNewRevision, FavoriteText.RevertConfirm(time),
                 FavoriteText.RevertDetail(retainedLimit.ToString(CultureInfo.InvariantCulture)),
-                FavoriteText.RevertToNewRevision))
+                SqlMemoryViewText.RevertToNewRevision))
             return;
 
         // 回溯要讀舊全文、另存新版本並重讀時間軸，使用者可能已經切走；成功走通知，

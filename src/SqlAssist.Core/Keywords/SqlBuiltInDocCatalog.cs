@@ -555,7 +555,7 @@ public static class SqlBuiltInDocCatalog
 
         return new SqlBuiltInReference(
             KeywordText.DatePartTableTitle,
-            new[] { KeywordText.DatePartTableName, KeywordText.DatePartTableDescription },
+            new[] { CommonText.Name, CommonText.Description },
             rows);
     }
 

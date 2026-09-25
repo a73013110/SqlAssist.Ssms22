@@ -256,8 +256,8 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
     {
         new SqlTabularColumn<SqlSearchRow>(CommonText.Name, row => row.QualifiedName),
         new SqlTabularColumn<SqlSearchRow>(CommonText.Kind, row => row.CategoryLabel),
-        new SqlTabularColumn<SqlSearchRow>(CommonText.Server, row => row.BadgeText(SearchBadge.ServerIcon)),
-        new SqlTabularColumn<SqlSearchRow>(CommonText.Database, row => row.BadgeText(SearchBadge.DatabaseIcon)),
+        new SqlTabularColumn<SqlSearchRow>(SqlKindText.Server, row => row.BadgeText(SearchBadge.ServerIcon)),
+        new SqlTabularColumn<SqlSearchRow>(SqlKindText.Database, row => row.BadgeText(SearchBadge.DatabaseIcon)),
         new SqlTabularColumn<SqlSearchRow>(SqlSearchText.CopyTargets, row => string.Join(CommonText.ListSeparator, row.TargetLabels)),
         new SqlTabularColumn<SqlSearchRow>(SqlSearchText.CopyColumns, row => row.Columns),
     });

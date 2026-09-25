@@ -17,7 +17,6 @@
   "ClickCellFirst": "先在結果格線裡點一格，再執行一次這個命令。",
   "CellOutOfRange": "點到的位置不在資料範圍內。",
   "ColumnsReordered": "這個結果格線的欄位順序被拖動過。SqlAssist 只在原始順序下取值，請先把欄位順序還原（或重新執行一次查詢）再試。",
-  "CopyFailed": "複製失敗：{message}",
   // 儲存格完整內容視窗。
   "CellWindowTitle": "SqlAssist — 儲存格內容",
   "WordWrap": "自動換行",

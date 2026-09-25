@@ -1,6 +1,6 @@
 {
   // 選單、工具列與快顯功能表上的命令名稱；鍵是 CommandIds 的常數名稱。
-  // 命令表（Menus.vsct）的 ButtonText 是套件載入前的樣子，要與這裡的繁中一致。
+  // 命令表（Menus.vsct）的 ButtonText 是套件載入前的樣子，照英文那份寫；Test-CommandTable.ps1 核對。
   // 「自工具選單」的那幾個與編輯器快顯功能表上的同名命令共用一句。
   "ShowSqlHistory": "History",
   "ShowSqlFavorites": "Favorites",

@@ -1,13 +1,11 @@
 {
   // 收藏編輯器、版本歷史對話框、標註輸入與版本操作共用的文字。
-  // 「名稱」「伺服器」「資料庫」「取消」「關閉」「複製」用 CommonText 共用詞，不在這裡重複。
+  // 「名稱」「取消」「關閉」「複製」「儲存」「開啟」用 CommonText，「伺服器」「資料庫」用 SqlKindText，不在這裡重複。
   // ── FavoriteEditorWindow ──
-  "AddToFavorites": "新增至收藏",
   "EditTitle": "編輯收藏 — {name}",
   "UseEditorConnection": "使用查詢視窗的連線",
   "UseEditorConnectionToolTip": "以查詢視窗的伺服器與資料庫填入標註；不切換連線。",
   "DescriptionLabel": "說明（選填）",
-  "Save": "儲存",
   "SaveToolTip": "儲存（Ctrl+S）",
   "EditSummary": "{time} 更新 · 修改 SQL 儲存後會另存新版本，可在版本歷史回溯。",
   // 接在編輯器摘要文字（SqlTextEditor.Summary，不在本檔翻譯範圍）後面的後綴，保留前導空白。
@@ -44,17 +42,14 @@
   "RevertingWait": "正在回溯，請等候完成再關閉。",
   // ── SqlConnectionTagInput ──
   "ExactNameToolTip": "精確名稱；留空表示不限。",
-  // {label} 是 CommonText.Server 或 CommonText.Database。
+  // {label} 是 SqlKindText.Server 或 SqlKindText.Database。
   "ChooseKnown": "選擇出現過的{label}",
   "NotReady": "SQL Memory 尚未就緒，無法列出名稱。",
   "ClearLabel": "不限（清除{label}）",
   "NoKnownNames": "沒有記錄過的{label}",
   // ── SqlFavoriteRevisionCommands ──
-  // 下面兩個是操作動詞（SqlMemoryOperationGate 的操作名稱參數），不是完整句子；「複製」用 CommonText.Copy。
-  "OpenVerb": "開啟",
   "OpenedAsNewQuery": "已用此版本開啟新查詢；未執行 SQL。",
   "CopiedSql": "已複製此版本的完整 SQL。",
-  "RevertToNewRevision": "回溯為新版本",
   "RevertConfirm": "以 {time} 的版本建立新的目前版本？",
   "RevertDetail": "這個版本的 SQL 會另存成一筆新版本，並設為目前版本。\n歷史不會倒帶：目前版本和其他舊版本都會保留，之後仍可再回溯。\n每個收藏只保留最近 {retainedLimit} 版，超出的最舊版本會在維護時回收。",
   "RevertVerb": "回溯",

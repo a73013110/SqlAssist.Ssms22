@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -132,7 +133,7 @@ internal sealed class SqlStateSurface : Grid
         // 載入中那一句由忙碌圖示自己帶著；這裡再掛一次會讓朗讀器念兩遍。
         AutomationProperties.SetName(this, !hasMessage ? ""
             : _state.Detail.Length == 0 ? _state.Title
-            : ChromeText.StateTitleAndDetail(_state.Title, _state.Detail));
+            : CommonText.TitleAndDetail(_state.Title, _state.Detail));
 
         if (motion && hasMessage) SqlAssistChrome.PlayAppear(_message);
         UpdateAnimation();

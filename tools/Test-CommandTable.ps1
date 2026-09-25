@@ -250,10 +250,16 @@ foreach ($match in [regex]::Matches($commandsText, 'AddCommand\(\s*CommandIds\.(
     }
 }
 
-# 選單文字跟著 SqlAssist 的介面語言走：命令表只有一種語言，其餘由 QueryStatus 設 Text。
-# 少了 TextChanges，殼層照樣收下 Text 卻不換字；MenuLabel 漏了一顆，那一顆就停在命令表的繁中。
-# 兩種都沒有錯誤訊息，只有切到英文時才看得出來。
+# 選單文字跟著 SqlAssist 的介面語言走：命令表只有一種語言（英文，中性語言），其餘由 QueryStatus 設 Text。
+# 少了 TextChanges，殼層照樣收下 Text 卻不換字；MenuLabel 漏了一顆，那一顆就停在命令表的英文；
+# ButtonText 與 MenuText.en 不一致，套件載入前後同一項會換一次字。三種都沒有錯誤訊息。
 $menuLabelText = [regex]::Match($commandsText, '(?s)MenuLabel\(int commandId\) => commandId switch\s*\{(.*?)\};').Groups[1].Value
+$menuTextOptions = [System.Text.Json.JsonDocumentOptions]::new()
+$menuTextOptions.CommentHandling = [System.Text.Json.JsonCommentHandling]::Skip
+$menuTextOptions.AllowTrailingCommas = $true
+$menuText = [System.Text.Json.JsonDocument]::Parse(
+    (Get-Content -LiteralPath (Join-Path (Split-Path -Parent $CommandsPath) 'MenuText.en.resjson') -Raw -Encoding UTF8),
+    $menuTextOptions).RootElement
 
 foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
     if ($button.guid -ne 'guidSqlAssistCommandSet') {
@@ -265,8 +271,20 @@ foreach ($button in $vsct.SelectNodes('//ct:Buttons/ct:Button', $ns)) {
     }
 
     $name = $button.id -replace '^cmdid', ''
-    if ($menuLabelText -notmatch "CommandIds\.$name\b") {
+    $label = [regex]::Match($menuLabelText, "CommandIds\.$name\b[^\n]*?=>\s*MenuText\.(\w+)")
+    if (-not $label.Success) {
         $problems.Add("$($button.id) 不在 SqlAssistCommands.MenuLabel 裡，切換語言後選單上那一項不會換字。")
+        continue
+    }
+
+    $key = $label.Groups[1].Value
+    $buttonText = $button.SelectSingleNode('ct:Strings/ct:ButtonText', $ns).InnerText
+    $expected = [System.Text.Json.JsonElement]::new()
+    if (-not $menuText.TryGetProperty($key, [ref]$expected)) {
+        $problems.Add("MenuText.en.resjson 沒有 $key（$($button.id) 的選單文字）。")
+    }
+    elseif ($buttonText -cne $expected.GetString()) {
+        $problems.Add("$($button.id) 的 ButtonText 是「$buttonText」，MenuText.en 的 $key 是「$($expected.GetString())」。")
     }
 }
 

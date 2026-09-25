@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
@@ -59,7 +60,7 @@ internal static class SqlSnippetSurroundAction
     {
         if (view is null || view.IsClosed)
         {
-            message = SnippetWindowText.QueryWindowClosed;
+            message = CommonText.QueryWindowClosed;
             return false;
         }
 

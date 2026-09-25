@@ -49,11 +49,11 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     // 往往就是「這幾台上的同一段 SQL」。名單一頁一百個且可續頁，所以帶搜尋框；全選不放，
     // 它與第一列那個「全部」是同一件事。
     private readonly ConnectionFacet _serverFacet =
-        new(new SqlFilterFlyout(CommonText.Server, SqlIcon.Server, SqlFilterMode.SearchableMultiple), databases: false, CommonText.Server,
-            SqlMemoryUiText.NoServerFilterHint, SqlMemoryUiText.MoreServersLabel, SqlMemoryUiText.ServerUnit);
+        new(new SqlFilterFlyout(SqlKindText.Server, SqlIcon.Server, SqlFilterMode.SearchableMultiple), databases: false, SqlKindText.Server,
+            SqlMemoryUiText.NoServerFilterHint, SqlMemoryUiText.MoreServersLabel, count => SqlMemoryUiText.ServerCount(count));
     private readonly ConnectionFacet _databaseFacet =
-        new(new SqlFilterFlyout(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple), databases: true, CommonText.Database,
-            SqlMemoryUiText.NoDatabaseFilterHint, SqlMemoryUiText.MoreDatabasesLabel, SqlMemoryUiText.DatabaseUnit);
+        new(new SqlFilterFlyout(SqlKindText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple), databases: true, SqlKindText.Database,
+            SqlMemoryUiText.NoDatabaseFilterHint, SqlMemoryUiText.MoreDatabasesLabel, count => ChromeText.DatabaseCount(count));
     private readonly ConnectionFacet[] _connectionFacets;
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
@@ -121,7 +121,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         // 連同它前面那一段間距；空字串的 TextBlock 仍有行高。
         _hostStatus.Visibility = Visibility.Collapsed;
         header.Children.Add(_hostStatus);
-        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlMemoryUiText.ClearSearchTooltip);
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, CommonText.ClearSearch);
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
         _search.ToolTip = SqlMemoryUiText.SearchTooltip;
         System.Windows.Automation.AutomationProperties.SetName(_search, SqlMemoryUiText.SearchAutomationName);
@@ -705,7 +705,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         var selected = Selection(facet);
         facet.Panel.UpdateSummary(
-            SqlFilterSummary.Of(selected.Count, CommonText.All, selected.Count == 1 ? selected[0] : null, facet.Unit),
+            SqlFilterSummary.Of(selected.Count, CommonText.All, selected.Count == 1 ? selected[0] : null, facet.CountText),
             selected.Count == 0 ? facet.EmptyHint : SqlFilterSummary.Detail(selected));
         facet.Panel.HasSelection = selected.Count != 0;
     }
@@ -734,9 +734,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         private readonly List<string> _names = new();
 
         public ConnectionFacet(SqlFilterFlyout panel, bool databases, string name, string emptyHint, string moreLabel,
-            string unit)
+            Func<int, string> countText)
         {
-            Panel = panel; Databases = databases; Name = name; EmptyHint = emptyHint; MoreLabel = moreLabel; Unit = unit;
+            Panel = panel; Databases = databases; Name = name; EmptyHint = emptyHint; MoreLabel = moreLabel; CountText = countText;
         }
 
         public SqlFilterFlyout Panel { get; }
@@ -750,8 +750,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
 
         public string MoreLabel { get; }
 
-        /// <summary>摘要只剩數量時的量詞；「3 個」與「3 台」讀起來不是同一件事。</summary>
-        public string Unit { get; }
+        /// <summary>摘要只剩數量時的那一句；「3 個」與「3 台」讀起來不是同一件事。</summary>
+        public Func<int, string> CountText { get; }
 
         public SqlConnectionFacetSort Sort { get; set; } = SqlConnectionFacetSort.Recent;
 
@@ -952,7 +952,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             var content = all.Favorites is { } favorites
                 ? SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, favorites.Items)
                 : SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, all.History!.Items);
-            var limit = Count(SqlMemoryBulk.Limit);
+            var limit = SqlText.Number(SqlMemoryBulk.Limit);
             succeeded = await WriteClipboardAsync(content, all.IsTruncated
                 ? SqlMemoryUiText.CopyTruncatedNotice(limit)
                 : null).ConfigureAwait(true);
@@ -1002,12 +1002,12 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             var stop = new CancellationTokenSource();
             _bulk = stop;
             var hint = SqlMemoryUiText.DeleteStopHint;
-            var total = Count(deletion.Count);
+            var total = SqlText.Number(deletion.Count);
             Action cancel = () => { if (ReferenceEquals(_bulk, stop)) stop.Cancel(); };
             _selectionBar.ShowProgress(SqlMemoryUiText.DeletingLabel, hint, cancel);
             var progress = new Progress<int>(done =>
             {
-                if (ReferenceEquals(_bulk, stop)) _selectionBar.ShowProgress(SqlMemoryUiText.DeletingProgress(Count(done), total), hint, cancel);
+                if (ReferenceEquals(_bulk, stop)) _selectionBar.ShowProgress(SqlMemoryUiText.DeletingProgress(SqlText.Number(done), total), hint, cancel);
             });
             try
             {
@@ -1059,7 +1059,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _selectionBar.ShowProgress(ReadingAll, cancelHint, stop);
         var progress = new Progress<int>(count =>
         {
-            if (ReferenceEquals(_bulk, cancel)) _selectionBar.ShowProgress(SqlMemoryUiText.ReadingAllProgress(Count(count)), cancelHint, stop);
+            if (ReferenceEquals(_bulk, cancel)) _selectionBar.ShowProgress(SqlMemoryUiText.ReadingAllProgress(SqlText.Number(count)), cancelHint, stop);
         });
         try
         {
@@ -1090,7 +1090,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     /// <summary>筆數那一格換成的進度；停靠面板只有 300 DIP 上下，短到放得進「✕」與「取消」之間。</summary>
     private static string ReadingAll => SqlMemoryUiText.ReadingEllipsis;
 
-    private static string Count(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
 
     /// <param name="note">成功時通知上的說明；null 用預設的筆數與「可直接貼到 Excel」。</param>
     private async Task<bool> WriteClipboardAsync(SqlTabularContent content, string? note)

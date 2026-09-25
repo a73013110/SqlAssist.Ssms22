@@ -17,12 +17,16 @@ namespace SqlAssist.TextGenerator;
 /// 沒有衛星組件、沒有執行期剖析，隔離 AppDomain 與 VSIX 探測路徑都碰不到它。
 /// 有佔位符的句子產生成方法，參數個數由編譯器檢查；各語言的鍵與佔位符不一致是建置錯誤，
 /// 不在執行期退回來源語言。
+///
+/// 標了 <c>SqlAssistTextResourceOnly</c> 的檔案（設定頁文字，由 SSMS 從資源解析）只驗證、
+/// 不產生類別：各語言一致與漏翻的規則只有這一份，不在資源轉檔那邊另寫一套。
 /// </remarks>
 [Generator(LanguageNames.CSharp)]
 public sealed class SqlTextGenerator : IIncrementalGenerator
 {
     internal const string FileExtension = ".resjson";
     private const string LanguagesProperty = "build_property.SqlAssistTextLanguages";
+    private const string ResourceOnlyMetadata = "build_metadata.AdditionalFiles.SqlAssistTextResourceOnly";
     private const string LanguagesAttribute = "SqlAssist.Core.Localization.SqlTextLanguagesAttribute";
     private const string Runtime = "global::SqlAssist.Core.Localization.SqlText";
 
@@ -32,7 +36,12 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
             (provider, _) => provider.GlobalOptions.TryGetValue(LanguagesProperty, out var value) ? value : string.Empty);
         var files = context.AdditionalTextsProvider
             .Where(file => file.Path.EndsWith(FileExtension, StringComparison.OrdinalIgnoreCase))
-            .Select((file, token) => new InputFile(file.Path, file.GetText(token)?.ToString() ?? string.Empty));
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Select((input, token) => new InputFile(
+                input.Left.Path,
+                input.Left.GetText(token)?.ToString() ?? string.Empty,
+                input.Right.GetOptions(input.Left).TryGetValue(ResourceOnlyMetadata, out var value)
+                    && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)));
         var hasAttribute = context.CompilationProvider.Select(
             (compilation, _) => compilation.GetTypeByMetadataName(LanguagesAttribute) is not null);
 
@@ -96,7 +105,7 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
             var groupKey = directory + "|" + className;
             if (!groups.TryGetValue(groupKey, out var group))
             {
-                group = new TextGroup(directory, className);
+                group = new TextGroup(directory, className, file.ResourceOnly);
                 groups.Add(groupKey, group);
             }
 
@@ -113,7 +122,7 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
     {
         var anyFile = group.Files.Values.First();
         var ns = NamespaceOf(group.Directory);
-        if (ns is null)
+        if (ns is null && !group.ResourceOnly)
         {
             output.ReportDiagnostic(Diagnostic.Create(SqlTextDiagnostics.BadNamespace, FileLocation(anyFile.Path), anyFile.Path));
             return;
@@ -167,6 +176,11 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
                 if (i > 0 && tables.TryGetValue(languages[i], out var table))
                 {
                     template = Translated(output, group.ClassName, languages[i], table, key, sourceTemplate) ?? sourceTemplate;
+                    if (!UsesCjkScript(languages[i]) && LiteralTextAnalyzer.ContainsCjk(table.Entries.TryGetValue(key, out var text) ? text : string.Empty))
+                    {
+                        output.ReportDiagnostic(Diagnostic.Create(
+                            SqlTextDiagnostics.Untranslated, table.LocationOf(key), group.ClassName, languages[i], key));
+                    }
                 }
 
                 values[i] = order.Count == 0 ? template.ToPlainText() : template.ToCompositeFormat(order);
@@ -189,8 +203,17 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
             }
         }
 
-        output.AddSource($"{ns}.{group.ClassName}.g.cs", Render(ns, group.ClassName, members));
+        if (ns is not null && !group.ResourceOnly)
+        {
+            output.AddSource($"{ns}.{group.ClassName}.g.cs", Render(ns, group.ClassName, members));
+        }
     }
+
+    /// <summary>譯文本來就該有中日韓字元的語言；其餘語言出現就是整句沒翻或貼錯檔。</summary>
+    internal static bool UsesCjkScript(string language) =>
+        language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+        || language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)
+        || language.StartsWith("ko", StringComparison.OrdinalIgnoreCase);
 
     private static SqlTextTemplate? Translated(
         SourceProductionContext output,
@@ -290,18 +313,22 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
 
     internal sealed class InputFile : IEquatable<InputFile>
     {
-        public InputFile(string path, string text)
+        public InputFile(string path, string text, bool resourceOnly)
         {
             Path = path;
             Text = text;
+            ResourceOnly = resourceOnly;
         }
 
         public string Path { get; }
 
         public string Text { get; }
 
+        /// <summary>只驗證、不產生類別。</summary>
+        public bool ResourceOnly { get; }
+
         public bool Equals(InputFile? other) =>
-            other is not null && other.Path == Path && other.Text == Text;
+            other is not null && other.Path == Path && other.Text == Text && other.ResourceOnly == ResourceOnly;
 
         public override bool Equals(object? obj) => Equals(obj as InputFile);
 
@@ -310,15 +337,18 @@ public sealed class SqlTextGenerator : IIncrementalGenerator
 
     private sealed class TextGroup
     {
-        public TextGroup(string directory, string className)
+        public TextGroup(string directory, string className, bool resourceOnly)
         {
             Directory = directory;
             ClassName = className;
+            ResourceOnly = resourceOnly;
         }
 
         public string Directory { get; }
 
         public string ClassName { get; }
+
+        public bool ResourceOnly { get; }
 
         public Dictionary<string, InputFile> Files { get; } = new(StringComparer.Ordinal);
     }

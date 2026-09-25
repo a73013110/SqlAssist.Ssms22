@@ -39,31 +39,31 @@ internal static class SqlCompletionFilters
     private sealed class FilterSet
     {
         public ImmutableArray<CompletionFilter> Columns { get; } =
-            One(CompletionText.FilterColumns, "c", SqlIcons.GetImageElement(SuggestionKind.Column));
+            One(SqlKindText.Columns, "c", SqlIcons.GetImageElement(SuggestionKind.Column));
 
         public ImmutableArray<CompletionFilter> Tables { get; } =
-            One(CompletionText.FilterTables, "t", SqlIcons.GetImageElement(SuggestionKind.Table));
+            One(SqlKindText.Tables, "t", SqlIcons.GetImageElement(SuggestionKind.Table));
 
         public ImmutableArray<CompletionFilter> Views { get; } =
-            One(CompletionText.FilterViews, "v", SqlIcons.GetImageElement(SuggestionKind.View));
+            One(SqlKindText.Views, "v", SqlIcons.GetImageElement(SuggestionKind.View));
 
         public ImmutableArray<CompletionFilter> Procedures { get; } =
-            One(CompletionText.FilterProcedures, "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
+            One(SqlKindText.Procedures, "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
 
         public ImmutableArray<CompletionFilter> ScalarFunctions { get; } =
-            One(CompletionText.FilterScalarFunctions, "f", SqlIcons.GetImageElement(SuggestionKind.Function));
+            One(SqlKindText.ScalarFunctions, "f", SqlIcons.GetImageElement(SuggestionKind.Function));
 
         public ImmutableArray<CompletionFilter> TableFunctions { get; } =
             One(CompletionText.FilterTableFunctions, "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
 
         public ImmutableArray<CompletionFilter> BuiltInFunctions { get; } =
-            One(CompletionText.FilterBuiltInFunctions, "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
+            One(SqlKindText.BuiltInFunctions, "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
 
         public ImmutableArray<CompletionFilter> Keywords { get; } =
-            One(CompletionText.FilterKeywords, "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
+            One(SqlKindText.Keywords, "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
 
         public ImmutableArray<CompletionFilter> Snippets { get; } =
-            One(CompletionText.FilterSnippets, "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
+            One(SqlKindText.Snippets, "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
 
         public ImmutableArray<CompletionFilter> Others { get; } =
             One(CommonText.Other, "o", SqlIcons.Ellipsis);

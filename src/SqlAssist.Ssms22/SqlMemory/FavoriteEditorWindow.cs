@@ -52,7 +52,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         _theme = new SqlScriptTheme(ActiveSqlEditor.Current, _editor);
         _theme.Updated += (_, _) => _editor.RefreshColors();
         SqlMemoryActions.ConfigureWindow(this, package,
-            existing is null ? FavoriteText.AddToFavorites : FavoriteText.EditTitle(existing.Favorite.Name), 960, 700);
+            existing is null ? SqlMemoryViewText.AddToFavorites : FavoriteText.EditTitle(existing.Favorite.Name), 960, 700);
         MinWidth = 640; MinHeight = 520;
 
         var root = new DockPanel { Margin = SqlAssistChrome.DialogPadding };
@@ -69,8 +69,8 @@ internal sealed class FavoriteEditorWindow : DialogWindow
             _form.RowDefinitions.Add(new RowDefinition { Height = row % 2 == 1 ? new GridLength(12) : GridLength.Auto });
         _name.MaxLength = 200;
         Place(SqlAssistChrome.CreateMemoryField(CommonText.Name, _name, _name), 0, 0, 5);
-        Place(SqlAssistChrome.CreateMemoryField(CommonText.Server, TagBar(SqlIcon.Server, _server, CommonText.Server, databases: false), _server), 2, 0);
-        Place(SqlAssistChrome.CreateMemoryField(CommonText.Database, TagBar(SqlIcon.Database, _database, CommonText.Database, databases: true), _database), 2, 2);
+        Place(SqlAssistChrome.CreateMemoryField(SqlKindText.Server, TagBar(SqlIcon.Server, _server, SqlKindText.Server, databases: false), _server), 2, 0);
+        Place(SqlAssistChrome.CreateMemoryField(SqlKindText.Database, TagBar(SqlIcon.Database, _database, SqlKindText.Database, databases: true), _database), 2, 2);
         var connection = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         connection.Template = SqlAssistChrome.CreateGhostButtonTemplate();
         connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, FavoriteText.UseEditorConnection);
@@ -85,7 +85,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         DockPanel.SetDock(_form, Dock.Top); root.Children.Add(_form);
 
         _cancel = SqlAssistChrome.CreateButton(CommonText.Cancel, SqlAssistChrome.DefaultMetrics); _cancel.IsCancel = true;
-        _submit = SqlAssistChrome.CreateButton(existing is null ? FavoriteText.AddToFavorites : FavoriteText.Save, SqlAssistChrome.DefaultMetrics, true);
+        _submit = SqlAssistChrome.CreateButton(existing is null ? SqlMemoryViewText.AddToFavorites : CommonText.Save, SqlAssistChrome.DefaultMetrics, true);
         _submit.IsDefault = true;
         _submit.ToolTip = FavoriteText.SaveToolTip;
         _status.TextWrapping = TextWrapping.Wrap;

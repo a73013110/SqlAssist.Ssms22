@@ -9,6 +9,7 @@
 - 選單命令照 Visual Studio 選單用 Title Case（`Go To Definition`）；其餘標題、按鈕、設定項目用
   sentence case（`Copy definition`），與 SSMS 22 的設定頁一致。
 - 按鈕與命令用祈使動詞開頭；狀態句用完整句子並以句點結尾，中文沒有句號的短標籤英文也不加。
+- 失敗訊息一律 `Couldn't …`（`Couldn't open SQL Search`），不混用 `Failed to …`。
 - 全形標點改成英文標點：`，`→`, `、`：`→`: `、`「」`→`""`、`（）`→` ()`、`…`保留。
 - T-SQL 關鍵字維持大寫（`SELECT *`、`INSERT INTO`）；產品名稱不翻（SqlAssist、SQL Memory、SQL Search）。
 - 佔位符 `{name}` 原樣保留，可以調整位置；英文單複數由句型避開（`Columns: {count}`），

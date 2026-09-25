@@ -81,7 +81,7 @@ internal sealed class SqlSearchSortOption
     public static IReadOnlyList<SqlSearchSortOption> All { get; } = new[]
     {
         new SqlSearchSortOption(SqlSearchSort.Relevance, () => SqlSearchText.SortRelevance, () => SqlSearchText.SortRelevance),
-        new SqlSearchSortOption(SqlSearchSort.Name, () => SqlSearchText.SortName, () => CommonText.Name),
+        new SqlSearchSortOption(SqlSearchSort.Name, () => CommonText.SortByName, () => CommonText.Name),
         new SqlSearchSortOption(SqlSearchSort.Kind, () => SqlSearchText.SortKind, () => CommonText.Kind)
     };
 
@@ -140,11 +140,6 @@ internal sealed class SqlSearchBrowserModel
 
     /// <summary>還沒選伺服器時伺服器按鈕上的字。</summary>
     public static string NoServerLabel => SqlSearchText.NoServer;
-
-    /// <summary>種類與資料庫的數量摘要各自的量詞；按鈕上只剩數字時分不出那是幾種還是幾個。</summary>
-    private static string CategoryUnit => SqlSearchText.CategoryUnit;
-
-    private static string DatabaseUnit => SqlSearchText.DatabaseUnit;
 
     /// <summary>沒有可搜的連線（還沒選伺服器，或選的那一台連不上）時，狀態表面上那顆按鈕的字。</summary>
     /// <remarks>
@@ -443,14 +438,14 @@ internal sealed class SqlSearchBrowserModel
 
     /// <summary>種類按鈕上的摘要；十幾種物件攤成 pill 會佔掉兩列，在停靠面板裡等於少看四筆結果。</summary>
     public string CategorySummary() =>
-        Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel(), CategoryUnit);
+        Summarize(_categoryIds.Count, AllCategoriesLabel, SingleCategoryLabel(), count => SqlSearchText.CategoryCount(count));
 
     /// <summary>伺服器按鈕上的摘要：選定的那一台，還沒選時說「未選擇」。</summary>
     public string ServerSummary() => Scope.Servers.Count == 0 ? NoServerLabel : Scope.Servers[0];
 
     /// <summary>資料庫按鈕上的摘要；一個都沒勾就是「全部」，與面板第一列共用同一份字。</summary>
     public string DatabaseSummary() =>
-        Summarize(Scope.Databases.Count, AllDatabasesLabel, Scope.Databases.Count == 1 ? Scope.Databases[0] : null, DatabaseUnit);
+        Summarize(Scope.Databases.Count, AllDatabasesLabel, Scope.Databases.Count == 1 ? Scope.Databases[0] : null, count => ChromeText.DatabaseCount(count));
 
     /// <summary>輸入或篩選改變：這一份結果已經不代表畫面上的條件，但清單留著等新結果。</summary>
     public void Invalidate()
@@ -589,7 +584,7 @@ internal sealed class SqlSearchBrowserModel
     internal static string PartialHint => SqlSearchText.PartialHint;
 
     /// <summary>頁尾說的「搜尋中」；清單仍是上一輪的那一份，進度留在原地。</summary>
-    internal static string SearchingLabel => SqlSearchText.Searching;
+    internal static string SearchingLabel => CommonText.Searching;
 
     /// <summary>
     /// 清單的頁尾：筆數，以及這一份為什麼不完整。與 SQL Memory 同一種頁尾（<see cref="SqlListFooter"/>）。
@@ -730,8 +725,8 @@ internal sealed class SqlSearchBrowserModel
     /// </remarks>
     /// <param name="unit">數量後面的量詞；只剩一個數字時，使用者分不出那是幾種還是幾個。</param>
     /// <summary>過濾按鈕的摘要只有一份寫法，見 <see cref="SqlFilterSummary"/>。</summary>
-    private static string Summarize(int count, string allLabel, string? single, string unit) =>
-        SqlFilterSummary.Of(count, allLabel, single, unit);
+    private static string Summarize(int count, string allLabel, string? single, Func<int, string> countText) =>
+        SqlFilterSummary.Of(count, allLabel, single, countText);
 
     /// <summary>沒有宣告的分類排在最後；不認得的 Id 不該插在認得的中間。</summary>
     private int CategoryRank(string categoryId) =>

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Notifications;
 
@@ -87,7 +87,7 @@ public static partial class NotificationCatalog
 
     /// <summary>多則提醒疊在一起時右上角那一格：「1/3」。</summary>
     public static string PromptPosition(int position, int count) =>
-        position.ToString(CultureInfo.CurrentCulture) + "/" + count.ToString(CultureInfo.CurrentCulture);
+        SqlText.Number(position) + "/" + SqlText.Number(count);
 
     /// <summary>
     /// 通知島收成膠囊時的那一行。

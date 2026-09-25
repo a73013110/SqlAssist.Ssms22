@@ -14,7 +14,7 @@ namespace SqlAssist.TextGenerator;
 /// 豁免沿用 BCL 的 <c>[Localizable(false)]</c>（CA1303 的同一套語意）：標在參數上，
 /// 直接傳進去的字面值不檢查；標在成員或型別上，裡面的字面值都不檢查。診斷紀錄與
 /// 平台防護的作業名稱就是這樣豁免的——紀錄給維護者比對，不隨介面語言切換。
-/// 遷移期間尚未處理的資料夾以該資料夾的 .editorconfig 把 SQLTXT100 關掉，處理完就刪檔。
+/// 整個專案不檢查（測試專案滿是中文斷言）時設 MSBuild 屬性 <c>SqlAssistTextCheckLiterals=false</c>。
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class LiteralTextAnalyzer : DiagnosticAnalyzer

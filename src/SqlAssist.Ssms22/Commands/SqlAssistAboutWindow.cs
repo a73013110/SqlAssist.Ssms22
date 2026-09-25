@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -141,7 +140,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
 
         tabs.Items.Add(CreateTab(AboutText.TabOverview, BuildOverview()));
         tabs.Items.Add(CreateTab(AboutText.TabSettings, BuildSettings()));
-        tabs.Items.Add(CreateTab(AboutText.TabDiagnostics, BuildDiagnostics()));
+        tabs.Items.Add(CreateTab(CommonText.Diagnostics, BuildDiagnostics()));
         tabs.Items.Add(CreateTab(AboutText.TabSessionStats, BuildNotificationDigest()));
         tabs.Items.Add(CreateTab(AboutText.TabNotificationFailures, BuildNotificationFailures()));
         return tabs;
@@ -305,7 +304,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
 
     /// <summary>統一用毫秒，讓不同量級的兩列仍然可以直接比大小。</summary>
     private static string FormatMilliseconds(TimeSpan elapsed) =>
-        elapsed.TotalMilliseconds.ToString("N0", CultureInfo.CurrentCulture) + " ms";
+        SqlText.Number((long)Math.Round(elapsed.TotalMilliseconds, MidpointRounding.AwayFromZero)) + " ms";
 
     private UIElement BuildNotificationFailures()
     {
@@ -419,7 +418,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         }
         catch (Exception exception)
         {
-            ReportActionFailure(AboutText.OpenDiagnosticsLog, exception);
+            ReportActionFailure(CommandText.OpenDiagnosticsLog, exception);
         }
     }
 
@@ -471,7 +470,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         // 這些都是使用者主動按下的動作；失敗時不能像平台探測一樣安靜略過。
         SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
-        _statusText.Text = AboutText.ActionFailed(operation, exception.Message);
+        _statusText.Text = CommandText.OperationFailed(operation, exception.Message);
     }
 
     private static TabItem CreateTab(string header, UIElement content) =>

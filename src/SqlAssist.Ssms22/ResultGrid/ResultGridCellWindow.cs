@@ -127,7 +127,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製儲存格內容失敗：{exception.Message}");
-            _statusText.Text = ResultGridWindowText.CopyFailed(exception.Message);
+            _statusText.Text = CommonText.CopyFailed(exception.Message);
         }
     }
 }

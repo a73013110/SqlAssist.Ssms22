@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using SqlAssist.Core.Lists;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -126,7 +127,7 @@ public sealed class SqlFavoriteRevisionTimeline
         var loaded = SqlMemoryText.RevisionsLoaded(_items.Count.ToString(CultureInfo.InvariantCulture));
         if (_page.Loading)
             return _pendingFirst ? new SqlListFooter(SqlListFooterKind.Hidden, "")
-                : new SqlListFooter(SqlListFooterKind.Loading, loaded, null, SqlMemoryText.Loading);
+                : new SqlListFooter(SqlListFooterKind.Loading, loaded, null, CommonText.Loading);
         if (_page.Cursor != null) return new SqlListFooter(SqlListFooterKind.More, loaded, null, SqlMemoryText.LoadMore);
         return _items.Count == 0
             ? new SqlListFooter(SqlListFooterKind.Empty, SqlMemoryText.NoRevisions, SqlMemoryText.NoRevisionsHint)

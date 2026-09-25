@@ -9,8 +9,6 @@
   // 作業步驟那一列的標題；› 是階層分隔，照原樣保留。
   "AgentJobStepTitle": "{job} › 第 {order} 步",
   "AgentJobNamedStepTitle": "{job} › 第 {order} 步 {step}",
-  // 作業停用時掛在列上的膠囊。
-  "AgentJobDisabledBadge": "已停用",
   // 伺服器說不出自己的名字時，膠囊上代替伺服器名稱的字。
   "UnknownServerName": "(不明伺服器)",
   // 搜尋範圍的資料庫清單裡，系統資料庫名稱後面的標記。

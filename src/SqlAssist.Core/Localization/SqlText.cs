@@ -45,6 +45,13 @@ public static class SqlText
         return new Scope(previous);
     }
 
+    /// <summary>不在句子裡的數字（統計格、徽章、分頁數量）：依目前語言的文化加千分位。</summary>
+    /// <remarks>
+    /// 句子裡的數字直接交給產生的方法、在 .resjson 寫 <c>{count:N0}</c>；這裡給沒有句子可放的地方。
+    /// 不用 <see cref="System.Globalization.CultureInfo.CurrentCulture"/>：那是 SSMS 的文化，介面語言可以與它不同。
+    /// </remarks>
+    public static string Number(long value) => value.ToString("N0", Current.Culture);
+
     /// <summary>產生的程式碼專用：沒有佔位符的一句。</summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public static string Pick(string[] values) => values[Current.Index];

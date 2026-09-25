@@ -57,6 +57,11 @@ internal static class SqlTextDiagnostics
         "各語言的佔位符不一致",
         "{0}.{1}.resjson 的 '{2}' 佔位符是 {3}，來源語言是 {4}");
 
+    public static readonly DiagnosticDescriptor Untranslated = Error(
+        "SQLTXT011",
+        "譯文裡有中日韓字元",
+        "{0}.{1}.resjson 的 '{2}' 含中日韓字元，像是沒翻譯或貼錯語言");
+
     public static readonly DiagnosticDescriptor LiteralText = new(
         "SQLTXT100",
         "程式碼裡的字面中文",

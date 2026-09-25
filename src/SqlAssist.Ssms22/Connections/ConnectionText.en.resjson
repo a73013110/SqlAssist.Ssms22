@@ -4,7 +4,6 @@
   "WindowNotCreated": "SSMS did not create a new query window.",
   "EditorUnavailable": "New query window opened, but the editor could not be accessed; the definition was not written.",
   "CurrentDatabaseCollation": "Current database collation",
-  "Collation": "Collation",
   "ParameterOf": "Parameter of {routine}: {parameter}",
   "LinkedServer": "Linked server {server}",
   "QueryResult": "Query result"

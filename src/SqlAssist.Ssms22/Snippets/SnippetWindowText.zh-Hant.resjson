@@ -21,7 +21,6 @@
   "DestructiveCheckboxLabel": "危險操作（無輸入前綴時隱藏）",
   // 按鈕文字。
   "RestoreSelectedButton": "還原此預設",
-  "SaveButton": "儲存",
   "AddButton": "新增",
   "DuplicateButton": "複製",
   "RevealFileButton": "開啟檔案位置",
@@ -29,7 +28,6 @@
   // 欄位標籤／欄位表標題。
   "PlaceholderLabel": "佔位符",
   "DefaultValueColumnHeader": "預設值",
-  "DescriptionLabel": "說明",
   "ShortcutFieldLabel": "捷徑",
   "TitleFieldLabel": "標題",
   "CategoryFieldLabel": "分類",
@@ -72,7 +70,7 @@
   "InvalidFormatStatus": "{filePath} 的格式不正確：{message}",
 
   // === SqlSnippetSurroundAction：包夾流程，訊息顯示在 SSMS 狀態列 ===
-  "QueryWindowClosed": "查詢視窗已關閉。",
+
   "SelectTextFirst": "請先選取要包住的文字。",
   "BoxSelectionNotSupported": "框選範圍無法包夾，請改用一般選取。",
   "NoSurroundableSnippets": "沒有可以包夾的片段；把片段裡的一格命名為 surround 就會出現在這裡。",

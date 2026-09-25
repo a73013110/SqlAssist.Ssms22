@@ -39,6 +39,8 @@ public sealed class SqlTextGeneratorTests
     [InlineData("""{ "lower": "一" }""", """{ "lower": "one" }""", "SQLTXT006")]
     [InlineData("""{ "A": 1 }""", """{ "A": "one" }""", "SQLTXT005")]
     [InlineData("""{ "A": "一" """, """{ "A": "one" }""", "SQLTXT005")]
+    [InlineData("""{ "A": "一" }""", """{ "A": "一" }""", "SQLTXT011")]
+    [InlineData("""{ "A": "{count} 筆" }""", """{ "A": "{count}、rows" }""", "SQLTXT011")]
     public void 各語言不一致是建置錯誤(string source, string translated, string expected)
     {
         var run = GeneratorHarness.Generate(
@@ -54,6 +56,22 @@ public sealed class SqlTextGeneratorTests
         Assert.Contains("SQLTXT003", GeneratorHarness.Generate(("SampleText.zh-Hant.resjson", """{ "A": "一" }""")).Ids);
         Assert.Contains("SQLTXT002", GeneratorHarness.Generate(("SampleText.fr.resjson", """{ "A": "un" }""")).Ids);
         Assert.Contains("SQLTXT001", GeneratorHarness.Generate(new[] { ("SampleText.zh-Hant.resjson", """{ "A": "一" }""") }, string.Empty).Ids);
+    }
+
+    [Fact]
+    public void 只驗證的檔案照樣擋下不一致_但不產生類別()
+    {
+        var files = new[]
+        {
+            ("SampleText.zh-Hant.resjson", """{ "A": "一", "B": "二" }"""),
+            ("SampleText.en.resjson", """{ "A": "one" }"""),
+        };
+
+        var run = GeneratorHarness.Generate(files, "zh-Hant,en", resourceOnly: true);
+
+        Assert.Contains("SQLTXT008", run.Ids);
+        Assert.Null(run.Output.GetTypeByMetadataName(Type));
+        Assert.NotNull(GeneratorHarness.Generate(files, "zh-Hant,en").Output.GetTypeByMetadataName(Type));
     }
 
     [Theory]

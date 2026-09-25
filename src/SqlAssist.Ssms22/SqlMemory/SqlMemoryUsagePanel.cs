@@ -124,7 +124,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
                 {
                     // 位置只寫在分頁狀態列：通知文案不放路徑，而使用者要知道檔案落在哪裡。
                     var length = await SqlMemoryHost.Runtime.BackupAsync(path, _operation.Token);
-                    return (SqlMemoryUsageUiText.BackupNote(SqlMemoryUsageSummary.Bytes(length)), SqlMemoryUsageUiText.BackupStatus(path));
+                    return (SqlMemoryUsageText.BackupFile(SqlMemoryUsageSummary.Bytes(length)), SqlMemoryUsageUiText.BackupStatus(path));
                 });
                 break;
             case SqlMemoryUsageAction.OpenFolder:
@@ -164,7 +164,7 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
         var progress = new Progress<long>(rows =>
         {
             if (!_disposed && rows > 0)
-                View.SetBusy(SqlMemoryUsageUiText.DeletingProgress(busy.TrimEnd('…'), SqlMemoryUsageSummary.Count(rows)));
+                View.SetBusy(SqlMemoryUsageUiText.DeletingProgress(busy.TrimEnd('…'), SqlText.Number(rows)));
         });
         _ = SqlMemoryActions.RunAsync(async () =>
         {
@@ -215,9 +215,9 @@ internal sealed class SqlMemoryUsagePanel : IDisposable
     private static string Deleted(SqlMemoryCleanupResult result) => result.DeletedRows == 0
         ? SqlMemoryUsageUiText.CleanupNone
         : result.ReleasedContentBytes > 0
-            ? SqlMemoryUsageUiText.CleanupDeletedReleased(SqlMemoryUsageSummary.Count(result.DeletedRows),
+            ? SqlMemoryUsageUiText.CleanupDeletedReleased(SqlText.Number(result.DeletedRows),
                 SqlMemoryUsageSummary.Bytes(result.ReleasedContentBytes))
-            : SqlMemoryUsageUiText.CleanupDeleted(SqlMemoryUsageSummary.Count(result.DeletedRows));
+            : SqlMemoryUsageUiText.CleanupDeleted(SqlText.Number(result.DeletedRows));
 
     /// <summary>選備份位置；同名檔案由原生對話框確認覆寫，確認後才移除舊檔，儲存層本身不覆寫任何檔案。</summary>
     private string? AskBackupPath()

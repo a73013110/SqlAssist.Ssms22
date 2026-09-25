@@ -6,7 +6,6 @@
   "VersionBadge": "版本 {version}",
   "TabOverview": "概覽",
   "TabSettings": "設定摘要",
-  "TabDiagnostics": "診斷",
   "TabSessionStats": "工作階段統計",
   "TabNotificationFailures": "通知失敗",
   "AboutSection": "關於 SqlAssist",
@@ -61,10 +60,8 @@
   "OpenLog": "開啟紀錄檔",
   "OpenSettings": "開啟設定",
   "DiagnosticsCopied": "已複製隱私安全的診斷摘要。",
-  "OpenDiagnosticsLog": "開啟診斷紀錄檔",
   "SettingsUnavailable": "無法開啟設定，請改用 Ctrl+, 並搜尋 SqlAssist。",
   "CheckingForUpdates": "正在檢查更新；結果會出現在右下角的通知上。",
   // {operation} 是按鈕對應的動作名稱，例如「開啟 GitHub 專案」。
-  "OpenedInBrowser": "已交給預設瀏覽器：{operation}",
-  "ActionFailed": "{operation}失敗：{reason}"
+  "OpenedInBrowser": "已交給預設瀏覽器：{operation}"
 }

@@ -2,7 +2,7 @@
   // SQL Memory 工具窗與通知的文字。「筆」是清單上的一列，英文用句型避開單複數（Items: {count}）。
   // ── 清單篩選：膠囊與排序選單 ──
   "KindExecutions": "執行",
-  "KindDrafts": "草稿",
+  "Drafts": "草稿",
   "PeriodToday": "今天",
   "PeriodSevenDays": "7 天",
   "PeriodThirtyDays": "30 天",
@@ -12,13 +12,10 @@
   "SortRecentShort": "最近",
   "SortOldest": "最早使用優先",
   "SortOldestShort": "最早",
-  "SortAlphabetical": "名稱 A–Z",
   "SortReverseAlphabetical": "名稱 Z–A",
   // ── 清單頁尾 ──
   // {date} 是 yyyy/MM/dd；全文搜尋有掃描預算，這句說明已經往回找到哪一天。
   "SearchedThrough": "已搜尋至 {date}",
-  "Loading": "載入中…",
-  "Searching": "搜尋中…",
   "LoadMore": "載入更多",
   "LoadedCount": "已載入 {count} 筆",
   "MatchedCount": "符合 {count} 筆",

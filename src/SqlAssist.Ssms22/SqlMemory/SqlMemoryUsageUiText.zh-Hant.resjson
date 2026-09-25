@@ -21,7 +21,6 @@
   // ── 備份 ──
   "BackupVerb": "備份",
   "BackupBusy": "正在備份資料庫…",
-  "BackupNote": "備份檔 {size}",
   "BackupStatus": "已備份到 {path}。",
   "BackupDialogTitle": "備份 SQL Memory 資料庫",
   // Win32 存檔對話框的篩選字串，格式是「說明|樣式」用 | 接起來；樣式（*.db、*.*）不要動，只翻說明。

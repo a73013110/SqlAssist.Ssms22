@@ -2,7 +2,6 @@
   // 工具選單命令在狀態列與訊息框顯示的文字。
   "Disabled": "SqlAssist 目前已停用。",
   "PlaceCaretInQueryWindow": "請先把游標放進 SQL 查詢視窗。",
-  "OpenDefinitionFailed": "開啟物件定義失敗；原因已寫入診斷紀錄檔。",
   "SurroundFailed": "以片段包住選取範圍失敗；原因已寫入診斷紀錄檔。",
   "SqlMemoryDisabledForFavorite": "SQL Memory 尚未啟用；請到設定開啟後再收藏。",
   "AddFavoriteFailed": "新增至收藏失敗；原因已寫入診斷紀錄檔。",
@@ -13,7 +12,7 @@
   "OperationOpenAbout": "開啟關於與診斷",
   "OperationOpenSnippetManager": "開啟程式碼片段管理員",
   "OperationOpenSettings": "開啟設定視窗",
-  "OperationOpenLog": "開啟診斷紀錄檔",
+  "OpenDiagnosticsLog": "開啟診斷紀錄檔",
   "OperationPickColor": "選取區塊色彩",
   // {summary} 是診斷報告裡的一行，固定繁中。
   "ProbeCompleted": "結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。",

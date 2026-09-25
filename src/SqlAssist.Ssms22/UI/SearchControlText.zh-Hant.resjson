@@ -15,7 +15,5 @@
   "TargetText": "內容",
   "TargetNameDescription": "比對物件名稱；模糊比對，不分大小寫。",
   "TargetTextDescription": "比對定義本文；關掉就真的不去撈定義，第一次搜尋最貴的一段因此省下來。",
-  "TargetColumnDescription": "比對資料行名稱；命中仍指向擁有它的那一個物件。",
-  // 條件約束類結果的圖示朗讀名稱。
-  "ConstraintIcon": "條件約束"
+  "TargetColumnDescription": "比對資料行名稱；命中仍指向擁有它的那一個物件。"
 }

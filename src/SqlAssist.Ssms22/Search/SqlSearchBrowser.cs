@@ -66,8 +66,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlMatchToggles _matchToggles = new();
     private readonly Button _connection;
     private readonly SqlSearchSegments _segments = new();
-    private readonly SqlFilterFlyout _server = new(CommonText.Server, SqlIcon.Server, SqlFilterMode.Single);
-    private readonly SqlFilterFlyout _databases = new(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+    private readonly SqlFilterFlyout _server = new(SqlKindText.Server, SqlIcon.Server, SqlFilterMode.Single);
+    private readonly SqlFilterFlyout _databases = new(SqlKindText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
     private readonly SqlFilterFlyout _kinds = new(CommonText.Kind, SqlIcon.Filter);
     private readonly SqlCardSelection<SqlSearchRow, string> _selection;
     private readonly SqlSelectionBar _selectionBar;
@@ -231,7 +231,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private SqlInputRow CreateSearchRow()
     {
-        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlSearchText.ClearSearch);
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, CommonText.ClearSearch);
         clear.IsEnabled = false;
         clear.Click += (_, _) => Run(() => { _search.Clear(); _search.Focus(); });
         _search.ToolTip = SqlSearchText.SearchToolTip;

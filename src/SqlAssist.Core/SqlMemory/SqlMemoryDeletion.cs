@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.SqlMemory;
 
@@ -140,15 +140,14 @@ public sealed class SqlMemoryDeleteReport
         {
             var parts = new List<string>();
             if (IsCanceled)
-                parts.Add(IsFavorites ? SqlMemoryText.CanceledRemoved(Count(Deleted)) : SqlMemoryText.CanceledDeleted(Count(Deleted)));
+                parts.Add(IsFavorites ? SqlMemoryText.CanceledRemoved(SqlText.Number(Deleted)) : SqlMemoryText.CanceledDeleted(SqlText.Number(Deleted)));
             else if (Requested > 1)
-                parts.Add(IsFavorites ? SqlMemoryText.TotalRemoved(Count(Deleted)) : SqlMemoryText.TotalDeleted(Count(Deleted)));
-            if (Missing > 0) parts.Add(Requested == 1 ? SqlMemoryText.MissingOne : SqlMemoryText.MissingMany(Count(Missing)));
-            if (Conflicts > 0) parts.Add(Requested == 1 ? SqlMemoryText.ConflictOne : SqlMemoryText.ConflictMany(Count(Conflicts)));
+                parts.Add(IsFavorites ? SqlMemoryText.TotalRemoved(SqlText.Number(Deleted)) : SqlMemoryText.TotalDeleted(SqlText.Number(Deleted)));
+            if (Missing > 0) parts.Add(Requested == 1 ? SqlMemoryText.MissingOne : SqlMemoryText.MissingMany(SqlText.Number(Missing)));
+            if (Conflicts > 0) parts.Add(Requested == 1 ? SqlMemoryText.ConflictOne : SqlMemoryText.ConflictMany(SqlText.Number(Conflicts)));
             if (IsFavorites && Deleted > 0) parts.Add(SqlMemoryText.HistoryUnaffected);
             return string.Join(SqlMemoryText.SentenceSeparator, parts);
         }
     }
 
-    private static string Count(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
 }
