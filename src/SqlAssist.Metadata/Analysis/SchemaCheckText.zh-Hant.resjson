@@ -1,0 +1,27 @@
+{
+  // 結構健檢的規則標題與發現。發現寫進產生的指令碼註解，用產生當下的語言；
+  // 已經寫進查詢視窗的註解不回頭改。型別名稱與 T-SQL 關鍵字不翻。
+  "LargeIncludeTitle": "INCLUDE 帶了大型物件資料行",
+  "LargeIncludeMessage": "INCLUDE 帶了 {column} {type}，索引會跟著資料長成與資料表同一個量級。",
+  "OverlappingIndexTitle": "索引鍵是另一個索引的前綴",
+  // {keys} 是逗號分隔的索引鍵資料行，{index} 是另一個索引的名稱。
+  "OverlappingIndexMessage": "索引鍵 ({keys}) 與 {index} 重疊；篩選、排序與涵蓋欄位相容，可評估整併，仍須先驗證查詢計畫與工作負載。",
+  "HeapTableTitle": "資料表沒有叢集索引",
+  "HeapTableMessage": "這張資料表沒有叢集索引（堆積）。",
+  "MissingPrimaryKeyTitle": "資料表沒有主索引鍵",
+  "MissingPrimaryKeyMessage": "這張資料表沒有主索引鍵。",
+  "InconsistentColumnTypeTitle": "同語意的資料行型別不一致",
+  // {suffix} 是名稱最後一個駝峰詞（例如 User），{column} {type} 是拿來比較的那個資料行與它的型別。
+  "InconsistentColumnTypeMessage": "與同樣以 {suffix} 結尾的 {column} {type} 型別不同；比較時的隱含轉換會讓索引用不上。",
+  "EnumWithoutCheckTitle": "列舉語意的資料行沒有 CHECK 條件約束",
+  "EnumWithoutCheckMessage": "說明列出了有哪幾個值，卻沒有 CHECK 條件約束把定義域寫進資料庫。",
+  "MissingForeignKeyTitle": "名稱像外來鍵卻沒有外來鍵",
+  "MissingForeignKeyMessage": "名稱看起來指向另一張資料表，卻沒有外來鍵擋住孤兒資料。",
+  "LegacyDateTimeTitle": "datetime 建議改用 datetime2",
+  "LegacyDateTimeMessage": "datetime 會把時間四捨五入到 3.33 毫秒；datetime2 佔的位元組更少、範圍更大。",
+  "DeprecatedLargeObjectTitle": "text／ntext／image 建議改用 max 型別",
+  // {type} 是 text、ntext 或 image。
+  "DeprecatedLargeObjectMessage": "{type} 已經標成未來版本會移除，而且大多數字串函式對它不適用。",
+  // 一則發現指向某個資料行或索引時，註解那一行在規則代碼之後的部分。
+  "FindingWithTarget": "{target}：{message}"
+}

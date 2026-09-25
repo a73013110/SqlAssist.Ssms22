@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Keywords;
 
@@ -20,27 +21,17 @@ namespace SqlAssist.Core.Keywords;
 /// </remarks>
 public static class SqlCollationCatalog
 {
-    private static readonly (string Name, string Description)[] DefaultDefinitions =
+    private static readonly (string Name, Func<string> Description)[] DefaultDefinitions =
     {
-        ("DATABASE_DEFAULT", "使用目前資料庫的定序"),
-        ("CATALOG_DEFAULT", "使用全文檢索目錄的定序；只在全文檢索述詞裡合法")
+        ("DATABASE_DEFAULT", () => KeywordText.CollationDatabaseDefault),
+        ("CATALOG_DEFAULT", () => KeywordText.CollationCatalogDefault)
     };
 
-    private static readonly object Gate = new();
-
-    private static IReadOnlyList<SqlSuggestion>? _defaults;
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> DefaultCache =
+        new(_ => BuildDefaults());
 
     /// <summary><c>DATABASE_DEFAULT</c> 與 <c>CATALOG_DEFAULT</c>。</summary>
-    public static IReadOnlyList<SqlSuggestion> Defaults
-    {
-        get
-        {
-            lock (Gate)
-            {
-                return _defaults ??= BuildDefaults();
-            }
-        }
-    }
+    public static IReadOnlyList<SqlSuggestion> Defaults => DefaultCache.Current;
 
     /// <summary>查出這兩個名稱的一行說明；大小寫不敏感。</summary>
     public static bool TryGetDescription(string? name, out string description)
@@ -51,7 +42,7 @@ public static class SqlCollationCatalog
             {
                 if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
                 {
-                    description = value;
+                    description = value();
                     return true;
                 }
             }
@@ -65,8 +56,10 @@ public static class SqlCollationCatalog
     {
         var suggestions = new List<SqlSuggestion>(DefaultDefinitions.Length);
 
-        foreach (var (name, description) in DefaultDefinitions)
+        foreach (var (name, describe) in DefaultDefinitions)
         {
+            var description = describe();
+
             suggestions.Add(new SqlSuggestion(
                 name,
                 name,

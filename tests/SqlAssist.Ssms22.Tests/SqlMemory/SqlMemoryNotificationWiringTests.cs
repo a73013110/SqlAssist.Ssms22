@@ -130,8 +130,8 @@ public sealed class SqlMemoryNotificationWiringTests
         Assert.Contains("NotificationCatalog.RestoringFavoriteRevision", revert, StringComparison.Ordinal);
         Assert.DoesNotContain("已回溯：以", revert, StringComparison.Ordinal);
         // 衝突與「不確定有沒有成功」要當場讀完，留在視窗裡。
-        Assert.Contains("report(\"收藏已被修改或移除，未回溯；已重新讀取版本清單。\");", revert, StringComparison.Ordinal);
-        Assert.Contains("report(\"回溯未確認：\"", revert, StringComparison.Ordinal);
+        Assert.Contains("report(FavoriteText.FavoriteChangedNoRevertReport);", revert, StringComparison.Ordinal);
+        Assert.Contains("report(FavoriteText.RevertUnconfirmedReport(", revert, StringComparison.Ordinal);
     }
 
     /// <summary>

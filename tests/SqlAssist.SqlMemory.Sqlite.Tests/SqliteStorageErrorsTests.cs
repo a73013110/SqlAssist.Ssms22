@@ -36,5 +36,8 @@ public sealed class SqliteStorageErrorsTests
         Assert.Equal(SqlMemoryStorageErrorKind.InvalidCursor, translated.Kind);
         Assert.Equal("游標失效", translated.Message);
         Assert.Null(translated.InnerException);
+        var backup = new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份檔案已存在",
+            reason: SqlMemoryStorageReason.BackupFileExists);
+        Assert.Equal(SqlMemoryStorageReason.BackupFileExists, SqliteStorageErrors.Translate(backup).Reason);
     }
 }

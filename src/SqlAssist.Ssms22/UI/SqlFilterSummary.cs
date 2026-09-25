@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -28,9 +29,9 @@ internal static class SqlFilterSummary
     }
 
     /// <summary>勾起來的那幾個名稱；按鈕的 Tooltip 用它列出完整名單，摘要上只剩數量時才說得出是哪幾個。</summary>
-    public static string Detail(IReadOnlyList<string> names, string separator = "、")
+    public static string Detail(IReadOnlyList<string> names, string? separator = null)
     {
         if (names is null) throw new ArgumentNullException(nameof(names));
-        return names.Count == 0 ? "" : string.Join(separator, names);
+        return names.Count == 0 ? "" : string.Join(separator ?? CommonText.ListSeparator, names);
     }
 }

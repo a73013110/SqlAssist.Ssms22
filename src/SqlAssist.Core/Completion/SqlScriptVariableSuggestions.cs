@@ -20,8 +20,6 @@ namespace SqlAssist.Core.Completion;
 /// </remarks>
 public static class SqlScriptVariableSuggestions
 {
-    private const string VariableDescription = "變數";
-
     /// <summary>
     /// 往回走到這些字就代表使用者正在<b>宣告</b>一個名字。
     /// </summary>
@@ -87,7 +85,7 @@ public static class SqlScriptVariableSuggestions
                 token.Value,
                 token.Value,
                 description,
-                $"{token.Value}（{description}）",
+                ScriptSuggestionText.NameWithDescription(token.Value, description),
                 SuggestionKind.Variable,
                 tag: table));
         }
@@ -176,13 +174,13 @@ public static class SqlScriptVariableSuggestions
     {
         if (!IsDeclarationSlot(tokens, index) || index + 1 >= tokens.Count)
         {
-            return VariableDescription;
+            return ScriptSuggestionText.Variable;
         }
 
         var next = tokens[index + 1];
 
         return next.Kind == SqlTokenKind.Identifier && !next.IsQuoted
             ? next.Value.ToUpperInvariant()
-            : VariableDescription;
+            : ScriptSuggestionText.Variable;
     }
 }

@@ -1,0 +1,11 @@
+{
+  "QueryEditorServiceUnavailable": "Cannot retrieve SSMS query editor service; unable to open a new query window.",
+  "NoConnectionToReuse": "The current query window has no connection; cannot reuse it to open a new window.",
+  "WindowNotCreated": "SSMS did not create a new query window.",
+  "EditorUnavailable": "New query window opened, but the editor could not be accessed; the definition was not written.",
+  "CurrentDatabaseCollation": "Current database collation",
+  "Collation": "Collation",
+  "ParameterOf": "Parameter of {routine}: {parameter}",
+  "LinkedServer": "Linked server {server}",
+  "QueryResult": "Query result"
+}

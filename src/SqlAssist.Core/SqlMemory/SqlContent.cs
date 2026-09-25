@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -39,6 +40,7 @@ public sealed class SqlContent
     /// </remarks>
     public static bool IsBlank(string? sqlText) => string.IsNullOrWhiteSpace(sqlText);
 
+    [Localizable(false)]
     public static SqlContent Create(string sqlText)
     {
         if (sqlText == null) throw new ArgumentNullException(nameof(sqlText));

@@ -111,12 +111,12 @@ internal static class SqlObjectNavigation
                 return;
             }
 
-            SqlAssistStatusBar.Show(serviceProvider, "查詢視窗已關閉，無法顯示物件結構。");
+            SqlAssistStatusBar.Show(serviceProvider, EditorText.QueryWindowClosed);
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"開啟物件結構失敗：{exception}");
-            SqlAssistStatusBar.Show(serviceProvider, "開啟物件結構失敗；原因已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(serviceProvider, EditorText.StructureFailed);
         }
     }
 
@@ -164,7 +164,7 @@ internal static class SqlObjectNavigation
     {
         var line = point.GetContainingLine();
         return SqlIdentifierScanner.FindAt(line.GetText(), point.Position - line.Start.Position) is { } reference
-            ? $"{reference.Name} 不是可辨識的資料庫物件。"
-            : "這個位置沒有可辨識的資料庫物件。";
+            ? EditorText.NotDatabaseObject(reference.Name)
+            : EditorText.NoObjectHere;
     }
 }

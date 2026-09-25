@@ -13,10 +13,10 @@ namespace SqlAssist.Ssms22.UI;
 internal static class SqlEditorConnectionText
 {
     /// <summary>範圍按鈕左邊那一顆的名稱（無障礙名稱與 Tooltip 的第一句）。</summary>
-    public const string ApplyAction = "套用查詢視窗的連線";
+    public static string ApplyAction => ChromeText.ApplyEditorConnection;
 
     /// <summary>查詢視窗沒有完整連線時，按下那一顆之後回報的那一句；兩邊都保留原本的範圍。</summary>
-    public const string NotConnectedReport = "查詢視窗目前沒有連線；範圍保持不變。先在查詢視窗連上資料庫再按一次。";
+    public static string NotConnectedReport => ChromeText.EditorNotConnected;
 
     /// <summary>按鈕的 Tooltip：按下去範圍會換成哪一條連線。</summary>
     /// <remarks>
@@ -25,6 +25,6 @@ internal static class SqlEditorConnectionText
     /// </remarks>
     public static string ApplyToolTip(SqlConnectionLabel? connection) =>
         connection is { Server.Length: > 0, Database.Length: > 0 }
-            ? ApplyAction + "：" + connection.Server + " · " + connection.Database + "。只改範圍，不切換 SSMS 的連線。"
-            : ApplyAction + "：查詢視窗目前沒有連線。";
+            ? ChromeText.ApplyEditorConnectionToolTip(connection.Server, connection.Database)
+            : ChromeText.ApplyEditorConnectionUnavailable;
 }

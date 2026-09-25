@@ -72,7 +72,7 @@ internal static class SqlDefinitionScript
             serviceProvider,
             script,
             objectInfo.QualifiedName,
-            $"已在新查詢視窗開啟 {objectInfo.QualifiedName} 的定義",
+            EditorText.DefinitionOpened(objectInfo.QualifiedName),
             documentName,
             unconnected);
     }
@@ -150,6 +150,6 @@ internal static class SqlDefinitionScript
         }
 
         notification.Fail();
-        return "新查詢視窗不是空的，已取消寫入定義。";
+        return EditorText.NewWindowNotEmpty;
     }
 }

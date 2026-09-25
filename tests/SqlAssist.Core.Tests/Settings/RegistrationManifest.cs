@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Tests.Settings;
 
@@ -27,20 +29,140 @@ internal static class RegistrationManifest
     public static IReadOnlyDictionary<string, object> DefaultValues =>
         Settings.ToDictionary(setting => setting.Moniker, setting => setting.Default);
 
+    /// <summary>
+    /// 顯示文字引用的套件；必須等於 <c>SqlAssistPackage.PackageGuidString</c>，
+    /// 否則 SSMS 找不到資源，設定頁把 "@鍵;{guid}" 原樣畫出來。
+    /// </summary>
+    public const string PackageGuid = "b386e18d-f34b-4db4-a40d-b9092a31d89f";
+
+    private static readonly Regex ResourceReference =
+        new(@"^@(?<key>[A-Za-z0-9]+);\{(?<guid>[^}]+)\}$", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// 各語言的設定頁文字（<c>Settings/SettingsPageText.&lt;語言&gt;.resjson</c>），以語言名稱為鍵。
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Texts = LoadTexts();
+
     /// <summary>整份文件；<c>enableWhen</c> 之類的結構性檢查直接看原始 JSON。</summary>
     public static JsonDocument Open()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "SqlAssist.registration.json");
+        // 註冊檔帶註解（Unified Settings 的載入器接受 JSONC），解析時要略過。
+        return JsonDocument.Parse(
+            ReadOutputFile("SqlAssist.registration.json"),
+            new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip });
+    }
+
+    /// <summary>
+    /// 註冊檔裡每一個 SSMS 會顯示的文字欄位與原始值（應為資源引用），路徑形如
+    /// <c>properties.sqlAssist.general.enabled.title</c>。
+    /// </summary>
+    /// <remarks>
+    /// 涵蓋 title、description、enumItemLabels、messages 與 commands 的 text；
+    /// additionalKeywords 只供搜尋比對、不顯示，維持原文。
+    /// </remarks>
+    public static IReadOnlyList<(string Path, string Value)> DisplayTexts()
+    {
+        using var document = Open();
+        var texts = new List<(string, string)>();
+
+        foreach (var section in new[] { "properties", "categories" })
+        {
+            foreach (var owner in document.RootElement.GetProperty(section).EnumerateObject())
+            {
+                var path = $"{section}.{owner.Name}";
+
+                foreach (var field in new[] { "title", "description" })
+                {
+                    if (owner.Value.TryGetProperty(field, out var value))
+                    {
+                        texts.Add(($"{path}.{field}", value.GetString()!));
+                    }
+                }
+
+                if (owner.Value.TryGetProperty("enumItemLabels", out var labels))
+                {
+                    texts.AddRange(labels.EnumerateArray().Select((label, index) => ($"{path}.enumItemLabels[{index}]", label.GetString()!)));
+                }
+
+                foreach (var field in new[] { "messages", "commands" })
+                {
+                    if (!owner.Value.TryGetProperty(field, out var items))
+                    {
+                        continue;
+                    }
+
+                    foreach (var (item, index) in items.EnumerateArray().Select((item, index) => (item, index)))
+                    {
+                        var element = item.TryGetProperty("vsct", out var vsct) ? vsct : item;
+                        texts.Add(($"{path}.{field}[{index}].text", element.GetProperty("text").GetString()!));
+                    }
+                }
+            }
+        }
+
+        return texts;
+    }
+
+    /// <summary>資源引用的鍵；不是 "@鍵;{guid}" 格式時回傳 null。</summary>
+    public static (string Key, string Guid)? ParseReference(string value)
+    {
+        var match = ResourceReference.Match(value);
+        return match.Success ? (match.Groups["key"].Value, match.Groups["guid"].Value) : null;
+    }
+
+    /// <summary>把註冊檔裡的顯示文字解析成 SSMS 在該介面語言下會畫出的文字。</summary>
+    public static string Resolve(string value, string language)
+    {
+        var reference = ParseReference(value) ??
+            throw new InvalidOperationException($"顯示文字不是資源引用：{value}");
+
+        return Texts[language].TryGetValue(reference.Key, out var text)
+            ? text
+            : throw new KeyNotFoundException($"SettingsPageText.{language}.resjson 沒有鍵 {reference.Key}");
+    }
+
+    /// <summary>設定或分類某個欄位解析後的文字，例如 <c>Text("sqlAssist.general.enabled", "title", "en")</c>。</summary>
+    public static string Text(string moniker, string field, string language)
+    {
+        using var document = Open();
+        var root = document.RootElement;
+        var owner = root.GetProperty("properties").TryGetProperty(moniker, out var setting)
+            ? setting
+            : root.GetProperty("categories").GetProperty(moniker);
+
+        return Resolve(owner.GetProperty(field).GetString()!, language);
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> LoadTexts()
+    {
+        var options = new JsonDocumentOptions
+        {
+            CommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+
+        return SqlLanguage.All.ToDictionary(
+            language => language.Name,
+            language =>
+            {
+                using var document = JsonDocument.Parse(ReadOutputFile($"SettingsPageText.{language.Name}.resjson"), options);
+                return (IReadOnlyDictionary<string, string>)document.RootElement
+                    .EnumerateObject()
+                    .ToDictionary(pair => pair.Name, pair => pair.Value.GetString()!, StringComparer.Ordinal);
+            },
+            StringComparer.Ordinal);
+    }
+
+    private static string ReadOutputFile(string name)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, name);
 
         if (!File.Exists(path))
         {
-            throw new FileNotFoundException($"找不到註冊檔：{path}", path);
+            throw new FileNotFoundException($"找不到 {name}：{path}", path);
         }
 
-        // 註冊檔帶註解（Unified Settings 的載入器接受 JSONC），解析時要略過。
-        return JsonDocument.Parse(
-            File.ReadAllText(path),
-            new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip });
+        return File.ReadAllText(path);
     }
 
     private static RegistrationSetting[] Load()

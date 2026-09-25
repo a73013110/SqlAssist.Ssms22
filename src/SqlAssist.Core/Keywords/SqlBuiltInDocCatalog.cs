@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Json;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Keywords;
@@ -90,9 +92,10 @@ public static class SqlBuiltInDocCatalog
         public Dictionary<string, SqlBuiltInReference> Tables { get; }
     }
 
-    private static readonly Lazy<Resource> Loaded = new(Load);
+    /// <summary>依語言各解析一份：用途、範例與對照表疊上該語言的覆蓋檔。</summary>
+    private static readonly SqlLanguageCache<Resource> Loaded = new(Load);
 
-    private static Dictionary<string, Entry> Entries => Loaded.Value.Entries;
+    private static Dictionary<string, Entry> Entries => Loaded.Current.Entries;
 
     /// <summary>上一次載入內嵌資源失敗的原因；成功時為 null。</summary>
     public static string? LastError { get; private set; }
@@ -376,11 +379,11 @@ public static class SqlBuiltInDocCatalog
         {
             // 停在 ISO_WEEK 上要問的正是「還有哪些值可以填」，而那張表已經有了。
             return kind == SqlBuiltInKind.DatePart
-                ? new[] { Loaded.Value.Tables[DatePartTableId] }
+                ? new[] { Loaded.Current.Tables[DatePartTableId] }
                 : null;
         }
 
-        var tables = Loaded.Value.Tables;
+        var tables = Loaded.Current.Tables;
         var resolved = new List<SqlBuiltInReference>(entry.References.Count);
 
         foreach (var id in entry.References)
@@ -401,9 +404,10 @@ public static class SqlBuiltInDocCatalog
     /// 讀不到一律降級成空字典，<b>不</b>丟例外，理由與 <c>SqlSnippetDefaults</c> 相同：
     /// 這是建置期的錯，而執行期這條路掛在滑鼠移動的軌跡上，丟出去就是每停留一次
     /// 看到一次錯誤，而且 <see cref="Lazy{T}"/> 會把例外永久快取起來反覆重丟。
-    /// 沒有說明只是提示少了幾行，其餘功能照常。
+    /// 沒有說明只是提示少了幾行，其餘功能照常。覆蓋檔讀不到時整份退回來源語言，理由相同。
     /// </remarks>
-    private static Resource Load()
+    [Localizable(false)]
+    private static Resource Load(SqlLanguage language)
     {
         var entries = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
         var tables = new Dictionary<string, SqlBuiltInReference>(StringComparer.Ordinal)
@@ -432,8 +436,9 @@ public static class SqlBuiltInDocCatalog
                 return new Resource(entries, tables);
             }
 
-            ReadTables(root["tables"], tables);
-            ReadDocs(root["docs"], entries);
+            var overlay = SqlTextOverlay.Load(assembly, ResourceName, language);
+            ReadTables(root["tables"], tables, overlay);
+            ReadDocs(root["docs"], entries, overlay);
 
             if (entries.Count == 0)
             {
@@ -448,18 +453,23 @@ public static class SqlBuiltInDocCatalog
         return new Resource(entries, tables);
     }
 
-    private static void ReadTables(JsonValue node, Dictionary<string, SqlBuiltInReference> tables)
+    /// <remarks>覆蓋檔的編號是 <c>tables.&lt;編號&gt;</c>，欄位是 <c>title</c>、<c>columns.&lt;欄&gt;</c> 與 <c>rows.&lt;列&gt;.&lt;欄&gt;</c>。</remarks>
+    private static void ReadTables(
+        JsonValue node,
+        Dictionary<string, SqlBuiltInReference> tables,
+        SqlTextOverlay overlay)
     {
         foreach (var id in node.Names)
         {
             var table = node[id];
+            var overlayId = "tables." + id;
             var columns = new List<string>(MaximumColumns);
 
             foreach (var column in table["columns"].Items)
             {
                 if (columns.Count < MaximumColumns)
                 {
-                    columns.Add(column.AsString());
+                    columns.Add(overlay.Apply(overlayId, "columns." + columns.Count, column.AsString()));
                 }
             }
 
@@ -477,17 +487,20 @@ public static class SqlBuiltInDocCatalog
                 for (var index = 0; index < cells.Length; index++)
                 {
                     // 列短於欄數時補空字串：資源是人手寫的，少打一格不該讓整張表消失。
-                    cells[index] = index < row.Items.Count ? row.Items[index].AsString() : string.Empty;
+                    cells[index] = index < row.Items.Count
+                        ? overlay.Apply(overlayId, "rows." + rows.Count + "." + index, row.Items[index].AsString())
+                        : string.Empty;
                 }
 
                 rows.Add(cells);
             }
 
-            tables[id] = new SqlBuiltInReference(table["title"].AsString(id), columns, rows);
+            tables[id] = new SqlBuiltInReference(overlay.Apply(overlayId, "title", table["title"].AsString(id)), columns, rows);
         }
     }
 
-    private static void ReadDocs(JsonValue node, Dictionary<string, Entry> entries)
+    /// <remarks>覆蓋檔的編號是 <c>name</c>，欄位是 <c>summary</c> 與 <c>example</c>。</remarks>
+    private static void ReadDocs(JsonValue node, Dictionary<string, Entry> entries, SqlTextOverlay overlay)
     {
         foreach (var item in node.Items)
         {
@@ -507,8 +520,8 @@ public static class SqlBuiltInDocCatalog
 
             entries[name] = new Entry(
                 ParseKind(item["kind"].AsString()),
-                item["summary"].AsString(),
-                item["example"].AsString(),
+                overlay.Apply(name, "summary", item["summary"].AsString()),
+                overlay.Apply(name, "example", item["example"].AsString()),
                 item["docsUrl"].AsString(),
                 references);
         }
@@ -541,8 +554,8 @@ public static class SqlBuiltInDocCatalog
         }
 
         return new SqlBuiltInReference(
-            "datepart 名稱",
-            new[] { "名稱", "說明" },
+            KeywordText.DatePartTableTitle,
+            new[] { KeywordText.DatePartTableName, KeywordText.DatePartTableDescription },
             rows);
     }
 

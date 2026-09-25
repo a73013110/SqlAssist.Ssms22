@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -20,14 +19,14 @@ internal static class SqlClipboard
     internal static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(150);
 
     /// <summary>剪貼簿一直打不開時的訊息；工具窗的狀態列與測試共用。</summary>
-    internal const string BusyMessage = "剪貼簿正被其他程式使用，未複製；請稍後再試。";
+    internal static string BusyMessage => ChromeText.ClipboardBusy;
 
     /// <summary>勾起來的列都已不在（例如剛被刪除）時的訊息。</summary>
-    internal const string EmptyMessage = "沒有可複製的項目。";
+    internal static string EmptyMessage => ChromeText.NothingToCopy;
 
     /// <summary>表格複製成功時通知上的說明（標題已經是「已複製清單」）；SQL Memory 與 SQL Search 同一句。</summary>
     public static string CopiedNote(int rows) =>
-        rows.ToString("N0", CultureInfo.CurrentCulture) + " 筆（含標頭列，可直接貼到 Excel）。";
+        ChromeText.CopiedRows(rows);
 
     /// <remarks>
     /// 兩種格式在同一個物件裡：貼的地方自己挑讀得懂的那一種。分兩次寫的話，第二次會把第一次整個換掉。

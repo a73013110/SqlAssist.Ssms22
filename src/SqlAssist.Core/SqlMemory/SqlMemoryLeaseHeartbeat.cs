@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -45,6 +46,7 @@ public sealed class SqlMemoryLeaseHeartbeat
     public bool IsDue(DateTimeOffset now) => !_lastBeatAt.HasValue || now - _lastBeatAt.Value >= Interval;
 
     /// <summary>開啟或續租；例外交給宿主，不假裝還持有租約。</summary>
+    [Localizable(false)]
     public async Task<string> BeatAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
         if (LeaseId is { } current)

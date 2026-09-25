@@ -1,0 +1,44 @@
+{
+  // SqlMemoryItemCommands 與 SqlMemoryFavoriteAction 的列操作、確認框與通知文字。
+  // ── SqlMemoryItemCommands：動作動詞與失敗文案 ──
+  "FavoritesHint": "可到 Favorites 查看。",
+  "OpenVerb": "開啟",
+  "OpenFailedFallback": "未執行 SQL。",
+  "AddFavoriteVerb": "收藏",
+  "FavoriteDraftSummary": "收藏這筆未存檔草稿目前的內容。",
+  // {status} 沿用 SqlMemoryRow.Status 已翻好的狀態字（例如「執行過」）。
+  "FavoriteRevisionSummary": "收藏這筆{status}紀錄的 SQL；未修改就沿用同一份版本，修改後另存為收藏自己的版本。",
+  "EditVerb": "編輯",
+  // 批次移除收藏的操作名稱（SqlMemoryOperationGate 的動詞）；刪除 History 用 CommonText.Delete。
+  "RemoveVerb": "移除",
+  // 批次移除收藏／刪除 History 的進度；{done}、{total} 是呼叫端已格式化成 N0 的字串。
+  "BulkRemoved": "已移除 {done}/{total} 筆",
+  "BulkDeleted": "已刪除 {done}/{total} 筆",
+  // ── 刪除／移除確認框：單筆 ──
+  "RemoveFavoriteTitle": "從收藏移除",
+  "RemoveFavoriteConfirm": "移除收藏「{name}」？",
+  "RemoveFavoriteDetail": "只移除這個收藏，History 裡的紀錄會保留。\n移除後無法復原。",
+  "DeleteFromHistoryTitle": "從 History 刪除",
+  // {status} 同 FavoriteRevisionSummary。
+  "DeleteFromHistoryConfirm": "刪除「{name}」這筆{status}紀錄？",
+  "DeleteFromHistoryDetail": "只刪除這一筆，收藏和其他紀錄都不受影響。\n這段 SQL 若還被收藏或其他版本用到，會繼續保留。\n查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n刪除後無法復原。",
+  // ── 刪除／移除確認框：多選 ──
+  // 上限截斷時附加在詳細內容最前面；{limit}、{count} 已格式化成 N0 字串，保留結尾換行。
+  "TruncatedLimitNote": "符合條件的超過 {limit} 筆，這次只處理前 {count} 筆，其餘留在清單上。\n",
+  "RemoveFavoriteBulkConfirm": "移除勾選的 {count} 筆收藏？",
+  "RemoveFavoriteBulkDetail": "只移除收藏，History 裡的紀錄會保留。\n移除後無法復原。",
+  "DeleteFromHistoryBulkConfirm": "刪除勾選的 {count} 筆紀錄？",
+  "DeleteFromHistoryBulkDetail": "收藏不受影響；還被收藏或其他版本用到的 SQL 會繼續保留。\n查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n刪除後無法復原。",
+  // ── 收藏重讀與內容遺失 ──
+  "ReloadFavoriteVerb": "重新讀取收藏",
+  "FavoriteGoneNotice": "收藏已不存在；已從清單移除。",
+  "ContentGoneRetry": "內容已不存在，請重新整理。",
+  // ── SqlMemoryFavoriteAction：查詢視窗「新增至收藏」 ──
+  "EditorClosed": "查詢視窗已關閉。",
+  "NoSqlInEditor": "查詢視窗沒有可以收藏的 SQL。",
+  "NoSqlInSelection": "選取範圍沒有可以收藏的 SQL。",
+  "SizeSummary": "{lines:N0} 行、{characters:N0} 字元",
+  // {size} 是已格式化好的 SizeSummary。
+  "FavoriteSelectionSummary": "收藏選取範圍（{size}）。",
+  "FavoriteDocumentSummary": "收藏整份查詢（{size}）。"
+}

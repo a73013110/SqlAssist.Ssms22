@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Text;
 using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Model;
@@ -117,6 +118,7 @@ public static class SqlExtendedPropertyScript
             .Append(SqlValueLiteral.Text(property.TargetName));
     }
 
+    [Localizable(false)]
     private static string LevelKeyword(SqlExtendedPropertyLevel level)
     {
         switch (level)

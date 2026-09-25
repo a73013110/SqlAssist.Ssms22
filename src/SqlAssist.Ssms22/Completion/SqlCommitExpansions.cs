@@ -8,6 +8,7 @@ using SqlAssist.Core.Statements;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.Editor;
+using System.ComponentModel;
 
 namespace SqlAssist.Ssms22.Completion;
 
@@ -32,6 +33,7 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
     /// <summary>定義只有中繼資料層拿得到，這裡永遠要查。</summary>
     public SqlObjectDetail? KnownDetail => null;
 
+    [Localizable(false)]
     public string OperationName => "ALTER 語句";
 
     public string LeadingKeyword => "ALTER";
@@ -55,7 +57,7 @@ internal sealed class SqlAlterStatementExpansion : ISqlCommitExpansion
         return new TextReplacement(
             script,
             SqlAssistActivityKind.AlterExpanded,
-            $"已展開 {Object.QualifiedName} 的完整 ALTER 語句",
+            CompletionText.AlterExpanded(Object.QualifiedName),
             SqlModuleScript.FindHeaderNameEnd(script));
     }
 }
@@ -98,6 +100,7 @@ internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
 
     public SqlObjectDetail? KnownDetail { get; }
 
+    [Localizable(false)]
     public string OperationName => "INSERT 語句";
 
     public string LeadingKeyword => "INSERT";
@@ -137,7 +140,7 @@ internal sealed class SqlInsertStatementExpansion : ISqlCommitExpansion
         return new TextReplacement(
             text,
             SqlAssistActivityKind.InsertExpanded,
-            $"已展開 {Object.QualifiedName} 的 {columns.Count} 個欄位與 VALUES",
+            CompletionText.InsertExpanded(Object.QualifiedName, columns.Count),
             caretOffset,
             columns.Count);
     }
@@ -178,6 +181,7 @@ internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
 
     public SqlObjectDetail? KnownDetail { get; }
 
+    [Localizable(false)]
     public string OperationName => "MERGE 語句";
 
     public string LeadingKeyword => "MERGE";
@@ -216,13 +220,13 @@ internal sealed class SqlMergeStatementExpansion : ISqlCommitExpansion
             out var caretOffset);
 
         var keyNote = keys.Count > 0
-            ? $"{keys.Count} 個主索引鍵欄位"
-            : "沒有主索引鍵，比對鍵留了佔位字";
+            ? CompletionText.MergeKeyColumns(keys.Count)
+            : CompletionText.MergeNoKey;
 
         return new TextReplacement(
             text,
             SqlAssistActivityKind.MergeExpanded,
-            $"已展開 {Object.QualifiedName} 的 {columns.Count} 個欄位（{keyNote}）",
+            CompletionText.MergeExpanded(Object.QualifiedName, columns.Count, keyNote),
             caretOffset,
             columns.Count);
     }
@@ -253,6 +257,7 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
     /// <summary>參數與定義只有中繼資料層拿得到，這裡永遠要查。</summary>
     public SqlObjectDetail? KnownDetail => null;
 
+    [Localizable(false)]
     public string OperationName => "EXEC 語句";
 
     public string LeadingKeyword => "EXEC";
@@ -309,7 +314,7 @@ internal sealed class SqlProcedureCallExpansion : ISqlCommitExpansion
         return new TextReplacement(
             text,
             SqlAssistActivityKind.ExecuteExpanded,
-            $"已展開 {Object.QualifiedName} 的 {parameters.Count} 個參數",
+            CompletionText.ExecuteExpanded(Object.QualifiedName, parameters.Count),
             caretOffset,
             parameters.Count);
     }
@@ -378,6 +383,7 @@ internal sealed class SqlFunctionCallExpansion : ISqlCommitExpansion
     /// <summary>參數只有中繼資料層拿得到，這裡永遠要查。</summary>
     public SqlObjectDetail? KnownDetail => null;
 
+    [Localizable(false)]
     public string OperationName => "函式引數";
 
     /// <summary>
@@ -442,8 +448,8 @@ internal sealed class SqlFunctionCallExpansion : ISqlCommitExpansion
             text,
             SqlAssistActivityKind.FunctionCallExpanded,
             arguments.Count == 0
-                ? $"已補上 {Object.QualifiedName} 的空括號（沒有參數）"
-                : $"已補上 {Object.QualifiedName} 的 {arguments.Count} 個引數",
+                ? CompletionText.FunctionEmptyParentheses(Object.QualifiedName)
+                : CompletionText.FunctionArguments(Object.QualifiedName, arguments.Count),
             caretOffset,
             arguments.Count);
     }

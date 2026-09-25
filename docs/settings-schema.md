@@ -9,7 +9,7 @@
 
 | # | 檔案 | 加什麼 |
 |---|---|---|
-| 1 | `src/SqlAssist.Ssms22/SqlAssist.registration.json` | 型別、`default`、`title`、`description`、`order`；數值加 `minimum`／`maximum`，列舉加 `enum` 與 `enumItemLabels` |
+| 1 | `src/SqlAssist.Ssms22/SqlAssist.registration.json` | 型別、`default`、`title`、`description`、`order`；數值加 `minimum`／`maximum`，列舉加 `enum` 與 `enumItemLabels`。顯示文字寫成 `@鍵;{packageGuid}`，文字加進 `Settings/SettingsPageText.<語言>.resjson`（見[在地化](localization.md)） |
 | 2 | `Core/Settings/SqlAssistSettings.cs` | 強型別屬性，預設值必須等於註冊檔的 `default` |
 | 3 | `Core/Settings/SqlAssistMonikers.cs` | 一個 `const string`。訂閱清單 `All` 由反射產生，不必手動加 |
 | 4 | `Core/Settings/SqlAssistSettingsReader.cs` | `Read()` 裡的一行對應；列舉要加解析、數值要套 `SqlAssistLimits` 的收斂 |

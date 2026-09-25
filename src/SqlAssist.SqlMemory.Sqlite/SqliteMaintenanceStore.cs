@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Threading;
 using Microsoft.Data.Sqlite;
@@ -8,6 +9,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>維護：用量、實體整理、共用輪次狀態，以及一個 IMMEDIATE 交易內的有界清理批次。</summary>
+[Localizable(false)]
 internal sealed class SqliteMaintenanceStore
 {
     private readonly SqliteDatabase _database;

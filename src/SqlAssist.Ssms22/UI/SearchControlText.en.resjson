@@ -1,0 +1,17 @@
+{
+  "PreviousMatch": "Previous match",
+  "NextMatch": "Next match",
+  "MatchPosition": "Match {position} of {count}",
+  "MatchCase": "Match case",
+  "MatchCaseToolTip": "Exact case: searching for 'finish' won't find 'Finish'.",
+  "WholeWord": "Whole word",
+  "WholeWordToolTip": "Complete word only: searching for 'Copy' won't find 'Copy' in 'CopyNo'.",
+  "Targets": "Match location",
+  "TargetSegmentName": "Match location: {target}",
+  "TargetToolTip": "{target}: {description}",
+  "TargetText": "Text",
+  "TargetNameDescription": "Match object name; fuzzy matching, case-insensitive.",
+  "TargetTextDescription": "Match definition text; disabling this skips retrieving definitions entirely, saving the most expensive part of the first search.",
+  "TargetColumnDescription": "Match column name; results still point to the object that owns it.",
+  "ConstraintIcon": "Constraint"
+}

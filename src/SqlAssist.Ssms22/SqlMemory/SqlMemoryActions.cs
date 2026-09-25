@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
@@ -43,6 +44,8 @@ internal static class SqlMemoryActions
             status, subject, message: message);
 
     /// <summary>把 SQL 寫進新建的空白查詢；失敗時回傳原因，不擲出。</summary>
+    // TextReplacement.SuccessMessage 只寫進診斷紀錄，固定繁中。
+    [Localizable(false)]
     public static string? TryOpenQuery(SqlAssistPackage package, string sql)
     {
         var view = SsmsScriptWindow.TryCreateBlankQuery(package, out var failure);
@@ -50,7 +53,7 @@ internal static class SqlMemoryActions
         return new TextViewEditCoordinator(view).InsertIntoBlank(new TextReplacement(sql,
                 SqlAssistActivityKind.SqlMemoryOpened, "已從 SQL Memory 開啟 SQL；未執行。", caretOffset: 0))
             ? null
-            : "新查詢不是空白或已關閉；未寫入 SQL。";
+            : SqlMemoryUiText.BlankQueryUnavailable;
     }
 
     public static void OpenQuery(SqlAssistPackage package, string sql)
@@ -71,6 +74,6 @@ internal static class SqlMemoryActions
     public static void OpenSettings(SqlAssistPackage package)
     {
         if (!SqlAssistCommands.TryOpenSettings(package))
-            throw new InvalidOperationException("請到工具 → 選項搜尋 SqlAssist。");
+            throw new InvalidOperationException(SqlMemoryUiText.OpenSettingsInstructions);
     }
 }

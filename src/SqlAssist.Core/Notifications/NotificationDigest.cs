@@ -15,7 +15,7 @@ namespace SqlAssist.Core.Notifications;
 public sealed class NotificationDigest
 {
     /// <summary>超出上限後所有新工作合併去的那一列。</summary>
-    public const string OtherTitle = "超出上限的其他工作";
+    public static string OtherTitle => NotificationCatalog.DigestOther;
 
     /// <summary>
     /// 分開統計的鍵數上限。
@@ -52,11 +52,12 @@ public sealed class NotificationDigest
             : TimeSpan.Zero;
         lock (_gate)
         {
-            var key = (item.Kind, item.Title, item.Subject);
+            // 鍵用標題的來源語言那一句：換語言前後的同一件事仍是同一列。
+            var key = (item.Kind, item.TitleSource.Key, item.Subject);
             if (!_buckets.TryGetValue(key, out var bucket))
             {
-                if (_buckets.Count >= _capacity) bucket = _other ??= new Bucket();
-                else _buckets.Add(key, bucket = new Bucket());
+                if (_buckets.Count >= _capacity) bucket = _other ??= new Bucket(null);
+                else _buckets.Add(key, bucket = new Bucket(item.TitleSource));
             }
 
             bucket.Add(elapsed, item.Status);
@@ -71,7 +72,7 @@ public sealed class NotificationDigest
         lock (_gate)
         {
             entries = _buckets
-                .Select(pair => pair.Value.ToEntry(pair.Key.Item1, pair.Key.Item2, pair.Key.Item3, isOther: false))
+                .Select(pair => pair.Value.ToEntry(pair.Key.Item1, pair.Value.Title?.Text ?? "", pair.Key.Item3, isOther: false))
                 .ToList();
             other = _other?.ToEntry(NotificationKind.Unclassified, OtherTitle, "", isOther: true);
         }
@@ -94,6 +95,14 @@ public sealed class NotificationDigest
 
     private sealed class Bucket
     {
+        internal Bucket(NotificationTitle? title)
+        {
+            Title = title;
+        }
+
+        /// <summary>這一列的標題；「其他」那一列沒有。</summary>
+        internal NotificationTitle? Title { get; }
+
         private int _count;
         private long _totalTicks;
         private long _maxTicks;

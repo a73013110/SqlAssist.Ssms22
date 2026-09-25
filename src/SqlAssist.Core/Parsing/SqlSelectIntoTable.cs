@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -18,6 +19,7 @@ public sealed class SqlSelectIntoTable
     /// <param name="bodyEnd">這句敘述的結束索引（不含）。</param>
     /// <param name="start">敘述在原始文字裡的起點。</param>
     /// <param name="end">敘述在原始文字裡的終點。</param>
+    [Localizable(false)]
     public SqlSelectIntoTable(string name, int bodyStart, int bodyEnd, int start, int end)
     {
         if (string.IsNullOrEmpty(name))
@@ -51,5 +53,7 @@ public sealed class SqlSelectIntoTable
 
     public int End { get; }
 
+    // 只給偵錯器與測試失敗訊息看，介面不會顯示。
+    [Localizable(false)]
     public override string ToString() => $"{Name}（SELECT … INTO）";
 }

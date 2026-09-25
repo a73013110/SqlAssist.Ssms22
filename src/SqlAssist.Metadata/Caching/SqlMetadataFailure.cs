@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Data.Common;
 
 namespace SqlAssist.Metadata.Caching;
@@ -26,7 +27,7 @@ public static class SqlMetadataFailure
     public static Action<string, DbException>? Reporter { get; set; }
 
     /// <param name="operation">哪一條查詢；訊息裡唯一能指出「改哪裡」的東西。</param>
-    internal static void Report(string operation, DbException exception)
+    internal static void Report([Localizable(false)] string operation, DbException exception)
     {
         // 回報本身失敗不能讓查詢的降級路徑再丟一次例外——那會冒出 SqlMetadataCatalog，
         // 正是這一族要避免的事。

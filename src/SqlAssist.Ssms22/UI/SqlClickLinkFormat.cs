@@ -29,7 +29,7 @@ internal sealed class SqlClickLinkFormatDefinition : ClassificationFormatDefinit
 {
     public SqlClickLinkFormatDefinition()
     {
-        DisplayName = "SqlAssist Ctrl＋點擊連結";
+        DisplayName = ChromeText.ClickLinkFormat;
         TextDecorations = System.Windows.TextDecorations.Underline;
     }
 }

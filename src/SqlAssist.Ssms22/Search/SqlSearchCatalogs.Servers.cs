@@ -62,5 +62,5 @@ internal sealed partial class SqlSearchCatalogs
 
     /// <summary>範圍已經不在這一筆那一台時的那一句；移至定義、物件總管與預覽共用。</summary>
     public static string ElsewhereNotice(SqlSearchOrigin origin) =>
-        $"這一筆是在 {origin} 上搜到的，而搜尋範圍已經換到別台；重新搜尋之後再試一次。";
+        SqlSearchText.ElsewhereNotice(origin);
 }

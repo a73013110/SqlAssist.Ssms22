@@ -51,7 +51,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         }
         // 換行是一個維持著的狀態，不是一次動作，所以與 SQL Search 預覽同一顆開關、同一個位置（右緣），
         // 理由見 SqlAssistChrome.CreatePreviewToolbar 與 CreateIconToggle。
-        _wrap = Toggle(SqlIcon.Wrap, "SQL 顯示換行", _viewer.SetWrap);
+        _wrap = Toggle(SqlIcon.Wrap, SqlMemoryUiText.WrapSqlToggle, _viewer.SetWrap);
         _surface = new SqlStateSurface(_viewer);
         Content = SqlAssistChrome.CreateMemoryDetailBody(_surface, _status,
             SqlAssistChrome.CreatePreviewToolbar(_actions, _wrap));
@@ -79,7 +79,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         _actions.IsEnabled = _wrap.IsEnabled = _viewer.IsEnabled = false;
         _detail.Content = row;
         _detail.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
-        _detail.ToolTip = row is null ? "請在清單選取 SQL。" : row.Name + " · " + row.Detail;
+        _detail.ToolTip = row is null ? SqlMemoryUiText.SelectFromListHint : row.Name + " · " + row.Detail;
         _matches.Clear();
         foreach (var (button, command) in _rowActions)
         {
@@ -92,7 +92,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
         // 那一句會被列操作的結果蓋掉，而畫面上仍是一塊空白。
         _viewer.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
         _surface.State = row is null
-            ? SqlSurfaceState.Empty("尚未選取", "在清單選一筆 SQL 看它的全文。")
+            ? SqlSurfaceState.Empty(SqlMemoryUiText.NoSelectionTitle, SqlMemoryUiText.NoSelectionDetail)
             : previewEnabled ? SqlSurfaceState.Loading : SqlSurfaceState.None;
         if (previewEnabled) _loader.Load();
     }
@@ -108,7 +108,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             if (content is null)
             {
                 _viewer.Visibility = Visibility.Collapsed;
-                _surface.State = SqlSurfaceState.Unreadable("內容已被清理或不存在；請重新整理清單。");
+                _surface.State = SqlSurfaceState.Unreadable(SqlMemoryUiText.ContentUnavailable);
                 return;
             }
             Show(content.SqlText, row.IsFavorite);
@@ -118,7 +118,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
             // 新的擷取不再留下空白列（SqlContent.IsBlank），但清理之前的舊資料仍在，
             // 所以這塊表面留著——而且比對的是同一份判斷，不是只看長度為零。
             _surface.State = SqlContent.IsBlank(content.SqlText)
-                ? SqlSurfaceState.Empty("這份 SQL 是空白內容", "仍然可以開啟或刪除它。")
+                ? SqlSurfaceState.Empty(SqlMemoryUiText.BlankSqlTitle, SqlMemoryUiText.BlankSqlDetail)
                 : SqlSurfaceState.None;
         }
         catch (Exception error)
@@ -128,7 +128,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
                 SqlMemoryHost.Runtime.IsAvailable && generation == SqlMemoryHost.Runtime.Generation)
             {
                 _viewer.Visibility = Visibility.Collapsed;
-                _surface.State = SqlSurfaceState.Unreadable(SqlMemoryTimeText.Failure("SQL 載入", error));
+                _surface.State = SqlSurfaceState.Unreadable(SqlMemoryTimeText.Failure(SqlMemoryUiText.SqlLoadAction, error));
             }
         }
         finally
@@ -143,7 +143,7 @@ internal sealed class SqlMemoryPreview : UserControl, IDisposable
     /// 收藏比對的是名稱、說明與 SQL 的聯集，這一筆的 SQL 上一處都沒有；不說的話，一份沒有任何標記的
     /// 全文看起來像是高亮壞了。History 只比對 SQL，不會用到這一句。
     /// </remarks>
-    private const string OutsideSql = "SQL 內文沒有命中；這一筆是名稱或說明符合。";
+    private static string OutsideSql => SqlMemoryUiText.OutsideSqlNotice;
 
     /// <summary>把讀回來的全文放上檢視，用清單那一輪的比對器標出每一處。</summary>
     private void Show(string sql, bool favorite)

@@ -1,3 +1,4 @@
+using SqlAssist.Core.Localization;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Core.Notifications;
 using System;
@@ -665,22 +666,22 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// </remarks>
     private static string DescribeTarget(CompletionTarget target) => target switch
     {
-        CompletionTarget.DataSource => "資料來源",
-        CompletionTarget.Procedure => "預存程序",
-        CompletionTarget.Function => "函式",
-        CompletionTarget.TableFunction => "資料表值函式",
-        CompletionTarget.Column => "資料行",
-        CompletionTarget.Database => "資料庫",
-        CompletionTarget.GlobalVariable => "全域變數",
-        CompletionTarget.Variable => "變數",
-        CompletionTarget.DataType => "資料型別",
-        CompletionTarget.View => "檢視",
-        CompletionTarget.Trigger => "觸發程序",
-        CompletionTarget.Sequence => "序列",
-        CompletionTarget.DatePart => "日期部分",
-        CompletionTarget.TableHint => "資料表提示",
-        CompletionTarget.QueryHint => "查詢提示",
-        CompletionTarget.Collation => "定序",
+        CompletionTarget.DataSource => CompletionText.TargetDataSource,
+        CompletionTarget.Procedure => CompletionText.TargetProcedure,
+        CompletionTarget.Function => CompletionText.TargetFunction,
+        CompletionTarget.TableFunction => CompletionText.TargetTableFunction,
+        CompletionTarget.Column => CompletionText.TargetColumn,
+        CompletionTarget.Database => CommonText.Database,
+        CompletionTarget.GlobalVariable => CompletionText.TargetGlobalVariable,
+        CompletionTarget.Variable => CompletionText.TargetVariable,
+        CompletionTarget.DataType => CompletionText.TargetDataType,
+        CompletionTarget.View => CompletionText.TargetView,
+        CompletionTarget.Trigger => CompletionText.TargetTrigger,
+        CompletionTarget.Sequence => CompletionText.TargetSequence,
+        CompletionTarget.DatePart => CompletionText.TargetDatePart,
+        CompletionTarget.TableHint => CompletionText.TargetTableHint,
+        CompletionTarget.QueryHint => CompletionText.TargetQueryHint,
+        CompletionTarget.Collation => CompletionText.TargetCollation,
         _ => "",
     };
 

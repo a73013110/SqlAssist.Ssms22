@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
@@ -48,11 +49,11 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     // 往往就是「這幾台上的同一段 SQL」。名單一頁一百個且可續頁，所以帶搜尋框；全選不放，
     // 它與第一列那個「全部」是同一件事。
     private readonly ConnectionFacet _serverFacet =
-        new(new SqlFilterFlyout("伺服器", SqlIcon.Server, SqlFilterMode.SearchableMultiple), databases: false, "伺服器",
-            "不限伺服器；每一台上的紀錄都列。", "更多伺服器", " 台");
+        new(new SqlFilterFlyout(CommonText.Server, SqlIcon.Server, SqlFilterMode.SearchableMultiple), databases: false, CommonText.Server,
+            SqlMemoryUiText.NoServerFilterHint, SqlMemoryUiText.MoreServersLabel, SqlMemoryUiText.ServerUnit);
     private readonly ConnectionFacet _databaseFacet =
-        new(new SqlFilterFlyout("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple), databases: true, "資料庫",
-            "不限資料庫；目前條件下的每一個都列。", "更多資料庫", " 個");
+        new(new SqlFilterFlyout(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple), databases: true, CommonText.Database,
+            SqlMemoryUiText.NoDatabaseFilterHint, SqlMemoryUiText.MoreDatabasesLabel, SqlMemoryUiText.DatabaseUnit);
     private readonly ConnectionFacet[] _connectionFacets;
     private readonly SqlPillSelector _kind = Pills(SqlMemoryBrowserModel.KindOptions);
     private readonly SqlPillSelector _period = Pills(SqlMemoryBrowserModel.PeriodOptions);
@@ -62,7 +63,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly Button _connection;
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
-        SqlIcon.Refresh, "重新整理：重讀這一份清單。");
+        SqlIcon.Refresh, SqlMemoryUiText.RefreshTooltip);
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _clockTimer;
     private readonly DispatcherTimer _settleTimer;
@@ -95,9 +96,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         // 勾選以列識別為鍵，與 ListBox 的焦點／預覽分開。刪除與列上的刪除同一條規則：隔一條線、一律確認；
         // 不給快捷鍵，Delete 在多選模式中仍只作用在焦點列，一個按鍵刪掉一整批太容易誤觸。
         _selection = new SqlCardSelection<SqlMemoryRow, Guid>(_rows, row => row.Id);
-        _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, "複製", CopySelectionAsync,
+        _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, CommonText.Copy, CopySelectionAsync,
             shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
-        _selection.AddAction(new SqlSelectionAction(SqlIcon.Remove, "刪除", DeleteSelectionAsync,
+        _selection.AddAction(new SqlSelectionAction(SqlIcon.Remove, CommonText.Delete, DeleteSelectionAsync,
             canExecute: () => _model.IsAvailable && !_commands.IsBusy, separated: true));
         var root = new DockPanel { Margin = new Thickness(SqlAssistChrome.Spacing.Group) };
         // 分頁列、搜尋列、篩選列與主機訊息之間的間距由這一層給，整塊與清單之間也是；
@@ -114,16 +115,16 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _connection = SqlAssistChrome.CreateEditorConnectionButton(ReadEditorConnection);
         _connection.Click += (_, _) => SqlMemoryActions.Run(UseEditorConnection, Report);
         header.Children.Add(SqlAssistChrome.CreateMemoryToolbar(
-            _tabs, Button("設定", () => SqlMemoryActions.OpenSettings(_package))));
+            _tabs, Button(CommonText.Settings, () => SqlMemoryActions.OpenSettings(_package))));
         _hostStatus.TextWrapping = TextWrapping.Wrap;
         // 主機訊息說的是整個工具窗，緊跟分頁列而不是插在搜尋列與清單之間；沒有訊息時整塊讓開，
         // 連同它前面那一段間距；空字串的 TextBlock 仍有行高。
         _hostStatus.Visibility = Visibility.Collapsed;
         header.Children.Add(_hostStatus);
-        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlMemoryUiText.ClearSearchTooltip);
         clear.Click += (_, _) => SqlMemoryActions.Run(() => { _search.Clear(); _search.Focus(); }, Report);
-        _search.ToolTip = "字面搜尋；歷史搜尋 SQL，收藏搜尋名稱、說明與 SQL。大小寫與整個字看框裡那兩顆。";
-        System.Windows.Automation.AutomationProperties.SetName(_search, "搜尋 SQL 或收藏");
+        _search.ToolTip = SqlMemoryUiText.SearchTooltip;
+        System.Windows.Automation.AutomationProperties.SetName(_search, SqlMemoryUiText.SearchAutomationName);
         _refresh.Click += (_, _) => SqlMemoryActions.Run(RefreshList, Report);
         Select(_period, SqlMemoryBrowserModel.PeriodOptions, _model.Period);
         // 範圍列在上、搜尋列貼著清單（見 docs/ui-windows.md）：連線、狀態與期間三群併在同一列，
@@ -392,7 +393,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             {
                 _detail.Select(null);
                 // 復原卡片已經把狀況與下一步說完了，狀態列不再重講一次。
-                Report(recovery is null ? "SQL Memory 尚未就緒；可由設定啟用或重新啟用。" : "");
+                Report(recovery is null ? SqlMemoryUiText.NotReadyMessage : "");
             }
         }
         else if (forceReload && _model.IsAvailable && IsVisible) RefreshList();
@@ -405,10 +406,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         if (status.Phase != SqlMemoryRuntimePhase.OpenFailed || !SqlMemoryRecoveryService.CanRecover) return null;
         return status.ErrorKind switch
         {
-            SqlMemoryStorageErrorKind.Incompatible => ("資料庫版本不相容",
-                "現有的 SQL Memory 資料庫不是這個版本能開啟的。備份並重建之後，歷史與收藏從空白開始記錄，舊檔案留在同一個資料夾。"),
-            SqlMemoryStorageErrorKind.Corrupt => ("資料庫檔案損毀",
-                "SQL Memory 資料庫已無法開啟。備份並重建之後，歷史與收藏從空白開始記錄，損毀的檔案留在同一個資料夾。"),
+            SqlMemoryStorageErrorKind.Incompatible => (SqlMemoryUiText.IncompatibleTitle, SqlMemoryUiText.IncompatibleDescription),
+            SqlMemoryStorageErrorKind.Corrupt => (SqlMemoryUiText.CorruptTitle, SqlMemoryUiText.CorruptDescription),
             _ => null,
         };
     }
@@ -439,10 +438,9 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     private void OnRecoveryRebuildRequested()
     {
         var owner = SsmsWindows.OwnerOf(this);
-        var confirmed = SqlAssistConfirmationWindow.Confirm(owner, "重建 SQL Memory 資料庫",
-            "備份並重新建立 SQL Memory 資料庫？",
-            "現有的資料庫檔案會改名封存在同一個資料夾，不會刪除。\n" +
-            "新資料庫從空白開始記錄；封存檔裡的 History 與收藏，目前版本無法讀回。", "備份並重建");
+        var confirmed = SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryUiText.RebuildConfirmTitle,
+            SqlMemoryUiText.RebuildConfirmMessage,
+            SqlMemoryUiText.RebuildConfirmDetail, SqlMemoryUiText.RebuildConfirmButton);
 
         if (!confirmed) return;
 
@@ -456,7 +454,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             try
             {
                 var backupPath = await SqlMemoryRecoveryService.BackupAndRecreateAsync().ConfigureAwait(true);
-                if (backupPath.Length != 0) Report($"舊檔案備份為 {Path.GetFileName(backupPath)}。");
+                if (backupPath.Length != 0) Report(SqlMemoryUiText.BackupSavedAs(Path.GetFileName(backupPath)));
             }
             catch (OperationCanceledException)
             {
@@ -502,9 +500,6 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         SqlMemoryBrowserModel.SortOptions.Select(option => new SqlFilterSortOption(
             option.Value, option.Label, option.ShortLabel, SqlAssistChrome.MemoryOptionIcon(option.Value))).ToArray());
 
-    /// <summary>未指定名稱那一列的字；面板第一列與按鈕摘要共用同一份。</summary>
-    private const string AnyFacetLabel = "全部";
-
     private void ConfigureFacet(ConnectionFacet facet)
     {
         var panel = facet.Panel;
@@ -549,7 +544,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var host = _model.HostGeneration;
         var token = _facets.Token;
         var request = _model.FacetRequest(facet.Databases, facet.Sort, facet.Offset);
-        facet.Panel.SetNotice("正在讀取" + facet.Name + "清單…", busy: true);
+        facet.Panel.SetNotice(SqlMemoryUiText.LoadingFacetList(facet.Name), busy: true);
         _ = SqlMemoryActions.RunAsync(async () =>
         {
             try
@@ -565,7 +560,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             {
                 if (_disposed || token.IsCancellationRequested || !_model.IsCurrentFacet(facet.Databases, requestId, host)) return;
                 // 這一句留在面板裡而不是狀態列：使用者正盯著那份空清單等答案，而狀態列說的是清單那一輪。
-                facet.Panel.SetNotice(SqlMemoryTimeText.Failure(facet.Name + "清單載入", error));
+                facet.Panel.SetNotice(SqlMemoryTimeText.Failure(SqlMemoryUiText.FacetListLoadAction(facet.Name), error));
             }
         }, Report);
     }
@@ -583,7 +578,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         var selected = Selection(facet);
 
         SqlFilterOption Option(string name) => new(
-            name, facet.Name + "：" + name, IsFacetSelected(facet, name),
+            name, SqlMemoryUiText.FacetOptionDescription(facet.Name, name), IsFacetSelected(facet, name),
             on => SqlMemoryActions.Run(() => ToggleFacet(facet, name, on), Report));
 
         // 已經勾起來的名稱可能不在手上這幾頁裡（換過排序，或還沒續到那一頁）：排在最前面且一律列出，
@@ -591,14 +586,14 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         foreach (var name in selected) if (!facet.Names.Contains(name)) options.Add(Option(name));
         foreach (var name in facet.Names) options.Add(Option(name));
 
-        facet.Panel.SetEmptyOption(new SqlFilterOption(AnyFacetLabel, facet.EmptyHint, selected.Count == 0,
+        facet.Panel.SetEmptyOption(new SqlFilterOption(CommonText.All, facet.EmptyHint, selected.Count == 0,
             on => SqlMemoryActions.Run(() => { if (on) ClearFacet(facet); }, Report)));
         facet.Panel.SetOptions(new[] { new SqlFilterGroup("", options) });
         facet.Panel.SetMore(facet.HasMore ? facet.MoreLabel : null);
         // 名稱是分頁問回來的，全選只勾得到已經載入的那幾頁；還有下一頁時把這個界線說出來，
         // 否則使用者按完全選會以為整份都勾了，而漏掉的那幾個他根本沒看到。
         facet.Panel.SetSelectAllHint(facet.HasMore
-            ? "只勾得到已經載入的名稱；還有下一頁，要全部先按「" + facet.MoreLabel + "」。"
+            ? SqlMemoryUiText.FacetSelectAllHint(facet.MoreLabel)
             : null);
     }
 
@@ -688,7 +683,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     {
         var selected = Selection(facet);
         facet.Panel.UpdateSummary(
-            SqlFilterSummary.Of(selected.Count, AnyFacetLabel, selected.Count == 1 ? selected[0] : null, facet.Unit),
+            SqlFilterSummary.Of(selected.Count, CommonText.All, selected.Count == 1 ? selected[0] : null, facet.Unit),
             selected.Count == 0 ? facet.EmptyHint : SqlFilterSummary.Detail(selected));
         facet.Panel.HasSelection = selected.Count != 0;
     }
@@ -834,7 +829,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             // 回應失敗只更新同一世代；舊查詢不得蓋掉新的狀態訊息。
             if (!token.IsCancellationRequested && _model.IsCurrent(load))
             {
-                _loadFailure = SqlMemoryTimeText.Failure("載入", error);
+                _loadFailure = SqlMemoryTimeText.Failure(SqlMemoryUiText.LoadAction, error);
                 // 清單上還留著前幾頁時失敗留在狀態列：蓋住讀得到的那幾十筆沒有道理。
                 if (_rows.Count != 0) Report(_loadFailure);
             }
@@ -929,15 +924,15 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
                 return;
             }
 
-            if (await ReadAllMatchingAsync("停止讀取；剪貼簿不變。", () => SqlMemoryActions.Notify(
-                    NotificationCatalog.CopyingSqlList, NotificationStatus.Canceled, message: "剪貼簿未變更。"))
+            if (await ReadAllMatchingAsync(SqlMemoryUiText.CopyCancelHint, () => SqlMemoryActions.Notify(
+                    NotificationCatalog.CopyingSqlList, NotificationStatus.Canceled, message: SqlMemoryUiText.ClipboardUnchanged))
                     .ConfigureAwait(true) is not { } all) return;
             var content = all.Favorites is { } favorites
                 ? SqlTabularText.Build(SqlMemoryCopy.FavoriteColumns, favorites.Items)
                 : SqlTabularText.Build(SqlMemoryCopy.HistoryColumns, all.History!.Items);
             var limit = Count(SqlMemoryBulk.Limit);
             succeeded = await WriteClipboardAsync(content, all.IsTruncated
-                ? $"符合的項目超過 {limit} 筆，只複製了前 {limit} 筆；可縮小篩選後分批複製。"
+                ? SqlMemoryUiText.CopyTruncatedNotice(limit)
                 : null).ConfigureAwait(true);
         }, Report).ConfigureAwait(true);
         return succeeded;
@@ -963,8 +958,8 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             var title = favoritesTab ? NotificationCatalog.RemovingFavorite : NotificationCatalog.DeletingSqlHistory;
             if (NeedsReadAll)
             {
-                if (await ReadAllMatchingAsync("停止讀取；還沒有刪除任何一筆。", () => SqlMemoryActions.Notify(
-                        title, NotificationStatus.Canceled, message: "還沒有刪除任何一筆。"))
+                if (await ReadAllMatchingAsync(SqlMemoryUiText.DeleteCancelHint, () => SqlMemoryActions.Notify(
+                        title, NotificationStatus.Canceled, message: SqlMemoryUiText.NothingDeletedYet))
                         .ConfigureAwait(true) is not { } all) return;
                 deletion = all.Favorites is { } favorites ? SqlMemoryDeletion.Of(favorites.Items) : SqlMemoryDeletion.Of(all.History!.Items);
                 truncated = all.IsTruncated;
@@ -978,19 +973,19 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
             }
 
             // 勾起來的列都已不在：沒有動到任何東西，說明為什麼沒有反應，留在狀態列。
-            if (deletion.Count == 0) { Report("沒有可刪除的項目。"); return; }
+            if (deletion.Count == 0) { Report(SqlMemoryUiText.NothingToDelete); return; }
             if (!SqlMemoryItemCommands.ConfirmDelete(this, deletion, null, truncated)) return;
 
             CancelBulk();
             var stop = new CancellationTokenSource();
             _bulk = stop;
-            const string hint = "停在目前這一批之後；已刪除的不會還原。";
+            var hint = SqlMemoryUiText.DeleteStopHint;
             var total = Count(deletion.Count);
             Action cancel = () => { if (ReferenceEquals(_bulk, stop)) stop.Cancel(); };
-            _selectionBar.ShowProgress("正在刪除…", hint, cancel);
+            _selectionBar.ShowProgress(SqlMemoryUiText.DeletingLabel, hint, cancel);
             var progress = new Progress<int>(done =>
             {
-                if (ReferenceEquals(_bulk, stop)) _selectionBar.ShowProgress($"正在刪除，{Count(done)}/{total} 筆…", hint, cancel);
+                if (ReferenceEquals(_bulk, stop)) _selectionBar.ShowProgress(SqlMemoryUiText.DeletingProgress(Count(done), total), hint, cancel);
             });
             try
             {
@@ -1042,7 +1037,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
         _selectionBar.ShowProgress(ReadingAll, cancelHint, stop);
         var progress = new Progress<int>(count =>
         {
-            if (ReferenceEquals(_bulk, cancel)) _selectionBar.ShowProgress("正在讀取，已讀 " + Count(count) + " 筆…", cancelHint, stop);
+            if (ReferenceEquals(_bulk, cancel)) _selectionBar.ShowProgress(SqlMemoryUiText.ReadingAllProgress(Count(count)), cancelHint, stop);
         });
         try
         {
@@ -1071,7 +1066,7 @@ internal sealed class SqlMemoryBrowser : UserControl, IDisposable
     }
 
     /// <summary>筆數那一格換成的進度；停靠面板只有 300 DIP 上下，短到放得進「✕」與「取消」之間。</summary>
-    private const string ReadingAll = "正在讀取…";
+    private static string ReadingAll => SqlMemoryUiText.ReadingEllipsis;
 
     private static string Count(int value) => value.ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
 

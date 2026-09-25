@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Core.Tabular;
@@ -214,8 +215,8 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
     /// Tooltip 與預覽的摘要。少了這一句，只用鍵盤與螢幕閱讀器的人聽到的只有一個名字。
     /// </remarks>
     public string Description =>
-        CategoryLabel + " · " + string.Join("、", TargetLabels) +
-        (MatchCount > 1 ? " · " + MatchCount + " 處命中" : "") +
+        CategoryLabel + " · " + string.Join(CommonText.ListSeparator, TargetLabels) +
+        (MatchCount > 1 ? " · " + SqlSearchText.MatchCount(MatchCount) : "") +
         (Columns.Length == 0 ? "" : " · " + Columns) +
         (Path.Length == 0 ? "" : " · " + Path);
 
@@ -251,14 +252,14 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
     /// 脈絡膠囊（照圖示代號認，不向下轉型酬載），沒有的來源留空格——貼到試算表裡，
     /// 空格比一句「無」更不會被當成一個名字。
     /// </remarks>
-    public static IReadOnlyList<SqlTabularColumn<SqlSearchRow>> CopyColumns { get; } = Array.AsReadOnly(new[]
+    public static IReadOnlyList<SqlTabularColumn<SqlSearchRow>> CopyColumns => Array.AsReadOnly(new[]
     {
-        new SqlTabularColumn<SqlSearchRow>("名稱", row => row.QualifiedName),
-        new SqlTabularColumn<SqlSearchRow>("種類", row => row.CategoryLabel),
-        new SqlTabularColumn<SqlSearchRow>("伺服器", row => row.BadgeText(SearchBadge.ServerIcon)),
-        new SqlTabularColumn<SqlSearchRow>("資料庫", row => row.BadgeText(SearchBadge.DatabaseIcon)),
-        new SqlTabularColumn<SqlSearchRow>("命中部位", row => string.Join("、", row.TargetLabels)),
-        new SqlTabularColumn<SqlSearchRow>("命中資料行", row => row.Columns),
+        new SqlTabularColumn<SqlSearchRow>(CommonText.Name, row => row.QualifiedName),
+        new SqlTabularColumn<SqlSearchRow>(CommonText.Kind, row => row.CategoryLabel),
+        new SqlTabularColumn<SqlSearchRow>(CommonText.Server, row => row.BadgeText(SearchBadge.ServerIcon)),
+        new SqlTabularColumn<SqlSearchRow>(CommonText.Database, row => row.BadgeText(SearchBadge.DatabaseIcon)),
+        new SqlTabularColumn<SqlSearchRow>(SqlSearchText.CopyTargets, row => string.Join(CommonText.ListSeparator, row.TargetLabels)),
+        new SqlTabularColumn<SqlSearchRow>(SqlSearchText.CopyColumns, row => row.Columns),
     });
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -321,7 +322,7 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
     /// </remarks>
     private static string JoinColumns(IReadOnlyList<SearchHit> matches, out IReadOnlyList<MatchSpan> spans)
     {
-        const string Separator = "、";
+        var separator = CommonText.ListSeparator;
         var text = new StringBuilder();
         var kept = new List<MatchSpan>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -331,7 +332,7 @@ internal sealed class SqlSearchRow : INotifyPropertyChanged, ISqlCheckableRow
             if (match.MatchTarget != SearchMatchTarget.Column || match.Snippet.Length == 0) continue;
             if (!seen.Add(match.Snippet)) continue;
 
-            if (text.Length != 0) text.Append(Separator);
+            if (text.Length != 0) text.Append(separator);
             var offset = text.Length;
             text.Append(match.Snippet);
 

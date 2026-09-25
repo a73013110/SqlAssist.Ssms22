@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlTypes;
@@ -37,8 +38,14 @@ namespace SqlAssist.Ssms22;
 /// 以及「字串化之後是不是剛好等於 NULL 這四個字」——那正是要分辨的那一組，
 /// 而分辨它不需要看見任何一筆真實資料。
 /// </remarks>
+[Localizable(false)]
 internal static class SqlAssistResultGridProbe
 {
+    /// <summary>報告裡「格線數量」那一行的開頭；命令成功時把這一行摘給狀態列。</summary>
+    internal const string GridCountLabel = "找到格線數量";
+
+    internal const string MissingGridCountLine = "（報告裡沒有格線數量那一行）";
+
     private const BindingFlags Any =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
@@ -84,7 +91,7 @@ internal static class SqlAssistResultGridProbe
         ProbeDocView(report, found);
         ProbeWindowHandles(report, found, controlType);
 
-        report.Add("找到格線數量：" + found.Count);
+        report.Add(GridCountLabel + "：" + found.Count);
 
         if (found.Count == 0)
         {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SqlAssist.Core.Statements;
@@ -38,6 +39,7 @@ public static class SqlFunctionCallText
     /// 沒有參數也要組：<c>SELECT dbo.fn_Today</c> 是語法錯誤，
     /// <c>SELECT dbo.fn_Today()</c> 才不是，而那對括號正是使用者少按的兩次鍵。
     /// </remarks>
+    [Localizable(false)]
     public static string Build(
         string qualifiedName,
         IReadOnlyList<SqlStatementParameter> parameters,

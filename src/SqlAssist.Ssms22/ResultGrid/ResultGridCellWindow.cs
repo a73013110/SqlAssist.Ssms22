@@ -5,6 +5,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Localization;
 using SqlAssist.Metadata.ResultGrid;
 using SqlAssist.Ssms22.UI;
 
@@ -33,7 +34,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
     public ResultGridCellWindow(ResultGridCellText cell)
     {
         _cell = cell;
-        SqlAssistDialogs.Configure(this, "SqlAssist — 儲存格內容", 760, 520, minWidth: 420, minHeight: 260);
+        SqlAssistDialogs.Configure(this, ResultGridWindowText.CellWindowTitle, 760, 520, minWidth: 420, minHeight: 260);
 
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         Content = BuildLayout();
@@ -49,11 +50,11 @@ internal sealed class ResultGridCellWindow : DialogWindow
         var toolbar = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
         var wrap = new CheckBox
         {
-            Content = "自動換行",
+            Content = ResultGridWindowText.WordWrap,
             Margin = new Thickness(16, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             Template = SqlAssistChrome.CreateCheckBoxTemplate(),
-            ToolTip = "只改變顯示方式；複製時仍保留原始換行與空白。"
+            ToolTip = ResultGridWindowText.WordWrapTip
         }.WithTheme(CheckBox.ForegroundProperty, ThemeBrush.ListForeground);
         DockPanel.SetDock(wrap, Dock.Right);
         toolbar.Children.Add(wrap);
@@ -70,7 +71,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
         content.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         content.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         content.Padding = new Thickness(12);
-        AutomationProperties.SetName(content, "儲存格完整內容（唯讀）");
+        AutomationProperties.SetName(content, ResultGridWindowText.CellContentName);
         // 不換行時一行 XML 可以長到幾千字元；WPF 原生不認 Shift＋滾輪，少了這一道只剩拖捲軸。
         // 切成自動換行之後沒有水平捲軸，那一刻它不攔滾輪，垂直捲動照舊。
         SqlAssistChrome.ApplyShiftWheelPan(content);
@@ -85,7 +86,7 @@ internal sealed class ResultGridCellWindow : DialogWindow
         {
             // 說明是覆蓋層，不混進 Text，避免把 NULL 或空字串複製成提示文字。
             var empty = SqlAssistChrome.CreateHint(
-                _cell.IsNull ? "NULL — 這一格沒有值" : "空內容 — 長度為 0", Metrics);
+                _cell.IsNull ? ResultGridWindowText.CellIsNull : ResultGridWindowText.CellIsEmpty, Metrics);
             empty.Margin = new Thickness(16);
             empty.HorizontalAlignment = HorizontalAlignment.Center;
             empty.VerticalAlignment = VerticalAlignment.Center;
@@ -95,14 +96,14 @@ internal sealed class ResultGridCellWindow : DialogWindow
         Grid.SetRow(body, 1);
         root.Children.Add(body);
 
-        var copy = SqlAssistChrome.CreateButton("複製全部", Metrics);
-        copy.ToolTip = "複製完整原文；也可在內容中選取後按 Ctrl+C。";
+        var copy = SqlAssistChrome.CreateButton(ResultGridWindowText.CopyAll, Metrics);
+        copy.ToolTip = ResultGridWindowText.CopyAllTip;
 
         // NULL 沒有東西可以複製，而一顆按下去什麼都不會發生的按鈕比停用的按鈕難懂。
         copy.IsEnabled = !_cell.IsNull;
         copy.Click += OnCopy;
 
-        var close = SqlAssistChrome.CreateButton("關閉", Metrics, primary: true);
+        var close = SqlAssistChrome.CreateButton(CommonText.Close, Metrics, primary: true);
         close.IsDefault = true;
         close.IsCancel = true;
         close.Click += (_, _) => Close();
@@ -121,12 +122,12 @@ internal sealed class ResultGridCellWindow : DialogWindow
         // 剪貼簿被鎖住由 SqlClipboard 重試並回報；其他例外也不值得關掉視窗。
         try
         {
-            _statusText.Text = await SqlClipboard.WriteTextAsync(_cell.Text).ConfigureAwait(true) ?? "已複製這一格的完整內容。";
+            _statusText.Text = await SqlClipboard.WriteTextAsync(_cell.Text).ConfigureAwait(true) ?? ResultGridWindowText.CellCopied;
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製儲存格內容失敗：{exception.Message}");
-            _statusText.Text = $"複製失敗：{exception.Message}";
+            _statusText.Text = ResultGridWindowText.CopyFailed(exception.Message);
         }
     }
 }

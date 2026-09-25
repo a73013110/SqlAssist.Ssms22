@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 using Xunit;
 
@@ -17,6 +18,16 @@ public sealed class BlockContextTextTests
     [Fact]
     public void 同行內容與種類均可辨認() =>
         Assert.Equal("↑ CASE（第 3 行） SELECT CASE WHEN 1=1", BlockContextText.Format(BlockKind.Case, 3, "SELECT CASE WHEN 1=1"));
+
+    [Fact]
+    public void 提示跟著介面語言()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.Equal("↑ CASE (line 3) SELECT CASE WHEN 1=1", BlockContextText.Format(BlockKind.Case, 3, "SELECT CASE WHEN 1=1"));
+            Assert.Equal("↑ BEGIN (line 2)", BlockContextText.Format(BlockKind.Block, 2, "BEGIN"));
+        }
+    }
 
     [Theory]
     [InlineData("END TRY")]

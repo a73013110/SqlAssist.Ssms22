@@ -95,7 +95,7 @@ public sealed class SqlSnippetLibrary
         if (!string.Equals(shortcut, allowedExisting, StringComparison.OrdinalIgnoreCase) &&
             _byShortcut.ContainsKey(shortcut!))
         {
-            error = $"捷徑「{shortcut}」已經有人用了。";
+            error = SnippetText.ShortcutTaken(shortcut);
             return false;
         }
 

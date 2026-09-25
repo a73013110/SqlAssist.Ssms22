@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using SqlAssist.Core.Settings;
@@ -71,6 +72,7 @@ public sealed class SqlAssistHealthSummary
 }
 
 /// <summary>把平台快照整理成人能判讀、也能安全貼到公開 Issue 的支援資訊。</summary>
+[Localizable(false)]
 public static class SqlAssistDiagnosticReport
 {
     public static IReadOnlyList<SqlAssistHealthCheck> EvaluateHealth(

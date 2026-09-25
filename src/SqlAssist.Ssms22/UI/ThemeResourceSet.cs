@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media;
 
@@ -183,6 +184,7 @@ internal sealed class ThemeResourceSet
 
 internal static class ThemeResourceBinding
 {
+    [Localizable(false)]
     public static T WithTheme<T>(this T element, DependencyProperty property, ThemeBrush key)
         where T : DependencyObject
     {

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Text;
 using SqlAssist.Core.Parsing;
 
@@ -7,6 +8,7 @@ namespace SqlAssist.Metadata.Model;
 /// <summary>資料表或檢視的單一欄位。</summary>
 public sealed class SqlColumnInfo
 {
+    [Localizable(false)]
     public SqlColumnInfo(
         int ordinal,
         string name,

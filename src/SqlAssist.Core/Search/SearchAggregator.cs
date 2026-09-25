@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -28,6 +29,7 @@ public sealed class SearchAggregator
     /// 單調遞增的計時來源，只用來算預算；預設是這個聚合器自己的 <see cref="Stopwatch"/>。
     /// 可注入是為了讓時間預算測得出來——靠真的睡覺來測，測試會同時變慢與不穩定。
     /// </param>
+    [Localizable(false)]
     public SearchAggregator(IEnumerable<ISearchProvider> providers, SearchBudget? budget = null, Func<TimeSpan>? clock = null)
     {
         if (providers is null) throw new ArgumentNullException(nameof(providers));

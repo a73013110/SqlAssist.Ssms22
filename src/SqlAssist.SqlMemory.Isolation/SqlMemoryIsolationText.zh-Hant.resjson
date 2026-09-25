@@ -1,0 +1,5 @@
+{
+  // 在 SSMS 宿主這一側開啟隔離儲存前的安裝檢查；出現在 SQL Memory 工具窗的狀態列。
+  "AssemblyFolderMissing": "找不到 SQL Memory 組件目錄；請重新安裝 SqlAssist。",
+  "IsolationConfigMissing": "缺少 SQL Memory 隔離載入設定；請重新安裝 SqlAssist。"
+}

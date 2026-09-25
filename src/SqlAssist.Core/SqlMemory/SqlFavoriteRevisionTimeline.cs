@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using SqlAssist.Core.Lists;
 
@@ -28,6 +29,7 @@ public sealed class SqlFavoriteRevisionTimeline
 
     /// <param name="currentContentId">收藏目前版本的內容；時間軸還沒讀到目前版本也能比較與判斷回溯。</param>
     /// <param name="retainedLimit">每個收藏保留的版本數設定；只用來說明，不裁切清單。</param>
+    [Localizable(false)]
     public SqlFavoriteRevisionTimeline(Guid favoriteId, string currentContentId, int retainedLimit, int pageSize = DefaultPageSize)
     {
         if (favoriteId == Guid.Empty) throw new ArgumentException("SQL Favorite 必須有識別碼。", nameof(favoriteId));
@@ -106,10 +108,10 @@ public sealed class SqlFavoriteRevisionTimeline
     public SqlFavoriteRevisionComparison? ComparisonFor(SqlFavoriteRevisionItem item)
     {
         if (item == null) throw new ArgumentNullException(nameof(item));
-        if (!item.IsCurrent) return new SqlFavoriteRevisionComparison(item.ContentId, CurrentContentId, "此版本 → 目前版本");
+        if (!item.IsCurrent) return new SqlFavoriteRevisionComparison(item.ContentId, CurrentContentId, SqlMemoryText.CompareWithCurrent);
         var index = IndexOf(item.RevisionId);
         return index >= 0 && index + 1 < _items.Count
-            ? new SqlFavoriteRevisionComparison(_items[index + 1].ContentId, item.ContentId, "前一版 → 目前版本")
+            ? new SqlFavoriteRevisionComparison(_items[index + 1].ContentId, item.ContentId, SqlMemoryText.ComparePreviousWithCurrent)
             : null;
     }
 
@@ -121,15 +123,15 @@ public sealed class SqlFavoriteRevisionTimeline
     public SqlListFooter Footer()
     {
         if (!_hasPage) return new SqlListFooter(SqlListFooterKind.Hidden, "");
-        var loaded = "已載入 " + _items.Count.ToString(CultureInfo.InvariantCulture) + " 版";
+        var loaded = SqlMemoryText.RevisionsLoaded(_items.Count.ToString(CultureInfo.InvariantCulture));
         if (_page.Loading)
             return _pendingFirst ? new SqlListFooter(SqlListFooterKind.Hidden, "")
-                : new SqlListFooter(SqlListFooterKind.Loading, loaded, null, "載入中…");
-        if (_page.Cursor != null) return new SqlListFooter(SqlListFooterKind.More, loaded, null, "載入更多");
+                : new SqlListFooter(SqlListFooterKind.Loading, loaded, null, SqlMemoryText.Loading);
+        if (_page.Cursor != null) return new SqlListFooter(SqlListFooterKind.More, loaded, null, SqlMemoryText.LoadMore);
         return _items.Count == 0
-            ? new SqlListFooter(SqlListFooterKind.Empty, "沒有保留的版本", "收藏可能已被移除；請關閉後重新整理清單。")
+            ? new SqlListFooter(SqlListFooterKind.Empty, SqlMemoryText.NoRevisions, SqlMemoryText.NoRevisionsHint)
             : new SqlListFooter(SqlListFooterKind.End,
-                "共保留 " + _items.Count.ToString(CultureInfo.InvariantCulture) + " 版", RetentionHint);
+                SqlMemoryText.RevisionsKept(_items.Count.ToString(CultureInfo.InvariantCulture)), RetentionHint);
     }
 
     /// <summary>保留配額的說明；版本數到達配額時明講更舊的已經回收，不讓人把清單當成完整歷史。</summary>
@@ -139,8 +141,8 @@ public sealed class SqlFavoriteRevisionTimeline
         {
             var limit = RetainedLimit.ToString(CultureInfo.InvariantCulture);
             return _items.Count >= RetainedLimit
-                ? "只保留最近 " + limit + " 版；更舊的版本已由維護回收（或將在下次維護回收），無法再檢視。"
-                : "每個收藏最多保留最近 " + limit + " 版；超過時較舊的版本會被回收。";
+                ? SqlMemoryText.RetentionReached(limit)
+                : SqlMemoryText.RetentionLimit(limit);
         }
     }
 

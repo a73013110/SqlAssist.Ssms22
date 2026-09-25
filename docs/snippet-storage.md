@@ -8,6 +8,11 @@
 內建定義只有一份：
 `src/SqlAssist.Core/Snippets/DefaultSnippets.json`，以 Embedded Resource 隨 VSIX 發布。
 不要把 49 筆內容寫進 C#，也不要放進 VSIX 安裝步驟複製到使用者目錄。
+其他語言的標題、說明與欄位提示疊自 `DefaultSnippets.<語言>.json`（見[在地化](localization.md#資料型文字)）。
+
+使用者 override 一律蓋過內建值，不論語言：存下來的就是使用者當時看到的文字。反過來，存檔時與**任何一個語言**的
+內建值相同都不算自訂（`SqlSnippetDefaults.IsUnmodifiedBuiltIn`）：清單在繁中載入、換成英文後才存檔時，沒改過的
+49 筆仍是繁中文字，只和目前語言比會全部寫進使用者檔，之後就跟不上新版的內建值。
 
 使用者檔位於 `%APPDATA%\SqlAssist\snippets.json`，v2 只存：
 

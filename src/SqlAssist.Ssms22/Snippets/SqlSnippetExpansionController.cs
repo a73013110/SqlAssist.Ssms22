@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Editor;
 using Microsoft.VisualStudio.Shell;
@@ -224,6 +225,9 @@ internal sealed class SqlSnippetExpansionController : IDisposable
         }
     }
 
+    // TextReplacement.SuccessMessage 只會被 TextViewEditCoordinator 寫進
+    // SqlAssistDiagnostics（診斷紀錄），不會顯示給使用者，固定繁中即可。
+    [Localizable(false)]
     public static void InsertFallback(ITextView textView, SqlSnippetExpansionRequest request)
     {
         var expansion = request.Snippet.Expansion;

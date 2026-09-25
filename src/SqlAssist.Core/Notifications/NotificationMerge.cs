@@ -33,7 +33,7 @@ public static class NotificationMerge
         foreach (var item in items)
         {
             if (item.Status == NotificationStatus.Running || item.IsPrompt) { merged.Add(item); continue; }
-            var key = (item.Kind, item.Title, item.Subject, item.Document, item.Source, item.Status);
+            var key = (item.Kind, item.TitleSource.Key, item.Subject, item.Document, item.Source, item.Status);
             if (positions.TryGetValue(key, out var position))
                 merged[position] = merged[position].WithRepeat(merged[position].Repeat + item.Repeat);
             else

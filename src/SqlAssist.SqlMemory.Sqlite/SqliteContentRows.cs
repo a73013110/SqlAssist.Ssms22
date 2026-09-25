@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.Connections;
@@ -7,6 +8,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>擷取、收藏與維護共用的 Contents 列與引用清單；只在呼叫端的交易內動作。</summary>
+[Localizable(false)]
 internal static class SqliteContentRows
 {
     /// <summary>接在 <c>DELETE FROM Contents WHERE ContentId=$id</c> 之後：沒有任何版本、Recovery 或歷程還引用它。</summary>

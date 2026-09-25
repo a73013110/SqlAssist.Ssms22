@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Editor;
@@ -175,7 +176,7 @@ internal static class SqlEditorConnectionWatcher
     /// <remarks>
     /// 事件處理常式跑在 UI 執行緒上，丟出例外就是使用者眼前的錯誤對話框。
     /// </remarks>
-    private static void Notify(string reason, SqlEditorConnectionEventArgs? eventArgs, bool connected)
+    private static void Notify([Localizable(false)] string reason, SqlEditorConnectionEventArgs? eventArgs, bool connected)
     {
         SqlAssistPlatformGuard.Run($"處理 SSMS {reason}", () =>
         {

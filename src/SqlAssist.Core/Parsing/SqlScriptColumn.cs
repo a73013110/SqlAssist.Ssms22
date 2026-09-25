@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -13,6 +14,7 @@ namespace SqlAssist.Core.Parsing;
 /// </remarks>
 public sealed class SqlScriptColumn
 {
+    [Localizable(false)]
     public SqlScriptColumn(
         string name,
         string dataType,

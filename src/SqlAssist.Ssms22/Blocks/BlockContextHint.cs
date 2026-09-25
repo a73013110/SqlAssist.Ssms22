@@ -90,8 +90,8 @@ internal sealed class BlockContextHint : IDisposable
         if (_shownPair != pair || _shownSnapshot != source || _shownLine != opening.LineNumber)
         {
             _text!.Text = BlockContextText.Format(pair.Kind, opening.LineNumber + 1, ReadLine(snapshot, opening));
-            AutomationProperties.SetName(_surface, "返回區塊起始行：" + _text.Text);
-            _surface.ToolTip = _text.Text + "\n點擊返回起始行";
+            AutomationProperties.SetName(_surface, BlockText.HintAutomationName(_text.Text));
+            _surface.ToolTip = _text.Text + "\n" + BlockText.HintClickToReturn;
             _shownPair = pair;
             _shownSnapshot = source;
             _shownLine = opening.LineNumber;
@@ -120,7 +120,7 @@ internal sealed class BlockContextHint : IDisposable
             // 起始行沿版本鏈平移，舊提示才不會把游標送到另一段 SQL；提示已收起時才拒絕跳轉。
             if (_shownSnapshot is not { } source || _shownPair is not { } pair)
             {
-                SqlAssistStatusBar.Show(ServiceProvider.GlobalProvider, "區塊已變更，請等待最新提示後再返回起始行。");
+                SqlAssistStatusBar.Show(ServiceProvider.GlobalProvider, BlockText.HintOutdated);
                 return;
             }
             var point = BlockProjection.Project(source, pair.Span.Start, _view.TextSnapshot);
@@ -135,7 +135,7 @@ internal sealed class BlockContextHint : IDisposable
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"返回區塊起始行失敗：{exception}");
-            SqlAssistStatusBar.Show(ServiceProvider.GlobalProvider, "無法返回區塊起始行，請重新定位游標後再試。");
+            SqlAssistStatusBar.Show(ServiceProvider.GlobalProvider, BlockText.HintFailed);
         }
     }
 

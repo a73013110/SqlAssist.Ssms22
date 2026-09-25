@@ -17,5 +17,7 @@
   "Server": "伺服器",
   "Database": "資料庫",
   "Column": "欄位",
-  "Settings": "設定"
+  "Settings": "設定",
+  // 列舉幾項時項目之間的分隔。
+  "ListSeparator": "、"
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
 
@@ -39,7 +40,7 @@ internal sealed class SqlSearchRowCommand
     private SqlSearchRowCommand(
         SqlSearchRowAction action,
         SqlIcon icon,
-        string label,
+        Func<string> label,
         bool primary = false,
         string? availabilityPath = null,
         string? labelPath = null,
@@ -48,7 +49,7 @@ internal sealed class SqlSearchRowCommand
     {
         Action = action;
         Icon = icon;
-        Label = label;
+        _label = label;
         IsPrimary = primary;
         AvailabilityPath = availabilityPath;
         LabelPath = labelPath;
@@ -59,14 +60,14 @@ internal sealed class SqlSearchRowCommand
     public static IReadOnlyList<SqlSearchRowCommand> All { get; } = new[]
     {
         new SqlSearchRowCommand(
-            SqlSearchRowAction.Activate, SqlIcon.Open, "移至定義", primary: true,
+            SqlSearchRowAction.Activate, SqlIcon.Open, () => Search.SqlSearchText.Activate, primary: true,
             availabilityPath: nameof(Search.SqlSearchRow.CanActivate),
             labelPath: nameof(Search.SqlSearchRow.ActivateLabel),
             toolTipPath: nameof(Search.SqlSearchRow.ActivateToolTip)),
         new SqlSearchRowCommand(
-            SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, "在物件總管中選取",
+            SqlSearchRowAction.SelectInExplorer, SqlIcon.Locate, () => Search.SqlSearchText.SelectInExplorer,
             availabilityPath: nameof(Search.SqlSearchRow.CanSelectInExplorer)),
-        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, "複製限定名稱", inPreview: false)
+        new SqlSearchRowCommand(SqlSearchRowAction.Copy, SqlIcon.Copy, () => Search.SqlSearchText.CopyQualifiedName, inPreview: false)
     };
 
     /// <summary>預覽工具列上的列操作：<see cref="All"/> 裡 <see cref="IsInPreview"/> 的那幾個，順序不變。</summary>
@@ -76,7 +77,9 @@ internal sealed class SqlSearchRowCommand
 
     public SqlIcon Icon { get; }
 
-    public string Label { get; }
+    private readonly Func<string> _label;
+
+    public string Label => _label();
 
     /// <summary>這一列的主要動作；窄版只留它，其餘收進 overflow。</summary>
     public bool IsPrimary { get; }
@@ -112,6 +115,7 @@ internal sealed class SqlSearchRowCommand
     /// </remarks>
     public bool IsInPreview { get; }
 
+    [Localizable(false)]
     public static SqlSearchRowCommand For(SqlSearchRowAction action)
     {
         foreach (var command in All) if (command.Action == action) return command;

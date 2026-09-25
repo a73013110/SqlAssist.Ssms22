@@ -92,7 +92,7 @@ internal sealed class MasterDetailView : Grid
             Height = SplitterThickness, HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Top,
             ResizeDirection = GridResizeDirection.Rows, ResizeBehavior = GridResizeBehavior.PreviousAndNext,
             KeyboardIncrement = 16, DragIncrement = 1, Focusable = true, Cursor = Cursors.SizeNS,
-            ToolTip = "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。"
+            ToolTip = ChromeText.SplitterRowsToolTip
         };
         // Splitter 必須是主 Grid 的直接子層，PreviousAndNext 才會調整主從兩列。
         Children.Add(_splitter);
@@ -101,7 +101,7 @@ internal sealed class MasterDetailView : Grid
         var focus = new Trigger { Property = IsKeyboardFocusWithinProperty, Value = true };
         focus.Setters.Add(ThemeResourceSet.Setter(BackgroundProperty, ThemeBrush.AccentBorder));
         splitterStyle.Triggers.Add(focus); _splitter.Style = splitterStyle;
-        AutomationProperties.SetName(_splitter, "調整 SQL 預覽高度");
+        AutomationProperties.SetName(_splitter, ChromeText.SplitterRowsName);
         _toggle = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         _toggle.Padding = new Thickness(6, 0, 6, 0);
         _toggle.Margin = new Thickness(0, SqlAssistChrome.Spacing.Tight, 0, 0);
@@ -112,7 +112,7 @@ internal sealed class MasterDetailView : Grid
         if (summary is not null)
         {
             // 捲動、滾輪方向與鍵盤都走共用的單列資訊列；已選條件列用的是同一份。
-            var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, "預覽資訊（可水平捲動）");
+            var metadata = SqlAssistChrome.CreateHorizontalStrip(summary, ChromeText.PreviewStrip);
             metadata.Margin = new Thickness(
                 SqlAssistChrome.Spacing.Group, SqlAssistChrome.Spacing.Tight,
                 SqlAssistChrome.Spacing.Tight, 0);
@@ -220,8 +220,8 @@ internal sealed class MasterDetailView : Grid
         _splitter.VerticalAlignment = VerticalAlignment.Stretch;
         _splitter.ResizeDirection = GridResizeDirection.Columns;
         _splitter.Cursor = Cursors.SizeWE;
-        _splitter.ToolTip = "拖曳調整預覽寬度；聚焦後使用 ← / →。";
-        AutomationProperties.SetName(_splitter, "調整 SQL 預覽寬度");
+        _splitter.ToolTip = ChromeText.SplitterColumnsToolTip;
+        AutomationProperties.SetName(_splitter, ChromeText.SplitterColumnsName);
     }
 
     private void ApplyStacked()
@@ -250,8 +250,8 @@ internal sealed class MasterDetailView : Grid
         _splitter.VerticalAlignment = VerticalAlignment.Top;
         _splitter.ResizeDirection = GridResizeDirection.Rows;
         _splitter.Cursor = Cursors.SizeNS;
-        _splitter.ToolTip = "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。";
-        AutomationProperties.SetName(_splitter, "調整 SQL 預覽高度");
+        _splitter.ToolTip = ChromeText.SplitterRowsToolTip;
+        AutomationProperties.SetName(_splitter, ChromeText.SplitterRowsName);
     }
 
     private void RememberProportions()
@@ -286,9 +286,9 @@ internal sealed class MasterDetailView : Grid
         _chevron.Margin = iconOnly ? default : new Thickness(0, 0, 6, 0);
         panel.Children.Add(_chevron);
         SqlAssistChrome.SetChevronExpanded(_chevron, IsDetailExpanded, _motion);
-        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText("預覽"));
+        if (!iconOnly) panel.Children.Add(SqlAssistChrome.CreateButtonText(ChromeText.Preview));
         _toggle.Content = panel;
-        _toggle.ToolTip = IsDetailExpanded ? "收合預覽，保留目前選取。" : "展開目前選取的 SQL 預覽。";
-        AutomationProperties.SetName(_toggle, IsDetailExpanded ? "收合預覽" : "展開預覽");
+        _toggle.ToolTip = IsDetailExpanded ? ChromeText.CollapsePreviewToolTip : ChromeText.ExpandPreviewToolTip;
+        AutomationProperties.SetName(_toggle, IsDetailExpanded ? ChromeText.CollapsePreview : ChromeText.ExpandPreview);
     }
 }

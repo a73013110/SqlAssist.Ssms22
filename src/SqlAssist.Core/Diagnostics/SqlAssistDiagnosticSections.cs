@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 
 namespace SqlAssist.Core.Diagnostics;
@@ -42,6 +43,7 @@ public sealed class SqlAssistDiagnosticSection
 /// 這裡只產生字串，不決定要怎麼畫；視窗畫成兩欄，摘要印成 Markdown 清單。
 /// 唯一刻意不共用的是診斷紀錄的路徑：視窗顯示完整路徑，摘要只顯示匿名路徑。
 /// </remarks>
+[Localizable(false)]
 public static class SqlAssistDiagnosticSections
 {
     public static IReadOnlyList<SqlAssistDiagnosticSection> DescribeSettings(

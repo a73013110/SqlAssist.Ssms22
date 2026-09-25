@@ -60,7 +60,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
     [Import]
     internal SVsServiceProvider ServiceProvider { get; set; } = null!;
 
-    public string DisplayName => "SqlAssist 結構預覽操作";
+    public string DisplayName => CompletionText.CommandHandlerName;
 
     public CommandState GetCommandState(EscapeKeyCommandArgs args) => CommandState.Unspecified;
 

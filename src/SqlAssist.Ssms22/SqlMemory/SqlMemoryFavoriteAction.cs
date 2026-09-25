@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Notifications;
@@ -36,14 +35,14 @@ internal static class SqlMemoryFavoriteAction
     /// <returns>沒有開對話框的原因，寫到狀態列；開了（不論儲存或取消）是空字串。</returns>
     public static string Begin(IWpfTextView view, SqlAssistPackage package)
     {
-        if (view is null || view.IsClosed) return "查詢視窗已關閉。";
+        if (view is null || view.IsClosed) return SqlMemoryCommandText.EditorClosed;
 
         // 有選取就收選取，與選取執行同一條界線；沒有選取才是整份文件。
         var selection = SqlCaptureTracker.SelectedText(view.Selection);
         var sql = selection is { } selected ? selected.GetText() : view.TextBuffer.CurrentSnapshot.GetText();
         // 與擷取同一份判斷：收得起來的與記得下來的，不該是兩套標準。
         if (SqlContent.IsBlank(sql))
-            return selection is null ? "查詢視窗沒有可以收藏的 SQL。" : "選取範圍沒有可以收藏的 SQL。";
+            return selection is null ? SqlMemoryCommandText.NoSqlInEditor : SqlMemoryCommandText.NoSqlInSelection;
 
         var name = ActiveSqlEditor.GetDocumentName(view.TextBuffer);
         // 成功與清單上的「新增至收藏」同一則通知；這裡回傳的只剩「為什麼沒開對話框」。
@@ -58,8 +57,8 @@ internal static class SqlMemoryFavoriteAction
     {
         var lines = 1;
         foreach (var character in sql) if (character == '\n') lines++;
-        var size = string.Format(CultureInfo.CurrentCulture, "{0:N0} 行、{1:N0} 字元", lines, sql.Length);
-        return selected ? $"收藏選取範圍（{size}）。" : $"收藏整份查詢（{size}）。";
+        var size = SqlMemoryCommandText.SizeSummary(lines, sql.Length);
+        return selected ? SqlMemoryCommandText.FavoriteSelectionSummary(size) : SqlMemoryCommandText.FavoriteDocumentSummary(size);
     }
 
     private static int Length(IWpfTextView view)

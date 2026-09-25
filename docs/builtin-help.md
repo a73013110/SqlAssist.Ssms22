@@ -47,6 +47,8 @@ Ctrl+F12）。`smallint` 只有一行說明，而使用者正在說明面板上�
 | 全域變數的一行說明 | `Core/Keywords/SqlGlobalVariableCatalog` |
 | 用途、陷阱與範例、文件位址、對照表 | `Core/Keywords/BuiltInDocs.json` |
 
+譯文不另立出處：目錄的一行說明在同資料夾的 `.resjson`，資源的譯文在 `BuiltInDocs.<語言>.json`（見[在地化](localization.md#資料型文字)）。
+
 那四份建議清單本來就在用（見[函式與型別](completion-builtins.md)與[變數](completion-variables.md)），
 JSON 再抄一次的症狀是清單與提示各說一套，而且沒有任何徵兆。`SqlBuiltInDocCatalog`
 負責把它們接起來，呼叫端只問它一個；圖示與標題底下那一行種類文字同樣只有一份。

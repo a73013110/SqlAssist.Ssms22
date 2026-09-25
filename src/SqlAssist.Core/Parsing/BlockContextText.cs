@@ -4,7 +4,7 @@ using System.Text;
 namespace SqlAssist.Core.Parsing;
 
 /// <summary>結構、邊欄與上下文提示共用的有界文字，不保留或複製整個大區塊。</summary>
-public static class BlockContextText
+public static partial class BlockContextText
 {
     public const int MaximumSummaryLength = 160;
 
@@ -50,6 +50,6 @@ public static class BlockContextText
         // 相鄰不代表語法歸屬；沒有控制流程語法樹時不猜測上一行，也不重複區塊名稱。
         if (string.Equals(summary, KindName(kind), StringComparison.OrdinalIgnoreCase))
             summary = string.Empty;
-        return $"↑ {KindName(kind)}（第 {oneBasedLine} 行） {summary}".TrimEnd();
+        return Heading(KindName(kind), oneBasedLine, summary).TrimEnd();
     }
 }

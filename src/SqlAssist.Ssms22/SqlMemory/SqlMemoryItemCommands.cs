@@ -1,9 +1,11 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
@@ -23,7 +25,7 @@ namespace SqlAssist.Ssms22.SqlMemory;
 internal sealed class SqlMemoryItemCommands
 {
     /// <summary>收藏成功的說明；查詢視窗那條入口也用同一句。</summary>
-    public const string FavoritesHint = "可到 Favorites 查看。";
+    public static string FavoritesHint => SqlMemoryCommandText.FavoritesHint;
 
     private readonly SqlAssistPackage _package;
     private readonly SqlMemoryOperationGate _gate = new();
@@ -44,6 +46,10 @@ internal sealed class SqlMemoryItemCommands
     /// <param name="source">決定確認框與對話框的擁有者視窗。</param>
     /// <param name="token">呼叫端的頁面生命週期；切頁或停用時取消，晚到的結果不再回報。</param>
     /// <param name="loadedSql">呼叫端已經讀好的全文（Preview）；null 時按需讀取。</param>
+    // 只有傳進未定義的列舉值才會走到，給維護者看的，不翻。
+    [Localizable(false)]
+    private const string UnknownAction = "沒有這個列操作。";
+
     public async Task RunAsync(SqlMemoryRowAction action, SqlMemoryRow row, DependencyObject source, CancellationToken token,
         string? loadedSql = null)
     {
@@ -51,7 +57,7 @@ internal sealed class SqlMemoryItemCommands
         switch (action)
         {
             case SqlMemoryRowAction.Copy:
-                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.CopyingSql, "複製", async sql =>
+                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.CopyingSql, CommonText.Copy, async sql =>
                 {
                     var failure = await SqlClipboard.WriteTextAsync(sql).ConfigureAwait(true);
                     SqlMemoryActions.Notify(NotificationCatalog.CopyingSql,
@@ -59,29 +65,29 @@ internal sealed class SqlMemoryItemCommands
                 }).ConfigureAwait(true);
                 break;
             case SqlMemoryRowAction.Open:
-                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.OpeningQueryWindow, "開啟", sql =>
+                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.OpeningQueryWindow, SqlMemoryCommandText.OpenVerb, sql =>
                 {
                     var failure = SqlMemoryActions.TryOpenQuery(_package, sql);
                     SqlMemoryActions.Notify(NotificationCatalog.OpeningQueryWindow,
                         failure is null ? NotificationStatus.Succeeded : NotificationStatus.Failed, row.Name,
-                        failure ?? "未執行 SQL。");
+                        failure ?? SqlMemoryCommandText.OpenFailedFallback);
                     return Task.CompletedTask;
                 }).ConfigureAwait(true);
                 break;
             case SqlMemoryRowAction.AddFavorite:
                 // 編輯器要顯示全文；有版本時 SQL 沒改就引用那一份，未存檔草稿則讓收藏自己建一份。
-                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.AddingFavorite, "收藏", sql =>
+                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.AddingFavorite, SqlMemoryCommandText.AddFavoriteVerb, sql =>
                 {
                     var summary = row.RevisionId is null
-                        ? "收藏這筆未存檔草稿目前的內容。"
-                        : $"收藏這筆{row.Status}紀錄的 SQL；未修改就沿用同一份版本，修改後另存為收藏自己的版本。";
+                        ? SqlMemoryCommandText.FavoriteDraftSummary
+                        : SqlMemoryCommandText.FavoriteRevisionSummary(row.Status);
                     if (FavoriteEditorWindow.Create(_package, sql, row.Name, row.History!.Connection, row.RevisionId, summary))
                         SqlMemoryActions.Notify(NotificationCatalog.AddingFavorite, NotificationStatus.Succeeded, row.Name, FavoritesHint);
                     return Task.CompletedTask;
                 }).ConfigureAwait(true);
                 break;
             case SqlMemoryRowAction.Edit:
-                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.SavingFavorite, "編輯", async sql =>
+                await WithSqlAsync(row, loadedSql, token, NotificationCatalog.SavingFavorite, SqlMemoryCommandText.EditVerb, async sql =>
                 {
                     if (FavoriteEditorWindow.Edit(_package, row.Favorite!, sql))
                         await ReloadFavoriteAsync(row, token, NotificationCatalog.SavingFavorite).ConfigureAwait(true);
@@ -101,7 +107,7 @@ internal sealed class SqlMemoryItemCommands
                 if (report is not null && report.Removed.Contains(row.Id)) Removed?.Invoke(row);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(action), action, "沒有這個列操作。");
+                throw new ArgumentOutOfRangeException(nameof(action), action, UnknownAction);
         }
     }
 
@@ -118,13 +124,15 @@ internal sealed class SqlMemoryItemCommands
         if (deletion.Count == 0 || _gate.IsBusy) return null;
 
         var title = deletion.IsFavorites ? NotificationCatalog.RemovingFavorite : NotificationCatalog.DeletingSqlHistory;
-        var verb = deletion.IsFavorites ? "移除" : "刪除";
+        var verb = deletion.IsFavorites ? SqlMemoryCommandText.RemoveVerb : CommonText.Delete;
         using var notification = NotificationCenter.Default.Begin(title, NotificationKind.SqlMemory,
             NotificationOrigin.User, NotificationLevel.Info, row?.Name ?? "");
         var total = Count(deletion.Count);
         var reported = new Progress<int>(done =>
         {
-            notification.Report($"已{verb} {Count(done)}/{total} 筆");
+            notification.Report(deletion.IsFavorites
+                ? SqlMemoryCommandText.BulkRemoved(Count(done), total)
+                : SqlMemoryCommandText.BulkDeleted(Count(done), total));
             progress?.Report(done);
         });
         SqlMemoryDeleteReport? result = null;
@@ -169,32 +177,32 @@ internal sealed class SqlMemoryItemCommands
         if (row is not null)
         {
             return row.Favorite is { } favorite
-                ? SqlAssistConfirmationWindow.Confirm(owner, "從收藏移除", $"移除收藏「{favorite.Favorite.Name}」？",
-                    "只移除這個收藏，History 裡的紀錄會保留。\n移除後無法復原。", "從收藏移除")
-                : SqlAssistConfirmationWindow.Confirm(owner, "從 History 刪除", $"刪除「{row.Name}」這筆{row.Status}紀錄？",
-                    "只刪除這一筆，收藏和其他紀錄都不受影響。\n" +
-                    "這段 SQL 若還被收藏或其他版本用到，會繼續保留。\n" +
-                    "查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n" +
-                    "刪除後無法復原。", "刪除");
+                ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFavoriteTitle,
+                    SqlMemoryCommandText.RemoveFavoriteConfirm(favorite.Favorite.Name),
+                    SqlMemoryCommandText.RemoveFavoriteDetail, SqlMemoryCommandText.RemoveFavoriteTitle)
+                : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistoryTitle,
+                    SqlMemoryCommandText.DeleteFromHistoryConfirm(row.Name, row.Status),
+                    SqlMemoryCommandText.DeleteFromHistoryDetail, CommonText.Delete);
         }
 
         var count = Count(deletion.Count);
         // 只讀進上限那一批時先說清楚：確認框上的筆數就是這一次會動到的筆數，不是符合條件的全部。
         var limit = truncated
-            ? $"符合條件的超過 {Count(SqlMemoryBulk.Limit)} 筆，這次只處理前 {count} 筆，其餘留在清單上。\n"
+            ? SqlMemoryCommandText.TruncatedLimitNote(Count(SqlMemoryBulk.Limit), count)
             : "";
         return deletion.IsFavorites
-            ? SqlAssistConfirmationWindow.Confirm(owner, "從收藏移除", $"移除勾選的 {count} 筆收藏？",
-                limit + "只移除收藏，History 裡的紀錄會保留。\n移除後無法復原。", "從收藏移除")
-            : SqlAssistConfirmationWindow.Confirm(owner, "從 History 刪除", $"刪除勾選的 {count} 筆紀錄？",
-                limit + "收藏不受影響；還被收藏或其他版本用到的 SQL 會繼續保留。\n" +
-                "查詢視窗還開著的話，之後再編輯會產生新的紀錄。\n" +
-                "刪除後無法復原。", "刪除");
+            ? SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.RemoveFavoriteTitle,
+                SqlMemoryCommandText.RemoveFavoriteBulkConfirm(count),
+                limit + SqlMemoryCommandText.RemoveFavoriteBulkDetail, SqlMemoryCommandText.RemoveFavoriteTitle)
+            : SqlAssistConfirmationWindow.Confirm(owner, SqlMemoryCommandText.DeleteFromHistoryTitle,
+                SqlMemoryCommandText.DeleteFromHistoryBulkConfirm(count),
+                limit + SqlMemoryCommandText.DeleteFromHistoryBulkDetail, CommonText.Delete);
     }
 
     /// <param name="title">成功時的通知標題；null 表示不另外通知（例如回溯已經有自己的那一則）。</param>
     private Task ReloadFavoriteAsync(SqlMemoryRow row, CancellationToken token, string? title) =>
-        _gate.RunAsync(token, message => Fail(title ?? NotificationCatalog.SavingFavorite, row, message), "重新讀取收藏", async () =>
+        _gate.RunAsync(token, message => Fail(title ?? NotificationCatalog.SavingFavorite, row, message),
+            SqlMemoryCommandText.ReloadFavoriteVerb, async () =>
         {
             var current = await SqlMemoryHost.Runtime.ReadFavoriteAsync(row.Favorite!.Favorite.FavoriteId, token);
             return () =>
@@ -202,7 +210,7 @@ internal sealed class SqlMemoryItemCommands
                 Replaced?.Invoke(row, current is null ? null : new SqlMemoryRow(current));
                 if (title is null) return;
                 SqlMemoryActions.Notify(title, NotificationStatus.Succeeded, current?.Favorite.Name ?? row.Name,
-                    current is null ? "收藏已不存在；已從清單移除。" : "");
+                    current is null ? SqlMemoryCommandText.FavoriteGoneNotice : "");
             };
         });
 
@@ -216,7 +224,7 @@ internal sealed class SqlMemoryItemCommands
         return _gate.RunAsync(token, fail, verb, async () =>
         {
             var content = await SqlMemoryHost.Runtime.ReadContentAsync(row.ContentId, token);
-            if (content is null) throw new InvalidOperationException("內容已不存在，請重新整理。");
+            if (content is null) throw new InvalidOperationException(SqlMemoryCommandText.ContentGoneRetry);
             return () => { _ = SqlMemoryActions.RunAsync(() => use(content.SqlText), fail); };
         });
     }

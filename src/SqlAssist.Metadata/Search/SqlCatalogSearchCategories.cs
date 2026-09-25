@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using SqlAssist.Core.Search;
 using SqlAssist.Metadata.Model;
 
@@ -85,6 +86,7 @@ public static class SqlCatalogSearchCategories
     }
 
     /// <summary>宣告給 UI 的分類清單，依 <see cref="SearchCategory.SortOrder"/> 的順序。</summary>
+    [Localizable(false)]
     public static IReadOnlyList<SearchCategory> Create(string providerId)
     {
         if (providerId is null)

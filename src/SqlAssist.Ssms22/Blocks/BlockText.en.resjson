@@ -1,0 +1,9 @@
+{
+  "HintAutomationName": "Return to block start: {text}",
+  "HintClickToReturn": "Click to return to start",
+  "HintOutdated": "Block has changed; wait for updated hint before returning to start.",
+  "HintFailed": "Cannot return to block start; reposition cursor and try again.",
+  "GlyphDescription": "{kind}: lines {first}–{last}",
+  "OverviewName": "{kind} block range",
+  "CollapsedHint": "{summary} (line {line})"
+}

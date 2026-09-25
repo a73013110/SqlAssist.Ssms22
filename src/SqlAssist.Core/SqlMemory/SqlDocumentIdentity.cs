@@ -120,5 +120,6 @@ public sealed class SqlDocumentIdentity
             ? left == right
             : string.Equals(NormalizedPath(left), NormalizedPath(right), StringComparison.Ordinal);
 
-    private static string Name(string displayName) => string.IsNullOrWhiteSpace(displayName) ? "SQL 查詢" : displayName;
+    // 預設名稱會存進 Documents，之後換語言不回頭改；SSMS 的查詢視窗一定有標題，實際上很少走到。
+    private static string Name(string displayName) => string.IsNullOrWhiteSpace(displayName) ? SqlMemoryText.UntitledDocument : displayName;
 }

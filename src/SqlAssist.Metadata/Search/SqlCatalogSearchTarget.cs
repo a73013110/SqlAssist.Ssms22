@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Metadata.Search;
@@ -24,6 +25,7 @@ namespace SqlAssist.Metadata.Search;
 public sealed class SqlCatalogSearchTarget : ISqlSearchTarget
 {
     /// <param name="columnName">資料行命中時的資料行名稱；物件命中時為 null。</param>
+    [Localizable(false)]
     public SqlCatalogSearchTarget(
         SqlSearchOrigin origin,
         string databaseName,

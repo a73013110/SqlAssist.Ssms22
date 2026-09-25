@@ -1,0 +1,21 @@
+{
+  // SQL Search 與 SQL Memory 共用的搜尋控制項：命中導覽、比對修飾、比對位置。
+  "PreviousMatch": "上一個命中",
+  "NextMatch": "下一個命中",
+  // 命中導覽中間那格的朗讀與提示；畫面上只顯示「3 / 12」。
+  "MatchPosition": "第 {position} 個命中，共 {count} 個",
+  "MatchCase": "大小寫相同",
+  "MatchCaseToolTip": "大小寫要完全一樣：搜 finish 就不會找到 Finish。",
+  "WholeWord": "整個字",
+  "WholeWordToolTip": "只找完整的字：搜 Copy 就不會找到 CopyNo 裡的那一段。",
+  // 比對位置分段按鈕；「名稱」「欄位」用共用詞。
+  "Targets": "比對位置",
+  "TargetSegmentName": "比對位置：{target}",
+  "TargetToolTip": "{target}：{description}",
+  "TargetText": "內容",
+  "TargetNameDescription": "比對物件名稱；模糊比對，不分大小寫。",
+  "TargetTextDescription": "比對定義本文；關掉就真的不去撈定義，第一次搜尋最貴的一段因此省下來。",
+  "TargetColumnDescription": "比對資料行名稱；命中仍指向擁有它的那一個物件。",
+  // 條件約束類結果的圖示朗讀名稱。
+  "ConstraintIcon": "條件約束"
+}

@@ -161,10 +161,10 @@ public static class SqlObjectScript
     private static string BuildUnscriptableBody(SqlObjectStructure structure)
     {
         var builder = new StringBuilder();
-        SqlScriptComment.AppendLine(builder, "無法為 " + structure.Object.QualifiedName +
-            "（" + structure.Object.Kind.ToDisplayName() + "）產生可以執行的指令碼。", Environment.NewLine);
-        builder.AppendLine("-- SqlAssist 認不得這個物件的種類，因此不知道它的定義該長什麼樣。");
-        builder.AppendLine("-- 以下是查得到的部分：");
+        SqlScriptComment.AppendLine(builder, ScriptText.UnscriptableHeading(
+            structure.Object.QualifiedName, structure.Object.Kind.ToDisplayName()), Environment.NewLine);
+        SqlScriptComment.AppendLine(builder, ScriptText.UnscriptableReason, Environment.NewLine);
+        SqlScriptComment.AppendLine(builder, ScriptText.UnscriptableAvailable, Environment.NewLine);
         builder.AppendLine();
 
         foreach (var line in SplitLines(structure.Detail.BuildPreview()))

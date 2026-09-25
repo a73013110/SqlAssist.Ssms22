@@ -1,0 +1,216 @@
+{
+  "builtin.ssf": {
+    "description": "Query all columns in a table"
+  },
+  "builtin.st100": {
+    "description": "Query the first 100 rows"
+  },
+  "builtin.st1": {
+    "description": "Query the first row"
+  },
+  "builtin.ssc": {
+    "description": "Count rows"
+  },
+  "builtin.sd": {
+    "description": "Query distinct data; after selecting a table, press Tab on * to expand columns and select"
+  },
+  "builtin.ii": {
+    "description": "Insert data; after selecting a table, expand the column list and VALUES"
+  },
+  "builtin.ui": {
+    "description": "Update data; fill in SET and WHERE yourself"
+  },
+  "builtin.df": {
+    "description": "Delete data; fill in WHERE yourself"
+  },
+  "builtin.mg": {
+    "description": "Merge data; after selecting a target table, expand match key, UPDATE and INSERT"
+  },
+  "builtin.cdb": {
+    "description": "Create a database",
+    "placeholders.database.tooltip": "Database name"
+  },
+  "builtin.ctb": {
+    "description": "Create a table",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.column.tooltip": "Column name",
+    "placeholders.dataType.tooltip": "Data type"
+  },
+  "builtin.cv": {
+    "description": "Create a view",
+    "placeholders.view.tooltip": "View name; can include schema",
+    "placeholders.column.tooltip": "Column name",
+    "placeholders.sourceTable.tooltip": "Source table; can include schema"
+  },
+  "builtin.cp": {
+    "description": "Create a stored procedure",
+    "placeholders.procedure.tooltip": "Stored procedure name; can include schema",
+    "placeholders.surround.tooltip": "Procedure body"
+  },
+  "builtin.cf": {
+    "title": "CREATE FUNCTION (scalar)",
+    "description": "Create a scalar function",
+    "placeholders.function.tooltip": "Function name; can include schema",
+    "placeholders.parameter.tooltip": "Parameter name",
+    "placeholders.parameterType.tooltip": "Parameter type",
+    "placeholders.returnType.tooltip": "Return type",
+    "placeholders.expression.tooltip": "Return expression"
+  },
+  "builtin.ctf": {
+    "title": "CREATE FUNCTION (inline table-valued)",
+    "description": "Create an inline table-valued function",
+    "placeholders.function.tooltip": "Function name; can include schema",
+    "placeholders.parameter.tooltip": "Parameter name",
+    "placeholders.parameterType.tooltip": "Parameter type",
+    "placeholders.column.tooltip": "Return column",
+    "placeholders.sourceTable.tooltip": "Source table; can include schema"
+  },
+  "builtin.cix": {
+    "description": "Create a nonclustered index",
+    "placeholders.index.tooltip": "Index name",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.column.tooltip": "Index column"
+  },
+  "builtin.at": {
+    "description": "Alter a table",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.action.tooltip": "ALTER TABLE action"
+  },
+  "builtin.dt": {
+    "description": "Drop a table if it exists",
+    "placeholders.table.tooltip": "Table name; can include schema"
+  },
+  "builtin.ap": {
+    "description": "Alter a stored procedure; then list procedures and insert the full definition"
+  },
+  "builtin.af": {
+    "description": "Alter a function; then list functions"
+  },
+  "builtin.av": {
+    "description": "Alter a view; then list views and insert the full definition"
+  },
+  "builtin.atr": {
+    "description": "Alter a trigger; then list triggers and insert the full definition"
+  },
+  "builtin.be": {
+    "description": "BEGIN/END block",
+    "placeholders.surround.tooltip": "Block body"
+  },
+  "builtin.bt": {
+    "description": "Begin a transaction"
+  },
+  "builtin.ct": {
+    "description": "Commit a transaction"
+  },
+  "builtin.rt": {
+    "description": "Rollback a transaction"
+  },
+  "builtin.ifb": {
+    "description": "Execute a block when a condition is true",
+    "placeholders.condition.tooltip": "Condition",
+    "placeholders.surround.tooltip": "Content to execute when true"
+  },
+  "builtin.ife": {
+    "description": "Execute when data exists",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.condition.tooltip": "Condition",
+    "placeholders.surround.tooltip": "Content to execute when true"
+  },
+  "builtin.ifne": {
+    "description": "Execute when data does not exist",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.condition.tooltip": "Condition",
+    "placeholders.surround.tooltip": "Content to execute when true"
+  },
+  "builtin.wl": {
+    "description": "WHILE loop",
+    "placeholders.condition.tooltip": "Loop condition",
+    "placeholders.surround.tooltip": "Loop body"
+  },
+  "builtin.tc": {
+    "description": "TRY/CATCH exception handling",
+    "placeholders.surround.tooltip": "Main processing body",
+    "placeholders.catchBody.tooltip": "Error handling body"
+  },
+  "builtin.cs": {
+    "description": "CASE conditional expression",
+    "placeholders.condition.tooltip": "Condition",
+    "placeholders.result.tooltip": "Result when true",
+    "placeholders.fallback.tooltip": "Result for other cases"
+  },
+  "builtin.cur": {
+    "description": "Complete local fast forward CURSOR template",
+    "placeholders.cursor.tooltip": "Cursor name; identical names will sync",
+    "placeholders.column.tooltip": "Column to read",
+    "placeholders.table.tooltip": "Table name; can include schema",
+    "placeholders.variable.tooltip": "Variable to receive data; declare it first",
+    "placeholders.surround.tooltip": "Row-by-row processing body"
+  },
+  "builtin.trn": {
+    "title": "Safe transaction template",
+    "description": "Transaction with XACT_ABORT, TRY/CATCH and rollback",
+    "placeholders.surround.tooltip": "Transaction body"
+  },
+  "builtin.trr": {
+    "title": "Transaction test run",
+    "description": "Test run in a transaction and rollback; change to COMMIT after confirmation",
+    "code": "BEGIN TRANSACTION;\n\n$surround$\n\n-- After verifying the results, change to COMMIT TRANSACTION;\nROLLBACK TRANSACTION;$end$",
+    "placeholders.surround.tooltip": "Content to test run"
+  },
+  "builtin.ij": {
+    "description": "Add INNER JOIN"
+  },
+  "builtin.lj": {
+    "description": "Add LEFT JOIN"
+  },
+  "builtin.rj": {
+    "description": "Add RIGHT JOIN"
+  },
+  "builtin.fj": {
+    "description": "Add FULL JOIN"
+  },
+  "builtin.cj": {
+    "description": "Add CROSS JOIN"
+  },
+  "builtin.ca": {
+    "description": "Add CROSS APPLY; then list functions"
+  },
+  "builtin.oa": {
+    "description": "Add OUTER APPLY; then list functions"
+  },
+  "builtin.ob": {
+    "description": "Add ORDER BY clause",
+    "placeholders.column.tooltip": "Sort column",
+    "placeholders.direction.tooltip": "ASC or DESC"
+  },
+  "builtin.gb": {
+    "description": "Add GROUP BY clause",
+    "placeholders.column.tooltip": "Group column"
+  },
+  "builtin.cte": {
+    "description": "Create a CTE and query",
+    "placeholders.cte.tooltip": "CTE name; identical names will sync",
+    "placeholders.column.tooltip": "Column name",
+    "placeholders.table.tooltip": "Table name; can include schema"
+  },
+  "builtin.wcte": {
+    "title": "Surround with CTE",
+    "description": "Put a query into a CTE and query",
+    "placeholders.cte.tooltip": "CTE name; identical names will sync",
+    "placeholders.surround.tooltip": "CTE query body"
+  },
+  "builtin.wdt": {
+    "title": "Surround with derived table",
+    "description": "Put a query into a FROM subquery",
+    "placeholders.surround.tooltip": "Subquery body",
+    "placeholders.alias.tooltip": "Derived table alias"
+  },
+  "builtin.sno": {
+    "description": "Disable affected rows message"
+  },
+  "builtin.ptt": {
+    "title": "PRINT timestamp",
+    "description": "Output current time and message",
+    "placeholders.message.tooltip": "Message or expression to output"
+  }
+}

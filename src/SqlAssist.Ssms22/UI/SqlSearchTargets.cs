@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Search;
 
 namespace SqlAssist.Ssms22.UI;
@@ -22,19 +24,21 @@ internal static class SqlSearchTargets
         SearchMatchTarget.Column
     };
 
+    [Localizable(false)]
     public static string LabelFor(SearchMatchTarget target) => target switch
     {
-        SearchMatchTarget.Name => "名稱",
-        SearchMatchTarget.Text => "內容",
-        SearchMatchTarget.Column => "欄位",
+        SearchMatchTarget.Name => CommonText.Name,
+        SearchMatchTarget.Text => SearchControlText.TargetText,
+        SearchMatchTarget.Column => CommonText.Column,
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, "沒有這個比對位置的顯示字。")
     };
 
+    [Localizable(false)]
     public static string DescriptionFor(SearchMatchTarget target) => target switch
     {
-        SearchMatchTarget.Name => "比對物件名稱；模糊比對，不分大小寫。",
-        SearchMatchTarget.Text => "比對定義本文；關掉就真的不去撈定義，第一次搜尋最貴的一段因此省下來。",
-        SearchMatchTarget.Column => "比對資料行名稱；命中仍指向擁有它的那一個物件。",
+        SearchMatchTarget.Name => SearchControlText.TargetNameDescription,
+        SearchMatchTarget.Text => SearchControlText.TargetTextDescription,
+        SearchMatchTarget.Column => SearchControlText.TargetColumnDescription,
         _ => throw new ArgumentOutOfRangeException(nameof(target), target, "沒有這個比對位置的說明。")
     };
 }

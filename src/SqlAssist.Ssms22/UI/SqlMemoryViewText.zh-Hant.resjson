@@ -1,0 +1,113 @@
+{
+  // SQL Memory 相關 UI（工具列、版本時間軸、差異檢視、Cleanup、Recovery、Usage）的文字。
+  // 共用詞見 SqlAssist.Core.Localization.CommonText（取消、清除、刪除、設定、狀態、伺服器、資料庫）。
+
+  // ── SqlAssistChrome.SqlMemory ──
+  "Loading": "載入中",
+  // {tab} 是用量分頁名稱（英文 "Usage"，本身不翻）。
+  "UsageCritical": "{tab}：容量接近或超過上限",
+  "UsageWarning": "{tab}：容量偏高",
+  // 篩選列上「期間」分段的朗讀名稱；SqlMemoryCleanupView 的期間分段共用同一個鍵。
+  "Period": "期間",
+
+  // ── SqlAssistChrome.Revisions ──
+  "CurrentRevisionBadge": "目前版本",
+  // 差異行的朗讀名稱：未變更是預設值，新增／刪除由對應的資料觸發覆蓋。
+  "DiffLineUnchanged": "未變更",
+  "DiffLineAdded": "新增",
+  "DiffLineRemoved": "刪除",
+
+  // ── SqlFavoriteRevisionList（版本時間軸的列操作） ──
+  "PreviewRevision": "預覽此版本全文",
+  "OpenRevisionQuery": "以此版本開新 Query（不執行）",
+  "CopyRevisionSql": "複製此版本 SQL",
+  "RevertToNewRevision": "回溯為新版本",
+
+  // ── SqlMemoryList（History／Favorites 列操作） ──
+  "OpenInNewQuery": "在新 Query 開啟（不執行）",
+  "CopySql": "複製 SQL",
+  "AddToFavorites": "新增至收藏",
+  "EditFavorite": "編輯收藏",
+  "RevisionHistory": "版本歷史",
+
+  // ── SqlMemoryCleanupView ──
+  "Period7Days": "7 天以前",
+  "Period30Days": "30 天以前",
+  "Period90Days": "90 天以前",
+  "Period1Year": "1 年以前",
+  "PeriodAll": "全部期間",
+  "CleanupWarning": "清除後無法復原。收藏的目前版本、仍開著的查詢視窗，以及還被引用的版本會保留。",
+  "KeepCountLabel": "每個收藏保留的版本數",
+  // 後面接版本數下拉選單，選單後面再接 KeepLatestUnit。
+  "KeepLatestPrefix": "保留最新",
+  // 接在版本數下拉選單後面的量詞。
+  "KeepLatestUnit": "個",
+  "ExecutionsTarget": "執行紀錄",
+  "ExecutionsTargetDescription": "History 上的執行列，以及逐次保存的執行事件",
+  "DraftsTarget": "草稿",
+  "DraftsTargetDescription": "已有版本的草稿；每個工作階段的最新版本會保留",
+  "RecoveryTarget": "已關閉視窗的回復內容",
+  "RecoveryTargetDescription": "仍開著的查詢視窗有工作階段租約，一律不清",
+  "FavoritesTarget": "收藏的舊版本",
+  "FavoritesTargetDescription": "目前版本永遠保留",
+  "BlankOnlyTarget": "只清空白 SQL",
+  "BlankOnlyTargetDescription": "內容是空的或只有空白字元的列；有內容的列一律不動",
+  "CleanupTargetsSection": "清除對象",
+  "HistoryScopeSection": "History 範圍",
+  "Estimating": "正在試算…",
+  "NoTargetsSelected": "至少勾選一種清除對象",
+  "EstimateFailed": "無法試算",
+  // {count} 是已格式化的筆數文字（含千分位）。
+  "ClearWithCount": "清除 {count} 筆",
+
+  // ── SqlMemoryRecoveryView ──
+  "RebuildDatabase": "備份並重建資料庫…",
+  "RecoveryGuideName": "SQL Memory 復原引導",
+  // 開啟資料夾；SqlMemoryUsageView 的整理動作也共用同一個鍵。
+  "OpenFolder": "開啟資料夾",
+  "OpenFolderDescription": "開啟 SQL Memory 資料庫資料夾",
+  "RebuildDatabaseDescription": "備份並重建 SQL Memory 資料庫",
+  "Rebuilding": "正在重建…",
+
+  // ── SqlMemoryUsageView ──
+  "MaintainNow": "立即維護",
+  "MaintainNowToolTip": "不等排程，依目前的保留規則巡完一輪並截斷 WAL。",
+  "CleanupEllipsis": "清除紀錄…",
+  "CleanupToolTip": "依期間、連線與種類清除 History、回復內容或收藏舊版本；送出前會試算。",
+  "CompactDatabase": "壓縮資料庫",
+  "CompactToolTip": "重建資料庫檔案，把已刪除資料佔用的空間還給磁碟；不會刪除任何紀錄。",
+  "BackupEllipsis": "備份…",
+  "BackupToolTip": "把目前的資料庫另存成一個檔案；擷取照常進行。",
+  "OpenFolderToolTip": "在檔案總管中顯示 SQL Memory 資料庫。",
+  "UsageViewName": "SQL Memory 用量",
+  "CompactHint": "壓縮以縮小檔案",
+  "RefreshToolTip": "重新整理：重讀用量。",
+  "QuotaSection": "配額",
+  "RecordsSection": "紀錄",
+  "ByServerSection": "依伺服器",
+  "MaintenanceSection": "整理",
+  "SelfTestLabel": "儲存自我測試",
+  "SelfTestToolTip": "以內建資料驗證寫入、重送、重新開啟與隔離層卸載；不讀也不動你的 SQL。",
+  "DiagnosticsSection": "診斷",
+  "RecentMaintenanceSection": "最近整理",
+  // {title}、{detail} 是健康狀態標題與說明，組成主卡片的 automation help text。
+  "HeroHelpText": "{title}。{detail}",
+  "NoServerRecords": "還沒有帶連線的紀錄",
+  "NoRecentMaintenance": "本次開啟 SSMS 後還沒有整理紀錄",
+  "Refresh": "重新整理",
+  "CapacityLabel": "容量",
+  // 統計磚的朗讀名稱：{label} 是標題、{value} 是數字、{detail} 是說明。
+  "StatTileName": "{label} {value}，{detail}",
+  // 依伺服器分佈那一列的 Tooltip；{value} 是已格式化的筆數文字。
+  "ShareRowToolTip": "{name}：{value} 筆",
+  // 整理紀錄那一列標題（粗體那一段）失敗時多接的字樣。
+  "ActivityTitleFailed": "{title}失敗",
+  "ActivityAutomationName": "{title}，{detail}，{time}",
+  "ActivityAutomationNameFailed": "{title}失敗，{detail}，{time}",
+
+  // ── SqlTextDiffView ──
+  "SqlDiffName": "SQL 差異",
+
+  // ── SqlUsageMeter ──
+  "Unlimited": "不限"
+}

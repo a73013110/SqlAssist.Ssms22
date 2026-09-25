@@ -1,5 +1,6 @@
 using System;
 using System.Data.SqlTypes;
+using SqlAssist.Core.Localization;
 using SqlAssist.Metadata.ResultGrid;
 using Xunit;
 
@@ -92,5 +93,19 @@ public sealed class ResultGridCellTextTests
         Assert.StartsWith(
             "（沒有資料行名稱）（?）· ",
             ResultGridCellText.Create(new ResultGridColumn(null, null), new SqlInt32(1)).Headline);
+    }
+
+    [Fact]
+    public void HeadlineFollowsInterfaceLanguage()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.Equal(
+                "CopyNo (nvarchar(20)) · Characters: 1,234",
+                Create("nvarchar(20)", new SqlString(new string('x', 1234))).Headline);
+            Assert.Equal(
+                "(no column name) (?) · Bytes: 3",
+                ResultGridCellText.Create(new ResultGridColumn(null, null), new SqlBinary(new byte[] { 0, 1, 2 })).Headline);
+        }
     }
 }

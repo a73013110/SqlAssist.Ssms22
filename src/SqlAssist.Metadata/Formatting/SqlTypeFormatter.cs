@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using SqlAssist.Core.Parsing;
@@ -31,6 +32,7 @@ public static class SqlTypeFormatter
     /// <param name="quoteTypeName">型別名稱加方括號（<c>[nvarchar]</c>）。</param>
     /// <param name="spaceBeforeArguments">型別名稱與括號之間留空格（<c>[nvarchar] (200)</c>）。</param>
     /// <param name="spaceAfterComma">括號內的逗號後面留空格（<c>[decimal] (18, 2)</c>）。</param>
+    [Localizable(false)]
     public static string Format(
         string typeName,
         short maxLength,

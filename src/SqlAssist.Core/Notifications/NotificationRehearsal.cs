@@ -40,12 +40,12 @@ public static class NotificationRehearsal
     /// <summary>按鈕上的字；說出會看到什麼，而不是內部的情境名。</summary>
     public static string Label(NotificationRehearsalScenario scenario) => scenario switch
     {
-        NotificationRehearsalScenario.Success => "3 秒後成功",
-        NotificationRehearsalScenario.Failure => "3 秒後失敗",
-        NotificationRehearsalScenario.Repeats => "連續 5 次成功",
-        NotificationRehearsalScenario.Prompt => "一則提醒",
-        NotificationRehearsalScenario.PromptStack => "三則提醒",
-        NotificationRehearsalScenario.PromptWithActivity => "提醒加活動",
+        NotificationRehearsalScenario.Success => NotificationCatalog.RehearsalSuccess,
+        NotificationRehearsalScenario.Failure => NotificationCatalog.RehearsalFailure,
+        NotificationRehearsalScenario.Repeats => NotificationCatalog.RehearsalRepeats,
+        NotificationRehearsalScenario.Prompt => NotificationCatalog.RehearsalOnePrompt,
+        NotificationRehearsalScenario.PromptStack => NotificationCatalog.RehearsalPromptStack,
+        NotificationRehearsalScenario.PromptWithActivity => NotificationCatalog.RehearsalPromptWithActivity,
         _ => throw new ArgumentOutOfRangeException(nameof(scenario), scenario, null),
     };
 
@@ -57,10 +57,10 @@ public static class NotificationRehearsal
     public static string? HiddenReason(NotificationRehearsalScenario scenario, SqlAssistSettings settings)
     {
         if (settings is null) throw new ArgumentNullException(nameof(settings));
-        if (!settings.Enabled) return "「啟用 SqlAssist」關著，測試通知不會出現。";
-        if (!settings.NotificationEnabled) return "「顯示通知提示」關著，測試通知不會出現。";
+        if (!settings.Enabled) return NotificationCatalog.HiddenByEnabled;
+        if (!settings.NotificationEnabled) return NotificationCatalog.HiddenByNotifications;
         return scenario == NotificationRehearsalScenario.Failure && !settings.NotificationFailures
-            ? "「顯示所有種類的失敗」關著，失敗的測試不會出現。"
+            ? NotificationCatalog.HiddenByFailures
             : null;
     }
 

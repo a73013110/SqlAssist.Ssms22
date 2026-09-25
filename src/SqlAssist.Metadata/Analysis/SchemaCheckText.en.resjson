@@ -1,0 +1,21 @@
+{
+  "LargeIncludeTitle": "INCLUDE contains a large object column",
+  "LargeIncludeMessage": "INCLUDE contains {column} {type}; the index will grow to the same scale as the table.",
+  "OverlappingIndexTitle": "Index key is a prefix of another index",
+  "OverlappingIndexMessage": "Index keys ({keys}) overlap with {index}; filters, sort order, and included columns are compatible, so consider consolidating them after verifying query plans and workload.",
+  "HeapTableTitle": "Table has no clustered index",
+  "HeapTableMessage": "This table has no clustered index (heap).",
+  "MissingPrimaryKeyTitle": "Table has no primary key",
+  "MissingPrimaryKeyMessage": "This table has no primary key.",
+  "InconsistentColumnTypeTitle": "Columns with the same meaning have different types",
+  "InconsistentColumnTypeMessage": "Type differs from {column} {type}, which also ends in {suffix}; implicit conversions in comparisons can prevent index use.",
+  "EnumWithoutCheckTitle": "Enum-like column has no CHECK constraint",
+  "EnumWithoutCheckMessage": "The description lists the allowed values, but no CHECK constraint enforces them in the database.",
+  "MissingForeignKeyTitle": "Column looks like a foreign key but has none",
+  "MissingForeignKeyMessage": "The name suggests it references another table, but no foreign key prevents orphaned rows.",
+  "LegacyDateTimeTitle": "Consider using datetime2 instead of datetime",
+  "LegacyDateTimeMessage": "datetime rounds time to 3.33 milliseconds; datetime2 uses fewer bytes and has a larger range.",
+  "DeprecatedLargeObjectTitle": "Consider replacing text/ntext/image with max types",
+  "DeprecatedLargeObjectMessage": "{type} is deprecated and will be removed in a future version, and most string functions do not work with it.",
+  "FindingWithTarget": "{target}: {message}"
+}

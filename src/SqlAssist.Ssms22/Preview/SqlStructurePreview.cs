@@ -572,8 +572,8 @@ internal sealed class SqlStructurePreview
         else
         {
             EnsureControl()?.ShowMessage(
-                "結構預覽",
-                _session is null ? "沒有結構可以顯示。" : "正在取得目前建議項目…");
+                PreviewText.Title,
+                _session is null ? PreviewText.NothingToShowSentence : PreviewText.FetchingCurrentItem);
             ShowAgent();
         }
 
@@ -821,7 +821,7 @@ internal sealed class SqlStructurePreview
     /// 選到 CONVERT 的人看到那句話只會以為是自己按錯了。
     /// </remarks>
     private void ShowNothingToShow() =>
-        EnsureControl()?.ShowMessage("沒有結構可以顯示", "目前選取的項目沒有可以顯示的內容。");
+        EnsureControl()?.ShowMessage(PreviewText.NothingToShowTitle, PreviewText.NothingToShowMessage);
 
     /// <summary>
     /// 等平台先處理完這次鍵盤／滑鼠輸入，再從背景取得最新選取。
@@ -1077,7 +1077,7 @@ internal sealed class SqlStructurePreview
             // 讓人以為它真的沒有欄位。
             control.ShowMessage(
                 objectInfo.QualifiedName,
-                "這個名稱是這份指令碼自己宣告的，但目前的文字裡讀不出它的資料行。");
+                PreviewText.ScriptDeclaredNoColumns);
         }
 
         ShowAgent();
@@ -1175,7 +1175,7 @@ internal sealed class SqlStructurePreview
                 {
                     control.ShowMessage(
                         objectInfo.QualifiedName,
-                        "沒有可用的連線；請先在查詢視窗連上資料庫。");
+                        PreviewText.NoConnection);
                     return;
                 }
 

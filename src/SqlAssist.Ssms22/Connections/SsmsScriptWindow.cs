@@ -37,7 +37,7 @@ internal static class SsmsScriptWindow
 
         if (ResolveFactory(serviceProvider) is not { } factory)
         {
-            failure = "取不到 SSMS 的查詢視窗服務，無法開啟新視窗。";
+            failure = ConnectionText.QueryEditorServiceUnavailable;
             return null;
         }
 
@@ -48,7 +48,7 @@ internal static class SsmsScriptWindow
 
         if (single is null && (group is null || group.Count == 0))
         {
-            failure = "目前的查詢視窗沒有連線，無法沿用連線開啟新視窗。";
+            failure = ConnectionText.NoConnectionToReuse;
             return null;
         }
 
@@ -92,7 +92,7 @@ internal static class SsmsScriptWindow
 
         if (ResolveFactory(serviceProvider) is not { } factory)
         {
-            failure = "取不到 SSMS 的查詢視窗服務，無法開啟新視窗。";
+            failure = ConnectionText.QueryEditorServiceUnavailable;
             return null;
         }
 
@@ -129,8 +129,8 @@ internal static class SsmsScriptWindow
         // 後續要看的地方完全不同。工廠回傳的是 SSMS 自己的文件檢視型別，
         // 本擴充從它身上拿不到 IWpfTextView，所以只拿來判斷開了沒有。
         failure = document is null
-            ? "SSMS 沒有建立出新的查詢視窗。"
-            : "已開啟新的查詢視窗，但取不到它的編輯器，定義沒有寫入。";
+            ? ConnectionText.WindowNotCreated
+            : ConnectionText.EditorUnavailable;
 
         SqlAssistDiagnostics.WriteAlways($"開啟查詢視窗失敗：{failure}");
         return null;

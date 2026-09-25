@@ -1,0 +1,27 @@
+{
+  // 工具選單命令在狀態列與訊息框顯示的文字。
+  "Disabled": "SqlAssist 目前已停用。",
+  "PlaceCaretInQueryWindow": "請先把游標放進 SQL 查詢視窗。",
+  "OpenDefinitionFailed": "開啟物件定義失敗；原因已寫入診斷紀錄檔。",
+  "SurroundFailed": "以片段包住選取範圍失敗；原因已寫入診斷紀錄檔。",
+  "SqlMemoryDisabledForFavorite": "SQL Memory 尚未啟用；請到設定開啟後再收藏。",
+  "AddFavoriteFailed": "新增至收藏失敗；原因已寫入診斷紀錄檔。",
+  "NoNotifications": "目前沒有通知。",
+  // {operation} 是下面 Operation 開頭的那幾個動作名稱；{reason} 是例外訊息。
+  "OperationFailed": "{operation}失敗：{reason}",
+  "OperationProbeResultGrid": "探測結果格線",
+  "OperationOpenAbout": "開啟關於與診斷",
+  "OperationOpenSnippetManager": "開啟程式碼片段管理員",
+  "OperationOpenSettings": "開啟設定視窗",
+  "OperationOpenLog": "開啟診斷紀錄檔",
+  "OperationPickColor": "選取區塊色彩",
+  // {summary} 是診斷報告裡的一行，固定繁中。
+  "ProbeCompleted": "結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。",
+  "SettingsUnavailable": "無法開啟設定視窗，請改用「工具 → 選項」並搜尋 SqlAssist。",
+  "ColorPickerUnavailable": "無法開啟色彩選取視窗；仍可在設定欄位輸入 #RRGGBB。",
+  "ColorNotSaved": "色彩未儲存成功，請確認設定欄位的目前值及設定服務狀態後重試。",
+  "SuggestionsRefreshed": "建議快取已清除；下次開啟建議清單或停留物件時會在背景重新載入。",
+  "RefreshSuggestionsFailed": "重新整理建議失敗；原因已寫入診斷紀錄檔。",
+  // 狀態列上每一行都標上來源，否則使用者分不出是誰寫的。
+  "StatusBarLine": "SqlAssist：{message}"
+}

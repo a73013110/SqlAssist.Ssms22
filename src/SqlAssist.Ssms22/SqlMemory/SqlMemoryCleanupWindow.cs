@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 
@@ -27,16 +28,16 @@ internal sealed class SqlMemoryCleanupWindow : DialogWindow
 
     private SqlMemoryCleanupWindow(SqlAssistPackage package)
     {
-        SqlMemoryActions.ConfigureWindow(this, package, "清除 SQL Memory 紀錄", 560, 600);
+        SqlMemoryActions.ConfigureWindow(this, package, SqlMemoryUsageUiText.CleanupWindowTitle, 560, 600);
         MinWidth = 480; MinHeight = 480;
         SizeToContent = SizeToContent.Height;
 
         var server = SqlConnectionTagInput.CreateInput();
         var database = SqlConnectionTagInput.CreateInput();
         _view = new SqlMemoryCleanupView(
-            SqlConnectionTagInput.CreateBar(package, SqlIcon.Server, server, "伺服器", databases: false, () => null, includeFavorites: false, Report),
+            SqlConnectionTagInput.CreateBar(package, SqlIcon.Server, server, CommonText.Server, databases: false, () => null, includeFavorites: false, Report),
             server,
-            SqlConnectionTagInput.CreateBar(package, SqlIcon.Database, database, "資料庫", databases: true,
+            SqlConnectionTagInput.CreateBar(package, SqlIcon.Database, database, CommonText.Database, databases: true,
                 () => server.Text.Trim() is { Length: > 0 } text ? text : null, includeFavorites: false, Report),
             database) { Margin = SqlAssistChrome.DialogPadding };
         Content = _view;
@@ -83,7 +84,7 @@ internal sealed class SqlMemoryCleanupWindow : DialogWindow
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
-            if (generation == _generation) _view.ShowEstimateFailure(SqlMemoryTimeText.Failure("試算", error));
+            if (generation == _generation) _view.ShowEstimateFailure(SqlMemoryTimeText.Failure(SqlMemoryUsageUiText.EstimateVerb, error));
         }
     }
 

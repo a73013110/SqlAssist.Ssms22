@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -59,6 +60,7 @@ public sealed class SqlAgentJobStep
 /// <summary>一個 SQL Agent 作業，連同它看得到的步驟。</summary>
 public sealed class SqlAgentJob
 {
+    [Localizable(false)]
     public SqlAgentJob(Guid jobId, string name, bool isEnabled, IReadOnlyList<SqlAgentJobStep> steps)
     {
         if (string.IsNullOrEmpty(name))
@@ -110,7 +112,7 @@ public sealed class SqlAgentJobSearchSnapshot
     /// <see cref="ArgumentException"/>——那不是 <see cref="DbException"/>，
     /// 降級接不住，而聚合器會把整個來源記成一次失敗。
     /// </remarks>
-    public const string UnknownServerName = "(不明伺服器)";
+    public static string UnknownServerName => SearchSourceText.UnknownServerName;
 
     /// <summary>命令本文最多留這麼多字元。</summary>
     /// <remarks>
@@ -122,10 +124,14 @@ public sealed class SqlAgentJobSearchSnapshot
     /// </remarks>
     public const int DefaultMaxCommandCharacters = 8 * 1024 * 1024;
 
+    [Localizable(false)]
     private const string OpeningConnection = "開啟 SQL Agent 作業連線";
+    [Localizable(false)]
     private const string LoadingJobs = "載入 SQL Agent 作業清單";
+    [Localizable(false)]
     private const string LoadingCommands = "載入 SQL Agent 作業步驟命令";
 
+    [Localizable(false)]
     public SqlAgentJobSearchSnapshot(
         string serverName, IReadOnlyList<SqlAgentJob> jobs, bool includesCommands, bool commandsComplete)
     {

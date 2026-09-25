@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -36,6 +37,12 @@ internal static class SqlNativeSnippetXmlBuilder
             ?? Type.GetTypeFromProgID("Msxml2.DOMDocument", throwOnError: true)!,
         isThreadSafe: true);
 
+    /// <remarks>
+    /// 這裡的例外訊息只會被 <see cref="SqlAssistPlatformGuard"/> 接住寫進診斷紀錄
+    /// （呼叫端 <c>SqlSnippetExpansionController.TryInsert</c> 一路往上都是平台邊界），
+    /// 不會顯示給使用者，所以固定繁中即可。
+    /// </remarks>
+    [Localizable(false)]
     public static SqlNativeSnippetDom CreateNode(SqlSnippet snippet, string newLine)
     {
         var xml = Cache.GetValue(snippet, CreateCache).For(newLine);

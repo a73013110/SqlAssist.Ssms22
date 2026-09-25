@@ -1,0 +1,21 @@
+{
+  // JSON 剖析錯誤。會出現在片段管理員的狀態列（自訂片段檔寫壞時），所以要翻。
+  // {position} 是從 0 起算的字元位移。
+  "ErrorAt": "{reason}（位置 {position}）",
+  "TrailingContent": "文件結尾之後還有內容",
+  "UnexpectedEnd": "內容意外結束",
+  "ObjectNotClosed": "物件沒有結尾的 }}",
+  "MemberNameNotString": "物件的成員名稱必須是字串",
+  "ColonExpected": "成員名稱之後必須是 :",
+  "MemberSeparatorExpected": "成員之後必須是 , 或 }}",
+  "ArrayNotClosed": "陣列沒有結尾的 ]",
+  "ElementSeparatorExpected": "元素之後必須是 , 或 ]",
+  "StringNotClosed": "字串沒有結尾的引號",
+  "EscapeIncomplete": "跳脫序列沒有寫完",
+  // 反斜線開頭的是 JSON 的跳脫寫法，原樣保留。
+  "UnicodeEscapeInvalid": "\\u 之後必須是四位十六進位數字",
+  "UnknownEscape": "認不得的跳脫字元 \\{escape}",
+  "UnknownLiteral": "認不得的值 {literal}",
+  "UnknownValue": "認不得的值",
+  "CommentNotClosed": "區塊註解沒有結尾的 */"
+}

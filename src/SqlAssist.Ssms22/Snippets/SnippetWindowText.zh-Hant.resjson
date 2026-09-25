@@ -1,0 +1,108 @@
+{
+  // === SqlSnippetManagerWindow：管理視窗 ===
+  // Caption 後綴：跟在片段名稱之後標示狀態。
+  "DisabledSuffix": "（已停用）",
+  "InvalidSuffix": "（不符規則）",
+  "ShadowedSuffix": "（捷徑被其他片段佔用）",
+  "CustomizedSuffix": "（已自訂）",
+  // Caption 前綴用的分類簡稱；SELECT／DML／DDL 是英文縮寫，程式碼裡不譯。
+  "CategoryControlFlow": "流程",
+  "CategoryClause": "子句",
+  // 對話框標題（視窗標題列）。SqlAssist 是產品名稱，不譯。
+  "WindowTitle": "SqlAssist — 程式碼片段",
+  // 分類下拉選單的完整選項文字（與上面的簡稱分開，因為顯示位置不同）。
+  "CategoryControlFlowChoice": "流程控制／交易",
+  "CategoryClauseChoice": "查詢子句／其他",
+  // 展開模式下拉選單選項。
+  "ExpansionModeTabStops": "依序按 Tab 跳轉",
+  "ExpansionModeCaret": "只移動游標",
+  // 核取方塊文字。
+  "FollowUpCheckboxLabel": "展開後立刻再顯示一次建議清單",
+  "DestructiveCheckboxLabel": "危險操作（無輸入前綴時隱藏）",
+  // 按鈕文字。
+  "RestoreSelectedButton": "還原此預設",
+  "SaveButton": "儲存",
+  "AddButton": "新增",
+  "DuplicateButton": "複製",
+  "RevealFileButton": "開啟檔案位置",
+  "RestoreDefaultsButton": "還原預設",
+  // 欄位標籤／欄位表標題。
+  "PlaceholderLabel": "佔位符",
+  "DefaultValueColumnHeader": "預設值",
+  "DescriptionLabel": "說明",
+  "ShortcutFieldLabel": "捷徑",
+  "TitleFieldLabel": "標題",
+  "CategoryFieldLabel": "分類",
+  "ExpansionModeFieldLabel": "展開模式",
+  "CodeFieldLabel": "程式碼",
+  // 表單下方的說明文字（小字提示）。
+  "ShortcutHint": "輸入捷徑即可顯示建議；捷徑限字母、數字與底線。",
+  // $名稱$、$end$、$surround$ 是片段樣板語法本身，不是佔位符，原樣保留。
+  "CodeHint": "以 $名稱$ 標示佔位符，展開時會換成下面設定的預設值；以 $end$ 標示展開後游標要停的位置。\n加入一個 $surround$ 即可從右鍵包住選取 SQL；其餘欄位要能以 Tab 切換，請選「依序按 Tab 跳轉」。",
+  "FollowUpHint": "只適用於「只移動游標」模式；接續內容由展開後的 SQL 上下文決定。",
+  // 新增片段時的預設標題。
+  "NewSnippetTitle": "新片段",
+  // 狀態列訊息（選取一筆不符規則的片段時顯示）。
+  "InvalidBlocksSave": "{violation}修好之前整份存不回檔案。",
+  // 停用／刪除確認對話框。
+  "DisableActionLabel": "停用",
+  "ConfirmDisableTitle": "停用片段",
+  "ConfirmDeleteTitle": "刪除片段",
+  "ConfirmDisableMessage": "停用片段「{caption}」？",
+  "ConfirmDeleteMessage": "刪除片段「{caption}」？",
+  "ConfirmDisableDetail": "停用後不會再出現在建議清單，隨時可以重新啟用。\n按「儲存」後才會寫回檔案。",
+  "ConfirmDeleteDetail": "這個自訂片段會從清單移除。\n按「儲存」後才會寫回檔案。",
+  // 還原預設確認對話框。
+  "ConfirmRestoreDefaultsTitle": "還原預設片段",
+  "ConfirmRestoreDefaultsMessage": "還原全部 {count} 筆內建片段，並移除自訂片段？",
+  "ConfirmRestoreDefaultsDetail": "內建片段的修改與停用狀態也會一併重設。\n按「儲存」後才會寫回檔案。",
+  // 狀態列訊息（開啟檔案位置、儲存、讀取、驗證失敗）。
+  "RevealFileFailedStatus": "開啟檔案位置失敗：{message}",
+  "SaveFailedStatus": "儲存失敗：{lastError}",
+  "CaptionError": "「{caption}」{error}",
+  "DuplicateShortcutError": "「{caption}」捷徑「{shortcut}」已經有人用了。",
+  "NoCodeError": "「{caption}」還沒有程式碼。",
+  "LoadErrorStatus": "讀取檔案時發生問題：{error}",
+  "InvalidCountStatus": "有 {count} 筆片段不符規則，已在清單標示；選起來看原因。",
+  "ReadOnlyStatus": "Snippet 檔案目前是唯讀狀態。",
+
+  // === SqlSnippetStore：override 檔讀寫，狀態顯示在管理視窗狀態列 ===
+  "ReadOnlyNewerVersion": "Snippet 檔案來自較新的 SqlAssist 版本，目前只能讀取，不能覆寫。",
+  "UnsupportedVersionStatus": "{filePath} 的格式版本是 {fileVersion}，目前只支援到 {supportedVersion}；已進入唯讀模式。",
+  "InvalidFormatStatus": "{filePath} 的格式不正確：{message}",
+
+  // === SqlSnippetSurroundAction：包夾流程，訊息顯示在 SSMS 狀態列 ===
+  "QueryWindowClosed": "查詢視窗已關閉。",
+  "SelectTextFirst": "請先選取要包住的文字。",
+  "BoxSelectionNotSupported": "框選範圍無法包夾，請改用一般選取。",
+  "NoSurroundableSnippets": "沒有可以包夾的片段；把片段裡的一格命名為 surround 就會出現在這裡。",
+  "SelectionIsWhitespace": "選取範圍只有空白，請選取要包住的 SQL。",
+  "SelectionReadOnly": "選取範圍為唯讀，無法包夾。",
+  "SelectionChangedNotApplied": "選取內容已變更或改為唯讀，未套用包夾；請重新選取。",
+  "NativeEngineIncomplete": "原生片段引擎未完成包夾；為避免重複插入已停止，請檢查內容，必要時復原。",
+  "WriteFailed": "未能寫入包夾內容；請確認查詢可編輯後重試。",
+
+  // === SqlSnippetSurroundPanel：包夾內容面板（非模態小視窗） ===
+  // 搜尋欄。
+  "SearchBoxToolTip": "搜尋捷徑、標題或說明；空白分隔多個關鍵字",
+  "SearchBoxAutomationName": "搜尋片段：捷徑、標題或說明",
+  "SearchLabel": "搜尋捷徑、標題或說明",
+  // 無障礙名稱（AutomationProperties，螢幕報讀器用，不會直接顯示在畫面上，但語意上仍是使用者可見文字）。
+  "SurroundableListAutomationName": "可包夾片段",
+  "PreviewAutomationName": "包夾後 SQL 預覽",
+  // 預覽區提示與工具提示。
+  "ApplyPreviewHint": "套用預覽",
+  "PreviewToolTip": "反白處是選取的 SQL，淡色是片段新增的外框",
+  "PreviewTruncated": "預覽已截短；套用仍保留完整 SQL",
+  "ApplyFillsFields": "套用後以 Tab 填寫 {count} 個欄位",
+  "ApplyMovesCaretToEnd": "套用後游標移至結尾落點",
+  // 按鈕與頁尾快速鍵提示。
+  "ApplyButton": "套用",
+  "FooterHint": "↑↓ 選擇 · Enter 套用 · Esc 取消",
+  // 搜尋結果數量與空結果。
+  "NoMatchingSnippets": "沒有相符片段；請修改或清除搜尋",
+  "SurroundableCount": "{matched} / {total} 個可包夾片段",
+  // 選取範圍摘要（面板頂端第一行）。
+  "SurroundSummary": "包住 {lines} 行 · {characters} 個字元，不會執行 SQL",
+  "SurroundExpandedToLines": "跨行選取已擴成整行；請先確認預覽 · {summary}"
+}

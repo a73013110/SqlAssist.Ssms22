@@ -138,15 +138,15 @@ public sealed class SqlMemoryDeleteReport
     {
         get
         {
-            var verb = IsFavorites ? "移除" : "刪除";
             var parts = new List<string>();
-            if (IsCanceled) parts.Add($"取消前已{verb} {Count(Deleted)} 筆，其餘保留。");
-            else if (Requested > 1) parts.Add($"共{verb} {Count(Deleted)} 筆。");
-            if (Missing > 0) parts.Add(Requested == 1 ? "這一筆已經不存在；已從清單移除。" : $"{Count(Missing)} 筆已經不存在。");
-            if (Conflicts > 0)
-                parts.Add((Requested == 1 ? "收藏" : Count(Conflicts) + " 筆收藏") + "已被修改或移除，未移除；請重新整理後再操作。");
-            if (IsFavorites && Deleted > 0) parts.Add("History 不受影響。");
-            return string.Concat(parts);
+            if (IsCanceled)
+                parts.Add(IsFavorites ? SqlMemoryText.CanceledRemoved(Count(Deleted)) : SqlMemoryText.CanceledDeleted(Count(Deleted)));
+            else if (Requested > 1)
+                parts.Add(IsFavorites ? SqlMemoryText.TotalRemoved(Count(Deleted)) : SqlMemoryText.TotalDeleted(Count(Deleted)));
+            if (Missing > 0) parts.Add(Requested == 1 ? SqlMemoryText.MissingOne : SqlMemoryText.MissingMany(Count(Missing)));
+            if (Conflicts > 0) parts.Add(Requested == 1 ? SqlMemoryText.ConflictOne : SqlMemoryText.ConflictMany(Count(Conflicts)));
+            if (IsFavorites && Deleted > 0) parts.Add(SqlMemoryText.HistoryUnaffected);
+            return string.Join(SqlMemoryText.SentenceSeparator, parts);
         }
     }
 

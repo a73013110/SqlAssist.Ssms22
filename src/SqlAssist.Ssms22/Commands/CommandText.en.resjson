@@ -1,0 +1,23 @@
+{
+  "Disabled": "SqlAssist is currently disabled.",
+  "PlaceCaretInQueryWindow": "Place the caret in a SQL query window first.",
+  "OpenDefinitionFailed": "Couldn't open the object definition; see the diagnostic log for details.",
+  "SurroundFailed": "Couldn't surround the selection with a snippet; see the diagnostic log for details.",
+  "SqlMemoryDisabledForFavorite": "SQL Memory is not enabled; enable it in Settings before adding to favorites.",
+  "AddFavoriteFailed": "Couldn't add to favorites; see the diagnostic log for details.",
+  "NoNotifications": "No notifications.",
+  "OperationFailed": "{operation} failed: {reason}",
+  "OperationProbeResultGrid": "Probe results grid",
+  "OperationOpenAbout": "Open About and Diagnostics",
+  "OperationOpenSnippetManager": "Open code snippet manager",
+  "OperationOpenSettings": "Open Settings",
+  "OperationOpenLog": "Open diagnostic log",
+  "OperationPickColor": "Pick block color",
+  "ProbeCompleted": "Results grid probe completed. {summary}. The full report was written to the diagnostic log.",
+  "SettingsUnavailable": "Settings window unavailable; use Tools > Options and search for SqlAssist instead.",
+  "ColorPickerUnavailable": "Color picker unavailable; you can enter #RRGGBB in the Settings field.",
+  "ColorNotSaved": "Color not saved; verify the field value and Settings service status, then try again.",
+  "SuggestionsRefreshed": "Suggestion cache cleared; suggestions will refresh in the background next time you open the suggestion list or hover over an object.",
+  "RefreshSuggestionsFailed": "Couldn't refresh suggestions; see the diagnostic log for details.",
+  "StatusBarLine": "SqlAssist: {message}"
+}

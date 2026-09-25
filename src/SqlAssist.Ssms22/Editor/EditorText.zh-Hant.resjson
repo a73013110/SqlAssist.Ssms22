@@ -1,0 +1,19 @@
+{
+  // 通知上的來源文件：沒有檔名的查詢視窗依開啟順序編號；拿不到編號時用不帶編號的那一句。
+  "NumberedEditor": "SQL 編輯區 {number}",
+  "Editor": "SQL 編輯區",
+  // 編輯器命令處理常式的顯示名稱（Visual Studio 在效能提示裡會列出）。
+  "TabHandlerName": "SqlAssist Tab 與 Snippet 導航",
+  // 移至定義（F12）與結構預覽在狀態列或通知上的訊息；name 是物件的限定名稱。
+  "LoadingDefinition": "正在取得 {name} 的定義…",
+  "DefinitionFailed": "開啟物件定義失敗；原因已寫入診斷紀錄檔。",
+  "NoObjectAtCaret": "游標處不是可辨識的資料庫物件。",
+  "DeclaredInScript": "{name} 是這份指令碼自己宣告的，定義就在目前的查詢視窗裡。",
+  "StructureUnavailable": "取不到 {name} 的結構，可能是連線已中斷或權限不足。",
+  "DefinitionOpened": "已在新查詢視窗開啟 {name} 的定義",
+  "NewWindowNotEmpty": "新查詢視窗不是空的，已取消寫入定義。",
+  "QueryWindowClosed": "查詢視窗已關閉，無法顯示物件結構。",
+  "StructureFailed": "開啟物件結構失敗；原因已寫入診斷紀錄檔。",
+  "NotDatabaseObject": "{name} 不是可辨識的資料庫物件。",
+  "NoObjectHere": "這個位置沒有可辨識的資料庫物件。"
+}

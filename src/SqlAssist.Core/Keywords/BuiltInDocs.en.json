@@ -1,0 +1,860 @@
+{
+  "tables.dateStyles": {
+    "title": "style (date and time)",
+    "columns.1": "Format",
+    "columns.2": "Converts to 2026-09-08 21:30:00",
+    "rows.0.1": "mon dd yyyy hh:miAM (default)",
+    "rows.1.1": "mm/dd/yy (US)",
+    "rows.2.1": "dd/mm/yy (UK/France)",
+    "rows.4.1": "yyyy-mm-dd (language-neutral)",
+    "rows.5.1": "mm/dd/yyyy (US)",
+    "rows.6.1": "yyyy.mm.dd (ANSI)",
+    "rows.7.1": "dd/mm/yyyy (UK/France)",
+    "rows.8.1": "dd.mm.yyyy (German)",
+    "rows.9.1": "hh:mi:ss (time only)",
+    "rows.10.1": "yyyy/mm/dd (Japanese)",
+    "rows.11.1": "yyyymmdd (language-neutral)",
+    "rows.12.1": "yyyy-mm-dd hh:mi:ss (ODBC, language-neutral)",
+    "rows.14.1": "yyyy-mm-ddThh:mi:ss.mmm (ISO 8601)",
+    "rows.15.1": "Same as 126 with Z appended (UTC)"
+  },
+  "tables.numberStyles": {
+    "title": "style (numeric)",
+    "columns.1": "Applicable type",
+    "columns.2": "Output",
+    "rows.0.1": "money, smallmoney",
+    "rows.0.2": "No thousand separator, 2 decimal places: 1234.50",
+    "rows.1.1": "money, smallmoney",
+    "rows.1.2": "With thousand separator, 2 decimal places: 1,234.50",
+    "rows.2.1": "money, smallmoney",
+    "rows.2.2": "No thousand separator, 4 decimal places: 1234.5000",
+    "rows.3.1": "float, real",
+    "rows.3.2": "Up to 6 digits, scientific notation if necessary",
+    "rows.4.1": "float, real",
+    "rows.4.2": "Always scientific notation, 8 digits",
+    "rows.5.1": "float, real",
+    "rows.5.2": "Always scientific notation, 16 digits"
+  },
+  "tables.formatStrings": {
+    "title": "Common format strings",
+    "columns.0": "Format",
+    "columns.1": "Description",
+    "columns.2": "Example",
+    "rows.0.1": "Year, month, day with zero-padding",
+    "rows.1.1": "24-hour format",
+    "rows.2.0": "MMMM d, yyyy",
+    "rows.2.1": "Literal text goes directly in the format",
+    "rows.2.2": "September 8, 2026",
+    "rows.3.1": "Short date, varies by culture",
+    "rows.4.1": "Long date, varies by culture",
+    "rows.4.2": "2026/9/8",
+    "rows.5.1": "Thousand separator, no decimal places",
+    "rows.6.1": "Thousand separator, 2 decimal places",
+    "rows.7.1": "Currency, varies by culture",
+    "rows.8.1": "Percentage, 1 decimal place",
+    "rows.9.1": "Up to 2 decimal places, trailing zeros removed"
+  },
+  "tables.wildcards": {
+    "title": "Wildcards for LIKE and PATINDEX",
+    "columns.0": "Pattern",
+    "columns.1": "Matches",
+    "columns.2": "Example",
+    "rows.0.1": "Any length string, including empty string",
+    "rows.0.2": "'%bit%' matches 'rabbit'",
+    "rows.1.1": "Exactly one character",
+    "rows.1.2": "'A_1' matches 'AB1'",
+    "rows.2.1": "Any one character inside brackets",
+    "rows.2.2": "'[ABC]%' matches 'B01'",
+    "rows.3.1": "Any one character in range",
+    "rows.3.2": "'[0-9]%' matches '3F'",
+    "rows.4.1": "Not a character inside brackets",
+    "rows.4.2": "'[^0-9]%' matches 'A1'",
+    "rows.5.1": "Treat wildcard as literal character"
+  },
+  "tables.roundFunction": {
+    "title": "ROUND's length and function parameters",
+    "columns.0": "Expression",
+    "columns.1": "Result",
+    "columns.2": "Description",
+    "rows.0.2": "Round to first decimal place, digits unchanged",
+    "rows.1.2": "If function is not 0, truncate directly",
+    "rows.2.2": "Negative length, round to hundreds",
+    "rows.3.2": "Truncate to hundreds"
+  },
+  "tables.dateFirst": {
+    "title": "SET DATEFIRST and WEEKDAY",
+    "columns.1": "First day of week",
+    "columns.2": "WEEKDAY for Sunday",
+    "rows.0.1": "Monday (most European languages)",
+    "rows.1.1": "Tuesday",
+    "rows.2.1": "Wednesday",
+    "rows.3.1": "Thursday",
+    "rows.4.1": "Friday",
+    "rows.5.1": "Saturday",
+    "rows.6.1": "Sunday (us_english default)"
+  },
+  "tables.currentDateTimes": {
+    "title": "Functions to get current date and time",
+    "columns.0": "Function",
+    "columns.1": "Return type",
+    "columns.2": "Timezone and precision",
+    "rows.0.2": "Local time, approximately 3.33 milliseconds",
+    "rows.1.2": "UTC, approximately 3.33 milliseconds",
+    "rows.2.2": "Local time, 100 nanoseconds",
+    "rows.3.2": "UTC, 100 nanoseconds",
+    "rows.4.2": "Local time, includes timezone offset",
+    "rows.5.2": "Same as GETDATE(), ANSI syntax"
+  },
+  "tables.rankFunctions": {
+    "title": "Ranking and numbering functions",
+    "columns.0": "Function",
+    "columns.1": "With ties",
+    "columns.2": "Numbering for four rows",
+    "rows.0.1": "Still assign different numbers",
+    "rows.1.1": "Same number, next skips",
+    "rows.2.1": "Same number, next doesn't skip",
+    "rows.3.1": "Only position-based, not value-based"
+  },
+  "tables.splitColumns": {
+    "title": "Return columns of STRING_SPLIT",
+    "columns.0": "Column name",
+    "columns.1": "Type",
+    "columns.2": "Contents",
+    "rows.0.1": "Matches input string type",
+    "rows.0.2": "Delimited segment, leading/trailing spaces not removed",
+    "rows.1.2": "Present only when third parameter is 1, starts at 1"
+  },
+  "tables.openJsonColumns": {
+    "title": "Default return columns of OPENJSON",
+    "columns.0": "Column name",
+    "columns.1": "Type",
+    "columns.2": "Contents",
+    "rows.0.2": "Property name; for arrays, zero-based index",
+    "rows.1.2": "Value of the property, objects and arrays kept as-is",
+    "rows.2.2": "JSON type of value, see other tab"
+  },
+  "tables.jsonValueTypes": {
+    "title": "type column of OPENJSON",
+    "columns.1": "JSON type",
+    "rows.1.1": "String",
+    "rows.2.1": "Number",
+    "rows.3.1": "true/false",
+    "rows.4.1": "Array",
+    "rows.5.1": "Object"
+  },
+  "CAST": {
+    "summary": "Convert to a type; errors on failure (use TRY_CAST instead)"
+  },
+  "CONVERT": {
+    "summary": "Convert type; style formats dates/numbers; type goes first",
+    "example": "SELECT CONVERT(varchar(10), GETDATE(), 120)   -- 2026-09-08 (style 120 = ODBC)"
+  },
+  "TRY_CONVERT": {
+    "summary": "Like CONVERT but returns NULL on failure instead of an error"
+  },
+  "ISNULL": {
+    "summary": "Second arg if first is NULL; typed as first, may truncate",
+    "example": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab', not 'abc'"
+  },
+  "COALESCE": {
+    "summary": "First non-NULL arg; highest-precedence type, no truncation"
+  },
+  "NULLIF": {
+    "summary": "NULL if both are equal, else the first; turns 0 into NULL",
+    "example": "SELECT 10 / NULLIF(0, 0)   -- NULL, won't throw division by zero"
+  },
+  "IIF": {
+    "summary": "Two-branch CASE; returns second arg if true, third if false",
+    "example": "SELECT IIF(1 > 2, 'Yes', 'No')   -- 'No'"
+  },
+  "DATEADD": {
+    "summary": "Add an interval to a date; datepart is unquoted (DAY, MONTH)",
+    "example": "SELECT DATEADD(DAY, -14, GETDATE())   -- Same time two weeks ago"
+  },
+  "DATEDIFF": {
+    "summary": "Counts datepart boundaries crossed, not elapsed time"
+  },
+  "DATEPART": {
+    "summary": "Extract date part as integer; use DATENAME for text",
+    "example": "SELECT DATEPART(WEEKDAY, '2026-09-08')   -- 3 (affected by SET DATEFIRST)"
+  },
+  "EOMONTH": {
+    "summary": "Last day of the month; optional arg adds months first"
+  },
+  "FORMAT": {
+    "summary": "Format via .NET string; uses CLR, much slower than CONVERT"
+  },
+  "CHARINDEX": {
+    "summary": "Position of first substring, 1-based; 0 if not found"
+  },
+  "SUBSTRING": {
+    "summary": "Substring from start for length chars; no error past the end"
+  },
+  "LEN": {
+    "summary": "Character count excluding trailing spaces; bytes: DATALENGTH"
+  },
+  "STRING_AGG": {
+    "summary": "Concatenate group values; order with WITHIN GROUP (ORDER BY)"
+  },
+  "ROW_NUMBER": {
+    "summary": "Sequential number per OVER order, no ties; ORDER BY required"
+  },
+  "NVARCHAR": {
+    "example": "DECLARE @title nvarchar(200)   -- Default 1 when length omitted, MAX can hold 2 GB"
+  },
+  "VARCHAR": {
+    "example": "DECLARE @code varchar(20)   -- Characters limited by collation; use NVARCHAR"
+  },
+  "DECIMAL": {
+    "example": "DECLARE @amount decimal(18, 2)   -- 18 total digits, 2 decimal places"
+  },
+  "DATETIME2": {
+    "example": "DECLARE @at datetime2(3)   -- Parentheses are fractional second precision, default 7"
+  },
+  "BIT": {
+    "example": "DECLARE @isActive bit = 1   -- Strings 'TRUE'/'FALSE' can also be converted"
+  },
+  "UNIQUEIDENTIFIER": {
+    "example": "DECLARE @id uniqueidentifier = NEWID()   -- Clustered key causes splits"
+  },
+  "DATENAME": {
+    "summary": "Extract date part as text; result varies by language setting",
+    "example": "SELECT DATENAME(MONTH, '2026-09-08')   -- 09 (September when language is English)"
+  },
+  "AVG": {
+    "summary": "Average, ignoring NULL; integer columns truncate the result",
+    "example": "SELECT AVG(CAST(CopyNo AS decimal(9, 2))) FROM dbo.Cat_BookCopy   -- Cast for decimals"
+  },
+  "CHECKSUM_AGG": {
+    "summary": "Checksum of integer values in group to detect data changes",
+    "example": "SELECT CHECKSUM_AGG(CHECKSUM(CopyNo)) FROM dbo.Cat_BookCopy   -- Changes with any value"
+  },
+  "COUNT": {
+    "summary": "Row count; COUNT(*) includes NULL, COUNT(col) excludes NULL",
+    "example": "SELECT COUNT(*), COUNT(ReturnDate) FROM dbo.Loan   -- Second excludes NULL"
+  },
+  "COUNT_BIG": {
+    "summary": "Like COUNT but returns bigint, for over 2.1 billion rows",
+    "example": "SELECT COUNT_BIG(*) FROM dbo.LoanDetail   -- COUNT would overflow here"
+  },
+  "GROUPING": {
+    "summary": "1 for ROLLUP-added rows, 0 for actual NULL values",
+    "example": "SELECT GROUPING(BranchId) FROM dbo.Loan GROUP BY ROLLUP(BranchId)   -- Subtotal rows are 1"
+  },
+  "GROUPING_ID": {
+    "summary": "Combines GROUPING bits into one int for the subtotal level",
+    "example": "SELECT GROUPING_ID(BranchId) FROM dbo.Loan GROUP BY ROLLUP(BranchId)   -- 1 for totals"
+  },
+  "MAX": {
+    "summary": "Maximum, ignoring NULL; strings compare by collation",
+    "example": "SELECT MAX(LoanDate) FROM dbo.Loan   -- Most recent loan date"
+  },
+  "MIN": {
+    "summary": "Minimum, ignoring NULL; NULL if every value is NULL",
+    "example": "SELECT MIN(LoanDate) FROM dbo.Loan   -- First loan date"
+  },
+  "STDEV": {
+    "summary": "Sample standard deviation; population version is STDEVP",
+    "example": "SELECT STDEV(CopyNo) FROM dbo.Cat_BookCopy   -- Returns NULL with only one row"
+  },
+  "STDEVP": {
+    "summary": "Population standard deviation (divides by N); sample: STDEV",
+    "example": "SELECT STDEVP(CopyNo) FROM dbo.Cat_BookCopy   -- Returns 0 with only one row"
+  },
+  "SUM": {
+    "summary": "Total, ignoring NULL; NULL (not 0) when there are no rows",
+    "example": "SELECT ISNULL(SUM(Quantity), 0) FROM dbo.LoanDetail   -- Returns 0 when no data"
+  },
+  "VAR": {
+    "summary": "Sample variance (STDEV squared); population: VARP",
+    "example": "SELECT VAR(CopyNo) FROM dbo.Cat_BookCopy   -- Returns NULL with only one row"
+  },
+  "VARP": {
+    "summary": "Population variance (divides by N); sample: VAR",
+    "example": "SELECT VARP(CopyNo) FROM dbo.Cat_BookCopy   -- Returns 0 with only one row"
+  },
+  "DENSE_RANK": {
+    "summary": "Ties share a rank, no gaps after; for gaps use RANK"
+  },
+  "FIRST_VALUE": {
+    "summary": "First value in the frame; default frame ends at current row",
+    "example": "SELECT FIRST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Earliest"
+  },
+  "LAG": {
+    "summary": "Value from N rows back; third arg (default NULL) if none",
+    "example": "SELECT LAG(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Previous loan date"
+  },
+  "LAST_VALUE": {
+    "summary": "Last value in the frame; default frame ends at current row",
+    "example": "SELECT LAST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Defaults to current"
+  },
+  "LEAD": {
+    "summary": "Value from N rows ahead; third arg (default NULL) if none",
+    "example": "SELECT LEAD(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Next loan date"
+  },
+  "NTILE": {
+    "summary": "Split ordered rows into N groups; earlier groups get extras",
+    "example": "SELECT NTILE(4) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Quartiles 1 to 4"
+  },
+  "RANK": {
+    "summary": "Ties share a rank, gaps after; for no gaps use DENSE_RANK"
+  },
+  "ASCII": {
+    "summary": "ASCII code of first char; UNICODE for Unicode"
+  },
+  "CHAR": {
+    "summary": "Character for code 0-255; NULL if out of range",
+    "example": "SELECT CHAR(13) + CHAR(10)   -- Line break; use NCHAR for Unicode code points"
+  },
+  "CONCAT": {
+    "summary": "Concatenate 2+ values; NULL counts as an empty string"
+  },
+  "CONCAT_WS": {
+    "summary": "Concatenate with separator; skips NULL and their separators"
+  },
+  "DATALENGTH": {
+    "summary": "Bytes used, including trailing spaces; characters: LEN",
+    "example": "SELECT DATALENGTH(N'Book'), LEN(N'Book')   -- 8, 4"
+  },
+  "DIFFERENCE": {
+    "summary": "SOUNDEX similarity of two strings, 0 to 4; English only",
+    "example": "SELECT DIFFERENCE('Smith', 'Smyth')   -- 4 (most similar)"
+  },
+  "LEFT": {
+    "summary": "Leftmost N chars; whole string if N exceeds its length"
+  },
+  "LOWER": {
+    "summary": "Lowercase; collation decides case-sensitive comparison"
+  },
+  "LTRIM": {
+    "summary": "Remove leading spaces; SQL Server 2022+ can take characters"
+  },
+  "NCHAR": {
+    "summary": "Unicode character; accepts larger range than CHAR",
+    "example": "SELECT NCHAR(65)   -- N'A'"
+  },
+  "PATINDEX": {
+    "summary": "First pattern match position 1-based; 0 if not found"
+  },
+  "QUOTENAME": {
+    "summary": "Wrap as a valid identifier; escapes ] for dynamic SQL"
+  },
+  "REPLACE": {
+    "summary": "Replace all occurrences; comparison affected by collation"
+  },
+  "REPLICATE": {
+    "summary": "Repeat string count times; NULL if count negative"
+  },
+  "REVERSE": {
+    "summary": "Reverse string; surrogate pairs and combining chars break"
+  },
+  "RIGHT": {
+    "summary": "Rightmost N chars; often paired with REPLICATE for padding"
+  },
+  "RTRIM": {
+    "summary": "Remove trailing spaces; LEN ignores them, DATALENGTH doesn't"
+  },
+  "SOUNDEX": {
+    "summary": "4-char English phonetic code; meaningless for other text"
+  },
+  "SPACE": {
+    "summary": "String of N spaces; for more than 8000 use REPLICATE"
+  },
+  "STR": {
+    "summary": "Number to right-aligned string; rounds decimals, pads spaces"
+  },
+  "STRING_SPLIT": {
+    "summary": "Split a string into rows; separator is a single character",
+    "example": "SELECT value FROM STRING_SPLIT('A,B,C', ',')   -- Three rows: A, B, C"
+  },
+  "STUFF": {
+    "summary": "Delete length chars from start, insert new; start is 1-based"
+  },
+  "TRANSLATE": {
+    "summary": "Map source chars to replacement 1-to-1; lists same length"
+  },
+  "TRIM": {
+    "summary": "Remove leading and trailing spaces; like LTRIM(RTRIM(x))"
+  },
+  "UNICODE": {
+    "summary": "Code point of the first character; prefix literals with N",
+    "example": "SELECT UNICODE(N'A')   -- 65"
+  },
+  "UPPER": {
+    "summary": "Uppercase; only affects characters that have case"
+  },
+  "DATEFROMPARTS": {
+    "summary": "Assemble date from year/month/day; fails if invalid date",
+    "example": "SELECT DATEFROMPARTS(2026, 2, 30)   -- Error: February does not have 30 days"
+  },
+  "DAY": {
+    "summary": "Extracts day, equals DATEPART(DAY, date), returns integer"
+  },
+  "GETDATE": {
+    "summary": "Current local time as datetime; precision ~3.33ms"
+  },
+  "GETUTCDATE": {
+    "summary": "Current UTC time as datetime; no time zone offset"
+  },
+  "ISDATE": {
+    "summary": "1 if string converts to date; varies by language/DATEFORMAT"
+  },
+  "MONTH": {
+    "summary": "Month number, same as DATEPART(MONTH, date); name: DATENAME"
+  },
+  "SWITCHOFFSET": {
+    "summary": "Convert to different time zone offset; time point unchanged",
+    "example": "SELECT SWITCHOFFSET(SYSDATETIMEOFFSET(), '+08:00')   -- Same instant in Taipei time"
+  },
+  "SYSDATETIME": {
+    "summary": "Current local time as datetime2(7); far more precise"
+  },
+  "SYSDATETIMEOFFSET": {
+    "summary": "Current time with zone offset as datetimeoffset(7)"
+  },
+  "SYSUTCDATETIME": {
+    "summary": "Current UTC time as datetime2(7) for cross-zone storage"
+  },
+  "TODATETIMEOFFSET": {
+    "summary": "Attach a time zone offset; the clock time is unchanged",
+    "example": "SELECT TODATETIMEOFFSET(SYSDATETIME(), '+08:00')   -- Time unchanged, zone added"
+  },
+  "YEAR": {
+    "summary": "Extracts year, equals DATEPART(YEAR, date), returns integer"
+  },
+  "ABS": {
+    "summary": "Absolute value; typed as the arg; min negative overflows"
+  },
+  "CEILING": {
+    "summary": "Smallest integer >= the value; return type unchanged"
+  },
+  "EXP": {
+    "summary": "E to power of number returns float; inverse is LOG"
+  },
+  "FLOOR": {
+    "summary": "Round down to integer; negative numbers round more negative"
+  },
+  "LOG": {
+    "summary": "Natural logarithm; second arg specifies base, must be > 0"
+  },
+  "LOG10": {
+    "summary": "Base-10 logarithm, equals LOG(number, 10)"
+  },
+  "POWER": {
+    "summary": "Number to power of exponent; return type matches first arg"
+  },
+  "RAND": {
+    "summary": "Random 0-1 once per statement; NEWID for different per row",
+    "example": "SELECT RAND(1)   -- Same seed produces same value every time"
+  },
+  "ROUND": {
+    "summary": "Round to length digits; nonzero third arg truncates instead"
+  },
+  "SIGN": {
+    "summary": "1 for positive, 0 for zero, -1 for negative; NULL stays NULL"
+  },
+  "SQRT": {
+    "summary": "Square root as float; negative argument fails the statement"
+  },
+  "SQUARE": {
+    "summary": "Square, returns float; equals POWER(number, 2)"
+  },
+  "CHOOSE": {
+    "summary": "Select value at 1-based index; NULL if out of range",
+    "example": "SELECT CHOOSE(2, 'checked out', 'on shelf', 'lost')   -- 'on shelf'"
+  },
+  "ISNUMERIC": {
+    "summary": "1 if convertible to any numeric type; currency symbols count"
+  },
+  "PARSE": {
+    "summary": "Convert string to date/number by culture; uses CLR, slower"
+  },
+  "TRY_CAST": {
+    "summary": "Like CAST but NULL on failure instead of statement error"
+  },
+  "TRY_PARSE": {
+    "summary": "Like PARSE but NULL on failure; also uses CLR"
+  },
+  "APP_NAME": {
+    "summary": "Application name sent by the client; not verified"
+  },
+  "BINARY_CHECKSUM": {
+    "summary": "Binary checksum, case-sensitive; CHECKSUM follows collation",
+    "example": "SELECT BINARY_CHECKSUM('a'), BINARY_CHECKSUM('A')   -- Two different values"
+  },
+  "CHECKSUM": {
+    "summary": "Checksum per collation; different values may collide",
+    "example": "SELECT CHECKSUM('a'), CHECKSUM('A')   -- Same when collation is case-insensitive"
+  },
+  "DB_NAME": {
+    "summary": "Database name; omit argument for current database",
+    "example": "SELECT DB_NAME()   -- Current connected database"
+  },
+  "HOST_NAME": {
+    "summary": "Computer name from client; not guaranteed accurate",
+    "example": "SELECT HOST_NAME()   -- Client machine name sent at connection"
+  },
+  "IDENT_CURRENT": {
+    "summary": "Last identity value for a table, across sessions and scopes",
+    "example": "SELECT IDENT_CURRENT('dbo.Loan')   -- Includes values inserted by others"
+  },
+  "NEWID": {
+    "summary": "Random uniqueidentifier; clustered key causes page splits",
+    "example": "SELECT NEWID()   -- Each row different, ORDER BY it for random sort"
+  },
+  "NEWSEQUENTIALID": {
+    "summary": "Ascending uniqueidentifier; only as a column default",
+    "example": "ALTER TABLE dbo.Copy ADD Tag uniqueidentifier DEFAULT NEWSEQUENTIALID()   -- Usage only"
+  },
+  "OBJECT_ID": {
+    "summary": "object_id, or NULL; used to check whether an object exists",
+    "example": "SELECT OBJECT_ID('dbo.Loan', 'U')   -- 'U' is table, returns NULL if not found"
+  },
+  "OBJECT_NAME": {
+    "summary": "Object name from object_id; searches current database"
+  },
+  "SCHEMA_NAME": {
+    "summary": "Schema name; omit arg for current user's default"
+  },
+  "SCOPE_IDENTITY": {
+    "summary": "Last identity in this scope; unaffected by triggers",
+    "example": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Row inserted"
+  },
+  "SUSER_SNAME": {
+    "summary": "Login name; omit argument for current connection's login",
+    "example": "SELECT SUSER_SNAME()   -- Current login name"
+  },
+  "USER_NAME": {
+    "summary": "Database user name, not the login; login: SUSER_SNAME"
+  },
+  "ERROR_LINE": {
+    "summary": "Line number of error in CATCH block; returns NULL elsewhere"
+  },
+  "ERROR_MESSAGE": {
+    "summary": "Full error message in CATCH, with parameters filled in",
+    "example": "BEGIN TRY SELECT 1/0 END TRY BEGIN CATCH SELECT ERROR_MESSAGE() END CATCH   -- Error text"
+  },
+  "ERROR_NUMBER": {
+    "summary": "Error number in CATCH block, same value as @@ERROR"
+  },
+  "ERROR_PROCEDURE": {
+    "summary": "Procedure or trigger that raised the error; NULL if none"
+  },
+  "ERROR_SEVERITY": {
+    "summary": "Error severity; 11+ enters CATCH, 20+ breaks connection"
+  },
+  "ERROR_STATE": {
+    "summary": "Error state; tells apart sources of the same error number"
+  },
+  "ISJSON": {
+    "summary": "1 if valid JSON; second arg restricts to ARRAY or OBJECT",
+    "example": "SELECT ISJSON('[1,2]', ARRAY)   -- 1; returns 0 if not an array"
+  },
+  "JSON_MODIFY": {
+    "summary": "Returns new JSON with a property changed; input unchanged"
+  },
+  "JSON_QUERY": {
+    "summary": "Extracts object or array; use JSON_VALUE for scalar values"
+  },
+  "JSON_VALUE": {
+    "summary": "Scalar as nvarchar(4000); objects/arrays use JSON_QUERY",
+    "example": "SELECT JSON_VALUE('{\"n\":1}', '$.n')   -- '1' (string, not integer)"
+  },
+  "OPENJSON": {
+    "summary": "Table-valued function splitting JSON to rows; 3 cols default",
+    "example": "SELECT [key], value FROM OPENJSON('{\"a\":1}')   -- One row: a, 1"
+  },
+  "ACOS": {
+    "summary": "Arccosine, argument in range -1 to 1, returns radians"
+  },
+  "APPROX_COUNT_DISTINCT": {
+    "summary": "Distinct count within ~2%; cheaper than COUNT(DISTINCT)",
+    "example": "SELECT APPROX_COUNT_DISTINCT(CopyNo) FROM dbo.Loan   -- Approximate not exact"
+  },
+  "ASIN": {
+    "summary": "Arcsine, argument in range -1 to 1, returns radians"
+  },
+  "ATAN": {
+    "summary": "Arctangent, returns radians",
+    "example": "SELECT ATAN(1)   -- 0.785398163397448 (π/4)"
+  },
+  "ATN2": {
+    "summary": "Two-arg arctangent distinguishes quadrants; ATAN cannot",
+    "example": "SELECT ATN2(1, 1)   -- 0.785398163397448 (π/4)"
+  },
+  "COL_LENGTH": {
+    "summary": "Column length in bytes; nvarchar is 2x char count",
+    "example": "SELECT COL_LENGTH('dbo.Loan', 'CopyNo')   -- 40 for nvarchar(20)"
+  },
+  "COL_NAME": {
+    "summary": "Column name from object_id and column_id",
+    "example": "SELECT COL_NAME(OBJECT_ID('dbo.Loan'), 1)   -- Name of first column"
+  },
+  "COLUMNPROPERTY": {
+    "summary": "Column property such as IsIdentity, IsComputed"
+  },
+  "COMPRESS": {
+    "summary": "GZIP-compress to varbinary(max); undo with DECOMPRESS",
+    "example": "SELECT DATALENGTH(COMPRESS(REPLICATE('a', 1000)))   -- Much less than 1000"
+  },
+  "CONNECTIONPROPERTY": {
+    "summary": "Current connection property such as client_net_address",
+    "example": "SELECT CONNECTIONPROPERTY('client_net_address')   -- Client IP address"
+  },
+  "CONTEXT_INFO": {
+    "summary": "128 bytes stored by this session via SET CONTEXT_INFO",
+    "example": "SELECT CONTEXT_INFO()   -- NULL if not set"
+  },
+  "COS": {
+    "summary": "Cosine, argument in radians"
+  },
+  "COT": {
+    "summary": "Cotangent in radians; zero causes division by zero error"
+  },
+  "CRYPT_GEN_RANDOM": {
+    "summary": "Cryptographically strong random bytes, specify length",
+    "example": "SELECT CRYPT_GEN_RANDOM(4)   -- 4 bytes of random data"
+  },
+  "CUME_DIST": {
+    "summary": "Cumulative distribution: share of rows <= current, 0 to 1",
+    "example": "SELECT CUME_DIST() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Last row is always 1"
+  },
+  "CURRENT_TIMEZONE": {
+    "summary": "Current server time zone name"
+  },
+  "CURRENT_TIMEZONE_ID": {
+    "summary": "Current server time zone ID for AT TIME ZONE",
+    "example": "SELECT SYSDATETIME() AT TIME ZONE CURRENT_TIMEZONE_ID()   -- Add timezone offset"
+  },
+  "DATABASE_PRINCIPAL_ID": {
+    "summary": "Database principal ID; omit arg for current user"
+  },
+  "DATABASEPROPERTYEX": {
+    "summary": "Database property such as Collation, Recovery",
+    "example": "SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation')   -- Current database collation"
+  },
+  "DATE_BUCKET": {
+    "summary": "Round time to fixed-width interval start for grouping",
+    "example": "SELECT DATE_BUCKET(WEEK, 2, '2026-09-08')   -- Every 2 weeks, returns start of bucket"
+  },
+  "DATEDIFF_BIG": {
+    "summary": "Like DATEDIFF but returns bigint; nanoseconds won't overflow",
+    "example": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF would overflow"
+  },
+  "DATETIME2FROMPARTS": {
+    "summary": "Assemble datetime2; last arg is fractional second digits"
+  },
+  "DATETIMEFROMPARTS": {
+    "summary": "Assemble datetime; invalid segment fails statement"
+  },
+  "DATETIMEOFFSETFROMPARTS": {
+    "summary": "Assemble datetimeoffset; offset as separate hour/minute"
+  },
+  "DATETRUNC": {
+    "summary": "Truncate date/time to unit; return type matches arg"
+  },
+  "DB_ID": {
+    "summary": "Database identifier; omit argument for current database",
+    "example": "SELECT DB_ID()   -- database_id of current database"
+  },
+  "DECOMPRESS": {
+    "summary": "Undo COMPRESS; returns varbinary(max), CAST back to text"
+  },
+  "DECRYPTBYPASSPHRASE": {
+    "summary": "Decrypt with a passphrase; wrong one returns NULL, no error"
+  },
+  "DEGREES": {
+    "summary": "Converts radians to degrees"
+  },
+  "ENCRYPTBYPASSPHRASE": {
+    "summary": "Encrypt with a passphrase to varbinary(8000); keep it safe",
+    "example": "SELECT ENCRYPTBYPASSPHRASE('key', 'abc')   -- Different result each execution"
+  },
+  "FORMATMESSAGE": {
+    "summary": "Build a message from a template and args; never raises",
+    "example": "SELECT FORMATMESSAGE('Book %d: %s', 3, 'Loan')   -- 'Book 3: Loan'"
+  },
+  "GREATEST": {
+    "summary": "Greatest value; NULL ignored. SQL Server 2022+"
+  },
+  "HASHBYTES": {
+    "summary": "Compute hash; 2016+ only SHA2_256/SHA2_512 worthwhile",
+    "example": "SELECT HASHBYTES('SHA2_256', N'abc')   -- 32 bytes"
+  },
+  "HAS_PERMS_BY_NAME": {
+    "summary": "Whether current login has specified permission on object",
+    "example": "SELECT HAS_PERMS_BY_NAME('dbo.Loan', 'OBJECT', 'SELECT')   -- 1 means yes"
+  },
+  "HOST_ID": {
+    "summary": "Client process ID; with HOST_NAME tells connections apart",
+    "example": "SELECT HOST_ID()   -- Client application process ID"
+  },
+  "IDENT_INCR": {
+    "summary": "Identity column increment value"
+  },
+  "IDENT_SEED": {
+    "summary": "Identity seed: the value the first row gets"
+  },
+  "INDEX_COL": {
+    "summary": "Name of column at index key position",
+    "example": "SELECT INDEX_COL('dbo.Loan', 1, 1)   -- First key column of clustered index"
+  },
+  "INDEXPROPERTY": {
+    "summary": "Index property such as IsClustered, IsUnique"
+  },
+  "IS_MEMBER": {
+    "summary": "Whether current user is in a database role or Windows group",
+    "example": "SELECT IS_MEMBER('db_owner')   -- 1 means yes"
+  },
+  "IS_OBJECTSIGNED": {
+    "summary": "Object signed with specified certificate or asymmetric key"
+  },
+  "IS_ROLEMEMBER": {
+    "summary": "Whether specified principal is member of database role",
+    "example": "SELECT IS_ROLEMEMBER('db_datareader')   -- 1 means yes"
+  },
+  "IS_SRVROLEMEMBER": {
+    "summary": "Whether specified login is member of server role",
+    "example": "SELECT IS_SRVROLEMEMBER('sysadmin')   -- 1 means yes"
+  },
+  "JSON_ARRAY": {
+    "summary": "Assembles JSON array string. Available SQL Server 2022+",
+    "example": "SELECT JSON_ARRAY(1, 'a', NULL)   -- '[1,\"a\"]', NULL skipped by default"
+  },
+  "JSON_OBJECT": {
+    "summary": "Assembles JSON object string. Available SQL Server 2022+",
+    "example": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1}', NULL skipped by default"
+  },
+  "JSON_PATH_EXISTS": {
+    "summary": "1 if the path exists, else 0; SQL Server 2022+"
+  },
+  "LEAST": {
+    "summary": "Smallest value; NULL ignored. SQL Server 2022+"
+  },
+  "OBJECT_DEFINITION": {
+    "summary": "Module definition text; NULL if encrypted or denied"
+  },
+  "OBJECTPROPERTY": {
+    "summary": "Object property such as IsTable, TableHasPrimaryKey"
+  },
+  "OBJECTPROPERTYEX": {
+    "summary": "Like OBJECTPROPERTY but returns sql_variant; more properties"
+  },
+  "OBJECT_SCHEMA_NAME": {
+    "summary": "Schema name from object_id"
+  },
+  "ORIGINAL_LOGIN": {
+    "summary": "Original login before any EXECUTE AS switch",
+    "example": "SELECT ORIGINAL_LOGIN()   -- Original login even after login switch"
+  },
+  "PARSENAME": {
+    "summary": "Part of a four-part name; 1 is the rightmost (object name)"
+  },
+  "PERCENTILE_CONT": {
+    "summary": "Percentile interpolates if between rows; 0.5 is median"
+  },
+  "PERCENTILE_DISC": {
+    "summary": "Percentile as an actual value, no interpolation"
+  },
+  "PERCENT_RANK": {
+    "summary": "Relative rank, 0 to 1; first row is always 0",
+    "example": "SELECT PERCENT_RANK() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- (rank-1)/(row count-1)"
+  },
+  "PI": {
+    "summary": "Pi (ratio of circumference to diameter)"
+  },
+  "RADIANS": {
+    "summary": "Convert degrees to radians; int arg truncates result"
+  },
+  "SCHEMA_ID": {
+    "summary": "Schema identifier; omit argument for default schema"
+  },
+  "SERVERPROPERTY": {
+    "summary": "Instance property such as ProductVersion, Edition"
+  },
+  "SESSION_CONTEXT": {
+    "summary": "Read value set by session via sp_set_session_context",
+    "example": "SELECT SESSION_CONTEXT(N'ReaderId')   -- NULL if not set"
+  },
+  "SIN": {
+    "summary": "Sine, argument in radians"
+  },
+  "SMALLDATETIMEFROMPARTS": {
+    "summary": "Assemble smalldatetime; precision to minute only"
+  },
+  "SQL_VARIANT_PROPERTY": {
+    "summary": "Base type, precision or scale of a sql_variant value"
+  },
+  "STATS_DATE": {
+    "summary": "Timestamp of last statistics update",
+    "example": "SELECT STATS_DATE(OBJECT_ID('dbo.Loan'), 1)   -- Statistics update time for first stat"
+  },
+  "STRING_ESCAPE": {
+    "summary": "Escape special characters; type supports only json"
+  },
+  "SUSER_ID": {
+    "summary": "Login ID; omit arg for current connection's login",
+    "example": "SELECT SUSER_ID()   -- principal_id of current login"
+  },
+  "SUSER_NAME": {
+    "summary": "Login name from login identifier; SUSER_SNAME takes SID"
+  },
+  "SUSER_SID": {
+    "summary": "Login SID; omit argument for current connection's login"
+  },
+  "TAN": {
+    "summary": "Tangent, argument in radians"
+  },
+  "TIMEFROMPARTS": {
+    "summary": "Assemble time; last arg is fractional second digits"
+  },
+  "TYPE_ID": {
+    "summary": "Type identifier; returns NULL if not found"
+  },
+  "TYPE_NAME": {
+    "summary": "Type name from type identifier"
+  },
+  "TYPEPROPERTY": {
+    "summary": "Type property such as Precision, Scale, AllowsNull"
+  },
+  "USER_ID": {
+    "summary": "Database user identifier; omit argument for current user"
+  },
+  "XACT_STATE": {
+    "summary": "1 can commit, -1 rollback only, 0 no transaction",
+    "example": "IF XACT_STATE() = -1 ROLLBACK TRANSACTION   -- Check this first in CATCH block"
+  },
+  "NOLOCK": {
+    "example": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- Row may appear/disappear"
+  },
+  "READPAST": {
+    "example": "SELECT TOP (1) CopyNo FROM dbo.Copy WITH (READPAST, UPDLOCK)   -- Get one unlocked row"
+  },
+  "UPDLOCK": {
+    "example": "SELECT CopyNo FROM dbo.Copy WITH (UPDLOCK) WHERE CopyNo = 1   -- Lock row before update"
+  },
+  "INDEX": {
+    "example": "SELECT * FROM dbo.Loan WITH (INDEX(IX_Loan_ReaderId))   -- Name or number"
+  },
+  "RECOMPILE": {
+    "example": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (RECOMPILE)   -- Plan not cached"
+  },
+  "MAXDOP": {
+    "example": "SELECT COUNT(*) FROM dbo.LoanDetail OPTION (MAXDOP 1)   -- 0 uses config"
+  },
+  "@@ROWCOUNT": {
+    "example": "UPDATE dbo.Loan SET LoanDate = SYSDATETIME(); SELECT @@ROWCOUNT   -- Next overwrites"
+  },
+  "@@ERROR": {
+    "example": "IF @@ERROR <> 0 ROLLBACK TRANSACTION   -- Previous stmt only; use TRY"
+  },
+  "@@IDENTITY": {
+    "example": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Triggers mislead"
+  },
+  "@@TRANCOUNT": {
+    "example": "BEGIN TRANSACTION; SELECT @@TRANCOUNT   -- Nested only outer commits"
+  },
+  "@@FETCH_STATUS": {
+    "example": "WHILE @@FETCH_STATUS = 0 FETCH NEXT FROM copies INTO @copyNo   -- 0 success"
+  }
+}

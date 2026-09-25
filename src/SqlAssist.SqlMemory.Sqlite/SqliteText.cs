@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 
 namespace SqlAssist.SqlMemory.Sqlite;
 
+[Localizable(false)]
 internal static class SqliteText
 {
     // SQLite TEXT 的 UTF-8 轉換會改寫未配對 surrogate；Recovery 本體改以 UTF-16LE BLOB 保存。

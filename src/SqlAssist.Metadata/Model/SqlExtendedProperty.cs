@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -27,6 +28,7 @@ public enum SqlExtendedPropertyLevel
 /// </remarks>
 public sealed class SqlExtendedProperty
 {
+    [Localizable(false)]
     public SqlExtendedProperty(
         SqlExtendedPropertyLevel level,
         string name,

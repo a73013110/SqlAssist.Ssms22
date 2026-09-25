@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -11,6 +12,7 @@ using SqlAssist.Ssms22.Settings;
 namespace SqlAssist.Ssms22.Commands;
 
 /// <summary>只在使用者開啟視窗時，從 SSMS 平台邊界取得一次診斷快照。</summary>
+[Localizable(false)]
 internal static class SqlAssistDiagnosticSnapshotFactory
 {
     public static SqlAssistDiagnosticSnapshot Create()

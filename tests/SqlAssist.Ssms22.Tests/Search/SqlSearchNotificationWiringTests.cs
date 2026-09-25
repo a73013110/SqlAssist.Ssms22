@@ -59,7 +59,7 @@ public sealed class SqlSearchNotificationWiringTests
         // 被擋下的那幾種也有一則通知，與進行中的那一則同一個標題。
         var activation = ReadProductSource(Activation);
         Assert.Contains("Reject(NotificationCatalog.GoingToDefinition,", activation, StringComparison.Ordinal);
-        Assert.Contains("const string title = NotificationCatalog.SelectingInObjectExplorer;", activation, StringComparison.Ordinal);
+        Assert.Contains("var title = NotificationCatalog.SelectingInObjectExplorer;", activation, StringComparison.Ordinal);
     }
 
     /// <summary>預覽的列操作從清單那一份篩出來、同一個順序，交回清單那一條路執行。</summary>

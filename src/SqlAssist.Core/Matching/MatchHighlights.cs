@@ -28,7 +28,7 @@ public static class MatchHighlights
 
     /// <summary>超過 <see cref="Maximum"/> 而少標了幾處時，狀態列上的那一句。</summary>
     /// <remarks>少標了卻不說的症狀是使用者按到最後一處就以為看完了。</remarks>
-    public static string TruncatedNotice { get; } = "命中太多，只標出前 " + Maximum + " 處。";
+    public static string TruncatedNotice => MatchText.TruncatedNotice(Maximum);
 
     /// <summary><paramref name="matcher"/> 在 <paramref name="text"/> 上的每一處；沒有比對器（沒有搜尋字）時是空的。</summary>
     /// <remarks>邊找邊併，湊滿上限就不再往下掃：單一字元的搜尋字在一份大 SQL 上可能出現幾十萬次。</remarks>

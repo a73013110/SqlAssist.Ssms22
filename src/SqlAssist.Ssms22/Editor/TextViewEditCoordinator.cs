@@ -156,6 +156,7 @@ internal sealed class TextViewEditCoordinator
     /// </list>
     /// </remarks>
     /// <returns>寫進去了為 true；緩衝區不是空的或編輯器已關閉為 false。</returns>
+    [Localizable(false)]
     public bool InsertIntoBlank(TextReplacement replacement)
     {
         if (ResolveDispatcher() is { } dispatcher && !dispatcher.CheckAccess())

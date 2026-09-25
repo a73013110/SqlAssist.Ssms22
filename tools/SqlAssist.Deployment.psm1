@@ -9,6 +9,8 @@ function Get-SqlAssistDeploymentFile {
         [pscustomobject]@{ Name = "$name.pdb"; Policy = 'Replace'; Required = $false }
     }
     [pscustomobject]@{ Name = 'SqlAssist.registration.json'; Policy = 'Replace'; Required = $true }
+    # 設定頁的非英文文字；缺了 SSMS 不報錯，只會安靜地退回英文。
+    [pscustomobject]@{ Name = 'zh-Hant/SqlAssist.Ssms22.resources.dll'; Policy = 'Replace'; Required = $true }
     foreach ($name in @('SqlAssist.Ssms22.pkgdef', 'SqlMemory.Isolation.config',
             'ThirdPartyLicenses.txt', 'Microsoft.Data.Sqlite.dll', 'SQLitePCLRaw.core.dll',
             'SQLitePCLRaw.batteries_v2.dll', 'SQLitePCLRaw.provider.e_sqlite3.dll',

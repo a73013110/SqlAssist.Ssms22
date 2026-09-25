@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 
 namespace SqlAssist.Core.Notifications;
@@ -103,17 +104,19 @@ public sealed class NotificationCenter
     /// <paramref name="status"/> 只收已完成的結果，<see cref="NotificationStatus.Running"/>
     /// 會擲例外：沒有範圍可以釋放，那一列會永遠停在執行中。
     /// </remarks>
+    [Localizable(false)]
     public void Post(string title, NotificationKind kind, NotificationOrigin origin, NotificationLevel level,
         NotificationStatus status, string subject = "", string document = "", string source = "", string message = "")
     {
         if (Rank(status) == 0)
             throw new ArgumentOutOfRangeException(nameof(status), status, "事件型通知只能送出已完成的結果。");
 
+        var resolved = NotificationTitle.Resolve(title);
         NotificationItem item;
         lock (_gate)
         {
             var now = _clock();
-            item = new NotificationItem(++_nextId, title, subject, document, source, now, status, now,
+            item = new NotificationItem(++_nextId, resolved, subject, document, source, now, status, now,
                 Clip(message), kind, origin, level);
             _items.Add(item);
             Settle(item, newlyFinished: true);
@@ -147,9 +150,10 @@ public sealed class NotificationCenter
             else if (_snoozed.Contains((kind, prompt.Key))) return null;
             _prompts.RemoveAll(x => x.Kind == kind && string.Equals(x.Key, prompt.Key, StringComparison.Ordinal));
             var now = _clock();
-            item = new NotificationItem(++_nextId, prompt.Title, subject, document, source, now,
-                NotificationStatus.Succeeded, now, Clip(prompt.Message), kind, origin, level,
-                key: prompt.Key, actions: prompt.Actions, severity: prompt.Severity);
+            item = new NotificationItem(++_nextId, prompt.TitleSource, subject, document, source, now,
+                NotificationStatus.Succeeded, now, "", kind, origin, level,
+                key: prompt.Key, actions: prompt.Actions, severity: prompt.Severity,
+                liveMessage: () => Clip(prompt.Message));
             _prompts.Add(item);
             while (_prompts.Count > PromptLimit) _prompts.RemoveAt(0);
             _version++;
@@ -169,6 +173,7 @@ public sealed class NotificationCenter
 
     /// <summary>同 <see cref="Resolve"/>，另外交出按下的那顆按鈕，讓呼叫端依識別字與參數派送。</summary>
     /// <param name="action">按下的按鈕；叉號或找不到這一則時是 null。</param>
+    [Localizable(false)]
     public bool TryResolve(long itemId, string? actionId, out NotificationAction? action)
     {
         action = null;
@@ -200,12 +205,13 @@ public sealed class NotificationCenter
         NotificationLevel level, string subject, string document, string source,
         NotificationScope? parent, bool ambient)
     {
+        var resolved = NotificationTitle.Resolve(title);
         NotificationScope scope;
         lock (_gate)
         {
             Trim();
             scope = new NotificationScope(this, ++_nextId, parent, ownsItem: true, ambient);
-            _items.Add(new NotificationItem(scope.Id, title, subject, document, source, _clock(),
+            _items.Add(new NotificationItem(scope.Id, resolved, subject, document, source, _clock(),
                 NotificationStatus.Running, null, "", kind, origin, level));
             _version++;
             if (ambient) _current.Value = scope;

@@ -1,0 +1,18 @@
+{
+  "ErrorAt": "{reason} (position {position})",
+  "TrailingContent": "Content after end of file",
+  "UnexpectedEnd": "Content ended unexpectedly",
+  "ObjectNotClosed": "Object missing closing }}",
+  "MemberNameNotString": "Object member name must be a string",
+  "ColonExpected": "Expected : after member name",
+  "MemberSeparatorExpected": "Expected comma or }} after member",
+  "ArrayNotClosed": "Array missing closing ]",
+  "ElementSeparatorExpected": "Expected comma or ] after element",
+  "StringNotClosed": "String missing closing quote",
+  "EscapeIncomplete": "Incomplete escape sequence",
+  "UnicodeEscapeInvalid": "\\u must be followed by four hexadecimal digits",
+  "UnknownEscape": "Unknown escape character \\{escape}",
+  "UnknownLiteral": "Unknown value {literal}",
+  "UnknownValue": "Unknown value",
+  "CommentNotClosed": "Block comment missing closing */"
+}

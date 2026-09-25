@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -125,6 +126,7 @@ internal static class SsmsWindows
     }
 
     /// <summary>對話框的擁有者：來源所在的視窗，拿不到時是主視窗。</summary>
+    [Localizable(false)]
     public static Window OwnerOf(DependencyObject source) =>
         WindowOf(source) ?? Main ?? throw new InvalidOperationException("找不到 SSMS 主視窗，無法開啟對話框。");
 

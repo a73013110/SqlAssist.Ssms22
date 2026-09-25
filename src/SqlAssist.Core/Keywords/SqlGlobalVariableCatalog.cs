@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Keywords;
 
@@ -26,54 +27,53 @@ namespace SqlAssist.Core.Keywords;
 public static class SqlGlobalVariableCatalog
 {
     /// <summary>名稱與說明；說明同時當成清單右側的提示。</summary>
-    private static readonly (string Name, string Description)[] Definitions =
+    private static readonly (string Name, Func<string> Description)[] Definitions =
     {
         // 系統函式
-        ("@@ERROR", "上一個敘述的錯誤代碼"),
-        ("@@IDENTITY", "這個連線最後產生的識別值"),
-        ("@@ROWCOUNT", "上一個敘述影響的資料列數"),
-        ("@@TRANCOUNT", "目前連線的作用中交易數"),
+        ("@@ERROR", () => GlobalVariableText.Error),
+        ("@@IDENTITY", () => GlobalVariableText.Identity),
+        ("@@ROWCOUNT", () => GlobalVariableText.Rowcount),
+        ("@@TRANCOUNT", () => GlobalVariableText.Trancount),
 
         // 資料指標
-        ("@@CURSOR_ROWS", "最後開啟的資料指標目前的資料列數"),
-        ("@@FETCH_STATUS", "上一次 FETCH 的結果狀態"),
+        ("@@CURSOR_ROWS", () => GlobalVariableText.CursorRows),
+        ("@@FETCH_STATUS", () => GlobalVariableText.FetchStatus),
 
         // 中繼資料
-        ("@@PROCID", "目前模組的 object_id"),
+        ("@@PROCID", () => GlobalVariableText.Procid),
 
         // 組態
-        ("@@DATEFIRST", "SET DATEFIRST 的目前值（一週的第一天）"),
-        ("@@DBTS", "目前資料庫最後產生的 timestamp 值"),
-        ("@@LANGID", "目前語言的識別碼"),
-        ("@@LANGUAGE", "目前語言的名稱"),
-        ("@@LOCK_TIMEOUT", "這個工作階段的鎖定逾時毫秒數"),
-        ("@@MAX_CONNECTIONS", "允許的同時連線數上限"),
-        ("@@MAX_PRECISION", "decimal 與 numeric 的有效位數上限"),
-        ("@@NESTLEVEL", "目前模組的巢狀層級"),
-        ("@@OPTIONS", "目前 SET 選項的位元遮罩"),
-        ("@@SERVERNAME", "這台伺服器的名稱"),
-        ("@@SERVICENAME", "這個執行個體的服務名稱"),
-        ("@@SPID", "目前工作階段的識別碼"),
-        ("@@TEXTSIZE", "SET TEXTSIZE 的目前值"),
-        ("@@VERSION", "SQL Server 的版本、日期與作業系統"),
+        ("@@DATEFIRST", () => GlobalVariableText.Datefirst),
+        ("@@DBTS", () => GlobalVariableText.Dbts),
+        ("@@LANGID", () => GlobalVariableText.Langid),
+        ("@@LANGUAGE", () => GlobalVariableText.Language),
+        ("@@LOCK_TIMEOUT", () => GlobalVariableText.LockTimeout),
+        ("@@MAX_CONNECTIONS", () => GlobalVariableText.MaxConnections),
+        ("@@MAX_PRECISION", () => GlobalVariableText.MaxPrecision),
+        ("@@NESTLEVEL", () => GlobalVariableText.Nestlevel),
+        ("@@OPTIONS", () => GlobalVariableText.Options),
+        ("@@SERVERNAME", () => GlobalVariableText.Servername),
+        ("@@SERVICENAME", () => GlobalVariableText.Servicename),
+        ("@@SPID", () => GlobalVariableText.Spid),
+        ("@@TEXTSIZE", () => GlobalVariableText.Textsize),
+        ("@@VERSION", () => GlobalVariableText.Version),
 
         // 系統統計
-        ("@@CONNECTIONS", "啟動後嘗試連線的次數"),
-        ("@@CPU_BUSY", "啟動後 CPU 的忙碌時間"),
-        ("@@IDLE", "啟動後的閒置時間"),
-        ("@@IO_BUSY", "啟動後花在輸入輸出的時間"),
-        ("@@PACKET_ERRORS", "啟動後發生的封包錯誤數"),
-        ("@@PACK_RECEIVED", "啟動後從網路讀取的封包數"),
-        ("@@PACK_SENT", "啟動後寫到網路的封包數"),
-        ("@@TIMETICKS", "每個時間刻度的微秒數"),
-        ("@@TOTAL_ERRORS", "啟動後發生的磁碟讀寫錯誤數"),
-        ("@@TOTAL_READ", "啟動後的磁碟讀取次數"),
-        ("@@TOTAL_WRITE", "啟動後的磁碟寫入次數")
+        ("@@CONNECTIONS", () => GlobalVariableText.Connections),
+        ("@@CPU_BUSY", () => GlobalVariableText.CpuBusy),
+        ("@@IDLE", () => GlobalVariableText.Idle),
+        ("@@IO_BUSY", () => GlobalVariableText.IoBusy),
+        ("@@PACKET_ERRORS", () => GlobalVariableText.PacketErrors),
+        ("@@PACK_RECEIVED", () => GlobalVariableText.PackReceived),
+        ("@@PACK_SENT", () => GlobalVariableText.PackSent),
+        ("@@TIMETICKS", () => GlobalVariableText.Timeticks),
+        ("@@TOTAL_ERRORS", () => GlobalVariableText.TotalErrors),
+        ("@@TOTAL_READ", () => GlobalVariableText.TotalRead),
+        ("@@TOTAL_WRITE", () => GlobalVariableText.TotalWrite)
     };
 
-    private static IReadOnlyList<SqlSuggestion>? _suggestions;
-
-    private static readonly object Gate = new();
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> SuggestionCache =
+        new(_ => Build());
 
     /// <summary>
     /// 全域變數的建議項。
@@ -82,16 +82,7 @@ public static class SqlGlobalVariableCatalog
     /// 插入文字含前面兩個小老鼠，而適用範圍也從第一個小老鼠開始算——
     /// 少了任何一邊，<c>@@ROW</c> 提交之後都會變成 <c>@@@@ROWCOUNT</c>。
     /// </remarks>
-    public static IReadOnlyList<SqlSuggestion> All
-    {
-        get
-        {
-            lock (Gate)
-            {
-                return _suggestions ??= Build();
-            }
-        }
-    }
+    public static IReadOnlyList<SqlSuggestion> All => SuggestionCache.Current;
 
     /// <summary>查出一個全域變數的一行說明；名稱含前面兩個小老鼠，大小寫不敏感。</summary>
     /// <remarks>
@@ -107,7 +98,7 @@ public static class SqlGlobalVariableCatalog
             {
                 if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
                 {
-                    description = value;
+                    description = value();
                     return true;
                 }
             }
@@ -121,8 +112,10 @@ public static class SqlGlobalVariableCatalog
     {
         var suggestions = new List<SqlSuggestion>(Definitions.Length);
 
-        foreach (var (name, description) in Definitions)
+        foreach (var (name, describe) in Definitions)
         {
+            var description = describe();
+
             suggestions.Add(new SqlSuggestion(
                 name,
                 name,

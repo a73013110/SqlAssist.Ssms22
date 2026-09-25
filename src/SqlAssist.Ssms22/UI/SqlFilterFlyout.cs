@@ -145,9 +145,9 @@ internal sealed class SqlFilterFlyout : Button
         if (mode == SqlFilterMode.SearchableMultiple)
         {
             _filter = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
-            var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除" + name + "篩選字");
+            var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, ChromeText.ClearFilterText(name));
             clear.Click += (_, _) => { _filter.Clear(); _filter.Focus(); };
-            AutomationProperties.SetName(_filter, "篩選" + name + "名稱");
+            AutomationProperties.SetName(_filter, ChromeText.FilterByName(name));
             var bar = SqlAssistChrome.CreateInputBar(SqlIcon.Search, _filter, clear);
             bar.Margin = new Thickness(0, 0, 0, 6);
             panel.Children.Add(bar);
@@ -160,14 +160,14 @@ internal sealed class SqlFilterFlyout : Button
         _sortButton.Padding = new Thickness(6, 2, 6, 2);
         _sortButton.Visibility = Visibility.Collapsed;
         _sortButton.Click += (_, _) => OpenSortMenu();
-        AutomationProperties.SetName(_sortButton, name + "排序");
+        AutomationProperties.SetName(_sortButton, ChromeText.SortBy(name));
         DockPanel.SetDock(_sortButton, Dock.Right);
         _commands.Children.Add(_sortButton);
 
         // 兩顆整批命令先建起來但整列收著；建好之後字就不再動。全選排在前面：它是那一列的
         // 主要動作，全不選是退路。
-        _selectAll = CreateCommand(SqlIcon.SelectAll, "全選", RunSelectAll);
-        _clearAll = CreateCommand(SqlIcon.Clear, "全不選", RunClearAll);
+        _selectAll = CreateCommand(SqlIcon.SelectAll, ChromeText.SelectAll, ChromeText.SelectAllOf(name), RunSelectAll);
+        _clearAll = CreateCommand(SqlIcon.Clear, ChromeText.ClearAll, ChromeText.ClearAllOf(name), RunClearAll);
         foreach (var command in new[] { _selectAll, _clearAll })
         {
             command.Visibility = Visibility.Collapsed;
@@ -450,7 +450,7 @@ internal sealed class SqlFilterFlyout : Button
     /// </remarks>
     public void SetSelectAllHint(string? hint)
     {
-        var tip = "全選" + _name;
+        var tip = ChromeText.SelectAllOf(_name);
         _selectAll.ToolTip = string.IsNullOrEmpty(hint) ? tip : tip + Environment.NewLine + hint;
         AutomationProperties.SetHelpText(_selectAll, hint ?? "");
     }
@@ -484,6 +484,7 @@ internal sealed class SqlFilterFlyout : Button
     /// 圖示的下場是按鈕上畫著升冪而選單上打勾的那一列是降冪，而它們其實是同一個值。
     /// </remarks>
     /// <param name="selected">目前生效的排序；必須在 <paramref name="options"/> 裡。</param>
+    [Localizable(false)]
     public void SetSortOptions(IReadOnlyList<SqlFilterSortOption> options, object selected)
     {
         if (options is null) throw new ArgumentNullException(nameof(options));
@@ -523,7 +524,7 @@ internal sealed class SqlFilterFlyout : Button
         _sortChevron.Margin = new Thickness(4, 0, 0, 0);
         content.Children.Add(_sortChevron);
         _sortButton.Content = content;
-        _sortButton.ToolTip = _name + "排序：" + current.Label;
+        _sortButton.ToolTip = ChromeText.SortByToolTip(_name, current.Label);
         _sortButton.Visibility = Visibility.Visible;
         _commands.Visibility = Visibility.Visible;
     }
@@ -553,6 +554,7 @@ internal sealed class SqlFilterFlyout : Button
         _popup.IsOpen = true;
     }
 
+    [Localizable(false)]
     private SqlFilterSortOption Find(object value)
     {
         foreach (var option in _sorts)
@@ -603,21 +605,16 @@ internal sealed class SqlFilterFlyout : Button
         Focus();
     }
 
-    private Button CreateCommand(SqlIcon icon, string label, Action run)
+    private static Button CreateCommand(SqlIcon icon, string label, string toolTip, Action run)
     {
         var button = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         button.Padding = new Thickness(6, 2, 6, 2);
         button.Margin = new Thickness(0, 0, 4, 0);
         button.Click += (_, _) => run();
-        Label(button, icon, label);
-        return button;
-    }
-
-    private void Label(Button button, SqlIcon icon, string label)
-    {
         button.Content = SqlAssistChrome.CreateIconLabel(icon, label);
-        button.ToolTip = label + _name;
-        AutomationProperties.SetName(button, label + _name);
+        button.ToolTip = toolTip;
+        AutomationProperties.SetName(button, toolTip);
+        return button;
     }
 
     /// <summary>全選：把目前的過濾字一起交出去，宿主才知道「列出來的那一份」是哪幾個。</summary>

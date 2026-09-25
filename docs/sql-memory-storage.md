@@ -27,7 +27,8 @@
 避免多程序初始化競賽。WAL、外鍵常開；每個操作獨立連線且關閉 pool。
 busy timeout 預設 5 秒，可指定 1～60 秒；取消或失敗回復交易，不留部分資料。
 失敗以 `SqlMemoryStorageException` 分類：Busy（SQLITE_BUSY／LOCKED，唯一可重試）、Io、Corrupt、
-Incompatible、InvalidArgument、InvalidCursor、Constraint、Unknown，並保留 SQLite 主要／延伸錯誤碼。
+Incompatible、InvalidArgument、InvalidCursor、Constraint、Unknown，並保留 SQLite 主要／延伸錯誤碼；
+使用者改得動的具體原因（備份路徑）另帶 `Reason`。訊息只給診斷，畫面上的說明見[在地化](localization.md#目前語言)。
 
 SQL 以 UTF-16LE BLOB 保存，全文讀取重算 ContentId（即雜湊）與長度驗證。
 沒有讀取端的欄位不進 schema：版本、執行與 Recovery 不各存一份連線，文件不存路徑。Recovery 替換只回收被替換且無引用的

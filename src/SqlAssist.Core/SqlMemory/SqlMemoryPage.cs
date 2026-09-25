@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Matching;
@@ -42,6 +43,7 @@ public sealed class SqlHistoryRequest
 {
     /// <param name="servers">要列的伺服器；空名單表示不限。</param>
     /// <param name="databases">要列的資料庫；不需要先指定伺服器。</param>
+    [Localizable(false)]
     public SqlHistoryRequest(int pageSize, SqlHistoryFilter kind = SqlHistoryFilter.All,
         string? search = null, IEnumerable<string>? servers = null, IEnumerable<string>? databases = null,
         DateTimeOffset? since = null, DateTimeOffset? until = null, string? cursor = null,

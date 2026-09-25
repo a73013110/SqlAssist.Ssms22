@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Diagnostics;
@@ -44,12 +45,10 @@ public readonly struct SqlAssistActivity
 }
 
 /// <summary>「關於與診斷」視窗在同一個時間點取得的不可變資料。</summary>
+[Localizable(false)]
 public sealed class SqlAssistDiagnosticSnapshot
 {
     public string ProductName { get; init; } = "SqlAssist for SSMS 22";
-
-    public string Description { get; init; } =
-        "SSMS 22 的 T-SQL 即時建議、程式碼片段與資料庫物件結構預覽工具。";
 
     public string Author { get; init; } = "Yikai";
 

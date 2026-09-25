@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
 /// <summary>資料表上的一個 <c>CHECK</c> 條件約束。</summary>
 public sealed class SqlCheckConstraint
 {
+    [Localizable(false)]
     public SqlCheckConstraint(
         string name,
         string definition,

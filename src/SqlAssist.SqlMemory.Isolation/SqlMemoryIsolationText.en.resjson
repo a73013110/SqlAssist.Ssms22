@@ -1,0 +1,4 @@
+{
+  "AssemblyFolderMissing": "Can't find the SQL Memory assembly folder; reinstall SqlAssist.",
+  "IsolationConfigMissing": "The SQL Memory isolation configuration file is missing; reinstall SqlAssist."
+}

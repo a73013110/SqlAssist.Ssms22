@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -52,20 +53,20 @@ internal static class ResultGridActions
         var replacement = new TextReplacement(
             script,
             SqlAssistActivityKind.ResultGridScripted,
-            Describe(table!, "已在新查詢視窗建立 #temp 指令碼"),
+            DescribeScripted(table!),
             caretOffset: 0);
 
         // 空白查詢視窗的樣板是零位元組的檔案，所以這一道守門平常永遠成立。
         // 它擋的是「拿到的不是剛開的那一個」——那一次會蓋掉使用者正在編輯的查詢。
         if (!new TextViewEditCoordinator(view).InsertIntoBlank(replacement))
         {
-            SqlAssistStatusBar.Show(serviceProvider, "新查詢視窗不是空的，已取消寫入指令碼。");
+            SqlAssistStatusBar.Show(serviceProvider, ResultGridWindowText.QueryWindowNotBlank);
         }
     }
 
     /// <summary>把選取範圍寫成可以接在 <c>WHERE</c> 後面的條件，複製到剪貼簿。</summary>
     public static void CopyInPredicate(IServiceProvider serviceProvider) =>
-        Copy(serviceProvider, "IN 條件", SqlInPredicateScript.Build);
+        Copy(serviceProvider, ResultGridWindowText.InPredicate, SqlInPredicateScript.Build);
 
     /// <summary>把選取範圍寫成 Markdown 表格，複製到剪貼簿。</summary>
     /// <remarks>
@@ -73,7 +74,7 @@ internal static class ResultGridActions
     /// 這裡補的是那個落差：貼進工單或 PR 的時候要的是剪貼簿裡的幾列。
     /// </remarks>
     public static void CopyMarkdownTable(IServiceProvider serviceProvider) =>
-        Copy(serviceProvider, "Markdown 表格", SqlMarkdownTableScript.Build);
+        Copy(serviceProvider, ResultGridWindowText.MarkdownTable, SqlMarkdownTableScript.Build);
 
     /// <summary>把選取範圍寫成 JSON 陣列，複製到剪貼簿。</summary>
     /// <remarks>
@@ -112,12 +113,12 @@ internal static class ResultGridActions
         try
         {
             var failure = await SqlClipboard.WriteTextAsync(build(table)).ConfigureAwait(true);
-            SqlAssistStatusBar.Show(serviceProvider, failure ?? Describe(table, "已複製" + what));
+            SqlAssistStatusBar.Show(serviceProvider, failure ?? Describe(table, ResultGridWindowText.Copied(what)));
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製{what}失敗：{exception}");
-            SqlAssistStatusBar.Show(serviceProvider, $"複製{what}失敗：{exception.Message}");
+            SqlAssistStatusBar.Show(serviceProvider, ResultGridWindowText.CopyWhatFailed(what, exception.Message));
         }
     }
 
@@ -137,7 +138,7 @@ internal static class ResultGridActions
 
         if (table!.IsEmpty)
         {
-            SqlAssistStatusBar.Show(serviceProvider, "選取範圍裡沒有資料列可以剖析。");
+            SqlAssistStatusBar.Show(serviceProvider, ResultGridWindowText.NothingToProfile);
             return;
         }
 
@@ -203,10 +204,16 @@ internal static class ResultGridActions
     /// 想確認的那件事：我剛剛到底選到了什麼。
     /// </remarks>
     private static string Describe(ResultGridTable table, string action) =>
+        table.IsWholeResult
+            ? ResultGridWindowText.ShapeWholeResult(action, table.Columns.Count, table.Rows.Count)
+            : ResultGridWindowText.ShapeSelection(action, table.Columns.Count, table.Rows.Count);
+
+    // TextReplacement.SuccessMessage 只寫進診斷紀錄，固定繁中。
+    [Localizable(false)]
+    private static string DescribeScripted(ResultGridTable table) =>
         string.Format(
             CultureInfo.InvariantCulture,
-            "{0}：{1} 欄 × {2} 列{3}。",
-            action,
+            "已在新查詢視窗建立 #temp 指令碼：{0} 欄 × {1} 列{2}。",
             table.Columns.Count,
             table.Rows.Count,
             table.IsWholeResult ? "（整份結果）" : "（選取範圍）");

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Runtime.Serialization;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -37,21 +38,37 @@ public enum SqlMemoryStorageErrorKind
     Unavailable,
 }
 
+/// <summary>分類之外，使用者改得動的具體原因；宿主依它組出目前語言的說明。</summary>
+public enum SqlMemoryStorageReason
+{
+    None,
+    BackupPathNotAbsolute,
+    BackupOverwritesDatabase,
+    BackupFileExists,
+}
+
 /// <summary>
 /// 儲存層對 Core 的唯一失敗型別。只帶可序列化欄位、不帶 inner exception：
 /// provider 例外未必能跨 AppDomain，原始錯誤碼與型別名稱另外保留。
 /// </summary>
+/// <remarks>
+/// <see cref="Exception.Message"/> 是給診斷紀錄的固定繁中：隔離 AppDomain 有自己一份
+/// <c>SqlText.Current</c>，不跟著宿主換語言。給使用者看的說明由宿主依 <see cref="Kind"/>、
+/// <see cref="Reason"/> 與錯誤碼組（<see cref="SqlMemoryTimeText.Describe"/>）；
+/// 唯一例外是宿主自己擲出的 <see cref="SqlMemoryStorageErrorKind.Unavailable"/>，訊息已是目前語言。
+/// </remarks>
 [Serializable]
 public sealed class SqlMemoryStorageException : Exception
 {
-    public SqlMemoryStorageException(SqlMemoryStorageErrorKind kind, string message, int? errorCode = null,
-        int? extendedErrorCode = null, string? sourceType = null)
+    public SqlMemoryStorageException(SqlMemoryStorageErrorKind kind, [Localizable(false)] string message, int? errorCode = null,
+        int? extendedErrorCode = null, string? sourceType = null, SqlMemoryStorageReason reason = SqlMemoryStorageReason.None)
         : base(message)
     {
         Kind = kind;
         ErrorCode = errorCode;
         ExtendedErrorCode = extendedErrorCode;
         SourceType = sourceType;
+        Reason = reason;
     }
 
     private SqlMemoryStorageException(SerializationInfo info, StreamingContext context)
@@ -61,6 +78,7 @@ public sealed class SqlMemoryStorageException : Exception
         ErrorCode = (int?)info.GetValue(nameof(ErrorCode), typeof(object));
         ExtendedErrorCode = (int?)info.GetValue(nameof(ExtendedErrorCode), typeof(object));
         SourceType = info.GetString(nameof(SourceType));
+        Reason = (SqlMemoryStorageReason)info.GetInt32(nameof(Reason));
     }
 
     public SqlMemoryStorageErrorKind Kind { get; }
@@ -73,6 +91,8 @@ public sealed class SqlMemoryStorageException : Exception
     /// <summary>原始例外的型別名稱，只供診斷。</summary>
     public string? SourceType { get; }
 
+    public SqlMemoryStorageReason Reason { get; }
+
     public bool IsTransient => Kind == SqlMemoryStorageErrorKind.Busy;
 
     public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -82,5 +102,6 @@ public sealed class SqlMemoryStorageException : Exception
         info.AddValue(nameof(ErrorCode), ErrorCode, typeof(object));
         info.AddValue(nameof(ExtendedErrorCode), ExtendedErrorCode, typeof(object));
         info.AddValue(nameof(SourceType), SourceType);
+        info.AddValue(nameof(Reason), (int)Reason);
     }
 }

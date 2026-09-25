@@ -17,7 +17,7 @@ public sealed class SqlLargeObjectInIncludeRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-001";
 
-    public string Title => "INCLUDE 帶了大型物件資料行";
+    public string Title => SchemaCheckText.LargeIncludeTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -37,7 +37,7 @@ public sealed class SqlLargeObjectInIncludeRule : ISqlSchemaRule
                 yield return new SqlSchemaFinding(
                     Id,
                     SqlSchemaSeverity.Warning,
-                    $"INCLUDE 帶了 {column.Name} {info.DataType}，索引會跟著資料長成與資料表同一個量級。",
+                    SchemaCheckText.LargeIncludeMessage(column.Name, info.DataType),
                     index.Name);
             }
         }
@@ -57,7 +57,7 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-002";
 
-    public string Title => "索引鍵是另一個索引的前綴";
+    public string Title => SchemaCheckText.OverlappingIndexTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -102,8 +102,7 @@ public sealed class SqlRedundantIndexRule : ISqlSchemaRule
                 yield return new SqlSchemaFinding(
                     Id,
                     SqlSchemaSeverity.Warning,
-                    $"索引鍵 ({index.DescribeKeyColumns()}) 與 {other.Index.Name} 重疊；" +
-                    "篩選、排序與涵蓋欄位相容，可評估整併，仍須先驗證查詢計畫與工作負載。",
+                    SchemaCheckText.OverlappingIndexMessage(index.DescribeKeyColumns(), other.Index.Name),
                     index.Name);
 
                 break;
@@ -166,7 +165,7 @@ public sealed class SqlHeapTableRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-003";
 
-    public string Title => "資料表沒有叢集索引";
+    public string Title => SchemaCheckText.HeapTableTitle;
 
     private const string Clustered = "CLUSTERED";
 
@@ -189,6 +188,6 @@ public sealed class SqlHeapTableRule : ISqlSchemaRule
         yield return new SqlSchemaFinding(
             Id,
             SqlSchemaSeverity.Warning,
-            "這張資料表沒有叢集索引（堆積）。");
+            SchemaCheckText.HeapTableMessage);
     }
 }

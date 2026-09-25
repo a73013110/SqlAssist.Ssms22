@@ -75,7 +75,7 @@ internal sealed class SqlTextEditor : UserControl
     public event EventHandler? Changed;
 
     /// <summary>行數與字元數；對話框用它寫淡色摘要，不必自己再掃一次原文。</summary>
-    public string Summary => string.Format(CultureInfo.CurrentCulture, "{0:N0} 行 · {1:N0} 字元",
+    public string Summary => ChromeText.TextSummary(
         _text.LineCount < 1 ? 1 : _text.LineCount, _state.Text.Length);
 
     public void FocusText()

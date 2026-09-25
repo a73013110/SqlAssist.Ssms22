@@ -54,3 +54,11 @@
 | 設定 | Settings（SSMS 22 的設定視窗名稱） |
 | 診斷紀錄 | diagnostic log |
 | 伺服器／資料庫／連線 | server／database／connection |
+| 提醒（通知島上等使用者決定的那一則） | prompt |
+| 命中（搜尋結果裡比對到的那一處） | match |
+| 限定名稱 | qualified name |
+| SQL Agent 作業／作業步驟 | SQL Agent job／job step |
+| 關於與診斷（對話框與選單命令） | About and Diagnostics |
+| 回溯（收藏版本另存成新的目前版本） | revert |
+| 包夾（片段包住選取範圍） | surround |
+| 欄位剖析 | column profile |

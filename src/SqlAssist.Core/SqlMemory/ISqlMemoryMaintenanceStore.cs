@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -84,6 +85,7 @@ public enum SqlMemoryMaintenanceScan { Indexed, Full }
 [Serializable]
 public sealed class SqlMemoryMaintenanceRequest
 {
+    [Localizable(false)]
     public SqlMemoryMaintenanceRequest(SqlRetentionPolicy policy, int candidateLimit, string? cursor = null,
         SqlMemoryMaintenanceScan scan = SqlMemoryMaintenanceScan.Indexed, SqlMemoryMaintenanceClaim? claim = null)
     {
@@ -115,6 +117,7 @@ public sealed class SqlMemoryMaintenanceRequest
 [Serializable]
 public sealed record SqlMemoryMaintenanceRound
 {
+    [Localizable(false)]
     public SqlMemoryMaintenanceRound(string planFingerprint, DateTimeOffset startedAt, int level,
         bool reclaimsRecovery, SqlMemoryMaintenanceScan scan, int roundsSinceFullScan)
     {

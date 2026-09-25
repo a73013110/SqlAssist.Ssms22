@@ -11,6 +11,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
@@ -40,7 +41,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
     private readonly SqlTextDiffView _diff = new();
     private readonly SqlReadOnlyViewer _viewer = new();
     private readonly SqlStateSurface _contentLoading;
-    private readonly SqlPillSelector _mode = new(("差異", SqlIcon.Compare), ("全文", SqlIcon.Preview));
+    private readonly SqlPillSelector _mode = new((FavoriteText.DiffMode, SqlIcon.Compare), (FavoriteText.FullTextMode, SqlIcon.Preview));
     private readonly TextBlock _comparison = SqlAssistChrome.CreateMetadataText("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _notice = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
     private readonly TextBlock _placeholder = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
@@ -70,24 +71,23 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         _commands = new SqlFavoriteRevisionCommands(package);
         _retainedLimit = SqlAssistSettingsStore.Current.SqlMemoryMaxFavoriteRevisions;
         _timeline = new SqlFavoriteRevisionTimeline(favorite.Favorite.FavoriteId, favorite.ContentId, _retainedLimit);
-        SqlMemoryActions.ConfigureWindow(this, package, "版本歷史 — " + favorite.Favorite.Name, 1040, 680);
+        SqlMemoryActions.ConfigureWindow(this, package, FavoriteText.RevisionsTitle(favorite.Favorite.Name), 1040, 680);
 
         var root = new DockPanel { Margin = SqlAssistChrome.DialogPadding };
         var retention = SqlAssistChrome.CreateMetadataText(
-            "每個收藏只保留最近 " + _retainedLimit.ToString(CultureInfo.InvariantCulture) +
-            " 版，更舊的版本會被回收；回溯會另存一筆新版本，不改寫或刪除任何版本。", SqlAssistChrome.DefaultMetrics);
+            FavoriteText.RetentionNotice(_retainedLimit.ToString(CultureInfo.InvariantCulture)), SqlAssistChrome.DefaultMetrics);
         retention.Margin = new Thickness(0, 0, 0, 8);
         DockPanel.SetDock(retention, Dock.Top); root.Children.Add(retention);
 
         // 檢視型對話框：回溯等動作都在內容工具列，頁尾只有結束對話框的關閉，它就是主要動作。
-        var close = SqlAssistChrome.CreateButton("關閉", SqlAssistChrome.DefaultMetrics, primary: true);
+        var close = SqlAssistChrome.CreateButton(CommonText.Close, SqlAssistChrome.DefaultMetrics, primary: true);
         close.IsCancel = true; close.IsDefault = true;
         var footer = SqlAssistChrome.CreateDialogFooter(_status, close);
         DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
 
         _list.SetRowsSource(_rows, _pager);
         _list.ContextMenu = CreateContextMenu();
-        AutomationProperties.SetName(_list, "版本時間軸");
+        AutomationProperties.SetName(_list, FavoriteText.TimelineName);
         _timelineLoading = new SqlStateSurface(_list);
         _timelinePane = _timelineLoading;
 
@@ -151,7 +151,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
             SqlAssistChrome.AddToolbarAction(_actions, button, command.IsSeparated);
         }
         DockPanel.SetDock(_actions, Dock.Right); toolbar.Children.Add(_actions);
-        AutomationProperties.SetName(_mode, "呈現方式");
+        AutomationProperties.SetName(_mode, FavoriteText.ModeName);
         DockPanel.SetDock(_mode, Dock.Left); toolbar.Children.Add(_mode);
         _comparison.Margin = new Thickness(8, 0, 8, 0);
         toolbar.Children.Add(_comparison);
@@ -258,7 +258,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         catch (Exception error) when (error is not OperationCanceledException)
         {
             _timeline.Fail(generation);
-            if (IsCurrentHost(hostGeneration)) Report(SqlMemoryTimeText.Failure("載入版本", error));
+            if (IsCurrentHost(hostGeneration)) Report(SqlMemoryTimeText.Failure(FavoriteText.LoadRevisionsVerb, error));
         }
         finally
         {
@@ -283,7 +283,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         catch (Exception error) when (error is not OperationCanceledException)
         {
             _timeline.Fail(generation);
-            if (IsCurrentHost(hostGeneration)) Report(SqlMemoryTimeText.Failure("載入更多版本", error));
+            if (IsCurrentHost(hostGeneration)) Report(SqlMemoryTimeText.Failure(FavoriteText.LoadMoreRevisionsVerb, error));
         }
         finally
         {
@@ -305,7 +305,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
             _timeline.BeginFirstPage(out var generation);
             _timeline.Accept(generation, new SqlMemoryPage<SqlFavoriteRevisionItem>(Array.Empty<SqlFavoriteRevisionItem>(), null));
             UpdateFooter();
-            Report("收藏已被移除；關閉後清單會同步更新。");
+            Report(FavoriteText.FavoriteRemoved);
             return;
         }
         _favorite = favorite;
@@ -321,7 +321,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         _diff.Clear(); _viewer.SetSql("");
         _comparison.Text = ""; ShowNotice("");
         UpdateActions();
-        _placeholder.Text = row is null ? "請在時間軸選取版本。" : "";
+        _placeholder.Text = row is null ? FavoriteText.SelectRevisionHint : "";
         _placeholder.Visibility = row is null ? Visibility.Visible : Visibility.Collapsed;
         _contentLoading.IsLoading = row is not null;
         if (row is not null) _delay.Start();
@@ -340,7 +340,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
             if (content is null)
             {
                 row.ContentMissing = true; UpdateRows();
-                ShowPlaceholder("此版本的內容已被維護清理，無法預覽、比對或回溯。");
+                ShowPlaceholder(FavoriteText.RevisionPurged);
                 return;
             }
             _selectedSql = content.SqlText;
@@ -355,7 +355,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
                 if (Stale()) return;
                 if (other is null)
                 {
-                    ShowNotice("比較對象的內容已被清理；只能檢視此版本全文。");
+                    ShowNotice(FavoriteText.ComparisonPurged);
                     _mode.SelectedIndex = 1; ShowMode();
                     return;
                 }
@@ -367,7 +367,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
             var result = await Task.Run(() => SqlTextDiff.Compute(baseSql, targetSql, token), token);
             if (Stale()) return;
             _comparison.Text = comparison is null
-                ? "最早保留的版本；沒有可比較的前一版"
+                ? FavoriteText.EarliestRevision
                 : comparison.Description + " · +" + result.Added.ToString(CultureInfo.InvariantCulture) +
                   " -" + result.Removed.ToString(CultureInfo.InvariantCulture);
             ShowNotice(Describe(result, comparison is null));
@@ -376,7 +376,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
-            if (!Stale()) Report(SqlMemoryTimeText.Failure("讀取版本", error));
+            if (!Stale()) Report(SqlMemoryTimeText.Failure(FavoriteText.ReadRevisionVerb, error));
         }
         finally
         {
@@ -386,10 +386,10 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
 
     private static string Describe(SqlTextDiffResult result, bool earliest) =>
         earliest ? "" :
-        result.Fallback == SqlTextDiffFallback.TooLarge ? "SQL 太大，未逐行比對；以整段取代呈現差異。" :
-        result.Fallback == SqlTextDiffFallback.TooManyChanges ? "差異過多，未逐行比對；以整段取代呈現差異。" :
-        result.TextsEqual ? "內容與比較對象完全相同。" :
-        result.OnlyLineEndingsDiffer ? "只有換行字元或結尾換行不同；逐行內容相同。" : "";
+        result.Fallback == SqlTextDiffFallback.TooLarge ? FavoriteText.DiffTooLarge :
+        result.Fallback == SqlTextDiffFallback.TooManyChanges ? FavoriteText.DiffTooManyChanges :
+        result.TextsEqual ? FavoriteText.ContentIdentical :
+        result.OnlyLineEndingsDiffer ? FavoriteText.OnlyLineEndingsDiffer : "";
 
     /// <summary>差異與全文共用同一塊內容表面；切換時只換顯示，不重讀儲存。</summary>
     private void ShowMode()
@@ -493,7 +493,7 @@ internal sealed class FavoriteRevisionsWindow : DialogWindow
         // 回溯提交中關窗會失去結果回報；等它回來再關。
         if (!_commands.IsBusy) return;
         args.Cancel = true;
-        Report("正在回溯，請等候完成再關閉。");
+        Report(FavoriteText.RevertingWait);
     }
 
     private void Dispose()

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Notifications;
 
@@ -11,18 +12,29 @@ namespace SqlAssist.Core.Notifications;
 public sealed class NotificationAction
 {
     public NotificationAction(string id, string label, NotificationActionRole role, string argument = "")
+        : this(id, Fixed(label), role, argument)
+    {
+    }
+
+    /// <summary>目錄用：標籤每次取值都用目前的語言。</summary>
+    [Localizable(false)]
+    internal NotificationAction(string id, Func<string> label, NotificationActionRole role, string argument = "")
     {
         if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("按鈕需要穩定的識別字。", nameof(id));
-        if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("按鈕需要標籤。", nameof(label));
-        Id = id; Label = label; Role = role; Argument = argument ?? "";
+        if (label is null || string.IsNullOrWhiteSpace(label())) throw new ArgumentException("按鈕需要標籤。", nameof(label));
+        Id = id; _label = label; Role = role; Argument = argument ?? "";
     }
+
+    private readonly Func<string> _label;
 
     /// <summary>穩定的點分字串，例如 <c>update.download</c>；診斷紀錄只寫它，不寫標籤。</summary>
     public string Id { get; }
 
-    public string Label { get; }
+    public string Label => _label();
     public NotificationActionRole Role { get; }
 
     /// <summary>處理這顆按鈕需要的參數（版本號、網址）；沒有時是空字串。</summary>
     public string Argument { get; }
+
+    private static Func<string> Fixed(string label) => () => label;
 }

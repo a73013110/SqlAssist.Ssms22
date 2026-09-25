@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
@@ -17,9 +18,11 @@ namespace SqlAssist.Ssms22.UI;
 /// </remarks>
 internal sealed class SqlMemoryCleanupView : DockPanel
 {
-    private static readonly (string Label, int? Days)[] Periods =
+    private static readonly (Func<string> Label, int? Days)[] Periods =
     {
-        ("7 天以前", 7), ("30 天以前", 30), ("90 天以前", 90), ("1 年以前", 365), ("全部期間", null),
+        (() => SqlMemoryViewText.Period7Days, 7), (() => SqlMemoryViewText.Period30Days, 30),
+        (() => SqlMemoryViewText.Period90Days, 90), (() => SqlMemoryViewText.Period1Year, 365),
+        (() => SqlMemoryViewText.PeriodAll, null),
     };
 
     private static readonly int[] KeepOptions = { 1, 3, 5, 10, 20, 50 };
@@ -49,8 +52,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         _database = database;
         LastChildFill = true;
 
-        var info = SqlAssistChrome.CreateInfoBar(SqlIcon.Warning,
-            "清除後無法復原。收藏的目前版本、仍開著的查詢視窗，以及還被引用的版本會保留。");
+        var info = SqlAssistChrome.CreateInfoBar(SqlIcon.Warning, SqlMemoryViewText.CleanupWarning);
         SetDock(info, Dock.Top); Children.Add(info);
 
         _headline = new TextBlock
@@ -66,9 +68,9 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         summary.Children.Add(_breakdown);
         _estimating.Margin = new Thickness(0, 4, 0, 0);
         summary.Children.Add(_estimating);
-        Cancel = SqlAssistChrome.CreateButton("取消", SqlAssistChrome.DefaultMetrics);
+        Cancel = SqlAssistChrome.CreateButton(CommonText.Cancel, SqlAssistChrome.DefaultMetrics);
         Cancel.IsCancel = true; Cancel.IsDefault = true;
-        Submit = SqlAssistChrome.CreateDangerButton("清除");
+        Submit = SqlAssistChrome.CreateDangerButton(CommonText.Clear);
         Submit.MinWidth = 120;
         var footer = SqlAssistChrome.CreateDialogFooter(summary, Cancel, Submit);
         SetDock(footer, Dock.Bottom); Children.Add(footer);
@@ -79,42 +81,42 @@ internal sealed class SqlMemoryCleanupView : DockPanel
         _keep.Width = 64;
         foreach (var option in KeepOptions) _keep.Items.Add(option.ToString(CultureInfo.InvariantCulture));
         _keep.SelectedIndex = Array.IndexOf(KeepOptions, 10);
-        AutomationProperties.SetName(_keep, "每個收藏保留的版本數");
+        AutomationProperties.SetName(_keep, SqlMemoryViewText.KeepCountLabel);
         var keepRow = new StackPanel { Orientation = Orientation.Horizontal };
-        keepRow.Children.Add(Hint("保留最新"));
+        keepRow.Children.Add(Hint(SqlMemoryViewText.KeepLatestPrefix));
         _keep.Margin = new Thickness(6, 0, 6, 0);
         keepRow.Children.Add(_keep);
-        keepRow.Children.Add(Hint("個"));
+        keepRow.Children.Add(Hint(SqlMemoryViewText.KeepLatestUnit));
         _keepRow = keepRow;
         var targets = SqlAssistChrome.CreateOptionGroup(
-            SqlAssistChrome.CreateOptionRow(_executions, "執行紀錄", "History 上的執行列，以及逐次保存的執行事件"),
-            SqlAssistChrome.CreateOptionRow(_drafts, "草稿", "已有版本的草稿；每個工作階段的最新版本會保留"),
-            SqlAssistChrome.CreateOptionRow(_recovery, "已關閉視窗的回復內容", "仍開著的查詢視窗有工作階段租約，一律不清"),
-            SqlAssistChrome.CreateOptionRow(_favorites, "收藏的舊版本", "目前版本永遠保留", keepRow));
+            SqlAssistChrome.CreateOptionRow(_executions, SqlMemoryViewText.ExecutionsTarget, SqlMemoryViewText.ExecutionsTargetDescription),
+            SqlAssistChrome.CreateOptionRow(_drafts, SqlMemoryViewText.DraftsTarget, SqlMemoryViewText.DraftsTargetDescription),
+            SqlAssistChrome.CreateOptionRow(_recovery, SqlMemoryViewText.RecoveryTarget, SqlMemoryViewText.RecoveryTargetDescription),
+            SqlAssistChrome.CreateOptionRow(_favorites, SqlMemoryViewText.FavoritesTarget, SqlMemoryViewText.FavoritesTargetDescription, keepRow));
 
-        _period = new SqlPillSelector(Array.ConvertAll(Periods, period => (period.Label, period.Days is null ? SqlIcon.AnyTime : SqlIcon.Calendar)));
+        _period = new SqlPillSelector(Array.ConvertAll(Periods, period => (period.Label(), period.Days is null ? SqlIcon.AnyTime : SqlIcon.Calendar)));
         _period.SelectedIndex = 1;
-        AutomationProperties.SetName(_period, "期間");
+        AutomationProperties.SetName(_period, SqlMemoryViewText.Period);
         var scope = new StackPanel();
         scope.Children.Add(_period);
         // 期間、連線與這一顆都是「哪些列算數」，所以放在同一節而不是變成第五種對象：
         // 空白的草稿同時也是一筆草稿，做成對象的話兩處各算一次，總數就不是要刪的筆數。
         var blankRow = SqlAssistChrome.CreateOptionGroup(SqlAssistChrome.CreateOptionRow(
-            _blank, "只清空白 SQL", "內容是空的或只有空白字元的列；有內容的列一律不動"));
+            _blank, SqlMemoryViewText.BlankOnlyTarget, SqlMemoryViewText.BlankOnlyTargetDescription));
         blankRow.Margin = new Thickness(0, 12, 0, 0);
         scope.Children.Add(blankRow);
         var connection = new Grid { Margin = new Thickness(0, 12, 0, 0) };
         connection.ColumnDefinitions.Add(new ColumnDefinition());
         connection.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
         connection.ColumnDefinitions.Add(new ColumnDefinition());
-        connection.Children.Add(SqlAssistChrome.CreateMemoryField("伺服器", serverBar, server));
-        var databaseField = SqlAssistChrome.CreateMemoryField("資料庫", databaseBar, database);
+        connection.Children.Add(SqlAssistChrome.CreateMemoryField(CommonText.Server, serverBar, server));
+        var databaseField = SqlAssistChrome.CreateMemoryField(CommonText.Database, databaseBar, database);
         Grid.SetColumn(databaseField, 2); connection.Children.Add(databaseField);
         scope.Children.Add(connection);
 
         var form = new StackPanel { Margin = new Thickness(0, 16, 0, 0) };
-        form.Children.Add(SqlAssistChrome.CreateSection("清除對象", targets, first: true));
-        _historyScope = SqlAssistChrome.CreateSection("History 範圍", scope);
+        form.Children.Add(SqlAssistChrome.CreateSection(SqlMemoryViewText.CleanupTargetsSection, targets, first: true));
+        _historyScope = SqlAssistChrome.CreateSection(SqlMemoryViewText.HistoryScopeSection, scope);
         form.Children.Add(_historyScope);
         Children.Add(new ScrollViewer
         {
@@ -156,7 +158,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
     /// <summary>條件變了、試算還沒回來：清除停用，按鈕不留舊筆數。</summary>
     public void ShowEstimating(bool hasTargets)
     {
-        _headline.Text = hasTargets ? "正在試算…" : "至少勾選一種清除對象";
+        _headline.Text = hasTargets ? SqlMemoryViewText.Estimating : SqlMemoryViewText.NoTargetsSelected;
         _breakdown.Text = "";
         _estimating.Visibility = hasTargets ? Visibility.Visible : Visibility.Hidden;
         SetSubmit(0);
@@ -172,7 +174,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
 
     public void ShowEstimateFailure(string message)
     {
-        _headline.Text = "無法試算";
+        _headline.Text = SqlMemoryViewText.EstimateFailed;
         _breakdown.Text = message;
         _estimating.Visibility = Visibility.Hidden;
         SetSubmit(0);
@@ -204,7 +206,7 @@ internal sealed class SqlMemoryCleanupView : DockPanel
     private void SetSubmit(long total)
     {
         Submit.IsEnabled = total > 0;
-        Submit.Content = total > 0 ? "清除 " + SqlMemoryUsageSummary.Count(total) + " 筆" : "清除";
+        Submit.Content = total > 0 ? SqlMemoryViewText.ClearWithCount(SqlMemoryUsageSummary.Count(total)) : CommonText.Clear;
     }
 
     private static TextBlock Hint(string text)

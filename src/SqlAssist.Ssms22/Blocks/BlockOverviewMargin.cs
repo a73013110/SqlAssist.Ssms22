@@ -99,7 +99,7 @@ internal sealed class BlockOverviewMargin : IWpfTextViewMargin
             _range.SetResourceReference(Border.BackgroundProperty, role);
             _opening.SetResourceReference(Border.BackgroundProperty, role);
             _closing.SetResourceReference(Border.BackgroundProperty, role);
-            AutomationProperties.SetName(_canvas, $"{BlockContextText.KindName(pair.Kind)} 區塊範圍");
+            AutomationProperties.SetName(_canvas, BlockText.OverviewName(BlockContextText.KindName(pair.Kind)));
             _shownPair = pair;
             _shownSnapshot = source;
         }

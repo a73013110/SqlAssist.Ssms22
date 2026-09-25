@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SqlAssist.Core.Statements;
@@ -65,6 +66,7 @@ public static class SqlFunctionSignatureText
     /// 傳回型別；空字串代表寫不出 <c>RETURNS</c> 那一段（資料表值函式，
     /// 或讀不到傳回值那一列）。
     /// </param>
+    [Localizable(false)]
     public static SqlSignatureText Build(
         string qualifiedName,
         IReadOnlyList<SqlStatementParameter> parameters,
@@ -124,8 +126,8 @@ public static class SqlFunctionSignatureText
     /// </remarks>
     private static string Describe(SqlStatementParameter parameter)
     {
-        var type = parameter.DataType.Length > 0 ? parameter.DataType : "型別未知";
+        var type = parameter.DataType.Length > 0 ? parameter.DataType : StatementText.UnknownType;
 
-        return parameter.IsOptional ? $"{type}，可寫 DEFAULT" : type;
+        return parameter.IsOptional ? StatementText.FunctionParameterDefault(type) : type;
     }
 }

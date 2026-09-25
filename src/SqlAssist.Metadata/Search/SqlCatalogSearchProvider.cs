@@ -68,7 +68,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
     public string Id => ProviderId;
 
-    public string DisplayName => "資料庫物件";
+    public string DisplayName => SearchSourceText.CatalogDisplayName;
 
     public IReadOnlyList<SearchCategory> Categories { get; }
 
@@ -186,12 +186,12 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         var first = databaseNames[0];
 
         var subject = databaseNames.Count > 1
-            ? "「" + first + "」等 " + databaseNames.Count.ToString(CultureInfo.InvariantCulture) + " 個資料庫"
-            : first.Length > 0 ? "「" + first + "」" : "有一個資料庫";
+            ? SearchSourceText.DatabasesSubject(first, databaseNames.Count)
+            : first.Length > 0 ? SearchSourceText.DatabaseSubject(first) : SearchSourceText.UnnamedDatabaseSubject;
 
         return kind == SearchUnavailableKind.Denied
-            ? subject + "這一輪讀不到（這個登入對它沒有權限），這一輪少了它的結果。"
-            : subject + "這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。";
+            ? SearchSourceText.DatabaseDenied(subject)
+            : SearchSourceText.DatabaseUnavailable(subject);
     }
 
     /// <summary>掃一個資料庫；失敗與截斷都只記在自己那一份 <paramref name="round"/> 上。</summary>
@@ -513,7 +513,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
             if (listed is null)
             {
-                sink.ReportUnavailable("問不到這台伺服器的資料庫清單（連不上、逾時，或這個登入沒有權限），這一輪沒有搜任何資料庫。");
+                sink.ReportUnavailable(SearchSourceText.DatabaseListUnavailable);
                 return Array.Empty<ISqlConnectionSource>();
             }
 

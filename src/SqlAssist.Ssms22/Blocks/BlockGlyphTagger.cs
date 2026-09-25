@@ -15,7 +15,7 @@ namespace SqlAssist.Ssms22.Blocks;
 internal sealed class BlockGlyphTag : IGlyphTag
 {
     public BlockGlyphTag(BlockKind kind, int firstLine, int lastLine)
-    { Kind = kind; Description = $"{BlockContextText.KindName(kind)}：第 {firstLine + 1}–{lastLine + 1} 行"; }
+    { Kind = kind; Description = BlockText.GlyphDescription(BlockContextText.KindName(kind), firstLine + 1, lastLine + 1); }
     public BlockKind Kind { get; }
     public string Description { get; }
 }

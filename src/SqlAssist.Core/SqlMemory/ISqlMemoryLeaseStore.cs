@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -68,6 +69,7 @@ public sealed class SqlMemoryLeaseReaper
     /// 這個擁有者的程序是否還在。判斷不出來時必須回報 true：寧可留下遺留租約，
     /// 也不要刪掉使用者正在編輯的未存檔內容。比對啟動時間請用 <see cref="IsSameProcess"/>。
     /// </param>
+    [Localizable(false)]
     public SqlMemoryLeaseReaper(string machineName, Func<SqlMemoryLeaseOwner, bool> isOwnerRunning)
     {
         if (string.IsNullOrWhiteSpace(machineName)) throw new ArgumentException("缺少本機名稱。", nameof(machineName));
@@ -82,6 +84,7 @@ public sealed class SqlMemoryLeaseReaper
         return (startTime - owner.ProcessStartTime).Duration() <= StartTimeTolerance;
     }
 
+    [Localizable(false)]
     public IReadOnlyList<string> Reclaimable(IReadOnlyList<SqlMemoryLease> expired)
     {
         if (expired == null) throw new ArgumentNullException(nameof(expired));

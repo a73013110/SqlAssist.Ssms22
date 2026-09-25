@@ -13,6 +13,7 @@ using SqlAssist.Core.SqlMemory;
 namespace SqlAssist.SqlMemory.Isolation;
 
 /// <summary>宿主與封裝工具共用的診斷；只保存內建文字，不接觸編輯器或 SQL Server。</summary>
+[Localizable(false)]
 public static class SqlMemoryStorageSelfTest
 {
     public const string ReportFileName = "report.txt";

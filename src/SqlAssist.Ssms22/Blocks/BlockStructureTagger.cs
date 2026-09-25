@@ -102,7 +102,7 @@ internal sealed class BlockStructureTagger : ITagger<IStructureTag>, IDisposable
             type: kind == BlockKind.Case || BlockDisplayRules.IsSymbol(kind)
                 ? PredefinedStructureTagTypes.Expression : PredefinedStructureTagTypes.Statement,
             isCollapsible: outlining, isDefaultCollapsed: false, isImplementation: false,
-            collapsedForm: "…", collapsedHintForm: $"{summary}（第 {header.LineNumber + 1} 行）");
+            collapsedForm: "…", collapsedHintForm: BlockText.CollapsedHint(summary, header.LineNumber + 1));
         return new TagSpan<IStructureTag>(new SnapshotSpan(snapshot, span), tag);
     }
 

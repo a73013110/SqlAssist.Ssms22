@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 
@@ -62,6 +63,7 @@ public static class SqlTabularText
         return new SqlTabularContent(tsv.ToString(), html.Complete(), count);
     }
 
+    [Localizable(false)]
     private static void Validate<TRow>(IReadOnlyList<SqlTabularColumn<TRow>> columns, IEnumerable<TRow> rows)
     {
         if (columns == null) throw new ArgumentNullException(nameof(columns));

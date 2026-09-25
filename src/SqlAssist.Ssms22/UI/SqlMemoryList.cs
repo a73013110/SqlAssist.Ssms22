@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows.Input;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -20,34 +22,36 @@ internal enum SqlMemoryRowKind { Any, History, Favorite }
 /// </remarks>
 internal sealed class SqlMemoryRowCommand
 {
-    private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, string label, SqlMemoryRowKind kind,
+    private SqlMemoryRowCommand(SqlMemoryRowAction action, SqlIcon icon, Func<string> label, SqlMemoryRowKind kind,
         string? labelProperty = null, bool separated = false, SqlActionTone tone = SqlActionTone.Neutral,
         bool primary = false)
     {
-        Action = action; Icon = icon; Label = label; Kind = kind;
+        Action = action; Icon = icon; _label = label; Kind = kind;
         LabelProperty = labelProperty; IsSeparated = separated; Tone = tone; IsPrimary = primary;
     }
 
     public static IReadOnlyList<SqlMemoryRowCommand> All { get; } = new[]
     {
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, "在新 Query 開啟（不執行）", SqlMemoryRowKind.Any,
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Open, SqlIcon.Open, () => SqlMemoryViewText.OpenInNewQuery, SqlMemoryRowKind.Any,
             primary: true),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, "複製 SQL", SqlMemoryRowKind.Any),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, "新增至收藏", SqlMemoryRowKind.History,
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Copy, SqlIcon.Copy, () => SqlMemoryViewText.CopySql, SqlMemoryRowKind.Any),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.AddFavorite, SqlIcon.Favorite, () => SqlMemoryViewText.AddToFavorites, SqlMemoryRowKind.History,
             tone: SqlActionTone.Favorite),
         // 名稱、標註與 SQL 在同一個編輯器一次儲存，不拆成兩個各自做版本檢查的對話框。
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Edit, SqlIcon.Edit, "編輯收藏", SqlMemoryRowKind.Favorite),
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Revisions, SqlIcon.History, "版本歷史", SqlMemoryRowKind.Favorite),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Edit, SqlIcon.Edit, () => SqlMemoryViewText.EditFavorite, SqlMemoryRowKind.Favorite),
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Revisions, SqlIcon.History, () => SqlMemoryViewText.RevisionHistory, SqlMemoryRowKind.Favorite),
         // 破壞性操作與其他操作隔開，並一律經確認；標籤依列種類說清楚刪的是紀錄還是收藏。
-        new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, "刪除", SqlMemoryRowKind.Any,
+        new SqlMemoryRowCommand(SqlMemoryRowAction.Delete, SqlIcon.Remove, () => CommonText.Delete, SqlMemoryRowKind.Any,
             labelProperty: "DeleteLabel", separated: true, tone: SqlActionTone.Danger),
     };
 
     public SqlMemoryRowAction Action { get; }
     public SqlIcon Icon { get; }
 
+    private readonly Func<string> _label;
+
     /// <summary>靜態標籤；<see cref="LabelProperty"/> 存在時，繫結到列上依狀態變化的說明。</summary>
-    public string Label { get; }
+    public string Label => _label();
 
     public SqlMemoryRowKind Kind { get; }
     public string? LabelProperty { get; }
@@ -64,6 +68,7 @@ internal sealed class SqlMemoryRowCommand
     public bool AppliesTo(bool favorite) =>
         Kind == SqlMemoryRowKind.Any || (Kind == SqlMemoryRowKind.Favorite) == favorite;
 
+    [Localizable(false)]
     public static SqlMemoryRowCommand For(SqlMemoryRowAction action)
     {
         foreach (var command in All) if (command.Action == action) return command;

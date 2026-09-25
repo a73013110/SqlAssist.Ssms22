@@ -13,7 +13,8 @@
   <!-- 連結進來的產品原始碼會用到 Ssms22 的文字類別，產生器要看到同一批 .resjson。 -->
   <Import Project="..\..\tools\SqlAssist.TextGenerator\SqlAssist.Text.props" />
   <ItemGroup>
-    <AdditionalFiles Include="..\..\src\SqlAssist.Ssms22\**\*.resjson" Exclude="..\..\src\SqlAssist.Ssms22\bin\**;..\..\src\SqlAssist.Ssms22\obj\**" />
+    <!-- 設定頁文字只編成資源給 SSMS 讀，不產生類別，見 Settings/SettingsPageText.targets。 -->
+    <AdditionalFiles Include="..\..\src\SqlAssist.Ssms22\**\*.resjson" Exclude="..\..\src\SqlAssist.Ssms22\bin\**;..\..\src\SqlAssist.Ssms22\obj\**;..\..\src\SqlAssist.Ssms22\Settings\SettingsPageText.*.resjson" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />

@@ -21,7 +21,8 @@ internal static class ActiveSqlEditor
 
     private sealed class Origin
     {
-        public string Name { get; } = $"SQL 編輯區 {Interlocked.Increment(ref _nextOrigin)}";
+        // 只存編號、取值時才組字：編號跟著緩衝區存活，換了介面語言要用新的那一句。
+        public int Number { get; } = Interlocked.Increment(ref _nextOrigin);
     }
 
     public static string GetDocumentName(ITextView view) => GetDocumentName(view.TextBuffer);
@@ -30,7 +31,7 @@ internal static class ActiveSqlEditor
     public static string GetDocumentName(ITextBuffer buffer) => SqlAssistPlatformGuard.Probe("取得活動來源文件", () =>
         buffer.Properties.TryGetProperty(typeof(ITextDocument), out ITextDocument document)
             ? Path.GetFileName(document.FilePath)
-            : buffer.Properties.GetOrCreateSingletonProperty(() => new Origin()).Name, "SQL 編輯區");
+            : EditorText.NumberedEditor(buffer.Properties.GetOrCreateSingletonProperty(() => new Origin()).Number), EditorText.Editor);
     private static readonly object SyncRoot = new();
     private static IWpfTextView? _current;
     private static IWpfTextView? _created;

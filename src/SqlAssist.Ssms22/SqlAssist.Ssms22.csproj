@@ -275,6 +275,8 @@
     <Resource Include="Resources\SqlAssist.Icon.16.png" />
   </ItemGroup>
 
+  <Import Project="Settings\SettingsPageText.targets" />
+
   <Target Name="ValidateSsmsReferences" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\CommonExtensions\Microsoft\Editor\Microsoft.VisualStudio.Text.Data.dll')" Text="找不到 SSMS 22 編輯器組件。請以 /p:SsmsInstallDir=&quot;SSMS 安裝路徑&quot; 指定位置。" />
     <Error Condition="!Exists('$(SsmsInstallDir)\Common7\IDE\PrivateAssemblies\Microsoft.Internal.VisualStudio.Interop.dll')" Text="找不到 Microsoft.Internal.VisualStudio.Interop，Unified Settings 無法編譯。請確認 SsmsInstallDir 指向 SSMS 22。" />

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.Search;
@@ -123,6 +124,7 @@ public sealed class SearchQuery
     /// <summary>這個部位這一輪要不要掃。</summary>
     public bool IncludesTarget(SearchMatchTarget target) => (Targets & target.ToFlag()) != 0;
 
+    [Localizable(false)]
     private static HashSet<string> Copy(IEnumerable<string>? categories)
     {
         if (categories is null) return NoCategories;

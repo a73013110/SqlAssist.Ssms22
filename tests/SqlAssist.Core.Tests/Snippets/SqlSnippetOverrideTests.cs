@@ -1,6 +1,7 @@
 using System.Linq;
 using SqlAssist.Core.Snippets;
 using Xunit;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Tests.Snippets;
 
@@ -88,5 +89,37 @@ public sealed class SqlSnippetOverrideTests
         var builtIn = merged.Entries.Single(item => item.Snippet.Id == "builtin.ssf");
         Assert.True(builtIn.IsShadowed);
         Assert.False(builtIn.IsEffective);
+    }
+
+    [Fact]
+    public void 使用者自訂的內建片段在英文介面仍然蓋過內建值()
+    {
+        var custom = new SqlSnippet("ssf", "SELECT * FROM $end$;", title: "我的查詢", id: "builtin.ssf");
+        var document = new SqlSnippetDocument(2, new[] { new SqlSnippetOverride(custom.Id, false, custom) });
+
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            var loaded = SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, document);
+
+            Assert.True(loaded.Library.TryGet("ssf", out var effective));
+            Assert.Equal("我的查詢", effective.Title);
+        }
+    }
+
+    /// <remarks>
+    /// 管理介面在繁中載入、換成英文後才存檔時，沒改過的內建項目仍是繁中的文字；
+    /// 只和目前語言比的話，49 筆全部會被當成自訂寫進使用者檔。
+    /// </remarks>
+    [Fact]
+    public void 與任何語言的內建值相同都不寫成自訂紀錄()
+    {
+        var loaded = SqlSnippetMerger.Merge(SqlSnippetDefaults.Current, SqlSnippetDocument.Empty);
+
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            var document = SqlSnippetMerger.CreateOverrides(loaded.Entries, SqlSnippetDefaults.Current);
+
+            Assert.Empty(document.Snippets);
+        }
     }
 }

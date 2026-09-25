@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using SqlAssist.Core.Localization;
 using SqlAssist.Ssms22.UI;
 using Xunit;
 
@@ -82,6 +83,28 @@ public sealed class SqlMemoryRecoveryViewTests
             Assert.True(rebuild.IsEnabled);
             Assert.True(openFolder.IsEnabled);
             Assert.Equal("備份並重建資料庫…", rebuild.Content);
+        });
+    }
+
+    [Fact]
+    public void EnglishActionsFitOnOneRowInsideTheCard()
+    {
+        WpfTest.Run(() =>
+        {
+            using (SqlText.Use(SqlLanguage.Find("en")!))
+            {
+                var view = CreateView();
+                var (openFolder, rebuild) = Actions(view);
+                Assert.Equal("SQL Memory recovery guide", AutomationProperties.GetName(view));
+                Assert.Equal("Open folder", openFolder.Content);
+                Assert.Equal("Back up and rebuild database…", rebuild.Content);
+
+                view.Measure(new Size(view.MaxWidth, double.PositiveInfinity));
+                view.Arrange(new Rect(0, 0, view.MaxWidth, view.DesiredSize.Height)); view.UpdateLayout();
+                // 兩顆按鈕同一列，右緣不超出卡片的內容區。
+                Assert.Equal(openFolder.TranslatePoint(new Point(), view).Y, rebuild.TranslatePoint(new Point(), view).Y, 1);
+                Assert.InRange(rebuild.TranslatePoint(new Point(rebuild.ActualWidth, 0), view).X, 0, view.ActualWidth + 0.5);
+            }
         });
     }
 

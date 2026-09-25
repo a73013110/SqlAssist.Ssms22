@@ -37,10 +37,10 @@ internal enum SqlSurfaceKind
 internal readonly struct SqlSurfaceState : IEquatable<SqlSurfaceState>
 {
     /// <summary>讀不到的固定抬頭；重試或換條件可能就有了。</summary>
-    public const string UnreadableTitle = "這一輪讀不到";
+    public static string UnreadableTitle => ChromeText.UnreadableTitle;
 
     /// <summary>無權限的固定抬頭；重試幾次都不會變，下一步是去要權限。</summary>
-    public const string DeniedTitle = "權限不足";
+    public static string DeniedTitle => ChromeText.DeniedTitle;
 
     private readonly string? _title;
     private readonly string? _detail;

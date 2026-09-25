@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Connections;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
@@ -50,7 +51,8 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         // 與唯讀預覽同一份外觀來源：跟著查詢視窗的字型與分類色，對話框開著時查詢視窗不會換。
         _theme = new SqlScriptTheme(ActiveSqlEditor.Current, _editor);
         _theme.Updated += (_, _) => _editor.RefreshColors();
-        SqlMemoryActions.ConfigureWindow(this, package, existing is null ? "新增至收藏" : "編輯收藏 — " + existing.Favorite.Name, 960, 700);
+        SqlMemoryActions.ConfigureWindow(this, package,
+            existing is null ? FavoriteText.AddToFavorites : FavoriteText.EditTitle(existing.Favorite.Name), 960, 700);
         MinWidth = 640; MinHeight = 520;
 
         var root = new DockPanel { Margin = SqlAssistChrome.DialogPadding };
@@ -66,26 +68,26 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         for (var row = 0; row < 5; row++)
             _form.RowDefinitions.Add(new RowDefinition { Height = row % 2 == 1 ? new GridLength(12) : GridLength.Auto });
         _name.MaxLength = 200;
-        Place(SqlAssistChrome.CreateMemoryField("名稱", _name, _name), 0, 0, 5);
-        Place(SqlAssistChrome.CreateMemoryField("伺服器", TagBar(SqlIcon.Server, _server, "伺服器", databases: false), _server), 2, 0);
-        Place(SqlAssistChrome.CreateMemoryField("資料庫", TagBar(SqlIcon.Database, _database, "資料庫", databases: true), _database), 2, 2);
+        Place(SqlAssistChrome.CreateMemoryField(CommonText.Name, _name, _name), 0, 0, 5);
+        Place(SqlAssistChrome.CreateMemoryField(CommonText.Server, TagBar(SqlIcon.Server, _server, CommonText.Server, databases: false), _server), 2, 0);
+        Place(SqlAssistChrome.CreateMemoryField(CommonText.Database, TagBar(SqlIcon.Database, _database, CommonText.Database, databases: true), _database), 2, 2);
         var connection = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
         connection.Template = SqlAssistChrome.CreateGhostButtonTemplate();
-        connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, "使用查詢視窗的連線");
-        connection.ToolTip = "以查詢視窗的伺服器與資料庫填入標註；不切換連線。";
+        connection.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Connection, FavoriteText.UseEditorConnection);
+        connection.ToolTip = FavoriteText.UseEditorConnectionToolTip;
         connection.MinHeight = 30; connection.VerticalAlignment = VerticalAlignment.Bottom;
         connection.Click += (_, _) => SqlMemoryActions.Run(UseEditorConnection, Report);
         Place(connection, 2, 4);
         _description.MaxLength = 2000; _description.AcceptsReturn = true; _description.TextWrapping = TextWrapping.Wrap;
         _description.MinHeight = 52; _description.MaxHeight = 88;
         _description.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
-        Place(SqlAssistChrome.CreateMemoryField("說明（選填）", _description, _description), 4, 0, 5);
+        Place(SqlAssistChrome.CreateMemoryField(FavoriteText.DescriptionLabel, _description, _description), 4, 0, 5);
         DockPanel.SetDock(_form, Dock.Top); root.Children.Add(_form);
 
-        _cancel = SqlAssistChrome.CreateButton("取消", SqlAssistChrome.DefaultMetrics); _cancel.IsCancel = true;
-        _submit = SqlAssistChrome.CreateButton(existing is null ? "新增至收藏" : "儲存", SqlAssistChrome.DefaultMetrics, true);
+        _cancel = SqlAssistChrome.CreateButton(CommonText.Cancel, SqlAssistChrome.DefaultMetrics); _cancel.IsCancel = true;
+        _submit = SqlAssistChrome.CreateButton(existing is null ? FavoriteText.AddToFavorites : FavoriteText.Save, SqlAssistChrome.DefaultMetrics, true);
         _submit.IsDefault = true;
-        _submit.ToolTip = "儲存（Ctrl+S）";
+        _submit.ToolTip = FavoriteText.SaveToolTip;
         _status.TextWrapping = TextWrapping.Wrap;
         var footer = SqlAssistChrome.CreateDialogFooter(_status, _cancel, _submit);
         DockPanel.SetDock(footer, Dock.Bottom); root.Children.Add(footer);
@@ -124,7 +126,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
     public static bool Edit(SqlAssistPackage package, SqlFavoriteItem item, string sql) =>
         new FavoriteEditorWindow(package, item, null, sql, item.Favorite.Name, item.Favorite.Description,
             item.Favorite.Server, item.Favorite.Database,
-            item.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") + " 更新 · 修改 SQL 儲存後會另存新版本，可在版本歷史回溯。")
+            FavoriteText.EditSummary(item.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")))
             .ShowModal() == true;
 
     /// <summary>新增收藏。</summary>
@@ -153,7 +155,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
     {
         if (SqlWindowConnections.ReadActive(_package) is not { } connection || string.IsNullOrEmpty(connection.Server))
         {
-            Report("查詢視窗目前沒有連線；標註保持不變。");
+            Report(FavoriteText.NoEditorConnection);
             return;
         }
         _server.Text = connection.Server;
@@ -163,9 +165,9 @@ internal sealed class FavoriteEditorWindow : DialogWindow
 
     private void Validate()
     {
-        _sqlSummary.Text = _editor.Summary + (_editor.IsModified ? " · 已修改" : "");
-        var message = string.IsNullOrWhiteSpace(_name.Text) ? "名稱不可空白。"
-            : string.IsNullOrWhiteSpace(_editor.Text) ? "SQL 不可空白。" : "";
+        _sqlSummary.Text = _editor.Summary + (_editor.IsModified ? FavoriteText.ModifiedSuffix : "");
+        var message = string.IsNullOrWhiteSpace(_name.Text) ? FavoriteText.NameRequired
+            : string.IsNullOrWhiteSpace(_editor.Text) ? FavoriteText.SqlRequired : "";
         if (!_submitting && !_conflict) Report(message);
         _submit.IsEnabled = message.Length == 0 && !_submitting && !_conflict && (_existing is null || IsDirty);
     }
@@ -180,13 +182,13 @@ internal sealed class FavoriteEditorWindow : DialogWindow
             sql is null ? reference!.Value : Guid.NewGuid(), _server.Text, _database.Text);
         var save = new SqlFavoriteSave(favorite, _existing?.Version, DateTimeOffset.UtcNow, sql);
         SetSubmitting(true);
-        Report("正在儲存收藏…");
+        Report(FavoriteText.Saving);
         try
         {
             if (await SqlMemoryHost.Runtime.SaveFavoriteAsync(save, _package.DisposalToken) == SqlFavoriteWriteResult.Conflict)
             {
                 _conflict = true;
-                Report("收藏已被修改或移除，未覆寫。請先複製需要保留的內容，再取消並重新整理清單。");
+                Report(FavoriteText.SaveConflict);
                 return;
             }
             _committed = true;
@@ -197,7 +199,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         {
             // 回應不明時不盲目重送非冪等的儲存；保留輸入，重新整理後才能確認結果。
             _conflict = true;
-            Report("儲存未確認：" + error.Message + " 請先複製需要保留的內容，再取消並重新整理；不會自動重送。");
+            Report(FavoriteText.SaveUnconfirmed(error.Message));
         }
         finally
         {
@@ -217,7 +219,7 @@ internal sealed class FavoriteEditorWindow : DialogWindow
         args.Cancel = _submitting;
         if (_submitting || _committed || !IsDirty) return;
         SqlMemoryActions.Run(() => args.Cancel = !SqlAssistConfirmationWindow.Confirm(this,
-            "捨棄變更", "捨棄尚未儲存的變更？", "這次編輯的內容會遺失，收藏本身不會改變。\n捨棄後無法復原。", "捨棄變更"),
+            FavoriteText.DiscardTitle, FavoriteText.DiscardConfirm, FavoriteText.DiscardDetail, FavoriteText.DiscardTitle),
             message => { args.Cancel = true; Report(message); });
     }
 

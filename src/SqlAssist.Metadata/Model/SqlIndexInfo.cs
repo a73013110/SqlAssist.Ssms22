@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 using SqlAssist.Metadata.Querying;
 
@@ -8,6 +9,7 @@ namespace SqlAssist.Metadata.Model;
 /// <summary>索引中的一個欄位。</summary>
 public sealed class SqlIndexColumn
 {
+    [Localizable(false)]
     public SqlIndexColumn(string name, bool isDescending = false, bool isIncluded = false)
     {
         if (string.IsNullOrEmpty(name))
@@ -94,6 +96,7 @@ public sealed class SqlIndexRow
 /// <summary>資料表或索引檢視的單一索引。</summary>
 public sealed class SqlIndexInfo
 {
+    [Localizable(false)]
     public SqlIndexInfo(
         int indexId,
         string name,

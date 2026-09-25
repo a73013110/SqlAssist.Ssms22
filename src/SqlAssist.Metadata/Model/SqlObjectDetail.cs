@@ -108,7 +108,7 @@ public sealed class SqlObjectDetail
         if (Columns.Count == 0)
         {
             builder.AppendLine();
-            builder.AppendLine("（尚未載入欄位）");
+            builder.AppendLine(StructureText.ColumnsNotLoaded);
             return builder.ToString();
         }
 

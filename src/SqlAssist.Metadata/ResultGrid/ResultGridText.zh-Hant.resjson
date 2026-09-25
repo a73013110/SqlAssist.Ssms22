@@ -1,0 +1,31 @@
+{
+  // 儲存格完整內容視窗的摘要列：欄名（型別）· 大小。
+  "CellNoColumnName": "（沒有資料行名稱）",
+  "CellSummary": "{name}（{type}）· {detail}",
+  "CellCharacters": "{count:N0} 個字元",
+  "CellBytes": "{count:N0} 個位元組",
+  // 以下寫進產生的指令碼開頭註解；程式碼會補上前面的「-- 」。
+  "SourceWholeResult": "由 SqlAssist 從查詢結果產生：{columns} 欄 × {rows} 列（整份結果）。",
+  "SourceSelection": "由 SqlAssist 從查詢結果產生：{columns} 欄 × {rows} 列（選取範圍）。",
+  "ValueNotLiteral": "第 {row} 列的「{column}」欄轉不成 T-SQL 字面值：{reason}。",
+  "NoRows": "這份結果沒有資料列可以取。",
+  "SelectionTooLarge": "選取範圍是 {columns} 欄 × {rows} 列，共 {cells} 格，超過一次 {limit} 格的上限。請先縮小選取範圍。",
+  // 產不出來時的第一句，後面接原因與下一步。
+  "InUnavailable": "無法從查詢結果產生 IN 條件。",
+  "JsonUnavailable": "無法從查詢結果產生 JSON。",
+  "MarkdownUnavailable": "無法從查詢結果產生 Markdown 表格。",
+  "TempTableUnavailable": "無法從查詢結果產生暫存資料表指令碼。",
+  "EmptySelection": "選取範圍裡沒有資料列，或這份結果沒有欄位。",
+  "SelectCellsFirst": "先在結果格線裡選幾格，再執行一次這個命令。",
+  "SelectKeyColumnsFirst": "先在結果格線裡選出要當條件的那一欄（或幾欄），再執行一次這個命令。",
+  "RemoveFailedColumn": "把那一欄從選取範圍拿掉之後再試一次；其餘欄位都轉得出來。",
+  "InNullAdded": "選取範圍裡有 NULL；IN 清單比不到 NULL，另外用 OR 補上。",
+  "InCompositeKey": "SQL Server 不接受 (a, b) IN ((1, N'x')) 這種列值寫法，複合鍵改寫成 OR 條件。",
+  "InUnqualifiedNames": "欄名沒有加別名；多資料表的查詢裡請自行限定。",
+  "TempTableNoRequery": "值取自結果格線已經取回的資料，不會重新查詢資料庫。",
+  "TempTableNoServerType": "取不到「{column}」欄的伺服器型別，沒有型別就寫不出 CREATE TABLE。運算式欄位有時候查不到型別，替它取一個別名再執行一次查詢通常就有了。",
+  // 以下是 ValueNotLiteral 的 {reason}，沒有句號。
+  "LiteralUnsupportedClrType": "CLR 型別 {type} 沒有對得上的 T-SQL 字面值寫法",
+  "LiteralUnexpectedNumber": "數值格式化的結果含有非預期的字元，無法安全寫成字面值",
+  "LiteralTimeOutOfRange": "時間值超出 time 型別的 0:00:00 至 23:59:59.9999999 範圍"
+}

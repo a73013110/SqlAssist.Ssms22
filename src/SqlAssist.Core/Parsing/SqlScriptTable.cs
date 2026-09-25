@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -62,6 +63,7 @@ public sealed class SqlScriptTable
         _resolveColumns = resolveColumns ?? throw new ArgumentNullException(nameof(resolveColumns));
     }
 
+    [Localizable(false)]
     private SqlScriptTable(string name, int start, int end)
     {
         if (string.IsNullOrEmpty(name))
@@ -107,6 +109,8 @@ public sealed class SqlScriptTable
     /// <summary>只要名稱的那一份；欄位建議與萬用字元展開用的就是它。</summary>
     public IReadOnlyList<string> ColumnNames => _columnNames ??= BuildColumnNames();
 
+    // 只給偵錯器與測試失敗訊息看，介面不會顯示。
+    [Localizable(false)]
     public override string ToString() => $"{Name}（{Columns.Count} 個資料行）";
 
     private IReadOnlyList<string> BuildColumnNames()

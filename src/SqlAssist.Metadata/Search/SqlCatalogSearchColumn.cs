@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Metadata.Search;
@@ -13,6 +14,7 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public sealed class SqlCatalogSearchColumn
 {
+    [Localizable(false)]
     public SqlCatalogSearchColumn(SqlObjectInfo owner, string name)
     {
         Owner = owner ?? throw new ArgumentNullException(nameof(owner));

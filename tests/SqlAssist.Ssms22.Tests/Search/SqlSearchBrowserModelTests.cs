@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Lists;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.Search;
@@ -566,6 +567,31 @@ public sealed class SqlSearchBrowserModelTests
         Assert.Equal("LibArchive", model.DatabaseSummary());
         model.Scope.SetDatabaseSelected("LibReporting", selected: true);
         Assert.Equal("2 個", model.DatabaseSummary());
+    }
+
+    [Fact]
+    public void 英文介面的篩選摘要與頁尾跟著語言()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            var model = new SqlSearchBrowserModel();
+            model.UseCategories(Categories());
+
+            Assert.Equal("All", model.CategorySummary());
+            Assert.Equal("Not selected", model.ServerSummary());
+
+            model.SetCategorySelected("catalog.table", selected: true);
+            model.SetCategorySelected("catalog.view", selected: true);
+            Assert.Equal("2 kinds", model.CategorySummary());
+
+            // 排序選項是一份靜態清單，顯示字要每次取值才跟得上語言。
+            Assert.Equal("Relevance", SqlSearchSortOption.For(SqlSearchSort.Relevance).Label);
+
+            var waiting = new SqlSearchBrowserModel { HasConnection = true, Text = "Loan" };
+            waiting.Invalidate();
+            Assert.Equal("Results: 1,234", waiting.Footer(1234).Summary);
+            Assert.Equal("Searching…", waiting.Footer(1234).ActionLabel);
+        }
     }
 
     [Fact]

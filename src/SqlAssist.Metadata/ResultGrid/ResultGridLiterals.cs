@@ -56,9 +56,7 @@ internal static class ResultGridLiterals
                 {
                     // 位置要講清楚：178 欄的結果裡只說「有一欄轉不出來」等於沒說。
                     // 列號用格線上看得到的 1 起算，不是內部索引。
-                    failure = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "第 {0} 列的「{1}」欄轉不成 T-SQL 字面值：{2}。",
+                    failure = ResultGridText.ValueNotLiteral(
                         rowIndex + 1,
                         table.ScriptColumnNames[columnIndex],
                         reason);
@@ -119,11 +117,11 @@ internal static class ResultGridLiterals
     /// <summary>指令碼開頭那一行：這塊資料是從哪裡來的、多大。</summary>
     public static void AppendSourceComment(StringBuilder builder, ResultGridTable table)
     {
-        builder.Append("-- 由 SqlAssist 從查詢結果產生：")
-            .Append(table.Columns.Count.ToString(CultureInfo.InvariantCulture)).Append(" 欄 × ")
-            .Append(table.Rows.Count.ToString(CultureInfo.InvariantCulture)).Append(" 列")
-            .Append(table.IsWholeResult ? "（整份結果）" : "（選取範圍）")
-            .AppendLine("。");
+        var columns = table.Columns.Count;
+        var rows = table.Rows.Count;
+        builder.Append("-- ").AppendLine(table.IsWholeResult
+            ? ResultGridText.SourceWholeResult(columns, rows)
+            : ResultGridText.SourceSelection(columns, rows));
     }
 
     /// <summary>把識別字清單寫成 <c>[a], [b], [c]</c>。</summary>

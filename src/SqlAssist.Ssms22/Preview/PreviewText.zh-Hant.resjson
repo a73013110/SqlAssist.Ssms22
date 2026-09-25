@@ -1,0 +1,85 @@
+{
+  // 結構預覽浮動視窗的文字。
+  "Title": "結構預覽",
+  "FetchingCurrentItem": "正在取得目前建議項目…",
+  "NothingToShowSentence": "沒有結構可以顯示。",
+  // 標題與內文一組：標題沒有句號。
+  "NothingToShowTitle": "沒有結構可以顯示",
+  "NothingToShowMessage": "目前選取的項目沒有可以顯示的內容。",
+  "ScriptDeclaredNoColumns": "這個名稱是這份指令碼自己宣告的，但目前的文字裡讀不出它的資料行。",
+  "NoConnection": "沒有可用的連線；請先在查詢視窗連上資料庫。",
+  // 同一格裡並列多個性質（例如「已停用」與索引選項）時的分隔字。
+  "PartSeparator": "　",
+  // 條件約束的名稱是 SQL Server 自動產生的。
+  "SystemNamed": "系統命名",
+  "TriggerDefinitionUnavailable": "無法取得定義（已加密或權限不足）",
+  // 索引、條件約束與觸發程序共用的狀態字樣。
+  "Disabled": "已停用",
+  "LoadFailedPill": "索引與外來鍵讀取失敗",
+  // 「詳細記錄」是設定項目的名稱。
+  "LoadFailedToolTip": "原因見診斷紀錄檔（需開啟詳細記錄）",
+  // 資料格欄位標題。
+  "HeaderDescription": "說明",
+  "HeaderComputed": "計算欄位",
+  "HeaderDefault": "預設值",
+  "HeaderIndex": "索引",
+  "HeaderKeyColumns": "索引鍵",
+  "HeaderFilter": "篩選",
+  "HeaderOptions": "選項",
+  // 索引所在的檔案群組或分割區配置。
+  "HeaderLocation": "位置",
+  "HeaderForeignKey": "外來鍵",
+  // 外來鍵參考的資料表與資料行。
+  "HeaderReferences": "參考",
+  // 外來鍵的 ON DELETE／ON UPDATE 動作。
+  "HeaderActions": "動作",
+  "HeaderConstraint": "條件約束",
+  "HeaderConstraintColumn": "資料行",
+  "HeaderTrigger": "觸發程序",
+  "HeaderParameter": "參數",
+  // 參數是輸入或輸出。
+  "HeaderDirection": "方向",
+  // NULL、PK、IDENTITY 等徽章那一欄。
+  "HeaderFlags": "旗標",
+  // 分頁標籤。
+  "TabColumns": "欄位",
+  "TabIndexes": "索引",
+  "TabForeignKeys": "外來鍵",
+  "TabConstraints": "條件約束",
+  "TabTriggers": "觸發程序",
+  "TabParameters": "參數",
+  "TabScript": "指令碼",
+  // 內建函式說明時，指令碼分頁改顯示用法範例。
+  "TabExample": "範例",
+  "SearchToolTip": "在名稱、型別、說明與指令碼裡找；Enter／Shift+Enter 在指令碼裡跳到下一處／上一處",
+  "SearchName": "搜尋結構",
+  "ClearSearch": "清除搜尋",
+  "WrapToggle": "長文字換行顯示",
+  "CopyButton": "複製選取內容；沒有選取時複製完整指令碼",
+  // 調整大小把手的無障礙名稱。
+  "ResizeTopLeft": "左上角調整大小",
+  "ResizeBottomLeft": "左下角調整大小",
+  "ResizeTopRight": "右上角調整大小",
+  "ResizeBottomRight": "右下角調整大小",
+  "ResizeToolTip": "拖曳這一側調整寬高；雙擊重設目前擺放方式的尺寸",
+  "SizeReset": "已重設目前擺放方式的預覽尺寸。",
+  "Loading": "載入中…",
+  "IndexesLoading": "索引與外來鍵載入中…",
+  // {columns} 是主索引鍵的資料行清單。
+  "PrimaryKeyToolTip": "主索引鍵：{columns}（排序方向見索引分頁）",
+  "NoPrimaryKey": "沒有主索引鍵",
+  "DisplayFailed": "顯示失敗：{message}",
+  "CopiedSelectedScript": "已複製選取的指令碼。",
+  "CopiedFullScriptNoSelection": "沒有選取，已複製完整指令碼。",
+  "SelectCellsFirst": "請先在表格裡選取要複製的儲存格。",
+  "CopiedSelectedCells": "已複製選取的儲存格。",
+  "CopiedExample": "已複製範例。",
+  "CopiedFullScript": "已複製完整指令碼到剪貼簿。",
+  "CopiedStructureSummary": "已複製結構說明；完整可執行指令碼目前不可用。",
+  "CopiedWholeGrid": "已複製整個表格。",
+  "CopyFailed": "複製失敗：{message}",
+  // 資料格的右鍵選單。
+  "MenuCopySelectedCells": "複製選取的儲存格",
+  "MenuCopyWholeGrid": "複製整個表格",
+  "MenuCopyFullScript": "複製完整指令碼"
+}

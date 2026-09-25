@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Notifications;
@@ -51,7 +52,7 @@ internal sealed class NotificationOverlay : Window
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Manual;
         Focusable = false;
-        Title = "SqlAssist 通知";
+        Title = NotificationCatalog.OverlayTitle;
         var extent = NotificationIsland.MaxExtent;
         Width = extent.Width + ShadowMargin * 2;
         Height = extent.Height + ShadowMargin * 2;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using SqlAssist.Core.Localization;
 using SqlAssist.Metadata.Analysis;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Tests.Formatting;
@@ -33,6 +34,21 @@ public sealed class SqlSchemaAnalyzerTests
         Assert.Equal("IX_Loan_3", finding.TargetName);
         Assert.Contains("Remark", finding.Message);
         Assert.Equal(SqlSchemaSeverity.Warning, finding.Severity);
+    }
+
+    [Fact]
+    public void 發現用產生當下的語言寫成註解()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            var finding = Assert.Single(AnalyzeLoan(), f => f.RuleId == "SCHEMA-001");
+
+            Assert.Equal(
+                "[SCHEMA-001][Warning] IX_Loan_3: INCLUDE contains Remark nvarchar(max); " +
+                "the index will grow to the same scale as the table.",
+                finding.Describe());
+            Assert.Equal("INCLUDE contains a large object column", new SqlLargeObjectInIncludeRule().Title);
+        }
     }
 
     [Fact]

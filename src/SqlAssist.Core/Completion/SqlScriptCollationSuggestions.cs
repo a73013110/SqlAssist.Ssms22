@@ -22,8 +22,6 @@ namespace SqlAssist.Core.Completion;
 /// </remarks>
 public static class SqlScriptCollationSuggestions
 {
-    private const string Description = "這份指令碼已經用過的定序";
-
     /// <param name="tokens">整份指令碼的詞法單元。</param>
     public static IReadOnlyList<SqlSuggestion> Create(IReadOnlyList<SqlToken> tokens)
     {
@@ -57,8 +55,8 @@ public static class SqlScriptCollationSuggestions
             (suggestions ??= new List<SqlSuggestion>()).Add(new SqlSuggestion(
                 name.Value,
                 name.Value,
-                Description,
-                Description,
+                ScriptSuggestionText.CollationUsedInScript,
+                ScriptSuggestionText.CollationUsedInScript,
                 SuggestionKind.CollationInUse));
         }
 

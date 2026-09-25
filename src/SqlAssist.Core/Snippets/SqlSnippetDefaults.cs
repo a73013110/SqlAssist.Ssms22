@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Snippets;
 
@@ -10,10 +12,31 @@ public static class SqlSnippetDefaults
 {
     private const string ResourceName = "SqlAssist.Core.Snippets.DefaultSnippets.json";
 
-    private static readonly Lazy<SqlSnippetLibrary> CurrentValue = new(LoadCurrent);
+    /// <summary>依語言各載入一份：標題、說明與欄位提示疊上該語言的覆蓋檔。</summary>
+    private static readonly SqlLanguageCache<SqlSnippetLibrary> Libraries = new(Load);
 
-    /// <summary>隨組件發布、可由新版 VSIX 更新的 49 筆內建定義。</summary>
-    public static SqlSnippetLibrary Current => CurrentValue.Value;
+    /// <summary>隨組件發布、可由新版 VSIX 更新的 49 筆內建定義，文字是目前的介面語言。</summary>
+    public static SqlSnippetLibrary Current => Libraries.Current;
+
+    /// <summary>指定語言的內建定義。</summary>
+    public static SqlSnippetLibrary For(SqlLanguage language) => Libraries.For(language);
+
+    /// <summary>這一筆是否與某個語言的內建定義完全相同（同編號、同內容）。</summary>
+    /// <remarks>
+    /// 管理介面在語言 A 載入、換到語言 B 才存檔時，沒改過的內建項目仍是 A 的文字；只和目前語言比
+    /// 會把它們全部當成「已自訂」寫進使用者檔，之後就再也跟不上新版內建值。
+    /// </remarks>
+    public static bool IsUnmodifiedBuiltIn(SqlSnippet snippet)
+    {
+        if (snippet is null)
+        {
+            throw new ArgumentNullException(nameof(snippet));
+        }
+
+        return SqlLanguage.All.Any(language =>
+            For(language).TryGetById(snippet.Id, out var definition) &&
+            SqlSnippetMerger.AreEquivalent(snippet, definition));
+    }
 
     /// <summary>上一次載入內建資源失敗的原因；成功時為 null。</summary>
     /// <remarks>
@@ -31,7 +54,7 @@ public static class SqlSnippetDefaults
     /// <see cref="Lazy{T}"/> 會把例外<b>永久快取</b>起來反覆重丟。
     /// 沒有內建片段只是少了 49 筆建議，其餘功能照常。
     /// </remarks>
-    private static SqlSnippetLibrary LoadCurrent()
+    private static SqlSnippetLibrary Load(SqlLanguage language)
     {
         try
         {
@@ -41,7 +64,7 @@ public static class SqlSnippetDefaults
 
             if (stream is null)
             {
-                return Fail($"找不到內建 Snippet 資源：{ResourceName}");
+                return Fail(SnippetText.DefaultsMissing(ResourceName));
             }
 
             using var reader = new StreamReader(stream);
@@ -50,27 +73,63 @@ public static class SqlSnippetDefaults
             if (document.Version != SqlSnippetLibrary.CurrentVersion)
             {
                 return Fail(
-                    $"內建 Snippet 版本為 {document.Version}，程式支援 {SqlSnippetLibrary.CurrentVersion}。");
+                    SnippetText.DefaultsVersionMismatch(document.Version, SqlSnippetLibrary.CurrentVersion));
             }
 
+            var overlay = SqlTextOverlay.Load(assembly, ResourceName, language);
             var snippets = new List<SqlSnippet>(document.Snippets.Count);
 
             foreach (var record in document.Snippets)
             {
                 if (!record.Disabled && record.Snippet is { } snippet)
                 {
-                    snippets.Add(snippet);
+                    snippets.Add(Localize(snippet, overlay));
                 }
             }
 
             return snippets.Count == 0
-                ? Fail("內建 Snippet 資源沒有可用項目。")
+                ? Fail(SnippetText.DefaultsEmpty)
                 : new SqlSnippetLibrary(snippets);
         }
         catch (Exception exception)
         {
-            return Fail($"內建 Snippet 資源讀取失敗：{exception.Message}");
+            return Fail(SnippetText.DefaultsReadFailed(exception.Message));
         }
+    }
+
+    /// <summary>疊上覆蓋檔；編號是片段的 <c>id</c>。</summary>
+    /// <remarks>
+    /// 欄位是 <c>title</c>、<c>description</c>、<c>code</c>（只翻註解）與
+    /// <c>placeholders.&lt;欄位 id&gt;.tooltip</c>／<c>.default</c>；其餘設定不隨語言變。
+    /// </remarks>
+    private static SqlSnippet Localize(SqlSnippet snippet, SqlTextOverlay overlay)
+    {
+        var id = snippet.Id;
+
+        if (overlay.FieldsOf(id).Count == 0)
+        {
+            return snippet;
+        }
+
+        var placeholders = snippet.Placeholders
+            .Select(placeholder => new SqlSnippetPlaceholder(
+                placeholder.Id,
+                overlay.Apply(id, "placeholders." + placeholder.Id + ".default", placeholder.DefaultValue),
+                overlay.Apply(id, "placeholders." + placeholder.Id + ".tooltip", placeholder.ToolTip)))
+            .ToArray();
+
+        return new SqlSnippet(
+            snippet.Shortcut,
+            overlay.Apply(id, "code", snippet.Code),
+            overlay.Apply(id, "title", snippet.Title),
+            overlay.Apply(id, "description", snippet.Description),
+            snippet.TriggerFollowUp,
+            placeholders,
+            id,
+            snippet.Category,
+            snippet.IsDestructive,
+            snippet.ExpansionMode,
+            snippet.Positions);
     }
 
     private static SqlSnippetLibrary Fail(string reason)

@@ -21,17 +21,21 @@ function Assert-Condition([bool]$Condition, [string]$Message) {
 }
 
 function New-Fixture([string]$Name, [switch]$RealFiles) {
-    $root = Join-Path $testRoot $Name
+    # 白名單裡有子資料夾的檔案（衛星組件），fixture 名稱不能跟著多一層。
+    $root = Join-Path $testRoot ($Name -replace '[\\/]', '_')
     $source = Join-Path $root 'output'
     $target = Join-Path $root 'installed'
     $null = New-Item -ItemType Directory -Path $source, $target
     foreach ($file in $files) {
         $path = Join-Path $OutputPath $file.Name
+        foreach ($folder in $source, $target) {
+            $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent (Join-Path $folder $file.Name))
+        }
         if (Test-Path -LiteralPath $path -PathType Leaf) {
             # 成功案例驗真正產物；負向矩陣只需小型內容，避免重複複製數百 MB。
             if ($RealFiles -or $file.Name -in @('extension.vsixmanifest', 'SqlAssist.Ssms22.pkgdef')) {
-                Copy-Item -LiteralPath $path -Destination $source
-                Copy-Item -LiteralPath $path -Destination $target
+                Copy-Item -LiteralPath $path -Destination (Join-Path $source $file.Name)
+                Copy-Item -LiteralPath $path -Destination (Join-Path $target $file.Name)
             }
             else {
                 [IO.File]::WriteAllText((Join-Path $source $file.Name), "fixture：$($file.Name)")
@@ -48,8 +52,8 @@ function New-Fixture([string]$Name, [switch]$RealFiles) {
 }
 
 function Get-Snapshot([string]$Path) {
-    return (@(Get-ChildItem -LiteralPath $Path -File | Sort-Object Name | ForEach-Object {
-        "$($_.Name):$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
+    return (@(Get-ChildItem -LiteralPath $Path -File -Recurse | Sort-Object FullName | ForEach-Object {
+        "$([IO.Path]::GetRelativePath($Path, $_.FullName)):$((Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash)"
     }) -join "`n")
 }
 

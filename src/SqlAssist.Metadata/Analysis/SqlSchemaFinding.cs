@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Analysis;
 
@@ -29,6 +30,7 @@ public enum SqlSchemaSeverity
 /// </remarks>
 public sealed class SqlSchemaFinding
 {
+    [Localizable(false)]
     public SqlSchemaFinding(
         string ruleId,
         SqlSchemaSeverity severity,
@@ -65,7 +67,7 @@ public sealed class SqlSchemaFinding
     public string Describe() =>
         TargetName is null
             ? $"[{RuleId}][{Severity}] {Message}"
-            : $"[{RuleId}][{Severity}] {TargetName}：{Message}";
+            : $"[{RuleId}][{Severity}] {SchemaCheckText.FindingWithTarget(TargetName, Message)}";
 
     public override string ToString() => Describe();
 }

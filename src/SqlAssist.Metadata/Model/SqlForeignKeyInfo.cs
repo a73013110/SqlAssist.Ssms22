@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 using SqlAssist.Core.Parsing;
 
@@ -8,6 +9,7 @@ namespace SqlAssist.Metadata.Model;
 /// <summary>外來鍵中的一組欄位對應。</summary>
 public sealed class SqlForeignKeyColumn
 {
+    [Localizable(false)]
     public SqlForeignKeyColumn(string name, string referencedName)
     {
         if (string.IsNullOrEmpty(name))
@@ -70,6 +72,7 @@ public sealed class SqlForeignKeyRow
 /// <summary>資料表的單一外來鍵。</summary>
 public sealed class SqlForeignKeyInfo
 {
+    [Localizable(false)]
     public SqlForeignKeyInfo(
         string name,
         string referencedSchemaName,

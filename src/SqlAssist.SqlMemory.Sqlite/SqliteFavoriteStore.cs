@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Data.Sqlite;
@@ -10,6 +11,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>收藏：單一儲存入口、標註篩選的時間 keyset 分頁與版本時間軸。</summary>
+[Localizable(false)]
 internal sealed class SqliteFavoriteStore
 {
     private const string FavoriteCursor = "favorite2";

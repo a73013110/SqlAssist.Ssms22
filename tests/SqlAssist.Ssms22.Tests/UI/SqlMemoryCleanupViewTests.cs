@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 using Xunit;
@@ -148,6 +149,30 @@ public sealed class SqlMemoryCleanupViewTests
                     using var file = System.IO.File.Create(System.IO.Path.Combine(directory, $"sql-memory-cleanup-{mode}-{width}-{dpi}.png"));
                     encoder.Save(file);
                 }
+            }
+        });
+    }
+
+    [Fact]
+    public void EnglishCleanupDialogKeepsEveryControlInsideTheNarrowestWidth()
+    {
+        WpfTest.Run(() =>
+        {
+            using (SqlText.Use(SqlLanguage.Find("en")!))
+            {
+                var (host, view, _, _) = Host();
+                const int width = 480;
+                host.Measure(new Size(width, 700)); host.Arrange(new Rect(0, 0, width, 700));
+                Target(view, "Old revisions of favorites").IsChecked = true;
+                view.ShowEstimate(new SqlMemoryCleanupEstimate(12345, 67, 3, 120));
+                host.Measure(new Size(width, double.PositiveInfinity));
+                host.Arrange(new Rect(0, 0, width, Math.Ceiling(host.DesiredSize.Height))); host.UpdateLayout();
+
+                Assert.Equal("Cancel", view.Cancel.Content);
+                Assert.StartsWith("Clear (", (string)view.Submit.Content);
+                // 英文比中文寬：保留版本數那一列與頁尾兩顆按鈕都不能被擠出右緣。
+                foreach (var element in Descendants<FrameworkElement>(view).Where(element => element is Button or ComboBox or TextBox))
+                    Assert.InRange(element.TranslatePoint(new Point(element.ActualWidth, 0), host).X, 0, width - 16 + 0.5);
             }
         });
     }

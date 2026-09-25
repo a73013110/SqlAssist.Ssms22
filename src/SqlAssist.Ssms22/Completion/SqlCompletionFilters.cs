@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Completion;
@@ -24,34 +25,34 @@ namespace SqlAssist.Ssms22.Completion;
 internal static class SqlCompletionFilters
 {
     private static readonly ImmutableArray<CompletionFilter> Columns =
-        One("欄位", "c", SqlIcons.GetImageElement(SuggestionKind.Column));
+        One(CompletionText.FilterColumns, "c", SqlIcons.GetImageElement(SuggestionKind.Column));
 
     private static readonly ImmutableArray<CompletionFilter> Tables =
-        One("資料表", "t", SqlIcons.GetImageElement(SuggestionKind.Table));
+        One(CompletionText.FilterTables, "t", SqlIcons.GetImageElement(SuggestionKind.Table));
 
     private static readonly ImmutableArray<CompletionFilter> Views =
-        One("檢視", "v", SqlIcons.GetImageElement(SuggestionKind.View));
+        One(CompletionText.FilterViews, "v", SqlIcons.GetImageElement(SuggestionKind.View));
 
     private static readonly ImmutableArray<CompletionFilter> Procedures =
-        One("預存程序", "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
+        One(CompletionText.FilterProcedures, "p", SqlIcons.GetImageElement(SuggestionKind.Procedure));
 
     private static readonly ImmutableArray<CompletionFilter> ScalarFunctions =
-        One("純量函式", "f", SqlIcons.GetImageElement(SuggestionKind.Function));
+        One(CompletionText.FilterScalarFunctions, "f", SqlIcons.GetImageElement(SuggestionKind.Function));
 
     private static readonly ImmutableArray<CompletionFilter> TableFunctions =
-        One("資料表值函式（含內嵌與多敘述）", "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
+        One(CompletionText.FilterTableFunctions, "r", SqlIcons.GetImageElement(SuggestionKind.TableFunction));
 
     private static readonly ImmutableArray<CompletionFilter> BuiltInFunctions =
-        One("內建函式", "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
+        One(CompletionText.FilterBuiltInFunctions, "b", SqlIcons.GetImageElement(SuggestionKind.BuiltInFunction));
 
     private static readonly ImmutableArray<CompletionFilter> Keywords =
-        One("關鍵字", "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
+        One(CompletionText.FilterKeywords, "k", SqlIcons.GetImageElement(SuggestionKind.Keyword));
 
     private static readonly ImmutableArray<CompletionFilter> Snippets =
-        One("程式碼片段", "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
+        One(CompletionText.FilterSnippets, "s", SqlIcons.GetImageElement(SuggestionKind.Snippet));
 
     private static readonly ImmutableArray<CompletionFilter> Others =
-        One("其他", "o", SqlIcons.Ellipsis);
+        One(CommonText.Other, "o", SqlIcons.Ellipsis);
 
     /// <summary>
     /// 篩選鈕由左到右的順序。

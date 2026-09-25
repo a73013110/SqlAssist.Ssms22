@@ -58,7 +58,7 @@ internal static partial class SqlSearchActivation
         !SqlSearchCatalogs.IsSameServer(origin.ServerName, activeEditorServer);
 
     /// <summary>右鍵選單與停駐那一顆的名稱；未連線時在名稱上就說，不等使用者去讀提示。</summary>
-    public static string ActivateLabel(bool unconnected) => unconnected ? "移至定義（未連線）" : "移至定義";
+    public static string ActivateLabel(bool unconnected) => unconnected ? SqlSearchText.ActivateUnconnected : SqlSearchText.Activate;
 
     /// <summary>
     /// 描述啟動之後會發生什麼；給 Tooltip、右鍵選單與自動化名稱用。
@@ -75,15 +75,14 @@ internal static partial class SqlSearchActivation
             // 資料行命中只是「這個物件的哪一行對上了」，導航目標仍然是那個物件本身；
             // 寫成「捲到資料行」會承諾一件這條路徑沒有做的事。
             SqlCatalogSearchTarget { ColumnName: { Length: > 0 } column } target =>
-                "在" + WindowNoun(unconnected) + "開啟 " + target.DatabaseName + " 的 " + target.Name +
-                " 定義（命中資料行 " + column + "）",
+                SqlSearchText.ActivateColumnToolTip(WindowNoun(unconnected), target.DatabaseName, target.Name, column),
             SqlCatalogSearchTarget target =>
-                "在" + WindowNoun(unconnected) + "開啟 " + target.DatabaseName + " 的 " + target.Name + " 定義",
+                SqlSearchText.ActivateToolTip(WindowNoun(unconnected), target.DatabaseName, target.Name),
             _ => ""
         };
 
         return action.Length > 0 && unconnected && OriginOf(hit) is { } origin
-            ? action + "。它在 " + origin + " 上，不在目前查詢視窗那一台；按 F5 時 SSMS 會要求連線。"
+            ? SqlSearchText.ActivateElsewhere(action, origin)
             : action;
     }
 
@@ -95,7 +94,7 @@ internal static partial class SqlSearchActivation
     /// 使用者要在按 F5 之前就知道會跳連線對話框、該填哪一台。
     /// </remarks>
     public static string OpenedNote(SearchHit? hit, bool unconnected) =>
-        unconnected && OriginOf(hit) is { } origin ? "按 F5 時請連到 " + origin + "。" : "";
+        unconnected && OriginOf(hit) is { } origin ? SqlSearchText.OpenedNote(origin) : "";
 
     /// <summary>
     /// 未連線視窗開頭那幾行註解：來源伺服器與資料庫；不是伺服器上的東西時為空字串。
@@ -112,24 +111,24 @@ internal static partial class SqlSearchActivation
 
         var (what, database) = hit?.ActivatePayload switch
         {
-            SqlCatalogSearchTarget target => ("定義來自 " + target.Origin + " 上的 " + target.DatabaseName + " 資料庫",
+            SqlCatalogSearchTarget target => (SqlSearchText.HeaderDefinition(target.Origin, target.DatabaseName),
                 target.DatabaseName),
             SqlAgentJobSearchTarget { StepId: { } step } job =>
-                ($"命令來自 {job.Origin} 上的作業 {job.JobName} 第 {step} 步", job.DatabaseName),
-            SqlAgentJobSearchTarget job => ("命令來自 " + job.Origin + " 上的作業 " + job.JobName, job.DatabaseName),
+                (SqlSearchText.HeaderJobStep(job.Origin, job.JobName, step), job.DatabaseName),
+            SqlAgentJobSearchTarget job => (SqlSearchText.HeaderJob(job.Origin, job.JobName), job.DatabaseName),
             _ => ("", "")
         };
 
         if (what.Length == 0 || OriginOf(hit) is not { } origin) return "";
 
         var connect = database.Length == 0
-            ? "-- 按 F5 時 SSMS 會要求連線：請連到 " + origin + " 再執行。"
-            : "-- 按 F5 時 SSMS 會要求連線：請連到 " + origin + "，並把資料庫切到 " + database + " 再執行。";
+            ? SqlSearchText.HeaderConnect(origin)
+            : SqlSearchText.HeaderConnectDatabase(origin, database);
 
-        return "-- 這個查詢視窗沒有連線。" + what + "。" + newLine + connect + newLine + newLine;
+        return "-- " + SqlSearchText.HeaderUnconnected(what) + newLine + "-- " + connect + newLine + newLine;
     }
 
-    private static string WindowNoun(bool unconnected) => unconnected ? "未連線的新查詢視窗" : "新查詢視窗";
+    private static string WindowNoun(bool unconnected) => unconnected ? SqlSearchText.UnconnectedQueryWindow : SqlSearchText.NewQueryWindow;
 
     /// <summary>
     /// 這一筆在物件總管上指得出節點嗎；指不出來時 UI 收起入口。
@@ -159,21 +158,21 @@ internal static partial class SqlSearchActivation
     /// </remarks>
     public static string DescribeSelectInExplorer(SearchHit? hit) => hit?.ActivatePayload switch
     {
-        SqlAgentJobSearchTarget job => "在物件總管中選取 " + job.ServerName + " 上的作業 " + job.JobName,
+        SqlAgentJobSearchTarget job => SqlSearchText.SelectJobToolTip(job.ServerName, job.JobName),
         SqlCatalogSearchTarget target when target.ColumnName is { Length: > 0 } column =>
-            "在物件總管中選取 " + target.DatabaseName + " 的 " + target.Name + "，並停在資料行 " + column + " 上",
+            SqlSearchText.SelectColumnToolTip(target.DatabaseName, target.Name, column),
         SqlCatalogSearchTarget target when CanSelectInExplorer(hit) =>
-            "在物件總管中選取 " + target.DatabaseName + " 的 " + target.Name,
+            SqlSearchText.SelectToolTip(target.DatabaseName, target.Name),
         _ => ""
     };
 
     /// <summary>降級那一句裡的那個名詞；節點種類的措辭只有這一份。</summary>
     private static string Describe(SqlExplorerNode node) => node.Kind switch
     {
-        SqlExplorerNodeKind.Column => "資料行 " + node.Name,
-        SqlExplorerNodeKind.Trigger => "觸發程序 " + node.Name,
-        SqlExplorerNodeKind.Constraint => "條件約束 " + node.Name,
-        SqlExplorerNodeKind.Job => "作業 " + node.Name,
+        SqlExplorerNodeKind.Column => SqlSearchText.NodeColumn(node.Name),
+        SqlExplorerNodeKind.Trigger => SqlSearchText.NodeTrigger(node.Name),
+        SqlExplorerNodeKind.Constraint => SqlSearchText.NodeConstraint(node.Name),
+        SqlExplorerNodeKind.Job => SqlSearchText.NodeJob(node.Name),
         _ => node.Name
     };
 
@@ -195,6 +194,6 @@ internal static partial class SqlSearchActivation
     /// <summary>作業沒有「定義」可開；主要動作是把步驟命令開進新查詢視窗。</summary>
     private static string DescribeJob(SqlAgentJobSearchTarget job, bool unconnected) =>
         job.StepId is { } step
-            ? $"在{WindowNoun(unconnected)}開啟 {job.ServerName} 上 {job.JobName} 第 {step} 步的命令"
-            : $"在{WindowNoun(unconnected)}開啟 {job.ServerName} 上 {job.JobName} 的所有步驟命令";
+            ? SqlSearchText.OpenJobStepToolTip(WindowNoun(unconnected), job.ServerName, job.JobName, step)
+            : SqlSearchText.OpenJobToolTip(WindowNoun(unconnected), job.ServerName, job.JobName);
 }

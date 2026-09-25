@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Tabular;
 using SqlAssist.Metadata.ResultGrid;
 using SqlAssist.Ssms22.UI;
@@ -38,7 +39,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
     {
         // 每個視窗持有自己的 View，篩選與排序不影響來源結果或其他視窗。
         _profileView = new ListCollectionView(profiles.ToList());
-        SqlAssistDialogs.Configure(this, "SqlAssist — 欄位剖析", 1040, 620, minWidth: 640, minHeight: 400);
+        SqlAssistDialogs.Configure(this, ResultGridWindowText.ProfileWindowTitle, 1040, 620, minWidth: 640, minHeight: 400);
 
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
         Content = BuildLayout(table);
@@ -59,7 +60,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         var grid = CreateGrid();
         var body = new Grid();
         body.Children.Add(grid);
-        var empty = SqlAssistChrome.CreateHint("沒有符合條件的欄位", Metrics);
+        var empty = SqlAssistChrome.CreateHint(ResultGridWindowText.NoMatchingColumns, Metrics);
         empty.Margin = new Thickness(16);
         empty.HorizontalAlignment = HorizontalAlignment.Center;
         empty.VerticalAlignment = VerticalAlignment.Center;
@@ -70,8 +71,8 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         var surface = SqlAssistChrome.CreateSurface(body);
         Grid.SetRow(surface, 2);
 
-        var copy = SqlAssistChrome.CreateButton("複製目前表格", Metrics);
-        copy.ToolTip = "以表格複製目前篩選及排序後的欄位，包含表頭；可直接貼到 Excel。";
+        var copy = SqlAssistChrome.CreateButton(ResultGridWindowText.CopyTable, Metrics);
+        copy.ToolTip = ResultGridWindowText.CopyTableTip;
         copy.Click += OnCopy;
 
         var toolbar = new DockPanel { Margin = new Thickness(0, 12, 0, 12) };
@@ -80,21 +81,21 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         DockPanel.SetDock(count, Dock.Right);
         toolbar.Children.Add(count);
         var kind = SqlAssistChrome.CreateComboBox(Metrics);
-        kind.ItemsSource = new[] { "所有欄位", "全為 NULL", "僅單一值" };
+        kind.ItemsSource = new[] { ResultGridWindowText.AllColumns, ResultGridWindowText.AllNull, ResultGridWindowText.SingleValue };
         kind.SelectedIndex = 0;
         kind.Width = 136;
         kind.Margin = new Thickness(0, 0, 12, 0);
-        kind.ToolTip = "「僅單一值」至少需有兩列，NULL 也算一種值；只檢查目前結果。";
-        AutomationProperties.SetName(kind, "欄位狀態篩選");
+        kind.ToolTip = ResultGridWindowText.KindFilterTip;
+        AutomationProperties.SetName(kind, ResultGridWindowText.KindFilterName);
         DockPanel.SetDock(kind, Dock.Left);
         toolbar.Children.Add(kind);
         var search = SqlAssistChrome.CreateTextBox(Metrics);
-        AutomationProperties.SetName(search, "篩選欄名或型別");
-        var label = SqlAssistChrome.CreateMetadataText("篩選", Metrics);
+        AutomationProperties.SetName(search, ResultGridWindowText.SearchName);
+        var label = SqlAssistChrome.CreateMetadataText(ResultGridWindowText.Filter, Metrics);
         label.Margin = new Thickness(0, 0, 8, 0);
         DockPanel.SetDock(label, Dock.Left);
         toolbar.Children.Add(label);
-        search.ToolTip = "輸入欄位名稱或資料型別；清空即可顯示全部。";
+        search.ToolTip = ResultGridWindowText.SearchTip;
         toolbar.Children.Add(search);
         Grid.SetRow(toolbar, 1);
         root.Children.Add(toolbar);
@@ -103,7 +104,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
 
         void RefreshCount()
         {
-            count.Text = $"{grid.Items.Count:N0} / {table.Columns.Count:N0} 欄";
+            count.Text = ResultGridWindowText.ColumnCount(grid.Items.Count, table.Columns.Count);
             empty.Visibility = grid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             copy.IsEnabled = grid.Items.Count > 0;
         }
@@ -122,7 +123,7 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         kind.SelectionChanged += (_, _) => RefreshFilter();
         RefreshCount();
 
-        var close = SqlAssistChrome.CreateButton("關閉", Metrics, primary: true);
+        var close = SqlAssistChrome.CreateButton(CommonText.Close, Metrics, primary: true);
         close.IsDefault = true;
         close.IsCancel = true;
         close.Click += (_, _) => Close();
@@ -148,23 +149,23 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         grid.FrozenColumnCount = 1;
         grid.ClipboardCopyMode = DataGridClipboardCopyMode.IncludeHeader;
         grid.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-        AutomationProperties.SetName(grid, "欄位統計，可按表頭排序");
+        AutomationProperties.SetName(grid, ResultGridWindowText.ProfileGridName);
 
         var cellText = SqlAssistChrome.CreateCellTextStyle();
         var numberText = SqlAssistChrome.CreateCellTextStyle(TextAlignment.Right);
 
-        Add(grid, "欄位", nameof(ResultGridColumnProfile.Name), 180, cellText);
-        Add(grid, "型別", nameof(ResultGridColumnProfile.DataType), 120, cellText);
-        Add(grid, "NULL 數", nameof(ResultGridColumnProfile.NullCount), 80, numberText, numeric: true);
-        Add(grid, "空字串數", nameof(ResultGridColumnProfile.EmptyTextCount), 80, numberText, numeric: true);
-        Add(grid, "相異值數", nameof(ResultGridColumnProfile.DistinctCount), 80, numberText, numeric: true,
-            tooltip: "NULL 也算一種值；不是 SQL COUNT(DISTINCT) 的計算方式。");
-        Add(grid, "字元數範圍", nameof(ResultGridColumnProfile.TextLength), 110, cellText,
-            tooltip: "文字的最短至最長字元數；非文字或沒有可計算的值時留空。");
-        Add(grid, "最小值", nameof(ResultGridColumnProfile.Minimum), 140, cellText,
-            tooltip: "T-SQL 字面值；沒有可比較的值時留空。排序依顯示文字，不是 SQL 型別。");
-        Add(grid, "最大值", nameof(ResultGridColumnProfile.Maximum), 1, cellText, star: true,
-            tooltip: "T-SQL 字面值；沒有可比較的值時留空。排序依顯示文字，不是 SQL 型別。");
+        Add(grid, CommonText.Column, nameof(ResultGridColumnProfile.Name), 180, cellText);
+        Add(grid, CommonText.Type, nameof(ResultGridColumnProfile.DataType), 120, cellText);
+        Add(grid, ResultGridWindowText.NullCount, nameof(ResultGridColumnProfile.NullCount), 80, numberText, numeric: true);
+        Add(grid, ResultGridWindowText.EmptyTextCount, nameof(ResultGridColumnProfile.EmptyTextCount), 80, numberText, numeric: true);
+        Add(grid, ResultGridWindowText.DistinctCount, nameof(ResultGridColumnProfile.DistinctCount), 80, numberText, numeric: true,
+            tooltip: ResultGridWindowText.DistinctCountTip);
+        Add(grid, ResultGridWindowText.TextLength, nameof(ResultGridColumnProfile.TextLength), 110, cellText,
+            tooltip: ResultGridWindowText.TextLengthTip);
+        Add(grid, ResultGridWindowText.Minimum, nameof(ResultGridColumnProfile.Minimum), 140, cellText,
+            tooltip: ResultGridWindowText.MinMaxTip);
+        Add(grid, ResultGridWindowText.Maximum, nameof(ResultGridColumnProfile.Maximum), 1, cellText, star: true,
+            tooltip: ResultGridWindowText.MinMaxTip);
 
         return grid;
     }
@@ -199,25 +200,25 @@ internal sealed class ResultGridProfileWindow : DialogWindow
     }
 
     private static string Describe(ResultGridTable table) =>
-        string.Format(
-            CultureInfo.InvariantCulture,
-            "{0:N0} 欄 × {1:N0} 列 · {2} · 僅統計已載入的結果，不重新查詢資料庫",
-            table.Columns.Count,
-            table.Rows.Count,
-            table.IsWholeResult ? "整份結果" : "選取範圍");
+        table.IsWholeResult
+            ? ResultGridWindowText.ProfileSummaryWholeResult(table.Columns.Count, table.Rows.Count)
+            : ResultGridWindowText.ProfileSummarySelection(table.Columns.Count, table.Rows.Count);
 
     /// <summary>複製的欄與畫面上的欄同名同序；數字不帶千分位，貼進 Excel 才是數值。</summary>
-    private static readonly SqlTabularColumn<ResultGridColumnProfile>[] CopyColumns =
-    {
-        new("欄位", profile => profile.Name),
-        new("型別", profile => profile.DataType),
-        new("NULL 數", profile => profile.NullCount.ToString(CultureInfo.InvariantCulture)),
-        new("空字串數", profile => profile.EmptyTextCount.ToString(CultureInfo.InvariantCulture)),
-        new("相異值數", profile => profile.DistinctCount.ToString(CultureInfo.InvariantCulture)),
-        new("字元數範圍", profile => profile.TextLength),
-        new("最小值", profile => profile.Minimum),
-        new("最大值", profile => profile.Maximum)
-    };
+    /// <remarks>每次複製重建，表頭才會跟著目前的介面語言。</remarks>
+    private static SqlTabularColumn<ResultGridColumnProfile>[] CopyColumns() =>
+        new SqlTabularColumn<ResultGridColumnProfile>[]
+        {
+            new(CommonText.Column, profile => profile.Name),
+            new(CommonText.Type, profile => profile.DataType),
+            new(ResultGridWindowText.NullCount, profile => profile.NullCount.ToString(CultureInfo.InvariantCulture)),
+            new(ResultGridWindowText.EmptyTextCount, profile => profile.EmptyTextCount.ToString(CultureInfo.InvariantCulture)),
+            new(ResultGridWindowText.DistinctCount, profile => profile.DistinctCount.ToString(CultureInfo.InvariantCulture)),
+            new(ResultGridWindowText.TextLength, profile => profile.TextLength),
+            new(ResultGridWindowText.Minimum, profile => profile.Minimum),
+            new(ResultGridWindowText.Maximum, profile => profile.Maximum)
+        };
+
 
     /// <remarks>
     /// 與清單的批次複製同一份產生器：TSV 給查詢視窗與記事本，HTML 給 Excel、Word 與郵件，
@@ -231,14 +232,14 @@ internal sealed class ResultGridProfileWindow : DialogWindow
         // 剪貼簿被鎖住由 SqlClipboard 重試並回報；其他例外也不值得關掉視窗。
         try
         {
-            var content = SqlTabularText.Build(CopyColumns, _profileView.Cast<ResultGridColumnProfile>());
+            var content = SqlTabularText.Build(CopyColumns(), _profileView.Cast<ResultGridColumnProfile>());
             var failure = await SqlClipboard.WriteAsync(SqlClipboard.CreateDataObject(content)).ConfigureAwait(true);
-            _statusText.Text = failure ?? "已複製 " + content.RowCount.ToString(CultureInfo.InvariantCulture) + " 欄的摘要。";
+            _statusText.Text = failure ?? ResultGridWindowText.ProfileCopied(content.RowCount);
         }
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製欄位剖析失敗：{exception.Message}");
-            _statusText.Text = $"複製失敗：{exception.Message}";
+            _statusText.Text = ResultGridWindowText.CopyFailed(exception.Message);
         }
     }
 }

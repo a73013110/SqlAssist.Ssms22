@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -913,6 +914,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// 錨點也要完整矩形——側邊的起點是錨點右緣，只有左上角推不出右側還剩多少。
     /// 字串只在詳細紀錄開著時才組，呼叫端已經先擋過一次。
     /// </remarks>
+    [Localizable(false)]
     private string DescribeObstacles() =>
         _obstacles.Count == 0
             ? string.Empty

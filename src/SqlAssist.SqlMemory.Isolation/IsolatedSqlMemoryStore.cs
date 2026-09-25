@@ -41,9 +41,9 @@ public sealed class IsolatedSqlMemoryStore : ISqlMemoryStore
         return Task.Run(() =>
         {
             var folder = Path.GetDirectoryName(typeof(IsolatedSqlMemoryStore).Assembly.Location)
-                ?? throw new InvalidOperationException("找不到 SQL Memory 組件目錄。");
+                ?? throw new InvalidOperationException(SqlMemoryIsolationText.AssemblyFolderMissing);
             var config = Path.Combine(folder, "SqlMemory.Isolation.config");
-            if (!File.Exists(config)) throw new FileNotFoundException("缺少 SQL Memory 隔離載入設定。", config);
+            if (!File.Exists(config)) throw new FileNotFoundException(SqlMemoryIsolationText.IsolationConfigMissing, config);
             var domain = AppDomain.CreateDomain("SqlAssist.SqlMemory." + Guid.NewGuid().ToString("N"), null,
                 new AppDomainSetup { ApplicationBase = folder, ConfigurationFile = config });
             var resolution = new IsolationAssemblyResolveScope();

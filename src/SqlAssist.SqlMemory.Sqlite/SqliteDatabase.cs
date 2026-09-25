@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -14,6 +15,7 @@ namespace SqlAssist.SqlMemory.Sqlite;
 /// 只提供同步方法，由隔離 AppDomain 的 worker 直接呼叫；非同步與排背景只在隔離邊界做一次，
 /// 不再「Task.Run 包 I/O、worker 又同步等待」而一個操作占兩條執行緒。
 /// </remarks>
+[Localizable(false)]
 internal sealed class SqliteDatabase
 {
     private readonly string _connectionString;

@@ -32,14 +32,14 @@ public sealed class SqlMemoryToolWindow : ToolWindowPane
         {
             var pane = package.FindToolWindow(typeof(SqlMemoryToolWindow), 0, true);
             if (pane?.Frame is not IVsWindowFrame frame)
-                throw new InvalidOperationException("SSMS 未建立 SQL Memory 工具窗。");
+                throw new InvalidOperationException(SqlMemoryUiText.ToolWindowMissing);
             ErrorHandler.ThrowOnFailure(frame.Show());
             if (pane is SqlMemoryToolWindow window && window._host.Content is SqlMemoryBrowser browser)
                 browser.ShowPage(page);
         }
         catch (Exception error)
         {
-            VsShellUtilities.ShowMessageBox(package, error.Message, "開啟 SQL Memory 失敗",
+            VsShellUtilities.ShowMessageBox(package, error.Message, SqlMemoryUiText.OpenFailedTitle,
                 OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -31,7 +32,9 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public static class SqlAgentJobScript
 {
+    [Localizable(false)]
     private const string OpeningConnection = "開啟 SQL Agent 作業連線";
+    [Localizable(false)]
     private const string LoadingSteps = "載入 SQL Agent 作業步驟";
 
     /// <summary>
@@ -93,18 +96,15 @@ public static class SqlAgentJobScript
 
         var builder = new StringBuilder();
 
-        SqlScriptComment.AppendLine(builder, "SQL Agent 作業：" + target.JobName, newLine);
-        SqlScriptComment.AppendLine(builder, "伺服器：" + target.ServerName, newLine);
+        SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptJob(target.JobName), newLine);
+        SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptServer(target.ServerName), newLine);
 
         if (!target.IsEnabled)
         {
-            SqlScriptComment.AppendLine(builder, "這個作業目前是停用的。", newLine);
+            SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptDisabled, newLine);
         }
 
-        SqlScriptComment.AppendLine(
-            builder,
-            "以下是步驟命令本身，不是排程或通知設定；改動這裡的文字不會回寫到作業上。",
-            newLine);
+        SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptStepsNote, newLine);
 
         foreach (var step in steps)
         {
@@ -118,10 +118,12 @@ public static class SqlAgentJobScript
     private static void AppendStep(StringBuilder builder, SqlAgentJobStep step, string newLine)
     {
         var order = step.StepId.ToString(CultureInfo.InvariantCulture);
-        var heading = step.Name.Length == 0 ? "第 " + order + " 步" : "第 " + order + " 步：" + step.Name;
+        var heading = step.Name.Length == 0
+            ? SearchSourceText.AgentJobScriptStep(order)
+            : SearchSourceText.AgentJobScriptNamedStep(order, step.Name);
 
-        if (step.Subsystem.Length > 0) heading += "（" + step.Subsystem + "）";
-        if (step.DatabaseName.Length > 0) heading += "　資料庫：" + step.DatabaseName;
+        if (step.Subsystem.Length > 0) heading += SearchSourceText.AgentJobScriptStepSubsystem(step.Subsystem);
+        if (step.DatabaseName.Length > 0) heading += SearchSourceText.AgentJobScriptStepDatabase(step.DatabaseName);
 
         SqlScriptComment.AppendLine(builder, heading, newLine);
 
@@ -129,7 +131,7 @@ public static class SqlAgentJobScript
 
         if (command.Length == 0)
         {
-            SqlScriptComment.AppendLine(builder, "這一步沒有命令內容。", newLine);
+            SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptEmptyStep, newLine);
             return;
         }
 
@@ -137,10 +139,7 @@ public static class SqlAgentJobScript
         {
             // 非 T-SQL 的子系統整段註解掉，並說明原因。留成可執行文字的話，
             // 使用者按 F5 得到的是一個語法錯誤，而錯誤訊息指不出「這本來就不是 SQL」。
-            SqlScriptComment.AppendLine(
-                builder,
-                "這一步的子系統不是 TSQL，下面的命令原文不能直接執行，已整段保留為註解。",
-                newLine);
+            SqlScriptComment.AppendLine(builder, SearchSourceText.AgentJobScriptNotTsql, newLine);
             SqlScriptComment.AppendLine(builder, command, newLine);
             return;
         }

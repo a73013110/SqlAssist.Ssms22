@@ -29,7 +29,7 @@ public static class SqlSnippetValidation
     {
         if (string.IsNullOrWhiteSpace(shortcut))
         {
-            error = "捷徑不能空白。";
+            error = SnippetText.ShortcutEmpty;
             return false;
         }
 
@@ -40,7 +40,7 @@ public static class SqlSnippetValidation
         {
             if (!char.IsLetterOrDigit(character) && character != '_')
             {
-                error = $"捷徑只能用字母、數字與底線，不能有「{character}」。";
+                error = SnippetText.ShortcutInvalidCharacter(character);
                 return false;
             }
         }
@@ -50,7 +50,7 @@ public static class SqlSnippetValidation
         // 不該由片段贏走。內建片段用 cs、be、ifb 讓開這一條。
         if (SqlKeywordCatalog.TryGetCanonical(shortcut!, out var keyword))
         {
-            error = $"捷徑不能與 T-SQL 關鍵字「{keyword}」同名。";
+            error = SnippetText.ShortcutIsKeyword(keyword);
             return false;
         }
 

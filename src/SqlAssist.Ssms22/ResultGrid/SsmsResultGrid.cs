@@ -64,7 +64,7 @@ internal sealed class SsmsResultGrid
 
         if (docView is null)
         {
-            failure = "找不到作用中的查詢視窗。";
+            failure = ResultGridWindowText.NoQueryWindow;
             return false;
         }
 
@@ -73,7 +73,7 @@ internal sealed class SsmsResultGrid
 
         if (found.Count == 0)
         {
-            failure = "這個查詢視窗裡沒有結果格線。先執行一次會回傳結果的查詢。";
+            failure = ResultGridWindowText.NoResultGrid;
             return false;
         }
 
@@ -81,7 +81,7 @@ internal sealed class SsmsResultGrid
 
         if (GridReflection.Property(chosen, "GridStorage") is not { } storage)
         {
-            failure = "這個結果格線還沒有資料。";
+            failure = ResultGridWindowText.GridHasNoData;
             return false;
         }
 
@@ -122,7 +122,7 @@ internal sealed class SsmsResultGrid
 
         if (getCellData is null || isCellDataNull is null)
         {
-            failure = "這個版本的 SSMS 沒有提供讀取儲存格的方法，無法從結果格線取值。";
+            failure = ResultGridWindowText.CellReaderMissing;
             return false;
         }
 
@@ -181,7 +181,7 @@ internal sealed class SsmsResultGrid
 
         if (blocks.Count == 0)
         {
-            failure = "先在結果格線裡點一格，再執行一次這個命令。";
+            failure = ResultGridWindowText.ClickCellFirst;
             return false;
         }
 
@@ -190,7 +190,7 @@ internal sealed class SsmsResultGrid
 
         if (row < 0 || row >= totalRows || dataColumn < 0 || dataColumn >= totalColumns)
         {
-            failure = "點到的位置不在資料範圍內。";
+            failure = ResultGridWindowText.CellOutOfRange;
             return false;
         }
 
@@ -199,7 +199,7 @@ internal sealed class SsmsResultGrid
 
         if (getCellData is null || isCellDataNull is null)
         {
-            failure = "這個版本的 SSMS 沒有提供讀取儲存格的方法，無法從結果格線取值。";
+            failure = ResultGridWindowText.CellReaderMissing;
             return false;
         }
 
@@ -237,8 +237,7 @@ internal sealed class SsmsResultGrid
         {
             if (original(column) is int mapped && mapped != column)
             {
-                failure = "這個結果格線的欄位順序被拖動過。SqlAssist 只在原始順序下取值，"
-                    + "請先把欄位順序還原（或重新執行一次查詢）再試。";
+                failure = ResultGridWindowText.ColumnsReordered;
                 return false;
             }
         }

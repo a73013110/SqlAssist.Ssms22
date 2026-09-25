@@ -30,6 +30,12 @@ public sealed class SqlMemoryRuntimeStatus : IEquatable<SqlMemoryRuntimeStatus>
 {
     public SqlMemoryRuntimeStatus(SqlMemoryRuntimePhase phase, long generation, SqlCaptureDrop? lastDrop = null,
         SqlMemoryStorageErrorKind? errorKind = null, string? errorMessage = null)
+        : this(phase, generation, lastDrop, errorKind, errorMessage, null)
+    {
+    }
+
+    private SqlMemoryRuntimeStatus(SqlMemoryRuntimePhase phase, long generation, SqlCaptureDrop? lastDrop,
+        SqlMemoryStorageErrorKind? errorKind, string? errorMessage, Exception? error)
     {
         if (!Enum.IsDefined(typeof(SqlMemoryRuntimePhase), phase)) throw new ArgumentOutOfRangeException(nameof(phase));
         if (generation < 0) throw new ArgumentOutOfRangeException(nameof(generation));
@@ -38,7 +44,11 @@ public sealed class SqlMemoryRuntimeStatus : IEquatable<SqlMemoryRuntimeStatus>
         LastDrop = lastDrop;
         ErrorKind = errorKind;
         ErrorMessage = errorMessage;
+        _error = error;
     }
+
+    // 開檔失敗的原例外；說明在取 Message 時才依目前語言組，換語言後狀態列跟著換。
+    private readonly Exception? _error;
 
     public static SqlMemoryRuntimeStatus Initial { get; } = new(SqlMemoryRuntimePhase.Disabled, 0);
 
@@ -53,6 +63,7 @@ public sealed class SqlMemoryRuntimeStatus : IEquatable<SqlMemoryRuntimeStatus>
     /// <summary>開啟失敗時的分類；不是 <see cref="SqlMemoryStorageException"/> 的失敗為 null。</summary>
     public SqlMemoryStorageErrorKind? ErrorKind { get; }
 
+    /// <summary>失敗的原始訊息，供診斷；儲存層的是固定繁中，不直接顯示。</summary>
     public string? ErrorMessage { get; }
 
     public bool IsAvailable => Phase == SqlMemoryRuntimePhase.Ready;
@@ -60,35 +71,35 @@ public sealed class SqlMemoryRuntimeStatus : IEquatable<SqlMemoryRuntimeStatus>
     /// <summary>工具窗顯示的一行狀態；一切正常時是空字串。</summary>
     public string Message => Phase switch
     {
-        SqlMemoryRuntimePhase.Opening => "正在開啟 SQL Memory…",
+        SqlMemoryRuntimePhase.Opening => SqlMemoryText.StatusOpening,
         SqlMemoryRuntimePhase.Ready => LastDrop switch
         {
-            SqlCaptureDrop.StorageBusy => "SQL Memory 資料庫忙碌中，有擷取未記錄。",
-            SqlCaptureDrop.QueueFull => "SQL Memory 佇列已滿，本次未記錄。",
-            SqlCaptureDrop.SnapshotTooLarge => "這份 SQL 太大，本次未記錄。",
+            SqlCaptureDrop.StorageBusy => SqlMemoryText.StatusBusyDropped,
+            SqlCaptureDrop.QueueFull => SqlMemoryText.StatusQueueFull,
+            SqlCaptureDrop.SnapshotTooLarge => SqlMemoryText.StatusTooLarge,
             _ => "",
         },
         SqlMemoryRuntimePhase.OpenFailed => ErrorKind switch
         {
-            SqlMemoryStorageErrorKind.Busy => "SQL Memory 資料庫正被其他程序占用，暫時無法開啟；稍後變更設定或重新啟動 SSMS 再試。",
-            SqlMemoryStorageErrorKind.Incompatible => "SQL Memory 資料庫版本不相容，未開啟也不會自動重建：" + ErrorMessage,
-            SqlMemoryStorageErrorKind.Corrupt => "SQL Memory 資料庫已損毀，未開啟：" + ErrorMessage,
-            _ => "無法開啟 SQL Memory：" + ErrorMessage,
+            SqlMemoryStorageErrorKind.Busy => SqlMemoryText.OpenBusy,
+            SqlMemoryStorageErrorKind.Incompatible => SqlMemoryText.OpenIncompatible,
+            SqlMemoryStorageErrorKind.Corrupt => SqlMemoryText.OpenCorrupt,
+            _ => SqlMemoryText.OpenFailed(_error is null ? ErrorMessage : SqlMemoryTimeText.Describe(_error)),
         },
-        SqlMemoryRuntimePhase.WriterFailed => "SQL Memory 寫入失敗，已停止擷取；請檢查診斷後重新啟用。",
-        _ => "SQL Memory 已停用；請在設定中啟用。",
+        SqlMemoryRuntimePhase.WriterFailed => SqlMemoryText.WriterFailed,
+        _ => SqlMemoryText.Disabled,
     };
 
     public SqlMemoryRuntimeStatus With(SqlMemoryRuntimePhase phase, bool nextGeneration = false) =>
         new(phase, nextGeneration ? Generation + 1 : Generation);
 
-    public SqlMemoryRuntimeStatus WithDrop(SqlCaptureDrop drop) => new(Phase, Generation, drop, ErrorKind, ErrorMessage);
+    public SqlMemoryRuntimeStatus WithDrop(SqlCaptureDrop drop) => new(Phase, Generation, drop, ErrorKind, ErrorMessage, _error);
 
     public SqlMemoryRuntimeStatus WithOpenFailure(Exception error)
     {
         if (error == null) throw new ArgumentNullException(nameof(error));
         return new(SqlMemoryRuntimePhase.OpenFailed, Generation, null,
-            (error as SqlMemoryStorageException)?.Kind, error.Message);
+            (error as SqlMemoryStorageException)?.Kind, error.Message, error);
     }
 
     public bool Equals(SqlMemoryRuntimeStatus? other) => other is not null && Phase == other.Phase &&
@@ -120,14 +131,14 @@ public sealed class SqlCaptureDroppedEventArgs : EventArgs
     /// 沒有保存的原因短語；通知的標題已經說了是哪一件事，這裡只補「為什麼」。
     /// </summary>
     /// <remarks>
-    /// 常數而不是內插字串：擷取被拒是熱路徑上的事件，而措辭只有這一份，
+    /// 不帶變數的一句：擷取被拒是熱路徑上的事件，而措辭只有這一份，
     /// 宿主不自己拼一句完整敘述。工具窗那一行完整狀態在
     /// <see cref="SqlMemoryRuntimeStatus.Message"/>，兩者各自回答不同的問題。
     /// </remarks>
     public string Reason => Drop switch
     {
-        SqlCaptureDrop.StorageBusy => "資料庫忙碌",
-        SqlCaptureDrop.QueueFull => "佇列已滿",
-        _ => "這份 SQL 太大",
+        SqlCaptureDrop.StorageBusy => SqlMemoryText.DropBusy,
+        SqlCaptureDrop.QueueFull => SqlMemoryText.DropQueueFull,
+        _ => SqlMemoryText.DropTooLarge,
     };
 }

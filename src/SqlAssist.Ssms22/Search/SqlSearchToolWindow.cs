@@ -33,14 +33,14 @@ public sealed class SqlSearchToolWindow : ToolWindowPane
         {
             var pane = package.FindToolWindow(typeof(SqlSearchToolWindow), 0, true);
             if (pane?.Frame is not IVsWindowFrame frame)
-                throw new InvalidOperationException("SSMS 未建立 SQL Search 工具窗。");
+                throw new InvalidOperationException(SqlSearchText.ToolWindowMissing);
             ErrorHandler.ThrowOnFailure(frame.Show());
             if (pane is SqlSearchToolWindow window && window._host.Content is SqlSearchBrowser browser)
                 browser.FocusSearch();
         }
         catch (Exception error)
         {
-            VsShellUtilities.ShowMessageBox(package, error.Message, "開啟 SQL Search 失敗",
+            VsShellUtilities.ShowMessageBox(package, error.Message, SqlSearchText.OpenFailed,
                 OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
         }
     }

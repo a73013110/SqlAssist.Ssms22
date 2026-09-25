@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
 /// <summary>預存程序或函式的單一參數。</summary>
 public sealed class SqlParameterInfo
 {
+    [Localizable(false)]
     public SqlParameterInfo(int ordinal, string name, string dataType, bool isOutput)
     {
         if (string.IsNullOrEmpty(name))

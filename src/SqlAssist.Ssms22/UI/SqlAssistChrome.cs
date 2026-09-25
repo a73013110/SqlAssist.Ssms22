@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Ssms22.UI;
@@ -267,7 +268,7 @@ internal static partial class SqlAssistChrome
             VerticalAlignment = VerticalAlignment.Bottom,
             Cursor = System.Windows.Input.Cursors.SizeNWSE,
             Focusable = false,
-            ToolTip = "拖曳調整大小",
+            ToolTip = ChromeText.ResizeGrip,
             Template = new ControlTemplate(typeof(Thumb)) { VisualTree = area }
         };
     }
@@ -319,7 +320,7 @@ internal static partial class SqlAssistChrome
             Focusable = true,
             Background = Brushes.Transparent,
             VerticalContentAlignment = VerticalAlignment.Center,
-            ToolTip = "在這一列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。"
+            ToolTip = ChromeText.HorizontalStripToolTip
         };
         AutomationProperties.SetName(strip, automationName);
 
@@ -653,7 +654,7 @@ internal static partial class SqlAssistChrome
             Focusable = false
         });
 
-        cancel = CreateButton("取消", DefaultMetrics);
+        cancel = CreateButton(CommonText.Cancel, DefaultMetrics);
         // Enter 與 Esc 都先保留草稿；只有明確移到動作按鈕後才允許破壞性操作。
         cancel.IsDefault = true;
         cancel.IsCancel = true;

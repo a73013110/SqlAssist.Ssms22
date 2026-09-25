@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -65,10 +66,15 @@ public sealed class SqlCatalogSearchIndex
 
     private const int ColumnOverheadBytes = 64;
 
+    [Localizable(false)]
     private const string OpeningConnection = "開啟搜尋索引連線";
+    [Localizable(false)]
     private const string LoadingObjects = "載入搜尋索引物件";
+    [Localizable(false)]
     private const string LoadingColumns = "載入搜尋索引資料行";
+    [Localizable(false)]
     private const string LoadingDefinitions = "載入搜尋索引定義本文";
+    [Localizable(false)]
     private const string LoadingSchemas = "載入搜尋索引結構描述";
 
     private readonly Dictionary<int, SqlObjectInfo> _byObjectId;
@@ -77,6 +83,7 @@ public sealed class SqlCatalogSearchIndex
     /// 這一份索引涵蓋到哪一刻的變更（<c>MAX(modify_date)</c>）；一個物件都沒有時為 null。
     /// </param>
     /// <param name="definitions">定義本文；這一份索引還沒撈第二段時為 null。</param>
+    [Localizable(false)]
     public SqlCatalogSearchIndex(
         string databaseName,
         IReadOnlyList<SqlObjectInfo> objects,

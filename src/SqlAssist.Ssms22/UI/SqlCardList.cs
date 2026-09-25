@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -49,6 +50,7 @@ internal abstract class SqlCardListBase<TAction> : ListBox where TAction : struc
     /// 列有沒有實作 <see cref="ISqlCheckableRow"/> 與樣板有沒有勾選欄。
     /// 勾選與 <see cref="Selector.SelectedItem"/> 分開：後者仍只代表焦點與預覽。
     /// </remarks>
+    [Localizable(false)]
     public void EnableSelection(ISqlCardSelection selection)
     {
         if (_selection is not null) throw new InvalidOperationException("這份清單已經開了多選。");

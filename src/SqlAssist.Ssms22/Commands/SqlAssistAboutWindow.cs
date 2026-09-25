@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Settings;
 using SqlAssist.Ssms22.UI;
@@ -22,9 +23,6 @@ namespace SqlAssist.Ssms22.Commands;
 internal sealed class SqlAssistAboutWindow : DialogWindow
 {
     private static readonly SqlAssistChrome.Metrics Metrics = SqlAssistChrome.DefaultMetrics;
-
-    private const string CountOrderText = "依次數";
-    private const string ElapsedOrderText = "依總耗時";
 
     private readonly SqlAssistDiagnosticSnapshot _snapshot;
     private readonly IReadOnlyList<SqlAssistHealthCheck> _health;
@@ -51,7 +49,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         _health = SqlAssistDiagnosticReport.EvaluateHealth(snapshot);
         _summary = SqlAssistDiagnosticReport.Summarize(snapshot, _health);
 
-        SqlAssistDialogs.Configure(this, "SqlAssist — 關於與診斷", 820, 680, minWidth: 680, minHeight: 540);
+        SqlAssistDialogs.Configure(this, AboutText.WindowTitle, 820, 680, minWidth: 680, minHeight: 540);
 
         // 原生標題列與內容標誌均使用 SqlAssist 產品圖示（高 DPI 下自動平滑渲染）。
         _logoSource = TryLoadLogo();
@@ -105,7 +103,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         }.WithTheme(TextBlock.ForegroundProperty, ThemeBrush.ListForeground));
         copy.Children.Add(new TextBlock
         {
-            Text = _snapshot.Description,
+            Text = AboutText.ProductDescription,
             FontSize = Metrics.Caption,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 3, 0, 8)
@@ -113,7 +111,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
 
         var badges = new StackPanel { Orientation = Orientation.Horizontal };
         badges.Children.Add(SqlAssistChrome.CreateBadge(
-            $"版本 {_snapshot.BuildVersion.DisplayVersion}",
+            AboutText.VersionBadge(_snapshot.BuildVersion.DisplayVersion),
             Metrics));
 
         // 抬頭的徽章三個分頁都看得到，所以放最短的那一句；完整結論在「概覽」上方。
@@ -141,11 +139,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             Template = SqlAssistChrome.CreateTabControlTemplate()
         }.WithTheme(TabControl.BackgroundProperty, ThemeBrush.WindowBackground);
 
-        tabs.Items.Add(CreateTab("概覽", BuildOverview()));
-        tabs.Items.Add(CreateTab("設定摘要", BuildSettings()));
-        tabs.Items.Add(CreateTab("診斷", BuildDiagnostics()));
-        tabs.Items.Add(CreateTab("工作階段統計", BuildNotificationDigest()));
-        tabs.Items.Add(CreateTab("通知失敗", BuildNotificationFailures()));
+        tabs.Items.Add(CreateTab(AboutText.TabOverview, BuildOverview()));
+        tabs.Items.Add(CreateTab(AboutText.TabSettings, BuildSettings()));
+        tabs.Items.Add(CreateTab(AboutText.TabDiagnostics, BuildDiagnostics()));
+        tabs.Items.Add(CreateTab(AboutText.TabSessionStats, BuildNotificationDigest()));
+        tabs.Items.Add(CreateTab(AboutText.TabNotificationFailures, BuildNotificationFailures()));
         return tabs;
     }
 
@@ -154,36 +152,34 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         var content = CreateTabPanel();
         content.Children.Add(CreateHealthSummary());
         content.Children.Add(CreateSection(
-            "關於 SqlAssist",
+            AboutText.AboutSection,
             null,
             CreateInfoRow(
                 "Build",
                 $"{_snapshot.BuildVersion.FullVersion} · commit {_snapshot.BuildVersion.ShortCommitId}"),
-            CreateInfoRow("相容環境", "SSMS 22.x · Windows x64"),
-            CreateInfoRow("作者", _snapshot.Author),
-            CreateInfoRow("聯絡方式", _snapshot.ContactEmail),
-            CreateInfoRow("授權", $"{_snapshot.License} License · © 2026 {_snapshot.Author}")));
+            CreateInfoRow(AboutText.Compatibility, "SSMS 22.x · Windows x64"),
+            CreateInfoRow(AboutText.Author, _snapshot.Author),
+            CreateInfoRow(AboutText.Contact, _snapshot.ContactEmail),
+            CreateInfoRow(AboutText.License, $"{_snapshot.License} License · © 2026 {_snapshot.Author}")));
 
         var projectActions = new StackPanel { Orientation = Orientation.Horizontal };
         projectActions.Children.Add(CreateButton(
-            "GitHub 專案",
-            (_, _) => OpenExternal(_snapshot.RepositoryUrl, "開啟 GitHub 專案")));
+            AboutText.GitHubProject,
+            (_, _) => OpenExternal(_snapshot.RepositoryUrl, AboutText.OpenGitHubProject)));
         projectActions.Children.Add(CreateButton(
-            "回報問題",
-            (_, _) => OpenExternal(_snapshot.IssuesUrl, "開啟問題回報頁")));
+            AboutText.ReportIssue,
+            (_, _) => OpenExternal(_snapshot.IssuesUrl, AboutText.OpenIssuePage)));
         // 與「工具 → SqlAssist → 檢查更新…」同一份實作；結論是右下角通知島上的提醒。
-        projectActions.Children.Add(CreateButton("檢查更新", (_, _) => CheckForUpdates()));
+        projectActions.Children.Add(CreateButton(AboutText.CheckForUpdates, (_, _) => CheckForUpdates()));
 
         content.Children.Add(CreateSection(
-            "專案與支援",
-            "這是公開原始碼專案。回報問題前可先按下方的「複製診斷資訊」，再貼到 GitHub Issue。",
+            AboutText.ProjectSection,
+            AboutText.ProjectHint,
             projectActions));
 
         content.Children.Add(CreateSection(
-            "隱私與資料",
-            "建議與中繼資料處理都在本機完成，只查詢目前已連線的 SQL Server；" +
-            "不會把 SQL 傳到雲端，也沒有 AI 模型參與。複製的診斷摘要不含 SQL、" +
-            "伺服器名稱、資料庫名稱或 Windows 使用者名稱。"));
+            AboutText.PrivacySection,
+            AboutText.PrivacyHint));
         return CreateScrollViewer(content);
     }
 
@@ -191,7 +187,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         var content = CreateTabPanel();
         content.Children.Add(SqlAssistChrome.CreateHint(
-            "以下是目前真正生效的值；這裡只做摘要，修改請使用「開啟設定」。",
+            AboutText.SettingsHint,
             Metrics));
 
         foreach (var section in SqlAssistDiagnosticSections.DescribeSettings(_snapshot))
@@ -206,36 +202,36 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         var content = CreateTabPanel();
         content.Children.Add(CreateSection(
-            "健康檢查",
-            "這裡顯示『設定想要的狀態』與『SSMS 實際狀態』是否一致。",
+            AboutText.HealthSection,
+            AboutText.HealthHint,
             _health.Select(CreateHealthRow).ToArray()));
 
         // 套件與設定服務的狀態不在這裡重複：上面的健康檢查已經各有一列，
         // 兩份文案分頭改動的結果會是同一頁裡自相矛盾。
         content.Children.Add(CreateSection(SqlAssistDiagnosticSections.DescribeRuntime(_snapshot)));
         content.Children.Add(CreateSection(
-            "環境",
+            AboutText.EnvironmentSection,
             null,
             CreateInfoRows(SqlAssistDiagnosticSections.DescribeVersion(_snapshot))
                 .Concat(CreateInfoRows(SqlAssistDiagnosticSections.DescribeEnvironment(_snapshot)))
                 .ToArray()));
 
         var logState = _snapshot.LogExists
-            ? $"存在 · {SqlAssistDiagnosticReport.FormatBytes(_snapshot.LogSizeBytes)}"
-            : "尚未建立";
+            ? AboutText.LogExists(SqlAssistDiagnosticReport.FormatBytes(_snapshot.LogSizeBytes))
+            : AboutText.LogNotCreated;
         var logUpdated = _snapshot.LogLastUpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "—";
 
         content.Children.Add(CreateSection(
-            "診斷紀錄",
+            AboutText.LogSection,
             _snapshot.Settings.VerboseLogging
-                ? "詳細紀錄目前已開啟；問題重現完成後，建議關閉以免持續增加檔案。"
-                : "平常保持停用即可；只有重現難查問題時才需要開啟詳細紀錄。",
+                ? AboutText.VerboseLoggingOnHint
+                : AboutText.VerboseLoggingOffHint,
             CreateInfoRow(
-                "詳細紀錄",
-                SqlAssistDiagnosticReport.FormatState(_snapshot.Settings.VerboseLogging)),
-            CreateInfoRow("檔案", logState),
-            CreateInfoRow("最後更新", logUpdated),
-            CreateInfoRow("路徑", _snapshot.LogPath, useCodeFont: true)));
+                AboutText.VerboseLogging,
+                _snapshot.Settings.VerboseLogging ? AboutText.StateOn : AboutText.StateOff),
+            CreateInfoRow(AboutText.LogFile, logState),
+            CreateInfoRow(AboutText.LogUpdated, logUpdated),
+            CreateInfoRow(AboutText.LogPath, _snapshot.LogPath, useCodeFont: true)));
         return CreateScrollViewer(content);
     }
 
@@ -244,18 +240,17 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         var content = CreateTabPanel();
         content.Children.Add(SqlAssistChrome.CreateHint(
-            "本次工作階段每一件事的呼叫次數與耗時。被通知設定隱藏的、只進統計的與快取命中都逐次計入，" +
-            "畫面上合併成一列的重複也是。不保存 SQL、連線字串或例外內容。", Metrics));
+            AboutText.SessionStatsHint, Metrics));
 
         var order = SqlAssistChrome.CreateComboBox(Metrics);
-        order.Items.Add(CountOrderText);
-        order.Items.Add(ElapsedOrderText);
+        order.Items.Add(AboutText.OrderByCount);
+        order.Items.Add(AboutText.OrderByElapsed);
         order.SelectedIndex = 0;
         order.Width = 132;
-        AutomationProperties.SetName(order, "工作階段統計的排序依據");
+        AutomationProperties.SetName(order, AboutText.OrderAutomationName);
 
         var chooser = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 12) };
-        var label = SqlAssistChrome.CreateLabel("排序", Metrics);
+        var label = SqlAssistChrome.CreateLabel(AboutText.OrderLabel, Metrics);
         label.Margin = new Thickness(0, 0, 8, 0);
         label.VerticalAlignment = VerticalAlignment.Center;
         chooser.Children.Add(label);
@@ -280,31 +275,31 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
                 : NotificationDigestOrder.Count);
             if (entries.Count == 0)
             {
-                rows.Children.Add(SqlAssistChrome.CreateHint("目前沒有統計資料。", Metrics));
+                rows.Children.Add(SqlAssistChrome.CreateHint(AboutText.NoSessionStats, Metrics));
                 return;
             }
 
             foreach (var entry in entries)
             {
                 rows.Children.Add(CreateInfoRow(
-                    entry.IsOther ? "其他" : NotificationKindToggle.Label(entry.Kind),
+                    entry.IsOther ? CommonText.Other : NotificationKindToggle.Label(entry.Kind),
                     DescribeDigestEntry(entry)));
             }
         }
         catch (Exception exception)
         {
             // 使用者剛切換的排序不能沒有反應；這裡不走安靜略過的平台探測。
-            ReportActionFailure("排序工作階段統計", exception);
+            ReportActionFailure(AboutText.SortSessionStats, exception);
         }
     }
 
     private static string DescribeDigestEntry(NotificationDigestEntry entry)
     {
         var headline = entry.Subject.Length == 0 ? entry.Title : entry.Title + " · " + entry.Subject;
-        var stats = $"{entry.Count} 次 · 總 {FormatMilliseconds(entry.Total)}" +
-            $" · 平均 {FormatMilliseconds(entry.Average)} · 最大 {FormatMilliseconds(entry.Max)}";
-        if (entry.Failed > 0) stats += $" · 失敗 {entry.Failed}";
-        if (entry.Degraded > 0) stats += $" · 降級 {entry.Degraded}";
+        var stats = AboutText.DigestStats(entry.Count, FormatMilliseconds(entry.Total),
+            FormatMilliseconds(entry.Average), FormatMilliseconds(entry.Max));
+        if (entry.Failed > 0) stats += " · " + AboutText.DigestFailed(entry.Failed);
+        if (entry.Degraded > 0) stats += " · " + AboutText.DigestDegraded(entry.Degraded);
         return headline + Environment.NewLine + stats;
     }
 
@@ -317,10 +312,10 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         var content = CreateTabPanel();
         content.Children.Add(BuildNotificationRehearsal());
         content.Children.Add(SqlAssistChrome.CreateHint(
-            "本次工作階段最近 30 項失敗；重新開啟此視窗可更新。不保存 SQL、連線字串或例外內容。", Metrics));
+            AboutText.FailuresHint, Metrics));
         var failures = NotificationCenter.Default.RecentFailures;
         if (failures.Count == 0)
-            content.Children.Add(SqlAssistChrome.CreateHint("目前沒有失敗紀錄。", Metrics));
+            content.Children.Add(SqlAssistChrome.CreateHint(AboutText.NoFailures, Metrics));
         foreach (var item in failures.Reverse())
             content.Children.Add(CreateInfoRow(item.Finished?.ToLocalTime().ToString("HH:mm:ss") ?? "",
                 $"{item.Title} · {NotificationCatalog.Provenance(item)}\n{NotificationKindToggle.Label(item.Kind)} / {item.Severity} · #{item.Id} · {(item.Finished - item.Started)?.TotalMilliseconds:0} ms"));
@@ -339,8 +334,8 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         }
 
         return CreateSection(
-            "測試通知",
-            "照目前的通知設定送出，結果出現在右下角的通知島。失敗的那一項也會列進下方清單，種類是「通知測試」。",
+            AboutText.RehearsalSection,
+            AboutText.RehearsalHint,
             buttons);
     }
 
@@ -352,11 +347,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
             // 活動的情境要幾秒後才完成，沒有人等它；之後才出的錯交給 Guard 記下。
             SqlAssistPlatformGuard.BeginProbe("通知測試", running);
             _statusText.Text = NotificationRehearsal.HiddenReason(scenario, SqlAssistSettingsStore.Current)
-                ?? $"已送出「{NotificationRehearsal.Label(scenario)}」；看右下角的通知島。";
+                ?? AboutText.RehearsalSent(NotificationRehearsal.Label(scenario));
         }
         catch (Exception exception)
         {
-            ReportActionFailure("通知測試", exception);
+            ReportActionFailure(AboutText.RehearsalOperation, exception);
         }
     }
 
@@ -390,11 +385,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         var utilities = new[]
         {
-            CreateButton("複製診斷資訊", OnCopyDiagnostics),
-            CreateButton("開啟紀錄檔", OnOpenLog),
-            CreateButton("開啟設定", OnOpenSettings)
+            CreateButton(AboutText.CopyDiagnostics, OnCopyDiagnostics),
+            CreateButton(AboutText.OpenLog, OnOpenLog),
+            CreateButton(AboutText.OpenSettings, OnOpenSettings)
         };
-        var close = CreateButton("關閉", (_, _) => Close(), primary: true);
+        var close = CreateButton(CommonText.Close, (_, _) => Close(), primary: true);
         close.IsDefault = true;
         close.IsCancel = true;
         return SqlAssistChrome.CreateDialogFooter(utilities, _statusText, close);
@@ -407,11 +402,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         try
         {
             var failure = await SqlClipboard.WriteTextAsync(SqlAssistDiagnosticReport.Create(_snapshot)).ConfigureAwait(true);
-            _statusText.Text = failure ?? "已複製隱私安全的診斷摘要。";
+            _statusText.Text = failure ?? AboutText.DiagnosticsCopied;
         }
         catch (Exception exception)
         {
-            ReportActionFailure("複製診斷資訊", exception);
+            ReportActionFailure(AboutText.CopyDiagnostics, exception);
         }
     }
 
@@ -424,7 +419,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         }
         catch (Exception exception)
         {
-            ReportActionFailure("開啟診斷紀錄檔", exception);
+            ReportActionFailure(AboutText.OpenDiagnosticsLog, exception);
         }
     }
 
@@ -438,11 +433,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
                 return;
             }
 
-            _statusText.Text = "無法開啟設定，請改用 Ctrl+, 並搜尋 SqlAssist。";
+            _statusText.Text = AboutText.SettingsUnavailable;
         }
         catch (Exception exception)
         {
-            ReportActionFailure("開啟設定", exception);
+            ReportActionFailure(AboutText.OpenSettings, exception);
         }
     }
 
@@ -451,11 +446,11 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         try
         {
             _checkForUpdates();
-            _statusText.Text = "正在檢查更新；結果會出現在右下角的通知上。";
+            _statusText.Text = AboutText.CheckingForUpdates;
         }
         catch (Exception exception)
         {
-            ReportActionFailure("檢查更新", exception);
+            ReportActionFailure(AboutText.CheckForUpdates, exception);
         }
     }
 
@@ -464,7 +459,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
         try
         {
             Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
-            _statusText.Text = $"已交給預設瀏覽器：{operation}";
+            _statusText.Text = AboutText.OpenedInBrowser(operation);
         }
         catch (Exception exception)
         {
@@ -476,7 +471,7 @@ internal sealed class SqlAssistAboutWindow : DialogWindow
     {
         // 這些都是使用者主動按下的動作；失敗時不能像平台探測一樣安靜略過。
         SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
-        _statusText.Text = $"{operation}失敗：{exception.Message}";
+        _statusText.Text = AboutText.ActionFailed(operation, exception.Message);
     }
 
     private static TabItem CreateTab(string header, UIElement content) =>

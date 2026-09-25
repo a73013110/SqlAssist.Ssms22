@@ -30,7 +30,7 @@ public static class SqlInPredicateScript
     private const int WrapWidth = 96;
 
     /// <summary>產不出來時的第一句。</summary>
-    private const string UnavailableHeadline = "無法從查詢結果產生 IN 條件。";
+    private static string UnavailableHeadline => ResultGridText.InUnavailable;
 
     public static string Build(ResultGridTable table)
     {
@@ -43,8 +43,8 @@ public static class SqlInPredicateScript
         {
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
-                "選取範圍裡沒有資料列，或這份結果沒有欄位。",
-                "先在結果格線裡選出要當條件的那一欄（或幾欄），再執行一次這個命令。");
+                ResultGridText.EmptySelection,
+                ResultGridText.SelectKeyColumnsFirst);
         }
 
         if (!ResultGridLiterals.TryFormatAll(table, out var literals, out var failure))
@@ -52,7 +52,7 @@ public static class SqlInPredicateScript
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
                 failure,
-                "把那一欄從選取範圍拿掉之後再試一次；其餘欄位都轉得出來。");
+                ResultGridText.RemoveFailedColumn);
         }
 
         var names = new string[table.Columns.Count];
@@ -128,7 +128,7 @@ public static class SqlInPredicateScript
 
         if (hasNull)
         {
-            builder.AppendLine("-- 選取範圍裡有 NULL；IN 清單比不到 NULL，另外用 OR 補上。");
+            builder.Append("-- ").AppendLine(ResultGridText.InNullAdded);
             builder.Append('(');
         }
 
@@ -171,8 +171,8 @@ public static class SqlInPredicateScript
     /// </remarks>
     private static void AppendCompositeKey(StringBuilder builder, string[] names, List<string[]> rows)
     {
-        builder.AppendLine("-- SQL Server 不接受 (a, b) IN ((1, N'x')) 這種列值寫法，複合鍵改寫成 OR 條件。");
-        builder.AppendLine("-- 欄名沒有加別名；多資料表的查詢裡請自行限定。");
+        builder.Append("-- ").AppendLine(ResultGridText.InCompositeKey);
+        builder.Append("-- ").AppendLine(ResultGridText.InUnqualifiedNames);
         builder.AppendLine("(");
 
         for (var index = 0; index < rows.Count; index++)

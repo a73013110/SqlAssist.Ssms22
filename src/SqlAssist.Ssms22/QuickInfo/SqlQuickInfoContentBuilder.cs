@@ -8,6 +8,7 @@ using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.UI;
+using System.ComponentModel;
 
 namespace SqlAssist.Ssms22.QuickInfo;
 
@@ -37,17 +38,9 @@ internal static class SqlQuickInfoContentBuilder
     /// </remarks>
     private const int MaximumDefinitionLines = 10;
 
-    private const string OpenStructureText = "開啟完整結構";
-
-    private const string OpenStructureTooltip = "開啟浮動結構視窗：可捲動、可用滑鼠選取複製，Esc 關閉";
-
-    private const string OpenReferenceText = "開啟完整說明";
-
-    private const string OpenReferenceTooltip = "開啟浮動視窗：各引數查得到哪些值，可捲動也可以複製";
-
-    private const string OnlineDocsText = "線上文件";
-
-    private const string OnlineDocsTooltip = "以預設瀏覽器開啟 Microsoft Learn 上的說明";
+    // 底部連結之間的間距；全形空白只是版面，不是文字。
+    [Localizable(false)]
+    private const string LinkGap = "　";
 
     /// <param name="openStructure">
     /// 「開啟完整結構」要執行的動作；建議清單的說明面板沒有可點擊的地方，傳 null 即可。
@@ -75,17 +68,17 @@ internal static class SqlQuickInfoContentBuilder
         var summary = new List<string>();
         if (showsColumns)
         {
-            summary.Add(detail.Columns.Count > 0 ? $"{detail.Columns.Count} 個欄位" : "欄位明細不可用");
+            summary.Add(detail.Columns.Count > 0 ? QuickInfoText.ColumnCount(detail.Columns.Count) : QuickInfoText.ColumnsUnavailable);
         }
         else
         {
             if (detail.Parameters.Count > 0)
             {
-                summary.Add($"{detail.Parameters.Count} 個參數");
+                summary.Add(QuickInfoText.ParameterCount(detail.Parameters.Count));
             }
             if (detail.Columns.Count > 0)
             {
-                summary.Add($"回傳 {detail.Columns.Count} 個資料行");
+                summary.Add(QuickInfoText.ReturnsColumns(detail.Columns.Count));
             }
         }
 
@@ -110,7 +103,7 @@ internal static class SqlQuickInfoContentBuilder
 
         if (detail.Object.Kind.IsModule() && string.IsNullOrWhiteSpace(detail.Definition))
         {
-            body.Add(Line(Comment("無法取得定義（可能已加密或權限不足）")));
+            body.Add(Line(Comment(QuickInfoText.DefinitionUnavailable)));
         }
 
         if (body.Count > 0)
@@ -129,7 +122,7 @@ internal static class SqlQuickInfoContentBuilder
     /// <summary>快取裡還沒有明細時顯示的內容：標題加上開啟面板的連結。</summary>
     public static ContainerElement BuildLoading(SqlObjectInfo objectInfo, Action? openStructure = null)
     {
-        var elements = new List<object> { BuildHeader(objectInfo, "明細載入中…") };
+        var elements = new List<object> { BuildHeader(objectInfo, QuickInfoText.Loading) };
 
         if (BuildFooter(openStructure, hiddenCount: 0) is { } footer)
         {
@@ -154,7 +147,7 @@ internal static class SqlQuickInfoContentBuilder
                 ContainerElementStyle.Wrapped,
                 SqlIcons.GetImageElement(SuggestionKind.Column),
                 Line(Title(column.Name))),
-                Line(Comment($"欄位 · {owner.QualifiedName}"))
+                Line(Comment(QuickInfoText.ColumnOf(owner.QualifiedName)))
         };
 
         if (BuildDescription(column.Description) is { } description)
@@ -218,7 +211,7 @@ internal static class SqlQuickInfoContentBuilder
 
         if (doc.Example.Length > 0)
         {
-            var runs = new List<ClassifiedTextRun> { Comment("範例  ") };
+            var runs = new List<ClassifiedTextRun> { Comment(QuickInfoText.Example + "  ") };
             runs.AddRange(BuildCodeRuns(doc.Example));
             body.Add(new ClassifiedTextElement(runs));
         }
@@ -236,9 +229,9 @@ internal static class SqlQuickInfoContentBuilder
         {
             footer.Add(new ClassifiedTextRun(
                 PredefinedClassificationTypeNames.Identifier,
-                OpenReferenceText,
+                QuickInfoText.OpenReference,
                 openReference,
-                OpenReferenceTooltip,
+                QuickInfoText.OpenReferenceTooltip,
                 ClassifiedTextRunStyle.Underline));
         }
 
@@ -246,14 +239,14 @@ internal static class SqlQuickInfoContentBuilder
         {
             if (footer.Count > 0)
             {
-                footer.Add(Text("　"));
+                footer.Add(Text(LinkGap));
             }
 
             footer.Add(new ClassifiedTextRun(
                 PredefinedClassificationTypeNames.Identifier,
-                OnlineDocsText,
+                QuickInfoText.OnlineDocs,
                 openDocs,
-                OnlineDocsTooltip,
+                QuickInfoText.OnlineDocsTooltip,
                 ClassifiedTextRunStyle.Underline));
         }
 
@@ -276,21 +269,21 @@ internal static class SqlQuickInfoContentBuilder
     {
         if (openStructure is null)
         {
-            return hiddenCount > 0 ? Line(Comment($"另有 {hiddenCount} 項未顯示")) : null;
+            return hiddenCount > 0 ? Line(Comment(QuickInfoText.MoreHidden(hiddenCount))) : null;
         }
 
         var runs = new List<ClassifiedTextRun>();
 
         if (hiddenCount > 0)
         {
-            runs.Add(Comment($"另有 {hiddenCount} 項未顯示　"));
+            runs.Add(Comment(QuickInfoText.MoreHidden(hiddenCount) + LinkGap));
         }
 
         runs.Add(new ClassifiedTextRun(
             PredefinedClassificationTypeNames.Identifier,
-            OpenStructureText,
+            QuickInfoText.OpenStructure,
             openStructure,
-            OpenStructureTooltip,
+            QuickInfoText.OpenStructureTooltip,
             ClassifiedTextRunStyle.Underline));
 
         return new ClassifiedTextElement(runs);
@@ -440,7 +433,7 @@ internal static class SqlQuickInfoContentBuilder
     {
         if (columns.Count == 0)
         {
-            yield return Line(Comment("沒有可顯示的欄位明細"));
+            yield return Line(Comment(QuickInfoText.NoColumnDetails));
             yield break;
         }
 

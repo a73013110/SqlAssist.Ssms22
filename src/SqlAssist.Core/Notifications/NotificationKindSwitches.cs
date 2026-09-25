@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 
 namespace SqlAssist.Core.Notifications;
@@ -40,6 +41,7 @@ public readonly struct NotificationKindSwitches : IEquatable<NotificationKindSwi
     public static bool operator !=(NotificationKindSwitches left, NotificationKindSwitches right) => !left.Equals(right);
 
     /// <summary>快照比對失敗時要看得出是哪幾類開著，所以列出名稱而不是印遮罩。</summary>
+    [Localizable(false)]
     public override string ToString()
     {
         var mask = _mask;

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22.UI;
 
@@ -39,9 +40,9 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         header.Children.Add(SqlAssistChrome.CreateMetadataText(Describe(selection), metrics));
         SearchBox = SqlAssistChrome.CreateTextBox(metrics);
         SearchBox.Margin = new Thickness(0, 8, 0, 4);
-        SearchBox.ToolTip = "搜尋捷徑、標題或說明；空白分隔多個關鍵字";
-        AutomationProperties.SetName(SearchBox, "搜尋片段：捷徑、標題或說明");
-        var label = SqlAssistChrome.CreateMetadataText("搜尋捷徑、標題或說明", metrics);
+        SearchBox.ToolTip = SnippetWindowText.SearchBoxToolTip;
+        AutomationProperties.SetName(SearchBox, SnippetWindowText.SearchBoxAutomationName);
+        var label = SqlAssistChrome.CreateMetadataText(SnippetWindowText.SearchLabel, metrics);
         header.Children.Add(label);
         header.Children.Add(SearchBox);
         _count = SqlAssistChrome.CreateStatusText(metrics);
@@ -61,18 +62,18 @@ internal sealed class SqlSnippetSurroundPanel : Grid
             IsTextSearchEnabled = false
         }.WithTheme(Control.BackgroundProperty, ThemeBrush.ListBackground)
             .WithTheme(Control.ForegroundProperty, ThemeBrush.ListForeground);
-        AutomationProperties.SetName(List, "可包夾片段");
+        AutomationProperties.SetName(List, SnippetWindowText.SurroundableListAutomationName);
         ScrollViewer.SetHorizontalScrollBarVisibility(List, ScrollBarVisibility.Disabled);
         body.Children.Add(List);
 
         var detail = new DockPanel();
-        _previewHint = SqlAssistChrome.CreateMetadataText("套用預覽", metrics);
+        _previewHint = SqlAssistChrome.CreateMetadataText(SnippetWindowText.ApplyPreviewHint, metrics);
         _previewHint.Margin = new Thickness(0, 0, 0, 8);
         DockPanel.SetDock(_previewHint, Dock.Top);
         detail.Children.Add(_previewHint);
         Preview = SqlAssistChrome.CreateCodeViewer(metrics);
-        Preview.ToolTip = "反白處是選取的 SQL，淡色是片段新增的外框";
-        AutomationProperties.SetName(Preview, "包夾後 SQL 預覽");
+        Preview.ToolTip = SnippetWindowText.PreviewToolTip;
+        AutomationProperties.SetName(Preview, SnippetWindowText.PreviewAutomationName);
         detail.Children.Add(Preview);
         Grid.SetColumn(detail, 2);
         body.Children.Add(detail);
@@ -81,14 +82,14 @@ internal sealed class SqlSnippetSurroundPanel : Grid
 
         var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-        CancelButton = SqlAssistChrome.CreateButton("取消", metrics);
-        ApplyButton = SqlAssistChrome.CreateButton("套用", metrics, primary: true);
+        CancelButton = SqlAssistChrome.CreateButton(CommonText.Cancel, metrics);
+        ApplyButton = SqlAssistChrome.CreateButton(SnippetWindowText.ApplyButton, metrics, primary: true);
         CancelButton.Margin = new Thickness(0, 0, 8, 0);
         buttons.Children.Add(CancelButton);
         buttons.Children.Add(ApplyButton);
         DockPanel.SetDock(buttons, Dock.Right);
         footer.Children.Add(buttons);
-        footer.Children.Add(SqlAssistChrome.CreateMetadataText("↑↓ 選擇 · Enter 套用 · Esc 取消", metrics));
+        footer.Children.Add(SqlAssistChrome.CreateMetadataText(SnippetWindowText.FooterHint, metrics));
         Grid.SetRow(footer, 2);
         Children.Add(footer);
         Filter(string.Empty);
@@ -119,7 +120,9 @@ internal sealed class SqlSnippetSurroundPanel : Grid
             ?? candidates.FirstOrDefault(item => ReferenceEquals(item, previous))
             ?? candidates.FirstOrDefault();
         List.SelectedItem = List.Items.Cast<ListBoxItem>().FirstOrDefault(item => ReferenceEquals(item.Tag, chosen));
-        _count.Text = candidates.Count == 0 ? "沒有相符片段；請修改或清除搜尋" : $"{candidates.Count} / {_snippets.Count} 個可包夾片段";
+        _count.Text = candidates.Count == 0
+            ? SnippetWindowText.NoMatchingSnippets
+            : SnippetWindowText.SurroundableCount(candidates.Count, _snippets.Count);
         UpdatePreview();
     }
 
@@ -143,7 +146,7 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         {
             PreviewText = string.Empty;
             SqlAssistChrome.SetCode(Preview, string.Empty, Array.Empty<Inline>());
-            _previewHint.Text = "套用預覽";
+            _previewHint.Text = SnippetWindowText.ApplyPreviewHint;
             return;
         }
 
@@ -158,10 +161,10 @@ internal sealed class SqlSnippetSurroundPanel : Grid
         var start = render.HasSurround ? render.SurroundOffset + _selection.BaseIndent.Length : -1;
         SqlAssistChrome.SetCode(Preview, PreviewText, Highlight(PreviewText, start, render.SurroundLength));
         _previewHint.Text = truncated
-            ? "預覽已截短；套用仍保留完整 SQL"
+            ? SnippetWindowText.PreviewTruncated
             : expanded.ExpansionMode == SqlSnippetExpansionMode.TabStops
-                ? $"套用後以 Tab 填寫 {expanded.Expansion.Fields.Count} 個欄位"
-                : "套用後游標移至結尾落點";
+                ? SnippetWindowText.ApplyFillsFields(expanded.Expansion.Fields.Count)
+                : SnippetWindowText.ApplyMovesCaretToEnd;
     }
 
     /// <summary>
@@ -234,8 +237,8 @@ internal sealed class SqlSnippetSurroundPanel : Grid
     /// <summary>被包住的內容有多少；跨行擴成整行時要先講，那是使用者沒有選到的部分。</summary>
     private static string Describe(SqlSnippetSurroundSelection selection)
     {
-        var summary = $"包住 {selection.LineCount} 行 · {selection.Text.Length} 個字元，不會執行 SQL";
-        return selection.ExpandedToLines ? $"跨行選取已擴成整行；請先確認預覽 · {summary}" : summary;
+        var summary = SnippetWindowText.SurroundSummary(selection.LineCount, selection.Text.Length);
+        return selection.ExpandedToLines ? SnippetWindowText.SurroundExpandedToLines(summary) : summary;
     }
 
     private static ListBoxItem CreateItem(SqlSnippet snippet)

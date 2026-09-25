@@ -148,7 +148,7 @@ public static class SqlValueLiteral
 
             default:
                 literal = string.Empty;
-                reason = "CLR 型別 " + value!.GetType().Name + " 沒有對得上的 T-SQL 字面值寫法";
+                reason = ResultGridText.LiteralUnsupportedClrType(value!.GetType().Name);
                 return false;
         }
     }
@@ -252,7 +252,7 @@ public static class SqlValueLiteral
                 && character != 'e' && character != 'E')
             {
                 literal = string.Empty;
-                reason = "數值格式化的結果含有非預期的字元，無法安全寫成字面值";
+                reason = ResultGridText.LiteralUnexpectedNumber;
                 return false;
             }
         }
@@ -268,7 +268,7 @@ public static class SqlValueLiteral
         if (duration < TimeSpan.Zero || duration >= TimeSpan.FromDays(1))
         {
             literal = string.Empty;
-            reason = "時間值超出 time 型別的 0:00:00 至 23:59:59.9999999 範圍";
+            reason = ResultGridText.LiteralTimeOutOfRange;
             return false;
         }
 

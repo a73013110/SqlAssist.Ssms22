@@ -1,0 +1,13 @@
+{
+  // 區塊結尾上方那條「↑ BEGIN（第 3 行）」提示；text 是提示本身的文字。
+  "HintAutomationName": "返回區塊起始行：{text}",
+  "HintClickToReturn": "點擊返回起始行",
+  "HintOutdated": "區塊已變更，請等待最新提示後再返回起始行。",
+  "HintFailed": "無法返回區塊起始行，請重新定位游標後再試。",
+  // 左邊界區塊符號的說明；kind 是 BEGIN、CASE 這類關鍵字。
+  "GlyphDescription": "{kind}：第 {first}–{last} 行",
+  // 捲軸旁概觀邊界的協助工具名稱。
+  "OverviewName": "{kind} 區塊範圍",
+  // 摺疊後滑鼠停留的提示；summary 是區塊開頭那一行的摘要。
+  "CollapsedHint": "{summary}（第 {line} 行）"
+}

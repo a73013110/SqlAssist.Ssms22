@@ -228,10 +228,7 @@ public sealed class SqlObjectStructure
             // 底下那兩種說法對它都是錯的——使用者會去查加密與 VIEW DEFINITION
             // 權限，而它從來不經過那兩關。
             case ScriptAvailability.MissingDefinition when Object.Kind.IsScriptDeclared():
-                script = BuildUnavailableScript(
-                    "宣告原文",
-                    "這個名稱是這份指令碼自己宣告的，宣告的位置卻已經不在目前的文字裡了——",
-                    "多半是提示顯示之後、開啟結構之前，那幾行被改掉或刪掉了。");
+                script = BuildUnavailableScript(StructureText.MissingDeclaration, StructureText.ReasonDeclarationMoved);
                 return true;
 
             // 檢視同時是模組也有欄位。定義取不到時原本會掉進 CREATE TABLE 那一支，
@@ -243,70 +240,41 @@ public sealed class SqlObjectStructure
             // 從來不經過那兩關。
             case ScriptAvailability.MissingDefinition:
                 script = Object.Kind.HasSynthesizedDefinition()
-                    ? BuildUnavailableScript(
-                        "定義",
-                        "sys.synonyms／sys.sequences 一列都沒有回來，而查詢本身沒有失敗——",
-                        "原因只有兩個：物件在建議清單被快取之後卸除，",
-                        "或是這個登入對它的權限在那之後被收回。")
-                    : BuildUnavailableScript(
-                        "定義",
-                        "OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，",
-                        "或是目前的登入沒有它的 VIEW DEFINITION 權限。");
+                    ? BuildUnavailableScript(StructureText.MissingDefinition, StructureText.ReasonSynthesizedDefinition)
+                    : BuildUnavailableScript(StructureText.MissingDefinition, StructureText.ReasonModuleDefinition);
                 return true;
 
             // 條件約束寫的是 ALTER TABLE，而那句話裡的每一個字都來自父物件：
             // 父物件讀不到時猜不出資料表名稱，猜出來的那一句還貼得上去。
             case ScriptAvailability.MissingConstraintParent:
-                script = BuildUnavailableScript(
-                    "所屬資料表結構",
-                    "條件約束的定義寫在它所屬的資料表上——DEFAULT 的運算式在資料行上，CHECK 的條件、",
-                    "鍵的資料行與外來鍵的參照都在那張表的索引與條件約束裡。那張表這一輪沒有讀齊：",
-                    "它可能在這份清單被快取之後卸除、這個登入對它的權限被收回，或是索引與條件約束",
-                    "那一次查詢失敗了。");
+                script = BuildUnavailableScript(StructureText.MissingParentStructure, StructureText.ReasonConstraintParent);
                 return true;
 
             // 父物件讀得到、上面卻沒有這個名字：名稱是使用者從清單點進來的，
             // 說「沒有指令碼」會讓他去查權限，而這裡要查的是它還在不在。
             case ScriptAvailability.ConstraintNotFound:
-                script = BuildUnavailableScript(
-                    "定義",
-                    "所屬的資料表讀到了，上面卻沒有這個名稱的條件約束——多半是它在這份清單",
-                    "被快取之後卸除或改名了。重新整理之後仍然看得到的話，它可能是本擴充還沒有",
-                    "讀到的那一種條件約束。");
+                script = BuildUnavailableScript(StructureText.MissingDefinition, StructureText.ReasonConstraintNotFound);
                 return true;
 
             // 一個欄位都沒有時組出來的是一對空括號，而那仍然是一段貼得上去的
             // CREATE TABLE：執行下去建出一張沒有欄位的資料表，比什麼都不做糟。
             case ScriptAvailability.MissingColumns:
-                script = BuildUnavailableScript(
-                    "欄位",
-                    "sys.columns 一列都沒有回來，而查詢本身沒有失敗——原因只有兩個：物件在",
-                    "建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。");
+                script = BuildUnavailableScript(StructureText.MissingColumns, StructureText.ReasonNoColumns);
                 return true;
 
             // 這一種與上面那一種相反：查詢本身失敗了，所以空的索引清單不是答案。
             // 照樣寫出 CREATE TABLE 的話會建出一張少了索引、條件約束與觸發程序的
             // 資料表，而它仍然貼得上去——與少了欄位的那一種同一條理由。
             case ScriptAvailability.IncompleteStructure:
-                script = BuildUnavailableScript(
-                    "索引與條件約束",
-                    "第四層查詢失敗了，而空的索引清單在這時候不是答案——原因可能是連線中斷、",
-                    "逾時，或這一版伺服器沒有查詢用到的某個目錄檢視欄位。伺服器說的那句話",
-                    "在「詳細記錄」打開時寫在診斷紀錄檔裡。");
+                script = BuildUnavailableScript(StructureText.MissingIndexes, StructureText.ReasonIndexQueryFailed);
                 return true;
 
             case ScriptAvailability.MissingExpressions:
-                script = BuildUnavailableScript(
-                    "計算資料行、預設值或 CHECK 運算式",
-                    "已查到欄位或條件約束，但無法取得完整運算式；可能缺少 VIEW DEFINITION 權限，",
-                    "或物件在讀取期間已被修改。保留欄位摘要，不產生不完整的 CREATE／ALTER。");
+                script = BuildUnavailableScript(StructureText.MissingExpressions, StructureText.ReasonExpressions);
                 return true;
 
             case ScriptAvailability.StructurePending:
-                script = BuildUnavailableScript(
-                    "完整結構",
-                    "索引與條件約束仍在載入中，請等載入完成後再複製指令碼；",
-                    "目前只顯示已取得的欄位，不將部分資料重建成可執行 SQL。");
+                script = BuildUnavailableScript(StructureText.MissingStructure, StructureText.ReasonStructurePending);
                 return true;
         }
 
@@ -411,21 +379,17 @@ public sealed class SqlObjectStructure
     /// 缺定義與缺欄位共用這一份格式，新的一種缺法也照這裡加：兩份格式的症狀是
     /// 其中一份改了另一份沒改，而使用者看到的是兩種說法。
     /// </remarks>
-    private string BuildUnavailableScript(string missing, params string[] reasons)
+    private string BuildUnavailableScript(string missing, string reason)
     {
+        // 原因是一整段，換行處各自成為一行註解：各語言在自己的句子裡斷行。
         var builder = new StringBuilder();
-        SqlScriptComment.AppendLine(builder, "取不到 " + Object.QualifiedName + " 的" + missing + "。", Environment.NewLine);
-
-        foreach (var reason in reasons)
-        {
-            SqlScriptComment.AppendLine(builder, reason, Environment.NewLine);
-        }
+        SqlScriptComment.AppendLine(builder, StructureText.UnavailableHeading(Object.QualifiedName, missing), Environment.NewLine);
+        SqlScriptComment.AppendLine(builder, reason, Environment.NewLine);
 
         if (Columns.Count > 0)
         {
             builder.AppendLine();
-            builder.Append("-- ").Append(Object.Kind.ToDisplayName()).Append(" 的欄位（")
-                .Append(Columns.Count).AppendLine(" 個）：");
+            SqlScriptComment.AppendLine(builder, StructureText.AvailableColumns(Object.Kind.ToDisplayName(), Columns.Count), Environment.NewLine);
 
             foreach (var column in Columns)
             {
@@ -436,7 +400,7 @@ public sealed class SqlObjectStructure
         if (Parameters.Count > 0)
         {
             builder.AppendLine();
-            builder.Append("-- 參數（").Append(Parameters.Count).AppendLine(" 個）：");
+            SqlScriptComment.AppendLine(builder, StructureText.AvailableParameters(Parameters.Count), Environment.NewLine);
 
             foreach (var parameter in Parameters)
             {

@@ -1,0 +1,16 @@
+{
+  "NumberedEditor": "SQL Editor {number}",
+  "Editor": "SQL Editor",
+  "TabHandlerName": "SqlAssist Tab and Snippet navigation",
+  "LoadingDefinition": "Retrieving the definition of {name}…",
+  "DefinitionFailed": "Failed to open object definition; see diagnostic log for details.",
+  "NoObjectAtCaret": "No recognized database object at cursor.",
+  "DeclaredInScript": "{name} is declared in this script; definition is in the current query window.",
+  "StructureUnavailable": "Cannot get the structure of {name}; the connection may be lost or permissions insufficient.",
+  "DefinitionOpened": "Opened the definition of {name} in a new query window",
+  "NewWindowNotEmpty": "The new query window is not empty; the definition was not written.",
+  "QueryWindowClosed": "The query window is closed; cannot show the object structure.",
+  "StructureFailed": "Failed to open object structure; see diagnostic log for details.",
+  "NotDatabaseObject": "{name} is not a recognized database object.",
+  "NoObjectHere": "No recognized database object at this location."
+}

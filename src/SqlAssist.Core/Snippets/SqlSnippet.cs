@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
@@ -182,6 +183,7 @@ public sealed class SqlSnippet
     /// 而且同一筆片段可以在不同編輯器裡各包各的。衍生的這一份只活過一次插入，
     /// 原生 XML 的快取以片段本身為鍵，跟著它一起回收。
     /// </remarks>
+    [Localizable(false)]
     public SqlSnippet WithSurroundText(string? selectedText)
     {
         if (!CanSurround)

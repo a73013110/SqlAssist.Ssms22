@@ -14,7 +14,7 @@ public interface ISqlMemoryTimerFactory
     /// <param name="period">第一次與之後每次觸發的間隔。</param>
     /// <param name="tick">觸發時呼叫；宿主必須觀察回傳的工作，不留下未觀察的例外。</param>
     /// <returns>釋放即停止計時器。</returns>
-    IDisposable Start(string name, TimeSpan period, Func<Task> tick);
+    IDisposable Start([Localizable(false)] string name, TimeSpan period, Func<Task> tick);
 }
 
 /// <summary>診斷紀錄；<see cref="Detail"/> 只在使用者開啟詳細診斷時寫入。</summary>
@@ -258,8 +258,7 @@ public sealed class SqlMemoryRuntime
         {
             // 本程序沒有租約時，自己開著的視窗在儲存層看起來也「沒有租約」，會被當成已關閉而清掉。
             if (request.Includes(SqlMemoryCleanupTargets.ClosedRecovery) && state.Heartbeat.LeaseId == null)
-                throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable,
-                    "SQL Memory 還在建立工作階段租約，暫時無法分辨哪些回復內容屬於已關閉的視窗；請一分鐘後再試。");
+                throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable, SqlMemoryText.LeasePending);
             return SqlMemoryCleanup.RunAsync(state.Storage, request, progress, token);
         }, result => (result.DeletedRows, result.ReleasedContentBytes, result.Usage), cancellationToken);
     }
@@ -403,7 +402,7 @@ public sealed class SqlMemoryRuntime
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
-            _activity.Record(new SqlMemoryActivity(_clock(), kind, 0, 0, error.Message));
+            _activity.Record(new SqlMemoryActivity(_clock(), kind, 0, 0, SqlMemoryTimeText.Describe(error)));
             throw;
         }
         var (rows, bytes, usage) = describe(result);
@@ -436,8 +435,7 @@ public sealed class SqlMemoryRuntime
             !cancellationToken.IsCancellationRequested && state.Lifetime.IsCancellationRequested)
         {
             // 呼叫端沒有取消，是儲存在途中被關閉或重開；世代已經換過，舊畫面不會採用這個結果。
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable,
-                "SQL Memory 已重新開啟或停用；請重新整理後再操作。");
+            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.Unavailable, SqlMemoryText.Reopened);
         }
     }
 
@@ -627,7 +625,7 @@ public sealed class SqlMemoryRuntime
         Drop(state, SqlCaptureDrop.StorageBusy,
             $"SQL Memory 儲存持續忙碌，放棄擷取 {capture.Kind}（SQLite {error.ErrorCode}/{error.ExtendedErrorCode}）：{error.Message}");
 
-    private void Drop(State state, SqlCaptureDrop drop, string diagnostic)
+    private void Drop(State state, SqlCaptureDrop drop, [Localizable(false)] string diagnostic)
     {
         _log.Important(diagnostic);
         if (ReferenceEquals(Volatile.Read(ref _state), state))

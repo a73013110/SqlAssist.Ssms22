@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SqlAssist.Core.Statements;
@@ -25,6 +26,7 @@ public static class SqlInsertStatementText
     /// 回傳結果字串中第一個值的位置。展開之後使用者要做的第一件事就是填第一個值，
     /// 把游標留在整段的結尾等於逼他自己捲回去。
     /// </param>
+    [Localizable(false)]
     public static string Build(
         string qualifiedName,
         IReadOnlyList<SqlStatementColumn> columns,

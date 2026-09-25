@@ -14,5 +14,7 @@
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <EmbeddedResource Include="Snippets\DefaultSnippets.json" />
     <EmbeddedResource Include="Keywords\BuiltInDocs.json" />
+    <!-- 語言覆蓋檔；WithCulture=false 讓 MSBuild 不把 .en.json 認成文化資源拆進衛星組件。 -->
+    <EmbeddedResource Include="Snippets\DefaultSnippets.*.json;Keywords\BuiltInDocs.*.json" WithCulture="false" />
   </ItemGroup>
 </Project>

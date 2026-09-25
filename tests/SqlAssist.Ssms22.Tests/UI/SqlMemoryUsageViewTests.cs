@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 using SqlAssist.Ssms22.UI;
 using Xunit;
@@ -272,6 +273,41 @@ public sealed class SqlMemoryUsageViewTests
             Layout(host, 360, 40); Layout(host, 360, 40);
             Assert.Equal(Visibility.Collapsed, settingsLabel.Visibility);
             Assert.True(Label(1));
+        });
+    }
+
+    [Fact]
+    public void EnglishUsagePageAndToolbarStayInsideTheNarrowestToolWindow()
+    {
+        WpfTest.Run(() =>
+        {
+            using (SqlText.Use(SqlLanguage.Find("en")!))
+            {
+                var (host, view, _) = Host();
+                view.ShowSummary(Summary(95 * Megabyte,
+                    activities: new SqlMemoryActivity(Now, SqlMemoryActivityKind.Cleanup, 1234, 3 * Megabyte)), motion: false);
+                Layout(host, 300);
+                Assert.Contains(Descendants<Button>(view), button => Descendants<TextBlock>(button).Any(text => text.Text == "Maintain now"));
+                foreach (var button in Descendants<Button>(view).Where(button => button.IsVisible))
+                    Assert.InRange(button.TranslatePoint(new Point(button.ActualWidth, 0), host).X, 0, 300 + 0.5);
+
+                var tabs = new TabControl();
+                tabs.Items.Add(SqlAssistChrome.CreateTab("History", SqlIcon.History));
+                tabs.Items.Add(SqlAssistChrome.CreateTab("Favorites", SqlIcon.Favorite));
+                var usage = SqlAssistChrome.CreateMemoryUsageTab();
+                tabs.Items.Add(usage);
+                tabs.SelectedIndex = 0;
+                SqlAssistChrome.SetUsageBadge(usage, SqlMemoryUsageSeverity.Critical, motion: false);
+                Assert.Equal("Usage: capacity near or over the limit", usage.ToolTip);
+                var settings = SqlAssistChrome.CreateButton("", SqlAssistChrome.DefaultMetrics);
+                var toolbar = SqlAssistChrome.CreateMemoryToolbar(tabs, settings);
+                var bar = new Border { Child = toolbar };
+                bar.Resources.MergedDictionaries.Add(new ThemeResourceSet().Resources);
+                Layout(bar, 300 - (2 * SqlAssistChrome.Spacing.Group), 40); Layout(bar, 300 - (2 * SqlAssistChrome.Spacing.Group), 40);
+                Assert.Equal("Settings", System.Windows.Automation.AutomationProperties.GetName(settings));
+                Assert.InRange(tabs.ActualHeight, 1, 32);
+                Assert.InRange(toolbar.DesiredSize.Width, 0, 300 - (2 * SqlAssistChrome.Spacing.Group) + 0.5);
+            }
         });
     }
 

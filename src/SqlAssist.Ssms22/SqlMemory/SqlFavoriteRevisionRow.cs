@@ -25,13 +25,15 @@ internal sealed class SqlFavoriteRevisionRow : INotifyPropertyChanged
     public string Timestamp => Item.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
 
     /// <summary>收藏自己的版本不分新增、編輯或回溯（三者同一個形狀）；引用自 History 的另外說明來源。</summary>
-    public string Origin => Item.Reason == SqlRevisionReason.Favorite ? "收藏版本" : "引用自 History";
+    public string Origin => Item.Reason == SqlRevisionReason.Favorite ? FavoriteText.OriginFavorite : FavoriteText.OriginImported;
 
     public string Detail => ContentMissing
-        ? Origin + " · 內容已清理"
-        : Origin + " · " + Item.Length.ToString("N0", CultureInfo.InvariantCulture) + " 字元";
+        ? FavoriteText.DetailCleaned(Origin)
+        : FavoriteText.DetailLength(Origin, Item.Length);
 
-    public string RevertLabel => IsCurrent ? "這已是目前版本" : CanRevert ? "回溯為新版本" : ContentMissing ? "內容已清理，無法回溯" : "內容與目前版本相同";
+    public string RevertLabel => IsCurrent ? FavoriteText.RevertLabelCurrent
+        : CanRevert ? FavoriteText.RevertToNewRevision
+        : ContentMissing ? FavoriteText.RevertLabelCleaned : FavoriteText.RevertLabelUnchanged;
 
     /// <summary>剛出現在時間軸（續頁或回溯之後）；播一次進場後由時間軸清掉，捲動重用容器不重播。</summary>
     public bool IsNew { get => _isNew; set => Set(ref _isNew, value, nameof(IsNew)); }

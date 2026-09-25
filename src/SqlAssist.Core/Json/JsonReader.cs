@@ -5,17 +5,53 @@ using System.Text;
 
 namespace SqlAssist.Core.Json;
 
-/// <summary>讀不成 JSON。</summary>
-public sealed class JsonParseException : Exception
+/// <summary>讀不成 JSON 的原因。</summary>
+public enum JsonParseError
 {
-    public JsonParseException(string message, int position)
-        : base($"{message}（位置 {position}）")
+    TrailingContent,
+    UnexpectedEnd,
+    ObjectNotClosed,
+    MemberNameNotString,
+    ColonExpected,
+    MemberSeparatorExpected,
+    ArrayNotClosed,
+    ElementSeparatorExpected,
+    StringNotClosed,
+    EscapeIncomplete,
+    UnicodeEscapeInvalid,
+    UnknownEscape,
+    UnknownValue,
+    CommentNotClosed,
+}
+
+/// <summary>讀不成 JSON。</summary>
+/// <remarks>
+/// 訊息會出現在片段管理員的狀態列，所以要跟著介面語言；譯文由 Core 的
+/// <c>JsonParseException.Text.cs</c> 補上。<c>tools/SqlAssist.TextGenerator</c> 也編這一份檔案來讀
+/// <c>.resjson</c>，那裡沒有譯文可用（譯文正是它產生的），訊息就退回錯誤碼與位置。
+/// </remarks>
+public sealed partial class JsonParseException : Exception
+{
+    public JsonParseException(JsonParseError error, int position, string? detail = null)
+        : base(Describe(error, position, detail))
     {
+        Error = error;
         Position = position;
     }
 
+    public JsonParseError Error { get; }
+
     /// <summary>出錯的字元位移，供呼叫端指回檔案裡的位置。</summary>
     public int Position { get; }
+
+    private static string Describe(JsonParseError error, int position, string? detail)
+    {
+        var message = detail is null ? $"{error} @ {position}" : $"{error} '{detail}' @ {position}";
+        Localize(error, position, detail, ref message);
+        return message;
+    }
+
+    static partial void Localize(JsonParseError error, int position, string? detail, ref string message);
 }
 
 /// <summary>
@@ -50,7 +86,7 @@ public static class JsonReader
 
         if (position < text.Length)
         {
-            throw new JsonParseException("文件結尾之後還有內容", position);
+            throw new JsonParseException(JsonParseError.TrailingContent, position);
         }
 
         return value;
@@ -62,7 +98,7 @@ public static class JsonReader
 
         if (position >= text.Length)
         {
-            throw new JsonParseException("內容意外結束", position);
+            throw new JsonParseException(JsonParseError.UnexpectedEnd, position);
         }
 
         return text[position] switch
@@ -88,7 +124,7 @@ public static class JsonReader
 
             if (position >= text.Length)
             {
-                throw new JsonParseException("物件沒有結尾的 }", position);
+                throw new JsonParseException(JsonParseError.ObjectNotClosed, position);
             }
 
             if (text[position] == '}')
@@ -99,7 +135,7 @@ public static class JsonReader
 
             if (text[position] != '"')
             {
-                throw new JsonParseException("物件的成員名稱必須是字串", position);
+                throw new JsonParseException(JsonParseError.MemberNameNotString, position);
             }
 
             var name = ParseString(text, ref position);
@@ -107,7 +143,7 @@ public static class JsonReader
 
             if (position >= text.Length || text[position] != ':')
             {
-                throw new JsonParseException("成員名稱之後必須是 :", position);
+                throw new JsonParseException(JsonParseError.ColonExpected, position);
             }
 
             position++;
@@ -126,7 +162,7 @@ public static class JsonReader
                 return JsonValue.FromObject(members);
             }
 
-            throw new JsonParseException("成員之後必須是 , 或 }", position);
+            throw new JsonParseException(JsonParseError.MemberSeparatorExpected, position);
         }
     }
 
@@ -141,7 +177,7 @@ public static class JsonReader
 
             if (position >= text.Length)
             {
-                throw new JsonParseException("陣列沒有結尾的 ]", position);
+                throw new JsonParseException(JsonParseError.ArrayNotClosed, position);
             }
 
             if (text[position] == ']')
@@ -165,7 +201,7 @@ public static class JsonReader
                 return JsonValue.FromArray(items);
             }
 
-            throw new JsonParseException("元素之後必須是 , 或 ]", position);
+            throw new JsonParseException(JsonParseError.ElementSeparatorExpected, position);
         }
     }
 
@@ -179,7 +215,7 @@ public static class JsonReader
         {
             if (position >= text.Length)
             {
-                throw new JsonParseException("字串沒有結尾的引號", position);
+                throw new JsonParseException(JsonParseError.StringNotClosed, position);
             }
 
             var current = text[position];
@@ -201,7 +237,7 @@ public static class JsonReader
 
             if (position >= text.Length)
             {
-                throw new JsonParseException("跳脫序列沒有寫完", position);
+                throw new JsonParseException(JsonParseError.EscapeIncomplete, position);
             }
 
             var escape = text[position];
@@ -226,7 +262,7 @@ public static class JsonReader
                             CultureInfo.InvariantCulture,
                             out var code))
                     {
-                        throw new JsonParseException("\\u 之後必須是四位十六進位數字", position);
+                        throw new JsonParseException(JsonParseError.UnicodeEscapeInvalid, position);
                     }
 
                     builder.Append((char)code);
@@ -234,7 +270,7 @@ public static class JsonReader
                     break;
 
                 default:
-                    throw new JsonParseException($"認不得的跳脫字元 \\{escape}", position - 1);
+                    throw new JsonParseException(JsonParseError.UnknownEscape, position - 1, escape.ToString());
             }
         }
     }
@@ -267,7 +303,7 @@ public static class JsonReader
                 CultureInfo.InvariantCulture,
                 out var number))
         {
-            throw new JsonParseException($"認不得的值 {literal}", start);
+            throw new JsonParseException(JsonParseError.UnknownValue, start, literal);
         }
 
         return JsonValue.FromNumber(number);
@@ -278,7 +314,7 @@ public static class JsonReader
         if (position + literal.Length > text.Length ||
             string.CompareOrdinal(text, position, literal, 0, literal.Length) != 0)
         {
-            throw new JsonParseException("認不得的值", position);
+            throw new JsonParseException(JsonParseError.UnknownValue, position);
         }
 
         position += literal.Length;
@@ -329,7 +365,7 @@ public static class JsonReader
 
                 if (position + 1 >= text.Length)
                 {
-                    throw new JsonParseException("區塊註解沒有結尾的 */", position);
+                    throw new JsonParseException(JsonParseError.CommentNotClosed, position);
                 }
 
                 position += 2;

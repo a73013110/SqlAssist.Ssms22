@@ -36,7 +36,7 @@ public static class SqlScriptTableDetail
     /// 這也是結構預覽的指令碼分頁交出<b>原文</b>而不是重組一份 <c>CREATE TABLE</c>
     /// 的理由：重組出來的那一段會寫著 <c>DEFAULT (指令碼宣告)</c>，貼回編輯器執行不了。
     /// </remarks>
-    private const string DefaultMarker = "(指令碼宣告)";
+    private static string DefaultMarker => StructureText.ScriptDeclaredDefault;
 
     /// <param name="script">
     /// 整份指令碼的原文；傳進來時會從中取出這份宣告，成為

@@ -1,0 +1,22 @@
+{
+  // 滑鼠停留提示底部的連結與它們的提示。
+  "OpenStructure": "開啟完整結構",
+  "OpenStructureTooltip": "開啟浮動結構視窗：可捲動、可用滑鼠選取複製，Esc 關閉",
+  "OpenReference": "開啟完整說明",
+  "OpenReferenceTooltip": "開啟浮動視窗：各引數查得到哪些值，可捲動也可以複製",
+  "OnlineDocs": "線上文件",
+  "OnlineDocsTooltip": "以預設瀏覽器開啟 Microsoft Learn 上的說明",
+  // 標題列後面的摘要，多項以分隔符號串起來。
+  "ColumnCount": "{count} 個欄位",
+  "ColumnsUnavailable": "欄位明細不可用",
+  "ParameterCount": "{count} 個參數",
+  "ReturnsColumns": "回傳 {count} 個資料行",
+  "DefinitionUnavailable": "無法取得定義（可能已加密或權限不足）",
+  "Loading": "明細載入中…",
+  // 停在欄位上時的第二行；owner 是所屬物件的限定名稱。
+  "ColumnOf": "欄位 · {owner}",
+  // 內建函式說明裡範例程式碼前面的標籤。
+  "Example": "範例",
+  "MoreHidden": "另有 {count} 項未顯示",
+  "NoColumnDetails": "沒有可顯示的欄位明細"
+}

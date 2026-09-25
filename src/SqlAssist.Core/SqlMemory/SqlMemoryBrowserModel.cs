@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Lists;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -112,27 +113,28 @@ public sealed class SqlMemoryBrowserModel
     private Guid? _restoreSelection;
     private bool _hasPage;
 
-    public static IReadOnlyList<SqlMemoryOption<SqlHistoryFilter>> KindOptions { get; } = Array.AsReadOnly(new[]
+    // 選項每次取值都用目前的語言重建；呼叫端以索引或 Value 對應，不依賴同一個執行個體。
+    public static IReadOnlyList<SqlMemoryOption<SqlHistoryFilter>> KindOptions => Array.AsReadOnly(new[]
     {
-        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.All, "全部"),
-        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Executions, "執行"),
-        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Drafts, "草稿"),
+        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.All, CommonText.All),
+        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Executions, SqlMemoryText.KindExecutions),
+        new SqlMemoryOption<SqlHistoryFilter>(SqlHistoryFilter.Drafts, SqlMemoryText.KindDrafts),
     });
 
-    public static IReadOnlyList<SqlMemoryOption<SqlHistoryPeriod>> PeriodOptions { get; } = Array.AsReadOnly(new[]
+    public static IReadOnlyList<SqlMemoryOption<SqlHistoryPeriod>> PeriodOptions => Array.AsReadOnly(new[]
     {
-        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.Today, "今天"),
-        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.SevenDays, "7 天"),
-        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.ThirtyDays, "30 天"),
-        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.Any, "不限"),
+        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.Today, SqlMemoryText.PeriodToday),
+        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.SevenDays, SqlMemoryText.PeriodSevenDays),
+        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.ThirtyDays, SqlMemoryText.PeriodThirtyDays),
+        new SqlMemoryOption<SqlHistoryPeriod>(SqlHistoryPeriod.Any, SqlMemoryText.PeriodAny),
     });
 
-    public static IReadOnlyList<SqlMemoryOption<SqlConnectionFacetSort>> SortOptions { get; } = Array.AsReadOnly(new[]
+    public static IReadOnlyList<SqlMemoryOption<SqlConnectionFacetSort>> SortOptions => Array.AsReadOnly(new[]
     {
-        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Recent, "最近使用優先", "最近"),
-        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Oldest, "最早使用優先", "最早"),
-        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Alphabetical, "名稱 A–Z", "A–Z"),
-        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.ReverseAlphabetical, "名稱 Z–A", "Z–A"),
+        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Recent, SqlMemoryText.SortRecent, SqlMemoryText.SortRecentShort),
+        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Oldest, SqlMemoryText.SortOldest, SqlMemoryText.SortOldestShort),
+        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.Alphabetical, SqlMemoryText.SortAlphabetical, "A–Z"),
+        new SqlMemoryOption<SqlConnectionFacetSort>(SqlConnectionFacetSort.ReverseAlphabetical, SqlMemoryText.SortReverseAlphabetical, "Z–A"),
     });
 
     public SqlMemoryBrowserTab Tab { get; set; }
@@ -244,7 +246,7 @@ public sealed class SqlMemoryBrowserModel
         _hasPage = true;
         // History 以建立時間、Favorites 以最後儲存時間排序；兩者都說得出搜尋到哪一天。
         SearchProgress = page.SearchedThrough is { } through
-            ? "已搜尋至 " + through.ToLocalTime().ToString("yyyy/MM/dd", CultureInfo.InvariantCulture)
+            ? SqlMemoryText.SearchedThrough(through.ToLocalTime().ToString("yyyy/MM/dd", CultureInfo.InvariantCulture))
             : null;
         return true;
     }
@@ -272,21 +274,23 @@ public sealed class SqlMemoryBrowserModel
             return loadedCount == 0
                 ? new SqlListFooter(SqlListFooterKind.Hidden, "")
                 : new SqlListFooter(SqlListFooterKind.Loading, loaded, SearchProgress,
-                    SearchProgress == null ? "載入中…" : "搜尋中…");
+                    SearchProgress == null ? SqlMemoryText.Loading : SqlMemoryText.Searching);
         }
         if (_page.Cursor != null)
         {
             return SearchProgress == null
-                ? new SqlListFooter(SqlListFooterKind.More, loaded, null, "載入更多")
-                : new SqlListFooter(SqlListFooterKind.ContinueSearch, "符合 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆",
-                    SearchProgress + "，繼續搜尋可再往前找", "繼續搜尋");
+                ? new SqlListFooter(SqlListFooterKind.More, loaded, null, SqlMemoryText.LoadMore)
+                : new SqlListFooter(SqlListFooterKind.ContinueSearch, SqlMemoryText.MatchedCount(Number(loadedCount)),
+                    SqlMemoryText.ContinueSearchHint(SearchProgress), SqlMemoryText.ContinueSearch);
         }
         return loadedCount == 0
-            ? new SqlListFooter(SqlListFooterKind.Empty, "沒有符合條件的項目", "可清除搜尋或放寬期間與範圍")
-            : new SqlListFooter(SqlListFooterKind.End, "已顯示全部 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆");
+            ? new SqlListFooter(SqlListFooterKind.Empty, SqlMemoryText.NoMatches, SqlMemoryText.NoMatchesHint)
+            : new SqlListFooter(SqlListFooterKind.End, SqlMemoryText.ShownAll(Number(loadedCount)));
     }
 
-    private static string Count(int loadedCount) => "已載入 " + loadedCount.ToString(CultureInfo.InvariantCulture) + " 筆";
+    private static string Count(int loadedCount) => SqlMemoryText.LoadedCount(Number(loadedCount));
+
+    private static string Number(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>移除一列後要選哪一列：留在原位置（即原本的下一列），刪掉最後一列就退到新的最後一列。</summary>
     /// <returns>null 表示清單已空。</returns>

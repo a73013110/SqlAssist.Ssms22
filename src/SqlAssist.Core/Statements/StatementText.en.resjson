@@ -1,0 +1,5 @@
+{
+  "UnknownType": "unknown type",
+  "FunctionParameterDefault": "{type}, accepts DEFAULT",
+  "ProcedureParameterOptional": "{type}, optional"
+}

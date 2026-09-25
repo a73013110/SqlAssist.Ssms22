@@ -325,7 +325,7 @@ public static class SqlMetadataReader
 
         return new SqlParameterInfo(
             record.GetInt32(0),
-            string.IsNullOrEmpty(name) ? "(傳回值)" : name,
+            string.IsNullOrEmpty(name) ? StructureText.ReturnValue : name,
             dataType,
             record.GetBoolean(6));
     }

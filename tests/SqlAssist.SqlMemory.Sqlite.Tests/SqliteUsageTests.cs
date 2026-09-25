@@ -262,10 +262,16 @@ public sealed class SqliteUsageTests
             Assert.Equal(0x534d454dL, command.ExecuteScalar());
         }
 
-        foreach (var path in new[] { target, store.Path, "relative.db" })
+        foreach (var (path, reason) in new[]
+        {
+            (target, SqlMemoryStorageReason.BackupFileExists),
+            (store.Path, SqlMemoryStorageReason.BackupOverwritesDatabase),
+            ("relative.db", SqlMemoryStorageReason.BackupPathNotAbsolute),
+        })
         {
             var error = await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.BackupAsync(path, Token));
             Assert.Equal(SqlMemoryStorageErrorKind.InvalidArgument, error.Kind);
+            Assert.Equal(reason, error.Reason);
         }
     }
 

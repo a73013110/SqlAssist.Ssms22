@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -7,6 +8,7 @@ namespace SqlAssist.Core.SqlMemory;
 /// 容量壓力下逐級收緊的保留設定。第一級是日常保留，後續級只能縮短期限與配額，
 /// 不新增刪除路徑，也不放寬維護的保護根；分級的實際數值由設定提供。
 /// </summary>
+[Localizable(false)]
 public sealed class SqlRetentionLadder
 {
     private readonly SqlRetentionPolicy[] _levels;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 
 namespace SqlAssist.Metadata.Model;
@@ -35,6 +36,7 @@ public readonly struct SqlExplorerNode
     /// </param>
     /// <param name="folders">從錨點往下沿路資料夾的不變名稱；不知道時留空。</param>
     /// <param name="depth">從錨點往下要翻幾層才到這個節點；沒有錨點時為 0。</param>
+    [Localizable(false)]
     public SqlExplorerNode(
         SqlExplorerNodeKind kind, string name, string urn,
         string anchorUrn = "", IReadOnlyList<string>? folders = null, int depth = 0)
@@ -418,6 +420,7 @@ public static class SqlObjectExplorerUrn
 
     private static string Qualify(string schemaName, string name) => schemaName + "." + name;
 
+    [Localizable(false)]
     private static void RequireRoot(string rootUrn)
     {
         if (string.IsNullOrEmpty(rootUrn)) throw new ArgumentException("根 URN 不可為空。", nameof(rootUrn));

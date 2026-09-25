@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -14,6 +15,7 @@ namespace SqlAssist.Metadata.Model;
 /// </remarks>
 public sealed class SqlSequenceInfo
 {
+    [Localizable(false)]
     public SqlSequenceInfo(
         string dataType,
         string startValue,

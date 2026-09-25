@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Data;
 
 namespace SqlAssist.Metadata.Querying;
@@ -20,6 +21,7 @@ public sealed class SqlDatabaseScopedConnectionSource : ISqlConnectionSource
 {
     private readonly ISqlConnectionSource _inner;
 
+    [Localizable(false)]
     public SqlDatabaseScopedConnectionSource(ISqlConnectionSource inner, string databaseName)
     {
         if (string.IsNullOrWhiteSpace(databaseName))

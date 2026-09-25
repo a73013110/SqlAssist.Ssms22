@@ -195,7 +195,8 @@ public static class SqlSnippetMerger
 
             var current = WithId(entry.Snippet, definition.Id);
 
-            if (!AreEquivalent(current, definition))
+            // 與任何一個語言的內建值相同都不算自訂：語言切換前載入的清單存檔時仍是舊語言的文字。
+            if (!AreEquivalent(current, definition) && !SqlSnippetDefaults.IsUnmodifiedBuiltIn(current))
             {
                 records.Add(new SqlSnippetOverride(definition.Id, disabled: false, current));
             }

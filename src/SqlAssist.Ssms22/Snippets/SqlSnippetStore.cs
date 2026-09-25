@@ -69,7 +69,7 @@ internal static class SqlSnippetStore
 
             if (_readOnly)
             {
-                LastError ??= "Snippet 檔案來自較新的 SqlAssist 版本，目前只能讀取，不能覆寫。";
+                LastError ??= SnippetWindowText.ReadOnlyNewerVersion;
                 return false;
             }
 
@@ -168,9 +168,8 @@ internal static class SqlSnippetStore
             if (document.IsNewerThanSupported)
             {
                 _readOnly = true;
-                LastError =
-                    $"{FilePath} 的格式版本是 {document.Version}，目前只支援到 " +
-                    $"{SqlSnippetLibrary.CurrentVersion}；已進入唯讀模式。";
+                LastError = SnippetWindowText.UnsupportedVersionStatus(
+                    FilePath, document.Version, SqlSnippetLibrary.CurrentVersion);
                 return SqlSnippetMerger.Merge(defaults, document);
             }
 
@@ -182,7 +181,7 @@ internal static class SqlSnippetStore
         {
             // 壞掉的 override 不能讓內建片段一起消失，也絕不能覆蓋原檔。
             _readOnly = true;
-            LastError = $"{FilePath} 的格式不正確：{exception.Message}";
+            LastError = SnippetWindowText.InvalidFormatStatus(FilePath, exception.Message);
             SqlAssistDiagnostics.WriteAlways($"讀取 Snippet 失敗：{exception}");
             return SqlSnippetMerger.Merge(defaults, SqlSnippetDocument.Empty);
         }

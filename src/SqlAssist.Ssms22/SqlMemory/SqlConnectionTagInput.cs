@@ -18,7 +18,7 @@ internal static class SqlConnectionTagInput
     {
         var input = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
         input.MaxLength = SqlFavoriteSave.MaxTagLength;
-        input.ToolTip = "精確名稱；留空表示不限。";
+        input.ToolTip = FavoriteText.ExactNameToolTip;
         return input;
     }
 
@@ -27,7 +27,7 @@ internal static class SqlConnectionTagInput
     public static System.Windows.Controls.Border CreateBar(SqlAssistPackage package, SqlIcon icon, TextBox input, string label,
         bool databases, Func<string?> server, bool includeFavorites, Action<string> report)
     {
-        var dropDown = SqlAssistChrome.CreateDropDownButton("選擇出現過的" + label);
+        var dropDown = SqlAssistChrome.CreateDropDownButton(FavoriteText.ChooseKnown(label));
         var menu = new ContextMenu { PlacementTarget = input, Placement = PlacementMode.Bottom };
         VsThemeBrushes.Apply(menu);
         dropDown.Click += (_, _) => _ = SqlMemoryActions.RunAsync(
@@ -38,7 +38,7 @@ internal static class SqlConnectionTagInput
     private static async Task OpenSuggestionsAsync(SqlAssistPackage package, ContextMenu menu, TextBox input, string label,
         bool databases, string? server, bool includeFavorites, Action<string> report)
     {
-        if (!SqlMemoryHost.Runtime.IsAvailable) { report("SQL Memory 尚未就緒，無法列出名稱。"); return; }
+        if (!SqlMemoryHost.Runtime.IsAvailable) { report(FavoriteText.NotReady); return; }
         var names = new List<string>();
         // 最近使用的連線在前，只在收藏標註出現過的名稱補在後面；同名只列一次。
         foreach (var favorites in includeFavorites ? new[] { false, true } : new[] { false })
@@ -47,11 +47,11 @@ internal static class SqlConnectionTagInput
                 if (!names.Contains(name)) names.Add(name);
 
         menu.Items.Clear();
-        var clear = new MenuItem { Header = "不限（清除" + label + "）", Icon = SqlAssistChrome.CreateIcon(SqlIcon.Clear) };
+        var clear = new MenuItem { Header = FavoriteText.ClearLabel(label), Icon = SqlAssistChrome.CreateIcon(SqlIcon.Clear) };
         clear.Click += (_, _) => input.Clear();
         menu.Items.Add(clear);
         menu.Items.Add(new Separator());
-        if (names.Count == 0) menu.Items.Add(new MenuItem { Header = "沒有記錄過的" + label, IsEnabled = false });
+        if (names.Count == 0) menu.Items.Add(new MenuItem { Header = FavoriteText.NoKnownNames(label), IsEnabled = false });
         foreach (var name in names)
         {
             var item = new MenuItem { Header = name, IsCheckable = true, IsChecked = string.Equals(name, input.Text.Trim(), StringComparison.Ordinal) };

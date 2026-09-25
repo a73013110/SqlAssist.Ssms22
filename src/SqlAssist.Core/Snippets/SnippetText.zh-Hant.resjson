@@ -1,0 +1,14 @@
+{
+  // 內建片段資源載入失敗的原因，顯示在片段管理員的狀態列。
+  "DefaultsMissing": "找不到內建 Snippet 資源：{resource}",
+  "DefaultsVersionMismatch": "內建 Snippet 版本為 {version}，程式支援 {supported}。",
+  "DefaultsEmpty": "內建 Snippet 資源沒有可用項目。",
+  "DefaultsReadFailed": "內建 Snippet 資源讀取失敗：{message}",
+  // 以下是片段管理員存檔前的驗證訊息。「捷徑」是打進編輯器後按 Tab 展開片段的那個詞。
+  "ShortcutTaken": "捷徑「{shortcut}」已經有人用了。",
+  "ShortcutEmpty": "捷徑不能空白。",
+  "ShortcutInvalidCharacter": "捷徑只能用字母、數字與底線，不能有「{character}」。",
+  "ShortcutIsKeyword": "捷徑不能與 T-SQL 關鍵字「{keyword}」同名。",
+  // {anchor} 是 surround，前後的 $ 是樣板語法，不翻。
+  "SurroundAnchorRepeated": "包夾錨點 ${anchor}$ 只能出現一次，這一份出現了 {count} 次。"
+}

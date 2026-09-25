@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Threading;
@@ -12,6 +13,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>擷取與歷程：Session CAS 提交、History 分頁、全文讀取與連線 facets。</summary>
+[Localizable(false)]
 internal sealed class SqliteCaptureStore
 {
     private readonly SqliteDatabase _database;

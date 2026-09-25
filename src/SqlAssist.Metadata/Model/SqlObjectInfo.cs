@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Metadata.Model;
@@ -24,6 +25,7 @@ public sealed class SqlObjectInfo
     /// <param name="serverName">
     /// 這個物件所在的連結伺服器；目前這台伺服器上的物件為 null。
     /// </param>
+    [Localizable(false)]
     public SqlObjectInfo(
         int objectId,
         string schemaName,

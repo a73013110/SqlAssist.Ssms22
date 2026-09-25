@@ -129,7 +129,7 @@ internal sealed class SqlSearchProviders
 
         public string Id => SqlCatalogSearchProvider.ProviderId;
 
-        public string DisplayName => "資料庫物件";
+        public string DisplayName => SearchSourceText.CatalogDisplayName;
 
         public IReadOnlyList<SearchCategory> Categories { get; }
 
@@ -168,7 +168,7 @@ internal sealed class SqlSearchProviders
 
         public string Id => SqlAgentJobSearchProvider.ProviderId;
 
-        public string DisplayName => "SQL Agent 作業";
+        public string DisplayName => SearchSourceText.AgentJobDisplayName;
 
         public IReadOnlyList<SearchCategory> Categories { get; }
 

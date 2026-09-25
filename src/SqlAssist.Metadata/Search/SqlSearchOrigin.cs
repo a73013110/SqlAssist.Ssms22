@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Search;
 
@@ -22,6 +23,7 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public sealed class SqlSearchOrigin
 {
+    [Localizable(false)]
     public SqlSearchOrigin(string serverName)
     {
         if (string.IsNullOrEmpty(serverName))

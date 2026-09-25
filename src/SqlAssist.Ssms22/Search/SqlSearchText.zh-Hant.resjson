@@ -1,0 +1,123 @@
+{
+  // SQL Search 工具窗、預覽與結果列操作的文字。
+  // ── 工具窗 ──
+  "OpenFailed": "開啟 SQL Search 失敗",
+  "ToolWindowMissing": "SSMS 未建立 SQL Search 工具窗。",
+  // ── 工具列與篩選 ──
+  "SearchName": "搜尋資料庫物件",
+  "SearchToolTip": "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，本文是字面比對，勾了右邊任一顆之後名稱也改成字面比對。",
+  "ClearSearch": "清除搜尋",
+  "Sort": "排序",
+  // {sort} 是 SortRelevance、SortName 或 SortKind。
+  "SortToolTip": "排序：{sort}",
+  "SortRelevance": "相關度",
+  "SortName": "名稱 A–Z",
+  "SortKind": "物件種類",
+  "Refresh": "重新整理：丟掉已建立的索引並重新搜尋；改過結構之後用它。",
+  // 伺服器按鈕上還沒選伺服器時的字。
+  "NoServer": "未選擇",
+  "ChooseServer": "選擇伺服器",
+  // 篩選按鈕只剩數字時接在數字後面的量詞；數字一定大於 1，前面的空白要保留。
+  "CategoryUnit": " 種",
+  "DatabaseUnit": " 個",
+  "AllCategoriesDescription": "不限物件種類；每一個來源宣告的種類都搜。",
+  "LoadingDatabases": "正在讀取資料庫清單…",
+  "DatabaseOptionDescription": "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
+  "AllDatabasesDescription": "搜這台伺服器上進得去的每一個資料庫；第一次要逐一建立索引。",
+  "UserDatabases": "使用者資料庫",
+  "SystemDatabases": "系統資料庫",
+  "DatabaseListUnavailable": "問不到資料庫清單；去看這個登入的權限，或按重新整理再試一次。",
+  "DatabaseListStale": "問不到最新的資料庫清單，這一份可能是舊的。",
+  "NoAccessibleDatabases": "這個登入在這台伺服器上進不去任何資料庫。",
+  "ExplorerServerDescription": "搜尋物件總管上這一台。",
+  "EditorServerDescription": "搜尋查詢視窗連著的這一台；用查詢視窗那條連線。",
+  "CurrentServerDescription": "目前搜尋的這一台。",
+  "ExplorerUnavailable": "問不到物件總管，只列得出查詢視窗連著的那一台。",
+  // ── 清單頁尾與空白畫面 ──
+  "Found": "找到 {count:N0} 項",
+  "Searching": "搜尋中…",
+  "PartialHint": "部分結果；縮小範圍或加長關鍵字可以掃得更完整。",
+  "RoundFailed": "這一輪搜尋失敗",
+  // {failure} 是 ProviderFailed、ProvidersFailed 或 SearchFailed 其中一句，可能是空的。
+  "RoundFailedDetail": "清單是上一輪的結果。{failure}",
+  "SearchFailed": "搜尋失敗：{error}",
+  // {provider} 是來源名稱（資料庫物件、SQL Agent 作業）；{message} 是來源交出的錯誤訊息。
+  "ProviderFailed": "「{provider}」這一輪失敗：{message}",
+  "ProvidersFailed": "「{provider}」等 {count} 個來源這一輪失敗：{message}",
+  // {first} 是第一個讀不到的來源交出的整句說明；{count} 至少是 1。
+  "MoreUnavailable": "{first}（另有 {count} 個來源這一輪也讀不到）",
+  "ServerUnreachableRetry": "連不上 {server}。那一台可能已經中斷，換一台再搜。",
+  "NoServerTitle": "尚未選擇伺服器",
+  // {action} 是工具列上「套用查詢視窗連線」那顆按鈕的名稱。
+  "NoServerDetail": "按左邊的「{action}」，或從伺服器清單挑一台。",
+  "EnterKeyword": "輸入關鍵字",
+  "EnterKeywordDetail": "搜尋這個資料庫的物件名稱、資料行與定義本文。",
+  "NoMatches": "沒有相符項目",
+  "NoMatchesDetail": "換個關鍵字，或放寬分類與資料庫範圍。",
+  // ── 結果列 ──
+  // 列說明裡的一段；{count} 一定大於 1。
+  "MatchCount": "{count} 處命中",
+  // 批次複製的欄位標題（名稱、種類、伺服器、資料庫用共用詞）。
+  "CopyTargets": "命中部位",
+  "CopyColumns": "命中資料行",
+  // ── 列操作：選單、停駐按鈕與預覽工具列 ──
+  "Activate": "移至定義",
+  "ActivateUnconnected": "移至定義（未連線）",
+  "SelectInExplorer": "在物件總管中選取",
+  "CopyQualifiedName": "複製限定名稱",
+  // 下面幾句的 {window} 是 NewQueryWindow 或 UnconnectedQueryWindow。
+  "NewQueryWindow": "新查詢視窗",
+  "UnconnectedQueryWindow": "未連線的新查詢視窗",
+  "ActivateToolTip": "在{window}開啟 {database} 的 {name} 定義",
+  "ActivateColumnToolTip": "在{window}開啟 {database} 的 {name} 定義（命中資料行 {column}）",
+  "OpenJobToolTip": "在{window}開啟 {server} 上 {job} 的所有步驟命令",
+  "OpenJobStepToolTip": "在{window}開啟 {server} 上 {job} 第 {step} 步的命令",
+  // {action} 是上面其中一句。
+  "ActivateElsewhere": "{action}。它在 {server} 上，不在目前查詢視窗那一台；按 F5 時 SSMS 會要求連線。",
+  "OpenedNote": "按 F5 時請連到 {server}。",
+  "SelectToolTip": "在物件總管中選取 {database} 的 {name}",
+  "SelectColumnToolTip": "在物件總管中選取 {database} 的 {name}，並停在資料行 {column} 上",
+  "SelectJobToolTip": "在物件總管中選取 {server} 上的作業 {job}",
+  // ── 開在未連線查詢視窗時，指令碼開頭的 SQL 註解（程式會在前面補 -- ） ──
+  // {what} 是 HeaderDefinition、HeaderJob 或 HeaderJobStep。
+  "HeaderUnconnected": "這個查詢視窗沒有連線。{what}。",
+  "HeaderDefinition": "定義來自 {server} 上的 {database} 資料庫",
+  "HeaderJob": "命令來自 {server} 上的作業 {job}",
+  "HeaderJobStep": "命令來自 {server} 上的作業 {job} 第 {step} 步",
+  "HeaderConnect": "按 F5 時 SSMS 會要求連線：請連到 {server} 再執行。",
+  "HeaderConnectDatabase": "按 F5 時 SSMS 會要求連線：請連到 {server}，並把資料庫切到 {database} 再執行。",
+  // ── 按下之後的通知 ──
+  "NoDefinitionToOpen": "這一筆沒有可以開啟的定義。",
+  "StructureMissing": "在 {database} 取不到 {name} 的結構，可能是連線已中斷或權限不足。",
+  "NoExplorerNode": "這一筆在物件總管上沒有自己的節點。",
+  "NoExplorerConnection": "物件總管上沒有連到 {server} 的連線；在那裡連上這一台之後再按一次。",
+  "ExplorerNodeUnresolved": "這一筆在物件總管上指不到節點。",
+  // {wanted} 與 {selected} 是 NodeColumn、NodeTrigger、NodeConstraint、NodeJob 其中之一，或單純的物件名稱。
+  "ExplorerFallback": "物件總管上找不到{wanted}，已改為選取{selected}。",
+  "NodeColumn": "資料行 {name}",
+  "NodeTrigger": "觸發程序 {name}",
+  "NodeConstraint": "條件約束 {name}",
+  "NodeJob": "作業 {name}",
+  "ExplorerJobMissing": "物件總管上找不到作業 {job}：它可能已經刪除，或這個登入看不到 SQL Server Agent。",
+  "ExplorerObjectMissing": "物件總管上找不到 {name}：它可能已經卸除，或被物件總管的篩選器擋掉了；重新整理那個資料夾之後再試一次。",
+  "ExplorerParentUnknown": "問不到 {name} 掛在哪一個物件上，可能是連線已中斷或它已經卸除。",
+  "ElsewhereNotice": "這一筆是在 {server} 上搜到的，而搜尋範圍已經換到別台；重新搜尋之後再試一次。",
+  "JobConnectionMissing": "取不到 {server} 的連線，請確認它還連著之後重新搜尋。",
+  "JobStepSubject": "{job} 第 {step} 步",
+  // {subject} 是作業名稱或 JobStepSubject。
+  "JobCommandsMissing": "在 {server} 取不到 {subject} 的步驟命令：作業可能已經刪除、這個登入對 msdb 沒有權限，或連線已中斷。",
+  "JobCommandsOpened": "已在新查詢視窗開啟 {subject} 的命令",
+  // ── 預覽 ──
+  "PreviewName": "搜尋結果預覽",
+  "CopyDefinition": "複製定義",
+  "WrapSql": "SQL 顯示換行",
+  "NoSelection": "尚未選取",
+  "NoSelectionDetail": "選一筆結果看它的完整定義與命中位置。",
+  "NoDefinition": "沒有可以顯示的定義",
+  "NoDefinitionDetail": "這一筆的來源只提供片段。",
+  "Unmatched": "命中位置對不上這一份定義，已顯示完整定義。",
+  "ServerUnreachable": "連不上 {server}，那一台可能已經中斷。",
+  "NoServerForDefinition": "還沒選要搜尋的伺服器，讀不到物件定義。",
+  "DefinitionFailed": "取不到 {name} 的定義：{error}",
+  "DefinitionMissing": "在 {database} 取不到 {name} 的定義，可能是連線已中斷或權限不足。"
+}

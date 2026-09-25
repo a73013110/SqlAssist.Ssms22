@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Search;
 
@@ -10,6 +11,7 @@ namespace SqlAssist.Core.Search;
 /// 放行一個空的 Id 之後的症狀是兩個不相干的 provider 共用同一個分類 pill，
 /// 而且沒有任何一處看得出來是誰給的。
 /// </remarks>
+[Localizable(false)]
 internal static class SearchArgument
 {
     internal static string Identifier(string? value, string parameterName)

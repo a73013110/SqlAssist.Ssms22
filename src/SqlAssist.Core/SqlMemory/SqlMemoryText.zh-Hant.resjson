@@ -1,0 +1,103 @@
+{
+  // SQL Memory 工具窗與通知的文字。「筆」是清單上的一列，英文用句型避開單複數（Items: {count}）。
+  // ── 清單篩選：膠囊與排序選單 ──
+  "KindExecutions": "執行",
+  "KindDrafts": "草稿",
+  "PeriodToday": "今天",
+  "PeriodSevenDays": "7 天",
+  "PeriodThirtyDays": "30 天",
+  "PeriodAny": "不限",
+  // 排序選單的完整名稱與按鈕上的短名稱，短名稱越短越好。
+  "SortRecent": "最近使用優先",
+  "SortRecentShort": "最近",
+  "SortOldest": "最早使用優先",
+  "SortOldestShort": "最早",
+  "SortAlphabetical": "名稱 A–Z",
+  "SortReverseAlphabetical": "名稱 Z–A",
+  // ── 清單頁尾 ──
+  // {date} 是 yyyy/MM/dd；全文搜尋有掃描預算，這句說明已經往回找到哪一天。
+  "SearchedThrough": "已搜尋至 {date}",
+  "Loading": "載入中…",
+  "Searching": "搜尋中…",
+  "LoadMore": "載入更多",
+  "LoadedCount": "已載入 {count} 筆",
+  "MatchedCount": "符合 {count} 筆",
+  // {progress} 是 SearchedThrough 那一句。
+  "ContinueSearchHint": "{progress}，繼續搜尋可再往前找",
+  "ContinueSearch": "繼續搜尋",
+  "NoMatches": "沒有符合條件的項目",
+  "NoMatchesHint": "可清除搜尋或放寬期間與範圍",
+  "ShownAll": "已顯示全部 {count} 筆",
+  // ── 收藏的版本時間軸 ──
+  // 比較視窗的標題，左邊是舊的那一版。
+  "CompareWithCurrent": "此版本 → 目前版本",
+  "ComparePreviousWithCurrent": "前一版 → 目前版本",
+  "RevisionsLoaded": "已載入 {count} 版",
+  "NoRevisions": "沒有保留的版本",
+  "NoRevisionsHint": "收藏可能已被移除；請關閉後重新整理清單。",
+  "RevisionsKept": "共保留 {count} 版",
+  "RetentionReached": "只保留最近 {limit} 版；更舊的版本已由維護回收（或將在下次維護回收），無法再檢視。",
+  "RetentionLimit": "每個收藏最多保留最近 {limit} 版；超過時較舊的版本會被回收。",
+  // ── 批次刪除後通知上的說明；幾句直接接在一起，句與句之間用 SentenceSeparator ──
+  // History 刪除、Favorites 移除（收藏移除不刪 History），兩個動詞各一組。
+  "CanceledDeleted": "取消前已刪除 {count} 筆，其餘保留。",
+  "CanceledRemoved": "取消前已移除 {count} 筆，其餘保留。",
+  "TotalDeleted": "共刪除 {count} 筆。",
+  "TotalRemoved": "共移除 {count} 筆。",
+  "MissingOne": "這一筆已經不存在；已從清單移除。",
+  "MissingMany": "{count} 筆已經不存在。",
+  "ConflictOne": "收藏已被修改或移除，未移除；請重新整理後再操作。",
+  "ConflictMany": "{count} 筆收藏已被修改或移除，未移除；請重新整理後再操作。",
+  "HistoryUnaffected": "History 不受影響。",
+  // 中文句子之間不空格；英文是一個空白。
+  "SentenceSeparator": "",
+  // ── 批次複製的欄位標題（貼到試算表的第一列）──
+  "ColumnTime": "時間",
+  "ColumnCount": "次數",
+  "ColumnUpdated": "更新時間",
+  // ── 相對時間；{clock} 是 HH:mm ──
+  "JustNow": "剛剛 ({clock})",
+  "MinutesAgo": "{minutes} 分鐘前 ({clock})",
+  "HoursAgo": "{hours} 小時前 ({clock})",
+  "Yesterday": "昨天 {clock}",
+  "DaysAgo": "{days} 天前 {clock}",
+  // ── 工具窗狀態列：一行說明 SQL Memory 目前能不能用 ──
+  "StatusOpening": "正在開啟 SQL Memory…",
+  "StatusBusyDropped": "SQL Memory 資料庫忙碌中，有擷取未記錄。",
+  "StatusQueueFull": "SQL Memory 佇列已滿，本次未記錄。",
+  "StatusTooLarge": "這份 SQL 太大，本次未記錄。",
+  "OpenBusy": "SQL Memory 資料庫正被其他程序占用，暫時無法開啟；稍後變更設定或重新啟動 SSMS 再試。",
+  "OpenIncompatible": "SQL Memory 資料庫版本不相容，未開啟也不會自動重建。",
+  "OpenCorrupt": "SQL Memory 資料庫已損毀，未開啟。",
+  // {reason} 是下面 Error 開頭那幾句之一。
+  "OpenFailed": "無法開啟 SQL Memory：{reason}",
+  "WriterFailed": "SQL Memory 寫入失敗，已停止擷取；請檢查診斷紀錄後重新啟用。",
+  "Disabled": "SQL Memory 已停用；請在設定中啟用。",
+  // 擷取沒有保存的原因短語；通知標題已經說了是哪一件事，這裡只補「為什麼」。
+  "DropBusy": "資料庫忙碌",
+  "DropQueueFull": "佇列已滿",
+  "DropTooLarge": "這份 SQL 太大",
+  "LeasePending": "SQL Memory 還在建立工作階段租約，暫時無法分辨哪些回復內容屬於已關閉的視窗；請一分鐘後再試。",
+  "Reopened": "SQL Memory 已重新開啟或停用；請重新整理後再操作。",
+  // ── 使用者動作失敗；{action} 是動作名稱（載入、複製、備份），由呼叫端給 ──
+  "ActionFailed": "{action}失敗：{reason}",
+  "ActionIncomplete": "{action}未完成：{reason}",
+  // 儲存層失敗的原因，依分類說明下一步；不含句號，由下面兩句補上。
+  "ErrorBusy": "資料庫正被其他作業使用；稍後再試",
+  "ErrorInvalidCursor": "清單已變更；請重新整理",
+  "ErrorIo": "無法讀寫資料庫檔案；請檢查磁碟空間與權限",
+  "ErrorCorrupt": "資料庫檔案損毀或內容完整性檢查失敗",
+  "ErrorIncompatible": "資料庫版本不相容，或不是 SQL Memory 的資料庫",
+  "ErrorInvalidArgument": "要求的參數不正確",
+  "ErrorConstraint": "資料不符合儲存條件約束",
+  "ErrorConflict": "資料已被其他作業變更；請重新整理",
+  "ErrorUnknown": "發生未預期的儲存錯誤",
+  "ErrorBackupPathNotAbsolute": "備份必須指定完整路徑",
+  "ErrorBackupOverwritesDatabase": "備份不能覆寫目前的資料庫",
+  "ErrorBackupFileExists": "備份檔案已存在；請選擇新的檔名",
+  "ErrorSentence": "{reason}。",
+  // {code}/{extended} 是 SQLite 的主要與延伸錯誤碼。
+  "ErrorSentenceWithCode": "{reason}（SQLite {code}/{extended}）。",
+  // ── 查詢視窗沒有標題時的文件名稱；會存進資料庫，之後換語言也不改 ──
+  "UntitledDocument": "SQL 查詢"
+}

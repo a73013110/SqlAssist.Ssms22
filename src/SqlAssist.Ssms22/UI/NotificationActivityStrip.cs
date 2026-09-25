@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using SqlAssist.Core.Notifications;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -80,7 +81,7 @@ internal sealed class NotificationActivityStrip : Button
         Summary.SetText(summary, motion);
         _action.Text = action;
         ToolTip = summary;
-        AutomationProperties.SetName(this, summary + "，" + action);
+        AutomationProperties.SetName(this, NotificationCatalog.StripAccessibleName(summary, action));
     }
 
     /// <summary>

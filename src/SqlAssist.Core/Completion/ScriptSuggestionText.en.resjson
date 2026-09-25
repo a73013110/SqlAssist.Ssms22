@@ -1,0 +1,7 @@
+{
+  "CollationUsedInScript": "Collation used in this script",
+  "TemporaryTable": "temporary table",
+  "TableVariable": "table variable",
+  "Variable": "variable",
+  "NameWithDescription": "{name} ({description})"
+}

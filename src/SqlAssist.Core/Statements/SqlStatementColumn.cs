@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Statements;
 
@@ -11,6 +12,7 @@ namespace SqlAssist.Core.Statements;
 /// </remarks>
 public sealed class SqlStatementColumn
 {
+    [Localizable(false)]
     public SqlStatementColumn(string name, string dataType, bool isNullable, bool hasDefault)
     {
         if (string.IsNullOrEmpty(name))

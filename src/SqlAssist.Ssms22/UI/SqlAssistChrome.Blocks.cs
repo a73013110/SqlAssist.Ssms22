@@ -37,7 +37,7 @@ internal static partial class SqlAssistChrome
         var surface = CreateButton(string.Empty, DefaultMetrics);
         surface.Content = text;
         surface.Padding = new Thickness(8, 4, 8, 4);
-        surface.ToolTip = "點擊返回區塊起始行";
+        surface.ToolTip = ChromeText.ReturnToBlockStart;
         surface.Cursor = Cursors.Hand;
         surface.Focusable = false;
         surface.IsTabStop = false;

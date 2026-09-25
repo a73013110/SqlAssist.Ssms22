@@ -24,9 +24,9 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
     public string Preview => (Favorite?.Preview ?? History!.Preview).Replace("\r", " ").Replace("\n", " ").Replace("\t", " ");
     public event PropertyChangedEventHandler? PropertyChanged;
     public bool IsExecuted => History?.Kind == SqlHistoryFilter.Executions;
-    public string Status => Favorite is not null ? "收藏" : SqlMemoryCopy.HistoryStatus(History!);
+    public string Status => Favorite is not null ? SqlMemoryUiText.FavoriteStatusLabel : SqlMemoryCopy.HistoryStatus(History!);
     public SqlIcon StatusIcon => IsFavorite ? SqlIcon.Favorite : SqlAssistChrome.MemoryOptionIcon(History!.Kind);
-    public string DeleteLabel => IsFavorite ? "從收藏移除" : "從 History 刪除";
+    public string DeleteLabel => IsFavorite ? SqlMemoryUiText.RemoveFavoriteLabel : SqlMemoryUiText.DeleteHistoryLabel;
 
     /// <summary>History 以建立時間、收藏以最後儲存時間排序；列上的時間與清單順序同源。</summary>
     public DateTimeOffset Time => Favorite?.UpdatedAt ?? History!.CreatedAt;
@@ -60,9 +60,9 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
 
     // 收藏的標註是選填：沒有標註就不畫膠囊（空字串），History 沒有連線則明講。
     public string Server => Favorite is { } favorite ? favorite.Favorite.Server ?? "" :
-        History!.Connection?.Server is { Length: > 0 } server ? server : "無伺服器";
+        History!.Connection?.Server is { Length: > 0 } server ? server : SqlMemoryUiText.NoServerLabel;
     public string Database => Favorite is { } favorite ? favorite.Favorite.Database ?? "" :
-        History!.Connection?.Database is { Length: > 0 } database ? database : "無資料庫";
+        History!.Connection?.Database is { Length: > 0 } database ? database : SqlMemoryUiText.NoDatabaseLabel;
     public string RelativeTime => SqlMemoryTimeText.RelativeTime(Time, DateTimeOffset.Now);
     public string Timestamp => Time.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss zzz");
 
@@ -70,21 +70,21 @@ internal sealed class SqlMemoryRow : INotifyPropertyChanged, ISqlCheckableRow
     public string ExecutionCountText => History is { ExecutionCount: > 1 } item ? "×" + item.ExecutionCount.ToString(CultureInfo.CurrentCulture) : "";
 
     public string ExecutionCountToolTip => History is { ExecutionCount: > 1 } item
-        ? $"連續執行 {item.ExecutionCount.ToString(CultureInfo.CurrentCulture)} 次" : "";
+        ? SqlMemoryUiText.RepeatedExecutionsTooltip(item.ExecutionCount.ToString(CultureInfo.CurrentCulture)) : "";
 
     /// <summary>Preview 資訊列的時間；合併的執行列同時交代首次與最後一次，單次仍只顯示一個時間。</summary>
     public string TimeSummary => History is { ExecutionCount: > 1, FirstExecutedAt: { } first }
-        ? $"首次 {first.ToLocalTime():yyyy/MM/dd HH:mm:ss} · 最後 {Time.ToLocalTime():yyyy/MM/dd HH:mm:ss}"
+        ? SqlMemoryUiText.FirstAndLastTime(first.ToLocalTime(), Time.ToLocalTime())
         : Timestamp;
     public void RefreshTime() => Changed(nameof(RelativeTime));
     public string Detail => Favorite is { } item
-        ? $"{Time.ToLocalTime():yyyy/MM/dd HH:mm:ss} 更新 · {TagText(item.Favorite)}"
-        : $"{TimeSummary} · {(History!.RevisionId is null ? "未存檔草稿" : IsExecuted ? ExecutionText(History.ExecutionCount) : "草稿")} · {ConnectionText(History.Connection)}";
-    private static string ExecutionText(int count) => count > 1 ? $"執行 {count.ToString(CultureInfo.CurrentCulture)} 次" : "執行";
-    private static string ConnectionText(SqlConnectionLabel? context) => context is null ? "無連線資訊" : $"{context.Server} · {context.Database}";
+        ? SqlMemoryUiText.FavoriteDetail(Time.ToLocalTime(), TagText(item.Favorite))
+        : $"{TimeSummary} · {(History!.RevisionId is null ? SqlMemoryUiText.UnsavedDraftLabel : IsExecuted ? ExecutionText(History.ExecutionCount) : SqlMemoryUiText.DraftLabel)} · {ConnectionText(History.Connection)}";
+    private static string ExecutionText(int count) => count > 1 ? SqlMemoryUiText.ExecutedCount(count.ToString(CultureInfo.CurrentCulture)) : SqlMemoryUiText.ExecutedLabel;
+    private static string ConnectionText(SqlConnectionLabel? context) => context is null ? SqlMemoryUiText.NoConnectionInfo : $"{context.Server} · {context.Database}";
     private static string TagText(SqlFavorite favorite) => favorite.Server is null && favorite.Database is null
-        ? "未標註伺服器與資料庫"
-        : $"{favorite.Server ?? "任何伺服器"} · {favorite.Database ?? "任何資料庫"}";
+        ? SqlMemoryUiText.UntaggedConnection
+        : $"{favorite.Server ?? SqlMemoryUiText.AnyServerLabel} · {favorite.Database ?? SqlMemoryUiText.AnyDatabaseLabel}";
 
     /// <summary>
     /// 多選複製的內容：依傳進來的順序（清單的顯示順序），欄位是 History 或 Favorites 那一份。

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Diagnostics;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Search;
 using SqlAssist.Core.SqlMemory;
@@ -64,14 +66,14 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlMatchToggles _matchToggles = new();
     private readonly Button _connection;
     private readonly SqlSearchSegments _segments = new();
-    private readonly SqlFilterFlyout _server = new("伺服器", SqlIcon.Server, SqlFilterMode.Single);
-    private readonly SqlFilterFlyout _databases = new("資料庫", SqlIcon.Database, SqlFilterMode.SearchableMultiple);
-    private readonly SqlFilterFlyout _kinds = new("種類", SqlIcon.Filter);
+    private readonly SqlFilterFlyout _server = new(CommonText.Server, SqlIcon.Server, SqlFilterMode.Single);
+    private readonly SqlFilterFlyout _databases = new(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+    private readonly SqlFilterFlyout _kinds = new(CommonText.Kind, SqlIcon.Filter);
     private readonly SqlCardSelection<SqlSearchRow, string> _selection;
     private readonly SqlSelectionBar _selectionBar;
-    private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, "排序");
+    private readonly Button _sort = SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, SqlSearchText.Sort);
     private readonly Button _refresh = SqlAssistChrome.CreateIconButton(
-        SqlIcon.Refresh, "重新整理：丟掉已建立的索引並重新搜尋；改過結構之後用它。");
+        SqlIcon.Refresh, SqlSearchText.Refresh);
     private readonly ContextMenu _sortMenu = new();
     private readonly DispatcherTimer _searchTimer;
     private readonly DispatcherTimer _settleTimer;
@@ -133,7 +135,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         // 勾選以結果的去重鍵為鍵，與清單的焦點／預覽分開；動作只有複製，之後的批次動作加在這裡。
         _selection = new SqlCardSelection<SqlSearchRow, string>(_rows, row => row.Key, StringComparer.Ordinal);
-        _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, "複製", CopySelectionAsync,
+        _selection.AddAction(new SqlSelectionAction(SqlIcon.Copy, CommonText.Copy, CopySelectionAsync,
             shortcutKey: Key.C, shortcutModifiers: ModifierKeys.Control));
         // 多選時選取工具列蓋在搜尋列同一格上，正好在清單上面；與 SQL Memory 同一份。
         _selectionBar = new SqlSelectionBar(_selection, CreateSearchRow()) { ReturnFocus = _list.FocusCurrentRow };
@@ -222,12 +224,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private SqlInputRow CreateSearchRow()
     {
-        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
+        var clear = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlSearchText.ClearSearch);
         clear.IsEnabled = false;
         clear.Click += (_, _) => Run(() => { _search.Clear(); _search.Focus(); });
-        _search.ToolTip = "搜尋物件名稱、資料行與定義本文；名稱走模糊比對，" +
-            "本文是字面比對，勾了右邊任一顆之後名稱也改成字面比對。";
-        AutomationProperties.SetName(_search, "搜尋資料庫物件");
+        _search.ToolTip = SqlSearchText.SearchToolTip;
+        AutomationProperties.SetName(_search, SqlSearchText.SearchName);
         _search.TextChanged += (_, _) => Run(() =>
         {
             clear.IsEnabled = _search.Text.Length > 0;
@@ -341,6 +342,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         UpdateSortButton();
     }
 
+    [Localizable(false)]
     private static SqlIcon SortIcon(SqlSearchSort sort) => sort switch
     {
         // 相關度是「分數由高到低」；那正是降冪。
@@ -354,8 +356,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     {
         var option = SqlSearchSortOption.For(_model.Sort);
         _sort.Content = SqlAssistChrome.CreateIcon(SortIcon(_model.Sort));
-        _sort.ToolTip = "排序：" + option.Label;
-        AutomationProperties.SetName(_sort, "排序：" + option.Label);
+        _sort.ToolTip = SqlSearchText.SortToolTip(option.Label);
+        AutomationProperties.SetName(_sort, SqlSearchText.SortToolTip(option.Label));
     }
 
     private void ConfigureKinds()
@@ -419,7 +421,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 使用者會以為自己把條件弄丟了，或以為這個下拉壞了。
         _kinds.SetEmptyOption(new SqlFilterOption(
             SqlSearchBrowserModel.AllCategoriesLabel,
-            "不限物件種類；每一個 provider 宣告的種類都搜。",
+            SqlSearchText.AllCategoriesDescription,
             _model.CategoryIds.Count == 0,
             selected => Run(() =>
             {
@@ -482,7 +484,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         FillDatabases(_scopeDatabases.Items);
         if (catalog is null || _scopeDatabases.IsLoaded) return;
 
-        _databases.SetNotice("正在讀取資料庫清單…", busy: true);
+        _databases.SetNotice(SqlSearchText.LoadingDatabases, busy: true);
         FillDatabases(await _scopeDatabases.EnsureAsync(catalog));
     }
 
@@ -506,7 +508,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
             if (!seen.Add(database)) return;
             var option = new SqlFilterOption(
                 database,
-                "只搜尋這個資料庫；每指名一個就是一次含定義本文的索引。",
+                SqlSearchText.DatabaseOptionDescription,
                 _model.Scope.IsDatabaseSelected(database),
                 selected => Run(() =>
                 {
@@ -524,15 +526,15 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 所以面板上不另畫一顆「清除」。
         _databases.SetEmptyOption(new SqlFilterOption(
             SqlSearchBrowserModel.AllDatabasesLabel,
-            "搜這台伺服器上進得去的每一個資料庫；第一次要逐一建立索引。",
+            SqlSearchText.AllDatabasesDescription,
             _model.Scope.Databases.Count == 0,
             // 取消勾它不是一個範圍；面板那一列自己會彈回去，這裡只忽略。
             selected => Run(() => { if (selected) ClearDatabases(); })));
 
         _databases.SetOptions(new[]
         {
-            new SqlFilterGroup("使用者資料庫", user),
-            new SqlFilterGroup("系統資料庫", system)
+            new SqlFilterGroup(SqlSearchText.UserDatabases, user),
+            new SqlFilterGroup(SqlSearchText.SystemDatabases, system)
         });
         _databases.SetNotice(DatabaseNotice(seen.Count));
     }
@@ -549,12 +551,12 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (_scopeDatabases.IsUnavailable)
         {
             return listed == 0
-                ? "問不到資料庫清單；去看這個登入的權限，或按重新整理再試一次。"
-                : "問不到最新的資料庫清單，這一份可能是舊的。";
+                ? SqlSearchText.DatabaseListUnavailable
+                : SqlSearchText.DatabaseListStale;
         }
 
         if (!_scopeDatabases.IsLoaded) return "";
-        return listed == 0 ? "這個登入在這台伺服器上進不去任何資料庫。" : "";
+        return listed == 0 ? SqlSearchText.NoAccessibleDatabases : "";
     }
 
     /// <summary>
@@ -607,22 +609,22 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         foreach (var server in servers ?? Array.Empty<SsmsObjectExplorerServer>())
         {
             Add(server.DisplayName, server.ServerName, () => _catalogs.IsSelected(server),
-                "搜尋物件總管上這一台。", () => SelectServer(server));
+                SqlSearchText.ExplorerServerDescription, () => SelectServer(server));
         }
 
         if (editorServer is not null && !listed.Exists(name => SqlSearchCatalogs.IsSameServer(name, editorServer)))
         {
             Add(editorServer, editorServer, () => _catalogs.IsSelected(editorServer),
-                "搜尋查詢視窗連著的這一台；用查詢視窗那條連線。", () => _ = RunAsync(SelectEditorServerAsync));
+                SqlSearchText.EditorServerDescription, () => _ = RunAsync(SelectEditorServerAsync));
         }
 
         if (_catalogs.ServerName is { } current && !listed.Exists(_catalogs.IsSelected))
         {
-            Add(current, current, () => true, "目前搜尋的這一台。", () => { });
+            Add(current, current, () => true, SqlSearchText.CurrentServerDescription, () => { });
         }
 
         _server.SetOptions(new[] { new SqlFilterGroup("", options) });
-        _server.SetNotice(servers is null ? "問不到物件總管，只列得出查詢視窗連著的那一台。" : "");
+        _server.SetNotice(servers is null ? SqlSearchText.ExplorerUnavailable : "");
     }
 
     /// <summary>查詢視窗現在的連線；沒有視窗或沒有連線時為 null。只給套用按鈕的 Tooltip 用。</summary>
@@ -804,7 +806,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private string Label(string categoryId) =>
         _categoryLabels.TryGetValue(categoryId, out var label) ? label : categoryId;
 
-    private static string Join(IEnumerable<string> values) => string.Join("、", values);
+    private static string Join(IEnumerable<string> values) => string.Join(CommonText.ListSeparator, values);
 
     /// <summary>輸入、範圍或選項改變：作廢這一輪，但<b>不清空清單</b>，等新結果回來才換。</summary>
     /// <param name="keepChecks">
@@ -868,7 +870,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         catch (Exception error)
         {
             SqlAssistDiagnostics.WriteAlways("SQL Search 失敗：" + error.Message);
-            _model.Fail(round, "搜尋失敗：" + error.Message);
+            _model.Fail(round, SqlSearchText.SearchFailed(error.Message));
         }
         finally
         {
@@ -1024,6 +1026,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         return succeeded;
     }
 
+    [Localizable(false)]
     private void RunRowAction(SqlSearchRowAction action)
     {
         switch (action)

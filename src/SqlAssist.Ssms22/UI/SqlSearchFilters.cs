@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -41,9 +42,9 @@ internal sealed class SqlSearchSegments : Border
                 Content = SqlAssistChrome.CreateButtonText(label),
                 Style = SqlAssistChrome.CreateSegmentToggleStyle(),
                 IsChecked = true,
-                ToolTip = label + "：" + SqlSearchTargets.DescriptionFor(target)
+                ToolTip = SearchControlText.TargetToolTip(label, SqlSearchTargets.DescriptionFor(target))
             };
-            AutomationProperties.SetName(segment, "比對位置：" + label);
+            AutomationProperties.SetName(segment, SearchControlText.TargetSegmentName(label));
             var flag = target.ToFlag();
             segment.Checked += (_, _) => Toggle(flag, on: true);
             segment.Unchecked += (_, _) => Toggle(flag, on: false);
@@ -51,12 +52,13 @@ internal sealed class SqlSearchSegments : Border
             track.Children.Add(segment);
         }
 
-        AutomationProperties.SetName(this, "比對位置");
+        AutomationProperties.SetName(this, SearchControlText.Targets);
     }
 
     public event EventHandler? ValueChanged;
 
     /// <summary>目前亮著的幾段；永遠至少一段。</summary>
+    [Localizable(false)]
     public SearchTargets Value
     {
         get => _value;

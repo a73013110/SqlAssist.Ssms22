@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SqlAssist.Core.Statements;
@@ -24,6 +25,7 @@ public static class SqlProcedureCallText
     /// <param name="indent">第二行起每一行的前導文字，通常是 <c>EXEC</c> 那一行的縮排。</param>
     /// <param name="newLine">緩衝區使用的換行字元。</param>
     /// <param name="caretOffset">回傳結果字串中第一個參數的值的位置。</param>
+    [Localizable(false)]
     public static string Build(
         string executeKeyword,
         string qualifiedName,
@@ -159,7 +161,7 @@ public static class SqlProcedureCallText
     private static string Comment(SqlStatementParameter parameter)
     {
         return parameter.IsOptional
-            ? parameter.DataType + "，選擇性"
+            ? StatementText.ProcedureParameterOptional(parameter.DataType)
             : parameter.DataType;
     }
 }

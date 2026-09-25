@@ -1,0 +1,11 @@
+{
+  "DefaultsMissing": "The built-in snippet resource was not found: {resource}",
+  "DefaultsVersionMismatch": "The built-in snippets are version {version}, but this build supports {supported}.",
+  "DefaultsEmpty": "The built-in snippet resource has no usable items.",
+  "DefaultsReadFailed": "Couldn't read the built-in snippet resource: {message}",
+  "ShortcutTaken": "The shortcut \"{shortcut}\" is already in use.",
+  "ShortcutEmpty": "The shortcut can't be empty.",
+  "ShortcutInvalidCharacter": "Shortcuts may contain only letters, digits, and underscores, not \"{character}\".",
+  "ShortcutIsKeyword": "The shortcut can't be the same as the T-SQL keyword \"{keyword}\".",
+  "SurroundAnchorRepeated": "The surround anchor ${anchor}$ may appear only once, but it appears {count} times here."
+}

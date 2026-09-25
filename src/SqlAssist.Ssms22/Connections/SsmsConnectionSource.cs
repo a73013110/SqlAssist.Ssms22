@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Data;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Ssms22;
@@ -60,6 +61,7 @@ internal sealed class SsmsConnectionSource : ISqlConnectionSource, IDisposable
         return new SsmsConnectionSource(template, databaseName, serverCacheKey);
     }
 
+    [Localizable(false)]
     public IDbConnection OpenConnection()
     {
         if (_disposed)

@@ -40,7 +40,7 @@ internal sealed class SqlListPager : StackPanel
         Margin = new Thickness(0, 6, 2, 10);
         HorizontalAlignment = HorizontalAlignment.Stretch;
         RenderTransform = _reveal;
-        AutomationProperties.SetName(this, "清單頁尾");
+        AutomationProperties.SetName(this, ChromeText.ListFooter);
 
         var heading = new Grid();
         heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 12 });

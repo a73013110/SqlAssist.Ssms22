@@ -1,0 +1,39 @@
+{
+  // SqlMemoryCleanupWindow 與 SqlMemoryUsagePanel 的視窗文字、動作動詞與結果句。
+  // ── SqlMemoryCleanupWindow ──
+  "CleanupWindowTitle": "清除 SQL Memory 紀錄",
+  "EstimateVerb": "試算",
+  // ── SqlMemoryUsagePanel：讀取與整理動詞、進度 ──
+  "ReadUsageVerb": "讀取用量",
+  "MaintainVerb": "維護",
+  // 以下兩句會被去掉結尾「…」後接進 DeletingProgress，譯文也要以「…」結尾。
+  "MaintainBusy": "正在依保留規則維護…",
+  "ClearBusy": "正在清除紀錄…",
+  // {busy} 是呼叫端已去掉結尾「…」的忙碌文字；{count} 是已格式化成 N0 的字串。
+  "DeletingProgress": "{busy}，已刪除 {count} 列…",
+  // ── 壓縮 ──
+  "CompactConfirmTitle": "壓縮 SQL Memory 資料庫",
+  "CompactConfirmMessage": "重建資料庫檔案以縮小體積？",
+  "CompactConfirmDetail": "不會刪除任何紀錄。\n過程中需要與資料庫大小相當的暫存空間。\n壓縮期間新的擷取會先等候，完成後才寫入。",
+  "CompactVerb": "壓縮",
+  "CompactBusy": "正在壓縮資料庫；可繼續編輯…",
+  "CompactedSummary": "資料庫檔案現在是 {size}。",
+  // ── 備份 ──
+  "BackupVerb": "備份",
+  "BackupBusy": "正在備份資料庫…",
+  "BackupNote": "備份檔 {size}",
+  "BackupStatus": "已備份到 {path}。",
+  "BackupDialogTitle": "備份 SQL Memory 資料庫",
+  // Win32 存檔對話框的篩選字串，格式是「說明|樣式」用 | 接起來；樣式（*.db、*.*）不要動，只翻說明。
+  "BackupDialogFilter": "SQLite 資料庫 (*.db)|*.db|所有檔案 (*.*)|*.*",
+  "BackupOverwritesActiveDatabase": "備份不能覆寫目前使用中的資料庫；請選擇其他位置。",
+  // ── 自我測試 ──
+  "SelfTestVerb": "自我測試",
+  "SelfTestBusy": "正在測試儲存；可繼續編輯…",
+  "SelfTestNote": "已驗證寫入、重送、重新開啟與隔離層卸載。",
+  "SelfTestReportStatus": "報告：{path}",
+  // ── 清理結果句：Maintain／Cleanup 共用 ──
+  "CleanupNone": "沒有需要回收的資料。",
+  "CleanupDeleted": "刪除 {count} 列。檔案要壓縮後才會變小。",
+  "CleanupDeletedReleased": "刪除 {count} 列，釋出 {size}。檔案要壓縮後才會變小。"
+}

@@ -27,7 +27,7 @@ internal static class BlockEndpointFormat
 [UserVisible(false)]
 internal sealed class BlockKeywordFormat : ClassificationFormatDefinition
 {
-    public BlockKeywordFormat() => DisplayName = "SqlAssist 配對端點預設";
+    public BlockKeywordFormat() => DisplayName = ChromeText.BlockEndpointFormat;
 }
 
 [Export(typeof(EditorFormatDefinition))]
@@ -37,5 +37,5 @@ internal sealed class BlockKeywordFormat : ClassificationFormatDefinition
 [UserVisible(false)]
 internal sealed class BlockSymbolFormat : ClassificationFormatDefinition
 {
-    public BlockSymbolFormat() => DisplayName = "SqlAssist 配對括號與字串引號";
+    public BlockSymbolFormat() => DisplayName = ChromeText.BlockSymbolFormat;
 }

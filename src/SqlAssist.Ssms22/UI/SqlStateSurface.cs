@@ -132,7 +132,7 @@ internal sealed class SqlStateSurface : Grid
         // 載入中那一句由忙碌圖示自己帶著；這裡再掛一次會讓朗讀器念兩遍。
         AutomationProperties.SetName(this, !hasMessage ? ""
             : _state.Detail.Length == 0 ? _state.Title
-            : _state.Title + "。" + _state.Detail);
+            : ChromeText.StateTitleAndDetail(_state.Title, _state.Detail));
 
         if (motion && hasMessage) SqlAssistChrome.PlayAppear(_message);
         UpdateAnimation();

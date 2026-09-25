@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -47,14 +47,14 @@ internal sealed class SqlSelectionBar
         _covered = covered ?? throw new ArgumentNullException(nameof(covered));
         _motion = motion;
 
-        var close = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "離開多選（Esc）");
+        var close = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, ChromeText.ExitSelection);
         close.Click += (_, _) => _selection.Clear();
         _count = SqlAssistChrome.CreateSelectionCount();
         AutomationProperties.SetLiveSetting(_count, AutomationLiveSetting.Polite);
         _note = SqlAssistChrome.CreateSelectionNote();
-        _selectAll = SqlAssistChrome.CreateSelectionTextButton("全選", "勾選全部符合條件的項目，包括還沒載入的（Ctrl+A）");
+        _selectAll = SqlAssistChrome.CreateSelectionTextButton(ChromeText.SelectAll, ChromeText.SelectAllMatchingToolTip);
         _selectAll.Click += (_, _) => _selection.SelectAll();
-        _cancel = SqlAssistChrome.CreateSelectionTextButton("取消", "");
+        _cancel = SqlAssistChrome.CreateSelectionTextButton(CommonText.Cancel, "");
         _cancel.Visibility = Visibility.Collapsed;
         _cancel.Click += (_, _) => _progress?.Cancel();
 
@@ -82,7 +82,7 @@ internal sealed class SqlSelectionBar
         content.Children.Add(_count);
         content.Children.Add(_note);
         _bar = SqlAssistChrome.CreateSelectionBarSurface(content);
-        AutomationProperties.SetName(_bar, "多選工具列");
+        AutomationProperties.SetName(_bar, ChromeText.SelectionToolbar);
         _bar.PreviewKeyDown += OnBarKeyDown;
 
         // 被蓋住的那一列決定高度，工具列拉滿同一格：兩者高度永遠一樣，進出不推動下面的清單。
@@ -151,7 +151,7 @@ internal sealed class SqlSelectionBar
 
         // 還有沒載入的列時才補一句已載入幾筆：全部都在畫面上時，「已選全部 N 筆」已經說完了。
         var note = progress is null && _selection.IsAllMatching && _selection.HasMore
-            ? "已載入 " + Format(_selection.LoadedCount) + " 筆，其餘在執行動作時讀取"
+            ? ChromeText.SelectionLoadedNote(_selection.LoadedCount)
             : "";
         _note.Text = note;
         _note.ToolTip = note.Length == 0 ? null : note;
@@ -168,11 +168,9 @@ internal sealed class SqlSelectionBar
     }
 
     /// <summary>全部符合而且還有沒載入的列時說不出確切筆數，只說「全部」。</summary>
-    private string CountLabel() => !_selection.IsAllMatching ? "已選 " + Format(_selection.Count) + " 筆"
-        : _selection.HasMore ? "已選全部符合的項目"
-        : "已選全部 " + Format(_selection.Count) + " 筆";
-
-    private static string Format(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
+    private string CountLabel() => !_selection.IsAllMatching ? ChromeText.SelectedCount(_selection.Count)
+        : _selection.HasMore ? ChromeText.SelectedAllMatching
+        : ChromeText.SelectedAllCount(_selection.Count);
 
     private void SetShown(bool shown)
     {

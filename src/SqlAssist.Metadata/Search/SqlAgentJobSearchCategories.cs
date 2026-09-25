@@ -46,8 +46,8 @@ public static class SqlAgentJobSearchCategories
 
         return new[]
         {
-            new SearchCategory(providerId, JobCategoryId, "作業", 0, GroupId),
-            new SearchCategory(providerId, StepCategoryId, "作業步驟", 1, GroupId)
+            new SearchCategory(providerId, JobCategoryId, SearchSourceText.AgentJobCategory, 0, GroupId),
+            new SearchCategory(providerId, StepCategoryId, SearchSourceText.AgentJobStepCategory, 1, GroupId)
         };
     }
 }

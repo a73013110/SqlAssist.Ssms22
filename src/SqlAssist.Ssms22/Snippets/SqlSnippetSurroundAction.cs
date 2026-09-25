@@ -59,20 +59,20 @@ internal static class SqlSnippetSurroundAction
     {
         if (view is null || view.IsClosed)
         {
-            message = "查詢視窗已關閉。";
+            message = SnippetWindowText.QueryWindowClosed;
             return false;
         }
 
         if (view.Selection.IsEmpty)
         {
-            message = "請先選取要包住的文字。";
+            message = SnippetWindowText.SelectTextFirst;
             return false;
         }
 
         if (view.Selection.Mode == TextSelectionMode.Box)
         {
             // 框選是好幾段不連續的範圍，包起來之後每一段各自成句的假設不成立。
-            message = "框選範圍無法包夾，請改用一般選取。";
+            message = SnippetWindowText.BoxSelectionNotSupported;
             return false;
         }
 
@@ -80,14 +80,14 @@ internal static class SqlSnippetSurroundAction
 
         if (candidates.Count == 0)
         {
-            message = "沒有可以包夾的片段；把片段裡的一格命名為 surround 就會出現在這裡。";
+            message = SnippetWindowText.NoSurroundableSnippets;
             return false;
         }
 
         var selection = view.Selection.StreamSelectionSpan.SnapshotSpan;
         if (string.IsNullOrWhiteSpace(selection.GetText()))
         {
-            message = "選取範圍只有空白，請選取要包住的 SQL。";
+            message = SnippetWindowText.SelectionIsWhitespace;
             return false;
         }
 
@@ -97,7 +97,7 @@ internal static class SqlSnippetSurroundAction
         var buffer = target.Snapshot.TextBuffer;
         if (buffer.IsReadOnly(target.Span))
         {
-            message = "選取範圍為唯讀，無法包夾。";
+            message = SnippetWindowText.SelectionReadOnly;
             return false;
         }
 
@@ -179,7 +179,7 @@ internal static class SqlSnippetSurroundAction
             if (!string.Equals(current.GetText(), expected, StringComparison.Ordinal) || buffer.IsReadOnly(current.Span))
             {
                 SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
-                    "選取內容已變更或改為唯讀，未套用包夾；請重新選取。");
+                    SnippetWindowText.SelectionChangedNotApplied);
                 return;
             }
 
@@ -226,7 +226,7 @@ internal static class SqlSnippetSurroundAction
                     $"原生 Snippet 在回報失敗前已改動文字，已略過降級插入：{snippet.Shortcut}",
                     target);
                 SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
-                    "原生片段引擎未完成包夾；為避免重複插入已停止，請檢查內容，必要時復原。");
+                    SnippetWindowText.NativeEngineIncomplete);
             }
         });
     }
@@ -242,7 +242,7 @@ internal static class SqlSnippetSurroundAction
         else
         {
             SqlAssistStatusBar.Show(Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider,
-                "未能寫入包夾內容；請確認查詢可編輯後重試。");
+                SnippetWindowText.WriteFailed);
         }
     }
 }

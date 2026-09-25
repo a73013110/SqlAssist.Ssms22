@@ -7,6 +7,7 @@ using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
 using Xunit;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Tests.Snippets;
 
@@ -557,5 +558,35 @@ public sealed class SqlSnippetDefaultsTests
         }
 
         return count;
+    }
+
+    [Fact]
+    public void 英文介面的內建片段取自覆蓋檔且只換文字()
+    {
+        var english = SqlSnippetDefaults.For(SqlLanguage.Find("en")!);
+        var source = SqlSnippetDefaults.For(SqlLanguage.Source);
+
+        Assert.True(english.TryGetById("builtin.ctb", out var table));
+        Assert.Equal("Create a table", table.Description);
+        Assert.Equal("Table name; can include schema", table.Placeholders.Single(item => item.Id == "table").ToolTip);
+
+        Assert.Equal(source.Snippets.Select(item => item.Id), english.Snippets.Select(item => item.Id));
+
+        foreach (var snippet in english.Snippets)
+        {
+            Assert.True(source.TryGetById(snippet.Id, out var original));
+            Assert.Equal(original.Shortcut, snippet.Shortcut);
+            Assert.Equal(original.ExpansionMode, snippet.ExpansionMode);
+            Assert.Equal(original.Positions, snippet.Positions);
+            Assert.Equal(original.CanSurround, snippet.CanSurround);
+            Assert.Equal(original.Placeholders.Select(item => item.Id), snippet.Placeholders.Select(item => item.Id));
+        }
+
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.Same(english, SqlSnippetDefaults.Current);
+        }
+
+        Assert.Same(source, SqlSnippetDefaults.Current);
     }
 }

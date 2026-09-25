@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace SqlAssist.Core.Search;
 
 /// <summary>
@@ -81,6 +83,7 @@ public sealed class SearchProviderProgress
     /// <summary>這個來源讀不到，而且它說得出「就是權限」。</summary>
     public bool IsDenied => IsUnavailable && UnavailableKind == SearchUnavailableKind.Denied;
 
+    [Localizable(false)]
     public override string ToString() =>
         $"{ProviderId}: {Reported}/{Examined}{(IsTruncated ? " (部分)" : "")}{(IsUnavailable ? IsDenied ? " (權限不足)" : " (讀不到)" : "")}";
 }

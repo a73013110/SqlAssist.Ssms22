@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -18,6 +19,7 @@ namespace SqlAssist.SqlMemory.Isolation;
 /// <see cref="CancellationToken"/> 無法跨 AppDomain，呼叫端先以 <see cref="BeginOperation"/> 取得識別碼，
 /// 取消時呼叫 <see cref="CancelOperation"/>；token 在 worker 端建立，KMP 掃描與交易內檢查才接得到。
 /// </remarks>
+[Localizable(false)]
 public sealed class SqlMemoryIsolatedWorker : MarshalByRefObject
 {
     private readonly ConcurrentDictionary<long, CancellationTokenSource> _operations = new();

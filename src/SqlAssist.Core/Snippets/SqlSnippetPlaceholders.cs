@@ -169,7 +169,7 @@ public static class SqlSnippetPlaceholders
 
         if (count > 1)
         {
-            error = $"包夾錨點 ${SurroundId}$ 只能出現一次，這一份出現了 {count} 次。";
+            error = SnippetText.SurroundAnchorRepeated(SurroundId, count);
             return false;
         }
 

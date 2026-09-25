@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Tabular;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -17,30 +18,31 @@ public static class SqlMemoryCopy
     /// <summary>時間欄的格式；試算表認得它是日期時間。</summary>
     public const string TimeFormat = "yyyy-MM-dd HH:mm:ss";
 
-    public static IReadOnlyList<SqlTabularColumn<SqlHistoryItem>> HistoryColumns { get; } = Array.AsReadOnly(new[]
+    // 欄位標題用複製當下的語言，所以每次取值都重建。
+    public static IReadOnlyList<SqlTabularColumn<SqlHistoryItem>> HistoryColumns => Array.AsReadOnly(new[]
     {
-        new SqlTabularColumn<SqlHistoryItem>("狀態", HistoryStatus),
-        new SqlTabularColumn<SqlHistoryItem>("名稱", item => item.DisplayName),
+        new SqlTabularColumn<SqlHistoryItem>(CommonText.Status, HistoryStatus),
+        new SqlTabularColumn<SqlHistoryItem>(CommonText.Name, item => item.DisplayName),
         // 沒有連線就留空格，不寫清單上那句「無伺服器」：那是給人看的說明，貼到試算表裡會被當成一台伺服器。
-        new SqlTabularColumn<SqlHistoryItem>("伺服器", item => item.Connection?.Server),
-        new SqlTabularColumn<SqlHistoryItem>("資料庫", item => item.Connection?.Database),
-        new SqlTabularColumn<SqlHistoryItem>("時間", item => Time(item.CreatedAt)),
-        new SqlTabularColumn<SqlHistoryItem>("次數", item => item.ExecutionCount.ToString(CultureInfo.InvariantCulture)),
+        new SqlTabularColumn<SqlHistoryItem>(CommonText.Server, item => item.Connection?.Server),
+        new SqlTabularColumn<SqlHistoryItem>(CommonText.Database, item => item.Connection?.Database),
+        new SqlTabularColumn<SqlHistoryItem>(SqlMemoryText.ColumnTime, item => Time(item.CreatedAt)),
+        new SqlTabularColumn<SqlHistoryItem>(SqlMemoryText.ColumnCount, item => item.ExecutionCount.ToString(CultureInfo.InvariantCulture)),
     });
 
-    public static IReadOnlyList<SqlTabularColumn<SqlFavoriteItem>> FavoriteColumns { get; } = Array.AsReadOnly(new[]
+    public static IReadOnlyList<SqlTabularColumn<SqlFavoriteItem>> FavoriteColumns => Array.AsReadOnly(new[]
     {
-        new SqlTabularColumn<SqlFavoriteItem>("名稱", item => item.Favorite.Name),
-        new SqlTabularColumn<SqlFavoriteItem>("伺服器", item => item.Favorite.Server),
-        new SqlTabularColumn<SqlFavoriteItem>("資料庫", item => item.Favorite.Database),
-        new SqlTabularColumn<SqlFavoriteItem>("更新時間", item => Time(item.UpdatedAt)),
+        new SqlTabularColumn<SqlFavoriteItem>(CommonText.Name, item => item.Favorite.Name),
+        new SqlTabularColumn<SqlFavoriteItem>(CommonText.Server, item => item.Favorite.Server),
+        new SqlTabularColumn<SqlFavoriteItem>(CommonText.Database, item => item.Favorite.Database),
+        new SqlTabularColumn<SqlFavoriteItem>(SqlMemoryText.ColumnUpdated, item => Time(item.UpdatedAt)),
     });
 
     /// <summary>History 列的狀態字；清單的膠囊與複製出去的欄位共用這一份。</summary>
     public static string HistoryStatus(SqlHistoryItem item)
     {
         if (item == null) throw new ArgumentNullException(nameof(item));
-        return item.Kind == SqlHistoryFilter.Executions ? "執行" : "草稿";
+        return item.Kind == SqlHistoryFilter.Executions ? SqlMemoryText.KindExecutions : SqlMemoryText.KindDrafts;
     }
 
     /// <summary>本機時間的絕對格式。</summary>

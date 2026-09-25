@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using Microsoft.Data.Sqlite;
 
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>SQLite provider 邊界；核心與 SSMS 接線層都不需要知道 native API。</summary>
+[Localizable(false)]
 public static class SqliteRuntime
 {
     public static string Probe(string databasePath)

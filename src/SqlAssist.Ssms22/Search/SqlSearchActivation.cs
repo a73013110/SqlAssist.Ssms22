@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -79,12 +78,12 @@ internal static partial class SqlSearchActivation
 
         if (hit.ActivatePayload is not SqlCatalogSearchTarget target)
         {
-            Reject(NotificationCatalog.GoingToDefinition, hit.Title, "這一筆沒有可以開啟的定義。");
+            Reject(NotificationCatalog.GoingToDefinition, hit.Title, SqlSearchText.NoDefinitionToOpen);
             return;
         }
 
         var objectInfo = ToObjectInfo(target);
-        var missing = $"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。";
+        var missing = SqlSearchText.StructureMissing(target.DatabaseName, objectInfo.QualifiedName);
 
         // 取結構與預覽走同一份目錄（同一個 SqlSearchCatalogs），不另問中繼資料服務：
         // 兩邊各問一次的症狀是預覽與新視窗的內容來自不同的地方。先問這一步，是因為範圍已經
@@ -230,11 +229,11 @@ internal static partial class SqlSearchActivation
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
-        const string title = NotificationCatalog.SelectingInObjectExplorer;
+        var title = NotificationCatalog.SelectingInObjectExplorer;
 
         if (!CanSelectInExplorer(hit) || OriginOf(hit) is not { } origin)
         {
-            Reject(title, hit.Title, "這一筆在物件總管上沒有自己的節點。");
+            Reject(title, hit.Title, SqlSearchText.NoExplorerNode);
             return;
         }
 
@@ -242,7 +241,7 @@ internal static partial class SqlSearchActivation
         // 另一台，而那一台上同名的物件會被選起來，畫面上看起來完全正常。
         if (catalogs.ResolveExplorerServer(origin) is not { } server)
         {
-            Reject(title, hit.Title, $"物件總管上沒有連到 {origin} 的連線；在那裡連上這一台之後再按一次。");
+            Reject(title, hit.Title, SqlSearchText.NoExplorerConnection(origin));
             return;
         }
 
@@ -253,7 +252,7 @@ internal static partial class SqlSearchActivation
 
         if (failure is not null || nodes.Count == 0)
         {
-            Reject(title, hit.Title, failure ?? "這一筆在物件總管上指不到節點。");
+            Reject(title, hit.Title, failure ?? SqlSearchText.ExplorerNodeUnresolved);
             return;
         }
 
@@ -283,16 +282,15 @@ internal static partial class SqlSearchActivation
         if (selected > 0)
         {
             // 選到的是上一層：拿到了東西，但不是他要的那一個，所以是降級而不是成功。
-            notification.Report($"物件總管上找不到{Describe(nodes[0])}，已改為選取{Describe(nodes[selected])}。");
+            notification.Report(SqlSearchText.ExplorerFallback(Describe(nodes[0]), Describe(nodes[selected])));
             notification.Degrade();
             return;
         }
 
         // 連最寬鬆的那一個都指不到：兩種來源的下一步完全不同。
         Fail(notification, hit.ActivatePayload is SqlAgentJobSearchTarget job
-            ? $"物件總管上找不到作業 {job.JobName}：它可能已經刪除，或這個登入看不到 SQL Server Agent。"
-            : $"物件總管上找不到 {hit.Title}：它可能已經卸除，或被物件總管的篩選器擋掉了；" +
-                "重新整理那個資料夾之後再試一次。");
+            ? SqlSearchText.ExplorerJobMissing(job.JobName)
+            : SqlSearchText.ExplorerObjectMissing(hit.Title));
     }
 
     /// <summary>
@@ -347,7 +345,7 @@ internal static partial class SqlSearchActivation
 
             return parent is null
                 ? (Array.Empty<SqlExplorerNode>(),
-                    $"問不到 {target.Name} 掛在哪一個物件上，可能是連線已中斷或它已經卸除。")
+                    SqlSearchText.ExplorerParentUnknown(target.Name))
                 : (SqlObjectExplorerUrn.ForChild(rootUrn, parent, target.Name), null);
         }
 
@@ -391,7 +389,7 @@ internal static partial class SqlSearchActivation
         {
             Reject(NotificationCatalog.GoingToDefinition, job.JobName, elsewhere
                 ? SqlSearchCatalogs.ElsewhereNotice(job.Origin)
-                : $"取不到 {job.Origin} 的連線，請確認它還連著之後重新搜尋。");
+                : SqlSearchText.JobConnectionMissing(job.Origin));
             return;
         }
 
@@ -399,7 +397,7 @@ internal static partial class SqlSearchActivation
         // 連線就是在錯的伺服器上按 F5——而一段作業步驟通常正是會改資料的那種 SQL。
         var (unconnected, documentName) = ChooseWindow(catalogs, job.Origin);
         var subject = job.StepId is { } step
-            ? job.JobName + " 第 " + step.ToString(CultureInfo.InvariantCulture) + " 步"
+            ? SqlSearchText.JobStepSubject(job.JobName, step)
             : job.JobName;
 
         using var notification = BeginGoingToDefinition(subject, documentName, job.Origin, unconnected);
@@ -415,8 +413,7 @@ internal static partial class SqlSearchActivation
         {
             // 三個原因都要寫出來：它們的下一步完全不同（去看作業還在不在、去要 msdb 權限、
             // 去看連線），而只說「取不到」的話使用者查不出該去看哪一個。
-            Fail(notification, $"在 {job.ServerName} 取不到 {subject} 的步驟命令：作業可能已經刪除、" +
-                "這個登入對 msdb 沒有權限，或連線已中斷。");
+            Fail(notification, SqlSearchText.JobCommandsMissing(job.ServerName, subject));
             return;
         }
 
@@ -424,7 +421,7 @@ internal static partial class SqlSearchActivation
             services,
             WithHeader(new SqlObjectScriptText(script, 0), hit, unconnected),
             subject,
-            $"已在新查詢視窗開啟 {subject} 的命令",
+            SqlSearchText.JobCommandsOpened(subject),
             documentName,
             unconnected);
 

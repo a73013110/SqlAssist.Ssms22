@@ -1,0 +1,8 @@
+{
+  // 參數提示裡沒有型別資訊的參數。
+  "UnknownType": "型別未知",
+  // 參數提示：有預設值的函式參數，位置要留著、寫 DEFAULT 這個關鍵字。
+  "FunctionParameterDefault": "{type}，可寫 DEFAULT",
+  // EXEC 展開時寫在參數右邊的 SQL 註解：有預設值、整列可以刪掉的參數。
+  "ProcedureParameterOptional": "{type}，選擇性"
+}

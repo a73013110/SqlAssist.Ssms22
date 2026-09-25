@@ -1,0 +1,13 @@
+{
+  "HeaderSource": "Source: {value}",
+  "HeaderGeneratedAt": "Generated at: {value}",
+  "HeaderTool": "Tool: {value}",
+  "HeaderStyle": "Style: {value}",
+  "TriggerUnavailable": "Cannot get the definition of trigger {trigger}: it was created WITH ENCRYPTION, or this login lacks VIEW DEFINITION permission on it.",
+  "ExtendedPropertySkipped": "Extended property {property} was not scripted: its target {target} is not in this script, or its name was omitted.",
+  "TypeIndexesSkipped": "Indexes not scripted: {count}. CREATE INDEX and ALTER TABLE are not valid for table types,\nand the parentheses of CREATE TYPE can hold only unnamed constraints.",
+  "ExpressionUnavailable": "Expression unavailable",
+  "UnscriptableHeading": "Cannot generate an executable script for {name} ({kind}).",
+  "UnscriptableReason": "SqlAssist does not recognize this object's type, so it cannot tell what its definition should look like.",
+  "UnscriptableAvailable": "What could be retrieved:"
+}

@@ -34,7 +34,7 @@ public static class SqlTempTableScript
     public const int MaxRowsPerInsert = 1000;
 
     /// <summary>產不出來時的第一句。</summary>
-    private const string UnavailableHeadline = "無法從查詢結果產生暫存資料表指令碼。";
+    private static string UnavailableHeadline => ResultGridText.TempTableUnavailable;
 
     public static string Build(ResultGridTable table, string? tableName = null)
     {
@@ -49,8 +49,8 @@ public static class SqlTempTableScript
         {
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
-                "選取範圍裡沒有資料列，或這份結果沒有欄位。",
-                "先在結果格線裡選幾格，再執行一次這個命令。");
+                ResultGridText.EmptySelection,
+                ResultGridText.SelectCellsFirst);
         }
 
         // 先轉字面值再描述欄位，不是相反：問不出精確度的 decimal 欄要從實際的值
@@ -60,7 +60,7 @@ public static class SqlTempTableScript
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
                 valueFailure,
-                "把那一欄從選取範圍拿掉之後再試一次；其餘欄位都轉得出來。");
+                ResultGridText.RemoveFailedColumn);
         }
 
         if (!TryDescribeColumns(table, literals, out var definitions, out var typeFailure))
@@ -71,7 +71,7 @@ public static class SqlTempTableScript
         var builder = new StringBuilder(ResultGridLiterals.EstimateLength(literals) + 512);
 
         ResultGridLiterals.AppendSourceComment(builder, table);
-        builder.AppendLine("-- 值取自結果格線已經取回的資料，不會重新查詢資料庫。");
+        builder.Append("-- ").AppendLine(ResultGridText.TempTableNoRequery);
         builder.AppendLine();
 
         AppendCreate(builder, name, definitions);
@@ -100,11 +100,7 @@ public static class SqlTempTableScript
 
             if (type.Length == 0)
             {
-                failure = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "取不到「{0}」欄的伺服器型別，沒有型別就寫不出 CREATE TABLE。"
-                    + "運算式欄位有時候查不到型別，替它取一個別名再執行一次查詢通常就有了。",
-                    names[index]);
+                failure = ResultGridText.TempTableNoServerType(names[index]);
                 definitions = Array.Empty<(string, string)>();
                 return false;
             }

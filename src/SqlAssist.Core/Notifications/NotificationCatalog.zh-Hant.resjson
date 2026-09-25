@@ -1,0 +1,222 @@
+{
+  // 通知標題：動詞開頭的現在進行式短語，不含物件名稱、狀態與標點。
+  // 每個標題都有一個同名加 Done 的鍵，是成功後那一列的過去式；兩者要是同一件事的兩種時態。
+  // 英文標題照 SSMS 狀態列的寫法用 -ing 開頭（Loading object list），Done 用過去式（Loaded object list）。
+  // ── 中繼資料 ──
+  "LoadingObjects": "載入物件清單",
+  "LoadingObjectsDone": "已載入物件清單",
+  "LoadingColumns": "載入欄位與定義",
+  "LoadingColumnsDone": "已載入欄位與定義",
+  "LoadingIndexes": "載入索引與條件約束",
+  "LoadingIndexesDone": "已載入索引與條件約束",
+  "LoadingSystemObjects": "載入系統物件",
+  "LoadingSystemObjectsDone": "已載入系統物件",
+  "LoadingCollations": "載入定序名單",
+  "LoadingCollationsDone": "已載入定序名單",
+  "LoadingDatabaseCollation": "載入資料庫定序",
+  "LoadingDatabaseCollationDone": "已載入資料庫定序",
+  "LoadingDatabases": "載入資料庫清單",
+  "LoadingDatabasesDone": "已載入資料庫清單",
+  "LoadingLinkedServers": "載入連結伺服器",
+  "LoadingLinkedServersDone": "已載入連結伺服器",
+  // 跨到同一台伺服器的另一個資料庫；主體是目標資料庫。
+  "ConnectingToDatabase": "連線到其他資料庫",
+  "ConnectingToDatabaseDone": "已連線到其他資料庫",
+  // 四段式名稱的遠端跳躍。
+  "QueryingLinkedServer": "透過連結伺服器查詢",
+  "QueryingLinkedServerDone": "已透過連結伺服器查詢",
+  // 只進診斷統計，永不上畫面。
+  "CacheHit": "命中快取",
+  "CacheHitDone": "已命中快取",
+  // ── 建議清單 ──
+  "PreparingSuggestions": "準備建議清單",
+  "PreparingSuggestionsDone": "已準備建議清單",
+  "SortingSuggestions": "排序建議清單",
+  "SortingSuggestionsDone": "已排序建議清單",
+  "FilteringSuggestions": "篩選建議清單",
+  "FilteringSuggestionsDone": "已篩選建議清單",
+  "LoadingSuggestionDescription": "載入建議說明",
+  "LoadingSuggestionDescriptionDone": "已載入建議說明",
+  "ResolvingQualifier": "解析限定名稱",
+  "ResolvingQualifierDone": "已解析限定名稱",
+  "ShowingSignatureHelp": "顯示函式參數提示",
+  "ShowingSignatureHelpDone": "已顯示函式參數提示",
+  // ── 物件提示與結構預覽 ──
+  "PreparingObjectHint": "準備物件提示",
+  "PreparingObjectHintDone": "已準備物件提示",
+  "LoadingStructurePreview": "載入結構預覽",
+  "LoadingStructurePreviewDone": "已載入結構預覽",
+  "RefreshingPreviewSelection": "更新預覽選取",
+  "RefreshingPreviewSelectionDone": "已更新預覽選取",
+  "GeneratingObjectScript": "產生物件指令碼",
+  "GeneratingObjectScriptDone": "已產生物件指令碼",
+  "RunningSchemaAnalysis": "執行結構健檢",
+  "RunningSchemaAnalysisDone": "已執行結構健檢",
+  // ── 分析、編輯與移至定義 ──
+  "AnalyzingBlocks": "分析 T-SQL 區塊",
+  "AnalyzingBlocksDone": "已分析 T-SQL 區塊",
+  "ExpandingWildcard": "展開 SELECT ＊",
+  "ExpandingWildcardDone": "已展開 SELECT ＊",
+  "ExpandingStatement": "展開語句樣板",
+  "ExpandingStatementDone": "已展開語句樣板",
+  "ExpandingSnippet": "展開程式碼片段",
+  "ExpandingSnippetDone": "已展開程式碼片段",
+  "GoingToDefinition": "移至定義",
+  "GoingToDefinitionDone": "已移至定義",
+  // SQL Search 的結果不在查詢視窗那一台：定義開進沒有連線的新視窗。
+  "GoingToDefinitionUnconnected": "開啟未連線的定義視窗",
+  "GoingToDefinitionUnconnectedDone": "已開啟未連線的定義視窗",
+  "GeneratingDefinitionScript": "產生定義指令碼",
+  "GeneratingDefinitionScriptDone": "已產生定義指令碼",
+  "OpeningQueryWindow": "開啟新查詢視窗",
+  "OpeningQueryWindowDone": "已開啟新查詢視窗",
+  // 把物件總管展開到某一個節點。
+  "SelectingInObjectExplorer": "在物件總管中選取",
+  "SelectingInObjectExplorerDone": "已在物件總管中選取",
+  // ── 初始化、連線與設定 ──
+  "InitializingPackage": "初始化 SqlAssist",
+  "InitializingPackageDone": "已初始化 SqlAssist",
+  "CreatingMetadataConnection": "建立中繼資料連線",
+  "CreatingMetadataConnectionDone": "已建立中繼資料連線",
+  "ReconfirmingConnection": "重新確認連線",
+  "ReconfirmingConnectionDone": "已重新確認連線",
+  "ReloadingSettings": "重新載入設定",
+  "ReloadingSettingsDone": "已重新載入設定",
+  "RebuildingThemeBrushes": "重建主題筆刷",
+  "RebuildingThemeBrushesDone": "已重建主題筆刷",
+  // ── SQL Memory ──
+  "EnablingSqlMemory": "啟用 SQL Memory",
+  "EnablingSqlMemoryDone": "已啟用 SQL Memory",
+  "DisablingSqlMemory": "停用 SQL Memory",
+  "DisablingSqlMemoryDone": "已停用 SQL Memory",
+  "CompactingSqlMemory": "整理 SQL Memory",
+  "CompactingSqlMemoryDone": "已整理 SQL Memory",
+  "ClearingSqlMemoryHistory": "清除 SQL Memory 紀錄",
+  "ClearingSqlMemoryHistoryDone": "已清除 SQL Memory 紀錄",
+  "BackingUpSqlMemory": "備份 SQL Memory",
+  "BackingUpSqlMemoryDone": "已備份 SQL Memory",
+  "RestoringFavoriteRevision": "回溯收藏版本",
+  "RestoringFavoriteRevisionDone": "已回溯收藏版本",
+  // 清單與預覽上的列操作與多選動作。
+  "CopyingSql": "複製 SQL",
+  "CopyingSqlDone": "已複製 SQL",
+  "CopyingSqlList": "複製清單",
+  "CopyingSqlListDone": "已複製清單",
+  "AddingFavorite": "加入收藏",
+  "AddingFavoriteDone": "已加入收藏",
+  "SavingFavorite": "儲存收藏",
+  "SavingFavoriteDone": "已儲存收藏",
+  "DeletingSqlHistory": "刪除 History 紀錄",
+  "DeletingSqlHistoryDone": "已刪除 History 紀錄",
+  "RemovingFavorite": "移除收藏",
+  "RemovingFavoriteDone": "已移除收藏",
+  // ── SQL Search ──
+  "SearchingDatabaseObjects": "搜尋資料庫物件",
+  "SearchingDatabaseObjectsDone": "已搜尋資料庫物件",
+  "CopyingQualifiedName": "複製限定名稱",
+  "CopyingQualifiedNameDone": "已複製限定名稱",
+  "CopyingDefinition": "複製定義",
+  "CopyingDefinitionDone": "已複製定義",
+  "ApplyingEditorConnection": "套用查詢視窗的連線",
+  "ApplyingEditorConnectionDone": "已套用查詢視窗的連線",
+  "HighlightingMatches": "標示命中位置",
+  "HighlightingMatchesDone": "已標示命中位置",
+  "RunningSearchAction": "執行 SQL Search 操作",
+  "RunningSearchActionDone": "已執行 SQL Search 操作",
+  // 依保留規則回收舊紀錄。
+  "MaintainingSqlMemory": "維護 SQL Memory",
+  "MaintainingSqlMemoryDone": "已維護 SQL Memory",
+  // 版本不相容或損毀時，封存舊檔並建立空資料庫。
+  "RebuildingSqlMemory": "重建 SQL Memory 資料庫",
+  "RebuildingSqlMemoryDone": "已重建 SQL Memory 資料庫",
+  "TestingSqlMemoryStorage": "測試 SQL Memory 儲存",
+  "TestingSqlMemoryStorageDone": "已測試 SQL Memory 儲存",
+  // 擷取佇列滿了，那一筆沒有寫進紀錄；一律記為失敗，所以不會用到 Done。
+  "DroppingSqlCapture": "丟棄 SQL 擷取",
+  "DroppingSqlCaptureDone": "已丟棄 SQL 擷取",
+  // ── 更新 ──
+  "CheckingForUpdates": "檢查更新",
+  "CheckingForUpdatesDone": "已檢查更新",
+  // ── 通知測試（「關於與診斷」） ──
+  "SimulatingWork": "模擬背景工作",
+  "SimulatingWorkDone": "已模擬背景工作",
+  "SimulatingRepeatedWork": "模擬重複工作",
+  "SimulatingRepeatedWorkDone": "已模擬重複工作",
+  // ── 提醒 ──
+  "UpdatePromptTitle": "SqlAssist 有新版",
+  "UpdatePromptMessage": "{version} 已經發行；安裝前要先關掉所有 SSMS。",
+  "UpdateSkip": "略過此版本",
+  "UpdateDownload": "前往下載",
+  "CapacityPromptTitle": "SQL Memory 超過容量警戒",
+  "CapacityPromptMessage": "紀錄都還在；清理舊紀錄或調整保留規則可以解除警戒。",
+  "OpenMaintenance": "開啟維護",
+  "FirstCapturePromptTitle": "SQL Memory 已開始擷取",
+  "SqlMemoryFirstCaptureNotice": "SQL 只留在這台電腦。用量分頁可以看檔案位置，設定的 SQL Memory 頁可以關掉。",
+  "OpenSqlMemory": "開啟 SQL Memory",
+  "RehearsalErrorTitle": "測試提醒：錯誤",
+  "RehearsalWarningTitle": "測試提醒：警告",
+  "RehearsalInfoTitle": "測試提醒：一般",
+  // 「知道了」要與 RehearsalAcknowledge 按鈕的字一致。
+  "RehearsalMessage": "這是一則測試；按「知道了」或叉號都只會收起它。",
+  "RehearsalAcknowledge": "知道了",
+  // 叉號的 ToolTip：不是拒絕，只是這次工作階段先收起來。
+  "PromptLater": "稍後提醒",
+
+  // ── 通知島 ──
+  // 清單抬頭與多項膠囊共用；分子只算成功。英文避開單複數：用「標籤: 數字」的句型。
+  "ProgressText": "{total} 項工作 · {succeeded}/{total}",
+  "FailureSummary": "{count} 項失敗",
+  "PendingPrompts": "{count} 則提醒待處理",
+  "ViewActivities": "查看",
+  "BackToPrompts": "回到提醒",
+  "DismissActivities": "關閉通知（不取消工作）",
+  // 通知島浮層視窗的標題；畫面上看不到，輔助技術與視窗清單會唸。
+  "OverlayTitle": "SqlAssist 通知",
+  // 附條給輔助技術唸的一句：摘要接著附條上的動作（「查看」「回到提醒」）。
+  "StripAccessibleName": "{summary}，{action}",
+  // ×N 徽章的 ToolTip。
+  "RepeatBadge": "這一列代表 {count} 次相同的工作",
+  // 成功那一列在耗時超過 1 秒時接在過去式標題後面。
+  "WithElapsed": "{headline}（{seconds:0.0} 秒）",
+  // 不在目錄裡的標題（測試用的字面值）成功後的寫法；目錄裡的標題都有自己的 Done。
+  "CompletedFallback": "已{title}",
+
+  // ── 狀態 ──
+  "StatusRunning": "執行中",
+  "StatusSucceeded": "已完成",
+  "StatusDegraded": "部分資料無法取得",
+  "StatusFailed": "失敗 · 詳見關於與診斷",
+  "StatusCanceled": "已取消",
+  "StatusPending": "等待中",
+  "ResultFailed": "請至「關於與診斷」查看通知失敗",
+  "ResultCanceled": "工作已取消",
+
+  // ── 工作階段統計 ──
+  "DigestOther": "超出上限的其他工作",
+
+  // ── 種類開關（「關於與診斷」上的種類名稱） ──
+  "KindMetadata": "中繼資料載入",
+  "KindCompletion": "建議清單",
+  "KindAnalysis": "語法與區塊分析",
+  "KindPreview": "物件提示與結構預覽",
+  "KindPackage": "初始化與連線",
+  "KindEditing": "編輯與展開",
+  "KindNavigation": "移至定義",
+  "KindResults": "結果格線",
+  "KindSnippets": "程式碼片段",
+  "KindUnclassified": "未分類",
+  "KindUpdate": "更新檢查",
+  "KindDiagnostics": "通知測試",
+
+  // ── 通知測試（「關於與診斷」的按鈕與說明） ──
+  "RehearsalSuccess": "3 秒後成功",
+  "RehearsalFailure": "3 秒後失敗",
+  "RehearsalRepeats": "連續 5 次成功",
+  "RehearsalOnePrompt": "一則提醒",
+  "RehearsalPromptStack": "三則提醒",
+  "RehearsalPromptWithActivity": "提醒加活動",
+  // 「」裡是設定項目的名稱，英文要對上設定頁的英文名稱。
+  "HiddenByEnabled": "「啟用 SqlAssist」關著，測試通知不會出現。",
+  "HiddenByNotifications": "「顯示通知提示」關著，測試通知不會出現。",
+  "HiddenByFailures": "「顯示所有種類的失敗」關著，失敗的測試不會出現。"
+}

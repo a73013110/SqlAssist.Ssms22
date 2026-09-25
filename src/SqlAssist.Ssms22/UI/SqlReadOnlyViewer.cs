@@ -54,7 +54,7 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
             }
         };
         var menu = new ContextMenu();
-        foreach (var entry in new[] { ("複製選取", (Func<string>)(() => SelectedSql)), ("複製全文", () => Sql) })
+        foreach (var entry in new[] { (ChromeText.CopySelection, (Func<string>)(() => SelectedSql)), (ChromeText.CopyAll, () => Sql) })
         {
             var item = new MenuItem { Header = entry.Item1 };
             item.Click += (_, _) => Copy(entry.Item2());
@@ -146,7 +146,7 @@ internal sealed class SqlReadOnlyViewer : UserControl, IDisposable
         {
             if (await SqlClipboard.WriteTextAsync(text).ConfigureAwait(true) is { } failure) ReportError?.Invoke(failure);
         }
-        catch (Exception error) { ReportError?.Invoke("複製 SQL 失敗：" + error.Message); }
+        catch (Exception error) { ReportError?.Invoke(ChromeText.CopySqlFailed(error.Message)); }
     }
     private void OnEditorChanged(object? sender, EventArgs args) =>
         SqlAssistPlatformGuard.Run("更新SQL 唯讀預覽主題來源", () => _theme.SetView(ActiveSqlEditor.Current));

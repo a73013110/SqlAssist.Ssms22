@@ -30,7 +30,7 @@ public static class SqlMarkdownTableScript
     public const string NullMarker = "*NULL*";
 
     /// <summary>產不出來時的第一句。</summary>
-    private const string UnavailableHeadline = "無法從查詢結果產生 Markdown 表格。";
+    private static string UnavailableHeadline => ResultGridText.MarkdownUnavailable;
 
     public static string Build(ResultGridTable table)
     {
@@ -43,8 +43,8 @@ public static class SqlMarkdownTableScript
         {
             return ResultGridLiterals.Unavailable(
                 UnavailableHeadline,
-                "選取範圍裡沒有資料列，或這份結果沒有欄位。",
-                "先在結果格線裡選幾格，再執行一次這個命令。");
+                ResultGridText.EmptySelection,
+                ResultGridText.SelectCellsFirst);
         }
 
         var names = table.ScriptColumnNames;

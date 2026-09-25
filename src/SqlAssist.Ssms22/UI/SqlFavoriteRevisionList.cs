@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Ssms22.UI;
 
@@ -16,25 +17,29 @@ internal enum SqlFavoriteRevisionAction { Preview, Open, Copy, Revert }
 /// </remarks>
 internal sealed class SqlFavoriteRevisionCommand
 {
-    private SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction action, SqlIcon icon, string label,
+    private SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction action, SqlIcon icon, Func<string> label,
         bool separated = false, SqlActionTone tone = SqlActionTone.Neutral, bool hiddenOnCurrent = false, string? labelProperty = null)
     {
-        Action = action; Icon = icon; Label = label; IsSeparated = separated; Tone = tone;
+        Action = action; Icon = icon; _label = label; IsSeparated = separated; Tone = tone;
         HiddenOnCurrent = hiddenOnCurrent; LabelProperty = labelProperty;
     }
 
     public static IReadOnlyList<SqlFavoriteRevisionCommand> All { get; } = new[]
     {
-        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Preview, SqlIcon.Preview, "預覽此版本全文"),
-        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Open, SqlIcon.Open, "以此版本開新 Query（不執行）"),
-        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Copy, SqlIcon.Copy, "複製此版本 SQL"),
-        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Revert, SqlIcon.Revert, "回溯為新版本",
+        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Preview, SqlIcon.Preview, () => SqlMemoryViewText.PreviewRevision),
+        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Open, SqlIcon.Open, () => SqlMemoryViewText.OpenRevisionQuery),
+        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Copy, SqlIcon.Copy, () => SqlMemoryViewText.CopyRevisionSql),
+        new SqlFavoriteRevisionCommand(SqlFavoriteRevisionAction.Revert, SqlIcon.Revert, () => SqlMemoryViewText.RevertToNewRevision,
             separated: true, tone: SqlActionTone.Favorite, hiddenOnCurrent: true, labelProperty: "RevertLabel"),
     };
 
     public SqlFavoriteRevisionAction Action { get; }
     public SqlIcon Icon { get; }
-    public string Label { get; }
+
+    private readonly Func<string> _label;
+
+    public string Label => _label();
+
     public bool IsSeparated { get; }
     public SqlActionTone Tone { get; }
 
@@ -44,6 +49,7 @@ internal sealed class SqlFavoriteRevisionCommand
     /// <summary>存在時，列上的說明繫結到依狀態變化的文字（例如為什麼不能回溯）。</summary>
     public string? LabelProperty { get; }
 
+    [Localizable(false)]
     public static SqlFavoriteRevisionCommand For(SqlFavoriteRevisionAction action)
     {
         foreach (var command in All) if (command.Action == action) return command;

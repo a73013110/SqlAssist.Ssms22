@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Keywords;
 
@@ -27,61 +28,60 @@ public static class SqlDataTypeCatalog
     /// 少按一次鍵，而游標剛好停在引數上。<c>DATETIME2</c>、<c>FLOAT</c> 不帶——
     /// 那兩個用預設值的寫法遠比指定的常見，補上去反而要多按一次刪除。
     /// </remarks>
-    private static readonly (string Name, string Description, bool TakesArguments)[] Definitions =
+    private static readonly (string Name, Func<string> Description, bool TakesArguments)[] Definitions =
     {
         // 精確數值
-        ("BIGINT", "整數（8 位元組）", false),
-        ("INT", "整數（4 位元組）", false),
-        ("SMALLINT", "整數（2 位元組）", false),
-        ("TINYINT", "整數（0 到 255）", false),
-        ("BIT", "0、1 或 NULL", false),
-        ("DECIMAL", "固定有效位數與小數位數", true),
-        ("NUMERIC", "同 DECIMAL", true),
-        ("MONEY", "貨幣（8 位元組）", false),
-        ("SMALLMONEY", "貨幣（4 位元組）", false),
+        ("BIGINT", () => DataTypeText.Bigint, false),
+        ("INT", () => DataTypeText.Int, false),
+        ("SMALLINT", () => DataTypeText.Smallint, false),
+        ("TINYINT", () => DataTypeText.Tinyint, false),
+        ("BIT", () => DataTypeText.Bit, false),
+        ("DECIMAL", () => DataTypeText.Decimal, true),
+        ("NUMERIC", () => DataTypeText.Numeric, true),
+        ("MONEY", () => DataTypeText.Money, false),
+        ("SMALLMONEY", () => DataTypeText.Smallmoney, false),
 
         // 概略數值
-        ("FLOAT", "浮點數", false),
-        ("REAL", "浮點數（等同 FLOAT(24)）", false),
+        ("FLOAT", () => DataTypeText.Float, false),
+        ("REAL", () => DataTypeText.Real, false),
 
         // 日期與時間
-        ("DATE", "日期", false),
-        ("TIME", "時間", false),
-        ("DATETIME2", "日期與時間（建議用它取代 DATETIME）", false),
-        ("DATETIMEOFFSET", "日期、時間與時區位移", false),
-        ("DATETIME", "日期與時間（精確度 3.33 毫秒）", false),
-        ("SMALLDATETIME", "日期與時間（精確度 1 分鐘）", false),
+        ("DATE", () => DataTypeText.Date, false),
+        ("TIME", () => DataTypeText.Time, false),
+        ("DATETIME2", () => DataTypeText.Datetime2, false),
+        ("DATETIMEOFFSET", () => DataTypeText.Datetimeoffset, false),
+        ("DATETIME", () => DataTypeText.Datetime, false),
+        ("SMALLDATETIME", () => DataTypeText.Smalldatetime, false),
 
         // 字元
-        ("CHAR", "固定長度非 Unicode 字串", true),
-        ("VARCHAR", "可變長度非 Unicode 字串", true),
-        ("NCHAR", "固定長度 Unicode 字串", true),
-        ("NVARCHAR", "可變長度 Unicode 字串", true),
-        ("TEXT", "已淘汰，改用 VARCHAR(MAX)", false),
-        ("NTEXT", "已淘汰，改用 NVARCHAR(MAX)", false),
+        ("CHAR", () => DataTypeText.Char, true),
+        ("VARCHAR", () => DataTypeText.Varchar, true),
+        ("NCHAR", () => DataTypeText.Nchar, true),
+        ("NVARCHAR", () => DataTypeText.Nvarchar, true),
+        ("TEXT", () => DataTypeText.Text, false),
+        ("NTEXT", () => DataTypeText.Ntext, false),
 
         // 二進位
-        ("BINARY", "固定長度二進位", true),
-        ("VARBINARY", "可變長度二進位", true),
-        ("IMAGE", "已淘汰，改用 VARBINARY(MAX)", false),
+        ("BINARY", () => DataTypeText.Binary, true),
+        ("VARBINARY", () => DataTypeText.Varbinary, true),
+        ("IMAGE", () => DataTypeText.Image, false),
 
         // 其他
-        ("UNIQUEIDENTIFIER", "GUID（16 位元組）", false),
-        ("XML", "XML 文件或片段", false),
-        ("SQL_VARIANT", "可放多種型別的值", false),
-        ("HIERARCHYID", "階層位置", false),
-        ("GEOMETRY", "平面空間資料", false),
-        ("GEOGRAPHY", "地理空間資料", false),
-        ("ROWVERSION", "資料列版本（自動遞增）", false),
-        ("TIMESTAMP", "已淘汰，改用 ROWVERSION", false),
-        ("SYSNAME", "系統物件名稱（等同 NVARCHAR(128)）", false),
-        ("TABLE", "資料表變數或資料表值參數", false),
-        ("CURSOR", "資料指標變數", false)
+        ("UNIQUEIDENTIFIER", () => DataTypeText.Uniqueidentifier, false),
+        ("XML", () => DataTypeText.Xml, false),
+        ("SQL_VARIANT", () => DataTypeText.SqlVariant, false),
+        ("HIERARCHYID", () => DataTypeText.Hierarchyid, false),
+        ("GEOMETRY", () => DataTypeText.Geometry, false),
+        ("GEOGRAPHY", () => DataTypeText.Geography, false),
+        ("ROWVERSION", () => DataTypeText.Rowversion, false),
+        ("TIMESTAMP", () => DataTypeText.Timestamp, false),
+        ("SYSNAME", () => DataTypeText.Sysname, false),
+        ("TABLE", () => DataTypeText.Table, false),
+        ("CURSOR", () => DataTypeText.Cursor, false)
     };
 
-    private static IReadOnlyList<SqlSuggestion>? _suggestions;
-
-    private static readonly object Gate = new();
+    private static readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> SuggestionCache =
+        new(_ => Build());
 
     /// <summary>查出一個內建型別的一行說明；大小寫不敏感。</summary>
     /// <remarks>
@@ -97,7 +97,7 @@ public static class SqlDataTypeCatalog
             {
                 if (string.Equals(candidate, name, StringComparison.OrdinalIgnoreCase))
                 {
-                    description = value;
+                    description = value();
                     return true;
                 }
             }
@@ -108,23 +108,16 @@ public static class SqlDataTypeCatalog
     }
 
     /// <summary>內建型別的建議項。</summary>
-    public static IReadOnlyList<SqlSuggestion> All
-    {
-        get
-        {
-            lock (Gate)
-            {
-                return _suggestions ??= Build();
-            }
-        }
-    }
+    public static IReadOnlyList<SqlSuggestion> All => SuggestionCache.Current;
 
     private static IReadOnlyList<SqlSuggestion> Build()
     {
         var suggestions = new List<SqlSuggestion>(Definitions.Length);
 
-        foreach (var (name, description, takesArguments) in Definitions)
+        foreach (var (name, describe, takesArguments) in Definitions)
         {
+            var description = describe();
+
             suggestions.Add(new SqlSuggestion(
                 name,
                 takesArguments ? name + "(" : name,

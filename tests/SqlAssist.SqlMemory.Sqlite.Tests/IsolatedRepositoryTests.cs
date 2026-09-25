@@ -55,6 +55,9 @@ public sealed class IsolatedRepositoryTests
                 repository.ReadExpiredLeasesAsync(SqliteTestStore.Start, 0, null, token));
             Assert.Equal(SqlMemoryStorageErrorKind.InvalidArgument, argument.Kind);
             Assert.Equal("ArgumentOutOfRangeException", argument.SourceType);
+            // 給使用者的說明由宿主依原因組，原因必須完整跨過 AppDomain。
+            var backup = await Assert.ThrowsAsync<SqlMemoryStorageException>(() => repository.BackupAsync("relative.db", token));
+            Assert.Equal(SqlMemoryStorageReason.BackupPathNotAbsolute, backup.Reason);
         }
 
         store.Scalar("PRAGMA user_version=100;");

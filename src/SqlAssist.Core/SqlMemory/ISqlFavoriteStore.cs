@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Matching;
@@ -55,6 +56,7 @@ public sealed record SqlFavoriteRevisionItem(Guid RevisionId, string ContentId, 
 public sealed class SqlFavoriteRevisionRequest
 {
     /// <param name="cursor">上一頁的 NextCursor；綁定儲存與收藏，換收藏沿用會被拒絕。</param>
+    [Localizable(false)]
     public SqlFavoriteRevisionRequest(Guid favoriteId, int pageSize, string? cursor = null)
     {
         if (favoriteId == Guid.Empty) throw new ArgumentException("SQL Favorite 必須有識別碼。", nameof(favoriteId));
@@ -84,6 +86,7 @@ public sealed class SqlFavoriteSave
 
     /// <param name="expectedVersion">null 表示新增。</param>
     /// <param name="sql">null 表示引用 <see cref="SqlFavorite.CurrentRevisionId"/> 指定的既有版本，不改 SQL。</param>
+    [Localizable(false)]
     public SqlFavoriteSave(SqlFavorite favorite, Guid? expectedVersion, DateTimeOffset savedAt, string? sql = null)
     {
         if (favorite == null) throw new ArgumentNullException(nameof(favorite));
@@ -113,6 +116,7 @@ public sealed class SqlFavoriteSave
     public string? Sql { get; }
 
     /// <summary>標註與篩選共用的正規化：空白視為不限，前後空白不算名稱的一部分。</summary>
+    [Localizable(false)]
     internal static string? Tag(string? value, string parameter)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;

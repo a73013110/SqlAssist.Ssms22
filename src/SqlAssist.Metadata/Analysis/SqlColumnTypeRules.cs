@@ -17,7 +17,7 @@ public sealed class SqlLegacyDateTimeRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-008";
 
-    public string Title => "datetime 建議改用 datetime2";
+    public string Title => SchemaCheckText.LegacyDateTimeTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -31,7 +31,7 @@ public sealed class SqlLegacyDateTimeRule : ISqlSchemaRule
             yield return new SqlSchemaFinding(
                 Id,
                 SqlSchemaSeverity.Information,
-                "datetime 會把時間四捨五入到 3.33 毫秒；datetime2 佔的位元組更少、範圍更大。",
+                SchemaCheckText.LegacyDateTimeMessage,
                 column.Name);
         }
     }
@@ -50,7 +50,7 @@ public sealed class SqlDeprecatedLargeObjectRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-009";
 
-    public string Title => "text／ntext／image 建議改用 max 型別";
+    public string Title => SchemaCheckText.DeprecatedLargeObjectTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -64,7 +64,7 @@ public sealed class SqlDeprecatedLargeObjectRule : ISqlSchemaRule
             yield return new SqlSchemaFinding(
                 Id,
                 SqlSchemaSeverity.Warning,
-                $"{column.DataType} 已經標成未來版本會移除，而且大多數字串函式對它不適用。",
+                SchemaCheckText.DeprecatedLargeObjectMessage(column.DataType),
                 column.Name);
         }
     }

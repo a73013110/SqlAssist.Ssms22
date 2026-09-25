@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Metadata.Formatting;
@@ -95,6 +96,7 @@ public static class SqlColumnPresentation
     }
 
     /// <summary>徽章與提示上顯示的文字，一律用 T-SQL 自己的說法。</summary>
+    [Localizable(false)]
     public static string ToDisplayName(this SqlColumnFlag flag)
     {
         return flag switch

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Shell;
@@ -35,6 +36,7 @@ namespace SqlAssist.Ssms22.Editor;
 /// </remarks>
 internal sealed class SqlDefinitionOpener
 {
+    [Localizable(false)]
     private const string OperationName = "物件定義";
 
     private readonly ITextView _textView;
@@ -91,7 +93,7 @@ internal sealed class SqlDefinitionOpener
             return true;
         }
 
-        SqlAssistStatusBar.Show(_serviceProvider, $"正在取得 {reference.Name} 的定義…");
+        SqlAssistStatusBar.Show(_serviceProvider, EditorText.LoadingDefinition(reference.Name));
 
         // 刻意不走 SqlAssistPlatformGuard.Begin：那一族的意思是「這一輪安靜地什麼都
         // 不做」，但使用者是自己按下 F12 的，什麼都沒發生等於故障。失敗一律說得出原因，
@@ -122,7 +124,7 @@ internal sealed class SqlDefinitionOpener
             // 措辭與下面回報那一行刻意不同：這一行留的是完整堆疊，那一行留的是
             // 使用者實際看到的話。寫成同一句的話紀錄檔會出現兩行只差長度的訊息。
             SqlAssistDiagnostics.WriteAlways($"開啟{OperationName}時發生例外：{exception}");
-            failure = $"開啟{OperationName}失敗；原因已寫入診斷紀錄檔。";
+            failure = EditorText.DefinitionFailed;
         }
         finally
         {
@@ -166,7 +168,7 @@ internal sealed class SqlDefinitionOpener
 
         if (location is null)
         {
-            return "游標處不是可辨識的資料庫物件。";
+            return EditorText.NoObjectAtCaret;
         }
 
         var objectInfo = location.Object;
@@ -176,7 +178,7 @@ internal sealed class SqlDefinitionOpener
         // 交給下面那一段只會回報「取不到結構」，那句話還把原因說錯了。
         if (objectInfo.Kind.IsScriptDeclared())
         {
-            return $"{objectInfo.QualifiedName} 是這份指令碼自己宣告的，定義就在目前的查詢視窗裡。";
+            return EditorText.DeclaredInScript(objectInfo.QualifiedName);
         }
 
         var structure = await _metadataService
@@ -185,7 +187,7 @@ internal sealed class SqlDefinitionOpener
 
         if (structure is null)
         {
-            return $"取不到 {objectInfo.QualifiedName} 的結構，可能是連線已中斷或權限不足。";
+            return EditorText.StructureUnavailable(objectInfo.QualifiedName);
         }
 
         // 目的地是 SSMS 剛開的空白查詢視窗，那份文件一行都還沒有——

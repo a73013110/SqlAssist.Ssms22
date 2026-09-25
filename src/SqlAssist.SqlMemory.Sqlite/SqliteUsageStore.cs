@@ -161,12 +161,15 @@ internal sealed class SqliteUsageStore
     public long Backup(string destinationPath, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(destinationPath) || !Path.IsPathRooted(destinationPath))
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份必須指定絕對路徑。");
+            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份必須指定絕對路徑。",
+                reason: SqlMemoryStorageReason.BackupPathNotAbsolute);
         var path = Path.GetFullPath(destinationPath);
         if (string.Equals(path, _database.FilePath, StringComparison.OrdinalIgnoreCase))
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份不能覆寫目前的資料庫。");
+            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份不能覆寫目前的資料庫。",
+                reason: SqlMemoryStorageReason.BackupOverwritesDatabase);
         if (File.Exists(path))
-            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份檔案已存在；請選擇新的檔名。");
+            throw new SqlMemoryStorageException(SqlMemoryStorageErrorKind.InvalidArgument, "備份檔案已存在；請選擇新的檔名。",
+                reason: SqlMemoryStorageReason.BackupFileExists);
         using var connection = _database.Connect();
         cancellationToken.ThrowIfCancellationRequested();
         Execute(connection, null, "VACUUM INTO $path;", ("$path", path));

@@ -23,10 +23,10 @@ internal sealed class SqlMatchToggles
 {
     // 說明都說「勾起來會少掉什麼」，不說詞界、ordinal 這些只有寫程式的人讀得懂的字：
     // 使用者要判斷的是「我現在找不到那一筆，是不是被這一顆擋掉了」。
-    private static readonly (TextMatchOptions Flag, SqlIcon Icon, string Label, string ToolTip)[] Definitions =
+    private static (TextMatchOptions Flag, SqlIcon Icon, string Label, string ToolTip)[] Definitions => new[]
     {
-        (TextMatchOptions.MatchCasing, SqlIcon.MatchCase, "大小寫相同", "大小寫要完全一樣：搜 finish 就不會找到 Finish。"),
-        (TextMatchOptions.WholeWord, SqlIcon.WholeWord, "整個字", "只找完整的字：搜 Copy 就不會找到 CopyNo 裡的那一段。"),
+        (TextMatchOptions.MatchCasing, SqlIcon.MatchCase, SearchControlText.MatchCase, SearchControlText.MatchCaseToolTip),
+        (TextMatchOptions.WholeWord, SqlIcon.WholeWord, SearchControlText.WholeWord, SearchControlText.WholeWordToolTip),
     };
 
     private readonly ToggleButton[] _buttons;

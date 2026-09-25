@@ -1,0 +1,98 @@
+{
+  // 共用 UI 元件的文字：SQL Search、SQL Memory 與對話框都會用到。
+  // ── 字型和色彩裡的項目名稱 ──
+  "BlockEndpointFormat": "SqlAssist 配對端點預設",
+  "BlockSymbolFormat": "SqlAssist 配對括號與字串引號",
+  "BlockRangeFormat": "SqlAssist 區塊區間背景",
+  "ClickLinkFormat": "SqlAssist Ctrl＋點擊連結",
+  // ── 主從區與預覽 ──
+  "SplitterRowsToolTip": "拖曳調整預覽高度；聚焦後使用 ↑ / ↓。",
+  "SplitterRowsName": "調整 SQL 預覽高度",
+  "SplitterColumnsToolTip": "拖曳調整預覽寬度；聚焦後使用 ← / →。",
+  "SplitterColumnsName": "調整 SQL 預覽寬度",
+  "PreviewStrip": "預覽資訊（可水平捲動）",
+  // 收合預覽的按鈕上的字。
+  "Preview": "預覽",
+  "ExpandPreview": "展開預覽",
+  "ExpandPreviewToolTip": "展開目前選取的 SQL 預覽。",
+  "CollapsePreview": "收合預覽",
+  "CollapsePreviewToolTip": "收合預覽，保留目前選取。",
+  // ── 基本控制項 ──
+  "ResizeGrip": "拖曳調整大小",
+  "HorizontalStripToolTip": "在這一列上使用滑鼠滾輪左右捲動；聚焦後可用 ← / →、Home / End。",
+  "ReturnToBlockStart": "點擊返回區塊起始行",
+  // 清單列右緣收起來的那些操作。
+  "MoreActions": "更多操作",
+  "ListFooter": "清單頁尾",
+  // {name} 是那一列的名稱。
+  "SelectRow": "選取 {name}",
+  "RowCheckToolTip": "勾選或取消；Shift+點擊勾選一段",
+  // 動作按鈕的提示；{shortcut} 是快捷鍵，例如 Ctrl+C。
+  "ActionWithShortcut": "{action}（{shortcut}）",
+  "TabHitCount": "{label}，{count} 個符合",
+  "TabItemCount": "{label}，{count} 項",
+  "TextSummary": "{lines:N0} 行 · {characters:N0} 字元",
+  // 狀態畫面朗讀時把抬頭與說明接成一句。
+  "StateTitleAndDetail": "{title}。{detail}",
+  "UnreadableTitle": "這一輪讀不到",
+  "DeniedTitle": "權限不足",
+  // ── 複製 ──
+  "CopySelection": "複製選取",
+  "CopyAll": "複製全文",
+  "CopySqlFailed": "複製 SQL 失敗：{message}",
+  "ClipboardBusy": "剪貼簿正被其他程式使用，未複製；請稍後再試。",
+  "NothingToCopy": "沒有可複製的項目。",
+  // 通知標題已經是「已複製清單」，這一句是說明。
+  "CopiedRows": "{rows:N0} 筆（含標頭列，可直接貼到 Excel）。",
+  // ── 套用查詢視窗的連線 ──
+  "ApplyEditorConnection": "套用查詢視窗的連線",
+  "ApplyEditorConnectionToolTip": "套用查詢視窗的連線：{server} · {database}。只改範圍，不切換 SSMS 的連線。",
+  "ApplyEditorConnectionUnavailable": "套用查詢視窗的連線：查詢視窗目前沒有連線。",
+  "EditorNotConnected": "查詢視窗目前沒有連線；範圍保持不變。先在查詢視窗連上資料庫再按一次。",
+  // ── 過濾面板；{name} 是過濾的對象，例如「伺服器」「資料庫」 ──
+  "ClearFilterText": "清除{name}篩選字",
+  "FilterByName": "篩選{name}名稱",
+  "SortBy": "{name}排序",
+  // {sort} 是目前排序那一項的名稱。
+  "SortByToolTip": "{name}排序：{sort}",
+  "SelectAll": "全選",
+  "SelectAllOf": "全選{name}",
+  "ClearAll": "全不選",
+  "ClearAllOf": "全不選{name}",
+  // ── 多選工具列 ──
+  "SelectionToolbar": "多選工具列",
+  "ExitSelection": "離開多選（Esc）",
+  "SelectAllMatchingToolTip": "勾選全部符合條件的項目，包括還沒載入的（Ctrl+A）",
+  "SelectedCount": "已選 {count:N0} 筆",
+  "SelectedAllCount": "已選全部 {count:N0} 筆",
+  "SelectedAllMatching": "已選全部符合的項目",
+  "SelectionLoadedNote": "已載入 {count:N0} 筆，其餘在執行動作時讀取",
+  // ── 圖示的朗讀名稱 ──
+  "IconUnknown": "未知物件",
+  "IconKeyword": "關鍵字",
+  "IconSnippet": "程式碼片段",
+  "IconSchema": "結構描述",
+  "IconTable": "資料表",
+  "IconView": "檢視",
+  "IconProcedure": "預存程序",
+  "IconScalarFunction": "純量函式",
+  "IconBuiltInFunction": "內建函式",
+  "IconTableFunction": "資料表值函式",
+  "IconInlineTableFunction": "內嵌資料表值函式",
+  // 指令碼自己宣告的暫存資料表、資料表變數與 CTE。
+  "IconScriptDataSource": "指令碼資料來源",
+  "IconGlobalVariable": "全域變數",
+  "IconVariable": "區域變數",
+  "IconDataType": "資料型別",
+  "IconParameter": "參數",
+  "IconSynonym": "同義字",
+  "IconTrigger": "觸發程序",
+  "IconSequence": "序列",
+  "IconTableType": "使用者自訂資料表型別",
+  // DATEADD、DATEDIFF 等函式的第一個引數（year、month…）。
+  "IconDatePart": "日期部分",
+  "IconTableHint": "資料表提示",
+  "IconQueryHint": "查詢提示",
+  "IconLinkedServer": "連結伺服器",
+  "IconCollation": "定序"
+}

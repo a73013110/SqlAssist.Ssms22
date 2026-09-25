@@ -1,0 +1,306 @@
+<Project>
+  <!--
+    設定頁（SqlAssist.registration.json）的文字不歸 SqlAssist 繪製：SSMS 依自己的介面語言，
+    從套件組件的資源解析 "@鍵;{packageGuid}"。所以這一區不走文字產生器，而是在建置時把
+    SettingsPageText.<語言>.resjson 轉成 .resources：英文編進主組件當中性資源（SSMS 是其他
+    語言時退回英文），其餘語言編成衛星組件。翻譯流程與其他區相同，來源仍是 zh-Hant。
+
+    殼層掃套件組件裡的每一份 .resources 找鍵（Menus.ctmenu 放在 _EmptyResource 也載得到），
+    LogicalName 只求不撞名。
+  -->
+  <PropertyGroup>
+    <SqlAssistSettingsPageNeutralLanguage>en</SqlAssistSettingsPageNeutralLanguage>
+    <SqlAssistSettingsPageRegistration>$(MSBuildProjectDirectory)\SqlAssist.registration.json</SqlAssistSettingsPageRegistration>
+    <PrepareResourcesDependsOn>SqlAssistSettingsPageResources;$(PrepareResourcesDependsOn)</PrepareResourcesDependsOn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SqlAssistSettingsPageText Include="$(MSBuildThisFileDirectory)SettingsPageText.*.resjson" />
+    <!-- 產生器會把它當成一般文字類別；設定頁用不到強型別成員，只要資源。 -->
+    <AdditionalFiles Remove="@(SqlAssistSettingsPageText)" />
+  </ItemGroup>
+
+  <UsingTask TaskName="SqlAssistResJsonToResources"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <Task>
+      <Code Type="Class" Language="cs"><![CDATA[
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Resources;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
+public sealed class SqlAssistResJsonToResources : Task
+{
+    [Required] public ITaskItem[] Sources { get; set; }
+    [Required] public string Registration { get; set; }
+    [Required] public string Languages { get; set; }
+    [Required] public string NeutralLanguage { get; set; }
+    [Required] public string OutputDirectory { get; set; }
+
+    public override bool Execute()
+    {
+        var languages = Languages.Split(',').Select(language => language.Trim()).Where(language => language.Length > 0).ToArray();
+        var tables = new Dictionary<string, List<KeyValuePair<string, string>>>(StringComparer.Ordinal);
+        var paths = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var source in Sources)
+        {
+            var path = source.GetMetadata("FullPath");
+            var stem = Path.GetFileNameWithoutExtension(path);
+            var language = stem.Substring(stem.LastIndexOf('.') + 1);
+            if (!languages.Contains(language))
+            {
+                Log.LogError(null, "SQLSET001", null, path, 0, 0, 0, 0, "語言 {0} 不在 SqlAssistTextLanguages（{1}）裡。", language, Languages);
+                continue;
+            }
+
+            try
+            {
+                tables[language] = Parse(File.ReadAllText(path, Encoding.UTF8));
+                paths[language] = path;
+            }
+            catch (FormatException error)
+            {
+                Log.LogError(null, "SQLSET002", null, path, 0, 0, 0, 0, "{0}", error.Message);
+            }
+        }
+
+        foreach (var language in languages.Where(language => !tables.ContainsKey(language)))
+        {
+            Log.LogError(null, "SQLSET003", null, Registration, 0, 0, 0, 0, "缺少設定頁的 {0} 文字：SettingsPageText.{0}.resjson。", language);
+        }
+
+        if (Log.HasLoggedErrors)
+        {
+            return false;
+        }
+
+        // 來源語言（清單第一個）決定有哪些鍵；其餘語言多一個、少一個都是錯。
+        var sourceKeys = tables[languages[0]].Select(pair => pair.Key).ToList();
+        foreach (var language in languages.Skip(1))
+        {
+            var keys = tables[language].Select(pair => pair.Key).ToList();
+            foreach (var key in sourceKeys.Except(keys))
+            {
+                Log.LogError(null, "SQLSET004", null, paths[language], 0, 0, 0, 0, "缺少鍵 {0}。", key);
+            }
+
+            foreach (var key in keys.Except(sourceKeys))
+            {
+                Log.LogError(null, "SQLSET005", null, paths[language], 0, 0, 0, 0, "來源語言沒有鍵 {0}。", key);
+            }
+        }
+
+        // 註冊檔引用了不存在的鍵，設定頁會把 "@鍵;{guid}" 原樣畫出來，不會有任何錯誤。
+        var registration = File.ReadAllText(Registration, Encoding.UTF8);
+        foreach (Match reference in Regex.Matches(registration, "\"@([^;\"]+);\\{[0-9A-Fa-f-]+\\}\""))
+        {
+            var key = reference.Groups[1].Value;
+            if (!sourceKeys.Contains(key))
+            {
+                var line = registration.Take(reference.Index).Count(ch => ch == '\n') + 1;
+                Log.LogError(null, "SQLSET006", null, Registration, line, 0, 0, 0, "SettingsPageText 沒有鍵 {0}。", key);
+            }
+        }
+
+        if (Log.HasLoggedErrors)
+        {
+            return false;
+        }
+
+        Directory.CreateDirectory(OutputDirectory);
+        foreach (var language in languages)
+        {
+            var neutral = string.Equals(language, NeutralLanguage, StringComparison.Ordinal);
+            var name = neutral ? "SettingsPageText.resources" : "SettingsPageText." + language + ".resources";
+            using (var writer = new ResourceWriter(Path.Combine(OutputDirectory, name)))
+            {
+                foreach (var pair in tables[language])
+                {
+                    writer.AddResource(pair.Key, pair.Value);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // 扁平的「鍵 → 文字」，接受 // 與 /* */ 註解及尾隨逗號，和其他 .resjson 的寬容一致。
+    private static List<KeyValuePair<string, string>> Parse(string text)
+    {
+        var index = 0;
+        var pairs = new List<KeyValuePair<string, string>>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        Expect(text, ref index, '{');
+        while (true)
+        {
+            SkipTrivia(text, ref index);
+            if (index < text.Length && text[index] == '}')
+            {
+                index++;
+                break;
+            }
+
+            var key = ReadString(text, ref index);
+            Expect(text, ref index, ':');
+            var value = ReadString(text, ref index);
+            if (!seen.Add(key))
+            {
+                throw new FormatException("鍵 " + key + " 重複。");
+            }
+
+            pairs.Add(new KeyValuePair<string, string>(key, value));
+            SkipTrivia(text, ref index);
+            if (index < text.Length && text[index] == ',')
+            {
+                index++;
+            }
+        }
+
+        SkipTrivia(text, ref index);
+        if (index != text.Length)
+        {
+            throw new FormatException("位置 " + index + " 之後有多餘內容。");
+        }
+
+        return pairs;
+    }
+
+    private static void Expect(string text, ref int index, char expected)
+    {
+        SkipTrivia(text, ref index);
+        if (index >= text.Length || text[index] != expected)
+        {
+            throw new FormatException("位置 " + index + " 應為 '" + expected + "'。");
+        }
+
+        index++;
+    }
+
+    private static void SkipTrivia(string text, ref int index)
+    {
+        while (index < text.Length)
+        {
+            if (char.IsWhiteSpace(text[index]) || text[index] == '﻿')
+            {
+                index++;
+            }
+            else if (string.CompareOrdinal(text, index, "//", 0, 2) == 0)
+            {
+                var end = text.IndexOf('\n', index);
+                index = end < 0 ? text.Length : end + 1;
+            }
+            else if (string.CompareOrdinal(text, index, "/*", 0, 2) == 0)
+            {
+                var end = text.IndexOf("*/", index + 2, StringComparison.Ordinal);
+                if (end < 0)
+                {
+                    throw new FormatException("註解沒有結束。");
+                }
+
+                index = end + 2;
+            }
+            else
+            {
+                return;
+            }
+        }
+    }
+
+    private static string ReadString(string text, ref int index)
+    {
+        Expect(text, ref index, '"');
+        var builder = new StringBuilder();
+        while (index < text.Length)
+        {
+            var ch = text[index++];
+            if (ch == '"')
+            {
+                return builder.ToString();
+            }
+
+            if (ch != '\\')
+            {
+                builder.Append(ch);
+                continue;
+            }
+
+            if (index >= text.Length)
+            {
+                break;
+            }
+
+            var escape = text[index++];
+            switch (escape)
+            {
+                case '"': builder.Append('"'); break;
+                case '\\': builder.Append('\\'); break;
+                case '/': builder.Append('/'); break;
+                case 'b': builder.Append('\b'); break;
+                case 'f': builder.Append('\f'); break;
+                case 'n': builder.Append('\n'); break;
+                case 'r': builder.Append('\r'); break;
+                case 't': builder.Append('\t'); break;
+                case 'u':
+                    if (index + 4 > text.Length)
+                    {
+                        throw new FormatException("\\u 跳脫不完整。");
+                    }
+
+                    builder.Append((char)Convert.ToInt32(text.Substring(index, 4), 16));
+                    index += 4;
+                    break;
+                default:
+                    throw new FormatException("不認得的跳脫 \\" + escape + "。");
+            }
+        }
+
+        throw new FormatException("字串沒有結束。");
+    }
+}
+]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- 這個檔案在專案檔中段匯入，那時 IntermediateOutputPath 還沒定義，輸出路徑要到執行時才取。 -->
+  <Target Name="SqlAssistSettingsPageDirectory">
+    <PropertyGroup>
+      <SqlAssistSettingsPageDirectory>$(IntermediateOutputPath)SettingsPageText\</SqlAssistSettingsPageDirectory>
+    </PropertyGroup>
+  </Target>
+
+  <!-- 轉檔走增量；嵌入資源的項目另外每次都加，否則目標被略過時就少了資源。 -->
+  <Target Name="SqlAssistSettingsPageConvert"
+          DependsOnTargets="SqlAssistSettingsPageDirectory"
+          Inputs="@(SqlAssistSettingsPageText);$(SqlAssistSettingsPageRegistration);$(MSBuildThisFileFullPath)"
+          Outputs="$(SqlAssistSettingsPageDirectory)SettingsPageText.resources">
+    <SqlAssistResJsonToResources Sources="@(SqlAssistSettingsPageText)"
+                                 Registration="$(SqlAssistSettingsPageRegistration)"
+                                 Languages="$(SqlAssistTextLanguages)"
+                                 NeutralLanguage="$(SqlAssistSettingsPageNeutralLanguage)"
+                                 OutputDirectory="$(SqlAssistSettingsPageDirectory)" />
+  </Target>
+
+  <Target Name="SqlAssistSettingsPageResources" DependsOnTargets="SqlAssistSettingsPageConvert">
+    <ItemGroup>
+      <_SqlAssistSettingsPageLanguage Include="$(SqlAssistTextLanguages.Split(','))" />
+      <_SqlAssistSettingsPageLanguage Remove="$(SqlAssistSettingsPageNeutralLanguage)" />
+      <EmbeddedResource Include="$(SqlAssistSettingsPageDirectory)SettingsPageText.resources"
+                        Type="Non-Resx"
+                        WithCulture="false"
+                        LogicalName="$(RootNamespace).Settings.SettingsPageText.resources" />
+      <EmbeddedResource Include="@(_SqlAssistSettingsPageLanguage->'$(SqlAssistSettingsPageDirectory)SettingsPageText.%(Identity).resources')"
+                        Type="Non-Resx"
+                        WithCulture="true"
+                        Culture="%(_SqlAssistSettingsPageLanguage.Identity)"
+                        LogicalName="$(RootNamespace).Settings.SettingsPageText.%(_SqlAssistSettingsPageLanguage.Identity).resources" />
+      <FileWrites Include="$(SqlAssistSettingsPageDirectory)*.resources" />
+    </ItemGroup>
+  </Target>
+</Project>

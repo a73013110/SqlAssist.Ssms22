@@ -1,18 +1,22 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Notifications;
 
 /// <summary>一個種類的顯示開關：moniker、預設值與設定頁標題。</summary>
 public sealed class NotificationKindToggle
 {
-    private NotificationKindToggle(NotificationKind kind, string moniker, bool enabledByDefault, string title)
+    private NotificationKindToggle(NotificationKind kind, string moniker, bool enabledByDefault, Func<string> title)
     {
         Kind = kind;
         Moniker = moniker;
         EnabledByDefault = enabledByDefault;
-        Title = title;
+        _title = title;
     }
+
+    private readonly Func<string> _title;
 
     public NotificationKind Kind { get; }
 
@@ -22,7 +26,8 @@ public sealed class NotificationKindToggle
     /// <summary>註冊檔那一項該寫的 <c>default</c>，也是這一格核取方塊的初始狀態。</summary>
     public bool EnabledByDefault { get; }
 
-    public string Title { get; }
+    /// <summary>「關於與診斷」上的種類名稱，用目前的語言；設定頁的標題在註冊檔。</summary>
+    public string Title => _title();
 
     /// <summary>
     /// 種類開關的唯一出處：新增一個種類只動這張表與註冊檔兩處。
@@ -38,20 +43,20 @@ public sealed class NotificationKindToggle
     /// </remarks>
     public static readonly IReadOnlyList<NotificationKindToggle> All = new[]
     {
-        new NotificationKindToggle(NotificationKind.Metadata, "sqlAssist.notifications.metadata", true, "中繼資料載入"),
-        new NotificationKindToggle(NotificationKind.Completion, "sqlAssist.notifications.completion", false, "建議清單"),
-        new NotificationKindToggle(NotificationKind.Analysis, "sqlAssist.notifications.analysis", false, "語法與區塊分析"),
-        new NotificationKindToggle(NotificationKind.Preview, "sqlAssist.notifications.preview", false, "物件提示與結構預覽"),
-        new NotificationKindToggle(NotificationKind.Package, "sqlAssist.notifications.package", false, "初始化與連線"),
-        new NotificationKindToggle(NotificationKind.Editing, "sqlAssist.notifications.editing", true, "編輯與展開"),
-        new NotificationKindToggle(NotificationKind.Navigation, "sqlAssist.notifications.navigation", true, "移至定義"),
-        new NotificationKindToggle(NotificationKind.Results, "sqlAssist.notifications.results", true, "結果格線"),
-        new NotificationKindToggle(NotificationKind.Snippets, "sqlAssist.notifications.snippets", true, "程式碼片段"),
-        new NotificationKindToggle(NotificationKind.Settings, "sqlAssist.notifications.settings", true, "設定"),
-        new NotificationKindToggle(NotificationKind.SqlMemory, "sqlAssist.notifications.sqlMemory", true, "SQL Memory"),
-        new NotificationKindToggle(NotificationKind.Search, "sqlAssist.notifications.search", true, "SQL Search"),
+        new NotificationKindToggle(NotificationKind.Metadata, "sqlAssist.notifications.metadata", true, () => NotificationCatalog.KindMetadata),
+        new NotificationKindToggle(NotificationKind.Completion, "sqlAssist.notifications.completion", false, () => NotificationCatalog.KindCompletion),
+        new NotificationKindToggle(NotificationKind.Analysis, "sqlAssist.notifications.analysis", false, () => NotificationCatalog.KindAnalysis),
+        new NotificationKindToggle(NotificationKind.Preview, "sqlAssist.notifications.preview", false, () => NotificationCatalog.KindPreview),
+        new NotificationKindToggle(NotificationKind.Package, "sqlAssist.notifications.package", false, () => NotificationCatalog.KindPackage),
+        new NotificationKindToggle(NotificationKind.Editing, "sqlAssist.notifications.editing", true, () => NotificationCatalog.KindEditing),
+        new NotificationKindToggle(NotificationKind.Navigation, "sqlAssist.notifications.navigation", true, () => NotificationCatalog.KindNavigation),
+        new NotificationKindToggle(NotificationKind.Results, "sqlAssist.notifications.results", true, () => NotificationCatalog.KindResults),
+        new NotificationKindToggle(NotificationKind.Snippets, "sqlAssist.notifications.snippets", true, () => NotificationCatalog.KindSnippets),
+        new NotificationKindToggle(NotificationKind.Settings, "sqlAssist.notifications.settings", true, () => CommonText.Settings),
+        new NotificationKindToggle(NotificationKind.SqlMemory, "sqlAssist.notifications.sqlMemory", true, () => "SQL Memory"),
+        new NotificationKindToggle(NotificationKind.Search, "sqlAssist.notifications.search", true, () => "SQL Search"),
         // 漏分類要看得見，不能沿用預設隱藏的種類。
-        new NotificationKindToggle(NotificationKind.Unclassified, "sqlAssist.notifications.unclassified", true, "未分類"),
+        new NotificationKindToggle(NotificationKind.Unclassified, "sqlAssist.notifications.unclassified", true, () => NotificationCatalog.KindUnclassified),
     };
 
     private static readonly Dictionary<NotificationKind, NotificationKindToggle> ByKind =
@@ -66,10 +71,10 @@ public sealed class NotificationKindToggle
     /// 「被自己關掉了」。<see cref="NotificationKind.Diagnostics"/>：只有使用者在「關於與診斷」按測試才會
     /// 出現，用途正是確認通知看不看得到；給它開關的話，關掉的人會以為通知壞了。
     /// </remarks>
-    private static readonly Dictionary<NotificationKind, string> Ungoverned = new()
+    private static readonly Dictionary<NotificationKind, Func<string>> Ungoverned = new()
     {
-        [NotificationKind.Update] = "更新檢查",
-        [NotificationKind.Diagnostics] = "通知測試",
+        [NotificationKind.Update] = () => NotificationCatalog.KindUpdate,
+        [NotificationKind.Diagnostics] = () => NotificationCatalog.KindDiagnostics,
     };
 
     /// <summary>這一類有沒有自己的開關；沒有的見 <see cref="Ungoverned"/>。</summary>
@@ -80,6 +85,6 @@ public sealed class NotificationKindToggle
     /// <summary>診斷畫面上的種類名稱；沒有開關的種類也有名字。</summary>
     public static string Label(NotificationKind kind) =>
         ByKind.TryGetValue(kind, out var toggle) ? toggle.Title
-        : Ungoverned.TryGetValue(kind, out var label) ? label
+        : Ungoverned.TryGetValue(kind, out var label) ? label()
         : kind.ToString();
 }

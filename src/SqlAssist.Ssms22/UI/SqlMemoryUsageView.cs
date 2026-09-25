@@ -26,13 +26,13 @@ internal sealed class SqlMemoryUsageView : DockPanel
 {
     private const double CompactWidth = 440;
 
-    private static readonly (SqlMemoryUsageAction Action, SqlIcon Icon, string Label, string ToolTip, SqlActionTone Tone)[] Actions =
+    private static readonly (SqlMemoryUsageAction Action, SqlIcon Icon, Func<string> Label, Func<string> ToolTip, SqlActionTone Tone)[] Actions =
     {
-        (SqlMemoryUsageAction.Maintain, SqlIcon.Maintain, "立即維護", "不等排程，依目前的保留規則巡完一輪並截斷 WAL。", SqlActionTone.Neutral),
-        (SqlMemoryUsageAction.Cleanup, SqlIcon.Cleanup, "清除紀錄…", "依期間、連線與種類清除 History、回復內容或收藏舊版本；送出前會試算。", SqlActionTone.Danger),
-        (SqlMemoryUsageAction.Compact, SqlIcon.Compact, "壓縮資料庫", "重建資料庫檔案，把已刪除資料佔用的空間還給磁碟；不會刪除任何紀錄。", SqlActionTone.Neutral),
-        (SqlMemoryUsageAction.Backup, SqlIcon.Backup, "備份…", "把目前的資料庫另存成一個檔案；擷取照常進行。", SqlActionTone.Neutral),
-        (SqlMemoryUsageAction.OpenFolder, SqlIcon.Folder, "開啟資料夾", "在檔案總管中顯示 SQL Memory 資料庫。", SqlActionTone.Neutral),
+        (SqlMemoryUsageAction.Maintain, SqlIcon.Maintain, () => SqlMemoryViewText.MaintainNow, () => SqlMemoryViewText.MaintainNowToolTip, SqlActionTone.Neutral),
+        (SqlMemoryUsageAction.Cleanup, SqlIcon.Cleanup, () => SqlMemoryViewText.CleanupEllipsis, () => SqlMemoryViewText.CleanupToolTip, SqlActionTone.Danger),
+        (SqlMemoryUsageAction.Compact, SqlIcon.Compact, () => SqlMemoryViewText.CompactDatabase, () => SqlMemoryViewText.CompactToolTip, SqlActionTone.Neutral),
+        (SqlMemoryUsageAction.Backup, SqlIcon.Backup, () => SqlMemoryViewText.BackupEllipsis, () => SqlMemoryViewText.BackupToolTip, SqlActionTone.Neutral),
+        (SqlMemoryUsageAction.OpenFolder, SqlIcon.Folder, () => SqlMemoryViewText.OpenFolder, () => SqlMemoryViewText.OpenFolderToolTip, SqlActionTone.Neutral),
     };
 
     private readonly SqlAssistChrome.Metrics _metrics = SqlAssistChrome.DefaultMetrics;
@@ -71,7 +71,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
     /// </param>
     public SqlMemoryUsageView(bool diagnostics = false)
     {
-        AutomationProperties.SetName(this, "SQL Memory 用量");
+        AutomationProperties.SetName(this, SqlMemoryViewText.UsageViewName);
         LastChildFill = true;
 
         // 長時間操作的進度貼在內容上方；不遮內容，做完就收起。
@@ -95,39 +95,39 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _disk = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         _maintenance = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         _compactHint = SqlAssistChrome.CreateButton("", _metrics);
-        _compactHint.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Compact, "壓縮以縮小檔案");
+        _compactHint.Content = SqlAssistChrome.CreateIconLabel(SqlIcon.Compact, SqlMemoryViewText.CompactHint);
         _compactHint.Padding = new Thickness(6, 2, 6, 2);
         _compactHint.Click += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Compact);
         // 重新整理跟著它整理的那一份走：用量的數字全在這張卡片上，接在容量後面就是它的右緣。
         // 分頁列上那一顆的問題是它得先問「現在是哪一個分頁」，而使用者看到的只是一顆通用按鈕。
-        _refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, "重新整理：重讀用量。");
+        _refresh = SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, SqlMemoryViewText.RefreshToolTip);
         _refresh.Click += (_, _) => ActionRequested?.Invoke(this, SqlMemoryUsageAction.Refresh);
         _buttons[SqlMemoryUsageAction.Refresh] = _refresh;
         _hero = BuildHero();
         _content.Children.Add(_hero);
 
-        _content.Children.Add(SqlAssistChrome.CreateCardSection("配額", _quotas));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.QuotaSection, _quotas));
         _stats.Margin = new Thickness(-4, 0, -4, 0);
         _range = Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, wrap: true);
         var records = new StackPanel();
         records.Children.Add(_stats); records.Children.Add(_range);
-        _content.Children.Add(SqlAssistChrome.CreateCardSection("紀錄", records));
-        _content.Children.Add(SqlAssistChrome.CreateCardSection("依伺服器", _servers));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.RecordsSection, records));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.ByServerSection, _servers));
         foreach (var entry in Actions)
-            _actions.Children.Add(CreateAction(entry.Action, entry.Icon, entry.Label, entry.ToolTip, entry.Tone));
+            _actions.Children.Add(CreateAction(entry.Action, entry.Icon, entry.Label(), entry.ToolTip(), entry.Tone));
         // 按鈕自帶右與下的間距；容器抵銷最後一欄與最後一列，卡片四邊內距才一致。
         _actions.Margin = new Thickness(0, 0, -4, -4);
-        _content.Children.Add(SqlAssistChrome.CreateCardSection("整理", _actions));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.MaintenanceSection, _actions));
         // 自我測試不刪資料、也不改檔案大小，併進「整理」那一排會讓人以為它會動到資料。
         if (diagnostics)
         {
             var tools = new WrapPanel { Margin = new Thickness(0, 0, -4, -4) };
-            tools.Children.Add(CreateAction(SqlMemoryUsageAction.SelfTest, SqlIcon.SelfTest, "儲存自我測試",
-                "以內建資料驗證寫入、重送、重新開啟與隔離層卸載；不讀也不動你的 SQL。", SqlActionTone.Neutral));
-            _content.Children.Add(SqlAssistChrome.CreateCardSection("診斷", tools));
+            tools.Children.Add(CreateAction(SqlMemoryUsageAction.SelfTest, SqlIcon.SelfTest, SqlMemoryViewText.SelfTestLabel,
+                SqlMemoryViewText.SelfTestToolTip, SqlActionTone.Neutral));
+            _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.DiagnosticsSection, tools));
         }
 
-        _content.Children.Add(SqlAssistChrome.CreateCardSection("最近整理", _activities));
+        _content.Children.Add(SqlAssistChrome.CreateCardSection(SqlMemoryViewText.RecentMaintenanceSection, _activities));
 
         var scroll = new ScrollViewer
         {
@@ -178,7 +178,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _disk.Text = summary.Disk;
         _maintenance.Text = summary.Maintenance;
         _compactHint.Visibility = summary.CompactRecommended ? Visibility.Visible : Visibility.Collapsed;
-        AutomationProperties.SetHelpText(_hero, summary.HealthTitle + "。" + summary.HealthDetail);
+        AutomationProperties.SetHelpText(_hero, SqlMemoryViewText.HeroHelpText(summary.HealthTitle, summary.HealthDetail));
 
         _quotas.Children.Clear();
         foreach (var quota in summary.Quotas) AddRow(_quotas, QuotaRow(quota, motion), 10);
@@ -188,12 +188,12 @@ internal sealed class SqlMemoryUsageView : DockPanel
         _range.Text = summary.Range;
 
         _servers.Children.Clear();
-        if (summary.Servers.Count == 0) _servers.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, "還沒有帶連線的紀錄"));
+        if (summary.Servers.Count == 0) _servers.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, SqlMemoryViewText.NoServerRecords));
         foreach (var share in summary.Servers) AddRow(_servers, ShareRow(share, first ? motion : false), 6);
 
         _activities.Children.Clear();
         if (summary.Activities.Count == 0)
-            _activities.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, "本次開啟 SSMS 後還沒有整理紀錄"));
+            _activities.Children.Add(Text(_metrics.Caption, FontWeights.Normal, ThemeBrush.DimForeground, SqlMemoryViewText.NoRecentMaintenance));
         foreach (var activity in summary.Activities) AddRow(_activities, ActivityRow(activity), 6);
 
         // 內容表面只在第一次出現時淡入；重新整理時由量表的長度變化說明狀態。
@@ -218,7 +218,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         }
 
         SetMessage("");
-        _loading.State = SqlSurfaceState.Unreadable(message, "重新整理");
+        _loading.State = SqlSurfaceState.Unreadable(message, SqlMemoryViewText.Refresh);
     }
 
     /// <summary>儲存已停用或換了一份：舊數字不屬於現在的資料庫，整頁收起；原因由工具窗的狀態列說明。</summary>
@@ -293,7 +293,7 @@ internal sealed class SqlMemoryUsageView : DockPanel
         stack.Children.Add(_maintenance);
         var hero = SqlAssistChrome.CreateSurface(stack);
         hero.Padding = SqlAssistChrome.CardPadding;
-        AutomationProperties.SetName(hero, "容量");
+        AutomationProperties.SetName(hero, SqlMemoryViewText.CapacityLabel);
         return hero;
     }
 
@@ -326,13 +326,13 @@ internal sealed class SqlMemoryUsageView : DockPanel
         detail.TextTrimming = TextTrimming.CharacterEllipsis; detail.ToolTip = stat.Detail;
         stack.Children.Add(detail);
         var tile = new Border { Child = stack, Padding = new Thickness(0, 2, 4, 10), Margin = new Thickness(4, 0, 4, 0) };
-        AutomationProperties.SetName(tile, stat.Label + " " + stat.Value + "，" + stat.Detail);
+        AutomationProperties.SetName(tile, SqlMemoryViewText.StatTileName(stat.Label, stat.Value, stat.Detail));
         return tile;
     }
 
     private FrameworkElement ShareRow(SqlMemoryShareBar share, bool? motion)
     {
-        var row = new Grid { ToolTip = share.Name + "：" + share.Value + " 筆" };
+        var row = new Grid { ToolTip = SqlMemoryViewText.ShareRowToolTip(share.Name, share.Value) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star), MinWidth = 80 });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, MinWidth = 48 });
@@ -359,12 +359,14 @@ internal sealed class SqlMemoryUsageView : DockPanel
         marker.SetResourceReference(Shape.FillProperty, activity.Failed ? ThemeBrush.MeterCritical : ThemeBrush.MeterNormal);
         SetDock(marker, Dock.Left); row.Children.Add(marker);
         var text = new TextBlock { FontFamily = SqlAssistChrome.InterfaceFont, FontSize = _metrics.Caption, TextTrimming = TextTrimming.CharacterEllipsis };
-        text.Inlines.Add(new System.Windows.Documents.Run(activity.Title + (activity.Failed ? "失敗" : "")) { FontWeight = FontWeights.SemiBold });
+        text.Inlines.Add(new System.Windows.Documents.Run(activity.Failed ? SqlMemoryViewText.ActivityTitleFailed(activity.Title) : activity.Title) { FontWeight = FontWeights.SemiBold });
         text.Inlines.Add(new System.Windows.Documents.Run(" · " + activity.Detail));
         text.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
         text.ToolTip = activity.Title + " · " + activity.Detail;
         row.Children.Add(text);
-        AutomationProperties.SetName(row, activity.Title + (activity.Failed ? "失敗，" : "，") + activity.Detail + "，" + activity.Time);
+        AutomationProperties.SetName(row, activity.Failed
+            ? SqlMemoryViewText.ActivityAutomationNameFailed(activity.Title, activity.Detail, activity.Time)
+            : SqlMemoryViewText.ActivityAutomationName(activity.Title, activity.Detail, activity.Time));
         return row;
     }
 

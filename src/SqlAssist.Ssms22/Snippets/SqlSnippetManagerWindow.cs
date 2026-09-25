@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.VisualStudio.PlatformUI;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 using SqlAssist.Ssms22;
 using SqlAssist.Ssms22.UI;
@@ -241,22 +242,22 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
 
             if (IsDisabled)
             {
-                return caption + "（已停用）";
+                return caption + SnippetWindowText.DisabledSuffix;
             }
 
             // 排在「被佔用」前面：不符規則要使用者動手改，而且整份存不回去；
             // 被佔用改掉撞名的那一筆就自己解除。
             if (ValidationError is not null)
             {
-                return caption + "（不符規則）";
+                return caption + SnippetWindowText.InvalidSuffix;
             }
 
             if (IsShadowed)
             {
-                return caption + "（捷徑被其他片段佔用）";
+                return caption + SnippetWindowText.ShadowedSuffix;
             }
 
-            return IsBuiltIn && IsCustomized ? caption + "（已自訂）" : caption;
+            return IsBuiltIn && IsCustomized ? caption + SnippetWindowText.CustomizedSuffix : caption;
         }
     }
 
@@ -267,9 +268,9 @@ internal sealed class SnippetDraft : INotifyPropertyChanged
             SqlSnippetCategory.Select => "SELECT",
             SqlSnippetCategory.Dml => "DML",
             SqlSnippetCategory.Ddl => "DDL",
-            SqlSnippetCategory.ControlFlow => "流程",
-            SqlSnippetCategory.Clause => "子句",
-            _ => "其他"
+            SqlSnippetCategory.ControlFlow => SnippetWindowText.CategoryControlFlow,
+            SqlSnippetCategory.Clause => SnippetWindowText.CategoryClause,
+            _ => CommonText.Other
         };
     }
 
@@ -434,7 +435,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
     public SqlSnippetManagerWindow()
     {
-        SqlAssistDialogs.Configure(this, "SqlAssist — 程式碼片段", 940, 700, minWidth: 760, minHeight: 520);
+        SqlAssistDialogs.Configure(this, SnippetWindowText.WindowTitle, 940, 700, minWidth: 760, minHeight: 520);
 
         var configuration = SqlSnippetStore.Configuration;
         _isReadOnly = SqlSnippetStore.IsReadOnly;
@@ -468,15 +469,15 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
                 new Choice<SqlSnippetCategory>(SqlSnippetCategory.Select, "SELECT"),
                 new Choice<SqlSnippetCategory>(SqlSnippetCategory.Dml, "DML"),
                 new Choice<SqlSnippetCategory>(SqlSnippetCategory.Ddl, "DDL"),
-                new Choice<SqlSnippetCategory>(SqlSnippetCategory.ControlFlow, "流程控制／交易"),
-                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Clause, "查詢子句／其他"),
-                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Other, "其他")
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.ControlFlow, SnippetWindowText.CategoryControlFlowChoice),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Clause, SnippetWindowText.CategoryClauseChoice),
+                new Choice<SqlSnippetCategory>(SqlSnippetCategory.Other, CommonText.Other)
             });
         _expansionModeBox = CreateChoiceBox(
             new[]
             {
-                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.TabStops, "依序按 Tab 跳轉"),
-                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.Caret, "只移動游標")
+                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.TabStops, SnippetWindowText.ExpansionModeTabStops),
+                new Choice<SqlSnippetExpansionMode>(SqlSnippetExpansionMode.Caret, SnippetWindowText.ExpansionModeCaret)
             });
 
         _codeBox = SqlAssistChrome.CreateTextBox(Metrics);
@@ -492,7 +493,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         _followUpBox = new CheckBox
         {
-            Content = "展開後立刻再顯示一次建議清單",
+            Content = SnippetWindowText.FollowUpCheckboxLabel,
             Margin = new Thickness(0, 16, 0, 0),
             Padding = default,
             Template = SqlAssistChrome.CreateCheckBoxTemplate()
@@ -501,7 +502,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         _destructiveBox = new CheckBox
         {
-            Content = "危險操作（無輸入前綴時隱藏）",
+            Content = SnippetWindowText.DestructiveCheckboxLabel,
             Margin = new Thickness(0, 10, 0, 0),
             Padding = default,
             Template = SqlAssistChrome.CreateCheckBoxTemplate()
@@ -512,8 +513,8 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         _statusText = SqlAssistChrome.CreateStatusText(Metrics);
 
         _editor = BuildEditor();
-        _restoreSelectedButton = CreateButton("還原此預設", OnRestoreSelected);
-        _saveButton = CreateButton("儲存", OnSave, primary: true);
+        _restoreSelectedButton = CreateButton(SnippetWindowText.RestoreSelectedButton, OnRestoreSelected);
+        _saveButton = CreateButton(SnippetWindowText.SaveButton, OnSave, primary: true);
         Content = BuildLayout();
 
         if (_drafts.Count > 0)
@@ -555,7 +556,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         // 名稱唯讀：它是從程式碼裡的 $名稱$ 推導出來的，在這裡改只會與程式碼分岔。
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "佔位符",
+            Header = SnippetWindowText.PlaceholderLabel,
             Binding = new System.Windows.Data.Binding(nameof(PlaceholderDraft.Id)),
             IsReadOnly = true,
             ElementStyle = cellText,
@@ -564,7 +565,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "預設值",
+            Header = SnippetWindowText.DefaultValueColumnHeader,
             Binding = new System.Windows.Data.Binding(nameof(PlaceholderDraft.DefaultValue)),
             ElementStyle = cellText,
             EditingElementStyle = cellEditor,
@@ -573,7 +574,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         grid.Columns.Add(new DataGridTextColumn
         {
-            Header = "說明",
+            Header = SnippetWindowText.DescriptionLabel,
             Binding = new System.Windows.Data.Binding(nameof(PlaceholderDraft.ToolTip)),
             ElementStyle = cellText,
             EditingElementStyle = cellEditor,
@@ -587,32 +588,31 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
     {
         var panel = new StackPanel();
 
-        panel.Children.Add(CreateFieldPair("捷徑", _shortcutBox, "標題", _titleBox));
+        panel.Children.Add(CreateFieldPair(
+            SnippetWindowText.ShortcutFieldLabel, _shortcutBox, SnippetWindowText.TitleFieldLabel, _titleBox));
         panel.Children.Add(SqlAssistChrome.CreateHint(
-            "輸入捷徑即可顯示建議；捷徑限字母、數字與底線。", Metrics));
+            SnippetWindowText.ShortcutHint, Metrics));
 
-        panel.Children.Add(SqlAssistChrome.CreateLabel("說明", Metrics));
+        panel.Children.Add(SqlAssistChrome.CreateLabel(SnippetWindowText.DescriptionLabel, Metrics));
         panel.Children.Add(_descriptionBox);
 
-        var choices = CreateFieldPair("分類", _categoryBox, "展開模式", _expansionModeBox);
+        var choices = CreateFieldPair(
+            SnippetWindowText.CategoryFieldLabel, _categoryBox, SnippetWindowText.ExpansionModeFieldLabel, _expansionModeBox);
         choices.Margin = new Thickness(0, 16, 0, 0);
         panel.Children.Add(choices);
 
-        panel.Children.Add(SqlAssistChrome.CreateLabel("程式碼", Metrics));
+        panel.Children.Add(SqlAssistChrome.CreateLabel(SnippetWindowText.CodeFieldLabel, Metrics));
         panel.Children.Add(_codeBox);
-        panel.Children.Add(SqlAssistChrome.CreateHint(
-            "以 $名稱$ 標示佔位符，展開時會換成下面設定的預設值；" +
-            "以 $end$ 標示展開後游標要停的位置。\n" +
-            "加入一個 $surround$ 即可從右鍵包住選取 SQL；其餘欄位要能以 Tab 切換，請選「依序按 Tab 跳轉」。", Metrics));
+        panel.Children.Add(SqlAssistChrome.CreateHint(SnippetWindowText.CodeHint, Metrics));
 
         panel.Children.Add(_destructiveBox);
 
         panel.Children.Add(_followUpBox);
         panel.Children.Add(SqlAssistChrome.CreateHint(
-            "只適用於「只移動游標」模式；接續內容由展開後的 SQL 上下文決定。",
+            SnippetWindowText.FollowUpHint,
             Metrics));
 
-        panel.Children.Add(SqlAssistChrome.CreateLabel("佔位符", Metrics));
+        panel.Children.Add(SqlAssistChrome.CreateLabel(SnippetWindowText.PlaceholderLabel, Metrics));
 
         var placeholders = SqlAssistChrome.CreateSurface(_placeholderGrid);
         placeholders.Padding = new Thickness(0, 0, 0, 4);
@@ -659,7 +659,12 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(0, 8, 0, 0)
         };
-        foreach (var (text, handler) in new (string, RoutedEventHandler)[] { ("新增", OnAdd), ("複製", OnDuplicate), ("刪除", OnDelete) })
+        foreach (var (text, handler) in new (string, RoutedEventHandler)[]
+        {
+            (SnippetWindowText.AddButton, OnAdd),
+            (SnippetWindowText.DuplicateButton, OnDuplicate),
+            (CommonText.Delete, OnDelete)
+        })
         {
             var button = CreateButton(text, handler);
             button.MinWidth = SqlAssistChrome.DialogButtonMinWidth;
@@ -690,14 +695,14 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         var utilities = new[]
         {
-            CreateButton("開啟檔案位置", OnRevealFile),
+            CreateButton(SnippetWindowText.RevealFileButton, OnRevealFile),
             _restoreSelectedButton,
-            CreateButton("還原預設", OnRestoreDefaults)
+            CreateButton(SnippetWindowText.RestoreDefaultsButton, OnRestoreDefaults)
         };
 
         // 整個視窗只有這一顆按鈕帶底色；主要動作只能有一個，多給一個就沒有主要。
         _saveButton.IsDefault = true;
-        var cancel = CreateButton("取消", (_, _) => Close());
+        var cancel = CreateButton(CommonText.Cancel, (_, _) => Close());
         cancel.IsCancel = true;
         var footer = SqlAssistChrome.CreateDialogFooter(utilities, _statusText, cancel, _saveButton);
 
@@ -741,7 +746,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         // 使用者再也找不回那句話。
         if (Selected?.ValidationError is { } violation)
         {
-            _statusText.Text = $"{violation}修好之前整份存不回檔案。";
+            _statusText.Text = SnippetWindowText.InvalidBlocksSave(violation);
         }
     }
 
@@ -819,7 +824,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         var draft = new SnippetDraft
         {
             Shortcut = NextShortcut(),
-            Title = "新片段",
+            Title = SnippetWindowText.NewSnippetTitle,
             Code = string.Empty
         };
 
@@ -867,15 +872,19 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             return;
         }
 
-        var action = draft.IsBuiltIn ? "停用" : "刪除";
-        var confirmed = SqlAssistConfirmationWindow.Confirm(
-            this,
-            $"{action}片段",
-            $"{action}片段「{draft.Caption}」？",
-            draft.IsBuiltIn
-                ? "停用後不會再出現在建議清單，隨時可以重新啟用。\n按「儲存」後才會寫回檔案。"
-                : "這個自訂片段會從清單移除。\n按「儲存」後才會寫回檔案。",
-            action);
+        var confirmed = draft.IsBuiltIn
+            ? SqlAssistConfirmationWindow.Confirm(
+                this,
+                SnippetWindowText.ConfirmDisableTitle,
+                SnippetWindowText.ConfirmDisableMessage(draft.Caption),
+                SnippetWindowText.ConfirmDisableDetail,
+                SnippetWindowText.DisableActionLabel)
+            : SqlAssistConfirmationWindow.Confirm(
+                this,
+                SnippetWindowText.ConfirmDeleteTitle,
+                SnippetWindowText.ConfirmDeleteMessage(draft.Caption),
+                SnippetWindowText.ConfirmDeleteDetail,
+                CommonText.Delete);
 
         if (!confirmed)
         {
@@ -913,10 +922,10 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         var confirmed = SqlAssistConfirmationWindow.Confirm(
             this,
-            "還原預設片段",
-            $"還原全部 {SqlSnippetDefaults.Current.Snippets.Count} 筆內建片段，並移除自訂片段？",
-            "內建片段的修改與停用狀態也會一併重設。\n按「儲存」後才會寫回檔案。",
-            "還原預設");
+            SnippetWindowText.ConfirmRestoreDefaultsTitle,
+            SnippetWindowText.ConfirmRestoreDefaultsMessage(SqlSnippetDefaults.Current.Snippets.Count),
+            SnippetWindowText.ConfirmRestoreDefaultsDetail,
+            SnippetWindowText.RestoreDefaultsButton);
 
         if (!confirmed)
         {
@@ -987,7 +996,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             // 不走 SqlAssistPlatformGuard：使用者按了按鈕卻什麼都沒開，
             // 沒有訊息的話只會被當成按鈕壞了。
             SqlAssistDiagnostics.WriteAlways($"開啟 Snippet 檔案位置失敗：{exception}");
-            _statusText.Text = $"開啟檔案位置失敗：{exception.Message}";
+            _statusText.Text = SnippetWindowText.RevealFileFailedStatus(exception.Message);
         }
     }
 
@@ -1014,7 +1023,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         if (!SqlSnippetStore.Save(entries!))
         {
-            _statusText.Text = $"儲存失敗：{SqlSnippetStore.LastError}";
+            _statusText.Text = SnippetWindowText.SaveFailedStatus(SqlSnippetStore.LastError);
             return;
         }
 
@@ -1054,7 +1063,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
                 if (!SqlSnippetValidation.Validate(snippet.Shortcut, snippet.Code, draft.IsShadowed, out error))
                 {
                     invalid = draft;
-                    error = $"「{draft.Caption}」{error}";
+                    error = SnippetWindowText.CaptionError(draft.Caption, error);
                     return false;
                 }
 
@@ -1063,14 +1072,14 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
                 if (!draft.IsShadowed && taken.Contains(snippet.Shortcut))
                 {
                     invalid = draft;
-                    error = $"「{draft.Caption}」捷徑「{snippet.Shortcut}」已經有人用了。";
+                    error = SnippetWindowText.DuplicateShortcutError(draft.Caption, snippet.Shortcut);
                     return false;
                 }
 
                 if (string.IsNullOrWhiteSpace(snippet.Code))
                 {
                     invalid = draft;
-                    error = $"「{draft.Caption}」還沒有程式碼。";
+                    error = SnippetWindowText.NoCodeError(draft.Caption);
                     return false;
                 }
 
@@ -1122,7 +1131,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
         {
             // 檔案讀壞時畫面仍列內建值，但使用者資料沒有套上；必須講清楚並保持唯讀，
             // 否則看起來像「自訂項目被刪光」，再存一次就真的覆蓋原檔。
-            _statusText.Text = $"讀取檔案時發生問題：{error}";
+            _statusText.Text = SnippetWindowText.LoadErrorStatus(error);
             return;
         }
 
@@ -1132,7 +1141,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
 
         if (invalid > 0)
         {
-            _statusText.Text = $"有 {invalid} 筆片段不符規則，已在清單標示；選起來看原因。";
+            _statusText.Text = SnippetWindowText.InvalidCountStatus(invalid);
         }
     }
 
@@ -1154,7 +1163,7 @@ internal sealed class SqlSnippetManagerWindow : DialogWindow
             return false;
         }
 
-        _statusText.Text = SqlSnippetStore.LastError ?? "Snippet 檔案目前是唯讀狀態。";
+        _statusText.Text = SqlSnippetStore.LastError ?? SnippetWindowText.ReadOnlyStatus;
         return true;
     }
 }

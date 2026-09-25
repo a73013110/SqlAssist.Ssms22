@@ -22,6 +22,7 @@ namespace SqlAssist.Ssms22;
 /// 佇列滿了就丟，並記住丟掉幾筆——診斷不能反過來吃掉記憶體，而「這裡少了 N 筆」比
 /// 悄悄少幾行更有用。
 /// </remarks>
+[Localizable(false)]
 internal static class SqlAssistDiagnostics
 {
     private static readonly object SyncRoot = new();

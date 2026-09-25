@@ -1,0 +1,18 @@
+{
+  "OpenStructure": "Open full structure",
+  "OpenStructureTooltip": "Open the floating structure window: scroll, select and copy with the mouse; Esc closes it",
+  "OpenReference": "Open full reference",
+  "OpenReferenceTooltip": "Open a floating window showing which values each argument accepts; scrollable and copyable",
+  "OnlineDocs": "Online documentation",
+  "OnlineDocsTooltip": "Open help on Microsoft Learn in default browser",
+  "ColumnCount": "Columns: {count}",
+  "ColumnsUnavailable": "Column details unavailable",
+  "ParameterCount": "Parameters: {count}",
+  "ReturnsColumns": "Returned columns: {count}",
+  "DefinitionUnavailable": "Definition unavailable (it may be encrypted, or permissions are insufficient)",
+  "Loading": "Loading details…",
+  "ColumnOf": "Column · {owner}",
+  "Example": "Example",
+  "MoreHidden": "Not shown: {count}",
+  "NoColumnDetails": "No column details to display"
+}

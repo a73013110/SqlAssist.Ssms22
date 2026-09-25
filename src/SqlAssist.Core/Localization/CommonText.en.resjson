@@ -15,5 +15,6 @@
   "Server": "Server",
   "Database": "Database",
   "Column": "Column",
-  "Settings": "Settings"
+  "Settings": "Settings",
+  "ListSeparator": ", "
 }

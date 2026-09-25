@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using SqlAssist.Core.Connections;
 using SqlAssist.Core.Lists;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Search;
 using SqlAssist.Ssms22.UI;
@@ -66,27 +68,31 @@ internal enum SqlSearchSort
 /// <summary>排序選項的顯示字；按鈕與選單共用同一份，兩邊不會各自寫一次。</summary>
 internal sealed class SqlSearchSortOption
 {
-    private SqlSearchSortOption(SqlSearchSort value, string label, string shortLabel)
+    private readonly Func<string> _label;
+    private readonly Func<string> _shortLabel;
+
+    private SqlSearchSortOption(SqlSearchSort value, Func<string> label, Func<string> shortLabel)
     {
         Value = value;
-        Label = label;
-        ShortLabel = shortLabel;
+        _label = label;
+        _shortLabel = shortLabel;
     }
 
     public static IReadOnlyList<SqlSearchSortOption> All { get; } = new[]
     {
-        new SqlSearchSortOption(SqlSearchSort.Relevance, "相關度", "相關度"),
-        new SqlSearchSortOption(SqlSearchSort.Name, "名稱 A–Z", "名稱"),
-        new SqlSearchSortOption(SqlSearchSort.Kind, "物件種類", "種類")
+        new SqlSearchSortOption(SqlSearchSort.Relevance, () => SqlSearchText.SortRelevance, () => SqlSearchText.SortRelevance),
+        new SqlSearchSortOption(SqlSearchSort.Name, () => SqlSearchText.SortName, () => CommonText.Name),
+        new SqlSearchSortOption(SqlSearchSort.Kind, () => SqlSearchText.SortKind, () => CommonText.Kind)
     };
 
     public SqlSearchSort Value { get; }
 
-    public string Label { get; }
+    public string Label => _label();
 
     /// <summary>按鈕上的字；工具列放不下完整說明。</summary>
-    public string ShortLabel { get; }
+    public string ShortLabel => _shortLabel();
 
+    [Localizable(false)]
     public static SqlSearchSortOption For(SqlSearchSort value)
     {
         foreach (var option in All) if (option.Value == value) return option;
@@ -127,24 +133,24 @@ internal sealed class SqlSearchRound
 internal sealed class SqlSearchBrowserModel
 {
     /// <summary>沒有勾任何一個分類時，按鈕與面板第一列上顯示的字。</summary>
-    public const string AllCategoriesLabel = "全部";
+    public static string AllCategoriesLabel => CommonText.All;
 
     /// <summary>沒有勾任何一個資料庫時，按鈕與面板第一列上顯示的字：這台伺服器上進得去的每一個。</summary>
-    public const string AllDatabasesLabel = "全部";
+    public static string AllDatabasesLabel => CommonText.All;
 
     /// <summary>還沒選伺服器時伺服器按鈕上的字。</summary>
-    public const string NoServerLabel = "未選擇";
+    public static string NoServerLabel => SqlSearchText.NoServer;
 
     /// <summary>種類與資料庫的數量摘要各自的量詞；按鈕上只剩數字時分不出那是幾種還是幾個。</summary>
-    private const string CategoryUnit = " 種";
+    private static string CategoryUnit => SqlSearchText.CategoryUnit;
 
-    private const string DatabaseUnit = " 個";
+    private static string DatabaseUnit => SqlSearchText.DatabaseUnit;
 
     /// <summary>沒有可搜的連線（還沒選伺服器，或選的那一台連不上）時，狀態表面上那顆按鈕的字。</summary>
     /// <remarks>
     /// 死路要有出口：兩種情形的下一步都是換一台，所以只有這一顆，按下去打開伺服器面板。
     /// </remarks>
-    public const string ChooseServerAction = "選擇伺服器";
+    public static string ChooseServerAction => SqlSearchText.ChooseServer;
 
     /// <summary>
     /// 系統資料庫的名稱；下拉清單把它們與使用者資料庫分成兩段。
@@ -580,10 +586,10 @@ internal sealed class SqlSearchBrowserModel
     public string Failure => _failure;
 
     /// <summary>部分結果的那一句；與「這個字串在這個資料庫裡不存在」在畫面上一模一樣，所以一定要說。</summary>
-    internal const string PartialHint = "部分結果；縮小範圍或加長關鍵字可以掃得更完整。";
+    internal static string PartialHint => SqlSearchText.PartialHint;
 
     /// <summary>頁尾說的「搜尋中」；清單仍是上一輪的那一份，進度留在原地。</summary>
-    internal const string SearchingLabel = "搜尋中…";
+    internal static string SearchingLabel => SqlSearchText.Searching;
 
     /// <summary>
     /// 清單的頁尾：筆數，以及這一份為什麼不完整。與 SQL Memory 同一種頁尾（<see cref="SqlListFooter"/>）。
@@ -617,7 +623,7 @@ internal sealed class SqlSearchBrowserModel
         // 整輪失敗：清單上是上一輪的列。
         if (_hitCount == 0 && _failure.Length != 0)
         {
-            return new SqlListFooter(SqlListFooterKind.End, "這一輪搜尋失敗", "清單是上一輪的結果。" + _failure);
+            return new SqlListFooter(SqlListFooterKind.End, SqlSearchText.RoundFailed, SqlSearchText.RoundFailedDetail(_failure));
         }
 
         var hint = _failure.Length != 0 ? _failure
@@ -627,7 +633,7 @@ internal sealed class SqlSearchBrowserModel
         return new SqlListFooter(SqlListFooterKind.End, Found(_hitCount), hint);
     }
 
-    private static string Found(int count) => "找到 " + count.ToString("N0", CultureInfo.CurrentCulture) + " 項";
+    private static string Found(int count) => SqlSearchText.Found(count);
 
     /// <summary>
     /// 主內容區的狀態表面：載入、空、讀不到與權限不足四選一。
@@ -653,10 +659,10 @@ internal sealed class SqlSearchBrowserModel
         {
             return Scope.Servers.Count != 0
                 ? SqlSurfaceState.Unreadable(
-                    $"連不上 {Scope.Servers[0]}。那一台可能已經中斷，換一台再搜。",
+                    SqlSearchText.ServerUnreachableRetry(Scope.Servers[0]),
                     ChooseServerAction)
-                : SqlSurfaceState.Empty("尚未選擇伺服器",
-                    "按左邊的「" + SqlEditorConnectionText.ApplyAction + "」，或從伺服器清單挑一台。",
+                : SqlSurfaceState.Empty(SqlSearchText.NoServerTitle,
+                    SqlSearchText.NoServerDetail(SqlEditorConnectionText.ApplyAction),
                     ChooseServerAction);
         }
 
@@ -665,7 +671,7 @@ internal sealed class SqlSearchBrowserModel
         if (rowCount > 0) return SqlSurfaceState.None;
         if (Text.Length == 0)
         {
-            return SqlSurfaceState.Empty("輸入關鍵字", "搜尋這個資料庫的物件名稱、資料行與定義本文。");
+            return SqlSurfaceState.Empty(SqlSearchText.EnterKeyword, SqlSearchText.EnterKeywordDetail);
         }
 
         if (_failure.Length != 0) return SqlSurfaceState.Unreadable(_failure);
@@ -683,7 +689,7 @@ internal sealed class SqlSearchBrowserModel
                 : SqlSurfaceState.Unreadable(_unavailable);
         }
 
-        return SqlSurfaceState.Empty("沒有相符項目", "換個關鍵字，或放寬分類與資料庫範圍。");
+        return SqlSurfaceState.Empty(SqlSearchText.NoMatches, SqlSearchText.NoMatchesDetail);
     }
 
     /// <summary>重新整理前記下目前選取；新結果載入後若還在，就選回它。</summary>
@@ -771,7 +777,7 @@ internal sealed class SqlSearchBrowserModel
 
         return count == 1
             ? first
-            : first + "（另有 " + (count - 1).ToString(CultureInfo.InvariantCulture) + " 個來源這一輪也讀不到）";
+            : SqlSearchText.MoreUnavailable(first, count - 1);
     }
 
     /// <summary>
@@ -808,8 +814,7 @@ internal sealed class SqlSearchBrowserModel
 
         // 寫的是來源的顯示名稱，不是 Id：使用者在介面上沒有見過 catalog 這個字。
         return failures.Count == 1
-            ? "「" + first.DisplayName + "」這一輪失敗：" + first.Message
-            : "「" + first.DisplayName + "」等 " + failures.Count.ToString(CultureInfo.InvariantCulture) +
-              " 個來源這一輪失敗：" + first.Message;
+            ? SqlSearchText.ProviderFailed(first.DisplayName, first.Message)
+            : SqlSearchText.ProvidersFailed(first.DisplayName, failures.Count, first.Message);
     }
 }

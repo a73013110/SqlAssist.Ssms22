@@ -1,0 +1,33 @@
+{
+  // 資料不齊時代替指令碼的那段註解：第一行說缺了什麼，接著是原因，最後列出查得到的欄位與參數。
+  // 用產生當下的語言；已經寫進查詢視窗的不回頭改。原因裡的換行各自成為一行註解。
+  // {name} 是物件的限定名稱，{missing} 是下面 Missing* 其中一個。
+  "UnavailableHeading": "取不到 {name} 的{missing}。",
+  "MissingDeclaration": "宣告原文",
+  "MissingDefinition": "定義",
+  "MissingParentStructure": "所屬資料表結構",
+  "MissingColumns": "欄位",
+  "MissingIndexes": "索引與條件約束",
+  "MissingExpressions": "計算資料行、預設值或 CHECK 運算式",
+  "MissingStructure": "完整結構",
+  "ReasonDeclarationMoved": "這個名稱是這份指令碼自己宣告的，宣告的位置卻已經不在目前的文字裡了——\n多半是提示顯示之後、開啟結構之前，那幾行被改掉或刪掉了。",
+  "ReasonSynthesizedDefinition": "sys.synonyms／sys.sequences 一列都沒有回來，而查詢本身沒有失敗——\n原因只有兩個：物件在建議清單被快取之後卸除，\n或是這個登入對它的權限在那之後被收回。",
+  "ReasonModuleDefinition": "OBJECT_DEFINITION 傳回 NULL 的原因只有兩個：物件是 WITH ENCRYPTION 建立的，\n或是目前的登入沒有它的 VIEW DEFINITION 權限。",
+  "ReasonConstraintParent": "條件約束的定義寫在它所屬的資料表上——DEFAULT 的運算式在資料行上，CHECK 的條件、\n鍵的資料行與外來鍵的參照都在那張表的索引與條件約束裡。那張表這一輪沒有讀齊：\n它可能在這份清單被快取之後卸除、這個登入對它的權限被收回，或是索引與條件約束\n那一次查詢失敗了。",
+  "ReasonConstraintNotFound": "所屬的資料表讀到了，上面卻沒有這個名稱的條件約束——多半是它在這份清單\n被快取之後卸除或改名了。重新整理之後仍然看得到的話，它可能是本擴充還沒有\n讀到的那一種條件約束。",
+  "ReasonNoColumns": "sys.columns 一列都沒有回來，而查詢本身沒有失敗——原因只有兩個：物件在\n建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。",
+  // 「詳細記錄」是設定項目的名稱。
+  "ReasonIndexQueryFailed": "第四層查詢失敗了，而空的索引清單在這時候不是答案——原因可能是連線中斷、\n逾時，或這一版伺服器沒有查詢用到的某個目錄檢視欄位。伺服器說的那句話\n在「詳細記錄」打開時寫在診斷紀錄檔裡。",
+  "ReasonExpressions": "已查到欄位或條件約束，但無法取得完整運算式；可能缺少 VIEW DEFINITION 權限，\n或物件在讀取期間已被修改。保留欄位摘要，不產生不完整的 CREATE／ALTER。",
+  "ReasonStructurePending": "索引與條件約束仍在載入中，請等載入完成後再複製指令碼；\n目前只顯示已取得的欄位，不將部分資料重建成可執行 SQL。",
+  // {kind} 是物件種類的顯示名稱。
+  "AvailableColumns": "{kind} 的欄位（{count} 個）：",
+  "AvailableParameters": "參數（{count} 個）：",
+  // 結構摘要裡還沒有欄位時的那一行。
+  "ColumnsNotLoaded": "（尚未載入欄位）",
+  // 指令碼宣告的暫存資料表有 DEFAULT 時，預設值欄位顯示的字；不是可以執行的運算式。
+  "ScriptDeclaredDefault": "(指令碼宣告)",
+  // 純量函式的傳回值在參數清單裡的名稱。
+  "ReturnValue": "(傳回值)",
+  "TriggerDisabled": "{name}（已停用）"
+}

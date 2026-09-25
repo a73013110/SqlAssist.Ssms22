@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.SqlMemory;
@@ -8,7 +9,9 @@ namespace SqlAssist.SqlMemory.Sqlite;
 /// <summary>
 /// 把 provider 與 store 的例外轉成可跨 AppDomain 的分類例外。
 /// 只有忙碌可重試；分類不出來一律 Unknown，讓呼叫端當成致命，不擅自重試。
+/// 訊息是診斷用的固定繁中，給使用者的說明由宿主依分類與錯誤碼組。
 /// </summary>
+[Localizable(false)]
 public static class SqliteStorageErrors
 {
     public static SqlMemoryStorageException Translate(Exception error)
@@ -20,7 +23,7 @@ public static class SqliteStorageErrors
         {
             // 重新建立而不是原樣回傳：原例外可能帶著無法序列化的 inner exception 或堆疊資料。
             SqlMemoryStorageException storage => new(storage.Kind, storage.Message, storage.ErrorCode,
-                storage.ExtendedErrorCode, storage.SourceType ?? source),
+                storage.ExtendedErrorCode, storage.SourceType ?? source, storage.Reason),
             SqliteException sqlite => new(Classify(sqlite.SqliteErrorCode), "SQL Memory 儲存失敗（SQLite " +
                 sqlite.SqliteErrorCode + "/" + sqlite.SqliteExtendedErrorCode + "）：" + sqlite.Message,
                 sqlite.SqliteErrorCode, sqlite.SqliteExtendedErrorCode, source),

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Search;
 
@@ -35,6 +36,7 @@ public sealed class SqlAgentJobSearchTarget : ISqlSearchTarget
     /// <param name="databaseName">
     /// 步驟執行時所在的資料庫；只有 <c>TSQL</c> 子系統說得出來，其餘為空字串。
     /// </param>
+    [Localizable(false)]
     public SqlAgentJobSearchTarget(
         SqlSearchOrigin origin,
         string serverName,

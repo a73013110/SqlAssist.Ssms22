@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,6 +44,7 @@ public sealed class SqlCaptureCommitter
             if (delay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(busyDelays));
     }
 
+    [Localizable(false)]
     public async Task ProcessAsync(SqlCapture capture, SqlCapturePolicy policy, CancellationToken cancellationToken)
     {
         if (capture == null) throw new ArgumentNullException(nameof(capture));

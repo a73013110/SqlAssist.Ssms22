@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -11,6 +12,7 @@ namespace SqlAssist.Metadata.Model;
 /// </remarks>
 public sealed class SqlTriggerInfo
 {
+    [Localizable(false)]
     public SqlTriggerInfo(string name, string? definition, bool isDisabled = false)
     {
         if (string.IsNullOrEmpty(name))
@@ -40,5 +42,5 @@ public sealed class SqlTriggerInfo
     /// <summary>定義取不到時寫不出可以執行的指令碼。</summary>
     public bool CanScript => !string.IsNullOrWhiteSpace(Definition);
 
-    public override string ToString() => IsDisabled ? Name + "（已停用）" : Name;
+    public override string ToString() => IsDisabled ? StructureText.TriggerDisabled(Name) : Name;
 }

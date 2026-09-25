@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Search;
 
@@ -30,6 +31,7 @@ public sealed class SearchBadge
     public const string DatabaseIcon = "database";
 
     /// <param name="iconToken">中性代號；不想要圖示時為 null。</param>
+    [Localizable(false)]
     public SearchBadge(string text, string? iconToken = null)
     {
         Text = SearchArgument.Identifier(text, nameof(text));

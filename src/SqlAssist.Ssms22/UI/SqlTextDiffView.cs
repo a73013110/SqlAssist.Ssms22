@@ -32,7 +32,7 @@ internal sealed class SqlTextDiffView : UserControl
         ScrollViewer.SetCanContentScroll(_lines, true);
         VirtualizingPanel.SetIsVirtualizing(_lines, true);
         VirtualizingPanel.SetVirtualizationMode(_lines, VirtualizationMode.Recycling);
-        AutomationProperties.SetName(_lines, "SQL 差異");
+        AutomationProperties.SetName(_lines, SqlMemoryViewText.SqlDiffName);
         // 長的一行會橫向溢出，而差異就落在那一行的後半段。
         SqlAssistChrome.ApplyShiftWheelPan(_lines);
         Content = _lines;

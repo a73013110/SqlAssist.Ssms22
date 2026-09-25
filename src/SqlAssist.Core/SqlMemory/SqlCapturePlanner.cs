@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.SqlMemory;
 
 /// <summary>無快取、無 I/O；只在背景將快照轉成可原子提交的寫入計畫。</summary>
 public sealed class SqlCapturePlanner
 {
+    [Localizable(false)]
     public SqlCaptureCommit? Prepare(SqlCapture capture, SqlSessionHead? previous, SqlCapturePolicy policy)
     {
         if (capture == null) throw new ArgumentNullException(nameof(capture));
@@ -117,6 +119,7 @@ public sealed class SqlCapturePlanner
     /// 展開全文只在這裡做一次：空白判斷與內容雜湊吃的是同一份字串，各取一次等於
     /// 在背景把一份動輒數 MB 的查詢複製兩遍。
     /// </remarks>
+    [Localizable(false)]
     private static string Text(ISqlTextSnapshot snapshot)
     {
         var text = snapshot.GetText();

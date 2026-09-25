@@ -72,7 +72,7 @@ internal sealed class SqlUsageMeter : Grid
         var from = _scale.ScaleX;
         _scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         _scale.ScaleX = target;
-        AutomationProperties.SetItemStatus(this, ratio is { } shown ? SqlMemoryUsageSummary.Percent(shown) : "不限");
+        AutomationProperties.SetItemStatus(this, ratio is { } shown ? SqlMemoryUsageSummary.Percent(shown) : SqlMemoryViewText.Unlimited);
         if (!(motion ?? SqlAssistChrome.MotionEnabled) || Math.Abs(from - target) < 0.001) return;
         _scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(from, target, FillDuration)
         {

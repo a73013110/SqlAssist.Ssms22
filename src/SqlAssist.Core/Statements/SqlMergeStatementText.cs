@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Text;
 
 namespace SqlAssist.Core.Statements;
@@ -56,6 +57,7 @@ public static class SqlMergeStatementText
     /// <param name="caretOffset">
     /// 結果字串中來源資料表佔位字的位置。展開之後唯一還沒填的就是它。
     /// </param>
+    [Localizable(false)]
     public static string Build(
         string qualifiedName,
         IReadOnlyList<string> keyColumns,

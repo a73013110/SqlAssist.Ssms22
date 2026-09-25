@@ -72,8 +72,8 @@ internal sealed class SqlSearchDefinitionLoader
         if (resolved is not { } catalog)
         {
             return new SqlSearchDefinitionText("", _catalogs.ServerName is { } server
-                ? $"連不上 {server}，那一台可能已經中斷。"
-                : "還沒選要搜尋的伺服器，讀不到物件定義。");
+                ? SqlSearchText.ServerUnreachable(server)
+                : SqlSearchText.NoServerForDefinition);
         }
 
         SqlObjectStructure? structure;
@@ -95,7 +95,7 @@ internal sealed class SqlSearchDefinitionLoader
             // （連線在途中被關掉）。冒出去的話，平台邊界每選一列就記一份完整堆疊。
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(CancellationToken.None);
             return new SqlSearchDefinitionText(
-                "", $"取不到 {objectInfo.QualifiedName} 的定義：{error.Message}");
+                "", SqlSearchText.DefinitionFailed(objectInfo.QualifiedName, error.Message));
         }
 
         if (structure is null)
@@ -103,7 +103,7 @@ internal sealed class SqlSearchDefinitionLoader
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(CancellationToken.None);
             return new SqlSearchDefinitionText(
                 "",
-                $"在 {target.DatabaseName} 取不到 {objectInfo.QualifiedName} 的定義，可能是連線已中斷或權限不足。");
+                SqlSearchText.DefinitionMissing(target.DatabaseName, objectInfo.QualifiedName));
         }
 
         // 種類與這一次的資料齊不齊由 SqlObjectScript 那一支問；任一道不過它就整段換成註解，

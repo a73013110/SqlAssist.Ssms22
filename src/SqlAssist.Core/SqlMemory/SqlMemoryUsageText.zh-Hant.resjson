@@ -1,0 +1,75 @@
+{
+  // SQL Memory 用量面板、清除試算與容量通知。數字與大小（{count}、{size}、{percent}）已經格式化好。
+  // ── 容量 ──
+  "CannotReclaim": "目前的保留規則清不下來",
+  "ContentExceeded": "內容已超過容量上限",
+  "ContentUsed": "內容已用 {percent}",
+  // 比例是無限大（上限 0）時代替百分比的字。
+  "OverLimit": "超過上限",
+  "ContentGauge": "SQL 內容",
+  "ContentRatioDetail": "{percent}，去重後的 SQL 文字；不含索引與中繼資料。",
+  "ContentUnlimitedDetail": "容量不限；去重後的 SQL 文字，不含索引與中繼資料。",
+  "DatabaseFile": "資料庫檔案 {size}",
+  "WalFile": "（另有 WAL {size}）",
+  "Reclaimable": "可回收約 {size}",
+  // {used} 是目前數量，後面接「沒有上限」。
+  "Unlimited": "{used}（不限）",
+  // ── 配額與統計卡片：標題、數字下方的說明 ──
+  "QuotaExecutions": "執行事件",
+  "QuotaExecutionsDetail": "超過配額的最舊執行由背景維護回收。",
+  "QuotaFavoriteRevisions": "單一收藏版本",
+  "QuotaFavoriteRevisionsDetail": "目前版本永遠保留。",
+  "StatExecutions": "執行紀錄",
+  "StatExecutionsDetail": "共 {count} 次執行",
+  "StatDrafts": "草稿",
+  "StatDraftsDetail": "{count} 個編輯工作階段",
+  "StatFavorites": "收藏",
+  "StatFavoritesDetail": "{count} 個版本",
+  "StatRecovery": "回復內容",
+  "StatRecoveryOpen": "{count} 個視窗仍開著",
+  "StatRecoveryNoneOpen": "沒有開著的視窗",
+  // {from}、{to} 是 yyyy/MM/dd。
+  "Range": "紀錄範圍 {from} – {to} · {count} 份不重複的 SQL",
+  "RangeEmpty": "還沒有任何紀錄",
+  // ── 健康狀態：標題與說明 ──
+  "CannotReclaimDetail": "收藏、仍開著的草稿與版本鏈受保護，背景維護已找不到可以回收的資料。請手動清理、縮短保留期限或提高容量上限。",
+  "Exceeded": "已超過容量上限",
+  "ExceededDetail": "背景維護會逐級收緊保留期限回收空間；也可以立即維護或手動清理舊紀錄。",
+  "NearLimit": "容量接近上限",
+  "NearLimitDetail": "建議立即維護或清理不再需要的紀錄。",
+  "High": "容量偏高",
+  "HighDetail": "背景維護會照保留規則回收；需要空間時可以手動清理。",
+  "Pending": "背景整理中",
+  "PendingDetail": "還有過期的紀錄待回收，會在接下來幾分鐘內分批完成。",
+  "Healthy": "狀態良好",
+  "HealthyLimitedDetail": "容量在上限內，背景維護照保留規則運作。",
+  "HealthyUnlimitedDetail": "容量不限，背景維護照保留期限運作。",
+  // ── 維護排程那一行，幾段以「 · 」接起來 ──
+  // {time} 是相對時間，例如「5 分鐘前 (14:02)」。
+  "LastMaintained": "上次維護 {time}",
+  "NotMaintainedYet": "本次開啟後尚未維護",
+  "NextMaintenanceSoon": "下次維護即將開始",
+  "NextMaintenanceIn": "下次約 {minutes} 分鐘後",
+  // {factor} 是整數；保留期限縮短為原本的幾分之一。
+  "Tightened": "容量壓力，保留期限已收緊為 1/{factor}",
+  // ── 最近活動：標題與結果 ──
+  "ActivityScheduled": "背景維護",
+  "ActivityManual": "立即維護",
+  "ActivityCleanup": "手動清理",
+  "ActivityCompact": "壓縮資料庫",
+  "ActivityBackup": "備份",
+  "ActivityMaintenance": "維護",
+  "CompactShrunk": "檔案縮小 {size}",
+  "CompactNothing": "沒有可回收的空間",
+  "BackupFile": "備份檔 {size}",
+  "DeletedRows": "刪除 {count} 列",
+  "DeletedRowsReleased": "刪除 {count} 列，釋出 {size}",
+  "NothingToReclaim": "沒有需要回收的資料",
+  // ── 清除試算 ──
+  "CleanupNone": "沒有符合條件的紀錄",
+  "CleanupAtMost": "最多清除 {count} 筆",
+  "CleanupExecutions": "執行紀錄 {count}",
+  "CleanupDrafts": "草稿 {count}",
+  "CleanupRecovery": "回復內容 {count}",
+  "CleanupFavoriteRevisions": "收藏版本 {count}"
+}

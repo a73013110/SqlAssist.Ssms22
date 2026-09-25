@@ -61,7 +61,7 @@ internal sealed class SqlSelectionAction
 
     /// <summary>按鈕 Tooltip 與自動化說明；有快捷鍵就一起說出來。</summary>
     public string Description => ShortcutKey is { } key
-        ? $"{Label}（{new KeyGesture(key, ShortcutModifiers).GetDisplayStringForCulture(System.Globalization.CultureInfo.InvariantCulture)}）"
+        ? ChromeText.ActionWithShortcut(Label, new KeyGesture(key, ShortcutModifiers).GetDisplayStringForCulture(System.Globalization.CultureInfo.InvariantCulture))
         : Label;
 
     public bool Matches(Key key, ModifierKeys modifiers) => ShortcutKey == key && ShortcutModifiers == modifiers;

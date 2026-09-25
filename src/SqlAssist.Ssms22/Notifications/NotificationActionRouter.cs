@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Ssms22.Notifications;
 
@@ -18,6 +19,7 @@ internal static class NotificationActionRouter
     private static readonly Dictionary<string, Action<string>> Handlers = new(StringComparer.Ordinal);
 
     /// <summary>登記一個識別字的處理常式；參數是按鈕帶的 <c>Argument</c>。</summary>
+    [Localizable(false)]
     public static void Register(string actionId, Action<string> handler)
     {
         if (string.IsNullOrWhiteSpace(actionId)) throw new ArgumentException("需要按鈕識別字。", nameof(actionId));

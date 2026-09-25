@@ -32,8 +32,8 @@ internal sealed class SqlMatchNavigator : StackPanel
     private readonly TextBlock _position = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
     private MatchCursor _cursor = MatchCursor.Empty;
 
-    internal const string PreviousLabel = "上一個命中";
-    internal const string NextLabel = "下一個命中";
+    internal static string PreviousLabel => SearchControlText.PreviousMatch;
+    internal static string NextLabel => SearchControlText.NextMatch;
 
     public SqlMatchNavigator()
     {
@@ -98,7 +98,7 @@ internal sealed class SqlMatchNavigator : StackPanel
         if (!has) return;
 
         _position.Text = _cursor.Position + " / " + _cursor.Count;
-        var spoken = "第 " + _cursor.Position + " 個命中，共 " + _cursor.Count + " 個";
+        var spoken = SearchControlText.MatchPosition(_cursor.Position, _cursor.Count);
         _position.ToolTip = spoken;
         AutomationProperties.SetName(_position, spoken);
 

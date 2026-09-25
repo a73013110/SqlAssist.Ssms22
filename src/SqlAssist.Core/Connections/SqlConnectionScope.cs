@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Connections;
 
@@ -127,6 +128,7 @@ public sealed class SqlConnectionScope
         return names.FindIndex(candidate => _comparer.Equals(candidate, name));
     }
 
+    [Localizable(false)]
     private static void RequireName(string name, string parameter)
     {
         if (string.IsNullOrEmpty(name)) throw new ArgumentException("名稱不可為空。", parameter);

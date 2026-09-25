@@ -20,10 +20,6 @@ public static class SqlScriptDataSourceSuggestions
 {
     private const string CommonTableExpressionDescription = "CTE";
 
-    private const string TemporaryTableDescription = "暫存資料表";
-
-    private const string TableVariableDescription = "資料表變數";
-
     /// <summary>
     /// 組出這份指令碼宣告的資料來源。
     /// </summary>
@@ -77,7 +73,7 @@ public static class SqlScriptDataSourceSuggestions
             if (seen.Add(token.Value))
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(token.Value, TemporaryTableDescription, resolver.FindScriptTable(token.Value)));
+                    Create(token.Value, ScriptSuggestionText.TemporaryTable, resolver.FindScriptTable(token.Value)));
             }
         }
 
@@ -90,7 +86,7 @@ public static class SqlScriptDataSourceSuggestions
             if (table.Name.Length > 1 && table.Name[0] == '@' && seen.Add(table.Name))
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(table.Name, TableVariableDescription, table));
+                    Create(table.Name, ScriptSuggestionText.TableVariable, table));
             }
         }
 
@@ -103,7 +99,7 @@ public static class SqlScriptDataSourceSuggestions
             name,
             name,
             description,
-            $"{name}（{description}）",
+            ScriptSuggestionText.NameWithDescription(name, description),
             SuggestionKind.ScriptDataSource,
             tag: table);
     }

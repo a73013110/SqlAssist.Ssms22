@@ -1,0 +1,9 @@
+{
+  // 建議清單上，從這份指令碼本身收集到的名稱旁邊的說明。
+  "CollationUsedInScript": "這份指令碼已經用過的定序",
+  "TemporaryTable": "暫存資料表",
+  "TableVariable": "資料表變數",
+  "Variable": "變數",
+  // 說明面板的標題列：名稱加上上面其中一種說明，或變數宣告的型別。
+  "NameWithDescription": "{name}（{description}）"
+}

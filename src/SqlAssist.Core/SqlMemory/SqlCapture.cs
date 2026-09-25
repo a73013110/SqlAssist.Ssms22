@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using SqlAssist.Core.Connections;
 
 namespace SqlAssist.Core.SqlMemory;
@@ -21,6 +22,7 @@ public sealed class SqlTextSnapshot : ISqlTextSnapshot
 /// <summary>Sequence 在同一 Session 嚴格遞增；選取執行時仍須攜帶完整文件快照。</summary>
 public sealed class SqlCapture
 {
+    [Localizable(false)]
     public SqlCapture(Guid captureId, SqlDocument document, SqlSession session,
         long sequence, DateTimeOffset capturedAt, SqlCaptureKind kind, ISqlTextSnapshot documentText,
         SqlConnectionLabel? connection = null, ISqlTextSnapshot? selectedText = null)

@@ -7,6 +7,8 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using System.ComponentModel;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.SqlMemory;
 
 namespace SqlAssist.Ssms22.UI;
@@ -15,6 +17,7 @@ internal static partial class SqlAssistChrome
 {
     // 語意值決定圖示，不依賴可翻譯的顯示文字；篩選、卡片與 Preview 都查同一份對應。
     // 沒有對應就擲出，不退回某一顆看似合理的圖示把漏掉的選項藏起來。
+    [Localizable(false)]
     public static SqlIcon MemoryOptionIcon(object value) => value switch
     {
         SqlHistoryFilter.Executions => SqlIcon.Execute, SqlHistoryFilter.Drafts => SqlIcon.Edit, SqlHistoryFilter.All => SqlIcon.All,
@@ -55,7 +58,7 @@ internal static partial class SqlAssistChrome
         var indicator = new Border { Child = arc, Padding = new Thickness(8), CornerRadius = new CornerRadius(18),
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
         indicator.SetResourceReference(Border.BackgroundProperty, ThemeBrush.ListBackground);
-        AutomationProperties.SetName(indicator, "載入中");
+        AutomationProperties.SetName(indicator, SqlMemoryViewText.Loading);
         return indicator;
     }
 
@@ -78,9 +81,9 @@ internal static partial class SqlAssistChrome
         toolbar.Children.Add(tabs);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(actions, 1); toolbar.Children.Add(actions);
-        var content = CreateIconLabel(SqlIcon.Settings, "設定");
+        var content = CreateIconLabel(SqlIcon.Settings, CommonText.Settings);
         var label = (TextBlock)content.Children[1];
-        settings.Content = content; settings.ToolTip = "設定"; AutomationProperties.SetName(settings, "設定");
+        settings.Content = content; settings.ToolTip = CommonText.Settings; AutomationProperties.SetName(settings, CommonText.Settings);
         settings.Height = 28; settings.MinWidth = 28; settings.Padding = new Thickness(6, 3, 6, 3);
         settings.Margin = new Thickness(4, 0, 0, 0); actions.Children.Add(settings);
         // 窄窗先收起設定的文字，再收起分頁文字；不換行、不改變高度，維持分頁與圖示共用中心線。
@@ -128,8 +131,8 @@ internal static partial class SqlAssistChrome
         var visible = severity != SqlMemoryUsageSeverity.Normal;
         var text = severity switch
         {
-            SqlMemoryUsageSeverity.Critical => UsageTabLabel + "：容量接近或超過上限",
-            SqlMemoryUsageSeverity.Warning => UsageTabLabel + "：容量偏高",
+            SqlMemoryUsageSeverity.Critical => SqlMemoryViewText.UsageCritical(UsageTabLabel),
+            SqlMemoryUsageSeverity.Warning => SqlMemoryViewText.UsageWarning(UsageTabLabel),
             _ => UsageTabLabel,
         };
         usage.ToolTip = text; AutomationProperties.SetHelpText(usage, visible ? text : "");
@@ -198,7 +201,7 @@ internal static partial class SqlAssistChrome
         FrameworkElement connection, FrameworkElement server, FrameworkElement database,
         SqlPillSelector kind, SqlPillSelector period)
     {
-        AutomationProperties.SetName(kind, "狀態"); AutomationProperties.SetName(period, "期間");
+        AutomationProperties.SetName(kind, CommonText.Status); AutomationProperties.SetName(period, SqlMemoryViewText.Period);
         return new SqlFilterBar(
             new[] { connection, server, database },
             new FrameworkElement[] { kind },

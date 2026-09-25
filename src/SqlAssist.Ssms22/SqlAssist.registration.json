@@ -2,8 +2,12 @@
   // Unified Settings 的註冊檔。結構定義見
   //   <SSMS>\Common7\IDE\UnifiedSettings\registration.schema.json
   //
-  // 標題與描述目前直接寫繁中純文字。設定頁只能以 "@key;{packageGuid}" 資源
-  // 跟隨 SSMS 介面語言，改寫的待辦見 docs/localization.md。
+  // 顯示文字（title、description、enumItemLabels，以及 messages、commands 的 text）
+  // 一律寫成 "@鍵;{packageGuid}"：SSMS 依自己的介面語言到套件組件的資源查表，
+  // 不受 SqlAssist 的語言設定控制。文字在 Settings/SettingsPageText.<語言>.resjson，
+  // 建置時英文編成中性資源、其餘語言編成衛星組件（Settings/SettingsPageText.targets）。
+  // 新增設定時鍵要同時加進每一種語言；引用了不存在的鍵是建置錯誤 SQLSET006，
+  // 否則設定頁只會把引用原樣畫出來。additionalKeywords 只供搜尋、不顯示，維持原文。
   //
   // 這一份是「有哪些設定」的權威來源，測試以它為基準反推程式碼：
   // 每一個 moniker 都必須在 SqlAssistMonikers 有對應常數、被
@@ -52,140 +56,140 @@
     "sqlAssist.blocks.enabled": {
       "type": "boolean",
       "default": true,
-      "title": "啟用 T-SQL 區塊配對高亮",
-      "description": "在起訖關鍵字上標示配對。SqlAssist 總開關關閉時也會停用。",
+      "title": "@BlocksEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 100
     },
     "sqlAssist.blocks.keywordHighlight": {
       "type": "boolean",
       "default": true,
-      "title": "配對端點高亮",
-      "description": "游標位於端點時，以較明顯的前景與背景標示配對；不改動 SSMS 原生括號配色。",
+      "title": "@BlocksKeywordHighlightTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksKeywordHighlightDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 110,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.keywordForeground": {
       "type": "string",
       "default": "",
-      "title": "全域高亮預設前景色",
-      "description": "所有配對端點共用；符號可在其種類底下覆寫。有效 #RRGGBB 字色保持原值，必要時調整背景以維持可讀性；留空才自動選字色，高對比模式除外。",
+      "title": "@BlocksKeywordForegroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksKeywordForegroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 120,
       "enableWhen": "${config:sqlAssist.blocks.keywordHighlight} == 'true'",
-      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 529 } }]
+      "commands": [{ "vsct": { "text": "@ColorPickerCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 529 } }]
     },
     "sqlAssist.blocks.keywordBackground": {
       "type": "string",
       "default": "",
-      "title": "全域高亮預設背景色",
-      "description": "所有配對端點共用；符號可在其種類底下覆寫。留空使用共用基準色，支援 #RRGGBB，並自動適配深淺底色。",
+      "title": "@BlocksKeywordBackgroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksKeywordBackgroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 130,
       "enableWhen": "${config:sqlAssist.blocks.keywordHighlight} == 'true'",
-      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 530 } }]
+      "commands": [{ "vsct": { "text": "@ColorPickerCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 530 } }]
     },
     "sqlAssist.blocks.symbolForeground": {
       "type": "string",
       "default": "",
-      "title": "符號高亮前景色（括號、方括號、字串引號）",
-      "description": "有效 #RRGGBB 字色保持原值，必要時調整背景；留空繼承全域高亮預設，高對比模式除外。需開啟配對端點高亮才會顯示。",
+      "title": "@BlocksSymbolForegroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksSymbolForegroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 210,
       "enableWhen": "${config:sqlAssist.blocks.matchParentheses} == 'true'",
-      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 531 } }]
+      "commands": [{ "vsct": { "text": "@ColorPickerCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 531 } }]
     },
     "sqlAssist.blocks.symbolBackground": {
       "type": "string",
       "default": "",
-      "title": "符號高亮背景色（括號、方括號、字串引號）",
-      "description": "留空繼承全域高亮預設；支援 #RRGGBB，並自動適配深淺底色。需開啟配對端點高亮才會顯示。",
+      "title": "@BlocksSymbolBackgroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksSymbolBackgroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 220,
       "enableWhen": "${config:sqlAssist.blocks.matchParentheses} == 'true'",
-      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 532 } }]
+      "commands": [{ "vsct": { "text": "@ColorPickerCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 532 } }]
     },
     "sqlAssist.blocks.rangeBackground": {
       "type": "boolean",
       "default": true,
-      "title": "區間淡色背景",
-      "description": "依基準色與實際編輯器底色推導淡色背景，不更改 SQL 字色；高對比模式不塗背景。",
+      "title": "@BlocksRangeBackgroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksRangeBackgroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 300,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.accentColor": {
       "type": "string",
       "default": "",
-      "title": "共用基準色（背景、端點與指示條）",
-      "description": "留空跟隨 SSMS 主題；例如 #4F86C6，也可按鈕選色。供區間、未另設色的端點、邊欄、概覽與提示共用，因此不隸屬區間背景開關。無效格式回退主題，高對比忽略自訂色；原生導引線除外。",
+      "title": "@BlocksAccentColorTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksAccentColorDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 800,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'",
-      "commands": [{ "vsct": { "text": "選取色彩…", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 528 } }]
+      "commands": [{ "vsct": { "text": "@ColorPickerCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7", "id": 528 } }]
     },
     "sqlAssist.blocks.rangeInside": {
       "type": "boolean",
       "default": true,
-      "title": "游標在區塊內也顯示最近一層背景",
-      "description": "不必停在關鍵字上；只標示最近符合設定的一層，不疊加多層色彩。關閉後恢復只在端點顯示。",
+      "title": "@BlocksRangeInsideTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksRangeInsideDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 310,
       "enableWhen": "${config:sqlAssist.blocks.rangeBackground} == 'true'"
     },
     "sqlAssist.blocks.structure": {
       "type": "boolean",
       "default": true,
-      "title": "結構導引線",
-      "description": "由 SSMS 繪製。色彩由環境的字型與色彩中「結構輔助線／Structure Guide Lines」的背景色管理，會影響所有原生結構導引線。",
+      "title": "@BlocksStructureTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksStructureDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 400,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.outlining": {
       "type": "boolean",
       "default": false,
-      "title": "進階：補足 SSMS 未提供的區塊摺疊",
-      "description": "只在原生缺少區塊 +/− 時使用，通常保持關閉。SSMS 本來就能摺疊 BEGIN／END 時，切換可能沒有可見差異；不會開關原生摺疊。",
+      "title": "@BlocksOutliningTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksOutliningDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 410,
       "enableWhen": "${config:sqlAssist.blocks.structure} == 'true'"
     },
     "sqlAssist.blocks.glyphs": {
       "type": "boolean",
       "default": true,
-      "title": "行號邊欄指示條",
-      "description": "在游標所在區塊的每一行顯示指示條；啟用區間背景時跟隨同一層，不必停在關鍵字上。",
+      "title": "@BlocksGlyphsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksGlyphsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 500,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.overview": {
       "type": "boolean",
       "default": true,
-      "title": "捲軸概覽標記",
-      "description": "游標位於區塊內即可在捲軸顯示起訖與範圍色帶，不必停在 BEGIN／END；跟隨背景範圍，背景關閉時仍可獨立顯示。",
+      "title": "@BlocksOverviewTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksOverviewDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 600,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.contextHint": {
       "type": "boolean",
       "default": true,
-      "title": "跨頁上下文提示",
-      "description": "起始行已捲出畫面時顯示摘要；滑鼠移入呈現手形與連結色，點擊返回起始行，不占用鍵盤焦點或快捷鍵。",
+      "title": "@BlocksContextHintTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksContextHintDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 700,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.sameLineBackground": {
       "type": "boolean",
       "default": true,
-      "title": "同一行區塊也顯示背景色",
-      "description": "也顯示同行 CASE、括號或字串區間；關閉後略過同行區塊並保留外層跨行背景，不影響端點高亮。",
+      "title": "@BlocksSameLineBackgroundTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksSameLineBackgroundDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 320,
       "enableWhen": "${config:sqlAssist.blocks.rangeBackground} == 'true'"
     },
     "sqlAssist.blocks.matchParentheses": {
       "type": "boolean",
       "default": true,
-      "title": "納入配對種類：括號、方括號與字串引號",
-      "description": "配對 ( )、[ ] 與 '…'（含 N'…'），同時影響所有區塊呈現。只取外框，字串內跳脫的 '' 與識別字內的 ]] 不當端點。",
+      "title": "@BlocksMatchParenthesesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksMatchParenthesesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 200,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
     "sqlAssist.blocks.matchCase": {
       "type": "boolean",
       "default": true,
-      "title": "納入配對種類：CASE…END",
-      "description": "同時影響所有區塊呈現；停用時仍解析 CASE，避免它的 END 被誤配到外層 BEGIN。",
+      "title": "@BlocksMatchCaseTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksMatchCaseDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 250,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
@@ -194,8 +198,8 @@
       "default": 150,
       "minimum": 50,
       "maximum": 2000,
-      "title": "進階：Debounce 毫秒數",
-      "description": "停止輸入多久後在背景更新配對；游標移動不重新解析。",
+      "title": "@BlocksDebounceTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@BlocksDebounceDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 900,
       "enableWhen": "${config:sqlAssist.blocks.enabled} == 'true'"
     },
@@ -203,16 +207,16 @@
       "type": "boolean",
       "default": true,
       "order": 100,
-      "title": "啟用 SqlAssist",
-      "description": "關閉後不顯示建議清單、不做關鍵字大寫、不展開任何語句，也不顯示物件結構。等同快捷鍵 Ctrl+Alt+Shift+S。",
+      "title": "@GeneralEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "停用", "關閉", "總開關", "disable" ]
     },
     "sqlAssist.general.uppercaseKeywordsOnType": {
       "type": "boolean",
       "default": true,
       "order": 200,
-      "title": "輸入時把 T-SQL 關鍵字轉成大寫",
-      "description": "打完關鍵字並輸入空白或分隔字元時，把它改寫成大寫。與建議清單無關：關鍵字一律會列在清單裡。",
+      "title": "@GeneralUppercaseKeywordsOnTypeTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralUppercaseKeywordsOnTypeDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "自動大寫", "小寫", "casing", "uppercase", "keyword" ],
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
@@ -220,8 +224,8 @@
       "type": "boolean",
       "default": true,
       "order": 210,
-      "title": "自動補上成對的括號與引號",
-      "description": "輸入 ( ' [ \" 時補上另一半並把游標留在中間；接著輸入結尾字元會跳過補上的那一個，Backspace 刪掉開頭字元時把空的另一半一起收掉，先選取一段文字再輸入開頭字元則是把它包起來。從建議清單提交自己帶著左括號的項目（GETDATE、varchar）時也一併補上右括號。字串與註解裡不配對，建議清單或程式碼片段欄位開著時也不介入。BEGIN…END 不在這一項底下，那是程式碼片段。",
+      "title": "@GeneralAutoPairDelimitersTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralAutoPairDelimitersDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "括號", "引號", "配對", "自動關閉", "auto close", "bracket", "quote" ],
       "enableWhen": "${config:sqlAssist.general.enabled} == 'true'"
     },
@@ -229,24 +233,24 @@
       "type": "boolean",
       "default": true,
       "order": 250,
-      "title": "啟動時檢查有沒有新版本",
-      "description": "每天最多問一次 GitHub 的發行頁，有新版才跳出提醒，略過的版本不再提醒；不下載也不安裝。關閉之後仍可用「工具 → SqlAssist → 檢查更新…」自己問。",
+      "title": "@GeneralCheckForUpdatesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralCheckForUpdatesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "更新", "版本", "update", "release", "GitHub" ]
     },
     "sqlAssist.general.animations": {
       "type": "boolean",
       "default": true,
       "order": 300,
-      "title": "播放介面動畫",
-      "description": "SqlAssist 自製介面的所有動畫：通知的進出、明細、狀態圖示與進度條，結構預覽的淡入，以及 SQL Memory 的載入圖示與清單停駐效果。關閉後直接切到最終狀態。高對比模式一律不播放。",
+      "title": "@GeneralAnimationsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralAnimationsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "animation", "motion", "淡入", "淡出", "轉圈", "載入", "減少動態效果" ]
     },
     "sqlAssist.general.ignoreWindowsAnimationSetting": {
       "type": "boolean",
       "default": true,
       "order": 310,
-      "title": "不受 Windows 動畫設定影響",
-      "description": "Windows 關閉「在 Windows 中顯示動畫」（常見於遠端桌面或效能選項）時仍照常播放。只影響 SqlAssist，不更改 Windows 設定；關閉這一項則跟隨 Windows。",
+      "title": "@GeneralIgnoreWindowsAnimationSettingTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@GeneralIgnoreWindowsAnimationSettingDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "animation", "遠端桌面", "RDP", "效能選項", "系統動畫" ],
       "enableWhen": "${config:sqlAssist.general.animations} == 'true'"
     },
@@ -255,16 +259,16 @@
       "type": "boolean",
       "default": true,
       "order": 100,
-      "title": "輸入時自動彈出建議清單",
-      "description": "關閉後仍保留滑鼠停留提示、關鍵字大寫，以及工具選單的「顯示游標處物件的結構」。總開關在「一般」頁。",
+      "title": "@SuggestionsEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "自動完成", "補全", "智慧感知", "IntelliSense", "completion" ]
     },
     "sqlAssist.suggestions.suppressNativeMemberList": {
       "type": "boolean",
       "default": true,
       "order": 110,
-      "title": "只使用 SqlAssist 的建議清單",
-      "description": "SSMS 內建的 T-SQL IntelliSense 打字時會彈出自己的清單，兩份同時出現會互相干擾。開啟這一項只擋掉它自動彈出的清單，它的紅色錯誤波浪線、大綱與參數提示照常運作。做法是取消勾選 設定 → 語言 → Transact-SQL 裡的「自動列出成員」；在那裡勾回來，下次套用時會再被取消。請不要整個關閉 SSMS 的 T-SQL IntelliSense——那會連錯誤檢查一起關掉。",
+      "title": "@SuggestionsSuppressNativeMemberListTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsSuppressNativeMemberListDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "內建", "原生", "衝突", "重複", "IntelliSense" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
@@ -274,8 +278,8 @@
       "minimum": 1,
       "maximum": 10,
       "order": 120,
-      "title": "輸入幾個字元後才彈出清單",
-      "description": "只影響沒有限定詞的位置。輸入 a. 這種指定別名或結構描述的位置一律立刻彈出。",
+      "title": "@SuggestionsTriggerAfterCharactersTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsTriggerAfterCharactersDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "觸發", "最少字元", "太早跳出", "trigger" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
@@ -283,8 +287,8 @@
       "type": "boolean",
       "default": true,
       "order": 130,
-      "title": "在建議清單上方顯示分類篩選列",
-      "description": "按下欄位、資料表、檢視等按鈕只看該分類，也可以按 Alt 加上按鈕的存取鍵。不選任何一顆就是全部。清單裡只有一種分類時不會出現。",
+      "title": "@SuggestionsShowCategoryFiltersTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsShowCategoryFiltersDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "filter", "只看欄位", "只看資料表", "存取鍵", "工具列" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
@@ -292,14 +296,14 @@
       "type": "boolean",
       "default": true,
       "order": 200,
-      "title": "列出程式碼片段",
-      "description": "把內建與自訂的程式碼片段一起列進建議清單。內建片段共 49 筆。",
+      "title": "@SuggestionsIncludeSnippetsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsIncludeSnippetsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "snippet", "範本", "template", "縮寫", "捷徑" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'",
       "commands": [
         {
           "vsct": {
-            "text": "編輯程式碼片段…",
+            "text": "@SuggestionsIncludeSnippetsCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
             "id": 521
           }
@@ -310,8 +314,8 @@
       "type": "boolean",
       "default": true,
       "order": 210,
-      "title": "列出資料庫物件與欄位",
-      "description": "關閉後完全不查詢連線的資料庫，清單只剩 T-SQL 關鍵字與程式碼片段。「插入與展開」頁的語句展開也會跟著沒有材料可用。",
+      "title": "@SuggestionsIncludeDatabaseObjectsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SuggestionsIncludeDatabaseObjectsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "資料表", "檢視", "預存程序", "中繼資料", "metadata" ],
       "enableWhen": "${config:sqlAssist.suggestions.enabled} == 'true'"
     },
@@ -320,24 +324,24 @@
       "type": "boolean",
       "default": true,
       "order": 100,
-      "title": "插入物件時補上結構描述名稱",
-      "description": "例如插入 dbo.Lib_Reader 而不是 Lib_Reader。總開關在「一般」頁。",
+      "title": "@InsertionQualifyObjectNamesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionQualifyObjectNamesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "schema", "dbo", "限定名稱", "完整名稱", "qualify" ]
     },
     "sqlAssist.insertion.useSquareBrackets": {
       "type": "boolean",
       "default": false,
       "order": 110,
-      "title": "插入物件時加上方括號",
-      "description": "例如插入 [dbo].[Lib_Reader]。關閉時仍會為含空白或保留字的名稱加上括號，否則插入的 SQL 無效。",
+      "title": "@InsertionUseSquareBracketsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionUseSquareBracketsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "[]", "中括號", "bracket", "跳脫", "保留字" ]
     },
     "sqlAssist.insertion.expandWildcardOnTab": {
       "type": "boolean",
       "default": true,
       "order": 200,
-      "title": "按 Tab 把 SELECT * 展開成欄位清單",
-      "description": "游標停在選取清單的 * 後方時顯示提示，按 Tab 換成完整欄位。支援資料表、檢視、子查詢與 CTE；a.* 只展開該來源，敘述有兩個以上來源時自動補上別名。只要有一個來源解析不出來就完全不展開。",
+      "title": "@InsertionExpandWildcardOnTabTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandWildcardOnTabDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "星號", "萬用字元", "wildcard", "展開欄位", "expand" ]
     },
     "sqlAssist.insertion.wildcardLayout": {
@@ -346,12 +350,12 @@
       "order": 210,
       "enum": [ "oneLineWhenShort", "onePerLine", "fillWidth" ],
       "enumItemLabels": [
-        "放得下就排成一行，放不下才每欄一行",
-        "永遠每欄一行",
-        "依行寬排滿，一行放多個欄位"
+        "@InsertionWildcardLayoutItemOneLineWhenShort;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@InsertionWildcardLayoutItemOnePerLine;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@InsertionWildcardLayoutItemFillWidth;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
       ],
-      "title": "SELECT * 展開後的欄位排版",
-      "description": "每欄一行時，新增或移除欄位只會動到一行，比對版本差異最清楚。另外兩種的換行位置由欄位名稱的長度決定。",
+      "title": "@InsertionWildcardLayoutTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionWildcardLayoutDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "怎麼排", "換行", "格式", "layout", "每欄一行" ],
       "enableWhen": "${config:sqlAssist.insertion.expandWildcardOnTab} == 'true'"
     },
@@ -359,40 +363,40 @@
       "type": "boolean",
       "default": true,
       "order": 300,
-      "title": "在 ALTER 之後展開完整定義",
-      "description": "在 ALTER PROCEDURE、ALTER FUNCTION、ALTER VIEW、ALTER TRIGGER 之後選取物件時，把伺服器上目前的 CREATE 定義取回來改寫成 ALTER 整句貼上，游標停在名稱後面。定義取不到或不是 CREATE 開頭時維持只插入名稱。關閉後只插入名稱，也不會為此向伺服器查詢定義。",
+      "title": "@InsertionExpandAlterDefinitionTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandAlterDefinitionDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "修改", "定義", "改寫", "sp_helptext", "產生 SQL" ]
     },
     "sqlAssist.insertion.expandInsertStatement": {
       "type": "boolean",
       "default": true,
       "order": 310,
-      "title": "在 INSERT INTO 之後展開完整的欄位與 VALUES",
-      "description": "選取資料表後不只補上名稱，而是展開成每列一個欄位的清單加上對應的 VALUES 預留值。IDENTITY、計算欄位、rowversion 與時態資料表的期間欄位會排除。關閉後只插入名稱。",
+      "title": "@InsertionExpandInsertStatementTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandInsertStatementDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "新增資料", "欄位清單", "產生 SQL", "樣板", "IDENTITY" ]
     },
     "sqlAssist.insertion.expandMergeStatement": {
       "type": "boolean",
       "default": true,
       "order": 320,
-      "title": "在 MERGE INTO 之後展開完整的比對鍵與動作子句",
-      "description": "選取目標資料表後展開成 ON 比對鍵、UPDATE SET、INSERT 與 VALUES；比對鍵取自主索引鍵，兩個動作子句都帶著 AND 1 = 0，確認條件之前不會真的改到資料。關閉後只插入名稱。",
+      "title": "@InsertionExpandMergeStatementTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandMergeStatementDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "合併", "upsert", "同步", "主索引鍵", "產生 SQL" ]
     },
     "sqlAssist.insertion.expandProcedureCall": {
       "type": "boolean",
       "default": true,
       "order": 330,
-      "title": "在 EXEC 之後展開完整的參數清單",
-      "description": "選取預存程序後展開成具名傳值的呼叫，每個參數一列並註明型別；有預設值的參數標示為選擇性，OUTPUT 參數會一併補上 DECLARE。關閉後只插入名稱。",
+      "title": "@InsertionExpandProcedureCallTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandProcedureCallDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "預存程序", "stored procedure", "呼叫", "OUTPUT", "產生 SQL" ]
     },
     "sqlAssist.insertion.includeOptionalParameters": {
       "type": "boolean",
       "default": true,
       "order": 340,
-      "title": "EXEC 展開時包含選擇性參數",
-      "description": "關閉後只展開必填參數，在定義裡已經給了預設值的那些一律省略——省略選擇性參數本來就是合法的呼叫方式，參數很多的程序因此短得多。整支程序的參數都有預設值時就不展開了，維持只插入名稱。",
+      "title": "@InsertionIncludeOptionalParametersTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionIncludeOptionalParametersDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "預設值", "必填", "選填", "optional", "default", "太長" ],
       "enableWhen": "${config:sqlAssist.insertion.expandProcedureCall} == 'true'"
     },
@@ -400,16 +404,16 @@
       "type": "boolean",
       "default": true,
       "order": 350,
-      "title": "選取自訂函式後補上括號",
-      "description": "選取純量函式或資料表值函式後補上一對空括號，游標停在中間，接著由 SSMS 的「陳述式完成 → 參數資訊」告訴你要填什麼。函式的括號在 T-SQL 裡本來就非寫不可，沒有參數的函式也一樣要寫 ()。關閉後只插入名稱。",
+      "title": "@InsertionExpandFunctionCallTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandFunctionCallDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "使用者自訂函式", "function", "括號", "參數資訊", "產生 SQL" ]
     },
     "sqlAssist.insertion.expandFunctionArguments": {
       "type": "boolean",
       "default": false,
       "order": 360,
-      "title": "括號裡填入引數預留值",
-      "description": "開啟後不只補括號，還依參數型別填入一整組預留值（數值 0、字串 ''、日期 NULL、uniqueidentifier NEWID()），游標停在第一個引數上。預設關閉：預留值只是照型別猜的，每一個接著都要換掉，而空括號讓 SSMS 的參數資訊接手告訴你參數叫什麼。",
+      "title": "@InsertionExpandFunctionArgumentsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@InsertionExpandFunctionArgumentsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "引數", "參數", "預留值", "placeholder", "預設值", "產生 SQL" ],
       "enableWhen": "${config:sqlAssist.insertion.expandFunctionCall} == 'true'"
     },
@@ -418,16 +422,16 @@
       "type": "boolean",
       "default": true,
       "order": 100,
-      "title": "滑鼠停留時顯示物件結構",
-      "description": "停在資料表、檢視、預存程序上時顯示欄位型別、NULL、主索引鍵等資訊。總開關在「一般」頁。",
+      "title": "@StructureHoverEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureHoverEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "hover", "quick info", "tooltip", "工具提示", "欄位型別" ]
     },
     "sqlAssist.structure.builtInHelp": {
       "type": "boolean",
       "default": true,
       "order": 110,
-      "title": "滑鼠停留時顯示內建名稱的說明",
-      "description": "停在 CONVERT、DATEDIFF、NVARCHAR 這類內建名稱上時顯示引數順序、用途與一段範例。不查資料庫，沒有連線也看得到。",
+      "title": "@StructureBuiltInHelpTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureBuiltInHelpDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "內建函式", "built-in", "簽章", "signature", "範例", "CONVERT", "用法" ],
       "enableWhen": "${config:sqlAssist.structure.hoverEnabled} == 'true'"
     },
@@ -435,16 +439,16 @@
       "type": "boolean",
       "default": true,
       "order": 120,
-      "title": "輸入自訂函式的引數時顯示參數提示",
-      "description": "游標停在純量函式的括號裡時浮出一行簽章（dbo.dtoc(@ddate smalldatetime) RETURNS varchar(10)），目前輪到的引數以粗體標示，打逗號會跟著往下走。只做純量函式：內建函式與 FROM 後面的資料表值函式由 SSMS 自己的「陳述式完成 → 參數資訊」負責。",
+      "title": "@StructureParameterHintTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureParameterHintDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "簽章", "signature", "參數資訊", "引數", "使用者自訂函式", "提示" ]
     },
     "sqlAssist.structure.clickNavigation": {
       "type": "boolean",
       "default": true,
       "order": 130,
-      "title": "Ctrl＋點擊物件名稱開啟結構預覽，加按 Shift 開啟定義",
-      "description": "按住 Ctrl 時，滑鼠下的物件名稱會加上底線、游標變成手指；點下去等於在那裡按 Ctrl+F12，加按 Shift 則等於按 F12。只接手物件名稱上的點擊，其他位置的 Ctrl＋點擊照舊選取整個單字。關閉後物件名稱上也照舊選取單字。",
+      "title": "@StructureClickNavigationTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureClickNavigationDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "ctrl click", "滑鼠", "點擊", "連結", "底線", "移至定義", "go to definition", "F12", "預覽" ]
     },
     "sqlAssist.structure.previewMode": {
@@ -453,12 +457,12 @@
       "order": 200,
       "enum": [ "delay", "rightArrow", "off" ],
       "enumItemLabels": [
-        "停留一段時間後自動展開",
-        "按向右鍵才展開",
-        "不顯示浮動預覽"
+        "@StructurePreviewModeItemDelay;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@StructurePreviewModeItemRightArrow;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@StructurePreviewModeItemOff;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
       ],
-      "title": "建議清單的結構預覽何時展開",
-      "description": "向右鍵模式下，展開後跟著選取移動，按向左鍵收合。",
+      "title": "@StructurePreviewModeTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructurePreviewModeDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "popup", "浮動視窗", "向右鍵", "preview", "不要跳出來" ]
     },
     "sqlAssist.structure.previewDelay": {
@@ -467,8 +471,8 @@
       "minimum": 0,
       "maximum": 2000,
       "order": 210,
-      "title": "自動展開前的停留毫秒數",
-      "description": "用方向鍵快速掃過清單時，掃過去的項目不會展開，也不會送出查詢。",
+      "title": "@StructurePreviewDelayTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructurePreviewDelayDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "延遲", "delay", "反應太快", "反應太慢" ],
       "enableWhen": "${config:sqlAssist.structure.previewMode} == 'delay'"
     },
@@ -478,11 +482,11 @@
       "order": 220,
       "enum": [ "stacked", "beside" ],
       "enumItemLabels": [
-        "建議清單的上下方，延伸到編輯器右側",
-        "貼在建議清單的側邊"
+        "@StructurePreviewPlacementItemStacked;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@StructurePreviewPlacementItemBeside;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
       ],
-      "title": "預覽視窗的位置",
-      "description": "上下擺放時，欄位很多的資料表可以一次攤開好幾欄而不必橫向捲動，代價是會蓋住上下幾行程式碼。",
+      "title": "@StructurePreviewPlacementTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructurePreviewPlacementDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "擺放", "上下", "側邊", "placement", "蓋住程式碼" ],
       "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
     },
@@ -492,8 +496,8 @@
       "minimum": 9,
       "maximum": 20,
       "order": 230,
-      "title": "預覽視窗的字級",
-      "description": "資料格、分頁與標題的基準字級，其餘字級按固定差距跟著走。指令碼分頁不受影響，它跟的是編輯器的字型與字級。",
+      "title": "@StructurePreviewFontSizeTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructurePreviewFontSizeDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "字型大小", "字體", "font", "太小", "放大" ],
       "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
     },
@@ -503,36 +507,36 @@
       "order": 300,
       "enum": [ "fidelity", "ssmsNative", "minimal" ],
       "enumItemLabels": [
-        "還原度優先（條件約束獨立成敘述、每一段接 GO）",
-        "與 SSMS 的「編寫指令碼為」一致",
-        "只留執行得起來所必需的部分"
+        "@StructureScriptStyleItemFidelity;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@StructureScriptStyleItemSsmsNative;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@StructureScriptStyleItemMinimal;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
       ],
-      "title": "產生指令碼的風格",
-      "description": "F12 與浮動預覽的指令碼分頁都用這一組。還原度優先那一組會寫出定序、識別值種子、預設值條件約束的名稱與檔案群組。",
+      "title": "@StructureScriptStyleTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureScriptStyleDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "script", "create table", "編寫指令碼", "還原", "風格", "F12" ]
     },
     "sqlAssist.structure.scriptIncludeExtendedProperties": {
       "type": "boolean",
       "default": true,
       "order": 310,
-      "title": "指令碼包含資料行說明",
-      "description": "把 MS_Description 重建成 sp_addextendedproperty。資料表、資料行、索引與條件約束四層都會寫出來。",
+      "title": "@StructureScriptIncludeExtendedPropertiesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureScriptIncludeExtendedPropertiesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "MS_Description", "說明", "註解", "extended property", "欄位說明" ]
     },
     "sqlAssist.structure.scriptIncludeAnalyzerComments": {
       "type": "boolean",
       "default": false,
       "order": 320,
-      "title": "指令碼附上結構健檢的發現",
-      "description": "在每個物件前面寫成 -- [SCHEMA-001][Warning] … 的註解。檢查的是 INCLUDE 帶大型物件、同語意資料行型別不一致、列舉欄位缺少 CHECK 這一類問題。",
+      "title": "@StructureScriptIncludeAnalyzerCommentsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureScriptIncludeAnalyzerCommentsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "analyzer", "健檢", "檢查", "SCHEMA-", "建議", "lint" ]
     },
     "sqlAssist.structure.scriptIncludeHeaderComment": {
       "type": "boolean",
       "default": false,
       "order": 330,
-      "title": "指令碼附上來源檔頭",
-      "description": "在最前面寫出來源伺服器與資料庫、產生時間、工具版本與風格。存檔之後分得出這一份是從哪一台抓的。",
+      "title": "@StructureScriptIncludeHeaderCommentTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@StructureScriptIncludeHeaderCommentDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "header", "檔頭", "來源", "產生時間", "版本" ]
     },
 
@@ -544,16 +548,16 @@
     "sqlAssist.sqlMemory.enabled": {
       "type": "boolean",
       "default": true,
-      "title": "啟用 SQL Memory",
-      "description": "這一頁整組功能的開關：查詢歷程、草稿、當機還原、收藏與背景維護。SQL 只存進這台電腦上的資料庫，不上傳。關閉時完全不擷取，也不執行背景整理。需要「一般」頁的「啟用 SqlAssist」也開著。",
+      "title": "@SqlMemoryEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 100,
       "additionalKeywords": [ "history", "歷史", "查詢歷程", "recovery", "還原", "收藏", "隱私", "總開關" ]
     },
     "sqlAssist.sqlMemory.captureExecuted": {
       "type": "boolean",
       "default": true,
-      "title": "擷取：執行過的查詢",
-      "description": "按下執行時保存當下的 SQL 與連線的伺服器、資料庫名稱；不保存密碼或連線字串。",
+      "title": "@SqlMemoryCaptureExecutedTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryCaptureExecutedDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 110,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "execute", "F5", "執行" ]
@@ -561,8 +565,8 @@
     "sqlAssist.sqlMemory.captureDrafts": {
       "type": "boolean",
       "default": true,
-      "title": "擷取：尚未執行的草稿",
-      "description": "停止輸入一段時間後保存目前內容。關閉之後只有執行過的 SQL 留得下來。",
+      "title": "@SqlMemoryCaptureDraftsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryCaptureDraftsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 120,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "draft", "草稿", "自動儲存" ]
@@ -570,8 +574,8 @@
     "sqlAssist.sqlMemory.captureRecovery": {
       "type": "boolean",
       "default": true,
-      "title": "擷取：未存檔內容（當機還原）",
-      "description": "每個查詢視窗各留一份最新內容，正常關閉時移除。關閉之後 SSMS 意外結束的未存檔內容救不回來。",
+      "title": "@SqlMemoryCaptureRecoveryTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryCaptureRecoveryDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 130,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
       "additionalKeywords": [ "recovery", "當機", "復原", "未存檔" ]
@@ -581,8 +585,8 @@
       "default": 5,
       "minimum": 1,
       "maximum": 120,
-      "title": "草稿：停止輸入幾秒後記下",
-      "description": "越短越不容易漏掉剛打的內容，代價是背景寫入變頻繁。",
+      "title": "@SqlMemoryIdleSecondsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryIdleSecondsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 140,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
       "additionalKeywords": [ "idle", "debounce", "延遲" ]
@@ -592,8 +596,8 @@
       "default": 10,
       "minimum": 1,
       "maximum": 480,
-      "title": "草稿：最密幾分鐘留一個版本",
-      "description": "內容有變才留；這個間隔內的多次修改併成同一個版本。執行與手動快照不受限制。",
+      "title": "@SqlMemoryAutoRevisionMinutesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryAutoRevisionMinutesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 150,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
       "additionalKeywords": [ "revision", "版本", "checkpoint" ]
@@ -603,8 +607,8 @@
       "default": 30,
       "minimum": 1,
       "maximum": 3650,
-      "title": "保留：草稿天數",
-      "description": "超過就從歷程清單移除。收藏、釘選與手動快照不受期限影響。",
+      "title": "@SqlMemoryDraftRetentionDaysTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryDraftRetentionDaysDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 200,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "retention", "保留", "清理", "天數" ]
@@ -614,8 +618,8 @@
       "default": 180,
       "minimum": 1,
       "maximum": 3650,
-      "title": "保留：執行紀錄天數",
-      "description": "執行事件與草稿分開計算；查「上個月那一段跑過什麼」靠的是這一項。",
+      "title": "@SqlMemoryExecutionRetentionDaysTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryExecutionRetentionDaysDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 210,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "retention", "執行", "清理", "天數" ]
@@ -625,8 +629,8 @@
       "default": 7,
       "minimum": 1,
       "maximum": 365,
-      "title": "保留：無人使用的未存檔內容天數",
-      "description": "只算沒有任何 SSMS 還開著它的那些；還開著的查詢視窗不論多久都保留。",
+      "title": "@SqlMemoryRecoveryRetentionDaysTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryRecoveryRetentionDaysDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 220,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureRecovery} == 'true'",
       "additionalKeywords": [ "recovery", "當機", "遺留", "天數" ]
@@ -636,8 +640,8 @@
       "default": 10000,
       "minimum": 100,
       "maximum": 1000000,
-      "title": "上限：執行紀錄筆數",
-      "description": "與保留天數取聯集：期限內但超過筆數的舊紀錄也會移除。",
+      "title": "@SqlMemoryMaxExecutionsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryMaxExecutionsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 230,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "quota", "配額", "筆數", "上限" ]
@@ -647,8 +651,8 @@
       "default": 50,
       "minimum": 5,
       "maximum": 5000,
-      "title": "上限：每個查詢視窗的自動版本數",
-      "description": "只算自動留下的版本；執行、關閉與手動快照不算在內。",
+      "title": "@SqlMemoryMaxSessionRevisionsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryMaxSessionRevisionsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 240,
       "enableWhen": "${config:sqlAssist.sqlMemory.captureDrafts} == 'true'",
       "additionalKeywords": [ "quota", "配額", "版本", "上限" ]
@@ -658,8 +662,8 @@
       "default": 20,
       "minimum": 1,
       "maximum": 1000,
-      "title": "上限：每個收藏的編輯版本數",
-      "description": "收藏的 SQL 每編輯一次留一個版本；目前這一個永遠保留。",
+      "title": "@SqlMemoryMaxFavoriteRevisionsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryMaxFavoriteRevisionsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 250,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "favorites", "收藏", "版本", "上限" ]
@@ -668,9 +672,9 @@
       "type": "string",
       "default": "mb512",
       "enum": [ "mb256", "mb512", "gb1", "unlimited" ],
-      "enumItemLabels": [ "256 MB", "512 MB", "1 GB", "不限" ],
-      "title": "儲存：容量上限",
-      "description": "超過之後背景整理會逐級縮短上面幾項保留，直到回到上限內。這不是硬性磁碟配額：收藏、釘選與還開著的查詢視窗永遠不會為了空間被刪。",
+      "enumItemLabels": [ "@SqlMemoryStorageLimitItemMb256;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "@SqlMemoryStorageLimitItemMb512;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "@SqlMemoryStorageLimitItemGb1;{b386e18d-f34b-4db4-a40d-b9092a31d89f}", "@SqlMemoryStorageLimitItemUnlimited;{b386e18d-f34b-4db4-a40d-b9092a31d89f}" ],
+      "title": "@SqlMemoryStorageLimitTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryStorageLimitDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 300,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "容量", "大小", "磁碟", "size", "quota" ]
@@ -680,8 +684,8 @@
       "default": 60,
       "minimum": 5,
       "maximum": 1440,
-      "title": "儲存：背景整理間隔",
-      "description": "背景清理的間隔。SSMS 閒置時可能提前，一次只處理有限筆數，不會卡住編輯。",
+      "title": "@SqlMemoryMaintenanceMinutesTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@SqlMemoryMaintenanceMinutesDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 310,
       "enableWhen": "${config:sqlAssist.sqlMemory.enabled} == 'true'",
       "additionalKeywords": [ "maintenance", "整理", "清理", "排程", "間隔" ]
@@ -690,23 +694,23 @@
       "type": "boolean",
       "default": true,
       "order": 100,
-      "title": "顯示通知提示",
-      "description": "在作用中查詢視窗所在視窗的右下角顯示執行中與近期完成的工作，以及需要你決定的提醒。"
+      "title": "@NotificationsEnabledTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsEnabledDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
     },
     "sqlAssist.notifications.glass": {
       "type": "boolean",
       "default": true,
       "order": 110,
-      "title": "玻璃材質",
-      "description": "使用主題色的層次邊緣；高對比一律使用不透明材質。",
+      "title": "@NotificationsGlassTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsGlassDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.delay": {
       "type": "integer",
       "default": 0,
       "order": 140,
-      "title": "顯示延遲（毫秒）",
-      "description": "延遲顯示提示；預設立即顯示。",
+      "title": "@NotificationsDelayTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsDelayDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "minimum": 0,
       "maximum": 30000
@@ -715,8 +719,8 @@
       "type": "integer",
       "default": 2500,
       "order": 150,
-      "title": "完成保留時間（毫秒）",
-      "description": "完成項目到期後同時從完成數與總數扣除；失敗與部分成功至少保留六秒。",
+      "title": "@NotificationsRetentionTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsRetentionDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "minimum": 800,
       "maximum": 30000
@@ -727,13 +731,13 @@
       "order": 160,
       "enum": [ "quiet", "normal", "verbose", "all" ],
       "enumItemLabels": [
-        "安靜：只留下值得知道的事",
-        "一般：顯示各項工作",
-        "詳細：連逐次的細節工作都顯示",
-        "全部：連只進診斷統計的追蹤工作也顯示"
+        "@NotificationsVerbosityItemQuiet;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@NotificationsVerbosityItemNormal;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@NotificationsVerbosityItemVerbose;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+        "@NotificationsVerbosityItemAll;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
       ],
-      "title": "詳細度",
-      "description": "決定工作要到哪一階才上畫面。你剛觸發的動作、失敗與部分成功不受這個門檻影響；「全部」會把打字時的追蹤工作也放上來。",
+      "title": "@NotificationsVerbosityTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsVerbosityDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "verbosity", "詳細", "安靜", "降噪", "太吵" ]
     },
@@ -741,88 +745,88 @@
       "type": "boolean",
       "default": true,
       "order": 200,
-      "title": "中繼資料載入",
-      "description": "自動發生的物件、欄位、定序與快取查詢；不包含快取命中。",
+      "title": "@NotificationsMetadataTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsMetadataDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.completion": {
       "type": "boolean",
       "default": false,
       "order": 210,
-      "title": "建議清單",
-      "description": "輸入時準備、排序建議清單與參數提示；預設隱藏高頻提示。",
+      "title": "@NotificationsCompletionTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsCompletionDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.analysis": {
       "type": "boolean",
       "default": false,
       "order": 220,
-      "title": "語法與區塊分析",
-      "description": "輸入時反覆執行的 T-SQL 分析；預設隱藏以減少干擾。",
+      "title": "@NotificationsAnalysisTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsAnalysisDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.preview": {
       "type": "boolean",
       "default": false,
       "order": 230,
-      "title": "物件提示與結構預覽",
-      "description": "滑鼠停留提示與浮動結構預覽自己的載入工作。",
+      "title": "@NotificationsPreviewTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsPreviewDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.package": {
       "type": "boolean",
       "default": false,
       "order": 240,
-      "title": "初始化與連線",
-      "description": "啟動 SqlAssist 的準備工作、建立與重新確認中繼資料連線。",
+      "title": "@NotificationsPackageTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsPackageDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.editing": {
       "type": "boolean",
       "default": true,
       "order": 250,
-      "title": "編輯與展開",
-      "description": "按 Tab 展開 SELECT *、展開語句樣板與自動配對這類寫回編輯器的工作。",
+      "title": "@NotificationsEditingTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsEditingDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.navigation": {
       "type": "boolean",
       "default": true,
       "order": 260,
-      "title": "移至定義",
-      "description": "F12 產生定義並另開查詢視窗的過程。",
+      "title": "@NotificationsNavigationTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsNavigationDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.results": {
       "type": "boolean",
       "default": true,
       "order": 270,
-      "title": "結果格線",
-      "description": "從查詢結果產生指令碼、複製完整內容與剖析欄位。",
+      "title": "@NotificationsResultsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsResultsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.snippets": {
       "type": "boolean",
       "default": true,
       "order": 280,
-      "title": "程式碼片段",
-      "description": "載入、儲存與還原內建及自訂片段。",
+      "title": "@NotificationsSnippetsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsSnippetsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.settings": {
       "type": "boolean",
       "default": true,
       "order": 290,
-      "title": "設定",
-      "description": "重新讀取設定與套用到編輯器的結果回饋。",
+      "title": "@NotificationsSettingsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsSettingsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.sqlMemory": {
       "type": "boolean",
       "default": true,
       "order": 300,
-      "title": "SQL Memory",
-      "description": "啟用、整理、清除與備份 SQL Memory，以及擷取被略過與容量警戒這類事件。",
+      "title": "@NotificationsSqlMemoryTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsSqlMemoryDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Memory", "查詢紀錄", "收藏" ]
     },
@@ -830,8 +834,8 @@
       "type": "boolean",
       "default": true,
       "order": 305,
-      "title": "SQL Search",
-      "description": "SQL Search 的複製、套用查詢視窗連線、搜尋失敗與預覽標不齊命中。移至定義與在物件總管中選取歸在「移至定義」。",
+      "title": "@NotificationsSearchTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsSearchDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "SQL Search", "搜尋" ]
     },
@@ -839,8 +843,8 @@
       "type": "boolean",
       "default": true,
       "order": 310,
-      "title": "未分類",
-      "description": "還沒歸類的工作。預設顯示，關掉之後新加入的工作可能整批安靜消失。",
+      "title": "@NotificationsUnclassifiedTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsUnclassifiedDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "其他", "unclassified", "漏分類" ]
     },
@@ -848,16 +852,16 @@
       "type": "boolean",
       "default": true,
       "order": 400,
-      "title": "顯示所有種類的失敗",
-      "description": "獨立控制錯誤提示，即使該種類已隱藏仍可顯示；不影響診斷紀錄。",
+      "title": "@NotificationsFailuresTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsFailuresDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'"
     },
     "sqlAssist.notifications.degraded": {
       "type": "boolean",
       "default": true,
       "order": 410,
-      "title": "顯示部分成功",
-      "description": "主要結果拿到了、但有一部分資料取不到的工作；關掉之後它們併回一般成功。",
+      "title": "@NotificationsDegradedTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@NotificationsDegradedDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "enableWhen": "${config:sqlAssist.notifications.enabled} == 'true'",
       "additionalKeywords": [ "降級", "degraded", "部分資料", "取不到" ]
     },
@@ -865,68 +869,68 @@
       "type": "boolean",
       "default": false,
       "order": 100,
-      "title": "寫入詳細診斷紀錄",
-      "description": "把逐次建議與提交的細節寫入 %LOCALAPPDATA%\\SqlAssist.Ssms22\\SqlAssist.log。回報問題時再開啟。",
+      "title": "@DiagnosticsVerboseLoggingTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@DiagnosticsVerboseLoggingDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "log", "debug", "除錯", "紀錄檔", "問題回報" ]
     }
   },
 
   "categories": {
     "sqlAssist.notifications": {
-      "title": "通知與背景工作",
-      "description": "右下角的通知島，顯示全套件正在做、剛做完與需要你決定的事。",
+      "title": "@CategoryNotificationsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategoryNotificationsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "背景", "背景工作", "提示", "notification", "進度" ],
       "order": 475
     },
     "sqlAssist": {
-      "title": "SqlAssist",
-      "description": "T-SQL 即時建議、程式碼片段與資料庫物件結構預覽。",
+      "title": "@CategorySqlAssistTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategorySqlAssistDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "T-SQL", "SQL", "IntelliSense", "自動完成", "編輯器" ]
     },
     "sqlAssist.general": {
-      "title": "一般",
-      "description": "總開關、輸入時的改寫、更新檢查與全套件的介面動畫。關閉「啟用 SqlAssist」會一併停用下面各頁的所有功能。",
+      "title": "@CategoryGeneralTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategoryGeneralDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "總開關", "停用", "全域", "動畫", "更新" ],
       "order": 100
     },
     "sqlAssist.suggestions": {
-      "title": "建議清單",
-      "description": "清單什麼時候彈出來、裡面列些什麼。選取之後插進編輯器的文字長什麼樣在「插入與展開」頁。",
+      "title": "@CategorySuggestionsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategorySuggestionsDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "自動完成", "補全", "智慧感知", "IntelliSense", "completion" ],
       "order": 200,
       "messages": [
         {
           "severity": "informational",
-          "text": "SSMS 的 T-SQL IntelliSense 請保持開啟——紅色錯誤波浪線與大綱都在它底下。「只使用 SqlAssist 的建議清單」已經擋掉它會互搶的那一部分。目前狀態見「工具 → SqlAssist → 關於與診斷…」。"
+          "text": "@CategorySuggestionsMessage;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
         }
       ]
     },
     "sqlAssist.insertion": {
-      "title": "插入與展開",
-      "description": "決定最後寫進編輯器的是什麼文字：物件名稱的寫法、SELECT * 展開成欄位，以及五種語句展開。總開關在「一般」頁，語句展開另外需要「建議清單」頁的清單開著。",
+      "title": "@CategoryInsertionTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategoryInsertionDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "展開", "產生 SQL", "樣板", "骨架", "expand", "generate", "星號", "schema" ],
       "order": 300
     },
     "sqlAssist.structure": {
-      "title": "物件結構",
-      "description": "滑鼠停留提示與建議清單旁的浮動結構預覽，兩者互不影響。總開關在「一般」頁。",
+      "title": "@CategoryStructureTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategoryStructureDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "預覽", "hover", "quick info", "欄位型別" ],
       "order": 400
     },
     "sqlAssist.blocks": {
-      "title": "區塊配對",
-      "description": "T-SQL 起訖關鍵字與括號高亮。",
+      "title": "@CategoryBlocksTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategoryBlocksDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "order": 450
     },
     "sqlAssist.sqlMemory": {
-      "title": "SQL Memory",
-      "description": "把查詢視窗的 SQL 留在這台電腦的資料庫，供之後查閱、還原與收藏。第一次開始擷取時會出現一則通知。總開關在「一般」頁。",
+      "title": "@CategorySqlMemoryTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
+      "description": "@CategorySqlMemoryDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "history", "歷史", "查詢歷程", "草稿", "還原", "收藏", "隱私" ],
       "order": 460,
       "commands": [
         {
           "vsct": {
-            "text": "開啟 SQL Memory 用量…",
+            "text": "@CategorySqlMemoryCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
             "id": 538
           }
@@ -934,13 +938,13 @@
       ]
     },
     "sqlAssist.diagnostics": {
-      "title": "診斷",
+      "title": "@CategoryDiagnosticsTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
       "additionalKeywords": [ "log", "除錯", "紀錄檔", "問題回報" ],
       "order": 500,
       "commands": [
         {
           "vsct": {
-            "text": "開啟診斷紀錄檔",
+            "text": "@CategoryDiagnosticsCommand;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
             "set": "4a188946-9364-4f07-af7e-97f3bd7ca7a7",
             "id": 520
           }

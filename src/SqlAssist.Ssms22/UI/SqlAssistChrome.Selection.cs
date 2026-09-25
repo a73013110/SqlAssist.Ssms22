@@ -53,8 +53,8 @@ internal static partial class SqlAssistChrome
         check.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
         check.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
             new Binding(nameof(ISqlCheckableRow.IsChecked)) { Mode = BindingMode.OneWay });
-        check.SetBinding(AutomationProperties.NameProperty, new Binding(namePath) { StringFormat = "選取 {0}" });
-        check.SetValue(FrameworkElement.ToolTipProperty, "勾選或取消；Shift+點擊勾選一段");
+        check.SetBinding(AutomationProperties.NameProperty, new Binding(namePath) { StringFormat = ChromeText.SelectRow("{0}") });
+        check.SetValue(FrameworkElement.ToolTipProperty, ChromeText.RowCheckToolTip);
         root.AppendChild(check);
         root.AppendChild(lines);
         return root;

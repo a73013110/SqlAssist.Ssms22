@@ -110,7 +110,7 @@ internal static partial class SqlAssistChrome
         current.SetResourceReference(Border.BackgroundProperty, ThemeBrush.AccentBackground);
         current.SetResourceReference(Border.BorderBrushProperty, ThemeBrush.AccentBorder);
         var currentText = new FrameworkElementFactory(typeof(TextBlock));
-        currentText.SetValue(TextBlock.TextProperty, "目前版本"); currentText.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
+        currentText.SetValue(TextBlock.TextProperty, SqlMemoryViewText.CurrentRevisionBadge); currentText.SetValue(TextBlock.FontSizeProperty, DefaultMetrics.Caption);
         currentText.SetResourceReference(TextBlock.ForegroundProperty, ThemeBrush.ListForeground);
         current.AppendChild(currentText); heading.AppendChild(current);
 
@@ -199,7 +199,7 @@ internal static partial class SqlAssistChrome
         var marker = Cell(0, null, "marker", TextAlignment.Center, 20);
         marker.SetValue(TextBlock.FontWeightProperty, FontWeights.Bold);
         marker.SetValue(TextBlock.PaddingProperty, new Thickness(0));
-        marker.SetValue(AutomationProperties.NameProperty, "未變更");
+        marker.SetValue(AutomationProperties.NameProperty, SqlMemoryViewText.DiffLineUnchanged);
         Cell(1, nameof(SqlTextDiffLine.OldNumber), "oldNumber", TextAlignment.Right, 40);
         Cell(2, nameof(SqlTextDiffLine.NewNumber), "newNumber", TextAlignment.Right, 40);
         var text = Cell(3, nameof(SqlTextDiffLine.Text), "text", TextAlignment.Left, 0);
@@ -209,8 +209,8 @@ internal static partial class SqlAssistChrome
         var template = new DataTemplate { VisualTree = line };
         foreach (var (kind, symbol, name, tint, paired) in new[]
                  {
-                     (SqlTextDiffLineKind.Added, "+", "新增", ThemeBrush.DiffAddedBackground, ThemeBrush.DiffAddedForeground),
-                     (SqlTextDiffLineKind.Removed, "-", "刪除", ThemeBrush.DiffRemovedBackground, ThemeBrush.DiffRemovedForeground),
+                     (SqlTextDiffLineKind.Added, "+", SqlMemoryViewText.DiffLineAdded, ThemeBrush.DiffAddedBackground, ThemeBrush.DiffAddedForeground),
+                     (SqlTextDiffLineKind.Removed, "-", SqlMemoryViewText.DiffLineRemoved, ThemeBrush.DiffRemovedBackground, ThemeBrush.DiffRemovedForeground),
                  })
         {
             var trigger = new DataTrigger { Binding = new Binding(nameof(SqlTextDiffLine.Kind)), Value = kind };

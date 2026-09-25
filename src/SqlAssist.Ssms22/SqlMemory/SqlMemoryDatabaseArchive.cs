@@ -37,11 +37,11 @@ internal static class SqlMemoryDatabaseArchive
     public static string Archive(string databasePath, DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(databasePath))
-            throw new ArgumentException("資料庫路徑不可為空。", nameof(databasePath));
+            throw new ArgumentException(SqlMemoryUiText.DatabasePathEmpty, nameof(databasePath));
 
         var directory = Path.GetDirectoryName(databasePath);
         if (string.IsNullOrEmpty(directory))
-            throw new ArgumentException("資料庫路徑必須包含目錄。", nameof(databasePath));
+            throw new ArgumentException(SqlMemoryUiText.DatabasePathRequiresDirectory, nameof(databasePath));
 
         Directory.CreateDirectory(directory);
         if (!AnyExists(databasePath)) return string.Empty;
@@ -106,8 +106,8 @@ internal static class SqlMemoryDatabaseArchive
     private static string Explain(Exception error, bool restored)
     {
         var reason = error is UnauthorizedAccessException
-            ? "存取 SQL Memory 資料庫目錄遭拒，未完成備份。請確認資料夾權限後再試一次。"
-            : "無法搬移 SQL Memory 資料庫檔案；檔案可能正被其他 SSMS 執行個體鎖定。請關閉其他 SSMS 後再試一次。";
-        return restored ? reason : reason + "\n有檔案已更名且無法搬回，請從資料夾確認哪一份是現行資料庫。";
+            ? SqlMemoryUiText.AccessDeniedReason
+            : SqlMemoryUiText.LockedReason;
+        return restored ? reason : reason + "\n" + SqlMemoryUiText.RollbackIncompleteSuffix;
     }
 }

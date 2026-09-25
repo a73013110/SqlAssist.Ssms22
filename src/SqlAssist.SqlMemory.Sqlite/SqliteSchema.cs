@@ -1,5 +1,9 @@
+using System.ComponentModel;
+
 namespace SqlAssist.SqlMemory.Sqlite;
 
+// 建表 SQL 裡的中文是 schema 註解，是儲存格式的一部分，不隨介面語言變。
+[Localizable(false)]
 internal static class SqliteSchema
 {
     public const int Version = 5;

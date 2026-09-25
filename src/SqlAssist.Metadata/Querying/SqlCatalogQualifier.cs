@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using SqlAssist.Core.Parsing;
@@ -44,6 +45,7 @@ public sealed class SqlCatalogQualifier
     }
 
     /// <summary>連結伺服器上的一個資料庫。</summary>
+    [Localizable(false)]
     public static SqlCatalogQualifier ForLinkedServer(string serverName, string databaseName)
     {
         if (string.IsNullOrWhiteSpace(serverName))
@@ -66,6 +68,7 @@ public sealed class SqlCatalogQualifier
     /// <c>LibMirror.</c> 這一格要的只有資料庫清單。物件與結構描述要再往右一格才問，
     /// 在這裡先撈一份等於對那台伺服器多送兩輪誰也不會看的查詢。
     /// </remarks>
+    [Localizable(false)]
     public static SqlCatalogQualifier ForLinkedServer(string serverName)
     {
         if (string.IsNullOrWhiteSpace(serverName))

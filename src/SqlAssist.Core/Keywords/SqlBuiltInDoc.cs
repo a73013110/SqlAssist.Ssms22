@@ -52,12 +52,12 @@ public static class SqlBuiltInKinds
     /// <summary>標題底下那一行種類文字。</summary>
     public static string GetDisplayName(this SqlBuiltInKind kind) => kind switch
     {
-        SqlBuiltInKind.Function => "內建函式",
-        SqlBuiltInKind.TableHint => "資料表提示",
-        SqlBuiltInKind.QueryHint => "查詢提示",
-        SqlBuiltInKind.DatePart => "日期部分",
-        SqlBuiltInKind.GlobalVariable => "全域變數",
-        _ => "內建型別"
+        SqlBuiltInKind.Function => KeywordText.KindFunction,
+        SqlBuiltInKind.TableHint => KeywordText.KindTableHint,
+        SqlBuiltInKind.QueryHint => KeywordText.KindQueryHint,
+        SqlBuiltInKind.DatePart => KeywordText.KindDatePart,
+        SqlBuiltInKind.GlobalVariable => KeywordText.KindGlobalVariable,
+        _ => KeywordText.KindDataType
     };
 
     /// <summary>建議項的種類對得回哪一種內建名稱；對不上的種類不走說明面板。</summary>

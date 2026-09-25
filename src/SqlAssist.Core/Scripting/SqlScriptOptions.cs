@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Scripting;
 
@@ -199,6 +200,7 @@ public sealed record SqlScriptOptions
     public bool IncludeAnalyzerComments { get; init; }
 
     /// <summary>取得某一組內建風格。</summary>
+    [Localizable(false)]
     public static SqlScriptOptions ForStyle(SqlScriptStyle style)
     {
         switch (style)

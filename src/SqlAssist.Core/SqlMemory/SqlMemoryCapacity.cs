@@ -106,6 +106,6 @@ public sealed class SqlMemoryCapacityChangedEventArgs : EventArgs
     /// 只在 <see cref="Notify"/> 為 true 的那一次取用，不在每一批維護上配置字串。
     /// </remarks>
     public string Reason => Ratio is not { } ratio
-        ? "目前的保留規則清不下來"
-        : double.IsInfinity(ratio) ? "內容已超過容量上限" : "內容已用 " + SqlMemoryUsageSummary.Percent(ratio);
+        ? SqlMemoryUsageText.CannotReclaim
+        : double.IsInfinity(ratio) ? SqlMemoryUsageText.ContentExceeded : SqlMemoryUsageText.ContentUsed(SqlMemoryUsageSummary.Percent(ratio));
 }

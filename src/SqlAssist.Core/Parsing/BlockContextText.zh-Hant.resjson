@@ -1,0 +1,4 @@
+{
+  // 區塊結尾那一行的提示，指出對應的開頭：kind 是 BEGIN、CASE 這類關鍵字，summary 是開頭那一行的摘要（可能是空的）。
+  "Heading": "↑ {kind}（第 {line} 行） {summary}"
+}

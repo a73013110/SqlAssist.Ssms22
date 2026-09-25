@@ -78,7 +78,7 @@ public static class ResultGridSelectionPlan
 
         if (totalRows <= 0 || totalColumns <= 0)
         {
-            failure = "這份結果沒有資料列可以取。";
+            failure = ResultGridText.NoRows;
             return false;
         }
 
@@ -150,9 +150,7 @@ public static class ResultGridSelectionPlan
     }
 
     private static string TooLarge(long rows, long columns) =>
-        string.Format(
-            CultureInfo.InvariantCulture,
-            "選取範圍是 {0} 欄 × {1} 列，共 {2} 格，超過一次 {3} 格的上限。請先縮小選取範圍。",
+        ResultGridText.SelectionTooLarge(
             columns,
             rows,
             rows * columns,

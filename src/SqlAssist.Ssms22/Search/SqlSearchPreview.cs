@@ -59,11 +59,11 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
 
         // 這一顆作用在畫面上的內容而不是列本身，所以隔一條群界線排在列操作之後；
         // 「複製限定名稱」不進預覽，理由見 SqlSearchRowCommand.IsInPreview。
-        _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製定義");
+        _copyScript = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, SqlSearchText.CopyDefinition);
         _copyScript.Click += (_, _) => _ = RunAsync(CopyDefinitionAsync);
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕：按完之後工具列上看得出
         // 現在是開著的，理由見 CreateIconToggle。
-        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "SQL 顯示換行");
+        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, SqlSearchText.WrapSql);
         _wrap.Checked += (_, _) => Guarded(() => _viewer.SetWrap(true));
         _wrap.Unchecked += (_, _) => Guarded(() => _viewer.SetWrap(false));
 
@@ -103,7 +103,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         _selection = new SqlSelectionLoader<SqlSearchRow>(Dispatcher, SqlAssistChrome.Debounce.Preview,
             (row, token) => SqlAssistPlatformGuard.Run("載入 SQL Search 預覽", () => _ = RunAsync(() => LoadAsync(row, token))));
 
-        AutomationProperties.SetName(this, "搜尋結果預覽");
+        AutomationProperties.SetName(this, SqlSearchText.PreviewName);
         Select(null);
     }
 
@@ -206,7 +206,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
         {
             // 收起唯讀檢視本身，狀態表面留著：空的檢視在說明文字後面會露出一塊編輯區底色。
             _viewer.Visibility = Visibility.Collapsed;
-            _surface.State = SqlSurfaceState.Empty("尚未選取", "選一筆結果看它的完整定義與命中位置。");
+            _surface.State = SqlSurfaceState.Empty(SqlSearchText.NoSelection, SqlSearchText.NoSelectionDetail);
             return;
         }
 
@@ -219,7 +219,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
             _snippet.Spans = row.SnippetSpans;
             _snippetSurface.Visibility = row.Snippet.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             _surface.State = row.Snippet.Length == 0
-                ? SqlSurfaceState.Empty("沒有可以顯示的定義", "這一筆的來源只提供片段。")
+                ? SqlSurfaceState.Empty(SqlSearchText.NoDefinition, SqlSearchText.NoDefinitionDetail)
                 : SqlSurfaceState.None;
             SqlAssistChrome.PlayAppear(_body);
             return;
@@ -273,7 +273,7 @@ internal sealed class SqlSearchPreview : UserControl, IDisposable
     }
 
     /// <summary>命中位置對不上這一份定義時的那一句；少標了的那一句在 <see cref="MatchHighlightSet.Notice"/>，兩個預覽共用。</summary>
-    private const string Unmatched = "命中位置對不上這一份定義，已顯示完整定義。";
+    private static string Unmatched => SqlSearchText.Unmatched;
 
     // 使用者自己按的按鈕失敗要看得見，所以這裡不是 SqlAssistPlatformGuard 而是送通知。
     private void Guarded(Action action) => _ = RunAsync(() => { action(); return Task.CompletedTask; });

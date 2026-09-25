@@ -414,7 +414,7 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>overflow 的名稱；Tooltip、自動化名稱與測試共用同一份字。</summary>
-    internal const string OverflowLabel = "更多操作";
+    internal static string OverflowLabel => ChromeText.MoreActions;
 
     private static void OpenRowMenu(object sender, RoutedEventArgs args)
     {

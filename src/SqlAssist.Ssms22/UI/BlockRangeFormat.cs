@@ -17,7 +17,7 @@ internal sealed class BlockRangeFormat : MarkerFormatDefinition
 
     public BlockRangeFormat()
     {
-        DisplayName = "SqlAssist 區塊區間背景";
+        DisplayName = ChromeText.BlockRangeFormat;
         ZOrder = 0;
         BackgroundCustomizable = false;
         ForegroundCustomizable = false;

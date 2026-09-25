@@ -128,6 +128,6 @@ internal sealed class SqlTabHeader : StackPanel
 
     private void UpdateName() =>
         AutomationProperties.SetName(this, Count is { } count
-            ? string.Format(CultureInfo.CurrentCulture, IsHitCount ? "{0}，{1} 個符合" : "{0}，{1} 項", _label.Text, count)
+            ? IsHitCount ? ChromeText.TabHitCount(_label.Text, count) : ChromeText.TabItemCount(_label.Text, count)
             : _label.Text);
 }

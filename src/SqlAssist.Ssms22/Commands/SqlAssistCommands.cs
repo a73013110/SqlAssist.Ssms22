@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.ComponentModel.Design;
 using System.Windows.Media;
 using Microsoft.Internal.VisualStudio.Shell.Interop;
@@ -161,7 +162,7 @@ internal sealed class SqlAssistCommands
         int commandId,
         string moniker,
         Func<bool> getChecked,
-        string displayName)
+        [Localizable(false)] string displayName)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         var menuCommand = new OleMenuCommand(
@@ -257,13 +258,13 @@ internal sealed class SqlAssistCommands
             // BeforeQueryStatus 已經擋掉這兩種，但殼層不保證每一次派送前都問過狀態。
             if (!SqlAssistSettingsStore.Current.Enabled)
             {
-                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                SqlAssistStatusBar.Show(_package, CommandText.Disabled);
                 return;
             }
 
             if (ActiveSqlEditor.Current is not { } textView)
             {
-                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                SqlAssistStatusBar.Show(_package, CommandText.PlaceCaretInQueryWindow);
                 return;
             }
 
@@ -273,7 +274,7 @@ internal sealed class SqlAssistCommands
         {
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"開啟物件定義失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, "開啟物件定義失敗；原因已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, CommandText.OpenDefinitionFailed);
         }
     }
 
@@ -294,13 +295,13 @@ internal sealed class SqlAssistCommands
         // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
         if (!SqlAssistSettingsStore.Current.Enabled)
         {
-            SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+            SqlAssistStatusBar.Show(_package, CommandText.Disabled);
             return;
         }
 
         if (ActiveSqlEditor.Current is not { } textView)
         {
-            SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+            SqlAssistStatusBar.Show(_package, CommandText.PlaceCaretInQueryWindow);
             return;
         }
 
@@ -326,13 +327,13 @@ internal sealed class SqlAssistCommands
             // BeforeQueryStatus 已經擋掉這幾種，但殼層不保證每一次派送前都問過狀態。
             if (!SqlAssistSettingsStore.Current.Enabled)
             {
-                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                SqlAssistStatusBar.Show(_package, CommandText.Disabled);
                 return;
             }
 
             if (ActiveSqlEditor.Current is not { } textView)
             {
-                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                SqlAssistStatusBar.Show(_package, CommandText.PlaceCaretInQueryWindow);
                 return;
             }
 
@@ -345,7 +346,7 @@ internal sealed class SqlAssistCommands
         {
             // 同上：這條路徑綁著按鍵，例外也走狀態列。
             SqlAssistDiagnostics.WriteAlways($"以片段包住選取範圍失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, "以片段包住選取範圍失敗；原因已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, CommandText.SurroundFailed);
         }
     }
 
@@ -365,19 +366,19 @@ internal sealed class SqlAssistCommands
             // BeforeQueryStatus 通常會擋掉，但殼層不保證每一次派送前都問過狀態。
             if (!SqlAssistSettingsStore.Current.Enabled)
             {
-                SqlAssistStatusBar.Show(_package, "SqlAssist 目前已停用。");
+                SqlAssistStatusBar.Show(_package, CommandText.Disabled);
                 return;
             }
 
             if (!SqlMemoryHost.Runtime.IsAvailable)
             {
-                SqlAssistStatusBar.Show(_package, "SQL Memory 尚未啟用；請到設定開啟後再收藏。");
+                SqlAssistStatusBar.Show(_package, CommandText.SqlMemoryDisabledForFavorite);
                 return;
             }
 
             if (ActiveSqlEditor.Current is not { } textView)
             {
-                SqlAssistStatusBar.Show(_package, "請先把游標放進 SQL 查詢視窗。");
+                SqlAssistStatusBar.Show(_package, CommandText.PlaceCaretInQueryWindow);
                 return;
             }
 
@@ -389,7 +390,7 @@ internal sealed class SqlAssistCommands
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"新增至收藏失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, "新增至收藏失敗；原因已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, CommandText.AddFavoriteFailed);
         }
     }
 
@@ -398,7 +399,7 @@ internal sealed class SqlAssistCommands
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         if (!NotificationIslandController.Default.Focus())
-            SqlAssistStatusBar.Show(_package, "目前沒有通知。");
+            SqlAssistStatusBar.Show(_package, CommandText.NoNotifications);
     }
 
     /// <summary>
@@ -411,7 +412,7 @@ internal sealed class SqlAssistCommands
     private void Report(string operation, Exception exception)
     {
         SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
-        ShowMessage($"{operation}失敗：{exception.Message}", OLEMSGICON.OLEMSGICON_CRITICAL);
+        ShowMessage(CommandText.OperationFailed(operation, exception.Message), OLEMSGICON.OLEMSGICON_CRITICAL);
     }
 
     private void ShowMessage(string message, OLEMSGICON icon = OLEMSGICON.OLEMSGICON_WARNING)
@@ -445,14 +446,14 @@ internal sealed class SqlAssistCommands
             var report = SqlAssistResultGridProbe.Run();
             var summary = Array.Find(
                 report.Split('\n'),
-                line => line.StartsWith("找到格線數量", StringComparison.Ordinal))
-                ?.Trim() ?? "（報告裡沒有格線數量那一行）";
+                line => line.StartsWith(SqlAssistResultGridProbe.GridCountLabel, StringComparison.Ordinal))
+                ?.Trim() ?? SqlAssistResultGridProbe.MissingGridCountLine;
 
-            SqlAssistStatusBar.Show(_package, $"結果格線探測完成。{summary}。完整報告已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, CommandText.ProbeCompleted(summary));
         }
         catch (Exception exception)
         {
-            Report("探測結果格線", exception);
+            Report(CommandText.OperationProbeResultGrid, exception);
         }
     }
 
@@ -468,7 +469,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            Report("開啟關於與診斷", exception);
+            Report(CommandText.OperationOpenAbout, exception);
         }
     }
 
@@ -489,7 +490,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            Report("開啟程式碼片段管理員", exception);
+            Report(CommandText.OperationOpenSnippetManager, exception);
         }
     }
 
@@ -505,11 +506,11 @@ internal sealed class SqlAssistCommands
                 return;
             }
 
-            ShowMessage("無法開啟設定視窗，請改用「工具 → 選項」並搜尋 SqlAssist。");
+            ShowMessage(CommandText.SettingsUnavailable);
         }
         catch (Exception exception)
         {
-            Report("開啟設定視窗", exception);
+            Report(CommandText.OperationOpenSettings, exception);
         }
     }
 
@@ -539,7 +540,7 @@ internal sealed class SqlAssistCommands
         }
         catch (Exception exception)
         {
-            Report("開啟診斷紀錄檔", exception);
+            Report(CommandText.OperationOpenLog, exception);
         }
     }
 
@@ -554,17 +555,17 @@ internal sealed class SqlAssistCommands
                 IServiceProvider services = _package;
                 if (services.GetService(typeof(SVsUIShell)) is not IVsUIShell shell)
                 {
-                    ShowMessage("無法開啟色彩選取視窗；仍可在設定欄位輸入 #RRGGBB。");
+                    ShowMessage(CommandText.ColorPickerUnavailable);
                     return;
                 }
                 Microsoft.VisualStudio.ErrorHandler.ThrowOnFailure(shell.GetDialogOwnerHwnd(out var owner));
                 var color = SqlColorPicker.Pick(owner, read(SqlAssistSettingsStore.Current), ((SolidColorBrush)VsThemeBrushes.Get(role)).Color);
                 if (color is not null && !SqlAssistSettingsStore.TrySetValue(moniker, color))
-                    ShowMessage("色彩未儲存成功，請確認設定欄位的目前值及設定服務狀態後重試。");
+                    ShowMessage(CommandText.ColorNotSaved);
             }
             catch (Exception exception)
             {
-                Report("選取區塊色彩", exception);
+                Report(CommandText.OperationPickColor, exception);
             }
         });
     }
@@ -592,13 +593,13 @@ internal sealed class SqlAssistCommands
             SqlAssistDiagnostics.WriteAlways("使用者已要求重新整理建議");
             SqlAssistStatusBar.Show(
                 _package,
-                "建議快取已清除；下次開啟建議清單或停留物件時會在背景重新載入。");
+                CommandText.SuggestionsRefreshed);
         }
         catch (Exception exception)
         {
             // 這條路徑綁著按鍵，失敗必須可見，但不應用對話框打斷編輯。
             SqlAssistDiagnostics.WriteAlways($"重新整理建議失敗：{exception}");
-            SqlAssistStatusBar.Show(_package, "重新整理建議失敗；原因已寫入診斷紀錄檔。");
+            SqlAssistStatusBar.Show(_package, CommandText.RefreshSuggestionsFailed);
         }
     }
 }

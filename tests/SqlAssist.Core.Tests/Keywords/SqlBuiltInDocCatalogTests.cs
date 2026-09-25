@@ -2,6 +2,8 @@ using System;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using Xunit;
+using System.Linq;
+using SqlAssist.Core.Localization;
 
 namespace SqlAssist.Core.Tests.Keywords;
 
@@ -472,4 +474,72 @@ public sealed class SqlBuiltInDocCatalogTests
         return description;
     }
 
+    private static SqlLanguage English => SqlLanguage.Find("en")!;
+
+    [Fact]
+    public void 英文介面的內建說明取自覆蓋檔()
+    {
+        using (SqlText.Use(English))
+        {
+            Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var doc));
+            Assert.Equal("Convert type; style formats dates/numbers; type goes first", doc.Summary);
+            Assert.StartsWith("SELECT CONVERT(varchar(10), GETDATE(), 120)", doc.Example);
+            Assert.Equal("style (date and time)", doc.References[0].Title);
+            Assert.Equal("Built-in function", SqlBuiltInKind.Function.GetDisplayName());
+        }
+
+        Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var source));
+        Assert.Equal("內建函式", SqlBuiltInKind.Function.GetDisplayName());
+        Assert.NotEqual("Convert type; style formats dates/numbers; type goes first", source.Summary);
+    }
+
+    [Fact]
+    public void 英文介面的目錄說明與datepart對照表跟著換()
+    {
+        using (SqlText.Use(English))
+        {
+            Assert.True(SqlDataTypeCatalog.TryGetDescription("int", out var type));
+            Assert.Equal("Integer (4 bytes)", type);
+            Assert.Equal("Integer (4 bytes)", SqlDataTypeCatalog.All.Single(item => item.DisplayText == "INT").Description);
+            Assert.True(SqlGlobalVariableCatalog.TryGetDescription("@@ROWCOUNT", out var variable));
+            Assert.Equal("Number of rows affected by last statement", variable);
+            Assert.Equal("Skip locked rows", SqlArgumentCatalog.TableHints.Single(item => item.DisplayText == "READPAST").Description);
+
+            Assert.True(SqlBuiltInDocCatalog.TryGet("YEAR", SqlBuiltInKind.DatePart, out var part));
+            Assert.Equal("Year", part.Summary);
+            Assert.Equal(new[] { "Name", "Description" }, part.References[0].Columns);
+        }
+
+        Assert.Equal("整數（4 位元組）", SqlDataTypeCatalog.All.Single(item => item.DisplayText == "INT").Description);
+    }
+
+    /// <summary>英文比中文長，但提示視窗的截斷上限不分語言；自己寫的說明不該被自己截斷。</summary>
+    [Fact]
+    public void 英文說明與範例同樣排得下()
+    {
+        using (SqlText.Use(English))
+        {
+            foreach (var name in SqlBuiltInDocCatalog.DocumentedNames)
+            {
+                Assert.True(SqlBuiltInDocCatalog.TryGetDocumentedKind(name, out var kind), name);
+                Assert.True(SqlBuiltInDocCatalog.TryGet(name, kind, out var doc), name);
+                Assert.True(doc.Summary.Length <= MaximumSummaryLength, $"{name}: {doc.Summary.Length}");
+                Assert.True(doc.Example.Length <= MaximumExampleLength, $"{name}: {doc.Example.Length}");
+            }
+
+            var catalogs = SqlGlobalVariableCatalog.All
+                .Concat(SqlArgumentCatalog.TableHints)
+                .Concat(SqlArgumentCatalog.QueryHints)
+                .Concat(SqlArgumentCatalog.DateParts)
+                .Concat(SqlDataTypeCatalog.All)
+                .Concat(SqlCollationCatalog.Defaults);
+
+            foreach (var suggestion in catalogs)
+            {
+                Assert.True(
+                    suggestion.Description.Length <= MaximumSummaryLength,
+                    $"{suggestion.DisplayText}: {suggestion.Description.Length}");
+            }
+        }
+    }
 }

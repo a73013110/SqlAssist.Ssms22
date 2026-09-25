@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Search;
 
@@ -31,6 +32,7 @@ public sealed class SearchScope
 
     public bool IsUnbounded => Servers.Count == 0 && Databases.Count == 0;
 
+    [Localizable(false)]
     private static IReadOnlyList<string> Copy(IEnumerable<string>? values, string parameterName)
     {
         if (values is null) return Array.Empty<string>();

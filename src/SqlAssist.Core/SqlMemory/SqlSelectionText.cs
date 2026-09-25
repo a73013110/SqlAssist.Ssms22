@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 
@@ -30,6 +31,7 @@ public sealed class SqlSelectionText : ISqlTextSnapshot
     /// <param name="parts">依文件順序排列的範圍；呼叫端負責排序。</param>
     /// <param name="separator">範圍之間的換行。</param>
     /// <returns>沒有範圍時為 null；只有一個範圍時直接回傳它。</returns>
+    [Localizable(false)]
     public static ISqlTextSnapshot? Combine(IReadOnlyList<ISqlTextSnapshot> parts, string separator)
     {
         if (parts == null) throw new ArgumentNullException(nameof(parts));

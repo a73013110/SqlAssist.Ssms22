@@ -1,8 +1,10 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Core.Diagnostics;
 
 /// <summary>從組件的三種版本中整理出給人看與回報問題用的版本資訊。</summary>
+[Localizable(false)]
 public sealed class SqlAssistBuildVersion
 {
     private SqlAssistBuildVersion(

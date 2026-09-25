@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Statements;
 using Xunit;
 
@@ -60,6 +61,17 @@ public sealed class SqlFunctionSignatureTextTests
 
         Assert.Equal("int", text.Parameters[0].Documentation);
         Assert.Equal("datetime2(7)，可寫 DEFAULT", text.Parameters[1].Documentation);
+    }
+
+    [Fact]
+    public void 參數說明跟著介面語言()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            var text = SqlFunctionSignatureText.Build("dbo.fn_DueDate", LoansByReader, "date");
+
+            Assert.Equal("datetime2(7), accepts DEFAULT", text.Parameters[1].Documentation);
+        }
     }
 
     [Fact]

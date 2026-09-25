@@ -1,0 +1,77 @@
+{
+  // 收藏編輯器、版本歷史對話框、標註輸入與版本操作共用的文字。
+  // 「名稱」「伺服器」「資料庫」「取消」「關閉」「複製」用 CommonText 共用詞，不在這裡重複。
+  // ── FavoriteEditorWindow ──
+  "AddToFavorites": "新增至收藏",
+  "EditTitle": "編輯收藏 — {name}",
+  "UseEditorConnection": "使用查詢視窗的連線",
+  "UseEditorConnectionToolTip": "以查詢視窗的伺服器與資料庫填入標註；不切換連線。",
+  "DescriptionLabel": "說明（選填）",
+  "Save": "儲存",
+  "SaveToolTip": "儲存（Ctrl+S）",
+  "EditSummary": "{time} 更新 · 修改 SQL 儲存後會另存新版本，可在版本歷史回溯。",
+  // 接在編輯器摘要文字（SqlTextEditor.Summary，不在本檔翻譯範圍）後面的後綴，保留前導空白。
+  "ModifiedSuffix": " · 已修改",
+  "NoEditorConnection": "查詢視窗目前沒有連線；標註保持不變。",
+  "NameRequired": "名稱不可空白。",
+  "SqlRequired": "SQL 不可空白。",
+  "Saving": "正在儲存收藏…",
+  "SaveConflict": "收藏已被修改或移除，未覆寫。請先複製需要保留的內容，再取消並重新整理清單。",
+  "SaveUnconfirmed": "儲存未確認：{error} 請先複製需要保留的內容，再取消並重新整理；不會自動重送。",
+  "DiscardTitle": "捨棄變更",
+  "DiscardConfirm": "捨棄尚未儲存的變更？",
+  "DiscardDetail": "這次編輯的內容會遺失，收藏本身不會改變。\n捨棄後無法復原。",
+  // ── FavoriteRevisionsWindow ──
+  "DiffMode": "差異",
+  "FullTextMode": "全文",
+  "RevisionsTitle": "版本歷史 — {name}",
+  "RetentionNotice": "每個收藏只保留最近 {retainedLimit} 版，更舊的版本會被回收；回溯會另存一筆新版本，不改寫或刪除任何版本。",
+  "TimelineName": "版本時間軸",
+  "ModeName": "呈現方式",
+  // 下面兩個是失敗訊息的動作名稱（SqlMemoryTimeText.Failure 的第一個參數），不是完整句子。
+  "LoadRevisionsVerb": "載入版本",
+  "LoadMoreRevisionsVerb": "載入更多版本",
+  "FavoriteRemoved": "收藏已被移除；關閉後清單會同步更新。",
+  "SelectRevisionHint": "請在時間軸選取版本。",
+  "RevisionPurged": "此版本的內容已被維護清理，無法預覽、比對或回溯。",
+  "ComparisonPurged": "比較對象的內容已被清理；只能檢視此版本全文。",
+  "EarliestRevision": "最早保留的版本；沒有可比較的前一版",
+  "ReadRevisionVerb": "讀取版本",
+  "DiffTooLarge": "SQL 太大，未逐行比對；以整段取代呈現差異。",
+  "DiffTooManyChanges": "差異過多，未逐行比對；以整段取代呈現差異。",
+  "ContentIdentical": "內容與比較對象完全相同。",
+  "OnlyLineEndingsDiffer": "只有換行字元或結尾換行不同；逐行內容相同。",
+  "RevertingWait": "正在回溯，請等候完成再關閉。",
+  // ── SqlConnectionTagInput ──
+  "ExactNameToolTip": "精確名稱；留空表示不限。",
+  // {label} 是 CommonText.Server 或 CommonText.Database。
+  "ChooseKnown": "選擇出現過的{label}",
+  "NotReady": "SQL Memory 尚未就緒，無法列出名稱。",
+  "ClearLabel": "不限（清除{label}）",
+  "NoKnownNames": "沒有記錄過的{label}",
+  // ── SqlFavoriteRevisionCommands ──
+  // 下面兩個是操作動詞（SqlMemoryOperationGate 的操作名稱參數），不是完整句子；「複製」用 CommonText.Copy。
+  "OpenVerb": "開啟",
+  "OpenedAsNewQuery": "已用此版本開啟新查詢；未執行 SQL。",
+  "CopiedSql": "已複製此版本的完整 SQL。",
+  "RevertToNewRevision": "回溯為新版本",
+  "RevertConfirm": "以 {time} 的版本建立新的目前版本？",
+  "RevertDetail": "這個版本的 SQL 會另存成一筆新版本，並設為目前版本。\n歷史不會倒帶：目前版本和其他舊版本都會保留，之後仍可再回溯。\n每個收藏只保留最近 {retainedLimit} 版，超出的最舊版本會在維護時回收。",
+  "RevertVerb": "回溯",
+  "RevisionCleanedFailed": "此版本的內容已被清理",
+  "RevisionCleanedNoRevert": "此版本的內容已被清理，無法回溯。",
+  "RevertUnconfirmedFailed": "回溯未確認：{error}",
+  "RevertUnconfirmedReport": "回溯未確認：{error} 已重新讀取版本清單確認結果；不會自動重送。",
+  "FavoriteChangedNoRevert": "收藏已被修改或移除，未回溯",
+  "FavoriteChangedNoRevertReport": "收藏已被修改或移除，未回溯；已重新讀取版本清單。",
+  "RevisionCleaned": "此版本的內容已被清理。",
+  // ── SqlFavoriteRevisionRow ──
+  // Origin 是版本來源的說明；Detail 把它接進一整句，{origin} 就是下面兩個鍵之一。
+  "OriginFavorite": "收藏版本",
+  "OriginImported": "引用自 History",
+  "DetailCleaned": "{origin} · 內容已清理",
+  "DetailLength": "{origin} · {length:N0} 字元",
+  "RevertLabelCurrent": "這已是目前版本",
+  "RevertLabelCleaned": "內容已清理，無法回溯",
+  "RevertLabelUnchanged": "內容與目前版本相同"
+}

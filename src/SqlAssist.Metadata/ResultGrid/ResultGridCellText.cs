@@ -59,28 +59,28 @@ public sealed class ResultGridCellText
             throw new ArgumentNullException(nameof(column));
         }
 
-        var name = column.Name.Length == 0 ? "（沒有資料行名稱）" : column.Name;
+        var name = column.Name.Length == 0 ? ResultGridText.CellNoColumnName : column.Name;
         var type = column.ServerDataType.Length == 0 ? "?" : column.ServerDataType;
-        var prefix = name + "（" + type + "）· ";
+        string Summary(string detail) => ResultGridText.CellSummary(name, type, detail);
 
         if (SqlValueLiteral.IsNullValue(value))
         {
-            return new ResultGridCellText(prefix + "NULL", string.Empty, isNull: true);
+            return new ResultGridCellText(Summary("NULL"), string.Empty, isNull: true);
         }
 
         var text = Display(column, value, ResultGridTextStyle.Literal);
 
         if (TryText(value, out var raw))
         {
-            return new ResultGridCellText(prefix + Count(raw!.Length, "個字元"), text, isNull: false);
+            return new ResultGridCellText(Summary(ResultGridText.CellCharacters(raw!.Length)), text, isNull: false);
         }
 
         if (TryBinary(value, out var bytes))
         {
-            return new ResultGridCellText(prefix + Count(bytes!.Length, "個位元組"), text, isNull: false);
+            return new ResultGridCellText(Summary(ResultGridText.CellBytes(bytes!.Length)), text, isNull: false);
         }
 
-        return new ResultGridCellText(prefix + value!.GetType().Name, text, isNull: false);
+        return new ResultGridCellText(Summary(value!.GetType().Name), text, isNull: false);
     }
 
     /// <summary>
@@ -134,9 +134,6 @@ public sealed class ResultGridCellText
             ? literal.Substring(start + 1, literal.Length - start - 2).Replace("''", "'")
             : literal;
     }
-
-    private static string Count(int value, string unit) =>
-        value.ToString("N0", CultureInfo.InvariantCulture) + " " + unit;
 
     private static bool TryText(object? value, out string? text)
     {

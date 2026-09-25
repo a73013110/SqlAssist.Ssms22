@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
 using System.Threading;
@@ -17,6 +18,7 @@ namespace SqlAssist.Metadata.Search;
 /// </remarks>
 public sealed class SqlCatalogSearchDatabase
 {
+    [Localizable(false)]
     public SqlCatalogSearchDatabase(string name, bool isSystem)
     {
         if (string.IsNullOrEmpty(name))
@@ -39,7 +41,7 @@ public sealed class SqlCatalogSearchDatabase
     /// </remarks>
     public bool IsSystem { get; }
 
-    public override string ToString() => IsSystem ? Name + "（系統）" : Name;
+    public override string ToString() => IsSystem ? SearchSourceText.SystemDatabase(Name) : Name;
 }
 
 /// <summary>

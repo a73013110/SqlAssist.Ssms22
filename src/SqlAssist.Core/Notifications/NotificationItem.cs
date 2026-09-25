@@ -6,23 +6,29 @@ namespace SqlAssist.Core.Notifications;
 /// <summary>不可變的通知快照；不保存例外、連線字串或編輯器。</summary>
 public sealed class NotificationItem
 {
-    internal NotificationItem(long id, string title, string subject, string document, string source,
+    internal NotificationItem(long id, NotificationTitle title, string subject, string document, string source,
         DateTimeOffset started, NotificationStatus status, DateTimeOffset? finished, string message,
         NotificationKind kind, NotificationOrigin origin, NotificationLevel level, int repeat = 1,
-        string key = "", IReadOnlyList<NotificationAction>? actions = null, NotificationSeverity? severity = null)
+        string key = "", IReadOnlyList<NotificationAction>? actions = null, NotificationSeverity? severity = null,
+        Func<string>? liveMessage = null)
     {
-        Id = id; Title = title; Subject = subject; Document = document; Source = source; Started = started;
-        Status = status; Finished = finished; Message = message; Kind = kind; Origin = origin; Level = level;
-        Repeat = repeat; Key = key; Actions = actions ?? NoActions; _severity = severity;
+        Id = id; TitleSource = title; Subject = subject; Document = document; Source = source; Started = started;
+        Status = status; Finished = finished; _message = message; Kind = kind; Origin = origin; Level = level;
+        Repeat = repeat; Key = key; Actions = actions ?? NoActions; _severity = severity; _liveMessage = liveMessage;
     }
 
     private static readonly IReadOnlyList<NotificationAction> NoActions = Array.AsReadOnly(new NotificationAction[0]);
     private readonly NotificationSeverity? _severity;
+    private readonly string _message;
+    private readonly Func<string>? _liveMessage;
 
     public long Id { get; }
 
-    /// <summary>動詞開頭的常數短語；物件名稱放 <see cref="Subject"/>，不在這裡組字串。</summary>
-    public string Title { get; }
+    /// <summary>動詞開頭的短語，用目前的語言；物件名稱放 <see cref="Subject"/>，不在這裡組字串。</summary>
+    public string Title => TitleSource.Text;
+
+    /// <summary>標題是目錄裡的哪一句；換語言後重畫與成功後的過去式都從這裡取。</summary>
+    internal NotificationTitle TitleSource { get; }
 
     /// <summary>這件事作用在哪個物件（限定名稱、伺服器、片段名稱）。</summary>
     public string Subject { get; }
@@ -40,7 +46,8 @@ public sealed class NotificationItem
     /// <summary>資料從哪裡來（資料庫）；不查資料庫的工作留空。</summary>
     public string Source { get; }
 
-    public string Message { get; }
+    /// <summary>工作回報的訊息；提醒的訊息來自目錄，每次取值都用目前的語言。</summary>
+    public string Message => _liveMessage?.Invoke() ?? _message;
     public NotificationKind Kind { get; }
     public NotificationOrigin Origin { get; }
     public NotificationLevel Level { get; }
@@ -81,10 +88,10 @@ public sealed class NotificationItem
     public bool IsPrompt => Actions.Count > 0;
 
     internal NotificationItem With(NotificationStatus status, DateTimeOffset? finished, string message) =>
-        new(Id, Title, Subject, Document, Source, Started, status, finished, message, Kind, Origin, Level, Repeat,
+        new(Id, TitleSource, Subject, Document, Source, Started, status, finished, message, Kind, Origin, Level, Repeat,
             Key, Actions, _severity);
 
     internal NotificationItem WithRepeat(int repeat) =>
-        new(Id, Title, Subject, Document, Source, Started, Status, Finished, Message, Kind, Origin, Level, repeat,
-            Key, Actions, _severity);
+        new(Id, TitleSource, Subject, Document, Source, Started, Status, Finished, _message, Kind, Origin, Level, repeat,
+            Key, Actions, _severity, _liveMessage);
 }

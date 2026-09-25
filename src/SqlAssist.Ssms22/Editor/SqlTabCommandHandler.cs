@@ -48,7 +48,7 @@ internal sealed class SqlTabCommandHandler :
     [Import(AllowDefault = true)]
     internal IAsyncCompletionBroker? Broker { get; set; }
 
-    public string DisplayName => "SqlAssist Tab 與 Snippet 導航";
+    public string DisplayName => EditorText.TabHandlerName;
 
     public CommandState GetCommandState(TabKeyCommandArgs args) => CommandState.Unspecified;
 

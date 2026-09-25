@@ -1,6 +1,7 @@
 using System;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using SqlAssist.Ssms22.Commands;
 
 namespace SqlAssist.Ssms22;
 
@@ -17,12 +18,9 @@ namespace SqlAssist.Ssms22;
 /// </remarks>
 internal static class SqlAssistStatusBar
 {
-    /// <summary>訊息一律標上來源，否則使用者分不出這一行是誰寫的。</summary>
-    private const string Prefix = "SqlAssist：";
-
     public static void Show(IServiceProvider? serviceProvider, string message)
     {
-        Write(serviceProvider, statusBar => statusBar.SetText(Prefix + message));
+        Write(serviceProvider, statusBar => statusBar.SetText(CommandText.StatusBarLine(message)));
     }
 
     /// <summary>把狀態列還給 SSMS。</summary>

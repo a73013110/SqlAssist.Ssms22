@@ -160,7 +160,7 @@ internal sealed class NotificationRow : Grid
         _message.Text = item.Message; _message.ToolTip = item.Message;
         _message.Visibility = Visible(item.Message.Length > 0);
         _badgeText.Text = "×" + item.Repeat.ToString(CultureInfo.CurrentCulture);
-        _badge.ToolTip = "這一列代表 " + item.Repeat.ToString(CultureInfo.CurrentCulture) + " 次相同的工作";
+        _badge.ToolTip = NotificationCatalog.RepeatBadge(item.Repeat);
         _badge.Visibility = Visible(item.Repeat > 1);
         AutomationProperties.SetName(_badge, (string)_badge.ToolTip);
         // 輔助技術唸的那一句不受抬頭去重影響：讀出來的人看不到抬頭那一行。

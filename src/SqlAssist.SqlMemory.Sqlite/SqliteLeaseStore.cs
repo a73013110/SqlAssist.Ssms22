@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using Microsoft.Data.Sqlite;
 using SqlAssist.Core.SqlMemory;
@@ -8,6 +9,7 @@ using static SqlAssist.SqlMemory.Sqlite.SqliteDatabase;
 namespace SqlAssist.SqlMemory.Sqlite;
 
 /// <summary>Session 心跳租約與跨程序維護租約。沒有「自己的租約」欄位：識別碼一律由呼叫端傳入。</summary>
+[Localizable(false)]
 internal sealed class SqliteLeaseStore
 {
     private const string LeaseColumns = "SELECT LeaseId,MachineName,ProcessId,ProcessStartTime,RenewedAt FROM Leases";

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace SqlAssist.Metadata.Model;
 
@@ -16,6 +17,7 @@ public sealed class SqlDataSpace
     /// <summary><c>sys.data_spaces.type</c> 的分割配置代碼。</summary>
     private const string PartitionSchemeType = "PS";
 
+    [Localizable(false)]
     public SqlDataSpace(string name, string? type = null, string? partitionColumnName = null)
     {
         if (string.IsNullOrEmpty(name))

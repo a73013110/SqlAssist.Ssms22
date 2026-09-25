@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Metadata.Querying;
 
@@ -80,6 +81,7 @@ public sealed class SqlMetadataCatalogRegistry
     /// 查詢一律寫成不加限定的 <c>sys.objects</c>，所以換資料庫換的是連線而不是 SQL
     /// ——整套查詢、分層與失敗降級都照舊，這裡只多一層指向別的資料庫的連線來源。
     /// </remarks>
+    [Localizable(false)]
     public SqlMetadataCatalog GetOrCreateFor(ISqlConnectionSource connectionSource, string databaseName)
     {
         if (connectionSource is null)
@@ -120,6 +122,7 @@ public sealed class SqlMetadataCatalogRegistry
     /// 這一類目錄與跨資料庫的一起參與淘汰。使用者打得出來的伺服器與資料庫組合
     /// 沒有上限，而每一份都是一條隨著輸入成長的記憶體。
     /// </remarks>
+    [Localizable(false)]
     public SqlMetadataCatalog GetOrCreateFor(
         ISqlConnectionSource connectionSource,
         string serverName,

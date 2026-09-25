@@ -15,6 +15,7 @@ using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Preview;
@@ -228,7 +229,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
             return options.Count == 0
                 ? DisabledText
-                : DisabledText + "　" + string.Join(", ", options);
+                : DisabledText + PreviewText.PartSeparator + string.Join(", ", options);
         }
     }
 
@@ -309,10 +310,10 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
             if (constraint.IsSystemNamed)
             {
-                parts.Add("系統命名");
+                parts.Add(PreviewText.SystemNamed);
             }
 
-            return string.Join("　", parts);
+            return string.Join(PreviewText.PartSeparator, parts);
         }
     }
 
@@ -343,15 +344,15 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
             if (!trigger.CanScript)
             {
-                parts.Add("無法取得定義（已加密或權限不足）");
+                parts.Add(PreviewText.TriggerDefinitionUnavailable);
             }
 
-            return string.Join("　", parts);
+            return string.Join(PreviewText.PartSeparator, parts);
         }
     }
 
     /// <summary>索引、條件約束與觸發程序共用的停用字樣。</summary>
-    private const string DisabledText = "已停用";
+    private static string DisabledText => PreviewText.Disabled;
 
     /// <summary>
     /// 一個資料格分頁的完整宣告。
@@ -589,8 +590,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         // ——那全是空清單，不是答案。這一顆同時是使用者唯一看得到的線索。
         _failurePill = new SqlPill(SqlIcon.Warning)
         {
-            Text = "索引與外來鍵讀取失敗",
-            ToolTip = "原因見診斷紀錄檔（需開啟詳細記錄）"
+            Text = PreviewText.LoadFailedPill,
+            ToolTip = PreviewText.LoadFailedToolTip
         };
 
         var pills = new StackPanel
@@ -640,11 +641,11 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
         var columns = CreateGrid(
             ("#", nameof(ColumnRow.Ordinal)),
-            ("欄位", nameof(ColumnRow.Name)),
-            ("型別", nameof(ColumnRow.DataType)),
-            new GridColumn("說明", nameof(ColumnRow.Description), optional: true, fill: true),
-            new GridColumn("計算欄位", nameof(ColumnRow.Computed), GridColumn.TextWidth, optional: true),
-            new GridColumn("預設值", nameof(ColumnRow.Default), GridColumn.TextWidth, optional: true));
+            (CommonText.Column, nameof(ColumnRow.Name)),
+            (CommonText.Type, nameof(ColumnRow.DataType)),
+            new GridColumn(PreviewText.HeaderDescription, nameof(ColumnRow.Description), optional: true, fill: true),
+            new GridColumn(PreviewText.HeaderComputed, nameof(ColumnRow.Computed), GridColumn.TextWidth, optional: true),
+            new GridColumn(PreviewText.HeaderDefault, nameof(ColumnRow.Default), GridColumn.TextWidth, optional: true));
 
         // NULL、PK、IDENTITY 三個文字欄收成一欄膠囊，插在型別後面。
         // 它與文字欄一樣可收：一張全部可為 NULL、又沒有主索引鍵的表一個徽章都沒有。
@@ -653,34 +654,34 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _optionalColumns.Add(_flags);
 
         var indexes = CreateGrid(
-            ("索引", nameof(IndexRow.Name)),
-            ("種類", nameof(IndexRow.Kind)),
-            ("索引鍵", nameof(IndexRow.KeyColumns)),
+            (PreviewText.HeaderIndex, nameof(IndexRow.Name)),
+            (CommonText.Kind, nameof(IndexRow.Kind)),
+            (PreviewText.HeaderKeyColumns, nameof(IndexRow.KeyColumns)),
             new GridColumn("INCLUDE", nameof(IndexRow.IncludedColumns), optional: true),
-            new GridColumn("篩選", nameof(IndexRow.Filter), GridColumn.TextWidth, optional: true),
-            new GridColumn("選項", nameof(IndexRow.Options), optional: true),
-            new GridColumn("位置", nameof(IndexRow.Location), optional: true));
+            new GridColumn(PreviewText.HeaderFilter, nameof(IndexRow.Filter), GridColumn.TextWidth, optional: true),
+            new GridColumn(PreviewText.HeaderOptions, nameof(IndexRow.Options), optional: true),
+            new GridColumn(PreviewText.HeaderLocation, nameof(IndexRow.Location), optional: true));
 
         var foreignKeys = CreateGrid(
-            ("外來鍵", nameof(ForeignKeyRow.Name)),
-            new GridColumn("參考", nameof(ForeignKeyRow.Columns), fill: true),
-            new GridColumn("動作", nameof(ForeignKeyRow.Actions), optional: true));
+            (PreviewText.HeaderForeignKey, nameof(ForeignKeyRow.Name)),
+            new GridColumn(PreviewText.HeaderReferences, nameof(ForeignKeyRow.Columns), fill: true),
+            new GridColumn(PreviewText.HeaderActions, nameof(ForeignKeyRow.Actions), optional: true));
 
         var checks = CreateGrid(
-            ("條件約束", nameof(CheckRow.Name)),
-            new GridColumn("資料行", nameof(CheckRow.Column), optional: true),
-            new GridColumn("定義", nameof(CheckRow.Definition), fill: true),
-            new GridColumn("狀態", nameof(CheckRow.State), optional: true));
+            (PreviewText.HeaderConstraint, nameof(CheckRow.Name)),
+            new GridColumn(PreviewText.HeaderConstraintColumn, nameof(CheckRow.Column), optional: true),
+            new GridColumn(CommonText.Definition, nameof(CheckRow.Definition), fill: true),
+            new GridColumn(CommonText.Status, nameof(CheckRow.State), optional: true));
 
         var triggers = CreateGrid(
-            ("觸發程序", nameof(TriggerRow.Name)),
-            new GridColumn("狀態", nameof(TriggerRow.State), optional: true));
+            (PreviewText.HeaderTrigger, nameof(TriggerRow.Name)),
+            new GridColumn(CommonText.Status, nameof(TriggerRow.State), optional: true));
 
         var parameters = CreateGrid(
             ("#", nameof(ParameterRow.Ordinal)),
-            ("參數", nameof(ParameterRow.Name)),
-            ("型別", nameof(ParameterRow.DataType)),
-            new GridColumn("方向", nameof(ParameterRow.Direction), optional: true));
+            (PreviewText.HeaderParameter, nameof(ParameterRow.Name)),
+            (CommonText.Type, nameof(ParameterRow.DataType)),
+            new GridColumn(PreviewText.HeaderDirection, nameof(ParameterRow.Direction), optional: true));
 
         // 順序照使用者要問的次序：這張表有什麼（欄位）、它怎麼被找到（索引）、
         // 它跟誰有關（外來鍵）、什麼資料進得來（條件約束）、寫進去之後還會發生
@@ -688,42 +689,42 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _gridTabs = new[]
         {
             new GridTab(
-                "欄位",
+                PreviewText.TabColumns,
                 SqlIcon.Column,
                 columns,
                 requiresStructure: false,
                 structure => structure.Columns.Count,
                 structure => Map(structure.Columns, column => new ColumnRow(column))),
             new GridTab(
-                "索引",
+                PreviewText.TabIndexes,
                 SqlIcon.Index,
                 indexes,
                 requiresStructure: true,
                 structure => structure.Indexes.Count,
                 structure => Map(structure.Indexes, index => new IndexRow(index))),
             new GridTab(
-                "外來鍵",
+                PreviewText.TabForeignKeys,
                 SqlIcon.ForeignKey,
                 foreignKeys,
                 requiresStructure: true,
                 structure => structure.ForeignKeys.Count,
                 structure => Map(structure.ForeignKeys, key => new ForeignKeyRow(key))),
             new GridTab(
-                "條件約束",
+                PreviewText.TabConstraints,
                 SqlIcon.CheckConstraint,
                 checks,
                 requiresStructure: true,
                 structure => structure.CheckConstraints.Count,
                 structure => Map(structure.CheckConstraints, check => new CheckRow(check))),
             new GridTab(
-                "觸發程序",
+                PreviewText.TabTriggers,
                 SqlIcon.Trigger,
                 triggers,
                 requiresStructure: true,
                 structure => structure.Triggers.Count,
                 structure => Map(structure.Triggers, trigger => new TriggerRow(trigger))),
             new GridTab(
-                "參數",
+                PreviewText.TabParameters,
                 SqlIcon.Parameter,
                 parameters,
                 requiresStructure: false,
@@ -736,7 +737,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _script = new SqlReadOnlyViewer(embedded: true) { ReportError = message => _status.Text = message };
         TrackContextMenu(_script.Menu);
         _scriptMatches = new SqlMatchNavigation(_script);
-        _scriptHeader = new SqlTabHeader("指令碼", SqlIcon.Script);
+        _scriptHeader = new SqlTabHeader(PreviewText.TabScript, SqlIcon.Script);
         _scriptTab = SqlAssistChrome.CreateTab(_scriptHeader, _script);
 
         _tabs = new TabControl
@@ -756,12 +757,12 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         _tabs.SelectionChanged += OnTabSelectionChanged;
 
         _search = SqlAssistChrome.CreateTextBox(ToolMetrics);
-        _search.ToolTip = "在名稱、型別、說明與指令碼裡找；Enter／Shift+Enter 在指令碼裡跳到下一處／上一處";
-        AutomationProperties.SetName(_search, "搜尋結構");
+        _search.ToolTip = PreviewText.SearchToolTip;
+        AutomationProperties.SetName(_search, PreviewText.SearchName);
         _search.TextChanged += (_, _) => SqlAssistPlatformGuard.Run("輸入結構預覽搜尋", OnSearchTextChanged);
         _search.IsKeyboardFocusWithinChanged += (_, _) => SqlAssistPlatformGuard.Run("交接預覽搜尋的按鍵", OnSearchFocusChanged);
 
-        _clearSearch = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, "清除搜尋");
+        _clearSearch = SqlAssistChrome.CreateIconButton(SqlIcon.Clear, PreviewText.ClearSearch);
         _clearSearch.IsEnabled = false;
         _clearSearch.Focusable = false;
         _clearSearch.Click += (_, _) => SqlAssistPlatformGuard.Run("清除結構預覽搜尋", () => ResetSearch(keepFocus: true));
@@ -784,14 +785,14 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         }
 
         // 換行是一個維持著的狀態不是一次動作，所以是開關不是按鈕。
-        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, "長文字換行顯示");
+        _wrap = SqlAssistChrome.CreateIconToggle(SqlIcon.Wrap, PreviewText.WrapToggle);
         _wrap.Focusable = false;
         _wrap.Checked += (_, _) => SqlAssistPlatformGuard.Run("預覽換行", () => ApplyWrap(true));
         _wrap.Unchecked += (_, _) => SqlAssistPlatformGuard.Run("預覽取消換行", () => ApplyWrap(false));
 
         // 一顆複製：有選取就複製選取，沒有就是完整的 CREATE 指令碼——那是按下去的人多半要的；
         // 「整個表格」這種少用的留在右鍵選單。
-        var copy = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, "複製選取內容；沒有選取時複製完整指令碼");
+        var copy = SqlAssistChrome.CreateIconButton(SqlIcon.Copy, PreviewText.CopyButton);
         copy.Focusable = false;
         copy.Click += (_, _) => SqlAssistPlatformGuard.Run("複製結構預覽", CopyCurrent);
 
@@ -925,8 +926,8 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             : Transform.Identity;
         _status.Margin = onTop ? new Thickness(14, 0, 14, 6) : new Thickness(24, 0, 24, 6);
 
-        AutomationProperties.SetName(_resizeLeft, onTop ? "左上角調整大小" : "左下角調整大小");
-        AutomationProperties.SetName(_resizeRight, onTop ? "右上角調整大小" : "右下角調整大小");
+        AutomationProperties.SetName(_resizeLeft, onTop ? PreviewText.ResizeTopLeft : PreviewText.ResizeBottomLeft);
+        AutomationProperties.SetName(_resizeRight, onTop ? PreviewText.ResizeTopRight : PreviewText.ResizeBottomRight);
     }
 
     public void CloseTransientPopups()
@@ -948,7 +949,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         ResetContent();
         LeaveBuiltIn();
         SetTitle(objectInfo);
-        ShowPills(pending: "載入中…");
+        ShowPills(pending: PreviewText.Loading);
         SetDescription(null);
         _status.Text = string.Empty;
         ClearTabs();
@@ -1003,12 +1004,12 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         if (primaryKey is not null)
         {
             _keyPill.Text = primaryKey;
-            _keyPill.ToolTip = "主索引鍵：" + primaryKey + "（排序方向見索引分頁）";
+            _keyPill.ToolTip = PreviewText.PrimaryKeyToolTip(primaryKey);
             _keyPill.Tone = SqlPillTone.Accent;
         }
         else if (noPrimaryKey)
         {
-            _keyPill.Text = "沒有主索引鍵";
+            _keyPill.Text = PreviewText.NoPrimaryKey;
             _keyPill.ToolTip = null;
             _keyPill.Tone = SqlPillTone.Neutral;
         }
@@ -1054,7 +1055,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         }
 
         _scriptText = doc.Example;
-        _scriptHeader.Label = "範例";
+        _scriptHeader.Label = PreviewText.TabExample;
         _scriptTab.Visibility = Visible(doc.Example.Length > 0);
 
         for (var index = 0; index < _referenceTabs.Count || index < doc.References.Count; index++)
@@ -1208,7 +1209,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     {
         if (partial)
         {
-            ShowPills(pending: "索引與外來鍵載入中…");
+            ShowPills(pending: PreviewText.IndexesLoading);
         }
         else if (structure.IsStructureUnavailable)
         {
@@ -1293,7 +1294,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             // 一片空白而沒有任何說明會被當成資料真的是空的。
             _populated.Remove(tab);
             SqlAssistDiagnostics.WriteAlways($"填入預覽分頁失敗：{exception}");
-            _status.Text = $"顯示失敗：{exception.Message}";
+            _status.Text = PreviewText.DisplayFailed(exception.Message);
         }
     }
 
@@ -1425,7 +1426,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         }
 
         _builtIn = null;
-        _scriptHeader.Label = "指令碼";
+        _scriptHeader.Label = PreviewText.TabScript;
 
         foreach (var tab in _referenceTabs)
         {
@@ -1711,7 +1712,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             var selected = _script.SelectedSql;
             Copy(
                 selected.Length == 0 ? GetScript() : selected,
-                selected.Length == 0 ? "沒有選取，已複製完整指令碼。" : "已複製選取的指令碼。");
+                selected.Length == 0 ? PreviewText.CopiedFullScriptNoSelection : PreviewText.CopiedSelectedScript);
             return;
         }
 
@@ -1721,11 +1722,11 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
             if (string.IsNullOrEmpty(text))
             {
-                _status.Text = "請先在表格裡選取要複製的儲存格。";
+                _status.Text = PreviewText.SelectCellsFirst;
                 return;
             }
 
-            Copy(text, "已複製選取的儲存格。");
+            Copy(text, PreviewText.CopiedSelectedCells);
         }
     }
 
@@ -1757,20 +1758,20 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
                 return;
             }
 
-            Copy(GetScript(), "已複製範例。");
+            Copy(GetScript(), PreviewText.CopiedExample);
             return;
         }
 
         Copy(GetScript(), _structure is { CanBuildExecutableScript: true }
-            ? "已複製完整指令碼到剪貼簿。"
-            : "已複製結構說明；完整可執行指令碼目前不可用。");
+            ? PreviewText.CopiedFullScript
+            : PreviewText.CopiedStructureSummary);
     }
 
     private void CopyGridAll()
     {
         if (_tabs.SelectedItem is TabItem { Content: DataGrid grid })
         {
-            Copy(SqlDataGridText.Build(grid, selectedOnly: false), "已複製整個表格。");
+            Copy(SqlDataGridText.Build(grid, selectedOnly: false), PreviewText.CopiedWholeGrid);
         }
     }
 
@@ -1792,7 +1793,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         catch (Exception exception)
         {
             SqlAssistDiagnostics.WriteAlways($"複製預覽內容失敗：{exception.Message}");
-            _status.Text = $"複製失敗：{exception.Message}";
+            _status.Text = PreviewText.CopyFailed(exception.Message);
         }
     }
 
@@ -1800,11 +1801,11 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     {
         var menu = new ContextMenu();
         VsThemeBrushes.Apply(menu);
-        var copy = new MenuItem { Header = "複製選取的儲存格" };
+        var copy = new MenuItem { Header = PreviewText.MenuCopySelectedCells };
         copy.Click += (_, _) => CopySelection();
-        var copyAll = new MenuItem { Header = "複製整個表格" };
+        var copyAll = new MenuItem { Header = PreviewText.MenuCopyWholeGrid };
         copyAll.Click += (_, _) => CopyGridAll();
-        var copyScript = new MenuItem { Header = "複製完整指令碼" };
+        var copyScript = new MenuItem { Header = PreviewText.MenuCopyFullScript };
         copyScript.Click += (_, _) => CopyAll();
         menu.Items.Add(copy);
         menu.Items.Add(copyAll);
@@ -1899,7 +1900,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     private void OnResizeDoubleClick(object sender, MouseButtonEventArgs eventArgs)
     {
         eventArgs.Handled = true;
-        _status.Text = "已重設目前擺放方式的預覽尺寸。";
+        _status.Text = PreviewText.SizeReset;
         SizeResetRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -1970,11 +1971,11 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             Focusable = false,
             VerticalAlignment = VerticalAlignment.Bottom,
             Template = CreateResizeGripTemplate(),
-            ToolTip = "拖曳這一側調整寬高；雙擊重設目前擺放方式的尺寸"
+            ToolTip = PreviewText.ResizeToolTip
         };
         AutomationProperties.SetName(
             thumb,
-            corner == PreviewResizeCorner.BottomLeft ? "左下角調整大小" : "右下角調整大小");
+            corner == PreviewResizeCorner.BottomLeft ? PreviewText.ResizeBottomLeft : PreviewText.ResizeBottomRight);
         thumb.DragStarted += OnResizeDragStarted;
         thumb.DragDelta += OnResizeDragDelta;
         thumb.DragCompleted += OnResizeDragCompleted;
@@ -2115,7 +2116,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     {
         return new DataGridTemplateColumn
         {
-            Header = "旗標",
+            Header = PreviewText.HeaderFlags,
             SortMemberPath = nameof(ColumnRow.Flags),
             Width = DataGridLength.Auto
         };

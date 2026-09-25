@@ -69,10 +69,10 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         }
 
         var builder = new StringBuilder();
-        AppendCommentLine(builder, context, "來源", JoinSource(context));
-        AppendCommentLine(builder, context, "產生時間", context.GeneratedAt?.ToString("u"));
-        AppendCommentLine(builder, context, "工具", context.ToolVersion);
-        AppendCommentLine(builder, context, "風格", context.Options.Style.ToString());
+        AppendCommentLine(builder, context, ScriptText.HeaderSource, JoinSource(context));
+        AppendCommentLine(builder, context, ScriptText.HeaderGeneratedAt, context.GeneratedAt?.ToString("u"));
+        AppendCommentLine(builder, context, ScriptText.HeaderTool, context.ToolVersion);
+        AppendCommentLine(builder, context, ScriptText.HeaderStyle, context.Options.Style.ToString());
 
         if (builder.Length > 0)
         {
@@ -93,12 +93,12 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
     private static void AppendCommentLine(
         StringBuilder builder,
         SqlScriptContext context,
-        string label,
+        Func<object?, string> line,
         string? value)
     {
         if (value is { Length: > 0 })
         {
-            SqlScriptComment.AppendLine(builder, label + "：" + value, context.NewLine);
+            SqlScriptComment.AppendLine(builder, line(value), context.NewLine);
         }
     }
 
@@ -300,8 +300,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             {
                 var unavailable = new StringBuilder();
                 SqlScriptComment.AppendLine(unavailable,
-                    "取不到觸發程序 " + Identifier(trigger.Name, options) +
-                    " 的定義：它是 WITH ENCRYPTION 建立的，或這個登入沒有它的 VIEW DEFINITION 權限。", context.NewLine);
+                    ScriptText.TriggerUnavailable(Identifier(trigger.Name, options)), context.NewLine);
                 statements.Add(new Statement(unavailable.ToString(), batched: false));
                 continue;
             }
@@ -477,8 +476,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
             {
                 var skipped = new StringBuilder();
                 SqlScriptComment.AppendLine(skipped,
-                    "未輸出擴充屬性 " + property.Name + "：目標 " + property.TargetName +
-                    " 未包含於本次指令碼，或其名稱已省略。", context.NewLine);
+                    ScriptText.ExtendedPropertySkipped(property.Name, property.TargetName), context.NewLine);
                 statements.Add(new Statement(skipped.ToString(), batched: false));
                 continue;
             }
@@ -776,11 +774,10 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
 
         if (skipped > 0)
         {
-            builder.Append(context.NewLine).Append(context.NewLine)
-                .Append("-- 另有 ").Append(skipped)
-                .Append(" 個索引沒有寫進來：CREATE INDEX 與 ALTER TABLE 對型別都不合法，")
-                .Append(context.NewLine)
-                .Append("-- 而 CREATE TYPE 的括號裡只放得下不具名的條件約束。");
+            builder.Append(context.NewLine).Append(context.NewLine);
+            SqlScriptComment.AppendLine(builder, ScriptText.TypeIndexesSkipped(skipped), context.NewLine);
+            // 這一段是整份的結尾，不留最後那個換行。
+            builder.Length -= context.NewLine.Length;
         }
 
         return builder.ToString();
@@ -933,7 +930,7 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         SqlColumnInfo column,
         SqlScriptOptions options)
     {
-        builder.Append("AS ").Append(column.ComputedDefinition ?? "(/* 無法取得運算式 */)");
+        builder.Append("AS ").Append(column.ComputedDefinition ?? $"(/* {ScriptText.ExpressionUnavailable} */)");
 
         if (!options.IncludePersisted || !column.Script.IsPersisted)
         {

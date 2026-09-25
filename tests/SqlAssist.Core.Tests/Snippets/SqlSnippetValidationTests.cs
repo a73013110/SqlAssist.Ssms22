@@ -1,4 +1,5 @@
 using System.Linq;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -73,6 +74,16 @@ public sealed class SqlSnippetValidationTests
     {
         Assert.Equal(expected, SqlSnippetValidation.Validate(shortcut, code, shadowed, out var error));
         Assert.Equal(expected, error.Length == 0);
+    }
+
+    [Fact]
+    public void 驗證訊息用目前的介面語言()
+    {
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.False(SqlSnippetValidation.ValidateShortcut("select", out var error));
+            Assert.Equal("The shortcut can't be the same as the T-SQL keyword \"SELECT\".", error);
+        }
     }
 
     private static SqlSnippetConfiguration Merge(SqlSnippet custom)

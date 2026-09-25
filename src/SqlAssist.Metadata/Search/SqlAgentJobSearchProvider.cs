@@ -43,12 +43,10 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     /// 而斷言權限的話，使用者會去查一個好好的權限設定。伺服器真的給了權限錯誤碼時
     /// 才換成 <see cref="DeniedReason"/>——那一句斷言得起。
     /// </remarks>
-    private const string UnavailableReason =
-        "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。";
+    private static string UnavailableReason => SearchSourceText.AgentJobUnavailable;
 
     /// <summary>伺服器明說是權限時的那一句；「多半」換成斷言。</summary>
-    private const string DeniedReason =
-        "SQL Agent 作業這一輪讀不到（這個登入對 msdb 沒有權限），這個來源沒有結果。";
+    private static string DeniedReason => SearchSourceText.AgentJobDenied;
 
     /// <summary>去重鍵的前綴；與其他 provider 的鍵不會互相碰撞。</summary>
     private const string DedupePrefix = "agent-job|";
@@ -78,7 +76,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
 
     public string Id => ProviderId;
 
-    public string DisplayName => "SQL Agent 作業";
+    public string DisplayName => SearchSourceText.AgentJobDisplayName;
 
     public IReadOnlyList<SearchCategory> Categories { get; }
 
@@ -331,8 +329,8 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
         var order = step.StepId.ToString(CultureInfo.InvariantCulture);
 
         return step.Name.Length == 0
-            ? job.Name + " › 第 " + order + " 步"
-            : job.Name + " › 第 " + order + " 步 " + step.Name;
+            ? SearchSourceText.AgentJobStepTitle(job.Name, order)
+            : SearchSourceText.AgentJobNamedStepTitle(job.Name, order, step.Name);
     }
 
     private static SqlAgentJobSearchTarget TargetFor(
@@ -373,7 +371,7 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
     {
         var badges = new List<SearchBadge>(3) { new(serverName, SearchBadge.ServerIcon) };
 
-        if (!job.IsEnabled) badges.Add(new SearchBadge("已停用"));
+        if (!job.IsEnabled) badges.Add(new SearchBadge(SearchSourceText.AgentJobDisabledBadge));
 
         // database_name 只有 TSQL 子系統填得出來；空的時候不掛，掛一顆空膠囊
         // 會讓使用者以為那個步驟跑在一個沒有名字的資料庫上。

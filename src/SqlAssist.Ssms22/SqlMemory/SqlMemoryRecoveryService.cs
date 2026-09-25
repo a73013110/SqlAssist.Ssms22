@@ -48,7 +48,7 @@ internal static class SqlMemoryRecoveryService
 
         var directory = Path.GetDirectoryName(databasePath);
         if (string.IsNullOrEmpty(directory))
-            throw new InvalidOperationException("無法取得 SQL Memory 資料庫目錄。");
+            throw new InvalidOperationException(SqlMemoryUiText.DatabaseDirectoryUnavailable);
 
         // 重建之前資料夾可能還不存在；開一個空資料夾比按了沒反應清楚，備份與新資料庫也都落在這裡。
         Directory.CreateDirectory(directory);

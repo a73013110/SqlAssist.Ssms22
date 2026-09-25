@@ -22,5 +22,7 @@
       （見 Settings 資料夾的 RegistrationManifest），所以測試輸出裡要有這份檔案。
     -->
     <None Include="..\..\src\SqlAssist.Ssms22\SqlAssist.registration.json" Link="SqlAssist.registration.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- 註冊檔的顯示文字只是 "@鍵;{guid}"，解析成各語言的文字要靠這兩份。 -->
+    <None Include="..\..\src\SqlAssist.Ssms22\Settings\SettingsPageText.*.resjson" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

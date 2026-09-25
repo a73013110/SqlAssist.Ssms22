@@ -16,7 +16,7 @@ public sealed class SqlMissingPrimaryKeyRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-004";
 
-    public string Title => "資料表沒有主索引鍵";
+    public string Title => SchemaCheckText.MissingPrimaryKeyTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -31,7 +31,7 @@ public sealed class SqlMissingPrimaryKeyRule : ISqlSchemaRule
         yield return new SqlSchemaFinding(
             Id,
             SqlSchemaSeverity.Error,
-            "這張資料表沒有主索引鍵。");
+            SchemaCheckText.MissingPrimaryKeyMessage);
     }
 }
 
@@ -51,7 +51,7 @@ public sealed class SqlInconsistentColumnTypeRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-005";
 
-    public string Title => "同語意的資料行型別不一致";
+    public string Title => SchemaCheckText.InconsistentColumnTypeTitle;
 
     /// <summary>後綴短於這個長度就不分組：<c>o</c>、<c>e</c> 這種湊出來的組沒有意義。</summary>
     private const int MinimumSuffixLength = 2;
@@ -110,8 +110,7 @@ public sealed class SqlInconsistentColumnTypeRule : ISqlSchemaRule
             yield return new SqlSchemaFinding(
                 Id,
                 SqlSchemaSeverity.Warning,
-                $"與同樣以 {suffix} 結尾的 {reference.Name} {reference.DataType} 型別不同；" +
-                "比較時的隱含轉換會讓索引用不上。",
+                SchemaCheckText.InconsistentColumnTypeMessage(suffix, reference.Name, reference.DataType),
                 $"{column.Name} {column.DataType}");
         }
     }
@@ -132,7 +131,7 @@ public sealed class SqlEnumWithoutCheckRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-006";
 
-    public string Title => "列舉語意的資料行沒有 CHECK 條件約束";
+    public string Title => SchemaCheckText.EnumWithoutCheckTitle;
 
     public IEnumerable<SqlSchemaFinding> Analyze(SqlObjectStructure structure)
     {
@@ -151,7 +150,7 @@ public sealed class SqlEnumWithoutCheckRule : ISqlSchemaRule
             yield return new SqlSchemaFinding(
                 Id,
                 SqlSchemaSeverity.Warning,
-                "說明列出了有哪幾個值，卻沒有 CHECK 條件約束把定義域寫進資料庫。",
+                SchemaCheckText.EnumWithoutCheckMessage,
                 column.Name);
         }
     }
@@ -210,7 +209,7 @@ public sealed class SqlMissingForeignKeyRule : ISqlSchemaRule
 {
     public string Id => "SCHEMA-007";
 
-    public string Title => "名稱像外來鍵卻沒有外來鍵";
+    public string Title => SchemaCheckText.MissingForeignKeyTitle;
 
     private static readonly string[] Suffixes = { "Id", "No" };
 
@@ -238,7 +237,7 @@ public sealed class SqlMissingForeignKeyRule : ISqlSchemaRule
             yield return new SqlSchemaFinding(
                 Id,
                 SqlSchemaSeverity.Information,
-                "名稱看起來指向另一張資料表，卻沒有外來鍵擋住孤兒資料。",
+                SchemaCheckText.MissingForeignKeyMessage,
                 column.Name);
         }
     }

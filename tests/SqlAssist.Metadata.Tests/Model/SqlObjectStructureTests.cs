@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Scripting;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -291,6 +292,28 @@ public sealed class SqlObjectStructureTests
 
         Assert.Contains("取不到 [dbo].[usp_Renew] 的定義", script);
         Assert.Contains("--     @LoanId int", script);
+    }
+
+    /// <summary>降級摘要用產生當下的語言；原因的換行在英文裡各自斷行，仍然每一行都是註解。</summary>
+    [Fact]
+    public void 英文的降級摘要整段都是英文註解()
+    {
+        var structure = new SqlObjectStructure(
+            new SqlObjectDetail(
+                new SqlObjectInfo(4, "dbo", "usp_Renew", SqlObjectKind.Procedure),
+                parameters: new[] { new SqlParameterInfo(1, "@LoanId", "int", false) }));
+
+        string script;
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            script = structure.BuildScript(Context());
+        }
+
+        Assert.Contains("-- Cannot get the definition of [dbo].[usp_Renew].", script);
+        Assert.Contains("-- or the current login lacks VIEW DEFINITION permission on it.", script);
+        Assert.Contains("-- Parameters (1):", script);
+        Assert.DoesNotMatch(@"\p{IsCJKUnifiedIdeographs}", script);
+        AssertEveryLineIsComment(script);
     }
 
     /// <summary>

@@ -9,6 +9,8 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using SqlAssist.Core.Lists;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Search;
@@ -323,6 +325,56 @@ public sealed class SqlSearchVisualTests
             Assert.Equal(SqlSearchToolbarMode.Full, toolbar.Mode);
             Assert.False(kinds.IsCompact);
             Assert.InRange(Math.Abs(Middle(segments) - Middle(databases)), 0, 1);
+        });
+    }
+
+    [Fact]
+    public void 英文介面在最窄的工具窗裡工具列與頁尾不超出右緣()
+    {
+        WpfTest.Run(() =>
+        {
+            using (SqlText.Use(SqlLanguage.Find("en")!))
+            {
+                var search = SqlAssistChrome.CreateInputBar(
+                    SqlIcon.Search,
+                    SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                    SqlAssistChrome.CreateIconButton(SqlIcon.Clear, SqlSearchText.ClearSearch));
+                var segments = new SqlSearchSegments();
+                var server = new SqlFilterFlyout(CommonText.Server, SqlIcon.Server, SqlFilterMode.Single);
+                var databases = new SqlFilterFlyout(CommonText.Database, SqlIcon.Database, SqlFilterMode.SearchableMultiple);
+                var kinds = new SqlFilterFlyout(CommonText.Kind, SqlIcon.Filter);
+                server.UpdateSummary(SqlSearchText.NoServer, "");
+                databases.UpdateSummary("12" + SqlSearchText.DatabaseUnit, "");
+                kinds.UpdateSummary("3" + SqlSearchText.CategoryUnit, "");
+                var toolbar = new SqlSearchToolbar(
+                    new SqlInputRow(
+                        search,
+                        SqlAssistChrome.CreateIconButton(SqlIcon.SortDescending, SqlSearchText.Sort),
+                        SqlAssistChrome.CreateIconButton(SqlIcon.Refresh, SqlSearchText.Refresh)),
+                    segments,
+                    new[] { new FrameworkElement[] { server, databases }, new FrameworkElement[] { kinds } });
+
+                var pager = new SqlListPager();
+                pager.Update(new SqlListFooter(
+                    SqlListFooterKind.End, SqlSearchText.Found(12345), SqlSearchText.PartialHint));
+
+                // 工具窗最小寬 300，扣掉左右各一份群距就是內容能用的寬度。
+                const double width = 300 - (2 * SqlAssistChrome.Spacing.Group);
+                foreach (var surface in new FrameworkElement[] { toolbar, pager })
+                {
+                    var host = new Border { Width = width, Child = surface };
+                    host.Measure(new Size(width, double.PositiveInfinity));
+                    host.Arrange(new Rect(0, 0, width, host.DesiredSize.Height));
+                    host.UpdateLayout();
+                    Assert.InRange(surface.DesiredSize.Width, 0, width);
+                }
+
+                foreach (var element in new FrameworkElement[] { server, databases, kinds, segments, search })
+                {
+                    var right = element.TranslatePoint(new Point(element.ActualWidth, 0), toolbar).X;
+                    Assert.InRange(right, 0, width + 0.5);
+                }
+            }
         });
     }
 

@@ -14,7 +14,7 @@ namespace SqlAssist.Ssms22.UI;
 /// </remarks>
 internal sealed class SqlMemoryRecoveryView : Border
 {
-    private const string RebuildLabel = "備份並重建資料庫…";
+    private static string RebuildLabel => SqlMemoryViewText.RebuildDatabase;
 
     private readonly TextBlock _title;
     private readonly TextBlock _description;
@@ -36,7 +36,7 @@ internal sealed class SqlMemoryRecoveryView : Border
 
         SetResourceReference(BackgroundProperty, ThemeBrush.BadgeBackground);
         SetResourceReference(BorderBrushProperty, ThemeBrush.Hairline);
-        AutomationProperties.SetName(this, "SQL Memory 復原引導");
+        AutomationProperties.SetName(this, SqlMemoryViewText.RecoveryGuideName);
 
         var content = new StackPanel();
 
@@ -93,16 +93,16 @@ internal sealed class SqlMemoryRecoveryView : Border
             HorizontalAlignment = HorizontalAlignment.Center
         };
 
-        _openFolder = SqlAssistChrome.CreateButton("開啟資料夾", SqlAssistChrome.DefaultMetrics);
+        _openFolder = SqlAssistChrome.CreateButton(SqlMemoryViewText.OpenFolder, SqlAssistChrome.DefaultMetrics);
         _openFolder.MinWidth = 80;
         _openFolder.Click += (_, _) => OpenFolderRequested?.Invoke(this, EventArgs.Empty);
-        AutomationProperties.SetName(_openFolder, "開啟 SQL Memory 資料庫資料夾");
+        AutomationProperties.SetName(_openFolder, SqlMemoryViewText.OpenFolderDescription);
 
         _rebuild = SqlAssistChrome.CreateButton(RebuildLabel, SqlAssistChrome.DefaultMetrics, primary: true);
         _rebuild.MinWidth = 130;
         _rebuild.Margin = new Thickness(8, 0, 0, 0);
         _rebuild.Click += (_, _) => RebuildRequested?.Invoke(this, EventArgs.Empty);
-        AutomationProperties.SetName(_rebuild, "備份並重建 SQL Memory 資料庫");
+        AutomationProperties.SetName(_rebuild, SqlMemoryViewText.RebuildDatabaseDescription);
 
         actions.Children.Add(_openFolder);
         actions.Children.Add(_rebuild);
@@ -122,7 +122,7 @@ internal sealed class SqlMemoryRecoveryView : Border
     {
         _rebuild.IsEnabled = !rebuilding;
         _openFolder.IsEnabled = !rebuilding;
-        _rebuild.Content = rebuilding ? "正在重建…" : RebuildLabel;
+        _rebuild.Content = rebuilding ? SqlMemoryViewText.Rebuilding : RebuildLabel;
     }
 
     /// <param name="motion">null 讀全域動畫設定；測試明確指定。</param>
