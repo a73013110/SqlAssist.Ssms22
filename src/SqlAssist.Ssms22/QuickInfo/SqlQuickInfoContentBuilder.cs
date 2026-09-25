@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Microsoft.VisualStudio.Language.StandardClassification;
 using Microsoft.VisualStudio.Text.Adornments;
 using SqlAssist.Core.Completion;
@@ -503,6 +504,30 @@ internal static class SqlQuickInfoContentBuilder
 
             yield return new ClassifiedTextElement(runs);
         }
+    }
+
+    /// <summary>
+    /// 在建議清單的說明面板最上方加上列尾標記的說明，一個標記一行。
+    /// </summary>
+    /// <remarks>
+    /// 平台的清單範本只把列尾圖示的名稱接到朗讀，不給工具提示，所以圖示的意思只能寫在
+    /// 這裡——IntelliCode 的星號也是這樣交代的。文字就是圖示的朗讀名稱，兩處不各寫一份。
+    /// </remarks>
+    public static object WithMarks(object content, ImmutableArray<ImageElement> marks)
+    {
+        if (marks.IsDefaultOrEmpty)
+        {
+            return content;
+        }
+
+        var lines = new List<object>(marks.Length);
+
+        foreach (var mark in marks)
+        {
+            lines.Add(new ContainerElement(ContainerElementStyle.Wrapped, mark, Line(Text(mark.AutomationName ?? string.Empty))));
+        }
+
+        return Sections(new object[] { new ContainerElement(ContainerElementStyle.Stacked, lines), content });
     }
 
     private static ClassifiedTextElement Line(ClassifiedTextRun run) => new(run);

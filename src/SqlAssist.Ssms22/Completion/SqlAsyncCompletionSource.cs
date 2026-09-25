@@ -422,9 +422,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             }
         }
 
+        // 列尾標記的意思只有這裡寫得下：平台不替那些圖示顯示工具提示。預覽整份接手時
+        // 上面已經回傳 null，不為了幾行說明把面板叫回來和預覽搶位置。
         if (objectInfo is null)
         {
-            return BuildBuiltInDescription(suggestion) ?? (object)suggestion.Preview;
+            return SqlQuickInfoContentBuilder.WithMarks(
+                BuildBuiltInDescription(suggestion) ?? (object)suggestion.Preview,
+                item.AttributeIcons);
         }
 
         using var notification = NotificationCenter.Default.Begin(
@@ -435,9 +439,11 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             .GetDetailAsync(objectInfo, token, NotificationOrigin.Typing)
             .ConfigureAwait(false);
 
-        return detail is null
-            ? SqlQuickInfoContentBuilder.BuildLoading(objectInfo)
-            : SqlQuickInfoContentBuilder.Build(detail);
+        return SqlQuickInfoContentBuilder.WithMarks(
+            detail is null
+                ? SqlQuickInfoContentBuilder.BuildLoading(objectInfo)
+                : SqlQuickInfoContentBuilder.Build(detail),
+            item.AttributeIcons);
     }
 
     /// <summary>

@@ -14,7 +14,7 @@
   "ExecuteExpanded": "已展開 {name} 的 {count} 個參數",
   "FunctionEmptyParentheses": "已補上 {name} 的空括號（沒有參數）",
   "FunctionArguments": "已補上 {name} 的 {count} 個引數",
-  // 建議清單列尾例外標記的朗讀名稱與工具提示（SqlIcons）。
+  // 建議清單列尾例外標記的朗讀名稱，也是說明面板最上方的那一行（SqlIcons）。
   "MarkDestructive": "危險片段：會修改或刪除資料與物件",
   "MarkDeprecated": "已淘汰的型別，仍可使用",
   "MarkSystemObject": "系統物件（SQL Server 內建）",
