@@ -8,7 +8,6 @@
   "CurrentDatabaseCollation": "目前資料庫的定序",
   // {parameter} 是參數宣告，例如 @BranchId int。
   "ParameterOf": "{routine} 的參數：{parameter}",
-  "LinkedServer": "連結伺服器 {server}",
   // 欄位來自沒有名稱的查詢結果（例如衍生資料表）時的來源名稱。
   "QueryResult": "查詢結果"
 }

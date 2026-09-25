@@ -1478,13 +1478,16 @@ internal sealed class SqlMetadataService : IDisposable
         // 名稱的中間段一律只寫名稱本身：點號由使用者自己打，而打出點號會讓上下文
         // 整個換掉，重開清單那條路本來就會接手。連點號一起寫進去等於替使用者決定
         // 「你還要繼續往下走」，想直接用這個名稱的人得先退掉一個他沒要求的字元。
+        var schemaKind = SqlKindText.Schema;
+        var databaseKind = SqlKindText.Database;
+
         foreach (var schema in schemas)
         {
             suggestions.Add(new SqlSuggestion(
                 schema,
                 schema,
-                "Schema",
-                $"Schema {SqlIdentifier.Quote(schema)}",
+                schemaKind,
+                SqlKindText.Named(schemaKind, SqlIdentifier.Quote(schema)),
                 SuggestionKind.Schema,
                 schemaName: schema));
         }
@@ -1496,7 +1499,7 @@ internal sealed class SqlMetadataService : IDisposable
             suggestions.Add(new SqlSuggestion(
                 database,
                 database,
-                "Database",
+                databaseKind,
                 $"USE {SqlIdentifier.QuoteIfNeeded(database)}",
                 SuggestionKind.Database));
         }
@@ -1510,8 +1513,8 @@ internal sealed class SqlMetadataService : IDisposable
                 suggestions.Add(new SqlSuggestion(
                     server,
                     server,
-                    "Linked server",
-                    ConnectionText.LinkedServer(SqlIdentifier.QuoteIfNeeded(server)),
+                    SqlKindText.LinkedServer,
+                    SqlKindText.Named(SqlKindText.LinkedServer, SqlIdentifier.QuoteIfNeeded(server)),
                     SuggestionKind.LinkedServer));
             }
         }
@@ -1607,7 +1610,7 @@ internal sealed class SqlMetadataService : IDisposable
                 info.QualifiedName,
                 $"{info.Kind.ToDisplayName()} · {info.SchemaName}",
                 // 預覽內容改為選取時才載入，這裡只放立即可得的標題。
-                $"{info.Kind.ToDisplayName()} {info.QualifiedName}",
+                info.Kind.ToDisplayTitle(info.QualifiedName),
                 kind.Value,
                 schemaName: info.SchemaName,
                 tag: info));

@@ -70,6 +70,9 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
     private static SqlSnippetLibrary? _builtInSnippets;
 
+    /// <summary>建立 <see cref="_builtIn"/> 時的介面語言；說明文字是當下那個語言的。</summary>
+    private static SqlLanguage? _builtInLanguage;
+
     private static IReadOnlyList<SqlSuggestion> _builtIn = Array.Empty<SqlSuggestion>();
 
     private static readonly object BuiltInGate = new();
@@ -624,20 +627,23 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// <remarks>
     /// 關鍵字是固定的，Snippet 則會被管理介面改掉，因此整份重建，但只在
     /// Snippet 清單真的換過之後才重建——<see cref="SqlSnippetLibrary"/> 不可變，
-    /// 存檔時整份換新，所以比對參考就足夠。
+    /// 存檔時整份換新，所以比對參考就足夠。關鍵字與內建函式的說明跟著介面語言，
+    /// 語言也明寫進判斷：Snippet 目前會隨語言重新合併，但那是它自己的事，不能拿來代替。
     ///
     /// 這個方法在背景執行緒上被呼叫，重建期間要擋住其他人拿到半成品。
     /// </remarks>
     private static IReadOnlyList<SqlSuggestion> GetBuiltIn()
     {
         var snippets = SqlSnippetStore.Current;
+        var language = SqlText.Current;
 
         lock (BuiltInGate)
         {
-            if (!ReferenceEquals(_builtInSnippets, snippets))
+            if (!ReferenceEquals(_builtInSnippets, snippets) || !ReferenceEquals(_builtInLanguage, language))
             {
                 _builtIn = BuiltInSuggestionCatalog.Create(snippets);
                 _builtInSnippets = snippets;
+                _builtInLanguage = language;
             }
 
             return _builtIn;

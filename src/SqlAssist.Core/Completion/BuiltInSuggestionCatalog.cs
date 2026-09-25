@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Snippets;
 
 namespace SqlAssist.Core.Completion;
@@ -36,13 +37,15 @@ public static class BuiltInSuggestionCatalog
         // 提交行為與資料庫裡的結構描述相同：只寫名稱，點號由使用者自己打，打出點號
         // 會重開清單（見 SqlInsertionText）。曾經帶著 sys. 與接續旗標，實際寫出的仍是
         // sys（插入文字由 SqlInsertionText 重組），接著又在點號之前多開一次清單。
+        var schemaKind = SqlKindText.Schema;
+
         foreach (var schema in SqlSystemSchemas.Names)
         {
             suggestions.Add(new SqlSuggestion(
                 schema,
                 schema,
-                "Schema",
-                $"Schema {schema}",
+                schemaKind,
+                SqlKindText.Named(schemaKind, schema),
                 SuggestionKind.Schema,
                 schemaName: schema));
         }
@@ -65,12 +68,15 @@ public static class BuiltInSuggestionCatalog
                 isDestructive: snippet.IsDestructive));
         }
 
+        // 右側說明只寫種類：內容就是關鍵字本身，再多寫什麼都與左側的圖示重複。
+        var keywordKind = SqlKindText.Keyword;
+
         foreach (var keyword in SqlKeywordCatalog.All)
         {
             suggestions.Add(new SqlSuggestion(
                 keyword,
                 keyword,
-                "T-SQL keyword",
+                keywordKind,
                 keyword,
                 SuggestionKind.Keyword,
                 positions: SqlKeywordCatalog.GetPositions(keyword)));

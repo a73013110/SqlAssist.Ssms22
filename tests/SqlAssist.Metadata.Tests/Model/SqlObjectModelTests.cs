@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
@@ -442,7 +444,7 @@ public sealed class SqlObjectModelTests
 
         var preview = detail.BuildPreview();
 
-        Assert.Contains("Table [dbo].[Lib_Reader]", preview);
+        Assert.Contains("資料表 [dbo].[Lib_Reader]", preview);
         Assert.Contains("[UserId] int IDENTITY NOT NULL -- PK,", preview);
         Assert.Contains("[UserName] nvarchar(50) NULL", preview);
     }
@@ -466,7 +468,8 @@ public sealed class SqlObjectModelTests
 
         var preview = detail.BuildPreview();
 
-        Assert.Contains("Procedure [dbo].[usp_Encrypted]", preview);
+        Assert.Contains("預存程序 [dbo].[usp_Encrypted]", preview);
+        Assert.Contains("參數", preview);
         Assert.Contains("@Id int", preview);
     }
 
@@ -527,5 +530,24 @@ public sealed class SqlObjectModelTests
         Assert.Equal(
             new[] { "dbo.Alpha", "sales.Alpha", "dbo.Zulu" },
             snapshot.Objects.Select(info => $"{info.SchemaName}.{info.Name}").ToArray());
+    }
+
+    /// <summary>種類名稱走 <see cref="SqlKindText"/>：建議清單、滑鼠停留提示與 SQL Search 分類都跟著介面語言。</summary>
+    [Fact]
+    public void 種類名稱跟著介面語言()
+    {
+        Assert.Equal("資料表 dbo.Loan", SqlObjectKind.Table.ToDisplayTitle("dbo.Loan"));
+
+        using (SqlText.Use(SqlLanguage.Find("en")!))
+        {
+            Assert.Equal("Stored procedure", SqlObjectKind.Procedure.ToDisplayName());
+            Assert.Equal("Temporary table", SqlObjectKind.TemporaryTable.ToDisplayName());
+            Assert.Equal("Table dbo.Loan", SqlObjectKind.Table.ToDisplayTitle("dbo.Loan"));
+
+            foreach (SqlObjectKind kind in Enum.GetValues(typeof(SqlObjectKind)))
+            {
+                Assert.DoesNotMatch(@"^$|\p{IsCJKUnifiedIdeographs}", kind.ToDisplayName());
+            }
+        }
     }
 }

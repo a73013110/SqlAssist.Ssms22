@@ -1,5 +1,6 @@
 {
-  // SQL 物件與建議項目的種類名稱：圖示朗讀、篩選鈕、預覽分頁與欄名、通知主體共用同一句。
+  // SQL 物件與建議項目的種類名稱：圖示朗讀、篩選鈕、建議清單右側說明、滑鼠停留提示、預覽分頁與欄名、
+  // SQL Search 分類、通知主體共用同一句。
   // 同一種類在各處的譯名要一致，所以不在各功能各翻一次；只在某處才有的說法（例如篩選鈕的補充說明）
   // 留在那個功能的文字檔。複數形給列出一整類的地方（篩選鈕、分頁），中文與單數同字。
   "Unknown": "未知物件",
@@ -28,6 +29,10 @@
   "Trigger": "觸發程序",
   "Triggers": "觸發程序",
   "Synonym": "同義字",
+  "TemporaryTable": "暫存資料表",
+  "TableVariable": "資料表變數",
+  // WITH 宣告的一般資料表運算式；全名太長，建議清單右側放不下，兩種語言都寫縮寫。
+  "CommonTableExpression": "CTE",
   "Sequence": "序列",
   "Sequences": "序列",
   "Column": "欄位",
@@ -48,5 +53,7 @@
   // DATEADD、DATEDIFF 等函式的第一個引數（year、month…）。
   "DatePart": "日期部分",
   "TableHint": "資料表提示",
-  "QueryHint": "查詢提示"
+  "QueryHint": "查詢提示",
+  // 種類加名稱的標題：「資料表 dbo.Loan」、「結構描述 dbo」。
+  "Named": "{kind} {name}"
 }

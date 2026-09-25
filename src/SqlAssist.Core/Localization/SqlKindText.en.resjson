@@ -25,6 +25,9 @@
   "Trigger": "Trigger",
   "Triggers": "Triggers",
   "Synonym": "Synonym",
+  "TemporaryTable": "Temporary table",
+  "TableVariable": "Table variable",
+  "CommonTableExpression": "CTE",
   "Sequence": "Sequence",
   "Sequences": "Sequences",
   "Column": "Column",
@@ -42,5 +45,6 @@
   "Collation": "Collation",
   "DatePart": "Date part",
   "TableHint": "Table hint",
-  "QueryHint": "Query hint"
+  "QueryHint": "Query hint",
+  "Named": "{kind} {name}"
 }

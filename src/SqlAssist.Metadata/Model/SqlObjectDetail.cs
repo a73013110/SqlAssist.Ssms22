@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using SqlAssist.Core.Localization;
 using SqlAssist.Metadata.Formatting;
 
 namespace SqlAssist.Metadata.Model;
@@ -103,7 +104,7 @@ public sealed class SqlObjectDetail
     private string BuildColumnPreview()
     {
         var builder = new StringBuilder();
-        builder.Append(Object.Kind.ToDisplayName()).Append(' ').AppendLine(Object.QualifiedName);
+        builder.AppendLine(Object.Kind.ToDisplayTitle(Object.QualifiedName));
 
         if (Columns.Count == 0)
         {
@@ -128,7 +129,7 @@ public sealed class SqlObjectDetail
     private string BuildSignaturePreview()
     {
         var builder = new StringBuilder();
-        builder.Append(Object.Kind.ToDisplayName()).Append(' ').AppendLine(Object.QualifiedName);
+        builder.AppendLine(Object.Kind.ToDisplayTitle(Object.QualifiedName));
 
         if (Parameters.Count == 0)
         {
@@ -136,7 +137,7 @@ public sealed class SqlObjectDetail
         }
 
         builder.AppendLine();
-        builder.AppendLine("Parameters");
+        builder.AppendLine(SqlKindText.Parameters);
 
         foreach (var parameter in Parameters)
         {

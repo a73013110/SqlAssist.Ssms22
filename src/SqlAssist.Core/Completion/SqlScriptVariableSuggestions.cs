@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Completion;
@@ -174,13 +175,13 @@ public static class SqlScriptVariableSuggestions
     {
         if (!IsDeclarationSlot(tokens, index) || index + 1 >= tokens.Count)
         {
-            return ScriptSuggestionText.Variable;
+            return SqlKindText.Variable;
         }
 
         var next = tokens[index + 1];
 
         return next.Kind == SqlTokenKind.Identifier && !next.IsQuoted
             ? next.Value.ToUpperInvariant()
-            : ScriptSuggestionText.Variable;
+            : SqlKindText.Variable;
     }
 }

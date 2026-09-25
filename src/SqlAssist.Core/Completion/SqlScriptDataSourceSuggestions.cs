@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Completion;
@@ -18,8 +19,6 @@ namespace SqlAssist.Core.Completion;
 /// </remarks>
 public static class SqlScriptDataSourceSuggestions
 {
-    private const string CommonTableExpressionDescription = "CTE";
-
     /// <summary>
     /// 組出這份指令碼宣告的資料來源。
     /// </summary>
@@ -54,7 +53,7 @@ public static class SqlScriptDataSourceSuggestions
             if (seen.Add(name))
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(name, CommonTableExpressionDescription));
+                    Create(name, SqlKindText.CommonTableExpression));
             }
         }
 
@@ -73,7 +72,7 @@ public static class SqlScriptDataSourceSuggestions
             if (seen.Add(token.Value))
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(token.Value, ScriptSuggestionText.TemporaryTable, resolver.FindScriptTable(token.Value)));
+                    Create(token.Value, SqlKindText.TemporaryTable, resolver.FindScriptTable(token.Value)));
             }
         }
 
@@ -86,7 +85,7 @@ public static class SqlScriptDataSourceSuggestions
             if (table.Name.Length > 1 && table.Name[0] == '@' && seen.Add(table.Name))
             {
                 (suggestions ??= new List<SqlSuggestion>()).Add(
-                    Create(table.Name, ScriptSuggestionText.TableVariable, table));
+                    Create(table.Name, SqlKindText.TableVariable, table));
             }
         }
 
