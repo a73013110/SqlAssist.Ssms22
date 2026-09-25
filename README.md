@@ -21,8 +21,8 @@ Demos are illustrations with fictional data, not recordings.
 
 ### Complete SQL and inspect objects
 
-Type `libr` → **Right Arrow** previews columns → **Tab** inserts `Lib_Reader`. Suggestions understand
-clauses, fuzzy matches, aliases, and temp tables.
+Type `libr` → **Right Arrow** previews columns → **Tab** inserts `Lib_Reader`. Suggestions follow
+clauses, aliases, and temp tables.
 
 <p align="center"><img src="docs/images/completion-preview-demo.gif" width="820" alt="Completion with a column preview"></p>
 
@@ -42,8 +42,8 @@ On `Loan`, **F12** opens its full definition without running it.
 
 ### Keep parameter hints on screen
 
-SSMS drops the `DATEDIFF(` hint after Backspace, a click, or an inner `GETDATE()`.
-SqlAssist brings it back when you pause and adds hints for scalar UDFs.
+SSMS drops the `DATEDIFF(` hint after Backspace, a click, or an inner call;
+SqlAssist brings it back and adds hints for scalar UDFs.
 
 <p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF hint coming back"></p>
 
@@ -63,7 +63,7 @@ SqlAssist brings it back when you pause and adds hints for scalar UDFs.
 
 [PNG](docs/images/insert-template-demo.png)
 
-**`EXEC`** → select `usp_Loan_Count` to insert named arguments and declare the `OUTPUT` variable.
+**`EXEC`** → select `usp_Loan_Count` to insert named arguments and an `OUTPUT` variable.
 
 <p align="center"><img src="docs/images/execute-template-demo.gif" width="820" alt="EXEC template with an OUTPUT variable"></p>
 
@@ -113,7 +113,7 @@ Find `Loan` in **History**, save it with **☆**, then reopen it from **Favorite
 ### Reuse query results
 
 Copy selected cells as an `IN` predicate. The grid menu also builds `#temp`, Markdown,
-JSON, column profiles, and full cell views.
+JSON, and column profiles.
 
 <p align="center"><img src="docs/images/result-in-demo.gif" width="820" alt="Cells copied as an IN predicate"></p>
 
@@ -123,9 +123,8 @@ JSON, column profiles, and full cell views.
 
 Requires **Windows x64** and **SSMS 22.9.x**.
 
-1. Download `SqlAssist.Ssms22.vsix` from the latest [release](https://github.com/a73013110/SqlAssist.Ssms22/releases).
-2. Close SSMS, run the VSIX installer, and restart SSMS.
-3. **Tools → SqlAssist** confirms that it loaded.
+1. Get `SqlAssist.Ssms22.vsix` from the latest [release](https://github.com/a73013110/SqlAssist.Ssms22/releases).
+2. Close SSMS, run the VSIX, and restart; **Tools → SqlAssist** confirms it loaded.
 
 UI language follows SSMS; override it in Settings → SqlAssist → General.
 
@@ -136,5 +135,7 @@ UI language follows SSMS; override it in Settings → SqlAssist → General.
 > [SSMS does not officially support third-party extensions](https://learn.microsoft.com/en-us/ssms/faq#are-extensions-supported-in-ssms).
 
 ## Learn more
+
+⭐ If SqlAssist helps you, please [star it on GitHub](https://github.com/a73013110/SqlAssist.Ssms22) so others can find it.
 
 [Contributing](CLAUDE.md) · [Apache License 2.0](LICENSE)

@@ -45,7 +45,7 @@ SqlAssist 是 **SSMS 22** 的擴充，不是另一套編輯器。建議在本機
 
 ### 參數提示不再消失
 
-SSMS 的 `DATEDIFF(` 參數提示，一按 Backspace、點一下滑鼠或打完內層 `GETDATE()` 就收掉；
+SSMS 的 `DATEDIFF(` 參數提示，一按 Backspace、點滑鼠或打完內層呼叫就收掉；
 SqlAssist 在停手後請回，也補上自訂純量函式的提示。
 
 <p align="center"><img src="docs/images/parameter-hint-demo.gif" width="820" alt="DATEDIFF 參數提示自動回來"></p>
@@ -126,18 +126,19 @@ JSON、欄位剖析與完整儲存格內容。
 
 需要 **Windows x64** 與 **SSMS 22.9.x**。
 
-1. 從最新 [GitHub Release](https://github.com/a73013110/SqlAssist.Ssms22/releases) 下載 `SqlAssist.Ssms22.vsix`。
-2. 儲存查詢、關閉所有 SSMS 視窗，再執行 VSIX 安裝程式。
-3. 重啟 SSMS；看到「工具 → SqlAssist」即代表載入成功。
+1. 從最新 [Release](https://github.com/a73013110/SqlAssist.Ssms22/releases) 下載 `SqlAssist.Ssms22.vsix`。
+2. 關閉 SSMS，執行 VSIX 安裝程式後重啟；看到「工具 → SqlAssist」即代表載入成功。
 
-介面語言預設跟隨 SSMS，可在設定的 SqlAssist →「一般」→「介面語言」固定。
+介面語言跟隨 SSMS，可在設定的 SqlAssist →「一般」固定。
 
 > [!IMPORTANT]
-> 保持 SSMS 內建 T-SQL IntelliSense 開啟；SqlAssist 只抑制會互相干擾的自動建議清單。
+> 保持 SSMS 內建 IntelliSense 開啟；SqlAssist 只抑制互相干擾的自動清單。
 
 > [!WARNING]
 > [SSMS 目前未正式支援第三方擴充套件](https://learn.microsoft.com/en-us/ssms/faq#are-extensions-supported-in-ssms)。
 
 ## 深入了解
 
-貢獻者請先讀 [CLAUDE.md](CLAUDE.md)。專案採用 [Apache License 2.0](LICENSE)。
+⭐ 覺得好用的話，歡迎到 [GitHub 點顆星](https://github.com/a73013110/SqlAssist.Ssms22)，讓更多人找到它。
+
+[貢獻指南](CLAUDE.md) · [Apache License 2.0](LICENSE)
