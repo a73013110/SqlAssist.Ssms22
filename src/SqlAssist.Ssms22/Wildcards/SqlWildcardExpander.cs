@@ -197,7 +197,7 @@ internal sealed class SqlWildcardExpander
         var qualifier = !target.Qualify
             ? null
             : target.QualifierText
-                ?? (source.Qualifier is null ? null : SqlInsertionText.Quote(source.Qualifier, settings));
+                ?? (source.Qualifier is null ? null : SqlInsertionText.QuoteQualifier(source.Qualifier, settings));
 
         foreach (var name in names)
         {

@@ -90,8 +90,9 @@ SQL Memory 沒有人會去打開，功能的價值在它已經有資料；代價
 
 「插入物件時加上方括號」管的是**資料庫物件**的名稱。暫存資料表（`#Loan`）與資料表變數
 （`@rows`）不在它的管轄內，開著也不會被包起來：`[#Loan]` 雖然合法卻不是任何人會手寫的
-樣子，而 `[@rows]` 根本不是合法的 T-SQL，貼進編輯器就是語法錯誤。規則只有一份，在
-`Core/Parsing/SqlIdentifier.IsScriptScoped`。
+樣子，而 `FROM [@rows]` 會指到一張叫 `@rows` 的資料表。規則只有一份，在
+`Core/Parsing/SqlIdentifier.IsScriptScoped`。寫在欄位前面的限定字反過來一定要包，
+見[插入文字](completion-insertion.md#欄位的限定字另有一條)。
 
 ## 五件刻意<b>不</b>是設定的東西
 

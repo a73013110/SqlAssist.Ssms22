@@ -26,7 +26,8 @@ public sealed class SqlCompletionContext
         SqlExecutedModule? executedModule = null,
         int qualifierStart = -1,
         SqlClausePhrase? clausePhrase = null,
-        bool startsBatch = false)
+        bool startsBatch = false,
+        bool expectsScalar = false)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -43,6 +44,7 @@ public sealed class SqlCompletionContext
         QualifierStart = qualifierStart;
         ClausePhrase = clausePhrase;
         StartsBatch = startsBatch;
+        ExpectsScalar = expectsScalar;
     }
 
     /// <summary>
@@ -214,6 +216,18 @@ public sealed class SqlCompletionContext
     /// <summary>游標在批次的第一句：只有這裡可以省略 EXEC 直接寫程序名稱。</summary>
     public bool StartsBatch { get; }
 
+    /// <summary>
+    /// <c>@</c> 這一格文法上只收純量運算式，整張資料表放不進來。
+    /// </summary>
+    /// <remarks>
+    /// 只在 <see cref="Target"/> 是 <see cref="CompletionTarget.Variable"/> 時有意義。
+    /// 資料表變數能整張出現的位置只有兩種：資料來源（<c>FROM @rows</c>、
+    /// <c>INSERT INTO @rows</c>）與模組的引數（<c>EXEC p @rows</c>、
+    /// <c>dbo.fn(@rows)</c>，資料表值參數）。其餘位置它只能當欄位的限定字，
+    /// 而那裡的寫法只有 <c>[@rows]</c>，見 <see cref="SqlInsertionText.QuoteQualifier"/>。
+    /// </remarks>
+    public bool ExpectsScalar { get; }
+
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
     {
@@ -232,7 +246,8 @@ public sealed class SqlCompletionContext
             ExecutedModule,
             QualifierStart,
             ClausePhrase,
-            StartsBatch);
+            StartsBatch,
+            ExpectsScalar);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -253,7 +268,8 @@ public sealed class SqlCompletionContext
             ExecutedModule,
             QualifierStart,
             ClausePhrase,
-            StartsBatch);
+            StartsBatch,
+            ExpectsScalar);
     }
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
@@ -281,7 +297,8 @@ public sealed class SqlCompletionContext
             ExecutedModule,
             QualifierStart,
             ClausePhrase,
-            StartsBatch);
+            StartsBatch,
+            ExpectsScalar);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -302,6 +319,7 @@ public sealed class SqlCompletionContext
             ExecutedModule,
             QualifierStart,
             ClausePhrase,
-            StartsBatch);
+            StartsBatch,
+            ExpectsScalar);
     }
 }

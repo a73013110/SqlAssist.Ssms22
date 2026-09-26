@@ -301,7 +301,8 @@ public static class SqlCompletionContextAnalyzer
 
         // 只吃詞元之前那一段：正在打的名字本身當然不算數，而這一段的詞法分析
         // 與一般位置的 SqlKeywordPositionAnalyzer 是同一個代價。
-        var tokens = SqlTokenizer.Tokenize(textBeforeCaret.Substring(0, tokenStart));
+        var textBeforeToken = textBeforeCaret.Substring(0, tokenStart);
+        var tokens = SqlTokenizer.Tokenize(textBeforeToken);
 
         if (SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, tokens.Count))
         {
@@ -315,8 +316,7 @@ public static class SqlCompletionContextAnalyzer
         //
         // 只收資料來源位置：EXEC dbo.p @ 的 @ 後面是引數而不是那句話的目標，
         // 在那裡帶著 ExecuteCall 會讓提交去展開一個變數。
-        var beforeToken = textBeforeCaret.Substring(0, tokenStart).TrimEnd();
-        var statementTarget = DetermineTarget(beforeToken, out var keywordStart, out var intent);
+        var statementTarget = DetermineTarget(textBeforeToken.TrimEnd(), out var keywordStart, out var intent);
 
         if (statementTarget != CompletionTarget.DataSource)
         {
@@ -326,6 +326,8 @@ public static class SqlCompletionContextAnalyzer
 
         // EXEC dbo.usp_Renew @| 的位置除了他自己的變數，還要列出那個程序的參數。
         // 參數在中繼資料裡，這裡只記下他在呼叫誰。
+        var executedModule = SqlExecutedModule.Find(tokens);
+
         return new SqlCompletionContext(
             SqlCompletionSlot.Grammar,
             tokenStart,
@@ -333,7 +335,54 @@ public static class SqlCompletionContextAnalyzer
             CompletionTarget.Variable,
             targetKeywordStart: keywordStart,
             intent: intent,
-            executedModule: SqlExecutedModule.Find(tokens));
+            executedModule: executedModule,
+            expectsScalar: ExpectsScalar(tokens, textBeforeToken, statementTarget, executedModule));
+    }
+
+    /// <summary>
+    /// 小老鼠這一格只收純量運算式，見 <see cref="SqlCompletionContext.ExpectsScalar"/>。
+    /// </summary>
+    /// <remarks>
+    /// 列的是整張資料表放得進來的位置，其餘一律算純量。反過來列純量位置的話
+    /// 永遠列不完：選取清單、WHERE、ON、SET 的右邊、CASE、運算子之後、函式引數……
+    /// 而漏掉的那一格就是一行執行不了的 SQL。
+    /// </remarks>
+    private static bool ExpectsScalar(
+        IReadOnlyList<SqlToken> tokens,
+        string textBeforeToken,
+        CompletionTarget statementTarget,
+        SqlExecutedModule? executedModule)
+    {
+        // FROM、JOIN、INTO、UPDATE、MERGE、USING 與 APPLY，以及 EXEC 的引數。
+        if (statementTarget is CompletionTarget.DataSource or CompletionTarget.TableFunction ||
+            executedModule is not null)
+        {
+            return false;
+        }
+
+        // DELETE @rows 與 INSERT @rows 省略了 FROM／INTO。DetermineTarget 不認這兩個字
+        // 單獨出現：一般位置裡它們後面要列的是 FROM、INTO 這些關鍵字，不是資料表。
+        if (tokens.Count > 0 &&
+            (tokens[tokens.Count - 1].IsKeyword("DELETE") || tokens[tokens.Count - 1].IsKeyword("INSERT")))
+        {
+            return false;
+        }
+
+        if (ContinuesDataSourceList(tokens, SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken).Keywords))
+        {
+            return false;
+        }
+
+        // 使用者自訂模組的引數可能是資料表值參數（dbo.fn(@rows)），內建函式的不會。
+        // 名稱不在內建目錄裡就當成自訂模組：包錯的 dbo.fn([@rows]) 會指到一個叫
+        // @rows 的資料行，而使用者要限定欄位時自己補方括號只多兩個字。
+        var call = SqlCallSignature.Resolve(textBeforeToken, textBeforeToken.Length);
+
+        return call is null ||
+            (!call.IsQualified &&
+             SqlFunctionCatalog.TryGetSignature(
+                 textBeforeToken.Substring(call.NameStart, call.NameEnd - call.NameStart),
+                 out _));
     }
 
     /// <summary>

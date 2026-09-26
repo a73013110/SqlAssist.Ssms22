@@ -71,3 +71,27 @@ LibArchive」，而那個結構描述並不存在。關掉一個為了少打幾�
 
 `SqlInsertionText.Quote` 是這條規則的唯一入口，`SELECT *` 展開與建立欄位建議都走
 同一個方法；各自照設定再判斷一次的話，症狀是同一個欄位在清單上與展開後包法不同。
+
+### 欄位的限定字另有一條
+
+資料表變數在兩個位置要寫成兩個樣子：當資料來源只能寫 `FROM @rows`（`[@rows]` 會指到
+一張叫 `@rows` 的資料表），當欄位的限定字只能寫 `[@rows].CopyNo`（`@rows.CopyNo`
+會被讀成純量變數，執行時是「必須宣告純量變數」）。暫存資料表沒有這個問題，
+`#Loan.CopyNo` 合法。入口是 `SqlInsertionText.QuoteQualifier`，寫限定字的地方都走它：
+
+| 表面 | 寫出來的 |
+|---|---|
+| 敘述有兩個以上來源時的欄位建議（`SqlInsertionText.Column`） | `[@rows].CopyNo` |
+| `SELECT *` 展開時補的限定字 | 同上 |
+| `@` 之後的清單，游標在純量位置 | `[@rows]` |
+| 使用者自己打的 `@rows.` 之後提交欄位 | 連限定字一起改寫成 `[@rows].CopyNo` |
+
+「純量位置」是反著列的：整張資料表放得進來的只有資料來源（`FROM`、`JOIN`、`INTO`、
+`UPDATE`、`DELETE`、`INSERT`、`MERGE`、`USING`、`APPLY`、`FROM` 清單的逗號之後）與模組
+引數（`EXEC` 的引數、名稱不在內建函式目錄裡的呼叫——可能是資料表值參數），其餘一律
+算純量。正著列的話選取清單、`WHERE`、`ON`、運算子之後、內建函式引數永遠列不完，漏掉的
+那一格就是一行執行不了的 SQL。判斷在 `SqlCompletionContext.ExpectsScalar`；只認得
+`DECLARE @rows TABLE (…)` 這種宣告，用自訂資料表型別宣告的變數照原樣寫。
+
+最後一列在提交那一端自己接手：平台只換得掉點號之後那一段。改寫與插入是同一次編輯，
+Ctrl＋Z 一次整個退回。

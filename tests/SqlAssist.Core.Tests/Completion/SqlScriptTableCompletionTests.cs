@@ -94,10 +94,26 @@ public sealed class SqlScriptTableCompletionTests
     [InlineData(TemporaryTable + "SELECT #Loan.| FROM #Loan")]
     [InlineData(TemporaryTable + "SELECT l.| FROM #Loan l")]
     [InlineData(TableVariable + "SELECT @Loan.| FROM @Loan")]
+    [InlineData(TableVariable + "SELECT [@Loan].| FROM @Loan")]
     [InlineData(TableVariable + "SELECT l.| FROM @Loan l")]
     public void 限定字之後列得出欄位(string sqlWithCaret)
     {
         Assert.Equal(new[] { "Id", "CopyNo", "ReaderId" }, QualifiedColumns(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 沒取別名的資料表變數，欄位的限定字就是它自己的名字。
+    /// </summary>
+    /// <remarks>
+    /// 寫進編輯器時要包成 <c>[@Loan]</c>（<c>SqlInsertionText.QuoteQualifier</c>），
+    /// 前提是這裡交出去的是那個名字，而不是空的或別的東西。
+    /// </remarks>
+    [Fact]
+    public void 沒取別名的資料表變數以自己的名字限定()
+    {
+        var sources = Analyze(TableVariable + "SELECT | FROM @Loan JOIN dbo.Copy c ON 1 = 1").ScopeSources;
+
+        Assert.Contains(sources, source => source.Qualifier == "@Loan");
     }
 
     /// <summary>

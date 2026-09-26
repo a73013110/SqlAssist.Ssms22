@@ -1,3 +1,4 @@
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Settings;
@@ -193,5 +194,127 @@ public sealed class SqlInsertionTextTests
         var settings = new SqlAssistSettings { UseSquareBrackets = useSquareBrackets };
 
         Assert.Equal(expected, SqlInsertionText.Quote(name, settings));
+    }
+
+    private const string TableVariable = "DECLARE @Loan TABLE (Id INT, CopyNo NVARCHAR(20));\r\n";
+
+    /// <summary>從 <c>@</c> 之後的清單裡挑出那個資料表變數，照那一格的上下文算插入文字。</summary>
+    private static string BuildVariable(string sqlWithCaret, string name = "@Loan")
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+        var suggestion = context.ScriptSources.Single(item => item.DisplayText == name);
+
+        return SqlInsertionText.Build(suggestion, context, Unqualified);
+    }
+
+    /// <remarks>
+    /// 資料表變數在純量位置唯一能做的事是限定欄位，而那裡只能寫 <c>[@Loan]</c>：
+    /// <c>SELECT @Loan.Id</c> 會被讀成純量變數，執行起來是「必須宣告純量變數」。
+    /// </remarks>
+    [Theory]
+    [InlineData(TableVariable + "SELECT @| FROM @Loan")]
+    [InlineData(TableVariable + "SELECT Id, @| FROM @Loan")]
+    [InlineData(TableVariable + "SELECT * FROM @Loan WHERE @|")]
+    [InlineData(TableVariable + "SELECT * FROM dbo.Copy c JOIN @Loan ON c.CopyNo = @|")]
+    [InlineData(TableVariable + "SELECT COUNT(@| FROM @Loan")]
+    [InlineData(TableVariable + "SELECT * FROM @Loan ORDER BY @|")]
+    [InlineData(TableVariable + "UPDATE dbo.Copy SET CopyNo = @| FROM @Loan")]
+    public void 純量位置的資料表變數寫成限定字(string sqlWithCaret)
+    {
+        Assert.Equal("[@Loan]", BuildVariable(sqlWithCaret));
+    }
+
+    /// <remarks>
+    /// 反過來的一半：整張資料表放得進來的位置只能寫 <c>@Loan</c>，
+    /// <c>FROM [@Loan]</c> 指到的是一張叫 <c>@Loan</c> 的資料表。
+    /// 模組的引數也在這裡——那可能是資料表值參數。
+    /// </remarks>
+    [Theory]
+    [InlineData(TableVariable + "SELECT * FROM @|")]
+    [InlineData(TableVariable + "SELECT * FROM dbo.Copy c JOIN @|")]
+    [InlineData(TableVariable + "SELECT * FROM dbo.Copy c, @|")]
+    [InlineData(TableVariable + "INSERT INTO @|")]
+    [InlineData(TableVariable + "INSERT @|")]
+    [InlineData(TableVariable + "DELETE @|")]
+    [InlineData(TableVariable + "DELETE FROM @|")]
+    [InlineData(TableVariable + "UPDATE @|")]
+    [InlineData(TableVariable + "MERGE @|")]
+    [InlineData(TableVariable + "MERGE dbo.Copy AS t USING @|")]
+    [InlineData(TableVariable + "DELETE dbo.Copy OUTPUT deleted.CopyNo INTO @|")]
+    [InlineData(TableVariable + "EXEC dbo.usp_Renew @|")]
+    [InlineData(TableVariable + "EXEC dbo.usp_Renew @Copies = @|")]
+    [InlineData(TableVariable + "SELECT * FROM dbo.fn_LoansByCopy(@|")]
+    [InlineData(TableVariable + "SELECT dbo.fn_LoanCount(@|")]
+    public void 資料來源與引數的資料表變數照原樣寫(string sqlWithCaret)
+    {
+        Assert.Equal("@Loan", BuildVariable(sqlWithCaret));
+    }
+
+    [Fact]
+    public void 純量變數在純量位置照原樣寫()
+    {
+        Assert.Equal(
+            "@readerId",
+            BuildVariable("DECLARE @readerId INT;\r\nSELECT @|", "@readerId"));
+    }
+
+    /// <remarks>
+    /// 井號不需要：<c>#Loan.CopyNo</c> 是合法的限定。資料表變數則不論設定都要包。
+    /// </remarks>
+    [Theory]
+    [InlineData("@Loan", false, "[@Loan]")]
+    [InlineData("@Loan", true, "[@Loan]")]
+    [InlineData("#Loan", true, "#Loan")]
+    [InlineData("lr", false, "lr")]
+    [InlineData("lr", true, "[lr]")]
+    [InlineData("User", false, "[User]")]
+    public void 限定字只有資料表變數一定要包(string name, bool useSquareBrackets, string expected)
+    {
+        var settings = new SqlAssistSettings { UseSquareBrackets = useSquareBrackets };
+
+        Assert.Equal(expected, SqlInsertionText.QuoteQualifier(name, settings));
+    }
+
+    [Theory]
+    [InlineData(null, "CopyNo")]
+    [InlineData("lr", "lr.CopyNo")]
+    [InlineData("@Loan", "[@Loan].CopyNo")]
+    public void 欄位的限定字照限定字的規則包(string? qualifier, string expected)
+    {
+        Assert.Equal(expected, SqlInsertionText.Column("CopyNo", qualifier, Unqualified));
+    }
+
+    private static string? RewriteQualifier(string sqlWithCaret, SuggestionKind kind = SuggestionKind.Column)
+    {
+        var input = SqlWithCaret.Parse(sqlWithCaret);
+
+        // 提交那一端只分析游標前文，這裡照同一條走。
+        var context = SqlCompletionContextAnalyzer.Analyze(input.BeforeCaret);
+        var written = input.BeforeCaret.Substring(context.QualifierStart, context.TokenStart - context.QualifierStart);
+        var suggestion = new SqlSuggestion("CopyNo", "CopyNo", "", "", kind);
+
+        return SqlInsertionText.RewriteWrittenQualifier(suggestion, context, written);
+    }
+
+    /// <remarks>
+    /// 使用者自己打的 <c>@Loan.</c> 之後照樣列得出欄位，提交時連限定字一起換成
+    /// <c>[@Loan].</c>；否則提交完的那一行執行不了。
+    /// </remarks>
+    [Fact]
+    public void 沒加方括號的資料表變數限定字在提交時改寫()
+    {
+        Assert.Equal("[@Loan].", RewriteQualifier(TableVariable + "SELECT @Loan.|"));
+        Assert.Equal("[@Loan].", RewriteQualifier(TableVariable + "SELECT @Loan.Co|"));
+    }
+
+    [Theory]
+    [InlineData(TableVariable + "SELECT [@Loan].|", SuggestionKind.Column)]
+    [InlineData(TableVariable + "SELECT l.| FROM @Loan l", SuggestionKind.Column)]
+    [InlineData("SELECT dbo.| FROM dbo.Loan", SuggestionKind.Column)]
+    [InlineData(TableVariable + "SELECT @Loan.|", SuggestionKind.Table)]
+    public void 本來就成立的限定字不改寫(string sqlWithCaret, SuggestionKind kind)
+    {
+        Assert.Null(RewriteQualifier(sqlWithCaret, kind));
     }
 }

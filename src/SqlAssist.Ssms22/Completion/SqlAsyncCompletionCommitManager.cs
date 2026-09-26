@@ -240,7 +240,8 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         var nameStart = context.QualifierStart >= 0 && context.QualifierStart <= insertionStart
             ? context.QualifierStart
             : insertionStart;
-        var writtenName = snapshot.GetText(nameStart, insertionStart - nameStart) + insertionText;
+        var writtenQualifier = snapshot.GetText(nameStart, insertionStart - nameStart);
+        var writtenName = writtenQualifier + insertionText;
         var expansion = SqlCommitExpander.Resolve(
             suggestion,
             context,
@@ -298,8 +299,27 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             }
         }
 
+        // 使用者自己打的 @rows. 寫在欄位前面不成立，提交時連限定字一起換成
+        // [@rows].，同一次編輯裡完成，Ctrl+Z 一次就整個退回。平台只換得掉
+        // 適用範圍（點號之後那一段），所以這一種要自己接手。
+        var rewrittenQualifier = expansion is null
+            ? SqlInsertionText.RewriteWrittenQualifier(suggestion, context, writtenQualifier)
+            : null;
+
+        if (rewrittenQualifier is not null)
+        {
+            span = new SnapshotSpan(snapshot, Span.FromBounds(nameStart, span.End.Position));
+            insertionText = rewrittenQualifier + insertionText;
+            insertionStart = nameStart;
+
+            if (caretOffset >= 0)
+            {
+                caretOffset += rewrittenQualifier.Length;
+            }
+        }
+
         // 一般項目讓平台自己插入，行為與其他語言一致。
-        if (expansion is null && !suggestion.TriggerFollowUp && caretOffset < 0)
+        if (expansion is null && rewrittenQualifier is null && !suggestion.TriggerFollowUp && caretOffset < 0)
         {
             return CommitResult.Unhandled;
         }

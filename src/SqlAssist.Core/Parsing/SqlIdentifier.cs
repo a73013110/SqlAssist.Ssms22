@@ -26,8 +26,8 @@ public static class SqlIdentifier
     ///
     /// 井號與小老鼠開頭是 T-SQL 明文允許的四種開頭裡的兩種，不是例外。
     /// 曾經把它們排除在外，症狀是暫存資料表被寫成 <c>[#tmp]</c>——那雖然合法，
-    /// 卻不是任何人會手寫的樣子——而資料表變數被寫成 <c>[@rows]</c>，
-    /// 那根本不是合法的 T-SQL，貼上去就是語法錯誤。
+    /// 卻不是任何人會手寫的樣子——而資料表變數在 <c>FROM</c> 後面被寫成
+    /// <c>[@rows]</c>，那會被讀成一張叫 <c>@rows</c> 的資料表，執行就找不到物件。
     /// </remarks>
     public static bool IsRegular(string name)
     {
@@ -60,13 +60,26 @@ public static class SqlIdentifier
     /// </summary>
     /// <remarks>
     /// 這兩種名稱不受「一律加方括號」那個設定管轄。設定要的是資料庫物件寫起來
-    /// 一致，而這裡的名稱一個都不是資料庫物件；<c>[@rows]</c> 更是直接的語法錯誤。
+    /// 一致，而這裡的名稱一個都不是資料庫物件；資料表變數寫成 <c>[@rows]</c>
+    /// 放在 <c>FROM</c> 後面更是直接指到一張不存在的資料表。
     /// 判斷放在這裡而不是設定那一層：它是名稱自己的性質，而問這個問題的表面
     /// 不會只有一個。
     /// </remarks>
     public static bool IsScriptScoped(string name)
     {
-        return !string.IsNullOrEmpty(name) && (name[0] == '#' || name[0] == '@');
+        return !string.IsNullOrEmpty(name) && (name[0] == '#' || IsVariable(name));
+    }
+
+    /// <summary>名稱是不是變數：小老鼠開頭，包含資料表變數。</summary>
+    /// <remarks>
+    /// 資料表變數在兩個位置要寫成兩個樣子，分界正是小老鼠：當資料來源時只能寫
+    /// <c>@rows</c>，當欄位的限定字時只能寫 <c>[@rows].CopyNo</c>——<c>@rows.CopyNo</c>
+    /// 會被讀成純量變數，執行起來是「必須宣告純量變數」。
+    /// 井號不在這裡：<c>#Loan.CopyNo</c> 是合法的限定。
+    /// </remarks>
+    public static bool IsVariable(string name)
+    {
+        return !string.IsNullOrEmpty(name) && name[0] == '@';
     }
 
     /// <summary>只有在必要時才加上方括號。</summary>

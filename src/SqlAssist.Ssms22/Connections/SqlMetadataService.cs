@@ -1541,8 +1541,7 @@ internal sealed class SqlMetadataService : IDisposable
         string? qualifier,
         string? sourceName)
     {
-        var quoted = Quote(name, settings);
-        var insertionText = qualifier is null ? quoted : Quote(qualifier, settings) + "." + quoted;
+        var insertionText = SqlInsertionText.Column(name, qualifier, settings);
         var origin = sourceName ?? ConnectionText.QueryResult;
         var source = qualifier is null ? string.Empty : $" · {qualifier}";
 
@@ -1572,8 +1571,7 @@ internal sealed class SqlMetadataService : IDisposable
     {
         var annotations = column.IsPrimaryKey ? " · PK" : string.Empty;
         var source = qualifier is null ? string.Empty : $" · {qualifier}";
-        var name = Quote(column.Name, settings);
-        var insertionText = qualifier is null ? name : Quote(qualifier, settings) + "." + name;
+        var insertionText = SqlInsertionText.Column(column.Name, qualifier, settings);
 
         return new SqlSuggestion(
             column.Name,
@@ -1583,15 +1581,6 @@ internal sealed class SqlMetadataService : IDisposable
             SuggestionKind.Column,
             schemaName: info.SchemaName,
             tag: column);
-    }
-
-    /// <remarks>
-    /// 欄位的插入文字在這裡就定案，之後 <see cref="SqlInsertionText"/> 原樣送出，
-    /// 所以括號規則必須共用同一份——各寫一份的下場是其中一份漏掉保留字。
-    /// </remarks>
-    private static string Quote(string name, SqlAssistSettings settings)
-    {
-        return SqlInsertionText.Quote(name, settings);
     }
 
     private static void AddObjects(List<SqlSuggestion> suggestions, IReadOnlyList<SqlObjectInfo> objects)
