@@ -8,7 +8,7 @@
   "MissingParentStructure": "所屬資料表結構",
   "MissingColumns": "欄位",
   "MissingIndexes": "索引與條件約束",
-  "MissingExpressions": "計算資料行、預設值或 CHECK 運算式",
+  "MissingExpressions": "運算式（DEFAULT、CHECK 或計算資料行）",
   "MissingStructure": "完整結構",
   "ReasonDeclarationMoved": "這個名稱是這份指令碼自己宣告的，宣告的位置卻已經不在目前的文字裡了——\n多半是提示顯示之後、開啟結構之前，那幾行被改掉或刪掉了。",
   "ReasonSynthesizedDefinition": "sys.synonyms／sys.sequences 一列都沒有回來，而查詢本身沒有失敗——\n原因只有兩個：物件在建議清單被快取之後卸除，\n或是這個登入對它的權限在那之後被收回。",
@@ -22,8 +22,11 @@
   "ReasonNoColumns": "sys.columns 一列都沒有回來，而查詢本身沒有失敗——原因只有兩個：物件在\n建議清單被快取之後卸除，或是這個登入對它的權限在那之後被收回。",
   // 「詳細記錄」是設定項目的名稱。
   "ReasonIndexQueryFailed": "第四層查詢失敗了，而空的索引清單在這時候不是答案——原因可能是連線中斷、\n逾時，或這一版伺服器沒有查詢用到的某個目錄檢視欄位。伺服器說的那句話\n在「詳細記錄」打開時寫在診斷紀錄檔裡。",
-  "ReasonExpressions": "已查到欄位或條件約束，但無法取得完整運算式；可能缺少 VIEW DEFINITION 權限，\n或物件在讀取期間已被修改。保留欄位摘要，不產生不完整的 CREATE／ALTER。",
+  // 「重新整理建議」是選單命令的名稱。
+  "ReasonExpressions": "目前的登入沒有它的 VIEW DEFINITION 權限：名稱看得到，運算式卻被伺服器遮成 NULL。\n請 DBA 授予這個物件或其結構描述的 VIEW DEFINITION，再執行「重新整理建議」；\n在那之前不產生缺了運算式的 CREATE／ALTER。",
   "ReasonStructurePending": "索引與條件約束仍在載入中，請等載入完成後再複製指令碼；\n目前只顯示已取得的欄位，不將部分資料重建成可執行 SQL。",
+  // 缺了哪幾項，緊接在原因底下；每一項寫成它在 CREATE TABLE 裡的樣子。
+  "UnavailableItems": "取不到的項目（{count} 個）：",
   // {kind} 是物件種類的顯示名稱。
   "AvailableColumns": "{kind} 的欄位（{count} 個）：",
   "AvailableParameters": "參數（{count} 個）：",

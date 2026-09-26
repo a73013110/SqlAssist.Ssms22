@@ -934,7 +934,8 @@ public sealed class TSqlScriptRenderer : ISqlScriptRenderer
         SqlColumnInfo column,
         SqlScriptOptions options)
     {
-        builder.Append("AS ").Append(column.ComputedDefinition ?? $"(/* {ScriptText.ExpressionUnavailable} */)");
+        // 運算式取不到的話走不到這裡：TryBuildUnavailableScript 已經整段換成註解。
+        builder.Append("AS ").Append(column.ComputedDefinition);
 
         if (!options.IncludePersisted || !column.Script.IsPersisted)
         {

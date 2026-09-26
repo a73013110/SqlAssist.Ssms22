@@ -11,8 +11,6 @@
   "ExtendedPropertySkipped": "未輸出擴充屬性 {property}：目標 {target} 未包含於本次指令碼，或其名稱已省略。",
   // 資料表型別的指令碼結尾；換行處各自成為一行註解。
   "TypeIndexesSkipped": "另有 {count} 個索引沒有寫進來：CREATE INDEX 與 ALTER TABLE 對型別都不合法，\n而 CREATE TYPE 的括號裡只放得下不具名的條件約束。",
-  // 寫在 AS (/* … */) 裡，代替取不到的計算資料行運算式。
-  "ExpressionUnavailable": "無法取得運算式",
   // 認不出種類的物件：{kind} 是物件種類的顯示名稱。
   "UnscriptableHeading": "無法為 {name}（{kind}）產生可以執行的指令碼。",
   "UnscriptableReason": "SqlAssist 認不得這個物件的種類，因此不知道它的定義該長什麼樣。",

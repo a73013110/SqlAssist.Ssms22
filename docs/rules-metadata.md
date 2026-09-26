@@ -14,7 +14,7 @@
 - **禁止**在資料不齊時輸出半份可以執行的東西。種類問
   `SqlObjectKinds.HasExecutableScript`、這一次查到的資料問
   `SqlObjectStructure.CanBuildExecutableScript`，任何一道不過就整段換成註解，
-  寫明缺什麼、兩個可能的原因與查得到的部分（格式只有 `BuildUnavailableScript` 一份）。
+  寫明缺什麼、原因與查得到的部分（格式只有 `BuildUnavailableScript` 一份）。
   查詢成功卻一列都沒有回來是常態不是例外：物件清單是快取的，中繼資料的可見度
   照權限過濾。少了欄位的 `CREATE TABLE` 只剩一對空括號，卻仍然貼得上去，
   理由見[相容與失敗](metadata-compatibility.md)。

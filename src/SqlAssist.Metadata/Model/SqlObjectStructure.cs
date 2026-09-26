@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Metadata.Formatting;
@@ -280,8 +281,12 @@ public sealed class SqlObjectStructure
                 script = BuildUnavailableScript(StructureText.MissingIndexes, StructureText.ReasonIndexQueryFailed);
                 return true;
 
+            // 原因只有一個，所以說死、不給選項：名稱與運算式在同一列回來，物件在讀取之間
+            // 被改掉只會讓那一列消失或換成新的運算式，不會剩下一個 NULL。伺服器只在這個
+            // 登入沒有 VIEW DEFINITION 時把運算式遮掉，名稱照樣給。
+            // 每一項都列出來：上百個欄位的摘要裡看不出是哪一欄少了 DEFAULT。
             case ScriptAvailability.MissingExpressions:
-                script = BuildUnavailableScript(StructureText.MissingExpressions, StructureText.ReasonExpressions);
+                script = BuildUnavailableScript(StructureText.MissingExpressions, StructureText.ReasonExpressions, MaskedExpressions());
                 return true;
 
             case ScriptAvailability.StructurePending:
@@ -342,23 +347,45 @@ public sealed class SqlObjectStructure
             return ScriptAvailability.IncompleteStructure;
         }
 
+        return MaskedExpressions().Count > 0
+            ? ScriptAvailability.MissingExpressions
+            : ScriptAvailability.Ready;
+    }
+
+    /// <summary>
+    /// 名稱查得到、運算式卻是 NULL 的那幾項，一項一行，寫成它在 <c>CREATE TABLE</c> 裡的樣子。
+    /// </summary>
+    /// <remarks>
+    /// 判斷與列給使用者看的是同一份：分成兩份的症狀是說「取不到」卻列不出是哪一項。
+    /// 寫法只用 T-SQL 關鍵字，不必翻譯，也讓人直接對得上自己的建表指令碼。
+    /// </remarks>
+    private IReadOnlyList<string> MaskedExpressions()
+    {
+        const string Masked = "(…)";
+        var lines = new List<string>();
+
         foreach (var column in Columns)
         {
-            if ((column.IsComputed && string.IsNullOrWhiteSpace(column.ComputedDefinition)) ||
-                (!string.IsNullOrEmpty(column.Script.DefaultConstraintName) && string.IsNullOrWhiteSpace(column.DefaultDefinition)))
+            if (column.IsComputed && string.IsNullOrWhiteSpace(column.ComputedDefinition))
             {
-                return ScriptAvailability.MissingExpressions;
+                lines.Add($"{SqlIdentifier.Quote(column.Name)} AS {Masked}");
+            }
+
+            if (!string.IsNullOrEmpty(column.Script.DefaultConstraintName) && string.IsNullOrWhiteSpace(column.DefaultDefinition))
+            {
+                lines.Add($"{SqlIdentifier.Quote(column.Name)} DEFAULT {Masked}");
             }
         }
+
         foreach (var check in CheckConstraints)
         {
             if (string.IsNullOrWhiteSpace(check.Definition))
             {
-                return ScriptAvailability.MissingExpressions;
+                lines.Add($"CONSTRAINT {SqlIdentifier.Quote(check.Name)} CHECK {Masked}");
             }
         }
 
-        return ScriptAvailability.Ready;
+        return lines;
     }
 
     /// <summary>指令碼寫不寫得出來，以及寫不出來時缺的是什麼。</summary>
@@ -390,35 +417,42 @@ public sealed class SqlObjectStructure
     /// 缺定義與缺欄位共用這一份格式，新的一種缺法也照這裡加：兩份格式的症狀是
     /// 其中一份改了另一份沒改，而使用者看到的是兩種說法。
     /// </remarks>
-    private string BuildUnavailableScript(string missing, string reason)
+    private string BuildUnavailableScript(string missing, string reason, IReadOnlyList<string>? unavailableItems = null)
     {
         // 原因是一整段，換行處各自成為一行註解：各語言在自己的句子裡斷行。
         var builder = new StringBuilder();
         SqlScriptComment.AppendLine(builder, StructureText.UnavailableHeading(Object.QualifiedName, missing), Environment.NewLine);
         SqlScriptComment.AppendLine(builder, reason, Environment.NewLine);
 
+        // 缺的那幾項排在查得到的部分前面：原因底下緊接著就是要處理的對象。
+        if (unavailableItems is { Count: > 0 })
+        {
+            AppendSection(builder, StructureText.UnavailableItems(unavailableItems.Count), unavailableItems);
+        }
+
         if (Columns.Count > 0)
         {
-            builder.AppendLine();
-            SqlScriptComment.AppendLine(builder, StructureText.AvailableColumns(Object.Kind.ToDisplayName(), Columns.Count), Environment.NewLine);
-
-            foreach (var column in Columns)
-            {
-                SqlScriptComment.AppendLine(builder, "    " + column.ToScriptLine(), Environment.NewLine);
-            }
+            AppendSection(builder, StructureText.AvailableColumns(Object.Kind.ToDisplayName(), Columns.Count),
+                Columns.Select(column => column.ToScriptLine()));
         }
 
         if (Parameters.Count > 0)
         {
-            builder.AppendLine();
-            SqlScriptComment.AppendLine(builder, StructureText.AvailableParameters(Parameters.Count), Environment.NewLine);
-
-            foreach (var parameter in Parameters)
-            {
-                SqlScriptComment.AppendLine(builder, "    " + parameter.ToScriptLine(), Environment.NewLine);
-            }
+            AppendSection(builder, StructureText.AvailableParameters(Parameters.Count),
+                Parameters.Select(parameter => parameter.ToScriptLine()));
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendSection(StringBuilder builder, string heading, IEnumerable<string> lines)
+    {
+        builder.AppendLine();
+        SqlScriptComment.AppendLine(builder, heading, Environment.NewLine);
+
+        foreach (var line in lines)
+        {
+            SqlScriptComment.AppendLine(builder, "    " + line, Environment.NewLine);
+        }
     }
 }
