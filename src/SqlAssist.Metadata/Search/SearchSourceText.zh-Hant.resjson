@@ -13,17 +13,8 @@
   "UnknownServerName": "(不明伺服器)",
   // 搜尋範圍的資料庫清單裡，系統資料庫名稱後面的標記。
   "SystemDatabase": "{name}（系統）",
-  // ── 清單頁尾：這一輪有來源讀不到 ──
-  "AgentJobUnavailable": "SQL Agent 作業這一輪讀不到（多半是這個登入對 msdb 沒有權限），這個來源沒有結果。",
-  "AgentJobDenied": "SQL Agent 作業這一輪讀不到（這個登入對 msdb 沒有權限），這個來源沒有結果。",
-  // 下面兩句的 {subject} 是 DatabasesSubject、DatabaseSubject 或 UnnamedDatabaseSubject 其中之一，
-  // 可能是一個或多個資料庫；英文避免用只配單數或只配複數的代名詞。
-  "DatabasesSubject": "「{first}」等 {count} 個資料庫",
-  "DatabaseSubject": "「{name}」",
-  "UnnamedDatabaseSubject": "有一個資料庫",
-  "DatabaseDenied": "{subject}這一輪讀不到（這個登入對它沒有權限），這一輪少了它的結果。",
-  "DatabaseUnavailable": "{subject}這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。",
-  "DatabaseListUnavailable": "問不到這台伺服器的資料庫清單（連不上、逾時，或這個登入沒有權限），這一輪沒有搜任何資料庫。",
+  // ── 完整度：這一輪沒搜到的來源 ──
+  "DatabaseListUnavailable": "問不到這台伺服器的資料庫清單，這一輪沒有搜任何資料庫",
   // ── SQL Agent 作業步驟開成指令碼時的開頭註解 ──
   "AgentJobScriptJob": "SQL Agent 作業：{job}",
   "AgentJobScriptServer": "伺服器：{server}",

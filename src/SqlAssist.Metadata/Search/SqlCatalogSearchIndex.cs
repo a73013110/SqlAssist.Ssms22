@@ -41,10 +41,11 @@ public sealed class SqlCatalogSearchIndex
     /// <summary>定義本文最多留這麼多位元組。</summary>
     /// <remarks>
     /// 真實資料庫裡單一個模組的定義動輒數 MB，整個資料庫加起來沒有上界。沒有這一條的
-    /// 症狀不是慢，是搜尋一次就把幾百 MB 釘在 SSMS 的行程裡不放——而使用者按的只是
-    /// 一次搜尋。超過之後只留名稱，並把 <see cref="SqlCatalogSearchDefinitions.IsComplete"/>
-    /// 標成 false，讓呼叫端說得出「本文只掃到一部分」。安靜地少一半結果是最糟的：
-    /// 使用者會以為那個字串在這個資料庫裡不存在。
+    /// 症狀不是慢，是搜尋一次就把幾百 MB 釘在 SSMS 的行程裡不放。
+    ///
+    /// 超過之後整份不留，這個資料庫改由伺服器端比對本文（<see cref="TextOnServer"/>）。
+    /// 原本的作法是只留前面那一部分並說「本文只掃到一部分」——那一句叫使用者縮小範圍，而他
+    /// 縮不了一個資料庫；更糟的是他照樣拿清單當答案。記憶體是快取，比對的完整度不能跟著它打折。
     /// </remarks>
     public const long DefaultMaxDefinitionBytes = 64L * 1024 * 1024;
 
@@ -82,7 +83,8 @@ public sealed class SqlCatalogSearchIndex
     /// <param name="modifiedThrough">
     /// 這一份索引涵蓋到哪一刻的變更（<c>MAX(modify_date)</c>）；一個物件都沒有時為 null。
     /// </param>
-    /// <param name="definitions">定義本文；這一份索引還沒撈第二段時為 null。</param>
+    /// <param name="definitions">定義本文；這一份索引還沒撈第二段、或本文改在伺服器端比對時為 null。</param>
+    /// <param name="textOnServer">本文不留在記憶體裡，每一輪到伺服器端比對；見 <see cref="TextOnServer"/>。</param>
     [Localizable(false)]
     public SqlCatalogSearchIndex(
         string databaseName,
@@ -90,8 +92,15 @@ public sealed class SqlCatalogSearchIndex
         IReadOnlyList<SqlCatalogSearchColumn> columns,
         IReadOnlyList<string> schemas,
         DateTime? modifiedThrough,
-        SqlCatalogSearchDefinitions? definitions)
+        SqlCatalogSearchDefinitions? definitions,
+        bool textOnServer = false)
     {
+        if (textOnServer && definitions is not null)
+        {
+            throw new ArgumentException("本文在伺服器端比對時不留定義本文。", nameof(definitions));
+        }
+
+        TextOnServer = textOnServer;
         if (string.IsNullOrEmpty(databaseName))
         {
             throw new ArgumentException("資料庫名稱不可為空。", nameof(databaseName));
@@ -153,6 +162,23 @@ public sealed class SqlCatalogSearchIndex
     /// </remarks>
     public SqlCatalogSearchDefinitions? Definitions { get; }
 
+    /// <summary>
+    /// 定義本文不留在記憶體裡，每一輪到伺服器端比對（<see cref="SqlCatalogServerTextSearch"/>）。
+    /// </summary>
+    /// <remarks>
+    /// 兩種情形會走到這裡：這個資料庫的本文超過 <see cref="DefaultMaxDefinitionBytes"/>，或快取的
+    /// 位元組預算放不下而把它的本文讓出去（<see cref="SqlCatalogSearchIndexCache"/>）。兩者的答案
+    /// 都一樣完整，差別只在每一輪多一次伺服器端的掃描。
+    ///
+    /// 一旦進了這一種就留在這一種，直到換連線：記憶體放不下的資料庫，下一輪再撈一次整份本文
+    /// 只會把另一個資料庫擠出去，而每打一個字都在重撈全表。
+    /// </remarks>
+    public bool TextOnServer { get; }
+
+    /// <summary>同一份識別資料，本文改由伺服器端比對；快取讓出記憶體時用。</summary>
+    internal SqlCatalogSearchIndex WithTextOnServer() =>
+        TextOnServer ? this : new SqlCatalogSearchIndex(DatabaseName, Objects, Columns, Schemas, ModifiedThrough, null, true);
+
     /// <summary>這一份索引涵蓋到哪一刻的變更；空索引為 null。</summary>
     public DateTime? ModifiedThrough { get; }
 
@@ -174,6 +200,9 @@ public sealed class SqlCatalogSearchIndex
 
     /// <summary>這個編號在這一份索引裡。</summary>
     internal bool Contains(int objectId) => _byObjectId.ContainsKey(objectId);
+
+    /// <summary>這個編號的物件；不在這一份索引裡時為 null。</summary>
+    internal SqlObjectInfo? Find(int objectId) => _byObjectId.TryGetValue(objectId, out var info) ? info : null;
 
     /// <summary>
     /// 對一個資料庫建一份索引；資料庫說不行時回傳 null。
@@ -203,15 +232,19 @@ public sealed class SqlCatalogSearchIndex
     /// <see cref="SearchUnavailableKind.Unknown"/>）。沒有它的話，「這個登入對它沒有權限」
     /// 與「這台伺服器斷了」在呼叫端手上長得一模一樣，而畫面上要說的話不同。
     /// </param>
+    /// <param name="progress">
+    /// 走到哪裡（0 到 1）；給畫面估進度用，建索引的執行緒每讀一批列寫一次。
+    /// </param>
     public static SqlCatalogSearchIndex? TryBuild(
         ISqlConnectionSource connectionSource,
         bool includeDefinitions,
         CancellationToken cancellationToken,
         out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
-        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds) =>
+        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds,
+        Action<double>? progress = null) =>
         Load(connectionSource, previous: null, includeDefinitions, cancellationToken, out unavailableKind,
-            maxDefinitionBytes, commandTimeoutSeconds);
+            maxDefinitionBytes, commandTimeoutSeconds, progress);
 
     /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
     public static SqlCatalogSearchIndex? TryBuild(
@@ -235,7 +268,8 @@ public sealed class SqlCatalogSearchIndex
         CancellationToken cancellationToken,
         out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
-        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds)
+        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds,
+        Action<double>? progress = null)
     {
         unavailableKind = SearchUnavailableKind.Unknown;
 
@@ -244,7 +278,7 @@ public sealed class SqlCatalogSearchIndex
             throw new ArgumentNullException(nameof(connectionSource));
         }
 
-        if (Definitions is not null)
+        if (Definitions is not null || TextOnServer)
         {
             return this;
         }
@@ -258,10 +292,11 @@ public sealed class SqlCatalogSearchIndex
             operation = LoadingDefinitions;
             var definitions = ReadDefinitions(
                 connection, _byObjectId, previous: null, reusable: null, modifiedAfter: null,
-                maxDefinitionBytes, commandTimeoutSeconds, cancellationToken);
+                maxDefinitionBytes, commandTimeoutSeconds, cancellationToken,
+                Phase(progress, 0, 1), ExpectedDefinitions(Objects));
 
             return new SqlCatalogSearchIndex(
-                DatabaseName, Objects, Columns, Schemas, ModifiedThrough, definitions);
+                DatabaseName, Objects, Columns, Schemas, ModifiedThrough, definitions, textOnServer: definitions is null);
         }
         catch (DbException exception)
         {
@@ -297,7 +332,8 @@ public sealed class SqlCatalogSearchIndex
         CancellationToken cancellationToken,
         out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes = DefaultMaxDefinitionBytes,
-        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds)
+        int commandTimeoutSeconds = DefaultCommandTimeoutSeconds,
+        Action<double>? progress = null)
     {
         unavailableKind = SearchUnavailableKind.Unknown;
 
@@ -307,7 +343,7 @@ public sealed class SqlCatalogSearchIndex
         }
 
         return Load(connectionSource, previous, includeDefinitions, cancellationToken, out unavailableKind,
-            maxDefinitionBytes, commandTimeoutSeconds);
+            maxDefinitionBytes, commandTimeoutSeconds, progress);
     }
 
     /// <summary>不問原因的那一版；只有「有沒有拿到」重要時用。</summary>
@@ -325,7 +361,8 @@ public sealed class SqlCatalogSearchIndex
         CancellationToken cancellationToken,
         out SearchUnavailableKind unavailableKind,
         long maxDefinitionBytes,
-        int commandTimeoutSeconds)
+        int commandTimeoutSeconds,
+        Action<double>? progress)
     {
         unavailableKind = SearchUnavailableKind.Unknown;
 
@@ -360,9 +397,15 @@ public sealed class SqlCatalogSearchIndex
             // 名稱走），所以走既有的「這一輪讀不到」，不是讓建構子擲出接不住的例外。
             if (databaseName.Length == 0) return null;
 
+            // 進度的三段：物件、資料行、本文。本文是最貴的一段，佔大部分；不搜本文時資料行佔大部分。
+            var textOnServer = includeDefinitions && previous?.TextOnServer == true;
+            var readsText = includeDefinitions && !textOnServer;
+            var columnsEnd = readsText ? 0.25 : 1;
+
             operation = LoadingObjects;
             var rows = ReadObjects(
                 connection, databaseName, commandTimeoutSeconds, cancellationToken, out var modifiedThrough);
+            progress?.Invoke(columnsEnd * 0.3);
 
             var objects = new List<SqlObjectInfo>(rows.Count);
             var byObjectId = new Dictionary<int, SqlObjectInfo>(rows.Count);
@@ -385,9 +428,10 @@ public sealed class SqlCatalogSearchIndex
                 columns = MergeColumns(previous!.Columns, columns, reusable);
             }
 
+            progress?.Invoke(columnsEnd);
             SqlCatalogSearchDefinitions? definitions = null;
 
-            if (includeDefinitions)
+            if (readsText)
             {
                 operation = LoadingDefinitions;
 
@@ -398,14 +442,19 @@ public sealed class SqlCatalogSearchIndex
                 definitions = ReadDefinitions(
                     connection, byObjectId, previous, reusableDefinitions,
                     reusableDefinitions is null ? null : modifiedAfter,
-                    maxDefinitionBytes, commandTimeoutSeconds, cancellationToken);
+                    maxDefinitionBytes, commandTimeoutSeconds, cancellationToken,
+                    Phase(progress, columnsEnd, 1), ExpectedDefinitions(objects));
+
+                // 超過上限：整份不留，改由伺服器端比對。
+                textOnServer = definitions is null;
             }
 
             operation = LoadingSchemas;
             var schemas = ReadSchemas(connection, commandTimeoutSeconds, cancellationToken);
+            progress?.Invoke(1);
 
             return new SqlCatalogSearchIndex(
-                databaseName, objects, columns, schemas, modifiedThrough, definitions);
+                databaseName, objects, columns, schemas, modifiedThrough, definitions, textOnServer);
         }
         catch (DbException exception)
         {
@@ -551,7 +600,9 @@ public sealed class SqlCatalogSearchIndex
     /// <param name="reusable">
     /// 可以沿用上一份的那幾個編號；null 表示整份重撈。
     /// </param>
-    private static SqlCatalogSearchDefinitions ReadDefinitions(
+    /// <param name="expected">大約會讀到幾列；只用來估進度，讀得比它多時進度停在 1。</param>
+    /// <returns>超過位元組上限時為 null：這個資料庫改由伺服器端比對本文。</returns>
+    private static SqlCatalogSearchDefinitions? ReadDefinitions(
         IDbConnection connection,
         Dictionary<int, SqlObjectInfo> byObjectId,
         SqlCatalogSearchIndex? previous,
@@ -559,17 +610,14 @@ public sealed class SqlCatalogSearchIndex
         DateTime? modifiedAfter,
         long maxDefinitionBytes,
         int commandTimeoutSeconds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<double>? progress,
+        int expected)
     {
         var builder = new SqlCatalogSearchDefinitions.Builder(maxDefinitionBytes);
-        var inheritIncomplete = false;
 
-        // 先沿用再收新的：位元組上限用盡時被丟掉的是這一輪剛撈回來的那幾份，
-        // 而它們至少還說得出「不完整」。反過來的話，上一輪已經有的本文會無聲消失。
         if (reusable is not null && previous?.Definitions is { } kept)
         {
-            inheritIncomplete = !kept.IsComplete;
-
             foreach (var objectId in reusable)
             {
                 builder.Reuse(kept, objectId);
@@ -579,27 +627,61 @@ public sealed class SqlCatalogSearchIndex
         using var command = CreateCommand(
             connection, SqlCatalogSearchQueries.Definitions, commandTimeoutSeconds, modifiedAfter);
         using var reader = command.ExecuteReader();
+        var read = builder.Count;
 
         while (reader.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (reader.IsDBNull(1))
-            {
-                continue;
-            }
 
             var objectId = reader.GetInt32(0);
 
             // 種類認不得而沒有進索引的物件，它的定義本文也不必留：沒有地方可以掛那一筆命中。
             if (byObjectId.ContainsKey(objectId))
             {
-                builder.Add(objectId, reader.GetString(1));
+                if (reader.IsDBNull(1)) builder.AddUnreadable(objectId);
+                else builder.Add(objectId, reader.GetString(1));
+            }
+
+            if (builder.IsOverflowed)
+            {
+                // 剩下的列不必讀：這個資料庫改由伺服器端比對。先取消再關閉讀取器，
+                // 否則關閉時會把剩下的幾百 MB 照樣從網路上讀完。
+                command.Cancel();
+                return null;
+            }
+
+            if ((++read & 0xFF) == 0 && expected > 0) progress?.Invoke(Math.Min(1, (double)read / expected));
+        }
+
+        progress?.Invoke(1);
+        return builder.Build();
+    }
+
+    /// <summary>大約會有幾列定義本文；只用來估進度。</summary>
+    /// <remarks>
+    /// 照種類數，不另外問伺服器：多問一條 <c>COUNT(*)</c> 的代價與它省下的誤差不成比例。
+    /// 條件約束裡只有 CHECK 與 DEFAULT 有本文，這裡一起算，所以估的是上界。
+    /// </remarks>
+    private static int ExpectedDefinitions(IReadOnlyList<SqlObjectInfo> objects)
+    {
+        var count = 0;
+
+        foreach (var info in objects)
+        {
+            if (info.Kind is SqlObjectKind.View or SqlObjectKind.Procedure or SqlObjectKind.ScalarFunction
+                or SqlObjectKind.InlineTableFunction or SqlObjectKind.TableValuedFunction
+                or SqlObjectKind.Trigger or SqlObjectKind.Constraint)
+            {
+                count++;
             }
         }
 
-        return builder.Build(inheritIncomplete);
+        return count;
     }
+
+    /// <summary>把一段 0 到 1 的進度映到整份的 <paramref name="start"/> 到 <paramref name="end"/>。</summary>
+    private static Action<double>? Phase(Action<double>? progress, double start, double end) =>
+        progress is null ? null : fraction => progress(start + (end - start) * fraction);
 
     private static List<string> ReadSchemas(
         IDbConnection connection, int commandTimeoutSeconds, CancellationToken cancellationToken)

@@ -17,37 +17,20 @@ namespace SqlAssist.Metadata.Search;
 /// <b>跨的是伺服器不是資料庫</b>（快取鍵是 <see cref="ISqlConnectionSource.ServerCacheKey"/>），
 /// <b>資料在 <c>msdb</c></b>（查詢寫三段式名稱，不換目錄），
 /// <b>權限不足是常態</b>（多數登入對 <c>msdb</c> 沒有 <c>SELECT</c>）。
-/// 契約本身一個字都沒有改：分類自己宣告、酬載自己一型、預算與串流照同一套。
+/// 契約本身一個字都沒有改：分類自己宣告、酬載自己一型、目標與串流照同一套。
 ///
-/// <b>權限不足降級成「這個來源這一輪沒有資料」，不是錯誤也不是空白。</b>
+/// <b>權限不足降級成「這個目標讀不到」，不是錯誤也不是空白。</b>
 /// 錯誤（讓 <see cref="System.Data.Common.DbException"/> 冒出去）會被聚合器記成
 /// <see cref="SearchProviderFailure"/>，而工具窗的頁尾會被一句紅字佔住——
 /// 對一個「本來就多半讀不到」的來源，那等於每一次搜尋都在報錯。
 /// 空白（什麼都不說）更糟：與「這台伺服器上真的沒有叫這個名字的作業」一模一樣。
-/// 走的是中間那條：<see cref="ISearchSink.ReportUnavailable(string)"/> 帶上這個來源
-/// 自己寫的那一句話，整輪標記成部分結果，而呼叫端原樣把它貼在清單頁尾上。
+/// 走的是中間那條：這個來源是一個目標（<see cref="SearchTargetKind.Source"/>），讀不到時
+/// 在它身上說出結局與種類，由呈現那一層寫成完整度的一句話。
 /// </remarks>
 public sealed class SqlAgentJobSearchProvider : ISearchProvider
 {
     /// <summary>跨版本穩定的識別字；分類 Id 與使用者偏好都以它為前綴。</summary>
     public const string ProviderId = "agent-job";
-
-    /// <summary>
-    /// 讀不到 <c>msdb</c> 時交給呼叫端貼在清單頁尾上的那一句話。
-    /// </summary>
-    /// <remarks>
-    /// 由這個來源自己寫，不是呈現那一層照 provider Id 查一張表：查表的那一版每多一個
-    /// 「權限常常不足」的來源就要在同一處多一個 <c>if</c>，而寫得出這一句的只有
-    /// 知道自己去讀了 <c>msdb</c> 的這裡。
-    ///
-    /// 括號裡寫的是最可能的原因而不是斷言：連不上與逾時也走同一條降級路徑，
-    /// 而斷言權限的話，使用者會去查一個好好的權限設定。伺服器真的給了權限錯誤碼時
-    /// 才換成 <see cref="DeniedReason"/>——那一句斷言得起。
-    /// </remarks>
-    private static string UnavailableReason => SearchSourceText.AgentJobUnavailable;
-
-    /// <summary>伺服器明說是權限時的那一句；「多半」換成斷言。</summary>
-    private static string DeniedReason => SearchSourceText.AgentJobDenied;
 
     /// <summary>去重鍵的前綴；與其他 provider 的鍵不會互相碰撞。</summary>
     private const string DedupePrefix = "agent-job|";
@@ -127,64 +110,39 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
 
         if (!wantsName && !wantsText) return;
 
-        var counter = new SearchExamineCounter(sink);
-        var truncated = false;
+        // 目標在取資料之前宣告：畫面靠它數出「還有幾個來源沒回來」。
+        var target = sink.AddTarget(DisplayName, SearchTargetKind.Source);
 
-        try
+        var snapshot = _snapshotCache.GetOrLoad(
+            _connectionSource, wantsText, cancellationToken, out var unavailableKind);
+
+        if (snapshot is null)
         {
-            // 撈一次快照要兩條跨資料庫的查詢；預算已經滿了就別付這個代價。
-            if (sink.IsExhausted)
-            {
-                truncated = true;
-                return;
-            }
-
-            var snapshot = _snapshotCache.GetOrLoad(
-                _connectionSource, wantsText, cancellationToken, out var unavailableKind);
-
-            if (snapshot is null)
-            {
-                // 讀不到 msdb。這不是失敗（失敗會把頁尾整行佔住），也不是空白
-                // （空白與「這台伺服器上沒有這個作業」一模一樣），更不是「沒掃完」
-                // ——後者叫使用者縮小範圍，而那對沒有權限完全沒有用。
-                var denied = unavailableKind == SearchUnavailableKind.Denied;
-                sink.ReportUnavailable(denied ? DeniedReason : UnavailableReason, unavailableKind);
-                return;
-            }
-
-            // 命令本文只收到一半也是「沒掃完」。不說的話，使用者看到的與
-            // 「這個字串在這台伺服器的作業裡不存在」一模一樣。
-            if (wantsText && !snapshot.CommandsComplete) truncated = true;
-
-            if (wantsName && !ScanNames(snapshot, _origin, query, sink, counter, wantsJobs, wantsSteps, cancellationToken))
-            {
-                truncated = true;
-                return;
-            }
-
-            if (wantsText && !ScanCommands(snapshot, _origin, query, sink, counter, cancellationToken))
-            {
-                truncated = true;
-            }
+            // 讀不到 msdb。這不是失敗（失敗會把頁尾整行佔住），也不是空白
+            // （空白與「這台伺服器上沒有這個作業」一模一樣）。
+            target.Unavailable(unavailableKind);
+            return;
         }
-        finally
-        {
-            counter.Flush();
-            if (truncated) sink.ReportTruncated(counter.Checkpoint);
-        }
+
+        // 命令本文只收到一半：名稱照樣算數，但本文這一段沒比完。不說的話，使用者看到的與
+        // 「這個字串在這台伺服器的作業裡不存在」一模一樣。
+        if (wantsText && !snapshot.CommandsComplete) target.MarkTextIncomplete();
+
+        if (wantsName && !ScanNames(snapshot, _origin, query, sink, wantsJobs, wantsSteps, cancellationToken)) return;
+        if (wantsText && !ScanCommands(snapshot, _origin, query, sink, cancellationToken)) return;
+
+        target.Complete();
     }
 
     /// <remarks>
     /// 名稱命中先全部掃完再掃命令本文，與目錄那一邊同一個理由：名稱命中在使用者還在打字時
-    /// 就要上畫面，而命令本文要把每一個步驟整份掃過。混在一起的話，預算會被前幾個作業的
-    /// 命令吃掉，而後面那些名稱明明對得上的作業連比都沒比到。
+    /// 就要上畫面，而命令本文要把每一個步驟整份掃過。
     /// </remarks>
     private static bool ScanNames(
         SqlAgentJobSearchSnapshot snapshot,
         SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
-        SearchExamineCounter counter,
         bool wantsJobs,
         bool wantsSteps,
         CancellationToken cancellationToken)
@@ -198,7 +156,6 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
             if (wantsJobs)
             {
                 var key = JobKey(snapshot.ServerName, job);
-                counter.Note(key);
 
                 // 名稱怎麼比與目錄那一邊同一份：沒開修飾是模糊比對，開了就是字面比對。
                 var match = SearchIdentifierMatch.Match(query, job.Name);
@@ -232,7 +189,6 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var key = StepKeyOf(snapshot.ServerName, job, step);
-                counter.Note(key);
 
                 // 沒有取名的步驟不比對名稱：空字串對任何樣式都不會命中，而
                 // 比對器對空候選的行為不該由這裡假設。
@@ -272,7 +228,6 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
         SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
-        SearchExamineCounter counter,
         CancellationToken cancellationToken)
     {
         foreach (var job in snapshot.Jobs)
@@ -286,7 +241,6 @@ public sealed class SqlAgentJobSearchProvider : ISearchProvider
                 if (step.Command is not { Length: > 0 } command) continue;
 
                 var key = StepKeyOf(snapshot.ServerName, job, step);
-                counter.Note(key);
 
                 // 本文比的是使用者打進去的原文，不是正規化後的樣式：後者一律小寫，
                 // 拿它做區分大小寫的比對永遠比不中任何大寫的字。裁片段與找位置只有

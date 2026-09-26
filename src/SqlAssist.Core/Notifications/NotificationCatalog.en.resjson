@@ -97,6 +97,8 @@
   "RemovingFavoriteDone": "Removed favorite",
   "SearchingDatabaseObjects": "Searching database objects",
   "SearchingDatabaseObjectsDone": "Searched database objects",
+  "BuildingSearchIndex": "Building search index",
+  "BuildingSearchIndexDone": "Built search index",
   "CopyingQualifiedName": "Copying qualified name",
   "CopyingQualifiedNameDone": "Copied qualified name",
   "CopyingDefinition": "Copying definition",

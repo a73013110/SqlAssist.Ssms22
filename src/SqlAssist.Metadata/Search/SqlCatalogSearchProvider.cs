@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Core.Parsing;
@@ -15,54 +14,58 @@ namespace SqlAssist.Metadata.Search;
 /// </summary>
 /// <remarks>
 /// 掃的是 <see cref="SqlCatalogSearchIndex"/>，不是按鍵路徑上的那份分層快取；兩者為什麼
-/// 分開見那個型別。這一層只做三件事：決定要搜哪幾個資料庫、比對、把命中換成
-/// <see cref="SearchHit"/>。
+/// 分開見那個型別。這一層做四件事：決定要搜哪幾個資料庫、把每一個宣告成目標、比對、
+/// 把命中換成 <see cref="SearchHit"/>。
 ///
-/// 四條硬性規則寫在這裡，因為它們都是「少做一次就看不出來」的那種：
-/// <see cref="SearchQuery.Targets"/> 在<b>取資料之前</b>問（掃回來再丟的話，
-/// 第一次搜尋最貴的那一段一毫秒都沒省到）；分類過濾自己先套（靠聚合器那道最後防線，
-/// 會把使用者已經勾掉的候選算進預算）；<see cref="ISearchSink.TryReport"/> 回 false 立刻停止
-/// （繼續掃的結果全部會被丟掉，而那一輪的延遲仍然要使用者等）；
-/// <see cref="System.Data.Common.DbException"/> 一律降級（冒出去會在平台邊界留下
-/// 每按一次鍵一份的完整堆疊）。
+/// 硬性規則寫在這裡，因為它們都是「少做一次就看不出來」的那種：
+/// <see cref="SearchQuery.Targets"/> 在<b>取資料之前</b>問；分類過濾自己先套；
+/// <see cref="ISearchSink.TryReport"/> 回 false 立刻停止；
+/// <see cref="System.Data.Common.DbException"/> 一律降級成「這個目標讀不到」；
+/// <b>每一個目標都要說出結局</b>——沒說的在收尾時記成已取消，畫面不會說「已完整搜尋」。
 ///
-/// 多個資料庫<b>平行</b>掃，而且各自獨立：一個連不上、逾時或權限不足只會讓那一個沒有結果
-/// 並走 <see cref="ISearchSink.ReportUnavailable(string)"/> 說出是哪一個，其他幾個照常回來
-/// （<b>不是</b>「沒掃完」——那一句叫使用者縮小範圍，而那對一個連不上的資料庫一次都幫不上
-/// 忙）。排成一列掃的症狀是使用者勾了五個資料庫之後，
-/// 第五個要等前四個都掃完全表才開始，而它們用的是各自的連線。
+/// 多個資料庫<b>平行</b>掃，而且各自獨立：一個連不上、逾時或權限不足只會讓那一個目標讀不到，
+/// 其他幾個照常回來。建索引的同時數量由索引快取限制，比對本身在記憶體裡。
 /// </remarks>
 public sealed class SqlCatalogSearchProvider : ISearchProvider
 {
     /// <summary>跨版本穩定的識別字；分類 Id 與使用者偏好都以它為前綴。</summary>
     public const string ProviderId = "catalog";
 
+    /// <summary>等索引建置時隔多久讀一次進度。</summary>
+    private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(100);
+
     private readonly ISqlConnectionSource _connectionSource;
     private readonly SqlSearchOrigin _origin;
     private readonly SqlCatalogSearchIndexCache _indexCache;
     private readonly Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?> _listDatabases;
+    private readonly Func<ISqlConnectionSource, SearchQuery, CancellationToken, SqlCatalogServerTextMatches?> _findOnServer;
 
     /// <param name="origin">
     /// <paramref name="connectionSource"/> 連著哪一台；每一筆命中都帶著它。由呼叫端給而不是
     /// 從連線推：連線來源只說得出快取鍵，而伺服器名稱的寫法只有接線層那一份。
     /// </param>
     /// <param name="indexCache">
-    /// 索引快取；不給時自己建一份。同一個查詢視窗的多個 provider 實例要共用同一份時
+    /// 索引快取；不給時自己建一份。同一個工具窗的多個 provider 實例要共用同一份時
     /// 由呼叫端傳進來——各自持有一份的症狀是同一個資料庫被掃好幾次全表。
     /// </param>
     /// <param name="listDatabases">
     /// 沒有指名資料庫（「全部」）時向伺服器要清單的那一條；測試換掉它就不必真的連資料庫。
     /// </param>
+    /// <param name="findOnServer">
+    /// 本文改在伺服器端比對的資料庫用的那一條；測試換掉它就不必真的連資料庫。
+    /// </param>
     public SqlCatalogSearchProvider(
         ISqlConnectionSource connectionSource,
         SqlSearchOrigin origin,
         SqlCatalogSearchIndexCache? indexCache = null,
-        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?>? listDatabases = null)
+        Func<ISqlConnectionSource, CancellationToken, IReadOnlyList<SqlCatalogSearchDatabase>?>? listDatabases = null,
+        Func<ISqlConnectionSource, SearchQuery, CancellationToken, SqlCatalogServerTextMatches?>? findOnServer = null)
     {
         _connectionSource = connectionSource ?? throw new ArgumentNullException(nameof(connectionSource));
         _origin = origin ?? throw new ArgumentNullException(nameof(origin));
         _indexCache = indexCache ?? new SqlCatalogSearchIndexCache();
         _listDatabases = listDatabases ?? ((source, token) => SqlCatalogSearchDatabases.TryList(source, token));
+        _findOnServer = findOnServer ?? ((source, query, token) => SqlCatalogServerTextSearch.TryFind(source, query, token));
         Categories = SqlCatalogSearchCategories.Create(ProviderId);
     }
 
@@ -75,209 +78,181 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// <summary>這個 provider 用的索引快取；重新整理時整批丟掉用得到。</summary>
     public SqlCatalogSearchIndexCache IndexCache => _indexCache;
 
-    /// <remarks>
-    /// 每一個資料庫各走一次 <see cref="Task.Run(Action, CancellationToken)"/>：索引建立與掃描
-    /// 都是同步的阻塞工作，而聚合器是直接 await 每一個 provider 的——在呼叫端的執行緒上跑完
-    /// 的話，幾個來源會變成一個接一個，而搜尋面板要的正是名稱命中先上畫面。
-    /// 這與 <c>SqlMetadataCatalog</c> 把載入丟進 <c>Task.Run</c> 是同一個作法。
-    ///
-    /// sink 依契約可以被多執行緒呼叫，所以幾個資料庫可以同時往裡面推；最後的排序由聚合器
-    /// 負責，回來的先後不影響清單的順序。
-    /// </remarks>
     public async Task SearchAsync(SearchQuery query, ISearchSink sink, CancellationToken cancellationToken)
     {
         if (query is null) throw new ArgumentNullException(nameof(query));
         if (sink is null) throw new ArgumentNullException(nameof(sink));
 
-        var sources = await ResolveSourcesAsync(query.Scope, sink, cancellationToken).ConfigureAwait(false);
+        // 分類過濾把這個來源整個排除（例如只勾了作業）：不宣告目標、不建索引。
+        // 靠聚合器那道最後防線的話，這一輪仍然要把每一個資料庫索引一遍，只為了讓結果被丟掉。
+        if (!WantsAnyCategory(query)) return;
 
-        if (sources.Count == 0)
+        var databases = await ResolveTargetsAsync(query.Scope, sink, cancellationToken).ConfigureAwait(false);
+        var runs = new List<Task>(databases.Count);
+
+        foreach (var (source, target) in databases)
+        {
+            runs.Add(SearchDatabaseAsync(source, target, query, sink, cancellationToken));
+        }
+
+        await Task.WhenAll(runs).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 這一輪要搜哪幾個資料庫；每一個都先宣告成目標，讀不到的當場說出結局。
+    /// </summary>
+    /// <remarks>
+    /// 沒有指名就是<b>全部</b>：這台伺服器上看得到的每一個（<see cref="SqlCatalogSearchDatabases.TryList"/>）。
+    /// 進不去的（離線、還原中、沒有權限）也宣告成目標並說讀不到：直接略過的話，畫面會說
+    /// 「已完整搜尋 38 個資料庫」，而使用者以為那是全部。清單問不到時照實說一句，<b>不</b>退回
+    /// 只搜連線那一個——那一份答案看起來完全正常，只是少了使用者以為有搜的其他資料庫。
+    ///
+    /// 換資料庫換的是目錄，走 <see cref="SqlDatabaseScopedConnectionSource"/>：查詢一律寫成
+    /// 不加限定的 <c>sys.</c>，決定查哪一個資料庫的是連線。換不過去時開連線會丟
+    /// <see cref="System.Data.Common.DbException"/>，由索引那一層降級成「這個目標讀不到」——
+    /// <b>絕不</b>退回拿目前連線裡同名的物件回答。
+    ///
+    /// 同一個名稱指名兩次只掃一次；指名了伺服器就整輪不回結果（沒有連結伺服器的索引）。
+    /// </remarks>
+    private async Task<IReadOnlyList<(ISqlConnectionSource Source, SearchTarget Target)>> ResolveTargetsAsync(
+        SearchScope scope, ISearchSink sink, CancellationToken cancellationToken)
+    {
+        var resolved = new List<(ISqlConnectionSource, SearchTarget)>();
+
+        if (scope.Servers.Count > 0) return resolved;
+
+        IReadOnlyList<SqlCatalogSearchDatabase> databases;
+
+        if (scope.Databases.Count == 0)
+        {
+            // 清單查詢是同步的阻塞工作；丟到背景，別讓同一輪的其他來源等它。
+            var listed = await Task.Run(() => _listDatabases(_connectionSource, cancellationToken), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (listed is null)
+            {
+                sink.AddTarget(DisplayName, SearchTargetKind.Source)
+                    .Unavailable(detail: SearchSourceText.DatabaseListUnavailable);
+                return resolved;
+            }
+
+            databases = listed;
+        }
+        else
+        {
+            var named = new List<SqlCatalogSearchDatabase>(scope.Databases.Count);
+            foreach (var name in scope.Databases) if (name.Length != 0) named.Add(new SqlCatalogSearchDatabase(name, isSystem: false));
+            databases = named;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var database in databases)
+        {
+            if (!seen.Add(database.Name)) continue;
+
+            var target = sink.AddTarget(database.Name, SearchTargetKind.Database);
+
+            if (!database.IsAccessible)
+            {
+                // 狀態是伺服器說的原樣（OFFLINE、RESTORING），不翻譯；在線上卻進不去就是權限。
+                target.Unavailable(
+                    database.IsDenied ? SearchUnavailableKind.Denied : SearchUnavailableKind.Unknown,
+                    database.IsDenied ? null : database.State);
+                continue;
+            }
+
+            resolved.Add((
+                string.Equals(database.Name, _connectionSource.DatabaseName, StringComparison.OrdinalIgnoreCase)
+                    ? _connectionSource
+                    : new SqlDatabaseScopedConnectionSource(_connectionSource, database.Name),
+                target));
+        }
+
+        return resolved;
+    }
+
+    /// <summary>掃一個資料庫；結局一律寫在 <paramref name="target"/> 上。</summary>
+    /// <remarks>
+    /// 等索引時只是<b>等</b>：建置是索引快取自己的工作，這一輪被取消（使用者又打了一個字）
+    /// 不會把建到一半的索引丟掉，下一輪接著等同一份。
+    /// </remarks>
+    private async Task SearchDatabaseAsync(
+        ISqlConnectionSource source,
+        SearchTarget target,
+        SearchQuery query,
+        ISearchSink sink,
+        CancellationToken cancellationToken)
+    {
+        // 空輸入是「列一份預設清單」，不是「把整個資料庫倒出來」，所以連本文那一段的
+        // 索引都不必建——本文比對對空樣式沒有意義（每一個位置都命中）。
+        var needsText = !query.IsEmpty && query.IncludesTarget(SearchMatchTarget.Text);
+        var build = _indexCache.Build(source, needsText);
+
+        while (!build.Task.IsCompleted)
+        {
+            target.ReportProgress(build.Progress);
+            await Task.WhenAny(build.Task, Task.Delay(ProgressInterval, cancellationToken)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        var result = await build.Task.ConfigureAwait(false);
+
+        if (result.Index is not { } index)
+        {
+            // 這一輪沒有這個資料庫的資料。其他資料庫照掃——一個連不上的目標
+            // 讓整份結果消失，比少一個來源糟得多。
+            target.Unavailable(result.UnavailableKind);
+            return;
+        }
+
+        target.ReportProgress(1);
+
+        // 本文不在記憶體裡的資料庫先到伺服器端比對；與建索引共用名額，幾十個這種資料庫不會
+        // 在同一刻各送一條全表掃描。失敗是 null，由 Scan 說本文沒比完。
+        var onServer = needsText && index.TextOnServer
+            ? await _indexCache.RunLimitedAsync(() => _findOnServer(source, query, cancellationToken), cancellationToken)
+                .ConfigureAwait(false)
+            : null;
+
+        // 比對是 CPU 工作；丟到背景，幾個資料庫才真的平行。
+        await Task.Run(() => Scan(index, onServer, target, query, sink, needsText, cancellationToken), cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <remarks>
+    /// 名稱命中先掃完再掃資料行與本文：名稱命中在使用者還在打字時就要上畫面，
+    /// 而本文要把整份定義掃過。
+    /// </remarks>
+    private void Scan(
+        SqlCatalogSearchIndex index,
+        SqlCatalogServerTextMatches? onServer,
+        SearchTarget target,
+        SearchQuery query,
+        ISearchSink sink,
+        bool needsText,
+        CancellationToken cancellationToken)
+    {
+        var badges = new[] { new SearchBadge(index.DatabaseName, SearchBadge.DatabaseIcon) };
+
+        if (query.IncludesTarget(SearchMatchTarget.Name) &&
+            !SearchObjectNames(index, _origin, query, sink, badges, cancellationToken))
         {
             return;
         }
 
-        var rounds = new DatabaseRound[sources.Count];
-        var runs = new Task[sources.Count];
-
-        for (var index = 0; index < sources.Count; index++)
+        if (!query.IsEmpty && query.IncludesTarget(SearchMatchTarget.Column) &&
+            !SearchColumnNames(index, _origin, query, sink, badges, cancellationToken))
         {
-            var source = sources[index];
-            var round = new DatabaseRound(source.DatabaseName);
-            rounds[index] = round;
-            runs[index] = Task.Run(
-                () => SearchDatabase(source, _origin, query, sink, round, _indexCache, cancellationToken), cancellationToken);
+            return;
         }
 
-        try
+        if (needsText && !SearchText(index, onServer, target, query, sink, badges, cancellationToken))
         {
-            await Task.WhenAll(runs).ConfigureAwait(false);
-        }
-        finally
-        {
-            Summarize(rounds, sink);
-        }
-    }
-
-    /// <summary>
-    /// 把幾個資料庫各自的結果收成這一輪的一句話。
-    /// </summary>
-    /// <remarks>
-    /// 續掃位置取<b>第一個沒掃完的資料庫</b>的，不是最後一個回來的：後者由賽跑決定，
-    /// 同一組輸入每次交出去的字串會不一樣，而呼叫端可能拿它決定要不要往下找。
-    /// 讀不到的資料庫名稱同理照 <paramref name="rounds"/> 的順序（＝使用者勾的順序）收，
-    /// 不照誰先回來。
-    ///
-    /// 「讀不到」與「沒掃完」分開回報，而且可以同時發生：五個資料庫裡一個連不上、
-    /// 另一個掃到預算用盡是一輪裡的兩件事，而它們要說的話不一樣。
-    /// </remarks>
-    private static void Summarize(DatabaseRound[] rounds, ISearchSink sink)
-    {
-        var truncated = false;
-        string? checkpoint = null;
-        var unavailable = new List<string>();
-        var allDenied = true;
-
-        foreach (var round in rounds)
-        {
-            if (round.Unavailable)
-            {
-                unavailable.Add(round.DatabaseName);
-
-                // 五個資料庫裡一個沒權限、另一個連不上：整組退回「說不出是哪一種」。
-                // 只要有一個不是權限問題，「權限不足」就是錯的斷言，而使用者會去查一個
-                // 好好的權限設定。
-                allDenied &= round.UnavailableKind == SearchUnavailableKind.Denied;
-            }
-
-            if (!round.Truncated) continue;
-
-            truncated = true;
-            checkpoint ??= round.Checkpoint;
+            return;
         }
 
-        if (truncated) sink.ReportTruncated(checkpoint);
-
-        if (unavailable.Count > 0)
-        {
-            var kind = allDenied ? SearchUnavailableKind.Denied : SearchUnavailableKind.Unknown;
-            sink.ReportUnavailable(UnavailableReason(unavailable, kind), kind);
-        }
-    }
-
-    /// <summary>
-    /// 讀不到的資料庫交給呼叫端貼在清單頁尾上的那一句話。
-    /// </summary>
-    /// <remarks>
-    /// 名稱一定要寫出來。泛用的「部分結果；縮小範圍或加長關鍵字可以掃得更完整」對
-    /// 「LibArchive 連不上」完全沒有用——使用者會照那一句改三次關鍵字，而那個資料庫
-    /// 一次都沒有被搜到。
-    ///
-    /// 不逐一列名，只寫第一個加上還有幾個：頁尾的說明只有一兩行，而勾了十個資料庫、斷了八個的
-    /// 那一輪會把它撐爆，重點（有東西沒搜到、去看那幾個資料庫）第一句已經說完。
-    ///
-    /// 括號裡寫的是幾個可能還是一句斷言，由
-    /// <see cref="SqlCatalogSearchIndexCache.GetOrBuild"/> 交出來的
-    /// <see cref="SearchUnavailableKind"/> 決定。伺服器給了權限錯誤碼才斷言權限；
-    /// 說不出來時照舊列出幾個可能——斷言錯的那一次會讓使用者去查一個好好的權限設定，
-    /// 而他怎麼查都查不出問題。
-    /// </remarks>
-    private static string UnavailableReason(IReadOnlyList<string> databaseNames, SearchUnavailableKind kind)
-    {
-        var first = databaseNames[0];
-
-        var subject = databaseNames.Count > 1
-            ? SearchSourceText.DatabasesSubject(first, databaseNames.Count)
-            : first.Length > 0 ? SearchSourceText.DatabaseSubject(first) : SearchSourceText.UnnamedDatabaseSubject;
-
-        return kind == SearchUnavailableKind.Denied
-            ? SearchSourceText.DatabaseDenied(subject)
-            : SearchSourceText.DatabaseUnavailable(subject);
-    }
-
-    /// <summary>掃一個資料庫；失敗與截斷都只記在自己那一份 <paramref name="round"/> 上。</summary>
-    /// <remarks>
-    /// 名稱命中先掃完再掃資料行與本文，不是一個物件同時算三種：名稱命中在使用者還在打字時
-    /// 就要上畫面，而本文命中要把定義本文整份掃過。混在一起的話，預算會被前幾個
-    /// 物件的本文吃掉，而後面那些名稱一模一樣的物件連比都沒比到。
-    /// </remarks>
-    private static void SearchDatabase(
-        ISqlConnectionSource source,
-        SqlSearchOrigin origin,
-        SearchQuery query,
-        ISearchSink sink,
-        DatabaseRound round,
-        SqlCatalogSearchIndexCache indexCache,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        // 每個資料庫自己一份計數器：共用一份要為它上一把鎖，而那把鎖會落在最熱的迴圈裡。
-        var counter = new SearchExamineCounter(sink);
-
-        try
-        {
-            // 這個資料庫的索引可能要掃一次全表；預算已經滿了就別付這個代價。
-            if (sink.IsExhausted)
-            {
-                round.Truncated = true;
-                return;
-            }
-
-            // 空輸入是「列一份預設清單」，不是「把整個資料庫倒出來」，所以連本文那一段的
-            // 索引都不必建——本文比對對空樣式沒有意義（每一個位置都命中）。
-            var needsText = !query.IsEmpty && query.IncludesTarget(SearchMatchTarget.Text);
-            var index = indexCache.GetOrBuild(source, needsText, cancellationToken, out var unavailableKind);
-
-            if (index is null)
-            {
-                // 這一輪沒有這個資料庫的資料。其他資料庫照掃——一個連不上的目標
-                // 讓整份結果消失，比少一個來源糟得多。
-                //
-                // 這不是「沒掃完」：一個字都沒掃到，而叫使用者縮小範圍或加長關鍵字
-                // 對一個連不上的資料庫一次都幫不上忙。名稱由 Summarize 寫進那一句話裡。
-                round.Unavailable = true;
-                round.UnavailableKind = unavailableKind;
-                return;
-            }
-
-            // 本文只收到一半也是「沒掃完」。不說的話，使用者看到的與「這個字串
-            // 在這個資料庫裡不存在」一模一樣。
-            if (needsText && index.Definitions is { IsComplete: false })
-            {
-                round.Truncated = true;
-            }
-
-            var badges = new[] { new SearchBadge(index.DatabaseName, SearchBadge.DatabaseIcon) };
-
-            if (query.IncludesTarget(SearchMatchTarget.Name) &&
-                !SearchObjectNames(index, origin, query, sink, counter, badges, cancellationToken))
-            {
-                round.Truncated = true;
-                return;
-            }
-
-            if (query.IsEmpty)
-            {
-                return;
-            }
-
-            if (query.IncludesTarget(SearchMatchTarget.Column) &&
-                !SearchColumnNames(index, origin, query, sink, counter, badges, cancellationToken))
-            {
-                round.Truncated = true;
-                return;
-            }
-
-            if (needsText && !SearchDefinitions(index, origin, query, sink, counter, badges, cancellationToken))
-            {
-                round.Truncated = true;
-            }
-        }
-        finally
-        {
-            round.Checkpoint = counter.Checkpoint;
-            counter.Flush();
-        }
+        target.Complete();
     }
 
     private static bool SearchObjectNames(
@@ -285,7 +260,6 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
-        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
@@ -295,15 +269,10 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
 
             var categoryId = SqlCatalogSearchCategories.IdFor(info.Kind);
 
-            // 過濾掉的候選連算都不算：算進去的話，勾掉九成分類的那一輪仍然要付
-            // 十成的預算，而預算用盡時被砍掉的是使用者真的要的那一成。
             if (categoryId is null || !query.MatchesCategory(categoryId))
             {
                 continue;
             }
-
-            var key = DedupeKeyFor(info, null);
-            counter.Note(key);
 
             // 一個修飾都沒開才走模糊比對；開了大小寫或全字就是字面比對，規則與本文那一段
             // 同一份，見 SearchIdentifierMatch。
@@ -319,7 +288,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 categoryId,
                 SearchMatchTarget.Name,
                 info.QualifiedName,
-                key,
+                DedupeKeyFor(info),
                 match.Score,
                 PathFor(info),
                 // 名稱命中的片段就是名稱本體：高亮區段的索引落在片段上，
@@ -349,7 +318,6 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         SqlSearchOrigin origin,
         SearchQuery query,
         ISearchSink sink,
-        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
@@ -364,10 +332,6 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
             {
                 continue;
             }
-
-            // 續掃位置要認得是哪一行，去重鍵不能：前者是「掃到哪裡」，後者是「這是哪一個東西」，
-            // 而一張表的三個資料行命中講的是同一張表。
-            counter.Note(DedupeKeyFor(owner, column.Name));
 
             var match = SearchIdentifierMatch.Match(query, column.Name);
 
@@ -384,7 +348,7 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 // 資料行命中併成一列，而那一列的抬頭不該是其中隨便一行的名字。命中的是哪幾行
                 // 由片段（資料行名稱）回答，呈現那一層把它們列在第二列上。
                 owner.QualifiedName,
-                DedupeKeyFor(owner, null),
+                DedupeKeyFor(owner),
                 match.Score,
                 // 路徑指向<b>物件</b>，不是資料行：四段式名稱的第一段是連結伺服器，
                 // 把資料行接成第四段會讓下游把資料庫名讀成伺服器名。
@@ -404,141 +368,120 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
         return true;
     }
 
-    private static bool SearchDefinitions(
+    /// <summary>
+    /// 比對定義本文：記憶體裡有就在記憶體裡比，沒有就到伺服器端比。
+    /// </summary>
+    /// <remarks>
+    /// 兩條路交出同一種命中、同一種「讀不到」的計數，差別只在本文從哪裡來。讀不到的本文
+    /// （加密、沒有 VIEW DEFINITION）只數這一輪分類過濾留下的那幾種：使用者只勾資料表時，
+    /// 一個加密的預存程序與他的問題無關。
+    /// </remarks>
+    /// <returns>false 表示這一輪已經被取代，呼叫端立刻停止。</returns>
+    /// <param name="onServer">本文在伺服器端比對時的結果；比對失敗時為 null。</param>
+    private bool SearchText(
         SqlCatalogSearchIndex index,
-        SqlSearchOrigin origin,
+        SqlCatalogServerTextMatches? onServer,
+        SearchTarget target,
         SearchQuery query,
         ISearchSink sink,
-        SearchExamineCounter counter,
         IReadOnlyList<SearchBadge> badges,
         CancellationToken cancellationToken)
     {
-        if (index.Definitions is not { } definitions)
+        var unreadable = 0;
+
+        if (index.Definitions is { } definitions)
+        {
+            foreach (var info in index.Objects)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!Wanted(query, info, out var categoryId)) continue;
+
+                if (definitions.For(info.ObjectId) is not { } definition)
+                {
+                    if (definitions.IsUnreadable(info.ObjectId)) unreadable++;
+                    continue;
+                }
+
+                if (!ReportText(_origin, index, info, categoryId, definition, query, sink, badges)) return false;
+            }
+        }
+        else if (index.TextOnServer)
+        {
+            if (onServer is not { } found)
+            {
+                // 伺服器端比對失敗：名稱與資料行照樣算數，但本文這一段沒比到。
+                target.MarkTextIncomplete();
+                return true;
+            }
+
+            foreach (var objectId in found.Unreadable)
+            {
+                if (index.Find(objectId) is { } info && Wanted(query, info, out _)) unreadable++;
+            }
+
+            foreach (var match in found.Matches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (index.Find(match.Key) is not { } info || !Wanted(query, info, out var categoryId)) continue;
+                if (!ReportText(_origin, index, info, categoryId, match.Value, query, sink, badges)) return false;
+            }
+        }
+
+        target.AddUnreadableText(unreadable);
+        return true;
+    }
+
+    private static bool Wanted(SearchQuery query, SqlObjectInfo info, out string categoryId)
+    {
+        categoryId = SqlCatalogSearchCategories.IdFor(info.Kind) ?? "";
+        return categoryId.Length != 0 && query.MatchesCategory(categoryId);
+    }
+
+    /// <returns>false 表示這一輪已經被取代。</returns>
+    private static bool ReportText(
+        SqlSearchOrigin origin,
+        SqlCatalogSearchIndex index,
+        SqlObjectInfo info,
+        string categoryId,
+        string definition,
+        SearchQuery query,
+        ISearchSink sink,
+        IReadOnlyList<SearchBadge> badges)
+    {
+        // 本文比的是使用者打進去的原文，不是正規化後的樣式：後者一律小寫，
+        // 拿它做區分大小寫的比對永遠比不中任何大寫的字。
+        var matches = SqlCatalogBodySearch.FindAll(definition, query.Matcher);
+
+        if (matches.Count == 0)
         {
             return true;
         }
 
-        foreach (var info in index.Objects)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        var snippet = SqlCatalogBodySearch.BuildSnippet(definition, matches, query.Text.Length, out var spans);
 
-            if (definitions.For(info.ObjectId) is not { } definition)
-            {
-                continue;
-            }
-
-            var categoryId = SqlCatalogSearchCategories.IdFor(info.Kind);
-
-            if (categoryId is null || !query.MatchesCategory(categoryId))
-            {
-                continue;
-            }
-
-            var key = DedupeKeyFor(info, null);
-            counter.Note(key);
-
-            // 本文比的是使用者打進去的原文，不是正規化後的樣式：後者一律小寫，
-            // 拿它做區分大小寫的比對永遠比不中任何大寫的字。
-            var matches = SqlCatalogBodySearch.FindAll(definition, query.Matcher);
-
-            if (matches.Count == 0)
-            {
-                continue;
-            }
-
-            var snippet = SqlCatalogBodySearch.BuildSnippet(definition, matches, query.Text.Length, out var spans);
-
-            var hit = new SearchHit(
-                ProviderId,
-                categoryId,
-                SearchMatchTarget.Text,
-                info.QualifiedName,
-                key,
-                // 本文的分數是「提到幾次」。與名稱那一組不同尺度沒有關係：
-                // SearchMatchTarget 已經把兩組分開排，兩邊的分數不會互相比較。
-                matches.Count,
-                PathFor(info),
-                snippet,
-                spans,
-                new SqlCatalogSearchTarget(
-                    origin, index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
-                badges);
-
-            if (!sink.TryReport(hit))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return sink.TryReport(new SearchHit(
+            ProviderId,
+            categoryId,
+            SearchMatchTarget.Text,
+            info.QualifiedName,
+            DedupeKeyFor(info),
+            // 本文的分數是「提到幾次」。與名稱那一組不同尺度沒有關係：
+            // SearchMatchTarget 已經把兩組分開排，兩邊的分數不會互相比較。
+            matches.Count,
+            PathFor(info),
+            snippet,
+            spans,
+            new SqlCatalogSearchTarget(
+                origin, index.DatabaseName, info.SchemaName, info.Name, info.Kind, info.ObjectId),
+            badges));
     }
 
-    /// <summary>
-    /// 這一輪要搜哪幾個資料庫。
-    /// </summary>
-    /// <remarks>
-    /// 沒有指名就是<b>全部</b>：這台伺服器上這個登入進得去、而且在線上的每一個
-    /// （<see cref="SqlCatalogSearchDatabases.TryList"/>），與 <see cref="SearchScope"/>「空表示不限制」
-    /// 同一個意思。那是使用者在範圍上明確選的，第一輪要把每一個都索引一遍；清單本身每一輪重問，
-    /// 剛建好或剛卸除的資料庫下一輪就對得上。清單問不到時照實說一句，<b>不</b>退回只搜連線
-    /// 那一個——那一份答案看起來完全正常，只是少了使用者以為有搜的其他資料庫。
-    ///
-    /// 換資料庫換的是目錄，走 <see cref="SqlDatabaseScopedConnectionSource"/>：查詢一律寫成
-    /// 不加限定的 <c>sys.</c>，決定查哪一個資料庫的是連線。換不過去（資料庫不存在、
-    /// 離線、沒有權限）時開連線會丟 <see cref="System.Data.Common.DbException"/>，
-    /// 由索引那一層降級成「這一輪沒有這個資料庫的資料」——<b>絕不</b>退回拿目前連線裡
-    /// 同名的物件回答，那比什麼都不做糟，什麼都不做至少是沉默。
-    ///
-    /// 同一個名稱指名兩次只掃一次：兩份結果一模一樣，而去重是在聚合器那一端付的錢。
-    ///
-    /// 指名了伺服器就整輪不回結果：沒有連結伺服器（四段式名稱）的索引，
-    /// 而拿本機的東西當成對面那台的答案正是上一段禁止的事。連結伺服器要的是
-    /// <c>SqlCatalogQualifier</c> 與 <c>OPENQUERY</c> 那一條路，不是換個資料庫就行。
-    /// </remarks>
-    private async Task<IReadOnlyList<ISqlConnectionSource>> ResolveSourcesAsync(
-        SearchScope scope, ISearchSink sink, CancellationToken cancellationToken)
+    private bool WantsAnyCategory(SearchQuery query)
     {
-        if (scope.Servers.Count > 0)
-        {
-            return Array.Empty<ISqlConnectionSource>();
-        }
-
-        var names = scope.Databases;
-
-        if (names.Count == 0)
-        {
-            // 清單查詢是同步的阻塞工作；丟到背景，別讓同一輪的其他來源等它。
-            var listed = await Task.Run(() => _listDatabases(_connectionSource, cancellationToken), cancellationToken)
-                .ConfigureAwait(false);
-
-            if (listed is null)
-            {
-                sink.ReportUnavailable(SearchSourceText.DatabaseListUnavailable);
-                return Array.Empty<ISqlConnectionSource>();
-            }
-
-            var all = new List<string>(listed.Count);
-            foreach (var database in listed) all.Add(database.Name);
-            names = all;
-        }
-
-        var sources = new List<ISqlConnectionSource>(names.Count);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var databaseName in names)
-        {
-            if (databaseName.Length == 0 || !seen.Add(databaseName))
-            {
-                continue;
-            }
-
-            sources.Add(
-                string.Equals(databaseName, _connectionSource.DatabaseName, StringComparison.OrdinalIgnoreCase)
-                    ? _connectionSource
-                    : new SqlDatabaseScopedConnectionSource(_connectionSource, databaseName));
-        }
-
-        return sources;
+        foreach (var category in Categories) if (query.MatchesCategory(category.Id)) return true;
+        return false;
     }
 
     /// <summary>
@@ -549,23 +492,19 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
     /// 其中一列會被去重吃掉，而使用者看不出少了哪一個。
     ///
     /// 不含命中部位：同一個物件被名稱與定義本文同時命中時，聚合器要把它們併成一列，
-    /// 靠的就是兩邊寫出同一個鍵。<b>資料行命中也走物件那一份鍵</b>（<paramref name="columnName"/>
-    /// 傳 null）——一張表有三個資料行對上時，使用者要的是一列 <c>Cat_BookCopy</c> 加上
-    /// 「命中了這三行」，不是三列同一張表。接了資料行的那一份只剩一個用途：
-    /// <see cref="SearchExamineCounter"/> 的續掃位置，那裡問的是「掃到哪一行」。
+    /// 靠的就是兩邊寫出同一個鍵。<b>資料行命中也走物件這一份鍵</b>——一張表有三個資料行對上時，
+    /// 使用者要的是一列 <c>Cat_BookCopy</c> 加上「命中了這三行」，不是三列同一張表。
     ///
     /// 刻意不轉小寫：定序可以是區分大小寫的，那時 <c>Loan</c> 與 <c>LOAN</c> 是兩個
     /// 不同的資料表，折成同一個鍵會讓其中一個永遠不出現。
     /// </remarks>
-    private static string DedupeKeyFor(SqlObjectInfo info, string? columnName)
+    private static string DedupeKeyFor(SqlObjectInfo info)
     {
         var database = info.DatabaseName is { Length: > 0 } name
             ? SqlIdentifier.Quote(name) + "."
             : string.Empty;
 
-        return columnName is null
-            ? database + info.QualifiedName
-            : database + info.QualifiedName + "." + SqlIdentifier.Quote(columnName);
+        return database + info.QualifiedName;
     }
 
     /// <summary>
@@ -588,33 +527,5 @@ public sealed class SqlCatalogSearchProvider : ISearchProvider
                 : new[] { info.Name };
 
         return SqlObjectPath.TryParseName(parts, out var path) ? path : null;
-    }
-
-    /// <summary>一個資料庫這一輪掃到哪裡；只有那一條執行緒讀寫它。</summary>
-    private sealed class DatabaseRound
-    {
-        internal DatabaseRound(string databaseName)
-        {
-            DatabaseName = databaseName;
-        }
-
-        /// <summary>讀不到時要寫進那一句話裡的名稱；沒有它的話使用者不知道該去看哪一個。</summary>
-        internal string DatabaseName { get; }
-
-        internal bool Truncated { get; set; }
-
-        /// <summary>這個資料庫這一輪整個讀不到；與 <see cref="Truncated"/> 是兩句話。</summary>
-        internal bool Unavailable { get; set; }
-
-        /// <summary>
-        /// 讀不到的結構化原因；<see cref="Unavailable"/> 為 false 時無意義。
-        /// </summary>
-        /// <remarks>
-        /// 一個資料庫一份，不是整個 provider 一份：勾了五個資料庫時，
-        /// 「其中一個沒權限」與「五個都沒權限」要說的話不一樣，而合成一份就分不出來了。
-        /// </remarks>
-        internal SearchUnavailableKind UnavailableKind { get; set; }
-
-        internal string? Checkpoint { get; set; }
     }
 }

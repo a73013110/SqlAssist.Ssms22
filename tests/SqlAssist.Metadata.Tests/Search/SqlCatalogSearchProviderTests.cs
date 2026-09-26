@@ -471,8 +471,8 @@ public sealed class SqlCatalogSearchProviderTests
 
         Assert.Empty(sink.Hits);
 
-        // 名稱那一段仍然掃過，只是沒有一個物件叫這個名字。
-        Assert.Equal(1, sink.Examined);
+        // 名稱那一段掃完了，只是沒有一個物件叫這個名字：這一輪是完整的「沒有」。
+        Assert.True(sink.IsComplete);
     }
 
     /// <summary>之後才勾上定義本文時只補第二段，第一段不重掃。</summary>
@@ -493,38 +493,42 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Single(server.Commands);
     }
 
-    /// <summary>
-    /// 分類過濾在這一層就生效，被過濾掉的候選連算都不算。
-    /// </summary>
-    /// <remarks>
-    /// 靠聚合器那道最後防線的話，勾掉九成分類的那一輪仍然要付十成的預算，
-    /// 而預算用盡時被砍掉的是使用者真的要的那一成。
-    /// </remarks>
+    /// <summary>分類過濾在這一層就生效，不靠聚合器那道最後防線。</summary>
     [Fact]
-    public async Task 分類過濾在provider就生效而且不算進預算()
+    public async Task 分類過濾在provider就生效()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
             .WithObject(1, "dbo", "Loan", "U")
             .WithObject(2, "dbo", "Lib_Tag", "V")
-            .WithColumn(1, "CopyNo");
+            .WithColumn(1, "Lib_TagNo");
 
         var sink = await RunAsync(
             server, new SearchQuery("Lib_Tag", categories: new[] { "catalog.view" }));
 
+        // 資料表的資料行名稱也對得上，但資料表不在這一輪的分類裡。
         var hit = Assert.Single(sink.Hits);
         Assert.Equal("catalog.view", hit.CategoryId);
+    }
 
-        // 只有那一個檢視被檢查過：資料表與它的資料行整組跳過。
-        Assert.Equal(1, sink.Examined);
+    /// <summary>分類把整個來源排除時不宣告目標、不建索引：這一輪本來就不必搜它。</summary>
+    [Fact]
+    public async Task 分類排除整個來源時不宣告目標也不連線()
+    {
+        var server = SqlCatalogSearchIndexTests.NewServer();
+
+        var sink = await RunAsync(server, new SearchQuery("Loan", categories: new[] { "agent-job.job" }));
+
+        Assert.Empty(sink.Targets);
+        Assert.Equal(0, server.Opened);
     }
 
     /// <summary>
-    /// <see cref="ISearchSink.TryReport"/> 回 false 之後不再往下掃。
+    /// <see cref="ISearchSink.TryReport"/> 回 false 之後不再往下掃，也不說自己比完了。
     /// </summary>
     /// <remarks>
     /// 只看結果筆數分不出來：多推的那幾筆會被靜靜丟掉，而畫面上一模一樣。
-    /// 分得出來的是檢查過的候選數。
+    /// 分得出來的是被推了幾次。
     /// </remarks>
     [Fact]
     public async Task 被叫停之後立刻停止掃描()
@@ -541,9 +545,9 @@ public sealed class SqlCatalogSearchProviderTests
 
         Assert.Single(sink.Hits);
         Assert.Equal(2, sink.Reports);
-        Assert.Equal(2, sink.Examined);
-        Assert.True(sink.IsTruncated);
-        Assert.Equal("[Library].[dbo].[Loan01]", sink.Checkpoint);
+
+        // 沒比完的目標不說結局；聚合器收尾時把它記成已取消，而不是完整。
+        Assert.Equal(SearchTargetState.Running, sink.Target("Library").State);
     }
 
     /// <summary>
@@ -621,17 +625,13 @@ public sealed class SqlCatalogSearchProviderTests
         var hit = Assert.Single(sink.Hits);
         Assert.Equal("Library", hit.Path!.DatabaseName);
 
-        // 連不上的那一個是「讀不到」，不是「沒掃完」：掃得完的那一個掃完了，
-        // 而叫使用者縮小範圍對一條斷掉的連線一次都幫不上忙。
-        Assert.False(sink.IsTruncated);
-        Assert.True(sink.IsUnavailable);
+        // 連不上的那一個是「讀不到」，掃得完的那一個掃完了；兩者各自是一個目標。
+        Assert.Equal(SearchTargetState.Complete, sink.Target("Library").State);
+        var archive = sink.Target("LibArchive");
+        Assert.Equal(SearchTargetState.Unavailable, archive.State);
 
-        // 名稱一定要寫出來，否則使用者不知道該去看哪一個資料庫。
-        Assert.Contains("LibArchive", sink.UnavailableReason);
-
-        // 連不上沒有權限錯誤碼，所以種類說不出來，句子也回到列幾個可能。
-        Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
-        Assert.Contains("連不上、逾時", sink.UnavailableReason);
+        // 連不上沒有權限錯誤碼，所以種類說不出來。
+        Assert.Equal(SearchUnavailableKind.Unknown, archive.UnavailableKind);
 
         // 失敗不進快取：第二輪仍然重試那一個，成功的那一個則是快取命中。
         Assert.False(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
@@ -661,28 +661,24 @@ public sealed class SqlCatalogSearchProviderTests
         RecordingSearchSink? sink = null;
         SqlCatalogSearchIndexTests.Capture(() => sink = RunAsync(server, query).GetAwaiter().GetResult());
 
-        Assert.True(sink!.IsUnavailable);
-        Assert.Equal(SearchUnavailableKind.Denied, sink.UnavailableKind);
-
-        // 句子跟著換：伺服器明說了，就不必再列「連不上、逾時」那幾個可能。
-        Assert.Equal(
-            "「LibArchive」這一輪讀不到（這個登入對它沒有權限），這一輪少了它的結果。",
-            sink.UnavailableReason);
+        var denied = sink!.Target("LibArchive");
+        Assert.Equal(SearchTargetState.Unavailable, denied.State);
+        Assert.Equal(SearchUnavailableKind.Denied, denied.UnavailableKind);
 
         // 讀得到的那一個照樣回得來。
         Assert.Single(sink.Hits);
     }
 
     /// <summary>
-    /// 一個沒權限、另一個連不上：整組退回「說不出是哪一種」。
+    /// 一個沒權限、另一個連不上：各自說各自的，不合成一句。
     /// </summary>
     /// <remarks>
-    /// 留第一個說的那一版，交出去的斷言由賽跑決定（幾個資料庫是平行掃的）。而斷成
-    /// 「權限不足」的那一次，使用者去要了權限，連不上的那個下一輪還是讀不到，
-    /// 畫面上看不出他要錯了東西。
+    /// 合成一句的那一版要在「權限」與「說不出來」之間選一個，而選錯的那一次，使用者去要了權限，
+    /// 連不上的那個下一輪還是讀不到。每個目標各有結局之後，這個取捨不存在了。
+    /// 幾個資料庫是平行掃的，所以跑十次確定結局不由賽跑決定。
     /// </remarks>
     [Fact]
-    public async Task 兩種原因混在一輪時不猜()
+    public async Task 每個資料庫各自說出讀不到的原因()
     {
         var server = new FakeCatalogServer();
         server.Add("Library").WithObject(1, "dbo", "Loan", "U");
@@ -701,9 +697,9 @@ public sealed class SqlCatalogSearchProviderTests
             RecordingSearchSink? sink = null;
             SqlCatalogSearchIndexTests.Capture(() => sink = RunAsync(server, query).GetAwaiter().GetResult());
 
-            Assert.True(sink!.IsUnavailable);
-            Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
-            Assert.Contains("連不上、逾時", sink.UnavailableReason);
+            Assert.Equal(SearchTargetState.Complete, sink!.Target("Library").State);
+            Assert.Equal(SearchUnavailableKind.Denied, sink.Target("LibArchive").UnavailableKind);
+            Assert.Equal(SearchUnavailableKind.Unknown, sink.Target("LibMirror").UnavailableKind);
         }
     }
 
@@ -723,7 +719,47 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal(
             new[] { "[LibArchive].[dbo].[LoanDetail]", "[Library].[dbo].[Loan]" },
             sink.Hits.Select(hit => hit.DedupeKey).OrderBy(key => key, StringComparer.Ordinal));
-        Assert.False(sink.IsUnavailable);
+        Assert.Equal(new[] { "LibArchive", "Library", "master" }, sink.Targets.Select(target => target.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.True(sink.IsComplete);
+    }
+
+    /// <summary>
+    /// 「全部」裡進不去的資料庫照樣列進完整度，而且不去開它。
+    /// </summary>
+    /// <remarks>
+    /// 直接略過的話，畫面會說「已完整搜尋」，而少了使用者以為有搜的那幾個。
+    /// 離線的寫伺服器說的狀態；在線上卻進不去的就是權限。
+    /// </remarks>
+    [Fact]
+    public async Task 全部裡進不去的資料庫列進完整度而不開連線()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+        var archive = server.Add("LibArchive");
+        archive.State = "OFFLINE";
+        archive.IsAccessible = false;
+        archive.FailsOnOpen = true;
+        var mirror = server.Add("LibMirror");
+        mirror.IsAccessible = false;
+        mirror.FailsOnOpen = true;
+
+        var sink = await RunAsync(server, new SearchQuery("Loan"));
+
+        Assert.Single(sink.Hits);
+        Assert.Equal(SearchTargetState.Complete, sink.Target("Library").State);
+
+        var offline = sink.Target("LibArchive");
+        Assert.Equal(SearchTargetState.Unavailable, offline.State);
+        Assert.Equal(SearchUnavailableKind.Unknown, offline.UnavailableKind);
+        Assert.Equal("OFFLINE", offline.Detail);
+
+        var denied = sink.Target("LibMirror");
+        Assert.Equal(SearchUnavailableKind.Denied, denied.UnavailableKind);
+        Assert.Null(denied.Detail);
+
+        // 問清單一次、Library 一次；進不去的兩個不開。
+        Assert.Equal(2, server.Opened);
+        Assert.False(sink.IsComplete);
     }
 
     /// <summary>
@@ -741,8 +777,10 @@ public sealed class SqlCatalogSearchProviderTests
         await provider.SearchAsync(new SearchQuery("Loan"), sink, CancellationToken.None);
 
         Assert.Empty(sink.Hits);
-        Assert.True(sink.IsUnavailable);
-        Assert.Contains("資料庫清單", sink.UnavailableReason);
+        var target = Assert.Single(sink.Targets);
+        Assert.Equal(SearchTargetKind.Source, target.Kind);
+        Assert.Equal(SearchTargetState.Unavailable, target.State);
+        Assert.Contains("資料庫清單", target.Detail);
     }
 
     /// <summary>幾個資料庫的結果併在同一輪裡回來，各自帶著自己的資料庫膠囊。</summary>
@@ -760,7 +798,7 @@ public sealed class SqlCatalogSearchProviderTests
         Assert.Equal(
             new[] { "[LibArchive].[dbo].[LoanDetail]", "[Library].[dbo].[Loan]" },
             sink.Hits.Select(hit => hit.DedupeKey).OrderBy(key => key, StringComparer.Ordinal));
-        Assert.False(sink.IsTruncated);
+        Assert.True(sink.IsComplete);
     }
 
     /// <summary>同一個名稱指名兩次只掃一次；去重是聚合器那一端付的錢。</summary>
@@ -775,6 +813,7 @@ public sealed class SqlCatalogSearchProviderTests
             new SearchQuery("Loan", scope: new SearchScope(null, new[] { "Library", "library" })));
 
         Assert.Single(sink.Hits);
+        Assert.Single(sink.Targets);
         Assert.Equal(1, server.Opened);
     }
 
@@ -796,20 +835,14 @@ public sealed class SqlCatalogSearchProviderTests
             new SearchQuery("Loan", scope: new SearchScope(null, new[] { "LibArchive" })));
 
         Assert.Empty(sink.Hits);
-        Assert.False(sink.IsTruncated);
-        Assert.True(sink.IsUnavailable);
-        Assert.Contains("LibArchive", sink.UnavailableReason);
+        Assert.Equal(SearchTargetState.Unavailable, sink.Target("LibArchive").State);
     }
 
     /// <summary>
-    /// 幾個資料庫同時讀不到時只說一句，而且句子裡的名稱由勾選順序決定。
+    /// 目標照指名的順序宣告；幾個資料庫平行掃，順序不由誰先回來決定。
     /// </summary>
-    /// <remarks>
-    /// 幾個資料庫是平行掃的，照誰先回來寫的話同一組輸入每次說的話不一樣，
-    /// 而使用者看到的症狀是狀態列每按一次重新整理就換一個資料庫名。
-    /// </remarks>
     [Fact]
-    public async Task 多個資料庫讀不到時只說一句而且順序可重現()
+    public async Task 目標照指名的順序宣告()
     {
         var server = new FakeCatalogServer();
         server.Add("Library").WithObject(1, "dbo", "Loan", "U");
@@ -822,10 +855,10 @@ public sealed class SqlCatalogSearchProviderTests
             var sink = await RunAsync(server, query);
 
             Assert.Single(sink.Hits);
-            Assert.True(sink.IsUnavailable);
+            Assert.Equal(new[] { "LibArchive", "LibMirror", "Library" }, sink.Targets.Select(target => target.Name));
             Assert.Equal(
-                "「LibArchive」等 2 個資料庫這一輪讀不到（連不上、逾時，或這個登入對它沒有權限），這一輪少了它的結果。",
-                sink.UnavailableReason);
+                new[] { SearchTargetState.Unavailable, SearchTargetState.Unavailable, SearchTargetState.Complete },
+                sink.Targets.Select(target => target.State));
         }
     }
 
@@ -865,27 +898,102 @@ public sealed class SqlCatalogSearchProviderTests
     }
 
     /// <summary>
-    /// 定義本文收不完時，這一輪要說出來。
+    /// 定義本文超過上限時改由伺服器端比對，一筆都不漏。
     /// </summary>
     /// <remarks>
-    /// 使用者要看得出差別：安靜地少一半結果，看起來與「這個字串在這個資料庫裡
-    /// 不存在」一模一樣。
+    /// 原本的作法是只留前面那一部分並說「本文只掃到一部分」；使用者照樣拿清單當答案。
+    /// 記憶體是快取，比對的完整度不能跟著它打折。
     /// </remarks>
     [Fact]
-    public async Task 本文收不完時這一輪標記為沒掃完()
+    public async Task 本文超過上限時改由伺服器端比對而不漏()
     {
         var server = new FakeCatalogServer();
         server.Add("Library")
             .WithObject(1, "dbo", "Lib_Tag", "V", "SELECT CopyNo FROM dbo.Loan")
-            .WithObject(2, "dbo", "Lib_Reader", "V", "SELECT CopyNo FROM dbo.Branch");
+            .WithObject(2, "dbo", "Lib_Reader", "V", "SELECT copyno FROM dbo.Branch");
 
-        // 第一份就把上限用完，第二份只剩名稱。
+        // 第一份就把上限用完：這個資料庫的本文整份改到伺服器端。
         var cache = new SqlCatalogSearchIndexCache(maxDefinitionBytes: 54);
-        var sink = await RunAsync(server, new SearchQuery("CopyNo"), cache: cache);
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", scope: LibraryOnly), cache: cache);
 
-        var hit = Assert.Single(sink.Hits);
-        Assert.Equal("[dbo].[Lib_Tag]", hit.Title);
-        Assert.True(sink.IsTruncated);
+        Assert.Equal(
+            new[] { "[dbo].[Lib_Reader]", "[dbo].[Lib_Tag]" },
+            sink.Hits.Select(hit => hit.Title).OrderBy(title => title, StringComparer.Ordinal));
+        Assert.True(sink.IsComplete);
+        Assert.Equal(1, server.CountCommands(SqlCatalogSearchQueries.PatternParameterName));
+
+        // 伺服器只做粗篩，比對規則由讀取端照使用者的修飾再比一次：開了大小寫就只剩逐字相同的那一個。
+        var exact = await RunAsync(
+            server, new SearchQuery("CopyNo", 1, TextMatchOptions.MatchCasing, scope: LibraryOnly), cache: cache);
+        Assert.Equal("[dbo].[Lib_Tag]", Assert.Single(exact.Hits, hit => hit.MatchTarget == SearchMatchTarget.Text).Title);
+    }
+
+    /// <summary>
+    /// 讀不到的本文（加密、沒有 VIEW DEFINITION）要數出來，而且只數這一輪的分類。
+    /// </summary>
+    /// <remarks>
+    /// 略過的症狀是搜 <c>sp_executesql</c> 時一個加密的預存程序安靜地不出現，而畫面說「沒有相符項目」。
+    /// </remarks>
+    [Fact]
+    public async Task 讀不到的本文數得出來而且只數這一輪的分類()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Lib_Tag", "V", "SELECT CopyNo FROM dbo.Loan")
+            .WithObject(2, "dbo", "Lib_Reader", "P", "EXEC sp_executesql N'SELECT 1'")
+            .Encrypt(2);
+
+        var cache = new SqlCatalogSearchIndexCache();
+        var all = await RunAsync(server, new SearchQuery("sp_executesql", scope: LibraryOnly), cache: cache);
+
+        Assert.Empty(all.Hits);
+        Assert.Equal(1, all.Target("Library").UnreadableText);
+        Assert.False(all.IsComplete);
+
+        var viewsOnly = await RunAsync(
+            server, new SearchQuery("sp_executesql", 1, categories: new[] { "catalog.view" }, scope: LibraryOnly), cache: cache);
+
+        Assert.Equal(0, viewsOnly.Target("Library").UnreadableText);
+        Assert.True(viewsOnly.IsComplete);
+    }
+
+    /// <summary>本文在伺服器端比對時，讀不到的本文照樣數得出來。</summary>
+    [Fact]
+    public async Task 伺服器端比對也數得出讀不到的本文()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Lib_Tag", "V", "SELECT CopyNo FROM dbo.Loan")
+            .WithObject(2, "dbo", "Lib_Reader", "P", "EXEC sp_executesql N'SELECT CopyNo'")
+            .Encrypt(2);
+
+        var cache = new SqlCatalogSearchIndexCache(maxDefinitionBytes: 10);
+        var sink = await RunAsync(server, new SearchQuery("CopyNo", scope: LibraryOnly), cache: cache);
+
+        Assert.Equal("[dbo].[Lib_Tag]", Assert.Single(sink.Hits).Title);
+        Assert.Equal(1, sink.Target("Library").UnreadableText);
+    }
+
+    /// <summary>伺服器端比對失敗時，名稱照樣算數，但這個資料庫的本文要說沒比完。</summary>
+    [Fact]
+    public async Task 伺服器端比對失敗時說本文沒比完()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "CopyNoMap", "V", "SELECT CopyNo FROM dbo.Loan");
+
+        var provider = new SqlCatalogSearchProvider(
+            server.SourceFor("Library"), Origin, new SqlCatalogSearchIndexCache(maxDefinitionBytes: 10),
+            findOnServer: (_, _, _) => null);
+        var sink = new RecordingSearchSink();
+
+        await provider.SearchAsync(new SearchQuery("CopyNo", scope: LibraryOnly), sink, CancellationToken.None);
+
+        Assert.Equal("[dbo].[CopyNoMap]", Assert.Single(sink.Hits).Title);
+        var target = sink.Target("Library");
+        Assert.Equal(SearchTargetState.Complete, target.State);
+        Assert.True(target.IsTextIncomplete);
+        Assert.False(sink.IsComplete);
     }
 
     /// <summary>空輸入是「列一份預設清單」，不是把整個資料庫倒出來。</summary>
@@ -902,7 +1010,7 @@ public sealed class SqlCatalogSearchProviderTests
         var hit = Assert.Single(sink.Hits);
         Assert.Equal(SearchMatchTarget.Name, hit.MatchTarget);
         Assert.Equal("[dbo].[Loan]", hit.Title);
-        Assert.False(sink.IsTruncated);
+        Assert.True(sink.IsComplete);
 
         // 使用者只是打開了視窗，還沒說要搜什麼；本文那一段連撈都不必撈。
         Assert.Equal(0, server.CountCommands("sys.sql_modules"));

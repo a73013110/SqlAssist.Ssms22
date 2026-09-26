@@ -192,40 +192,68 @@ public sealed class SqlCatalogSearchIndexTests
     }
 
     /// <summary>
-    /// 定義本文超過位元組上限之後只留名稱，並且說出來。
+    /// 定義本文超過位元組上限時整份不留，改由伺服器端比對；名稱照收。
     /// </summary>
     /// <remarks>
-    /// 安靜地少一半結果是最糟的：使用者會以為那個字串在這個資料庫裡不存在。
+    /// 留半份的那一版要另外記「哪幾個沒留」，漏記的那一個在畫面上與「本文裡沒有這個字」一模一樣。
     /// 上限算的是留下來的位元組，一個 UTF-16 字元兩個位元組。
     /// </remarks>
     [Fact]
-    public void 定義本文超過上限就只留名稱並標記()
+    public void 定義本文超過上限就整份改到伺服器端()
     {
-        var first = new string('A', 20);
-        var second = new string('B', 20);
         var server = new FakeCatalogServer();
         server.Add("Library")
-            .WithObject(1, "dbo", "Lib_Reader", "V", first)
-            .WithObject(2, "dbo", "Lib_Tag", "V", second);
+            .WithObject(1, "dbo", "Lib_Reader", "V", new string('A', 20))
+            .WithObject(2, "dbo", "Lib_Tag", "V", new string('B', 20));
 
         var index = SqlCatalogSearchIndex.TryBuild(
             server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None, out _,
             maxDefinitionBytes: 40);
 
-        Assert.False(index!.Definitions!.IsComplete);
-        Assert.Equal(first, index.Definitions.For(1));
-
-        // 名稱照收，只有本文停。
-        Assert.Null(index.Definitions.For(2));
-        Assert.Equal("Lib_Tag", index.Objects[1].Name);
+        Assert.Null(index!.Definitions);
+        Assert.True(index.TextOnServer);
+        Assert.Equal(new[] { "Lib_Reader", "Lib_Tag" }, index.Objects.Select(info => info.Name));
     }
 
     [Fact]
-    public void 定義本文放得下時索引是完整的()
+    public void 定義本文放得下時留在記憶體裡()
     {
         var index = Build(NewServer(), includeDefinitions: true);
 
-        Assert.True(index!.Definitions!.IsComplete);
+        Assert.NotNull(index!.Definitions);
+        Assert.False(index.TextOnServer);
+    }
+
+    /// <summary>本文是 NULL 的模組（加密、沒有 VIEW DEFINITION）記成讀不到，不是沒有本文。</summary>
+    [Fact]
+    public void 讀不到的本文記下來()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library")
+            .WithObject(1, "dbo", "Lib_Reader", "P", "SELECT 1")
+            .WithObject(2, "dbo", "Lib_Tag", "P", "SELECT 2")
+            .Encrypt(2);
+
+        var index = Build(server, includeDefinitions: true);
+
+        Assert.False(index!.Definitions!.IsUnreadable(1));
+        Assert.True(index.Definitions.IsUnreadable(2));
+        Assert.Null(index.Definitions.For(2));
+    }
+
+    /// <summary>建索引一路回報進度，最後停在 1。</summary>
+    [Fact]
+    public void 建索引回報進度()
+    {
+        var reported = new List<double>();
+
+        SqlCatalogSearchIndex.TryBuild(
+            NewServer().SourceFor("Library"), includeDefinitions: true, CancellationToken.None, out _,
+            progress: reported.Add);
+
+        Assert.NotEmpty(reported);
+        Assert.Equal(reported.OrderBy(value => value), reported);
+        Assert.Equal(1, reported[^1], 3);
     }
 
     /// <summary>位元組估計跟著定義本文長大；快取的預算靠它淘汰。</summary>

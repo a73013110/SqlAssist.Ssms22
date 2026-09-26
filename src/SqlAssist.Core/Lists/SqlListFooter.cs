@@ -21,6 +21,19 @@ public enum SqlListFooterKind
     End,
 }
 
+/// <summary>頁尾說明那一句是哪一種語氣；決定說明前面掛不掛狀態圖示。</summary>
+public enum SqlListFooterTone
+{
+    /// <summary>一般說明，不掛圖示。</summary>
+    Neutral,
+
+    /// <summary>一個說得出口的肯定（「已完整搜尋」）；「沒找到」可以信。</summary>
+    Success,
+
+    /// <summary>這一份有缺口（沒搜完、讀不到）；「沒找到」不能信。</summary>
+    Warning,
+}
+
 /// <summary>清單頁尾的呈現：UI 只照著畫，文案與狀態轉換由各清單的模型決定。</summary>
 /// <remarks>
 /// SQL Memory 的 History／Favorites、收藏版本時間軸與 SQL Search 的結果清單共用這一份：
@@ -28,12 +41,15 @@ public enum SqlListFooterKind
 /// </remarks>
 public sealed class SqlListFooter
 {
-    public SqlListFooter(SqlListFooterKind kind, string summary, string? hint = null, string? actionLabel = null)
+    public SqlListFooter(
+        SqlListFooterKind kind, string summary, string? hint = null, string? actionLabel = null,
+        SqlListFooterTone tone = SqlListFooterTone.Neutral)
     {
         Kind = kind;
         Summary = summary;
         Hint = hint;
         ActionLabel = actionLabel;
+        Tone = hint is null ? SqlListFooterTone.Neutral : tone;
     }
 
     /// <summary>不佔位置的那一份；呼叫端把某一種狀態交給別的表面時用它蓋掉頁尾。</summary>
@@ -46,6 +62,14 @@ public sealed class SqlListFooter
 
     /// <summary>摘要下方的淡色說明；沒有時為 null。</summary>
     public string? Hint { get; }
+
+    /// <summary>
+    /// 說明那一句的語氣；沒有說明時一律是 <see cref="SqlListFooterTone.Neutral"/>。
+    /// </summary>
+    /// <remarks>
+    /// 狀態不能只靠顏色表達，所以語氣畫成一顆圖示加在字前面，字本身照樣是淡色說明。
+    /// </remarks>
+    public SqlListFooterTone Tone { get; }
 
     /// <summary>頁尾按鈕文字；null 表示沒有按鈕。</summary>
     public string? ActionLabel { get; }

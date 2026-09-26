@@ -10,16 +10,16 @@ using SqlAssist.Metadata.Querying;
 namespace SqlAssist.Metadata.Search;
 
 /// <summary>
-/// 這條連線進得去的一個資料庫；搜尋範圍的多選清單用。
+/// 這條連線看得到的一個資料庫；搜尋範圍的多選清單與「全部」那一輪的名單用。
 /// </summary>
 /// <remarks>
-/// 只有名稱與「是不是系統資料庫」兩件事。多的欄位（定序、相容性層級、大小）在這裡一個
+/// 只有名稱、是不是系統資料庫、進不進得去與狀態。多的欄位（定序、相容性層級、大小）在這裡一個
 /// 都用不到，而每多一欄就是清單查詢多一次跨資料庫的中繼資料讀取。
 /// </remarks>
 public sealed class SqlCatalogSearchDatabase
 {
     [Localizable(false)]
-    public SqlCatalogSearchDatabase(string name, bool isSystem)
+    public SqlCatalogSearchDatabase(string name, bool isSystem, bool isAccessible = true, string state = OnlineState)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -28,7 +28,12 @@ public sealed class SqlCatalogSearchDatabase
 
         Name = name;
         IsSystem = isSystem;
+        IsAccessible = isAccessible;
+        State = string.IsNullOrEmpty(state) ? OnlineState : state;
     }
+
+    /// <summary><c>sys.databases.state_desc</c> 的線上值。</summary>
+    public const string OnlineState = "ONLINE";
 
     public string Name { get; }
 
@@ -40,6 +45,21 @@ public sealed class SqlCatalogSearchDatabase
     /// 是呈現那一層的決定。在這裡濾掉的話，畫面上看不出那四個是被藏起來還是進不去。
     /// </remarks>
     public bool IsSystem { get; }
+
+    /// <summary>
+    /// 在線上而且這個登入進得去。
+    /// </summary>
+    /// <remarks>
+    /// 進不去的也回報：多選清單只列進得去的，但「全部」那一輪要把它們寫進完整度，
+    /// 否則畫面說「已完整搜尋」而少了使用者以為有搜的那幾個。
+    /// </remarks>
+    public bool IsAccessible { get; }
+
+    /// <summary>伺服器說的狀態（<c>ONLINE</c>、<c>OFFLINE</c>、<c>RESTORING</c>…），原樣給人看，不翻譯。</summary>
+    public string State { get; }
+
+    /// <summary>在線上卻進不去：這個登入沒有權限。</summary>
+    public bool IsDenied => !IsAccessible && string.Equals(State, OnlineState, StringComparison.OrdinalIgnoreCase);
 
     public override string ToString() => IsSystem ? SearchSourceText.SystemDatabase(Name) : Name;
 }
@@ -92,7 +112,9 @@ public static class SqlCatalogSearchDatabases
                 // is_system 是查詢自己用 CASE 算出來的 int，不是目錄檢視上的 bit 欄位；
                 // 用 GetBoolean 讀會拿到 InvalidCastException，而那不是 DbException，
                 // 降級接不住。
-                databases.Add(new SqlCatalogSearchDatabase(reader.GetString(0), reader.GetInt32(1) != 0));
+                databases.Add(new SqlCatalogSearchDatabase(
+                    reader.GetString(0), reader.GetInt32(1) != 0, reader.GetInt32(3) != 0,
+                    reader.IsDBNull(2) ? SqlCatalogSearchDatabase.OnlineState : reader.GetString(2)));
             }
 
             return databases;

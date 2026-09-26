@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using SqlAssist.Metadata.Querying;
 using SqlAssist.Metadata.Search;
 
@@ -64,6 +65,9 @@ internal sealed class FakeCatalogServer
         Opened++;
         var database = Find(databaseName);
 
+        // 建索引要能被卡在半路：「輪次取消不停下建置」只有在建置真的還沒結束時才量得到。
+        database.OpenGate?.Wait();
+
         if (database.FailsOnOpen)
         {
             throw database.OpenFailure();
@@ -111,6 +115,15 @@ internal sealed class FakeCatalogDatabase
     internal string Name { get; }
 
     internal bool IsSystem { get; set; }
+
+    /// <summary><c>sys.databases.state_desc</c>；離線的資料庫在清單上照樣列出。</summary>
+    internal string State { get; set; } = "ONLINE";
+
+    /// <summary>在線上而且這個登入進得去；false 時清單照列，但它不該被開。</summary>
+    internal bool IsAccessible { get; set; } = true;
+
+    /// <summary>設了之後開連線會等它；模擬建索引建到一半。</summary>
+    internal ManualResetEventSlim? OpenGate { get; set; }
 
     internal List<FakeCatalogObject> Objects { get; } = new();
 
@@ -160,6 +173,17 @@ internal sealed class FakeCatalogDatabase
     internal FakeCatalogDatabase WithSchema(string schemaName)
     {
         Schemas.Add(schemaName);
+        return this;
+    }
+
+    /// <summary>把一個模組標成加密：它的本文在目錄檢視上是 NULL。</summary>
+    internal FakeCatalogDatabase Encrypt(int objectId)
+    {
+        var index = IndexOf(objectId);
+        var previous = Objects[index];
+        Objects[index] = new FakeCatalogObject(
+            previous.ObjectId, previous.SchemaName, previous.Name, previous.Type, previous.Definition,
+            previous.ModifiedAt, isEncrypted: true);
         return this;
     }
 
@@ -223,7 +247,8 @@ internal sealed class FakeCatalogDatabase
 internal sealed class FakeCatalogObject
 {
     internal FakeCatalogObject(
-        int objectId, string schemaName, string name, string type, string? definition, DateTime? modifiedAt)
+        int objectId, string schemaName, string name, string type, string? definition, DateTime? modifiedAt,
+        bool isEncrypted = false)
     {
         ObjectId = objectId;
         SchemaName = schemaName;
@@ -231,7 +256,11 @@ internal sealed class FakeCatalogObject
         Type = type;
         Definition = definition;
         ModifiedAt = modifiedAt;
+        IsEncrypted = isEncrypted;
     }
+
+    /// <summary>有模組而本文讀不到（加密，或沒有 VIEW DEFINITION）：定義本文那一條回 NULL。</summary>
+    internal bool IsEncrypted { get; }
 
     internal int ObjectId { get; }
 
@@ -398,6 +427,10 @@ internal sealed class FakeCatalogCommand : IDbCommand
         {
             ReadDatabases(table);
         }
+        else if (Mentions(SqlCatalogSearchQueries.PatternParameterName))
+        {
+            ReadMatchingDefinitions(table);
+        }
         else if (Mentions("sys.sql_modules"))
         {
             ReadDefinitions(table);
@@ -432,10 +465,10 @@ internal sealed class FakeCatalogCommand : IDbCommand
     /// </remarks>
     private void RejectUnboundParameters()
     {
-        if (!Mentions(SqlCatalogSearchQueries.ModifiedAfterParameterName)) return;
-        if (_parameters.Contains(SqlCatalogSearchQueries.ModifiedAfterParameterName)) return;
-
-        throw new UnreachableServerException();
+        foreach (var name in new[] { SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.PatternParameterName })
+        {
+            if (Mentions(name) && !_parameters.Contains(name)) throw new UnreachableServerException();
+        }
     }
 
     /// <summary>增量界線；沒有綁或綁 NULL 時是 null，表示整份重撈。</summary>
@@ -480,8 +513,41 @@ internal sealed class FakeCatalogCommand : IDbCommand
         {
             if (entry.Definition is null || !Keeps(modifiedAfter, entry.ModifiedAt)) continue;
 
-            table.Rows.Add(entry.ObjectId, entry.Definition);
+            table.Rows.Add(entry.ObjectId, entry.IsEncrypted ? DBNull.Value : entry.Definition);
         }
+    }
+
+    /// <summary>
+    /// 伺服器端比對：照 <c>LIKE '%…%' ESCAPE '\'</c> 不分大小寫篩，本文讀不到的那幾列也回來。
+    /// </summary>
+    private void ReadMatchingDefinitions(DataTable table)
+    {
+        table.Columns.Add("object_id", typeof(int));
+        table.Columns.Add("definition", typeof(string));
+
+        var pattern = (string)((IDataParameter)_parameters[SqlCatalogSearchQueries.PatternParameterName]).Value!;
+        var needle = Unescape(pattern.Substring(1, pattern.Length - 2));
+
+        foreach (var entry in _database.Objects)
+        {
+            if (entry.Definition is null) continue;
+
+            if (entry.IsEncrypted) table.Rows.Add(entry.ObjectId, DBNull.Value);
+            else if (entry.Definition.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0) table.Rows.Add(entry.ObjectId, entry.Definition);
+        }
+    }
+
+    private static string Unescape(string escaped)
+    {
+        var text = new System.Text.StringBuilder(escaped.Length);
+
+        for (var index = 0; index < escaped.Length; index++)
+        {
+            if (escaped[index] == '\\' && index + 1 < escaped.Length) index++;
+            text.Append(escaped[index]);
+        }
+
+        return text.ToString();
     }
 
     private void ReadColumns(DataTable table)
@@ -503,10 +569,12 @@ internal sealed class FakeCatalogCommand : IDbCommand
     {
         table.Columns.Add("name", typeof(string));
         table.Columns.Add("is_system", typeof(int));
+        table.Columns.Add("state_desc", typeof(string));
+        table.Columns.Add("is_accessible", typeof(int));
 
         foreach (var database in _server.All())
         {
-            table.Rows.Add(database.Name, database.IsSystem ? 1 : 0);
+            table.Rows.Add(database.Name, database.IsSystem ? 1 : 0, database.State, database.IsAccessible ? 1 : 0);
         }
     }
 }

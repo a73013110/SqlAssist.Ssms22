@@ -154,7 +154,37 @@ WHERE fk.is_ms_shipped = 0;";
     /// 為全量索引再撈那兩份等於多兩輪掃全表。代價是同義字指向的目標名稱搜不到，
     /// 名稱命中不受影響。
     /// </remarks>
-    public const string Definitions = @"
+    public const string Definitions = DefinitionSources + ";";
+
+    /// <summary>
+    /// 伺服器端的本文比對：定義本文沒有留在記憶體裡的資料庫，每一輪用它找。
+    /// </summary>
+    /// <remarks>
+    /// 欄位順序：object_id、definition。參數 <see cref="PatternParameterName"/> 是已經跳脫過的
+    /// <c>LIKE</c> 樣式（<c>\</c> 為跳脫字元）。
+    ///
+    /// 這一條只是<b>粗篩</b>：比對規則（大小寫、全字、重疊）由讀取端用
+    /// <c>TextMatcher</c> 再比一次，所以這裡取一定比它寬的那一種——不分大小寫、不分全半形與假名、
+    /// 分重音。資料庫自己的定序可能分大小寫，照它比的話，使用者沒開「大小寫」時會少掉大小寫不同的命中。
+    ///
+    /// <c>definition IS NULL</c> 的那幾列也回來：那是加密或這個登入沒有 VIEW DEFINITION 的模組，
+    /// 讀取端要數出來說，否則與「本文裡沒有這個字」在清單上一模一樣。
+    ///
+    /// 與 <see cref="Definitions"/> 共用同一段來源，不另寫一份：兩份幾乎一樣的 UNION 一定會有一份
+    /// 忘記跟著改，而那一份的症狀是某一種物件只在大資料庫上搜不到本文。
+    /// </remarks>
+    public const string DefinitionsMatching = @"
+SELECT d.object_id, d.definition
+FROM (" + DefinitionSources + @"
+) AS d
+WHERE d.definition IS NULL
+   OR d.definition COLLATE Latin1_General_100_CI_AS LIKE " + PatternParameterName + @" ESCAPE N'\';";
+
+    /// <summary><see cref="DefinitionsMatching"/> 的 <c>LIKE</c> 樣式參數。</summary>
+    public const string PatternParameterName = "@pattern";
+
+    /// <summary>定義本文的三個來源；<see cref="Definitions"/> 與 <see cref="DefinitionsMatching"/> 共用。</summary>
+    private const string DefinitionSources = @"
 SELECT
     m.object_id,
     m.definition
@@ -175,7 +205,7 @@ SELECT
     dc.definition
 FROM sys.default_constraints AS dc
 WHERE dc.is_ms_shipped = 0
-  AND (@modifiedAfter IS NULL OR dc.modify_date >= @modifiedAfter);";
+  AND (@modifiedAfter IS NULL OR dc.modify_date >= @modifiedAfter)";
 
     /// <summary>
     /// 整個資料庫的資料行名稱。
@@ -203,18 +233,18 @@ WHERE o.is_ms_shipped = 0
 ORDER BY c.object_id, c.column_id;";
 
     /// <summary>
-    /// 這條連線看得到、而且進得去的資料庫。
+    /// 這條連線看得到的每一個資料庫，連同進不進得去。
     /// </summary>
     /// <remarks>
-    /// 欄位順序：name、is_system。
+    /// 欄位順序：name、is_system、state_desc、is_accessible。
     ///
-    /// 給資料庫多選用的<b>清單</b>，不是預先索引的名單：每指名一個就是一次全表掃描，
-    /// 而「把每一個進得去的資料庫都索引一遍」是明文禁止的。這一條只回答
-    /// 「有哪些可以選」，建索引仍然只發生在使用者真的勾了之後。
+    /// 給資料庫多選用的<b>清單</b>，也是範圍「全部」那一輪要搜的名單，不是預先索引的名單：
+    /// 建索引仍然只發生在使用者真的要搜的時候。
     ///
-    /// <c>state = 0</c> 是 ONLINE。離線、還原中與緊急模式的資料庫列出來只會讓使用者
-    /// 勾一個必然失敗的目標，而失敗在畫面上與「這裡面沒有東西」長得一樣。
-    /// <c>HAS_DBACCESS</c> 同理：<c>sys.databases</c> 看得到不等於進得去。
+    /// 進不去的（離線、還原中、<c>HAS_DBACCESS</c> 為 0）<b>照樣回傳</b>並標出來：多選清單只列
+    /// 進得去的，但「全部」那一輪要把它們列進完整度，說出哪幾個沒搜到。在這裡直接濾掉的話，
+    /// 畫面會說「已完整搜尋 38 個資料庫」，而使用者以為那是全部。
+    /// <c>HAS_DBACCESS</c> 對離線的資料庫回傳 NULL，所以比較寫成 <c>= 1</c>。
     /// 這一族函式吃的是資料庫名稱而不是 object_id，不在「加不了限定字」那個坑裡。
     ///
     /// <c>database_id &lt;= 4</c> 就是 master／tempdb／model／msdb 四個；讓 UI 決定
@@ -223,9 +253,9 @@ ORDER BY c.object_id, c.column_id;";
     public const string Databases = @"
 SELECT
     d.name,
-    CASE WHEN d.database_id <= 4 THEN 1 ELSE 0 END AS is_system
+    CASE WHEN d.database_id <= 4 THEN 1 ELSE 0 END AS is_system,
+    d.state_desc,
+    CASE WHEN d.state = 0 AND HAS_DBACCESS(d.name) = 1 THEN 1 ELSE 0 END AS is_accessible
 FROM sys.databases AS d
-WHERE d.state = 0
-  AND HAS_DBACCESS(d.name) = 1
 ORDER BY d.name;";
 }

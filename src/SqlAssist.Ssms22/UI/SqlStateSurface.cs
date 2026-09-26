@@ -120,9 +120,9 @@ internal sealed class SqlStateSurface : Grid
         _title.Text = _state.Title;
         _detail.Text = _state.Detail;
         _detail.Visibility = _state.Detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        // 讀不到與無權限共用同一顆警示圖示；空狀態不掛圖示，那一句本來就不是警告。
-        _icon.Icon = _state.IsUnavailable ? SqlIcon.Warning : null;
-        _icon.Visibility = _state.IsUnavailable ? Visibility.Visible : Visibility.Collapsed;
+        // 讀不到、無權限與不完整共用同一顆警示圖示；空狀態不掛圖示，那一句本來就不是警告。
+        _icon.Icon = _state.IsWarning ? SqlIcon.Warning : null;
+        _icon.Visibility = _state.IsWarning ? Visibility.Visible : Visibility.Collapsed;
 
         _action.Content = _state.ActionLabel;
         _action.Visibility = _state.HasAction ? Visibility.Visible : Visibility.Collapsed;

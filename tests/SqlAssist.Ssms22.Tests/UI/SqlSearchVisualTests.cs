@@ -355,8 +355,11 @@ public sealed class SqlSearchVisualTests
                     new[] { new FrameworkElement[] { server, databases }, new FrameworkElement[] { kinds } });
 
                 var pager = new SqlListPager();
+                // 最長的那一種說明：不完整的缺口清單，前面還掛著狀態圖示。
                 pager.Update(new SqlListFooter(
-                    SqlListFooterKind.End, SqlSearchText.Found(12345), SqlSearchText.PartialHint));
+                    SqlListFooterKind.End, SqlSearchText.FoundTruncated(12345, 5000),
+                    SqlSearchText.CoverageIncomplete(SqlSearchText.GapUnreadable("LibArchive", 3)),
+                    tone: SqlListFooterTone.Warning));
 
                 // 工具窗最小寬 300，扣掉左右各一份群距就是內容能用的寬度。
                 const double width = 300 - (2 * SqlAssistChrome.Spacing.Group);

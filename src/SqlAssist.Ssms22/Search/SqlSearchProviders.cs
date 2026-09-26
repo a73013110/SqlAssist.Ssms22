@@ -111,6 +111,15 @@ internal sealed class SqlSearchProviders
     }
 
     /// <summary>
+    /// 停下正在建的索引；已經建好的留著。
+    /// </summary>
+    /// <remarks>
+    /// 建索引不跟著搜尋輪次取消（打一個字就丟掉建到一半的索引，大資料庫永遠建不完），
+    /// 所以使用者按停止、或工具窗收起來時要另外叫它停：看不見的工具窗不該還佔著連線掃全表。
+    /// </remarks>
+    public void CancelBuilds() => _indexCache.CancelBuilds();
+
+    /// <summary>
     /// 目錄物件來源：每一輪現組一個 <see cref="SqlCatalogSearchProvider"/>，共用同一份索引快取。
     /// </summary>
     /// <remarks>

@@ -43,7 +43,7 @@ public sealed class SqlCatalogSearchQueriesTests
     /// 綁沒綁由 <see cref="FakeCatalogCommand"/> 在每一次執行時當場檢查。
     /// </remarks>
     private static readonly HashSet<string> BoundParameters =
-        new() { SqlCatalogSearchQueries.ModifiedAfterParameterName };
+        new() { SqlCatalogSearchQueries.ModifiedAfterParameterName, SqlCatalogSearchQueries.PatternParameterName };
 
     public static TheoryData<string, string> AllQueries()
     {
@@ -98,6 +98,7 @@ public sealed class SqlCatalogSearchQueriesTests
     [Theory]
     [InlineData(nameof(SqlCatalogSearchQueries.Objects))]
     [InlineData(nameof(SqlCatalogSearchQueries.Definitions))]
+    [InlineData(nameof(SqlCatalogSearchQueries.DefinitionsMatching))]
     [InlineData(nameof(SqlCatalogSearchQueries.Columns))]
     public void 只收使用者物件(string name)
     {

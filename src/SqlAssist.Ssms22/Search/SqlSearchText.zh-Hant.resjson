@@ -32,7 +32,38 @@
   "ExplorerUnavailable": "問不到物件總管，只列得出查詢視窗連著的那一台。",
   // ── 清單頁尾與空白畫面 ──
   "Found": "找到 {count:N0} 項",
-  "PartialHint": "部分結果；縮小範圍或加長關鍵字可以掃得更完整。",
+  // ── 進度：清單上方那一條 ──
+  "Stop": "停止搜尋",
+  "ListingDatabases": "正在列出資料庫…",
+  // {done}/{total} 是已經有結局的目標數與全部目標數（資料庫加上其他來源）。
+  "IndexingProgress": "正在建立搜尋索引 · {done:N0}/{total:N0}",
+  "SearchingProgress": "正在搜尋 · {done:N0}/{total:N0}",
+  // {progress} 是上面其中一句；{remaining} 是 RemainingSeconds 或 RemainingMinutes。
+  "ProgressWithRemaining": "{progress} · 約 {remaining}",
+  "RemainingSeconds": "{seconds:N0} 秒",
+  "RemainingMinutes": "{minutes:N0} 分鐘",
+  // ── 完整度：清單頁尾、空白畫面與通知 ──
+  // {scope} 是 CoverageDatabases 與來源名稱用 ListSeparator 串起來的一段。
+  "CoverageComplete": "已完整搜尋 {scope}",
+  "CoverageDatabases": "{count:N0} 個資料庫",
+  // {gaps} 是下面幾句用 GapSeparator 串起來，最多三句；更多時接 MoreGaps。
+  "CoverageIncomplete": "搜尋不完整：{gaps}",
+  "GapUnavailable": "{name} 讀不到",
+  "GapDenied": "{name} 沒有權限",
+  // {detail} 是來源自己寫的補充，或伺服器說的資料庫狀態（OFFLINE、RESTORING），原樣保留。
+  "GapDetail": "{name}：{detail}",
+  "GapUnreadable": "{name} 有 {count:N0} 個物件的本文讀不到（加密或沒有 VIEW DEFINITION）",
+  "GapTextIncomplete": "{name} 的本文沒比完",
+  "GapCanceled": "{name} 沒搜完",
+  "GapSeparator": "；",
+  "MoreGaps": "{gaps}；另有 {count:N0} 項",
+  "Stopped": "已停止；清單只含停止前找到的結果。",
+  "StoppedTitle": "已停止搜尋",
+  "NoMatchesIncomplete": "沒有相符項目，但搜尋不完整",
+  // 清單只列得出前面那幾筆時的摘要。
+  "FoundTruncated": "找到 {total:N0} 項，列出前 {shown:N0} 項",
+  // 建立搜尋索引那則通知的進度。
+  "IndexNoticeProgress": "{done:N0}/{total:N0} 個目標",
   "RoundFailed": "這一輪搜尋失敗",
   // {failure} 是 ProviderFailed、ProvidersFailed 或 SearchFailed 其中一句，可能是空的。
   "RoundFailedDetail": "清單是上一輪的結果。{failure}",
@@ -40,8 +71,6 @@
   // {provider} 是來源名稱（資料庫物件、SQL Agent 作業）；{message} 是來源交出的錯誤訊息。
   "ProviderFailed": "「{provider}」這一輪失敗：{message}",
   "ProvidersFailed": "「{provider}」等 {count} 個來源這一輪失敗：{message}",
-  // {first} 是第一個讀不到的來源交出的整句說明；{count} 至少是 1。
-  "MoreUnavailable": "{first}（另有 {count} 個來源這一輪也讀不到）",
   "ServerUnreachableRetry": "連不上 {server}。那一台可能已經中斷，換一台再搜。",
   "NoServerTitle": "尚未選擇伺服器",
   // {action} 是工具列上「套用查詢視窗連線」那顆按鈕的名稱。

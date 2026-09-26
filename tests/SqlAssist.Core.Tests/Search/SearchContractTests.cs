@@ -236,20 +236,8 @@ public sealed class SearchContractTests
     }
 
     [Fact]
-    public void 預算的每一項都要是正數()
+    public void 清單上限要是正數()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchBudget(maxHits: 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchBudget(maxHitsPerProvider: 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchBudget(maxCandidatesPerProvider: 0));
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchBudget(maxDuration: TimeSpan.Zero));
-    }
-
-    [Fact]
-    public void 預設預算以百毫秒計()
-    {
-        Assert.Equal(SearchBudget.DefaultMaxHits, SearchBudget.Default.MaxHits);
-        Assert.Equal(SearchBudget.DefaultMaxHitsPerProvider, SearchBudget.Default.MaxHitsPerProvider);
-        Assert.Equal(SearchBudget.DefaultMaxCandidatesPerProvider, SearchBudget.Default.MaxCandidatesPerProvider);
-        Assert.True(SearchBudget.Default.MaxDuration < TimeSpan.FromSeconds(1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new SearchAggregator(Array.Empty<ISearchProvider>(), maxHits: 0));
     }
 }

@@ -81,6 +81,7 @@ internal static partial class SqlIcons
         SqlIcon.PreviousMatch => KnownMonikers.FindPrevious,
         SqlIcon.NextMatch => KnownMonikers.FindNext,
         SqlIcon.SelfTest => KnownMonikers.Test,
+        SqlIcon.Stop => KnownMonikers.Stop,
         // 與通知的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。
         SqlIcon.Done => KnownMonikers.StatusOK,
         // 「帶鑰匙的資料行」：膠囊上列的正是組成主索引鍵的那幾欄，不是一個索引物件。

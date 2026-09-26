@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
@@ -33,7 +34,10 @@ internal sealed class SqlListPager : StackPanel
     private readonly RotateTransform _spin = new();
     private readonly TranslateTransform _nudge = new();
     private readonly TranslateTransform _reveal = new();
+    private readonly SqlIconImage _tone = new() { Margin = new Thickness(0, 0, 4, 0) };
+    private readonly InlineUIContainer _toneSlot;
     private SqlListFooterKind _kind = SqlListFooterKind.Hidden;
+    private SqlListFooterTone _toneKind;
 
     public SqlListPager()
     {
@@ -62,6 +66,8 @@ internal sealed class SqlListPager : StackPanel
         Grid.SetColumn(right, 2); heading.Children.Add(right);
         Children.Add(heading);
 
+        // 圖示只包一次容器，之後每次換說明都重用它：同一個元素不能先後掛在兩個容器上。
+        _toneSlot = new InlineUIContainer(_tone) { BaselineAlignment = BaselineAlignment.Center };
         _hint = SqlAssistChrome.CreateHint("", SqlAssistChrome.DefaultMetrics);
         _hint.TextAlignment = TextAlignment.Center;
         _hint.Margin = new Thickness(8, 4, 8, 0);
@@ -108,8 +114,7 @@ internal sealed class SqlListPager : StackPanel
         Visibility = footer.Kind == SqlListFooterKind.Hidden ? Visibility.Collapsed : Visibility.Visible;
         _summary.Text = footer.Summary;
         _capsule.ToolTip = footer.Summary;
-        _hint.Text = footer.Hint ?? "";
-        _hint.Visibility = footer.Hint == null ? Visibility.Collapsed : Visibility.Visible;
+        ShowHint(footer.Hint, footer.Tone);
 
         var loading = footer.Kind == SqlListFooterKind.Loading;
         Button.Visibility = footer.ActionLabel == null ? Visibility.Collapsed : Visibility.Visible;
@@ -126,6 +131,31 @@ internal sealed class SqlListPager : StackPanel
         if (footer.Kind != previous && footer.Kind != SqlListFooterKind.Hidden && footer.Kind != SqlListFooterKind.Loading &&
             previous != SqlListFooterKind.Loading)
             Reveal();
+    }
+
+    /// <summary>
+    /// 說明那一句，語氣不是一般時前面掛一顆狀態圖示。
+    /// </summary>
+    /// <remarks>
+    /// 圖示放在同一個 <see cref="TextBlock"/> 的行內，不另開一欄：說明會換行，另開一欄的圖示會
+    /// 對齊在兩行中間，看起來像是屬於第二行。狀態不只靠顏色：圖示的形狀本身就分得出成功與警告。
+    /// 語氣變成「成功」時圖示淡入一次（狀態回饋），同一種語氣改字不重播。
+    /// </remarks>
+    private void ShowHint(string? hint, SqlListFooterTone tone)
+    {
+        _hint.Inlines.Clear();
+        _hint.Visibility = hint == null ? Visibility.Collapsed : Visibility.Visible;
+        if (hint == null) return;
+
+        if (tone != SqlListFooterTone.Neutral)
+        {
+            _tone.Icon = tone == SqlListFooterTone.Success ? SqlIcon.Done : SqlIcon.Warning;
+            _hint.Inlines.Add(_toneSlot);
+            if (tone != _toneKind && tone == SqlListFooterTone.Success) SqlAssistChrome.PlayAppear(_tone);
+        }
+
+        _toneKind = tone;
+        _hint.Inlines.Add(new Run(hint));
     }
 
     private void Reveal()

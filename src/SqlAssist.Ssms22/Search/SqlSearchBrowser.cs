@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,8 +39,9 @@ namespace SqlAssist.Ssms22.Search;
 /// 多選時由選取工具列蓋住）與主從區。條件不另起一列 chip：過濾按鈕的摘要與強調底框已經說了
 /// 哪幾個維度有條件，在停靠面板裡多一列就是少看一筆結果。
 ///
-/// 沒有狀態列：筆數與「這一份為什麼不完整」寫在清單的頁尾（與 SQL Memory 同一個
-/// <see cref="SqlListPager"/>），按下去的結果與失敗一律走通知（<see cref="Notify"/>）。
+/// 沒有狀態列：筆數與「這一份完不完整」寫在清單的頁尾（與 SQL Memory 同一個
+/// <see cref="SqlListPager"/>），跑得久的那一輪在清單上方有一條進度（<see cref="SqlProgressStrip"/>），
+/// 按下去的結果與失敗一律走通知（<see cref="Notify"/>）。
 /// </remarks>
 internal sealed class SqlSearchBrowser : UserControl, IDisposable
 {
@@ -48,6 +50,23 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
     /// <summary>一次套用幾列；兩百列一次塞進集合會讓清單重算一整份版面。</summary>
     private const int RowBatch = 40;
+
+    /// <summary>
+    /// 一輪跑超過這麼久才出現進度與邊跑邊列的結果。
+    /// </summary>
+    /// <remarks>
+    /// 快取命中的那幾輪幾十毫秒就結束；每一輪都閃一下進度條，比什麼都不顯示更吵。
+    /// </remarks>
+    private static readonly TimeSpan ProgressDelay = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// 建索引跑超過這麼久才送通知。
+    /// </summary>
+    /// <remarks>
+    /// 進度主要在清單上方那一條；通知是給切到別的視窗去的人看的。每一輪都送的話，
+    /// 快的那幾輪會在通知島上閃一列，而使用者一直都在看著這個視窗。
+    /// </remarks>
+    private static readonly TimeSpan IndexNoticeDelay = TimeSpan.FromSeconds(2);
 
     private readonly IServiceProvider _services;
     private readonly SqlSearchCatalogs _catalogs;
@@ -63,6 +82,10 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private readonly SqlStateSurface _surface;
     private readonly TextBox _search = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
     private readonly SqlListPager _footer = new();
+    private readonly SqlProgressStrip _progress = new(SqlSearchText.Stop);
+    private readonly DispatcherTimer _progressTimer;
+    private readonly SearchEta _eta = new();
+    private readonly Stopwatch _runClock = new();
     private readonly SqlMatchToggles _matchToggles = new();
     private readonly Button _connection;
     private readonly SqlSearchSegments _segments = new();
@@ -85,6 +108,29 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     private string _notifiedFailure = "";
 
     private SqlSearchRound? _round;
+
+    /// <summary>正在跑、而且是畫面上那一輪的；進度與邊跑邊列的結果都讀它。</summary>
+    private SearchRun? _run;
+
+    /// <summary><see cref="_run"/> 在模型上的身分；邊跑邊列的列掛在它底下。</summary>
+    private SqlSearchRound? _runRound;
+
+    /// <summary>邊跑邊列時已經拿了第幾筆；每次只拿之後到的。</summary>
+    private int _streamed;
+
+    /// <summary>邊跑邊列的那一份；null 表示這一輪還沒開始列。</summary>
+    private List<SearchHit>? _stream;
+
+    /// <summary>邊跑邊列時已經列過的去重鍵：同一個物件的第二種命中等整輪結束才併進那一列。</summary>
+    private readonly HashSet<string> _streamKeys = new(StringComparer.Ordinal);
+
+    /// <summary>使用者按了停止；這一輪取消後的結果照樣採用，頁尾說「已停止」。</summary>
+    private bool _stopRequested;
+
+    /// <summary>建立搜尋索引那則通知；建索引跑得夠久才開，整輪結束才關。</summary>
+    private NotificationScope? _indexNotice;
+
+    private string _indexNoticeProgress = "";
 
     private bool _activating;
 
@@ -140,6 +186,9 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         // 多選時選取工具列蓋在搜尋列同一格上，正好在清單上面；與 SQL Memory 同一份。
         _selectionBar = new SqlSelectionBar(_selection, CreateSearchRow()) { ReturnFocus = _list.FocusCurrentRow };
         header.Children.Add(CreateToolbar(_selectionBar.Slot));
+        // 進度在工具列下面、清單上面：頁尾在清單的最後，列一多就捲不到。
+        _progress.StopRequested += (_, _) => Run(Stop);
+        header.Children.Add(_progress);
 
         _list.SetRowsSource(_rows, _footer);
         _list.EnableSelection(_selection);
@@ -159,6 +208,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
 
         _searchTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = SqlAssistChrome.Debounce.Search };
         _searchTimer.Tick += (_, _) => { _searchTimer.Stop(); Search(); };
+        _progressTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromMilliseconds(150) };
+        _progressTimer.Tick += (_, _) => SqlAssistPlatformGuard.Run("更新 SQL Search 進度", OnProgressTick);
         _settleTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher) { Interval = NewRowSettle };
         _settleTimer.Tick += (_, _) => SqlAssistPlatformGuard.Run("結束 SQL Search 進場", () =>
         {
@@ -179,8 +230,13 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("切換 SQL Search 可見度", () =>
         {
             if (IsVisible) OnShown();
-            // 看不見的工具窗不該還佔著連線；取消之後上一份結果留在畫面上，回來時重搜。
-            else CancelRequest();
+            // 看不見的工具窗不該還佔著連線；建索引也一起停（它不跟著輪次取消）。
+            // 取消之後上一份結果留在畫面上，回來時重搜，建到一半的索引從頭再建。
+            else
+            {
+                CancelRequest();
+                _providers.CancelBuilds();
+            }
         });
         ActiveSqlEditor.Changed += OnActiveEditorChanged;
         SqlEditorConnectionWatcher.Changed += OnActiveEditorChanged;
@@ -216,8 +272,11 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         SqlEditorConnectionWatcher.Changed -= OnActiveEditorChanged;
         _searchTimer.Stop();
         _settleTimer.Stop();
+        _progressTimer.Stop();
         _request.Cancel();
         _request.Dispose();
+        _providers.CancelBuilds();
+        CloseIndexNotice(NotificationStatus.Canceled);
         _scopeDatabases.Dispose();
         _preview.Dispose();
     }
@@ -848,6 +907,7 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (_disposed || !IsVisible) return;
 
         var token = _request.Token;
+        _stopRequested = false;
 
         // 只更新目錄，不重跑這一輪：物件總管那一台上一次連不上的話，這一輪再試一次。
         ObserveCatalog(out _);
@@ -855,19 +915,29 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         if (_model.Begin(_providers.IsIndexed(_model.ToSearchScope(), known)) is not { } round)
         {
             // 這一輪不會有新結果來換掉舊的（清空了搜尋框或斷了線）；留著上一份等於拿過期的
-            // 清單冒充目前條件的答案。
+            // 清單冒充目前條件的答案。進度與建索引的通知也一起收：沒有下一輪來接手了。
             ClearRows();
+            EndProgress(NotificationStatus.Canceled);
             UpdateChrome();
             return;
         }
 
+        // 要先建索引的那一輪，上一份清單屬於別的條件而且會被轉圈蓋住好幾秒；先清掉，
+        // 這一輪邊跑邊列的結果才不會和它混在一起。
+        if (round.NeedsIndex) ClearRows();
+
         UpdateChrome();
+        SearchResults? results = null;
 
         try
         {
-            // 背景執行緒跑整輪；UI 執行緒不同步等待，第一次建索引可能要數秒。
-            var results = await Task.Run(() => _providers.Aggregator.SearchAsync(round.Query, token), token);
-            if (token.IsCancellationRequested || !_model.Accept(round, results)) return;
+            // 背景執行緒開始整輪；UI 執行緒不同步等待，第一次建索引可能要數秒到數分鐘。
+            var run = await Task.Run(() => _providers.Aggregator.Start(round.Query, token), token).ConfigureAwait(true);
+            BeginProgress(run, round);
+            results = await run.Completion.ConfigureAwait(true);
+
+            // 打字取消的那一輪整份不要；使用者按停止的那一輪照樣採用，頁尾說已停止。
+            if ((token.IsCancellationRequested && !_stopRequested) || !_model.Accept(round, results)) return;
             Apply(round, _model.Arrange(results.Hits));
         }
         catch (OperationCanceledException)
@@ -882,9 +952,175 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
         finally
         {
             _model.End(round);
-            if (_model.IsCurrent(round)) NotifyFailure();
+
+            if (_model.IsCurrent(round))
+            {
+                // 被打字取消的那一輪：下一輪馬上接手，進度條與建索引的通知留著給它（建索引
+                // 不跟著輪次取消，那一則說的仍然是真的）。停止、收起視窗與正常結束才收尾。
+                if (token.IsCancellationRequested && !_stopRequested && IsVisible) PauseProgress();
+                else EndProgress(Outcome(results));
+
+                NotifyFailure();
+            }
+
             UpdateChrome();
         }
+    }
+
+    /// <summary>這一輪在通知上算哪一種結局；與頁尾同一個判準。</summary>
+    private NotificationStatus Outcome(SearchResults? results) =>
+        results is null ? _model.Failure.Length != 0 ? NotificationStatus.Failed : NotificationStatus.Canceled
+        : results.IsCanceled ? NotificationStatus.Canceled
+        : _model.IsComplete ? NotificationStatus.Succeeded
+        : NotificationStatus.Degraded;
+
+    /// <summary>使用者按了停止：這一輪與正在建的索引都停下，已經找到的留著。</summary>
+    private void Stop()
+    {
+        if (!_model.IsRunning) return;
+
+        _stopRequested = true;
+        _providers.CancelBuilds();
+        _request.Cancel();
+    }
+
+    /// <summary>這一輪開始了：進度從零算起，晚一小段時間才出現。</summary>
+    private void BeginProgress(SearchRun run, SqlSearchRound round)
+    {
+        _run = run;
+        _runRound = round;
+        _streamed = 0;
+        _stream = null;
+        _streamKeys.Clear();
+        _eta.Reset();
+        _runClock.Restart();
+        _progressTimer.Start();
+    }
+
+    /// <summary>
+    /// 每隔一小段時間讀一次進度：更新清單上方那一條、列出新到的命中、更新建索引的通知。
+    /// </summary>
+    /// <remarks>
+    /// 由畫面來問而不是 provider 推：建索引一秒讀上萬列，每一列推一次事件會把 UI 執行緒塞滿。
+    /// </remarks>
+    private void OnProgressTick()
+    {
+        if (_disposed || _run is not { } run) return;
+
+        var elapsed = _runClock.Elapsed;
+        if (elapsed < ProgressDelay) return;
+
+        var progress = run.Progress();
+        var remaining = progress.IsDeterminate ? _eta.Observe(elapsed, progress.Fraction) : null;
+        _progress.Show(
+            SqlSearchBrowserModel.ProgressText(progress, _model.IsIndexing, remaining),
+            progress.IsDeterminate ? progress.Fraction : null);
+
+        StreamArrived(run);
+        UpdateIndexNotice(progress, elapsed);
+    }
+
+    /// <summary>
+    /// 把新到的命中接在清單後面，照到達順序；整輪結束才照排序重排一次。
+    /// </summary>
+    /// <remarks>
+    /// 每一次都重排的話，使用者正在看的那一列會一直跳走。同一個物件的第二種命中（名稱之後又在
+    /// 本文命中）不另起一列，等整輪結束由聚合器併成一列。
+    /// </remarks>
+    private void StreamArrived(SearchRun run)
+    {
+        var arrived = run.ArrivedSince(_streamed);
+        if (arrived.Count == 0) return;
+        _streamed += arrived.Count;
+
+        if (_runRound is not { } round || !_model.IsCurrent(round)) return;
+
+        if (_stream is null)
+        {
+            // 這一輪第一批：上一輪的列不屬於這一份答案。
+            ClearRows();
+            _stream = new List<SearchHit>();
+            _round = round;
+            _applying = _stream;
+        }
+
+        foreach (var hit in arrived)
+        {
+            if (_streamKeys.Add(hit.DedupeKey)) _stream.Add(hit);
+        }
+
+        AppendBatch(round);
+    }
+
+    /// <summary>
+    /// 建索引跑得夠久就開一則通知，之後跟著進度更新。
+    /// </summary>
+    /// <remarks>
+    /// 開在這裡而不是一開始就開：快的那幾輪不該在通知島上閃一列。只有要建索引的那幾輪才開——
+    /// 比對本身再慢也只有幾秒，使用者一直看著清單。
+    /// </remarks>
+    private void UpdateIndexNotice(SearchProgress progress, TimeSpan elapsed)
+    {
+        if (!_model.IsIndexing || elapsed < IndexNoticeDelay || !progress.IsDeterminate) return;
+
+        _indexNotice ??= NotificationCenter.Default.BeginDetached(
+            NotificationCatalog.BuildingSearchIndex, NotificationKind.Search, NotificationOrigin.User, NotificationLevel.Info,
+            subject: _model.ServerSummary());
+
+        var text = SqlSearchText.IndexNoticeProgress(progress.Finished, progress.Total);
+        if (string.Equals(text, _indexNoticeProgress, StringComparison.Ordinal)) return;
+        _indexNoticeProgress = text;
+        _indexNotice.Report(text);
+    }
+
+    /// <summary>這一輪被下一輪取代：停止讀進度，進度條留著等下一輪接手。</summary>
+    private void PauseProgress()
+    {
+        _progressTimer.Stop();
+        _run = null;
+        _runRound = null;
+        _stream = null;
+    }
+
+    /// <summary>這一輪結束（完成、停止、失敗或沒有下一輪）：進度收起來，通知寫上結局。</summary>
+    private void EndProgress(NotificationStatus outcome)
+    {
+        PauseProgress();
+        _runClock.Reset();
+        _progress.Hide();
+        CloseIndexNotice(outcome);
+    }
+
+    /// <summary>
+    /// 關掉建索引那則通知，結局與頁尾同一句。
+    /// </summary>
+    /// <remarks>
+    /// 被下一輪取代（使用者又打了字）時<b>不</b>關（見 <see cref="PauseProgress"/>）：建索引不跟著
+    /// 輪次取消，那一則說的仍然是真的，由接手的那一輪收尾。
+    /// </remarks>
+    private void CloseIndexNotice(NotificationStatus outcome)
+    {
+        if (_indexNotice is not { } notice) return;
+
+        _indexNotice = null;
+        _indexNoticeProgress = "";
+
+        switch (outcome)
+        {
+            case NotificationStatus.Failed:
+                notice.Fail();
+                break;
+            case NotificationStatus.Canceled:
+                notice.Cancel();
+                break;
+            case NotificationStatus.Degraded:
+                notice.Degrade();
+                break;
+        }
+
+        // 有答案的那兩種寫上完整度，與頁尾同一句；停止與失敗由狀態本身說。
+        if (outcome is NotificationStatus.Succeeded or NotificationStatus.Degraded) notice.Report(_model.CoverageSummary);
+        notice.Dispose();
     }
 
     /// <summary>
@@ -929,6 +1165,8 @@ internal sealed class SqlSearchBrowser : UserControl, IDisposable
     /// </remarks>
     private void Reorder()
     {
+        // 邊跑邊列的那幾列照到達順序，整輪結束時照新的排序一次排好；途中重排會和下一批打架。
+        if (_model.IsRunning) return;
         if (_round is not { } round || _applying.Count == 0) return;
         _model.RememberSelection((_list.SelectedItem as SqlSearchRow)?.Key);
         var ordered = _model.Arrange(_applying);

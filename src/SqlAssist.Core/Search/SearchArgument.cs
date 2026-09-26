@@ -20,18 +20,4 @@ internal static class SearchArgument
         if (value.Length == 0) throw new ArgumentException("識別字不可為空字串。", parameterName);
         return value;
     }
-
-    /// <summary>
-    /// 給人看的一句話：可以很長，但不可以沒有。
-    /// </summary>
-    /// <remarks>
-    /// 說不出原因的「讀不到」與泛用的「部分結果」在畫面上一模一樣，而那正是
-    /// <see cref="ISearchSink.ReportUnavailable(string)"/> 存在的理由。
-    /// </remarks>
-    internal static string Reason(string? value, string parameterName)
-    {
-        if (value is null) throw new ArgumentNullException(parameterName);
-        if (value.Length == 0) throw new ArgumentException("原因不可為空字串。", parameterName);
-        return value;
-    }
 }

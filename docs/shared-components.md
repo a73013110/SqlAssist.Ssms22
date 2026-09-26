@@ -28,7 +28,8 @@
 | 範圍列的伺服器與資料庫篩選（單選／多選、換伺服器清資料庫、套用查詢視窗的連線） | `Core/Connections/SqlConnectionScope.cs` |
 | 一個物件掛在誰身上（父物件、子物件的型別代碼、DEFAULT 的資料行） | `Metadata/Caching/SqlMetadataCatalog.cs` 的 `GetParentAsync` |
 | 物件總管節點的 URN（節點路徑、候選順序與跳脫） | `Metadata/Model/SqlObjectExplorerUrn.cs` |
-| 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs` |
+| 一輪搜尋的排名、去重、合併與世代作廢；每個目標的完整度與進度 | `Core/Search/SearchAggregator.cs`、`SearchTarget.cs`、`SearchRun.cs` |
+| 還要多久（進度平滑、說不準時不說） | `Core/Search/SearchEta.cs` |
 | 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
 | 命中的併段、標記上限與少標了那一句（各功能只決定拿什麼找） | `Core/Matching/MatchHighlights.cs` |
 | 字面比對（大小寫、全字、重疊與上限；字串與 UTF-16LE 位元組同一套），選項的驗證與記住的格式 | `Core/Matching/TextMatcher.cs`、`TextMatchState.cs` |
@@ -61,5 +62,5 @@
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | 表格文字：TSV（Excel 引號規則）與 CF_HTML 表格，同一趟寫完 | `Core/Tabular/SqlTabularText.cs`（欄位定義留在各功能） |
-| 清單頁尾的狀態（筆數、部分結果、續頁）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs` |
+| 清單頁尾的狀態（筆數、部分結果、續頁、說明的語氣）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs` |
 | 區塊色彩 | [唯一實作](block-colors.md) |

@@ -113,6 +113,8 @@
   // ── SQL Search ──
   "SearchingDatabaseObjects": "搜尋資料庫物件",
   "SearchingDatabaseObjectsDone": "已搜尋資料庫物件",
+  "BuildingSearchIndex": "建立搜尋索引",
+  "BuildingSearchIndexDone": "已建立搜尋索引",
   "CopyingQualifiedName": "複製限定名稱",
   "CopyingQualifiedNameDone": "已複製限定名稱",
   "CopyingDefinition": "複製定義",

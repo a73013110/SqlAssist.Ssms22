@@ -1,7 +1,7 @@
 # SQL Search
 
-本頁定義跨來源搜尋的 provider、排序／合併、部分結果、索引與清單的批次複製；命中標示與啟用結果分別見
-[命中高亮](search-highlight.md)及[結果導航](search-navigation.md)。
+本頁定義跨來源搜尋的 provider、排序／合併、索引與清單的批次複製；完整度、進度與停止見
+[完整度與進度](search-coverage.md)，命中標示與啟用結果分別見[命中高亮](search-highlight.md)及[結果導航](search-navigation.md)。
 
 入口是 SqlAssist 工具列的 **Search**（位於 History／Favorites 後）與
 **工具 → SqlAssist → SQL Search**；完整名稱留在 Tooltip 與選單，沒有鍵盤捷徑。
@@ -21,8 +21,9 @@
 5. 在 `SqlSearchActivation` 加入對應分支。辨識酬載型別**只准**發生在那裡，清單樣板、圖示與
    預覽只讀 `SearchHit` 的欄位；預覽要不要讀定義也問它（`DefinitionOf`）。
 
-provider 必須在取資料前套用 `SearchQuery.Targets` 與分類；`TryReport` 回 false 立即停止；
-`DbException` 降級為來源失敗，不外擲。種類下拉、清單與預覽不因新來源改動。
+provider 必須在取資料前套用 `SearchQuery.Targets` 與分類；每個要搜的東西先宣告成目標並說出結局，
+見[完整度與進度](search-coverage.md#目標與結局)；`TryReport` 回 false 立即停止；`DbException` 降級為那個目標
+讀不到，不外擲。種類下拉、清單與預覽不因新來源改動。
 
 ## 兩條篩選軸
 
@@ -43,19 +44,13 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 `SearchHit.Merged`；呈現讀 `SearchHit.Matches`，才能保留所有命中原因。
 
 資料行命中的標題與去重鍵都必須指向所屬物件，不接資料行名稱。
-含資料行的鍵只供 `SearchExamineCounter` 表示掃描位置。
 
-## 掃描預算與部分結果
+## 失敗與讀不到
 
-沿用 [SQL Memory 搜尋](sql-memory-search.md#掃描預算)：限制放在讀取迴圈，耗盡時回傳既有命中並標記
-`IsPartial`。每個 provider 與排名後總數各有限額，避免由執行先後決定保留來源。
+`Failures` 是 provider 擲了例外，讀不到是目標的結局；兩者不互相冒充。失敗訊息使用
+`ISearchProvider.DisplayName`，診斷才用穩定但不面向使用者的 `Id`。
 
-畫面需分清三種狀態：`IsPartial` 是沒掃完；`Failures` 是 provider 失敗；`Progress.IsUnavailable`
-是來源讀不到。失敗訊息使用 `ISearchProvider.DisplayName`，診斷才用穩定但不面向使用者的 `Id`。
-
-`UnavailableReason` 是顯示文字；`SearchUnavailableKind` 只分 `Unknown` 與 `Denied`。
-只有 provider 收到明確權限錯誤、同一來源未混入其他種類，且所有不可用來源都是 `Denied` 時，
-`SqlSearchBrowserModel.Surface` 才顯示權限不足；其餘都用可重試的未知失敗。
+`SearchUnavailableKind` 只分 `Unknown` 與 `Denied`，只有 provider 收到明確權限錯誤才給 `Denied`。
 
 `SqlServerErrorCodes` 將 229、230、262、297、300、916、4060 視為權限錯誤；18456 是認證失敗。
 錯誤碼以反射讀取，因 Metadata 只依賴 `System.Data`、netstandard2.0 的 `DbException` 沒有 Number，
@@ -70,9 +65,16 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 不重掃第一段。版本戳同時使用 `MAX(modify_date)` 與物件數，才能辨識刪除最後修改物件。
 重新整理呼叫 `Invalidate`，保留可增量更新的資料；換連線才 `Clear`。
 
-單一索引最多 64 MiB 定義本文，整體快取 256 MiB，依最久未使用淘汰但至少保留一份。
-單份超限時只留名稱並標記不完整，不得靜默漏結果。只索引這一輪真的要搜的資料庫（勾選的那幾個，
-或範圍是「全部」時的每一個）；禁止在還沒有人搜之前先索引。
+建索引是快取自己的工作（`SqlCatalogSearchIndexBuild`），**不跟著輪次取消**：每打一個字就丟掉建到一半的
+索引，大資料庫永遠建不完。同一個資料庫同時只建一份，後到的輪次接著等；只有 `Clear` 與 `CancelBuilds`
+（停止、收起視窗）會停下建置。同時建幾份有上限，伺服器端比對本文共用同一組名額。
+
+定義本文是快取，比對的完整度不跟著它打折。單一資料庫超過 64 MiB 時整份不留，改由伺服器端比對
+（`TextOnServer`、`SqlCatalogServerTextSearch`）；整體快取 512 MiB，滿了先把最久沒用到那幾份的本文讓給伺服器端，
+還不夠才整份淘汰，但至少保留一份。改到伺服器端的資料庫留在那一種直到換連線，否則放不下的資料庫每一輪都
+互相擠掉重建。伺服器端以不分大小寫的 `LIKE` 粗篩，比對規則由 `SearchQuery.Matcher` 再比一次。
+
+只索引這一輪真的要搜的資料庫（勾選的那幾個，或範圍是「全部」時的每一個）；禁止在還沒有人搜之前先索引。
 
 ## 多選與批次複製
 
@@ -86,7 +88,7 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 
 ## 回饋與列操作
 
-沒有狀態列。筆數、部分結果、讀不到的來源與「這一輪失敗、清單是上一輪的」寫在清單頁尾
+沒有狀態列。筆數、完整度與「這一輪失敗、清單是上一輪的」寫在清單頁尾
 （`SqlSearchBrowserModel.Footer`，呈現與 SQL Memory 共用）；按下去的結果與失敗走通知，種類是
 `Search`，移至定義與在物件總管中選取歸 `Navigation`、由 `SqlSearchActivation` 自己送。同一句失敗
 只送一次，否則讀不到的來源會在每打一個字時跳一次。
@@ -107,5 +109,6 @@ Metadata 的 `SqlObjectKind`，目錄來源對應在 `SqlCatalogSearchCategories
 
 - 連結伺服器與四段式名稱。
 - 指令碼內宣告的暫存表、資料表變數與 CTE。
+- 資料庫與伺服器層級的 DDL 觸發程序：不在 `sys.objects`，也沒有物件總管上的結構描述節點可導航。
 - 資料列內容；只搜尋名稱、結構與定義。
 - regex、facet 語法與持久化索引。

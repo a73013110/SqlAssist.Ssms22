@@ -205,7 +205,7 @@ public sealed class SqlAgentJobSearchProviderTests
     }
 
     [Fact]
-    public async Task 預算用完時立刻停止掃描()
+    public async Task 被叫停之後立刻停止掃描()
     {
         var server = new FakeAgentServer();
         server.AddJob("Loan01");
@@ -216,10 +216,11 @@ public sealed class SqlAgentJobSearchProviderTests
 
         Assert.Single(sink.Hits);
 
-        // 只看筆數分不出「停下來了」與「照掃到底但多的被丟掉」；分得出來的是候選數。
-        Assert.Equal(2, sink.Examined);
-        Assert.True(sink.IsTruncated);
-        Assert.Equal("agent-job|LIBSQL01|00000002-0000-0000-0000-000000000000", sink.Checkpoint);
+        // 只看筆數分不出「停下來了」與「照掃到底但多的被丟掉」；分得出來的是被推了幾次。
+        Assert.Equal(2, sink.Reports);
+
+        // 沒比完就不說比完了。
+        Assert.Equal(SearchTargetState.Running, Assert.Single(sink.Targets).State);
     }
 
     [Fact]
@@ -234,7 +235,7 @@ public sealed class SqlAgentJobSearchProviderTests
     }
 
     /// <summary>
-    /// 讀不到 <c>msdb</c> 是常態：降級成「這個來源沒有資料」，不是錯誤也不是空白。
+    /// 讀不到 <c>msdb</c> 是常態：降級成「這個目標讀不到」，不是錯誤也不是空白。
     /// </summary>
     /// <remarks>
     /// 讓 <c>DbException</c> 冒出去的話，聚合器會把它記成一次來源失敗，而工具窗的頁尾
@@ -260,21 +261,15 @@ public sealed class SqlAgentJobSearchProviderTests
 
         Assert.Empty(sink.Hits);
 
-        // 「讀不到」不是「沒掃完」：後者叫使用者縮小範圍，而那對沒有權限完全沒有用。
-        Assert.False(sink.IsTruncated);
-        Assert.Null(sink.Checkpoint);
+        // 這個來源是一個目標，讀不到時說出結局與種類；名稱就是來源的顯示名稱，
+        // 呈現那一層據此寫出「SQL Agent 作業：沒有權限」。
+        var target = Assert.Single(sink.Targets);
+        Assert.Equal("SQL Agent 作業", target.Name);
+        Assert.Equal(SearchTargetKind.Source, target.Kind);
+        Assert.Equal(SearchTargetState.Unavailable, target.State);
 
-        Assert.True(sink.IsUnavailable);
-
-        // 那一句話由這個來源自己寫，呼叫端原樣貼上去——它指得出少了哪一個來源，
-        // 也指得出該去看什麼。
-        Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
-        Assert.Contains("msdb", sink.UnavailableReason);
-
-        // 伺服器給了權限錯誤碼，所以這一句是斷言而不是「多半」——而呈現那一層要換掉
-        // 抬頭，靠的是種類不是這一句話。
-        Assert.Equal(SearchUnavailableKind.Denied, sink.UnavailableKind);
-        Assert.DoesNotContain("多半", sink.UnavailableReason);
+        // 伺服器給了權限錯誤碼，所以是斷言；呈現那一層換抬頭靠的是種類。
+        Assert.Equal(SearchUnavailableKind.Denied, target.UnavailableKind);
 
         // 失敗不進快取：否則權限恢復之後仍然拿到「沒有資料」。
         Assert.False(cache.IsFresh(server.SourceFor().ServerCacheKey));
@@ -296,7 +291,7 @@ public sealed class SqlAgentJobSearchProviderTests
         var sink = await RunAsync(server, new SearchQuery("Lib_Loan"), cache: cache);
 
         Assert.Single(sink.Hits, hit => hit.CategoryId == "agent-job.job");
-        Assert.False(sink.IsTruncated);
+        Assert.True(sink.IsComplete);
     }
 
     /// <summary>
@@ -316,7 +311,7 @@ public sealed class SqlAgentJobSearchProviderTests
             new SearchQuery("Lib_Loan", scope: new SearchScope(new[] { "LIBSQL02" }, null)));
 
         Assert.Empty(sink.Hits);
-        Assert.False(sink.IsTruncated);
+        Assert.Empty(sink.Targets);
 
         // 連線一次都不開：整輪不回結果就不該付任何代價。
         Assert.Equal(0, server.Opened);
@@ -486,13 +481,12 @@ public sealed class SqlAgentJobSearchProviderTests
 
         Assert.Contains(reported, line => line.Contains("開啟 SQL Agent 作業連線"));
         Assert.Empty(sink!.Hits);
-        Assert.True(sink.IsUnavailable);
-        Assert.Contains("SQL Agent 作業", sink.UnavailableReason);
+        var target = Assert.Single(sink.Targets);
+        Assert.Equal(SearchTargetState.Unavailable, target.State);
 
-        // 連不上沒有權限錯誤碼，所以種類說不出來，而那一句話回到列幾個可能。
-        // 斷言成權限的那一版會叫使用者去查一個好好的權限設定。
-        Assert.Equal(SearchUnavailableKind.Unknown, sink.UnavailableKind);
-        Assert.Contains("多半", sink.UnavailableReason);
+        // 連不上沒有權限錯誤碼，所以種類說不出來。斷言成權限的那一版會叫使用者去查
+        // 一個好好的權限設定。
+        Assert.Equal(SearchUnavailableKind.Unknown, target.UnavailableKind);
     }
 
     /// <summary>這個來源宣告自己的兩顆 pill，不借用目錄那一組。</summary>

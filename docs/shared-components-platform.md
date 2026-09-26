@@ -39,7 +39,8 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | 蓋在輸入列上的選取工具列（筆數、全選、動作、進度與取消） | `Ssms22/UI/SqlSelectionBar.cs` |
 | 剪貼簿寫入純文字或 TSV＋HTML、鎖住時重試與回報字 | `Ssms22/UI/SqlClipboard.cs` |
 | 選取驅動的去彈跳、取消與 stale guard | `Ssms22/UI/SqlSelectionLoader.cs` |
-| 載入、空、失敗、權限不足與行內忙碌狀態 | `Ssms22/UI/SqlStateSurface.cs`、`SqlSurfaceState.cs`、`SqlBusyNotice.cs` |
+| 載入、空、失敗、權限不足、不完整與行內忙碌狀態 | `Ssms22/UI/SqlStateSurface.cs`、`SqlSurfaceState.cs`、`SqlBusyNotice.cs` |
+| 清單上方的進度條、說明與停止 | `Ssms22/UI/SqlProgressStrip.cs`（進度條沿用 `SqlUsageMeter`） |
 | 搜尋、預覽與估算的去彈跳長度 | `Ssms22/UI/SqlAssistChrome.Delays.cs` |
 | 對話框元件與殼層 | `Ssms22/UI/SqlAssistChrome.Dialogs.cs`、`SqlAssistDialogs.cs` |
 | SQL 唯讀／著色編輯、分類、選取映射與主題 | `Ssms22/UI/SqlReadOnlyViewer.cs`、`SqlTextEditor.cs`、`Ssms22/Preview/SqlScriptDocument.cs`、`SqlScriptTheme.cs` |

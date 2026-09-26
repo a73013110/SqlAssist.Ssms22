@@ -62,6 +62,9 @@ internal enum SqlIcon
 
     SelfTest,
 
+    /// <summary>停下正在跑的工作（SQL Search 建索引與比對）。</summary>
+    Stop,
+
     /// <summary>動作完成的短暫回饋（複製成功時動作按鈕的圖示換成它）。</summary>
     Done,
 

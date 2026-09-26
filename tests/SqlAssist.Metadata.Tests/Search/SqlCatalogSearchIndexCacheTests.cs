@@ -19,14 +19,14 @@ public sealed class SqlCatalogSearchIndexCacheTests
     private static readonly DateTime Latest = new(2025, 9, 4, 11, 15, 0, DateTimeKind.Utc);
 
     /// <summary>
-    /// 預算滿了淘汰最久沒用到的那一份。
+    /// 預算滿了先讓出最久沒用到那一份的定義本文，名稱那一段留著。
     /// </summary>
     /// <remarks>
-    /// 照份數算上限的症狀是四個大庫就把 SSMS 的行程撐爆，而四個小庫又白白丟掉
-    /// 明明留得住的東西——一份索引的大小差到三個數量級。
+    /// 只整份淘汰的那一版，資料庫多到放不下時每一輪都互相擠掉、每打一個字都在重建全表。
+    /// 讓出的本文改由伺服器端比對，所以結果不會少。
     /// </remarks>
     [Fact]
-    public void 位元組預算滿了淘汰最久沒用到的()
+    public void 位元組預算滿了先讓出最舊那一份的本文()
     {
         var server = new FakeCatalogServer();
         server.Add("Library").WithObject(1, "dbo", "Lib_Tag", "V", new string('A', 1000));
@@ -37,10 +37,36 @@ public sealed class SqlCatalogSearchIndexCacheTests
         Assert.NotNull(cache.GetOrBuild(server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None));
         Assert.NotNull(cache.GetOrBuild(server.SourceFor("LibArchive"), includeDefinitions: true, CancellationToken.None));
 
+        Assert.Equal(2, cache.Count);
+        Assert.True(cache.TryGet(server.SourceFor("Library").CacheKey, out var older));
+        Assert.True(older!.TextOnServer);
+        Assert.Null(older.Definitions);
+        Assert.True(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out var newer));
+        Assert.NotNull(newer!.Definitions);
+        Assert.True(cache.Bytes <= cache.MaxBytes, $"佔用 {cache.Bytes} 超過預算 {cache.MaxBytes}");
+
+        // 讓出本文的那一份要本文時仍算命中：它的本文本來就不在記憶體裡，重撈只會把另一份擠出去。
+        var builds = cache.Builds;
+        Assert.Same(older, cache.GetOrBuild(server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None));
+        Assert.Equal(builds, cache.Builds);
+    }
+
+    /// <summary>本文都讓出去了還是放不下，才整份淘汰最久沒用到的。</summary>
+    [Fact]
+    public void 本文讓完還放不下才整份淘汰()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Lib_Tag", "V");
+        server.Add("LibArchive").WithObject(1, "dbo", "Lib_Tag", "V");
+
+        var cache = new SqlCatalogSearchIndexCache(maxBytes: 200);
+
+        cache.GetOrBuild(server.SourceFor("Library"), includeDefinitions: false, CancellationToken.None);
+        cache.GetOrBuild(server.SourceFor("LibArchive"), includeDefinitions: false, CancellationToken.None);
+
         Assert.Equal(1, cache.Count);
         Assert.False(cache.TryGet(server.SourceFor("Library").CacheKey, out _));
         Assert.True(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
-        Assert.True(cache.Bytes <= cache.MaxBytes, $"佔用 {cache.Bytes} 超過預算 {cache.MaxBytes}");
     }
 
     /// <summary>
@@ -59,6 +85,76 @@ public sealed class SqlCatalogSearchIndexCacheTests
 
         Assert.NotNull(cache.GetOrBuild(server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None));
         Assert.Equal(1, cache.Count);
+    }
+
+    /// <summary>
+    /// 等的人被取消（使用者又打了一個字），建置照樣建完並留在快取裡。
+    /// </summary>
+    /// <remarks>
+    /// 跟著取消的話，建到一半的索引每一個字都被丟掉重來，大資料庫永遠建不完。
+    /// </remarks>
+    [Fact]
+    public async Task 等待被取消時建置照樣完成()
+    {
+        var server = SqlCatalogSearchIndexTests.NewServer();
+        using var gate = new ManualResetEventSlim();
+        server.Find("Library").OpenGate = gate;
+        var cache = new SqlCatalogSearchIndexCache();
+        var source = server.SourceFor("Library");
+
+        using (var typed = new CancellationTokenSource())
+        {
+            var waiting = Task.Run(() => cache.GetOrBuild(source, includeDefinitions: true, typed.Token));
+            typed.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+        }
+
+        gate.Set();
+        var build = cache.Build(source, includeDefinitions: true);
+        var result = await build.Task;
+
+        Assert.NotNull(result.Index);
+        Assert.Equal(1, cache.Builds);
+        Assert.Equal(1, server.Opened);
+        Assert.True(cache.IsFresh(source.CacheKey));
+    }
+
+    /// <summary>使用者按停止：正在建的停下，不進快取；已經建好的不動。</summary>
+    [Fact]
+    public async Task 按停止時正在建的停下而且不進快取()
+    {
+        var server = new FakeCatalogServer();
+        server.Add("Library").WithObject(1, "dbo", "Loan", "U");
+        server.Add("LibArchive").WithObject(1, "dbo", "LoanDetail", "U");
+        var cache = new SqlCatalogSearchIndexCache();
+
+        Assert.NotNull(cache.GetOrBuild(server.SourceFor("Library"), includeDefinitions: true, CancellationToken.None));
+
+        using var gate = new ManualResetEventSlim();
+        server.Find("LibArchive").OpenGate = gate;
+        var build = cache.Build(server.SourceFor("LibArchive"), includeDefinitions: true);
+
+        cache.CancelBuilds();
+        gate.Set();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => build.Task);
+        Assert.False(cache.TryGet(server.SourceFor("LibArchive").CacheKey, out _));
+        Assert.True(cache.TryGet(server.SourceFor("Library").CacheKey, out _));
+
+        // 下一輪重新建，不會一直拿到那一份被取消的。
+        Assert.NotNull(cache.GetOrBuild(server.SourceFor("LibArchive"), includeDefinitions: true, CancellationToken.None));
+    }
+
+    /// <summary>建置時一路回報進度；建好的那一份是 1。</summary>
+    [Fact]
+    public async Task 建置的進度走到一()
+    {
+        var cache = new SqlCatalogSearchIndexCache();
+        var build = cache.Build(SqlCatalogSearchIndexTests.NewServer().SourceFor("Library"), includeDefinitions: true);
+
+        await build.Task;
+
+        Assert.Equal(1, build.Progress, 3);
     }
 
     /// <summary>

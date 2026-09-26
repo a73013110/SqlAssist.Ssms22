@@ -24,10 +24,19 @@ internal enum SqlSurfaceKind
 
     /// <summary>權限不足：讀得到伺服器，但這個登入看不到這一份。</summary>
     Denied,
+
+    /// <summary>
+    /// 沒有結果，但這一輪有一部分沒搜到；「沒找到」不能信。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="Empty"/> 分開：兩者的抬頭都可以是「沒有相符項目」，但這一種要掛警示圖示，
+    /// 否則使用者照樣拿它當「不存在」。與 <see cref="Unreadable"/> 分開：那一種是一個字都沒讀到。
+    /// </remarks>
+    Incomplete,
 }
 
 /// <summary>
-/// 載入、空、錯誤與無權限四種狀態的唯一描述；SQL Memory 與 SQL Search 共用。
+/// 載入、空、錯誤、無權限與不完整五種狀態的唯一描述；SQL Memory 與 SQL Search 共用。
 /// </summary>
 /// <remarks>
 /// 文案分成抬頭與說明兩段，不串成一句：錯誤與無權限的抬頭是固定的兩句話，說明才是
@@ -69,6 +78,10 @@ internal readonly struct SqlSurfaceState : IEquatable<SqlSurfaceState>
     public static SqlSurfaceState Unreadable(string detail, string action = "") =>
         new(SqlSurfaceKind.Unreadable, UnreadableTitle, detail, action);
 
+    /// <param name="title">抬頭由呼叫端決定（「沒有相符項目」「已停止搜尋」），說明寫缺了哪一部分。</param>
+    public static SqlSurfaceState Incomplete(string title, string detail) =>
+        new(SqlSurfaceKind.Incomplete, title, detail, null);
+
     /// <remarks>權限不足沒有動作：擴充功能給不了權限，唯一的下一步在這個視窗外面。</remarks>
     public static SqlSurfaceState Denied(string detail) =>
         new(SqlSurfaceKind.Denied, DeniedTitle, detail, null);
@@ -96,6 +109,9 @@ internal readonly struct SqlSurfaceState : IEquatable<SqlSurfaceState>
 
     /// <summary>讀不到與無權限共用同一個出口；呈現只分抬頭，不分版面。</summary>
     public bool IsUnavailable => Kind is SqlSurfaceKind.Unreadable or SqlSurfaceKind.Denied;
+
+    /// <summary>要掛警示圖示：讀不到、沒有權限，或結果不完整。</summary>
+    public bool IsWarning => IsUnavailable || Kind == SqlSurfaceKind.Incomplete;
 
     public bool Equals(SqlSurfaceState other) =>
         Kind == other.Kind &&

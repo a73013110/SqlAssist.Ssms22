@@ -161,11 +161,8 @@ internal sealed class SqlSearchBrowserModel
 
     private readonly HashSet<string> _categoryIds = new(StringComparer.Ordinal);
 
-    /// <summary>有來源這一輪整個讀不到時要補的那一句；沒有時是空字串。</summary>
-    private string _unavailable = "";
-
-    /// <summary>讀不到的來源<b>每一個</b>都說得出「就是權限」；抬頭換成「權限不足」的唯一門檻。</summary>
-    private bool _unavailableDenied;
+    /// <summary>這一輪搜了哪些目標、哪幾個沒搜到；還沒有答案時是空的那一份。</summary>
+    private SqlSearchCoverage _coverage = SqlSearchCoverage.None;
 
     private IReadOnlyList<SqlSearchCategoryOption> _categories = Array.Empty<SqlSearchCategoryOption>();
     private Dictionary<string, int> _categoryOrder = new(StringComparer.Ordinal);
@@ -177,8 +174,9 @@ internal sealed class SqlSearchBrowserModel
 
     private bool _pending;
     private bool _hasResult;
-    private bool _isPartial;
+    private bool _canceled;
     private int _hitCount;
+    private int _totalHits;
     private string _failure = "";
     private string? _restoreKey;
 
@@ -274,7 +272,7 @@ internal sealed class SqlSearchBrowserModel
 
     public bool IsRunning => _running >= 0;
 
-    /// <summary>目前這一輪要先建索引；載入表面出現，而不是讓視窗看起來當掉。</summary>
+    /// <summary>目前這一輪要先建索引；進度說「正在建立搜尋索引」，而且跑得夠久時送通知。</summary>
     public bool IsIndexing { get; private set; }
 
     /// <summary>
@@ -506,13 +504,52 @@ internal sealed class SqlSearchBrowserModel
         if (!IsCurrent(round) || results.IsStale) return false;
 
         _hasResult = true;
-        _isPartial = results.IsPartial;
+        _canceled = results.IsCanceled;
         _hitCount = results.Hits.Count;
+        _totalHits = results.TotalHits;
         _failure = Describe(results.Failures);
-        _unavailable = DescribeUnavailable(results.Progress);
-        _unavailableDenied = AllDenied(results.Progress);
+        _coverage = SqlSearchCoverage.Of(results.Targets);
         return true;
     }
+
+    /// <summary>
+    /// 這一輪的完整度那一句；給通知收尾用。
+    /// </summary>
+    /// <remarks>
+    /// 與頁尾同一份：通知上說「已完整搜尋」而頁尾說「搜尋不完整」的話，使用者不知道該信哪一個。
+    /// </remarks>
+    public string CoverageSummary => _canceled ? SqlSearchText.Stopped : _coverage.Summary;
+
+    /// <summary>這一輪每一個目標都比完而且沒有漏、也沒有失敗或停止。</summary>
+    public bool IsComplete => _hasResult && !_canceled && _failure.Length == 0 && _coverage.IsComplete;
+
+    /// <summary>
+    /// 清單上方那一條進度的說明。
+    /// </summary>
+    /// <param name="indexing">這一輪要先建索引；說「正在建立搜尋索引」而不是「正在搜尋」。</param>
+    /// <param name="remaining">還要多久；說不準時為 null，那一段整個不寫。</param>
+    /// <remarks>
+    /// 數的是<b>目標</b>（資料庫加上其他來源），不是資料庫：只勾了作業時，說「0/0 個資料庫」
+    /// 會讓人以為什麼都沒在搜。還不知道有幾個目標（正在列資料庫）時說正在列。
+    /// </remarks>
+    public static string ProgressText(SearchProgress progress, bool indexing, TimeSpan? remaining)
+    {
+        if (progress is null) throw new ArgumentNullException(nameof(progress));
+
+        if (!progress.IsDeterminate) return SqlSearchText.ListingDatabases;
+
+        var text = indexing
+            ? SqlSearchText.IndexingProgress(progress.Finished, progress.Total)
+            : SqlSearchText.SearchingProgress(progress.Finished, progress.Total);
+
+        return remaining is { } left ? SqlSearchText.ProgressWithRemaining(text, Remaining(left)) : text;
+    }
+
+    /// <summary>一分鐘以內寫秒，之後寫分鐘並進位；預估本來就是粗的，不寫出「1 分 35 秒」這種假精確。</summary>
+    private static string Remaining(TimeSpan left) =>
+        left.TotalSeconds < 60
+            ? SqlSearchText.RemainingSeconds((int)Math.Ceiling(left.TotalSeconds))
+            : SqlSearchText.RemainingMinutes((int)Math.Ceiling(left.TotalMinutes));
 
     /// <summary>
     /// 依目前的排序把這一輪的結果排好。
@@ -558,13 +595,13 @@ internal sealed class SqlSearchBrowserModel
         if (!IsCurrent(round)) return;
 
         _hasResult = true;
-        _isPartial = true;
+        _canceled = false;
         _hitCount = 0;
+        _totalHits = 0;
         _failure = message ?? "";
 
-        // 整輪都失敗了，個別來源讀不到那一句已經沒有意義，留著只會讓頁尾說兩件事。
-        _unavailable = "";
-        _unavailableDenied = false;
+        // 整輪都失敗了，個別目標讀不到那幾句已經沒有意義，留著只會讓頁尾說兩件事。
+        _coverage = SqlSearchCoverage.None;
     }
 
     /// <summary>這一輪結束（成功、失敗或放棄）；只放開同一世代的旗標。</summary>
@@ -580,23 +617,17 @@ internal sealed class SqlSearchBrowserModel
     /// <summary>這一輪的失敗（整輪失敗或某個來源失敗）；沒有時是空字串。宿主拿它決定要不要送通知。</summary>
     public string Failure => _failure;
 
-    /// <summary>部分結果的那一句；與「這個字串在這個資料庫裡不存在」在畫面上一模一樣，所以一定要說。</summary>
-    internal static string PartialHint => SqlSearchText.PartialHint;
-
     /// <summary>頁尾說的「搜尋中」；清單仍是上一輪的那一份，進度留在原地。</summary>
     internal static string SearchingLabel => CommonText.Searching;
 
     /// <summary>
-    /// 清單的頁尾：筆數，以及這一份為什麼不完整。與 SQL Memory 同一種頁尾（<see cref="SqlListFooter"/>）。
+    /// 清單的頁尾：筆數，以及這一份完不完整。與 SQL Memory 同一種頁尾（<see cref="SqlListFooter"/>）。
     /// </summary>
     /// <param name="rowCount">目前清單的列數。</param>
     /// <remarks>
-    /// 說明這一份清單的話跟著清單走，不另起一條狀態列；效果在視窗外的動作結果才走通知。
-    ///
-    /// 「有一個來源讀不到」與「掃到一半停了」都會讓 <see cref="SearchResults.IsPartial"/>
-    /// 為真，但要說的話不一樣：後者叫使用者縮小範圍或加長關鍵字，前者叫他去看權限。
-    /// 兩句都貼上去的話，使用者會先照第一句試三次——而那一句對他的情況完全沒有用。
-    /// 所以有讀不到的來源時就由它說明這一輪為什麼不完整，泛用的那一句讓位。
+    /// <b>完整度一定要說，而且兩種都要說。</b>只在不完整時說一句的那一版，「沒說」與「完整」在畫面上
+    /// 一模一樣，而使用者拿清單估工時：少了一個資料庫的那一次，他以為字串不存在。所以完整時也明說
+    /// 「已完整搜尋 N 個資料庫」並掛成功圖示；不完整時說缺了哪幾個、為什麼，掛警告圖示。
     ///
     /// 一列都沒有時整份讓給狀態表面（見 <see cref="Surface(int)"/>）：同一句話在畫面中央
     /// 與頁尾各出現一次，讀起來像發生了兩件事。清單上還留著上一輪的列而這一輪整個失敗時仍要說，
@@ -607,7 +638,7 @@ internal sealed class SqlSearchBrowserModel
         if (rowCount < 0) throw new ArgumentOutOfRangeException(nameof(rowCount));
         if (rowCount == 0 || !HasConnection) return SqlListFooter.Hidden;
 
-        // 同一份清單等著被換掉（去彈跳還沒到期或這一輪還在跑）：留著筆數，進度在按鈕的位置轉。
+        // 同一份清單等著被換掉（去彈跳還沒到期或這一輪還在跑）：留著筆數，進度在清單上方那一條。
         if (_pending || IsRunning)
         {
             return new SqlListFooter(SqlListFooterKind.Loading, Found(rowCount), actionLabel: SearchingLabel);
@@ -618,24 +649,36 @@ internal sealed class SqlSearchBrowserModel
         // 整輪失敗：清單上是上一輪的列。
         if (_hitCount == 0 && _failure.Length != 0)
         {
-            return new SqlListFooter(SqlListFooterKind.End, SqlSearchText.RoundFailed, SqlSearchText.RoundFailedDetail(_failure));
+            return new SqlListFooter(SqlListFooterKind.End, SqlSearchText.RoundFailed, SqlSearchText.RoundFailedDetail(_failure),
+                tone: SqlListFooterTone.Warning);
         }
 
-        var hint = _failure.Length != 0 ? _failure
-            : _unavailable.Length != 0 ? _unavailable
-            : _isPartial ? PartialHint
-            : null;
-        return new SqlListFooter(SqlListFooterKind.End, Found(_hitCount), hint);
+        var summary = _totalHits > _hitCount ? SqlSearchText.FoundTruncated(_totalHits, _hitCount) : Found(_hitCount);
+
+        if (_failure.Length != 0)
+        {
+            return new SqlListFooter(SqlListFooterKind.End, summary, _failure, tone: SqlListFooterTone.Warning);
+        }
+
+        if (_canceled)
+        {
+            return new SqlListFooter(SqlListFooterKind.End, summary, SqlSearchText.Stopped, tone: SqlListFooterTone.Warning);
+        }
+
+        return _coverage.Summary.Length == 0
+            ? new SqlListFooter(SqlListFooterKind.End, summary)
+            : new SqlListFooter(SqlListFooterKind.End, summary, _coverage.Summary,
+                tone: _coverage.IsComplete ? SqlListFooterTone.Success : SqlListFooterTone.Warning);
     }
 
     private static string Found(int count) => SqlSearchText.Found(count);
 
     /// <summary>
-    /// 主內容區的狀態表面：載入、空、讀不到與權限不足四選一。
+    /// 主內容區的狀態表面：載入、空、讀不到、權限不足與不完整五選一。
     /// </summary>
     /// <param name="rowCount">目前清單的列數。</param>
     /// <remarks>
-    /// 四種狀態互斥，所以這裡只回一種：原本載入圖示與空狀態各自判斷，兩邊同時成立時
+    /// 幾種狀態互斥，所以這裡只回一種：原本載入圖示與空狀態各自判斷，兩邊同時成立時
     /// 轉圈的圖示會壓在「尚未連線」那一句上面。
     ///
     /// 沒有連線是明確的一句話，不是空白也不是錯誤：使用者要知道下一步是去連線，而不是換關鍵字。
@@ -661,8 +704,9 @@ internal sealed class SqlSearchBrowserModel
                     ChooseServerAction);
         }
 
-        // 第一次建索引時整輪都沒有列可看；之後的每一輪只在還沒有任何一列時遮住清單。
-        if (IsRunning && (IsIndexing || rowCount == 0)) return SqlSurfaceState.Loading;
+        // 只在還沒有任何一列時遮住清單：建索引的那一輪會先清掉上一份，之後邊跑邊列的結果
+        // 要看得到，進度在清單上方那一條。
+        if (IsRunning && rowCount == 0) return SqlSurfaceState.Loading;
         if (rowCount > 0) return SqlSurfaceState.None;
         if (Text.Length == 0)
         {
@@ -673,18 +717,28 @@ internal sealed class SqlSearchBrowserModel
         // 還沒有任何一輪的答案（剛換條件、去彈跳還沒到期）：不能先說「沒有相符項目」。
         if (!_hasResult || _pending) return SqlSurfaceState.None;
 
-        // 一筆都沒有而且有來源讀不到：那一句才是原因，泛用的「沒有相符項目」會讓使用者去改關鍵字。
-        if (_unavailable.Length != 0)
+        if (_canceled) return SqlSurfaceState.Incomplete(SqlSearchText.StoppedTitle, SqlSearchText.Stopped);
+
+        // 「沒有相符項目」只在每一個目標都比完時才是答案，而且要把「搜了哪些」一起說出來：
+        // 使用者據此判斷「不存在」，那一句就是他的證據。
+        if (_coverage.IsComplete)
         {
-            // 抬頭分兩句，門檻是「每一個讀不到的來源都說得出就是權限」。
-            // 一個說權限、另一個連不上時抬頭仍是「這一輪讀不到」：使用者照「權限不足」
-            // 去要了權限，那個連不上的來源下一輪還是讀不到，而畫面上看不出他要錯了東西。
-            return _unavailableDenied
-                ? SqlSurfaceState.Denied(_unavailable)
-                : SqlSurfaceState.Unreadable(_unavailable);
+            return SqlSurfaceState.Empty(SqlSearchText.NoMatches,
+                _coverage.Summary.Length == 0 ? SqlSearchText.NoMatchesDetail : _coverage.Summary);
         }
 
-        return SqlSurfaceState.Empty(SqlSearchText.NoMatches, SqlSearchText.NoMatchesDetail);
+        // 一個目標都沒搜到：那一句才是原因。抬頭分兩句，門檻是「每一個讀不到的目標都說得出
+        // 就是權限」——一個說權限、另一個連不上時，使用者照「權限不足」去要了權限，連不上的那個
+        // 下一輪還是讀不到，而畫面上看不出他要錯了東西。
+        if (!_coverage.AnySearched)
+        {
+            return _coverage.AllDenied
+                ? SqlSurfaceState.Denied(_coverage.Gaps)
+                : SqlSurfaceState.Unreadable(_coverage.Gaps);
+        }
+
+        // 搜到了一部分：沒有相符項目，但不能信。
+        return SqlSurfaceState.Incomplete(SqlSearchText.NoMatchesIncomplete, _coverage.Gaps);
     }
 
     /// <summary>重新整理前記下目前選取；新結果載入後若還在，就選回它。</summary>
@@ -742,63 +796,6 @@ internal sealed class SqlSearchBrowserModel
     /// </remarks>
     private SearchScope BuildScope() =>
         Scope.Databases.Count == 0 ? SearchScope.All : new SearchScope(null, Scope.Databases);
-
-    /// <summary>
-    /// 有沒有哪一個來源這一輪整個讀不到；有的話回傳要補的那一句。
-    /// </summary>
-    /// <remarks>
-    /// 這一層與 provider 無關：那一句話是 provider 自己寫的，這裡只挑第一句貼上去。
-    /// 認得某一個 provider 的常數的那一版，每多一個「權限常常不足」的來源
-    /// （複寫、Extended Events、Always On）就要在這裡多一個 <c>if</c>，而漏掉的那一個
-    /// 只會安靜地退回泛用的「部分結果」——畫面上看不出是漏了還是真的沒掃完。
-    ///
-    /// 只貼第一句，其餘用數字帶過：頁尾的說明只有一兩行，而把三句話串起來會把它撐爆，
-    /// 重點（有來源沒搜到、去看權限）第一句已經說完。
-    /// </remarks>
-    private static string DescribeUnavailable(IReadOnlyList<SearchProviderProgress> progress)
-    {
-        string? first = null;
-        var count = 0;
-
-        foreach (var entry in progress)
-        {
-            if (entry.UnavailableReason is not { Length: > 0 } reason) continue;
-
-            count++;
-            first ??= reason;
-        }
-
-        if (first is null) return "";
-
-        return count == 1
-            ? first
-            : SqlSearchText.MoreUnavailable(first, count - 1);
-    }
-
-    /// <summary>
-    /// 讀不到的來源是不是<b>每一個</b>都說得出「就是權限」。
-    /// </summary>
-    /// <remarks>
-    /// 全部都要，不是其中之一。「權限不足」是一句斷言，而斷言只在它對每一個讀不到的來源
-    /// 都成立時才說得出口：一個沒權限、另一個連不上的那一輪，使用者照抬頭去要了權限，
-    /// 連不上的那個下一輪還是讀不到，而畫面上看不出他要錯了東西。
-    ///
-    /// 一個來源都沒有讀不到時回 false：那一輪根本不該走到這兩個抬頭。
-    /// </remarks>
-    private static bool AllDenied(IReadOnlyList<SearchProviderProgress> progress)
-    {
-        var any = false;
-
-        foreach (var entry in progress)
-        {
-            if (entry.UnavailableReason is not { Length: > 0 }) continue;
-
-            if (!entry.IsDenied) return false;
-            any = true;
-        }
-
-        return any;
-    }
 
     private static string Describe(IReadOnlyList<SearchProviderFailure> failures)
     {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SqlAssist.Metadata.Caching;
@@ -152,7 +153,9 @@ internal sealed class SqlSearchScopeDatabases : IDisposable
 
         if (databases is not null)
         {
-            _items = databases;
+            // 下拉只列進得去的：勾一個離線或沒有權限的資料庫只會得到一句「讀不到」。
+            // 進不去的那幾個由「全部」那一輪列進完整度，不在這裡消失。
+            _items = databases.Where(database => database.IsAccessible).ToArray();
             _loaded = true;
         }
 
