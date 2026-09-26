@@ -23,7 +23,7 @@ public sealed class SqlObjectClassTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.Trigger, context.Target);
     }
 
@@ -60,7 +60,7 @@ public sealed class SqlObjectClassTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.Sequence, context.Target);
     }
 
@@ -75,7 +75,7 @@ public sealed class SqlObjectClassTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataType, context.Target);
         Assert.Equal("dbo", context.Qualifier);
     }
@@ -92,7 +92,7 @@ public sealed class SqlObjectClassTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze("DECLARE @copies dbo.");
 
-        Assert.Empty(SuggestionMatcher.Filter(SqlDataTypeCatalog.All, context));
+        Assert.Empty(SuggestionContextFilter.Filter(SqlDataTypeCatalog.All, context));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class SqlObjectClassTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze("DECLARE @copies ");
 
-        Assert.NotEmpty(SuggestionMatcher.Filter(SqlDataTypeCatalog.All, context));
+        Assert.NotEmpty(SuggestionContextFilter.Filter(SqlDataTypeCatalog.All, context));
     }
 
     /// <summary>三種新類別都只在自己的位置出現。</summary>
@@ -119,7 +119,7 @@ public sealed class SqlObjectClassTargetTests
             new SqlSuggestion("CopyList", "CopyList", "", "", SuggestionKind.UserDefinedType, schemaName: "dbo")
         };
 
-        Assert.Empty(SuggestionMatcher.Filter(candidates, context));
+        Assert.Empty(SuggestionContextFilter.Filter(candidates, context));
     }
 
     [Fact]
@@ -135,12 +135,12 @@ public sealed class SqlObjectClassTargetTests
 
         Assert.Equal(
             new[] { trigger },
-            SuggestionMatcher.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("ALTER TRIGGER ")).ToArray());
+            SuggestionContextFilter.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("ALTER TRIGGER ")).ToArray());
         Assert.Equal(
             new[] { sequence },
-            SuggestionMatcher.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("SELECT NEXT VALUE FOR ")).ToArray());
+            SuggestionContextFilter.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("SELECT NEXT VALUE FOR ")).ToArray());
         Assert.Equal(
             new[] { tableType },
-            SuggestionMatcher.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("DECLARE @copies ")).ToArray());
+            SuggestionContextFilter.Filter(candidates, SqlCompletionContextAnalyzer.Analyze("DECLARE @copies ")).ToArray());
     }
 }

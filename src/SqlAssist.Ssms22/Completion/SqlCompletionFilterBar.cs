@@ -14,8 +14,9 @@ namespace SqlAssist.Ssms22.Completion;
 /// </summary>
 /// <remarks>
 /// 規則在 <see cref="SuggestionCategoryFilter"/>；這裡只把分類換成平台的按鈕，再把平台交回來
-/// 的按鈕狀態換回分類。外觀、滑鼠、Alt＋快捷鍵與佈景主題都由平台負責，過濾不是——清單由
-/// <see cref="SqlAsyncCompletionItemManager"/> 產生，它照 <see cref="Apply"/> 的結果篩。
+/// 的按鈕狀態換回分類。外觀、滑鼠、Alt＋快捷鍵與佈景主題都由平台負責，過濾不是——
+/// <see cref="SqlAsyncCompletionItemManager"/> 把 <see cref="Selected"/> 交給
+/// <see cref="SuggestionList.Update"/>，再用 <see cref="States"/> 把結果畫回按鈕。
 ///
 /// 每份清單建一組按鈕，不跨清單共用：快捷鍵照這份清單的畫面位置編，換一份清單位置就不同。
 /// 按鈕以<b>實體</b>交給來源的 <see cref="CompletionContext"/>，而不是掛在每一項上讓平台推：
@@ -41,12 +42,8 @@ internal sealed class SqlCompletionFilterBar
             present = present.With(category);
         }
 
-        Present = present;
         InitialStates = States(SuggestionCategorySet.Empty, present);
     }
-
-    /// <summary>有按鈕的分類；還沒輸入任何字時它們全都算命中。</summary>
-    public SuggestionCategorySet Present { get; }
 
     /// <summary>交給 <see cref="CompletionContext"/> 的初始狀態：全部可按、沒有按下。</summary>
     public ImmutableArray<CompletionFilterWithState> InitialStates { get; }
@@ -67,14 +64,8 @@ internal sealed class SqlCompletionFilterBar
         return categories.Count == 0 ? null : new SqlCompletionFilterBar(categories);
     }
 
-    /// <summary>
-    /// 讀平台交回來的按鈕狀態，算出這一輪要套用的分類與要畫回去的按鈕。
-    /// </summary>
-    /// <param name="states">平台目前的按鈕狀態，含使用者剛按的那一下。</param>
-    /// <param name="matched">這一輪有命中的分類。</param>
-    public (SuggestionCategorySet Applied, ImmutableArray<CompletionFilterWithState> States) Apply(
-        ImmutableArray<CompletionFilterWithState> states,
-        SuggestionCategorySet matched)
+    /// <summary>使用者目前按著的分類，讀自平台交回來的按鈕狀態（含剛按的那一下）。</summary>
+    public SuggestionCategorySet Selected(ImmutableArray<CompletionFilterWithState> states)
     {
         var selected = SuggestionCategorySet.Empty;
 
@@ -86,14 +77,14 @@ internal sealed class SqlCompletionFilterBar
             }
         }
 
-        var applied = SuggestionCategoryFilter.Apply(selected, matched);
-        return (applied, States(applied, matched));
+        return selected;
     }
 
+    /// <summary>要畫回去的按鈕：沒有命中的變灰，套用中的按下。</summary>
     /// <remarks>
     /// 數量與順序每一輪都一樣：平台在使用者按鈕那條路上要求交回同樣多顆，否則整批作廢。
     /// </remarks>
-    private ImmutableArray<CompletionFilterWithState> States(
+    public ImmutableArray<CompletionFilterWithState> States(
         SuggestionCategorySet applied,
         SuggestionCategorySet matched)
     {

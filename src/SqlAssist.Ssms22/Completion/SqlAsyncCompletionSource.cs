@@ -144,14 +144,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                     fieldSpan,
                     triggerLocation.Position)));
 
-        if (!context.IsValid)
-        {
-            return CompletionStartData.DoesNotParticipateInCompletion;
-        }
-
-        if (context.Target == CompletionTarget.Any &&
-            context.QualifierPath is null &&
-            context.Prefix.Length < settings.TriggerAfterCharacters)
+        if (!SqlCompletionPolicy.Participates(context, settings.TriggerAfterCharacters))
         {
             return CompletionStartData.DoesNotParticipateInCompletion;
         }
@@ -298,7 +291,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
 
         // 上下文過濾要在建立清單時做完：平台會快取這份清單，
         // 之後每一次按鍵只重新比對前綴，不會再問來源一次。
-        var suggestions = SuggestionMatcher.Filter(candidates, context);
+        var suggestions = SuggestionContextFilter.Filter(candidates, context);
 
         if (suggestions.Count == 0)
         {
@@ -326,13 +319,20 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 只有真的產出 SqlAssist items 才取得 ownership；空 context 可能仍由別的來源顯示。
         OwnPreviewSession(session);
 
+        // 軟選只在這裡交出一次：之後的排名一律不改選取提示，使用者按 ↓ 轉成硬選之後
+        // 就一直是硬選。不用建議項（SuggestionItemOptions）表達：有建議項時 Enter 會
+        // 選中它而不換行，那正是軟選要避免的。
+        var selection = SqlCompletionPolicy.UsesSoftSelection(context)
+            ? InitialSelectionHint.SoftSelection
+            : InitialSelectionHint.RegularSelection;
+
         if (filterBar is null)
         {
-            return new CompletionContext(items, ImmutableArray<CompletionFilterWithState>.Empty);
+            return new CompletionContext(items, null, selection, ImmutableArray<CompletionFilterWithState>.Empty);
         }
 
         session.Properties[FilterBarKey] = filterBar;
-        return new CompletionContext(items, filterBar.InitialStates);
+        return new CompletionContext(items, null, selection, filterBar.InitialStates);
     }
 
     /// <summary>
@@ -672,18 +672,6 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         };
     }
 
-    /// <summary>
-    /// 這一次清單的上下文。
-    /// </summary>
-    /// <remarks>
-    /// 欄位模式下改從<b>這一格的起點</b>分析。不這樣做的話，前綴會是格子裡的
-    /// <c>TargetTable</c>、限定字會是 <c>dbo</c>：前者讓
-    /// <c>SuggestionMatcher</c> 把整份清單濾光，後者讓插入文字退化成不帶結構描述的
-    /// 簡名。兩個症狀都沒有錯誤訊息。
-    ///
-    /// 判斷靠 <see cref="_fieldSpan"/> 而不是重問一次引擎：這個方法在平台的背景
-    /// 執行緒上，那個查詢是 COM，只能在 UI 執行緒做。
-    /// </remarks>
     /// <summary>這一次清單在找什麼；通知的主體。</summary>
     /// <remarks>
     /// switch 回常數而不是 <c>ToString()</c>：這一段每按一次鍵都走一次，而
@@ -710,6 +698,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         _ => "",
     };
 
+    /// <summary>
+    /// 這一次清單的上下文。
+    /// </summary>
+    /// <remarks>
+    /// 欄位模式下改從<b>這一格的起點</b>分析。不這樣做的話，前綴會是格子裡的
+    /// <c>TargetTable</c>、限定字會是 <c>dbo</c>：前者讓前綴比對把整份清單濾光，
+    /// 後者讓插入文字退化成不帶結構描述的簡名。兩個症狀都沒有錯誤訊息。
+    ///
+    /// 判斷靠 <see cref="_fieldSpan"/> 而不是重問一次引擎：這個方法在平台的背景
+    /// 執行緒上，那個查詢是 COM，只能在 UI 執行緒做。
+    /// </remarks>
     private SqlCompletionContext Analyze(SnapshotPoint triggerLocation, SnapshotSpan applicableToSpan)
     {
         // 只有「整格還是樣板填的預設值」那一次要當它不存在；使用者打過字之後，

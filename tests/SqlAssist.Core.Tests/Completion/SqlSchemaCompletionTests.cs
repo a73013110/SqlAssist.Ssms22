@@ -44,7 +44,7 @@ public sealed class SqlSchemaCompletionTests
 
     private static string[] Schemas(string sqlWithCaret, SqlQualifierSlot? leftmost = null)
     {
-        return SuggestionMatcher
+        return SuggestionContextFilter
             .Filter(Candidates(), Analyze(sqlWithCaret, leftmost))
             .Where(suggestion => suggestion.Kind == SuggestionKind.Schema)
             .Select(suggestion => suggestion.DisplayText)
@@ -72,7 +72,7 @@ public sealed class SqlSchemaCompletionTests
     [Fact]
     public void 打出前綴就排到INFORMATION_SCHEMA()
     {
-        var ranked = SuggestionMatcher.Match(Candidates(), Analyze("SELECT * FROM info|"));
+        var ranked = SuggestionListProbe.Match(Candidates(), Analyze("SELECT * FROM info|"));
 
         Assert.Equal("INFORMATION_SCHEMA", ranked.First().DisplayText);
     }

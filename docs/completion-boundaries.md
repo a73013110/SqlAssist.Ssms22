@@ -1,12 +1,11 @@
 # 子句邊界與不開清單
 
-本頁包含往回判斷子句關鍵字時要認得的結構，以及哪些位置**不**該彈出建議清單。
+本頁包含往回判斷子句關鍵字時要認得的結構，以及哪些位置不開清單或預設不選。
 清單本身怎麼排名與觸發見[補全](completion.md)，關鍵字目錄見[關鍵字](completion-keywords.md)。
 
-## 往回找子句關鍵字時要認得的兩個結構
+## 往回找子句關鍵字時要認得的結構
 
-「最近的子句關鍵字」不是往回數詞元就找得到的，路上有兩個結構不認得就會判錯，
-而且三種很常見的寫法都會踩到：
+「最近的子句關鍵字」不是往回數詞元就找得到的：
 
 | 寫法 | 只數詞元會判成 | 症狀 |
 |---|---|---|
@@ -14,76 +13,74 @@
 | `SELECT a, ` | 選取清單的尾端 | 列出 `FROM`、`INTO`，`CASE` 反而不見 |
 | `JOIN b ON b.x = a.x ` | 只有述詞的尾端 | 打不出 `WHERE`、`INNER` |
 
-- **括號群組是一個完整的運算元**，往回走時整組跳過。裡面的子句屬於它自己，
-  走進去撈到的是別人的答案。跳過的括號兩兩不重疊，所以整趟仍然是線性的；
-  配對不起來時直接放行成 `Any`，不猜。
-- **逗號代表清單再來一項**，位置回到清單的**起點**而不是尾端：`SELECT a, ` 與
-  `SELECT ` 同一個位置，`FROM a, ` 與 `FROM ` 同一個位置。
-- **`ON` 的述詞寫完之後是兩個位置的聯集**。JOIN 條件後面同時還能接 `AND`、`OR`
-  （述詞尾端）與 `WHERE`、另一個 `JOIN`、`GROUP`（資料來源尾端）。位置本來就是
-  旗標，文法允許兩個就報兩個，不必挑一個猜。
-- **`SET` 子句寫完之後也是兩個位置的聯集**，同一條規則的第二次。`UPDATE t SET a = 1 `
-  之後接得了 `WHERE`、`FROM`、`OUTPUT`、`OPTION`，而那一整組字掛的是**資料來源尾端**
-  ——只給述詞尾端的症狀就是 `UPDATE` 寫到一半打不出 `WHERE`，而那是這個語句最常打的
-  下一個字。工作階段選項的 `SET NOCOUNT ON` 會拿到同一組位置，那是「位置分析看到
-  `SET` 一律回報同一個位置」這個既有取捨的延伸，代價是清單多幾個字。
+- **括號群組是一個運算元**，往回走時整組跳過；裡面的子句屬於它自己。
+  跳過的括號兩兩不重疊，整趟仍是線性的；配對不起來時放行成 `Any`，不猜。
+- **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
+  所在的那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`，不是外層尾端。
+- **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置。
+- **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP (10) `、`TOP 10 PERCENT `
+  之後仍是起點，另接 `PERCENT`、`WITH TIES`。當成一項會列出 `FROM`，還被當成別名位置。
+- **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
+  （`WHERE`、`JOIN`、`GROUP`）。文法允許兩個就報兩個。
+- **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 之後接得了 `WHERE`、`FROM`、`OUTPUT`，
+  那組字掛在資料來源尾端。
+- **其餘的 `SET` 帶出選項**（動詞不是 `UPDATE`，含 `ALTER DATABASE x SET`）。名稱寫完
+  （`SET NOCOUNT `）只列 `ON`、`OFF` 這類值；停在關鍵字上是還沒寫完（`SET IDENTITY_INSERT `
+  要資料表）。**值寫完這一句就結束**，同一行也是語句開頭；否則 `SET ANSI_NULLS ON⏎G` 的
+  `ON` 被當成 JOIN 的，Enter 把 `GO` 換成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
+  與名稱分不開，換行才補語句開頭。
+- **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a.Big5Code NOT ` 之後接 `IN`、`LIKE`。
 
-- **`NOT` 也是兩個位置的聯集**，同一條規則的第三次。`WHERE NOT ` 開的是一個述詞，
-  `a.Big5Code NOT ` 之後接的是 `IN`、`LIKE`、`BETWEEN`，而那三個字掛的是**述詞尾端**
-  ——只給述詞起點的症狀是 `NOT ` 之後打 `i` 完全等不到 `IN`。
+## 名稱位置三分類
 
-## 使用者正在取名字的位置不開清單
+分析器在同一趟反向走訪裡替游標那一格分類（`SqlCompletionSlot`）；開不開、選不選只看
+`SqlCompletionPolicy` 一條規則。開的兩類還要有限定字、目標已收斂，或前綴達到觸發字元數。
 
-有些位置文法上要的是**使用者自己取的名字**。那裡清單裡沒有一項會是對的，而彈出來
-的唯一效果是他順手按下 Enter，剛打的 `a` 被換成 `ALTER PROCEDURE`，得按復原才救
-得回來。因此這些位置整份不參與建議，少的只是幾個字母的補字：
+| 分類 | 意思 | 例子 | 清單 |
+|---|---|---|---|
+| `Inert` | 不可補 | 字串、註解、`10`、`1.` | 不開 |
+| `Name` | 一定是新名字 | `AS `、`DECLARE @`、`CREATE PROCEDURE ` | 不開 |
+| `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode ` | 開，軟選 |
+| `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，硬選 |
 
-| 位置 | 為什麼確定是名字 |
-|---|---|
-| `FROM (SELECT …) ` | 衍生資料表的別名是文法強制的，少了它就是語法錯誤 |
-| `FROM t AS `、`SELECT x AS `、`JOIN (…) AS ` | `AS` 前面是一項寫完的運算式或資料來源 |
-| `FROM CTE_TEST `、`JOIN dbo.T `（同一行） | 資料來源之後、別名還沒寫，見下 |
-| `DECLARE @`、`CREATE PROCEDURE p @` | 使用者正在取的變數或參數名稱，見「變數與參數」 |
+`Name` 的清單沒有一項會對，彈出來只會讓 Enter 把剛打的 `a` 換成 `ALTER PROCEDURE`。
+`MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`：軟選時只有 Tab 提交，
+Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter 不再補成 `FROM`。
 
-括號是什麼由它**前面**那個字決定，而不是由裡面裝什麼決定：同樣裝著一個 `SELECT`，
-接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，接在 `IN`、`EXISTS`、`=`
-後面的是運算式，後面不接別名。`FROM (t1 JOIN t2 ON …) ` 也不算——那是括號包起來的
-聯結，別名反而不合法。
+- **`Name`**：`AS ` 之後的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
+  `UNPIVOT (…) `）、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 與
+  `CREATE INDEX ` 的新物件、敘述開頭 `WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
+  （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）。
+- **`MaybeName`**：同一行沒有 AS 的別名、`CREATE OR ALTER <種類> `（常是既有物件；
+  `ALTER <種類> ` 是 `Grammar`）、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
+  `DECLARE @t TABLE (`）、`ALTER TABLE t ADD `——新資料行名稱或 `CONSTRAINT` 都對。
 
-`AS` 同樣看**前面**，因為後面還沒打出來。它在 T-SQL 裡接兩種完全不同的東西，分不
-出來的話兩邊都會壞：一邊是別名被清單換掉，另一邊是 `CREATE PROCEDURE p AS ` 的主體
-開頭打不出 `BEGIN`。判斷的方式就是問「`AS` 那個位置本來是什麼位置」——選取清單尾端
-與資料來源尾端代表「一項寫完了」，後面是別名；其餘一律照常，主體（`CREATE VIEW v AS`）
-與執行身分（`EXECUTE AS`）都在其餘那一邊。比的是整個位置值相等而不是位元交集：
-判不出位置時回傳的 `Any` 含著那兩個旗標，用交集的話 fail-open 就不 open 了。
+括號是什麼由**前面**那個字決定：接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，
+接在 `IN`、`EXISTS`、`=` 後面的是運算式；`FROM (t1 JOIN t2 ON …) ` 是括號包起來的聯結、
+名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。`AS` 也看前面：一項剛寫完、還沒有別名時才是
+別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
+`CAST(x AS ` 由「型別的位置」先接走，見[資料型別](completion-builtins.md#資料型別)。
 
-`CAST(x AS ` 是這條規則唯一漏掉的一個：往回找子句關鍵字時會穿過那個還沒關上的
-左括號撈到外層的 `SELECT`，於是判成選取清單尾端、也就是別名。它由「型別的位置」
-那一條在更前面接走，見[資料型別](completion-builtins.md#資料型別)。
+### 別名規則
 
-## 沒有 AS 的別名靠換行分辨
+資料來源與選取清單共用一條：**同一行、一項剛寫完、還沒有別名**就是 `MaybeName`。
 
-`FROM dbo.PUBLISHER ` 之後直接打 `a` 也是別名，但這個位置文法上同時接得了 `WHERE`、
-`INNER`、`ORDER`，而**打到一半的 `WHE` 與別名在剖析器眼中一模一樣**——文法給不出
-答案，前綴也給不出（`a` 正好是 `AS`、`APPLY` 的前綴）。
-
-唯一分得開的線索是**換行**：別名一定寫在資料來源的同一行，而子句與下一個敘述幾乎
-總是換行寫。因此規則是「資料來源之後只有一個名稱單位，而且沒有換行」：
+- 一項：資料來源是名稱或資料表值函式呼叫，連同後綴 `FOR SYSTEM_TIME …` 與函式的
+  `WITH (…)` 資料行結構描述（`OPENJSON(@j) WITH (a int) `），前面直接是 `FROM`、`JOIN`、
+  `APPLY`、`USING`、`MERGE [INTO]` 或 FROM 清單的逗號；選取清單是一整個運算式，
+  往回到 `SELECT`、逗號或 TOP 子句。
+- DELETE 與 FETCH 自己的 FROM 帶出動詞的目標，文法不接別名（`Grammar`）：
+  `DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 前面已有目標，照常。
+- 項目結尾是識別字、變數、`)`、常值或 `CASE … END` 的 `END`；`*` 後面不接別名。
+- 還沒有別名：最後一個運算元前面不緊鄰另一個運算元或 `AS`。
+- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）。別名一定寫在同一行，
+  子句與下一句幾乎總是換行——這是分開別名與 `WHE` 的唯一線索。
 
 ```text
-FROM CTE_TEST |              → 別名的位置，不開清單
-FROM dbo.PUBLISHER |          → 同上；帶點號的名稱算一個單位
-FROM a INNER JOIN dbo.T |    → 同上
-FROM CTE_TEST a |            → 兩個單位＝別名寫完了，INNER、WHERE 照常
-FROM CTE_TEST AS a |         → 同上，AS 不算單位
-FROM dbo.PUBLISHER ⏎          → 換行了，WHERE 與下一個 SELECT 照常
+FROM dbo.PUBLISHER |、SELECT a + b | → MaybeName
+FROM CTE_TEST a |、SELECT * |        → Grammar
+FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
 ```
-
-代價是同一行且沒有別名時，`WHE`、`INN` 沒有清單；多按幾個字仍比別名被替換後必須
-復原安全。關鍵字自動大寫照常，換行後也照常顯示清單。
-
-選取清單**不**比照辦理。`SELECT PublCode ` 之後同樣只有一個名稱單位，但那一行接著
-要打的是 `FROM`——那是最常打的一個字，收掉它換來的問題比解決的大。
 
 ## 沒有分號時，換行就是敘述邊界
 
@@ -92,34 +89,30 @@ FROM dbo.PUBLISHER ⏎          → 換行了，WHERE 與下一個 SELECT 照常
 而且游標換了行**，就補上 `StatementStart`。
 
 ```text
-UPDATE #Loan SET CopyNo = 'C1' WHERE ReaderId = 1 ⏎ | → ssf、SELECT 照常
-SELECT * FROM dbo.Loan ⏎ | → 同上
-SELECT * FROM dbo.Loan WHERE ReaderId = 1 | → 同一行，不補
-SELECT dbo.fn_Fee('') ⏎ | → ssf、SELECT、FROM 同時保留
-SELECT CopyNo ⏎ | → 同上
-SELECT dbo.fn_Fee(1 ⏎ | → 括號未關，不補語句開頭
+SELECT * FROM dbo.Loan WHERE ReaderId = 1 ⏎ | → ssf、SELECT、AND 都在
+SELECT * FROM dbo.Loan WHERE ReaderId = 1 |  → 同一行，不補
+SELECT dbo.fn_Fee(1 ⏎ |                      → 括號未關，不補
 ```
 
-補的是**旗標聯集**，不能換掉原位置：`FROM`、`AND`、`OR`、`ORDER` 等續寫建議不能少。
+補的是**旗標聯集**，不換掉原位置：`FROM`、`AND`、`ORDER` 等續寫的字一個都不少。
 
-認四種尾端：選取清單、資料來源、述詞、`ORDER BY` 欄位之後。選取清單也算——
-`SELECT dbo.fn_Fee('')` 不需要 `FROM`，排除它的代價是那一句之後打不出任何
-語句級片段。
+認的尾端：選取清單、資料來源、述詞、`ORDER BY`／`GROUP BY` 欄位之後，以及 SET 選項名稱之後
+（識別字的值）。選取清單也算：`SELECT dbo.fn_Fee('')` 不需要 `FROM`，排除它的代價是
+那一句之後打不出任何語句級片段。名字那一格前面的換行不補：名字本身還沒寫。
 
-換行看的是最後一個 SQL 詞元到游標之間的原文（LF、CRLF、CR 都認），所以區塊註解
-不會遮住邊界，字串或加引號名稱內的換行也不會誤算。尚未關閉的括號由
-`SqlTokenNavigator` 判斷：函式引數、子查詢與 CTE 內不因換行補語句開頭。
+換行的判準與別名規則的「同一行」相同（LF、CRLF、CR 都認），字串或加引號名稱內的換行
+不算。函式引數、子查詢與 CTE 的括號還沒關時不補（`SqlTokenNavigator`）。
 
 ## 數值常值不開清單
 
-`UPDATE t SET Fine = Fine - 10` 打到 `10` 的時候，位置分析幫不上忙：運算子之後一律是
-`Any`，於是整個目錄進場，模糊比對把 `10` 對到 `LOG10`。使用者順手按下 Enter，
-數字就變成了一個函式名稱。
+`UPDATE t SET Fine = Fine - 10` 打到 `10` 時，運算子之後是 `Any`，整個目錄進場，
+模糊比對把 `10` 對到 `LOG10`，順手按 Enter 數字就變成函式名稱。
 
-判準是**詞元的第一個字元是不是數字**：T-SQL 的一般識別字不能以數字開頭，所以那個
-詞元必然是一個數值常值，清單裡沒有一項會是對的。小數點與 `0x` 前置詞不必另外處理，
-`1.5` 與 `0x1F` 拆出來的詞元一樣以數字開頭。
+T-SQL 的一般識別字不能以數字開頭，所以以數字開頭的詞元必然是數值常值，歸 `Inert`。
+比的是第一個字元，不是「含不含數字」：`Cat_BookCopy2` 很常見。判斷在
+`SqlCompletionContextAnalyzer.IsInNumericLiteral`，點號前那一段以數字開頭也算（`1.`、`12.`）：
+文字上與 `dbo.` 一樣是限定字加點號，平台在點號自己觸發時會以限定字 `1` 開清單。
+方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
-比的是第一個字元而不是「整個詞元含不含數字」：`Cat_BookCopy2` 這種名字很常見，
-而暫存資料表的 `#` 也在詞元開頭。這與 `SqlCompletionTriggers` 不讓 `1.5` 的點號彈出
-物件清單是同一條理由，只是那一條擋的是限定字。
+變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行，純量變數的 `@x.value(`
+是 xml 方法，歸 `Inert`。

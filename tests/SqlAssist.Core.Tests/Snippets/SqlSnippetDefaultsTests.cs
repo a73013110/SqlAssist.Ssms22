@@ -6,6 +6,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Core.Tests.Completion;
 using Xunit;
 using SqlAssist.Core.Localization;
 
@@ -211,9 +212,7 @@ public sealed class SqlSnippetDefaultsTests
                     SuggestionKind.Column)
             });
 
-        var first = candidates
-            .OrderByDescending(SuggestionMatcher.ComposeStandingScore)
-            .First();
+        var first = SuggestionListProbe.Sort(candidates.ToArray()).First();
 
         Assert.NotEqual(SuggestionKind.Snippet, first.Kind);
     }
@@ -230,9 +229,7 @@ public sealed class SqlSnippetDefaultsTests
             var column = new SqlSuggestion("CopyNo", "CopyNo", "INT", "CopyNo", SuggestionKind.Column);
             SqlSuggestionUsage.Record(snippet);
 
-            Assert.True(
-                SuggestionMatcher.ComposeStandingScore(column) >
-                SuggestionMatcher.ComposeStandingScore(snippet));
+            Assert.Equal(column, SuggestionListProbe.Sort(new[] { snippet, column }).First());
         }
         finally
         {
@@ -255,11 +252,11 @@ public sealed class SqlSnippetDefaultsTests
                     schemaName: "dbo")
             });
 
-        var ranked = SuggestionMatcher.Rank(
+        var ranked = SuggestionListProbe.Match(
             candidates,
             SqlCompletionContextAnalyzer.Analyze("libr"));
 
-        Assert.Equal("Lib_Reader", ranked[0].Suggestion.DisplayText);
+        Assert.Equal("Lib_Reader", ranked[0].DisplayText);
     }
 
     [Fact]
@@ -268,8 +265,11 @@ public sealed class SqlSnippetDefaultsTests
         var destructive = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current)
             .Single(item => item.DisplayText == "df");
 
-        Assert.False(SuggestionMatcher.IsVisibleWithoutPrefix(destructive, categorySelected: false));
-        Assert.True(SuggestionMatcher.IsVisibleWithoutPrefix(destructive, categorySelected: true));
+        var sorted = new[] { destructive };
+
+        Assert.True(SuggestionListProbe.Update(sorted, string.Empty).IsEmpty);
+        Assert.Single(SuggestionListProbe.Update(sorted, string.Empty, SuggestionCategorySet.Of(SuggestionCategory.Snippet)).Items);
+        Assert.Single(SuggestionListProbe.Update(sorted, "df").Items);
     }
 
     [Fact]
@@ -379,7 +379,7 @@ public sealed class SqlSnippetDefaultsTests
     {
         var context = AnalyzeBeforeField(shortcut, fieldId);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
     }
 
@@ -387,19 +387,41 @@ public sealed class SqlSnippetDefaultsTests
     /// 反過來守：這幾格填的是使用者正要取的<b>新名字</b>，清單裡沒有一項會是對的。
     /// 彈出來的唯一效果是他順手按下 Enter，剛打的名字被換成別人的資料表。
     ///
-    /// 不必為此加旗標：<c>CREATE TABLE</c>、<c>CREATE VIEW</c> 這些位置推不出目標，
-    /// 前綴又被清空，分析器自己就回報不參與。「什麼時候該有清單」的規則因此
-    /// 只有一份，在分析器裡。
+    /// 不必為此加旗標：<c>CREATE TABLE</c>、<c>;WITH</c>、<c>) AS</c> 這些位置分析器
+    /// 自己就認得是新名字，打了字也不參與。「什麼時候該有清單」的規則因此只有一份，
+    /// 在 <see cref="SqlCompletionPolicy"/>。
     /// </remarks>
     [Theory]
+    [InlineData("cdb", "database")]
     [InlineData("ctb", "table")]
     [InlineData("cv", "view")]
     [InlineData("cp", "procedure")]
     [InlineData("cf", "function")]
     [InlineData("ctf", "function")]
+    [InlineData("cix", "index")]
+    [InlineData("cte", "cte")]
+    [InlineData("wcte", "cte")]
+    [InlineData("wdt", "alias")]
     public void 新建物件的名稱欄位不主動開清單(string shortcut, string fieldId)
     {
-        Assert.False(AnalyzeBeforeField(shortcut, fieldId).IsValid);
+        var context = AnalyzeBeforeField(shortcut, fieldId);
+
+        Assert.Equal(SqlCompletionSlot.Name, context.Slot);
+        Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
+    }
+
+    /// <remarks>
+    /// <c>ctb</c> 的資料行格是資料行定義的開頭：使用者多半在取新名字，但這一格也接得了
+    /// CONSTRAINT、PRIMARY KEY。所以打了字才有清單，而且不預先選中。
+    /// </remarks>
+    [Fact]
+    public void 資料行定義的欄位是可能是名字的位置()
+    {
+        var context = AnalyzeBeforeField("ctb", "column");
+
+        Assert.Equal(SqlCompletionSlot.MaybeName, context.Slot);
+        Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
+        Assert.True(SqlCompletionPolicy.UsesSoftSelection(context));
     }
 
     /// <remarks>
@@ -414,7 +436,7 @@ public sealed class SqlSnippetDefaultsTests
         const string sql = "CREATE NONCLUSTERED INDEX IX_TableName_ColumnName\nON dbo.Lib_Reader (C";
         var context = SqlCompletionContextAnalyzer.Analyze(sql, sql.Length);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
 
         var source = Assert.Single(context.ScopeSources);
 
@@ -449,7 +471,7 @@ public sealed class SqlSnippetDefaultsTests
 
     private static IReadOnlyCollection<string> Available(string prefix)
     {
-        return SuggestionMatcher
+        return SuggestionContextFilter
             .Filter(
                 BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current),
                 SqlCompletionContextAnalyzer.Analyze(prefix))

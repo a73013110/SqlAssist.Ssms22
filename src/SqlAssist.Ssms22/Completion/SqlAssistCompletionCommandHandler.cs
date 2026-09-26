@@ -222,21 +222,19 @@ internal sealed class SqlAssistCompletionCommandHandler :
             "處理 TypeChar 按鍵",
             () =>
             {
-                // 自動大寫與自動配對都是 Snippet Engine 之外的緩衝區編輯，
-                // 欄位 session 開著時暫停它們，避免欄位標記或同名欄位同步被外部修改打斷。
-                if (SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession == true)
-                {
-                    return false;
-                }
-
-                SqlKeywordCasing.ApplyBeforeTypedCharacter(
+                // 欄位 session 開著時自己會讓開，與 Enter 走同一個入口。
+                SqlKeywordCasing.ApplyBeforeSeparator(
                     args.TextView,
                     args.SubjectBuffer,
-                    args.TypedChar);
+                    args.TypedChar,
+                    Broker);
 
                 // 建議清單開著時一律讓開：那一次 TypeChar 可能是提交鍵，
                 // 吞掉它等於提交不了；而在 session 中途插字元也會讓適用範圍失準。
-                if (Broker.GetSession(args.TextView) is not null)
+                // 欄位 session 開著時也讓開：自動配對是 Snippet Engine 之外的緩衝區編輯，
+                // 會打斷欄位標記或同名欄位同步。
+                if (Broker.GetSession(args.TextView) is not null ||
+                    SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession == true)
                 {
                     return false;
                 }

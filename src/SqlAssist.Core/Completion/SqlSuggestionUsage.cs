@@ -29,9 +29,9 @@ public static class SqlSuggestionUsage
     private static readonly object Gate = new();
 
     /// <summary>最近使用的順序，最新的在最前面。只在 <see cref="Gate"/> 之下存取。</summary>
-    private static readonly List<string> Order = new(Capacity);
+    private static readonly List<Key> Order = new(Capacity);
 
-    private static HashSet<string> _recent = new(StringComparer.OrdinalIgnoreCase);
+    private static HashSet<Key> _recent = new();
 
     /// <summary>記下一次提交。</summary>
     public static void Record(SqlSuggestion? suggestion)
@@ -41,11 +41,11 @@ public static class SqlSuggestionUsage
             return;
         }
 
-        var key = KeyOf(suggestion);
+        var key = new Key(suggestion);
 
         lock (Gate)
         {
-            Order.RemoveAll(item => string.Equals(item, key, StringComparison.OrdinalIgnoreCase));
+            Order.RemoveAll(item => item.Equals(key));
             Order.Insert(0, key);
 
             if (Order.Count > Capacity)
@@ -53,7 +53,7 @@ public static class SqlSuggestionUsage
                 Order.RemoveRange(Capacity, Order.Count - Capacity);
             }
 
-            Volatile.Write(ref _recent, new HashSet<string>(Order, StringComparer.OrdinalIgnoreCase));
+            Volatile.Write(ref _recent, new HashSet<Key>(Order));
         }
     }
 
@@ -62,19 +62,7 @@ public static class SqlSuggestionUsage
     {
         return suggestion is not null &&
                !string.IsNullOrEmpty(suggestion.DisplayText) &&
-               Volatile.Read(ref _recent).Contains(KeyOf(suggestion));
-    }
-
-    /// <summary>
-    /// 類別與名稱一起當鍵。
-    /// </summary>
-    /// <remarks>
-    /// 只用名稱的話，同名的欄位與資料表會被當成同一件事——提交過
-    /// 資料表 <c>PUBLCODE</c>，同名的欄位也跟著拿到加成，而那是兩個不同的東西。
-    /// </remarks>
-    private static string KeyOf(SqlSuggestion suggestion)
-    {
-        return ((int)suggestion.Kind).ToString() + ':' + suggestion.DisplayText;
+               Volatile.Read(ref _recent).Contains(new Key(suggestion));
     }
 
     /// <summary>清空；測試用。</summary>
@@ -83,7 +71,36 @@ public static class SqlSuggestionUsage
         lock (Gate)
         {
             Order.Clear();
-            Volatile.Write(ref _recent, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            Volatile.Write(ref _recent, new HashSet<Key>());
         }
+    }
+
+    /// <summary>
+    /// 類別與名稱一起當鍵。
+    /// </summary>
+    /// <remarks>
+    /// 只用名稱的話，同名的欄位與資料表會被當成同一件事——提交過
+    /// 資料表 <c>PUBLCODE</c>，同名的欄位也跟著拿到加成，而那是兩個不同的東西。
+    ///
+    /// 用結構而不是組一個字串：每一鍵、每一筆命中都要問一次，組字串就是每次兩個配置。
+    /// </remarks>
+    private readonly struct Key : IEquatable<Key>
+    {
+        private readonly SuggestionKind _kind;
+        private readonly string _displayText;
+
+        public Key(SqlSuggestion suggestion)
+        {
+            _kind = suggestion.Kind;
+            _displayText = suggestion.DisplayText;
+        }
+
+        public bool Equals(Key other) =>
+            _kind == other._kind && string.Equals(_displayText, other._displayText, StringComparison.OrdinalIgnoreCase);
+
+        public override bool Equals(object? obj) => obj is Key other && Equals(other);
+
+        public override int GetHashCode() =>
+            unchecked((StringComparer.OrdinalIgnoreCase.GetHashCode(_displayText) * 397) ^ (int)_kind);
     }
 }

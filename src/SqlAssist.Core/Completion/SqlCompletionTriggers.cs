@@ -1,4 +1,5 @@
 using System;
+using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Completion;
 
@@ -31,13 +32,9 @@ public static class SqlCompletionTriggers
     /// 複製一次，在幾千行的指令碼上是白付的代價。
     /// </param>
     /// <remarks>
-    /// 判斷條件與建議來源的參與條件是同一個，只是這裡的前綴必然是空的：
-    /// 來源在「目標是 <see cref="CompletionTarget.Any"/>、沒有限定字、
-    /// 前綴短於觸發字元數」時不參與，而觸發字元數的最小值是 1，
-    /// 空前綴永遠小於它。剩下的就是「有限定字」或「目標已經收斂」兩種情形。
-    ///
-    /// 因此這裡不需要讀設定：條件化簡之後與設定值無關，
-    /// 而使用者把觸發字元數調大時，本來就只影響「開始輸入名稱之後」的行為。
+    /// 與建議來源是同一條規則（<see cref="SqlCompletionPolicy.Participates"/>）。
+    /// 觸發字元數取最小值：走到這裡的字元不是識別字的一部分，前綴一定是空的
+    /// ——小老鼠例外，但它的目標一律已經收斂——所以設定值影響不了結果。
     ///
     /// 也因此不需要看游標後方的文字。完整文字的多載只做一件事——把有限定字
     /// 而且解析得出別名的情形從 <see cref="CompletionTarget.Any"/> 改成
@@ -62,19 +59,9 @@ public static class SqlCompletionTriggers
             return false;
         }
 
-        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
-
-        // IsValid 同時擋掉字串與註解裡的字元——那裡面沒有任何東西該被建議。
-        if (!context.IsValid)
-        {
-            return false;
-        }
-
-        // 限定字有路徑卻沒有最右邊那一段，是 LibArchive.. 這種省略結構描述的寫法。
-        // 那一樣要重開清單：使用者剛打完的第二個點號正是「換一個資料庫」的意思。
-        return context.QualifierPath is null
-            ? context.Target != CompletionTarget.Any
-            : context.Qualifier is null || IsIdentifierLike(context.Qualifier, textBeforeCaret);
+        return SqlCompletionPolicy.Participates(
+            SqlCompletionContextAnalyzer.Analyze(textBeforeCaret),
+            SqlAssistLimits.MinimumTriggerCharacters);
     }
 
     /// <summary>
@@ -94,36 +81,5 @@ public static class SqlCompletionTriggers
     public static bool MayChangeContext(char value)
     {
         return !SqlCompletionContextAnalyzer.IsIdentifierCharacter(value) || value == '@';
-    }
-
-    /// <summary>
-    /// 限定字看起來像不像識別字。
-    /// </summary>
-    /// <remarks>
-    /// 擋的是數值字面值：<c>1.5</c> 的點號前面是 <c>1</c>，一樣是「限定字加點號」，
-    /// 但使用者在打的是一個數字，不是在引用什麼東西。分不出來的代價是
-    /// 每次輸入小數點都彈出整個資料庫的物件清單。
-    ///
-    /// 因此要看原文而不是只看剝好的那一段：連結伺服器可以直接以位址命名
-    /// （<c>[192.0.2.10].</c>），剝掉方括號之後它以數字開頭，長得就像一個小數。
-    /// 而方括號本身已經把話說完了——加了括號的一定是識別字。
-    /// </remarks>
-    private static bool IsIdentifierLike(string qualifier, string textBeforeCaret)
-    {
-        // 走到這裡代表限定字解析成功，而那要求原文以點號結尾，
-        // 所以倒數第二個字元就是限定字的最後一個字元。
-        if (textBeforeCaret.Length >= 2 &&
-            textBeforeCaret[textBeforeCaret.Length - 2] == ']')
-        {
-            return true;
-        }
-
-        if (qualifier.Length == 0)
-        {
-            return false;
-        }
-
-        var first = qualifier[0];
-        return char.IsLetter(first) || first == '_' || first == '#';
     }
 }

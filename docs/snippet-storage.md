@@ -50,7 +50,9 @@
 ```
 
 `category` 是固定集合：`select`、`dml`、`ddl`、`controlFlow`、`clause`、`other`；
-不認得的值落到 `other`。`positions` 重用 `SqlKeywordPosition`，缺席為 `Any`。
+不認得的值落到 `other`。`positions` 重用 `SqlKeywordPosition`；缺席、空陣列或名稱
+全都不認得都是 `Any`（哪裡都能用）。明寫 `"None"` 的意思與關鍵字相同：只在分析器
+判不出位置時出現。
 
 **`positions` 給得太緊的症狀是全靜默的**：使用者只覺得「這個片段有時候有、
 有時候沒有」。語句級片段一律要同時給 `StatementStart` 與 `BlockStart`——分析器在

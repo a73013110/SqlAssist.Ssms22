@@ -33,7 +33,7 @@ public sealed class SqlDataTypeCompletionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataType, context.Target);
     }
 
@@ -72,7 +72,7 @@ public sealed class SqlDataTypeCompletionTests
                 new SqlSuggestion("Lib_Reader", "Lib_Reader", "資料表", "資料表", SuggestionKind.Table)
             });
 
-        var filtered = SuggestionMatcher.Filter(candidates, context);
+        var filtered = SuggestionContextFilter.Filter(candidates, context);
 
         Assert.NotEmpty(filtered);
         Assert.All(filtered, item => Assert.Equal(SuggestionKind.DataType, item.Kind));
@@ -87,7 +87,7 @@ public sealed class SqlDataTypeCompletionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.Empty(SuggestionMatcher.Filter(SqlDataTypeCatalog.All, context));
+        Assert.Empty(SuggestionContextFilter.Filter(SqlDataTypeCatalog.All, context));
     }
 
     [Theory]
@@ -98,7 +98,7 @@ public sealed class SqlDataTypeCompletionTests
     public void 前綴比對排在第一(string textBeforeCaret, string expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
-        var ranked = SuggestionMatcher.Match(SqlDataTypeCatalog.All, context);
+        var ranked = SuggestionListProbe.Match(SqlDataTypeCatalog.All, context);
 
         Assert.NotEmpty(ranked);
         Assert.Equal(expected, ranked[0].DisplayText);

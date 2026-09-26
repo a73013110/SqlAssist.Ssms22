@@ -12,7 +12,7 @@ public sealed class SqlCompletionContext
     private static readonly IReadOnlyList<SqlSuggestion> NoScriptSources = Array.Empty<SqlSuggestion>();
 
     public SqlCompletionContext(
-        bool isValid,
+        SqlCompletionSlot slot,
         int tokenStart,
         string prefix,
         CompletionTarget target,
@@ -27,7 +27,7 @@ public sealed class SqlCompletionContext
         int qualifierStart = -1)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
-        IsValid = isValid;
+        Slot = slot;
         TokenStart = tokenStart;
         Prefix = prefix;
         Target = target;
@@ -41,7 +41,10 @@ public sealed class SqlCompletionContext
         QualifierStart = qualifierStart;
     }
 
-    public bool IsValid { get; }
+    /// <summary>
+    /// 游標所在的這一格可不可補、是不是名字；要不要開清單見 <see cref="SqlCompletionPolicy"/>。
+    /// </summary>
+    public SqlCompletionSlot Slot { get; }
 
     public int TokenStart { get; }
 
@@ -199,7 +202,7 @@ public sealed class SqlCompletionContext
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
     {
         return new SqlCompletionContext(
-            IsValid,
+            Slot,
             TokenStart,
             Prefix,
             Target,
@@ -218,7 +221,7 @@ public sealed class SqlCompletionContext
     internal SqlCompletionContext WithScriptSources(IReadOnlyList<SqlSuggestion> sources)
     {
         return new SqlCompletionContext(
-            IsValid,
+            Slot,
             TokenStart,
             Prefix,
             Target,
@@ -244,7 +247,7 @@ public sealed class SqlCompletionContext
     public SqlCompletionContext WithQualifierPath(SqlObjectPath path)
     {
         return new SqlCompletionContext(
-            IsValid,
+            Slot,
             TokenStart,
             Prefix,
             Target,
@@ -263,7 +266,7 @@ public sealed class SqlCompletionContext
     internal SqlCompletionContext AsColumnsOf(IReadOnlyList<SqlColumnSource> sources)
     {
         return new SqlCompletionContext(
-            isValid: true,
+            Slot,
             TokenStart,
             Prefix,
             CompletionTarget.Column,

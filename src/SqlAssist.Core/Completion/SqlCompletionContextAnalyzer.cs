@@ -25,7 +25,7 @@ public static class SqlCompletionContextAnalyzer
 
         if (!SqlLexicalContext.IsCode(textBeforeCaret, tokenStart))
         {
-            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+            return Inert(tokenStart);
         }
 
         // 小老鼠開頭的詞元不必看位置，也不必看前導關鍵字：它要的東西只有兩種，
@@ -35,15 +35,14 @@ public static class SqlCompletionContextAnalyzer
             return AnalyzeVariable(textBeforeCaret, tokenStart);
         }
 
-        // 數字開頭的詞元是一個數值常值：T-SQL 的一般識別字不能以數字開頭，
+        // 數值常值裡沒有東西可補：T-SQL 的一般識別字不能以數字開頭，
         // 所以清單裡沒有一項會是對的。位置分析在這裡也幫不上忙——運算子之後
         // 一律是 Any，於是 SET Quantity = Quantity - 10 打到 10 的時候整個目錄
         // 進場，模糊比對撈回 LOG10，而使用者順手按下 Enter 就把數字換成了
-        // 一個函式名稱。擋數值常值與 SqlCompletionTriggers.IsIdentifierLike
-        // 不讓 1.5 的點號彈出物件清單是同一條理由。
-        if (tokenStart < textBeforeCaret.Length && char.IsDigit(textBeforeCaret[tokenStart]))
+        // 一個函式名稱。
+        if (IsInNumericLiteral(textBeforeCaret, tokenStart))
         {
-            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+            return Inert(tokenStart);
         }
 
         // 限定字之後（dbo.| 或 u.|）要的是名稱，關鍵字在那裡一個都不該出現，
@@ -53,7 +52,14 @@ public static class SqlCompletionContextAnalyzer
         // 各自再分析一次的話，每按一鍵就把游標前的整份指令碼掃兩遍。
         var textBeforeToken = textBeforeCaret.Substring(0, tokenStart);
         var tokens = SqlTokenizer.Tokenize(textBeforeToken);
-        var keywordPosition = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
+
+        if (QualifiesScalarVariable(textBeforeCaret, tokenStart, tokens))
+        {
+            return Inert(tokenStart);
+        }
+
+        var caret = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
+        var keywordPosition = caret.Keywords;
         var prefix = textBeforeCaret.Substring(tokenStart);
         var beforeToken = textBeforeToken.TrimEnd();
         var qualifierPath = ExtractQualifierPath(
@@ -65,7 +71,7 @@ public static class SqlCompletionContextAnalyzer
         // 那幾個位置除了清單上的字沒有別的東西是對的。
         if (SqlArgumentPosition.TryResolve(tokens, out var argumentTarget))
         {
-            return new SqlCompletionContext(isValid: true, tokenStart, prefix, argumentTarget);
+            return new SqlCompletionContext(SqlCompletionSlot.Grammar, tokenStart, prefix, argumentTarget);
         }
 
         // 型別的位置要排在「這裡不接受任何關鍵字」之前問：CAST(x AS | 在位置分析
@@ -76,7 +82,7 @@ public static class SqlCompletionContextAnalyzer
         if (SqlDataTypePosition.IsDataTypeSlot(tokens))
         {
             return new SqlCompletionContext(
-                isValid: true,
+                SqlCompletionSlot.Grammar,
                 tokenStart,
                 prefix,
                 CompletionTarget.DataType,
@@ -85,12 +91,18 @@ public static class SqlCompletionContextAnalyzer
         }
 
         // 這個位置文法上只能是使用者自己取的名字：衍生資料表的別名、AS 之後的別名、
-        // 變數與參數的名稱。清單裡沒有一項會是對的，而彈出來的唯一效果是使用者
-        // 順手按下 Enter，剛打的 a 被換成 ALTER PROCEDURE——那是要按復原才救得回來
-        // 的損失，而少一份清單只是少了幾個字母的補字。
-        if (keywordPosition == SqlKeywordPosition.None)
+        // CREATE 的物件名稱、CTE 名稱、SELECT … INTO 的新資料表。底下的目標判斷都在問
+        // 「要列哪一類既有物件」，對新名字沒有意義——CREATE PROCEDURE dbo. 的限定字
+        // 也一起丟掉，那裡沒有要查的東西。可能是名字的那一格照常往下走：清單以軟選開啟，
+        // 列的東西與一般位置相同。
+        if (caret.Slot == SqlCompletionSlot.Name)
         {
-            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Name,
+                tokenStart,
+                prefix,
+                CompletionTarget.Any,
+                keywordPosition: keywordPosition);
         }
 
         // CREATE INDEX ix ON | 的 ON 後面是資料表，JOIN b ON | 的 ON 後面是述詞。
@@ -103,7 +115,7 @@ public static class SqlCompletionContextAnalyzer
         if (ddlOn >= 0)
         {
             return new SqlCompletionContext(
-                isValid: true,
+                caret.Slot,
                 tokenStart,
                 prefix,
                 CompletionTarget.DataSource,
@@ -134,10 +146,8 @@ public static class SqlCompletionContextAnalyzer
             target = CompletionTarget.DataSource;
         }
 
-        var isValid = prefix.Length > 0 || target != CompletionTarget.Any || qualifierPath is not null;
-
         return new SqlCompletionContext(
-            isValid,
+            caret.Slot,
             tokenStart,
             prefix,
             target,
@@ -174,8 +184,8 @@ public static class SqlCompletionContextAnalyzer
 
         var context = Analyze(sql.Substring(0, caretPosition));
 
-        // 游標在字串或註解裡，這一輪什麼都不建議，敘述有哪些資料來源也就無關。
-        if (!context.IsValid)
+        // 游標在字串、註解或名字那一格裡，這一輪什麼都不建議，敘述有哪些資料來源也就無關。
+        if (!SqlCompletionPolicy.OffersItems(context.Slot))
         {
             return context;
         }
@@ -266,7 +276,7 @@ public static class SqlCompletionContextAnalyzer
         if (prefix.Length >= 2 && prefix[1] == '@')
         {
             return new SqlCompletionContext(
-                isValid: true,
+                SqlCompletionSlot.Grammar,
                 tokenStart,
                 prefix,
                 CompletionTarget.GlobalVariable);
@@ -278,7 +288,7 @@ public static class SqlCompletionContextAnalyzer
 
         if (SqlScriptVariableSuggestions.IsDeclarationSlot(tokens, tokens.Count))
         {
-            return new SqlCompletionContext(false, tokenStart, string.Empty, CompletionTarget.Any);
+            return new SqlCompletionContext(SqlCompletionSlot.Name, tokenStart, prefix, CompletionTarget.Any);
         }
 
         // INSERT INTO @rows 與 MERGE INTO @rows 提交之後要展開的是整句，與
@@ -300,7 +310,7 @@ public static class SqlCompletionContextAnalyzer
         // EXEC dbo.usp_Renew @| 的位置除了他自己的變數，還要列出那個程序的參數。
         // 參數在中繼資料裡，這裡只記下他在呼叫誰。
         return new SqlCompletionContext(
-            isValid: true,
+            SqlCompletionSlot.Grammar,
             tokenStart,
             prefix,
             CompletionTarget.Variable,
@@ -623,6 +633,79 @@ public static class SqlCompletionContextAnalyzer
     /// 兩邊各寫一份的話，分岔的症狀是某些字元之後清單該開卻不開。
     /// </remarks>
     public static bool IsIdentifierCharacter(char value) => IsTokenCharacter(value);
+
+    private static SqlCompletionContext Inert(int tokenStart)
+    {
+        return new SqlCompletionContext(SqlCompletionSlot.Inert, tokenStart, string.Empty, CompletionTarget.Any);
+    }
+
+    /// <summary>
+    /// 游標落在一個數值常值裡：正在打的詞元以數字開頭，或者點號前面那一段以數字開頭。
+    /// </summary>
+    /// <remarks>
+    /// 後者是 <c>1.</c> 與 <c>Price &gt; 12.</c>：數字在點號前面，文字上與
+    /// <c>dbo.</c> 一樣是「限定字加點號」（<c>1.e5</c> 的 <c>e</c> 也是）。當成限定字的話，平台自己在點號
+    /// 觸發時清單就以限定字 <c>1</c> 開出來了。
+    ///
+    /// 方括號裡的不算：連結伺服器可以直接以位址命名（<c>[192.0.2.10].</c>），
+    /// 方括號已經把「這是識別字」說完了——而它在這裡本來就走不到數字那一格，
+    /// 往回找詞元起點時第一個字元是 <c>]</c>。
+    /// </remarks>
+    private static bool IsInNumericLiteral(string text, int tokenStart)
+    {
+        if (tokenStart < text.Length && char.IsDigit(text[tokenStart]))
+        {
+            return true;
+        }
+
+        return FindSegmentBeforeDot(text, tokenStart) is { Length: > 0 } segment &&
+            char.IsDigit(segment[0]);
+    }
+
+    /// <summary>
+    /// 點號前面是一個變數，而它不是這份指令碼宣告過的資料表變數。
+    /// </summary>
+    /// <remarks>
+    /// 與數值常值同一類：文字上是「限定字加點號」，其實不是限定字。純量變數後面的點號
+    /// 是 xml 型別的方法呼叫（<c>@x.value(</c>、<c>@x.nodes(</c>），當成限定字的話
+    /// 點號一打就以結構描述 <c>@x</c> 開出整個資料庫的物件清單。
+    ///
+    /// 資料表變數例外：<c>@rows.</c> 之後要的正是它的資料行。分辨靠的是宣告
+    /// （<c>DECLARE @rows TABLE (…)</c>），而宣告必然寫在使用之前，游標前方的詞元就夠。
+    /// 名冊只在點號前面真的是變數時才收，一般的限定字不付這一趟。
+    /// </remarks>
+    private static bool QualifiesScalarVariable(string text, int tokenStart, IReadOnlyList<SqlToken> tokens)
+    {
+        return FindSegmentBeforeDot(text, tokenStart) is { Length: > 0 } segment &&
+            segment[0] == '@' &&
+            !SqlScriptTableCollector.Collect(tokens).ContainsKey(segment);
+    }
+
+    /// <summary>游標前方緊接著「一段名稱加點號」時回傳那一段，否則 null。</summary>
+    private static string? FindSegmentBeforeDot(string text, int tokenStart)
+    {
+        var index = SkipWhitespaceBackward(text, tokenStart);
+
+        if (index == 0 || text[index - 1] != '.')
+        {
+            return null;
+        }
+
+        var segmentEnd = SkipWhitespaceBackward(text, index - 1);
+        var segmentStart = FindPreviousTokenStart(text, segmentEnd);
+
+        return text.Substring(segmentStart, segmentEnd - segmentStart);
+    }
+
+    private static int SkipWhitespaceBackward(string text, int end)
+    {
+        while (end > 0 && char.IsWhiteSpace(text[end - 1]))
+        {
+            end--;
+        }
+
+        return end;
+    }
 
     private static int FindTokenStart(string text)
     {

@@ -99,6 +99,14 @@ internal sealed class SqlTabCommandHandler :
             "處理 Enter 按鍵",
             () =>
             {
+                // Enter 與空白鍵一樣結束了前一個字，關鍵字大寫走同一條規則。排在結束欄位
+                // 追蹤之前：欄位 session 開著時那條規則自己會讓開，與打字時一致。
+                SqlKeywordCasing.ApplyBeforeSeparator(
+                    args.TextView,
+                    args.SubjectBuffer,
+                    SqlKeywordCasing.NewLine,
+                    Broker);
+
                 if (Broker?.GetSession(args.TextView) is null)
                 {
                     _ = SqlSnippetExpansionController.Peek(args.TextView)?.EndForEnter();

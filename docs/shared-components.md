@@ -19,6 +19,7 @@
 | 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |
 | 區塊配對與祖先查詢 | `Core/Parsing/BlockMatcher.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
+| 建議清單開不開、軟硬選；排名、無前綴可見度、分類篩選 | `Core/Completion/SqlCompletionPolicy.cs`；`SuggestionList.cs` |
 | 識別字加括號（形狀、保留字、指令碼自己宣告的名稱） | `Core/Parsing/SqlIdentifier.cs` |
 | 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
 | 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
@@ -27,14 +28,14 @@
 | 範圍列的伺服器與資料庫篩選（單選／多選、換伺服器清資料庫、套用查詢視窗的連線） | `Core/Connections/SqlConnectionScope.cs` |
 | 一個物件掛在誰身上（父物件、子物件的型別代碼、DEFAULT 的資料行） | `Metadata/Caching/SqlMetadataCatalog.cs` 的 `GetParentAsync` |
 | 物件總管節點的 URN（節點路徑、候選順序與跳脫） | `Metadata/Model/SqlObjectExplorerUrn.cs` |
-| 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs`（被併掉的那幾筆在 `SearchHit.Merged`） |
+| 一輪搜尋的排名、去重、合併與預算世代作廢 | `Core/Search/SearchAggregator.cs` |
 | 一份文字上「有幾處命中、現在停在第幾處、上下一處與環繞」 | `Core/Matching/MatchCursor.cs` |
 | 命中的併段、標記上限與少標了那一句（各功能只決定拿什麼找） | `Core/Matching/MatchHighlights.cs` |
-| 字面比對（大小寫、全字、重疊與上限；字串與 UTF-16LE 位元組同一套規則），選項 `TextMatchOptions` 的驗證與記住的格式 | `Core/Matching/TextMatcher.cs`、`TextMatchState.cs` |
+| 字面比對（大小寫、全字、重疊與上限；字串與 UTF-16LE 位元組同一套），選項的驗證與記住的格式 | `Core/Matching/TextMatcher.cs`、`TextMatchState.cs` |
 | 片段上的高亮區段平移到整份文字 | `Core/Matching/MatchProjection.cs` 的 `Shift` |
 | 名稱與資料行的命中怎麼比（沒開修飾走模糊，開了大小寫或全字走字面） | `Core/Search/SearchIdentifierMatch.cs` |
-| 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs`（與 `SqlMetadataCatalog` 分開，不合併） |
-| Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（先問指令碼再問快照；語法可重用，資料每次重新比對） |
+| 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs` |
+| Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 浮動預覽的落點、避障、方向遲滯與雙側縮放 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewResizeEngine.cs` |
 | 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
@@ -60,5 +61,5 @@
 | 通知種類的 moniker、預設值與標題 | `Core/Notifications/NotificationKindToggle.cs` |
 | Snippet 展開／欄位／縮排 | `Core/Snippets/SqlSnippetExpansion.cs`、`SqlSnippetIndentation.cs` |
 | 表格文字：TSV（Excel 引號規則）與 CF_HTML 表格，同一趟寫完 | `Core/Tabular/SqlTabularText.cs`（欄位定義留在各功能） |
-| 清單頁尾的狀態（筆數、部分結果、續頁）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs`（文案由各清單模型給） |
+| 清單頁尾的狀態（筆數、部分結果、續頁）與分頁世代 | `Core/Lists/SqlListFooter.cs`、`PagedLoadState.cs` |
 | 區塊色彩 | [唯一實作](block-colors.md) |

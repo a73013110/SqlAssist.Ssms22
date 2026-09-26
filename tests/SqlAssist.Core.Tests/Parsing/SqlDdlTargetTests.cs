@@ -33,7 +33,7 @@ public sealed class SqlDdlTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
 
         // 只要名稱，不要把整份定義或 INSERT 骨架塞進去。
@@ -43,13 +43,16 @@ public sealed class SqlDdlTargetTests
     /// <remarks>
     /// 反方向。<c>GRANT SELECT ON t</c> 的 <c>ON</c> 前面是關鍵字而不是名稱單位，
     /// 因此不必特別排除；<c>CREATE INDEX … (a) ON [PRIMARY]</c> 的檔案群組前面是
-    /// 右括號，同樣由「前面必須是一個名稱單位」擋掉。
+    /// 右括號，同樣由「前面必須是一個名稱單位」擋掉。<c>SET STATISTICS IO ON</c> 的形狀與
+    /// <c>CREATE STATISTICS s ON</c> 相同，但 SET 後面的 STATISTICS 是工作階段選項。
     /// </remarks>
     [Theory]
     [InlineData("SELECT * FROM dbo.Loan a\nINNER JOIN dbo.Copy b\nON ")]
     [InlineData("MERGE INTO dbo.Loan AS target\nUSING dbo.Copy AS source\nON ")]
     [InlineData("GRANT SELECT ON ")]
     [InlineData("CREATE INDEX IX_TableName_ColumnName ON dbo.Loan (LoanId)\nON ")]
+    [InlineData("SET STATISTICS IO ON ")]
+    [InlineData("SET STATISTICS IO ON\nSEL")]
     public void 述詞與檔案群組的ON不是資料表(string textBeforeCaret)
     {
         Assert.NotEqual(
@@ -85,7 +88,7 @@ public sealed class SqlDdlTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(sql, sql.Length);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal("Lib_Reader", Assert.Single(context.ScopeSources).Table!.ObjectName);
     }
 

@@ -1,6 +1,7 @@
 using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Json;
+using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -256,6 +257,46 @@ public sealed class SqlSnippetTests
         Assert.True(library.TryGet("ord", out var snippet));
         Assert.Equal(new[] { "first", "second" }, snippet.Placeholders.Select(item => item.Id));
         Assert.Equal(new[] { "1", "2" }, snippet.Placeholders.Select(item => item.DefaultValue));
+    }
+
+    /// <remarks>
+    /// 沒寫 <c>positions</c> 是「哪裡都能用」，這是文件承諾的格式；不認得的名稱比照沒寫。
+    /// 那個意思用 <see cref="SqlKeywordPosition.Any"/> 表達，不與「只在判不出位置時出現」的
+    /// <see cref="SqlKeywordPosition.None"/> 共用——明寫 <c>"None"</c> 才是後者。
+    /// </remarks>
+    [Theory]
+    [InlineData("", SqlKeywordPosition.Any)]
+    [InlineData(", \"positions\": []", SqlKeywordPosition.Any)]
+    [InlineData(", \"positions\": [\"Bogus\"]", SqlKeywordPosition.Any)]
+    [InlineData(", \"positions\": \"SelectList\"", SqlKeywordPosition.SelectList)]
+    [InlineData(", \"positions\": [\"SelectList\", \"Bogus\"]", SqlKeywordPosition.SelectList)]
+    [InlineData(", \"positions\": [\"None\"]", SqlKeywordPosition.None)]
+    public void 沒寫位置的片段哪裡都能用(string positions, SqlKeywordPosition expected)
+    {
+        var library = ReadLibrary(
+            "{ \"version\": 2, \"snippets\": [ { \"shortcut\": \"pos\", \"code\": \"SELECT 1\"" +
+            positions + " } ] }");
+
+        Assert.True(library.TryGet("pos", out var snippet));
+        Assert.Equal(expected, snippet.Positions);
+    }
+
+    [Theory]
+    [InlineData(SqlKeywordPosition.Any)]
+    [InlineData(SqlKeywordPosition.None)]
+    [InlineData(SqlKeywordPosition.StatementStart | SqlKeywordPosition.BlockStart)]
+    [InlineData(SqlKeywordPosition.ColumnDefinition)]
+    public void 位置寫出去再讀回來不變(SqlKeywordPosition positions)
+    {
+        var custom = new SqlSnippet("pos", "SELECT 1", id: "user.pos", positions: positions);
+        var original = new SqlSnippetDocument(
+            SqlSnippetLibrary.CurrentVersion,
+            new[] { new SqlSnippetOverride(custom.Id, disabled: false, custom) });
+
+        var round = ReadLibrary(SqlSnippetSerializer.Serialize(original));
+
+        Assert.True(round.TryGet("pos", out var snippet));
+        Assert.Equal(positions, snippet.Positions);
     }
 
     /// <summary>把檔案內容讀成「其中有效的那些片段」。</summary>

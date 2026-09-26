@@ -73,7 +73,7 @@ public sealed class SqlSystemObjectTests
     public void 打出前綴就找得到系統結構描述()
     {
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT * FROM t WHERE x = sys");
-        var ranked = SuggestionMatcher.Match(
+        var ranked = SuggestionListProbe.Match(
             BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty),
             context);
 

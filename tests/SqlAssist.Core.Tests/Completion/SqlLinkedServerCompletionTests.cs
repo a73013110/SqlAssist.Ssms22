@@ -43,7 +43,7 @@ public sealed class SqlLinkedServerCompletionTests
             context = context.WithQualifierPath(realigned);
         }
 
-        return SuggestionMatcher
+        return SuggestionContextFilter
             .Filter(new[] { Server, Database, Schema, Table }, context)
             .Select(suggestion => suggestion.DisplayText)
             .ToArray();

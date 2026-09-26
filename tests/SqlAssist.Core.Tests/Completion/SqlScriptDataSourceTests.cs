@@ -170,7 +170,7 @@ public sealed class SqlScriptDataSourceTests
         var input = SqlWithCaret.Parse(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE|");
         var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
 
-        var matched = SuggestionMatcher
+        var matched = SuggestionListProbe
             .Match(context.ScriptSources, context)
             .Select(suggestion => suggestion.DisplayText);
 

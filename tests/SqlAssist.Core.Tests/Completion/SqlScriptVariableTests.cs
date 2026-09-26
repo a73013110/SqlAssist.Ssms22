@@ -20,7 +20,7 @@ public sealed class SqlScriptVariableTests
         var input = SqlWithCaret.Parse(sqlWithCaret);
         var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.Variable, context.Target);
         Assert.Contains(context.ScriptSources, item => item.DisplayText == "@readerId");
     }
@@ -45,8 +45,14 @@ public sealed class SqlScriptVariableTests
     {
         var input = SqlWithCaret.Parse(sqlWithCaret);
 
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret).IsValid);
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(input.BeforeCaret).IsValid);
+        Assert.Equal(
+            SqlCompletionSlot.Name,
+            SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret).Slot);
+
+        var context = SqlCompletionContextAnalyzer.Analyze(input.BeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.Name, context.Slot);
+        Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
     }
 
     /// <summary>
@@ -121,7 +127,7 @@ public sealed class SqlScriptVariableTests
         var input = SqlWithCaret.Parse("SELECT @|");
         var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
 
-        Assert.Empty(SuggestionMatcher.Filter(context.ScriptSources, context));
+        Assert.Empty(SuggestionContextFilter.Filter(context.ScriptSources, context));
     }
 
     /// <summary>反過來，一般位置的清單裡一個變數都不該有。</summary>
@@ -135,6 +141,6 @@ public sealed class SqlScriptVariableTests
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT ro");
 
         Assert.NotEmpty(variables);
-        Assert.Empty(SuggestionMatcher.Filter(variables, context));
+        Assert.Empty(SuggestionContextFilter.Filter(variables, context));
     }
 }

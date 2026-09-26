@@ -3,7 +3,9 @@
 游標前方的文字決定清單裡剩下什麼：哪些位置只剩固定那幾個字、哪些位置要把整類項目
 拿掉、以及關鍵字在什麼時機自動變成大寫。判斷的出處是
 `Core/Completion/SqlCompletionContextAnalyzer`，它讀的是實際文字而不是任何宣告。
-清單本身怎麼排名與觸發見 [completion.md](completion.md)。
+可不可補、開不開、預設選不選由 `SqlCompletionSlot` 分類，
+`SqlCompletionPolicy` 一條規則決定，見[子句邊界](completion-boundaries.md#名稱位置三分類)。
+排名見 [completion.md](completion.md)。
 
 ## 引數與提示的封閉清單
 
@@ -33,19 +35,25 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 
 定序是唯一清單不在本機的一種，見 [定序](completion-collation.md)。
 
-`SET NOCOUNT ON` 這一類的工作階段選項**沒有**收進來。位置分不開：位置分析看到
-`SET` 一律回報同一個位置，而 `UPDATE t SET |` 要的是資料行，跟 `SET NOCOUNT` 完全
-相反。要分開得往回找 `UPDATE`／`MERGE`，那條路的成本高過它省下的幾個字。
+`SET NOCOUNT ` 之後的 `ON`、`OFF` 不是封閉清單，走關鍵字位置 `SetOptionValue`（名稱不列）：
+識別字的值（`SET DATEFORMAT dmy`）寫完換行還接得了下一句，整份換掉就錯了。規則見
+[子句邊界](completion-boundaries.md)。
 
 ## 關鍵字自動大寫
 
 打完 `select` 再按空白鍵就得到 `SELECT`，不必先按 Tab 提交建議。
 `inner`、`join`、`on`、`desc` 等關鍵字同樣適用；觸發時機是任何無法構成識別字的
-字元——空白、逗號、括號、分號與運算子。
+字元——空白、逗號、括號、分號與運算子——以及 Enter，打字與 Enter 共用
+`SqlKeywordCasing.ApplyBeforeSeparator` 一條規則。
+
+建議清單開著時按 Enter，改寫延到這一輪命令結束之後：那一下可能是硬選的提交，而這一刻
+問不出軟硬選；命令結束時字還在原處才改，被提交換掉就不動。這裡與平台清單的處理常式
+誰先沒有保證：平台先的話，硬選的 Enter 傳不到這裡，軟選的傳到時清單已關、走一般的路。
+改寫是等長替換，兩種順序得到的文字相同。
 
 刻意不做成「用空白鍵提交清單選取項」：清單當下選中的可能是別的東西，
 那種做法會把使用者根本沒要的名稱寫進編輯器。這裡只改寫剛打完的那一個字，
-與清單開不開著無關，結果完全可預測。
+結果完全可預測。
 
 下列情形不動：已經是大寫、限定字後方的名稱（`dbo.select`）、變數（`@select`）、
 字串與註解內、方括號與雙引號識別字內（`[select]` 是欄位名稱）。

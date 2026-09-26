@@ -21,7 +21,7 @@ public sealed class SqlArgumentPositionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DatePart, context.Target);
     }
 
@@ -44,7 +44,7 @@ public sealed class SqlArgumentPositionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.TableHint, context.Target);
     }
 
@@ -56,7 +56,7 @@ public sealed class SqlArgumentPositionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.QueryHint, context.Target);
     }
 
@@ -85,13 +85,13 @@ public sealed class SqlArgumentPositionTests
             .ToArray();
 
         Assert.All(
-            SuggestionMatcher.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT DATEADD(")),
+            SuggestionContextFilter.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT DATEADD(")),
             item => Assert.Equal(SuggestionKind.DatePart, item.Kind));
         Assert.All(
-            SuggestionMatcher.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT * FROM t WITH (")),
+            SuggestionContextFilter.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT * FROM t WITH (")),
             item => Assert.Equal(SuggestionKind.TableHint, item.Kind));
         Assert.All(
-            SuggestionMatcher.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT * FROM t OPTION (")),
+            SuggestionContextFilter.Filter(everything, SqlCompletionContextAnalyzer.Analyze("SELECT * FROM t OPTION (")),
             item => Assert.Equal(SuggestionKind.QueryHint, item.Kind));
     }
 
@@ -107,7 +107,7 @@ public sealed class SqlArgumentPositionTests
             .Concat(SqlArgumentCatalog.QueryHints)
             .ToArray();
 
-        Assert.Empty(SuggestionMatcher.Filter(
+        Assert.Empty(SuggestionContextFilter.Filter(
             everything,
             SqlCompletionContextAnalyzer.Analyze(textBeforeCaret)));
     }
@@ -124,7 +124,7 @@ public sealed class SqlArgumentPositionTests
             .Concat(SqlArgumentCatalog.QueryHints)
             .ToArray();
 
-        var ranked = SuggestionMatcher.Match(everything, context);
+        var ranked = SuggestionListProbe.Match(everything, context);
 
         Assert.NotEmpty(ranked);
         Assert.Equal(expected, ranked[0].DisplayText);

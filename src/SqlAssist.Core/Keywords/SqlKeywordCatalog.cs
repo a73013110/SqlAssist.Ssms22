@@ -80,18 +80,15 @@ public static class SqlKeywordCatalog
     /// 查出某個關鍵字可以出現在哪些位置。
     /// </summary>
     /// <remarks>
-    /// 產生器判不出位置的字（<c>FILLFACTOR</c>、<c>STOPLIST</c> 這類深層子句字）
-    /// 回傳 <see cref="SqlKeywordPosition.Any"/>：寧可讓它在每個位置都出現，
-    /// 也不要因為樣板沒涵蓋到就讓使用者永遠打不出來。
+    /// 產生器判不出位置的字（<c>FILLFACTOR</c>、<c>PUBLIC</c> 這類深層子句字）原樣回傳
+    /// <see cref="SqlKeywordPosition.None"/>，查不到的字也一樣。它們在清單裡出不出現由
+    /// <see cref="SqlKeywordPositionExtensions.Allows"/> 決定，這裡不翻譯成別的值。
     /// </remarks>
     public static SqlKeywordPosition GetPositions(string keyword)
     {
-        if (string.IsNullOrEmpty(keyword) || !Positions.TryGetValue(keyword, out var positions))
-        {
-            return SqlKeywordPosition.Any;
-        }
-
-        return positions == SqlKeywordPosition.None ? SqlKeywordPosition.Any : positions;
+        return !string.IsNullOrEmpty(keyword) && Positions.TryGetValue(keyword, out var positions)
+            ? positions
+            : SqlKeywordPosition.None;
     }
 
     /// <summary>是否為認得的關鍵字或內建資料型別；語法著色用。</summary>

@@ -72,11 +72,13 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
 | `FROM `、`ALTER TABLE `、`DROP TABLE IF EXISTS `… | 列出資料表與檢視 |
 | `CREATE INDEX ix ON ` 這種 DDL 的 `ON` | 同上；與 JOIN 條件的 `ON` 由 `SqlDdlTarget` 分開 |
 | `別名.` 這種限定字 | 列出那一張表的欄位 |
-| `CREATE TABLE `、`CREATE VIEW `、`CREATE PROCEDURE `… | 不參與；那是使用者正要取的新名字 |
+| `CREATE TABLE `、`CREATE VIEW `、`;WITH `… | 不參與；那是新名字（`Name`） |
+| `ctb` 的資料行格（`CREATE TABLE t (`） | 打了字才有，軟選：可能是新資料行，也可能是 `CONSTRAINT` |
 | `CREATE INDEX … ON t (` 這種推不出目標又沒有限定字的位置 | 打了字才有；列出敘述看得到的欄位 |
 
-第四列不必特別處理：那些位置推不出目標，前綴又是空的，分析器自己就回報不參與。
-兩列各有守門測試（`物件欄位落在會列出資料來源的位置`、`新建物件的名稱欄位不主動開清單`）。
+第四、五列不必特別處理：分析器自己就把那一格分類成新名字或可能是名字，規則只有
+`SqlCompletionPolicy` 一份。各有守門測試（`物件欄位落在會列出資料來源的位置`、
+`新建物件的名稱欄位不主動開清單`、`資料行定義的欄位是可能是名字的位置`）。
 
 過去 `tabStops` 不敢開清單的理由是「placeholder 的預設值會被當成篩選前綴」，
 那是真的——`dbo.TargetTable` 當前綴時清單一定是空的。解法是**適用範圍改成整格，
@@ -86,7 +88,7 @@ Esc 先關 Completion 或獨立預覽，再結束 Snippet session。Enter 在 se
   進入欄位時游標可能停在頭也可能停在尾，而使用者拖選之後 Selection 就完全不是
   欄位邊界了；只有引擎手上那份標記會跟著每一次編輯移動。
 - **整格還是樣板填的預設值**時，上下文分析截到這一格的起點（`ResolveAnalysisEnd`），
-  排名器也把它視為空前綴（`GetTypedText`）。少了前者，限定字是 `dbo`，插進去的
+  排名器也把它視為空前綴（`SuggestionList.TypedText`）。少了前者，限定字是 `dbo`，插進去的
   名稱就少了結構描述；少了後者，`dbo.TargetTable` 比不中任何一個資料表名稱，
   而篩選一個都沒中就會回 null 讓平台把剛開的 session 關掉——症狀是
   「Tab 進去沒有清單，打了字才有」。

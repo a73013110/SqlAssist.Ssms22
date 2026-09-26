@@ -70,7 +70,7 @@ public sealed class SqlCrossDatabaseCompletionTests
         Assert.Equal("LibArchive", context.QualifierPath!.DatabaseName);
         Assert.Null(context.QualifierPath.SchemaName);
         Assert.Null(context.Qualifier);
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public sealed class SqlCrossDatabaseCompletionTests
             new SqlSuggestion("Loan", "Loan", "Table", "Loan", SuggestionKind.Table, schemaName: "dbo")
         };
 
-        var names = SuggestionMatcher
+        var names = SuggestionContextFilter
             .Filter(candidates, Analyze("SELECT * FROM LibArchive..|"))
             .Select(suggestion => suggestion.DisplayText)
             .ToArray();

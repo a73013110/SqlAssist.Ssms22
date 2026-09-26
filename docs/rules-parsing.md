@@ -13,7 +13,8 @@
   那一次要當它不存在；使用者一打字，那幾個字就是前綴，而那是無限定字的格子
   （`INSERT (|)`）唯一的參與條件。截點只有
   `SqlSnippetExpansionController.ResolveAnalysisEnd` 一份，排名器也要照同一條
-  把預設值視為空前綴，否則 Tab 進去的清單會被自己的預設值濾光。
+  把預設值視為空前綴（`SuggestionList.TypedText`），否則 Tab 進去的清單會被自己的
+  預設值濾光。
 
 - **禁止**再寫一份 SQL 註解略過或括號配對。`Core/Parsing` 的 `SqlTrivia` 與
   `SqlTokenNavigator` 是唯一出處；自己寫的那一份漏掉巢狀註解已經發生過一次。

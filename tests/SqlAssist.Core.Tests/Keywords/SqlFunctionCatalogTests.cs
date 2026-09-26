@@ -160,13 +160,13 @@ public sealed class SqlFunctionCatalogTests
     {
         var catalog = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
 
-        var inSelectList = SuggestionMatcher.Filter(
+        var inSelectList = SuggestionContextFilter.Filter(
             catalog,
             SqlCompletionContextAnalyzer.Analyze("SELECT "));
 
         Assert.Contains(inSelectList, item => item.DisplayText == "COUNT");
 
-        var afterFrom = SuggestionMatcher.Filter(
+        var afterFrom = SuggestionContextFilter.Filter(
             catalog,
             SqlCompletionContextAnalyzer.Analyze("SELECT * FROM "));
 
@@ -184,7 +184,7 @@ public sealed class SqlFunctionCatalogTests
     {
         var catalog = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
 
-        var filtered = SuggestionMatcher.Filter(
+        var filtered = SuggestionContextFilter.Filter(
             catalog,
             SqlCompletionContextAnalyzer.Analyze("ALTER FUNCTION "));
 

@@ -62,10 +62,13 @@ public static class SqlDdlTarget
 
         var nameStart = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, nameEnd);
 
+        // SET STATISTICS IO ON 是同一個形狀，但 SET 後面的 STATISTICS 是工作階段選項，
+        // 那個 ON 是選項值。
         return nameStart >= 1 &&
                tokens[nameStart - 1].Kind == SqlTokenKind.Identifier &&
                !tokens[nameStart - 1].IsQuoted &&
-               ObjectKeywords.Contains(tokens[nameStart - 1].Value);
+               ObjectKeywords.Contains(tokens[nameStart - 1].Value) &&
+               !(nameStart >= 2 && tokens[nameStart - 2].IsKeyword("SET"));
     }
 
     /// <summary>

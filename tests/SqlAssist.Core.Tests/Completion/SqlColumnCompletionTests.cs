@@ -88,7 +88,7 @@ public sealed class SqlColumnCompletionTests
     {
         var context = Analyze("MERGE INTO dbo.Loan AS target\nUSING dbo.LoanDetail AS source\n    ON target.CopyNo = source.CopyNo\nWHEN NOT MATCHED BY TARGET THEN\n    INSERT (C|)");
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Null(context.Qualifier);
         Assert.Equal("C", context.Prefix);
         Assert.Equal(
@@ -207,8 +207,8 @@ public sealed class SqlColumnCompletionTests
     [Fact]
     public void 字串與註解內不建議欄位()
     {
-        Assert.False(Analyze("SELECT 'u.|' FROM dbo.Lib_Reader u").IsValid);
-        Assert.False(Analyze("-- u.|\r\nSELECT * FROM dbo.Lib_Reader u").IsValid);
+        Assert.Equal(SqlCompletionSlot.Inert, Analyze("SELECT 'u.|' FROM dbo.Lib_Reader u").Slot);
+        Assert.Equal(SqlCompletionSlot.Inert, Analyze("-- u.|\r\nSELECT * FROM dbo.Lib_Reader u").Slot);
     }
 
     /// <summary>

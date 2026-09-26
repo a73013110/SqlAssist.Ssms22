@@ -35,7 +35,7 @@ SSMS 的 T-SQL IntelliSense 是舊版語言服務，官方文件沒有保證新�
 | 匯出 | 職責 |
 |---|---|
 | `IAsyncCompletionSource` | 項目與說明面板 |
-| `IAsyncCompletionItemManager` | 排名、篩選與命中標示 |
+| `IAsyncCompletionItemManager` | 排名、篩選與命中標示；只轉接，規則在 `Core/Completion/SuggestionList` |
 | `IAsyncCompletionCommitManager` | 提交、接續建議與語句展開 |
 
 排名器不能省：平台預設比對器沒有詞首感知，否則 `libr` 排不到 `Lib_Reader`。

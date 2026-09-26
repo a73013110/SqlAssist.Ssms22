@@ -23,7 +23,7 @@ public sealed class SqlGlobalVariableCompletionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.GlobalVariable, context.Target);
     }
 
@@ -74,7 +74,7 @@ public sealed class SqlGlobalVariableCompletionTests
     [InlineData("/* @@")]
     public void 字串與註解裡不建議(string textBeforeCaret)
     {
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+        Assert.Equal(SqlCompletionSlot.Inert, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Slot);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class SqlGlobalVariableCompletionTests
                 new SqlSuggestion("PUBL_CODE", "PUBL_CODE", "欄位", "欄位", SuggestionKind.Column)
             });
 
-        var filtered = SuggestionMatcher.Filter(candidates, context);
+        var filtered = SuggestionContextFilter.Filter(candidates, context);
 
         Assert.NotEmpty(filtered);
         Assert.All(filtered, item => Assert.Equal(SuggestionKind.GlobalVariable, item.Kind));
@@ -109,7 +109,7 @@ public sealed class SqlGlobalVariableCompletionTests
     public void 一般位置不列全域變數(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
-        var filtered = SuggestionMatcher.Filter(SqlGlobalVariableCatalog.All, context);
+        var filtered = SuggestionContextFilter.Filter(SqlGlobalVariableCatalog.All, context);
 
         Assert.Empty(filtered);
     }
@@ -123,7 +123,7 @@ public sealed class SqlGlobalVariableCompletionTests
     public void 前綴比對排在第一(string textBeforeCaret, string expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
-        var ranked = SuggestionMatcher.Match(SqlGlobalVariableCatalog.All, context);
+        var ranked = SuggestionListProbe.Match(SqlGlobalVariableCatalog.All, context);
 
         Assert.NotEmpty(ranked);
         Assert.Equal(expected, ranked[0].DisplayText);

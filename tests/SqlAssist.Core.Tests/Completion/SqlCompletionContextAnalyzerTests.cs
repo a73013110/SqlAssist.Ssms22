@@ -36,7 +36,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Equal(expected, context.Target);
     }
 
@@ -58,7 +58,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
     }
 
@@ -79,7 +79,7 @@ public sealed class SqlCompletionContextAnalyzerTests
         var input = SqlWithCaret.Parse(sqlWithCaret);
         var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
         Assert.Null(context.ColumnSources);
         Assert.NotNull(context.QualifierPath);
@@ -115,7 +115,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.False(context.IsValid);
+        Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Equal(CompletionTarget.Any, context.Target);
     }
 
@@ -142,7 +142,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.Procedure, context.Target);
     }
 
@@ -224,7 +224,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(expected, context.Qualifier);
         Assert.Equal(CompletionTarget.DataSource, context.Target);
     }
@@ -237,7 +237,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT [publ")]
     public void 字串與註解內不建議(string textBeforeCaret)
     {
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+        Assert.Equal(SqlCompletionSlot.Inert, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Slot);
     }
 
     [Fact]
@@ -245,14 +245,16 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT 'a' FROM publ");
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal("publ", context.Prefix);
     }
 
     [Fact]
     public void 空白輸入不建議()
     {
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(string.Empty).IsValid);
+        Assert.False(SqlCompletionPolicy.Participates(
+            SqlCompletionContextAnalyzer.Analyze(string.Empty),
+            triggerAfterCharacters: 1));
     }
 
     /// <summary>
@@ -262,8 +264,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     /// T-SQL 的一般識別字不能以數字開頭，所以清單裡沒有一項會是對的。位置分析
     /// 在這裡也幫不上忙——運算子之後一律是 <c>Any</c>，於是整個目錄進場，
     /// 模糊比對把 <c>10</c> 對到 <c>LOG10</c>，而使用者順手按下 Enter 就把數字
-    /// 換成了一個函式名稱。與 <c>SqlCompletionTriggers.IsIdentifierLike</c>
-    /// 不讓 <c>1.5</c> 的點號彈出物件清單是同一條理由。
+    /// 換成了一個函式名稱。<c>1.</c> 的點號不當成限定字是同一條理由。
     /// </remarks>
     [Theory]
     [InlineData("UPDATE #Loan SET Fine = Fine - 1")]
@@ -276,7 +277,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT 0x1F")]
     public void 數值常值不建議(string textBeforeCaret)
     {
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+        Assert.Equal(SqlCompletionSlot.Inert, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Slot);
     }
 
     /// <summary>數字只在詞元開頭才算數值常值。</summary>
@@ -291,7 +292,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(prefix, context.Prefix);
     }
 
@@ -310,11 +311,36 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("SELECT * FROM dbo.PUBLISHER AS c")]
     [InlineData("SELECT c.PUBL_CODE AS co")]
     [InlineData("DECLARE @pub")]
-    [InlineData(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE_TEST a")]
-    [InlineData("SELECT * FROM CTE_TEST AS a INNER JOIN dbo.Cat_BookCopy b")]
+    [InlineData("CREATE PROCEDURE dbo.usp")]
+    [InlineData("CREATE NONCLUSTERED INDEX IX")]
+    [InlineData(";WITH CTE")]
+    [InlineData("SELECT PublCode INTO #Pub")]
     public void 取名字的位置不建議(string textBeforeCaret)
     {
-        Assert.False(SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).IsValid);
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.Name, context.Slot);
+        Assert.False(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
+    }
+
+    /// <summary>
+    /// 沒有 AS 的別名那一格照常有清單，但不預先選中。
+    /// </summary>
+    /// <remarks>
+    /// 打到一半的 <c>b</c> 可能是別名，也可能是 <c>BETWEEN</c>、<c>BY</c> 的開頭。
+    /// 軟選時 Enter 照常換行、別名留在原處，要補關鍵字的人按 Tab。
+    /// </remarks>
+    [Theory]
+    [InlineData(";WITH CTE_TEST AS (SELECT 1 AS a)\r\nSELECT * FROM CTE_TEST a")]
+    [InlineData("SELECT * FROM CTE_TEST AS a INNER JOIN dbo.Cat_BookCopy b")]
+    [InlineData("SELECT c.PUBL_CODE co")]
+    public void 可能是別名的位置軟選(string textBeforeCaret)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(SqlCompletionSlot.MaybeName, context.Slot);
+        Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
+        Assert.True(SqlCompletionPolicy.UsesSoftSelection(context));
     }
 
     /// <summary>
@@ -334,9 +360,9 @@ public sealed class SqlCompletionContextAnalyzerTests
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
         var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
 
-        Assert.True(context.IsValid);
+        Assert.True(SqlCompletionPolicy.Participates(context, triggerAfterCharacters: 1));
         Assert.Contains(
-            SuggestionMatcher.Filter(suggestions, context),
+            SuggestionContextFilter.Filter(suggestions, context),
             suggestion => suggestion.Kind == SuggestionKind.Keyword &&
                 suggestion.DisplayText == keyword);
     }
@@ -355,7 +381,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(SqlKeywordPosition.Any, context.KeywordPosition);
     }
 
@@ -369,7 +395,7 @@ public sealed class SqlCompletionContextAnalyzerTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT * FROM (SELECT 1 AS a) d\r\nWHE");
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(
             SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart,
             context.KeywordPosition);

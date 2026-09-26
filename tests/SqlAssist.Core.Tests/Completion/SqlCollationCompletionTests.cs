@@ -33,7 +33,7 @@ public sealed class SqlCollationCompletionTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        Assert.True(context.IsValid);
+        Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Equal(CompletionTarget.Collation, context.Target);
     }
 
@@ -65,7 +65,7 @@ public sealed class SqlCollationCompletionTests
             .Concat(SqlCollationCatalog.Defaults)
             .ToArray();
 
-        var filtered = SuggestionMatcher.Filter(
+        var filtered = SuggestionContextFilter.Filter(
             candidates,
             SqlCompletionContextAnalyzer.Analyze("WHERE a.Code = c.Code COLLATE "));
 
@@ -83,7 +83,7 @@ public sealed class SqlCollationCompletionTests
             .Concat(new[] { Collation(DatabaseCollation, SuggestionKind.CollationInUse) })
             .ToArray();
 
-        Assert.Empty(SuggestionMatcher.Filter(
+        Assert.Empty(SuggestionContextFilter.Filter(
             candidates,
             SqlCompletionContextAnalyzer.Analyze(textBeforeCaret)));
     }
@@ -138,7 +138,7 @@ public sealed class SqlCollationCompletionTests
             .Concat(new[] { Collation(DatabaseCollation, SuggestionKind.CollationInUse) })
             .ToArray();
 
-        var ranked = SuggestionMatcher.Match(
+        var ranked = SuggestionListProbe.Match(
             candidates,
             SqlCompletionContextAnalyzer.Analyze("WHERE a.Code = c.Code COLLATE "));
 
@@ -153,7 +153,7 @@ public sealed class SqlCollationCompletionTests
             .Concat(new[] { Collation(DatabaseCollation, SuggestionKind.CollationInUse) })
             .ToArray();
 
-        var ranked = SuggestionMatcher.Match(
+        var ranked = SuggestionListProbe.Match(
             candidates,
             SqlCompletionContextAnalyzer.Analyze("WHERE a.Code = c.Code COLLATE Chin"));
 

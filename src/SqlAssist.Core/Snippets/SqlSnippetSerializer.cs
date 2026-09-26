@@ -205,34 +205,43 @@ public static class SqlSnippetSerializer
     private static string ExpansionModeName(SqlSnippetExpansionMode value) =>
         value == SqlSnippetExpansionMode.TabStops ? "tabStops" : "caret";
 
+    /// <summary>讀 <c>positions</c>；缺席、空陣列或一個都不認得時是 <see cref="SqlKeywordPosition.Any"/>。</summary>
+    /// <remarks>
+    /// 「沒寫」的意思是「哪裡都能用」，這是文件承諾的格式，所以直接給
+    /// <see cref="SqlKeywordPosition.Any"/>，不經過 <see cref="SqlKeywordPosition.None"/>：
+    /// 後者是「只在判不出位置時出現」，兩個意思不能共用一個值。
+    /// 不認得的名稱比照沒寫——改名後舊檔裡的值不該讓片段縮到只剩判不出位置的地方。
+    /// 明寫 <c>"None"</c> 才是 <see cref="SqlKeywordPosition.None"/>。
+    /// </remarks>
     private static SqlKeywordPosition ReadPositions(JsonValue value)
     {
+        var result = SqlKeywordPosition.None;
+        var recognized = false;
+
         if (value.Kind == JsonKind.String)
         {
-            var single = ParsePosition(value.AsString());
-            return single == SqlKeywordPosition.None ? SqlKeywordPosition.Any : single;
+            recognized = TryParsePosition(value.AsString(), ref result);
         }
-
-        if (value.Items.Count == 0)
+        else
         {
-            return SqlKeywordPosition.Any;
+            foreach (var item in value.Items)
+            {
+                recognized |= TryParsePosition(item.AsString(), ref result);
+            }
         }
 
-        var result = SqlKeywordPosition.None;
-
-        foreach (var item in value.Items)
-        {
-            result |= ParsePosition(item.AsString());
-        }
-
-        return result == SqlKeywordPosition.None ? SqlKeywordPosition.Any : result;
+        return recognized ? result : SqlKeywordPosition.Any;
     }
 
-    private static SqlKeywordPosition ParsePosition(string value)
+    private static bool TryParsePosition(string value, ref SqlKeywordPosition result)
     {
-        return Enum.TryParse(value, ignoreCase: true, out SqlKeywordPosition position)
-            ? position
-            : SqlKeywordPosition.None;
+        if (!Enum.TryParse(value, ignoreCase: true, out SqlKeywordPosition position))
+        {
+            return false;
+        }
+
+        result |= position;
+        return true;
     }
 
     private static void WritePositions(JsonWriter fields, SqlKeywordPosition positions)
@@ -243,6 +252,12 @@ public static class SqlSnippetSerializer
         }
 
         var values = new List<string>();
+
+        if (positions == SqlKeywordPosition.None)
+        {
+            // 不寫的話讀回來是 Any，意思整個反過來。
+            values.Add(nameof(SqlKeywordPosition.None));
+        }
 
         foreach (SqlKeywordPosition candidate in Enum.GetValues(typeof(SqlKeywordPosition)))
         {

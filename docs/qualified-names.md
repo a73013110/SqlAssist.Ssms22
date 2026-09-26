@@ -50,7 +50,7 @@
 | `LibMirror.` | 伺服器 | 該伺服器的資料庫 | — |
 | `LibMirror.LibArchive.` | 資料庫 | 該資料庫的結構描述與全部物件 | **是，且不看設定** |
 
-「接得住物件的位置」由 `SuggestionMatcher.IsQualifiedNameStart` 一處決定，名稱的
+「接得住物件的位置」由 `SuggestionContextFilter.IsQualifiedNameStart` 一處決定，名稱的
 三種開頭共用；`USE` 只收資料庫。清單裡的結構描述讀 `SqlDatabaseSnapshot.SchemasWithObjects`，
 底下沒有物件的（`guest`、`db_denydatareader` 這類角色同名的）不列；認限定字仍讀完整的
 `Schemas`，否則空結構描述與資料庫同名時會被改認成資料庫。

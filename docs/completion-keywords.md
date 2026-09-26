@@ -15,12 +15,17 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
    撈回 `CURRENT_TIMESTAMP`、`IDENTITY_INSERT`、`TRY_CONVERT` 這一類。
    242 個成員得到 180 個保留字。
 
-2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法
-   （46010 語法不正確 = 不合法；46029 未預期的檔案結尾 = 合法，只是語句沒寫完）。
+2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法。
+   46005（必須是 X 卻發現 Y）、46010（語法不正確）、46014（只可存在於資料行層級）
+   = 不合法；46029（未預期的檔案結尾）= 合法，只是語句沒寫完。少算 46005 的話任何名稱
+   都「接受」；少算 46014 的話 `DEFAULT` 會被分到 `CREATE TABLE t (` 的開頭。
    單一續尾會誤判——`BACKUP ` 之後是檔案結尾、`SELECT ` 之後卻是語法錯誤，
-   兩者都合法——所以每個位置試一組續尾取聯集。
+   兩者都合法——所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
+   屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
 
-手寫的只有 16 個上下文位置、合計 24 個樣板片段，191 個關鍵字的分類全部由剖析器決定。
+手寫的只有每個位置的樣板，關鍵字的分類全部由剖析器決定。樣板必須是分析器判得出、
+而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
+由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
 非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 這些在文法上不是關鍵字，
 ScriptDom 的 token 列舉沒有它們，SqlParser 的 Scanner 也一律回報識別字——
@@ -35,19 +40,30 @@ ScriptDom 的 token 列舉沒有它們，SqlParser 的 Scanner 也一律回報�
 `SqlKeywordPositionAnalyzer` 判斷游標當下在哪個位置後過濾：
 
 ```text
-（語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…（64 個）
-SELECT * FROM t ORDER BY    → CASE、CONVERT、COALESCE…（28 個）
+（語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
+SELECT * FROM t ORDER BY    → CASE、CONVERT、COALESCE…
 SELECT * FROM t ORDER BY a  → ASC、DESC
-CREATE                → TABLE、VIEW、PROCEDURE…（33 個）
-SELECT * FROM t WHERE → EXISTS、NOT、CASE…（33 個）
+SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail，不接 ASC）
+SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopClauseTail）
+CREATE                → TABLE、VIEW、PROCEDURE…
+SELECT * FROM t WHERE → EXISTS、NOT、CASE…
+SET NOCOUNT           → ON、OFF（SetOptionValue；隔離等級之後是 READ）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
+CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
 ```
 
 位置切在「游標前一個詞元」之後，因為那正是分析器認得的粒度——它分不出
 `FROM t ` 的 `t` 是資料表還是聯結對象，目錄就不假裝分得出來。
-產生器判不出位置的 24 個深層子句字（`FILLFACTOR`、`STOPLIST`…）一律放行：
-分不出位置的代價是清單多幾個字，猜錯位置的代價是使用者永遠打不出來。
+
+#### 判不出位置的字只在判不出位置時出現
+
+產生器判不出位置的深層子句字（`FILLFACTOR`、`STOPLIST`…）產出為 `None`，`None` 只有
+這一個意思：分析器也判不出位置（`Any`）時才出現。規則在 `SqlKeywordPositionExtensions.Allows`，
+關鍵字、內建函式與片段共用。放行到每個位置的話 `SELECT F` 列得出 `FILLFACTOR`；
+整個藏起來也不行，判不出位置的地方（`WITH (`、`= ANY`）正是它們的用處。
+某個字的用法落在判得出的位置時，該補的是產生器的樣板，不是放寬這一條。
+「這一格是新名字」是另一軸（`SqlCompletionSlot`），不借用 `None`。
 
 #### `Any` 是給「判不出來」用的，不是給「不想判」用的
 
@@ -65,7 +81,7 @@ ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CH
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn` 都是**自己的成員**，
-不再借用 `Any`。`OrderByTail` 是欄位**之後**的 `ASC`／`DESC`，兩者不能混。
+不再借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，
 不是「這份指令碼裡有沒有 `ALTER TABLE`」——理由與 `SqlScopeAnalyzer.IsMergeAction`
@@ -89,14 +105,14 @@ ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CH
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
 | `AlterTableAction`（`ALTER TABLE t \|`） | `ADD`、`ALTER`、`DROP`、`CHECK`… |
 | `AlterTableAdd`（`ALTER TABLE t ADD \|`） | 條件約束關鍵字，或使用者正要取的新資料行名稱 |
+| `ColumnDefinition`（`CREATE TABLE t (\|`、逗號之後） | 同上 |
+| `SetOptionValue`（`SET NOCOUNT \|`） | `ON`、`OFF`、`READ`（`SET IDENTITY_INSERT \|` 要資料表，不在此） |
 
 `InsertTarget` 刻意不在裡面：`INSERT dbo.Loan VALUES (…)` 是合法的 T-SQL，`INTO`
-可以省略。`SetTarget` 也不在——位置分析看到 `SET` 一律回報同一個位置，而
-`UPDATE t SET |` 要的是資料行。`ColumnDefinition`、`CaseArm`、`CaseBody` 不在的理由
-不一樣：那三個位置目前只有**產生器**認得，分析器一次都回不出來
-（`CREATE TABLE t (a int |` 回的是 `Any`），列進來只是宣告一件不會發生的事。
+可以省略。`SetTarget` 也不在——`SET |` 與 `UPDATE t SET |` 是同一個位置，而後者要的是
+資料行。`CaseArm`、`CaseBody` 不在：CASE 的各段寫的是運算式，欄位與函式都對。
 
 判斷比的是「位置裡還有沒有別的位元」而不是位元交集，理由與 `AS` 那條規則完全相同：
 判不出位置時回傳的 `Any` 含著上表每一個旗標，用交集的話 fail-open 會變成
-fail-closed，**每一個**位置的資料庫物件都會消失——那比原本的雜訊嚴重得多。
+fail-closed，**每一個**位置的資料庫物件都會消失。
 兩個方向都釘在 `SqlKeywordPositionTests.位置過濾也管資料庫物件`。

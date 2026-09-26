@@ -71,7 +71,7 @@ public sealed class SqlSnippet
             ? SqlSnippetExpansionMode.Caret
             : expansionMode;
         TriggerFollowUp = ExpansionMode == SqlSnippetExpansionMode.Caret && triggerFollowUp;
-        Positions = positions == SqlKeywordPosition.None ? SqlKeywordPosition.Any : positions;
+        Positions = positions;
         // 手改 JSON 的違規項目仍留在管理員，但不能讓包夾複製或遺失使用者的 SQL。
         CanSurround = HasSurroundField(Placeholders) &&
             SqlSnippetPlaceholders.Extract(Code).Contains(SqlSnippetPlaceholders.SurroundId, StringComparer.OrdinalIgnoreCase) &&
@@ -151,6 +151,10 @@ public sealed class SqlSnippet
     public SqlSnippetExpansionMode ExpansionMode { get; }
 
     /// <summary>片段可以出現的 SQL 文法位置。</summary>
+    /// <remarks>
+    /// 「哪裡都能用」是 <see cref="SqlKeywordPosition.Any"/>，不是 <see cref="SqlKeywordPosition.None"/>：
+    /// 後者與關鍵字同一個意思，只在分析器判不出位置時出現。
+    /// </remarks>
     public SqlKeywordPosition Positions { get; }
 
     /// <summary>樣板有包夾欄位，可以用來包住選取的文字。</summary>

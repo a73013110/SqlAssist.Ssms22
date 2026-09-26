@@ -31,7 +31,7 @@ public sealed class SqlTableFunctionTargetTests
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
 
-        return SuggestionMatcher.Filter(Candidates, context)
+        return SuggestionContextFilter.Filter(Candidates, context)
             .Select(item => item.DisplayText)
             .ToArray();
     }
