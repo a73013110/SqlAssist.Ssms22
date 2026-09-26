@@ -63,7 +63,11 @@ public static class SqlKeywordCatalog
     private static readonly HashSet<string> ItemEndings =
         new(SqlKeywordCatalogData.ItemEndings, StringComparer.OrdinalIgnoreCase);
 
-    private static readonly Dictionary<string, SqlKeywordPosition> Positions = BuildPositions();
+    private static readonly Dictionary<string, SqlKeywordPosition> StatementEndings =
+        ToDictionary(SqlKeywordCatalogData.StatementEndings);
+
+    private static readonly Dictionary<string, SqlKeywordPosition> Positions =
+        ToDictionary(SqlKeywordCatalogData.Keywords);
 
     private static readonly string[] AllKeywords = BuildAllKeywords();
 
@@ -115,6 +119,36 @@ public static class SqlKeywordCatalog
     }
 
     /// <summary>
+    /// 這個關鍵字能寫完一整句：<c>BREAK</c>、<c>COMMIT</c>、<c>BEGIN TRAN</c> 的 <c>TRAN</c>。
+    /// </summary>
+    /// <remarks>
+    /// 由產生器判定：接在某個樣板後面就是完整的一句，而且以它結尾的是語句本身——
+    /// <see cref="EndsItem"/> 排除的那一半。寫完之後還接不接得了別的字不管，那一問見
+    /// <see cref="ClosesStatement"/>。
+    /// </remarks>
+    public static bool EndsStatement(string keyword)
+    {
+        return !string.IsNullOrEmpty(keyword) && StatementEndings.ContainsKey(keyword);
+    }
+
+    /// <summary>
+    /// 前一格是 <paramref name="before"/> 時，這個關鍵字寫完那一句就結束了，後面只接得了下一句。
+    /// </summary>
+    /// <remarks>
+    /// 產生器只在那一句再也接不了語句開頭以外的東西時才記下位置：<c>COMMIT</c> 還接
+    /// <c>TRAN</c>、<c>RETURN</c> 還接運算式、<c>BEGIN TRAN</c> 還接交易名稱的變數，
+    /// 把它們之後判成語句開頭就把這些字藏起來了。判不出前一格（<see cref="SqlKeywordPosition.Any"/>）
+    /// 時不算。
+    /// </remarks>
+    public static bool ClosesStatement(string keyword, SqlKeywordPosition before)
+    {
+        return before != SqlKeywordPosition.Any &&
+            !string.IsNullOrEmpty(keyword) &&
+            StatementEndings.TryGetValue(keyword, out var positions) &&
+            (positions & before) != SqlKeywordPosition.None;
+    }
+
+    /// <summary>
     /// 這個字當成識別字書寫時，是不是一定要加方括號。
     /// </summary>
     /// <remarks>
@@ -155,13 +189,11 @@ public static class SqlKeywordCatalog
         return true;
     }
 
-    private static Dictionary<string, SqlKeywordPosition> BuildPositions()
+    private static Dictionary<string, SqlKeywordPosition> ToDictionary(KeyValuePair<string, SqlKeywordPosition>[] entries)
     {
-        var positions = new Dictionary<string, SqlKeywordPosition>(
-            SqlKeywordCatalogData.Keywords.Length,
-            StringComparer.OrdinalIgnoreCase);
+        var positions = new Dictionary<string, SqlKeywordPosition>(entries.Length, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var entry in SqlKeywordCatalogData.Keywords)
+        foreach (var entry in entries)
         {
             positions[entry.Key] = entry.Value;
         }

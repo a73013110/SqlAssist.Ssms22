@@ -22,16 +22,18 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
    兩者都合法——所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
    屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
 
-3. **寫完一項的字**：某個樣板接上它就是完整的一句，語法樹裡以它結尾的是語句以外的片段
-   （`NULL`、`CURRENT_USER`、`DESC`）。分析器在這些字之後與識別字之後走同一條路，往回找
-   子句決定位置；`BEGIN TRAN` 的 TRAN 寫完的是語句本身，往回只會找到上一句的子句。
+3. **寫完一項或一句的字**：某個樣板接上它就是完整的一句。語法樹裡以它結尾的是語句以外的
+   片段（`NULL`、`DESC`）時，之後與識別字之後相同，往回找子句；是語句本身（`BREAK`、
+   `COMMIT`）時，它是[語句界線](completion-boundaries.md#語句的界線)的一種，而那一句再也接不了
+   語句開頭以外的字時，之後才是語句開頭——`COMMIT` 還接 `TRAN`、`RETURN` 還接運算式、
+   `BEGIN TRAN` 還接變數，照舊 `Any`。
 
 手寫的只有每個位置的樣板，關鍵字的分類全部由剖析器決定。樣板必須是分析器判得出、
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
 由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
 非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 這些在文法上不是關鍵字，
-ScriptDom 的 token 列舉沒有它們，SqlParser 的 Scanner 也一律回報識別字——
+ScriptDom 的 token 列舉沒有它們——
 任何工具在這一塊都只能自己維護清單。產生器裡的 `$NonReservedSupplement` 就是
 那份清單，內容刻意等於「舊的手寫清單裡有、但 ScriptDom 認不得」的 11 個字，
 位置一樣自動分類。
@@ -52,6 +54,7 @@ CREATE                → TABLE、VIEW、PROCEDURE…
 SELECT * FROM t WHERE → EXISTS、NOT、CASE…
 SET NOCOUNT           → ON、OFF（SetOptionValue；片語比對不上時的退路）
 BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
+IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
 DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
@@ -81,20 +84,13 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | `SELECT C` | `SelectList` | 61 | `cs`，接著就是欄位 |
 | `ORDER BY C`（修正前） | `Any` | 118 | 捷徑以 `c` 開頭的 13 筆片段全包，欄位掉到第 14 |
 | `ORDER BY C`（修正後） | `OrderByColumn` | 30 | `cs`，接著就是欄位 |
-| `ALTER TABLE t ADD C` | `AlterTableAdd` | 24 | 欄位、`CHECK`、`CONSTRAINT` |
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
-`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`CursorOption`
+`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption`
 都是**自己的成員**，不借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
 
-`ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，
-不是「這份指令碼裡有沒有 `ALTER TABLE`」——理由與 `SqlScopeAnalyzer.IsMergeAction`
-相同，接在後面的獨立敘述不屬於它。名稱單位含點號（`dbo.t` 是一個不是兩個），
-那份走訪與別名判斷共用 `SqlTokenNavigator.SkipQualifiedNameBackward`。
-
-`ALTER TABLE t ALTER` 在 ScriptDom 眼中直接是語法錯誤（它要看到 `COLUMN` 才收），
-所以產生器的續尾清單多了 `COLUMN x int` 一條；少了它，`ALTER` 就分不到
-`AlterTableAction`，而那個字正是那個位置最常打的。
+`ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，緊鄰的形狀走不出
+這一句。名稱單位含點號（`dbo.t` 是一個），與別名判斷共用 `SqlTokenNavigator.SkipQualifiedNameBackward`。
 
 #### 位置過濾也管資料庫物件
 
@@ -105,7 +101,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | 位置 | 那裡只接受 |
 |---|---|
 | 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
-| `StatementStart`、`BlockStart`、`BlockEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字 |
+| `StatementStart`、`BlockStart`、`BlockEnd`、`IfBodyEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字或 `ELSE` |
 | `CursorOption`（`DECLARE c CURSOR LOCAL \|`） | 選項或 `FOR` |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |

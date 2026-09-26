@@ -316,6 +316,8 @@ public sealed class SqlKeywordPositionTests
     [InlineData("DELETE TOP (5) FROM dbo.Loan ")]
     [InlineData("FETCH NEXT FROM c ")]
     [InlineData("DECLARE c CURSOR FOR SELECT 1; FETCH ABSOLUTE @n FROM c ")]
+    [InlineData("EXEC dbo.p @a = 1\nDELETE FROM dbo.Loan ")]
+    [InlineData("SELECT a FROM t WHERE b = 1 DELETE FROM dbo.Loan ")]
     public void 不是別名位置的照常硬選(string textBeforeToken)
     {
         Assert.Equal(SqlCompletionSlot.Grammar, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Slot);
@@ -1244,7 +1246,6 @@ public sealed class SqlKeywordPositionTests
     /// <remarks>
     /// 語句開頭只屬於條件那一層：括號還沒關上時仍在條件裡；已經寫了主體那一句的開頭，
     /// 而那一句沒有自己的子句關鍵字時判不出來，不拿 IF 的位置去猜。
-    /// <c>DROP TABLE IF EXISTS t </c> 的 IF 也被當成錨點，那裡的確是一句的結尾。
     /// </remarks>
     [Theory]
     [InlineData("IF @a = 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
@@ -1255,9 +1256,8 @@ public sealed class SqlKeywordPositionTests
         SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT 1; WHILE @@FETCH_STATUS = 0 ",
         SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
-    [InlineData("DROP TABLE IF EXISTS t ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
     [InlineData("IF (@a = 1 ", SqlKeywordPosition.ExpressionTail)]
-    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.IfBodyEnd)]
     [InlineData("IF @a = 1 PRINT 'x' ", SqlKeywordPosition.Any)]
     [InlineData("IF @a = 1 EXEC dbo.p ", SqlKeywordPosition.Any)]
     public void IF與WHILE的條件寫完是主體的開頭(string textBeforeToken, SqlKeywordPosition expected)
@@ -1301,5 +1301,144 @@ public sealed class SqlKeywordPositionTests
     public void 游標選項之後只接FOR(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 子句錨點只在游標所在的那一句裡找；自己沒有錨點的一句判不出來，不借上一句的。
+    /// </summary>
+    /// <remarks>
+    /// 借到上一句 WHERE 的述詞尾端時，<c>EXEC p @x </c> 之後的 OUTPUT 就不見了。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT a FROM t WHERE b = 1\nEXEC p @x ")]
+    [InlineData("SELECT a FROM t WHERE b = 1\nPRINT @x ")]
+    [InlineData("SELECT a FROM t WHERE b = 1\nRETURN @x ")]
+    [InlineData("SELECT a FROM t WHERE b = 1\nRAISERROR('x', 16, 1) ")]
+    [InlineData("SELECT a FROM t WHERE b = 1\nTHROW 50000, 'x', 1 ")]
+    [InlineData("SELECT a FROM t WHERE b = 1;\nEXEC p @x ")]
+    [InlineData("SELECT a FROM t WHERE b = 1\nGO\nEXEC p @x ")]
+    [InlineData("SELECT a FROM t WITH (NOLOCK)\nEXEC p @x ")]
+    [InlineData("UPDATE t SET a = 1\nEXEC p @x, ")]
+    [InlineData("IF @a = 1 PRINT 'x' ")]
+    [InlineData("IF @a = 1 EXEC dbo.p ")]
+    [InlineData("DROP TABLE IF EXISTS t ")]
+    [InlineData("ALTER TABLE t DROP COLUMN IF EXISTS a ")]
+    public void 子句錨點不跨到上一句(string textBeforeToken)
+    {
+        Assert.Equal(SqlKeywordPosition.Any, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 一長串沒有子句關鍵字的敘述不會讓往前一句再問的遞迴把堆疊用完。
+    /// </summary>
+    [Fact]
+    public void 長串沒有錨點的敘述不會把堆疊用完()
+    {
+        var script = string.Concat(Enumerable.Repeat("DECLARE @a int\nEXEC p @x = 1\n", 20000));
+
+        Assert.Equal(SqlKeywordPosition.Any, SqlKeywordPositionAnalyzer.Analyze(script + "PRINT @a ").Keywords);
+    }
+
+    [Fact]
+    public void 沒有錨點的一句列得出自己的續寫字()
+    {
+        Assert.True(AllowedAt("SELECT a FROM t WHERE b = 1\nEXEC p @x ", "OUTPUT"));
+    }
+
+    /// <summary>
+    /// 能開始一句的字寫在一句中間時不是開頭：WITH 的提示與選項只認明確的語句界線。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT a FROM t WITH (NOLOCK) ", SqlKeywordPosition.TableSourceTail)]
+    [InlineData("UPDATE t\nSET a = 1 ", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("CREATE VIEW v\nWITH SCHEMABINDING\nAS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE PROCEDURE p WITH EXECUTE AS OWNER AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE OR ALTER PROCEDURE p AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("EXEC p\nCREATE TRIGGER tr ON t AFTER UPDATE AS SET NOCOUNT ", SqlKeywordPosition.SetOptionValue)]
+    public void 句中能開始一句的字不切斷這一句(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// CTE 的 WITH 前一句必須以分號結束；接在隱含界線後面的 WITH 是那一句的選項，不是新名字。
+    /// </summary>
+    [Theory]
+    [InlineData("WITH ", SqlCompletionSlot.Name)]
+    [InlineData("SELECT 1;\nWITH ", SqlCompletionSlot.Name)]
+    [InlineData("IF @a = 1 WITH ", SqlCompletionSlot.Name)]
+    [InlineData("CREATE VIEW v AS WITH ", SqlCompletionSlot.Name)]
+    [InlineData("EXEC p WITH ", SqlCompletionSlot.Grammar)]
+    [InlineData("CREATE VIEW v\nWITH ", SqlCompletionSlot.Grammar)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", SqlCompletionSlot.Grammar)]
+    public void CTE只接在明確的語句界線後面(string textBeforeToken, SqlCompletionSlot expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Slot);
+    }
+
+    /// <summary>
+    /// 寫完一整句、再也接不了別的東西的字之後是下一句的開頭；還接得了字的照舊判不出來。
+    /// </summary>
+    /// <remarks>
+    /// COMMIT 還接 TRAN、WORK，RETURN 還接運算式，BEGIN TRAN 與 THROW 還接變數：
+    /// 判成語句開頭就把這些字藏起來了。
+    /// </remarks>
+    [Theory]
+    [InlineData("BREAK ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CHECKPOINT ", SqlKeywordPosition.StatementStart)]
+    [InlineData("WHILE @i < 10 BEGIN BREAK ", SqlKeywordPosition.StatementStart)]
+    [InlineData("WHILE @i < 10 CONTINUE ", SqlKeywordPosition.StatementStart)]
+    [InlineData("SELECT 1\nREVERT ", SqlKeywordPosition.StatementStart)]
+    [InlineData("IF @a = 1 BREAK ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.IfBodyEnd)]
+    [InlineData("COMMIT ", SqlKeywordPosition.Any)]
+    [InlineData("RETURN ", SqlKeywordPosition.Any)]
+    [InlineData("BEGIN TRAN ", SqlKeywordPosition.Any)]
+    [InlineData("THROW ", SqlKeywordPosition.Any)]
+    public void 寫完一整句的字之後是下一句(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// IF 只有一句的主體寫完之後接得了 ELSE；這一格的字由產生器給，不手寫。
+    /// </summary>
+    [Theory]
+    [InlineData("IF @a = 1 SELECT 1 ", true)]
+    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", true)]
+    [InlineData("IF @a = 1\n    SELECT a FROM t WHERE b = 1\n", true)]
+    [InlineData("IF EXISTS (SELECT 1 FROM t) UPDATE t SET a = 1 ", true)]
+    [InlineData("IF @a = 1 SET NOCOUNT ON ", true)]
+    [InlineData("IF @a = 1 IF @b = 1 SELECT 1 ", true)]
+    [InlineData("IF @a = 1 SELECT CASE WHEN b = 1 THEN 1 END ", true)]
+    [InlineData("SELECT 1 ", false)]
+    [InlineData("IF @a = 1 ", false)]
+    [InlineData("IF @a = 1 SELECT ", false)]
+    [InlineData("IF @a = 1 SELECT 1\nSELECT 2 ", false)]
+    [InlineData("IF @a = 1 SELECT 1 ELSE SELECT 2 ", false)]
+    [InlineData("IF @a = 1 SELECT 1 ELSE ", false)]
+    [InlineData("IF @a = 1 SELECT 1; ", false)]
+    [InlineData("IF @a = 1 BEGIN TRY ", false)]
+    [InlineData("WHILE @a = 1 SELECT 1 ", false)]
+    [InlineData("IF @a = 1 IF @b = 1 ", false)]
+    public void IF只有一句的主體寫完之後接得了ELSE(string textBeforeToken, bool expected)
+    {
+        Assert.Equal(expected, AllowedAt(textBeforeToken, "ELSE"));
+    }
+
+    [Fact]
+    public void IF主體寫完只多出ELSE()
+    {
+        Assert.Equal(
+            SqlKeywordPosition.SelectListTail | SqlKeywordPosition.IfBodyEnd,
+            SqlKeywordPositionAnalyzer.Analyze("IF @a = 1 SELECT 1 ").Keywords);
+        Assert.False(AllowedAt("IF @a = 1 SELECT 1 ", "TRY"));
+
+        var gained = SqlKeywordCatalog.All
+            .Where(keyword => (SqlKeywordCatalog.GetPositions(keyword) &
+                               (SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.StatementStart)) ==
+                              SqlKeywordPosition.IfBodyEnd)
+            .ToArray();
+
+        Assert.Equal(new[] { "ELSE" }, gained);
     }
 }

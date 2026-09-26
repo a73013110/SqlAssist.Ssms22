@@ -30,8 +30,11 @@ namespace SqlAssist.Core.Keywords;
 /// 「這一格是使用者自己取的名字」是另一個軸，放在 <see cref="SqlCaretPosition.Slot"/>，
 /// 見 <see cref="AfterGroup"/>、<see cref="IntroducesAlias"/>、<see cref="IsUnaliasedItem"/>
 /// 與 <see cref="TryResolveNewName"/>。
+///
+/// 往回找的每一條路都停在同一個地方：游標所在那一句的開頭，見 <see cref="IsStatementHead"/>。
+/// 一次分析一個執行個體，記住已經判過的語句開頭，並帶著原文——隱含的語句界線要看換行。
 /// </remarks>
-public static class SqlKeywordPositionAnalyzer
+public sealed class SqlKeywordPositionAnalyzer
 {
     /// <summary>前一個詞元是這些關鍵字時，位置可以直接決定。</summary>
     private static readonly Dictionary<string, SqlKeywordPosition> AfterKeyword =
@@ -200,6 +203,32 @@ public static class SqlKeywordPositionAnalyzer
             "UNIQUE", "CLUSTERED", "NONCLUSTERED", "COLUMNSTORE", "XML", "SPATIAL", "PRIMARY"
         };
 
+    /// <summary>語句可以從這些位置開始：語句開頭、區塊開頭與區塊的 END 之後。</summary>
+    private const SqlKeywordPosition StatementBoundaries =
+        SqlKeywordPosition.StatementStart | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd;
+
+    /// <summary>判斷語句開頭時，往前一句再問一次前一格的層數上限。</summary>
+    /// <remarks>
+    /// 一連串沒有子句關鍵字的敘述（幾千行的 <c>EXEC</c>、<c>DECLARE</c>）會一句接一句往前問；
+    /// 不設上限的話堆疊深度跟著指令碼長度走。超過時前一格當成判不出來（<see cref="SqlKeywordPosition.Any"/>），
+    /// 那一句於是可能在這裡結束——語句切短了，清單多幾個字，不會少。
+    /// </remarks>
+    private const int MaxNesting = 16;
+
+    private readonly IReadOnlyList<SqlToken> tokens;
+    private readonly string textBeforeToken;
+
+    /// <summary>判過的語句開頭；同一個詞元會被好幾條往回的路問到。</summary>
+    private readonly Dictionary<int, bool> heads = new();
+
+    private int nesting;
+
+    private SqlKeywordPositionAnalyzer(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    {
+        this.tokens = tokens;
+        this.textBeforeToken = textBeforeToken;
+    }
+
     /// <summary>
     /// 分析游標所在的位置。
     /// </summary>
@@ -242,17 +271,19 @@ public static class SqlKeywordPositionAnalyzer
             throw new ArgumentNullException(nameof(textBeforeToken));
         }
 
-        var caret = AnalyzeClause(tokens, textBeforeToken);
+        var analyzer = new SqlKeywordPositionAnalyzer(tokens, textBeforeToken);
+        var caret = analyzer.AnalyzeClause();
         var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken);
 
-        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, StartsBatch(tokens));
+        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, analyzer.StartsBatch());
     }
 
     /// <summary>同一個批次裡游標前面還沒有任何詞元。</summary>
     /// <remarks>
+    /// 批次的開頭是語句界線的一種，只是更強：省略 EXEC 的程序呼叫只在這裡合法。
     /// 詞法分析只把 ScriptDom 判定的批次分隔回報成 <c>GO</c> 關鍵字，名為 GO 的欄位不算。
     /// </remarks>
-    private static bool StartsBatch(IReadOnlyList<SqlToken> tokens)
+    private bool StartsBatch()
     {
         return tokens.Count == 0 || tokens[tokens.Count - 1].IsKeyword("GO");
     }
@@ -272,14 +303,42 @@ public static class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.StatementStart;
         }
 
-        var before = AnalyzeAt(tokens, index - 1, followAlias: true).Keywords;
-        return AddStatementStartOnNewLine(before, tokens, index - 1, tokens[index].Start, textBeforeToken);
+        var analyzer = new SqlKeywordPositionAnalyzer(tokens, textBeforeToken);
+        return analyzer.AddStatementEnd(analyzer.KeywordsBefore(index), index - 1, tokens[index].Start);
     }
 
-    private static SqlCaretPosition AnalyzeClause(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    /// <summary><paramref name="index"/> 的詞元前面那一格的位置，不含換行補上的語句開頭。</summary>
+    /// <remarks>
+    /// 往前一句再問一次的入口都走這裡，層數由 <see cref="MaxNesting"/> 擋住。
+    /// </remarks>
+    private SqlKeywordPosition KeywordsBefore(int index)
+    {
+        if (index <= 0)
+        {
+            return SqlKeywordPosition.StatementStart;
+        }
+
+        if (nesting >= MaxNesting)
+        {
+            return SqlKeywordPosition.Any;
+        }
+
+        nesting++;
+
+        try
+        {
+            return AnalyzeAt(index - 1, followAlias: true).Keywords;
+        }
+        finally
+        {
+            nesting--;
+        }
+    }
+
+    private SqlCaretPosition AnalyzeClause()
     {
         var last = tokens.Count - 1;
-        var caret = AnalyzeAt(tokens, last, followAlias: true);
+        var caret = AnalyzeAt(last, followAlias: true);
 
         // 名字那一格前面的換行不代表下一句開始了：名字本身還沒寫。
         if (caret.Slot != SqlCompletionSlot.Grammar)
@@ -291,13 +350,11 @@ public static class SqlKeywordPositionAnalyzer
         // 它要看的是原文裡的換行，而詞元串流沒有那個資訊。別名寫完之後接的位置
         // 與不寫別名時一樣（選取清單尾端、資料來源尾端），所以關鍵字位置原樣留著——
         // SELECT PublCode FR 仍然列得出 FROM。
-        if (StaysOnSameLine(tokens, textBeforeToken) && IsUnaliasedItem(tokens, last, caret.Keywords))
-        {
-            return new SqlCaretPosition(caret.Keywords, SqlCompletionSlot.MaybeName);
-        }
+        var keywords = AddStatementEnd(caret.Keywords, last, textBeforeToken.Length);
 
-        return new SqlCaretPosition(
-            AddStatementStartOnNewLine(caret.Keywords, tokens, last, textBeforeToken.Length, textBeforeToken));
+        return StaysOnSameLine() && IsUnaliasedItem(last, caret.Keywords)
+            ? new SqlCaretPosition(keywords, SqlCompletionSlot.MaybeName)
+            : new SqlCaretPosition(keywords);
     }
 
     /// <summary>這些位置又換了行時，這裡同時也可能是下一個敘述的開頭。</summary>
@@ -333,15 +390,13 @@ public static class SqlKeywordPositionAnalyzer
     ///
     /// 換行是唯一的線索，理由與 <see cref="StaysOnSameLine"/> 相同，只是方向相反：
     /// 同一行代表他還在寫同一個子句。
+    ///
+    /// 這也是語句開頭的判準之一（隱含的界線），見 <see cref="IsStatementHead"/>。
     /// </remarks>
+    /// <param name="position">換行之前那一格的位置。</param>
     /// <param name="last">子句最後一個詞元。</param>
     /// <param name="gapEnd">換行要落在 <paramref name="last"/> 之後、這個位置之前。</param>
-    private static SqlKeywordPosition AddStatementStartOnNewLine(
-        SqlKeywordPosition position,
-        IReadOnlyList<SqlToken> tokens,
-        int last,
-        int gapEnd,
-        string textBeforeToken)
+    private SqlKeywordPosition AddStatementStartOnNewLine(SqlKeywordPosition position, int last, int gapEnd)
     {
         if ((position & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None ||
             (position & StatementEndPositions) == SqlKeywordPosition.None ||
@@ -376,6 +431,255 @@ public static class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
+    /// 子句寫完之後，這一句可能就此結束：換了行補上語句開頭，IF 只有一句的主體補上 ELSE。
+    /// </summary>
+    private SqlKeywordPosition AddStatementEnd(SqlKeywordPosition position, int last, int gapEnd)
+    {
+        position = AddStatementStartOnNewLine(position, last, gapEnd);
+
+        return EndsIfBody(position, last) ? position | SqlKeywordPosition.IfBodyEnd : position;
+    }
+
+    /// <summary>
+    /// 游標前那一句可能已經寫完，而它是 IF 只有一句的主體：<c>IF @a = 1 SELECT 1 </c>。
+    /// </summary>
+    /// <remarks>
+    /// 主體從 IF 的條件寫完之後的語句開頭開始，所以問的是：這一句的開頭前面那個詞元，
+    /// 所在的那一句是不是以 IF 開頭。已經有主體的 IF（<c>IF a SELECT 1 SELECT 2 </c>）、
+    /// ELSE 之後那一句與 WHILE 的主體都不是。
+    ///
+    /// 這一句還停在自己的條件裡（<c>IF a IF b = 1 </c>）時不算，ELSE、<c>BEGIN TRY</c>
+    /// 這種打開下一句的邊界之後也還沒有寫完的一句。主體是 <c>BEGIN … END</c> 時由
+    /// <see cref="SqlKeywordPosition.BlockEnd"/> 給 ELSE。
+    /// </remarks>
+    private bool EndsIfBody(SqlKeywordPosition position, int last)
+    {
+        if (last < 0 ||
+            position == SqlKeywordPosition.Any ||
+            (position & (StatementEndPositions | SqlKeywordPosition.StatementStart)) == SqlKeywordPosition.None ||
+            FindBlockBoundary(last) == SqlKeywordPosition.StatementStart)
+        {
+            return false;
+        }
+
+        var head = FindStatementStart(last);
+
+        if (head < 1 || head > last || tokens[head].IsKeyword("IF") || tokens[head].IsKeyword("WHILE"))
+        {
+            return false;
+        }
+
+        var condition = FindStatementStart(head - 1);
+
+        return condition < head && tokens[condition].IsKeyword("IF");
+    }
+
+    /// <summary>
+    /// <paramref name="from"/> 所在的那一句從哪個詞元開始。
+    /// </summary>
+    /// <remarks>
+    /// 分號與 GO 之後、語句開頭（<see cref="IsStatementHead"/>）都是界線；
+    /// <paramref name="from"/> 本身是分號或 GO 時回傳它的下一個，那一句還是空的。
+    /// 括號整組跳過，沒關上的左括號照樣穿過去，理由與 <see cref="FindAnchorPosition"/> 相同。
+    /// </remarks>
+    private int FindStatementStart(int from)
+    {
+        for (var index = from; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (open < 0)
+                {
+                    return index + 1;
+                }
+
+                index = open;
+                continue;
+            }
+
+            if (token.IsPunctuation(";") || token.IsKeyword("GO"))
+            {
+                return index + 1;
+            }
+
+            if (IsStatementHead(index))
+            {
+                return index;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 是一句的開頭：能開始一句的關鍵字，而且前一格是一句的界線。
+    /// </summary>
+    /// <remarks>
+    /// 能開始一句的字也寫在一句的中間：<c>WITH (NOLOCK)</c>、<c>DROP TABLE IF EXISTS</c>、
+    /// <c>INSERT … SELECT</c>、MERGE 的 <c>THEN UPDATE</c>。分得開它們的是前一格，界線有兩種：
+    ///
+    /// <list type="bullet">
+    /// <item><b>明確的</b>：前一格的位置含語句開頭、區塊開頭或區塊的 END——分號、GO、BEGIN、
+    /// ELSE、模組標頭的 AS、IF 的條件、SET 選項的值、寫完一整句的字（<c>BREAK</c>）之後。</item>
+    /// <item><b>隱含的</b>：T-SQL 的分號是選用的。子句寫完又換了行
+    /// （<see cref="AddStatementStartOnNewLine"/>），或前一句沒有子句關鍵字、判不出位置，
+    /// 而它寫到一個運算元或寫完一整句的字（<see cref="MayEndStatement"/>）。</item>
+    /// </list>
+    ///
+    /// 前一格判不出位置、前一個詞元又還沒寫完（<c>DROP TABLE |IF</c>、<c>THEN |UPDATE</c>、
+    /// <c>FOR |SELECT</c>）時不是開頭：那裡的字屬於同一句。
+    ///
+    /// <c>WITH</c> 只認明確的界線：CTE 前一句必須以分號結束（SQL Server 錯誤 319），
+    /// 而同一個字在 <c>CREATE VIEW v⏎WITH SCHEMABINDING</c>、<c>EXEC p WITH RECOMPILE</c>
+    /// 裡接在隱含的界線後面，卻是那一句的選項。
+    /// </remarks>
+    private bool IsStatementHead(int index)
+    {
+        var token = tokens[index];
+
+        if (token.Kind != SqlTokenKind.Identifier || !IsBareKeyword(index) || !StartsStatement(token))
+        {
+            return false;
+        }
+
+        if (index == 0)
+        {
+            return true;
+        }
+
+        if (heads.TryGetValue(index, out var known))
+        {
+            return known;
+        }
+
+        var before = KeywordsBefore(index);
+        bool head;
+
+        if (before != SqlKeywordPosition.Any && (before & StatementBoundaries) != SqlKeywordPosition.None)
+        {
+            head = true;
+        }
+        else if (token.IsKeyword("WITH"))
+        {
+            head = false;
+        }
+        else if (before == SqlKeywordPosition.Any)
+        {
+            head = MayEndStatement(index - 1);
+        }
+        else
+        {
+            head = (AddStatementStartOnNewLine(before, index - 1, token.Start) & SqlKeywordPosition.StatementStart)
+                != SqlKeywordPosition.None;
+        }
+
+        heads[index] = head;
+        return head;
+    }
+
+    /// <summary>這個關鍵字能開始一句。</summary>
+    private static bool StartsStatement(SqlToken keyword) =>
+        (SqlKeywordCatalog.GetPositions(keyword.Value) & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None;
+
+    /// <summary>
+    /// 沒有子句關鍵字的一句（<c>EXEC</c>、<c>PRINT</c>、<c>DECLARE</c>）可以在 <paramref name="index"/> 結束。
+    /// </summary>
+    /// <remarks>
+    /// 一個運算元寫完：名稱、變數、常值、右括號、<c>NULL</c> 這種自成一項的字；或這個字本身寫完一整句
+    /// （<c>COMMIT</c>、<c>RETURN</c>）。其餘的關鍵字、運算子與逗號之後那一句還沒寫完。
+    /// </remarks>
+    private bool MayEndStatement(int index)
+    {
+        var token = tokens[index];
+
+        return token.Kind switch
+        {
+            SqlTokenKind.Identifier => !IsBareKeyword(index) ||
+                SqlKeywordCatalog.EndsItem(token.Value) ||
+                SqlKeywordCatalog.EndsStatement(token.Value),
+            SqlTokenKind.Punctuation => token.IsPunctuation(")"),
+            SqlTokenKind.Operator => false,
+            _ => true
+        };
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 這個字寫完一整句，而且那一句再也接不了語句開頭以外的東西：
+    /// <c>BREAK</c>、<c>CHECKPOINT</c>。
+    /// </summary>
+    /// <remarks>
+    /// 哪些字、前一格在哪些位置時算，由產生器判定，見 <see cref="SqlKeywordCatalog.ClosesStatement"/>。
+    /// 區塊開頭與區塊的 END 之後也是一句的開頭，前一格落在那裡時照語句開頭查。
+    /// </remarks>
+    private bool ClosesStatement(int last)
+    {
+        var keyword = tokens[last].Value;
+
+        if (!SqlKeywordCatalog.EndsStatement(keyword))
+        {
+            return false;
+        }
+
+        var before = KeywordsBefore(last);
+
+        if (before != SqlKeywordPosition.Any && (before & StatementBoundaries) != SqlKeywordPosition.None)
+        {
+            before |= SqlKeywordPosition.StatementStart;
+        }
+
+        return SqlKeywordCatalog.ClosesStatement(keyword, before);
+    }
+
+    /// <summary>
+    /// 往回第一個能開始一句的字：<paramref name="from"/> 所在的子句屬於哪一個動詞；沒有就是 -1。
+    /// </summary>
+    /// <remarks>
+    /// 動詞不一定是這一句的開頭：<c>INSERT … SELECT</c> 的 SELECT、MERGE 的 <c>THEN UPDATE</c>、
+    /// <c>UPDATE t SET</c> 的 SET 都帶著自己的子句，所以問的是能不能開始一句，不問
+    /// <see cref="IsStatementHead"/>。它也走不出這一句：這一句的開頭本身就是這種字。
+    ///
+    /// 一組括號連同緊接在前面的那個字是一個單位：<c>WITH (TABLOCK)</c>、<c>TOP (5)</c>
+    /// 屬於動詞的前段，<c>IF UPDATE(a)</c> 的 UPDATE 是函式。分號、沒關上的左括號與配不起來的
+    /// 右括號之前是別的東西。
+    /// </remarks>
+    private int FindVerb(int from)
+    {
+        for (var index = from; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (open < 0)
+                {
+                    return -1;
+                }
+
+                index = open > 0 && tokens[open - 1].Kind == SqlTokenKind.Identifier ? open - 1 : open;
+                continue;
+            }
+
+            if (token.IsPunctuation(";") || token.IsPunctuation("("))
+            {
+                return -1;
+            }
+
+            if (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
     /// 游標與前一個詞元之間隔著東西，而且沒有換行。
     /// </summary>
     /// <remarks>
@@ -389,7 +693,7 @@ public static class SqlKeywordPositionAnalyzer
     ///
     /// 中間什麼都沒有時不算：那代表兩個詞元是連著的（<c>'x'|</c>），不是別名的位置。
     /// </remarks>
-    private static bool StaysOnSameLine(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    private bool StaysOnSameLine()
     {
         if (tokens.Count == 0)
         {
@@ -419,8 +723,7 @@ public static class SqlKeywordPositionAnalyzer
     /// 的一項是一整個運算式（<c>a + b</c>、<c>COUNT(*)</c>），往回走到 SELECT、
     /// 逗號或 TOP 子句才算數，途中穿過沒關上的括號或 CASE 就不是清單這一層。
     /// </remarks>
-    private static bool IsUnaliasedItem(
-        IReadOnlyList<SqlToken> tokens,
+    private bool IsUnaliasedItem(
         int last,
         SqlKeywordPosition keywords)
     {
@@ -431,7 +734,7 @@ public static class SqlKeywordPositionAnalyzer
             return false;
         }
 
-        var start = FindOperandStart(tokens, last, dataSource);
+        var start = FindOperandStart(last, dataSource);
 
         if (start < 1)
         {
@@ -439,8 +742,8 @@ public static class SqlKeywordPositionAnalyzer
         }
 
         return dataSource
-            ? OpensDataSource(tokens, start - 1)
-            : OpensSelectItem(tokens, start - 1);
+            ? OpensDataSource(start - 1)
+            : OpensSelectItem(start - 1);
     }
 
     /// <summary>
@@ -456,9 +759,9 @@ public static class SqlKeywordPositionAnalyzer
     /// 呼叫後面緊接的 <c>WITH (…)</c> 資料行結構描述（<c>OPENJSON(@j) WITH (a int)</c>）。
     /// 名稱後面的 <c>WITH (…)</c> 是資料表提示，不是這一種。
     /// </param>
-    private static int FindOperandStart(IReadOnlyList<SqlToken> tokens, int last, bool dataSource)
+    private int FindOperandStart(int last, bool dataSource)
     {
-        if (dataSource && FindTemporalClause(tokens, last) is var temporal and >= 1)
+        if (dataSource && FindTemporalClause(last) is var temporal and >= 1)
         {
             last = temporal - 1;
         }
@@ -488,7 +791,7 @@ public static class SqlKeywordPositionAnalyzer
 
             if (name >= 0 &&
                 tokens[name].Kind == SqlTokenKind.Identifier &&
-                (dataSource || !IsBareKeyword(tokens, name)))
+                (dataSource || !IsBareKeyword(name)))
             {
                 return SqlTokenNavigator.SkipQualifiedNameBackward(tokens, name);
             }
@@ -503,10 +806,10 @@ public static class SqlKeywordPositionAnalyzer
             case SqlTokenKind.Number:
             case SqlTokenKind.String:
                 return dataSource ? -1 : last;
-            case SqlTokenKind.Identifier when !IsBareKeyword(tokens, last):
+            case SqlTokenKind.Identifier when !IsBareKeyword(last):
                 return SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last);
             case SqlTokenKind.Identifier when !dataSource && token.IsKeyword("END"):
-                return FindCaseStart(tokens, last);
+                return FindCaseStart(last);
             case SqlTokenKind.Identifier when !dataSource && SqlKeywordCatalog.EndsItem(token.Value):
                 return last;
             default:
@@ -517,7 +820,7 @@ public static class SqlKeywordPositionAnalyzer
     /// <summary>
     /// 沒加引號、而且是關鍵字的識別字；點號後面那一段是名稱，不算。
     /// </summary>
-    private static bool IsBareKeyword(IReadOnlyList<SqlToken> tokens, int index)
+    private bool IsBareKeyword(int index)
     {
         var token = tokens[index];
 
@@ -533,7 +836,7 @@ public static class SqlKeywordPositionAnalyzer
     ///
     /// DELETE 與 FETCH 自己的 FROM 不算，見 <see cref="NamesStatementTarget"/>。
     /// </remarks>
-    private static bool OpensDataSource(IReadOnlyList<SqlToken> tokens, int previous)
+    private bool OpensDataSource(int previous)
     {
         var token = tokens[previous];
 
@@ -543,80 +846,66 @@ public static class SqlKeywordPositionAnalyzer
              token.IsKeyword("MERGE") ||
              (token.IsKeyword("INTO") && previous >= 1 && tokens[previous - 1].IsKeyword("MERGE"))))
         {
-            return !token.IsKeyword("FROM") || !NamesStatementTarget(tokens, previous);
+            return !token.IsKeyword("FROM") || !NamesStatementTarget(previous);
         }
 
         // FROM a, b | 的逗號也開啟一個資料來源，但 SELECT a, b | 的不是。
         return token.IsPunctuation(",")
-            && FindAnchorPosition(tokens, previous - 1, ListAnchors) == SqlKeywordPosition.DataSource;
+            && FindAnchorPosition(previous - 1, ListAnchors) == SqlKeywordPosition.DataSource;
     }
 
     /// <summary><paramref name="from"/> 的 FROM 帶出的是 DELETE 或 FETCH 自己的目標。</summary>
     /// <remarks>
     /// <c>DELETE [TOP (5)] FROM t</c> 與 <c>FETCH NEXT FROM c</c> 的 FROM 後面是動詞的目標，
     /// 文法不接別名；<c>DELETE a FROM t a JOIN …</c> 的第二個 FROM 才是一般的資料來源。
-    /// 往回走到這一句的動詞：FETCH 只有一個 FROM；DELETE 的 FROM 前面還沒寫目標名稱時就是目標。
-    /// 途中的括號整組跳過（<c>TOP (5)</c>），數值與變數是 FETCH 的位移（<c>ABSOLUTE @n</c>）。
+    /// FETCH 只有一個 FROM；DELETE 的 FROM 前面還沒寫目標名稱時就是目標。
     /// </remarks>
-    private static bool NamesStatementTarget(IReadOnlyList<SqlToken> tokens, int from)
+    private bool NamesStatementTarget(int from)
     {
-        var named = false;
+        var verb = FindVerb(from - 1);
 
-        for (var index = from - 1; index >= 0; index--)
+        if (verb < 0)
         {
-            var token = tokens[index];
+            return false;
+        }
 
-            if (token.IsPunctuation(")"))
+        if (tokens[verb].IsKeyword("FETCH"))
+        {
+            return true;
+        }
+
+        if (!tokens[verb].IsKeyword("DELETE"))
+        {
+            return false;
+        }
+
+        for (var index = from - 1; index > verb; index--)
+        {
+            if (tokens[index].IsPunctuation(")"))
             {
                 index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
-
-                if (index < 0)
-                {
-                    return false;
-                }
-
                 continue;
             }
 
-            if (token.Kind is SqlTokenKind.Number or SqlTokenKind.Variable)
-            {
-                continue;
-            }
-
-            if (token.Kind != SqlTokenKind.Identifier)
+            if (tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index))
             {
                 return false;
             }
-
-            if (!IsBareKeyword(tokens, index))
-            {
-                named = true;
-                continue;
-            }
-
-            if (StartsStatement(token))
-            {
-                return token.IsKeyword("FETCH") || (token.IsKeyword("DELETE") && !named);
-            }
         }
 
-        return false;
+        return true;
     }
-
-    /// <summary>這個關鍵字能開始一句。</summary>
-    private static bool StartsStatement(SqlToken keyword) =>
-        (SqlKeywordCatalog.GetPositions(keyword.Value) & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None;
 
     /// <summary>
     /// 最後一個運算元前面是 <paramref name="previous"/>，而它屬於選取清單這一層的
     /// 同一項，而且那一項還沒有別名。
     /// </summary>
-    private static bool OpensSelectItem(IReadOnlyList<SqlToken> tokens, int previous)
+    private bool OpensSelectItem(int previous)
     {
         // 緊鄰另一個運算元或 AS：別名已經寫了。TOP 的引數例外，它不是清單的一項。
         if (tokens[previous].IsKeyword("AS") ||
-            (FindOperandStart(tokens, previous, dataSource: false) >= 0 &&
-             !EndsTopClause(tokens, previous)))
+            (FindOperandStart(previous, dataSource: false) >= 0 &&
+             !EndsTopClause(previous)))
         {
             return false;
         }
@@ -625,7 +914,7 @@ public static class SqlKeywordPositionAnalyzer
         {
             var token = tokens[index];
 
-            if (EndsTopClause(tokens, index) ||
+            if (EndsTopClause(index) ||
                 token.IsKeyword("SELECT") ||
                 token.IsPunctuation(","))
             {
@@ -646,7 +935,7 @@ public static class SqlKeywordPositionAnalyzer
 
             if (token.IsKeyword("END"))
             {
-                index = FindCaseStart(tokens, index);
+                index = FindCaseStart(index);
 
                 if (index < 0)
                 {
@@ -659,7 +948,6 @@ public static class SqlKeywordPositionAnalyzer
             // 沒關上的括號是函式引數或子查詢的裡面；CASE 的各段是 CASE 的裡面。
             // 兩者都不是清單這一層，後面接的不會是別名。
             if (token.IsPunctuation("(") ||
-                token.IsPunctuation(";") ||
                 token.IsKeyword("CASE") ||
                 token.IsKeyword("WHEN") ||
                 token.IsKeyword("THEN") ||
@@ -683,7 +971,7 @@ public static class SqlKeywordPositionAnalyzer
     /// 只認 SELECT 的 TOP：<c>INSERT TOP (5)</c>、<c>DELETE TOP (5)</c> 之後接的是
     /// INTO、FROM，那兩處照舊由它們自己的子句決定。
     /// </remarks>
-    private static bool EndsTopClause(IReadOnlyList<SqlToken> tokens, int last)
+    private bool EndsTopClause(int last)
     {
         var index = last;
 
@@ -745,7 +1033,7 @@ public static class SqlKeywordPositionAnalyzer
     /// <c>CONTAINED IN (v, v)</c>，v 是常值或變數。只認寫完的：<c>AS OF </c> 還在等值，
     /// 那時的位置與名字都照一般規則判——<c>FOR SYSTEM_TIME AS </c> 不能被當成別名。
     /// </remarks>
-    private static int FindTemporalClause(IReadOnlyList<SqlToken> tokens, int last)
+    private int FindTemporalClause(int last)
     {
         var index = last;
 
@@ -801,11 +1089,11 @@ public static class SqlKeywordPositionAnalyzer
     /// <paramref name="end"/> 的 <c>END</c> 收的是一個 <c>CASE</c> 時，回傳那個 CASE；否則 -1。
     /// </summary>
     /// <remarks>
-    /// END 也收 <c>BEGIN … END</c> 與 <c>BEGIN TRY … END TRY</c>。往回數的路上遇到
-    /// BEGIN、分號或 GO 就代表這不是 CASE 的：CASE 是運算式，裡面寫不出那三個東西。
+    /// END 也收 <c>BEGIN … END</c> 與 <c>BEGIN TRY … END TRY</c>。往回數的路上走到這一句的
+    /// 開頭就代表這不是 CASE 的：CASE 是運算式，跨不過語句的界線。
     /// 括號整組跳過，理由與 <see cref="FindAnchorPosition"/> 相同。
     /// </remarks>
-    private static int FindCaseStart(IReadOnlyList<SqlToken> tokens, int end)
+    private int FindCaseStart(int end)
     {
         if (end + 1 < tokens.Count &&
             (tokens[end + 1].IsKeyword("TRY") || tokens[end + 1].IsKeyword("CATCH")))
@@ -813,16 +1101,16 @@ public static class SqlKeywordPositionAnalyzer
             return -1;
         }
 
-        return FindUnclosedCase(tokens, end - 1);
+        return FindUnclosedCase(end - 1);
     }
 
     /// <summary>
     /// <paramref name="from"/> 以前還沒以 END 收掉的 CASE；沒有就是 -1。
     /// </summary>
     /// <remarks>
-    /// 停下來的條件與 <see cref="FindCaseStart"/> 相同：BEGIN、分號、GO 不會出現在 CASE 裡面。
+    /// 停下來的條件與 <see cref="FindCaseStart"/> 相同：語句的界線不會出現在 CASE 裡面。
     /// </remarks>
-    private static int FindUnclosedCase(IReadOnlyList<SqlToken> tokens, int from)
+    private int FindUnclosedCase(int from)
     {
         var depth = 0;
 
@@ -842,7 +1130,7 @@ public static class SqlKeywordPositionAnalyzer
                 continue;
             }
 
-            if (token.IsPunctuation(";") || token.IsKeyword("BEGIN") || token.IsKeyword("GO"))
+            if (token.IsPunctuation(";") || token.IsKeyword("GO") || IsStatementHead(index))
             {
                 return -1;
             }
@@ -871,7 +1159,7 @@ public static class SqlKeywordPositionAnalyzer
     /// CASE 的 ELSE 與 END 不是：還沒以 END 收掉的 CASE 裡的 ELSE 接的是運算式，
     /// 寫完的 CASE … END 由呼叫端先當成運算元處理。
     /// </remarks>
-    private static SqlKeywordPosition? FindBlockBoundary(IReadOnlyList<SqlToken> tokens, int last)
+    private SqlKeywordPosition? FindBlockBoundary(int last)
     {
         var token = tokens[last];
 
@@ -884,7 +1172,7 @@ public static class SqlKeywordPositionAnalyzer
 
         if (token.IsKeyword("ELSE"))
         {
-            return FindUnclosedCase(tokens, last - 1) < 0 ? SqlKeywordPosition.StatementStart : null;
+            return FindUnclosedCase(last - 1) < 0 ? SqlKeywordPosition.StatementStart : null;
         }
 
         return token.IsKeyword("END")
@@ -900,26 +1188,26 @@ public static class SqlKeywordPositionAnalyzer
     /// 所以兩段各是一串非關鍵字的識別字；游標名稱至少一個。<c>DECLARE @c CURSOR</c> 是游標變數，
     /// 後面不接 FOR，不在這裡。
     /// </remarks>
-    private static bool EndsCursorHeader(IReadOnlyList<SqlToken> tokens, int last)
+    private bool EndsCursorHeader(int last)
     {
-        var index = SkipPlainWordsBackward(tokens, last);
+        var index = SkipPlainWordsBackward(last);
 
-        if (index < 0 || !IsBareKeyword(tokens, index) || !tokens[index].IsKeyword("CURSOR"))
+        if (index < 0 || !IsBareKeyword(index) || !tokens[index].IsKeyword("CURSOR"))
         {
             return false;
         }
 
-        var declare = SkipPlainWordsBackward(tokens, index - 1);
+        var declare = SkipPlainWordsBackward(index - 1);
 
         return declare >= 0 && declare < index - 1 && tokens[declare].IsKeyword("DECLARE");
     }
 
     /// <summary>從 <paramref name="from"/> 往回跳過不是關鍵字的識別字，回傳停下來的位置。</summary>
-    private static int SkipPlainWordsBackward(IReadOnlyList<SqlToken> tokens, int from)
+    private int SkipPlainWordsBackward(int from)
     {
         var index = from;
 
-        while (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(tokens, index))
+        while (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index))
         {
             index--;
         }
@@ -940,35 +1228,31 @@ public static class SqlKeywordPositionAnalyzer
     /// <item><c>SELECT … INTO </c> 的目標。<c>INSERT INTO </c>、<c>MERGE INTO </c> 要的是
     /// 既有資料表，<c>FETCH … INTO </c> 與 <c>OUTPUT … INTO </c> 的子句錨點不是 SELECT，
     /// 都不在這裡。</item>
-    /// <item>敘述開頭的 <c>WITH </c> 與 <c>WITH c AS (…), </c> 的 CTE 名稱。
-    /// 資料表提示與選項的 <c>WITH</c> 前面接的不是敘述的開頭，不受影響。</item>
+    /// <item>一句開頭的 <c>WITH </c> 與 <c>WITH c AS (…), </c> 的 CTE 名稱。資料表提示與選項的
+    /// <c>WITH</c> 不是一句的開頭，見 <see cref="IsStatementHead"/>。</item>
     /// </list>
     ///
     /// 帶限定字時一樣：<c>CREATE PROCEDURE dbo.</c> 的點號由 <see cref="AnalyzeAt"/>
     /// 剝掉之後回到這裡。
     /// </remarks>
-    private static bool TryResolveNewName(
-        IReadOnlyList<SqlToken> tokens,
-        int last,
-        bool followAlias,
-        out SqlCaretPosition caret)
+    private bool TryResolveNewName(int last, out SqlCaretPosition caret)
     {
         var token = tokens[last];
 
-        if (token.IsPunctuation(",") && ContinuesCommonTableExpressions(tokens, last, followAlias))
+        if (token.IsPunctuation(",") && last >= 1 && EndsCommonTableExpression(last - 1))
         {
             caret = new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.Name);
             return true;
         }
 
-        if (token.IsKeyword("WITH") && OpensCommonTableExpression(tokens, last, followAlias))
+        if (token.IsKeyword("WITH") && IsStatementHead(last))
         {
             caret = new SqlCaretPosition(SqlKeywordPosition.Any, SqlCompletionSlot.Name);
             return true;
         }
 
         // 新資料表寫完之後接的是 FROM、WHERE，與 SELECT … INTO 既有的尾端一樣。
-        if (token.IsKeyword("INTO") && IsSelectInto(tokens, last))
+        if (token.IsKeyword("INTO") && IsSelectInto(last))
         {
             caret = new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.Name);
             return true;
@@ -977,7 +1261,7 @@ public static class SqlKeywordPositionAnalyzer
         if (token.Kind == SqlTokenKind.Identifier &&
             !token.IsQuoted &&
             CreatedObjectKinds.Contains(token.Value) &&
-            ClassifyCreatedName(tokens, last) is { } slot)
+            ClassifyCreatedName(last) is { } slot)
         {
             caret = new SqlCaretPosition(SqlKeywordPosition.Any, slot);
             return true;
@@ -988,7 +1272,7 @@ public static class SqlKeywordPositionAnalyzer
     }
 
     /// <summary><paramref name="kind"/> 是建立敘述的物件種類時，那個物件名稱是哪一種名字。</summary>
-    private static SqlCompletionSlot? ClassifyCreatedName(IReadOnlyList<SqlToken> tokens, int kind)
+    private SqlCompletionSlot? ClassifyCreatedName(int kind)
     {
         var index = kind - 1;
 
@@ -1022,61 +1306,29 @@ public static class SqlKeywordPositionAnalyzer
     }
 
     /// <summary><paramref name="into"/> 是 <c>SELECT … INTO</c> 的 INTO。</summary>
-    private static bool IsSelectInto(IReadOnlyList<SqlToken> tokens, int into)
+    private bool IsSelectInto(int into)
     {
         return into >= 1 &&
             !tokens[into - 1].IsKeyword("INSERT") &&
             !tokens[into - 1].IsKeyword("MERGE") &&
-            FindClausePosition(tokens, into - 1) == SqlKeywordPosition.SelectListTail;
-    }
-
-    /// <summary><paramref name="with"/> 是敘述開頭、開啟 CTE 的那個 WITH。</summary>
-    /// <remarks>
-    /// CTE 前面的敘述必須以分號結束，所以前面只可能是：什麼都沒有、分號、GO、
-    /// <c>BEGIN</c>，或模組主體的 <c>AS</c>（<c>CREATE VIEW v AS WITH …</c>）。
-    /// 其餘的 WITH 是資料表提示、索引選項或 <c>WITH SCHEMABINDING</c>——前面都接著一個
-    /// 名稱或括號，這裡一律不認。
-    ///
-    /// <c>AS</c> 要多問一次它是不是別名；那一問會再走一次位置分析，所以只在
-    /// <paramref name="followAlias"/> 時問，理由與 <see cref="AnalyzeAt"/> 的同名參數相同。
-    /// </remarks>
-    private static bool OpensCommonTableExpression(IReadOnlyList<SqlToken> tokens, int with, bool followAlias)
-    {
-        if (with == 0)
-        {
-            return true;
-        }
-
-        var previous = tokens[with - 1];
-
-        if (previous.IsPunctuation(";") || previous.IsKeyword("GO") || previous.IsKeyword("BEGIN"))
-        {
-            return true;
-        }
-
-        return followAlias &&
-            previous.IsKeyword("AS") &&
-            !IntroducesAlias(tokens, with - 1, out _);
+            FindClausePosition(into - 1) == SqlKeywordPosition.SelectListTail;
     }
 
     /// <summary>
-    /// <paramref name="comma"/> 接在一個寫完的 CTE 後面：<c>WITH a AS (…), </c>。
+    /// <paramref name="close"/> 的右括號收掉一個 CTE：<c>WITH a AS (…)</c>、<c>WITH a AS (…), b AS (…)</c>。
     /// </summary>
     /// <remarks>
     /// 往回認的形狀是 <c>名稱 [(資料行…)] AS (…)</c>，一路認到開頭的 WITH；
     /// 中間每一個逗號都要是同一種形狀。用迴圈而不是遞迴，理由與
     /// <see cref="SqlTokenNavigator.OpensQuery"/> 相同。
     /// </remarks>
-    private static bool ContinuesCommonTableExpressions(
-        IReadOnlyList<SqlToken> tokens,
-        int comma,
-        bool followAlias)
+    private bool EndsCommonTableExpression(int close)
     {
-        var index = comma;
+        var index = close;
 
-        while (index >= 1 && tokens[index - 1].IsPunctuation(")"))
+        while (index >= 0 && tokens[index].IsPunctuation(")"))
         {
-            var body = SqlTokenNavigator.FindOpeningParenthesis(tokens, index - 1);
+            var body = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
 
             if (body < 2 || !tokens[body - 1].IsKeyword("AS"))
             {
@@ -1097,7 +1349,7 @@ public static class SqlKeywordPositionAnalyzer
 
             if (tokens[name - 1].IsKeyword("WITH"))
             {
-                return OpensCommonTableExpression(tokens, name - 1, followAlias);
+                return IsStatementHead(name - 1);
             }
 
             if (!tokens[name - 1].IsPunctuation(","))
@@ -1105,7 +1357,7 @@ public static class SqlKeywordPositionAnalyzer
                 return false;
             }
 
-            index = name - 1;
+            index = name - 2;
         }
 
         return false;
@@ -1119,7 +1371,7 @@ public static class SqlKeywordPositionAnalyzer
     /// <c>CREATE TYPE x AS TABLE (</c>。這一層的每一項開頭是新資料行名稱，或 CONSTRAINT、
     /// PRIMARY KEY、INDEX 這些字，見 <see cref="SqlKeywordPosition.ColumnDefinition"/>。
     /// </remarks>
-    private static bool OpensColumnDefinitions(IReadOnlyList<SqlToken> tokens, int open)
+    private bool OpensColumnDefinitions(int open)
     {
         if (open < 1)
         {
@@ -1152,22 +1404,20 @@ public static class SqlKeywordPositionAnalyzer
     /// 所有片段全部進場——使用者在 <c>ADD </c> 之後看到的是整個資料庫，而文法上
     /// 對的只有九個字。
     ///
-    /// 認的是「往回正好是 <c>ALTER TABLE</c> 加一個名稱單位」而不是「這份指令碼裡
-    /// 有沒有 ALTER TABLE」，理由與 <c>SqlScopeAnalyzer.IsMergeAction</c> 相同：
-    /// 一個 <c>ALTER TABLE</c> 之後接著獨立的敘述時，那個敘述不屬於它。
+    /// 認的是「往回正好是 <c>ALTER TABLE</c> 加一個名稱單位」，緊鄰的形狀走不出這一句，
+    /// 不必再問語句的界線。
     ///
     /// <c>ADD COLUMN</c> 不必判——T-SQL 沒有這種寫法，<c>COLUMN</c> 只跟在
     /// <c>ALTER</c> 與 <c>DROP</c> 後面。
     /// </remarks>
-    private static bool TryResolveAlterTable(
-        IReadOnlyList<SqlToken> tokens,
+    private bool TryResolveAlterTable(
         int last,
         out SqlKeywordPosition position)
     {
         if (tokens[last].IsKeyword("ADD"))
         {
             position = SqlKeywordPosition.AlterTableAdd;
-            return IsAlterTableTarget(tokens, last - 1);
+            return IsAlterTableTarget(last - 1);
         }
 
         if (tokens[last].IsKeyword("COLUMN"))
@@ -1175,15 +1425,15 @@ public static class SqlKeywordPositionAnalyzer
             position = SqlKeywordPosition.AlterTableColumn;
             return last >= 1
                 && (tokens[last - 1].IsKeyword("ALTER") || tokens[last - 1].IsKeyword("DROP"))
-                && IsAlterTableTarget(tokens, last - 2);
+                && IsAlterTableTarget(last - 2);
         }
 
         position = SqlKeywordPosition.AlterTableAction;
-        return IsAlterTableTarget(tokens, last);
+        return IsAlterTableTarget(last);
     }
 
     /// <summary><paramref name="last"/> 是 <c>ALTER TABLE</c> 目標名稱的最後一個詞元。</summary>
-    private static bool IsAlterTableTarget(IReadOnlyList<SqlToken> tokens, int last)
+    private bool IsAlterTableTarget(int last)
     {
         if (last < 2 || tokens[last].Kind != SqlTokenKind.Identifier)
         {
@@ -1201,11 +1451,11 @@ public static class SqlKeywordPositionAnalyzer
     /// 分析 <paramref name="last"/> 這個詞元之後的位置。
     /// </summary>
     /// <param name="followAlias">
-    /// 允許為了判斷 <c>AS</c> 是不是別名而再往前看一格。這是唯一的一層遞迴，
-    /// 而且只有一層：<c>AS AS</c> 這種寫不出來的東西不該讓分析器把堆疊用完。
+    /// 允許為了判斷 <c>AS</c> 是不是別名而再往前看一格。這一層只有一層：
+    /// <c>AS AS</c> 這種寫不出來的東西不該讓分析器把堆疊用完。往前一句再問的遞迴
+    /// 另由 <see cref="KeywordsBefore"/> 擋住層數。
     /// </param>
-    private static SqlCaretPosition AnalyzeAt(
-        IReadOnlyList<SqlToken> tokens,
+    private SqlCaretPosition AnalyzeAt(
         int last,
         bool followAlias)
     {
@@ -1216,7 +1466,7 @@ public static class SqlKeywordPositionAnalyzer
 
         // TOP 的引數要排在括號之前問：TOP (10) 的右括號不是一個算完的運算元。
         // 之後仍是選取清單的起點，另外接得了 PERCENT、WITH TIES；WITH TIES 寫完就不再接。
-        if (EndsTopClause(tokens, last))
+        if (EndsTopClause(last))
         {
             return new SqlCaretPosition(tokens[last].IsKeyword("TIES")
                 ? SqlKeywordPosition.SelectList
@@ -1224,16 +1474,16 @@ public static class SqlKeywordPositionAnalyzer
         }
 
         // FOR SYSTEM_TIME … 是資料表名稱的後綴，寫完之後的位置與名稱之後相同。
-        if (FindTemporalClause(tokens, last) is var temporal and >= 1)
+        if (FindTemporalClause(last) is var temporal and >= 1)
         {
-            return AnalyzeAt(tokens, temporal - 1, followAlias);
+            return AnalyzeAt(temporal - 1, followAlias);
         }
 
         var token = tokens[last];
 
         if (token.IsPunctuation(")"))
         {
-            return AfterGroup(tokens, last);
+            return AfterGroup(last);
         }
 
         // 尾端的點號是使用者正在打的那個名稱的一部分（dbo.、a.），不是一個算完的
@@ -1248,7 +1498,6 @@ public static class SqlKeywordPositionAnalyzer
             tokens[last - 1].Kind == SqlTokenKind.Identifier)
         {
             return AnalyzeAt(
-                tokens,
                 SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last - 1) - 1,
                 followAlias);
         }
@@ -1259,17 +1508,17 @@ public static class SqlKeywordPositionAnalyzer
             !token.IsQuoted &&
             token.IsKeyword("AS"))
         {
-            if (IntroducesAlias(tokens, last, out var afterAlias))
+            if (IntroducesAlias(last, out var afterAlias))
             {
                 return new SqlCaretPosition(afterAlias, SqlCompletionSlot.Name);
             }
 
-            return new SqlCaretPosition(OpensModuleBody(tokens, last)
+            return new SqlCaretPosition(OpensModuleBody(last)
                 ? SqlKeywordPosition.StatementStart
                 : SqlKeywordPosition.Any);
         }
 
-        if (TryResolveNewName(tokens, last, followAlias, out var named))
+        if (TryResolveNewName(last, out var named))
         {
             return named;
         }
@@ -1277,7 +1526,7 @@ public static class SqlKeywordPositionAnalyzer
         // 資料行定義的起點可能是新資料行的名稱，也可能是 CONSTRAINT、PRIMARY KEY——
         // ALTER TABLE t ADD 與 CREATE TABLE t ( 都是這種格子，同一條規則；
         // 兩者接得了的關鍵字不一樣，所以是兩個位置。
-        var keywords = KeywordsAfter(tokens, last);
+        var keywords = KeywordsAfter(last);
 
         return new SqlCaretPosition(
             keywords,
@@ -1290,7 +1539,7 @@ public static class SqlKeywordPositionAnalyzer
     /// <paramref name="last"/> 這個詞元之後接得了哪些關鍵字；
     /// 括號、限定字與 <c>AS</c> 由 <see cref="AnalyzeAt"/> 先處理。
     /// </summary>
-    private static SqlKeywordPosition KeywordsAfter(IReadOnlyList<SqlToken> tokens, int last)
+    private SqlKeywordPosition KeywordsAfter(int last)
     {
         var token = tokens[last];
 
@@ -1301,9 +1550,9 @@ public static class SqlKeywordPositionAnalyzer
 
         // 資料行定義清單的開頭與逗號之後。逗號要先問這一條：往回找清單錨點時會穿過
         // 那個左括號，走到 CREATE 之前的別的子句。
-        if ((token.IsPunctuation("(") && OpensColumnDefinitions(tokens, last)) ||
+        if ((token.IsPunctuation("(") && OpensColumnDefinitions(last)) ||
             (token.IsPunctuation(",") &&
-             OpensColumnDefinitions(tokens, SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1))))
+             OpensColumnDefinitions(SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1))))
         {
             return SqlKeywordPosition.ColumnDefinition;
         }
@@ -1312,7 +1561,7 @@ public static class SqlKeywordPositionAnalyzer
         // ORDER BY a, | 也一樣：下一項仍然是欄位。
         if (token.IsPunctuation(","))
         {
-            return FindAnchorPosition(tokens, last - 1, ListAnchors);
+            return FindAnchorPosition(last - 1, ListAnchors);
         }
 
         if (token.Kind is SqlTokenKind.Punctuation or SqlTokenKind.Operator)
@@ -1322,7 +1571,7 @@ public static class SqlKeywordPositionAnalyzer
 
         // SET 選項要排在 AfterKeyword 之前：SET ANSI_NULLS ON 的 ON 是選項值，
         // 交給那一條的話會被當成 JOIN 的 ON，下一行打 GO 只剩 GROUPING 這種字。
-        switch (FindSetOptionPart(tokens, last))
+        switch (FindSetOptionPart(last))
         {
             case SetOptionPart.Name:
                 return SqlKeywordPosition.SetOptionValue;
@@ -1339,38 +1588,43 @@ public static class SqlKeywordPositionAnalyzer
                 return position;
             }
 
-            if (IsOrderOrGroupBy(tokens, last))
+            if (IsOrderOrGroupBy(last))
             {
                 return SqlKeywordPosition.OrderByColumn;
             }
 
             // ALTER TABLE 的三個位置要排在「認得但沒有對應位置」之前：ADD 與 COLUMN
             // 都是目錄認得的關鍵字，讓那一條先接走的話這裡永遠回 Any。
-            if (TryResolveAlterTable(tokens, last, out var alterPosition))
+            if (TryResolveAlterTable(last, out var alterPosition))
             {
                 return alterPosition;
             }
 
             // CASE … END 是一個算完的運算元，與一整組括號同一個道理。
-            if (token.IsKeyword("END") && FindCaseStart(tokens, last) is var caseStart and >= 0)
+            if (token.IsKeyword("END") && FindCaseStart(last) is var caseStart and >= 0)
             {
-                return FindClausePosition(tokens, caseStart - 1);
+                return FindClausePosition(caseStart - 1);
             }
 
-            if (FindBlockBoundary(tokens, last) is { } boundary)
+            if (FindBlockBoundary(last) is { } boundary)
             {
                 return boundary;
             }
 
-            if (EndsCursorHeader(tokens, last))
+            if (EndsCursorHeader(last))
             {
                 return SqlKeywordPosition.CursorOption;
+            }
+
+            if (ClosesStatement(last))
+            {
+                return SqlKeywordPosition.StatementStart;
             }
 
             // NULL、CURRENT_USER、DESC 本身就把那一項寫完，之後與識別字之後相同。
             if (SqlKeywordCatalog.EndsItem(token.Value))
             {
-                return FindClausePosition(tokens, last - 1);
+                return FindClausePosition(last - 1);
             }
 
             if (SqlKeywordCatalog.IsKeyword(token.Value))
@@ -1381,7 +1635,7 @@ public static class SqlKeywordPositionAnalyzer
         }
 
         // 變數也走這裡：@x 之後是一個算完的運算元。
-        return FindClausePosition(tokens, last);
+        return FindClausePosition(last);
     }
 
     /// <summary>SET 選項裡，游標前一個詞元屬於哪一段。</summary>
@@ -1414,34 +1668,36 @@ public static class SqlKeywordPositionAnalyzer
     /// 名稱的延續（<c>SET IDENTITY_INSERT t</c>）在詞元上分不開，一律算名稱；那種值寫完再換行時
     /// 由 <see cref="AddStatementStartOnNewLine"/> 補上語句開頭。
     ///
-    /// 往回找 SET 時只穿過名稱與值寫得出的詞元，遇到能開始一句的關鍵字就停：
-    /// <c>SET NOCOUNT ON SELECT a FROM t </c> 的 <c>t</c> 屬於後面那一句。
+    /// SET 要是 <paramref name="last"/> 所屬的動詞（<see cref="FindVerb"/>），中間只有名稱與值寫得出的
+    /// 詞元：<c>SET NOCOUNT ON SELECT a FROM t </c> 的 <c>t</c> 屬於 SELECT。
     /// SET 本身還要是選項的 SET，見 <see cref="IntroducesOptions"/>。
     /// </remarks>
-    private static SetOptionPart FindSetOptionPart(IReadOnlyList<SqlToken> tokens, int last)
+    private SetOptionPart FindSetOptionPart(int last)
     {
-        var set = last;
-
-        for (; set >= 0; set--)
+        if (!CanBelongToSetOption(tokens[last]))
         {
-            var token = tokens[set];
+            return SetOptionPart.None;
+        }
 
-            if (token.IsKeyword("SET"))
-            {
-                break;
-            }
+        var set = FindVerb(last);
 
-            if (!CanBelongToSetOption(token) ||
-                (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(tokens, set) && StartsStatement(token)))
+        if (set < 0 ||
+            set == last ||
+            !tokens[set].IsKeyword("SET") ||
+            tokens[set + 1].Kind != SqlTokenKind.Identifier)
+        {
+            return SetOptionPart.None;
+        }
+
+        for (var index = set + 1; index < last; index++)
+        {
+            if (!CanBelongToSetOption(tokens[index]))
             {
                 return SetOptionPart.None;
             }
         }
 
-        if (set < 0 ||
-            set == last ||
-            tokens[set + 1].Kind != SqlTokenKind.Identifier ||
-            !IntroducesOptions(tokens, set))
+        if (!IntroducesOptions(set))
         {
             return SetOptionPart.None;
         }
@@ -1453,7 +1709,7 @@ public static class SqlKeywordPositionAnalyzer
             var next = tokens[nameEnd + 1];
 
             if (next.IsPunctuation(".") ||
-                (next.Kind == SqlTokenKind.Identifier && !IsBareKeyword(tokens, nameEnd + 1)))
+                (next.Kind == SqlTokenKind.Identifier && !IsBareKeyword(nameEnd + 1)))
             {
                 nameEnd++;
             }
@@ -1474,7 +1730,7 @@ public static class SqlKeywordPositionAnalyzer
             return SetOptionPart.Value;
         }
 
-        return IsBareKeyword(tokens, nameEnd) ? SetOptionPart.None : SetOptionPart.Name;
+        return IsBareKeyword(nameEnd) ? SetOptionPart.None : SetOptionPart.Name;
     }
 
     /// <summary>SET 選項的名稱或值寫得出這個詞元：名稱、數值（含正負號）、字串、變數、點號與逗號。</summary>
@@ -1493,59 +1749,28 @@ public static class SqlKeywordPositionAnalyzer
     /// <paramref name="setIndex"/> 的 <c>SET</c> 帶出的是選項，而不是 UPDATE 的資料行指派。
     /// </summary>
     /// <remarks>
-    /// 往回找這一句的動詞：第一個能開始陳述式的關鍵字。停在 UPDATE 就是資料行指派
-    /// （<c>UPDATE t SET</c>、MERGE 的 <c>THEN UPDATE SET</c>）；停在別的動詞、分號或開頭
-    /// 就是選項——<c>UPDATE t SET a = 1 SET NOCOUNT</c> 往回先碰到的是前一個 SET，
-    /// 後面那個 SET 因此是新的一句。<c>ALTER DATABASE x SET ANSI_NULLS ON</c> 的 SET
-    /// 也是選項：名稱與值的形狀與 SET 敘述相同，值寫完同樣結束這一句。
+    /// SET 前一格是明確的語句界線（開頭、BEGIN、模組主體的 AS、IF 的條件）時是選項：
+    /// <c>ALTER PROCEDURE p AS SET</c> 與觸發程序的 <c>AFTER UPDATE AS SET</c> 都是一句的開始。
+    /// 其餘看它接在哪一個動詞後面（<see cref="FindVerb"/>）：UPDATE 就是資料行指派
+    /// （<c>UPDATE t⏎SET</c>、MERGE 的 <c>THEN UPDATE SET</c>）；別的動詞或沒有就是選項——
+    /// <c>UPDATE t SET a = 1 SET NOCOUNT</c> 先碰到的是前一個 SET，後面那個 SET 因此是新的一句。
+    /// 換行補上的語句開頭不算：<c>UPDATE t⏎SET</c> 最常見。
     ///
-    /// <c>AS</c> 也是停點：模組主體從它後面開始，<c>ALTER PROCEDURE p AS SET</c> 與觸發程序的
-    /// <c>AFTER UPDATE AS SET</c> 都是一句的開始，而 UPDATE 的 SET 子句前面不會有 AS。
-    ///
-    /// 一組括號連同緊接在前面的那個字是一個單位：<c>WITH (TABLOCK)</c>、<c>TOP (5)</c>
-    /// 屬於 UPDATE 的前段，<c>IF UPDATE(a)</c> 的 UPDATE 是函式，不是動詞。
+    /// <c>ALTER DATABASE x SET ANSI_NULLS ON</c> 的 SET 也是選項：名稱與值的形狀與 SET 敘述相同，
+    /// 值寫完同樣結束這一句。
     /// </remarks>
-    private static bool IntroducesOptions(IReadOnlyList<SqlToken> tokens, int setIndex)
+    private bool IntroducesOptions(int setIndex)
     {
-        for (var index = setIndex - 1; index >= 0; index--)
+        var before = KeywordsBefore(setIndex);
+
+        if (before != SqlKeywordPosition.Any && (before & StatementBoundaries) != SqlKeywordPosition.None)
         {
-            var token = tokens[index];
-
-            if (token.IsPunctuation(")"))
-            {
-                var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
-
-                if (open < 0)
-                {
-                    return true;
-                }
-
-                index = open > 0 && tokens[open - 1].Kind == SqlTokenKind.Identifier ? open - 1 : open;
-                continue;
-            }
-
-            if (token.IsPunctuation(";"))
-            {
-                return true;
-            }
-
-            if (!IsBareKeyword(tokens, index))
-            {
-                continue;
-            }
-
-            if (token.IsKeyword("AS"))
-            {
-                return true;
-            }
-
-            if (StartsStatement(token))
-            {
-                return !token.IsKeyword("UPDATE");
-            }
+            return true;
         }
 
-        return true;
+        var verb = FindVerb(setIndex - 1);
+
+        return verb < 0 || !tokens[verb].IsKeyword("UPDATE");
     }
 
     /// <summary>
@@ -1575,16 +1800,15 @@ public static class SqlKeywordPositionAnalyzer
     /// <c>CREATE PROCEDURE p AS </c> 也會被當成別名，主體開頭的 BEGIN、SELECT
     /// 就整組消失——這裡的 fail-open 必須真的 open。
     /// </remarks>
-    private static bool IntroducesAlias(
-        IReadOnlyList<SqlToken> tokens,
+    private bool IntroducesAlias(
         int asIndex,
         out SqlKeywordPosition afterAlias)
     {
-        var before = AnalyzeAt(tokens, asIndex - 1, followAlias: false);
+        var before = AnalyzeAt(asIndex - 1, followAlias: false);
         afterAlias = before.Keywords;
 
         return before.Slot == SqlCompletionSlot.Name
-            || IsUnaliasedItem(tokens, asIndex - 1, before.Keywords);
+            || IsUnaliasedItem(asIndex - 1, before.Keywords);
     }
 
     /// <summary>
@@ -1595,65 +1819,42 @@ public static class SqlKeywordPositionAnalyzer
     /// 少了這一條，主體的開頭判不出位置：清單是整份目錄，而 <c>SET NOCOUNT </c> 這種
     /// 子句片語只能以「可能」的身分加字，不能換掉整份清單（見 <see cref="SqlClausePhraseMatch"/>）。
     ///
-    /// 往回走到這一句的 CREATE 或 ALTER，看它後面是不是模組種類。途中整組跳過括號
-    /// （參數清單、<c>RETURNS @t TABLE (…)</c>）；標頭裡的 AS 只有 <c>EXECUTE AS</c> 與
-    /// 參數的 <c>@a AS int</c>，遇到別的 AS、分號、BEGIN、END 或 GO 就是走出了標頭。
+    /// 這一句（<see cref="FindStatementStart"/>）要以 CREATE、ALTER 或 CREATE OR ALTER 接模組種類開頭。
+    /// 標頭裡的 AS 只有 <c>EXECUTE AS</c> 與參數的 <c>@a AS int</c>；主體裡的 AS 屬於主體那一句，
+    /// 走不回 CREATE。
     /// </remarks>
-    private static bool OpensModuleBody(IReadOnlyList<SqlToken> tokens, int asIndex)
+    private bool OpensModuleBody(int asIndex)
     {
-        if (BelongsToModuleHeader(tokens, asIndex))
+        if (BelongsToModuleHeader(asIndex))
         {
             return false;
         }
 
-        for (var index = asIndex - 1; index >= 0; index--)
+        var start = FindStatementStart(asIndex - 1);
+
+        if (start >= asIndex || !(tokens[start].IsKeyword("CREATE") || tokens[start].IsKeyword("ALTER")))
         {
-            var token = tokens[index];
-
-            if (token.IsPunctuation(")"))
-            {
-                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
-
-                if (index < 0)
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            if (token.IsPunctuation(";") || token.IsPunctuation("("))
-            {
-                return false;
-            }
-
-            if (token.Kind != SqlTokenKind.Identifier || !IsBareKeyword(tokens, index))
-            {
-                continue;
-            }
-
-            if (token.IsKeyword("CREATE") || token.IsKeyword("ALTER"))
-            {
-                return index + 1 < tokens.Count &&
-                    tokens[index + 1].Kind == SqlTokenKind.Identifier &&
-                    !tokens[index + 1].IsQuoted &&
-                    ModuleKinds.Contains(tokens[index + 1].Value);
-            }
-
-            if ((token.IsKeyword("AS") && !BelongsToModuleHeader(tokens, index)) ||
-                token.IsKeyword("BEGIN") ||
-                token.IsKeyword("END") ||
-                token.IsKeyword("GO"))
-            {
-                return false;
-            }
+            return false;
         }
 
-        return false;
+        var kind = start + 1;
+
+        if (tokens[start].IsKeyword("CREATE") &&
+            kind + 1 < asIndex &&
+            tokens[kind].IsKeyword("OR") &&
+            tokens[kind + 1].IsKeyword("ALTER"))
+        {
+            kind += 2;
+        }
+
+        return kind < asIndex &&
+            tokens[kind].Kind == SqlTokenKind.Identifier &&
+            !tokens[kind].IsQuoted &&
+            ModuleKinds.Contains(tokens[kind].Value);
     }
 
     /// <summary>這個 AS 是標頭本身的一部分：<c>EXECUTE AS</c> 或參數的 <c>@a AS int</c>。</summary>
-    private static bool BelongsToModuleHeader(IReadOnlyList<SqlToken> tokens, int asIndex)
+    private bool BelongsToModuleHeader(int asIndex)
     {
         if (asIndex < 1)
         {
@@ -1679,7 +1880,7 @@ public static class SqlKeywordPositionAnalyzer
     /// （<c>FROM (SELECT 1)</c> 直接是語法錯誤）與 <c>PIVOT (…)</c>、<c>UNPIVOT (…)</c>。
     /// 其餘情形這一整組括號只是一個算完的運算元，跳過它，位置由更前面的子句關鍵字決定。
     /// </remarks>
-    private static SqlCaretPosition AfterGroup(IReadOnlyList<SqlToken> tokens, int close)
+    private SqlCaretPosition AfterGroup(int close)
     {
         var open = SqlTokenNavigator.FindOpeningParenthesis(tokens, close);
 
@@ -1689,18 +1890,24 @@ public static class SqlKeywordPositionAnalyzer
             return new SqlCaretPosition(SqlKeywordPosition.Any);
         }
 
-        if (RequiresAlias(tokens, open))
+        if (RequiresAlias(open))
         {
             return new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.Name);
         }
 
-        return new SqlCaretPosition(FindClausePosition(tokens, open - 1));
+        // CTE 寫完之後是它自己那一句的開頭：SELECT、INSERT、UPDATE、DELETE、MERGE。
+        if (EndsCommonTableExpression(close))
+        {
+            return new SqlCaretPosition(SqlKeywordPosition.StatementStart);
+        }
+
+        return new SqlCaretPosition(FindClausePosition(open - 1));
     }
 
     /// <summary><paramref name="open"/> 開啟的那一組括號之後，文法強制要寫別名。</summary>
-    private static bool RequiresAlias(IReadOnlyList<SqlToken> tokens, int open)
+    private bool RequiresAlias(int open)
     {
-        if (open < 1 || !IsBareKeyword(tokens, open - 1))
+        if (open < 1 || !IsBareKeyword(open - 1))
         {
             return false;
         }
@@ -1713,9 +1920,9 @@ public static class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>往回找最近的子句關鍵字，取它的「子句尾端」位置。</summary>
-    private static SqlKeywordPosition FindClausePosition(IReadOnlyList<SqlToken> tokens, int from)
+    private SqlKeywordPosition FindClausePosition(int from)
     {
-        return FindAnchorPosition(tokens, from, ClauseAnchors);
+        return FindAnchorPosition(from, ClauseAnchors);
     }
 
     /// <summary>
@@ -1740,18 +1947,21 @@ public static class SqlKeywordPositionAnalyzer
     /// 穿過沒關上的左括號之後就不再認：那時游標在括號裡的另一個運算式，
     /// 外層 CASE 走到哪一段與它無關，照舊由子句錨點決定。
     ///
-    /// 錨點帶的語句開頭（<c>IF</c>、<c>WHILE</c>）只屬於條件那一層：穿過沒關上的左括號
-    /// （<c>IF (@a = 1 </c>）時還在條件裡面，拿掉；途中已經走過另一句的開頭
-    /// （<c>IF @a = 1 PRINT 'x' </c>）時游標在主體裡，而主體那一句沒有錨點，判不出來。
+    /// 錨點只在游標所在的這一句裡找：分號、GO 與這一句的開頭（<see cref="IsStatementHead"/>）
+    /// 之前是別的敘述。走到那裡還沒有錨點，就是這一句自己沒有子句關鍵字（<c>EXEC</c>、
+    /// <c>PRINT</c>、<c>RETURN</c>），判不出來，不借上一句的——<c>WHERE b = 1⏎EXEC p @x </c>
+    /// 借到 WHERE 的話 OUTPUT 就不見了。
+    ///
+    /// <c>IF</c>、<c>WHILE</c> 的錨點帶著語句開頭，只有它們自己是一句的開頭時才算
+    /// （<c>DROP TABLE IF EXISTS</c> 的 IF 不是）；穿過沒關上的左括號（<c>IF (@a = 1 </c>）
+    /// 時還在條件裡面，拿掉語句開頭。
     /// </remarks>
-    private static SqlKeywordPosition FindAnchorPosition(
-        IReadOnlyList<SqlToken> tokens,
+    private SqlKeywordPosition FindAnchorPosition(
         int from,
         Dictionary<string, SqlKeywordPosition> anchors)
     {
         SqlKeywordPosition? caseArm = null;
         var insideGroup = false;
-        var passedStatement = false;
 
         for (var index = from; index >= 0; index--)
         {
@@ -1770,19 +1980,18 @@ public static class SqlKeywordPositionAnalyzer
                 continue;
             }
 
+            if (token.IsPunctuation(";") || token.IsKeyword("GO"))
+            {
+                return SqlKeywordPosition.Any;
+            }
+
             if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
             {
-                // 分號代表前一個敘述已經結束，再往回找只會找到別的敘述的子句。
-                if (token.IsPunctuation(";"))
-                {
-                    return SqlKeywordPosition.StatementStart;
-                }
-
                 insideGroup |= token.IsPunctuation("(");
                 continue;
             }
 
-            if (token.IsKeyword("END") && FindCaseStart(tokens, index) is var caseStart and >= 0)
+            if (token.IsKeyword("END") && FindCaseStart(index) is var caseStart and >= 0)
             {
                 index = caseStart;
                 continue;
@@ -1806,34 +2015,28 @@ public static class SqlKeywordPositionAnalyzer
                 }
             }
 
-            if (IsOrderOrGroupBy(tokens, index))
+            if (IsOrderOrGroupBy(index))
             {
                 return anchors[tokens[index - 1].IsKeyword("ORDER") ? OrderBy : GroupBy];
             }
 
-            if (anchors.TryGetValue(token.Value, out var position))
+            if (anchors.TryGetValue(token.Value, out var position) &&
+                ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
-                if ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None)
-                {
-                    return position;
-                }
-
-                if (passedStatement)
-                {
-                    return SqlKeywordPosition.Any;
-                }
-
                 return insideGroup ? position & ~SqlKeywordPosition.StatementStart : position;
             }
 
-            passedStatement |= IsBareKeyword(tokens, index) && StartsStatement(token);
+            if (IsStatementHead(index))
+            {
+                return SqlKeywordPosition.Any;
+            }
         }
 
         return SqlKeywordPosition.Any;
     }
 
     /// <summary><paramref name="index"/> 是不是 ORDER BY／GROUP BY 的那個 BY。</summary>
-    private static bool IsOrderOrGroupBy(IReadOnlyList<SqlToken> tokens, int index)
+    private bool IsOrderOrGroupBy(int index)
     {
         if (index < 1 || !tokens[index].IsKeyword("BY"))
         {

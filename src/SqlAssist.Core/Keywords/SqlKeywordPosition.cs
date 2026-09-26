@@ -112,6 +112,13 @@ public enum SqlKeywordPosition
     /// </remarks>
     BlockEnd = 1 << 24,
 
+    /// <summary>IF 只有一句的主體寫完之後——下一句，以及 ELSE。</summary>
+    /// <remarks>
+    /// 分析器把它加在那一句自己的位置上：<c>IF @a = 1 SELECT 1 </c> 仍是選取清單尾端，
+    /// 多接一個 ELSE。主體是 <c>BEGIN … END</c> 時 ELSE 由 <see cref="BlockEnd"/> 給。
+    /// </remarks>
+    IfBodyEnd = 1 << 26,
+
     /// <summary>DECLARE c CURSOR 與它的選項之後——FOR；選項本身由子句片語給。</summary>
     CursorOption = 1 << 25,
 
@@ -149,7 +156,7 @@ public enum SqlKeywordPosition
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
-        | ColumnDefinition | BlockStart | BlockEnd | CursorOption | SetTarget | InsertTarget
+        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

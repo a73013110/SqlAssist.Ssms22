@@ -52,6 +52,10 @@
         識別字之後相同。判法：任一個樣板接上它就是完整的一句，而且語法樹裡以它結尾的
         是語句以外的片段（運算式、排序項、提示）——BEGIN TRAN 的 TRAN 寫完的是語句本身。
 
+    六、寫完一句的字
+        第五階段排除的那一半：以它結尾的是語句本身（BREAK、COMMIT、TRAN）。另外記下前一格
+        在哪些位置時那一句再也接不了語句開頭以外的東西——COMMIT 還接 TRAN，就不算。
+
 .PARAMETER SsmsInstallDir
     SSMS 22 安裝路徑。ScriptDom 隨 SSMS 附帶，不必另外安裝。
 
@@ -302,6 +306,10 @@ $ContextTemplates = [ordered]@{
     BlockEnd         = @(
         'BEGIN SELECT 1 END ', 'IF 1 = 1 BEGIN SELECT 1 END ', 'BEGIN TRY SELECT 1 END ',
         'BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 1 END ')
+
+    # IF 的主體只有一句，那一句寫完：下一句，以及 ELSE。主體用寫完就沒有續寫子句的一句，
+    # 這一格才只多出 ELSE，不會把 SELECT 之後的 FROM、INTO 也掛上來。
+    IfBodyEnd        = @('IF 1 = 1 SET NOCOUNT ON ')
 
     # 游標的選項不是關鍵字（LOCAL、FAST_FORWARD 是識別字），由子句片語給；這裡只撈得到 FOR。
     CursorOption     = @('DECLARE c CURSOR ', 'DECLARE c CURSOR LOCAL FAST_FORWARD ')
@@ -637,6 +645,57 @@ public static class SqlAssistPhraseProber
         return finder.Found;
     }
 
+    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是那一句本身，不是其中的一項。</summary>
+    /// <remarks>
+    /// 游標所在的是包住這個字最內層的那一句：IF 的主體、BEGIN … END 裡的一句都算自己的一句。
+    /// </remarks>
+    public static bool EndsStatement(string template, string word)
+    {
+        IList<ParseError> errors;
+        var text = template + word;
+        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
+
+        if (errors.Count > 0 || fragment == null)
+        {
+            return false;
+        }
+
+        var statements = new StatementFinder(template.Length);
+        fragment.Accept(statements);
+
+        if (statements.Innermost == null ||
+            statements.Innermost.StartOffset + statements.Innermost.FragmentLength != text.Length)
+        {
+            return false;
+        }
+
+        var items = new ItemEndingFinder(template.Length, text.Length);
+        fragment.Accept(items);
+        return !items.Found;
+    }
+
+    private sealed class StatementFinder : TSqlFragmentVisitor
+    {
+        private readonly int _offset;
+
+        public StatementFinder(int offset)
+        {
+            _offset = offset;
+        }
+
+        public TSqlStatement Innermost { get; private set; }
+
+        public override void Visit(TSqlStatement node)
+        {
+            if (node.StartOffset <= _offset &&
+                node.StartOffset + node.FragmentLength > _offset &&
+                (Innermost == null || node.FragmentLength < Innermost.FragmentLength))
+            {
+                Innermost = node;
+            }
+        }
+    }
+
     private sealed class ItemEndingFinder : TSqlFragmentVisitor
     {
         private readonly int _wordStart;
@@ -893,6 +952,51 @@ $itemEndings = @($keywords | Where-Object {
 
 Write-Host "寫完一項的字：$($itemEndings -join ', ')"
 
+# ------------------------------------------------------------ 六、寫完一句的字
+
+# 第五階段排除的那一半：BREAK、COMMIT、BEGIN TRAN 的 TRAN 寫完的是語句本身。分析器拿它們
+# 認語句的界線，前一格落在「收得乾淨」的位置時，之後直接是下一句的開頭。
+# 收得乾淨是指那一句再也接不了語句開頭以外的東西：COMMIT 還接 TRAN、RETURN 還接運算式、
+# BEGIN TRAN 還接交易名稱的變數，把它們判成語句開頭就把這些字藏起來了。
+# 每個位置以第一個接得上的樣板為準；非保留字照第三階段的規則，普通名稱也寫得完一句的不算。
+$keywordArray = [string[]]@($keywords)
+$continuationArrayForKeywords = [string[]]@($Continuations)
+
+$statementEndings = [ordered]@{}
+
+foreach ($keyword in $keywords) {
+    $canBeName = $reserved -notcontains $keyword
+    $closes = [System.Collections.Generic.List[string]]::new()
+    $ends = $false
+
+    foreach ($name in $positionNames) {
+        $prefix = @($ContextTemplates[$name]) | Where-Object {
+            [SqlAssistPhraseProber]::EndsStatement($_, $keyword) -and
+                -not ($canBeName -and [SqlAssistPhraseProber]::EndsStatement($_, $PlainName))
+        } | Select-Object -First 1
+
+        if ($null -eq $prefix) {
+            continue
+        }
+
+        $ends = $true
+        $probe = "$prefix$keyword "
+        $followers = [SqlAssistPhraseProber]::Probe($probe, $keywordArray, $reservedArray, $continuationArrayForKeywords, $PlainName)
+        $hidden = @($followers | Where-Object { $positions[$_] -notcontains 'StatementStart' })
+        $takesVariable = [SqlAssistPhraseProber]::FirstRejection("$probe@v") -gt $probe.Length + 2
+
+        if ($hidden.Count -eq 0 -and -not $takesVariable) {
+            $closes.Add($name)
+        }
+    }
+
+    if ($ends) {
+        $statementEndings[$keyword] = $closes
+    }
+}
+
+Write-Host "寫完一句的字：$(($statementEndings.Keys | ForEach-Object { "$_($($statementEndings[$_] -join '|'))" }) -join ', ')"
+
 # ---------------------------------------------------------------------- 產出
 
 $builder = [System.Text.StringBuilder]::new()
@@ -998,6 +1102,24 @@ foreach ($keyword in $itemEndings) {
 
 if ($line.Trim().Length -gt 0) {
     $null = $builder.AppendLine($line)
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>寫完一整句的字，以及前一格在哪些位置時寫完那一句就只剩下一句可接。</summary>')
+$null = $builder.AppendLine('    internal static readonly KeyValuePair<string, SqlKeywordPosition>[] StatementEndings =')
+$null = $builder.AppendLine('    {')
+
+foreach ($keyword in $statementEndings.Keys) {
+    $closes = $statementEndings[$keyword]
+    $flags = if ($closes.Count -eq 0) {
+        'SqlKeywordPosition.None'
+    }
+    else {
+        ($closes | ForEach-Object { "SqlKeywordPosition.$_" }) -join ' | '
+    }
+
+    $null = $builder.AppendLine("        new(`"$keyword`", $flags),")
 }
 
 $null = $builder.AppendLine('    };')
