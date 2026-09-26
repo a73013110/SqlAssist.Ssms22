@@ -7,13 +7,12 @@
 
 清單裡的 191 個 T-SQL 關鍵字不是手寫的，由 `tools/Generate-Keywords.ps1` 反射
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
-換 SSMS 版本重跑一次就更新。兩個階段都自我驗證，不猜任何一個字：
+換 SSMS 版本重跑一次就更新。每個階段都自我驗證，不猜任何一個字：
 
 1. **取字面值**：列舉 `TSqlTokenType` 的成員名稱，大寫後丟回 tokenizer，
    token 型別對得回原成員才採用。標點與字面值（`Comma`、`HexLiteral`…）自然
    對不回來所以被排除；名稱含 camelCase 轉折的再試一次補底線的寫法，
    撈回 `CURRENT_TIMESTAMP`、`IDENTITY_INSERT`、`TRY_CONVERT` 這一類。
-   242 個成員得到 180 個保留字。
 
 2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法。
    46005（必須是 X 卻發現 Y）、46010（語法不正確）、46014（只可存在於資料行層級）
@@ -22,6 +21,10 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
    單一續尾會誤判——`BACKUP ` 之後是檔案結尾、`SELECT ` 之後卻是語法錯誤，
    兩者都合法——所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
    屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
+
+3. **寫完一項的字**：某個樣板接上它就是完整的一句，語法樹裡以它結尾的是語句以外的片段
+   （`NULL`、`CURRENT_USER`、`DESC`）。分析器在這些字之後與識別字之後走同一條路，往回找
+   子句決定位置；`BEGIN TRAN` 的 TRAN 寫完的是語句本身，往回只會找到上一句的子句。
 
 手寫的只有每個位置的樣板，關鍵字的分類全部由剖析器決定。樣板必須是分析器判得出、
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
@@ -48,6 +51,8 @@ SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopC
 CREATE                → TABLE、VIEW、PROCEDURE…
 SELECT * FROM t WHERE → EXISTS、NOT、CASE…
 SET NOCOUNT           → ON、OFF（SetOptionValue；片語比對不上時的退路）
+BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
+DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
@@ -76,12 +81,11 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | `SELECT C` | `SelectList` | 61 | `cs`，接著就是欄位 |
 | `ORDER BY C`（修正前） | `Any` | 118 | 捷徑以 `c` 開頭的 13 筆片段全包，欄位掉到第 14 |
 | `ORDER BY C`（修正後） | `OrderByColumn` | 30 | `cs`，接著就是欄位 |
-| `ALTER TABLE t ADD C`（修正前） | `Any` | 118 | 同上 |
-| `ALTER TABLE t ADD C`（修正後） | `AlterTableAdd` | 24 | 欄位、`CHECK`、`CONSTRAINT` |
+| `ALTER TABLE t ADD C` | `AlterTableAdd` | 24 | 欄位、`CHECK`、`CONSTRAINT` |
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
-`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn` 都是**自己的成員**，
-不再借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
+`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`CursorOption`
+都是**自己的成員**，不借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，
 不是「這份指令碼裡有沒有 `ALTER TABLE`」——理由與 `SqlScopeAnalyzer.IsMergeAction`
@@ -90,8 +94,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 
 `ALTER TABLE t ALTER` 在 ScriptDom 眼中直接是語法錯誤（它要看到 `COLUMN` 才收），
 所以產生器的續尾清單多了 `COLUMN x int` 一條；少了它，`ALTER` 就分不到
-`AlterTableAction`，而那個字正是那個位置最常打的。續尾取聯集，多一條只會讓分類
-更寬鬆。
+`AlterTableAction`，而那個字正是那個位置最常打的。
 
 #### 位置過濾也管資料庫物件
 
@@ -102,7 +105,8 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | 位置 | 那裡只接受 |
 |---|---|
 | 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
-| `StatementStart`、`BlockStart`（`;` 之後、`BEGIN \|`） | 下一句的關鍵字 |
+| `StatementStart`、`BlockStart`、`BlockEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字 |
+| `CursorOption`（`DECLARE c CURSOR LOCAL \|`） | 選項或 `FOR` |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
 | `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |

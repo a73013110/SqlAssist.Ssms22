@@ -12,9 +12,9 @@ namespace SqlAssist.Core.Keywords;
 /// （<see cref="SqlKeywordPosition.Any"/>）時只是<b>可能</b>：片語的字加進位置的關鍵字，
 /// 不換掉它們，也不封閉清單。
 ///
-/// 兩邊都有代價，選的是少不了字的那一邊：<c>DECLARE c CURSOR LOCAL FOR </c> 的前一格判不出位置，
-/// 當成查詢之後的 FOR 並封閉清單的話只剩 XML、JSON，要的 SELECT 反而不見；
-/// 反過來整個不算，<c>ORDER BY a DESC FOR </c> 又列不出 XML。
+/// 兩邊都有代價，選的是少不了字的那一邊：前一格判不出來時，片語那個意思可能根本不成立——
+/// 游標選項之後的 FOR 曾經就是這樣，當成查詢之後的 FOR 並封閉清單的話只剩 XML、JSON，
+/// 要的 SELECT 反而不見；反過來整個不算，意思成立時（<c>PRINT @a SET </c>）又列不出片語的字。
 /// </remarks>
 public sealed class SqlClausePhraseMatch
 {

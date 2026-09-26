@@ -70,8 +70,8 @@
 帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
 才算，區塊開頭視同語句開頭（`BEGIN SET`）。前一格判不出位置（`Any`）時比對結果是**可能**
 （`SqlClausePhraseMatch.IsCertain` 為否）：片語的字加進整份關鍵字，同名的目錄字讓給片語，
-清單不封閉。`DECLARE c CURSOR LOCAL FOR ` 的前一格判不出來，當成查詢之後的 FOR 並封閉
-的話只剩 XML，要的 SELECT 反而不見——猜錯的代價必須是多幾個字。
+清單不封閉。`PRINT @a SET ` 的前一格判不出來：那個意思可能根本不成立，當成確定並封閉的話
+猜錯就少字——猜錯的代價必須是多幾個字。
 
 比對**確定**時這一格的關鍵字只來自片語，規則在 `SuggestionContextFilter` 一處，
 認的是建議項的 `Tag` 而不是文字——`READ` 同時在目錄與片語裡。
@@ -82,7 +82,8 @@
 - 不封閉（`SET IDENTITY_INSERT ` 之後是資料表）：名稱照常，只有關鍵字換掉。
 
 「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
-`AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）因此判成語句開頭。
+`AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來；
+游標選項之後是 `CursorOption`，查詢的 `FOR` 對不上，`SELECT` 照列。
 
 ## 刻意沒收的
 

@@ -30,6 +30,11 @@
   `ON` 被當成 JOIN 的，Enter 把 `GO` 換成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
   與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a.Big5Code NOT ` 之後接 `IN`、`LIKE`。
+- **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`。語句開頭只屬於條件：
+  括號沒關上時拿掉；已經走過主體那一句的開頭（`IF @a = 1 PRINT 'x' `）而那句沒有錨點時
+  判不出來，不拿 IF 猜。
+- **區塊邊界之後是下一句**：`BEGIN TRY`、`END CATCH`、IF 的 `ELSE`。`BEGIN … END` 的 END
+  另接 `ELSE`、`TRY`、`CATCH`（`BlockEnd`）；CASE 的 ELSE 與 END 不算。
 
 ## 名稱位置三分類
 

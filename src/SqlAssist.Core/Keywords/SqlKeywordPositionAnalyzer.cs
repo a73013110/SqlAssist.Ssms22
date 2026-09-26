@@ -96,6 +96,9 @@ public static class SqlKeywordPositionAnalyzer
     ///
     /// ORDER BY 與 GROUP BY 以兩個字的形式出現：錨點其實是 <c>BY</c>，要看前一個字才分得出
     /// 是哪一個子句，見 <see cref="FindAnchorPosition"/>。
+    ///
+    /// <c>IF</c>、<c>WHILE</c> 的條件寫完之後是主體那一句的開頭，也還能接 <c>AND</c>、<c>OR</c>。
+    /// 語句開頭只屬於條件那一層，限制見 <see cref="FindAnchorPosition"/>。
     /// </remarks>
     private static readonly Dictionary<string, SqlKeywordPosition> ClauseAnchors =
         new(StringComparer.OrdinalIgnoreCase)
@@ -117,7 +120,10 @@ public static class SqlKeywordPositionAnalyzer
             ["SET"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.TableSourceTail,
 
             [OrderBy] = SqlKeywordPosition.OrderByTail,
-            [GroupBy] = SqlKeywordPosition.GroupByTail
+            [GroupBy] = SqlKeywordPosition.GroupByTail,
+
+            ["IF"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.StatementStart,
+            ["WHILE"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.StatementStart
         };
 
     /// <summary>
@@ -404,9 +410,9 @@ public static class SqlKeywordPositionAnalyzer
     /// <c>SELECT a b </c>、<c>FROM t a </c> 的 <c>b</c>、<c>a</c> 前面緊鄰一個運算元，
     /// 那就是別名，已經寫完了；<c>AS</c> 同理。
     ///
-    /// 運算元的結尾是識別字（含多段名稱）、變數、右括號、字串與數值常值，以及
-    /// <c>CASE … END</c> 的 <c>END</c>；<c>*</c> 不算——<c>SELECT * </c> 與
-    /// <c>SELECT t.* </c> 後面不能接別名。
+    /// 運算元的結尾是識別字（含多段名稱）、變數、右括號、字串與數值常值、
+    /// <c>CASE … END</c> 的 <c>END</c>，以及 <c>NULL</c> 這種自成一項的關鍵字；
+    /// <c>*</c> 不算——<c>SELECT * </c> 與 <c>SELECT t.* </c> 後面不能接別名。
     ///
     /// 兩種清單的差別只在「一項」長什麼樣：資料來源是一個名稱或一次資料表值函式
     /// 呼叫，前面必須直接是 FROM／JOIN／APPLY／USING 或 FROM 清單的逗號；選取清單
@@ -501,6 +507,8 @@ public static class SqlKeywordPositionAnalyzer
                 return SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last);
             case SqlTokenKind.Identifier when !dataSource && token.IsKeyword("END"):
                 return FindCaseStart(tokens, last);
+            case SqlTokenKind.Identifier when !dataSource && SqlKeywordCatalog.EndsItem(token.Value):
+                return last;
             default:
                 return -1;
         }
@@ -805,9 +813,20 @@ public static class SqlKeywordPositionAnalyzer
             return -1;
         }
 
+        return FindUnclosedCase(tokens, end - 1);
+    }
+
+    /// <summary>
+    /// <paramref name="from"/> 以前還沒以 END 收掉的 CASE；沒有就是 -1。
+    /// </summary>
+    /// <remarks>
+    /// 停下來的條件與 <see cref="FindCaseStart"/> 相同：BEGIN、分號、GO 不會出現在 CASE 裡面。
+    /// </remarks>
+    private static int FindUnclosedCase(IReadOnlyList<SqlToken> tokens, int from)
+    {
         var depth = 0;
 
-        for (var index = end; index >= 0; index--)
+        for (var index = from; index >= 0; index--)
         {
             var token = tokens[index];
 
@@ -832,13 +851,80 @@ public static class SqlKeywordPositionAnalyzer
             {
                 depth++;
             }
-            else if (token.IsKeyword("CASE") && --depth == 0)
+            else if (token.IsKeyword("CASE") && depth-- == 0)
             {
                 return index;
             }
         }
 
         return -1;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 是語句區塊的邊界時，之後的位置；不是就回 null。
+    /// </summary>
+    /// <remarks>
+    /// 區塊的開頭與結尾之後都是下一句：<c>BEGIN TRY</c>、<c>BEGIN CATCH</c>、<c>END TRY</c>、
+    /// <c>END CATCH</c>，以及 IF 的 <c>ELSE</c>。<c>BEGIN … END</c> 的 END 之後還接得了
+    /// ELSE、TRY、CATCH，那是 <see cref="SqlKeywordPosition.BlockEnd"/>。
+    ///
+    /// CASE 的 ELSE 與 END 不是：還沒以 END 收掉的 CASE 裡的 ELSE 接的是運算式，
+    /// 寫完的 CASE … END 由呼叫端先當成運算元處理。
+    /// </remarks>
+    private static SqlKeywordPosition? FindBlockBoundary(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        var token = tokens[last];
+
+        if (token.IsKeyword("TRY") || token.IsKeyword("CATCH"))
+        {
+            return last >= 1 && (tokens[last - 1].IsKeyword("BEGIN") || tokens[last - 1].IsKeyword("END"))
+                ? SqlKeywordPosition.StatementStart
+                : null;
+        }
+
+        if (token.IsKeyword("ELSE"))
+        {
+            return FindUnclosedCase(tokens, last - 1) < 0 ? SqlKeywordPosition.StatementStart : null;
+        }
+
+        return token.IsKeyword("END")
+            ? SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart
+            : null;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 是 <c>DECLARE c [SCROLL] CURSOR [LOCAL FAST_FORWARD …]</c> 的最後一個詞元。
+    /// </summary>
+    /// <remarks>
+    /// 游標的選項（<c>LOCAL</c>、<c>FAST_FORWARD</c>、ISO 寫法的 <c>SCROLL</c>）都不是關鍵字，
+    /// 所以兩段各是一串非關鍵字的識別字；游標名稱至少一個。<c>DECLARE @c CURSOR</c> 是游標變數，
+    /// 後面不接 FOR，不在這裡。
+    /// </remarks>
+    private static bool EndsCursorHeader(IReadOnlyList<SqlToken> tokens, int last)
+    {
+        var index = SkipPlainWordsBackward(tokens, last);
+
+        if (index < 0 || !IsBareKeyword(tokens, index) || !tokens[index].IsKeyword("CURSOR"))
+        {
+            return false;
+        }
+
+        var declare = SkipPlainWordsBackward(tokens, index - 1);
+
+        return declare >= 0 && declare < index - 1 && tokens[declare].IsKeyword("DECLARE");
+    }
+
+    /// <summary>從 <paramref name="from"/> 往回跳過不是關鍵字的識別字，回傳停下來的位置。</summary>
+    private static int SkipPlainWordsBackward(IReadOnlyList<SqlToken> tokens, int from)
+    {
+        var index = from;
+
+        while (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(tokens, index))
+        {
+            index--;
+        }
+
+        return index;
     }
 
     /// <summary>
@@ -1271,9 +1357,25 @@ public static class SqlKeywordPositionAnalyzer
                 return FindClausePosition(tokens, caseStart - 1);
             }
 
+            if (FindBlockBoundary(tokens, last) is { } boundary)
+            {
+                return boundary;
+            }
+
+            if (EndsCursorHeader(tokens, last))
+            {
+                return SqlKeywordPosition.CursorOption;
+            }
+
+            // NULL、CURRENT_USER、DESC 本身就把那一項寫完，之後與識別字之後相同。
+            if (SqlKeywordCatalog.EndsItem(token.Value))
+            {
+                return FindClausePosition(tokens, last - 1);
+            }
+
             if (SqlKeywordCatalog.IsKeyword(token.Value))
             {
-                // 認得但沒有對應位置的關鍵字（THEN、ELSE…），不猜。
+                // 認得但沒有對應位置的關鍵字（THEN、CASE 的 ELSE…），不猜。
                 return SqlKeywordPosition.Any;
             }
         }
@@ -1637,6 +1739,10 @@ public static class SqlKeywordPositionAnalyzer
     /// 子句字；IN、LIKE、THEN、AND 由產生器的樣板直接分到 CaseArm。
     /// 穿過沒關上的左括號之後就不再認：那時游標在括號裡的另一個運算式，
     /// 外層 CASE 走到哪一段與它無關，照舊由子句錨點決定。
+    ///
+    /// 錨點帶的語句開頭（<c>IF</c>、<c>WHILE</c>）只屬於條件那一層：穿過沒關上的左括號
+    /// （<c>IF (@a = 1 </c>）時還在條件裡面，拿掉；途中已經走過另一句的開頭
+    /// （<c>IF @a = 1 PRINT 'x' </c>）時游標在主體裡，而主體那一句沒有錨點，判不出來。
     /// </remarks>
     private static SqlKeywordPosition FindAnchorPosition(
         IReadOnlyList<SqlToken> tokens,
@@ -1645,6 +1751,7 @@ public static class SqlKeywordPositionAnalyzer
     {
         SqlKeywordPosition? caseArm = null;
         var insideGroup = false;
+        var passedStatement = false;
 
         for (var index = from; index >= 0; index--)
         {
@@ -1706,8 +1813,20 @@ public static class SqlKeywordPositionAnalyzer
 
             if (anchors.TryGetValue(token.Value, out var position))
             {
-                return position;
+                if ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None)
+                {
+                    return position;
+                }
+
+                if (passedStatement)
+                {
+                    return SqlKeywordPosition.Any;
+                }
+
+                return insideGroup ? position & ~SqlKeywordPosition.StatementStart : position;
             }
+
+            passedStatement |= IsBareKeyword(tokens, index) && StartsStatement(token);
         }
 
         return SqlKeywordPosition.Any;

@@ -104,6 +104,17 @@ public enum SqlKeywordPosition
     /// <summary>BEGIN 之後——TRANSACTION、TRY、CATCH。</summary>
     BlockStart = 1 << 13,
 
+    /// <summary>BEGIN … END 的 END 之後——下一句，以及 ELSE、TRY、CATCH。</summary>
+    /// <remarks>
+    /// 分析器同時回報 <see cref="StatementStart"/>：區塊寫完就是一句的結尾。
+    /// 不只回報語句開頭的理由是 <c>IF … BEGIN … END ELSE</c> 與 <c>END TRY</c>：
+    /// 那三個字不能出現在一般的語句開頭。
+    /// </remarks>
+    BlockEnd = 1 << 24,
+
+    /// <summary>DECLARE c CURSOR 與它的選項之後——FOR；選項本身由子句片語給。</summary>
+    CursorOption = 1 << 25,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -138,7 +149,7 @@ public enum SqlKeywordPosition
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
-        | ColumnDefinition | BlockStart | SetTarget | InsertTarget
+        | ColumnDefinition | BlockStart | BlockEnd | CursorOption | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

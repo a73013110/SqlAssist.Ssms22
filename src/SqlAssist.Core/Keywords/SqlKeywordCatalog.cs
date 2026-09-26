@@ -60,6 +60,9 @@ public static class SqlKeywordCatalog
     private static readonly HashSet<string> ReservedIdentifiers =
         new(SqlKeywordCatalogData.ReservedIdentifiers, StringComparer.OrdinalIgnoreCase);
 
+    private static readonly HashSet<string> ItemEndings =
+        new(SqlKeywordCatalogData.ItemEndings, StringComparer.OrdinalIgnoreCase);
+
     private static readonly Dictionary<string, SqlKeywordPosition> Positions = BuildPositions();
 
     private static readonly string[] AllKeywords = BuildAllKeywords();
@@ -96,6 +99,19 @@ public static class SqlKeywordCatalog
     public static bool IsKeyword(string word)
     {
         return !string.IsNullOrEmpty(word) && Positions.ContainsKey(word);
+    }
+
+    /// <summary>
+    /// 這個關鍵字本身就把前一格開的那一項寫完：<c>NULL</c>、<c>CURRENT_USER</c> 是完整的
+    /// 運算元，<c>DESC</c> 寫完 ORDER BY 的一項。
+    /// </summary>
+    /// <remarks>
+    /// 由產生器判定：接在某個樣板後面就是完整的一句，而且語法樹裡以它結尾的是語句以外的片段。
+    /// <c>BEGIN TRAN</c> 的 <c>TRAN</c> 不算：它寫完的是語句本身。
+    /// </remarks>
+    public static bool EndsItem(string keyword)
+    {
+        return !string.IsNullOrEmpty(keyword) && ItemEndings.Contains(keyword);
     }
 
     /// <summary>

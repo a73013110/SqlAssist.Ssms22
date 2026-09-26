@@ -47,6 +47,11 @@
         分析回驗：一句開頭的 SET 與 UPDATE t SET 的 SET 是同一條尾巴、不同的意思。
         手寫的只有片語的尾巴；片語表與探測文字一併輸出，Core 的測試逐條回驗。
 
+    五、寫完一項的字
+        NULL、CURRENT_USER、DESC 這種字本身就把前一格開的那一項寫完，之後的位置與
+        識別字之後相同。判法：任一個樣板接上它就是完整的一句，而且語法樹裡以它結尾的
+        是語句以外的片段（運算式、排序項、提示）——BEGIN TRAN 的 TRAN 寫完的是語句本身。
+
 .PARAMETER SsmsInstallDir
     SSMS 22 安裝路徑。ScriptDom 隨 SSMS 附帶，不必另外安裝。
 
@@ -292,6 +297,14 @@ $ContextTemplates = [ordered]@{
     # REFERENCES 照樣靠 Any 列得出來；放一個分析器回不出的位置只是自欺。
     ColumnDefinition = @('CREATE TABLE t (', 'CREATE TABLE t (a int, ')
     BlockStart       = @('BEGIN ', 'BEGIN TRY SELECT 1 END TRY BEGIN ')
+
+    # 區塊寫完：下一句，以及 IF 的 ELSE、TRY／CATCH 區塊的 END TRY、END CATCH。
+    BlockEnd         = @(
+        'BEGIN SELECT 1 END ', 'IF 1 = 1 BEGIN SELECT 1 END ', 'BEGIN TRY SELECT 1 END ',
+        'BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 1 END ')
+
+    # 游標的選項不是關鍵字（LOCAL、FAST_FORWARD 是識別字），由子句片語給；這裡只撈得到 FOR。
+    CursorOption     = @('DECLARE c CURSOR ', 'DECLARE c CURSOR LOCAL FAST_FORWARD ')
     SetTarget        = @('SET ')
 
     # SET 的選項名稱寫完之後的 ON／OFF。各選項自己的值（隔離等級、STATISTICS IO…）
@@ -602,6 +615,53 @@ public static class SqlAssistPhraseProber
         return errors.Count == 0;
     }
 
+    /// <summary>樣板接上這個字就是完整的一句，而且這個字寫完的是語句裡的一項，不是語句本身。</summary>
+    /// <remarks>
+    /// 一項是語法樹裡語句以外的片段：運算式、排序項、資料表提示。BEGIN TRAN 也完整，但以 TRAN
+    /// 結尾的只有語句本身——那種字之後往回找子句，找到的是上一句的；SELECT a COMMIT 的 COMMIT
+    /// 是下一句，批次分隔的 GO 不在任何片段裡，同樣不算。
+    /// </remarks>
+    public static bool EndsItem(string template, string word)
+    {
+        IList<ParseError> errors;
+        var text = template + word;
+        var fragment = _parser.Value.Parse(new StringReader(text), out errors);
+
+        if (errors.Count > 0 || fragment == null)
+        {
+            return false;
+        }
+
+        var finder = new ItemEndingFinder(template.Length, text.Length);
+        fragment.Accept(finder);
+        return finder.Found;
+    }
+
+    private sealed class ItemEndingFinder : TSqlFragmentVisitor
+    {
+        private readonly int _wordStart;
+        private readonly int _end;
+
+        public ItemEndingFinder(int wordStart, int end)
+        {
+            _wordStart = wordStart;
+            _end = end;
+        }
+
+        public bool Found { get; private set; }
+
+        public override void Visit(TSqlFragment node)
+        {
+            if (!(node is TSqlStatement) && !(node is TSqlBatch) && !(node is TSqlScript) &&
+                node.StartOffset >= 0 &&
+                node.StartOffset <= _wordStart &&
+                node.StartOffset + node.FragmentLength == _end)
+            {
+                Found = true;
+            }
+        }
+    }
+
     /// <summary>普通名稱配上任何一條續尾組得成完整的語句，這一格就不封閉。</summary>
     /// <remarks>
     /// 要完整而不只是沒被拒：SET TRANSACTION Lib_Reader 在檔案結尾之前一個錯都沒有，
@@ -810,6 +870,29 @@ $phrases = $merged
 $phraseWords = $phrases.Values | ForEach-Object { $_.Words } | Where-Object { $keywords -notcontains $_ } | Sort-Object -Unique
 Write-Host "子句片語：$($phrases.Count) 個，其中關鍵字清單以外的字 $(@($phraseWords).Count) 個"
 
+# ------------------------------------------------------------ 五、寫完一項的字
+
+# NULL、CURRENT_USER 本身就是完整的運算元，DESC 寫完 ORDER BY 的一項：這些字之後的位置
+# 與識別字之後相同，由往回找到的子句決定。判法是任一個樣板接上它就是完整的一句、
+# 而以它結尾的是語句裡的一項；非保留字照第三階段的規則，普通名稱接上去也成立的不算。
+$itemEndings = @($keywords | Where-Object {
+    $keyword = $_
+    $canBeName = $reserved -notcontains $keyword
+
+    foreach ($name in $positionNames) {
+        foreach ($prefix in $ContextTemplates[$name]) {
+            if ([SqlAssistPhraseProber]::EndsItem($prefix, $keyword) -and
+                -not ($canBeName -and [SqlAssistPhraseProber]::EndsItem($prefix, $PlainName))) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+})
+
+Write-Host "寫完一項的字：$($itemEndings -join ', ')"
+
 # ---------------------------------------------------------------------- 產出
 
 $builder = [System.Text.StringBuilder]::new()
@@ -880,6 +963,29 @@ $null = $builder.AppendLine('    {')
 $line = '       '
 
 foreach ($keyword in $reserved) {
+    $entry = " `"$keyword`","
+
+    if ($line.Length + $entry.Length -gt 96) {
+        $null = $builder.AppendLine($line)
+        $line = '       '
+    }
+
+    $line += $entry
+}
+
+if ($line.Trim().Length -gt 0) {
+    $null = $builder.AppendLine($line)
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>本身就把前一格開的那一項寫完的字（NULL、DESC）。</summary>')
+$null = $builder.AppendLine('    internal static readonly string[] ItemEndings =')
+$null = $builder.AppendLine('    {')
+
+$line = '       '
+
+foreach ($keyword in $itemEndings) {
     $entry = " `"$keyword`","
 
     if ($line.Length + $entry.Length -gt 96) {

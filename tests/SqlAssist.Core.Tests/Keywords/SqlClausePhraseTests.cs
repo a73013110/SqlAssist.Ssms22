@@ -113,6 +113,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT PUBL_CODE\nFROM dbo.PUBLISHER\nFOR ", "XML", "JSON", "BROWSE", "SYSTEM_TIME")]
     [InlineData("SELECT a FROM t WHERE a = 1 FOR ", "XML", "JSON", "BROWSE")]
     [InlineData("SELECT a FROM t ORDER BY a FOR ", "XML", "JSON")]
+    [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "XML", "JSON")]
     [InlineData("SELECT a FROM t GROUP BY a FOR ", "XML", "JSON")]
     [InlineData("SELECT 1 AS a FOR ", "XML", "JSON")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "INSERT", "UPDATE", "DELETE")]
@@ -149,6 +150,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t WHERE a = 1 FOR ", "SYSTEM_TIME")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "XML")]
     [InlineData("DECLARE c CURSOR FOR ", "XML")]
+    [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "SELECT")]
+    [InlineData("IF @a = 1 SET ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -199,13 +202,12 @@ public sealed class SqlClausePhraseTests
     /// 前一格判不出位置時片語只加字：片語的字與位置的整份關鍵字都在，清單不封閉。
     /// </summary>
     /// <remarks>
-    /// 游標指令的選項之後、<c>DESC</c> 之後、IF 條件之後，位置分析都判不出來。
-    /// 把那裡的 FOR 當成查詢之後的 FOR 並封閉清單的話，游標要的 SELECT 就不見了。
+    /// 沒有子句關鍵字的一句（<c>PRINT @a</c>）之後，位置分析判不出來。
+    /// 把那裡的 SET 當成確定的片語並封閉清單的話，猜錯時要的字就不見了。
     /// </remarks>
     [Theory]
-    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD FOR ", "SELECT", "XML")]
-    [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "XML", "SELECT")]
-    [InlineData("IF @a = 1 SET ", "NOCOUNT", "ROWCOUNT")]
+    [InlineData("PRINT @a SET ", "NOCOUNT", "ROWCOUNT")]
+    [InlineData("EXEC dbo.p SET ", "XACT_ABORT", "ROWCOUNT")]
     public void 前一格判不出位置時片語只加字(string textBeforeCaret, string phraseWord, string catalogWord)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -218,12 +220,26 @@ public sealed class SqlClausePhraseTests
     }
 
     /// <summary>
+    /// 游標選項之後的 FOR 不是查詢之後的 FOR：不比對片語，SELECT 照列、XML 不列。
+    /// </summary>
+    [Fact]
+    public void 游標選項之後的FOR不是查詢之後的FOR()
+    {
+        const string text = "DECLARE c CURSOR LOCAL FAST_FORWARD FOR ";
+        var offered = Offered(text);
+
+        Assert.Null(SqlCompletionContextAnalyzer.Analyze(text).ClausePhrase);
+        Assert.Contains("SELECT", offered);
+        Assert.DoesNotContain("XML", offered);
+    }
+
+    /// <summary>
     /// 只加字時，目錄與片語都有的字只列一次。
     /// </summary>
     [Fact]
     public void 只加字時同名的關鍵字不重複()
     {
-        var offered = Offered("IF @a = 1 SET TRANSACTION ISOLATION LEVEL ");
+        var offered = Offered("PRINT @a SET TRANSACTION ISOLATION LEVEL ");
 
         Assert.Single(offered, word => word == "READ");
     }

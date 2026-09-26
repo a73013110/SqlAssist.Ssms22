@@ -365,7 +365,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.SelectListTail)]
     [InlineData("SELECT * FROM t WHERE x = CASE WHEN a = 1 THEN 2 END ", SqlKeywordPosition.ExpressionTail)]
     [InlineData("SELECT CASE WHEN a IN (1, ", SqlKeywordPosition.SelectList)]
-    [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.Any)]
+    [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
     [InlineData("IF @a = 1 PRINT 'x' ELSE PRINT 'y' ", SqlKeywordPosition.Any)]
     public void CASE的位置(string textBeforeToken, SqlKeywordPosition expected)
     {
@@ -619,6 +619,25 @@ public sealed class SqlKeywordPositionTests
     [InlineData("ALTER TABLE dbo.t ADD ", "UNIQUE", true)]
     [InlineData("ALTER TABLE dbo.t ADD ", "CREATE", false)]
     [InlineData("ALTER TABLE dbo.t ADD ", "PROCEDURE", false)]
+
+    // 區塊寫完：下一句的字，加上只接在 END 後面的 ELSE、TRY、CATCH。
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ", "ELSE", true)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ", "SELECT", true)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ", "WHERE", false)]
+    [InlineData("BEGIN TRY SELECT 1 END ", "TRY", true)]
+    [InlineData("BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 1 END ", "CATCH", true)]
+    [InlineData("", "ELSE", false)]
+
+    // IF 條件寫完：主體那一句的開頭，或條件續寫的 AND。
+    [InlineData("IF @a = 1 ", "RETURN", true)]
+    [InlineData("IF @a = 1 ", "AND", true)]
+    [InlineData("IF @a = 1 ", "PROCEDURE", false)]
+
+    // 游標選項之後只有 FOR；DESC 之後不再是整份目錄。
+    [InlineData("DECLARE c CURSOR LOCAL ", "FOR", true)]
+    [InlineData("DECLARE c CURSOR LOCAL ", "SELECT", false)]
+    [InlineData("SELECT a FROM t ORDER BY a DESC ", "OFFSET", true)]
+    [InlineData("SELECT a FROM t ORDER BY a DESC ", "HAVING", false)]
     public void 位置過濾決定關鍵字出不出現(string textBeforeCaret, string keyword, bool expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + keyword.Substring(0, 1));
@@ -690,6 +709,12 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT 1; ", false)]
     [InlineData("BEGIN ", false)]
     [InlineData("", false)]
+
+    // 條件、區塊與游標選項之後同樣寫不出既有物件；主體那一句判不出來時照列。
+    [InlineData("IF @a = 1 ", false)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ", false)]
+    [InlineData("DECLARE c CURSOR LOCAL ", false)]
+    [InlineData("IF @a = 1 PRINT 'x' ", true)]
     public void 位置過濾也管資料庫物件(string textBeforeCaret, bool expected)
     {
         var table = new SqlSuggestion(
@@ -1173,5 +1198,108 @@ public sealed class SqlKeywordPositionTests
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeToken + "ssf");
         Assert.Contains(SuggestionContextFilter.Filter(suggestions, context),
             suggestion => suggestion.DisplayText == "ssf");
+    }
+
+    /// <summary>
+    /// 本身就把那一項寫完的關鍵字，之後與識別字之後相同，由往回找到的子句決定。
+    /// </summary>
+    /// <remarks>
+    /// 以前這些字一律回 <see cref="SqlKeywordPosition.Any"/>：<c>ORDER BY a DESC </c> 之後
+    /// 整份目錄與片段全部進場，後面的 <c>FOR</c> 也只能當成「可能」的片語。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT a FROM t ORDER BY a DESC ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT a FROM t ORDER BY a ASC, b DESC ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT a FROM t ORDER BY a OFFSET 10 ROWS ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("SELECT a FROM t WHERE a IS NULL ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT a FROM t WHERE a IS NOT NULL ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT a FROM t WHERE x = CURRENT_USER ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT CASE WHEN a IS NULL ", SqlKeywordPosition.CaseArm)]
+    [InlineData("SELECT NULL ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT CURRENT_TIMESTAMP ", SqlKeywordPosition.SelectListTail)]
+    [InlineData("SELECT * FROM t HOLDLOCK ", SqlKeywordPosition.TableSourceTail)]
+
+    // TRAN 寫完的是語句本身，不是子句裡的一項：往回找只會找到上一句的 WHERE。
+    [InlineData("SELECT a FROM t WHERE b = 1\nBEGIN TRAN ", SqlKeywordPosition.Any)]
+    public void 寫完一項的關鍵字之後由子句決定位置(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 自成一項的關鍵字與常值一樣，後面同一行可能是別名。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT NULL ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT CURRENT_TIMESTAMP ", SqlCompletionSlot.MaybeName)]
+    [InlineData("SELECT NULL x ", SqlCompletionSlot.Grammar)]
+    public void 自成一項的關鍵字之後可能是別名(string textBeforeToken, SqlCompletionSlot expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Slot);
+    }
+
+    /// <summary>
+    /// IF、WHILE 的條件寫完之後是主體那一句的開頭，也還能接 AND、OR。
+    /// </summary>
+    /// <remarks>
+    /// 語句開頭只屬於條件那一層：括號還沒關上時仍在條件裡；已經寫了主體那一句的開頭，
+    /// 而那一句沒有自己的子句關鍵字時判不出來，不拿 IF 的位置去猜。
+    /// <c>DROP TABLE IF EXISTS t </c> 的 IF 也被當成錨點，那裡的確是一句的結尾。
+    /// </remarks>
+    [Theory]
+    [InlineData("IF @a = 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("WHILE @i < 1 ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF @a IS NULL ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF EXISTS (SELECT 1 FROM t) ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF NOT EXISTS (SELECT 1 FROM t) AND @a = 1 ",
+        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("SELECT 1; WHILE @@FETCH_STATUS = 0 ",
+        SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("DROP TABLE IF EXISTS t ", SqlKeywordPosition.StatementStart | SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF (@a = 1 ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF @a = 1 SELECT a FROM t WHERE b = 1 ", SqlKeywordPosition.ExpressionTail)]
+    [InlineData("IF @a = 1 PRINT 'x' ", SqlKeywordPosition.Any)]
+    [InlineData("IF @a = 1 EXEC dbo.p ", SqlKeywordPosition.Any)]
+    public void IF與WHILE的條件寫完是主體的開頭(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 語句區塊的開頭與結尾之後是下一句；BEGIN … END 的 END 另外接得了 ELSE、TRY、CATCH。
+    /// </summary>
+    /// <remarks>
+    /// CASE 的 ELSE 不是區塊邊界，照舊判不出來；寫完的 CASE … END 是運算元。
+    /// </remarks>
+    [Theory]
+    [InlineData("IF @a = 1 SELECT 1 ELSE ", SqlKeywordPosition.StatementStart)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ELSE ", SqlKeywordPosition.StatementStart)]
+    [InlineData("IF CASE WHEN @a = 1 THEN 1 END = 1 PRINT 1 ELSE ", SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN TRY ", SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN TRY SELECT 1 END TRY ", SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN TRY SELECT 1 END TRY BEGIN CATCH ", SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN TRY SELECT 1 END TRY BEGIN CATCH SELECT 1 END CATCH ", SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
+    [InlineData("IF @a = 1 BEGIN SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
+    [InlineData("BEGIN TRY SELECT 1 END ", SqlKeywordPosition.BlockEnd | SqlKeywordPosition.StatementStart)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN 1 ELSE ", SqlKeywordPosition.Any)]
+    [InlineData("IF @a = 1 SELECT CASE WHEN b = 1 THEN 1 ELSE ", SqlKeywordPosition.Any)]
+    [InlineData("SELECT CASE WHEN a = 1 THEN 1 END ", SqlKeywordPosition.SelectListTail)]
+    public void 區塊邊界之後是下一句(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    /// <summary>
+    /// 游標宣告的選項之後只接更多選項或 FOR。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE c CURSOR ", SqlKeywordPosition.CursorOption)]
+    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD ", SqlKeywordPosition.CursorOption)]
+    [InlineData("DECLARE [c] SCROLL CURSOR ", SqlKeywordPosition.CursorOption)]
+    [InlineData("DECLARE @c CURSOR ", SqlKeywordPosition.Any)]
+    public void 游標選項之後只接FOR(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 }
