@@ -15,7 +15,7 @@ public readonly struct SqlCaretPosition
     public SqlCaretPosition(
         SqlKeywordPosition keywords,
         SqlCompletionSlot slot = SqlCompletionSlot.Grammar,
-        SqlClausePhrase? phrase = null,
+        SqlClausePhraseMatch? phrase = null,
         bool startsBatch = false)
     {
         Keywords = keywords;
@@ -37,9 +37,9 @@ public readonly struct SqlCaretPosition
     public SqlCompletionSlot Slot { get; }
 
     /// <summary>
-    /// 游標前面比對到的子句片語；比對到時，這一格的關鍵字只來自它，不看 <see cref="Keywords"/>。
+    /// 游標前面比對到的子句片語；比對確定時，這一格的關鍵字只來自它，不看 <see cref="Keywords"/>。
     /// </summary>
-    public SqlClausePhrase? Phrase { get; }
+    public SqlClausePhraseMatch? Phrase { get; }
 
     /// <summary>游標前面同一個批次裡還沒有任何詞元：文件開頭或 <c>GO</c> 之後。</summary>
     /// <remarks>

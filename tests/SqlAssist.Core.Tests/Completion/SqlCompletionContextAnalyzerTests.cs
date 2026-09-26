@@ -372,17 +372,22 @@ public sealed class SqlCompletionContextAnalyzerTests
     /// </summary>
     /// <remarks>
     /// 預存程序與檢視的主體開頭就在 <c>AS</c> 之後，那裡少了 <c>BEGIN</c>、
-    /// <c>SELECT</c> 的話，這個修正就從一個問題換成另一個問題。
+    /// <c>SELECT</c> 的話，這個修正就從一個問題換成另一個問題。主體是一句的開頭。
     /// </remarks>
     [Theory]
-    [InlineData("CREATE PROCEDURE dbo.p AS BEG")]
-    [InlineData("CREATE VIEW v AS SEL")]
-    public void AS之後是主體時照常建議(string textBeforeCaret)
+    [InlineData("CREATE PROCEDURE dbo.p AS BEG", "BEGIN")]
+    [InlineData("CREATE VIEW v AS SEL", "SELECT")]
+    public void AS之後是主體時照常建議(string textBeforeCaret, string keyword)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
 
         Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
-        Assert.Equal(SqlKeywordPosition.Any, context.KeywordPosition);
+        Assert.Equal(SqlKeywordPosition.StatementStart, context.KeywordPosition);
+        Assert.Contains(
+            SuggestionContextFilter.Filter(suggestions, context),
+            suggestion => suggestion.Kind == SuggestionKind.Keyword &&
+                suggestion.DisplayText == keyword);
     }
 
     /// <summary>別名寫完之後就恢復正常，那裡要的是 WHERE、JOIN 這些子句關鍵字。</summary>

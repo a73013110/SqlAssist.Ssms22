@@ -43,6 +43,8 @@
         候選字取 ScriptDom 內部 CodeGenerationSupporter 的所有字串常數加上關鍵字清單，
         以與第三階段相同的規則（普通名稱過不了而它過得了）決定哪些字接得上。
         普通名稱在每一組續尾都過不了的片語是「封閉」的：那裡除了這幾個字沒有別的東西是對的。
+        片語也記下它前面那一格的位置（After），探測借用第三階段的樣板，執行期以同一個位置
+        分析回驗：一句開頭的 SET 與 UPDATE t SET 的 SET 是同一條尾巴、不同的意思。
         手寫的只有片語的尾巴；片語表與探測文字一併輸出，Core 的測試逐條回驗。
 
 .PARAMETER SsmsInstallDir
@@ -253,8 +255,9 @@ $ContextTemplates = [ordered]@{
     # 兩個都要：WHERE a 之後是 IN、IS、LIKE、BETWEEN，
     # WHERE a = 1 之後才是 AND、OR 與後續子句。分析器一樣分不出來。
     # LIKE 的樣式寫完之後同樣回報這個位置，ESCAPE 只在那裡。
+    # 第一個是代表寫法，子句片語拿它探測。
     ExpressionTail   = @(
-        'SELECT * FROM t WHERE a ', 'SELECT * FROM t WHERE a = 1 ',
+        'SELECT * FROM t WHERE a = 1 ', 'SELECT * FROM t WHERE a ',
         "SELECT * FROM t WHERE a LIKE 'x' ")
     # OFFSET 10 之後的 ROWS、視窗函式 OVER (ORDER BY a 之後的 ROWS／RANGE 也在這裡。
     OrderByTail      = @(
@@ -442,32 +445,37 @@ $phrasePool = @($keywords) + @($supporterWords) | Sort-Object -Unique
 Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 
 # 片語的尾巴。執行期由 SqlClausePhrase 以同一份文字比對游標前的詞元：
-#   ^        片語的第一個字必須是一句的開頭（UPDATE t SET 的 SET 不是選項的 SET）
 #   {name}   一個名稱單位，可以含點號與方括號；保留字也算（ALTER INDEX ALL、ALTER DATABASE CURRENT）
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號
 #   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
-# Lead 只給探測用：片語的尾巴本身不是完整的上下文時，前面要墊的文字。
+#
+# 片語前面那一格由 After 與 Lead 二選一交代：
+#   After  片語第一個字前面的位置，名稱取自 $ContextTemplates。探測用那些位置的樣板，
+#          執行期也只在前一格是這些位置時才算數——同一條尾巴在不同位置是不同的意思
+#          （查詢之後的 FOR 接 XML，UPDATE t SET 的 SET 不是選項的 SET）。
+#          兩個都不寫就是 StatementStart：沒有 Lead 的片語都從一句的開頭寫起。
+#   Lead   尾巴本身就認得出意思、只是探測時要墊的文字；執行期不看前一格。
 # Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
 # Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
 # 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來。
 # Closed 由人宣告那一格只有這幾個值。
-# 同一條尾巴後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
+# 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 $ClausePhrases = @(
-    @{ Pattern = '^SET'; Expand = 4 }
-    @{ Pattern = '^SET IDENTITY_INSERT {name}' }
-    @{ Pattern = '^SET DATEFORMAT'; Values = @('mdy', 'dmy', 'ymd', 'ydm', 'myd', 'dym'); Closed = $true }
-    @{ Pattern = '^SET DEADLOCK_PRIORITY'; Values = @('LOW', 'NORMAL', 'HIGH'); Closed = $true }
+    @{ Pattern = 'SET'; Expand = 4 }
+    @{ Pattern = 'SET IDENTITY_INSERT {name}' }
+    @{ Pattern = 'SET DATEFORMAT'; Values = @('mdy', 'dmy', 'ymd', 'ydm', 'myd', 'dym'); Closed = $true }
+    @{ Pattern = 'SET DEADLOCK_PRIORITY'; Values = @('LOW', 'NORMAL', 'HIGH'); Closed = $true }
 
-    @{ Pattern = '^CREATE' }
-    @{ Pattern = '^ALTER' }
-    @{ Pattern = '^DROP' }
+    @{ Pattern = 'CREATE' }
+    @{ Pattern = 'ALTER' }
+    @{ Pattern = 'DROP' }
     @{ Pattern = 'CREATE OR ALTER' }
-    @{ Pattern = '^ALTER TABLE {name}' }
-    @{ Pattern = '^ALTER DATABASE {name}' }
-    @{ Pattern = '^ALTER DATABASE {name} SET'; Expand = 1 }
-    @{ Pattern = '^BACKUP' }
-    @{ Pattern = '^RESTORE' }
+    @{ Pattern = 'ALTER TABLE {name}' }
+    @{ Pattern = 'ALTER DATABASE {name}' }
+    @{ Pattern = 'ALTER DATABASE {name} SET'; Expand = 1 }
+    @{ Pattern = 'BACKUP' }
+    @{ Pattern = 'RESTORE' }
 
     # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了。
     @{ Pattern = 'ALTER INDEX {name} ON {name}' }
@@ -476,8 +484,8 @@ $ClausePhrases = @(
     @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
     @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
 
-    @{ Pattern = 'TRIGGER {name} ON {name}'; Lead = 'CREATE ' }
-    @{ Pattern = 'INSTEAD'; Lead = 'CREATE TRIGGER tr ON t ' }
+    # AFTER、FOR、INSTEAD 之後是 INSERT／UPDATE／DELETE 與 OF，WITH 之後是 ENCRYPTION 這些選項。
+    @{ Pattern = 'TRIGGER {name} ON {name}'; Lead = 'CREATE '; Expand = 1 }
     @{ Pattern = 'EXECUTE AS' }
     @{ Pattern = 'EXEC AS' }
     @{ Pattern = 'WITH EXECUTE AS'; Lead = 'CREATE PROCEDURE p ' }
@@ -487,11 +495,20 @@ $ClausePhrases = @(
 
     @{ Pattern = 'WAITFOR' }
     @{ Pattern = 'DECLARE {name} CURSOR' }
-    @{ Pattern = '^FETCH' }
+    @{ Pattern = 'FETCH' }
 
-    @{ Pattern = 'FOR XML'; Lead = 'SELECT a FROM t ' }
-    @{ Pattern = 'FOR JSON'; Lead = 'SELECT a FROM t ' }
-    @{ Pattern = 'FOR SYSTEM_TIME'; Lead = 'SELECT a FROM t '; Expand = 1 }
+    # FOR 有好幾種意思。查詢寫完之後是 XML、JSON、BROWSE，資料表之後多一個 SYSTEM_TIME——
+    # 這兩種由前一格的位置分開。觸發程序、游標、序列、預設值條件約束、使用者與同義字的
+    # FOR 前一格判不出位置，各寫一條更長的尾巴；同時比對得上時取項數多的。
+    @{ Pattern = 'FOR'; After = @('SelectListTail', 'TableSourceTail', 'ExpressionTail', 'OrderByTail', 'GroupByTail'); Expand = 1 }
+    @{ Pattern = 'FOR SYSTEM_TIME'; After = @('TableSourceTail'); Expand = 1 }
+    @{ Pattern = 'CURSOR FOR'; Lead = 'DECLARE c ' }
+    @{ Pattern = 'NEXT VALUE FOR'; Lead = 'SELECT ' }
+    @{ Pattern = 'DEFAULT {value} FOR'; Lead = 'ALTER TABLE t ADD ' }
+    @{ Pattern = 'USER {name} FOR'; Lead = 'CREATE ' }
+    @{ Pattern = 'SYNONYM {name} FOR'; Lead = 'CREATE ' }
+    @{ Pattern = 'NOT FOR'; Lead = 'CREATE TABLE t (a int IDENTITY ' }
+
     @{ Pattern = 'GROUP BY'; Lead = 'SELECT a FROM t '; Values = @('ROLLUP', 'CUBE', 'GROUPING SETS') }
     @{ Pattern = 'TOP {value} WITH'; Lead = 'SELECT ' }
     @{ Pattern = 'PERCENT WITH'; Lead = 'SELECT TOP 10 ' }
@@ -662,7 +679,7 @@ public static class SqlAssistPhraseProber
 function Get-PhraseProbe {
     param([string]$Lead, [string]$Pattern)
 
-    $text = $Pattern.TrimStart('^').Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
+    $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
     $text = $Lead + $text.Replace('(*', '(')
 
     return $text.EndsWith('(') ? $text : $text + ' '
@@ -687,9 +704,9 @@ $statementStarters = [System.Collections.Generic.HashSet[string]]::new(
 $phrases = [ordered]@{}
 
 function Add-ClausePhrase {
-    param([string]$Pattern, [string]$Probe, [int]$Expand, [object[]]$Values, [object]$Closed)
+    param([string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed)
 
-    Write-Progress -Activity '探測子句片語' -Status $Pattern
+    Write-Progress -Activity '探測子句片語' -Status "$Pattern（$After）"
     $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
     $found = @(Get-PhraseWords -Probe $Probe)
 
@@ -713,7 +730,9 @@ function Add-ClausePhrase {
         }
     }
 
-    $script:phrases[$Pattern] = @{
+    $script:phrases["$After`t$Pattern"] = @{
+        Pattern       = $Pattern
+        After         = $After
         Probe         = $Probe
         Closed        = $null -ne $Closed ? [bool]$Closed : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
         EndsStatement = $endsStatement
@@ -729,21 +748,65 @@ function Add-ClausePhrase {
         $childProbe = "$Probe$word "
 
         # 語句在這裡已經完整（SET NOCOUNT ON）就不再往下：後面接的是下一句。
-        if ($script:phrases.Contains($child) -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
+        if ($script:phrases.Contains("$After`t$child") -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
             continue
         }
 
-        Add-ClausePhrase -Pattern $child -Probe $childProbe -Expand ($Expand - 1)
+        Add-ClausePhrase -Pattern $child -Probe $childProbe -After $After -Expand ($Expand - 1)
     }
 }
 
+# 帶 After 的片語以那個位置的第一個樣板探測：它是那個位置的代表寫法，而且是完整的語句，
+# 「寫到這裡語句已經完整」的判斷才有意義。其餘樣板是第三階段為了撈齊關鍵字而加的旁支
+# （FROM t JOIN y 還缺 ON），拿來探片語只會長出那條旁支才有的字，還要多花幾倍的時間。
 foreach ($entry in $ClausePhrases) {
-    $probe = Get-PhraseProbe -Lead $entry['Lead'] -Pattern $entry['Pattern']
-    Add-ClausePhrase -Pattern $entry['Pattern'] -Probe $probe -Expand ([int]$entry['Expand']) -Values $entry['Values'] -Closed $entry['Closed']
+    $pattern = $entry['Pattern']
+    $common = @{ Pattern = $pattern; Expand = [int]$entry['Expand']; Values = $entry['Values']; Closed = $entry['Closed'] }
+
+    if ($null -ne $entry['Lead']) {
+        if ($null -ne $entry['After']) {
+            throw "片語「$pattern」的 Lead 與 After 只能寫一個。"
+        }
+
+        Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern) -After 'Any'
+        continue
+    }
+
+    foreach ($position in @($entry['After'] ?? 'StatementStart')) {
+        if (-not $ContextTemplates.Contains($position)) {
+            throw "片語「$pattern」的 After 寫了不存在的位置 $position。"
+        }
+
+        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[0] -Pattern $pattern
+        Add-ClausePhrase @common -Probe $probe -After $position
+    }
 }
 
 Write-Progress -Activity '探測子句片語' -Completed
 
+# 同一條尾巴在幾個位置上探到一模一樣的結果時併成一個片語，位置取聯集；結果不同的
+# （資料表之後的 FOR 多一個 SYSTEM_TIME）各自一個，執行期由前一格的位置分開。
+$merged = [ordered]@{}
+
+foreach ($phrase in $phrases.Values) {
+    $key = "$($phrase.Pattern)`t$($phrase.Closed)`t$($phrase.EndsStatement)`t$($phrase.Words -join ' ')"
+
+    if ($merged.Contains($key)) {
+        $merged[$key].After.Add($phrase.After)
+        continue
+    }
+
+    $merged[$key] = @{
+        Pattern       = $phrase.Pattern
+        After         = [System.Collections.Generic.List[string]]::new([string[]]@($phrase.After))
+        Probe         = $phrase.Probe
+        Closed        = $phrase.Closed
+        EndsStatement = $phrase.EndsStatement
+        Words         = $phrase.Words
+    }
+}
+
+$phrases = $merged
 $phraseWords = $phrases.Values | ForEach-Object { $_.Words } | Where-Object { $keywords -notcontains $_ } | Sort-Object -Unique
 Write-Host "子句片語：$($phrases.Count) 個，其中關鍵字清單以外的字 $(@($phraseWords).Count) 個"
 
@@ -838,15 +901,15 @@ $null = $builder.AppendLine('    /// <remarks>')
 $null = $builder.AppendLine('    /// 探測文字執行期用不到，輸出來是為了讓測試逐條回驗：片語比對對那段文字')
 $null = $builder.AppendLine('    /// 必須認出同一個片語，兩邊說的才是同一個位置。')
 $null = $builder.AppendLine('    /// </remarks>')
-$null = $builder.AppendLine('    internal static readonly (string Pattern, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =')
+$null = $builder.AppendLine('    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =')
 $null = $builder.AppendLine('    {')
 
-foreach ($pattern in $phrases.Keys) {
-    $phrase = $phrases[$pattern]
+foreach ($phrase in $phrases.Values) {
+    $afterLiteral = ($phrase.After | ForEach-Object { "SqlKeywordPosition.$_" }) -join ' | '
     $probeLiteral = $phrase.Probe.Replace('\', '\\').Replace('"', '\"')
     $closedLiteral = $phrase.Closed ? 'true' : 'false'
     $endsLiteral = $phrase.EndsStatement ? 'true' : 'false'
-    $null = $builder.AppendLine("        (`"$pattern`", `"$probeLiteral`", $closedLiteral, $endsLiteral, new string[]")
+    $null = $builder.AppendLine("        (`"$($phrase.Pattern)`", $afterLiteral, `"$probeLiteral`", $closedLiteral, $endsLiteral, new string[]")
     $null = $builder.AppendLine('        {')
 
     $line = '           '

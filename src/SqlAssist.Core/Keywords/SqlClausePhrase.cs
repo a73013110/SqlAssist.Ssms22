@@ -15,25 +15,35 @@ namespace SqlAssist.Core.Keywords;
 /// ScriptDom 掃成識別字，關鍵字目錄收不到，位置旗標也切不到這麼細。片語與它的字由
 /// <c>tools/Generate-Keywords.ps1</c> 以剖析器探測產生，這裡只負責比對與提供建議項。
 ///
-/// 比對成立時，這一格的關鍵字<b>只</b>來自片語：<see cref="SqlKeywordPosition"/> 是給整個
+/// 比對確定時，這一格的關鍵字<b>只</b>來自片語：<see cref="SqlKeywordPosition"/> 是給整個
 /// 子句的粗分層，片語是比它更靠近游標的答案。<see cref="IsClosed"/> 再決定名稱與函式還
-/// 能不能一起出現。
+/// 能不能一起出現。確定與可能的分別見 <see cref="SqlClausePhraseMatch"/>。
 /// </remarks>
 public sealed class SqlClausePhrase
 {
     private readonly Element[] _elements;
+    private readonly HashSet<string> _wordSet;
     private readonly SqlLanguageCache<IReadOnlyList<SqlSuggestion>> _suggestions;
 
-    internal SqlClausePhrase(string pattern, string probe, bool isClosed, bool endsStatement, string[] words)
+    internal SqlClausePhrase(
+        string pattern,
+        SqlKeywordPosition after,
+        string probe,
+        bool isClosed,
+        bool endsStatement,
+        string[] words)
     {
         Pattern = pattern;
+        After = after;
         Probe = probe;
         IsClosed = isClosed;
         EndsStatement = endsStatement;
         Words = words;
-        StartsStatement = pattern.StartsWith("^", StringComparison.Ordinal);
-        _elements = Parse(StartsStatement ? pattern.Substring(1) : pattern);
+        _elements = Parse(pattern);
+        _wordSet = new HashSet<string>(words, StringComparer.OrdinalIgnoreCase);
         _suggestions = new SqlLanguageCache<IReadOnlyList<SqlSuggestion>>(_ => BuildSuggestions());
+        Certain = new SqlClausePhraseMatch(this, isCertain: true);
+        Tentative = new SqlClausePhraseMatch(this, isCertain: false);
     }
 
     /// <summary>片語的尾巴，寫法見 <c>tools/Generate-Keywords.ps1</c> 的 <c>$ClausePhrases</c>。</summary>
@@ -63,11 +73,24 @@ public sealed class SqlClausePhrase
     /// <summary>這些字的建議項；說明是目前介面語言的。</summary>
     public IReadOnlyList<SqlSuggestion> Suggestions => _suggestions.Current;
 
+    /// <summary>
+    /// 片語第一個字前面那一格必須是這些位置；<see cref="SqlKeywordPosition.Any"/> 表示不看。
+    /// </summary>
+    /// <remarks>
+    /// 同一條尾巴在不同位置是不同的意思：一句開頭的 <c>SET</c> 接工作階段選項，
+    /// <c>UPDATE t SET</c> 接資料行；查詢寫完的 <c>FOR</c> 接 <c>XML</c>，資料表之後還多一個
+    /// <c>SYSTEM_TIME</c>。產生器以這些位置的樣板探測，執行期以同一個位置分析回驗。
+    /// </remarks>
+    internal SqlKeywordPosition After { get; }
+
     /// <summary>產生器探測用的文字；測試拿它回驗比對。</summary>
     internal string Probe { get; }
 
-    /// <summary>片語的第一個字必須是一句的開頭（<c>^</c>）。</summary>
-    internal bool StartsStatement { get; }
+    /// <summary>前一格對得上時的比對結果。</summary>
+    internal SqlClausePhraseMatch Certain { get; }
+
+    /// <summary>前一格判不出位置時的比對結果。</summary>
+    internal SqlClausePhraseMatch Tentative { get; }
 
     /// <summary>片語最後一項是字面值時的那個字；比對前先用它分桶。</summary>
     internal string? LastWord =>
@@ -75,6 +98,9 @@ public sealed class SqlClausePhrase
 
     /// <summary>片語有幾項；同時比對得上時，項數多的比較靠近游標的意思。</summary>
     internal int Length => _elements.Length;
+
+    /// <summary><paramref name="word"/> 是不是這個片語接得上的字。</summary>
+    internal bool Offers(string word) => _wordSet.Contains(word);
 
     /// <summary>
     /// <paramref name="tokens"/> 的尾端是不是這個片語；是的話回傳片語第一個詞元的索引，否則 -1。

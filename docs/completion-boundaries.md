@@ -58,7 +58,7 @@ Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter �
 括號是什麼由**前面**那個字決定：接在 `FROM`、`JOIN`、`APPLY`、`USING` 後面的是衍生資料表，
 接在 `IN`、`EXISTS`、`=` 後面的是運算式；`FROM (t1 JOIN t2 ON …) ` 是括號包起來的聯結、
 名稱後的 `WITH (NOLOCK)` 是提示，都不接別名。`AS` 也看前面：一項剛寫完、還沒有別名時才是
-別名，其餘照常——`CREATE VIEW v AS ` 的主體、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
+別名，其餘照常——`CREATE VIEW v AS ` 的主體（模組標頭的 AS 之後判成語句開頭）、`EXECUTE AS`、`FOR SYSTEM_TIME AS`（接 `OF`）。
 `CAST(x AS ` 由「型別的位置」先接走，見[資料型別](completion-builtins.md#資料型別)。
 
 ### 別名規則

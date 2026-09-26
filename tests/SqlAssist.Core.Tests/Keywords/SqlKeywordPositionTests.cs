@@ -164,11 +164,33 @@ public sealed class SqlKeywordPositionTests
         var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
 
         Assert.Equal(isAlias ? SqlCompletionSlot.Name : SqlCompletionSlot.Grammar, caret.Slot);
+    }
 
-        if (!isAlias)
-        {
-            Assert.Equal(SqlKeywordPosition.Any, caret.Keywords);
-        }
+    /// <summary>
+    /// 模組標頭的 <c>AS</c> 之後是主體：一句的開頭。
+    /// </summary>
+    /// <remarks>
+    /// 以前這裡判不出位置，主體開頭的 <c>SET NOCOUNT </c> 因此只能以「可能」的身分列出
+    /// ON／OFF，整份目錄跟著進場。標頭本身的 AS（<c>EXECUTE AS</c>、參數的 <c>@a AS int</c>）
+    /// 不算，走出標頭之後的 AS 也不算。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE PROCEDURE dbo.p AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE PROCEDURE dbo.p @a int AS\n", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE PROCEDURE p @a AS int AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE PROC p WITH EXECUTE AS OWNER AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE OR ALTER VIEW v (a, b) AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("ALTER FUNCTION f (@a int) RETURNS @t TABLE (a int) AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("CREATE TRIGGER t ON dbo.T AFTER INSERT, UPDATE AS ", SqlKeywordPosition.StatementStart)]
+    [InlineData("EXECUTE AS ", SqlKeywordPosition.Any)]
+    [InlineData("CREATE PROC p WITH EXECUTE AS ", SqlKeywordPosition.Any)]
+    [InlineData("CREATE PROCEDURE p @a AS ", SqlKeywordPosition.Any)]
+    [InlineData("CREATE TYPE dbo.T AS ", SqlKeywordPosition.Any)]
+    [InlineData("ALTER TABLE t ADD c AS ", SqlKeywordPosition.Any)]
+    [InlineData("CREATE PROCEDURE p AS BEGIN EXECUTE AS ", SqlKeywordPosition.Any)]
+    public void 模組標頭的AS之後是主體開頭(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 
     /// <summary>

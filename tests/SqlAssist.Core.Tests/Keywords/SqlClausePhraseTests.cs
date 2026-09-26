@@ -33,18 +33,21 @@ public sealed class SqlClausePhraseTests
     /// 產生器探測每個片語用的文字，執行期比對得回同一個片語。
     /// </summary>
     /// <remarks>
-    /// 兩邊說的不是同一個位置時，片語的字會出現在錯的地方或永遠不出現。項數相同的
-    /// 兩條尾巴同時比對得上也在這裡擋下：那代表片語表寫重了，誰先誰後只是順序的巧合。
+    /// 兩邊說的不是同一個位置時，片語的字會出現在錯的地方或永遠不出現。比對還要是確定的：
+    /// 探測文字前面墊的是 After 那些位置的樣板，位置分析判不出來就是兩邊說的不是同一個位置。
+    /// 同一條尾巴在不同位置上的片語也在這裡分開——比對回別的那一個就代表位置重疊了。
     /// </remarks>
     [Theory]
     [MemberData(nameof(GeneratorProbes))]
     public void 產生器的探測文字比對回同一個片語(string pattern, string probe)
     {
         var tokens = SqlTokenizer.Tokenize(probe);
-        var phrase = SqlClausePhraseCatalog.Match(tokens, probe);
+        var match = SqlClausePhraseCatalog.Match(tokens, probe);
 
-        Assert.NotNull(phrase);
-        Assert.Equal(pattern, phrase!.Pattern);
+        Assert.NotNull(match);
+        Assert.True(match!.IsCertain);
+        Assert.Equal(pattern, match.Phrase.Pattern);
+        Assert.Equal(probe, match.Phrase.Probe);
     }
 
     [Fact]
@@ -105,6 +108,19 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t GROUP BY ", "ROLLUP", "CUBE", "GROUPING SETS")]
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", "CASCADE", "NO", "SET")]
     [InlineData("CREATE TABLE t (a int REFERENCES u (a) ON DELETE NO ", "ACTION")]
+    [InlineData("CREATE PROCEDURE p AS\nSET NOCOUNT ", "ON", "OFF")]
+    [InlineData("SELECT a FROM t FOR ", "XML", "JSON", "BROWSE", "SYSTEM_TIME")]
+    [InlineData("SELECT PUBL_CODE\nFROM dbo.PUBLISHER\nFOR ", "XML", "JSON", "BROWSE", "SYSTEM_TIME")]
+    [InlineData("SELECT a FROM t WHERE a = 1 FOR ", "XML", "JSON", "BROWSE")]
+    [InlineData("SELECT a FROM t ORDER BY a FOR ", "XML", "JSON")]
+    [InlineData("SELECT a FROM t GROUP BY a FOR ", "XML", "JSON")]
+    [InlineData("SELECT 1 AS a FOR ", "XML", "JSON")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "INSERT", "UPDATE", "DELETE")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan AFTER ", "INSERT", "UPDATE", "DELETE")]
+    [InlineData("DECLARE c CURSOR FOR ", "SELECT")]
+    [InlineData("DECLARE c SCROLL CURSOR FOR ", "SELECT")]
+    [InlineData("CREATE USER u FOR ", "LOGIN")]
+    [InlineData("CREATE TABLE t (a int IDENTITY NOT FOR ", "REPLICATION")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -128,6 +144,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET ", "SELECT")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (", "NOLOCK")]
     [InlineData("ALTER INDEX IX_Loan ON dbo.Loan ", "WHERE")]
+    [InlineData("CREATE PROCEDURE p AS\nSET NOCOUNT ", "READ")]
+    [InlineData("SELECT a FROM t FOR ", "SELECT")]
+    [InlineData("SELECT a FROM t WHERE a = 1 FOR ", "SYSTEM_TIME")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "XML")]
+    [InlineData("DECLARE c CURSOR FOR ", "XML")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -160,6 +181,11 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET ROWCOUNT ", true)]
     [InlineData("SET IDENTITY_INSERT ", false)]
     [InlineData("SELECT a FROM t GROUP BY ", false)]
+    [InlineData("SELECT a FROM t FOR ", true)]
+    [InlineData("CREATE TRIGGER tr ON t FOR ", true)]
+    [InlineData("SELECT NEXT VALUE FOR ", false)]
+    [InlineData("ALTER TABLE t ADD CONSTRAINT df DEFAULT 0 FOR ", false)]
+    [InlineData("CREATE SYNONYM s FOR ", false)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -167,6 +193,39 @@ public sealed class SqlClausePhraseTests
         Assert.NotNull(context.ClausePhrase);
         Assert.Equal(closed, context.ClausePhrase!.IsClosed);
         Assert.Equal(closed, context.Target == CompletionTarget.ClauseKeyword);
+    }
+
+    /// <summary>
+    /// 前一格判不出位置時片語只加字：片語的字與位置的整份關鍵字都在，清單不封閉。
+    /// </summary>
+    /// <remarks>
+    /// 游標指令的選項之後、<c>DESC</c> 之後、IF 條件之後，位置分析都判不出來。
+    /// 把那裡的 FOR 當成查詢之後的 FOR 並封閉清單的話，游標要的 SELECT 就不見了。
+    /// </remarks>
+    [Theory]
+    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD FOR ", "SELECT", "XML")]
+    [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "XML", "SELECT")]
+    [InlineData("IF @a = 1 SET ", "NOCOUNT", "ROWCOUNT")]
+    public void 前一格判不出位置時片語只加字(string textBeforeCaret, string phraseWord, string catalogWord)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+        var offered = Offered(textBeforeCaret);
+
+        Assert.False(context.ClausePhrase!.IsCertain);
+        Assert.NotEqual(CompletionTarget.ClauseKeyword, context.Target);
+        Assert.Contains(phraseWord, offered);
+        Assert.Contains(catalogWord, offered);
+    }
+
+    /// <summary>
+    /// 只加字時，目錄與片語都有的字只列一次。
+    /// </summary>
+    [Fact]
+    public void 只加字時同名的關鍵字不重複()
+    {
+        var offered = Offered("IF @a = 1 SET TRANSACTION ISOLATION LEVEL ");
+
+        Assert.Single(offered, word => word == "READ");
     }
 
     /// <summary>

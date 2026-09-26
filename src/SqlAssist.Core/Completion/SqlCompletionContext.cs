@@ -25,7 +25,7 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
         SqlExecutedModule? executedModule = null,
         int qualifierStart = -1,
-        SqlClausePhrase? clausePhrase = null,
+        SqlClausePhraseMatch? clausePhrase = null,
         bool startsBatch = false,
         bool expectsScalar = false)
     {
@@ -205,13 +205,14 @@ public sealed class SqlCompletionContext
     public SqlKeywordPosition KeywordPosition { get; }
 
     /// <summary>
-    /// 游標前面比對到的子句片語；比對到時，這一格的關鍵字只來自它。
+    /// 游標前面比對到的子句片語；比對確定時，這一格的關鍵字只來自它。
     /// </summary>
     /// <remarks>
-    /// 片語封閉時 <see cref="Target"/> 是 <see cref="CompletionTarget.ClauseKeyword"/>，
-    /// 清單只有它的字；不封閉時名稱照常，只有關鍵字換成它的字。
+    /// 確定而且封閉時 <see cref="Target"/> 是 <see cref="CompletionTarget.ClauseKeyword"/>，
+    /// 清單只有它的字；不封閉時名稱照常，只有關鍵字換成它的字。前一格判不出位置時
+    /// 片語的字只是加進來，見 <see cref="SqlClausePhraseMatch"/>。
     /// </remarks>
-    public SqlClausePhrase? ClausePhrase { get; }
+    public SqlClausePhraseMatch? ClausePhrase { get; }
 
     /// <summary>游標在批次的第一句：只有這裡可以省略 EXEC 直接寫程序名稱。</summary>
     public bool StartsBatch { get; }

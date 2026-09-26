@@ -19,7 +19,6 @@
 
 | 寫法 | 意思 |
 |---|---|
-| `^SET` | 第一個字必須是一句的開頭：`UPDATE t SET ` 的 SET 不算 |
 | `{name}` | 一個名稱單位，含點號；保留字也算（`ALTER DATABASE CURRENT`） |
 | `{value}` | 數值、字串、變數或一整組括號 |
 | `()` | 一整組括號 |
@@ -44,13 +43,37 @@
 
 新增一個片語只要加一行再重跑，執行期不必改。
 
+### 前一格
+
+同一條尾巴在不同位置是不同的意思：一句開頭的 `SET` 接工作階段選項，`UPDATE t SET` 接資料行；
+查詢寫完的 `FOR` 接 `XML`、`JSON`、`BROWSE`，資料表之後多一個 `SYSTEM_TIME`。
+所以每個片語交代它第一個字前面那一格，二選一：
+
+- `After`：位置名稱，取自第三階段的樣板表，探測用每個位置的**第一個**樣板，
+  執行期由同一個位置分析回驗；兩個都不寫就是 `StatementStart`。
+  幾個位置探到一樣的結果時併成一個片語，不一樣的各自一個。
+- `Lead`：尾巴本身就認得出意思（`NOT MATCHED`、`WITH EXECUTE AS`），只是探測要墊文字；執行期不看前一格。
+
+第一個樣板是那個位置的代表寫法，而且是完整的語句，「寫到這裡已經完整」才判得準。其餘樣板是
+第三階段撈齊關鍵字用的旁支：拿 `FROM t JOIN y` 探會長出 `FOR PATH` 之後一整串還缺 `ON` 的字，
+時間也多好幾倍。
+
+`FOR` 前一格判不出位置的那幾種意思（觸發程序、游標、`NEXT VALUE`、預設值條件約束、
+`CREATE USER`、`CREATE SYNONYM`、`NOT FOR REPLICATION`）各寫一條更長的尾巴，由比對取項數多的分開。
+
 ## 執行期
 
 `SqlKeywordPositionAnalyzer.Analyze` 順手比對片語，結果放在 `SqlCaretPosition.Phrase`。
 同時比對得上時取項數多的：`OFFSET 10 ROWS ` 是 `OFFSET {value} ROWS` 而不是視窗框架的
 `ROWS`。比對先依最後一個字分桶，每次按鍵只試同一桶與少數以佔位項結尾的片語。
 
-比對到片語時**這一格的關鍵字只來自片語**，規則在 `SuggestionContextFilter` 一處，
+帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
+才算，區塊開頭視同語句開頭（`BEGIN SET`）。前一格判不出位置（`Any`）時比對結果是**可能**
+（`SqlClausePhraseMatch.IsCertain` 為否）：片語的字加進整份關鍵字，同名的目錄字讓給片語，
+清單不封閉。`DECLARE c CURSOR LOCAL FOR ` 的前一格判不出來，當成查詢之後的 FOR 並封閉
+的話只剩 XML，要的 SELECT 反而不見——猜錯的代價必須是多幾個字。
+
+比對**確定**時這一格的關鍵字只來自片語，規則在 `SuggestionContextFilter` 一處，
 認的是建議項的 `Tag` 而不是文字——`READ` 同時在目錄與片語裡。
 
 - 封閉：目標是 `ClauseKeyword`，清單只有片語的字，排在 `WITH (` 資料表提示之前判斷，
@@ -58,8 +81,8 @@
   `SET `、`CREATE ` 打完空白就開清單。
 - 不封閉（`SET IDENTITY_INSERT ` 之後是資料表）：名稱照常，只有關鍵字換掉。
 
-`^` 用的是 `SqlKeywordPositionAnalyzer.StartsStatementAt`：前一個位置含語句或區塊開頭，
-或子句寫完又換了行；判不出來算是，與位置分析 fail-open 同向。
+「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
+`AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）因此判成語句開頭。
 
 ## 刻意沒收的
 
@@ -69,5 +92,7 @@
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
 - 不在括號裡的選項清單（`BACKUP … WITH COMPRESSION, `、`CURSOR LOCAL `之後的第二個選項）：
   尾巴表達不了重複，而 `BACKUP` 與 `RESTORE` 的 `WITH` 前綴相同、選項不同。
+- 觸發程序在選項之後的 FOR（`ON t WITH ENCRYPTION FOR `）：前一格判得出是資料來源尾端，
+  會被當成查詢之後的 FOR。
 - `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
   名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。

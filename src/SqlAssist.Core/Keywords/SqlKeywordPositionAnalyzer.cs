@@ -180,6 +180,13 @@ public static class SqlKeywordPositionAnalyzer
             "INDEX", "SEQUENCE", "SYNONYM", "DATABASE", "STATISTICS", "ROLE", "USER", "LOGIN"
         };
 
+    /// <summary>標頭以 <c>AS</c> 結束、後面接主體的物件種類。</summary>
+    private static readonly HashSet<string> ModuleKinds =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "PROCEDURE", "PROC", "FUNCTION", "TRIGGER", "VIEW"
+        };
+
     /// <summary><c>CREATE</c> 與 <c>INDEX</c> 之間可以夾的字。</summary>
     private static readonly HashSet<string> IndexModifiers =
         new(StringComparer.OrdinalIgnoreCase)
@@ -245,25 +252,22 @@ public static class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>
-    /// <paramref name="index"/> 的詞元是不是一句的開頭。
+    /// <paramref name="index"/> 的詞元前面那一格是什麼位置。
     /// </summary>
     /// <remarks>
-    /// 子句片語的 <c>^</c> 問的就是這個：<c>UPDATE t SET </c> 的 SET 接的是資料行，
-    /// 不是工作階段選項。判法與游標處的位置分析同一條——前面的位置含語句開頭或區塊開頭，
-    /// 或者子句寫完又換了行；判不出來（<see cref="SqlKeywordPosition.Any"/>）時算是，
-    /// 與位置分析 fail-open 的方向一致。
+    /// 子句片語的 <see cref="SqlClausePhrase.After"/> 問的就是這個：<c>UPDATE t SET </c> 的 SET
+    /// 前面是資料來源尾端，接的是資料行，不是工作階段選項。判法與游標處的位置分析同一條，
+    /// 子句寫完又換了行時一樣補上語句開頭。
     /// </remarks>
-    internal static bool StartsStatementAt(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
+    internal static SqlKeywordPosition PositionBefore(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
     {
         if (index <= 0)
         {
-            return true;
+            return SqlKeywordPosition.StatementStart;
         }
 
         var before = AnalyzeAt(tokens, index - 1, followAlias: true).Keywords;
-        before = AddStatementStartOnNewLine(before, tokens, index - 1, tokens[index].Start, textBeforeToken);
-
-        return (before & (SqlKeywordPosition.StatementStart | SqlKeywordPosition.BlockStart)) != SqlKeywordPosition.None;
+        return AddStatementStartOnNewLine(before, tokens, index - 1, tokens[index].Start, textBeforeToken);
     }
 
     private static SqlCaretPosition AnalyzeClause(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
@@ -1169,9 +1173,14 @@ public static class SqlKeywordPositionAnalyzer
             !token.IsQuoted &&
             token.IsKeyword("AS"))
         {
-            return IntroducesAlias(tokens, last, out var afterAlias)
-                ? new SqlCaretPosition(afterAlias, SqlCompletionSlot.Name)
-                : new SqlCaretPosition(SqlKeywordPosition.Any);
+            if (IntroducesAlias(tokens, last, out var afterAlias))
+            {
+                return new SqlCaretPosition(afterAlias, SqlCompletionSlot.Name);
+            }
+
+            return new SqlCaretPosition(OpensModuleBody(tokens, last)
+                ? SqlKeywordPosition.StatementStart
+                : SqlKeywordPosition.Any);
         }
 
         if (TryResolveNewName(tokens, last, followAlias, out var named))
@@ -1449,7 +1458,8 @@ public static class SqlKeywordPositionAnalyzer
     /// <item>一個運算式或一個資料來源剛寫完 → 後面是<b>別名</b>：
     /// <c>SELECT x AS </c>、<c>FROM t AS </c>、<c>FROM (SELECT …) AS </c>。</item>
     /// <item>其餘 → 後面不是名字，清單照常：<c>CREATE PROCEDURE p AS </c> 之後
-    /// 是主體，<c>CAST(x AS </c> 之後是型別，<c>EXECUTE AS </c> 之後是 USER。</item>
+    /// 是主體（見 <see cref="OpensModuleBody"/>），<c>CAST(x AS </c> 之後是型別，
+    /// <c>EXECUTE AS </c> 之後是 USER。</item>
     /// </list>
     ///
     /// 所以問的是同一個問題：<c>AS</c> 前面是不是一項剛寫完、還沒有別名的清單項目——
@@ -1473,6 +1483,86 @@ public static class SqlKeywordPositionAnalyzer
 
         return before.Slot == SqlCompletionSlot.Name
             || IsUnaliasedItem(tokens, asIndex - 1, before.Keywords);
+    }
+
+    /// <summary>
+    /// <paramref name="asIndex"/> 的 <c>AS</c> 結束了程序、函式、觸發程序或檢視的標頭，
+    /// 後面是主體：一句的開頭。
+    /// </summary>
+    /// <remarks>
+    /// 少了這一條，主體的開頭判不出位置：清單是整份目錄，而 <c>SET NOCOUNT </c> 這種
+    /// 子句片語只能以「可能」的身分加字，不能換掉整份清單（見 <see cref="SqlClausePhraseMatch"/>）。
+    ///
+    /// 往回走到這一句的 CREATE 或 ALTER，看它後面是不是模組種類。途中整組跳過括號
+    /// （參數清單、<c>RETURNS @t TABLE (…)</c>）；標頭裡的 AS 只有 <c>EXECUTE AS</c> 與
+    /// 參數的 <c>@a AS int</c>，遇到別的 AS、分號、BEGIN、END 或 GO 就是走出了標頭。
+    /// </remarks>
+    private static bool OpensModuleBody(IReadOnlyList<SqlToken> tokens, int asIndex)
+    {
+        if (BelongsToModuleHeader(tokens, asIndex))
+        {
+            return false;
+        }
+
+        for (var index = asIndex - 1; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (token.IsPunctuation(";") || token.IsPunctuation("("))
+            {
+                return false;
+            }
+
+            if (token.Kind != SqlTokenKind.Identifier || !IsBareKeyword(tokens, index))
+            {
+                continue;
+            }
+
+            if (token.IsKeyword("CREATE") || token.IsKeyword("ALTER"))
+            {
+                return index + 1 < tokens.Count &&
+                    tokens[index + 1].Kind == SqlTokenKind.Identifier &&
+                    !tokens[index + 1].IsQuoted &&
+                    ModuleKinds.Contains(tokens[index + 1].Value);
+            }
+
+            if ((token.IsKeyword("AS") && !BelongsToModuleHeader(tokens, index)) ||
+                token.IsKeyword("BEGIN") ||
+                token.IsKeyword("END") ||
+                token.IsKeyword("GO"))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>這個 AS 是標頭本身的一部分：<c>EXECUTE AS</c> 或參數的 <c>@a AS int</c>。</summary>
+    private static bool BelongsToModuleHeader(IReadOnlyList<SqlToken> tokens, int asIndex)
+    {
+        if (asIndex < 1)
+        {
+            return false;
+        }
+
+        var previous = tokens[asIndex - 1];
+
+        return previous.Kind == SqlTokenKind.Variable ||
+            previous.IsKeyword("EXECUTE") ||
+            previous.IsKeyword("EXEC");
     }
 
     /// <summary>

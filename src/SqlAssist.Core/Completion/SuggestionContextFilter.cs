@@ -170,14 +170,22 @@ public static class SuggestionContextFilter
     /// </remarks>
     private static bool IsAllowedForPosition(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        // 子句片語比對得到時，這一格的關鍵字只來自那個片語：位置旗標是整個子句的粗分層，
+        // 子句片語比對確定時，這一格的關鍵字只來自那個片語：位置旗標是整個子句的粗分層，
         // 片語是更靠近游標的答案——SET DATEFORMAT 之後不是 ON／OFF。反過來，片語的字
         // 只屬於那個片語，不會漏到別的位置。認的是 Tag 而不是顯示文字：READ 同時在
-        // 關鍵字目錄與片語裡，比文字的話兩份都會出現。
-        if (suggestion.Kind == SuggestionKind.Keyword &&
-            (context.ClausePhrase is not null || suggestion.Tag is SqlClausePhrase))
+        // 關鍵字目錄與片語裡，比文字的話兩份都會出現。前一格判不出位置時片語的字只是
+        // 加進來，目錄裡同名的那一份讓給它。
+        if (suggestion.Kind == SuggestionKind.Keyword)
         {
-            return ReferenceEquals(suggestion.Tag, context.ClausePhrase);
+            if (suggestion.Tag is SqlClausePhrase phrase)
+            {
+                return ReferenceEquals(phrase, context.ClausePhrase?.Phrase);
+            }
+
+            if (context.ClausePhrase is { } match && match.Hides(suggestion.DisplayText))
+            {
+                return false;
+            }
         }
 
         if (suggestion.Kind is SuggestionKind.Keyword or

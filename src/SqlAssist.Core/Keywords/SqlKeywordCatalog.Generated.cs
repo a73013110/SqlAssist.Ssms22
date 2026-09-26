@@ -236,8 +236,8 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.TableSourceTail, "MERGE INTO t "),
         new(SqlKeywordPosition.Predicate, "SELECT * FROM t WHERE "),
         new(SqlKeywordPosition.Predicate, "DELETE FROM t WHERE "),
-        new(SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a "),
         new(SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a = 1 "),
+        new(SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a "),
         new(SqlKeywordPosition.ExpressionTail, "SELECT * FROM t WHERE a LIKE 'x' "),
         new(SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a "),
         new(SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a OFFSET 10 "),
@@ -302,9 +302,9 @@ internal static class SqlKeywordCatalogData
     /// 探測文字執行期用不到，輸出來是為了讓測試逐條回驗：片語比對對那段文字
     /// 必須認出同一個片語，兩邊說的才是同一個位置。
     /// </remarks>
-    internal static readonly (string Pattern, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =
+    internal static readonly (string Pattern, SqlKeywordPosition After, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =
     {
-        ("^SET", "SET ", true, false, new string[]
+        ("SET", SqlKeywordPosition.StatementStart, "SET ", true, false, new string[]
         {
             "ANSI_DEFAULTS", "ANSI_NULL_DFLT_OFF", "ANSI_NULL_DFLT_ON", "ANSI_NULLS",
             "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "ARITHIGNORE",
@@ -316,260 +316,260 @@ internal static class SqlKeywordCatalogData
             "ROWCOUNT", "SHOWPLAN_ALL", "SHOWPLAN_TEXT", "SHOWPLAN_XML", "STATISTICS",
             "TEXTSIZE", "TRAN", "TRANSACTION", "XACT_ABORT",
         }),
-        ("^SET ANSI_DEFAULTS", "SET ANSI_DEFAULTS ", true, false, new string[]
+        ("SET ANSI_DEFAULTS", SqlKeywordPosition.StatementStart, "SET ANSI_DEFAULTS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ANSI_NULL_DFLT_OFF", "SET ANSI_NULL_DFLT_OFF ", true, false, new string[]
+        ("SET ANSI_NULL_DFLT_OFF", SqlKeywordPosition.StatementStart, "SET ANSI_NULL_DFLT_OFF ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ANSI_NULL_DFLT_ON", "SET ANSI_NULL_DFLT_ON ", true, false, new string[]
+        ("SET ANSI_NULL_DFLT_ON", SqlKeywordPosition.StatementStart, "SET ANSI_NULL_DFLT_ON ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ANSI_NULLS", "SET ANSI_NULLS ", true, false, new string[]
+        ("SET ANSI_NULLS", SqlKeywordPosition.StatementStart, "SET ANSI_NULLS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ANSI_PADDING", "SET ANSI_PADDING ", true, false, new string[]
+        ("SET ANSI_PADDING", SqlKeywordPosition.StatementStart, "SET ANSI_PADDING ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ANSI_WARNINGS", "SET ANSI_WARNINGS ", true, false, new string[]
+        ("SET ANSI_WARNINGS", SqlKeywordPosition.StatementStart, "SET ANSI_WARNINGS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ARITHABORT", "SET ARITHABORT ", true, false, new string[]
+        ("SET ARITHABORT", SqlKeywordPosition.StatementStart, "SET ARITHABORT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ARITHIGNORE", "SET ARITHIGNORE ", true, false, new string[]
+        ("SET ARITHIGNORE", SqlKeywordPosition.StatementStart, "SET ARITHIGNORE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET CONCAT_NULL_YIELDS_NULL", "SET CONCAT_NULL_YIELDS_NULL ", true, false, new string[]
+        ("SET CONCAT_NULL_YIELDS_NULL", SqlKeywordPosition.StatementStart, "SET CONCAT_NULL_YIELDS_NULL ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET CONTEXT_INFO", "SET CONTEXT_INFO ", false, false, new string[]
+        ("SET CONTEXT_INFO", SqlKeywordPosition.StatementStart, "SET CONTEXT_INFO ", false, false, new string[]
         {
             "NULL",
         }),
-        ("^SET CURSOR_CLOSE_ON_COMMIT", "SET CURSOR_CLOSE_ON_COMMIT ", true, false, new string[]
+        ("SET CURSOR_CLOSE_ON_COMMIT", SqlKeywordPosition.StatementStart, "SET CURSOR_CLOSE_ON_COMMIT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET DATEFIRST", "SET DATEFIRST ", false, false, new string[]
+        ("SET DATEFIRST", SqlKeywordPosition.StatementStart, "SET DATEFIRST ", false, false, new string[]
         {
             "NULL",
         }),
-        ("^SET DATEFORMAT", "SET DATEFORMAT ", true, false, new string[]
+        ("SET DATEFORMAT", SqlKeywordPosition.StatementStart, "SET DATEFORMAT ", true, false, new string[]
         {
             "NULL", "mdy", "dmy", "ymd", "ydm", "myd", "dym",
         }),
-        ("^SET DEADLOCK_PRIORITY", "SET DEADLOCK_PRIORITY ", true, false, new string[]
+        ("SET DEADLOCK_PRIORITY", SqlKeywordPosition.StatementStart, "SET DEADLOCK_PRIORITY ", true, false, new string[]
         {
             "NULL", "LOW", "NORMAL", "HIGH",
         }),
-        ("^SET ERRLVL", "SET ERRLVL ", true, false, new string[]
+        ("SET ERRLVL", SqlKeywordPosition.StatementStart, "SET ERRLVL ", true, false, new string[]
         {
         }),
-        ("^SET FIPS_FLAGGER", "SET FIPS_FLAGGER ", true, false, new string[]
+        ("SET FIPS_FLAGGER", SqlKeywordPosition.StatementStart, "SET FIPS_FLAGGER ", true, false, new string[]
         {
             "OFF",
         }),
-        ("^SET FMTONLY", "SET FMTONLY ", true, false, new string[]
+        ("SET FMTONLY", SqlKeywordPosition.StatementStart, "SET FMTONLY ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET FORCEPLAN", "SET FORCEPLAN ", true, false, new string[]
+        ("SET FORCEPLAN", SqlKeywordPosition.StatementStart, "SET FORCEPLAN ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET IDENTITY_INSERT", "SET IDENTITY_INSERT ", false, false, new string[]
+        ("SET IDENTITY_INSERT", SqlKeywordPosition.StatementStart, "SET IDENTITY_INSERT ", false, false, new string[]
         {
         }),
-        ("^SET IMPLICIT_TRANSACTIONS", "SET IMPLICIT_TRANSACTIONS ", true, false, new string[]
+        ("SET IMPLICIT_TRANSACTIONS", SqlKeywordPosition.StatementStart, "SET IMPLICIT_TRANSACTIONS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET LANGUAGE", "SET LANGUAGE ", false, false, new string[]
+        ("SET LANGUAGE", SqlKeywordPosition.StatementStart, "SET LANGUAGE ", false, false, new string[]
         {
             "NULL",
         }),
-        ("^SET LOCK_TIMEOUT", "SET LOCK_TIMEOUT ", false, false, new string[]
+        ("SET LOCK_TIMEOUT", SqlKeywordPosition.StatementStart, "SET LOCK_TIMEOUT ", false, false, new string[]
         {
             "NULL",
         }),
-        ("^SET NO_BROWSETABLE", "SET NO_BROWSETABLE ", true, false, new string[]
+        ("SET NO_BROWSETABLE", SqlKeywordPosition.StatementStart, "SET NO_BROWSETABLE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET NOCOUNT", "SET NOCOUNT ", true, false, new string[]
+        ("SET NOCOUNT", SqlKeywordPosition.StatementStart, "SET NOCOUNT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET NOEXEC", "SET NOEXEC ", true, false, new string[]
+        ("SET NOEXEC", SqlKeywordPosition.StatementStart, "SET NOEXEC ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET NUMERIC_ROUNDABORT", "SET NUMERIC_ROUNDABORT ", true, false, new string[]
+        ("SET NUMERIC_ROUNDABORT", SqlKeywordPosition.StatementStart, "SET NUMERIC_ROUNDABORT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS", "SET OFFSETS ", true, false, new string[]
+        ("SET OFFSETS", SqlKeywordPosition.StatementStart, "SET OFFSETS ", true, false, new string[]
         {
             "COMPUTE", "EXEC", "EXECUTE", "FROM", "ORDER", "PARAM", "PROC", "PROCEDURE",
             "SELECT", "STATEMENT", "TABLE",
         }),
-        ("^SET OFFSETS COMPUTE", "SET OFFSETS COMPUTE ", true, false, new string[]
+        ("SET OFFSETS COMPUTE", SqlKeywordPosition.StatementStart, "SET OFFSETS COMPUTE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS EXEC", "SET OFFSETS EXEC ", true, false, new string[]
+        ("SET OFFSETS EXEC", SqlKeywordPosition.StatementStart, "SET OFFSETS EXEC ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS EXECUTE", "SET OFFSETS EXECUTE ", true, false, new string[]
+        ("SET OFFSETS EXECUTE", SqlKeywordPosition.StatementStart, "SET OFFSETS EXECUTE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS FROM", "SET OFFSETS FROM ", true, false, new string[]
+        ("SET OFFSETS FROM", SqlKeywordPosition.StatementStart, "SET OFFSETS FROM ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS ORDER", "SET OFFSETS ORDER ", true, false, new string[]
+        ("SET OFFSETS ORDER", SqlKeywordPosition.StatementStart, "SET OFFSETS ORDER ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS PARAM", "SET OFFSETS PARAM ", true, false, new string[]
+        ("SET OFFSETS PARAM", SqlKeywordPosition.StatementStart, "SET OFFSETS PARAM ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS PROC", "SET OFFSETS PROC ", true, false, new string[]
+        ("SET OFFSETS PROC", SqlKeywordPosition.StatementStart, "SET OFFSETS PROC ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS PROCEDURE", "SET OFFSETS PROCEDURE ", true, false, new string[]
+        ("SET OFFSETS PROCEDURE", SqlKeywordPosition.StatementStart, "SET OFFSETS PROCEDURE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS SELECT", "SET OFFSETS SELECT ", true, false, new string[]
+        ("SET OFFSETS SELECT", SqlKeywordPosition.StatementStart, "SET OFFSETS SELECT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS STATEMENT", "SET OFFSETS STATEMENT ", true, false, new string[]
+        ("SET OFFSETS STATEMENT", SqlKeywordPosition.StatementStart, "SET OFFSETS STATEMENT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET OFFSETS TABLE", "SET OFFSETS TABLE ", true, false, new string[]
+        ("SET OFFSETS TABLE", SqlKeywordPosition.StatementStart, "SET OFFSETS TABLE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET PARSEONLY", "SET PARSEONLY ", true, false, new string[]
+        ("SET PARSEONLY", SqlKeywordPosition.StatementStart, "SET PARSEONLY ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET QUERY_GOVERNOR_COST_LIMIT", "SET QUERY_GOVERNOR_COST_LIMIT ", false, false, new string[]
+        ("SET QUERY_GOVERNOR_COST_LIMIT", SqlKeywordPosition.StatementStart, "SET QUERY_GOVERNOR_COST_LIMIT ", false, false, new string[]
         {
             "NULL",
         }),
-        ("^SET QUOTED_IDENTIFIER", "SET QUOTED_IDENTIFIER ", true, false, new string[]
+        ("SET QUOTED_IDENTIFIER", SqlKeywordPosition.StatementStart, "SET QUOTED_IDENTIFIER ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET REMOTE_PROC_TRANSACTIONS", "SET REMOTE_PROC_TRANSACTIONS ", true, false, new string[]
+        ("SET REMOTE_PROC_TRANSACTIONS", SqlKeywordPosition.StatementStart, "SET REMOTE_PROC_TRANSACTIONS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET ROWCOUNT", "SET ROWCOUNT ", true, false, new string[]
+        ("SET ROWCOUNT", SqlKeywordPosition.StatementStart, "SET ROWCOUNT ", true, false, new string[]
         {
         }),
-        ("^SET SHOWPLAN_ALL", "SET SHOWPLAN_ALL ", true, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("^SET SHOWPLAN_TEXT", "SET SHOWPLAN_TEXT ", true, false, new string[]
+        ("SET SHOWPLAN_ALL", SqlKeywordPosition.StatementStart, "SET SHOWPLAN_ALL ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET SHOWPLAN_XML", "SET SHOWPLAN_XML ", true, false, new string[]
+        ("SET SHOWPLAN_TEXT", SqlKeywordPosition.StatementStart, "SET SHOWPLAN_TEXT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET STATISTICS", "SET STATISTICS ", true, false, new string[]
+        ("SET SHOWPLAN_XML", SqlKeywordPosition.StatementStart, "SET SHOWPLAN_XML ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("SET STATISTICS", SqlKeywordPosition.StatementStart, "SET STATISTICS ", true, false, new string[]
         {
             "IO", "PROFILE", "TIME", "XML",
         }),
-        ("^SET STATISTICS IO", "SET STATISTICS IO ", true, false, new string[]
+        ("SET STATISTICS IO", SqlKeywordPosition.StatementStart, "SET STATISTICS IO ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET STATISTICS PROFILE", "SET STATISTICS PROFILE ", true, false, new string[]
+        ("SET STATISTICS PROFILE", SqlKeywordPosition.StatementStart, "SET STATISTICS PROFILE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET STATISTICS TIME", "SET STATISTICS TIME ", true, false, new string[]
+        ("SET STATISTICS TIME", SqlKeywordPosition.StatementStart, "SET STATISTICS TIME ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET STATISTICS XML", "SET STATISTICS XML ", true, false, new string[]
+        ("SET STATISTICS XML", SqlKeywordPosition.StatementStart, "SET STATISTICS XML ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET TEXTSIZE", "SET TEXTSIZE ", true, false, new string[]
+        ("SET TEXTSIZE", SqlKeywordPosition.StatementStart, "SET TEXTSIZE ", true, false, new string[]
         {
         }),
-        ("^SET TRAN", "SET TRAN ", true, false, new string[]
+        ("SET TRAN", SqlKeywordPosition.StatementStart, "SET TRAN ", true, false, new string[]
         {
             "ISOLATION",
         }),
-        ("^SET TRAN ISOLATION", "SET TRAN ISOLATION ", true, false, new string[]
+        ("SET TRAN ISOLATION", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION ", true, false, new string[]
         {
             "LEVEL",
         }),
-        ("^SET TRAN ISOLATION LEVEL", "SET TRAN ISOLATION LEVEL ", true, false, new string[]
+        ("SET TRAN ISOLATION LEVEL", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION LEVEL ", true, false, new string[]
         {
             "READ", "REPEATABLE", "SERIALIZABLE", "SNAPSHOT",
         }),
-        ("^SET TRAN ISOLATION LEVEL READ", "SET TRAN ISOLATION LEVEL READ ", true, false, new string[]
+        ("SET TRAN ISOLATION LEVEL READ", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION LEVEL READ ", true, false, new string[]
         {
             "COMMITTED", "UNCOMMITTED",
         }),
-        ("^SET TRAN ISOLATION LEVEL REPEATABLE", "SET TRAN ISOLATION LEVEL REPEATABLE ", true, false, new string[]
+        ("SET TRAN ISOLATION LEVEL REPEATABLE", SqlKeywordPosition.StatementStart, "SET TRAN ISOLATION LEVEL REPEATABLE ", true, false, new string[]
         {
             "READ",
         }),
-        ("^SET TRANSACTION", "SET TRANSACTION ", true, false, new string[]
+        ("SET TRANSACTION", SqlKeywordPosition.StatementStart, "SET TRANSACTION ", true, false, new string[]
         {
             "ISOLATION",
         }),
-        ("^SET TRANSACTION ISOLATION", "SET TRANSACTION ISOLATION ", true, false, new string[]
+        ("SET TRANSACTION ISOLATION", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION ", true, false, new string[]
         {
             "LEVEL",
         }),
-        ("^SET TRANSACTION ISOLATION LEVEL", "SET TRANSACTION ISOLATION LEVEL ", true, false, new string[]
+        ("SET TRANSACTION ISOLATION LEVEL", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION LEVEL ", true, false, new string[]
         {
             "READ", "REPEATABLE", "SERIALIZABLE", "SNAPSHOT",
         }),
-        ("^SET TRANSACTION ISOLATION LEVEL READ", "SET TRANSACTION ISOLATION LEVEL READ ", true, false, new string[]
+        ("SET TRANSACTION ISOLATION LEVEL READ", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION LEVEL READ ", true, false, new string[]
         {
             "COMMITTED", "UNCOMMITTED",
         }),
-        ("^SET TRANSACTION ISOLATION LEVEL REPEATABLE", "SET TRANSACTION ISOLATION LEVEL REPEATABLE ", true, false, new string[]
+        ("SET TRANSACTION ISOLATION LEVEL REPEATABLE", SqlKeywordPosition.StatementStart, "SET TRANSACTION ISOLATION LEVEL REPEATABLE ", true, false, new string[]
         {
             "READ",
         }),
-        ("^SET XACT_ABORT", "SET XACT_ABORT ", true, false, new string[]
+        ("SET XACT_ABORT", SqlKeywordPosition.StatementStart, "SET XACT_ABORT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^SET IDENTITY_INSERT {name}", "SET IDENTITY_INSERT t ", true, false, new string[]
+        ("SET IDENTITY_INSERT {name}", SqlKeywordPosition.StatementStart, "SET IDENTITY_INSERT t ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^CREATE", "CREATE ", true, false, new string[]
+        ("CREATE", SqlKeywordPosition.StatementStart, "CREATE ", true, false, new string[]
         {
             "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
             "CLUSTERED", "COLUMN", "CONTRACT", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
@@ -580,7 +580,7 @@ internal static class SqlKeywordCatalogData
             "SERVICE", "STATISTICS", "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE",
             "UNIQUE", "USER", "VIEW", "WORKLOAD",
         }),
-        ("^ALTER", "ALTER ", true, false, new string[]
+        ("ALTER", SqlKeywordPosition.StatementStart, "ALTER ", true, false, new string[]
         {
             "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "AUTHORIZATION", "BROKER", "CERTIFICATE",
             "COLUMN", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE", "ENDPOINT", "EVENT",
@@ -589,7 +589,7 @@ internal static class SqlKeywordCatalogData
             "RESOURCE", "ROLE", "ROUTE", "SCHEMA", "SEARCH", "SECURITY", "SEQUENCE", "SERVER",
             "SERVICE", "SYMMETRIC", "TABLE", "TRIGGER", "USER", "VIEW",
         }),
-        ("^DROP", "DROP ", true, false, new string[]
+        ("DROP", SqlKeywordPosition.StatementStart, "DROP ", true, false, new string[]
         {
             "AGGREGATE", "APPLICATION", "ASSEMBLY", "ASYMMETRIC", "BROKER", "CERTIFICATE",
             "COLUMN", "CONTRACT", "COUNTER", "CREDENTIAL", "CRYPTOGRAPHIC", "DATABASE",
@@ -599,20 +599,20 @@ internal static class SqlKeywordCatalogData
             "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE", "STATISTICS",
             "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
         }),
-        ("CREATE OR ALTER", "CREATE OR ALTER ", true, false, new string[]
+        ("CREATE OR ALTER", SqlKeywordPosition.StatementStart, "CREATE OR ALTER ", true, false, new string[]
         {
             "FUNCTION", "PROC", "PROCEDURE", "TRIGGER", "VIEW",
         }),
-        ("^ALTER TABLE {name}", "ALTER TABLE t ", true, false, new string[]
+        ("ALTER TABLE {name}", SqlKeywordPosition.StatementStart, "ALTER TABLE t ", true, false, new string[]
         {
             "ADD", "ALTER", "CHECK", "DISABLE", "DROP", "ENABLE", "MERGE", "NOCHECK", "REBUILD",
             "SET", "SPLIT", "SWITCH", "WITH",
         }),
-        ("^ALTER DATABASE {name}", "ALTER DATABASE t ", true, false, new string[]
+        ("ALTER DATABASE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ", true, false, new string[]
         {
             "ADD", "COLLATE", "MODIFY", "PERFORM_CUTOVER", "REBUILD", "REMOVE", "SET",
         }),
-        ("^ALTER DATABASE {name} SET", "ALTER DATABASE t SET ", true, false, new string[]
+        ("ALTER DATABASE {name} SET", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ", true, false, new string[]
         {
             "ACCELERATED_DATABASE_RECOVERY", "ALLOW_SNAPSHOT_ISOLATION", "ANSI_NULL_DEFAULT",
             "ANSI_NULLS", "ANSI_PADDING", "ANSI_WARNINGS", "ARITHABORT", "AUTO_CLOSE",
@@ -633,222 +633,222 @@ internal static class SqlKeywordCatalogData
             "TORN_PAGE_DETECTION", "TRANSFORM_NOISE_WORDS", "TRUSTWORTHY",
             "TWO_DIGIT_YEAR_CUTOFF", "VARDECIMAL_STORAGE_FORMAT", "WITNESS",
         }),
-        ("^ALTER DATABASE {name} SET ACCELERATED_DATABASE_RECOVERY", "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ACCELERATED_DATABASE_RECOVERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ACCELERATED_DATABASE_RECOVERY ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET ALLOW_SNAPSHOT_ISOLATION", "ALTER DATABASE t SET ALLOW_SNAPSHOT_ISOLATION ", true, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("^ALTER DATABASE {name} SET ANSI_NULL_DEFAULT", "ALTER DATABASE t SET ANSI_NULL_DEFAULT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ALLOW_SNAPSHOT_ISOLATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ALLOW_SNAPSHOT_ISOLATION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET ANSI_NULLS", "ALTER DATABASE t SET ANSI_NULLS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ANSI_NULL_DEFAULT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ANSI_NULL_DEFAULT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET ANSI_PADDING", "ALTER DATABASE t SET ANSI_PADDING ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ANSI_NULLS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ANSI_NULLS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET ANSI_WARNINGS", "ALTER DATABASE t SET ANSI_WARNINGS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ANSI_PADDING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ANSI_PADDING ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET ARITHABORT", "ALTER DATABASE t SET ARITHABORT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ANSI_WARNINGS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ANSI_WARNINGS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTO_CLOSE", "ALTER DATABASE t SET AUTO_CLOSE ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ARITHABORT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ARITHABORT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTO_CREATE_STATISTICS", "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTO_CLOSE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CLOSE ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTO_SHRINK", "ALTER DATABASE t SET AUTO_SHRINK ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTO_CREATE_STATISTICS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_CREATE_STATISTICS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTO_UPDATE_STATISTICS", "ALTER DATABASE t SET AUTO_UPDATE_STATISTICS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTO_SHRINK", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_SHRINK ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTO_UPDATE_STATISTICS_ASYNC", "ALTER DATABASE t SET AUTO_UPDATE_STATISTICS_ASYNC ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTO_UPDATE_STATISTICS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_UPDATE_STATISTICS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET AUTOMATIC_TUNING", "ALTER DATABASE t SET AUTOMATIC_TUNING ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET CHANGE_TRACKING", "ALTER DATABASE t SET CHANGE_TRACKING ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET COMPATIBILITY_LEVEL", "ALTER DATABASE t SET COMPATIBILITY_LEVEL ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET CONCAT_NULL_YIELDS_NULL", "ALTER DATABASE t SET CONCAT_NULL_YIELDS_NULL ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTO_UPDATE_STATISTICS_ASYNC", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTO_UPDATE_STATISTICS_ASYNC ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET CONTAINMENT", "ALTER DATABASE t SET CONTAINMENT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET AUTOMATIC_TUNING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET AUTOMATIC_TUNING ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET CURSOR_CLOSE_ON_COMMIT", "ALTER DATABASE t SET CURSOR_CLOSE_ON_COMMIT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET CHANGE_TRACKING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CHANGE_TRACKING ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET COMPATIBILITY_LEVEL", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET COMPATIBILITY_LEVEL ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CONCAT_NULL_YIELDS_NULL", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CONCAT_NULL_YIELDS_NULL ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET CURSOR_DEFAULT", "ALTER DATABASE t SET CURSOR_DEFAULT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET CONTAINMENT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CONTAINMENT ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET CURSOR_CLOSE_ON_COMMIT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CURSOR_CLOSE_ON_COMMIT ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET CURSOR_DEFAULT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET CURSOR_DEFAULT ", true, false, new string[]
         {
             "GLOBAL", "LOCAL",
         }),
-        ("^ALTER DATABASE {name} SET DATA_RETENTION", "ALTER DATABASE t SET DATA_RETENTION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DATA_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DATA_RETENTION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET DATE_CORRELATION_OPTIMIZATION", "ALTER DATABASE t SET DATE_CORRELATION_OPTIMIZATION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DATE_CORRELATION_OPTIMIZATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DATE_CORRELATION_OPTIMIZATION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET DB_CHAINING", "ALTER DATABASE t SET DB_CHAINING ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DB_CHAINING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DB_CHAINING ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET DEFAULT_FULLTEXT_LANGUAGE", "ALTER DATABASE t SET DEFAULT_FULLTEXT_LANGUAGE ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DEFAULT_FULLTEXT_LANGUAGE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DEFAULT_FULLTEXT_LANGUAGE ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET DEFAULT_LANGUAGE", "ALTER DATABASE t SET DEFAULT_LANGUAGE ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DEFAULT_LANGUAGE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DEFAULT_LANGUAGE ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET DELAYED_DURABILITY", "ALTER DATABASE t SET DELAYED_DURABILITY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET DELAYED_DURABILITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET DELAYED_DURABILITY ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET ENCRYPTION", "ALTER DATABASE t SET ENCRYPTION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET ENCRYPTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET ENCRYPTION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET FILESTREAM", "ALTER DATABASE t SET FILESTREAM ", true, false, new string[]
+        ("ALTER DATABASE {name} SET FILESTREAM", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET FILESTREAM ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET HADR", "ALTER DATABASE t SET HADR ", true, false, new string[]
+        ("ALTER DATABASE {name} SET HADR", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HADR ", true, false, new string[]
         {
             "OFF", "RESUME", "SUSPEND",
         }),
-        ("^ALTER DATABASE {name} SET HONOR_BROKER_PRIORITY", "ALTER DATABASE t SET HONOR_BROKER_PRIORITY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET HONOR_BROKER_PRIORITY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET HONOR_BROKER_PRIORITY ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT", "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET MIXED_PAGE_ALLOCATION", "ALTER DATABASE t SET MIXED_PAGE_ALLOCATION ", true, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("^ALTER DATABASE {name} SET NESTED_TRIGGERS", "ALTER DATABASE t SET NESTED_TRIGGERS ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET NUMERIC_ROUNDABORT", "ALTER DATABASE t SET NUMERIC_ROUNDABORT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET MIXED_PAGE_ALLOCATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET MIXED_PAGE_ALLOCATION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET OPTIMIZED_LOCKING", "ALTER DATABASE t SET OPTIMIZED_LOCKING ", true, false, new string[]
+        ("ALTER DATABASE {name} SET NESTED_TRIGGERS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET NESTED_TRIGGERS ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET PAGE_VERIFY", "ALTER DATABASE t SET PAGE_VERIFY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET NUMERIC_ROUNDABORT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET NUMERIC_ROUNDABORT ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET OPTIMIZED_LOCKING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET OPTIMIZED_LOCKING ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET PAGE_VERIFY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET PAGE_VERIFY ", true, false, new string[]
         {
             "CHECKSUM", "NONE", "TORN_PAGE_DETECTION",
         }),
-        ("^ALTER DATABASE {name} SET PARAMETERIZATION", "ALTER DATABASE t SET PARAMETERIZATION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET PARAMETERIZATION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET PARAMETERIZATION ", true, false, new string[]
         {
             "FORCED", "SIMPLE",
         }),
-        ("^ALTER DATABASE {name} SET PARTNER", "ALTER DATABASE t SET PARTNER ", true, false, new string[]
+        ("ALTER DATABASE {name} SET PARTNER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET PARTNER ", true, false, new string[]
         {
             "FAILOVER", "FORCE_SERVICE_ALLOW_DATA_LOSS", "OFF", "RESUME", "SAFETY", "SUSPEND",
             "TIMEOUT",
         }),
-        ("^ALTER DATABASE {name} SET QUERY_STORE", "ALTER DATABASE t SET QUERY_STORE ", true, false, new string[]
+        ("ALTER DATABASE {name} SET QUERY_STORE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUERY_STORE ", true, false, new string[]
         {
             "CLEAR",
         }),
-        ("^ALTER DATABASE {name} SET QUOTED_IDENTIFIER", "ALTER DATABASE t SET QUOTED_IDENTIFIER ", true, false, new string[]
+        ("ALTER DATABASE {name} SET QUOTED_IDENTIFIER", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET QUOTED_IDENTIFIER ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET READ_COMMITTED_SNAPSHOT", "ALTER DATABASE t SET READ_COMMITTED_SNAPSHOT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET READ_COMMITTED_SNAPSHOT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET READ_COMMITTED_SNAPSHOT ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET RECOVERY", "ALTER DATABASE t SET RECOVERY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET RECOVERY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET RECOVERY ", true, false, new string[]
         {
             "BULK_LOGGED", "FULL", "SIMPLE",
         }),
-        ("^ALTER DATABASE {name} SET RECURSIVE_TRIGGERS", "ALTER DATABASE t SET RECURSIVE_TRIGGERS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET RECURSIVE_TRIGGERS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET RECURSIVE_TRIGGERS ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET REMOTE_DATA_ARCHIVE", "ALTER DATABASE t SET REMOTE_DATA_ARCHIVE ", true, false, new string[]
+        ("ALTER DATABASE {name} SET REMOTE_DATA_ARCHIVE", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET REMOTE_DATA_ARCHIVE ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET SUPPLEMENTAL_LOGGING", "ALTER DATABASE t SET SUPPLEMENTAL_LOGGING ", true, false, new string[]
-        {
-            "OFF", "ON",
-        }),
-        ("^ALTER DATABASE {name} SET TARGET_RECOVERY_TIME", "ALTER DATABASE t SET TARGET_RECOVERY_TIME ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET TEMPORAL_HISTORY_RETENTION", "ALTER DATABASE t SET TEMPORAL_HISTORY_RETENTION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET SUPPLEMENTAL_LOGGING", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET SUPPLEMENTAL_LOGGING ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET TORN_PAGE_DETECTION", "ALTER DATABASE t SET TORN_PAGE_DETECTION ", true, false, new string[]
+        ("ALTER DATABASE {name} SET TARGET_RECOVERY_TIME", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TARGET_RECOVERY_TIME ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET TEMPORAL_HISTORY_RETENTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TEMPORAL_HISTORY_RETENTION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET TRANSFORM_NOISE_WORDS", "ALTER DATABASE t SET TRANSFORM_NOISE_WORDS ", true, false, new string[]
-        {
-        }),
-        ("^ALTER DATABASE {name} SET TRUSTWORTHY", "ALTER DATABASE t SET TRUSTWORTHY ", true, false, new string[]
+        ("ALTER DATABASE {name} SET TORN_PAGE_DETECTION", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TORN_PAGE_DETECTION ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET TWO_DIGIT_YEAR_CUTOFF", "ALTER DATABASE t SET TWO_DIGIT_YEAR_CUTOFF ", true, false, new string[]
+        ("ALTER DATABASE {name} SET TRANSFORM_NOISE_WORDS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TRANSFORM_NOISE_WORDS ", true, false, new string[]
         {
         }),
-        ("^ALTER DATABASE {name} SET VARDECIMAL_STORAGE_FORMAT", "ALTER DATABASE t SET VARDECIMAL_STORAGE_FORMAT ", true, false, new string[]
+        ("ALTER DATABASE {name} SET TRUSTWORTHY", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TRUSTWORTHY ", true, false, new string[]
         {
             "OFF", "ON",
         }),
-        ("^ALTER DATABASE {name} SET WITNESS", "ALTER DATABASE t SET WITNESS ", true, false, new string[]
+        ("ALTER DATABASE {name} SET TWO_DIGIT_YEAR_CUTOFF", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET TWO_DIGIT_YEAR_CUTOFF ", true, false, new string[]
+        {
+        }),
+        ("ALTER DATABASE {name} SET VARDECIMAL_STORAGE_FORMAT", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET VARDECIMAL_STORAGE_FORMAT ", true, false, new string[]
+        {
+            "OFF", "ON",
+        }),
+        ("ALTER DATABASE {name} SET WITNESS", SqlKeywordPosition.StatementStart, "ALTER DATABASE t SET WITNESS ", true, false, new string[]
         {
             "OFF",
         }),
-        ("^BACKUP", "BACKUP ", true, false, new string[]
+        ("BACKUP", SqlKeywordPosition.StatementStart, "BACKUP ", true, false, new string[]
         {
             "CERTIFICATE", "DATABASE", "LOG", "SERVICE",
         }),
-        ("^RESTORE", "RESTORE ", true, false, new string[]
+        ("RESTORE", SqlKeywordPosition.StatementStart, "RESTORE ", true, false, new string[]
         {
             "DATABASE", "FILELISTONLY", "HEADERONLY", "LABELONLY", "LOG", "REWINDONLY",
             "SERVICE", "VERIFYONLY",
         }),
-        ("ALTER INDEX {name} ON {name}", "ALTER INDEX t ON t ", true, false, new string[]
+        ("ALTER INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t ", true, false, new string[]
         {
             "ABORT", "DISABLE", "FOR", "PAUSE", "REBUILD", "REORGANIZE", "RESUME", "SET",
             "WITH",
         }),
-        ("INDEX {name} ON {name} ()", "CREATE INDEX t ON t (a) ", true, true, new string[]
+        ("INDEX {name} ON {name} ()", SqlKeywordPosition.Any, "CREATE INDEX t ON t (a) ", true, true, new string[]
         {
             "FILESTREAM_ON", "INCLUDE", "ON", "WHERE", "WITH",
         }),
-        ("INCLUDE ()", "CREATE INDEX i ON t (a) INCLUDE (a) ", true, true, new string[]
+        ("INCLUDE ()", SqlKeywordPosition.Any, "CREATE INDEX i ON t (a) INCLUDE (a) ", true, true, new string[]
         {
             "FILESTREAM_ON", "ON", "WHERE", "WITH",
         }),
-        ("INDEX {name} ON {name} () WITH (*", "CREATE INDEX t ON t (a) WITH (", true, false, new string[]
+        ("INDEX {name} ON {name} () WITH (*", SqlKeywordPosition.Any, "CREATE INDEX t ON t (a) WITH (", true, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -857,7 +857,7 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("INCLUDE () WITH (*", "CREATE INDEX i ON t (a) INCLUDE (a) WITH (", true, false, new string[]
+        ("INCLUDE () WITH (*", SqlKeywordPosition.Any, "CREATE INDEX i ON t (a) INCLUDE (a) WITH (", true, false, new string[]
         {
             "ALLOW_PAGE_LOCKS", "ALLOW_ROW_LOCKS", "BUCKET_COUNT", "COMPRESS_ALL_ROW_GROUPS",
             "COMPRESSION_DELAY", "DATA_COMPRESSION", "DROP_EXISTING", "FILESTREAM_ON",
@@ -866,207 +866,252 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("TRIGGER {name} ON {name}", "CREATE TRIGGER t ON t ", true, false, new string[]
+        ("TRIGGER {name} ON {name}", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t ", true, false, new string[]
         {
             "AFTER", "FOR", "INSTEAD", "WITH",
         }),
-        ("INSTEAD", "CREATE TRIGGER tr ON t INSTEAD ", true, false, new string[]
+        ("TRIGGER {name} ON {name} AFTER", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t AFTER ", true, false, new string[]
+        {
+            "DELETE", "INSERT", "UPDATE",
+        }),
+        ("TRIGGER {name} ON {name} FOR", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t FOR ", true, false, new string[]
+        {
+            "DELETE", "INSERT", "UPDATE",
+        }),
+        ("TRIGGER {name} ON {name} INSTEAD", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t INSTEAD ", true, false, new string[]
         {
             "OF",
         }),
-        ("EXECUTE AS", "EXECUTE AS ", true, false, new string[]
+        ("TRIGGER {name} ON {name} WITH", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t WITH ", true, false, new string[]
+        {
+            "EXEC", "EXECUTE",
+        }),
+        ("EXECUTE AS", SqlKeywordPosition.StatementStart, "EXECUTE AS ", true, false, new string[]
         {
             "CALLER", "LOGIN", "USER",
         }),
-        ("EXEC AS", "EXEC AS ", true, false, new string[]
+        ("EXEC AS", SqlKeywordPosition.StatementStart, "EXEC AS ", true, false, new string[]
         {
             "CALLER", "LOGIN", "USER",
         }),
-        ("WITH EXECUTE AS", "CREATE PROCEDURE p WITH EXECUTE AS ", true, false, new string[]
+        ("WITH EXECUTE AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p WITH EXECUTE AS ", true, false, new string[]
         {
             "CALLER", "OWNER", "SELF",
         }),
-        ("WITH EXEC AS", "CREATE PROCEDURE p WITH EXEC AS ", true, false, new string[]
+        ("WITH EXEC AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p WITH EXEC AS ", true, false, new string[]
         {
             "CALLER", "OWNER", "SELF",
         }),
-        ("ON DELETE", "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, new string[]
+        ("ON DELETE", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, new string[]
         {
             "CASCADE", "NO", "SET",
         }),
-        ("ON DELETE CASCADE", "CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE ", true, false, new string[]
+        ("ON DELETE CASCADE", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE CASCADE ", true, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "ON", "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("ON DELETE NO", "CREATE TABLE t (a int REFERENCES u (a) ON DELETE NO ", true, false, new string[]
+        ("ON DELETE NO", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE NO ", true, false, new string[]
         {
             "ACTION",
         }),
-        ("ON DELETE SET", "CREATE TABLE t (a int REFERENCES u (a) ON DELETE SET ", true, false, new string[]
+        ("ON DELETE SET", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE SET ", true, false, new string[]
         {
             "DEFAULT", "NULL",
         }),
-        ("ON UPDATE", "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE ", true, false, new string[]
+        ("ON UPDATE", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE ", true, false, new string[]
         {
             "CASCADE", "NO", "SET",
         }),
-        ("ON UPDATE CASCADE", "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE CASCADE ", true, false, new string[]
+        ("ON UPDATE CASCADE", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE CASCADE ", true, false, new string[]
         {
             "CHECK", "CONSTRAINT", "DEFAULT", "FOREIGN", "IDENTITY", "INDEX", "NOT", "NULL",
             "ON", "PRIMARY", "REFERENCES", "UNIQUE",
         }),
-        ("ON UPDATE NO", "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE NO ", true, false, new string[]
+        ("ON UPDATE NO", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE NO ", true, false, new string[]
         {
             "ACTION",
         }),
-        ("ON UPDATE SET", "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE SET ", true, false, new string[]
+        ("ON UPDATE SET", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON UPDATE SET ", true, false, new string[]
         {
             "DEFAULT", "NULL",
         }),
-        ("WAITFOR", "WAITFOR ", true, false, new string[]
+        ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, new string[]
         {
             "DELAY", "TIME",
         }),
-        ("DECLARE {name} CURSOR", "DECLARE t CURSOR ", true, false, new string[]
+        ("DECLARE {name} CURSOR", SqlKeywordPosition.StatementStart, "DECLARE t CURSOR ", true, false, new string[]
         {
             "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
             "OPTIMISTIC", "READ_ONLY", "SCROLL", "SCROLL_LOCKS", "STATIC", "TYPE_WARNING",
         }),
-        ("^FETCH", "FETCH ", false, false, new string[]
+        ("FETCH", SqlKeywordPosition.StatementStart, "FETCH ", false, false, new string[]
         {
             "ABSOLUTE", "FIRST", "FROM", "GLOBAL", "LAST", "NEXT", "PRIOR", "RELATIVE",
         }),
-        ("FOR XML", "SELECT a FROM t FOR XML ", true, false, new string[]
+        ("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR ", true, false, new string[]
         {
-            "AUTO", "EXPLICIT", "PATH", "RAW",
+            "BROWSE", "JSON", "READ", "UPDATE", "XML",
         }),
-        ("FOR JSON", "SELECT a FROM t FOR JSON ", true, false, new string[]
+        ("FOR JSON", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR JSON ", true, false, new string[]
         {
             "AUTO", "PATH",
         }),
-        ("FOR SYSTEM_TIME", "SELECT a FROM t FOR SYSTEM_TIME ", true, false, new string[]
+        ("FOR READ", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR READ ", true, false, new string[]
+        {
+            "ONLY",
+        }),
+        ("FOR XML", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR XML ", true, false, new string[]
+        {
+            "AUTO", "EXPLICIT", "PATH", "RAW",
+        }),
+        ("FOR", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR ", true, false, new string[]
+        {
+            "BROWSE", "JSON", "PATH", "READ", "SYSTEM_TIME", "UPDATE", "XML",
+        }),
+        ("FOR SYSTEM_TIME", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME ", true, false, new string[]
         {
             "ALL", "AS", "BETWEEN", "CONTAINED", "FROM",
         }),
-        ("FOR SYSTEM_TIME AS", "SELECT a FROM t FOR SYSTEM_TIME AS ", true, false, new string[]
+        ("FOR SYSTEM_TIME AS", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME AS ", true, false, new string[]
         {
             "OF",
         }),
-        ("FOR SYSTEM_TIME BETWEEN", "SELECT a FROM t FOR SYSTEM_TIME BETWEEN ", true, false, new string[]
+        ("FOR SYSTEM_TIME BETWEEN", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN ", true, false, new string[]
         {
         }),
-        ("FOR SYSTEM_TIME CONTAINED", "SELECT a FROM t FOR SYSTEM_TIME CONTAINED ", true, false, new string[]
+        ("FOR SYSTEM_TIME CONTAINED", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME CONTAINED ", true, false, new string[]
         {
             "IN",
         }),
-        ("FOR SYSTEM_TIME FROM", "SELECT a FROM t FOR SYSTEM_TIME FROM ", true, false, new string[]
+        ("FOR SYSTEM_TIME FROM", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM ", true, false, new string[]
         {
         }),
-        ("GROUP BY", "SELECT a FROM t GROUP BY ", false, false, new string[]
+        ("CURSOR FOR", SqlKeywordPosition.Any, "DECLARE c CURSOR FOR ", true, false, new string[]
+        {
+            "SELECT", "WITH",
+        }),
+        ("NEXT VALUE FOR", SqlKeywordPosition.Any, "SELECT NEXT VALUE FOR ", false, false, new string[]
+        {
+        }),
+        ("DEFAULT {value} FOR", SqlKeywordPosition.Any, "ALTER TABLE t ADD DEFAULT 1 FOR ", false, false, new string[]
+        {
+        }),
+        ("USER {name} FOR", SqlKeywordPosition.Any, "CREATE USER t FOR ", true, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
+        }),
+        ("SYNONYM {name} FOR", SqlKeywordPosition.Any, "CREATE SYNONYM t FOR ", false, false, new string[]
+        {
+        }),
+        ("NOT FOR", SqlKeywordPosition.Any, "CREATE TABLE t (a int IDENTITY NOT FOR ", true, false, new string[]
+        {
+            "REPLICATION",
+        }),
+        ("GROUP BY", SqlKeywordPosition.Any, "SELECT a FROM t GROUP BY ", false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
             "CURRENT_USER", "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
             "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
             "GROUPING SETS",
         }),
-        ("TOP {value} WITH", "SELECT TOP 1 WITH ", true, false, new string[]
+        ("TOP {value} WITH", SqlKeywordPosition.Any, "SELECT TOP 1 WITH ", true, false, new string[]
         {
             "APPROX", "APPROXIMATE", "TIES",
         }),
-        ("PERCENT WITH", "SELECT TOP 10 PERCENT WITH ", true, false, new string[]
+        ("PERCENT WITH", SqlKeywordPosition.Any, "SELECT TOP 10 PERCENT WITH ", true, false, new string[]
         {
             "APPROX", "APPROXIMATE", "TIES",
         }),
-        ("AT TIME", "SELECT a AT TIME ", true, false, new string[]
+        ("AT TIME", SqlKeywordPosition.Any, "SELECT a AT TIME ", true, false, new string[]
         {
             "ZONE",
         }),
-        ("NOT MATCHED", "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
+        ("NOT MATCHED", SqlKeywordPosition.Any, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
         {
             "AND", "BY", "THEN",
         }),
-        ("MATCHED BY", "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED BY ", true, false, new string[]
+        ("MATCHED BY", SqlKeywordPosition.Any, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED BY ", true, false, new string[]
         {
             "SOURCE", "TARGET",
         }),
-        ("OFFSET {value} ROWS", "SELECT a FROM t ORDER BY a OFFSET 1 ROWS ", true, true, new string[]
+        ("OFFSET {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 1 ROWS ", true, true, new string[]
         {
             "FOR", "OPTION", "FETCH",
         }),
-        ("OFFSET {value} ROW", "SELECT a FROM t ORDER BY a OFFSET 1 ROW ", true, true, new string[]
+        ("OFFSET {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 1 ROW ", true, true, new string[]
         {
             "FOR", "OPTION", "FETCH",
         }),
-        ("ROWS FETCH", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH ", true, false, new string[]
+        ("ROWS FETCH", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH ", true, false, new string[]
         {
             "APPROX", "APPROXIMATE", "FIRST", "FROM", "NEXT",
         }),
-        ("ROW FETCH", "SELECT a FROM t ORDER BY a OFFSET 0 ROW FETCH ", true, false, new string[]
+        ("ROW FETCH", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROW FETCH ", true, false, new string[]
         {
             "APPROX", "APPROXIMATE", "FIRST", "FROM", "NEXT",
         }),
-        ("FETCH NEXT {value}", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, new string[]
+        ("FETCH NEXT {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ", true, false, new string[]
         {
             "COLLATE", "ROW", "ROWS",
         }),
-        ("FETCH FIRST {value}", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, new string[]
+        ("FETCH FIRST {value}", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ", true, false, new string[]
         {
             "COLLATE", "ROW", "ROWS",
         }),
-        ("FETCH NEXT {value} ROWS", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, new string[]
+        ("FETCH NEXT {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROWS ", true, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH NEXT {value} ROW", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROW ", true, false, new string[]
+        ("FETCH NEXT {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH NEXT 1 ROW ", true, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH FIRST {value} ROWS", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROWS ", true, false, new string[]
+        ("FETCH FIRST {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROWS ", true, false, new string[]
         {
             "ONLY",
         }),
-        ("FETCH FIRST {value} ROW", "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROW ", true, false, new string[]
+        ("FETCH FIRST {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 0 ROWS FETCH FIRST 1 ROW ", true, false, new string[]
         {
             "ONLY",
         }),
-        ("ROWS", "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, new string[]
+        ("ROWS", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS ", true, false, new string[]
         {
             "BETWEEN", "CURRENT", "UNBOUNDED",
         }),
-        ("RANGE", "SELECT SUM(a) OVER (ORDER BY a RANGE ", true, false, new string[]
+        ("RANGE", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a RANGE ", true, false, new string[]
         {
             "BETWEEN", "CURRENT", "UNBOUNDED",
         }),
-        ("ROWS BETWEEN", "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN ", true, false, new string[]
+        ("ROWS BETWEEN", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN ", true, false, new string[]
         {
             "CURRENT", "UNBOUNDED",
         }),
-        ("RANGE BETWEEN", "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN ", true, false, new string[]
+        ("RANGE BETWEEN", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a RANGE BETWEEN ", true, false, new string[]
         {
             "CURRENT", "UNBOUNDED",
         }),
-        ("UNBOUNDED", "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", true, false, new string[]
+        ("UNBOUNDED", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", true, false, new string[]
         {
             "FOLLOWING", "PRECEDING",
         }),
-        ("PRECEDING AND", "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ", true, false, new string[]
+        ("PRECEDING AND", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ", true, false, new string[]
         {
             "CURRENT", "UNBOUNDED",
         }),
-        ("ROWS CURRENT", "SELECT SUM(a) OVER (ORDER BY a ROWS CURRENT ", true, false, new string[]
+        ("ROWS CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS CURRENT ", true, false, new string[]
         {
             "ROW",
         }),
-        ("RANGE CURRENT", "SELECT SUM(a) OVER (ORDER BY a RANGE CURRENT ", true, false, new string[]
+        ("RANGE CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a RANGE CURRENT ", true, false, new string[]
         {
             "ROW",
         }),
-        ("BETWEEN CURRENT", "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ", true, false, new string[]
+        ("BETWEEN CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN CURRENT ", true, false, new string[]
         {
             "ROW",
         }),
-        ("AND CURRENT", "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, new string[]
+        ("AND CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, new string[]
         {
             "ROW",
         }),

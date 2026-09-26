@@ -29,15 +29,17 @@ public static class SqlClausePhraseCatalog
     /// 游標前面是哪一個片語；比對不到時回傳 null。
     /// </summary>
     /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
-    /// <param name="textBeforeToken">同一段原文；判斷一句的開頭要看換行。</param>
+    /// <param name="textBeforeToken">同一段原文；前一格的位置要看換行。</param>
     /// <remarks>
     /// 語句到片語為止已經完整、游標又換了行時不算，見 <see cref="SqlClausePhrase.EndsStatement"/>。
+    /// 片語前一格的位置過不了 <see cref="SqlClausePhrase.After"/> 時也不算。
     ///
     /// 同時比對得上時取項數多的：<c>OFFSET 0 ROWS </c> 是 <c>OFFSET {value} ROWS</c>
-    /// 而不是視窗框架的 <c>ROWS</c>。項數一樣多時兩個片語都在說同一條尾巴，那是
-    /// 產生器的片語表寫重了，由測試擋下。
+    /// 而不是視窗框架的 <c>ROWS</c>；<c>CREATE TRIGGER tr ON t FOR </c> 是觸發程序的 FOR
+    /// 而不是查詢之後的 FOR。項數一樣多的只有同一條尾巴在不同位置上的片語，它們的位置
+    /// 互不重疊，前一格判不出位置時才同時成立，那時取字多的——多列幾個字，不少列。
     /// </remarks>
-    public static SqlClausePhrase? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    public static SqlClausePhraseMatch? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
     {
         if (tokens is null)
         {
@@ -56,7 +58,7 @@ public static class SqlClausePhraseCatalog
 
         var last = tokens[tokens.Count - 1];
         var onNewLine = SqlKeywordPositionAnalyzer.StartsOnNewLine(last.End, textBeforeToken.Length, textBeforeToken);
-        SqlClausePhrase? best = null;
+        SqlClausePhraseMatch? best = null;
 
         if (last.Kind == SqlTokenKind.Identifier &&
             !last.IsQuoted &&
@@ -65,10 +67,10 @@ public static class SqlClausePhraseCatalog
             best = FirstMatch(candidates, tokens, textBeforeToken, onNewLine, minimumLength: 0);
         }
 
-        return FirstMatch(EndingWithPlaceholder, tokens, textBeforeToken, onNewLine, best?.Length + 1 ?? 0) ?? best;
+        return FirstMatch(EndingWithPlaceholder, tokens, textBeforeToken, onNewLine, best?.Phrase.Length + 1 ?? 0) ?? best;
     }
 
-    private static SqlClausePhrase? FirstMatch(
+    private static SqlClausePhraseMatch? FirstMatch(
         SqlClausePhrase[] candidates,
         IReadOnlyList<SqlToken> tokens,
         string textBeforeToken,
@@ -89,21 +91,46 @@ public static class SqlClausePhraseCatalog
 
             var start = phrase.MatchTail(tokens);
 
-            if (start < 0)
+            if (start >= 0 && Qualify(phrase, tokens, start, textBeforeToken) is { } match)
             {
-                continue;
+                return match;
             }
-
-            if (phrase.StartsStatement &&
-                !SqlKeywordPositionAnalyzer.StartsStatementAt(tokens, start, textBeforeToken))
-            {
-                continue;
-            }
-
-            return phrase;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 尾巴已經對上，再看片語第一個字前面那一格過不過得了 <see cref="SqlClausePhrase.After"/>。
+    /// </summary>
+    /// <remarks>
+    /// 判不出位置時算數但不確定，理由見 <see cref="SqlClausePhraseMatch"/>。
+    /// 區塊開頭接的是語句，所以語句開頭的片語在那裡一樣成立：<c>BEGIN SET NOCOUNT ON</c>。
+    /// </remarks>
+    private static SqlClausePhraseMatch? Qualify(
+        SqlClausePhrase phrase,
+        IReadOnlyList<SqlToken> tokens,
+        int start,
+        string textBeforeToken)
+    {
+        if (phrase.After == SqlKeywordPosition.Any)
+        {
+            return phrase.Certain;
+        }
+
+        var before = SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken);
+
+        if (before == SqlKeywordPosition.Any)
+        {
+            return phrase.Tentative;
+        }
+
+        if ((before & SqlKeywordPosition.BlockStart) != SqlKeywordPosition.None)
+        {
+            before |= SqlKeywordPosition.StatementStart;
+        }
+
+        return (phrase.After & before) != SqlKeywordPosition.None ? phrase.Certain : null;
     }
 
     private static SqlClausePhrase[] Build()
@@ -113,8 +140,8 @@ public static class SqlClausePhraseCatalog
 
         for (var index = 0; index < data.Length; index++)
         {
-            var (pattern, probe, closed, endsStatement, words) = data[index];
-            phrases[index] = new SqlClausePhrase(pattern, probe, closed, endsStatement, words);
+            var (pattern, after, probe, closed, endsStatement, words) = data[index];
+            phrases[index] = new SqlClausePhrase(pattern, after, probe, closed, endsStatement, words);
         }
 
         return phrases;
@@ -165,9 +192,14 @@ public static class SqlClausePhraseCatalog
         return LongestFirst(phrases);
     }
 
-    /// <remarks>OrderBy 是穩定排序：項數相同時保留產生器的順序。</remarks>
+    /// <remarks>
+    /// 項數相同時字多的在前，見 <see cref="Match"/>。OrderBy 是穩定排序，其餘保留產生器的順序。
+    /// </remarks>
     private static SqlClausePhrase[] LongestFirst(List<SqlClausePhrase> phrases)
     {
-        return phrases.OrderByDescending(phrase => phrase.Length).ToArray();
+        return phrases
+            .OrderByDescending(phrase => phrase.Length)
+            .ThenByDescending(phrase => phrase.Words.Count)
+            .ToArray();
     }
 }
