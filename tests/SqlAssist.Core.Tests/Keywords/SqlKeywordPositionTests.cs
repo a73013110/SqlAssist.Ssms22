@@ -653,6 +653,21 @@ public sealed class SqlKeywordPositionTests
     // 判不出位置時是 Any，那是 fail-open：名稱照列。資料行型別之後就落在這裡。
     [InlineData("SELECT * FROM t WHERE a = 1 AND ", true)]
     [InlineData("CREATE TABLE t (a int ", true)]
+
+    // 子句尾端：一項剛寫完，同一行只接運算子或關鍵字；別名是新名字，不是既有物件。
+    [InlineData("SELECT * FROM t GROUP BY a ", false)]
+    [InlineData("SELECT * FROM t ORDER BY a ", false)]
+    [InlineData("SELECT * FROM t WHERE a = 1 ", false)]
+    [InlineData("SELECT * FROM t a ", false)]
+    [InlineData("SELECT * FROM t ", false)]
+    [InlineData("SELECT a ", false)]
+    [InlineData("UPDATE t SET a = 1 ", false)]
+
+    // 換行後同時是下一句的開頭，那裡也寫不出資料表或欄位。
+    [InlineData("SELECT * FROM t a\n", false)]
+    [InlineData("SELECT 1; ", false)]
+    [InlineData("BEGIN ", false)]
+    [InlineData("", false)]
     public void 位置過濾也管資料庫物件(string textBeforeCaret, bool expected)
     {
         var table = new SqlSuggestion(
@@ -666,6 +681,35 @@ public sealed class SqlKeywordPositionTests
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + "L");
 
         Assert.Equal(expected, SuggestionContextFilter.Filter(new[] { table }, context).Count == 1);
+    }
+
+    /// <summary>
+    /// 省略 EXEC 的程序呼叫只在批次第一句合法。
+    /// </summary>
+    /// <remarks>
+    /// 語句開頭本身不接名稱；放行成每一句的開頭的話，<c>FROM t a⏎CREA</c> 會列出
+    /// 所有名稱含 Create 的預存程序，而那裡寫上去就是語法錯誤。
+    /// </remarks>
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("SELECT 1\nGO\n", true)]
+    [InlineData("EXEC ", true)]
+    [InlineData("SELECT 1; ", false)]
+    [InlineData("SELECT * FROM t a\n", false)]
+    [InlineData("SELECT * FROM t WHERE a = 1 ", false)]
+    public void 批次第一句才列出不加EXEC的程序(string textBeforeCaret, bool expected)
+    {
+        var procedure = new SqlSuggestion(
+            "usp_Loan",
+            "[dbo].[usp_Loan]",
+            "Procedure · dbo",
+            "Procedure usp_Loan",
+            SuggestionKind.Procedure,
+            schemaName: "dbo");
+
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + "u");
+
+        Assert.Equal(expected, SuggestionContextFilter.Filter(new[] { procedure }, context).Count == 1);
     }
 
     public static TheoryData<SqlKeywordPosition, string> GeneratorTemplates()

@@ -96,23 +96,26 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 #### 位置過濾也管資料庫物件
 
 關鍵字、內建函式與片段各自帶著位置旗標，**名稱沒有**——資料表與程序是執行期從
-中繼資料來的，帶不了旗標。所以反過來列「哪些位置一個名稱都不接受」，而那份清單
-短得多，每一項都要說得出「那裡沒有任何名稱是合法的」：
+中繼資料來的，帶不了旗標。所以反過來列寫不出名稱的位置（`SqlKeywordPositionExtensions.AcceptsNames`），
+每一項都要說得出「那裡沒有任何名稱是合法的」：
 
 | 位置 | 那裡只接受 |
 |---|---|
+| 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
+| `StatementStart`、`BlockStart`（`;` 之後、`BEGIN \|`） | 下一句的關鍵字 |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
-| `AlterTableAction`（`ALTER TABLE t \|`） | `ADD`、`ALTER`、`DROP`、`CHECK`… |
-| `AlterTableAdd`（`ALTER TABLE t ADD \|`） | 條件約束關鍵字，或使用者正要取的新資料行名稱 |
-| `ColumnDefinition`（`CREATE TABLE t (\|`、逗號之後） | 同上 |
+| `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |
 | `SetOptionValue`（`SET NOCOUNT \|`） | `ON`、`OFF`（`SET IDENTITY_INSERT \|` 要資料表，不在此） |
+
+子句尾端換行後補上的語句開頭照樣不接名稱：`FROM t a⏎CREA` 的欄位屬於上一句，
+省略 EXEC 的程序呼叫又只在**批次第一句**合法（文件開頭或 `GO` 之後，`StartsBatch`）。
+那裡只放行程序。
 
 `InsertTarget` 刻意不在裡面：`INSERT dbo.Loan VALUES (…)` 是合法的 T-SQL，`INTO`
 可以省略。`SetTarget` 也不在——`SET |` 與 `UPDATE t SET |` 是同一個位置，而後者要的是
 資料行。`CaseArm`、`CaseBody` 不在：CASE 的各段寫的是運算式，欄位與函式都對。
 
-判斷比的是「位置裡還有沒有別的位元」而不是位元交集，理由與 `AS` 那條規則完全相同：
-判不出位置時回傳的 `Any` 含著上表每一個旗標，用交集的話 fail-open 會變成
-fail-closed，**每一個**位置的資料庫物件都會消失。
-兩個方向都釘在 `SqlKeywordPositionTests.位置過濾也管資料庫物件`。
+判斷比的是「位置裡還有沒有別的位元」而不是位元交集：判不出位置時回傳的 `Any`
+含著上表每一個旗標，用交集的話 fail-open 會變成 fail-closed，**每一個**位置的資料庫
+物件都會消失。兩個方向都釘在 `SqlKeywordPositionTests.位置過濾也管資料庫物件`。

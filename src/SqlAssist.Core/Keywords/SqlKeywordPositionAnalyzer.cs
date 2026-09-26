@@ -232,7 +232,16 @@ public static class SqlKeywordPositionAnalyzer
         var caret = AnalyzeClause(tokens, textBeforeToken);
         var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken);
 
-        return phrase is null ? caret : new SqlCaretPosition(caret.Keywords, caret.Slot, phrase);
+        return new SqlCaretPosition(caret.Keywords, caret.Slot, phrase, StartsBatch(tokens));
+    }
+
+    /// <summary>同一個批次裡游標前面還沒有任何詞元。</summary>
+    /// <remarks>
+    /// 詞法分析只把 ScriptDom 判定的批次分隔回報成 <c>GO</c> 關鍵字，名為 GO 的欄位不算。
+    /// </remarks>
+    private static bool StartsBatch(IReadOnlyList<SqlToken> tokens)
+    {
+        return tokens.Count == 0 || tokens[tokens.Count - 1].IsKeyword("GO");
     }
 
     /// <summary>

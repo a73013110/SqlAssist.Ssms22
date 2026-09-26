@@ -108,7 +108,7 @@ public static class SqlCompletionContextAnalyzer
         // CREATE 的物件名稱、CTE 名稱、SELECT … INTO 的新資料表。底下的目標判斷都在問
         // 「要列哪一類既有物件」，對新名字沒有意義——CREATE PROCEDURE dbo. 的限定字
         // 也一起丟掉，那裡沒有要查的東西。可能是名字的那一格照常往下走：清單以軟選開啟，
-        // 列的東西與一般位置相同。
+        // 列什麼仍由位置決定。
         if (caret.Slot == SqlCompletionSlot.Name)
         {
             return new SqlCompletionContext(
@@ -172,7 +172,8 @@ public static class SqlCompletionContextAnalyzer
             columnSources: null,
             keywordPosition,
             qualifierStart: qualifierStart,
-            clausePhrase: caret.Phrase);
+            clausePhrase: caret.Phrase,
+            startsBatch: caret.StartsBatch);
     }
 
     /// <summary>

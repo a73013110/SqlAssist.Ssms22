@@ -25,7 +25,8 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
         SqlExecutedModule? executedModule = null,
         int qualifierStart = -1,
-        SqlClausePhrase? clausePhrase = null)
+        SqlClausePhrase? clausePhrase = null,
+        bool startsBatch = false)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -41,6 +42,7 @@ public sealed class SqlCompletionContext
         ExecutedModule = executedModule;
         QualifierStart = qualifierStart;
         ClausePhrase = clausePhrase;
+        StartsBatch = startsBatch;
     }
 
     /// <summary>
@@ -209,6 +211,9 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public SqlClausePhrase? ClausePhrase { get; }
 
+    /// <summary>游標在批次的第一句：只有這裡可以省略 EXEC 直接寫程序名稱。</summary>
+    public bool StartsBatch { get; }
+
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
     {
@@ -226,7 +231,8 @@ public sealed class SqlCompletionContext
             ScriptSources,
             ExecutedModule,
             QualifierStart,
-            ClausePhrase);
+            ClausePhrase,
+            StartsBatch);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -246,7 +252,8 @@ public sealed class SqlCompletionContext
             sources,
             ExecutedModule,
             QualifierStart,
-            ClausePhrase);
+            ClausePhrase,
+            StartsBatch);
     }
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
@@ -273,7 +280,8 @@ public sealed class SqlCompletionContext
             ScriptSources,
             ExecutedModule,
             QualifierStart,
-            ClausePhrase);
+            ClausePhrase,
+            StartsBatch);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -293,6 +301,7 @@ public sealed class SqlCompletionContext
             ScriptSources,
             ExecutedModule,
             QualifierStart,
-            ClausePhrase);
+            ClausePhrase,
+            StartsBatch);
     }
 }

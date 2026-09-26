@@ -252,9 +252,10 @@ public sealed class SqlSnippetDefaultsTests
                     schemaName: "dbo")
             });
 
+        // 語句開頭寫不出資料表名稱；選取清單同時接得了資料表與片段。
         var ranked = SuggestionListProbe.Match(
             candidates,
-            SqlCompletionContextAnalyzer.Analyze("libr"));
+            SqlCompletionContextAnalyzer.Analyze("SELECT libr"));
 
         Assert.Equal("Lib_Reader", ranked[0].DisplayText);
     }

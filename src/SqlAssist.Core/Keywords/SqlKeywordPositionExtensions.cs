@@ -27,4 +27,55 @@ public static class SqlKeywordPositionExtensions
             ? caret == SqlKeywordPosition.Any
             : (positions & caret) != SqlKeywordPosition.None;
     }
+
+    /// <summary>
+    /// 文法在這裡寫不出既有物件的名稱；每一項都要說得出「那裡沒有任何名稱是合法的」。
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item>子句尾端（<c>GROUP BY a |</c>、<c>WHERE a = 1 |</c>、<c>FROM t a |</c>）：
+    /// 一項剛寫完，同一行只接得了運算子或關鍵字。唯一會接名字的是別名，那是使用者
+    /// 新取的名字，不是既有物件。換行後補上的語句開頭也不例外，見下一項。</item>
+    /// <item>語句開頭與 <c>BEGIN |</c>：接下一句的關鍵字。省略 EXEC 的程序呼叫只在
+    /// 批次第一句合法，由 <c>SqlCompletionContext.StartsBatch</c> 另外放行。</item>
+    /// <item><c>ORDER |</c>／<c>GROUP |</c> 之後只有 <c>BY</c>；<c>CREATE |</c>／<c>ALTER |</c>／
+    /// <c>DROP |</c> 之後是物件<b>種類</b>。</item>
+    /// <item><c>ALTER TABLE t |</c>、<c>ALTER TABLE t ADD |</c>、<c>CREATE TABLE t (|</c>：
+    /// 動作、條件約束關鍵字，或新資料行名稱。</item>
+    /// <item><c>SET NOCOUNT |</c> 之後是選項值；要資料表的 <c>SET IDENTITY_INSERT |</c>
+    /// 不是這個位置。</item>
+    /// </list>
+    ///
+    /// 不在裡面的都有理由：<c>INSERT |</c> 的 <c>INTO</c> 可以省略；<c>SET |</c> 與
+    /// <c>UPDATE t SET |</c> 是同一個位置，後者要資料行；CASE 的各段寫的是運算式，
+    /// <c>CaseArm</c> 同時是 <c>WHEN |</c> 的起點。
+    /// </remarks>
+    private const SqlKeywordPosition NoNamePositions =
+        SqlKeywordPosition.SelectListTail |
+        SqlKeywordPosition.TableSourceTail |
+        SqlKeywordPosition.ExpressionTail |
+        SqlKeywordPosition.OrderByTail |
+        SqlKeywordPosition.GroupByTail |
+        SqlKeywordPosition.StatementStart |
+        SqlKeywordPosition.BlockStart |
+        SqlKeywordPosition.ByAnchor |
+        SqlKeywordPosition.DdlObject |
+        SqlKeywordPosition.AlterTableAction |
+        SqlKeywordPosition.AlterTableAdd |
+        SqlKeywordPosition.ColumnDefinition |
+        SqlKeywordPosition.SetOptionValue;
+
+    /// <summary>
+    /// 沒有位置旗標的建議項（資料表、程序、欄位、CTE…）能不能出現在 <paramref name="caret"/>。
+    /// </summary>
+    /// <remarks>
+    /// 名稱是執行期從中繼資料來的，帶不了旗標，所以反過來列寫不出名稱的位置。
+    /// 比的是「位置裡還有沒有別的位元」而不是交集：判不出位置時的
+    /// <see cref="SqlKeywordPosition.Any"/> 含著每一個旗標，用交集的話 fail-open 會變成
+    /// fail-closed，每一個位置的資料庫物件都會消失。
+    /// </remarks>
+    public static bool AcceptsNames(this SqlKeywordPosition caret)
+    {
+        return (caret & ~NoNamePositions) != SqlKeywordPosition.None;
+    }
 }
