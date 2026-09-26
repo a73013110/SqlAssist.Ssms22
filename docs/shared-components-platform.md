@@ -15,6 +15,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | 主視窗、作用中框架、元素所在視窗（取代 `Window.GetWindow`）、焦點、非啟用浮窗帶回前景與對話框擁有者 | `Ssms22/UI/SsmsWindows.cs` |
 | 編輯器換行判定 | `Ssms22/Editor/SnapshotNewLine.cs` |
 | 延後至本輪命令結束 | `Ssms22/Editor/TextViewDispatch.cs` |
+| 跟著游標出現與收起的提示 | `Ssms22/Editor/CaretHint.cs` |
 | Tab／Shift+Tab／Enter 優先順序 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 殼層命令攔截與診斷 | `Ssms22/Editor/SqlShellCommandFilter.cs` |
 | 自製 Popup 握著鍵盤時把殼層命令換回按鍵交還 | `Ssms22/Editor/ShellKeyCapture.cs`、`ShellKeyMap.cs` |

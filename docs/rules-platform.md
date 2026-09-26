@@ -40,6 +40,9 @@
 - 要把續程留在 UI 執行緒時**明寫 `ConfigureAwait(true)`**：這個專案滿是
   `ConfigureAwait(false)`，留空的那一個看起來像漏掉的。
 
+- **禁止**只靠 `Caret.PositionChanged` 追游標情境：游標跟著編輯位移（打字、刪字、復原、
+  背景寫回）時平台不發這個事件。要一併聽文字變更；跟著游標的提示一律走 `Editor/CaretHint`。
+
 - **禁止**依賴 `CommitBehavior.Retrigger`：SSMS 22 的編輯器組件沒有任何一處讀它。
 - **禁止**用 `DismissAllSessions` 搶 session。重開清單一律走 `SqlCompletionReopen`
   的三步驟（Dismiss → TriggerCompletion → OpenOrUpdate），一步都不能少。
