@@ -890,7 +890,7 @@ public sealed class SqlMemoryVisualTests
             Assert.True(scroll.HorizontalOffset < scroll.ScrollableWidth);
             foreach (var key in new[] { Key.Home, Key.End, Key.Left, Key.Right })
             {
-                var keyboard = new KeyEventArgs(Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+                var keyboard = new KeyEventArgs(new TestKeyboardDevice(), source, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
                 scroll.RaiseEvent(keyboard); split.UpdateLayout(); Assert.True(keyboard.Handled);
                 if (key == Key.Home) Assert.Equal(0, scroll.HorizontalOffset);
                 if (key == Key.End) Assert.Equal(scroll.ScrollableWidth, scroll.HorizontalOffset);

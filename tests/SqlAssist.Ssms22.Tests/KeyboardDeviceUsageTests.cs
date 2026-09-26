@@ -49,14 +49,42 @@ public sealed class KeyboardDeviceUsageTests
             "改用 KeyEventArgs.KeyboardDevice：" + Environment.NewLine + string.Join(Environment.NewLine, offenders));
     }
 
-    private static string FindProductSourceDirectory()
+    [Fact]
+    public void 測試合成的按鍵只用測試指定的鍵盤裝置()
+    {
+        // Keyboard.PrimaryDevice 的修飾鍵讀自實體鍵盤：整輪測試跑到一半時使用者按著 Shift 或 Ctrl，
+        // 合成的 Home／End 就被產品碼當成組合鍵放過，斷言只在那一輪失敗、單獨重跑又通過。
+        var pattern = new Regex(@"\bKeyboard\.PrimaryDevice\b");
+        var root = FindRepositoryDirectory(Path.Combine("tests", "SqlAssist.Ssms22.Tests"));
+        var offenders = Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildOutput(root, path))
+            .SelectMany(path => File.ReadAllLines(path)
+                .Select((line, index) => (path, line, number: index + 1)))
+            .Where(entry => pattern.IsMatch(entry.line) && !entry.line.TrimStart().StartsWith("//", StringComparison.Ordinal))
+            .Select(entry => $"{entry.path.Substring(root.Length + 1)}:{entry.number}: {entry.line.Trim()}")
+            .ToArray();
+
+        Assert.True(offenders.Length == 0,
+            "改用 new TestKeyboardDevice(...)：" + Environment.NewLine + string.Join(Environment.NewLine, offenders));
+    }
+
+    private static bool IsBuildOutput(string root, string path)
+    {
+        var relative = path.Substring(root.Length + 1);
+        return relative.StartsWith("bin" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            relative.StartsWith("obj" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FindProductSourceDirectory() => FindRepositoryDirectory(Path.Combine("src", "SqlAssist.Ssms22"));
+
+    private static string FindRepositoryDirectory(string relativePath)
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
         {
-            var candidate = Path.Combine(current.FullName, "src", "SqlAssist.Ssms22");
+            var candidate = Path.Combine(current.FullName, relativePath);
             if (Directory.Exists(candidate)) return candidate;
         }
 
-        throw new DirectoryNotFoundException("找不到 src/SqlAssist.Ssms22。");
+        throw new DirectoryNotFoundException($"找不到 {relativePath}。");
     }
 }
