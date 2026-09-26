@@ -106,6 +106,16 @@ public enum CompletionTarget
     /// <c>CREATE</c>／<c>ALTER DATABASE</c>——在這裡不分：文法上接得了的東西
     /// 完全一樣，分開只是多兩條會漏的路。
     /// </remarks>
-    Collation
+    Collation,
+
+    /// <summary>
+    /// 游標前面是封閉的子句片語（<c>SET STATISTICS </c>、<c>ALTER INDEX i ON t </c>…），
+    /// 清單只有片語接得上的那幾個字。
+    /// </summary>
+    /// <remarks>
+    /// 字在 <see cref="SqlCompletionContext.ClausePhrase"/> 裡，由產生器以剖析器探測得到。
+    /// 不封閉的片語不走這個目標：那裡只換掉關鍵字，名稱照常。
+    /// </remarks>
+    ClauseKeyword
 }
 

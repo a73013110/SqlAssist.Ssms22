@@ -92,7 +92,11 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("CREATE OR ALTER PROCEDURE u", true, true, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.Procedure, true)]
     [InlineData("CREATE OR ALTER VIEW ", true, true, SqlCompletionSlot.MaybeName, SqlKeywordPosition.Any, CompletionTarget.View, true)]
     [InlineData("ALTER PROCEDURE u", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Procedure, false)]
-    [InlineData("CREATE ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.DdlObject, CompletionTarget.Any, false)]
+
+    // 封閉的片語是收斂的目標：那一格只有片語的字，與 CAST(x AS 一樣不必等字元數。
+    [InlineData("CREATE ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.DdlObject, CompletionTarget.ClauseKeyword, false)]
+    [InlineData("SET ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.SetTarget, CompletionTarget.ClauseKeyword, false)]
+    [InlineData("SET IDENTITY_INSERT ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
 
     // CTE 名稱與 SELECT … INTO 的目標是新名稱。
     [InlineData(";WITH ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any, false)]

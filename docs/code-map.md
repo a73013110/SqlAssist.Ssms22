@@ -14,7 +14,7 @@
 | SSMS 自己的清單也跟著彈出來 | `Ssms22/Settings/NativeMemberList.cs`；總開關為何不能關見[補全](completion.md) |
 | 提交後寫進去的文字不對 | `Core/Completion/SqlInsertionText.cs`（規則）、`Ssms22/Completion/SqlAsyncCompletionCommitManager.cs`（接線） |
 | `INSERT INTO`／`MERGE INTO`／`EXEC`／`ALTER` 展開內容不對、蓋錯位置 | `Core/Statements/`、`Ssms22/Completion/SqlCommitExpansions.cs`、`SqlCommitExpander.cs` |
-| 關鍵字清單要增刪 | `tools/Generate-Keywords.ps1` |
+| 關鍵字清單要增刪；某條尾巴之後少字或多字 | `tools/Generate-Keywords.ps1`（`$ClausePhrases`）、`Core/Keywords/SqlClausePhrase.cs` |
 | 內建函式、全域變數或型別要增刪 | `Core/Keywords/` 底下的三個 Catalog |
 | 自動大寫時機 | `Core/Keywords/SqlKeywordCase.cs`、`Ssms22/Editor/SqlKeywordCasing.cs` |
 | 括號或引號補錯時機、跳不過去 | `Core/Pairing/SqlAutoPairAnalyzer.cs`、`Ssms22/Editor/SqlAutoPairing.cs` |

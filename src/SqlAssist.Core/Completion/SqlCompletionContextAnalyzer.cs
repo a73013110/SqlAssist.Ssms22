@@ -67,6 +67,20 @@ public static class SqlCompletionContextAnalyzer
             out var beforeQualifier,
             out var qualifierStart);
 
+        // 封閉的子句片語排在其他封閉清單之前：片語比對的是游標前的整條尾巴，
+        // CREATE INDEX … WITH ( 是索引選項，只看「WITH 緊接著左括號」會當成資料表提示。
+        // 名字那一格也在它之後問：片語說得出這裡要什麼，就不是使用者要取的名字。
+        if (caret.Phrase is { IsClosed: true } closedPhrase)
+        {
+            return new SqlCompletionContext(
+                SqlCompletionSlot.Grammar,
+                tokenStart,
+                prefix,
+                CompletionTarget.ClauseKeyword,
+                keywordPosition: keywordPosition,
+                clausePhrase: closedPhrase);
+        }
+
         // 引數與提示的封閉清單同樣排在「這裡不接受任何關鍵字」之前：
         // 那幾個位置除了清單上的字沒有別的東西是對的。
         if (SqlArgumentPosition.TryResolve(tokens, out var argumentTarget))
@@ -124,7 +138,8 @@ public static class SqlCompletionContextAnalyzer
                 CompletionIntent.Reference,
                 columnSources: null,
                 keywordPosition,
-                qualifierStart: qualifierStart);
+                qualifierStart: qualifierStart,
+                clausePhrase: caret.Phrase);
         }
 
         var target = DetermineTarget(
@@ -156,7 +171,8 @@ public static class SqlCompletionContextAnalyzer
             intent,
             columnSources: null,
             keywordPosition,
-            qualifierStart: qualifierStart);
+            qualifierStart: qualifierStart,
+            clausePhrase: caret.Phrase);
     }
 
     /// <summary>

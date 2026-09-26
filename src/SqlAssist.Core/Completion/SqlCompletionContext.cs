@@ -24,7 +24,8 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlColumnSource>? scopeSources = null,
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
         SqlExecutedModule? executedModule = null,
-        int qualifierStart = -1)
+        int qualifierStart = -1,
+        SqlClausePhrase? clausePhrase = null)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -39,6 +40,7 @@ public sealed class SqlCompletionContext
         ScopeSources = scopeSources ?? NoSources;
         ExecutedModule = executedModule;
         QualifierStart = qualifierStart;
+        ClausePhrase = clausePhrase;
     }
 
     /// <summary>
@@ -198,6 +200,15 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public SqlKeywordPosition KeywordPosition { get; }
 
+    /// <summary>
+    /// 游標前面比對到的子句片語；比對到時，這一格的關鍵字只來自它。
+    /// </summary>
+    /// <remarks>
+    /// 片語封閉時 <see cref="Target"/> 是 <see cref="CompletionTarget.ClauseKeyword"/>，
+    /// 清單只有它的字；不封閉時名稱照常，只有關鍵字換成它的字。
+    /// </remarks>
+    public SqlClausePhrase? ClausePhrase { get; }
+
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
     {
@@ -214,7 +225,8 @@ public sealed class SqlCompletionContext
             sources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart);
+            QualifierStart,
+            ClausePhrase);
     }
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
@@ -233,7 +245,8 @@ public sealed class SqlCompletionContext
             ScopeSources,
             sources,
             ExecutedModule,
-            QualifierStart);
+            QualifierStart,
+            ClausePhrase);
     }
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
@@ -259,7 +272,8 @@ public sealed class SqlCompletionContext
             ScopeSources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart);
+            QualifierStart,
+            ClausePhrase);
     }
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
@@ -278,6 +292,7 @@ public sealed class SqlCompletionContext
             ScopeSources,
             ScriptSources,
             ExecutedModule,
-            QualifierStart);
+            QualifierStart,
+            ClausePhrase);
     }
 }

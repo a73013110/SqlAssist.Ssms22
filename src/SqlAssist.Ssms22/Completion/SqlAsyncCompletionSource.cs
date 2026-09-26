@@ -505,6 +505,8 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return SqlArgumentCatalog.TableHints;
             case CompletionTarget.QueryHint:
                 return SqlArgumentCatalog.QueryHints;
+            case CompletionTarget.ClauseKeyword:
+                return context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>();
         }
 
         // 定序只有伺服器知道，但那個位置不會因為問不到而空掉：DATABASE_DEFAULT
@@ -570,8 +572,11 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 指令碼自己宣告的 CTE 與暫存資料表不必對資料庫送出任何查詢，
         // 因此與「列出資料庫物件」的設定無關——關掉那個設定的人要的是
         // 「不要連線」，不是「看不到我上一行才寫的名稱」。
+        // 不封閉的子句片語（SET IDENTITY_INSERT 之後是資料表）把它的字接上來；
+        // 目錄裡的關鍵字在那一格由上下文過濾換成片語的字。
         var builtIn = GetBuiltIn()
             .Where(item => IsBuiltInEnabled(item, settings))
+            .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
             .Concat(context.ScriptSources);
 
         if (!settings.IncludeDatabaseObjects)
@@ -695,6 +700,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         CompletionTarget.TableHint => SqlKindText.TableHint,
         CompletionTarget.QueryHint => SqlKindText.QueryHint,
         CompletionTarget.Collation => SqlKindText.Collation,
+        CompletionTarget.ClauseKeyword => SqlKindText.Keyword,
         _ => "",
     };
 

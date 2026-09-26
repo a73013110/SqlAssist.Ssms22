@@ -600,7 +600,10 @@ public sealed class SqlKeywordPositionTests
     public void 位置過濾決定關鍵字出不出現(string textBeforeCaret, string keyword, bool expected)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + keyword.Substring(0, 1));
-        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty);
+
+        // 與執行期相同：比對到片語時，那一格的關鍵字來自片語。
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetLibrary.Empty)
+            .Concat(context.ClausePhrase?.Suggestions ?? Enumerable.Empty<SqlSuggestion>());
 
         var matched = SuggestionContextFilter
             .Filter(suggestions, context)
@@ -734,8 +737,9 @@ public sealed class SqlKeywordPositionTests
     [Fact]
     public void FOR_SYSTEM_TIME_AS之後列得出OF()
     {
-        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current);
         var context = SqlCompletionContextAnalyzer.Analyze("SELECT a FROM t FOR SYSTEM_TIME AS O");
+        var suggestions = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current)
+            .Concat(context.ClausePhrase?.Suggestions ?? Enumerable.Empty<SqlSuggestion>());
 
         Assert.Equal(SqlCompletionSlot.Grammar, context.Slot);
         Assert.Contains(SuggestionContextFilter.Filter(suggestions, context), suggestion => suggestion.DisplayText == "OF");
@@ -873,7 +877,6 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT ", "WITH", false)]
     [InlineData("SET NOCOUNT ", "OFF", true)]
     [InlineData("SET IDENTITY_INSERT dbo.Loan ", "OFF", true)]
-    [InlineData("SET TRANSACTION ISOLATION LEVEL ", "READ", true)]
     [InlineData("SELECT * FROM t ", "OFF", false)]
     [InlineData("SELECT * FROM t ", "READ", false)]
     [InlineData("DELETE FROM t WHERE ", "CURRENT", true)]
@@ -1063,7 +1066,7 @@ public sealed class SqlKeywordPositionTests
             SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail,
             position);
         Assert.Contains(
-            SqlKeywordCatalog.SuggestionKeywords,
+            SqlKeywordCatalog.All,
             keyword => keyword == "IN" &&
                 (SqlKeywordCatalog.GetPositions(keyword) & position) != SqlKeywordPosition.None);
     }

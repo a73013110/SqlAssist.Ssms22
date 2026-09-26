@@ -130,6 +130,9 @@ public static class SuggestionContextFilter
             CompletionTarget.Collation => kind is SuggestionKind.Collation
                 or SuggestionKind.CollationInUse,
 
+            // 哪幾個關鍵字由片語決定，見 IsAllowedForPosition。
+            CompletionTarget.ClauseKeyword => kind == SuggestionKind.Keyword,
+
             // 沒有限定字時仍然可以有欄位：SELECT | FROM PUBLISHER a 這種位置，
             // 敘述裡看得到的欄位比整個資料庫的物件清單更接近使用者要的東西。
             // 候選清單是依上下文組出來的，沒有範圍就不會有欄位，這裡不必再擋。
@@ -164,7 +167,7 @@ public static class SuggestionContextFilter
     /// 或者使用者正要取的新資料行名稱。</item>
     /// <item><c>CREATE TABLE t (|</c> 與逗號之後是條件約束關鍵字，或新資料行名稱——
     /// 新名字不是任何既有物件，與 <c>ADD |</c> 同一個理由。</item>
-    /// <item><c>SET NOCOUNT |</c> 之後是選項值（ON、OFF、READ）。要資料表的
+    /// <item><c>SET NOCOUNT |</c> 之後是選項值（ON、OFF）。要資料表的
     /// <c>SET IDENTITY_INSERT |</c> 不是這個位置，見 <c>SqlKeywordPositionAnalyzer.FindSetOptionPart</c>。</item>
     /// </list>
     ///
@@ -204,6 +207,16 @@ public static class SuggestionContextFilter
     /// </remarks>
     private static bool IsAllowedForPosition(SqlSuggestion suggestion, SqlCompletionContext context)
     {
+        // 子句片語比對得到時，這一格的關鍵字只來自那個片語：位置旗標是整個子句的粗分層，
+        // 片語是更靠近游標的答案——SET DATEFORMAT 之後不是 ON／OFF。反過來，片語的字
+        // 只屬於那個片語，不會漏到別的位置。認的是 Tag 而不是顯示文字：READ 同時在
+        // 關鍵字目錄與片語裡，比文字的話兩份都會出現。
+        if (suggestion.Kind == SuggestionKind.Keyword &&
+            (context.ClausePhrase is not null || suggestion.Tag is SqlClausePhrase))
+        {
+            return ReferenceEquals(suggestion.Tag, context.ClausePhrase);
+        }
+
         if (suggestion.Kind is SuggestionKind.Keyword or
             SuggestionKind.BuiltInFunction or
             SuggestionKind.Snippet)

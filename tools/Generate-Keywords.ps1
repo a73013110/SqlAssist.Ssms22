@@ -36,6 +36,15 @@
     樣板表隨產物輸出，Core 的測試逐條回驗。樣板都進不去的字產出為 None，
     執行期只在分析器也判不出位置時出現。
 
+    四、子句片語
+        SET 選項、ALTER INDEX 的動作、FOR XML 的模式這些字在文法上不是關鍵字
+        （ScriptDom 把它們掃成識別字），前三個階段撈不到。這一階段換一個問法：
+        每個片語是一段「游標前面的尾巴」（SET STATISTICS、ALTER INDEX {name} ON {name}），
+        候選字取 ScriptDom 內部 CodeGenerationSupporter 的所有字串常數加上關鍵字清單，
+        以與第三階段相同的規則（普通名稱過不了而它過得了）決定哪些字接得上。
+        普通名稱在每一組續尾都過不了的片語是「封閉」的：那裡除了這幾個字沒有別的東西是對的。
+        手寫的只有片語的尾巴；片語表與探測文字一併輸出，Core 的測試逐條回驗。
+
 .PARAMETER SsmsInstallDir
     SSMS 22 安裝路徑。ScriptDom 隨 SSMS 附帶，不必另外安裝。
 
@@ -282,8 +291,9 @@ $ContextTemplates = [ordered]@{
     BlockStart       = @('BEGIN ', 'BEGIN TRY SELECT 1 END TRY BEGIN ')
     SetTarget        = @('SET ')
 
-    # SET 的選項名稱寫完之後：工作階段選項的 ON／OFF、隔離等級的 READ。
-    SetOptionValue   = @('SET NOCOUNT ', 'SET IDENTITY_INSERT t ', 'SET TRANSACTION ISOLATION LEVEL ')
+    # SET 的選項名稱寫完之後的 ON／OFF。各選項自己的值（隔離等級、STATISTICS IO…）
+    # 由第四階段的子句片語逐一探測，這裡只是片語比對不上時（選項清單的逗號之後）的退路。
+    SetOptionValue   = @('SET NOCOUNT ', 'SET IDENTITY_INSERT t ')
     InsertTarget     = @('INSERT ')
 }
 
@@ -411,6 +421,332 @@ if ($orphans.Count -gt 0) {
     Write-Warning "有 $($orphans.Count) 個關鍵字不屬於任何位置，將以 None 產出（只在判不出位置時出現）：$($orphans -join ', ')"
 }
 
+# ------------------------------------------------------------------ 四、子句片語
+
+# 候選字：關鍵字清單，加上 ScriptDom 產生程式碼時用的全部字串常數。後者正是剖析器
+# 用字串比對認的那些非保留字（QUOTED_IDENTIFIER、REBUILD、MATCHED…），但也混著大量
+# 與文法無關的字——不必事先挑，接不接得上由下面的探測決定。
+$supporterType = $assembly.GetType('Microsoft.SqlServer.TransactSql.ScriptDom.CodeGenerationSupporter')
+
+if (-not $supporterType) {
+    throw 'ScriptDom 裡找不到 CodeGenerationSupporter；子句片語的候選字只能從那裡取。'
+}
+
+$supporterWords = $supporterType.GetFields([System.Reflection.BindingFlags]'Static,Public,NonPublic') |
+    Where-Object IsLiteral |
+    ForEach-Object { $_.GetRawConstantValue() } |
+    Where-Object { $_ -is [string] -and $_ -match '^[A-Za-z_][A-Za-z0-9_]*$' } |
+    ForEach-Object { $_.ToUpperInvariant() }
+
+$phrasePool = @($keywords) + @($supporterWords) | Sort-Object -Unique
+Write-Host "子句片語候選字：$($phrasePool.Count) 個"
+
+# 片語的尾巴。執行期由 SqlClausePhrase 以同一份文字比對游標前的詞元：
+#   ^        片語的第一個字必須是一句的開頭（UPDATE t SET 的 SET 不是選項的 SET）
+#   {name}   一個名稱單位，可以含點號與方括號；保留字也算（ALTER INDEX ALL、ALTER DATABASE CURRENT）
+#   {value}  一個數值、字串、變數，或一整組括號
+#   ()       一整組括號
+#   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
+# Lead 只給探測用：片語的尾巴本身不是完整的上下文時，前面要墊的文字。
+# Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
+# Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
+# 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來。
+# Closed 由人宣告那一格只有這幾個值。
+# 同一條尾巴後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
+$ClausePhrases = @(
+    @{ Pattern = '^SET'; Expand = 4 }
+    @{ Pattern = '^SET IDENTITY_INSERT {name}' }
+    @{ Pattern = '^SET DATEFORMAT'; Values = @('mdy', 'dmy', 'ymd', 'ydm', 'myd', 'dym'); Closed = $true }
+    @{ Pattern = '^SET DEADLOCK_PRIORITY'; Values = @('LOW', 'NORMAL', 'HIGH'); Closed = $true }
+
+    @{ Pattern = '^CREATE' }
+    @{ Pattern = '^ALTER' }
+    @{ Pattern = '^DROP' }
+    @{ Pattern = 'CREATE OR ALTER' }
+    @{ Pattern = '^ALTER TABLE {name}' }
+    @{ Pattern = '^ALTER DATABASE {name}' }
+    @{ Pattern = '^ALTER DATABASE {name} SET'; Expand = 1 }
+    @{ Pattern = '^BACKUP' }
+    @{ Pattern = '^RESTORE' }
+
+    # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了。
+    @{ Pattern = 'ALTER INDEX {name} ON {name}' }
+    @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
+    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) '; Values = @('WITH') }
+    @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
+    @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
+
+    @{ Pattern = 'TRIGGER {name} ON {name}'; Lead = 'CREATE ' }
+    @{ Pattern = 'INSTEAD'; Lead = 'CREATE TRIGGER tr ON t ' }
+    @{ Pattern = 'EXECUTE AS' }
+    @{ Pattern = 'EXEC AS' }
+    @{ Pattern = 'WITH EXECUTE AS'; Lead = 'CREATE PROCEDURE p ' }
+    @{ Pattern = 'WITH EXEC AS'; Lead = 'CREATE PROCEDURE p ' }
+    @{ Pattern = 'ON DELETE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
+    @{ Pattern = 'ON UPDATE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
+
+    @{ Pattern = 'WAITFOR' }
+    @{ Pattern = 'DECLARE {name} CURSOR' }
+    @{ Pattern = '^FETCH' }
+
+    @{ Pattern = 'FOR XML'; Lead = 'SELECT a FROM t ' }
+    @{ Pattern = 'FOR JSON'; Lead = 'SELECT a FROM t ' }
+    @{ Pattern = 'FOR SYSTEM_TIME'; Lead = 'SELECT a FROM t '; Expand = 1 }
+    @{ Pattern = 'GROUP BY'; Lead = 'SELECT a FROM t '; Values = @('ROLLUP', 'CUBE', 'GROUPING SETS') }
+    @{ Pattern = 'TOP {value} WITH'; Lead = 'SELECT ' }
+    @{ Pattern = 'PERCENT WITH'; Lead = 'SELECT TOP 10 ' }
+    @{ Pattern = 'AT TIME'; Lead = 'SELECT a ' }
+    @{ Pattern = 'NOT MATCHED'; Lead = 'MERGE t USING s ON 1 = 1 WHEN ' }
+    @{ Pattern = 'MATCHED BY'; Lead = 'MERGE t USING s ON 1 = 1 WHEN NOT ' }
+
+    # OFFSET … FETCH：每一格只有一兩個字，但沒有它們就得整句背下來。
+    # OFFSET 10 ROWS 已經是完整的語句，FETCH 同時是游標語句的開頭，被當成下一句扣掉了。
+    @{ Pattern = 'OFFSET {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a '; Values = @('FETCH') }
+    @{ Pattern = 'OFFSET {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a '; Values = @('FETCH') }
+    @{ Pattern = 'ROWS FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
+    @{ Pattern = 'ROW FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
+    @{ Pattern = 'FETCH NEXT {value}'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+    @{ Pattern = 'FETCH FIRST {value}'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+    @{ Pattern = 'FETCH NEXT {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+    @{ Pattern = 'FETCH NEXT {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+    @{ Pattern = 'FETCH FIRST {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+    @{ Pattern = 'FETCH FIRST {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
+
+    # 視窗框架。CURRENT 單獨一個字不收：WHERE CURRENT OF 也是它。
+    # CURRENT 之後剖析器收任何識別字（留到語意檢查才擋），ROW 只能手寫。
+    @{ Pattern = 'ROWS'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
+    @{ Pattern = 'RANGE'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
+    @{ Pattern = 'ROWS BETWEEN'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
+    @{ Pattern = 'RANGE BETWEEN'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
+    @{ Pattern = 'UNBOUNDED'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN ' }
+    @{ Pattern = 'PRECEDING AND'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ' }
+    @{ Pattern = 'ROWS CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a '; Values = @('ROW'); Closed = $true }
+    @{ Pattern = 'RANGE CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a '; Values = @('ROW'); Closed = $true }
+    @{ Pattern = 'BETWEEN CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS '; Values = @('ROW'); Closed = $true }
+    @{ Pattern = 'AND CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING '; Values = @('ROW'); Closed = $true }
+)
+
+# 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
+# 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
+$PhraseContinuations = @($Continuations) + @(
+    ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' ROW', ' ONLY',
+    ' PRECEDING)', ' ROW)', " ZONE 'UTC'", ' OF x', ' IN (1)', ' FOR SELECT 1', ' ACTION)',
+    ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
+    ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL'
+)
+
+# 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給
+# C# 平行跑，每條執行緒一個剖析器。判定規則與第三階段相同，只多了一條：普通名稱在
+# 字本身就被拒、而候選字撐過了字本身，也算——ROWS BETWEEN UNBOUNDED 後面要接
+# PRECEDING 才完整，整段比對的話它與普通名稱一起被拒，永遠分不出來。
+# ScriptDom 是 .NET Framework 組件，編譯時要 mscorlib 的轉送組件。
+Add-Type -ReferencedAssemblies @($scriptDomPath, 'mscorlib', 'netstandard', 'System.Runtime', 'System.Collections', 'System.Threading', 'System.Threading.Tasks.Parallel') -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.SqlServer.TransactSql.ScriptDom;
+
+public static class SqlAssistPhraseProber
+{
+    private static ThreadLocal<TSqlParser> _parser;
+    private static HashSet<int> _rejecting;
+
+    public static void Initialize(Type parserType, int[] rejecting)
+    {
+        // 建構參數是 initialQuotedIdentifiers；只傳 true 會落到 nonPublic 那個多載。
+        _parser = new ThreadLocal<TSqlParser>(() => (TSqlParser)Activator.CreateInstance(parserType, new object[] { true }));
+        _rejecting = new HashSet<int>(rejecting);
+    }
+
+    /// <summary>最早一個拒收錯誤的位置；沒有就是 int.MaxValue。</summary>
+    public static int FirstRejection(string text)
+    {
+        IList<ParseError> errors;
+        _parser.Value.Parse(new StringReader(text), out errors);
+        var first = int.MaxValue;
+
+        foreach (var error in errors)
+        {
+            if (_rejecting.Contains(error.Number) && error.Offset < first)
+            {
+                first = error.Offset;
+            }
+        }
+
+        return first;
+    }
+
+    public static bool IsComplete(string text)
+    {
+        IList<ParseError> errors;
+        _parser.Value.Parse(new StringReader(text), out errors);
+        return errors.Count == 0;
+    }
+
+    /// <summary>普通名稱配上任何一條續尾組得成完整的語句，這一格就不封閉。</summary>
+    /// <remarks>
+    /// 要完整而不只是沒被拒：SET TRANSACTION Lib_Reader 在檔案結尾之前一個錯都沒有，
+    /// 剖析器要看到後面的 LEVEL 才說「必須是 ISOLATION」。
+    /// </remarks>
+    public static bool AcceptsName(string probe, string plain, string[] continuations)
+    {
+        foreach (var continuation in continuations)
+        {
+            if (IsComplete(probe + plain + continuation))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static string[] Probe(string probe, string[] pool, string[] reserved, string[] continuations, string plain)
+    {
+        var reservedSet = new HashSet<string>(reserved, StringComparer.OrdinalIgnoreCase);
+        var plainRejection = new int[continuations.Length];
+
+        for (var index = 0; index < continuations.Length; index++)
+        {
+            plainRejection[index] = FirstRejection(probe + plain + continuations[index]);
+        }
+
+        var plainEnd = probe.Length + plain.Length;
+        var accepted = new bool[pool.Length];
+
+        Parallel.For(0, pool.Length, index =>
+        {
+            var word = pool[index];
+            var wordEnd = probe.Length + word.Length;
+            var canBeName = !reservedSet.Contains(word);
+
+            for (var c = 0; c < continuations.Length && !accepted[index]; c++)
+            {
+                var continuation = continuations[c];
+                var rejection = FirstRejection(probe + word + continuation);
+
+                if (!canBeName)
+                {
+                    // 保留字當不了名字，被接受就一定是以關鍵字的身分。
+                    accepted[index] = rejection > wordEnd;
+                }
+                else
+                {
+                    accepted[index] =
+                        (plainRejection[c] <= plainEnd && rejection > wordEnd) ||
+                        (plainRejection[c] <= plainEnd + continuation.Length &&
+                            rejection > wordEnd + continuation.Length);
+                }
+            }
+        });
+
+        var words = new List<string>();
+
+        for (var index = 0; index < pool.Length; index++)
+        {
+            if (accepted[index])
+            {
+                words.Add(pool[index]);
+            }
+        }
+
+        return words.ToArray();
+    }
+}
+'@
+
+[SqlAssistPhraseProber]::Initialize($parserType, [int[]]$RejectingErrorNumbers)
+
+function Get-PhraseProbe {
+    param([string]$Lead, [string]$Pattern)
+
+    $text = $Pattern.TrimStart('^').Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
+    $text = $Lead + $text.Replace('(*', '(')
+
+    return $text.EndsWith('(') ? $text : $text + ' '
+}
+
+$poolArray = [string[]]@($phrasePool)
+$reservedArray = [string[]]@($reserved)
+$continuationArray = [string[]]@($PhraseContinuations)
+
+function Get-PhraseWords {
+    param([string]$Probe)
+
+    return [SqlAssistPhraseProber]::Probe($Probe, $poolArray, $reservedArray, $continuationArray, $PlainName)
+}
+
+# 語句已經完整的片語（CREATE INDEX i ON t (a) 之後）接得上的字也包括下一句的開頭；
+# 那一份在這裡探一次，從那些片語裡扣掉。
+$statementStarters = [System.Collections.Generic.HashSet[string]]::new(
+    [string[]](Get-PhraseWords -Probe 'SELECT 1; '),
+    [System.StringComparer]::OrdinalIgnoreCase)
+
+$phrases = [ordered]@{}
+
+function Add-ClausePhrase {
+    param([string]$Pattern, [string]$Probe, [int]$Expand, [object[]]$Values, [object]$Closed)
+
+    Write-Progress -Activity '探測子句片語' -Status $Pattern
+    $endsStatement = [SqlAssistPhraseProber]::IsComplete($Probe.TrimEnd())
+    $found = @(Get-PhraseWords -Probe $Probe)
+
+    if ($endsStatement) {
+        $found = @($found | Where-Object { -not $statementStarters.Contains($_) })
+    }
+
+    $words = [System.Collections.Generic.List[string]]::new([string[]]$found)
+
+    foreach ($value in @($Values | Where-Object { $_ })) {
+        $valueAccepted = $PhraseContinuations | Where-Object {
+            [SqlAssistPhraseProber]::FirstRejection($Probe + $value + $_) -gt $Probe.Length + $value.Length + $_.Length
+        } | Select-Object -First 1
+
+        if ($null -eq $valueAccepted) {
+            throw "片語「$Pattern」的手寫值 $value 剖析不過，這份清單過時了。"
+        }
+
+        if (-not $words.Contains($value)) {
+            $words.Add($value)
+        }
+    }
+
+    $script:phrases[$Pattern] = @{
+        Probe         = $Probe
+        Closed        = $null -ne $Closed ? [bool]$Closed : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
+        EndsStatement = $endsStatement
+        Words         = @($words)
+    }
+
+    if ($Expand -le 0) {
+        return
+    }
+
+    foreach ($word in $found) {
+        $child = "$Pattern $word"
+        $childProbe = "$Probe$word "
+
+        # 語句在這裡已經完整（SET NOCOUNT ON）就不再往下：後面接的是下一句。
+        if ($script:phrases.Contains($child) -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
+            continue
+        }
+
+        Add-ClausePhrase -Pattern $child -Probe $childProbe -Expand ($Expand - 1)
+    }
+}
+
+foreach ($entry in $ClausePhrases) {
+    $probe = Get-PhraseProbe -Lead $entry['Lead'] -Pattern $entry['Pattern']
+    Add-ClausePhrase -Pattern $entry['Pattern'] -Probe $probe -Expand ([int]$entry['Expand']) -Values $entry['Values'] -Closed $entry['Closed']
+}
+
+Write-Progress -Activity '探測子句片語' -Completed
+
+$phraseWords = $phrases.Values | ForEach-Object { $_.Words } | Where-Object { $keywords -notcontains $_ } | Sort-Object -Unique
+Write-Host "子句片語：$($phrases.Count) 個，其中關鍵字清單以外的字 $(@($phraseWords).Count) 個"
+
 # ---------------------------------------------------------------------- 產出
 
 $builder = [System.Text.StringBuilder]::new()
@@ -493,6 +829,44 @@ foreach ($keyword in $reserved) {
 
 if ($line.Trim().Length -gt 0) {
     $null = $builder.AppendLine($line)
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>子句片語：游標前的尾巴、探測文字、是否封閉、語句到那裡是否已經完整，以及那裡接得上的字。</summary>')
+$null = $builder.AppendLine('    /// <remarks>')
+$null = $builder.AppendLine('    /// 探測文字執行期用不到，輸出來是為了讓測試逐條回驗：片語比對對那段文字')
+$null = $builder.AppendLine('    /// 必須認出同一個片語，兩邊說的才是同一個位置。')
+$null = $builder.AppendLine('    /// </remarks>')
+$null = $builder.AppendLine('    internal static readonly (string Pattern, string Probe, bool Closed, bool EndsStatement, string[] Words)[] ClausePhrases =')
+$null = $builder.AppendLine('    {')
+
+foreach ($pattern in $phrases.Keys) {
+    $phrase = $phrases[$pattern]
+    $probeLiteral = $phrase.Probe.Replace('\', '\\').Replace('"', '\"')
+    $closedLiteral = $phrase.Closed ? 'true' : 'false'
+    $endsLiteral = $phrase.EndsStatement ? 'true' : 'false'
+    $null = $builder.AppendLine("        (`"$pattern`", `"$probeLiteral`", $closedLiteral, $endsLiteral, new string[]")
+    $null = $builder.AppendLine('        {')
+
+    $line = '           '
+
+    foreach ($word in $phrase.Words) {
+        $entry = " `"$word`","
+
+        if ($line.Length + $entry.Length -gt 96) {
+            $null = $builder.AppendLine($line)
+            $line = '           '
+        }
+
+        $line += $entry
+    }
+
+    if ($line.Trim().Length -gt 0) {
+        $null = $builder.AppendLine($line)
+    }
+
+    $null = $builder.AppendLine('        }),')
 }
 
 $null = $builder.AppendLine('    };')

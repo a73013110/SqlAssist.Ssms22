@@ -229,6 +229,36 @@ public static class SqlKeywordPositionAnalyzer
             throw new ArgumentNullException(nameof(textBeforeToken));
         }
 
+        var caret = AnalyzeClause(tokens, textBeforeToken);
+        var phrase = SqlClausePhraseCatalog.Match(tokens, textBeforeToken);
+
+        return phrase is null ? caret : new SqlCaretPosition(caret.Keywords, caret.Slot, phrase);
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 的詞元是不是一句的開頭。
+    /// </summary>
+    /// <remarks>
+    /// 子句片語的 <c>^</c> 問的就是這個：<c>UPDATE t SET </c> 的 SET 接的是資料行，
+    /// 不是工作階段選項。判法與游標處的位置分析同一條——前面的位置含語句開頭或區塊開頭，
+    /// 或者子句寫完又換了行；判不出來（<see cref="SqlKeywordPosition.Any"/>）時算是，
+    /// 與位置分析 fail-open 的方向一致。
+    /// </remarks>
+    internal static bool StartsStatementAt(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
+    {
+        if (index <= 0)
+        {
+            return true;
+        }
+
+        var before = AnalyzeAt(tokens, index - 1, followAlias: true).Keywords;
+        before = AddStatementStartOnNewLine(before, tokens, index - 1, tokens[index].Start, textBeforeToken);
+
+        return (before & (SqlKeywordPosition.StatementStart | SqlKeywordPosition.BlockStart)) != SqlKeywordPosition.None;
+    }
+
+    private static SqlCaretPosition AnalyzeClause(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    {
         var last = tokens.Count - 1;
         var caret = AnalyzeAt(tokens, last, followAlias: true);
 
@@ -247,7 +277,8 @@ public static class SqlKeywordPositionAnalyzer
             return new SqlCaretPosition(caret.Keywords, SqlCompletionSlot.MaybeName);
         }
 
-        return new SqlCaretPosition(AddStatementStartOnNewLine(caret.Keywords, tokens, textBeforeToken));
+        return new SqlCaretPosition(
+            AddStatementStartOnNewLine(caret.Keywords, tokens, last, textBeforeToken.Length, textBeforeToken));
     }
 
     /// <summary>這些位置又換了行時，這裡同時也可能是下一個敘述的開頭。</summary>
@@ -284,31 +315,35 @@ public static class SqlKeywordPositionAnalyzer
     /// 換行是唯一的線索，理由與 <see cref="StaysOnSameLine"/> 相同，只是方向相反：
     /// 同一行代表他還在寫同一個子句。
     /// </remarks>
+    /// <param name="last">子句最後一個詞元。</param>
+    /// <param name="gapEnd">換行要落在 <paramref name="last"/> 之後、這個位置之前。</param>
     private static SqlKeywordPosition AddStatementStartOnNewLine(
         SqlKeywordPosition position,
         IReadOnlyList<SqlToken> tokens,
+        int last,
+        int gapEnd,
         string textBeforeToken)
     {
         if ((position & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None ||
             (position & StatementEndPositions) == SqlKeywordPosition.None ||
-            tokens.Count == 0 ||
-            !StartsOnNewLine(tokens[tokens.Count - 1].End, textBeforeToken))
+            last < 0 ||
+            !StartsOnNewLine(tokens[last].End, gapEnd, textBeforeToken))
         {
             return position;
         }
 
         // 函式引數、子查詢與 CTE 還在括號內時，換行不代表可以開始獨立敘述。
-        return SqlTokenNavigator.FindUnclosedParenthesis(tokens, tokens.Count - 1) < 0
+        return SqlTokenNavigator.FindUnclosedParenthesis(tokens, last) < 0
             ? position | SqlKeywordPosition.StatementStart
             : position;
     }
 
-    /// <summary>游標與前一個詞元之間隔了至少一個換行。</summary>
-    private static bool StartsOnNewLine(int previousTokenEnd, string textBeforeToken)
+    /// <summary><paramref name="previousTokenEnd"/> 到 <paramref name="gapEnd"/> 之間隔了至少一個換行。</summary>
+    internal static bool StartsOnNewLine(int previousTokenEnd, int gapEnd, string textBeforeToken)
     {
         // 詞法分析已略過註解；直接查看詞元後的間隙，避免區塊註解遮住換行，
         // 也不會把字串或加引號名稱內的換行誤認成敘述邊界。
-        for (var index = previousTokenEnd; index < textBeforeToken.Length; index++)
+        for (var index = previousTokenEnd; index < gapEnd; index++)
         {
             var character = textBeforeToken[index];
 
@@ -345,7 +380,7 @@ public static class SqlKeywordPositionAnalyzer
         var previousEnd = tokens[tokens.Count - 1].End;
 
         return previousEnd < textBeforeToken.Length &&
-            !StartsOnNewLine(previousEnd, textBeforeToken);
+            !StartsOnNewLine(previousEnd, textBeforeToken.Length, textBeforeToken);
     }
 
     /// <summary>

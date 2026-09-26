@@ -1,7 +1,7 @@
 # 關鍵字目錄與位置分層
 
 本頁只處理 T-SQL 關鍵字的產生、位置旗標與資料庫物件過濾；子句回溯的邊界另見
-[子句邊界與不開清單](completion-boundaries.md)。
+[子句邊界與不開清單](completion-boundaries.md)，SET 選項這類非保留字見[子句片語](completion-phrases.md)。
 
 ## 產生與維護
 
@@ -47,7 +47,7 @@ SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail，不接 ASC）
 SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopClauseTail）
 CREATE                → TABLE、VIEW、PROCEDURE…
 SELECT * FROM t WHERE → EXISTS、NOT、CASE…
-SET NOCOUNT           → ON、OFF（SetOptionValue；隔離等級之後是 READ）
+SET NOCOUNT           → ON、OFF（SetOptionValue；片語比對不上時的退路）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
@@ -106,7 +106,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | `AlterTableAction`（`ALTER TABLE t \|`） | `ADD`、`ALTER`、`DROP`、`CHECK`… |
 | `AlterTableAdd`（`ALTER TABLE t ADD \|`） | 條件約束關鍵字，或使用者正要取的新資料行名稱 |
 | `ColumnDefinition`（`CREATE TABLE t (\|`、逗號之後） | 同上 |
-| `SetOptionValue`（`SET NOCOUNT \|`） | `ON`、`OFF`、`READ`（`SET IDENTITY_INSERT \|` 要資料表，不在此） |
+| `SetOptionValue`（`SET NOCOUNT \|`） | `ON`、`OFF`（`SET IDENTITY_INSERT \|` 要資料表，不在此） |
 
 `InsertTarget` 刻意不在裡面：`INSERT dbo.Loan VALUES (…)` 是合法的 T-SQL，`INTO`
 可以省略。`SetTarget` 也不在——`SET |` 與 `UPDATE t SET |` 是同一個位置，而後者要的是

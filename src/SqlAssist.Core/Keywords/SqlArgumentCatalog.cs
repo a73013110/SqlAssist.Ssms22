@@ -73,7 +73,10 @@ public static class SqlArgumentCatalog
         ("KEEPIDENTITY", () => ArgumentText.TableHintKeepidentity, false),
         ("KEEPDEFAULTS", () => ArgumentText.TableHintKeepdefaults, false),
         ("IGNORE_CONSTRAINTS", () => ArgumentText.TableHintIgnoreConstraints, false),
-        ("IGNORE_TRIGGERS", () => ArgumentText.TableHintIgnoreTriggers, false)
+        ("IGNORE_TRIGGERS", () => ArgumentText.TableHintIgnoreTriggers, false),
+        ("NOWAIT", () => ArgumentText.TableHintNowait, false),
+        ("SNAPSHOT", () => ArgumentText.TableHintSnapshot, false),
+        ("READCOMMITTEDLOCK", () => ArgumentText.TableHintReadcommittedlock, false)
     };
 
     /// <summary><c>OPTION (…)</c> 的查詢提示。</summary>
@@ -93,6 +96,20 @@ public static class SqlArgumentCatalog
         ("LOOP JOIN", () => ArgumentText.QueryHintLoopJoin, false),
         ("MERGE JOIN", () => ArgumentText.QueryHintMergeJoin, false),
         ("HASH JOIN", () => ArgumentText.QueryHintHashJoin, false),
+        ("HASH GROUP", () => ArgumentText.QueryHintHashGroup, false),
+        ("ORDER GROUP", () => ArgumentText.QueryHintOrderGroup, false),
+        ("CONCAT UNION", () => ArgumentText.QueryHintConcatUnion, false),
+        ("HASH UNION", () => ArgumentText.QueryHintHashUnion, false),
+        ("MERGE UNION", () => ArgumentText.QueryHintMergeUnion, false),
+        ("PARAMETERIZATION SIMPLE", () => ArgumentText.QueryHintParameterizationSimple, false),
+        ("PARAMETERIZATION FORCED", () => ArgumentText.QueryHintParameterizationForced, false),
+        ("NO_PERFORMANCE_SPOOL", () => ArgumentText.QueryHintNoPerformanceSpool, false),
+        ("MAX_GRANT_PERCENT", () => ArgumentText.QueryHintMaxGrantPercent, false),
+        ("MIN_GRANT_PERCENT", () => ArgumentText.QueryHintMinGrantPercent, false),
+        ("USE PLAN", () => ArgumentText.QueryHintUsePlan, false),
+        ("TABLE HINT", () => ArgumentText.QueryHintTableHint, true),
+        ("DISABLE_OPTIMIZED_PLAN_FORCING", () => ArgumentText.QueryHintDisableOptimizedPlanForcing, false),
+        ("IGNORE_NONCLUSTERED_COLUMNSTORE_INDEX", () => ArgumentText.QueryHintIgnoreNonclusteredColumnstoreIndex, false),
         ("USE HINT", () => ArgumentText.QueryHintUseHint, true),
         ("QUERYTRACEON", () => ArgumentText.QueryHintQuerytraceon, false),
         ("LABEL", () => ArgumentText.QueryHintLabel, false)

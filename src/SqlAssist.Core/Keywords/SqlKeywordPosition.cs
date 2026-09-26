@@ -131,7 +131,7 @@ public enum SqlKeywordPosition
     /// </remarks>
     TopClauseTail = 1 << 21,
 
-    /// <summary>SET 的選項名稱之後——ON、OFF，隔離等級的 READ。</summary>
+    /// <summary>SET 的選項名稱之後——ON、OFF；各選項自己的值由子句片語給，這裡是比對不上時的退路。</summary>
     SetOptionValue = 1 << 22,
 
     /// <summary>全部位置；分析器判不出上下文時使用。</summary>

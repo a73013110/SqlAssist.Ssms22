@@ -43,6 +43,7 @@
 | INSERT 欄位、EXEC 參數、預留值 | [展開內容](statement-values.md) |
 | 自訂函式括號、引數預留值 | [函式呼叫](function-call-insertion.md) |
 | 關鍵字產生器、位置旗標、物件過濾 | [關鍵字](completion-keywords.md) |
+| SET 選項、子句片語、ClauseKeyword | [子句片語](completion-phrases.md) |
 | 子句回溯、換行邊界、不開清單 | [子句邊界](completion-boundaries.md) |
 | 內建函式、資料型別目錄 | [函式與型別](completion-builtins.md) |
 | 用途、範例、style、datepart、名稱辨識 | [內建說明](builtin-help.md) |

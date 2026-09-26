@@ -70,12 +70,6 @@ public static class SqlKeywordCatalog
     /// <summary>全部關鍵字，已排序。</summary>
     public static IReadOnlyList<string> All => AllKeywords;
 
-    /// <summary>出現在建議清單裡的關鍵字。</summary>
-    /// <remarks>
-    /// 現在等於 <see cref="All"/>：清單雜訊由位置過濾負責，不再靠縮短清單。
-    /// </remarks>
-    public static IReadOnlyList<string> SuggestionKeywords => AllKeywords;
-
     /// <summary>
     /// 查出某個關鍵字可以出現在哪些位置。
     /// </summary>
