@@ -87,6 +87,39 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
+    /// 模組標頭的 WITH 與選項清單的逗號之後是那一種模組的選項；本體裡 CTE 的 WITH 不是。
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE PROCEDURE dbo.p WITH ", SqlKeywordPosition.ProcedureOption)]
+    [InlineData("CREATE OR ALTER PROC dbo.p @a int = 1, @b AS varchar(10) OUTPUT WITH ", SqlKeywordPosition.ProcedureOption)]
+    [InlineData("ALTER PROCEDURE p WITH EXECUTE AS CALLER, ", SqlKeywordPosition.ProcedureOption)]
+    [InlineData("CREATE FUNCTION dbo.f (@a int) RETURNS TABLE WITH ", SqlKeywordPosition.FunctionOption)]
+    [InlineData("CREATE FUNCTION dbo.f () RETURNS int WITH RETURNS NULL ON NULL INPUT, ", SqlKeywordPosition.FunctionOption)]
+    [InlineData("CREATE FUNCTION dbo.f () RETURNS int WITH INLINE = ON, ", SqlKeywordPosition.FunctionOption)]
+    [InlineData("CREATE VIEW dbo.v (a, b) WITH ", SqlKeywordPosition.ViewOption)]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ", SqlKeywordPosition.TriggerOption)]
+    [InlineData("CREATE TRIGGER tr ON DATABASE WITH ENCRYPTION, ", SqlKeywordPosition.TriggerOption)]
+    public void 模組標頭的WITH之後是選項(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
+    [Theory]
+    [InlineData("CREATE PROCEDURE p AS WITH ")]
+    [InlineData("CREATE VIEW v AS WITH c AS (SELECT 1 AS a), ")]
+    [InlineData("CREATE INDEX i ON t (a) WITH ")]
+    [InlineData("ALTER TABLE t WITH ")]
+    public void 模組本體與別的敘述的WITH不是模組選項(string textBeforeToken)
+    {
+        const SqlKeywordPosition options = SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption |
+            SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption;
+        var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
+
+        // 判不出位置（Any）也含這幾個位元，那不是判成選項。
+        Assert.True(position == SqlKeywordPosition.Any || (position & options) == SqlKeywordPosition.None, position.ToString());
+    }
+
+    /// <summary>
     /// 往回找子句關鍵字時，一整組括號要當成一個運算元跳過去。
     /// </summary>
     /// <remarks>

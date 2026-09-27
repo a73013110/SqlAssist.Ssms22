@@ -81,8 +81,8 @@ internal static class SqlKeywordCatalogData
         new("ERRLVL", SqlKeywordPosition.SetTarget),
         new("ESCAPE", SqlKeywordPosition.ExpressionTail),
         new("EXCEPT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
-        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
-        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("EXEC", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
+        new("EXECUTE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption),
         new("EXISTS", SqlKeywordPosition.Predicate),
         new("EXIT", SqlKeywordPosition.None),
         new("EXTERNAL", SqlKeywordPosition.DdlObject),
@@ -277,6 +277,14 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, "),
         new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH "),
         new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
+        new(SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH "),
+        new(SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ENCRYPTION, "),
+        new(SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH "),
+        new(SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING, "),
+        new(SqlKeywordPosition.ViewOption, "CREATE VIEW v WITH "),
+        new(SqlKeywordPosition.ViewOption, "CREATE VIEW v WITH SCHEMABINDING, "),
+        new(SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH "),
+        new(SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH ENCRYPTION, "),
         new(SqlKeywordPosition.SetTarget, "SET "),
         new(SqlKeywordPosition.SetOptionValue, "SET NOCOUNT "),
         new(SqlKeywordPosition.SetOptionValue, "SET IDENTITY_INSERT t "),
@@ -621,7 +629,7 @@ internal static class SqlKeywordCatalogData
             "PRIMARY", "PROC", "PROCEDURE", "QUEUE", "REMOTE", "RESOURCE", "ROLE", "ROUTE",
             "RULE", "SCHEMA", "SEARCH", "SECURITY", "SELECTIVE", "SEQUENCE", "SERVER",
             "SERVICE", "STATISTICS", "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE",
-            "UNIQUE", "USER", "VIEW", "WORKLOAD",
+            "UNIQUE", "USER", "VIEW", "WORKLOAD", "OR",
         }),
         ("ALTER", SqlKeywordPosition.StatementStart, "ALTER ", true, false, new string[]
         {
@@ -925,10 +933,6 @@ internal static class SqlKeywordCatalogData
         {
             "OF",
         }),
-        ("WITH", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t WITH ", true, false, new string[]
-        {
-            "EXEC", "EXECUTE",
-        }),
         ("", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR ", true, false, new string[]
         {
             "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
@@ -955,6 +959,39 @@ internal static class SqlKeywordCatalogData
             "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
             "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "UNLOAD", "VERBOSE",
         }),
+        ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, new string[]
+        {
+            "ENCRYPTION", "EXEC", "EXECUTE", "NATIVE_COMPILATION", "RECOMPILE", "SCHEMABINDING",
+        }),
+        ("", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH ", true, false, new string[]
+        {
+            "ENCRYPTION", "EXEC", "EXECUTE", "INLINE", "NATIVE_COMPILATION", "SCHEMABINDING",
+            "RETURNS", "CALLED",
+        }),
+        ("", SqlKeywordPosition.ViewOption, "CREATE VIEW v WITH ", true, false, new string[]
+        {
+            "DISTRIBUTION", "ENCRYPTION", "SCHEMABINDING", "VIEW_METADATA",
+        }),
+        ("", SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH ", true, false, new string[]
+        {
+            "ENCRYPTION", "EXEC", "EXECUTE", "NATIVE_COMPILATION", "SCHEMABINDING",
+        }),
+        ("EXECUTE AS", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXECUTE AS ", true, false, new string[]
+        {
+            "CALLER", "OWNER", "SELF",
+        }),
+        ("EXEC AS", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXEC AS ", true, false, new string[]
+        {
+            "CALLER", "OWNER", "SELF",
+        }),
+        ("RETURNS NULL ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON NULL INPUT ", true, false, new string[]
+        {
+            "AS", "BEGIN", "EXTERNAL",
+        }),
+        ("CALLED ON NULL INPUT", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL INPUT ", true, false, new string[]
+        {
+            "AS", "BEGIN", "EXTERNAL",
+        }),
         ("", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN ", true, false, new string[]
         {
             "MATCHED", "NOT",
@@ -967,10 +1004,6 @@ internal static class SqlKeywordCatalogData
         {
             "MATCHED",
         }),
-        ("NOT MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
-        {
-            "AND", "BY", "THEN",
-        }),
         ("NOT MATCHED BY", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED BY ", true, false, new string[]
         {
             "SOURCE", "TARGET",
@@ -982,14 +1015,6 @@ internal static class SqlKeywordCatalogData
         ("EXEC AS", SqlKeywordPosition.StatementStart, "EXEC AS ", true, false, new string[]
         {
             "CALLER", "LOGIN", "USER",
-        }),
-        ("WITH EXECUTE AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p WITH EXECUTE AS ", true, false, new string[]
-        {
-            "CALLER", "OWNER", "SELF",
-        }),
-        ("WITH EXEC AS", SqlKeywordPosition.Any, "CREATE PROCEDURE p WITH EXEC AS ", true, false, new string[]
-        {
-            "CALLER", "OWNER", "SELF",
         }),
         ("ON DELETE", SqlKeywordPosition.Any, "CREATE TABLE t (a int REFERENCES u (a) ON DELETE ", true, false, new string[]
         {
@@ -1190,6 +1215,66 @@ internal static class SqlKeywordCatalogData
         ("AND CURRENT", SqlKeywordPosition.Any, "SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", true, false, new string[]
         {
             "ROW",
+        }),
+        ("CREATE OR", SqlKeywordPosition.StatementStart, "CREATE OR ", true, false, new string[]
+        {
+            "ALTER",
+        }),
+        ("EXECUTE", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXECUTE ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("EXEC", SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption | SqlKeywordPosition.TriggerOption, "CREATE PROCEDURE p WITH EXEC ", true, false, new string[]
+        {
+            "AS",
+        }),
+        ("RETURNS", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS ", true, false, new string[]
+        {
+            "NULL", "ON",
+        }),
+        ("RETURNS NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ", true, false, new string[]
+        {
+            "ON",
+        }),
+        ("RETURNS NULL ON", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON ", true, false, new string[]
+        {
+            "NULL",
+        }),
+        ("RETURNS NULL ON NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH RETURNS NULL ON NULL ", true, false, new string[]
+        {
+            "INPUT",
+        }),
+        ("CALLED", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ", true, false, new string[]
+        {
+            "NULL", "ON",
+        }),
+        ("CALLED ON", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON ", true, false, new string[]
+        {
+            "NULL",
+        }),
+        ("CALLED ON NULL", SqlKeywordPosition.FunctionOption, "CREATE FUNCTION f () RETURNS int WITH CALLED ON NULL ", true, false, new string[]
+        {
+            "INPUT",
+        }),
+        ("NOT MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
+        {
+            "AND", "BY", "THEN",
+        }),
+        ("EXECUTE", SqlKeywordPosition.StatementStart, "EXECUTE ", false, false, new string[]
+        {
+            "AS", "OPENDATASOURCE",
+        }),
+        ("EXEC", SqlKeywordPosition.StatementStart, "EXEC ", false, false, new string[]
+        {
+            "AS", "OPENDATASOURCE",
+        }),
+        ("NEXT VALUE", SqlKeywordPosition.Any, "SELECT NEXT VALUE ", true, false, new string[]
+        {
+            "FOR",
+        }),
+        ("GROUP", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP ", true, false, new string[]
+        {
+            "BY",
         }),
     };
 }

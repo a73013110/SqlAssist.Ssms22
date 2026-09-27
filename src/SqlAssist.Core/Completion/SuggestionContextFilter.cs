@@ -50,10 +50,18 @@ public static class SuggestionContextFilter
     /// <summary>上下文過濾的四道條件。</summary>
     private static bool IsAllowed(SqlSuggestion suggestion, SqlCompletionContext context)
     {
-        return IsAllowedForTarget(suggestion.Kind, context.Target) &&
+        // 片語的字不看目標：剖析器證明過這一格接得上它們，而目標是「這一格要哪一種名稱」。
+        // EXEC 之後的目標是程序，照目標過濾的話 EXEC AS 的 AS 永遠列不出來。
+        return (IsPhraseWord(suggestion) || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
                IsAllowedForPosition(suggestion, context) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
+    }
+
+    /// <summary>片語的字；它屬不屬於這一格由 <see cref="IsAllowedForPosition"/> 比對片語決定。</summary>
+    private static bool IsPhraseWord(SqlSuggestion suggestion)
+    {
+        return suggestion.Kind == SuggestionKind.Keyword && suggestion.Tag is SqlClausePhrase;
     }
 
     /// <summary>

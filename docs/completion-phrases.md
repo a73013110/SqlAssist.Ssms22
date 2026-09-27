@@ -31,7 +31,7 @@
 它與普通名稱一起被拒。普通名稱在任何一組續尾整段都過不了的片語是**封閉**的。
 
 探測文字本身已是完整語句時（`CREATE INDEX i ON t (a) `），接得上的字也含下一句的開頭；
-產生器扣掉在 `SELECT 1; ` 探到的那一份，被誤扣的（`WITH` 也是 CTE 的開頭）以 `Values` 補回。
+產生器扣掉在 `SELECT 1; ` 探到的那一份，被誤扣的（`WITH` 也是 CTE 的開頭）由更長的片語或 `Values` 補回。
 這種片語帶 `EndsStatement`，游標換了行就不算數——那一格更可能是下一句。
 
 一千九百個候選字乘上幾十組續尾，單執行緒要半小時，所以這一段由腳本內嵌的 C# 平行探測。
@@ -41,6 +41,15 @@
   展開出來的片語字可以是零個：`SET ROWCOUNT ` 之後要數字，清單就該是空的。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
   每個值仍要剖析得過，過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。
+
+### 片語裡的每一個字
+
+寫得出 `CREATE OR ALTER`，`CREATE ` 之後就要有 `OR`、`CREATE OR ` 之後就要有 `ALTER`。逐字探測問不出
+這種字：剖析器要看到整段才收，`CREATE OR` 接任何續尾都在 `CREATE` 就報錯。所以產生器反過來拿
+整條片語當證據（整段剖析得過），把每一個字補進它前面那段；那段還不是片語就另立一個，條件是
+尾巴認得出來——以字面字結尾，`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，
+單獨一個 `ON`、`NEXT` 執行期到處比對得上，立了都會封閉掉不相干的清單。
+`SqlClausePhraseTests` 以同一個範圍逐字回驗。
 
 新增一個片語只要加一行再重跑，執行期不必改。
 
@@ -58,7 +67,7 @@
 
 會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-BACKUP／RESTORE 的選項清單都是這樣，位置見[關鍵字](completion-keywords.md)。
+BACKUP／RESTORE 與模組 `WITH` 的選項清單都是這樣，位置見[關鍵字](completion-keywords.md)。
 
 第一個樣板是那個位置的代表寫法，而且是完整的語句，「寫到這裡已經完整」才判得準。其餘樣板是
 第三階段撈齊關鍵字用的旁支：拿 `FROM t JOIN y` 探會長出 `FOR PATH` 之後一整串還缺 `ON` 的字，
@@ -91,6 +100,9 @@ BACKUP／RESTORE 的選項清單都是這樣，位置見[關鍵字](completion-k
   `SET `、`CREATE ` 打完空白就開清單。
 - 不封閉（`SET IDENTITY_INSERT ` 之後是資料表）：名稱照常，只有關鍵字換掉。
 
+片語的字不看目標：目標說的是這一格要哪一種名稱，剖析器已證明片語的字接得上。`EXEC ` 的目標是程序，
+照目標過濾的話 `EXEC AS` 的 `AS` 永遠列不出來。
+
 「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
 `AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來；
 游標選項之後的 `FOR` 對上的是游標那一條，列的是 `SELECT`。
@@ -98,9 +110,11 @@ BACKUP／RESTORE 的選項清單都是這樣，位置見[關鍵字](completion-k
 ## 刻意沒收的
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
+- 上面那條規則範圍外的字：`ON DELETE` 的 `ON`、`NEXT VALUE` 的 `VALUE`、`AT TIME` 的 `TIME`、
+  `PRECEDING AND` 的 `AND`（單一個字的 `Lead` 尾巴），以及 `OFFSET 1 ` 之後的 `ROW`（以值結尾）。
+  要列得出來，前一格得先有位置。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
 - 視窗框架與 `OFFSET` 之後各段的前一格：位置分析只說得出 `OrderByTail`，代表樣板是查詢的
   `ORDER BY`，探不出 `ROWS`、`FETCH`；這幾條留 `Lead`。
-- 觸發程序 `WITH` 之後的選項（`ENCRYPTION`）：剖析器對任何名稱都報同一個錯，探不出來。
 - `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
   名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。

@@ -23,7 +23,7 @@ namespace SqlAssist.Core.Keywords;
 /// 規則見 <see cref="SqlKeywordPositionExtensions.Allows(SqlKeywordPosition, SqlKeywordPosition)"/>。
 /// </remarks>
 [Flags]
-public enum SqlKeywordPosition
+public enum SqlKeywordPosition : long
 {
     /// <summary>
     /// 產生器判定它進不了任何樣板；只在分析器也判不出位置（<see cref="Any"/>）時出現。
@@ -141,6 +141,22 @@ public enum SqlKeywordPosition
     /// <remarks>不併進 <see cref="BackupOption"/>：兩者的選項不同。</remarks>
     RestoreOption = 1 << 30,
 
+    /// <summary>CREATE／ALTER PROCEDURE 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
+    /// <remarks>
+    /// 模組的四種選項各自一格，理由與 <see cref="RestoreOption"/> 相同：<c>RECOMPILE</c> 只屬於程序，
+    /// <c>VIEW_METADATA</c> 只屬於檢視。
+    /// </remarks>
+    ProcedureOption = 1 << 12,
+
+    /// <summary>CREATE／ALTER FUNCTION 的 WITH 與選項清單的逗號之後。</summary>
+    FunctionOption = 1L << 31,
+
+    /// <summary>CREATE／ALTER VIEW 的 WITH 與選項清單的逗號之後。</summary>
+    ViewOption = 1L << 32,
+
+    /// <summary>觸發程序目標之後的 WITH 與選項清單的逗號之後。</summary>
+    TriggerOption = 1L << 33,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -176,7 +192,8 @@ public enum SqlKeywordPosition
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
-        | MergeWhen | BackupOption | RestoreOption | SetTarget | InsertTarget
+        | MergeWhen | BackupOption | RestoreOption
+        | ProcedureOption | FunctionOption | ViewOption | TriggerOption | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

@@ -110,7 +110,7 @@ public sealed class SqlCompletionPolicyTests
 
     // WITH 的其他用法不是 CTE。
     [InlineData("SELECT * FROM t WITH ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
-    [InlineData("CREATE PROCEDURE p WITH ", false, false, SqlCompletionSlot.Grammar, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
+    [InlineData("CREATE PROCEDURE p WITH ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.ProcedureOption, CompletionTarget.ClauseKeyword, false)]
 
     // 資料行定義的起點與 ADD 之後：新資料行名稱，或 CONSTRAINT、PRIMARY KEY。
     [InlineData("CREATE TABLE t (", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.ColumnDefinition, CompletionTarget.Any, true)]

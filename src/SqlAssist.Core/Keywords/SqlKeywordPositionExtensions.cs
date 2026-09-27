@@ -68,6 +68,10 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.MergeWhen |
         SqlKeywordPosition.BackupOption |
         SqlKeywordPosition.RestoreOption |
+        SqlKeywordPosition.ProcedureOption |
+        SqlKeywordPosition.FunctionOption |
+        SqlKeywordPosition.ViewOption |
+        SqlKeywordPosition.TriggerOption |
         SqlKeywordPosition.ByAnchor |
         SqlKeywordPosition.DdlObject |
         SqlKeywordPosition.AlterTableAction |

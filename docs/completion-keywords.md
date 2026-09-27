@@ -17,7 +17,8 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法。
    46005（必須是 X 卻發現 Y）、46010（語法不正確）、46014（只可存在於資料行層級）
    = 不合法；46029（未預期的檔案結尾）= 合法，只是語句沒寫完。少算 46005 的話任何名稱
-   都「接受」；少算 46014 的話 `DEFAULT` 會被分到 `CREATE TABLE t (` 的開頭。
+   都「接受」；少算 46014 的話 `DEFAULT` 會被分到 `CREATE TABLE t (` 的開頭。「不是這裡的選項」
+   那一族（46006 不是程序的 WITH 選項…）從剖析器的訊息資源撈，少算的話任何名稱都是合法選項。
    單一續尾會誤判——`BACKUP ` 之後是檔案結尾、`SELECT ` 之後卻是語法錯誤，
    兩者都合法——所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
    屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
@@ -102,7 +103,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 |---|---|
 | 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
 | `StatementStart`、`BlockStart`、`BlockEnd`、`IfBodyEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字或 `ELSE` |
-| `CursorOption`、`TriggerHeader`、`MergeWhen`、`BackupOption`、`RestoreOption` | 選項、`FOR`、`MATCHED` 這類字 |
+| `CursorOption`、`TriggerHeader`、`MergeWhen`、`BackupOption`、`RestoreOption`、四種模組的 `…Option` | 選項、`FOR`、`MATCHED` 這類字 |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
 | `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |

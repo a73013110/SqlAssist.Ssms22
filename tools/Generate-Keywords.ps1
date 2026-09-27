@@ -319,6 +319,12 @@ $ContextTemplates = [ordered]@{
     MergeWhen        = @('MERGE t USING s ON 1 = 1 WHEN ', 'MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE WHEN ')
     BackupOption     = @("BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ")
     RestoreOption    = @("RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ")
+
+    # 模組的 WITH 選項（ENCRYPTION、SCHEMABINDING、RECOMPILE）同樣不是關鍵字，四種模組各自一格。
+    ProcedureOption  = @('CREATE PROCEDURE p WITH ', 'CREATE PROCEDURE p WITH ENCRYPTION, ')
+    FunctionOption   = @('CREATE FUNCTION f () RETURNS int WITH ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING, ')
+    ViewOption       = @('CREATE VIEW v WITH ', 'CREATE VIEW v WITH SCHEMABINDING, ')
+    TriggerOption    = @('CREATE TRIGGER tr ON t WITH ', 'CREATE TRIGGER tr ON t WITH ENCRYPTION, ')
     SetTarget        = @('SET ')
 
     # SET 的選項名稱寫完之後的 ON／OFF。各選項自己的值（隔離等級、STATISTICS IO…）
@@ -352,7 +358,22 @@ $Continuations = @(
 # 46014 = "Default 條件約束只可存在於資料行層級"。剖析器吃得下 CREATE TABLE t (DEFAULT
 #         卻另外報這一條，不算進來的話 DEFAULT 會被分到資料行定義的開頭。
 # 46029 = "出現未預期的檔案結尾"，代表吃下去了、只是語句沒寫完，那是合法的。
-$RejectingErrorNumbers = @(46005, 46010, 46014)
+#
+# 另有一族訊息說「這個字不是這裡的選項」（{0} is not a WITH option for a procedure.）：
+# 選項名稱在文法上是任意識別字，認不認得留到之後才判。不算進來的話任何名稱都是合法的選項，
+# CREATE TRIGGER … WITH 之後的 ENCRYPTION 就分不出來。號碼不手寫，從剖析器的訊息資源撈。
+$parserMessages = [System.Resources.ResourceManager]::new('Microsoft.SqlServer.TransactSql.ScriptDom.TSqlParserResource', $assembly).
+    GetResourceSet([System.Globalization.CultureInfo]::InvariantCulture, $true, $true)
+$optionRejections = @($parserMessages | Where-Object {
+    $_.Key -match '^SQL\d+Message$' -and $_.Value -match "^(\{0\}|Option '\{0\}') is not a .*\b(option|hint|function)\b"
+} | ForEach-Object { [int]($_.Key -replace '\D', '') } | Sort-Object)
+
+if ($optionRejections.Count -eq 0) {
+    throw '剖析器的訊息資源裡找不到「不是這裡的選項」那一族；資源名稱或文案變了。'
+}
+
+Write-Host "選項拒收訊息：$($optionRejections -join ', ')"
+$RejectingErrorNumbers = @(46005, 46010, 46014) + $optionRejections
 
 # 非保留字的對照名稱：不是任何關鍵字的普通識別字。
 $PlainName = 'Lib_Reader'
@@ -487,10 +508,12 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #          判得出來的一律寫 After：同一件事只由位置分析說一次。
 # Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
 # Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
-# 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來。
+# 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來
+# （更長的片語寫得出那個字時不必：片語裡的每一個字由它前面那段列出，見探測之後的那一段）。
 # Closed 由人宣告那一格只有這幾個值。
 # 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
 $QueryTails = @('SelectListTail', 'TableSourceTail', 'ExpressionTail', 'OrderByTail', 'GroupByTail')
+$ModuleOptions = @('ProcedureOption', 'FunctionOption', 'ViewOption', 'TriggerOption')
 
 $ClausePhrases = @(
     @{ Pattern = 'SET'; Expand = 4 }
@@ -508,11 +531,12 @@ $ClausePhrases = @(
     @{ Pattern = 'BACKUP' }
     @{ Pattern = 'RESTORE' }
 
-    # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了。
+    # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，
+    # 由後兩條 WITH (* 的片語補回來。
     # INDEX 前面可以夾 UNIQUE、CLUSTERED 這些字，那一格判不出位置；尾巴本身只出現在 CREATE INDEX。
     @{ Pattern = 'ALTER INDEX {name} ON {name}' }
-    @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
-    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) '; Values = @('WITH') }
+    @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE ' }
+    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) ' }
     @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
     @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
 
@@ -521,17 +545,20 @@ $ClausePhrases = @(
     @{ Pattern = ''; After = @('TriggerHeader'); Expand = 1 }
     @{ Pattern = ''; After = @('CursorOption', 'BackupOption', 'RestoreOption') }
 
-    # MERGE 的 WHEN 之後是 MATCHED 與 NOT MATCHED，這兩者之後各再一層。
+    # 模組的 WITH 選項：四種模組的選項不同，EXECUTE AS 之後的 CALLER、SELF、OWNER 除了檢視都共用；
+    # 函式的兩個多字選項寫全，中間每一格由它們補出來。
+    @{ Pattern = ''; After = $ModuleOptions }
+    @{ Pattern = 'EXECUTE AS'; After = @('ProcedureOption', 'FunctionOption', 'TriggerOption') }
+    @{ Pattern = 'EXEC AS'; After = @('ProcedureOption', 'FunctionOption', 'TriggerOption') }
+    @{ Pattern = 'RETURNS NULL ON NULL INPUT'; After = @('FunctionOption') }
+    @{ Pattern = 'CALLED ON NULL INPUT'; After = @('FunctionOption') }
+
+    # MERGE 的 WHEN 之後是 MATCHED 與 NOT MATCHED，這兩者之後各再一層；NOT MATCHED 由下一條補出來。
     @{ Pattern = ''; After = @('MergeWhen'); Expand = 1 }
-    @{ Pattern = 'NOT MATCHED'; After = @('MergeWhen') }
     @{ Pattern = 'NOT MATCHED BY'; After = @('MergeWhen') }
 
     @{ Pattern = 'EXECUTE AS' }
     @{ Pattern = 'EXEC AS' }
-
-    # 模組名稱之後判不出位置（還可能是參數），尾巴本身就認得出來。
-    @{ Pattern = 'WITH EXECUTE AS'; Lead = 'CREATE PROCEDURE p ' }
-    @{ Pattern = 'WITH EXEC AS'; Lead = 'CREATE PROCEDURE p ' }
 
     # 資料行型別之後判不出位置（CREATE TABLE t (a int |）。
     @{ Pattern = 'ON DELETE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
@@ -592,11 +619,13 @@ $ClausePhrases = @(
 
 # 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
 # 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
+# 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
 $PhraseContinuations = @($Continuations) + @(
     ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' ROW', ' ONLY',
     ' PRECEDING)', ' ROW)', " ZONE 'UTC'", ' OF x', ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
-    ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL'
+    ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
+    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a'
 )
 
 # 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給
@@ -853,6 +882,10 @@ $statementStarters = [System.Collections.Generic.HashSet[string]]::new(
 
 $phrases = [ordered]@{}
 
+# 只認位置的片語探測用的文字：每個位置的第一個樣板。
+$positionPhraseProbes = @($ClausePhrases | Where-Object { -not $_['Pattern'] } |
+    ForEach-Object { $_['After'] } | ForEach-Object { @($ContextTemplates[$_])[0] })
+
 function Add-ClausePhrase {
     param([string]$Pattern, [string]$Probe, [string]$After, [int]$Expand, [object[]]$Values, [object]$Closed)
 
@@ -898,7 +931,10 @@ function Add-ClausePhrase {
         $childProbe = "$Probe$word "
 
         # 語句在這裡已經完整（SET NOCOUNT ON）就不再往下：後面接的是下一句。
-        if ($script:phrases.Contains("$After`t$child") -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd())) {
+        # 展開到的那一格已由只認位置的片語說了（觸發程序標頭的 WITH 之後是 TriggerOption）也不：
+        # 再立一個就是同一件事說兩次。
+        if ($script:phrases.Contains("$After`t$child") -or [SqlAssistPhraseProber]::IsComplete($childProbe.TrimEnd()) -or
+            $positionPhraseProbes -contains $childProbe) {
             continue
         }
 
@@ -933,6 +969,73 @@ foreach ($entry in $ClausePhrases) {
 
         $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[0] -Pattern $pattern
         Add-ClausePhrase @common -Probe $probe -After $position
+    }
+}
+
+# 片語裡的每一個字，由它前面那段列出：寫得出 CREATE OR ALTER，CREATE 之後就要有 OR、
+# CREATE OR 之後就要有 ALTER。逐字探測問不出這種字——剖析器要看到整段才收，CREATE OR
+# 接任何續尾都在 CREATE 就報錯——但整條片語剖析得過本身就是證據。
+#
+# 前面那段已經是片語就把字補進去。還不是的另立一個，條件是那段尾巴認得出來：以字面字結尾
+# （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且
+# Lead 片語至少兩項——執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。
+# 帶 After 的片語，第一個字前面那段是位置本身：那個位置有只認位置的片語就補進去
+# （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給，不另立。
+function Test-PatternAccepted {
+    param([string]$Probe)
+
+    foreach ($continuation in $PhraseContinuations) {
+        if ([SqlAssistPhraseProber]::FirstRejection($Probe + $continuation) -ge $Probe.Length) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+foreach ($entry in $ClausePhrases) {
+    $items = @($entry['Pattern'] -split ' ' | Where-Object { $_ })
+    $lead = $entry['Lead']
+
+    if ($items.Count -lt ($null -ne $lead ? 2 : 1)) {
+        continue
+    }
+
+    foreach ($position in ($null -ne $lead ? @('Any') : @($entry['After'] ?? 'StatementStart'))) {
+        $leadText = $lead ?? @($ContextTemplates[$position])[0]
+
+        if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern']))) {
+            throw "片語「$($entry['Pattern'])」整段剖析不過，拿它補前面那段的字沒有根據。"
+        }
+
+        for ($index = ($null -ne $lead ? 1 : 0); $index -lt $items.Count; $index++) {
+            $word = $items[$index]
+
+            if ($word -notmatch '^[A-Za-z_]') {
+                continue
+            }
+
+            $prefix = $index -eq 0 ? '' : $items[0..($index - 1)] -join ' '
+            $key = "$position`t$prefix"
+            $prefixProbe = Get-PhraseProbe -Lead $leadText -Pattern $prefix
+
+            # Lead 片語的鍵不含 Lead：視窗框架的 ROWS 與 OFFSET 之後的 ROWS 同一個鍵，墊的文字不同就是別的片語。
+            if ($phrases.Contains($key) -and $phrases[$key].Probe -ne $prefixProbe) {
+                continue
+            }
+
+            if (-not $phrases.Contains($key)) {
+                if ($index -eq 0 -or $items[$index - 1] -notmatch '^[A-Za-z_]' -or ($null -ne $lead -and $index -lt 2)) {
+                    continue
+                }
+
+                Add-ClausePhrase -Pattern $prefix -Probe $prefixProbe -After $position
+            }
+
+            if ($phrases[$key].Words -notcontains $word) {
+                $phrases[$key].Words = @($phrases[$key].Words) + $word
+            }
+        }
     }
 }
 

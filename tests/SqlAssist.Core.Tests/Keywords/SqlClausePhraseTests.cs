@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
@@ -76,7 +77,20 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET DEADLOCK_PRIORITY ", "LOW", "HIGH")]
     [InlineData("SET IDENTITY_INSERT dbo.Loan ", "ON", "OFF")]
     [InlineData("CREATE ", "TABLE", "SEQUENCE", "SYNONYM", "TYPE", "LOGIN")]
+    [InlineData("CREATE ", "OR")]
+    [InlineData("CREATE OR ", "ALTER")]
     [InlineData("CREATE OR ALTER ", "PROCEDURE", "VIEW", "FUNCTION", "TRIGGER")]
+    [InlineData("EXEC ", "AS")]
+    [InlineData("EXECUTE ", "AS")]
+    [InlineData("CREATE PROCEDURE p WITH EXECUTE ", "AS")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ", "ENCRYPTION", "EXECUTE", "SCHEMABINDING", "NATIVE_COMPILATION")]
+    [InlineData("CREATE TRIGGER tr ON DATABASE WITH ENCRYPTION, ", "EXECUTE")]
+    [InlineData("CREATE PROCEDURE dbo.p @a int WITH ", "ENCRYPTION", "RECOMPILE", "EXECUTE")]
+    [InlineData("CREATE PROCEDURE p WITH RECOMPILE, ", "ENCRYPTION")]
+    [InlineData("CREATE PROCEDURE p WITH EXECUTE AS ", "CALLER", "OWNER", "SELF")]
+    [InlineData("CREATE FUNCTION dbo.f () RETURNS int WITH ", "SCHEMABINDING", "RETURNS", "CALLED", "INLINE")]
+    [InlineData("CREATE FUNCTION dbo.f () RETURNS int WITH RETURNS NULL ON ", "NULL")]
+    [InlineData("CREATE VIEW dbo.v WITH ", "SCHEMABINDING", "VIEW_METADATA", "ENCRYPTION")]
     [InlineData("ALTER TABLE dbo.Loan ", "ADD", "DROP", "ENABLE", "DISABLE", "SWITCH", "REBUILD")]
     [InlineData("ALTER INDEX IX_Loan ON dbo.Loan ", "REBUILD", "REORGANIZE", "DISABLE")]
     [InlineData("ALTER INDEX ALL ON dbo.Loan ", "REBUILD", "REORGANIZE")]
@@ -170,6 +184,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("MERGE t USING s ON t.a = s.a WHEN ", "EXISTS")]
     [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "SELECT")]
     [InlineData("IF @a = 1 SET ", "SELECT")]
+    [InlineData("CREATE VIEW dbo.v WITH ", "RECOMPILE")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ", "VIEW_METADATA")]
+    [InlineData("CREATE PROCEDURE p WITH ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
     {
         Assert.DoesNotContain(keyword, Offered(textBeforeToken));
@@ -201,6 +218,7 @@ public sealed class SqlClausePhraseTests
     [Theory]
     [InlineData("SET ", true)]
     [InlineData("SET STATISTICS ", true)]
+    [InlineData("CREATE OR ", true)]
     [InlineData("ALTER INDEX IX_Loan ON dbo.Loan ", true)]
     [InlineData("SET ROWCOUNT ", true)]
     [InlineData("SET IDENTITY_INSERT ", false)]
@@ -277,6 +295,66 @@ public sealed class SqlClausePhraseTests
         Assert.False(SqlKeywordCatalog.IsKeyword(word));
         Assert.False(SqlKeywordCatalog.TryGetCanonical(word.ToLowerInvariant(), out _));
         Assert.False(SqlKeywordCatalog.IsReservedIdentifier(word));
+    }
+
+    public static TheoryData<string, string, string> PhraseSteps()
+    {
+        var data = new TheoryData<string, string, string>();
+
+        foreach (var phrase in SqlClausePhraseCatalog.All)
+        {
+            var items = phrase.Pattern.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var full = string.Join(" ", items.Select(RenderItem));
+            var lead = phrase.Probe.Substring(0, phrase.Probe.LastIndexOf(full, StringComparison.Ordinal));
+            var isLead = phrase.After == SqlKeywordPosition.Any;
+
+            for (var index = isLead ? 1 : 0; index < items.Length; index++)
+            {
+                if (!IsLiteral(items[index]) || (index > 0 && !IsLiteral(items[index - 1])) || (isLead && index < 2))
+                {
+                    continue;
+                }
+
+                var before = lead + string.Concat(items.Take(index).Select(item => RenderItem(item) + " "));
+                data.Add(phrase.Pattern, before, items[index]);
+            }
+        }
+
+        return data;
+    }
+
+    /// <summary>
+    /// 片語裡的每一個字，在它前面那段都列得出來。
+    /// </summary>
+    /// <remarks>
+    /// 以前寫得出 <c>CREATE OR ALTER</c>，<c>CREATE </c> 之後卻沒有 <c>OR</c>、<c>CREATE OR </c> 之後也沒有
+    /// <c>ALTER</c>：剖析器要看到整段才收，逐字探測問不出來。產生器改由整條片語補前面那段，
+    /// 範圍與這裡相同——前面那段以字面字結尾，Lead 片語至少兩項，理由見產生器；帶 After 的片語
+    /// 第一個字前面那段就是位置，由那個位置的片語或關鍵字目錄給。
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(PhraseSteps))]
+    public void 片語裡的每一個字在前面那段列得出來(string pattern, string textBeforeToken, string word)
+    {
+        Assert.True(Offered(textBeforeToken).Contains(word), $"{pattern}：{textBeforeToken}| 沒有 {word}");
+    }
+
+    private static bool IsLiteral(string item)
+    {
+        return char.IsLetter(item[0]) || item[0] == '_';
+    }
+
+    /// <summary>與產生器的 <c>Get-PhraseProbe</c> 同一套代換。</summary>
+    private static string RenderItem(string item)
+    {
+        return item switch
+        {
+            "{name}" => "t",
+            "{value}" => "1",
+            "()" => "(a)",
+            "(*" => "(",
+            _ => item,
+        };
     }
 
     /// <summary>走產品的過濾路徑：候選清單加上片語的字，再做上下文過濾。</summary>

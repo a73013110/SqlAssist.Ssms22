@@ -1205,7 +1205,80 @@ public sealed class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.MergeWhen;
         }
 
-        return FindBackupOption(last);
+        return FindModuleOption(last) ?? FindBackupOption(last);
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 是模組標頭 <c>WITH</c> 或其選項清單的逗號時，之後的位置；不是就回 null。
+    /// </summary>
+    /// <remarks>
+    /// 選項清單往回只收寫得出選項的詞元：非關鍵字的名稱、字串、<c>=</c>、逗號，以及
+    /// <c>EXECUTE AS</c>、<c>INLINE = ON</c>、<c>RETURNS NULL ON NULL INPUT</c> 裡的關鍵字。
+    /// 找不到逗號所屬的動詞：<c>EXECUTE AS CALLER, </c> 的 EXECUTE 也能開始一句。
+    /// <c>WITH</c> 前面要是還沒寫到本體的模組標頭，本體裡 CTE 的 <c>WITH</c> 不算。
+    /// </remarks>
+    private SqlKeywordPosition? FindModuleOption(int last)
+    {
+        if (!tokens[last].IsKeyword("WITH") && !tokens[last].IsPunctuation(","))
+        {
+            return null;
+        }
+
+        var with = last;
+
+        while (!tokens[with].IsKeyword("WITH") || !IsBareKeyword(with))
+        {
+            var token = tokens[with];
+            var optionPart = token.Kind is SqlTokenKind.String or SqlTokenKind.Number ||
+                token.IsPunctuation(",") ||
+                (token.Kind == SqlTokenKind.Operator && token.Value == "=") ||
+                (token.Kind == SqlTokenKind.Identifier &&
+                 (!IsBareKeyword(with) ||
+                  token.IsKeyword("EXECUTE") || token.IsKeyword("EXEC") || token.IsKeyword("AS") ||
+                  token.IsKeyword("ON") || token.IsKeyword("OFF") || token.IsKeyword("NULL")));
+
+            if (!optionPart || --with < 0)
+            {
+                return null;
+            }
+        }
+
+        if (IsTriggerTarget(with - 1))
+        {
+            return SqlKeywordPosition.TriggerOption;
+        }
+
+        var verb = FindVerb(with - 1);
+
+        if (verb < 0 || verb + 1 >= with || !(tokens[verb].IsKeyword("CREATE") || tokens[verb].IsKeyword("ALTER")))
+        {
+            return null;
+        }
+
+        for (var index = verb + 2; index < with; index++)
+        {
+            // 本體的 AS；參數的 @a AS int 不是。括號整組跳過，函式參數寫在裡面。
+            if (tokens[index].IsPunctuation("("))
+            {
+                index = SqlTokenNavigator.FindClosingParenthesis(tokens, index, with);
+
+                if (index < 0)
+                {
+                    return null;
+                }
+            }
+            else if (tokens[index].IsKeyword("AS") && tokens[index - 1].Kind != SqlTokenKind.Variable)
+            {
+                return null;
+            }
+        }
+
+        var kind = tokens[verb + 1];
+
+        return kind.IsKeyword("PROCEDURE") || kind.IsKeyword("PROC") ? SqlKeywordPosition.ProcedureOption
+            : kind.IsKeyword("FUNCTION") ? SqlKeywordPosition.FunctionOption
+            : kind.IsKeyword("VIEW") ? SqlKeywordPosition.ViewOption
+            : null;
     }
 
     /// <summary>
