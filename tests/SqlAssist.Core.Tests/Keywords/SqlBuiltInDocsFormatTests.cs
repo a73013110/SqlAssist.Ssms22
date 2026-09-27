@@ -117,6 +117,56 @@ public sealed class SqlBuiltInDocsFormatTests
         }
     }
 
+    /// <summary>
+    /// 別名（<c>aliases</c>）不得撞到任何既有的名稱＋種類，也不能兩個項目搶同一個別名。
+    /// </summary>
+    /// <remarks>
+    /// 撞到既有名稱的症狀是別名安靜地蓋掉別人的說明（<c>Dictionary</c> 後蓋前，
+    /// 沒有例外）；兩個項目搶同一個別名的症狀相同，只是換成後面那個項目蓋掉前面的。
+    /// </remarks>
+    [Fact]
+    public void 別名不得與任何名稱加種類衝突()
+    {
+        var names = new HashSet<(string Name, string Kind)>();
+
+        foreach (var file in DocFiles)
+        {
+            foreach (var item in LoadResource(file.FileName)["docs"].Items)
+            {
+                names.Add((item["name"].AsString().ToUpperInvariant(), item["kind"].AsString()));
+            }
+        }
+
+        var aliasOwners = new Dictionary<(string Name, string Kind), string>();
+
+        foreach (var file in DocFiles)
+        {
+            var root = LoadResource(file.FileName);
+
+            foreach (var item in root["docs"].Items)
+            {
+                var kind = item["kind"].AsString();
+                var ownerName = item["name"].AsString();
+
+                foreach (var aliasValue in item["aliases"].Items)
+                {
+                    var alias = aliasValue.AsString();
+                    Assert.True(alias.Length > 0, $"{file.FileName}／{ownerName}：alias 是空字串");
+
+                    var key = (alias.ToUpperInvariant(), kind);
+                    Assert.False(names.Contains(key), $"{file.FileName}／{ownerName}：別名 {alias} 撞到既有名稱");
+
+                    if (aliasOwners.TryGetValue(key, out var earlierOwner))
+                    {
+                        Assert.Fail($"{file.FileName}／{ownerName}：別名 {alias} 與 {earlierOwner} 的別名衝突");
+                    }
+
+                    aliasOwners[key] = $"{file.FileName}／{ownerName}";
+                }
+            }
+        }
+    }
+
     /// <summary>內嵌表格上限四欄，每一列的欄數要與 columns 一致。</summary>
     [Fact]
     public void 內嵌表格形狀正確()

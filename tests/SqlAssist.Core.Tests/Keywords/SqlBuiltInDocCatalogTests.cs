@@ -553,4 +553,208 @@ public sealed class SqlBuiltInDocCatalogTests
             }
         }
     }
+
+    /// <summary>
+    /// 系統程序與語句的資料還沒寫（stage 3），這裡疊一份測試專用的假資料，
+    /// 不寫進正式 JSON——見 <see cref="SqlBuiltInDocCatalog.UseTestEntries"/>。
+    /// </summary>
+    private const string SystemProcedureTestDocs = """
+        [
+          {
+            "name": "sp_executesql",
+            "kind": "systemProcedure",
+            "summary": "執行一段參數化的動態 SQL。",
+            "signature": "sp_executesql @stmt, @params, ..."
+          },
+          {
+            "name": "sp_help",
+            "kind": "systemProcedure",
+            "summary": "列出物件的結構描述資訊。",
+            "signature": "sp_help [ @objname ]"
+          }
+        ]
+        """;
+
+    /// <summary>
+    /// EXEC 的正式資料還沒寫（stage 3a 會補），這裡先用 <c>aliases</c> 驗證
+    /// EXEC／EXECUTE 共用同一份內容；MERGE、BULK INSERT 各自一筆。
+    /// </summary>
+    private const string StatementTestDocs = """
+        [
+          {
+            "name": "EXEC",
+            "kind": "statement",
+            "summary": "呼叫預存程序或執行動態 SQL。",
+            "signature": "EXEC [ @return_status = ] procedure [ arguments ]",
+            "aliases": ["EXECUTE"]
+          },
+          {
+            "name": "MERGE",
+            "kind": "statement",
+            "summary": "依條件同時做新增、更新與刪除。",
+            "signature": "MERGE target USING source ON ..."
+          },
+          {
+            "name": "BULK INSERT",
+            "kind": "statement",
+            "summary": "把檔案內容整批載入資料表。",
+            "signature": "BULK INSERT target FROM 'file'"
+          }
+        ]
+        """;
+
+    /// <summary>
+    /// 系統程序的限定字只認空、<c>sys</c>、<c>master.sys</c>、<c>master..</c>；
+    /// 方括號寫法一樣認，<c>dbo.sp_x</c> 這種不算。
+    /// </summary>
+    [Theory]
+    [InlineData("EXEC sys.sp_executesql N'SELECT 1'", "sp_executesql", true)]
+    [InlineData("EXEC [sys].[sp_executesql] N'SELECT 1'", "sp_executesql", true)]
+    [InlineData("EXEC master.sys.sp_help 'dbo.Lib_Reader'", "sp_help", true)]
+    [InlineData("EXEC master..sp_help 'dbo.Lib_Reader'", "sp_help", true)]
+    [InlineData("EXEC dbo.sp_executesql N'SELECT 1'", "sp_executesql", false)]
+    public void 系統程序限定字決定認不認得(string text, string name, bool found)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(SystemProcedureTestDocs);
+
+        var position = text.IndexOf(name, StringComparison.OrdinalIgnoreCase);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.Equal(found, SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+
+        if (found)
+        {
+            Assert.Equal(name.ToUpperInvariant(), doc.Name);
+            Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
+        }
+    }
+
+    /// <summary>
+    /// 未限定的系統程序名稱位置不限：EXEC 之後、<c>INSERT … EXEC</c> 之後、
+    /// 批次第一句都認得出來。
+    /// </summary>
+    [Theory]
+    [InlineData("EXEC sp_executesql N'SELECT 1'")]
+    [InlineData("INSERT #t EXEC sp_executesql N'SELECT 1'")]
+    [InlineData("sp_executesql N'SELECT 1'")]
+    public void 系統程序未限定時位置不限(string text)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(SystemProcedureTestDocs);
+
+        var position = text.IndexOf("sp_executesql", StringComparison.OrdinalIgnoreCase);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
+    }
+
+    /// <summary>語句開頭的 EXEC／EXECUTE／MERGE 認得出來；EXEC 的別名 EXECUTE 走同一份資料。</summary>
+    [Theory]
+    [InlineData("EXEC dbo.Lib_GetReader")]
+    [InlineData("EXECUTE dbo.Lib_GetReader")]
+    [InlineData("MERGE INTO Lib_Tag AS t USING Lib_TagStage AS s ON t.Id = s.Id;")]
+    public void 語句開頭的關鍵字認得出來(string text)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        var reference = SqlIdentifierScanner.FindAt(text, 0);
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+    }
+
+    /// <summary>EXEC 與別名 EXECUTE 是同一份說明，不是各寫一份。</summary>
+    [Fact]
+    public void EXEC別名EXECUTE共用同一份內容()
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        Assert.True(SqlBuiltInDocCatalog.TryGet("EXEC", SqlBuiltInKind.Statement, out var exec));
+        Assert.True(SqlBuiltInDocCatalog.TryGet("EXECUTE", SqlBuiltInKind.Statement, out var execute));
+
+        Assert.Equal(exec.Summary, execute.Summary);
+        Assert.Equal(exec.Signature, execute.Signature);
+    }
+
+    /// <summary>多字寫法只認第一個詞、由長到短試，BULK INSERT 在語句開頭一樣認得出來。</summary>
+    [Fact]
+    public void BulkInsert多字語句在語句開頭認得出來()
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        const string text = "BULK INSERT Lib_Tag FROM 'C:\\tags.csv'";
+        var reference = SqlIdentifierScanner.FindAt(text, 0);
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal("BULK INSERT", doc.Name);
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+    }
+
+    /// <summary><c>INSERT 目標 EXEC</c> 這一句本身不是以 EXEC 開頭，但 EXEC 一樣算數。</summary>
+    [Fact]
+    public void INSERT目標之後的EXEC算數()
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        const string text = "INSERT #t EXEC sp_executesql N'SELECT 1'";
+        var position = text.IndexOf("EXEC", StringComparison.Ordinal);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+    }
+
+    /// <summary><c>EXECUTE AS</c> 是切換執行身分的敘述，不是呼叫程序的 EXEC。</summary>
+    [Theory]
+    [InlineData("EXECUTE AS USER = 'dbo'")]
+    [InlineData("CREATE PROCEDURE dbo.Lib_Proc\nWITH EXECUTE AS OWNER\nAS\nSELECT 1")]
+    public void EXECUTE_AS不是EXEC語句(string text)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        var position = text.IndexOf("EXECUTE", StringComparison.Ordinal);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+    }
+
+    /// <summary>語句中間、不是語句開頭的位置不認：<c>AND EXEC</c> 的 EXEC 只是接在述詞後面。</summary>
+    [Fact]
+    public void 語句中間不是語句開頭的位置不認()
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        const string text = "SELECT * FROM Lib_Reader WHERE 1 = 1 AND EXEC = 1";
+        var position = text.IndexOf("EXEC", StringComparison.Ordinal);
+        var reference = SqlIdentifierScanner.FindAt(text, position);
+
+        Assert.NotNull(reference);
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+    }
+
+    /// <summary>物件解析優先順序：函式維持在物件解析之後，系統程序搶在物件解析之前。</summary>
+    [Fact]
+    public void TryGetBeforeObjectResolution對函式回false對系統程序回true()
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(SystemProcedureTestDocs);
+
+        const string functionText = "SELECT CONVERT(int, '1')";
+        var functionPosition = functionText.IndexOf("CONVERT", StringComparison.Ordinal);
+        var functionReference = SqlIdentifierScanner.FindAt(functionText, functionPosition);
+        Assert.NotNull(functionReference);
+        Assert.False(SqlBuiltInDocCatalog.TryGetBeforeObjectResolution(functionText, functionReference, out _));
+
+        const string procedureText = "EXEC sys.sp_executesql N'SELECT 1'";
+        var procedurePosition = procedureText.IndexOf("sp_executesql", StringComparison.Ordinal);
+        var procedureReference = SqlIdentifierScanner.FindAt(procedureText, procedurePosition);
+        Assert.NotNull(procedureReference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetBeforeObjectResolution(procedureText, procedureReference, out var doc));
+        Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
+    }
 }

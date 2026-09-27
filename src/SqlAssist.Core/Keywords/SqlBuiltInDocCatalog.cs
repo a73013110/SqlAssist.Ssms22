@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Json;
 using SqlAssist.Core.Localization;
@@ -59,6 +60,9 @@ public static class SqlBuiltInDocCatalog
 
     /// <summary>提示最長的多字寫法是 <c>OPTIMIZE FOR UNKNOWN</c>，三個詞。</summary>
     private const int MaximumHintWords = 3;
+
+    /// <summary>語句最長的多字寫法是 <c>BULK INSERT</c>，兩個詞。</summary>
+    private const int MaximumStatementWords = 2;
 
     /// <summary>
     /// 一筆 <c>references</c> 要嘛引用 <c>tables.json</c> 的共用編號，要嘛是內嵌在該筆
@@ -163,7 +167,7 @@ public static class SqlBuiltInDocCatalog
     /// </remarks>
     public static bool TryGetDocumentedKind(string name, out SqlBuiltInKind kind)
     {
-        if (Entries.TryGetValue(name, out var entry))
+        if (TryGetEntry(name, out var entry))
         {
             kind = entry.Kind;
             return true;
@@ -171,6 +175,73 @@ public static class SqlBuiltInDocCatalog
 
         kind = SqlBuiltInKind.Function;
         return false;
+    }
+
+    /// <summary><see cref="TestOverlay"/> 疊加時的初始底稿；一律是空的。</summary>
+    private static readonly Dictionary<string, Entry> EmptyOverlay = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>測試專用的疊加資料；不影響正式載入的 <see cref="Entries"/>，見 <see cref="UseTestEntries"/>。</summary>
+    private static readonly AsyncLocal<Dictionary<string, Entry>?> TestOverlay = new();
+
+    /// <summary>查一個名稱：先問測試疊加的那份，再問正式載入的資源。</summary>
+    private static bool TryGetEntry(string name, out Entry entry)
+    {
+        if (TestOverlay.Value is { } overlay && overlay.TryGetValue(name, out entry!))
+        {
+            return true;
+        }
+
+        return Entries.TryGetValue(name, out entry!);
+    }
+
+    /// <summary>
+    /// 測試專用：把一段 <c>docs</c> 陣列的 JSON 疊到目前的資源之上，不寫入正式 JSON。
+    /// </summary>
+    /// <remarks>
+    /// 階段 3 的 <c>statements.json</c>／<c>system-procedures.json</c> 還是空的，2a 的辨識
+    /// 測試需要幾筆假資料才能走完整條 <see cref="TryGetAt"/> 路徑（含 <c>aliases</c>）。
+    /// 用 <see cref="AsyncLocal{T}"/> 疊加而不是直接改 <see cref="Entries"/>：測試平行執行時
+    /// 各自的疊加互不影響，範圍與 <see cref="SqlAssist.Core.Localization.SqlText.Use"/> 是同一個
+    /// 模式（含其中 await 的後續）。走的是真正的 <see cref="ReadDocs"/>，別名與格式規則不必
+    /// 另外重寫一次。<see cref="DocumentedNames"/> 刻意不含疊加的假資料：那份是給「整份目錄都
+    /// 寫過說明」這種測試在問，不該被暫時疊加的假資料污染。
+    /// </remarks>
+    internal static IDisposable UseTestEntries(string docsJson)
+    {
+        if (docsJson is null)
+        {
+            throw new ArgumentNullException(nameof(docsJson));
+        }
+
+        var previous = TestOverlay.Value;
+        var merged = new Dictionary<string, Entry>(previous ?? EmptyOverlay, StringComparer.OrdinalIgnoreCase);
+
+        ReadDocs(JsonReader.Parse(docsJson), merged, SqlTextOverlay.Empty);
+
+        TestOverlay.Value = merged;
+        return new RestoreTestOverlay(previous);
+    }
+
+    private sealed class RestoreTestOverlay : IDisposable
+    {
+        private readonly Dictionary<string, Entry>? _previous;
+        private bool _disposed;
+
+        public RestoreTestOverlay(Dictionary<string, Entry>? previous)
+        {
+            _previous = previous;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            TestOverlay.Value = _previous;
+        }
     }
 
     /// <summary>
@@ -194,8 +265,10 @@ public static class SqlBuiltInDocCatalog
     /// 都只是欄位名。順序上它們排在左括號那一關之前，否則 <c>WITH (INDEX(1))</c> 的
     /// <c>INDEX</c> 會因為後面那個左括號被當成一次函式呼叫。
     ///
-    /// 本階段（1）還認不出系統程序與語句：那要看限定字是不是 <c>sys</c>、或游標是不是落在
-    /// 語句開頭，判斷本身留給 2a。這裡先把形狀定好，2a 只需要在這支方法裡加兩個分支。
+    /// 系統程序與語句另有兩道規則，見下方兩支 remarks：系統程序不看左括號、不看位置，
+    /// 只看限定字；語句不看左括號，只看游標是不是落在語句開頭或 <c>INSERT … EXEC</c>。
+    /// 兩者都要在函式／型別的左括號早退判斷之前先問，否則 <c>EXEC sp_x</c> 這種沒有
+    /// 左括號的關鍵字會被「沒有左括號的關鍵字一律不認」擋下。
     /// </remarks>
     public static bool TryGetAt(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc)
     {
@@ -204,6 +277,13 @@ public static class SqlBuiltInDocCatalog
         if (text is null || reference is null)
         {
             return false;
+        }
+
+        // 系統程序要在「限定字早退」之前先問：sys.sp_executesql、master.sys.sp_help、
+        // master..sp_help 都有限定字，晚一步問就先被下面那條擋掉了。
+        if (TryGetSystemProcedureAt(reference, out doc))
+        {
+            return true;
         }
 
         if (reference.Qualifier is not null || reference.Length != reference.Name.Length)
@@ -225,6 +305,13 @@ public static class SqlBuiltInDocCatalog
             return true;
         }
 
+        // 語句（EXEC、MERGE、BULK INSERT…）要在左括號早退之前問：這些關鍵字絕大多數
+        // 後面沒有左括號，晚一步問就被下面「沒有左括號的關鍵字一律不認」擋掉了。
+        if (TryGetStatementAt(text, reference, out doc))
+        {
+            return true;
+        }
+
         var next = SqlTrivia.Skip(text, reference.End, text.Length);
         var call = next < text.Length && text[next] == '(';
 
@@ -240,6 +327,167 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <summary>
+    /// 系統程序：名稱在說明目錄裡，且限定字為空、<c>sys</c>、<c>master.sys</c> 或
+    /// <c>master..</c>（大小寫不分，方括號寫法一樣認，例如 <c>[sys].[sp_executesql]</c>）；
+    /// 位置不限——EXEC 之後、<c>INSERT … EXEC</c> 之後、批次第一句都算。
+    /// </summary>
+    /// <remarks>
+    /// SQL Server 解析 <c>sp_</c> 開頭的名稱本來就先找系統那一份，不必看游標落在哪裡，
+    /// 這一條與函式／型別「沒有左括號一律不認」是兩套規則，各自的判準見
+    /// <see cref="IsSystemProcedureQualifier"/>。
+    /// </remarks>
+    private static bool TryGetSystemProcedureAt(SqlIdentifierReference reference, out SqlBuiltInDoc doc)
+    {
+        doc = null!;
+
+        var path = reference.Path;
+        var qualifierSlots = path?.QualifierSlotCount ?? 0;
+
+        if (qualifierSlots == 0)
+        {
+            // 沒有限定字：名稱本身不能加方括號，否則跟資料行同名分不出來——
+            // 與函式、型別同一條規則（[CONVERT] 是欄位名，不是內建名稱）。
+            if (reference.Length != reference.Name.Length)
+            {
+                return false;
+            }
+        }
+        else if (!IsSystemProcedureQualifier(path!))
+        {
+            return false;
+        }
+
+        return TryGet(reference.Name, SqlBuiltInKind.SystemProcedure, out doc);
+    }
+
+    /// <summary>
+    /// 限定字要嘛整個省略，要嘛是 <c>sys</c>、<c>master.sys</c>、<c>master..</c>：
+    /// 沒有連結伺服器，資料庫沒寫或是 <c>master</c>，結構描述沒寫或是 <c>sys</c>。
+    /// <c>dbo.sp_x</c>（結構描述不是 sys）、<c>otherdb.sys.x</c>（資料庫不是 master）都不算。
+    /// </summary>
+    private static bool IsSystemProcedureQualifier(SqlObjectPath path)
+    {
+        if (path.ServerName is not null)
+        {
+            return false;
+        }
+
+        if (path.SchemaName is not null && !string.Equals(path.SchemaName, "sys", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return path.DatabaseName is null || string.Equals(path.DatabaseName, "master", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 語句：<c>EXEC</c>／<c>EXECUTE</c>、<c>RAISERROR</c>、<c>THROW</c>、<c>MERGE</c>、
+    /// <c>WAITFOR</c>、<c>BULK INSERT</c> 這類只能整句寫、不是運算式的關鍵字，只在語句開頭
+    /// （<see cref="SqlStatementBoundaries.IsStatementHead"/>）或 <c>INSERT … EXEC</c> 的位置
+    /// 才算。
+    /// </summary>
+    /// <remarks>
+    /// <c>EXECUTE AS</c>、<c>WITH EXECUTE AS</c> 是切換執行身分的敘述，不是呼叫程序的
+    /// EXEC，靠 <see cref="IsFollowedByAs"/> 擋掉——不管位置對不對，後面直接接 <c>AS</c>
+    /// 就不是這裡要認的語句。多字寫法（<c>BULK INSERT</c>）比照提示的規則，只認第一個詞、
+    /// 由長到短試（<see cref="CollectMultiWordNames"/>），位置驗證則永遠問第一個詞
+    /// 自己的位置，與併了幾個字無關。
+    /// </remarks>
+    private static bool TryGetStatementAt(string text, SqlIdentifierReference reference, out SqlBuiltInDoc doc)
+    {
+        doc = null!;
+
+        if (IsFollowedByAs(text, reference))
+        {
+            return false;
+        }
+
+        var names = CollectMultiWordNames(text, reference, MaximumStatementWords);
+        SqlBuiltInDoc? matched = null;
+
+        for (var index = names.Count - 1; index >= 0 && matched is null; index--)
+        {
+            if (TryGet(names[index], SqlBuiltInKind.Statement, out var found))
+            {
+                matched = found;
+            }
+        }
+
+        if (matched is null)
+        {
+            return false;
+        }
+
+        var tokens = SqlTokenizer.Tokenize(text, 0, reference.End);
+
+        if (tokens.Count == 0)
+        {
+            return false;
+        }
+
+        var index2 = tokens.Count - 1;
+        var boundaries = new SqlStatementBoundaries(text, tokens);
+
+        if (!boundaries.IsStatementHead(index2) && !IsInsertExecTarget(tokens, index2))
+        {
+            return false;
+        }
+
+        doc = matched;
+        return true;
+    }
+
+    /// <summary>
+    /// <c>EXEC</c>／<c>EXECUTE</c> 後面直接接的是不是 <c>AS</c>：是的話這是切換執行身分的
+    /// 敘述（<c>EXECUTE AS USER = '…'</c>、<c>WITH EXECUTE AS OWNER</c>），不是呼叫程序的
+    /// EXEC，分辨的線索只有這一個。
+    /// </summary>
+    private static bool IsFollowedByAs(string text, SqlIdentifierReference reference)
+    {
+        var next = SqlTrivia.Skip(text, reference.End, text.Length);
+
+        return SqlIdentifierScanner.FindAt(text, next) is { } following &&
+            following.Start == next &&
+            following.Length == following.Name.Length &&
+            string.Equals(following.Name, "AS", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// <paramref name="index"/> 的 EXEC／EXECUTE 前面是 <c>INSERT [INTO] target</c>：
+    /// 目標名稱寫完之後直接呼叫程序，把結果集塞進那張表，這一句本身不是以 EXEC 開頭，
+    /// 但 EXEC 在這裡一樣要算數（<c>INSERT #t EXEC sp_x</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 目標名稱那一格不能是關鍵字（<c>SELECT EXEC</c> 這種無效寫法擋在這裡），避免
+    /// 誤判成 INSERT 的目標。
+    /// </remarks>
+    private static bool IsInsertExecTarget(IReadOnlyList<SqlToken> tokens, int index)
+    {
+        var before = index - 1;
+
+        if (before < 0)
+        {
+            return false;
+        }
+
+        var target = tokens[before];
+
+        if (target.Kind != SqlTokenKind.Identifier || (!target.IsQuoted && SqlKeywordCatalog.IsKeyword(target.Value)))
+        {
+            return false;
+        }
+
+        var previous = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, before) - 1;
+
+        if (previous >= 0 && tokens[previous].IsKeyword("INTO"))
+        {
+            previous--;
+        }
+
+        return previous >= 0 && tokens[previous].IsKeyword("INSERT");
+    }
+
+    /// <summary>
     /// 停在這個名稱上的說明是不是該搶在物件解析之前顯示。
     /// </summary>
     /// <remarks>
@@ -251,9 +499,6 @@ public static class SqlBuiltInDocCatalog
     ///
     /// 平台層的物件定位是非同步的，這支只回答「要不要問」，真的等連線是呼叫端的事——
     /// 2b 在 Ssms22 用一個共用 helper 包起來：先問這支，命中就不必等物件解析。
-    ///
-    /// 本階段（1）<see cref="TryGetAt"/> 還認不出系統程序與語句（見 2a），
-    /// 因此這支目前恆為 false；呼叫端已經照這個形狀接好，2a 補上辨識後不必再動呼叫端。
     /// </remarks>
     public static bool TryGetBeforeObjectResolution(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc) =>
         TryGetAt(text, reference, out doc) && doc.Kind.PrecedesObjectResolution();
@@ -314,12 +559,8 @@ public static class SqlBuiltInDocCatalog
     /// 查出這個位置上的提示或日期部分，含 <c>FORCE ORDER</c> 這種多字寫法。
     /// </summary>
     /// <remarks>
-    /// 多字寫法只有停在第一個詞上認得出來：停留範圍圈得住的就是游標底下那一個詞，
-    /// 而由後面那個詞往回認要先知道前面還有幾個詞——為了半個名稱把位置分析整個
-    /// 搬過來不划算，何況圈起來的範圍還是只有半個名稱。
-    ///
     /// 由長到短試，否則 <c>OPTIMIZE FOR UNKNOWN</c> 會先被 <c>OPTIMIZE FOR</c> 接走，
-    /// 而那兩個提示說的是相反的事。
+    /// 而那兩個提示說的是相反的事；併詞的規則見 <see cref="CollectMultiWordNames"/>。
     /// </remarks>
     private static bool TryGetArgument(
         string text,
@@ -327,10 +568,36 @@ public static class SqlBuiltInDocCatalog
         SqlBuiltInKind kind,
         out SqlBuiltInDoc doc)
     {
-        var names = new List<string>(MaximumHintWords) { reference.Name };
+        var names = CollectMultiWordNames(text, reference, MaximumHintWords);
+
+        for (var index = names.Count - 1; index >= 0; index--)
+        {
+            if (TryGet(names[index], kind, out doc))
+            {
+                return true;
+            }
+        }
+
+        doc = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// 由游標所在的詞往後併詞，最多 <paramref name="maxWords"/> 個，供多字寫法
+    /// （<c>OPTIMIZE FOR UNKNOWN</c>、<c>BULK INSERT</c>）由長到短試。
+    /// </summary>
+    /// <remarks>
+    /// 多字寫法只有停在第一個詞上認得出來：停留範圍圈得住的就是游標底下那一個詞，
+    /// 而由後面那個詞往回認要先知道前面還有幾個詞——為了半個名稱把位置分析整個
+    /// 搬過來不划算，何況圈起來的範圍還是只有半個名稱。提示與語句共用這一支，
+    /// 各自的上限見 <see cref="MaximumHintWords"/>、<see cref="MaximumStatementWords"/>。
+    /// </remarks>
+    private static List<string> CollectMultiWordNames(string text, SqlIdentifierReference reference, int maxWords)
+    {
+        var names = new List<string>(maxWords) { reference.Name };
         var end = reference.End;
 
-        while (names.Count < MaximumHintWords)
+        while (names.Count < maxWords)
         {
             var start = SqlTrivia.Skip(text, end, text.Length);
 
@@ -345,16 +612,7 @@ public static class SqlBuiltInDocCatalog
             end = following.End;
         }
 
-        for (var index = names.Count - 1; index >= 0; index--)
-        {
-            if (TryGet(names[index], kind, out doc))
-            {
-                return true;
-            }
-        }
-
-        doc = null!;
-        return false;
+        return names;
     }
 
     /// <summary>
@@ -438,7 +696,7 @@ public static class SqlBuiltInDocCatalog
     {
         // 資源那一筆的種類要對得上：YEAR 在日期部分與內建函式目錄裡各有一筆，
         // 把函式的範例貼到日期部分上是提示自己編的。
-        var entry = Entries.TryGetValue(name, out var candidate) && candidate.Kind == kind
+        var entry = TryGetEntry(name, out var candidate) && candidate.Kind == kind
             ? candidate
             : null;
 
@@ -659,7 +917,9 @@ public static class SqlBuiltInDocCatalog
 
     /// <remarks>覆蓋檔的編號是 <c>name</c>，欄位是 <c>summary</c>、
     /// <c>examples.&lt;段落編號&gt;.title</c>、<c>examples.&lt;段落編號&gt;.sql</c>，
-    /// 內嵌表格是 <c>references.&lt;索引&gt;.title</c> 這一組。</remarks>
+    /// 內嵌表格是 <c>references.&lt;索引&gt;.title</c> 這一組。<c>aliases</c>（例如
+    /// <c>EXEC</c> 條目的 <c>["EXECUTE"]</c>）不需要覆蓋檔鍵：別名本身不翻譯，指向的是
+    /// 同一個 <see cref="Entry"/> 執行個體，跟著原文的說明一起套用覆蓋檔。</remarks>
     private static void ReadDocs(JsonValue node, Dictionary<string, Entry> entries, SqlTextOverlay overlay)
     {
         foreach (var item in node.Items)
@@ -671,13 +931,27 @@ public static class SqlBuiltInDocCatalog
                 continue;
             }
 
-            entries[name] = new Entry(
+            var entry = new Entry(
                 ParseKind(item["kind"].AsString()),
                 overlay.Apply(name, "summary", item["summary"].AsString()),
                 item["signature"].AsString(),
                 ReadExamples(item["examples"], name, overlay),
                 item["docsUrl"].AsString(),
                 ReadReferences(item["references"], name, overlay));
+
+            entries[name] = entry;
+
+            // 別名（EXEC／EXECUTE 這種同一份說明有兩種寫法）指向同一個 Entry 執行個體，
+            // 不是複製一份：抄一份的症狀是改了一邊另一邊沒改，兩邊看起來卻都對。
+            foreach (var alias in item["aliases"].Items)
+            {
+                var aliasName = alias.AsString();
+
+                if (aliasName.Length > 0)
+                {
+                    entries[aliasName] = entry;
+                }
+            }
         }
     }
 
