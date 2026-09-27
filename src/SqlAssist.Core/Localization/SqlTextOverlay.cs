@@ -9,10 +9,10 @@ namespace SqlAssist.Core.Localization;
 
 /// <summary>資料型文字（內嵌 JSON）的語言覆蓋檔：只帶要翻的欄位，疊在來源資料上。</summary>
 /// <remarks>
-/// <c>BuiltInDocs.json</c> 這種資料不進 .resjson 產生器：一筆有好幾個欄位、還有巢狀的對照表，
-/// 攤成幾百個產生成員只會讓資料與程式各留一半。來源檔維持繁中，旁邊放同名的
-/// <c>BuiltInDocs.en.json</c>，形狀是「編號 → 欄位 → 譯文」：
-/// <code>{ "CONVERT": { "summary": "…", "example": "…" }, "tables.dateStyles": { "rows.0.1": "…" } }</code>
+/// <c>Keywords/BuiltInDocs/functions.json</c> 這種資料不進 .resjson 產生器：一筆有好幾個欄位、
+/// 還有巢狀的對照表與多段範例，攤成幾百個產生成員只會讓資料與程式各留一半。來源檔維持繁中，
+/// 旁邊放同名的 <c>functions.en.json</c>，形狀是「編號 → 欄位 → 譯文」：
+/// <code>{ "CONVERT": { "summary": "…", "examples.basic.sql": "…" }, "dateStyles": { "rows.0.1": "…" } }</code>
 /// 欄位名稱由各載入器自己定（巢狀或陣列位置用點號串起來），這裡只負責查表；
 /// 查不到就用來源那一句，所以來源語言本身不需要覆蓋檔。
 ///

@@ -41,7 +41,8 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.Equal(SqlBuiltInKind.Function, doc.Kind);
         Assert.NotEqual(string.Empty, doc.Signature);
         Assert.NotEqual(string.Empty, doc.Summary);
-        Assert.NotEqual(string.Empty, doc.Example);
+        Assert.NotEmpty(doc.Examples);
+        Assert.NotEqual(string.Empty, doc.Examples[0].Sql);
         Assert.StartsWith("https://learn.microsoft.com/", doc.DocsUrl, StringComparison.Ordinal);
     }
 
@@ -72,7 +73,7 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.Equal(string.Empty, doc.Signature);
         Assert.True(SqlDataTypeCatalog.TryGetDescription("NVARCHAR", out var description));
         Assert.Equal(description, doc.Summary);
-        Assert.NotEqual(string.Empty, doc.Example);
+        Assert.NotEmpty(doc.Examples);
     }
 
     /// <summary>
@@ -91,7 +92,7 @@ public sealed class SqlBuiltInDocCatalogTests
             Assert.True(SqlBuiltInDocCatalog.TryGet(name, SqlBuiltInKind.Function, out var doc), name);
             Assert.NotEqual(string.Empty, doc.Signature);
             Assert.True(doc.Summary.Length > 0, name);
-            Assert.True(doc.Example.Length > 0, name);
+            Assert.True(doc.Examples.Count > 0, name);
             Assert.StartsWith("https://learn.microsoft.com/", doc.DocsUrl, StringComparison.Ordinal);
         });
     }
@@ -363,12 +364,12 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.True(SqlBuiltInDocCatalog.TryGet("NOLOCK", SqlBuiltInKind.TableHint, out var documented));
 
         Assert.False(documented.HasReferences);
-        Assert.NotEqual(string.Empty, documented.Example);
+        Assert.NotEmpty(documented.Examples);
 
         Assert.True(SqlBuiltInDocCatalog.TryGet("PAGLOCK", SqlBuiltInKind.TableHint, out var bare));
 
         Assert.False(bare.HasReferences);
-        Assert.Equal(string.Empty, bare.Example);
+        Assert.Empty(bare.Examples);
         Assert.NotEqual(string.Empty, bare.Summary);
     }
 
@@ -384,7 +385,7 @@ public sealed class SqlBuiltInDocCatalogTests
     {
         Assert.True(SqlBuiltInDocCatalog.TryGet(name, kind, out var doc));
 
-        Assert.NotEqual(string.Empty, doc.Example);
+        Assert.NotEmpty(doc.Examples);
         Assert.Equal(Description(name, kind), doc.Summary);
         Assert.StartsWith("https://learn.microsoft.com/", doc.DocsUrl, StringComparison.Ordinal);
     }
@@ -420,9 +421,13 @@ public sealed class SqlBuiltInDocCatalogTests
             Assert.True(SqlBuiltInDocCatalog.TryGetDocumentedKind(name, out var kind), name);
             Assert.True(SqlBuiltInDocCatalog.TryGet(name, kind, out var doc), name);
             Assert.True(doc.Summary.Length <= MaximumSummaryLength, $"{name}：{doc.Summary.Length}");
-            Assert.True(doc.Example.Length <= MaximumExampleLength, $"{name}：{doc.Example.Length}");
             Assert.DoesNotContain('\n', doc.Summary);
-            Assert.DoesNotContain('\n', doc.Example);
+
+            Assert.All(doc.Examples, example =>
+            {
+                Assert.True(example.Sql.Length <= MaximumExampleLength, $"{name}／{example.Id}：{example.Sql.Length}");
+                Assert.DoesNotContain('\n', example.Sql);
+            });
         });
     }
 
@@ -483,7 +488,7 @@ public sealed class SqlBuiltInDocCatalogTests
         {
             Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var doc));
             Assert.Equal("Convert type; style formats dates/numbers; type goes first", doc.Summary);
-            Assert.StartsWith("SELECT CONVERT(varchar(10), GETDATE(), 120)", doc.Example);
+            Assert.StartsWith("SELECT CONVERT(varchar(10), GETDATE(), 120)", doc.Examples[0].Sql);
             Assert.Equal("style (date and time)", doc.References[0].Title);
             Assert.Equal("Built-in function", SqlBuiltInKind.Function.GetDisplayName());
         }
@@ -524,7 +529,13 @@ public sealed class SqlBuiltInDocCatalogTests
                 Assert.True(SqlBuiltInDocCatalog.TryGetDocumentedKind(name, out var kind), name);
                 Assert.True(SqlBuiltInDocCatalog.TryGet(name, kind, out var doc), name);
                 Assert.True(doc.Summary.Length <= MaximumSummaryLength, $"{name}: {doc.Summary.Length}");
-                Assert.True(doc.Example.Length <= MaximumExampleLength, $"{name}: {doc.Example.Length}");
+
+                foreach (var example in doc.Examples)
+                {
+                    Assert.True(
+                        example.Sql.Length <= MaximumExampleLength,
+                        $"{name}/{example.Id}: {example.Sql.Length}");
+                }
             }
 
             var catalogs = SqlGlobalVariableCatalog.All

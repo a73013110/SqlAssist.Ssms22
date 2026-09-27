@@ -21,17 +21,28 @@ namespace SqlAssist.Core.Keywords;
 /// 重疊的名稱讓給關鍵字目錄，但 <c>CONVERT</c>、<c>LEFT</c> 這些正是使用者最常停上去
 /// 問的字。提示不必為了 <c>LEFT JOIN</c> 讓開——那是清單才有的兩難。
 ///
-/// 收的是六種名稱（見 <see cref="SqlBuiltInKind"/>），一行說明各自留在建議清單已經
-/// 在用的那份目錄裡，這裡只負責接起來。<c>@@ROWCOUNT</c> 與 <c>NOLOCK</c> 停上去要問的
-/// 與 <c>CONVERT</c> 是同一件事，答案卻分散在四個型別裡，讓呼叫端自己去問等於讓
-/// 兩個表面各接一次。
+/// 收的是八種名稱（見 <see cref="SqlBuiltInKind"/>）。函式、型別、兩種提示、日期部分與
+/// 全域變數的一行說明各自留在建議清單已經在用的那份目錄裡，這裡只負責接起來；系統程序
+/// 與語句沒有那樣一份目錄，簽章與用途由資源自己當唯一出處（見
+/// <c>Keywords/BuiltInDocs/system-procedures.json</c>、<c>statements.json</c>）。
+/// <c>@@ROWCOUNT</c> 與 <c>NOLOCK</c> 停上去要問的與 <c>CONVERT</c> 是同一件事，答案卻
+/// 分散在好幾個型別裡，讓呼叫端自己去問等於讓每個表面各接一次。
 /// </remarks>
 public static class SqlBuiltInDocCatalog
 {
-    private const string ResourceName = "SqlAssist.Core.Keywords.BuiltInDocs.json";
+    private const string ResourceFolder = "SqlAssist.Core.Keywords.BuiltInDocs.";
+
+    /// <summary>依種類拆開的資料檔；合併成一份目錄，名稱重複由測試擋下。</summary>
+    private static readonly string[] DocFileNames =
+    {
+        "functions.json",
+        "types-hints.json",
+        "statements.json",
+        "system-procedures.json"
+    };
 
     /// <summary>目前支援的資源版本。</summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     /// <summary>資料格的欄要繫結到真的屬性，索引子路徑在複製那條路上讀不出來。</summary>
     private const int MaximumColumns = SqlBuiltInReference.MaximumColumns;
@@ -49,18 +60,53 @@ public static class SqlBuiltInDocCatalog
     /// <summary>提示最長的多字寫法是 <c>OPTIMIZE FOR UNKNOWN</c>，三個詞。</summary>
     private const int MaximumHintWords = 3;
 
+    /// <summary>
+    /// 一筆 <c>references</c> 要嘛引用 <c>tables.json</c> 的共用編號，要嘛是內嵌在該筆
+    /// 資料裡的一張表；哪一種留到真的要顯示（<see cref="Resolve"/>）才決定，讀檔時只記來源。
+    /// </summary>
+    private readonly struct ReferenceSource
+    {
+        private readonly string? _tableId;
+        private readonly SqlBuiltInReference? _inline;
+
+        public ReferenceSource(string tableId)
+        {
+            _tableId = tableId;
+            _inline = null;
+        }
+
+        public ReferenceSource(SqlBuiltInReference inline)
+        {
+            _tableId = null;
+            _inline = inline;
+        }
+
+        /// <summary>內嵌的表直接回傳；共用編號向 <paramref name="tables"/> 查，查不到安靜略過。</summary>
+        public SqlBuiltInReference? Resolve(IReadOnlyDictionary<string, SqlBuiltInReference> tables)
+        {
+            if (_inline is not null)
+            {
+                return _inline;
+            }
+
+            return _tableId is not null && tables.TryGetValue(_tableId, out var table) ? table : null;
+        }
+    }
+
     private sealed class Entry
     {
         public Entry(
             SqlBuiltInKind kind,
             string summary,
-            string example,
+            string signature,
+            IReadOnlyList<SqlBuiltInExample> examples,
             string docsUrl,
-            IReadOnlyList<string> references)
+            IReadOnlyList<ReferenceSource> references)
         {
             Kind = kind;
             Summary = summary;
-            Example = example;
+            Signature = signature;
+            Examples = examples;
             DocsUrl = docsUrl;
             References = references;
         }
@@ -69,12 +115,15 @@ public static class SqlBuiltInDocCatalog
 
         public string Summary { get; }
 
-        public string Example { get; }
+        /// <summary>系統程序與語句的寫法；其餘種類永遠是空字串（測試擋下寫了也沒用的欄位）。</summary>
+        public string Signature { get; }
+
+        public IReadOnlyList<SqlBuiltInExample> Examples { get; }
 
         public string DocsUrl { get; }
 
         /// <summary>要引用哪幾張對照表；順序就是分頁的順序。</summary>
-        public IReadOnlyList<string> References { get; }
+        public IReadOnlyList<ReferenceSource> References { get; }
     }
 
     private sealed class Resource
@@ -144,6 +193,9 @@ public static class SqlBuiltInDocCatalog
     /// <c>DATEADD(</c> 的第一個引數裡才算，離開那幾個括號 <c>NOLOCK</c> 與 <c>YEAR</c>
     /// 都只是欄位名。順序上它們排在左括號那一關之前，否則 <c>WITH (INDEX(1))</c> 的
     /// <c>INDEX</c> 會因為後面那個左括號被當成一次函式呼叫。
+    ///
+    /// 本階段（1）還認不出系統程序與語句：那要看限定字是不是 <c>sys</c>、或游標是不是落在
+    /// 語句開頭，判斷本身留給 2a。這裡先把形狀定好，2a 只需要在這支方法裡加兩個分支。
     /// </remarks>
     public static bool TryGetAt(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc)
     {
@@ -186,6 +238,32 @@ public static class SqlBuiltInDocCatalog
             call ? SqlBuiltInKind.Function : SqlBuiltInKind.DataType,
             out doc);
     }
+
+    /// <summary>
+    /// 停在這個名稱上的說明是不是該搶在物件解析之前顯示。
+    /// </summary>
+    /// <remarks>
+    /// 四條入口（<c>SqlObjectNavigation</c>、<c>SqlQuickInfoSource</c>、
+    /// <c>Core/Parsing/SqlClickTarget</c>、<c>Ssms22/Completion/SqlSuggestionTarget</c>）都問
+    /// 這一支，不要各自判斷順序：系統程序與語句排在物件解析之前
+    /// （<see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>），因為 SQL Server 解析
+    /// <c>sp_</c> 開頭的名稱本來就先找系統那一份，說明也不必連線才答得出來。
+    ///
+    /// 平台層的物件定位是非同步的，這支只回答「要不要問」，真的等連線是呼叫端的事——
+    /// 2b 在 Ssms22 用一個共用 helper 包起來：先問這支，命中就不必等物件解析。
+    ///
+    /// 本階段（1）<see cref="TryGetAt"/> 還認不出系統程序與語句（見 2a），
+    /// 因此這支目前恆為 false；呼叫端已經照這個形狀接好，2a 補上辨識後不必再動呼叫端。
+    /// </remarks>
+    public static bool TryGetBeforeObjectResolution(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc) =>
+        TryGetAt(text, reference, out doc) && doc.Kind.PrecedesObjectResolution();
+
+    /// <summary>
+    /// 物件解析落空之後才問的說明；函式與型別維持這個順序（見
+    /// <see cref="SqlBuiltInKinds.PrecedesObjectResolution"/> 的原因）。
+    /// </summary>
+    public static bool TryGetAfterObjectResolution(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc) =>
+        TryGetAt(text, reference, out doc) && !doc.Kind.PrecedesObjectResolution();
 
     /// <summary>
     /// 停留的位置是不是那幾個括號裡的封閉清單。
@@ -289,9 +367,9 @@ public static class SqlBuiltInDocCatalog
     /// 反過來不成立：沒有左括號的 <c>year</c> 不能退回去當函式解釋。
     /// </param>
     /// <remarks>
-    /// 大小寫不敏感。查得到簽章或說明其中之一就算命中：函式一定有簽章，提示與型別
-    /// 那幾種一定有那一行說明，兩邊都不必等資源寫過才答得出來——一行簽章本身就已經
-    /// 回答了「引數順序是什麼」，那正是 <c>CONVERT</c> 最常被停上去問的事。
+    /// 大小寫不敏感。函式、型別、提示與日期部分那幾種一定有一行說明或簽章，兩邊都不必
+    /// 等資源寫過才答得出來；系統程序與語句沒有另一份目錄可退，資源本身就是唯一出處，
+    /// 查得到就有內容。
     /// </remarks>
     public static bool TryGet(string? name, SqlBuiltInKind preferred, out SqlBuiltInDoc doc)
     {
@@ -312,6 +390,14 @@ public static class SqlBuiltInDocCatalog
         // 只有函式退到型別，其餘種類不互退：位置已經把話說完了，
         // 而 WITH (MAXDOP) 也答得出來只會是提示自己編的。
         var kind = preferred == SqlBuiltInKind.Function ? SqlBuiltInKind.DataType : preferred;
+
+        // 系統程序與語句沒有另一份目錄可退：JSON 資源本身就是唯一出處，
+        // 查得到就有內容，查不到就是還沒寫過（見 SqlBuiltInDoc 類別備註）。
+        if (kind == SqlBuiltInKind.SystemProcedure || kind == SqlBuiltInKind.Statement)
+        {
+            doc = Create(name!, kind, string.Empty, string.Empty);
+            return doc.HasContent;
+        }
 
         if (!TryGetDescription(name!, kind, out var description))
         {
@@ -342,7 +428,7 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <param name="description">
-    /// 那一份既有目錄寫的一行說明；函式傳空字串，它的用途只寫在資源裡。
+    /// 那一份既有目錄寫的一行說明；函式、系統程序與語句傳空字串，它們的用途只寫在資源裡。
     /// </param>
     private static SqlBuiltInDoc Create(
         string name,
@@ -357,18 +443,19 @@ public static class SqlBuiltInDocCatalog
             : null;
 
         var summary = entry?.Summary ?? string.Empty;
+        var finalSignature = signature.Length > 0 ? signature : entry?.Signature ?? string.Empty;
 
         return new SqlBuiltInDoc(
             name.ToUpperInvariant(),
             kind,
-            signature,
+            finalSignature,
             summary.Length > 0 ? summary : description,
-            entry?.Example ?? string.Empty,
+            entry?.Examples ?? Array.Empty<SqlBuiltInExample>(),
             entry?.DocsUrl ?? string.Empty,
             Resolve(entry, kind));
     }
 
-    /// <summary>把引用的編號換成對照表；查不到的編號安靜略過。</summary>
+    /// <summary>把引用換成對照表：共用編號向 tables.json 查，內嵌的表直接拿來用。</summary>
     /// <remarks>
     /// 編號打錯字是建置期的錯，由 <c>SqlBuiltInDocCatalogTests</c> 守。執行期少一個
     /// 分頁遠好過在滑鼠停留的路徑上丟例外。
@@ -386,9 +473,9 @@ public static class SqlBuiltInDocCatalog
         var tables = Loaded.Current.Tables;
         var resolved = new List<SqlBuiltInReference>(entry.References.Count);
 
-        foreach (var id in entry.References)
+        foreach (var source in entry.References)
         {
-            if (tables.TryGetValue(id, out var table))
+            if (source.Resolve(tables) is { } table)
             {
                 resolved.Add(table);
             }
@@ -398,13 +485,15 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <summary>
-    /// 讀內嵌資源。
+    /// 讀所有內嵌資源並合併成一份：共用的 <c>tables.json</c>，加上依種類拆開的四份資料檔。
     /// </summary>
     /// <remarks>
-    /// 讀不到一律降級成空字典，<b>不</b>丟例外，理由與 <c>SqlSnippetDefaults</c> 相同：
-    /// 這是建置期的錯，而執行期這條路掛在滑鼠移動的軌跡上，丟出去就是每停留一次
-    /// 看到一次錯誤，而且 <see cref="Lazy{T}"/> 會把例外永久快取起來反覆重丟。
-    /// 沒有說明只是提示少了幾行，其餘功能照常。覆蓋檔讀不到時整份退回來源語言，理由相同。
+    /// 每一份各自讀、各自可能失敗；讀不到一律降級成空字典，<b>不</b>丟例外，理由與
+    /// <c>SqlSnippetDefaults</c> 相同：這是建置期的錯，而執行期這條路掛在滑鼠移動的
+    /// 軌跡上，丟出去就是每停留一次看到一次錯誤，而且 <see cref="Lazy{T}"/> 會把例外
+    /// 永久快取起來反覆重丟。沒有說明只是提示少了幾行，其餘功能照常。覆蓋檔讀不到時
+    /// 整份退回來源語言，理由相同。<see cref="LastError"/> 只留第一個失敗的原因，
+    /// 其餘資料檔照樣繼續讀——一份寫壞不該連帶把其他四份也擋下來。
     /// </remarks>
     [Localizable(false)]
     private static Resource Load(SqlLanguage language)
@@ -415,16 +504,35 @@ public static class SqlBuiltInDocCatalog
             [DatePartTableId] = BuildDatePartTable()
         };
 
+        var assembly = typeof(SqlBuiltInDocCatalog).GetTypeInfo().Assembly;
+        var error = LoadTables(assembly, language, tables);
+
+        foreach (var fileName in DocFileNames)
+        {
+            error ??= LoadDocs(assembly, fileName, language, entries);
+        }
+
+        if (error is null && entries.Count == 0)
+        {
+            error = "內建說明資源沒有可用項目。";
+        }
+
+        LastError = error;
+        return new Resource(entries, tables);
+    }
+
+    [Localizable(false)]
+    private static string? LoadTables(Assembly assembly, SqlLanguage language, Dictionary<string, SqlBuiltInReference> tables)
+    {
+        const string resourceName = ResourceFolder + "tables.json";
+
         try
         {
-            var assembly = typeof(SqlBuiltInDocCatalog).GetTypeInfo().Assembly;
-
-            using var stream = assembly.GetManifestResourceStream(ResourceName);
+            using var stream = assembly.GetManifestResourceStream(resourceName);
 
             if (stream is null)
             {
-                LastError = $"找不到內建說明資源：{ResourceName}";
-                return new Resource(entries, tables);
+                return $"找不到內建說明資源：{resourceName}";
             }
 
             using var reader = new StreamReader(stream);
@@ -432,28 +540,109 @@ public static class SqlBuiltInDocCatalog
 
             if (root["version"].AsInt32(CurrentVersion) != CurrentVersion)
             {
-                LastError = $"內建說明資源的版本不是 {CurrentVersion}。";
-                return new Resource(entries, tables);
+                return $"內建說明資源的版本不是 {CurrentVersion}：{resourceName}";
             }
 
-            var overlay = SqlTextOverlay.Load(assembly, ResourceName, language);
+            var overlay = SqlTextOverlay.Load(assembly, resourceName, language);
             ReadTables(root["tables"], tables, overlay);
-            ReadDocs(root["docs"], entries, overlay);
-
-            if (entries.Count == 0)
-            {
-                LastError = "內建說明資源沒有可用項目。";
-            }
+            return null;
         }
         catch (Exception exception)
         {
-            LastError = $"內建說明資源讀取失敗：{exception.Message}";
+            return $"內建說明資源讀取失敗：{resourceName}：{exception.Message}";
         }
-
-        return new Resource(entries, tables);
     }
 
-    /// <remarks>覆蓋檔的編號是 <c>tables.&lt;編號&gt;</c>，欄位是 <c>title</c>、<c>columns.&lt;欄&gt;</c> 與 <c>rows.&lt;列&gt;.&lt;欄&gt;</c>。</remarks>
+    [Localizable(false)]
+    private static string? LoadDocs(
+        Assembly assembly,
+        string fileName,
+        SqlLanguage language,
+        Dictionary<string, Entry> entries)
+    {
+        var resourceName = ResourceFolder + fileName;
+
+        try
+        {
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+
+            if (stream is null)
+            {
+                return $"找不到內建說明資源：{resourceName}";
+            }
+
+            using var reader = new StreamReader(stream);
+            var root = JsonReader.Parse(reader.ReadToEnd());
+
+            if (root["version"].AsInt32(CurrentVersion) != CurrentVersion)
+            {
+                return $"內建說明資源的版本不是 {CurrentVersion}：{resourceName}";
+            }
+
+            var overlay = SqlTextOverlay.Load(assembly, resourceName, language);
+            ReadDocs(root["docs"], entries, overlay);
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return $"內建說明資源讀取失敗：{resourceName}：{exception.Message}";
+        }
+    }
+
+    /// <summary>
+    /// 讀一張對照表：<c>tables.json</c> 的共用表與內嵌在某一筆資料裡的表走同一支，
+    /// 差別只在覆蓋檔的鍵路徑（<paramref name="overlayId"/>／<paramref name="keyPrefix"/>）。
+    /// </summary>
+    private static SqlBuiltInReference? BuildReferenceTable(
+        JsonValue table,
+        string overlayId,
+        string keyPrefix,
+        string fallbackTitle,
+        SqlTextOverlay overlay)
+    {
+        var columns = new List<string>(MaximumColumns);
+
+        foreach (var column in table["columns"].Items)
+        {
+            if (columns.Count < MaximumColumns)
+            {
+                columns.Add(overlay.Apply(overlayId, keyPrefix + "columns." + columns.Count, column.AsString()));
+            }
+        }
+
+        if (columns.Count == 0)
+        {
+            return null;
+        }
+
+        var rows = new List<IReadOnlyList<string>>();
+
+        foreach (var row in table["rows"].Items)
+        {
+            var cells = new string[columns.Count];
+
+            for (var index = 0; index < cells.Length; index++)
+            {
+                // 列短於欄數時補空字串：資源是人手寫的，少打一格不該讓整張表消失。
+                cells[index] = index < row.Items.Count
+                    ? overlay.Apply(overlayId, keyPrefix + "rows." + rows.Count + "." + index, row.Items[index].AsString())
+                    : string.Empty;
+            }
+
+            rows.Add(cells);
+        }
+
+        return new SqlBuiltInReference(
+            overlay.Apply(overlayId, keyPrefix + "title", table["title"].AsString(fallbackTitle)),
+            columns,
+            rows);
+    }
+
+    /// <remarks>
+    /// 覆蓋檔的編號就是表的編號本身（不再加 <c>tables.</c> 前置詞——這份表現在自己
+    /// 一個檔案，前置詞留給還在 <c>BuiltInDocs.json</c> 裡混著的年代），欄位是
+    /// <c>title</c>、<c>columns.&lt;欄&gt;</c> 與 <c>rows.&lt;列&gt;.&lt;欄&gt;</c>。
+    /// </remarks>
     private static void ReadTables(
         JsonValue node,
         Dictionary<string, SqlBuiltInReference> tables,
@@ -461,45 +650,16 @@ public static class SqlBuiltInDocCatalog
     {
         foreach (var id in node.Names)
         {
-            var table = node[id];
-            var overlayId = "tables." + id;
-            var columns = new List<string>(MaximumColumns);
-
-            foreach (var column in table["columns"].Items)
+            if (BuildReferenceTable(node[id], id, string.Empty, id, overlay) is { } table)
             {
-                if (columns.Count < MaximumColumns)
-                {
-                    columns.Add(overlay.Apply(overlayId, "columns." + columns.Count, column.AsString()));
-                }
+                tables[id] = table;
             }
-
-            if (columns.Count == 0)
-            {
-                continue;
-            }
-
-            var rows = new List<IReadOnlyList<string>>();
-
-            foreach (var row in table["rows"].Items)
-            {
-                var cells = new string[columns.Count];
-
-                for (var index = 0; index < cells.Length; index++)
-                {
-                    // 列短於欄數時補空字串：資源是人手寫的，少打一格不該讓整張表消失。
-                    cells[index] = index < row.Items.Count
-                        ? overlay.Apply(overlayId, "rows." + rows.Count + "." + index, row.Items[index].AsString())
-                        : string.Empty;
-                }
-
-                rows.Add(cells);
-            }
-
-            tables[id] = new SqlBuiltInReference(overlay.Apply(overlayId, "title", table["title"].AsString(id)), columns, rows);
         }
     }
 
-    /// <remarks>覆蓋檔的編號是 <c>name</c>，欄位是 <c>summary</c> 與 <c>example</c>。</remarks>
+    /// <remarks>覆蓋檔的編號是 <c>name</c>，欄位是 <c>summary</c>、
+    /// <c>examples.&lt;段落編號&gt;.title</c>、<c>examples.&lt;段落編號&gt;.sql</c>，
+    /// 內嵌表格是 <c>references.&lt;索引&gt;.title</c> 這一組。</remarks>
     private static void ReadDocs(JsonValue node, Dictionary<string, Entry> entries, SqlTextOverlay overlay)
     {
         foreach (var item in node.Items)
@@ -511,20 +671,71 @@ public static class SqlBuiltInDocCatalog
                 continue;
             }
 
-            var references = new List<string>();
-
-            foreach (var reference in item["references"].Items)
-            {
-                references.Add(reference.AsString());
-            }
-
             entries[name] = new Entry(
                 ParseKind(item["kind"].AsString()),
                 overlay.Apply(name, "summary", item["summary"].AsString()),
-                overlay.Apply(name, "example", item["example"].AsString()),
+                item["signature"].AsString(),
+                ReadExamples(item["examples"], name, overlay),
                 item["docsUrl"].AsString(),
-                references);
+                ReadReferences(item["references"], name, overlay));
         }
+    }
+
+    /// <summary>一筆的 2–5 段範例；還沒寫的名稱回傳空集合。</summary>
+    private static IReadOnlyList<SqlBuiltInExample> ReadExamples(JsonValue node, string ownerName, SqlTextOverlay overlay)
+    {
+        if (node.Items.Count == 0)
+        {
+            return Array.Empty<SqlBuiltInExample>();
+        }
+
+        var examples = new List<SqlBuiltInExample>(node.Items.Count);
+
+        foreach (var item in node.Items)
+        {
+            var id = item["id"].AsString();
+
+            if (id.Length == 0)
+            {
+                continue;
+            }
+
+            examples.Add(new SqlBuiltInExample(
+                id,
+                overlay.Apply(ownerName, "examples." + id + ".title", item["title"].AsString()),
+                overlay.Apply(ownerName, "examples." + id + ".sql", item["sql"].AsString())));
+        }
+
+        return examples;
+    }
+
+    /// <summary>
+    /// <c>references</c> 陣列同時接受字串（<c>tables.json</c> 的共用編號）與物件
+    /// （直接寫在這一筆裡的 <c>{title, columns, rows}</c>）；哪一種留到顯示時才解析（見
+    /// <see cref="ReferenceSource"/>），這裡只記來源，字串打錯字或物件缺欄位安靜略過。
+    /// </summary>
+    private static List<ReferenceSource> ReadReferences(JsonValue node, string ownerName, SqlTextOverlay overlay)
+    {
+        var references = new List<ReferenceSource>(node.Items.Count);
+
+        for (var index = 0; index < node.Items.Count; index++)
+        {
+            var item = node.Items[index];
+
+            if (item.Kind == JsonKind.String)
+            {
+                references.Add(new ReferenceSource(item.AsString()));
+                continue;
+            }
+
+            if (item.Kind == JsonKind.Object &&
+                BuildReferenceTable(item, ownerName, "references." + index + ".", string.Empty, overlay) is { } inline)
+            {
+                references.Add(new ReferenceSource(inline));
+            }
+        }
+
+        return references;
     }
 
     /// <summary>資源寫的種類；認不得的一律當函式，那是資源裡最多的一種。</summary>
@@ -539,6 +750,8 @@ public static class SqlBuiltInDocCatalog
         "queryHint" => SqlBuiltInKind.QueryHint,
         "datePart" => SqlBuiltInKind.DatePart,
         "globalVariable" => SqlBuiltInKind.GlobalVariable,
+        "systemProcedure" => SqlBuiltInKind.SystemProcedure,
+        "statement" => SqlBuiltInKind.Statement,
         _ => SqlBuiltInKind.Function
     };
 

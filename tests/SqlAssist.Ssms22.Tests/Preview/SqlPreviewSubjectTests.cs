@@ -1,3 +1,4 @@
+using System;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Preview;
@@ -16,7 +17,7 @@ namespace SqlAssist.Ssms22.Tests.Preview;
 public sealed class SqlPreviewSubjectTests
 {
     private static SqlBuiltInDoc Doc(string name, SqlBuiltInKind kind) =>
-        new(name, kind, string.Empty, "說明", string.Empty, string.Empty);
+        new(name, kind, string.Empty, "說明", Array.Empty<SqlBuiltInExample>(), string.Empty);
 
     private static SqlPreviewSubject Object(int objectId, string name) =>
         SqlPreviewSubject.ForObject(new SqlObjectInfo(objectId, "dbo", name, SqlObjectKind.Table));

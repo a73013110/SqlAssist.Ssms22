@@ -1,0 +1,252 @@
+{
+  "version": 2,
+  "docs": [
+    {
+      "name": "NVARCHAR",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @title nvarchar(200)   -- 不寫長度時預設 1，MAX 可放到 2 GB"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/nchar-and-nvarchar-transact-sql"
+    },
+    {
+      "name": "VARCHAR",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @code varchar(20)   -- 存不了定序以外的字元，多語系請改用 NVARCHAR"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/char-and-varchar-transact-sql"
+    },
+    {
+      "name": "DECIMAL",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @amount decimal(18, 2)   -- 18 位總長度，其中 2 位是小數"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/decimal-and-numeric-transact-sql"
+    },
+    {
+      "name": "DATETIME2",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @at datetime2(3)   -- 括號裡是小數秒位數，預設 7"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/datetime2-transact-sql"
+    },
+    {
+      "name": "BIT",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @isActive bit = 1   -- 字串 'TRUE'／'FALSE' 也轉得進來"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/bit-transact-sql"
+    },
+    {
+      "name": "UNIQUEIDENTIFIER",
+      "kind": "dataType",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @id uniqueidentifier = NEWID()   -- 當叢集索引鍵會造成分頁分割"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/data-types/uniqueidentifier-transact-sql"
+    },
+    {
+      "name": "NOLOCK",
+      "kind": "tableHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- 同一列可能讀到兩次，也可能一次都沒讀到"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "READPAST",
+      "kind": "tableHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT TOP (1) CopyNo FROM dbo.Copy WITH (READPAST, UPDLOCK)   -- 取一件沒有人在處理的"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "UPDLOCK",
+      "kind": "tableHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT CopyNo FROM dbo.Copy WITH (UPDLOCK) WHERE CopyNo = 1   -- 先鎖住等一下要改的那列"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "INDEX",
+      "kind": "tableHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM dbo.Loan WITH (INDEX(IX_Loan_ReaderId))   -- 括號裡是索引名稱或編號"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-table"
+    },
+    {
+      "name": "RECOMPILE",
+      "kind": "queryHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (RECOMPILE)   -- 計畫不進快取"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "MAXDOP",
+      "kind": "queryHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT COUNT(*) FROM dbo.LoanDetail OPTION (MAXDOP 1)   -- 0 是交給伺服器組態決定"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "OPTIMIZE FOR UNKNOWN",
+      "kind": "queryHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (OPTIMIZE FOR UNKNOWN)"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "FORCE ORDER",
+      "kind": "queryHint",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "SELECT * FROM dbo.Loan l JOIN dbo.Copy c ON c.CopyNo = l.CopyNo OPTION (FORCE ORDER)"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/queries/hints-transact-sql-query"
+    },
+    {
+      "name": "@@ROWCOUNT",
+      "kind": "globalVariable",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "UPDATE dbo.Loan SET LoanDate = SYSDATETIME(); SELECT @@ROWCOUNT   -- 下一個敘述就蓋掉它"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/rowcount-transact-sql"
+    },
+    {
+      "name": "@@ERROR",
+      "kind": "globalVariable",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "IF @@ERROR <> 0 ROLLBACK TRANSACTION   -- 只反映上一個敘述，新寫的請用 TRY…CATCH"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/error-transact-sql"
+    },
+    {
+      "name": "@@IDENTITY",
+      "kind": "globalVariable",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- 觸發程序會帶偏 @@IDENTITY"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/identity-transact-sql"
+    },
+    {
+      "name": "@@TRANCOUNT",
+      "kind": "globalVariable",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "BEGIN TRANSACTION; SELECT @@TRANCOUNT   -- 巢狀交易只有最外層的 COMMIT 真的認可"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/trancount-transact-sql"
+    },
+    {
+      "name": "@@FETCH_STATUS",
+      "kind": "globalVariable",
+      "summary": "",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "WHILE @@FETCH_STATUS = 0 FETCH NEXT FROM copies INTO @copyNo   -- 0 才是真的取到了"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/fetch-status-transact-sql"
+    }
+  ]
+}

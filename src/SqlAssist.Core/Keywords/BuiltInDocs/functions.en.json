@@ -1,0 +1,860 @@
+{
+  "CAST": {
+    "summary": "Convert to a type; errors on failure (use TRY_CAST instead)",
+    "examples.basic.title": "Basic usage"
+  },
+  "CONVERT": {
+    "summary": "Convert type; style formats dates/numbers; type goes first",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CONVERT(varchar(10), GETDATE(), 120)   -- 2026-09-08 (style 120 = ODBC)"
+  },
+  "TRY_CONVERT": {
+    "summary": "Like CONVERT but returns NULL on failure instead of an error",
+    "examples.basic.title": "Basic usage"
+  },
+  "ISNULL": {
+    "summary": "Second arg if first is NULL; typed as first, may truncate",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab', not 'abc'"
+  },
+  "COALESCE": {
+    "summary": "First non-NULL arg; highest-precedence type, no truncation",
+    "examples.basic.title": "Basic usage"
+  },
+  "NULLIF": {
+    "summary": "NULL if both are equal, else the first; turns 0 into NULL",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT 10 / NULLIF(0, 0)   -- NULL, won't throw division by zero"
+  },
+  "IIF": {
+    "summary": "Two-branch CASE; returns second arg if true, third if false",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IIF(1 > 2, 'Yes', 'No')   -- 'No'"
+  },
+  "DATEADD": {
+    "summary": "Add an interval to a date; datepart is unquoted (DAY, MONTH)",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATEADD(DAY, -14, GETDATE())   -- Same time two weeks ago"
+  },
+  "DATEDIFF": {
+    "summary": "Counts datepart boundaries crossed, not elapsed time",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATEPART": {
+    "summary": "Extract date part as integer; use DATENAME for text",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATEPART(WEEKDAY, '2026-09-08')   -- 3 (affected by SET DATEFIRST)"
+  },
+  "EOMONTH": {
+    "summary": "Last day of the month; optional arg adds months first",
+    "examples.basic.title": "Basic usage"
+  },
+  "FORMAT": {
+    "summary": "Format via .NET string; uses CLR, much slower than CONVERT",
+    "examples.basic.title": "Basic usage"
+  },
+  "CHARINDEX": {
+    "summary": "Position of first substring, 1-based; 0 if not found",
+    "examples.basic.title": "Basic usage"
+  },
+  "SUBSTRING": {
+    "summary": "Substring from start for length chars; no error past the end",
+    "examples.basic.title": "Basic usage"
+  },
+  "LEN": {
+    "summary": "Character count excluding trailing spaces; bytes: DATALENGTH",
+    "examples.basic.title": "Basic usage"
+  },
+  "STRING_AGG": {
+    "summary": "Concatenate group values; order with WITHIN GROUP (ORDER BY)",
+    "examples.basic.title": "Basic usage"
+  },
+  "ROW_NUMBER": {
+    "summary": "Sequential number per OVER order, no ties; ORDER BY required",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATENAME": {
+    "summary": "Extract date part as text; result varies by language setting",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATENAME(MONTH, '2026-09-08')   -- 09 (September when language is English)"
+  },
+  "AVG": {
+    "summary": "Average, ignoring NULL; integer columns truncate the result",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT AVG(CAST(CopyNo AS decimal(9, 2))) FROM dbo.Cat_BookCopy   -- Cast for decimals"
+  },
+  "CHECKSUM_AGG": {
+    "summary": "Checksum of integer values in group to detect data changes",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CHECKSUM_AGG(CHECKSUM(CopyNo)) FROM dbo.Cat_BookCopy   -- Changes with any value"
+  },
+  "COUNT": {
+    "summary": "Row count; COUNT(*) includes NULL, COUNT(col) excludes NULL",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COUNT(*), COUNT(ReturnDate) FROM dbo.Loan   -- Second excludes NULL"
+  },
+  "COUNT_BIG": {
+    "summary": "Like COUNT but returns bigint, for over 2.1 billion rows",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COUNT_BIG(*) FROM dbo.LoanDetail   -- COUNT would overflow here"
+  },
+  "GROUPING": {
+    "summary": "1 for ROLLUP-added rows, 0 for actual NULL values",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT GROUPING(BranchId) FROM dbo.Loan GROUP BY ROLLUP(BranchId)   -- Subtotal rows are 1"
+  },
+  "GROUPING_ID": {
+    "summary": "Combines GROUPING bits into one int for the subtotal level",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT GROUPING_ID(BranchId) FROM dbo.Loan GROUP BY ROLLUP(BranchId)   -- 1 for totals"
+  },
+  "MAX": {
+    "summary": "Maximum, ignoring NULL; strings compare by collation",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT MAX(LoanDate) FROM dbo.Loan   -- Most recent loan date"
+  },
+  "MIN": {
+    "summary": "Minimum, ignoring NULL; NULL if every value is NULL",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT MIN(LoanDate) FROM dbo.Loan   -- First loan date"
+  },
+  "STDEV": {
+    "summary": "Sample standard deviation; population version is STDEVP",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT STDEV(CopyNo) FROM dbo.Cat_BookCopy   -- Returns NULL with only one row"
+  },
+  "STDEVP": {
+    "summary": "Population standard deviation (divides by N); sample: STDEV",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT STDEVP(CopyNo) FROM dbo.Cat_BookCopy   -- Returns 0 with only one row"
+  },
+  "SUM": {
+    "summary": "Total, ignoring NULL; NULL (not 0) when there are no rows",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ISNULL(SUM(Quantity), 0) FROM dbo.LoanDetail   -- Returns 0 when no data"
+  },
+  "VAR": {
+    "summary": "Sample variance (STDEV squared); population: VARP",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT VAR(CopyNo) FROM dbo.Cat_BookCopy   -- Returns NULL with only one row"
+  },
+  "VARP": {
+    "summary": "Population variance (divides by N); sample: VAR",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT VARP(CopyNo) FROM dbo.Cat_BookCopy   -- Returns 0 with only one row"
+  },
+  "DENSE_RANK": {
+    "summary": "Ties share a rank, no gaps after; for gaps use RANK",
+    "examples.basic.title": "Basic usage"
+  },
+  "FIRST_VALUE": {
+    "summary": "First value in the frame; default frame ends at current row",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FIRST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Earliest"
+  },
+  "LAG": {
+    "summary": "Value from N rows back; third arg (default NULL) if none",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT LAG(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Previous loan date"
+  },
+  "LAST_VALUE": {
+    "summary": "Last value in the frame; default frame ends at current row",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT LAST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Defaults to current"
+  },
+  "LEAD": {
+    "summary": "Value from N rows ahead; third arg (default NULL) if none",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT LEAD(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Next loan date"
+  },
+  "NTILE": {
+    "summary": "Split ordered rows into N groups; earlier groups get extras",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT NTILE(4) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Quartiles 1 to 4"
+  },
+  "RANK": {
+    "summary": "Ties share a rank, gaps after; for no gaps use DENSE_RANK",
+    "examples.basic.title": "Basic usage"
+  },
+  "ASCII": {
+    "summary": "ASCII code of first char; UNICODE for Unicode",
+    "examples.basic.title": "Basic usage"
+  },
+  "CHAR": {
+    "summary": "Character for code 0-255; NULL if out of range",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CHAR(13) + CHAR(10)   -- Line break; use NCHAR for Unicode code points"
+  },
+  "CONCAT": {
+    "summary": "Concatenate 2+ values; NULL counts as an empty string",
+    "examples.basic.title": "Basic usage"
+  },
+  "CONCAT_WS": {
+    "summary": "Concatenate with separator; skips NULL and their separators",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATALENGTH": {
+    "summary": "Bytes used, including trailing spaces; characters: LEN",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATALENGTH(N'Book'), LEN(N'Book')   -- 8, 4"
+  },
+  "DIFFERENCE": {
+    "summary": "SOUNDEX similarity of two strings, 0 to 4; English only",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DIFFERENCE('Smith', 'Smyth')   -- 4 (most similar)"
+  },
+  "LEFT": {
+    "summary": "Leftmost N chars; whole string if N exceeds its length",
+    "examples.basic.title": "Basic usage"
+  },
+  "LOWER": {
+    "summary": "Lowercase; collation decides case-sensitive comparison",
+    "examples.basic.title": "Basic usage"
+  },
+  "LTRIM": {
+    "summary": "Remove leading spaces; SQL Server 2022+ can take characters",
+    "examples.basic.title": "Basic usage"
+  },
+  "NCHAR": {
+    "summary": "Unicode character; accepts larger range than CHAR",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT NCHAR(65)   -- N'A'"
+  },
+  "PATINDEX": {
+    "summary": "First pattern match position 1-based; 0 if not found",
+    "examples.basic.title": "Basic usage"
+  },
+  "QUOTENAME": {
+    "summary": "Wrap as a valid identifier; escapes ] for dynamic SQL",
+    "examples.basic.title": "Basic usage"
+  },
+  "REPLACE": {
+    "summary": "Replace all occurrences; comparison affected by collation",
+    "examples.basic.title": "Basic usage"
+  },
+  "REPLICATE": {
+    "summary": "Repeat string count times; NULL if count negative",
+    "examples.basic.title": "Basic usage"
+  },
+  "REVERSE": {
+    "summary": "Reverse string; surrogate pairs and combining chars break",
+    "examples.basic.title": "Basic usage"
+  },
+  "RIGHT": {
+    "summary": "Rightmost N chars; often paired with REPLICATE for padding",
+    "examples.basic.title": "Basic usage"
+  },
+  "RTRIM": {
+    "summary": "Remove trailing spaces; LEN ignores them, DATALENGTH doesn't",
+    "examples.basic.title": "Basic usage"
+  },
+  "SOUNDEX": {
+    "summary": "4-char English phonetic code; meaningless for other text",
+    "examples.basic.title": "Basic usage"
+  },
+  "SPACE": {
+    "summary": "String of N spaces; for more than 8000 use REPLICATE",
+    "examples.basic.title": "Basic usage"
+  },
+  "STR": {
+    "summary": "Number to right-aligned string; rounds decimals, pads spaces",
+    "examples.basic.title": "Basic usage"
+  },
+  "STRING_SPLIT": {
+    "summary": "Split a string into rows; separator is a single character",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT value FROM STRING_SPLIT('A,B,C', ',')   -- Three rows: A, B, C"
+  },
+  "STUFF": {
+    "summary": "Delete length chars from start, insert new; start is 1-based",
+    "examples.basic.title": "Basic usage"
+  },
+  "TRANSLATE": {
+    "summary": "Map source chars to replacement 1-to-1; lists same length",
+    "examples.basic.title": "Basic usage"
+  },
+  "TRIM": {
+    "summary": "Remove leading and trailing spaces; like LTRIM(RTRIM(x))",
+    "examples.basic.title": "Basic usage"
+  },
+  "UNICODE": {
+    "summary": "Code point of the first character; prefix literals with N",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT UNICODE(N'A')   -- 65"
+  },
+  "UPPER": {
+    "summary": "Uppercase; only affects characters that have case",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATEFROMPARTS": {
+    "summary": "Assemble date from year/month/day; fails if invalid date",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATEFROMPARTS(2026, 2, 30)   -- Error: February does not have 30 days"
+  },
+  "DAY": {
+    "summary": "Extracts day, equals DATEPART(DAY, date), returns integer",
+    "examples.basic.title": "Basic usage"
+  },
+  "GETDATE": {
+    "summary": "Current local time as datetime; precision ~3.33ms",
+    "examples.basic.title": "Basic usage"
+  },
+  "GETUTCDATE": {
+    "summary": "Current UTC time as datetime; no time zone offset",
+    "examples.basic.title": "Basic usage"
+  },
+  "ISDATE": {
+    "summary": "1 if string converts to date; varies by language/DATEFORMAT",
+    "examples.basic.title": "Basic usage"
+  },
+  "MONTH": {
+    "summary": "Month number, same as DATEPART(MONTH, date); name: DATENAME",
+    "examples.basic.title": "Basic usage"
+  },
+  "SWITCHOFFSET": {
+    "summary": "Convert to different time zone offset; time point unchanged",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT SWITCHOFFSET(SYSDATETIMEOFFSET(), '+08:00')   -- Same instant in Taipei time"
+  },
+  "SYSDATETIME": {
+    "summary": "Current local time as datetime2(7); far more precise",
+    "examples.basic.title": "Basic usage"
+  },
+  "SYSDATETIMEOFFSET": {
+    "summary": "Current time with zone offset as datetimeoffset(7)",
+    "examples.basic.title": "Basic usage"
+  },
+  "SYSUTCDATETIME": {
+    "summary": "Current UTC time as datetime2(7) for cross-zone storage",
+    "examples.basic.title": "Basic usage"
+  },
+  "TODATETIMEOFFSET": {
+    "summary": "Attach a time zone offset; the clock time is unchanged",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT TODATETIMEOFFSET(SYSDATETIME(), '+08:00')   -- Time unchanged, zone added"
+  },
+  "YEAR": {
+    "summary": "Extracts year, equals DATEPART(YEAR, date), returns integer",
+    "examples.basic.title": "Basic usage"
+  },
+  "ABS": {
+    "summary": "Absolute value; typed as the arg; min negative overflows",
+    "examples.basic.title": "Basic usage"
+  },
+  "CEILING": {
+    "summary": "Smallest integer >= the value; return type unchanged",
+    "examples.basic.title": "Basic usage"
+  },
+  "EXP": {
+    "summary": "E to power of number returns float; inverse is LOG",
+    "examples.basic.title": "Basic usage"
+  },
+  "FLOOR": {
+    "summary": "Round down to integer; negative numbers round more negative",
+    "examples.basic.title": "Basic usage"
+  },
+  "LOG": {
+    "summary": "Natural logarithm; second arg specifies base, must be > 0",
+    "examples.basic.title": "Basic usage"
+  },
+  "LOG10": {
+    "summary": "Base-10 logarithm, equals LOG(number, 10)",
+    "examples.basic.title": "Basic usage"
+  },
+  "POWER": {
+    "summary": "Number to power of exponent; return type matches first arg",
+    "examples.basic.title": "Basic usage"
+  },
+  "RAND": {
+    "summary": "Random 0-1 once per statement; NEWID for different per row",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT RAND(1)   -- Same seed produces same value every time"
+  },
+  "ROUND": {
+    "summary": "Round to length digits; nonzero third arg truncates instead",
+    "examples.basic.title": "Basic usage"
+  },
+  "SIGN": {
+    "summary": "1 for positive, 0 for zero, -1 for negative; NULL stays NULL",
+    "examples.basic.title": "Basic usage"
+  },
+  "SQRT": {
+    "summary": "Square root as float; negative argument fails the statement",
+    "examples.basic.title": "Basic usage"
+  },
+  "SQUARE": {
+    "summary": "Square, returns float; equals POWER(number, 2)",
+    "examples.basic.title": "Basic usage"
+  },
+  "CHOOSE": {
+    "summary": "Select value at 1-based index; NULL if out of range",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CHOOSE(2, 'checked out', 'on shelf', 'lost')   -- 'on shelf'"
+  },
+  "ISNUMERIC": {
+    "summary": "1 if convertible to any numeric type; currency symbols count",
+    "examples.basic.title": "Basic usage"
+  },
+  "PARSE": {
+    "summary": "Convert string to date/number by culture; uses CLR, slower",
+    "examples.basic.title": "Basic usage"
+  },
+  "TRY_CAST": {
+    "summary": "Like CAST but NULL on failure instead of statement error",
+    "examples.basic.title": "Basic usage"
+  },
+  "TRY_PARSE": {
+    "summary": "Like PARSE but NULL on failure; also uses CLR",
+    "examples.basic.title": "Basic usage"
+  },
+  "APP_NAME": {
+    "summary": "Application name sent by the client; not verified",
+    "examples.basic.title": "Basic usage"
+  },
+  "BINARY_CHECKSUM": {
+    "summary": "Binary checksum, case-sensitive; CHECKSUM follows collation",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT BINARY_CHECKSUM('a'), BINARY_CHECKSUM('A')   -- Two different values"
+  },
+  "CHECKSUM": {
+    "summary": "Checksum per collation; different values may collide",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CHECKSUM('a'), CHECKSUM('A')   -- Same when collation is case-insensitive"
+  },
+  "DB_NAME": {
+    "summary": "Database name; omit argument for current database",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DB_NAME()   -- Current connected database"
+  },
+  "HOST_NAME": {
+    "summary": "Computer name from client; not guaranteed accurate",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT HOST_NAME()   -- Client machine name sent at connection"
+  },
+  "IDENT_CURRENT": {
+    "summary": "Last identity value for a table, across sessions and scopes",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IDENT_CURRENT('dbo.Loan')   -- Includes values inserted by others"
+  },
+  "NEWID": {
+    "summary": "Random uniqueidentifier; clustered key causes page splits",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT NEWID()   -- Each row different, ORDER BY it for random sort"
+  },
+  "NEWSEQUENTIALID": {
+    "summary": "Ascending uniqueidentifier; only as a column default",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "ALTER TABLE dbo.Copy ADD Tag uniqueidentifier DEFAULT NEWSEQUENTIALID()   -- Usage only"
+  },
+  "OBJECT_ID": {
+    "summary": "object_id, or NULL; used to check whether an object exists",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT OBJECT_ID('dbo.Loan', 'U')   -- 'U' is table, returns NULL if not found"
+  },
+  "OBJECT_NAME": {
+    "summary": "Object name from object_id; searches current database",
+    "examples.basic.title": "Basic usage"
+  },
+  "SCHEMA_NAME": {
+    "summary": "Schema name; omit arg for current user's default",
+    "examples.basic.title": "Basic usage"
+  },
+  "SCOPE_IDENTITY": {
+    "summary": "Last identity in this scope; unaffected by triggers",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Row inserted"
+  },
+  "SUSER_SNAME": {
+    "summary": "Login name; omit argument for current connection's login",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT SUSER_SNAME()   -- Current login name"
+  },
+  "USER_NAME": {
+    "summary": "Database user name, not the login; login: SUSER_SNAME",
+    "examples.basic.title": "Basic usage"
+  },
+  "ERROR_LINE": {
+    "summary": "Line number of error in CATCH block; returns NULL elsewhere",
+    "examples.basic.title": "Basic usage"
+  },
+  "ERROR_MESSAGE": {
+    "summary": "Full error message in CATCH, with parameters filled in",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "BEGIN TRY SELECT 1/0 END TRY BEGIN CATCH SELECT ERROR_MESSAGE() END CATCH   -- Error text"
+  },
+  "ERROR_NUMBER": {
+    "summary": "Error number in CATCH block, same value as @@ERROR",
+    "examples.basic.title": "Basic usage"
+  },
+  "ERROR_PROCEDURE": {
+    "summary": "Procedure or trigger that raised the error; NULL if none",
+    "examples.basic.title": "Basic usage"
+  },
+  "ERROR_SEVERITY": {
+    "summary": "Error severity; 11+ enters CATCH, 20+ breaks connection",
+    "examples.basic.title": "Basic usage"
+  },
+  "ERROR_STATE": {
+    "summary": "Error state; tells apart sources of the same error number",
+    "examples.basic.title": "Basic usage"
+  },
+  "ISJSON": {
+    "summary": "1 if valid JSON; second arg restricts to ARRAY or OBJECT",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ISJSON('[1,2]', ARRAY)   -- 1; returns 0 if not an array"
+  },
+  "JSON_MODIFY": {
+    "summary": "Returns new JSON with a property changed; input unchanged",
+    "examples.basic.title": "Basic usage"
+  },
+  "JSON_QUERY": {
+    "summary": "Extracts object or array; use JSON_VALUE for scalar values",
+    "examples.basic.title": "Basic usage"
+  },
+  "JSON_VALUE": {
+    "summary": "Scalar as nvarchar(4000); objects/arrays use JSON_QUERY",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT JSON_VALUE('{\"n\":1}', '$.n')   -- '1' (string, not integer)"
+  },
+  "OPENJSON": {
+    "summary": "Table-valued function splitting JSON to rows; 3 cols default",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT [key], value FROM OPENJSON('{\"a\":1}')   -- One row: a, 1"
+  },
+  "ACOS": {
+    "summary": "Arccosine, argument in range -1 to 1, returns radians",
+    "examples.basic.title": "Basic usage"
+  },
+  "APPROX_COUNT_DISTINCT": {
+    "summary": "Distinct count within ~2%; cheaper than COUNT(DISTINCT)",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT APPROX_COUNT_DISTINCT(CopyNo) FROM dbo.Loan   -- Approximate not exact"
+  },
+  "ASIN": {
+    "summary": "Arcsine, argument in range -1 to 1, returns radians",
+    "examples.basic.title": "Basic usage"
+  },
+  "ATAN": {
+    "summary": "Arctangent, returns radians",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ATAN(1)   -- 0.785398163397448 (π/4)"
+  },
+  "ATN2": {
+    "summary": "Two-arg arctangent distinguishes quadrants; ATAN cannot",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ATN2(1, 1)   -- 0.785398163397448 (π/4)"
+  },
+  "COL_LENGTH": {
+    "summary": "Column length in bytes; nvarchar is 2x char count",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COL_LENGTH('dbo.Loan', 'CopyNo')   -- 40 for nvarchar(20)"
+  },
+  "COL_NAME": {
+    "summary": "Column name from object_id and column_id",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COL_NAME(OBJECT_ID('dbo.Loan'), 1)   -- Name of first column"
+  },
+  "COLUMNPROPERTY": {
+    "summary": "Column property such as IsIdentity, IsComputed",
+    "examples.basic.title": "Basic usage"
+  },
+  "COMPRESS": {
+    "summary": "GZIP-compress to varbinary(max); undo with DECOMPRESS",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATALENGTH(COMPRESS(REPLICATE('a', 1000)))   -- Much less than 1000"
+  },
+  "CONNECTIONPROPERTY": {
+    "summary": "Current connection property such as client_net_address",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CONNECTIONPROPERTY('client_net_address')   -- Client IP address"
+  },
+  "CONTEXT_INFO": {
+    "summary": "128 bytes stored by this session via SET CONTEXT_INFO",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CONTEXT_INFO()   -- NULL if not set"
+  },
+  "COS": {
+    "summary": "Cosine, argument in radians",
+    "examples.basic.title": "Basic usage"
+  },
+  "COT": {
+    "summary": "Cotangent in radians; zero causes division by zero error",
+    "examples.basic.title": "Basic usage"
+  },
+  "CRYPT_GEN_RANDOM": {
+    "summary": "Cryptographically strong random bytes, specify length",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CRYPT_GEN_RANDOM(4)   -- 4 bytes of random data"
+  },
+  "CUME_DIST": {
+    "summary": "Cumulative distribution: share of rows <= current, 0 to 1",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CUME_DIST() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Last row is always 1"
+  },
+  "CURRENT_TIMEZONE": {
+    "summary": "Current server time zone name",
+    "examples.basic.title": "Basic usage"
+  },
+  "CURRENT_TIMEZONE_ID": {
+    "summary": "Current server time zone ID for AT TIME ZONE",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT SYSDATETIME() AT TIME ZONE CURRENT_TIMEZONE_ID()   -- Add timezone offset"
+  },
+  "DATABASE_PRINCIPAL_ID": {
+    "summary": "Database principal ID; omit arg for current user",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATABASEPROPERTYEX": {
+    "summary": "Database property such as Collation, Recovery",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATABASEPROPERTYEX(DB_NAME(), 'Collation')   -- Current database collation"
+  },
+  "DATE_BUCKET": {
+    "summary": "Round time to fixed-width interval start for grouping",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATE_BUCKET(WEEK, 2, '2026-09-08')   -- Every 2 weeks, returns start of bucket"
+  },
+  "DATEDIFF_BIG": {
+    "summary": "Like DATEDIFF but returns bigint; nanoseconds won't overflow",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF would overflow"
+  },
+  "DATETIME2FROMPARTS": {
+    "summary": "Assemble datetime2; last arg is fractional second digits",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATETIMEFROMPARTS": {
+    "summary": "Assemble datetime; invalid segment fails statement",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATETIMEOFFSETFROMPARTS": {
+    "summary": "Assemble datetimeoffset; offset as separate hour/minute",
+    "examples.basic.title": "Basic usage"
+  },
+  "DATETRUNC": {
+    "summary": "Truncate date/time to unit; return type matches arg",
+    "examples.basic.title": "Basic usage"
+  },
+  "DB_ID": {
+    "summary": "Database identifier; omit argument for current database",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT DB_ID()   -- database_id of current database"
+  },
+  "DECOMPRESS": {
+    "summary": "Undo COMPRESS; returns varbinary(max), CAST back to text",
+    "examples.basic.title": "Basic usage"
+  },
+  "DECRYPTBYPASSPHRASE": {
+    "summary": "Decrypt with a passphrase; wrong one returns NULL, no error",
+    "examples.basic.title": "Basic usage"
+  },
+  "DEGREES": {
+    "summary": "Converts radians to degrees",
+    "examples.basic.title": "Basic usage"
+  },
+  "ENCRYPTBYPASSPHRASE": {
+    "summary": "Encrypt with a passphrase to varbinary(8000); keep it safe",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ENCRYPTBYPASSPHRASE('key', 'abc')   -- Different result each execution"
+  },
+  "FORMATMESSAGE": {
+    "summary": "Build a message from a template and args; never raises",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT FORMATMESSAGE('Book %d: %s', 3, 'Loan')   -- 'Book 3: Loan'"
+  },
+  "GREATEST": {
+    "summary": "Greatest value; NULL ignored. SQL Server 2022+",
+    "examples.basic.title": "Basic usage"
+  },
+  "HASHBYTES": {
+    "summary": "Compute hash; 2016+ only SHA2_256/SHA2_512 worthwhile",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT HASHBYTES('SHA2_256', N'abc')   -- 32 bytes"
+  },
+  "HAS_PERMS_BY_NAME": {
+    "summary": "Whether current login has specified permission on object",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT HAS_PERMS_BY_NAME('dbo.Loan', 'OBJECT', 'SELECT')   -- 1 means yes"
+  },
+  "HOST_ID": {
+    "summary": "Client process ID; with HOST_NAME tells connections apart",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT HOST_ID()   -- Client application process ID"
+  },
+  "IDENT_INCR": {
+    "summary": "Identity column increment value",
+    "examples.basic.title": "Basic usage"
+  },
+  "IDENT_SEED": {
+    "summary": "Identity seed: the value the first row gets",
+    "examples.basic.title": "Basic usage"
+  },
+  "INDEX_COL": {
+    "summary": "Name of column at index key position",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT INDEX_COL('dbo.Loan', 1, 1)   -- First key column of clustered index"
+  },
+  "INDEXPROPERTY": {
+    "summary": "Index property such as IsClustered, IsUnique",
+    "examples.basic.title": "Basic usage"
+  },
+  "IS_MEMBER": {
+    "summary": "Whether current user is in a database role or Windows group",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IS_MEMBER('db_owner')   -- 1 means yes"
+  },
+  "IS_OBJECTSIGNED": {
+    "summary": "Object signed with specified certificate or asymmetric key",
+    "examples.basic.title": "Basic usage"
+  },
+  "IS_ROLEMEMBER": {
+    "summary": "Whether specified principal is member of database role",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IS_ROLEMEMBER('db_datareader')   -- 1 means yes"
+  },
+  "IS_SRVROLEMEMBER": {
+    "summary": "Whether specified login is member of server role",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT IS_SRVROLEMEMBER('sysadmin')   -- 1 means yes"
+  },
+  "JSON_ARRAY": {
+    "summary": "Assembles JSON array string. Available SQL Server 2022+",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT JSON_ARRAY(1, 'a', NULL)   -- '[1,\"a\"]', NULL skipped by default"
+  },
+  "JSON_OBJECT": {
+    "summary": "Assembles JSON object string. Available SQL Server 2022+",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT JSON_OBJECT('a': 1, 'b': NULL)   -- '{\"a\":1}', NULL skipped by default"
+  },
+  "JSON_PATH_EXISTS": {
+    "summary": "1 if the path exists, else 0; SQL Server 2022+",
+    "examples.basic.title": "Basic usage"
+  },
+  "LEAST": {
+    "summary": "Smallest value; NULL ignored. SQL Server 2022+",
+    "examples.basic.title": "Basic usage"
+  },
+  "OBJECT_DEFINITION": {
+    "summary": "Module definition text; NULL if encrypted or denied",
+    "examples.basic.title": "Basic usage"
+  },
+  "OBJECTPROPERTY": {
+    "summary": "Object property such as IsTable, TableHasPrimaryKey",
+    "examples.basic.title": "Basic usage"
+  },
+  "OBJECTPROPERTYEX": {
+    "summary": "Like OBJECTPROPERTY but returns sql_variant; more properties",
+    "examples.basic.title": "Basic usage"
+  },
+  "OBJECT_SCHEMA_NAME": {
+    "summary": "Schema name from object_id",
+    "examples.basic.title": "Basic usage"
+  },
+  "ORIGINAL_LOGIN": {
+    "summary": "Original login before any EXECUTE AS switch",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT ORIGINAL_LOGIN()   -- Original login even after login switch"
+  },
+  "PARSENAME": {
+    "summary": "Part of a four-part name; 1 is the rightmost (object name)",
+    "examples.basic.title": "Basic usage"
+  },
+  "PERCENTILE_CONT": {
+    "summary": "Percentile interpolates if between rows; 0.5 is median",
+    "examples.basic.title": "Basic usage"
+  },
+  "PERCENTILE_DISC": {
+    "summary": "Percentile as an actual value, no interpolation",
+    "examples.basic.title": "Basic usage"
+  },
+  "PERCENT_RANK": {
+    "summary": "Relative rank, 0 to 1; first row is always 0",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT PERCENT_RANK() OVER (ORDER BY LoanDate) FROM dbo.Loan   -- (rank-1)/(row count-1)"
+  },
+  "PI": {
+    "summary": "Pi (ratio of circumference to diameter)",
+    "examples.basic.title": "Basic usage"
+  },
+  "RADIANS": {
+    "summary": "Convert degrees to radians; int arg truncates result",
+    "examples.basic.title": "Basic usage"
+  },
+  "SCHEMA_ID": {
+    "summary": "Schema identifier; omit argument for default schema",
+    "examples.basic.title": "Basic usage"
+  },
+  "SERVERPROPERTY": {
+    "summary": "Instance property such as ProductVersion, Edition",
+    "examples.basic.title": "Basic usage"
+  },
+  "SESSION_CONTEXT": {
+    "summary": "Read value set by session via sp_set_session_context",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT SESSION_CONTEXT(N'ReaderId')   -- NULL if not set"
+  },
+  "SIN": {
+    "summary": "Sine, argument in radians",
+    "examples.basic.title": "Basic usage"
+  },
+  "SMALLDATETIMEFROMPARTS": {
+    "summary": "Assemble smalldatetime; precision to minute only",
+    "examples.basic.title": "Basic usage"
+  },
+  "SQL_VARIANT_PROPERTY": {
+    "summary": "Base type, precision or scale of a sql_variant value",
+    "examples.basic.title": "Basic usage"
+  },
+  "STATS_DATE": {
+    "summary": "Timestamp of last statistics update",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT STATS_DATE(OBJECT_ID('dbo.Loan'), 1)   -- Statistics update time for first stat"
+  },
+  "STRING_ESCAPE": {
+    "summary": "Escape special characters; type supports only json",
+    "examples.basic.title": "Basic usage"
+  },
+  "SUSER_ID": {
+    "summary": "Login ID; omit arg for current connection's login",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT SUSER_ID()   -- principal_id of current login"
+  },
+  "SUSER_NAME": {
+    "summary": "Login name from login identifier; SUSER_SNAME takes SID",
+    "examples.basic.title": "Basic usage"
+  },
+  "SUSER_SID": {
+    "summary": "Login SID; omit argument for current connection's login",
+    "examples.basic.title": "Basic usage"
+  },
+  "TAN": {
+    "summary": "Tangent, argument in radians",
+    "examples.basic.title": "Basic usage"
+  },
+  "TIMEFROMPARTS": {
+    "summary": "Assemble time; last arg is fractional second digits",
+    "examples.basic.title": "Basic usage"
+  },
+  "TYPE_ID": {
+    "summary": "Type identifier; returns NULL if not found",
+    "examples.basic.title": "Basic usage"
+  },
+  "TYPE_NAME": {
+    "summary": "Type name from type identifier",
+    "examples.basic.title": "Basic usage"
+  },
+  "TYPEPROPERTY": {
+    "summary": "Type property such as Precision, Scale, AllowsNull",
+    "examples.basic.title": "Basic usage"
+  },
+  "USER_ID": {
+    "summary": "Database user identifier; omit argument for current user",
+    "examples.basic.title": "Basic usage"
+  },
+  "XACT_STATE": {
+    "summary": "1 can commit, -1 rollback only, 0 no transaction",
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "IF XACT_STATE() = -1 ROLLBACK TRANSACTION   -- Check this first in CATCH block"
+  }
+}

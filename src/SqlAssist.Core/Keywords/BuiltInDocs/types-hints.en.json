@@ -1,0 +1,76 @@
+{
+  "NVARCHAR": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @title nvarchar(200)   -- Default 1 when length omitted, MAX can hold 2 GB"
+  },
+  "VARCHAR": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @code varchar(20)   -- Characters limited by collation; use NVARCHAR"
+  },
+  "DECIMAL": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @amount decimal(18, 2)   -- 18 total digits, 2 decimal places"
+  },
+  "DATETIME2": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @at datetime2(3)   -- Parentheses are fractional second precision, default 7"
+  },
+  "BIT": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @isActive bit = 1   -- Strings 'TRUE'/'FALSE' can also be converted"
+  },
+  "UNIQUEIDENTIFIER": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "DECLARE @id uniqueidentifier = NEWID()   -- Clustered key causes splits"
+  },
+  "NOLOCK": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COUNT(*) FROM dbo.Loan WITH (NOLOCK)   -- Row may appear/disappear"
+  },
+  "READPAST": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT TOP (1) CopyNo FROM dbo.Copy WITH (READPAST, UPDLOCK)   -- Get one unlocked row"
+  },
+  "UPDLOCK": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT CopyNo FROM dbo.Copy WITH (UPDLOCK) WHERE CopyNo = 1   -- Lock row before update"
+  },
+  "INDEX": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT * FROM dbo.Loan WITH (INDEX(IX_Loan_ReaderId))   -- Name or number"
+  },
+  "RECOMPILE": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT * FROM dbo.Loan WHERE ReaderId = @readerId OPTION (RECOMPILE)   -- Plan not cached"
+  },
+  "MAXDOP": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "SELECT COUNT(*) FROM dbo.LoanDetail OPTION (MAXDOP 1)   -- 0 uses config"
+  },
+  "@@ROWCOUNT": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "UPDATE dbo.Loan SET LoanDate = SYSDATETIME(); SELECT @@ROWCOUNT   -- Next overwrites"
+  },
+  "@@ERROR": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "IF @@ERROR <> 0 ROLLBACK TRANSACTION   -- Previous stmt only; use TRY"
+  },
+  "@@IDENTITY": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Triggers mislead"
+  },
+  "@@TRANCOUNT": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "BEGIN TRANSACTION; SELECT @@TRANCOUNT   -- Nested only outer commits"
+  },
+  "@@FETCH_STATUS": {
+    "examples.basic.title": "Basic usage",
+    "examples.basic.sql": "WHILE @@FETCH_STATUS = 0 FETCH NEXT FROM copies INTO @copyNo   -- 0 success"
+  },
+  "OPTIMIZE FOR UNKNOWN": {
+    "examples.basic.title": "Basic usage"
+  },
+  "FORCE ORDER": {
+    "examples.basic.title": "Basic usage"
+  }
+}

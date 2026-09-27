@@ -13,8 +13,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <EmbeddedResource Include="Snippets\DefaultSnippets.json" />
-    <EmbeddedResource Include="Keywords\BuiltInDocs.json" />
+    <!-- 依種類拆開：函式、型別與提示、語句、系統程序，加上共用的對照表。 -->
+    <EmbeddedResource Include="Keywords\BuiltInDocs\functions.json" />
+    <EmbeddedResource Include="Keywords\BuiltInDocs\types-hints.json" />
+    <EmbeddedResource Include="Keywords\BuiltInDocs\statements.json" />
+    <EmbeddedResource Include="Keywords\BuiltInDocs\system-procedures.json" />
+    <EmbeddedResource Include="Keywords\BuiltInDocs\tables.json" />
     <!-- 語言覆蓋檔；WithCulture=false 讓 MSBuild 不把 .en.json 認成文化資源拆進衛星組件。 -->
-    <EmbeddedResource Include="Snippets\DefaultSnippets.*.json;Keywords\BuiltInDocs.*.json" WithCulture="false" />
+    <EmbeddedResource Include="Snippets\DefaultSnippets.*.json;Keywords\BuiltInDocs\*.*.json" WithCulture="false" />
   </ItemGroup>
 </Project>

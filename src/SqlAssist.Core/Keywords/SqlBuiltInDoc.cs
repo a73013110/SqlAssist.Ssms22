@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Localization;
@@ -9,7 +10,9 @@ namespace SqlAssist.Core.Keywords;
 /// 每一個成員對應一份既有的封閉清單，那份清單就是它一行說明的唯一出處：
 /// 函式是 <see cref="SqlFunctionCatalog"/>，型別是 <see cref="SqlDataTypeCatalog"/>，
 /// 兩種提示與日期部分是 <see cref="SqlArgumentCatalog"/>，全域變數是
-/// <see cref="SqlGlobalVariableCatalog"/>。
+/// <see cref="SqlGlobalVariableCatalog"/>。系統程序與語句沒有那樣一份封閉清單——
+/// 兩者的簽章與一行說明都寫在 <c>Keywords/BuiltInDocs/system-procedures.json</c>、
+/// <c>statements.json</c> 裡，JSON 本身就是唯一出處。
 /// </remarks>
 public enum SqlBuiltInKind
 {
@@ -29,7 +32,13 @@ public enum SqlBuiltInKind
     DatePart,
 
     /// <summary><c>@@</c> 開頭的全域變數。</summary>
-    GlobalVariable
+    GlobalVariable,
+
+    /// <summary>系統預存程序（<c>sp_executesql</c>、<c>sp_help</c>…）。</summary>
+    SystemProcedure,
+
+    /// <summary>只能整句寫、不是運算式的語句（<c>EXEC</c>、<c>THROW</c>、<c>MERGE</c>…）。</summary>
+    Statement
 }
 
 /// <summary>種類換成圖示與那一行種類文字。</summary>
@@ -47,6 +56,8 @@ public static class SqlBuiltInKinds
         SqlBuiltInKind.QueryHint => SuggestionKind.QueryHint,
         SqlBuiltInKind.DatePart => SuggestionKind.DatePart,
         SqlBuiltInKind.GlobalVariable => SuggestionKind.GlobalVariable,
+        SqlBuiltInKind.SystemProcedure => SuggestionKind.Procedure,
+        SqlBuiltInKind.Statement => SuggestionKind.Keyword,
         _ => SuggestionKind.DataType
     };
 
@@ -58,6 +69,8 @@ public static class SqlBuiltInKinds
         SqlBuiltInKind.QueryHint => SqlKindText.QueryHint,
         SqlBuiltInKind.DatePart => SqlKindText.DatePart,
         SqlBuiltInKind.GlobalVariable => SqlKindText.GlobalVariable,
+        SqlBuiltInKind.SystemProcedure => SqlKindText.SystemProcedure,
+        SqlBuiltInKind.Statement => SqlKindText.Statement,
         _ => KeywordText.KindDataType
     };
 
@@ -65,6 +78,12 @@ public static class SqlBuiltInKinds
     /// <remarks>
     /// 建議項自己知道它是什麼，說明面板不必再從文字猜一次——<c>YEAR</c> 在日期部分
     /// 那份清單與內建函式目錄裡各有一筆，猜的話兩邊都說得通。
+    ///
+    /// 刻意不接 <see cref="SuggestionKind.Procedure"/> 與 <see cref="SuggestionKind.Keyword"/>：
+    /// 前者同時涵蓋使用者自訂與系統預存程序，種類本身分不出是哪一種；後者涵蓋所有關鍵字，
+    /// 不是只有 <see cref="SqlBuiltInKind.Statement"/> 收的那幾個。系統程序與語句要由呼叫端
+    /// 另外依名稱或系統物件標記判斷，直接呼叫 <see cref="SqlBuiltInDocCatalog.TryGet"/>，
+    /// 不透過這一支反推。
     /// </remarks>
     public static bool TryFromSuggestionKind(SuggestionKind kind, out SqlBuiltInKind builtIn)
     {
@@ -93,26 +112,67 @@ public static class SqlBuiltInKinds
                 return false;
         }
     }
+
+    /// <summary>
+    /// 這份說明的判斷順序是不是該排在物件解析之前。
+    /// </summary>
+    /// <remarks>
+    /// 單一規則：系統程序與語句為真，其餘為假。SQL Server 解析 <c>sp_</c> 開頭的名稱
+    /// 本來就先找系統那一份，說明也不必連線才答得出來；函式與型別維持「物件解析優先」，
+    /// <c>SELECT * FROM Format</c> 停在 <c>Format</c> 上要的是那張表，不是同名的內建函式。
+    ///
+    /// 四條入口（<c>SqlObjectNavigation</c>、<c>SqlQuickInfoSource</c>、<c>SqlClickTarget</c>、
+    /// <c>SqlSuggestionTarget</c>）都問這一支而不是各自寫一份判斷，見
+    /// <see cref="SqlBuiltInDocCatalog.TryGetBeforeObjectResolution"/>。
+    /// </remarks>
+    public static bool PrecedesObjectResolution(this SqlBuiltInKind kind) =>
+        kind == SqlBuiltInKind.SystemProcedure || kind == SqlBuiltInKind.Statement;
+}
+
+/// <summary>一段可以直接執行的範例。</summary>
+/// <remarks>
+/// 一筆內建名稱的說明可以有 2–5 段，各自可以直接貼進查詢視窗執行，不依賴使用者的
+/// 資料表（見 <c>docs/builtin-help.md</c>）。<see cref="Id"/> 只給覆蓋檔引用，不顯示。
+/// </remarks>
+public sealed class SqlBuiltInExample
+{
+    public SqlBuiltInExample(string id, string title, string sql)
+    {
+        Id = id ?? throw new ArgumentNullException(nameof(id));
+        Title = title ?? throw new ArgumentNullException(nameof(title));
+        Sql = sql ?? throw new ArgumentNullException(nameof(sql));
+    }
+
+    /// <summary>覆蓋檔用來指到這一段的編號；同一筆說明裡不重複。</summary>
+    public string Id { get; }
+
+    /// <summary>這一段示範的是什麼，例如「漏寫 OUTPUT 的陷阱」；不超過 20 個字。</summary>
+    public string Title { get; }
+
+    /// <summary>可以直接執行的一段 T-SQL。</summary>
+    public string Sql { get; }
 }
 
 /// <summary>
-/// 一個內建名稱的說明：簽章、一行用途與一段範例。
+/// 一個內建名稱的說明：簽章、參數、有哪幾種寫法與多段可以直接執行的範例。
 /// </summary>
 /// <remarks>
-/// 欄位刻意來自不只一個地方。簽章與一行說明留在建議清單已經在用的那幾份目錄裡
-/// （見 <see cref="SqlBuiltInKind"/>），再抄一份到 JSON 的症狀是清單與提示各說一套，
-/// 而且沒有任何徵兆。JSON 只放那幾份寫不下的東西：用途、陷阱與範例。
+/// 欄位刻意來自不只一個地方。函式與型別的簽章與一行說明留在建議清單已經在用的那幾份
+/// 目錄裡（見 <see cref="SqlBuiltInKind"/>），再抄一份到 JSON 的症狀是清單與提示各說一套，
+/// 而且沒有任何徵兆；系統程序與語句沒有那樣一份目錄，<see cref="Signature"/> 由 JSON 的
+/// <c>signature</c> 欄位當唯一出處。JSON 只放那幾份寫不下的東西：用途、陷阱、範例與寫法對照表。
 /// </remarks>
 public sealed class SqlBuiltInDoc
 {
-    private static readonly SqlBuiltInReference[] NoReferences = new SqlBuiltInReference[0];
+    private static readonly SqlBuiltInReference[] NoReferences = Array.Empty<SqlBuiltInReference>();
+    private static readonly SqlBuiltInExample[] NoExamples = Array.Empty<SqlBuiltInExample>();
 
     public SqlBuiltInDoc(
         string name,
         SqlBuiltInKind kind,
         string signature,
         string summary,
-        string example,
+        IReadOnlyList<SqlBuiltInExample> examples,
         string docsUrl,
         IReadOnlyList<SqlBuiltInReference>? references = null)
     {
@@ -120,7 +180,7 @@ public sealed class SqlBuiltInDoc
         Kind = kind;
         Signature = signature;
         Summary = summary;
-        Example = example;
+        Examples = examples ?? NoExamples;
         DocsUrl = docsUrl;
         References = references ?? NoReferences;
     }
@@ -130,20 +190,29 @@ public sealed class SqlBuiltInDoc
 
     public SqlBuiltInKind Kind { get; }
 
-    /// <summary>函式的呼叫形狀；其餘種類為空字串。</summary>
+    /// <summary>
+    /// 函式的呼叫形狀，或系統程序／語句的寫法；型別、提示、日期部分與全域變數為空字串。
+    /// </summary>
     public string Signature { get; }
 
     /// <summary>一行用途；還沒寫說明的名稱為空字串。</summary>
     public string Summary { get; }
 
-    /// <summary>一段可以直接執行的範例；還沒寫的名稱為空字串。</summary>
-    public string Example { get; }
+    /// <summary>
+    /// 2–5 段可以直接執行的範例，依撰寫順序排列；還沒寫的名稱是空集合。
+    /// </summary>
+    /// <remarks>
+    /// 滑鼠停留提示只印第一段（<c>Examples[0]</c>）；浮動預覽的範例分頁把每一段接成一份，
+    /// 段落之間空一行，見 <c>docs/builtin-help.md</c>。
+    /// </remarks>
+    public IReadOnlyList<SqlBuiltInExample> Examples { get; }
 
     /// <summary>線上文件位址；沒有時為空字串。</summary>
     public string DocsUrl { get; }
 
     /// <summary>
-    /// 引數查得到哪些值的對照表，例如 <c>CONVERT</c> 的 style 數值。
+    /// 引數查得到哪些值、或有哪幾種寫法的對照表，例如 <c>CONVERT</c> 的 style 數值、
+    /// 系統程序的「參數」與「寫法」兩張表。
     /// </summary>
     /// <remarks>
     /// 這些內容一眼看不完，因此不進滑鼠停留提示——提示視窗不能捲動也不能選取。
@@ -161,16 +230,25 @@ public sealed class SqlBuiltInDoc
     /// 對照表或範例其中之一。兩者都沒有時視窗裡只剩一個標題與一行說明，而那一行
     /// 使用者已經在提示或說明面板上看過了。Ctrl+F12 與建議清單那兩條入口問的是同一
     /// 件事，寫成兩份的症狀是同一個名稱在兩條入口上開得起來的不一樣。
-    ///
-    /// 滑鼠停留提示的「開啟完整說明」用的是更嚴的一條（只看對照表）：範例就印在那個
-    /// 提示裡，為它再開一個視窗等於把使用者眼前的東西再放大一次。
     /// </remarks>
-    public bool DeservesWindow => HasReferences || Example.Length > 0;
+    public bool DeservesWindow => HasReferences || Examples.Count > 0;
+
+    /// <summary>
+    /// 滑鼠停留提示的「開啟完整說明」要不要出現。
+    /// </summary>
+    /// <remarks>
+    /// 比 <see cref="DeservesWindow"/> 更嚴：提示已經印出第一段範例
+    /// （<c>Examples[0]</c>），只有對照表、或範例還有第二段以後才值得再開一個視窗——
+    /// 只有一段範例時，視窗裡的東西使用者已經在提示上看過了，蓋上去等於把它再放大一次。
+    /// 這是「開啟完整說明」判斷唯一的一處，滑鼠停留提示與浮動預覽兩個表面都問它，
+    /// 不要各自重寫一次「有沒有超過一段」。
+    /// </remarks>
+    public bool HasExpandedContent => HasReferences || Examples.Count > 1;
 
     /// <summary>除了名稱以外還有東西可說嗎。</summary>
     /// <remarks>
     /// 只有名稱的話，提示等於把使用者停在上面的那個字再唸一次，不值得一個視窗。
     /// </remarks>
     public bool HasContent =>
-        Signature.Length > 0 || Summary.Length > 0 || Example.Length > 0;
+        Signature.Length > 0 || Summary.Length > 0 || Examples.Count > 0;
 }

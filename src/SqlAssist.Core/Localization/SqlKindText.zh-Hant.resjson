@@ -6,6 +6,8 @@
   "Unknown": "未知物件",
   "Keyword": "關鍵字",
   "Keywords": "關鍵字",
+  // 內建說明的語句種類（EXEC、THROW、MERGE…）；圖示與關鍵字共用，這裡只補一行種類文字。
+  "Statement": "陳述式",
   "Snippet": "程式碼片段",
   "Snippets": "程式碼片段",
   "Server": "伺服器",
@@ -19,6 +21,8 @@
   "Views": "檢視",
   "Procedure": "預存程序",
   "Procedures": "預存程序",
+  // 內建說明的系統預存程序（sp_executesql、sp_help…），與使用者自訂的預存程序分開講。
+  "SystemProcedure": "系統預存程序",
   "Function": "函式",
   "ScalarFunction": "純量函式",
   "ScalarFunctions": "純量函式",

@@ -1054,9 +1054,10 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             tab.Item.Visibility = Visibility.Collapsed;
         }
 
-        _scriptText = doc.Example;
+        // 只放第一段：把多段範例接成一份（每段前加標題、段落間空一行）留給 2b。
+        _scriptText = doc.Examples.Count > 0 ? doc.Examples[0].Sql : string.Empty;
         _scriptHeader.Label = CommonText.Example;
-        _scriptTab.Visibility = Visible(doc.Example.Length > 0);
+        _scriptTab.Visibility = Visible(doc.Examples.Count > 0);
 
         for (var index = 0; index < _referenceTabs.Count || index < doc.References.Count; index++)
         {

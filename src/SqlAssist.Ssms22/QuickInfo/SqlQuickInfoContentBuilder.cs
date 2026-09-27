@@ -211,10 +211,11 @@ internal static class SqlQuickInfoContentBuilder
             body.Add(summary);
         }
 
-        if (doc.Example.Length > 0)
+        // 只印第一段：多段範例接成一份、開完整說明的規則留給 2b（Ssms22/Preview、QuickInfo 接線）。
+        if (doc.Examples.Count > 0)
         {
             var runs = new List<ClassifiedTextRun> { Comment(CommonText.Example + "  ") };
-            runs.AddRange(BuildCodeRuns(doc.Example));
+            runs.AddRange(BuildCodeRuns(doc.Examples[0].Sql));
             body.Add(new ClassifiedTextElement(runs));
         }
 
