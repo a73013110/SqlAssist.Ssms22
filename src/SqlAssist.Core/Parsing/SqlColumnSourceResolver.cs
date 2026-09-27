@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -64,7 +65,12 @@ public sealed class SqlColumnSourceResolver
     private static readonly Dictionary<string, SqlSelectIntoTable> NoSelectIntoTables =
         new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly string _text;
     private readonly IReadOnlyList<SqlToken> _tokens;
+
+    /// <summary>語句界線與 FROM 的歸屬，第一次真的要用到才建立。</summary>
+    /// <remarks>與下面幾份名冊同一個時機；判過的語句開頭記在裡面，整份文字共用一份。</remarks>
+    private SqlStatementBoundaries? _boundaries;
 
     /// <summary>指令碼裡宣告的暫存資料表與資料表變數，第一次真的要用到才收集。</summary>
     /// <remarks>與 <see cref="_commonTableExpressions"/> 同一條理由與同一個時機。</remarks>
@@ -94,10 +100,15 @@ public sealed class SqlColumnSourceResolver
     /// </remarks>
     private Dictionary<string, SqlScriptTable>? _projectedTables;
 
-    public SqlColumnSourceResolver(IReadOnlyList<SqlToken> tokens)
+    /// <param name="text">整份指令碼：語句的界線要看換行，換行只有原文有。</param>
+    /// <param name="tokens"><paramref name="text"/> 的詞元。</param>
+    public SqlColumnSourceResolver(string text, IReadOnlyList<SqlToken> tokens)
     {
+        _text = text ?? throw new ArgumentNullException(nameof(text));
         _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
+
+    private SqlStatementBoundaries Boundaries => _boundaries ??= new SqlStatementBoundaries(_text, _tokens);
 
     /// <summary>
     /// 攤平單一資料來源；解析不出來時回傳 null。
@@ -398,7 +409,7 @@ public sealed class SqlColumnSourceResolver
         _commonTableExpressions ??= CollectCommonTableExpressions(_tokens);
 
     private IReadOnlyDictionary<string, SqlSelectIntoTable> SelectIntoTables =>
-        _selectIntoTables ??= CollectSelectIntoTables(_tokens);
+        _selectIntoTables ??= CollectSelectIntoTables(Boundaries);
 
     /// <summary>
     /// 把一段查詢投影成一串欄位名稱；讀不出來時回傳空清單。
@@ -651,7 +662,7 @@ public sealed class SqlColumnSourceResolver
                 // 名稱要先落地，否則 SELECT Id, * 攤平後 Id 會排到資料表欄位後面。
                 Flush(names, qualifier, sources);
 
-                innerSources ??= SqlScopeAnalyzer.ExtractSources(_tokens, selectIndex, end);
+                innerSources ??= SqlScopeAnalyzer.ExtractSources(Boundaries, selectIndex, end);
 
                 if (!TryResolveInnerWildcard(innerSources, itemQualifier, qualifier, depth, visiting, sources))
                 {
@@ -1018,8 +1029,9 @@ public sealed class SqlColumnSourceResolver
     /// 一句都沒有時共用同一份空名冊，與另外兩份名冊同一條理由。
     /// </remarks>
     private static IReadOnlyDictionary<string, SqlSelectIntoTable> CollectSelectIntoTables(
-        IReadOnlyList<SqlToken> tokens)
+        SqlStatementBoundaries boundaries)
     {
+        var tokens = boundaries.Tokens;
         Dictionary<string, SqlSelectIntoTable>? result = null;
 
         for (var index = 0; index < tokens.Count; index++)
@@ -1029,7 +1041,7 @@ public sealed class SqlColumnSourceResolver
                 continue;
             }
 
-            var end = SqlScopeAnalyzer.FindStatementEnd(tokens, index);
+            var end = SqlScopeAnalyzer.FindStatementEnd(boundaries, index);
             var target = FindSelectIntoTarget(tokens, index + 1, end);
 
             if (target > 0)

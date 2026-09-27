@@ -223,11 +223,24 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
     private int nesting;
 
+    /// <summary>每個位置還沒關上的左括號，第一次問才算，見 <see cref="FindUnclosedParenthesis"/>。</summary>
+    private int[]? unclosedParentheses;
+
     private SqlKeywordPositionAnalyzer(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
     {
         this.tokens = tokens;
         this.textBeforeToken = textBeforeToken;
     }
+
+    /// <summary>
+    /// 問整份指令碼的語句界線與 FROM 的歸屬，見 <see cref="SqlStatementBoundaries"/>。
+    /// </summary>
+    /// <remarks>
+    /// 這兩個問題只往回看，所以 <paramref name="text"/> 可以是整份指令碼：
+    /// 詞元之後的文字不影響前面的答案。
+    /// </remarks>
+    internal static SqlKeywordPositionAnalyzer ForScript(IReadOnlyList<SqlToken> tokens, string text) =>
+        new(tokens, text);
 
     /// <summary>
     /// 分析游標所在的位置。
@@ -410,9 +423,28 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         // 函式引數、子查詢與 CTE 還在括號內時，換行不代表可以開始獨立敘述。
-        return SqlTokenNavigator.FindUnclosedParenthesis(tokens, last) < 0
+        return FindUnclosedParenthesis(last) < 0
             ? position | SqlKeywordPosition.StatementStart
             : position;
+    }
+
+    /// <summary>
+    /// <paramref name="from"/> 以前還沒關上的左括號；沒有就是 -1。答案與
+    /// <see cref="SqlTokenNavigator.FindUnclosedParenthesis"/> 相同。
+    /// </summary>
+    /// <remarks>
+    /// 語句開頭的判準每一次都要問，而往回找一次最壞要走到指令碼開頭：整份指令碼的範圍分析
+    /// 會問遍每一句的開頭，那就是平方。一趟算完所有位置之後每次都是查表。
+    /// </remarks>
+    private int FindUnclosedParenthesis(int from)
+    {
+        if (from < 0 || tokens.Count == 0)
+        {
+            return -1;
+        }
+
+        unclosedParentheses ??= SqlTokenNavigator.MapUnclosedParentheses(tokens);
+        return unclosedParentheses[Math.Min(from, tokens.Count - 1)];
     }
 
     /// <summary><paramref name="previousTokenEnd"/> 到 <paramref name="gapEnd"/> 之間隔了至少一個換行。</summary>
@@ -539,8 +571,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>WITH</c> 只認明確的界線：CTE 前一句必須以分號結束（SQL Server 錯誤 319），
     /// 而同一個字在 <c>CREATE VIEW v⏎WITH SCHEMABINDING</c>、<c>EXEC p WITH RECOMPILE</c>
     /// 裡接在隱含的界線後面，卻是那一句的選項。
+    ///
+    /// <c>SET</c> 接在隱含的界線後面時還要問它所屬的動詞：<c>UPDATE t⏎SET</c> 是 UPDATE 的子句
+    /// （<see cref="IntroducesOptions"/>）。當成一句的開頭的話，範圍分析把 UPDATE 的目標切掉，
+    /// IF 只有一句的主體也找錯開頭。
     /// </remarks>
-    private bool IsStatementHead(int index)
+    internal bool IsStatementHead(int index)
     {
         var token = tokens[index];
 
@@ -578,6 +614,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
         {
             head = (AddStatementStartOnNewLine(before, index - 1, token.Start) & SqlKeywordPosition.StatementStart)
                 != SqlKeywordPosition.None;
+        }
+
+        if (head && token.IsKeyword("SET") && !IntroducesOptions(index))
+        {
+            head = false;
         }
 
         heads[index] = head;
@@ -645,8 +686,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <c>UPDATE t SET</c> 的 SET 都帶著自己的子句，所以問的是能不能開始一句，不問
     /// <see cref="IsStatementHead"/>。它也走不出這一句：這一句的開頭本身就是這種字。
     ///
-    /// 一組括號連同緊接在前面的那個字是一個單位：<c>WITH (TABLOCK)</c>、<c>TOP (5)</c>
-    /// 屬於動詞的前段，<c>IF UPDATE(a)</c> 的 UPDATE 是函式。分號、沒關上的左括號與配不起來的
+    /// 能開始一句卻帶不出子句的字不是動詞：<c>WITH</c>（CTE 後面還有自己的動詞，其餘是提示、
+    /// 選項與 <c>WITH TIES</c>），以及權限清單的一項（<c>REVOKE SELECT, INSERT ON t FROM u</c>，
+    /// 見 <see cref="NamesPermission"/>）。
+    ///
+    /// 一組括號是一個單位，前面的函式名稱也算在裡面：<c>TOP (5)</c>、<c>IF UPDATE(a)</c> 的 UPDATE
+    /// 是函式。其餘能開始一句的字接括號時本身就是動詞：<c>SELECT (a + b) AS x FROM</c>、
+    /// <c>RAISERROR (…)</c>、<c>THEN INSERT (a)</c>。分號、沒關上的左括號與配不起來的
     /// 右括號之前是別的東西。
     /// </remarks>
     private int FindVerb(int from)
@@ -664,7 +710,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                     return -1;
                 }
 
-                index = open > 0 && tokens[open - 1].Kind == SqlTokenKind.Identifier ? open - 1 : open;
+                index = open > 0 && IsFunctionName(open - 1) ? open - 1 : open;
                 continue;
             }
 
@@ -673,7 +719,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 return -1;
             }
 
-            if (token.Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(token))
+            if (IsVerbCandidate(index) && !token.IsKeyword("WITH") && !NamesPermission(index))
             {
                 return index;
             }
@@ -681,6 +727,51 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         return -1;
     }
+
+    /// <summary>沒加引號、不在點號後面、而且能開始一句的關鍵字。</summary>
+    private bool IsVerbCandidate(int index) =>
+        tokens[index].Kind == SqlTokenKind.Identifier && IsBareKeyword(index) && StartsStatement(tokens[index]);
+
+    /// <summary>緊接在左括號前面的 <paramref name="name"/> 與括號同一個單位：函式名稱，或也是函式的 UPDATE。</summary>
+    private bool IsFunctionName(int name) =>
+        tokens[name].Kind == SqlTokenKind.Identifier && (!IsVerbCandidate(name) || tokens[name].IsKeyword("UPDATE"));
+
+    /// <summary>
+    /// <paramref name="from"/> 的 FROM 後面接資料來源：它所屬的動詞（<see cref="FindVerb"/>）是
+    /// SELECT、UPDATE 或 DELETE。
+    /// </summary>
+    /// <remarks>
+    /// 同一個字在別的動詞底下接的是別的東西：<c>FETCH NEXT FROM</c> 的游標、
+    /// <c>RESTORE DATABASE d FROM DISK</c> 的備份裝置、<c>REVOKE … FROM</c> 的主體、
+    /// <c>BULK INSERT t FROM</c> 的檔案、<c>CREATE LOGIN l FROM WINDOWS</c>。當成資料來源的症狀是
+    /// <c>DISK</c> 被收成一張表，每次按鍵多查一次不存在的名稱，而 FROM 之後的清單全是資料表。
+    ///
+    /// UPDATE 的 FROM 所屬的動詞是 SET：帶資料行指派的 SET（<see cref="IntroducesOptions"/>）算 UPDATE。
+    /// 判不出動詞時照舊當成資料來源：<c>TRIM(' ' FROM x)</c> 那種在括號裡，範圍分析本來就不讀。
+    ///
+    /// 位置分析（FROM 之後、以 FROM 為錨點的子句尾端）、上下文分析的目標與範圍分析的資料來源
+    /// 都問這一條。
+    /// </remarks>
+    internal bool IntroducesDataSource(int from)
+    {
+        var verb = FindVerb(from - 1);
+
+        if (verb < 0)
+        {
+            return true;
+        }
+
+        var token = tokens[verb];
+
+        return token.IsKeyword("SELECT") ||
+            token.IsKeyword("UPDATE") ||
+            token.IsKeyword("DELETE") ||
+            (token.IsKeyword("SET") && !IntroducesOptions(verb));
+    }
+
+    /// <summary><paramref name="from"/> 的 FROM 是 <c>FETCH … FROM</c>，後面是游標。</summary>
+    private bool IntroducesCursor(int from) =>
+        FindVerb(from - 1) is var verb and >= 0 && tokens[verb].IsKeyword("FETCH");
 
     /// <summary>
     /// 游標與前一個詞元之間隔著東西，而且沒有換行。
@@ -839,7 +930,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// MERGE 的目標（<c>MERGE INTO t </c>、<c>MERGE t </c>）也算：它與 USING 的來源
     /// 一樣接得了別名，而 MERGE 與 USING 都是 <see cref="ClauseAnchors"/> 的錨點。
     ///
-    /// DELETE 與 FETCH 自己的 FROM 不算，見 <see cref="NamesStatementTarget"/>。
+    /// 不接資料來源的 FROM（<see cref="IntroducesDataSource"/>）與 DELETE 自己的 FROM 不算，
+    /// 見 <see cref="NamesDeleteTarget"/>。
     /// </remarks>
     private bool OpensDataSource(int previous)
     {
@@ -851,7 +943,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
              token.IsKeyword("MERGE") ||
              (token.IsKeyword("INTO") && previous >= 1 && tokens[previous - 1].IsKeyword("MERGE"))))
         {
-            return !token.IsKeyword("FROM") || !NamesStatementTarget(previous);
+            return !token.IsKeyword("FROM") || (IntroducesDataSource(previous) && !NamesDeleteTarget(previous));
         }
 
         // FROM a, b | 的逗號也開啟一個資料來源，但 SELECT a, b | 的不是。
@@ -859,27 +951,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
             && FindAnchorPosition(previous - 1, ListAnchors) == SqlKeywordPosition.DataSource;
     }
 
-    /// <summary><paramref name="from"/> 的 FROM 帶出的是 DELETE 或 FETCH 自己的目標。</summary>
+    /// <summary><paramref name="from"/> 的 FROM 帶出的是 DELETE 自己的目標。</summary>
     /// <remarks>
-    /// <c>DELETE [TOP (5)] FROM t</c> 與 <c>FETCH NEXT FROM c</c> 的 FROM 後面是動詞的目標，
-    /// 文法不接別名；<c>DELETE a FROM t a JOIN …</c> 的第二個 FROM 才是一般的資料來源。
-    /// FETCH 只有一個 FROM；DELETE 的 FROM 前面還沒寫目標名稱時就是目標。
+    /// <c>DELETE [TOP (5)] FROM t</c> 的 FROM 後面是動詞的目標，文法不接別名；
+    /// <c>DELETE a FROM t a JOIN …</c> 的第二個 FROM 才是一般的資料來源。
+    /// DELETE 的 FROM 前面還沒寫目標名稱時就是目標。
     /// </remarks>
-    private bool NamesStatementTarget(int from)
+    private bool NamesDeleteTarget(int from)
     {
         var verb = FindVerb(from - 1);
 
-        if (verb < 0)
-        {
-            return false;
-        }
-
-        if (tokens[verb].IsKeyword("FETCH"))
-        {
-            return true;
-        }
-
-        if (!tokens[verb].IsKeyword("DELETE"))
+        if (verb < 0 || !tokens[verb].IsKeyword("DELETE"))
         {
             return false;
         }
@@ -1528,7 +1610,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 那個左括號，走到 CREATE 之前的別的子句。
         if ((token.IsPunctuation("(") && OpensColumnDefinitions(last)) ||
             (token.IsPunctuation(",") &&
-             OpensColumnDefinitions(SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1))))
+             OpensColumnDefinitions(FindUnclosedParenthesis(last - 1))))
         {
             return SqlKeywordPosition.ColumnDefinition;
         }
@@ -1559,6 +1641,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
         // 加引號的識別字是名稱不是關鍵字：[FROM] 之後不是資料來源位置。
         if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted)
         {
+            // 游標、備份裝置與主體前面的 FROM 不接資料來源，這裡判不出位置。
+            if (token.IsKeyword("FROM") && !IntroducesDataSource(last))
+            {
+                return SqlKeywordPosition.Any;
+            }
+
             if (AfterKeyword.TryGetValue(token.Value, out var position))
             {
                 return position;
@@ -2016,8 +2104,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
             if (anchors.TryGetValue(token.Value, out var position) &&
                 ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
-                if (anchors == ClauseAnchors && RefineClauseEnd(index) is { } refined)
+                if (RefineAnchor(index, clauseEnd: anchors == ClauseAnchors) is { } refined)
                 {
+                    if (refined == SqlKeywordPosition.Any)
+                    {
+                        return refined;
+                    }
+
                     position = refined;
                 }
 
@@ -2037,18 +2130,23 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 同一個子句錨點屬於不同敘述時，子句寫完之後接的字不同：<c>SELECT … INTO #t </c> 接 FROM，
     /// <c>INSERT INTO t </c> 不接；<c>FETCH NEXT FROM c </c> 接 INTO，查詢的 FROM 不接。
     /// </summary>
-    private SqlKeywordPosition? RefineClauseEnd(int anchor)
+    /// <param name="clauseEnd">問的是子句尾端（<see cref="ClauseAnchors"/>），不是清單的起點。</param>
+    /// <remarks>
+    /// 不接資料來源的 FROM（<see cref="IntroducesDataSource"/>）不是資料來源清單：尾端與逗號之後
+    /// 都判不出位置，<c>RESTORE … FROM DISK = 'a', </c> 不能列出資料表。
+    /// </remarks>
+    private SqlKeywordPosition? RefineAnchor(int anchor, bool clauseEnd)
     {
         var token = tokens[anchor];
 
-        if (token.IsKeyword("INTO") && IsSelectInto(anchor))
+        if (token.IsKeyword("FROM") && !IntroducesDataSource(anchor))
         {
-            return SqlKeywordPosition.SelectIntoTail;
+            return clauseEnd && IntroducesCursor(anchor) ? SqlKeywordPosition.FetchTail : SqlKeywordPosition.Any;
         }
 
-        if (token.IsKeyword("FROM") && FindVerb(anchor - 1) is var verb and >= 0 && tokens[verb].IsKeyword("FETCH"))
+        if (clauseEnd && token.IsKeyword("INTO") && IsSelectInto(anchor))
         {
-            return SqlKeywordPosition.FetchTail;
+            return SqlKeywordPosition.SelectIntoTail;
         }
 
         return null;
@@ -2057,7 +2155,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <summary><paramref name="order"/> 的 ORDER 在視窗 <c>OVER (</c> 裡。</summary>
     private bool OrdersWindow(int order)
     {
-        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, order - 1);
+        var open = FindUnclosedParenthesis(order - 1);
         return open >= 1 && tokens[open - 1].IsKeyword("OVER");
     }
 

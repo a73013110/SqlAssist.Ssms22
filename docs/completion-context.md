@@ -95,6 +95,8 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 `USING` 與 `FROM` 收在同一列不是為了湊數：MERGE 的來源與 FROM 的來源是同一條文法，
 `SqlKeywordPositionAnalyzer` 與 `SqlScopeAnalyzer` 也早就這樣歸類。只有這一份漏掉時，
 症狀是 `USING ` 之後完全沒有清單，而使用者看不出它和 `FROM ` 之後有什麼不同。
+`FROM` 只算 SELECT、UPDATE、DELETE 的：`FETCH NEXT FROM `、`REVOKE … FROM ` 之後不列資料表，
+判準見[語句的界線](completion-boundaries.md#語句的界線)。
 
 逗號那一列不靠前導關鍵字：前一、兩個詞元只有一個逗號，答案來自
 `SqlKeywordPositionAnalyzer` 的位置（逗號回到清單起點），這裡不再自己回頭找 `FROM`。

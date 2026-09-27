@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SqlAssist.Core.Keywords;
 
 namespace SqlAssist.Core.Parsing;
 
@@ -20,21 +21,6 @@ namespace SqlAssist.Core.Parsing;
 /// </remarks>
 public static class SqlScopeAnalyzer
 {
-    /// <summary>可以獨立成為一個敘述開頭的關鍵字。</summary>
-    /// <remarks>
-    /// 刻意不含 <c>SET</c> 與 <c>WITH</c>：
-    /// <c>SET</c> 會把 <c>UPDATE u SET … FROM …</c> 從中間切斷，
-    /// <c>WITH</c> 則同時是 CTE 開頭與資料表提示（<c>WITH (NOLOCK)</c>）。
-    /// 少判一個邊界只會讓範圍偏大，多判一個會讓 FROM 子句整個消失。
-    /// </remarks>
-    private static readonly HashSet<string> StatementKeywords =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE",
-            "CREATE", "ALTER", "DROP", "EXEC", "EXECUTE", "DECLARE",
-            "IF", "WHILE", "RETURN", "PRINT", "USE", "GRANT", "REVOKE", "DENY"
-        };
-
     /// <summary>不可能是資料表名稱或別名的關鍵字。</summary>
     private static readonly HashSet<string> ClauseKeywords =
         new(StringComparer.OrdinalIgnoreCase)
@@ -87,12 +73,7 @@ public static class SqlScopeAnalyzer
             throw new ArgumentNullException(nameof(sql));
         }
 
-        if (caretPosition < 0 || caretPosition > sql.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(caretPosition));
-        }
-
-        return Analyze(SqlTokenizer.Tokenize(sql), caretPosition);
+        return Analyze(sql, SqlTokenizer.Tokenize(sql), caretPosition);
     }
 
     /// <summary>
@@ -101,12 +82,23 @@ public static class SqlScopeAnalyzer
     /// <remarks>
     /// 呼叫端手上已經有詞法串流時走這裡，省下第二次全文掃描——
     /// 萬用字元展開就是這種情形：它得先自己看過詞法單元才知道有沒有事要做。
+    /// <paramref name="sql"/> 仍然要傳：語句的界線要看換行，換行只有原文有。
     /// </remarks>
-    public static SqlStatementScope Analyze(IReadOnlyList<SqlToken> tokens, int caretPosition)
+    public static SqlStatementScope Analyze(string sql, IReadOnlyList<SqlToken> tokens, int caretPosition)
     {
+        if (sql is null)
+        {
+            throw new ArgumentNullException(nameof(sql));
+        }
+
         if (tokens is null)
         {
             throw new ArgumentNullException(nameof(tokens));
+        }
+
+        if (caretPosition < 0 || caretPosition > sql.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(caretPosition));
         }
 
         if (tokens.Count == 0)
@@ -114,14 +106,16 @@ public static class SqlScopeAnalyzer
             return SqlStatementScope.Empty;
         }
 
-        return AnalyzeAt(tokens, FindCaretTokenIndex(tokens, caretPosition), caretPosition);
+        var boundaries = new SqlStatementBoundaries(sql, tokens, caretPosition);
+        return AnalyzeAt(boundaries, FindCaretTokenIndex(tokens, caretPosition), caretPosition);
     }
 
     /// <summary><paramref name="last"/> 這個詞元所在的範圍，連同包住它的外層。</summary>
-    private static SqlStatementScope AnalyzeAt(IReadOnlyList<SqlToken> tokens, int last, int caretPosition)
+    private static SqlStatementScope AnalyzeAt(SqlStatementBoundaries boundaries, int last, int caretPosition)
     {
-        var start = FindScopeStart(tokens, last);
-        var outer = AnalyzeEnclosing(tokens, start);
+        var tokens = boundaries.Tokens;
+        var start = FindScopeStart(boundaries, last);
+        var outer = AnalyzeEnclosing(boundaries, start);
 
         // 範圍起點可能落在最後一個詞法單元之後，例如剛輸入 "FROM (" 的當下。
         if (start >= tokens.Count)
@@ -129,8 +123,8 @@ public static class SqlScopeAnalyzer
             return new SqlStatementScope(Array.Empty<SqlTableReference>(), caretPosition, caretPosition, outer);
         }
 
-        var end = FindStatementEnd(tokens, start);
-        var tables = ExtractSources(tokens, start, end);
+        var end = FindStatementEnd(boundaries, start);
+        var tables = ExtractSources(boundaries, start, end);
 
         return new SqlStatementScope(
             tables,
@@ -147,8 +141,9 @@ public static class SqlScopeAnalyzer
     /// 分號與 GO 之後的起點前面不是左括號。外層從括號前一個詞元再找一次，
     /// 每一層都比上一層短，遞迴深度就是子查詢的巢狀層數。
     /// </remarks>
-    private static SqlStatementScope? AnalyzeEnclosing(IReadOnlyList<SqlToken> tokens, int start)
+    private static SqlStatementScope? AnalyzeEnclosing(SqlStatementBoundaries boundaries, int start)
     {
+        var tokens = boundaries.Tokens;
         var open = start - 1;
 
         if (open < 1 || open >= tokens.Count || !tokens[open].IsPunctuation("("))
@@ -156,7 +151,7 @@ public static class SqlScopeAnalyzer
             return null;
         }
 
-        return AnalyzeAt(tokens, open - 1, tokens[open].Start);
+        return AnalyzeAt(boundaries, open - 1, tokens[open].Start);
     }
 
     /// <summary>最後一個起點在游標之前的詞法單元。</summary>
@@ -177,8 +172,9 @@ public static class SqlScopeAnalyzer
         return index < 0 ? 0 : index;
     }
 
-    private static int FindScopeStart(IReadOnlyList<SqlToken> tokens, int caretIndex)
+    private static int FindScopeStart(SqlStatementBoundaries boundaries, int caretIndex)
     {
+        var tokens = boundaries.Tokens;
         var depth = 0;
 
         for (var i = caretIndex; i >= 0; i--)
@@ -222,10 +218,7 @@ public static class SqlScopeAnalyzer
                 return i + 1;
             }
 
-            if (token.Kind == SqlTokenKind.Identifier &&
-                !token.IsQuoted &&
-                StatementKeywords.Contains(token.Value) &&
-                !IsMergeAction(tokens, i))
+            if (StartsScope(boundaries, i))
             {
                 return i;
             }
@@ -235,52 +228,40 @@ public static class SqlScopeAnalyzer
     }
 
     /// <summary>
-    /// 這個敘述關鍵字其實是 MERGE 的動作子句，不是新敘述的開頭。
+    /// <paramref name="index"/> 開始一個查詢範圍：一句的開頭，或 SELECT。
     /// </summary>
     /// <remarks>
-    /// <c>WHEN MATCHED THEN UPDATE SET …</c>、<c>WHEN NOT MATCHED THEN INSERT …</c>
-    /// 裡的三個關鍵字屬於同一個 MERGE。把它們當成邊界的話，游標一進到 <c>WHEN</c>
-    /// 之後，<c>target</c> 與 <c>source</c> 兩個別名就全部解析不出來——症狀是
-    /// <c>target.|</c> 與 <c>source.|</c> 都不再列欄位，而 <c>INSERT (|)</c> 連
-    /// 一個候選都沒有。
+    /// 語句的開頭與位置分析同一條判準（<see cref="SqlStatementBoundaries.IsStatementHead"/>）：
+    /// MERGE 的 <c>THEN UPDATE</c>、<c>UPDATE t⏎SET</c> 的 SET、<c>WITH (NOLOCK)</c> 都不是開頭，
+    /// 範圍不會從中間切斷；BACKUP、RESTORE、THROW 這些名單寫不完的語句一樣是界線。
     ///
-    /// 認的是<b>前一個詞元是不是 THEN</b>，不是「這份指令碼裡有沒有 MERGE」。
-    /// 一個 MERGE 之後接著獨立的 UPDATE，那個 UPDATE 仍然必須切斷範圍。
-    /// T-SQL 裡 THEN 只出現在 CASE 與 MERGE，而 CASE 的 THEN 後面是運算式，
-    /// 不會是這三個關鍵字。
+    /// SELECT 另外算：每一個 SELECT 都開始自己的查詢規格，看不到前面那段的資料表——
+    /// <c>INSERT INTO t (|) SELECT … FROM s</c> 的資料行清單只屬於 t，
+    /// <c>… UNION SELECT</c> 的 FROM 只屬於後面那一個。這兩處都不是一句的開頭。
     /// </remarks>
-    private static bool IsMergeAction(IReadOnlyList<SqlToken> tokens, int index)
+    private static bool StartsScope(SqlStatementBoundaries boundaries, int index)
     {
-        if (index <= 0 || !tokens[index - 1].IsKeyword("THEN"))
-        {
-            return false;
-        }
+        var tokens = boundaries.Tokens;
 
-        var token = tokens[index];
-
-        return token.IsKeyword("UPDATE") ||
-               token.IsKeyword("INSERT") ||
-               token.IsKeyword("DELETE");
+        return (tokens[index].IsKeyword("SELECT") && !(index >= 1 && tokens[index - 1].IsPunctuation("."))) ||
+            boundaries.IsStatementHead(index);
     }
 
     /// <summary>
     /// 從 <paramref name="start"/> 這個詞法單元起算，這一句敘述到哪裡結束（不含）。
     /// </summary>
     /// <remarks>
-    /// 深度 0 的分號、<c>GO</c>、右括號，或下一個敘述開頭的關鍵字；都沒有就到文字結尾。
+    /// 深度 0 的分號、<c>GO</c>、右括號，或下一個範圍的開頭（<see cref="StartsScope"/>）；
+    /// 都沒有就到文字結尾。
     ///
-    /// 公開出來是因為問這個問題的不只範圍分析：<c>SELECT … INTO #tmp</c> 的名冊要
+    /// 開放給同組件是因為問這個問題的不只範圍分析：<c>SELECT … INTO #tmp</c> 的名冊要
     /// 知道那句 <c>SELECT</c> 涵蓋到哪裡，才讀得出它投影出來的資料行。各寫一份的
     /// 症狀是同一段文字在兩處切在不同的地方，而偏掉的那一份沒有任何徵兆——
     /// 只是資料來源清單多出或少掉幾張表。
     /// </remarks>
-    public static int FindStatementEnd(IReadOnlyList<SqlToken> tokens, int start)
+    internal static int FindStatementEnd(SqlStatementBoundaries boundaries, int start)
     {
-        if (tokens is null)
-        {
-            throw new ArgumentNullException(nameof(tokens));
-        }
-
+        var tokens = boundaries.Tokens;
         var depth = 0;
 
         for (var i = start; i < tokens.Count; i++)
@@ -314,11 +295,7 @@ public static class SqlScopeAnalyzer
                 return i;
             }
 
-            if (i > start &&
-                token.Kind == SqlTokenKind.Identifier &&
-                !token.IsQuoted &&
-                StatementKeywords.Contains(token.Value) &&
-                !IsMergeAction(tokens, i))
+            if (i > start && StartsScope(boundaries, i))
             {
                 return i;
             }
@@ -341,12 +318,16 @@ public static class SqlScopeAnalyzer
     /// 而那個括號後面往往正是使用者要的東西：<c>SELECT COUNT(a.| FROM dbo.PUBLISHER a</c>
     /// 的左括號永遠等不到右括號，把它算進深度就會讓整個 FROM 子句消失，
     /// 別名 <c>a</c> 也就永遠解析不出來。
+    ///
+    /// FROM 接不接資料來源由它所屬的動詞決定（<see cref="SqlStatementBoundaries.IntroducesDataSource"/>）：
+    /// <c>RESTORE … FROM DISK</c>、<c>FETCH NEXT FROM c</c>、<c>REVOKE … FROM u</c> 後面都不是資料表。
     /// </remarks>
-    public static IReadOnlyList<SqlTableReference> ExtractSources(
-        IReadOnlyList<SqlToken> tokens,
+    internal static IReadOnlyList<SqlTableReference> ExtractSources(
+        SqlStatementBoundaries boundaries,
         int start,
         int end)
     {
+        var tokens = boundaries.Tokens;
         var references = new List<SqlTableReference>();
         var paired = SqlTokenNavigator.FindPairedParentheses(tokens, start, end);
         var index = start;
@@ -377,7 +358,8 @@ public static class SqlScopeAnalyzer
                 token.Kind != SqlTokenKind.Identifier ||
                 token.IsQuoted ||
                 (!SourceKeywords.Contains(token.Value) &&
-                    !SqlDdlTarget.IsDataSourceOn(tokens, index)))
+                    !SqlDdlTarget.IsDataSourceOn(tokens, index)) ||
+                (token.IsKeyword("FROM") && !boundaries.IntroducesDataSource(index)))
             {
                 index++;
                 continue;

@@ -10,6 +10,8 @@ public sealed class SqlCompletionContextAnalyzerTests
     [Theory]
     [InlineData("SELECT * FROM ", CompletionTarget.DataSource)]
     [InlineData("SELECT * FROM Loans INNER JOIN ", CompletionTarget.DataSource)]
+    [InlineData("SELECT (CopyNo) AS c FROM ", CompletionTarget.DataSource)]
+    [InlineData("UPDATE l SET CopyNo = 1 FROM ", CompletionTarget.DataSource)]
     [InlineData("UPDATE ", CompletionTarget.DataSource)]
     [InlineData("INSERT INTO ", CompletionTarget.DataSource)]
     [InlineData("MERGE INTO ", CompletionTarget.DataSource)]
@@ -404,5 +406,19 @@ public sealed class SqlCompletionContextAnalyzerTests
         Assert.Equal(
             SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.StatementStart,
             context.KeywordPosition);
+    }
+
+    /// <summary>
+    /// FETCH、RESTORE、REVOKE、BULK INSERT、CREATE LOGIN 的 FROM 後面不是資料表，
+    /// 判準與位置分析、範圍分析同一條。
+    /// </summary>
+    [Theory]
+    [InlineData("FETCH NEXT FROM ")]
+    [InlineData("REVOKE SELECT ON dbo.Loan FROM ")]
+    [InlineData("BULK INSERT dbo.Loan FROM ")]
+    [InlineData("CREATE LOGIN Lib_Reader FROM ")]
+    public void 不接資料來源的FROM之後不列資料表(string textBeforeCaret)
+    {
+        Assert.NotEqual(CompletionTarget.DataSource, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
     }
 }

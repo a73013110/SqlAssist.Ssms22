@@ -85,7 +85,7 @@ public static class SqlWildcardAnalyzer
             return null;
         }
 
-        var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
+        var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
 
         if (scope.Tables.Count == 0)
         {
@@ -107,7 +107,7 @@ public static class SqlWildcardAnalyzer
             return null;
         }
 
-        var sources = new SqlColumnSourceResolver(tokens).ResolveAll(references);
+        var sources = new SqlColumnSourceResolver(sql, tokens).ResolveAll(references);
 
         if (sources is null)
         {

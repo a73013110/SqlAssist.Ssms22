@@ -489,7 +489,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return false;
         }
 
-        var open = tokens[last - 1].IsPunctuation("(") ? last - 1 : SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1);
+        var open = tokens[last - 1].IsPunctuation("(") ? last - 1 : FindUnclosedParenthesis(last - 1);
 
         if (open < 2)
         {

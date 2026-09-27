@@ -15,7 +15,7 @@ namespace SqlAssist.Core.Tests.Parsing;
 public sealed class SqlSelectIntoTableTests
 {
     private static SqlColumnSourceResolver Resolve(string sql) =>
-        new(SqlTokenizer.Tokenize(sql));
+        new(sql, SqlTokenizer.Tokenize(sql));
 
     /// <summary>選取清單寫得出名稱時，資料行就是那幾個。</summary>
     [Fact]

@@ -25,7 +25,7 @@ public sealed class SqlScriptDeclarations
     private SqlScriptDeclarations(string text, IReadOnlyList<SqlToken> tokens)
     {
         _text = text;
-        _resolver = new SqlColumnSourceResolver(tokens);
+        _resolver = new SqlColumnSourceResolver(text, tokens);
     }
 
     public static SqlScriptDeclarations Create(string text)

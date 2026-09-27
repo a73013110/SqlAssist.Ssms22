@@ -7,23 +7,22 @@
 
 「最近的子句關鍵字」不是往回數詞元就找得到的：
 
-- **括號群組是一個運算元**，往回走時整組跳過；裡面的子句屬於它自己，走進
+- **括號群組是一個運算元**，往回走時整組跳過；走進
   `FROM (SELECT … ON a = b) d ` 撈到內層的 `ON` 就打不出 `WHERE`。
-  跳過的括號兩兩不重疊，整趟仍是線性的；配對不起來時放行成 `Any`，不猜。
+  配對不起來時放行成 `Any`。
 - **寫完的 `CASE … END` 也是運算元**，後面照外層位置。還沒寫完的 CASE 是游標
-  所在的那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`，不是外層尾端。
+  所在的那一層：`CASE WHEN a = 1 THEN b ` 之後接 `WHEN`、`ELSE`、`END`。
 - **逗號代表清單再來一項**，位置回到清單的**起點**：`SELECT a, ` 與 `SELECT ` 同一個位置；
   判成尾端會列出 `FROM`、`INTO`，`CASE` 反而不見。
 - **TOP 子句不是選取清單的一項**：`SELECT TOP 10 `、`TOP (10) `、`TOP 10 PERCENT `
-  之後仍是起點，另接 `PERCENT`、`WITH TIES`。當成一項會列出 `FROM`，還被當成別名位置。
+  之後仍是起點，另接 `PERCENT`、`WITH TIES`。當成一項會列出 `FROM`。
 - **`ON` 的述詞寫完之後是兩個位置的聯集**：述詞尾端（`AND`、`OR`）與資料來源尾端
-  （`WHERE`、`JOIN`、`GROUP`）。文法允許兩個就報兩個，只報前者就打不出 `WHERE`。
-- **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 之後接得了 `WHERE`、`FROM`、`OUTPUT`，
-  那組字掛在資料來源尾端。
-- **其餘的 `SET` 帶出選項**（動詞不是 `UPDATE`，含 `ALTER DATABASE x SET`）。名稱寫完
+  （`WHERE`、`JOIN`、`GROUP`）。只報前者就打不出 `WHERE`。
+- **`SET` 子句寫完之後也是**：`UPDATE t SET a = 1 ` 另接 `WHERE`、`FROM`、`OUTPUT`。
+- **其餘的 `SET` 帶出選項**（含 `ALTER DATABASE x SET`）。名稱寫完
   （`SET NOCOUNT `）只列 `ON`、`OFF` 這類值；停在關鍵字上是還沒寫完（`SET IDENTITY_INSERT `
   要資料表）。**值寫完這一句就結束**；否則 `SET ANSI_NULLS ON⏎G` 的
-  `ON` 被當成 JOIN 的，Enter 把 `GO` 換成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
+  `ON` 被當成 JOIN 的，`GO` 變成 `GROUPING`。識別字的值（`SET DATEFORMAT dmy`）
   與名稱分不開，換行才補語句開頭。
 - **`NOT` 也是聯集**：`WHERE NOT ` 開一個述詞，`a.Big5Code NOT ` 之後接 `IN`、`LIKE`。
 - **`IF`、`WHILE` 是錨點**：條件寫完是主體的開頭，也接 `AND`、`OR`；括號沒關上時只算條件。
@@ -43,7 +42,7 @@
 | `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode ` | 開，軟選 |
 | `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，硬選 |
 
-`Name` 的清單沒有一項會對，彈出來只會讓 Enter 把剛打的 `a` 換成 `ALTER PROCEDURE`。
+`Name` 的清單沒有一項會對，Enter 只會把剛打的 `a` 換成 `ALTER PROCEDURE`。
 `MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`：軟選時只有 Tab 提交，
 Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter 不再補成 `FROM`。
 
@@ -69,12 +68,12 @@ Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter �
   `WITH (…)` 資料行結構描述（`OPENJSON(@j) WITH (a int) `），前面直接是 `FROM`、`JOIN`、
   `APPLY`、`USING`、`MERGE [INTO]` 或 FROM 清單的逗號；選取清單是一整個運算式，
   往回到 `SELECT`、逗號或 TOP 子句。
-- DELETE 與 FETCH 自己的 FROM 帶出動詞的目標，文法不接別名（`Grammar`）：
-  `DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 前面已有目標，照常。
+- DELETE 自己的 FROM 帶出動詞的目標、不接資料來源的 FROM 帶出游標或裝置，都不接別名
+  （`Grammar`）：`DELETE [TOP (5)] FROM t `、`FETCH NEXT FROM c `。`DELETE a FROM t ` 照常。
 - 項目結尾是識別字、變數、`)`、常值或 `CASE … END` 的 `END`；`*` 後面不接別名。
 - 還沒有別名：最後一個運算元前面不緊鄰另一個運算元或 `AS`。
-- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）。別名一定寫在同一行，
-  子句與下一句幾乎總是換行——這是分開別名與 `WHE` 的唯一線索。
+- 同一行：前一個詞元結尾到游標之間沒有換行（註解前的也算）；別名一定寫在同一行，
+  這是分開別名與 `WHE` 的唯一線索。
 
 ```text
 FROM dbo.PUBLISHER |、SELECT a + b | → MaybeName
@@ -95,13 +94,18 @@ FROM dbo.PUBLISHER ⏎ |               → 換行了，Grammar
 - **隱含的**：子句尾端又換了行（下一節），或前一句判不出位置而寫到一個運算元。
 - `WITH` 只認明確的：CTE 前一句必須以分號結束，`CREATE VIEW v⏎WITH SCHEMABINDING` 是選項。
 
-子句屬於哪個動詞（SET 帶不帶選項、FROM 是不是 DELETE 的目標）另問往回第一個能開始一句的字：
-`UPDATE t⏎SET` 的 SET 仍屬於 UPDATE。
+子句屬於哪個**動詞**另問往回第一個能開始一句的字（`FindVerb`）；權限清單的一項
+（`REVOKE SELECT`）與 `WITH` 不算，`IF UPDATE(a)` 是函式。
+
+- `UPDATE t⏎SET` 的 SET 屬於 UPDATE，不是一句的開頭。
+- **FROM 只在動詞是 SELECT、UPDATE、DELETE 時接資料來源**：`FETCH NEXT FROM c ` 接 `INTO`
+  （`FetchTail`），`RESTORE`、`REVOKE`、`BULK INSERT` 的 FROM 是 `Any`。位置、目標與範圍分析
+  共用 `IntroducesDataSource`，分岔時 `DISK` 被收成一張表。
 
 ### 沒有分號時，換行就是界線
 
-`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元串流分不出差別；只保留子句尾端會把下一句的
-語句級片段（`ssf`…）濾光。因此**子句已到尾端，而且游標換了行**，就補上 `StatementStart`：
+`WHERE a = 1` 之後換行寫 `SELECT` 或 `AND`，詞元分不出差別；只給子句尾端會濾光下一句的片段
+（`ssf`…）。所以**子句已到尾端又換了行**就補上 `StatementStart`：
 
 ```text
 SELECT * FROM dbo.Loan WHERE ReaderId = 1 ⏎ | → ssf、SELECT、AND 都在
@@ -110,17 +114,16 @@ SELECT * FROM dbo.Loan WHERE ReaderId = 1 |  → 同一行，不補
 
 補的是旗標聯集，續寫的 `FROM`、`AND`、`ORDER` 一個都不少；括號還沒關時不補。認的尾端：選取清單
 （`SELECT dbo.fn_Fee('')` 不需要 `FROM`）、資料來源、述詞、`ORDER BY`／`GROUP BY` 欄位與
-SET 選項名稱之後。名字那一格前面的換行不補。換行判準與別名規則的「同一行」相同。
+SET 選項名稱之後。名字那一格前面的換行不補。
 
 ## 數值常值不開清單
 
-`UPDATE t SET Fine = Fine - 10` 打到 `10` 時，運算子之後是 `Any`，整個目錄進場，
-模糊比對把 `10` 對到 `LOG10`，順手按 Enter 數字就變成函式名稱。
+`SET Fine = Fine - 10` 打到 `10` 時整個目錄進場，模糊比對把 `10` 對到 `LOG10`，
+Enter 就把數字換成函式名稱。
 
 T-SQL 的一般識別字不能以數字開頭，所以以數字開頭的詞元必然是數值常值，歸 `Inert`。
-比的是第一個字元，不是「含不含數字」：`Cat_BookCopy2` 很常見。
-點號前那一段以數字開頭也算（`1.`、`12.`）：
-文字上與 `dbo.` 一樣是限定字加點號，平台在點號自己觸發時會以限定字 `1` 開清單。
+比的是第一個字元（`Cat_BookCopy2` 不算）。
+點號前那一段以數字開頭也算（`1.`、`12.`），否則平台會以限定字 `1` 開清單。
 方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
 變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行（提交時改寫成 `[@rows].`，

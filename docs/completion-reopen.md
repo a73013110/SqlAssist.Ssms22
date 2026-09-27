@@ -1,6 +1,6 @@
 # 範圍與建議清單重開
 
-本頁包含括號怎麼切開範圍、詞元結束後重開清單的三個步驟，以及一次詞法分析的兩個答案。
+本頁包含括號與語句開頭怎麼切開範圍、詞元結束後重開清單的三個步驟，以及一次詞法分析的兩個答案。
 提交進去的文字長什麼樣見[插入文字](completion-insertion.md)。
 
 ## 只有開啟查詢的括號才切開範圍
@@ -35,6 +35,20 @@ SELECT COUNT(a.| FROM dbo.PUBLISHER a
 子查詢切開的是**未限定**的那一半：`*` 與沒有限定字的欄位只屬於這一層。限定字則由內往外
 解析（`SqlStatementScope.Outer`），內層同名的別名遮住外層。只看這一層的症狀是相互關聯
 子查詢 `NOT EXISTS (SELECT … WHERE c.x = a.|)` 的 `a.` 一個欄位都沒有，滑鼠停留與 F12 也找不到那張表。
+
+## 語句的開頭也切開範圍
+
+括號之外，範圍停在分號、GO 與語句開頭。語句開頭的判準與位置分析同一條
+（`SqlStatementBoundaries`，見[語句的界線](completion-boundaries.md#語句的界線)），不另列關鍵字名單。
+名單的症狀是名單外的語句（`BACKUP`、`RESTORE`、`THROW`、`BEGIN`）不切：`ON source.|` 的範圍
+延伸進下一行的 RESTORE，RESTORE 那一行又接回上一句，`WITH |` 列出上一句資料表的欄位。
+
+- **每個 `SELECT` 另開一個範圍**，即使它不是一句的開頭：`INSERT INTO t (|) SELECT … FROM s`
+  的資料行清單只屬於 `t`，`UNION SELECT` 的 FROM 只屬於後面那一個。
+- **游標那一格當成寫完的運算元**：隱含的界線要子句寫完，游標前的子句卻幾乎總停在半途
+  （`WHERE |`、`ON source.|`）。不補的話下一行的 `UPDATE` 併進來，`source.` 後面的 `RESTORE`
+  還被讀成名稱。游標貼著名稱、變數或常值時那個詞元自己就是，不補。
+- 換行只有原文有：`SqlScopeAnalyzer.Analyze` 與 `SqlColumnSourceResolver` 都要拿到整份文字。
 
 ## 詞元一結束就把清單重開
 

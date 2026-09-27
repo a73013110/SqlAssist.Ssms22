@@ -147,7 +147,12 @@ public static class SqlCompletionContextAnalyzer
         var targetKeywordStart = -1;
         var intent = CompletionIntent.Reference;
         var target = keywordPosition.AcceptsNames()
-            ? DetermineTarget(qualifierPath is null ? beforeToken : beforeQualifier, out targetKeywordStart, out intent)
+            ? DetermineTarget(
+                qualifierPath is null ? beforeToken : beforeQualifier,
+                tokens,
+                textBeforeToken,
+                out targetKeywordStart,
+                out intent)
             : CompletionTarget.Any;
 
         // FROM a, | 與 FROM a, LibArchive.| 都還在同一個資料來源清單裡，而
@@ -238,8 +243,8 @@ public static class SqlCompletionContextAnalyzer
             return context.WithScriptSources(SqlScriptCollationSuggestions.Create(tokens));
         }
 
-        var scope = SqlScopeAnalyzer.Analyze(tokens, caretPosition);
-        var resolver = new SqlColumnSourceResolver(tokens);
+        var scope = SqlScopeAnalyzer.Analyze(sql, tokens, caretPosition);
+        var resolver = new SqlColumnSourceResolver(sql, tokens);
         var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
 
         if (context.QualifierPath is null)
@@ -326,7 +331,12 @@ public static class SqlCompletionContextAnalyzer
         //
         // 只收資料來源位置：EXEC dbo.p @ 的 @ 後面是引數而不是那句話的目標，
         // 在那裡帶著 ExecuteCall 會讓提交去展開一個變數。
-        var statementTarget = DetermineTarget(textBeforeToken.TrimEnd(), out var keywordStart, out var intent);
+        var statementTarget = DetermineTarget(
+            textBeforeToken.TrimEnd(),
+            tokens,
+            textBeforeToken,
+            out var keywordStart,
+            out var intent);
 
         if (statementTarget != CompletionTarget.DataSource)
         {
@@ -426,8 +436,13 @@ public static class SqlCompletionContextAnalyzer
     /// <summary>
     /// 依游標前方的關鍵字判斷應該建議哪一類物件，並回報該關鍵字的起點。
     /// </summary>
+    /// <param name="text"><paramref name="textBeforeToken"/> 去掉尾端空白，或再剝掉限定字的那一段。</param>
+    /// <param name="tokens"><paramref name="textBeforeToken"/> 的詞元：FROM 要問它所屬的動詞。</param>
+    /// <param name="textBeforeToken">游標前、不含正在輸入的詞元的文字。</param>
     private static CompletionTarget DetermineTarget(
         string text,
+        IReadOnlyList<SqlToken> tokens,
+        string textBeforeToken,
         out int keywordStart,
         out CompletionIntent intent)
     {
@@ -556,8 +571,21 @@ public static class SqlCompletionContextAnalyzer
         // USING 與 FROM 是同一條文法（MERGE 的來源）。SqlKeywordPositionAnalyzer 與
         // SqlScopeAnalyzer 早就這樣歸類，只有這一份漏掉——症狀是 USING 之後完全沒有
         // 清單，而使用者看不出它和 FROM 之後有什麼不同。
-        if (EndsWithKeyword(text, "FROM", out keywordStart) ||
-            EndsWithKeyword(text, "JOIN", out keywordStart) ||
+        //
+        // FROM 另問它所屬的動詞：FETCH NEXT FROM、RESTORE … FROM、REVOKE … FROM 之後不是資料表，
+        // 判準與位置分析、範圍分析同一條（SqlStatementBoundaries.IntroducesDataSource）。
+        if (EndsWithKeyword(text, "FROM", out keywordStart))
+        {
+            if (IntroducesDataSource(tokens, textBeforeToken, keywordStart))
+            {
+                return CompletionTarget.DataSource;
+            }
+
+            keywordStart = -1;
+            return CompletionTarget.Any;
+        }
+
+        if (EndsWithKeyword(text, "JOIN", out keywordStart) ||
             EndsWithKeyword(text, "UPDATE", out keywordStart) ||
             EndsWithKeyword(text, "INTO", out keywordStart) ||
             EndsWithKeyword(text, "USING", out keywordStart))
@@ -567,6 +595,21 @@ public static class SqlCompletionContextAnalyzer
 
         keywordStart = -1;
         return CompletionTarget.Any;
+    }
+
+    /// <summary>從 <paramref name="keywordStart"/> 開始的 FROM 後面接資料來源。</summary>
+    private static bool IntroducesDataSource(IReadOnlyList<SqlToken> tokens, string textBeforeToken, int keywordStart)
+    {
+        for (var index = tokens.Count - 1; index >= 0; index--)
+        {
+            if (tokens[index].Start == keywordStart)
+            {
+                return new SqlStatementBoundaries(textBeforeToken, tokens).IntroducesDataSource(index);
+            }
+        }
+
+        // 文字與詞元對不起來（FROM 寫在尾端的註解裡），照舊當成資料來源。
+        return true;
     }
 
     /// <summary>剝掉尾端的 <c>IF EXISTS</c>；沒有的話原樣回傳。</summary>

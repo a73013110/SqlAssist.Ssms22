@@ -64,7 +64,7 @@ public sealed class SqlObjectLookup
         // 詞法串流讓範圍分析與指令碼名冊共用同一次掃描；各自來一次等於在滑鼠移動的
         // 軌跡上把整份文字多掃一遍。
         var tokens = SqlTokenizer.Tokenize(text);
-        return new SqlObjectLookup(text, tokens, reference, SqlScopeAnalyzer.Analyze(tokens, position));
+        return new SqlObjectLookup(text, tokens, reference, SqlScopeAnalyzer.Analyze(text, tokens, position));
     }
 
     public sealed class Candidate

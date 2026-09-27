@@ -15,16 +15,16 @@ namespace SqlAssist.Core.Tests.Parsing;
 public sealed class SqlColumnSourceResolverTests
 {
     private static SqlColumnSourceResolver Resolve(string sql) =>
-        new(SqlTokenizer.Tokenize(sql));
+        new(sql, SqlTokenizer.Tokenize(sql));
 
     /// <summary>把敘述裡的一個別名攤平成欄位來源；解析不出來就是失敗。</summary>
     private static IReadOnlyList<SqlColumnSource> ResolveAlias(string sql, string alias)
     {
         var tokens = SqlTokenizer.Tokenize(sql);
 
-        Assert.True(SqlScopeAnalyzer.Analyze(tokens, sql.Length).TryResolve(alias, out var reference));
+        Assert.True(SqlScopeAnalyzer.Analyze(sql, tokens, sql.Length).TryResolve(alias, out var reference));
 
-        var sources = new SqlColumnSourceResolver(tokens).Resolve(reference);
+        var sources = new SqlColumnSourceResolver(sql, tokens).Resolve(reference);
 
         Assert.NotNull(sources);
         return sources!;

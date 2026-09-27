@@ -1538,6 +1538,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("IF @a = 1 BEGIN TRY ", false)]
     [InlineData("WHILE @a = 1 SELECT 1 ", false)]
     [InlineData("IF @a = 1 IF @b = 1 ", false)]
+    [InlineData("IF @a = 1 UPDATE dbo.Loan\nSET CopyNo = 1 ", true)]
     public void IF只有一句的主體寫完之後接得了ELSE(string textBeforeToken, bool expected)
     {
         Assert.Equal(expected, AllowedAt(textBeforeToken, "ELSE"));
@@ -1558,5 +1559,34 @@ public sealed class SqlKeywordPositionTests
             .ToArray();
 
         Assert.Equal(new[] { "ELSE" }, gained);
+    }
+
+    /// <summary>
+    /// FROM 接不接資料來源由它所屬的動詞決定：只有 SELECT、UPDATE、DELETE 的 FROM 是資料來源。
+    /// </summary>
+    /// <remarks>
+    /// 動詞往回找時，權限清單的一項（<c>REVOKE SELECT</c>）與 <c>WITH TIES</c> 的 WITH 不是動詞，
+    /// <c>SELECT (a)</c> 的 SELECT 接括號時仍是動詞。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("SELECT (CopyNo) AS c FROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("SELECT TOP (5) WITH TIES CopyNo FROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("UPDATE l SET CopyNo = 1 FROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("UPDATE l WITH (ROWLOCK)\nSET CopyNo = 1\nFROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("DELETE FROM ", SqlKeywordPosition.DataSource)]
+    [InlineData("FETCH NEXT FROM ", SqlKeywordPosition.Any)]
+    [InlineData("RESTORE DATABASE LibArchive FROM ", SqlKeywordPosition.Any)]
+    [InlineData("REVOKE SELECT ON dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("REVOKE SELECT (CopyNo) ON dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("BULK INSERT dbo.Loan FROM ", SqlKeywordPosition.Any)]
+    [InlineData("CREATE LOGIN Lib_Reader FROM ", SqlKeywordPosition.Any)]
+    [InlineData("BULK INSERT dbo.Loan FROM 'x' ", SqlKeywordPosition.Any)]
+    [InlineData("RESTORE DATABASE LibArchive FROM DISK = 'a', ", SqlKeywordPosition.Any)]
+    [InlineData("FETCH NEXT FROM LoanCursor ", SqlKeywordPosition.FetchTail)]
+    [InlineData("SELECT * FROM dbo.Loan, ", SqlKeywordPosition.DataSource)]
+    public void FROM接不接資料來源由所屬的動詞決定(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 }

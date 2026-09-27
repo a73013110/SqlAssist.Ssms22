@@ -134,7 +134,7 @@ public sealed class SqlScriptTableDetailTests
     public void CTE只帶名稱且指令碼是宣告原文()
     {
         const string script = ";WITH c AS (SELECT Id, CopyNo FROM dbo.Loan) SELECT * FROM c";
-        var resolver = new SqlColumnSourceResolver(SqlTokenizer.Tokenize(script));
+        var resolver = new SqlColumnSourceResolver(script, SqlTokenizer.Tokenize(script));
         var cte = resolver.FindCommonTableExpression("c");
 
         Assert.NotNull(cte);
