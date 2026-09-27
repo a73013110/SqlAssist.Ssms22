@@ -30,14 +30,14 @@
 
 ## 資料型文字
 
-- `BuiltInDocs.json`、`DefaultSnippets.json` 這種一筆多欄、帶巢狀表的內嵌資源不進產生器：來源維持繁中，
+- `Keywords/BuiltInDocs/*.json`、`DefaultSnippets.json` 這種一筆多欄、帶巢狀表的內嵌資源不進產生器：來源維持繁中，
   旁邊放同名覆蓋檔 `<名稱>.<語言>.json`，由 `Core/Localization/SqlTextOverlay` 依語言疊上去，缺的欄位用來源那一句。
 - 格式是 `{ "<編號>": { "<欄位>": "譯文" } }`，只放含中文的文字欄；編號與欄位由載入器定，陣列位置從 0 起算：
 
   | 來源 | 編號 | 欄位 |
   |---|---|---|
-  | `BuiltInDocs` 的 `docs` | `name` | `summary`、`example` |
-  | `BuiltInDocs` 的 `tables` | `tables.<編號>` | `title`、`columns.<欄>`、`rows.<列>.<欄>` |
+  | `BuiltInDocs/` 的各種類檔 | `name` | `summary`、`examples.<範例 id>.title`／`.sql`、`references.<位置>.title`／`.columns.<欄>`／`.rows.<列>.<欄>`（只限內嵌表） |
+  | `BuiltInDocs/tables.json` | 表格編號 | `title`、`columns.<欄>`、`rows.<列>.<欄>` |
   | `DefaultSnippets` | `id` | `title`、`description`、`code`、`placeholders.<欄位 id>.tooltip`／`.default` |
 
 - 範例與片段樣板只翻 `--` 註解與中文字串常值，`$surround$`、`{name}` 原樣保留。

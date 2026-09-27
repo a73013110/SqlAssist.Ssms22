@@ -26,6 +26,7 @@
 | `SELECT *` 展不開、展錯或排版不對 | `Core/Wildcards/SqlWildcardAnalyzer.cs`、`SqlWildcardExpansionText.cs` |
 | Tab／Shift+Tab 的行為 | `Ssms22/Editor/SqlTabCommandHandler.cs` |
 | 滑鼠停留提示的內容 | `Ssms22/QuickInfo/SqlQuickInfoContentBuilder.cs` |
+| 內建說明認不出、內容不對、與物件誰先 | `Core/Keywords/SqlBuiltInDocCatalog.cs`、`BuiltInDocs/`、`Ssms22/Editor/SqlBuiltInObjectResolution.cs` |
 | 參數提示不出現、粗體錯位、刪字或點回括號後不回來、Esc 後又冒出 | `Ssms22/Signatures/SqlSignatureHelp.cs`、`SqlParameterHintKeeper.cs`、`Core/Completion/SqlCallSignature.cs`、`SqlParameterHintRevival.cs` |
 | 浮動預覽的行為或擺放 | `Ssms22/Preview/SqlStructurePreview.cs` |
 | 任何自製 UI、顏色、字型或排版 | `Ssms22/UI/SqlAssistChrome.cs` |
