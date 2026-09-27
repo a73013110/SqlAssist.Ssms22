@@ -1,4 +1,432 @@
 {
   "version": 2,
-  "docs": []
+  "docs": [
+    {
+      "name": "EXEC",
+      "kind": "statement",
+      "aliases": ["EXECUTE"],
+      "summary": "執行預存程序或動態 SQL；OUTPUT 沒同時標在宣告與呼叫端就傳不回值。",
+      "signature": "EXEC [ @return_status = ] { procedure | @procedure_var }\n    [ [ @param = ] { value | @variable [ OUTPUT ] | DEFAULT } [ ,...n ] ]\n    [ WITH RECOMPILE ]\nEXEC ( 'sql_string' | @sql_variable ) [ AS { LOGIN | USER } = 'name' ] [ AT linked_server ]\nEXEC { procedure | @procedure_var } ... WITH RESULT SETS ( ( column_name column_type [ ,...n ] ) | NONE | UNDEFINED )",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "EXEC sys.sp_helpdb @dbname = 'master'   -- 具名參數，任意順序"
+        },
+        {
+          "id": "return-value",
+          "title": "取得傳回碼",
+          "sql": "CREATE PROCEDURE #Lib_CheckStock @CopyNo int\nAS\n    IF @CopyNo > 100\n        RETURN 1;    -- 非 0 表示查無資料\n    RETURN 0;\nGO\nDECLARE @ret int;\nEXEC @ret = #Lib_CheckStock @CopyNo = 999;\nSELECT @ret AS ReturnCode;   -- 結果：1\nGO"
+        },
+        {
+          "id": "output-trap",
+          "title": "OUTPUT 參數陷阱",
+          "sql": "CREATE PROCEDURE #Lib_GetCopyCount @Branch varchar(10), @CopyCount int OUTPUT\nAS\n    SELECT @CopyCount = 3;   -- 示範值，實際會查 Cat_BookCopy\nGO\nDECLARE @n int = -1;\nEXEC #Lib_GetCopyCount @Branch = 'A01', @CopyCount = @n;         -- 漏寫 OUTPUT\nSELECT @n AS Missed;    -- 結果：-1，沒收到值（呼叫端也要標 OUTPUT）\nEXEC #Lib_GetCopyCount @Branch = 'A01', @CopyCount = @n OUTPUT;  -- 正確寫法\nSELECT @n AS Correct;   -- 結果：3\nGO"
+        },
+        {
+          "id": "insert-exec",
+          "title": "INSERT 搭配 EXEC 接結果",
+          "sql": "CREATE PROCEDURE #Lib_ListBranches\nAS\n    SELECT v.Branch FROM (VALUES ('A01'), ('B02')) AS v(Branch);\nGO\nDECLARE @t TABLE (Branch varchar(10));\nINSERT INTO @t EXEC #Lib_ListBranches;\nSELECT COUNT(*) AS BranchCount FROM @t;   -- 結果：2\nGO"
+        },
+        {
+          "id": "result-sets",
+          "title": "RESULT SETS 改欄名",
+          "sql": "CREATE PROCEDURE #Lib_RawNames\nAS\n    SELECT 'A01' AS Col1, 10 AS Col2;\nGO\nEXEC #Lib_RawNames\n    WITH RESULT SETS ((Branch varchar(10), CopyCount int));  -- 改掉原本的 Col1／Col2\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/execute-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "EXEC proc @p1, @p2",
+              "位置參數，依宣告順序對應"
+            ],
+            [
+              "EXEC proc @p2 = 'y', @p1 = 'x'",
+              "具名參數，順序可以打亂"
+            ],
+            [
+              "EXEC @ret = proc ...",
+              "取得預存程序的傳回碼（int，0 表示成功）"
+            ],
+            [
+              "EXEC proc @out = @variable OUTPUT",
+              "取得輸出參數；宣告與呼叫端都要寫 OUTPUT"
+            ],
+            [
+              "EXEC ('SELECT ...') 或 EXEC (@sql)",
+              "執行動態組出的字串"
+            ],
+            [
+              "EXEC (@sql) AT linked_server",
+              "把字串送到連結伺服器執行"
+            ],
+            [
+              "EXEC proc ... WITH RECOMPILE",
+              "這次執行不使用快取的執行計畫"
+            ],
+            [
+              "EXEC proc WITH RESULT SETS ((col type, ...))",
+              "改寫結果集的欄名與型別"
+            ],
+            [
+              "INSERT INTO t EXEC proc",
+              "把結果集接進資料表或資料表變數"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RAISERROR",
+      "kind": "statement",
+      "summary": "拋出自訂訊息；嚴重性 ≤10 不進 CATCH，WITH NOWAIT 立即送出。",
+      "signature": "RAISERROR ( { msg_id | msg_str | @local_variable } , severity , state [ , argument [ ,...n ] ] )\n    [ WITH option [ ,...n ] ]   -- option：LOG | NOWAIT | SETERROR",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "RAISERROR(N'借閱人 %s 已達上限', 16, 1, N'Lib_Reader001');   -- 結果：訊息 50000"
+        },
+        {
+          "id": "severity-not-caught",
+          "title": "嚴重性 ≤10 不進 CATCH",
+          "sql": "BEGIN TRY\n    RAISERROR(N'僅供參考', 10, 1);   -- 嚴重性 10，訊息性\n    SELECT N'CATCH 不會攔到這個' AS Note;\nEND TRY\nBEGIN CATCH\n    SELECT N'不會執行到這裡' AS Note;\nEND CATCH;\n-- 結果：印出「CATCH 不會攔到這個」，TRY 區塊照常往下執行"
+        },
+        {
+          "id": "nowait",
+          "title": "WITH NOWAIT 立即送出",
+          "sql": "RAISERROR(N'開始處理...', 0, 1) WITH NOWAIT;\nWAITFOR DELAY '00:00:02';\nRAISERROR(N'處理完成', 0, 1) WITH NOWAIT;\n-- 結果：第一則訊息立即顯示，不必等到批次結束或緩衝區滿"
+        },
+        {
+          "id": "hex-octal",
+          "title": "%x／%o 十六進位與八進位",
+          "sql": "RAISERROR(N'十六進位 %x，八進位 %o', 0, 1, 255, 8);\n-- 結果：十六進位 ff，八進位 10"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/raiserror-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "RAISERROR(msg_str, severity, state)",
+              "直接拋出未註冊的訊息字串，錯誤代碼固定 50000"
+            ],
+            [
+              "RAISERROR(msg_id, severity, state)",
+              "拋出用 sys.sp_addmessage 註冊過的訊息代碼"
+            ],
+            [
+              "RAISERROR(msg_str, severity, state, arg1, ...)",
+              "格式字串搭配 %s／%d 等規格代入引數"
+            ],
+            [
+              "RAISERROR(...) WITH NOWAIT",
+              "訊息立即送到用戶端，不等批次結束"
+            ],
+            [
+              "RAISERROR(...) WITH LOG",
+              "同時寫進錯誤紀錄檔與應用程式紀錄"
+            ],
+            [
+              "RAISERROR(...) WITH SETERROR",
+              "把 @@ERROR／ERROR_NUMBER() 設成 msg_id，即使嚴重性 ≤10"
+            ]
+          ]
+        },
+        {
+          "title": "格式字串",
+          "columns": [
+            "規格",
+            "意義",
+            "範例"
+          ],
+          "rows": [
+            [
+              "%s",
+              "字串（char／varchar／nchar／nvarchar）",
+              "RAISERROR(N'找不到 %s', 16, 1, N'Lib_Reader')"
+            ],
+            [
+              "%d",
+              "帶正負號的整數",
+              "RAISERROR(N'數量 %d', 16, 1, -3)"
+            ],
+            [
+              "%i",
+              "同 %d，帶正負號的整數",
+              "RAISERROR(N'數量 %i', 16, 1, 5)"
+            ],
+            [
+              "%u",
+              "不帶正負號的整數",
+              "RAISERROR(N'代碼 %u', 16, 1, 42)"
+            ],
+            [
+              "%x",
+              "十六進位，小寫",
+              "RAISERROR(N'值 %x', 0, 1, 255)   -- ff"
+            ],
+            [
+              "%o",
+              "八進位",
+              "RAISERROR(N'值 %o', 0, 1, 8)   -- 10"
+            ]
+          ]
+        },
+        {
+          "title": "嚴重性",
+          "columns": [
+            "嚴重性",
+            "代表什麼",
+            "是否中斷連線",
+            "需要的權限"
+          ],
+          "rows": [
+            [
+              "0–10",
+              "訊息性訊息，不算錯誤",
+              "否",
+              "無"
+            ],
+            [
+              "11–16",
+              "使用者可修正的一般錯誤，會被 TRY…CATCH 接住",
+              "否",
+              "無特殊權限"
+            ],
+            [
+              "17–19",
+              "資源或系統層級的問題；19 以上才需要額外權限",
+              "否（連線通常仍存活）",
+              "19 以上需要 sysadmin 或 ALTER TRACE，並搭配 WITH LOG"
+            ],
+            [
+              "20–25",
+              "致命錯誤",
+              "是，用戶端連線會中斷",
+              "需要 sysadmin 或 ALTER TRACE，並搭配 WITH LOG"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "THROW",
+      "kind": "statement",
+      "summary": "擲出錯誤中止批次；前句要分號，自訂號碼須 ≥ 50000。",
+      "signature": "THROW [ error_number , message , state ] [ ; ]   -- 不帶參數只能在 CATCH 裡使用",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "THROW 51000, N'找不到借閱人', 1;"
+        },
+        {
+          "id": "rethrow",
+          "title": "在 CATCH 裡重新擲出",
+          "sql": "BEGIN TRY\n    SELECT 1 / 0;              -- 觸發除以零的錯誤\nEND TRY\nBEGIN CATCH\n    -- 這裡可以先記錄錯誤，再原封不動往外拋\n    THROW;                      -- 只能在 CATCH 裡這樣用\nEND CATCH;"
+        },
+        {
+          "id": "semicolon-trap",
+          "title": "前一句沒分號會失敗",
+          "sql": "BEGIN TRY\n    DECLARE @x int = 1  -- 少了這行結尾的分號\n    THROW 51000, N'示範', 1;\nEND TRY\nBEGIN CATCH\n    SELECT ERROR_MESSAGE() AS Msg;\nEND CATCH;\n-- 結果：編譯失敗，因為 THROW 前一句沒有分號"
+        },
+        {
+          "id": "error-number-trap",
+          "title": "錯誤號碼要 ≥ 50000",
+          "sql": "BEGIN TRY\n    THROW 999, N'示範', 1;   -- 使用者自訂錯誤必須 >= 50000\nEND TRY\nBEGIN CATCH\n    SELECT ERROR_MESSAGE() AS Msg;\nEND CATCH;\n-- 結果：編譯失敗，error_number 未滿 50000"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/throw-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "THROW;",
+              "在 CATCH 區塊裡重新擲出目前接住的錯誤；只能在 CATCH 裡使用"
+            ],
+            [
+              "THROW error_number, message, state;",
+              "擲出自訂錯誤；error_number 必須 ≥ 50000"
+            ],
+            [
+              "THROW @ErrorNumber, @ErrorMessage, @ErrorState;",
+              "三個引數都可以用變數"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MERGE",
+      "kind": "statement",
+      "summary": "依同一個 ON 條件同時處理新增、更新、刪除；陳述式結尾一定要加分號，來源在關聯鍵上有重複值會在執行期報錯。",
+      "signature": "MERGE target_table [ AS target_alias ]\nUSING source_table [ AS source_alias ] ON merge_condition\n[ WHEN MATCHED [ AND condition ] THEN { UPDATE SET column = value [ ,...n ] | DELETE } ]\n[ WHEN NOT MATCHED [ BY TARGET ] [ AND condition ] THEN INSERT ( column [ ,...n ] ) VALUES ( value [ ,...n ] ) ]\n[ WHEN NOT MATCHED BY SOURCE [ AND condition ] THEN { UPDATE SET column = value [ ,...n ] | DELETE } ]\n[ OUTPUT $action , inserted.* , deleted.* ]\n;",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "DECLARE @t TABLE(k int);MERGE @t USING(VALUES(1))s(k)ON @t.k=s.k WHEN MATCHED THEN DELETE;"
+        },
+        {
+          "id": "output-action",
+          "title": "$action 看做了什麼",
+          "sql": "DECLARE @Target TABLE (CopyNo int PRIMARY KEY, Branch varchar(10));\nDECLARE @Source TABLE (CopyNo int, Branch varchar(10));\nINSERT INTO @Target VALUES (1, 'A01');\nINSERT INTO @Source VALUES (1, 'B02'), (2, 'B02');\nMERGE @Target AS t\nUSING @Source AS s ON t.CopyNo = s.CopyNo\nWHEN MATCHED THEN UPDATE SET t.Branch = s.Branch\nWHEN NOT MATCHED BY TARGET THEN INSERT (CopyNo, Branch) VALUES (s.CopyNo, s.Branch)\nOUTPUT $action, inserted.CopyNo, deleted.Branch;   -- 結果：'UPDATE'(1)、'INSERT'(2)\nGO"
+        },
+        {
+          "id": "delete-by-source",
+          "title": "清掉來源沒有的資料",
+          "sql": "DECLARE @Target TABLE (CopyNo int PRIMARY KEY);\nDECLARE @Source TABLE (CopyNo int);\nINSERT INTO @Target VALUES (1), (2);\nINSERT INTO @Source VALUES (1);\nMERGE @Target AS t\nUSING @Source AS s ON t.CopyNo = s.CopyNo\nWHEN NOT MATCHED BY SOURCE THEN DELETE;\nSELECT * FROM @Target;   -- 結果：只剩 CopyNo = 1\nGO"
+        },
+        {
+          "id": "duplicate-source-trap",
+          "title": "來源重複鍵會出錯",
+          "sql": "DECLARE @Target TABLE (CopyNo int PRIMARY KEY, Branch varchar(10));\nDECLARE @Source TABLE (CopyNo int, Branch varchar(10));\nINSERT INTO @Target VALUES (1, 'A01');\nINSERT INTO @Source VALUES (1, 'B02'), (1, 'B03');   -- 同一個 CopyNo 出現兩次\nMERGE @Target AS t\nUSING @Source AS s ON t.CopyNo = s.CopyNo\nWHEN MATCHED THEN UPDATE SET t.Branch = s.Branch;\n-- 結果：執行期錯誤，同一列被 MERGE 嘗試更新兩次\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/merge-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "WHEN MATCHED THEN UPDATE SET ...",
+              "目標與來源都有對應鍵時更新"
+            ],
+            [
+              "WHEN MATCHED THEN DELETE",
+              "目標與來源都有對應鍵時刪除目標那一列"
+            ],
+            [
+              "WHEN NOT MATCHED [BY TARGET] THEN INSERT (...) VALUES (...)",
+              "來源有、目標沒有時新增"
+            ],
+            [
+              "WHEN NOT MATCHED BY SOURCE THEN UPDATE 或 DELETE",
+              "目標有、來源沒有時更新或刪除，常用來清掉多餘資料"
+            ],
+            [
+              "OUTPUT $action, inserted.*, deleted.*",
+              "回報每一列實際做了 INSERT／UPDATE／DELETE 哪一種"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WAITFOR",
+      "kind": "statement",
+      "summary": "暫停到指定時間長度或時刻；格式只接受 hh:mm:ss，不能帶日期。",
+      "signature": "WAITFOR { DELAY 'hh:mm:ss[.mmm]' | TIME 'hh:mm:ss[.mmm]' }",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "WAITFOR DELAY '00:00:02';   -- 結果：暫停約 2 秒後才繼續"
+        },
+        {
+          "id": "time",
+          "title": "等到指定時刻",
+          "sql": "WAITFOR TIME '23:59:59';\nPRINT N'到點了';\n-- 結果：批次會停在這裡，直到系統時間走到 23:59:59（隔天也算）"
+        },
+        {
+          "id": "date-trap",
+          "title": "格式不能帶日期",
+          "sql": "WAITFOR DELAY '1.00:00:05';   -- 想寫「1 天又 5 秒」\n-- 結果：轉換失敗，DELAY／TIME 只接受 hh:mm:ss[.mmm]，不能帶天數或日期"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/waitfor-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "WAITFOR DELAY '00:00:05'",
+              "從現在起等待指定的時間長度再往下執行"
+            ],
+            [
+              "WAITFOR TIME '23:30:00'",
+              "等到今天（或明天）的這個時刻才往下執行"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BULK INSERT",
+      "kind": "statement",
+      "summary": "把資料檔案大量匯入資料表；路徑是伺服器端路徑，非用戶端路徑。",
+      "signature": "BULK INSERT [ database_name . ] [ schema_name . ] table_name\n    FROM 'data_file'\n    [ WITH (\n        [ FORMAT = 'CSV' ] [ , FIELDTERMINATOR = 'field_terminator' ] [ , ROWTERMINATOR = 'row_terminator' ]\n        [ , FIRSTROW = first_row ] [ , FIELDQUOTE = 'quote_character' ] [ , TABLOCK ]\n    ) ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Lib_ReaderImport(ReaderId int, ReaderName nvarchar(100));"
+        },
+        {
+          "id": "csv-format",
+          "title": "CSV 格式與 FIRSTROW",
+          "sql": "-- 下面這行需要換成 SQL Server 服務所在機器看得到的路徑（不是用戶端路徑）\nBULK INSERT #Lib_ReaderImport\nFROM 'D:/import/Lib_Reader.csv'\nWITH (\n    FORMAT = 'CSV',\n    FIRSTROW = 2,     -- 跳過標題列\n    FIELDQUOTE = '\"'  -- 欄位裡含逗號時用雙引號包住\n);\n-- 結果：路徑要換成真的存在的檔案才能執行，否則回報作業系統錯誤 3（找不到路徑）"
+        },
+        {
+          "id": "delimiter",
+          "title": "自訂分隔符與 TABLOCK",
+          "sql": "-- 需要替換路徑：伺服器端可存取的檔案路徑\nBULK INSERT #Lib_ReaderImport\nFROM 'D:/import/Lib_Reader.txt'\nWITH (\n    FIELDTERMINATOR = '|',\n    TABLOCK\n);\n-- 結果：需要換成真實路徑；TABLOCK 讓匯入期間整張表被鎖住以加快速度"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/bulk-insert-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "BULK INSERT t FROM 'file' WITH (FORMAT = 'CSV', FIRSTROW = 2)",
+              "以 CSV 格式匯入，FIRSTROW 跳過標題列"
+            ],
+            [
+              "... WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '0x0A')",
+              "自訂欄位與換行分隔符；也可以用十六進位常數表示"
+            ],
+            [
+              "... WITH (FIELDQUOTE = '\"')",
+              "指定 CSV 的引號字元，處理欄位裡含分隔符的情況"
+            ],
+            [
+              "... WITH (TABLOCK)",
+              "匯入期間鎖住整張表，加快大量匯入速度"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
 }
