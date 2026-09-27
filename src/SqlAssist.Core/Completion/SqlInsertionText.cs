@@ -89,6 +89,7 @@ public static class SqlInsertionText
             SuggestionKind.DatePart => true,
             SuggestionKind.TableHint => true,
             SuggestionKind.QueryHint => true,
+            SuggestionKind.Alias => true,
             _ => false
         };
     }

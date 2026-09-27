@@ -129,6 +129,10 @@ internal static class SuggestionScore
         {
             SuggestionKind.Snippet => 40,
 
+            // 別名排在欄位之上：只有敘述裡真的寫了才會進候選，幾個而已；在多個來源的
+            // ON、WHERE 裡，使用者先打的是 a. 這種限定字，欄位要等那之後才選。
+            SuggestionKind.Alias => 36,
+
             // 欄位只會在敘述真的看得到它們時才進入候選，因此排在資料表之上：
             // 在 SELECT 或 WHERE 位置輸入前綴時，要的幾乎都是欄位。
             SuggestionKind.Column => 35,

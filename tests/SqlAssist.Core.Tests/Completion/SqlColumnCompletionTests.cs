@@ -41,6 +41,19 @@ public sealed class SqlColumnCompletionTests
             .ToArray();
     }
 
+    /// <summary>相互關聯子查詢裡的外層別名列得出欄位。</summary>
+    /// <remarks>
+    /// 範圍只看子查詢那一層時，<c>a.</c> 與 <c>b.</c> 都退回結構描述的解讀，清單是空的。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.Loan a\nINNER JOIN dbo.Copy b ON b.CopyNo = a.CopyNo\nWHERE LEN(b.CopyNo) > 4\n    AND NOT EXISTS(SELECT * FROM dbo.Branch c WHERE c.CopyNo = a.|)", "Loan")]
+    [InlineData("SELECT * FROM dbo.Loan a\nINNER JOIN dbo.Copy b ON b.CopyNo = a.CopyNo\nWHERE LEN(b.CopyNo) > 4\n    AND NOT EXISTS(SELECT * FROM dbo.Branch c WHERE c.CopyNo = b.|)", "Copy")]
+    [InlineData("SELECT * FROM dbo.Loan a\nINNER JOIN dbo.Copy b ON b.CopyNo = a.CopyNo\nWHERE LEN(b.CopyNo) > 4\n    AND NOT EXISTS(SELECT * FROM dbo.Branch c WHERE c.|)", "Branch")]
+    public void 相互關聯子查詢的外層別名列得出欄位(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(expected, ResolvedTable(Analyze(sqlWithCaret)).ObjectName);
+    }
+
     /// <remarks>
     /// MERGE 的動作子句過去解析不出 target 與 source：<c>WHEN MATCHED THEN UPDATE</c>
     /// 裡的 UPDATE 被當成新敘述的開頭，範圍就從那裡切斷了（見

@@ -46,6 +46,8 @@
   "DataSource": "資料來源",
   // 指令碼自己宣告的暫存資料表、資料表變數與 CTE。
   "ScriptDataSource": "指令碼資料來源",
+  // 敘述裡資料來源的別名（FROM dbo.Loan l 的 l）。
+  "Alias": "別名",
   "Variable": "變數",
   "LocalVariable": "區域變數",
   "GlobalVariable": "全域變數",

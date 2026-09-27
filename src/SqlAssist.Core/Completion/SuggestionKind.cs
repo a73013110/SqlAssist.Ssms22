@@ -149,6 +149,16 @@ public enum SuggestionKind
     /// 目前資料庫的定序算在裡面：這份指令碼裡每一個沒有加 <c>COLLATE</c> 的
     /// 字串比較用的就是它，加上 <c>COLLATE</c> 通常正是要把某一邊<b>對齊</b>到它。
     /// </remarks>
-    CollationInUse
+    CollationInUse,
+
+    /// <summary>敘述裡資料來源的別名（<c>FROM dbo.Loan l</c> 的 <c>l</c>），含外層查詢的。</summary>
+    /// <remarks>
+    /// 欄位列得出來的地方就列得出限定它們的別名：<c>ON |</c>、<c>WHERE |</c> 之後接的常是
+    /// <c>target.</c>、<c>a.</c>。別名只存在於這一句，中繼資料與指令碼宣告的名冊都沒有它。
+    ///
+    /// 與 <see cref="ScriptDataSource"/> 分開：那一類接在 <c>FROM</c> 後面，
+    /// 這一類只寫在運算式裡，兩者從來不會出現在同一格。
+    /// </remarks>
+    Alias
 }
 

@@ -14,6 +14,9 @@ namespace SqlAssist.Core.Parsing;
 /// 子查詢自己的 FROM 子句，而 <c>COUNT(…)</c>、<c>ISNULL(…)</c>、
 /// <c>WHERE (…)</c>、<c>IN (…)</c> 這些只是運算式的一部分，
 /// 裡面仍然看得見外層的 FROM 子句。
+///
+/// 子查詢自己的來源之外，外層查詢的來源掛在 <see cref="SqlStatementScope.Outer"/>：
+/// 相互關聯子查詢引用的正是它們。
 /// </remarks>
 public static class SqlScopeAnalyzer
 {
@@ -111,13 +114,19 @@ public static class SqlScopeAnalyzer
             return SqlStatementScope.Empty;
         }
 
-        var caretIndex = FindCaretTokenIndex(tokens, caretPosition);
-        var start = FindScopeStart(tokens, caretIndex);
+        return AnalyzeAt(tokens, FindCaretTokenIndex(tokens, caretPosition), caretPosition);
+    }
+
+    /// <summary><paramref name="last"/> 這個詞元所在的範圍，連同包住它的外層。</summary>
+    private static SqlStatementScope AnalyzeAt(IReadOnlyList<SqlToken> tokens, int last, int caretPosition)
+    {
+        var start = FindScopeStart(tokens, last);
+        var outer = AnalyzeEnclosing(tokens, start);
 
         // 範圍起點可能落在最後一個詞法單元之後，例如剛輸入 "FROM (" 的當下。
         if (start >= tokens.Count)
         {
-            return new SqlStatementScope(Array.Empty<SqlTableReference>(), caretPosition, caretPosition);
+            return new SqlStatementScope(Array.Empty<SqlTableReference>(), caretPosition, caretPosition, outer);
         }
 
         var end = FindStatementEnd(tokens, start);
@@ -126,7 +135,28 @@ public static class SqlScopeAnalyzer
         return new SqlStatementScope(
             tables,
             tokens[start].Start,
-            end > start ? tokens[end - 1].End : tokens[start].Start);
+            end > start ? tokens[end - 1].End : tokens[start].Start,
+            outer);
+    }
+
+    /// <summary>
+    /// 從 <paramref name="start"/> 開始的範圍是子查詢時，括號外面那一層。
+    /// </summary>
+    /// <remarks>
+    /// 範圍起點緊接在左括號後面，只會是 <see cref="FindScopeStart"/> 認定開啟查詢的那一個——
+    /// 分號與 GO 之後的起點前面不是左括號。外層從括號前一個詞元再找一次，
+    /// 每一層都比上一層短，遞迴深度就是子查詢的巢狀層數。
+    /// </remarks>
+    private static SqlStatementScope? AnalyzeEnclosing(IReadOnlyList<SqlToken> tokens, int start)
+    {
+        var open = start - 1;
+
+        if (open < 1 || open >= tokens.Count || !tokens[open].IsPunctuation("("))
+        {
+            return null;
+        }
+
+        return AnalyzeAt(tokens, open - 1, tokens[open].Start);
     }
 
     /// <summary>最後一個起點在游標之前的詞法單元。</summary>

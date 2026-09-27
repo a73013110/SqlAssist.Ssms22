@@ -38,6 +38,7 @@
   "Parameters": "Parameters",
   "DataType": "Data type",
   "DataSource": "Data source",
+  "Alias": "Alias",
   "ScriptDataSource": "Script data source",
   "Variable": "Variable",
   "LocalVariable": "Local variable",

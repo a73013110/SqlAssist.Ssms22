@@ -305,6 +305,46 @@ public sealed class SqlScopeAnalyzerTests
         Assert.Equal("c", table.Alias);
     }
 
+    /// <summary>
+    /// 相互關聯子查詢引用的外層別名解析得出來；未限定的來源仍只有子查詢自己那一層。
+    /// </summary>
+    /// <remarks>
+    /// 只看子查詢那一層的話，<c>a.</c> 退回「a 是結構描述」的解讀，一個欄位都列不出來。
+    /// </remarks>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.Loan a JOIN dbo.Copy b ON b.CopyNo = a.CopyNo\nWHERE NOT EXISTS(SELECT * FROM dbo.Branch c WHERE c.CopyNo = a.|)")]
+    [InlineData("SELECT * FROM dbo.Loan a JOIN dbo.Copy b ON b.CopyNo = a.CopyNo\nWHERE NOT EXISTS(SELECT * FROM dbo.Branch c WHERE c.CopyNo = a.|CopyNo)")]
+    [InlineData("SELECT * FROM dbo.Loan a WHERE a.CopyNo IN (SELECT c.CopyNo FROM dbo.Branch c WHERE EXISTS (SELECT 1 FROM dbo.Copy d WHERE d.CopyNo = a.|))")]
+    public void 相互關聯子查詢看得到外層的別名(string sqlWithCaret)
+    {
+        var scope = Analyze(sqlWithCaret);
+
+        Assert.DoesNotContain(scope.Tables, table => table.Alias == "a");
+        Assert.True(scope.TryResolve("a", out var outer));
+        Assert.Equal("Loan", outer.ObjectName);
+    }
+
+    /// <summary>子查詢裡與外層同名的別名遮住外層那一個。</summary>
+    [Fact]
+    public void 內層別名遮住外層同名的別名()
+    {
+        var scope = Analyze("SELECT * FROM dbo.Loan a WHERE EXISTS (SELECT 1 FROM dbo.Copy a WHERE a.|)");
+
+        Assert.True(scope.TryResolve("a", out var table));
+        Assert.Equal("Copy", table.ObjectName);
+        Assert.Equal("Loan", Assert.Single(scope.Outer!.Tables).ObjectName);
+    }
+
+    /// <summary>不在子查詢裡的範圍沒有外層；分號之後的下一句不是外層。</summary>
+    [Theory]
+    [InlineData("SELECT * FROM dbo.Loan a WHERE a.|")]
+    [InlineData("SELECT * FROM dbo.Copy b;\nSELECT * FROM dbo.Loan a WHERE a.|")]
+    [InlineData("SELECT COUNT(a.|) FROM dbo.Loan a")]
+    public void 子查詢以外沒有外層(string sqlWithCaret)
+    {
+        Assert.Null(Analyze(sqlWithCaret).Outer);
+    }
+
     /// <summary>反過來，外層的游標不應該看到子查詢裡的資料表。</summary>
     [Fact]
     public void 外層看不到子查詢的資料來源()

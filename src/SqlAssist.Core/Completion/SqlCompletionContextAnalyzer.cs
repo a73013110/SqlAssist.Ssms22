@@ -247,9 +247,16 @@ public static class SqlCompletionContextAnalyzer
             // CTE、暫存資料表與資料表變數只存在於這份指令碼裡，中繼資料查不到它們。
             // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
             // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
-            return context.Target == CompletionTarget.DataSource
-                ? withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(tokens, resolver))
-                : withScope;
+            //
+            // 別名也只存在於這一句裡，而且與欄位同格：欄位列得出來的地方就接得了
+            // 限定它們的 a.，位置過濾對兩者是同一條（AcceptsNames）。
+            return context.Target switch
+            {
+                CompletionTarget.DataSource =>
+                    withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(tokens, resolver)),
+                CompletionTarget.Any => withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope)),
+                _ => withScope
+            };
         }
 
         // 前方關鍵字已經指定了物件類別（FROM、JOIN、EXEC…），代表游標正在輸入

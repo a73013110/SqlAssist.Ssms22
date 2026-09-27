@@ -56,6 +56,7 @@ internal static partial class SqlIcons
         new(KnownMonikers.TableScript, () => SqlKindText.ScriptDataSource);
 
     private static readonly Definition Database = new(KnownMonikers.Database, () => SqlKindText.Database);
+    private static readonly Definition Alias = new(KnownMonikers.Shortcut, () => SqlKindText.Alias);
     private static readonly Definition GlobalVariable = new(KnownMonikers.GlobalVariable, () => SqlKindText.GlobalVariable);
     private static readonly Definition Variable = new(KnownMonikers.LocalVariable, () => SqlKindText.LocalVariable);
     private static readonly Definition DataType = new(KnownMonikers.Type, () => SqlKindText.DataType);
@@ -198,6 +199,7 @@ internal static partial class SqlIcons
         SuggestionKind.QueryHint => QueryHint,
         SuggestionKind.LinkedServer => LinkedServer,
         SuggestionKind.Collation or SuggestionKind.CollationInUse => Collation,
+        SuggestionKind.Alias => Alias,
         _ => Unknown
     };
 

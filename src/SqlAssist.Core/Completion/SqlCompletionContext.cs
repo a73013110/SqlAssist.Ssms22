@@ -126,7 +126,7 @@ public sealed class SqlCompletionContext
     /// <remarks>
     /// 共同點是中繼資料一個都看不到，而且是使用者上面幾行才寫下的。
     /// 哪一種放進來由位置決定：資料來源位置（<c>FROM </c>、<c>JOIN </c>…）
-    /// 而且沒有限定字時是 CTE 與暫存資料表，<c>@</c> 之後是變數。
+    /// 而且沒有限定字時是 CTE 與暫存資料表，<c>@</c> 之後是變數，運算式裡是這一句的別名。
     /// 其餘位置留空是刻意的：掃描不必要的話就不掃。
     /// </remarks>
     public IReadOnlyList<SqlSuggestion> ScriptSources { get; }

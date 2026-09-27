@@ -21,6 +21,7 @@ public sealed class SuggestionCategoryFilterTests
 
     [Theory]
     [InlineData(SuggestionKind.ScriptDataSource, SuggestionCategory.Table)]
+    [InlineData(SuggestionKind.Alias, SuggestionCategory.Table)]
     [InlineData(SuggestionKind.Schema, SuggestionCategory.SchemaOrDatabase)]
     [InlineData(SuggestionKind.Database, SuggestionCategory.SchemaOrDatabase)]
     [InlineData(SuggestionKind.LinkedServer, SuggestionCategory.SchemaOrDatabase)]
