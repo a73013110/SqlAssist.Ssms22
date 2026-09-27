@@ -181,6 +181,14 @@ public sealed class SqlClausePhraseTests
     [InlineData("DECLARE c SCROLL CURSOR FOR ", "SELECT")]
     [InlineData("CREATE USER u FOR ", "LOGIN")]
     [InlineData("CREATE TABLE t (a int IDENTITY NOT FOR ", "REPLICATION")]
+    [InlineData("BACKUP DATABASE LibArchive ", "TO")]
+    [InlineData("BACKUP DATABASE LibArchive TO ", "DISK", "URL")]
+    [InlineData("BACKUP DATABASE @db TO ", "DISK", "URL")]
+    [InlineData("BACKUP LOG LibArchive TO ", "DISK", "URL")]
+    [InlineData("RESTORE DATABASE LibArchive ", "FROM")]
+    [InlineData("RESTORE DATABASE LibArchive FROM ", "DISK", "URL")]
+    [InlineData("RESTORE LOG LibArchive FROM ", "DISK", "URL")]
+    [InlineData("RESTORE HEADERONLY FROM ", "DISK", "URL")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

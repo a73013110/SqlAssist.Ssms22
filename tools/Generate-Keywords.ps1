@@ -545,7 +545,7 @@ $phrasePool = @($keywords) + @($supporterWords) | Sort-Object -Unique
 Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 
 # 片語的尾巴。執行期由 SqlClausePhrase 以同一份文字比對游標前的詞元：
-#   {name}   一個名稱單位，可以含點號與方括號；保留字也算（ALTER INDEX ALL、ALTER DATABASE CURRENT）
+#   {name}   一個名稱單位，可以含點號與方括號；保留字（ALTER INDEX ALL、ALTER DATABASE CURRENT）與變數也算
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號
 #   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
@@ -591,8 +591,15 @@ $ClausePhrases = @(
     @{ Pattern = 'DROP'; After = @('AlterTableAction'); Expand = 2 }
     @{ Pattern = 'ALTER DATABASE {name}' }
     @{ Pattern = 'ALTER DATABASE {name} SET'; Expand = 1 }
-    @{ Pattern = 'BACKUP' }
-    @{ Pattern = 'RESTORE' }
+    # BACKUP／RESTORE 的標頭：名稱之後是 TO／FROM 與檔案、檔案群組，TO／FROM 之後是裝置種類
+    # （DISK、URL、TAPE）。RESTORE 往下兩層，HEADERONLY 這一族也走到 FROM 之後；
+    # DATABASE、LOG 之後是名稱，普通名稱過得了，探測不會把它判成封閉。
+    @{ Pattern = 'BACKUP'; Expand = 1 }
+    @{ Pattern = 'RESTORE'; Expand = 2 }
+    @{ Pattern = 'BACKUP DATABASE {name}'; Expand = 1 }
+    @{ Pattern = 'BACKUP LOG {name}'; Expand = 1 }
+    @{ Pattern = 'RESTORE DATABASE {name}'; Expand = 1 }
+    @{ Pattern = 'RESTORE LOG {name}'; Expand = 1 }
 
     # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，
     # 由後兩條 WITH (* 的片語補回來。

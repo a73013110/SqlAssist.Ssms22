@@ -1128,10 +1128,171 @@ internal static class SqlKeywordCatalogData
         {
             "CERTIFICATE", "DATABASE", "LOG", "SERVICE",
         }),
+        ("BACKUP CERTIFICATE", SqlKeywordPosition.StatementStart, "BACKUP CERTIFICATE ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("BACKUP DATABASE", SqlKeywordPosition.StatementStart, "BACKUP DATABASE ", false, false, new string[]
+        {
+        }),
+        ("BACKUP LOG", SqlKeywordPosition.StatementStart, "BACKUP LOG ", false, false, new string[]
+        {
+            "KEY",
+        }),
+        ("BACKUP SERVICE", SqlKeywordPosition.StatementStart, "BACKUP SERVICE ", true, false, new string[]
+        {
+            "KEY",
+        }),
         ("RESTORE", SqlKeywordPosition.StatementStart, "RESTORE ", true, false, new string[]
         {
             "DATABASE", "FILELISTONLY", "HEADERONLY", "LABELONLY", "LOG", "REWINDONLY",
             "SERVICE", "VERIFYONLY",
+        }),
+        ("RESTORE DATABASE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE ", false, false, new string[]
+        {
+        }),
+        ("RESTORE FILELISTONLY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE FILELISTONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE FILELISTONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE FILELISTONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE HEADERONLY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE HEADERONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE HEADERONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE HEADERONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LABELONLY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE LABELONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LABELONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE LABELONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE LOG", SqlKeywordPosition.StatementStart, "RESTORE LOG ", false, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE LOG FROM", SqlKeywordPosition.StatementStart, "RESTORE LOG FROM ", true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LOG KEY", SqlKeywordPosition.StatementStart, "RESTORE LOG KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE REWINDONLY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE REWINDONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE REWINDONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE REWINDONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE SERVICE", SqlKeywordPosition.StatementStart, "RESTORE SERVICE ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE SERVICE FROM", SqlKeywordPosition.StatementStart, "RESTORE SERVICE FROM ", true, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE SERVICE KEY", SqlKeywordPosition.StatementStart, "RESTORE SERVICE KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("RESTORE VERIFYONLY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY ", true, false, new string[]
+        {
+            "FROM", "KEY",
+        }),
+        ("RESTORE VERIFYONLY FROM", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE VERIFYONLY KEY", SqlKeywordPosition.StatementStart, "RESTORE VERIFYONLY KEY ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("BACKUP DATABASE {name}", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t ", true, true, new string[]
+        {
+            "FILE", "FILEGROUP", "PAGE", "READ_WRITE_FILEGROUPS", "TO",
+        }),
+        ("BACKUP DATABASE {name} FILE", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILE ", true, false, new string[]
+        {
+        }),
+        ("BACKUP DATABASE {name} FILEGROUP", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t FILEGROUP ", true, false, new string[]
+        {
+        }),
+        ("BACKUP DATABASE {name} PAGE", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t PAGE ", true, false, new string[]
+        {
+        }),
+        ("BACKUP DATABASE {name} TO", SqlKeywordPosition.StatementStart, "BACKUP DATABASE t TO ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("BACKUP LOG {name}", SqlKeywordPosition.StatementStart, "BACKUP LOG t ", true, true, new string[]
+        {
+            "TO",
+        }),
+        ("BACKUP LOG {name} TO", SqlKeywordPosition.StatementStart, "BACKUP LOG t TO ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE DATABASE {name}", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t ", true, true, new string[]
+        {
+            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS",
+        }),
+        ("RESTORE DATABASE {name} FILE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILE ", true, false, new string[]
+        {
+        }),
+        ("RESTORE DATABASE {name} FILEGROUP", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FILEGROUP ", true, false, new string[]
+        {
+        }),
+        ("RESTORE DATABASE {name} FROM", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE DATABASE {name} PAGE", SqlKeywordPosition.StatementStart, "RESTORE DATABASE t PAGE ", true, false, new string[]
+        {
+        }),
+        ("RESTORE LOG {name}", SqlKeywordPosition.StatementStart, "RESTORE LOG t ", true, true, new string[]
+        {
+            "FILE", "FILEGROUP", "FROM", "PAGE", "READ_WRITE_FILEGROUPS",
+        }),
+        ("RESTORE LOG {name} FILE", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILE ", true, false, new string[]
+        {
+        }),
+        ("RESTORE LOG {name} FILEGROUP", SqlKeywordPosition.StatementStart, "RESTORE LOG t FILEGROUP ", true, false, new string[]
+        {
+        }),
+        ("RESTORE LOG {name} FROM", SqlKeywordPosition.StatementStart, "RESTORE LOG t FROM ", false, false, new string[]
+        {
+            "DATABASE_SNAPSHOT", "DISK", "TAPE", "URL", "VIRTUAL_DEVICE",
+        }),
+        ("RESTORE LOG {name} PAGE", SqlKeywordPosition.StatementStart, "RESTORE LOG t PAGE ", true, false, new string[]
+        {
         }),
         ("ALTER INDEX {name} ON {name}", SqlKeywordPosition.StatementStart, "ALTER INDEX t ON t ", true, false, new string[]
         {

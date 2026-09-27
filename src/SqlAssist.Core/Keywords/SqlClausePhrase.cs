@@ -229,9 +229,14 @@ public sealed class SqlClausePhrase
                 case ElementKind.Name:
                     // 保留字也收：ALTER INDEX ALL ON t、ALTER DATABASE CURRENT 在名稱那一格寫的就是
                     // 保留字，而片語前後的字面值已經把位置釘住了，不必靠名稱這一格再擋。
-                    return token.Kind == SqlTokenKind.Identifier
-                        ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1
-                        : Mismatch;
+                    // 變數也收：BACKUP DATABASE @db TO 是維護指令碼的常態寫法，而名稱寫不成變數的
+                    // 語句本來就不合法，放行不會讓別的位置比對錯。
+                    return token.Kind switch
+                    {
+                        SqlTokenKind.Identifier => SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1,
+                        SqlTokenKind.Variable => last - 1,
+                        _ => Mismatch
+                    };
 
                 case ElementKind.Value:
                     if (token.Kind is SqlTokenKind.Number or SqlTokenKind.String or SqlTokenKind.Variable)
