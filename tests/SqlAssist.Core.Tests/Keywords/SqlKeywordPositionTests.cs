@@ -716,6 +716,9 @@ public sealed class SqlKeywordPositionTests
     [InlineData("IF @a = 1 ", false)]
     [InlineData("IF @a = 1 BEGIN SELECT 1 END ", false)]
     [InlineData("DECLARE c CURSOR LOCAL ", false)]
+    [InlineData("CREATE TRIGGER tr ON t ", false)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN ", false)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", false)]
     [InlineData("IF @a = 1 PRINT 'x' ", true)]
     public void 位置過濾也管資料庫物件(string textBeforeCaret, bool expected)
     {
@@ -1291,14 +1294,30 @@ public sealed class SqlKeywordPositionTests
     }
 
     /// <summary>
-    /// 游標宣告的選項之後只接更多選項或 FOR。
+    /// 敘述自己的格子：游標選項、觸發程序標頭、MERGE 的 WHEN、BACKUP／RESTORE 的選項清單。
     /// </summary>
+    /// <remarks>
+    /// 這些格子接的多半是非關鍵字，由只認位置的子句片語給；判不出位置時片語無從比對。
+    /// 反方向也要守：CASE 的 WHEN、括號裡的逗號、BACKUP CERTIFICATE 的 WITH 不是這些格子。
+    /// </remarks>
     [Theory]
     [InlineData("DECLARE c CURSOR ", SqlKeywordPosition.CursorOption)]
     [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD ", SqlKeywordPosition.CursorOption)]
     [InlineData("DECLARE [c] SCROLL CURSOR ", SqlKeywordPosition.CursorOption)]
     [InlineData("DECLARE @c CURSOR ", SqlKeywordPosition.Any)]
-    public void 游標選項之後只接FOR(string textBeforeToken, SqlKeywordPosition expected)
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan ", SqlKeywordPosition.TriggerHeader)]
+    [InlineData("CREATE OR ALTER TRIGGER dbo.tr ON dbo.Loan WITH ENCRYPTION, EXECUTE AS 'u' ", SqlKeywordPosition.TriggerHeader)]
+    [InlineData("ALTER TRIGGER tr ON Loan WITH EXECUTE AS CALLER ", SqlKeywordPosition.TriggerHeader)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN ", SqlKeywordPosition.MergeWhen)]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = 1\nWHEN ", SqlKeywordPosition.MergeWhen)]
+    [InlineData("MERGE t USING s ON CASE WHEN ", SqlKeywordPosition.Predicate)]
+    [InlineData("SELECT CASE WHEN ", SqlKeywordPosition.Predicate)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", SqlKeywordPosition.BackupOption)]
+    [InlineData("BACKUP LOG d TO DISK = 'x' WITH INIT, STATS = 10, ", SqlKeywordPosition.BackupOption)]
+    [InlineData("RESTORE DATABASE d FROM DISK = 'x' WITH MOVE 'a' TO 'b', ", SqlKeywordPosition.RestoreOption)]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ENCRYPTION (ALGORITHM = AES_256, ", SqlKeywordPosition.Any)]
+    [InlineData("BACKUP CERTIFICATE c TO FILE = 'x' WITH ", SqlKeywordPosition.Any)]
+    public void 敘述自己的格子(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }

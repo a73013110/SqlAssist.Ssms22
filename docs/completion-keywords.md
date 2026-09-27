@@ -55,7 +55,7 @@ SELECT * FROM t WHERE → EXISTS、NOT、CASE…
 SET NOCOUNT           → ON、OFF（SetOptionValue；片語比對不上時的退路）
 BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
 IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
-DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給）
+DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給，TriggerHeader、MergeWhen、BackupOption 同理）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
@@ -86,7 +86,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 | `ORDER BY C`（修正後） | `OrderByColumn` | 30 | `cs`，接著就是欄位 |
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
-`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption`
+`AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
 都是**自己的成員**，不借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，緊鄰的形狀走不出
@@ -102,7 +102,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 |---|---|
 | 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
 | `StatementStart`、`BlockStart`、`BlockEnd`、`IfBodyEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字或 `ELSE` |
-| `CursorOption`（`DECLARE c CURSOR LOCAL \|`） | 選項或 `FOR` |
+| `CursorOption`、`TriggerHeader`、`MergeWhen`、`BackupOption`、`RestoreOption` | 選項、`FOR`、`MATCHED` 這類字 |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
 | `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |

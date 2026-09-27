@@ -313,6 +313,12 @@ $ContextTemplates = [ordered]@{
 
     # 游標的選項不是關鍵字（LOCAL、FAST_FORWARD 是識別字），由子句片語給；這裡只撈得到 FOR。
     CursorOption     = @('DECLARE c CURSOR ', 'DECLARE c CURSOR LOCAL FAST_FORWARD ')
+
+    # 下面四個同一個道理：AFTER、INSTEAD、MATCHED 與 BACKUP／RESTORE 的選項都不是關鍵字，由子句片語給。
+    TriggerHeader    = @('CREATE TRIGGER tr ON t ', 'CREATE TRIGGER tr ON t WITH ENCRYPTION ')
+    MergeWhen        = @('MERGE t USING s ON 1 = 1 WHEN ', 'MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE WHEN ')
+    BackupOption     = @("BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ")
+    RestoreOption    = @("RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ")
     SetTarget        = @('SET ')
 
     # SET 的選項名稱寫完之後的 ON／OFF。各選項自己的值（隔離等級、STATISTICS IO…）
@@ -470,18 +476,22 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #   {value}  一個數值、字串、變數，或一整組括號
 #   ()       一整組括號
 #   (*       還沒關上的左括號清單，游標在左括號或逗號之後；只能是最後一項
+# 尾巴可以是空的：只認位置，「這個位置接得了這些字」。游標選項這種會重複的格子尾巴寫不出來。
 #
 # 片語前面那一格由 After 與 Lead 二選一交代：
 #   After  片語第一個字前面的位置，名稱取自 $ContextTemplates。探測用那些位置的樣板，
 #          執行期也只在前一格是這些位置時才算數——同一條尾巴在不同位置是不同的意思
 #          （查詢之後的 FOR 接 XML，UPDATE t SET 的 SET 不是選項的 SET）。
 #          兩個都不寫就是 StatementStart：沒有 Lead 的片語都從一句的開頭寫起。
-#   Lead   尾巴本身就認得出意思、只是探測時要墊的文字；執行期不看前一格。
+#   Lead   位置分析判不出前一格、而尾巴本身就認得出意思時，探測要墊的文字；執行期不看前一格。
+#          判得出來的一律寫 After：同一件事只由位置分析說一次。
 # Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
 # Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
 # 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來。
 # Closed 由人宣告那一格只有這幾個值。
 # 同一條尾巴、同一個位置後寫的覆蓋先寫的，所以 Expand 展開出來的片語可以在後面補 Values。
+$QueryTails = @('SelectListTail', 'TableSourceTail', 'ExpressionTail', 'OrderByTail', 'GroupByTail')
+
 $ClausePhrases = @(
     @{ Pattern = 'SET'; Expand = 4 }
     @{ Pattern = 'SET IDENTITY_INSERT {name}' }
@@ -499,48 +509,63 @@ $ClausePhrases = @(
     @{ Pattern = 'RESTORE' }
 
     # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了。
+    # INDEX 前面可以夾 UNIQUE、CLUSTERED 這些字，那一格判不出位置；尾巴本身只出現在 CREATE INDEX。
     @{ Pattern = 'ALTER INDEX {name} ON {name}' }
     @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
     @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) '; Values = @('WITH') }
     @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
     @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
 
-    # AFTER、FOR、INSTEAD 之後是 INSERT／UPDATE／DELETE 與 OF，WITH 之後是 ENCRYPTION 這些選項。
-    @{ Pattern = 'TRIGGER {name} ON {name}'; Lead = 'CREATE '; Expand = 1 }
+    # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 INSERT／UPDATE／DELETE、
+    # OF 與 EXECUTE；游標與 BACKUP／RESTORE 的選項清單每一格都是同一個位置，第二個選項之後也一樣。
+    @{ Pattern = ''; After = @('TriggerHeader'); Expand = 1 }
+    @{ Pattern = ''; After = @('CursorOption', 'BackupOption', 'RestoreOption') }
+
+    # MERGE 的 WHEN 之後是 MATCHED 與 NOT MATCHED，這兩者之後各再一層。
+    @{ Pattern = ''; After = @('MergeWhen'); Expand = 1 }
+    @{ Pattern = 'NOT MATCHED'; After = @('MergeWhen') }
+    @{ Pattern = 'NOT MATCHED BY'; After = @('MergeWhen') }
+
     @{ Pattern = 'EXECUTE AS' }
     @{ Pattern = 'EXEC AS' }
+
+    # 模組名稱之後判不出位置（還可能是參數），尾巴本身就認得出來。
     @{ Pattern = 'WITH EXECUTE AS'; Lead = 'CREATE PROCEDURE p ' }
     @{ Pattern = 'WITH EXEC AS'; Lead = 'CREATE PROCEDURE p ' }
+
+    # 資料行型別之後判不出位置（CREATE TABLE t (a int |）。
     @{ Pattern = 'ON DELETE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
     @{ Pattern = 'ON UPDATE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
-
-    @{ Pattern = 'WAITFOR' }
-    @{ Pattern = 'DECLARE {name} CURSOR' }
-    @{ Pattern = 'FETCH' }
-
-    # FOR 有好幾種意思。查詢寫完之後是 XML、JSON、BROWSE，資料表之後多一個 SYSTEM_TIME——
-    # 這兩種由前一格的位置分開。觸發程序、游標、序列、預設值條件約束、使用者與同義字的
-    # FOR 前一格判不出位置，各寫一條更長的尾巴；同時比對得上時取項數多的。
-    @{ Pattern = 'FOR'; After = @('SelectListTail', 'TableSourceTail', 'ExpressionTail', 'OrderByTail', 'GroupByTail'); Expand = 1 }
-    @{ Pattern = 'FOR SYSTEM_TIME'; After = @('TableSourceTail'); Expand = 1 }
-    @{ Pattern = 'CURSOR FOR'; Lead = 'DECLARE c ' }
-    @{ Pattern = 'NEXT VALUE FOR'; Lead = 'SELECT ' }
-    @{ Pattern = 'DEFAULT {value} FOR'; Lead = 'ALTER TABLE t ADD ' }
-    @{ Pattern = 'USER {name} FOR'; Lead = 'CREATE ' }
-    @{ Pattern = 'SYNONYM {name} FOR'; Lead = 'CREATE ' }
     @{ Pattern = 'NOT FOR'; Lead = 'CREATE TABLE t (a int IDENTITY ' }
 
-    @{ Pattern = 'GROUP BY'; Lead = 'SELECT a FROM t '; Values = @('ROLLUP', 'CUBE', 'GROUPING SETS') }
-    @{ Pattern = 'TOP {value} WITH'; Lead = 'SELECT ' }
-    @{ Pattern = 'PERCENT WITH'; Lead = 'SELECT TOP 10 ' }
+    @{ Pattern = 'WAITFOR' }
+    @{ Pattern = 'FETCH' }
+
+    # FOR 有好幾種意思，由前一格的位置分開：查詢寫完之後是 XML、JSON、BROWSE、UPDATE、READ，
+    # 資料表之後多一個 SYSTEM_TIME，游標選項之後是查詢，觸發程序標頭之後是 INSERT 這些事件。
+    # 查詢寫到 FOR UPDATE 已經完整，展開停在那裡；游標要的 OF 另外探。
+    @{ Pattern = 'FOR'; After = $QueryTails; Expand = 1 }
+    @{ Pattern = 'FOR UPDATE'; After = $QueryTails }
+    @{ Pattern = 'FOR SYSTEM_TIME'; After = @('TableSourceTail'); Expand = 1 }
+    @{ Pattern = 'FOR'; After = @('CursorOption') }
+    @{ Pattern = 'USER {name} FOR'; After = @('DdlObject') }
+    @{ Pattern = 'SYNONYM {name} FOR'; After = @('DdlObject') }
+
+    # 運算式寫在哪裡都行，函式引數裡判不出位置；CONSTRAINT df 之後也判不出來。
+    @{ Pattern = 'NEXT VALUE FOR'; Lead = 'SELECT ' }
+    @{ Pattern = 'DEFAULT {value} FOR'; Lead = 'ALTER TABLE t ADD ' }
     @{ Pattern = 'AT TIME'; Lead = 'SELECT a ' }
-    @{ Pattern = 'NOT MATCHED'; Lead = 'MERGE t USING s ON 1 = 1 WHEN ' }
-    @{ Pattern = 'MATCHED BY'; Lead = 'MERGE t USING s ON 1 = 1 WHEN NOT ' }
+
+    @{ Pattern = 'GROUP BY'; After = @('SelectListTail', 'TableSourceTail', 'ExpressionTail'); Values = @('ROLLUP', 'CUBE', 'GROUPING SETS') }
+
+    # TOP 子句寫完（TOP 10、TOP (10)、TOP 10 PERCENT）之後的 WITH 只接 TIES。
+    @{ Pattern = 'WITH'; After = @('TopClauseTail') }
 
     # OFFSET … FETCH：每一格只有一兩個字，但沒有它們就得整句背下來。
     # OFFSET 10 ROWS 已經是完整的語句，FETCH 同時是游標語句的開頭，被當成下一句扣掉了。
-    @{ Pattern = 'OFFSET {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a '; Values = @('FETCH') }
-    @{ Pattern = 'OFFSET {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a '; Values = @('FETCH') }
+    # OFFSET 之後的各段前一格也是 OrderByTail，但那個位置的代表樣板接不上 ROWS FETCH；尾巴本身認得出來。
+    @{ Pattern = 'OFFSET {value} ROWS'; After = @('OrderByTail'); Values = @('FETCH') }
+    @{ Pattern = 'OFFSET {value} ROW'; After = @('OrderByTail'); Values = @('FETCH') }
     @{ Pattern = 'ROWS FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
     @{ Pattern = 'ROW FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
     @{ Pattern = 'FETCH NEXT {value}'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
@@ -550,7 +575,8 @@ $ClausePhrases = @(
     @{ Pattern = 'FETCH FIRST {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
     @{ Pattern = 'FETCH FIRST {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
 
-    # 視窗框架。CURRENT 單獨一個字不收：WHERE CURRENT OF 也是它。
+    # 視窗框架。視窗的 ORDER BY 與查詢的 ORDER BY 在位置分析是同一格，代表樣板是查詢那一個。
+    # CURRENT 單獨一個字不收：WHERE CURRENT OF 也是它。
     # CURRENT 之後剖析器收任何識別字（留到語意檢查才擋），ROW 只能手寫。
     @{ Pattern = 'ROWS'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
     @{ Pattern = 'RANGE'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
@@ -798,6 +824,11 @@ public static class SqlAssistPhraseProber
 function Get-PhraseProbe {
     param([string]$Lead, [string]$Pattern)
 
+    # 只認位置的片語：樣板本身就是探測文字。
+    if (-not $Pattern) {
+        return $Lead
+    }
+
     $text = $Pattern.Replace('{name}', 't').Replace('{value}', '1').Replace('()', '(a)')
     $text = $Lead + $text.Replace('(*', '(')
 
@@ -863,7 +894,7 @@ function Add-ClausePhrase {
     }
 
     foreach ($word in $found) {
-        $child = "$Pattern $word"
+        $child = $Pattern ? "$Pattern $word" : $word
         $childProbe = "$Probe$word "
 
         # 語句在這裡已經完整（SET NOCOUNT ON）就不再往下：後面接的是下一句。
@@ -885,6 +916,10 @@ foreach ($entry in $ClausePhrases) {
     if ($null -ne $entry['Lead']) {
         if ($null -ne $entry['After']) {
             throw "片語「$pattern」的 Lead 與 After 只能寫一個。"
+        }
+
+        if (-not $pattern) {
+            throw '沒有尾巴的片語只能以 After 交代位置：執行期不看前一格的話，它哪裡都成立。'
         }
 
         Add-ClausePhrase @common -Probe (Get-PhraseProbe -Lead $entry['Lead'] -Pattern $pattern) -After 'Any'

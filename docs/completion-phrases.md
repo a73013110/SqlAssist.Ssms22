@@ -23,6 +23,7 @@
 | `{value}` | 數值、字串、變數或一整組括號 |
 | `()` | 一整組括號 |
 | `(*` | 還沒關上的左括號清單，游標在 `(` 或逗號之後；只能是最後一項 |
+| （空） | 沒有尾巴，只認位置：「這個位置接得了這些字」；必須寫 `After` |
 
 候選字是關鍵字清單加上 ScriptDom 內部 `CodeGenerationSupporter` 的全部字串常數，
 接不接得上用與第三階段相同的規則：普通名稱過不了而它過得了才算。比的除了整段，
@@ -52,14 +53,20 @@
 - `After`：位置名稱，取自第三階段的樣板表，探測用每個位置的**第一個**樣板，
   執行期由同一個位置分析回驗；兩個都不寫就是 `StatementStart`。
   幾個位置探到一樣的結果時併成一個片語，不一樣的各自一個。
-- `Lead`：尾巴本身就認得出意思（`NOT MATCHED`、`WITH EXECUTE AS`），只是探測要墊文字；執行期不看前一格。
+- `Lead`：前一格判不出位置、而尾巴本身就認得出意思（`WITH EXECUTE AS`、`NEXT VALUE FOR`）時，
+  探測要墊的文字；執行期不看前一格。判得出來的一律寫 `After`，同一件事只由位置分析說一次。
+
+會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
+沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
+BACKUP／RESTORE 的選項清單都是這樣，位置見[關鍵字](completion-keywords.md)。
 
 第一個樣板是那個位置的代表寫法，而且是完整的語句，「寫到這裡已經完整」才判得準。其餘樣板是
 第三階段撈齊關鍵字用的旁支：拿 `FROM t JOIN y` 探會長出 `FOR PATH` 之後一整串還缺 `ON` 的字，
 時間也多好幾倍。
 
-`FOR` 前一格判不出位置的那幾種意思（觸發程序、游標、`NEXT VALUE`、預設值條件約束、
-`CREATE USER`、`CREATE SYNONYM`、`NOT FOR REPLICATION`）各寫一條更長的尾巴，由比對取項數多的分開。
+`FOR` 的意思也由前一格分開：查詢尾端、資料表、游標選項（`CursorOption`）、觸發程序標頭
+（`TriggerHeader`）、`CREATE USER`／`SYNONYM` 的物件種類。前一格判不出位置的（`NEXT VALUE`、
+預設值條件約束、`NOT FOR REPLICATION`）才寫更長的 `Lead` 尾巴，由比對取項數多的分開。
 
 ## 執行期
 
@@ -73,6 +80,9 @@
 清單不封閉。`PRINT @a SET ` 的前一格判不出來：那個意思可能根本不成立，當成確定並封閉的話
 猜錯就少字——猜錯的代價必須是多幾個字。
 
+沒有尾巴的片語前一格就是游標處的位置，只在尾巴都比對不到、或只比對到可能時才輪到；
+游標處判不出位置時它什麼也沒認到，不算。
+
 比對**確定**時這一格的關鍵字只來自片語，規則在 `SuggestionContextFilter` 一處，
 認的是建議項的 `Tag` 而不是文字——`READ` 同時在目錄與片語裡。
 
@@ -83,17 +93,14 @@
 
 「可能」出現得越少，清單越準；它的來源是位置分析的 `Any`，該補的是分析器。模組標頭的
 `AS` 之後（`CREATE PROCEDURE p AS⏎SET NOCOUNT `）、IF 條件、`DESC` 之後因此都判得出來；
-游標選項之後是 `CursorOption`，查詢的 `FOR` 對不上，`SELECT` 照列。
+游標選項之後的 `FOR` 對上的是游標那一條，列的是 `SELECT`。
 
 ## 刻意沒收的
 
-- `MERGE … WHEN ` 的 `MATCHED`：尾巴 `WHEN` 與 `CASE WHEN` 分不開。`NOT MATCHED`、
-  `MATCHED BY` 之後分得開，有收。
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- 不在括號裡的選項清單（`BACKUP … WITH COMPRESSION, `、`CURSOR LOCAL `之後的第二個選項）：
-  尾巴表達不了重複，而 `BACKUP` 與 `RESTORE` 的 `WITH` 前綴相同、選項不同。
-- 觸發程序在選項之後的 FOR（`ON t WITH ENCRYPTION FOR `）：前一格判得出是資料來源尾端，
-  會被當成查詢之後的 FOR。
+- 視窗框架與 `OFFSET` 之後各段的前一格：位置分析只說得出 `OrderByTail`，代表樣板是查詢的
+  `ORDER BY`，探不出 `ROWS`、`FETCH`；這幾條留 `Lead`。
+- 觸發程序 `WITH` 之後的選項（`ENCRYPTION`）：剖析器對任何名稱都報同一個錯，探不出來。
 - `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
   名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。

@@ -1,7 +1,6 @@
 using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
-using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
 using Xunit;
 
@@ -36,13 +35,13 @@ public sealed class SqlClausePhraseTests
     /// 兩邊說的不是同一個位置時，片語的字會出現在錯的地方或永遠不出現。比對還要是確定的：
     /// 探測文字前面墊的是 After 那些位置的樣板，位置分析判不出來就是兩邊說的不是同一個位置。
     /// 同一條尾巴在不同位置上的片語也在這裡分開——比對回別的那一個就代表位置重疊了。
+    /// 只認位置的片語，探測文字就是位置的樣板。
     /// </remarks>
     [Theory]
     [MemberData(nameof(GeneratorProbes))]
     public void 產生器的探測文字比對回同一個片語(string pattern, string probe)
     {
-        var tokens = SqlTokenizer.Tokenize(probe);
-        var match = SqlClausePhraseCatalog.Match(tokens, probe);
+        var match = SqlKeywordPositionAnalyzer.Analyze(probe).Phrase;
 
         Assert.NotNull(match);
         Assert.True(match!.IsCertain);
@@ -89,8 +88,22 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER DATABASE CURRENT SET RECOVERY ", "SIMPLE", "FULL", "BULK_LOGGED")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan ", "AFTER", "INSTEAD", "FOR")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan INSTEAD ", "OF")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ENCRYPTION ", "AFTER", "INSTEAD", "FOR")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ENCRYPTION FOR ", "INSERT", "UPDATE", "DELETE")]
+    [InlineData("ALTER TRIGGER tr ON dbo.Loan WITH EXECUTE AS CALLER AFTER ", "INSERT")]
     [InlineData("WAITFOR ", "DELAY", "TIME")]
     [InlineData("DECLARE c CURSOR ", "LOCAL", "FAST_FORWARD", "FOR")]
+    [InlineData("DECLARE c CURSOR LOCAL ", "FAST_FORWARD", "READ_ONLY", "FOR")]
+    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD FOR ", "SELECT")]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR ", "UPDATE", "READ")]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR UPDATE ", "OF")]
+    [InlineData("DECLARE c CURSOR FOR SELECT a FROM t FOR READ ", "ONLY")]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", "COMPRESSION", "INIT")]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ", "INIT", "COPY_ONLY")]
+    [InlineData("RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ", "RECOVERY", "NORECOVERY")]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN ", "MATCHED", "NOT")]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN NOT ", "MATCHED")]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED ", "THEN", "AND")]
     [InlineData("SELECT a FROM t FOR XML ", "PATH", "RAW", "AUTO", "EXPLICIT")]
     [InlineData("SELECT a FROM t FOR JSON ", "PATH", "AUTO")]
     [InlineData("SELECT a FROM t ORDER BY a OFFSET 10 ROWS ", "FETCH")]
@@ -101,6 +114,7 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ", "PRECEDING", "FOLLOWING")]
     [InlineData("SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ", "ROW")]
     [InlineData("SELECT TOP (10) WITH ", "TIES")]
+    [InlineData("SELECT DISTINCT TOP 10 PERCENT WITH ", "TIES")]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN NOT MATCHED ", "BY", "THEN")]
     [InlineData("MERGE t USING s ON t.a = s.a WHEN NOT MATCHED BY ", "TARGET", "SOURCE")]
     [InlineData("SELECT a FROM t FOR SYSTEM_TIME ", "AS", "BETWEEN", "ALL")]
@@ -150,6 +164,10 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t WHERE a = 1 FOR ", "SYSTEM_TIME")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "XML")]
     [InlineData("DECLARE c CURSOR FOR ", "XML")]
+    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD FOR ", "XML")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan WITH ENCRYPTION FOR ", "XML")]
+    [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ", "SELECT")]
+    [InlineData("MERGE t USING s ON t.a = s.a WHEN ", "EXISTS")]
     [InlineData("SELECT a FROM t ORDER BY a DESC FOR ", "SELECT")]
     [InlineData("IF @a = 1 SET ", "SELECT")]
     public void 片語比對得到時不列片語以外的關鍵字(string textBeforeToken, string keyword)
@@ -169,6 +187,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("ALTER TABLE t ALTER ", "SEQUENCE")]
     [InlineData("ALTER TABLE t DROP ", "SYNONYM")]
     [InlineData("DELETE FROM t WHERE CURRENT ", "ROW")]
+    [InlineData("SELECT CASE WHEN ", "MATCHED")]
+    [InlineData("BACKUP CERTIFICATE c TO FILE = 'x' WITH ", "COMPRESSION")]
+    [InlineData("SELECT a FROM t WITH ", "TIES")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -186,6 +207,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT a FROM t GROUP BY ", false)]
     [InlineData("SELECT a FROM t FOR ", true)]
     [InlineData("CREATE TRIGGER tr ON t FOR ", true)]
+    [InlineData("CREATE TRIGGER tr ON t WITH ENCRYPTION FOR ", true)]
+    [InlineData("DECLARE c CURSOR LOCAL ", true)]
     [InlineData("SELECT NEXT VALUE FOR ", false)]
     [InlineData("ALTER TABLE t ADD CONSTRAINT df DEFAULT 0 FOR ", false)]
     [InlineData("CREATE SYNONYM s FOR ", false)]
@@ -217,20 +240,6 @@ public sealed class SqlClausePhraseTests
         Assert.NotEqual(CompletionTarget.ClauseKeyword, context.Target);
         Assert.Contains(phraseWord, offered);
         Assert.Contains(catalogWord, offered);
-    }
-
-    /// <summary>
-    /// 游標選項之後的 FOR 不是查詢之後的 FOR：不比對片語，SELECT 照列、XML 不列。
-    /// </summary>
-    [Fact]
-    public void 游標選項之後的FOR不是查詢之後的FOR()
-    {
-        const string text = "DECLARE c CURSOR LOCAL FAST_FORWARD FOR ";
-        var offered = Offered(text);
-
-        Assert.Null(SqlCompletionContextAnalyzer.Analyze(text).ClausePhrase);
-        Assert.Contains("SELECT", offered);
-        Assert.DoesNotContain("XML", offered);
     }
 
     /// <summary>

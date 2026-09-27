@@ -122,6 +122,25 @@ public enum SqlKeywordPosition
     /// <summary>DECLARE c CURSOR 與它的選項之後——FOR；選項本身由子句片語給。</summary>
     CursorOption = 1 << 25,
 
+    /// <summary>觸發程序標頭的目標與 WITH 選項之後——FOR、WITH；AFTER、INSTEAD 由子句片語給。</summary>
+    /// <remarks>
+    /// 不借用資料來源尾端：<c>ON t WITH ENCRYPTION FOR</c> 的 FOR 接 INSERT，不接 XML。
+    /// </remarks>
+    TriggerHeader = 1 << 27,
+
+    /// <summary>MERGE 的 WHEN 之後——NOT；MATCHED 由子句片語給。</summary>
+    /// <remarks>
+    /// 不借用述詞起點：<c>CASE WHEN</c> 之後才是述詞，那裡寫得出欄位，這裡寫不出。
+    /// </remarks>
+    MergeWhen = 1 << 28,
+
+    /// <summary>BACKUP DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
+    BackupOption = 1 << 29,
+
+    /// <summary>RESTORE DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
+    /// <remarks>不併進 <see cref="BackupOption"/>：兩者的選項不同。</remarks>
+    RestoreOption = 1 << 30,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -156,7 +175,8 @@ public enum SqlKeywordPosition
     Any = StatementStart | SelectList | SelectListTail | DataSource
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
-        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | SetTarget | InsertTarget
+        | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
+        | MergeWhen | BackupOption | RestoreOption | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

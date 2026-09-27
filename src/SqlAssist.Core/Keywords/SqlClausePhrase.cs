@@ -94,9 +94,13 @@ public sealed class SqlClausePhrase
 
     /// <summary>片語最後一項是字面值時的那個字；比對前先用它分桶。</summary>
     internal string? LastWord =>
-        _elements[_elements.Length - 1] is { Kind: ElementKind.Word } last ? last.Word : null;
+        _elements.Length > 0 && _elements[_elements.Length - 1] is { Kind: ElementKind.Word } last ? last.Word : null;
 
     /// <summary>片語有幾項；同時比對得上時，項數多的比較靠近游標的意思。</summary>
+    /// <remarks>
+    /// 零項的片語沒有尾巴，只認游標處的位置（<see cref="After"/>）：「這個位置接得了這些字」。
+    /// 游標選項這種會重複的格子（<c>CURSOR LOCAL FAST_FORWARD </c>）尾巴寫不出來，位置寫得出來。
+    /// </remarks>
     internal int Length => _elements.Length;
 
     /// <summary><paramref name="word"/> 是不是這個片語接得上的字。</summary>
@@ -161,11 +165,6 @@ public sealed class SqlClausePhrase
                     throw new FormatException($"Phrase '{pattern}': unknown element {parts[index]}."),
                 _ => new Element(ElementKind.Word, parts[index])
             };
-        }
-
-        if (elements.Length == 0)
-        {
-            throw new FormatException("Phrase must not be empty.");
         }
 
         return elements;

@@ -22,6 +22,9 @@ public static class SqlClausePhraseCatalog
     /// <summary>最後一項是名稱、值或括號的片語；項數多的排前面。</summary>
     private static readonly SqlClausePhrase[] EndingWithPlaceholder = FindEndingWithPlaceholder();
 
+    /// <summary>沒有尾巴、只認游標處位置的片語。</summary>
+    private static readonly SqlClausePhrase[] AtPosition = Phrases.Where(phrase => phrase.Length == 0).ToArray();
+
     /// <summary>全部片語。</summary>
     public static IReadOnlyList<SqlClausePhrase> All => Phrases;
 
@@ -30,44 +33,45 @@ public static class SqlClausePhraseCatalog
     /// </summary>
     /// <param name="tokens">游標<b>之前</b>、不含正在輸入的那個詞元的詞法單元。</param>
     /// <param name="textBeforeToken">同一段原文；前一格的位置要看換行。</param>
+    /// <param name="caret">位置分析對游標處的回報；沒有尾巴的片語拿它當前一格。</param>
     /// <remarks>
     /// 語句到片語為止已經完整、游標又換了行時不算，見 <see cref="SqlClausePhrase.EndsStatement"/>。
     /// 片語前一格的位置過不了 <see cref="SqlClausePhrase.After"/> 時也不算。
     ///
     /// 同時比對得上時取項數多的：<c>OFFSET 0 ROWS </c> 是 <c>OFFSET {value} ROWS</c>
-    /// 而不是視窗框架的 <c>ROWS</c>；<c>CREATE TRIGGER tr ON t FOR </c> 是觸發程序的 FOR
-    /// 而不是查詢之後的 FOR。項數一樣多的只有同一條尾巴在不同位置上的片語，它們的位置
+    /// 而不是視窗框架的 <c>ROWS</c>；<c>SELECT TOP 10 WITH </c> 的 WITH 前一格是 TOP 子句，
+    /// 不是觸發程序標頭。項數一樣多的只有同一條尾巴在不同位置上的片語，它們的位置
     /// 互不重疊，前一格判不出位置時才同時成立，那時取字多的——多列幾個字，不少列。
+    ///
+    /// 沒有尾巴的片語項數是零，只在尾巴都比對不到、或只比對到<b>可能</b>時才輪到：它的前一格
+    /// 就是游標處，判得出來就是確定的。游標處判不出位置時它什麼也沒認到，不算。
     /// </remarks>
-    public static SqlClausePhraseMatch? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken)
+    internal static SqlClausePhraseMatch? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken, SqlKeywordPosition caret)
     {
-        if (tokens is null)
-        {
-            throw new ArgumentNullException(nameof(tokens));
-        }
-
-        if (textBeforeToken is null)
-        {
-            throw new ArgumentNullException(nameof(textBeforeToken));
-        }
-
-        if (tokens.Count == 0)
-        {
-            return null;
-        }
-
-        var last = tokens[tokens.Count - 1];
-        var onNewLine = SqlKeywordPositionAnalyzer.StartsOnNewLine(last.End, textBeforeToken.Length, textBeforeToken);
         SqlClausePhraseMatch? best = null;
+        var onNewLine = false;
 
-        if (last.Kind == SqlTokenKind.Identifier &&
-            !last.IsQuoted &&
-            ByLastWord.TryGetValue(last.Value, out var candidates))
+        if (tokens.Count > 0)
         {
-            best = FirstMatch(candidates, tokens, textBeforeToken, onNewLine, minimumLength: 0);
+            var last = tokens[tokens.Count - 1];
+            onNewLine = SqlKeywordPositionAnalyzer.StartsOnNewLine(last.End, textBeforeToken.Length, textBeforeToken);
+
+            if (last.Kind == SqlTokenKind.Identifier &&
+                !last.IsQuoted &&
+                ByLastWord.TryGetValue(last.Value, out var candidates))
+            {
+                best = FirstMatch(candidates, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0);
+            }
+
+            best = FirstMatch(EndingWithPlaceholder, tokens, textBeforeToken, onNewLine, caret, best?.Phrase.Length + 1 ?? 0) ?? best;
         }
 
-        return FirstMatch(EndingWithPlaceholder, tokens, textBeforeToken, onNewLine, best?.Phrase.Length + 1 ?? 0) ?? best;
+        if (best is { IsCertain: true } || caret == SqlKeywordPosition.Any)
+        {
+            return best;
+        }
+
+        return FirstMatch(AtPosition, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0) ?? best;
     }
 
     private static SqlClausePhraseMatch? FirstMatch(
@@ -75,6 +79,7 @@ public static class SqlClausePhraseCatalog
         IReadOnlyList<SqlToken> tokens,
         string textBeforeToken,
         bool onNewLine,
+        SqlKeywordPosition caret,
         int minimumLength)
     {
         foreach (var phrase in candidates)
@@ -91,7 +96,7 @@ public static class SqlClausePhraseCatalog
 
             var start = phrase.MatchTail(tokens);
 
-            if (start >= 0 && Qualify(phrase, tokens, start, textBeforeToken) is { } match)
+            if (start >= 0 && Qualify(phrase, tokens, start, textBeforeToken, caret) is { } match)
             {
                 return match;
             }
@@ -106,19 +111,23 @@ public static class SqlClausePhraseCatalog
     /// <remarks>
     /// 判不出位置時算數但不確定，理由見 <see cref="SqlClausePhraseMatch"/>。
     /// 區塊開頭接的是語句，所以語句開頭的片語在那裡一樣成立：<c>BEGIN SET NOCOUNT ON</c>。
+    /// 沒有尾巴的片語從游標處開始，前一格就是 <paramref name="caret"/>，不必再分析一次。
     /// </remarks>
     private static SqlClausePhraseMatch? Qualify(
         SqlClausePhrase phrase,
         IReadOnlyList<SqlToken> tokens,
         int start,
-        string textBeforeToken)
+        string textBeforeToken,
+        SqlKeywordPosition caret)
     {
         if (phrase.After == SqlKeywordPosition.Any)
         {
             return phrase.Certain;
         }
 
-        var before = SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken);
+        var before = start == tokens.Count
+            ? caret
+            : SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken);
 
         if (before == SqlKeywordPosition.Any)
         {
@@ -183,7 +192,7 @@ public static class SqlClausePhraseCatalog
 
         foreach (var phrase in Phrases)
         {
-            if (phrase.LastWord is null)
+            if (phrase.LastWord is null && phrase.Length > 0)
             {
                 phrases.Add(phrase);
             }

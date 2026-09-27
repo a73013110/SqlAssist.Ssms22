@@ -87,7 +87,7 @@ internal static class SqlKeywordCatalogData
         new("EXIT", SqlKeywordPosition.None),
         new("EXTERNAL", SqlKeywordPosition.DdlObject),
         new("FETCH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
-        new("FILE", SqlKeywordPosition.None),
+        new("FILE", SqlKeywordPosition.RestoreOption),
         new("FILLFACTOR", SqlKeywordPosition.None),
         new("FOR", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.CursorOption),
         new("FOREIGN", SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.ColumnDefinition),
@@ -125,7 +125,7 @@ internal static class SqlKeywordCatalogData
         new("NOCHECK", SqlKeywordPosition.AlterTableAction),
         new("NOLOCK", SqlKeywordPosition.None),
         new("NONCLUSTERED", SqlKeywordPosition.DdlObject),
-        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
+        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.MergeWhen),
         new("NULL", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("NULLIF", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("OF", SqlKeywordPosition.None),
@@ -212,7 +212,7 @@ internal static class SqlKeywordCatalogData
         new("WHEN", SqlKeywordPosition.CaseBody),
         new("WHERE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail),
         new("WHILE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
-        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("WITH", SqlKeywordPosition.StatementStart | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.AlterTableAction | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.TriggerHeader),
         new("WRITETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
     };
 
@@ -269,6 +269,14 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.IfBodyEnd, "IF 1 = 1 SET NOCOUNT ON "),
         new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR "),
         new(SqlKeywordPosition.CursorOption, "DECLARE c CURSOR LOCAL FAST_FORWARD "),
+        new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t "),
+        new(SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t WITH ENCRYPTION "),
+        new(SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN "),
+        new(SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE WHEN "),
+        new(SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH "),
+        new(SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, "),
+        new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH "),
+        new(SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, "),
         new(SqlKeywordPosition.SetTarget, "SET "),
         new(SqlKeywordPosition.SetOptionValue, "SET NOCOUNT "),
         new(SqlKeywordPosition.SetOptionValue, "SET IDENTITY_INSERT t "),
@@ -901,25 +909,71 @@ internal static class SqlKeywordCatalogData
             "ORDER", "PAD_INDEX", "RESUMABLE", "SORT_IN_TEMPDB", "STATISTICS_INCREMENTAL",
             "STATISTICS_NORECOMPUTE", "TYPE", "WAIT_AT_LOW_PRIORITY", "XML_COMPRESSION",
         }),
-        ("TRIGGER {name} ON {name}", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t ", true, false, new string[]
+        ("", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t ", true, false, new string[]
         {
             "AFTER", "FOR", "INSTEAD", "WITH",
         }),
-        ("TRIGGER {name} ON {name} AFTER", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t AFTER ", true, false, new string[]
+        ("AFTER", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t AFTER ", true, false, new string[]
         {
             "DELETE", "INSERT", "UPDATE",
         }),
-        ("TRIGGER {name} ON {name} FOR", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t FOR ", true, false, new string[]
+        ("FOR", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t FOR ", true, false, new string[]
         {
             "DELETE", "INSERT", "UPDATE",
         }),
-        ("TRIGGER {name} ON {name} INSTEAD", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t INSTEAD ", true, false, new string[]
+        ("INSTEAD", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t INSTEAD ", true, false, new string[]
         {
             "OF",
         }),
-        ("TRIGGER {name} ON {name} WITH", SqlKeywordPosition.Any, "CREATE TRIGGER t ON t WITH ", true, false, new string[]
+        ("WITH", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t WITH ", true, false, new string[]
         {
             "EXEC", "EXECUTE",
+        }),
+        ("", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR ", true, false, new string[]
+        {
+            "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
+            "OPTIMISTIC", "READ_ONLY", "SCROLL", "SCROLL_LOCKS", "STATIC", "TYPE_WARNING",
+        }),
+        ("", SqlKeywordPosition.BackupOption, "BACKUP DATABASE d TO DISK = 'x' WITH ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMPRESSION", "CONTINUE_AFTER_ERROR",
+            "COPY_ONLY", "DESCRIPTION", "DIFFERENTIAL", "ENCRYPTION", "ENHANCEDINTEGRITY",
+            "EXPIREDATE", "FORMAT", "INIT", "MAXTRANSFERSIZE", "MEDIADESCRIPTION", "MEDIANAME",
+            "NAME", "NO_CHECKSUM", "NO_COMPRESSION", "NO_LOG", "NO_TRUNCATE", "NOFORMAT",
+            "NOINIT", "NORECOVERY", "NOREWIND", "NOSKIP", "NOUNLOAD", "RESTART", "RETAINDAYS",
+            "REWIND", "SKIP", "SNAPSHOT", "STANDBY", "STATS", "STOP_ON_ERROR", "TRUNCATE_ONLY",
+            "UNLOAD",
+        }),
+        ("", SqlKeywordPosition.RestoreOption, "RESTORE DATABASE d FROM DISK = 'x' WITH ", true, false, new string[]
+        {
+            "BLOCKSIZE", "BUFFERCOUNT", "CHECKSUM", "COMMIT_DIFFERENTIAL_BASE",
+            "CONTINUE_AFTER_ERROR", "ENABLE_BROKER", "ENHANCEDINTEGRITY",
+            "ERROR_BROKER_CONVERSATIONS", "FILE", "FILESTREAM", "KEEP_REPLICATION",
+            "KEEP_TEMPORAL_RETENTION", "LOADHISTORY", "MAXTRANSFERSIZE", "MEDIANAME",
+            "MEDIAPASSWORD", "NEW_BROKER", "NO_CHECKSUM", "NO_LOG", "NORECOVERY", "NOREWIND",
+            "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
+            "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
+            "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "UNLOAD", "VERBOSE",
+        }),
+        ("", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN ", true, false, new string[]
+        {
+            "MATCHED", "NOT",
+        }),
+        ("MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN MATCHED ", true, false, new string[]
+        {
+            "AND", "THEN",
+        }),
+        ("NOT", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT ", true, false, new string[]
+        {
+            "MATCHED",
+        }),
+        ("NOT MATCHED", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
+        {
+            "AND", "BY", "THEN",
+        }),
+        ("NOT MATCHED BY", SqlKeywordPosition.MergeWhen, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED BY ", true, false, new string[]
+        {
+            "SOURCE", "TARGET",
         }),
         ("EXECUTE AS", SqlKeywordPosition.StatementStart, "EXECUTE AS ", true, false, new string[]
         {
@@ -971,14 +1025,13 @@ internal static class SqlKeywordCatalogData
         {
             "DEFAULT", "NULL",
         }),
+        ("NOT FOR", SqlKeywordPosition.Any, "CREATE TABLE t (a int IDENTITY NOT FOR ", true, false, new string[]
+        {
+            "REPLICATION",
+        }),
         ("WAITFOR", SqlKeywordPosition.StatementStart, "WAITFOR ", true, false, new string[]
         {
             "DELAY", "TIME",
-        }),
-        ("DECLARE {name} CURSOR", SqlKeywordPosition.StatementStart, "DECLARE t CURSOR ", true, false, new string[]
-        {
-            "DYNAMIC", "FAST_FORWARD", "FOR", "FORWARD_ONLY", "GLOBAL", "KEYSET", "LOCAL",
-            "OPTIMISTIC", "READ_ONLY", "SCROLL", "SCROLL_LOCKS", "STATIC", "TYPE_WARNING",
         }),
         ("FETCH", SqlKeywordPosition.StatementStart, "FETCH ", false, false, new string[]
         {
@@ -1008,6 +1061,10 @@ internal static class SqlKeywordCatalogData
         {
             "ALL", "AS", "BETWEEN", "CONTAINED", "FROM",
         }),
+        ("FOR UPDATE", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail, "SELECT a FOR UPDATE ", true, true, new string[]
+        {
+            "OF", "OPTION",
+        }),
         ("FOR SYSTEM_TIME AS", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME AS ", true, false, new string[]
         {
             "OF",
@@ -1022,9 +1079,16 @@ internal static class SqlKeywordCatalogData
         ("FOR SYSTEM_TIME FROM", SqlKeywordPosition.TableSourceTail, "SELECT * FROM t FOR SYSTEM_TIME FROM ", true, false, new string[]
         {
         }),
-        ("CURSOR FOR", SqlKeywordPosition.Any, "DECLARE c CURSOR FOR ", true, false, new string[]
+        ("FOR", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR FOR ", true, false, new string[]
         {
             "SELECT", "WITH",
+        }),
+        ("USER {name} FOR", SqlKeywordPosition.DdlObject, "CREATE USER t FOR ", true, false, new string[]
+        {
+            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
+        }),
+        ("SYNONYM {name} FOR", SqlKeywordPosition.DdlObject, "CREATE SYNONYM t FOR ", false, false, new string[]
+        {
         }),
         ("NEXT VALUE FOR", SqlKeywordPosition.Any, "SELECT NEXT VALUE FOR ", false, false, new string[]
         {
@@ -1032,49 +1096,26 @@ internal static class SqlKeywordCatalogData
         ("DEFAULT {value} FOR", SqlKeywordPosition.Any, "ALTER TABLE t ADD DEFAULT 1 FOR ", false, false, new string[]
         {
         }),
-        ("USER {name} FOR", SqlKeywordPosition.Any, "CREATE USER t FOR ", true, false, new string[]
+        ("AT TIME", SqlKeywordPosition.Any, "SELECT a AT TIME ", true, false, new string[]
         {
-            "ASYMMETRIC", "CERTIFICATE", "EXTERNAL", "LOGIN",
+            "ZONE",
         }),
-        ("SYNONYM {name} FOR", SqlKeywordPosition.Any, "CREATE SYNONYM t FOR ", false, false, new string[]
-        {
-        }),
-        ("NOT FOR", SqlKeywordPosition.Any, "CREATE TABLE t (a int IDENTITY NOT FOR ", true, false, new string[]
-        {
-            "REPLICATION",
-        }),
-        ("GROUP BY", SqlKeywordPosition.Any, "SELECT a FROM t GROUP BY ", false, false, new string[]
+        ("GROUP BY", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail, "SELECT a GROUP BY ", false, false, new string[]
         {
             "ALL", "CASE", "COALESCE", "CONVERT", "CURRENT_DATE", "CURRENT_TIMESTAMP",
             "CURRENT_USER", "GROUPING", "LEFT", "NEXT", "NULL", "NULLIF", "RIGHT",
             "SESSION_USER", "SYSTEM_USER", "TRY_CONVERT", "USER", "ROLLUP", "CUBE",
             "GROUPING SETS",
         }),
-        ("TOP {value} WITH", SqlKeywordPosition.Any, "SELECT TOP 1 WITH ", true, false, new string[]
+        ("WITH", SqlKeywordPosition.TopClauseTail, "SELECT TOP 10 WITH ", true, false, new string[]
         {
             "APPROX", "APPROXIMATE", "TIES",
         }),
-        ("PERCENT WITH", SqlKeywordPosition.Any, "SELECT TOP 10 PERCENT WITH ", true, false, new string[]
-        {
-            "APPROX", "APPROXIMATE", "TIES",
-        }),
-        ("AT TIME", SqlKeywordPosition.Any, "SELECT a AT TIME ", true, false, new string[]
-        {
-            "ZONE",
-        }),
-        ("NOT MATCHED", SqlKeywordPosition.Any, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED ", true, false, new string[]
-        {
-            "AND", "BY", "THEN",
-        }),
-        ("MATCHED BY", SqlKeywordPosition.Any, "MERGE t USING s ON 1 = 1 WHEN NOT MATCHED BY ", true, false, new string[]
-        {
-            "SOURCE", "TARGET",
-        }),
-        ("OFFSET {value} ROWS", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 1 ROWS ", true, true, new string[]
+        ("OFFSET {value} ROWS", SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a OFFSET 1 ROWS ", true, true, new string[]
         {
             "FOR", "OPTION", "FETCH",
         }),
-        ("OFFSET {value} ROW", SqlKeywordPosition.Any, "SELECT a FROM t ORDER BY a OFFSET 1 ROW ", true, true, new string[]
+        ("OFFSET {value} ROW", SqlKeywordPosition.OrderByTail, "SELECT * FROM t ORDER BY a OFFSET 1 ROW ", true, true, new string[]
         {
             "FOR", "OPTION", "FETCH",
         }),

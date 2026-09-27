@@ -44,7 +44,9 @@ public static class SqlKeywordPositionExtensions
     /// 動作、條件約束關鍵字，或新資料行名稱。</item>
     /// <item><c>SET NOCOUNT |</c> 之後是選項值；要資料表的 <c>SET IDENTITY_INSERT |</c>
     /// 不是這個位置。</item>
-    /// <item><c>DECLARE c CURSOR LOCAL |</c> 之後是選項或 <c>FOR</c>。</item>
+    /// <item><c>DECLARE c CURSOR LOCAL |</c> 之後是選項或 <c>FOR</c>；觸發程序的 <c>ON t |</c> 之後是
+    /// <c>FOR</c>、<c>AFTER</c> 這些字；BACKUP／RESTORE 的 <c>WITH |</c> 之後是選項；MERGE 的
+    /// <c>WHEN |</c> 之後是 <c>MATCHED</c>、<c>NOT</c>。</item>
     /// </list>
     ///
     /// 不在裡面的都有理由：<c>INSERT |</c> 的 <c>INTO</c> 可以省略；<c>SET |</c> 與
@@ -62,6 +64,10 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.BlockEnd |
         SqlKeywordPosition.IfBodyEnd |
         SqlKeywordPosition.CursorOption |
+        SqlKeywordPosition.TriggerHeader |
+        SqlKeywordPosition.MergeWhen |
+        SqlKeywordPosition.BackupOption |
+        SqlKeywordPosition.RestoreOption |
         SqlKeywordPosition.ByAnchor |
         SqlKeywordPosition.DdlObject |
         SqlKeywordPosition.AlterTableAction |
