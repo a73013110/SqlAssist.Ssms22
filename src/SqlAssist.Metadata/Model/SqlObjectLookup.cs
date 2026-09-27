@@ -148,6 +148,27 @@ public sealed class SqlObjectLookup
             : new SqlObjectLocation(Reference, candidate.Object, column: null, detail: candidate.ScriptDetail);
     }
 
+    /// <summary>
+    /// 這個識別字在使用者物件裡找不到時，該不該退回問系統物件，以及要問哪個結構描述。
+    /// </summary>
+    /// <remarks>
+    /// 只看游標底下這個名稱與它的限定字，不查快照也不查資料庫——呼叫端要在
+    /// <see cref="FindCandidate"/> 都答不出來之後才問這裡，使用者自己的同名物件永遠先找。
+    /// 判斷本身放在 <see cref="SqlSystemObjectFallback"/>，方便單獨測試。
+    /// </remarks>
+    public bool TryGetSystemFallbackSchema(out string schemaName) =>
+        SqlSystemObjectFallback.TryGetFallbackSchema(Reference.Qualifier, Reference.Name, out schemaName);
+
+    /// <summary>
+    /// 把已經查到的系統物件包成候選人；查詢本身（要不要等、要不要查資料庫）留給呼叫端決定。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Candidate"/> 的建構子是 internal，呼叫端拿到系統物件的查詢結果之後
+    /// 不能自己組一個，只能經由這裡。
+    /// </remarks>
+    public Candidate? ToCandidate(IReadOnlyList<SqlObjectInfo> systemMatches) =>
+        systemMatches is { Count: > 0 } ? new Candidate(systemMatches[0], needsColumn: false) : null;
+
     /// <remarks>詞法單元傳進去，指令碼名冊與範圍分析共用同一次掃描。</remarks>
     private SqlScriptDeclarations Declarations =>
         _declarations ??= SqlScriptDeclarations.Create(_text, _tokens);

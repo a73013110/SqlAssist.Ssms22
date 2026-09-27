@@ -441,6 +441,51 @@ public sealed class SqlObjectLookupTests
         Assert.Equal("LibArchive", Assert.Single(external).DatabaseName);
     }
 
+    /// <summary>
+    /// 系統結構描述的限定字才退回系統物件；使用者自己的結構描述不套用這一條。
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT * FROM sys.sp_helpindex", "sp_helpindex", true)]
+    [InlineData("SELECT * FROM INFORMATION_SCHEMA.TABLES", "TABLES", true)]
+    [InlineData("SELECT * FROM dbo.Lib_Reader", "Lib_Reader", false)]
+    public void 限定字辨識系統結構描述的退路(string sql, string hover, bool expected)
+    {
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(hover, StringComparison.Ordinal))!;
+        Assert.Equal(expected, lookup.TryGetSystemFallbackSchema(out _));
+    }
+
+    /// <summary>未限定的 sp_／xp_ 名稱在使用者物件裡找不到時才問這一支。</summary>
+    [Theory]
+    [InlineData("EXEC sp_help 'dbo.Lib_Reader'", "sp_help")]
+    [InlineData("EXEC xp_cmdshell 'dir'", "xp_cmdshell")]
+    public void 未限定的系統程序名稱退回sys結構描述(string sql, string hover)
+    {
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf(hover, StringComparison.Ordinal))!;
+        Assert.True(lookup.TryGetSystemFallbackSchema(out var schema));
+        Assert.Equal("sys", schema);
+    }
+
+    /// <summary>
+    /// 使用者自己的同名物件仍優先：<see cref="SqlObjectLookup.FindCandidate"/> 已經找到
+    /// 使用者物件時，呼叫端不會再問 <see cref="SqlObjectLookup.TryGetSystemFallbackSchema"/>
+    /// ——這裡驗證的是 <c>ToCandidate</c> 本身對查詢結果的包裝，退路要不要問由呼叫端的
+    /// 判斷順序負責（<c>SqlObjectLocator</c> 只在 <c>FindCandidate</c> 落空後才呼叫）。
+    /// </summary>
+    [Fact]
+    public void 系統物件查詢結果包成候選人()
+    {
+        const string sql = "EXEC sp_help 'dbo.Lib_Reader'";
+        var lookup = SqlObjectLookup.Create(sql, sql.IndexOf("sp_help", StringComparison.Ordinal))!;
+        var systemProcedure = new SqlObjectInfo(11, "sys", "sp_help", SqlObjectKind.Procedure, "Library");
+
+        Assert.Null(lookup.ToCandidate(Array.Empty<SqlObjectInfo>()));
+
+        var candidate = lookup.ToCandidate(new[] { systemProcedure });
+        Assert.Same(systemProcedure, candidate!.Object);
+        Assert.False(candidate.NeedsColumn);
+        Assert.Null(candidate.ScriptDetail);
+    }
+
     private static SqlObjectInfo Table(int id, string database) =>
         new(id, "dbo", "Lib_Reader", SqlObjectKind.Table, database);
 
