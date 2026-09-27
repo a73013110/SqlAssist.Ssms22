@@ -1,4 +1,1627 @@
 {
   "version": 2,
-  "docs": []
+  "docs": [
+    {
+      "name": "sp_executesql",
+      "kind": "systemProcedure",
+      "summary": "執行動態 T-SQL；@stmt/@params 要 nvarchar，漏寫 OUTPUT 值抓不到。",
+      "signature": "sp_executesql @stmt = N'statement' [ , @params = N'@param1 data_type1 [OUT|OUTPUT] [,...]' ] [ , @param1 [ = ] value1 [OUTPUT] [,...] ]",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "EXEC sp_executesql N'SELECT 1 + @n AS x', N'@n int', @n = 2;   -- 結果：3"
+        },
+        {
+          "id": "input-params",
+          "title": "帶輸入參數",
+          "sql": "DECLARE @minLoans int = 3;\nEXEC sp_executesql\n    N'SELECT ReaderId, ReaderName FROM (VALUES (1, N''Amy'', 5), (2, N''Ben'', 1)) AS r(ReaderId, ReaderName, LoanCount) WHERE LoanCount >= @minLoans',\n    N'@minLoans int',\n    @minLoans;\n-- 結果：只有 Amy（LoanCount = 5 >= 3）；@stmt、@params 都要是 nvarchar（N'...'），不能是一般字串"
+        },
+        {
+          "id": "output-and-trap",
+          "title": "OUTPUT 與漏寫陷阱",
+          "sql": "DECLARE @readerName nvarchar(50);\nEXEC sp_executesql\n    N'SELECT @name = ReaderName FROM (VALUES (1, N''Amy''), (2, N''Ben'')) AS r(ReaderId, ReaderName) WHERE ReaderId = @id',\n    N'@id int, @name nvarchar(50) OUTPUT',\n    @id = 2,\n    @name = @readerName OUTPUT;\nSELECT @readerName;   -- 結果：Ben\nSET @readerName = NULL;\nEXEC sp_executesql\n    N'SELECT @name = ReaderName FROM (VALUES (1, N''Amy''), (2, N''Ben'')) AS r(ReaderId, ReaderName) WHERE ReaderId = @id',\n    N'@id int, @name nvarchar(50) OUTPUT',\n    @id = 2,\n    @name = @readerName;\nSELECT @readerName;   -- 結果：NULL——呼叫端這次漏寫 OUTPUT，值就帶不回來"
+        },
+        {
+          "id": "insert-exec",
+          "title": "INSERT 接結果集",
+          "sql": "CREATE TABLE #t (ReaderId int, ReaderName nvarchar(50));\nINSERT INTO #t\nEXEC sp_executesql\n    N'SELECT ReaderId, ReaderName FROM (VALUES (1, N''Amy''), (2, N''Ben'')) AS r(ReaderId, ReaderName) WHERE ReaderId > @minId',\n    N'@minId int',\n    @minId = 1;\nSELECT * FROM #t;   -- 結果：只有一列 (2, 'Ben')\nDROP TABLE #t;"
+        },
+        {
+          "id": "dynamic-table",
+          "title": "動態表名與參數化",
+          "sql": "CREATE TABLE #Cat_BookCopy (CopyNo int, Branch nvarchar(20));\nINSERT INTO #Cat_BookCopy VALUES (1, N'Main'), (2, N'East'), (3, N'Main');\nDECLARE @tableName sysname = N'#Cat_BookCopy';\nDECLARE @paramDef nvarchar(max) = N'@branch nvarchar(20)';\nDECLARE @sql nvarchar(max) = N'SELECT COUNT(*) AS Cnt FROM ' + QUOTENAME(@tableName) + N' WHERE Branch = @branch';\nEXEC sp_executesql @sql, @paramDef, @branch = N'Main';\n-- 結果：Cnt = 2；表名只能用 QUOTENAME 串接（防注入，不能參數化），篩選值改用參數化——\n-- 直接把值串進 SQL 字串是注入破口，也讓每個不同值都各編一份執行計畫\nDROP TABLE #Cat_BookCopy;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-executesql-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@stmt",
+              "nvarchar(max)",
+              "輸入",
+              "要執行的 T-SQL 語句，字面值要用 N'...'"
+            ],
+            [
+              "@params",
+              "nvarchar(max)",
+              "輸入",
+              "語句裡用到的參數宣告，格式同 DECLARE 的參數清單"
+            ],
+            [
+              "parameter_i",
+              "依 @params 宣告",
+              "輸入／輸出",
+              "對應宣告的實際值；OUTPUT 參數呼叫端也要標 OUTPUT"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "EXEC sp_executesql @stmt",
+              "沒有參數，等同直接執行這段動態語句"
+            ],
+            [
+              "EXEC sp_executesql @stmt, @params, @p1, ...",
+              "帶輸入參數，避免把值直接串進字串"
+            ],
+            [
+              "EXEC sp_executesql @stmt, @params, @p1 OUTPUT",
+              "帶 OUTPUT 參數，呼叫端與宣告都要標 OUTPUT"
+            ],
+            [
+              "INSERT INTO t EXEC sp_executesql @stmt, ...",
+              "把動態查詢的結果集收進資料表"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_describe_first_result_set",
+      "kind": "systemProcedure",
+      "summary": "不執行語句，只回傳第一個結果集的欄位中繼資料。",
+      "signature": "sp_describe_first_result_set [ @tsql = ] N'statement' [ , [ @params = ] N'@param_name data_type [,...]' ] [ , [ @browse_information_mode = ] browse_information_mode ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_describe_first_result_set @tsql = N'SELECT 1 AS x';   -- 結果：一欄 x，型別 int"
+        },
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "EXEC sp_describe_first_result_set\n    @tsql = N'SELECT CopyNo, Branch FROM (VALUES (1, N''Main''), (2, N''East'')) AS c(CopyNo, Branch)';\n-- 結果：兩欄中繼資料（CopyNo、Branch），is_nullable 皆為 0"
+        },
+        {
+          "id": "with-params",
+          "title": "語句含參數",
+          "sql": "EXEC sp_describe_first_result_set\n    @tsql = N'SELECT CopyNo FROM (VALUES (1), (2)) AS c(CopyNo) WHERE CopyNo = @id',\n    @params = N'@id int';\n-- 結果：一欄 CopyNo，型別 int；不必先執行也能推出型別"
+        },
+        {
+          "id": "bad-column",
+          "title": "語句寫錯就報錯",
+          "sql": "EXEC sp_describe_first_result_set\n    @tsql = N'SELECT NotAColumn FROM (VALUES (1)) AS c(CopyNo)';\n-- 結果：直接丟出繫結錯誤（找不到 NotAColumn），不是回傳空的中繼資料——\n-- 這支還是要先繫結語句，寫錯照樣失敗"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-describe-first-result-set-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@tsql",
+              "nvarchar(max)",
+              "輸入",
+              "要描述的 T-SQL 語句"
+            ],
+            [
+              "@params",
+              "nvarchar(max)",
+              "輸入",
+              "語句用到的參數宣告，格式同 sp_executesql 的 @params"
+            ],
+            [
+              "@browse_information_mode",
+              "tinyint",
+              "輸入",
+              "0＝預設中繼資料；1＝含來源資料表／欄位的瀏覽模式資訊"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_describe_first_result_set @tsql",
+              "只看語句本身推出結果集形狀"
+            ],
+            [
+              "sp_describe_first_result_set @tsql, @params",
+              "語句含參數時先宣告型別再推導"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_describe_undeclared_parameters",
+      "kind": "systemProcedure",
+      "summary": "推導語句裡未宣告參數的型別，用來組出 @params。",
+      "signature": "sp_describe_undeclared_parameters [ @tsql = ] N'statement' [ , [ @params = ] N'@param_name data_type [,...]' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_describe_undeclared_parameters N'SELECT @x + 1';   -- 結果：一列 @x"
+        },
+        {
+          "id": "basic",
+          "title": "推導未宣告參數",
+          "sql": "EXEC sp_describe_undeclared_parameters\n    N'SELECT CopyNo FROM (VALUES (1), (2)) AS c(CopyNo) WHERE CopyNo = @id';\n-- 結果：一列，name = @id，型別推回 int（從 CopyNo 的型別推出來）"
+        },
+        {
+          "id": "known-excluded",
+          "title": "已宣告的不列入",
+          "sql": "EXEC sp_describe_undeclared_parameters\n    N'SELECT CopyNo FROM (VALUES (1)) AS c(CopyNo) WHERE CopyNo = @id AND 1 = @flag',\n    N'@id int';\n-- 結果：只列 @flag 一列——@id 已經在 @params 宣告過，不算「未宣告」"
+        },
+        {
+          "id": "fallback-type",
+          "title": "推不出型別的退路",
+          "sql": "EXEC sp_describe_undeclared_parameters N'SELECT @x';\n-- 結果：一列，name = @x，型別退到 nvarchar(4000)（推不出更精確型別時的預設）"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-describe-undeclared-parameters-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@tsql",
+              "nvarchar(max)",
+              "輸入",
+              "要分析的 T-SQL 語句"
+            ],
+            [
+              "@params",
+              "nvarchar(max)",
+              "輸入",
+              "已經知道型別的參數宣告，這些不會出現在結果裡"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_describe_undeclared_parameters @tsql",
+              "推導語句裡全部未宣告參數的型別"
+            ],
+            [
+              "sp_describe_undeclared_parameters @tsql, @params",
+              "排除已知型別的參數，只看剩下的"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_rename",
+      "kind": "systemProcedure",
+      "summary": "改物件/欄位/索引名稱；欄位要指定 @objtype，相依物件不會自動更新。",
+      "signature": "sp_rename [ @objname = ] 'object_name' , [ @newname = ] 'new_name' [ , [ @objtype = ] 'object_type' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_rename N'dbo.Lib_Tag', N'Lib_TagRenamed';   -- 改資料表名稱"
+        },
+        {
+          "id": "table",
+          "title": "改資料表名稱",
+          "sql": "CREATE TABLE dbo.Lib_Tag_Old (TagId int, TagName nvarchar(30));\nEXEC sp_rename N'dbo.Lib_Tag_Old', N'Lib_Tag_New';\nSELECT name FROM sys.tables WHERE object_id = OBJECT_ID(N'dbo.Lib_Tag_New');   -- 結果：Lib_Tag_New\nDROP TABLE dbo.Lib_Tag_New;"
+        },
+        {
+          "id": "column",
+          "title": "改資料行要指定型別",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagNmae nvarchar(30));\nEXEC sp_rename N'dbo.Lib_Tag.TagNmae', N'TagName', N'COLUMN';\nSELECT name FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.Lib_Tag') ORDER BY column_id;\n-- 結果：TagId、TagName\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "view-trap",
+          "title": "改名不會跟著改檢視",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nINSERT INTO dbo.Lib_Tag VALUES (1, N'Fiction');\nGO\nCREATE VIEW dbo.Lib_TagView AS SELECT TagId, TagName FROM dbo.Lib_Tag;\nGO\nEXEC sp_rename N'dbo.Lib_Tag.TagName', N'Tag_Name', N'COLUMN';\nSELECT * FROM dbo.Lib_TagView;\n-- 結果：查詢失敗（Invalid column name 'TagName'）——sp_rename 只改資料行本身，\n-- 相依的檢視文字沒有跟著改，要重新編譯或改用 sp_refreshview 才會對到新名稱\nDROP VIEW dbo.Lib_TagView;\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-rename-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@objname",
+              "nvarchar(776)",
+              "輸入",
+              "要改名的物件、資料行或索引，可加結構描述限定"
+            ],
+            [
+              "@newname",
+              "sysname",
+              "輸入",
+              "新名稱，不含結構描述"
+            ],
+            [
+              "@objtype",
+              "varchar(13)",
+              "輸入",
+              "指定要改的是哪一種，避免撞名；省略時系統自行判斷"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_rename 'table', 'newTable'",
+              "改資料表或其他結構描述層級物件的名稱"
+            ],
+            [
+              "sp_rename 'table.column', 'newColumn', 'COLUMN'",
+              "改資料行名稱"
+            ],
+            [
+              "sp_rename 'table.index', 'newIndex', 'INDEX'",
+              "改索引名稱"
+            ]
+          ]
+        },
+        {
+          "title": "@objtype 可填值",
+          "columns": [
+            "值",
+            "意義"
+          ],
+          "rows": [
+            [
+              "COLUMN",
+              "資料行"
+            ],
+            [
+              "INDEX",
+              "索引"
+            ],
+            [
+              "OBJECT",
+              "預設值，資料表、預存程序等一般物件"
+            ],
+            [
+              "USERDATATYPE",
+              "使用者定義資料型別"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_addextendedproperty",
+      "kind": "systemProcedure",
+      "summary": "幫物件、欄位附自訂中繼資料；同名已存在會失敗，改值用 update。",
+      "signature": "sp_addextendedproperty [ @name = ] N'property_name' [ , [ @value = ] sql_variant ] [ , [ @level0type = ] N'type' , [ @level0name = ] N'name' ] [ , [ @level1type = ] N'type' , [ @level1name = ] N'name' ] [ , [ @level2type = ] N'type' , [ @level2name = ] N'name' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_addextendedproperty N'Description', N'書籍分類標籤', N'SCHEMA', N'dbo';   -- 掛在結構描述上"
+        },
+        {
+          "id": "table-level",
+          "title": "掛在資料表上",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'書籍分類標籤',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nSELECT CAST(value AS nvarchar(200))\nFROM fn_listextendedproperty(N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag', NULL, NULL);\n-- 結果：書籍分類標籤\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "column-level",
+          "title": "掛在資料行上",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'標籤顯示名稱',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\n-- 結果：屬性掛在 dbo.Lib_Tag.TagName 這個資料行，不是整張表\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "duplicate-trap",
+          "title": "重複新增會失敗",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'第一次',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nEXEC sp_addextendedproperty @name = N'Description', @value = N'第二次',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\n-- 結果：第二次呼叫失敗（屬性已存在）；改值要用 sp_updateextendedproperty\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-addextendedproperty-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@name",
+              "sysname",
+              "輸入",
+              "屬性名稱"
+            ],
+            [
+              "@value",
+              "sql_variant",
+              "輸入",
+              "屬性值，NULL 也允許"
+            ],
+            [
+              "@level0type",
+              "varchar(128)",
+              "輸入",
+              "第 0 層物件種類，通常是 SCHEMA"
+            ],
+            [
+              "@level0name",
+              "sysname",
+              "輸入",
+              "第 0 層物件名稱"
+            ],
+            [
+              "@level1type",
+              "varchar(128)",
+              "輸入",
+              "第 1 層物件種類，例如 TABLE"
+            ],
+            [
+              "@level1name",
+              "sysname",
+              "輸入",
+              "第 1 層物件名稱"
+            ],
+            [
+              "@level2type",
+              "varchar(128)",
+              "輸入",
+              "第 2 層物件種類，例如 COLUMN"
+            ],
+            [
+              "@level2name",
+              "sysname",
+              "輸入",
+              "第 2 層物件名稱"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "只給 level0",
+              "屬性掛在結構描述本身"
+            ],
+            [
+              "level0 + level1",
+              "屬性掛在資料表、檢視等第 1 層物件"
+            ],
+            [
+              "level0 + level1 + level2",
+              "屬性掛在資料行、參數等第 2 層物件"
+            ]
+          ]
+        },
+        {
+          "title": "level0/1/2 型別",
+          "columns": [
+            "層級",
+            "常見型別",
+            "範例"
+          ],
+          "rows": [
+            [
+              "level0",
+              "SCHEMA（最常見；也有 ASSEMBLY、TRIGGER 等伺服器層級種類）",
+              "@level0type = N'SCHEMA'"
+            ],
+            [
+              "level1（level0 = SCHEMA 時）",
+              "TABLE、VIEW、PROCEDURE、FUNCTION、TYPE 等結構描述底下的物件",
+              "@level1type = N'TABLE'"
+            ],
+            [
+              "level2（level1 = TABLE／VIEW 時）",
+              "COLUMN、CONSTRAINT、INDEX、TRIGGER",
+              "@level2type = N'COLUMN'"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_updateextendedproperty",
+      "kind": "systemProcedure",
+      "summary": "改已存在的擴充屬性值；屬性不存在會失敗，新增用 add。",
+      "signature": "sp_updateextendedproperty [ @name = ] N'property_name' [ , [ @value = ] sql_variant ] [ , [ @level0type = ] N'type' , [ @level0name = ] N'name' ] [ , [ @level1type = ] N'type' , [ @level1name = ] N'name' ] [ , [ @level2type = ] N'type' , [ @level2name = ] N'name' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_updateextendedproperty N'Description', N'新版說明';   -- 改資料庫層級屬性的值"
+        },
+        {
+          "id": "basic",
+          "title": "改已存在的值",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'第一版說明',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nEXEC sp_updateextendedproperty @name = N'Description', @value = N'第二版說明',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nSELECT CAST(value AS nvarchar(200))\nFROM fn_listextendedproperty(N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag', NULL, NULL);\n-- 結果：第二版說明\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "column-level",
+          "title": "改資料行層級的值",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'第一版',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\nEXEC sp_updateextendedproperty @name = N'Description', @value = N'第二版',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\n-- 結果：dbo.Lib_Tag.TagName 這個資料行上的屬性值改成「第二版」\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "missing-trap",
+          "title": "屬性不存在就失敗",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_updateextendedproperty @name = N'Description', @value = N'尚未新增過',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\n-- 結果：呼叫失敗（屬性不存在）；第一次要建立得用 sp_addextendedproperty，這支只改「已經有」的值\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-updateextendedproperty-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@name",
+              "sysname",
+              "輸入",
+              "屬性名稱"
+            ],
+            [
+              "@value",
+              "sql_variant",
+              "輸入",
+              "屬性的新值，NULL 也允許"
+            ],
+            [
+              "@level0type",
+              "varchar(128)",
+              "輸入",
+              "第 0 層物件種類，通常是 SCHEMA"
+            ],
+            [
+              "@level0name",
+              "sysname",
+              "輸入",
+              "第 0 層物件名稱"
+            ],
+            [
+              "@level1type",
+              "varchar(128)",
+              "輸入",
+              "第 1 層物件種類，例如 TABLE"
+            ],
+            [
+              "@level1name",
+              "sysname",
+              "輸入",
+              "第 1 層物件名稱"
+            ],
+            [
+              "@level2type",
+              "varchar(128)",
+              "輸入",
+              "第 2 層物件種類，例如 COLUMN"
+            ],
+            [
+              "@level2name",
+              "sysname",
+              "輸入",
+              "第 2 層物件名稱"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "只給 level0",
+              "改掛在結構描述本身的屬性"
+            ],
+            [
+              "level0 + level1",
+              "改掛在資料表、檢視等第 1 層物件的屬性"
+            ],
+            [
+              "level0 + level1 + level2",
+              "改掛在資料行、參數等第 2 層物件的屬性"
+            ]
+          ]
+        },
+        {
+          "title": "level0/1/2 型別",
+          "columns": [
+            "層級",
+            "常見型別",
+            "範例"
+          ],
+          "rows": [
+            [
+              "level0",
+              "SCHEMA（最常見；也有 ASSEMBLY、TRIGGER 等伺服器層級種類）",
+              "@level0type = N'SCHEMA'"
+            ],
+            [
+              "level1（level0 = SCHEMA 時）",
+              "TABLE、VIEW、PROCEDURE、FUNCTION、TYPE 等結構描述底下的物件",
+              "@level1type = N'TABLE'"
+            ],
+            [
+              "level2（level1 = TABLE／VIEW 時）",
+              "COLUMN、CONSTRAINT、INDEX、TRIGGER",
+              "@level2type = N'COLUMN'"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_dropextendedproperty",
+      "kind": "systemProcedure",
+      "summary": "移除擴充屬性；層級要跟新增時一致，否則找不到。",
+      "signature": "sp_dropextendedproperty [ @name = ] N'property_name' [ , [ @level0type = ] N'type' , [ @level0name = ] N'name' ] [ , [ @level1type = ] N'type' , [ @level1name = ] N'name' ] [ , [ @level2type = ] N'type' , [ @level2name = ] N'name' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_dropextendedproperty N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag';"
+        },
+        {
+          "id": "table-level",
+          "title": "移除資料表層級",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'書籍分類標籤',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nEXEC sp_dropextendedproperty @name = N'Description',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nSELECT COUNT(*) AS Cnt\nFROM fn_listextendedproperty(N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag', NULL, NULL);\n-- 結果：Cnt = 0，屬性已經被移除\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "column-level",
+          "title": "移除資料行層級",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'標籤顯示名稱',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\nEXEC sp_dropextendedproperty @name = N'Description',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\n-- 結果：dbo.Lib_Tag.TagName 這個資料行上的屬性被移除\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "level-mismatch-trap",
+          "title": "層級沒對齊找不到",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'標籤顯示名稱',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag',\n    @level2type = N'COLUMN', @level2name = N'TagName';\nEXEC sp_dropextendedproperty @name = N'Description',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\n-- 結果：呼叫失敗（找不到屬性）——新增時掛在 level2（TagName 資料行），\n-- 移除時漏寫 @level2type/@level2name，層級對不起來就找不到那一筆\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-dropextendedproperty-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@name",
+              "sysname",
+              "輸入",
+              "屬性名稱"
+            ],
+            [
+              "@level0type",
+              "varchar(128)",
+              "輸入",
+              "第 0 層物件種類，通常是 SCHEMA"
+            ],
+            [
+              "@level0name",
+              "sysname",
+              "輸入",
+              "第 0 層物件名稱"
+            ],
+            [
+              "@level1type",
+              "varchar(128)",
+              "輸入",
+              "第 1 層物件種類，例如 TABLE"
+            ],
+            [
+              "@level1name",
+              "sysname",
+              "輸入",
+              "第 1 層物件名稱"
+            ],
+            [
+              "@level2type",
+              "varchar(128)",
+              "輸入",
+              "第 2 層物件種類，例如 COLUMN"
+            ],
+            [
+              "@level2name",
+              "sysname",
+              "輸入",
+              "第 2 層物件名稱"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "只給 level0",
+              "移除掛在結構描述本身的屬性"
+            ],
+            [
+              "level0 + level1",
+              "移除掛在資料表、檢視等第 1 層物件的屬性"
+            ],
+            [
+              "level0 + level1 + level2",
+              "移除掛在資料行、參數等第 2 層物件的屬性"
+            ]
+          ]
+        },
+        {
+          "title": "level0/1/2 型別",
+          "columns": [
+            "層級",
+            "常見型別",
+            "範例"
+          ],
+          "rows": [
+            [
+              "level0",
+              "SCHEMA（最常見；也有 ASSEMBLY、TRIGGER 等伺服器層級種類）",
+              "@level0type = N'SCHEMA'"
+            ],
+            [
+              "level1（level0 = SCHEMA 時）",
+              "TABLE、VIEW、PROCEDURE、FUNCTION、TYPE 等結構描述底下的物件",
+              "@level1type = N'TABLE'"
+            ],
+            [
+              "level2（level1 = TABLE／VIEW 時）",
+              "COLUMN、CONSTRAINT、INDEX、TRIGGER",
+              "@level2type = N'COLUMN'"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_getapplock",
+      "kind": "systemProcedure",
+      "summary": "取一個自訂命名的鎖；@LockOwner 預設隨交易釋放，Session 要自己放。",
+      "signature": "sp_getapplock [ @Resource = ] 'resource_name' , [ @LockMode = ] 'lock_mode' [ , [ @LockOwner = ] 'lock_owner' ] [ , [ @LockTimeout = ] timeout_ms ] [ , [ @DbPrincipal = ] 'database_principal' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_getapplock @Resource = N'Loan:1', @LockMode = N'Exclusive';   -- 交易內取得互斥鎖"
+        },
+        {
+          "id": "transaction-owner",
+          "title": "交易範圍內取鎖",
+          "sql": "BEGIN TRANSACTION;\nDECLARE @result int;\nEXEC @result = sp_getapplock @Resource = N'Loan:CopyNo:1', @LockMode = N'Exclusive';\nSELECT @result;   -- 結果：0（沒等待就直接取得鎖）\nCOMMIT TRANSACTION;   -- 交易結束，鎖自動釋放（@LockOwner 預設 'Transaction'）"
+        },
+        {
+          "id": "session-owner",
+          "title": "工作階段範圍取鎖",
+          "sql": "DECLARE @result int;\nEXEC @result = sp_getapplock @Resource = N'Loan:CopyNo:2', @LockMode = N'Exclusive', @LockOwner = N'Session';\nSELECT @result;   -- 結果：0\nEXEC sp_releaseapplock @Resource = N'Loan:CopyNo:2', @LockOwner = N'Session';\n-- @LockOwner = 'Session' 要自己呼叫 sp_releaseapplock，不會隨交易結束自動放掉"
+        },
+        {
+          "id": "no-transaction-trap",
+          "title": "沒開交易就報錯",
+          "sql": "DECLARE @result int;\nEXEC @result = sp_getapplock @Resource = N'Loan:CopyNo:3', @LockMode = N'Exclusive';\n-- 結果：呼叫失敗（8351：必須在交易內執行，@LockOwner 預設是 'Transaction'）\n-- 要嘛先 BEGIN TRANSACTION，要嘛改 @LockOwner = 'Session'"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-getapplock-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@Resource",
+              "nvarchar(255)",
+              "輸入",
+              "鎖的名稱，自訂字串即可"
+            ],
+            [
+              "@LockMode",
+              "nvarchar(32)",
+              "輸入",
+              "Shared／Update／Exclusive／IntentShared／IntentExclusive"
+            ],
+            [
+              "@LockOwner",
+              "nvarchar(32)",
+              "輸入",
+              "Transaction（預設，隨交易釋放）或 Session（要自己釋放）"
+            ],
+            [
+              "@LockTimeout",
+              "int",
+              "輸入",
+              "等待毫秒數，預設是交易或連線的逾時設定"
+            ],
+            [
+              "@DbPrincipal",
+              "sysname",
+              "輸入",
+              "檢查權限用的資料庫使用者或角色，預設 public"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "EXEC @r = sp_getapplock @Resource, @LockMode",
+              "@LockOwner 預設 Transaction，隨交易結束自動釋放"
+            ],
+            [
+              "... , @LockOwner = 'Session'",
+              "鎖跨陳述式保留，要自己呼叫 sp_releaseapplock"
+            ]
+          ]
+        },
+        {
+          "title": "傳回碼",
+          "columns": [
+            "值",
+            "意義"
+          ],
+          "rows": [
+            [
+              "0",
+              "沒等待就直接取得鎖"
+            ],
+            [
+              "1",
+              "等待逾時內取得鎖"
+            ],
+            [
+              "-1",
+              "逾時，沒取得鎖"
+            ],
+            [
+              "-2",
+              "取消（呼叫被中止）"
+            ],
+            [
+              "-3",
+              "發生死結，這個呼叫被選為犧牲者"
+            ],
+            [
+              "-999",
+              "參數錯誤或其他失敗（附帶錯誤訊息）"
+            ]
+          ]
+        },
+        {
+          "title": "LockMode",
+          "columns": [
+            "LockMode",
+            "說明"
+          ],
+          "rows": [
+            [
+              "Shared",
+              "多個呼叫可以同時持有，彼此不衝突"
+            ],
+            [
+              "Update",
+              "可與 Shared 共存，是升級成 Exclusive 前的過渡模式"
+            ],
+            [
+              "Exclusive",
+              "同一時間只有一個呼叫能持有"
+            ],
+            [
+              "IntentShared",
+              "宣告之後可能會要 Shared，用於巢狀鎖的相容性檢查"
+            ],
+            [
+              "IntentExclusive",
+              "宣告之後可能會要 Exclusive，同上"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_releaseapplock",
+      "kind": "systemProcedure",
+      "summary": "釋放 sp_getapplock 取得的鎖；@Resource/@LockOwner 要對得上。",
+      "signature": "sp_releaseapplock [ @Resource = ] 'resource_name' [ , [ @LockOwner = ] 'lock_owner' ] [ , [ @DbPrincipal = ] 'database_principal' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_releaseapplock @Resource = N'Loan:1';   -- 釋放剛才取得的鎖"
+        },
+        {
+          "id": "session-release",
+          "title": "釋放工作階段鎖",
+          "sql": "DECLARE @result int;\nEXEC sp_getapplock @Resource = N'Loan:CopyNo:4', @LockMode = N'Exclusive', @LockOwner = N'Session';\nEXEC @result = sp_releaseapplock @Resource = N'Loan:CopyNo:4', @LockOwner = N'Session';\nSELECT @result;   -- 結果：0（成功釋放）"
+        },
+        {
+          "id": "early-release",
+          "title": "交易中提前釋放",
+          "sql": "BEGIN TRANSACTION;\nEXEC sp_getapplock @Resource = N'Loan:CopyNo:5', @LockMode = N'Exclusive';\nEXEC sp_releaseapplock @Resource = N'Loan:CopyNo:5';\n-- 交易還沒 COMMIT，鎖已經提前手動釋放；@LockOwner 預設 'Transaction' 也能提前釋放，不必等交易結束\nCOMMIT TRANSACTION;"
+        },
+        {
+          "id": "not-held-trap",
+          "title": "釋放沒持有的鎖",
+          "sql": "DECLARE @result int;\nEXEC @result = sp_releaseapplock @Resource = N'Loan:CopyNo:999', @LockOwner = N'Session';\nSELECT @result;\n-- 結果：-999——這個工作階段沒持有這把鎖（名稱沒對到任何 sp_getapplock 呼叫），\n-- @Resource／@LockOwner 要跟取得鎖時完全一致才放得掉"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-releaseapplock-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@Resource",
+              "nvarchar(255)",
+              "輸入",
+              "要釋放的鎖名稱，需與取得時一致"
+            ],
+            [
+              "@LockOwner",
+              "nvarchar(32)",
+              "輸入",
+              "Transaction 或 Session，需與取得時一致"
+            ],
+            [
+              "@DbPrincipal",
+              "sysname",
+              "輸入",
+              "檢查權限用的資料庫使用者或角色，預設 public"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "EXEC sp_releaseapplock @Resource",
+              "釋放 @LockOwner 預設 Transaction 的鎖，交易結束前也能提前放"
+            ],
+            [
+              "EXEC sp_releaseapplock @Resource, @LockOwner = 'Session'",
+              "釋放用 Session 取得的鎖"
+            ]
+          ]
+        },
+        {
+          "title": "傳回碼",
+          "columns": [
+            "值",
+            "意義"
+          ],
+          "rows": [
+            [
+              "0",
+              "成功釋放"
+            ],
+            [
+              "-999",
+              "失敗（例如這把鎖不存在，或 @Resource／@LockOwner 對不上取得時的呼叫）"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_set_session_context",
+      "kind": "systemProcedure",
+      "summary": "在連線放一個名值對，SESSION_CONTEXT 讀；read_only 後鎖住。",
+      "signature": "sp_set_session_context [ @key = ] N'key' , [ @value = ] value [ , [ @read_only = ] { 0 | 1 } ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_set_session_context N'Branch', N'Main';   -- 之後 SESSION_CONTEXT(N'Branch') = Main"
+        },
+        {
+          "id": "basic",
+          "title": "設定並讀回",
+          "sql": "EXEC sp_set_session_context @key = N'CurrentBranch', @value = N'Main';\nSELECT SESSION_CONTEXT(N'CurrentBranch') AS CurrentBranch;   -- 結果：Main"
+        },
+        {
+          "id": "read-only-trap",
+          "title": "唯讀鎖住後改不了",
+          "sql": "EXEC sp_set_session_context @key = N'ReaderId', @value = 1, @read_only = 1;\nEXEC sp_set_session_context @key = N'ReaderId', @value = 2;\n-- 結果：第二次呼叫失敗——@read_only = 1 之後這個連線裡這個 key 不能再改\nSELECT SESSION_CONTEXT(N'ReaderId');   -- 結果：1，沒被改成 2"
+        },
+        {
+          "id": "filter-usage",
+          "title": "當篩選條件用",
+          "sql": "EXEC sp_set_session_context @key = N'Branch', @value = N'East';\nSELECT CopyNo FROM (VALUES (1, N'Main'), (2, N'East')) AS c(CopyNo, Branch)\nWHERE Branch = CAST(SESSION_CONTEXT(N'Branch') AS nvarchar(20));\n-- 結果：只有一列 (2)"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-set-session-context-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@key",
+              "sysname",
+              "輸入",
+              "名稱，最長 128 個字元"
+            ],
+            [
+              "@value",
+              "sql_variant",
+              "輸入",
+              "值，上限 8000 位元組，NULL 也允許"
+            ],
+            [
+              "@read_only",
+              "bit",
+              "輸入",
+              "1＝之後這個連線裡這個 key 唯讀；預設 0"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_set_session_context @key, @value",
+              "設定或覆蓋這個連線的一個 key"
+            ],
+            [
+              "sp_set_session_context @key, @value, @read_only = 1",
+              "設定後鎖住，這個連線裡這個 key 不能再改"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_help",
+      "kind": "systemProcedure",
+      "summary": "列出物件的結構資訊；不加參數列出整個資料庫的物件。",
+      "signature": "sp_help [ [ @objname = ] 'name' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_help N'dbo.Lib_Tag';   -- 列出資料表的欄位、索引等結構資訊"
+        },
+        {
+          "id": "table",
+          "title": "查資料表結構",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int PRIMARY KEY, TagName nvarchar(30) NOT NULL);\nEXEC sp_help N'dbo.Lib_Tag';\n-- 結果：多個結果集，包含資料行清單（TagId、TagName 各一列）與索引、條件約束\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "list-all",
+          "title": "不加參數列全部",
+          "sql": "EXEC sp_help;\n-- 結果：一個結果集，列出目前資料庫裡的每個使用者物件與種類（Name、Owner、Object_type 等欄）"
+        },
+        {
+          "id": "not-exist-trap",
+          "title": "查不存在的物件",
+          "sql": "EXEC sp_help N'dbo.Lib_NotExist';\n-- 結果：擲出錯誤（找不到這個物件），不是回傳空結果集"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-help-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@objname",
+              "nvarchar(776)",
+              "輸入",
+              "要查詢的物件名稱，省略時列出整個資料庫"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_help 'object'",
+              "列出單一物件的結構描述資訊"
+            ],
+            [
+              "sp_help",
+              "不加參數，列出目前資料庫的所有物件"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_helptext",
+      "kind": "systemProcedure",
+      "summary": "印出模組的原始定義文字；WITH ENCRYPTION 建的印不出來。",
+      "signature": "sp_helptext [ @objname = ] 'name' [ , [ @columnname = ] computed_column_name ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_helptext N'dbo.Lib_TagView';   -- 印出檢視的原始定義文字"
+        },
+        {
+          "id": "view",
+          "title": "印出檢視定義",
+          "sql": "CREATE VIEW dbo.Lib_TagView AS\n    SELECT TagId, TagName FROM (VALUES (1, N'Fiction')) AS t(TagId, TagName);\nGO\nEXEC sp_helptext N'dbo.Lib_TagView';\n-- 結果：印出上面那句 CREATE VIEW 的原始文字\nDROP VIEW dbo.Lib_TagView;"
+        },
+        {
+          "id": "computed-column",
+          "title": "印出計算資料行",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30), TagLabel AS (N'#' + TagName));\nEXEC sp_helptext N'dbo.Lib_Tag', N'TagLabel';\n-- 結果：印出計算資料行的運算式文字 (N'#' + TagName)\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "encrypted-trap",
+          "title": "加密物件印不出來",
+          "sql": "CREATE VIEW dbo.Lib_TagViewSecret WITH ENCRYPTION AS SELECT 1 AS TagId;\nGO\nEXEC sp_helptext N'dbo.Lib_TagViewSecret';\n-- 結果：回報「物件的文字已加密」，印不出定義（WITH ENCRYPTION 就是要擋住這支）\nDROP VIEW dbo.Lib_TagViewSecret;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-helptext-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@objname",
+              "nvarchar(776)",
+              "輸入",
+              "要印出定義的物件名稱"
+            ],
+            [
+              "@columnname",
+              "sysname",
+              "輸入",
+              "計算資料行名稱，只印那一欄的運算式"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_helptext 'object'",
+              "印出整個模組（預存程序、函式、觸發程序、檢視）的定義文字"
+            ],
+            [
+              "sp_helptext 'table', 'column'",
+              "只印某個計算資料行的運算式"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_who",
+      "kind": "systemProcedure",
+      "summary": "列出連線/工作階段清單；篩選可以是登入名稱、session id 或 active。",
+      "signature": "sp_who [ [ @loginame = ] 'login' | 'session_id' | 'ACTIVE' ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_who N'active';   -- 只列有動作的工作階段"
+        },
+        {
+          "id": "all",
+          "title": "列出全部工作階段",
+          "sql": "EXEC sp_who;\n-- 結果：一個結果集，每個 session 一列（spid、status、loginame、hostname、blk 等欄）"
+        },
+        {
+          "id": "active",
+          "title": "只列有動作的",
+          "sql": "EXEC sp_who N'active';\n-- 結果：只列目前真的在執行語句、或持有鎖等別人的 session，系統背景 session 通常被排除"
+        },
+        {
+          "id": "id-vs-login-trap",
+          "title": "字串意義會混淆",
+          "sql": "EXEC sp_who N'52';\n-- 結果：52 剛好是某個 session_id 時，這支照 session_id 找；沒有這個 session_id 時\n-- 才退回當成登入名稱找，兩種篩選共用同一個字串參數，篩選前最好先用\n-- sys.dm_exec_sessions 確認 52 指的是哪一種"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-who-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@loginame",
+              "sysname",
+              "輸入",
+              "登入名稱、session id，或 'active'；省略時列出全部"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_who",
+              "列出全部工作階段"
+            ],
+            [
+              "sp_who 'active'",
+              "只列有動作的工作階段"
+            ],
+            [
+              "sp_who 'login_or_id'",
+              "篩選單一登入名稱或 session id"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_spaceused",
+      "kind": "systemProcedure",
+      "summary": "列容量用量；資料讀自快取，增刪後要 @updateusage 重新計算。",
+      "signature": "sp_spaceused [ [ @objname = ] 'objname' ] [ , [ @updateusage = ] 'updateusage' ] [ , [ @mode = ] 'mode' ] [ , [ @oneresultset = ] oneresultset ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_spaceused N'dbo.Lib_Tag';   -- 結果：一列容量資訊，rows/reserved/data 等欄"
+        },
+        {
+          "id": "database",
+          "title": "整個資料庫用量",
+          "sql": "EXEC sp_spaceused;\n-- 結果：一列，database_name、database_size、unallocated space 等欄"
+        },
+        {
+          "id": "table",
+          "title": "單一資料表用量",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nINSERT INTO dbo.Lib_Tag VALUES (1, N'Fiction'), (2, N'Non-fiction');\nEXEC sp_spaceused N'dbo.Lib_Tag';\n-- 結果：一列，rows = 2，加上 reserved、data、index_size、unused 幾欄\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "stale-trap",
+          "title": "沒更新就讀到舊值",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nINSERT INTO dbo.Lib_Tag VALUES (1, N'Fiction'), (2, N'Non-fiction'), (3, N'Reference');\nDELETE FROM dbo.Lib_Tag WHERE TagId = 3;\nEXEC sp_spaceused N'dbo.Lib_Tag';\n-- 陷阱：容量欄位讀的是中繼資料快取，大量增刪後可能還沒跟上最新狀態\nEXEC sp_spaceused N'dbo.Lib_Tag', @updateusage = N'true';\n-- 結果：加了這個參數才會強制重新計算，回傳目前真正的用量\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-spaceused-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@objname",
+              "nvarchar(776)",
+              "輸入",
+              "要查詢用量的物件名稱；省略時查整個資料庫"
+            ],
+            [
+              "@updateusage",
+              "varchar(5)",
+              "輸入",
+              "'true' 強制重新計算，不用中繼資料的快取值"
+            ],
+            [
+              "@mode",
+              "varchar(7)",
+              "輸入",
+              "'IN_ROW_DATA' 等，只算某一種配置單位；預設全部加總"
+            ],
+            [
+              "@oneresultset",
+              "bit",
+              "輸入",
+              "1＝資料表用量併成一個結果集，不分兩個"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_spaceused",
+              "整個資料庫的容量"
+            ],
+            [
+              "sp_spaceused 'table'",
+              "單一資料表（含索引）的容量"
+            ],
+            [
+              "... , @updateusage = 'true'",
+              "重新計算，不吃中繼資料快取"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_recompile",
+      "kind": "systemProcedure",
+      "summary": "把物件的執行計畫標記失效，下次執行才重新編譯，不是馬上編。",
+      "signature": "sp_recompile [ @objname = ] 'object'",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_recompile N'dbo.Lib_GetTagCount';   -- 標記下次執行要重新編譯"
+        },
+        {
+          "id": "procedure",
+          "title": "標記預存程序",
+          "sql": "CREATE PROCEDURE dbo.Lib_GetTagCount AS SELECT COUNT(*) AS Cnt FROM (VALUES (1), (2)) AS t(TagId);\nGO\nEXEC sp_recompile N'dbo.Lib_GetTagCount';\n-- 結果：0（標記成功）；下次 EXEC dbo.Lib_GetTagCount 才會用新計畫執行\nDROP PROCEDURE dbo.Lib_GetTagCount;"
+        },
+        {
+          "id": "table",
+          "title": "標記資料表相依項",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_recompile N'dbo.Lib_Tag';\n-- 結果：所有目前參照 dbo.Lib_Tag 的預存程序、觸發程序都會在下次執行時重新編譯，\n-- 不是只有指定的這張表本身\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "not-immediate-trap",
+          "title": "呼叫當下不會重編",
+          "sql": "CREATE PROCEDURE dbo.Lib_GetTagCount AS SELECT COUNT(*) AS Cnt FROM (VALUES (1)) AS t(TagId);\nGO\nEXEC dbo.Lib_GetTagCount;   -- 先執行一次，快取一份執行計畫\nEXEC sp_recompile N'dbo.Lib_GetTagCount';\n-- 這一行本身不會重新編譯，只是把舊計畫標記失效；真正重新編譯發生在\n-- 下一次 EXEC dbo.Lib_GetTagCount 的時候，不是這一行呼叫的當下\nDROP PROCEDURE dbo.Lib_GetTagCount;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-recompile-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@objname",
+              "nvarchar(776)",
+              "輸入",
+              "要標記的資料表或模組名稱"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_recompile 'procedure_or_function'",
+              "只標記這一個模組的計畫"
+            ],
+            [
+              "sp_recompile 'table'",
+              "標記所有參照這張表的模組"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_refreshview",
+      "kind": "systemProcedure",
+      "summary": "依底層資料表重新整理檢視中繼資料；SELECT * 補欄要靠它。",
+      "signature": "sp_refreshview [ @viewname = ] 'viewname'",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_refreshview N'dbo.Lib_TagView';   -- 依底層資料表重新整理中繼資料"
+        },
+        {
+          "id": "select-star",
+          "title": "SELECT * 檢視補欄",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nGO\nCREATE VIEW dbo.Lib_TagView AS SELECT * FROM dbo.Lib_Tag;\nGO\nALTER TABLE dbo.Lib_Tag ADD TagColor nvarchar(10) NULL;\nSELECT * FROM dbo.Lib_TagView;\n-- 結果：還是只有 TagId、TagName 兩欄——SELECT * 的檢視在建立當下就把資料行清單釘死了\nEXEC sp_refreshview N'dbo.Lib_TagView';\nSELECT * FROM dbo.Lib_TagView;   -- 結果：這次有三欄，TagColor 也出現了\nDROP VIEW dbo.Lib_TagView;\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "rename-trap",
+          "title": "救不回文字寫錯的檢視",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nGO\nCREATE VIEW dbo.Lib_TagView AS SELECT TagId, TagName FROM dbo.Lib_Tag;\nGO\nEXEC sp_rename N'dbo.Lib_Tag.TagName', N'Tag_Name', N'COLUMN';\nEXEC sp_refreshview N'dbo.Lib_TagView';\n-- 結果：這支呼叫就先失敗（Invalid column name 'TagName'）——它只重新整理中繼資料，\n-- 檢視文字本身寫錯或對不上底層資料行時救不回來，要先用 ALTER VIEW 改定義\nDROP VIEW dbo.Lib_TagView;\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-refreshview-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@viewname",
+              "nvarchar(776)",
+              "輸入",
+              "要重新整理中繼資料的檢視名稱"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_refreshview 'view'",
+              "SELECT * 或資料行清單對不上底層資料表時，重新整理中繼資料"
+            ],
+            [
+              "搭配 sp_rename 使用",
+              "改過底層資料行名稱、檢視文字沒寫錯時，用這支同步中繼資料"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_refreshsqlmodule",
+      "kind": "systemProcedure",
+      "summary": "重新整理模組（函式/預存程序/觸發程序）快取的中繼資料。",
+      "signature": "sp_refreshsqlmodule [ @name = ] 'module_name' [ , [ @namespace = ] { N'DATABASE' | NULL } ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';   -- 重新整理函式快取的中繼資料"
+        },
+        {
+          "id": "function",
+          "title": "重新整理函式中繼資料",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nGO\nCREATE FUNCTION dbo.Lib_GetTagName(@id int)\nRETURNS TABLE\nAS RETURN (SELECT TagName FROM dbo.Lib_Tag WHERE TagId = @id);\nGO\nALTER TABLE dbo.Lib_Tag ALTER COLUMN TagName nvarchar(60) NOT NULL;\nEXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';\n-- 結果：呼叫成功；函式快取的欄位中繼資料改成新的 nvarchar(60)\nDROP FUNCTION dbo.Lib_GetTagName;\nDROP TABLE dbo.Lib_Tag;"
+        },
+        {
+          "id": "rename-trap",
+          "title": "本文寫錯一樣救不了",
+          "sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nGO\nCREATE FUNCTION dbo.Lib_GetTagName(@id int)\nRETURNS TABLE\nAS RETURN (SELECT TagName FROM dbo.Lib_Tag WHERE TagId = @id);\nGO\nEXEC sp_rename N'dbo.Lib_Tag.TagName', N'Tag_Name', N'COLUMN';\nEXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';\n-- 結果：呼叫失敗（Invalid column name 'TagName'）——跟 sp_refreshview 一樣，\n-- 這支也只能重新整理中繼資料，函式本文寫的舊欄名沒有跟著改，要先改函式定義\nDROP FUNCTION dbo.Lib_GetTagName;\nDROP TABLE dbo.Lib_Tag;"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-refreshsqlmodule-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@name",
+              "nvarchar(776)",
+              "輸入",
+              "要重新整理中繼資料的模組名稱"
+            ],
+            [
+              "@namespace",
+              "nvarchar(10)",
+              "輸入",
+              "保留給 CLR 用，一般寫 N'DATABASE' 或省略"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_refreshsqlmodule 'function_or_procedure'",
+              "底層資料表結構變了之後，重新整理模組快取的中繼資料"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sp_configure",
+      "kind": "systemProcedure",
+      "summary": "查詢或改伺服器設定；進階選項要開關，改完要 RECONFIGURE。",
+      "signature": "sp_configure [ [ @configname = ] 'option_name' [ , [ @configvalue = ] 'value' ] ]",
+      "examples": [
+        {
+          "id": "quick",
+          "title": "快速示範",
+          "sql": "EXEC sp_configure N'show advanced options';   -- 結果：一列，含 config_value/run_value"
+        },
+        {
+          "id": "list-all",
+          "title": "列出全部設定",
+          "sql": "EXEC sp_configure;\n-- 結果：一個結果集，每列一個設定項（name、minimum、maximum、config_value、run_value）"
+        },
+        {
+          "id": "one-option",
+          "title": "查單一設定",
+          "sql": "EXEC sp_configure N'show advanced options';\n-- 結果：一列，config_value 與 run_value 預設都是 0（關閉）"
+        },
+        {
+          "id": "reconfigure-trap",
+          "title": "忘記 RECONFIGURE",
+          "sql": "-- 這段只示範讀法，不會真的送出改值的呼叫（伺服器層級設定，改了影響整台伺服器）：\n-- EXEC sp_configure N'show advanced options', 1; RECONFIGURE;\n-- 呼叫 sp_configure 加第二個值只是「排入」設定，config_value 會先變、run_value 還是舊的，\n-- 要跑 RECONFIGURE 才會讓 run_value 追上；忘記 RECONFIGURE 是最常見的「怎麼改都沒生效」\nEXEC sp_configure N'show advanced options';\n-- 結果：實際生效值要看 run_value 那欄，不是 config_value"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-configure-transact-sql",
+      "references": [
+        {
+          "title": "參數",
+          "columns": [
+            "參數",
+            "型別",
+            "方向",
+            "說明"
+          ],
+          "rows": [
+            [
+              "@configname",
+              "varchar(35)",
+              "輸入",
+              "設定項名稱；省略時列出全部"
+            ],
+            [
+              "@configvalue",
+              "int",
+              "輸入",
+              "要排入的新值，改完要 RECONFIGURE 才生效"
+            ]
+          ]
+        },
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "sp_configure",
+              "列出全部設定項"
+            ],
+            [
+              "sp_configure 'name'",
+              "查單一設定項的目前值"
+            ],
+            [
+              "sp_configure 'name', value; RECONFIGURE;",
+              "改值並讓 run_value 追上"
+            ]
+          ]
+        }
+      ]
+    }
+  ]
 }
