@@ -22,6 +22,12 @@ public sealed class SqlBuiltInDocCatalogTests
     /// <summary>範例是一行程式碼，太寬的提示會被螢幕邊界切掉。</summary>
     private const int MaximumExampleLength = 90;
 
+    /// <summary>
+    /// QuickInfo 只顯示第一段，「單行、不超過 <see cref="MaximumExampleLength"/>」只套用第一段；
+    /// 第二段以後只在浮動視窗顯示，改成「不超過這麼多行」，不逐行限長。
+    /// </summary>
+    private const int MaximumExampleLinesAfterFirst = 15;
+
     [Fact]
     public void 內建說明資源載入成功()
     {
@@ -423,11 +429,21 @@ public sealed class SqlBuiltInDocCatalogTests
             Assert.True(doc.Summary.Length <= MaximumSummaryLength, $"{name}：{doc.Summary.Length}");
             Assert.DoesNotContain('\n', doc.Summary);
 
-            Assert.All(doc.Examples, example =>
+            for (var i = 0; i < doc.Examples.Count; i++)
             {
-                Assert.True(example.Sql.Length <= MaximumExampleLength, $"{name}／{example.Id}：{example.Sql.Length}");
-                Assert.DoesNotContain('\n', example.Sql);
-            });
+                var example = doc.Examples[i];
+
+                if (i == 0)
+                {
+                    Assert.True(example.Sql.Length <= MaximumExampleLength, $"{name}／{example.Id}：{example.Sql.Length}");
+                    Assert.DoesNotContain('\n', example.Sql);
+                }
+                else
+                {
+                    var lineCount = example.Sql.Split('\n').Length;
+                    Assert.True(lineCount <= MaximumExampleLinesAfterFirst, $"{name}／{example.Id}：{lineCount}");
+                }
+            }
         });
     }
 
@@ -484,18 +500,29 @@ public sealed class SqlBuiltInDocCatalogTests
     [Fact]
     public void 英文介面的內建說明取自覆蓋檔()
     {
+        SqlBuiltInDoc doc;
+        SqlBuiltInDoc chooseEn;
+
         using (SqlText.Use(English))
         {
-            Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var doc));
+            Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out doc));
             Assert.Equal("Convert type; style formats dates/numbers; type goes first", doc.Summary);
-            Assert.StartsWith("SELECT CONVERT(varchar(10), GETDATE(), 120)", doc.Examples[0].Sql);
             Assert.Equal("style (date and time)", doc.References[0].Title);
             Assert.Equal("Built-in function", SqlBuiltInKind.Function.GetDisplayName());
+
+            Assert.True(SqlBuiltInDocCatalog.TryGet("CHOOSE", SqlBuiltInKind.Function, out chooseEn));
         }
 
         Assert.True(SqlBuiltInDocCatalog.TryGet("CONVERT", SqlBuiltInKind.Function, out var source));
         Assert.Equal("內建函式", SqlBuiltInKind.Function.GetDisplayName());
         Assert.NotEqual("Convert type; style formats dates/numbers; type goes first", source.Summary);
+
+        // 不綁住範例的實際文字（那是內容分支的事）：挑一筆範例本來就含中文字面值的（CHOOSE），
+        // 只驗證覆蓋檔真的生效——英文版跟中文版不同，且不含中日韓字元。
+        Assert.True(SqlBuiltInDocCatalog.TryGet("CHOOSE", SqlBuiltInKind.Function, out var chooseZh));
+        Assert.NotEqual(chooseZh.Examples[0].Sql, chooseEn.Examples[0].Sql);
+        Assert.DoesNotContain(chooseEn.Examples[0].Sql, ch => ch >= '\u4e00' && ch <= '\u9fff');
+        Assert.DoesNotContain(chooseEn.Examples[0].Title, ch => ch >= '\u4e00' && ch <= '\u9fff');
     }
 
     [Fact]
@@ -530,11 +557,23 @@ public sealed class SqlBuiltInDocCatalogTests
                 Assert.True(SqlBuiltInDocCatalog.TryGet(name, kind, out var doc), name);
                 Assert.True(doc.Summary.Length <= MaximumSummaryLength, $"{name}: {doc.Summary.Length}");
 
-                foreach (var example in doc.Examples)
+                for (var i = 0; i < doc.Examples.Count; i++)
                 {
-                    Assert.True(
-                        example.Sql.Length <= MaximumExampleLength,
-                        $"{name}/{example.Id}: {example.Sql.Length}");
+                    var example = doc.Examples[i];
+
+                    if (i == 0)
+                    {
+                        Assert.True(
+                            example.Sql.Length <= MaximumExampleLength,
+                            $"{name}/{example.Id}: {example.Sql.Length}");
+                    }
+                    else
+                    {
+                        var lineCount = example.Sql.Split('\n').Length;
+                        Assert.True(
+                            lineCount <= MaximumExampleLinesAfterFirst,
+                            $"{name}/{example.Id}: {lineCount}");
+                    }
                 }
             }
 

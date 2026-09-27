@@ -10,6 +10,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT CAST('2026-09-08' AS date)   -- 2026-09-08"
+        },
+        {
+          "id": "truncates-not-rounds",
+          "title": "小數轉整數捨去",
+          "sql": "SELECT CAST(19.99 AS int)   -- 19（無條件捨去，不是四捨五入）"
+        },
+        {
+          "id": "invalid-string-fails",
+          "title": "字串轉 int 失敗",
+          "sql": "SELECT CAST('abc' AS int)   -- 錯誤：轉換失敗；要容錯改用 TRY_CAST"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cast-and-convert-transact-sql"
@@ -22,7 +32,17 @@
         {
           "id": "basic",
           "title": "基本用法",
-          "sql": "SELECT CONVERT(varchar(10), GETDATE(), 120)   -- 2026-09-08（style 120 = ODBC）"
+          "sql": "SELECT CONVERT(varchar(10), CAST('2026-09-08' AS date), 120)   -- '2026-09-08'"
+        },
+        {
+          "id": "style-compare",
+          "title": "常用 style 對照",
+          "sql": "SELECT\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 101) AS s101,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 112) AS s112,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 120) AS s120,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 126) AS s126\n  -- '09/08/2026', '20260908', '2026-09-08 21:30:00', '2026-09-08T21:30:00.000'"
+        },
+        {
+          "id": "silent-truncate",
+          "title": "字串轉換靜默截斷",
+          "sql": "SELECT CONVERT(varchar(4), 'ABCDE')   -- 'ABCD'，長度不夠會靜默截斷，不會報錯"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/cast-and-convert-transact-sql",
@@ -40,6 +60,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT TRY_CONVERT(int, 'x')   -- NULL"
+        },
+        {
+          "id": "invalid-date",
+          "title": "無效日期回傳 NULL",
+          "sql": "SELECT TRY_CONVERT(date, '2026-13-01')   -- NULL：CONVERT 遇到同樣的字串會直接報錯"
+        },
+        {
+          "id": "style-succeeds",
+          "title": "轉換成功時同 CONVERT",
+          "sql": "SELECT TRY_CONVERT(varchar(10), CAST('2026-09-08' AS date), 23)   -- '2026-09-08'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/try-convert-transact-sql",
@@ -57,6 +87,11 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab'，不是 'abc'"
+        },
+        {
+          "id": "default-value",
+          "title": "提供預設值",
+          "sql": "DECLARE @Reader TABLE (ReaderId int, NickName nvarchar(20));\nINSERT INTO @Reader VALUES (1, NULL);\nSELECT ISNULL(NickName, N'(未設定)') FROM @Reader   -- '(未設定)'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/isnull-transact-sql"
@@ -70,6 +105,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT COALESCE(NULL, NULL, 'abc')   -- 'abc'"
+        },
+        {
+          "id": "no-truncate",
+          "title": "不像 ISNULL 會截斷",
+          "sql": "SELECT COALESCE(CAST(NULL AS varchar(2)), 'abc')   -- 'abc'，不會截斷成 'ab'"
+        },
+        {
+          "id": "type-mismatch-fails",
+          "title": "型別不相容會報錯",
+          "sql": "SELECT COALESCE(NULL, 1, 'x')   -- 錯誤：'x' 轉不成 int；型別由優先順序決定"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/coalesce-transact-sql"
@@ -83,6 +128,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT 10 / NULLIF(0, 0)   -- NULL，不會拋出除以零"
+        },
+        {
+          "id": "safe-division-column",
+          "title": "欄位安全除法",
+          "sql": "DECLARE @Copy TABLE (CopyNo int, LoanCount int);\nINSERT INTO @Copy VALUES (1, 0);\nSELECT CopyNo, 100.0 / NULLIF(LoanCount, 0) AS AvgLoad FROM @Copy   -- NULL，不拋出除以零"
+        },
+        {
+          "id": "null-first-arg",
+          "title": "NULL 本身不算相等",
+          "sql": "SELECT NULLIF(NULL, 1)   -- NULL（第一個引數就是 NULL，不代表判定為相等）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/nullif-transact-sql"
@@ -96,6 +151,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT IIF(1 > 2, '是', '否')   -- '否'"
+        },
+        {
+          "id": "type-mismatch-both-branches",
+          "title": "兩分支型別都要相容",
+          "sql": "SELECT IIF(1 = 1, 100, 'oops')   -- 錯誤：不管走不走得到，兩個分支的型別都要能轉成同一種"
+        },
+        {
+          "id": "with-table",
+          "title": "配合資料表使用",
+          "sql": "DECLARE @Copy TABLE (CopyNo int, Status tinyint);\nINSERT INTO @Copy VALUES (1, 1), (2, 0);\nSELECT CopyNo, IIF(Status = 1, N'借出', N'在架') FROM @Copy ORDER BY CopyNo   -- 1: 借出；2: 在架"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-iif-transact-sql"
@@ -109,6 +174,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT DATEADD(DAY, -14, GETDATE())   -- 兩週前的同一時刻"
+        },
+        {
+          "id": "month-end-clamp",
+          "title": "月底自動夾住",
+          "sql": "SELECT DATEADD(MONTH, 1, '2026-01-31')   -- 2026-02-28（沒有 2 月 31 日，自動夾到月底）"
+        },
+        {
+          "id": "add-quarter",
+          "title": "以季為單位",
+          "sql": "SELECT DATEADD(QUARTER, 1, '2026-01-01')   -- 2026-04-01"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/dateadd-transact-sql",
@@ -125,6 +200,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT DATEDIFF(DAY, '2026-09-08 23:59', '2026-09-09 00:01')   -- 1"
+        },
+        {
+          "id": "year-boundary",
+          "title": "只跨一天也算差 1 年",
+          "sql": "SELECT DATEDIFF(YEAR, '2026-12-31', '2027-01-01')   -- 1（只跨了一天，但跨過年份邊界）"
+        },
+        {
+          "id": "negative-direction",
+          "title": "方向錯了變負數",
+          "sql": "SELECT DATEDIFF(DAY, '2026-09-08', '2026-09-01')   -- -7"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datediff-transact-sql",
@@ -158,6 +243,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT EOMONTH('2026-02-10')   -- 2026-02-28"
+        },
+        {
+          "id": "leap-year",
+          "title": "閏年最後一天",
+          "sql": "SELECT EOMONTH('2028-02-10')   -- 2028-02-29（閏年）"
+        },
+        {
+          "id": "offset-month",
+          "title": "加減月份再取月底",
+          "sql": "SELECT EOMONTH('2026-01-31', 1)   -- 2026-02-28（先加一個月，2 月沒有 31 天所以夾到月底）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/eomonth-transact-sql"
@@ -171,6 +266,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT FORMAT(1234.5, 'N2', 'zh-TW')   -- 1,234.50"
+        },
+        {
+          "id": "weekday-culture",
+          "title": "星期名稱隨文化特性",
+          "sql": "SELECT FORMAT(CAST('2026-09-08' AS date), 'dddd', 'zh-TW'), FORMAT(CAST('2026-09-08' AS date), 'dddd', 'en-US')   -- '星期二', 'Tuesday'"
+        },
+        {
+          "id": "number-culture",
+          "title": "千分位與小數點互換",
+          "sql": "SELECT FORMAT(1234.5, 'N2', 'de-DE')   -- '1.234,50'（千分位與小數點依文化特性互換）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/format-transact-sql",
@@ -200,6 +305,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT SUBSTRING('ABC-123', 5, 3)   -- '123'"
+        },
+        {
+          "id": "start-from-1",
+          "title": "start 從 1 起算",
+          "sql": "SELECT SUBSTRING('ABC-123', 0, 3)   -- 'AB'（0 或負值會把多出來的長度從左邊吃掉）"
+        },
+        {
+          "id": "length-overflow-safe",
+          "title": "長度超出尾端不報錯",
+          "sql": "SELECT SUBSTRING('ABC-123', 5, 100)   -- '123'（長度超出尾端不會報錯，只取到字串結尾）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/substring-transact-sql"
@@ -225,7 +340,17 @@
         {
           "id": "basic",
           "title": "基本用法",
-          "sql": "SELECT STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo) FROM dbo.Cat_BookCopy"
+          "sql": "SELECT STRING_AGG(v, ', ') FROM (VALUES ('A'), ('B'), ('C')) AS t(v)   -- 'A, B, C'"
+        },
+        {
+          "id": "ignores-null",
+          "title": "NULL 直接略過",
+          "sql": "DECLARE @Copy TABLE (CopyNo varchar(10));\nINSERT INTO @Copy VALUES ('A01'), (NULL), ('A02');\nSELECT STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo) FROM @Copy   -- 'A01, A02'（NULL 直接略過，不留分隔字元）"
+        },
+        {
+          "id": "group-by-branch",
+          "title": "搭配 GROUP BY 分組",
+          "sql": "DECLARE @Copy TABLE (BranchId int, CopyNo varchar(10));\nINSERT INTO @Copy VALUES (1, 'A01'), (1, 'A02'), (2, 'B01');\nSELECT BranchId, STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo)\nFROM @Copy GROUP BY BranchId ORDER BY BranchId   -- 1: 'A01, A02'；2: 'B01'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/string-agg-transact-sql"
@@ -567,6 +692,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT CONCAT('A', NULL, 'B')   -- 'AB'"
+        },
+        {
+          "id": "vs-plus-null",
+          "title": "和 + 運算子的差別",
+          "sql": "SELECT 'A' + NULL + 'B'   -- NULL（+ 遇到 NULL 整句變 NULL，CONCAT 不會）"
+        },
+        {
+          "id": "auto-convert-number",
+          "title": "非字串引數自動轉換",
+          "sql": "SELECT CONCAT('CopyNo=', 7)   -- 'CopyNo=7'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/concat-transact-sql"
@@ -580,6 +715,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT CONCAT_WS('-', 'A', NULL, 'B')   -- 'A-B'"
+        },
+        {
+          "id": "skips-consecutive-nulls",
+          "title": "連續 NULL 不留空分隔",
+          "sql": "SELECT CONCAT_WS('-', 'A', NULL, NULL, 'B')   -- 'A-B'（連續 NULL 也不會留下多餘的分隔字元）"
+        },
+        {
+          "id": "all-null",
+          "title": "全部 NULL 回傳空字串",
+          "sql": "SELECT CONCAT_WS('-', NULL, NULL)   -- ''（不是 NULL，而是空字串）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/concat-ws-transact-sql"
@@ -700,6 +845,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT REPLACE('978-986-1', '-', '')   -- '9789861'"
+        },
+        {
+          "id": "null-arg-trap",
+          "title": "任何引數 NULL 全變 NULL",
+          "sql": "SELECT REPLACE('ABC', NULL, 'x')   -- NULL（任何引數是 NULL，整個結果就是 NULL）"
+        },
+        {
+          "id": "practical-use",
+          "title": "取代空白做識別字",
+          "sql": "DECLARE @Title nvarchar(50) = N'SQL 入門 教學';\nSELECT REPLACE(@Title, N' ', N'-')   -- 'SQL-入門-教學'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/replace-transact-sql"
@@ -804,6 +959,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT value FROM STRING_SPLIT('A,B,C', ',')   -- 三列：A、B、C"
+        },
+        {
+          "id": "ordinal-for-order",
+          "title": "順序要靠 ordinal",
+          "sql": "SELECT value, ordinal\nFROM STRING_SPLIT('A,B,C', ',', 1)\nORDER BY ordinal   -- 不加第三個引數就不保證順序（SQL Server 2022 起才有 enable_ordinal）"
+        },
+        {
+          "id": "keeps-whitespace",
+          "title": "不會自動去除空白",
+          "sql": "SELECT '[' + value + ']' FROM STRING_SPLIT('A, B, C', ',')   -- '[A]'、'[ B]'、'[ C]'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/string-split-transact-sql",
@@ -820,6 +985,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT STUFF('978986', 4, 0, '-')   -- '978-986'"
+        },
+        {
+          "id": "legacy-concat-vs-string-agg",
+          "title": "舊式串接改用 STRING_AGG",
+          "sql": "DECLARE @Copy TABLE (CopyNo varchar(10));\nINSERT INTO @Copy VALUES ('A01'), ('A02'), ('A03');\nSELECT STUFF((\n  SELECT ', ' + CopyNo FROM @Copy ORDER BY CopyNo FOR XML PATH('')\n), 1, 2, '')   -- 'A01, A02, A03'；SQL Server 2017 起改用 STRING_AGG 更直覺"
+        },
+        {
+          "id": "delete-only",
+          "title": "new 給空字串等於刪除",
+          "sql": "SELECT STUFF('2026-09-08', 5, 3, '')   -- '2026-08'（砍掉月份，只留年與日）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/stuff-transact-sql"
@@ -884,7 +1059,17 @@
         {
           "id": "basic",
           "title": "基本用法",
+          "sql": "SELECT DATEFROMPARTS(2026, 9, 8)   -- 2026-09-08"
+        },
+        {
+          "id": "invalid-date",
+          "title": "湊不成日期就報錯",
           "sql": "SELECT DATEFROMPARTS(2026, 2, 30)   -- 錯誤：2 月沒有 30 日"
+        },
+        {
+          "id": "leap-day",
+          "title": "閏年才有 29 日",
+          "sql": "SELECT DATEFROMPARTS(2028, 2, 29)   -- 2028-02-29（閏年才有效，非閏年會報錯）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datefromparts-transact-sql"
@@ -1215,6 +1400,11 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT CHOOSE(2, '借出', '在架', '遺失')   -- '在架'"
+        },
+        {
+          "id": "out-of-range",
+          "title": "索引超出範圍",
+          "sql": "SELECT CHOOSE(5, '借出', '在架', '遺失') AS too_high, CHOOSE(0, '借出', '在架', '遺失') AS too_low   -- NULL, NULL"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/logical-functions-choose-transact-sql"
@@ -1254,6 +1444,16 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT TRY_CAST('x' AS int)   -- NULL"
+        },
+        {
+          "id": "valid-succeeds",
+          "title": "轉得過去正常回傳",
+          "sql": "SELECT TRY_CAST('123' AS int)   -- 123"
+        },
+        {
+          "id": "date-format-fails",
+          "title": "月份不存在也回傳 NULL",
+          "sql": "SELECT TRY_CAST('2026-13-01' AS date)   -- NULL（月份 13 不存在，一樣轉不過去）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/try-cast-transact-sql"
@@ -1869,6 +2069,11 @@
           "id": "basic",
           "title": "基本用法",
           "sql": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF 會溢位"
+        },
+        {
+          "id": "elapsed-minutes",
+          "title": "計算借閱時間轉分鐘",
+          "sql": "DECLARE @Loan TABLE (LoanId int, LoanDate datetime2, ReturnDate datetime2);\nINSERT INTO @Loan VALUES (1, '2026-09-01 09:00:00', '2026-09-08 09:00:00');\nSELECT DATEDIFF_BIG(MINUTE, LoanDate, ReturnDate) FROM @Loan   -- 10080（7 天）"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/datediff-big-transact-sql"

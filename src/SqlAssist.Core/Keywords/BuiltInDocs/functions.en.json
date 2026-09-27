@@ -1,44 +1,73 @@
 {
   "CAST": {
     "summary": "Convert to a type; errors on failure (use TRY_CAST instead)",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.truncates-not-rounds.title": "Decimal truncates, doesn't round",
+    "examples.truncates-not-rounds.sql": "SELECT CAST(19.99 AS int)   -- 19 (truncates toward zero, not rounded)",
+    "examples.invalid-string-fails.title": "String to int fails",
+    "examples.invalid-string-fails.sql": "SELECT CAST('abc' AS int)   -- Error: conversion failed; use TRY_CAST to avoid the error"
   },
   "CONVERT": {
     "summary": "Convert type; style formats dates/numbers; type goes first",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT CONVERT(varchar(10), GETDATE(), 120)   -- 2026-09-08 (style 120 = ODBC)"
+    "examples.style-compare.title": "Compare style 101/112/120/126",
+    "examples.silent-truncate.title": "String conversion truncates silently",
+    "examples.silent-truncate.sql": "SELECT CONVERT(varchar(4), 'ABCDE')   -- 'ABCD', truncates silently when too short, no error"
   },
   "TRY_CONVERT": {
     "summary": "Like CONVERT but returns NULL on failure instead of an error",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.invalid-date.title": "Invalid date returns NULL",
+    "examples.invalid-date.sql": "SELECT TRY_CONVERT(date, '2026-13-01')   -- NULL: CONVERT would error on the same string",
+    "examples.style-succeeds.title": "Succeeds like CONVERT"
   },
   "ISNULL": {
     "summary": "Second arg if first is NULL; typed as first, may truncate",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab', not 'abc'"
+    "examples.basic.sql": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab', not 'abc'",
+    "examples.default-value.title": "Provide a default value",
+    "examples.default-value.sql": "DECLARE @Reader TABLE (ReaderId int, NickName nvarchar(20));\nINSERT INTO @Reader VALUES (1, NULL);\nSELECT ISNULL(NickName, N'(not set)') FROM @Reader   -- '(not set)'"
   },
   "COALESCE": {
     "summary": "First non-NULL arg; highest-precedence type, no truncation",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.no-truncate.title": "Doesn't truncate like ISNULL",
+    "examples.no-truncate.sql": "SELECT COALESCE(CAST(NULL AS varchar(2)), 'abc')   -- 'abc', not truncated to 'ab' like ISNULL",
+    "examples.type-mismatch-fails.title": "Incompatible types error",
+    "examples.type-mismatch-fails.sql": "SELECT COALESCE(NULL, 1, 'x')   -- Error: 'x' can't convert to int; type is chosen by precedence"
   },
   "NULLIF": {
     "summary": "NULL if both are equal, else the first; turns 0 into NULL",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT 10 / NULLIF(0, 0)   -- NULL, won't throw division by zero"
+    "examples.basic.sql": "SELECT 10 / NULLIF(0, 0)   -- NULL, won't throw division by zero",
+    "examples.safe-division-column.title": "Safe division on a column",
+    "examples.safe-division-column.sql": "DECLARE @Copy TABLE (CopyNo int, LoanCount int);\nINSERT INTO @Copy VALUES (1, 0);\nSELECT CopyNo, 100.0 / NULLIF(LoanCount, 0) AS AvgLoad FROM @Copy   -- NULL, no division-by-zero error",
+    "examples.null-first-arg.title": "NULL itself isn't equal",
+    "examples.null-first-arg.sql": "SELECT NULLIF(NULL, 1)   -- NULL (the first arg is already NULL; not a match on equality)"
   },
   "IIF": {
     "summary": "Two-branch CASE; returns second arg if true, third if false",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT IIF(1 > 2, 'Yes', 'No')   -- 'No'"
+    "examples.basic.sql": "SELECT IIF(1 > 2, 'Yes', 'No')   -- 'No'",
+    "examples.type-mismatch-both-branches.title": "Both branches need compatible types",
+    "examples.type-mismatch-both-branches.sql": "SELECT IIF(1 = 1, 100, 'oops')   -- Error: both branches must share a compatible type, even the one not taken",
+    "examples.with-table.title": "Used against a table",
+    "examples.with-table.sql": "DECLARE @Copy TABLE (CopyNo int, Status tinyint);\nINSERT INTO @Copy VALUES (1, 1), (2, 0);\nSELECT CopyNo, IIF(Status = 1, N'checked out', N'on shelf') FROM @Copy ORDER BY CopyNo   -- 1: checked out; 2: on shelf"
   },
   "DATEADD": {
     "summary": "Add an interval to a date; datepart is unquoted (DAY, MONTH)",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT DATEADD(DAY, -14, GETDATE())   -- Same time two weeks ago"
+    "examples.basic.sql": "SELECT DATEADD(DAY, -14, GETDATE())   -- Same time two weeks ago",
+    "examples.month-end-clamp.title": "Clamped to month end",
+    "examples.month-end-clamp.sql": "SELECT DATEADD(MONTH, 1, '2026-01-31')   -- 2026-02-28 (February has no 31st, clamped to month end)",
+    "examples.add-quarter.title": "Add by quarter"
   },
   "DATEDIFF": {
     "summary": "Counts datepart boundaries crossed, not elapsed time",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.year-boundary.title": "One day apart, still a year",
+    "examples.year-boundary.sql": "SELECT DATEDIFF(YEAR, '2026-12-31', '2027-01-01')   -- 1 (only a day apart, but crosses a year boundary)",
+    "examples.negative-direction.title": "Wrong direction gives negative"
   },
   "DATEPART": {
     "summary": "Extract date part as integer; use DATENAME for text",
@@ -47,11 +76,19 @@
   },
   "EOMONTH": {
     "summary": "Last day of the month; optional arg adds months first",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.leap-year.title": "Last day in a leap year",
+    "examples.leap-year.sql": "SELECT EOMONTH('2028-02-10')   -- 2028-02-29 (leap year)",
+    "examples.offset-month.title": "Offset months then find month end",
+    "examples.offset-month.sql": "SELECT EOMONTH('2026-01-31', 1)   -- 2026-02-28 (add one month first; February has no 31st, so it clamps)"
   },
   "FORMAT": {
     "summary": "Format via .NET string; uses CLR, much slower than CONVERT",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.weekday-culture.title": "Weekday name follows culture",
+    "examples.weekday-culture.sql": "SELECT FORMAT(CAST('2026-09-08' AS date), 'dddd', 'zh-TW'), FORMAT(CAST('2026-09-08' AS date), 'dddd', 'en-US')   -- Chinese weekday name for zh-TW, 'Tuesday' for en-US",
+    "examples.number-culture.title": "Separators depend on culture",
+    "examples.number-culture.sql": "SELECT FORMAT(1234.5, 'N2', 'de-DE')   -- '1.234,50' (thousands and decimal separators swap by culture)"
   },
   "CHARINDEX": {
     "summary": "Position of first substring, 1-based; 0 if not found",
@@ -59,7 +96,11 @@
   },
   "SUBSTRING": {
     "summary": "Substring from start for length chars; no error past the end",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.start-from-1.title": "start is 1-based",
+    "examples.start-from-1.sql": "SELECT SUBSTRING('ABC-123', 0, 3)   -- 'AB' (0 or negative eats into length from the left)",
+    "examples.length-overflow-safe.title": "Length past the end is safe",
+    "examples.length-overflow-safe.sql": "SELECT SUBSTRING('ABC-123', 5, 100)   -- '123' (length past the end doesn't error, just stops at the end)"
   },
   "LEN": {
     "summary": "Character count excluding trailing spaces; bytes: DATALENGTH",
@@ -67,7 +108,11 @@
   },
   "STRING_AGG": {
     "summary": "Concatenate group values; order with WITHIN GROUP (ORDER BY)",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.ignores-null.title": "Skips NULL values",
+    "examples.ignores-null.sql": "DECLARE @Copy TABLE (CopyNo varchar(10));\nINSERT INTO @Copy VALUES ('A01'), (NULL), ('A02');\nSELECT STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo) FROM @Copy   -- 'A01, A02' (NULL is skipped, no leftover separator)",
+    "examples.group-by-branch.title": "Grouped with GROUP BY",
+    "examples.group-by-branch.sql": "DECLARE @Copy TABLE (BranchId int, CopyNo varchar(10));\nINSERT INTO @Copy VALUES (1, 'A01'), (1, 'A02'), (2, 'B01');\nSELECT BranchId, STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo)\nFROM @Copy GROUP BY BranchId ORDER BY BranchId   -- 1: 'A01, A02'; 2: 'B01'"
   },
   "ROW_NUMBER": {
     "summary": "Sequential number per OVER order, no ties; ORDER BY required",
@@ -187,11 +232,18 @@
   },
   "CONCAT": {
     "summary": "Concatenate 2+ values; NULL counts as an empty string",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.vs-plus-null.title": "Differs from the + operator",
+    "examples.vs-plus-null.sql": "SELECT 'A' + NULL + 'B'   -- NULL (+ turns the whole expression NULL on NULL, CONCAT doesn't)",
+    "examples.auto-convert-number.title": "Non-string args auto-convert"
   },
   "CONCAT_WS": {
     "summary": "Concatenate with separator; skips NULL and their separators",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.skips-consecutive-nulls.title": "Consecutive NULLs, no gap",
+    "examples.skips-consecutive-nulls.sql": "SELECT CONCAT_WS('-', 'A', NULL, NULL, 'B')   -- 'A-B' (consecutive NULLs don't leave extra separators either)",
+    "examples.all-null.title": "All NULL returns empty string",
+    "examples.all-null.sql": "SELECT CONCAT_WS('-', NULL, NULL)   -- '' (not NULL, an empty string)"
   },
   "DATALENGTH": {
     "summary": "Bytes used, including trailing spaces; characters: LEN",
@@ -230,7 +282,11 @@
   },
   "REPLACE": {
     "summary": "Replace all occurrences; comparison affected by collation",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.null-arg-trap.title": "Any NULL arg makes it NULL",
+    "examples.null-arg-trap.sql": "SELECT REPLACE('ABC', NULL, 'x')   -- NULL (any argument being NULL makes the whole result NULL)",
+    "examples.practical-use.title": "Replace spaces for an identifier",
+    "examples.practical-use.sql": "DECLARE @Title nvarchar(50) = N'SQL Basics Course';\nSELECT REPLACE(@Title, N' ', N'-')   -- 'SQL-Basics-Course'"
   },
   "REPLICATE": {
     "summary": "Repeat string count times; NULL if count negative",
@@ -263,11 +319,19 @@
   "STRING_SPLIT": {
     "summary": "Split a string into rows; separator is a single character",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT value FROM STRING_SPLIT('A,B,C', ',')   -- Three rows: A, B, C"
+    "examples.basic.sql": "SELECT value FROM STRING_SPLIT('A,B,C', ',')   -- Three rows: A, B, C",
+    "examples.ordinal-for-order.title": "Order needs ordinal",
+    "examples.ordinal-for-order.sql": "SELECT value, ordinal\nFROM STRING_SPLIT('A,B,C', ',', 1)\nORDER BY ordinal   -- Without the third arg, order isn't guaranteed (enable_ordinal needs SQL Server 2022)",
+    "examples.keeps-whitespace.title": "Doesn't trim whitespace",
+    "examples.keeps-whitespace.sql": "SELECT '[' + value + ']' FROM STRING_SPLIT('A, B, C', ',')   -- '[A]', '[ B]', '[ C]'"
   },
   "STUFF": {
     "summary": "Delete length chars from start, insert new; start is 1-based",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.legacy-concat-vs-string-agg.title": "Old-style concat, use STRING_AGG",
+    "examples.legacy-concat-vs-string-agg.sql": "DECLARE @Copy TABLE (CopyNo varchar(10));\nINSERT INTO @Copy VALUES ('A01'), ('A02'), ('A03');\nSELECT STUFF((\n  SELECT ', ' + CopyNo FROM @Copy ORDER BY CopyNo FOR XML PATH('')\n), 1, 2, '')   -- 'A01, A02, A03'; STRING_AGG (SQL Server 2017+) is more direct",
+    "examples.delete-only.title": "Empty new deletes only",
+    "examples.delete-only.sql": "SELECT STUFF('2026-09-08', 5, 3, '')   -- '2026-08' (removes the month, keeping year and day)"
   },
   "TRANSLATE": {
     "summary": "Map source chars to replacement 1-to-1; lists same length",
@@ -289,7 +353,10 @@
   "DATEFROMPARTS": {
     "summary": "Assemble date from year/month/day; fails if invalid date",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT DATEFROMPARTS(2026, 2, 30)   -- Error: February does not have 30 days"
+    "examples.invalid-date.title": "Errors when parts don't form a date",
+    "examples.invalid-date.sql": "SELECT DATEFROMPARTS(2026, 2, 30)   -- Error: February does not have 30 days",
+    "examples.leap-day.title": "29th only valid in leap years",
+    "examples.leap-day.sql": "SELECT DATEFROMPARTS(2028, 2, 29)   -- 2028-02-29 (valid only in leap years; otherwise errors)"
   },
   "DAY": {
     "summary": "Extracts day, equals DATEPART(DAY, date), returns integer",
@@ -389,7 +456,9 @@
   "CHOOSE": {
     "summary": "Select value at 1-based index; NULL if out of range",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT CHOOSE(2, 'checked out', 'on shelf', 'lost')   -- 'on shelf'"
+    "examples.basic.sql": "SELECT CHOOSE(2, 'checked out', 'on shelf', 'lost')   -- 'on shelf'",
+    "examples.out-of-range.title": "Index out of range",
+    "examples.out-of-range.sql": "SELECT CHOOSE(5, 'checked out', 'on shelf', 'lost') AS too_high, CHOOSE(0, 'checked out', 'on shelf', 'lost') AS too_low   -- NULL, NULL"
   },
   "ISNUMERIC": {
     "summary": "1 if convertible to any numeric type; currency symbols count",
@@ -401,7 +470,10 @@
   },
   "TRY_CAST": {
     "summary": "Like CAST but NULL on failure instead of statement error",
-    "examples.basic.title": "Basic usage"
+    "examples.basic.title": "Basic usage",
+    "examples.valid-succeeds.title": "Succeeds when convertible",
+    "examples.date-format-fails.title": "Invalid month also returns NULL",
+    "examples.date-format-fails.sql": "SELECT TRY_CAST('2026-13-01' AS date)   -- NULL (month 13 doesn't exist, also fails to convert)"
   },
   "TRY_PARSE": {
     "summary": "Like PARSE but NULL on failure; also uses CLR",
@@ -617,7 +689,9 @@
   "DATEDIFF_BIG": {
     "summary": "Like DATEDIFF but returns bigint; nanoseconds won't overflow",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF would overflow"
+    "examples.basic.sql": "SELECT DATEDIFF_BIG(NANOSECOND, '2026-01-01', '2026-09-08')   -- DATEDIFF would overflow",
+    "examples.elapsed-minutes.title": "Loan duration in minutes",
+    "examples.elapsed-minutes.sql": "DECLARE @Loan TABLE (LoanId int, LoanDate datetime2, ReturnDate datetime2);\nINSERT INTO @Loan VALUES (1, '2026-09-01 09:00:00', '2026-09-08 09:00:00');\nSELECT DATEDIFF_BIG(MINUTE, LoanDate, ReturnDate) FROM @Loan   -- 10080 (7 days)"
   },
   "DATETIME2FROMPARTS": {
     "summary": "Assemble datetime2; last arg is fractional second digits",
