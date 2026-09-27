@@ -49,7 +49,9 @@ public static class SqlKeywordPositionExtensions
     /// <c>WHEN |</c> 之後是 <c>MATCHED</c>、<c>NOT</c>，<c>THEN |</c> 之後是動作；<c>GRANT SELECT |</c> 之後是
     /// <c>ON</c>、<c>TO</c>；索引鍵清單的 <c>(a |</c> 之後是 <c>ASC</c>、<c>DESC</c>；外部索引鍵的
     /// <c>REFERENCES u (a) |</c> 之後是 <c>ON</c>、<c>NOT</c>；視窗的 <c>ORDER BY a |</c> 之後是框架；
-    /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上。</item>
+    /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上；模組的 <c>WITH SCHEMABINDING |</c> 之後是 <c>AS</c>，
+    /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、
+    /// <c>RAISERROR (…) WITH |</c> 之後是選項。</item>
     /// </list>
     ///
     /// 不在裡面的都有理由：<c>INSERT |</c> 的 <c>INTO</c> 可以省略；<c>SET |</c> 與
@@ -89,6 +91,10 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.FunctionCallTail |
         SqlKeywordPosition.WindowOrderTail |
         SqlKeywordPosition.OffsetTail |
+        SqlKeywordPosition.ModuleHeader |
+        SqlKeywordPosition.FunctionReturns |
+        SqlKeywordPosition.ExecuteOption |
+        SqlKeywordPosition.RaiserrorOption |
         SqlKeywordPosition.ByAnchor |
         SqlKeywordPosition.DdlObject |
         SqlKeywordPosition.AlterTableAction |

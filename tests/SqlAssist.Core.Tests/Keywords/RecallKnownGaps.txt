@@ -1,17 +1,9 @@
 # 召回稽核的已知缺口：語料裡列不出來、還沒修的字。一行一條，格式是「游標前的尾巴 ⎵字 | 理由」。
 # 尾巴是游標前詞元的後綴，詞元以一個空白相接；修好一條就刪一條，列得出來時 SqlKeywordRecallTests 會失敗。
 
-CREATE FUNCTION dbo . fn_Fee ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
-CREATE FUNCTION dbo . fn_LoansByCopy ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
-CREATE FUNCTION dbo . fn_Copies ( ) ⎵RETURNS | 參數清單之後沒有位置
-CREATE USER LibUser WITHOUT ⎵LOGIN | CREATE USER 只有 FOR 那一條片語
-CREATE LOGIN LibLogin WITH ⎵PASSWORD | CREATE LOGIN 沒有片語
-RAISERROR ( 'x' , 16 , 1 ) WITH ⎵NOWAIT | RAISERROR 的 WITH 選項沒有位置
-OUTPUT WITH ⎵RECOMPILE | EXEC 的 WITH 選項沒有位置
 ROOT ( 'Copies' ) , ⎵TYPE | FOR XML 的指示詞清單在逗號之後沒有位置
 TABLESAMPLE ( 10 ⎵PERCENT | TABLESAMPLE 的括號裡沒有位置，PERCENT 只屬於 TOP 子句
 FOR BranchId ⎵IN | PIVOT 的 FOR 欄位之後沒有位置
-CONSTRAINT UQ_Loan ⎵UNIQUE | 資料表層級 CONSTRAINT 名稱之後沒有位置
 ALTER TABLE dbo . Loan ADD ReaderId ⎵INT | ALTER TABLE ADD 的新資料行之後不是型別的位置
 @Count ⎵INT | 程序參數的型別位置只認第一個參數
 CREATE SEQUENCE dbo . LoanSeq AS ⎵INT | CREATE SEQUENCE 的 AS 之後不是型別的位置

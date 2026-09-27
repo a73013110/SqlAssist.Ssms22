@@ -78,6 +78,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (analyzer, index) => analyzer.EndsModuleOption(index),
             header: (analyzer, with) => analyzer.FindModuleOptionHeader(with)),
 
+        // EXEC p … WITH RECOMPILE, RESULT SETS (…)、RAISERROR (…) WITH NOWAIT, LOG：WITH 與逗號之後是下一個選項。
+        // 選項寫完之後接的是下一句，不歸清單管。
+        new(
+            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
+            isPart: (analyzer, index) => analyzer.tokens[index].Kind == SqlTokenKind.Identifier,
+            endsItem: null,
+            header: (analyzer, with) => analyzer.FindStatementOptionHeader(with),
+            skipsGroups: true),
+
         // 外部索引鍵 REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE：參考與每個動作寫完之後是 ON、NOT 與其他條件約束。
         // 動作寫到一半（ON DELETE SET ）由片語給。GRANT REFERENCES 的 REFERENCES 是權限。
         new(
@@ -132,6 +141,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.OffsetTail;
         }
 
+        if (EndsFunctionParameters(last))
+        {
+            return SqlKeywordPosition.FunctionReturns;
+        }
+
         foreach (var list in OptionLists)
         {
             if (list.Resolve(this, last) is { } position)
@@ -154,6 +168,37 @@ public sealed partial class SqlKeywordPositionAnalyzer
             IsBareKeyword(offset) &&
             tokens[offset].IsKeyword("OFFSET") &&
             (FindClausePosition(offset - 1) & SqlKeywordPosition.OrderByTail) != SqlKeywordPosition.None;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 關上 <c>CREATE|ALTER FUNCTION</c> 名稱之後的參數清單。
+    /// </summary>
+    /// <remarks>
+    /// 名稱可以限定（<c>dbo.fn_Fee</c>）；<c>CREATE OR ALTER</c> 的 FUNCTION 前面同樣是 ALTER。
+    /// </remarks>
+    private bool EndsFunctionParameters(int last)
+    {
+        if (!tokens[last].IsPunctuation(")"))
+        {
+            return false;
+        }
+
+        var name = SqlTokenNavigator.FindOpeningParenthesis(tokens, last) - 1;
+
+        if (name < 2 || !IsPlainWord(name))
+        {
+            return false;
+        }
+
+        while (name >= 3 && tokens[name - 1].IsPunctuation(".") && IsPlainWord(name - 2))
+        {
+            name -= 2;
+        }
+
+        var function = name - 1;
+
+        return IsBareKeyword(function) && tokens[function].IsKeyword("FUNCTION") &&
+            (tokens[function - 1].IsKeyword("CREATE") || tokens[function - 1].IsKeyword("ALTER"));
     }
 
     /// <summary><paramref name="references"/> 的 REFERENCES 是 GRANT／DENY／REVOKE 的權限，不是外部索引鍵。</summary>
@@ -595,7 +640,35 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return null;
         }
 
-        return new OptionSlots(start, null);
+        return new OptionSlots(start, SqlKeywordPosition.ModuleHeader);
+    }
+
+    /// <summary><paramref name="with"/> 的 WITH 屬於 <c>EXEC</c> 程序呼叫或 <c>RAISERROR</c>。</summary>
+    /// <remarks>
+    /// <c>EXECUTE AS USER = 'u' WITH NO REVERT</c> 是另一種敘述，<c>GRANT EXECUTE ON … WITH</c> 的 EXECUTE
+    /// 是權限，都不算：EXEC 要是這一句的開頭。RAISERROR 連同它的引數是一個單位，
+    /// 動詞往回找會越過它，所以直接看 WITH 前面那組括號。
+    /// </remarks>
+    private OptionSlots? FindStatementOptionHeader(int with)
+    {
+        if (with >= 1 && tokens[with - 1].IsPunctuation(")") &&
+            SqlTokenNavigator.FindOpeningParenthesis(tokens, with - 1) is var open and >= 1 &&
+            tokens[open - 1].IsKeyword("RAISERROR"))
+        {
+            return new OptionSlots(SqlKeywordPosition.RaiserrorOption, null);
+        }
+
+        var verb = FindVerb(with - 1);
+
+        if (verb < 0 || verb + 1 >= with)
+        {
+            return null;
+        }
+
+        return (tokens[verb].IsKeyword("EXEC") || tokens[verb].IsKeyword("EXECUTE")) && IsStatementHead(verb) &&
+            !tokens[verb + 1].IsKeyword("AS")
+            ? new OptionSlots(SqlKeywordPosition.ExecuteOption, null)
+            : null;
     }
 
     /// <summary>

@@ -295,6 +295,14 @@ $ContextTemplates = [ordered]@{
     # 外部索引鍵的參考寫完之後：ON（DELETE、UPDATE）、NOT（FOR REPLICATION）與其他資料行條件約束。
     ReferencesTail   = @('CREATE TABLE t (a int REFERENCES u (a) ')
 
+    # 模組的 WITH 選項寫完之後是本體的 AS；函式參數清單之後的 RETURNS 不是關鍵字，由子句片語給。
+    ModuleHeader     = @('CREATE VIEW v WITH SCHEMABINDING ', 'CREATE PROCEDURE p WITH RECOMPILE ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING ')
+    FunctionReturns  = @('CREATE FUNCTION f () ')
+
+    # EXEC、RAISERROR 的 WITH 選項多半不是關鍵字，由子句片語給。
+    ExecuteOption    = @('EXEC p WITH ', 'EXEC p WITH RECOMPILE, ')
+    RaiserrorOption  = @("RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ")
+
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
     GroupByTail      = @('SELECT * FROM t GROUP BY a ')
 
@@ -643,7 +651,6 @@ $ClausePhrases = @(
     @{ Pattern = 'FOR UPDATE'; After = $QueryTails }
     @{ Pattern = 'FOR SYSTEM_TIME'; After = @('TableSourceTail'); Expand = 1 }
     @{ Pattern = 'FOR'; After = @('CursorOption') }
-    @{ Pattern = 'USER {name} FOR'; After = @('DdlObject') }
     @{ Pattern = 'SYNONYM {name} FOR'; After = @('DdlObject') }
 
     # 運算式寫在哪裡都行，函式引數裡判不出位置；CONSTRAINT df 之後也判不出來。
@@ -666,6 +673,17 @@ $ClausePhrases = @(
     # OFFSET … FETCH：每一格只有一兩個字，但沒有它們就得整句背下來。
     # OFFSET 10 ROWS 已經是完整的語句，FETCH 同時是游標語句的開頭，被當成下一句扣掉了。
     @{ Pattern = ''; After = @('OffsetTail') }
+    @{ Pattern = ''; After = @('FunctionReturns') }
+    @{ Pattern = ''; After = @('ExecuteOption') }
+    @{ Pattern = ''; After = @('RaiserrorOption') }
+
+    # CREATE USER 寫完名稱已經是完整的一句，之後的 FOR、WITHOUT 各自接 LOGIN；CREATE LOGIN 之後是 WITH PASSWORD 或 FROM。
+    # 只認 CREATE：ALTER USER、ALTER LOGIN 接的是別的字（ENABLE、WITH NAME）。
+    @{ Pattern = 'CREATE USER {name}'; Expand = 1 }
+    @{ Pattern = 'CREATE LOGIN {name}'; Expand = 1 }
+
+    # 資料表層級的條件約束：CONSTRAINT 名稱之後是 PRIMARY KEY、UNIQUE、CHECK、FOREIGN KEY。
+    @{ Pattern = 'CONSTRAINT {name}'; After = @('ColumnDefinition', 'AlterTableAdd') }
     @{ Pattern = 'ROWS'; After = @('OffsetTail'); Values = @('FETCH') }
     @{ Pattern = 'ROW'; After = @('OffsetTail'); Values = @('FETCH') }
     @{ Pattern = 'ROWS FETCH'; After = @('OffsetTail') }
@@ -697,12 +715,13 @@ $ClausePhrases = @(
 # 片語的續尾在第三階段那一組之外多幾條：SET 選項值、選項清單的 = ON、字串與括號的結尾，
 # 以及幾個要多看一個詞元才分得出來的地方（AFTER 後面沒有 INSERT 就是語法錯誤）。
 # 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
+# CREATE LOGIN 的 WITH PASSWORD 只收字串。
 $PhraseContinuations = @($Continuations) + @(
     ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' ROW', ' ONLY',
     ' PRECEDING)', ' ROW)', " ZONE 'UTC'", ' OF x', ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
-    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a'
+    ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'"
 )
 
 # 片語要把一千九百個候選字逐一配上幾十條續尾剖析，單執行緒要半小時，所以這一段交給

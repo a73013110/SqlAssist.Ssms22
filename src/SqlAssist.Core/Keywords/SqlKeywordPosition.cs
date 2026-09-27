@@ -222,6 +222,22 @@ public enum SqlKeywordPosition : long
     /// <summary><c>ORDER BY … OFFSET 10</c> 的值之後——ROW、ROWS；兩個字都由子句片語給。</summary>
     OffsetTail = 1L << 47,
 
+    /// <summary>模組的 WITH 選項清單寫完之後——AS；程序另外接 FOR REPLICATION。</summary>
+    /// <remarks>
+    /// 清單裡是 <see cref="ProcedureOption"/>、<see cref="FunctionOption"/>、<see cref="ViewOption"/>；
+    /// 寫完一個選項之後接的是下一個選項的逗號或本體，選項名稱不再出現。
+    /// </remarks>
+    ModuleHeader = 1L << 48,
+
+    /// <summary><c>CREATE FUNCTION f (…)</c> 的參數清單之後——RETURNS；RETURNS 不是關鍵字，由子句片語給。</summary>
+    FunctionReturns = 1L << 49,
+
+    /// <summary><c>EXEC p … WITH</c> 與選項的逗號之後——RECOMPILE；RESULT SETS 由子句片語給。</summary>
+    ExecuteOption = 1L << 50,
+
+    /// <summary><c>RAISERROR (…) WITH</c> 與選項的逗號之後；LOG、NOWAIT、SETERROR 都不是關鍵字，由子句片語給。</summary>
+    RaiserrorOption = 1L << 51,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -261,7 +277,8 @@ public enum SqlKeywordPosition : long
         | PermissionList | PermissionTarget | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
-        | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail
+        | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
+        | ExecuteOption | RaiserrorOption
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

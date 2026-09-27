@@ -104,15 +104,36 @@ public sealed class SqlKeywordPositionTests
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 
+    /// <summary>
+    /// 模組的選項清單寫完之後是本體；函式的參數清單之後是 RETURNS；EXEC、RAISERROR 的 WITH 之後是它們自己的選項。
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE VIEW dbo.v WITH SCHEMABINDING ", SqlKeywordPosition.ModuleHeader)]
+    [InlineData("CREATE PROCEDURE dbo.p @a int WITH RECOMPILE, EXECUTE AS OWNER ", SqlKeywordPosition.ModuleHeader)]
+    [InlineData("CREATE FUNCTION dbo.f () RETURNS int WITH RETURNS NULL ON NULL INPUT ", SqlKeywordPosition.ModuleHeader)]
+    [InlineData("CREATE FUNCTION f () ", SqlKeywordPosition.FunctionReturns)]
+    [InlineData("CREATE OR ALTER FUNCTION dbo.fn_Fee (@CopyNo int) ", SqlKeywordPosition.FunctionReturns)]
+    [InlineData("ALTER FUNCTION dbo.fn_Fee (@CopyNo int, @Days int = 1) ", SqlKeywordPosition.FunctionReturns)]
+    [InlineData("EXEC dbo.usp_Renew @CopyNo = 1, @Due = @d OUTPUT WITH ", SqlKeywordPosition.ExecuteOption)]
+    [InlineData("EXEC dbo.usp_Renew WITH RECOMPILE, ", SqlKeywordPosition.ExecuteOption)]
+    [InlineData("RAISERROR ('x', 16, 1) WITH ", SqlKeywordPosition.RaiserrorOption)]
+    [InlineData("RAISERROR (@msg, 16, 1, @CopyNo) WITH NOWAIT, ", SqlKeywordPosition.RaiserrorOption)]
+    public void 模組標頭與敘述選項的位置(string textBeforeToken, SqlKeywordPosition expected)
+    {
+        Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
+    }
+
     [Theory]
     [InlineData("CREATE PROCEDURE p AS WITH ")]
+    [InlineData("GRANT EXECUTE ON SCHEMA::dbo TO LibRole WITH ")]
     [InlineData("CREATE VIEW v AS WITH c AS (SELECT 1 AS a), ")]
     [InlineData("CREATE INDEX i ON t (a) WITH ")]
     [InlineData("ALTER TABLE t WITH ")]
     public void 模組本體與別的敘述的WITH不是模組選項(string textBeforeToken)
     {
         const SqlKeywordPosition options = SqlKeywordPosition.ProcedureOption | SqlKeywordPosition.FunctionOption |
-            SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption;
+            SqlKeywordPosition.ViewOption | SqlKeywordPosition.TriggerOption |
+            SqlKeywordPosition.ExecuteOption | SqlKeywordPosition.RaiserrorOption;
         var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
 
         // 判不出位置（Any）也含這幾個位元，那不是判成選項。
