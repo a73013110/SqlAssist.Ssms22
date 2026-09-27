@@ -96,7 +96,7 @@
     "references.0.rows.2.1": "All three arguments can be variables"
   },
   "MERGE": {
-    "summary": "Merges insert/update/delete by one key; ends with a semicolon",
+    "summary": "Insert, update or delete by one key match; must end with ;",
     "examples.basic.title": "Basic usage",
     "examples.output-action.title": "Seeing what $action did",
     "examples.output-action.sql": "DECLARE @Target TABLE (CopyNo int PRIMARY KEY, Branch varchar(10));\nDECLARE @Source TABLE (CopyNo int, Branch varchar(10));\nINSERT INTO @Target VALUES (1, 'A01');\nINSERT INTO @Source VALUES (1, 'B02'), (2, 'B02');\nMERGE @Target AS t\nUSING @Source AS s ON t.CopyNo = s.CopyNo\nWHEN MATCHED THEN UPDATE SET t.Branch = s.Branch\nWHEN NOT MATCHED BY TARGET THEN INSERT (CopyNo, Branch) VALUES (s.CopyNo, s.Branch)\nOUTPUT $action, inserted.CopyNo, deleted.Branch;   -- Result: 'UPDATE' (1), 'INSERT' (2)\nGO",

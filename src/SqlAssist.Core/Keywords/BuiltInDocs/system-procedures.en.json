@@ -34,7 +34,7 @@
   "sp_describe_first_result_set": {
     "summary": "Describes a query's first result set without running it.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_describe_first_result_set @tsql = N'SELECT 1 AS x';   -- Result: one column x, type int",
+    "examples.quick.sql": "EXEC sp_describe_first_result_set @tsql = N'SELECT 1 AS x';   -- one column: x int",
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "EXEC sp_describe_first_result_set\n    @tsql = N'SELECT CopyNo, Branch FROM (VALUES (1, N''Main''), (2, N''East'')) AS c(CopyNo, Branch)';\n-- Result: two columns of metadata (CopyNo, Branch), is_nullable is 0 for both",
     "examples.with-params.title": "Statement with parameters",
@@ -121,7 +121,7 @@
   "sp_addextendedproperty": {
     "summary": "Attaches custom metadata to an object; fails if it exists.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_addextendedproperty N'Description', N'Book category tag', N'SCHEMA', N'dbo';   -- Attached to a schema",
+    "examples.quick.sql": "BEGIN TRAN;EXEC sp_addextendedproperty N'Lib_Note',N'Note';ROLLBACK;   -- db-level, undone",
     "examples.table-level.title": "Attached to a table",
     "examples.table-level.sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'Book category tag',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nSELECT CAST(value AS nvarchar(200))\nFROM fn_listextendedproperty(N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag', NULL, NULL);\n-- Result: Book category tag\nDROP TABLE dbo.Lib_Tag;",
     "examples.column-level.title": "Attached to a column",
@@ -169,7 +169,6 @@
   "sp_updateextendedproperty": {
     "summary": "Changes an existing property's value; fails if not created.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_updateextendedproperty N'Description', N'New note';   -- Updates a database-level property",
     "examples.basic.title": "Update an existing value",
     "examples.basic.sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nEXEC sp_addextendedproperty @name = N'Description', @value = N'First version',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nEXEC sp_updateextendedproperty @name = N'Description', @value = N'Second version',\n    @level0type = N'SCHEMA', @level0name = N'dbo', @level1type = N'TABLE', @level1name = N'Lib_Tag';\nSELECT CAST(value AS nvarchar(200))\nFROM fn_listextendedproperty(N'Description', N'SCHEMA', N'dbo', N'TABLE', N'Lib_Tag', NULL, NULL);\n-- Result: Second version\nDROP TABLE dbo.Lib_Tag;",
     "examples.column-level.title": "Column-level update",
@@ -262,7 +261,7 @@
   "sp_getapplock": {
     "summary": "Acquires a named lock; releases at commit by default.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_getapplock @Resource = N'Loan:1', @LockMode = N'Exclusive';   -- Acquires a lock in a transaction",
+    "examples.quick.sql": "BEGIN TRAN;EXEC sp_getapplock N'Loan:1',N'Exclusive';ROLLBACK;   -- freed at ROLLBACK",
     "examples.transaction-owner.title": "Lock scoped to a transaction",
     "examples.transaction-owner.sql": "BEGIN TRANSACTION;\nDECLARE @result int;\nEXEC @result = sp_getapplock @Resource = N'Loan:CopyNo:1', @LockMode = N'Exclusive';\nSELECT @result;   -- Result: 0 (granted immediately, no wait)\nCOMMIT TRANSACTION;   -- the transaction ends, the lock releases automatically (@LockOwner defaults to 'Transaction')",
     "examples.session-owner.title": "Lock scoped to a session",
@@ -340,7 +339,7 @@
   "sp_set_session_context": {
     "summary": "Stores a per-connection key/value; read via SESSION_CONTEXT.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_set_session_context N'Branch', N'Main';   -- SESSION_CONTEXT(N'Branch') is now Main",
+    "examples.quick.sql": "EXEC sp_set_session_context N'Branch', N'Main';   -- SESSION_CONTEXT(N'Branch') = Main",
     "examples.basic.title": "Set and read it back",
     "examples.basic.sql": "EXEC sp_set_session_context @key = N'CurrentBranch', @value = N'Main';\nSELECT SESSION_CONTEXT(N'CurrentBranch') AS CurrentBranch;   -- Result: Main",
     "examples.read-only-trap.title": "Read-only locks the key",
@@ -514,7 +513,6 @@
   "sp_refreshsqlmodule": {
     "summary": "Refreshes cached metadata for a module; text stays the same.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';   -- Refreshes the function's cached metadata",
     "examples.function.title": "Refresh function metadata",
     "examples.function.sql": "CREATE TABLE dbo.Lib_Tag (TagId int, TagName nvarchar(30));\nGO\nCREATE FUNCTION dbo.Lib_GetTagName(@id int)\nRETURNS TABLE\nAS RETURN (SELECT TagName FROM dbo.Lib_Tag WHERE TagId = @id);\nGO\nALTER TABLE dbo.Lib_Tag ALTER COLUMN TagName nvarchar(60) NOT NULL;\nEXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';\n-- Result: succeeds; the function's cached column metadata is updated to the new nvarchar(60)\nDROP FUNCTION dbo.Lib_GetTagName;\nDROP TABLE dbo.Lib_Tag;",
     "examples.rename-trap.title": "Can't fix broken module text",
@@ -536,7 +534,7 @@
   "sp_configure": {
     "summary": "Reads or changes a server setting; needs RECONFIGURE.",
     "examples.quick.title": "Quick demo",
-    "examples.quick.sql": "EXEC sp_configure N'show advanced options';   -- Result: one row with config_value/run_value",
+    "examples.quick.sql": "EXEC sp_configure N'show advanced options';   -- one row: config_value, run_value",
     "examples.list-all.title": "List every setting",
     "examples.list-all.sql": "EXEC sp_configure;\n-- Result: one result set, one row per setting (name, minimum, maximum, config_value, run_value)",
     "examples.one-option.title": "Check one setting",

@@ -354,7 +354,7 @@
         {
           "id": "quick",
           "title": "快速示範",
-          "sql": "EXEC sp_addextendedproperty N'Description', N'書籍分類標籤', N'SCHEMA', N'dbo';   -- 掛在結構描述上"
+          "sql": "BEGIN TRAN;EXEC sp_addextendedproperty N'Lib_Note',N'說明';ROLLBACK;   -- 資料庫層級，示範後復原"
         },
         {
           "id": "table-level",
@@ -490,7 +490,7 @@
         {
           "id": "quick",
           "title": "快速示範",
-          "sql": "EXEC sp_updateextendedproperty N'Description', N'新版說明';   -- 改資料庫層級屬性的值"
+          "sql": "BEGIN TRAN;EXEC sp_addextendedproperty P,1;EXEC sp_updateextendedproperty P,2;ROLLBACK;"
         },
         {
           "id": "basic",
@@ -756,7 +756,7 @@
         {
           "id": "quick",
           "title": "快速示範",
-          "sql": "EXEC sp_getapplock @Resource = N'Loan:1', @LockMode = N'Exclusive';   -- 交易內取得互斥鎖"
+          "sql": "BEGIN TRAN;EXEC sp_getapplock N'Loan:1',N'Exclusive';ROLLBACK;   -- 取得鎖，交易結束即釋放"
         },
         {
           "id": "transaction-owner",
@@ -1495,7 +1495,7 @@
         {
           "id": "quick",
           "title": "快速示範",
-          "sql": "EXEC sp_refreshsqlmodule N'dbo.Lib_GetTagName';   -- 重新整理函式快取的中繼資料"
+          "sql": "BEGIN TRAN;EXEC('CREATE VIEW V AS SELECT 1 x');EXEC sp_refreshsqlmodule V;ROLLBACK;"
         },
         {
           "id": "function",
