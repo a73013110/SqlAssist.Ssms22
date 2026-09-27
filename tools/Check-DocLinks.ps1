@@ -27,12 +27,25 @@ Import-Module (Join-Path $PSScriptRoot 'SqlAssist.Tools.psm1') -Force
 $OutputEncoding = Initialize-SqlAssistUtf8Output
 
 $rootPath = (Resolve-Path -LiteralPath $Root).ProviderPath
-if (-not $Path) { $Path = Join-Path $rootPath 'src/SqlAssist.Core/Keywords/BuiltInDocs.json' }
-$jsonPath = (Resolve-Path -LiteralPath $Path).ProviderPath
-$relative = [System.IO.Path]::GetRelativePath($rootPath, $jsonPath).Replace('\', '/')
+if (-not $Path) { $Path = Join-Path $rootPath 'src/SqlAssist.Core/Keywords/BuiltInDocs' }
+$sourcePath = (Resolve-Path -LiteralPath $Path).ProviderPath
+$relative = [System.IO.Path]::GetRelativePath($rootPath, $sourcePath).Replace('\', '/')
 
-$catalog = Get-Content -LiteralPath $jsonPath -Raw -Encoding utf8 | ConvertFrom-Json
-if (-not $catalog.docs) { throw "$relative 沒有 docs 區塊。" }
+# 資源依種類拆檔；位址只在來源檔，譯文覆蓋檔（<名稱>.<語言>.json）與共用表格沒有 docsUrl。
+$files = if (Test-Path -LiteralPath $sourcePath -PathType Container) {
+    Get-ChildItem -LiteralPath $sourcePath -Filter '*.json' |
+        Where-Object { $_.BaseName -notmatch '\.' -and $_.BaseName -ne 'tables' }
+} else {
+    Get-Item -LiteralPath $sourcePath
+}
+$catalog = [pscustomobject]@{
+    docs = @($files | ForEach-Object {
+        $content = Get-Content -LiteralPath $_.FullName -Raw -Encoding utf8 | ConvertFrom-Json
+        if ($null -eq $content.docs) { throw "$($_.Name) 沒有 docs 區塊。" }
+        $content.docs
+    })
+}
+if ($catalog.docs.Count -eq 0) { throw "$relative 沒有任何說明。" }
 
 # 同一個位址被好幾筆共用（CAST 與 CONVERT、四個日期函式），只問一次但要報出全部名稱。
 $owners = [ordered]@{}
