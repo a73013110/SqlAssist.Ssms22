@@ -78,6 +78,18 @@ public sealed partial class SqlKeywordPositionAnalyzer
             endsItem: (analyzer, index) => analyzer.EndsModuleOption(index),
             header: (analyzer, with) => analyzer.FindModuleOptionHeader(with)),
 
+        // 外部索引鍵 REFERENCES dbo.Copy (CopyNo) ON DELETE CASCADE：參考與每個動作寫完之後是 ON、NOT 與其他條件約束。
+        // 動作寫到一半（ON DELETE SET ）由片語給。GRANT REFERENCES 的 REFERENCES 是權限。
+        new(
+            isAnchor: (analyzer, index) => analyzer.IsBareKeyword(index) && analyzer.tokens[index].IsKeyword("REFERENCES"),
+            isPart: (analyzer, index) => analyzer.IsReferencesPart(index),
+            endsItem: (analyzer, index) => analyzer.EndsReferencesItem(index),
+            header: (analyzer, references) => analyzer.NamesPermission(references)
+                ? null
+                : new OptionSlots(null, SqlKeywordPosition.ReferencesTail),
+            separatedByCommas: false,
+            skipsGroups: true),
+
         // BACKUP|RESTORE DATABASE|LOG … WITH：選項清單不在括號裡，括號裡的逗號走不出那組括號。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
@@ -115,6 +127,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.IndexKeyTail;
         }
 
+        if (EndsOffsetValue(last))
+        {
+            return SqlKeywordPosition.OffsetTail;
+        }
+
         foreach (var list in OptionLists)
         {
             if (list.Resolve(this, last) is { } position)
@@ -124,6 +141,50 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         return null;
+    }
+
+    /// <summary><paramref name="last"/> 寫完 ORDER BY 的 <c>OFFSET</c> 值：數值、變數或一整組括號。</summary>
+    private bool EndsOffsetValue(int last)
+    {
+        var offset = tokens[last].IsPunctuation(")")
+            ? SqlTokenNavigator.FindOpeningParenthesis(tokens, last) - 1
+            : tokens[last].Kind is SqlTokenKind.Number or SqlTokenKind.Variable ? last - 1 : -1;
+
+        return offset >= 1 &&
+            IsBareKeyword(offset) &&
+            tokens[offset].IsKeyword("OFFSET") &&
+            (FindClausePosition(offset - 1) & SqlKeywordPosition.OrderByTail) != SqlKeywordPosition.None;
+    }
+
+    /// <summary><paramref name="references"/> 的 REFERENCES 是 GRANT／DENY／REVOKE 的權限，不是外部索引鍵。</summary>
+    private bool NamesPermission(int references) =>
+        references >= 1 &&
+        (tokens[references - 1].IsPunctuation(",") ||
+         tokens[references - 1].IsKeyword("GRANT") || tokens[references - 1].IsKeyword("DENY") || tokens[references - 1].IsKeyword("REVOKE"));
+
+    /// <summary>
+    /// 外部索引鍵的 <c>REFERENCES</c> 之後寫得出這個詞元：參考的名稱、點號，以及
+    /// <c>ON DELETE|UPDATE CASCADE|NO ACTION|SET NULL|SET DEFAULT</c> 與 <c>NOT FOR REPLICATION</c> 裡的字。
+    /// </summary>
+    private bool IsReferencesPart(int index)
+    {
+        var token = tokens[index];
+
+        return IsPlainWord(index) || token.IsPunctuation(".") ||
+            token.IsKeyword("ON") || token.IsKeyword("DELETE") || token.IsKeyword("UPDATE") ||
+            token.IsKeyword("CASCADE") || token.IsKeyword("NO") || token.IsKeyword("ACTION") ||
+            token.IsKeyword("SET") || token.IsKeyword("NULL") || token.IsKeyword("DEFAULT") ||
+            token.IsKeyword("NOT") || token.IsKeyword("FOR") || token.IsKeyword("REPLICATION");
+    }
+
+    /// <summary>外部索引鍵寫到這個詞元已經完整：參考的名稱或資料行清單、一個參考動作、NOT FOR REPLICATION。</summary>
+    private bool EndsReferencesItem(int index)
+    {
+        var token = tokens[index];
+
+        return IsPlainWord(index) || token.IsPunctuation(")") ||
+            token.IsKeyword("CASCADE") || token.IsKeyword("ACTION") || token.IsKeyword("REPLICATION") ||
+            ((token.IsKeyword("NULL") || token.IsKeyword("DEFAULT")) && index >= 1 && tokens[index - 1].IsKeyword("SET"));
     }
 
     /// <summary><paramref name="last"/> 寫完觸發程序的標頭：目標，或目標之後的 WITH 選項。</summary>

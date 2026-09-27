@@ -283,10 +283,17 @@ $ContextTemplates = [ordered]@{
     ExpressionTail   = @(
         'SELECT * FROM t WHERE a = 1 ', 'SELECT * FROM t WHERE a ',
         "SELECT * FROM t WHERE a LIKE 'x' ")
-    # OFFSET 10 之後的 ROWS、視窗函式 OVER (ORDER BY a 之後的 ROWS／RANGE 也在這裡。
-    OrderByTail      = @(
-        'SELECT * FROM t ORDER BY a ', 'SELECT * FROM t ORDER BY a OFFSET 10 ',
-        'SELECT SUM(a) OVER (ORDER BY a ')
+    OrderByTail      = @('SELECT * FROM t ORDER BY a ')
+
+    # 查詢 ORDER BY 的 OFFSET 值之後是 ROW、ROWS；視窗 OVER (ORDER BY a 之後是 ASC、DESC 與視窗框架。
+    OffsetTail       = @('SELECT * FROM t ORDER BY a OFFSET 10 ')
+    WindowOrderTail  = @('SELECT SUM(a) OVER (ORDER BY a ')
+
+    # 函式呼叫之後的 OVER、COLLATE。包在括號裡，選取清單尾端的 FROM、別名這些字就接不上。
+    FunctionCallTail = @('SELECT (SUM(a) ')
+
+    # 外部索引鍵的參考寫完之後：ON（DELETE、UPDATE）、NOT（FOR REPLICATION）與其他資料行條件約束。
+    ReferencesTail   = @('CREATE TABLE t (a int REFERENCES u (a) ')
 
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
     GroupByTail      = @('SELECT * FROM t GROUP BY a ')
@@ -618,10 +625,12 @@ $ClausePhrases = @(
 
     @{ Pattern = 'EXECUTE AS' }
     @{ Pattern = 'EXEC AS' }
+    @{ Pattern = 'ENABLE TRIGGER'; Closed = $false }
+    @{ Pattern = 'DISABLE TRIGGER'; Closed = $false }
 
-    # 資料行型別之後判不出位置（CREATE TABLE t (a int |）。
-    @{ Pattern = 'ON DELETE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
-    @{ Pattern = 'ON UPDATE'; Lead = 'CREATE TABLE t (a int REFERENCES u (a) '; Expand = 1 }
+    # 外部索引鍵的參考動作；資料行型別之後判不出位置（CREATE TABLE t (a int IDENTITY |）。
+    @{ Pattern = 'ON DELETE'; After = @('ReferencesTail'); Expand = 1 }
+    @{ Pattern = 'ON UPDATE'; After = @('ReferencesTail'); Expand = 1 }
     @{ Pattern = 'NOT FOR'; Lead = 'CREATE TABLE t (a int IDENTITY ' }
 
     @{ Pattern = 'WAITFOR' }
@@ -638,9 +647,16 @@ $ClausePhrases = @(
     @{ Pattern = 'SYNONYM {name} FOR'; After = @('DdlObject') }
 
     # 運算式寫在哪裡都行，函式引數裡判不出位置；CONSTRAINT df 之後也判不出來。
+    # 選取清單裡判得出來，另立帶位置的一條：NEXT、AT 這種第一個字也要列得出下一個字。
     @{ Pattern = 'NEXT VALUE FOR'; Lead = 'SELECT ' }
+    @{ Pattern = 'NEXT VALUE FOR'; After = @('SelectList') }
     @{ Pattern = 'DEFAULT {value} FOR'; Lead = 'ALTER TABLE t ADD ' }
     @{ Pattern = 'AT TIME'; Lead = 'SELECT a ' }
+    @{ Pattern = 'AT TIME'; After = @('SelectListTail') }
+
+    # IS 之後是 NULL、NOT、DISTINCT FROM。述詞尾端的代表樣板寫完了比較，接不上 IS，用第二個。
+    @{ Pattern = 'IS'; After = @('ExpressionTail'); Template = 1; Expand = 2 }
+    @{ Pattern = 'IS'; After = @('CaseArm'); Expand = 2 }
 
     @{ Pattern = 'GROUP BY'; After = @('SelectListTail', 'TableSourceTail', 'ExpressionTail'); Values = @('ROLLUP', 'CUBE', 'GROUPING SETS') }
 
@@ -649,11 +665,11 @@ $ClausePhrases = @(
 
     # OFFSET … FETCH：每一格只有一兩個字，但沒有它們就得整句背下來。
     # OFFSET 10 ROWS 已經是完整的語句，FETCH 同時是游標語句的開頭，被當成下一句扣掉了。
-    # OFFSET 之後的各段前一格也是 OrderByTail，但那個位置的代表樣板接不上 ROWS FETCH；尾巴本身認得出來。
-    @{ Pattern = 'OFFSET {value} ROWS'; After = @('OrderByTail'); Values = @('FETCH') }
-    @{ Pattern = 'OFFSET {value} ROW'; After = @('OrderByTail'); Values = @('FETCH') }
-    @{ Pattern = 'ROWS FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
-    @{ Pattern = 'ROW FETCH'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ' }
+    @{ Pattern = ''; After = @('OffsetTail') }
+    @{ Pattern = 'ROWS'; After = @('OffsetTail'); Values = @('FETCH') }
+    @{ Pattern = 'ROW'; After = @('OffsetTail'); Values = @('FETCH') }
+    @{ Pattern = 'ROWS FETCH'; After = @('OffsetTail') }
+    @{ Pattern = 'ROW FETCH'; After = @('OffsetTail') }
     @{ Pattern = 'FETCH NEXT {value}'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
     @{ Pattern = 'FETCH FIRST {value}'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
     @{ Pattern = 'FETCH NEXT {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
@@ -661,17 +677,19 @@ $ClausePhrases = @(
     @{ Pattern = 'FETCH FIRST {value} ROWS'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
     @{ Pattern = 'FETCH FIRST {value} ROW'; Lead = 'SELECT a FROM t ORDER BY a OFFSET 0 ROWS ' }
 
-    # 視窗框架。視窗的 ORDER BY 與查詢的 ORDER BY 在位置分析是同一格，代表樣板是查詢那一個。
+    # 視窗框架：ORDER BY 的排序項之後是 ROWS、RANGE，框架的每一段由片語往下補。
+    # 框架中段（AND 之後）的 UNBOUNDED、CURRENT 前一格判不出位置，仍由 Lead 片語給。
     # CURRENT 單獨一個字不收：WHERE CURRENT OF 也是它。
     # CURRENT 之後剖析器收任何識別字（留到語意檢查才擋），ROW 只能手寫。
-    @{ Pattern = 'ROWS'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
-    @{ Pattern = 'RANGE'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
-    @{ Pattern = 'ROWS BETWEEN'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
-    @{ Pattern = 'RANGE BETWEEN'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ' }
-    @{ Pattern = 'UNBOUNDED'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN ' }
+    @{ Pattern = ''; After = @('WindowOrderTail') }
+    @{ Pattern = 'ROWS BETWEEN UNBOUNDED PRECEDING'; After = @('WindowOrderTail') }
+    @{ Pattern = 'RANGE BETWEEN UNBOUNDED PRECEDING'; After = @('WindowOrderTail') }
+    @{ Pattern = 'ROWS UNBOUNDED'; After = @('WindowOrderTail') }
+    @{ Pattern = 'RANGE UNBOUNDED'; After = @('WindowOrderTail') }
+    @{ Pattern = 'UNBOUNDED'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING AND ' }
     @{ Pattern = 'PRECEDING AND'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED ' }
-    @{ Pattern = 'ROWS CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a '; Values = @('ROW'); Closed = $true }
-    @{ Pattern = 'RANGE CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a '; Values = @('ROW'); Closed = $true }
+    @{ Pattern = 'ROWS CURRENT'; After = @('WindowOrderTail'); Values = @('ROW'); Closed = $true }
+    @{ Pattern = 'RANGE CURRENT'; After = @('WindowOrderTail'); Values = @('ROW'); Closed = $true }
     @{ Pattern = 'BETWEEN CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS '; Values = @('ROW'); Closed = $true }
     @{ Pattern = 'AND CURRENT'; Lead = 'SELECT SUM(a) OVER (ORDER BY a ROWS BETWEEN UNBOUNDED PRECEDING '; Values = @('ROW'); Closed = $true }
 )
@@ -1039,7 +1057,10 @@ foreach ($entry in $ClausePhrases) {
 # （以名稱或值結尾的一段，前一個字之後什麼都可能接，立了會封閉掉不相干的清單），而且
 # Lead 片語至少兩項——執行期不看 Lead 的前一格，單獨一個 ON、NEXT 到處都比對得上。
 # 帶 After 的片語，第一個字前面那段是位置本身：那個位置有只認位置的片語就補進去
-# （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給，不另立。
+# （函式 WITH 之後的 RETURNS、CALLED），沒有的由關鍵字目錄給。目錄也不給的（AT、ENABLE 不是
+# 關鍵字）收進那個位置的附加片語：只加字、比對永遠是「可能」，那一格其餘的字照樣由目錄給——
+# 立成一般的只認位置片語的話，比對確定時整份目錄讓給它，選取清單尾端只剩 AT。
+$additivePhrases = [ordered]@{}
 function Test-PatternAccepted {
     param([string]$Probe)
 
@@ -1083,8 +1104,25 @@ foreach ($entry in $ClausePhrases) {
                 continue
             }
 
+            # 前面那段已經有片語列得出這個字（CREATE 之後的物件種類），就不必另外附加。
+            if ($index -eq 0 -and -not $phrases.Contains($key)) {
+                $listed = $phrases.Values | Where-Object { $_.Probe -eq $prefixProbe -and $_.Words -contains $word }
+
+                if (@($positions[$word]) -notcontains $position -and -not $listed) {
+                    if (-not $additivePhrases.Contains($position)) {
+                        $additivePhrases[$position] = @{ Probe = $prefixProbe; Words = [System.Collections.Generic.List[string]]::new() }
+                    }
+
+                    if (-not $additivePhrases[$position].Words.Contains($word)) {
+                        $additivePhrases[$position].Words.Add($word)
+                    }
+                }
+
+                continue
+            }
+
             if (-not $phrases.Contains($key)) {
-                if ($index -eq 0 -or $items[$index - 1] -notmatch '^[A-Za-z_]' -or ($null -ne $lead -and $index -lt 2)) {
+                if ($items[$index - 1] -notmatch '^[A-Za-z_]' -or ($null -ne $lead -and $index -lt 2)) {
                     continue
                 }
 
@@ -1125,6 +1163,7 @@ foreach ($phrase in $phrases.Values) {
 $phrases = $merged
 $phraseWords = $phrases.Values | ForEach-Object { $_.Words } | Where-Object { $keywords -notcontains $_ } | Sort-Object -Unique
 Write-Host "子句片語：$($phrases.Count) 個，其中關鍵字清單以外的字 $(@($phraseWords).Count) 個"
+Write-Host "附加片語：$(($additivePhrases.Keys | ForEach-Object { "$_($($additivePhrases[$_].Words -join ', '))" }) -join ', ')"
 
 # ------------------------------------------------------------ 五、寫完一項的字
 
@@ -1355,6 +1394,19 @@ foreach ($phrase in $phrases.Values) {
     }
 
     $null = $builder.AppendLine('        }),')
+}
+
+$null = $builder.AppendLine('    };')
+$null = $builder.AppendLine('')
+$null = $builder.AppendLine('    /// <summary>附加片語：只認位置、比對永遠是「可能」，把關鍵字目錄給不了的片語開頭加進那個位置。</summary>')
+$null = $builder.AppendLine('    internal static readonly (SqlKeywordPosition After, string Probe, string[] Words)[] AdditivePhrases =')
+$null = $builder.AppendLine('    {')
+
+foreach ($position in $additivePhrases.Keys) {
+    $additive = $additivePhrases[$position]
+    $probeLiteral = $additive.Probe.Replace('\', '\\').Replace('"', '\"')
+    $wordsLiteral = ($additive.Words | ForEach-Object { "`"$_`"" }) -join ', '
+    $null = $builder.AppendLine("        (SqlKeywordPosition.$position, `"$probeLiteral`", new string[] { $wordsLiteral }),")
 }
 
 $null = $builder.AppendLine('    };')

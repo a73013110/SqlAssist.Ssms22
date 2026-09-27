@@ -21,9 +21,21 @@ public sealed class SqlClausePhraseTests
     {
         var data = new TheoryData<string, string>();
 
-        foreach (var phrase in SqlClausePhraseCatalog.All)
+        foreach (var phrase in SqlClausePhraseCatalog.All.Where(phrase => !phrase.IsAdditive))
         {
             data.Add(phrase.Pattern, phrase.Probe);
+        }
+
+        return data;
+    }
+
+    public static TheoryData<string> AdditiveProbes()
+    {
+        var data = new TheoryData<string>();
+
+        foreach (var phrase in SqlClausePhraseCatalog.All.Where(phrase => phrase.IsAdditive))
+        {
+            data.Add(phrase.Probe);
         }
 
         return data;
@@ -47,6 +59,25 @@ public sealed class SqlClausePhraseTests
         Assert.NotNull(match);
         Assert.True(match!.IsCertain);
         Assert.Equal(pattern, match.Phrase.Pattern);
+        Assert.Equal(probe, match.Phrase.Probe);
+    }
+
+    /// <summary>
+    /// 附加片語的探測文字比對回它自己，而且只是「可能」。
+    /// </summary>
+    /// <remarks>
+    /// 附加片語只補關鍵字目錄給不了的片語開頭，不能把其他字藏起來；探測文字比對到別的片語時，
+    /// 附加的字會被那個片語蓋掉而永遠不出現。
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(AdditiveProbes))]
+    public void 附加片語的探測文字比對回自己而且只是可能(string probe)
+    {
+        var match = SqlKeywordPositionAnalyzer.Analyze(probe).Phrase;
+
+        Assert.NotNull(match);
+        Assert.False(match!.IsCertain);
+        Assert.True(match.Phrase.IsAdditive);
         Assert.Equal(probe, match.Phrase.Probe);
     }
 

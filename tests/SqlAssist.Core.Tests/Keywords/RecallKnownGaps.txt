@@ -1,23 +1,11 @@
 # 召回稽核的已知缺口：語料裡列不出來、還沒修的字。一行一條，格式是「游標前的尾巴 ⎵字 | 理由」。
 # 尾巴是游標前詞元的後綴，詞元以一個空白相接；修好一條就刪一條，列得出來時 SqlKeywordRecallTests 會失敗。
 
-REFERENCES dbo . Copy ( CopyNo ) ON ⎵DELETE | 外部索引鍵的 ON 被當成述詞起點；ON DELETE 片語的前一格判不出位置
-SELECT LoanDate ⎵AT | AT 不是關鍵字，AT TIME 片語的前一格判不出位置
-SELECT LoanDate AT ⎵TIME | AT TIME 是 Lead 片語，只有單一個字的 AT 立不成片語
-SELECT NEXT ⎵VALUE | NEXT VALUE FOR 是 Lead 片語，只有單一個字的 NEXT 立不成片語
-PRECEDING ⎵AND | 視窗框架的前一格判不出位置，只有單一個字的 Lead 片語立不成
-ORDER BY CopyNo ⎵RANGE | 視窗的 ORDER BY 與查詢的同一個位置，RANGE 只在片語裡
-SUM ( CopyNo ) ⎵OVER | 函式呼叫之後沒有自己的位置
-IS NOT ⎵DISTINCT | IS 之後判不出位置，DISTINCT 只屬於選取清單起點
-OFFSET 1 ⎵ROW | OFFSET 的值之後沒有位置；片語以值結尾，前綴封閉不立
 CREATE FUNCTION dbo . fn_Fee ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
 CREATE FUNCTION dbo . fn_LoansByCopy ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
 CREATE FUNCTION dbo . fn_Copies ( ) ⎵RETURNS | 參數清單之後沒有位置
 CREATE USER LibUser WITHOUT ⎵LOGIN | CREATE USER 只有 FOR 那一條片語
 CREATE LOGIN LibLogin WITH ⎵PASSWORD | CREATE LOGIN 沒有片語
-⎵ENABLE | ENABLE、DISABLE 不是關鍵字，語句開頭沒有只認位置的片語給它們
-⎵DISABLE | ENABLE、DISABLE 不是關鍵字，語句開頭沒有只認位置的片語給它們
-DISABLE TRIGGER ⎵ALL | 目標是觸發程序，關鍵字全被目標過濾擋掉
 RAISERROR ( 'x' , 16 , 1 ) WITH ⎵NOWAIT | RAISERROR 的 WITH 選項沒有位置
 OUTPUT WITH ⎵RECOMPILE | EXEC 的 WITH 選項沒有位置
 ROOT ( 'Copies' ) , ⎵TYPE | FOR XML 的指示詞清單在逗號之後沒有位置

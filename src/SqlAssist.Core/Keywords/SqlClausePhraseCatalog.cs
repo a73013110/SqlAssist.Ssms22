@@ -71,7 +71,9 @@ public static class SqlClausePhraseCatalog
             return best;
         }
 
-        return FirstMatch(AtPosition, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0) ?? best;
+        // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
+        var atPosition = FirstMatch(AtPosition, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0);
+        return atPosition is { Phrase.IsAdditive: true } && best is not null ? best : atPosition ?? best;
     }
 
     private static SqlClausePhraseMatch? FirstMatch(
@@ -125,6 +127,7 @@ public static class SqlClausePhraseCatalog
             return phrase.Certain;
         }
 
+
         var before = start == tokens.Count
             ? caret
             : SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken);
@@ -139,18 +142,32 @@ public static class SqlClausePhraseCatalog
             before |= SqlKeywordPosition.StatementStart;
         }
 
-        return (phrase.After & before) != SqlKeywordPosition.None ? phrase.Certain : null;
+        if ((phrase.After & before) == SqlKeywordPosition.None)
+        {
+            return null;
+        }
+
+        // 附加片語只加字：確定的話整份目錄讓給它。
+        return phrase.IsAdditive ? phrase.Tentative : phrase.Certain;
     }
 
     private static SqlClausePhrase[] Build()
     {
         var data = SqlKeywordCatalogData.ClausePhrases;
-        var phrases = new SqlClausePhrase[data.Length];
+        var additive = SqlKeywordCatalogData.AdditivePhrases;
+        var phrases = new SqlClausePhrase[data.Length + additive.Length];
 
         for (var index = 0; index < data.Length; index++)
         {
             var (pattern, after, probe, closed, endsStatement, words) = data[index];
             phrases[index] = new SqlClausePhrase(pattern, after, probe, closed, endsStatement, words);
+        }
+
+        for (var index = 0; index < additive.Length; index++)
+        {
+            var (after, probe, words) = additive[index];
+            phrases[data.Length + index] = new SqlClausePhrase(
+                string.Empty, after, probe, isClosed: false, endsStatement: false, words, isAdditive: true);
         }
 
         return phrases;

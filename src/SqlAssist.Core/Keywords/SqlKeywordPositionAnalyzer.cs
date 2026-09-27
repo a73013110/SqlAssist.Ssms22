@@ -730,6 +730,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
         int last,
         SqlKeywordPosition keywords)
     {
+        // 函式呼叫之後的 OVER 是加在子句尾端上的，不改變這一項接不接別名。
+        keywords &= ~SqlKeywordPosition.FunctionCallTail;
         var dataSource = keywords == SqlKeywordPosition.TableSourceTail;
 
         if (!dataSource && keywords != SqlKeywordPosition.SelectListTail)
@@ -1876,7 +1878,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return new SqlCaretPosition(slot);
         }
 
-        return new SqlCaretPosition(FindClausePosition(open - 1));
+        var position = FindClausePosition(open - 1);
+
+        // 函式呼叫寫完之後多接 OVER：只在選取清單與 ORDER BY 的尾端，視窗函式只寫得在那裡。
+        // 限定的名稱（dbo.fn_Fee）是使用者定義函式，接不了 OVER。
+        if (open >= 1 && IsPlainWord(open - 1) && !(open >= 2 && tokens[open - 2].IsPunctuation(".")) &&
+            (position & (SqlKeywordPosition.SelectListTail | SqlKeywordPosition.OrderByTail)) != SqlKeywordPosition.None)
+        {
+            position |= SqlKeywordPosition.FunctionCallTail;
+        }
+
+        return new SqlCaretPosition(position);
     }
 
     /// <summary><paramref name="open"/> 開啟的那一組括號之後，文法強制要寫別名。</summary>
@@ -1992,6 +2004,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             if (IsOrderOrGroupBy(index))
             {
+                // 視窗 OVER (… ORDER BY a 的排序項之後接視窗框架，不接查詢的 OFFSET、UNION。
+                if (anchors == ClauseAnchors && !insideGroup && OrdersWindow(index - 1))
+                {
+                    return SqlKeywordPosition.WindowOrderTail;
+                }
+
                 return anchors[tokens[index - 1].IsKeyword("ORDER") ? OrderBy : GroupBy];
             }
 
@@ -2034,6 +2052,13 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         return null;
+    }
+
+    /// <summary><paramref name="order"/> 的 ORDER 在視窗 <c>OVER (</c> 裡。</summary>
+    private bool OrdersWindow(int order)
+    {
+        var open = SqlTokenNavigator.FindUnclosedParenthesis(tokens, order - 1);
+        return open >= 1 && tokens[open - 1].IsKeyword("OVER");
     }
 
     /// <summary><paramref name="index"/> 是不是 ORDER BY／GROUP BY 的那個 BY。</summary>

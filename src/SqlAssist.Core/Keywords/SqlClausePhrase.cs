@@ -31,9 +31,11 @@ public sealed class SqlClausePhrase
         string probe,
         bool isClosed,
         bool endsStatement,
-        string[] words)
+        string[] words,
+        bool isAdditive = false)
     {
         Pattern = pattern;
+        IsAdditive = isAdditive;
         After = after;
         Probe = probe;
         IsClosed = isClosed;
@@ -66,6 +68,16 @@ public sealed class SqlClausePhrase
     /// 換行之後的那一格更可能是下一句，那裡要的是語句開頭的整份清單。
     /// </remarks>
     public bool EndsStatement { get; }
+
+    /// <summary>
+    /// 附加片語：只認位置，比對永遠是「可能」，只把關鍵字目錄給不了的字加進那一格。
+    /// </summary>
+    /// <remarks>
+    /// 帶 <see cref="After"/> 的片語第一個字前面那段是位置本身；那個字不是目錄在那一格的關鍵字
+    /// （<c>SELECT a AT TIME ZONE</c> 的 AT、語句開頭的 ENABLE）時由它給。比對確定的話整份目錄
+    /// 讓給片語，選取清單尾端只剩 AT，所以它不換掉任何字。
+    /// </remarks>
+    public bool IsAdditive { get; }
 
     /// <summary>接得上的字，依產生器的順序。</summary>
     public IReadOnlyList<string> Words { get; }

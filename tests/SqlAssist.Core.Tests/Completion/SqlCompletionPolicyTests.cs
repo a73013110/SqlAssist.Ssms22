@@ -27,7 +27,7 @@ public sealed class SqlCompletionPolicyTests
     [InlineData("SELECT PublCode ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
     [InlineData("SELECT PublCode a", true, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
     [InlineData("SELECT a + b ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
-    [InlineData("SELECT COUNT(*) ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
+    [InlineData("SELECT COUNT(*) ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail | SqlKeywordPosition.FunctionCallTail, CompletionTarget.Any, true)]
     [InlineData("SELECT 'x' ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
     [InlineData("SELECT CASE WHEN a=1 THEN 2 END ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]
     [InlineData("SELECT TOP 10 a ", false, false, SqlCompletionSlot.MaybeName, SqlKeywordPosition.SelectListTail, CompletionTarget.Any, true)]

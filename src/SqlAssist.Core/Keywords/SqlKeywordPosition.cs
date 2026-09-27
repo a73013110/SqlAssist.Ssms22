@@ -201,6 +201,27 @@ public enum SqlKeywordPosition : long
     /// <summary>觸發程序的事件寫完之後——AS、WITH（APPEND）、NOT（FOR REPLICATION）。</summary>
     TriggerEventEnd = 1L << 35,
 
+    /// <summary>外部索引鍵 <c>REFERENCES t (a)</c> 與它的 ON DELETE／ON UPDATE 動作之後——ON、NOT、其他條件約束。</summary>
+    /// <remarks>
+    /// 不借用資料行定義：那裡的 ON 之後是 DELETE、UPDATE，查詢的 ON 之後才是述詞。
+    /// </remarks>
+    ReferencesTail = 1L << 44,
+
+    /// <summary>函式呼叫的括號之後——OVER、COLLATE；分析器把它加在選取清單與 ORDER BY 的尾端上。</summary>
+    /// <remarks>
+    /// 不併進 <see cref="SelectListTail"/>：<c>SELECT a |</c> 不接 OVER，<c>SELECT SUM(a) |</c> 才接。
+    /// </remarks>
+    FunctionCallTail = 1L << 45,
+
+    /// <summary>視窗 <c>OVER (… ORDER BY a</c> 的排序項之後——ASC、DESC、ROWS、RANGE。</summary>
+    /// <remarks>
+    /// 不併進 <see cref="OrderByTail"/>：查詢的 ORDER BY 接 OFFSET、UNION，視窗的接視窗框架。
+    /// </remarks>
+    WindowOrderTail = 1L << 46,
+
+    /// <summary><c>ORDER BY … OFFSET 10</c> 的值之後——ROW、ROWS；兩個字都由子句片語給。</summary>
+    OffsetTail = 1L << 47,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -240,6 +261,7 @@ public enum SqlKeywordPosition : long
         | PermissionList | PermissionTarget | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
+        | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }
