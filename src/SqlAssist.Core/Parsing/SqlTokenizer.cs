@@ -136,7 +136,9 @@ public static partial class SqlTokenizer
                 continue;
             }
 
-            if (IsIdentifierStart(current))
+            // $action、$identity、$node_id 是虛擬資料行，一個名稱；$ 接數字是 money 常值，照舊拆開。
+            if (IsIdentifierStart(current) ||
+                (current == '$' && index + 1 < end && IsIdentifierStart(sql[index + 1])))
             {
                 tokens.Add(ReadIdentifier(sql, index, end, out index));
                 continue;

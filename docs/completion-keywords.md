@@ -32,8 +32,8 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 
 ### 召回稽核
 
-`SqlKeywordRecallTests` 在語料（`RecallCorpus.sql`）每個字的起點問清單；列不出來的修掉或寫進
-`RecallKnownGaps.txt` 附理由，缺口修好時測試同樣失敗，清單只會變短。
+`SqlKeywordRecallTests` 在語料 `RecallCorpus.sql` 每個字的起點問清單，列不出就失敗。
+沒有豁免名單：刻意不收的不進語料，理由寫在[那一格的文件](completion-phrases.md#刻意沒收的)。
 
 ### 依位置分層
 
@@ -43,19 +43,24 @@ SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCat
 （語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
 SELECT * FROM t ORDER BY    → CASE、CONVERT、COALESCE…
 SELECT * FROM t ORDER BY a  → ASC、DESC
-SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail，不接 ASC）
+SELECT * FROM t GROUP BY a  → HAVING、ORDER（GroupByTail）
 SELECT TOP 10         → PERCENT、WITH，以及選取清單起點的字（TopClauseTail）
 CREATE                → TABLE、VIEW、PROCEDURE…
 SELECT * FROM t WHERE → EXISTS、NOT、CASE…
-SET NOCOUNT           → ON、OFF（SetOptionValue；片語比對不上時的退路）
+SET NOCOUNT           → ON、OFF（SetOptionValue）
 BEGIN … END           → 下一句的字，加上 ELSE、TRY、CATCH（BlockEnd）
 IF @a = 1 SELECT 1    → 選取清單尾端，加上 ELSE（IfBodyEnd）
-DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給，TriggerHeader、MergeWhen、BackupOption 同理）
+DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給，其餘選項清單同理）
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
 CREATE TRIGGER tr ON t AFTER → INSERT、UPDATE、DELETE（TriggerEvent）
 OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
+GRANT EXECUTE ON      → SCHEMA、OBJECT…與名稱（PermissionOn）
+CREATE INDEX … WITH ( → ONLINE、FILLFACTOR…（IndexOption）
+FOR XML RAW,          → TYPE、ROOT、ELEMENTS（ForXmlOption）
+TABLESAMPLE (10       → PERCENT、ROWS（TableSampleTail）
+PIVOT (SUM(x) FOR y   → IN（PivotClause）
 ```
 
 位置切在「游標前一個詞元」之後，因為那正是分析器認得的粒度——它分不出
@@ -63,9 +68,9 @@ OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
 
 #### 判不出位置的字只在判不出位置時出現
 
-產生器判不出位置的深層子句字（`FILLFACTOR`、`STOPLIST`…）產出為 `None`，`None` 只有
+產生器判不出位置的深層子句字（`STOPLIST`、`NOLOCK`…）產出為 `None`，`None` 只有
 這一個意思：分析器也判不出位置（`Any`）時才出現。規則在 `SqlKeywordPositionExtensions.Allows`，
-關鍵字、內建函式與片段共用。放行到每個位置的話 `SELECT F` 列得出 `FILLFACTOR`；
+關鍵字、內建函式與片段共用。放行到每個位置的話 `SELECT S` 列得出 `STOPLIST`；
 整個藏起來也不行，判不出位置的地方（`WITH (`、`= ANY`）正是它們的用處。
 某個字的用法落在判得出的位置時，該補的是產生器的樣板，不是放寬這一條。
 「這一格是新名字」是另一軸（`SqlCompletionSlot`），不借用 `None`。
@@ -80,12 +85,12 @@ OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
-都是**自己的成員**，不借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
+都是**自己的成員**，不借用 `Any`。欄位之後是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
 `SELECT a INTO t `、`OFFSET 10 `、`REFERENCES u (a) ` 這類子句尾端也各有位置，不借長得像的 `OrderByTail`。
 `FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
 
-`ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，緊鄰的形狀走不出
-這一句。名稱單位含點號（`dbo.t` 是一個），與別名判斷共用 `SqlTokenNavigator.SkipQualifiedNameBackward`。
+`ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個含點號的名稱單位」，
+`ADD` 清單的逗號之後走回同一個 `ADD`（`SqlTokenNavigator.SkipQualifiedNameBackward`）。
 
 #### 位置過濾也管資料庫物件
 

@@ -25,6 +25,6 @@
     <!-- 註冊檔的顯示文字只是 "@鍵;{guid}"，解析成各語言的文字要靠這兩份。 -->
     <None Include="..\..\src\SqlAssist.Ssms22\Settings\SettingsPageText.*.resjson" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- 召回稽核的語料與已知缺口：新增語句不必改程式。 -->
-    <None Update="Keywords\RecallCorpus.sql;Keywords\RecallKnownGaps.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Keywords\RecallCorpus.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

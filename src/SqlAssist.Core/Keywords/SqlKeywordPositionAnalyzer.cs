@@ -626,8 +626,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     }
 
     /// <summary>這個關鍵字能開始一句。</summary>
-    private static bool StartsStatement(SqlToken keyword) =>
-        (SqlKeywordCatalog.GetPositions(keyword.Value) & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None;
+    private static bool StartsStatement(SqlToken keyword) => SqlKeywordCatalog.StartsStatement(keyword.Value);
 
     /// <summary>
     /// 沒有子句關鍵字的一句（<c>EXEC</c>、<c>PRINT</c>、<c>DECLARE</c>）可以在 <paramref name="index"/> 結束。
@@ -1484,6 +1483,49 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return IsAlterTableTarget(last);
     }
 
+    /// <summary>
+    /// <paramref name="comma"/> 是 <c>ALTER TABLE t ADD</c> 清單裡的逗號：同一層往回、走出這一句之前先碰到那個 ADD。
+    /// </summary>
+    /// <remarks>
+    /// 途中的括號整組跳過（<c>CHECK (a > 0)</c>、<c>DEFAULT (0)</c>）；沒關上的左括號表示逗號在別的清單裡。
+    /// </remarks>
+    private bool ContinuesAlterTableAdd(int comma)
+    {
+        for (var index = comma - 1; index >= 2; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return false;
+                }
+
+                continue;
+            }
+
+            if (token.IsPunctuation("(") || token.IsPunctuation(";"))
+            {
+                return false;
+            }
+
+            if (token.IsKeyword("ADD"))
+            {
+                return IsAlterTableTarget(index - 1);
+            }
+
+            if (IsStatementHead(index))
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary><paramref name="last"/> 是 <c>ALTER TABLE</c> 目標名稱的最後一個詞元。</summary>
     private bool IsAlterTableTarget(int last)
     {
@@ -1613,6 +1655,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
              OpensColumnDefinitions(FindUnclosedParenthesis(last - 1))))
         {
             return SqlKeywordPosition.ColumnDefinition;
+        }
+
+        // ALTER TABLE t ADD a int, | 是新增清單的下一項，與 ADD 之後同一格。
+        if (token.IsPunctuation(",") && ContinuesAlterTableAdd(last))
+        {
+            return SqlKeywordPosition.AlterTableAdd;
         }
 
         // SELECT a, | 與 FROM a, | 都是清單再來一項，位置回到清單的起點。

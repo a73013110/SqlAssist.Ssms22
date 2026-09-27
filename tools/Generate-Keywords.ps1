@@ -264,14 +264,27 @@ $ContextTemplates = [ordered]@{
     FetchTail        = @('FETCH NEXT FROM c ')
     UpdateSetTail    = @('UPDATE t SET a = 1 ')
 
-    # 索引鍵清單裡的資料行之後：ASC、DESC。
+    # 索引鍵清單裡的資料行之後：ASC、DESC。CREATE INDEX 的 WITH ( 之後是選項，多半不是關鍵字，由子句片語給。
     IndexKeyTail     = @('CREATE INDEX i ON t (a ')
+    IndexOption      = @('CREATE INDEX i ON t (a) WITH (', 'CREATE INDEX i ON t (a) WITH (ONLINE = ON, ')
 
-    # GRANT／DENY／REVOKE：權限寫完之後是 ON、TO，REVOKE 還有 FROM；ON 的目標寫完之後是 TO、FROM。
+    # GRANT／DENY／REVOKE：權限寫完之後是 ON、TO，REVOKE 還有 FROM；ON 之後是類別（SCHEMA::）或目標，
+    # 目標寫完之後是 TO、FROM。
     # 權限名稱是一串識別字（VIEW DEFINITION），GRANT SELECT 之後什麼非保留字都接得上；
     # 樣板以資料行清單收掉權限，探到的才只有權限之後的字。
     PermissionList   = @('GRANT SELECT (a) ', 'REVOKE SELECT (a) ')
+    PermissionOn     = @('GRANT SELECT ON ', 'REVOKE SELECT ON ')
     PermissionTarget = @('GRANT SELECT ON t ', 'REVOKE SELECT ON t ')
+
+    # 資料表之後的 TABLESAMPLE (10 是 PERCENT、ROWS；PIVOT 的彙總與 UNPIVOT 的值之後是 FOR，FOR 的資料行之後是 IN。
+    TableSampleTail  = @('SELECT * FROM t TABLESAMPLE (10 ')
+    PivotClause      = @(
+        'SELECT * FROM t PIVOT (COUNT(a) ', 'SELECT * FROM t PIVOT (COUNT(a) FOR b ',
+        'SELECT * FROM t UNPIVOT (a ', 'SELECT * FROM t UNPIVOT (a FOR b ')
+
+    # FOR XML、FOR JSON 之後與逗號之後：模式是清單的第一項，之後是指示詞，字幾乎都不是關鍵字，由子句片語給。
+    ForXmlOption     = @('SELECT a FROM t FOR XML ', 'SELECT a FROM t FOR XML RAW, ')
+    ForJsonOption    = @('SELECT a FROM t FOR JSON ', 'SELECT a FROM t FOR JSON AUTO, ')
 
     # WHERE CURRENT OF 只有 UPDATE 與 DELETE 寫得出來。
     Predicate        = @('SELECT * FROM t WHERE ', 'DELETE FROM t WHERE ')
@@ -315,7 +328,7 @@ $ContextTemplates = [ordered]@{
     # ALTER TABLE 的三個位置。少了它們，這三處一律回 Any，於是整份關鍵字目錄
     # 與所有片段全部進場——而成熟的補全工具在 ADD 之後只給九個字。
     AlterTableAction = @('ALTER TABLE t ')
-    AlterTableAdd    = @('ALTER TABLE t ADD ')
+    AlterTableAdd    = @('ALTER TABLE t ADD ', 'ALTER TABLE t ADD a int, ')
     AlterTableColumn = @('ALTER TABLE t ALTER COLUMN ', 'ALTER TABLE t DROP COLUMN ')
     DdlObject        = @('CREATE ', 'ALTER ', 'DROP ')
 
@@ -387,7 +400,10 @@ $Continuations = @(
     ' TRANSACTION',
 
     # NEXT 是非保留字，要有 NEXT VALUE FOR 才分得出它不是欄位名稱。
-    ' VALUE FOR s'
+    ' VALUE FOR s',
+
+    # 權限 ON 之後的類別（OBJECT、TYPE）是非保留字，要有 :: 才分得出它不是物件名稱。
+    '::x TO y'
 )
 
 # 46010 = "'X' 附近的語法不正確"。出現在關鍵字結尾之前代表剖析器根本吃不下它。
@@ -601,14 +617,13 @@ $ClausePhrases = @(
     @{ Pattern = 'RESTORE DATABASE {name}'; Expand = 1 }
     @{ Pattern = 'RESTORE LOG {name}'; Expand = 1 }
 
-    # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，
-    # 由後兩條 WITH (* 的片語補回來。
+    # CREATE INDEX 寫完欄位就是完整的語句；WITH 同時是 CTE 的開頭，被當成下一句扣掉了，手寫補回來。
+    # WITH ( 之後的選項由位置給（IndexOption），INCLUDE、篩選的 WHERE 夾在中間也一樣。
     # INDEX 前面可以夾 UNIQUE、CLUSTERED 這些字，那一格判不出位置；尾巴本身只出現在 CREATE INDEX。
     @{ Pattern = 'ALTER INDEX {name} ON {name}' }
-    @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE ' }
-    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) ' }
-    @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
-    @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
+    @{ Pattern = 'INDEX {name} ON {name} ()'; Lead = 'CREATE '; Values = @('WITH') }
+    @{ Pattern = 'INCLUDE ()'; Lead = 'CREATE INDEX i ON t (a) '; Values = @('WITH') }
+    @{ Pattern = ''; After = @('IndexOption') }
 
     # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 OF 與 EXECUTE；
     # 事件清單、游標與 BACKUP／RESTORE 的選項清單每一格都是同一個位置，第二項之後也一樣。
@@ -683,6 +698,14 @@ $ClausePhrases = @(
     @{ Pattern = ''; After = @('FunctionReturns') }
     @{ Pattern = ''; After = @('ExecuteOption') }
     @{ Pattern = ''; After = @('RaiserrorOption') }
+    @{ Pattern = ''; After = @('TableSampleTail') }
+
+    # FOR XML、FOR JSON 的逗號之後是指示詞；模式由上面 FOR 往下展開的片語給，那裡比對到的是更長的尾巴。
+    @{ Pattern = ''; After = @('ForXmlOption'); Template = 1 }
+    @{ Pattern = ''; After = @('ForJsonOption'); Template = 1 }
+
+    # 權限 ON 之後的類別多半不是關鍵字（OBJECT、TYPE）；那一格也可以直接寫目標名稱，由人宣告不封閉。
+    @{ Pattern = ''; After = @('PermissionOn'); Closed = $false }
 
     # CREATE USER 寫完名稱已經是完整的一句，之後的 FOR、WITHOUT 各自接 LOGIN；CREATE LOGIN 之後是 WITH PASSWORD 或 FROM。
     # 只認 CREATE：ALTER USER、ALTER LOGIN 接的是別的字（ENABLE、WITH NAME）。
@@ -1002,8 +1025,9 @@ function Add-ClausePhrase {
 
     $words = [System.Collections.Generic.List[string]]::new([string[]]$found)
 
+    # 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
     foreach ($value in @($Values | Where-Object { $_ })) {
-        $valueAccepted = $PhraseContinuations | Where-Object {
+        $valueAccepted = (@($PhraseContinuations) + ' (') | Where-Object {
             [SqlAssistPhraseProber]::FirstRejection($Probe + $value + $_) -gt $Probe.Length + $value.Length + $_.Length
         } | Select-Object -First 1
 

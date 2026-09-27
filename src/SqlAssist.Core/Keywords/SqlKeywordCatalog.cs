@@ -81,7 +81,7 @@ public static class SqlKeywordCatalog
     /// 查出某個關鍵字可以出現在哪些位置。
     /// </summary>
     /// <remarks>
-    /// 產生器判不出位置的字（<c>FILLFACTOR</c>、<c>PUBLIC</c> 這類深層子句字）原樣回傳
+    /// 產生器判不出位置的字（<c>STOPLIST</c>、<c>PUBLIC</c> 這類深層子句字）原樣回傳
     /// <see cref="SqlKeywordPosition.None"/>，查不到的字也一樣。它們在清單裡出不出現由
     /// <see cref="SqlKeywordPositionExtensions.Allows"/> 決定，這裡不翻譯成別的值。
     /// </remarks>
@@ -90,6 +90,16 @@ public static class SqlKeywordCatalog
         return !string.IsNullOrEmpty(keyword) && Positions.TryGetValue(keyword, out var positions)
             ? positions
             : SqlKeywordPosition.None;
+    }
+
+    /// <summary>這個關鍵字能開始一句：<c>SELECT</c>、<c>SET</c>、<c>DECLARE</c>、<c>RETURN</c>。</summary>
+    /// <remarks>
+    /// 能開始一句的字也寫在一句的中間（<c>INSERT … SELECT</c>）；是不是這一句的開頭要看前一格，
+    /// 見 <see cref="SqlKeywordPositionAnalyzer"/>。
+    /// </remarks>
+    public static bool StartsStatement(string keyword)
+    {
+        return (GetPositions(keyword) & SqlKeywordPosition.StatementStart) != SqlKeywordPosition.None;
     }
 
     /// <summary>是否為認得的關鍵字或內建資料型別；語法著色用。</summary>

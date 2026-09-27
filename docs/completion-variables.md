@@ -66,14 +66,16 @@ EXEC dbo.usp_Renew @|  → 同上
 
 | 位置 | 開不開 |
 |---|---|
-| `DECLARE @`、`DECLARE @a INT, @` | 不開，他正在取名字 |
-| `CREATE PROCEDURE p @`、`ALTER PROCEDURE p @`、`CREATE FUNCTION f (@` | 同上 |
+| `DECLARE @`、`DECLARE @a INT = NULL, @` | 不開，他正在取名字 |
+| `CREATE PROCEDURE p @`、`CREATE PROC p @a int OUTPUT, @`、`CREATE FUNCTION f (@` | 同上 |
 | `SET @`、`SELECT @`、`WHERE a = @`、`EXEC p @` | 開，他要的是上面宣告過的名稱 |
 
-判斷方式是從那個小老鼠往回走到第一個關鍵字：是 `DECLARE`、`PROCEDURE`、`FUNCTION`、
-`TABLE` 就是宣告，是別的關鍵字（`SET`、`WHERE`、`EXEC`…）就是引用。途中的括號整組
-跳過，分號代表前一個敘述已經結束。`TABLE` 在裡面是為了 `DECLARE @t TABLE (…), @`
-——跳過那組括號之後遇到的是 `TABLE` 而不是 `DECLARE`。
+判斷方式是從那個小老鼠往回走，走出這一句之前碰到 `DECLARE`、`PROCEDURE`、`PROC`、
+`FUNCTION` 就是宣告，先碰到能開始一句的關鍵字（`SET`、`SELECT`、`EXEC`…）就是引用。
+其餘的關鍵字屬於前一項的定義：`@a int = NULL`、`@a int OUTPUT`、`@a AS int`、
+`DECLARE @t TABLE (…)` 之後的逗號仍在宣告清單裡。以前停在第一個關鍵字，程序只有第一個
+參數認得出來，第二個參數之後的型別位置也跟著不見。途中的括號整組跳過，分號代表前一個
+敘述已經結束。
 
 走到頭都沒有關鍵字時當成引用。這裡的 fail-open 換來的是「多列幾個他自己打過的名字」，
 而反過來猜錯的代價是他打的名字被清單換掉。

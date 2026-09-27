@@ -93,7 +93,7 @@ public static class SqlCompletionContextAnalyzer
         //
         // 限定字要帶著走：DECLARE @t dbo.| 只該列出 dbo 的自訂型別，
         // 而內建型別沒有結構描述，會被結構描述過濾自己擋掉——dbo.INT 不是東西。
-        if (SqlDataTypePosition.IsDataTypeSlot(tokens))
+        if (SqlDataTypePosition.IsDataTypeSlot(tokens, textBeforeToken))
         {
             return new SqlCompletionContext(
                 SqlCompletionSlot.Grammar,

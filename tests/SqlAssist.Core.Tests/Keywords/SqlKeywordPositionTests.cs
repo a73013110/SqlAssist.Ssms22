@@ -777,6 +777,11 @@ public sealed class SqlKeywordPositionTests
     [InlineData("MERGE t USING s ON t.a = s.a WHEN ", false)]
     [InlineData("BACKUP DATABASE d TO DISK = 'x' WITH ", false)]
     [InlineData("IF @a = 1 PRINT 'x' ", true)]
+
+    // 權限的 ON 之後可以直接寫物件；PIVOT 的 FOR 之前與 TABLESAMPLE 的大小之後寫不出名稱。
+    [InlineData("GRANT SELECT ON ", true)]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) ", false)]
+    [InlineData("SELECT * FROM t TABLESAMPLE (10 ", false)]
     public void 位置過濾也管資料庫物件(string textBeforeCaret, bool expected)
     {
         var table = new SqlSuggestion(
@@ -989,13 +994,13 @@ public sealed class SqlKeywordPositionTests
     /// </summary>
     /// <remarks>
     /// 以前它們在讀進來時就換成 <see cref="SqlKeywordPosition.Any"/>，
-    /// <c>SELECT C</c> 的清單裡因此有 <c>CURSOR</c>、<c>WHERE F</c> 有 <c>FILLFACTOR</c>。
+    /// <c>SELECT C</c> 的清單裡因此有 <c>CURSOR</c>、<c>WHERE N</c> 有 <c>NOLOCK</c>。
     /// 整個藏起來也不行：判不出位置的地方正是這些字真正的用處。
     /// 走的是產品的過濾路徑，不只比旗標。
     /// </remarks>
     [Theory]
     [InlineData("SELECT C", "CURSOR", false)]
-    [InlineData("SELECT * FROM t WHERE F", "FILLFACTOR", false)]
+    [InlineData("SELECT * FROM t WHERE N", "NOLOCK", false)]
     [InlineData("SELECT * FROM t ORDER BY P", "PUBLIC", false)]
     [InlineData("P", "PLAN", false)]
     [InlineData("SELECT * FROM t C", "CASCADE", false)]
@@ -1003,7 +1008,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("CREATE TABLE t (N", "NOLOCK", false)]
     [InlineData("SELECT * FROM t CROSS A", "APPLY", true)]
     [InlineData("DECLARE c C", "CURSOR", true)]
-    [InlineData("CREATE INDEX i ON t (a) WITH F", "FILLFACTOR", true)]
+    [InlineData("CREATE FULLTEXT INDEX ON t (a) KEY INDEX pk WITH S", "STOPLIST", true)]
     [InlineData("GRANT SELECT ON t TO P", "PUBLIC", true)]
     [InlineData("SELECT * FROM t WHERE a = A", "ANY", true)]
     public void 判不出位置的關鍵字只在判不出位置時出現(string textBeforeCaret, string keyword, bool expected)
@@ -1416,6 +1421,21 @@ public sealed class SqlKeywordPositionTests
     [InlineData("SELECT SUM(a) OVER (ORDER BY a ", SqlKeywordPosition.WindowOrderTail)]
     [InlineData("SELECT SUM(a) OVER (PARTITION BY b ORDER BY a DESC ", SqlKeywordPosition.WindowOrderTail)]
     [InlineData("SELECT STRING_AGG(a, ',') WITHIN GROUP (ORDER BY a ", SqlKeywordPosition.OrderByTail)]
+    [InlineData("GRANT EXECUTE ON ", SqlKeywordPosition.PermissionOn)]
+    [InlineData("REVOKE SELECT, INSERT ON ", SqlKeywordPosition.PermissionOn)]
+    [InlineData("CREATE INDEX ix ON dbo.Loan (CopyNo) WITH (", SqlKeywordPosition.IndexOption)]
+    [InlineData("CREATE INDEX ix ON dbo.Loan (CopyNo) WITH (ONLINE = ON, ", SqlKeywordPosition.IndexOption)]
+    [InlineData("CREATE UNIQUE NONCLUSTERED INDEX ix ON dbo.Loan (CopyNo) INCLUDE (LoanDate) WHERE CopyNo IS NOT NULL WITH (", SqlKeywordPosition.IndexOption)]
+    [InlineData("SELECT * FROM t TABLESAMPLE (10 ", SqlKeywordPosition.TableSampleTail)]
+    [InlineData("SELECT * FROM t TABLESAMPLE SYSTEM (@n ", SqlKeywordPosition.TableSampleTail)]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) ", SqlKeywordPosition.PivotClause)]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y ", SqlKeywordPosition.PivotClause)]
+    [InlineData("SELECT * FROM t UNPIVOT (v ", SqlKeywordPosition.PivotClause)]
+    [InlineData("SELECT * FROM t UNPIVOT (v FOR [y] ", SqlKeywordPosition.PivotClause)]
+    [InlineData("SELECT a FROM t FOR XML ", SqlKeywordPosition.ForXmlOption)]
+    [InlineData("SELECT a FROM t FOR XML PATH('x'), ROOT('y'), ", SqlKeywordPosition.ForXmlOption)]
+    [InlineData("SELECT a FROM t FOR JSON PATH, ", SqlKeywordPosition.ForJsonOption)]
+    [InlineData("ALTER TABLE t ADD a int NOT NULL DEFAULT (0), ", SqlKeywordPosition.AlterTableAdd)]
     public void 敘述自己的格子(string textBeforeToken, SqlKeywordPosition expected)
     {
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);

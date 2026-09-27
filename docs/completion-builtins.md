@@ -51,24 +51,25 @@ token 列舉裡根本沒有它——任何工具在這一塊都只能自己維�
 `@@REMSERVER` 不衝突——那個變數回報的功能整個被拿掉了，打出來也得不到有意義的值。
 標準是「還有用就收，只是標清楚」。
 
-### 六種看得出來的位置
+### 看得出來的位置
 
 判定成立時整份清單就只剩型別，關鍵字、片段與資料庫物件一個都不列——那些位置本來
 就沒有別的東西是對的。也因為代價這麼直接（判錯就是那個位置什麼都打不出來），
-只收看得出來的六種：
+只收看得出來的幾種：
 
 | 寫法 | 怎麼認出來 |
 |---|---|
-| `DECLARE @rows `、`DECLARE @a INT, @b `、`CREATE PROCEDURE p @x ` | 前一個詞元是落在宣告位置上的變數 |
+| `DECLARE @a INT = NULL, @b `、`CREATE PROCEDURE p @x int OUTPUT, @y ` | 前一個詞元是落在[宣告位置](completion-variables.md#宣告的位置仍然不開清單)上的變數 |
 | `RETURNS ` | 一個詞元就決定得了 |
 | `CAST(x AS `、`TRY_CAST`、`PARSE`、`TRY_PARSE` | `AS` 而且還沒關上的那個左括號屬於這幾個函式 |
 | `CONVERT(`、`TRY_CONVERT(` | 左括號前面是這兩個名字 |
-| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id ` | 資料行名稱前面是左括號或逗號，而該左括號往回是 `TABLE` |
-| `ALTER TABLE t ALTER COLUMN c ` | 前一個詞元是 `COLUMN` |
+| `CREATE TABLE t (Id `、`DECLARE @t TABLE (Id `、`ALTER TABLE t ADD Id ` | 名稱前面那一格是資料行定義的開頭（位置分析的 `ColumnDefinition`、`AlterTableAdd`） |
+| `ALTER TABLE t ALTER COLUMN c ` | 前兩個詞元是 `ALTER COLUMN`；`DROP COLUMN c` 之後不是 |
+| `CREATE SEQUENCE s AS `、`CREATE TYPE t FROM ` | 以型別為底的物件，名稱之後的那個字 |
 
-`CREATE TABLE` 的資料行清單是從**左括號**往回認的，不是從資料行名稱往回數：
-`INSERT INTO t (col1, col2)` 的括號長得一模一樣，差別只在括號前面那個字是 `INTO`
-的目標還是 `TABLE`。
+新資料行名稱之後不自己認形狀，問位置分析名稱前面那一格：`INSERT INTO t (col1, col2)`
+的括號長得與 `CREATE TABLE` 一模一樣，分得開兩者的判準（括號前面是不是 `TABLE`）只有
+位置分析一份。以前這裡另寫一份，`CREATE TABLE` 認得、`ALTER TABLE t ADD` 就認不得。
 
 「型別的位置」要排在「這裡不接受任何關鍵字」**之前**判斷。`CAST(x AS ` 在位置分析
 眼中與 `SELECT x AS ` 的別名一模一樣——往回找子句關鍵字時會穿過那個還沒關上的左括號

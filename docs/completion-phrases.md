@@ -40,7 +40,8 @@
   所以 `SET TRANSACTION ISOLATION LEVEL READ ` 有自己的 `COMMITTED`／`UNCOMMITTED`。
   展開出來的片語字可以是零個：`SET ROWCOUNT ` 之後要數字，清單就該是空的。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
-  每個值仍要剖析得過，過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。
+  每個值仍要剖析得過（接得上一組續尾，或開得了一組清單：索引鍵之後的 `WITH` 只接 `(`），
+  過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。
 - `Template`：用 `After` 位置的第幾個樣板探測。同一個位置的樣板接得上的字不一定相同：
   `IS` 要 `WHERE a `，代表樣板 `WHERE a = 1 ` 之後寫不出它。
 
@@ -77,6 +78,10 @@
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
 BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`OFFSET 10 ` 之後的
 `ROWS`、視窗 `ORDER BY a ` 之後的框架、函式參數清單之後的 `RETURNS` 也是。位置見[關鍵字](completion-keywords.md)。
+
+中間可以夾別的子句時也寫位置，不寫尾巴：CREATE INDEX 的 `WITH (` 前面可能是索引鍵、`INCLUDE (…)`
+或篩選的 `WHERE`，每一種組合寫一條尾巴永遠寫不齊，位置分析認的是這一句（`IndexOption`）。
+`FOR XML RAW, ` 的逗號之後、`GRANT … ON ` 之後同理。
 
 第一個樣板是那個位置的代表寫法，而且是完整的語句，「寫到這裡已經完整」才判得準。其餘樣板是
 第三階段撈齊關鍵字用的旁支：拿 `FROM t JOIN y` 探會長出 `FOR PATH` 之後一整串還缺 `ON` 的字，
@@ -121,8 +126,5 @@ BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- `RecallKnownGaps.txt` 其餘的缺口（資料型別的幾個位置、`FOR XML` 逗號之後、`TABLESAMPLE (10 `、
-  `PIVOT … FOR a `、篩選索引的 `WITH (`、`GRANT … ON SCHEMA::`）：前一格還沒有位置或比對不到，
-  理由逐條寫在檔裡。
 - `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
   名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。

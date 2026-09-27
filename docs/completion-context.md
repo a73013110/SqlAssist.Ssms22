@@ -28,10 +28,10 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 日期部分只收完整名稱，不收 `yy`、`dd` 這些縮寫：縮寫背得起來的人不需要補字，
 而 15 個名稱再乘上兩三種縮寫，清單就從「一眼看完」變成要捲動。
 
-已知會誤判的是別種 `WITH (…)`：`CREATE INDEX … WITH (FILLFACTOR = 80)` 與
-`OPENJSON(…) WITH (col int '$.x')` 也會列出資料表提示。沒有為它們再加判斷，
-是因為那兩個位置本來也沒有正確答案——前者要的是索引選項，後者要的是使用者自己取的
-資料行名稱，換掉的只是一份同樣不對的關鍵字清單。
+`CREATE INDEX … WITH (` 列的是索引選項（片語，見[子句片語](completion-phrases.md)）。
+已知會誤判的是 `OPENJSON(…) WITH (col int '$.x')`：也會列出資料表提示。沒有為它再加判斷，
+是因為那個位置本來也沒有正確答案——要的是使用者自己取的資料行名稱，換掉的只是一份
+同樣不對的關鍵字清單。
 
 定序是唯一清單不在本機的一種，見 [定序](completion-collation.md)。
 

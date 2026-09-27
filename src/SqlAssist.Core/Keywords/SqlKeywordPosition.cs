@@ -151,11 +151,24 @@ public enum SqlKeywordPosition : long
     /// <remarks>不借用資料來源尾端：那裡探得到的是查詢的子句字，探不到 REVOKE 的 FROM。</remarks>
     PermissionTarget = 1L << 39,
 
+    /// <summary>GRANT／DENY／REVOKE 的 ON 之後——安全性實體的類別（SCHEMA::、OBJECT::）或目標名稱。</summary>
+    /// <remarks>
+    /// 不借用述詞起點：那裡列的是 EXISTS、CASE，類別多半不是關鍵字，由子句片語給；名稱照常。
+    /// </remarks>
+    PermissionOn = 1L << 56,
+
     /// <summary>SELECT … INTO 的新資料表之後——FROM、WHERE、UNION。</summary>
     SelectIntoTail = 1L << 40,
 
     /// <summary>FETCH … FROM 的游標之後——INTO。</summary>
     FetchTail = 1L << 41,
+
+    /// <summary>CREATE INDEX 的 <c>WITH (</c> 與選項清單的逗號之後；選項由子句片語給。</summary>
+    /// <remarks>
+    /// 認的是這一句，不是緊鄰的形狀：INCLUDE、篩選索引的 WHERE 夾在中間也一樣。
+    /// 不借用資料表提示：<c>WITH (</c> 前面是 CREATE INDEX 時接的是 ONLINE、FILLFACTOR。
+    /// </remarks>
+    IndexOption = 1L << 57,
 
     /// <summary>索引鍵清單裡一個資料行之後——ASC、DESC。</summary>
     /// <remarks>
@@ -222,6 +235,30 @@ public enum SqlKeywordPosition : long
     /// <summary><c>ORDER BY … OFFSET 10</c> 的值之後——ROW、ROWS；兩個字都由子句片語給。</summary>
     OffsetTail = 1L << 47,
 
+    /// <summary><c>TABLESAMPLE [SYSTEM] (10</c> 的樣本大小之後——PERCENT、ROWS。</summary>
+    /// <remarks>不借用 <see cref="TopClauseTail"/>：TOP 之後接 WITH TIES 與選取清單，這裡不接。</remarks>
+    TableSampleTail = 1L << 54,
+
+    /// <summary>
+    /// PIVOT、UNPIVOT 括號裡的一段寫完之後——彙總或值之後是 FOR，FOR 的資料行之後是 IN。
+    /// </summary>
+    /// <remarks>
+    /// 不借用資料來源尾端：那裡的 FOR 接 XML、JSON，這裡的 FOR 接資料行。
+    /// 兩處共用一個位置：各只有一個字，分開只多一個旗標。
+    /// </remarks>
+    PivotClause = 1L << 55,
+
+    /// <summary>查詢的 <c>FOR XML</c> 之後與逗號之後——模式（RAW、PATH）與指示詞（TYPE、ROOT）。</summary>
+    /// <remarks>
+    /// 模式是清單的第一項，所以同一個位置；<c>FOR XML </c> 由片語 <c>FOR XML</c> 只列模式，
+    /// 逗號之後由以位置為鍵的片語列指示詞。字幾乎都不是關鍵字。
+    /// </remarks>
+    ForXmlOption = 1L << 52,
+
+    /// <summary>查詢的 <c>FOR JSON</c> 之後與逗號之後——模式與 ROOT、INCLUDE_NULL_VALUES。</summary>
+    /// <remarks>不併進 <see cref="ForXmlOption"/>：兩者的指示詞不同。</remarks>
+    ForJsonOption = 1L << 53,
+
     /// <summary>模組的 WITH 選項清單寫完之後——AS；程序另外接 FOR REPLICATION。</summary>
     /// <remarks>
     /// 清單裡是 <see cref="ProcedureOption"/>、<see cref="FunctionOption"/>、<see cref="ViewOption"/>；
@@ -248,10 +285,11 @@ public enum SqlKeywordPosition : long
     AlterTableAction = 1 << 17,
 
     /// <summary>
-    /// ALTER TABLE t ADD 之後——CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、INDEX。
+    /// ALTER TABLE t ADD 與新增清單的逗號之後——CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、INDEX。
     /// </summary>
     /// <remarks>
-    /// 這一格也接得了使用者自己取的新資料行名稱，所以分析器同時回報 <c>MaybeName</c>。
+    /// 這一格也接得了使用者自己取的新資料行名稱，所以分析器同時回報 <c>MaybeName</c>；
+    /// 名稱寫完之後是型別，見 <c>SqlDataTypePosition</c>。
     /// </remarks>
     AlterTableAdd = 1 << 18,
 
@@ -274,11 +312,11 @@ public enum SqlKeywordPosition : long
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
         | MergeWhen | MergeAction | MergeClause | BackupOption | RestoreOption
-        | PermissionList | PermissionTarget | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
-        | ProcedureOption | FunctionOption | ViewOption | TriggerOption
+        | PermissionList | PermissionTarget | PermissionOn | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
+        | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | RaiserrorOption
+        | ExecuteOption | RaiserrorOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

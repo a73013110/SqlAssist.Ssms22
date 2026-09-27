@@ -129,6 +129,14 @@ public sealed class SqlClausePhraseTests
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) INCLUDE (Branch) ", "WHERE", "WITH")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (", "ONLINE", "SORT_IN_TEMPDB", "DROP_EXISTING")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (ONLINE = ON, ", "SORT_IN_TEMPDB")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WHERE CopyNo IS NOT NULL WITH (", "ONLINE", "FILLFACTOR")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) INCLUDE (Branch) WHERE CopyNo > 0 WITH (ONLINE = ON, ", "SORT_IN_TEMPDB")]
+    [InlineData("SELECT a FROM t FOR XML PATH('Copy'), ", "TYPE", "ROOT", "ELEMENTS")]
+    [InlineData("SELECT a FROM t FOR XML RAW, ELEMENTS, ", "TYPE", "ROOT")]
+    [InlineData("SELECT a FROM t FOR JSON PATH, ", "ROOT", "INCLUDE_NULL_VALUES", "WITHOUT_ARRAY_WRAPPER")]
+    [InlineData("SELECT a FROM t TABLESAMPLE (10 ", "PERCENT", "ROWS")]
+    [InlineData("GRANT EXECUTE ON ", "SCHEMA", "OBJECT")]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR y ", "IN")]
     [InlineData("ALTER DATABASE CURRENT SET ", "READ_COMMITTED_SNAPSHOT", "SINGLE_USER", "RECOVERY")]
     [InlineData("ALTER DATABASE CURRENT SET RECOVERY ", "SIMPLE", "FULL", "BULK_LOGGED")]
     [InlineData("CREATE TRIGGER tr ON dbo.Loan ", "AFTER", "INSTEAD", "FOR")]
@@ -211,6 +219,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("SET TRANSACTION ISOLATION LEVEL READ ", "SELECT")]
     [InlineData("SET ", "SELECT")]
     [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WITH (", "NOLOCK")]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WHERE CopyNo > 0 WITH (", "NOLOCK")]
+    [InlineData("SELECT a FROM t FOR XML RAW, ", "INCLUDE_NULL_VALUES")]
+    [InlineData("SELECT a FROM t FOR JSON AUTO, ", "ELEMENTS")]
     [InlineData("ALTER INDEX IX_Loan ON dbo.Loan ", "WHERE")]
     [InlineData("CREATE PROCEDURE p AS\nSET NOCOUNT ", "READ")]
     [InlineData("SELECT a FROM t FOR ", "SELECT")]
@@ -246,6 +257,8 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT CASE WHEN ", "MATCHED")]
     [InlineData("BACKUP CERTIFICATE c TO FILE = 'x' WITH ", "COMPRESSION")]
     [InlineData("SELECT a FROM t WITH ", "TIES")]
+    [InlineData("SELECT * FROM t PIVOT (SUM(x) FOR ", "XML")]
+    [InlineData("SELECT * FROM t UNPIVOT (v FOR ", "JSON")]
     public void 片語的字不出現在別的位置(string textBeforeToken, string word)
     {
         Assert.DoesNotContain(word, Offered(textBeforeToken));
@@ -269,6 +282,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("SELECT NEXT VALUE FOR ", false)]
     [InlineData("ALTER TABLE t ADD CONSTRAINT df DEFAULT 0 FOR ", false)]
     [InlineData("CREATE SYNONYM s FOR ", false)]
+    [InlineData("CREATE INDEX IX_Loan ON dbo.Loan (CopyNo) WHERE CopyNo > 0 WITH (", true)]
+    [InlineData("SELECT a FROM t FOR XML RAW, ", true)]
+    [InlineData("GRANT EXECUTE ON ", false)]
     public void 封閉的片語換掉整份清單(string textBeforeCaret, bool closed)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);

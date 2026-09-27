@@ -51,12 +51,13 @@ public static class SqlKeywordPositionExtensions
     /// <c>REFERENCES u (a) |</c> 之後是 <c>ON</c>、<c>NOT</c>；視窗的 <c>ORDER BY a |</c> 之後是框架；
     /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上；模組的 <c>WITH SCHEMABINDING |</c> 之後是 <c>AS</c>，
     /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、
-    /// <c>RAISERROR (…) WITH |</c> 之後是選項。</item>
+    /// <c>RAISERROR (…) WITH |</c>、CREATE INDEX 的 <c>WITH (|</c> 與 <c>FOR XML |</c>、<c>FOR JSON |</c> 之後是選項；
+    /// <c>TABLESAMPLE (10 |</c> 之後是 <c>PERCENT</c>；PIVOT 的 <c>(SUM(x) |</c> 之後是 <c>FOR</c>，<c>FOR y |</c> 之後是 <c>IN</c>。</item>
     /// </list>
     ///
     /// 不在裡面的都有理由：<c>INSERT |</c> 的 <c>INTO</c> 可以省略；<c>SET |</c> 與
     /// <c>UPDATE t SET |</c> 是同一個位置，後者要資料行；CASE 的各段寫的是運算式，
-    /// <c>CaseArm</c> 同時是 <c>WHEN |</c> 的起點。
+    /// <c>CaseArm</c> 同時是 <c>WHEN |</c> 的起點；<c>GRANT SELECT ON |</c> 可以直接寫物件名稱。
     /// </remarks>
     private const SqlKeywordPosition NoNamePositions =
         SqlKeywordPosition.SelectListTail |
@@ -95,6 +96,11 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.FunctionReturns |
         SqlKeywordPosition.ExecuteOption |
         SqlKeywordPosition.RaiserrorOption |
+        SqlKeywordPosition.IndexOption |
+        SqlKeywordPosition.ForXmlOption |
+        SqlKeywordPosition.ForJsonOption |
+        SqlKeywordPosition.TableSampleTail |
+        SqlKeywordPosition.PivotClause |
         SqlKeywordPosition.ByAnchor |
         SqlKeywordPosition.DdlObject |
         SqlKeywordPosition.AlterTableAction |

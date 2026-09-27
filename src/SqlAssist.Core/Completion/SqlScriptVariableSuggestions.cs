@@ -22,17 +22,12 @@ namespace SqlAssist.Core.Completion;
 public static class SqlScriptVariableSuggestions
 {
     /// <summary>
-    /// 往回走到這些字就代表使用者正在<b>宣告</b>一個名字。
+    /// 往回走到這些字就代表使用者正在<b>宣告</b>一個名字：變數、程序參數、函式參數。
     /// </summary>
-    /// <remarks>
-    /// <c>TABLE</c> 在裡面是為了 <c>DECLARE @t TABLE (…), @b INT</c>：往回跳過那組
-    /// 括號之後遇到的是 <c>TABLE</c> 而不是 <c>DECLARE</c>。它不會誤判使用的位置——
-    /// <c>FROM @t</c>、<c>INSERT INTO @t</c> 往回遇到的都是 <c>FROM</c>、<c>INTO</c>。
-    /// </remarks>
     private static readonly HashSet<string> DeclarationAnchors =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "DECLARE", "PROCEDURE", "FUNCTION", "TABLE"
+            "DECLARE", "PROCEDURE", "PROC", "FUNCTION"
         };
 
     /// <summary>
@@ -105,8 +100,11 @@ public static class SqlScriptVariableSuggestions
     /// 他順手按下 Enter，剛打的 <c>@pub</c> 被換成別的名字。<c>SET @</c>、
     /// <c>WHERE a = @</c>、<c>EXEC p @</c> 是後者，那裡他要的正是上面宣告過的名稱。
     ///
-    /// 判斷方式是往回走到第一個關鍵字：是 <see cref="DeclarationAnchors"/> 裡的就是
-    /// 宣告，是別的關鍵字（<c>SET</c>、<c>WHERE</c>、<c>EXEC</c>…）就是引用。
+    /// 判斷方式是往回走，在走出這一句之前碰到 <see cref="DeclarationAnchors"/> 就是宣告；先碰到能開始
+    /// 一句的關鍵字（<c>SET</c>、<c>SELECT</c>、<c>EXEC</c>…）就是引用。其餘的關鍵字屬於前一項的定義
+    /// 而不是界線：<c>@a int = NULL, @</c>、<c>@a int OUTPUT, @</c>、<c>@a AS int, @</c> 仍在宣告清單裡——
+    /// 停在第一個關鍵字的話，程序只有第一個參數認得出來。<c>DECLARE @t TABLE (…), @b</c> 也是同一條：
+    /// TABLE 不能開始一句，走得過去。
     /// 途中的括號整組跳過，分號代表前一個敘述已經結束。走到頭都沒有關鍵字時當成
     /// 引用：這裡的 fail-open 換來的是「多列幾個他自己打過的名字」。
     /// </remarks>
@@ -149,7 +147,7 @@ public static class SqlScriptVariableSuggestions
                 return true;
             }
 
-            if (SqlKeywordCatalog.IsKeyword(token.Value))
+            if (SqlKeywordCatalog.StartsStatement(token.Value))
             {
                 return false;
             }

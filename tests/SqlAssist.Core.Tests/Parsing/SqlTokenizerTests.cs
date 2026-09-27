@@ -112,12 +112,22 @@ public sealed class SqlTokenizerTests
     [InlineData("1.5", SqlTokenKind.Number)]
     [InlineData("0x1F", SqlTokenKind.Number)]
     [InlineData("1e-5", SqlTokenKind.Number)]
+    [InlineData("$action", SqlTokenKind.Identifier)]
+    [InlineData("$node_id", SqlTokenKind.Identifier)]
     public void 辨識各種詞法單元(string sql, SqlTokenKind expected)
     {
         var token = SqlTokenizer.Tokenize(sql).Single();
 
         Assert.Equal(expected, token.Kind);
         Assert.Equal(sql, token.Text);
+    }
+
+    /// <summary>虛擬資料行是一個名稱，不是 $ 加上關鍵字 ACTION；$ 接數字仍是 money 常值的寫法。</summary>
+    [Fact]
+    public void 虛擬資料行是一個名稱()
+    {
+        Assert.Equal(new[] { "OUTPUT", "$action" }, Values("OUTPUT $action"));
+        Assert.Equal(new[] { "$", "10" }, Values("$10"));
     }
 
     [Fact]

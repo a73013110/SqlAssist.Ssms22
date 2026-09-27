@@ -1,7 +1,7 @@
 -- 召回稽核的語料：每一段是一句合法的 T-SQL，段與段以空白行分開。
 -- 稽核在每一個關鍵字、片語字、資料型別與提示的起點問建議清單有沒有它，見 SqlKeywordRecallTests。
 -- 名稱只用圖書館領域的名稱；與片語字撞名的名稱會被當成字稽核，要寫成方括號。
--- 新增語句不必改程式；列不出來的字要修，或寫進 RecallKnownGaps.txt 並附理由。
+-- 新增語句不必改程式；列不出來的字要修。刻意不收的寫法不放進來，理由寫在那一格的文件。
 
 SELECT DISTINCT TOP (10) PERCENT WITH TIES r.ReaderId, r.ReaderName AS Name2
 FROM dbo.Lib_Reader AS r

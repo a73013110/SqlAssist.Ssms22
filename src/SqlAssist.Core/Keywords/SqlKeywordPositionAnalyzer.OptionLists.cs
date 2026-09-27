@@ -59,7 +59,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             header: (_, _) => new OptionSlots(null, SqlKeywordPosition.PermissionList),
             skipsGroups: true),
 
-        // GRANT … ON [SCHEMA::]dbo.Loan：目標寫完之後是 TO、FROM。
+        // GRANT … ON [SCHEMA::]dbo.Loan：ON 之後是類別或目標，目標寫完之後是 TO、FROM。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("ON"),
             isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
@@ -67,7 +67,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 (index + 1 < analyzer.tokens.Count && analyzer.tokens[index + 1].IsPunctuation("::")),
             endsItem: (analyzer, index) => analyzer.IsPlainWord(index),
             header: (analyzer, on) => on >= 1 && analyzer.FindStatementSlot(on - 1) == SqlKeywordPosition.PermissionList
-                ? new OptionSlots(null, SqlKeywordPosition.PermissionTarget)
+                ? new OptionSlots(SqlKeywordPosition.PermissionOn, SqlKeywordPosition.PermissionTarget)
                 : null,
             separatedByCommas: false),
 
@@ -105,6 +105,28 @@ public sealed partial class SqlKeywordPositionAnalyzer
             isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
             endsItem: null,
             header: (analyzer, with) => analyzer.FindBackupHeader(with),
+            skipsGroups: true),
+
+        // CREATE INDEX … WITH (ONLINE = ON, FILLFACTOR = 80)：左括號與逗號之後是下一個選項。
+        new(
+            isAnchor: (analyzer, index) => analyzer.tokens[index].IsPunctuation("(") &&
+                index >= 1 && analyzer.tokens[index - 1].IsKeyword("WITH"),
+            isPart: (analyzer, index) => !analyzer.StartsClauseOfItsOwn(index),
+            endsItem: null,
+            header: (analyzer, open) => analyzer.CreatesIndex(open - 1)
+                ? new OptionSlots(SqlKeywordPosition.IndexOption, null)
+                : null,
+            skipsGroups: true),
+
+        // SELECT … FOR XML RAW, ELEMENTS、FOR JSON PATH, ROOT('x')：模式是清單的第一項，逗號之後是指示詞。
+        new(
+            isAnchor: (analyzer, index) => (analyzer.tokens[index].IsKeyword("XML") || analyzer.tokens[index].IsKeyword("JSON")) &&
+                index >= 1 && analyzer.tokens[index - 1].IsKeyword("FOR"),
+            isPart: (analyzer, index) => analyzer.tokens[index].Kind == SqlTokenKind.Identifier,
+            endsItem: null,
+            header: (analyzer, anchor) => new OptionSlots(
+                analyzer.tokens[anchor].IsKeyword("XML") ? SqlKeywordPosition.ForXmlOption : SqlKeywordPosition.ForJsonOption,
+                null),
             skipsGroups: true)
     };
 
@@ -146,6 +168,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.FunctionReturns;
         }
 
+        if (EndsTableSampleSize(last))
+        {
+            return SqlKeywordPosition.TableSampleTail;
+        }
+
+        if (EndsPivotPart(last))
+        {
+            return SqlKeywordPosition.PivotClause;
+        }
+
         foreach (var list in OptionLists)
         {
             if (list.Resolve(this, last) is { } position)
@@ -168,6 +200,67 @@ public sealed partial class SqlKeywordPositionAnalyzer
             IsBareKeyword(offset) &&
             tokens[offset].IsKeyword("OFFSET") &&
             (FindClausePosition(offset - 1) & SqlKeywordPosition.OrderByTail) != SqlKeywordPosition.None;
+    }
+
+    /// <summary><paramref name="last"/> 寫完 <c>TABLESAMPLE [SYSTEM] (</c> 的樣本大小：數值或變數。</summary>
+    private bool EndsTableSampleSize(int last)
+    {
+        if (last < 2 ||
+            tokens[last].Kind is not (SqlTokenKind.Number or SqlTokenKind.Variable) ||
+            !tokens[last - 1].IsPunctuation("("))
+        {
+            return false;
+        }
+
+        var sample = tokens[last - 2].IsKeyword("SYSTEM") ? last - 3 : last - 2;
+        return sample >= 0 && tokens[sample].IsKeyword("TABLESAMPLE");
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完 PIVOT、UNPIVOT 括號裡的一段：第一段（<c>PIVOT (SUM(x) </c>、
+    /// <c>UNPIVOT (v </c>，之後是 FOR），或 FOR 的資料行（<c>FOR y </c>，之後是 IN）。
+    /// </summary>
+    private bool EndsPivotPart(int last)
+    {
+        var open = FindUnclosedParenthesis(last);
+
+        if (open < 1 || !(tokens[open - 1].IsKeyword("PIVOT") || tokens[open - 1].IsKeyword("UNPIVOT")))
+        {
+            return false;
+        }
+
+        if (last - 1 > open && tokens[last - 1].IsKeyword("FOR"))
+        {
+            return IsPlainWord(last);
+        }
+
+        var first = tokens[last].IsPunctuation(")") ? SqlTokenNavigator.FindOpeningParenthesis(tokens, last) - 1 : last;
+        return first == open + 1 && tokens[first].Kind == SqlTokenKind.Identifier;
+    }
+
+    /// <summary>
+    /// <paramref name="with"/> 的 WITH 屬於 <c>CREATE [UNIQUE] [CLUSTERED] INDEX</c> 這一句。
+    /// </summary>
+    /// <remarks>
+    /// 問的是這一句的開頭而不是緊鄰的形狀：索引鍵、INCLUDE 與篩選的 WHERE 都可能夾在中間。
+    /// </remarks>
+    private bool CreatesIndex(int with)
+    {
+        var index = FindStatementStart(with - 1);
+
+        if (index >= with || !tokens[index].IsKeyword("CREATE"))
+        {
+            return false;
+        }
+
+        index++;
+
+        while (index < with && IndexModifiers.Contains(tokens[index].Value) && !tokens[index].IsQuoted)
+        {
+            index++;
+        }
+
+        return index < with && tokens[index].IsKeyword("INDEX");
     }
 
     /// <summary>
