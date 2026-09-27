@@ -122,4 +122,48 @@ public sealed class SqlSuggestionTargetTests
     {
         Assert.Null(SqlSuggestionTarget.Describe(Suggestion("SELECT", kind)));
     }
+
+    /// <summary>
+    /// 系統結構描述底下的預存程序，說明目錄裡還沒有對應條目時仍沿用物件分支。
+    /// </summary>
+    /// <remarks>
+    /// <c>system-procedures.json</c> 的內容留給階段 3b，這裡先守住負向案例：新加的
+    /// 判斷不能讓查無說明的系統預存程序連物件本身都畫不出來。正向案例（目錄裡真的有
+    /// 一筆 <c>SqlBuiltInKind.SystemProcedure</c>）等資料合併後再補。
+    /// </remarks>
+    [Fact]
+    public void 查無系統程序說明時仍沿用物件()
+    {
+        var objectInfo = new SqlObjectInfo(1, "sys", "sp_不是真的系統程序", SqlObjectKind.Procedure);
+
+        Assert.Same(
+            objectInfo,
+            SqlSuggestionTarget.Describe(
+                Suggestion("sp_不是真的系統程序", SuggestionKind.Procedure, objectInfo))!.Object);
+    }
+
+    /// <summary>非系統結構描述的預存程序不查系統程序目錄，一律沿用物件分支。</summary>
+    [Fact]
+    public void 一般結構描述的預存程序不查系統程序目錄()
+    {
+        var objectInfo = new SqlObjectInfo(2, "dbo", "Lib_HelpProcedure", SqlObjectKind.Procedure);
+
+        Assert.Same(
+            objectInfo,
+            SqlSuggestionTarget.Describe(
+                Suggestion("Lib_HelpProcedure", SuggestionKind.Procedure, objectInfo))!.Object);
+    }
+
+    /// <summary>
+    /// 關鍵字建議項查無語句說明時回 null，不會誤把普通關鍵字說成語句。
+    /// </summary>
+    /// <remarks>
+    /// <c>statements.json</c> 目前是空的，<c>EXEC</c> 之類的語句要等階段 3a 補資料後
+    /// 才查得到；這裡先守住「查不到就是 null」，正向案例等資料合併後再補。
+    /// </remarks>
+    [Fact]
+    public void 查無語句說明的關鍵字仍回傳空值()
+    {
+        Assert.Null(SqlSuggestionTarget.Describe(Suggestion("EXEC", SuggestionKind.Keyword)));
+    }
 }

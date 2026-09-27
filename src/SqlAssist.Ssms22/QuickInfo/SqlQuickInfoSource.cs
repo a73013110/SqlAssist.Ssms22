@@ -109,16 +109,20 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         // 而那個呼叫有 UI 執行緒相依性，忙的時候會直接反映成打字延遲。
         var metadataService = SqlCompletionServices.GetMetadataService(textView, _serviceProvider);
 
-        // 詞法分析要掃過整份文字，不留在呼叫端的執行緒上。
+        // 詞法分析要掃過整份文字，不留在呼叫端的執行緒上。系統程序與語句的說明優先於
+        // 物件解析、函式與型別的說明只在物件解析落空時才退回——兩者的順序判斷與
+        // 另外三條入口共用同一支（SqlBuiltInObjectResolution），這裡只傳委派進去。
         var resolution = await Task
-            .Run(() => Resolve(metadataService, snapshot, point.Position), cancellationToken)
+            .Run(
+                () => Resolve(metadataService, snapshot, point.Position, settings.BuiltInHelpEnabled),
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (resolution.Location is not { } location)
         {
-            // 內建名稱不是資料庫物件，物件解析一定落空。排在後面而不是前面：
-            // SELECT * FROM Format 停在 Format 上時要的是那張表，不是同名的內建函式。
-            return BuildBuiltInItem(settings, textView, snapshot, resolution);
+            return resolution.BuiltIn is { } doc && resolution.Reference is { } reference
+                ? BuildBuiltInItem(textView, snapshot, reference, doc)
+                : null;
         }
 
         var applicableSpan = snapshot.CreateTrackingSpan(
@@ -190,25 +194,19 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
     /// 內建名稱的提示。
     /// </summary>
     /// <remarks>
-    /// 「這個字是不是內建名稱」整段判斷在 <see cref="SqlBuiltInDocCatalog.TryGetAt"/>：
-    /// 只看文字就決定得了的事不放在平台接線層。
+    /// 「這個字是不是內建名稱、算不算搶在物件解析之前」整段判斷都在 <see cref="Resolve"/>
+    /// 那一支（依 <see cref="SqlBuiltInObjectResolution"/>），這裡只管把已經確定要顯示的
+    /// <paramref name="doc"/> 畫出來。
     ///
     /// 這條路只查一份內嵌資料，不碰中繼資料也不碰連線，因此完全在滑鼠移動路徑的
     /// 成本預算內；沒有連線時照樣答得出來。
     /// </remarks>
-    private QuickInfoItem? BuildBuiltInItem(
-        SqlAssistSettings settings,
+    private QuickInfoItem BuildBuiltInItem(
         ITextView textView,
         ITextSnapshot snapshot,
-        Resolution resolution)
+        SqlIdentifierReference reference,
+        SqlBuiltInDoc doc)
     {
-        if (!settings.BuiltInHelpEnabled ||
-            resolution.Reference is not { } reference ||
-            !SqlBuiltInDocCatalog.TryGetAt(resolution.Text, reference, out var doc))
-        {
-            return null;
-        }
-
         var span = snapshot.CreateTrackingSpan(
             new Span(reference.Start, reference.Length),
             SpanTrackingMode.EdgeInclusive);
@@ -223,18 +221,22 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
     }
 
     /// <summary>
-    /// 「開啟完整說明」要執行的動作；沒有對照表時回傳 null，那一行就不出現。
+    /// 「開啟完整說明」要執行的動作；提示已經給得完整時回傳 null，那一行就不出現。
     /// </summary>
     /// <remarks>
     /// 開的是物件結構用的同一個浮動視窗，錨在同一個名稱上——擺放、縮放、複製與
     /// 收掉的規則因此只有一套。內建說明沒有連線也沒有查詢，畫完就結束。
+    ///
+    /// 門檻是 <see cref="SqlBuiltInDoc.HasExpandedContent"/> 而不是「有沒有範例」：
+    /// 提示已經印出第一段範例，只有對照表、或範例還有第二段以後才值得再開一個視窗——
+    /// 兩個表面問的是同一支，不在這裡重寫一次「有沒有超過一段」。
     /// </remarks>
     private Action? CreateOpenReferenceAction(
         ITextView textView,
         ITrackingSpan anchor,
         SqlBuiltInDoc doc)
     {
-        if (!doc.HasReferences)
+        if (!doc.HasExpandedContent)
         {
             return null;
         }
@@ -271,26 +273,40 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             () => Process.Start(uri.AbsoluteUri));
     }
 
-    /// <summary>解析結果；識別字與原文即使不是資料庫物件也要帶回來，內建說明才有得問。</summary>
+    /// <summary>
+    /// 解析結果：物件解析贏了就帶 <see cref="Location"/>，內建說明贏了就帶
+    /// <see cref="BuiltIn"/>，兩者互斥；<see cref="Reference"/> 即使不是資料庫物件
+    /// 也要帶回來，內建說明才有範圍可以畫底線。
+    /// </summary>
     private readonly struct Resolution
     {
-        public Resolution(string? text, SqlIdentifierReference? reference, SqlObjectLocation? location)
+        public Resolution(SqlIdentifierReference? reference, SqlObjectLocation? location, SqlBuiltInDoc? builtIn)
         {
-            Text = text;
             Reference = reference;
             Location = location;
+            BuiltIn = builtIn;
         }
-
-        /// <summary>整份 SQL；內建說明要看名稱後面是不是接著左括號。</summary>
-        public string? Text { get; }
 
         public SqlIdentifierReference? Reference { get; }
 
         public SqlObjectLocation? Location { get; }
+
+        public SqlBuiltInDoc? BuiltIn { get; }
     }
 
-    /// <summary>只重用語法分析；清快取與背景載入不會改變 SQL 文字，物件與欄位必須重新比對。</summary>
-    private Resolution Resolve(SqlMetadataService metadataService, ITextSnapshot snapshot, int position)
+    /// <summary>
+    /// 只重用語法分析；清快取與背景載入不會改變 SQL 文字，物件與欄位必須重新比對。
+    /// </summary>
+    /// <remarks>
+    /// 內建說明與物件解析的順序判斷交給 <see cref="SqlBuiltInObjectResolution.Resolve"/>：
+    /// 系統程序與語句命中就直接回報，連 <see cref="SqlObjectLocator.LocateCached"/> 都不叫；
+    /// 函式與型別維持物件解析優先，只有落空才退回內建說明——與 Ctrl+F12 那條入口同一支判斷。
+    /// </remarks>
+    private Resolution Resolve(
+        SqlMetadataService metadataService,
+        ITextSnapshot snapshot,
+        int position,
+        bool builtInHelpEnabled)
     {
         var parsed = Volatile.Read(ref _parsed);
         var text = parsed is not null && ReferenceEquals(parsed.Snapshot, snapshot)
@@ -304,25 +320,42 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             return default;
         }
 
+        var builtIn = builtInHelpEnabled && SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc)
+            ? doc
+            : null;
+
+        var resolved = SqlBuiltInObjectResolution.Resolve(
+            builtIn,
+            () => LocateObject(metadataService, snapshot, text, position, reference, parsed));
+
+        return new Resolution(reference, resolved.Location, resolved.BuiltIn);
+    }
+
+    /// <summary>Hover 只查快取，不等查詢；沒命中也把這一次的語法分析留著供下一次重用。</summary>
+    private SqlObjectLocation? LocateObject(
+        SqlMetadataService metadataService,
+        ITextSnapshot snapshot,
+        string text,
+        int position,
+        SqlIdentifierReference reference,
+        ParsedIdentifier? parsed)
+    {
         if (parsed is not null &&
             ReferenceEquals(parsed.Snapshot, snapshot) &&
             reference.Start == parsed.Lookup.Reference.Start &&
             reference.End == parsed.Lookup.Reference.End)
         {
-            return new Resolution(
-                text,
-                reference,
-                SqlObjectLocator.LocateCached(metadataService, parsed.Lookup));
+            return SqlObjectLocator.LocateCached(metadataService, parsed.Lookup);
         }
 
         var lookup = SqlObjectLookup.Create(text, position);
         if (lookup is null)
         {
-            return new Resolution(text, reference, null);
+            return null;
         }
 
         Volatile.Write(ref _parsed, new ParsedIdentifier(snapshot, text, lookup));
-        return new Resolution(text, reference, SqlObjectLocator.LocateCached(metadataService, lookup));
+        return SqlObjectLocator.LocateCached(metadataService, lookup);
     }
 
     public void Dispose()

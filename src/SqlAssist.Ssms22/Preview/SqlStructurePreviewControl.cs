@@ -1054,8 +1054,9 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
             tab.Item.Visibility = Visibility.Collapsed;
         }
 
-        // 只放第一段：把多段範例接成一份（每段前加標題、段落間空一行）留給 2b。
-        _scriptText = doc.Examples.Count > 0 ? doc.Examples[0].Sql : string.Empty;
+        // 多段範例接成一份：每段前加 -- ▸ {title} 當標頭，段落之間空一行；
+        // 文字組法只看資料就決定得了，放在 Core（SqlBuiltInExampleText），這裡只管畫。
+        _scriptText = SqlBuiltInExampleText.Combine(doc.Examples);
         _scriptHeader.Label = CommonText.Example;
         _scriptTab.Visibility = Visible(doc.Examples.Count > 0);
 

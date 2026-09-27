@@ -22,6 +22,13 @@ namespace SqlAssist.Ssms22.Completion;
 /// 這裡只從名稱認出它是哪一種，資料行留給
 /// <see cref="SqlScriptDeclarations"/>：這條路徑在每一次換選取上，而使用者多半
 /// 只是按著方向鍵路過，掃整份文字要等到真的有人要看結構才划算。
+///
+/// 帶系統物件標記的預存程序建議項是例外：它有現成的 <see cref="SqlObjectInfo"/>，
+/// 但系統程序的說明優先於物件解析（<see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>），
+/// 所以要在物件分支之前先問一次系統程序目錄。關鍵字建議項對到語句說明也是另外判斷：
+/// <see cref="SqlBuiltInKinds.TryFromSuggestionKind"/> 刻意不接
+/// <see cref="SuggestionKind.Procedure"/> 與 <see cref="SuggestionKind.Keyword"/>——前者
+/// 同時涵蓋使用者自訂與系統預存程序，後者涵蓋所有關鍵字，兩者都不能只靠種類反推。
 /// </remarks>
 internal static class SqlSuggestionTarget
 {
@@ -35,6 +42,17 @@ internal static class SqlSuggestionTarget
 
         if (suggestion.Tag is SqlObjectInfo objectInfo)
         {
+            // 系統結構描述底下的預存程序建議項，若目錄裡有系統程序那一份說明，
+            // 排在物件分支之前顯示——按向右鍵想看的是「這個系統程序怎麼用」，
+            // 不是一個多半查無定義的擴充預存程序。
+            if (suggestion.Kind == SuggestionKind.Procedure &&
+                SqlSystemSchemas.IsSystem(objectInfo.SchemaName) &&
+                SqlBuiltInDocCatalog.TryGet(objectInfo.Name, SqlBuiltInKind.SystemProcedure, out var systemDoc) &&
+                systemDoc.DeservesWindow)
+            {
+                return SqlPreviewSubject.ForBuiltIn(systemDoc);
+            }
+
             return SqlPreviewSubject.ForObject(objectInfo);
         }
 
@@ -58,6 +76,13 @@ internal static class SqlSuggestionTarget
                     SqlIdentifier.IsScriptScoped(name)
                         ? SqlScriptDeclarations.KindOf(name)
                         : SqlObjectKind.CommonTableExpression));
+
+            // 關鍵字建議項對到語句說明：語句不是 TryFromSuggestionKind 反推得出來的
+            // 種類（見型別備註），這裡直接問語句那個種類。
+            case SuggestionKind.Keyword when
+                SqlBuiltInDocCatalog.TryGet(name, SqlBuiltInKind.Statement, out var statementDoc) &&
+                statementDoc.DeservesWindow:
+                return SqlPreviewSubject.ForBuiltIn(statementDoc);
         }
 
         // 說明面板已經給了一眼看得完的那一份，所以只有裝得滿一個視窗的才算——
