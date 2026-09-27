@@ -283,7 +283,7 @@
         {
           "id": "basic",
           "title": "基本用法",
-          "sql": "DECLARE @t TABLE(k int);MERGE @t USING(VALUES(1))s(k)ON @t.k=s.k WHEN MATCHED THEN DELETE;"
+          "sql": "DECLARE @t TABLE(k int);MERGE @t t USING(SELECT 1 k)s ON t.k=s.k WHEN MATCHED THEN DELETE;"
         },
         {
           "id": "output-action",

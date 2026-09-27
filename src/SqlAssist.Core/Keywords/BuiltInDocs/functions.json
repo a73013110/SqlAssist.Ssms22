@@ -966,7 +966,7 @@
         {
           "id": "custom-delimiter",
           "title": "換成其他定界字元",
-          "sql": "SELECT QUOTENAME('OBrien', '''')   -- '''OBrien'''"
+          "sql": "SELECT QUOTENAME('O''Brien', '''')   -- 'O''Brien'"
         },
         {
           "id": "too-long",
