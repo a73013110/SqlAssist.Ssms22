@@ -91,8 +91,11 @@
     "examples.number-culture.sql": "SELECT FORMAT(1234.5, 'N2', 'de-DE')   -- '1.234,50' (thousands and decimal separators swap by culture)"
   },
   "CHARINDEX": {
-    "summary": "Position of first substring, 1-based; 0 if not found",
-    "examples.basic.title": "Basic usage"
+    "summary": "Substring position, 1-based; 0 if not found; collation-cased",
+    "examples.basic.title": "Basic usage",
+    "examples.not-found.title": "Not found returns 0",
+    "examples.start-position.title": "Start position",
+    "examples.collation-case.title": "Collation affects case"
   },
   "SUBSTRING": {
     "summary": "Substring from start for length chars; no error past the end",
@@ -103,8 +106,12 @@
     "examples.length-overflow-safe.sql": "SELECT SUBSTRING('ABC-123', 5, 100)   -- '123' (length past the end doesn't error, just stops at the end)"
   },
   "LEN": {
-    "summary": "Character count excluding trailing spaces; bytes: DATALENGTH",
-    "examples.basic.title": "Basic usage"
+    "summary": "Character count; trailing spaces ignored. Bytes: DATALENGTH",
+    "examples.basic.title": "Basic usage",
+    "examples.trailing-space-ignored.title": "Trailing spaces don't count",
+    "examples.leading-space-counts.title": "Leading spaces still count",
+    "examples.nvarchar-bytes.title": "Characters vs bytes",
+    "examples.nvarchar-bytes.sql": "SELECT LEN(N'Book'), DATALENGTH(N'Book')   -- 4, 8"
   },
   "STRING_AGG": {
     "summary": "Concatenate group values; order with WITHIN GROUP (ORDER BY)",
@@ -115,8 +122,11 @@
     "examples.group-by-branch.sql": "DECLARE @Copy TABLE (BranchId int, CopyNo varchar(10));\nINSERT INTO @Copy VALUES (1, 'A01'), (1, 'A02'), (2, 'B01');\nSELECT BranchId, STRING_AGG(CopyNo, ', ') WITHIN GROUP (ORDER BY CopyNo)\nFROM @Copy GROUP BY BranchId ORDER BY BranchId   -- 1: 'A01, A02'; 2: 'B01'"
   },
   "ROW_NUMBER": {
-    "summary": "Sequential number per OVER order, no ties; ORDER BY required",
-    "examples.basic.title": "Basic usage"
+    "summary": "Sequential number per order; PARTITION BY restarts per group",
+    "examples.basic.title": "Basic usage",
+    "examples.partition-by.title": "Restart per group",
+    "examples.vs-rank-dense-rank.title": "Difference from RANK on ties",
+    "examples.vs-rank-dense-rank.sql": "DECLARE @t TABLE (Id int, D date);\nINSERT INTO @t VALUES (1,'2026-01-01'),(2,'2026-01-01'),(3,'2026-01-02'),(4,'2026-01-03');\nSELECT Id,\n       ROW_NUMBER() OVER (ORDER BY D) AS RowNum,\n       RANK()       OVER (ORDER BY D) AS Rnk,\n       DENSE_RANK() OVER (ORDER BY D) AS DenseRnk\nFROM @t ORDER BY D;\n-- First two rows tie: RowNum gets 1, 2; Rnk both 1; DenseRnk both 1;\n-- Third row: Rnk jumps to 3, DenseRnk only 2; fourth row: Rnk=4, DenseRnk=3"
   },
   "DATENAME": {
     "summary": "Extract date part as text; result varies by language setting",
@@ -189,8 +199,11 @@
     "examples.basic.sql": "SELECT VARP(CopyNo) FROM dbo.Cat_BookCopy   -- Returns 0 with only one row"
   },
   "DENSE_RANK": {
-    "summary": "Ties share a rank, no gaps after; for gaps use RANK",
-    "examples.basic.title": "Basic usage"
+    "summary": "Ties share a rank, no gap after; true rank gaps: RANK",
+    "examples.basic.title": "Basic usage",
+    "examples.vs-row-number-rank.title": "Difference from the other two",
+    "examples.vs-row-number-rank.sql": "DECLARE @t TABLE (Id int, D date);\nINSERT INTO @t VALUES (1,'2026-01-01'),(2,'2026-01-01'),(3,'2026-01-02'),(4,'2026-01-03');\nSELECT Id,\n       ROW_NUMBER() OVER (ORDER BY D) AS RowNum,\n       RANK()       OVER (ORDER BY D) AS Rnk,\n       DENSE_RANK() OVER (ORDER BY D) AS DenseRnk\nFROM @t ORDER BY D;\n-- First two rows tie: DenseRnk both 1; third row is 2 (no gap); that row's Rnk is 3",
+    "examples.partition-by.title": "Rank per group"
   },
   "FIRST_VALUE": {
     "summary": "First value in the frame; default frame ends at current row",
@@ -198,9 +211,11 @@
     "examples.basic.sql": "SELECT FIRST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Earliest"
   },
   "LAG": {
-    "summary": "Value from N rows back; third arg (default NULL) if none",
+    "summary": "Value N rows back; out of range: third arg (default NULL)",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT LAG(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Previous loan date"
+    "examples.basic.sql": "SELECT LAG(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Previous loan date",
+    "examples.default-offset.title": "Omit the second arg",
+    "examples.default-value.title": "First row has no predecessor"
   },
   "LAST_VALUE": {
     "summary": "Last value in the frame; default frame ends at current row",
@@ -208,9 +223,11 @@
     "examples.basic.sql": "SELECT LAST_VALUE(CopyNo) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Defaults to current"
   },
   "LEAD": {
-    "summary": "Value from N rows ahead; third arg (default NULL) if none",
+    "summary": "Value N rows ahead; out of range: third arg (default NULL)",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT LEAD(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Next loan date"
+    "examples.basic.sql": "SELECT LEAD(LoanDate, 1) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Next loan date",
+    "examples.default-offset.title": "Omit the second arg",
+    "examples.default-value.title": "Last row has no successor"
   },
   "NTILE": {
     "summary": "Split ordered rows into N groups; earlier groups get extras",
@@ -218,8 +235,11 @@
     "examples.basic.sql": "SELECT NTILE(4) OVER (ORDER BY LoanDate) FROM dbo.Loan   -- Quartiles 1 to 4"
   },
   "RANK": {
-    "summary": "Ties share a rank, gaps after; for no gaps use DENSE_RANK",
-    "examples.basic.title": "Basic usage"
+    "summary": "Ties share a rank; next rank skips ahead; no gap: DENSE_RANK",
+    "examples.basic.title": "Basic usage",
+    "examples.vs-row-number-dense-rank.title": "Difference from the other two",
+    "examples.vs-row-number-dense-rank.sql": "DECLARE @t TABLE (Id int, D date);\nINSERT INTO @t VALUES (1,'2026-01-01'),(2,'2026-01-01'),(3,'2026-01-02'),(4,'2026-01-03');\nSELECT Id,\n       ROW_NUMBER() OVER (ORDER BY D) AS RowNum,\n       RANK()       OVER (ORDER BY D) AS Rnk,\n       DENSE_RANK() OVER (ORDER BY D) AS DenseRnk\nFROM @t ORDER BY D;\n-- First two rows tie: Rnk both 1; third row jumps to 3 (skipping 2); fourth row is 4",
+    "examples.partition-by.title": "Rank per group"
   },
   "ASCII": {
     "summary": "ASCII code of first char; UNICODE for Unicode",
@@ -246,9 +266,12 @@
     "examples.all-null.sql": "SELECT CONCAT_WS('-', NULL, NULL)   -- '' (not NULL, an empty string)"
   },
   "DATALENGTH": {
-    "summary": "Bytes used, including trailing spaces; characters: LEN",
+    "summary": "Bytes used, incl. trailing spaces; chars only: LEN",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT DATALENGTH(N'Book'), LEN(N'Book')   -- 8, 4"
+    "examples.basic.sql": "SELECT DATALENGTH(N'Book'), LEN(N'Book')   -- 8, 4",
+    "examples.trailing-space-counts.title": "Trailing spaces count",
+    "examples.varchar-vs-nvarchar.title": "nvarchar doubles bytes",
+    "examples.null-input.title": "NULL input"
   },
   "DIFFERENCE": {
     "summary": "SOUNDEX similarity of two strings, 0 to 4; English only",
@@ -256,8 +279,11 @@
     "examples.basic.sql": "SELECT DIFFERENCE('Smith', 'Smyth')   -- 4 (most similar)"
   },
   "LEFT": {
-    "summary": "Leftmost N chars; whole string if N exceeds its length",
-    "examples.basic.title": "Basic usage"
+    "summary": "Leftmost N chars, whole string if too long; NULL in/out",
+    "examples.basic.title": "Basic usage",
+    "examples.length-exceeds.title": "Length exceeds the string",
+    "examples.null-input.title": "NULL input",
+    "examples.dynamic-length.title": "Length from CHARINDEX"
   },
   "LOWER": {
     "summary": "Lowercase; collation decides case-sensitive comparison",
@@ -273,12 +299,18 @@
     "examples.basic.sql": "SELECT NCHAR(65)   -- N'A'"
   },
   "PATINDEX": {
-    "summary": "First pattern match position 1-based; 0 if not found",
-    "examples.basic.title": "Basic usage"
+    "summary": "First wildcard match position, 1-based; 0 if not found",
+    "examples.basic.title": "Basic usage",
+    "examples.not-found.title": "Not found returns 0",
+    "examples.missing-percent.title": "Forgetting the % wildcard",
+    "examples.negated-class.title": "Negated character class"
   },
   "QUOTENAME": {
-    "summary": "Wrap as a valid identifier; escapes ] for dynamic SQL",
-    "examples.basic.title": "Basic usage"
+    "summary": "Wraps as an identifier for dynamic SQL; over 128 chars: NULL",
+    "examples.basic.title": "Basic usage",
+    "examples.escapes-bracket.title": "Name contains a bracket",
+    "examples.custom-delimiter.title": "Different delimiter pair",
+    "examples.too-long.title": "Over 128 chars: NULL"
   },
   "REPLACE": {
     "summary": "Replace all occurrences; comparison affected by collation",
@@ -297,8 +329,11 @@
     "examples.basic.title": "Basic usage"
   },
   "RIGHT": {
-    "summary": "Rightmost N chars; often paired with REPLICATE for padding",
-    "examples.basic.title": "Basic usage"
+    "summary": "Rightmost N chars; whole string if too long; pad: REPLICATE",
+    "examples.basic.title": "Basic usage",
+    "examples.length-exceeds.title": "Length exceeds the string",
+    "examples.null-input.title": "NULL input",
+    "examples.after-delimiter.title": "Text after a delimiter"
   },
   "RTRIM": {
     "summary": "Remove trailing spaces; LEN ignores them, DATALENGTH doesn't",
@@ -338,8 +373,11 @@
     "examples.basic.title": "Basic usage"
   },
   "TRIM": {
-    "summary": "Remove leading and trailing spaces; like LTRIM(RTRIM(x))",
-    "examples.basic.title": "Basic usage"
+    "summary": "Trims spaces by default; 2017+ FROM trims a char set",
+    "examples.basic.title": "Basic usage",
+    "examples.custom-charset.title": "FROM with a character set",
+    "examples.charset-not-substring.title": "A set, not a substring",
+    "examples.null-input.title": "NULL input"
   },
   "UNICODE": {
     "summary": "Code point of the first character; prefix literals with N",
@@ -511,7 +549,10 @@
   "NEWID": {
     "summary": "Random uniqueidentifier; clustered key causes page splits",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT NEWID()   -- Each row different, ORDER BY it for random sort"
+    "examples.basic.sql": "SELECT NEWID()   -- Each row different, ORDER BY it for random sort",
+    "examples.random-order.title": "Random ordering",
+    "examples.reevaluated-per-call.title": "Two calls in one row differ",
+    "examples.reevaluated-per-call.sql": "SELECT NEWID(), NEWID()   -- Two columns differ"
   },
   "NEWSEQUENTIALID": {
     "summary": "Ascending uniqueidentifier; only as a column default",
@@ -519,9 +560,21 @@
     "examples.basic.sql": "ALTER TABLE dbo.Copy ADD Tag uniqueidentifier DEFAULT NEWSEQUENTIALID()   -- Usage only"
   },
   "OBJECT_ID": {
-    "summary": "object_id, or NULL; used to check whether an object exists",
+    "summary": "object_id, or NULL; 2nd arg is type code; temp: tempdb..#t",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT OBJECT_ID('dbo.Loan', 'U')   -- 'U' is table, returns NULL if not found"
+    "examples.basic.sql": "SELECT OBJECT_ID('dbo.Loan', 'U')   -- 'U' is table, returns NULL if not found",
+    "examples.not-found.title": "Not found returns NULL",
+    "examples.multiple-types.title": "Matching several types",
+    "examples.multiple-types.sql": "SELECT OBJECT_ID('dbo.Loan', 'U,V')   -- Matches either type",
+    "examples.temp-table.title": "Temp tables need tempdb..",
+    "examples.temp-table.sql": "CREATE TABLE #t (Id int);\nSELECT OBJECT_ID('#t') AS NotFound, OBJECT_ID('tempdb..#t') AS Found;\nDROP TABLE #t;\n-- NotFound is NULL (looked up in the current database); Found has a value (needs tempdb..)",
+    "references.0.title": "Common type codes",
+    "references.0.columns.0": "Code",
+    "references.0.columns.1": "Type",
+    "references.0.rows.0.1": "User table",
+    "references.0.rows.1.1": "View",
+    "references.0.rows.2.1": "SQL stored procedure",
+    "references.0.rows.3.1": "Scalar function"
   },
   "OBJECT_NAME": {
     "summary": "Object name from object_id; searches current database",
@@ -532,9 +585,12 @@
     "examples.basic.title": "Basic usage"
   },
   "SCOPE_IDENTITY": {
-    "summary": "Last identity in this scope; unaffected by triggers",
+    "summary": "Last identity in scope; a trigger can overwrite @@IDENTITY",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Row inserted"
+    "examples.basic.sql": "INSERT dbo.Loan (ReaderId) VALUES (1); SELECT SCOPE_IDENTITY()   -- Row inserted",
+    "examples.no-trigger-equal.title": "Same value without a trigger",
+    "examples.trigger-scenario.title": "Differs with a trigger involved",
+    "examples.trigger-scenario.sql": "CREATE TABLE dbo.Lib_Tag (Id int IDENTITY, Name nvarchar(50));\nCREATE TABLE dbo.Lib_TagLog (Id int IDENTITY(100,1), TagId int);\nGO\nCREATE TRIGGER trg_Lib_Tag_Log ON dbo.Lib_Tag AFTER INSERT AS\n  INSERT INTO dbo.Lib_TagLog (TagId) SELECT Id FROM inserted;\nGO\nINSERT INTO dbo.Lib_Tag (Name) VALUES ('Fiction');\nSELECT SCOPE_IDENTITY() AS ScopeId, @@IDENTITY AS GlobalId, IDENT_CURRENT('dbo.Lib_Tag') AS CurrentId;\n-- ScopeId=1 (Lib_Tag's row); GlobalId=100 (overwritten by Lib_TagLog's identity); CurrentId=1 (only looks at Lib_Tag)\nDROP TABLE dbo.Lib_Tag; DROP TABLE dbo.Lib_TagLog;"
   },
   "SUSER_SNAME": {
     "summary": "Login name; omit argument for current connection's login",
@@ -550,9 +606,10 @@
     "examples.basic.title": "Basic usage"
   },
   "ERROR_MESSAGE": {
-    "summary": "Full error message in CATCH, with parameters filled in",
+    "summary": "Error message in CATCH; NULL outside it or after leaving",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "BEGIN TRY SELECT 1/0 END TRY BEGIN CATCH SELECT ERROR_MESSAGE() END CATCH   -- Error text"
+    "examples.basic.sql": "BEGIN TRY SELECT 1/0 END TRY BEGIN CATCH SELECT ERROR_MESSAGE() END CATCH   -- Error text",
+    "examples.outside-catch.title": "NULL outside CATCH"
   },
   "ERROR_NUMBER": {
     "summary": "Error number in CATCH block, same value as @@ERROR",
@@ -580,18 +637,30 @@
     "examples.basic.title": "Basic usage"
   },
   "JSON_QUERY": {
-    "summary": "Extracts object or array; use JSON_VALUE for scalar values",
-    "examples.basic.title": "Basic usage"
+    "summary": "Extracts object/array, keeps structure; scalar path: NULL",
+    "examples.basic.title": "Basic usage",
+    "examples.scalar-returns-null.title": "Scalar path returns NULL",
+    "examples.whole-document.title": "Omit the path for the whole doc",
+    "examples.whole-document.sql": "SELECT JSON_QUERY('{\"a\":1,\"b\":2}')   -- Returns the whole input as-is"
   },
   "JSON_VALUE": {
-    "summary": "Scalar as nvarchar(4000); objects/arrays use JSON_QUERY",
+    "summary": "Scalar value; object/array: NULL (use JSON_QUERY)",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT JSON_VALUE('{\"n\":1}', '$.n')   -- '1' (string, not integer)"
+    "examples.basic.sql": "SELECT JSON_VALUE('{\"n\":1}', '$.n')   -- '1' (string, not integer)",
+    "examples.object-returns-null.title": "Object path returns NULL",
+    "examples.lax-missing-path.title": "Missing path in lax mode",
+    "examples.lax-missing-path.sql": "SELECT JSON_VALUE('{\"a\":1}', '$.b')   -- NULL, no error",
+    "examples.strict-mode.title": "strict mode raises an error",
+    "examples.strict-mode.sql": "BEGIN TRY\n  SELECT JSON_VALUE('{\"a\":1}', 'strict $.b')\nEND TRY\nBEGIN CATCH\n  SELECT ERROR_MESSAGE()\nEND CATCH\n-- Caught by CATCH, not returned as NULL"
   },
   "OPENJSON": {
-    "summary": "Table-valued function splitting JSON to rows; 3 cols default",
+    "summary": "Splits JSON to rows; 3 cols default; needs compat level 130+",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT [key], value FROM OPENJSON('{\"a\":1}')   -- One row: a, 1"
+    "examples.basic.sql": "SELECT [key], value FROM OPENJSON('{\"a\":1}')   -- One row: a, 1",
+    "examples.array-input.title": "Splitting an array",
+    "examples.array-input.sql": "SELECT [key], value FROM OPENJSON('[10,20,30]')   -- key is 0/1/2",
+    "examples.with-schema.title": "WITH expands typed columns",
+    "examples.with-schema.sql": "SELECT * FROM OPENJSON('{\"Id\":1}') WITH (Id int)   -- One column: Id=1"
   },
   "ACOS": {
     "summary": "Arccosine, argument in range -1 to 1, returns radians",
@@ -732,9 +801,13 @@
     "examples.basic.sql": "SELECT ENCRYPTBYPASSPHRASE('key', 'abc')   -- Different result each execution"
   },
   "FORMATMESSAGE": {
-    "summary": "Build a message from a template and args; never raises",
+    "summary": "Builds a string like RAISERROR's template; %% for literal %",
     "examples.basic.title": "Basic usage",
-    "examples.basic.sql": "SELECT FORMATMESSAGE('Book %d: %s', 3, 'Loan')   -- 'Book 3: Loan'"
+    "examples.basic.sql": "SELECT FORMATMESSAGE('Book %d: %s', 3, 'Loan')   -- 'Book 3: Loan'",
+    "examples.literal-percent.title": "Printing a literal %",
+    "examples.literal-percent.sql": "SELECT FORMATMESSAGE('Discount 100%%')   -- 'Discount 100%'",
+    "examples.multiple-placeholders.title": "Placeholders map by position",
+    "examples.multiple-placeholders.sql": "SELECT FORMATMESSAGE('%s borrowed %d', 'Lib_Reader001', 3)"
   },
   "GREATEST": {
     "summary": "Greatest value; NULL ignored. SQL Server 2022+",
