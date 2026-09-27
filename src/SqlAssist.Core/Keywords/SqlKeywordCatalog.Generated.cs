@@ -650,6 +650,204 @@ internal static class SqlKeywordCatalogData
             "SENSITIVITY", "SEQUENCE", "SERVER", "SERVICE", "SIGNATURE", "STATISTICS",
             "SYMMETRIC", "SYNONYM", "TABLE", "TRIGGER", "TYPE", "USER", "VIEW", "WORKLOAD",
         }),
+        ("DROP AGGREGATE", SqlKeywordPosition.StatementStart, "DROP AGGREGATE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP APPLICATION", SqlKeywordPosition.StatementStart, "DROP APPLICATION ", true, false, new string[]
+        {
+            "ROLE",
+        }),
+        ("DROP ASSEMBLY", SqlKeywordPosition.StatementStart, "DROP ASSEMBLY ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP ASYMMETRIC", SqlKeywordPosition.StatementStart, "DROP ASYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP BROKER", SqlKeywordPosition.StatementStart, "DROP BROKER ", true, false, new string[]
+        {
+            "PRIORITY",
+        }),
+        ("DROP CERTIFICATE", SqlKeywordPosition.StatementStart, "DROP CERTIFICATE ", false, false, new string[]
+        {
+        }),
+        ("DROP COLUMN", SqlKeywordPosition.StatementStart, "DROP COLUMN ", true, false, new string[]
+        {
+            "ENCRYPTION", "MASTER",
+        }),
+        ("DROP CONTRACT", SqlKeywordPosition.StatementStart, "DROP CONTRACT ", false, false, new string[]
+        {
+        }),
+        ("DROP COUNTER", SqlKeywordPosition.StatementStart, "DROP COUNTER ", true, false, new string[]
+        {
+            "SIGNATURE",
+        }),
+        ("DROP CREDENTIAL", SqlKeywordPosition.StatementStart, "DROP CREDENTIAL ", false, false, new string[]
+        {
+        }),
+        ("DROP CRYPTOGRAPHIC", SqlKeywordPosition.StatementStart, "DROP CRYPTOGRAPHIC ", true, false, new string[]
+        {
+            "PROVIDER",
+        }),
+        ("DROP DATABASE", SqlKeywordPosition.StatementStart, "DROP DATABASE ", false, false, new string[]
+        {
+            "AUDIT", "ENCRYPTION", "IF",
+        }),
+        ("DROP DEFAULT", SqlKeywordPosition.StatementStart, "DROP DEFAULT ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP ENDPOINT", SqlKeywordPosition.StatementStart, "DROP ENDPOINT ", false, false, new string[]
+        {
+        }),
+        ("DROP EVENT", SqlKeywordPosition.StatementStart, "DROP EVENT ", true, false, new string[]
+        {
+            "NOTIFICATION", "SESSION",
+        }),
+        ("DROP EXTERNAL", SqlKeywordPosition.StatementStart, "DROP EXTERNAL ", true, false, new string[]
+        {
+            "DATA", "FILE", "LANGUAGE", "LIBRARY", "MODEL", "RESOURCE", "TABLE",
+        }),
+        ("DROP FEDERATION", SqlKeywordPosition.StatementStart, "DROP FEDERATION ", false, false, new string[]
+        {
+        }),
+        ("DROP FULLTEXT", SqlKeywordPosition.StatementStart, "DROP FULLTEXT ", true, false, new string[]
+        {
+            "CATALOG", "INDEX", "STOPLIST",
+        }),
+        ("DROP FUNCTION", SqlKeywordPosition.StatementStart, "DROP FUNCTION ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP INDEX", SqlKeywordPosition.StatementStart, "DROP INDEX ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP LOGIN", SqlKeywordPosition.StatementStart, "DROP LOGIN ", false, false, new string[]
+        {
+        }),
+        ("DROP MASTER", SqlKeywordPosition.StatementStart, "DROP MASTER ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP MESSAGE", SqlKeywordPosition.StatementStart, "DROP MESSAGE ", true, false, new string[]
+        {
+            "TYPE",
+        }),
+        ("DROP PARTITION", SqlKeywordPosition.StatementStart, "DROP PARTITION ", true, false, new string[]
+        {
+            "FUNCTION", "SCHEME",
+        }),
+        ("DROP PROC", SqlKeywordPosition.StatementStart, "DROP PROC ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP PROCEDURE", SqlKeywordPosition.StatementStart, "DROP PROCEDURE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP QUEUE", SqlKeywordPosition.StatementStart, "DROP QUEUE ", false, false, new string[]
+        {
+        }),
+        ("DROP REMOTE", SqlKeywordPosition.StatementStart, "DROP REMOTE ", true, false, new string[]
+        {
+            "SERVICE",
+        }),
+        ("DROP RESOURCE", SqlKeywordPosition.StatementStart, "DROP RESOURCE ", true, false, new string[]
+        {
+            "POOL",
+        }),
+        ("DROP ROLE", SqlKeywordPosition.StatementStart, "DROP ROLE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP ROUTE", SqlKeywordPosition.StatementStart, "DROP ROUTE ", false, false, new string[]
+        {
+        }),
+        ("DROP RULE", SqlKeywordPosition.StatementStart, "DROP RULE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP SCHEMA", SqlKeywordPosition.StatementStart, "DROP SCHEMA ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP SEARCH", SqlKeywordPosition.StatementStart, "DROP SEARCH ", true, false, new string[]
+        {
+            "PROPERTY",
+        }),
+        ("DROP SECURITY", SqlKeywordPosition.StatementStart, "DROP SECURITY ", true, false, new string[]
+        {
+            "POLICY",
+        }),
+        ("DROP SENSITIVITY", SqlKeywordPosition.StatementStart, "DROP SENSITIVITY ", true, false, new string[]
+        {
+            "CLASSIFICATION",
+        }),
+        ("DROP SEQUENCE", SqlKeywordPosition.StatementStart, "DROP SEQUENCE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP SERVER", SqlKeywordPosition.StatementStart, "DROP SERVER ", true, false, new string[]
+        {
+            "AUDIT", "ROLE",
+        }),
+        ("DROP SERVICE", SqlKeywordPosition.StatementStart, "DROP SERVICE ", false, false, new string[]
+        {
+        }),
+        ("DROP SIGNATURE", SqlKeywordPosition.StatementStart, "DROP SIGNATURE ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("DROP STATISTICS", SqlKeywordPosition.StatementStart, "DROP STATISTICS ", false, false, new string[]
+        {
+        }),
+        ("DROP SYMMETRIC", SqlKeywordPosition.StatementStart, "DROP SYMMETRIC ", true, false, new string[]
+        {
+            "KEY",
+        }),
+        ("DROP SYNONYM", SqlKeywordPosition.StatementStart, "DROP SYNONYM ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP TABLE", SqlKeywordPosition.StatementStart, "DROP TABLE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP TRIGGER", SqlKeywordPosition.StatementStart, "DROP TRIGGER ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP TYPE", SqlKeywordPosition.StatementStart, "DROP TYPE ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP USER", SqlKeywordPosition.StatementStart, "DROP USER ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP VIEW", SqlKeywordPosition.StatementStart, "DROP VIEW ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP WORKLOAD", SqlKeywordPosition.StatementStart, "DROP WORKLOAD ", true, false, new string[]
+        {
+            "CLASSIFIER", "GROUP",
+        }),
+        ("UPDATE", SqlKeywordPosition.StatementStart, "UPDATE ", false, false, new string[]
+        {
+            "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "STATISTICS", "TOP",
+        }),
+        ("DELETE", SqlKeywordPosition.StatementStart, "DELETE ", false, false, new string[]
+        {
+            "FROM", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+        }),
+        ("MERGE", SqlKeywordPosition.StatementStart, "MERGE ", false, false, new string[]
+        {
+            "INTO", "OPENDATASOURCE", "OPENQUERY", "OPENROWSET", "TOP",
+        }),
         ("CREATE OR ALTER", SqlKeywordPosition.StatementStart, "CREATE OR ALTER ", true, false, new string[]
         {
             "FUNCTION", "PROC", "PROCEDURE", "TRIGGER", "VIEW",
@@ -658,6 +856,29 @@ internal static class SqlKeywordCatalogData
         {
             "ADD", "ALTER", "CHECK", "DISABLE", "DROP", "ENABLE", "MERGE", "NOCHECK", "REBUILD",
             "SET", "SPLIT", "SWITCH", "WITH",
+        }),
+        ("DROP", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP ", false, false, new string[]
+        {
+            "COLUMN", "CONSTRAINT", "INDEX", "PERIOD",
+        }),
+        ("DROP COLUMN", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP COLUMN IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP COLUMN IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP CONSTRAINT", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT ", false, false, new string[]
+        {
+            "IF",
+        }),
+        ("DROP CONSTRAINT IF", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP CONSTRAINT IF ", true, false, new string[]
+        {
+            "EXISTS",
+        }),
+        ("DROP INDEX", SqlKeywordPosition.AlterTableAction, "ALTER TABLE t DROP INDEX ", false, false, new string[]
+        {
         }),
         ("ALTER DATABASE {name}", SqlKeywordPosition.StatementStart, "ALTER DATABASE t ", true, false, new string[]
         {

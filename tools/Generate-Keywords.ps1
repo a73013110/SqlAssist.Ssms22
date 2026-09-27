@@ -521,11 +521,20 @@ $ClausePhrases = @(
     @{ Pattern = 'SET DATEFORMAT'; Values = @('mdy', 'dmy', 'ymd', 'ydm', 'myd', 'dym'); Closed = $true }
     @{ Pattern = 'SET DEADLOCK_PRIORITY'; Values = @('LOW', 'NORMAL', 'HIGH'); Closed = $true }
 
+    # DROP、UPDATE、DELETE、MERGE 之後是名稱的位置，目標過濾把關鍵字全擋掉；
+    # IF EXISTS、TOP、INTO 這些字只能由片語給。名稱後面要再寫一段才完整的（UPDATE t SET、
+    # MERGE t USING、DROP INDEX i ON t、DROP STATISTICS t.s）探測判成封閉，由人宣告不封閉。
     @{ Pattern = 'CREATE' }
     @{ Pattern = 'ALTER' }
-    @{ Pattern = 'DROP' }
+    @{ Pattern = 'DROP'; Expand = 1 }
+    @{ Pattern = 'DROP INDEX'; Closed = $false }
+    @{ Pattern = 'DROP STATISTICS'; Closed = $false }
+    @{ Pattern = 'UPDATE'; Closed = $false }
+    @{ Pattern = 'DELETE' }
+    @{ Pattern = 'MERGE'; Closed = $false }
     @{ Pattern = 'CREATE OR ALTER' }
     @{ Pattern = 'ALTER TABLE {name}' }
+    @{ Pattern = 'DROP'; After = @('AlterTableAction'); Expand = 2 }
     @{ Pattern = 'ALTER DATABASE {name}' }
     @{ Pattern = 'ALTER DATABASE {name} SET'; Expand = 1 }
     @{ Pattern = 'BACKUP' }
