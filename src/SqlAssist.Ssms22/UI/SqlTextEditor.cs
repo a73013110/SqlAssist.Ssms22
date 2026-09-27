@@ -44,6 +44,7 @@ internal sealed class SqlTextEditor : UserControl
         _text.SetResourceReference(FontFamilyProperty, ScriptResource.FontFamily);
         _text.SetResourceReference(FontSizeProperty, ScriptResource.FontSize);
         _text.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.CaretBrushProperty, ScriptResource.Foreground);
+        _text.SetResourceReference(System.Windows.Controls.Primitives.TextBoxBase.SelectionBrushProperty, ScriptResource.Selection);
         // SQL 不換行，所以長的那幾行一定會長出水平捲軸；與唯讀預覽同一份規矩，Shift＋滾輪左右捲。
         SqlAssistChrome.ApplyShiftWheelPan(_text);
         UpdateColorMode();

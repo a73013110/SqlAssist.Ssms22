@@ -31,6 +31,10 @@ SSMS 新彩色主題使用 Fluent `ShellColors`；舊 `EnvironmentColors.ToolTip
   角落填色、選取與前景；不只替外層 Border 換色。
 - 衍生筆刷每輪更新只建立一次並凍結；相同顏色保留原物件，避免多餘失效通知。
   高對比使用完整選取色及配對文字色，不沿用低透明度選取底色。
+- **文字選取不借列選取。** WPF 把它畫在字**上面**又乘一次 `SelectionOpacity`，借 12% 的列選取
+  只剩 5%。`UI/TextSelectionColors` 從 40% 起取前景仍過 4.5:1 的最濃一級，濃度全在 alpha、
+  `SelectionOpacity` 固定 1；高對比換系統選取色。文字欄位配色只有 `SqlAssistChrome` 一份樣式，
+  SQL 表面改用依編輯器底色推導的 `ScriptResource.Selection`。
 - `SqlAssistPackage.Dispose` 解除殼層與系統訂閱。視窗本身透過動態資源更新，
   不需要每個視窗各自訂閱全域主題事件。
 

@@ -154,6 +154,36 @@ public sealed class ThemeResourceSetTests
     }
 
     [Fact]
+    public void EveryTextFieldSelectsWithTheSameOverlay()
+    {
+        WpfTest.Run(() =>
+        {
+            var palette = new ThemeResourceSet();
+            var fields = new TextBoxBase[]
+            {
+                SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics),
+                SqlAssistChrome.CreateCodeViewer(SqlAssistChrome.DefaultMetrics),
+                new TextBox { Style = SqlAssistChrome.CreateCellEditorStyle() }
+            };
+            var root = new StackPanel();
+            root.Resources.MergedDictionaries.Add(palette.Resources);
+            foreach (var field in fields) root.Children.Add(field);
+
+            foreach (var dark in new[] { false, true })
+            {
+                palette.Update(ThemePaletteTests.ColorsFor(dark ? "dark" : "light"));
+                foreach (var field in fields)
+                {
+                    Assert.Same(palette.Get(ThemeBrush.TextSelection), field.SelectionBrush);
+                    // 濃度已經在筆刷的 alpha 裡；預設的 0.4 會再乘一次。
+                    Assert.Equal(1.0, field.SelectionOpacity);
+                    Assert.Same(palette.Get(ThemeBrush.ListBackground), field.Background);
+                }
+            }
+        });
+    }
+
+    [Fact]
     public void LegacySystemKeysAreScopedAndFollowPaletteChanges()
     {
         WpfTest.Run(() =>

@@ -785,6 +785,27 @@ internal static partial class SqlAssistChrome
         return template;
     }
 
+    /// <summary>
+    /// 可選取文字的欄位共用的配色：底、字、插入點與選取。
+    /// </summary>
+    /// <remarks>
+    /// 輸入欄位、程式碼檢視與資料格的編輯格都從這一份開始，各自只加外框與版面。
+    /// 選取的濃度全在 <see cref="ThemeBrush.TextSelection"/> 的 alpha 裡，所以 <c>SelectionOpacity</c>
+    /// 固定為 1；留著預設 0.4 會把已經算好的濃度再乘一次。
+    /// 做成樣式是因為資料格的編輯格只收樣式；三處各寫一份時，文字選取就曾經三處一起用錯筆刷。
+    /// 借用編輯器配色的 SQL 表面以本機值覆寫其中幾項，優先序高於樣式。
+    /// </remarks>
+    private static Style CreateTextFieldStyle(Type targetType)
+    {
+        var style = new Style(targetType);
+        style.Setters.Add(ThemeResourceSet.Setter(Control.BackgroundProperty, ThemeBrush.ListBackground));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.CaretBrushProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.SelectionBrushProperty, ThemeBrush.TextSelection));
+        style.Setters.Add(new Setter(TextBoxBase.SelectionOpacityProperty, 1.0));
+        return style;
+    }
+
     /// <summary>套用輸入欄位的一整組設定；呼叫端只要負責內容與版面。</summary>
     public static TextBox CreateTextBox(Metrics metrics)
     {
@@ -794,11 +815,9 @@ internal static partial class SqlAssistChrome
             FontSize = metrics.Body,
             Padding = new Thickness(8, 5, 8, 6),
             BorderThickness = new Thickness(1),
-            Template = CreateTextBoxTemplate()
-        }.WithTheme(TextBox.BackgroundProperty, ThemeBrush.ListBackground)
-            .WithTheme(TextBox.ForegroundProperty, ThemeBrush.ListForeground)
-            .WithTheme(TextBox.CaretBrushProperty, ThemeBrush.ListForeground)
-            .WithTheme(TextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
+            Template = CreateTextBoxTemplate(),
+            Style = CreateTextFieldStyle(typeof(TextBox))
+        };
     }
 
     /// <summary>
@@ -812,7 +831,7 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static RichTextBox CreateCodeViewer(Metrics metrics)
     {
-        var viewer = new RichTextBox
+        return new RichTextBox
         {
             FontFamily = CodeFont,
             FontSize = metrics.Body,
@@ -822,12 +841,9 @@ internal static partial class SqlAssistChrome
             IsDocumentEnabled = false,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Template = CreateTextBoxTemplate(typeof(RichTextBox))
+            Template = CreateTextBoxTemplate(typeof(RichTextBox)),
+            Style = CreateTextFieldStyle(typeof(RichTextBox))
         };
-        viewer.WithTheme(RichTextBox.BackgroundProperty, ThemeBrush.ListBackground)
-            .WithTheme(RichTextBox.ForegroundProperty, ThemeBrush.ListForeground)
-            .WithTheme(RichTextBox.SelectionBrushProperty, ThemeBrush.RowSelected);
-        return viewer;
     }
 
     /// <summary>
@@ -1232,11 +1248,7 @@ internal static partial class SqlAssistChrome
     /// </remarks>
     public static Style CreateCellEditorStyle()
     {
-        var style = new Style(typeof(TextBox));
-        style.Setters.Add(ThemeResourceSet.Setter(Control.BackgroundProperty, ThemeBrush.ListBackground));
-        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
-        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.CaretBrushProperty, ThemeBrush.ListForeground));
-        style.Setters.Add(ThemeResourceSet.Setter(TextBoxBase.SelectionBrushProperty, ThemeBrush.RowSelected));
+        var style = CreateTextFieldStyle(typeof(TextBox));
         style.Setters.Add(new Setter(Control.BorderThicknessProperty, default(Thickness)));
         style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 0, 8, 0)));
         style.Setters.Add(new Setter(

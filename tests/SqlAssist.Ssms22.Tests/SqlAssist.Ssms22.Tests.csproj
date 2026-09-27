@@ -33,6 +33,7 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\TextMarkColors.cs" Link="Product\UI\TextMarkColors.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\MatchPalette.cs" Link="Product\UI\MatchPalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ThemePalette.cs" Link="Product\UI\ThemePalette.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\TextSelectionColors.cs" Link="Product\UI\TextSelectionColors.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\ScriptPalette.cs" Link="Product\UI\ScriptPalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\BlockPalette.cs" Link="Product\UI\BlockPalette.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\EditorFormatChanges.cs" Link="Product\UI\EditorFormatChanges.cs" />

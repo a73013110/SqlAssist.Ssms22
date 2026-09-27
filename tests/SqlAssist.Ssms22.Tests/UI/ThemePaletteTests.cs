@@ -85,6 +85,38 @@ public sealed class ThemePaletteTests
     [InlineData("plum")]
     [InlineData("forest")]
     [InlineData("high-contrast")]
+    public void 文字選取蓋在字上仍讀得到且看得出來(string mode)
+    {
+        var colors = ColorsFor(mode);
+        var selection = colors[ThemeBrush.TextSelection];
+        var background = colors[ThemeBrush.ListBackground];
+        var selected = ThemeColorMath.Composite(selection, background);
+
+        // 覆蓋層同時染了字與底：兩者都合成之後還要過 4.5。
+        Assert.True(ThemeColorMath.Contrast(
+            ThemeColorMath.Composite(selection, colors[ThemeBrush.ListForeground]), selected) >= 4.5);
+        Assert.InRange(selection.A, 1, (int)Math.Round(255 * TextSelectionColors.MaximumOpacity));
+
+        // 看得出來的下限：舊版把列選取借來再乘 0.4，選取與底色的對比只剩 1.1 上下，與停駐分不出來。
+        Assert.True(ThemeColorMath.Contrast(selected, background) >= 1.5);
+    }
+
+    [Fact]
+    public void 高對比的文字選取用系統選取色()
+    {
+        var selection = ColorsFor("high-contrast")[ThemeBrush.TextSelection];
+        Assert.Equal(Color.FromRgb(Colors.Yellow.R, Colors.Yellow.G, Colors.Yellow.B),
+            Color.FromRgb(selection.R, selection.G, selection.B));
+    }
+
+    [Theory]
+    [InlineData("light")]
+    [InlineData("mango")]
+    [InlineData("cool-breeze")]
+    [InlineData("dark")]
+    [InlineData("plum")]
+    [InlineData("forest")]
+    [InlineData("high-contrast")]
     public void 命中兩級分得開且各自配得出讀得到的前景(string mode)
     {
         var colors = ColorsFor(mode);
@@ -267,7 +299,9 @@ public sealed class ThemePaletteTests
         Assert.Equal(colors[ThemeBrush.ListForeground], colors[ThemeBrush.ScrollThumb]);
         Assert.True(ColorsFor("dark")[ThemeBrush.ScrollThumb].A < ColorsFor("dark")[ThemeBrush.DimForeground].A);
         Assert.Equal((byte)0, colors[ThemeBrush.BlockRange].A);
-        foreach (var color in colors.Where(pair => pair.Key != ThemeBrush.BlockRange).Select(pair => pair.Value))
+        // 文字選取蓋在字上，實色會把字整個蓋掉；它的透明是繪製方式決定的，不是配色取捨。
+        foreach (var color in colors.Where(pair => pair.Key is not (ThemeBrush.BlockRange or ThemeBrush.TextSelection))
+                     .Select(pair => pair.Value))
         {
             Assert.Equal((byte)255, color.A);
         }

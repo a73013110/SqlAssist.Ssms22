@@ -150,10 +150,13 @@ internal sealed class SqlScriptTheme : IDisposable
         SetBrush(ScriptResource.String, text);
         SetBrush(ScriptResource.Number, number);
         // 基準是這一份指令碼自己的底色，不是工具窗那一份：指令碼借的是 SSMS 編輯器底色，
-        // 兩者在深色主題下不一定相同，拿錯基準的症狀是高亮整塊看不見。推導在 MatchPalette。
+        // 兩者在深色主題下不一定相同，拿錯基準的症狀是高亮整塊看不見。推導在 MatchPalette 與 TextSelectionColors。
+        var accent = ColorOf(ThemeBrush.AccentBorder, surface.Foreground);
         var matches = MatchPalette.Create(
-            ColorOf(ThemeBrush.AccentBorder, surface.Foreground), surface.Background, surface.Foreground,
+            accent, surface.Background, surface.Foreground,
             SystemParameters.HighContrast, (SystemColors.HighlightColor, SystemColors.HighlightTextColor));
+        SetBrush(ScriptResource.Selection, TextSelectionColors.Create(
+            accent, SystemParameters.HighContrast, SystemColors.HighlightColor, surface.Background, surface.Foreground));
         SetBrush(ScriptResource.Highlight, matches.Background);
         SetBrush(ScriptResource.HighlightForeground, matches.Foreground);
         SetBrush(ScriptResource.HighlightCurrent, matches.CurrentBackground);

@@ -52,6 +52,7 @@ internal static class ThemePalette
             [ThemeBrush.RowHover] = highContrast ? selection.Background : Tint(0.05),
             [ThemeBrush.RowSelected] = highContrast ? selection.Background : Tint(0.12),
             [ThemeBrush.SelectedForeground] = highContrast ? selection.Foreground : foreground,
+            [ThemeBrush.TextSelection] = TextSelectionColors.Create(accent, highContrast, selection.Background, background, foreground),
             [ThemeBrush.RowPressed] = highContrast ? selection.Background : Tint(0.18),
             [ThemeBrush.RowAlternate] = highContrast ? background : Overlay(foreground, 0.045),
             [ThemeBrush.SegmentTrack] = highContrast ? background : Overlay(foreground, 0.06),

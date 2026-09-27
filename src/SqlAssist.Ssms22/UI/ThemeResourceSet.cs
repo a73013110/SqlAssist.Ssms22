@@ -19,6 +19,10 @@ internal enum ThemeBrush
     RowHover,
     RowSelected,
     SelectedForeground,
+
+    /// <summary>文字選取蓋在字上的那一層；推導見 <see cref="TextSelectionColors"/>。</summary>
+    TextSelection,
+
     RowPressed,
     RowAlternate,
     SegmentTrack,
@@ -149,8 +153,9 @@ internal sealed class ThemeResourceSet
             UpdateNotificationGradient(NotificationSheenKey, foreground, 8, 0);
         }
 
-        // 原生樣板的角落填色、預設文字選取仍可能讀系統鍵；別名只作用在本擴充根節點，
+        // 原生樣板的角落填色與列選取仍可能讀系統鍵；別名只作用在本擴充根節點，
         // 不修改 Application.Resources，更不改 SSMS 或 Windows 的全域配色。
+        // 文字選取不靠這裡：文字框預設取的是靜態系統色，讀不到區域資源，由共用文字欄位樣式指定。
         foreach (var alias in SystemAliases)
         {
             if (Resources[alias.Role] is SolidColorBrush brush && !ReferenceEquals(Resources[alias.Brush], brush))

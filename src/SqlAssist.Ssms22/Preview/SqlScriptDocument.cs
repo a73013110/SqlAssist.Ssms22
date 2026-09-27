@@ -21,6 +21,9 @@ internal enum ScriptResource
     String,
     Number,
 
+    /// <summary>文字選取蓋在字上的那一層；以這一份指令碼的底色與前景推導。</summary>
+    Selection,
+
     /// <summary>命中那幾個字的底色；實色，蓋過底下的語法著色。</summary>
     Highlight,
 
