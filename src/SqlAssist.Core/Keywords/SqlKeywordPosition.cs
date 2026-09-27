@@ -157,6 +157,16 @@ public enum SqlKeywordPosition : long
     /// <summary>觸發程序目標之後的 WITH 與選項清單的逗號之後。</summary>
     TriggerOption = 1L << 33,
 
+    /// <summary>觸發程序的 AFTER、FOR、INSTEAD OF 與事件清單的逗號之後——INSERT、UPDATE、DELETE。</summary>
+    /// <remarks>
+    /// 不借用語句開頭：<c>AFTER DELETE</c> 的 DELETE 不開始一句，當成開頭的話 <c>AS</c> 走不回
+    /// CREATE，本體判不成語句開頭。
+    /// </remarks>
+    TriggerEvent = 1L << 34,
+
+    /// <summary>觸發程序的事件寫完之後——AS、WITH（APPEND）、NOT（FOR REPLICATION）。</summary>
+    TriggerEventEnd = 1L << 35,
+
     /// <summary>SET 之後——ROWCOUNT、TEXTSIZE、IDENTITY_INSERT、TRANSACTION。</summary>
     SetTarget = 1 << 14,
 
@@ -193,7 +203,8 @@ public enum SqlKeywordPosition : long
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
         | MergeWhen | BackupOption | RestoreOption
-        | ProcedureOption | FunctionOption | ViewOption | TriggerOption | SetTarget | InsertTarget
+        | ProcedureOption | FunctionOption | ViewOption | TriggerOption
+        | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

@@ -325,6 +325,10 @@ $ContextTemplates = [ordered]@{
     FunctionOption   = @('CREATE FUNCTION f () RETURNS int WITH ', 'CREATE FUNCTION f () RETURNS int WITH SCHEMABINDING, ')
     ViewOption       = @('CREATE VIEW v WITH ', 'CREATE VIEW v WITH SCHEMABINDING, ')
     TriggerOption    = @('CREATE TRIGGER tr ON t WITH ', 'CREATE TRIGGER tr ON t WITH ENCRYPTION, ')
+
+    # 觸發程序的事件清單：AFTER|FOR|INSTEAD OF 與逗號之後是事件，事件寫完之後是 AS、WITH APPEND、NOT FOR REPLICATION。
+    TriggerEvent     = @('CREATE TRIGGER tr ON t AFTER ', 'CREATE TRIGGER tr ON t INSTEAD OF ', 'CREATE TRIGGER tr ON t AFTER INSERT, ')
+    TriggerEventEnd  = @('CREATE TRIGGER tr ON t AFTER INSERT ', 'CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE ')
     SetTarget        = @('SET ')
 
     # SET 的選項名稱寫完之後的 ON／OFF。各選項自己的值（隔離等級、STATISTICS IO…）
@@ -549,10 +553,15 @@ $ClausePhrases = @(
     @{ Pattern = 'INDEX {name} ON {name} () WITH (*'; Lead = 'CREATE ' }
     @{ Pattern = 'INCLUDE () WITH (*'; Lead = 'CREATE INDEX i ON t (a) ' }
 
-    # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 INSERT／UPDATE／DELETE、
-    # OF 與 EXECUTE；游標與 BACKUP／RESTORE 的選項清單每一格都是同一個位置，第二個選項之後也一樣。
+    # 只認位置的格子。觸發程序標頭之後是 AFTER、FOR、INSTEAD、WITH，再下一層是 OF 與 EXECUTE；
+    # 事件清單、游標與 BACKUP／RESTORE 的選項清單每一格都是同一個位置，第二項之後也一樣。
     @{ Pattern = ''; After = @('TriggerHeader'); Expand = 1 }
-    @{ Pattern = ''; After = @('CursorOption', 'BackupOption', 'RestoreOption') }
+    @{ Pattern = ''; After = @('TriggerEvent', 'CursorOption', 'BackupOption', 'RestoreOption') }
+
+    # DDL 與登入觸發程序：ON 之後是資料表、DATABASE 或 ALL SERVER。資料表之後還要寫事件才完整，
+    # 探測判成封閉會把資料表名稱藏起來，由人宣告不封閉。
+    @{ Pattern = 'TRIGGER {name} ON'; After = @('DdlObject'); Closed = $false }
+    @{ Pattern = 'TRIGGER {name} ON ALL'; After = @('DdlObject') }
 
     # 模組的 WITH 選項：四種模組的選項不同，EXECUTE AS 之後的 CALLER、SELF、OWNER 除了檢視都共用；
     # 函式的兩個多字選項寫全，中間每一格由它們補出來。

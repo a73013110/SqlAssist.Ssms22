@@ -45,7 +45,7 @@ public static class SqlKeywordPositionExtensions
     /// <item><c>SET NOCOUNT |</c> 之後是選項值；要資料表的 <c>SET IDENTITY_INSERT |</c>
     /// 不是這個位置。</item>
     /// <item><c>DECLARE c CURSOR LOCAL |</c> 之後是選項或 <c>FOR</c>；觸發程序的 <c>ON t |</c> 之後是
-    /// <c>FOR</c>、<c>AFTER</c> 這些字；BACKUP／RESTORE 的 <c>WITH |</c> 之後是選項；MERGE 的
+    /// <c>FOR</c>、<c>AFTER</c> 這些字，事件清單裡是 <c>INSERT</c> 這些事件與 <c>AS</c>；BACKUP／RESTORE 的 <c>WITH |</c> 之後是選項；MERGE 的
     /// <c>WHEN |</c> 之後是 <c>MATCHED</c>、<c>NOT</c>。</item>
     /// </list>
     ///
@@ -72,6 +72,8 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.FunctionOption |
         SqlKeywordPosition.ViewOption |
         SqlKeywordPosition.TriggerOption |
+        SqlKeywordPosition.TriggerEvent |
+        SqlKeywordPosition.TriggerEventEnd |
         SqlKeywordPosition.ByAnchor |
         SqlKeywordPosition.DdlObject |
         SqlKeywordPosition.AlterTableAction |

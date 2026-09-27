@@ -29,7 +29,7 @@ internal static class SqlKeywordCatalogData
         new("AND", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("ANY", SqlKeywordPosition.None),
         new("APPLY", SqlKeywordPosition.None),
-        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail),
+        new("AS", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.TriggerEventEnd),
         new("ASC", SqlKeywordPosition.OrderByTail),
         new("AUTHORIZATION", SqlKeywordPosition.DdlObject),
         new("BACKUP", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
@@ -69,7 +69,7 @@ internal static class SqlKeywordCatalogData
         new("DEALLOCATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("DECLARE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("DEFAULT", SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject),
-        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("DELETE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.TriggerEvent),
         new("DENY", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("DESC", SqlKeywordPosition.OrderByTail),
         new("DISTINCT", SqlKeywordPosition.SelectList),
@@ -109,7 +109,7 @@ internal static class SqlKeywordCatalogData
         new("IN", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
         new("INDEX", SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
         new("INNER", SqlKeywordPosition.TableSourceTail),
-        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("INSERT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.TriggerEvent),
         new("INTERSECT", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("INTO", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.InsertTarget),
         new("IS", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm),
@@ -125,7 +125,7 @@ internal static class SqlKeywordCatalogData
         new("NOCHECK", SqlKeywordPosition.AlterTableAction),
         new("NOLOCK", SqlKeywordPosition.None),
         new("NONCLUSTERED", SqlKeywordPosition.DdlObject),
-        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.MergeWhen),
+        new("NOT", SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.CaseArm | SqlKeywordPosition.MergeWhen | SqlKeywordPosition.TriggerEventEnd),
         new("NULL", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("NULLIF", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn),
         new("OF", SqlKeywordPosition.None),
@@ -200,7 +200,7 @@ internal static class SqlKeywordCatalogData
         new("UNION", SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.GroupByTail),
         new("UNIQUE", SqlKeywordPosition.AlterTableAdd | SqlKeywordPosition.DdlObject | SqlKeywordPosition.ColumnDefinition),
         new("UNPIVOT", SqlKeywordPosition.TableSourceTail),
-        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
+        new("UPDATE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd | SqlKeywordPosition.TriggerEvent),
         new("UPDATETEXT", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("USE", SqlKeywordPosition.StatementStart | SqlKeywordPosition.SelectListTail | SqlKeywordPosition.TableSourceTail | SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.OrderByTail | SqlKeywordPosition.GroupByTail | SqlKeywordPosition.BlockStart | SqlKeywordPosition.BlockEnd | SqlKeywordPosition.IfBodyEnd),
         new("USER", SqlKeywordPosition.SelectList | SqlKeywordPosition.TopClauseTail | SqlKeywordPosition.Predicate | SqlKeywordPosition.OrderByColumn | SqlKeywordPosition.DdlObject),
@@ -285,6 +285,11 @@ internal static class SqlKeywordCatalogData
         new(SqlKeywordPosition.ViewOption, "CREATE VIEW v WITH SCHEMABINDING, "),
         new(SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH "),
         new(SqlKeywordPosition.TriggerOption, "CREATE TRIGGER tr ON t WITH ENCRYPTION, "),
+        new(SqlKeywordPosition.TriggerEvent, "CREATE TRIGGER tr ON t AFTER "),
+        new(SqlKeywordPosition.TriggerEvent, "CREATE TRIGGER tr ON t INSTEAD OF "),
+        new(SqlKeywordPosition.TriggerEvent, "CREATE TRIGGER tr ON t AFTER INSERT, "),
+        new(SqlKeywordPosition.TriggerEventEnd, "CREATE TRIGGER tr ON t AFTER INSERT "),
+        new(SqlKeywordPosition.TriggerEventEnd, "CREATE TRIGGER tr ON DATABASE FOR CREATE_TABLE "),
         new(SqlKeywordPosition.SetTarget, "SET "),
         new(SqlKeywordPosition.SetOptionValue, "SET NOCOUNT "),
         new(SqlKeywordPosition.SetOptionValue, "SET IDENTITY_INSERT t "),
@@ -1142,10 +1147,6 @@ internal static class SqlKeywordCatalogData
         {
             "AFTER", "FOR", "INSTEAD", "WITH",
         }),
-        ("AFTER", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t AFTER ", true, false, new string[]
-        {
-            "DELETE", "INSERT", "UPDATE",
-        }),
         ("FOR", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t FOR ", true, false, new string[]
         {
             "DELETE", "INSERT", "UPDATE",
@@ -1153,6 +1154,10 @@ internal static class SqlKeywordCatalogData
         ("INSTEAD", SqlKeywordPosition.TriggerHeader, "CREATE TRIGGER tr ON t INSTEAD ", true, false, new string[]
         {
             "OF",
+        }),
+        ("", SqlKeywordPosition.TriggerEvent, "CREATE TRIGGER tr ON t AFTER ", true, false, new string[]
+        {
+            "DELETE", "INSERT", "UPDATE",
         }),
         ("", SqlKeywordPosition.CursorOption, "DECLARE c CURSOR ", true, false, new string[]
         {
@@ -1179,6 +1184,14 @@ internal static class SqlKeywordCatalogData
             "NOUNLOAD", "ONLINE", "PARTIAL", "PASSWORD", "RECOVERY", "REPLACE", "RESTART",
             "RESTRICTED_USER", "REWIND", "SNAPSHOT", "SNAPSHOT_IMPORT", "SNAPSHOTRESTOREPHASE",
             "STANDBY", "STATS", "STOP_ON_ERROR", "STOPAT", "UNLOAD", "VERBOSE",
+        }),
+        ("TRIGGER {name} ON", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ", false, false, new string[]
+        {
+            "ALL", "DATABASE",
+        }),
+        ("TRIGGER {name} ON ALL", SqlKeywordPosition.DdlObject, "CREATE TRIGGER t ON ALL ", true, false, new string[]
+        {
+            "SERVER",
         }),
         ("", SqlKeywordPosition.ProcedureOption, "CREATE PROCEDURE p WITH ", true, false, new string[]
         {

@@ -26,6 +26,19 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 : null,
             separatedByCommas: false),
 
+        // 觸發程序標頭之後的 AFTER|FOR|INSTEAD OF INSERT, UPDATE：DDL 事件（CREATE_TABLE、LOGON）是一般識別字。
+        // 排在標頭的 WITH 清單前面：AFTER 是非保留字，WITH 清單會把它當成選項名稱。
+        new(
+            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("AFTER") ||
+                analyzer.tokens[index].IsKeyword("FOR") ||
+                (analyzer.tokens[index].IsKeyword("OF") && index >= 1 && analyzer.tokens[index - 1].IsKeyword("INSTEAD")),
+            isPart: (analyzer, index) => analyzer.IsPlainWord(index) || analyzer.IsDmlEvent(index),
+            endsItem: (_, _) => true,
+            header: (analyzer, anchor) =>
+                analyzer.EndsTriggerHeader(analyzer.tokens[anchor].IsKeyword("OF") ? anchor - 2 : anchor - 1)
+                    ? new OptionSlots(SqlKeywordPosition.TriggerEvent, SqlKeywordPosition.TriggerEventEnd)
+                    : null),
+
         // CREATE|ALTER TRIGGER tr ON t WITH ENCRYPTION, EXECUTE AS 'u'：選項寫完之後是標頭的尾端。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
@@ -82,8 +95,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return null;
     }
 
+    /// <summary><paramref name="last"/> 寫完觸發程序的標頭：目標，或目標之後的 WITH 選項。</summary>
+    private bool EndsTriggerHeader(int last) =>
+        last >= 0 && FindStatementSlot(last) == SqlKeywordPosition.TriggerHeader;
+
+    /// <summary>觸發程序的 INSERT、UPDATE、DELETE 事件。</summary>
+    private bool IsDmlEvent(int index) =>
+        tokens[index].IsKeyword("INSERT") || tokens[index].IsKeyword("UPDATE") || tokens[index].IsKeyword("DELETE");
+
     /// <summary><paramref name="last"/> 是觸發程序 <c>ON</c> 之後目標名稱的最後一個詞元。</summary>
-    /// <remarks>DDL 觸發程序的 <c>ON DATABASE</c> 也算，<c>ON ALL SERVER</c> 不算。</remarks>
+    /// <remarks>DDL 觸發程序的 <c>ON DATABASE</c> 與 <c>ON ALL SERVER</c> 也算。</remarks>
     private bool IsTriggerTarget(int last)
     {
         if (last < 4 || tokens[last].Kind != SqlTokenKind.Identifier)
@@ -91,7 +112,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return false;
         }
 
-        var on = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1;
+        var on = tokens[last].IsKeyword("SERVER") && tokens[last - 1].IsKeyword("ALL")
+            ? last - 2
+            : SqlTokenNavigator.SkipQualifiedNameBackward(tokens, last) - 1;
 
         if (on < 3 || !tokens[on].IsKeyword("ON") || tokens[on - 1].Kind != SqlTokenKind.Identifier)
         {

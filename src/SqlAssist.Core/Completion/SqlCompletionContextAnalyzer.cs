@@ -142,10 +142,13 @@ public static class SqlCompletionContextAnalyzer
                 clausePhrase: caret.Phrase);
         }
 
-        var target = DetermineTarget(
-            qualifierPath is null ? beforeToken : beforeQualifier,
-            out var targetKeywordStart,
-            out var intent);
+        // 目標問的是「要哪一類名稱」；位置說這一格寫不出任何名稱時問題不成立。只看前一兩個字面值的
+        // DetermineTarget 會把 AFTER INSERT, UPDATE 的 UPDATE 當成動詞，把整份關鍵字擋掉。
+        var targetKeywordStart = -1;
+        var intent = CompletionIntent.Reference;
+        var target = keywordPosition.AcceptsNames()
+            ? DetermineTarget(qualifierPath is null ? beforeToken : beforeQualifier, out targetKeywordStart, out intent)
+            : CompletionTarget.Any;
 
         // FROM a, | 與 FROM a, LibArchive.| 都還在同一個資料來源清單裡，而
         // DetermineTarget 只認得游標前一、兩個詞元的字面值——那裡只有一個逗號。

@@ -1,18 +1,12 @@
 # 召回稽核的已知缺口：語料裡列不出來、還沒修的字。一行一條，格式是「游標前的尾巴 ⎵字 | 理由」。
 # 尾巴是游標前詞元的後綴，詞元以一個空白相接；修好一條就刪一條，列得出來時 SqlKeywordRecallTests 會失敗。
 
-AFTER INSERT , UPDATE ⎵AS | 事件清單沒有位置，UPDATE 又讓目標變成資料來源
-INSTEAD OF ⎵DELETE | INSTEAD OF 之後沒有位置
 INSTEAD OF DELETE ⎵AS | 事件清單寫完沒有位置
 INSTEAD OF DELETE AS ⎵SELECT | 事件被當成一句的開頭，AS 走不回 CREATE，本體判不成語句開頭
 FOR DELETE ⎵AS | 事件清單寫完沒有位置
 FOR DELETE AS ⎵SELECT | 事件被當成一句的開頭，AS 走不回 CREATE，本體判不成語句開頭
-tr_Ddl ON ⎵DATABASE | 觸發程序的 ON 被當成述詞起點
 FOR CREATE_TABLE ⎵AS | DDL 事件清單寫完沒有位置
 FOR CREATE_TABLE AS ⎵SELECT | 事件清單沒有位置，本體判不成語句開頭
-tr_Logon ON ⎵ALL | 觸發程序的 ON 被當成述詞起點
-ON ALL ⎵SERVER | ON ALL 之後沒有片語
-ON ALL SERVER ⎵FOR | ON ALL SERVER 不算觸發程序標頭
 FOR LOGON ⎵AS | ON ALL SERVER 不算觸發程序標頭，事件清單也沒有位置
 FOR LOGON AS ⎵SELECT | 標頭與事件清單都沒有位置，本體判不成語句開頭
 s . CopyNo ⎵WHEN | MERGE 的 ON 條件寫完只有述詞與資料來源尾端，沒有 WHEN
