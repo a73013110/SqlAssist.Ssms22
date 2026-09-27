@@ -733,13 +733,20 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
     }
 
-    /// <summary><c>INSERT 目標 EXEC</c> 這一句本身不是以 EXEC 開頭，但 EXEC 一樣算數。</summary>
-    [Fact]
-    public void INSERT目標之後的EXEC算數()
+    /// <summary>
+    /// <c>INSERT 目標 EXEC</c> 這一句本身不是以 EXEC 開頭，但 EXEC 一樣算數；
+    /// 這條規則現在單靠 <see cref="SqlStatementBoundaries.IsStatementHead"/> 就成立，
+    /// 不必另外判斷「前一格是不是 INSERT 目標」。
+    /// </summary>
+    [Theory]
+    [InlineData("INSERT #t EXEC sp_executesql N'SELECT 1'")]
+    [InlineData("INSERT INTO dbo.Lib_Tag EXEC sp_executesql N'SELECT 1'")]
+    [InlineData("INSERT #t (TagId, TagName) EXEC sp_executesql N'SELECT 1'")]
+    [InlineData("INSERT #t\nEXEC sp_executesql N'SELECT 1'")]
+    public void INSERT目標之後的EXEC算數(string text)
     {
         using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
 
-        const string text = "INSERT #t EXEC sp_executesql N'SELECT 1'";
         var position = text.IndexOf("EXEC", StringComparison.Ordinal);
         var reference = SqlIdentifierScanner.FindAt(text, position);
 
@@ -777,9 +784,16 @@ public sealed class SqlBuiltInDocCatalogTests
         Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
     }
 
-    /// <summary>物件解析優先順序：函式維持在物件解析之後，系統程序搶在物件解析之前。</summary>
+    /// <summary>
+    /// 物件解析優先順序：函式維持在物件解析之後，系統程序搶在物件解析之前。
+    /// </summary>
+    /// <remarks>
+    /// 順序規則唯一出處是 <see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>；平台層的
+    /// 接法在 <c>Ssms22/Editor/SqlBuiltInObjectResolution</c>（不在 Core，這裡只驗證
+    /// <see cref="SqlBuiltInDocCatalog.TryGetAt"/> 認出的種類餵進那支規則會得到什麼答案）。
+    /// </remarks>
     [Fact]
-    public void TryGetBeforeObjectResolution對函式回false對系統程序回true()
+    public void 系統程序排在物件解析之前函式排在之後()
     {
         using var scope = SqlBuiltInDocCatalog.UseTestEntries(SystemProcedureTestDocs);
 
@@ -787,13 +801,15 @@ public sealed class SqlBuiltInDocCatalogTests
         var functionPosition = functionText.IndexOf("CONVERT", StringComparison.Ordinal);
         var functionReference = SqlIdentifierScanner.FindAt(functionText, functionPosition);
         Assert.NotNull(functionReference);
-        Assert.False(SqlBuiltInDocCatalog.TryGetBeforeObjectResolution(functionText, functionReference, out _));
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(functionText, functionReference, out var functionDoc));
+        Assert.False(functionDoc.Kind.PrecedesObjectResolution());
 
         const string procedureText = "EXEC sys.sp_executesql N'SELECT 1'";
         var procedurePosition = procedureText.IndexOf("sp_executesql", StringComparison.Ordinal);
         var procedureReference = SqlIdentifierScanner.FindAt(procedureText, procedurePosition);
         Assert.NotNull(procedureReference);
-        Assert.True(SqlBuiltInDocCatalog.TryGetBeforeObjectResolution(procedureText, procedureReference, out var doc));
-        Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(procedureText, procedureReference, out var procedureDoc));
+        Assert.Equal(SqlBuiltInKind.SystemProcedure, procedureDoc.Kind);
+        Assert.True(procedureDoc.Kind.PrecedesObjectResolution());
     }
 }

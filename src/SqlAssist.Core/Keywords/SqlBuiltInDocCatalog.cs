@@ -459,7 +459,10 @@ public static class SqlBuiltInDocCatalog
     /// </summary>
     /// <remarks>
     /// 目標名稱那一格不能是關鍵字（<c>SELECT EXEC</c> 這種無效寫法擋在這裡），避免
-    /// 誤判成 INSERT 的目標。
+    /// 誤判成 INSERT 的目標。留著這支的原因是實測反例：<c>INSERT INTO dbo.Lib_Tag EXEC …</c>
+    /// 這種帶 <c>INTO</c> 與限定名稱的寫法，單靠 <see cref="SqlStatementBoundaries.IsStatementHead"/>
+    /// 認不出來（位置分析不知道「這裡其實是 INSERT 目標寫完」），拿掉這支會讓這種合法寫法
+    /// 查不到語句說明。
     /// </remarks>
     private static bool IsInsertExecTarget(IReadOnlyList<SqlToken> tokens, int index)
     {
@@ -486,29 +489,6 @@ public static class SqlBuiltInDocCatalog
 
         return previous >= 0 && tokens[previous].IsKeyword("INSERT");
     }
-
-    /// <summary>
-    /// 停在這個名稱上的說明是不是該搶在物件解析之前顯示。
-    /// </summary>
-    /// <remarks>
-    /// 四條入口（<c>SqlObjectNavigation</c>、<c>SqlQuickInfoSource</c>、
-    /// <c>Core/Parsing/SqlClickTarget</c>、<c>Ssms22/Completion/SqlSuggestionTarget</c>）都問
-    /// 這一支，不要各自判斷順序：系統程序與語句排在物件解析之前
-    /// （<see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>），因為 SQL Server 解析
-    /// <c>sp_</c> 開頭的名稱本來就先找系統那一份，說明也不必連線才答得出來。
-    ///
-    /// 平台層的物件定位是非同步的，這支只回答「要不要問」，真的等連線是呼叫端的事——
-    /// 2b 在 Ssms22 用一個共用 helper 包起來：先問這支，命中就不必等物件解析。
-    /// </remarks>
-    public static bool TryGetBeforeObjectResolution(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc) =>
-        TryGetAt(text, reference, out doc) && doc.Kind.PrecedesObjectResolution();
-
-    /// <summary>
-    /// 物件解析落空之後才問的說明；函式與型別維持這個順序（見
-    /// <see cref="SqlBuiltInKinds.PrecedesObjectResolution"/> 的原因）。
-    /// </summary>
-    public static bool TryGetAfterObjectResolution(string? text, SqlIdentifierReference? reference, out SqlBuiltInDoc doc) =>
-        TryGetAt(text, reference, out doc) && !doc.Kind.PrecedesObjectResolution();
 
     /// <summary>
     /// 停留的位置是不是那幾個括號裡的封閉清單。

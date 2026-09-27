@@ -124,12 +124,29 @@ public sealed class SqlSuggestionTargetTests
     }
 
     /// <summary>
+    /// 系統結構描述底下的預存程序，說明目錄裡找得到對應條目時換到系統程序說明。
+    /// </summary>
+    /// <remarks>
+    /// <c>sp_executesql</c> 是 <c>system-procedures.json</c> 既有的一筆，用來驗證
+    /// 物件分支之前那一段判斷真的接得上資料，不是只在假資料上成立。
+    /// </remarks>
+    [Fact]
+    public void 系統結構描述下有說明的預存程序換到系統程序說明()
+    {
+        var objectInfo = new SqlObjectInfo(3, "sys", "sp_executesql", SqlObjectKind.Procedure);
+
+        var doc = SqlSuggestionTarget.Describe(
+            Suggestion("sp_executesql", SuggestionKind.Procedure, objectInfo))!.BuiltIn!;
+
+        Assert.Equal(SqlBuiltInKind.SystemProcedure, doc.Kind);
+        Assert.Equal("SP_EXECUTESQL", doc.Name);
+    }
+
+    /// <summary>
     /// 系統結構描述底下的預存程序，說明目錄裡還沒有對應條目時仍沿用物件分支。
     /// </summary>
     /// <remarks>
-    /// <c>system-procedures.json</c> 的內容留給階段 3b，這裡先守住負向案例：新加的
-    /// 判斷不能讓查無說明的系統預存程序連物件本身都畫不出來。正向案例（目錄裡真的有
-    /// 一筆 <c>SqlBuiltInKind.SystemProcedure</c>）等資料合併後再補。
+    /// 用一個目錄裡確定查不到的假名稱，守住「查無說明就不能連物件本身都畫不出來」。
     /// </remarks>
     [Fact]
     public void 查無系統程序說明時仍沿用物件()
@@ -155,15 +172,28 @@ public sealed class SqlSuggestionTargetTests
     }
 
     /// <summary>
+    /// 關鍵字建議項對到語句說明，<c>EXEC</c> 與別名 <c>EXECUTE</c> 都換得到同一份。
+    /// </summary>
+    [Theory]
+    [InlineData("EXEC")]
+    [InlineData("EXECUTE")]
+    public void 關鍵字建議項換到語句說明(string name)
+    {
+        var doc = SqlSuggestionTarget.Describe(Suggestion(name, SuggestionKind.Keyword))!.BuiltIn!;
+
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+    }
+
+    /// <summary>
     /// 關鍵字建議項查無語句說明時回 null，不會誤把普通關鍵字說成語句。
     /// </summary>
     /// <remarks>
-    /// <c>statements.json</c> 目前是空的，<c>EXEC</c> 之類的語句要等階段 3a 補資料後
-    /// 才查得到；這裡先守住「查不到就是 null」，正向案例等資料合併後再補。
+    /// <c>SELECT</c> 在 <c>statements.json</c> 裡確定沒有條目，用它守住
+    /// 「查不到就是 null」，不會被日後補寫的內容意外通過。
     /// </remarks>
     [Fact]
     public void 查無語句說明的關鍵字仍回傳空值()
     {
-        Assert.Null(SqlSuggestionTarget.Describe(Suggestion("EXEC", SuggestionKind.Keyword)));
+        Assert.Null(SqlSuggestionTarget.Describe(Suggestion("SELECT", SuggestionKind.Keyword)));
     }
 }

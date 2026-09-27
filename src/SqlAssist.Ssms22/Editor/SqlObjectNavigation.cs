@@ -72,11 +72,13 @@ internal static class SqlObjectNavigation
             var reference = SqlIdentifierScanner.FindAt(text, point.Position);
             var hasBuiltIn = SqlBuiltInDocCatalog.TryGetAt(text, reference, out var builtIn);
 
-            // 系統程序與語句的說明優先於物件解析（SqlBuiltInKinds.PrecedesObjectResolution），
-            // 命中就跳過這次查詢；函式與型別仍是物件解析優先，只有落空才退回內建說明——
-            // 四條入口共用這一支判斷（SqlBuiltInObjectResolution），不各自寫一份順序。
+            // 只有裝得滿一個視窗的說明才能搶答（Ctrl+F12 開的是同一個視窗，見
+            // SqlBuiltInDoc.DeservesWindow）；查得到條目但只有一行摘要時不算——那種名稱
+            // 交給下面的物件解析才問得到「這其實是使用者自己的物件」，不然系統程序與語句
+            // 一律優先（PrecedesObjectResolution）會讓 ResolveAsync 完全不呼叫物件解析，
+            // 使用者自己的同名物件就再也查不到，只留下一句「不是可辨識的資料庫物件」。
             var resolution = await SqlBuiltInObjectResolution.ResolveAsync(
-                hasBuiltIn ? builtIn : null,
+                hasBuiltIn && builtIn.DeservesWindow ? builtIn : null,
                 () => SqlObjectLocator.LocateAsync(
                     metadataService,
                     text,

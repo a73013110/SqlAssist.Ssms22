@@ -122,8 +122,9 @@ public static class SqlBuiltInKinds
     /// <c>SELECT * FROM Format</c> 停在 <c>Format</c> 上要的是那張表，不是同名的內建函式。
     ///
     /// 四條入口（<c>SqlObjectNavigation</c>、<c>SqlQuickInfoSource</c>、<c>SqlClickTarget</c>、
-    /// <c>SqlSuggestionTarget</c>）都問這一支而不是各自寫一份判斷，見
-    /// <see cref="SqlBuiltInDocCatalog.TryGetBeforeObjectResolution"/>。
+    /// <c>SqlSuggestionTarget</c>）都問這一支而不是各自寫一份判斷；平台層排順序的唯一出處是
+    /// <c>Ssms22/Editor/SqlBuiltInObjectResolution</c>，先呼叫這支決定要不要跳過物件解析，
+    /// 不是另外重寫一套「先物件後說明」的判斷。
     /// </remarks>
     public static bool PrecedesObjectResolution(this SqlBuiltInKind kind) =>
         kind == SqlBuiltInKind.SystemProcedure || kind == SqlBuiltInKind.Statement;
@@ -202,8 +203,10 @@ public sealed class SqlBuiltInDoc
     /// 2–5 段可以直接執行的範例，依撰寫順序排列；還沒寫的名稱是空集合。
     /// </summary>
     /// <remarks>
-    /// 滑鼠停留提示只印第一段（<c>Examples[0]</c>）；浮動預覽的範例分頁把每一段接成一份，
-    /// 段落之間空一行，見 <c>docs/builtin-help.md</c>。
+    /// 滑鼠停留提示只印第一段（<c>Examples[0]</c>）；浮動預覽的範例分頁由
+    /// <see cref="SqlBuiltInExampleText.Combine(IReadOnlyList{SqlBuiltInExample})"/>
+    /// 把每一段接成一份——段落之間插一行 <c>GO</c> 再空一行，讓整頁複製後可以分批執行，
+    /// 見 <c>docs/builtin-help.md</c>。
     /// </remarks>
     public IReadOnlyList<SqlBuiltInExample> Examples { get; }
 

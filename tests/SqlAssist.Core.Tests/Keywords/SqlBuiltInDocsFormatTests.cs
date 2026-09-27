@@ -93,51 +93,36 @@ public sealed class SqlBuiltInDocsFormatTests
         }
     }
 
-    /// <summary>同一個名稱＋種類不得跨檔重複定義；合併時後面的檔案會安靜蓋掉前面那筆。</summary>
-    [Fact]
-    public void 名稱加種類不得跨檔重複()
-    {
-        var seen = new Dictionary<(string Name, string Kind), string>();
-
-        foreach (var file in DocFiles)
-        {
-            var root = LoadResource(file.FileName);
-
-            foreach (var item in root["docs"].Items)
-            {
-                var key = (item["name"].AsString().ToUpperInvariant(), item["kind"].AsString());
-
-                if (seen.TryGetValue(key, out var earlier))
-                {
-                    Assert.Fail($"{key.Item1}／{key.Item2} 同時寫在 {earlier} 與 {file.FileName}");
-                }
-
-                seen[key] = file.FileName;
-            }
-        }
-    }
-
     /// <summary>
-    /// 別名（<c>aliases</c>）不得撞到任何既有的名稱＋種類，也不能兩個項目搶同一個別名。
+    /// 名稱（含 <c>aliases</c>）不分大小寫跨所有檔案都不得重複；種類不參與比對。
     /// </summary>
     /// <remarks>
-    /// 撞到既有名稱的症狀是別名安靜地蓋掉別人的說明（<c>Dictionary</c> 後蓋前，
-    /// 沒有例外）；兩個項目搶同一個別名的症狀相同，只是換成後面那個項目蓋掉前面的。
+    /// <see cref="SqlBuiltInDocCatalog"/> 合併時只用名稱當鍵（<c>Dictionary</c> 用
+    /// <c>StringComparer.OrdinalIgnoreCase</c>，見 <c>ReadDocs</c> 的
+    /// <c>entries[name] = entry</c>），不含種類——「種類要放對檔案」那條測試擋得住
+    /// 同一個名字寫錯種類，擋不住兩個不同種類搶同一個名字：<c>YEAR</c> 若同時出現在
+    /// functions.json 與 types-hints.json，後讀到的那份會安靜蓋掉前面的說明，執行期
+    /// 兩者看起來都對，只有這裡的機械式比對抓得到。別名一樣鍵進同一張表，因為
+    /// <c>ReadDocs</c> 讓別名指向同一個 <c>Entry</c> 執行個體、寫進同一個字典。
     /// </remarks>
     [Fact]
-    public void 別名不得與任何名稱加種類衝突()
+    public void 名稱含別名不分大小寫跨檔不得重複()
     {
-        var names = new HashSet<(string Name, string Kind)>();
+        var seen = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var file in DocFiles)
+        void Record(string key, string fileName, string ownerName)
         {
-            foreach (var item in LoadResource(file.FileName)["docs"].Items)
-            {
-                names.Add((item["name"].AsString().ToUpperInvariant(), item["kind"].AsString()));
-            }
-        }
+            var label = $"{fileName}／{ownerName}";
 
-        var aliasOwners = new Dictionary<(string Name, string Kind), string>();
+            if (seen.TryGetValue(key, out var earlier))
+            {
+                Assert.Fail(
+                    $"名稱 {key} 同時寫在 {earlier} 與 {label}：合併字典只鍵名稱、不分種類與大小寫，" +
+                    "後面那筆會安靜蓋掉前面的說明");
+            }
+
+            seen[key] = label;
+        }
 
         foreach (var file in DocFiles)
         {
@@ -145,23 +130,14 @@ public sealed class SqlBuiltInDocsFormatTests
 
             foreach (var item in root["docs"].Items)
             {
-                var kind = item["kind"].AsString();
-                var ownerName = item["name"].AsString();
+                var name = item["name"].AsString();
+                Record(name, file.FileName, name);
 
                 foreach (var aliasValue in item["aliases"].Items)
                 {
                     var alias = aliasValue.AsString();
-                    Assert.True(alias.Length > 0, $"{file.FileName}／{ownerName}：alias 是空字串");
-
-                    var key = (alias.ToUpperInvariant(), kind);
-                    Assert.False(names.Contains(key), $"{file.FileName}／{ownerName}：別名 {alias} 撞到既有名稱");
-
-                    if (aliasOwners.TryGetValue(key, out var earlierOwner))
-                    {
-                        Assert.Fail($"{file.FileName}／{ownerName}：別名 {alias} 與 {earlierOwner} 的別名衝突");
-                    }
-
-                    aliasOwners[key] = $"{file.FileName}／{ownerName}";
+                    Assert.True(alias.Length > 0, $"{file.FileName}／{name}：alias 是空字串");
+                    Record(alias, file.FileName, name);
                 }
             }
         }
