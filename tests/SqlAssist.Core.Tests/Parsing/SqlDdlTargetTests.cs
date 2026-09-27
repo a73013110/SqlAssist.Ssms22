@@ -45,6 +45,7 @@ public sealed class SqlDdlTargetTests
     /// 因此不必特別排除；<c>CREATE INDEX … (a) ON [PRIMARY]</c> 的檔案群組前面是
     /// 右括號，同樣由「前面必須是一個名稱單位」擋掉。<c>SET STATISTICS IO ON</c> 的形狀與
     /// <c>CREATE STATISTICS s ON</c> 相同，但 SET 後面的 STATISTICS 是工作階段選項。
+    /// 觸發程序的目標寫完之後問的已經不是那個 <c>ON</c>：事件是關鍵字也是識別字，不能一路跳回去。
     /// </remarks>
     [Theory]
     [InlineData("SELECT * FROM dbo.Loan a\nINNER JOIN dbo.Copy b\nON ")]
@@ -53,6 +54,8 @@ public sealed class SqlDdlTargetTests
     [InlineData("CREATE INDEX IX_TableName_ColumnName ON dbo.Loan (LoanId)\nON ")]
     [InlineData("SET STATISTICS IO ON ")]
     [InlineData("SET STATISTICS IO ON\nSEL")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan INSTEAD OF DELETE ")]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR DELETE AS ")]
     public void 述詞與檔案群組的ON不是資料表(string textBeforeCaret)
     {
         Assert.NotEqual(
