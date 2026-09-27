@@ -1,0 +1,72 @@
+# 召回稽核的已知缺口：語料裡列不出來、還沒修的字。一行一條，格式是「游標前的尾巴 ⎵字 | 理由」。
+# 尾巴是游標前詞元的後綴，詞元以一個空白相接；修好一條就刪一條，列得出來時 SqlKeywordRecallTests 會失敗。
+
+DROP TABLE ⎵IF | 目標是資料表，關鍵字全被目標過濾擋掉
+DROP PROCEDURE ⎵IF | 目標是程序，關鍵字全被目標過濾擋掉
+DROP VIEW ⎵IF | 目標是檢視，關鍵字全被目標過濾擋掉
+DROP FUNCTION ⎵IF | 目標是函式，關鍵字全被目標過濾擋掉
+DROP COLUMN IF ⎵EXISTS | IF 之後判不出位置，EXISTS 只屬於述詞起點
+UPDATE ⎵TOP | 目標是資料來源，關鍵字全被目標過濾擋掉
+UPDATE ⎵STATISTICS | 目標是資料來源，關鍵字全被目標過濾擋掉
+MERGE ⎵INTO | 目標是資料來源，關鍵字全被目標過濾擋掉
+AFTER INSERT , UPDATE ⎵AS | 事件清單沒有位置，UPDATE 又讓目標變成資料來源
+INSTEAD OF ⎵DELETE | INSTEAD OF 之後沒有位置
+INSTEAD OF DELETE ⎵AS | 事件清單寫完沒有位置
+INSTEAD OF DELETE AS ⎵SELECT | 事件被當成一句的開頭，AS 走不回 CREATE，本體判不成語句開頭
+FOR DELETE ⎵AS | 事件清單寫完沒有位置
+FOR DELETE AS ⎵SELECT | 事件被當成一句的開頭，AS 走不回 CREATE，本體判不成語句開頭
+tr_Ddl ON ⎵DATABASE | 觸發程序的 ON 被當成述詞起點
+FOR CREATE_TABLE ⎵AS | DDL 事件清單寫完沒有位置
+FOR CREATE_TABLE AS ⎵SELECT | 事件清單沒有位置，本體判不成語句開頭
+tr_Logon ON ⎵ALL | 觸發程序的 ON 被當成述詞起點
+ON ALL ⎵SERVER | ON ALL 之後沒有片語
+ON ALL SERVER ⎵FOR | ON ALL SERVER 不算觸發程序標頭
+FOR LOGON ⎵AS | ON ALL SERVER 不算觸發程序標頭，事件清單也沒有位置
+FOR LOGON AS ⎵SELECT | 標頭與事件清單都沒有位置，本體判不成語句開頭
+s . CopyNo ⎵WHEN | MERGE 的 ON 條件寫完只有述詞與資料來源尾端，沒有 WHEN
+t . ReaderId = 1 ⎵THEN | MERGE 的 WHEN 條件被當成 ON 的述詞尾端
+THEN UPDATE ⎵SET | THEN 之後判不出位置，UPDATE 又讓目標變成資料來源
+UPDATE SET CopyNo = s . CopyNo ⎵WHEN | MERGE 動作寫完被當成 UPDATE 的 SET 尾端
+BY TARGET ⎵THEN | NOT MATCHED BY TARGET 之後沒有片語
+VALUES ( s . CopyNo ) ⎵WHEN | MERGE 的 INSERT 動作寫完沒有位置
+BY SOURCE ⎵THEN | NOT MATCHED BY SOURCE 之後沒有片語
+GRANT SELECT ⎵ON | 權限清單寫完沒有位置
+GRANT EXECUTE ⎵ON | 權限清單寫完沒有位置
+DENY SELECT ⎵ON | 權限清單寫完沒有位置
+REVOKE SELECT ⎵ON | 權限清單寫完沒有位置
+REVOKE SELECT ON dbo . Loan ⎵FROM | 授權目標之後借用資料來源尾端，那裡只探得到 GRANT 的 TO
+SELECT CopyNo INTO #t ⎵FROM | SELECT … INTO 的新資料表之後借用資料來源尾端
+FETCH NEXT FROM c ⎵INTO | FETCH 的游標之後借用資料來源尾端
+( CopyNo ⎵DESC | 索引鍵清單裡被當成 ON 的述詞
+ReaderId ⎵ASC | 索引鍵清單裡被當成 ON 的述詞
+ALTER TABLE dbo . Loan DROP ⎵CONSTRAINT | ALTER TABLE 的 DROP 被當成物件種類
+REFERENCES dbo . Copy ( CopyNo ) ON ⎵DELETE | 外部索引鍵的 ON 被當成述詞起點；ON DELETE 片語的前一格判不出位置
+SELECT LoanDate ⎵AT | AT 不是關鍵字，AT TIME 片語的前一格判不出位置
+SELECT LoanDate AT ⎵TIME | AT TIME 是 Lead 片語，只有單一個字的 AT 立不成片語
+SELECT NEXT ⎵VALUE | NEXT VALUE FOR 是 Lead 片語，只有單一個字的 NEXT 立不成片語
+PRECEDING ⎵AND | 視窗框架的前一格判不出位置，只有單一個字的 Lead 片語立不成
+ORDER BY CopyNo ⎵RANGE | 視窗的 ORDER BY 與查詢的同一個位置，RANGE 只在片語裡
+SUM ( CopyNo ) ⎵OVER | 函式呼叫之後沒有自己的位置
+IS NOT ⎵DISTINCT | IS 之後判不出位置，DISTINCT 只屬於選取清單起點
+OFFSET 1 ⎵ROW | OFFSET 的值之後沒有位置；片語以值結尾，前綴封閉不立
+CREATE FUNCTION dbo . fn_Fee ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
+CREATE FUNCTION dbo . fn_LoansByCopy ( @CopyNo int ) ⎵RETURNS | 參數清單之後沒有位置
+CREATE FUNCTION dbo . fn_Copies ( ) ⎵RETURNS | 參數清單之後沒有位置
+CREATE USER LibUser WITHOUT ⎵LOGIN | CREATE USER 只有 FOR 那一條片語
+CREATE LOGIN LibLogin WITH ⎵PASSWORD | CREATE LOGIN 沒有片語
+⎵ENABLE | ENABLE、DISABLE 不是關鍵字，語句開頭沒有只認位置的片語給它們
+⎵DISABLE | ENABLE、DISABLE 不是關鍵字，語句開頭沒有只認位置的片語給它們
+DISABLE TRIGGER ⎵ALL | 目標是觸發程序，關鍵字全被目標過濾擋掉
+RAISERROR ( 'x' , 16 , 1 ) WITH ⎵NOWAIT | RAISERROR 的 WITH 選項沒有位置
+OUTPUT WITH ⎵RECOMPILE | EXEC 的 WITH 選項沒有位置
+UPDATE l SET l . CopyNo = c . CopyNo ⎵FROM | UPDATE 的 SET 寫完掛在資料來源尾端，那裡探不到 FROM
+ROOT ( 'Copies' ) , ⎵TYPE | FOR XML 的指示詞清單在逗號之後沒有位置
+TABLESAMPLE ( 10 ⎵PERCENT | TABLESAMPLE 的括號裡沒有位置，PERCENT 只屬於 TOP 子句
+FOR BranchId ⎵IN | PIVOT 的 FOR 欄位之後沒有位置
+CONSTRAINT UQ_Loan ⎵UNIQUE | 資料表層級 CONSTRAINT 名稱之後沒有位置
+ALTER TABLE dbo . Loan ADD ReaderId ⎵INT | ALTER TABLE ADD 的新資料行之後不是型別的位置
+@Count ⎵INT | 程序參數的型別位置只認第一個參數
+CREATE SEQUENCE dbo . LoanSeq AS ⎵INT | CREATE SEQUENCE 的 AS 之後不是型別的位置
+WITH ( ⎵ONLINE | 篩選索引的 WHERE 夾在中間，CREATE INDEX 的 WITH ( 片語比對不到
+GRANT EXECUTE ON ⎵SCHEMA | 權限的 ON 之後沒有位置，SCHEMA:: 也探不到
+$ ⎵ACTION | 詞法器把 $action 拆成 $ 與 action；那是虛擬資料行，不是字
