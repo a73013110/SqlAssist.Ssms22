@@ -717,8 +717,8 @@ $ClausePhrases = @(
 # 模組選項的名稱要看到本體才驗（寫到檔案結尾為止任何名稱都過），所以函式的兩種本體也在。
 # CREATE LOGIN 的 WITH PASSWORD 只收字串。
 $PhraseContinuations = @($Continuations) + @(
-    ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY', ' ROW', ' ONLY',
-    ' PRECEDING)', ' ROW)', " ZONE 'UTC'", ' OF x', ' IN (1)', ' FOR SELECT 1', ' ACTION)',
+    ' ON', " 'x'", ' = ON', ' = ON)', ' = 1', ' ON)', ' ROWS ONLY',
+    ' PRECEDING)', " ZONE 'UTC'", ' IN (1)', ' FOR SELECT 1', ' ACTION)',
     ' (a)', ' TIES a FROM t ORDER BY a', ' FROM x', ' INSERT AS SELECT 1', ' OF INSERT AS SELECT 1',
     ' LEVEL READ COMMITTED', ' READ COMMITTED', ' COMMITTED', ' READ', ' TRIGGER ALL',
     ' AS BEGIN RETURN 1 END', ' AS RETURN SELECT 1 AS a', " = 'x'"

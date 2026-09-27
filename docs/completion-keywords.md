@@ -9,41 +9,35 @@
 SSMS 自帶的 ScriptDom 產生，結果 commit 進 `Core/Keywords/SqlKeywordCatalog.Generated.cs`。
 換 SSMS 版本重跑一次就更新。每個階段都自我驗證，不猜任何一個字：
 
-1. **取字面值**：列舉 `TSqlTokenType` 的成員名稱，大寫後丟回 tokenizer，
-   token 型別對得回原成員才採用。標點與字面值（`Comma`、`HexLiteral`…）自然
-   對不回來所以被排除；名稱含 camelCase 轉折的再試一次補底線的寫法，
-   撈回 `CURRENT_TIMESTAMP`、`IDENTITY_INSERT`、`TRY_CONVERT` 這一類。
+1. **取字面值**：`TSqlTokenType` 的成員名稱大寫後丟回 tokenizer，對得回原成員才採用；
+   camelCase 的再試補底線的寫法（`CURRENT_TIMESTAMP`、`IDENTITY_INSERT`）。
 
 2. **定位置**：把每個關鍵字塞進樣板的洞裡剖析，依錯誤碼判定它在該位置合不合法。
    46005（必須是 X 卻發現 Y）、46010（語法不正確）、46014（只可存在於資料行層級）
-   = 不合法；46029（未預期的檔案結尾）= 合法，只是語句沒寫完。少算 46005 的話任何名稱
-   都「接受」；少算 46014 的話 `DEFAULT` 會被分到 `CREATE TABLE t (` 的開頭。「不是這裡的選項」
-   那一族（46006 不是程序的 WITH 選項…）從剖析器的訊息資源撈，少算的話任何名稱都是合法選項。
-   單一續尾會誤判——`BACKUP ` 之後是檔案結尾、`SELECT ` 之後卻是語法錯誤，
-   兩者都合法——所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
+   = 不合法；46029（未預期的檔案結尾）= 合法，只是語句沒寫完。「不是這裡的選項」那一族
+   （46006…）從剖析器的訊息資源撈。單一續尾會誤判，所以每個位置試一組續尾取聯集。非保留字要以**關鍵字身分**過才算
    屬於那個位置：同一組續尾換成普通名稱也過的話，那一次只證明它能當名字。
+   MERGE 少了分號只報 46097、之後不再檢查：補上分號重剖析，整段比對仍有 46097 就算拒收。
 
-3. **寫完一項或一句的字**：某個樣板接上它就是完整的一句。語法樹裡以它結尾的是語句以外的
-   片段（`NULL`、`DESC`）時，之後與識別字之後相同，往回找子句；是語句本身（`BREAK`、
-   `COMMIT`）時，它是[語句界線](completion-boundaries.md#語句的界線)的一種，而那一句再也接不了
-   語句開頭以外的字時，之後才是語句開頭——`COMMIT` 還接 `TRAN`、`RETURN` 還接運算式、
-   `BEGIN TRAN` 還接變數，照舊 `Any`。
+3. **寫完一項或一句的字**：樣板接上它就是完整的一句。以它結尾的是片段（`NULL`、`DESC`）時
+   之後往回找子句；是語句本身（`BREAK`）時是[語句界線](completion-boundaries.md#語句的界線)，
+   那一句再也接不了別的字時之後才是語句開頭（`COMMIT` 還接 `TRAN`，照舊 `Any`）。
 
 手寫的只有每個位置的樣板，關鍵字的分類全部由剖析器決定。樣板必須是分析器判得出、
 而且回報含該位置的文字：樣板表隨產物輸出成 `SqlKeywordCatalogData.Templates`，
 由 Core 測試逐條回驗。只有產生器分得出的位置是自欺——型別寫完之後（`CREATE TABLE t (a int |`）因此沒有樣板，是 `Any`。
 
-非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 這些在文法上不是關鍵字，
-ScriptDom 的 token 列舉沒有它們——
-任何工具在這一塊都只能自己維護清單。產生器裡的 `$NonReservedSupplement` 就是
-那份清單，內容刻意等於「舊的手寫清單裡有、但 ScriptDom 認不得」的 11 個字，
-位置一樣自動分類。
+非保留字是唯一的例外：`THROW`、`APPLY`、`NOLOCK` 不在 token 列舉裡，由產生器的
+`$NonReservedSupplement` 手寫（11 個字），位置一樣自動分類。
+
+### 召回稽核
+
+`SqlKeywordRecallTests` 在語料（`RecallCorpus.sql`）每個字的起點問清單；列不出來的修掉或寫進
+`RecallKnownGaps.txt` 附理由，缺口修好時測試同樣失敗，清單只會變短。
 
 ### 依位置分層
 
-191 個字全部無條件列出來的話，打第一個字元時清單會被文法上根本不可能出現的字
-塞滿。因此每個關鍵字都帶著「可以出現在哪些位置」，由
-`SqlKeywordPositionAnalyzer` 判斷游標當下在哪個位置後過濾：
+每個關鍵字帶著「可以出現在哪些位置」，由 `SqlKeywordPositionAnalyzer` 判斷游標的位置後過濾：
 
 ```text
 （語句開頭）          → SELECT、USE、BACKUP、RESTORE、CREATE…
@@ -60,6 +54,8 @@ DECLARE c CURSOR LOCAL → FOR（CursorOption；選項由片語給，TriggerHead
 ALTER TABLE t         → ADD、ALTER、DROP、CHECK、NOCHECK、SET、WITH、MERGE
 ALTER TABLE t ADD     → CONSTRAINT、DEFAULT、PRIMARY、FOREIGN、UNIQUE、CHECK、INDEX…
 CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFAULT（ColumnDefinition）
+CREATE TRIGGER tr ON t AFTER → INSERT、UPDATE、DELETE（TriggerEvent）
+OVER (ORDER BY a      → ASC、DESC、ROWS、RANGE（WindowOrderTail）
 ```
 
 位置切在「游標前一個詞元」之後，因為那正是分析器認得的粒度——它分不出
@@ -80,15 +76,13 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 191 個關鍵字與 49 筆片段全部進場**。分析器判得出來卻回 `Any` 的地方，症狀量得出來
 ——同一組候選、同一個前綴 `C`：
 
-| 位置 | 回報 | 候選數 | 前幾名 |
-|---|---|---|---|
-| `SELECT C` | `SelectList` | 61 | `cs`，接著就是欄位 |
-| `ORDER BY C`（修正前） | `Any` | 118 | 捷徑以 `c` 開頭的 13 筆片段全包，欄位掉到第 14 |
-| `ORDER BY C`（修正後） | `OrderByColumn` | 30 | `cs`，接著就是欄位 |
+`ORDER BY C` 回 `Any` 時有 118 個候選、欄位掉到第 14；回 `OrderByColumn` 只剩 30 個，`cs` 之後就是欄位。
 
 因此 `OrderByColumn`（`ORDER BY`／`GROUP BY` 要的那個欄位，含逗號之後的下一項）與
 `AlterTableAction`／`AlterTableAdd`／`AlterTableColumn`、`BlockEnd`、`IfBodyEnd`、`CursorOption` 這類敘述自己的格子
 都是**自己的成員**，不借用 `Any`。欄位**之後**是 `OrderByTail`（`ASC`／`DESC`）與 `GroupByTail`（`HAVING`），三者不能混。
+`SELECT a INTO t `、`OFFSET 10 `、`REFERENCES u (a) ` 這類子句尾端也各有位置，不借長得像的 `OrderByTail`。
+`FunctionCallTail` 是疊加位元：函式呼叫之後多接 `OVER`；限定名稱（`dbo.fn_Fee(a)`）是 UDF，不加。
 
 `ALTER TABLE` 那三個位置認的是「往回正好是 `ALTER TABLE` 加一個名稱單位」，緊鄰的形狀走不出
 這一句。名稱單位含點號（`dbo.t` 是一個），與別名判斷共用 `SqlTokenNavigator.SkipQualifiedNameBackward`。
@@ -103,7 +97,7 @@ CREATE TABLE t (      → CONSTRAINT、PRIMARY、UNIQUE、INDEX…，沒有 DEFA
 |---|---|
 | 子句尾端（`GROUP BY a \|`、`WHERE a = 1 \|`、`FROM t a \|`） | 運算子或關鍵字；別名是新名字 |
 | `StatementStart`、`BlockStart`、`BlockEnd`、`IfBodyEnd`（`;`、`BEGIN`、區塊的 `END` 之後） | 下一句的關鍵字或 `ELSE` |
-| `CursorOption`、`TriggerHeader`、`MergeWhen`、`BackupOption`、`RestoreOption`、四種模組的 `…Option` | 選項、`FOR`、`MATCHED` 這類字 |
+| 選項清單與其餘敘述自己的格子（`CursorOption`、`TriggerEvent`、`MergeAction`…，全部見 `NoNamePositions`） | 選項、事件、動作或下一個子句的字 |
 | `ByAnchor`（`ORDER \|`、`GROUP \|`） | `BY` |
 | `DdlObject`（`CREATE \|`、`ALTER \|`、`DROP \|`） | 物件**種類** |
 | `AlterTableAction`、`AlterTableAdd`、`ColumnDefinition` | 動作、條件約束關鍵字，或新資料行名稱 |

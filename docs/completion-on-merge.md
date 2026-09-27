@@ -16,6 +16,7 @@ CREATE STATISTICS st ON |     → 同上，STATISTICS
 JOIN b ON |、MERGE … ON |     → 述詞；ON 前面是別名或 AS
 GRANT SELECT ON |             → 述詞那一邊；ON 前面是關鍵字，不是名稱單位
 CREATE INDEX ix ON t (a) ON | → 檔案群組；ON 前面是右括號
+CREATE TRIGGER tr ON t AFTER DELETE | → 不是資料表；ON 之後只跳過還沒寫完的限定名稱（dbo.）
 ```
 
 判斷刻意**只看 `ON` 前面那兩個名稱單位**，不往回走到敘述開頭：

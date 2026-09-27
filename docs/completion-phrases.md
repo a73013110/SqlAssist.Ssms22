@@ -41,6 +41,8 @@
   展開出來的片語字可以是零個：`SET ROWCOUNT ` 之後要數字，清單就該是空的。
 - `Values`：剖析器把值當名稱看、分不出來時才手寫（`SET DATEFORMAT` 的 `dmy`）。
   每個值仍要剖析得過，過不了就中止產生；`Closed` 由人宣告那一格只有這幾個值。
+- `Template`：用 `After` 位置的第幾個樣板探測。同一個位置的樣板接得上的字不一定相同：
+  `IS` 要 `WHERE a `，代表樣板 `WHERE a = 1 ` 之後寫不出它。
 
 ### 片語裡的每一個字
 
@@ -50,6 +52,12 @@
 尾巴認得出來——以字面字結尾，`Lead` 片語至少兩項。以名稱或值結尾的一段之後什麼都可能接，
 單獨一個 `ON`、`NEXT` 執行期到處比對得上，立了都會封閉掉不相干的清單。
 `SqlClausePhraseTests` 以同一個範圍逐字回驗。
+
+第一個字前面那段是位置，不是片語。那個位置有只認位置的片語就補進去；沒有、關鍵字目錄在那裡
+也給不了（`AT` 不在 `SelectListTail`，`ENABLE` 不是關鍵字）時，另立**附加片語**：只認位置，
+比對永遠是「可能」，只把字加進清單、不藏別的字。換成只認位置的普通片語不行——比對確定時這一格的
+關鍵字只來自片語，`SELECT a ` 之後就只剩 `AT`。前面那段已有片語列得出這個字（`CREATE ` 之後的
+`SYNONYM`）就不立。附加片語輸出成另一個陣列 `AdditivePhrases`，回驗改問「比對回自己而且只是可能」。
 
 新增一個片語只要加一行再重跑，執行期不必改。
 
@@ -67,21 +75,23 @@
 
 會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-BACKUP／RESTORE 與模組 `WITH` 的選項清單都是這樣，位置見[關鍵字](completion-keywords.md)。
+BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`OFFSET 10 ` 之後的
+`ROWS`、視窗 `ORDER BY a ` 之後的框架、函式參數清單之後的 `RETURNS` 也是。位置見[關鍵字](completion-keywords.md)。
 
 第一個樣板是那個位置的代表寫法，而且是完整的語句，「寫到這裡已經完整」才判得準。其餘樣板是
 第三階段撈齊關鍵字用的旁支：拿 `FROM t JOIN y` 探會長出 `FOR PATH` 之後一整串還缺 `ON` 的字，
 時間也多好幾倍。
 
 `FOR` 的意思也由前一格分開：查詢尾端、資料表、游標選項（`CursorOption`）、觸發程序標頭
-（`TriggerHeader`）、`CREATE USER`／`SYNONYM` 的物件種類。前一格判不出位置的（`NEXT VALUE`、
+（`TriggerHeader`）、`SYNONYM` 的物件種類。`CREATE USER {name}` 從語句開頭寫起，不掛在物件種類上：
+`ALTER USER` 接的是別的字，確定的比對會把它們藏掉。前一格判不出位置的（選取清單以外的 `NEXT VALUE`、
 預設值條件約束、`NOT FOR REPLICATION`）才寫更長的 `Lead` 尾巴，由比對取項數多的分開。
 
 ## 執行期
 
 `SqlKeywordPositionAnalyzer.Analyze` 順手比對片語，結果放在 `SqlCaretPosition.Phrase`。
-同時比對得上時取項數多的：`OFFSET 10 ROWS ` 是 `OFFSET {value} ROWS` 而不是視窗框架的
-`ROWS`。比對先依最後一個字分桶，每次按鍵只試同一桶與少數以佔位項結尾的片語。
+同時比對得上時取項數多的：`ROWS BETWEEN UNBOUNDED ` 是那一條（接 `PRECEDING`），而不是框架 `AND`
+之後的 `UNBOUNDED`（接 `FOLLOWING`）。比對先依最後一個字分桶，每次按鍵只試同一桶與少數以佔位項結尾的片語。
 
 帶 `After` 的片語再問 `SqlKeywordPositionAnalyzer.PositionBefore`：前一格判得出而且對得上
 才算，區塊開頭視同語句開頭（`BEGIN SET`）。前一格判不出位置（`Any`）時比對結果是**可能**
@@ -90,7 +100,7 @@ BACKUP／RESTORE 與模組 `WITH` 的選項清單都是這樣，位置見[關鍵
 猜錯就少字——猜錯的代價必須是多幾個字。
 
 沒有尾巴的片語前一格就是游標處的位置，只在尾巴都比對不到、或只比對到可能時才輪到；
-游標處判不出位置時它什麼也沒認到，不算。
+游標處判不出位置時它什麼也沒認到，不算。附加片語也只認位置，但別的片語比對得上時讓給那一條。
 
 比對**確定**時這一格的關鍵字只來自片語，規則在 `SuggestionContextFilter` 一處，
 認的是建議項的 `Tag` 而不是文字——`READ` 同時在目錄與片語裡。
@@ -110,11 +120,9 @@ BACKUP／RESTORE 與模組 `WITH` 的選項清單都是這樣，位置見[關鍵
 ## 刻意沒收的
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
-- 上面那條規則範圍外的字：`ON DELETE` 的 `ON`、`NEXT VALUE` 的 `VALUE`、`AT TIME` 的 `TIME`、
-  `PRECEDING AND` 的 `AND`（單一個字的 `Lead` 尾巴），以及 `OFFSET 1 ` 之後的 `ROW`（以值結尾）。
-  要列得出來，前一格得先有位置。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- 視窗框架與 `OFFSET` 之後各段的前一格：位置分析只說得出 `OrderByTail`，代表樣板是查詢的
-  `ORDER BY`，探不出 `ROWS`、`FETCH`；這幾條留 `Lead`。
+- `RecallKnownGaps.txt` 其餘的缺口（資料型別的幾個位置、`FOR XML` 逗號之後、`TABLESAMPLE (10 `、
+  `PIVOT … FOR a `、篩選索引的 `WITH (`、`GRANT … ON SCHEMA::`）：前一格還沒有位置或比對不到，
+  理由逐條寫在檔裡。
 - `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
   名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。
