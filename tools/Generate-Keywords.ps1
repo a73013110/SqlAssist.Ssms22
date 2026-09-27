@@ -256,7 +256,22 @@ $ContextTemplates = [ordered]@{
     # 聯結對象還是授權目標。目錄跟著這個粒度走，不假裝分得出來。
     TableSourceTail  = @(
         'SELECT * FROM t ', 'SELECT * FROM t JOIN y ',
-        'INSERT INTO t ', 'GRANT SELECT ON t ', 'MERGE INTO t ')
+        'INSERT INTO t ', 'MERGE INTO t ')
+
+    # 同一個子句錨點在別的敘述裡寫完之後接的字不同：SELECT … INTO 的新資料表之後接 FROM，
+    # FETCH 的游標之後接 INTO，UPDATE 的 SET 指派之後接 FROM、WHERE、OUTPUT。
+    SelectIntoTail   = @('SELECT a INTO t ')
+    FetchTail        = @('FETCH NEXT FROM c ')
+    UpdateSetTail    = @('UPDATE t SET a = 1 ')
+
+    # 索引鍵清單裡的資料行之後：ASC、DESC。
+    IndexKeyTail     = @('CREATE INDEX i ON t (a ')
+
+    # GRANT／DENY／REVOKE：權限寫完之後是 ON、TO，REVOKE 還有 FROM；ON 的目標寫完之後是 TO、FROM。
+    # 權限名稱是一串識別字（VIEW DEFINITION），GRANT SELECT 之後什麼非保留字都接得上；
+    # 樣板以資料行清單收掉權限，探到的才只有權限之後的字。
+    PermissionList   = @('GRANT SELECT (a) ', 'REVOKE SELECT (a) ')
+    PermissionTarget = @('GRANT SELECT ON t ', 'REVOKE SELECT ON t ')
 
     # WHERE CURRENT OF 只有 UPDATE 與 DELETE 寫得出來。
     Predicate        = @('SELECT * FROM t WHERE ', 'DELETE FROM t WHERE ')
@@ -317,6 +332,10 @@ $ContextTemplates = [ordered]@{
     # 下面四個同一個道理：AFTER、INSTEAD、MATCHED 與 BACKUP／RESTORE 的選項都不是關鍵字，由子句片語給。
     TriggerHeader    = @('CREATE TRIGGER tr ON t ', 'CREATE TRIGGER tr ON t WITH ENCRYPTION ')
     MergeWhen        = @('MERGE t USING s ON 1 = 1 WHEN ', 'MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE WHEN ')
+
+    # MERGE 的 THEN 之後是動作；ON 條件或一個動作寫完之後是下一個 WHEN、OUTPUT、OPTION。
+    MergeAction      = @('MERGE t USING s ON 1 = 1 WHEN MATCHED THEN ', 'MERGE t USING s ON 1 = 1 WHEN NOT MATCHED THEN ')
+    MergeClause      = @('MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE ')
     BackupOption     = @("BACKUP DATABASE d TO DISK = 'x' WITH ", "BACKUP DATABASE d TO DISK = 'x' WITH COMPRESSION, ")
     RestoreOption    = @("RESTORE DATABASE d FROM DISK = 'x' WITH ", "RESTORE DATABASE d FROM DISK = 'x' WITH REPLACE, ")
 
@@ -392,9 +411,23 @@ function Test-Accepted {
         $limit += $Continuation.Length
     }
 
-    $reader = [System.IO.StringReader]::new($Prefix + $Word + $Continuation)
+    $text = $Prefix + $Word + $Continuation
     $errors = $null
-    $null = $parser.Parse($reader, [ref]$errors)
+    $null = $parser.Parse([System.IO.StringReader]::new($text), [ref]$errors)
+
+    # 46097 = "MERGE 陳述式必須以分號結尾"，只在 MERGE 已經完整時出現。少了分號時剖析器只報這一條，
+    # 之後的字一路跳到分號都不再檢查，動作寫完之後的格子「接受」普通名稱，非保留字的 OUTPUT 就分不出來。
+    # 補上分號再剖析一次：落在分號上的錯誤是語句沒寫完，與出現未預期的檔案結尾同義，不算；
+    # 分號補上了還報 46097，代表剖析器又跳過了一段，整段過不了。只到字為止的判定看不出跳過的是哪裡，不算。
+    if (@($errors | Where-Object Number -eq 46097).Count -gt 0) {
+        $null = $parser.Parse([System.IO.StringReader]::new("$text;"), [ref]$errors)
+
+        if ($Whole -and @($errors | Where-Object Number -eq 46097).Count -gt 0) {
+            return $false
+        }
+
+        $errors = @($errors | Where-Object Offset -lt $text.Length)
+    }
 
     foreach ($error in $errors) {
         if ($RejectingErrorNumbers -contains $error.Number -and $error.Offset -le $limit) {
@@ -510,6 +543,8 @@ Write-Host "子句片語候選字：$($phrasePool.Count) 個"
 #          兩個都不寫就是 StatementStart：沒有 Lead 的片語都從一句的開頭寫起。
 #   Lead   位置分析判不出前一格、而尾巴本身就認得出意思時，探測要墊的文字；執行期不看前一格。
 #          判得出來的一律寫 After：同一件事只由位置分析說一次。
+# Template 是 After 位置的第幾個樣板（從 0 起），預設第一個：同一個位置的樣板接得上的字不一定相同
+# （WHEN MATCHED THEN 之後寫不出 INSERT）。
 # Expand 往下再探幾層：每個接得上的字接在片語後面成為新的片語，直到語句完整為止。
 # Values 是剖析器分不出來、只能手寫的字，一樣要剖析得過才收：SET DATEFORMAT 的值在
 # 剖析器眼中就是名稱；語句已經完整的片語扣掉了下一句的開頭，同時也是子句字的要補回來
@@ -572,8 +607,14 @@ $ClausePhrases = @(
     @{ Pattern = 'CALLED ON NULL INPUT'; After = @('FunctionOption') }
 
     # MERGE 的 WHEN 之後是 MATCHED 與 NOT MATCHED，這兩者之後各再一層；NOT MATCHED 由下一條補出來。
+    # NOT MATCHED BY TARGET／SOURCE 之後各再一層（THEN、AND）。
+    # THEN 之後的動作：WHEN MATCHED 接 UPDATE、DELETE，WHEN NOT MATCHED 接 INSERT，INSERT 用第二個樣板探測；
+    # INSERT 的資料行清單之後是 VALUES（沒有清單的 INSERT VALUES、INSERT DEFAULT VALUES 由 INSERT 那條給）。
     @{ Pattern = ''; After = @('MergeWhen'); Expand = 1 }
-    @{ Pattern = 'NOT MATCHED BY'; After = @('MergeWhen') }
+    @{ Pattern = 'NOT MATCHED BY'; After = @('MergeWhen'); Expand = 1 }
+    @{ Pattern = 'UPDATE'; After = @('MergeAction') }
+    @{ Pattern = 'INSERT'; After = @('MergeAction'); Template = 1 }
+    @{ Pattern = 'INSERT ()'; After = @('MergeAction'); Template = 1 }
 
     @{ Pattern = 'EXECUTE AS' }
     @{ Pattern = 'EXEC AS' }
@@ -960,7 +1001,7 @@ function Add-ClausePhrase {
     }
 }
 
-# 帶 After 的片語以那個位置的第一個樣板探測：它是那個位置的代表寫法，而且是完整的語句，
+# 帶 After 的片語以那個位置的第一個樣板探測（Template 另外指定的除外）：它是那個位置的代表寫法，而且是完整的語句，
 # 「寫到這裡語句已經完整」的判斷才有意義。其餘樣板是第三階段為了撈齊關鍵字而加的旁支
 # （FROM t JOIN y 還缺 ON），拿來探片語只會長出那條旁支才有的字，還要多花幾倍的時間。
 foreach ($entry in $ClausePhrases) {
@@ -985,7 +1026,7 @@ foreach ($entry in $ClausePhrases) {
             throw "片語「$pattern」的 After 寫了不存在的位置 $position。"
         }
 
-        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[0] -Pattern $pattern
+        $probe = Get-PhraseProbe -Lead @($ContextTemplates[$position])[[int]$entry['Template']] -Pattern $pattern
         Add-ClausePhrase @common -Probe $probe -After $position
     }
 }
@@ -1020,7 +1061,7 @@ foreach ($entry in $ClausePhrases) {
     }
 
     foreach ($position in ($null -ne $lead ? @('Any') : @($entry['After'] ?? 'StatementStart'))) {
-        $leadText = $lead ?? @($ContextTemplates[$position])[0]
+        $leadText = $lead ?? @($ContextTemplates[$position])[[int]$entry['Template']]
 
         if (-not (Test-PatternAccepted -Probe (Get-PhraseProbe -Lead $leadText -Pattern $entry['Pattern']))) {
             throw "片語「$($entry['Pattern'])」整段剖析不過，拿它補前面那段的字沒有根據。"

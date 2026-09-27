@@ -103,9 +103,9 @@ public sealed class SqlCompletionPolicyTests
     [InlineData(";WITH c", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
     [InlineData("WITH c AS (SELECT 1 AS a), ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
     [InlineData("CREATE VIEW v AS WITH ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.Any, CompletionTarget.Any, false)]
-    [InlineData("SELECT a INTO ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any, false)]
-    [InlineData("SELECT a INTO #n", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any, false)]
-    [InlineData("SELECT * INTO dbo.", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.TableSourceTail, CompletionTarget.Any, false)]
+    [InlineData("SELECT a INTO ", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any, false)]
+    [InlineData("SELECT a INTO #n", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any, false)]
+    [InlineData("SELECT * INTO dbo.", false, false, SqlCompletionSlot.Name, SqlKeywordPosition.SelectIntoTail, CompletionTarget.Any, false)]
     [InlineData("INSERT INTO ", true, true, SqlCompletionSlot.Grammar, SqlKeywordPosition.DataSource, CompletionTarget.DataSource, false)]
 
     // WITH 的其他用法不是 CTE。

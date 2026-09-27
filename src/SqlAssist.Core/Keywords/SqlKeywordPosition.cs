@@ -134,6 +134,40 @@ public enum SqlKeywordPosition : long
     /// </remarks>
     MergeWhen = 1 << 28,
 
+    /// <summary>MERGE 的 THEN 之後——UPDATE、DELETE、INSERT。</summary>
+    MergeAction = 1L << 36,
+
+    /// <summary>MERGE 的 ON 條件或一個動作寫完之後——WHEN、OUTPUT、OPTION。</summary>
+    /// <remarks>
+    /// ON 條件寫完時分析器同時回報 <see cref="ExpressionTail"/>：條件還能接 AND、OR。
+    /// 不借用資料來源尾端：MERGE 的 ON 之後不接 WHERE、JOIN。
+    /// </remarks>
+    MergeClause = 1L << 37,
+
+    /// <summary>GRANT／DENY／REVOKE 的權限寫完之後——ON、TO、FROM。</summary>
+    PermissionList = 1L << 38,
+
+    /// <summary>GRANT／DENY／REVOKE 的 ON 目標之後——TO、FROM。</summary>
+    /// <remarks>不借用資料來源尾端：那裡探得到的是查詢的子句字，探不到 REVOKE 的 FROM。</remarks>
+    PermissionTarget = 1L << 39,
+
+    /// <summary>SELECT … INTO 的新資料表之後——FROM、WHERE、UNION。</summary>
+    SelectIntoTail = 1L << 40,
+
+    /// <summary>FETCH … FROM 的游標之後——INTO。</summary>
+    FetchTail = 1L << 41,
+
+    /// <summary>索引鍵清單裡一個資料行之後——ASC、DESC。</summary>
+    /// <remarks>
+    /// CREATE INDEX 的 <c>ON t (a </c>、條件約束的 <c>PRIMARY KEY (a </c>、<c>UNIQUE (a </c> 與內嵌的
+    /// <c>INDEX ix (a </c>。不借用述詞：<c>ON t (</c> 的 ON 不是聯結條件。
+    /// </remarks>
+    IndexKeyTail = 1L << 42,
+
+    /// <summary>UPDATE 的 SET 指派寫完之後——FROM、WHERE、OUTPUT、OPTION。</summary>
+    /// <remarks>分析器同時回報 <see cref="ExpressionTail"/>：指派的值還能接運算子與 COLLATE。</remarks>
+    UpdateSetTail = 1L << 43,
+
     /// <summary>BACKUP DATABASE／LOG 的 WITH 與選項清單的逗號之後；選項由子句片語給。</summary>
     BackupOption = 1 << 29,
 
@@ -202,7 +236,8 @@ public enum SqlKeywordPosition : long
         | TableSourceTail | Predicate | ExpressionTail | OrderByTail | GroupByTail
         | OrderByColumn | ByAnchor | DdlObject | CaseArm | CaseBody
         | ColumnDefinition | BlockStart | BlockEnd | IfBodyEnd | CursorOption | TriggerHeader
-        | MergeWhen | BackupOption | RestoreOption
+        | MergeWhen | MergeAction | MergeClause | BackupOption | RestoreOption
+        | PermissionList | PermissionTarget | SelectIntoTail | FetchTail | IndexKeyTail | UpdateSetTail
         | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | AlterTableAction | AlterTableAdd | AlterTableColumn

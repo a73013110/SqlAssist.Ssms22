@@ -89,8 +89,8 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 位置本來就是旗標，文法允許兩個就報兩個，不必挑一個猜。
     ///
     /// <c>SET</c> 是同一件事的第二次：<c>UPDATE t SET a = 1 </c> 之後接得了
-    /// <c>WHERE</c>、<c>FROM</c>、<c>OUTPUT</c>、<c>OPTION</c>，而那一整組字掛的是
-    /// <see cref="SqlKeywordPosition.TableSourceTail"/>——只給述詞尾端的症狀就是
+    /// <c>WHERE</c>、<c>FROM</c>、<c>OUTPUT</c>、<c>OPTION</c>，那一整組字掛在
+    /// <see cref="SqlKeywordPosition.UpdateSetTail"/>——只給述詞尾端的症狀就是
     /// <c>UPDATE</c> 寫到一半打不出 <c>WHERE</c>。SET 選項（<c>SET NOCOUNT </c>、
     /// <c>SET NOCOUNT ON </c>）不走這裡，見 <see cref="FindSetOptionPart"/>。
     ///
@@ -120,7 +120,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
             ["WHERE"] = SqlKeywordPosition.ExpressionTail,
             ["HAVING"] = SqlKeywordPosition.ExpressionTail,
-            ["SET"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.TableSourceTail,
+            ["SET"] = SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail,
 
             [OrderBy] = SqlKeywordPosition.OrderByTail,
             [GroupBy] = SqlKeywordPosition.GroupByTail,
@@ -368,6 +368,9 @@ public sealed partial class SqlKeywordPositionAnalyzer
         SqlKeywordPosition.ExpressionTail |
         SqlKeywordPosition.OrderByTail |
         SqlKeywordPosition.GroupByTail |
+        SqlKeywordPosition.SelectIntoTail |
+        SqlKeywordPosition.FetchTail |
+        SqlKeywordPosition.UpdateSetTail |
         SqlKeywordPosition.SetOptionValue;
 
     /// <summary>
@@ -1216,10 +1219,10 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return true;
         }
 
-        // 新資料表寫完之後接的是 FROM、WHERE，與 SELECT … INTO 既有的尾端一樣。
+        // 新資料表寫完之後接的是 FROM、WHERE。
         if (token.IsKeyword("INTO") && IsSelectInto(last))
         {
-            caret = new SqlCaretPosition(SqlKeywordPosition.TableSourceTail, SqlCompletionSlot.Name);
+            caret = new SqlCaretPosition(SqlKeywordPosition.SelectIntoTail, SqlCompletionSlot.Name);
             return true;
         }
 
@@ -1867,6 +1870,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return new SqlCaretPosition(SqlKeywordPosition.StatementStart);
         }
 
+        // 敘述自己的格子也以一整組括號寫完：MERGE 的 VALUES (…)、GRANT SELECT (a, b)。
+        if (FindStatementSlot(close) is { } slot)
+        {
+            return new SqlCaretPosition(slot);
+        }
+
         return new SqlCaretPosition(FindClausePosition(open - 1));
     }
 
@@ -1989,6 +1998,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             if (anchors.TryGetValue(token.Value, out var position) &&
                 ((position & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None || IsStatementHead(index)))
             {
+                if (anchors == ClauseAnchors && RefineClauseEnd(index) is { } refined)
+                {
+                    position = refined;
+                }
+
                 return insideGroup ? position & ~SqlKeywordPosition.StatementStart : position;
             }
 
@@ -1999,6 +2013,27 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         return SqlKeywordPosition.Any;
+    }
+
+    /// <summary>
+    /// 同一個子句錨點屬於不同敘述時，子句寫完之後接的字不同：<c>SELECT … INTO #t </c> 接 FROM，
+    /// <c>INSERT INTO t </c> 不接；<c>FETCH NEXT FROM c </c> 接 INTO，查詢的 FROM 不接。
+    /// </summary>
+    private SqlKeywordPosition? RefineClauseEnd(int anchor)
+    {
+        var token = tokens[anchor];
+
+        if (token.IsKeyword("INTO") && IsSelectInto(anchor))
+        {
+            return SqlKeywordPosition.SelectIntoTail;
+        }
+
+        if (token.IsKeyword("FROM") && FindVerb(anchor - 1) is var verb and >= 0 && tokens[verb].IsKeyword("FETCH"))
+        {
+            return SqlKeywordPosition.FetchTail;
+        }
+
+        return null;
     }
 
     /// <summary><paramref name="index"/> 是不是 ORDER BY／GROUP BY 的那個 BY。</summary>

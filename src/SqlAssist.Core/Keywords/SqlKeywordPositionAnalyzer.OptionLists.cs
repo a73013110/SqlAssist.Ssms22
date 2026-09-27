@@ -50,6 +50,27 @@ public sealed partial class SqlKeywordPositionAnalyzer
                 ? new OptionSlots(SqlKeywordPosition.TriggerOption, SqlKeywordPosition.TriggerHeader)
                 : null),
 
+        // GRANT|DENY|REVOKE SELECT, UPDATE (a, b), VIEW DEFINITION：權限寫完之後是 ON、TO、FROM。
+        // 權限之後的逗號與 GRANT 本身之後由目錄與片語給，這裡不回位置。WITH GRANT OPTION 的 GRANT 不是開頭。
+        new(
+            isAnchor: (analyzer, index) => analyzer.OpensPermissionList(index),
+            isPart: (analyzer, index) => analyzer.IsPermissionPart(index),
+            endsItem: (_, _) => true,
+            header: (_, _) => new OptionSlots(null, SqlKeywordPosition.PermissionList),
+            skipsGroups: true),
+
+        // GRANT … ON [SCHEMA::]dbo.Loan：目標寫完之後是 TO、FROM。
+        new(
+            isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("ON"),
+            isPart: (analyzer, index) => analyzer.IsPlainWord(index) ||
+                analyzer.tokens[index].IsPunctuation(".") || analyzer.tokens[index].IsPunctuation("::") ||
+                (index + 1 < analyzer.tokens.Count && analyzer.tokens[index + 1].IsPunctuation("::")),
+            endsItem: (analyzer, index) => analyzer.IsPlainWord(index),
+            header: (analyzer, on) => on >= 1 && analyzer.FindStatementSlot(on - 1) == SqlKeywordPosition.PermissionList
+                ? new OptionSlots(null, SqlKeywordPosition.PermissionTarget)
+                : null,
+            separatedByCommas: false),
+
         // CREATE|ALTER PROCEDURE|FUNCTION|VIEW … WITH：EXECUTE AS、INLINE = ON、RETURNS NULL ON NULL INPUT。
         new(
             isAnchor: (analyzer, index) => analyzer.tokens[index].IsKeyword("WITH"),
@@ -82,6 +103,16 @@ public sealed partial class SqlKeywordPositionAnalyzer
         if (OpensMergeWhen(last))
         {
             return SqlKeywordPosition.MergeWhen;
+        }
+
+        if (FindMergeSlot(last) is { } merge)
+        {
+            return merge;
+        }
+
+        if (EndsIndexKey(last))
+        {
+            return SqlKeywordPosition.IndexKeyTail;
         }
 
         foreach (var list in OptionLists)
@@ -138,6 +169,261 @@ public sealed partial class SqlKeywordPositionAnalyzer
         return tokens[last].IsKeyword("WHEN") &&
             FindUnclosedCase(last - 1) < 0 &&
             tokens[FindStatementStart(last)].IsKeyword("MERGE");
+    }
+
+    /// <summary>GRANT、DENY、REVOKE 開始權限清單；<c>WITH GRANT OPTION</c> 的 GRANT 不是。</summary>
+    private bool OpensPermissionList(int index) =>
+        IsBareKeyword(index) &&
+        (tokens[index].IsKeyword("GRANT") || tokens[index].IsKeyword("DENY") || tokens[index].IsKeyword("REVOKE")) &&
+        !(index >= 1 && tokens[index - 1].IsKeyword("WITH"));
+
+    /// <summary>
+    /// 權限寫得出這個詞元：<c>SELECT</c>、<c>VIEW DEFINITION</c>、<c>ALTER ANY USER</c> 這些字；
+    /// 權限清單之後的 ON、TO、FROM 與 WITH 不是。
+    /// </summary>
+    private bool IsPermissionPart(int index)
+    {
+        var token = tokens[index];
+
+        return token.Kind == SqlTokenKind.Identifier && !token.IsQuoted &&
+            !token.IsKeyword("ON") && !token.IsKeyword("TO") && !token.IsKeyword("FROM") && !token.IsKeyword("WITH");
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 之後是 MERGE 自己的格子時，那個位置；不是就回 null。
+    /// </summary>
+    /// <remarks>
+    /// 往回找 MERGE 那一層最近的 ON、WHEN、THEN（整組括號與寫完的 CASE 跳過）：
+    /// <list type="bullet">
+    /// <item><c>USING s ON t.a = s.a </c>：條件寫完，還能接 AND、OR，也能接 WHEN。</item>
+    /// <item><c>WHEN MATCHED AND t.a = 1 </c>：附加條件寫完，與 CASE 的 WHEN 條件同一個位置。</item>
+    /// <item><c>THEN </c>：動作；<c>THEN DELETE </c>、<c>THEN UPDATE SET a = 1 </c>、
+    /// <c>THEN INSERT (a) VALUES (1) </c>、<c>DEFAULT VALUES </c>：動作寫完。</item>
+    /// </list>
+    /// 寫到一半的（<c>THEN UPDATE </c>、<c>WHEN MATCHED </c>、<c>ON t.a = </c>）由片語與一般規則回答。
+    /// 往回途中遇到能開始一句或開始子句的字就停：那不是 MERGE 這一層，也不必走完整份指令碼。
+    /// </remarks>
+    private SqlKeywordPosition? FindMergeSlot(int last)
+    {
+        if (!EndsOperand(last) &&
+            !tokens[last].IsKeyword("THEN") && !tokens[last].IsKeyword("DELETE") && !tokens[last].IsKeyword("VALUES"))
+        {
+            return null;
+        }
+
+        var hasAnd = false;
+
+        for (var index = last; index >= 0; index--)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation(")"))
+            {
+                index = SqlTokenNavigator.FindOpeningParenthesis(tokens, index);
+
+                if (index < 0)
+                {
+                    return null;
+                }
+
+                continue;
+            }
+
+            if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted)
+            {
+                if (token.IsPunctuation("(") || token.IsPunctuation(";"))
+                {
+                    return null;
+                }
+
+                continue;
+            }
+
+            if (token.IsKeyword("END") && FindCaseStart(index) is var caseStart and >= 0)
+            {
+                index = caseStart;
+                continue;
+            }
+
+            if (!IsBareKeyword(index))
+            {
+                continue;
+            }
+
+            if (token.IsKeyword("ON"))
+            {
+                return index < last && FollowsMergeSource(index)
+                    ? SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause
+                    : null;
+            }
+
+            if (token.IsKeyword("WHEN") || token.IsKeyword("THEN"))
+            {
+                if (FindUnclosedCase(index - 1) >= 0 || !tokens[FindStatementStart(index)].IsKeyword("MERGE"))
+                {
+                    return null;
+                }
+
+                return token.IsKeyword("WHEN")
+                    ? (hasAnd && EndsOperand(last) ? SqlKeywordPosition.CaseArm : null)
+                    : EndsMergeAction(index, last);
+            }
+
+            hasAnd |= token.IsKeyword("AND");
+
+            // 動作的動詞只在 THEN 之後；別的能開始一句或開始子句的字表示這裡不是 MERGE 那一層。
+            var verb = token.IsKeyword("UPDATE") || token.IsKeyword("DELETE") || token.IsKeyword("INSERT");
+
+            if ((verb && !(index >= 1 && tokens[index - 1].IsKeyword("THEN"))) ||
+                (!verb && !token.IsKeyword("SET") && (StartsStatement(token) || ClauseAnchors.ContainsKey(token.Value))) ||
+                token.IsKeyword("USING") || token.IsKeyword("OUTPUT") || token.IsKeyword("OPTION"))
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// <paramref name="then"/> 的 THEN 之後、到 <paramref name="last"/> 為止，MERGE 的動作在哪一格。
+    /// </summary>
+    private SqlKeywordPosition? EndsMergeAction(int then, int last)
+    {
+        if (then == last)
+        {
+            return SqlKeywordPosition.MergeAction;
+        }
+
+        var verb = tokens[then + 1];
+
+        if (verb.IsKeyword("DELETE"))
+        {
+            return last == then + 1 ? SqlKeywordPosition.MergeClause : null;
+        }
+
+        if (verb.IsKeyword("UPDATE"))
+        {
+            // SET 之後的指派寫完：值還能接運算子與 COLLATE，也能接下一個 WHEN。
+            return then + 2 < last && tokens[then + 2].IsKeyword("SET") && EndsOperand(last)
+                ? SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause
+                : null;
+        }
+
+        if (verb.IsKeyword("INSERT"))
+        {
+            // VALUES (…) 或 DEFAULT VALUES 寫完。
+            if (tokens[last].IsKeyword("VALUES"))
+            {
+                return tokens[last - 1].IsKeyword("DEFAULT") ? SqlKeywordPosition.MergeClause : null;
+            }
+
+            var open = tokens[last].IsPunctuation(")") ? SqlTokenNavigator.FindOpeningParenthesis(tokens, last) : -1;
+
+            return open >= 1 && tokens[open - 1].IsKeyword("VALUES") ? SqlKeywordPosition.MergeClause : null;
+        }
+
+        return null;
+    }
+
+    /// <summary><paramref name="on"/> 的 ON 前面是 MERGE 的 <c>USING 來源 [AS] [別名]</c>。</summary>
+    private bool FollowsMergeSource(int on)
+    {
+        var index = on - 1;
+
+        if (index >= 0 && tokens[index].Kind == SqlTokenKind.Identifier && !IsBareKeyword(index) &&
+            index >= 1 && !tokens[index - 1].IsPunctuation(".") && !tokens[index - 1].IsKeyword("USING"))
+        {
+            index--;
+        }
+
+        if (index >= 0 && tokens[index].IsKeyword("AS"))
+        {
+            index--;
+        }
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        index = tokens[index].IsPunctuation(")")
+            ? SqlTokenNavigator.FindOpeningParenthesis(tokens, index) - 1
+            : tokens[index].Kind == SqlTokenKind.Identifier
+                ? SqlTokenNavigator.SkipQualifiedNameBackward(tokens, index) - 1
+                : -1;
+
+        return index >= 0 && tokens[index].IsKeyword("USING");
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 寫完一個運算元：名稱、變數、常值、右括號，或 NULL 這種自成一項的關鍵字。
+    /// </summary>
+    private bool EndsOperand(int last)
+    {
+        var token = tokens[last];
+
+        return token.Kind switch
+        {
+            SqlTokenKind.Identifier => !IsBareKeyword(last) || SqlKeywordCatalog.EndsItem(token.Value),
+            SqlTokenKind.Punctuation => token.IsPunctuation(")"),
+            SqlTokenKind.Operator => false,
+            _ => true
+        };
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 是索引鍵清單裡的一個資料行：CREATE INDEX 的 <c>ON t (a</c>、
+    /// <c>PRIMARY KEY (a</c>、<c>UNIQUE (a</c>、內嵌的 <c>INDEX ix (a</c>。
+    /// </summary>
+    private bool EndsIndexKey(int last)
+    {
+        if (last < 3 || !IsPlainWord(last) || !(tokens[last - 1].IsPunctuation("(") || tokens[last - 1].IsPunctuation(",")))
+        {
+            return false;
+        }
+
+        var open = tokens[last - 1].IsPunctuation("(") ? last - 1 : SqlTokenNavigator.FindUnclosedParenthesis(tokens, last - 1);
+
+        if (open < 2)
+        {
+            return false;
+        }
+
+        var before = tokens[open - 1];
+
+        if (before.IsKeyword("KEY") || before.IsKeyword("UNIQUE") || before.IsKeyword("CLUSTERED") || before.IsKeyword("NONCLUSTERED"))
+        {
+            return true;
+        }
+
+        if (before.Kind != SqlTokenKind.Identifier)
+        {
+            return false;
+        }
+
+        var name = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, open - 1);
+
+        if (name < 1)
+        {
+            return false;
+        }
+
+        // 內嵌索引：INDEX ix (a。
+        if (tokens[name - 1].IsKeyword("INDEX"))
+        {
+            return true;
+        }
+
+        // CREATE [UNIQUE] [CLUSTERED] INDEX i ON t (a。
+        if (!tokens[name - 1].IsKeyword("ON") || name < 3)
+        {
+            return false;
+        }
+
+        var index = SqlTokenNavigator.SkipQualifiedNameBackward(tokens, name - 2) - 1;
+
+        return index >= 0 && tokens[index].IsKeyword("INDEX");
     }
 
     /// <summary>不是關鍵字的識別字：選項名稱、游標名稱這一類。</summary>

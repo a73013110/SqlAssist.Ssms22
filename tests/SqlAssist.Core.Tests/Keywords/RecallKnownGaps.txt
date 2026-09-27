@@ -9,22 +9,6 @@ FOR CREATE_TABLE ⎵AS | DDL 事件清單寫完沒有位置
 FOR CREATE_TABLE AS ⎵SELECT | 事件清單沒有位置，本體判不成語句開頭
 FOR LOGON ⎵AS | ON ALL SERVER 不算觸發程序標頭，事件清單也沒有位置
 FOR LOGON AS ⎵SELECT | 標頭與事件清單都沒有位置，本體判不成語句開頭
-s . CopyNo ⎵WHEN | MERGE 的 ON 條件寫完只有述詞與資料來源尾端，沒有 WHEN
-t . ReaderId = 1 ⎵THEN | MERGE 的 WHEN 條件被當成 ON 的述詞尾端
-THEN UPDATE ⎵SET | THEN 之後判不出位置，UPDATE 又讓目標變成資料來源
-UPDATE SET CopyNo = s . CopyNo ⎵WHEN | MERGE 動作寫完被當成 UPDATE 的 SET 尾端
-BY TARGET ⎵THEN | NOT MATCHED BY TARGET 之後沒有片語
-VALUES ( s . CopyNo ) ⎵WHEN | MERGE 的 INSERT 動作寫完沒有位置
-BY SOURCE ⎵THEN | NOT MATCHED BY SOURCE 之後沒有片語
-GRANT SELECT ⎵ON | 權限清單寫完沒有位置
-GRANT EXECUTE ⎵ON | 權限清單寫完沒有位置
-DENY SELECT ⎵ON | 權限清單寫完沒有位置
-REVOKE SELECT ⎵ON | 權限清單寫完沒有位置
-REVOKE SELECT ON dbo . Loan ⎵FROM | 授權目標之後借用資料來源尾端，那裡只探得到 GRANT 的 TO
-SELECT CopyNo INTO #t ⎵FROM | SELECT … INTO 的新資料表之後借用資料來源尾端
-FETCH NEXT FROM c ⎵INTO | FETCH 的游標之後借用資料來源尾端
-( CopyNo ⎵DESC | 索引鍵清單裡被當成 ON 的述詞
-ReaderId ⎵ASC | 索引鍵清單裡被當成 ON 的述詞
 REFERENCES dbo . Copy ( CopyNo ) ON ⎵DELETE | 外部索引鍵的 ON 被當成述詞起點；ON DELETE 片語的前一格判不出位置
 SELECT LoanDate ⎵AT | AT 不是關鍵字，AT TIME 片語的前一格判不出位置
 SELECT LoanDate AT ⎵TIME | AT TIME 是 Lead 片語，只有單一個字的 AT 立不成片語
@@ -44,7 +28,6 @@ CREATE LOGIN LibLogin WITH ⎵PASSWORD | CREATE LOGIN 沒有片語
 DISABLE TRIGGER ⎵ALL | 目標是觸發程序，關鍵字全被目標過濾擋掉
 RAISERROR ( 'x' , 16 , 1 ) WITH ⎵NOWAIT | RAISERROR 的 WITH 選項沒有位置
 OUTPUT WITH ⎵RECOMPILE | EXEC 的 WITH 選項沒有位置
-UPDATE l SET l . CopyNo = c . CopyNo ⎵FROM | UPDATE 的 SET 寫完掛在資料來源尾端，那裡探不到 FROM
 ROOT ( 'Copies' ) , ⎵TYPE | FOR XML 的指示詞清單在逗號之後沒有位置
 TABLESAMPLE ( 10 ⎵PERCENT | TABLESAMPLE 的括號裡沒有位置，PERCENT 只屬於 TOP 子句
 FOR BranchId ⎵IN | PIVOT 的 FOR 欄位之後沒有位置
