@@ -36,8 +36,16 @@
   "SearchName": "搜尋結構",
   "WrapToggle": "長文字換行顯示",
   "CopyButton": "複製選取內容；沒有選取時複製完整指令碼",
-  "PinToggle": "釘住：留在原處，游標移開、打字或捲動都不收；拖曳抬頭可以搬到別處，只有 Esc 或關閉才收",
+  "PinToggle": "釘住：預覽固定在這裡，之後的預覽都在這扇窗裡換內容；拖曳抬頭可以搬到別處，只有 Esc 或關閉才收",
+  "DockButton": "移到工具窗：跨分頁留著，可以停靠或拖到別的螢幕",
   "CloseButton": "關閉預覽（Esc）",
+  // 預覽等內容時膠囊的無障礙名稱；{name} 是物件或內建名稱。
+  "CapsuleLoading": "正在載入 {name}",
+  "ToolWindowCaption": "結構預覽",
+  // 工具窗標題；{name} 是正在顯示的物件或內建名稱。
+  "ToolWindowCaptionFor": "結構預覽 - {name}",
+  "ToolWindowMissing": "SSMS 未建立結構預覽工具窗。",
+  "ToolWindowOpenFailed": "開啟結構預覽工具窗失敗",
   // 調整大小把手的無障礙名稱。
   "ResizeBottomLeft": "左下角調整大小",
   "ResizeTopRight": "右上角調整大小",

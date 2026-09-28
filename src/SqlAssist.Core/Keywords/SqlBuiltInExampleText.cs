@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Keywords;
 /// </summary>
 /// <remarks>
 /// 只看 <see cref="SqlBuiltInExample"/> 的資料就決定得了的文字組法，因此放在 Core：
-/// Ssms22 的 <c>SqlStructurePreviewControl</c> 只管把結果丟進同一個唯讀檢視，不必自己
+/// Ssms22 的 <c>SqlStructurePanel</c> 只管把結果丟進同一個唯讀檢視，不必自己
 /// 判斷「第幾段」「要不要空行」「要不要插 GO」。每段前面一律加 <c>-- ▸ {title}</c> 當
 /// 標頭——只有一段時也一樣，單一規則比「只有一段就不寫標頭」的補丁好守。段落之間插一行
 /// <c>GO</c> 再空一行：整頁複製後要能直接執行，同一筆的多段常常各自宣告同名變數或暫存表，

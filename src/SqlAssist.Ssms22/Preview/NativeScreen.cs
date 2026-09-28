@@ -6,12 +6,13 @@ using System.Windows.Media;
 
 namespace SqlAssist.Ssms22.Preview;
 
-/// <summary>預覽定位需要的螢幕工作區、DPI 轉換與 Popup 視窗層級操作。</summary>
+/// <summary>預覽定位需要的螢幕工作區、DPI 轉換與 Popup 視窗的層級與位置。</summary>
 internal static class NativeScreen
 {
     private const uint MonitorDefaultToNearest = 2;
     private const uint GetRoot = 2;
     private const uint SetWindowPositionFlags = 0x0013; // 不移動、不改尺寸、不啟用。
+    private const uint MoveWindowFlags = 0x0015; // 不改尺寸、不改層級、不啟用。
     private static readonly IntPtr NotTopmost = new(-2);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -191,6 +192,31 @@ internal static class NativeScreen
                 return null;
             },
             fallback: null);
+    }
+
+    /// <summary>
+    /// 把 <paramref name="visual"/> 所在的頂層視窗（Popup）搬到螢幕上的這一點；單位是實體像素。
+    /// </summary>
+    /// <remarks>
+    /// 給「擁有者在動、內容相對位置不變」用：WPF 的 Popup 只在自己的屬性變了才重新定位，
+    /// 等它下一輪重排就是落後一格。這裡只搬位置，尺寸與層級不動。
+    /// </remarks>
+    public static void MoveWindowOf(Visual visual, double screenX, double screenY)
+    {
+        SqlAssistPlatformGuard.Probe("搬動預覽視窗", () =>
+        {
+            if (PresentationSource.FromVisual(visual) is HwndSource source)
+            {
+                SetWindowPos(
+                    source.Handle,
+                    IntPtr.Zero,
+                    (int)Math.Round(screenX),
+                    (int)Math.Round(screenY),
+                    0,
+                    0,
+                    MoveWindowFlags);
+            }
+        });
     }
 
     /// <summary>

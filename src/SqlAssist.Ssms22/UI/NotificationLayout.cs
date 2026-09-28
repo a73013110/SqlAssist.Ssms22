@@ -47,5 +47,5 @@ internal static class NotificationLayout
     public const double Bleed = 6;
 
     /// <summary>12 DIP 狀態圖示放進圖示欄時的左距，讓它與 16 DIP 語意圖示同一條中線。</summary>
-    public static Thickness StatusIconInset => new((SemanticIcon - NotificationStatusIcon.Size) / 2, 0, 0, 0);
+    public static Thickness StatusIconInset => new((SemanticIcon - SurfaceStatusIcon.Size) / 2, 0, 0, 0);
 }

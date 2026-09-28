@@ -9,7 +9,6 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
@@ -19,7 +18,6 @@ using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
-using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -29,35 +27,14 @@ using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
-/// <summary>拖曳抬頭或角落握把的一次事件。</summary>
-internal sealed class PreviewDragEventArgs : EventArgs
-{
-    public PreviewDragEventArgs(
-        PreviewDragHandle handle,
-        double horizontalChange,
-        double verticalChange,
-        bool canceled = false)
-    {
-        Handle = handle;
-        HorizontalChange = horizontalChange;
-        VerticalChange = verticalChange;
-        Canceled = canceled;
-    }
-
-    public PreviewDragHandle Handle { get; }
-
-    /// <summary>相對按下瞬間的總位移，不是上一幀到這一幀的增量。</summary>
-    public double HorizontalChange { get; }
-
-    public double VerticalChange { get; }
-
-    public bool Canceled { get; }
-}
-
 /// <summary>
-/// 浮動結構預覽的內容。
+/// 結構預覽的內容：抬頭、分頁、搜尋與複製。
 /// </summary>
 /// <remarks>
+/// 浮在編輯器上的預覽（外殼是 <see cref="PreviewSurface"/>）與停靠的工具視窗
+/// （<see cref="SqlStructureToolWindow"/>）用的是同一份；圓角、柔影、握把、進出場與
+/// 「這扇窗怎麼收」都屬於宿主，這裡一概不知道。
+///
 /// 所有分頁都是一般的 WPF 控制項，選取、複製與焦點都是原生行為。
 /// 這一點是刻意的：內嵌真正的編輯器雖然可以拿到免費的語法著色，
 /// 但它會把鍵盤焦點搬進另一個呈現來源，編輯器因此判定自己失去聚合焦點，
@@ -68,17 +45,8 @@ internal sealed class PreviewDragEventArgs : EventArgs
 /// <see cref="ApplicationCommands.Copy"/> 的繞送：浮動視窗裡的鍵盤焦點
 /// 未必落在預期的元素上，命令繞送不到就會變成「選得起來但複製不了」。
 /// </remarks>
-internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget, IDisposable
+internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposable
 {
-    /// <summary>
-    /// 角落握把的邊長。
-    /// </summary>
-    /// <remarks>
-    /// 不只是外觀尺寸：呼叫端拿它當「這一軸算不算被拖過」的門檻，所以寫死在兩邊
-    /// 會出現「握把改大了、門檻沒跟著改」這種看不出關聯的失準。
-    /// </remarks>
-    public const double GripSize = 16;
-
     /// <summary>
     /// 內建對照表的一列。
     /// </summary>
@@ -486,43 +454,12 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     private readonly ToggleButton _wrap;
     private readonly DispatcherTimer _searchDelay;
     private readonly DataGridTemplateColumn _flags;
-    private readonly Thumb _resizeLeft;
-    private readonly Thumb _resizeRight;
-    private readonly ToggleButton _pin;
 
-    /// <summary>抬頭：按住拖曳就是搬動視窗（沒釘住的先釘住）。</summary>
+    /// <summary>抬頭：名稱、摘要與宿主的工具。</summary>
     private readonly DockPanel _header;
 
-    /// <summary>表面裡的全部內容；進場時晚一點淡入並微微放大，外形先長。</summary>
-    private readonly Grid _content;
-
-    private readonly ScaleTransform _contentScale = new(1, 1);
-
-    /// <summary>整個 Popup 的內容：外圈是透明的陰影邊，裡面疊著柔影層與表面。</summary>
-    private readonly Grid _frame;
-
-    /// <summary>只有底色與柔影的一層；影子不掛在內容上，否則文字也會帶著一圈模糊。</summary>
-    private readonly Border _shadow;
-
-    private readonly Border _root;
-
-    /// <summary>
-    /// 外形的寬與高各自的揭露進度；0 是錨點旁的一顆膠囊，1 是整個表面。
-    /// </summary>
-    /// <remarks>
-    /// 兩軸分開走：寬先展開、高隨後落下，看起來是膠囊拉長再往下攤開，而不是一個矩形等比放大。
-    /// </remarks>
-    private SpringMotion? _revealWidth;
-
-    private SpringMotion? _revealHeight;
-
-    /// <summary>膠囊出發的位置：錨點在表面裡的水平位置，以及是從上緣還是下緣長出來。</summary>
-    private double _revealOrigin;
-
-    private bool _revealFromBottom;
-
-    /// <summary>縮回錨點之後要做的事（關掉 Popup、放開內容）；還在縮時不是 null。</summary>
-    private Action? _exitDone;
+    /// <summary>抬頭右上角留給宿主的那一格。</summary>
+    private readonly ContentControl _headerTools;
 
     /// <summary>目前套用的字級；相同就不重建樣式。</summary>
     private SqlAssistChrome.Metrics _metrics;
@@ -533,20 +470,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     private readonly Style _cellLine;
 
     private readonly Style _cellWrapped;
-
-    /// <summary>拖曳開始當下的游標螢幕位置；每一步都以它為基準算總位移。</summary>
-    private Point _dragOrigin;
-
-    /// <summary>正在拖的把手；沒在拖時 null。</summary>
-    private PreviewDragHandle? _dragHandle;
-
-    private Vector _dragChange;
-
-    /// <summary>抬頭上按下但還沒拖出門檻的位置；一般的點擊不能被當成搬動（搬動會順便釘住）。</summary>
-    private Point? _headerPress;
-
-    /// <summary>目前的握把配置；null 是還沒配置過。</summary>
-    private (bool OnTop, bool Pinned)? _grips;
 
     private int _openContextMenuCount;
 
@@ -591,11 +514,16 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     /// <summary>搜尋框裡目前生效的比對器；沒有搜尋字時 null。</summary>
     private TextMatcher? _matcher;
 
-    private readonly IWpfTextView _view;
+    /// <summary>浮動預覽貼著的編輯器；停靠在工具視窗時沒有。</summary>
+    private readonly ITextView? _textView;
 
-    public SqlStructurePreviewControl(IWpfTextView view)
+    /// <param name="textView">
+    /// 浮在這個編輯器上時傳入：搜尋框握著鍵盤的期間，殼層照這個查詢視窗解析的按鍵要交還回來。
+    /// 停靠的工具視窗傳 null，殼層本來就照它自己派送。
+    /// </param>
+    public SqlStructurePanel(ITextView? textView)
     {
-        _view = view;
+        _textView = textView;
         VsThemeBrushes.Apply(this);
         _metrics = SqlAssistChrome.DefaultMetrics;
 
@@ -844,49 +772,25 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         headerText.Children.Add(_signature);
         headerText.Children.Add(_description);
 
-        // 圖釘與關閉固定在右上角：預覽什麼時候會收、怎麼收，看這兩顆就知道。
-        // 只靠 Esc 的話，沒讀過說明的人不知道怎麼關，也不知道它為什麼有時候自己收掉。
-        _pin = SqlAssistChrome.CreateIconToggle(SqlIcon.Pin, PreviewText.PinToggle);
-        _pin.Focusable = false;
-        _pin.Click += (_, _) => SqlAssistPlatformGuard.Run("切換結構預覽圖釘", () => PinToggled?.Invoke(this, EventArgs.Empty));
-
-        var close = SqlAssistChrome.CreateIconButton(SqlIcon.Close, PreviewText.CloseButton);
-        close.Focusable = false;
-        close.Click += (_, _) => SqlAssistPlatformGuard.Run("關閉結構預覽", () => CloseRequested?.Invoke(this, EventArgs.Empty));
-
-        var windowTools = new StackPanel
+        // 抬頭右側留一格給宿主：浮動預覽放圖釘、移到工具視窗與關閉，工具視窗什麼都不放。
+        // 按鈕不在這裡建，因為那幾顆回答的是「這扇窗怎麼收」，而那只有宿主知道。
+        _headerTools = new ContentControl
         {
-            Orientation = Orientation.Horizontal,
+            Focusable = false,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(SqlAssistChrome.Spacing.Group, -4, 0, 0)
         };
-        windowTools.Children.Add(_pin);
-        windowTools.Children.Add(close);
 
-        // 透明底色：抬頭的空白處也要接得到按下，否則只有壓在字上才拖得動。
+        // 透明底色：抬頭的空白處也要接得到按下，浮動預覽靠它拖抬頭搬動。
         _header = new DockPanel
         {
             Margin = new Thickness(16, 12, 10, 10),
             LastChildFill = true,
             Background = Brushes.Transparent
         };
-        DockPanel.SetDock(windowTools, Dock.Right);
-        _header.Children.Add(windowTools);
+        DockPanel.SetDock(_headerTools, Dock.Right);
+        _header.Children.Add(_headerTools);
         _header.Children.Add(headerText);
-        _header.MouseLeftButtonDown += OnHeaderMouseDown;
-        _header.MouseMove += OnHeaderMouseMove;
-        _header.MouseLeftButtonUp += (_, _) => _header.ReleaseMouseCapture();
-        _header.LostMouseCapture += (_, _) => SqlAssistPlatformGuard.Run("結束搬動結構預覽", () =>
-        {
-            _headerPress = null;
-            EndDrag(canceled: false);
-        });
-
-        _resizeLeft = CreateResizeThumb();
-        _resizeLeft.HorizontalAlignment = HorizontalAlignment.Left;
-
-        _resizeRight = CreateResizeThumb();
-        _resizeRight.HorizontalAlignment = HorizontalAlignment.Right;
 
         var footer = new Grid();
         footer.Children.Add(_status);
@@ -901,153 +805,73 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         layout.Children.Add(_header);
         layout.Children.Add(_tabs);
         layout.Children.Add(footer);
-
-        // 握把放在整個內容的 overlay，落在上方時才能移到上緣而不受 footer 限制。
-        _content = new Grid { RenderTransform = _contentScale };
-        _content.Children.Add(layout);
-        _content.Children.Add(_resizeLeft);
-        _content.Children.Add(_resizeRight);
-        SetResizeGrips(onTop: false, pinned: false);
-
-        var radius = new CornerRadius(SqlAssistChrome.FloatingSurfaceRadius);
-        _root = new Border
-        {
-            BorderThickness = new Thickness(1),
-            CornerRadius = radius,
-            SnapsToDevicePixels = true,
-            Child = _content
-        }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground)
-            .WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
-        _root.SizeChanged += (_, _) => SqlAssistPlatformGuard.Probe("裁切結構預覽圓角", ApplyReveal);
-
-        // 與通知島同一種浮層：柔影只掛在底色層並點陣快取，高對比退回實色、不畫影子。
-        _shadow = new Border { CornerRadius = radius, IsHitTestVisible = false }
-            .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
-        SqlAssistChrome.SetSurfaceShadow(_shadow, on: true);
-
-        _frame = new Grid { Margin = new Thickness(ShadowMargin) };
-        _frame.Children.Add(_shadow);
-        _frame.Children.Add(_root);
+        layout.WithTheme(Panel.BackgroundProperty, ThemeBrush.WindowBackground);
 
         // 原生圖示依實際底色轉換，避免深色與高對比主題出現不相容的光暈。
-        _root.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, new Binding(nameof(Border.Background))
+        layout.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, new Binding(nameof(Panel.Background))
         {
-            Source = _root,
+            Source = layout,
             Converter = new BrushToColorConverter()
         });
 
         // 版面計算的模式交給排版而不是像素對齊：字距在小字級下才不會忽寬忽窄。
-        TextOptions.SetTextFormattingMode(_root, TextFormattingMode.Ideal);
+        TextOptions.SetTextFormattingMode(layout, TextFormattingMode.Ideal);
 
         // 整組字級都從設定推導，這裡沒有任何寫死的數字可以跟設定不同步。
         ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
 
-        Content = _frame;
+        Content = layout;
 
         // 顯示時不主動搶焦點：使用者還在打字，游標必須留在編輯器裡。
         // 點進來才接受焦點，那時才需要能夠拉選文字或輸入搜尋字。
         Focusable = false;
 
-        // 收起來就是這一次看完了：下一次打開是另一件事，留著上一次的搜尋字只會讓
-        // 使用者以為那張表少了幾欄。
-        IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("收起結構預覽的搜尋", () =>
+        // 看不見時不再握著鍵盤：切到別的分頁時浮動預覽整個藏起來，搜尋框卻還記著自己在交還按鍵。
+        IsVisibleChanged += (_, _) => SqlAssistPlatformGuard.Run("放開結構預覽搜尋的按鍵", () =>
         {
             if (!IsVisible)
             {
                 ShellKeyCapture.End(this);
-                ResetSearch(keepFocus: false);
             }
         });
     }
-
-    /// <summary>開始拖抬頭或角落握把；位移一律是相對按下瞬間的總量。</summary>
-    public event EventHandler<PreviewDragEventArgs>? DragStarted;
-
-    public event EventHandler<PreviewDragEventArgs>? DragDelta;
-
-    public event EventHandler<PreviewDragEventArgs>? DragCompleted;
-
-    public event EventHandler? SizeResetRequested;
 
     /// <summary>右鍵選單是另一個 Popup，Agent 要把它一起算進聚合焦點。</summary>
     public event EventHandler? InteractionFocusGained;
 
     public event EventHandler? InteractionFocusLost;
 
-    /// <summary>使用者在預覽裡按下 Esc 或關閉鈕。</summary>
+    /// <summary>使用者在內容裡按下 Esc（搜尋框沒有字時）；收不收由宿主決定。</summary>
     public event EventHandler? CloseRequested;
 
-    /// <summary>使用者按了圖釘；釘不釘由擁有者決定，再用 <see cref="SetPinned"/> 回寫。</summary>
-    public event EventHandler? PinToggled;
+    /// <summary>抬頭那一列；浮動預覽在這裡接「拖抬頭搬動」。</summary>
+    public FrameworkElement Header => _header;
+
+    /// <summary>抬頭右上角的宿主工具（圖釘、移到工具視窗、關閉）；null 是不放。</summary>
+    public UIElement? HeaderTools
+    {
+        get => _headerTools.Content as UIElement;
+        set => _headerTools.Content = value;
+    }
 
     /// <summary>
-    /// Popup 外圈留給柔影的透明邊。
+    /// 頁尾狀態列的左右內距；浮動預覽讓開角落握把，停靠時不必。
     /// </summary>
-    /// <remarks>
-    /// Popup 以外畫不出東西，影子要在自己的矩形裡長；這一圈同時就是預覽與錨點、
-    /// 建議清單之間的間距，定位那一端因此不再另加間距。
-    /// </remarks>
-    public const double ShadowMargin = 10;
-
-    /// <summary>正在縮回錨點；那段時間內容還掛在上一個承載視窗上。</summary>
-    public bool IsExiting => _exitDone is not null;
+    public double StatusInset
+    {
+        set => _status.Margin = new Thickness(value, 0, value, 6);
+    }
 
     public bool HasOpenContextMenu => _openContextMenuCount > 0;
 
-    ITextView IShellKeyTarget.View => _view;
+    // 只有浮動預覽會登記到 ShellKeyCapture，而它一定有編輯器；停靠的那一份殼層照工具視窗派送按鍵。
+    ITextView IShellKeyTarget.View => _textView ?? throw new InvalidOperationException();
 
     UIElement IShellKeyTarget.Scope => _searchBar;
 
     IInputElement IShellKeyTarget.FocusTarget => _search;
 
     void IShellKeyTarget.Cancel() => HandleEscape();
-
-    /// <summary>只套用這一輪真正顯示的尺寸；不代表使用者的持久偏好。</summary>
-    public void SetEffectiveSize(double width, double height)
-    {
-        _frame.Width = Math.Max(0, width - ShadowMargin * 2);
-        _frame.Height = Math.Max(0, height - ShadowMargin * 2);
-    }
-
-    /// <summary>圖釘的外觀跟著擁有者的狀態，不跟著按鍵本身；釘住時抬頭顯示成可搬動。</summary>
-    public void SetPinned(bool pinned)
-    {
-        _pin.IsChecked = pinned;
-        _header.Cursor = pinned ? Cursors.SizeAll : null;
-    }
-
-    /// <summary>
-    /// 握把擺在哪裡：錨在名稱上時只有遠離錨點那一側的右角，釘住時是下緣兩角。
-    /// </summary>
-    /// <remarks>
-    /// 錨在名稱上的視窗左緣跟著錨點、靠錨點的那一緣跟著錨點行，使用者能決定的只有寬與高；
-    /// 在那兩條邊上放握把，放開之後定位又把邊拉回錨點，看起來就是「怎麼拖都沒用」。
-    /// 釘住的視窗整個矩形都歸使用者，抬頭負責搬、下緣兩角負責改尺寸。
-    /// </remarks>
-    public void SetResizeGrips(bool onTop, bool pinned)
-    {
-        // 每一輪定位都會走到；配置沒變就不重建變換。
-        if (_grips == (onTop, pinned))
-        {
-            return;
-        }
-
-        _grips = (onTop, pinned);
-        _resizeLeft.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
-        _resizeLeft.Tag = PreviewDragHandle.BottomLeft;
-        _resizeLeft.VerticalAlignment = VerticalAlignment.Bottom;
-        _resizeLeft.Cursor = Cursors.SizeNESW;
-        _resizeLeft.RenderTransform = new ScaleTransform(-1, 1, GripSize / 2, GripSize / 2);
-        AutomationProperties.SetName(_resizeLeft, PreviewText.ResizeBottomLeft);
-
-        _resizeRight.Tag = onTop ? PreviewDragHandle.TopRight : PreviewDragHandle.BottomRight;
-        _resizeRight.VerticalAlignment = onTop ? VerticalAlignment.Top : VerticalAlignment.Bottom;
-        _resizeRight.Cursor = onTop ? Cursors.SizeNESW : Cursors.SizeNWSE;
-        _resizeRight.RenderTransform = onTop ? new ScaleTransform(1, -1, GripSize / 2, GripSize / 2) : Transform.Identity;
-        AutomationProperties.SetName(_resizeRight, onTop ? PreviewText.ResizeTopRight : PreviewText.ResizeBottomRight);
-
-        _status.Margin = onTop ? new Thickness(14, 0, 14, 6) : new Thickness(24, 0, 24, 6);
-    }
 
     public void CloseTransientPopups()
     {
@@ -1058,6 +882,19 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
         _openContextMenuCount = 0;
     }
+
+    /// <summary>
+    /// 收起來就是這一次看完了：清掉搜尋字。
+    /// </summary>
+    /// <remarks>
+    /// 下一次打開是另一件事，留著上一次的搜尋字只會讓使用者以為那張表少了幾欄。由宿主在
+    /// 真的收起時呼叫，不掛在「看不見」上：切到別的分頁再回來、停靠的工具視窗換到後面，
+    /// 都還是同一次在看。
+    /// </remarks>
+    public void ClearSearch() => ResetSearch(keepFocus: false);
+
+    /// <summary>頁尾那一句；宿主的操作結果（例如重設尺寸）也寫在這裡，不另開一條訊息。</summary>
+    public void ShowStatus(string text) => _status.Text = text;
 
     /// <summary>換一個物件：標題先出來，內容等資料到齊。</summary>
     public void SetTarget(SqlObjectInfo objectInfo)
@@ -1588,7 +1425,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     /// </remarks>
     private void OnSearchFocusChanged()
     {
-        if (_search.IsKeyboardFocusWithin)
+        if (_search.IsKeyboardFocusWithin && _textView is not null)
         {
             ShellKeyCapture.Begin(this);
         }
@@ -1950,271 +1787,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         };
     }
 
-    private void OnResizeDragStarted(object sender, DragStartedEventArgs eventArgs) =>
-        BeginDrag(sender is Thumb { Tag: PreviewDragHandle handle } ? handle : PreviewDragHandle.BottomRight, CursorOnScreen());
-
-    /// <summary>
-    /// 依游標相對於按下瞬間的位移重算。
-    /// </summary>
-    /// <remarks>
-    /// 刻意不用 <see cref="DragDeltaEventArgs"/> 帶來的位移量：那是相對於握把的父代
-    /// 算出來的，而浮動視窗在調整大小的過程中會被平台重新定位，父代自己在動，
-    /// 於是視窗的移動會被誤算成滑鼠的移動而形成回授，畫面就開始亂跳。
-    /// 以游標的螢幕座標重算，結果是「起始矩形 ＋ 游標位移」這個純函式，不受視窗移動影響。
-    /// </remarks>
-    private void OnResizeDragDelta(object sender, DragDeltaEventArgs eventArgs) => ReportDrag(CursorOnScreen());
-
-    private void OnResizeDragCompleted(object sender, DragCompletedEventArgs eventArgs) =>
-        EndDrag(eventArgs.Canceled);
-
-    private void OnHeaderMouseDown(object sender, MouseButtonEventArgs eventArgs)
-    {
-        // 按鈕自己會把按下標成已處理；雙擊留給以後，不當成搬動。
-        if (eventArgs.Handled || eventArgs.ClickCount > 1)
-        {
-            return;
-        }
-
-        eventArgs.Handled = true;
-        SqlAssistPlatformGuard.Run("按下結構預覽抬頭", () =>
-        {
-            _headerPress = CursorOnScreen();
-            _header.CaptureMouse();
-        });
-    }
-
-    private void OnHeaderMouseMove(object sender, MouseEventArgs eventArgs)
-    {
-        if (_headerPress is not { } press || !_header.IsMouseCaptured)
-        {
-            return;
-        }
-
-        SqlAssistPlatformGuard.Run("搬動結構預覽", () =>
-        {
-            var current = CursorOnScreen();
-            if (_dragHandle is null)
-            {
-                // 沒拖出系統的拖曳門檻就只是點一下；門檻是 DIP，游標位置是實體像素。
-                var dpi = VisualTreeHelper.GetDpi(this);
-                var moved = current - press;
-                if (Math.Abs(moved.X) < SystemParameters.MinimumHorizontalDragDistance * dpi.DpiScaleX &&
-                    Math.Abs(moved.Y) < SystemParameters.MinimumVerticalDragDistance * dpi.DpiScaleY)
-                {
-                    return;
-                }
-
-                BeginDrag(PreviewDragHandle.Move, press);
-            }
-
-            ReportDrag(current);
-        });
-    }
-
-    /// <summary>
-    /// 游標的螢幕實體像素位置；定位那一端用的也是實體像素。
-    /// </summary>
-    /// <remarks>
-    /// 原生游標取不到時退回 WPF 的滑鼠位置換到螢幕：兩者都是絕對位置，與元素本身有沒有被移動無關。
-    /// </remarks>
-    private Point CursorOnScreen() =>
-        NativeCursor.TryGetPosition() ?? PointToScreen(Mouse.GetPosition(this));
-
-    private void BeginDrag(PreviewDragHandle handle, Point origin)
-    {
-        _dragHandle = handle;
-        _dragOrigin = origin;
-        _dragChange = default;
-        DragStarted?.Invoke(this, new PreviewDragEventArgs(handle, 0, 0));
-    }
-
-    private void ReportDrag(Point cursor)
-    {
-        if (_dragHandle is not { } handle)
-        {
-            return;
-        }
-
-        _dragChange = cursor - _dragOrigin;
-        DragDelta?.Invoke(this, new PreviewDragEventArgs(handle, _dragChange.X, _dragChange.Y));
-    }
-
-    private void EndDrag(bool canceled)
-    {
-        if (_dragHandle is not { } handle)
-        {
-            return;
-        }
-
-        _dragHandle = null;
-        DragCompleted?.Invoke(this, new PreviewDragEventArgs(handle, _dragChange.X, _dragChange.Y, canceled));
-    }
-
-    private void OnResizeDoubleClick(object sender, MouseButtonEventArgs eventArgs)
-    {
-        eventArgs.Handled = true;
-        _status.Text = PreviewText.SizeReset;
-        SizeResetRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>
-    /// 從錨點旁長出來：外形先從一顆膠囊展開，內容晚一點淡入並微微放大。
-    /// </summary>
-    /// <remarks>
-    /// 與通知島同一套編排（<see cref="SurfaceMotion"/>）：外形走可中斷的彈簧，內容走固定長度的
-    /// 補間。表面依最終尺寸排好版，外形只由圓角裁切露出，所以一百多列的資料格也不必每一格重排。
-    /// 內容跟著裁切一路露出的那一版，外形還在長的時候整片資料格像從門縫裡擠出來。
-    /// </remarks>
-    /// <param name="origin">錨點在表面裡的水平位置（DIP）；膠囊從那裡出發。</param>
-    /// <param name="fromBottom">預覽在錨點上方時從下緣長上去。</param>
-    public void PlayEnter(double origin, bool fromBottom)
-    {
-        CompleteExit();
-        _revealOrigin = origin;
-        _revealFromBottom = fromBottom;
-        _contentScale.CenterX = Math.Max(0, origin);
-        _contentScale.CenterY = fromBottom ? Math.Max(0, _root.ActualHeight > 0 ? _root.ActualHeight : _frame.Height) : 0;
-        SqlAssistChrome.PlayAppear(_frame);
-        if (!SqlAssistChrome.MotionEnabled)
-        {
-            StopReveal();
-            SurfaceMotion.ResetContent(_content, _contentScale);
-            ApplyReveal();
-            return;
-        }
-
-        Reveal(from: 0, to: 1, GrowWidth, GrowHeight, done: null);
-        SurfaceMotion.EnterContent(_content, _contentScale);
-    }
-
-    /// <summary>縮回錨點，收完才呼叫 <paramref name="done"/>；動畫關著時立刻呼叫。</summary>
-    /// <remarks>內容先淡出、外形再縮，順序與通知島收起相同；整個表面同時淡掉，收起不必等。</remarks>
-    public void PlayExit(Action done)
-    {
-        CompleteExit();
-        if (!SqlAssistChrome.MotionEnabled || _root.ActualWidth <= 0)
-        {
-            done();
-            return;
-        }
-
-        _exitDone = done;
-        SurfaceMotion.ExitContent(_content);
-        var fade = SurfaceMotion.Ease(_frame.Opacity, 0, ExitFade);
-        fade.BeginTime = SurfaceMotion.Duration(SurfaceMotion.ContentDelay);
-        _frame.BeginAnimation(OpacityProperty, fade);
-        Reveal(from: null, to: 0, ExitSpring, ExitSpring, done: CompleteExit);
-    }
-
-    /// <summary>
-    /// 立刻結束縮回：內容只有一份，下一個承載視窗要掛上它之前必須先收完。
-    /// </summary>
-    public void CompleteExit()
-    {
-        if (_exitDone is not { } done)
-        {
-            return;
-        }
-
-        _exitDone = null;
-        StopReveal();
-        _frame.BeginAnimation(OpacityProperty, null);
-        _frame.Opacity = 1;
-        SurfaceMotion.ResetContent(_content, _contentScale);
-        ApplyReveal();
-        done();
-    }
-
-    /// <param name="from">null 從目前的進度接著走（收起時可能還沒長完）。</param>
-    private void Reveal(double? from, double to, SpringParameters width, SpringParameters height, Action? done)
-    {
-        var startWidth = from ?? _revealWidth?.Value ?? 1;
-        var startHeight = from ?? _revealHeight?.Value ?? 1;
-        StopReveal();
-        _revealWidth = new SpringMotion(startWidth, _ => ApplyReveal(), width);
-        _revealHeight = new SpringMotion(startHeight, _ => ApplyReveal(), height);
-
-        // 高度那一條比較慢，它停下來才算收完。
-        if (done is not null)
-        {
-            _revealHeight.Settled += (_, _) => SqlAssistPlatformGuard.Run("收起結構預覽", done);
-        }
-
-        ApplyReveal();
-        _revealWidth.AnimateTo(to, motion: true);
-        _revealHeight.AnimateTo(to, motion: true);
-    }
-
-    private void StopReveal()
-    {
-        _revealWidth?.Stop();
-        _revealHeight?.Stop();
-        _revealWidth = null;
-        _revealHeight = null;
-    }
-
-    /// <summary>依兩軸的揭露進度裁切表面與柔影；沒有動畫時只留圓角裁切。</summary>
-    private void ApplyReveal()
-    {
-        var width = _root.ActualWidth > 0 ? _root.ActualWidth : _frame.Width;
-        var height = _root.ActualHeight > 0 ? _root.ActualHeight : _frame.Height;
-        if (double.IsNaN(width) || double.IsNaN(height) || width <= 0 || height <= 0)
-        {
-            return;
-        }
-
-        // 彈簧會微微衝過頭，但表面之外畫不出東西，外形在 1 停住。
-        var px = Math.Max(0, Math.Min(1, _revealWidth?.Value ?? 1));
-        var py = Math.Max(0, Math.Min(1, _revealHeight?.Value ?? 1));
-        var capsuleWidth = Math.Min(width, CapsuleWidth);
-        var capsuleHeight = Math.Min(height, CapsuleHeight);
-        var visibleWidth = capsuleWidth + (width - capsuleWidth) * px;
-        var visibleHeight = capsuleHeight + (height - capsuleHeight) * py;
-
-        // 膠囊從錨點下方出發，展開時左緣一路退回表面左緣。
-        var start = Math.Max(0, Math.Min(width - capsuleWidth, _revealOrigin));
-        var left = start * (1 - px);
-        var top = _revealFromBottom ? height - visibleHeight : 0;
-
-        // 膠囊是全圓角，長開之後收成表面的圓角；圓角不超過目前高度的一半。
-        var surfaceRadius = SqlAssistChrome.FloatingSurfaceRadius;
-        var radius = Math.Min(visibleHeight / 2, capsuleHeight / 2 + (surfaceRadius - capsuleHeight / 2) * py);
-
-        var surface = new RectangleGeometry(new Rect(left, top, visibleWidth, visibleHeight), radius, radius);
-        surface.Freeze();
-        _root.Clip = surface;
-
-        if (px >= 1 && py >= 1)
-        {
-            _shadow.Clip = null;
-            return;
-        }
-
-        // 影子跟著露出的那一塊走，外面多留一圈讓模糊長得出來。
-        var shadow = new RectangleGeometry(
-            new Rect(left - ShadowMargin, top - ShadowMargin, visibleWidth + ShadowMargin * 2, visibleHeight + ShadowMargin * 2),
-            radius + ShadowMargin,
-            radius + ShadowMargin);
-        shadow.Freeze();
-        _shadow.Clip = shadow;
-    }
-
-    /// <summary>長出來之前的那顆膠囊，大約是抬頭第一行那麼高。</summary>
-    private const double CapsuleWidth = 160;
-
-    private const double CapsuleHeight = 36;
-
-    /// <summary>寬先展開、高隨後落下；阻尼接近 1，外形衝過頭的那一點也畫不出來。</summary>
-    private static readonly SpringParameters GrowWidth = new(0.30, 0.9);
-
-    private static readonly SpringParameters GrowHeight = new(0.38, 0.9);
-
-    /// <summary>收起時不回彈、比出現快：使用者已經決定不看了，不該再多等一段。</summary>
-    private static readonly SpringParameters ExitSpring = new(0.22, 1);
-
-    /// <summary>收起時整個表面淡掉的長度；晚內容一步開始，看得出內容先走。</summary>
-    private const int ExitFade = 160;
-
     /// <summary>目前分頁有沒有選取的內容；決定 Ctrl+C 該不該由預覽接手。</summary>
     public bool HasSelection()
     {
@@ -2268,52 +1840,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     }
 
     private static Visibility Visible(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
-
-    /// <summary>角落握把；擺在哪一角、朗讀名稱與游標由 <see cref="SetResizeGrips"/> 決定。</summary>
-    private Thumb CreateResizeThumb()
-    {
-        var thumb = new Thumb
-        {
-            Width = GripSize,
-            Height = GripSize,
-            Focusable = false,
-            Template = CreateResizeGripTemplate(),
-            ToolTip = PreviewText.ResizeToolTip
-        };
-        thumb.DragStarted += OnResizeDragStarted;
-        thumb.DragDelta += OnResizeDragDelta;
-        thumb.DragCompleted += OnResizeDragCompleted;
-        thumb.MouseDoubleClick += OnResizeDoubleClick;
-        return thumb;
-    }
-
-    /// <summary>
-    /// 左右兩側、上下落點共用的縮放握把。
-    /// </summary>
-    /// <remarks>
-    /// 自己畫三條斜線而不是用 <see cref="ResizeGrip"/>：後者的預設樣式假設自己在
-    /// 視窗的狀態列裡，放在浮動視窗上不一定畫得出來。
-    /// </remarks>
-    private static ControlTemplate CreateResizeGripTemplate()
-    {
-        var template = new ControlTemplate(typeof(Thumb));
-
-        // 透明底色讓整個 16×16 都吃得到滑鼠，只有線條本身可以拖曳會很難點。
-        var root = new FrameworkElementFactory(typeof(Border));
-        root.SetValue(Border.BackgroundProperty, Brushes.Transparent);
-
-        var lines = new FrameworkElementFactory(typeof(System.Windows.Shapes.Path));
-        lines.SetValue(
-            System.Windows.Shapes.Path.DataProperty,
-            Geometry.Parse("M 2,14 L 14,2 M 6,14 L 14,6 M 10,14 L 14,10"));
-        lines.SetResourceReference(System.Windows.Shapes.Path.StrokeProperty, ThemeBrush.DimForeground);
-        lines.SetValue(System.Windows.Shapes.Path.StrokeThicknessProperty, 1.0);
-        lines.SetValue(IsHitTestVisibleProperty, false);
-        root.AppendChild(lines);
-
-        template.VisualTree = root;
-        return template;
-    }
 
     /// <summary>
     /// 建立唯讀資料格。
@@ -2479,8 +2005,6 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     public void Dispose()
     {
-        CompleteExit();
-        StopReveal();
         _searchDelay.Stop();
         ShellKeyCapture.End(this);
         _script.Dispose();

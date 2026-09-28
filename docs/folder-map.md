@@ -53,7 +53,7 @@
 | `Editor/` | 編輯器接線、Tab／Enter、寫回、物件定位與殼層命令 |
 | `QuickInfo/` | 滑鼠停留提示 |
 | `Signatures/` | 純量函式的參數提示（平台簽章提示的來源與目前引數）與提示收掉後的續接 |
-| `Preview/` | 浮動結構預覽內容與視窗機制 |
+| `Preview/` | 結構預覽內容、浮動視窗機制與停靠工具窗 |
 | `Wildcards/` | `SELECT *` 的展開與可展開提示（Tab 由 `Editor/` 分派） |
 | `Snippets/` | 片段檔、管理員視窗與 Expansion Session |
 | `Settings/` | Unified Settings 讀取與設定頁文字資源、預覽視窗尺寸、推給 SSMS 的語言偏好，以及套用介面語言 |

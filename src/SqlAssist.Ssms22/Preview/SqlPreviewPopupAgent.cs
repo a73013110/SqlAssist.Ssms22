@@ -39,7 +39,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// 與錨點、建議清單之間的間距。
     /// </summary>
     /// <remarks>
-    /// 0 是因為視窗外圈本來就留了一圈透明的陰影邊（<see cref="SqlStructurePreviewControl.ShadowMargin"/>），
+    /// 0 是因為視窗外圈本來就留了一圈透明的陰影邊（<see cref="PreviewSurface.ShadowMargin"/>），
     /// 看得見的表面與鄰居之間已經隔著那一圈；再加就是兩份間距。
     /// </remarks>
     private const double LayoutGap = 0;
@@ -47,7 +47,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private readonly IWpfTextView _view;
     private readonly ISpaceReservationManager _manager;
-    private readonly SqlStructurePreviewControl _control;
+    private readonly PreviewSurface _surface;
     private readonly ContentControl _container;
     private readonly ExactPopup _popup;
 
@@ -74,6 +74,20 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     /// <summary>這一次錨點已經捲出畫面、也已經通知過；錨點回來才重新計算。</summary>
     private bool _anchorOutOfView;
+
+    /// <summary>
+    /// 正在換位置：舊位置縮回膠囊的途中，收完才換到這個錨點重新長出來；平時 null。
+    /// </summary>
+    /// <remarks>
+    /// 縮回的途中不重新定位：錨點已經換了，照新錨點重算會讓正在縮的那一扇先跳到新位置再縮。
+    /// </remarks>
+    private ITrackingSpan? _relocation;
+
+    /// <summary>換位置收完時要做的事；連續換了幾次名稱，只做最後一次交代的。</summary>
+    private Action? _relocated;
+
+    /// <summary>上一輪定位時編輯器左上角的螢幕位置；SSMS 視窗搬動時照它的位移同步平移。</summary>
+    private Point _layoutOrigin;
 
     private PreviewDragHandle? _dragHandle;
     private PreviewRectangle _dragStartBounds;
@@ -106,12 +120,12 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         IWpfTextView view,
         ISpaceReservationManager manager,
         ITrackingSpan anchor,
-        SqlStructurePreviewControl control)
+        PreviewSurface surface)
     {
         _view = view ?? throw new ArgumentNullException(nameof(view));
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
-        _control = control ?? throw new ArgumentNullException(nameof(control));
+        _surface = surface ?? throw new ArgumentNullException(nameof(surface));
 
         _container = new ContentControl
         {
@@ -135,10 +149,10 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             () => SsmsWindows.ActivateFrameOf(_view.VisualElement));
     }
 
-    public bool IsMouseOver => _popup.IsOpen && (_control.IsMouseOver || _control.HasOpenContextMenu);
+    public bool IsMouseOver => _popup.IsOpen && (_surface.IsMouseOver || _surface.HasOpenContextMenu);
 
     public bool HasFocus =>
-        _popup.IsOpen && (_popup.IsKeyboardFocusWithin || _control.HasOpenContextMenu);
+        _popup.IsOpen && (_popup.IsKeyboardFocusWithin || _surface.HasOpenContextMenu);
 
     public double CurrentWidth => ToLogicalSize(_bounds.Width, _bounds.Height).Width;
 
@@ -175,7 +189,20 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// </remarks>
     public void Update(ITrackingSpan anchor, PreviewPreferredSize preferred, bool pinned)
     {
-        _anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
+        if (anchor is null)
+        {
+            throw new ArgumentNullException(nameof(anchor));
+        }
+
+        if (_relocation is not null)
+        {
+            _relocation = anchor;
+        }
+        else
+        {
+            _anchor = anchor;
+        }
+
         _preferred = preferred;
         if (pinned == _pinned is not null)
         {
@@ -198,6 +225,67 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _pinned = ToEditorRect(_bounds);
         }
     }
+
+    /// <summary>
+    /// 換到另一個名稱旁邊：舊位置縮回寫著新名稱的膠囊，收完再從新錨點長出來。
+    /// </summary>
+    /// <remarks>
+    /// 直接重新定位的那一版，整扇窗一格之內跳到別處，眼睛追不上是同一扇窗換了位置還是又開了一扇。
+    /// 還沒顯示、動畫關著或釘住時直接換錨點。
+    /// </remarks>
+    /// <param name="collapsed">舊位置收完、新位置長出來之前；呼叫端在這時才換上新內容。</param>
+    public void Relocate(ITrackingSpan anchor, Action collapsed)
+    {
+        if (anchor is null)
+        {
+            throw new ArgumentNullException(nameof(anchor));
+        }
+
+        if (collapsed is null)
+        {
+            throw new ArgumentNullException(nameof(collapsed));
+        }
+
+        _relocated = collapsed;
+        if (_relocation is not null)
+        {
+            _relocation = anchor;
+            return;
+        }
+
+        if (!_popup.IsOpen || _pinned is not null || !SqlAssistChrome.MotionEnabled ||
+            !ReferenceEquals(_container.Content, _surface))
+        {
+            _anchor = anchor;
+            _relocated = null;
+            collapsed();
+            RequestReposition();
+            return;
+        }
+
+        _relocation = anchor;
+        _surface.PlayExit(relocating: true, () =>
+        {
+            if (_relocation is not { } next || _disposed)
+            {
+                return;
+            }
+
+            // 收完才換：先藏起來，下一輪定位從新錨點算，Popup 重新打開時照常長出來。
+            var done = _relocated;
+            _relocation = null;
+            _relocated = null;
+            _anchor = next;
+            _hasLayout = false;
+            _anchorOutOfView = false;
+            Suspend();
+            done?.Invoke();
+            RequestReposition();
+        });
+    }
+
+    /// <summary>正在舊位置縮回膠囊；這段時間換上的內容要等收完。</summary>
+    public bool IsRelocating => _relocation is not null;
 
     /// <summary>釘住的視窗換成指定尺寸，左上角不動；雙擊握把重設時用。</summary>
     public void ResizePinned(PreviewPreferredSize size)
@@ -261,24 +349,31 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
 
         RefreshDeviceTransforms();
+        _layoutOrigin = _view.VisualElement.PointToScreen(new Point(0, 0));
+        if (_relocation is not null && _hasLayout)
+        {
+            Display(_bounds);
+            return CreateReservation(anchor: null, _bounds);
+        }
+
         return _pinned is { } pinned
             ? PositionPinned(pinned)
             : PositionAtAnchor(reservedSpace);
     }
 
-    /// <summary>釘住：矩形歸使用者，只收進目前的可用範圍，不看錨點也不讓開別的浮窗。</summary>
+    /// <summary>釘住：矩形歸使用者，只收進 SSMS 視窗，不看錨點也不讓開別的浮窗。</summary>
     private Geometry PositionPinned(Rect pinned)
     {
         if (_dragHandle is null)
         {
             var screen = FromEditorRect(pinned);
-            _availableBounds = GetAvailableBounds(screen.Left, screen.Top);
+            _availableBounds = GetPinnedBounds(screen.Left, screen.Top);
             var minimum = ToDeviceSize(SqlAssistLimits.MinimumPreviewWidth, SqlAssistLimits.MinimumPreviewHeight);
             _bounds = PreviewDragEngine.Contain(screen, _availableBounds, minimum.Width, minimum.Height);
             _hasLayout = true;
         }
 
-        _control.SetResizeGrips(onTop: false, pinned: true);
+        _surface.SetResizeGrips(onTop: false, pinned: true);
         Display(_bounds);
         LogPlacement(anchor: null);
         return CreateReservation(anchor: null, _bounds);
@@ -324,7 +419,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _bounds = layout.Bounds;
             _side = layout.Side;
             _hasLayout = true;
-            _control.SetResizeGrips(onTop: _side == PreviewPlacementSide.Above, pinned: false);
+            _surface.SetResizeGrips(onTop: _side == PreviewPlacementSide.Above, pinned: false);
         }
 
         Display(_bounds);
@@ -364,12 +459,14 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// <summary>平台移除 Agent 時呼叫；要動畫就先縮回錨點，收完才放開內容。</summary>
     public void Hide()
     {
-        _control.CloseTransientPopups();
+        _surface.CloseTransientPopups();
         DetachEvents();
-        if (AnimateNextHide && _popup.IsOpen && ReferenceEquals(_container.Content, _control))
+        _relocation = null;
+        _relocated = null;
+        if (AnimateNextHide && _popup.IsOpen && ReferenceEquals(_container.Content, _surface))
         {
             AnimateNextHide = false;
-            _control.PlayExit(ReleaseContent);
+            _surface.PlayExit(relocating: false, ReleaseContent);
             return;
         }
 
@@ -392,7 +489,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _popup.IsOpen = false;
         }
 
-        if (ReferenceEquals(_container.Content, _control))
+        if (ReferenceEquals(_container.Content, _surface))
         {
             _container.Content = null;
         }
@@ -528,7 +625,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         _dragHandle = null;
 
         // 平台移除時通常已經呼叫過 Hide；縮回錨點的動畫還在跑時由它收完再放開內容。
-        if (_control.IsExiting)
+        if (_surface.IsExiting)
         {
             return;
         }
@@ -548,16 +645,16 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         var logicalSize = ToLogicalSize(bounds.Width, bounds.Height);
         var relativeLocation = _view.VisualElement.PointFromScreen(
             new Point(bounds.Left, bounds.Top));
-        _control.SetEffectiveSize(logicalSize.Width, logicalSize.Height);
+        _surface.SetEffectiveSize(logicalSize.Width, logicalSize.Height);
         _popup.HorizontalOffset = relativeLocation.X;
         _popup.VerticalOffset = relativeLocation.Y;
 
-        if (_container.Content is null && VisualTreeHelper.GetParent(_control) is null)
+        if (_container.Content is null && VisualTreeHelper.GetParent(_surface) is null)
         {
-            _container.Content = _control;
+            _container.Content = _surface;
         }
 
-        if (ReferenceEquals(_container.Content, _control))
+        if (ReferenceEquals(_container.Content, _surface))
         {
             if (!_popup.IsOpen)
             {
@@ -589,13 +686,13 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     {
         if (_pinned is not null)
         {
-            _control.PlayEnter(origin: 0, fromBottom: false);
+            _surface.PlayEnter(origin: 0, fromBottom: false);
             return;
         }
 
         var offset = ToLogicalSize(Math.Max(0, _layoutAnchor.Left - bounds.Left), 0).Width;
-        _control.PlayEnter(
-            origin: Math.Max(0, offset - SqlStructurePreviewControl.ShadowMargin),
+        _surface.PlayEnter(
+            origin: Math.Max(0, offset - PreviewSurface.ShadowMargin),
             fromBottom: _side == PreviewPlacementSide.Above);
     }
 
@@ -699,6 +796,39 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             top,
             Math.Max(1, right - left),
             Math.Max(1, bottom - top));
+    }
+
+    /// <summary>
+    /// 釘住的窗可以擺到哪裡：編輯器所在的整個 SSMS 視窗（含物件總管與底部工具窗），收進螢幕工作區。
+    /// </summary>
+    /// <remarks>
+    /// 錨在名稱上的預覽限在文件欄，是因為它不該蓋住使用者沒叫它蓋的東西；釘住的是使用者自己擺的，
+    /// 擺到物件總管上面正是常見的用法。再往外（別的螢幕、別的程式上面）就交給「移到工具視窗」：
+    /// Popup 屬於編輯器，跨出 SSMS 視窗的那一塊在編輯器被遮住或縮小時會懸在半空中。
+    /// </remarks>
+    private PreviewRectangle GetPinnedBounds(double screenX, double screenY)
+    {
+        var host = _hostWindow ?? SsmsWindows.WindowOf(_view.VisualElement);
+        if (host?.Content is not FrameworkElement { ActualWidth: > 0, ActualHeight: > 0 } client)
+        {
+            return GetAvailableBounds(screenX, screenY);
+        }
+
+        var bounds = GetScreenBounds(client);
+        var left = bounds.Left;
+        var top = bounds.Top;
+        var right = bounds.Right;
+        var bottom = bounds.Bottom;
+        if (NativeScreen.TryGetWorkArea(new Point(screenX, screenY)) is { } workArea)
+        {
+            var devicePadding = ToDeviceSize(BoundsPadding, BoundsPadding);
+            left = Math.Max(left, workArea.Left + devicePadding.Width);
+            top = Math.Max(top, workArea.Top + devicePadding.Height);
+            right = Math.Min(right, workArea.Right - devicePadding.Width);
+            bottom = Math.Min(bottom, workArea.Bottom - devicePadding.Height);
+        }
+
+        return new PreviewRectangle(left, top, Math.Max(1, right - left), Math.Max(1, bottom - top));
     }
 
     /// <summary>
@@ -972,10 +1102,10 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
 
         _eventsAttached = true;
-        _control.GotFocus += OnContentGotFocus;
-        _control.LostFocus += OnContentLostFocus;
-        _control.InteractionFocusGained += OnInteractionFocusGained;
-        _control.InteractionFocusLost += OnInteractionFocusLost;
+        _surface.GotFocus += OnContentGotFocus;
+        _surface.LostFocus += OnContentLostFocus;
+        _surface.Panel.InteractionFocusGained += OnInteractionFocusGained;
+        _surface.Panel.InteractionFocusLost += OnInteractionFocusLost;
         _view.VisualElement.IsVisibleChanged += OnViewVisibleChanged;
         _hostWindow = SsmsWindows.WindowOf(_view.VisualElement);
         if (_hostWindow is not null)
@@ -992,10 +1122,10 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
 
         _eventsAttached = false;
-        _control.GotFocus -= OnContentGotFocus;
-        _control.LostFocus -= OnContentLostFocus;
-        _control.InteractionFocusGained -= OnInteractionFocusGained;
-        _control.InteractionFocusLost -= OnInteractionFocusLost;
+        _surface.GotFocus -= OnContentGotFocus;
+        _surface.LostFocus -= OnContentLostFocus;
+        _surface.Panel.InteractionFocusGained -= OnInteractionFocusGained;
+        _surface.Panel.InteractionFocusLost -= OnInteractionFocusLost;
         _view.VisualElement.IsVisibleChanged -= OnViewVisibleChanged;
         if (_hostWindow is not null)
         {
@@ -1034,7 +1164,37 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
     }
 
-    private void OnHostWindowLocationChanged(object? sender, EventArgs eventArgs) => RequestReposition();
+    /// <summary>
+    /// SSMS 視窗搬動：當下就照編輯器的位移平移 Popup，放開之後再完整重排。
+    /// </summary>
+    /// <remarks>
+    /// Popup 是自己的頂層視窗，不會跟著擁有者走；只排一次重排的那一版要等派送佇列輪到它，
+    /// 拖著 SSMS 走時預覽落後一兩格，看起來像被橡皮筋拖著。位置本來就以編輯器為基準，
+    /// 編輯器整塊跟著視窗走，所以照位移平移就是對的答案，不必重算版面。改變大小（最大化、
+    /// 貼齊）另有版面事件，照常完整重排。
+    /// </remarks>
+    private void OnHostWindowLocationChanged(object? sender, EventArgs eventArgs) =>
+        SqlAssistPlatformGuard.Run("跟著 SSMS 視窗搬動結構預覽", () =>
+        {
+            if (_popup.IsOpen && _hasLayout && _dragHandle is null && !_disposed)
+            {
+                var origin = _view.VisualElement.PointToScreen(new Point(0, 0));
+                var dx = origin.X - _layoutOrigin.X;
+                var dy = origin.Y - _layoutOrigin.Y;
+                if (dx != 0 || dy != 0)
+                {
+                    _layoutOrigin = origin;
+                    _bounds = Offset(_bounds, dx, dy);
+                    _layoutAnchor = Offset(_layoutAnchor, dx, dy);
+                    NativeScreen.MoveWindowOf(_container, _bounds.Left, _bounds.Top);
+                }
+            }
+
+            RequestReposition();
+        });
+
+    private static PreviewRectangle Offset(PreviewRectangle rectangle, double dx, double dy) =>
+        new(rectangle.Left + dx, rectangle.Top + dy, rectangle.Width, rectangle.Height);
 
     [Localizable(false)]
     private void LogPlacement(PreviewRectangle? anchor)

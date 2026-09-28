@@ -211,7 +211,7 @@ internal static class SqlQuickInfoContentBuilder
             body.Add(summary);
         }
 
-        // 只印第一段：其餘段落與對照表留給浮動預覽（SqlStructurePreviewControl.ShowBuiltIn），
+        // 只印第一段：其餘段落與對照表留給浮動預覽（SqlStructurePanel.ShowBuiltIn），
         // 「開啟完整說明」值不值得出現由 SqlBuiltInDoc.HasExpandedContent 判斷。
         if (doc.Examples.Count > 0)
         {

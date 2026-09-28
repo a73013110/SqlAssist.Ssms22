@@ -29,9 +29,6 @@ internal static class NotificationMotion
     /// <summary>進度條收成分隔線，或有新工作時長回來。</summary>
     public const int ProgressSettle = 240;
 
-    /// <summary>抬頭或膠囊上唯一那一個進度圈轉一圈。</summary>
-    public const int Spin = 1100;
-
     /// <summary>展開時各列依序進場，相鄰兩列差這麼多。</summary>
     public const int RowStagger = 30;
 
@@ -79,26 +76,6 @@ internal static class NotificationMotion
     /// <summary>通知表面的預設補間，與浮動預覽同一條；見 <see cref="SurfaceMotion.Ease"/>。</summary>
     public static DoubleAnimation Ease(double from, double to, int milliseconds) =>
         SurfaceMotion.Ease(from, to, milliseconds);
-
-    /// <summary>
-    /// 延遲之後才補間，但延遲期間就已經停在起點。
-    /// </summary>
-    /// <remarks>
-    /// 單用 <see cref="Timeline.BeginTime"/> 的話，開始之前屬性是基底值：依序進場的列會先整份出現，
-    /// 輪到它時才跳回 0 再淡入。
-    /// </remarks>
-    public static DoubleAnimationUsingKeyFrames Delayed(double from, double to, int delay, int milliseconds)
-    {
-        var animation = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(Duration(delay))));
-        animation.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(Duration(delay + milliseconds)), SurfaceMotion.EaseOut));
-        return animation;
-    }
-
-    /// <summary>進度圈；只准膠囊、清單抬頭或附條上的那一個掛它，同一時間只有一個。</summary>
-    public static DoubleAnimation Spinner() =>
-        new(0, 360, Duration(Spin)) { RepeatBehavior = RepeatBehavior.Forever };
 
     /// <summary>勾號描完之後的微彈；結束後交還基底值。</summary>
     public static void PlaySettle(ScaleTransform scale)

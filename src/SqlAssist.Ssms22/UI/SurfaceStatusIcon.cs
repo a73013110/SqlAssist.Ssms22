@@ -8,16 +8,17 @@ using System.Windows.Shapes;
 namespace SqlAssist.Ssms22.UI;
 
 /// <summary>
-/// 通知島上的 12 DIP 狀態圖示：膠囊、清單抬頭、各列與附條共用。
+/// 浮層上的 12 DIP 狀態圖示：通知島的膠囊、清單抬頭、各列與附條，以及浮動預覽等待內容的膠囊共用。
 /// </summary>
 /// <remarks>
 /// 幾何、配色、完成的描繪、失敗的短震與進度圈都只有這一份。各處自己畫的版本，膠囊與列的
-/// 勾號一個彈出、一個不動，「其他」狀態一處是叉號、一處是時鐘。
+/// 勾號一個彈出、一個不動，「其他」狀態一處是叉號、一處是時鐘；兩個浮層的進度圈只要粗細或
+/// 轉速差一點，同時出現時就看得出是兩種東西。
 ///
 /// 要不要播回饋由呼叫端決定：列是狀態變了才播，膠囊只在「執行中 → 成功」那一刻播，
 /// 失敗的短震則跟著狀態機的 <c>ShakeCount</c>。這裡只保證同一次呼叫不重播。
 /// </remarks>
-internal sealed class NotificationStatusIcon : Decorator
+internal sealed class SurfaceStatusIcon : Decorator
 {
     public const double Size = 12;
 
@@ -39,7 +40,7 @@ internal sealed class NotificationStatusIcon : Decorator
     private bool _applied;
     private int _generation;
 
-    public NotificationStatusIcon()
+    public SurfaceStatusIcon()
     {
         Width = Size; Height = Size;
         HorizontalAlignment = HorizontalAlignment.Left;
@@ -82,7 +83,7 @@ internal sealed class NotificationStatusIcon : Decorator
     {
         if (IsSpinning == spin) return;
         IsSpinning = spin;
-        _spin.BeginAnimation(RotateTransform.AngleProperty, spin ? NotificationMotion.Spinner() : null);
+        _spin.BeginAnimation(RotateTransform.AngleProperty, spin ? SurfaceMotion.Spinner() : null);
     }
 
     public void Shake() => NotificationMotion.PlayShake(_shake);
@@ -111,7 +112,7 @@ internal sealed class NotificationStatusIcon : Decorator
         switch (status)
         {
             case NotificationVisualStatus.Running:
-                _path.SetResourceReference(Shape.StrokeProperty, ThemeResourceSet.NotificationSpinnerKey);
+                _path.SetResourceReference(Shape.StrokeProperty, ThemeResourceSet.SurfaceSpinnerKey);
                 break;
             case NotificationVisualStatus.Completed:
                 _path.WithTheme(Shape.StrokeProperty, ThemeBrush.NotificationSuccess);

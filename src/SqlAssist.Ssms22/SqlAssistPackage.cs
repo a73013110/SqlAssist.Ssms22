@@ -12,6 +12,7 @@ using SqlAssist.Ssms22.Commands;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Notifications;
+using SqlAssist.Ssms22.Preview;
 using SqlAssist.Ssms22.Search;
 using SqlAssist.Ssms22.SqlMemory;
 using SqlAssist.Ssms22.Settings;
@@ -32,6 +33,9 @@ namespace SqlAssist.Ssms22;
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 440, Width = 440)]
 [ProvideToolWindow(typeof(SqlSearchToolWindow), Style = VsDockStyle.Linked,
     Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 440, Width = 440)]
+// 從浮動預覽移過來的結構：與另外兩個工具窗同一側，照著寫查詢時表結構就在旁邊。
+[ProvideToolWindow(typeof(SqlStructureToolWindow), Style = VsDockStyle.Linked,
+    Orientation = ToolWindowOrientation.Right, Window = "DocumentWell", DockedWidth = 520, Width = 520)]
 [Guid(PackageGuidString)]
 public sealed class SqlAssistPackage : AsyncPackage
 {

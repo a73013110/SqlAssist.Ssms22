@@ -6,7 +6,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | 這件事 | 唯一出處 |
 |---|---|
 | 讀取 SSMS 結果格線與換算兩套欄索引 | `Ssms22/ResultGrid/SsmsResultGrid.cs` |
-| DPI、螢幕工作區 | `Ssms22/Preview/NativeScreen.cs` |
+| DPI、螢幕工作區、Popup 搬位 | `Ssms22/Preview/NativeScreen.cs` |
 | 背景結果寫回 SQL 編輯器 | `Ssms22/Editor/TextViewEditCoordinator.cs`、`ActiveSqlEditor.cs` |
 | F12、預覽的指令碼選項 | `Ssms22/Settings/SqlScriptPreferences.cs` |
 | 某個位置的物件開預覽或定義 | `Ssms22/Editor/SqlObjectNavigation.cs` |
@@ -50,9 +50,10 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | 一行文字上的命中高亮 | `Ssms22/UI/SqlHighlightText.cs` |
 | SQL 原生圖示、語意圖示與影像插槽 | `Ssms22/UI/SqlIcons.cs`、`SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 宿主筆刷、主題色階、動作對比與動態資源刷新 | `Ssms22/UI/VsThemeBrushes.cs`、`ThemePalette.cs`、`TextSelectionColors.cs`、`ThemeColorMath.cs`、`ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
-| 通知島的形態狀態機、浮層定位、表面、提醒檢視、附條、對齊基準、狀態圖示與換字 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs`、`NotificationLayout.cs`、`NotificationStatusIcon.cs`、`NotificationTicker.cs` |
+| 通知島的形態狀態機、浮層定位、表面、提醒檢視、附條、對齊基準、狀態圖示與換字 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs`、`NotificationLayout.cs`、`NotificationTicker.cs` |
 | 通知專屬的動畫節奏；可中斷的彈簧 | `Ssms22/UI/NotificationMotion.cs`、`SpringMotion.cs` |
-| 浮層（通知島、浮動預覽）的內容進出場與緩動 | `Ssms22/UI/SurfaceMotion.cs` |
+| 浮層（通知島、浮動預覽）的進出場、進度圈、膠囊與狀態圖示 | `Ssms22/UI/SurfaceMotion.cs`、`SurfaceCapsule.cs`、`SurfaceStatusIcon.cs` |
+| 結構預覽的內容與分層載入（浮動與工具窗共用）；浮動外殼 | `Ssms22/Preview/SqlStructurePanel.cs`、`SqlStructurePresenter.cs`；`PreviewSurface.cs` |
 | 浮層的圓角、柔影與叉號 | `Ssms22/UI/SqlAssistChrome.Surfaces.cs` |
 | 通知內容、活動期限、全域控制器、右下浮層與提醒按鈕派送 | `Ssms22/Notifications/NotificationPresenter.cs`、`NotificationLifecycle.cs`、`NotificationIslandController.cs`、`NotificationOverlay.cs`、`NotificationActionRouter.cs` |
 | UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |

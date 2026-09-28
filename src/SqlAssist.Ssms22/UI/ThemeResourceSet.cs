@@ -71,7 +71,7 @@ internal enum ThemeBrush
 internal sealed class ThemeResourceSet
 {
     // XAML 的 x:Static 需要公開欄位；型別本身仍限於組件內部。
-    public const string NotificationSpinnerKey = "SqlAssist.NotificationSpinner";
+    public const string SurfaceSpinnerKey = "SqlAssist.SurfaceSpinner";
     internal const string NotificationGlassKey = "SqlAssist.NotificationGlass";
     public const string NotificationDimKey = "SqlAssist.NotificationDim";
     public const string NotificationRimKey = "SqlAssist.NotificationRim";
@@ -114,11 +114,11 @@ internal sealed class ThemeResourceSet
         }
 
         if (colors.TryGetValue(ThemeBrush.NotificationRunning, out var running) && colors.TryGetValue(ThemeBrush.NotificationRunningEnd, out var end) &&
-            (Resources[NotificationSpinnerKey] is not LinearGradientBrush gradient || gradient.GradientStops[0].Color != running || gradient.GradientStops[1].Color != end))
+            (Resources[SurfaceSpinnerKey] is not LinearGradientBrush gradient || gradient.GradientStops[0].Color != running || gradient.GradientStops[1].Color != end))
         {
             var spinner = new LinearGradientBrush(running, end, 45);
             spinner.Freeze();
-            Resources[NotificationSpinnerKey] = spinner;
+            Resources[SurfaceSpinnerKey] = spinner;
         }
 
         // 材質保持主題色與高覆蓋率，文字不跟著透明；高對比由表面切回實色。

@@ -40,7 +40,7 @@
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
 | 浮動預覽的落點、避障與方向遲滯；搬動、縮放與收進界內 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewDragEngine.cs` |
-| 浮動預覽什麼時候收、誰能換掉它 | `Core/Preview/PreviewLifecycle.cs` |
+| 浮動預覽什麼時候收、釘住的窗怎麼借用與還回；等內容時在膠囊停多久 | `Core/Preview/PreviewLifecycle.cs`、`PreviewReveal.cs` |
 | 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
 | 單獨一個條件約束是哪一種、在父物件上的哪一列 | `Metadata/Model/SqlConstraintMatch.cs`、`SqlObjectStructure.FindConstraint` |
 | 指令碼的所有開關與三組具名風格 | `Core/Scripting/SqlScriptOptions.cs` |

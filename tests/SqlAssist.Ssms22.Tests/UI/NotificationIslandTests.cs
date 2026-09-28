@@ -27,14 +27,14 @@ public sealed class NotificationIslandTests
             var island = new NotificationIsland();
             Render(island, Scenario.Running, motion: false);
             Assert.Equal(NotificationIslandShape.Compact, island.Shape);
-            Assert.Equal(NotificationIsland.CapsuleHeight, island.Surface.Height);
-            Assert.Equal(NotificationIsland.CapsuleRadius, island.Surface.CornerRadius.TopLeft);
-            Assert.InRange(island.Surface.Width, NotificationIsland.CapsuleMinWidth, NotificationIsland.CapsuleMaxWidth);
+            Assert.Equal(SurfaceCapsule.Height, island.Surface.Height);
+            Assert.Equal(SurfaceCapsule.Radius, island.Surface.CornerRadius.TopLeft);
+            Assert.InRange(island.Surface.Width, SurfaceCapsule.MinWidth, SurfaceCapsule.MaxWidth);
 
             var content = new NotificationIslandContent(new[] { Activity(1, NotificationVisualStatus.Running) },
                 new string('長', 80), Array.Empty<NotificationPromptItem>());
             island.Update(content, State(content), motion: false);
-            Assert.Equal(NotificationIsland.CapsuleMaxWidth, island.Surface.Width);
+            Assert.Equal(SurfaceCapsule.MaxWidth, island.Surface.Width);
         });
     }
 
@@ -53,7 +53,7 @@ public sealed class NotificationIslandTests
             Assert.True(island.Surface.Width < NotificationIsland.PanelWidth);
             Assert.Equal(NotificationIsland.PanelWidth, prompt.Width + prompt.Margin.Left + prompt.Margin.Right);
             Assert.Same(prompt, island.CurrentContent);
-            Assert.True(island.Springs.Height.Target > NotificationIsland.CapsuleHeight);
+            Assert.True(island.Springs.Height.Target > SurfaceCapsule.Height);
             island.StopMotion();
             Assert.Equal(NotificationIsland.PanelWidth, island.Surface.Width);
             Assert.Equal(NotificationIsland.PanelRadius, island.Surface.CornerRadius.TopLeft);
@@ -89,8 +89,8 @@ public sealed class NotificationIslandTests
         {
             var island = new NotificationIsland();
             Render(island, Scenario.Running, motion: true);
-            Assert.Equal(NotificationIsland.DotSize, island.Surface.Width);
-            Assert.Equal(NotificationIsland.DotSize, island.Surface.Height);
+            Assert.Equal(SurfaceCapsule.DotSize, island.Surface.Width);
+            Assert.Equal(SurfaceCapsule.DotSize, island.Surface.Height);
             var capsule = island.CurrentContent!;
             var (content, state) = Build(Scenario.Prompt);
             island.Update(content, state, motion: true);

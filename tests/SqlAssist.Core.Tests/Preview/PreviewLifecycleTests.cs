@@ -11,12 +11,15 @@ public sealed class PreviewLifecycleTests
 
     private static readonly PreviewSignal[] Signals = Enum.GetValues(typeof(PreviewSignal)).Cast<PreviewSignal>().ToArray();
 
+    private static readonly PreviewTrigger[] Triggers = Enum.GetValues(typeof(PreviewTrigger)).Cast<PreviewTrigger>().ToArray();
+
     [Fact]
     public void 使用者自己關一律收()
     {
         foreach (var mode in Visible)
         {
-            Assert.True(PreviewLifecycle.Closes(mode, PreviewSignal.Dismiss));
+            Assert.Equal(PreviewOutcome.Close, PreviewLifecycle.Resolve(mode, pinned: false, PreviewSignal.Dismiss));
+            Assert.Equal(PreviewOutcome.Close, PreviewLifecycle.Resolve(mode, pinned: true, PreviewSignal.Dismiss));
         }
     }
 
@@ -25,30 +28,41 @@ public sealed class PreviewLifecycleTests
     {
         foreach (var signal in Signals)
         {
-            Assert.False(PreviewLifecycle.Closes(PreviewMode.Hidden, signal));
+            Assert.Equal(PreviewOutcome.Keep, PreviewLifecycle.Resolve(PreviewMode.Hidden, pinned: false, signal));
         }
     }
 
     [Theory]
-    [InlineData(PreviewSignal.SessionEnded, true)]
-    [InlineData(PreviewSignal.SessionStarted, true)]
-    [InlineData(PreviewSignal.CaretLeftAnchor, false)]
-    [InlineData(PreviewSignal.AnchorEdited, false)]
-    [InlineData(PreviewSignal.AnchorScrolledOut, false)]
-    public void 清單上展開的跟著清單走(PreviewSignal signal, bool closes)
+    [InlineData(PreviewSignal.SessionEnded, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.SessionStarted, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.Collapse, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.CaretLeftAnchor, PreviewOutcome.Keep)]
+    [InlineData(PreviewSignal.AnchorEdited, PreviewOutcome.Keep)]
+    [InlineData(PreviewSignal.AnchorScrolledOut, PreviewOutcome.Keep)]
+    public void 清單上展開的跟著清單走(PreviewSignal signal, PreviewOutcome outcome)
     {
-        Assert.Equal(closes, PreviewLifecycle.Closes(PreviewMode.Browse, signal));
+        Assert.Equal(outcome, PreviewLifecycle.Resolve(PreviewMode.Browse, pinned: false, signal));
     }
 
     [Theory]
-    [InlineData(PreviewSignal.CaretLeftAnchor, true)]
-    [InlineData(PreviewSignal.AnchorEdited, true)]
-    [InlineData(PreviewSignal.AnchorScrolledOut, true)]
-    [InlineData(PreviewSignal.SessionEnded, false)]
-    [InlineData(PreviewSignal.SessionStarted, false)]
-    public void 指名打開的跟著錨點走(PreviewSignal signal, bool closes)
+    [InlineData(PreviewSignal.SessionEnded)]
+    [InlineData(PreviewSignal.SessionStarted)]
+    [InlineData(PreviewSignal.Collapse)]
+    public void 借用釘住的窗結束時還回釘住的那一份(PreviewSignal signal)
     {
-        Assert.Equal(closes, PreviewLifecycle.Closes(PreviewMode.Named, signal));
+        Assert.Equal(PreviewOutcome.ReturnToPin, PreviewLifecycle.Resolve(PreviewMode.Browse, pinned: true, signal));
+    }
+
+    [Theory]
+    [InlineData(PreviewSignal.CaretLeftAnchor, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.AnchorEdited, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.AnchorScrolledOut, PreviewOutcome.Close)]
+    [InlineData(PreviewSignal.SessionEnded, PreviewOutcome.Keep)]
+    [InlineData(PreviewSignal.SessionStarted, PreviewOutcome.Keep)]
+    [InlineData(PreviewSignal.Collapse, PreviewOutcome.Keep)]
+    public void 指名打開的跟著錨點走(PreviewSignal signal, PreviewOutcome outcome)
+    {
+        Assert.Equal(outcome, PreviewLifecycle.Resolve(PreviewMode.Named, pinned: false, signal));
     }
 
     [Fact]
@@ -56,41 +70,45 @@ public sealed class PreviewLifecycleTests
     {
         foreach (var signal in Signals)
         {
-            Assert.Equal(signal == PreviewSignal.Dismiss, PreviewLifecycle.Closes(PreviewMode.Pinned, signal));
+            Assert.Equal(
+                signal == PreviewSignal.Dismiss ? PreviewOutcome.Close : PreviewOutcome.Keep,
+                PreviewLifecycle.Resolve(PreviewMode.Pinned, pinned: true, signal));
         }
     }
 
     [Theory]
-    [InlineData(PreviewTrigger.CompletionArrow, PreviewMode.Browse)]
-    [InlineData(PreviewTrigger.CompletionDelay, PreviewMode.Browse)]
-    [InlineData(PreviewTrigger.Command, PreviewMode.Named)]
-    [InlineData(PreviewTrigger.HoverLink, PreviewMode.Named)]
-    public void 打開方式決定狀態(PreviewTrigger trigger, PreviewMode mode)
+    [InlineData(PreviewTrigger.CompletionArrow, false, PreviewMode.Browse)]
+    [InlineData(PreviewTrigger.CompletionDelay, false, PreviewMode.Browse)]
+    [InlineData(PreviewTrigger.Command, false, PreviewMode.Named)]
+    [InlineData(PreviewTrigger.HoverLink, false, PreviewMode.Named)]
+    [InlineData(PreviewTrigger.CompletionArrow, true, PreviewMode.Browse)]
+    [InlineData(PreviewTrigger.CompletionDelay, true, PreviewMode.Browse)]
+    [InlineData(PreviewTrigger.Command, true, PreviewMode.Pinned)]
+    [InlineData(PreviewTrigger.HoverLink, true, PreviewMode.Pinned)]
+    public void 打開方式決定狀態_釘住時指名的換進釘住的窗(PreviewTrigger trigger, bool pinned, PreviewMode mode)
     {
-        Assert.Equal(mode, PreviewLifecycle.ModeFor(trigger));
+        Assert.Equal(mode, PreviewLifecycle.ModeFor(trigger, pinned));
     }
 
     [Fact]
-    public void 釘住的只擋自動展開()
+    public void 每一種來源都用得到釘住的窗()
     {
-        foreach (var trigger in Enum.GetValues(typeof(PreviewTrigger)).Cast<PreviewTrigger>())
+        // 釘住不擋任何來源：清單上的借用、指名的換進去，沒有一種會變成「按了沒反應」。
+        foreach (var trigger in Triggers)
         {
-            Assert.Equal(
-                trigger != PreviewTrigger.CompletionDelay,
-                PreviewLifecycle.CanReplace(PreviewMode.Pinned, trigger));
-            Assert.True(PreviewLifecycle.CanReplace(PreviewMode.Named, trigger));
-            Assert.True(PreviewLifecycle.CanReplace(PreviewMode.Browse, trigger));
+            Assert.NotEqual(PreviewMode.Hidden, PreviewLifecycle.ModeFor(trigger, pinned: true));
         }
     }
 
     [Theory]
-    [InlineData(PreviewMode.Browse, PreviewMode.Pinned)]
-    [InlineData(PreviewMode.Named, PreviewMode.Pinned)]
-    [InlineData(PreviewMode.Pinned, PreviewMode.Named)]
-    [InlineData(PreviewMode.Hidden, PreviewMode.Hidden)]
-    public void 圖釘在釘住與指名之間切換(PreviewMode from, PreviewMode to)
+    [InlineData(PreviewMode.Browse, false, PreviewMode.Pinned, true)]
+    [InlineData(PreviewMode.Named, false, PreviewMode.Pinned, true)]
+    [InlineData(PreviewMode.Pinned, true, PreviewMode.Named, false)]
+    [InlineData(PreviewMode.Browse, true, PreviewMode.Browse, false)]
+    [InlineData(PreviewMode.Hidden, false, PreviewMode.Hidden, false)]
+    public void 圖釘切換(PreviewMode from, bool pinned, PreviewMode to, bool pinnedAfter)
     {
-        Assert.Equal(to, PreviewLifecycle.TogglePin(from));
+        Assert.Equal((to, pinnedAfter), PreviewLifecycle.TogglePin(from, pinned));
     }
 
     [Theory]

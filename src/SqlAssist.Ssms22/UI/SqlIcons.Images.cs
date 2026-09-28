@@ -83,6 +83,7 @@ internal static partial class SqlIcons
         SqlIcon.SelfTest => KnownMonikers.Test,
         SqlIcon.Stop => KnownMonikers.Stop,
         SqlIcon.Pin => KnownMonikers.Pin,
+        SqlIcon.Dock => KnownMonikers.DockRight,
         // 與文件分頁上的叉號同一顆；搜尋框的「清除」是 Cancel，兩者語意不同。
         SqlIcon.Close => KnownMonikers.Close,
         // 與通知的成功同一種語意；只換一下子，形狀要一眼讀得出「好了」。

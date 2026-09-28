@@ -32,6 +32,13 @@ internal static class SurfaceMotion
 
     public static TimeSpan Duration(int milliseconds) => TimeSpan.FromMilliseconds(milliseconds);
 
+    /// <summary>進度圈轉一圈；通知島與預覽等內容的膠囊同一個轉速。</summary>
+    public const int Spin = 1100;
+
+    /// <summary>換內容而不重新長出來時，新內容從這個透明度浮上來。</summary>
+    /// <remarks>從 0 開始的話舊內容已經被換掉，眼前會先空一格，看起來像閃了一下。</remarks>
+    public const double SwapFrom = 0.35;
+
     /// <summary>浮層的預設補間：ease-out，從呼叫端給的目前值接續。</summary>
     public static DoubleAnimation Ease(double from, double to, int milliseconds) =>
         new(from, to, Duration(milliseconds)) { EasingFunction = EaseOut };
@@ -78,6 +85,42 @@ internal static class SurfaceMotion
         content.Opacity = 1;
         scale?.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         scale?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+    }
+
+    /// <summary>
+    /// 延遲之後才補間，但延遲期間就已經停在起點。
+    /// </summary>
+    /// <remarks>
+    /// 單用 <see cref="Timeline.BeginTime"/> 的話，開始之前屬性是基底值：依序進場的列會先整份出現，
+    /// 輪到它時才跳回 0 再淡入。
+    /// </remarks>
+    public static DoubleAnimationUsingKeyFrames Delayed(double from, double to, int delay, int milliseconds)
+    {
+        var animation = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(Duration(delay))));
+        animation.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(Duration(delay + milliseconds)), EaseOut));
+        return animation;
+    }
+
+    /// <summary>進度圈；每個浮層同一時間只准一個掛它。</summary>
+    public static DoubleAnimation Spinner() =>
+        new(0, 360, Duration(Spin)) { RepeatBehavior = RepeatBehavior.Forever };
+
+    /// <summary>
+    /// 原地換內容：新內容從 <see cref="SwapFrom"/> 浮上來，外形不動。
+    /// </summary>
+    /// <remarks>
+    /// 釘住的窗換成另一個物件時用：窗是使用者擺在那裡的，縮回去再長出來等於把它搬走一次。
+    /// 跟著清單選取換內容的不播，方向鍵連按時每一格都閃一下只會拖慢眼睛。
+    /// </remarks>
+    public static void SwapContent(UIElement content)
+    {
+        content.BeginAnimation(UIElement.OpacityProperty, null);
+        content.Opacity = 1;
+        var rise = Ease(SwapFrom, 1, ContentFadeIn);
+        rise.FillBehavior = FillBehavior.Stop;
+        content.BeginAnimation(UIElement.OpacityProperty, rise);
     }
 
     /// <summary>浮層共用的 ease-out；關鍵影格也用這一條，節奏才對得上。</summary>

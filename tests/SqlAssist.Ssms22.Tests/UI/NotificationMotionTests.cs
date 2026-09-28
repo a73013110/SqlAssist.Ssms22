@@ -136,7 +136,7 @@ public sealed class NotificationMotionTests
     {
         // 幾何縮到 12 DIP 畫布（0.75 倍）之後，勾號兩段合計約 10.9 DIP；算成未縮放的 14.5 的話，
         // 前四分之一的時間什麼都畫不出來。
-        Assert.InRange(NotificationStatusIcon.CheckStrokeLength, 10.5, 11.5);
+        Assert.InRange(SurfaceStatusIcon.CheckStrokeLength, 10.5, 11.5);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class NotificationMotionTests
     [Fact]
     public void 延遲的補間在延遲期間停在起點()
     {
-        var animation = NotificationMotion.Delayed(0, 1, delay: 90, milliseconds: 200);
+        var animation = SurfaceMotion.Delayed(0, 1, delay: 90, milliseconds: 200);
         Assert.Equal(0, animation.KeyFrames[0].Value);
         Assert.Equal(TimeSpan.FromMilliseconds(90), animation.KeyFrames[1].KeyTime.TimeSpan);
         Assert.Equal(0, animation.KeyFrames[1].Value);
@@ -282,7 +282,7 @@ public sealed class NotificationMotionTests
             {
                 var colors = ThemePaletteTests.ColorsFor(theme);
                 resources.Update(colors);
-                var gradient = Assert.IsType<LinearGradientBrush>(resources.Resources[ThemeResourceSet.NotificationSpinnerKey]);
+                var gradient = Assert.IsType<LinearGradientBrush>(resources.Resources[ThemeResourceSet.SurfaceSpinnerKey]);
                 Assert.NotSame(previous, gradient);
                 foreach (var stop in gradient.GradientStops)
                     Assert.True(ThemeColorMath.Contrast(stop.Color, colors[ThemeBrush.ListBackground]) >= 3);
