@@ -272,6 +272,20 @@ public enum SqlKeywordPosition : long
     /// <summary><c>EXEC p … WITH</c> 與選項的逗號之後——RECOMPILE；RESULT SETS 由子句片語給。</summary>
     ExecuteOption = 1L << 50,
 
+    /// <summary><c>WITH RESULT SETS (</c> 與結果集之間的逗號之後——AS；OBJECT、TYPE、FOR XML 由子句片語給。</summary>
+    /// <remarks>另一種寫法是一組資料行定義的左括號，那不是字。</remarks>
+    ResultSetList = 1L << 58,
+
+    /// <summary>結果集資料行定義的左括號與逗號之後：新資料行的名稱，分析器同時回報 <c>Name</c>。</summary>
+    /// <remarks>
+    /// 不借用 <see cref="ColumnDefinition"/>：這裡只有「名稱 型別 [COLLATE] [NULL | NOT NULL]」，
+    /// 寫不出 CONSTRAINT、PRIMARY KEY，名稱之外沒有任何東西是對的。
+    /// </remarks>
+    ResultSetColumn = 1L << 59,
+
+    /// <summary>結果集資料行的型別與定序寫完之後——COLLATE、NULL、NOT。</summary>
+    ResultSetColumnTail = 1L << 60,
+
     /// <summary><c>RAISERROR (…) WITH</c> 與選項的逗號之後；LOG、NOWAIT、SETERROR 都不是關鍵字，由子句片語給。</summary>
     RaiserrorOption = 1L << 51,
 
@@ -316,7 +330,7 @@ public enum SqlKeywordPosition : long
         | IndexOption | ProcedureOption | FunctionOption | ViewOption | TriggerOption
         | TriggerEvent | TriggerEventEnd | SetTarget | InsertTarget
         | ReferencesTail | FunctionCallTail | WindowOrderTail | OffsetTail | ModuleHeader | FunctionReturns
-        | ExecuteOption | RaiserrorOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
+        | ExecuteOption | ResultSetList | ResultSetColumn | ResultSetColumnTail | RaiserrorOption | TableSampleTail | PivotClause | ForXmlOption | ForJsonOption
         | AlterTableAction | AlterTableAdd | AlterTableColumn
         | TopClauseTail | SetOptionValue
 }

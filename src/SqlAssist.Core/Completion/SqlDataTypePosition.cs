@@ -15,7 +15,8 @@ namespace SqlAssist.Core.Completion;
 /// 其餘一律照常，寧可少認幾個位置。
 ///
 /// 新資料行的名稱之後不自己認形狀：名稱前面那一格是不是資料行定義的開頭，問位置分析
-/// （<see cref="SqlKeywordPosition.ColumnDefinition"/>、<see cref="SqlKeywordPosition.AlterTableAdd"/>）。
+/// （<see cref="SqlKeywordPosition.ColumnDefinition"/>、<see cref="SqlKeywordPosition.AlterTableAdd"/>、
+/// <see cref="SqlKeywordPosition.ResultSetColumn"/>）。
 /// 各認一份的症狀是 CREATE TABLE 認得、ALTER TABLE ADD 認不得。
 ///
 /// 沒有做成 <see cref="SqlKeywordPosition"/> 的一個新成員：那個列舉的每個成員都對應
@@ -168,7 +169,8 @@ public static class SqlDataTypePosition
 
     /// <summary>
     /// <paramref name="last"/> 是剛寫完的新資料行名稱：<c>CREATE TABLE dbo.Loan (LoanId |</c>、
-    /// <c>DECLARE @t TABLE (Id INT, Name |</c>、<c>ALTER TABLE t ADD ReaderId |</c>。
+    /// <c>DECLARE @t TABLE (Id INT, Name |</c>、<c>ALTER TABLE t ADD ReaderId |</c>、
+    /// <c>EXEC p WITH RESULT SETS ((Branch |</c>。
     /// </summary>
     /// <remarks>
     /// 名稱前面那一格要是資料行定義的開頭，判準是位置分析的。只在名稱緊接著 <c>(</c>、逗號或
@@ -189,7 +191,7 @@ public static class SqlDataTypePosition
         }
 
         return SqlKeywordPositionAnalyzer.PositionBefore(tokens, last, textBeforeToken) is
-            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd;
+            SqlKeywordPosition.ColumnDefinition or SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ResultSetColumn;
     }
 
     /// <summary>

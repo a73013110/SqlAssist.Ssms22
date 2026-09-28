@@ -52,6 +52,8 @@ public static class SqlKeywordPositionExtensions
     /// <c>OFFSET 10 |</c> 之後是 <c>ROWS</c>；函式呼叫的 <c>SUM(a) |</c> 之後是 <c>OVER</c>，它總是加在會接別名的子句尾端上；模組的 <c>WITH SCHEMABINDING |</c> 之後是 <c>AS</c>，
     /// 函式參數清單的 <c>f (@a int) |</c> 之後是 <c>RETURNS</c>；<c>EXEC p WITH |</c>、
     /// <c>RAISERROR (…) WITH |</c>、CREATE INDEX 的 <c>WITH (|</c> 與 <c>FOR XML |</c>、<c>FOR JSON |</c> 之後是選項；
+    /// <c>WITH RESULT SETS (|</c> 之後是 <c>AS</c> 或一組資料行定義，那一組的 <c>(|</c> 之後是新資料行名稱，
+    /// 型別寫完之後是 <c>COLLATE</c>、<c>NULL</c>、<c>NOT NULL</c>；
     /// <c>TABLESAMPLE (10 |</c> 之後是 <c>PERCENT</c>；PIVOT 的 <c>(SUM(x) |</c> 之後是 <c>FOR</c>，<c>FOR y |</c> 之後是 <c>IN</c>。</item>
     /// </list>
     ///
@@ -95,6 +97,9 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.ModuleHeader |
         SqlKeywordPosition.FunctionReturns |
         SqlKeywordPosition.ExecuteOption |
+        SqlKeywordPosition.ResultSetList |
+        SqlKeywordPosition.ResultSetColumn |
+        SqlKeywordPosition.ResultSetColumnTail |
         SqlKeywordPosition.RaiserrorOption |
         SqlKeywordPosition.IndexOption |
         SqlKeywordPosition.ForXmlOption |

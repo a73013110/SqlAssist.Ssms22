@@ -78,7 +78,7 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 | `DROP PROCEDURE`／`PROC`、`DROP FUNCTION`、`DROP VIEW` | 同上各一類 | 插入名稱 |
 | 其餘位置選到自訂函式（`SELECT `、`WHERE `…） | — | 補上括號 |
 | `DROP`、`DISABLE`、`ENABLE TRIGGER` | Trigger | 插入名稱 |
-| `ALTER`／`DROP`／`TRUNCATE TABLE` | Table、View | 插入名稱 |
+| `ALTER`／`DROP`／`TRUNCATE TABLE`、`WITH RESULT SETS (AS OBJECT` | Table、View | 插入名稱 |
 | `NEXT VALUE FOR`、`ALTER`／`DROP SEQUENCE` | Sequence | 插入名稱 |
 | `EXEC`、`EXECUTE` | Procedure | 展開具名參數清單 |
 | `CREATE`／`ALTER`／`DROP INDEX`／`STATISTICS`／`TRIGGER` 之後的 `ON` | Table、View | 插入名稱 |

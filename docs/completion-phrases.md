@@ -76,7 +76,9 @@
 
 會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`OFFSET 10 ` 之後的
+BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`WITH RESULT SETS (…)` 的
+結果集與資料行定義是兩層括號清單，也各有位置（`ResultSetList`、`ResultSetColumn`、`ResultSetColumnTail`），
+`AS OBJECT`、`NOT NULL` 的下一個字由掛在位置上的片語給；`OFFSET 10 ` 之後的
 `ROWS`、視窗 `ORDER BY a ` 之後的框架、函式參數清單之後的 `RETURNS` 也是。位置見[關鍵字](completion-keywords.md)。
 
 中間可以夾別的子句時也寫位置，不寫尾巴：CREATE INDEX 的 `WITH (` 前面可能是索引鍵、`INCLUDE (…)`

@@ -40,6 +40,9 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("DECLARE @copies TABLE (CopyNo INT), @name ")]
     [InlineData("CREATE SEQUENCE dbo.LoanSeq AS ")]
     [InlineData("CREATE TYPE dbo.Code FROM ")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch ")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10), CopyCount ")]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ((Branch int), (CopyNo ")]
     public void 型別的位置只建議型別(string textBeforeCaret)
     {
         var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
@@ -67,6 +70,7 @@ public sealed class SqlDataTypeCompletionTests
     [InlineData("SELECT @rows = 1, @name ")]
     [InlineData("EXEC dbo.usp_Renew @readerId = NULL, @days ")]
     [InlineData("CREATE PROCEDURE dbo.usp_Renew @readerId INT AS SELECT @readerId ")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int ")]
     public void 不是型別的位置(string textBeforeCaret)
     {
         Assert.NotEqual(

@@ -314,6 +314,12 @@ $ContextTemplates = [ordered]@{
 
     # EXEC、RAISERROR 的 WITH 選項多半不是關鍵字，由子句片語給。
     ExecuteOption    = @('EXEC p WITH ', 'EXEC p WITH RECOMPILE, ')
+
+    # WITH RESULT SETS 的兩層括號：外層每一項是一組資料行定義或 AS OBJECT／TYPE／FOR XML，
+    # 內層每一項是「名稱 型別 [COLLATE] [NULL | NOT NULL]」，名稱之後的型別走型別清單。
+    ResultSetList    = @('EXEC p WITH RESULT SETS (', 'EXEC p WITH RESULT SETS ((a int), ')
+    ResultSetColumn  = @('EXEC p WITH RESULT SETS ((', 'EXEC p WITH RESULT SETS ((a int, ')
+    ResultSetColumnTail = @('EXEC p WITH RESULT SETS ((a int ', 'EXEC p WITH RESULT SETS ((a varchar(10) COLLATE Latin1_General_CI_AS ')
     RaiserrorOption  = @("RAISERROR ('x', 16, 1) WITH ", "RAISERROR ('x', 16, 1) WITH NOWAIT, ")
 
     # GROUP BY 的欄位之後：HAVING、ORDER 與 WITH ROLLUP，不接 ASC、DESC。
@@ -697,6 +703,12 @@ $ClausePhrases = @(
     @{ Pattern = ''; After = @('OffsetTail') }
     @{ Pattern = ''; After = @('FunctionReturns') }
     @{ Pattern = ''; After = @('ExecuteOption') }
+
+    # RESULT SETS 之後是 NONE、UNDEFINED 或結果集清單，RESULT 之後的 SETS 由這一條補出來；
+    # 清單裡 AS 之後是 OBJECT、TYPE、FOR（XML），資料行型別之後的 NOT 只接 NULL。
+    @{ Pattern = 'RESULT SETS'; After = @('ExecuteOption') }
+    @{ Pattern = 'AS'; After = @('ResultSetList'); Expand = 1 }
+    @{ Pattern = 'NOT'; After = @('ResultSetColumnTail') }
     @{ Pattern = ''; After = @('RaiserrorOption') }
     @{ Pattern = ''; After = @('TableSampleTail') }
 

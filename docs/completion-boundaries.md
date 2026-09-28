@@ -49,7 +49,7 @@ Enter 照常換行保住別名，按 ↓ 轉成硬選。代價是 `FR`＋Enter �
 - **`Name`**：`AS ` 之後的別名、文法強制別名的括號之後（衍生資料表、`PIVOT (…) `、
   `UNPIVOT (…) `）、`DECLARE @`（見[變數](completion-variables.md)）、`CREATE <種類> ` 與
   `CREATE INDEX ` 的新物件、敘述開頭 `WITH ` 與 `WITH a AS (…), ` 的 CTE 名、`SELECT … INTO ` 的新資料表
-  （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）。
+  （`INSERT INTO `、`MERGE INTO ` 要既有資料表，是 `Grammar`）、`RESULT SETS ((` 的資料行名稱。
 - **`MaybeName`**：同一行沒有 AS 的別名、`CREATE OR ALTER <種類> `（常是既有物件；
   `ALTER <種類> ` 是 `Grammar`）、資料行定義的起點（`CREATE TABLE t (`、逗號之後、
   `DECLARE @t TABLE (`）、`ALTER TABLE t ADD `——新資料行名稱或 `CONSTRAINT` 都對。
@@ -112,18 +112,18 @@ SELECT * FROM dbo.Loan WHERE ReaderId = 1 ⏎ | → ssf、SELECT、AND 都在
 SELECT * FROM dbo.Loan WHERE ReaderId = 1 |  → 同一行，不補
 ```
 
-補的是旗標聯集，續寫的 `FROM`、`AND`、`ORDER` 一個都不少；括號還沒關時不補。認的尾端：選取清單
+補的是旗標聯集，續寫的 `FROM`、`AND` 照樣在；括號還沒關時不補。認的尾端：選取清單
 （`SELECT dbo.fn_Fee('')` 不需要 `FROM`）、資料來源、述詞、`ORDER BY`／`GROUP BY` 欄位與
 SET 選項名稱之後。名字那一格前面的換行不補。
 
 ## 數值常值不開清單
 
 `SET Fine = Fine - 10` 打到 `10` 時整個目錄進場，模糊比對把 `10` 對到 `LOG10`，
-Enter 就把數字換成函式名稱。
+Enter 就把數字換成函式。
 
 T-SQL 的一般識別字不能以數字開頭，所以以數字開頭的詞元必然是數值常值，歸 `Inert`。
 比的是第一個字元（`Cat_BookCopy2` 不算）。
-點號前那一段以數字開頭也算（`1.`、`12.`），否則平台會以限定字 `1` 開清單。
+點號前那一段以數字開頭也算（`1.`），否則平台會以限定字 `1` 開清單。
 方括號裡的不算（`[192.0.2.10].` 是連結伺服器）。
 
 變數後的點號只有資料表變數算限定字：`@rows.` 列它的資料行（提交時改寫成 `[@rows].`，

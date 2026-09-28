@@ -197,6 +197,15 @@ public sealed class SqlClausePhraseTests
     [InlineData("RESTORE DATABASE LibArchive FROM ", "DISK", "URL")]
     [InlineData("RESTORE LOG LibArchive FROM ", "DISK", "URL")]
     [InlineData("RESTORE HEADERONLY FROM ", "DISK", "URL")]
+    [InlineData("EXEC dbo.usp_Copies WITH ", "RECOMPILE", "RESULT")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT ", "SETS")]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ", "NONE", "UNDEFINED")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (", "AS")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int), ", "AS")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS ", "OBJECT", "TYPE", "FOR")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS (AS FOR ", "XML")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10) ", "COLLATE", "NULL", "NOT")]
+    [InlineData("EXEC dbo.usp_Copies WITH RESULT SETS ((Branch int NOT ", "NULL")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);

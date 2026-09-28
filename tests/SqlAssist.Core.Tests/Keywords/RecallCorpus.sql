@@ -230,6 +230,14 @@ WAITFOR DELAY '00:00:01'
 
 EXEC dbo.usp_Copies @BranchId = 1, @Count = @CopyNo OUTPUT WITH RECOMPILE
 
+EXEC dbo.usp_Copies WITH RESULT SETS ((Branch varchar(10) COLLATE Latin1_General_CI_AS NOT NULL, CopyCount int NULL), (CopyNo int))
+
+EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS NONE
+
+EXEC ('SELECT 1') WITH RESULT SETS UNDEFINED
+
+EXEC dbo.usp_Copies WITH RESULT SETS (AS OBJECT dbo.Loan, AS TYPE dbo.CopyList, AS FOR XML)
+
 EXECUTE AS USER = 'LibUser'
 
 REVERT

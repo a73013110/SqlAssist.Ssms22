@@ -540,9 +540,11 @@ public static class SqlCompletionContextAnalyzer
         // 這三個位置文法上只接得了既有的資料表。ALTER 家族的 PROCEDURE／FUNCTION／
         // TRIGGER 與 DROP 家族的 TRIGGER／SEQUENCE 都已經在這裡，只差資料表——
         // 少的那一條沒有任何症狀，只是使用者在最常改的位置沒有清單。
+        // EXEC … WITH RESULT SETS (AS OBJECT 取的是資料表、檢視或資料表值函式的資料行形狀。
         if (EndsWithKeywords(text, "ALTER", "TABLE", out keywordStart) ||
             EndsWithKeywords(text, "DROP", "TABLE", out keywordStart) ||
-            EndsWithKeywords(text, "TRUNCATE", "TABLE", out keywordStart))
+            EndsWithKeywords(text, "TRUNCATE", "TABLE", out keywordStart) ||
+            EndsWithKeywords(text, "AS", "OBJECT", out keywordStart))
         {
             return CompletionTarget.DataSource;
         }

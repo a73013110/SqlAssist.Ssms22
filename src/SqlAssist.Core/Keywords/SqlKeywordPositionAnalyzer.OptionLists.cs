@@ -178,6 +178,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
             return SqlKeywordPosition.PivotClause;
         }
 
+        if (FindResultSetSlot(last) is { } resultSet)
+        {
+            return resultSet;
+        }
+
         foreach (var list in OptionLists)
         {
             if (list.Resolve(this, last) is { } position)
@@ -236,6 +241,82 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         var first = tokens[last].IsPunctuation(")") ? SqlTokenNavigator.FindOpeningParenthesis(tokens, last) - 1 : last;
         return first == open + 1 && tokens[first].Kind == SqlTokenKind.Identifier;
+    }
+
+    /// <summary>
+    /// <paramref name="last"/> 之後在 <c>EXEC … WITH RESULT SETS (…)</c> 裡的位置；不在那裡回 null。
+    /// </summary>
+    /// <remarks>
+    /// 兩層括號。外層是結果集清單：左括號與逗號之後是下一個結果集。內層是一組資料行定義：
+    /// 左括號與逗號之後是新資料行名稱，名稱之後的型別由型別位置問這裡，型別（與定序）寫完之後
+    /// 是 COLLATE、NULL、NOT NULL。停在 <c>NULL</c> 之後的那一項已經寫完，不回位置。
+    /// </remarks>
+    private SqlKeywordPosition? FindResultSetSlot(int last)
+    {
+        var token = tokens[last];
+
+        if (token.IsPunctuation("(") || token.IsPunctuation(","))
+        {
+            var open = FindUnclosedParenthesis(last);
+
+            return OpensResultSets(open) ? SqlKeywordPosition.ResultSetList
+                : OpensResultSetColumns(open) ? SqlKeywordPosition.ResultSetColumn
+                : null;
+        }
+
+        var columns = FindUnclosedParenthesis(last);
+
+        if (!OpensResultSetColumns(columns))
+        {
+            return null;
+        }
+
+        // 游標所在的那一項從最後一個同層逗號之後開始：名稱、型別，之後可以有 COLLATE 定序。
+        var start = columns + 1;
+
+        for (var comma = SqlTokenNavigator.FindListItemEnd(tokens, start, last); comma < last;
+             comma = SqlTokenNavigator.FindListItemEnd(tokens, start, last))
+        {
+            start = comma + 1;
+        }
+
+        if (start >= last || tokens[start].Kind != SqlTokenKind.Identifier)
+        {
+            return null;
+        }
+
+        var end = SqlTokenNavigator.SkipDataType(tokens, start + 1, last + 1);
+
+        if (end == start + 1)
+        {
+            return null;
+        }
+
+        if (end + 1 <= last && tokens[end].IsKeyword("COLLATE") && tokens[end + 1].Kind == SqlTokenKind.Identifier)
+        {
+            end += 2;
+        }
+
+        return end == last + 1 ? SqlKeywordPosition.ResultSetColumnTail : null;
+    }
+
+    /// <summary><paramref name="open"/> 是 <c>EXEC … WITH RESULT SETS (</c> 的左括號。</summary>
+    private bool OpensResultSets(int open)
+    {
+        return open >= 3 &&
+            tokens[open].IsPunctuation("(") &&
+            tokens[open - 1].IsKeyword("SETS") &&
+            tokens[open - 2].IsKeyword("RESULT") &&
+            FindStatementSlot(open - 3) == SqlKeywordPosition.ExecuteOption;
+    }
+
+    /// <summary><paramref name="open"/> 開啟結果集清單裡的一組資料行定義。</summary>
+    private bool OpensResultSetColumns(int open)
+    {
+        return open >= 1 &&
+            tokens[open].IsPunctuation("(") &&
+            (tokens[open - 1].IsPunctuation("(") || tokens[open - 1].IsPunctuation(",")) &&
+            OpensResultSets(FindUnclosedParenthesis(open - 1));
     }
 
     /// <summary>

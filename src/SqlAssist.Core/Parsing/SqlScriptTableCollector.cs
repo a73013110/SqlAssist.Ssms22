@@ -140,7 +140,7 @@ public static class SqlScriptTableCollector
 
         while (index < end)
         {
-            var itemEnd = FindItemEnd(tokens, index, end);
+            var itemEnd = SqlTokenNavigator.FindListItemEnd(tokens, index, end);
 
             if (itemEnd > index)
             {
@@ -164,36 +164,6 @@ public static class SqlScriptTableCollector
         }
 
         return columns;
-    }
-
-    /// <summary>資料行清單裡下一個深度 0 的逗號位置。</summary>
-    private static int FindItemEnd(IReadOnlyList<SqlToken> tokens, int start, int end)
-    {
-        var depth = 0;
-
-        for (var index = start; index < end; index++)
-        {
-            var token = tokens[index];
-
-            if (token.IsPunctuation("("))
-            {
-                depth++;
-                continue;
-            }
-
-            if (token.IsPunctuation(")"))
-            {
-                depth--;
-                continue;
-            }
-
-            if (depth == 0 && token.IsPunctuation(","))
-            {
-                return index;
-            }
-        }
-
-        return end;
     }
 
     private static void ReadItem(
@@ -234,25 +204,7 @@ public static class SqlScriptTableCollector
         }
 
         var typeStart = cursor;
-
-        // 型別可能帶結構描述（dbo.MyType），也可能帶長度或有效位數。
-        while (cursor < end && tokens[cursor].Kind == SqlTokenKind.Identifier)
-        {
-            cursor++;
-
-            if (cursor < end && tokens[cursor].IsPunctuation("."))
-            {
-                cursor++;
-                continue;
-            }
-
-            break;
-        }
-
-        if (cursor < end && tokens[cursor].IsPunctuation("("))
-        {
-            cursor = SqlTokenNavigator.SkipParenthesised(tokens, cursor, end);
-        }
+        cursor = SqlTokenNavigator.SkipDataType(tokens, cursor, end);
 
         var isNullable = true;
         var hasDefault = false;

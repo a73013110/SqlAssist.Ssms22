@@ -1619,14 +1619,17 @@ public sealed partial class SqlKeywordPositionAnalyzer
 
         // 資料行定義的起點可能是新資料行的名稱，也可能是 CONSTRAINT、PRIMARY KEY——
         // ALTER TABLE t ADD 與 CREATE TABLE t ( 都是這種格子，同一條規則；
-        // 兩者接得了的關鍵字不一樣，所以是兩個位置。
+        // 兩者接得了的關鍵字不一樣，所以是兩個位置。結果集的資料行定義只寫得出名稱。
         var keywords = KeywordsAfter(last);
 
         return new SqlCaretPosition(
             keywords,
-            keywords is SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ColumnDefinition
-                ? SqlCompletionSlot.MaybeName
-                : SqlCompletionSlot.Grammar);
+            keywords switch
+            {
+                SqlKeywordPosition.AlterTableAdd or SqlKeywordPosition.ColumnDefinition => SqlCompletionSlot.MaybeName,
+                SqlKeywordPosition.ResultSetColumn => SqlCompletionSlot.Name,
+                _ => SqlCompletionSlot.Grammar
+            });
     }
 
     /// <summary>

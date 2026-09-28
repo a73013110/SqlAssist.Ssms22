@@ -123,6 +123,43 @@ public sealed class SqlKeywordPositionTests
         Assert.Equal(expected, SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords);
     }
 
+    /// <summary>
+    /// EXEC 的 WITH RESULT SETS 有兩層括號：外層是結果集清單，內層是資料行定義；資料行名稱那一格是新名字。
+    /// </summary>
+    [Theory]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS (", SqlKeywordPosition.ResultSetList, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC ('SELECT 1') WITH RESULT SETS (", SqlKeywordPosition.ResultSetList, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC dbo.usp_Copies WITH RECOMPILE, RESULT SETS ((Branch varchar(10)), ", SqlKeywordPosition.ResultSetList, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC #Lib_RawNames\n    WITH RESULT SETS ((", SqlKeywordPosition.ResultSetColumn, SqlCompletionSlot.Name)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch varchar(10), ", SqlKeywordPosition.ResultSetColumn, SqlCompletionSlot.Name)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch int), (", SqlKeywordPosition.ResultSetColumn, SqlCompletionSlot.Name)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch int ", SqlKeywordPosition.ResultSetColumnTail, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch varchar(10) ", SqlKeywordPosition.ResultSetColumnTail, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch int, Fee decimal(10, 2) ", SqlKeywordPosition.ResultSetColumnTail, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch dbo.Code ", SqlKeywordPosition.ResultSetColumnTail, SqlCompletionSlot.Grammar)]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch varchar(10) COLLATE Latin1_General_CI_AS ", SqlKeywordPosition.ResultSetColumnTail, SqlCompletionSlot.Grammar)]
+    public void 結果集的位置(string textBeforeToken, SqlKeywordPosition expected, SqlCompletionSlot slot)
+    {
+        var caret = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken);
+
+        Assert.Equal(expected, caret.Keywords);
+        Assert.Equal(slot, caret.Slot);
+    }
+
+    [Theory]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch int NULL ")]
+    [InlineData("EXEC #Lib_RawNames WITH RESULT SETS ((Branch varchar(")]
+    [InlineData("SELECT CAST(a AS varchar(10)) ")]
+    [InlineData("SELECT * FROM t WHERE a IN ((1), ")]
+    public void 不在結果集裡的格子(string textBeforeToken)
+    {
+        const SqlKeywordPosition resultSets = SqlKeywordPosition.ResultSetList |
+            SqlKeywordPosition.ResultSetColumn | SqlKeywordPosition.ResultSetColumnTail;
+        var position = SqlKeywordPositionAnalyzer.Analyze(textBeforeToken).Keywords;
+
+        Assert.True(position == SqlKeywordPosition.Any || (position & resultSets) == SqlKeywordPosition.None, position.ToString());
+    }
+
     [Theory]
     [InlineData("CREATE PROCEDURE p AS WITH ")]
     [InlineData("GRANT EXECUTE ON SCHEMA::dbo TO LibRole WITH ")]

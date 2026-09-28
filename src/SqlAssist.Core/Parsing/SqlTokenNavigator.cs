@@ -237,6 +237,66 @@ public static class SqlTokenNavigator
         return result;
     }
 
+    /// <summary>逗號分隔的清單裡，從 <paramref name="start"/> 起下一個同層逗號；沒有時回 <paramref name="end"/>。</summary>
+    /// <remarks>括號裡的逗號屬於那一組（<c>decimal(10, 2)</c>），不算。</remarks>
+    public static int FindListItemEnd(IReadOnlyList<SqlToken> tokens, int start, int end)
+    {
+        var depth = 0;
+
+        for (var index = start; index < end; index++)
+        {
+            var token = tokens[index];
+
+            if (token.IsPunctuation("("))
+            {
+                depth++;
+                continue;
+            }
+
+            if (token.IsPunctuation(")"))
+            {
+                depth--;
+                continue;
+            }
+
+            if (depth == 0 && token.IsPunctuation(","))
+            {
+                return index;
+            }
+        }
+
+        return end;
+    }
+
+    /// <summary>
+    /// 從 <paramref name="index"/> 跳過一個資料型別，回傳型別之後的位置；那裡不是名稱時原樣回傳。
+    /// </summary>
+    /// <remarks>
+    /// 型別可以帶結構描述（<c>dbo.CopyList</c>），也可以帶長度或有效位數（<c>varchar(10)</c>）。
+    /// 資料行定義的每一種讀法都走這一份，各寫一份的症狀是其中一份不認得自訂型別。
+    /// </remarks>
+    public static int SkipDataType(IReadOnlyList<SqlToken> tokens, int index, int end)
+    {
+        var start = index;
+
+        while (index < end && tokens[index].Kind == SqlTokenKind.Identifier)
+        {
+            index++;
+
+            if (index < end && tokens[index].IsPunctuation("."))
+            {
+                index++;
+                continue;
+            }
+
+            break;
+        }
+
+        return index > start && index < end && tokens[index].IsPunctuation("(")
+            ? SkipParenthesised(tokens, index, end)
+            : index;
+    }
+
     /// <summary>從左括號跳到對應的右括號之後；配不起來時停在 <paramref name="end"/>。</summary>
     public static int SkipParenthesised(IReadOnlyList<SqlToken> tokens, int index, int end)
     {
