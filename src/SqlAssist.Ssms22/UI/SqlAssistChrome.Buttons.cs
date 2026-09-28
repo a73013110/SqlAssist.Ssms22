@@ -105,9 +105,21 @@ internal static partial class SqlAssistChrome
             MinHeight = 26,
             ToolTip = label
         };
+        SetClickCursor(toggle);
         AutomationProperties.SetName(toggle, label);
         return toggle;
     }
+
+    /// <summary>
+    /// 按得下去的東西停駐時顯示手形。
+    /// </summary>
+    /// <remarks>
+    /// 圖示鈕平時沒有邊框，只看游標分不出哪裡能按；擺在可拖曳的抬頭上時更糟——游標從父代
+    /// 繼承搬動的十字箭頭，按鈕與空白處一個樣子。停用的不必另外換回箭頭：WPF 的輸入命中測試
+    /// 跳過停用的元素，游標自然由父代決定。以前通知另寫一份含停用觸發的樣式，只有通知島有手形。
+    /// </remarks>
+    internal static void SetClickCursor(FrameworkElement element) =>
+        element.Cursor = System.Windows.Input.Cursors.Hand;
 
     /// <summary>
     /// 範圍列最左邊那一顆：把範圍換成查詢視窗的連線。SQL Search 與 SQL Memory 共用。
@@ -137,6 +149,7 @@ internal static partial class SqlAssistChrome
         var button = CreateButton("", DefaultMetrics);
         button.Content = CreateIcon(icon); button.ToolTip = label;
         button.Padding = new Thickness(5); button.MinWidth = 26; button.MinHeight = 26;
+        SetClickCursor(button);
         if (tone != SqlActionTone.Neutral) button.Template = CreateGhostButtonTemplate(tone);
         AutomationProperties.SetName(button, label);
         return button;

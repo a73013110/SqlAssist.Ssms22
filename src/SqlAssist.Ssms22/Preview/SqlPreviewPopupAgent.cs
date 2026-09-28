@@ -185,6 +185,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// </summary>
     /// <remarks>
     /// 釘住的那一刻以眼前的矩形為起點：使用者按圖釘或開始拖抬頭時看到的就是它，不能跳到別處。
+    /// 範圍也在這一刻換成整個 SSMS 視窗：拖抬頭是先釘住、同一個按下就開始搬，等不到下一輪定位；
+    /// 沿用錨在名稱上時量的文件欄，第一次拖抬頭就被關在查詢視窗裡，要先按圖釘才拖得出去。
     /// 放開圖釘回到錨在名稱上的擺法，下一輪定位重新從錨點算起。
     /// </remarks>
     public void Update(ITrackingSpan anchor, PreviewPreferredSize preferred, bool pinned)
@@ -223,6 +225,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         {
             RefreshDeviceTransforms();
             _pinned = ToEditorRect(_bounds);
+            _availableBounds = GetPinnedBounds(_bounds.Left, _bounds.Top);
         }
     }
 
@@ -508,7 +511,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// </summary>
     /// <remarks>
     /// 錨在名稱上時，握把只能拖到別的浮窗（建議清單、提示）為止，放開之後定位才會落在同一個
-    /// 地方；釘住的視窗不讓開任何浮窗，範圍就是整個文件欄。
+    /// 地方；釘住的視窗不讓開任何浮窗，範圍就是整個 SSMS 視窗（<see cref="GetPinnedBounds"/>）。
     /// </remarks>
     public void BeginDrag(PreviewDragHandle handle)
     {

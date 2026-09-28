@@ -180,7 +180,10 @@ internal sealed class PreviewSurface : UserControl, IDisposable
         _panel.HeaderTools = tools;
         _panel.CloseRequested += (_, _) => CloseRequested?.Invoke(this, EventArgs.Empty);
 
+        // 抬頭釘不釘住都拖得動（沒釘住的拖了就釘住），所以一律顯示搬動游標；右上角的按鈕
+        // 自己是手形（SqlAssistChrome.SetClickCursor），看得出哪裡是按、哪裡是拖。
         var header = _panel.Header;
+        header.Cursor = Cursors.SizeAll;
         header.MouseLeftButtonDown += OnHeaderMouseDown;
         header.MouseMove += OnHeaderMouseMove;
         header.MouseLeftButtonUp += (_, _) => header.ReleaseMouseCapture();
@@ -281,12 +284,8 @@ internal sealed class PreviewSurface : UserControl, IDisposable
         _frame.Height = Math.Max(0, height - ShadowMargin * 2);
     }
 
-    /// <summary>圖釘的外觀跟著擁有者的狀態，不跟著按鍵本身；釘住時抬頭顯示成可搬動。</summary>
-    public void SetPinned(bool pinned)
-    {
-        _pin.IsChecked = pinned;
-        _panel.Header.Cursor = pinned ? Cursors.SizeAll : null;
-    }
+    /// <summary>圖釘的外觀跟著擁有者的狀態，不跟著按鍵本身。</summary>
+    public void SetPinned(bool pinned) => _pin.IsChecked = pinned;
 
     /// <summary>
     /// 握把擺在哪裡：錨在名稱上時只有遠離錨點那一側的右角，釘住時是下緣兩角。

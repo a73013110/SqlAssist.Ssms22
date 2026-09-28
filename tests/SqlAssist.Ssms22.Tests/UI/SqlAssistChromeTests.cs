@@ -328,6 +328,28 @@ public sealed class SqlAssistChromeTests
     }
 
     /// <summary>
+    /// 按得下去的東西自己是手形：擺在可拖曳的抬頭上時，不能從父代繼承搬動游標。
+    /// </summary>
+    [Fact]
+    public void 圖示鈕圖示開關與通知按鈕自己是手形()
+    {
+        WpfTest.Run(() =>
+        {
+            var strip = new Button();
+            SqlAssistChrome.ApplyNotificationStrip(strip);
+            var clickable = new FrameworkElement[]
+            {
+                SqlAssistChrome.CreateIconButton(SqlIcon.Close, "關閉"),
+                SqlAssistChrome.CreateIconToggle(SqlIcon.Pin, "釘住"),
+                SqlAssistChrome.CreateNotificationButton("關閉", "M 0,0 L 10,10"),
+                strip
+            };
+
+            Assert.All(clickable, element => Assert.Same(System.Windows.Input.Cursors.Hand, element.Cursor));
+        });
+    }
+
+    /// <summary>
     /// 篩選的分隔線只有兩級，SQL Memory 與 SQL Search 都從它來。
     /// </summary>
     [Fact]
