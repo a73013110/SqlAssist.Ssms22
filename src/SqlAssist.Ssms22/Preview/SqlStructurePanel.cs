@@ -628,6 +628,20 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             ToolTip = PreviewText.LoadFailedToolTip
         };
 
+        // 一顆箭頭管寫法與說明兩段：MERGE 的寫法有七行，平常攤開就把分頁擠到視窗下半。收著時每段
+        // 一行、全文在 Tooltip，要讀的人按一下攤開。兩段各一顆的話，抬頭多兩個按鈕卻只是同一件事。
+        // 它跟在膠囊後面，所以要在膠囊列組起來之前建好。
+        _leadToggle = SqlAssistChrome.CreateChevronButton(PreviewText.LeadExpand, _leadExpanded);
+        _leadToggle.MinWidth = 20;
+        _leadToggle.MinHeight = 20;
+        _leadToggle.Padding = new Thickness(2);
+        _leadToggle.Visibility = Visibility.Collapsed;
+        _leadToggle.Click += (_, _) => SqlAssistPlatformGuard.Run("切換預覽抬頭的展開", () =>
+        {
+            _leadExpanded = !_leadExpanded;
+            ApplyLead();
+        });
+
         var pills = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -662,19 +676,6 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _description = SqlAssistChrome.CreateMetadataText(string.Empty, SqlAssistChrome.DefaultMetrics);
         _description.Margin = new Thickness(0, 3, 0, 0);
         _description.Visibility = Visibility.Collapsed;
-
-        // 一顆箭頭管這兩段：MERGE 的寫法有七行，平常攤開就把分頁擠到視窗下半。收著時每段一行、
-        // 全文在 Tooltip，要讀的人按一下攤開。兩段各一顆的話，抬頭多兩個按鈕卻只是同一件事。
-        _leadToggle = SqlAssistChrome.CreateChevronButton(PreviewText.LeadExpand, _leadExpanded);
-        _leadToggle.MinWidth = 20;
-        _leadToggle.MinHeight = 20;
-        _leadToggle.Padding = new Thickness(2);
-        _leadToggle.Visibility = Visibility.Collapsed;
-        _leadToggle.Click += (_, _) => SqlAssistPlatformGuard.Run("切換預覽抬頭的展開", () =>
-        {
-            _leadExpanded = !_leadExpanded;
-            ApplyLead();
-        });
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
         _status.Margin = new Thickness(24, 0, 24, 6);

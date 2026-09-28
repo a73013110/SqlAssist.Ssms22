@@ -36,6 +36,7 @@
 | Search | SQL Search 的複製（限定名稱、清單、定義）、套用查詢視窗連線、搜尋失敗、預覽標不齊命中（降級）、未接住的操作失敗；移至定義與在物件總管中選取歸 Navigation | `User` | `Info` |
 | Update | 手動檢查更新的活動；新版提醒 | 手動 `User`，啟動時的自動檢查 `Ambient` | 手動 `Info`，自動 `Notice` |
 | Diagnostics | 「關於與診斷」的[測試通知](notifications-ui.md#測試通知) | `User` | `Info` |
+| Unclassified | `SqlAssistPlatformGuard` 的 `Run` 一族攔下的未預期例外（事件，一律失敗） | `Ambient` | `Notice` |
 | Results | 尚未接線 | — | — |
 
 ## 判斷順序

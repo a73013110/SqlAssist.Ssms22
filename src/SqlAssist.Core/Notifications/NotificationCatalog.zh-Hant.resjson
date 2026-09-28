@@ -136,6 +136,10 @@
   // 擷取佇列滿了，那一筆沒有寫進紀錄；一律記為失敗，所以不會用到 Done。
   "DroppingSqlCapture": "丟棄 SQL 擷取",
   "DroppingSqlCaptureDone": "已丟棄 SQL 擷取",
+  // ── 平台邊界 ──
+  // SqlAssistPlatformGuard 攔下的未預期例外；一律記為失敗，所以不會用到 Done。
+  "RunningInternalStep": "執行 SqlAssist 內部步驟",
+  "RunningInternalStepDone": "已執行 SqlAssist 內部步驟",
   // ── 更新 ──
   "CheckingForUpdates": "檢查更新",
   "CheckingForUpdatesDone": "已檢查更新",
@@ -192,6 +196,7 @@
   "StatusPending": "等待中",
   "ResultFailed": "請至「關於與診斷」查看通知失敗",
   "ResultCanceled": "工作已取消",
+  "ResultUnexpected": "這一次已略過；錯誤堆疊寫在診斷紀錄檔",
 
   // ── 工作階段統計 ──
   "DigestOther": "超出上限的其他工作",

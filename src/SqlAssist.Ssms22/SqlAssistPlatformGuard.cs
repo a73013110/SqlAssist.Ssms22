@@ -20,7 +20,7 @@ namespace SqlAssist.Ssms22;
 /// 邊界的行為分成三族，選錯的症狀各不相同：
 ///
 /// <list type="bullet">
-/// <item><see cref="Run(string, Action)"/> 一族：不該發生的失敗，一律留下完整堆疊。</item>
+/// <item><see cref="Run(string, Action)"/> 一族：不該發生的失敗，一律留下完整堆疊，並送一則失敗通知。</item>
 /// <item><see cref="Probe{T}(string, Func{T}, T)"/> 一族：向平台問一件可有可無的事
 /// （佈景筆刷、DPI、游標位置、預先載入的中繼資料），失敗是預期內的，只在詳細診斷
 /// 打開時記一行。用 Run 記的話，這些每秒都可能失敗一次的呼叫會把紀錄檔灌滿，
@@ -52,7 +52,7 @@ internal static class SqlAssistPlatformGuard
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Fail(operation, exception);
         }
     }
 
@@ -69,7 +69,7 @@ internal static class SqlAssistPlatformGuard
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Fail(operation, exception);
             return fallback;
         }
     }
@@ -87,7 +87,7 @@ internal static class SqlAssistPlatformGuard
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Fail(operation, exception);
             return fallback;
         }
     }
@@ -112,7 +112,7 @@ internal static class SqlAssistPlatformGuard
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Fail(operation, exception);
         }
     }
 
@@ -140,7 +140,7 @@ internal static class SqlAssistPlatformGuard
         }
         catch (Exception exception)
         {
-            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+            Fail(operation, exception);
             return fallback();
         }
     }
@@ -293,5 +293,18 @@ internal static class SqlAssistPlatformGuard
     {
         if (expected) SqlAssistDiagnostics.Write($"{operation}失敗：{exception.Message}");
         else SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+    }
+
+    /// <summary>不該發生的失敗：完整堆疊寫進紀錄檔，並讓使用者看到一則失敗。</summary>
+    /// <remarks>
+    /// 只寫紀錄檔的話，使用者看到的只是功能安靜地不作用。節流與防遞迴在
+    /// <see cref="UnexpectedFailureNotice"/>：這一族包著按鍵與通知島自己的重畫，壞掉時會連續失敗。
+    /// 背景工作的 <see cref="Report"/> 不走這裡：非預期的那一種有自己的通知範圍，已經記成失敗，
+    /// 再送一則就是同一件事兩列。
+    /// </remarks>
+    private static void Fail([Localizable(false)] string operation, Exception exception)
+    {
+        SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
+        UnexpectedFailureNotice.Default.Report(operation);
     }
 }

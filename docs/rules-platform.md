@@ -10,7 +10,7 @@
 
   | 方法 | 用在哪 | 失敗時 |
   |---|---|---|
-  | `Run`／`RunAsync`／`Create` | MEF 建立、按鍵、編輯器事件、派送工作 | `WriteAlways` 完整堆疊並回傳替代值 |
+  | `Run`／`RunAsync`／`Create` | MEF 建立、按鍵、編輯器事件、派送工作 | `WriteAlways` 完整堆疊、送一則失敗通知（`UnexpectedFailureNotice`）並回傳替代值 |
   | `Probe` | 佈景筆刷、DPI、游標位置、錨點座標等會連續失敗的可選探測 | 只在詳細診斷記一行 |
   | `Begin`／`BeginProbe` | 沒有人接結果的背景工作；後者用於預載、預熱，以及逾時放掉等待、仍在跑的工作（傳 `Task`，不必壓 VSTHRD003） | 依前兩族的層級處理 |
 
