@@ -615,8 +615,8 @@ public sealed class SqlBuiltInDocCatalogTests
         """;
 
     /// <summary>
-    /// EXEC 的正式資料還沒寫（stage 3a 會補），這裡先用 <c>aliases</c> 驗證
-    /// EXEC／EXECUTE 共用同一份內容；MERGE、BULK INSERT 各自一筆。
+    /// 用 <c>aliases</c> 驗證 EXEC／EXECUTE 共用同一份內容；MERGE、BULK INSERT 各自一筆；
+    /// CREATE INDEX 的修飾字組合也是別名。
     /// </summary>
     private const string StatementTestDocs = """
         [
@@ -638,6 +638,13 @@ public sealed class SqlBuiltInDocCatalogTests
             "kind": "statement",
             "summary": "把檔案內容整批載入資料表。",
             "signature": "BULK INSERT target FROM 'file'"
+          },
+          {
+            "name": "CREATE INDEX",
+            "kind": "statement",
+            "summary": "建立索引。",
+            "signature": "CREATE [ UNIQUE ] [ NONCLUSTERED ] INDEX name ON table ( column )",
+            "aliases": ["CREATE UNIQUE INDEX", "CREATE UNIQUE NONCLUSTERED INDEX"]
           }
         ]
         """;
@@ -734,9 +741,85 @@ public sealed class SqlBuiltInDocCatalogTests
     }
 
     /// <summary>
-    /// <c>INSERT 目標 EXEC</c> 這一句本身不是以 EXEC 開頭，但 EXEC 一樣算數；
-    /// 這條規則現在單靠 <see cref="SqlStatementBoundaries.IsStatementHead"/> 就成立，
-    /// 不必另外判斷「前一格是不是 INSERT 目標」。
+    /// 停在一句開頭那串字的任何一個字上都認得，名稱取對得上的最長那一段。
+    /// </summary>
+    /// <remarks>
+    /// 以前只認第一個詞：停在 <c>BULK INSERT</c> 的 <c>INSERT</c> 上什麼都沒有，
+    /// 而建議清單上選到的正是那個字。修飾字的組合是資料裡的別名，不是另一份名單。
+    /// </remarks>
+    [Theory]
+    [InlineData("BULK INSERT Lib_Tag FROM 'C:\\tags.csv'", "INSERT", "BULK INSERT")]
+    [InlineData("CREATE INDEX IX_CopyNo ON Loan (CopyNo)", "CREATE", "CREATE INDEX")]
+    [InlineData("CREATE INDEX IX_CopyNo ON Loan (CopyNo)", "INDEX", "CREATE INDEX")]
+    [InlineData("CREATE UNIQUE NONCLUSTERED INDEX IX_CopyNo ON Loan (CopyNo)", "NONCLUSTERED", "CREATE UNIQUE NONCLUSTERED INDEX")]
+    [InlineData("SELECT 1\nCREATE UNIQUE INDEX IX_CopyNo ON Loan (CopyNo)", "UNIQUE", "CREATE UNIQUE INDEX")]
+    public void 語句開頭那串字都認得出語句(string text, string word, string expected)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
+
+        Assert.NotNull(reference);
+        Assert.True(SqlBuiltInDocCatalog.TryGetAt(text, reference, out var doc));
+        Assert.Equal(expected, doc.Name);
+        Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+    }
+
+    /// <summary>那串字在名稱處斷掉；對上的名稱沒蓋到的字也不算。</summary>
+    [Theory]
+    [InlineData("ALTER TABLE Loan MERGE", "MERGE")]
+    [InlineData("CREATE UNIQUE CLUSTERED COLUMNSTORE INDEX IX ON Loan", "UNIQUE")]
+    [InlineData("CREATE INDEX IX_CopyNo ON Loan (CopyNo)", "ON")]
+    public void 語句開頭那串字以外不認(string text, string word)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));
+
+        Assert.NotNull(reference);
+        Assert.False(SqlBuiltInDocCatalog.TryGetAt(text, reference, out _));
+    }
+
+    /// <summary>
+    /// 建議清單的關鍵字候選與停留提示同一條規則：接在游標前的文字後面再問。
+    /// </summary>
+    /// <remarks>
+    /// 只比名稱的症狀是 <c>ALTER TABLE Loan </c> 之後選到 <c>MERGE</c> 按向右鍵，開出 MERGE 陳述式的說明。
+    /// </remarks>
+    [Theory]
+    [InlineData("", "MERGE", "MERGE")]
+    [InlineData("SELECT * FROM Loan\n", "MERGE", "MERGE")]
+    [InlineData("CREATE ", "INDEX", "CREATE INDEX")]
+    [InlineData("CREATE UNIQUE ", "INDEX", "CREATE UNIQUE INDEX")]
+    [InlineData("INSERT #t ", "EXEC", "EXEC")]
+    [InlineData("ALTER TABLE Loan ", "MERGE", null)]
+    [InlineData("CREATE ", "UNIQUE", null)]
+    [InlineData("CREATE PROCEDURE dbo.Lib_Proc\nWITH ", "EXECUTE", null)]
+    [InlineData("SELECT ", "SELECT", null)]
+    public void 關鍵字候選照位置對到語句說明(string before, string candidate, string? expected)
+    {
+        using var scope = SqlBuiltInDocCatalog.UseTestEntries(StatementTestDocs);
+
+        var text = before + "|後面的文字不影響判斷";
+        var found = SqlBuiltInDocCatalog.TryGetStatementFor(text, before.Length, candidate, out var doc);
+
+        Assert.Equal(expected is not null, found);
+
+        if (expected is not null)
+        {
+            Assert.Equal(expected, doc.Name);
+        }
+
+        // 記住答案的那一層問的是同一支，換一份清單才重算。
+        var candidates = new SqlStatementCandidates(text, before.Length);
+        Assert.Equal(found, candidates.TryGet(candidate, out _));
+        Assert.Equal(found, candidates.TryGet(candidate.ToLowerInvariant(), out _));
+    }
+
+    /// <summary>
+    /// <c>INSERT 目標 EXEC</c> 這一句本身不是以 EXEC 開頭，但 EXEC 一樣算數。
+    /// 帶 <c>INTO</c> 與限定名稱的那一種單靠 <see cref="SqlStatementBoundaries.IsStatementHead"/>
+    /// 認不出來，拿掉「前一格是不是 INSERT 目標」那一關就是第二筆失敗。
     /// </summary>
     [Theory]
     [InlineData("INSERT #t EXEC sp_executesql N'SELECT 1'")]

@@ -24,8 +24,8 @@ public sealed class SqlMemoryCleanupViewTests
         var server = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
         var database = SqlAssistChrome.CreateTextBox(SqlAssistChrome.DefaultMetrics);
         var view = new SqlMemoryCleanupView(
-            SqlAssistChrome.CreateInputBar(SqlIcon.Server, server, SqlAssistChrome.CreateDropDownButton("選擇伺服器")), server,
-            SqlAssistChrome.CreateInputBar(SqlIcon.Database, database, SqlAssistChrome.CreateDropDownButton("選擇資料庫")), database)
+            SqlAssistChrome.CreateInputBar(SqlIcon.Server, server, SqlAssistChrome.CreateChevronButton("選擇伺服器")), server,
+            SqlAssistChrome.CreateInputBar(SqlIcon.Database, database, SqlAssistChrome.CreateChevronButton("選擇資料庫")), database)
         { Margin = new Thickness(16) };
         var host = new Border { Child = view };
         host.Resources.MergedDictionaries.Add(palette.Resources);

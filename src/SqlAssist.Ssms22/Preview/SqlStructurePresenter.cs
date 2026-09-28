@@ -124,10 +124,17 @@ internal sealed class SqlStructurePresenter : IDisposable
     /// <summary>畫出手上已有的；回傳內容是否已經畫得出來。</summary>
     private bool Draw(SqlPreviewSubject subject, SqlMetadataService? service)
     {
-        // 內建說明是隨組件發布的一份資料：查表就有，畫完就結束，不起節流計時器。
+        // 內建說明與片段都是手上就有的資料：畫完就結束，不起節流計時器。
         if (subject.BuiltIn is { } doc)
         {
             _panel.ShowBuiltIn(doc);
+            return true;
+        }
+
+        // 片段同樣就在手上：實際會插入的文字，不必連線。
+        if (subject.Snippet is { } snippet)
+        {
+            _panel.ShowSnippet(snippet);
             return true;
         }
 

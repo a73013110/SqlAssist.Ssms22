@@ -1,6 +1,8 @@
+using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Completion;
 using Xunit;
@@ -172,16 +174,54 @@ public sealed class SqlSuggestionTargetTests
     }
 
     /// <summary>
-    /// 關鍵字建議項對到語句說明，<c>EXEC</c> 與別名 <c>EXECUTE</c> 都換得到同一份。
+    /// 關鍵字建議項在語句開頭對到語句說明，<c>EXEC</c> 與別名 <c>EXECUTE</c> 都換得到同一份；
+    /// <c>CREATE </c> 之後的 <c>INDEX</c> 對到 CREATE INDEX。
     /// </summary>
     [Theory]
-    [InlineData("EXEC")]
-    [InlineData("EXECUTE")]
-    public void 關鍵字建議項換到語句說明(string name)
+    [InlineData("", "EXEC", "EXEC")]
+    [InlineData("", "EXECUTE", "EXECUTE")]
+    [InlineData("CREATE ", "INDEX", "CREATE INDEX")]
+    public void 關鍵字建議項換到語句說明(string before, string name, string expected)
     {
-        var doc = SqlSuggestionTarget.Describe(Suggestion(name, SuggestionKind.Keyword))!.BuiltIn!;
+        var doc = SqlSuggestionTarget.Describe(
+            Suggestion(name, SuggestionKind.Keyword),
+            new SqlStatementCandidates(before, before.Length))!.BuiltIn!;
 
         Assert.Equal(SqlBuiltInKind.Statement, doc.Kind);
+        Assert.Equal(expected, doc.Name);
+    }
+
+    /// <summary>
+    /// 同一個字不在語句開頭就不是語句，說明面板與浮動預覽都不對。
+    /// </summary>
+    /// <remarks>
+    /// 以前只比名稱：<c>ALTER TABLE Loan </c> 之後選到 <c>MERGE</c> 按向右鍵，開出 MERGE 陳述式的說明。
+    /// 不知道位置（清單還沒建過）時一律不對。
+    /// </remarks>
+    [Fact]
+    public void 不在語句開頭的關鍵字不對到語句說明()
+    {
+        const string before = "ALTER TABLE Loan ";
+        var merge = Suggestion("MERGE", SuggestionKind.Keyword);
+
+        Assert.Null(SqlSuggestionTarget.FindBuiltIn(merge, new SqlStatementCandidates(before, before.Length)));
+        Assert.Null(SqlSuggestionTarget.Describe(merge, new SqlStatementCandidates(before, before.Length)));
+        Assert.Null(SqlSuggestionTarget.FindBuiltIn(merge, statements: null));
+    }
+
+    /// <summary>
+    /// 片段與內建說明同一條分工：說明面板印得完的不開視窗，印不完的才交給浮動預覽。
+    /// </summary>
+    [Fact]
+    public void 只有說明面板印不完的片段開視窗()
+    {
+        var shortSnippet = new SqlSnippet("ssf", "SELECT * FROM ");
+        var longSnippet = new SqlSnippet("cur", string.Join("\n", Enumerable.Repeat("SELECT 1;", SqlSnippetPreview.PanelLines + 1)));
+
+        Assert.Null(SqlSuggestionTarget.Describe(Suggestion("ssf", SuggestionKind.Snippet, shortSnippet)));
+        Assert.Same(
+            longSnippet,
+            SqlSuggestionTarget.Describe(Suggestion("cur", SuggestionKind.Snippet, longSnippet))!.Snippet);
     }
 
     /// <summary>

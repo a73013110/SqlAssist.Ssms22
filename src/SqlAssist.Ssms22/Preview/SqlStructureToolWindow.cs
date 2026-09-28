@@ -63,7 +63,7 @@ public sealed class SqlStructureToolWindow : SqlToolWindowPane
 
         panel.ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
         presenter.Show(subject, service);
-        Caption = PreviewText.ToolWindowCaptionFor(subject.Object?.QualifiedName ?? subject.BuiltIn?.Name ?? string.Empty);
+        Caption = PreviewText.ToolWindowCaptionFor(subject.Label);
     }
 
     private void Build()

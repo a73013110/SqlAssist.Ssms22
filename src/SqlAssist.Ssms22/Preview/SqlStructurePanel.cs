@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
@@ -9,6 +10,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
@@ -18,6 +20,7 @@ using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Matching;
 using SqlAssist.Core.Notifications;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -98,6 +101,60 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         public SqlTabHeader Header { get; }
 
         public DataGrid Grid { get; }
+    }
+
+    /// <summary>
+    /// 手上就有的一份說明：內建名稱或片段。
+    /// </summary>
+    /// <remarks>
+    /// 兩者畫法一樣——名稱、種類、寫法、用途、一份 SQL 與幾張對照表——只差來源。各寫一支
+    /// 的話，收掉對照表、換回指令碼標題與複製訊息這幾處都要各長一份，漏一份的症狀是畫面
+    /// 停在上一種內容的樣子。
+    /// </remarks>
+    private sealed class DocumentView
+    {
+        public DocumentView(
+            string title,
+            SuggestionKind kind,
+            string kindName,
+            string signature,
+            string summary,
+            string sql,
+            string sqlLabel,
+            IReadOnlyList<SqlBuiltInReference> references,
+            string copiedMessage)
+        {
+            Title = title;
+            Kind = kind;
+            KindName = kindName;
+            Signature = signature;
+            Summary = summary;
+            Sql = sql;
+            SqlLabel = sqlLabel;
+            References = references;
+            CopiedMessage = copiedMessage;
+        }
+
+        public string Title { get; }
+
+        /// <summary>圖示；與建議清單、滑鼠停留提示同一份對照。</summary>
+        public SuggestionKind Kind { get; }
+
+        public string KindName { get; }
+
+        public string Signature { get; }
+
+        public string Summary { get; }
+
+        public string Sql { get; }
+
+        /// <summary>SQL 那一頁的標籤：內建名稱是範例，片段是指令碼。</summary>
+        public string SqlLabel { get; }
+
+        public IReadOnlyList<SqlBuiltInReference> References { get; }
+
+        /// <summary>沒有選取時按複製，狀態列說複製了什麼。</summary>
+        public string CopiedMessage { get; }
     }
 
     private sealed class ColumnRow
@@ -437,6 +494,21 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
     private readonly SqlPill _failurePill;
     private readonly TextBlock _signature;
     private readonly TextBlock _description;
+
+    /// <summary>名稱底下那幾行的展開箭頭；有東西收著才出現。</summary>
+    private readonly Button _leadToggle;
+
+    /// <summary>
+    /// 寫法與說明要不要整段攤開；所有預覽共用，這次開過下次還是開著。
+    /// </summary>
+    /// <remarks>
+    /// 跟著人走而不是跟著內容走：看 MERGE 時攤開的人，換到 CONVERT 多半也要看完整寫法；
+    /// 每換一項就收回去，等於每一次都要再按一次。
+    /// </remarks>
+    private static bool _leadExpanded;
+
+    /// <summary>完整的寫法；收著時畫面上只有第一行。</summary>
+    private string _signatureText = string.Empty;
     private readonly TextBlock _status;
     private readonly TabControl _tabs;
 
@@ -499,8 +571,8 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
     /// <summary>內建對照表的分頁，依需要長出來之後就留著重複使用。</summary>
     private readonly List<ReferenceTab> _referenceTabs = new();
 
-    /// <summary>目前畫的是內建說明而不是資料庫物件。</summary>
-    private SqlBuiltInDoc? _builtIn;
+    /// <summary>目前畫的是手上就有的一份說明（內建名稱或片段），而不是資料庫物件。</summary>
+    private DocumentView? _document;
 
     /// <summary>目前顯示的結構；分頁按需填內容時要回頭讀它。</summary>
     private SqlObjectStructure? _structure;
@@ -571,6 +643,8 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             pills.Children.Add(pill);
         }
 
+        pills.Children.Add(_leadToggle);
+
         // 靠左而且膠囊先停：整列只量自己的寬度，放得下時膠囊緊跟在名稱後面；
         // 放不下時讓的是可以省略的名稱，膠囊不被擠出這一列。
         var titleRow = new DockPanel { HorizontalAlignment = HorizontalAlignment.Left };
@@ -581,19 +655,26 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         // 內建名稱的簽章自己一行：那是使用者開這個視窗時第一個要看的東西。
         _signature = SqlAssistChrome.CreateMetadataText(string.Empty, SqlAssistChrome.DefaultMetrics);
         _signature.Margin = new Thickness(0, 4, 0, 0);
-        _signature.TextTrimming = TextTrimming.CharacterEllipsis;
-        _signature.TextWrapping = TextWrapping.NoWrap;
         _signature.Visibility = Visibility.Collapsed;
-        _signature.SetBinding(ToolTipProperty, new Binding(nameof(TextBlock.Text)) { Source = _signature });
 
         // 資料表描述排在名稱底下：那是使用者自己寫的一句話，膠囊說不出來。
         // 沒有掛說明時整列收掉，不留一條空白撐高標題。
         _description = SqlAssistChrome.CreateMetadataText(string.Empty, SqlAssistChrome.DefaultMetrics);
         _description.Margin = new Thickness(0, 3, 0, 0);
-        _description.TextTrimming = TextTrimming.CharacterEllipsis;
-        _description.TextWrapping = TextWrapping.NoWrap;
         _description.Visibility = Visibility.Collapsed;
-        _description.SetBinding(ToolTipProperty, new Binding(nameof(TextBlock.Text)) { Source = _description });
+
+        // 一顆箭頭管這兩段：MERGE 的寫法有七行，平常攤開就把分頁擠到視窗下半。收著時每段一行、
+        // 全文在 Tooltip，要讀的人按一下攤開。兩段各一顆的話，抬頭多兩個按鈕卻只是同一件事。
+        _leadToggle = SqlAssistChrome.CreateChevronButton(PreviewText.LeadExpand, _leadExpanded);
+        _leadToggle.MinWidth = 20;
+        _leadToggle.MinHeight = 20;
+        _leadToggle.Padding = new Thickness(2);
+        _leadToggle.Visibility = Visibility.Collapsed;
+        _leadToggle.Click += (_, _) => SqlAssistPlatformGuard.Run("切換預覽抬頭的展開", () =>
+        {
+            _leadExpanded = !_leadExpanded;
+            ApplyLead();
+        });
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
         _status.Margin = new Thickness(24, 0, 24, 6);
@@ -772,6 +853,15 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         headerText.Children.Add(_signature);
         headerText.Children.Add(_description);
 
+        // 放不放得下一行要看寬度：視窗縮放時重新判斷箭頭要不要出現。
+        headerText.SizeChanged += (_, eventArgs) =>
+        {
+            if (eventArgs.WidthChanged)
+            {
+                SqlAssistPlatformGuard.Run("重新判斷預覽抬頭是否收著內容", UpdateLeadToggle);
+            }
+        };
+
         // 抬頭右側留一格給宿主：浮動預覽放圖釘、移到工具視窗與關閉，工具視窗什麼都不放。
         // 按鈕不在這裡建，因為那幾顆回答的是「這扇窗怎麼收」，而那只有宿主知道。
         _headerTools = new ContentControl
@@ -905,7 +995,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _partial = false;
         _scriptText = null;
         ResetContent();
-        LeaveBuiltIn();
+        LeaveDocument();
         SetTitle(objectInfo);
         ShowPills(pending: CommonText.Loading);
         SetDescription(null);
@@ -983,28 +1073,57 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
     /// </summary>
     /// <remarks>
     /// 與物件結構共用同一個視窗殼層、同一套擺放、縮放與複製。內容則完全不同：
-    /// 沒有查詢也沒有分層載入，資料是隨組件發布的一份，因此直接填完，不走
-    /// 「只填看得見的分頁」那條路——那條路省的是查詢與版面計算，而這裡兩者都沒有。
-    ///
-    /// 範例沿用指令碼分頁：那是同一個唯讀的著色檢視，換一個標題就是了。
+    /// 沒有查詢也沒有分層載入，資料是隨組件發布的一份，因此直接填完。範例沿用指令碼分頁：
+    /// 那是同一個唯讀的著色檢視，換一個標題就是了。
     /// </remarks>
-    public void ShowBuiltIn(SqlBuiltInDoc doc)
+    public void ShowBuiltIn(SqlBuiltInDoc doc) => ShowDocument(new DocumentView(
+        doc.Name,
+        doc.Kind.ToSuggestionKind(),
+        doc.Kind.GetDisplayName(),
+        doc.Signature,
+        doc.Summary,
+        // 多段範例接成一份的組法只看資料就決定得了，放在 Core（SqlBuiltInExampleText）。
+        SqlBuiltInExampleText.Combine(doc.Examples),
+        CommonText.Example,
+        doc.References,
+        PreviewText.CopiedExample));
+
+    /// <summary>顯示一個片段選下去之後實際插入的文字；說明面板印不完的才走到這裡。</summary>
+    public void ShowSnippet(SqlSnippet snippet) => ShowDocument(new DocumentView(
+        snippet.Title,
+        SuggestionKind.Snippet,
+        SqlKindText.Snippet,
+        string.Empty,
+        snippet.Description,
+        SqlSnippetPreview.Text(snippet),
+        PreviewText.TabScript,
+        Array.Empty<SqlBuiltInReference>(),
+        PreviewText.CopiedFullScript));
+
+    /// <summary>
+    /// 畫一份手上就有的說明。
+    /// </summary>
+    /// <remarks>
+    /// 不走「只填看得見的分頁」那條路：那條路省的是查詢與版面計算，而這裡兩者都沒有。
+    /// </remarks>
+    private void ShowDocument(DocumentView document)
     {
         _structure = null;
         _partial = false;
-        _builtIn = doc;
+        _document = document;
         ResetContent();
         ClearTabs();
 
-        SetKind(SqlIcons.GetMoniker(Kind(doc)), KindName(doc), SqlIcons.GetImageElement(Kind(doc)).AutomationName);
+        // 圖示與種類文字與滑鼠停留提示共用同一份對照（SqlBuiltInKinds、SqlIcons）：
+        // 兩個表面畫的是同一個名稱，分成兩份的症狀是改了一邊另一邊沒改。
+        SetKind(SqlIcons.GetMoniker(document.Kind), document.KindName, SqlIcons.GetImageElement(document.Kind).AutomationName);
         ShowPills();
 
         _title.Inlines.Clear();
-        _title.Inlines.Add(new Run(doc.Name) { FontWeight = FontWeights.SemiBold });
+        _title.Inlines.Add(new Run(document.Title) { FontWeight = FontWeights.SemiBold });
 
-        _signature.Text = doc.Signature;
-        _signature.Visibility = Visible(doc.Signature.Length > 0);
-        SetDescription(doc.Summary);
+        _signatureText = document.Signature;
+        SetDescription(document.Summary);
         _status.Text = string.Empty;
 
         foreach (var tab in _gridTabs)
@@ -1012,29 +1131,27 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             tab.Item.Visibility = Visibility.Collapsed;
         }
 
-        // 多段範例接成一份：每段前加 -- ▸ {title} 當標頭，段落之間空一行；
-        // 文字組法只看資料就決定得了，放在 Core（SqlBuiltInExampleText），這裡只管畫。
-        _scriptText = SqlBuiltInExampleText.Combine(doc.Examples);
-        _scriptHeader.Label = CommonText.Example;
-        _scriptTab.Visibility = Visible(doc.Examples.Count > 0);
+        _scriptText = document.Sql;
+        _scriptHeader.Label = document.SqlLabel;
+        _scriptTab.Visibility = Visible(document.Sql.Length > 0);
 
-        for (var index = 0; index < _referenceTabs.Count || index < doc.References.Count; index++)
+        for (var index = 0; index < _referenceTabs.Count || index < document.References.Count; index++)
         {
             var tab = EnsureReferenceTab(index);
 
-            if (index >= doc.References.Count)
+            if (index >= document.References.Count)
             {
                 tab.Item.Visibility = Visibility.Collapsed;
                 tab.Grid.ItemsSource = null;
                 continue;
             }
 
-            FillReference(tab, doc.References[index]);
+            FillReference(tab, document.References[index]);
         }
 
         // 落在對照表而不是範例：使用者是從提示點進來的，那段範例他剛剛才看過，
         // 而他要的是「style 到底有哪些」。沒有對照表時才退回範例。
-        _tabs.SelectedItem = _referenceTabs.Count > 0 && doc.References.Count > 0
+        _tabs.SelectedItem = document.References.Count > 0
             ? _referenceTabs[0].Item
             : FirstVisibleTab();
 
@@ -1090,12 +1207,6 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         return tab;
     }
 
-    // 圖示與那一行種類文字與滑鼠停留提示共用同一份對照（SqlBuiltInKinds）：
-    // 兩個表面畫的是同一個名稱，分成兩份的症狀是改了一邊另一邊沒改。
-    private static SuggestionKind Kind(SqlBuiltInDoc doc) => doc.Kind.ToSuggestionKind();
-
-    private static string KindName(SqlBuiltInDoc doc) => doc.Kind.GetDisplayName();
-
     /// <summary>顯示一段訊息取代內容，例如沒有連線或這一項沒有結構。</summary>
     public void ShowMessage(string title, string message)
     {
@@ -1103,7 +1214,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _partial = false;
         _scriptText = null;
         ResetContent();
-        LeaveBuiltIn();
+        LeaveDocument();
 
         // 沒有物件語意的訊息不顯示種類膠囊，避免誤認為未知種類的物件。
         _kindPill.Visibility = Visibility.Collapsed;
@@ -1138,7 +1249,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _partial = partial;
         _scriptText = null;
         ResetContent();
-        LeaveBuiltIn();
+        LeaveDocument();
         SetTitle(structure.Object);
         // 切頁可能同步回報顯示失敗，不能在填入之後再把那句訊息清掉。
         _status.Text = string.Empty;
@@ -1226,7 +1337,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
 
         _scriptNavigation.Visibility = Visible(ReferenceEquals(tab, _scriptTab));
 
-        if (_structure is null && _builtIn is null)
+        if (_structure is null && _document is null)
         {
             return;
         }
@@ -1322,18 +1433,81 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         return null;
     }
 
-    /// <summary>標題底下那一行說明；沒有掛說明時整列收掉。</summary>
+    /// <summary>標題底下那一行說明；沒有掛說明時整列收掉。每一條換內容的路最後都走這裡。</summary>
     /// <remarks>
     /// 收斂空白走 <see cref="SqlDescriptionText"/>：說明是使用者自己打進
     /// <c>sp_addextendedproperty</c> 的字串，帶換行的那一段會把這一行撐成好幾行，
-    /// 而標題列的高度是浮動視窗量出來的。全文仍讀得到——這一行的 Tooltip
-    /// 綁在自己的文字上。
+    /// 而標題列的高度是浮動視窗量出來的。要讀全文的人攤開（<see cref="ApplyLead"/>）或看 Tooltip。
     /// </remarks>
     private void SetDescription(string? description)
     {
         var text = SqlDescriptionText.Collapse(description);
         _description.Text = text ?? string.Empty;
         _description.Visibility = Visible(text is not null);
+        ApplyLead();
+    }
+
+    /// <summary>
+    /// 照目前的展開狀態畫寫法與說明：收著時每段一行、全文在 Tooltip，攤開時整段換行顯示。
+    /// </summary>
+    private void ApplyLead()
+    {
+        var expanded = _leadExpanded;
+        var newline = _signatureText.IndexOf('\n');
+
+        // 收著時寫法只留第一行，後面接省略號說還有：第一行本身放得下時，裁切的省略號不會出現。
+        _signature.Text = expanded || newline < 0
+            ? _signatureText
+            : _signatureText.Substring(0, newline).TrimEnd('\r') + " …";
+        _signature.Visibility = Visible(_signatureText.Length > 0);
+
+        foreach (var (block, full) in new[] { (_signature, _signatureText), (_description, _description.Text) })
+        {
+            block.TextWrapping = expanded ? TextWrapping.Wrap : TextWrapping.NoWrap;
+            block.TextTrimming = expanded ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+            block.ToolTip = expanded || full.Length == 0 ? null : full;
+        }
+
+        var label = expanded ? PreviewText.LeadCollapse : PreviewText.LeadExpand;
+        _leadToggle.ToolTip = label;
+        AutomationProperties.SetName(_leadToggle, label);
+        SqlAssistChrome.SetChevronExpanded((Path)_leadToggle.Content, expanded);
+        UpdateLeadToggle();
+    }
+
+    /// <summary>
+    /// 箭頭只在有東西收著時出現：寫法不只一行，或寫法、說明有一段放不進一行。
+    /// </summary>
+    /// <remarks>
+    /// 一律顯示的話，一行就寫完的 <c>smallint</c> 也有一顆按了沒反應的箭頭。放不放得下看的是
+    /// 單行寬度，與目前收著還是攤開無關，所以攤開之後箭頭還在，收得回去。
+    /// </remarks>
+    private void UpdateLeadToggle()
+    {
+        var hidden = _signatureText.IndexOf('\n') >= 0 ||
+            Overflows(_signature, _signatureText) ||
+            Overflows(_description, _description.Text);
+        _leadToggle.Visibility = Visible(hidden);
+    }
+
+    /// <summary>這段文字排成一行時比這一格寬；還沒排過版（寬度 0）時先當作放得下，排好之後會再問一次。</summary>
+    private static bool Overflows(TextBlock block, string text)
+    {
+        if (text.Length == 0 || block.Visibility != Visibility.Visible || block.ActualWidth <= 0)
+        {
+            return false;
+        }
+
+        var formatted = new FormattedText(
+            text,
+            CultureInfo.CurrentUICulture,
+            block.FlowDirection,
+            new Typeface(block.FontFamily, block.FontStyle, block.FontWeight, block.FontStretch),
+            block.FontSize,
+            Brushes.Black,
+            VisualTreeHelper.GetDpi(block).PixelsPerDip);
+
+        return formatted.WidthIncludingTrailingWhitespace > block.ActualWidth + 0.5;
     }
 
     private static List<TRow> Map<TSource, TRow>(IReadOnlyList<TSource> source, Func<TSource, TRow> convert)
@@ -1356,7 +1530,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _searchIndexes.Clear();
         _hits.Clear();
         _scriptHits = null;
-        _signature.Visibility = Visibility.Collapsed;
+        _signatureText = string.Empty;
     }
 
     private void ClearTabs()
@@ -1378,14 +1552,14 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
     /// 對照表分頁收掉、指令碼分頁的標題換回來。少了這一步的症狀是看過一次
     /// <c>CONVERT</c> 之後，接下來每一個資料表都帶著一個「style（日期時間）」分頁。
     /// </remarks>
-    private void LeaveBuiltIn()
+    private void LeaveDocument()
     {
-        if (_builtIn is null)
+        if (_document is null)
         {
             return;
         }
 
-        _builtIn = null;
+        _document = null;
         _scriptHeader.Label = PreviewText.TabScript;
 
         foreach (var tab in _referenceTabs)
@@ -1705,12 +1879,12 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
 
     /// <summary>複製整份指令碼，與目前在哪個分頁無關。</summary>
     /// <remarks>
-    /// 內建說明沒有指令碼，那時「全部」指的是目前這張對照表——十六列 style
+    /// 內建說明停在對照表上時，「全部」指的是目前這張表——十六列 style
     /// 正是使用者會想貼到別處留著的東西。
     /// </remarks>
     public void CopyAll()
     {
-        if (_builtIn is not null)
+        if (_document is { } document)
         {
             if (_tabs.SelectedItem is TabItem { Content: DataGrid })
             {
@@ -1718,7 +1892,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
                 return;
             }
 
-            Copy(GetScript(), PreviewText.CopiedExample);
+            Copy(GetScript(), document.CopiedMessage);
             return;
         }
 
@@ -1996,6 +2170,9 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _flags.CellTemplate = PreviewChrome.CreateFlagsCellTemplate(
             nameof(ColumnRow.FlagList),
             _metrics);
+
+        // 字變大，放得下一行的說明可能就放不下了。
+        UpdateLeadToggle();
     }
 
     private void ApplyGridMetrics(DataGrid grid, Style headerStyle)

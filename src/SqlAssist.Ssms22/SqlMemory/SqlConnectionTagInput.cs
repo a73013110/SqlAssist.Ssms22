@@ -27,7 +27,7 @@ internal static class SqlConnectionTagInput
     public static System.Windows.Controls.Border CreateBar(SqlAssistPackage package, SqlIcon icon, TextBox input, string label,
         bool databases, Func<string?> server, bool includeFavorites, Action<string> report)
     {
-        var dropDown = SqlAssistChrome.CreateDropDownButton(FavoriteText.ChooseKnown(label));
+        var dropDown = SqlAssistChrome.CreateChevronButton(FavoriteText.ChooseKnown(label));
         var menu = new ContextMenu { PlacementTarget = input, Placement = PlacementMode.Bottom };
         VsThemeBrushes.Apply(menu);
         dropDown.Click += (_, _) => _ = SqlMemoryActions.RunAsync(

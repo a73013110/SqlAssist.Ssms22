@@ -13,5 +13,7 @@
   "Loading": "Loading details…",
   "ColumnOf": "Column · {owner}",
   "MoreHidden": "Not shown: {count}",
+  "MoreLines": "{count} more lines not shown",
+  "MoreLinesInPreview": "{count} more lines; press Right Arrow to see all",
   "NoColumnDetails": "No column details to display"
 }

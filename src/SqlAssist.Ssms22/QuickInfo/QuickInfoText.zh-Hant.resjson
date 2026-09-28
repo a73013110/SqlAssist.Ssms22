@@ -16,5 +16,8 @@
   // 停在欄位上時的第二行；owner 是所屬物件的限定名稱。
   "ColumnOf": "欄位 · {owner}",
   "MoreHidden": "另有 {count} 項未顯示",
+  // 建議清單說明面板裡的片段印不完時。面板點不到，浮動預覽開著時指出按哪個鍵。
+  "MoreLines": "另有 {count} 行未顯示",
+  "MoreLinesInPreview": "另有 {count} 行，按向右鍵看全部",
   "NoColumnDetails": "沒有可顯示的欄位明細"
 }

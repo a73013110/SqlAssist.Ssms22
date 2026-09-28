@@ -1,13 +1,14 @@
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Preview;
 
 namespace SqlAssist.Ssms22.Completion;
 
 /// <summary>
-/// 建議清單裡選到的這一項，浮動預覽要拿它畫什麼。
+/// 建議清單裡選到的這一項，說明面板與浮動預覽要拿它畫什麼。
 /// </summary>
 /// <remarks>
 /// 資料庫物件直接掛在建議項上（<see cref="SqlSuggestion.Tag"/>），指令碼自己宣告的
@@ -17,23 +18,30 @@ namespace SqlAssist.Ssms22.Completion;
 ///
 /// 內建名稱同樣沒有物件可指，但它有一份隨組件發布的說明。認出它靠的是建議項自己
 /// 帶的種類，不是從文字再猜一次——<c>YEAR</c> 在日期部分與內建函式目錄裡各有一筆，
-/// 猜的話兩邊都說得通。
+/// 猜的話兩邊都說得通。說明面板與浮動預覽都問 <see cref="FindBuiltIn"/>，同一項在兩個
+/// 表面不會一邊是說明、一邊是物件。
 ///
 /// 這裡只從名稱認出它是哪一種，資料行留給
 /// <see cref="SqlScriptDeclarations"/>：這條路徑在每一次換選取上，而使用者多半
 /// 只是按著方向鍵路過，掃整份文字要等到真的有人要看結構才划算。
-///
-/// 帶系統物件標記的預存程序建議項是例外：它有現成的 <see cref="SqlObjectInfo"/>，
-/// 但系統程序的說明優先於物件解析（<see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>），
-/// 所以要在物件分支之前先問一次系統程序目錄。關鍵字建議項對到語句說明也是另外判斷：
-/// <see cref="SqlBuiltInKinds.TryFromSuggestionKind"/> 刻意不接
-/// <see cref="SuggestionKind.Procedure"/> 與 <see cref="SuggestionKind.Keyword"/>——前者
-/// 同時涵蓋使用者自訂與系統預存程序，後者涵蓋所有關鍵字，兩者都不能只靠種類反推。
 /// </remarks>
 internal static class SqlSuggestionTarget
 {
-    /// <summary>沒有東西可畫的項目（關鍵字、片段、一般變數…）回傳 null。</summary>
-    public static SqlPreviewSubject? Describe(SqlSuggestion suggestion)
+    /// <summary>
+    /// 這一項對到哪一份內建說明；不是內建名稱或沒有寫過說明時回傳 null。
+    /// </summary>
+    /// <param name="statements">
+    /// 關鍵字要不要對到語句說明；null 表示不知道位置，一律不對。
+    /// </param>
+    /// <remarks>
+    /// 帶系統物件標記的預存程序先問系統程序目錄：系統程序的說明優先於物件解析
+    /// （<see cref="SqlBuiltInKinds.PrecedesObjectResolution"/>），按向右鍵想看的是「這個系統程序
+    /// 怎麼用」，不是一個多半查無定義的擴充預存程序。
+    ///
+    /// 關鍵字對到語句說明要看位置：<see cref="SqlBuiltInKinds.TryFromSuggestionKind"/> 刻意不接
+    /// <see cref="SuggestionKind.Keyword"/>，<c>ALTER TABLE t </c> 之後的 <c>MERGE</c> 不是 MERGE 陳述式。
+    /// </remarks>
+    public static SqlBuiltInDoc? FindBuiltIn(SqlSuggestion suggestion, SqlStatementCandidates? statements)
     {
         if (suggestion is null)
         {
@@ -42,17 +50,43 @@ internal static class SqlSuggestionTarget
 
         if (suggestion.Tag is SqlObjectInfo objectInfo)
         {
-            // 系統結構描述底下的預存程序建議項，若目錄裡有系統程序那一份說明，
-            // 排在物件分支之前顯示——按向右鍵想看的是「這個系統程序怎麼用」，
-            // 不是一個多半查無定義的擴充預存程序。
-            if (suggestion.Kind == SuggestionKind.Procedure &&
-                SqlSystemSchemas.IsSystem(objectInfo.SchemaName) &&
-                SqlBuiltInDocCatalog.TryGet(objectInfo.Name, SqlBuiltInKind.SystemProcedure, out var systemDoc) &&
-                systemDoc.DeservesWindow)
-            {
-                return SqlPreviewSubject.ForBuiltIn(systemDoc);
-            }
+            return suggestion.Kind == SuggestionKind.Procedure &&
+                   SqlSystemSchemas.IsSystem(objectInfo.SchemaName) &&
+                   SqlBuiltInDocCatalog.TryGet(objectInfo.Name, SqlBuiltInKind.SystemProcedure, out var systemDoc)
+                ? systemDoc
+                : null;
+        }
 
+        if (suggestion.Kind == SuggestionKind.Keyword)
+        {
+            return statements is not null && statements.TryGet(suggestion.DisplayText, out var statementDoc)
+                ? statementDoc
+                : null;
+        }
+
+        return SqlBuiltInKinds.TryFromSuggestionKind(suggestion.Kind, out var kind) &&
+               SqlBuiltInDocCatalog.TryGet(suggestion.DisplayText, kind, out var doc)
+            ? doc
+            : null;
+    }
+
+    /// <summary>浮動預覽要畫什麼；沒有東西可畫的項目（一般關鍵字、短片段、一般變數…）回傳 null。</summary>
+    public static SqlPreviewSubject? Describe(SqlSuggestion suggestion, SqlStatementCandidates? statements = null)
+    {
+        if (suggestion is null)
+        {
+            return null;
+        }
+
+        // 說明面板已經給了一眼看得完的那一份，所以只有裝得滿一個視窗的才算——
+        // 一個標題加一行說明的視窗，蓋掉的正是那一行說明本身。
+        if (FindBuiltIn(suggestion, statements) is { DeservesWindow: true } builtIn)
+        {
+            return SqlPreviewSubject.ForBuiltIn(builtIn);
+        }
+
+        if (suggestion.Tag is SqlObjectInfo objectInfo)
+        {
             return SqlPreviewSubject.ForObject(objectInfo);
         }
 
@@ -77,20 +111,11 @@ internal static class SqlSuggestionTarget
                         ? SqlScriptDeclarations.KindOf(name)
                         : SqlObjectKind.CommonTableExpression));
 
-            // 關鍵字建議項對到語句說明：語句不是 TryFromSuggestionKind 反推得出來的
-            // 種類（見型別備註），這裡直接問語句那個種類。
-            case SuggestionKind.Keyword when
-                SqlBuiltInDocCatalog.TryGet(name, SqlBuiltInKind.Statement, out var statementDoc) &&
-                statementDoc.DeservesWindow:
-                return SqlPreviewSubject.ForBuiltIn(statementDoc);
+            // 與內建說明同一條分工：說明面板印得完的片段不開視窗。
+            case SuggestionKind.Snippet when suggestion.Tag is SqlSnippet snippet && SqlSnippetPreview.DeservesWindow(snippet):
+                return SqlPreviewSubject.ForSnippet(snippet);
         }
 
-        // 說明面板已經給了一眼看得完的那一份，所以只有裝得滿一個視窗的才算——
-        // 一個標題加一行說明的視窗，蓋掉的正是那一行說明本身。
-        return SqlBuiltInKinds.TryFromSuggestionKind(suggestion.Kind, out var builtInKind) &&
-               SqlBuiltInDocCatalog.TryGet(name, builtInKind, out var doc) &&
-               doc.DeservesWindow
-            ? SqlPreviewSubject.ForBuiltIn(doc)
-            : null;
+        return null;
     }
 }

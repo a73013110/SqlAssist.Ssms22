@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using SqlAssist.Core.Completion;
@@ -60,9 +61,6 @@ public static class SqlBuiltInDocCatalog
 
     /// <summary>提示最長的多字寫法是 <c>OPTIMIZE FOR UNKNOWN</c>，三個詞。</summary>
     private const int MaximumHintWords = 3;
-
-    /// <summary>語句最長的多字寫法是 <c>BULK INSERT</c>，兩個詞。</summary>
-    private const int MaximumStatementWords = 2;
 
     /// <summary>
     /// 一筆 <c>references</c> 要嘛引用 <c>tables.json</c> 的共用編號，要嘛是內嵌在該筆
@@ -138,17 +136,74 @@ public static class SqlBuiltInDocCatalog
         {
             Entries = entries;
             Tables = tables;
+            Statements = StatementVocabulary.From(entries);
         }
 
         public Dictionary<string, Entry> Entries { get; }
 
         public Dictionary<string, SqlBuiltInReference> Tables { get; }
+
+        public StatementVocabulary Statements { get; }
+    }
+
+    /// <summary>
+    /// 語句名稱（含別名）用到的字，以及最長的名稱有幾個字。
+    /// </summary>
+    /// <remarks>
+    /// 從資料算出來，不另寫常數：以前「語句最多兩個字」是一個常數，補一筆
+    /// <c>CREATE UNIQUE NONCLUSTERED INDEX</c> 別名就得記得去改它，忘了的症狀是那個別名永遠對不上。
+    /// 字表同時是停留提示的第一道篩子——停上去的名稱絕大多數是欄位與資料表，不在字表裡的
+    /// 不必花一次整段詞法分析。
+    /// </remarks>
+    private sealed class StatementVocabulary
+    {
+        private readonly HashSet<string> _words;
+
+        private StatementVocabulary(HashSet<string> words, int maxWords)
+        {
+            _words = words;
+            MaxWords = maxWords;
+        }
+
+        public int MaxWords { get; }
+
+        public bool Contains(string word) => _words.Contains(word);
+
+        /// <summary>沒加方括號的一個字，而且是某個語句名稱裡的字。</summary>
+        public bool Contains(SqlToken token) =>
+            token.Kind == SqlTokenKind.Identifier && !token.IsQuoted && _words.Contains(token.Value);
+
+        public static StatementVocabulary From(IEnumerable<KeyValuePair<string, Entry>> entries)
+        {
+            var words = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var maxWords = 0;
+
+            foreach (var pair in entries)
+            {
+                if (pair.Value.Kind != SqlBuiltInKind.Statement)
+                {
+                    continue;
+                }
+
+                var parts = pair.Key.Split(' ');
+                words.UnionWith(parts);
+                maxWords = Math.Max(maxWords, parts.Length);
+            }
+
+            return new StatementVocabulary(words, maxWords);
+        }
     }
 
     /// <summary>依語言各解析一份：用途、範例與對照表疊上該語言的覆蓋檔。</summary>
     private static readonly SqlLanguageCache<Resource> Loaded = new(Load);
 
     private static Dictionary<string, Entry> Entries => Loaded.Current.Entries;
+
+    /// <summary>語句字表；測試疊加的假資料一併算進來，否則疊上去的語句永遠過不了第一道篩子。</summary>
+    private static StatementVocabulary Statements =>
+        TestOverlay.Value is { } overlay
+            ? StatementVocabulary.From(Entries.Concat(overlay))
+            : Loaded.Current.Statements;
 
     /// <summary>上一次載入內嵌資源失敗的原因；成功時為 null。</summary>
     public static string? LastError { get; private set; }
@@ -266,7 +321,7 @@ public static class SqlBuiltInDocCatalog
     /// <c>INDEX</c> 會因為後面那個左括號被當成一次函式呼叫。
     ///
     /// 系統程序與語句另有兩道規則，見下方兩支 remarks：系統程序不看左括號、不看位置，
-    /// 只看限定字；語句不看左括號，只看游標是不是落在語句開頭或 <c>INSERT … EXEC</c>。
+    /// 只看限定字；語句不看左括號，只看名稱落不落在一句開頭那串字裡。
     /// 兩者都要在函式／型別的左括號早退判斷之前先問，否則 <c>EXEC sp_x</c> 這種沒有
     /// 左括號的關鍵字會被「沒有左括號的關鍵字一律不認」擋下。
     /// </remarks>
@@ -307,7 +362,7 @@ public static class SqlBuiltInDocCatalog
 
         // 語句（EXEC、MERGE、BULK INSERT…）要在左括號早退之前問：這些關鍵字絕大多數
         // 後面沒有左括號，晚一步問就被下面「沒有左括號的關鍵字一律不認」擋掉了。
-        if (TryGetStatementAt(text, reference, out doc))
+        if (Statements.Contains(reference.Name) && TryGetStatementAt(text, reference.End, out doc))
         {
             return true;
         }
@@ -381,75 +436,93 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <summary>
-    /// 語句：<c>EXEC</c>／<c>EXECUTE</c>、<c>RAISERROR</c>、<c>THROW</c>、<c>MERGE</c>、
-    /// <c>WAITFOR</c>、<c>BULK INSERT</c> 這類只能整句寫、不是運算式的關鍵字，只在語句開頭
-    /// （<see cref="SqlStatementBoundaries.IsStatementHead"/>）或 <c>INSERT … EXEC</c> 的位置
-    /// 才算。
+    /// 語句：名稱落在一句開頭那一串字裡，而那串字由長到短對得上一筆語句說明
+    /// （<c>MERGE</c>、<c>BULK INSERT</c>、<c>CREATE UNIQUE INDEX</c>）。
     /// </summary>
+    /// <param name="wordEnd">要問的那個字在 <paramref name="text"/> 裡的結尾。</param>
     /// <remarks>
-    /// <c>EXECUTE AS</c>、<c>WITH EXECUTE AS</c> 是切換執行身分的敘述，不是呼叫程序的
-    /// EXEC，靠 <see cref="IsFollowedByAs"/> 擋掉——不管位置對不對，後面直接接 <c>AS</c>
-    /// 就不是這裡要認的語句。多字寫法（<c>BULK INSERT</c>）比照提示的規則，只認第一個詞、
-    /// 由長到短試（<see cref="CollectMultiWordNames"/>），位置驗證則永遠問第一個詞
-    /// 自己的位置，與併了幾個字無關。
+    /// 停留提示與建議清單是同一條規則：清單把候選字接在游標前的文字後面再問一次
+    /// （<see cref="TryGetStatementFor"/>），所以「選到它按向右鍵」與「寫下去之後停上去」
+    /// 一定是同一個答案。以前清單只比名稱，<c>ALTER TABLE t </c> 之後選到 <c>MERGE</c>
+    /// 也開出 MERGE 陳述式的說明。
+    ///
+    /// 開頭由 <see cref="SqlStatementBoundaries.IsStatementHead"/> 判，往回找最多
+    /// 「最長的名稱有幾個字」那麼遠，中間每個字都要是語句名稱裡的字——<c>ALTER TABLE t MERGE</c>
+    /// 在 <c>t</c> 就斷了。從開頭往後併字、由長到短試，對上的名稱要蓋到問的那個字：停在
+    /// <c>CREATE INDEX</c> 的 <c>INDEX</c> 上一樣認得，<c>CREATE UNIQUE</c> 的 <c>UNIQUE</c> 則否。
+    /// 修飾字的組合是資料（<c>aliases</c>），這裡不另寫一份修飾字名單。
+    ///
+    /// 開頭後面直接接 <c>AS</c> 的不是語句：<c>EXECUTE AS USER = '…'</c>、<c>WITH EXECUTE AS OWNER</c>
+    /// 是切換執行身分的敘述，不是呼叫程序的 EXEC，分辨的線索只有這一個。
     /// </remarks>
-    private static bool TryGetStatementAt(string text, SqlIdentifierReference reference, out SqlBuiltInDoc doc)
+    private static bool TryGetStatementAt(string text, int wordEnd, out SqlBuiltInDoc doc)
     {
         doc = null!;
 
-        if (IsFollowedByAs(text, reference))
-        {
-            return false;
-        }
+        var vocabulary = Statements;
+        var tokens = SqlTokenizer.Tokenize(text, 0, wordEnd);
+        var word = tokens.Count - 1;
+        var boundaries = new SqlStatementBoundaries(text, tokens);
+        var head = -1;
 
-        var names = CollectMultiWordNames(text, reference, MaximumStatementWords);
-        SqlBuiltInDoc? matched = null;
-
-        for (var index = names.Count - 1; index >= 0 && matched is null; index--)
+        for (var index = word; index >= 0 && word - index < vocabulary.MaxWords && vocabulary.Contains(tokens[index]); index--)
         {
-            if (TryGet(names[index], SqlBuiltInKind.Statement, out var found))
+            if (boundaries.IsStatementHead(index) || IsInsertExecTarget(tokens, index))
             {
-                matched = found;
+                head = index;
+                break;
             }
         }
 
-        if (matched is null)
+        if (head < 0)
         {
             return false;
         }
 
-        var tokens = SqlTokenizer.Tokenize(text, 0, reference.End);
+        var names = CollectMultiWordNames(text, tokens[head].Value, tokens[head].End, vocabulary.MaxWords);
 
-        if (tokens.Count == 0)
+        if (names.Count > 1 && names[1].EndsWith(" AS", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        var index2 = tokens.Count - 1;
-        var boundaries = new SqlStatementBoundaries(text, tokens);
-
-        if (!boundaries.IsStatementHead(index2) && !IsInsertExecTarget(tokens, index2))
+        for (var index = names.Count - 1; index >= word - head; index--)
         {
-            return false;
+            if (TryGet(names[index], SqlBuiltInKind.Statement, out doc))
+            {
+                return true;
+            }
         }
 
-        doc = matched;
-        return true;
+        doc = null!;
+        return false;
     }
 
     /// <summary>
-    /// <c>EXEC</c>／<c>EXECUTE</c> 後面直接接的是不是 <c>AS</c>：是的話這是切換執行身分的
-    /// 敘述（<c>EXECUTE AS USER = '…'</c>、<c>WITH EXECUTE AS OWNER</c>），不是呼叫程序的
-    /// EXEC，分辨的線索只有這一個。
+    /// 建議清單的關鍵字候選：這個字寫在 <paramref name="position"/> 的話，會不會落在某個語句
+    /// 開頭那串字裡。
     /// </summary>
-    private static bool IsFollowedByAs(string text, SqlIdentifierReference reference)
+    /// <param name="text">整份指令碼；只讀 <paramref name="position"/> 之前那一段。</param>
+    /// <param name="position">正在打的那個字的起點。</param>
+    /// <param name="candidate">候選的顯示文字。</param>
+    /// <remarks>
+    /// 判準與停留提示是同一支（<see cref="TryGetStatementAt"/>），差別只在文字是假設的：
+    /// 候選字還沒寫進去，所以接在游標前面再問。清單建好時位置已經分析過，但那一份回答的是
+    /// 「這裡可以出現哪些字」，不是「這個字在這裡是不是一句的開頭」——<c>MERGE</c> 在
+    /// <c>ALTER TABLE t </c> 之後也列得出來。
+    /// </remarks>
+    public static bool TryGetStatementFor(string? text, int position, string? candidate, out SqlBuiltInDoc doc)
     {
-        var next = SqlTrivia.Skip(text, reference.End, text.Length);
+        doc = null!;
 
-        return SqlIdentifierScanner.FindAt(text, next) is { } following &&
-            following.Start == next &&
-            following.Length == following.Name.Length &&
-            string.Equals(following.Name, "AS", StringComparison.OrdinalIgnoreCase);
+        if (text is null || string.IsNullOrEmpty(candidate) || position < 0 || position > text.Length ||
+            !Statements.Contains(candidate!.Substring(candidate.LastIndexOf(' ') + 1)))
+        {
+            return false;
+        }
+
+        var probe = text.Substring(0, position) + candidate;
+        return TryGetStatementAt(probe, probe.Length, out doc);
     }
 
     /// <summary>
@@ -563,19 +636,21 @@ public static class SqlBuiltInDocCatalog
     }
 
     /// <summary>
-    /// 由游標所在的詞往後併詞，最多 <paramref name="maxWords"/> 個，供多字寫法
-    /// （<c>OPTIMIZE FOR UNKNOWN</c>、<c>BULK INSERT</c>）由長到短試。
+    /// 由 <paramref name="first"/> 往後併詞，最多 <paramref name="maxWords"/> 個，供多字寫法
+    /// （<c>OPTIMIZE FOR UNKNOWN</c>、<c>CREATE UNIQUE INDEX</c>）由長到短試。
     /// </summary>
     /// <remarks>
-    /// 多字寫法只有停在第一個詞上認得出來：停留範圍圈得住的就是游標底下那一個詞，
-    /// 而由後面那個詞往回認要先知道前面還有幾個詞——為了半個名稱把位置分析整個
-    /// 搬過來不划算，何況圈起來的範圍還是只有半個名稱。提示與語句共用這一支，
-    /// 各自的上限見 <see cref="MaximumHintWords"/>、<see cref="MaximumStatementWords"/>。
+    /// 提示只從停留的那個詞往後併：提示停在第二個詞上認不出來，為了半個名稱把位置分析
+    /// 整個搬過來不划算。語句不同，一句的開頭本來就要問位置分析，所以從開頭那個詞併起
+    /// （見 <see cref="TryGetStatementAt"/>）。
     /// </remarks>
-    private static List<string> CollectMultiWordNames(string text, SqlIdentifierReference reference, int maxWords)
+    private static List<string> CollectMultiWordNames(string text, SqlIdentifierReference reference, int maxWords) =>
+        CollectMultiWordNames(text, reference.Name, reference.End, maxWords);
+
+    private static List<string> CollectMultiWordNames(string text, string first, int firstEnd, int maxWords)
     {
-        var names = new List<string>(maxWords) { reference.Name };
-        var end = reference.End;
+        var names = new List<string>(maxWords) { first };
+        var end = firstEnd;
 
         while (names.Count < maxWords)
         {

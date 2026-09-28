@@ -1,5 +1,6 @@
 using System;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 
 namespace SqlAssist.Ssms22.Preview;
@@ -12,17 +13,20 @@ namespace SqlAssist.Ssms22.Preview;
 /// Ctrl+F12）只有觸發方式不同，之後做的事完全一樣：解析出一個主體，再把它畫出來。
 /// 中間這一格因此只有一個型別，而不是「物件一個欄位、內建說明另一個欄位」——
 /// 分成兩份的話，對帳、換內容、同一項不重畫與收掉舊目標這幾處都要各長一個分支，
-/// 而漏掉其中一個分支不會編譯失敗，只會讓畫面停在上一個東西。
+/// 而漏掉其中一個分支不會編譯失敗，只會讓畫面停在上一個東西。三種主體互斥，
+/// 名稱（<see cref="Label"/>）與「是不是同一個」（<see cref="IsSame"/>）都只在這裡寫一次。
 /// </remarks>
 internal sealed class SqlPreviewSubject
 {
     private SqlPreviewSubject(
         SqlObjectInfo? objectInfo,
         SqlBuiltInDoc? builtIn,
+        SqlSnippet? snippet,
         SqlObjectStructure? script)
     {
         Object = objectInfo;
         BuiltIn = builtIn;
+        Snippet = snippet;
         Script = script;
     }
 
@@ -37,6 +41,12 @@ internal sealed class SqlPreviewSubject
     /// </remarks>
     public SqlBuiltInDoc? BuiltIn { get; }
 
+    /// <summary>建議清單裡選到的片段；說明面板印不完時才走到這裡。其餘一律 null。</summary>
+    public SqlSnippet? Snippet { get; }
+
+    /// <summary>膠囊與工具窗標題上寫的名稱：物件的完整名稱、內建名稱或片段標題。</summary>
+    public string Label => Object?.QualifiedName ?? BuiltIn?.Name ?? Snippet?.Title ?? string.Empty;
+
     /// <summary>
     /// 指令碼自己宣告的物件已經讀好的結構；其餘一律 null。
     /// </summary>
@@ -49,9 +59,11 @@ internal sealed class SqlPreviewSubject
 
     public static SqlPreviewSubject ForObject(
         SqlObjectInfo objectInfo,
-        SqlObjectStructure? script = null) => new(objectInfo, null, script);
+        SqlObjectStructure? script = null) => new(objectInfo, null, null, script);
 
-    public static SqlPreviewSubject ForBuiltIn(SqlBuiltInDoc doc) => new(null, doc, null);
+    public static SqlPreviewSubject ForBuiltIn(SqlBuiltInDoc doc) => new(null, doc, null, null);
+
+    public static SqlPreviewSubject ForSnippet(SqlSnippet snippet) => new(null, null, snippet, null);
 
     /// <summary>
     /// 兩次對帳指的是不是同一個東西。
@@ -68,7 +80,11 @@ internal sealed class SqlPreviewSubject
             return left is null && right is null;
         }
 
-        return IsSameObject(left.Object, right.Object) && IsSameDoc(left.BuiltIn, right.BuiltIn);
+        // 片段清單不可變、存檔時整份換新（SqlSnippetLibrary），同一筆就是同一個參考；
+        // 改過內容的那一筆是新的參考，正好要重畫。
+        return IsSameObject(left.Object, right.Object) &&
+               IsSameDoc(left.BuiltIn, right.BuiltIn) &&
+               ReferenceEquals(left.Snippet, right.Snippet);
     }
 
     /// <summary>

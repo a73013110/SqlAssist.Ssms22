@@ -28,6 +28,8 @@
   "PinToggle": "Pin: keeps the preview here, and later previews change content in this window; drag the header to move it. Only Esc or Close dismisses it",
   "DockButton": "Move to tool window: stays across tabs and can be docked or dragged to another monitor",
   "CloseButton": "Close preview (Esc)",
+  "LeadExpand": "Show full syntax and description",
+  "LeadCollapse": "Collapse syntax and description to one line each",
   "CapsuleLoading": "Loading {name}",
   "ToolWindowCaption": "Structure Preview",
   "ToolWindowCaptionFor": "Structure Preview - {name}",

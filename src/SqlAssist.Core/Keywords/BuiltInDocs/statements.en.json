@@ -142,5 +142,27 @@
     "references.0.rows.1.1": "Custom field and row delimiters; can also use a hex constant",
     "references.0.rows.2.1": "Sets the CSV quote character, for fields containing the delimiter",
     "references.0.rows.3.1": "Locks the whole table during the load to speed up large imports"
+  },
+  "CREATE INDEX": {
+    "summary": "Creates an index; INCLUDE covers reads, WHERE filters rows",
+    "examples.basic.title": "Basic usage",
+    "examples.include.title": "INCLUDE avoids lookups to the table",
+    "examples.include.sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int, Branch char(3), DueDate date);\nCREATE NONCLUSTERED INDEX IX_Loan_CopyNo\n    ON #Loan (CopyNo)\n    INCLUDE (DueDate);   -- Seek on CopyNo, read DueDate: the index alone answers it\nSELECT DueDate FROM #Loan WHERE CopyNo = 42;\nDROP TABLE #Loan;\nGO",
+    "examples.filtered.title": "A filtered index holds only some rows",
+    "examples.filtered.sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int, ReturnedAt datetime2 NULL);\nCREATE INDEX IX_Loan_Open\n    ON #Loan (CopyNo)\n    WHERE ReturnedAt IS NULL;   -- Only loans not yet returned; far smaller\nSELECT CopyNo FROM #Loan WHERE ReturnedAt IS NULL;\nDROP TABLE #Loan;\nGO",
+    "examples.unique-null-trap.title": "UNIQUE allows only one NULL",
+    "examples.unique-null-trap.sql": "CREATE TABLE #Lib_Reader (ReaderId int PRIMARY KEY, CardNo varchar(20) NULL);\nCREATE UNIQUE INDEX UX_Lib_Reader_CardNo ON #Lib_Reader (CardNo);\nINSERT INTO #Lib_Reader VALUES (1, NULL);\nINSERT INTO #Lib_Reader VALUES (2, NULL);   -- Result: duplicate key error, NULL counts as a value\n-- To allow many NULLs: use a filtered index ... WHERE CardNo IS NOT NULL\nDROP TABLE #Lib_Reader;\nGO",
+    "references.0.title": "Syntax",
+    "references.0.columns.0": "Syntax",
+    "references.0.columns.1": "Purpose",
+    "references.0.rows.0.1": "Keys cannot repeat; only one NULL is allowed",
+    "references.0.rows.1.1": "A clustered index sets the row storage order, one per table; NONCLUSTERED when omitted",
+    "references.0.rows.2.1": "Columns stored only at the leaf level: readable by queries without being keys",
+    "references.0.rows.3.1": "Filtered index: holds only rows matching the predicate",
+    "references.0.rows.4.1": "The table stays readable and writable while the index builds (edition must support online operations)",
+    "references.0.rows.5.1": "Rebuilds the index when one with the same name already exists",
+    "references.0.rows.6.1": "Leaves free space on each page to reduce page splits from later inserts",
+    "references.0.rows.7.1": "Compresses the index pages",
+    "references.0.rows.8.1": "Which filegroup or partition scheme holds the index"
   }
 }

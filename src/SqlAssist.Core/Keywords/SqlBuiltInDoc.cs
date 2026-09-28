@@ -81,9 +81,8 @@ public static class SqlBuiltInKinds
     ///
     /// 刻意不接 <see cref="SuggestionKind.Procedure"/> 與 <see cref="SuggestionKind.Keyword"/>：
     /// 前者同時涵蓋使用者自訂與系統預存程序，種類本身分不出是哪一種；後者涵蓋所有關鍵字，
-    /// 不是只有 <see cref="SqlBuiltInKind.Statement"/> 收的那幾個。系統程序與語句要由呼叫端
-    /// 另外依名稱或系統物件標記判斷，直接呼叫 <see cref="SqlBuiltInDocCatalog.TryGet"/>，
-    /// 不透過這一支反推。
+    /// 不是只有 <see cref="SqlBuiltInKind.Statement"/> 收的那幾個，而且同一個字是不是語句要看位置。
+    /// 系統程序看系統物件標記、語句問 <see cref="SqlStatementCandidates"/>，不透過這一支反推。
     /// </remarks>
     public static bool TryFromSuggestionKind(SuggestionKind kind, out SqlBuiltInKind builtIn)
     {

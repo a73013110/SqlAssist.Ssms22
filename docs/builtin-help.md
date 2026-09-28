@@ -72,9 +72,12 @@ https 位址；改過 `docsUrl` 後跑 `tools/Check-DocLinks.ps1`（要網路，
 
 - **系統程序**靠名稱與限定字：目錄裡有這個名字，限定字是空的、`sys`、`master.sys` 或
   `master..`，位置不問（`EXEC` 後、`INSERT … EXEC` 後、批次第一句）。`dbo.sp_x` 是使用者的。
-- **語句**只在語句開頭才算（`INSERT #t EXEC` 的 `EXEC` 也是），判準與位置分析同一支
-  （`SqlStatementBoundaries.IsStatementHead`）；
-  `BULK INSERT` 比照多字提示由長到短試，後面接 `AS` 的（`EXECUTE AS`）不算。
+- **語句**看一句開頭那串字：開頭由位置分析判（`SqlStatementBoundaries.IsStatementHead`，
+  `INSERT #t EXEC` 的 `EXEC` 也算），往後併字、由長到短對名稱與別名，對上的那一段要蓋到停留的字——
+  停在 `CREATE INDEX` 的 `INDEX` 上也認得，`ALTER TABLE t MERGE` 在 `t` 就斷了。修飾字組合寫成
+  `aliases`（`CREATE UNIQUE NONCLUSTERED INDEX`），不另寫名單；開頭後面直接接 `AS` 的（`EXECUTE AS`）不算。
+  建議清單的關鍵字候選走同一支（`TryGetStatementFor`）：候選字接在正在打的字前面再問，
+  清單上按向右鍵與寫下去之後停上去一定是同一個答案。
 - **全域變數**靠 `@@`，位置不問。**提示與 datepart** 只在 `WITH (…)`、`OPTION (…)`、
   `DATEADD(` 第一個引數裡才算，問的是 `Core/Completion/SqlArgumentPosition`；這一關排在
   左括號之前，否則 `WITH (INDEX(1))` 的 `INDEX` 會被當成函式呼叫。
@@ -84,6 +87,7 @@ https 位址；改過 `docsUrl` 後跑 `tools/Check-DocLinks.ps1`（要網路，
   `[CONVERT]`、`dbo.CONVERT` 都不是內建名稱。
 
 多字提示只認第一個詞、由長到短試：`OPTIMIZE FOR` 與 `OPTIMIZE FOR UNKNOWN` 說的是相反的事。
+語句的字數上限由資料算出（最長的名稱或別名），不寫常數。
 
 ## 說明與物件誰先
 
@@ -93,5 +97,6 @@ SQL Server 解析 `sp_` 名稱本來就先找系統那一份，而且說明不�
 同名的資料表蓋掉。
 
 順序只有一份（`Ssms22/Editor/SqlBuiltInObjectResolution`），Ctrl+F12、Ctrl＋點擊與滑鼠停留
-共用；建議清單上帶系統結構描述的預存程序項也對到系統程序說明。沒寫說明的系統物件改走物件
+共用。建議清單這一端只有 `Ssms22/Completion/SqlSuggestionTarget.FindBuiltIn` 一份，說明面板與
+浮動預覽都問它：帶系統結構描述的預存程序項兩邊都是系統程序說明，不會一邊說明、一邊物件。沒寫說明的系統物件改走物件
 那條路，見[物件種類](completion-object-kinds.md#系統物件只在三個位置拉進來)。

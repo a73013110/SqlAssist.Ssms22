@@ -427,6 +427,83 @@
           ]
         }
       ]
+    },
+    {
+      "name": "CREATE INDEX",
+      "kind": "statement",
+      "aliases": ["CREATE UNIQUE INDEX", "CREATE CLUSTERED INDEX", "CREATE NONCLUSTERED INDEX", "CREATE UNIQUE CLUSTERED INDEX", "CREATE UNIQUE NONCLUSTERED INDEX"],
+      "summary": "建立索引；預設 NONCLUSTERED，INCLUDE 放只讀不查的欄位，WHERE 建篩選索引。",
+      "signature": "CREATE [ UNIQUE ] [ CLUSTERED | NONCLUSTERED ] INDEX index_name\nON table_or_view ( column [ ASC | DESC ] [ ,...n ] )\n[ INCLUDE ( column [ ,...n ] ) ]\n[ WHERE filter_predicate ]\n[ WITH ( index_option = value [ ,...n ] ) ]\n[ ON { filegroup | partition_scheme ( column ) } ]\n;",
+      "examples": [
+        {
+          "id": "basic",
+          "title": "基本用法",
+          "sql": "CREATE TABLE #Loan(CopyNo int);CREATE INDEX IX_CopyNo ON #Loan(CopyNo);DROP TABLE #Loan;"
+        },
+        {
+          "id": "include",
+          "title": "INCLUDE 讓查詢不必回主表",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int, Branch char(3), DueDate date);\nCREATE NONCLUSTERED INDEX IX_Loan_CopyNo\n    ON #Loan (CopyNo)\n    INCLUDE (DueDate);   -- 以 CopyNo 查、只讀 DueDate：索引本身就答得出來\nSELECT DueDate FROM #Loan WHERE CopyNo = 42;\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "filtered",
+          "title": "篩選索引只收一部分資料列",
+          "sql": "CREATE TABLE #Loan (LoanId int PRIMARY KEY, CopyNo int, ReturnedAt datetime2 NULL);\nCREATE INDEX IX_Loan_Open\n    ON #Loan (CopyNo)\n    WHERE ReturnedAt IS NULL;   -- 只收還沒歸還的借閱，索引小得多\nSELECT CopyNo FROM #Loan WHERE ReturnedAt IS NULL;\nDROP TABLE #Loan;\nGO"
+        },
+        {
+          "id": "unique-null-trap",
+          "title": "UNIQUE 只容許一個 NULL",
+          "sql": "CREATE TABLE #Lib_Reader (ReaderId int PRIMARY KEY, CardNo varchar(20) NULL);\nCREATE UNIQUE INDEX UX_Lib_Reader_CardNo ON #Lib_Reader (CardNo);\nINSERT INTO #Lib_Reader VALUES (1, NULL);\nINSERT INTO #Lib_Reader VALUES (2, NULL);   -- 結果：重複索引鍵錯誤，NULL 也算一個值\n-- 要容許多個 NULL：改建篩選索引 ... WHERE CardNo IS NOT NULL\nDROP TABLE #Lib_Reader;\nGO"
+        }
+      ],
+      "docsUrl": "https://learn.microsoft.com/sql/t-sql/statements/create-index-transact-sql",
+      "references": [
+        {
+          "title": "寫法",
+          "columns": [
+            "寫法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "UNIQUE",
+              "索引鍵不能重複；NULL 也只能有一個"
+            ],
+            [
+              "CLUSTERED | NONCLUSTERED",
+              "叢集索引決定資料列的存放順序，一張表只有一個；省略時是 NONCLUSTERED"
+            ],
+            [
+              "INCLUDE (column, ...)",
+              "欄位只放在葉層，查詢讀得到卻不佔索引鍵"
+            ],
+            [
+              "WHERE filter_predicate",
+              "篩選索引：只收符合條件的資料列"
+            ],
+            [
+              "WITH (ONLINE = ON)",
+              "建立期間資料表照常可讀寫（需要支援線上作業的版本）"
+            ],
+            [
+              "WITH (DROP_EXISTING = ON)",
+              "同名索引已經存在時直接重建"
+            ],
+            [
+              "WITH (FILLFACTOR = 90)",
+              "頁面預留空間，減少之後插入造成的頁面分割"
+            ],
+            [
+              "WITH (DATA_COMPRESSION = PAGE)",
+              "壓縮索引頁"
+            ],
+            [
+              "ON filegroup | partition_scheme (column)",
+              "索引放在哪個檔案群組或分割配置"
+            ]
+          ]
+        }
+      ]
     }
   ]
 }

@@ -1,5 +1,6 @@
 using System;
 using SqlAssist.Core.Keywords;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Preview;
 using Xunit;
@@ -70,6 +71,23 @@ public sealed class SqlPreviewSubjectTests
 
         Assert.False(SqlPreviewSubject.IsSame(Object(42, "CONVERT"), doc));
         Assert.False(SqlPreviewSubject.IsSame(doc, Object(42, "CONVERT")));
+    }
+
+    /// <summary>
+    /// 片段看的是同一筆：片段清單不可變，存檔後的那一筆是新的參考，正好要重畫。
+    /// </summary>
+    [Fact]
+    public void 片段以同一筆為準()
+    {
+        var snippet = new SqlSnippet("cp", "CREATE PROCEDURE p AS SELECT 1;", "CREATE PROCEDURE");
+        var edited = new SqlSnippet("cp", "CREATE PROCEDURE p AS SELECT 2;", "CREATE PROCEDURE");
+
+        Assert.True(SqlPreviewSubject.IsSame(SqlPreviewSubject.ForSnippet(snippet), SqlPreviewSubject.ForSnippet(snippet)));
+        Assert.False(SqlPreviewSubject.IsSame(SqlPreviewSubject.ForSnippet(snippet), SqlPreviewSubject.ForSnippet(edited)));
+        Assert.False(SqlPreviewSubject.IsSame(
+            SqlPreviewSubject.ForSnippet(snippet),
+            SqlPreviewSubject.ForBuiltIn(Doc("CREATE PROCEDURE", SqlBuiltInKind.Statement))));
+        Assert.Equal("CREATE PROCEDURE", SqlPreviewSubject.ForSnippet(snippet).Label);
     }
 
     /// <summary>

@@ -817,14 +817,14 @@ internal sealed class SqlStructurePreview
             (agent.IsRelocating || transition == PreviewTransition.Move))
         {
             _pending = (subject, metadataService);
-            surface.SetContentState(Label(subject), ready: false);
+            surface.SetContentState(subject.Label, ready: false);
             agent.Relocate(anchor, OnRelocated);
             return;
         }
 
         _pending = null;
         var changed = presenter.Show(subject, metadataService);
-        surface.SetContentState(Label(subject), presenter.IsReady);
+        surface.SetContentState(subject.Label, presenter.IsReady);
         if (changed && transition == PreviewTransition.Swap && IsShowing)
         {
             surface.PlaySwap();
@@ -843,7 +843,7 @@ internal sealed class SqlStructurePreview
 
         _pending = null;
         presenter.Show(pending.Subject, pending.Service);
-        surface.SetContentState(Label(pending.Subject), presenter.IsReady);
+        surface.SetContentState(pending.Subject.Label, presenter.IsReady);
 
         // 錨點換了：滑鼠停留提示要讓位的名稱、字級與記住的尺寸都照新的一輪。
         ShowAgent();
@@ -892,10 +892,6 @@ internal sealed class SqlStructurePreview
 
         return _declarations?.Find(name);
     }
-
-    /// <summary>膠囊上寫的名稱：物件的完整名稱，或內建名稱本身。</summary>
-    private static string Label(SqlPreviewSubject subject) =>
-        subject.Object?.QualifiedName ?? subject.BuiltIn?.Name ?? string.Empty;
 
     /// <summary>
     /// 兩個錨點會不會把預覽擺在同一個地方。
@@ -1173,7 +1169,9 @@ internal sealed class SqlStructurePreview
                         // 只有此處同時驗證過 source 與 recent model，才可更新選取。
                         ApplyVerifiedSelection(
                             session,
-                            SqlSuggestionTarget.Describe(suggestion),
+                            SqlSuggestionTarget.Describe(
+                                suggestion,
+                                SqlAsyncCompletionSource.StatementCandidatesOf(session)),
                             metadataService);
                     }
                     else
@@ -1293,7 +1291,7 @@ internal sealed class SqlStructurePreview
     {
         if (_presenter?.Subject is { } subject)
         {
-            _surface?.SetContentState(Label(subject), ready: true);
+            _surface?.SetContentState(subject.Label, ready: true);
         }
     }
 

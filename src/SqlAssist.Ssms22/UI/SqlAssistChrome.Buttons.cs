@@ -82,6 +82,24 @@ internal static partial class SqlAssistChrome
     }
 
     /// <summary>
+    /// 只有一顆展開箭頭的幽靈鈕：停駐才顯色，不另畫外框。
+    /// </summary>
+    /// <remarks>
+    /// 下拉建議的開關與預覽抬頭的「展開完整說明」共用：兩處都是「這裡還有收著的東西」，
+    /// 箭頭的方向就是狀態。按下之後轉向交給 <see cref="SetChevronExpanded"/>，箭頭是
+    /// <see cref="ContentControl.Content"/> 本身。
+    /// </remarks>
+    public static Button CreateChevronButton(string label, bool expanded = true)
+    {
+        var button = CreateButton("", DefaultMetrics);
+        button.Template = CreateGhostButtonTemplate();
+        button.Content = CreateChevron(expanded); button.Padding = new Thickness(4);
+        button.MinWidth = 26; button.MinHeight = 26; button.Focusable = false;
+        button.ToolTip = label; AutomationProperties.SetName(button, label);
+        return button;
+    }
+
+    /// <summary>
     /// 圖示鈕的開關版；外觀與 <see cref="CreateIconButton"/> 相同，多一個「現在開著」的樣子。
     /// </summary>
     /// <remarks>

@@ -7,6 +7,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Localization;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Snippets;
 using SqlAssist.Metadata.Formatting;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.UI;
@@ -257,6 +258,60 @@ internal static class SqlQuickInfoContentBuilder
         if (footer.Count > 0)
         {
             elements.Add(new ClassifiedTextElement(footer));
+        }
+
+        return Sections(elements);
+    }
+
+    /// <summary>
+    /// 片段在建議清單說明面板裡的內容：標題、用途，以及選下去之後實際插入的那一份文字。
+    /// </summary>
+    /// <remarks>
+    /// 以前只寫標題，<c>cp</c> 會展開成什麼要插下去才知道。程式碼讀 <see cref="SqlSnippetPreview"/>，
+    /// 與浮動預覽、實際插入同一份（欄位已填預設值）；著色與逐行成元素的理由同
+    /// <see cref="BuildDefinition"/>。空白行留著：片段的段落本身就是它的結構。
+    /// </remarks>
+    /// <param name="previewAvailable">浮動預覽開著：印不完時指出按向右鍵，否則只說還有幾行。</param>
+    public static ContainerElement BuildSnippet(SqlSnippet snippet, bool previewAvailable)
+    {
+        var caption = new List<object>
+        {
+            new ContainerElement(
+                ContainerElementStyle.Wrapped,
+                SqlIcons.GetImageElement(SuggestionKind.Snippet),
+                Line(Title(snippet.Title))),
+                Line(Comment(SqlKindText.Snippet))
+        };
+
+        if (BuildDescription(snippet.Description) is { } description)
+        {
+            caption.Add(description);
+        }
+
+        var lines = SqlSnippetPreview.Lines(snippet);
+        var code = new List<object>();
+
+        for (var index = 0; index < lines.Count && index < SqlSnippetPreview.PanelLines; index++)
+        {
+            code.Add(lines[index].Trim().Length == 0
+                ? Line(Text(" "))
+                : new ClassifiedTextElement(BuildCodeRuns(lines[index])));
+        }
+
+        var elements = new List<object> { new ContainerElement(ContainerElementStyle.Stacked, caption) };
+
+        if (code.Count > 0)
+        {
+            elements.Add(new ContainerElement(ContainerElementStyle.Stacked, code));
+        }
+
+        var hidden = lines.Count - SqlSnippetPreview.PanelLines;
+
+        if (hidden > 0)
+        {
+            elements.Add(Line(Comment(previewAvailable
+                ? QuickInfoText.MoreLinesInPreview(hidden)
+                : QuickInfoText.MoreLines(hidden))));
         }
 
         return Sections(elements);
