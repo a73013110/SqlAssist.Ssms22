@@ -5,7 +5,6 @@ using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Completion;
-using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Editor;
 using SqlAssist.Ssms22.Settings;
@@ -276,19 +275,17 @@ internal sealed class SqlParameterHintKeeper
 
         // 分析要掃過游標之前的整份文字，放到背景；回來時文字或游標變了就把這一輪的
         // 編輯還回去，交給已經排上的下一輪——那一輪看到的才是使用者停手的位置。
-        SqlAssistPlatformGuard.Begin(
-            NotificationCatalog.ShowingSignatureHelp,
-            async () =>
-            {
-                var site = await Task
-                    .Run(() => SqlCallSignature.Resolve(text, position, includeKeywordFunctions: true))
-                    .ConfigureAwait(false);
+        // 不開通知：每停一次手就跑一次，而多半的結論是不請。請了之後浮出來的那一份
+        // 由它自己的來源回報。
+        _ = SqlAssistPlatformGuard.RunAsync("分析參數提示所在的呼叫", async () =>
+        {
+            var site = await Task
+                .Run(() => SqlCallSignature.Resolve(text, position, includeKeywordFunctions: true))
+                .ConfigureAwait(false);
 
-                TextViewDispatch.AfterCurrentCommand(_textView, "請回參數提示", _ =>
-                    Apply(snapshot, position, site, edits, escaped));
-            },
-            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
-            ActiveSqlEditor.GetDocumentName(_textView));
+            TextViewDispatch.AfterCurrentCommand(_textView, "請回參數提示", _ =>
+                Apply(snapshot, position, site, edits, escaped));
+        });
     }
 
     private void Apply(
@@ -329,12 +326,11 @@ internal sealed class SqlParameterHintKeeper
 
     /// <summary>這個呼叫要不要連自己那一份一起請；不必時為 null。</summary>
     /// <remarks>
-    /// 純量函式一定寫結構描述，沒有限定字的名稱不必再查一次中繼資料。
     /// 自己那一份還開著時不重開：它自己跟著編輯走，重開只會閃一下。
     /// </remarks>
     private SqlSignatureHelp? ScalarHelpFor(SqlCallSignatureContext site)
     {
-        if (!site.IsQualified || _signatureBroker is not { } broker)
+        if (!SqlSignatureHelp.Covers(site) || _signatureBroker is not { } broker)
         {
             return null;
         }

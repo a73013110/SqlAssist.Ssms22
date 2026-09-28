@@ -24,7 +24,7 @@
 | 種類 | 接在哪 | 來源 | 等級 |
 |---|---|---|---|
 | Metadata | `SqlMetadataCatalog.TryLoad` 的七條查詢、跨資料庫與連結伺服器跳躍、快取命中 | 前景查詢與清單類 `Typing`、預載 `Ambient`、第二與第四層依呼叫端 | `Info`；連結伺服器 `Notice`、快取命中 `Trace` |
-| Completion | 準備、排序、篩選建議清單，載入說明，解析限定名稱，函式參數提示 | `Typing` | 準備清單 `Info`，其餘 `Debug` |
+| Completion | 準備、排序、篩選建議清單，載入說明，解析限定名稱，純量函式參數提示浮出（事件） | `Typing` | 準備清單 `Info`，其餘 `Debug` |
 | Analysis | 背景分析 T-SQL 區塊 | `Typing` | `Debug` |
 | Preview | 準備物件提示、載入結構預覽、更新預覽選取、產生物件指令碼、執行結構健檢 | 提示與預覽 `Typing`，指令碼與健檢 `User` | 提示與預覽 `Info`，選取與健檢 `Debug` |
 | Editing | 展開語句樣板、展開 `SELECT ＊` | `User` | `Info` |

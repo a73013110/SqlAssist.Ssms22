@@ -13,6 +13,9 @@
 - `SqlAssistPlatformGuard.Begin` 追蹤一般背景工作，三軸由呼叫端明寫；初始化與 F12 在原有
   錯誤處理內接線。`BeginProbe` 不整批追蹤，避免週期性連線探測與無工作的預載呼叫反覆閃現
   提示——「重新確認連線」那一則由該處自己開，不改 `BeginProbe` 的行為。
+- 按鍵、游標停手就跑一次的判斷走 `SqlAssistPlatformGuard.RunAsync`，不開通知：多半的結論是
+  什麼都不做，包成 `Begin` 會每停一次手冒一列「已完成」，看起來像一直在跑重的東西。
+  判斷之後真的做了事，由那一段自己回報；已經發生的結果用 `Post`。
 - 標題與完成後的敘述只有 `Core/Notifications/NotificationCatalog` 一份出處，呼叫端不組字串。
 - `Document` 與 `Source` 保存啟動時的名稱，不隨焦點更新；無檔名時 `Document` 用穩定編輯區
   編號，中繼資料層只填得出 `Source`。不保存完整路徑、SQL、認證或例外內容。

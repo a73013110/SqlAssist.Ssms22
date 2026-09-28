@@ -45,7 +45,7 @@ public sealed class SqlCallSignatureContext
     /// </summary>
     /// <remarks>
     /// 純量函式在 T-SQL 裡一定要寫結構描述，所以沒有限定字的呼叫不可能是純量函式——
-    /// 參數提示續接據此省掉一次中繼資料查詢，只交給 SSMS 那一份。
+    /// 參數提示據此只對有限定字的呼叫查中繼資料，其餘只交給 SSMS 那一份。
     /// </remarks>
     public bool IsQualified { get; }
 }

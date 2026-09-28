@@ -126,6 +126,15 @@ internal sealed class SqlSignatureHelp
             pending.Documentation));
     }
 
+    /// <summary>這個呼叫可不可能是純量函式，值不值得問中繼資料。</summary>
+    /// <remarks>
+    /// 純量函式在 T-SQL 裡一定要寫結構描述，沒有限定字的名稱（<c>COUNT(</c>、
+    /// <c>ISNULL(</c>）不可能是。放它們過去的代價不只一次白查：物件定位找不到候選時
+    /// 會把整條敘述的資料來源明細補齊再找一次，打一個左括號就可能真的查資料庫。
+    /// 續接器決定要不要連這一份一起請也問這一句，兩邊不各寫一份。
+    /// </remarks>
+    public static bool Covers(SqlCallSignatureContext site) => site.IsQualified;
+
     /// <summary>
     /// 依游標目前的位置決定要不要顯示，該顯示就備好內容並叫平台開 session。
     /// </summary>
@@ -133,6 +142,9 @@ internal sealed class SqlSignatureHelp
     /// 呼叫端一律是按鍵路徑（打了左括號、打了逗號、提交完一個函式），所以整段跑在
     /// 背景：詞法分析要掃過游標之前的整份文字，參數還可能要查一次資料庫。
     /// 這一輪來不及就這一輪不顯示，下一個逗號就有了。
+    ///
+    /// 不開通知：多半的結論是「不是純量函式，什麼都不做」。真的浮出來時由
+    /// <see cref="Show"/> 回報，查詢本身由中繼資料那一層回報。
     /// </remarks>
     public void Request()
     {
@@ -155,12 +167,9 @@ internal sealed class SqlSignatureHelp
         var position = caret.Position;
         var generation = Interlocked.Increment(ref _generation);
 
-        // 打字時每一個左括號與逗號都會走一次，因此是 Typing／Debug。
-        SqlAssistPlatformGuard.Begin(
-            NotificationCatalog.ShowingSignatureHelp,
-            () => RequestAsync(snapshot, text, position, generation),
-            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
-            ActiveSqlEditor.GetDocumentName(_textView));
+        _ = SqlAssistPlatformGuard.RunAsync(
+            "準備函式參數提示",
+            () => RequestAsync(snapshot, text, position, generation));
     }
 
     /// <summary>
@@ -213,7 +222,7 @@ internal sealed class SqlSignatureHelp
     {
         var site = await Task.Run(() => SqlCallSignature.Resolve(text, caret)).ConfigureAwait(false);
 
-        if (site is null)
+        if (site is null || !Covers(site))
         {
             return;
         }
@@ -327,6 +336,20 @@ internal sealed class SqlSignatureHelp
             _textView,
             snapshot.CreateTrackingPoint(site.OpenParenthesis + 1, PointTrackingMode.Negative),
             trackCaret: false);
+
+        // 平台同步組好 session；沒拿到這一份（被別的 session 搶先、編輯器剛好失焦）
+        // 就不說「已顯示」。
+        if (!IsActive)
+        {
+            return;
+        }
+
+        // 已經發生、沒有執行期間的事，所以是 Post；打字時反覆出現，因此是 Typing／Debug。
+        NotificationCenter.Default.Post(
+            NotificationCatalog.ShowingSignatureHelp,
+            NotificationKind.Completion, NotificationOrigin.Typing, NotificationLevel.Debug,
+            NotificationStatus.Succeeded,
+            document: ActiveSqlEditor.GetDocumentName(_textView));
 
         SqlAssistDiagnostics.Write($"已顯示參數提示：{text.Content}", _textView);
     }

@@ -25,7 +25,8 @@ namespace SqlAssist.Ssms22;
 /// （佈景筆刷、DPI、游標位置、預先載入的中繼資料），失敗是預期內的，只在詳細診斷
 /// 打開時記一行。用 Run 記的話，這些每秒都可能失敗一次的呼叫會把紀錄檔灌滿，
 /// 真正的錯誤就埋在裡面找不到了。</item>
-/// <item><see cref="Begin(string, Func{Task})"/> 一族：沒有人會去接結果的背景工作。</item>
+/// <item><see cref="Begin(string, Func{Task}, NotificationKind, NotificationOrigin, NotificationLevel, string, string)"/>
+/// 一族：沒有人會去接結果的背景工作，整批追蹤成一則通知。</item>
 /// </list>
 ///
 /// 取消一律當成正常結束：這條路上的取消不是編輯器關閉就是平台換了下一輪，
@@ -88,6 +89,30 @@ internal static class SqlAssistPlatformGuard
         {
             SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
             return fallback;
+        }
+    }
+
+    /// <summary>
+    /// 背景跑一段判斷，不開通知。
+    /// </summary>
+    /// <remarks>
+    /// 給游標停手、打一個字就跑一次的詞法判斷：它本身不花什麼，而且多半的結論是
+    /// 「這一輪什麼都不做」。包成 <see cref="Begin(string, Func{Task}, NotificationKind, NotificationOrigin, NotificationLevel, string, string)"/>
+    /// 的話，每停一次手就冒一列「已完成」，看起來像是一直在跑什麼重的東西。
+    /// 判斷之後真的做了事，由做事的那一段自己回報；底下的中繼資料查詢也有自己的通知。
+    /// </remarks>
+    public static async Task RunAsync([Localizable(false)] string operation, Func<Task> work)
+    {
+        try
+        {
+            await work().ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            SqlAssistDiagnostics.WriteAlways($"{operation}失敗：{exception}");
         }
     }
 
