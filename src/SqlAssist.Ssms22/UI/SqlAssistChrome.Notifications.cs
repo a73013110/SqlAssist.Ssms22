@@ -70,7 +70,7 @@ internal static partial class SqlAssistChrome
         {
             surface.SetResourceReference(Border.BackgroundProperty, ThemeResourceSet.NotificationGlassKey);
             surface.SetResourceReference(Border.BorderBrushProperty, ThemeResourceSet.NotificationRimKey);
-            surface.Effect = new DropShadowEffect { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.14 };
+            surface.Effect = CreateSurfaceShadow();
         }
         else
         {
@@ -81,6 +81,18 @@ internal static partial class SqlAssistChrome
 
         UpdateNotificationShadowCache(surface);
     }
+
+    /// <summary>浮在編輯器上的表面的圓角：通知島展開的面板與浮動預覽同一級。</summary>
+    internal const double FloatingSurfaceRadius = 12d;
+
+    /// <summary>
+    /// 浮在編輯器上的表面共用的單層柔影；通知島與浮動預覽同一份。
+    /// </summary>
+    /// <remarks>
+    /// 各自 new 一份的話，兩個表面的影子遲早深淺不一，而它們正是使用者會同時看到的兩個浮層。
+    /// </remarks>
+    internal static DropShadowEffect CreateSurfaceShadow() =>
+        new() { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.14 };
 
     internal static void UpdateNotificationShadowCache(UIElement surface) =>
         surface.CacheMode = surface.Effect is null ? null

@@ -29,6 +29,7 @@
 | 內建說明認不出、內容不對、與物件誰先 | `Core/Keywords/SqlBuiltInDocCatalog.cs`、`BuiltInDocs/`、`Ssms22/Editor/SqlBuiltInObjectResolution.cs` |
 | 參數提示不出現、粗體錯位、刪字或點回括號後不回來、Esc 後又冒出 | `Ssms22/Signatures/SqlSignatureHelp.cs`、`SqlParameterHintKeeper.cs`、`Core/Completion/SqlCallSignature.cs`、`SqlParameterHintRevival.cs` |
 | 浮動預覽的行為或擺放 | `Ssms22/Preview/SqlStructurePreview.cs` |
+| 浮動預覽什麼時候收 | `Core/Preview/PreviewLifecycle.cs` |
 | 任何自製 UI、顏色、字型或排版 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 按鍵（F12 之類）沒反應／抵達了卻沒開視窗 | `Ssms22/Editor/SqlShellCommandFilter.cs`／`SqlDefinitionOpener.cs` |
 | Ctrl＋點擊沒有底線或點了沒反應 | `Ssms22/Editor/SqlClickNavigator.cs` |

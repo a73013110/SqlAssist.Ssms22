@@ -51,7 +51,8 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | SQL 原生圖示、語意圖示與影像插槽 | `Ssms22/UI/SqlIcons.cs`、`SqlIcon.cs`、`SqlIcons.Images.cs`、`SqlIconImage.cs` |
 | 宿主筆刷、主題色階、動作對比與動態資源刷新 | `Ssms22/UI/VsThemeBrushes.cs`、`ThemePalette.cs`、`TextSelectionColors.cs`、`ThemeColorMath.cs`、`ThemeResourceSet.cs`、`ThemeRefreshQueue.cs` |
 | 通知島的形態狀態機、浮層定位、表面、提醒檢視、附條、對齊基準、狀態圖示與換字 | `Ssms22/Notifications/NotificationIslandState.cs`、`NotificationPlacement.cs`、`Ssms22/UI/NotificationIsland.cs`、`NotificationPromptView.cs`、`NotificationActivityStrip.cs`、`NotificationLayout.cs`、`NotificationStatusIcon.cs`、`NotificationTicker.cs` |
-| 通知動畫與可中斷的彈簧 | `Ssms22/UI/NotificationMotion.cs`、`SpringMotion.cs` |
+| 通知動畫與可中斷的彈簧（浮動預覽的進出場也用） | `Ssms22/UI/NotificationMotion.cs`、`SpringMotion.cs` |
+| 浮在編輯器上的表面的圓角與柔影 | `SqlAssistChrome.FloatingSurfaceRadius`、`CreateSurfaceShadow` |
 | 通知內容、活動期限、全域控制器、右下浮層與提醒按鈕派送 | `Ssms22/Notifications/NotificationPresenter.cs`、`NotificationLifecycle.cs`、`NotificationIslandController.cs`、`NotificationOverlay.cs`、`NotificationActionRouter.cs` |
 | UTF-8 輸出、SSMS 路徑與擴充 Id 探索 | `tools/SqlAssist.Tools.psm1` |
 | 部署預檢、SHA-256 與 VSIX 白名單 | `tools/SqlAssist.Deployment.psm1` |

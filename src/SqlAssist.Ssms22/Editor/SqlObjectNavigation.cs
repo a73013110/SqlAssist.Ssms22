@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Preview;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Preview;
@@ -101,11 +102,13 @@ internal static class SqlObjectNavigation
                 {
                     // 暫存資料表、資料表變數與 CTE 的結構在定位那一步就讀出來了；
                     // 它們不在中繼資料裡，交給一般載入路徑只會等到一句「沒有可用的連線」。
-                    preview.ShowAt(
+                    preview.Open(
+                        PreviewTrigger.Command,
                         anchor,
-                        location.Object,
-                        metadataService,
-                        location.Detail is { } detail ? new SqlObjectStructure(detail) : null);
+                        SqlPreviewSubject.ForObject(
+                            location.Object,
+                            location.Detail is { } detail ? new SqlObjectStructure(detail) : null),
+                        metadataService);
                     return;
                 }
 
@@ -119,9 +122,11 @@ internal static class SqlObjectNavigation
             if (resolution.BuiltIn is { } doc && doc.DeservesWindow && reference is not null &&
                 SqlStructurePreview.GetOrCreate(view, serviceProvider) is { } builtInPreview)
             {
-                builtInPreview.ShowBuiltInAt(
+                builtInPreview.Open(
+                    PreviewTrigger.Command,
                     point.Snapshot.CreateTrackingSpan(new Span(reference.Start, reference.Length), SpanTrackingMode.EdgeInclusive),
-                    doc);
+                    SqlPreviewSubject.ForBuiltIn(doc),
+                    metadataService: null);
                 return;
             }
 

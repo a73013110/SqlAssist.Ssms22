@@ -87,9 +87,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// Esc 收掉包夾清單或預覽。
     /// </summary>
     /// <remarks>
-    /// 只處理「不是建議清單開出來的」那種預覽——由清單開出來的，
-    /// 讓平台照常關清單就好，清單一關預覽自己會跟著收。
-    /// 這樣 Esc 永遠只需要按一次；包夾清單也是為了同一件事接在這裡。
+    /// 清單開著時讓平台照常關清單：清單上展開的預覽跟著收，指名或釘住的留著，
+    /// 下一次 Esc 才輪到它。沒有清單時，畫面上的預覽不論怎麼打開都由這一鍵收掉。
+    /// 包夾清單也是為了「一次 Esc 只收一層」接在這裡。
     /// </remarks>
     public bool ExecuteCommand(EscapeKeyCommandArgs args, CommandExecutionContext executionContext)
     {
@@ -112,8 +112,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 // 這一次 Esc 收的可能是參數提示；記下來，同一個呼叫裡就不再請它回來。
                 SqlParameterHintKeeper.NoteEscape(args.TextView);
 
-                if (SqlStructurePreview.Peek(args.TextView) is { HasSession: false } preview &&
-                    preview.Collapse())
+                if (SqlStructurePreview.Peek(args.TextView) is { } preview &&
+                    preview.Dismiss())
                 {
                     return true;
                 }
@@ -157,7 +157,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
     {
         return SqlAssistPlatformGuard.Run(
             "處理 Left 按鍵",
-            () => SqlStructurePreview.Peek(args.TextView) is { HasSession: true } preview
+            () => SqlStructurePreview.Peek(args.TextView) is { } preview
                 && preview.Collapse(),
             fallback: false);
     }

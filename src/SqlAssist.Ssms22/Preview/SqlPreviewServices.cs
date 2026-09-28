@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel.Composition;
 using System.Threading;
 using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Language.Intellisense;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text.Classification;
 using Microsoft.VisualStudio.Text.Editor;
@@ -30,6 +31,10 @@ internal sealed class SqlPreviewServices
 
     [Import]
     internal IEditorFormatMapService EditorFormatMapService { get; set; } = null!;
+
+    /// <summary>滑鼠停留提示；預覽定位時要知道它開著，才不會被它推開。</summary>
+    [Import]
+    internal IAsyncQuickInfoBroker QuickInfoBroker { get; set; } = null!;
 
     /// <summary>已登記的服務；MEF 尚未組合出任何 SQL 編輯器時為 null。</summary>
     public static SqlPreviewServices? Current => Volatile.Read(ref _current);
@@ -62,13 +67,15 @@ internal sealed class SqlPreviewServices
                 var formatMaps = components.GetService<IClassificationFormatMapService>();
                 var registry = components.GetService<IClassificationTypeRegistryService>();
                 var editorFormats = components.GetService<IEditorFormatMapService>();
-                if (formatMaps is null || registry is null || editorFormats is null) return null;
+                var quickInfo = components.GetService<IAsyncQuickInfoBroker>();
+                if (formatMaps is null || registry is null || editorFormats is null || quickInfo is null) return null;
 
                 return new SqlPreviewServices
                 {
                     FormatMapService = formatMaps,
                     ClassificationRegistry = registry,
-                    EditorFormatMapService = editorFormats
+                    EditorFormatMapService = editorFormats,
+                    QuickInfoBroker = quickInfo
                 };
             },
             fallback: null);
@@ -117,6 +124,13 @@ internal sealed class SqlPreviewServices
             () => EditorFormatMapService.GetEditorFormatMap("text"),
             fallback: null);
     }
+
+    /// <summary>這個編輯器上有沒有開著的滑鼠停留提示；問不到時當作沒有。</summary>
+    public bool IsQuickInfoOpen(ITextView view) =>
+        SqlAssistPlatformGuard.Probe(
+            "查詢滑鼠停留提示",
+            () => QuickInfoBroker.IsQuickInfoActive(view),
+            fallback: false);
 
     /// <summary>編輯器目前佈景主題的文字外觀；取不到時回傳 null，由呼叫端退回預設值。</summary>
     public IClassificationFormatMap? TryGetTextFormatMap(ITextView view)

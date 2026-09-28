@@ -29,7 +29,7 @@ namespace SqlAssist.Ssms22.Search;
 /// <see cref="SqlDefinitionScript"/> 組指令碼並開進新的查詢視窗。
 ///
 /// <b>沒有接上結構預覽。</b>浮動結構預覽掛在編輯器自己的空間保留管理員上，
-/// <c>SqlStructurePreview.ShowAt</c> 要的是一個 <c>ITrackingSpan</c>——也就是某份 SQL 文字
+/// <c>SqlStructurePreview.Open</c> 要的是一個 <c>ITrackingSpan</c>——也就是某份 SQL 文字
 /// 裡的一段。工具窗的一列結果沒有那個東西，硬接只能拿目前查詢視窗的游標當錨點，
 /// 那會把預覽畫在一個與這一筆結果無關的位置上。右鍵選單因此提供「複製限定名稱」，
 /// 讓使用者自己把名稱貼回查詢視窗，再用既有的 Ctrl+F12。

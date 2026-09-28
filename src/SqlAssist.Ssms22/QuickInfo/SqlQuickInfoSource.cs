@@ -8,6 +8,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Preview;
 using SqlAssist.Core.Settings;
 using SqlAssist.Metadata.Model;
 using SqlAssist.Ssms22;
@@ -104,6 +105,12 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
             return null;
         }
 
+        // 浮動預覽已經攤開這個名稱的完整內容；同一個名稱上再冒出小提示只會蓋住預覽的一角。
+        if (SqlStructurePreview.Peek(textView)?.IsShowingAt(point) == true)
+        {
+            return null;
+        }
+
         // 建議清單、ALTER 展開與這裡看的是同一份服務：連線解析與三層快取都只做一次。
         // 先前這裡各自 new 一份，等於在滑鼠移動的軌跡上另外開一條會問 SSMS 連線的支線，
         // 而那個呼叫有 UI 執行緒相依性，忙的時候會直接反映成打字延遲。
@@ -185,7 +192,11 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         {
             if (SqlStructurePreview.GetOrCreate(textView, _serviceProvider) is { } preview)
             {
-                preview.ShowAt(anchor, objectInfo, metadataService, script);
+                preview.Open(
+                    PreviewTrigger.HoverLink,
+                    anchor,
+                    SqlPreviewSubject.ForObject(objectInfo, script),
+                    metadataService);
             }
         };
     }
@@ -245,7 +256,7 @@ internal sealed class SqlQuickInfoSource : IAsyncQuickInfoSource
         {
             if (SqlStructurePreview.GetOrCreate(textView, _serviceProvider) is { } preview)
             {
-                preview.ShowBuiltInAt(anchor, doc);
+                preview.Open(PreviewTrigger.HoverLink, anchor, SqlPreviewSubject.ForBuiltIn(doc), metadataService: null);
             }
         };
     }

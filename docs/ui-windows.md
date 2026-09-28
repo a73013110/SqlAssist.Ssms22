@@ -104,6 +104,7 @@ Preview 標頭（開關與摘要）分兩態：
 | 分級 | 資產 | 長度 |
 |---|---|---|
 | 內容表面出現 | `PlayAppear` | 120 ms 淡入 |
+| 浮動預覽長出／縮回錨點 | `PlayEnter`／`PlayExit` | 通知島彈簧；縮回不回彈、另加 140 ms 淡出 |
 | 列的揭露 | `CardEnterDuration`／`CardExitDuration` | 180／140 ms |
 | 狀態回饋 | `UsageBadgePop`、`SearchStatusPop`（含已選筆數與動作完成的打勾） | 240 ms |
 | 動作完成的打勾停留 | `SelectionDoneHold` | 1200 ms，動畫關閉時照樣換圖示 |

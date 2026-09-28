@@ -36,6 +36,8 @@
   "SearchName": "搜尋結構",
   "WrapToggle": "長文字換行顯示",
   "CopyButton": "複製選取內容；沒有選取時複製完整指令碼",
+  "PinToggle": "釘住：游標移開或打字都不收起，只有 Esc 或關閉才收",
+  "CloseButton": "關閉預覽（Esc）",
   // 調整大小把手的無障礙名稱。
   "ResizeTopLeft": "左上角調整大小",
   "ResizeBottomLeft": "左下角調整大小",

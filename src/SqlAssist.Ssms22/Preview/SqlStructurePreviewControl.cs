@@ -9,6 +9,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
@@ -487,7 +488,24 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     private readonly DataGridTemplateColumn _flags;
     private readonly Thumb _resizeLeft;
     private readonly Thumb _resizeRight;
+    private readonly ToggleButton _pin;
+
+    /// <summary>整個 Popup 的內容：外圈是透明的陰影邊，裡面疊著柔影層與表面。</summary>
+    private readonly Grid _frame;
+
+    /// <summary>只有底色與柔影的一層；影子不掛在內容上，否則文字也會帶著一圈模糊。</summary>
+    private readonly Border _shadow;
+
     private readonly Border _root;
+
+    /// <summary>從錨點長出、縮回錨點的揭露進度；0 是錨點旁的一小塊，1 是整個表面。</summary>
+    private SpringMotion? _reveal;
+
+    /// <summary>這一次從哪個角長出來；收起時縮回同一個角。</summary>
+    private PreviewPlacementSide _revealSide;
+
+    /// <summary>縮回錨點之後要做的事（關掉 Popup、放開內容）；還在縮時不是 null。</summary>
+    private Action? _exitDone;
 
     /// <summary>目前套用的字級；相同就不重建樣式。</summary>
     private SqlAssistChrome.Metrics _metrics;
@@ -805,10 +823,34 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         tools.Children.Add(copy);
         SqlAssistChrome.SetTabStripTrailing(_tabs, tools);
 
-        var header = new StackPanel { Margin = new Thickness(16, 12, 14, 10) };
-        header.Children.Add(titleRow);
-        header.Children.Add(_signature);
-        header.Children.Add(_description);
+        var headerText = new StackPanel();
+        headerText.Children.Add(titleRow);
+        headerText.Children.Add(_signature);
+        headerText.Children.Add(_description);
+
+        // 圖釘與關閉固定在右上角：預覽什麼時候會收、怎麼收，看這兩顆就知道。
+        // 只靠 Esc 的話，沒讀過說明的人不知道怎麼關，也不知道它為什麼有時候自己收掉。
+        _pin = SqlAssistChrome.CreateIconToggle(SqlIcon.Pin, PreviewText.PinToggle);
+        _pin.Focusable = false;
+        _pin.Click += (_, _) => SqlAssistPlatformGuard.Run("切換結構預覽圖釘", () => PinToggled?.Invoke(this, EventArgs.Empty));
+
+        var close = SqlAssistChrome.CreateIconButton(SqlIcon.Close, PreviewText.CloseButton);
+        close.Focusable = false;
+        close.Click += (_, _) => SqlAssistPlatformGuard.Run("關閉結構預覽", () => CloseRequested?.Invoke(this, EventArgs.Empty));
+
+        var windowTools = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(SqlAssistChrome.Spacing.Group, -4, 0, 0)
+        };
+        windowTools.Children.Add(_pin);
+        windowTools.Children.Add(close);
+
+        var header = new DockPanel { Margin = new Thickness(16, 12, 10, 10), LastChildFill = true };
+        DockPanel.SetDock(windowTools, Dock.Right);
+        header.Children.Add(windowTools);
+        header.Children.Add(headerText);
 
         _resizeLeft = CreateResizeThumb(PreviewResizeCorner.BottomLeft);
         _resizeLeft.HorizontalAlignment = HorizontalAlignment.Left;
@@ -839,13 +881,35 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         overlay.Children.Add(_resizeLeft);
         overlay.Children.Add(_resizeRight);
 
+        var radius = new CornerRadius(SqlAssistChrome.FloatingSurfaceRadius);
         _root = new Border
         {
             BorderThickness = new Thickness(1),
+            CornerRadius = radius,
             SnapsToDevicePixels = true,
             Child = overlay
         }.WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground)
             .WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
+        _root.SizeChanged += (_, _) => SqlAssistPlatformGuard.Probe("裁切結構預覽圓角", () =>
+        {
+            if (_reveal is not { IsActive: true })
+            {
+                ApplyReveal(1);
+            }
+        });
+
+        // 與通知島同一種浮層：柔影只掛在底色層並點陣快取，高對比退回實色、不畫影子。
+        _shadow = new Border { CornerRadius = radius, IsHitTestVisible = false }
+            .WithTheme(Border.BackgroundProperty, ThemeBrush.WindowBackground);
+        if (!SystemParameters.HighContrast)
+        {
+            _shadow.Effect = SqlAssistChrome.CreateSurfaceShadow();
+            SqlAssistChrome.UpdateNotificationShadowCache(_shadow);
+        }
+
+        _frame = new Grid { Margin = new Thickness(ShadowMargin) };
+        _frame.Children.Add(_shadow);
+        _frame.Children.Add(_root);
 
         // 原生圖示依實際底色轉換，避免深色與高對比主題出現不相容的光暈。
         _root.SetBinding(ImageThemingUtilities.ImageBackgroundColorProperty, new Binding(nameof(Border.Background))
@@ -860,7 +924,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
         // 整組字級都從設定推導，這裡沒有任何寫死的數字可以跟設定不同步。
         ApplyFontSize(SqlAssistSettingsStore.Current.PreviewFontSize);
 
-        Content = _root;
+        Content = _frame;
 
         // 顯示時不主動搶焦點：使用者還在打字，游標必須留在編輯器裡。
         // 點進來才接受焦點，那時才需要能夠拉選文字或輸入搜尋字。
@@ -891,8 +955,23 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     public event EventHandler? InteractionFocusLost;
 
-    /// <summary>使用者在預覽裡按下 Esc。</summary>
+    /// <summary>使用者在預覽裡按下 Esc 或關閉鈕。</summary>
     public event EventHandler? CloseRequested;
+
+    /// <summary>使用者按了圖釘；釘不釘由擁有者決定，再用 <see cref="SetPinned"/> 回寫。</summary>
+    public event EventHandler? PinToggled;
+
+    /// <summary>
+    /// Popup 外圈留給柔影的透明邊。
+    /// </summary>
+    /// <remarks>
+    /// Popup 以外畫不出東西，影子要在自己的矩形裡長；這一圈同時就是預覽與錨點、
+    /// 建議清單之間的間距，定位那一端因此不再另加間距。
+    /// </remarks>
+    public const double ShadowMargin = 10;
+
+    /// <summary>正在縮回錨點；那段時間內容還掛在上一個承載視窗上。</summary>
+    public bool IsExiting => _exitDone is not null;
 
     public bool HasOpenContextMenu => _openContextMenuCount > 0;
 
@@ -907,9 +986,12 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     /// <summary>只套用這一輪真正顯示的尺寸；不代表使用者的持久偏好。</summary>
     public void SetEffectiveSize(double width, double height)
     {
-        _root.Width = width;
-        _root.Height = height;
+        _frame.Width = Math.Max(0, width - ShadowMargin * 2);
+        _frame.Height = Math.Max(0, height - ShadowMargin * 2);
     }
+
+    /// <summary>圖釘的外觀跟著擁有者的狀態，不跟著按鍵本身。</summary>
+    public void SetPinned(bool pinned) => _pin.IsChecked = pinned;
 
     /// <summary>上方落點改用上緣握把，固定 Bottom 往上增高；其餘情況使用下緣。</summary>
     public void SetResizeEdge(bool onTop)
@@ -1907,7 +1989,121 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
     }
 
     /// <summary>視窗剛掛上去時淡入一次；換選取時不重播，那會變成閃爍。</summary>
-    public void PlayAppear() => SqlAssistChrome.PlayAppear(_root);
+    /// <summary>
+    /// 從錨點旁長出來：表面依最終尺寸排好版，只由圓角裁切一路露出。
+    /// </summary>
+    /// <remarks>
+    /// 與通知島同一套彈簧與「內容不重排、由裁切露出」的做法；內容本身不縮放也不回彈，
+    /// 動的只有外形，讀 SQL 的注意力不被搶走。角落由落點決定：在錨點下方就從左上角長出，
+    /// 上方從左下角，側邊從貼著清單的那一側。
+    /// </remarks>
+    public void PlayEnter(PreviewPlacementSide side)
+    {
+        CompleteExit();
+        _revealSide = side;
+        SqlAssistChrome.PlayAppear(_frame);
+        if (!SqlAssistChrome.MotionEnabled)
+        {
+            _reveal?.Stop();
+            ApplyReveal(1);
+            return;
+        }
+
+        Animate(from: 0, to: 1, SpringParameters.Default, done: null);
+    }
+
+    /// <summary>縮回錨點，收完才呼叫 <paramref name="done"/>；動畫關著時立刻呼叫。</summary>
+    public void PlayExit(Action done)
+    {
+        CompleteExit();
+        if (!SqlAssistChrome.MotionEnabled || _root.ActualWidth <= 0)
+        {
+            done();
+            return;
+        }
+
+        _exitDone = done;
+        _frame.BeginAnimation(OpacityProperty, new DoubleAnimation(0, ExitDuration) { FillBehavior = FillBehavior.HoldEnd });
+        Animate(from: _reveal?.Value ?? 1, to: 0, ExitSpring, done: CompleteExit);
+    }
+
+    /// <summary>
+    /// 立刻結束縮回：內容只有一份，下一個承載視窗要掛上它之前必須先收完。
+    /// </summary>
+    public void CompleteExit()
+    {
+        if (_exitDone is not { } done)
+        {
+            return;
+        }
+
+        _exitDone = null;
+        _reveal?.Stop();
+        _frame.BeginAnimation(OpacityProperty, null);
+        _frame.Opacity = 1;
+        ApplyReveal(1);
+        done();
+    }
+
+    private void Animate(double from, double to, SpringParameters parameters, Action? done)
+    {
+        _reveal?.Stop();
+        var motion = new SpringMotion(from, ApplyReveal, parameters);
+        if (done is not null)
+        {
+            motion.Settled += (_, _) => SqlAssistPlatformGuard.Run("收起結構預覽", done);
+        }
+
+        _reveal = motion;
+        ApplyReveal(from);
+        motion.AnimateTo(to, motion: true);
+    }
+
+    /// <summary>依揭露進度裁切表面與柔影；1 是整個表面，只留圓角裁切。</summary>
+    private void ApplyReveal(double progress)
+    {
+        var width = _root.ActualWidth > 0 ? _root.ActualWidth : _frame.Width;
+        var height = _root.ActualHeight > 0 ? _root.ActualHeight : _frame.Height;
+        if (double.IsNaN(width) || double.IsNaN(height) || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var p = Math.Max(0, Math.Min(1, progress));
+        var visibleWidth = Math.Min(width, RevealStartWidth + (width - RevealStartWidth) * p);
+        var visibleHeight = Math.Min(height, RevealStartHeight + (height - RevealStartHeight) * p);
+        var left = _revealSide == PreviewPlacementSide.Left ? width - visibleWidth : 0;
+        var top = _revealSide == PreviewPlacementSide.Above ? height - visibleHeight : 0;
+        var radius = SqlAssistChrome.FloatingSurfaceRadius;
+
+        var surface = new RectangleGeometry(new Rect(left, top, visibleWidth, visibleHeight), radius, radius);
+        surface.Freeze();
+        _root.Clip = surface;
+
+        if (p >= 1)
+        {
+            _shadow.Clip = null;
+            return;
+        }
+
+        // 影子跟著露出的那一塊走，外面多留一圈讓模糊長得出來。
+        var shadow = new RectangleGeometry(
+            new Rect(left - ShadowMargin, top - ShadowMargin, visibleWidth + ShadowMargin * 2, visibleHeight + ShadowMargin * 2),
+            radius + ShadowMargin,
+            radius + ShadowMargin);
+        shadow.Freeze();
+        _shadow.Clip = shadow;
+    }
+
+    /// <summary>長出來之前那一小塊的尺寸：大約一顆膠囊，貼在錨點旁。</summary>
+    private const double RevealStartWidth = 96;
+
+    private const double RevealStartHeight = 32;
+
+    /// <summary>收起時不回彈、比出現快：使用者已經決定不看了，不該再多等一段。</summary>
+    private static readonly SpringParameters ExitSpring = new(0.2, 1);
+
+    private static readonly Duration ExitDuration = new(TimeSpan.FromMilliseconds(140));
 
     /// <summary>目前分頁有沒有選取的內容；決定 Ctrl+C 該不該由預覽接手。</summary>
     public bool HasSelection()
@@ -2177,6 +2373,7 @@ internal sealed class SqlStructurePreviewControl : UserControl, IShellKeyTarget,
 
     public void Dispose()
     {
+        CompleteExit();
         _searchDelay.Stop();
         ShellKeyCapture.End(this);
         _script.Dispose();

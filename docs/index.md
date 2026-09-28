@@ -59,7 +59,7 @@
 | Pairing、括號、引號 | [自動配對](auto-pairing.md) |
 | BEGIN／END、CASE、高亮、BlockMatcher | [區塊配對](block-matching.md)／[配色](block-colors.md)／[驗收](block-matching-validation.md) |
 | QuickInfo、暫存表／變數／CTE | [結構預覽](structure-preview.md)／[宣告](script-declared-objects.md) |
-| 定位、焦點、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
+| 定位、焦點、收起、釘住、Resize | [預覽視窗](preview-window.md)／[預覽互動](preview-interaction.md) |
 | Chrome、配色、高對比 | [UI 準則](ui-guidelines.md)／[骨架](ui-windows.md)／[主題](themes.md)／[對話框](ui-dialogs.md) |
 | 通知來源、提醒、合併、統計 | [通知提示](notifications.md)／[文案](notifications-messages.md) |
 | 通知島、浮層、錨點、測試通知 | [呈現與驗證](notifications-ui.md) |

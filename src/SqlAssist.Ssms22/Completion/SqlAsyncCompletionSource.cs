@@ -416,7 +416,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
             // 看不完的對照表才是向右鍵要開的東西。物件先讓掉的理由則是成本：那一條要
             // await 一次 GetDetailAsync，而使用者多半只是按著方向鍵路過。
             if (objectInfo is not null ||
-                preview.IsExpanded && SqlSuggestionTarget.Describe(suggestion) is not null)
+                preview.IsBrowsing && SqlSuggestionTarget.Describe(suggestion) is not null)
             {
                 return null;
             }

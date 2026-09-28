@@ -65,6 +65,12 @@ internal enum SqlIcon
     /// <summary>停下正在跑的工作（SQL Search 建索引與比對）。</summary>
     Stop,
 
+    /// <summary>浮動預覽的圖釘：釘住之後游標移開也不收起。</summary>
+    Pin,
+
+    /// <summary>關閉一個浮在編輯器上的表面。</summary>
+    Close,
+
     /// <summary>動作完成的短暫回饋（複製成功時動作按鈕的圖示換成它）。</summary>
     Done,
 

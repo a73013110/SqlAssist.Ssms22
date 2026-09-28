@@ -25,6 +25,8 @@
   "SearchName": "Search structure",
   "WrapToggle": "Wrap long text",
   "CopyButton": "Copy the selection, or the complete script if nothing is selected",
+  "PinToggle": "Pin: stays open when the caret moves or you type; only Esc or Close dismisses it",
+  "CloseButton": "Close preview (Esc)",
   "ResizeTopLeft": "Resize top-left",
   "ResizeBottomLeft": "Resize bottom-left",
   "ResizeTopRight": "Resize top-right",

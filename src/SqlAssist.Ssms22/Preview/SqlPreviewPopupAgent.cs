@@ -23,11 +23,23 @@ namespace SqlAssist.Ssms22.Preview;
 /// <remarks>
 /// 平台內建 PopupAgent 會依 Windows 的左右手功能表設定改用 PlacementMode.Left，
 /// 畫面因此可能與它回報給 reservation stack 的矩形相反。這裡仍加入同一套
-/// ISpaceReservationManager 以保留聚合焦點與生命週期，但用 Relative 明確套用座標。
+/// ISpaceReservationManager 以保留聚合焦點，但用 Relative 明確套用座標。
+///
+/// 這一層不決定去留：錨點捲出畫面、編輯器被藏起來（切分頁）或版面暫時放不下時只把
+/// Popup 藏起來、留著 Agent，回來就照原樣出現；收不收由 <see cref="SqlStructurePreview"/>
+/// 問生命週期規則。以前這裡在編輯器失焦後檢查鍵盤焦點並自行移除，結果取決於那一瞬間
+/// 焦點在誰身上——切到別的程式時，點過預覽與沒點過的收法不同。
 /// </remarks>
 internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 {
-    private const double LayoutGap = 4;
+    /// <summary>
+    /// 與錨點、建議清單之間的間距。
+    /// </summary>
+    /// <remarks>
+    /// 0 是因為視窗外圈本來就留了一圈透明的陰影邊（<see cref="SqlStructurePreviewControl.ShadowMargin"/>），
+    /// 看得見的表面與鄰居之間已經隔著那一圈；再加就是兩份間距。
+    /// </remarks>
+    private const double LayoutGap = 0;
     private const double BoundsPadding = 4;
 
     private readonly IWpfTextView _view;
@@ -48,8 +60,10 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private PreviewResizeCorner _resizeCorner;
     private PreviewPlacementSide _side;
     private bool _eventsAttached;
-    private bool _focusCheckQueued;
     private bool _hasLayout;
+
+    /// <summary>上一輪定位時的錨點矩形；錨點沒動時，滑鼠停留提示不能把預覽推開。</summary>
+    private PreviewRectangle _layoutAnchor;
     private bool _isResizing;
     private bool _resizeUpdateQueued;
     private bool _usedFallback;
@@ -145,6 +159,9 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     public event EventHandler? GotFocus;
 
+    /// <summary>下一次被收起時要不要縮回錨點；清單上路過關鍵字而暫時收起時不必。</summary>
+    public bool AnimateNextHide { get; set; }
+
     /// <summary>
     /// 更新錨點、擺放方向與兩種擺放各自記住的尺寸。
     /// </summary>
@@ -211,12 +228,23 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return Geometry.Empty;
         }
 
-        if (TryGetAnchorBounds() is not { } anchorBounds)
+        if (!_view.VisualElement.IsVisible || TryGetAnchorBounds() is not { } anchorBounds)
         {
-            return null;
+            // 錨點捲出畫面或整個編輯器被藏起來：先藏起來，回來再出現。回報 null 會讓
+            // 平台移除 Agent，那等於把「暫時看不見」當成使用者不要了。
+            Suspend();
+            return Geometry.Empty;
         }
 
         RefreshDeviceTransforms();
+
+        if (_hasLayout && !_isResizing && anchorBounds == _layoutAnchor && IsQuickInfoOpen())
+        {
+            // 滑鼠停留提示排在預覽前面，它一出現就會變成預覽要讓開的障礙，而使用者只是
+            // 在別的名稱上停了一下。錨點沒動就留在原地，提示自己會在滑鼠離開時消失。
+            Display(_bounds);
+            return CreateReservation(anchorBounds, _bounds);
+        }
 
         if (!_isResizing)
         {
@@ -238,9 +266,11 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
             if (layout.Bounds.IsEmpty)
             {
-                return null;
+                Suspend();
+                return Geometry.Empty;
             }
 
+            _layoutAnchor = anchorBounds;
             _bounds = layout.Bounds;
             _side = layout.Side;
             _hasLayout = true;
@@ -296,17 +326,50 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             });
     }
 
+    /// <summary>平台移除 Agent 時呼叫；要動畫就先縮回錨點，收完才放開內容。</summary>
     public void Hide()
     {
         _control.CloseTransientPopups();
+        DetachEvents();
+        if (AnimateNextHide && _popup.IsOpen && ReferenceEquals(_container.Content, _control))
+        {
+            AnimateNextHide = false;
+            _control.PlayExit(ReleaseContent);
+            return;
+        }
+
+        ReleaseContent();
+    }
+
+    /// <summary>看不見時暫時藏起來；Agent 與內容都留著，下一輪定位成功就再出現。</summary>
+    private void Suspend()
+    {
+        if (_popup.IsOpen)
+        {
+            _popup.IsOpen = false;
+        }
+    }
+
+    private void ReleaseContent()
+    {
         if (_popup.IsOpen)
         {
             _popup.IsOpen = false;
         }
 
-        _container.Content = null;
-        DetachEvents();
+        if (ReferenceEquals(_container.Content, _control))
+        {
+            _container.Content = null;
+        }
+
+        if (_disposed)
+        {
+            _popup.Child = null;
+        }
     }
+
+    private bool IsQuickInfoOpen() =>
+        SqlPreviewServices.Current is { } services && services.IsQuickInfoOpen(_view);
 
     public void BeginResize(PreviewResizeCorner corner)
     {
@@ -414,8 +477,21 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
         _disposed = true;
         _isResizing = false;
-        Hide();
-        _popup.Child = null;
+
+        // 平台移除時通常已經呼叫過 Hide；縮回錨點的動畫還在跑時由它收完再放開內容。
+        if (_control.IsExiting)
+        {
+            return;
+        }
+
+        if (_popup.IsOpen)
+        {
+            Hide();
+        }
+        else
+        {
+            ReleaseContent();
+        }
     }
 
     private void Display(PreviewRectangle bounds)
@@ -438,6 +514,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             {
                 AttachEvents();
                 _popup.IsOpen = true;
+                _control.PlayEnter(_side);
             }
 
             return;
@@ -815,7 +892,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         _control.LostFocus += OnContentLostFocus;
         _control.InteractionFocusGained += OnInteractionFocusGained;
         _control.InteractionFocusLost += OnInteractionFocusLost;
-        _view.LostAggregateFocus += OnViewLostAggregateFocus;
+        _view.VisualElement.IsVisibleChanged += OnViewVisibleChanged;
         _hostWindow = SsmsWindows.WindowOf(_view.VisualElement);
         if (_hostWindow is not null)
         {
@@ -835,7 +912,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         _control.LostFocus -= OnContentLostFocus;
         _control.InteractionFocusGained -= OnInteractionFocusGained;
         _control.InteractionFocusLost -= OnInteractionFocusLost;
-        _view.LostAggregateFocus -= OnViewLostAggregateFocus;
+        _view.VisualElement.IsVisibleChanged -= OnViewVisibleChanged;
         if (_hostWindow is not null)
         {
             _hostWindow.LocationChanged -= OnHostWindowLocationChanged;
@@ -855,26 +932,22 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private void OnInteractionFocusLost(object? sender, EventArgs eventArgs) =>
         LostFocus?.Invoke(sender, eventArgs);
 
-    private void OnViewLostAggregateFocus(object sender, EventArgs eventArgs)
+    /// <summary>切到別的分頁再切回來：藏起來的預覽跟著編輯器回來。</summary>
+    private void OnViewVisibleChanged(object sender, DependencyPropertyChangedEventArgs eventArgs)
     {
-        if (_disposed || !_popup.IsOpen || _focusCheckQueued)
+        if (_disposed)
         {
             return;
         }
 
-        _focusCheckQueued = true;
-        _view.VisualElement.Dispatcher.BeginInvoke(
-            DispatcherPriority.Input,
-            new Action(() => SqlAssistPlatformGuard.Run(
-                "失焦時收起結構預覽",
-                () =>
-                {
-                    _focusCheckQueued = false;
-                    if (!_disposed && _popup.IsOpen && !HasFocus)
-                    {
-                        _manager.RemoveAgent(this);
-                    }
-                })));
+        if (_view.VisualElement.IsVisible)
+        {
+            RequestReposition();
+        }
+        else
+        {
+            Suspend();
+        }
     }
 
     private void OnHostWindowLocationChanged(object? sender, EventArgs eventArgs) => RequestReposition();
