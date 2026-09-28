@@ -47,15 +47,48 @@ public static class SuggestionContextFilter
         return results;
     }
 
-    /// <summary>上下文過濾的四道條件。</summary>
+    /// <summary>上下文過濾的五道條件。</summary>
     private static bool IsAllowed(SqlSuggestion suggestion, SqlCompletionContext context)
     {
         // 片語的字不看目標：剖析器證明過這一格接得上它們，而目標是「這一格要哪一種名稱」。
         // EXEC 之後的目標是程序，照目標過濾的話 EXEC AS 的 AS 永遠列不出來。
-        return (IsPhraseWord(suggestion) || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
+        return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
+               (IsPhraseWord(suggestion) || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
                IsAllowedForPosition(suggestion, context) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
+    }
+
+    /// <summary>
+    /// 寫進方括號仍然是同一個東西的名稱：資料庫裡的物件、結構描述、資料庫、連結伺服器、
+    /// 欄位，以及這份指令碼自己取的資料來源與別名。
+    /// </summary>
+    /// <remarks>
+    /// 其餘的包起來就變成另一個東西或語法錯誤：<c>[COUNT](</c> 找的是一個叫 COUNT 的
+    /// 使用者自訂函式，<c>[NOLOCK]</c> 不是提示，關鍵字與片段更不用說。
+    /// 型別是灰色地帶（<c>[int]</c> 合法），但帶參數的型別插入文字自己帶著左括號，
+    /// 包法要另外定義，目前一併不列。
+    /// </remarks>
+    private static bool IsBracketable(SuggestionKind kind)
+    {
+        return kind switch
+        {
+            SuggestionKind.Schema => true,
+            SuggestionKind.Table => true,
+            SuggestionKind.View => true,
+            SuggestionKind.Procedure => true,
+            SuggestionKind.Function => true,
+            SuggestionKind.TableFunction => true,
+            SuggestionKind.Column => true,
+            SuggestionKind.ScriptDataSource => true,
+            SuggestionKind.Database => true,
+            SuggestionKind.Trigger => true,
+            SuggestionKind.Sequence => true,
+            SuggestionKind.UserDefinedType => true,
+            SuggestionKind.LinkedServer => true,
+            SuggestionKind.Alias => true,
+            _ => false
+        };
     }
 
     /// <summary>片語的字；它屬不屬於這一格由 <see cref="IsAllowedForPosition"/> 比對片語決定。</summary>

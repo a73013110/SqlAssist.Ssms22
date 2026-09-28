@@ -27,7 +27,8 @@ public sealed class SqlCompletionContext
         int qualifierStart = -1,
         SqlClausePhraseMatch? clausePhrase = null,
         bool startsBatch = false,
-        bool expectsScalar = false)
+        bool expectsScalar = false,
+        bool bracketed = false)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -45,6 +46,7 @@ public sealed class SqlCompletionContext
         ClausePhrase = clausePhrase;
         StartsBatch = startsBatch;
         ExpectsScalar = expectsScalar;
+        Bracketed = bracketed;
     }
 
     /// <summary>
@@ -52,9 +54,22 @@ public sealed class SqlCompletionContext
     /// </summary>
     public SqlCompletionSlot Slot { get; }
 
+    /// <summary>正在打的名稱從哪裡開始；<see cref="Bracketed"/> 時是左方括號的位置。</summary>
     public int TokenStart { get; }
 
+    /// <summary>使用者要找的名稱：方括號裡打的字已經拿掉左方括號、還原跳脫。</summary>
     public string Prefix { get; }
+
+    /// <summary>
+    /// 使用者自己打了左方括號：這一格要的是一個名稱，而且要寫成方括號的樣子。
+    /// </summary>
+    /// <remarks>
+    /// T-SQL 的左方括號只有一個意思，所以它和限定字一樣把範圍講完了——清單只列
+    /// 寫得進方括號的名稱（<see cref="SuggestionContextFilter"/>），不必等字元數
+    /// （<see cref="SqlCompletionPolicy"/>），提交的名稱一律包起來
+    /// （<see cref="SqlInsertionText"/>）。三處問的都是這一個旗標。
+    /// </remarks>
+    public bool Bracketed { get; }
 
     public CompletionTarget Target { get; }
 
@@ -230,48 +245,12 @@ public sealed class SqlCompletionContext
     public bool ExpectsScalar { get; }
 
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
-    internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources)
-    {
-        return new SqlCompletionContext(
-            Slot,
-            TokenStart,
-            Prefix,
-            Target,
-            QualifierPath,
-            TargetKeywordStart,
-            Intent,
-            ColumnSources,
-            KeywordPosition,
-            sources,
-            ScriptSources,
-            ExecutedModule,
-            QualifierStart,
-            ClausePhrase,
-            StartsBatch,
-            ExpectsScalar);
-    }
+    internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources) =>
+        Copy(scopeSources: sources);
 
     /// <summary>複製這個上下文，補上指令碼自己宣告的資料來源。</summary>
-    internal SqlCompletionContext WithScriptSources(IReadOnlyList<SqlSuggestion> sources)
-    {
-        return new SqlCompletionContext(
-            Slot,
-            TokenStart,
-            Prefix,
-            Target,
-            QualifierPath,
-            TargetKeywordStart,
-            Intent,
-            ColumnSources,
-            KeywordPosition,
-            ScopeSources,
-            sources,
-            ExecutedModule,
-            QualifierStart,
-            ClausePhrase,
-            StartsBatch,
-            ExpectsScalar);
-    }
+    internal SqlCompletionContext WithScriptSources(IReadOnlyList<SqlSuggestion> sources) =>
+        Copy(scriptSources: sources);
 
     /// <summary>複製這個上下文，換上重新對齊過的限定字。</summary>
     /// <remarks>
@@ -281,46 +260,47 @@ public sealed class SqlCompletionContext
     /// 記在旁邊的話，過濾、插入文字、目錄選擇這三條路會各問各的，
     /// 症狀是清單列得出來、Tab 下去卻少一段。
     /// </remarks>
-    public SqlCompletionContext WithQualifierPath(SqlObjectPath path)
-    {
-        return new SqlCompletionContext(
-            Slot,
-            TokenStart,
-            Prefix,
-            Target,
-            path,
-            TargetKeywordStart,
-            Intent,
-            ColumnSources,
-            KeywordPosition,
-            ScopeSources,
-            ScriptSources,
-            ExecutedModule,
-            QualifierStart,
-            ClausePhrase,
-            StartsBatch,
-            ExpectsScalar);
-    }
+    public SqlCompletionContext WithQualifierPath(SqlObjectPath path) =>
+        Copy(qualifierPath: path ?? throw new ArgumentNullException(nameof(path)));
 
     /// <summary>複製這個上下文，改以欄位為建議目標。</summary>
-    internal SqlCompletionContext AsColumnsOf(IReadOnlyList<SqlColumnSource> sources)
+    internal SqlCompletionContext AsColumnsOf(IReadOnlyList<SqlColumnSource> sources) =>
+        Copy(CompletionTarget.Column, intent: CompletionIntent.Reference, columnSources: sources);
+
+    /// <summary>複製這個上下文，標成使用者自己打了左方括號。</summary>
+    internal SqlCompletionContext AsBracketed() => Copy(bracketed: true);
+
+    /// <summary>複製一份，只換掉有給的那幾項。</summary>
+    /// <remarks>
+    /// 複製只有這一份：每個 <c>With</c> 各自抄一次建構子引數的話，新增一個欄位就要改
+    /// 好幾處，漏掉的那一處會在某條路徑上悄悄把它重設成預設值。
+    /// </remarks>
+    private SqlCompletionContext Copy(
+        CompletionTarget? target = null,
+        SqlObjectPath? qualifierPath = null,
+        CompletionIntent? intent = null,
+        IReadOnlyList<SqlColumnSource>? columnSources = null,
+        IReadOnlyList<SqlColumnSource>? scopeSources = null,
+        IReadOnlyList<SqlSuggestion>? scriptSources = null,
+        bool? bracketed = null)
     {
         return new SqlCompletionContext(
             Slot,
             TokenStart,
             Prefix,
-            CompletionTarget.Column,
-            QualifierPath,
+            target ?? Target,
+            qualifierPath ?? QualifierPath,
             TargetKeywordStart,
-            CompletionIntent.Reference,
-            sources,
+            intent ?? Intent,
+            columnSources ?? ColumnSources,
             KeywordPosition,
-            ScopeSources,
-            ScriptSources,
+            scopeSources ?? ScopeSources,
+            scriptSources ?? ScriptSources,
             ExecutedModule,
             QualifierStart,
             ClausePhrase,
             StartsBatch,
-            ExpectsScalar);
+            ExpectsScalar,
+            bracketed ?? Bracketed);
     }
 }

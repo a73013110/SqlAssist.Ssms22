@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using SqlAssist.Core.Matching;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Completion;
 
@@ -71,6 +72,9 @@ public static class SuggestionList
     ///
     /// 比對的是<b>當下</b>的文字，不是一個記在 session 上的旗標：使用者一打字，
     /// 格子內容就不再等於預設值，這裡自然恢復正常比對，不必有人去清狀態。
+    ///
+    /// 方括號開頭的範圍拿掉左方括號再比對：清單上的名稱不帶括號，<c>[Lib</c>
+    /// 原樣比對的話一項都比不中，平台會把剛開的清單直接關掉。
     /// </remarks>
     /// <param name="applicableText">建議範圍內目前的文字。</param>
     /// <param name="fieldDefault">這一格的樣板預設值；不在片段欄位裡時為 null。</param>
@@ -83,7 +87,7 @@ public static class SuggestionList
 
         return fieldDefault is not null && string.Equals(applicableText, fieldDefault, StringComparison.Ordinal)
             ? string.Empty
-            : applicableText;
+            : SqlIdentifier.UnquoteOpening(applicableText);
     }
 
     /// <summary>

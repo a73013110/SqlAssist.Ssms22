@@ -237,7 +237,6 @@ public sealed class SqlCompletionContextAnalyzerTests
     [InlineData("/* publ")]
     [InlineData("SELECT 'publ")]
     [InlineData("SELECT \"publ")]
-    [InlineData("SELECT [publ")]
     public void 字串與註解內不建議(string textBeforeCaret)
     {
         Assert.Equal(SqlCompletionSlot.Inert, SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Slot);

@@ -21,7 +21,7 @@
 | 區塊配對與祖先查詢 | `Core/Parsing/BlockMatcher.cs` |
 | 模糊比對與命中高亮 | `Core/Matching/FuzzyMatcher.cs` |
 | 建議清單開不開、軟硬選；排名、無前綴可見度、分類篩選 | `Core/Completion/SqlCompletionPolicy.cs`；`SuggestionList.cs` |
-| 識別字加括號（形狀、保留字、指令碼自己宣告的名稱） | `Core/Parsing/SqlIdentifier.cs` |
+| 識別字加括號與拿掉括號（形狀、保留字、指令碼自己宣告的名稱）；正在打的左方括號與它的右半截 | `Core/Parsing/SqlIdentifier.cs` |
 | 提交建議時寫進編輯器的文字（補不補結構描述、要不要方括號） | `Core/Completion/SqlInsertionText.cs` |
 | 型別格式化 | `Metadata/Formatting/SqlTypeFormatter.cs` |
 | 中繼資料快取與失敗降級 | `Metadata/Caching/SqlMetadataCatalog.cs` |

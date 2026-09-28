@@ -18,6 +18,40 @@ public static class SqlInsertionText
         SqlCompletionContext context,
         SqlAssistSettings settings)
     {
+        var text = BuildUnbracketed(suggestion, context, settings);
+
+        return context.Bracketed ? BracketName(text, suggestion.DisplayText) : text;
+    }
+
+    /// <summary>
+    /// 使用者自己打了左方括號：選中的這個名稱一定寫成方括號。
+    /// </summary>
+    /// <remarks>
+    /// 左方括號是使用者對<b>這一段</b>下的決定，不是對整份設定：插入文字前面由程式
+    /// 補上的限定字（結構描述、欄位前的別名）照設定寫，所以 <c>FROM [Lib</c> 在
+    /// 「補上結構描述」開著時寫成 <c>dbo.[Lib_Reader]</c>。
+    ///
+    /// 插入文字的最後一段必然是這筆建議的名稱（不論本來包不包），只換那一段；
+    /// 認不出來的形狀原樣留著，寧可少包一次也不拼出一個不存在的名稱。
+    /// </remarks>
+    private static string BracketName(string text, string name)
+    {
+        var quoted = SqlIdentifier.Quote(name);
+
+        if (text.EndsWith(quoted, StringComparison.Ordinal) ||
+            !text.EndsWith(name, StringComparison.Ordinal))
+        {
+            return text;
+        }
+
+        return text.Substring(0, text.Length - name.Length) + quoted;
+    }
+
+    private static string BuildUnbracketed(
+        SqlSuggestion suggestion,
+        SqlCompletionContext context,
+        SqlAssistSettings settings)
+    {
         // 資料表變數在純量位置唯一能做的事是限定欄位（SELECT [@rows].CopyNo），
         // 而那裡的寫法只有方括號這一種。照原樣寫出 @rows 的話，使用者接著打的
         // 點號與欄位會被讀成純量變數，執行起來是「必須宣告純量變數」。

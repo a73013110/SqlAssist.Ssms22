@@ -191,6 +191,24 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             context = context.WithQualifierPath(realigned);
         }
 
+        // 方括號名稱的右半邊（自動配對補上的 ]，或游標停在名稱中間時右邊那一截）
+        // 要一起換掉，否則提交的 [Lib_Reader] 後面還跟著原本那個 ]。平台只換得掉
+        // 適用範圍，而範圍刻意只到游標為止——包進右方括號的話，使用者自己打出 ]
+        // 時篩選字還比得中，清單就關不掉——所以這一種要自己接手。
+        // 上面的分析必須在延伸之前做：分析到右方括號之後，方括號就已經關上了。
+        var closing = context.Bracketed
+            ? SqlIdentifier.MeasureClosingBracket(
+                snapshot.GetText(
+                    span.End.Position,
+                    Math.Min(SqlIdentifier.MaximumLength + 1, snapshot.Length - span.End.Position)),
+                0)
+            : 0;
+
+        if (closing > 0)
+        {
+            span = new SnapshotSpan(snapshot, span.Start, span.Length + closing);
+        }
+
         // Tab 在欄位裡有兩件事要做：提交這一格，然後走到下一格。平台的 Tab 只做
         // 得了第一件，所以第二件排在這一輪命令之後自己做——不靠
         // CommitBehavior.RaiseFurtherReturnKeyAndTabKeyCommandHandlers 把命令鏈接
@@ -325,6 +343,13 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
             {
                 caretOffset += rewrittenQualifier.Length;
             }
+        }
+
+        // 換掉的範圍越過了游標，游標要明示擺回名稱結尾；留給編輯器的話它停在哪裡
+        // 取決於追蹤方向，而那不是這裡該賭的事。
+        if (closing > 0 && caretOffset < 0)
+        {
+            caretOffset = insertionText.Length;
         }
 
         // 一般項目讓平台自己插入，行為與其他語言一致。

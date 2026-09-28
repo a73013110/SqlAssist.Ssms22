@@ -41,6 +41,31 @@ public static class SqlLexicalContext
     /// </remarks>
     public static SqlLexicalState GetState(ISqlTextSource sql, int position)
     {
+        return GetState(sql, position, out _);
+    }
+
+    /// <summary>
+    /// 判斷指定位置的語彙狀態，並回報這個狀態從哪一個字元開始。
+    /// </summary>
+    /// <remarks>
+    /// 起點只能由前往後掃才知道：方括號識別字裡可以有 <c>[</c>（<c>[a[b]</c> 是名稱
+    /// <c>a[b</c>），而 <c>]]</c> 是跳脫；往回找左方括號兩種都會認錯。
+    /// </remarks>
+    /// <param name="stateStart">
+    /// 開啟這個狀態的那個字元（引號、括號或註解的第一個字元）；狀態是一般程式碼時為 -1。
+    /// </param>
+    public static SqlLexicalState GetState(string sql, int position, out int stateStart)
+    {
+        if (sql is null)
+        {
+            throw new System.ArgumentNullException(nameof(sql));
+        }
+
+        return GetState(new SqlStringText(sql), position, out stateStart);
+    }
+
+    private static SqlLexicalState GetState(ISqlTextSource sql, int position, out int stateStart)
+    {
         if (sql is null)
         {
             throw new System.ArgumentNullException(nameof(sql));
@@ -52,6 +77,7 @@ public static class SqlLexicalContext
         }
 
         var state = SqlLexicalState.Code;
+        stateStart = -1;
 
         for (var index = 0; index < position; index++)
         {
@@ -61,6 +87,8 @@ public static class SqlLexicalContext
             switch (state)
             {
                 case SqlLexicalState.Code:
+                    stateStart = index;
+
                     if (current == '-' && next == '-')
                     {
                         state = SqlLexicalState.LineComment;
@@ -139,6 +167,11 @@ public static class SqlLexicalContext
 
                     break;
             }
+        }
+
+        if (state == SqlLexicalState.Code)
+        {
+            stateStart = -1;
         }
 
         return state;

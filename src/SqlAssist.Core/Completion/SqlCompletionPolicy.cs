@@ -23,8 +23,8 @@ public static class SqlCompletionPolicy
     /// 沒有其他線索時，要打幾個字元才開清單。
     /// </param>
     /// <remarks>
-    /// 有限定字或目標已經收斂時不必等字元數：<c>dbo.</c> 與 <c>FROM </c> 已經把
-    /// 範圍講完了。其餘位置空前綴就開的話，按一下空白鍵就是整個資料庫。
+    /// 有限定字、目標已經收斂或打了左方括號時不必等字元數：<c>dbo.</c>、<c>FROM </c>
+    /// 與 <c>[</c> 已經把範圍講完了。其餘位置空前綴就開的話，按一下空白鍵就是整個資料庫。
     /// </remarks>
     public static bool Participates(SqlCompletionContext context, int triggerAfterCharacters)
     {
@@ -36,6 +36,7 @@ public static class SqlCompletionPolicy
         return OffersItems(context.Slot) &&
             (context.QualifierPath is not null ||
              context.Target != CompletionTarget.Any ||
+             context.Bracketed ||
              context.Prefix.Length >= triggerAfterCharacters);
     }
 

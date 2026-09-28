@@ -23,11 +23,23 @@ public static class SqlCompletionContextAnalyzer
 
         var tokenStart = FindTokenStart(textBeforeCaret);
 
-        if (!SqlLexicalContext.IsCode(textBeforeCaret, tokenStart))
+        if (SqlLexicalContext.IsCode(textBeforeCaret, tokenStart))
         {
-            return Inert(tokenStart);
+            return AnalyzeToken(textBeforeCaret, tokenStart);
         }
 
+        // 字串與註解裡什麼都不補；方括號裡是例外——那裡放的是名稱，左方括號本身就是
+        // 名稱的第一個字元。從左方括號起算照一般的名稱分析，前方的位置、限定字與
+        // 目標都與沒打方括號時相同，差別只在清單與提交（見 SqlCompletionContext.Bracketed）。
+        var bracket = SqlIdentifier.FindOpenBracket(textBeforeCaret);
+
+        return bracket < 0
+            ? Inert(tokenStart)
+            : AnalyzeToken(textBeforeCaret, bracket).AsBracketed();
+    }
+
+    private static SqlCompletionContext AnalyzeToken(string textBeforeCaret, int tokenStart)
+    {
         // 小老鼠開頭的詞元不必看位置，也不必看前導關鍵字：它要的東西只有兩種，
         // 而兩種都與周圍的文法無關。
         if (tokenStart < textBeforeCaret.Length && textBeforeCaret[tokenStart] == '@')
@@ -60,7 +72,7 @@ public static class SqlCompletionContextAnalyzer
 
         var caret = SqlKeywordPositionAnalyzer.Analyze(tokens, textBeforeToken);
         var keywordPosition = caret.Keywords;
-        var prefix = textBeforeCaret.Substring(tokenStart);
+        var prefix = SqlIdentifier.UnquoteOpening(textBeforeCaret.Substring(tokenStart));
         var beforeToken = textBeforeToken.TrimEnd();
         var qualifierPath = ExtractQualifierPath(
             beforeToken,
@@ -711,9 +723,7 @@ public static class SqlCompletionContextAnalyzer
                     break;
                 }
 
-                parts.Insert(0, beforeDot
-                    .Substring(openingBracket + 1, beforeDot.Length - openingBracket - 2)
-                    .Replace("]]", "]"));
+                parts.Insert(0, SqlIdentifier.Unquote(beforeDot.Substring(openingBracket)));
                 remaining = beforeDot.Substring(0, openingBracket).TrimEnd();
                 continue;
             }

@@ -51,7 +51,7 @@ public static class SqlIdentifierScanner
 
         while (TryReadQualifierBefore(text, cursor, out var qualifierStart))
         {
-            parts.Insert(0, Unquote(TrimTrailingDot(
+            parts.Insert(0, SqlIdentifier.Unquote(TrimTrailingDot(
                 text.Substring(qualifierStart, cursor - qualifierStart))));
             referenceStart = qualifierStart;
             cursor = qualifierStart;
@@ -91,26 +91,26 @@ public static class SqlIdentifierScanner
         // 游標剛好停在識別字右側邊界時，仍應視為指向該識別字。
         var probe = position;
 
-        if (probe > 0 && (probe == text.Length || !IsIdentifierCharacter(text[probe])))
+        if (probe > 0 && (probe == text.Length || !SqlIdentifier.IsIdentifierCharacter(text[probe])))
         {
             probe--;
         }
 
-        if (probe < 0 || probe >= text.Length || !IsIdentifierCharacter(text[probe]))
+        if (probe < 0 || probe >= text.Length || !SqlIdentifier.IsIdentifierCharacter(text[probe]))
         {
             return false;
         }
 
         start = probe;
 
-        while (start > 0 && IsIdentifierCharacter(text[start - 1]))
+        while (start > 0 && SqlIdentifier.IsIdentifierCharacter(text[start - 1]))
         {
             start--;
         }
 
         end = probe + 1;
 
-        while (end < text.Length && IsIdentifierCharacter(text[end]))
+        while (end < text.Length && SqlIdentifier.IsIdentifierCharacter(text[end]))
         {
             end++;
         }
@@ -265,7 +265,7 @@ public static class SqlIdentifierScanner
 
         var start = index;
 
-        while (start > 0 && IsIdentifierCharacter(text[start - 1]))
+        while (start > 0 && SqlIdentifier.IsIdentifierCharacter(text[start - 1]))
         {
             start--;
         }
@@ -285,26 +285,6 @@ public static class SqlIdentifierScanner
         return trimmed.EndsWith(".", StringComparison.Ordinal)
             ? trimmed.Substring(0, trimmed.Length - 1).TrimEnd()
             : trimmed;
-    }
-
-    private static string Unquote(string value)
-    {
-        if (value.Length >= 2 && value[0] == '[' && value[value.Length - 1] == ']')
-        {
-            return value.Substring(1, value.Length - 2).Replace("]]", "]");
-        }
-
-        if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
-        {
-            return value.Substring(1, value.Length - 2).Replace("\"\"", "\"");
-        }
-
-        return value;
-    }
-
-    private static bool IsIdentifierCharacter(char value)
-    {
-        return char.IsLetterOrDigit(value) || value == '_' || value == '#' || value == '@' || value == '$';
     }
 
     private static bool IsHorizontalWhitespace(char value)
