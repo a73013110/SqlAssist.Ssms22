@@ -855,6 +855,11 @@ internal sealed class SqlStructurePreview
     /// <remarks>
     /// 滑鼠停留與 Ctrl+F12 在定位那一步就把明細讀好了；建議清單那條入口只知道名稱，這裡才去問名冊。
     /// 使用者指名要看的讀不出來時照樣畫，由 <see cref="SqlStructurePresenter"/> 說出實情。
+    ///
+    /// 「清單路過」看的是這一份是不是清單選到的那一個，不看 <see cref="_mode"/>：借用期間路過
+    /// 關鍵字時模式仍是 Browse，換回來的卻是釘住的那一份（<see cref="_held"/>）。看模式的話，
+    /// 釘住的是讀不出來的宣告時它也被判成路過，<see cref="ShowNothingForSelection"/> 又把它
+    /// 交回這裡，兩邊互相呼叫到堆疊溢位。
     /// </remarks>
     private bool ResolveDeclared(SqlPreviewSubject subject)
     {
@@ -871,7 +876,7 @@ internal sealed class SqlStructurePreview
                 : null;
         }
 
-        return subject.Script is not null || _mode != PreviewMode.Browse;
+        return subject.Script is not null || !ReferenceEquals(subject, _selection);
     }
 
     /// <summary>問這份文字宣告了什麼；名冊照文字版本留著，同一個版本只掃一次。</summary>
@@ -1501,6 +1506,15 @@ internal sealed class SqlStructurePreview
         });
     }
 
+    /// <summary>
+    /// 把錨點、記住的尺寸與窗釘不釘住交給定位層。
+    /// </summary>
+    /// <remarks>
+    /// 窗擺在哪只看 <see cref="_pinned"/>，不看 <see cref="_mode"/>：後者說的是內容活多久。
+    /// 以前傳 <c>_mode == Pinned</c>，清單一借用釘住的窗（模式換成 Browse）定位層就當成放開圖釘，
+    /// 窗跑到清單旁邊跟著走、圖釘卻還亮著，拖到別處放開又被拉回清單旁；清單結束還回去時，
+    /// 釘住的位置已經換成清單旁邊那一格。
+    /// </remarks>
     private void UpdateAgentPreferences(SqlPreviewPopupAgent agent)
     {
         if (_anchor is not { } anchor)
@@ -1508,7 +1522,7 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        agent.Update(anchor, PreviewWindowState.Preferred, pinned: _mode == PreviewMode.Pinned);
+        agent.Update(anchor, PreviewWindowState.Preferred, _pinned);
     }
 
     private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
