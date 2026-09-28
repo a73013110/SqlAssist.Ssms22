@@ -59,7 +59,8 @@ public sealed class SqlScriptDeclarations
 
     /// <summary>光看名稱就分得出來的那兩種。</summary>
     /// <remarks>
-    /// 井號與小老鼠開頭在 T-SQL 裡各只有一個意思，一個字元就判得完。CTE 分不出來：
+    /// 呼叫端手上的名稱都來自資料表位置（暫存程序不在那裡），井號與小老鼠開頭在那裡
+    /// 各只有一個意思，一個字元就判得完。CTE 分不出來：
     /// 它的名稱與一般識別字長得一模一樣，得問過名冊才知道。
     /// </remarks>
     public static SqlObjectKind KindOf(string name)

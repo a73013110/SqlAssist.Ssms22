@@ -47,9 +47,14 @@ DECLARE @rows TABLE (Id INT, CopyNo NVARCHAR(20));
 
 同一份宣告回答的不只是欄位：使用者寫完 `DECLARE @rows TABLE (…)`，下一行打
 `SELECT * FROM ` 要的就是那個名稱，而中繼資料查不到它。CTE、暫存資料表與
-資料表變數因此併在同一份 `Core/Completion/SqlScriptDataSourceSuggestions` 裡。
+資料表變數因此併在同一份 `Core/Completion/SqlScriptObjectSuggestions` 裡。
 
-只有暫存資料表看形狀就分得完：井號開頭的識別字在 T-SQL 裡只有這一種意思。
+暫存資料表不分辨是哪一句建立的（`CREATE TABLE`、`SELECT INTO`、`INSERT INTO` 各認一次，
+漏掉的寫法就安靜地少一個名稱），反過來認**暫存程序**：井號名稱只有這兩種意思，而程序
+名稱只寫在 `PROCEDURE`／`PROC` 或 `EXEC`／`EXECUTE`（含 `EXEC @rc =`）之後。那些名稱
+改列在 `EXEC ` 之後，種類與資料庫的程序相同；沒有結構描述、沒有中繼資料，提交只補名稱。
+全當成資料表的症狀是 `EXEC #` 沒有清單，`FROM ` 之後卻列出一個選了就失敗的程序。
+
 資料表變數不行——`@rows` 與 `@readerId` 是同一種詞元，分辨的憑據只有那份宣告本身，
 所以這一種只認名冊裡讀得出資料行的。少了這一條的症狀是 `FROM ` 之後列出每一個
 純量變數，而它們一個都插不進那個位置；整份不收則要使用者先打一個小老鼠，

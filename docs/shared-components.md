@@ -14,6 +14,7 @@
 | 括號配對、還沒關上的左括號、判斷括號後是不是查詢、往回跳過限定名稱 | `Core/Parsing/SqlTokenNavigator.cs` |
 | 分辨 `ON` 後面是資料表還是述詞 | `Core/Parsing/SqlDdlTarget.cs` |
 | 讀出暫存資料表與資料表變數的資料行 | `Core/Parsing/SqlScriptTableCollector.cs` |
+| 指令碼宣告的物件建議（井號名稱分成暫存資料表或暫存程序） | `Core/Completion/SqlScriptObjectSuggestions.cs` |
 | 指令碼宣告的資料來源換成物件明細（含宣告原文） | `Metadata/Model/SqlScriptTableDetail.cs` |
 | 拿名稱向這份指令碼換宣告（Hover、預覽與 F12 共用，名稱決定種類） | `Metadata/Model/SqlScriptDeclarations.cs` |
 | 詞法分析 | `Core/Parsing/SqlTokenizer.cs` |

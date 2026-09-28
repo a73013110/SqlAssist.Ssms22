@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using SqlAssist.Core.Pairing;
 using SqlAssist.Ssms22;
+using SqlAssist.Ssms22.Completion;
 using SqlAssist.Ssms22.Settings;
 
 namespace SqlAssist.Ssms22.Editor;
@@ -28,6 +30,12 @@ namespace SqlAssist.Ssms22.Editor;
 /// 開頭字元仍由編輯器自己插入。這樣選取取代、覆寫模式與虛擬空白都還是平台的行為，
 /// 不必在這裡重寫一份。代價是 Ctrl+Z 要按兩次才連補上的字元一起收掉——
 /// 換成自己插入兩個字元可以合成一次復原，但要接管的東西比省下的那一次多得多。
+///
+/// 建議清單開著不是讓開的理由：分隔字元不是提交鍵
+/// （<see cref="SqlAsyncCompletionCommitManager.CommitsOn"/>），那一次按鍵本來就會
+/// 結束正在打的詞元。讓開的症狀是 <c>RESULT SETS </c> 開著清單時打 <c>(</c> 不補右括號、
+/// <c>(|)</c> 開著清單時按 Backspace 留下右括號。要動緩衝區之前先收掉清單，
+/// 否則補上的字元會落進 session 的適用範圍；新的上下文由重開清單那條路接手。
 /// </remarks>
 internal static class SqlAutoPairing
 {
@@ -41,7 +49,8 @@ internal static class SqlAutoPairing
     public static bool TryHandleTypedCharacter(
         ITextView textView,
         ITextBuffer buffer,
-        char typedCharacter)
+        char typedCharacter,
+        IAsyncCompletionBroker? broker)
     {
         // 第一道篩選只看字元本身：打字時絕大多數按鍵在這裡就結束，
         // 連游標、選取範圍與設定都不必問。
@@ -51,9 +60,16 @@ internal static class SqlAutoPairing
             return false;
         }
 
+        // 提交鍵留給清單：吞掉它等於提交不了。
+        if (SqlAsyncCompletionCommitManager.CommitsOn(typedCharacter) &&
+            broker?.GetSession(textView) is not null)
+        {
+            return false;
+        }
+
         if (!textView.Selection.IsEmpty)
         {
-            return TrySurroundSelection(textView, buffer, typedCharacter);
+            return TrySurroundSelection(textView, buffer, typedCharacter, broker);
         }
 
         var snapshot = caret.Snapshot;
@@ -63,6 +79,7 @@ internal static class SqlAutoPairing
         if (SqlAutoPairAnalyzer.ShouldOvertype(source, caret.Position, typedCharacter) &&
             tracker.TryTake(snapshot, caret.Position, typedCharacter))
         {
+            DismissCompletion(textView, broker);
             textView.Caret.MoveTo(new SnapshotPoint(snapshot, caret.Position + 1));
             textView.Caret.EnsureVisible();
             SqlAssistDiagnostics.Write($"跳過自動補上的 {typedCharacter}", textView);
@@ -74,6 +91,7 @@ internal static class SqlAutoPairing
             return false;
         }
 
+        DismissCompletion(textView, broker);
         InsertClose(textView, buffer, caret.Position, close, tracker);
         return false;
     }
@@ -124,7 +142,10 @@ internal static class SqlAutoPairing
     /// 一次編輯刪掉兩個字元，所以 Ctrl+Z 一次就還原——與補上時要按兩次不對稱，
     /// 但這裡沒有平台的那一半要等，能合就合。
     /// </remarks>
-    public static bool TryHandleBackspace(ITextView textView, ITextBuffer buffer)
+    public static bool TryHandleBackspace(
+        ITextView textView,
+        ITextBuffer buffer,
+        IAsyncCompletionBroker? broker)
     {
         if (!TryGetCaret(textView, buffer, out var caret) || !textView.Selection.IsEmpty)
         {
@@ -143,6 +164,8 @@ internal static class SqlAutoPairing
         {
             return false;
         }
+
+        DismissCompletion(textView, broker);
 
         using var edit = buffer.CreateEdit();
         edit.Delete(caret.Position - 1, 2);
@@ -164,7 +187,8 @@ internal static class SqlAutoPairing
     private static bool TrySurroundSelection(
         ITextView textView,
         ITextBuffer buffer,
-        char typedCharacter)
+        char typedCharacter,
+        IAsyncCompletionBroker? broker)
     {
         // 方塊選取每一行是一段，包夾的語意不明確；多重選取同理。
         if (textView.Selection.Mode != TextSelectionMode.Stream ||
@@ -189,6 +213,8 @@ internal static class SqlAutoPairing
         {
             return false;
         }
+
+        DismissCompletion(textView, broker);
 
         using var edit = buffer.CreateEdit();
         edit.Insert(span.Start.Position, typedCharacter.ToString());
@@ -237,6 +263,15 @@ internal static class SqlAutoPairing
         textView.Caret.MoveTo(new SnapshotPoint(updated, position));
         tracker.Push(updated, position, close);
         SqlAssistDiagnostics.Write($"自動補上 {close}", textView);
+    }
+
+    /// <summary>要動緩衝區或游標之前，先收掉還開著的建議清單。</summary>
+    /// <remarks>
+    /// <c>Dismiss</c> 是同步的，回傳前 session 就已經不在了，接著的編輯不會被它追蹤。
+    /// </remarks>
+    private static void DismissCompletion(ITextView textView, IAsyncCompletionBroker? broker)
+    {
+        broker?.GetSession(textView)?.Dismiss();
     }
 
     /// <summary>

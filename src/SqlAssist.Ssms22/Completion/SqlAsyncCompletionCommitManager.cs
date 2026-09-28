@@ -62,7 +62,16 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
     /// 點號本來就會讓分析器重新判斷上下文並開新的 session（別名接欄位、
     /// 結構描述接物件），不需要靠提交來達成。
     /// </remarks>
-    public IEnumerable<char> PotentialCommitCharacters { get; } = Array.Empty<char>();
+    public IEnumerable<char> PotentialCommitCharacters => CommitCharacters;
+
+    private static readonly char[] CommitCharacters = Array.Empty<char>();
+
+    /// <summary>清單開著時輸入 <paramref name="typedChar"/> 會不會提交。</summary>
+    /// <remarks>
+    /// 按鍵路徑上其他功能要問的是同一件事（自動配對要知道那一次按鍵能不能動），
+    /// 所以答案只從 <see cref="CommitCharacters"/> 這一份推出來。
+    /// </remarks>
+    public static bool CommitsOn(char typedChar) => Array.IndexOf(CommitCharacters, typedChar) >= 0;
 
     public bool ShouldCommitCompletion(
         IAsyncCompletionSession session,
@@ -70,7 +79,7 @@ internal sealed class SqlAsyncCompletionCommitManager : IAsyncCompletionCommitMa
         char typedChar,
         CancellationToken token)
     {
-        return false;
+        return CommitsOn(typedChar);
     }
 
     public CommitResult TryCommit(

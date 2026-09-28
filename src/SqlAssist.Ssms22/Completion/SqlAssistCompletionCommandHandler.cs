@@ -229,12 +229,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
                     args.TypedChar,
                     Broker);
 
-                // 建議清單開著時一律讓開：那一次 TypeChar 可能是提交鍵，
-                // 吞掉它等於提交不了；而在 session 中途插字元也會讓適用範圍失準。
-                // 欄位 session 開著時也讓開：自動配對是 Snippet Engine 之外的緩衝區編輯，
-                // 會打斷欄位標記或同名欄位同步。
-                if (Broker.GetSession(args.TextView) is not null ||
-                    SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession == true)
+                // 欄位 session 開著時讓開：自動配對是 Snippet Engine 之外的緩衝區編輯，
+                // 會打斷欄位標記或同名欄位同步。建議清單開著時怎麼做見 SqlAutoPairing。
+                if (SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession == true)
                 {
                     return false;
                 }
@@ -242,7 +239,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
                 return SqlAutoPairing.TryHandleTypedCharacter(
                     args.TextView,
                     args.SubjectBuffer,
-                    args.TypedChar);
+                    args.TypedChar,
+                    Broker);
             },
             fallback: false);
 
@@ -261,7 +259,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// Backspace 刪掉開頭字元時，把自動補上的另一半一起收掉。
     /// </summary>
     /// <remarks>
-    /// 參與條件與 TypeChar 完全相同（Snippet 欄位、建議清單各自讓開），
+    /// 參與條件與 TypeChar 完全相同（Snippet 欄位讓開，建議清單先收掉），
     /// 兩邊分岔的症狀是「補得出來卻收不掉」：打了左括號馬上後悔按 Backspace，
     /// 右括號留在原地。
     /// </remarks>
@@ -270,8 +268,7 @@ internal sealed class SqlAssistCompletionCommandHandler :
         return SqlAssistPlatformGuard.Run(
             "處理 Backspace 按鍵",
             () => SqlSnippetExpansionController.Peek(args.TextView)?.HasActiveSession != true
-                && Broker.GetSession(args.TextView) is null
-                && SqlAutoPairing.TryHandleBackspace(args.TextView, args.SubjectBuffer),
+                && SqlAutoPairing.TryHandleBackspace(args.TextView, args.SubjectBuffer, Broker),
             fallback: false);
     }
 

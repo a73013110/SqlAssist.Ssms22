@@ -6,13 +6,13 @@ using Xunit;
 namespace SqlAssist.Core.Tests.Completion;
 
 /// <summary>
-/// 指令碼自己宣告的資料來源：CTE、暫存資料表與資料表變數。
+/// 指令碼自己宣告的物件：CTE、暫存資料表、資料表變數與暫存程序。
 /// </summary>
 /// <remarks>
-/// 中繼資料只看得到目前連線資料庫的 <c>sys.objects</c>，這兩種名稱一個都不在裡面。
-/// 症狀是使用者上一行才寫下的名稱，下一行打 <c>FROM </c> 卻一個建議都沒有。
+/// 中繼資料只看得到目前連線資料庫的 <c>sys.objects</c>，這些名稱一個都不在裡面。
+/// 症狀是使用者上一行才寫下的名稱，下一行打 <c>FROM </c> 或 <c>EXEC </c> 卻一個建議都沒有。
 /// </remarks>
-public sealed class SqlScriptDataSourceTests
+public sealed class SqlScriptObjectTests
 {
     private static string[] ScriptSources(string sqlWithCaret)
     {
@@ -161,6 +161,47 @@ public sealed class SqlScriptDataSourceTests
     public void 不是資料來源位置就不掃(string sqlWithCaret)
     {
         Assert.Empty(ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 暫存程序接在 <c>EXEC</c> 之後，不接在 <c>FROM</c> 之後。
+    /// </summary>
+    /// <remarks>
+    /// 井號名稱有兩種意思。全當成暫存資料表的症狀是 <c>EXEC #</c> 沒有清單，
+    /// 而 <c>FROM </c> 之後卻列出一個選了就執行失敗的程序。
+    /// </remarks>
+    [Theory]
+    [InlineData("CREATE PROCEDURE #Lib_Names AS SELECT 1;\nGO\nEXEC |", "#Lib_Names")]
+    [InlineData("CREATE OR ALTER PROC ##Lib_Names AS SELECT 1;\nGO\nEXECUTE |", "##Lib_Names")]
+    [InlineData("EXEC #Lib_Names;\nEXEC |", "#Lib_Names")]
+    [InlineData("DECLARE @rc INT;\nEXEC @rc = #Lib_Names;\nEXEC |", "#Lib_Names")]
+    [InlineData("DROP PROCEDURE #Lib_Names;\nCREATE TABLE #Loan (a int);\nEXEC |", "#Lib_Names")]
+    public void EXEC之後列出暫存程序(string sqlWithCaret, string expected)
+    {
+        Assert.Equal(new[] { expected }, ScriptSources(sqlWithCaret));
+    }
+
+    [Theory]
+    [InlineData("CREATE PROCEDURE #Lib_Names AS SELECT 1;\nGO\nSELECT * FROM |")]
+    [InlineData("EXEC #Lib_Names;\nSELECT * FROM |")]
+    public void 暫存程序不列在資料來源位置(string sqlWithCaret)
+    {
+        Assert.Empty(ScriptSources(sqlWithCaret));
+    }
+
+    /// <summary>
+    /// 暫存程序與資料庫裡的程序同格：通過程序的目標過濾，插入時不補結構描述。
+    /// </summary>
+    [Fact]
+    public void 暫存程序通過程序的目標過濾()
+    {
+        var input = SqlWithCaret.Parse("CREATE PROCEDURE #Lib_Names AS SELECT 1;\nGO\nEXEC #|");
+        var context = SqlCompletionContextAnalyzer.Analyze(input.Text, input.Caret);
+
+        var matched = Assert.Single(SuggestionListProbe.Match(context.ScriptSources, context));
+
+        Assert.Equal(SuggestionKind.Procedure, matched.Kind);
+        Assert.Null(matched.SchemaName);
     }
 
     /// <summary>目標是資料來源時，CTE 與資料表同格通過過濾。</summary>

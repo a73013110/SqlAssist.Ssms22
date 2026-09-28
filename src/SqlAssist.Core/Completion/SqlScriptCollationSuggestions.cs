@@ -9,7 +9,7 @@ namespace SqlAssist.Core.Completion;
 /// 這份指令碼裡已經出現過的定序名稱。
 /// </summary>
 /// <remarks>
-/// 與 <see cref="SqlScriptDataSourceSuggestions"/> 同一條理由，只是換一種名稱：
+/// 與 <see cref="SqlScriptObjectSuggestions"/> 同一條理由，只是換一種名稱：
 /// 使用者要在第二個 <c>COLLATE</c> 之後打的，幾乎一定是他第一個 <c>COLLATE</c>
 /// 已經寫過的那一個——兩邊定序不一樣正是那句 <c>COLLATE</c> 要修的問題。
 /// 而伺服器那份名單有五千多筆，模糊比對撈回來的順序幫不上任何忙。

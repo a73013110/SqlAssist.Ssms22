@@ -34,6 +34,7 @@
   "Triggers": "觸發程序",
   "Synonym": "同義字",
   "TemporaryTable": "暫存資料表",
+  "TemporaryProcedure": "暫存預存程序",
   "TableVariable": "資料表變數",
   // WITH 宣告的一般資料表運算式；全名太長，建議清單右側放不下，兩種語言都寫縮寫。
   "CommonTableExpression": "CTE",

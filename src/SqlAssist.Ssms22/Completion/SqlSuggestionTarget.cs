@@ -66,8 +66,8 @@ internal static class SqlSuggestionTarget
                 return SqlPreviewSubject.ForObject(
                     new SqlObjectInfo(0, string.Empty, name, SqlScriptDeclarations.KindOf(name)));
 
-            // 這份清單收三種：井號與小老鼠開頭的名稱由名稱本身分得出來，
-            // 其餘的是 CTE。
+            // 這份清單收三種（暫存程序已排除）：井號與小老鼠開頭的名稱由名稱本身
+            // 分得出來，其餘的是 CTE。
             case SuggestionKind.ScriptDataSource:
                 return SqlPreviewSubject.ForObject(new SqlObjectInfo(
                     0,

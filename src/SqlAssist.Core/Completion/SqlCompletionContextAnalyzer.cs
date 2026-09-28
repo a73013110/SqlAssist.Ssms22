@@ -249,16 +249,17 @@ public static class SqlCompletionContextAnalyzer
 
         if (context.QualifierPath is null)
         {
-            // CTE、暫存資料表與資料表變數只存在於這份指令碼裡，中繼資料查不到它們。
-            // 只在真的要列資料來源時才掃：這條路徑在每一次按鍵上，
-            // 而 FROM、JOIN 之後才是唯一用得到這一份的位置。
+            // CTE、暫存資料表、資料表變數與暫存程序只存在於這份指令碼裡，中繼資料查不到它們。
+            // 只在目標真的要這一類時才掃：這條路徑在每一次按鍵上。
             //
             // 別名也只存在於這一句裡，而且與欄位同格：欄位列得出來的地方就接得了
             // 限定它們的 a.，位置過濾對兩者是同一條（AcceptsNames）。
             return context.Target switch
             {
                 CompletionTarget.DataSource =>
-                    withScope.WithScriptSources(SqlScriptDataSourceSuggestions.Create(tokens, resolver)),
+                    withScope.WithScriptSources(SqlScriptObjectSuggestions.DataSources(tokens, resolver)),
+                CompletionTarget.Procedure =>
+                    withScope.WithScriptSources(SqlScriptObjectSuggestions.Procedures(tokens)),
                 CompletionTarget.Any => withScope.WithScriptSources(SqlScopeAliasSuggestions.Create(scope)),
                 _ => withScope
             };

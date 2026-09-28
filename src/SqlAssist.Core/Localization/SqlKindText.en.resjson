@@ -28,6 +28,7 @@
   "Triggers": "Triggers",
   "Synonym": "Synonym",
   "TemporaryTable": "Temporary table",
+  "TemporaryProcedure": "Temporary stored procedure",
   "TableVariable": "Table variable",
   "CommonTableExpression": "CTE",
   "Sequence": "Sequence",
