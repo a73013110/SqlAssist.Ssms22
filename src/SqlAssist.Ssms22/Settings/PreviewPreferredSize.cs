@@ -3,11 +3,11 @@ using SqlAssist.Core.Settings;
 namespace SqlAssist.Ssms22.Settings;
 
 /// <summary>
-/// 一種擺放方向記住的視窗尺寸。
+/// 錨在名稱上的預覽要開多大；使用者拖出來的就是它。
 /// </summary>
 /// <remarks>
-/// 上下與側邊分開保存，而且側邊放不下退回上下時要換成另一組——把兩個數值綁在一起
-/// 傳，是為了讓「換一組」變成換一個值，而不是每個呼叫端各自記得要換兩個參數。
+/// 釘住的視窗不讀也不寫這一份：那是擺在某個地方的一扇窗，大小屬於那一扇。拖一扇釘住的
+/// 窄窗就讓之後每一次預覽都變窄，使用者分不出是哪一次拖出來的。
 /// </remarks>
 internal readonly struct PreviewPreferredSize
 {
@@ -16,6 +16,8 @@ internal readonly struct PreviewPreferredSize
         Width = width;
         Height = height;
     }
+
+    public static PreviewPreferredSize Default { get; } = new(null, SqlAssistLimits.DefaultPreviewHeight);
 
     /// <summary>null 代表尚未手動調寬，寬度採「延伸到編輯器右側」的自動值。</summary>
     public double? Width { get; }

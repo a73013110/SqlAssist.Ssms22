@@ -39,7 +39,7 @@
 | 搜尋索引的位元組預算、版本戳與失效 | `Metadata/Search/SqlCatalogSearchIndexCache.cs` |
 | Hover、結構面板與 F12 的物件／欄位定位 | `Metadata/Model/SqlObjectLookup.cs`（語法可重用，資料每次重新比對） |
 | 結果格線的值轉成 T-SQL 字面值 | `Metadata/ResultGrid/SqlValueLiteral.cs` |
-| 浮動預覽的落點、避障、方向遲滯與雙側縮放 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewResizeEngine.cs` |
+| 浮動預覽的落點、避障與方向遲滯；搬動、縮放與收進界內 | `Core/Preview/PreviewPlacementEngine.cs`、`PreviewDragEngine.cs` |
 | 浮動預覽什麼時候收、誰能換掉它 | `Core/Preview/PreviewLifecycle.cs` |
 | 重建 `CREATE TABLE`／`CREATE TYPE`、索引、條件約束與擴充屬性的排版 | `Metadata/Formatting/TSqlScriptRenderer.cs` |
 | 單獨一個條件約束是哪一種、在父物件上的哪一列 | `Metadata/Model/SqlConstraintMatch.cs`、`SqlObjectStructure.FindConstraint` |

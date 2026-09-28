@@ -206,7 +206,7 @@ internal sealed class NotificationRow : Grid
     internal void Stagger(int index, bool motion)
     {
         if (!motion) return;
-        var delay = NotificationMotion.ContentDelay + Math.Min(index, NotificationMotion.StaggerLimit - 1) * NotificationMotion.RowStagger;
+        var delay = SurfaceMotion.ContentDelay + Math.Min(index, NotificationMotion.StaggerLimit - 1) * NotificationMotion.RowStagger;
         BeginAnimation(OpacityProperty, NotificationMotion.Delayed(0, 1, delay, NotificationMotion.RowEnter));
         _offset.BeginAnimation(TranslateTransform.YProperty,
             NotificationMotion.Delayed(NotificationMotion.StaggerShift, 0, delay, NotificationMotion.RowEnter));

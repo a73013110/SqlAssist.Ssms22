@@ -243,7 +243,7 @@ public sealed class NotificationMotionTests
         Assert.InRange(NotificationMotion.CheckDraw + NotificationMotion.CheckSettle, 0, 400);
         Assert.InRange(NotificationMotion.Roll, 0, 300);
         Assert.InRange(NotificationMotion.ShakeStep * 5, 0, 300);
-        Assert.InRange(NotificationMotion.ContentDelay + NotificationMotion.RowStagger * (NotificationMotion.StaggerLimit - 1) +
+        Assert.InRange(SurfaceMotion.ContentDelay + NotificationMotion.RowStagger * (NotificationMotion.StaggerLimit - 1) +
             NotificationMotion.RowEnter, 0, 500);
     }
 

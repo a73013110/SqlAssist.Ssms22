@@ -25,10 +25,13 @@ namespace SqlAssist.Ssms22.Preview;
 /// 畫面因此可能與它回報給 reservation stack 的矩形相反。這裡仍加入同一套
 /// ISpaceReservationManager 以保留聚合焦點，但用 Relative 明確套用座標。
 ///
-/// 這一層不決定去留：錨點捲出畫面、編輯器被藏起來（切分頁）或版面暫時放不下時只把
-/// Popup 藏起來、留著 Agent，回來就照原樣出現；收不收由 <see cref="SqlStructurePreview"/>
-/// 問生命週期規則。以前這裡在編輯器失焦後檢查鍵盤焦點並自行移除，結果取決於那一瞬間
-/// 焦點在誰身上——切到別的程式時，點過預覽與沒點過的收法不同。
+/// 兩種擺法：錨在名稱上時由 <see cref="PreviewPlacementEngine"/> 算在錨點上下，尺寸是使用者
+/// 記住的那一份；釘住之後矩形整個歸使用者，以編輯器左上角為基準記住，捲動、打字都不動它。
+///
+/// 這一層不決定去留：編輯器被藏起來（切分頁）或版面暫時放不下時只把 Popup 藏起來、留著
+/// Agent，回來就照原樣出現；錨點捲出畫面時同樣先藏起來，再發 <see cref="AnchorScrolledOut"/>
+/// 讓 <see cref="SqlStructurePreview"/> 問生命週期規則。以前這裡在編輯器失焦後檢查鍵盤焦點並
+/// 自行移除，結果取決於那一瞬間焦點在誰身上——切到別的程式時，點過預覽與沒點過的收法不同。
 /// </remarks>
 internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 {
@@ -49,24 +52,33 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private readonly ExactPopup _popup;
 
     private ITrackingSpan _anchor;
-    private SqlPreviewPlacement _placement;
-    private PreviewPreferredSize _besidePreference;
-    private PreviewPreferredSize _stackedPreference;
+    private PreviewPreferredSize _preferred = PreviewPreferredSize.Default;
     private IReadOnlyList<PreviewRectangle> _obstacles = Array.Empty<PreviewRectangle>();
     private PreviewRectangle _availableBounds;
     private PreviewRectangle _bounds;
-    private PreviewRectangle _resizeStartBounds;
-    private PreviewRectangle _resizeBounds;
-    private PreviewResizeCorner _resizeCorner;
     private PreviewPlacementSide _side;
     private bool _eventsAttached;
     private bool _hasLayout;
 
+    /// <summary>
+    /// 釘住的視窗在編輯器裡的位置與大小（DIP，以編輯器左上角為基準）；沒釘住時 null。
+    /// </summary>
+    /// <remarks>
+    /// 以編輯器為基準而不是螢幕：SSMS 視窗搬動或分割線拉動時跟著編輯器走，捲動則完全不動。
+    /// 放不下時顯示的是收進界內的矩形，這一份不改，編輯器回到原本大小時視窗也回到原處。
+    /// </remarks>
+    private Rect? _pinned;
+
     /// <summary>上一輪定位時的錨點矩形；錨點沒動時，滑鼠停留提示不能把預覽推開。</summary>
     private PreviewRectangle _layoutAnchor;
-    private bool _isResizing;
-    private bool _resizeUpdateQueued;
-    private bool _usedFallback;
+
+    /// <summary>這一次錨點已經捲出畫面、也已經通知過；錨點回來才重新計算。</summary>
+    private bool _anchorOutOfView;
+
+    private PreviewDragHandle? _dragHandle;
+    private PreviewRectangle _dragStartBounds;
+    private PreviewRectangle _dragLimits;
+    private bool _dragUpdateQueued;
     private bool _disposed;
     private double _pendingHorizontalChange;
     private double _pendingVerticalChange;
@@ -132,29 +144,21 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     public double CurrentHeight => ToLogicalSize(_bounds.Width, _bounds.Height).Height;
 
-    /// <summary>
-    /// 目前這一軸的尺寸是版面壓縮出來的，不是使用者的偏好。
-    /// </summary>
-    /// <remarks>
-    /// 拖曳結束要寫回偏好尺寸時必須先問這個：壓縮值寫回去等於使用者換一次視窗大小，
-    /// 記住的尺寸就被永久縮小一次，而且他從來沒有拖過那一軸。
-    /// </remarks>
-    public bool WidthConstrained { get; private set; }
+    public bool IsPinned => _pinned is not null;
 
-    public bool HeightConstrained { get; private set; }
+    /// <summary>錨點目前在畫面外；收到 <see cref="AnchorScrolledOut"/> 之後再確認一次用。</summary>
+    public bool IsAnchorOutOfView => _anchorOutOfView && _pinned is null;
 
     /// <summary>
-    /// 這一輪實際採用的擺放分組；側邊放不下而退回上下時是
-    /// <see cref="SqlPreviewPlacement.Stacked"/>。
+    /// 捲動讓錨點離開了畫面；一次捲出只發一次。
     /// </summary>
     /// <remarks>
-    /// 拖曳結束要把尺寸存到哪一組、雙擊要重設哪一組，看的都必須是這個而不是設定值。
-    /// 退回上下時拖出來的寬度屬於上下擺放，存回側邊那一組等於讓側邊記住一個它
-    /// 根本放不下的寬度，下一次更容易再退回來。
+    /// 在定位的途中發出，平台還在重排整個保留區堆疊；收到的一方不能當場移除 Agent，
+    /// 要排到派送佇列之後再處理。
     /// </remarks>
-    public SqlPreviewPlacement EffectivePlacement =>
-        _usedFallback ? SqlPreviewPlacement.Stacked : _placement;
+    public event EventHandler? AnchorScrolledOut;
 
+    /// <summary>平台靠這兩個事件算編輯器的聚合焦點；右鍵選單是另一個 Popup，也要算進來。</summary>
     public event EventHandler? LostFocus;
 
     public event EventHandler? GotFocus;
@@ -163,28 +167,48 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     public bool AnimateNextHide { get; set; }
 
     /// <summary>
-    /// 更新錨點、擺放方向與兩種擺放各自記住的尺寸。
+    /// 更新錨點、記住的尺寸與是否釘住。
     /// </summary>
     /// <remarks>
-    /// 兩組都要：側邊放不下而退回上下時，尺寸也得換成上下那一組，而那件事要等
-    /// 定位算完才知道。只傳生效的那一組，退回來的視窗就會帶著一個側邊才有意義的
-    /// 寬度，使用者接著拖出來的尺寸又存回側邊那一組，愈退愈寬。
+    /// 釘住的那一刻以眼前的矩形為起點：使用者按圖釘或開始拖抬頭時看到的就是它，不能跳到別處。
+    /// 放開圖釘回到錨在名稱上的擺法，下一輪定位重新從錨點算起。
     /// </remarks>
-    public void Update(
-        ITrackingSpan anchor,
-        SqlPreviewPlacement placement,
-        PreviewPreferredSize beside,
-        PreviewPreferredSize stacked)
+    public void Update(ITrackingSpan anchor, PreviewPreferredSize preferred, bool pinned)
     {
         _anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
-        if (_placement != placement)
+        _preferred = preferred;
+        if (pinned == _pinned is not null)
         {
-            _hasLayout = false;
+            return;
         }
 
-        _placement = placement;
-        _besidePreference = beside;
-        _stackedPreference = stacked;
+        // 換擺法之後錨點要重新看一次；沿用舊的「已經通知過」會讓放開圖釘時錨點不在畫面上的
+        // 視窗一直藏著，既不出現也不收。
+        _anchorOutOfView = false;
+        if (!pinned)
+        {
+            _pinned = null;
+            _hasLayout = false;
+            return;
+        }
+
+        if (_hasLayout && !_bounds.IsEmpty)
+        {
+            RefreshDeviceTransforms();
+            _pinned = ToEditorRect(_bounds);
+        }
+    }
+
+    /// <summary>釘住的視窗換成指定尺寸，左上角不動；雙擊握把重設時用。</summary>
+    public void ResizePinned(PreviewPreferredSize size)
+    {
+        if (_pinned is not { } pinned)
+        {
+            return;
+        }
+
+        _pinned = new Rect(pinned.Left, pinned.Top, size.WidthOrDefault, size.Height);
+        RequestReposition();
     }
 
     /// <summary>要求整個 reservation stack 以最新的建議清單與編輯器幾何重算。</summary>
@@ -228,17 +252,56 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return Geometry.Empty;
         }
 
-        if (!_view.VisualElement.IsVisible || TryGetAnchorBounds() is not { } anchorBounds)
+        if (!_view.VisualElement.IsVisible)
         {
-            // 錨點捲出畫面或整個編輯器被藏起來：先藏起來，回來再出現。回報 null 會讓
+            // 整個編輯器被藏起來（切到別的分頁）：先藏起來，回來再出現。回報 null 會讓
             // 平台移除 Agent，那等於把「暫時看不見」當成使用者不要了。
             Suspend();
             return Geometry.Empty;
         }
 
         RefreshDeviceTransforms();
+        return _pinned is { } pinned
+            ? PositionPinned(pinned)
+            : PositionAtAnchor(reservedSpace);
+    }
 
-        if (_hasLayout && !_isResizing && anchorBounds == _layoutAnchor && IsQuickInfoOpen())
+    /// <summary>釘住：矩形歸使用者，只收進目前的可用範圍，不看錨點也不讓開別的浮窗。</summary>
+    private Geometry PositionPinned(Rect pinned)
+    {
+        if (_dragHandle is null)
+        {
+            var screen = FromEditorRect(pinned);
+            _availableBounds = GetAvailableBounds(screen.Left, screen.Top);
+            var minimum = ToDeviceSize(SqlAssistLimits.MinimumPreviewWidth, SqlAssistLimits.MinimumPreviewHeight);
+            _bounds = PreviewDragEngine.Contain(screen, _availableBounds, minimum.Width, minimum.Height);
+            _hasLayout = true;
+        }
+
+        _control.SetResizeGrips(onTop: false, pinned: true);
+        Display(_bounds);
+        LogPlacement(anchor: null);
+        return CreateReservation(anchor: null, _bounds);
+    }
+
+    /// <summary>錨在名稱上：擺在錨點上下，避開建議清單與提示。</summary>
+    private Geometry PositionAtAnchor(Geometry reservedSpace)
+    {
+        if (TryGetAnchorBounds() is not { } anchorBounds)
+        {
+            // 捲出畫面：先藏起來，要不要收交給生命週期（清單上展開的不收，清單自己也藏了）。
+            Suspend();
+            if (!_anchorOutOfView)
+            {
+                _anchorOutOfView = true;
+                AnchorScrolledOut?.Invoke(this, EventArgs.Empty);
+            }
+
+            return Geometry.Empty;
+        }
+
+        _anchorOutOfView = false;
+        if (_hasLayout && _dragHandle is null && anchorBounds == _layoutAnchor && IsQuickInfoOpen())
         {
             // 滑鼠停留提示排在預覽前面，它一出現就會變成預覽要讓開的障礙，而使用者只是
             // 在別的名稱上停了一下。錨點沒動就留在原地，提示自己會在滑鼠離開時消失。
@@ -246,24 +309,11 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             return CreateReservation(anchorBounds, _bounds);
         }
 
-        if (!_isResizing)
+        if (_dragHandle is null)
         {
             _obstacles = GetObstacleBounds(reservedSpace);
-            _availableBounds = GetAvailableBounds(anchorBounds);
-            var layout = CalculateLayout(_placement, Preference(_placement), anchorBounds);
-
-            // 退回上下之後尺寸也要換一組，所以整個定位重來一次——這一次就是道地的
-            // 上下擺放，連「尚未手動調寬時延伸到編輯器右側」都跟著成立。純數值運算，
-            // 而且只有真的退回來時才會走第二次。
-            var fellBack = layout.UsedFallback;
-            if (fellBack)
-            {
-                layout = CalculateLayout(
-                    SqlPreviewPlacement.Stacked,
-                    _stackedPreference,
-                    anchorBounds);
-            }
-
+            _availableBounds = GetAvailableBounds(anchorBounds.Left, anchorBounds.Top);
+            var layout = CalculateLayout(anchorBounds);
             if (layout.Bounds.IsEmpty)
             {
                 Suspend();
@@ -274,14 +324,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             _bounds = layout.Bounds;
             _side = layout.Side;
             _hasLayout = true;
-            _usedFallback = fellBack;
-            WidthConstrained = layout.WidthConstrained;
-            HeightConstrained = layout.HeightConstrained;
-            var resizeOnTop = _side == PreviewPlacementSide.Above ||
-                              (_side is PreviewPlacementSide.Left or PreviewPlacementSide.Right &&
-                               _bounds.Top - _availableBounds.Top >
-                               _availableBounds.Bottom - _bounds.Bottom);
-            _control.SetResizeEdge(resizeOnTop);
+            _control.SetResizeGrips(onTop: _side == PreviewPlacementSide.Above, pinned: false);
         }
 
         Display(_bounds);
@@ -289,15 +332,9 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         return CreateReservation(anchorBounds, _bounds);
     }
 
-    private PreviewPreferredSize Preference(SqlPreviewPlacement placement) =>
-        placement == SqlPreviewPlacement.Stacked ? _stackedPreference : _besidePreference;
-
-    private PreviewLayout CalculateLayout(
-        SqlPreviewPlacement placement,
-        PreviewPreferredSize preference,
-        PreviewRectangle anchorBounds)
+    private PreviewLayout CalculateLayout(PreviewRectangle anchorBounds)
     {
-        var desiredSize = ToDeviceSize(preference.WidthOrDefault, preference.Height);
+        var desiredSize = ToDeviceSize(_preferred.WidthOrDefault, _preferred.Height);
         var minimumSize = ToDeviceSize(
             SqlAssistLimits.MinimumPreviewWidth,
             SqlAssistLimits.MinimumPreviewHeight);
@@ -307,7 +344,6 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         return PreviewPlacementEngine.Calculate(
             new PreviewLayoutRequest
             {
-                Placement = placement,
                 Anchor = anchorBounds,
                 AvailableBounds = _availableBounds,
                 Obstacles = _obstacles,
@@ -319,8 +355,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
                 // 不必先跟可用高度取小；引擎本來就會把上下限收進 AvailableBounds。
                 MaximumHeight = absoluteMaximumSize.Height,
-                StretchStackedWidth =
-                    placement == SqlPreviewPlacement.Stacked && !preference.Width.HasValue,
+                StretchWidth = !_preferred.Width.HasValue,
                 Gap = ToDeviceSize(LayoutGap, LayoutGap).Width,
                 PreviousSide = _hasLayout ? _side : (PreviewPlacementSide?)null
             });
@@ -371,100 +406,114 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     private bool IsQuickInfoOpen() =>
         SqlPreviewServices.Current is { } services && services.IsQuickInfoOpen(_view);
 
-    public void BeginResize(PreviewResizeCorner corner)
+    /// <summary>
+    /// 開始拖抬頭或角落握把；拖曳期間不重新定位，矩形只由起點與總位移決定。
+    /// </summary>
+    /// <remarks>
+    /// 錨在名稱上時，握把只能拖到別的浮窗（建議清單、提示）為止，放開之後定位才會落在同一個
+    /// 地方；釘住的視窗不讓開任何浮窗，範圍就是整個文件欄。
+    /// </remarks>
+    public void BeginDrag(PreviewDragHandle handle)
     {
         if (_bounds.IsEmpty)
         {
             return;
         }
 
-        // 拖曳期間不再重新定位，因此 DPI 也在這裡凍結一次，與控制項那一端同步。
+        // DPI 也在這裡凍結一次，與控制項那一端同步。
         RefreshDeviceTransforms();
-        _resizeCorner = corner;
-        _resizeStartBounds = _bounds;
-        _resizeBounds = GetResizeBounds(_bounds, _availableBounds, _obstacles);
+        _dragHandle = handle;
+        _dragStartBounds = _bounds;
+        _dragLimits = _pinned is null
+            ? GetResizeLimits(_bounds, _availableBounds, _obstacles)
+            : _availableBounds;
         _pendingHorizontalChange = 0;
         _pendingVerticalChange = 0;
-        _isResizing = true;
     }
 
-    /// <summary>位移量一律是相對按下瞬間的總量，不從上一幀累加。</summary>
-    public void Resize(double horizontalChange, double verticalChange)
+    /// <summary>位移量一律是相對按下瞬間的總量，不從上一幀累加；同一幀只套用一次。</summary>
+    public void Drag(double horizontalChange, double verticalChange)
     {
-        if (!_isResizing)
+        if (_dragHandle is null)
         {
             return;
         }
 
         _pendingHorizontalChange = horizontalChange;
         _pendingVerticalChange = verticalChange;
-        if (_resizeUpdateQueued)
+        if (_dragUpdateQueued)
         {
             return;
         }
 
-        _resizeUpdateQueued = true;
+        _dragUpdateQueued = true;
         _view.VisualElement.Dispatcher.BeginInvoke(
             DispatcherPriority.Render,
             new Action(() => SqlAssistPlatformGuard.Run(
                 "更新結構預覽拖曳",
                 () =>
                 {
-                    _resizeUpdateQueued = false;
-                    if (_isResizing)
+                    _dragUpdateQueued = false;
+                    if (_dragHandle is not null)
                     {
-                        ApplyPendingResize();
+                        ApplyPendingDrag();
                     }
                 })));
     }
 
-    private void ApplyPendingResize()
+    private void ApplyPendingDrag()
     {
+        if (_dragHandle is not { } handle)
+        {
+            return;
+        }
+
         var minimumSize = ToDeviceSize(
             SqlAssistLimits.MinimumPreviewWidth,
             SqlAssistLimits.MinimumPreviewHeight);
         var maximumSize = ToDeviceSize(
             SqlAssistLimits.MaximumPreviewWidth,
             SqlAssistLimits.MaximumPreviewHeight);
-        _bounds = PreviewResizeEngine.Resize(
-            _resizeStartBounds,
-            _resizeCorner,
+        _bounds = PreviewDragEngine.Drag(
+            _dragStartBounds,
+            handle,
             _pendingHorizontalChange,
             _pendingVerticalChange,
-            _resizeBounds,
+            _dragLimits,
             minimumSize.Width,
             minimumSize.Height,
             maximumSize.Width,
             maximumSize.Height);
-
-        // 使用者拖出來的尺寸就是他的偏好，不再是版面壓縮的結果。
-        WidthConstrained = false;
-        HeightConstrained = false;
         Display(_bounds);
 
         // 自訂 agent 在拖曳中維持同一個 Rect；重排只更新其他 agent 看見的保留區。
         RequestReposition();
     }
 
-    public void CompleteResize(bool canceled)
+    public void CompleteDrag(bool canceled)
     {
-        if (!_isResizing)
+        if (_dragHandle is null)
         {
             return;
         }
 
         if (canceled)
         {
-            _bounds = _resizeStartBounds;
+            _bounds = _dragStartBounds;
             Display(_bounds);
         }
         else
         {
-            // DragCompleted 可能早於最後一個 Render callback；保存前先同步套用最後總位移。
-            ApplyPendingResize();
+            // DragCompleted 可能早於最後一個 Render callback；收尾前先同步套用最後總位移。
+            ApplyPendingDrag();
         }
 
-        _isResizing = false;
+        _dragHandle = null;
+        if (_pinned is not null)
+        {
+            _pinned = ToEditorRect(_bounds);
+        }
+
         RequestReposition();
     }
 
@@ -476,7 +525,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
 
         _disposed = true;
-        _isResizing = false;
+        _dragHandle = null;
 
         // 平台移除時通常已經呼叫過 Hide；縮回錨點的動畫還在跑時由它收完再放開內容。
         if (_control.IsExiting)
@@ -514,7 +563,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             {
                 AttachEvents();
                 _popup.IsOpen = true;
-                _control.PlayEnter(_side);
+                PlayEnter(bounds);
             }
 
             return;
@@ -533,6 +582,21 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         SqlAssistDiagnostics.WriteAlways(
             "結構預覽無法顯示：內容仍掛在另一個承載視窗上。",
             _view);
+    }
+
+    /// <summary>從錨點下方長出來；釘住的視窗沒有錨點，從左上角長出。</summary>
+    private void PlayEnter(PreviewRectangle bounds)
+    {
+        if (_pinned is not null)
+        {
+            _control.PlayEnter(origin: 0, fromBottom: false);
+            return;
+        }
+
+        var offset = ToLogicalSize(Math.Max(0, _layoutAnchor.Left - bounds.Left), 0).Width;
+        _control.PlayEnter(
+            origin: Math.Max(0, offset - SqlStructurePreviewControl.ShadowMargin),
+            fromBottom: _side == PreviewPlacementSide.Above);
     }
 
     private PreviewRectangle? TryGetAnchorBounds()
@@ -612,7 +676,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
     /// 水平範圍採文字編輯器；垂直範圍延伸到同一文件／主視窗底部，因此結果窗格
     /// 只會被預覽覆蓋，不會再把預覽偏好高度壓成文字 Viewport 的高度。
     /// </summary>
-    private PreviewRectangle GetAvailableBounds(PreviewRectangle anchor)
+    private PreviewRectangle GetAvailableBounds(double screenX, double screenY)
     {
         var visual = _view.VisualElement;
         var editor = GetScreenBounds(visual);
@@ -622,7 +686,7 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         var devicePadding = ToDeviceSize(BoundsPadding, BoundsPadding);
         var bottom = ResolveDocumentColumnBottom(visual, editor);
 
-        if (NativeScreen.TryGetWorkArea(new Point(anchor.Left, anchor.Top)) is { } workArea)
+        if (NativeScreen.TryGetWorkArea(new Point(screenX, screenY)) is { } workArea)
         {
             left = Math.Max(left, workArea.Left + devicePadding.Width);
             top = Math.Max(top, workArea.Top + devicePadding.Height);
@@ -804,7 +868,8 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
         }
     }
 
-    private PreviewRectangle GetResizeBounds(
+    /// <summary>錨在名稱上時握把拖得到的範圍：文件欄，再扣掉四周的浮窗。</summary>
+    private PreviewRectangle GetResizeLimits(
         PreviewRectangle current,
         PreviewRectangle available,
         IReadOnlyList<PreviewRectangle> obstacles)
@@ -845,12 +910,31 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
             Math.Max(1, bottom - top));
     }
 
-    private Geometry CreateReservation(PreviewRectangle anchor, PreviewRectangle popup)
+    private static Geometry CreateReservation(PreviewRectangle? anchor, PreviewRectangle popup)
     {
         var group = new GeometryGroup();
-        group.Children.Add(new RectangleGeometry(ToRect(anchor)));
+        if (anchor is { } value)
+        {
+            group.Children.Add(new RectangleGeometry(ToRect(value)));
+        }
+
         group.Children.Add(new RectangleGeometry(ToRect(popup)));
         return group;
+    }
+
+    /// <summary>螢幕實體像素的矩形換成以編輯器左上角為基準的 DIP；釘住的位置這樣記。</summary>
+    private Rect ToEditorRect(PreviewRectangle screen)
+    {
+        var topLeft = _view.VisualElement.PointFromScreen(new Point(screen.Left, screen.Top));
+        var size = ToLogicalSize(screen.Width, screen.Height);
+        return new Rect(topLeft, size);
+    }
+
+    private PreviewRectangle FromEditorRect(Rect editor)
+    {
+        var topLeft = _view.VisualElement.PointToScreen(editor.TopLeft);
+        var size = ToDeviceSize(editor.Width, editor.Height);
+        return new PreviewRectangle(topLeft.X, topLeft.Y, size.Width, size.Height);
     }
 
     private static Rect ToRect(PreviewRectangle rectangle) =>
@@ -952,39 +1036,44 @@ internal sealed class SqlPreviewPopupAgent : ISpaceReservationAgent, IDisposable
 
     private void OnHostWindowLocationChanged(object? sender, EventArgs eventArgs) => RequestReposition();
 
-    private void LogPlacement(PreviewRectangle anchor)
+    [Localizable(false)]
+    private void LogPlacement(PreviewRectangle? anchor)
     {
         // 這條在每一次捲動與每一個按鍵上都會走到。SqlAssistDiagnostics.Write 自己也會
         // 檢查一次，但那時字串與兩次 DPI 換算都已經做完了，等於白付一輪成本。
-        if (_isResizing || !SqlAssistSettingsStore.Current.VerboseLogging)
+        if (_dragHandle is not null || !SqlAssistSettingsStore.Current.VerboseLogging)
         {
             return;
         }
 
         var popupScreen = ToRect(_bounds);
-        var anchorScreen = ToRect(anchor);
         var effectiveSize = ToLogicalSize(_bounds.Width, _bounds.Height);
         var dpiSize = ToDeviceSize(96, 96);
+        var anchorText = anchor is { } value
+            ? $"錨點 {value.Left:F0},{value.Top:F0}–{value.Right:F0},{value.Bottom:F0}　"
+            : "釘住　";
         SqlAssistDiagnostics.Write(
             $"結構預覽落點：{_side}　" +
             $"視窗 {popupScreen.Left:F0},{popupScreen.Top:F0}–{popupScreen.Right:F0},{popupScreen.Bottom:F0}　" +
-            $"錨點 {anchorScreen.Left:F0},{anchorScreen.Top:F0}–{anchorScreen.Right:F0},{anchorScreen.Bottom:F0}　" +
+            anchorText +
             $"文件 {_availableBounds.Left:F0},{_availableBounds.Top:F0}–{_availableBounds.Right:F0},{_availableBounds.Bottom:F0}　" +
             $"底界來源 {_documentColumnSource}　" +
             $"有效 {effectiveSize.Width:F0}×{effectiveSize.Height:F0} DIP　" +
             $"DPI {dpiSize.Width:F0}×{dpiSize.Height:F0}　Zoom {_view.ZoomLevel:F0}%　" +
-            $"保留區 {_obstacles.Count}{DescribeObstacles()}　fallback {_usedFallback}　" +
-            $"受限 寬 {WidthConstrained}／高 {HeightConstrained}",
+            $"保留區 {_obstacles.Count}{DescribeObstacles()}　記住的尺寸 {DescribePreferred()}",
             _view);
     }
+
+    [Localizable(false)]
+    private string DescribePreferred() =>
+        $"{(_preferred.Width is { } width ? width.ToString("F0", System.Globalization.CultureInfo.InvariantCulture) : "自動")}×{_preferred.Height:F0}";
 
     /// <summary>
     /// 保留區的逐一矩形。
     /// </summary>
     /// <remarks>
-    /// 只記數量看不出「側邊擺放退回上下」是誰造成的：建議清單本身、與它右側那塊
-    /// 沒有畫出來卻仍然被保留的說明面板，在數字上完全一樣，而定位引擎兩者都當障礙。
-    /// 錨點也要完整矩形——側邊的起點是錨點右緣，只有左上角推不出右側還剩多少。
+    /// 只記數量看不出預覽被誰擠矮了：建議清單本身、與它右側那塊沒有畫出來卻仍然被保留的
+    /// 說明面板，在數字上完全一樣，而定位引擎兩者都當障礙。
     /// 字串只在詳細紀錄開著時才組，呼叫端已經先擋過一次。
     /// </remarks>
     [Localizable(false)]

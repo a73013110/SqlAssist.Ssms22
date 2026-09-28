@@ -18,34 +18,24 @@ namespace SqlAssist.Ssms22.Settings;
 internal static class PreviewWindowState
 {
     private const string Collection = @"SqlAssist\Preview";
-    private const string WidthProperty = "Width";
-    private const string StackedWidthProperty = "StackedWidth";
-    private const string HeightProperty = "Height";
-    private const string BesideWidthProperty = "BesideWidth";
-    private const string BesideHeightProperty = "BesideHeight";
-    private const string StackedHeightProperty = "StackedHeight";
+
+    // 上下擺放已是唯一的擺放；沿用 v2 的鍵名，升級時不必搬資料。
+    private const string WidthProperty = "StackedWidth";
+    private const string HeightProperty = "StackedHeight";
+
+    /// <summary>v1 不分擺放的高度；還沒有 <see cref="HeightProperty"/> 時從這裡接。</summary>
+    private const string LegacyHeightProperty = "Height";
+
     private const string SchemaVersionProperty = "SchemaVersion";
-    private const int CurrentSchemaVersion = 2;
+    private const int CurrentSchemaVersion = 3;
+
+    /// <summary>已經沒有人讀的鍵：v1 的寬高與 v2 側邊擺放那一組。升到 v3 時刪掉一次。</summary>
+    private static readonly string[] ObsoleteProperties = { "Width", LegacyHeightProperty, "BesideWidth", "BesideHeight" };
 
     private static WritableSettingsStore? _store;
     private static bool _storeResolved;
 
-    public static double BesideWidth { get; private set; } = SqlAssistLimits.DefaultPreviewWidth;
-
-    public static double BesideHeight { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
-
-    /// <summary>
-    /// 使用者為上下擺放拖出的寬度；null 代表仍採用「延伸到編輯器右側」的自動寬度。
-    /// </summary>
-    public static double? StackedWidth { get; private set; }
-
-    public static double StackedHeight { get; private set; } = SqlAssistLimits.DefaultPreviewHeight;
-
-    /// <summary>某一種擺放方向記住的尺寸。</summary>
-    public static PreviewPreferredSize Preferred(SqlPreviewPlacement placement) =>
-        placement == SqlPreviewPlacement.Stacked
-            ? new PreviewPreferredSize(StackedWidth, StackedHeight)
-            : new PreviewPreferredSize(BesideWidth, BesideHeight);
+    public static PreviewPreferredSize Preferred { get; private set; } = PreviewPreferredSize.Default;
 
     /// <summary>
     /// 從存放區載入上次的尺寸。必須在 UI 執行緒上呼叫。
@@ -81,74 +71,38 @@ internal static class PreviewWindowState
             return;
         }
 
-        // 每一欄分開探測；單一損壞值只回退自己，不能讓其餘三個合法尺寸一起失效。
-        var legacyWidth = ReadInt32(store, WidthProperty, (int)SqlAssistLimits.DefaultPreviewWidth);
-        var legacyHeight = ReadInt32(store, HeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight);
-        BesideWidth = SqlAssistLimits.ClampPreviewWidth(
-            ReadInt32(store, BesideWidthProperty, legacyWidth));
-        BesideHeight = SqlAssistLimits.ClampPreviewHeight(
-            ReadInt32(store, BesideHeightProperty, legacyHeight));
-        StackedHeight = SqlAssistLimits.ClampPreviewHeight(
-            ReadInt32(store, StackedHeightProperty, legacyHeight));
+        // 每一欄分開探測；一個損壞值只回退自己。
+        var legacyHeight = ReadInt32(store, LegacyHeightProperty, (int)SqlAssistLimits.DefaultPreviewHeight);
+        var height = SqlAssistLimits.ClampPreviewHeight(ReadInt32(store, HeightProperty, legacyHeight));
 
-        // 0 是「尚未手動調過」的哨兵值；舊版沒有這個欄位時也會自然進入自動模式。
-        var stackedWidth = ReadInt32(store, StackedWidthProperty, 0);
-        StackedWidth = stackedWidth > 0
-            ? SqlAssistLimits.ClampPreviewWidth(stackedWidth)
-            : null;
+        // 0 是「尚未手動調過」的哨兵值；舊版沒有這個欄位時也會自然進入自動寬度。
+        var width = ReadInt32(store, WidthProperty, 0);
+        Preferred = new PreviewPreferredSize(
+            width > 0 ? SqlAssistLimits.ClampPreviewWidth(width) : null,
+            height);
+
+        if (ReadInt32(store, SchemaVersionProperty, 0) < CurrentSchemaVersion)
+        {
+            Persist();
+        }
     }
 
     /// <summary>
     /// 記下使用者拖出來的尺寸。
     /// </summary>
-    /// <remarks>只傳入實際改動的軸；空間不足造成的有效尺寸不得污染偏好。</remarks>
-    public static void Save(
-        SqlPreviewPlacement placement,
-        double? width,
-        double? height)
+    /// <remarks>只傳入真的拖過的軸；沒拖的那一軸留著原本的值（包括自動寬度）。</remarks>
+    public static void Save(double? width, double? height)
     {
-        if (placement == SqlPreviewPlacement.Stacked)
-        {
-            if (width is { } newStackedWidth)
-            {
-                StackedWidth = SqlAssistLimits.ClampPreviewWidth(newStackedWidth);
-            }
-
-            if (height is { } newStackedHeight)
-            {
-                StackedHeight = SqlAssistLimits.ClampPreviewHeight(newStackedHeight);
-            }
-        }
-        else
-        {
-            if (width is { } newBesideWidth)
-            {
-                BesideWidth = SqlAssistLimits.ClampPreviewWidth(newBesideWidth);
-            }
-
-            if (height is { } newBesideHeight)
-            {
-                BesideHeight = SqlAssistLimits.ClampPreviewHeight(newBesideHeight);
-            }
-        }
-
+        Preferred = new PreviewPreferredSize(
+            width is { } newWidth ? SqlAssistLimits.ClampPreviewWidth(newWidth) : Preferred.Width,
+            height is { } newHeight ? SqlAssistLimits.ClampPreviewHeight(newHeight) : Preferred.Height);
         Persist();
     }
 
-    /// <summary>恢復這一種擺放的預設尺寸；stacked 同時回到自動寬度。</summary>
-    public static void Reset(SqlPreviewPlacement placement)
+    /// <summary>回到預設尺寸，寬度回到自動延伸。</summary>
+    public static void Reset()
     {
-        if (placement == SqlPreviewPlacement.Stacked)
-        {
-            StackedWidth = null;
-            StackedHeight = SqlAssistLimits.DefaultPreviewHeight;
-        }
-        else
-        {
-            BesideWidth = SqlAssistLimits.DefaultPreviewWidth;
-            BesideHeight = SqlAssistLimits.DefaultPreviewHeight;
-        }
-
+        Preferred = PreviewPreferredSize.Default;
         Persist();
     }
 
@@ -164,14 +118,15 @@ internal static class PreviewWindowState
         {
             store.CreateCollection(Collection);
             store.SetInt32(Collection, SchemaVersionProperty, CurrentSchemaVersion);
-            store.SetInt32(Collection, BesideWidthProperty, (int)BesideWidth);
-            store.SetInt32(Collection, BesideHeightProperty, (int)BesideHeight);
-            store.SetInt32(Collection, StackedWidthProperty, (int)(StackedWidth ?? 0));
-            store.SetInt32(Collection, StackedHeightProperty, (int)StackedHeight);
-
-            // 保留舊欄位，使用者降回舊版時至少仍能沿用主要尺寸。
-            store.SetInt32(Collection, WidthProperty, (int)BesideWidth);
-            store.SetInt32(Collection, HeightProperty, (int)StackedHeight);
+            store.SetInt32(Collection, WidthProperty, (int)(Preferred.Width ?? 0));
+            store.SetInt32(Collection, HeightProperty, (int)Preferred.Height);
+            foreach (var property in ObsoleteProperties)
+            {
+                if (store.PropertyExists(Collection, property))
+                {
+                    store.DeleteProperty(Collection, property);
+                }
+            }
         });
     }
 

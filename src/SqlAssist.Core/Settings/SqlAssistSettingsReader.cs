@@ -168,9 +168,6 @@ public static class SqlAssistSettingsReader
                 defaults.PreviewMode),
             PreviewDelayMilliseconds = SqlAssistLimits.ClampPreviewDelay(
                 Value(source, SqlAssistMonikers.PreviewDelay, defaults.PreviewDelayMilliseconds)),
-            PreviewPlacement = ParsePlacement(
-                Value(source, SqlAssistMonikers.PreviewPlacement, string.Empty),
-                defaults.PreviewPlacement),
             PreviewFontSize = SqlAssistLimits.ClampPreviewFontSize(
                 Value(source, SqlAssistMonikers.PreviewFontSize, (int)defaults.PreviewFontSize)),
 
@@ -321,16 +318,6 @@ public static class SqlAssistSettingsReader
             "mb512" => SqlMemoryStorageLimit.Megabytes512,
             "gb1" => SqlMemoryStorageLimit.Gigabytes1,
             "unlimited" => SqlMemoryStorageLimit.Unlimited,
-            _ => fallback
-        };
-    }
-
-    private static SqlPreviewPlacement ParsePlacement(string value, SqlPreviewPlacement fallback)
-    {
-        return value switch
-        {
-            "beside" => SqlPreviewPlacement.Beside,
-            "stacked" => SqlPreviewPlacement.Stacked,
             _ => fallback
         };
     }

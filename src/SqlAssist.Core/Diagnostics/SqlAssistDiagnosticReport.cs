@@ -275,16 +275,6 @@ public static class SqlAssistDiagnosticReport
         };
     }
 
-    public static string FormatPreviewPlacement(SqlPreviewPlacement placement)
-    {
-        return placement switch
-        {
-            SqlPreviewPlacement.Stacked => "建議清單的上方或下方",
-            SqlPreviewPlacement.Beside => "建議清單的側邊",
-            _ => placement.ToString()
-        };
-    }
-
     public static string FormatActivity(SqlAssistActivity activity)
     {
         if (!activity.HasValue)

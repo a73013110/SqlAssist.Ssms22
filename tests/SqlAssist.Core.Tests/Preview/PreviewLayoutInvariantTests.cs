@@ -1,6 +1,5 @@
 using System;
 using SqlAssist.Core.Preview;
-using SqlAssist.Core.Settings;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Preview;
@@ -13,7 +12,7 @@ public sealed class PreviewLayoutInvariantTests
         foreach (var width in new[] { 240.0, 320, 640, 1200, 2200 })
         foreach (var height in new[] { 160.0, 240, 500, 900 })
         foreach (var anchorRatio in new[] { 0.0, 0.25, 0.5, 0.9, 1.0 })
-        foreach (var placement in new[] { SqlPreviewPlacement.Stacked, SqlPreviewPlacement.Beside })
+        foreach (var stretch in new[] { true, false })
         {
             var document = new PreviewRectangle(-700, 40, width, height);
             var anchorLeft = document.Left + Math.Max(0, document.Width - 20) * anchorRatio;
@@ -26,7 +25,6 @@ public sealed class PreviewLayoutInvariantTests
             var result = PreviewPlacementEngine.Calculate(
                 new PreviewLayoutRequest
                 {
-                    Placement = placement,
                     AvailableBounds = document,
                     Anchor = anchor,
                     Obstacles = new[] { anchor, completion },
@@ -36,7 +34,7 @@ public sealed class PreviewLayoutInvariantTests
                     MinimumHeight = 180,
                     MaximumWidth = 2000,
                     MaximumHeight = 1400,
-                    StretchStackedWidth = placement == SqlPreviewPlacement.Stacked,
+                    StretchWidth = stretch,
                     Gap = 4
                 });
 
@@ -58,7 +56,6 @@ public sealed class PreviewLayoutInvariantTests
         var result = PreviewPlacementEngine.Calculate(
             new PreviewLayoutRequest
             {
-                Placement = SqlPreviewPlacement.Stacked,
                 AvailableBounds = Scale(new PreviewRectangle(100, 80, 1200, 760), scale),
                 Anchor = Scale(new PreviewRectangle(560, 100, 60, 20), scale),
                 Obstacles = new[] { Scale(new PreviewRectangle(600, 120, 320, 200), scale) },
@@ -83,7 +80,6 @@ public sealed class PreviewLayoutInvariantTests
         var result = PreviewPlacementEngine.Calculate(
             new PreviewLayoutRequest
             {
-                Placement = SqlPreviewPlacement.Stacked,
                 AvailableBounds = new PreviewRectangle(0, 0, 1000, 800),
                 Anchor = new PreviewRectangle(double.NaN, 20, 10, 10),
                 DesiredWidth = 620,
@@ -100,9 +96,9 @@ public sealed class PreviewLayoutInvariantTests
     public void 縮放收到NaN位移時視為沒有移動()
     {
         var initial = new PreviewRectangle(100, 100, 620, 420);
-        var result = PreviewResizeEngine.Resize(
+        var result = PreviewDragEngine.Resize(
             initial,
-            PreviewResizeCorner.BottomRight,
+            PreviewDragHandle.BottomRight,
             double.NaN,
             double.NaN,
             new PreviewRectangle(0, 0, 1200, 900),

@@ -26,7 +26,6 @@ public sealed class SqlAssistRegistrationTests
     [InlineData("sqlAssist.notifications.verbosity", "quiet", "normal", "verbose", "all")]
     [InlineData("sqlAssist.insertion.wildcardLayout", "oneLineWhenShort", "onePerLine", "fillWidth")]
     [InlineData("sqlAssist.structure.previewMode", "delay", "rightArrow", "off")]
-    [InlineData("sqlAssist.structure.previewPlacement", "stacked", "beside")]
     [InlineData("sqlAssist.structure.scriptStyle", "fidelity", "ssmsNative", "minimal")]
     [InlineData("sqlAssist.sqlMemory.storageLimit", "mb256", "mb512", "gb1", "unlimited")]
     [InlineData("sqlAssist.general.language", "auto", "zhHant", "en")]

@@ -34,6 +34,7 @@ public sealed class PreviewLifecycleTests
     [InlineData(PreviewSignal.SessionStarted, true)]
     [InlineData(PreviewSignal.CaretLeftAnchor, false)]
     [InlineData(PreviewSignal.AnchorEdited, false)]
+    [InlineData(PreviewSignal.AnchorScrolledOut, false)]
     public void 清單上展開的跟著清單走(PreviewSignal signal, bool closes)
     {
         Assert.Equal(closes, PreviewLifecycle.Closes(PreviewMode.Browse, signal));
@@ -42,6 +43,7 @@ public sealed class PreviewLifecycleTests
     [Theory]
     [InlineData(PreviewSignal.CaretLeftAnchor, true)]
     [InlineData(PreviewSignal.AnchorEdited, true)]
+    [InlineData(PreviewSignal.AnchorScrolledOut, true)]
     [InlineData(PreviewSignal.SessionEnded, false)]
     [InlineData(PreviewSignal.SessionStarted, false)]
     public void 指名打開的跟著錨點走(PreviewSignal signal, bool closes)

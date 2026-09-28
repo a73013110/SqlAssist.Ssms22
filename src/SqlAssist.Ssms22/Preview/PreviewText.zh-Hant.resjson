@@ -36,15 +36,14 @@
   "SearchName": "搜尋結構",
   "WrapToggle": "長文字換行顯示",
   "CopyButton": "複製選取內容；沒有選取時複製完整指令碼",
-  "PinToggle": "釘住：游標移開或打字都不收起，只有 Esc 或關閉才收",
+  "PinToggle": "釘住：留在原處，游標移開、打字或捲動都不收；拖曳抬頭可以搬到別處，只有 Esc 或關閉才收",
   "CloseButton": "關閉預覽（Esc）",
   // 調整大小把手的無障礙名稱。
-  "ResizeTopLeft": "左上角調整大小",
   "ResizeBottomLeft": "左下角調整大小",
   "ResizeTopRight": "右上角調整大小",
   "ResizeBottomRight": "右下角調整大小",
-  "ResizeToolTip": "拖曳這一側調整寬高；雙擊重設目前擺放方式的尺寸",
-  "SizeReset": "已重設目前擺放方式的預覽尺寸。",
+  "ResizeToolTip": "拖曳調整寬高；雙擊回到預設尺寸",
+  "SizeReset": "已重設預覽尺寸。",
   "IndexesLoading": "索引與外來鍵載入中…",
   // {columns} 是主索引鍵的資料行清單。
   "PrimaryKeyToolTip": "主索引鍵：{columns}（排序方向見索引分頁）",

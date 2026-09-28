@@ -104,11 +104,13 @@
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlTextEditor.cs" Link="Product\UI\SqlTextEditor.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Blocks.cs" Link="Product\UI\SqlAssistChrome.Blocks.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Notifications.cs" Link="Product\UI\SqlAssistChrome.Notifications.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SqlAssistChrome.Surfaces.cs" Link="Product\UI\SqlAssistChrome.Surfaces.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\IsExternalInit.cs" Link="Product\IsExternalInit.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationActivityItem.cs" Link="Product\UI\NotificationActivityItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationRow.cs" Link="Product\UI\NotificationRow.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationMotion.cs" Link="Product\UI\NotificationMotion.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SpringMotion.cs" Link="Product\UI\SpringMotion.cs" />
+    <Compile Include="..\..\src\SqlAssist.Ssms22\UI\SurfaceMotion.cs" Link="Product\UI\SurfaceMotion.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationPromptItem.cs" Link="Product\UI\NotificationPromptItem.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationPromptView.cs" Link="Product\UI\NotificationPromptView.cs" />
     <Compile Include="..\..\src\SqlAssist.Ssms22\UI\NotificationIsland.cs" Link="Product\UI\NotificationIsland.cs" />

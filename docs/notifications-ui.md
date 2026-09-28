@@ -15,7 +15,7 @@
 | 透明附屬視窗、定位、點擊穿透、鍵盤模式 | `Notifications/NotificationOverlay` |
 | 浮層在擁有者上的位置（裝置像素） | `Notifications/NotificationPlacement` |
 | 提醒按鈕的派送 | `Notifications/NotificationActionRouter` |
-| 畫面、對齊基準、時長與緩動 | `UI/NotificationIsland` 與同資料夾的 `Notification*`；時長只在 `NotificationMotion` |
+| 畫面、對齊基準、時長與緩動 | `UI/NotificationIsland` 與同資料夾的 `Notification*`；時長只在 `NotificationMotion`，與浮動預覽共用的內容進出場與緩動在 `SurfaceMotion` |
 
 島嶼只認得 `UI/NotificationActivityItem` 與 `UI/NotificationPromptItem`，不認得 `Core/Notifications`：
 表面認得來源型別的話，第二種回饋來源得先變成一則通知才畫得出來。

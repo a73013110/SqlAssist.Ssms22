@@ -82,7 +82,6 @@ public static class SqlAssistMonikers
     public const string ClickNavigation = "sqlAssist.structure.clickNavigation";
     public const string PreviewMode = "sqlAssist.structure.previewMode";
     public const string PreviewDelay = "sqlAssist.structure.previewDelay";
-    public const string PreviewPlacement = "sqlAssist.structure.previewPlacement";
     public const string PreviewFontSize = "sqlAssist.structure.previewFontSize";
     public const string ScriptStyle = "sqlAssist.structure.scriptStyle";
     public const string ScriptIncludeExtendedProperties =

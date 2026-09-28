@@ -98,7 +98,7 @@ internal sealed class NotificationActivityStrip : Button
         Icon.Spin(false);
         if (!motion) { Collapse(); return; }
         _collapsed = collapsed;
-        var fade = NotificationMotion.Ease(Opacity, 0, NotificationMotion.ContentFadeOut);
+        var fade = NotificationMotion.Ease(Opacity, 0, SurfaceMotion.ContentFadeOut);
         fade.Completed += (_, _) =>
         {
             if (!ReferenceEquals(_collapsed, collapsed)) return;

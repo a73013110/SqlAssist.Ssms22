@@ -154,14 +154,10 @@ internal sealed class SqlStructurePreview
 
     private long _expandGeneration;
 
-    private double _resizeStartWidth;
+    /// <summary>拖曳開始時的寬高（DIP）；放開時比對哪一軸真的被拖過。</summary>
+    private double _dragStartWidth;
 
-    private double _resizeStartHeight;
-
-    /// <summary>拖曳開始時這一軸就已經是版面壓縮的結果；壓縮值不得寫回偏好尺寸。</summary>
-    private bool _resizeStartWidthConstrained;
-
-    private bool _resizeStartHeightConstrained;
+    private double _dragStartHeight;
 
     private SqlStructurePreview(IWpfTextView view, IServiceProvider serviceProvider)
     {
@@ -187,9 +183,6 @@ internal sealed class SqlStructurePreview
         view.TextBuffer.Changed += OnTextBufferChanged;
         SqlLanguageSwitch.Changed += OnLanguageChanged;
     }
-
-    private static SqlPreviewPlacement Placement =>
-        SqlAssistSettingsStore.Current.PreviewPlacement;
 
     /// <summary>
     /// 預覽正跟著建議清單的選取換內容；那時清單旁的說明面板要讓給它。
@@ -813,6 +806,13 @@ internal sealed class SqlStructurePreview
         }
 
         _control?.SetPinned(_mode == PreviewMode.Pinned);
+
+        // 釘住就從眼前的位置開始自由擺放；放開回到錨點上下，錨點已經捲出畫面的話跟著收。
+        if (_agent is { } agent)
+        {
+            UpdateAgentPreferences(agent);
+            agent.RequestReposition();
+        }
     }
 
     /// <summary>收掉預覽並放下展開意圖；本來就沒顯示時回傳 false。</summary>
@@ -1313,9 +1313,9 @@ internal sealed class SqlStructurePreview
         return SqlAssistPlatformGuard.Create("建立結構預覽", () =>
         {
             var control = new SqlStructurePreviewControl(_view);
-            control.ResizeStarted += OnResizeStarted;
-            control.ResizeDelta += OnResizeDelta;
-            control.ResizeCompleted += OnResizeCompleted;
+            control.DragStarted += OnDragStarted;
+            control.DragDelta += OnDragDelta;
+            control.DragCompleted += OnDragCompleted;
             control.SizeResetRequested += OnSizeResetRequested;
             control.CloseRequested += OnCloseRequested;
             control.PinToggled += OnPinToggled;
@@ -1334,32 +1334,52 @@ internal sealed class SqlStructurePreview
         SqlAssistPlatformGuard.Run("釘住結構預覽", TogglePin);
     }
 
-    private void OnResizeStarted(object sender, PreviewResizeDragEventArgs eventArgs)
+    /// <summary>
+    /// 開始拖抬頭或握把；拖抬頭就是要把它放到別處，還沒釘住的先釘住。
+    /// </summary>
+    /// <remarks>
+    /// 錨在名稱上的視窗位置由錨點決定，搬過去放開又會被定位拉回來；使用者要的是「放在這裡」，
+    /// 那正是釘住的意思。圖釘同時亮起來，看得出它現在不會自己收。
+    /// </remarks>
+    private void OnDragStarted(object sender, PreviewDragEventArgs eventArgs)
     {
-        SqlAssistPlatformGuard.Run("開始調整結構預覽", () =>
+        SqlAssistPlatformGuard.Run("開始拖曳結構預覽", () =>
         {
-            if (_agent is { } agent)
+            if (_agent is not { } agent)
             {
-                _resizeStartWidth = agent.CurrentWidth;
-                _resizeStartHeight = agent.CurrentHeight;
-
-                // 要的是「版面計算的結果」，所以在 BeginResize 之前取；拖曳一開始
-                // 這兩個旗標就會被使用者的意圖蓋掉。
-                _resizeStartWidthConstrained = agent.WidthConstrained;
-                _resizeStartHeightConstrained = agent.HeightConstrained;
-                agent.BeginResize(eventArgs.Corner);
+                return;
             }
+
+            if (eventArgs.Handle == PreviewDragHandle.Move && _mode != PreviewMode.Pinned)
+            {
+                TogglePin();
+            }
+
+            _dragStartWidth = agent.CurrentWidth;
+            _dragStartHeight = agent.CurrentHeight;
+            agent.BeginDrag(eventArgs.Handle);
         });
     }
 
-    private void OnResizeDelta(object sender, PreviewResizeDragEventArgs eventArgs)
+    private void OnDragDelta(object sender, PreviewDragEventArgs eventArgs)
     {
         SqlAssistPlatformGuard.Run(
-            "調整結構預覽",
-            () => _agent?.Resize(eventArgs.HorizontalChange, eventArgs.VerticalChange));
+            "拖曳結構預覽",
+            () => _agent?.Drag(eventArgs.HorizontalChange, eventArgs.VerticalChange));
     }
 
-    private void OnResizeCompleted(object sender, PreviewResizeDragEventArgs eventArgs)
+    /// <summary>
+    /// 放開：錨在名稱上時把拖出來的尺寸記下來，釘住的只屬於那一扇窗。
+    /// </summary>
+    /// <remarks>
+    /// 一軸位移不到一個握把的邊長就當作沒拖那一軸：角落握把一定同時動到兩軸，只想拉寬的人
+    /// 也會順手帶進幾個像素的垂直位移。那幾個像素寫回去，放不下而被壓矮的高度就成了記住的
+    /// 高度；寬度原本是「延伸到編輯器右側」的話，更會換成一個固定值再也回不去。
+    ///
+    /// 真的拖過的軸則照畫面上的值記，不管那一軸原本是不是被版面壓縮過——以前壓縮過的軸一律
+    /// 不記，結果是下方空間不夠時怎麼拉高度，放開都彈回原樣。
+    /// </remarks>
+    private void OnDragCompleted(object sender, PreviewDragEventArgs eventArgs)
     {
         if (_agent is not { } agent)
         {
@@ -1368,46 +1388,20 @@ internal sealed class SqlStructurePreview
 
         SqlAssistPlatformGuard.Run("儲存結構預覽尺寸", () =>
         {
-            agent.CompleteResize(eventArgs.Canceled);
-            if (eventArgs.Canceled)
+            agent.CompleteDrag(eventArgs.Canceled);
+            if (eventArgs.Canceled || agent.IsPinned)
             {
                 return;
             }
 
-            var widthDelta = Math.Abs(agent.CurrentWidth - _resizeStartWidth);
-            var heightDelta = Math.Abs(agent.CurrentHeight - _resizeStartHeight);
-
-            // 版面壓縮出來的尺寸不是偏好。使用者拖不出比限制更大的值，所以在被壓縮的
-            // 軸上拖出來的任何數字都摻了「這裡只放得下這麼多」——寫回去等於每遇到一次
-            // 空間不足，記住的尺寸就被永久縮小一次。代價是在被壓縮的軸上刻意縮小不會
-            // 被記住，因為分不出「他想要 350」與「這裡只放得下 400」。
-            var widthChanged = widthDelta >= 0.5 && !_resizeStartWidthConstrained;
-            var heightChanged = heightDelta >= 0.5 && !_resizeStartHeightConstrained;
-
-            // 存到哪一組看實際落點，不看設定值：側邊放不下而退回上下時，
-            // 使用者拖出來的是上下擺放的尺寸。
-            var effectivePlacement = agent.EffectivePlacement;
-
-            // 上下擺放尚未手動調寬時，寬度是「自動延伸到編輯器右側」這個狀態，不是一個
-            // 數值。角落握把一定同時動到兩軸，只想拉高的人也會順手帶進幾個像素的水平
-            // 位移，於是自動寬度被換成一個固定值，而且再也回不去。門檻用握把自己的邊長：
-            // 位移不到一個握把就當作沒有要拖那一軸。其餘情況維持 0.5，避免拖完之後
-            // 尺寸又跳回上一個偏好值。
-            if (widthChanged &&
-                effectivePlacement == SqlPreviewPlacement.Stacked &&
-                PreviewWindowState.StackedWidth is null &&
-                widthDelta < SqlStructurePreviewControl.GripSize)
-            {
-                widthChanged = false;
-            }
-
+            var widthChanged = Math.Abs(agent.CurrentWidth - _dragStartWidth) >= SqlStructurePreviewControl.GripSize;
+            var heightChanged = Math.Abs(agent.CurrentHeight - _dragStartHeight) >= SqlStructurePreviewControl.GripSize;
             if (!widthChanged && !heightChanged)
             {
                 return;
             }
 
             PreviewWindowState.Save(
-                effectivePlacement,
                 widthChanged ? agent.CurrentWidth : (double?)null,
                 heightChanged ? agent.CurrentHeight : (double?)null);
             UpdateAgentPreferences(agent);
@@ -1418,14 +1412,29 @@ internal sealed class SqlStructurePreview
     {
         SqlAssistPlatformGuard.Run("重設結構預覽尺寸", () =>
         {
-            // 重設的也是眼前這個視窗那一組；退回上下時雙擊握把，要回到的是上下的預設值。
-            PreviewWindowState.Reset(_agent?.EffectivePlacement ?? Placement);
+            PreviewWindowState.Reset();
             if (_agent is { } agent)
             {
                 UpdateAgentPreferences(agent);
+                agent.ResizePinned(PreviewWindowState.Preferred);
                 agent.RequestReposition();
             }
         });
+    }
+
+    /// <summary>錨點捲出畫面；定位途中發出，排到派送佇列之後再問生命週期。</summary>
+    private void OnAnchorScrolledOut(object sender, EventArgs eventArgs)
+    {
+        _view.VisualElement.Dispatcher.BeginInvoke(
+            DispatcherPriority.Normal,
+            new Action(() => SqlAssistPlatformGuard.Run("錨點捲出畫面", () =>
+            {
+                // 排隊期間可能又捲回來、換了一個預覽或被釘住；只處理還成立的那一個。
+                if (!_closed && _agent is { } agent && ReferenceEquals(agent, sender) && agent.IsAnchorOutOfView)
+                {
+                    Apply(PreviewSignal.AnchorScrolledOut);
+                }
+            })));
     }
 
     /// <summary>把自訂 Agent 掛上 reservation stack；已掛著時只更新狀態並重排。</summary>
@@ -1470,6 +1479,7 @@ internal sealed class SqlStructurePreview
             control.CompleteExit();
 
             var created = new SqlPreviewPopupAgent(_view, _manager, anchor, control);
+            created.AnchorScrolledOut += OnAnchorScrolledOut;
             UpdateAgentPreferences(created);
             _agent = created;
             var added = SqlAssistPlatformGuard.Run(
@@ -1507,13 +1517,7 @@ internal sealed class SqlStructurePreview
             return;
         }
 
-        // 兩組都給。側邊放不下而退回上下時，尺寸要跟著換成上下那一組，
-        // 而那件事要等定位算完才知道，所以決定權在 Agent 那一端。
-        agent.Update(
-            anchor,
-            Placement,
-            PreviewWindowState.Preferred(SqlPreviewPlacement.Beside),
-            PreviewWindowState.Preferred(SqlPreviewPlacement.Stacked));
+        agent.Update(anchor, PreviewWindowState.Preferred, pinned: _mode == PreviewMode.Pinned);
     }
 
     private void OnViewLayoutChanged(object sender, TextViewLayoutChangedEventArgs eventArgs) =>
@@ -1686,9 +1690,9 @@ internal sealed class SqlStructurePreview
 
         if (_control is { } control)
         {
-            control.ResizeStarted -= OnResizeStarted;
-            control.ResizeDelta -= OnResizeDelta;
-            control.ResizeCompleted -= OnResizeCompleted;
+            control.DragStarted -= OnDragStarted;
+            control.DragDelta -= OnDragDelta;
+            control.DragCompleted -= OnDragCompleted;
             control.SizeResetRequested -= OnSizeResetRequested;
             control.CloseRequested -= OnCloseRequested;
             control.PinToggled -= OnPinToggled;

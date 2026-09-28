@@ -330,9 +330,6 @@ public sealed class SqlAssistSettings
     /// </remarks>
     public int PreviewDelayMilliseconds { get; init; } = SqlAssistLimits.DefaultPreviewDelay;
 
-    /// <summary>sqlAssist.structure.previewPlacement</summary>
-    public SqlPreviewPlacement PreviewPlacement { get; init; } = SqlPreviewPlacement.Stacked;
-
     /// <summary>
     /// sqlAssist.structure.previewFontSize
     /// </summary>

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Preview;
 
@@ -23,7 +22,7 @@ public static class PreviewPlacementEngine
         var anchor = Normalize(request.Anchor);
         if (available.IsEmpty || anchor.IsEmpty)
         {
-            return new PreviewLayout(default, PreviewPlacementSide.Below, false, true, true);
+            return new PreviewLayout(default, PreviewPlacementSide.Below);
         }
 
         var minimumWidth = Math.Min(Positive(request.MinimumWidth), available.Width);
@@ -35,189 +34,22 @@ public static class PreviewPlacementEngine
             Math.Min(minimumHeight, maximumHeight),
             maximumHeight);
 
-        if (request.Placement == SqlPreviewPlacement.Beside)
-        {
-            var besideWidth = Clamp(
-                Positive(request.DesiredWidth),
-                Math.Min(minimumWidth, maximumWidth),
-                maximumWidth);
-
-            if (request.PreviousSide is PreviewPlacementSide.Below or PreviewPlacementSide.Above)
-            {
-                var hysteresis = Hysteresis(request);
-                if (!TryPlaceBeside(
-                        request,
-                        available,
-                        besideWidth,
-                        desiredHeight,
-                        minimumWidth,
-                        out var recoveredBeside) ||
-                    recoveredBeside.Bounds.Width < minimumWidth + hysteresis &&
-                    !TryPlaceBeside(
-                        request,
-                        available,
-                        besideWidth + hysteresis,
-                        desiredHeight,
-                        minimumWidth + hysteresis,
-                        out _))
-                {
-                    // 只比最小寬度多幾個捨入像素時維持 fallback；可讀寬度明顯增加就回側邊。
-                    return PlaceStacked(
-                        request,
-                        available,
-                        besideWidth,
-                        desiredHeight,
-                        usedFallback: true);
-                }
-
-                return recoveredBeside;
-            }
-
-            if (TryPlaceBeside(
-                    request,
-                    available,
-                    besideWidth,
-                    desiredHeight,
-                    minimumWidth,
-                    out var beside))
-            {
-                return beside;
-            }
-
-            return PlaceStacked(
-                request,
-                available,
-                besideWidth,
-                desiredHeight,
-                usedFallback: true);
-        }
-
-        var requestedStackedWidth = request.StretchStackedWidth
+        var requestedWidth = request.StretchWidth
             ? Math.Max(minimumWidth, available.Right - Clamp(anchor.Left, available.Left, available.Right))
             : Positive(request.DesiredWidth);
-        var stackedWidth = Clamp(
-            requestedStackedWidth,
+        var width = Clamp(
+            requestedWidth,
             Math.Min(minimumWidth, maximumWidth),
             maximumWidth);
 
-        return PlaceStacked(
-            request,
-            available,
-            stackedWidth,
-            desiredHeight,
-            usedFallback: false);
+        return Place(request, available, width, desiredHeight);
     }
 
-    private static bool TryPlaceBeside(
+    private static PreviewLayout Place(
         PreviewLayoutRequest request,
         PreviewRectangle available,
         double desiredWidth,
-        double desiredHeight,
-        double minimumWidth,
-        out PreviewLayout layout)
-    {
-        var top = Clamp(request.Anchor.Top, available.Top, available.Bottom - desiredHeight);
-        var verticalRange = new Segment(top, top + desiredHeight);
-        var free = FreeSegments(
-            available.Left,
-            available.Right,
-            ValidObstacles(request)
-                .Select(obstacle => obstacle.Inflate(request.Gap))
-                .Where(obstacle => Overlaps(verticalRange, new Segment(obstacle.Top, obstacle.Bottom)))
-                .Select(obstacle => new Segment(obstacle.Left, obstacle.Right)));
-
-        var rightStart = request.Anchor.Right + request.Gap;
-        var leftEnd = request.Anchor.Left - request.Gap;
-
-        if (request.PreviousSide == PreviewPlacementSide.Left &&
-            TryFindLeft(free, leftEnd, desiredWidth, out var previousLeft))
-        {
-            layout = Result(
-                previousLeft.End - desiredWidth,
-                top,
-                desiredWidth,
-                desiredHeight,
-                PreviewPlacementSide.Left,
-                false,
-                request);
-            return true;
-        }
-
-        if (request.PreviousSide == PreviewPlacementSide.Right &&
-            TryFindRight(free, rightStart, desiredWidth, out var previousRight))
-        {
-            layout = Result(
-                previousRight.Start,
-                top,
-                desiredWidth,
-                desiredHeight,
-                PreviewPlacementSide.Right,
-                false,
-                request);
-            return true;
-        }
-
-        if (TryFindRight(free, rightStart, desiredWidth, out var right))
-        {
-            layout = Result(right.Start, top, desiredWidth, desiredHeight, PreviewPlacementSide.Right, false, request);
-            return true;
-        }
-
-        if (TryFindLeft(free, leftEnd, desiredWidth, out var left))
-        {
-            layout = Result(left.End - desiredWidth, top, desiredWidth, desiredHeight, PreviewPlacementSide.Left, false, request);
-            return true;
-        }
-
-        // 完整偏好寬度放不下後改比較兩側最大可用量；不能為了「優先右側」
-        // 選 320，而放棄左側接近偏好值的 600。
-        var rightRemainder = FindLargestRight(free, rightStart);
-        var leftRemainder = FindLargestLeft(free, leftEnd);
-        var rightWidth = Math.Min(desiredWidth, rightRemainder.Length);
-        var leftWidth = Math.Min(desiredWidth, leftRemainder.Length);
-        var hysteresis = Hysteresis(request);
-
-        if (rightWidth + Epsilon >= minimumWidth || leftWidth + Epsilon >= minimumWidth)
-        {
-            var chooseLeft = leftWidth + Epsilon >= minimumWidth &&
-                             (rightWidth + Epsilon < minimumWidth ||
-                              leftWidth > rightWidth + hysteresis ||
-                              request.PreviousSide == PreviewPlacementSide.Left &&
-                              leftWidth + hysteresis >= rightWidth);
-            if (chooseLeft)
-            {
-                layout = Result(
-                    leftRemainder.End - leftWidth,
-                    top,
-                    leftWidth,
-                    desiredHeight,
-                    PreviewPlacementSide.Left,
-                    false,
-                    request);
-                return true;
-            }
-
-            layout = Result(
-                rightRemainder.Start,
-                top,
-                rightWidth,
-                desiredHeight,
-                PreviewPlacementSide.Right,
-                false,
-                request);
-            return true;
-        }
-
-        layout = default;
-        return false;
-    }
-
-    private static PreviewLayout PlaceStacked(
-        PreviewLayoutRequest request,
-        PreviewRectangle available,
-        double desiredWidth,
-        double desiredHeight,
-        bool usedFallback)
+        double desiredHeight)
     {
         // 錨點靠近右界時只把整個視窗平移到界內，不把它交給 Popup 再做一次翻轉。
         var left = Clamp(request.Anchor.Left, available.Left, available.Right - desiredWidth);
@@ -237,22 +69,22 @@ public static class PreviewPlacementEngine
 
         if (request.PreviousSide == PreviewPlacementSide.Above && aboveFits)
         {
-            return Result(left, above.End - desiredHeight, desiredWidth, desiredHeight, PreviewPlacementSide.Above, usedFallback, request);
+            return Result(left, above.End - desiredHeight, desiredWidth, desiredHeight, PreviewPlacementSide.Above);
         }
 
         if (request.PreviousSide == PreviewPlacementSide.Below && belowFits)
         {
-            return Result(left, below.Start, desiredWidth, desiredHeight, PreviewPlacementSide.Below, usedFallback, request);
+            return Result(left, below.Start, desiredWidth, desiredHeight, PreviewPlacementSide.Below);
         }
 
         if (belowFits)
         {
-            return Result(left, below.Start, desiredWidth, desiredHeight, PreviewPlacementSide.Below, usedFallback, request);
+            return Result(left, below.Start, desiredWidth, desiredHeight, PreviewPlacementSide.Below);
         }
 
         if (aboveFits)
         {
-            return Result(left, above.End - desiredHeight, desiredWidth, desiredHeight, PreviewPlacementSide.Above, usedFallback, request);
+            return Result(left, above.End - desiredHeight, desiredWidth, desiredHeight, PreviewPlacementSide.Above);
         }
 
         // 正常高度放不下後比較上下最大可用量；方向偏好只負責接近平手時的 tie-break。
@@ -273,9 +105,7 @@ public static class PreviewPlacementEngine
                     belowRemainder.Start,
                     desiredWidth,
                     belowHeight,
-                    PreviewPlacementSide.Below,
-                    usedFallback,
-                    request);
+                    PreviewPlacementSide.Below);
             }
 
             return Result(
@@ -283,9 +113,7 @@ public static class PreviewPlacementEngine
                 aboveRemainder.End - aboveHeight,
                 desiredWidth,
                 aboveHeight,
-                PreviewPlacementSide.Above,
-                usedFallback,
-                request);
+                PreviewPlacementSide.Above);
         }
 
         // 極小視窗的最後防線：挑上下兩個候選裡與既有浮窗重疊最少的一個。
@@ -299,8 +127,8 @@ public static class PreviewPlacementEngine
         var aboveOverlap = OverlapArea(aboveBounds, obstacles);
 
         return belowOverlap <= aboveOverlap
-            ? Result(left, belowTop, desiredWidth, constrainedHeight, PreviewPlacementSide.Below, usedFallback, request)
-            : Result(left, aboveTop, desiredWidth, constrainedHeight, PreviewPlacementSide.Above, usedFallback, request);
+            ? Result(left, belowTop, desiredWidth, constrainedHeight, PreviewPlacementSide.Below)
+            : Result(left, aboveTop, desiredWidth, constrainedHeight, PreviewPlacementSide.Above);
     }
 
     private static PreviewLayout Result(
@@ -308,28 +136,15 @@ public static class PreviewPlacementEngine
         double top,
         double width,
         double height,
-        PreviewPlacementSide side,
-        bool usedFallback,
-        PreviewLayoutRequest request)
-    {
-        // 自動延伸的寬度沒有「偏好值」可言，永遠不算被壓縮。
-        var widthConstrained = !request.StretchStackedWidth &&
-                               width + Epsilon < request.DesiredWidth;
-        var heightConstrained = height + Epsilon < request.DesiredHeight;
-        return new PreviewLayout(
-            new PreviewRectangle(left, top, width, height),
-            side,
-            usedFallback,
-            widthConstrained,
-            heightConstrained);
-    }
+        PreviewPlacementSide side) =>
+        new(new PreviewRectangle(left, top, width, height), side);
 
     /// <summary>
     /// 方向偏好只在差距明顯時才讓位。
     /// </summary>
     /// <remarks>
-    /// 上下與左右、正常路徑與剩餘量比較都用同一個量：分開寫的話，改了其中一個
-    /// 而另一個沒改，症狀是「某一種擺放會抖，另一種不會」，而且看不出關聯。
+    /// 正常路徑與剩餘量比較都用同一個量：分開寫的話，改了其中一個而另一個沒改，
+    /// 症狀是「某些高度會抖，另一些不會」，而且看不出關聯。
     /// 下限 8 是為了 Gap 很小時仍然擋得住 DPI 捨入的一兩個像素。
     /// </remarks>
     private static double Hysteresis(PreviewLayoutRequest request) =>
@@ -474,15 +289,10 @@ public static class PreviewPlacementEngine
     /// 把整個錨點蓋住的保留區不算障礙。
     /// </summary>
     /// <remarks>
-    /// 建議清單開著時，平台會連錨點所在的一整行一起保留——文件寬 487–1775 時，
-    /// 那一塊就是 487,100–1775,121，橫跨整個編輯器而只有一個行高。它表達的是
-    /// 「錨點在這裡」，不是「這裡有一個浮窗」，可是側邊擺放的上緣永遠對齊錨點上緣，
-    /// 於是每一次都與它相交，左右兩側的自由空間被整條切光，`beside` 只要清單一開
-    /// 就必定退回上下擺放——縮到最小尺寸也一樣，因為放不下的不是寬度而是整條帶。
-    ///
-    /// 只排除「完全蓋住」錨點的那一種：改用相交會把緊貼錨點下緣、DPI 捨入後重疊
-    /// 一兩個像素的建議清單也一起排掉，那才是真正必須讓開的東西。上下擺放不受影響，
-    /// 該讓開的清單本來就在錨點下方，仍然是障礙。
+    /// 建議清單開著時，平台會連錨點所在的一整行一起保留——橫跨整個編輯器而只有一個行高。
+    /// 它表達的是「錨點在這裡」，不是「這裡有一個浮窗」；上下擺放的起點本來就從錨點上下緣
+    /// 算起，再把它當障礙只會讓間距多算一次。只排除「完全蓋住」錨點的那一種：改用相交會把
+    /// 緊貼錨點下緣、DPI 捨入後重疊一兩個像素的建議清單也一起排掉，那才是真正必須讓開的東西。
     /// </remarks>
     private static IEnumerable<PreviewRectangle> ValidObstacles(PreviewLayoutRequest request) =>
         (request.Obstacles ?? Array.Empty<PreviewRectangle>())

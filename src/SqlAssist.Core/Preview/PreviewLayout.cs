@@ -1,21 +1,19 @@
 using System;
 using System.Collections.Generic;
-using SqlAssist.Core.Settings;
 
 namespace SqlAssist.Core.Preview;
 
-/// <summary>預覽最後實際落在哪個方向。</summary>
+/// <summary>預覽最後落在錨點的哪一側。</summary>
 public enum PreviewPlacementSide
 {
     Below,
-    Above,
-    Right,
-    Left
+    Above
 }
 
-/// <summary>拖曳中的角落；左右角各自固定另一側邊界。</summary>
-public enum PreviewResizeCorner
+/// <summary>拖曳的是哪一個把手：抬頭搬動整個視窗，角落握把固定對角改尺寸。</summary>
+public enum PreviewDragHandle
 {
+    Move,
     TopLeft,
     TopRight,
     BottomLeft,
@@ -25,8 +23,6 @@ public enum PreviewResizeCorner
 /// <summary>一次定位所需的完整且同座標系輸入。</summary>
 public sealed class PreviewLayoutRequest
 {
-    public SqlPreviewPlacement Placement { get; init; }
-
     public PreviewRectangle Anchor { get; init; }
 
     public PreviewRectangle AvailableBounds { get; init; }
@@ -45,8 +41,8 @@ public sealed class PreviewLayoutRequest
 
     public double MaximumHeight { get; init; } = double.PositiveInfinity;
 
-    /// <summary>上下擺放尚未手動調寬時，從錨點自動延伸到右界。</summary>
-    public bool StretchStackedWidth { get; init; }
+    /// <summary>尚未手動調寬：從錨點自動延伸到右界，<see cref="DesiredWidth"/> 不用。</summary>
+    public bool StretchWidth { get; init; }
 
     public double Gap { get; init; } = 4;
 
@@ -57,36 +53,13 @@ public sealed class PreviewLayoutRequest
 /// <summary>純定位計算的結果。</summary>
 public readonly struct PreviewLayout
 {
-    public PreviewLayout(
-        PreviewRectangle bounds,
-        PreviewPlacementSide side,
-        bool usedFallback,
-        bool widthConstrained,
-        bool heightConstrained)
+    public PreviewLayout(PreviewRectangle bounds, PreviewPlacementSide side)
     {
         Bounds = bounds;
         Side = side;
-        UsedFallback = usedFallback;
-        WidthConstrained = widthConstrained;
-        HeightConstrained = heightConstrained;
     }
 
     public PreviewRectangle Bounds { get; }
 
     public PreviewPlacementSide Side { get; }
-
-    /// <summary>選了側邊擺放，但兩側都不可用而改放上下。</summary>
-    public bool UsedFallback { get; }
-
-    /// <summary>
-    /// 這一軸放不下偏好尺寸而被壓縮。
-    /// </summary>
-    /// <remarks>
-    /// 分兩軸而不是一個旗標：呼叫端要用它決定「拖曳結束後這一軸可不可以寫回偏好尺寸」，
-    /// 而角落握把一定同時動到兩軸。合成一個旗標的話，只要有一軸被壓縮就會連另一軸
-    /// 使用者真的拖出來的尺寸一起丟掉。
-    /// </remarks>
-    public bool WidthConstrained { get; }
-
-    public bool HeightConstrained { get; }
 }

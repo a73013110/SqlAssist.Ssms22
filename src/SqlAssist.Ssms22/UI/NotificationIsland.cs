@@ -64,8 +64,6 @@ internal sealed class NotificationIsland : Grid
     /// <summary>進度條的高度；全部結束後收成 1 DIP 的分隔線。</summary>
     private const double TrackHeight = 3;
 
-    private const string Cross = "M1,1 L11,11 M11,1 L1,11";
-
     private readonly Grid _island = new() { HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom };
     private readonly Border _surface;
     private readonly Border _sheen;
@@ -145,7 +143,7 @@ internal sealed class NotificationIsland : Grid
         _island.Children.Add(_viewport);
         Children.Add(_island);
 
-        DismissButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.DismissActivities, Cross);
+        DismissButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.DismissActivities, SqlAssistChrome.CrossGlyph);
         DismissButton.VerticalAlignment = VerticalAlignment.Center;
         DismissButton.Click += (_, _) => DismissRequested?.Invoke(this, EventArgs.Empty);
         _capsuleText = new NotificationTicker(() =>
@@ -334,7 +332,7 @@ internal sealed class NotificationIsland : Grid
             _width.Jump(motion ? DotSize : target.Width);
             _height.Jump(motion ? DotSize : target.Height);
             _radius.Jump(motion ? DotSize / 2 : radius);
-            if (motion) _island.BeginAnimation(OpacityProperty, NotificationMotion.Ease(0, 1, NotificationMotion.ContentFadeOut));
+            if (motion) _island.BeginAnimation(OpacityProperty, NotificationMotion.Ease(0, 1, SurfaceMotion.ContentFadeOut));
         }
 
         _width.AnimateTo(target.Width, motion);
@@ -395,7 +393,7 @@ internal sealed class NotificationIsland : Grid
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {
         base.OnDpiChanged(oldDpi, newDpi);
-        SqlAssistChrome.UpdateNotificationShadowCache(_surface);
+        SqlAssistChrome.UpdateSurfaceShadowCache(_surface);
     }
 
     /// <summary>清單列的寬度：文字欄再往左右各延伸停駐底色的量。</summary>
@@ -418,7 +416,7 @@ internal sealed class NotificationIsland : Grid
 
         // 先縮回圓點，停下來之後才淡掉（OnShapeSettled）；內容先淡出，縮的過程中不露出被裁的半行字。
         _hiding = true;
-        if (_current is { } current) current.BeginAnimation(OpacityProperty, NotificationMotion.Ease(current.Opacity, 0, NotificationMotion.ContentFadeOut));
+        if (_current is { } current) SurfaceMotion.ExitContent(current);
         _width.AnimateTo(DotSize, motion: true);
         _height.AnimateTo(DotSize, motion: true);
         _radius.AnimateTo(DotSize / 2, motion: true);
@@ -455,7 +453,7 @@ internal sealed class NotificationIsland : Grid
             // 被換走的那一份基底值仍是 1、只有動畫在往 0 走；正在淡入的那一份基底值是 0，不去打斷它。
             if (next.Opacity < 1 && !motion) { next.BeginAnimation(OpacityProperty, null); next.Opacity = 1; }
             else if (next.Opacity < 1 && next.GetAnimationBaseValue(OpacityProperty) is double baseline && baseline >= 1)
-                next.BeginAnimation(OpacityProperty, NotificationMotion.Ease(next.Opacity, 1, NotificationMotion.ContentFadeIn));
+                next.BeginAnimation(OpacityProperty, NotificationMotion.Ease(next.Opacity, 1, SurfaceMotion.ContentFadeIn));
             return;
         }
 
@@ -464,7 +462,7 @@ internal sealed class NotificationIsland : Grid
             if (motion)
             {
                 // 從目前畫面上的透明度接續；先清動畫會退回基底值，淡入到一半的那一份會先閃一下。
-                var fade = NotificationMotion.Ease(old.Opacity, 0, NotificationMotion.ContentFadeOut);
+                var fade = NotificationMotion.Ease(old.Opacity, 0, SurfaceMotion.ContentFadeOut);
                 fade.Completed += (_, _) => { if (!ReferenceEquals(old, _current)) old.Visibility = Visibility.Collapsed; };
                 old.BeginAnimation(OpacityProperty, fade);
             }
@@ -477,23 +475,11 @@ internal sealed class NotificationIsland : Grid
         shift?.BeginAnimation(TranslateTransform.YProperty, null);
         if (!motion) { next.Opacity = 1; return; }
 
-        var delay = NotificationMotion.Duration(NotificationMotion.ContentDelay);
-        var appear = NotificationMotion.Ease(0, 1, NotificationMotion.ContentFadeIn);
-        appear.BeginTime = delay;
-        next.Opacity = 0;
-        next.BeginAnimation(OpacityProperty, appear);
-        if (scale is not null)
-        {
-            var grow = NotificationMotion.Ease(NotificationMotion.ContentScaleFrom, 1, NotificationMotion.ContentFadeIn);
-            grow.BeginTime = delay; grow.FillBehavior = FillBehavior.Stop;
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
-        }
-
+        SurfaceMotion.EnterContent(next, scale);
         if (slide && shift is not null)
         {
-            var rise = NotificationMotion.Ease(StackPeek * 2, 0, NotificationMotion.ContentFadeIn);
-            rise.BeginTime = delay; rise.FillBehavior = FillBehavior.Stop;
+            var rise = NotificationMotion.Ease(StackPeek * 2, 0, SurfaceMotion.ContentFadeIn);
+            rise.BeginTime = SurfaceMotion.Duration(SurfaceMotion.ContentDelay); rise.FillBehavior = FillBehavior.Stop;
             shift.BeginAnimation(TranslateTransform.YProperty, rise);
         }
     }

@@ -116,12 +116,6 @@
   "StructurePreviewModeDescription": "向右鍵模式下，展開後跟著選取移動，按向左鍵收合。",
   "StructurePreviewDelayTitle": "自動展開前的停留毫秒數",
   "StructurePreviewDelayDescription": "用方向鍵快速掃過清單時，掃過去的項目不會展開，也不會送出查詢。",
-  // 列舉值 stacked
-  "StructurePreviewPlacementItemStacked": "建議清單的上下方，延伸到編輯器右側",
-  // 列舉值 beside
-  "StructurePreviewPlacementItemBeside": "貼在建議清單的側邊",
-  "StructurePreviewPlacementTitle": "預覽視窗的位置",
-  "StructurePreviewPlacementDescription": "上下擺放時，欄位很多的資料表可以一次攤開好幾欄而不必橫向捲動，代價是會蓋住上下幾行程式碼。",
   "StructurePreviewFontSizeTitle": "預覽視窗的字級",
   "StructurePreviewFontSizeDescription": "資料格、分頁與標題的基準字級，其餘字級按固定差距跟著走。指令碼分頁不受影響，它跟的是編輯器的字型與字級。",
   // 列舉值 fidelity

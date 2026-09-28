@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Preview;
-using SqlAssist.Core.Settings;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Preview;
@@ -15,7 +14,7 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 結果窗縮小文字Viewport時仍以完整文件區保留偏好高度()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked());
+        var result = PreviewPlacementEngine.Calculate(Layout());
 
         Assert.Equal(PreviewPlacementSide.Below, result.Side);
         Assert.Equal(420, result.Bounds.Height);
@@ -26,7 +25,7 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 錨點靠右時平移視窗而非縮小或移出文件()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             anchor: new PreviewRectangle(1240, 100, 40, 20),
             desiredWidth: 620,
             stretch: false,
@@ -41,7 +40,7 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 上下擺放優先避開建議清單後放在下方()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked());
+        var result = PreviewPlacementEngine.Calculate(Layout());
 
         Assert.Equal(PreviewPlacementSide.Below, result.Side);
         Assert.False(result.Bounds.Intersects(Completion));
@@ -51,13 +50,12 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 上一輪在上方且仍放得下時不因微小重排翻回下方()
     {
-        var request = Stacked(
+        var request = Layout(
             available: new PreviewRectangle(0, 0, 1200, 1200),
             anchor: new PreviewRectangle(500, 600, 50, 20),
             obstacles: Array.Empty<PreviewRectangle>());
         request = new PreviewLayoutRequest
         {
-            Placement = request.Placement,
             AvailableBounds = request.AvailableBounds,
             Anchor = request.Anchor,
             Obstacles = request.Obstacles,
@@ -82,7 +80,7 @@ public sealed class PreviewPlacementEngineTests
         var document = new PreviewRectangle(0, 0, 1200, 900);
         var anchor = new PreviewRectangle(500, 700, 50, 20);
         var completion = new PreviewRectangle(500, 720, 300, 160);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             available: document,
             anchor: anchor,
             desiredHeight: 420,
@@ -98,7 +96,7 @@ public sealed class PreviewPlacementEngineTests
     {
         var document = new PreviewRectangle(0, 0, 1200, 608);
         var anchor = new PreviewRectangle(500, 404, 50, 20);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             available: document,
             anchor: anchor,
             desiredHeight: 420,
@@ -115,7 +113,7 @@ public sealed class PreviewPlacementEngineTests
         var document = new PreviewRectangle(0, 0, 1000, 500);
         var anchor = new PreviewRectangle(400, 120, 50, 20);
         var completion = new PreviewRectangle(400, 140, 300, 200);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             available: document,
             anchor: anchor,
             desiredHeight: 420,
@@ -130,7 +128,7 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 自動寬度從錨點延伸到文件右界()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             desiredWidth: 620,
             stretch: true,
             obstacles: Array.Empty<PreviewRectangle>()));
@@ -143,7 +141,7 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 自動寬度仍受絕對最大值限制()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             anchor: new PreviewRectangle(120, 100, 40, 20),
             desiredWidth: 620,
             stretch: true,
@@ -155,151 +153,6 @@ public sealed class PreviewPlacementEngineTests
     }
 
     [Fact]
-    public void 側邊右側足夠時優先放右邊並避開清單()
-    {
-        var result = PreviewPlacementEngine.Calculate(Beside());
-
-        Assert.Equal(PreviewPlacementSide.Right, result.Side);
-        Assert.Equal(Completion.Right + 4, result.Bounds.Left);
-        Assert.False(result.Bounds.Intersects(Completion));
-        AssertContained(result.Bounds, Document);
-    }
-
-    [Fact]
-    public void 側邊右側不足時穩定翻到左邊()
-    {
-        var document = new PreviewRectangle(0, 0, 1100, 800);
-        var anchor = new PreviewRectangle(760, 100, 50, 20);
-        var completion = new PreviewRectangle(760, 120, 300, 220);
-        var result = PreviewPlacementEngine.Calculate(Beside(
-            available: document,
-            anchor: anchor,
-            obstacles: new[] { anchor, completion }));
-
-        Assert.Equal(PreviewPlacementSide.Left, result.Side);
-        Assert.Equal(anchor.Left - 4, result.Bounds.Right);
-        AssertContained(result.Bounds, document);
-    }
-
-    [Fact]
-    public void 側邊兩側都不足時回退上下而不是覆蓋文件外面板()
-    {
-        var document = new PreviewRectangle(200, 0, 700, 900);
-        var anchor = new PreviewRectangle(480, 100, 40, 20);
-        var completion = new PreviewRectangle(360, 120, 380, 220);
-        var result = PreviewPlacementEngine.Calculate(Beside(
-            available: document,
-            anchor: anchor,
-            desiredWidth: 620,
-            obstacles: new[] { anchor, completion }));
-
-        Assert.True(result.UsedFallback);
-        Assert.Equal(PreviewPlacementSide.Below, result.Side);
-        AssertContained(result.Bounds, document);
-    }
-
-    [Fact]
-    public void 側邊完整寬度都放不下時選較大的左側而非最小右側()
-    {
-        var document = new PreviewRectangle(0, 0, 964, 900);
-        var anchor = new PreviewRectangle(600, 100, 40, 20);
-        var result = PreviewPlacementEngine.Calculate(Beside(
-            available: document,
-            anchor: anchor,
-            desiredWidth: 620,
-            obstacles: Array.Empty<PreviewRectangle>()));
-
-        Assert.Equal(PreviewPlacementSide.Left, result.Side);
-        Assert.Equal(596, result.Bounds.Width);
-        Assert.Equal(anchor.Left - 4, result.Bounds.Right);
-    }
-
-    [Fact]
-    public void 側邊已回退下方時空間明顯增加會回到使用者選擇的右側()
-    {
-        var request = Beside(
-            available: new PreviewRectangle(0, 0, 1500, 900),
-            anchor: new PreviewRectangle(500, 100, 40, 20),
-            desiredWidth: 320,
-            obstacles: Array.Empty<PreviewRectangle>());
-        request = new PreviewLayoutRequest
-        {
-            Placement = request.Placement,
-            AvailableBounds = request.AvailableBounds,
-            Anchor = request.Anchor,
-            Obstacles = request.Obstacles,
-            DesiredWidth = request.DesiredWidth,
-            DesiredHeight = request.DesiredHeight,
-            MinimumWidth = request.MinimumWidth,
-            MinimumHeight = request.MinimumHeight,
-            MaximumWidth = request.MaximumWidth,
-            MaximumHeight = request.MaximumHeight,
-            Gap = request.Gap,
-            PreviousSide = PreviewPlacementSide.Below
-        };
-
-        var result = PreviewPlacementEngine.Calculate(request);
-
-        Assert.Equal(PreviewPlacementSide.Right, result.Side);
-        Assert.False(result.UsedFallback);
-    }
-
-    [Fact]
-    public void 側邊可用寬度明顯大於最小值時不必等到完整偏好寬度才恢復()
-    {
-        var request = Beside(
-            available: new PreviewRectangle(0, 0, 1204, 900),
-            anchor: new PreviewRectangle(600, 100, 40, 20),
-            desiredWidth: 620,
-            obstacles: Array.Empty<PreviewRectangle>());
-        request = new PreviewLayoutRequest
-        {
-            Placement = request.Placement,
-            AvailableBounds = request.AvailableBounds,
-            Anchor = request.Anchor,
-            Obstacles = request.Obstacles,
-            DesiredWidth = request.DesiredWidth,
-            DesiredHeight = request.DesiredHeight,
-            MinimumWidth = request.MinimumWidth,
-            MinimumHeight = request.MinimumHeight,
-            MaximumWidth = request.MaximumWidth,
-            MaximumHeight = request.MaximumHeight,
-            Gap = request.Gap,
-            PreviousSide = PreviewPlacementSide.Below
-        };
-
-        var result = PreviewPlacementEngine.Calculate(request);
-
-        Assert.Equal(PreviewPlacementSide.Left, result.Side);
-        Assert.Equal(596, result.Bounds.Width);
-        Assert.False(result.UsedFallback);
-    }
-
-    [Fact]
-    public void 側邊已回退下方時只多幾個像素不會反覆翻面()
-    {
-        var result = PreviewPlacementEngine.Calculate(
-            new PreviewLayoutRequest
-            {
-                Placement = SqlPreviewPlacement.Beside,
-                AvailableBounds = new PreviewRectangle(490, 0, 376, 900),
-                Anchor = new PreviewRectangle(500, 100, 40, 20),
-                Obstacles = Array.Empty<PreviewRectangle>(),
-                DesiredWidth = 320,
-                DesiredHeight = 420,
-                MinimumWidth = 320,
-                MinimumHeight = 180,
-                MaximumWidth = 2000,
-                MaximumHeight = 1400,
-                Gap = 4,
-                PreviousSide = PreviewPlacementSide.Below
-            });
-
-        Assert.Equal(PreviewPlacementSide.Below, result.Side);
-        Assert.True(result.UsedFallback);
-    }
-
-    [Fact]
     public void 多個分離保留區不會被粗略外框誤判成整段不可用()
     {
         var obstacles = new[]
@@ -307,7 +160,7 @@ public sealed class PreviewPlacementEngineTests
             new PreviewRectangle(100, 120, 120, 180),
             new PreviewRectangle(1190, 120, 80, 180)
         };
-        var result = PreviewPlacementEngine.Calculate(Stacked(obstacles: obstacles));
+        var result = PreviewPlacementEngine.Calculate(Layout(obstacles: obstacles));
 
         Assert.Equal(PreviewPlacementSide.Below, result.Side);
         Assert.Equal(Anchor.Bottom + 4, result.Bounds.Top);
@@ -318,7 +171,7 @@ public sealed class PreviewPlacementEngineTests
     {
         var document = new PreviewRectangle(-1920, 40, 1500, 900);
         var anchor = new PreviewRectangle(-900, 100, 40, 20);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        var result = PreviewPlacementEngine.Calculate(Layout(
             available: document,
             anchor: anchor,
             obstacles: Array.Empty<PreviewRectangle>()));
@@ -331,8 +184,8 @@ public sealed class PreviewPlacementEngineTests
     [Fact]
     public void 整體平移輸入時輸出也同量平移()
     {
-        var original = PreviewPlacementEngine.Calculate(Stacked());
-        var moved = PreviewPlacementEngine.Calculate(Stacked(
+        var original = PreviewPlacementEngine.Calculate(Layout());
+        var moved = PreviewPlacementEngine.Calculate(Layout(
             available: Move(Document, -700, 300),
             anchor: Move(Anchor, -700, 300),
             obstacles: new[] { Move(Anchor, -700, 300), Move(Completion, -700, 300) }));
@@ -345,88 +198,11 @@ public sealed class PreviewPlacementEngineTests
     }
 
     [Fact]
-    public void 兩軸都放得下時不回報任何一軸被壓縮()
+    public void 蓋住整個錨點的保留區不算障礙而建議清單仍要讓開()
     {
-        var result = PreviewPlacementEngine.Calculate(Stacked());
-
-        Assert.False(result.WidthConstrained);
-        Assert.False(result.HeightConstrained);
-    }
-
-    [Fact]
-    public void 只有高度不足時不得把寬度也標成被壓縮()
-    {
-        // 一個旗標涵蓋兩軸的話，呼叫端會連使用者真的拖出來的寬度一起丟掉。
-        var document = new PreviewRectangle(0, 0, 1200, 400);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
-            available: document,
-            anchor: new PreviewRectangle(100, 40, 40, 20),
-            obstacles: Array.Empty<PreviewRectangle>()));
-
-        Assert.True(result.HeightConstrained);
-        Assert.False(result.WidthConstrained);
-        Assert.Equal(620, result.Bounds.Width);
-    }
-
-    [Fact]
-    public void 只有寬度不足時不得把高度也標成被壓縮()
-    {
-        var document = new PreviewRectangle(0, 0, 500, 900);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
-            available: document,
-            anchor: new PreviewRectangle(100, 40, 40, 20),
-            obstacles: Array.Empty<PreviewRectangle>()));
-
-        Assert.True(result.WidthConstrained);
-        Assert.False(result.HeightConstrained);
-        Assert.Equal(420, result.Bounds.Height);
-    }
-
-    [Fact]
-    public void 自動延伸的寬度沒有偏好值可言因此永遠不算被壓縮()
-    {
-        // 自動寬度是「延伸到編輯器右側」這個狀態；跟 DesiredWidth 不相等是常態，
-        // 標成被壓縮會讓呼叫端永遠不肯保存使用者拖出來的上下寬度。
-        var document = new PreviewRectangle(0, 0, 700, 900);
-        var result = PreviewPlacementEngine.Calculate(Stacked(
-            available: document,
-            anchor: new PreviewRectangle(400, 40, 40, 20),
-            stretch: true,
-            obstacles: Array.Empty<PreviewRectangle>()));
-
-        Assert.False(result.WidthConstrained);
-        Assert.Equal(document.Right, result.Bounds.Right);
-    }
-
-    [Fact]
-    public void 蓋住整個錨點的保留區不得把側邊擺放逼回上下()
-    {
-        // 平台在建議清單開著時連錨點所在的一整行都保留（下面第一塊，橫跨整個文件寬），
-        // 而側邊擺放的上緣一定對齊錨點上緣，於是左右自由空間被整條切光——症狀是
-        // 設定成側邊卻永遠出現在清單下方，縮到最小尺寸也一樣。數值取自實測記錄。
-        var result = PreviewPlacementEngine.Calculate(Beside(
-            available: new PreviewRectangle(487, 100, 1288, 833),
-            anchor: new PreviewRectangle(601, 100, 24, 18),
-            desiredWidth: 1113,
-            desiredHeight: 833,
-            obstacles: new[]
-            {
-                new PreviewRectangle(487, 100, 1288, 21),
-                new PreviewRectangle(601, 100, 24, 18),
-                new PreviewRectangle(601, 121, 329, 255)
-            }));
-
-        Assert.Equal(PreviewPlacementSide.Right, result.Side);
-        Assert.False(result.UsedFallback);
-        Assert.Equal(934, result.Bounds.Left);
-        Assert.Equal(100, result.Bounds.Top);
-    }
-
-    [Fact]
-    public void 蓋住整個錨點的保留區不得改變上下擺放的落點()
-    {
-        // 排除那一塊之後，真正該讓開的建議清單仍在錨點下方，上下擺放的結果必須一模一樣。
-        var result = PreviewPlacementEngine.Calculate(Stacked(
+        // 平台在建議清單開著時連錨點所在的一整行都保留（下面第一塊，橫跨整個文件寬）；
+        // 排除那一塊之後，真正該讓開的建議清單仍在錨點下方。數值取自實測記錄。
+        var result = PreviewPlacementEngine.Calculate(Layout(
             available: new PreviewRectangle(487, 100, 1288, 833),
             anchor: new PreviewRectangle(601, 100, 24, 18),
             desiredWidth: 1288,
@@ -442,7 +218,7 @@ public sealed class PreviewPlacementEngineTests
         Assert.Equal(380, result.Bounds.Top);
     }
 
-    private static PreviewLayoutRequest Stacked(
+    private static PreviewLayoutRequest Layout(
         PreviewRectangle? available = null,
         PreviewRectangle? anchor = null,
         double desiredWidth = 620,
@@ -451,7 +227,6 @@ public sealed class PreviewPlacementEngineTests
         bool stretch = false,
         IReadOnlyList<PreviewRectangle>? obstacles = null) =>
         Request(
-            SqlPreviewPlacement.Stacked,
             available ?? Document,
             anchor ?? Anchor,
             desiredWidth,
@@ -460,24 +235,7 @@ public sealed class PreviewPlacementEngineTests
             stretch,
             obstacles ?? new[] { Anchor, Completion });
 
-    private static PreviewLayoutRequest Beside(
-        PreviewRectangle? available = null,
-        PreviewRectangle? anchor = null,
-        double desiredWidth = 320,
-        double desiredHeight = 420,
-        IReadOnlyList<PreviewRectangle>? obstacles = null) =>
-        Request(
-            SqlPreviewPlacement.Beside,
-            available ?? Document,
-            anchor ?? Anchor,
-            desiredWidth,
-            desiredHeight,
-            2000,
-            false,
-            obstacles ?? new[] { Anchor, Completion });
-
     private static PreviewLayoutRequest Request(
-        SqlPreviewPlacement placement,
         PreviewRectangle available,
         PreviewRectangle anchor,
         double desiredWidth,
@@ -486,7 +244,6 @@ public sealed class PreviewPlacementEngineTests
         bool stretch,
         IReadOnlyList<PreviewRectangle> obstacles) => new()
     {
-        Placement = placement,
         AvailableBounds = available,
         Anchor = anchor,
         Obstacles = obstacles,
@@ -496,7 +253,7 @@ public sealed class PreviewPlacementEngineTests
         MinimumHeight = 180,
         MaximumWidth = maximumWidth,
         MaximumHeight = 1400,
-        StretchStackedWidth = stretch,
+        StretchWidth = stretch,
         Gap = 4
     };
 

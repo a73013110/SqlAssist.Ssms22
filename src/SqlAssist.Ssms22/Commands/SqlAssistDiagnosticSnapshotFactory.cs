@@ -88,12 +88,9 @@ internal static class SqlAssistDiagnosticSnapshotFactory
 
     private static string FormatPreviewWindowState()
     {
-        var stackedWidth = PreviewWindowState.StackedWidth?.ToString("0", CultureInfo.InvariantCulture)
-                           ?? "自動";
-
-        return $"上下 {stackedWidth}×{PreviewWindowState.StackedHeight.ToString("0", CultureInfo.InvariantCulture)}；" +
-               $"側邊 {PreviewWindowState.BesideWidth.ToString("0", CultureInfo.InvariantCulture)}×" +
-               PreviewWindowState.BesideHeight.ToString("0", CultureInfo.InvariantCulture);
+        var size = PreviewWindowState.Preferred;
+        var width = size.Width?.ToString("0", CultureInfo.InvariantCulture) ?? "自動";
+        return $"{width}×{size.Height.ToString("0", CultureInfo.InvariantCulture)}";
     }
 
     private readonly struct LogState

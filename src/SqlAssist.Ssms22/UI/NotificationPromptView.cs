@@ -64,7 +64,7 @@ internal sealed class NotificationPromptView : Grid
         _position.FontSize = 11; _position.Margin = new Thickness(SqlAssistChrome.Spacing.Group, 0, SqlAssistChrome.Spacing.Tight, 0);
         _position.VerticalAlignment = VerticalAlignment.Center; _position.Visibility = Visibility.Collapsed;
         corner.Children.Add(_position);
-        LaterButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.PromptLater, "M1,1 L11,11 M11,1 L1,11");
+        LaterButton = SqlAssistChrome.CreateNotificationButton(NotificationCatalog.PromptLater, SqlAssistChrome.CrossGlyph);
         LaterButton.Click += (_, _) => Invoke(null);
         corner.Children.Add(LaterButton);
         SetColumn(corner, 2);

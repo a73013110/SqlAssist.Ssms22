@@ -4,7 +4,6 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
-using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 
 namespace SqlAssist.Ssms22.UI;
@@ -60,8 +59,7 @@ internal static partial class SqlAssistChrome
     /// 通知表面的材質：玻璃底、邊緣與點陣快取的單層柔影；高對比退回實色並拿掉柔影。
     /// </summary>
     /// <remarks>
-    /// 柔影掛在只有底色的那一層，不掛在內容上：掛在內容上時文字也會帶著一圈模糊。
-    /// 依 DPI 給快取倍率，150%／200% 才不會糊；捲動或變形之外的影格只是搬一張圖。
+    /// 柔影與浮動預覽同一份（<see cref="SetSurfaceShadow"/>）；玻璃關掉時一起拿掉。
     /// </remarks>
     internal static void ApplyNotificationMaterial(Border surface, UIElement? sheen, bool glass)
     {
@@ -70,33 +68,15 @@ internal static partial class SqlAssistChrome
         {
             surface.SetResourceReference(Border.BackgroundProperty, ThemeResourceSet.NotificationGlassKey);
             surface.SetResourceReference(Border.BorderBrushProperty, ThemeResourceSet.NotificationRimKey);
-            surface.Effect = CreateSurfaceShadow();
         }
         else
         {
             surface.WithTheme(Border.BackgroundProperty, ThemeBrush.ListBackground);
             surface.WithTheme(Border.BorderBrushProperty, ThemeBrush.Border);
-            surface.Effect = null;
         }
 
-        UpdateNotificationShadowCache(surface);
+        SetSurfaceShadow(surface, glass);
     }
-
-    /// <summary>浮在編輯器上的表面的圓角：通知島展開的面板與浮動預覽同一級。</summary>
-    internal const double FloatingSurfaceRadius = 12d;
-
-    /// <summary>
-    /// 浮在編輯器上的表面共用的單層柔影；通知島與浮動預覽同一份。
-    /// </summary>
-    /// <remarks>
-    /// 各自 new 一份的話，兩個表面的影子遲早深淺不一，而它們正是使用者會同時看到的兩個浮層。
-    /// </remarks>
-    internal static DropShadowEffect CreateSurfaceShadow() =>
-        new() { BlurRadius = 16, ShadowDepth = 2, Opacity = 0.14 };
-
-    internal static void UpdateNotificationShadowCache(UIElement surface) =>
-        surface.CacheMode = surface.Effect is null ? null
-            : new BitmapCache { RenderAtScale = VisualTreeHelper.GetDpi(surface).DpiScaleX, SnapsToDevicePixels = true };
 
     /// <summary>
     /// 通知島的附條：貼著卡片底邊、整條可按的一列，上緣一條髮絲線。

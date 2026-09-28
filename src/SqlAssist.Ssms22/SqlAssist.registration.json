@@ -490,20 +490,6 @@
       "additionalKeywords": [ "延遲", "delay", "反應太快", "反應太慢" ],
       "enableWhen": "${config:sqlAssist.structure.previewMode} == 'delay'"
     },
-    "sqlAssist.structure.previewPlacement": {
-      "type": "string",
-      "default": "stacked",
-      "order": 220,
-      "enum": [ "stacked", "beside" ],
-      "enumItemLabels": [
-        "@StructurePreviewPlacementItemStacked;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
-        "@StructurePreviewPlacementItemBeside;{b386e18d-f34b-4db4-a40d-b9092a31d89f}"
-      ],
-      "title": "@StructurePreviewPlacementTitle;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
-      "description": "@StructurePreviewPlacementDescription;{b386e18d-f34b-4db4-a40d-b9092a31d89f}",
-      "additionalKeywords": [ "擺放", "上下", "側邊", "placement", "蓋住程式碼" ],
-      "enableWhen": "${config:sqlAssist.structure.previewMode} != 'off'"
-    },
     "sqlAssist.structure.previewFontSize": {
       "type": "integer",
       "default": 14,

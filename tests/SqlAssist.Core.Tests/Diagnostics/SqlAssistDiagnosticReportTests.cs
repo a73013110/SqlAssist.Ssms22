@@ -148,7 +148,7 @@ public sealed class SqlAssistDiagnosticReportTests
             LogSizeBytes = 2048,
             LogPath = @"C:\Users\PrivateUser\AppData\Local\SqlAssist.Ssms22\SqlAssist.log",
             LogPathForReport = @"%LOCALAPPDATA%\SqlAssist.Ssms22\SqlAssist.log",
-            PreviewWindowState = "上下 自動×420；側邊 560×420"
+            PreviewWindowState = "自動×420"
         };
     }
 }

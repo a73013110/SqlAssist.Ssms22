@@ -44,6 +44,9 @@ public enum PreviewSignal
     /// <summary>錨點那段文字被改了。</summary>
     AnchorEdited,
 
+    /// <summary>捲動讓錨點離開了畫面；切到別的分頁不算，那是整個編輯器看不見。</summary>
+    AnchorScrolledOut,
+
     /// <summary>另一份建議清單開始了。</summary>
     SessionStarted,
 
@@ -63,8 +66,12 @@ public enum PreviewSignal
 /// 平台移除），結果看的是「那一瞬間鍵盤焦點在誰身上」：同樣切到別的程式，點過預覽與
 /// 沒點過的收法不同；指名打開的預覽則完全沒有游標規則，點別行也不收。
 ///
-/// 所以焦點與可見度根本不是訊號：失焦、切到別的程式或分頁、錨點捲出畫面都只是暫時
+/// 所以焦點與整個編輯器的可見度根本不是訊號：失焦、切到別的程式或分頁都只是暫時
 /// 看不見，回來時照原樣出現（由承載視窗自己藏起來再出現），不會走到這裡。
+///
+/// 錨點捲出畫面則是：捲走是使用者自己把視線移開那個名稱，跟游標離開同一回事。只藏
+/// 起來的那一版，捲回去時預覽又自己冒出來，使用者早就不在看它了。清單上展開的不收，
+/// 清單自己也跟著錨點藏起來、捲回去一起回來；釘住的不再錨在名稱上，本來就不受影響。
 /// </remarks>
 public static class PreviewLifecycle
 {
@@ -74,7 +81,7 @@ public static class PreviewLifecycle
         (PreviewMode.Hidden, _) => false,
         (_, PreviewSignal.Dismiss) => true,
         (PreviewMode.Browse, PreviewSignal.SessionEnded or PreviewSignal.SessionStarted) => true,
-        (PreviewMode.Named, PreviewSignal.CaretLeftAnchor or PreviewSignal.AnchorEdited) => true,
+        (PreviewMode.Named, PreviewSignal.CaretLeftAnchor or PreviewSignal.AnchorEdited or PreviewSignal.AnchorScrolledOut) => true,
         _ => false
     };
 
