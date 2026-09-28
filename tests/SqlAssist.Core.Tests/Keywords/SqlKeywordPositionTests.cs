@@ -968,7 +968,7 @@ public sealed class SqlKeywordPositionTests
     [InlineData("MERGE t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.MergeClause)]
     [InlineData("ALTER DATABASE CURRENT SET RECOVERY ", SqlKeywordPosition.SetOptionValue)]
     [InlineData("UPDATE t SET a = 1 ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
-    [InlineData("UPDATE t SET a = 1, ", SqlKeywordPosition.Any)]
+    [InlineData("UPDATE t SET a = 1, ", SqlKeywordPosition.SetTarget)]
     [InlineData("UPDATE t SET a = 1, b ", SqlKeywordPosition.ExpressionTail | SqlKeywordPosition.UpdateSetTail)]
     [InlineData("SET NOCOUNT ON SELECT a FROM t ", SqlKeywordPosition.TableSourceTail)]
     public void SET之後的選項名稱(string textBeforeToken, SqlKeywordPosition expected)

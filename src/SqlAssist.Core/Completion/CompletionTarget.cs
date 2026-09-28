@@ -26,7 +26,11 @@ public enum CompletionTarget
     /// </remarks>
     TableFunction,
 
-    /// <summary>限定字解析成敘述中的資料來源，因此建議該來源的欄位。</summary>
+    /// <summary>限定字解析成敘述中的資料來源，或文法指定了資料行的所屬資料表，因此建議該來源的欄位。</summary>
+    /// <remarks>
+    /// 後者是省略掉的限定字（<c>UPDATE t SET |</c> 與 <c>t.|</c> 同一份），見
+    /// <see cref="SqlCompletionContext.ColumnOwner"/>。
+    /// </remarks>
     Column,
 
     /// <summary>

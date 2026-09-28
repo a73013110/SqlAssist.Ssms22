@@ -85,6 +85,7 @@ WHERE a.Code = c.Code COLLATE | → 定序名稱與 DATABASE_DEFAULT
 | `USE` | 這台伺服器上的資料庫 | 插入名稱 |
 | `COLLATE` | 定序名稱與 `DATABASE_DEFAULT` | 插入名稱 |
 | `FROM a, `、`FROM a, LibArchive.` | 同 `FROM` 那一列 | 插入名稱 |
+| `UPDATE t SET `、`INSERT INTO t (`、`ON t (` 這種資料行的位置 | 那張表的資料行，見[欄位](completion-columns.md#文法指定的所屬資料表) | 插入名稱 |
 | `dbo.`、`[dbo].` | 該結構描述的物件 | 插入名稱 |
 | `LibArchive.dbo.`、`LibArchive..` | 那個資料庫的物件 | 插入名稱 |
 | `[192.0.2.10].[LibArchive].[dbo].` | — | 認得出來，但不給建議 |

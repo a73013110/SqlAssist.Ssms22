@@ -442,7 +442,12 @@ public static class SqlScopeAnalyzer
             aliases.Contains(reference.ObjectName));
     }
 
-    private static bool TryParseTableReference(
+    /// <summary>從 <paramref name="index"/> 讀一個資料來源：名稱或括號、別名與後面的提示，讀到 <paramref name="end"/> 為止。</summary>
+    /// <remarks>
+    /// 開放給同組件是因為資料行的所屬資料表（<c>SqlColumnOwner</c>）也要讀同一種東西；
+    /// 各讀一份的話，其中一邊多認得一種寫法，同一個名稱就會解出兩張表。
+    /// </remarks>
+    internal static bool TryParseTableReference(
         IReadOnlyList<SqlToken> tokens,
         int index,
         int end,

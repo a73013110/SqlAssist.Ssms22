@@ -1,6 +1,6 @@
 # 欄位建議
 
-別名指向哪些來源、範圍在哪裡切開，以及詞元結束後清單要怎麼重開。指令碼自己宣告的
+別名指向哪些來源、文法指定的所屬資料表，以及範圍在哪裡切開。指令碼自己宣告的
 資料表（`#Temp`、`@table`）見[指令碼宣告的資料表](script-tables.md)。
 欄位提交後展開成整句見[展開內容](statement-values.md)，排名與觸發見
 [completion.md](completion.md)。
@@ -46,6 +46,29 @@ SELECT a.| FROM (SELECT c.PUBL_CODE FROM dbo.PUBLISHER c) a
 
 系統檢視（`FROM sys.triggers`）的欄位走同一條路，兩處不同都收斂在中繼資料層，
 見[物件種類](completion-object-kinds.md)。
+
+## 文法指定的所屬資料表
+
+`UPDATE t SET |` 與 `t.|` 要的是同一份資料行：那是省略掉的限定字。只看前文時
+`SqlColumnOwner` 記下寫在那裡的名稱（`SqlCompletionContext.ColumnOwner`），全文分析與限定字
+同一條解法——單段名稱先當別名問範圍（`UPDATE l SET … FROM dbo.Loan l`）——換成
+`Column` 目標。候選集合因此封閉，空前綴就開；清單只有資料行與片語的字（`DROP COLUMN IF EXISTS`），
+工作階段選項（`ROWCOUNT`）不列。
+
+| 位置 | 所屬資料表 |
+|---|---|
+| `UPDATE [TOP (n)] t [WITH (…)] SET `、指派的逗號之後 | `t` |
+| MERGE 的 `THEN UPDATE SET `、`THEN INSERT (` | MERGE 的目標 |
+| `INSERT [INTO] t (`、逗號之後 | `t` |
+| `CREATE INDEX`／`STATISTICS … ON t (`、`INCLUDE (`、`REFERENCES u (` | `t`、`u` |
+| `ALTER TABLE t ALTER COLUMN `／`DROP COLUMN ` | `t` |
+
+不算的位置：`ORDER BY `、`GROUP BY ` 接得了運算式與序號；`EXEC p ` 的位置引數可以直接寫常值，
+`WITH` 也接在那裡（打 `@` 才列參數）；`CREATE TABLE` 的條件約束清單屬於一張還不存在的表。
+指派左邊寫限定字的（`SET t.Fee`）打 `t.` 就重開成同一份，別名本身不列。
+
+`UPDATE t⏎SET` 的 SET 仍是指派：片語前一格的換行只給真的開始一句的字，
+見[子句片語](completion-phrases.md#前一格)。
 
 ## 資料表值函式的別名
 

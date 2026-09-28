@@ -66,6 +66,17 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// </remarks>
     internal const string FilterBarKey = "SqlAssist.FilterBar";
 
+    /// <summary>這份清單那一格的分類（<see cref="SqlCompletionSlot"/>）。</summary>
+    /// <remarks>
+    /// 軟硬選要隨使用者打的字換：空前綴軟選、打了字硬選，可能是名字的那一格一直軟選
+    /// （<see cref="SqlCompletionPolicy.UsesSoftSelection(SqlCompletionSlot, string)"/>）。
+    /// 篩選在排名器裡，那裡只拿得到 session。
+    /// </remarks>
+    internal const string SlotKey = "SqlAssist.Slot";
+
+    /// <summary>目前交給平台的是不是軟選；只在它該換邊時才送選取提示。</summary>
+    internal const string SoftSelectionKey = "SqlAssist.SoftSelection";
+
     /// <summary>建立 <see cref="_builtIn"/> 時所用的那一份 Snippet 清單。</summary>
     private static SqlSnippetLibrary? _builtInSnippets;
 
@@ -319,10 +330,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         // 只有真的產出 SqlAssist items 才取得 ownership；空 context 可能仍由別的來源顯示。
         OwnPreviewSession(session);
 
-        // 軟選只在這裡交出一次：之後的排名一律不改選取提示，使用者按 ↓ 轉成硬選之後
-        // 就一直是硬選。不用建議項（SuggestionItemOptions）表達：有建議項時 Enter 會
-        // 選中它而不換行，那正是軟選要避免的。
-        var selection = SqlCompletionPolicy.UsesSoftSelection(context)
+        // 開清單時的軟硬選在這裡交出，之後只在規則換邊時由排名器改（打了第一個字、刪回空前綴）；
+        // 其餘時候不送選取提示，使用者按 ↓ 轉成的硬選才留得住。不用建議項
+        // （SuggestionItemOptions）表達：有建議項時 Enter 會選中它而不換行，那正是軟選要避免的。
+        var soft = SqlCompletionPolicy.UsesSoftSelection(context);
+        session.Properties[SlotKey] = context.Slot;
+        session.Properties[SoftSelectionKey] = soft;
+        var selection = soft
             ? InitialSelectionHint.SoftSelection
             : InitialSelectionHint.RegularSelection;
 
@@ -552,9 +566,14 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         {
             // 關掉「列出資料庫物件與欄位」等於不對資料庫送出任何查詢，
             // 那時只有欄位名稱寫在指令碼裡的來源（子查詢、CTE）列得出來。
-            return await _metadataService
+            // 片語的字照接上來：DROP COLUMN 之後還有 IF EXISTS。
+            var columns = await _metadataService
                 .GetColumnSuggestionsAsync(context.ColumnSources!, settings.IncludeDatabaseObjects, token)
                 .ConfigureAwait(false);
+
+            return context.ClausePhrase is { } phrase
+                ? columns.Concat(phrase.Suggestions).ToArray()
+                : columns;
         }
 
         // 跨資料庫或跨伺服器的限定字：清單只能來自那個地方。混進本地的物件、

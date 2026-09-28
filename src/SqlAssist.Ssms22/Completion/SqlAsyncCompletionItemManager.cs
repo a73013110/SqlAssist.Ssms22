@@ -88,8 +88,7 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
 
     /// <remarks>
     /// 回傳 null 時平台會關閉 session，只在一項都沒有時這樣做（見 <see cref="SuggestionListView{TItem}.IsEmpty"/>）。
-    /// 選取一律交第 0 項、不帶選取提示（NoChange）：軟選只在來源建清單時決定一次，
-    /// 使用者按 ↓ 轉成硬選之後就一直是硬選。
+    /// 選取一律交第 0 項；軟硬選見 <see cref="SelectionHint"/>。
     /// </remarks>
     private static FilteredCompletionModel? Filter(
         IAsyncCompletionSession session,
@@ -102,11 +101,12 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             ? bar
             : null;
 
+        var typedText = GetTypedText(session, data);
         var view = SuggestionList.Update(
             data.InitialSortedItemList,
             DisplayTextOf,
             SuggestionOf,
-            GetTypedText(session, data),
+            typedText,
             filterBar?.Selected(data.SelectedFilters) ?? SuggestionCategorySet.Empty,
             token);
 
@@ -132,7 +132,41 @@ internal sealed class SqlAsyncCompletionItemManager : IAsyncCompletionItemManage
             ? data.SelectedFilters
             : filterBar.States(view.Applied, view.Matched);
 
-        return new FilteredCompletionModel(builder.MoveToImmutable(), 0, filters);
+        return new FilteredCompletionModel(
+            builder.MoveToImmutable(),
+            0,
+            filters,
+            SelectionHint(session, typedText),
+            centerSelection: true,
+            uniqueItem: null);
+    }
+
+    /// <summary>
+    /// 規則要的軟硬選換邊時才送選取提示，其餘不動（NoChange）。
+    /// </summary>
+    /// <remarks>
+    /// 規則在 <see cref="SqlCompletionPolicy.UsesSoftSelection(SqlCompletionSlot, string)"/>：空白、逗號
+    /// 自己開出來的清單軟選，打了第一個字就轉硬選，Enter 才提交得到篩出來的第一項。
+    /// 每一輪都送的話，使用者按 ↓ 轉成的硬選下一個字就被蓋回軟選。
+    /// 刪回空前綴時換回軟選，與開清單當下同一條。
+    /// </remarks>
+    private static UpdateSelectionHint SelectionHint(IAsyncCompletionSession session, string typedText)
+    {
+        if (!session.Properties.TryGetProperty<SqlCompletionSlot>(SqlAsyncCompletionSource.SlotKey, out var slot) ||
+            !session.Properties.TryGetProperty<bool>(SqlAsyncCompletionSource.SoftSelectionKey, out var wasSoft))
+        {
+            return UpdateSelectionHint.NoChange;
+        }
+
+        var soft = SqlCompletionPolicy.UsesSoftSelection(slot, typedText);
+
+        if (soft == wasSoft)
+        {
+            return UpdateSelectionHint.NoChange;
+        }
+
+        session.Properties[SqlAsyncCompletionSource.SoftSelectionKey] = soft;
+        return soft ? UpdateSelectionHint.SoftSelected : UpdateSelectionHint.Selected;
     }
 
     /// <summary>篩選失敗時的替代值：整份清單原樣交出，按鈕狀態原封不動。</summary>

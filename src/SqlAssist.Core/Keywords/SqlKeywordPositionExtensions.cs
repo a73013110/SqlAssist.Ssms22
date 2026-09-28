@@ -114,6 +114,61 @@ public static class SqlKeywordPositionExtensions
         SqlKeywordPosition.SetOptionValue;
 
     /// <summary>
+    /// 下一個詞元只能是這個位置的字；每一項都要說得出「那裡寫不出標點、常值、新名字或下一句」。
+    /// </summary>
+    /// <remarks>
+    /// 是 <see cref="NoNamePositions"/> 的子集：寫得出名稱的位置由目標或資料行的所屬資料表收斂，
+    /// 不在這裡。
+    /// <list type="bullet">
+    /// <item><c>ORDER |</c>／<c>GROUP |</c> 之後只有 <c>BY</c>；<c>CREATE |</c>／<c>ALTER |</c>／<c>DROP |</c>
+    /// 之後是物件種類；<c>ALTER TABLE t |</c> 之後是動作。</item>
+    /// <item>MERGE 的 <c>WHEN |</c>、<c>THEN |</c>；PIVOT 的 <c>(SUM(x) |</c> 與 <c>FOR y |</c>；
+    /// <c>OFFSET 10 |</c> 之後的 <c>ROWS</c>；函式參數清單之後的 <c>RETURNS</c>。</item>
+    /// <item>觸發程序標頭與事件、游標選項，以及各種 <c>WITH</c> 選項清單的起點與逗號之後。</item>
+    /// </list>
+    ///
+    /// 不在裡面的都有理由：子句尾端（<c>WHERE a |</c>、<c>ORDER BY a |</c>、<c>REFERENCES u (a) |</c>）
+    /// 接得了逗號、運算子或下一句；<c>BEGIN |</c> 之後可以直接寫一句；<c>GRANT SELECT |</c>
+    /// 接得了逗號；<c>SET NOCOUNT |</c> 的值可以是數字或識別字，由子句片語逐一判斷；
+    /// 資料行定義與 <c>ALTER TABLE t ADD |</c> 多半是新名字。
+    /// </remarks>
+    private const SqlKeywordPosition ClosedPositions =
+        SqlKeywordPosition.ByAnchor |
+        SqlKeywordPosition.DdlObject |
+        SqlKeywordPosition.AlterTableAction |
+        SqlKeywordPosition.MergeWhen |
+        SqlKeywordPosition.MergeAction |
+        SqlKeywordPosition.PivotClause |
+        SqlKeywordPosition.OffsetTail |
+        SqlKeywordPosition.FunctionReturns |
+        SqlKeywordPosition.TriggerHeader |
+        SqlKeywordPosition.TriggerEvent |
+        SqlKeywordPosition.CursorOption |
+        SqlKeywordPosition.IndexOption |
+        SqlKeywordPosition.BackupOption |
+        SqlKeywordPosition.RestoreOption |
+        SqlKeywordPosition.ProcedureOption |
+        SqlKeywordPosition.FunctionOption |
+        SqlKeywordPosition.ViewOption |
+        SqlKeywordPosition.TriggerOption |
+        SqlKeywordPosition.ExecuteOption |
+        SqlKeywordPosition.RaiserrorOption |
+        SqlKeywordPosition.ForXmlOption |
+        SqlKeywordPosition.ForJsonOption;
+
+    /// <summary>
+    /// 分析器回報的 <paramref name="caret"/> 裡每一個位置都封閉，見 <see cref="ClosedPositions"/>。
+    /// </summary>
+    /// <remarks>
+    /// 聯集裡只要有一個位置不封閉就不算：<c>WHERE a NOT |</c> 同時是述詞起點，那裡寫得出運算式。
+    /// 判不出位置的 <see cref="SqlKeywordPosition.Any"/> 含著每一個旗標，因此一定不算。
+    /// </remarks>
+    public static bool IsClosed(this SqlKeywordPosition caret)
+    {
+        return caret != SqlKeywordPosition.None && (caret & ~ClosedPositions) == SqlKeywordPosition.None;
+    }
+
+    /// <summary>
     /// 沒有位置旗標的建議項（資料表、程序、欄位、CTE…）能不能出現在 <paramref name="caret"/>。
     /// </summary>
     /// <remarks>

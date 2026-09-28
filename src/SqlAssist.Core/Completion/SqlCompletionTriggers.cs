@@ -36,9 +36,9 @@ public static class SqlCompletionTriggers
     /// 觸發字元數取最小值：走到這裡的字元不是識別字的一部分，前綴一定是空的
     /// ——小老鼠例外，但它的目標一律已經收斂——所以設定值影響不了結果。
     ///
-    /// 也因此不需要看游標後方的文字。完整文字的多載只做一件事——把有限定字
-    /// 而且解析得出別名的情形從 <see cref="CompletionTarget.Any"/> 改成
-    /// <see cref="CompletionTarget.Column"/>；而「有限定字」這一支根本不看目標。
+    /// 也因此不需要看游標後方的文字。完整文字的多載只做一件事——把限定字或資料行的
+    /// 所屬資料表解得開的情形從 <see cref="CompletionTarget.Any"/> 改成
+    /// <see cref="CompletionTarget.Column"/>；而這兩支只看有沒有寫出名稱，不看目標。
     /// 兩條路的結論一樣，就走便宜的那一條。
     /// </remarks>
     public static bool ShouldReopen(string textBeforeCaret)

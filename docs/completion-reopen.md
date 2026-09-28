@@ -72,14 +72,17 @@ SELECT a.N     → 這時才重新問來源，欄位清單終於出現
   「單打一個 `@` 什麼都沒有，`@S` 才有提示」。`@@` 同理，那又是另一份封閉清單。
   判斷與呼叫端共用 `SqlCompletionTriggers.MayChangeContext`：一邊放行、
   另一邊擋掉，等於沒改。
-- 有限定字（`a.`、`dbo.`、`[dbo].`）→ 重開。
-- 前方關鍵字已經指定了物件類別（`FROM `、`JOIN `、`EXEC `、`USE `、
-  `ALTER PROCEDURE `）→ 重開。少了這一條，`SELECT * FROM |` 也要再多打一個字母
-  才列得出資料表——與點號完全同一個病。
-- 其餘（`SELECT `、`COUNT(`、`SELECT a.X, `）→ 不重開。
+- **候選集合封閉**（`SqlCompletionPolicy.IsClosed`：下一個詞元一定是清單上的某一項）→ 重開。
+  線索有四種：限定字（`a.`、`[dbo].`）與左方括號；目標收斂（`FROM `、`EXEC `、`DATEADD(`、
+  封閉片語）；文法指定了資料行的所屬資料表（`UPDATE t SET `，見[欄位](completion-columns.md#文法指定的所屬資料表)）；
+  只接那幾個字的關鍵字位置（`ORDER `、MERGE 的 `THEN `，`SqlKeywordPositionExtensions.IsClosed`）。
+  少了任何一種，那個位置就要多打一個字母才有清單——與點號完全同一個病。
+- 其餘（`SELECT `、`COUNT(`、`ORDER BY `、`WHERE a `）→ 不重開：接得了運算式、常值、
+  逗號或下一句，按一下空白鍵就開的話是整個資料庫。
 
 這幾條與建議來源是同一條參與規則（`SqlCompletionPolicy.Participates`），不另寫一份：
 最後一條是空前綴沒到觸發字元數，`12.` 的點號是數值常值（`Inert`），名字那一格不開。
+自己開出來的清單還沒打字，一律軟選，見[補全](completion.md#清單內容與排名)。
 
 ## 重開清單的三個步驟
 

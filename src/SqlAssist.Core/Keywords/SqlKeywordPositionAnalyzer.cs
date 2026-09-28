@@ -134,9 +134,12 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 一律不猜。
     /// </summary>
     /// <remarks>
-    /// 不直接沿用 <see cref="AfterKeyword"/>：<c>SET</c> 在那裡是
-    /// <c>SET ROWCOUNT</c> 的位置，而 <c>UPDATE t SET a = 1, </c> 之後要的是資料行，
-    /// 兩者只是剛好同一個字。
+    /// 不直接沿用 <see cref="AfterKeyword"/>：那裡是「緊接在這個字後面」，這裡是
+    /// 「這一串清單的下一項」，<c>UPDATE</c>、<c>INTO</c> 這些字只有前一種。
+    ///
+    /// <c>SET</c> 兩種都是同一格：<c>UPDATE t SET a = 1, </c> 與 <c>SET </c> 一樣是
+    /// 指派清單的起點。資料行由 <c>SqlColumnOwner</c> 認出所屬的資料表，
+    /// 這一格的關鍵字（<c>ROWCOUNT</c> 這些）在那裡被資料行目標換掉。
     /// </remarks>
     private static readonly Dictionary<string, SqlKeywordPosition> ListAnchors =
         new(StringComparer.OrdinalIgnoreCase)
@@ -151,6 +154,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
             ["WHERE"] = SqlKeywordPosition.Predicate,
             ["ON"] = SqlKeywordPosition.Predicate,
             ["HAVING"] = SqlKeywordPosition.Predicate,
+            ["SET"] = SqlKeywordPosition.SetTarget,
 
             // 下一項仍然是欄位。
             [OrderBy] = SqlKeywordPosition.OrderByColumn,
@@ -307,7 +311,7 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// <remarks>
     /// 子句片語的 <see cref="SqlClausePhrase.After"/> 問的就是這個：<c>UPDATE t SET </c> 的 SET
     /// 前面是資料來源尾端，接的是資料行，不是工作階段選項。判法與游標處的位置分析同一條，
-    /// 子句寫完又換了行時一樣補上語句開頭。
+    /// 子句寫完又換了行時一樣補上語句開頭——但只在這個字真的開始一句時（<see cref="IsStatementHead"/>）。
     /// </remarks>
     internal static SqlKeywordPosition PositionBefore(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
     {
@@ -317,7 +321,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
         }
 
         var analyzer = new SqlKeywordPositionAnalyzer(tokens, textBeforeToken);
-        return analyzer.AddStatementEnd(analyzer.KeywordsBefore(index), index - 1, tokens[index].Start);
+        var before = analyzer.KeywordsBefore(index);
+        var position = analyzer.AddStatementEnd(before, index - 1, tokens[index].Start);
+
+        // 換行只說下一句「可能」從這裡開始；這個字自己是不是開頭，問語句開頭的判準。
+        // UPDATE t⏎SET 的 SET 是資料行指派，當成開頭的話片語會列出 NOCOUNT 這些工作階段選項。
+        return (before & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None &&
+            !analyzer.IsStatementHead(index)
+                ? position & ~SqlKeywordPosition.StatementStart
+                : position;
     }
 
     /// <summary><paramref name="index"/> 的詞元前面那一格的位置，不含換行補上的語句開頭。</summary>

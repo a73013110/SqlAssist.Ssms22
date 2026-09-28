@@ -181,6 +181,12 @@ public static class SqlCompletionContextAnalyzer
             target = CompletionTarget.DataSource;
         }
 
+        // UPDATE t SET |、INSERT INTO t (| 要的是 t 的資料行：那是省略掉的限定字，
+        // 與 t.| 一樣只記下寫了什麼，別名要到看得見游標後方的全文分析才解得開。
+        var columnOwner = target == CompletionTarget.Any && qualifierPath is null
+            ? SqlColumnOwner.Find(tokens, keywordPosition)
+            : null;
+
         return new SqlCompletionContext(
             caret.Slot,
             tokenStart,
@@ -193,7 +199,8 @@ public static class SqlCompletionContextAnalyzer
             keywordPosition,
             qualifierStart: qualifierStart,
             clausePhrase: caret.Phrase,
-            startsBatch: caret.StartsBatch);
+            startsBatch: caret.StartsBatch,
+            columnOwner: columnOwner);
     }
 
     /// <summary>
@@ -259,6 +266,11 @@ public static class SqlCompletionContextAnalyzer
         var resolver = new SqlColumnSourceResolver(sql, tokens);
         var withScope = context.WithScopeSources(resolver.ResolveAvailable(scope.Tables));
 
+        if (context.ColumnOwner is { } owner && ResolveColumnOwner(owner, scope, resolver) is { } ownerColumns)
+        {
+            return withScope.AsColumnsOf(ownerColumns);
+        }
+
         if (context.QualifierPath is null)
         {
             // CTE、暫存資料表、資料表變數與暫存程序只存在於這份指令碼裡，中繼資料查不到它們。
@@ -300,6 +312,28 @@ public static class SqlCompletionContextAnalyzer
         var columns = resolver.Resolve(table);
 
         return columns is null ? withScope : withScope.AsColumnsOf(columns);
+    }
+
+    /// <summary>
+    /// 攤平文法指定的資料行所屬資料表；解不開時回傳 null，清單照一般位置列。
+    /// </summary>
+    /// <remarks>
+    /// 與限定字同一條解法：單段的名稱先當別名問敘述範圍（<c>UPDATE l SET … FROM dbo.Loan l</c>），
+    /// 問不到才是它自己。
+    /// </remarks>
+    private static IReadOnlyList<SqlColumnSource>? ResolveColumnOwner(
+        SqlTableReference owner,
+        SqlStatementScope scope,
+        SqlColumnSourceResolver resolver)
+    {
+        var table = owner.SchemaName is null &&
+            owner.DatabaseName is null &&
+            owner.ServerName is null &&
+            scope.TryResolve(owner.ObjectName, out var found)
+                ? found
+                : owner;
+
+        return resolver.Resolve(table);
     }
 
     /// <summary>

@@ -28,7 +28,8 @@ public sealed class SqlCompletionContext
         SqlClausePhraseMatch? clausePhrase = null,
         bool startsBatch = false,
         bool expectsScalar = false,
-        bool bracketed = false)
+        bool bracketed = false,
+        SqlTableReference? columnOwner = null)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -47,6 +48,7 @@ public sealed class SqlCompletionContext
         StartsBatch = startsBatch;
         ExpectsScalar = expectsScalar;
         Bracketed = bracketed;
+        ColumnOwner = columnOwner;
     }
 
     /// <summary>
@@ -123,6 +125,16 @@ public sealed class SqlCompletionContext
     /// <see cref="SqlTableReference"/> 表示不了。
     /// </remarks>
     public IReadOnlyList<SqlColumnSource>? ColumnSources { get; }
+
+    /// <summary>
+    /// 文法指定這一格是哪一張資料表的資料行（<c>UPDATE t SET |</c>、<c>INSERT INTO t (|</c>…）；
+    /// 寫的是游標前的那個名稱，別名還沒解開。
+    /// </summary>
+    /// <remarks>
+    /// 是省略掉的限定字：只看游標前文時與 <see cref="QualifierPath"/> 一樣只記下寫了什麼，
+    /// 全文分析解得開時把目標換成 <see cref="CompletionTarget.Column"/>。位置見 <c>SqlColumnOwner</c>。
+    /// </remarks>
+    public SqlTableReference? ColumnOwner { get; }
 
     /// <summary>
     /// 敘述在游標處看得到的所有欄位來源。
@@ -301,6 +313,7 @@ public sealed class SqlCompletionContext
             ClausePhrase,
             StartsBatch,
             ExpectsScalar,
-            bracketed ?? Bracketed);
+            bracketed ?? Bracketed,
+            ColumnOwner);
     }
 }

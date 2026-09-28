@@ -94,16 +94,17 @@ public sealed class SqlCompletionContextAnalyzerTests
     /// <remarks>
     /// 位置分析找子句錨點時會穿過還沒關上的左括號，於是這裡的逗號也拿到資料來源
     /// 的位置。跟著把目標改成資料來源的話，<c>INSERT INTO T (a, </c> 會列出整個
-    /// 資料庫的資料表，而那一格文法上只接得了 T 的資料行。
+    /// 資料庫的資料表，而那一格文法上只接得了 T 的資料行（見 <see cref="SqlColumnOwnerTests"/>）。
     /// </remarks>
     [Theory]
     [InlineData("INSERT INTO dbo.T (a, ")]
     [InlineData("INSERT INTO dbo.T (a, b, ")]
     public void INSERT的資料行清單不是資料來源(string textBeforeCaret)
     {
-        Assert.Equal(
-            CompletionTarget.Any,
-            SqlCompletionContextAnalyzer.Analyze(textBeforeCaret).Target);
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret);
+
+        Assert.Equal(CompletionTarget.Any, context.Target);
+        Assert.Equal("T", context.ColumnOwner?.ObjectName);
     }
 
     /// <summary>

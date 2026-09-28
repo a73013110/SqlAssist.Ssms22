@@ -33,14 +33,14 @@
 ## 名稱位置三分類
 
 分析器在同一趟反向走訪裡替游標那一格分類（`SqlCompletionSlot`）；開不開、選不選只看
-`SqlCompletionPolicy` 一條規則。開的兩類還要有限定字、目標已收斂，或前綴達到觸發字元數。
+`SqlCompletionPolicy` 一條規則。開的兩類還要候選集合封閉或前綴達到觸發字元數。
 
 | 分類 | 意思 | 例子 | 清單 |
 |---|---|---|---|
 | `Inert` | 不可補 | 字串、註解、`10`、`1.` | 不開 |
 | `Name` | 一定是新名字 | `AS `、`DECLARE @`、`CREATE PROCEDURE ` | 不開 |
 | `MaybeName` | 名字或關鍵字都可能 | `FROM dbo.T `、`SELECT PublCode ` | 開，軟選 |
-| `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，硬選 |
+| `Grammar` | 其餘 | `SELECT `、`WHERE a = ` | 開，打了字才硬選 |
 
 `Name` 的清單沒有一項會對，Enter 只會把剛打的 `a` 換成 `ALTER PROCEDURE`。
 `MaybeName` 的 `FROM dbo.T W` 可能是別名也可能是打到一半的 `WHERE`：軟選時只有 Tab 提交，
