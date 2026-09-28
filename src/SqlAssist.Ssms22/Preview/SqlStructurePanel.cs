@@ -10,7 +10,6 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.VisualStudio.Imaging;
 using Microsoft.VisualStudio.PlatformUI;
@@ -628,20 +627,6 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             ToolTip = PreviewText.LoadFailedToolTip
         };
 
-        // 一顆箭頭管寫法與說明兩段：MERGE 的寫法有七行，平常攤開就把分頁擠到視窗下半。收著時每段
-        // 一行、全文在 Tooltip，要讀的人按一下攤開。兩段各一顆的話，抬頭多兩個按鈕卻只是同一件事。
-        // 它跟在膠囊後面，所以要在膠囊列組起來之前建好。
-        _leadToggle = SqlAssistChrome.CreateChevronButton(PreviewText.LeadExpand, _leadExpanded);
-        _leadToggle.MinWidth = 20;
-        _leadToggle.MinHeight = 20;
-        _leadToggle.Padding = new Thickness(2);
-        _leadToggle.Visibility = Visibility.Collapsed;
-        _leadToggle.Click += (_, _) => SqlAssistPlatformGuard.Run("切換預覽抬頭的展開", () =>
-        {
-            _leadExpanded = !_leadExpanded;
-            ApplyLead();
-        });
-
         var pills = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -656,8 +641,6 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             pill.Visibility = Visibility.Collapsed;
             pills.Children.Add(pill);
         }
-
-        pills.Children.Add(_leadToggle);
 
         // 靠左而且膠囊先停：整列只量自己的寬度，放得下時膠囊緊跟在名稱後面；
         // 放不下時讓的是可以省略的名稱，膠囊不被擠出這一列。
@@ -676,6 +659,20 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _description = SqlAssistChrome.CreateMetadataText(string.Empty, SqlAssistChrome.DefaultMetrics);
         _description.Margin = new Thickness(0, 3, 0, 0);
         _description.Visibility = Visibility.Collapsed;
+
+        // 一個「更多／收起」管寫法與說明兩段：MERGE 的寫法有七行，平常攤開就把分頁擠到視窗下半。
+        // 收著時每段一行、全文在 Tooltip，要讀的人按一下攤開。它貼在這兩段最後一行的尾端，就是字被
+        // 截斷的地方；兩段各一個的話，抬頭多兩個按鈕卻只是同一件事。
+        _leadToggle = SqlAssistChrome.CreateLinkButton(PreviewText.LeadMore);
+        _leadToggle.Focusable = false;
+        _leadToggle.VerticalAlignment = VerticalAlignment.Bottom;
+        _leadToggle.Margin = new Thickness(SqlAssistChrome.Spacing.Tight, 0, 0, 0);
+        _leadToggle.Visibility = Visibility.Collapsed;
+        _leadToggle.Click += (_, _) => SqlAssistPlatformGuard.Run("切換預覽抬頭的展開", () =>
+        {
+            _leadExpanded = !_leadExpanded;
+            ApplyLead();
+        });
 
         _status = SqlAssistChrome.CreateStatusText(SqlAssistChrome.DefaultMetrics);
         _status.Margin = new Thickness(24, 0, 24, 6);
@@ -849,19 +846,30 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         tools.Children.Add(copy);
         SqlAssistChrome.SetTabStripTrailing(_tabs, tools);
 
-        var headerText = new StackPanel();
-        headerText.Children.Add(titleRow);
-        headerText.Children.Add(_signature);
-        headerText.Children.Add(_description);
+        // 寫法與說明疊成一欄，「更多／收起」自成一欄靠底：不論收著或攤開，它都接在最後一行後面，
+        // 而字讓出它的寬度，截斷的省略號不會壓在它底下。
+        var leadText = new StackPanel();
+        leadText.Children.Add(_signature);
+        leadText.Children.Add(_description);
+        var lead = new Grid();
+        lead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        lead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(_leadToggle, 1);
+        lead.Children.Add(leadText);
+        lead.Children.Add(_leadToggle);
 
-        // 放不放得下一行要看寬度：視窗縮放時重新判斷箭頭要不要出現。
-        headerText.SizeChanged += (_, eventArgs) =>
+        // 放不放得下一行要看這一欄的寬度：視窗縮放、連結出現或收掉時都重新判斷一次。
+        leadText.SizeChanged += (_, eventArgs) =>
         {
             if (eventArgs.WidthChanged)
             {
                 SqlAssistPlatformGuard.Run("重新判斷預覽抬頭是否收著內容", UpdateLeadToggle);
             }
         };
+
+        var headerText = new StackPanel();
+        headerText.Children.Add(titleRow);
+        headerText.Children.Add(lead);
 
         // 抬頭右側留一格給宿主：浮動預覽放圖釘、移到工具視窗與關閉，工具視窗什麼都不放。
         // 按鈕不在這裡建，因為那幾顆回答的是「這扇窗怎麼收」，而那只有宿主知道。
@@ -1469,19 +1477,22 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
             block.ToolTip = expanded || full.Length == 0 ? null : full;
         }
 
-        var label = expanded ? PreviewText.LeadCollapse : PreviewText.LeadExpand;
-        _leadToggle.ToolTip = label;
-        AutomationProperties.SetName(_leadToggle, label);
-        SqlAssistChrome.SetChevronExpanded((Path)_leadToggle.Content, expanded);
+        var text = expanded ? PreviewText.LeadLess : PreviewText.LeadMore;
+        var help = expanded ? PreviewText.LeadCollapse : PreviewText.LeadExpand;
+        _leadToggle.Content = text;
+        _leadToggle.ToolTip = help;
+        AutomationProperties.SetName(_leadToggle, text);
+        AutomationProperties.SetHelpText(_leadToggle, help);
         UpdateLeadToggle();
     }
 
     /// <summary>
-    /// 箭頭只在有東西收著時出現：寫法不只一行，或寫法、說明有一段放不進一行。
+    /// 「更多／收起」只在有東西收著時出現：寫法不只一行，或寫法、說明有一段放不進一行。
     /// </summary>
     /// <remarks>
-    /// 一律顯示的話，一行就寫完的 <c>smallint</c> 也有一顆按了沒反應的箭頭。放不放得下看的是
-    /// 單行寬度，與目前收著還是攤開無關，所以攤開之後箭頭還在，收得回去。
+    /// 一律顯示的話，一行就寫完的 <c>smallint</c> 後面也跟著一個按了沒反應的「更多」。放不放得下看的是
+    /// 單行寬度，與目前收著還是攤開無關，所以攤開之後「收起」還在。量的是扣掉連結之後的欄寬：
+    /// 連結出現讓欄變窄只會更放不下，收掉讓欄變寬的前提是本來就放得下，所以不會出現一顯一藏的來回。
     /// </remarks>
     private void UpdateLeadToggle()
     {
@@ -2153,6 +2164,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         _title.FontSize = _metrics.Title;
         _signature.FontSize = _metrics.Caption;
         _description.FontSize = _metrics.Caption;
+        _leadToggle.FontSize = _metrics.Caption;
         _status.FontSize = _metrics.Caption;
         _tabs.FontSize = _metrics.Body;
 

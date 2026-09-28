@@ -69,6 +69,7 @@ public sealed class ThemePaletteTests
         {
             Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.DimForeground], background) >= 4.5);
             Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.ListForeground], background) >= 4.5);
+            Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.LinkForeground], background) >= 4.5);
             foreach (var role in new[] { ThemeBrush.RowHover, ThemeBrush.RowSelected, ThemeBrush.RowPressed })
             {
                 Assert.True(ThemeColorMath.Contrast(colors[ThemeBrush.SelectedForeground],

@@ -85,17 +85,50 @@ internal static partial class SqlAssistChrome
     /// 只有一顆展開箭頭的幽靈鈕：停駐才顯色，不另畫外框。
     /// </summary>
     /// <remarks>
-    /// 下拉建議的開關與預覽抬頭的「展開完整說明」共用：兩處都是「這裡還有收著的東西」，
-    /// 箭頭的方向就是狀態。按下之後轉向交給 <see cref="SetChevronExpanded"/>，箭頭是
-    /// <see cref="ContentControl.Content"/> 本身。
+    /// 輸入列尾端的「打開下拉建議」：箭頭指的是底下會掉出來的那一張面板。一段收著的字要攤開時
+    /// 不用它——單獨一顆箭頭讀起來是「進入」或「下拉選單」，那裡用 <see cref="CreateLinkButton"/>。
     /// </remarks>
-    public static Button CreateChevronButton(string label, bool expanded = true)
+    public static Button CreateChevronButton(string label)
     {
         var button = CreateButton("", DefaultMetrics);
-        button.Template = CreateGhostButtonTemplate();
-        button.Content = CreateChevron(expanded); button.Padding = new Thickness(4);
+        button.Content = CreateChevron(); button.Padding = new Thickness(4);
         button.MinWidth = 26; button.MinHeight = 26; button.Focusable = false;
         button.ToolTip = label; AutomationProperties.SetName(button, label);
+        return button;
+    }
+
+    /// <summary>
+    /// 一段可以按的字：連結色，停駐或按下時加底線，沒有底色與外框。
+    /// </summary>
+    /// <remarks>
+    /// 給貼在一段文字尾端的「更多／收起」這一類動作：它是那段字的延續，畫成幽靈鈕的話停駐時
+    /// 長出一塊底色，比旁邊的字還搶眼。字直接是樣板本身，底線才掛得上去；透明底讓整個字框都按得到，
+    /// 不只筆畫。字色走 <see cref="ThemeBrush.LinkForeground"/>，高對比時沿用前景、只靠底線辨識。
+    /// </remarks>
+    public static Button CreateLinkButton(string text)
+    {
+        var label = new FrameworkElementFactory(typeof(TextBlock)) { Name = "text" };
+        label.SetValue(TextBlock.BackgroundProperty, Brushes.Transparent);
+        label.SetBinding(TextBlock.TextProperty, TemplatedParent(nameof(ContentControl.Content)));
+        label.SetBinding(TextBlock.ForegroundProperty, TemplatedParent(nameof(Control.Foreground)));
+        label.SetBinding(TextBlock.PaddingProperty, TemplatedParent(nameof(Control.Padding)));
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = label };
+        foreach (var property in new[] { UIElement.IsMouseOverProperty, ButtonBase.IsPressedProperty })
+        {
+            var trigger = new Trigger { Property = property, Value = true };
+            trigger.Setters.Add(new Setter(TextBlock.TextDecorationsProperty, TextDecorations.Underline, "text"));
+            template.Triggers.Add(trigger);
+        }
+
+        var style = new Style(typeof(Button));
+        style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.LinkForeground));
+        var button = new Button
+        {
+            Content = text, Template = template, Style = style,
+            FontFamily = InterfaceFont, FontSize = DefaultMetrics.Caption, Padding = new Thickness(0)
+        };
+        SetClickCursor(button);
+        AutomationProperties.SetName(button, text);
         return button;
     }
 
@@ -123,7 +156,6 @@ internal static partial class SqlAssistChrome
             MinHeight = 26,
             ToolTip = label
         };
-        SetClickCursor(toggle);
         AutomationProperties.SetName(toggle, label);
         return toggle;
     }
@@ -132,12 +164,21 @@ internal static partial class SqlAssistChrome
     /// 按得下去的東西停駐時顯示手形。
     /// </summary>
     /// <remarks>
-    /// 圖示鈕平時沒有邊框，只看游標分不出哪裡能按；擺在可拖曳的抬頭上時更糟——游標從父代
+    /// 幽靈鈕平時沒有邊框，只看游標分不出哪裡能按；擺在可拖曳的抬頭上時更糟——游標從父代
     /// 繼承搬動的十字箭頭，按鈕與空白處一個樣子。停用的不必另外換回箭頭：WPF 的輸入命中測試
-    /// 跳過停用的元素，游標自然由父代決定。以前通知另寫一份含停用觸發的樣式，只有通知島有手形。
+    /// 跳過停用的元素，游標自然由父代決定。
+    ///
+    /// 手形跟著<b>外觀的來源</b>走，不由呼叫端各自補：<see cref="CreateButton"/>、
+    /// <see cref="CreateLinkButton"/> 與通知附條在建出來時套上，開關、篩選下拉、膠囊選項與清單頁尾
+    /// 寫在它們的樣式裡（<see cref="ClickCursorSetter"/>），清單列上的操作鈕寫在列樣板裡。以前只有
+    /// 圖示鈕與通知有手形，文字按鈕、開關與列操作全是箭頭——同一排按鈕一半是手形、一半不是。
+    /// 核取方塊與選項圓鈕維持箭頭，那是桌面程式的慣例。
     /// </remarks>
     internal static void SetClickCursor(FrameworkElement element) =>
         element.Cursor = System.Windows.Input.Cursors.Hand;
+
+    /// <summary><see cref="SetClickCursor"/> 的樣式版；由樣式建出來的按鈕在樣式裡帶手形。</summary>
+    internal static Setter ClickCursorSetter() => new(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand);
 
     /// <summary>
     /// 範圍列最左邊那一顆：把範圍換成查詢視窗的連線。SQL Search 與 SQL Memory 共用。
@@ -167,7 +208,6 @@ internal static partial class SqlAssistChrome
         var button = CreateButton("", DefaultMetrics);
         button.Content = CreateIcon(icon); button.ToolTip = label;
         button.Padding = new Thickness(5); button.MinWidth = 26; button.MinHeight = 26;
-        SetClickCursor(button);
         if (tone != SqlActionTone.Neutral) button.Template = CreateGhostButtonTemplate(tone);
         AutomationProperties.SetName(button, label);
         return button;

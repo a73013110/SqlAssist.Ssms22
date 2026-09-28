@@ -30,6 +30,10 @@ internal enum ThemeBrush
     BadgeBackground,
     AccentBackground,
     AccentBorder,
+
+    /// <summary>可以按的一段字（<see cref="SqlAssistChrome.CreateLinkButton"/>）；強調色相，在內容與視窗兩種底色上都過 4.5:1。</summary>
+    LinkForeground,
+
     MatchBackground,
     MatchForeground,
     MatchCurrentBackground,

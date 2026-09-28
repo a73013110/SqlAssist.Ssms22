@@ -188,6 +188,7 @@ internal static partial class SqlAssistChrome
         button.SetValue(FrameworkElement.TagProperty, action); button.SetValue(FrameworkElement.ToolTipProperty, label);
         button.SetValue(AutomationProperties.NameProperty, label);
         button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate(tone)); button.SetValue(Control.PaddingProperty, new Thickness(3));
+        button.SetValue(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand);
         // 動作列不再有實色底，前景必須跟隨卡片的 hover／selected 配對色（尤其高對比）。
         button.SetBinding(Control.ForegroundProperty, OwnerForeground());
         button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
@@ -402,6 +403,7 @@ internal static partial class SqlAssistChrome
         button.SetValue(AutomationProperties.NameProperty, OverflowLabel);
         button.SetValue(Control.TemplateProperty, CreateGhostButtonTemplate());
         button.SetValue(Control.PaddingProperty, new Thickness(3));
+        button.SetValue(FrameworkElement.CursorProperty, System.Windows.Input.Cursors.Hand);
         button.SetBinding(Control.ForegroundProperty, OwnerForeground());
         button.SetValue(FrameworkElement.WidthProperty, 24d); button.SetValue(FrameworkElement.HeightProperty, 22d);
         button.SetValue(FrameworkElement.MarginProperty, new Thickness(6, 0, 0, 0));
@@ -488,6 +490,7 @@ internal static partial class SqlAssistChrome
         disabled.Setters.Add(new Setter(UIElement.OpacityProperty, 0.7, "pill")); template.Triggers.Add(disabled);
         var style = new Style(typeof(Button));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ClickCursorSetter());
         return new Button
         {
             Template = template, Style = style, FontFamily = InterfaceFont, FontSize = DefaultMetrics.Caption,

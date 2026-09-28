@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
-using System.Windows.Input;
 using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Ssms22.UI;
@@ -38,7 +37,6 @@ internal static partial class SqlAssistChrome
         surface.Content = text;
         surface.Padding = new Thickness(8, 4, 8, 4);
         surface.ToolTip = ChromeText.ReturnToBlockStart;
-        surface.Cursor = Cursors.Hand;
         surface.Focusable = false;
         surface.IsTabStop = false;
         surface.WithTheme(Control.ForegroundProperty, ThemeBrush.BlockHintForeground)

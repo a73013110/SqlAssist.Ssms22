@@ -330,8 +330,12 @@ public sealed class SqlAssistChromeTests
     /// <summary>
     /// 按得下去的東西自己是手形：擺在可拖曳的抬頭上時，不能從父代繼承搬動游標。
     /// </summary>
+    /// <remarks>
+    /// 手形跟著外觀的來源走：每一種按鈕工廠與樣式各挑一個代表。以前只有圖示鈕與通知有手形，
+    /// 文字按鈕、開關、篩選下拉、列操作與清單頁尾都是箭頭。
+    /// </remarks>
     [Fact]
-    public void 圖示鈕圖示開關與通知按鈕自己是手形()
+    public void 每一種按鈕自己是手形()
     {
         WpfTest.Run(() =>
         {
@@ -339,13 +343,52 @@ public sealed class SqlAssistChromeTests
             SqlAssistChrome.ApplyNotificationStrip(strip);
             var clickable = new FrameworkElement[]
             {
+                SqlAssistChrome.CreateButton("確定", SqlAssistChrome.DefaultMetrics),
                 SqlAssistChrome.CreateIconButton(SqlIcon.Close, "關閉"),
+                SqlAssistChrome.CreateChevronButton("選擇伺服器"),
+                SqlAssistChrome.CreateLinkButton("更多"),
                 SqlAssistChrome.CreateIconToggle(SqlIcon.Pin, "釘住"),
+                SqlAssistChrome.CreateSearchToggle(SqlIcon.MatchCase, "大小寫", "大小寫"),
+                new ToggleButton { Style = SqlAssistChrome.CreateSegmentToggleStyle() },
+                new RadioButton { Style = SqlAssistChrome.CreateMemoryPillStyle() },
+                new Button { Style = SqlAssistChrome.CreateFilterButtonStyle() },
+                SqlAssistChrome.CreateListPagerButton(),
                 SqlAssistChrome.CreateNotificationButton("關閉", "M 0,0 L 10,10"),
                 strip
             };
 
             Assert.All(clickable, element => Assert.Same(System.Windows.Input.Cursors.Hand, element.Cursor));
+
+            // 清單列上的操作鈕是列樣板的一部分，建出一列來看。
+            var actions = new FrameworkElementFactory(typeof(StackPanel));
+            SqlAssistChrome.AppendRowActionButton(actions, "remove", "remove", SqlIcon.Remove, "移除",
+                SqlActionTone.Danger, separated: false);
+            actions.AppendChild(SqlAssistChrome.CreateRowOverflowButton());
+            var template = new DataTemplate { VisualTree = actions };
+            template.Seal();
+            var row = (StackPanel)template.LoadContent();
+            Assert.All(row.Children.OfType<Button>(), button => Assert.Same(System.Windows.Input.Cursors.Hand, button.Cursor));
+            Assert.Equal(2, row.Children.OfType<Button>().Count());
+        });
+    }
+
+    /// <summary>
+    /// 連結是一段字：停駐才有底線，沒有幽靈鈕那一塊停駐底色。
+    /// </summary>
+    [Fact]
+    public void 連結按鈕停駐加底線且走連結色()
+    {
+        WpfTest.Run(() =>
+        {
+            var link = SqlAssistChrome.CreateLinkButton("更多");
+
+            Assert.Equal("更多", AutomationProperties.GetName(link));
+            Assert.Equal(typeof(TextBlock), link.Template.VisualTree.Type);
+            var hover = Assert.Single(link.Template.Triggers.OfType<Trigger>(), trigger => trigger.Property == UIElement.IsMouseOverProperty);
+            var underline = Assert.Single(hover.Setters.OfType<Setter>());
+            Assert.Equal(TextBlock.TextDecorationsProperty, underline.Property);
+            Assert.DoesNotContain(link.Template.Triggers.OfType<Trigger>().SelectMany(trigger => trigger.Setters.OfType<Setter>()),
+                setter => setter.Property == Border.BackgroundProperty || setter.Property == TextBlock.BackgroundProperty);
         });
     }
 

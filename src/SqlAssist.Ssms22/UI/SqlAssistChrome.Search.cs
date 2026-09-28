@@ -329,6 +329,7 @@ internal static partial class SqlAssistChrome
         style.Setters.Add(new Setter(Control.FocusVisualStyleProperty, null));
         style.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 22d));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.DimForeground));
+        style.Setters.Add(ClickCursorSetter());
         return style;
     }
 
@@ -411,6 +412,7 @@ internal static partial class SqlAssistChrome
         style.Setters.Add(new Setter(FrameworkElement.MinHeightProperty, 22d));
         style.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
+        style.Setters.Add(ClickCursorSetter());
         return style;
     }
 

@@ -22,7 +22,6 @@ internal static partial class SqlAssistChrome
         var button = CreateButton(name, DefaultMetrics);
         // 點擊區比 10 DIP 的筆畫大一圈；筆畫置中，右緣與列上的文字收在同一條線（NotificationLayout.TextEnd）。
         button.Width = NotificationLayout.CloseButton; button.Height = NotificationLayout.CloseButton; button.MinWidth = 0;
-        SetClickCursor(button);
         button.Padding = new Thickness(0); button.Margin = new Thickness(0);
         SetButtonName(button, name);
         button.Content = new Path

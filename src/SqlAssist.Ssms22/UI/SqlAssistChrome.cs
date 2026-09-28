@@ -609,7 +609,7 @@ internal static partial class SqlAssistChrome
         // 預設前景不可放 local value，否則樣板的 hover／focus 配對色無法覆寫。
         var style = new Style(typeof(Button));
         style.Setters.Add(ThemeResourceSet.Setter(Control.ForegroundProperty, ThemeBrush.ListForeground));
-        return new Button
+        var button = new Button
         {
             Content = text,
             Padding = new Thickness(12, 4, 12, 5),
@@ -617,6 +617,8 @@ internal static partial class SqlAssistChrome
             FontSize = metrics.Body, Style = style,
             Template = primary ? CreatePrimaryButtonTemplate() : CreateGhostButtonTemplate()
         };
+        SetClickCursor(button);
+        return button;
     }
 
     /// <summary>精簡確認內容：影響說明與單一頁尾，不重複原生標題列。</summary>
