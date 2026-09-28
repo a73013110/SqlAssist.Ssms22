@@ -37,7 +37,7 @@
         {
           "id": "style-compare",
           "title": "常用 style 對照",
-          "sql": "SELECT\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 101) AS s101,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 112) AS s112,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 120) AS s120,\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 126) AS s126\n  -- '09/08/2026', '20260908', '2026-09-08 21:30:00', '2026-09-08T21:30:00.000'"
+          "sql": "SELECT\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 101) AS s101,   -- '09/08/2026'\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 108) AS s108,   -- '21:30:00'\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 112) AS s112,   -- '20260908'\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 120) AS s120,   -- '2026-09-08 21:30:00'\n  CONVERT(varchar(30), CAST('2026-09-08 21:30:00' AS datetime), 126) AS s126    -- '2026-09-08T21:30:00.000'"
         },
         {
           "id": "silent-truncate",
@@ -92,6 +92,11 @@
           "id": "default-value",
           "title": "提供預設值",
           "sql": "DECLARE @Reader TABLE (ReaderId int, NickName nvarchar(20));\nINSERT INTO @Reader VALUES (1, NULL);\nSELECT ISNULL(NickName, N'(未設定)') FROM @Reader   -- '(未設定)'"
+        },
+        {
+          "id": "vs-coalesce",
+          "title": "與 COALESCE 對照",
+          "sql": "DECLARE @s varchar(2) = NULL, @Code varchar(10) = 'A01';\nSELECT ISNULL(@s, 'abc') AS [ISNULL], COALESCE(@s, 'abc') AS [COALESCE];   -- 'ab' | 'abc'\nSELECT ISNULL(@Code, 0) AS [ISNULL];   -- 'A01'；換成 COALESCE(@Code, 0) 會報錯"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/functions/isnull-transact-sql"
@@ -99,7 +104,7 @@
     {
       "name": "COALESCE",
       "kind": "function",
-      "summary": "回傳第一個不是 NULL 的值，個數不限。回傳型別取優先順序最高者，不像 ISNULL 會被截斷。",
+      "summary": "回傳第一個不是 NULL 的值，個數不限。型別取全部引數中優先順序最高者：不會截斷，但連第一個引數也可能被轉型而報錯。",
       "examples": [
         {
           "id": "basic",
@@ -107,14 +112,19 @@
           "sql": "SELECT COALESCE(NULL, NULL, 'abc')   -- 'abc'"
         },
         {
-          "id": "no-truncate",
-          "title": "不像 ISNULL 會截斷",
-          "sql": "SELECT COALESCE(CAST(NULL AS varchar(2)), 'abc')   -- 'abc'，不會截斷成 'ab'"
+          "id": "vs-isnull",
+          "title": "與 ISNULL 對照：不截斷",
+          "sql": "DECLARE @s varchar(2) = NULL;\nSELECT ISNULL(@s, 'abc') AS [ISNULL], COALESCE(@s, 'abc') AS [COALESCE]   -- 'ab' | 'abc'"
         },
         {
-          "id": "type-mismatch-fails",
-          "title": "型別不相容會報錯",
-          "sql": "SELECT COALESCE(NULL, 1, 'x')   -- 錯誤：'x' 轉不成 int；型別由優先順序決定"
+          "id": "type-from-all-args",
+          "title": "型別看全部引數，不只傳回的那個",
+          "sql": "DECLARE @Code varchar(10) = 'A01';\nSELECT ISNULL(@Code, 0) AS [ISNULL];       -- 'A01'\nSELECT COALESCE(@Code, 0) AS [COALESCE];   -- 錯誤：@Code 不是 NULL，但型別取 int，'A01' 轉不成 int"
+        },
+        {
+          "id": "same-type-fallback",
+          "title": "替代值寫成同一型別",
+          "sql": "DECLARE @Code varchar(10) = 'A01', @Qty int = NULL;\nSELECT COALESCE(@Code, '0') AS Code,                       -- 'A01'\n       COALESCE(CAST(@Qty AS varchar(10)), 'N/A') AS Qty   -- 'N/A'"
         }
       ],
       "docsUrl": "https://learn.microsoft.com/sql/t-sql/language-elements/coalesce-transact-sql"

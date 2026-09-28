@@ -10,7 +10,7 @@
   "CONVERT": {
     "summary": "Convert type; style formats dates/numbers; type goes first",
     "examples.basic.title": "Basic usage",
-    "examples.style-compare.title": "Compare style 101/112/120/126",
+    "examples.style-compare.title": "Compare style 101/108/112/120/126",
     "examples.silent-truncate.title": "String conversion truncates silently",
     "examples.silent-truncate.sql": "SELECT CONVERT(varchar(4), 'ABCDE')   -- 'ABCD', truncates silently when too short, no error"
   },
@@ -26,15 +26,17 @@
     "examples.basic.title": "Basic usage",
     "examples.basic.sql": "SELECT ISNULL(CAST(NULL AS varchar(2)), 'abc')   -- 'ab', not 'abc'",
     "examples.default-value.title": "Provide a default value",
-    "examples.default-value.sql": "DECLARE @Reader TABLE (ReaderId int, NickName nvarchar(20));\nINSERT INTO @Reader VALUES (1, NULL);\nSELECT ISNULL(NickName, N'(not set)') FROM @Reader   -- '(not set)'"
+    "examples.default-value.sql": "DECLARE @Reader TABLE (ReaderId int, NickName nvarchar(20));\nINSERT INTO @Reader VALUES (1, NULL);\nSELECT ISNULL(NickName, N'(not set)') FROM @Reader   -- '(not set)'",
+    "examples.vs-coalesce.title": "Compared with COALESCE",
+    "examples.vs-coalesce.sql": "DECLARE @s varchar(2) = NULL, @Code varchar(10) = 'A01';\nSELECT ISNULL(@s, 'abc') AS [ISNULL], COALESCE(@s, 'abc') AS [COALESCE];   -- 'ab' | 'abc'\nSELECT ISNULL(@Code, 0) AS [ISNULL];   -- 'A01'; COALESCE(@Code, 0) would error"
   },
   "COALESCE": {
-    "summary": "First non-NULL arg; highest-precedence type, no truncation",
+    "summary": "First non-NULL arg; all args set the type, so any may fail",
     "examples.basic.title": "Basic usage",
-    "examples.no-truncate.title": "Doesn't truncate like ISNULL",
-    "examples.no-truncate.sql": "SELECT COALESCE(CAST(NULL AS varchar(2)), 'abc')   -- 'abc', not truncated to 'ab' like ISNULL",
-    "examples.type-mismatch-fails.title": "Incompatible types error",
-    "examples.type-mismatch-fails.sql": "SELECT COALESCE(NULL, 1, 'x')   -- Error: 'x' can't convert to int; type is chosen by precedence"
+    "examples.vs-isnull.title": "Compared with ISNULL: no truncation",
+    "examples.type-from-all-args.title": "Type comes from all args, not the one returned",
+    "examples.type-from-all-args.sql": "DECLARE @Code varchar(10) = 'A01';\nSELECT ISNULL(@Code, 0) AS [ISNULL];       -- 'A01'\nSELECT COALESCE(@Code, 0) AS [COALESCE];   -- Error: @Code isn't NULL, but the type is int and 'A01' can't convert",
+    "examples.same-type-fallback.title": "Write the fallback in the same type"
   },
   "NULLIF": {
     "summary": "NULL if both are equal, else the first; turns 0 into NULL",
