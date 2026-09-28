@@ -35,7 +35,8 @@ namespace SqlAssist.Ssms22.Editor;
 /// （<see cref="SqlAsyncCompletionCommitManager.CommitsOn"/>），那一次按鍵本來就會
 /// 結束正在打的詞元。讓開的症狀是 <c>RESULT SETS </c> 開著清單時打 <c>(</c> 不補右括號、
 /// <c>(|)</c> 開著清單時按 Backspace 留下右括號。要動緩衝區之前先收掉清單，
-/// 否則補上的字元會落進 session 的適用範圍；新的上下文由重開清單那條路接手。
+/// 否則補上的字元會落進 session 的適用範圍；清單收掉之後，平台看到這一鍵時會自己
+/// 照新的上下文開一份（<see cref="SqlCompletionReopen.AfterTypedCharacter"/>）。
 /// </remarks>
 internal static class SqlAutoPairing
 {

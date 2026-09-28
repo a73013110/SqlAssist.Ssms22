@@ -209,12 +209,8 @@ internal sealed class SqlAssistCompletionCommandHandler :
     /// 回傳 false：改寫大寫與補上結尾字元都只動已經在緩衝區裡的文字，
     /// 使用者輸入的字元仍然交給編輯器插入，其他擴充也還看得到這次按鍵。
     ///
-    /// 這裡只用字元本身做第一層篩選，而那條規則與重開清單的判斷共用同一份
-    /// （<see cref="SqlCompletionTriggers.MayChangeContext"/>）：篩掉的字元
-    /// 連排程都不必，而放行的字元不代表一定會重開。真正的判斷在
-    /// <see cref="SqlCompletionReopen.AfterSeparator"/> 裡，
-    /// 因為它要看的是這個字元<b>已經進入緩衝區之後</b>的文字：
-    /// 此時此刻那個字元還沒被插入。
+    /// 要不要重開清單整份在 <see cref="SqlCompletionReopen.AfterTypedCharacter"/>；
+    /// 它要在配對之後問，因為配對可能已經先把清單收掉。
     /// </remarks>
     public bool ExecuteCommand(TypeCharCommandArgs args, CommandExecutionContext executionContext)
     {
@@ -244,12 +240,9 @@ internal sealed class SqlAssistCompletionCommandHandler :
             },
             fallback: false);
 
-        if (SqlCompletionTriggers.MayChangeContext(args.TypedChar))
-        {
-            SqlAssistPlatformGuard.Run(
-                "處理 TypeChar 按鍵",
-                () => SqlCompletionReopen.AfterSeparator(args.TextView, Broker));
-        }
+        SqlAssistPlatformGuard.Run(
+            "處理 TypeChar 按鍵",
+            () => SqlCompletionReopen.AfterTypedCharacter(args.TextView, Broker, args.TypedChar, handled));
 
         RequestParameterHint(args.TextView, args.TypedChar);
         return handled;

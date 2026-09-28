@@ -20,7 +20,8 @@ namespace SqlAssist.Ssms22.Completion;
 /// <list type="bullet">
 /// <item>設定了接續建議的 caret 片段展開之後，重新依插入文字收斂清單。</item>
 /// <item>輸入結束詞元的字元之後——<c>a.</c> 接著要列 <c>a</c> 的欄位，
-/// <c>FROM </c> 接著只列資料表與檢視。</item>
+/// <c>FROM </c> 接著只列資料表與檢視。只在舊清單還開著時才需要，見
+/// <see cref="AfterTypedCharacter"/>。</item>
 /// </list>
 ///
 /// 提交時回報的 <see cref="CommitBehavior.Retrigger"/> 幫不上忙：SSMS 22 的
@@ -53,17 +54,31 @@ internal static class SqlCompletionReopen
     }
 
     /// <summary>
-    /// 輸入結束詞元的字元之後的清單。
+    /// 輸入字元之後的清單：只補平台不做的那一半。
     /// </summary>
+    /// <param name="swallowed">這個字元被自己的處理常式吞掉了（跳過結尾字元、包夾選取範圍）。</param>
     /// <remarks>
-    /// 由呼叫端先用 <see cref="SqlCompletionTriggers.MayChangeContext"/> 擋掉不可能
-    /// 換掉上下文的字元，這裡再問一次
-    /// <see cref="SqlCompletionTriggers.ShouldReopen"/>——那一份判斷要看的是
-    /// 字元<b>已經進入緩衝區之後</b>的文字，所以只能在這裡問。
+    /// 平台處理輸入字元時，沒有 session 就會自己問建議來源——這一鍵的清單它會開，
+    /// 而且開在字元插入之後，上下文是對的。要補的只有兩種：session 還開著（平台只會
+    /// 拿新文字去篩舊清單），以及字元被吞掉（平台根本沒看到這一鍵）。
+    ///
+    /// 兩邊都開的症狀是清單「開、關、開」：自動配對插入結尾字元之前先收掉清單
+    /// （<c>FROM [</c>），平台接著開出新的一份，這裡排在 Background 的重開再把它收掉
+    /// 重開一次。看不看得到取決於那段等待裡 UI 執行緒忙不忙，所以是偶爾。
+    ///
+    /// session 開不開著要在<b>現在</b>問：字元還沒插入，平台稍後看到的就是這個狀態。
+    /// 會不會換掉上下文（<see cref="SqlCompletionTriggers.ShouldReopen"/>）則要等字元
+    /// 進了緩衝區才問得準，所以排到這一輪命令之後。
     /// </remarks>
-    public static void AfterSeparator(ITextView? textView, IAsyncCompletionBroker? broker)
+    public static void AfterTypedCharacter(
+        ITextView textView,
+        IAsyncCompletionBroker? broker,
+        char typedCharacter,
+        bool swallowed)
     {
-        if (broker is null)
+        if (broker is null ||
+            !SqlCompletionTriggers.MayChangeContext(typedCharacter) ||
+            !swallowed && broker.GetSession(textView) is null)
         {
             return;
         }
