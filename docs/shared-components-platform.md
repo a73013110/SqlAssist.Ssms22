@@ -24,6 +24,7 @@ SQL Memory 專屬元件見[專屬表](shared-components-sql-memory.md)。
 | 重開建議清單 | `Ssms22/Completion/SqlCompletionReopen.cs` |
 | SQL 語言服務 GUID | `Ssms22/SqlLanguageService.cs` |
 | 抑制 SSMS 內建自動建議清單 | `Ssms22/Settings/NativeMemberList.cs` |
+| 停駐工具窗基底：開啟（輸入後才顯示、焦點進窗）、滑出後補排殼層根 | `Ssms22/UI/SqlToolWindowPane.cs` |
 | 停駐工具窗主從區 | `Ssms22/UI/MasterDetailView.cs` |
 | 字型、基本控制項、資訊列、分頁（含右側工具 `TabStripTrailing`）、淡入與動作色調 | `Ssms22/UI/SqlAssistChrome.cs` |
 | 膠囊與分頁標籤（分頁一律由 `SqlAssistChrome.CreateTab` 建） | `Ssms22/UI/SqlPill.cs`、`SqlTabHeader.cs` |

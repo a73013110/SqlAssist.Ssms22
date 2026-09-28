@@ -1,12 +1,9 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Windows.Controls;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Core.Notifications;
 using SqlAssist.Ssms22.Connections;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.Preview;
 
@@ -22,18 +19,16 @@ namespace SqlAssist.Ssms22.Preview;
 /// 只有一扇：再移一次就換掉內容。要同時對照好幾張表是多開幾扇的事，接縫在 <see cref="Show"/>。
 /// </remarks>
 [Guid("d4746618-0dcd-40bd-a5ad-8ec33078a641")]
-public sealed class SqlStructureToolWindow : ToolWindowPane
+public sealed class SqlStructureToolWindow : SqlToolWindowPane
 {
-    private readonly ContentControl _host = new();
     private SqlStructurePanel? _panel;
     private SqlStructurePresenter? _presenter;
     private SqlPreviewSubject? _subject;
     private SqlMetadataService? _service;
 
-    public SqlStructureToolWindow() : base(null)
+    public SqlStructureToolWindow()
     {
         Caption = PreviewText.ToolWindowCaption;
-        Content = _host;
     }
 
     public override void OnToolWindowCreated()
@@ -43,35 +38,14 @@ public sealed class SqlStructureToolWindow : ToolWindowPane
         SqlLanguageSwitch.Changed += OnLanguageChanged;
     }
 
-    /// <summary>
-    /// 打開工具視窗並換上這一份。
-    /// </summary>
-    /// <remarks>
-    /// 使用者按下按鈕才走到這裡，失敗要看得見，所以不交給 Guard 吞掉。套件從服務提供者載入：
-    /// 浮動預覽是編輯器那一端 MEF 建出來的，手上沒有套件執行個體。
-    /// </remarks>
-    internal static void Show(IServiceProvider serviceProvider, SqlPreviewSubject subject, SqlMetadataService? service)
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-        try
-        {
-            if (serviceProvider.GetService(typeof(SVsShell)) is not IVsShell shell)
-                throw new InvalidOperationException(PreviewText.ToolWindowMissing);
-            var packageGuid = new Guid(SqlAssistPackage.PackageGuidString);
-            ErrorHandler.ThrowOnFailure(shell.LoadPackage(ref packageGuid, out var loaded));
-            if (loaded is not SqlAssistPackage package ||
-                package.FindToolWindow(typeof(SqlStructureToolWindow), 0, true) is not SqlStructureToolWindow window ||
-                window.Frame is not IVsWindowFrame frame)
-                throw new InvalidOperationException(PreviewText.ToolWindowMissing);
-            window.Display(subject, service);
-            ErrorHandler.ThrowOnFailure(frame.Show());
-        }
-        catch (Exception error)
-        {
-            VsShellUtilities.ShowMessageBox(serviceProvider, error.Message, PreviewText.ToolWindowOpenFailed,
-                OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-        }
-    }
+    /// <summary>打開工具視窗並換上這一份，焦點落在搜尋框。</summary>
+    internal static void Show(IServiceProvider serviceProvider, SqlPreviewSubject subject, SqlMetadataService? service) =>
+        Open<SqlStructureToolWindow>(serviceProvider, PreviewText.ToolWindowMissing, PreviewText.ToolWindowOpenFailed,
+            window =>
+            {
+                window.Display(subject, service);
+                window._panel?.FocusSearch();
+            });
 
     private void Display(SqlPreviewSubject subject, SqlMetadataService? service)
     {
@@ -96,7 +70,7 @@ public sealed class SqlStructureToolWindow : ToolWindowPane
     {
         _panel = new SqlStructurePanel(textView: null) { StatusInset = 14 };
         _presenter = new SqlStructurePresenter(_panel, _panel.Dispatcher, NotificationOrigin.User, () => PreviewText.ToolWindowCaption);
-        _host.Content = _panel;
+        Host.Content = _panel;
     }
 
     /// <summary>換語言時整份內容重建，再畫一次同一個主體；理由同 SQL Search 工具窗。</summary>
@@ -118,7 +92,7 @@ public sealed class SqlStructureToolWindow : ToolWindowPane
         _presenter = null;
         _panel?.Dispose();
         _panel = null;
-        _host.Content = null;
+        Host.Content = null;
     }
 
     protected override void Dispose(bool disposing)

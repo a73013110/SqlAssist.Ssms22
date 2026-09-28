@@ -1,10 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
-using System.Windows.Controls;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using SqlAssist.Ssms22.Settings;
+using SqlAssist.Ssms22.UI;
 
 namespace SqlAssist.Ssms22.SqlMemory;
 
@@ -12,58 +9,40 @@ namespace SqlAssist.Ssms22.SqlMemory;
 internal enum SqlMemoryPage { History, Favorites, Usage }
 
 [Guid("0b670847-3f0c-4523-b5ce-e987833ade19")]
-public sealed class SqlMemoryToolWindow : ToolWindowPane
+public sealed class SqlMemoryToolWindow : SqlToolWindowPane
 {
-    private readonly ContentControl _host = new();
-
-    public SqlMemoryToolWindow() : base(null) { Caption = "SQL Memory"; Content = _host; }
+    public SqlMemoryToolWindow() { Caption = "SQL Memory"; }
 
     public override void OnToolWindowCreated()
     {
         base.OnToolWindowCreated();
         SqlAssistPlatformGuard.Run("建立 SQL Memory 工具窗", () =>
-            _host.Content = new SqlMemoryBrowser((SqlAssistPackage)Package));
+            Host.Content = new SqlMemoryBrowser((SqlAssistPackage)Package));
         SqlLanguageSwitch.Changed += OnLanguageChanged;
     }
 
     /// <summary>換語言時整份內容重建，帶著分頁與搜尋字串；理由同 SQL Search 工具窗。</summary>
     private void OnLanguageChanged(object? sender, EventArgs args)
     {
-        if (_host.Content is not SqlMemoryBrowser old) return;
+        if (Host.Content is not SqlMemoryBrowser old) return;
         var page = old.Page;
         var searchText = old.SearchText;
         old.Dispose();
         var browser = new SqlMemoryBrowser((SqlAssistPackage)Package);
         browser.Restore(page, searchText);
-        _host.Content = browser;
+        Host.Content = browser;
     }
 
-    internal static void Show(SqlAssistPackage package, SqlMemoryPage page = SqlMemoryPage.History)
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-        // 主動命令失敗必須可見，不交給 Guard 吞掉。
-        try
-        {
-            var pane = package.FindToolWindow(typeof(SqlMemoryToolWindow), 0, true);
-            if (pane?.Frame is not IVsWindowFrame frame)
-                throw new InvalidOperationException(SqlMemoryUiText.ToolWindowMissing);
-            ErrorHandler.ThrowOnFailure(frame.Show());
-            if (pane is SqlMemoryToolWindow window && window._host.Content is SqlMemoryBrowser browser)
-                browser.ShowPage(page);
-        }
-        catch (Exception error)
-        {
-            VsShellUtilities.ShowMessageBox(package, error.Message, SqlMemoryUiText.OpenFailedTitle,
-                OLEMSGICON.OLEMSGICON_WARNING, OLEMSGBUTTON.OLEMSGBUTTON_OK, OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST);
-        }
-    }
+    internal static void Show(SqlAssistPackage package, SqlMemoryPage page = SqlMemoryPage.History) =>
+        Open<SqlMemoryToolWindow>(package, SqlMemoryUiText.ToolWindowMissing, SqlMemoryUiText.OpenFailedTitle,
+            window => (window.Host.Content as SqlMemoryBrowser)?.ShowPage(page));
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             SqlLanguageSwitch.Changed -= OnLanguageChanged;
-            if (_host.Content is SqlMemoryBrowser browser) browser.Dispose();
+            if (Host.Content is SqlMemoryBrowser browser) browser.Dispose();
         }
 
         base.Dispose(disposing);

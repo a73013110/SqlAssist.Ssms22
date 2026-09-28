@@ -893,6 +893,8 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
     /// </remarks>
     public void ClearSearch() => ResetSearch(keepFocus: false);
 
+    public void FocusSearch() => _search.Focus();
+
     /// <summary>頁尾那一句；宿主的操作結果（例如重設尺寸）也寫在這裡，不另開一條訊息。</summary>
     public void ShowStatus(string text) => _status.Text = text;
 
