@@ -1664,6 +1664,14 @@ internal static class SqlKeywordCatalogData
         {
             "ABSOLUTE", "FIRST", "FROM", "GLOBAL", "LAST", "NEXT", "PRIOR", "RELATIVE",
         }),
+        ("FETCH ABSOLUTE {value}", SqlKeywordPosition.StatementStart, "FETCH ABSOLUTE 1 ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("FETCH ABSOLUTE {value} FROM", SqlKeywordPosition.StatementStart, "FETCH ABSOLUTE 1 FROM ", false, false, new string[]
+        {
+            "GLOBAL",
+        }),
         ("FETCH FIRST", SqlKeywordPosition.StatementStart, "FETCH FIRST ", true, true, new string[]
         {
             "FROM",
@@ -1697,6 +1705,14 @@ internal static class SqlKeywordCatalogData
             "FROM",
         }),
         ("FETCH PRIOR FROM", SqlKeywordPosition.StatementStart, "FETCH PRIOR FROM ", false, false, new string[]
+        {
+            "GLOBAL",
+        }),
+        ("FETCH RELATIVE {value}", SqlKeywordPosition.StatementStart, "FETCH RELATIVE 1 ", true, false, new string[]
+        {
+            "FROM",
+        }),
+        ("FETCH RELATIVE {value} FROM", SqlKeywordPosition.StatementStart, "FETCH RELATIVE 1 FROM ", false, false, new string[]
         {
             "GLOBAL",
         }),
@@ -2291,13 +2307,35 @@ internal static class SqlKeywordCatalogData
             "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
             "REPAIR_REBUILD",
         }),
-        ("DBCC CHECKIDENT (*", SqlKeywordPosition.StatementStart, "DBCC CHECKIDENT (", false, false, new string[]
-        {
-            "NULL", "SELECT", "NORESEED", "RESEED",
-        }),
         ("DBCC SQLPERF (*", SqlKeywordPosition.StatementStart, "DBCC SQLPERF (", false, false, new string[]
         {
-            "NULL", "SELECT", "LOGSPACE",
+            "NULL", "SELECT", "LOGSPACE", "CLEAR",
+        }),
+        ("DBCC CHECKIDENT (*", SqlKeywordPosition.StatementStart, "DBCC CHECKIDENT (", false, false, new string[]
+        {
+            "NULL", "SELECT", "RESEED", "NORESEED",
+        }),
+        ("DBCC SHRINKFILE (*", SqlKeywordPosition.StatementStart, "DBCC SHRINKFILE (", false, false, new string[]
+        {
+            "NULL", "SELECT", "EMPTYFILE", "NOTRUNCATE", "TRUNCATEONLY",
+        }),
+        ("DBCC CHECKALLOC (*", SqlKeywordPosition.StatementStart, "DBCC CHECKALLOC (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
+            "REPAIR_REBUILD",
+        }),
+        ("DBCC CHECKFILEGROUP (*", SqlKeywordPosition.StatementStart, "DBCC CHECKFILEGROUP (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NOINDEX",
+        }),
+        ("DBCC CHECKTABLE (*", SqlKeywordPosition.StatementStart, "DBCC CHECKTABLE (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST",
+            "REPAIR_REBUILD",
+        }),
+        ("DBCC SHRINKDATABASE (*", SqlKeywordPosition.StatementStart, "DBCC SHRINKDATABASE (", false, false, new string[]
+        {
+            "NULL", "SELECT", "NOTRUNCATE", "TRUNCATEONLY",
         }),
     };
 

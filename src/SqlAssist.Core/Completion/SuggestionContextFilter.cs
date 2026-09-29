@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
+using SqlAssist.Core.Snippets;
 
 namespace SqlAssist.Core.Completion;
 
@@ -52,9 +53,11 @@ public static class SuggestionContextFilter
     {
         // 片語的字不看目標：剖析器證明過這一格接得上它們，而目標是「這一格要哪一種名稱」。
         // EXEC 之後的目標是程序，照目標過濾的話 EXEC AS 的 AS 永遠列不出來。
+        var phraseSnippet = StartsWithPhraseWord(suggestion, context);
+
         return (!context.Bracketed || IsBracketable(suggestion.Kind)) &&
-               (IsPhraseWord(suggestion) || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
-               IsAllowedForPosition(suggestion, context) &&
+               (IsPhraseWord(suggestion) || phraseSnippet || IsAllowedForTarget(suggestion.Kind, context.Target)) &&
+               (phraseSnippet || IsAllowedForPosition(suggestion, context)) &&
                IsAllowedForSchema(suggestion, context) &&
                IsAllowedSystemSchema(suggestion, context);
     }
@@ -96,6 +99,62 @@ public static class SuggestionContextFilter
     private static bool IsPhraseWord(SqlSuggestion suggestion)
     {
         return suggestion.Kind == SuggestionKind.Keyword && suggestion.Tag is SqlClausePhrase;
+    }
+
+    /// <summary>
+    /// 片段開頭的字從這一格的片語一路接得下去：片段就是那幾個字寫下去的一整句。
+    /// </summary>
+    /// <remarks>
+    /// 片語證明了第一個字接得上，片段的位置旗標與目標都說不出這一點——<c>DECLARE c CURSOR FOR</c>
+    /// 的清單封閉在 <c>SELECT</c>、<c>WITH</c>，而 <c>ssf</c> 正是寫 <c>SELECT</c> 最常用的那一條路。
+    /// 片語比對只是可能時也一樣：片語的字加進來，以它開頭的片段跟著加進來。
+    ///
+    /// 只看第一個字不夠：觸發程序 <c>FOR</c> 之後接得上 <c>INSERT</c>，卻不是 <c>INSERT INTO</c>；
+    /// <c>ALTER TABLE t DROP</c> 之後也不是 <c>DROP TABLE</c>。之後的字把前面的字接上文字再問一次，
+    /// 答案與使用者自己一個字一個字打出來時的清單相同。
+    /// </remarks>
+    private static bool StartsWithPhraseWord(SqlSuggestion suggestion, SqlCompletionContext context)
+    {
+        if (suggestion.Tag is not SqlSnippet snippet ||
+            context.ClausePhrase is not { } match ||
+            context.TextBeforeCaret is not { } typed)
+        {
+            return false;
+        }
+
+        var words = snippet.Expansion.LeadingWords;
+
+        if (words.Count == 0 || !match.Phrase.Offers(words[0]))
+        {
+            return false;
+        }
+
+        var text = typed.Substring(0, context.TokenStart);
+
+        for (var index = 1; index < words.Count; index++)
+        {
+            text += words[index - 1] + " ";
+
+            if (!Offers(SqlCompletionContextAnalyzer.Analyze(text + words[index]), words[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>這個字在這一格列得出來：片語的字，或過得了過濾的目錄關鍵字。</summary>
+    private static bool Offers(SqlCompletionContext context, string word)
+    {
+        if (context.ClausePhrase is { } match && match.Phrase.Offers(word))
+        {
+            return true;
+        }
+
+        return SqlKeywordCatalog.IsKeyword(word) && IsAllowed(
+            new SqlSuggestion(word, word, string.Empty, word, SuggestionKind.Keyword, positions: SqlKeywordCatalog.GetPositions(word)),
+            context);
     }
 
     /// <summary>

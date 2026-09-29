@@ -1126,15 +1126,13 @@ function Add-ClausePhrase {
     }
 
     # Borrowed 是前一格寫成名稱時接得上的字：FETCH NEXT 之後的 INTO 屬於名叫 NEXT 的資料指標，
-    # 不是 NEXT 帶出來的。扣完不剩字、寫到這裡又已完整的，這一格沒有片語可說。
+    # 不是 NEXT 帶出來的。扣完不剩字、寫到這裡又已完整的，這一格沒有片語可說，但展開照走：
+    # FETCH ABSOLUTE 本身是名叫 ABSOLUTE 的資料指標，FETCH ABSOLUTE 1 FROM 卻是另一個讀法。
     if ($null -ne $Borrowed) {
         $found = @($found | Where-Object { $Borrowed -notcontains $_ })
-
-        if ($endsStatement -and $found.Count -eq 0) {
-            return
-        }
     }
 
+    $silent = $null -ne $Borrowed -and $endsStatement -and $found.Count -eq 0
     $words = [System.Collections.Generic.List[string]]::new([string[]]$found)
 
     # 手寫值還可以開一組清單（索引鍵之後的 WITH 只接 `(`）：清單項本身由那一格的位置片語列。
@@ -1152,17 +1150,29 @@ function Add-ClausePhrase {
         }
     }
 
-    $script:phrases["$After`t$Pattern"] = @{
-        Pattern       = $Pattern
-        After         = $After
-        Probe         = $Probe
-        Closed        = $null -ne $Closed ? [bool]$Closed : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
-        EndsStatement = $endsStatement
-        Words         = @($words)
+    if (-not $silent) {
+        $script:phrases["$After`t$Pattern"] = @{
+            Pattern       = $Pattern
+            After         = $After
+            Probe         = $Probe
+            Closed        = $null -ne $Closed ? [bool]$Closed : -not [SqlAssistPhraseProber]::AcceptsName($Probe, $PlainName, $continuationArray)
+            EndsStatement = $endsStatement
+            Words         = @($words)
+        }
     }
 
     if ($Expand -le 0) {
         return
+    }
+
+    # 這一格接得了值、值之後還沒寫完（FETCH ABSOLUTE 1 還要 FROM）時，值也是展開的一步：字列不出值，
+    # 值之後的字卻只有從這條路探得到。值寫完就完整的（SET ROWCOUNT 1）之後是下一句，不展開。
+    # 值不是字、不算一層，但不連著展開兩個值。
+    if ($Pattern -and $Pattern -notmatch '\{value\}$' -and
+        [SqlAssistPhraseProber]::AcceptsName($Probe, '1', $continuationArray) -and
+        -not [SqlAssistPhraseProber]::IsComplete("${Probe}1") -and
+        -not $script:phrases.Contains("$After`t$Pattern {value}")) {
+        Add-ClausePhrase -Pattern "$Pattern {value}" -Probe "${Probe}1 " -After $After -Expand $Expand
     }
 
     # 這一格寫普通名稱就完整的話（OPEN c），名稱之後接得上的字（FETCH c INTO）另探一次，展開時扣掉。
@@ -1413,24 +1423,32 @@ foreach ($name in $statementNames) {
 }
 
 # DBCC 命令括號裡的關鍵字（CHECKIDENT 的 RESEED、CHECKDB 的 REPAIR_REBUILD）也只有說明列得出來：剖析器在括號裡
-# 什麼名稱都收。語法照 T-SQL 的語法慣例，關鍵字大寫、要填的值小寫；DBCC 的語法以「-- 命令 [ ( … ) ]」一行寫一個命令，
-# 那組括號裡的大寫字就是名單，引號裡的字不算。片語「DBCC 命令 (*」給這些字；括號裡照樣可以寫名稱與數值，不封閉。
+# 什麼名稱都收。語法照 T-SQL 的語法慣例，關鍵字大寫、要填的值小寫；說明裡以「DBCC 命令」開頭的每一格
+# （簽章的每一行、對照表每一列的每一格）都是一種寫法，第一組括號裡的大寫字就是名單，引號裡的字不算。
+# 預覽的「命令」對照表一列寫一個命令，所以每個命令都要有一種寫法：少了就是預覽漏了那個命令。
+# 片語「DBCC 命令 (*」給這些字；括號裡照樣可以寫名稱與數值，不封閉。
 # 字不分是第幾個引數：每一格都不封閉，多出來的只是幾個字，分格的話每個命令的引數順序都要另外寫一份。
 $dbccDoc = $statementDocs | Where-Object { $_.kind -eq 'statement' -and $_.name -eq 'DBCC' }
+$dbccSyntax = @(@($dbccDoc.signature -split "`n") + @($dbccDoc.references | ForEach-Object { $_.rows } | ForEach-Object { $_ }) |
+    Where-Object { $_ -cmatch '^DBCC [A-Z]' })
+$dbccArguments = [ordered]@{}
 
-foreach ($line in @($dbccDoc.signature -split "`n")) {
-    if ($line -cnotmatch '^-- (?<command>[A-Z][A-Z0-9_]*) [\[ ]*\(') {
-        continue
-    }
-
+foreach ($line in $dbccSyntax) {
+    $null = $line -cmatch '^DBCC (?<command>[A-Z][A-Z0-9_]*)'
     $command = $Matches['command']
 
     if (@($dbccDoc.aliases) -notcontains "DBCC $command") {
-        throw "DBCC 語法寫了 $command，別名卻沒有 DBCC $command：語法與命令名單要一致。"
+        throw "DBCC 說明寫了 $command，別名卻沒有 DBCC $command：寫法與命令名單要一致。"
+    }
+
+    $dbccArguments[$command] ??= [System.Collections.Generic.List[string]]::new()
+    $open = $line.IndexOf('(')
+
+    if ($line -cnotmatch '^DBCC [A-Z0-9_]+ [\[ ]*\(') {
+        continue
     }
 
     # 從第一個左括號走到配對的右括號。
-    $open = $line.IndexOf('(')
     $depth = 0
     $close = -1
 
@@ -1446,11 +1464,24 @@ foreach ($line in @($dbccDoc.signature -split "`n")) {
     }
 
     $inside = $line.Substring($open + 1, $close - $open - 1) -replace "'[^']*'", ''
-    $arguments = @([regex]::Matches($inside, '\b[A-Z][A-Z0-9_]*\b') | ForEach-Object Value | Select-Object -Unique)
 
-    if ($arguments.Count -gt 0) {
+    foreach ($argument in [regex]::Matches($inside, '\b[A-Z][A-Z0-9_]*\b') | ForEach-Object Value) {
+        if (-not $dbccArguments[$command].Contains($argument)) {
+            $dbccArguments[$command].Add($argument)
+        }
+    }
+}
+
+$undocumented = @($dbccDoc.aliases | Where-Object { -not $dbccArguments.Contains(($_ -replace '^DBCC ', '')) })
+
+if ($undocumented.Count -gt 0) {
+    throw "DBCC 說明沒有寫出這些命令的語法，預覽的命令對照表漏了它們：$($undocumented -join ', ')"
+}
+
+foreach ($command in $dbccArguments.Keys) {
+    if ($dbccArguments[$command].Count -gt 0) {
         $pattern = "DBCC $command (*"
-        Add-ClausePhrase -Pattern $pattern -Probe (Get-PhraseProbe -Lead '' -Pattern $pattern) -After 'StatementStart' -Values $arguments -Closed $false
+        Add-ClausePhrase -Pattern $pattern -Probe (Get-PhraseProbe -Lead '' -Pattern $pattern) -After 'StatementStart' -Values @($dbccArguments[$command]) -Closed $false
     }
 }
 

@@ -2124,7 +2124,7 @@
         "DBCC CLONEDATABASE", "DBCC FLUSHAUTHCACHE", "DBCC FREESESSIONCACHE", "DBCC FREESYSTEMCACHE", "DBCC HELP", "DBCC TRACEOFF", "DBCC TRACEON"
       ],
       "summary": "資料庫主控台命令：檢查一致性、看統計資料與記錄檔用量等維護工作。",
-      "signature": "DBCC command_name [ ( argument [ ,...n ] ) ] [ WITH option [ ,...n ] ]\n-- CHECKDB [ ( database_name [ , NOINDEX | , { REPAIR_ALLOW_DATA_LOSS | REPAIR_FAST | REPAIR_REBUILD } ] ) ] [ WITH NO_INFOMSGS , ALL_ERRORMSGS ]\n-- SHOW_STATISTICS ( 'table' , target ) [ WITH STAT_HEADER | DENSITY_VECTOR | HISTOGRAM ]\n-- CHECKIDENT ( 'table' [ , { NORESEED | RESEED [ , new_value ] } ] )\n-- SQLPERF ( LOGSPACE )",
+      "signature": "DBCC command_name [ ( argument [ ,...n ] ) ] [ WITH option [ ,...n ] ]",
       "examples": [
         {
           "id": "basic",
@@ -2182,6 +2182,171 @@
             [
               "DBCC FREEPROCCACHE",
               "清空整個執行計畫快取；正式環境慎用"
+            ]
+          ]
+        },
+        {
+          "title": "命令",
+          "columns": [
+            "分類",
+            "語法",
+            "用途"
+          ],
+          "rows": [
+            [
+              "驗證",
+              "DBCC CHECKALLOC [ ( database_name | 0 [ , NOINDEX | , { REPAIR_ALLOW_DATA_LOSS | REPAIR_FAST | REPAIR_REBUILD } ] ) ] [ WITH { ALL_ERRORMSGS | NO_INFOMSGS | TABLOCK | ESTIMATEONLY } [ ,...n ] ]",
+              "檢查磁碟空間配置結構的一致性"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKCATALOG [ ( database_name | 0 ) ] [ WITH NO_INFOMSGS ]",
+              "檢查系統目錄的一致性"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKCONSTRAINTS [ ( table_name | constraint_name ) ] [ WITH { ALL_CONSTRAINTS | ALL_ERRORMSGS | NO_INFOMSGS } [ ,...n ] ]",
+              "找出違反 CHECK 或外部索引鍵條件約束的資料列"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKDB [ ( database_name | 0 [ , NOINDEX | , { REPAIR_ALLOW_DATA_LOSS | REPAIR_FAST | REPAIR_REBUILD } ] ) ] [ WITH { ALL_ERRORMSGS | NO_INFOMSGS | TABLOCK | PHYSICAL_ONLY | DATA_PURITY | EXTENDED_LOGICAL_CHECKS | ESTIMATEONLY | MAXDOP = n } [ ,...n ] ]",
+              "檢查整個資料庫的邏輯與實體一致性；耗 I/O，排在離峰"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKFILEGROUP [ ( filegroup_name | 0 [ , NOINDEX ] ) ] [ WITH { ALL_ERRORMSGS | NO_INFOMSGS | TABLOCK | ESTIMATEONLY | PHYSICAL_ONLY | MAXDOP = n } [ ,...n ] ]",
+              "只檢查一個檔案群組裡的資料表與索引"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKIDENT ( 'table_name' [ , { NORESEED | RESEED [ , new_reseed_value ] } ] ) [ WITH NO_INFOMSGS ]",
+              "查看或重設 IDENTITY 目前值；NORESEED 只查看"
+            ],
+            [
+              "驗證",
+              "DBCC CHECKTABLE ( table_name | view_name [ , NOINDEX | index_id | , { REPAIR_ALLOW_DATA_LOSS | REPAIR_FAST | REPAIR_REBUILD } ] ) [ WITH { ALL_ERRORMSGS | NO_INFOMSGS | TABLOCK | PHYSICAL_ONLY | DATA_PURITY | EXTENDED_LOGICAL_CHECKS | ESTIMATEONLY | MAXDOP = n } [ ,...n ] ]",
+              "檢查一張資料表或索引檢視的一致性"
+            ],
+            [
+              "資訊",
+              "DBCC INPUTBUFFER ( session_id [ , request_id ] ) [ WITH NO_INFOMSGS ]",
+              "某個工作階段最後送來的語句"
+            ],
+            [
+              "資訊",
+              "DBCC OPENTRAN [ ( database_name | 0 ) ] [ WITH TABLERESULTS [ , NO_INFOMSGS ] ]",
+              "最舊的進行中交易，找記錄檔長大的原因"
+            ],
+            [
+              "資訊",
+              "DBCC OUTPUTBUFFER ( session_id [ , request_id ] ) [ WITH NO_INFOMSGS ]",
+              "某個工作階段目前的輸出緩衝區，十六進位與 ASCII 並列"
+            ],
+            [
+              "資訊",
+              "DBCC PROCCACHE [ WITH NO_INFOMSGS ]",
+              "程序快取的使用量摘要"
+            ],
+            [
+              "資訊",
+              "DBCC SHOW_STATISTICS ( table_or_indexed_view_name , target ) [ WITH { NO_INFOMSGS | STAT_HEADER | DENSITY_VECTOR | HISTOGRAM | STATS_STREAM } [ ,...n ] ]",
+              "統計資料的標頭、密度向量與長條圖"
+            ],
+            [
+              "資訊",
+              "DBCC SHOWCONTIG [ ( table_name | view_name [ , index_name ] ) ] [ WITH { FAST | TABLERESULTS | ALL_INDEXES | ALL_LEVELS | NO_INFOMSGS } [ ,...n ] ]",
+              "資料表與索引的片段；已淘汰，改用 sys.dm_db_index_physical_stats"
+            ],
+            [
+              "資訊",
+              "DBCC SQLPERF ( LOGSPACE | { 'sys.dm_os_wait_stats' | 'sys.dm_os_latch_stats' } , CLEAR ) [ WITH NO_INFOMSGS ]",
+              "LOGSPACE 看各資料庫記錄檔用量；CLEAR 歸零等候或閂鎖統計"
+            ],
+            [
+              "資訊",
+              "DBCC TRACESTATUS [ ( trace_flag [ ,...n ] [ , -1 ] ) ] [ WITH NO_INFOMSGS ]",
+              "追蹤旗標開了沒；-1 只看全域的"
+            ],
+            [
+              "資訊",
+              "DBCC USEROPTIONS [ WITH NO_INFOMSGS ]",
+              "目前連線的 SET 選項"
+            ],
+            [
+              "維護",
+              "DBCC CLEANTABLE ( database_name | 0 , table_name | view_name [ , batch_size ] ) [ WITH NO_INFOMSGS ]",
+              "回收已卸除的可變長度資料行占用的空間"
+            ],
+            [
+              "維護",
+              "DBCC DBREINDEX ( table_name [ , index_name [ , fillfactor ] ] ) [ WITH NO_INFOMSGS ]",
+              "重建索引；已淘汰，改用 ALTER INDEX REBUILD"
+            ],
+            [
+              "維護",
+              "DBCC DROPCLEANBUFFERS [ WITH NO_INFOMSGS ]",
+              "清空緩衝集區的乾淨頁面；冷快取測試用，正式環境慎用"
+            ],
+            [
+              "維護",
+              "DBCC FREEPROCCACHE [ ( plan_handle | sql_handle | pool_name ) ] [ WITH NO_INFOMSGS ]",
+              "清空執行計畫快取，或只清一個計畫；正式環境慎用"
+            ],
+            [
+              "維護",
+              "DBCC INDEXDEFRAG ( database_name | 0 , table_name | view_name [ , index_name [ , partition_number ] ] ) [ WITH NO_INFOMSGS ]",
+              "重組索引；已淘汰，改用 ALTER INDEX REORGANIZE"
+            ],
+            [
+              "維護",
+              "DBCC SHRINKDATABASE ( database_name | 0 [ , target_percent ] [ , { NOTRUNCATE | TRUNCATEONLY } ] ) [ WITH NO_INFOMSGS ]",
+              "縮小資料庫的所有檔案；會造成索引片段"
+            ],
+            [
+              "維護",
+              "DBCC SHRINKFILE ( file_name | file_id [ , EMPTYFILE | , target_size_mb [ , { NOTRUNCATE | TRUNCATEONLY } ] ] ) [ WITH NO_INFOMSGS ]",
+              "縮小一個檔案；EMPTYFILE 把資料搬到同群組的其他檔案"
+            ],
+            [
+              "維護",
+              "DBCC UPDATEUSAGE ( database_name | 0 [ , table_name | view_name [ , index_name ] ] ) [ WITH { NO_INFOMSGS | COUNT_ROWS } [ ,...n ] ]",
+              "修正目錄檢視裡錯誤的頁數與資料列數"
+            ],
+            [
+              "其他",
+              "DBCC CLONEDATABASE ( source_database_name , target_database_name ) [ WITH { NO_STATISTICS | NO_QUERYSTORE | VERIFY_CLONEDB | BACKUP_CLONEDB } [ ,...n ] ]",
+              "複製只有結構描述與統計資料的資料庫，排查效能問題用"
+            ],
+            [
+              "其他",
+              "DBCC FLUSHAUTHCACHE",
+              "清空登入驗證快取（Azure SQL Database）"
+            ],
+            [
+              "其他",
+              "DBCC FREESESSIONCACHE [ WITH NO_INFOMSGS ]",
+              "清空分散式查詢的連線快取"
+            ],
+            [
+              "其他",
+              "DBCC FREESYSTEMCACHE ( 'ALL' [ , pool_name ] ) [ WITH { MARK_IN_USE_FOR_REMOVAL | NO_INFOMSGS } [ ,...n ] ]",
+              "清空所有快取中沒在用的項目"
+            ],
+            [
+              "其他",
+              "DBCC HELP ( 'dbcc_command' | @dbcc_statement_var | '?' ) [ WITH NO_INFOMSGS ]",
+              "列出某個 DBCC 命令的語法；'?' 列出全部命令"
+            ],
+            [
+              "其他",
+              "DBCC TRACEOFF ( trace_flag [ ,...n ] [ , -1 ] ) [ WITH NO_INFOMSGS ]",
+              "關閉追蹤旗標；-1 是全域"
+            ],
+            [
+              "其他",
+              "DBCC TRACEON ( trace_flag [ ,...n ] [ , -1 ] ) [ WITH NO_INFOMSGS ]",
+              "開啟追蹤旗標；-1 是全域，否則只影響這個工作階段"
             ]
           ]
         }

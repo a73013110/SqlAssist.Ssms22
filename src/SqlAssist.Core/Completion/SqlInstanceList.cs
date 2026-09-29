@@ -163,7 +163,11 @@ public sealed class SqlInstanceList
     /// </remarks>
     /// <param name="text">整份指令碼。</param>
     /// <param name="tokens"><paramref name="text"/> 的詞法單元。</param>
-    public IReadOnlyList<SqlSuggestion> ScriptValues(string text, IReadOnlyList<SqlToken> tokens)
+    /// <param name="caretPosition">
+    /// 游標位置；碰到游標的那個詞元是正在打的前綴，不是寫過的值——收進來的話 <c>COLLATE Chin</c>
+    /// 的 <c>Chin</c> 會排在真正的定序前面。
+    /// </param>
+    public IReadOnlyList<SqlSuggestion> ScriptValues(string text, IReadOnlyList<SqlToken> tokens, int caretPosition)
     {
         if (text is null)
         {
@@ -181,9 +185,9 @@ public sealed class SqlInstanceList
 
         for (var index = 1; index < tokens.Count; index++)
         {
-            // 游標自己那一格是空的；文法上的字已經在 Defaults 裡，再放一份會讓同一個名稱
-            // 在清單上出現兩次。
-            if (!TryReadValue(tokens[index], out var name) ||
+            // 文法上的字已經在 Defaults 裡，再放一份會讓同一個名稱在清單上出現兩次。
+            if ((tokens[index].Start <= caretPosition && caretPosition <= tokens[index].End) ||
+                !TryReadValue(tokens[index], out var name) ||
                 IsDefault(name) ||
                 seen.Contains(name) ||
                 !IntroducesValueAt(text, tokens, index, ref boundaries))
@@ -290,9 +294,19 @@ public sealed class SqlInstanceList
     /// <summary>
     /// 讀出寫在名單位置上的值；形狀不像這份名單的值（變數、數字、資料行參考）時為 <c>false</c>。
     /// </summary>
+    /// <remarks>
+    /// 沒加括號的關鍵字不是值：前導字後面還空著時，緊接著的是下一個子句
+    /// （<c>SELECT a COLLATE | FROM t</c> 的 <c>FROM</c>、換行後的 <c>GO</c>）。
+    /// 定序與語言名稱都不是關鍵字，時區只收字串，這一條不會擋掉真的值。
+    /// </remarks>
     private bool TryReadValue(SqlToken token, out string name)
     {
         name = string.Empty;
+
+        if (token.Kind == SqlTokenKind.Identifier && !token.IsQuoted && IsKeywordLike(token.Value))
+        {
+            return false;
+        }
 
         switch (Form)
         {
@@ -311,6 +325,9 @@ public sealed class SqlInstanceList
                 return false;
         }
     }
+
+    private static bool IsKeywordLike(string word) =>
+        SqlKeywordCatalog.IsKeyword(word) || SqlKeywordCatalog.IsReservedIdentifier(word);
 
     private bool IsDefault(string name)
     {

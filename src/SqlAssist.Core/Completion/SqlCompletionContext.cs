@@ -29,7 +29,8 @@ public sealed class SqlCompletionContext
         bool startsBatch = false,
         bool expectsScalar = false,
         bool bracketed = false,
-        SqlTableReference? columnOwner = null)
+        SqlTableReference? columnOwner = null,
+        string? textBeforeCaret = null)
     {
         ScriptSources = scriptSources ?? NoScriptSources;
         Slot = slot;
@@ -49,6 +50,7 @@ public sealed class SqlCompletionContext
         ExpectsScalar = expectsScalar;
         Bracketed = bracketed;
         ColumnOwner = columnOwner;
+        TextBeforeCaret = textBeforeCaret;
     }
 
     /// <summary>
@@ -256,6 +258,16 @@ public sealed class SqlCompletionContext
     /// </remarks>
     public bool ExpectsScalar { get; }
 
+    /// <summary>分析的那段文字；沒有經過 <see cref="SqlCompletionContextAnalyzer"/> 時為 <c>null</c>。</summary>
+    /// <remarks>
+    /// 片段開頭的字要逐字接得上時，後面的字接上文字再分析一次（見 <see cref="SuggestionContextFilter"/>）；
+    /// 只存參考，不另外切字串。
+    /// </remarks>
+    internal string? TextBeforeCaret { get; }
+
+    /// <summary>複製這個上下文，記下分析的那段文字。</summary>
+    internal SqlCompletionContext WithTextBeforeCaret(string text) => Copy(textBeforeCaret: text);
+
     /// <summary>複製這個上下文，補上敘述看得到的欄位來源。</summary>
     internal SqlCompletionContext WithScopeSources(IReadOnlyList<SqlColumnSource> sources) =>
         Copy(scopeSources: sources);
@@ -294,7 +306,8 @@ public sealed class SqlCompletionContext
         IReadOnlyList<SqlColumnSource>? columnSources = null,
         IReadOnlyList<SqlColumnSource>? scopeSources = null,
         IReadOnlyList<SqlSuggestion>? scriptSources = null,
-        bool? bracketed = null)
+        bool? bracketed = null,
+        string? textBeforeCaret = null)
     {
         return new SqlCompletionContext(
             Slot,
@@ -314,6 +327,7 @@ public sealed class SqlCompletionContext
             StartsBatch,
             ExpectsScalar,
             bracketed ?? Bracketed,
-            ColumnOwner);
+            ColumnOwner,
+            textBeforeCaret ?? TextBeforeCaret);
     }
 }

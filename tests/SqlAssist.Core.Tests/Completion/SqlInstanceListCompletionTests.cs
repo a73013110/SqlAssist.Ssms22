@@ -147,8 +147,14 @@ public sealed class SqlInstanceListCompletionTests
     /// <summary>
     /// 形狀不像這份名單的值不收：<c>AT TIME ZONE</c> 後面的識別字是資料行，
     /// <c>COLLATE</c> 後面的方括號名稱是語法錯誤，變數與別的名單的值也不算。
+    /// 前導字後面還空著時緊接著的是下一個子句的關鍵字，游標上正在打的是前綴，兩者都不是值。
     /// </summary>
     [Theory]
+    [InlineData("SELECT CopyNo COLLATE | FROM dbo.Copy")]
+    [InlineData("SELECT CopyNo COLLATE |\nGO")]
+    [InlineData("SET LANGUAGE |\nSELECT 1")]
+    [InlineData("SELECT CopyNo COLLATE Chin|")]
+    [InlineData("SELECT CopyNo COLLATE |Chinese_Taiwan_Stroke_CI_AS")]
     [InlineData("SELECT l.LoanDate AT TIME ZONE r.TimeZoneName, l.LoanDate AT TIME ZONE |")]
     [InlineData("SELECT a COLLATE [Latin1_General_CI_AS], b COLLATE |")]
     [InlineData("SET LANGUAGE @lang\nSET LANGUAGE |")]
@@ -167,7 +173,7 @@ public sealed class SqlInstanceListCompletionTests
     {
         const string sql = "SELECT a COLLATE Latin1_General_CI_AS, b COLLATE LATIN1_GENERAL_CI_AS, c COLLATE DATABASE_DEFAULT";
 
-        var source = Assert.Single(SqlInstanceList.Collation.ScriptValues(sql, SqlTokenizer.Tokenize(sql)));
+        var source = Assert.Single(SqlInstanceList.Collation.ScriptValues(sql, SqlTokenizer.Tokenize(sql), sql.Length));
         Assert.Equal("Latin1_General_CI_AS", source.DisplayText);
     }
 

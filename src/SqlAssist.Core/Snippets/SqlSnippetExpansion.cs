@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using SqlAssist.Core.Parsing;
 
 namespace SqlAssist.Core.Snippets;
 
@@ -58,6 +59,8 @@ public readonly struct SqlSnippetRender
 /// <summary>Snippet 經過一次剖析後，供一般插入與原生 Expansion 共用的結果。</summary>
 public sealed class SqlSnippetExpansion
 {
+    private readonly Lazy<IReadOnlyList<string>> _leadingWords;
+
     private SqlSnippetExpansion(
         string text,
         string nativeCode,
@@ -72,10 +75,20 @@ public sealed class SqlSnippetExpansion
         Fields = fields;
         SurroundOffset = surroundOffset;
         SurroundLength = surroundLength;
+        _leadingWords = new Lazy<IReadOnlyList<string>>(FindLeadingWords, isThreadSafe: true);
     }
 
     /// <summary>一般插入與原生失敗時使用的完整文字。</summary>
     public string Text { get; }
+
+    /// <summary>插入文字開頭連續的字，略過註解標頭。</summary>
+    /// <remarks>
+    /// 片段就是這幾個字寫下去的一整句：片語說這一格接得上第一個字、之後每個字也接得上時，
+    /// 片段也屬於這一格（<c>DECLARE c CURSOR FOR</c> 之後的 <c>ssf</c>），見 <c>SuggestionContextFilter</c>。
+    /// 停在第一個不是字的詞元、欄位或游標標記，以及函式呼叫（<c>COUNT(</c>）：
+    /// 那之後是使用者要填的東西與運算式，不是文法上的字。
+    /// </remarks>
+    public IReadOnlyList<string> LeadingWords => _leadingWords.Value;
 
     /// <summary>
     /// 原生 Snippet XML 的 Code 內容。已知欄位與保留標記維持原樣，
@@ -104,6 +117,39 @@ public sealed class SqlSnippetExpansion
     /// 同步機制的資料。
     /// </remarks>
     public IReadOnlyList<SqlSnippetField> Fields { get; }
+
+    private IReadOnlyList<string> FindLeadingWords()
+    {
+        var end = CaretOffset >= 0 ? CaretOffset : Text.Length;
+
+        if (Fields.Count > 0)
+        {
+            end = Math.Min(end, Fields[0].Offset);
+        }
+
+        if (SurroundOffset >= 0)
+        {
+            end = Math.Min(end, SurroundOffset);
+        }
+
+        var tokens = SqlTokenizer.Tokenize(Text);
+        var words = new List<string>();
+
+        for (var index = 0; index < tokens.Count; index++)
+        {
+            var token = tokens[index];
+
+            if (token.Kind != SqlTokenKind.Identifier || token.IsQuoted || token.End > end ||
+                (index + 1 < tokens.Count && tokens[index + 1].IsPunctuation("(")))
+            {
+                break;
+            }
+
+            words.Add(token.Value);
+        }
+
+        return words;
+    }
 
     public string GetText(string newLine, out int caretOffset)
     {

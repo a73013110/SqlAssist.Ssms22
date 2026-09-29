@@ -4,6 +4,7 @@ using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
 using SqlAssist.Core.Snippets;
+using SqlAssist.Core.Tests.Completion;
 using Xunit;
 
 namespace SqlAssist.Core.Tests.Keywords;
@@ -221,6 +222,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("DEALLOCATE ", "GLOBAL")]
     [InlineData("FETCH NEXT ", "FROM")]
     [InlineData("FETCH NEXT FROM ", "GLOBAL")]
+    [InlineData("FETCH ABSOLUTE 1 ", "FROM")]
+    [InlineData("FETCH ABSOLUTE 1 FROM ", "GLOBAL")]
+    [InlineData("FETCH RELATIVE @n FROM ", "GLOBAL")]
     [InlineData("DBCC ", "CHECKDB", "SHOW_STATISTICS", "SQLPERF", "CHECKTABLE", "TRACEON", "FREEPROCCACHE")]
     [InlineData("BEGIN\n    DBCC ", "CHECKIDENT")]
     [InlineData("DBCC CHECKDB ", "WITH")]
@@ -266,6 +270,9 @@ public sealed class SqlClausePhraseTests
     [InlineData("DBCC CHECKIDENT ('dbo.Lib_Tag', ", "NORESEED", "RESEED")]
     [InlineData("DBCC CHECKDB (N'LibArchive', ", "NOINDEX", "REPAIR_ALLOW_DATA_LOSS", "REPAIR_FAST", "REPAIR_REBUILD")]
     [InlineData("DBCC SQLPERF (", "LOGSPACE")]
+    [InlineData("DBCC SQLPERF ('sys.dm_os_wait_stats', ", "CLEAR")]
+    [InlineData("DBCC SHRINKFILE (LibArchive_log, ", "EMPTYFILE", "NOTRUNCATE", "TRUNCATEONLY")]
+    [InlineData("DBCC CHECKTABLE ('dbo.Loan', ", "NOINDEX", "REPAIR_REBUILD")]
     public void 片語接得上的字出現在清單裡(string textBeforeToken, params string[] expected)
     {
         var offered = Offered(textBeforeToken);
@@ -581,6 +588,31 @@ public sealed class SqlClausePhraseTests
     public void 片語裡的每一個字在前面那段列得出來(string pattern, string textBeforeToken, string word)
     {
         Assert.True(Offered(textBeforeToken).Contains(word), $"{pattern}：{textBeforeToken}| 沒有 {word}");
+    }
+
+    /// <summary>
+    /// 片段開頭的字從片語一路接得下去時，片段也屬於那一格：<c>CURSOR FOR</c> 之後的清單封閉在
+    /// <c>SELECT</c>、<c>WITH</c>，<c>ssf</c> 仍然要在。只接得上第一個字的不算——觸發程序
+    /// <c>FOR</c> 之後接得上 <c>INSERT</c>，卻不是 <c>INSERT INTO</c>。
+    /// </summary>
+    [Theory]
+    [InlineData("DECLARE c CURSOR FOR ", "ssf", true)]
+    [InlineData("DECLARE c CURSOR LOCAL FAST_FORWARD FOR\n    ", "st100", true)]
+    [InlineData("DECLARE c CURSOR FOR ", "sd", true)]
+    [InlineData("DECLARE c CURSOR FOR ", "ii", false)]
+    [InlineData("CREATE TRIGGER tr ON dbo.Loan FOR ", "ii", false)]
+    [InlineData("ALTER TABLE dbo.Loan ", "dt", false)]
+    [InlineData("UPDATE dbo.Loan ", "sno", false)]
+    public void 片語的字開頭的片段也屬於那一格(string textBeforeCaret, string shortcut, bool expected)
+    {
+        var context = SqlCompletionContextAnalyzer.Analyze(textBeforeCaret + shortcut);
+        var candidates = BuiltInSuggestionCatalog.Create(SqlSnippetDefaults.Current)
+            .Concat(context.ClausePhrase?.Suggestions ?? Enumerable.Empty<SqlSuggestion>());
+
+        var offered = SuggestionListProbe.Match(candidates, context)
+            .Any(suggestion => suggestion.Kind == SuggestionKind.Snippet && suggestion.DisplayText == shortcut);
+
+        Assert.Equal(expected, offered);
     }
 
     private static bool IsLiteral(string item)

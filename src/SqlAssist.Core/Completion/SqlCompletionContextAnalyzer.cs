@@ -25,7 +25,10 @@ public static class SqlCompletionContextAnalyzer
 
         if (SqlLexicalContext.IsCode(textBeforeCaret, tokenStart))
         {
-            return AnalyzeToken(textBeforeCaret, tokenStart);
+            // 片語之後的片段要把開頭的字接上原文再問一次（SuggestionContextFilter），只有那時用得到原文。
+            var context = AnalyzeToken(textBeforeCaret, tokenStart);
+
+            return context.ClausePhrase is null ? context : context.WithTextBeforeCaret(textBeforeCaret);
         }
 
         // 字串與註解裡什麼都不補；方括號裡是例外——那裡放的是名稱，左方括號本身就是
@@ -266,7 +269,7 @@ public static class SqlCompletionContextAnalyzer
         // 敘述有哪些資料來源與欄位都無關，底下整趟範圍解析可以省下來。
         if (SqlInstanceList.For(context.Target) is { } instanceList)
         {
-            return context.WithScriptSources(instanceList.ScriptValues(sql, tokens));
+            return context.WithScriptSources(instanceList.ScriptValues(sql, tokens, caretPosition));
         }
 
         if (context.Target == CompletionTarget.Cursor)

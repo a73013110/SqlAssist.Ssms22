@@ -546,8 +546,13 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
                 return SqlArgumentCatalog.TableHints;
             case CompletionTarget.QueryHint:
                 return SqlArgumentCatalog.QueryHints;
+
+            // 封閉片語的字之外還有以那些字開頭的片段（CURSOR FOR 之後的 ssf），由上下文過濾挑。
             case CompletionTarget.ClauseKeyword:
-                return context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>();
+                return GetBuiltIn()
+                    .Where(item => item.Kind == SuggestionKind.Snippet && IsBuiltInEnabled(item, settings))
+                    .Concat(context.ClausePhrase?.Suggestions ?? Array.Empty<SqlSuggestion>())
+                    .ToArray();
         }
 
         // 定序、語言與時區的名單只有伺服器知道，但那個位置不會因為問不到而空掉：
