@@ -25,6 +25,10 @@ public static class SqlClausePhraseCatalog
     /// <summary>沒有尾巴、只認游標處位置的片語。</summary>
     private static readonly SqlClausePhrase[] AtPosition = Phrases.Where(phrase => phrase.Length == 0).ToArray();
 
+    /// <summary>任一個片語接得上的字；語句開頭的判準先問它，絕大多數的字不必比對。</summary>
+    private static readonly HashSet<string> AllWords =
+        new(Phrases.SelectMany(phrase => phrase.Words), StringComparer.OrdinalIgnoreCase);
+
     /// <summary>全部片語。</summary>
     public static IReadOnlyList<SqlClausePhrase> All => Phrases;
 
@@ -48,22 +52,60 @@ public static class SqlClausePhraseCatalog
     /// </remarks>
     internal static SqlClausePhraseMatch? Match(IReadOnlyList<SqlToken> tokens, string textBeforeToken, SqlKeywordPosition caret)
     {
-        SqlClausePhraseMatch? best = null;
-        var onNewLine = false;
+        var onNewLine = tokens.Count > 0 &&
+            SqlKeywordPositionAnalyzer.StartsOnNewLine(tokens[tokens.Count - 1].End, textBeforeToken.Length, textBeforeToken);
 
-        if (tokens.Count > 0)
+        return Match(
+            tokens,
+            tokens.Count,
+            onNewLine,
+            caret,
+            start => SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken));
+    }
+
+    /// <summary>
+    /// 前 <paramref name="count"/> 個詞元寫到那裡，比對到的片語確定接得上 <paramref name="keyword"/>。
+    /// </summary>
+    /// <param name="before">位置分析對那一格的回報，不含換行補上的語句開頭。</param>
+    /// <param name="positionBefore">片語第一個詞元前面那一格的位置；由呼叫端的分析器回答。</param>
+    /// <remarks>
+    /// 語句開頭的判準拿它分辨隱含的界線：剖析器不看換行，接得上的字就屬於前一句，
+    /// 所以這裡不像 <see cref="Match(IReadOnlyList{SqlToken}, string, SqlKeywordPosition)"/> 那樣
+    /// 在換行後略過已經完整的片語。只算確定的比對：前一格判不出來時，片語那個意思可能根本不成立。
+    /// </remarks>
+    internal static bool Continues(
+        IReadOnlyList<SqlToken> tokens,
+        int count,
+        SqlKeywordPosition before,
+        Func<int, SqlKeywordPosition> positionBefore,
+        string keyword)
+    {
+        return AllWords.Contains(keyword) &&
+            Match(tokens, count, onNewLine: false, before, positionBefore) is { IsCertain: true } match &&
+            match.Phrase.Offers(keyword);
+    }
+
+    private static SqlClausePhraseMatch? Match(
+        IReadOnlyList<SqlToken> tokens,
+        int count,
+        bool onNewLine,
+        SqlKeywordPosition caret,
+        Func<int, SqlKeywordPosition> positionBefore)
+    {
+        SqlClausePhraseMatch? best = null;
+
+        if (count > 0)
         {
-            var last = tokens[tokens.Count - 1];
-            onNewLine = SqlKeywordPositionAnalyzer.StartsOnNewLine(last.End, textBeforeToken.Length, textBeforeToken);
+            var last = tokens[count - 1];
 
             if (last.Kind == SqlTokenKind.Identifier &&
                 !last.IsQuoted &&
                 ByLastWord.TryGetValue(last.Value, out var candidates))
             {
-                best = FirstMatch(candidates, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0);
+                best = FirstMatch(candidates, tokens, count, onNewLine, caret, positionBefore, minimumLength: 0);
             }
 
-            best = FirstMatch(EndingWithPlaceholder, tokens, textBeforeToken, onNewLine, caret, best?.Phrase.Length + 1 ?? 0) ?? best;
+            best = FirstMatch(EndingWithPlaceholder, tokens, count, onNewLine, caret, positionBefore, best?.Phrase.Length + 1 ?? 0) ?? best;
         }
 
         if (best is { IsCertain: true } || caret == SqlKeywordPosition.Any)
@@ -72,16 +114,17 @@ public static class SqlClausePhraseCatalog
         }
 
         // 附加片語排在最後，只在什麼都沒比對到時才輪到：它只加字，不該擠掉一個可能的尾巴。
-        var atPosition = FirstMatch(AtPosition, tokens, textBeforeToken, onNewLine, caret, minimumLength: 0);
+        var atPosition = FirstMatch(AtPosition, tokens, count, onNewLine, caret, positionBefore, minimumLength: 0);
         return atPosition is { Phrase.IsAdditive: true } && best is not null ? best : atPosition ?? best;
     }
 
     private static SqlClausePhraseMatch? FirstMatch(
         SqlClausePhrase[] candidates,
         IReadOnlyList<SqlToken> tokens,
-        string textBeforeToken,
+        int count,
         bool onNewLine,
         SqlKeywordPosition caret,
+        Func<int, SqlKeywordPosition> positionBefore,
         int minimumLength)
     {
         foreach (var phrase in candidates)
@@ -96,9 +139,9 @@ public static class SqlClausePhraseCatalog
                 continue;
             }
 
-            var start = phrase.MatchTail(tokens);
+            var start = phrase.MatchTail(tokens, count);
 
-            if (start >= 0 && Qualify(phrase, tokens, start, textBeforeToken, caret) is { } match)
+            if (start >= 0 && Qualify(phrase, start == count ? caret : positionBefore(start)) is { } match)
             {
                 return match;
             }
@@ -108,29 +151,19 @@ public static class SqlClausePhraseCatalog
     }
 
     /// <summary>
-    /// 尾巴已經對上，再看片語第一個字前面那一格過不過得了 <see cref="SqlClausePhrase.After"/>。
+    /// 尾巴已經對上，再看片語第一個字前面那一格（<paramref name="before"/>）過不過得了 <see cref="SqlClausePhrase.After"/>。
     /// </summary>
     /// <remarks>
     /// 判不出位置時算數但不確定，理由見 <see cref="SqlClausePhraseMatch"/>。
     /// 區塊開頭接的是語句，所以語句開頭的片語在那裡一樣成立：<c>BEGIN SET NOCOUNT ON</c>。
-    /// 沒有尾巴的片語從游標處開始，前一格就是 <paramref name="caret"/>，不必再分析一次。
+    /// 沒有尾巴的片語從游標處開始，前一格就是游標處的位置，不必再分析一次。
     /// </remarks>
-    private static SqlClausePhraseMatch? Qualify(
-        SqlClausePhrase phrase,
-        IReadOnlyList<SqlToken> tokens,
-        int start,
-        string textBeforeToken,
-        SqlKeywordPosition caret)
+    private static SqlClausePhraseMatch? Qualify(SqlClausePhrase phrase, SqlKeywordPosition before)
     {
         if (phrase.After == SqlKeywordPosition.Any)
         {
             return phrase.Certain;
         }
-
-
-        var before = start == tokens.Count
-            ? caret
-            : SqlKeywordPositionAnalyzer.PositionBefore(tokens, start, textBeforeToken);
 
         if (before == SqlKeywordPosition.Any)
         {

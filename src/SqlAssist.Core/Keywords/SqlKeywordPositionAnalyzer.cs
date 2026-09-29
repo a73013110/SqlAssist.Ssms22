@@ -315,19 +315,26 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// </remarks>
     internal static SqlKeywordPosition PositionBefore(IReadOnlyList<SqlToken> tokens, int index, string textBeforeToken)
     {
+        return index <= 0
+            ? SqlKeywordPosition.StatementStart
+            : new SqlKeywordPositionAnalyzer(tokens, textBeforeToken).PositionBefore(index);
+    }
+
+    /// <summary>同上，由這個分析器回答；語句開頭的判準問片語時走這裡，判過的開頭不必重算。</summary>
+    private SqlKeywordPosition PositionBefore(int index)
+    {
         if (index <= 0)
         {
             return SqlKeywordPosition.StatementStart;
         }
 
-        var analyzer = new SqlKeywordPositionAnalyzer(tokens, textBeforeToken);
-        var before = analyzer.KeywordsBefore(index);
-        var position = analyzer.AddStatementEnd(before, index - 1, tokens[index].Start);
+        var before = KeywordsBefore(index);
+        var position = AddStatementEnd(before, index - 1, tokens[index].Start);
 
         // 換行只說下一句「可能」從這裡開始；這個字自己是不是開頭，問語句開頭的判準。
         // UPDATE t⏎SET 的 SET 是資料行指派，當成開頭的話片語會列出 NOCOUNT 這些工作階段選項。
         return (before & SqlKeywordPosition.StatementStart) == SqlKeywordPosition.None &&
-            !analyzer.IsStatementHead(index)
+            !IsStatementHead(index)
                 ? position & ~SqlKeywordPosition.StatementStart
                 : position;
     }
@@ -577,6 +584,11 @@ public sealed partial class SqlKeywordPositionAnalyzer
     /// 而它寫到一個運算元或寫完一整句的字（<see cref="MayEndStatement"/>）。</item>
     /// </list>
     ///
+    /// 隱含的界線只是猜測，剖析器不看換行：前一句寫到這裡比對到的子句片語接得上這個字時，
+    /// 它是前一句的下一段（<see cref="SqlClausePhraseCatalog.Continues"/>）。<c>OFFSET 0 ROWS⏎FETCH</c>
+    /// 的 FETCH 接的是 NEXT 5 ROWS ONLY，<c>ALTER DATABASE d⏎SET</c> 的 SET 是資料庫選項；
+    /// 當成開頭的話，語句說明開出資料指標的 FETCH，範圍分析把後半句切成下一句。
+    ///
     /// 前一格判不出位置、前一個詞元又還沒寫完（<c>DROP TABLE |IF</c>、<c>THEN |UPDATE</c>、
     /// <c>FOR |SELECT</c>）時不是開頭：那裡的字屬於同一句。
     ///
@@ -618,14 +630,15 @@ public sealed partial class SqlKeywordPositionAnalyzer
         {
             head = false;
         }
-        else if (before == SqlKeywordPosition.Any)
-        {
-            head = MayEndStatement(index - 1);
-        }
         else
         {
-            head = (AddStatementStartOnNewLine(before, index - 1, token.Start) & SqlKeywordPosition.StatementStart)
-                != SqlKeywordPosition.None;
+            head = before == SqlKeywordPosition.Any
+                ? MayEndStatement(index - 1)
+                : (AddStatementStartOnNewLine(before, index - 1, token.Start) & SqlKeywordPosition.StatementStart)
+                    != SqlKeywordPosition.None;
+
+            // 隱含的界線是猜的，剖析器不猜：前一句寫到這裡接得上這個字，它就還是那一句。
+            head = head && !SqlClausePhraseCatalog.Continues(tokens, index, before, PositionBefore, token.Value);
         }
 
         if (head && token.IsKeyword("SET") && !IntroducesOptions(index))

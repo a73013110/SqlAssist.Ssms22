@@ -934,6 +934,8 @@ public sealed class SqlBuiltInDocCatalogTests
     [InlineData("DECLARE @t TABLE (Id int)", "TABLE")]
     [InlineData("UPDATE Loan SET CopyNo = 1", "UPDATE")]
     [InlineData("SELECT CopyNo FROM Loan ORDER BY CopyNo OFFSET 0 ROWS FETCH NEXT 5 ROWS ONLY", "FETCH")]
+    [InlineData("SELECT CopyNo FROM Loan ORDER BY CopyNo\nOFFSET 0 ROWS\nFETCH NEXT 5 ROWS ONLY", "FETCH")]
+    [InlineData("ALTER DATABASE Lib_Db\nSET RECOVERY SIMPLE", "SET")]
     [InlineData("GRANT SELECT ON Loan TO Lib_Reader", "SELECT")]
     public void 資源裡的語句在句首以外不認(string text, string word)
     {

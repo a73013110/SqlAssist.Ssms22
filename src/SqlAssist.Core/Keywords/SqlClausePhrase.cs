@@ -66,6 +66,8 @@ public sealed class SqlClausePhrase
     /// <remarks>
     /// 這種片語的字不含下一句的開頭（產生器扣掉了），所以換了行就不算數：
     /// 換行之後的那一格更可能是下一句，那裡要的是語句開頭的整份清單。
+    /// 產生器手寫補回的字例外（<c>OFFSET 10 ROWS </c> 的 FETCH）：清單照樣略過片語，那個字仍在
+    /// 語句開頭的清單裡；但寫出來之後它屬於這一句，見 <see cref="SqlClausePhraseCatalog.Continues"/>。
     /// </remarks>
     public bool EndsStatement { get; }
 
@@ -119,11 +121,12 @@ public sealed class SqlClausePhrase
     internal bool Offers(string word) => _wordSet.Contains(word);
 
     /// <summary>
-    /// <paramref name="tokens"/> 的尾端是不是這個片語；是的話回傳片語第一個詞元的索引，否則 -1。
+    /// <paramref name="tokens"/> 前 <paramref name="count"/> 個詞元的尾端是不是這個片語；
+    /// 是的話回傳片語第一個詞元的索引，否則 -1。
     /// </summary>
-    internal int MatchTail(IReadOnlyList<SqlToken> tokens)
+    internal int MatchTail(IReadOnlyList<SqlToken> tokens, int count)
     {
-        var index = tokens.Count - 1;
+        var index = count - 1;
 
         for (var element = _elements.Length - 1; element >= 0; element--)
         {
