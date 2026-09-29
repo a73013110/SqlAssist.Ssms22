@@ -906,7 +906,8 @@ public sealed class SqlBuiltInDocCatalogTests
     [InlineData("RESTORE FILELISTONLY FROM DISK = 'x.bak'", "RESTORE", "RESTORE FILELISTONLY")]
     [InlineData("GRANT SELECT ON Loan TO Lib_Reader\nDENY SELECT ON Loan TO Lib_Reader", "DENY", "DENY")]
     [InlineData("SELECT 1\nDBCC SHOW_STATISTICS ('Loan', IX_Loan)", "SHOW_STATISTICS", "DBCC SHOW_STATISTICS")]
-    [InlineData("DBCC TRACESTATUS", "DBCC", "DBCC")]
+    [InlineData("DBCC TRACESTATUS", "TRACESTATUS", "DBCC TRACESTATUS")]
+    [InlineData("DBCC LOGINFO", "DBCC", "DBCC")]
     public void 資源裡的語句在句首認得(string text, string word, string expected)
     {
         var reference = SqlIdentifierScanner.FindAt(text, text.IndexOf(word, StringComparison.Ordinal));

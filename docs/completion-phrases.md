@@ -54,10 +54,13 @@
 單獨一個 `ON`、`NEXT` 執行期到處比對得上，立了都會封閉掉不相干的清單。
 `SqlClausePhraseTests` 以同一個範圍逐字回驗。
 
+語句說明的名稱與別名也是整段證據，只補進已有的片語（另立會封閉掉 `BEGIN ` 其餘的字）。
+`DBCC ` 之後剖析器什麼都收，探不出字，名單只有說明；ScriptDom 的 `DbccCommandsHelper` 混著
+`WRITEPAGE` 這類內部命令、又缺 `CLONEDATABASE`，不用。
+
 第一個字前面那段是位置，不是片語。那個位置有只認位置的片語就補進去；沒有、關鍵字目錄在那裡
 也給不了（`AT` 不在 `SelectListTail`，`ENABLE` 不是關鍵字）時，另立**附加片語**：只認位置，
-比對永遠是「可能」，只把字加進清單、不藏別的字。換成只認位置的普通片語不行——比對確定時這一格的
-關鍵字只來自片語，`SELECT a ` 之後就只剩 `AT`。前面那段已有片語列得出這個字（`CREATE ` 之後的
+比對永遠是「可能」，只加字、不藏字——普通片語比對確定時，`SELECT a ` 之後就只剩 `AT`。前面那段已有片語列得出這個字（`CREATE ` 之後的
 `SYNONYM`）就不立。附加片語輸出成另一個陣列 `AdditivePhrases`，回驗改問「比對回自己而且只是可能」。
 
 新增一個片語只要加一行再重跑，執行期不必改。
@@ -76,10 +79,8 @@
 
 會重複的格子尾巴寫不出來（`CURSOR LOCAL FAST_FORWARD `、`WITH COMPRESSION, `），位置寫得出來：
 沒有尾巴的片語帶 `After`，探測文字就是那個位置的樣板。游標選項、觸發程序標頭、MERGE 的 `WHEN`、
-BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是這樣；`WITH RESULT SETS (…)` 的
-結果集與資料行定義是兩層括號清單，也各有位置（`ResultSetList`、`ResultSetColumn`、`ResultSetColumnTail`），
-`AS OBJECT`、`NOT NULL` 的下一個字由掛在位置上的片語給；`OFFSET 10 ` 之後的
-`ROWS`、視窗 `ORDER BY a ` 之後的框架、函式參數清單之後的 `RETURNS` 也是。位置見[關鍵字](completion-keywords.md)。
+各敘述的 `WITH` 選項清單、`WITH RESULT SETS (…)` 的兩層括號、`OFFSET 10 ` 之後都是這樣；
+清單在 `$ClausePhrases`，位置見[關鍵字](completion-keywords.md)。
 
 中間可以夾別的子句時也寫位置，不寫尾巴：CREATE INDEX 的 `WITH (` 前面可能是索引鍵、`INCLUDE (…)`
 或篩選的 `WHERE`，每一種組合寫一條尾巴永遠寫不齊，位置分析認的是這一句（`IndexOption`）。
@@ -128,5 +129,5 @@ BACKUP／RESTORE、模組、`EXEC` 與 `RAISERROR` 的 `WITH` 選項清單都是
 
 - 單獨的 `CURRENT`：`WHERE CURRENT OF` 也是它，只收視窗框架裡的幾種前綴。
 - `STRING_AGG(…) WITHIN `：剖析器把 `WITHIN` 當成欄位別名，探出來的是別名之後的字。
-- `DBCC` 的命令、`SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，
-  名單只在 `DbccCommand` 列舉或伺服器上（`sys.syslanguages`、`sys.time_zone_info`）。
+- `SET LANGUAGE` 的語言、`AT TIME ZONE` 的時區：剖析器收任何名稱，名單只在伺服器上
+  （`sys.syslanguages`、`sys.time_zone_info`）。
