@@ -70,7 +70,7 @@ internal static class SqlSuggestionTarget
             : null;
     }
 
-    /// <summary>浮動預覽要畫什麼；沒有東西可畫的項目（一般關鍵字、短片段、一般變數…）回傳 null。</summary>
+    /// <summary>浮動預覽要畫什麼；沒有東西可畫的項目（一般關鍵字、一般變數…）回傳 null。</summary>
     public static SqlPreviewSubject? Describe(SqlSuggestion suggestion, SqlStatementCandidates? statements = null)
     {
         if (suggestion is null)
@@ -111,8 +111,8 @@ internal static class SqlSuggestionTarget
                         ? SqlScriptDeclarations.KindOf(name)
                         : SqlObjectKind.CommonTableExpression));
 
-            // 與內建說明同一條分工：說明面板印得完的片段不開視窗。
-            case SuggestionKind.Snippet when suggestion.Tag is SqlSnippet snippet && SqlSnippetPreview.DeservesWindow(snippet):
+            // 片段一律開：程式碼只畫在預覽裡，說明面板只寫標題與用途（見 SqlQuickInfoContentBuilder.BuildSnippet）。
+            case SuggestionKind.Snippet when suggestion.Tag is SqlSnippet snippet:
                 return SqlPreviewSubject.ForSnippet(snippet);
         }
 

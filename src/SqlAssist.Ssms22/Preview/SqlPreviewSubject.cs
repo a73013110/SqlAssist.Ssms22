@@ -41,7 +41,7 @@ internal sealed class SqlPreviewSubject
     /// </remarks>
     public SqlBuiltInDoc? BuiltIn { get; }
 
-    /// <summary>建議清單裡選到的片段；說明面板印不完時才走到這裡。其餘一律 null。</summary>
+    /// <summary>建議清單裡選到的片段；其餘一律 null。</summary>
     public SqlSnippet? Snippet { get; }
 
     /// <summary>膠囊與工具窗標題上寫的名稱：物件的完整名稱、內建名稱或片段標題。</summary>

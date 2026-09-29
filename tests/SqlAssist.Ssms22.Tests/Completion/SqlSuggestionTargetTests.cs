@@ -1,4 +1,3 @@
-using System.Linq;
 using SqlAssist.Core.Completion;
 using SqlAssist.Core.Keywords;
 using SqlAssist.Core.Parsing;
@@ -229,18 +228,15 @@ public sealed class SqlSuggestionTargetTests
     }
 
     /// <summary>
-    /// 片段與內建說明同一條分工：說明面板印得完的不開視窗，印不完的才交給浮動預覽。
+    /// 片段的程式碼只畫在浮動預覽裡，所以一行的片段也開：依行數分兩邊畫的話，
+    /// 同一類項目在清單上移動時一下是面板、一下是預覽。
     /// </summary>
     [Fact]
-    public void 只有說明面板印不完的片段開視窗()
+    public void 片段不論長短都開視窗()
     {
-        var shortSnippet = new SqlSnippet("ssf", "SELECT * FROM ");
-        var longSnippet = new SqlSnippet("cur", string.Join("\n", Enumerable.Repeat("SELECT 1;", SqlSnippetPreview.PanelLines + 1)));
+        var snippet = new SqlSnippet("ssf", "SELECT * FROM ");
 
-        Assert.Null(SqlSuggestionTarget.Describe(Suggestion("ssf", SuggestionKind.Snippet, shortSnippet)));
-        Assert.Same(
-            longSnippet,
-            SqlSuggestionTarget.Describe(Suggestion("cur", SuggestionKind.Snippet, longSnippet))!.Snippet);
+        Assert.Same(snippet, SqlSuggestionTarget.Describe(Suggestion("ssf", SuggestionKind.Snippet, snippet))!.Snippet);
     }
 
     /// <summary>

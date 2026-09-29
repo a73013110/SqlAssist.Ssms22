@@ -264,15 +264,14 @@ internal static class SqlQuickInfoContentBuilder
     }
 
     /// <summary>
-    /// 片段在建議清單說明面板裡的內容：標題、用途，以及選下去之後實際插入的那一份文字。
+    /// 片段在建議清單說明面板裡的內容：標題與用途。
     /// </summary>
     /// <remarks>
-    /// 以前只寫標題，<c>cp</c> 會展開成什麼要插下去才知道。程式碼讀 <see cref="SqlSnippetPreview"/>，
-    /// 與浮動預覽、實際插入同一份（欄位已填預設值）；著色與逐行成元素的理由同
-    /// <see cref="BuildDefinition"/>。空白行留著：片段的段落本身就是它的結構。
+    /// 程式碼一律交給浮動預覽（<see cref="SqlSnippetPreview"/>），與物件的定義本文同一條分工。
+    /// 平台的說明面板字寬不等、行距調不了，<c>-- ====</c> 這類分隔線在裡面畫出來是參差的一團；
+    /// 以前依行數分兩邊畫，同一類項目在清單上移動時一下是面板、一下是預覽，也看不出規則。
     /// </remarks>
-    /// <param name="previewAvailable">浮動預覽開著：印不完時指出按向右鍵，否則只說還有幾行。</param>
-    public static ContainerElement BuildSnippet(SqlSnippet snippet, bool previewAvailable)
+    public static ContainerElement BuildSnippet(SqlSnippet snippet)
     {
         var caption = new List<object>
         {
@@ -288,33 +287,7 @@ internal static class SqlQuickInfoContentBuilder
             caption.Add(description);
         }
 
-        var lines = SqlSnippetPreview.Lines(snippet);
-        var code = new List<object>();
-
-        for (var index = 0; index < lines.Count && index < SqlSnippetPreview.PanelLines; index++)
-        {
-            code.Add(lines[index].Trim().Length == 0
-                ? Line(Text(" "))
-                : new ClassifiedTextElement(BuildCodeRuns(lines[index])));
-        }
-
-        var elements = new List<object> { new ContainerElement(ContainerElementStyle.Stacked, caption) };
-
-        if (code.Count > 0)
-        {
-            elements.Add(new ContainerElement(ContainerElementStyle.Stacked, code));
-        }
-
-        var hidden = lines.Count - SqlSnippetPreview.PanelLines;
-
-        if (hidden > 0)
-        {
-            elements.Add(Line(Comment(previewAvailable
-                ? QuickInfoText.MoreLinesInPreview(hidden)
-                : QuickInfoText.MoreLines(hidden))));
-        }
-
-        return Sections(elements);
+        return Sections(new object[] { new ContainerElement(ContainerElementStyle.Stacked, caption) });
     }
 
     /// <summary>

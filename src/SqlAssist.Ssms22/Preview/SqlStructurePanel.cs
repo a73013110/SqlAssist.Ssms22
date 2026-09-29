@@ -1097,7 +1097,7 @@ internal sealed class SqlStructurePanel : UserControl, IShellKeyTarget, IDisposa
         doc.References,
         PreviewText.CopiedExample));
 
-    /// <summary>顯示一個片段選下去之後實際插入的文字；說明面板印不完的才走到這裡。</summary>
+    /// <summary>顯示一個片段選下去之後實際插入的文字；片段的程式碼只畫在這裡。</summary>
     public void ShowSnippet(SqlSnippet snippet) => ShowDocument(new DocumentView(
         snippet.Title,
         SuggestionKind.Snippet,

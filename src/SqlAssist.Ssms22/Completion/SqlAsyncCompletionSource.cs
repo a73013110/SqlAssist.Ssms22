@@ -432,17 +432,16 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         var statements = StatementCandidatesOf(session);
         var builtIn = SqlSuggestionTarget.FindBuiltIn(suggestion, statements);
         var objectInfo = builtIn is null ? suggestion.Tag as SqlObjectInfo : null;
-        var mode = SqlAssistSettingsStore.Current.PreviewMode;
 
         // 平台每換一次選取就問一次說明，這正是「選取換了項目」的信號。
         // 預覽只記下是誰，沒展開就不畫也不查。
-        if (mode != SqlPreviewMode.Off &&
+        if (SqlAssistSettingsStore.Current.PreviewMode != SqlPreviewMode.Off &&
             SqlStructurePreview.Peek(session.TextView) is { } preview)
         {
             preview.ReconcileSelection(session, _metadataService);
 
             // 預覽已經展開、而且這一項畫得出東西時整份讓給它：兩個視窗同時貼在清單旁邊
-            // 會互相搶位置。畫不出東西的項目（一般關鍵字、短片段）預覽會把視窗收起來，說明面板
+            // 會互相搶位置。畫不出東西的項目（一般關鍵字、一般變數）預覽會把視窗收起來，說明面板
             // 就得照常畫，否則展開之後路過關鍵字時旁邊什麼都沒有。
             //
             // 還沒展開時畫面上根本沒有那個視窗，說明面板照常畫——一併吞掉的症狀是
@@ -462,7 +461,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         if (objectInfo is null)
         {
             return SqlQuickInfoContentBuilder.WithMarks(
-                BuildLocalDescription(suggestion, builtIn, previewAvailable: mode != SqlPreviewMode.Off),
+                BuildLocalDescription(suggestion, builtIn),
                 item.AttributeIcons);
         }
 
@@ -490,7 +489,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
     /// 它的說明排在物件之前（<see cref="SqlSuggestionTarget.FindBuiltIn"/>），面板與預覽才不會
     /// 一邊畫說明、一邊畫一個多半查無定義的擴充預存程序。
     /// </remarks>
-    private static object BuildLocalDescription(SqlSuggestion suggestion, SqlBuiltInDoc? builtIn, bool previewAvailable)
+    private static object BuildLocalDescription(SqlSuggestion suggestion, SqlBuiltInDoc? builtIn)
     {
         if (builtIn is not null)
         {
@@ -498,7 +497,7 @@ internal sealed class SqlAsyncCompletionSource : IAsyncCompletionSource
         }
 
         return suggestion.Kind == SuggestionKind.Snippet && suggestion.Tag is SqlSnippet snippet
-            ? SqlQuickInfoContentBuilder.BuildSnippet(snippet, previewAvailable)
+            ? SqlQuickInfoContentBuilder.BuildSnippet(snippet)
             : suggestion.Preview;
     }
 
